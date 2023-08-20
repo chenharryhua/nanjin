@@ -1,11 +1,7 @@
 package com.github.chenharryhua.nanjin.kafka.streaming
 
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
-import com.github.chenharryhua.nanjin.kafka.{
-  RawKeyValueSerdePair,
-  RegisteredKeyValueSerdePair,
-  SchemaRegistrySettings
-}
+import com.github.chenharryhua.nanjin.kafka.{KeyValueSerdePair, RawKeyValueSerdePair, SchemaRegistrySettings}
 import org.apache.kafka.streams.StoreQueryParameters
 import org.apache.kafka.streams.state.*
 
@@ -15,32 +11,32 @@ import scala.jdk.DurationConverters.ScalaDurationOps
 
 final class KeyValueBytesStoreSupplierHelper[K, V] private[streaming] (
   val supplier: KeyValueBytesStoreSupplier,
-  registered: RegisteredKeyValueSerdePair[K, V]) {
+  registered: KeyValueSerdePair[K, V]) {
   def keyValueStoreBuilder: StoreBuilder[KeyValueStore[K, V]] =
-    Stores.keyValueStoreBuilder(supplier, registered.key, registered.value)
+    Stores.keyValueStoreBuilder(supplier, registered.key.serde, registered.value.serde)
 
   def timestampedKeyValueStoreBuilder: StoreBuilder[TimestampedKeyValueStore[K, V]] =
-    Stores.timestampedKeyValueStoreBuilder(supplier, registered.key, registered.value)
+    Stores.timestampedKeyValueStoreBuilder(supplier, registered.key.serde, registered.value.serde)
 }
 
 final class WindowBytesStoreSupplierHelper[K, V] private[streaming] (
   val supplier: WindowBytesStoreSupplier,
-  registered: RegisteredKeyValueSerdePair[K, V]) {
+  registered: KeyValueSerdePair[K, V]) {
   def windowStoreBuilder: StoreBuilder[WindowStore[K, V]] =
-    Stores.windowStoreBuilder(supplier, registered.key, registered.value)
+    Stores.windowStoreBuilder(supplier, registered.key.serde, registered.value.serde)
 
   def timestampedWindowStoreBuilder: StoreBuilder[TimestampedWindowStore[K, V]] =
-    Stores.timestampedWindowStoreBuilder(supplier, registered.key, registered.value)
+    Stores.timestampedWindowStoreBuilder(supplier, registered.key.serde, registered.value.serde)
 }
 
 final class SessionBytesStoreSupplierHelper[K, V] private[streaming] (
   val supplier: SessionBytesStoreSupplier,
-  registered: RegisteredKeyValueSerdePair[K, V]) {
+  registered: KeyValueSerdePair[K, V]) {
   def sessionStoreBuilder: StoreBuilder[SessionStore[K, V]] =
-    Stores.sessionStoreBuilder(supplier, registered.key, registered.value)
+    Stores.sessionStoreBuilder(supplier, registered.key.serde, registered.value.serde)
 }
 
-final class NJStateStore[K, V] private (storeName: TopicName, registered: RegisteredKeyValueSerdePair[K, V])
+final class NJStateStore[K, V] private (storeName: TopicName, registered: KeyValueSerdePair[K, V])
     extends Serializable {
 
   def name: String = storeName.value
@@ -135,12 +131,12 @@ final class NJStateStore[K, V] private (storeName: TopicName, registered: Regist
 }
 
 private[kafka] object NJStateStore {
-  def apply[K, V](storeName: TopicName, registered: RegisteredKeyValueSerdePair[K, V]): NJStateStore[K, V] =
+  def apply[K, V](storeName: TopicName, registered: KeyValueSerdePair[K, V]): NJStateStore[K, V] =
     new NJStateStore[K, V](storeName, registered)
 
   def apply[K, V](
     storeName: TopicName,
     srs: SchemaRegistrySettings,
     rawSerdes: RawKeyValueSerdePair[K, V]): NJStateStore[K, V] =
-    apply[K, V](storeName, rawSerdes.register(srs, storeName).asRegisteredKeyValueSerdePair)
+    apply[K, V](storeName, rawSerdes.register(srs, storeName))
 }

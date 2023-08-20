@@ -111,7 +111,7 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
 
   def asStateStore(storeName: TopicName): NJStateStore[K, V] = {
     require(storeName.value =!= topicName.value, "should provide a name other than the topic name")
-    NJStateStore[K, V](storeName, RegisteredKeyValueSerdePair(serdePair.key.serde, serdePair.value.serde))
+    NJStateStore[K, V](storeName, KeyValueSerdePair(serdePair.key, serdePair.value))
   }
   def asStateStore(storeName: TopicNameC): NJStateStore[K, V] =
     asStateStore(TopicName(storeName))

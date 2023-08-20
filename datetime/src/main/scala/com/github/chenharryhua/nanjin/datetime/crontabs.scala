@@ -29,7 +29,7 @@ object crontabs {
     final val pmTen: CronExpr    = Cron.unsafeParse("0 0 22 ? * *")
     final val pmEleven: CronExpr = Cron.unsafeParse("0 0 23 ? * *")
   }
-  
+
   final val hourly: CronExpr       = Cron.unsafeParse("0 0 0-23 ? * *")
   final val bihourly: CronExpr     = Cron.unsafeParse("0 0 */2 ? * *")
   final val trihourly: CronExpr    = Cron.unsafeParse("0 0 */3 ? * *")
