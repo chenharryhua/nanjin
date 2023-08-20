@@ -116,8 +116,8 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
   def asStateStore(storeName: TopicNameC): NJStateStore[K, V] =
     asStateStore(TopicName(storeName))
 
-  def produce(implicit F: Sync[F]): Fs2Produce[F, K, V] =
-    new Fs2Produce[F, K, V](
+  def produce(implicit F: Sync[F]): NJKafkaProduce[F, K, V] =
+    new NJKafkaProduce[F, K, V](
       ProducerSettings[F, K, V](
         Serializer.delegate(serdePair.key.serde.serializer()),
         Serializer.delegate(serdePair.value.serde.serializer()))

@@ -56,8 +56,8 @@ final class KafkaContext[F[_]](val settings: KafkaSettings)
     new SchemaRegistryApi[F](new CachedSchemaRegistryClient(url, cacheCapacity))
   }
 
-  def consume(topicName: TopicName)(implicit F: Sync[F]): Fs2Consume[F] =
-    new Fs2Consume[F](
+  def consume(topicName: TopicName)(implicit F: Sync[F]): NJKafkaConsume[F] =
+    new NJKafkaConsume[F](
       topicName,
       ConsumerSettings[F, Array[Byte], Array[Byte]](
         Deserializer[F, Array[Byte]],
@@ -66,7 +66,7 @@ final class KafkaContext[F[_]](val settings: KafkaSettings)
       settings.schemaRegistrySettings
     )
 
-  def consume(topicName: TopicNameC)(implicit F: Sync[F]): Fs2Consume[F] =
+  def consume(topicName: TopicNameC)(implicit F: Sync[F]): NJKafkaConsume[F] =
     consume(TopicName(topicName))
 
   def monitor(topicName: TopicName)(implicit F: Async[F]): Stream[F, String] =

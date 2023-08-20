@@ -13,14 +13,14 @@ import org.apache.avro.generic.GenericRecord
 /** Best Fs2 Kafka Lib [[https://fd4s.github.io/fs2-kafka/]]
   */
 
-final class Fs2Consume[F[_]] private[kafka] (
+final class NJKafkaConsume[F[_]] private[kafka](
   topicName: TopicName,
   consumerSettings: ConsumerSettings[F, Array[Byte], Array[Byte]],
   schema: F[AvroSchemaPair],
   schemaRegistrySettings: SchemaRegistrySettings
-) extends UpdateConfig[ConsumerSettings[F, Array[Byte], Array[Byte]], Fs2Consume[F]] {
-  override def updateConfig(f: Endo[ConsumerSettings[F, Array[Byte], Array[Byte]]]): Fs2Consume[F] =
-    new Fs2Consume[F](topicName, f(consumerSettings), schema, schemaRegistrySettings)
+) extends UpdateConfig[ConsumerSettings[F, Array[Byte], Array[Byte]], NJKafkaConsume[F]] {
+  override def updateConfig(f: Endo[ConsumerSettings[F, Array[Byte], Array[Byte]]]): NJKafkaConsume[F] =
+    new NJKafkaConsume[F](topicName, f(consumerSettings), schema, schemaRegistrySettings)
 
   def stream(implicit F: Async[F]): Stream[F, CommittableConsumerRecord[F, Array[Byte], Array[Byte]]] =
     KafkaConsumer
@@ -58,13 +58,12 @@ final class Fs2Consume[F[_]] private[kafka] (
         cr.bimap(_ => skm, _ => builder.toGenericRecord(cr.record))
       }
     }
-
 }
 
-final class Fs2Produce[F[_], K, V] private[kafka] (producerSettings: ProducerSettings[F, K, V])
-    extends UpdateConfig[ProducerSettings[F, K, V], Fs2Produce[F, K, V]] {
-  def transactional(transactionalId: String): Fs2Transactional[F, K, V] =
-    new Fs2Transactional[F, K, V](TransactionalProducerSettings(transactionalId, producerSettings))
+final class NJKafkaProduce[F[_], K, V] private[kafka](producerSettings: ProducerSettings[F, K, V])
+    extends UpdateConfig[ProducerSettings[F, K, V], NJKafkaProduce[F, K, V]] {
+  def transactional(transactionalId: String): NJKafkaTransactional[F, K, V] =
+    new NJKafkaTransactional[F, K, V](TransactionalProducerSettings(transactionalId, producerSettings))
 
   def resource(implicit F: Async[F]): Resource[F, KafkaProducer.Metrics[F, K, V]] =
     KafkaProducer.resource(producerSettings)
@@ -75,15 +74,15 @@ final class Fs2Produce[F[_], K, V] private[kafka] (producerSettings: ProducerSet
   def stream(implicit F: Async[F]): Stream[F, KafkaProducer.Metrics[F, K, V]] =
     KafkaProducer.stream(producerSettings)
 
-  override def updateConfig(f: Endo[ProducerSettings[F, K, V]]): Fs2Produce[F, K, V] =
-    new Fs2Produce[F, K, V](f(producerSettings))
+  override def updateConfig(f: Endo[ProducerSettings[F, K, V]]): NJKafkaProduce[F, K, V] =
+    new NJKafkaProduce[F, K, V](f(producerSettings))
 }
 
-final class Fs2Transactional[F[_], K, V] private[kafka] (txnSettings: TransactionalProducerSettings[F, K, V])
-    extends UpdateConfig[TransactionalProducerSettings[F, K, V], Fs2Transactional[F, K, V]] {
+final class NJKafkaTransactional[F[_], K, V] private[kafka](txnSettings: TransactionalProducerSettings[F, K, V])
+    extends UpdateConfig[TransactionalProducerSettings[F, K, V], NJKafkaTransactional[F, K, V]] {
   def stream(implicit F: Async[F]): Stream[F, TransactionalKafkaProducer[F, K, V]] =
     TransactionalKafkaProducer.stream(txnSettings)
 
-  override def updateConfig(f: Endo[TransactionalProducerSettings[F, K, V]]): Fs2Transactional[F, K, V] =
-    new Fs2Transactional[F, K, V](f(txnSettings))
+  override def updateConfig(f: Endo[TransactionalProducerSettings[F, K, V]]): NJKafkaTransactional[F, K, V] =
+    new NJKafkaTransactional[F, K, V](f(txnSettings))
 }
