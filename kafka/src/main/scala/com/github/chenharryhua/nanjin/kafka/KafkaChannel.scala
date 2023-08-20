@@ -12,15 +12,16 @@ import org.apache.avro.generic.GenericRecord
 
 /** Best Fs2 Kafka Lib [[https://fd4s.github.io/fs2-kafka/]]
   */
+// https://redpanda.com/guides/kafka-performance/kafka-performance-tuning
 
 final class NJKafkaConsume[F[_]] private[kafka] (
   topicName: TopicName,
   consumerSettings: ConsumerSettings[F, Array[Byte], Array[Byte]],
   schema: F[AvroSchemaPair],
-  schemaRegistrySettings: SchemaRegistrySettings
+  srs: SchemaRegistrySettings
 ) extends UpdateConfig[ConsumerSettings[F, Array[Byte], Array[Byte]], NJKafkaConsume[F]] {
   override def updateConfig(f: Endo[ConsumerSettings[F, Array[Byte], Array[Byte]]]): NJKafkaConsume[F] =
-    new NJKafkaConsume[F](topicName, f(consumerSettings), schema, schemaRegistrySettings)
+    new NJKafkaConsume[F](topicName, f(consumerSettings), schema, srs)
 
   def stream(implicit F: Async[F]): Stream[F, CommittableConsumerRecord[F, Array[Byte], Array[Byte]]] =
     KafkaConsumer
@@ -44,7 +45,7 @@ final class NJKafkaConsume[F[_]] private[kafka] (
 
   def source(implicit F: Async[F]): Stream[F, CommittableConsumerRecord[F, AvroSchemaPair, GenericRecord]] =
     Stream.eval(schema).flatMap { skm =>
-      val builder = new PullGenericRecord(schemaRegistrySettings, topicName, skm)
+      val builder = new PullGenericRecord(srs, topicName, skm)
       stream.map { cr =>
         cr.bimap(_ => skm, _ => builder.toGenericRecord(cr.record))
       }
@@ -53,7 +54,7 @@ final class NJKafkaConsume[F[_]] private[kafka] (
   def source(tps: KafkaTopicPartition[KafkaOffset])(implicit
     F: Async[F]): Stream[F, CommittableConsumerRecord[F, AvroSchemaPair, GenericRecord]] =
     Stream.eval(schema).flatMap { skm =>
-      val builder = new PullGenericRecord(schemaRegistrySettings, topicName, skm)
+      val builder = new PullGenericRecord(srs, topicName, skm)
       assign(tps).map { cr =>
         cr.bimap(_ => skm, _ => builder.toGenericRecord(cr.record))
       }
@@ -92,16 +93,16 @@ final class NJGenericRecordSink[F[_]] private[kafka] (
   topicName: TopicName,
   producerSettings: ProducerSettings[F, Array[Byte], Array[Byte]],
   schema: F[AvroSchemaPair],
-  schemaRegistrySettings: SchemaRegistrySettings)
+  srs: SchemaRegistrySettings)
     extends UpdateConfig[ProducerSettings[F, Array[Byte], Array[Byte]], NJGenericRecordSink[F]] {
 
   override def updateConfig(f: Endo[ProducerSettings[F, Array[Byte], Array[Byte]]]): NJGenericRecordSink[F] =
-    new NJGenericRecordSink[F](topicName, f(producerSettings), schema, schemaRegistrySettings)
+    new NJGenericRecordSink[F](topicName, f(producerSettings), schema, srs)
 
   def run(implicit F: Async[F]): Pipe[F, Chunk[GenericRecord], Nothing] = {
     (ss: Stream[F, Chunk[GenericRecord]]) =>
       Stream.eval(schema).flatMap { skm =>
-        val builder = new PushGenericRecord(schemaRegistrySettings, topicName, skm)
+        val builder = new PushGenericRecord(srs, topicName, skm)
         val prStream: Stream[F, ProducerRecords[Array[Byte], Array[Byte]]] =
           ss.map(_.map(builder.fromGenericRecord))
         KafkaProducer.pipe(producerSettings).apply(prStream).drain
