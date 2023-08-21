@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.spark
 
-import cats.effect.kernel.Sync
+import cats.Parallel
+import cats.effect.kernel.{Async, Sync}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameC}
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
@@ -9,10 +10,13 @@ import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
 import com.github.chenharryhua.nanjin.messages.kafka.codec.SerdeOf
 import com.github.chenharryhua.nanjin.spark.kafka.{sk, SparKafkaTopic}
 import com.github.chenharryhua.nanjin.spark.persist.RddFileHoarder
-import com.github.chenharryhua.nanjin.terminals.NJPath
+import com.github.chenharryhua.nanjin.terminals.{NJHadoop, NJPath}
+import fs2.kafka.Acks
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{Dataset, SparkSession}
 import org.typelevel.cats.time.instances.zoneid
+
+import scala.concurrent.duration.DurationInt
 
 final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaContext: KafkaContext[F])
     extends Serializable with zoneid {
@@ -46,4 +50,16 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
 
   def dump(topicName: TopicName, path: NJPath)(implicit F: Sync[F]): F[Unit] =
     dump(topicName, path, NJDateTimeRange(kafkaContext.settings.zoneId))
+
+  def upload(topicName: TopicName, path: NJPath)(implicit F: Async[F], P: Parallel[F]): F[Unit] =
+    for {
+      schemaPair <- kafkaContext.schemaRegistry.fetchAvroSchema(topicName)
+      hdp     = NJHadoop[F](sparkSession.sparkContext.hadoopConfiguration)
+      jackson = hdp.jackson(schemaPair.consumerRecordSchema)
+      sink = kafkaContext
+        .sink(topicName)
+        .updateConfig(_.withBatchSize(200000).withLinger(10.milliseconds).withAcks(Acks.One))
+        .run
+      _ <- hdp.filesIn(path).flatMap(_.parTraverse(jackson.source(_).chunks.through(sink).compile.drain))
+    } yield ()
 }
