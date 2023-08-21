@@ -62,19 +62,19 @@ class SparKafkaTest extends AnyFunSuite {
     sparKafka.topic(topic.topicDef).fromKafka.stats.minutely.unsafeRunSync()
   }
   test("sparKafka read topic from kafka and show daily-hour aggragation result") {
-    sparKafka.topic(topic).fromKafka.stats.dailyHour.unsafeRunSync()
+    sparKafka.topic(topic.topicDef).fromKafka.stats.dailyHour.unsafeRunSync()
   }
   test("sparKafka read topic from kafka and show daily-minutes aggragation result") {
-    sparKafka.topic(topic).fromKafka.stats.dailyMinute.unsafeRunSync()
+    sparKafka.topic(topic.topicDef).fromKafka.stats.dailyMinute.unsafeRunSync()
   }
   test("sparKafka read topic from kafka and show daily aggragation result") {
-    sparKafka.topic(topic).fromKafka.stats.daily.unsafeRunSync()
+    sparKafka.topic(topic.topicDef).fromKafka.stats.daily.unsafeRunSync()
   }
   test("sparKafka read topic from kafka and show hourly aggragation result") {
-    sparKafka.topic(topic).fromKafka.stats.hourly.unsafeRunSync()
+    sparKafka.topic(topic.topicDef).fromKafka.stats.hourly.unsafeRunSync()
   }
   test("sparKafka read topic from kafka and show summary") {
-    sparKafka.topic(topic).fromKafka.stats.summary.unsafeRunSync()
+    sparKafka.topic(topic.topicDef).fromKafka.stats.summary.unsafeRunSync()
   }
   import sparkSession.implicits.*
   test("sparKafka should be able to bimap to other topic") {
@@ -88,7 +88,7 @@ class SparKafkaTest extends AnyFunSuite {
 
     val birst =
       sparKafka
-        .topic(src)
+        .topic(src.topicDef)
         .crRdd(IO(ds.rdd))
         .bimap(_.toString, _ + 1)(NJAvroCodec[String], NJAvroCodec[Int])
         .frdd
@@ -107,7 +107,7 @@ class SparKafkaTest extends AnyFunSuite {
 
     val birst =
       sparKafka
-        .topic(src)
+        .topic(src.topicDef)
         .crRdd(IO(ds.rdd))
         .flatMap(m => m.value.map(x => m.focus(_.value).replace(Some(x - 1))))(
           NJAvroCodec[Int],
@@ -159,11 +159,15 @@ class SparKafkaTest extends AnyFunSuite {
     val hdp = sparkSession.hadoop[IO]
     Stream
       .eval(hdp.filesIn(path))
-      .flatMap(hdp.jackson(topic.topic.njConsumerRecordSchema).source)
+      .flatMap(hdp.jackson(topic.topic.topicDef.schemaPair.consumerRecordSchema).source)
       .chunkN(1)
-      .through(ctx.sink(topic.topicName))
+      .through(ctx.sink(topic.topicName).updateConfig(_.withClientId("a")).run)
       .compile
       .drain
       .unsafeRunSync()
+  }
+  test("dump topic") {
+    val path = NJPath("./data/test/spark/kafka/dump/jackson")
+    sparKafka.dump(TopicName("duck.test"), path).unsafeRunSync()
   }
 }

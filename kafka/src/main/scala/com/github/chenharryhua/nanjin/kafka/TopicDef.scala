@@ -5,7 +5,6 @@ import cats.kernel.Eq
 import cats.syntax.eq.*
 import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameC}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{NJAvroCodec, SerdeOf}
-import com.sksamuel.avro4s.{Decoder as AvroDecoder, Encoder as AvroEncoder, SchemaFor}
 
 final class TopicDef[K, V] private (val topicName: TopicName, val rawSerdes: RawKeyValueSerdePair[K, V])
     extends Serializable {
@@ -15,14 +14,11 @@ final class TopicDef[K, V] private (val topicName: TopicName, val rawSerdes: Raw
   def withTopicName(tn: TopicName): TopicDef[K, V]  = new TopicDef[K, V](tn, rawSerdes)
   def withTopicName(tn: TopicNameC): TopicDef[K, V] = withTopicName(TopicName(tn))
 
-  val avroKeyEncoder: AvroEncoder[K] = rawSerdes.keySerde.avroCodec.avroEncoder
-  val avroKeyDecoder: AvroDecoder[K] = rawSerdes.keySerde.avroCodec.avroDecoder
+  def withSchema(pair: AvroSchemaPair): TopicDef[K, V] =
+    new TopicDef[K, V](topicName, rawSerdes.withSchema(pair))
 
-  val avroValEncoder: AvroEncoder[V] = rawSerdes.valSerde.avroCodec.avroEncoder
-  val avroValDecoder: AvroDecoder[V] = rawSerdes.valSerde.avroCodec.avroDecoder
-
-  val schemaForKey: SchemaFor[K] = rawSerdes.keySerde.avroCodec.schemaFor
-  val schemaForVal: SchemaFor[V] = rawSerdes.valSerde.avroCodec.schemaFor
+  lazy val schemaPair: AvroSchemaPair =
+    AvroSchemaPair(rawSerdes.key.avroCodec.schemaFor.schema, rawSerdes.value.avroCodec.schemaFor.schema)
 
   def in[F[_]](ctx: KafkaContext[F]): KafkaTopic[F, K, V] = ctx.topic[K, V](this)
 
@@ -35,8 +31,8 @@ object TopicDef {
   implicit def eqTopicDef[K, V]: Eq[TopicDef[K, V]] =
     (x: TopicDef[K, V], y: TopicDef[K, V]) =>
       x.topicName.value === y.topicName.value &&
-        x.schemaForKey.schema == y.schemaForKey.schema &&
-        x.schemaForVal.schema == y.schemaForVal.schema
+        x.rawSerdes.key.avroCodec.schema == y.rawSerdes.key.avroCodec.schema &&
+        x.rawSerdes.value.avroCodec.schema == y.rawSerdes.value.avroCodec.schema
 
   def apply[K, V](
     topicName: TopicName,

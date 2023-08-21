@@ -62,5 +62,5 @@ object AvroTypedEncoder {
   def apply[K, V](topicDef: TopicDef[K, V])(implicit
     tek: TypedEncoder[K],
     tev: TypedEncoder[V]): AvroTypedEncoder[NJConsumerRecord[K, V]] =
-    apply(topicDef.rawSerdes.keySerde.avroCodec, topicDef.rawSerdes.valSerde.avroCodec)
+    apply(topicDef.rawSerdes.key.avroCodec, topicDef.rawSerdes.value.avroCodec)
 }

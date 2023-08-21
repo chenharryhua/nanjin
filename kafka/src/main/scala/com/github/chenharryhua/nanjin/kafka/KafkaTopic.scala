@@ -16,7 +16,6 @@ import fs2.Chunk
 import fs2.kafka.*
 import io.circe.Decoder
 import io.circe.generic.auto.*
-import org.apache.avro.Schema
 import org.apache.avro.generic.IndexedRecord
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.apache.kafka.clients.consumer.ConsumerRecord as KafkaConsumerRecord
@@ -43,21 +42,27 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
   def withGroupId(gid: String): KafkaTopic[F, K, V] =
     new KafkaTopic[F, K, V](topicDef, context.withGroupId(gid))
 
+  def withSchema(pair: AvroSchemaPair): KafkaTopic[F, K, V] =
+    new KafkaTopic[F, K, V](topicDef.withSchema(pair), context)
+
   // need to reconstruct codec when working in spark
-  @transient lazy val codec: KeyValueCodecPair[K, V] =
+  @transient lazy val serdePair: KeyValueSerdePair[K, V] =
     topicDef.rawSerdes.register(context.settings.schemaRegistrySettings, topicName)
 
   @inline def decoder[G[_, _]: NJConsumerMessage](
     cr: G[Array[Byte], Array[Byte]]): KafkaGenericDecoder[G, K, V] =
-    new KafkaGenericDecoder[G, K, V](cr, codec.keyCodec, codec.valCodec)
+    new KafkaGenericDecoder[G, K, V](cr, serdePair.key, serdePair.value)
 
   def decode[G[_, _]: NJConsumerMessage](
     gaa: G[Array[Byte], Array[Byte]]): NJConsumerRecordWithError[K, V] = {
     val cr: KafkaConsumerRecord[Array[Byte], Array[Byte]] = NJConsumerMessage[G].lens.get(gaa)
     val k: Either[String, K] =
-      codec.keyCodec.tryDecode(cr.key()).toEither.leftMap(ex => ExceptionUtils.getRootCauseMessage(ex))
+      serdePair.key.tryDeserialize(cr.key()).toEither.leftMap(ex => ExceptionUtils.getRootCauseMessage(ex))
     val v: Either[String, V] =
-      codec.valCodec.tryDecode(cr.value()).toEither.leftMap(ex => ExceptionUtils.getRootCauseMessage(ex))
+      serdePair.value
+        .tryDeserialize(cr.value())
+        .toEither
+        .leftMap(ex => ExceptionUtils.getRootCauseMessage(ex))
     NJConsumerRecordWithError(
       partition = cr.partition,
       offset = cr.offset,
@@ -70,19 +75,17 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
     )
   }
 
-  val njConsumerRecordSchema: Schema =
-    NJConsumerRecord.schema(codec.keySchemaFor.schema, codec.valSchemaFor.schema)
+  private val consumerRecordCodec: NJAvroCodec[NJConsumerRecord[K, V]] =
+    NJConsumerRecord.avroCodec(topicDef.rawSerdes.key.avroCodec, topicDef.rawSerdes.value.avroCodec)
 
-  private val nj: NJAvroCodec[NJConsumerRecord[K, V]] =
-    NJConsumerRecord.avroCodec(codec.keySerde.avroCodec, codec.valSerde.avroCodec)
-  private val njToRecord: ToRecord[NJConsumerRecord[K, V]]     = ToRecord(nj.avroEncoder)
-  private val njFromRecord: FromRecord[NJConsumerRecord[K, V]] = FromRecord(nj.avroDecoder)
+  private val toGR: ToRecord[NJConsumerRecord[K, V]]     = ToRecord(consumerRecordCodec.avroEncoder)
+  private val fromGR: FromRecord[NJConsumerRecord[K, V]] = FromRecord(consumerRecordCodec.avroDecoder)
 
-  def toRecord(nj: NJConsumerRecord[K, V]): Record          = njToRecord.to(nj)
-  def fromRecord(gr: IndexedRecord): NJConsumerRecord[K, V] = njFromRecord.from(gr)
+  def toRecord(nj: NJConsumerRecord[K, V]): Record          = toGR.to(nj)
+  def fromRecord(gr: IndexedRecord): NJConsumerRecord[K, V] = fromGR.from(gr)
 
-  def serializeKey(k: K): Array[Byte] = codec.keySerializer.serialize(topicName.value, k)
-  def serializeVal(v: V): Array[Byte] = codec.valSerializer.serialize(topicName.value, v)
+  def serializeKey(k: K): Array[Byte] = serdePair.key.serialize(k)
+  def serializeVal(v: V): Array[Byte] = serdePair.value.serialize(v)
 
   def record(partition: Int, offset: Long)(implicit
     sync: Sync[F]): F[Option[KafkaConsumerRecord[Try[K], Try[V]]]] =
@@ -103,20 +106,22 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
   def asConsumer: KafkaStreamingConsumer[F, K, V] =
     new KafkaStreamingConsumer[F, K, V](this, None, None, None)
 
-  def asProduced: Produced[K, V] = Produced.`with`[K, V](codec.keySerde, codec.valSerde)
+  def asProduced: Produced[K, V] =
+    Produced.`with`[K, V](serdePair.key.serde, serdePair.value.serde)
 
   def asStateStore(storeName: TopicName): NJStateStore[K, V] = {
     require(storeName.value =!= topicName.value, "should provide a name other than the topic name")
-    NJStateStore[K, V](storeName, RegisteredKeyValueSerdePair(codec.keySerde, codec.valSerde))
+    NJStateStore[K, V](storeName, KeyValueSerdePair(serdePair.key, serdePair.value))
   }
   def asStateStore(storeName: TopicNameC): NJStateStore[K, V] =
     asStateStore(TopicName(storeName))
 
-  def produce(implicit F: Sync[F]): Fs2Produce[F, K, V] =
-    new Fs2Produce[F, K, V](
+  def produce(implicit F: Sync[F]): NJKafkaProduce[F, K, V] =
+    new NJKafkaProduce[F, K, V](
       ProducerSettings[F, K, V](
-        Serializer.delegate(codec.keySerializer),
-        Serializer.delegate(codec.valSerializer)).withProperties(context.settings.producerSettings.config))
+        Serializer.delegate(serdePair.key.serde.serializer()),
+        Serializer.delegate(serdePair.value.serde.serializer()))
+        .withProperties(context.settings.producerSettings.config))
 
   // producer record
   def kafkaProducerRecord(k: K, v: V): KafkaProducerRecord[K, V] =
@@ -142,19 +147,16 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
       .traverse(produceOne)
       .rethrow
 
-  def produceJackson(jacksonStr: String)(implicit F: Async[F]): F[ProducerResult[K, V]] = {
-    val crCodec: NJAvroCodec[NJConsumerRecord[K, V]] =
-      NJConsumerRecord.avroCodec(codec.keySerde.avroCodec, codec.valSerde.avroCodec)
+  def produceJackson(jacksonStr: String)(implicit F: Async[F]): F[ProducerResult[K, V]] =
     Resource.fromAutoCloseable(F.pure(new ByteArrayInputStream(jacksonStr.getBytes))).use { is =>
       val prs: ProducerRecords[K, V] = Chunk.iterator(
         AvroInputStream
-          .json[NJConsumerRecord[K, V]](crCodec.avroDecoder)
+          .json[NJConsumerRecord[K, V]](consumerRecordCodec.avroDecoder)
           .from(is)
-          .build(crCodec.schema)
+          .build(consumerRecordCodec.schema)
           .iterator
           .map(_.toNJProducerRecord.noMeta.withTopicName(topicName).toProducerRecord))
 
       produce.resource.use(_.produce(prs).flatten)
     }
-  }
 }

@@ -21,8 +21,13 @@ final case class NJAvroCodec[A](
   schemaFor: SchemaFor[A],
   avroDecoder: AvroDecoder[A],
   avroEncoder: AvroEncoder[A]) {
-  val schema: Schema        = schemaFor.schema
+  lazy val schema: Schema   = schemaFor.schema
   def idConversion(a: A): A = avroDecoder.decode(avroEncoder.encode(a))
+
+  def withSchema(schema: Schema): NJAvroCodec[A] = {
+    val sf = schemaFor.map[A](_ => schema)
+    NJAvroCodec(sf, avroDecoder.withSchema(sf), avroEncoder.withSchema(sf))
+  }
 
   /** https://avro.apache.org/docs/current/spec.html the grammar for a namespace is:
     *
