@@ -2,6 +2,8 @@ package com.github.chenharryhua.nanjin.kafka
 
 import cats.data.Reader
 import cats.effect.kernel.{Async, Resource, Sync}
+import cats.effect.std.UUIDGen
+import cats.implicits.toShow
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameC}
 import com.github.chenharryhua.nanjin.kafka.streaming.{KafkaStreamsBuilder, NJStateStore}
@@ -67,10 +69,15 @@ final class KafkaContext[F[_]](val settings: KafkaSettings)
   def consume(topicName: TopicNameC)(implicit F: Sync[F]): NJKafkaConsume[F] =
     consume(TopicName(topicName))
 
-  def monitor(topicName: TopicName)(implicit F: Async[F]): Stream[F, String] =
-    Stream.eval(schemaRegistry.fetchAvroSchema(topicName)).flatMap { schema =>
-      val builder = new PullGenericRecord(settings.schemaRegistrySettings, topicName, schema)
-      consume(topicName).stream.map(cr => builder.toJacksonString(cr.record))
+  def monitor(topicName: TopicName)(implicit F: Async[F], U: UUIDGen[F]): Stream[F, String] =
+    Stream.eval(U.randomUUID).flatMap { uuid =>
+      Stream.eval(schemaRegistry.fetchAvroSchema(topicName)).flatMap { schema =>
+        val builder = new PullGenericRecord(settings.schemaRegistrySettings, topicName, schema)
+        consume(topicName) // avoid accidentally join an existing consumer-group
+          .updateConfig(_.withGroupId(uuid.show).withEnableAutoCommit(false))
+          .stream
+          .map(cr => builder.toJacksonString(cr.record))
+      }
     }
 
   def monitor(topicName: TopicNameC)(implicit F: Async[F]): Stream[F, String] =

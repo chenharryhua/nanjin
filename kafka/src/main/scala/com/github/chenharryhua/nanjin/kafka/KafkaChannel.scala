@@ -8,6 +8,7 @@ import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import fs2.kafka.*
 import fs2.{Chunk, Pipe, Stream}
+import org.apache.avro.Schema
 import org.apache.avro.generic.GenericRecord
 
 /** Best Fs2 Kafka Lib [[https://fd4s.github.io/fs2-kafka/]]
@@ -43,20 +44,20 @@ final class NJKafkaConsume[F[_]] private[kafka] (
         }
         .flatMap(_.stream)
 
-  def source(implicit F: Async[F]): Stream[F, CommittableConsumerRecord[F, AvroSchemaPair, GenericRecord]] =
+  def source(implicit F: Async[F]): Stream[F, CommittableConsumerRecord[F, Schema, GenericRecord]] =
     Stream.eval(schema).flatMap { skm =>
       val builder = new PullGenericRecord(srs, topicName, skm)
       stream.map { cr =>
-        cr.bimap(_ => skm, _ => builder.toGenericRecord(cr.record))
+        cr.bimap(_ => skm.consumerRecordSchema, _ => builder.toGenericRecord(cr.record))
       }
     }
 
   def source(tps: KafkaTopicPartition[KafkaOffset])(implicit
-    F: Async[F]): Stream[F, CommittableConsumerRecord[F, AvroSchemaPair, GenericRecord]] =
+    F: Async[F]): Stream[F, CommittableConsumerRecord[F, Schema, GenericRecord]] =
     Stream.eval(schema).flatMap { skm =>
       val builder = new PullGenericRecord(srs, topicName, skm)
       assign(tps).map { cr =>
-        cr.bimap(_ => skm, _ => builder.toGenericRecord(cr.record))
+        cr.bimap(_ => skm.consumerRecordSchema, _ => builder.toGenericRecord(cr.record))
       }
     }
 }
