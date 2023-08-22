@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
+import cats.Show
 import cats.effect.kernel.Sync
 import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.terminals.NJFileFormat.*
@@ -18,8 +19,8 @@ sealed class RddFileHoarder[F[_], A](frdd: F[RDD[A]]) extends Serializable {
     new SaveCirce[F, A](frdd, HoarderConfig(path).outputFormat(Circe), isKeepNull = true, encoder)
 
 // 2
-  final def text(path: NJPath): SaveText[F, A] =
-    new SaveText[F, A](frdd, HoarderConfig(path).outputFormat(Text), Text.suffix)
+  final def text(path: NJPath)(implicit encoder: Show[A]): SaveText[F, A] =
+    new SaveText[F, A](frdd, HoarderConfig(path).outputFormat(Text), encoder, Text.suffix)
 
 // 3
   final def objectFile(path: NJPath): SaveObjectFile[F, A] =
@@ -57,4 +58,8 @@ final class RddAvroFileHoarder[F[_], A](frdd: F[RDD[A]], encoder: AvroEncoder[A]
 // 4
   def parquet(path: NJPath): SaveParquet[F, A] =
     new SaveParquet[F, A](frdd, encoder, HoarderConfig(path).outputFormat(Parquet))
+}
+
+trait BuildRunnable[F[_]] {
+  def run(implicit F: Sync[F]): F[Unit]
 }

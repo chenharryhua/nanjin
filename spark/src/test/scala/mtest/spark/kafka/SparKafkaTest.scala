@@ -161,7 +161,7 @@ class SparKafkaTest extends AnyFunSuite {
       .eval(hdp.filesIn(path))
       .flatMap(hdp.jackson(topic.topic.topicDef.schemaPair.consumerRecordSchema).source)
       .chunkN(1)
-      .through(ctx.sink(topic.topicName).updateConfig(_.withClientId("a")).run)
+      .through(ctx.sink(topic.topicName).updateConfig(_.withClientId("a")).build)
       .compile
       .drain
       .unsafeRunSync()

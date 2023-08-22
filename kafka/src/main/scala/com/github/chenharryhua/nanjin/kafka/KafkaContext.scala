@@ -73,8 +73,9 @@ final class KafkaContext[F[_]](val settings: KafkaSettings)
     Stream.eval(U.randomUUID).flatMap { uuid =>
       Stream.eval(schemaRegistry.fetchAvroSchema(topicName)).flatMap { schema =>
         val builder = new PullGenericRecord(settings.schemaRegistrySettings, topicName, schema)
-        consume(topicName) // avoid accidentally join an existing consumer-group
-          .updateConfig(_.withGroupId(uuid.show).withEnableAutoCommit(false))
+        consume(topicName)
+          .updateConfig( // avoid accidentally join an existing consumer-group
+            _.withGroupId(uuid.show).withEnableAutoCommit(false).withAutoOffsetReset(AutoOffsetReset.Latest))
           .stream
           .map(cr => builder.toJacksonString(cr.record))
       }

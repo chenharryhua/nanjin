@@ -5,18 +5,19 @@ import cats.effect.kernel.Sync
 import com.github.chenharryhua.nanjin.terminals.{NJCompression, NJCompressionLevel, TextCompression}
 import org.apache.spark.rdd.RDD
 
-final class SaveText[F[_], A](frdd: F[RDD[A]], cfg: HoarderConfig, suffix: String) extends Serializable {
+final class SaveText[F[_], A](frdd: F[RDD[A]], cfg: HoarderConfig, show: Show[A], suffix: String)
+    extends Serializable with BuildRunnable[F] {
 
   /** @param suffix:
     *   no leading dot(.)
     * @return
     */
-  def withSuffix(suffix: String): SaveText[F, A] = new SaveText[F, A](frdd, cfg, suffix)
+  def withSuffix(suffix: String): SaveText[F, A] = new SaveText[F, A](frdd, cfg, show, suffix)
 
   val params: HoarderParams = cfg.evalConfig
 
   private def updateConfig(cfg: HoarderConfig): SaveText[F, A] =
-    new SaveText[F, A](frdd, cfg, suffix)
+    new SaveText[F, A](frdd, cfg, show, suffix)
 
   def append: SaveText[F, A]         = updateConfig(cfg.appendMode)
   def overwrite: SaveText[F, A]      = updateConfig(cfg.overwriteMode)
@@ -33,9 +34,9 @@ final class SaveText[F[_], A](frdd: F[RDD[A]], cfg: HoarderConfig, suffix: Strin
 
   def withCompression(tc: TextCompression): SaveText[F, A] = updateConfig(cfg.outputCompression(tc))
 
-  def run(implicit F: Sync[F], show: Show[A]): F[Unit] =
+  def run(implicit F: Sync[F]): F[Unit] =
     F.flatMap(frdd) { rdd =>
       new SaveModeAware[F](params.saveMode, params.outPath, rdd.sparkContext.hadoopConfiguration)
-        .checkAndRun(F.interruptible(saveRDD.text(rdd, params.outPath, params.compression, suffix)))
+        .checkAndRun(F.interruptible(saveRDD.text(rdd, params.outPath, params.compression, suffix)(show)))
     }
 }

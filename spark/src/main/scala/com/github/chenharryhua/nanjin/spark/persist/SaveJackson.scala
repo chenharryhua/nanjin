@@ -6,7 +6,7 @@ import com.sksamuel.avro4s.Encoder as AvroEncoder
 import org.apache.spark.rdd.RDD
 
 final class SaveJackson[F[_], A](frdd: F[RDD[A]], encoder: AvroEncoder[A], cfg: HoarderConfig)
-    extends Serializable {
+    extends Serializable with BuildRunnable[F] {
 
   val params: HoarderParams = cfg.evalConfig
 

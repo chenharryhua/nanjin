@@ -1,22 +1,23 @@
 package com.github.chenharryhua.nanjin.spark
 
-import cats.Parallel
+import cats.Endo
 import cats.effect.kernel.{Async, Sync}
 import cats.syntax.all.*
+import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameC}
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
-import com.github.chenharryhua.nanjin.kafka.{KafkaContext, KafkaTopic, PullGenericRecord, TopicDef}
+import com.github.chenharryhua.nanjin.kafka.*
 import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
 import com.github.chenharryhua.nanjin.messages.kafka.codec.SerdeOf
 import com.github.chenharryhua.nanjin.spark.kafka.{sk, SparKafkaTopic}
 import com.github.chenharryhua.nanjin.spark.persist.RddFileHoarder
 import com.github.chenharryhua.nanjin.terminals.{NJHadoop, NJPath}
-import fs2.kafka.Acks
+import eu.timepit.refined.refineMV
+import fs2.Stream
+import fs2.kafka.{KafkaProducer, ProducerRecords, ProducerSettings, Serializer}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{Dataset, SparkSession}
 import org.typelevel.cats.time.instances.zoneid
-
-import scala.concurrent.duration.DurationInt
 
 final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaContext: KafkaContext[F])
     extends Serializable with zoneid {
@@ -39,7 +40,19 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
   def sstream(topicName: TopicNameC): Dataset[NJConsumerRecord[Array[Byte], Array[Byte]]] =
     sstream(TopicName(topicName))
 
-  def dump(topicName: TopicName, path: NJPath, dateRange: NJDateTimeRange)(implicit F: Sync[F]): F[Unit] = {
+  /** download a kafka topic and save to given folder
+    * @param topicName
+    *   the source topic name
+    * @param path
+    *   the target folder
+    * @param dateRange
+    *   datetime range
+    */
+  def dump(
+    topicName: TopicName,
+    path: NJPath,
+    dateRange: NJDateTimeRange = NJDateTimeRange(kafkaContext.settings.zoneId))(implicit
+    F: Sync[F]): F[Unit] = {
     val grRdd: F[RDD[String]] = for {
       schemaPair <- kafkaContext.schemaRegistry.fetchAvroSchema(topicName)
       builder = new PullGenericRecord(kafkaContext.settings.schemaRegistrySettings, topicName, schemaPair)
@@ -48,18 +61,45 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
     new RddFileHoarder(grRdd).text(path).withSuffix("jackson.json").run
   }
 
-  def dump(topicName: TopicName, path: NJPath)(implicit F: Sync[F]): F[Unit] =
-    dump(topicName, path, NJDateTimeRange(kafkaContext.settings.zoneId))
+  /** upload data from given folder to a kafka topic
+    *
+    * @param topicName
+    *   target topic name
+    * @param path
+    *   the source data files folder
+    * @param chunkSize
+    *   when set to 1, the data will be sent in order
+    * @param config
+    *   config fs2.kafka.producer. Acks.All for reliable upload
+    * @return
+    *   number of records uploaded
+    *
+    * [[https://www.conduktor.io/kafka/kafka-producer-batching/]]
+    */
 
-  def upload(topicName: TopicName, path: NJPath)(implicit F: Async[F], P: Parallel[F]): F[Unit] =
+  def upload(
+    topicName: TopicName,
+    path: NJPath,
+    chunkSize: ChunkSize = refineMV(1000),
+    config: Endo[ProducerSettings[F, Array[Byte], Array[Byte]]] = identity)(implicit F: Async[F]): F[Long] = {
+
+    val producerSettings: ProducerSettings[F, Array[Byte], Array[Byte]] =
+      config(
+        ProducerSettings[F, Array[Byte], Array[Byte]](Serializer[F, Array[Byte]], Serializer[F, Array[Byte]])
+          .withProperties(kafkaContext.settings.producerSettings.config))
+
     for {
       schemaPair <- kafkaContext.schemaRegistry.fetchAvroSchema(topicName)
-      hdp     = NJHadoop[F](sparkSession.sparkContext.hadoopConfiguration)
-      jackson = hdp.jackson(schemaPair.consumerRecordSchema)
-      sink = kafkaContext
-        .sink(topicName)
-        .updateConfig(_.withBatchSize(200000).withLinger(10.milliseconds).withAcks(Acks.One))
-        .run
-      _ <- hdp.filesIn(path).flatMap(_.parTraverse(jackson.source(_).chunks.through(sink).compile.drain))
-    } yield ()
+      hadoop  = NJHadoop[F](sparkSession.sparkContext.hadoopConfiguration)
+      jackson = hadoop.jackson(schemaPair.consumerRecordSchema)
+      builder = new PushGenericRecord(kafkaContext.settings.schemaRegistrySettings, topicName, schemaPair)
+      num <- hadoop.filesIn(path).flatMap { fs =>
+        val ss: Stream[F, ProducerRecords[Array[Byte], Array[Byte]]] =
+          fs.foldLeft(Stream.empty.covaryAll[F, ProducerRecords[Array[Byte], Array[Byte]]]) { case (s, p) =>
+            s.merge(jackson.source(p).map(builder.fromGenericRecord).chunkN(chunkSize.value))
+          }
+        KafkaProducer.pipe(producerSettings).apply(ss).compile.fold(0L) { case (sum, prs) => sum + prs.size }
+      }
+    } yield num
+  }
 }

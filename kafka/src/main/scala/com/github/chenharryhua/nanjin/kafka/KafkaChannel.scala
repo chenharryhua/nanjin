@@ -12,8 +12,9 @@ import org.apache.avro.Schema
 import org.apache.avro.generic.GenericRecord
 
 /** Best Fs2 Kafka Lib [[https://fd4s.github.io/fs2-kafka/]]
+  *
+  * [[https://redpanda.com/guides/kafka-performance/kafka-performance-tuning]]
   */
-// https://redpanda.com/guides/kafka-performance/kafka-performance-tuning
 
 final class NJKafkaConsume[F[_]] private[kafka] (
   topicName: TopicName,
@@ -100,13 +101,13 @@ final class NJGenericRecordSink[F[_]] private[kafka] (
   override def updateConfig(f: Endo[ProducerSettings[F, Array[Byte], Array[Byte]]]): NJGenericRecordSink[F] =
     new NJGenericRecordSink[F](topicName, f(producerSettings), schema, srs)
 
-  def run(implicit F: Async[F]): Pipe[F, Chunk[GenericRecord], Nothing] = {
+  def build(implicit F: Async[F]): Pipe[F, Chunk[GenericRecord], ProducerResult[Array[Byte], Array[Byte]]] = {
     (ss: Stream[F, Chunk[GenericRecord]]) =>
       Stream.eval(schema).flatMap { skm =>
         val builder = new PushGenericRecord(srs, topicName, skm)
         val prStream: Stream[F, ProducerRecords[Array[Byte], Array[Byte]]] =
           ss.map(_.map(builder.fromGenericRecord))
-        KafkaProducer.pipe(producerSettings).apply(prStream).drain
+        KafkaProducer.pipe(producerSettings).apply(prStream)
       }
   }
 }

@@ -5,7 +5,7 @@ import org.apache.spark.rdd.RDD
 import scalapb.GeneratedMessage
 
 final class SaveProtobuf[F[_], A](frdd: F[RDD[A]], cfg: HoarderConfig, evidence: A <:< GeneratedMessage)
-    extends Serializable {
+    extends Serializable with BuildRunnable[F] {
 
   val params: HoarderParams = cfg.evalConfig
 
