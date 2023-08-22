@@ -5,6 +5,7 @@ import cats.{Applicative, Eval}
 import com.github.chenharryhua.nanjin.guard.event.{NJError, NJEvent}
 import io.circe.Json
 import io.circe.syntax.EncoderOps
+import org.apache.commons.lang3.StringUtils
 import org.typelevel.cats.time.instances.all
 import scalatags.Text.all.*
 import scalatags.text.Builder
@@ -16,8 +17,8 @@ import java.time.temporal.ChronoUnit
   */
 private object HtmlTranslator extends all {
   import NJEvent.*
-  import textHelper.*
   import textConstants.*
+  import textHelper.*
 
   private def coloring(evt: NJEvent): String = ColorScheme
     .decorate(evt)
@@ -57,7 +58,8 @@ private object HtmlTranslator extends all {
   private def causeText(c: NJError): Text.TypedTag[String] =
     p(b(s"$CONSTANT_CAUSE: "), pre(small(c.stackTrace)))
 
-  private def jsonText(js: Json): Text.TypedTag[String] = pre(small(js.spaces2))
+  private def jsonText(js: Json): Text.TypedTag[String] =
+    pre(small(StringUtils.abbreviate(js.spaces2, 64 * 1024)))
 
   // events
 
