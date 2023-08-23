@@ -4,19 +4,18 @@ import cats.effect.kernel.{Async, Resource, Sync}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameC}
 import com.github.chenharryhua.nanjin.kafka.streaming.{KafkaStreamingConsumer, NJStateStore}
-import com.github.chenharryhua.nanjin.messages.kafka.codec.{KafkaGenericDecoder, NJAvroCodec}
+import com.github.chenharryhua.nanjin.messages.kafka.codec.KafkaGenericDecoder
 import com.github.chenharryhua.nanjin.messages.kafka.{
   NJConsumerMessage,
   NJConsumerRecord,
   NJConsumerRecordWithError,
   NJHeader
 }
-import com.sksamuel.avro4s.{AvroInputStream, FromRecord, Record, ToRecord}
+import com.sksamuel.avro4s.AvroInputStream
 import fs2.Chunk
 import fs2.kafka.*
 import io.circe.Decoder
 import io.circe.generic.auto.*
-import org.apache.avro.generic.IndexedRecord
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.apache.kafka.clients.consumer.ConsumerRecord as KafkaConsumerRecord
 import org.apache.kafka.clients.producer.{ProducerRecord as KafkaProducerRecord, RecordMetadata}
@@ -74,15 +73,6 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
       headers = cr.headers().toArray.map(h => NJHeader(h.key(), h.value())).toList
     )
   }
-
-  private val consumerRecordCodec: NJAvroCodec[NJConsumerRecord[K, V]] =
-    NJConsumerRecord.avroCodec(topicDef.rawSerdes.key.avroCodec, topicDef.rawSerdes.value.avroCodec)
-
-  private val toGR: ToRecord[NJConsumerRecord[K, V]]     = ToRecord(consumerRecordCodec.avroEncoder)
-  private val fromGR: FromRecord[NJConsumerRecord[K, V]] = FromRecord(consumerRecordCodec.avroDecoder)
-
-  def toRecord(nj: NJConsumerRecord[K, V]): Record          = toGR.to(nj)
-  def fromRecord(gr: IndexedRecord): NJConsumerRecord[K, V] = fromGR.from(gr)
 
   def serializeKey(k: K): Array[Byte] = serdePair.key.serialize(k)
   def serializeVal(v: V): Array[Byte] = serdePair.value.serialize(v)
@@ -151,9 +141,9 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
     Resource.fromAutoCloseable(F.pure(new ByteArrayInputStream(jacksonStr.getBytes))).use { is =>
       val prs: ProducerRecords[K, V] = Chunk.iterator(
         AvroInputStream
-          .json[NJConsumerRecord[K, V]](consumerRecordCodec.avroDecoder)
+          .json[NJConsumerRecord[K, V]](topicDef.consumerRecordCodec.avroDecoder)
           .from(is)
-          .build(consumerRecordCodec.schema)
+          .build(topicDef.consumerRecordCodec.schema)
           .iterator
           .map(_.toNJProducerRecord.noMeta.withTopicName(topicName).toProducerRecord))
 

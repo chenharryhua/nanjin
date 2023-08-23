@@ -98,6 +98,7 @@ sealed trait ShortLiveConsumer[F[_]] extends KafkaPrimitiveConsumerApi[F] {
   def offsetRangeFor(dtr: NJDateTimeRange): F[KafkaTopicPartition[Option[KafkaOffsetRange]]]
   def offsetRangeFor(start: NJTimestamp, end: NJTimestamp): F[KafkaTopicPartition[Option[KafkaOffsetRange]]]
   def offsetRangeForAll: F[KafkaTopicPartition[Option[KafkaOffsetRange]]]
+
   def retrieveLastRecords: F[List[ConsumerRecord[Array[Byte], Array[Byte]]]]
   def retrieveFirstRecords: F[List[ConsumerRecord[Array[Byte], Array[Byte]]]]
   def retrieveRecordsForTimes(ts: NJTimestamp): F[List[ConsumerRecord[Array[Byte], Array[Byte]]]]

@@ -22,8 +22,12 @@ final class NJKafkaConsume[F[_]] private[kafka] (
   schema: F[AvroSchemaPair],
   srs: SchemaRegistrySettings
 ) extends UpdateConfig[ConsumerSettings[F, Array[Byte], Array[Byte]], NJKafkaConsume[F]] {
+
   override def updateConfig(f: Endo[ConsumerSettings[F, Array[Byte], Array[Byte]]]): NJKafkaConsume[F] =
     new NJKafkaConsume[F](topicName, f(consumerSettings), schema, srs)
+
+  def resource(implicit F: Async[F]): Resource[F, KafkaConsumer[F, Array[Byte], Array[Byte]]] =
+    KafkaConsumer.resource(consumerSettings)
 
   def stream(implicit F: Async[F]): Stream[F, CommittableConsumerRecord[F, Array[Byte], Array[Byte]]] =
     KafkaConsumer
