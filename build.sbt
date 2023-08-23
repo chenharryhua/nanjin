@@ -352,7 +352,7 @@ lazy val pipes = (project in file("pipes"))
       "io.circe" %% "circe-jackson212" % "0.14.0",
       "com.amazonaws"                  % "aws-java-sdk-bundle" % awsV_1,
       "org.tukaani"                    % "xz"                  % "1.9",
-      "org.jetbrains.kotlin"           % "kotlin-stdlib"       % "1.9.0", // snyk
+      "org.jetbrains.kotlin"           % "kotlin-stdlib"       % "1.9.10", // snyk
       "org.codehaus.jettison"          % "jettison"            % "1.5.4", // snyk
       "io.netty"                       % "netty-handler"       % nettyV, // snyk
       "org.slf4j"                      % "slf4j-jdk14"         % slf4jV % Test
