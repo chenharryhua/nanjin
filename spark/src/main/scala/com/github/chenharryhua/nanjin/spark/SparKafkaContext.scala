@@ -86,7 +86,7 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
     val producerSettings: ProducerSettings[F, Array[Byte], Array[Byte]] =
       config(
         ProducerSettings[F, Array[Byte], Array[Byte]](Serializer[F, Array[Byte]], Serializer[F, Array[Byte]])
-          .withProperties(kafkaContext.settings.producerSettings.config))
+          .withProperties(kafkaContext.settings.producerSettings.properties))
 
     for {
       schemaPair <- kafkaContext.schemaRegistry.fetchAvroSchema(topicName)

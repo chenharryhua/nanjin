@@ -61,6 +61,8 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
   implicit val oneValue: Serde[StreamOne] = s1Topic.serdePair.value.serde
   implicit val twoValue: Serde[TableTwo]  = t2Topic.serdePair.value.serde
 
+  val appId = "kafka_stream_test"
+
   before(sendT2Data.compile.drain.unsafeRunSync())
 
   test("stream-table join") {
@@ -88,7 +90,7 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
       .to(tgt.topicName.value)(tgt.asProduced)
 
     val res: Set[StreamTarget] = (IO.println(Console.CYAN + "stream-table join" + Console.RESET) >> ctx
-      .buildStreams(top)
+      .buildStreams(appId,top)
       .kafkaStreams
       .concurrently(sendS1Data)
       .flatMap(_ => harvest.interruptAfter(10.seconds))
@@ -127,7 +129,7 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
       .debug()
 
     val res = (IO.println(Console.CYAN + "kafka stream has bad records" + Console.RESET) >> ctx
-      .buildStreams(top)
+      .buildStreams(appId,top)
       .kafkaStreams
       .concurrently(sendS1Data)
       .flatMap(_ => harvest.interruptAfter(10.seconds))
@@ -162,7 +164,7 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
 
     assertThrows[Exception](
       (IO.println(Console.CYAN + "kafka stream exception" + Console.RESET) >> ctx
-        .buildStreams(top)
+        .buildStreams(appId, top)
         .stateUpdates
         .debug()
         .concurrently(sendS1Data)
@@ -181,7 +183,7 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
     } yield a.join(b)((s1, t2) => StreamTarget(s1.name, 0, t2.color)).to(tgt.topicName.value)(tgt.asProduced)
 
     (IO.println(Console.CYAN + "kafka stream should be able to be closed" + Console.RESET) >> ctx
-      .buildStreams(top)
+      .buildStreams(appId, top)
       .kafkaStreams
       .flatMap(ks =>
         Stream
@@ -206,7 +208,7 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
     } yield a.join(b)((s1, t2) => StreamTarget(s1.name, 0, t2.color)).to(tgt.topicName.value)(tgt.asProduced)
 
     val res = IO.println(Console.CYAN + "kafka topic does not exist" + Console.RESET) >> ctx
-      .buildStreams(top)
+      .buildStreams(appId, top)
       .stateUpdates
       .debug()
       .compile

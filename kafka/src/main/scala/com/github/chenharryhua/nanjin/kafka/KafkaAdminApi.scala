@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.kafka
 
-import cats.Id
+import cats.{Endo, Id}
 import cats.effect.kernel.{Async, Resource}
 import cats.effect.std.UUIDGen
 import cats.syntax.all.*
@@ -36,14 +36,20 @@ sealed trait KafkaAdminApi[F[_]] {
 
 object KafkaAdminApi {
 
-  def apply[F[_]: Async](topicName: TopicName, settings: KafkaSettings): KafkaAdminApi[F] =
-    new KafkaTopicAdminApiImpl(topicName, settings)
+  def apply[F[_]: Async](
+    topicName: TopicName,
+    settings: KafkaSettings,
+    cfg: Endo[AdminClientSettings]): KafkaAdminApi[F] =
+    new KafkaTopicAdminApiImpl(topicName, settings, cfg)
 
-  final private class KafkaTopicAdminApiImpl[F[_]: Async](topicName: TopicName, settings: KafkaSettings)
+  final private class KafkaTopicAdminApiImpl[F[_]: Async](
+    topicName: TopicName,
+    settings: KafkaSettings,
+    cfg: Endo[AdminClientSettings])
       extends KafkaAdminApi[F] {
 
     override val adminResource: Resource[F, KafkaAdminClient[F]] =
-      KafkaAdminClient.resource[F](AdminClientSettings("").withProperties(settings.adminSettings.config))
+      KafkaAdminClient.resource[F](cfg(settings.adminSettings))
 
     override def iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence: F[Unit] =
       adminResource.use(_.deleteTopic(topicName.value))
@@ -64,10 +70,7 @@ object KafkaAdminApi {
 
     // consumer
 
-    private val initCS: ConsumerSettings[Id, Nothing, Nothing] = {
-      val cs: ConsumerSettings[Id, Nothing, Nothing] = ConsumerSettings[Id, Nothing, Nothing](null, null)
-      cs.withProperties(settings.consumerSettings.config)
-    }
+    private val initCS: ConsumerSettings[Id, Nothing, Nothing] = settings.consumerSettings
 
     private def transientConsumer(cs: ConsumerSettings[Id, Nothing, Nothing]): TransientConsumer[F] =
       TransientConsumer(topicName, cs.withAutoOffsetReset(AutoOffsetReset.None))

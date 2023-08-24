@@ -42,7 +42,7 @@ private[spark] object sk {
     : RDD[ConsumerRecord[Array[Byte], Array[Byte]]] =
     KafkaUtils.createRDD[Array[Byte], Array[Byte]](
       ss.sparkContext,
-      props(settings.consumerSettings.config),
+      props(settings.consumerSettings.properties),
       offsetRanges(offsetRange),
       LocationStrategies.PreferConsistent)
 
@@ -66,7 +66,7 @@ private[spark] object sk {
       val consumerStrategy: ConsumerStrategy[Array[Byte], Array[Byte]] =
         ConsumerStrategies.Assign[Array[Byte], Array[Byte]](
           topicPartitions.value,
-          props(topic.context.settings.consumerSettings.config).asScala)
+          props(topic.context.settings.consumerSettings.properties).asScala)
       KafkaUtils
         .createDirectStream(streamingContext, LocationStrategies.PreferConsistent, consumerStrategy)
         .map(m => topic.decode(m).toNJConsumerRecord)
@@ -100,7 +100,7 @@ private[spark] object sk {
     import ss.implicits.*
     ss.readStream
       .format("kafka")
-      .options(consumerOptions(settings.consumerSettings.config))
+      .options(consumerOptions(settings.consumerSettings.properties))
       .option("subscribe", topicName.value)
       .option("includeHeaders", "true")
       .load()

@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.kafka
 
+import cats.Endo
 import cats.data.Reader
 import cats.effect.kernel.{Async, Sync}
 import cats.effect.std.UUIDGen
@@ -22,9 +23,6 @@ final class KafkaContext[F[_]](val settings: KafkaSettings)
 
   override def updateConfig(f: KafkaSettings => KafkaSettings): KafkaContext[F] =
     new KafkaContext[F](f(settings))
-
-  def withGroupId(groupId: String): KafkaContext[F]     = updateConfig(_.withGroupId(groupId))
-  def withApplicationId(appId: String): KafkaContext[F] = updateConfig(_.withApplicationId(appId))
 
   def asKey[K: SerdeOf]: Serde[K]   = SerdeOf[K].asKey(settings.schemaRegistrySettings.config).serde
   def asValue[V: SerdeOf]: Serde[V] = SerdeOf[V].asValue(settings.schemaRegistrySettings.config).serde
@@ -61,7 +59,7 @@ final class KafkaContext[F[_]](val settings: KafkaSettings)
       topicName,
       ConsumerSettings[F, Array[Byte], Array[Byte]](
         Deserializer[F, Array[Byte]],
-        Deserializer[F, Array[Byte]]).withProperties(settings.consumerSettings.config),
+        Deserializer[F, Array[Byte]]).withProperties(settings.consumerSettings.properties),
       schemaRegistry.fetchAvroSchema(topicName),
       settings.schemaRegistrySettings
     )
@@ -85,7 +83,7 @@ final class KafkaContext[F[_]](val settings: KafkaSettings)
     new NJGenericRecordSink[F](
       topicName,
       ProducerSettings[F, Array[Byte], Array[Byte]](Serializer[F, Array[Byte]], Serializer[F, Array[Byte]])
-        .withProperties(settings.producerSettings.config),
+        .withProperties(settings.producerSettings.properties),
       schemaRegistry.fetchAvroSchema(topicName),
       settings.schemaRegistrySettings
     )
@@ -96,14 +94,15 @@ final class KafkaContext[F[_]](val settings: KafkaSettings)
       settings.schemaRegistrySettings,
       RawKeyValueSerdePair[K, V](SerdeOf[K], SerdeOf[V]))
 
-  def buildStreams(topology: Reader[StreamsBuilder, Unit])(implicit F: Async[F]): KafkaStreamsBuilder[F] =
-    streaming.KafkaStreamsBuilder[F](settings.streamSettings, topology)
+  def buildStreams(applicationId: String, topology: Reader[StreamsBuilder, Unit])(implicit
+    F: Async[F]): KafkaStreamsBuilder[F] =
+    streaming.KafkaStreamsBuilder[F](applicationId, settings.streamSettings, topology)
 
-  def buildStreams(topology: StreamsBuilder => Unit)(implicit F: Async[F]): KafkaStreamsBuilder[F] =
-    buildStreams(Reader(topology))
+  def buildStreams(applicationId: String, topology: StreamsBuilder => Unit)(implicit
+    F: Async[F]): KafkaStreamsBuilder[F] =
+    buildStreams(applicationId, Reader(topology))
 
-  def admin(topicName: TopicName)(implicit F: Async[F]): KafkaAdminApi[F] =
-    KafkaAdminApi[F](topicName, settings)
-  def admin(topicName: TopicNameC)(implicit F: Async[F]): KafkaAdminApi[F] =
-    admin(TopicName(topicName))
+  def admin(topicName: TopicName, cfg: Endo[AdminClientSettings] = identity)(implicit
+    F: Async[F]): KafkaAdminApi[F] =
+    KafkaAdminApi[F](topicName, settings, cfg)
 }

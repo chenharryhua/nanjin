@@ -20,13 +20,13 @@ import scala.jdk.CollectionConverters.*
 import scala.util.Random
 @DoNotDiscover
 class InteractiveTest extends AnyFunSuite {
+  val appid = "interactive_test"
   val ctx: KafkaContext[IO] =
     KafkaSettings.local
       .withConsumerProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest")
       .withStreamingProperty("state.dir", "./data/kafka_states")
+      .withConsumer(_.withGroupId("nj-kafka-interactive-unit-test-group"))
       .ioContext
-      .withGroupId(s"nj-kafka-interactive-unit-test-group")
-      .withApplicationId(s"nj-kafka-interactive-unit-test-app")
 
   val topic       = ctx.topic[Int, String]("stream.test.interactive.5")
   val localStore  = topic.asStateStore("stream.test.interactive.local.store.5")
@@ -49,8 +49,8 @@ class InteractiveTest extends AnyFunSuite {
     val res: Stream[IO, List[KeyValue[Int, String]]] =
       for {
         _ <- feedData
-        kss1 <- ctx.buildStreams(top).kafkaStreams
-        kss2 <- ctx.buildStreams(gtop).kafkaStreams
+        kss1 <- ctx.buildStreams(appid, top).kafkaStreams
+        kss2 <- ctx.buildStreams(appid, gtop).kafkaStreams
         _ <- Stream.sleep[IO](2.seconds)
       } yield {
         val g = kss1.store(localStore.query.keyValueStore).all().asScala.toList.sortBy(_.key)
@@ -60,16 +60,16 @@ class InteractiveTest extends AnyFunSuite {
       }
 
     println(Console.CYAN + "interactive" + Console.RESET)
-    println(ctx.buildStreams(top).topology.describe())
+    println(ctx.buildStreams(appid,top).topology.describe())
     println(res.compile.toList.unsafeRunSync().flatten)
   }
 
   test("startup timeout") {
     println(Console.CYAN + "startup timeout" + Console.RESET)
-    val to1 = ctx.buildStreams(top).withStartUpTimeout(0.seconds).stateUpdates.compile.drain
+    val to1 = ctx.buildStreams(appid,top).withStartUpTimeout(0.seconds).stateUpdates.compile.drain
     assertThrows[TimeoutException](to1.unsafeRunSync())
     val to2 =
-      ctx.buildStreams(top).withStartUpTimeout(1.day).kafkaStreams.map(_.state()).debug().compile.drain
+      ctx.buildStreams(appid, top).withStartUpTimeout(1.day).kafkaStreams.map(_.state()).debug().compile.drain
     to2.unsafeRunSync()
   }
 
@@ -77,7 +77,7 @@ class InteractiveTest extends AnyFunSuite {
     println(Console.CYAN + "detect stream stop" + Console.RESET)
     val to1 =
       ctx
-        .buildStreams(top)
+        .buildStreams(appid, top)
         .kafkaStreams
         .evalMap(ks => IO.sleep(1.seconds) >> IO(ks.close()) >> IO.sleep(1.day))
     to1.compile.drain.unsafeRunSync()
@@ -87,7 +87,7 @@ class InteractiveTest extends AnyFunSuite {
     println(Console.CYAN + "detect stream error" + Console.RESET)
     val to1 =
       ctx
-        .buildStreams(top)
+        .buildStreams(appid, top)
         .kafkaStreams
         .evalMap(ks => IO.sleep(1.seconds) >> IO(ks.cleanUp()) >> IO.sleep(1.day))
     assertThrows[IllegalStateException](to1.compile.drain.unsafeRunSync())

@@ -10,10 +10,9 @@ package object kafka {
   val ctx: KafkaContext[IO] =
     KafkaSettings.local
       .withConsumerProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
+      .withConsumer(_.withGroupId("nj-kafka-unit-test-group"))
       .withStreamingProperty("state.dir", "./data/kafka_states")
       .ioContext
-      .withGroupId(s"nj-kafka-unit-test-group")
-      .withApplicationId(s"nj-kafka-unit-test-app")
 
   val taxi: KafkaTopic[IO, Int, trip_record] =
     ctx.topic[Int, trip_record]("nyc_yellow_taxi_trip_data")

@@ -81,7 +81,7 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
       ConsumerSettings[F, K, V](
         Deserializer.delegate[F, K](serdePair.key.serde.deserializer()),
         Deserializer.delegate[F, V](serdePair.value.serde.deserializer()))
-        .withProperties(context.settings.consumerSettings.config)
+        .withProperties(context.settings.consumerSettings.properties)
     )
 
   def produce(implicit F: Sync[F]): NJKafkaProduce[F, K, V] =
@@ -89,7 +89,7 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
       ProducerSettings[F, K, V](
         Serializer.delegate(serdePair.key.serde.serializer()),
         Serializer.delegate(serdePair.value.serde.serializer()))
-        .withProperties(context.settings.producerSettings.config))
+        .withProperties(context.settings.producerSettings.properties))
 
   // Streaming
 

@@ -21,6 +21,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import scala.concurrent.duration.*
 @DoNotDiscover
 class TransformerTest extends AnyFunSuite {
+  val appid = "transform_test"
 
   test("stream transformer") {
     val store = ctx.store[Int, String](TopicName("stream.builder.test.store"))
@@ -58,7 +59,7 @@ class TransformerTest extends AnyFunSuite {
     } yield s1.process(processor, store.name).join(t2)(_ + _).to(tgt.topicName.value)(tgt.asProduced)
 
     val kafkaStreamService =
-      ctx.buildStreams(top).addStateStore(store.inMemoryKeyValueStore.keyValueStoreBuilder)
+      ctx.buildStreams(appid,top).addStateStore(store.inMemoryKeyValueStore.keyValueStoreBuilder)
     println(kafkaStreamService.topology.describe())
 
     val t2Data = Stream(

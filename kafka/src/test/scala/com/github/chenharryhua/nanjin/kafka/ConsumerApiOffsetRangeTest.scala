@@ -23,7 +23,7 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
     * ^ ^ \| | start end
     */
 
-  val topic: KafkaTopic[IO, Int, Int] = ctx.withGroupId("consumer-api-test").topic[Int, Int]("range.test")
+  val topic: KafkaTopic[IO, Int, Int] = ctx.topic[Int, Int]("range.test")
 
   val pr1: ProducerRecord[Int, Int] = ProducerRecord(topic.topicName.value, 1, 1).withTimestamp(100)
   val pr2: ProducerRecord[Int, Int] = ProducerRecord(topic.topicName.value, 2, 2).withTimestamp(200)
@@ -37,7 +37,9 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
 
   val transientConsumer: TransientConsumer[IO] = {
     val cs: ConsumerSettings[Id, Nothing, Nothing] = ConsumerSettings[Id, Nothing, Nothing](null, null)
-    TransientConsumer[IO](topic.topicName, cs.withProperties(topic.context.settings.consumerSettings.config))
+    TransientConsumer[IO](
+      topic.topicName,
+      cs.withProperties(topic.context.settings.consumerSettings.properties).withGroupId("consumer-api-test"))
   }
 
   test("start and end are both in range") {
