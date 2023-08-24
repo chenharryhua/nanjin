@@ -15,9 +15,9 @@ class AdminApiTest extends AnyFunSuite {
   val mirror: KafkaTopic[IO, Int, Int] = ctx.topic[Int, Int]("admin.mirror")
 
   test("newTopic") {
-    val admin: KafkaAdminApi[IO] = topic.admin
+    val admin: KafkaAdminApi[IO] = ctx.admin(topic.topicName)
     val run = for {
-      _ <- admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt
+      _ <- admin.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt
       _ <- IO.sleep(1.seconds)
       _ <- admin.newTopic(3, 1)
       _ <- IO.sleep(1.seconds)
@@ -27,10 +27,10 @@ class AdminApiTest extends AnyFunSuite {
 
   }
   test("mirrorTo") {
-    val admin: KafkaAdminApi[IO]  = topic.admin
-    val madmin: KafkaAdminApi[IO] = mirror.admin
+    val admin: KafkaAdminApi[IO]  = ctx.admin(topic.topicName)
+    val madmin: KafkaAdminApi[IO] = ctx.admin(mirror.topicName)
     val run = for {
-      _ <- madmin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt
+      _ <- madmin.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt
       _ <- IO.sleep(1.seconds)
       _ <- admin.mirrorTo(mirror.topicName, 1)
       _ <- IO.sleep(1.seconds)
@@ -40,7 +40,7 @@ class AdminApiTest extends AnyFunSuite {
   }
 
   test("groups") {
-    topic.admin.groups.unsafeRunSync()
+    ctx.admin(topic.topicName).groups.unsafeRunSync()
   }
   test("KafkaConsumerGroupInfo") {
     val end: KafkaTopicPartition[Option[KafkaOffset]] = KafkaTopicPartition[Option[KafkaOffset]](

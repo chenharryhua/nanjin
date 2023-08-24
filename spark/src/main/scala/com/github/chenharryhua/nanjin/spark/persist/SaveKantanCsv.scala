@@ -10,7 +10,7 @@ final class SaveKantanCsv[F[_], A](
   csvConfiguration: CsvConfiguration,
   cfg: HoarderConfig,
   encoder: RowEncoder[A])
-    extends Serializable {
+    extends Serializable with BuildRunnable[F] {
 
   val params: HoarderParams = cfg.evalConfig
 

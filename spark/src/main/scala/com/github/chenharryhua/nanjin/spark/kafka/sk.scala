@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
-import cats.effect.kernel.Sync
+import cats.effect.kernel.Async
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
@@ -42,7 +42,7 @@ private[spark] object sk {
     : RDD[ConsumerRecord[Array[Byte], Array[Byte]]] =
     KafkaUtils.createRDD[Array[Byte], Array[Byte]](
       ss.sparkContext,
-      props(settings.consumerSettings.config),
+      props(settings.consumerSettings.properties),
       offsetRanges(offsetRange),
       LocationStrategies.PreferConsistent)
 
@@ -52,21 +52,21 @@ private[spark] object sk {
     offsetRange: KafkaTopicPartition[Option[KafkaOffsetRange]]): RDD[NJConsumerRecord[K, V]] =
     kafkaBatchRDD(topic.context.settings, ss, offsetRange).map(topic.decode(_).toNJConsumerRecord)
 
-  def kafkaBatch[F[_]: Sync, K, V](
+  def kafkaBatch[F[_]: Async, K, V](
     topic: KafkaTopic[F, K, V],
     ss: SparkSession,
     dateRange: NJDateTimeRange): F[RDD[NJConsumerRecord[K, V]]] =
-    topic.shortLiveConsumer.use(_.offsetRangeFor(dateRange)).map(kafkaBatch(topic, ss, _))
+    topic.context.admin(topic.topicName).offsetRangeFor(dateRange).map(kafkaBatch(topic, ss, _))
 
   @annotation.nowarn
-  def kafkaDStream[F[_]: Sync, K, V](
+  def kafkaDStream[F[_]: Async, K, V](
     topic: KafkaTopic[F, K, V],
     streamingContext: StreamingContext): F[DStream[NJConsumerRecord[K, V]]] =
-    topic.shortLiveConsumer.use(_.partitionsFor).map { topicPartitions =>
+    topic.context.admin(topic.topicName).partitionsFor.map { topicPartitions =>
       val consumerStrategy: ConsumerStrategy[Array[Byte], Array[Byte]] =
         ConsumerStrategies.Assign[Array[Byte], Array[Byte]](
           topicPartitions.value,
-          props(topic.context.settings.consumerSettings.config).asScala)
+          props(topic.context.settings.consumerSettings.properties).asScala)
       KafkaUtils
         .createDirectStream(streamingContext, LocationStrategies.PreferConsistent, consumerStrategy)
         .map(m => topic.decode(m).toNJConsumerRecord)
@@ -100,7 +100,7 @@ private[spark] object sk {
     import ss.implicits.*
     ss.readStream
       .format("kafka")
-      .options(consumerOptions(settings.consumerSettings.config))
+      .options(consumerOptions(settings.consumerSettings.properties))
       .option("subscribe", topicName.value)
       .option("includeHeaders", "true")
       .load()

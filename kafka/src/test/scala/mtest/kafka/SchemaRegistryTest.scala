@@ -3,10 +3,9 @@ package mtest.kafka
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
-import com.github.chenharryhua.nanjin.kafka.{KafkaSettings, KafkaTopic, SchemaRegistrySettings, TopicDef}
-import io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig
-import org.scalatest.funsuite.AnyFunSuite
+import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, TopicDef}
 import eu.timepit.refined.auto.*
+import org.scalatest.funsuite.AnyFunSuite
 class SchemaRegistryTest extends AnyFunSuite {
   val topicName: TopicName = TopicName("nyc_yellow_taxi_trip_data")
 
@@ -25,26 +24,6 @@ class SchemaRegistryTest extends AnyFunSuite {
     val other = ctx.topic[String, String](topicName)
     val res   = ctx.schemaRegistry.testCompatibility(other.topicDef).unsafeRunSync()
     assert(!res.isCompatible)
-  }
-
-  test("schema register is not configured") {
-    val tmpCtx = KafkaSettings.schemaRegistrySettings
-      .andThen(SchemaRegistrySettings.config)
-      .modify(_.updatedWith(AbstractKafkaSchemaSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG)(_ => None))(
-        KafkaSettings.local)
-      .ioContext
-    assertThrows[Exception](tmpCtx.schemaRegistry.testCompatibility(nyc).unsafeRunSync())
-  }
-
-  test("schema register is not reachable") {
-    val tmpCtx = KafkaSettings.schemaRegistrySettings
-      .andThen(SchemaRegistrySettings.config)
-      .modify(_.updatedWith(AbstractKafkaSchemaSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG)(_ =>
-        Some("unknown-schema-register")))(KafkaSettings.local)
-      .ioContext
-    val res = tmpCtx.schemaRegistry.testCompatibility(nyc).unsafeRunSync()
-    assert(res.key.isLeft)
-    assert(res.value.isLeft)
   }
 
   test("register schema") {

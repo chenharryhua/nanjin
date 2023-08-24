@@ -4,19 +4,18 @@ import cats.effect.kernel.{Async, Resource, Sync}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameC}
 import com.github.chenharryhua.nanjin.kafka.streaming.{KafkaStreamingConsumer, NJStateStore}
-import com.github.chenharryhua.nanjin.messages.kafka.codec.{KafkaGenericDecoder, NJAvroCodec}
+import com.github.chenharryhua.nanjin.messages.kafka.codec.KafkaGenericDecoder
 import com.github.chenharryhua.nanjin.messages.kafka.{
   NJConsumerMessage,
   NJConsumerRecord,
   NJConsumerRecordWithError,
   NJHeader
 }
-import com.sksamuel.avro4s.{AvroInputStream, FromRecord, Record, ToRecord}
+import com.sksamuel.avro4s.AvroInputStream
 import fs2.Chunk
 import fs2.kafka.*
 import io.circe.Decoder
 import io.circe.generic.auto.*
-import org.apache.avro.generic.IndexedRecord
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.apache.kafka.clients.consumer.ConsumerRecord as KafkaConsumerRecord
 import org.apache.kafka.clients.producer.{ProducerRecord as KafkaProducerRecord, RecordMetadata}
@@ -24,7 +23,6 @@ import org.apache.kafka.streams.scala.kstream.Produced
 
 import java.io.ByteArrayInputStream
 import scala.annotation.nowarn
-import scala.util.Try
 
 final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V], val context: KafkaContext[F])
     extends Serializable {
@@ -38,9 +36,6 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
 
   def withTopicName(tn: TopicNameC): KafkaTopic[F, K, V] =
     withTopicName(TopicName(tn))
-
-  def withGroupId(gid: String): KafkaTopic[F, K, V] =
-    new KafkaTopic[F, K, V](topicDef, context.withGroupId(gid))
 
   def withSchema(pair: AvroSchemaPair): KafkaTopic[F, K, V] =
     new KafkaTopic[F, K, V](topicDef.withSchema(pair), context)
@@ -75,31 +70,26 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
     )
   }
 
-  private val consumerRecordCodec: NJAvroCodec[NJConsumerRecord[K, V]] =
-    NJConsumerRecord.avroCodec(topicDef.rawSerdes.key.avroCodec, topicDef.rawSerdes.value.avroCodec)
-
-  private val toGR: ToRecord[NJConsumerRecord[K, V]]     = ToRecord(consumerRecordCodec.avroEncoder)
-  private val fromGR: FromRecord[NJConsumerRecord[K, V]] = FromRecord(consumerRecordCodec.avroDecoder)
-
-  def toRecord(nj: NJConsumerRecord[K, V]): Record          = toGR.to(nj)
-  def fromRecord(gr: IndexedRecord): NJConsumerRecord[K, V] = fromGR.from(gr)
-
   def serializeKey(k: K): Array[Byte] = serdePair.key.serialize(k)
   def serializeVal(v: V): Array[Byte] = serdePair.value.serialize(v)
 
-  def record(partition: Int, offset: Long)(implicit
-    sync: Sync[F]): F[Option[KafkaConsumerRecord[Try[K], Try[V]]]] =
-    shortLiveConsumer.use(
-      _.retrieveRecord(KafkaPartition(partition), KafkaOffset(offset))
-        .map(_.map(decoder(_).tryDecodeKeyValue)))
+  // consumer and producer
 
-  // APIs
+  def consume(implicit F: Sync[F]): NJKafkaConsume[F, K, V] =
+    new NJKafkaConsume[F, K, V](
+      topicName,
+      ConsumerSettings[F, K, V](
+        Deserializer.delegate[F, K](serdePair.key.serde.deserializer()),
+        Deserializer.delegate[F, V](serdePair.value.serde.deserializer()))
+        .withProperties(context.settings.consumerSettings.properties)
+    )
 
-  def admin(implicit F: Async[F]): KafkaAdminApi[F] =
-    KafkaAdminApi[F, K, V](this)
-
-  def shortLiveConsumer(implicit sync: Sync[F]): Resource[F, ShortLiveConsumer[F]] =
-    ShortLiveConsumer(topicName, context.settings.consumerSettings.javaProperties)
+  def produce(implicit F: Sync[F]): NJKafkaProduce[F, K, V] =
+    new NJKafkaProduce[F, K, V](
+      ProducerSettings[F, K, V](
+        Serializer.delegate(serdePair.key.serde.serializer()),
+        Serializer.delegate(serdePair.value.serde.serializer()))
+        .withProperties(context.settings.producerSettings.properties))
 
   // Streaming
 
@@ -115,13 +105,6 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
   }
   def asStateStore(storeName: TopicNameC): NJStateStore[K, V] =
     asStateStore(TopicName(storeName))
-
-  def produce(implicit F: Sync[F]): NJKafkaProduce[F, K, V] =
-    new NJKafkaProduce[F, K, V](
-      ProducerSettings[F, K, V](
-        Serializer.delegate(serdePair.key.serde.serializer()),
-        Serializer.delegate(serdePair.value.serde.serializer()))
-        .withProperties(context.settings.producerSettings.config))
 
   // producer record
   def kafkaProducerRecord(k: K, v: V): KafkaProducerRecord[K, V] =
@@ -151,9 +134,9 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
     Resource.fromAutoCloseable(F.pure(new ByteArrayInputStream(jacksonStr.getBytes))).use { is =>
       val prs: ProducerRecords[K, V] = Chunk.iterator(
         AvroInputStream
-          .json[NJConsumerRecord[K, V]](consumerRecordCodec.avroDecoder)
+          .json[NJConsumerRecord[K, V]](topicDef.consumerRecordCodec.avroDecoder)
           .from(is)
-          .build(consumerRecordCodec.schema)
+          .build(topicDef.consumerRecordCodec.schema)
           .iterator
           .map(_.toNJProducerRecord.noMeta.withTopicName(topicName).toProducerRecord))
 

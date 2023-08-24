@@ -13,7 +13,7 @@ import org.apache.kafka.streams.KafkaStreams.State
 import org.apache.kafka.streams.processor.StateStore
 import org.apache.kafka.streams.scala.StreamsBuilder
 import org.apache.kafka.streams.state.StoreBuilder
-import org.apache.kafka.streams.{KafkaStreams, Topology}
+import org.apache.kafka.streams.{KafkaStreams, StreamsConfig, Topology}
 
 import java.util.Properties
 import scala.concurrent.duration.{Duration, FiniteDuration}
@@ -33,6 +33,7 @@ object StateUpdate {
 }
 
 final class KafkaStreamsBuilder[F[_]] private (
+  applicationId: String,
   settings: KafkaStreamSettings,
   javaProperties: Properties,
   top: Reader[StreamsBuilder, Unit],
@@ -61,6 +62,7 @@ final class KafkaStreamsBuilder[F[_]] private (
     val props = new Properties()
     props.putAll(settings.javaProperties)
     props.putAll(javaProperties)
+    props.put(StreamsConfig.APPLICATION_ID_CONFIG, applicationId)
     for { // fully initialized kafka-streams
       dispatcher <- Stream.resource[F, Dispatcher[F]](Dispatcher.sequential[F])
       stopSignal <- Stream.eval(F.deferred[Either[Throwable, Unit]])
@@ -90,6 +92,7 @@ final class KafkaStreamsBuilder[F[_]] private (
 
   def withStartUpTimeout(value: FiniteDuration): KafkaStreamsBuilder[F] =
     new KafkaStreamsBuilder[F](
+      applicationId = applicationId,
       settings = settings,
       javaProperties = javaProperties,
       top = top,
@@ -98,7 +101,8 @@ final class KafkaStreamsBuilder[F[_]] private (
 
   def withProperty(key: String, value: String): KafkaStreamsBuilder[F] =
     new KafkaStreamsBuilder[F](
-      settings = KafkaStreamSettings.config.modify(_.updatedWith(key)(_ => Some(value)))(settings),
+      applicationId = applicationId,
+      settings = settings.withProperty(key, value),
       javaProperties = javaProperties,
       top = top,
       localStateStores = localStateStores,
@@ -107,6 +111,7 @@ final class KafkaStreamsBuilder[F[_]] private (
 
   def withProperties(properties: Properties): KafkaStreamsBuilder[F] =
     new KafkaStreamsBuilder[F](
+      applicationId = applicationId,
       settings = settings,
       javaProperties = properties,
       top = top,
@@ -116,6 +121,7 @@ final class KafkaStreamsBuilder[F[_]] private (
 
   def addStateStore[S <: StateStore](storeBuilder: StoreBuilder[S]): KafkaStreamsBuilder[F] =
     new KafkaStreamsBuilder[F](
+      applicationId = applicationId,
       settings = settings,
       javaProperties = javaProperties,
       top = top,
@@ -132,12 +138,15 @@ final class KafkaStreamsBuilder[F[_]] private (
 
 object KafkaStreamsBuilder {
   def apply[F[_]: Async](
+    applicationId: String,
     settings: KafkaStreamSettings,
     top: Reader[StreamsBuilder, Unit]): KafkaStreamsBuilder[F] =
     new KafkaStreamsBuilder[F](
+      applicationId = applicationId,
       settings = settings,
       javaProperties = new Properties(),
       top = top,
       localStateStores = Cont.defer(new StreamsBuilder()),
-      startUpTimeout = Duration.Inf)
+      startUpTimeout = Duration.Inf
+    )
 }

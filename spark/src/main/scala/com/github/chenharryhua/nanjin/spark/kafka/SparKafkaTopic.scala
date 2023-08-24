@@ -28,16 +28,7 @@ final class SparKafkaTopic[F[_], K, V](val sparkSession: SparkSession, val topic
   private val avroKeyCodec: NJAvroCodec[K] = topic.topicDef.rawSerdes.key.avroCodec
   private val avroValCodec: NJAvroCodec[V] = topic.topicDef.rawSerdes.value.avroCodec
 
-  val crCodec: NJAvroCodec[NJConsumerRecord[K, V]] =
-    NJConsumerRecord.avroCodec(
-      topic.topicDef.rawSerdes.key.avroCodec,
-      topic.topicDef.rawSerdes.value.avroCodec)
-  val prCodec: NJAvroCodec[NJProducerRecord[K, V]] =
-    NJProducerRecord.avroCodec(
-      topic.topicDef.rawSerdes.key.avroCodec,
-      topic.topicDef.rawSerdes.value.avroCodec)
-
-  private def downloadKafka(dateTimeRange: NJDateTimeRange)(implicit F: Sync[F]): CrRdd[F, K, V] =
+  private def downloadKafka(dateTimeRange: NJDateTimeRange)(implicit F: Async[F]): CrRdd[F, K, V] =
     crRdd(sk.kafkaBatch(topic, sparkSession, dateTimeRange))
 
   /** download topic according to datetime
@@ -45,12 +36,12 @@ final class SparKafkaTopic[F[_], K, V](val sparkSession: SparkSession, val topic
     * @param dtr
     *   : datetime
     */
-  def fromKafka(dtr: NJDateTimeRange)(implicit F: Sync[F]): CrRdd[F, K, V] =
+  def fromKafka(dtr: NJDateTimeRange)(implicit F: Async[F]): CrRdd[F, K, V] =
     downloadKafka(dtr)
 
   /** download all topic data, up to now
     */
-  def fromKafka(implicit F: Sync[F]): CrRdd[F, K, V] =
+  def fromKafka(implicit F: Async[F]): CrRdd[F, K, V] =
     fromKafka(NJDateTimeRange(topic.context.settings.zoneId))
 
   /** download topic according to offset range
@@ -61,18 +52,21 @@ final class SparKafkaTopic[F[_], K, V](val sparkSession: SparkSession, val topic
     * @return
     *   CrRdd
     */
-  def fromKafka(offsets: Map[Int, (Long, Long)])(implicit F: Sync[F]): CrRdd[F, K, V] =
+  def fromKafka(offsets: Map[Int, (Long, Long)])(implicit F: Async[F]): CrRdd[F, K, V] =
     crRdd(
-      topic.shortLiveConsumer
-        .use(_.partitionsFor.map { partitions =>
+      topic.context
+        .admin(topicName)
+        .partitionsFor
+        .map { partitions =>
           val topicPartition = partitions.value.map { tp =>
-            val ofs = offsets
-              .get(tp.partition())
-              .flatMap(se => KafkaOffsetRange(KafkaOffset(se._1), KafkaOffset(se._2)))
+            val ofs: Option[KafkaOffsetRange] =
+              offsets
+                .get(tp.partition())
+                .flatMap(se => KafkaOffsetRange(KafkaOffset(se._1), KafkaOffset(se._2)))
             tp -> ofs
           }.toMap
           KafkaTopicPartition(topicPartition)
-        })
+        }
         .flatMap(offsetRange => F.interruptible(sk.kafkaBatch(topic, sparkSession, offsetRange))))
 
   /** load topic data from disk
@@ -90,7 +84,7 @@ final class SparKafkaTopic[F[_], K, V](val sparkSession: SparkSession, val topic
     crRdd(F.blocking(sparkSession.sparkContext.emptyRDD[NJConsumerRecord[K, V]]))
 
   def prRdd(rdd: F[RDD[NJProducerRecord[K, V]]])(implicit F: Sync[F]): PrRdd[F, K, V] =
-    new PrRdd[F, K, V](rdd, prCodec)
+    new PrRdd[F, K, V](rdd, topic.topicDef.producerRecordCodec)
 
   def prRdd[G[_]: Foldable](list: G[NJProducerRecord[K, V]])(implicit F: Sync[F]): PrRdd[F, K, V] =
     prRdd(F.blocking(sparkSession.sparkContext.parallelize(list.toList)))
@@ -104,6 +98,10 @@ final class SparKafkaTopic[F[_], K, V](val sparkSession: SparkSession, val topic
   def dstream(implicit F: Async[F]): Kleisli[F, StreamingContext, AvroDStreamSink[NJConsumerRecord[K, V]]] =
     Kleisli((sc: StreamingContext) =>
       sk.kafkaDStream(topic, sc)
-        .map(ds => new AvroDStreamSink(ds, crCodec.avroEncoder, root => ldt => root / ldt.toLocalDate)))
+        .map(ds =>
+          new AvroDStreamSink(
+            ds,
+            topic.topicDef.consumerRecordCodec.avroEncoder,
+            root => ldt => root / ldt.toLocalDate)))
 
 }

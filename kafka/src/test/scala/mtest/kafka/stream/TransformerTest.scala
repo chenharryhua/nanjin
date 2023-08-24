@@ -4,6 +4,7 @@ import cats.Id
 import cats.data.Kleisli
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
+import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import eu.timepit.refined.auto.*
 import fs2.Stream
 import fs2.kafka.{commitBatchWithin, ProducerRecord, ProducerRecords}
@@ -20,9 +21,10 @@ import org.scalatest.funsuite.AnyFunSuite
 import scala.concurrent.duration.*
 @DoNotDiscover
 class TransformerTest extends AnyFunSuite {
+  val appid = "transform_test"
 
   test("stream transformer") {
-    val store = ctx.store[Int, String]("stream.builder.test.store")
+    val store = ctx.store[Int, String](TopicName("stream.builder.test.store"))
 
     val topic1 = ctx.topic[Int, String]("stream.builder.test.stream1")
     val topic2 = ctx.topic[Int, String]("stream.builder.test.table2")
@@ -57,7 +59,7 @@ class TransformerTest extends AnyFunSuite {
     } yield s1.process(processor, store.name).join(t2)(_ + _).to(tgt.topicName.value)(tgt.asProduced)
 
     val kafkaStreamService =
-      ctx.buildStreams(top).addStateStore(store.inMemoryKeyValueStore.keyValueStoreBuilder)
+      ctx.buildStreams(appid,top).addStateStore(store.inMemoryKeyValueStore.keyValueStoreBuilder)
     println(kafkaStreamService.topology.describe())
 
     val t2Data = Stream(

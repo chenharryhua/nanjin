@@ -6,7 +6,7 @@ import com.sksamuel.avro4s.Encoder as AvroEncoder
 import org.apache.spark.rdd.RDD
 
 final class SaveAvro[F[_], A](frdd: F[RDD[A]], encoder: AvroEncoder[A], cfg: HoarderConfig)
-    extends Serializable {
+    extends Serializable with BuildRunnable[F] {
 
   private def updateConfig(cfg: HoarderConfig): SaveAvro[F, A] =
     new SaveAvro[F, A](frdd, encoder, cfg)

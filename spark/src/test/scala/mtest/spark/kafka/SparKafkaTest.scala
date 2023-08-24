@@ -50,7 +50,7 @@ class SparKafkaTest extends AnyFunSuite {
       .compile
       .drain
 
-  (topic.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt >>
+  (ctx.admin(topic.topicName).iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt >>
     ctx.schemaRegistry.register(topic.topicDef) >> loadData).unsafeRunSync()
 
   test("sparKafka read topic from kafka") {
@@ -161,7 +161,7 @@ class SparKafkaTest extends AnyFunSuite {
       .eval(hdp.filesIn(path))
       .flatMap(hdp.jackson(topic.topic.topicDef.schemaPair.consumerRecordSchema).source)
       .chunkN(1)
-      .through(ctx.sink(topic.topicName).updateConfig(_.withClientId("a")).run)
+      .through(ctx.sink(topic.topicName).updateConfig(_.withClientId("a")).build)
       .compile
       .drain
       .unsafeRunSync()

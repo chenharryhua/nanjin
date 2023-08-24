@@ -9,10 +9,6 @@ package object kafka {
 
   val range: NJDateTimeRange = NJDateTimeRange(beijingTime)
 
-  val ctx: KafkaContext[IO] =
-    KafkaSettings.local
-      .withApplicationId("spark.kafka.test.app")
-      .withGroupId("spark.kafka.test.group")
-      .ioContext
+  val ctx: KafkaContext[IO]           = KafkaSettings.local.ioContext
   val sparKafka: SparKafkaContext[IO] = sparkSession.alongWith(ctx)
 }

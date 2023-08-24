@@ -1,7 +1,10 @@
 package com.github.chenharryhua.nanjin.kafka
 
+import cats.Endo
 import cats.data.Reader
-import cats.effect.kernel.{Async, Resource, Sync}
+import cats.effect.kernel.{Async, Sync}
+import cats.effect.std.UUIDGen
+import cats.implicits.toShow
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameC}
 import com.github.chenharryhua.nanjin.kafka.streaming.{KafkaStreamsBuilder, NJStateStore}
@@ -20,9 +23,6 @@ final class KafkaContext[F[_]](val settings: KafkaSettings)
 
   override def updateConfig(f: KafkaSettings => KafkaSettings): KafkaContext[F] =
     new KafkaContext[F](f(settings))
-
-  def withGroupId(groupId: String): KafkaContext[F]     = updateConfig(_.withGroupId(groupId))
-  def withApplicationId(appId: String): KafkaContext[F] = updateConfig(_.withApplicationId(appId))
 
   def asKey[K: SerdeOf]: Serde[K]   = SerdeOf[K].asKey(settings.schemaRegistrySettings.config).serde
   def asValue[V: SerdeOf]: Serde[V] = SerdeOf[V].asValue(settings.schemaRegistrySettings.config).serde
@@ -54,23 +54,26 @@ final class KafkaContext[F[_]](val settings: KafkaSettings)
     new SchemaRegistryApi[F](new CachedSchemaRegistryClient(url, cacheCapacity))
   }
 
-  def consume(topicName: TopicName)(implicit F: Sync[F]): NJKafkaConsume[F] =
-    new NJKafkaConsume[F](
+  def consume(topicName: TopicName)(implicit F: Sync[F]): NJKafkaByteConsume[F] =
+    new NJKafkaByteConsume[F](
       topicName,
       ConsumerSettings[F, Array[Byte], Array[Byte]](
         Deserializer[F, Array[Byte]],
-        Deserializer[F, Array[Byte]]).withProperties(settings.consumerSettings.config),
+        Deserializer[F, Array[Byte]]).withProperties(settings.consumerSettings.properties),
       schemaRegistry.fetchAvroSchema(topicName),
       settings.schemaRegistrySettings
     )
 
-  def consume(topicName: TopicNameC)(implicit F: Sync[F]): NJKafkaConsume[F] =
+  def consume(topicName: TopicNameC)(implicit F: Sync[F]): NJKafkaByteConsume[F] =
     consume(TopicName(topicName))
 
-  def monitor(topicName: TopicName)(implicit F: Async[F]): Stream[F, String] =
-    Stream.eval(schemaRegistry.fetchAvroSchema(topicName)).flatMap { schema =>
-      val builder = new PullGenericRecord(settings.schemaRegistrySettings, topicName, schema)
-      consume(topicName).stream.map(cr => builder.toJacksonString(cr.record))
+  def monitor(topicName: TopicName)(implicit F: Async[F], U: UUIDGen[F]): Stream[F, String] =
+    Stream.eval(U.randomUUID).flatMap { uuid =>
+      consume(topicName)
+        .updateConfig( // avoid accidentally join an existing consumer-group
+          _.withGroupId(uuid.show).withEnableAutoCommit(false).withAutoOffsetReset(AutoOffsetReset.Latest))
+        .jackson
+        .map(_.record.value)
     }
 
   def monitor(topicName: TopicNameC)(implicit F: Async[F]): Stream[F, String] =
@@ -80,7 +83,7 @@ final class KafkaContext[F[_]](val settings: KafkaSettings)
     new NJGenericRecordSink[F](
       topicName,
       ProducerSettings[F, Array[Byte], Array[Byte]](Serializer[F, Array[Byte]], Serializer[F, Array[Byte]])
-        .withProperties(settings.producerSettings.config),
+        .withProperties(settings.producerSettings.properties),
       schemaRegistry.fetchAvroSchema(topicName),
       settings.schemaRegistrySettings
     )
@@ -90,15 +93,16 @@ final class KafkaContext[F[_]](val settings: KafkaSettings)
       storeName,
       settings.schemaRegistrySettings,
       RawKeyValueSerdePair[K, V](SerdeOf[K], SerdeOf[V]))
-  def store[K: SerdeOf, V: SerdeOf](storeName: TopicNameC): NJStateStore[K, V] =
-    store[K, V](TopicName(storeName))
 
-  def buildStreams(topology: Reader[StreamsBuilder, Unit])(implicit F: Async[F]): KafkaStreamsBuilder[F] =
-    streaming.KafkaStreamsBuilder[F](settings.streamSettings, topology)
+  def buildStreams(applicationId: String, topology: Reader[StreamsBuilder, Unit])(implicit
+    F: Async[F]): KafkaStreamsBuilder[F] =
+    streaming.KafkaStreamsBuilder[F](applicationId, settings.streamSettings, topology)
 
-  def buildStreams(topology: StreamsBuilder => Unit)(implicit F: Async[F]): KafkaStreamsBuilder[F] =
-    buildStreams(Reader(topology))
+  def buildStreams(applicationId: String, topology: StreamsBuilder => Unit)(implicit
+    F: Async[F]): KafkaStreamsBuilder[F] =
+    buildStreams(applicationId, Reader(topology))
 
-  def shortLiveConsumer(topicName: TopicName)(implicit sync: Sync[F]): Resource[F, ShortLiveConsumer[F]] =
-    ShortLiveConsumer(topicName, settings.consumerSettings.javaProperties)
+  def admin(topicName: TopicName, cfg: Endo[AdminClientSettings] = identity)(implicit
+    F: Async[F]): KafkaAdminApi[F] =
+    KafkaAdminApi[F](topicName, settings.consumerSettings, cfg(settings.adminSettings))
 }

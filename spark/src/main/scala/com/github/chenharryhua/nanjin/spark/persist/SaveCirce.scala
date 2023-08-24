@@ -10,7 +10,7 @@ final class SaveCirce[F[_], A](
   cfg: HoarderConfig,
   isKeepNull: Boolean,
   encoder: JsonEncoder[A])
-    extends Serializable {
+    extends Serializable with BuildRunnable[F] {
   def keepNull: SaveCirce[F, A] = new SaveCirce[F, A](frdd, cfg, true, encoder)
   def dropNull: SaveCirce[F, A] = new SaveCirce[F, A](frdd, cfg, false, encoder)
 

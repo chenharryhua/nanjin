@@ -94,7 +94,7 @@ class DecimalTopicTest extends AnyFunSuite {
       .compile
       .drain
 
-  (topic.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt >>
+  (ctx.admin(topic.topicName).iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt >>
     ctx.schemaRegistry.register(topic.topicDef) >>
     loadData).unsafeRunSync()
 

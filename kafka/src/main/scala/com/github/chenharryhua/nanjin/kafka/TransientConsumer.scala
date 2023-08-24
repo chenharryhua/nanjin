@@ -8,13 +8,13 @@ import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.{NJDateTimeRange, NJTimestamp}
 import fs2.kafka.KafkaByteConsumer
-import org.apache.kafka.clients.consumer.{ConsumerRecord, KafkaConsumer, OffsetAndMetadata}
+import fs2.kafka.consumer.MkConsumer
+import org.apache.kafka.clients.consumer.{ConsumerRecord, OffsetAndMetadata}
 import org.apache.kafka.common.TopicPartition
-import org.apache.kafka.common.serialization.ByteArrayDeserializer
 
 import java.time.Duration
-import java.util.Properties
 import scala.jdk.CollectionConverters.*
+import scala.jdk.DurationConverters.ScalaDurationOps
 
 sealed trait KafkaPrimitiveConsumerApi[F[_]] {
   def partitionsFor: F[ListOfTopicPartitions]
@@ -29,7 +29,7 @@ sealed trait KafkaPrimitiveConsumerApi[F[_]] {
   def commitSync(offsets: Map[TopicPartition, OffsetAndMetadata]): F[Unit]
 }
 
-private[kafka] object KafkaPrimitiveConsumerApi {
+private object KafkaPrimitiveConsumerApi {
 
   def apply[F[_]: Monad](topicName: TopicName)(implicit
     F: Ask[F, KafkaByteConsumer]): KafkaPrimitiveConsumerApi[F] =
@@ -94,10 +94,11 @@ private[kafka] object KafkaPrimitiveConsumerApi {
   }
 }
 
-sealed trait ShortLiveConsumer[F[_]] extends KafkaPrimitiveConsumerApi[F] {
+sealed trait TransientConsumer[F[_]] extends KafkaPrimitiveConsumerApi[F] {
   def offsetRangeFor(dtr: NJDateTimeRange): F[KafkaTopicPartition[Option[KafkaOffsetRange]]]
   def offsetRangeFor(start: NJTimestamp, end: NJTimestamp): F[KafkaTopicPartition[Option[KafkaOffsetRange]]]
   def offsetRangeForAll: F[KafkaTopicPartition[Option[KafkaOffsetRange]]]
+
   def retrieveLastRecords: F[List[ConsumerRecord[Array[Byte], Array[Byte]]]]
   def retrieveFirstRecords: F[List[ConsumerRecord[Array[Byte], Array[Byte]]]]
   def retrieveRecordsForTimes(ts: NJTimestamp): F[List[ConsumerRecord[Array[Byte], Array[Byte]]]]
@@ -108,26 +109,23 @@ sealed trait ShortLiveConsumer[F[_]] extends KafkaPrimitiveConsumerApi[F] {
   def resetOffsetsForTimes(ts: NJTimestamp): F[Unit]
 }
 
-object ShortLiveConsumer {
+private object TransientConsumer {
 
-  def apply[F[_]: Sync](topicName: TopicName, props: Properties): Resource[F, ShortLiveConsumer[F]] =
-    Resource
-      .make(Sync[F].delay {
-        val byteArrayDeserializer = new ByteArrayDeserializer
-        new KafkaConsumer[Array[Byte], Array[Byte]](props, byteArrayDeserializer, byteArrayDeserializer)
-      })(kc => Sync[F].delay(kc.close()))
-      .map(new KafkaConsumerApiImpl(topicName, _))
+  def apply[F[_]: Sync](topicName: TopicName, cs: PureConsumerSettings): TransientConsumer[F] =
+    new TransientConsumerImpl(topicName, cs)
 
-  final private[this] class KafkaConsumerApiImpl[F[_]: Sync](
-    topicName: TopicName,
-    consumerClient: KafkaByteConsumer)
-      extends ShortLiveConsumer[F] {
+  final private class TransientConsumerImpl[F[_]: Sync](topicName: TopicName, cs: PureConsumerSettings)
+      extends TransientConsumer[F] {
+
+    private[this] val consumer: Resource[F, KafkaByteConsumer] =
+      Resource.make(MkConsumer.mkConsumerForSync[F].apply(cs))(c =>
+        Sync[F].blocking(c.close(cs.closeTimeout.toJava)))
 
     private[this] val kpc: KafkaPrimitiveConsumerApi[Kleisli[F, KafkaByteConsumer, *]] =
       KafkaPrimitiveConsumerApi[Kleisli[F, KafkaByteConsumer, *]](topicName)
 
     private[this] def execute[A](r: Kleisli[F, KafkaByteConsumer, A]): F[A] =
-      r.run(consumerClient)
+      consumer.use(r.run)
 
     override def offsetRangeFor(dtr: NJDateTimeRange): F[KafkaTopicPartition[Option[KafkaOffsetRange]]] =
       execute {
