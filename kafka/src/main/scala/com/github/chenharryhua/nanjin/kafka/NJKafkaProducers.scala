@@ -1,71 +1,17 @@
 package com.github.chenharryhua.nanjin.kafka
 
 import cats.Endo
-import cats.data.NonEmptyList
 import cats.effect.kernel.*
-import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import fs2.kafka.*
 import fs2.{Chunk, Pipe, Stream}
-import org.apache.avro.Schema
 import org.apache.avro.generic.GenericRecord
 
 /** Best Fs2 Kafka Lib [[https://fd4s.github.io/fs2-kafka/]]
   *
   * [[https://redpanda.com/guides/kafka-performance/kafka-performance-tuning]]
   */
-
-final class NJKafkaConsume[F[_]] private[kafka] (
-  topicName: TopicName,
-  consumerSettings: ConsumerSettings[F, Array[Byte], Array[Byte]],
-  schema: F[AvroSchemaPair],
-  srs: SchemaRegistrySettings
-) extends UpdateConfig[ConsumerSettings[F, Array[Byte], Array[Byte]], NJKafkaConsume[F]] {
-
-  override def updateConfig(f: Endo[ConsumerSettings[F, Array[Byte], Array[Byte]]]): NJKafkaConsume[F] =
-    new NJKafkaConsume[F](topicName, f(consumerSettings), schema, srs)
-
-  def resource(implicit F: Async[F]): Resource[F, KafkaConsumer[F, Array[Byte], Array[Byte]]] =
-    KafkaConsumer.resource(consumerSettings)
-
-  def stream(implicit F: Async[F]): Stream[F, CommittableConsumerRecord[F, Array[Byte], Array[Byte]]] =
-    KafkaConsumer
-      .stream[F, Array[Byte], Array[Byte]](consumerSettings)
-      .evalTap(_.subscribe(NonEmptyList.of(topicName.value)))
-      .flatMap(_.stream)
-
-  def assign(tps: KafkaTopicPartition[KafkaOffset])(implicit
-    F: Async[F]): Stream[F, CommittableConsumerRecord[F, Array[Byte], Array[Byte]]] =
-    if (tps.isEmpty)
-      Stream.empty.covaryAll[F, CommittableConsumerRecord[F, Array[Byte], Array[Byte]]]
-    else
-      KafkaConsumer
-        .stream[F, Array[Byte], Array[Byte]](consumerSettings)
-        .evalTap { c =>
-          c.assign(topicName.value) *> tps.value.toList.traverse { case (tp, offset) =>
-            c.seek(tp, offset.offset.value)
-          }
-        }
-        .flatMap(_.stream)
-
-  def source(implicit F: Async[F]): Stream[F, CommittableConsumerRecord[F, Schema, GenericRecord]] =
-    Stream.eval(schema).flatMap { skm =>
-      val builder = new PullGenericRecord(srs, topicName, skm)
-      stream.map { cr =>
-        cr.bimap(_ => skm.consumerRecordSchema, _ => builder.toGenericRecord(cr.record))
-      }
-    }
-
-  def source(tps: KafkaTopicPartition[KafkaOffset])(implicit
-    F: Async[F]): Stream[F, CommittableConsumerRecord[F, Schema, GenericRecord]] =
-    Stream.eval(schema).flatMap { skm =>
-      val builder = new PullGenericRecord(srs, topicName, skm)
-      assign(tps).map { cr =>
-        cr.bimap(_ => skm.consumerRecordSchema, _ => builder.toGenericRecord(cr.record))
-      }
-    }
-}
 
 final class NJKafkaProduce[F[_], K, V] private[kafka] (producerSettings: ProducerSettings[F, K, V])
     extends UpdateConfig[ProducerSettings[F, K, V], NJKafkaProduce[F, K, V]] {

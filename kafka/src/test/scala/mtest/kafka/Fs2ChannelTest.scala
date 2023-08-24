@@ -49,16 +49,9 @@ class Fs2ChannelTest extends AnyFunSuite {
 
   test("should be able to consume avro topic") {
     val topic    = ctx.topic(nyc_taxi_trip)
-    val consumer = ctx.consume(topic.topicName).updateConfig(_.withGroupId("g1"))
-    val ret = consumer.stream
-      .map(m => topic.decoder(m).decodeValue)
-      .take(1)
-      .map(_.toString)
-      .map(println)
-      .timeout(3.seconds)
-      .compile
-      .toList
-      .unsafeRunSync()
+    val consumer = topic.consume.updateConfig(_.withGroupId("g1"))
+    val ret =
+      consumer.stream.take(1).map(_.toString).map(println).timeout(3.seconds).compile.toList.unsafeRunSync()
     assert(ret.size == 1)
   }
 
@@ -105,7 +98,7 @@ class Fs2ChannelTest extends AnyFunSuite {
       .updateConfig(_.withTransactionTimeout(4.seconds))
     val run = for {
       producer <- txntopic.stream
-      cr <- ctx.consume(src.topicName).stream.map(src.decoder(_).decode).take(10)
+      cr <- src.consume.stream.take(10)
       pr = TransactionalProducerRecords.one(
         CommittableProducerRecords.one[IO, Key, smsCallInternet](
           ProducerRecord("txn-target", cr.record.key, cr.record.value),

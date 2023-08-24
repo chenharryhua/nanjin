@@ -127,15 +127,11 @@ object KafkaSettings extends zoneid {
     SchemaRegistrySettings(Map.empty)
   )
 
-  def apply(brokers: String, schemaRegistry: String): KafkaSettings = {
-    val rand: String = utils.random4d.value.toString
+  def apply(brokers: String, schemaRegistry: String): KafkaSettings =
     empty
       .withBrokers(brokers)
       .withSchemaRegistryProperty(AbstractKafkaSchemaSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG, schemaRegistry)
       .withSecurityProtocol(SecurityProtocol.PLAINTEXT)
-      .withGroupId(s"nanjin.group.id-$rand")
-      .withApplicationId(s"nanjin.app.id-$rand")
-  }
 
   val local: KafkaSettings = apply("localhost:9092", "http://localhost:8081")
 }

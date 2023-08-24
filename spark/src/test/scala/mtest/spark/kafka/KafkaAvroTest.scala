@@ -69,7 +69,7 @@ class KafkaAvroTest extends AnyFunSuite {
     val sk   = sparKafka.topic(topicCO.topicDef)
 
     val run =
-      topicCO.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt >>
+      ctx.admin(topicCO.topicName).iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt >>
         ctx.schemaRegistry.register(topicCO.topicDef) >>
         data.compile.drain >>
         sk.fromKafka.output.avro(path).run >>
@@ -91,13 +91,14 @@ class KafkaAvroTest extends AnyFunSuite {
     val circePath   = NJPath("./data/test/spark/kafka/coproduct/scalaenum.circe.json")
     val sk          = sparKafka.topic(topicEnum.topicDef)
 
-    val run = topicEnum.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt >>
-      ctx.schemaRegistry.register(topicEnum.topicDef) >>
-      data.compile.drain >>
-      sk.fromKafka.output.avro(avroPath).run >>
-      sk.fromKafka.output.jackson(jacksonPath).run >>
-      sk.fromKafka.output.circe(circePath).run >>
-      (sk.load.avro(avroPath).frdd.map(_.take(10).toSet))
+    val run =
+      ctx.admin(topicEnum.topicName).iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt >>
+        ctx.schemaRegistry.register(topicEnum.topicDef) >>
+        data.compile.drain >>
+        sk.fromKafka.output.avro(avroPath).run >>
+        sk.fromKafka.output.jackson(jacksonPath).run >>
+        sk.fromKafka.output.circe(circePath).run >>
+        (sk.load.avro(avroPath).frdd.map(_.take(10).toSet))
     assert(run.unsafeRunSync().flatMap(_.value) == Set(en1, en2))
 
   }
@@ -115,11 +116,12 @@ class KafkaAvroTest extends AnyFunSuite {
     val path = NJPath("./data/test/spark/kafka/coproduct/multi-scalaenum.avro")
     val sk   = sparKafka.topic(topicEnum.topicDef)
 
-    val run = topicEnum.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt >>
-      ctx.schemaRegistry.register(topicEnum.topicDef) >>
-      data.compile.drain >>
-      sk.fromKafka.output.avro(path).run >>
-      sk.load.avro(path).frdd.map(_.take(10).toSet)
+    val run =
+      ctx.admin(topicEnum.topicName).iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt >>
+        ctx.schemaRegistry.register(topicEnum.topicDef) >>
+        data.compile.drain >>
+        sk.fromKafka.output.avro(path).run >>
+        sk.load.avro(path).frdd.map(_.take(10).toSet)
     assert(run.unsafeRunSync().flatMap(_.value) == Set(en1, en2))
   }
 
@@ -136,11 +138,12 @@ class KafkaAvroTest extends AnyFunSuite {
     val path = NJPath("./data/test/spark/kafka/coproduct/multi-scalaenum.snappy.avro")
     val sk   = sparKafka.topic(topicEnum.topicDef)
 
-    val run = topicEnum.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt >>
-      ctx.schemaRegistry.register(topicEnum.topicDef) >>
-      data.compile.drain >>
-      sk.fromKafka.output.avro(path).snappy.run >>
-      sk.load.avro(path).frdd.map(_.take(10).toSet)
+    val run =
+      ctx.admin(topicEnum.topicName).iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt >>
+        ctx.schemaRegistry.register(topicEnum.topicDef) >>
+        data.compile.drain >>
+        sk.fromKafka.output.avro(path).snappy.run >>
+        sk.load.avro(path).frdd.map(_.take(10).toSet)
     assert(run.unsafeRunSync().flatMap(_.value) == Set(en1, en2))
   }
   test("should be sent to kafka and save to binary bzip2 avro") {
@@ -155,11 +158,12 @@ class KafkaAvroTest extends AnyFunSuite {
     val path = NJPath("./data/test/spark/kafka/coproduct/scalaenum.avro.bzip2")
     val sk   = sparKafka.topic(topicEnum.topicDef)
 
-    val run = topicEnum.admin.idefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt >>
-      ctx.schemaRegistry.register(topicEnum.topicDef) >>
-      data.compile.drain >>
-      sk.fromKafka.output.binAvro(path).bzip2.run >>
-      sk.load.binAvro(path).frdd.map(_.take(10).toSet)
+    val run =
+      ctx.admin(topicEnum.topicName).iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt >>
+        ctx.schemaRegistry.register(topicEnum.topicDef) >>
+        data.compile.drain >>
+        sk.fromKafka.output.binAvro(path).bzip2.run >>
+        sk.load.binAvro(path).frdd.map(_.take(10).toSet)
     assert(run.unsafeRunSync().flatMap(_.value) == Set(en1, en2))
   }
 

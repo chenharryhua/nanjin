@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.spark
 
 import cats.Endo
-import cats.effect.kernel.{Async, Sync}
+import cats.effect.kernel.Async
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameC}
@@ -52,11 +52,11 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
     topicName: TopicName,
     path: NJPath,
     dateRange: NJDateTimeRange = NJDateTimeRange(kafkaContext.settings.zoneId))(implicit
-    F: Sync[F]): F[Unit] = {
+    F: Async[F]): F[Unit] = {
     val grRdd: F[RDD[String]] = for {
       schemaPair <- kafkaContext.schemaRegistry.fetchAvroSchema(topicName)
       builder = new PullGenericRecord(kafkaContext.settings.schemaRegistrySettings, topicName, schemaPair)
-      range <- kafkaContext.shortLiveConsumer(topicName).use(_.offsetRangeFor(dateRange))
+      range <- kafkaContext.admin(topicName).offsetRangeFor(dateRange)
     } yield sk.kafkaBatchRDD(kafkaContext.settings, sparkSession, range).map(builder.toJacksonString)
     new RddFileHoarder(grRdd).text(path).withSuffix("jackson.json").run
   }

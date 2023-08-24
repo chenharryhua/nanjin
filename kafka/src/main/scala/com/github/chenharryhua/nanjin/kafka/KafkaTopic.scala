@@ -23,7 +23,6 @@ import org.apache.kafka.streams.scala.kstream.Produced
 
 import java.io.ByteArrayInputStream
 import scala.annotation.nowarn
-import scala.util.Try
 
 final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V], val context: KafkaContext[F])
     extends Serializable {
@@ -37,9 +36,6 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
 
   def withTopicName(tn: TopicNameC): KafkaTopic[F, K, V] =
     withTopicName(TopicName(tn))
-
-  def withGroupId(gid: String): KafkaTopic[F, K, V] =
-    new KafkaTopic[F, K, V](topicDef, context.withGroupId(gid))
 
   def withSchema(pair: AvroSchemaPair): KafkaTopic[F, K, V] =
     new KafkaTopic[F, K, V](topicDef.withSchema(pair), context)
@@ -77,19 +73,23 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
   def serializeKey(k: K): Array[Byte] = serdePair.key.serialize(k)
   def serializeVal(v: V): Array[Byte] = serdePair.value.serialize(v)
 
-  def record(partition: Int, offset: Long)(implicit
-    sync: Sync[F]): F[Option[KafkaConsumerRecord[Try[K], Try[V]]]] =
-    shortLiveConsumer.use(
-      _.retrieveRecord(KafkaPartition(partition), KafkaOffset(offset))
-        .map(_.map(decoder(_).tryDecodeKeyValue)))
+  // consumer and producer
 
-  // APIs
+  def consume(implicit F: Sync[F]): NJKafkaConsume[F, K, V] =
+    new NJKafkaConsume[F, K, V](
+      topicName,
+      ConsumerSettings[F, K, V](
+        Deserializer.delegate[F, K](serdePair.key.serde.deserializer()),
+        Deserializer.delegate[F, V](serdePair.value.serde.deserializer()))
+        .withProperties(context.settings.consumerSettings.config)
+    )
 
-  def admin(implicit F: Async[F]): KafkaAdminApi[F] =
-    KafkaAdminApi[F, K, V](this)
-
-  def shortLiveConsumer(implicit sync: Sync[F]): Resource[F, ShortLiveConsumer[F]] =
-    ShortLiveConsumer(topicName, context.settings.consumerSettings.javaProperties)
+  def produce(implicit F: Sync[F]): NJKafkaProduce[F, K, V] =
+    new NJKafkaProduce[F, K, V](
+      ProducerSettings[F, K, V](
+        Serializer.delegate(serdePair.key.serde.serializer()),
+        Serializer.delegate(serdePair.value.serde.serializer()))
+        .withProperties(context.settings.producerSettings.config))
 
   // Streaming
 
@@ -105,13 +105,6 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
   }
   def asStateStore(storeName: TopicNameC): NJStateStore[K, V] =
     asStateStore(TopicName(storeName))
-
-  def produce(implicit F: Sync[F]): NJKafkaProduce[F, K, V] =
-    new NJKafkaProduce[F, K, V](
-      ProducerSettings[F, K, V](
-        Serializer.delegate(serdePair.key.serde.serializer()),
-        Serializer.delegate(serdePair.value.serde.serializer()))
-        .withProperties(context.settings.producerSettings.config))
 
   // producer record
   def kafkaProducerRecord(k: K, v: V): KafkaProducerRecord[K, V] =
