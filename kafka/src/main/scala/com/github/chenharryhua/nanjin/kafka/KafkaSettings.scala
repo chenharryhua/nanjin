@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.kafka
 
+import cats.Show
 import cats.effect.IO
-import cats.{Endo, Show}
 import com.github.chenharryhua.nanjin.common.utils
 import fs2.kafka.AdminClientSettings
 import io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig
@@ -18,6 +18,16 @@ import java.util.Properties
   */
 
 final case class KafkaGroupId(value: String) extends AnyVal
+
+final case class KafkaConsumerSettings(properties: Map[String, String]) {
+  def withProperty(key: String, value: String): KafkaConsumerSettings =
+    copy(properties = properties.updatedWith(key)(_ => Some(value)))
+}
+
+final case class KafkaProducerSettings(properties: Map[String, String]) {
+  def withProperty(key: String, value: String): KafkaProducerSettings =
+    copy(properties = properties.updatedWith(key)(_ => Some(value)))
+}
 
 final case class KafkaStreamSettings(properties: Map[String, String]) {
   def withProperty(key: String, value: String): KafkaStreamSettings =
@@ -37,8 +47,8 @@ final case class SchemaRegistrySettings(config: Map[String, String]) {
 
 final case class KafkaSettings private (
   zoneId: ZoneId,
-  consumerSettings: PureConsumerSettings,
-  producerSettings: PureProducerSettings,
+  consumerSettings: KafkaConsumerSettings,
+  producerSettings: KafkaProducerSettings,
   adminSettings: AdminClientSettings,
   streamSettings: KafkaStreamSettings,
   schemaRegistrySettings: SchemaRegistrySettings) {
@@ -49,8 +59,8 @@ final case class KafkaSettings private (
   def withBrokers(brokers: String): KafkaSettings =
     KafkaSettings(
       zoneId,
-      consumerSettings.withBootstrapServers(brokers),
-      producerSettings.withBootstrapServers(brokers),
+      consumerSettings.withProperty(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, brokers),
+      producerSettings.withProperty(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, brokers),
       adminSettings.withBootstrapServers(brokers),
       streamSettings.withProperty(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, brokers),
       schemaRegistrySettings
@@ -72,7 +82,7 @@ final case class KafkaSettings private (
       consumerSettings.withProperty(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, sp.name),
       producerSettings.withProperty(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, sp.name),
       adminSettings.withProperty(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, sp.name),
-      streamSettings.withProperty(SaslConfigs.SASL_JAAS_CONFIG, sp.name),
+      streamSettings.withProperty(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, sp.name),
       schemaRegistrySettings
     )
 
@@ -88,15 +98,6 @@ final case class KafkaSettings private (
   def withSchemaRegistryProperty(key: String, value: String): KafkaSettings =
     copy(schemaRegistrySettings = schemaRegistrySettings.withProperty(key, value))
 
-  def withProducer(f: Endo[PureProducerSettings]): KafkaSettings =
-    copy(producerSettings = f(producerSettings))
-
-  def withConsumer(f: Endo[PureConsumerSettings]): KafkaSettings =
-    copy(consumerSettings = f(consumerSettings))
-
-  def withAdmin(f: Endo[AdminClientSettings]): KafkaSettings =
-    copy(adminSettings = f(adminSettings))
-
   def ioContext: KafkaContext[IO]    = new KafkaContext[IO](this)
   def context[F[_]]: KafkaContext[F] = new KafkaContext[F](this)
 }
@@ -107,8 +108,8 @@ object KafkaSettings extends zoneid {
   def apply(brokers: String, schemaRegistry: String): KafkaSettings =
     KafkaSettings(
       ZoneId.systemDefault(),
-      pureConsumerSettings,
-      pureProducerSettings,
+      KafkaConsumerSettings(Map.empty),
+      KafkaProducerSettings(Map.empty),
       AdminClientSettings(brokers),
       KafkaStreamSettings(Map.empty),
       SchemaRegistrySettings(Map.empty)

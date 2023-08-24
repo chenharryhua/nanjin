@@ -1,14 +1,14 @@
 package com.github.chenharryhua.nanjin.kafka
 
+import cats.Monad
 import cats.data.Kleisli
 import cats.effect.kernel.{Resource, Sync}
 import cats.mtl.Ask
 import cats.syntax.all.*
-import cats.{Id, Monad}
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.{NJDateTimeRange, NJTimestamp}
+import fs2.kafka.KafkaByteConsumer
 import fs2.kafka.consumer.MkConsumer
-import fs2.kafka.{ConsumerSettings, KafkaByteConsumer}
 import org.apache.kafka.clients.consumer.{ConsumerRecord, OffsetAndMetadata}
 import org.apache.kafka.common.TopicPartition
 
@@ -111,14 +111,10 @@ sealed trait TransientConsumer[F[_]] extends KafkaPrimitiveConsumerApi[F] {
 
 private object TransientConsumer {
 
-  def apply[F[_]: Sync](
-    topicName: TopicName,
-    cs: ConsumerSettings[Id, Nothing, Nothing]): TransientConsumer[F] =
+  def apply[F[_]: Sync](topicName: TopicName, cs: PureConsumerSettings): TransientConsumer[F] =
     new TransientConsumerImpl(topicName, cs)
 
-  final private class TransientConsumerImpl[F[_]: Sync](
-    topicName: TopicName,
-    cs: ConsumerSettings[Id, Nothing, Nothing])
+  final private class TransientConsumerImpl[F[_]: Sync](topicName: TopicName, cs: PureConsumerSettings)
       extends TransientConsumer[F] {
 
     private[this] val consumer: Resource[F, KafkaByteConsumer] =

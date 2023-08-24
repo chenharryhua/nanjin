@@ -1,12 +1,11 @@
 package com.github.chenharryhua.nanjin.kafka
 
-import cats.{Endo, Id}
 import cats.effect.kernel.{Async, Resource}
 import cats.effect.std.UUIDGen
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.{NJDateTimeRange, NJTimestamp}
-import fs2.kafka.{AdminClientSettings, AutoOffsetReset, ConsumerSettings, KafkaAdminClient}
+import fs2.kafka.{AdminClientSettings, AutoOffsetReset, KafkaAdminClient}
 import org.apache.kafka.clients.admin.{NewTopic, TopicDescription}
 import org.apache.kafka.clients.consumer.OffsetAndMetadata
 import org.apache.kafka.common.TopicPartition
@@ -38,18 +37,18 @@ object KafkaAdminApi {
 
   def apply[F[_]: Async](
     topicName: TopicName,
-    settings: KafkaSettings,
-    cfg: Endo[AdminClientSettings]): KafkaAdminApi[F] =
-    new KafkaTopicAdminApiImpl(topicName, settings, cfg)
+    consumerSettings: KafkaConsumerSettings,
+    adminSettings: AdminClientSettings): KafkaAdminApi[F] =
+    new KafkaTopicAdminApiImpl(topicName, consumerSettings, adminSettings)
 
   final private class KafkaTopicAdminApiImpl[F[_]: Async](
     topicName: TopicName,
-    settings: KafkaSettings,
-    cfg: Endo[AdminClientSettings])
+    consumerSettings: KafkaConsumerSettings,
+    adminSettings: AdminClientSettings)
       extends KafkaAdminApi[F] {
 
     override val adminResource: Resource[F, KafkaAdminClient[F]] =
-      KafkaAdminClient.resource[F](cfg(settings.adminSettings))
+      KafkaAdminClient.resource[F](adminSettings)
 
     override def iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence: F[Unit] =
       adminResource.use(_.deleteTopic(topicName.value))
@@ -70,10 +69,11 @@ object KafkaAdminApi {
 
     // consumer
 
-    private val initCS: ConsumerSettings[Id, Nothing, Nothing] = settings.consumerSettings
+    private val initCS: PureConsumerSettings =
+      pureConsumerSettings.withProperties(consumerSettings.properties)
 
-    private def transientConsumer(cs: ConsumerSettings[Id, Nothing, Nothing]): TransientConsumer[F] =
-      TransientConsumer(topicName, cs.withAutoOffsetReset(AutoOffsetReset.None))
+    private def transientConsumer(cs: PureConsumerSettings): TransientConsumer[F] =
+      TransientConsumer(topicName, cs.withAutoOffsetReset(AutoOffsetReset.None).withEnableAutoCommit(false))
 
     override def groups: F[List[KafkaConsumerGroupInfo]] =
       adminResource.use { client =>

@@ -24,8 +24,8 @@ class InteractiveTest extends AnyFunSuite {
   val ctx: KafkaContext[IO] =
     KafkaSettings.local
       .withConsumerProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest")
+      .withConsumerProperty(ConsumerConfig.GROUP_ID_CONFIG, "nj-kafka-interactive-unit-test-group")
       .withStreamingProperty("state.dir", "./data/kafka_states")
-      .withConsumer(_.withGroupId("nj-kafka-interactive-unit-test-group"))
       .ioContext
 
   val topic       = ctx.topic[Int, String]("stream.test.interactive.5")
@@ -60,13 +60,13 @@ class InteractiveTest extends AnyFunSuite {
       }
 
     println(Console.CYAN + "interactive" + Console.RESET)
-    println(ctx.buildStreams(appid,top).topology.describe())
+    println(ctx.buildStreams(appid, top).topology.describe())
     println(res.compile.toList.unsafeRunSync().flatten)
   }
 
   test("startup timeout") {
     println(Console.CYAN + "startup timeout" + Console.RESET)
-    val to1 = ctx.buildStreams(appid,top).withStartUpTimeout(0.seconds).stateUpdates.compile.drain
+    val to1 = ctx.buildStreams(appid, top).withStartUpTimeout(0.seconds).stateUpdates.compile.drain
     assertThrows[TimeoutException](to1.unsafeRunSync())
     val to2 =
       ctx.buildStreams(appid, top).withStartUpTimeout(1.day).kafkaStreams.map(_.state()).debug().compile.drain

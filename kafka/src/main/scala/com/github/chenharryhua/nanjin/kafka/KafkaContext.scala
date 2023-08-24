@@ -104,5 +104,5 @@ final class KafkaContext[F[_]](val settings: KafkaSettings)
 
   def admin(topicName: TopicName, cfg: Endo[AdminClientSettings] = identity)(implicit
     F: Async[F]): KafkaAdminApi[F] =
-    KafkaAdminApi[F](topicName, settings, cfg)
+    KafkaAdminApi[F](topicName, settings.consumerSettings, cfg(settings.adminSettings))
 }
