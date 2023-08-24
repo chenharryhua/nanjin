@@ -26,7 +26,7 @@ val jacksonV    = "2.15.2"
 val protobufV   = "3.24.1"
 val sparkV      = "3.4.1"
 val refinedV    = "0.11.0"
-val nettyV      = "4.1.96.Final"
+val nettyV      = "4.1.97.Final"
 val chimneyV    = "0.7.5"
 val enumeratumV = "1.7.3"
 val drosteV     = "0.9.0"
@@ -352,7 +352,7 @@ lazy val pipes = (project in file("pipes"))
       "io.circe" %% "circe-jackson212" % "0.14.0",
       "com.amazonaws"                  % "aws-java-sdk-bundle" % awsV_1,
       "org.tukaani"                    % "xz"                  % "1.9",
-      "org.jetbrains.kotlin"           % "kotlin-stdlib"       % "1.9.0", // snyk
+      "org.jetbrains.kotlin"           % "kotlin-stdlib"       % "1.9.10", // snyk
       "org.codehaus.jettison"          % "jettison"            % "1.5.4", // snyk
       "io.netty"                       % "netty-handler"       % nettyV, // snyk
       "org.slf4j"                      % "slf4j-jdk14"         % slf4jV % Test
