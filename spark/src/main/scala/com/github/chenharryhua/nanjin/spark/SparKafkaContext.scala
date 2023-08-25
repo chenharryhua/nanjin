@@ -41,6 +41,7 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
     sstream(TopicName(topicName))
 
   /** download a kafka topic and save to given folder
+    *
     * @param topicName
     *   the source topic name
     * @param path
@@ -48,18 +49,19 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
     * @param dateRange
     *   datetime range
     */
-  def dump(
-    topicName: TopicName,
-    path: NJPath,
-    dateRange: NJDateTimeRange = NJDateTimeRange(kafkaContext.settings.zoneId))(implicit
-    F: Async[F]): F[Unit] = {
+  def dump(topicName: TopicName, path: NJPath, dateRange: NJDateTimeRange)(implicit F: Async[F]): F[Unit] = {
     val grRdd: F[RDD[String]] = for {
       schemaPair <- kafkaContext.schemaRegistry.fetchAvroSchema(topicName)
       builder = new PullGenericRecord(kafkaContext.settings.schemaRegistrySettings, topicName, schemaPair)
       range <- kafkaContext.admin(topicName).offsetRangeFor(dateRange)
-    } yield sk.kafkaBatchRDD(kafkaContext.settings, sparkSession, range).map(builder.toJacksonString)
+    } yield sk
+      .kafkaBatchRDD(kafkaContext.settings.consumerSettings, sparkSession, range)
+      .map(builder.toJacksonString)
     new RddFileHoarder(grRdd).text(path).withSuffix("jackson.json").run
   }
+
+  def dump(topicName: TopicNameC, path: NJPath)(implicit F: Async[F]): F[Unit] =
+    dump(TopicName(topicName), path, NJDateTimeRange(kafkaContext.settings.zoneId))
 
   /** upload data from given folder to a kafka topic
     *
@@ -80,8 +82,8 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
   def upload(
     topicName: TopicName,
     path: NJPath,
-    chunkSize: ChunkSize = refineMV(1000),
-    config: Endo[ProducerSettings[F, Array[Byte], Array[Byte]]] = identity)(implicit F: Async[F]): F[Long] = {
+    chunkSize: ChunkSize,
+    config: Endo[ProducerSettings[F, Array[Byte], Array[Byte]]])(implicit F: Async[F]): F[Long] = {
 
     val producerSettings: ProducerSettings[F, Array[Byte], Array[Byte]] =
       config(
@@ -102,4 +104,7 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
       }
     } yield num
   }
+
+  def upload(topicName: TopicNameC, path: NJPath)(implicit F: Async[F]): F[Long] =
+    upload(TopicName(topicName), path, refineMV(1000), identity)
 }

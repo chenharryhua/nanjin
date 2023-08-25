@@ -96,8 +96,8 @@ final class PullGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName,
     record
   }
 
-  def toGenericRecord(cr: ConsumerRecord[Array[Byte], Array[Byte]]): GenericRecord =
-    toGenericRecord(cr.transformInto[KafkaByteConsumerRecord])
+  def toGenericRecord(ccr: ConsumerRecord[Array[Byte], Array[Byte]]): GenericRecord =
+    toGenericRecord(ccr.transformInto[KafkaByteConsumerRecord])
 
   @transient private lazy val datumWriter = new GenericDatumWriter[GenericRecord](schema)
 

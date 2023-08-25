@@ -1,6 +1,5 @@
 package com.github.chenharryhua.nanjin.kafka
 
-import cats.Endo
 import cats.data.Reader
 import cats.effect.kernel.{Async, Sync}
 import cats.effect.std.UUIDGen
@@ -88,11 +87,17 @@ final class KafkaContext[F[_]](val settings: KafkaSettings)
       settings.schemaRegistrySettings
     )
 
+  def sink(topicName: TopicNameC)(implicit F: Sync[F]): NJGenericRecordSink[F] =
+    sink(TopicName(topicName))
+
   def store[K: SerdeOf, V: SerdeOf](storeName: TopicName): NJStateStore[K, V] =
     NJStateStore[K, V](
       storeName,
       settings.schemaRegistrySettings,
       RawKeyValueSerdePair[K, V](SerdeOf[K], SerdeOf[V]))
+
+  def store[K: SerdeOf, V: SerdeOf](storeName: TopicNameC): NJStateStore[K, V] =
+    store(TopicName(storeName))
 
   def buildStreams(applicationId: String, topology: Reader[StreamsBuilder, Unit])(implicit
     F: Async[F]): KafkaStreamsBuilder[F] =
@@ -102,7 +107,9 @@ final class KafkaContext[F[_]](val settings: KafkaSettings)
     F: Async[F]): KafkaStreamsBuilder[F] =
     buildStreams(applicationId, Reader(topology))
 
-  def admin(topicName: TopicName, cfg: Endo[AdminClientSettings] = identity)(implicit
-    F: Async[F]): KafkaAdminApi[F] =
-    KafkaAdminApi[F](topicName, settings.consumerSettings, cfg(settings.adminSettings))
+  def admin(topicName: TopicName)(implicit F: Async[F]): KafkaAdminApi[F] =
+    KafkaAdminApi[F](topicName, settings.consumerSettings, settings.adminSettings)
+
+  def admin(topicName: TopicNameC)(implicit F: Async[F]): KafkaAdminApi[F] =
+    admin(TopicName(topicName))
 }

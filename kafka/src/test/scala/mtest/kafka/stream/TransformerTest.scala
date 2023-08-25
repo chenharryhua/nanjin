@@ -59,7 +59,7 @@ class TransformerTest extends AnyFunSuite {
     } yield s1.process(processor, store.name).join(t2)(_ + _).to(tgt.topicName.value)(tgt.asProduced)
 
     val kafkaStreamService =
-      ctx.buildStreams(appid,top).addStateStore(store.inMemoryKeyValueStore.keyValueStoreBuilder)
+      ctx.buildStreams(appid, top).addStateStore(store.inMemoryKeyValueStore.keyValueStoreBuilder)
     println(kafkaStreamService.topology.describe())
 
     val t2Data = Stream(

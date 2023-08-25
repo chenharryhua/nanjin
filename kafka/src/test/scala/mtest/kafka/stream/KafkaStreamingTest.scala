@@ -90,7 +90,7 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
       .to(tgt.topicName.value)(tgt.asProduced)
 
     val res: Set[StreamTarget] = (IO.println(Console.CYAN + "stream-table join" + Console.RESET) >> ctx
-      .buildStreams(appId,top)
+      .buildStreams(appId, top)
       .kafkaStreams
       .concurrently(sendS1Data)
       .flatMap(_ => harvest.interruptAfter(10.seconds))
@@ -129,7 +129,7 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
       .debug()
 
     val res = (IO.println(Console.CYAN + "kafka stream has bad records" + Console.RESET) >> ctx
-      .buildStreams(appId,top)
+      .buildStreams(appId, top)
       .kafkaStreams
       .concurrently(sendS1Data)
       .flatMap(_ => harvest.interruptAfter(10.seconds))
