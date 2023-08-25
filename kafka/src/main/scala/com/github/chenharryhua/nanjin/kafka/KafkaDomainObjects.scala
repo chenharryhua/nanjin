@@ -12,6 +12,8 @@ import org.apache.kafka.common.TopicPartition
 import java.{lang, util}
 import scala.jdk.CollectionConverters.*
 
+final case class KafkaGroupId(value: String) extends AnyVal
+
 final case class KafkaOffset(offset: Refined[Long, NonNegative]) {
   val value: Long                 = offset.value
   val javaLong: java.lang.Long    = value

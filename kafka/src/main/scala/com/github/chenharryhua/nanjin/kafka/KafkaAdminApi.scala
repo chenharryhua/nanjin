@@ -1,11 +1,12 @@
 package com.github.chenharryhua.nanjin.kafka
 
+import cats.Id
 import cats.effect.kernel.{Async, Resource}
 import cats.effect.std.UUIDGen
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.{NJDateTimeRange, NJTimestamp}
-import fs2.kafka.{AdminClientSettings, AutoOffsetReset, KafkaAdminClient}
+import fs2.kafka.{AdminClientSettings, AutoOffsetReset, ConsumerSettings, KafkaAdminClient}
 import org.apache.kafka.clients.admin.{NewTopic, TopicDescription}
 import org.apache.kafka.clients.consumer.OffsetAndMetadata
 import org.apache.kafka.common.TopicPartition
@@ -68,9 +69,12 @@ object KafkaAdminApi {
       adminResource.use(_.describeTopics(List(topicName.value)))
 
     // consumer
+    import TransientConsumer.PureConsumerSettings
 
-    private val initCS: PureConsumerSettings =
-      pureConsumerSettings.withProperties(consumerSettings.properties)
+    private val initCS: PureConsumerSettings = {
+      val pcs: PureConsumerSettings = ConsumerSettings[Id, Nothing, Nothing](null, null)
+      pcs.withProperties(consumerSettings.properties)
+    }
 
     private def transientConsumer(cs: PureConsumerSettings): TransientConsumer[F] =
       TransientConsumer(topicName, cs.withAutoOffsetReset(AutoOffsetReset.None).withEnableAutoCommit(false))

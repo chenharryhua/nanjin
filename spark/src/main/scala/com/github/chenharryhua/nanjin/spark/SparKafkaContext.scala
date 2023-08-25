@@ -41,6 +41,7 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
     sstream(TopicName(topicName))
 
   /** download a kafka topic and save to given folder
+    *
     * @param topicName
     *   the source topic name
     * @param path
@@ -57,7 +58,9 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
       schemaPair <- kafkaContext.schemaRegistry.fetchAvroSchema(topicName)
       builder = new PullGenericRecord(kafkaContext.settings.schemaRegistrySettings, topicName, schemaPair)
       range <- kafkaContext.admin(topicName).offsetRangeFor(dateRange)
-    } yield sk.kafkaBatchRDD(kafkaContext.settings, sparkSession, range).map(builder.toJacksonString)
+    } yield sk
+      .kafkaBatchRDD(kafkaContext.settings.consumerSettings, sparkSession, range)
+      .map(builder.toJacksonString)
     new RddFileHoarder(grRdd).text(path).withSuffix("jackson.json").run
   }
 

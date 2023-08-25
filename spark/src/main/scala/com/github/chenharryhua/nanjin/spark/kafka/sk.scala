@@ -4,7 +4,7 @@ import cats.effect.kernel.Async
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
-import com.github.chenharryhua.nanjin.kafka.{KafkaOffsetRange, KafkaSettings, KafkaTopic, KafkaTopicPartition}
+import com.github.chenharryhua.nanjin.kafka.*
 import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJHeader}
 import monocle.function.At.{atMap, remove}
 import org.apache.kafka.clients.consumer.{ConsumerConfig, ConsumerRecord}
@@ -18,13 +18,17 @@ import org.apache.spark.streaming.kafka010.*
 
 import java.sql.Timestamp
 import java.util
+import java.util.UUID
 import scala.jdk.CollectionConverters.*
 
 private[spark] object sk {
 
   // https://spark.apache.org/docs/3.0.1/streaming-kafka-0-10-integration.html
   private def props(config: Map[String, String]): util.Map[String, Object] =
-    (config ++ // override deserializers if any
+    (config.updatedWith(ConsumerConfig.GROUP_ID_CONFIG) {
+      case gid @ Some(_) => gid
+      case None          => Some(UUID.randomUUID().show)
+    } ++ // override deserializers if any
       Map(
         ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG -> classOf[ByteArrayDeserializer].getName,
         ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG -> classOf[ByteArrayDeserializer].getName
@@ -36,13 +40,13 @@ private[spark] object sk {
     }
 
   def kafkaBatchRDD(
-    settings: KafkaSettings,
+    consumerSettings: KafkaConsumerSettings,
     ss: SparkSession,
     offsetRange: KafkaTopicPartition[Option[KafkaOffsetRange]])
     : RDD[ConsumerRecord[Array[Byte], Array[Byte]]] =
     KafkaUtils.createRDD[Array[Byte], Array[Byte]](
       ss.sparkContext,
-      props(settings.consumerSettings.properties),
+      props(consumerSettings.properties),
       offsetRanges(offsetRange),
       LocationStrategies.PreferConsistent)
 
@@ -50,7 +54,8 @@ private[spark] object sk {
     topic: KafkaTopic[F, K, V],
     ss: SparkSession,
     offsetRange: KafkaTopicPartition[Option[KafkaOffsetRange]]): RDD[NJConsumerRecord[K, V]] =
-    kafkaBatchRDD(topic.context.settings, ss, offsetRange).map(topic.decode(_).toNJConsumerRecord)
+    kafkaBatchRDD(topic.context.settings.consumerSettings, ss, offsetRange)
+      .map(topic.decode(_).toNJConsumerRecord)
 
   def kafkaBatch[F[_]: Async, K, V](
     topic: KafkaTopic[F, K, V],

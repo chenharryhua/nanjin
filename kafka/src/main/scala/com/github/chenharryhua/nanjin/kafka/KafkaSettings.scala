@@ -17,8 +17,6 @@ import java.util.Properties
 /** [[https://kafka.apache.org/]]
   */
 
-final case class KafkaGroupId(value: String) extends AnyVal
-
 final case class KafkaConsumerSettings(properties: Map[String, String]) {
   def withProperty(key: String, value: String): KafkaConsumerSettings =
     copy(properties = properties.updatedWith(key)(_ => Some(value)))
@@ -34,10 +32,6 @@ final case class KafkaStreamSettings(properties: Map[String, String]) {
     copy(properties = properties.updatedWith(key)(_ => Some(value)))
 
   def javaProperties: Properties = utils.toProperties(properties)
-}
-object KafkaStreamSettings {
-  implicit val showKafkaStreamSettings: Show[KafkaStreamSettings] =
-    cats.derived.semiauto.show[KafkaStreamSettings]
 }
 
 final case class SchemaRegistrySettings(config: Map[String, String]) {
