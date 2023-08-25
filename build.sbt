@@ -1,6 +1,6 @@
 ThisBuild / scalaVersion := "2.13.11"
 
-ThisBuild / version := "0.17.0-SNAPSHOT"
+ThisBuild / version := "0.17.1-SNAPSHOT"
 
 val catsCoreV   = "2.10.0"
 val fs2V        = "3.8.0"
@@ -9,8 +9,8 @@ val awsV_2      = "2.20.130"
 val catsEffectV = "3.5.1"
 val hadoopV     = "3.3.6"
 val monocleV    = "3.2.0"
-val confluentV  = "7.4.1"
-val kafkaV      = "7.4.1-ce"
+val confluentV  = "7.5.0"
+val kafkaV      = "7.5.0-ce"
 val fs2KafkaV   = "3.0.1"
 val avroV       = "1.11.2"
 val parquetV    = "1.13.1"
