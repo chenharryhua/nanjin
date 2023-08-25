@@ -1,9 +1,10 @@
 package com.github.chenharryhua.nanjin.kafka
 
-import cats.Id
 import cats.effect.kernel.{Async, Resource}
 import cats.effect.std.UUIDGen
 import cats.syntax.all.*
+import cats.{Endo, Id}
+import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.{NJDateTimeRange, NJTimestamp}
 import fs2.kafka.{AdminClientSettings, AutoOffsetReset, ConsumerSettings, KafkaAdminClient}
@@ -13,7 +14,7 @@ import org.apache.kafka.common.TopicPartition
 
 // delegate to https://ovotech.github.io/fs2-kafka/
 
-sealed trait KafkaAdminApi[F[_]] {
+sealed trait KafkaAdminApi[F[_]] extends UpdateConfig[AdminClientSettings, KafkaAdminApi[F]] {
   def adminResource: Resource[F, KafkaAdminClient[F]]
 
   def iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence: F[Unit]
@@ -124,5 +125,7 @@ object KafkaAdminApi {
     override def resetOffsetsForTimes(groupId: String, ts: NJTimestamp): F[Unit] =
       transientConsumer(initCS.withGroupId(groupId)).resetOffsetsForTimes(ts)
 
+    override def updateConfig(f: Endo[AdminClientSettings]): KafkaAdminApi[F] =
+      new KafkaTopicAdminApiImpl[F](topicName, consumerSettings, f(adminSettings))
   }
 }
