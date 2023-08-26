@@ -39,7 +39,7 @@ final class NJKafkaByteConsume[F[_]] private[kafka] (
         .stream[F, Array[Byte], Array[Byte]](consumerSettings)
         .evalTap { c =>
           c.assign(topicName.value) *> tps.value.toList.traverse { case (tp, offset) =>
-            c.seek(tp, offset.offset.value)
+            c.seek(tp, offset.value)
           }
         }
         .flatMap(_.stream)
@@ -105,7 +105,7 @@ final class NJKafkaConsume[F[_], K, V] private[kafka] (
         .stream[F, K, V](consumerSettings)
         .evalTap { c =>
           c.assign(topicName.value) *> tps.value.toList.traverse { case (tp, offset) =>
-            c.seek(tp, offset.offset.value)
+            c.seek(tp, offset.value)
           }
         }
         .flatMap(_.stream)

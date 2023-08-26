@@ -29,7 +29,7 @@ class KafkaOffsetTest extends CatsSuite with FunSuiteDiscipline {
     for {
       os <- Gen.choose[Long](0, Long.MaxValue / 2).map(KafkaOffset(_))
       os2 <- Gen.choose[Long](1, Long.MaxValue / 2)
-    } yield KafkaOffsetRange(os, KafkaOffset(os.offset.value + os2)).get
+    } yield KafkaOffsetRange(os, KafkaOffset(os.value + os2)).get
   )
 
   implicit val cogenPartition: Cogen[KafkaPartition] =
@@ -44,10 +44,6 @@ class KafkaOffsetTest extends CatsSuite with FunSuiteDiscipline {
 }
 
 class KafkaOffsetBuildTest extends AnyFunSuite {
-  test("non negative KafkaOffset") {
-    assertThrows[Exception](KafkaOffset(-1))
-    assertThrows[Exception](KafkaPartition(-1))
-  }
 
   test("partition") {
     val p1 = KafkaPartition(1)
@@ -79,6 +75,6 @@ class KafkaOffsetBuildTest extends AnyFunSuite {
     assert(res.value == expected)
     assert(ktp.topicPartitions.value.toSet == expected.keySet)
     assert(ktp.offsets.value.values.size == 3)
-    assert(ktp.offsets.value.values.toList.flatten.map(_.offset.value).toSet == Set(0, 1))
+    assert(ktp.offsets.value.values.toList.flatten.map(_.value).toSet == Set(0, 1))
   }
 }

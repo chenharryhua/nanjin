@@ -3,9 +3,9 @@ package com.github.chenharryhua.nanjin.kafka
 import cats.syntax.all.*
 import cats.{Order, PartialOrder}
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
-import eu.timepit.refined.api.Refined
-import eu.timepit.refined.numeric.NonNegative
-import eu.timepit.refined.refineV
+import io.circe.*
+import io.circe.Decoder.Result
+import io.circe.generic.JsonCodec
 import org.apache.kafka.clients.consumer.{OffsetAndMetadata, OffsetAndTimestamp}
 import org.apache.kafka.common.TopicPartition
 
@@ -13,42 +13,45 @@ import java.{lang, util}
 import scala.jdk.CollectionConverters.*
 
 final case class KafkaGroupId(value: String) extends AnyVal
+object KafkaGroupId {
+  implicit val codecKafkaGroupId: Codec[KafkaGroupId] = new Codec[KafkaGroupId] {
+    override def apply(c: HCursor): Result[KafkaGroupId] = Decoder.decodeString(c).map(KafkaGroupId(_))
+    override def apply(a: KafkaGroupId): Json            = Encoder.encodeString(a.value)
+  }
+}
 
-final case class KafkaOffset(offset: Refined[Long, NonNegative]) {
-  val value: Long                 = offset.value
-  val javaLong: java.lang.Long    = value
+final case class KafkaOffset(value: Long) extends AnyVal {
   def asLast: KafkaOffset         = KafkaOffset(value - 1) // represent last message
   def -(other: KafkaOffset): Long = value - other.value
 }
 
 object KafkaOffset {
 
-  @throws[Exception]
-  def apply(v: Long): KafkaOffset =
-    refineV[NonNegative](v).map(KafkaOffset(_)).fold(ex => throw new Exception(ex), identity)
+  implicit val codecKafkaOffset: Codec[KafkaOffset] = new Codec[KafkaOffset] {
+    override def apply(c: HCursor): Result[KafkaOffset] = Decoder.decodeLong(c).map(KafkaOffset(_))
+    override def apply(a: KafkaOffset): Json            = Encoder.encodeLong(a.value)
+  }
 
   implicit val orderKafkaOffset: Order[KafkaOffset] =
     (x: KafkaOffset, y: KafkaOffset) => x.value.compareTo(y.value)
 }
 
-final case class KafkaPartition(partition: Refined[Int, NonNegative]) {
-  val value: Int                    = partition.value
+final case class KafkaPartition(value: Int) extends AnyVal {
   def -(other: KafkaPartition): Int = value - other.value
 }
 
 object KafkaPartition {
 
-  @throws[Exception]
-  def apply(v: Int): KafkaPartition =
-    refineV[NonNegative](v).map(KafkaPartition(_)).fold(ex => throw new Exception(ex), identity)
+  implicit val codecKafkaPartition: Codec[KafkaPartition] = new Codec[KafkaPartition] {
+    override def apply(c: HCursor): Result[KafkaPartition] = Decoder.decodeInt(c).map(KafkaPartition(_))
+    override def apply(a: KafkaPartition): Json            = Encoder.encodeInt(a.value)
+  }
 
   implicit val orderKafkaPartition: Order[KafkaPartition] =
     (x: KafkaPartition, y: KafkaPartition) => x.value.compareTo(y.value)
 }
 
 sealed abstract case class KafkaOffsetRange private (from: KafkaOffset, until: KafkaOffset) {
-  // require(from < until, s"from should be strictly less than until. from = $from, until=$until")
-
   val distance: Long = until - from
 
   override def toString: String =
@@ -56,6 +59,18 @@ sealed abstract case class KafkaOffsetRange private (from: KafkaOffset, until: K
 }
 
 object KafkaOffsetRange {
+  implicit val codecKafkaOffsetRange: Codec[KafkaOffsetRange] = new Codec[KafkaOffsetRange] {
+    override def apply(a: KafkaOffsetRange): Json = Json.obj(
+      "from" -> Json.fromLong(a.from.value),
+      "until" -> Json.fromLong(a.until.value),
+      "distance" -> Json.fromLong(a.distance)
+    )
+    override def apply(c: HCursor): Result[KafkaOffsetRange] =
+      for {
+        from <- c.downField("from").as[Long]
+        until <- c.downField("until").as[Long]
+      } yield new KafkaOffsetRange(KafkaOffset(from), KafkaOffset(until)) {}
+  }
 
   def apply(from: KafkaOffset, until: KafkaOffset): Option[KafkaOffsetRange] =
     if (from < until)
@@ -76,7 +91,7 @@ object KafkaOffsetRange {
       }
 }
 
-final case class ListOfTopicPartitions(value: List[TopicPartition]) {
+final case class ListOfTopicPartitions(value: List[TopicPartition]) extends AnyVal {
 
   def javaTimed(ldt: NJTimestamp): util.Map[TopicPartition, lang.Long] =
     value.map(tp => tp -> ldt.javaLong).toMap.asJava
@@ -84,7 +99,27 @@ final case class ListOfTopicPartitions(value: List[TopicPartition]) {
   def asJava: util.List[TopicPartition] = value.asJava
 }
 
-final case class KafkaTopicPartition[V](value: Map[TopicPartition, V]) {
+object ListOfTopicPartitions {
+  implicit val codecTopicPartition: Codec[TopicPartition] = new Codec[TopicPartition] {
+    override def apply(a: TopicPartition): Json =
+      Json.obj("topic" -> Json.fromString(a.topic()), "partition" -> Json.fromInt(a.partition()))
+
+    override def apply(c: HCursor): Result[TopicPartition] =
+      for {
+        topic <- c.downField("topic").as[String]
+        partition <- c.downField("partition").as[Int]
+      } yield new TopicPartition(topic, partition)
+  }
+
+  implicit val codecListOfTopicPartitions: Codec[ListOfTopicPartitions] = new Codec[ListOfTopicPartitions] {
+    override def apply(a: ListOfTopicPartitions): Json =
+      Encoder.encodeList[TopicPartition].apply(a.value)
+    override def apply(c: HCursor): Result[ListOfTopicPartitions] =
+      Decoder.decodeList[TopicPartition].apply(c).map(ListOfTopicPartitions(_))
+  }
+}
+
+final case class KafkaTopicPartition[V](value: Map[TopicPartition, V]) extends AnyVal {
   def nonEmpty: Boolean = value.nonEmpty
   def isEmpty: Boolean  = value.isEmpty
 
@@ -110,15 +145,32 @@ final case class KafkaTopicPartition[V](value: Map[TopicPartition, V]) {
 }
 
 object KafkaTopicPartition {
+  import io.circe.generic.auto.*
 
-  implicit final class KafkaTopicPartitionOps1[V](private val self: KafkaTopicPartition[Option[V]])
-      extends AnyVal {
+  final private case class TPV[V](topic: String, partition: Int, value: V)
+
+  @annotation.nowarn
+  implicit def codecKafkaTopicPartition[V: Encoder: Decoder]: Codec[KafkaTopicPartition[V]] =
+    new Codec[KafkaTopicPartition[V]] {
+      override def apply(a: KafkaTopicPartition[V]): Json =
+        Encoder
+          .encodeList[TPV[V]]
+          .apply(a.value.map { case (tp, v) => TPV(tp.topic(), tp.partition(), v) }.toList)
+      override def apply(c: HCursor): Result[KafkaTopicPartition[V]] =
+        Decoder
+          .decodeList[TPV[V]]
+          .map(_.map(tpv => new TopicPartition(tpv.topic, tpv.partition) -> tpv.value).toMap)
+          .map(KafkaTopicPartition[V])
+          .apply(c)
+    }
+
+  implicit final class KafkaTopicPartitionOps1[V](private val self: KafkaTopicPartition[Option[V]]) {
     def flatten: KafkaTopicPartition[V] =
       self.copy(value = self.value.mapFilter(identity))
   }
+
   implicit final class KafkaTopicPartitionOps2(
-    private val self: KafkaTopicPartition[Option[OffsetAndTimestamp]])
-      extends AnyVal {
+    private val self: KafkaTopicPartition[Option[OffsetAndTimestamp]]) {
     def offsets: KafkaTopicPartition[Option[KafkaOffset]] =
       self.copy(value = self.value.view.mapValues(_.map(x => KafkaOffset(x.offset))).toMap)
   }
@@ -127,6 +179,7 @@ object KafkaTopicPartition {
   val emptyOffset: KafkaTopicPartition[KafkaOffset] = empty[KafkaOffset]
 }
 
+@JsonCodec
 final case class KafkaConsumerGroupInfo(
   groupId: KafkaGroupId,
   lag: KafkaTopicPartition[Option[KafkaOffsetRange]])
