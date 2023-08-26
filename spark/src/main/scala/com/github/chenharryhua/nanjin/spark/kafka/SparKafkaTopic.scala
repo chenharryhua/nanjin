@@ -84,7 +84,7 @@ final class SparKafkaTopic[F[_], K, V](val sparkSession: SparkSession, val topic
     crRdd(F.blocking(sparkSession.sparkContext.emptyRDD[NJConsumerRecord[K, V]]))
 
   def prRdd(rdd: F[RDD[NJProducerRecord[K, V]]])(implicit F: Sync[F]): PrRdd[F, K, V] =
-    new PrRdd[F, K, V](rdd, topic.topicDef.producerRecordCodec)
+    new PrRdd[F, K, V](rdd, topic.topicDef.producerRecord.codec)
 
   def prRdd[G[_]: Foldable](list: G[NJProducerRecord[K, V]])(implicit F: Sync[F]): PrRdd[F, K, V] =
     prRdd(F.blocking(sparkSession.sparkContext.parallelize(list.toList)))
@@ -101,7 +101,7 @@ final class SparKafkaTopic[F[_], K, V](val sparkSession: SparkSession, val topic
         .map(ds =>
           new AvroDStreamSink(
             ds,
-            topic.topicDef.consumerRecordCodec.avroEncoder,
+            topic.topicDef.consumerRecord.codec.avroEncoder,
             root => ldt => root / ldt.toLocalDate)))
 
 }

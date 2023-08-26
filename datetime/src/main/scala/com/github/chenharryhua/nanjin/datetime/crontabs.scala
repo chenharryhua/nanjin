@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.datetime
 import cron4s.{Cron, CronExpr}
 
 object crontabs {
-  object day {
+  object daily {
     final val midnight: CronExpr = Cron.unsafeParse("0 0 0 ? * *")
     final val amOne: CronExpr    = Cron.unsafeParse("0 0 1 ? * *")
     final val amTwo: CronExpr    = Cron.unsafeParse("0 0 2 ? * *")
