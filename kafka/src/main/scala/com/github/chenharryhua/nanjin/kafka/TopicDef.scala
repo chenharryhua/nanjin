@@ -4,13 +4,15 @@ import cats.Show
 import cats.kernel.Eq
 import cats.syntax.eq.*
 import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameC}
-import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJProducerRecord}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{NJAvroCodec, SerdeOf}
+import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJProducerRecord}
 import com.sksamuel.avro4s.{FromRecord, Record, ToRecord}
 import org.apache.avro.generic.IndexedRecord
 
 final class TopicDef[K, V] private (val topicName: TopicName, val rawSerdes: RawKeyValueSerdePair[K, V])
     extends Serializable {
+
+  def in[F[_]](ctx: KafkaContext[F]): KafkaTopic[F, K, V] = ctx.topic[K, V](this)
 
   override def toString: String = topicName.value
 
@@ -23,18 +25,30 @@ final class TopicDef[K, V] private (val topicName: TopicName, val rawSerdes: Raw
   lazy val schemaPair: AvroSchemaPair =
     AvroSchemaPair(rawSerdes.key.avroCodec.schemaFor.schema, rawSerdes.value.avroCodec.schemaFor.schema)
 
-  lazy val consumerRecordCodec: NJAvroCodec[NJConsumerRecord[K, V]] =
-    NJConsumerRecord.avroCodec(rawSerdes.key.avroCodec, rawSerdes.value.avroCodec)
+  // consumer
+  final class ConsumerRecord(val codec: NJAvroCodec[NJConsumerRecord[K, V]]) extends Serializable {
+    private val toGR: ToRecord[NJConsumerRecord[K, V]]     = ToRecord(codec.avroEncoder)
+    private val fromGR: FromRecord[NJConsumerRecord[K, V]] = FromRecord(codec.avroDecoder)
 
-  lazy val producerRecordCodec: NJAvroCodec[NJProducerRecord[K, V]] =
-    NJProducerRecord.avroCodec(rawSerdes.key.avroCodec, rawSerdes.value.avroCodec)
+    def toRecord(nj: NJConsumerRecord[K, V]): Record          = toGR.to(nj)
+    def fromRecord(gr: IndexedRecord): NJConsumerRecord[K, V] = fromGR.from(gr)
+  }
 
-  private lazy val toGR: ToRecord[NJConsumerRecord[K, V]]     = ToRecord(consumerRecordCodec.avroEncoder)
-  private lazy val fromGR: FromRecord[NJConsumerRecord[K, V]] = FromRecord(consumerRecordCodec.avroDecoder)
-  def toRecord(nj: NJConsumerRecord[K, V]): Record            = toGR.to(nj)
-  def fromRecord(gr: IndexedRecord): NJConsumerRecord[K, V]   = fromGR.from(gr)
+  lazy val consumerRecord: ConsumerRecord =
+    new ConsumerRecord(NJConsumerRecord.avroCodec(rawSerdes.key.avroCodec, rawSerdes.value.avroCodec))
 
-  def in[F[_]](ctx: KafkaContext[F]): KafkaTopic[F, K, V] = ctx.topic[K, V](this)
+  // producer
+  final class ProducerRecord(val codec: NJAvroCodec[NJProducerRecord[K, V]]) extends Serializable {
+    private val toGR: ToRecord[NJProducerRecord[K, V]]     = ToRecord(codec.avroEncoder)
+    private val fromGR: FromRecord[NJProducerRecord[K, V]] = FromRecord(codec.avroDecoder)
+
+    def toRecord(nj: NJProducerRecord[K, V]): Record          = toGR.to(nj)
+    def toRecord(k: K, v: V): Record                          = toGR.to(NJProducerRecord(topicName, k, v))
+    def fromRecord(gr: IndexedRecord): NJProducerRecord[K, V] = fromGR.from(gr)
+  }
+
+  lazy val producerRecord: ProducerRecord =
+    new ProducerRecord(NJProducerRecord.avroCodec(rawSerdes.key.avroCodec, rawSerdes.value.avroCodec))
 
 }
 

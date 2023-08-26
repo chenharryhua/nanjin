@@ -4,6 +4,7 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.kafka.*
 import eu.timepit.refined.auto.*
+import io.circe.syntax.EncoderOps
 import org.apache.kafka.clients.consumer.OffsetAndMetadata
 import org.apache.kafka.common.TopicPartition
 import org.scalatest.funsuite.AnyFunSuite
@@ -40,8 +41,10 @@ class AdminApiTest extends AnyFunSuite {
   }
 
   test("groups") {
-    ctx.admin(topic.topicName).groups.unsafeRunSync()
+    val gp: List[KafkaConsumerGroupInfo] = ctx.admin(topic.topicName).groups.unsafeRunSync()
+    assert(gp.asJson.as[List[KafkaConsumerGroupInfo]].toOption.get == gp)
   }
+
   test("KafkaConsumerGroupInfo") {
     val end: KafkaTopicPartition[Option[KafkaOffset]] = KafkaTopicPartition[Option[KafkaOffset]](
       Map(
@@ -54,7 +57,10 @@ class AdminApiTest extends AnyFunSuite {
       new TopicPartition("t", 1) -> new OffsetAndMetadata(10),
       new TopicPartition("t", 2) -> new OffsetAndMetadata(20)
     )
+
     val cgi = KafkaConsumerGroupInfo("gid", end, offsetMeta)
     assert(cgi.lag.value.values.toList.flatten.map(_.distance).toSet == Set(100, 90))
+    assert(end.asJson.as[KafkaTopicPartition[Option[KafkaOffset]]].toOption.get == end)
+
   }
 }

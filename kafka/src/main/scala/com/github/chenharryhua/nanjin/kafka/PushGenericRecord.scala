@@ -20,10 +20,7 @@ final class PushGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName,
       case Schema.Type.RECORD =>
         val ser = new GenericAvroSerializer()
         ser.configure(srs.config.asJava, true)
-        (_: AnyRef) match {
-          case gr: GenericRecord => ser.serialize(topic, gr)
-          case data              => throw new Exception(s"key: $data is not a Generic Record")
-        }
+        (data: AnyRef) => ser.serialize(topic, data.asInstanceOf[GenericRecord])
 
       case Schema.Type.STRING =>
         val ser = Serdes.stringSerde.serializer()
@@ -48,10 +45,7 @@ final class PushGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName,
       case Schema.Type.RECORD =>
         val ser = new GenericAvroSerializer()
         ser.configure(srs.config.asJava, false)
-        (_: AnyRef) match {
-          case gr: GenericRecord => ser.serialize(topic, gr)
-          case data              => throw new Exception(s"value: $data is not a Generic Record")
-        }
+        (data: AnyRef) => ser.serialize(topic, data.asInstanceOf[GenericRecord])
 
       case Schema.Type.STRING =>
         val ser = Serdes.stringSerde.serializer()
@@ -75,7 +69,9 @@ final class PushGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName,
     val key   = gr.get("key")
     val value = gr.get("value")
 
-    (GenericData.get().validate(pair.key, key), GenericData.get().validate(pair.value, value)) match {
+    (
+      GenericData.get().validate(pair.key, key) || key == null,
+      GenericData.get().validate(pair.value, value) || value == null) match {
       case (true, true)   => ProducerRecord(topic, keySer(key), valSer(value))
       case (true, false)  => throw new Exception("invalid value")
       case (false, true)  => throw new Exception("invalid key")

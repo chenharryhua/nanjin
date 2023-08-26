@@ -122,6 +122,12 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
   def produceOne(k: K, v: V)(implicit F: Async[F]): F[RecordMetadata] =
     produceOne(producerRecord(k, v))
 
+  /** Generate a Producer Record from a Consumer Record encoded in circe
+    *
+    * @param circeStr
+    *   circe string
+    * @return
+    */
   def produceCirce(
     circeStr: String)(implicit F: Async[F], @nowarn k: Decoder[K], @nowarn v: Decoder[V]): F[RecordMetadata] =
     io.circe.parser
@@ -130,13 +136,19 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
       .traverse(produceOne)
       .rethrow
 
+  /** Generate a Producer Record from a Consumer Record encoded in jackson
+    *
+    * @param jacksonStr
+    *   jackson string
+    * @return
+    */
   def produceJackson(jacksonStr: String)(implicit F: Async[F]): F[ProducerResult[K, V]] =
     Resource.fromAutoCloseable(F.pure(new ByteArrayInputStream(jacksonStr.getBytes))).use { is =>
       val prs: ProducerRecords[K, V] = Chunk.iterator(
         AvroInputStream
-          .json[NJConsumerRecord[K, V]](topicDef.consumerRecordCodec.avroDecoder)
+          .json[NJConsumerRecord[K, V]](topicDef.consumerRecord.codec.avroDecoder)
           .from(is)
-          .build(topicDef.consumerRecordCodec.schema)
+          .build(topicDef.consumerRecord.codec.schema)
           .iterator
           .map(_.toNJProducerRecord.noMeta.withTopicName(topicName).toProducerRecord))
 
