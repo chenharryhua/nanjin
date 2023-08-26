@@ -26,9 +26,9 @@ final class TopicDef[K, V] private (val topicName: TopicName, val rawSerdes: Raw
     AvroSchemaPair(rawSerdes.key.avroCodec.schemaFor.schema, rawSerdes.value.avroCodec.schemaFor.schema)
 
   // consumer
-  final class ConsumerRecord(val codec: NJAvroCodec[NJConsumerRecord[K, V]]) {
-    private val toGR: ToRecord[NJConsumerRecord[K, V]]        = ToRecord(codec.avroEncoder)
-    private val fromGR: FromRecord[NJConsumerRecord[K, V]]    = FromRecord(codec.avroDecoder)
+  final class ConsumerRecord(val codec: NJAvroCodec[NJConsumerRecord[K, V]]) extends Serializable {
+    private val toGR: ToRecord[NJConsumerRecord[K, V]]     = ToRecord(codec.avroEncoder)
+    private val fromGR: FromRecord[NJConsumerRecord[K, V]] = FromRecord(codec.avroDecoder)
 
     def toRecord(nj: NJConsumerRecord[K, V]): Record          = toGR.to(nj)
     def fromRecord(gr: IndexedRecord): NJConsumerRecord[K, V] = fromGR.from(gr)
@@ -38,7 +38,7 @@ final class TopicDef[K, V] private (val topicName: TopicName, val rawSerdes: Raw
     new ConsumerRecord(NJConsumerRecord.avroCodec(rawSerdes.key.avroCodec, rawSerdes.value.avroCodec))
 
   // producer
-  final class ProducerRecord(val codec: NJAvroCodec[NJProducerRecord[K, V]]) {
+  final class ProducerRecord(val codec: NJAvroCodec[NJProducerRecord[K, V]]) extends Serializable {
     private val toGR: ToRecord[NJProducerRecord[K, V]]     = ToRecord(codec.avroEncoder)
     private val fromGR: FromRecord[NJProducerRecord[K, V]] = FromRecord(codec.avroDecoder)
 
