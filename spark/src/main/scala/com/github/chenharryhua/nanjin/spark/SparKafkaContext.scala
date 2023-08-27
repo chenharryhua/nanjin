@@ -108,7 +108,7 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
   def upload(topicName: TopicNameC, path: NJPath)(implicit F: Async[F]): F[Long] =
     upload(TopicName(topicName), path, refineMV(1000), identity)
 
-  /** sequentiall read files in the folder and upload them into kafka
+  /** sequentially read files in the folder, sorted by modification time, and upload them into kafka
     *
     * @param topicName
     *   target topic name
