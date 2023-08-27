@@ -14,7 +14,7 @@ import com.github.chenharryhua.nanjin.spark.persist.RddFileHoarder
 import com.github.chenharryhua.nanjin.terminals.{NJHadoop, NJPath}
 import eu.timepit.refined.refineMV
 import fs2.Stream
-import fs2.kafka.{KafkaProducer, ProducerRecords, ProducerSettings, Serializer}
+import fs2.kafka.*
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{Dataset, SparkSession}
 import org.typelevel.cats.time.instances.zoneid
@@ -63,7 +63,7 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
   def dump(topicName: TopicNameC, path: NJPath)(implicit F: Async[F]): F[Unit] =
     dump(TopicName(topicName), path, NJDateTimeRange(kafkaContext.settings.zoneId))
 
-  /** upload data from given folder to a kafka topic
+  /** upload data from given folder to a kafka topic. files read in parallel
     *
     * @param topicName
     *   target topic name
@@ -107,4 +107,46 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
 
   def upload(topicName: TopicNameC, path: NJPath)(implicit F: Async[F]): F[Long] =
     upload(TopicName(topicName), path, refineMV(1000), identity)
+
+  /** sequentiall read files in the folder and upload them into kafka
+    *
+    * @param topicName
+    *   target topic name
+    * @param path
+    *   the source data folder
+    * @param chunkSize
+    *   when set to 1, the data will be sent in order
+    * @param config
+    *   config fs2.kafka.producer. Acks.All for reliable upload
+    * @return
+    *   number of records uploaded
+    */
+  def uploadInSequence(
+    topicName: TopicName,
+    path: NJPath,
+    chunkSize: ChunkSize,
+    config: Endo[ProducerSettings[F, Array[Byte], Array[Byte]]])(implicit F: Async[F]): F[Long] = {
+
+    val producerSettings: ProducerSettings[F, Array[Byte], Array[Byte]] =
+      config(
+        ProducerSettings[F, Array[Byte], Array[Byte]](Serializer[F, Array[Byte]], Serializer[F, Array[Byte]])
+          .withProperties(kafkaContext.settings.producerSettings.properties))
+
+    for {
+      schemaPair <- kafkaContext.schemaRegistry.fetchAvroSchema(topicName)
+      hadoop  = NJHadoop[F](sparkSession.sparkContext.hadoopConfiguration)
+      jackson = hadoop.jackson(schemaPair.consumerRecordSchema)
+      builder = new PushGenericRecord(kafkaContext.settings.schemaRegistrySettings, topicName, schemaPair)
+      num <- hadoop.filesIn(path).map(jackson.source).flatMap {
+        _.chunkN(chunkSize.value)
+          .map(_.map(builder.fromGenericRecord))
+          .through(KafkaProducer.pipe(producerSettings))
+          .compile
+          .fold(0L) { case (sum, prs) => sum + prs.size }
+      }
+    } yield num
+  }
+
+  def uploadInSequence(topicName: TopicNameC, path: NJPath)(implicit F: Async[F]): F[Long] =
+    uploadInSequence(TopicName(topicName), path, refineMV(1000), identity)
 }

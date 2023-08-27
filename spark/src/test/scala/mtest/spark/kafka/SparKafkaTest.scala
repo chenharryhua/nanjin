@@ -169,5 +169,7 @@ class SparKafkaTest extends AnyFunSuite {
   test("dump topic") {
     val path = NJPath("./data/test/spark/kafka/dump/jackson")
     sparKafka.dump("duck.test", path).unsafeRunSync()
+    sparKafka.upload("duck.test", path).unsafeRunSync()
+    sparKafka.uploadInSequence("duck.test", path).unsafeRunSync()
   }
 }

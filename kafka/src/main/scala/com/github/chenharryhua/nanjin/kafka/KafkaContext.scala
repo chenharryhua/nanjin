@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.kafka
 
+import cats.Endo
 import cats.data.Reader
 import cats.effect.kernel.{Async, Sync}
 import cats.effect.std.UUIDGen
@@ -20,7 +21,7 @@ import scala.util.Try
 final class KafkaContext[F[_]](val settings: KafkaSettings)
     extends UpdateConfig[KafkaSettings, KafkaContext[F]] with Serializable {
 
-  override def updateConfig(f: KafkaSettings => KafkaSettings): KafkaContext[F] =
+  override def updateConfig(f: Endo[KafkaSettings]): KafkaContext[F] =
     new KafkaContext[F](f(settings))
 
   def asKey[K: SerdeOf]: Serde[K]   = SerdeOf[K].asKey(settings.schemaRegistrySettings.config).serde
