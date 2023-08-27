@@ -23,7 +23,7 @@ val natchezV    = "0.3.3"
 val http4sV     = "0.23.23"
 val cron4sV     = "0.6.1"
 val jacksonV    = "2.15.2"
-val protobufV   = "3.24.1"
+val protobufV   = "3.24.2"
 val sparkV      = "3.4.1"
 val refinedV    = "0.11.0"
 val nettyV      = "4.1.97.Final"
@@ -272,7 +272,7 @@ lazy val messages = (project in file("messages"))
   .settings(commonSettings*)
   .settings(name := "nj-messages")
   .settings(libraryDependencies ++= List(
-    "org.yaml"                       % "snakeyaml"   % "2.1", // snyk
+    "org.yaml"                       % "snakeyaml"   % "2.2", // snyk
     "org.xerial.snappy"              % "snappy-java" % "1.1.10.3", // snyk
     "io.circe" %% "circe-jackson212" % "0.14.0",
     "org.gnieh" %% "diffson-circe"   % "4.4.0"
