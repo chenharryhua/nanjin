@@ -8,6 +8,7 @@ import cats.{Monad, Order, Show}
 import com.github.chenharryhua.nanjin.datetime.policies.Policy
 import fs2.Stream
 import io.circe.generic.JsonCodec
+import io.circe.generic.auto.*
 import org.typelevel.cats.time.instances.instant.*
 import retry.{PolicyDecision, RetryStatus}
 
