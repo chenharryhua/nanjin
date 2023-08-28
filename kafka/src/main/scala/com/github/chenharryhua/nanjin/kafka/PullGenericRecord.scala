@@ -4,12 +4,13 @@ import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.messages.kafka.NJHeader
 import com.github.chenharryhua.nanjin.messages.kafka.instances.*
 import com.sksamuel.avro4s.SchemaFor
+import fs2.Chunk
 import fs2.kafka.{ConsumerRecord, KafkaByteConsumerRecord}
 import io.confluent.kafka.streams.serdes.avro.GenericAvroDeserializer
 import io.scalaland.chimney.dsl.TransformerOps
 import org.apache.avro.Schema
 import org.apache.avro.generic.{GenericData, GenericDatumWriter, GenericRecord}
-import org.apache.avro.io.{EncoderFactory, JsonEncoder}
+import org.apache.avro.io.{BinaryEncoder, EncoderFactory, JsonEncoder}
 import org.apache.kafka.streams.scala.serialization.Serdes
 
 import java.io.ByteArrayOutputStream
@@ -113,4 +114,18 @@ final class PullGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName,
 
   def toJacksonString(ccr: ConsumerRecord[Array[Byte], Array[Byte]]): String =
     toJacksonString(ccr.transformInto[KafkaByteConsumerRecord])
+
+  def toBinAvro(ccr: KafkaByteConsumerRecord): Chunk[Byte] = {
+    val gr: GenericRecord           = toGenericRecord(ccr)
+    val baos: ByteArrayOutputStream = new ByteArrayOutputStream
+    val encoder: BinaryEncoder      = EncoderFactory.get().binaryEncoder(baos, null)
+    datumWriter.write(gr, encoder)
+    encoder.flush()
+    baos.close()
+    Chunk.seq(baos.toByteArray)
+  }
+
+  def toBinAvro(ccr: ConsumerRecord[Array[Byte], Array[Byte]]): Chunk[Byte] =
+    toBinAvro(ccr.transformInto[KafkaByteConsumerRecord])
+
 }

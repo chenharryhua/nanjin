@@ -6,8 +6,8 @@ import cats.effect.kernel.{Async, Resource}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
-import fs2.Stream
 import fs2.kafka.{CommittableConsumerRecord, ConsumerSettings, KafkaConsumer}
+import fs2.{Chunk, Stream}
 import org.apache.avro.Schema
 import org.apache.avro.generic.GenericRecord
 
@@ -44,11 +44,11 @@ final class NJKafkaByteConsume[F[_]] private[kafka] (
         }
         .flatMap(_.stream)
 
-  def source(implicit F: Async[F]): Stream[F, CommittableConsumerRecord[F, Schema, GenericRecord]] =
+  def avro(implicit F: Async[F]): Stream[F, CommittableConsumerRecord[F, Unit, GenericRecord]] =
     Stream.eval(schema).flatMap { skm =>
       val builder = new PullGenericRecord(srs, topicName, skm)
       stream.map { cr =>
-        cr.bimap(_ => skm.consumerRecordSchema, _ => builder.toGenericRecord(cr.record))
+        cr.bimap(_ => (), _ => builder.toGenericRecord(cr.record))
       }
     }
 
@@ -60,12 +60,22 @@ final class NJKafkaByteConsume[F[_]] private[kafka] (
       }
     }
 
-  def source(tps: KafkaTopicPartition[KafkaOffset])(implicit
-    F: Async[F]): Stream[F, CommittableConsumerRecord[F, Schema, GenericRecord]] =
+  def binAvro(implicit F: Async[F]): Stream[F, CommittableConsumerRecord[F, Schema, Chunk[Byte]]] =
+    Stream.eval(schema).flatMap { skm =>
+      val builder = new PullGenericRecord(srs, topicName, skm)
+      stream.map { cr =>
+        cr.bimap(_ => skm.consumerRecordSchema, _ => builder.toBinAvro(cr.record))
+      }
+    }
+
+  // assignment
+
+  def avro(tps: KafkaTopicPartition[KafkaOffset])(implicit
+    F: Async[F]): Stream[F, CommittableConsumerRecord[F, Unit, GenericRecord]] =
     Stream.eval(schema).flatMap { skm =>
       val builder = new PullGenericRecord(srs, topicName, skm)
       assign(tps).map { cr =>
-        cr.bimap(_ => skm.consumerRecordSchema, _ => builder.toGenericRecord(cr.record))
+        cr.bimap(_ => (), _ => builder.toGenericRecord(cr.record))
       }
     }
 
@@ -75,6 +85,15 @@ final class NJKafkaByteConsume[F[_]] private[kafka] (
       val builder = new PullGenericRecord(srs, topicName, skm)
       assign(tps).map { cr =>
         cr.bimap(_ => skm.consumerRecordSchema, _ => builder.toJacksonString(cr.record))
+      }
+    }
+
+  def binAvro(tps: KafkaTopicPartition[KafkaOffset])(implicit
+    F: Async[F]): Stream[F, CommittableConsumerRecord[F, Schema, Chunk[Byte]]] =
+    Stream.eval(schema).flatMap { skm =>
+      val builder = new PullGenericRecord(srs, topicName, skm)
+      assign(tps).map { cr =>
+        cr.bimap(_ => skm.consumerRecordSchema, _ => builder.toBinAvro(cr.record))
       }
     }
 }
