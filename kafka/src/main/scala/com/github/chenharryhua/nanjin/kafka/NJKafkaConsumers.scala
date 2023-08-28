@@ -24,6 +24,10 @@ final class NJKafkaByteConsume[F[_]] private[kafka] (
   def resource(implicit F: Async[F]): Resource[F, KafkaConsumer[F, Array[Byte], Array[Byte]]] =
     KafkaConsumer.resource(consumerSettings)
 
+  /** raw bytes from kafka, un-deserialized
+    * @return
+    *   bytes
+    */
   def stream(implicit F: Async[F]): Stream[F, CommittableConsumerRecord[F, Array[Byte], Array[Byte]]] =
     KafkaConsumer
       .stream[F, Array[Byte], Array[Byte]](consumerSettings)
@@ -44,6 +48,9 @@ final class NJKafkaByteConsume[F[_]] private[kafka] (
         }
         .flatMap(_.stream)
 
+  /** @return
+    *   avro Generic Record
+    */
   def avro(implicit F: Async[F]): Stream[F, CommittableConsumerRecord[F, Unit, GenericRecord]] =
     Stream.eval(schema).flatMap { skm =>
       val builder = new PullGenericRecord(srs, topicName, skm)
@@ -52,6 +59,9 @@ final class NJKafkaByteConsume[F[_]] private[kafka] (
       }
     }
 
+  /** @return
+    *   Jackson
+    */
   def jackson(implicit F: Async[F]): Stream[F, CommittableConsumerRecord[F, Schema, String]] =
     Stream.eval(schema).flatMap { skm =>
       val builder = new PullGenericRecord(srs, topicName, skm)
@@ -60,6 +70,9 @@ final class NJKafkaByteConsume[F[_]] private[kafka] (
       }
     }
 
+  /** @return
+    *   Binary Avro bytes
+    */
   def binAvro(implicit F: Async[F]): Stream[F, CommittableConsumerRecord[F, Schema, Chunk[Byte]]] =
     Stream.eval(schema).flatMap { skm =>
       val builder = new PullGenericRecord(srs, topicName, skm)

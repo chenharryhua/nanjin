@@ -72,7 +72,7 @@ final class NJAlert[F[_]: Monad: Clock] private[guard] (
   def info[S: Encoder](msg: S, ifTrue: Boolean): F[Unit] = if (ifTrue) info(msg) else Monad[F].unit
   def info[S: Encoder](msg: Option[S]): F[Unit]          = msg.traverse(info(_)).void
 
-  def unsafeInfo[S: Encoder](msg: S): Unit         = dispatcher.unsafeRunSync(info(msg))
+  def unsafeInfo[S: Encoder](msg: S): Unit                  = dispatcher.unsafeRunSync(info(msg))
   def unsafeInfo[S: Encoder](msg: S, ifTrue: Boolean): Unit = if (ifTrue) unsafeInfo(msg) else ()
-  def unsafeInfo[S: Encoder](msg: Option[S]): Unit = dispatcher.unsafeRunSync(info(msg))
+  def unsafeInfo[S: Encoder](msg: Option[S]): Unit          = dispatcher.unsafeRunSync(info(msg))
 }

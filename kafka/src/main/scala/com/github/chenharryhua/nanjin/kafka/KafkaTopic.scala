@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.kafka
 
 import cats.effect.kernel.{Async, Resource, Sync}
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameC}
+import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameL}
 import com.github.chenharryhua.nanjin.kafka.streaming.{KafkaStreamingConsumer, NJStateStore}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.KafkaGenericDecoder
 import com.github.chenharryhua.nanjin.messages.kafka.{
@@ -34,7 +34,7 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
   def withTopicName(tn: TopicName): KafkaTopic[F, K, V] =
     new KafkaTopic[F, K, V](topicDef.withTopicName(tn), context)
 
-  def withTopicName(tn: TopicNameC): KafkaTopic[F, K, V] =
+  def withTopicName(tn: TopicNameL): KafkaTopic[F, K, V] =
     withTopicName(TopicName(tn))
 
   def withSchema(pair: AvroSchemaPair): KafkaTopic[F, K, V] =
@@ -103,7 +103,7 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
     require(storeName.value =!= topicName.value, "should provide a name other than the topic name")
     NJStateStore[K, V](storeName, KeyValueSerdePair(serdePair.key, serdePair.value))
   }
-  def asStateStore(storeName: TopicNameC): NJStateStore[K, V] =
+  def asStateStore(storeName: TopicNameL): NJStateStore[K, V] =
     asStateStore(TopicName(storeName))
 
   // producer record

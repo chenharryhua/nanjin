@@ -6,7 +6,7 @@ import cats.effect.kernel.{Async, Sync}
 import cats.effect.std.UUIDGen
 import cats.implicits.toShow
 import com.github.chenharryhua.nanjin.common.UpdateConfig
-import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameC}
+import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameL}
 import com.github.chenharryhua.nanjin.kafka.streaming.{KafkaStreamsBuilder, NJStateStore}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{NJAvroCodec, SerdeOf}
 import fs2.Stream
@@ -38,7 +38,7 @@ final class KafkaContext[F[_]](val settings: KafkaSettings)
   def topic[K: SerdeOf, V: SerdeOf](topicName: TopicName): KafkaTopic[F, K, V] =
     topic[K, V](TopicDef[K, V](topicName))
 
-  def topic[K: SerdeOf, V: SerdeOf](topicName: TopicNameC): KafkaTopic[F, K, V] =
+  def topic[K: SerdeOf, V: SerdeOf](topicName: TopicNameL): KafkaTopic[F, K, V] =
     topic[K, V](TopicName(topicName))
 
   @transient lazy val schemaRegistry: SchemaRegistryApi[F] = {
@@ -64,7 +64,7 @@ final class KafkaContext[F[_]](val settings: KafkaSettings)
       settings.schemaRegistrySettings
     )
 
-  def consume(topicName: TopicNameC)(implicit F: Sync[F]): NJKafkaByteConsume[F] =
+  def consume(topicName: TopicNameL)(implicit F: Sync[F]): NJKafkaByteConsume[F] =
     consume(TopicName(topicName))
 
   def monitor(topicName: TopicName)(implicit F: Async[F], U: UUIDGen[F]): Stream[F, String] =
@@ -76,7 +76,7 @@ final class KafkaContext[F[_]](val settings: KafkaSettings)
         .map(_.record.value)
     }
 
-  def monitor(topicName: TopicNameC)(implicit F: Async[F]): Stream[F, String] =
+  def monitor(topicName: TopicNameL)(implicit F: Async[F]): Stream[F, String] =
     monitor(TopicName(topicName))
 
   def sink(topicName: TopicName)(implicit F: Sync[F]): NJGenericRecordSink[F] =
@@ -88,7 +88,7 @@ final class KafkaContext[F[_]](val settings: KafkaSettings)
       settings.schemaRegistrySettings
     )
 
-  def sink(topicName: TopicNameC)(implicit F: Sync[F]): NJGenericRecordSink[F] =
+  def sink(topicName: TopicNameL)(implicit F: Sync[F]): NJGenericRecordSink[F] =
     sink(TopicName(topicName))
 
   def store[K: SerdeOf, V: SerdeOf](storeName: TopicName): NJStateStore[K, V] =
@@ -97,7 +97,7 @@ final class KafkaContext[F[_]](val settings: KafkaSettings)
       settings.schemaRegistrySettings,
       RawKeyValueSerdePair[K, V](SerdeOf[K], SerdeOf[V]))
 
-  def store[K: SerdeOf, V: SerdeOf](storeName: TopicNameC): NJStateStore[K, V] =
+  def store[K: SerdeOf, V: SerdeOf](storeName: TopicNameL): NJStateStore[K, V] =
     store(TopicName(storeName))
 
   def buildStreams(applicationId: String, topology: Reader[StreamsBuilder, Unit])(implicit
@@ -111,6 +111,6 @@ final class KafkaContext[F[_]](val settings: KafkaSettings)
   def admin(topicName: TopicName)(implicit F: Async[F]): KafkaAdminApi[F] =
     KafkaAdminApi[F](topicName, settings.consumerSettings, settings.adminSettings)
 
-  def admin(topicName: TopicNameC)(implicit F: Async[F]): KafkaAdminApi[F] =
+  def admin(topicName: TopicNameL)(implicit F: Async[F]): KafkaAdminApi[F] =
     admin(TopicName(topicName))
 }

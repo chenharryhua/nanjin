@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.kafka
 import cats.Show
 import cats.kernel.Eq
 import cats.syntax.eq.*
-import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameC}
+import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameL}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{NJAvroCodec, SerdeOf}
 import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJProducerRecord}
 import com.sksamuel.avro4s.{FromRecord, Record, ToRecord}
@@ -17,7 +17,7 @@ final class TopicDef[K, V] private (val topicName: TopicName, val rawSerdes: Raw
   override def toString: String = topicName.value
 
   def withTopicName(tn: TopicName): TopicDef[K, V]  = new TopicDef[K, V](tn, rawSerdes)
-  def withTopicName(tn: TopicNameC): TopicDef[K, V] = withTopicName(TopicName(tn))
+  def withTopicName(tn: TopicNameL): TopicDef[K, V] = withTopicName(TopicName(tn))
 
   def withSchema(pair: AvroSchemaPair): TopicDef[K, V] =
     new TopicDef[K, V](topicName, rawSerdes.withSchema(pair))

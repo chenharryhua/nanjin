@@ -4,7 +4,7 @@ import cats.Endo
 import cats.effect.kernel.Async
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.ChunkSize
-import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameC}
+import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameL}
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.*
 import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
@@ -31,13 +31,13 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
   def topic[K: SerdeOf, V: SerdeOf](topicName: TopicName): SparKafkaTopic[F, K, V] =
     topic[K, V](TopicDef[K, V](topicName))
 
-  def topic[K: SerdeOf, V: SerdeOf](topicName: TopicNameC): SparKafkaTopic[F, K, V] =
+  def topic[K: SerdeOf, V: SerdeOf](topicName: TopicNameL): SparKafkaTopic[F, K, V] =
     topic[K, V](TopicName(topicName))
 
   def sstream(topicName: TopicName): Dataset[NJConsumerRecord[Array[Byte], Array[Byte]]] =
     sk.kafkaSStream(topicName, kafkaContext.settings, sparkSession)
 
-  def sstream(topicName: TopicNameC): Dataset[NJConsumerRecord[Array[Byte], Array[Byte]]] =
+  def sstream(topicName: TopicNameL): Dataset[NJConsumerRecord[Array[Byte], Array[Byte]]] =
     sstream(TopicName(topicName))
 
   /** download a kafka topic and save to given folder
@@ -60,7 +60,10 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
     new RddFileHoarder(grRdd).text(path).withSuffix("jackson.json").run
   }
 
-  def dump(topicName: TopicNameC, path: NJPath)(implicit F: Async[F]): F[Unit] =
+  def dump(topicName: TopicNameL, path: NJPath, dateRange: NJDateTimeRange)(implicit F: Async[F]): F[Unit] =
+    dump(TopicName(topicName), path, dateRange)
+
+  def dump(topicName: TopicNameL, path: NJPath)(implicit F: Async[F]): F[Unit] =
     dump(TopicName(topicName), path, NJDateTimeRange(kafkaContext.settings.zoneId))
 
   /** upload data from given folder to a kafka topic. files read in parallel
@@ -105,7 +108,13 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
     } yield num
   }
 
-  def upload(topicName: TopicNameC, path: NJPath)(implicit F: Async[F]): F[Long] =
+  def upload(
+    topicName: TopicNameL,
+    path: NJPath,
+    chunkSize: ChunkSize,
+    config: Endo[ProducerSettings[F, Array[Byte], Array[Byte]]])(implicit F: Async[F]): F[Long] =
+    upload(TopicName(topicName), path, chunkSize, config)
+  def upload(topicName: TopicNameL, path: NJPath)(implicit F: Async[F]): F[Long] =
     upload(TopicName(topicName), path, refineMV(1000), identity)
 
   /** sequentially read files in the folder, sorted by modification time, and upload them into kafka
@@ -147,6 +156,13 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
     } yield num
   }
 
-  def uploadInSequence(topicName: TopicNameC, path: NJPath)(implicit F: Async[F]): F[Long] =
+  def uploadInSequence(
+    topicName: TopicNameL,
+    path: NJPath,
+    chunkSize: ChunkSize,
+    config: Endo[ProducerSettings[F, Array[Byte], Array[Byte]]])(implicit F: Async[F]): F[Long] =
+    uploadInSequence(TopicName(topicName), path, chunkSize, config)
+
+  def uploadInSequence(topicName: TopicNameL, path: NJPath)(implicit F: Async[F]): F[Long] =
     uploadInSequence(TopicName(topicName), path, refineMV(1000), identity)
 }
