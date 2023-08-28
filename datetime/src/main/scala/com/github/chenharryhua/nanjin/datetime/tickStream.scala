@@ -5,15 +5,16 @@ import cats.effect.kernel.Clock
 import cats.effect.std.UUIDGen
 import cats.syntax.all.*
 import cats.{Monad, Order, Show}
+import com.github.chenharryhua.nanjin.datetime.policies.Policy
 import fs2.Stream
 import io.circe.generic.JsonCodec
-import io.circe.generic.auto.*
 import org.typelevel.cats.time.instances.instant.*
-import retry.{PolicyDecision, RetryPolicy, RetryStatus}
+import retry.{PolicyDecision, RetryStatus}
 
 import java.time.{Duration, Instant, ZoneId}
 import java.util.UUID
 import scala.jdk.DurationConverters.{JavaDurationOps, ScalaDurationOps}
+
 object tickStream {
 
   // timeline |-----|----------|----------|------
@@ -74,7 +75,7 @@ object tickStream {
       )
   }
 
-  def apply[F[_]](policy: RetryPolicy[F], initTick: Tick)(implicit F: Temporal[F]): Stream[F, Tick] =
+  def apply[F[_]](policy: Policy[F], initTick: Tick)(implicit F: Temporal[F]): Stream[F, Tick] =
     Stream.unfoldEval[F, Tick, Tick](initTick) { previous =>
       policy.decideNextRetry(previous.status).flatMap[Option[(Tick, Tick)]] {
         case PolicyDecision.GiveUp => F.pure(None)
@@ -102,6 +103,6 @@ object tickStream {
       }
     }
 
-  def apply[F[_]: UUIDGen: Temporal](policy: RetryPolicy[F]): Stream[F, Tick] =
+  def apply[F[_]: UUIDGen: Temporal](policy: Policy[F]): Stream[F, Tick] =
     Stream.eval[F, Tick](Tick.Zero[F]).flatMap(apply(policy, _))
 }

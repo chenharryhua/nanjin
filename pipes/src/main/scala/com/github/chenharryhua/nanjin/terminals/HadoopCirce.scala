@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.terminals
 
 import cats.effect.kernel.{Async, Resource, Sync}
 import cats.effect.std.Hotswap
+import com.github.chenharryhua.nanjin.datetime.policies.Policy
 import com.github.chenharryhua.nanjin.datetime.tickStream
 import com.github.chenharryhua.nanjin.datetime.tickStream.Tick
 import fs2.text.{lines, utf8}
@@ -10,7 +11,6 @@ import io.circe.Json
 import io.circe.parser.parse
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.io.compress.zlib.ZlibCompressor.CompressionLevel
-import retry.RetryPolicy
 import squants.information.Information
 
 import java.nio.charset.StandardCharsets
@@ -62,7 +62,7 @@ final class HadoopCirce[F[_]] private (
         }
   }
 
-  def sink(policy: RetryPolicy[F])(pathBuilder: Tick => NJPath)(implicit
+  def sink(policy: Policy[F])(pathBuilder: Tick => NJPath)(implicit
     F: Async[F]): Pipe[F, Chunk[Json], Nothing] = {
     def getWriter(tick: Tick): Resource[F, HadoopWriter[F, String]] =
       HadoopWriter.stringR[F](

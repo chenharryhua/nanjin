@@ -20,6 +20,7 @@ class TickStreamTest extends AnyFunSuite {
     val ticks  = tickStream(policy)
 
     val res = ticks.map(_.interval.toScala).take(5).compile.toList.unsafeRunSync()
+    Tick.Zero[IO].unsafeRunSync().isNewDay(sydneyTime)
     assert(res.tail.forall(d => d > 0.9.seconds && d < 1.1.seconds), res)
   }
 

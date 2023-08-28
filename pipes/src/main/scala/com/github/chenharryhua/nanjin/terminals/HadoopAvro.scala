@@ -3,6 +3,7 @@ package com.github.chenharryhua.nanjin.terminals
 import cats.effect.kernel.{Async, Resource, Sync}
 import cats.effect.std.Hotswap
 import com.github.chenharryhua.nanjin.common.ChunkSize
+import com.github.chenharryhua.nanjin.datetime.policies.Policy
 import com.github.chenharryhua.nanjin.datetime.tickStream
 import com.github.chenharryhua.nanjin.datetime.tickStream.Tick
 import fs2.{Chunk, Pipe, Stream}
@@ -10,7 +11,6 @@ import org.apache.avro.Schema
 import org.apache.avro.generic.GenericRecord
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.Path
-import retry.RetryPolicy
 
 import scala.jdk.CollectionConverters.*
 
@@ -49,7 +49,7 @@ final class HadoopAvro[F[_]] private (
       Stream.resource(getWriterR(path.hadoopPath)).flatMap(w => ss.foreach(w.write))
   }
 
-  def sink(policy: RetryPolicy[F])(pathBuilder: Tick => NJPath)(implicit
+  def sink(policy: Policy[F])(pathBuilder: Tick => NJPath)(implicit
     F: Async[F]): Pipe[F, Chunk[GenericRecord], Nothing] = {
     def getWriter(tick: Tick): Resource[F, HadoopWriter[F, GenericRecord]] =
       getWriterR(pathBuilder(tick).hadoopPath)

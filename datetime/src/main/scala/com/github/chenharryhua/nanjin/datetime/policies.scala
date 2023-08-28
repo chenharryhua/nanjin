@@ -17,8 +17,9 @@ import scala.concurrent.duration.FiniteDuration
 import scala.jdk.DurationConverters.JavaDurationOps
 
 object policies extends zoneid {
+  type Policy[F[_]] = RetryPolicy[F]
 
-  def jitterBackoff[F[_]: Sync](min: FiniteDuration, max: FiniteDuration): RetryPolicy[F] = {
+  def jitterBackoff[F[_]: Sync](min: FiniteDuration, max: FiniteDuration): Policy[F] = {
     require(min < max, s"$min should be strictly smaller than $max")
     RetryPolicy.withShow(
       _ =>
@@ -31,7 +32,7 @@ object policies extends zoneid {
     )
   }
 
-  def cronBackoff[F[_]: Clock: Functor](cronExpr: CronExpr, zoneId: ZoneId): RetryPolicy[F] =
+  def cronBackoff[F[_]: Clock: Functor](cronExpr: CronExpr, zoneId: ZoneId): Policy[F] =
     RetryPolicy.withShow(
       _ =>
         Clock[F].realTimeInstant.map { ts =>
@@ -45,33 +46,31 @@ object policies extends zoneid {
     )
 
   // delegate to RetryPolicies
-  def alwaysGiveUp[M[_]: Applicative]: RetryPolicy[M] = RetryPolicies.alwaysGiveUp[M]
-  def constantDelay[M[_]: Applicative](delay: FiniteDuration): RetryPolicy[M] =
+  def alwaysGiveUp[M[_]: Applicative]: Policy[M] = RetryPolicies.alwaysGiveUp[M]
+  def constantDelay[M[_]: Applicative](delay: FiniteDuration): Policy[M] =
     RetryPolicies.constantDelay[M](delay)
 
-  def exponentialBackoff[M[_]: Applicative](baseDelay: FiniteDuration): RetryPolicy[M] =
+  def exponentialBackoff[M[_]: Applicative](baseDelay: FiniteDuration): Policy[M] =
     RetryPolicies.exponentialBackoff[M](baseDelay)
 
-  def limitRetries[M[_]: Applicative](maxRetries: Int): RetryPolicy[M] =
+  def limitRetries[M[_]: Applicative](maxRetries: Int): Policy[M] =
     RetryPolicies.limitRetries[M](maxRetries)
 
-  def fibonacciBackoff[M[_]: Applicative](baseDelay: FiniteDuration): RetryPolicy[M] =
+  def fibonacciBackoff[M[_]: Applicative](baseDelay: FiniteDuration): Policy[M] =
     RetryPolicies.fibonacciBackoff[M](baseDelay)
 
-  def fullJitter[M[_]: Applicative](baseDelay: FiniteDuration): RetryPolicy[M] =
+  def fullJitter[M[_]: Applicative](baseDelay: FiniteDuration): Policy[M] =
     RetryPolicies.fullJitter[M](baseDelay)
 
-  def capDelay[M[_]: Applicative](cap: FiniteDuration, policy: RetryPolicy[M]): RetryPolicy[M] =
+  def capDelay[M[_]: Applicative](cap: FiniteDuration, policy: Policy[M]): Policy[M] =
     RetryPolicies.capDelay[M](cap, policy)
 
-  def limitRetriesByDelay[M[_]: Applicative](
-    threshold: FiniteDuration,
-    policy: RetryPolicy[M]): RetryPolicy[M] =
+  def limitRetriesByDelay[M[_]: Applicative](threshold: FiniteDuration, policy: Policy[M]): Policy[M] =
     RetryPolicies.limitRetriesByDelay[M](threshold, policy)
 
   def limitRetriesByCumulativeDelay[M[_]: Applicative](
     threshold: FiniteDuration,
-    policy: RetryPolicy[M]
-  ): RetryPolicy[M] =
+    policy: Policy[M]
+  ): Policy[M] =
     RetryPolicies.limitRetriesByCumulativeDelay[M](threshold, policy)
 }

@@ -2,13 +2,13 @@ package com.github.chenharryhua.nanjin.terminals
 
 import cats.effect.kernel.{Async, Resource, Sync}
 import cats.effect.std.Hotswap
+import com.github.chenharryhua.nanjin.datetime.policies.Policy
 import com.github.chenharryhua.nanjin.datetime.tickStream
 import com.github.chenharryhua.nanjin.datetime.tickStream.Tick
 import fs2.{Chunk, Pipe, Stream}
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.io.compress.zlib.ZlibCompressor.CompressionLevel
-import retry.RetryPolicy
 import squants.information.Information
 
 import java.io.{InputStream, OutputStream}
@@ -55,7 +55,7 @@ final class HadoopBytes[F[_]] private (
   }
 
   // save
-  def sink(policy: RetryPolicy[F])(pathBuilder: Tick => NJPath)(implicit
+  def sink(policy: Policy[F])(pathBuilder: Tick => NJPath)(implicit
     F: Async[F]): Pipe[F, Chunk[Byte], Nothing] = {
     def getWriter(tick: Tick): Resource[F, HadoopWriter[F, Byte]] =
       getWriterR(pathBuilder(tick).hadoopPath)
