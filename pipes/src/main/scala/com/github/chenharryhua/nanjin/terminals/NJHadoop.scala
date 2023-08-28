@@ -109,8 +109,15 @@ final class NJHadoop[F[_]] private (config: Configuration) {
     */
   def latestYmd(path: NJPath)(implicit F: Sync[F]): F[Option[NJPath]] =
     best[Int](path, NonEmptyList.of(codec.year, codec.month, codec.day))
+
   def latestYmdh(path: NJPath)(implicit F: Sync[F]): F[Option[NJPath]] =
     best[Int](path, NonEmptyList.of(codec.year, codec.month, codec.day, codec.hour))
+
+  def earliestYmd(path: NJPath)(implicit F: Sync[F]): F[Option[NJPath]] =
+    best(path, NonEmptyList.of(codec.year, codec.month, codec.day))(F, Ordering[Int].reverse)
+
+  def earliestYmdh(path: NJPath)(implicit F: Sync[F]): F[Option[NJPath]] =
+    best(path, NonEmptyList.of(codec.year, codec.month, codec.day, codec.hour))(F, Ordering[Int].reverse)
 
   // sources and sinks
 
