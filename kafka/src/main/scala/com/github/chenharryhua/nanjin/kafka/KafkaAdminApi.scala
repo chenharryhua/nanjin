@@ -19,7 +19,9 @@ sealed trait KafkaAdminApi[F[_]] extends UpdateConfig[AdminClientSettings, Kafka
 
   def iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence: F[Unit]
   def describe: F[Map[String, TopicDescription]]
+
   def groups: F[List[KafkaConsumerGroupInfo]]
+  def group(groupId: String): F[Map[TopicPartition, OffsetAndMetadata]]
 
   def newTopic(numPartition: Int, numReplica: Short): F[Unit]
   def mirrorTo(other: TopicName, numReplica: Short): F[Unit]
@@ -90,9 +92,12 @@ object KafkaAdminApi {
             client
               .listConsumerGroupOffsets(gid)
               .partitionsToOffsetAndMetadata
-              .map(m => KafkaConsumerGroupInfo(gid, end, m)))
+              .map(m => KafkaConsumerGroupInfo(KafkaGroupId(gid), end, m)))
         } yield all.filter(_.lag.nonEmpty)
       }
+
+     def group(groupId: String): F[Map[TopicPartition, OffsetAndMetadata]] =
+      adminResource.use(_.listConsumerGroupOffsets(groupId).partitionsToOffsetAndMetadata)
 
     override def deleteConsumerGroupOffsets(groupId: String): F[Unit] =
       for {
@@ -127,5 +132,6 @@ object KafkaAdminApi {
 
     override def updateConfig(f: Endo[AdminClientSettings]): KafkaAdminApi[F] =
       new KafkaTopicAdminApiImpl[F](topicName, consumerSettings, f(adminSettings))
+
   }
 }

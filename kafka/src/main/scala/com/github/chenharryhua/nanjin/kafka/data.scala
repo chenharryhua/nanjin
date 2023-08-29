@@ -113,7 +113,7 @@ object ListOfTopicPartitions {
 
   implicit val codecListOfTopicPartitions: Codec[ListOfTopicPartitions] = new Codec[ListOfTopicPartitions] {
     override def apply(a: ListOfTopicPartitions): Json =
-      Encoder.encodeList[TopicPartition].apply(a.value)
+      Encoder.encodeList[TopicPartition].apply(a.value.sortBy(_.partition()))
     override def apply(c: HCursor): Result[ListOfTopicPartitions] =
       Decoder.decodeList[TopicPartition].apply(c).map(ListOfTopicPartitions(_))
   }
@@ -155,7 +155,8 @@ object KafkaTopicPartition {
       override def apply(a: KafkaTopicPartition[V]): Json =
         Encoder
           .encodeList[TPV[V]]
-          .apply(a.value.map { case (tp, v) => TPV(tp.topic(), tp.partition(), v) }.toList)
+          .apply(
+            a.value.map { case (tp, v) => TPV(tp.topic(), tp.partition(), v) }.toList.sortBy(_.partition))
       override def apply(c: HCursor): Result[KafkaTopicPartition[V]] =
         Decoder
           .decodeList[TPV[V]]
@@ -187,12 +188,12 @@ final case class KafkaConsumerGroupInfo(
 object KafkaConsumerGroupInfo {
 
   def apply(
-    groupId: String,
+    groupId: KafkaGroupId,
     end: KafkaTopicPartition[Option[KafkaOffset]],
     offsetMeta: Map[TopicPartition, OffsetAndMetadata]): KafkaConsumerGroupInfo = {
     val gaps: Map[TopicPartition, Option[KafkaOffsetRange]] = offsetMeta.map { case (tp, om) =>
       end.get(tp).flatten.map(e => tp -> KafkaOffsetRange(KafkaOffset(om.offset()), e))
     }.toList.flatten.toMap
-    new KafkaConsumerGroupInfo(KafkaGroupId(groupId), KafkaTopicPartition(gaps))
+    new KafkaConsumerGroupInfo(groupId, KafkaTopicPartition(gaps))
   }
 }
