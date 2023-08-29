@@ -71,10 +71,9 @@ object KafkaAdminApi {
     override def describe: F[Map[String, TopicDescription]] =
       adminResource.use(_.describeTopics(List(topicName.value)))
 
-    /**
-     * list of all consumer-groups which consume the topic
-     * @return
-     */
+    /** list of all consumer-groups which consume the topic
+      * @return
+      */
     override def groups: F[List[KafkaGroupId]] =
       adminResource.use { client =>
         for {
@@ -108,11 +107,11 @@ object KafkaAdminApi {
     private def transientConsumer(cs: PureConsumerSettings): TransientConsumer[F] =
       TransientConsumer(topicName, cs.withAutoOffsetReset(AutoOffsetReset.None).withEnableAutoCommit(false))
 
-    /**
-     * remove consumer group from the topic
-     * @param groupId consumer group id
-     * @return
-     */
+    /** remove consumer group from the topic
+      * @param groupId
+      *   consumer group id
+      * @return
+      */
     override def deleteConsumerGroupOffsets(groupId: String): F[Unit] =
       for {
         uuid <- UUIDGen[F].randomUUID
