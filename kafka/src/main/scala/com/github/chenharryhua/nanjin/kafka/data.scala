@@ -5,8 +5,7 @@ import cats.{Order, PartialOrder}
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import io.circe.*
 import io.circe.Decoder.Result
-import io.circe.generic.JsonCodec
-import org.apache.kafka.clients.consumer.{OffsetAndMetadata, OffsetAndTimestamp}
+import org.apache.kafka.clients.consumer.OffsetAndTimestamp
 import org.apache.kafka.common.TopicPartition
 
 import java.{lang, util}
@@ -178,22 +177,4 @@ object KafkaTopicPartition {
 
   def empty[V]: KafkaTopicPartition[V]              = KafkaTopicPartition(Map.empty[TopicPartition, V])
   val emptyOffset: KafkaTopicPartition[KafkaOffset] = empty[KafkaOffset]
-}
-
-@JsonCodec
-final case class KafkaConsumerGroupInfo(
-  groupId: KafkaGroupId,
-  lag: KafkaTopicPartition[Option[KafkaOffsetRange]])
-
-object KafkaConsumerGroupInfo {
-
-  def apply(
-    groupId: KafkaGroupId,
-    end: KafkaTopicPartition[Option[KafkaOffset]],
-    offsetMeta: Map[TopicPartition, OffsetAndMetadata]): KafkaConsumerGroupInfo = {
-    val gaps: Map[TopicPartition, Option[KafkaOffsetRange]] = offsetMeta.map { case (tp, om) =>
-      end.get(tp).flatten.map(e => tp -> KafkaOffsetRange(KafkaOffset(om.offset()), e))
-    }.toList.flatten.toMap
-    new KafkaConsumerGroupInfo(groupId, KafkaTopicPartition(gaps))
-  }
 }
