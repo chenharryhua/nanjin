@@ -111,7 +111,7 @@ object genMessages {
 
     val genFs2CommittableProducerRecords: Gen[Fs2CommittableProducerRecords[IO, Int, Int]] = for {
       pr <- genFs2ProducerRecord
-      prs <- Gen.containerOfN[List, Fs2ProducerRecord[Int, Int]](10, pr).map(Chunk.seq)
+      prs <- Gen.containerOfN[List, Fs2ProducerRecord[Int, Int]](10, pr).map(Chunk.from)
       os <- genFs2CommittableOffset
     } yield Fs2CommittableProducerRecords(prs, os)
 

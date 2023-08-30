@@ -116,18 +116,18 @@ object genMessage {
     val genFs2ProducerRecords: Gen[ProducerRecords[Int, Int]] =
       for {
         prs <- Gen.containerOfN[List, Fs2ProducerRecord[Int, Int]](2, genFs2ProducerRecord)
-      } yield ProducerRecords(Chunk.seq(prs))
+      } yield ProducerRecords(Chunk.from(prs))
 
     val genFs2CommittableProducerRecords: Gen[Fs2CommittableProducerRecords[IO, Int, Int]] = for {
       pr <- genFs2ProducerRecord
-      prs <- Gen.containerOfN[List, Fs2ProducerRecord[Int, Int]](10, pr).map(Chunk.seq)
+      prs <- Gen.containerOfN[List, Fs2ProducerRecord[Int, Int]](10, pr).map(Chunk.from)
       os <- genFs2CommittableOffset
     } yield Fs2CommittableProducerRecords(prs, os)
 
     val genFs2TransactionalProducerRecords: Gen[Fs2TransactionalProducerRecords[IO, Int, Int]] = for {
       cpr <- genFs2CommittableProducerRecords
       _ <-
-        Gen.containerOfN[List, Fs2CommittableProducerRecords[IO, Int, Int]](10, cpr).map(Chunk.seq)
+        Gen.containerOfN[List, Fs2CommittableProducerRecords[IO, Int, Int]](10, cpr).map(Chunk.from)
     } yield Fs2TransactionalProducerRecords.one(cpr)
 
   }

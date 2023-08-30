@@ -42,7 +42,7 @@ object ArbitraryData extends genMessage.GenFs2Message {
     Cogen(m => m.key.toLong + m.timestamp())
 
   implicit val abKafkaProducerRecords: Arbitrary[Chunk[ProducerRecord[Int, Int]]] =
-    Arbitrary(Gen.containerOfN[List, ProducerRecord[Int, Int]](10, genProducerRecord).map(Chunk.seq))
+    Arbitrary(Gen.containerOfN[List, ProducerRecord[Int, Int]](10, genProducerRecord).map(Chunk.from))
 
   implicit val cogenKafkaProducerRecords: Cogen[Chunk[ProducerRecord[Int, Int]]] =
     Cogen(_.size.toLong)
