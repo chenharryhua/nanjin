@@ -1,13 +1,13 @@
 package com.github.chenharryhua.nanjin.guard.observers
 
-import cats.data.NonEmptyList
-import cats.effect.kernel.{Async, Resource}
-import cats.effect.kernel.Resource.ExitCase
-import cats.syntax.all.*
 import cats.Endo
+import cats.data.NonEmptyList
+import cats.effect.kernel.Resource.ExitCase
+import cats.effect.kernel.{Async, Resource}
+import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.aws.*
-import com.github.chenharryhua.nanjin.common.{ChunkSize, EmailAddr}
 import com.github.chenharryhua.nanjin.common.aws.EmailContent
+import com.github.chenharryhua.nanjin.common.{ChunkSize, EmailAddr}
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.ServiceStart
 import com.github.chenharryhua.nanjin.guard.translators.{ColorScheme, Translator, UpdateTranslator}
@@ -16,7 +16,6 @@ import fs2.{Chunk, Pipe, Stream}
 import org.typelevel.cats.time.instances.all
 import scalatags.Text
 import scalatags.Text.all.*
-import software.amazon.awssdk.services.ses.model.SendEmailResponse
 
 import java.util.UUID
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
@@ -61,7 +60,7 @@ final class EmailObserver[F[_]] private (
     ses: SimpleEmailService[F],
     from: EmailAddr,
     to: NonEmptyList[EmailAddr],
-    subject: String): F[Either[Throwable, SendEmailResponse]] = {
+    subject: String): F[Unit] = {
     val (warns, errors) = eventTags.foldLeft((0, 0)) { case ((w, e), i) =>
       i._2 match {
         case ColorScheme.GoodColor  => (w, e)
@@ -91,7 +90,7 @@ final class EmailObserver[F[_]] private (
       header,
       body(notice, text, footer(hr(p(b("Events/Max: "), s"${eventTags.size}/$chunkSize"))))).render
 
-    ses.send(EmailContent(from, to, subject, content)).attempt
+    ses.send(EmailContent(from, to, subject, content)).attempt.void
   }
 
   def observe(from: EmailAddr, to: NonEmptyList[EmailAddr], subject: String): Pipe[F, NJEvent, Nothing] = {
@@ -117,8 +116,7 @@ final class EmailObserver[F[_]] private (
                     case ExitCase.Errored(_) => ColorScheme.ErrorColor
                     case ExitCase.Canceled   => ColorScheme.ErrorColor
                   }))
-              if (tags.nonEmpty)
-                publish(tags, ses, from, to, subject).void
+              if (tags.nonEmpty) publish(tags, ses, from, to, subject)
               else F.unit
             })
       } yield ()

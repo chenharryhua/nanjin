@@ -122,7 +122,7 @@ final class PullGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName,
     datumWriter.write(gr, encoder)
     encoder.flush()
     baos.close()
-    Chunk.seq(baos.toByteArray)
+    Chunk.from(baos.toByteArray)
   }
 
   def toBinAvro(ccr: ConsumerRecord[Array[Byte], Array[Byte]]): Chunk[Byte] =
