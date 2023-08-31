@@ -11,11 +11,11 @@ import com.github.chenharryhua.nanjin.common.{ChunkSize, EmailAddr}
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.ServiceStart
 import com.github.chenharryhua.nanjin.guard.translators.{ColorScheme, Translator, UpdateTranslator}
-import eu.timepit.refined.auto.*
 import fs2.{Chunk, Pipe, Stream}
 import org.typelevel.cats.time.instances.all
 import scalatags.Text
 import scalatags.Text.all.*
+import squants.information.{Bytes, Information, Megabytes}
 
 import java.util.UUID
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
@@ -55,6 +55,9 @@ final class EmailObserver[F[_]] private (
   override def updateTranslator(f: Endo[Translator[F, Text.TypedTag[String]]]): EmailObserver[F] =
     copy(translator = f(translator))
 
+  // aws ses maximum message size
+  private val maximumMessageSize: Information = Megabytes(10)
+
   private def publish(
     eventTags: Chunk[(Text.TypedTag[String], ColorScheme)],
     ses: SimpleEmailService[F],
@@ -90,7 +93,13 @@ final class EmailObserver[F[_]] private (
       header,
       body(notice, text, footer(hr(p(b("Events/Max: "), s"${eventTags.size}/$chunkSize"))))).render
 
-    ses.send(EmailContent(from, to, subject, content)).attempt.void
+    if (Bytes(content.length) < maximumMessageSize) {
+      ses.send(EmailContent(from, to, subject, content)).attempt.void
+    } else {
+      val text = p(b(s"Message body size exceeds $maximumMessageSize. Number of events: ${eventTags.size}"))
+      val msg  = html(header, body(notice, text)).render
+      ses.send(EmailContent(from, to, subject, msg)).attempt.void
+    }
   }
 
   def observe(from: EmailAddr, to: NonEmptyList[EmailAddr], subject: String): Pipe[F, NJEvent, Nothing] = {

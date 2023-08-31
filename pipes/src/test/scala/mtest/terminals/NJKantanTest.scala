@@ -33,7 +33,7 @@ class NJKantanTest extends AnyFunSuite {
   val fs2Root: NJPath = NJPath("./data/test/terminals/csv/tiger")
 
   test("uncompressed - with-header") {
-    val cfg = CsvConfiguration.rfc.withHeader(tigerHeader.header)
+    val cfg = CsvConfiguration.rfc.withHeader(tigerHeader.modify(identity))
     fs2(fs2Root / "header", KantanFile(Uncompressed), cfg, tigerSet)
   }
 

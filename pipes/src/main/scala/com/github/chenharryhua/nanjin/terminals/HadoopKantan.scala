@@ -11,6 +11,7 @@ import fs2.{Chunk, Pipe, Stream}
 import kantan.csv.*
 import kantan.csv.CsvConfiguration.Header
 import kantan.csv.engine.ReaderEngine
+import monocle.syntax.all.*
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.io.compress.zlib.ZlibCompressor.CompressionLevel
 import shapeless.ops.hlist.ToTraversable
@@ -23,6 +24,8 @@ import scala.annotation.nowarn
 
 sealed trait CsvHeaderOf[A] {
   def header: Header.Explicit
+  final def modify(f: String => String): Header.Explicit =
+    header.focus(_.header).modify(_.map(f))
 }
 
 object CsvHeaderOf {

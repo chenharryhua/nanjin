@@ -2,7 +2,6 @@ package com.github.chenharryhua.nanjin.kafka
 
 import cats.Show
 import cats.effect.IO
-import com.github.chenharryhua.nanjin.common.utils
 import fs2.kafka.AdminClientSettings
 import io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig
 import org.apache.kafka.clients.CommonClientConfigs
@@ -12,7 +11,6 @@ import org.apache.kafka.common.security.auth.SecurityProtocol
 import org.typelevel.cats.time.instances.zoneid
 
 import java.time.ZoneId
-import java.util.Properties
 
 /** [[https://kafka.apache.org/]]
   */
@@ -30,8 +28,6 @@ final case class KafkaProducerSettings(properties: Map[String, String]) {
 final case class KafkaStreamSettings(properties: Map[String, String]) {
   def withProperty(key: String, value: String): KafkaStreamSettings =
     copy(properties = properties.updatedWith(key)(_ => Some(value)))
-
-  def javaProperties: Properties = utils.toProperties(properties)
 }
 
 final case class SchemaRegistrySettings(config: Map[String, String]) {
