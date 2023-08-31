@@ -88,7 +88,8 @@ class NJParquetTest extends AnyFunSuite {
       .drain
       .unsafeRunSync()
     val size = Stream
-      .force(hdp.dataFolders(path).flatMap(_.flatTraverse(hdp.filesIn)).map(parquet.source))
+      .force(
+        hdp.dataFolders(path).flatMap(_.flatTraverse(hdp.filesIn)).map(parquet.updateReader(identity).source))
       .compile
       .toList
       .map(_.size)

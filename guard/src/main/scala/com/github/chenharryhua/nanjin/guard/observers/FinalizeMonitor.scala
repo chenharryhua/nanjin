@@ -1,11 +1,11 @@
 package com.github.chenharryhua.nanjin.guard.observers
 
-import cats.effect.kernel.{Clock, Ref}
-import cats.effect.kernel.Resource.ExitCase
-import cats.syntax.all.*
 import cats.Monad
-import com.github.chenharryhua.nanjin.guard.event.{NJEvent, ServiceStopCause}
+import cats.effect.kernel.Resource.ExitCase
+import cats.effect.kernel.{Clock, Ref}
+import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.{ServiceStart, ServiceStop}
+import com.github.chenharryhua.nanjin.guard.event.{NJEvent, ServiceStopCause}
 import fs2.Chunk
 
 import java.util.UUID
@@ -23,7 +23,7 @@ final private class FinalizeMonitor[F[_]: Clock: Monad, A](
     ts <- Clock[F].realTimeInstant
     messages <- ref.get.flatMap(m =>
       Chunk
-        .iterable(m.values)
+        .from(m.values)
         .traverseFilter(ss =>
           translate(
             ServiceStop(ss.serviceParams, ss.serviceParams.toZonedDateTime(ts), ServiceStopCause(ec)))))

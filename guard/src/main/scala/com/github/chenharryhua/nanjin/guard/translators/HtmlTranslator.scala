@@ -5,7 +5,6 @@ import cats.{Applicative, Eval}
 import com.github.chenharryhua.nanjin.guard.event.{NJError, NJEvent}
 import io.circe.Json
 import io.circe.syntax.EncoderOps
-import org.apache.commons.lang3.StringUtils
 import org.typelevel.cats.time.instances.all
 import scalatags.Text.all.*
 import scalatags.text.Builder
@@ -59,7 +58,7 @@ private object HtmlTranslator extends all {
     p(b(s"$CONSTANT_CAUSE: "), pre(small(c.stackTrace)))
 
   private def jsonText(js: Json): Text.TypedTag[String] =
-    pre(small(StringUtils.abbreviate(js.spaces2, 64 * 1024)))
+    pre(small(js.spaces2))
 
   // events
 

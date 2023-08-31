@@ -1,22 +1,21 @@
 package com.github.chenharryhua.nanjin.guard.observers
 
-import cats.data.NonEmptyList
-import cats.effect.kernel.{Async, Resource}
-import cats.effect.kernel.Resource.ExitCase
-import cats.syntax.all.*
 import cats.Endo
+import cats.data.NonEmptyList
+import cats.effect.kernel.Resource.ExitCase
+import cats.effect.kernel.{Async, Resource}
+import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.aws.*
-import com.github.chenharryhua.nanjin.common.{ChunkSize, EmailAddr}
 import com.github.chenharryhua.nanjin.common.aws.EmailContent
+import com.github.chenharryhua.nanjin.common.{ChunkSize, EmailAddr}
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.ServiceStart
 import com.github.chenharryhua.nanjin.guard.translators.{ColorScheme, Translator, UpdateTranslator}
-import eu.timepit.refined.auto.*
 import fs2.{Chunk, Pipe, Stream}
 import org.typelevel.cats.time.instances.all
 import scalatags.Text
 import scalatags.Text.all.*
-import software.amazon.awssdk.services.ses.model.SendEmailResponse
+import squants.information.{Bytes, Information, Megabytes}
 
 import java.util.UUID
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
@@ -56,12 +55,15 @@ final class EmailObserver[F[_]] private (
   override def updateTranslator(f: Endo[Translator[F, Text.TypedTag[String]]]): EmailObserver[F] =
     copy(translator = f(translator))
 
+  // aws ses maximum message size
+  private val maximumMessageSize: Information = Megabytes(10)
+
   private def publish(
     eventTags: Chunk[(Text.TypedTag[String], ColorScheme)],
     ses: SimpleEmailService[F],
     from: EmailAddr,
     to: NonEmptyList[EmailAddr],
-    subject: String): F[Either[Throwable, SendEmailResponse]] = {
+    subject: String): F[Unit] = {
     val (warns, errors) = eventTags.foldLeft((0, 0)) { case ((w, e), i) =>
       i._2 match {
         case ColorScheme.GoodColor  => (w, e)
@@ -91,7 +93,13 @@ final class EmailObserver[F[_]] private (
       header,
       body(notice, text, footer(hr(p(b("Events/Max: "), s"${eventTags.size}/$chunkSize"))))).render
 
-    ses.send(EmailContent(from, to, subject, content)).attempt
+    if (Bytes(content.length) < maximumMessageSize) {
+      ses.send(EmailContent(from, to, subject, content)).attempt.void
+    } else {
+      val text = p(b(s"Message body size exceeds $maximumMessageSize. Number of events: ${eventTags.size}"))
+      val msg  = html(header, body(notice, text)).render
+      ses.send(EmailContent(from, to, subject, msg)).attempt.void
+    }
   }
 
   def observe(from: EmailAddr, to: NonEmptyList[EmailAddr], subject: String): Pipe[F, NJEvent, Nothing] = {
@@ -117,8 +125,7 @@ final class EmailObserver[F[_]] private (
                     case ExitCase.Errored(_) => ColorScheme.ErrorColor
                     case ExitCase.Canceled   => ColorScheme.ErrorColor
                   }))
-              if (tags.nonEmpty)
-                publish(tags, ses, from, to, subject).void
+              if (tags.nonEmpty) publish(tags, ses, from, to, subject)
               else F.unit
             })
       } yield ()

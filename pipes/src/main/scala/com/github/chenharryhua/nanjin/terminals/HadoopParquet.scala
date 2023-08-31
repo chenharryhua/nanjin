@@ -4,6 +4,7 @@ import cats.Endo
 import cats.data.Reader
 import cats.effect.kernel.{Async, Resource, Sync}
 import cats.effect.std.Hotswap
+import com.github.chenharryhua.nanjin.datetime.policies.Policy
 import com.github.chenharryhua.nanjin.datetime.tickStream
 import com.github.chenharryhua.nanjin.datetime.tickStream.Tick
 import fs2.{Chunk, Pipe, Stream}
@@ -15,7 +16,6 @@ import org.apache.parquet.avro.{AvroParquetReader, AvroParquetWriter}
 import org.apache.parquet.hadoop.metadata.CompressionCodecName
 import org.apache.parquet.hadoop.util.{HadoopInputFile, HadoopOutputFile}
 import org.apache.parquet.hadoop.{ParquetFileWriter, ParquetReader}
-import retry.RetryPolicy
 
 final class HadoopParquet[F[_]] private (
   readBuilder: Reader[Path, ParquetReader.Builder[GenericRecord]],
@@ -50,7 +50,7 @@ final class HadoopParquet[F[_]] private (
       Stream.resource(getWriterR(path.hadoopPath)).flatMap(w => ss.foreach(w.write))
   }
 
-  def sink(policy: RetryPolicy[F])(pathBuilder: Tick => NJPath)(implicit
+  def sink(policy: Policy[F])(pathBuilder: Tick => NJPath)(implicit
     F: Async[F]): Pipe[F, Chunk[GenericRecord], Nothing] = {
     def getWriter(tick: Tick): Resource[F, HadoopWriter[F, GenericRecord]] =
       getWriterR(pathBuilder(tick).hadoopPath)

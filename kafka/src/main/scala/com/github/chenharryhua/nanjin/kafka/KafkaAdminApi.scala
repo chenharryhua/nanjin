@@ -19,7 +19,9 @@ sealed trait KafkaAdminApi[F[_]] extends UpdateConfig[AdminClientSettings, Kafka
 
   def iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence: F[Unit]
   def describe: F[Map[String, TopicDescription]]
-  def groups: F[List[KafkaConsumerGroupInfo]]
+
+  def groups: F[List[KafkaGroupId]]
+  def group(groupId: String): F[KafkaTopicPartition[KafkaOffset]]
 
   def newTopic(numPartition: Int, numReplica: Short): F[Unit]
   def mirrorTo(other: TopicName, numReplica: Short): F[Unit]
@@ -69,6 +71,31 @@ object KafkaAdminApi {
     override def describe: F[Map[String, TopicDescription]] =
       adminResource.use(_.describeTopics(List(topicName.value)))
 
+    /** list of all consumer-groups which consume the topic
+      * @return
+      */
+    override def groups: F[List[KafkaGroupId]] =
+      adminResource.use { client =>
+        for {
+          gIds <- client.listConsumerGroups.groupIds
+          ids <- gIds.traverse(gid =>
+            client
+              .listConsumerGroupOffsets(gid)
+              .partitionsToOffsetAndMetadata
+              .map(_.flatMap { mt =>
+                val tn = mt._1.topic()
+                if (topicName.value === tn) Some(gid) else None
+              }))
+        } yield ids.flatMap(_.toList).distinct.map(KafkaGroupId(_))
+      }
+
+    override def group(groupId: String): F[KafkaTopicPartition[KafkaOffset]] =
+      adminResource
+        .use(
+          _.listConsumerGroupOffsets(groupId).partitionsToOffsetAndMetadata
+            .map(_.view.mapValues(om => KafkaOffset(om.offset())).toMap))
+        .map(KafkaTopicPartition(_))
+
     // consumer
     import TransientConsumer.PureConsumerSettings
 
@@ -80,20 +107,11 @@ object KafkaAdminApi {
     private def transientConsumer(cs: PureConsumerSettings): TransientConsumer[F] =
       TransientConsumer(topicName, cs.withAutoOffsetReset(AutoOffsetReset.None).withEnableAutoCommit(false))
 
-    override def groups: F[List[KafkaConsumerGroupInfo]] =
-      adminResource.use { client =>
-        for {
-          uuid <- UUIDGen[F].randomUUID
-          end <- transientConsumer(initCS.withGroupId(uuid.show)).endOffsets
-          gIds <- client.listConsumerGroups.groupIds
-          all <- gIds.traverse(gid =>
-            client
-              .listConsumerGroupOffsets(gid)
-              .partitionsToOffsetAndMetadata
-              .map(m => KafkaConsumerGroupInfo(gid, end, m)))
-        } yield all.filter(_.lag.nonEmpty)
-      }
-
+    /** remove consumer group from the topic
+      * @param groupId
+      *   consumer group id
+      * @return
+      */
     override def deleteConsumerGroupOffsets(groupId: String): F[Unit] =
       for {
         uuid <- UUIDGen[F].randomUUID
@@ -127,5 +145,6 @@ object KafkaAdminApi {
 
     override def updateConfig(f: Endo[AdminClientSettings]): KafkaAdminApi[F] =
       new KafkaTopicAdminApiImpl[F](topicName, consumerSettings, f(adminSettings))
+
   }
 }

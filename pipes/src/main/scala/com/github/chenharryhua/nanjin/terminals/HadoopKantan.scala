@@ -3,6 +3,7 @@ package com.github.chenharryhua.nanjin.terminals
 import cats.effect.kernel.{Async, Resource, Sync}
 import cats.effect.std.Hotswap
 import com.github.chenharryhua.nanjin.common.ChunkSize
+import com.github.chenharryhua.nanjin.datetime.policies.Policy
 import com.github.chenharryhua.nanjin.datetime.tickStream
 import com.github.chenharryhua.nanjin.datetime.tickStream.Tick
 import fs2.text.utf8
@@ -10,9 +11,9 @@ import fs2.{Chunk, Pipe, Stream}
 import kantan.csv.*
 import kantan.csv.CsvConfiguration.Header
 import kantan.csv.engine.ReaderEngine
+import monocle.syntax.all.*
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.io.compress.zlib.ZlibCompressor.CompressionLevel
-import retry.RetryPolicy
 import shapeless.ops.hlist.ToTraversable
 import shapeless.ops.record.Keys
 import shapeless.{HList, LabelledGeneric}
@@ -23,6 +24,8 @@ import scala.annotation.nowarn
 
 sealed trait CsvHeaderOf[A] {
   def header: Header.Explicit
+  final def modify(f: String => String): Header.Explicit =
+    header.focus(_.header).modify(_.map(f))
 }
 
 object CsvHeaderOf {
@@ -84,7 +87,7 @@ final class HadoopKantan[F[_]] private (
         }
   }
 
-  def sink(policy: RetryPolicy[F])(pathBuilder: Tick => NJPath)(implicit
+  def sink(policy: Policy[F])(pathBuilder: Tick => NJPath)(implicit
     F: Async[F]): Pipe[F, Chunk[Seq[String]], Nothing] = {
     def getWriter(tick: Tick): Resource[F, HadoopWriter[F, String]] =
       HadoopWriter.stringR[F](

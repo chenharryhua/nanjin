@@ -11,14 +11,14 @@ import io.circe.{Decoder, Encoder}
 object kafka {
   private type MR = MatchesRegex["""^[a-zA-Z0-9_.\-]+$"""]
 
-  type TopicNameC = String Refined MR
+  type TopicNameL = String Refined MR
 
   final class TopicName private (val value: String) extends Serializable {
     override val toString: String = value
   }
 
   object TopicName {
-    def apply(tnc: TopicNameC): TopicName = new TopicName(tnc.value)
+    def apply(tnc: TopicNameL): TopicName = new TopicName(tnc.value)
 
     private def trans(str: String): Either[String, TopicName] = refineV[MR](str).map(apply)
 

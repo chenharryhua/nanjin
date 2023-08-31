@@ -44,16 +44,16 @@ final class NJKafkaTransactional[F[_], K, V] private[kafka] (
 final class NJGenericRecordSink[F[_]] private[kafka] (
   topicName: TopicName,
   producerSettings: ProducerSettings[F, Array[Byte], Array[Byte]],
-  schema: F[AvroSchemaPair],
+  getSchema: F[AvroSchemaPair],
   srs: SchemaRegistrySettings)
     extends UpdateConfig[ProducerSettings[F, Array[Byte], Array[Byte]], NJGenericRecordSink[F]] {
 
   override def updateConfig(f: Endo[ProducerSettings[F, Array[Byte], Array[Byte]]]): NJGenericRecordSink[F] =
-    new NJGenericRecordSink[F](topicName, f(producerSettings), schema, srs)
+    new NJGenericRecordSink[F](topicName, f(producerSettings), getSchema, srs)
 
   def build(implicit F: Async[F]): Pipe[F, Chunk[GenericRecord], ProducerResult[Array[Byte], Array[Byte]]] = {
     (ss: Stream[F, Chunk[GenericRecord]]) =>
-      Stream.eval(schema).flatMap { skm =>
+      Stream.eval(getSchema).flatMap { skm =>
         val builder = new PushGenericRecord(srs, topicName, skm)
         val prStream: Stream[F, ProducerRecords[Array[Byte], Array[Byte]]] =
           ss.map(_.map(builder.fromGenericRecord))

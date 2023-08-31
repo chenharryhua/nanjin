@@ -32,6 +32,9 @@ final class NJHadoop[F[_]] private (config: Configuration) {
     fs.exists(path.hadoopPath)
   }
 
+  /** hadoop listFiles
+    * @return
+    */
   def locatedFileStatus(path: NJPath)(implicit F: Sync[F]): F[List[LocatedFileStatus]] = F.blocking {
     val fs: FileSystem                        = path.hadoopPath.getFileSystem(config)
     val ri: RemoteIterator[LocatedFileStatus] = fs.listFiles(path.hadoopPath, true)
@@ -99,10 +102,22 @@ final class NJHadoop[F[_]] private (config: Configuration) {
     go(path.hadoopPath, rules.toList).map(NJPath(_))
   }
 
+  /** @param path
+    *   the path where search starts
+    * @return
+    *   the path which has the latest one or None
+    */
   def latestYmd(path: NJPath)(implicit F: Sync[F]): F[Option[NJPath]] =
     best[Int](path, NonEmptyList.of(codec.year, codec.month, codec.day))
+
   def latestYmdh(path: NJPath)(implicit F: Sync[F]): F[Option[NJPath]] =
     best[Int](path, NonEmptyList.of(codec.year, codec.month, codec.day, codec.hour))
+
+  def earliestYmd(path: NJPath)(implicit F: Sync[F]): F[Option[NJPath]] =
+    best(path, NonEmptyList.of(codec.year, codec.month, codec.day))(F, Ordering[Int].reverse)
+
+  def earliestYmdh(path: NJPath)(implicit F: Sync[F]): F[Option[NJPath]] =
+    best(path, NonEmptyList.of(codec.year, codec.month, codec.day, codec.hour))(F, Ordering[Int].reverse)
 
   // sources and sinks
 

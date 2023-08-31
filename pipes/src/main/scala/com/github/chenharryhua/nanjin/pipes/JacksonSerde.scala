@@ -53,7 +53,7 @@ object JacksonSerde {
         baos.close()
         baos.toByteArray
       }.intersperse(NEWLINE_SEPARATOR.getBytes(StandardCharsets.ISO_8859_1)) // JsonEncoder use ISO_8859_1
-        .flatMap(ba => Stream.chunk(Chunk.vector(ba.toVector)))
+        .flatMap(ba => Stream.chunk(Chunk.from(ba.toVector)))
   }
 
   def fromBytes[F[_]](schema: Schema)(implicit F: Async[F]): Pipe[F, Byte, GenericRecord] = {

@@ -141,7 +141,7 @@ object SimpleQueueService {
             val messages: mutable.Buffer[Message] = rmr.messages.asScala
             val size: Int                         = messages.size
             if (size > 0) {
-              val chunk: Chunk[SqsMessage] = Chunk.iterable(messages).zipWithIndex.map { case (msg, idx) =>
+              val chunk: Chunk[SqsMessage] = Chunk.from(messages).zipWithIndex.map { case (msg, idx) =>
                 SqsMessage(
                   request = request,
                   response = msg,

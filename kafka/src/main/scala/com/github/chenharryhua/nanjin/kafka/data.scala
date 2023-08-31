@@ -5,8 +5,7 @@ import cats.{Order, PartialOrder}
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import io.circe.*
 import io.circe.Decoder.Result
-import io.circe.generic.JsonCodec
-import org.apache.kafka.clients.consumer.{OffsetAndMetadata, OffsetAndTimestamp}
+import org.apache.kafka.clients.consumer.OffsetAndTimestamp
 import org.apache.kafka.common.TopicPartition
 
 import java.{lang, util}
@@ -113,7 +112,7 @@ object ListOfTopicPartitions {
 
   implicit val codecListOfTopicPartitions: Codec[ListOfTopicPartitions] = new Codec[ListOfTopicPartitions] {
     override def apply(a: ListOfTopicPartitions): Json =
-      Encoder.encodeList[TopicPartition].apply(a.value)
+      Encoder.encodeList[TopicPartition].apply(a.value.sortBy(_.partition()))
     override def apply(c: HCursor): Result[ListOfTopicPartitions] =
       Decoder.decodeList[TopicPartition].apply(c).map(ListOfTopicPartitions(_))
   }
@@ -155,7 +154,8 @@ object KafkaTopicPartition {
       override def apply(a: KafkaTopicPartition[V]): Json =
         Encoder
           .encodeList[TPV[V]]
-          .apply(a.value.map { case (tp, v) => TPV(tp.topic(), tp.partition(), v) }.toList)
+          .apply(
+            a.value.map { case (tp, v) => TPV(tp.topic(), tp.partition(), v) }.toList.sortBy(_.partition))
       override def apply(c: HCursor): Result[KafkaTopicPartition[V]] =
         Decoder
           .decodeList[TPV[V]]
@@ -177,22 +177,4 @@ object KafkaTopicPartition {
 
   def empty[V]: KafkaTopicPartition[V]              = KafkaTopicPartition(Map.empty[TopicPartition, V])
   val emptyOffset: KafkaTopicPartition[KafkaOffset] = empty[KafkaOffset]
-}
-
-@JsonCodec
-final case class KafkaConsumerGroupInfo(
-  groupId: KafkaGroupId,
-  lag: KafkaTopicPartition[Option[KafkaOffsetRange]])
-
-object KafkaConsumerGroupInfo {
-
-  def apply(
-    groupId: String,
-    end: KafkaTopicPartition[Option[KafkaOffset]],
-    offsetMeta: Map[TopicPartition, OffsetAndMetadata]): KafkaConsumerGroupInfo = {
-    val gaps: Map[TopicPartition, Option[KafkaOffsetRange]] = offsetMeta.map { case (tp, om) =>
-      end.get(tp).flatten.map(e => tp -> KafkaOffsetRange(KafkaOffset(om.offset()), e))
-    }.toList.flatten.toMap
-    new KafkaConsumerGroupInfo(KafkaGroupId(groupId), KafkaTopicPartition(gaps))
-  }
 }

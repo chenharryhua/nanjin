@@ -88,7 +88,7 @@ class TraceTest extends AnyFunSuite {
           writer <- Stream.resource(
             agent.udpClient("udp_test").withHistogram.withCounting.socket(ip"127.0.0.1", port"1026"))
           _ <- tickStream(RetryPolicies.constantDelay[IO](1.second).join(RetryPolicies.limitRetries(3)))
-          _ <- Stream.eval(writer.write(Chunk.indexedSeq("abcdefghijklmnopqrstuvwxyz\n".getBytes())))
+          _ <- Stream.eval(writer.write(Chunk.from("abcdefghijklmnopqrstuvwxyz\n".getBytes())))
         } yield ()
 
         ss.compile.drain >> agent.metrics.report
