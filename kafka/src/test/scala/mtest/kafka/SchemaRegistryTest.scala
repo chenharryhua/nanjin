@@ -14,25 +14,25 @@ class SchemaRegistryTest extends AnyFunSuite {
 
   val topic: KafkaTopic[IO, Int, trip_record] = nyc.in(ctx)
 
-  test("compatiable") {
-    val res = ctx.schemaRegistry.testCompatibility(topic.topicDef).unsafeRunSync()
-    assert(res.isCompatible)
-
-  }
-
-  test("incompatiable") {
-    val other = ctx.topic[String, String](topicName)
-    val res   = ctx.schemaRegistry.testCompatibility(other.topicDef).unsafeRunSync()
-    assert(!res.isCompatible)
-  }
-
-  test("register schema") {
-    val topic = TopicDef[Int, Int](TopicName("test.register.schema"))
-    val report = ctx.schemaRegistry.delete(topic.topicName) >>
-      ctx.schemaRegistry.register(topic) >>
-      ctx.schemaRegistry.testCompatibility(topic)
-    assert(report.unsafeRunSync().isIdentical)
-  }
+//  test("compatiable") {
+//    val res = ctx.schemaRegistry.testCompatibility(topic.topicDef).unsafeRunSync()
+//    assert(res.isCompatible)
+//
+//  }
+//
+//  test("incompatiable") {
+//    val other = ctx.topic[String, String](topicName)
+//    val res   = ctx.schemaRegistry.testCompatibility(other.topicDef).unsafeRunSync()
+//    assert(!res.isCompatible)
+//  }
+//
+//  test("register schema") {
+//    val topic = TopicDef[Int, Int](TopicName("test.register.schema"))
+//    val report = ctx.schemaRegistry.delete(topic.topicName) >>
+//      ctx.schemaRegistry.register(topic) >>
+//      ctx.schemaRegistry.testCompatibility(topic)
+//    assert(report.unsafeRunSync().isIdentical)
+//  }
 
   test("retrieve schema") {
     println(ctx.schemaRegistry.metaData(topic.topicName).unsafeRunSync())

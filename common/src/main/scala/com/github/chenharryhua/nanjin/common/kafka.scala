@@ -22,7 +22,7 @@ object kafka {
 
     private def trans(str: String): Either[String, TopicName] = refineV[MR](str).map(apply)
 
-    def unsafe(str: String): TopicName = trans(str) match {
+    def unsafeFrom(str: String): TopicName = trans(str) match {
       case Left(value)  => throw new Exception(value)
       case Right(value) => value
     }
