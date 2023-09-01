@@ -93,11 +93,11 @@ val pbLib = List(
 
 val serdeLib = List(
   ("com.sksamuel.avro4s" %% "avro4s-core" % "4.1.1").excludeAll(ExclusionRule(organization = "org.json4s")),
-  "org.apache.parquet"                   % "parquet-common"           % parquetV,
-  "org.apache.parquet"                   % "parquet-hadoop"           % parquetV,
-  "org.apache.parquet"                   % "parquet-avro"             % parquetV,
-  "org.apache.avro"                      % "avro"                     % avroV,
-  "io.confluent"                         % "kafka-streams-avro-serde" % confluentV
+  "org.apache.parquet"                    % "parquet-common"           % parquetV,
+  "org.apache.parquet"                    % "parquet-hadoop"           % parquetV,
+  "org.apache.parquet"                    % "parquet-avro"             % parquetV,
+  "org.apache.avro"                       % "avro"                     % avroV,
+  "io.confluent"                          % "kafka-streams-avro-serde" % confluentV
 ) ++ jacksonLib ++ circeLib ++ pbLib
 
 val fs2Lib = List(
