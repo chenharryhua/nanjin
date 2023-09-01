@@ -1,6 +1,6 @@
 ThisBuild / scalaVersion := "2.13.11"
 
-ThisBuild / version := "0.17.1-SNAPSHOT"
+ThisBuild / version := "0.17.2-SNAPSHOT"
 
 val catsCoreV   = "2.10.0"
 val fs2V        = "3.9.1"
@@ -92,12 +92,12 @@ val pbLib = List(
 )
 
 val serdeLib = List(
-  ("com.sksamuel.avro4s" %% "avro4s-core" % "4.1.1").excludeAll(ExclusionRule(organization = "org.json4s")),
-  "org.apache.parquet"                    % "parquet-common"           % parquetV,
-  "org.apache.parquet"                    % "parquet-hadoop"           % parquetV,
-  "org.apache.parquet"                    % "parquet-avro"             % parquetV,
-  "org.apache.avro"                       % "avro"                     % avroV,
-  "io.confluent"                          % "kafka-streams-avro-serde" % confluentV
+  "com.sksamuel.avro4s" %% "avro4s-core" % "4.1.1",
+  "org.apache.parquet"                   % "parquet-common"           % parquetV,
+  "org.apache.parquet"                   % "parquet-hadoop"           % parquetV,
+  "org.apache.parquet"                   % "parquet-avro"             % parquetV,
+  "org.apache.avro"                      % "avro"                     % avroV,
+  "io.confluent"                         % "kafka-streams-avro-serde" % confluentV
 ) ++ jacksonLib ++ circeLib ++ pbLib
 
 val fs2Lib = List(
@@ -360,6 +360,15 @@ lazy val pipes = (project in file("pipes"))
     libraryDependencies ++= libs.map(_.exclude("org.codehaus.jackson", "jackson-mapper-asl")) // snyk
   }
 
+// https://github.com/apache/spark/blob/master/pom.xml#L1091
+val json4sLib = List(
+  "org.json4s" %% "json4s-jackson",
+  "org.json4s" %% "json4s-core",
+  "org.json4s" %% "json4s-native",
+  "org.json4s" %% "json4s-scalap",
+  "org.json4s" %% "json4s-ast"
+).map(_ % "3.7.0-M11")
+
 lazy val spark = (project in file("spark"))
   .dependsOn(kafka)
   .dependsOn(pipes)
@@ -370,7 +379,8 @@ lazy val spark = (project in file("spark"))
     libraryDependencies ++= List(
       "com.julianpeeters" %% "avrohugger-core" % "1.5.2"           % Test,
       "ch.qos.logback"                         % "logback-classic" % logbackV % Test
-    ) ++ sparkLib.map(_.exclude("commons-logging", "commons-logging")) ++ testLib
+    ) ++ sparkLib.map(_.exclude("commons-logging", "commons-logging")) ++ testLib,
+    dependencyOverrides ++= json4sLib
   )
 
 lazy val example = (project in file("example"))
@@ -395,3 +405,4 @@ lazy val example = (project in file("example"))
 lazy val nanjin =
   (project in file(".")).aggregate(common, datetime, http, aws, guard, messages, pipes, kafka, database, spark)
 // format: on
+
