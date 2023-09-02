@@ -27,16 +27,14 @@ final class SchemaRegistryApi[F[_]](client: CachedSchemaRegistryClient) extends 
 
   def fetchAvroSchema(topicName: TopicName)(implicit F: Sync[F]): F[AvroSchemaPair] =
     metaData(topicName).map { kv =>
-      val ks = new AvroSchema(kv.key.getSchema).rawSchema()
-      val vs = new AvroSchema(kv.value.getSchema).rawSchema()
-      AvroSchemaPair(ks, vs)
+      AvroSchemaPair(new AvroSchema(kv.key.getSchema), new AvroSchema(kv.value.getSchema))
     }
 
   def register(topicName: TopicName, pair: AvroSchemaPair)(implicit F: Sync[F]): F[(Int, Int)] = {
     val loc = SchemaLocation(topicName)
     for {
-      k <- F.blocking(client.register(loc.keyLoc, new AvroSchema(pair.key)))
-      v <- F.blocking(client.register(loc.valLoc, new AvroSchema(pair.value)))
+      k <- F.blocking(client.register(loc.keyLoc, new AvroSchema(pair.key.rawSchema())))
+      v <- F.blocking(client.register(loc.valLoc, new AvroSchema(pair.value.rawSchema())))
     } yield (k, v)
   }
 

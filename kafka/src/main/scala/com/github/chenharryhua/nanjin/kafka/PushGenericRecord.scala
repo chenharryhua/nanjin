@@ -16,7 +16,7 @@ final class PushGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName,
   private val topic: String = topicName.value
 
   @transient private lazy val keySer: AnyRef => Array[Byte] =
-    pair.key.getType match {
+    pair.key.rawSchema().getType match {
       case Schema.Type.RECORD =>
         val ser = new GenericAvroSerializer()
         ser.configure(srs.config.asJava, true)
@@ -41,7 +41,7 @@ final class PushGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName,
     }
 
   @transient private lazy val valSer: AnyRef => Array[Byte] =
-    pair.value.getType match {
+    pair.value.rawSchema().getType match {
       case Schema.Type.RECORD =>
         val ser = new GenericAvroSerializer()
         ser.configure(srs.config.asJava, false)
@@ -70,8 +70,8 @@ final class PushGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName,
     val value = gr.get("value")
 
     (
-      GenericData.get().validate(pair.key, key) || key == null,
-      GenericData.get().validate(pair.value, value) || value == null) match {
+      GenericData.get().validate(pair.key.rawSchema(), key) || key == null,
+      GenericData.get().validate(pair.value.rawSchema(), value) || value == null) match {
       case (true, true)   => ProducerRecord(topic, keySer(key), valSer(value))
       case (true, false)  => throw new Exception("invalid value")
       case (false, true)  => throw new Exception("invalid key")

@@ -4,6 +4,7 @@ import cats.Show
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{KafkaSerde, SerdeOf}
+import io.confluent.kafka.schemaregistry.avro.AvroSchema
 import org.apache.avro.Schema
 
 final private[kafka] case class RawKeyValueSerdePair[K, V](key: SerdeOf[K], value: SerdeOf[V]) {
@@ -11,13 +12,13 @@ final private[kafka] case class RawKeyValueSerdePair[K, V](key: SerdeOf[K], valu
     KeyValueSerdePair(key.asKey(srs.config).topic(name.value), value.asValue(srs.config).topic(name.value))
 
   def withSchema(pair: AvroSchemaPair): RawKeyValueSerdePair[K, V] =
-    RawKeyValueSerdePair(key.withSchema(pair.key), value.withSchema(pair.value))
+    RawKeyValueSerdePair(key.withSchema(pair.key.rawSchema()), value.withSchema(pair.value.rawSchema()))
 }
 
 final private[kafka] case class KeyValueSerdePair[K, V](key: KafkaSerde[K], value: KafkaSerde[V])
 
-final case class AvroSchemaPair(key: Schema, value: Schema) {
-  val consumerRecordSchema: Schema = NJConsumerRecord.schema(key, value)
+final case class AvroSchemaPair(key: AvroSchema, value: AvroSchema) {
+  val consumerRecordSchema: Schema = NJConsumerRecord.schema(key.rawSchema(), value.rawSchema())
 }
 
 object AvroSchemaPair {

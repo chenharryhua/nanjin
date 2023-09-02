@@ -7,6 +7,7 @@ import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameL}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{NJAvroCodec, SerdeOf}
 import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJProducerRecord}
 import com.sksamuel.avro4s.{FromRecord, Record, ToRecord}
+import io.confluent.kafka.schemaregistry.avro.AvroSchema
 import org.apache.avro.generic.IndexedRecord
 
 final class TopicDef[K, V] private (val topicName: TopicName, val rawSerdes: RawKeyValueSerdePair[K, V])
@@ -23,7 +24,9 @@ final class TopicDef[K, V] private (val topicName: TopicName, val rawSerdes: Raw
     new TopicDef[K, V](topicName, rawSerdes.withSchema(pair))
 
   lazy val schemaPair: AvroSchemaPair =
-    AvroSchemaPair(rawSerdes.key.avroCodec.schemaFor.schema, rawSerdes.value.avroCodec.schemaFor.schema)
+    AvroSchemaPair(
+      new AvroSchema(rawSerdes.key.avroCodec.schemaFor.schema),
+      new AvroSchema(rawSerdes.value.avroCodec.schemaFor.schema))
 
   // consumer
   final class ConsumerRecordCodec(val codec: NJAvroCodec[NJConsumerRecord[K, V]]) extends Serializable {

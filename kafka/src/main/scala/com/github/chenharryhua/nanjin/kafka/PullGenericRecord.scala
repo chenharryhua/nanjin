@@ -25,7 +25,7 @@ final class PullGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName,
   private val topic: String  = topicName.value
 
   @transient private lazy val keyDecode: Array[Byte] => Any =
-    pair.key.getType match {
+    pair.key.rawSchema().getType match {
       case Schema.Type.RECORD =>
         val deser = new GenericAvroDeserializer()
         deser.configure(srs.config.asJava, true)
@@ -52,7 +52,7 @@ final class PullGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName,
     }
 
   @transient private lazy val valDecode: Array[Byte] => Any =
-    pair.value.getType match {
+    pair.value.rawSchema().getType match {
       case Schema.Type.RECORD =>
         val deser = new GenericAvroDeserializer()
         deser.configure(srs.config.asJava, false)
