@@ -26,9 +26,16 @@ final class SchemaRegistryApi[F[_]](client: CachedSchemaRegistryClient) extends 
   }
 
   def fetchAvroSchema(topicName: TopicName)(implicit F: Sync[F]): F[AvroSchemaPair] =
-    metaData(topicName).map { kv =>
-      AvroSchemaPair(new AvroSchema(kv.key.getSchema), new AvroSchema(kv.value.getSchema))
-    }
+    for {
+      mkv <- metaData(topicName)
+      skv <- (mkv.key.getSchemaType === "AVRO", mkv.value.getSchemaType === "AVRO") match {
+        case (true, true) =>
+          F.pure(AvroSchemaPair(new AvroSchema(mkv.key.getSchema), new AvroSchema(mkv.value.getSchema)))
+        case (false, true)  => F.raiseError(new Exception("key is not AVRO"))
+        case (true, false)  => F.raiseError(new Exception("value is not AVRO"))
+        case (false, false) => F.raiseError(new Exception("both key and value are not AVRO"))
+      }
+    } yield skv
 
   def register(topicName: TopicName, pair: AvroSchemaPair)(implicit F: Sync[F]): F[(Int, Int)] = {
     val loc = SchemaLocation(topicName)

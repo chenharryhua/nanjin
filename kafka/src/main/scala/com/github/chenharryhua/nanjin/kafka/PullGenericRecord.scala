@@ -34,9 +34,6 @@ final class PullGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName,
       case Schema.Type.STRING =>
         val deser = Serdes.stringSerde.deserializer()
         (data: Array[Byte]) => deser.deserialize(topic, data)
-      case Schema.Type.BYTES =>
-        val keyDeser = Serdes.bytesSerde.deserializer()
-        (data: Array[Byte]) => keyDeser.deserialize(topic, data)
       case Schema.Type.INT =>
         val deser = Serdes.intSerde.deserializer()
         (data: Array[Byte]) => deser.deserialize(topic, data)
@@ -50,8 +47,8 @@ final class PullGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName,
         val deser = Serdes.doubleSerde.deserializer()
         (data: Array[Byte]) => deser.deserialize(topic, data)
       case Schema.Type.BYTES =>
-        val ser = Serdes.byteArraySerde.deserializer()
-        (data: Array[Byte]) => ser.deserialize(topic, data)
+        val deser = Serdes.byteArraySerde.deserializer()
+        (data: Array[Byte]) => deser.deserialize(topic, data)
 
       case _ => throw new Exception(s"unsupported key schema ${pair.key}")
     }
@@ -64,9 +61,6 @@ final class PullGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName,
         (data: Array[Byte]) => deser.deserialize(topic, data)
       case Schema.Type.STRING =>
         val deser = Serdes.stringSerde.deserializer()
-        (data: Array[Byte]) => deser.deserialize(topic, data)
-      case Schema.Type.BYTES =>
-        val deser = Serdes.bytesSerde.deserializer()
         (data: Array[Byte]) => deser.deserialize(topic, data)
       case Schema.Type.INT =>
         val deser = Serdes.intSerde.deserializer()
@@ -81,8 +75,8 @@ final class PullGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName,
         val deser = Serdes.doubleSerde.deserializer()
         (data: Array[Byte]) => deser.deserialize(topic, data)
       case Schema.Type.BYTES =>
-        val ser = Serdes.byteArraySerde.deserializer()
-        (data: Array[Byte]) => ser.deserialize(topic, data)
+        val deser = Serdes.byteArraySerde.deserializer()
+        (data: Array[Byte]) => deser.deserialize(topic, data)
 
       case _ => throw new Exception(s"unsupported value schema ${pair.value}")
     }

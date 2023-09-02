@@ -14,25 +14,25 @@ class SchemaRegistryTest extends AnyFunSuite {
 
   val topic: KafkaTopic[IO, Int, trip_record] = nyc.in(ctx)
 
-//  test("compatiable") {
-//    val res = ctx.schemaRegistry.testCompatibility(topic.topicDef).unsafeRunSync()
-//    assert(res.isCompatible)
-//
-//  }
-//
-//  test("incompatiable") {
-//    val other = ctx.topic[String, String](topicName)
-//    val res   = ctx.schemaRegistry.testCompatibility(other.topicDef).unsafeRunSync()
-//    assert(!res.isCompatible)
-//  }
-//
-//  test("register schema") {
-//    val topic = TopicDef[Int, Int](TopicName("test.register.schema"))
-//    val report = ctx.schemaRegistry.delete(topic.topicName) >>
-//      ctx.schemaRegistry.register(topic) >>
-//      ctx.schemaRegistry.testCompatibility(topic)
-//    assert(report.unsafeRunSync().isIdentical)
-//  }
+  test("compatible") {
+    val res = ctx.schemaRegistry.fetchAvroSchema(topic.topicName).unsafeRunSync()
+    assert(res.isBackwardCompatible(nyc.schemaPair))
+
+  }
+
+  test("incompatible") {
+    val other = ctx.topic[String, String](topicName)
+    val res   = ctx.schemaRegistry.fetchAvroSchema(topicName).unsafeRunSync()
+    assert(!res.isBackwardCompatible(other.topicDef.schemaPair))
+  }
+
+  test("register schema") {
+    val topic = TopicDef[Int, Int](TopicName("test.register.schema"))
+    val report = ctx.schemaRegistry.delete(topic.topicName) >>
+      ctx.schemaRegistry.register(topic) >>
+      ctx.schemaRegistry.fetchAvroSchema(topic.topicName)
+    assert(report.unsafeRunSync().isBackwardCompatible(topic.schemaPair))
+  }
 
   test("retrieve schema") {
     println(ctx.schemaRegistry.metaData(topic.topicName).unsafeRunSync())

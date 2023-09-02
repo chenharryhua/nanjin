@@ -9,7 +9,6 @@ import org.apache.avro.Schema
 import org.apache.avro.generic.GenericRecord
 import org.apache.kafka.streams.scala.serialization.Serdes
 
-import java.nio.ByteBuffer
 import scala.jdk.CollectionConverters.MapHasAsJava
 
 final class PushGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName, pair: AvroSchemaPair)
