@@ -6,6 +6,7 @@ import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, TopicDef}
 import eu.timepit.refined.auto.*
 import org.scalatest.funsuite.AnyFunSuite
+
 class SchemaRegistryTest extends AnyFunSuite {
   val topicName: TopicName = TopicName("nyc_yellow_taxi_trip_data")
 
@@ -16,14 +17,16 @@ class SchemaRegistryTest extends AnyFunSuite {
 
   test("compatible") {
     val res = ctx.schemaRegistry.fetchAvroSchema(topic.topicName).unsafeRunSync()
-    assert(res.isBackwardCompatible(nyc.schemaPair))
+    assert(res.isFullCompatible(nyc.schemaPair))
+    assert(res.isIdentical(nyc.schemaPair))
 
   }
 
   test("incompatible") {
     val other = ctx.topic[String, String](topicName)
     val res   = ctx.schemaRegistry.fetchAvroSchema(topicName).unsafeRunSync()
-    assert(!res.isBackwardCompatible(other.topicDef.schemaPair))
+    assert(res.backward(other.topicDef.schemaPair).nonEmpty)
+    assert(res.forward(other.topicDef.schemaPair).nonEmpty)
   }
 
   test("register schema") {
@@ -32,10 +35,13 @@ class SchemaRegistryTest extends AnyFunSuite {
       ctx.schemaRegistry.register(topic) >>
       ctx.schemaRegistry.fetchAvroSchema(topic.topicName)
     assert(report.unsafeRunSync().isIdentical(topic.schemaPair))
+    assert(report.unsafeRunSync().isFullCompatible(topic.schemaPair))
   }
 
-  test("retrieve schema") {
-    println(ctx.schemaRegistry.metaData(topic.topicName).unsafeRunSync())
-    println(ctx.schemaRegistry.fetchAvroSchema(topic.topicName).unsafeRunSync())
+  test("compatibility") {
+    val other = TopicDef[Int, reddit_post](TopicName("abc")).schemaPair
+    val skm   = topic.topicDef.schemaPair
+    assert(other.forward(skm).nonEmpty)
+    assert(other.backward(skm).nonEmpty)
   }
 }
