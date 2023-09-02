@@ -14,22 +14,22 @@ final private[kafka] case class RawKeyValueSerdePair[K, V](key: SerdeOf[K], valu
     KeyValueSerdePair(key.asKey(srs.config).topic(name.value), value.asValue(srs.config).topic(name.value))
 
   def withSchema(pair: AvroSchemaPair): RawKeyValueSerdePair[K, V] =
-    RawKeyValueSerdePair(key.withSchema(pair.key.rawSchema()), value.withSchema(pair.value.rawSchema()))
+    RawKeyValueSerdePair(key.withSchema(pair.key), value.withSchema(pair.value))
 }
 
 final private[kafka] case class KeyValueSerdePair[K, V](key: KafkaSerde[K], value: KafkaSerde[V])
 
-final case class AvroSchemaPair(key: AvroSchema, value: AvroSchema) {
-  val consumerRecordSchema: Schema = NJConsumerRecord.schema(key.rawSchema(), value.rawSchema())
+final case class AvroSchemaPair(key: Schema, value: Schema) {
+  val consumerRecordSchema: Schema = NJConsumerRecord.schema(key, value)
 
   def isBackwardCompatible(other: AvroSchemaPair): Boolean = {
-    val k = key.isBackwardCompatible(other.key).asScala.toList
-    val v = value.isBackwardCompatible(other.value).asScala.toList
+    val k = new AvroSchema(key).isBackwardCompatible(new AvroSchema(other.key)).asScala.toList
+    val v = new AvroSchema(value).isBackwardCompatible(new AvroSchema(other.value)).asScala.toList
     k.isEmpty && v.isEmpty
   }
 
   def isIdentical(other: AvroSchemaPair): Boolean =
-    key.rawSchema().equals(other.key.rawSchema()) && value.rawSchema().equals(other.value.rawSchema())
+    key.equals(other.key) && value.equals(other.value)
 
 }
 

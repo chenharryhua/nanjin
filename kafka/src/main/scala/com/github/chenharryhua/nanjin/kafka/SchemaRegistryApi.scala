@@ -30,7 +30,10 @@ final class SchemaRegistryApi[F[_]](client: CachedSchemaRegistryClient) extends 
       mkv <- metaData(topicName)
       skv <- (mkv.key.getSchemaType === "AVRO", mkv.value.getSchemaType === "AVRO") match {
         case (true, true) =>
-          F.pure(AvroSchemaPair(new AvroSchema(mkv.key.getSchema), new AvroSchema(mkv.value.getSchema)))
+          F.pure(
+            AvroSchemaPair(
+              new AvroSchema(mkv.key.getSchema).rawSchema(),
+              new AvroSchema(mkv.value.getSchema).rawSchema()))
         case (false, true)  => F.raiseError(new Exception("key is not AVRO"))
         case (true, false)  => F.raiseError(new Exception("value is not AVRO"))
         case (false, false) => F.raiseError(new Exception("both key and value are not AVRO"))
@@ -40,8 +43,8 @@ final class SchemaRegistryApi[F[_]](client: CachedSchemaRegistryClient) extends 
   def register(topicName: TopicName, pair: AvroSchemaPair)(implicit F: Sync[F]): F[(Int, Int)] = {
     val loc = SchemaLocation(topicName)
     for {
-      k <- F.blocking(client.register(loc.keyLoc, new AvroSchema(pair.key.rawSchema())))
-      v <- F.blocking(client.register(loc.valLoc, new AvroSchema(pair.value.rawSchema())))
+      k <- F.blocking(client.register(loc.keyLoc, new AvroSchema(pair.key)))
+      v <- F.blocking(client.register(loc.valLoc, new AvroSchema(pair.value)))
     } yield (k, v)
   }
 
