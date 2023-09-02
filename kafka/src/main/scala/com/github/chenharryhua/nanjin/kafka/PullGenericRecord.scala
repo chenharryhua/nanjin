@@ -6,6 +6,7 @@ import com.github.chenharryhua.nanjin.messages.kafka.instances.*
 import com.sksamuel.avro4s.SchemaFor
 import fs2.Chunk
 import fs2.kafka.{ConsumerRecord, KafkaByteConsumerRecord}
+import io.confluent.kafka.schemaregistry.avro.AvroSchemaUtils
 import io.confluent.kafka.streams.serdes.avro.GenericAvroDeserializer
 import io.scalaland.chimney.dsl.TransformerOps
 import org.apache.avro.Schema
@@ -48,6 +49,10 @@ final class PullGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName,
       case Schema.Type.DOUBLE =>
         val deser = Serdes.doubleSerde.deserializer()
         (data: Array[Byte]) => deser.deserialize(topic, data)
+      case Schema.Type.BYTES =>
+        val ser = Serdes.byteArraySerde.deserializer()
+        (data: Array[Byte]) => ser.deserialize(topic, data)
+
       case _ => throw new Exception(s"unsupported key schema ${pair.key}")
     }
 
@@ -75,6 +80,10 @@ final class PullGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName,
       case Schema.Type.DOUBLE =>
         val deser = Serdes.doubleSerde.deserializer()
         (data: Array[Byte]) => deser.deserialize(topic, data)
+      case Schema.Type.BYTES =>
+        val ser = Serdes.byteArraySerde.deserializer()
+        (data: Array[Byte]) => ser.deserialize(topic, data)
+
       case _ => throw new Exception(s"unsupported value schema ${pair.value}")
     }
 
@@ -100,7 +109,8 @@ final class PullGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName,
   def toGenericRecord(ccr: ConsumerRecord[Array[Byte], Array[Byte]]): GenericRecord =
     toGenericRecord(ccr.transformInto[KafkaByteConsumerRecord])
 
-  @transient private lazy val datumWriter = new GenericDatumWriter[GenericRecord](schema)
+  @transient private lazy val datumWriter: GenericDatumWriter[GenericRecord] =
+    new GenericDatumWriter[GenericRecord](schema, AvroSchemaUtils.getGenericData)
 
   def toJacksonString(ccr: KafkaByteConsumerRecord): String = {
     val gr: GenericRecord           = toGenericRecord(ccr)

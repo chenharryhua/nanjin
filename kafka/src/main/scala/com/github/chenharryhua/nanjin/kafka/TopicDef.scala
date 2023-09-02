@@ -25,8 +25,8 @@ final class TopicDef[K, V] private (val topicName: TopicName, val rawSerdes: Raw
 
   lazy val schemaPair: AvroSchemaPair =
     AvroSchemaPair(
-      new AvroSchema(rawSerdes.key.avroCodec.schemaFor.schema),
-      new AvroSchema(rawSerdes.value.avroCodec.schemaFor.schema))
+      new AvroSchema(rawSerdes.key.avroCodec.schema),
+      new AvroSchema(rawSerdes.value.avroCodec.schema))
 
   // consumer
   final class ConsumerRecordCodec(val codec: NJAvroCodec[NJConsumerRecord[K, V]]) extends Serializable {
