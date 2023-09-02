@@ -27,6 +27,10 @@ final case class AvroSchemaPair(key: AvroSchema, value: AvroSchema) {
     val v = value.isBackwardCompatible(other.value).asScala.toList
     k.isEmpty && v.isEmpty
   }
+
+  def isIdentical(other: AvroSchemaPair): Boolean =
+    key.rawSchema().equals(other.key.rawSchema()) && value.rawSchema().equals(other.value.rawSchema())
+
 }
 
 object AvroSchemaPair {

@@ -31,7 +31,7 @@ class SchemaRegistryTest extends AnyFunSuite {
     val report = ctx.schemaRegistry.delete(topic.topicName) >>
       ctx.schemaRegistry.register(topic) >>
       ctx.schemaRegistry.fetchAvroSchema(topic.topicName)
-    assert(report.unsafeRunSync().isBackwardCompatible(topic.schemaPair))
+    assert(report.unsafeRunSync().isIdentical(topic.schemaPair))
   }
 
   test("retrieve schema") {
