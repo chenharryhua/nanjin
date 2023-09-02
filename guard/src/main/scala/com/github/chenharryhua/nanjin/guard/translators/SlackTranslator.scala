@@ -7,6 +7,7 @@ import com.github.chenharryhua.nanjin.guard.event.{MetricSnapshot, NJEvent}
 import io.circe.Json
 import org.apache.commons.lang3.StringUtils
 import org.typelevel.cats.time.instances.all
+import squants.information.{Bytes, Information}
 
 private object SlackTranslator extends all {
   import NJEvent.*
@@ -25,9 +26,9 @@ private object SlackTranslator extends all {
 
   // slack not allow message larger than 3000 chars
   // https://api.slack.com/reference/surfaces/formatting
-  private val MessageSizeLimits: Int = 2500
+  private val MessageSizeLimits: Information = Bytes(2500)
 
-  private def abbreviate(msg: String): String = StringUtils.abbreviate(msg, MessageSizeLimits)
+  private def abbreviate(msg: String): String = StringUtils.abbreviate(msg, MessageSizeLimits.toBytes.toInt)
   private def abbreviate(msg: Json): String   = abbreviate(msg.spaces2)
 
   private def hostServiceSection(sp: ServiceParams): JuxtaposeSection = {
@@ -63,7 +64,8 @@ private object SlackTranslator extends all {
             MarkdownSection(s":rocket: *${eventTitle(evt)}*"),
             hostServiceSection(evt.serviceParams),
             upTimeSection(evt),
-            MarkdownSection(s"*$CONSTANT_SERVICE_ID:* ${evt.serviceParams.serviceId.show}")
+            MarkdownSection(s"""|*$CONSTANT_POLICY:* ${evt.serviceParams.restartPolicy}
+                                |*$CONSTANT_SERVICE_ID:* ${evt.serviceParams.serviceId.show}""".stripMargin)
           )
         )) ++ evt.serviceParams.brief.map(bf => Attachment(color = color, blocks = List(brief(bf))))
     )

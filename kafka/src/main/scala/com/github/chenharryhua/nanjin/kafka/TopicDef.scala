@@ -23,10 +23,10 @@ final class TopicDef[K, V] private (val topicName: TopicName, val rawSerdes: Raw
     new TopicDef[K, V](topicName, rawSerdes.withSchema(pair))
 
   lazy val schemaPair: AvroSchemaPair =
-    AvroSchemaPair(rawSerdes.key.avroCodec.schemaFor.schema, rawSerdes.value.avroCodec.schemaFor.schema)
+    AvroSchemaPair(rawSerdes.key.avroCodec.schema, rawSerdes.value.avroCodec.schema)
 
   // consumer
-  final class ConsumerRecord(val codec: NJAvroCodec[NJConsumerRecord[K, V]]) extends Serializable {
+  final class ConsumerRecordCodec(val codec: NJAvroCodec[NJConsumerRecord[K, V]]) extends Serializable {
     private val toGR: ToRecord[NJConsumerRecord[K, V]]     = ToRecord(codec.avroEncoder)
     private val fromGR: FromRecord[NJConsumerRecord[K, V]] = FromRecord(codec.avroDecoder)
 
@@ -34,11 +34,11 @@ final class TopicDef[K, V] private (val topicName: TopicName, val rawSerdes: Raw
     def fromRecord(gr: IndexedRecord): NJConsumerRecord[K, V] = fromGR.from(gr)
   }
 
-  lazy val consumerRecord: ConsumerRecord =
-    new ConsumerRecord(NJConsumerRecord.avroCodec(rawSerdes.key.avroCodec, rawSerdes.value.avroCodec))
+  lazy val consumerRecord: ConsumerRecordCodec =
+    new ConsumerRecordCodec(NJConsumerRecord.avroCodec(rawSerdes.key.avroCodec, rawSerdes.value.avroCodec))
 
   // producer
-  final class ProducerRecord(val codec: NJAvroCodec[NJProducerRecord[K, V]]) extends Serializable {
+  final class ProducerRecordCodec(val codec: NJAvroCodec[NJProducerRecord[K, V]]) extends Serializable {
     private val toGR: ToRecord[NJProducerRecord[K, V]]     = ToRecord(codec.avroEncoder)
     private val fromGR: FromRecord[NJProducerRecord[K, V]] = FromRecord(codec.avroDecoder)
 
@@ -47,8 +47,8 @@ final class TopicDef[K, V] private (val topicName: TopicName, val rawSerdes: Raw
     def fromRecord(gr: IndexedRecord): NJProducerRecord[K, V] = fromGR.from(gr)
   }
 
-  lazy val producerRecord: ProducerRecord =
-    new ProducerRecord(NJProducerRecord.avroCodec(rawSerdes.key.avroCodec, rawSerdes.value.avroCodec))
+  lazy val producerRecord: ProducerRecordCodec =
+    new ProducerRecordCodec(NJProducerRecord.avroCodec(rawSerdes.key.avroCodec, rawSerdes.value.avroCodec))
 
 }
 

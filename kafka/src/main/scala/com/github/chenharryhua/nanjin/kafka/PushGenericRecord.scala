@@ -3,9 +3,10 @@ package com.github.chenharryhua.nanjin.kafka
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.sksamuel.avro4s.Decoder
 import fs2.kafka.ProducerRecord
+import io.confluent.kafka.schemaregistry.avro.AvroSchemaUtils
 import io.confluent.kafka.streams.serdes.avro.GenericAvroSerializer
 import org.apache.avro.Schema
-import org.apache.avro.generic.{GenericData, GenericRecord}
+import org.apache.avro.generic.GenericRecord
 import org.apache.kafka.streams.scala.serialization.Serdes
 
 import scala.jdk.CollectionConverters.MapHasAsJava
@@ -37,6 +38,10 @@ final class PushGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName,
       case Schema.Type.DOUBLE =>
         val ser = Serdes.doubleSerde.serializer()
         (data: AnyRef) => ser.serialize(topic, Decoder[Double].decode(data))
+      case Schema.Type.BYTES =>
+        val ser = Serdes.byteArraySerde.serializer()
+        (data: AnyRef) => ser.serialize(topic, Decoder[Array[Byte]].decode(data))
+
       case _ => throw new Exception(s"unsupported key schema ${pair.key}")
     }
 
@@ -62,16 +67,24 @@ final class PushGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName,
       case Schema.Type.DOUBLE =>
         val ser = Serdes.doubleSerde.serializer()
         (data: AnyRef) => ser.serialize(topic, Decoder[Double].decode(data))
+      case Schema.Type.BYTES =>
+        val ser = Serdes.byteArraySerde.serializer()
+        (data: AnyRef) => ser.serialize(topic, Decoder[Array[Byte]].decode(data))
+
       case _ => throw new Exception(s"unsupported value schema ${pair.value}")
     }
+
+  private def validateKey(ar: AnyRef): Boolean =
+    AvroSchemaUtils.getGenericData.validate(pair.key, ar) || ar == null
+
+  private def validateVal(ar: AnyRef): Boolean =
+    AvroSchemaUtils.getGenericData.validate(pair.value, ar) || ar == null
 
   def fromGenericRecord(gr: GenericRecord): ProducerRecord[Array[Byte], Array[Byte]] = {
     val key   = gr.get("key")
     val value = gr.get("value")
 
-    (
-      GenericData.get().validate(pair.key, key) || key == null,
-      GenericData.get().validate(pair.value, value) || value == null) match {
+    (validateKey(key), validateVal(value)) match {
       case (true, true)   => ProducerRecord(topic, keySer(key), valSer(value))
       case (true, false)  => throw new Exception("invalid value")
       case (false, true)  => throw new Exception("invalid key")

@@ -1,6 +1,6 @@
 ThisBuild / scalaVersion := "2.13.11"
 
-ThisBuild / version := "0.17.1-SNAPSHOT"
+ThisBuild / version := "0.17.2-SNAPSHOT"
 
 val catsCoreV   = "2.10.0"
 val fs2V        = "3.9.1"
@@ -395,3 +395,4 @@ lazy val example = (project in file("example"))
 lazy val nanjin =
   (project in file(".")).aggregate(common, datetime, http, aws, guard, messages, pipes, kafka, database, spark)
 // format: on
+
