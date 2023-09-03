@@ -6,7 +6,7 @@ import com.github.chenharryhua.nanjin.datetime.tickStream
 import com.github.chenharryhua.nanjin.datetime.tickStream.Tick
 import fs2.{Chunk, Pipe, Stream}
 import org.apache.avro.Schema
-import org.apache.avro.generic.GenericRecord
+import org.apache.avro.generic.{GenericData, GenericRecord}
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.io.compress.zlib.ZlibCompressor.CompressionLevel
@@ -28,11 +28,11 @@ final class HadoopBinAvro[F[_]] private (
 
   // read
 
-  def source(path: NJPath)(implicit F: Async[F]): Stream[F, GenericRecord] =
+  def source(path: NJPath)(implicit F: Async[F]): Stream[F, GenericData.Record] =
     HadoopReader.binAvroS[F](configuration, schema, path.hadoopPath)
 
-  def source(paths: List[NJPath])(implicit F: Async[F]): Stream[F, GenericRecord] =
-    paths.foldLeft(Stream.empty.covaryAll[F, GenericRecord]) { case (s, p) => s ++ source(p) }
+  def source(paths: List[NJPath])(implicit F: Async[F]): Stream[F, GenericData.Record] =
+    paths.foldLeft(Stream.empty.covaryAll[F, GenericData.Record]) { case (s, p) => s ++ source(p) }
 
   // write
 

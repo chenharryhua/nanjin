@@ -9,7 +9,7 @@ import fs2.kafka.{ConsumerRecord, KafkaByteConsumerRecord}
 import io.confluent.kafka.streams.serdes.avro.GenericAvroDeserializer
 import io.scalaland.chimney.dsl.TransformerOps
 import org.apache.avro.Schema
-import org.apache.avro.generic.{GenericData, GenericDatumWriter, GenericRecord}
+import org.apache.avro.generic.{GenericData, GenericDatumWriter}
 import org.apache.avro.io.{BinaryEncoder, EncoderFactory, JsonEncoder}
 import org.apache.kafka.streams.scala.serialization.Serdes
 
@@ -61,7 +61,6 @@ final class PullGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName,
         val deser = new GenericAvroDeserializer()
         deser.configure(srs.config.asJava, false)
         (data: Array[Byte]) =>
-          // Error retrieving Avro key schema for id
           try deser.deserialize(topic, data)
           catch { case _: Throwable => null }
       case Schema.Type.STRING =>
@@ -86,7 +85,7 @@ final class PullGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName,
       case _ => throw new Exception(s"unsupported value schema ${pair.value}")
     }
 
-  def toGenericRecord(ccr: KafkaByteConsumerRecord): GenericRecord = {
+  def toRecord(ccr: KafkaByteConsumerRecord): GenericData.Record = {
     val record: GenericData.Record = new GenericData.Record(schema)
     val headers: Array[GenericData.Record] = ccr.headers().toArray.map { h =>
       val header = new GenericData.Record(SchemaFor[NJHeader].schema)
@@ -105,14 +104,14 @@ final class PullGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName,
     record
   }
 
-  def toGenericRecord(ccr: ConsumerRecord[Array[Byte], Array[Byte]]): GenericRecord =
-    toGenericRecord(ccr.transformInto[KafkaByteConsumerRecord])
+  def toRecord(ccr: ConsumerRecord[Array[Byte], Array[Byte]]): GenericData.Record =
+    toRecord(ccr.transformInto[KafkaByteConsumerRecord])
 
-  @transient private lazy val datumWriter: GenericDatumWriter[GenericRecord] =
-    new GenericDatumWriter[GenericRecord](schema)
+  @transient private lazy val datumWriter: GenericDatumWriter[GenericData.Record] =
+    new GenericDatumWriter[GenericData.Record](schema)
 
-  def toJacksonString(ccr: KafkaByteConsumerRecord): Either[GenericRecord, String] = {
-    val gr: GenericRecord = toGenericRecord(ccr)
+  def toJacksonString(ccr: KafkaByteConsumerRecord): Either[GenericData.Record, String] = {
+    val gr: GenericData.Record = toRecord(ccr)
     Using(new ByteArrayOutputStream) { baos =>
       val encoder: JsonEncoder = EncoderFactory.get().jsonEncoder(schema, baos)
       datumWriter.write(gr, encoder)
@@ -124,12 +123,12 @@ final class PullGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName,
     }
   }
 
-  def toJacksonString(ccr: ConsumerRecord[Array[Byte], Array[Byte]]): Either[GenericRecord, String] =
+  def toJacksonString(ccr: ConsumerRecord[Array[Byte], Array[Byte]]): Either[GenericData.Record, String] =
     toJacksonString(ccr.transformInto[KafkaByteConsumerRecord])
 
   def toBinAvro(ccr: KafkaByteConsumerRecord): Chunk[Byte] =
     Using(new ByteArrayOutputStream) { baos =>
-      val gr: GenericRecord      = toGenericRecord(ccr)
+      val gr: GenericData.Record = toRecord(ccr)
       val encoder: BinaryEncoder = EncoderFactory.get().binaryEncoder(baos, null)
       datumWriter.write(gr, encoder)
       encoder.flush()

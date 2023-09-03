@@ -7,7 +7,7 @@ import fs2.Stream
 import fs2.io.readInputStream
 import org.apache.avro.Schema
 import org.apache.avro.file.DataFileStream
-import org.apache.avro.generic.{GenericDatumReader, GenericRecord}
+import org.apache.avro.generic.{GenericData, GenericDatumReader}
 import org.apache.avro.io.{BinaryDecoder, DecoderFactory, JsonDecoder}
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.Path
@@ -22,16 +22,16 @@ import scala.util.Try
 private object HadoopReader {
 
   def avroR[F[_]](configuration: Configuration, schema: Schema, path: Path)(implicit
-    F: Sync[F]): Resource[F, DataFileStream[GenericRecord]] =
+    F: Sync[F]): Resource[F, DataFileStream[GenericData.Record]] =
     for {
       is <- Resource.make(F.blocking(HadoopInputFile.fromPath(path, configuration).newStream()))(r =>
         F.blocking(r.close()))
-      dfs <- Resource.make[F, DataFileStream[GenericRecord]](
+      dfs <- Resource.make[F, DataFileStream[GenericData.Record]](
         F.blocking(new DataFileStream(is, new GenericDatumReader(schema))))(r => F.blocking(r.close()))
     } yield dfs
 
-  def parquetR[F[_]](readBuilder: Reader[Path, ParquetReader.Builder[GenericRecord]], path: Path)(implicit
-    F: Sync[F]): Resource[F, ParquetReader[GenericRecord]] =
+  def parquetR[F[_]](readBuilder: Reader[Path, ParquetReader.Builder[GenericData.Record]], path: Path)(
+    implicit F: Sync[F]): Resource[F, ParquetReader[GenericData.Record]] =
     Resource.make(F.blocking(readBuilder.run(path).build()))(r => F.blocking(r.close()))
 
   private def fileInputStream(path: Path, configuration: Configuration): InputStream = {
@@ -55,22 +55,24 @@ private object HadoopReader {
       readInputStream[F](F.pure(is), bufferSize.toBytes.toInt, closeAfterUse = true))
 
   def jacksonS[F[_]](configuration: Configuration, schema: Schema, path: Path)(implicit
-    F: Sync[F]): Stream[F, GenericRecord] =
+    F: Sync[F]): Stream[F, GenericData.Record] =
     inputStreamS[F](configuration, path).flatMap { is =>
-      val jsonDecoder: JsonDecoder                       = DecoderFactory.get().jsonDecoder(schema, is)
-      val datumReader: GenericDatumReader[GenericRecord] = new GenericDatumReader[GenericRecord](schema)
+      val jsonDecoder: JsonDecoder = DecoderFactory.get().jsonDecoder(schema, is)
+      val datumReader: GenericDatumReader[GenericData.Record] =
+        new GenericDatumReader[GenericData.Record](schema)
 
-      def next: Try[GenericRecord] = Try(datumReader.read(null, jsonDecoder))
+      def next: Try[GenericData.Record] = Try(datumReader.read(null, jsonDecoder))
       Stream.unfold(next)(s => s.toOption.map(gr => (gr, next)))
     }
 
   def binAvroS[F[_]](configuration: Configuration, schema: Schema, path: Path)(implicit
-    F: Sync[F]): Stream[F, GenericRecord] =
+    F: Sync[F]): Stream[F, GenericData.Record] =
     inputStreamS[F](configuration, path).flatMap { is =>
-      val binDecoder: BinaryDecoder                      = DecoderFactory.get().binaryDecoder(is, null)
-      val datumReader: GenericDatumReader[GenericRecord] = new GenericDatumReader[GenericRecord](schema)
+      val binDecoder: BinaryDecoder = DecoderFactory.get().binaryDecoder(is, null)
+      val datumReader: GenericDatumReader[GenericData.Record] =
+        new GenericDatumReader[GenericData.Record](schema)
 
-      def next: Try[GenericRecord] = Try(datumReader.read(null, binDecoder))
+      def next: Try[GenericData.Record] = Try(datumReader.read(null, binDecoder))
       Stream.unfold(next)(s => s.toOption.map(gr => (gr, next)))
     }
 
