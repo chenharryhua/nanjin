@@ -6,6 +6,7 @@ import com.github.chenharryhua.nanjin.messages.kafka.instances.*
 import com.sksamuel.avro4s.SchemaFor
 import fs2.Chunk
 import fs2.kafka.{ConsumerRecord, KafkaByteConsumerRecord}
+import io.circe.Json
 import io.confluent.kafka.streams.serdes.avro.GenericAvroDeserializer
 import io.scalaland.chimney.dsl.TransformerOps
 import org.apache.avro.Schema
@@ -109,6 +110,15 @@ final class PullGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName,
 
   @transient private lazy val datumWriter: GenericDatumWriter[GenericData.Record] =
     new GenericDatumWriter[GenericData.Record](schema)
+
+  def toCirce(ccr: KafkaByteConsumerRecord): Json =
+    io.circe.parser.parse(toRecord(ccr).toString) match {
+      case Left(value)  => sys.error(s"$value - should never happen")
+      case Right(value) => value
+    }
+
+  def toCirce(ccr: ConsumerRecord[Array[Byte], Array[Byte]]): Json =
+    toCirce(ccr.transformInto[KafkaByteConsumerRecord])
 
   def toJacksonString(ccr: KafkaByteConsumerRecord): Either[GenericData.Record, String] = {
     val gr: GenericData.Record = toRecord(ccr)
