@@ -86,9 +86,9 @@ final class PushGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName,
 
     (validateKey(key), validateVal(value)) match {
       case (true, true)   => ProducerRecord(topic, keySer(key), valSer(value))
-      case (true, false)  => throw new Exception("invalid value")
-      case (false, true)  => throw new Exception("invalid key")
-      case (false, false) => throw new Exception("invalid both key and value")
+      case (true, false)  => throw new Exception(s"$topic has invalid value")
+      case (false, true)  => throw new Exception(s"$topic has invalid key")
+      case (false, false) => throw new Exception(s"$topic has invalid both key and value")
     }
   }
 }

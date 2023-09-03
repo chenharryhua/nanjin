@@ -60,9 +60,13 @@ final class NJKafkaByteConsume[F[_]] private[kafka] (
     }
 
   /** @return
-    *   Jackson
+    *
+    * Jackson String if success
+    *
+    * GenericRecord if fail
     */
-  def jackson(implicit F: Async[F]): Stream[F, CommittableConsumerRecord[F, Schema, String]] =
+  def jackson(implicit
+    F: Async[F]): Stream[F, CommittableConsumerRecord[F, Schema, Either[GenericRecord, String]]] =
     Stream.eval(getSchema).flatMap { skm =>
       val builder = new PullGenericRecord(srs, topicName, skm)
       stream.map { cr =>
@@ -93,7 +97,7 @@ final class NJKafkaByteConsume[F[_]] private[kafka] (
     }
 
   def jackson(tps: KafkaTopicPartition[KafkaOffset])(implicit
-    F: Async[F]): Stream[F, CommittableConsumerRecord[F, Schema, String]] =
+    F: Async[F]): Stream[F, CommittableConsumerRecord[F, Schema, Either[GenericRecord, String]]] =
     Stream.eval(getSchema).flatMap { skm =>
       val builder = new PullGenericRecord(srs, topicName, skm)
       assign(tps).map { cr =>

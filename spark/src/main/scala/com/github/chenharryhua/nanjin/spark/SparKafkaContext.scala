@@ -56,7 +56,7 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
       range <- kafkaContext.admin(topicName).offsetRangeFor(dateRange)
     } yield sk
       .kafkaBatchRDD(kafkaContext.settings.consumerSettings, sparkSession, range)
-      .map(builder.toJacksonString)
+      .flatMap(builder.toJacksonString(_).toOption)
     new RddFileHoarder(grRdd).text(path).withSuffix("jackson.json").run
   }
 
