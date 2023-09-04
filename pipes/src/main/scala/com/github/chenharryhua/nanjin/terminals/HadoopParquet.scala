@@ -18,12 +18,12 @@ import org.apache.parquet.hadoop.util.{HadoopInputFile, HadoopOutputFile}
 import org.apache.parquet.hadoop.{ParquetFileWriter, ParquetReader}
 
 final class HadoopParquet[F[_]] private (
-  readBuilder: Reader[Path, ParquetReader.Builder[GenericRecord]],
+  readBuilder: Reader[Path, ParquetReader.Builder[GenericData.Record]],
   writeBuilder: Reader[Path, AvroParquetWriter.Builder[GenericRecord]]) {
 
   // config
 
-  def updateReader(f: Endo[ParquetReader.Builder[GenericRecord]]): HadoopParquet[F] =
+  def updateReader(f: Endo[ParquetReader.Builder[GenericData.Record]]): HadoopParquet[F] =
     new HadoopParquet(readBuilder.map(f), writeBuilder)
 
   def updateWriter(f: Endo[AvroParquetWriter.Builder[GenericRecord]]): HadoopParquet[F] =
@@ -31,14 +31,14 @@ final class HadoopParquet[F[_]] private (
 
   // read
 
-  def source(path: NJPath)(implicit F: Sync[F]): Stream[F, GenericRecord] =
+  def source(path: NJPath)(implicit F: Sync[F]): Stream[F, GenericData.Record] =
     for {
       rd <- Stream.resource(HadoopReader.parquetR(readBuilder, path.hadoopPath))
       gr <- Stream.repeatEval(F.blocking(Option(rd.read()))).unNoneTerminate
     } yield gr
 
-  def source(paths: List[NJPath])(implicit F: Sync[F]): Stream[F, GenericRecord] =
-    paths.foldLeft(Stream.empty.covaryAll[F, GenericRecord]) { case (s, p) => s ++ source(p) }
+  def source(paths: List[NJPath])(implicit F: Sync[F]): Stream[F, GenericData.Record] =
+    paths.foldLeft(Stream.empty.covaryAll[F, GenericData.Record]) { case (s, p) => s ++ source(p) }
 
   // write
 
@@ -79,7 +79,7 @@ object HadoopParquet {
     new HadoopParquet[F](
       readBuilder = Reader((path: Path) =>
         AvroParquetReader
-          .builder[GenericRecord](HadoopInputFile.fromPath(path, cfg))
+          .builder[GenericData.Record](HadoopInputFile.fromPath(path, cfg))
           .withDataModel(GenericData.get())
           .withConf(cfg)),
       writeBuilder = Reader((path: Path) =>

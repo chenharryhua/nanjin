@@ -16,7 +16,7 @@ val avroV       = "1.11.2"
 val parquetV    = "1.13.1"
 val circeV      = "0.14.6"
 val kantanV     = "0.7.0"
-val slf4jV      = "2.0.7"
+val slf4jV      = "2.0.9"
 val metricsV    = "4.2.19"
 val skunkV      = "0.6.0"
 val natchezV    = "0.3.3"
@@ -273,9 +273,7 @@ lazy val messages = (project in file("messages"))
   .settings(name := "nj-messages")
   .settings(libraryDependencies ++= List(
     "org.yaml"                       % "snakeyaml"   % "2.2", // snyk
-    "org.xerial.snappy"              % "snappy-java" % "1.1.10.3", // snyk
-    "io.circe" %% "circe-jackson212" % "0.14.0",
-    "org.gnieh" %% "diffson-circe"   % "4.4.0"
+    "org.xerial.snappy"              % "snappy-java" % "1.1.10.3" // snyk
   ) ++ serdeLib ++ kafkaLib.map(_ % Provided) ++ testLib)
 
 lazy val database = (project in file("database"))

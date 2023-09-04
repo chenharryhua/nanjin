@@ -13,6 +13,7 @@ import fs2.Stream
 import fs2.kafka.*
 import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient
 import io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig
+import org.apache.avro.generic.GenericData
 import org.apache.kafka.common.serialization.Serde
 import org.apache.kafka.streams.scala.StreamsBuilder
 
@@ -67,7 +68,9 @@ final class KafkaContext[F[_]](val settings: KafkaSettings)
   def consume(topicName: TopicNameL)(implicit F: Sync[F]): NJKafkaByteConsume[F] =
     consume(TopicName(topicName))
 
-  def monitor(topicName: TopicName)(implicit F: Async[F], U: UUIDGen[F]): Stream[F, String] =
+  def monitor(topicName: TopicName)(implicit
+    F: Async[F],
+    U: UUIDGen[F]): Stream[F, Either[GenericData.Record, String]] =
     Stream.eval(U.randomUUID).flatMap { uuid =>
       consume(topicName)
         .updateConfig( // avoid accidentally join an existing consumer-group
@@ -76,7 +79,7 @@ final class KafkaContext[F[_]](val settings: KafkaSettings)
         .map(_.record.value)
     }
 
-  def monitor(topicName: TopicNameL)(implicit F: Async[F]): Stream[F, String] =
+  def monitor(topicName: TopicNameL)(implicit F: Async[F]): Stream[F, Either[GenericData.Record, String]] =
     monitor(TopicName(topicName))
 
   def sink(topicName: TopicName)(implicit F: Sync[F]): NJGenericRecordSink[F] =
