@@ -41,7 +41,7 @@ class SparKafkaTest extends AnyFunSuite {
 
   val topic: KafkaTopic[IO, Int, HasDuck] = TopicDef[Int, HasDuck](TopicName("duck.test")).in(ctx)
 
-  val loadData =
+  val loadData: IO[Unit] =
     fs2
       .Stream(ProducerRecords(
         List(ProducerRecord(topic.topicName.value, 1, data), ProducerRecord(topic.topicName.value, 2, data))))
@@ -196,5 +196,4 @@ class SparKafkaTest extends AnyFunSuite {
     duckConsume.jackson.map(_.record.value.toOption).unNone.take(2).chunks.through(sink).compile.drain.unsafeRunSync()
     assert(2 == sparKafka.topic(topic).load.jackson(path).count.unsafeRunSync())
   }
-
 }

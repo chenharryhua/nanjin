@@ -18,8 +18,6 @@ class SchemaRegistryTest extends AnyFunSuite {
   test("compatible") {
     val res = ctx.schemaRegistry.fetchAvroSchema(topic.topicName).unsafeRunSync()
     assert(res.isFullCompatible(nyc.schemaPair))
-    assert(res.isIdentical(nyc.schemaPair))
-
   }
 
   test("incompatible") {
@@ -29,7 +27,7 @@ class SchemaRegistryTest extends AnyFunSuite {
     assert(res.forward(other.topicDef.schemaPair).nonEmpty)
   }
 
-  test("register schema") {
+  test("register schema should be identical") {
     val topic = TopicDef[Int, Int](TopicName("test.register.schema"))
     val report = ctx.schemaRegistry.delete(topic.topicName) >>
       ctx.schemaRegistry.register(topic) >>

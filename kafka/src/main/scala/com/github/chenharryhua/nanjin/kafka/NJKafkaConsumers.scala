@@ -8,7 +8,6 @@ import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import fs2.kafka.{CommittableConsumerRecord, ConsumerSettings, KafkaConsumer}
 import fs2.{Chunk, Stream}
-import io.circe.Json
 import org.apache.avro.Schema
 import org.apache.avro.generic.GenericData
 
@@ -86,17 +85,9 @@ final class NJKafkaByteConsume[F[_]] private[kafka] (
       }
     }
 
-  def circe(implicit F: Async[F]): Stream[F, CommittableConsumerRecord[F, Schema, Json]] =
-    Stream.eval(getSchema).flatMap { skm =>
-      val builder = new PullGenericRecord(srs, topicName, skm)
-      stream.map { cr =>
-        cr.bimap(_ => skm.consumerRecordSchema, _ => builder.toCirce(cr.record))
-      }
-    }
-
   // assignment
 
-  def avro(tps: KafkaTopicPartition[KafkaOffset])(implicit
+  def assignAvro(tps: KafkaTopicPartition[KafkaOffset])(implicit
     F: Async[F]): Stream[F, CommittableConsumerRecord[F, Unit, GenericData.Record]] =
     Stream.eval(getSchema).flatMap { skm =>
       val builder = new PullGenericRecord(srs, topicName, skm)
@@ -105,7 +96,7 @@ final class NJKafkaByteConsume[F[_]] private[kafka] (
       }
     }
 
-  def jackson(tps: KafkaTopicPartition[KafkaOffset])(implicit
+  def assignJackson(tps: KafkaTopicPartition[KafkaOffset])(implicit
     F: Async[F]): Stream[F, CommittableConsumerRecord[F, Schema, Either[GenericData.Record, String]]] =
     Stream.eval(getSchema).flatMap { skm =>
       val builder = new PullGenericRecord(srs, topicName, skm)
@@ -114,7 +105,7 @@ final class NJKafkaByteConsume[F[_]] private[kafka] (
       }
     }
 
-  def binAvro(tps: KafkaTopicPartition[KafkaOffset])(implicit
+  def assignBinAvro(tps: KafkaTopicPartition[KafkaOffset])(implicit
     F: Async[F]): Stream[F, CommittableConsumerRecord[F, Schema, Chunk[Byte]]] =
     Stream.eval(getSchema).flatMap { skm =>
       val builder = new PullGenericRecord(srs, topicName, skm)
@@ -123,14 +114,6 @@ final class NJKafkaByteConsume[F[_]] private[kafka] (
       }
     }
 
-  def circe(tps: KafkaTopicPartition[KafkaOffset])(implicit
-    F: Async[F]): Stream[F, CommittableConsumerRecord[F, Schema, Json]] =
-    Stream.eval(getSchema).flatMap { skm =>
-      val builder = new PullGenericRecord(srs, topicName, skm)
-      assign(tps).map { cr =>
-        cr.bimap(_ => skm.consumerRecordSchema, _ => builder.toCirce(cr.record))
-      }
-    }
 }
 
 final class NJKafkaConsume[F[_], K, V] private[kafka] (

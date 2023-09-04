@@ -6,7 +6,6 @@ import com.github.chenharryhua.nanjin.messages.kafka.instances.*
 import com.sksamuel.avro4s.SchemaFor
 import fs2.Chunk
 import fs2.kafka.{ConsumerRecord, KafkaByteConsumerRecord}
-import io.circe.Json
 import io.confluent.kafka.streams.serdes.avro.GenericAvroDeserializer
 import io.scalaland.chimney.dsl.TransformerOps
 import org.apache.avro.Schema
@@ -18,7 +17,7 @@ import java.io.ByteArrayOutputStream
 import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
 import scala.jdk.CollectionConverters.{MapHasAsJava, SeqHasAsJava}
-import scala.util.{Failure, Success, Using}
+import scala.util.{Failure, Success, Try, Using}
 
 final class PullGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName, pair: AvroSchemaPair)
     extends Serializable {
@@ -30,10 +29,7 @@ final class PullGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName,
       case Schema.Type.RECORD =>
         val deser = new GenericAvroDeserializer()
         deser.configure(srs.config.asJava, true)
-        (data: Array[Byte]) =>
-          // Error retrieving Avro key schema for id
-          try deser.deserialize(topic, data)
-          catch { case _: Throwable => null }
+        (data: Array[Byte]) => deser.deserialize(topic, data)
       case Schema.Type.STRING =>
         val deser = Serdes.stringSerde.deserializer()
         (data: Array[Byte]) => deser.deserialize(topic, data)
@@ -61,9 +57,7 @@ final class PullGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName,
       case Schema.Type.RECORD =>
         val deser = new GenericAvroDeserializer()
         deser.configure(srs.config.asJava, false)
-        (data: Array[Byte]) =>
-          try deser.deserialize(topic, data)
-          catch { case _: Throwable => null }
+        (data: Array[Byte]) => deser.deserialize(topic, data)
       case Schema.Type.STRING =>
         val deser = Serdes.stringSerde.deserializer()
         (data: Array[Byte]) => deser.deserialize(topic, data)
@@ -100,8 +94,8 @@ final class PullGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName,
     record.put("timestamp", ccr.timestamp())
     record.put("timestampType", ccr.timestampType().id)
     record.put("headers", headers.toList.asJava)
-    record.put("key", keyDecode(ccr.key))
-    record.put("value", valDecode(ccr.value))
+    record.put("key", Try(keyDecode(ccr.key)).getOrElse(null))
+    record.put("value", Try(valDecode(ccr.value)).getOrElse(null))
     record
   }
 
@@ -110,15 +104,6 @@ final class PullGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName,
 
   @transient private lazy val datumWriter: GenericDatumWriter[GenericData.Record] =
     new GenericDatumWriter[GenericData.Record](schema)
-
-  def toCirce(ccr: KafkaByteConsumerRecord): Json =
-    io.circe.parser.parse(toRecord(ccr).toString) match {
-      case Left(value)  => sys.error(s"$value - should never happen")
-      case Right(value) => value
-    }
-
-  def toCirce(ccr: ConsumerRecord[Array[Byte], Array[Byte]]): Json =
-    toCirce(ccr.transformInto[KafkaByteConsumerRecord])
 
   def toJacksonString(ccr: KafkaByteConsumerRecord): Either[GenericData.Record, String] = {
     val gr: GenericData.Record = toRecord(ccr)
