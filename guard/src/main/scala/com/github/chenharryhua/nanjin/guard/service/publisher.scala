@@ -34,8 +34,7 @@ private object publisher {
           serviceParams = serviceParams,
           timestamp = serviceParams.toZonedDateTime(ts),
           snapshot = MetricSnapshot(metricRegistry)))
-      .map(_.leftMap(_ => new Exception("metric report channel closed")))
-      .rethrow
+      .void
 
   def metricReset[F[_]](
     channel: Channel[F, NJEvent],
@@ -51,8 +50,6 @@ private object publisher {
           timestamp = serviceParams.toZonedDateTime(ts),
           snapshot = MetricSnapshot(metricRegistry)
         ))
-      .map(_.leftMap(_ => new Exception("metric reset channel closed")))
-      .rethrow
       .map(_ => metricRegistry.getCounters().values().asScala.foreach(c => c.dec(c.getCount)))
 
   def serviceReStart[F[_]: Clock](channel: Channel[F, NJEvent], serviceParams: ServiceParams)(implicit

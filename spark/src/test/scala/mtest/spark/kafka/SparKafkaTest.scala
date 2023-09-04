@@ -28,9 +28,9 @@ object SparKafkaTestData {
   val data: HasDuck =
     HasDuck(0, "a", LocalDate.now, Instant.ofEpochMilli(Instant.now.toEpochMilli), duck)
 
-  implicit val hasDuckEncoder: NJAvroCodec[HasDuck] = NJAvroCodec[HasDuck]
-  implicit val intCodec: NJAvroCodec[Int]           = NJAvroCodec[Int]
-  implicit val stringCodec: NJAvroCodec[String]     = NJAvroCodec[String]
+//  implicit val hasDuckEncoder: NJAvroCodec[HasDuck] = NJAvroCodec[HasDuck]
+//  implicit val intCodec: NJAvroCodec[Int]           = NJAvroCodec[Int]
+//  implicit val stringCodec: NJAvroCodec[String]     = NJAvroCodec[String]
 
   println(SchemaFor[HasDuck].schema)
 }

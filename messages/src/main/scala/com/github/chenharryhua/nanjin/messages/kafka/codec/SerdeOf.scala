@@ -89,7 +89,7 @@ object SerdeOf extends LowerPriority {
             Option(data) match {
               case None => null.asInstanceOf[Array[Byte]]
               case Some(value) =>
-                avroCodec.avroEncoder.encode(value) match {
+                avroCodec.encode(value) match {
                   case gr: GenericRecord => ser.serialize(topic, gr)
                   case ex                => sys.error(s"not a generic record: ${ex.toString}")
                 }
@@ -112,7 +112,7 @@ object SerdeOf extends LowerPriority {
           override def deserialize(topic: String, data: Array[Byte]): A =
             Option(data) match {
               case None        => null.asInstanceOf[A]
-              case Some(value) => avroCodec.avroDecoder.decode(deSer.deserialize(topic, value))
+              case Some(value) => avroCodec.decode(deSer.deserialize(topic, value))
             }
         }
       override val avroCodec: NJAvroCodec[A] = codec

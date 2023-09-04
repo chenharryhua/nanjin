@@ -81,10 +81,10 @@ object NJConsumerRecord {
     valCodec: NJAvroCodec[V]): NJAvroCodec[NJConsumerRecord[K, V]] = {
     @nowarn implicit val schemaForKey: SchemaFor[K] = keyCodec.schemaFor
     @nowarn implicit val schemaForVal: SchemaFor[V] = valCodec.schemaFor
-    @nowarn implicit val keyDecoder: Decoder[K]     = keyCodec.avroDecoder
-    @nowarn implicit val valDecoder: Decoder[V]     = valCodec.avroDecoder
-    @nowarn implicit val keyEncoder: Encoder[K]     = keyCodec.avroEncoder
-    @nowarn implicit val valEncoder: Encoder[V]     = valCodec.avroEncoder
+    @nowarn implicit val keyDecoder: Decoder[K]     = keyCodec
+    @nowarn implicit val valDecoder: Decoder[V]     = valCodec
+    @nowarn implicit val keyEncoder: Encoder[K]     = keyCodec
+    @nowarn implicit val valEncoder: Encoder[V]     = valCodec
     val s: SchemaFor[NJConsumerRecord[K, V]]        = implicitly
     val d: Decoder[NJConsumerRecord[K, V]]          = implicitly
     val e: Encoder[NJConsumerRecord[K, V]]          = implicitly

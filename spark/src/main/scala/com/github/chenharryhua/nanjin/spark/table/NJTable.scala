@@ -44,7 +44,7 @@ final class NJTable[F[_], A](val fdataset: F[Dataset[A]], ate: AvroTypedEncoder[
   }
 
   def output: RddAvroFileHoarder[F, A] =
-    new RddAvroFileHoarder[F, A](F.flatMap(fdataset)(ds => F.blocking(ds.rdd)), ate.avroCodec.avroEncoder)
+    new RddAvroFileHoarder[F, A](F.flatMap(fdataset)(ds => F.blocking(ds.rdd)), ate.avroCodec)
 
   def count: F[Long] = F.flatMap(fdataset)(ds => F.interruptible(ds.count()))
 

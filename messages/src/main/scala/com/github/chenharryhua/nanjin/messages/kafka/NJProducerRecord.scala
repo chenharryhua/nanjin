@@ -75,10 +75,10 @@ object NJProducerRecord {
     valCodec: NJAvroCodec[V]): NJAvroCodec[NJProducerRecord[K, V]] = {
     @nowarn implicit val schemaForKey: SchemaFor[K] = keyCodec.schemaFor
     @nowarn implicit val schemaForVal: SchemaFor[V] = valCodec.schemaFor
-    @nowarn implicit val keyDecoder: Decoder[K]     = keyCodec.avroDecoder
-    @nowarn implicit val valDecoder: Decoder[V]     = valCodec.avroDecoder
-    @nowarn implicit val keyEncoder: Encoder[K]     = keyCodec.avroEncoder
-    @nowarn implicit val valEncoder: Encoder[V]     = valCodec.avroEncoder
+    @nowarn implicit val keyDecoder: Decoder[K]     = keyCodec
+    @nowarn implicit val valDecoder: Decoder[V]     = valCodec
+    @nowarn implicit val keyEncoder: Encoder[K]     = keyCodec
+    @nowarn implicit val valEncoder: Encoder[V]     = valCodec
     val s: SchemaFor[NJProducerRecord[K, V]]        = cachedImplicit
     val d: Decoder[NJProducerRecord[K, V]]          = cachedImplicit
     val e: Encoder[NJProducerRecord[K, V]]          = cachedImplicit

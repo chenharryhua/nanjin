@@ -94,8 +94,8 @@ class ManualAvroSchemaTest extends AnyFunSuite {
     val ms1: Ior[String, NJAvroCodec[UnderTest]] =
       NJAvroCodec[UnderTest](UnderTest.schema1)
 
-    assert(input == ms1.right.get.avroDecoder.schema)
-    assert(input == ms1.right.get.avroEncoder.schema)
+    assert(input == ms1.right.get.schema)
+    assert(input == ms1.right.get.schema)
   }
 
   test("read-write incompatiable but acceptable") {
@@ -104,8 +104,8 @@ class ManualAvroSchemaTest extends AnyFunSuite {
     val ms2: Ior[String, NJAvroCodec[UnderTest]] =
       NJAvroCodec[UnderTest](UnderTest.schema2)
 
-    assert(input == ms2.right.get.avroDecoder.schema)
-    assert(input == ms2.right.get.avroEncoder.schema)
+    assert(input == ms2.right.get.schema)
+    assert(input == ms2.right.get.schema)
     assert(ms2.isBoth)
   }
 

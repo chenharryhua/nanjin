@@ -67,10 +67,8 @@ object KJson {
 
   implicit def jsonSerde[A: JsonEncoder: JsonDecoder]: SerdeOf[KJson[A]] =
     new SerdeOf[KJson[A]] {
-      private val cachedCodec: Codec[KJson[A]] = avroKJsonCodec[A]
 
-      override val avroCodec: NJAvroCodec[KJson[A]] =
-        NJAvroCodec(cachedCodec.schemaFor, cachedCodec, cachedCodec)
+      override val avroCodec: NJAvroCodec[KJson[A]] = NJAvroCodec[KJson[A]]
 
       override val serializer: Serializer[KJson[A]] =
         new Serializer[KJson[A]] with Serializable {
@@ -80,7 +78,7 @@ object KJson {
           override def serialize(topic: String, data: KJson[A]): Array[Byte] = {
             val value: String = Option(data).flatMap(v => Option(v.value)) match {
               case None    => null.asInstanceOf[String]
-              case Some(_) => avroCodec.avroEncoder.encode(data).asInstanceOf[String]
+              case Some(_) => avroCodec.encode(data).asInstanceOf[String]
             }
             Serdes.stringSerde.serializer.serialize(topic, value)
           }
@@ -95,7 +93,7 @@ object KJson {
             Option(data) match {
               case None => null.asInstanceOf[KJson[A]]
               case Some(ab) =>
-                avroCodec.avroDecoder.decode(Serdes.stringSerde.deserializer.deserialize(topic, ab))
+                avroCodec.decode(Serdes.stringSerde.deserializer.deserialize(topic, ab))
             }
         }
 

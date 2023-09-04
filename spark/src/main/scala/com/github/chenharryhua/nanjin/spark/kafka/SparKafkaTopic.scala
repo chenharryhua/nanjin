@@ -101,7 +101,7 @@ final class SparKafkaTopic[F[_], K, V](val sparkSession: SparkSession, val topic
         .map(ds =>
           new AvroDStreamSink(
             ds,
-            topic.topicDef.consumerRecord.codec.avroEncoder,
+            topic.topicDef.consumerRecord.codec,
             root => ldt => root / ldt.toLocalDate)))
 
 }

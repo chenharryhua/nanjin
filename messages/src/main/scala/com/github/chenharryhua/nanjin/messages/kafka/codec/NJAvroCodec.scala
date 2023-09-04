@@ -3,6 +3,7 @@ package com.github.chenharryhua.nanjin.messages.kafka.codec
 import cats.data.Ior
 import cats.syntax.all.*
 import com.sksamuel.avro4s.{
+  Codec,
   Decoder as AvroDecoder,
   DecoderHelpers,
   Encoder as AvroEncoder,
@@ -17,16 +18,16 @@ import org.apache.avro.{Schema, SchemaCompatibility, SchemaParseException}
 
 import scala.util.Try
 
-final case class NJAvroCodec[A](
-  schemaFor: SchemaFor[A],
+final class NJAvroCodec[A] private (
+  val schemaFor: SchemaFor[A],
   avroDecoder: AvroDecoder[A],
-  avroEncoder: AvroEncoder[A]) {
-  lazy val schema: Schema   = schemaFor.schema
+  avroEncoder: AvroEncoder[A])
+    extends Codec[A] {
   def idConversion(a: A): A = avroDecoder.decode(avroEncoder.encode(a))
 
   def withSchema(schema: Schema): NJAvroCodec[A] = {
     val sf = schemaFor.map[A](_ => schema)
-    NJAvroCodec(sf, avroDecoder.withSchema(sf), avroEncoder.withSchema(sf))
+    new NJAvroCodec(sf, avroDecoder.withSchema(sf), avroEncoder.withSchema(sf))
   }
 
   /** https://avro.apache.org/docs/current/spec.html the grammar for a namespace is:
@@ -67,6 +68,9 @@ final case class NJAvroCodec[A](
     } yield ac
     res.getOrElse(this)
   }
+
+  override def encode(value: A): AnyRef = avroEncoder.encode(value)
+  override def decode(value: Any): A    = avroDecoder.decode(value)
 }
 
 /** left - error right - AvroCodec both - (warnings, AvroCodec)
@@ -86,7 +90,7 @@ object NJAvroCodec {
         Either
           .catchNonFatal(EncoderHelpers.buildWithSchema(encoder, schemaFor))
           .leftMap(_ => "avro4s decline encode schema change")
-    } yield NJAvroCodec(schemaFor, d, e)
+    } yield new NJAvroCodec(schemaFor, d, e)
 
   @throws[SchemaParseException]
   private def toSchemaFor[A](jsonStr: String): SchemaFor[A] = SchemaFor[A](toSchema(jsonStr))
@@ -134,6 +138,9 @@ object NJAvroCodec {
       case Left(ex) => sys.error(ex)
     }
 
+  def apply[A](s: SchemaFor[A], d: AvroDecoder[A], e: AvroEncoder[A]): NJAvroCodec[A] =
+    new NJAvroCodec[A](s, d.withSchema(s), e.withSchema(s))
+
   def apply[A: AvroDecoder: AvroEncoder: SchemaFor]: NJAvroCodec[A] =
-    NJAvroCodec(SchemaFor[A], AvroDecoder[A], AvroEncoder[A])
+    new NJAvroCodec(SchemaFor[A], AvroDecoder[A], AvroEncoder[A])
 }

@@ -51,14 +51,14 @@ class SparkExtTest extends AnyFunSuite {
     val ate = AvroTypedEncoder[Foo]
     val rdd = sparkSession.sparkContext.parallelize(list.flatMap(Option(_)))
     IO(rdd)
-      .output(ate.avroCodec.avroEncoder)
+      .output(ate.avroCodec)
       .avro(NJPath("./data/test/spark/sytax/rdd/avro"))
       .run
       .unsafeRunSync()
     IO(rdd).output.circe(NJPath("./data/test/spark/sytax/rdd/circe")).run.unsafeRunSync()
     val ds = sparkSession.createDataset(rdd)
     IO(ds.rdd)
-      .output(ate.avroCodec.avroEncoder)
+      .output(ate.avroCodec)
       .parquet(NJPath("./data/test/spark/sytax/ds/parquet"))
       .run
       .unsafeRunSync()

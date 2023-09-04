@@ -21,13 +21,13 @@ class ParquetTest extends AnyFunSuite {
     fs2.Stream
       .eval(hdp.filesIn(path))
       .flatMap(parquet.source)
-      .map(FromRecord(Rooster.avroCodec.avroDecoder).from)
+      .map(FromRecord(Rooster.avroCodec).from)
       .compile
       .toList
       .map(_.toSet)
 
   def roosterSaver(path: NJPath): SaveParquet[IO, Rooster] =
-    new RddAvroFileHoarder[IO, Rooster](IO(RoosterData.rdd), Rooster.avroCodec.avroEncoder).parquet(path)
+    new RddAvroFileHoarder[IO, Rooster](IO(RoosterData.rdd), Rooster.avroCodec).parquet(path)
 
   val root: NJPath = NJPath("./data/test/spark/persist/parquet")
 
@@ -49,7 +49,7 @@ class ParquetTest extends AnyFunSuite {
   test("datetime read/write identity multi.uncompressed") {
     val path = root / "rooster" / "uncompressed"
     roosterSaver(path).uncompress.run.unsafeRunSync()
-    val r = loaders.rdd.parquet(path, sparkSession, Rooster.avroCodec.avroDecoder).collect().toSet
+    val r = loaders.rdd.parquet(path, sparkSession, Rooster.avroCodec).collect().toSet
     val t = loadRooster(path)
     assert(expected == r)
     assert(expected == t.unsafeRunSync())
@@ -58,7 +58,7 @@ class ParquetTest extends AnyFunSuite {
   test("datetime read/write identity multi.snappy") {
     val path = root / "rooster" / "snappy"
     roosterSaver(path).snappy.run.unsafeRunSync()
-    val r = loaders.rdd.parquet(path, sparkSession, Rooster.avroCodec.avroDecoder).collect().toSet
+    val r = loaders.rdd.parquet(path, sparkSession, Rooster.avroCodec).collect().toSet
     val t = loadRooster(path)
     assert(expected == r)
     assert(expected == t.unsafeRunSync())
@@ -67,7 +67,7 @@ class ParquetTest extends AnyFunSuite {
   test("datetime read/write identity multi.lz4") {
     val path = root / "rooster" / "lz4"
     roosterSaver(path).lz4.run.unsafeRunSync()
-    val r = loaders.rdd.parquet(path, sparkSession, Rooster.avroCodec.avroDecoder).collect().toSet
+    val r = loaders.rdd.parquet(path, sparkSession, Rooster.avroCodec).collect().toSet
     val t = loadRooster(path)
     assert(expected == r)
     assert(expected == t.unsafeRunSync())
@@ -76,7 +76,7 @@ class ParquetTest extends AnyFunSuite {
   test("datetime read/write identity multi.lz4raw") {
     val path = root / "rooster" / "lz4raw"
     roosterSaver(path).lz4raw.run.unsafeRunSync()
-    val r = loaders.rdd.parquet(path, sparkSession, Rooster.avroCodec.avroDecoder).collect().toSet
+    val r = loaders.rdd.parquet(path, sparkSession, Rooster.avroCodec).collect().toSet
     val t = loadRooster(path)
     assert(expected == r)
     assert(expected == t.unsafeRunSync())
@@ -86,7 +86,7 @@ class ParquetTest extends AnyFunSuite {
     val path        = root / "rooster" / "zstd"
     val compression = NJCompression.Zstandard(1)
     roosterSaver(path).withCompression(compression).run.unsafeRunSync()
-    val r = loaders.rdd.parquet(path, sparkSession, Rooster.avroCodec.avroDecoder).collect().toSet
+    val r = loaders.rdd.parquet(path, sparkSession, Rooster.avroCodec).collect().toSet
     val t = loadRooster(path)
     assert(expected == r)
     assert(expected == t.unsafeRunSync())
@@ -105,8 +105,8 @@ class ParquetTest extends AnyFunSuite {
   test("datetime read/write identity multi.gzip") {
     val path = root / "rooster" / "gzip"
     hdp.delete(path).unsafeRunSync()
-    saveRDD.parquet(RoosterData.rdd, path, Rooster.avroCodec.avroEncoder, NJCompression.Gzip)
-    val r = loaders.rdd.parquet(path, sparkSession, Rooster.avroCodec.avroDecoder).collect().toSet
+    saveRDD.parquet(RoosterData.rdd, path, Rooster.avroCodec, NJCompression.Gzip)
+    val r = loaders.rdd.parquet(path, sparkSession, Rooster.avroCodec).collect().toSet
     val t = loadRooster(path)
     assert(expected == r)
     assert(expected == t.unsafeRunSync())
@@ -144,7 +144,7 @@ class ParquetTest extends AnyFunSuite {
   test("enum cop read/write identity") {
     import CopData.*
     val path  = NJPath("./data/test/spark/persist/parquet/emcop/multi.parquet")
-    val saver = new RddAvroFileHoarder[IO, EmCop](IO(emRDD), EmCop.avroCodec.avroEncoder).parquet(path)
+    val saver = new RddAvroFileHoarder[IO, EmCop](IO(emRDD), EmCop.avroCodec).parquet(path)
     saver.uncompress.run.unsafeRunSync()
     val t = loaders.parquet[EmCop](path, sparkSession, EmCop.ate).collect().toSet
     assert(emCops.toSet == t)
@@ -172,7 +172,7 @@ class ParquetTest extends AnyFunSuite {
   test("parquet jacket multi uncompress") {
     import JacketData.*
     val path  = NJPath("./data/test/spark/persist/parquet/jacket/multi/jacket.parquet")
-    val saver = new RddAvroFileHoarder[IO, Jacket](IO(rdd), Jacket.avroCodec.avroEncoder).parquet(path)
+    val saver = new RddAvroFileHoarder[IO, Jacket](IO(rdd), Jacket.avroCodec).parquet(path)
     saver.uncompress.run.unsafeRunSync()
     val t = loaders.parquet(path, sparkSession, Jacket.ate)
     assert(expected.toSet == t.collect().toSet)

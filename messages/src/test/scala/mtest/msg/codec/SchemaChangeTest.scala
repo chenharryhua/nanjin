@@ -60,16 +60,16 @@ class SchemaChangeTest extends AnyFunSuite {
     val newCodec: NJAvroCodec[UnderTest] = codec.withNamespace("mtest.avro.SchemaChangeTestData")
 
     val data = UnderTest(1, Coproduct(Nest(1)))
-    val en   = newCodec.avroEncoder.encode(data)
-    val res  = newCodec.avroDecoder.decode(en)
+    val en   = newCodec.encode(data)
+    val res  = newCodec.decode(en)
     assert(res == data)
   }
 
   test("namespace different should throw exception") {
     val newCodec: NJAvroCodec[UnderTest] = codec.withNamespace("mtest.avro.SchemaChangeTestData")
     val data                             = UnderTest(1, Coproduct(Nest(1)))
-    val en                               = codec.avroEncoder.encode(data)
-    assertThrows[Exception](newCodec.avroDecoder.decode(en))
+    val en                               = codec.encode(data)
+    assertThrows[Exception](newCodec.decode(en))
   }
   test("empty namespace is not allowed") {
     assertThrows[Exception](codec.withNamespace(""))

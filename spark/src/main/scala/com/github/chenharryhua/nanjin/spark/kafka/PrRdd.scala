@@ -49,7 +49,7 @@ final class PrRdd[F[_], K, V] private[kafka] (
   def count: F[Long] = F.flatMap(frdd)(rdd => F.interruptible(rdd.count()))
 
   def output: RddAvroFileHoarder[F, NJProducerRecord[K, V]] =
-    new RddAvroFileHoarder[F, NJProducerRecord[K, V]](frdd, codec.avroEncoder)
+    new RddAvroFileHoarder[F, NJProducerRecord[K, V]](frdd, codec)
 
   def producerRecords(chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, ProducerRecords[K, V]] =
     Stream

@@ -146,7 +146,7 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
     Resource.fromAutoCloseable(F.pure(new ByteArrayInputStream(jacksonStr.getBytes))).use { is =>
       val prs: ProducerRecords[K, V] = Chunk.iterator(
         AvroInputStream
-          .json[NJConsumerRecord[K, V]](topicDef.consumerRecord.codec.avroDecoder)
+          .json[NJConsumerRecord[K, V]](topicDef.consumerRecord.codec)
           .from(is)
           .build(topicDef.consumerRecord.codec.schema)
           .iterator
