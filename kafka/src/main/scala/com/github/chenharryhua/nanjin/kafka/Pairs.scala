@@ -20,12 +20,12 @@ final private[kafka] case class RawKeyValueSerdePair[K, V](key: SerdeOf[K], valu
 final private[kafka] case class KeyValueSerdePair[K, V](key: KafkaSerde[K], value: KafkaSerde[V])
 
 final case class AvroSchemaPair(key: Schema, value: Schema) {
-  val consumerRecordSchema: Schema = NJConsumerRecord.schema(key, value)
+  val consumerSchema: Schema = NJConsumerRecord.schema(key, value)
 
   def backward(other: AvroSchemaPair): List[SchemaCompatibility.Incompatibility] =
-    backwardCompatibility(consumerRecordSchema, other.consumerRecordSchema)
+    backwardCompatibility(consumerSchema, other.consumerSchema)
   def forward(other: AvroSchemaPair): List[SchemaCompatibility.Incompatibility] =
-    forwardCompatibility(consumerRecordSchema, other.consumerRecordSchema)
+    forwardCompatibility(consumerSchema, other.consumerSchema)
 
   def isFullCompatible(other: AvroSchemaPair): Boolean =
     backward(other).isEmpty && forward(other).isEmpty
@@ -36,5 +36,5 @@ final case class AvroSchemaPair(key: Schema, value: Schema) {
 }
 
 object AvroSchemaPair {
-  implicit val showAvroSchemaPair: Show[AvroSchemaPair] = _.consumerRecordSchema.toString
+  implicit val showAvroSchemaPair: Show[AvroSchemaPair] = _.consumerSchema.toString
 }

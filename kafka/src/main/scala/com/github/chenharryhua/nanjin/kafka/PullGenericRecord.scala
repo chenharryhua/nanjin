@@ -21,7 +21,7 @@ import scala.util.{Failure, Success, Try, Using}
 
 final class PullGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName, pair: AvroSchemaPair)
     extends Serializable {
-  private val schema: Schema = pair.consumerRecordSchema
+  private val schema: Schema = pair.consumerSchema
   private val topic: String  = topicName.value
 
   @transient private lazy val keyDecode: Array[Byte] => Any =

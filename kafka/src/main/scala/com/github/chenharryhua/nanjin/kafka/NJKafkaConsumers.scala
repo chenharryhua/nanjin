@@ -76,7 +76,7 @@ final class NJKafkaByteConsume[F[_]] private[kafka] (
     Stream.eval(getSchema).flatMap { skm =>
       val builder = new PullGenericRecord(srs, topicName, skm)
       stream.map { cr =>
-        cr.bimap(_ => skm.consumerRecordSchema, _ => builder.toJacksonString(cr.record))
+        cr.bimap(_ => skm.consumerSchema, _ => builder.toJacksonString(cr.record))
       }
     }
 
@@ -92,7 +92,7 @@ final class NJKafkaByteConsume[F[_]] private[kafka] (
     Stream.eval(getSchema).flatMap { skm =>
       val builder = new PullGenericRecord(srs, topicName, skm)
       stream.map { cr =>
-        cr.bimap(_ => skm.consumerRecordSchema, _ => builder.toBinAvro(cr.record))
+        cr.bimap(_ => skm.consumerSchema, _ => builder.toBinAvro(cr.record))
       }
     }
 
@@ -112,7 +112,7 @@ final class NJKafkaByteConsume[F[_]] private[kafka] (
     Stream.eval(getSchema).flatMap { skm =>
       val builder = new PullGenericRecord(srs, topicName, skm)
       assign(tps).map { cr =>
-        cr.bimap(_ => skm.consumerRecordSchema, _ => builder.toJacksonString(cr.record))
+        cr.bimap(_ => skm.consumerSchema, _ => builder.toJacksonString(cr.record))
       }
     }
 
@@ -121,7 +121,7 @@ final class NJKafkaByteConsume[F[_]] private[kafka] (
     Stream.eval(getSchema).flatMap { skm =>
       val builder = new PullGenericRecord(srs, topicName, skm)
       assign(tps).map { cr =>
-        cr.bimap(_ => skm.consumerRecordSchema, _ => builder.toBinAvro(cr.record))
+        cr.bimap(_ => skm.consumerSchema, _ => builder.toBinAvro(cr.record))
       }
     }
 
