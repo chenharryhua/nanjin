@@ -6,10 +6,10 @@ import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.terminals.NJPath
 import eu.timepit.refined.auto.*
 import kantan.csv.CsvConfiguration
-import org.scalatest.DoNotDiscover
+//import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
 
-@DoNotDiscover
+//@DoNotDiscover
 class ConcurrencyTest extends AnyFunSuite {
 
   def rooster =

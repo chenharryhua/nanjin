@@ -193,7 +193,15 @@ class SparKafkaTest extends AnyFunSuite {
   test("jackson") {
     val path = NJPath("./data/test/spark/kafka/consume/duck.jackson.json")
     val sink = hdp.text.sink(path)
-    duckConsume.jackson.map(_.record.value.toOption).unNone.take(2).chunks.through(sink).compile.drain.unsafeRunSync()
+    duckConsume.jackson
+      .map(_.record.value.toOption)
+      .unNone
+      .take(2)
+      .chunks
+      .through(sink)
+      .compile
+      .drain
+      .unsafeRunSync()
     assert(2 == sparKafka.topic(topic).load.jackson(path).count.unsafeRunSync())
   }
 }

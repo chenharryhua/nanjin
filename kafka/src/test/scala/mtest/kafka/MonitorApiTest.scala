@@ -12,7 +12,7 @@ import scala.concurrent.duration.*
 
 class MonitorApiTest extends AnyFunSuite {
   val topic: KafkaTopic[IO, Int, Int] = ctx.topic[Int, Int]("monitor.test")
-  val tgt: KafkaTopic[IO, Int, Int] = ctx.topic[Int, Int]("monitor.carbon.copy.test")
+  val tgt: KafkaTopic[IO, Int, Int]   = ctx.topic[Int, Int]("monitor.carbon.copy.test")
 
   val st: KafkaTopic[IO, Int, Array[Byte]] = ctx.topic[Int, Array[Byte]]("monitor.test")
 

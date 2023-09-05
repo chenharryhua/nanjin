@@ -3,7 +3,12 @@ package com.github.chenharryhua.nanjin.kafka
 import cats.Show
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
-import com.github.chenharryhua.nanjin.messages.kafka.codec.{KafkaSerde, SerdeOf, backwardCompatibility, forwardCompatibility}
+import com.github.chenharryhua.nanjin.messages.kafka.codec.{
+  backwardCompatibility,
+  forwardCompatibility,
+  KafkaSerde,
+  SerdeOf
+}
 import org.apache.avro.{Schema, SchemaCompatibility}
 
 final private[kafka] case class RawKeyValueSerdePair[K, V](key: SerdeOf[K], value: SerdeOf[V]) {

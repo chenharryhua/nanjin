@@ -15,8 +15,7 @@ import org.scalatest.funsuite.AnyFunSuite
 class JacksonTest extends AnyFunSuite {
 
   def rooster(path: NJPath): SaveJackson[IO, Rooster] =
-    new RddAvroFileHoarder[IO, Rooster](IO(RoosterData.rdd.repartition(3)), Rooster.avroCodec)
-      .jackson(path)
+    new RddAvroFileHoarder[IO, Rooster](IO(RoosterData.rdd.repartition(3)), Rooster.avroCodec).jackson(path)
 
   val hdp: NJHadoop[IO]          = sparkSession.hadoop[IO]
   val jackson: HadoopJackson[IO] = hdp.jackson(Rooster.schema)
@@ -89,8 +88,7 @@ class JacksonTest extends AnyFunSuite {
   test("jackson jacket") {
     val path = NJPath("./data/test/spark/persist/jackson/jacket.json")
     val saver =
-      new RddAvroFileHoarder[IO, Jacket](IO(JacketData.rdd.repartition(3)), Jacket.avroCodec)
-        .jackson(path)
+      new RddAvroFileHoarder[IO, Jacket](IO(JacketData.rdd.repartition(3)), Jacket.avroCodec).jackson(path)
     saver.run.unsafeRunSync()
     val t = loaders.rdd.jackson(path, sparkSession, Jacket.avroCodec)
     assert(JacketData.expected.toSet == t.collect().toSet)
