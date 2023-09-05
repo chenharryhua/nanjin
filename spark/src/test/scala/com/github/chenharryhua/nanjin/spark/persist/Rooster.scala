@@ -77,8 +77,7 @@ object Rooster {
 
   implicit val typedEncoder: TypedEncoder[Rooster] = shapeless.cachedImplicit
 
-  val avroCodec: NJAvroCodec[Rooster] =
-    NJAvroCodec[Rooster](schema).right.get
+  val avroCodec: NJAvroCodec[Rooster] = NJAvroCodec[Rooster](schema)
 
   val ate: AvroTypedEncoder[Rooster] =
     AvroTypedEncoder[Rooster](TypedEncoder[Rooster], avroCodec)

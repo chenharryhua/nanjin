@@ -19,9 +19,6 @@ final class TopicDef[K, V] private (val topicName: TopicName, val rawSerdes: Raw
   def withTopicName(tn: TopicName): TopicDef[K, V]  = new TopicDef[K, V](tn, rawSerdes)
   def withTopicName(tn: TopicNameL): TopicDef[K, V] = withTopicName(TopicName(tn))
 
-  def withSchema(pair: AvroSchemaPair): TopicDef[K, V] =
-    new TopicDef[K, V](topicName, rawSerdes.withSchema(pair))
-
   lazy val schemaPair: AvroSchemaPair =
     AvroSchemaPair(rawSerdes.key.avroCodec.schema, rawSerdes.value.avroCodec.schema)
 

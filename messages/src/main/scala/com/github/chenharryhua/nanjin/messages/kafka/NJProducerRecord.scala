@@ -12,7 +12,8 @@ import shapeless.cachedImplicit
 
 import scala.annotation.nowarn
 
-@AvroNamespace("nj.spark.kafka")
+@AvroDoc("kafka producer record, optional Key and optional Value")
+@AvroNamespace("nanjin.kafka")
 @AvroName("NJProducerRecord")
 final case class NJProducerRecord[K, V](
   topic: String,

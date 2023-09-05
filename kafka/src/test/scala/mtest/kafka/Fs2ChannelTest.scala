@@ -23,8 +23,8 @@ class Fs2ChannelTest extends AnyFunSuite {
 
   val sms: TopicDef[Key, smsCallInternet] = TopicDef(
     TopicName("telecom_italia_data"),
-    NJAvroCodec[Key](Key.schema).right.get,
-    NJAvroCodec[smsCallInternet](smsCallInternet.schema).right.get)
+    NJAvroCodec[Key](Key.schema),
+    NJAvroCodec[smsCallInternet](smsCallInternet.schema))
 
   test("should be able to consume json topic") {
     val topic = backblaze_smart.in(ctx)

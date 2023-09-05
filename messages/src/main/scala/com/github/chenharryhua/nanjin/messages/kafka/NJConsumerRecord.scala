@@ -17,7 +17,7 @@ import scala.annotation.nowarn
 
 @JsonCodec
 @AvroName("header")
-@AvroNamespace("nj.kafka")
+@AvroNamespace("nanjin.kafka")
 final case class NJHeader(key: String, value: Array[Byte])
 object NJHeader {
   // consistent with fs2.kafka
@@ -29,8 +29,8 @@ object NJHeader {
     headers.toArray.map(h => NJHeader(h.key(), h.value())).toList
 }
 
-@AvroDoc("kafka record, optional Key and Value")
-@AvroNamespace("nj.kafka")
+@AvroDoc("kafka consumer record, optional Key and optional Value")
+@AvroNamespace("nanjin.kafka")
 @AvroName("NJConsumerRecord")
 final case class NJConsumerRecord[K, V](
   @AvroDoc("kafka partition") partition: Int,

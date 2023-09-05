@@ -54,7 +54,7 @@ object AvroTypedEncoderTestData {
 
   implicit val roundingMode: BigDecimal.RoundingMode.Value = RoundingMode.HALF_UP
 
-  val codec: NJAvroCodec[Lion]             = NJAvroCodec[Lion](schemaText).right.get
+  val codec: NJAvroCodec[Lion]             = NJAvroCodec[Lion](schemaText)
   implicit val encoder: TypedEncoder[Lion] = shapeless.cachedImplicit
   val ate: AvroTypedEncoder[Lion]          = AvroTypedEncoder[Lion](codec)
 

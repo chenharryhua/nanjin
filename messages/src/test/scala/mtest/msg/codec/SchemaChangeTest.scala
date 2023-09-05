@@ -4,6 +4,7 @@ import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import org.apache.avro.Schema
 import org.scalatest.funsuite.AnyFunSuite
 import shapeless.{:+:, CNil, Coproduct}
+import eu.timepit.refined.auto.*
 
 object SchemaChangeTestData {
   final case class Nest(a: Int)
@@ -50,8 +51,8 @@ object SchemaChangeTestData {
 }
         """
 
-  val oldSchema: Schema             = NJAvroCodec.toSchema(schema)
-  val codec: NJAvroCodec[UnderTest] = NJAvroCodec[UnderTest](schema).right.get
+  val oldSchema: Schema             = (new Schema.Parser).parse(schema)
+  val codec: NJAvroCodec[UnderTest] = NJAvroCodec[UnderTest](schema)
 }
 
 class SchemaChangeTest extends AnyFunSuite {
@@ -71,27 +72,18 @@ class SchemaChangeTest extends AnyFunSuite {
     val en                               = codec.encode(data)
     assertThrows[Exception](newCodec.decode(en))
   }
-  test("empty namespace is not allowed") {
-    assertThrows[Exception](codec.withNamespace(""))
-  }
-  test("space in namespace is not allowed") {
-    assertThrows[Exception](codec.withNamespace("a.b. .c"))
-  }
-  test("hyphen in namespace is not allowed") {
-    assertThrows[Exception](codec.withNamespace("a.b.-.c"))
-  }
 
   val schemaWithoutNamespace =
     """{"type":"record","name":"UnderTest","fields":[{"name":"a","type":"int"},{"name":"b","type":[{"type":"record","name":"Nest","fields":[{"name":"a","type":"int"}]},{"type":"record","name":"Nest2","fields":[{"name":"b","type":"string"}]}]}]}"""
 
-  val expected: Schema = NJAvroCodec.toSchema(schemaWithoutNamespace)
+  val expected: Schema = (new Schema.Parser).parse(schemaWithoutNamespace)
 
   test("remove namespace from schema") {
     assert(codec.withoutNamespace.schema == expected)
   }
 
   test("remove namespace from non-namespace schema") {
-    val codec: NJAvroCodec[UnderTest] = NJAvroCodec[UnderTest](schemaWithoutNamespace).right.get
+    val codec: NJAvroCodec[UnderTest] = NJAvroCodec[UnderTest](schemaWithoutNamespace)
     assert(codec.withoutNamespace.schema == expected)
   }
 
