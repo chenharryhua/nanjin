@@ -104,8 +104,7 @@ object KJson {
           override def deserialize(topic: String, data: Array[Byte]): KJson[A] =
             Option(data) match {
               case None => null.asInstanceOf[KJson[A]]
-              case Some(ab) =>
-                avroCodec.decode(delegate.deserialize(topic, ab))
+              case Some(ab) => avroCodec.decode(delegate.deserialize(topic, ab))
             }
         }
 

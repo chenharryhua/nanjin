@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.messages.kafka.codec
 
+import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.sksamuel.avro4s.{Decoder as AvroDecoder, Encoder as AvroEncoder, SchemaFor}
 import io.confluent.kafka.streams.serdes.avro.{GenericAvroDeserializer, GenericAvroSerializer}
 import org.apache.avro.Schema
@@ -14,17 +15,17 @@ import scala.util.{Failure, Try}
 /** [[https://github.com/sksamuel/avro4s]]
   */
 
-/** @param name
+/** @param topicName
   *   - topic name or state store name
   * @param registered
   *   serializer/deserializer config method was called
   * @tparam A
   *   schema related type
   */
-final class KafkaSerde[A](val name: String, registered: RegisteredSerde[A]) extends Serializable {
+final class KafkaSerde[A](val topicName: TopicName, registered: RegisteredSerde[A]) extends Serializable {
   val serde: Serde[A]                 = registered.serde
-  def serialize(a: A): Array[Byte]    = serde.serializer.serialize(name, a)
-  def deserialize(ab: Array[Byte]): A = serde.deserializer.deserialize(name, ab)
+  def serialize(a: A): Array[Byte]    = serde.serializer.serialize(topicName.value, a)
+  def deserialize(ab: Array[Byte]): A = serde.deserializer.deserialize(topicName.value, ab)
 
   def tryDeserialize(ab: Array[Byte]): Try[A] =
     Option(ab).fold[Try[A]](Failure(new NullPointerException("NJCodec.tryDecode a null Array[Byte]")))(x =>
@@ -35,7 +36,7 @@ sealed abstract class RegisteredSerde[A](serdeOf: SerdeOf[A]) extends Serializab
 
   val serde: Serde[A] = serdeOf
 
-  final def topic(topicName: String): KafkaSerde[A] =
+  final def topic(topicName: TopicName): KafkaSerde[A] =
     new KafkaSerde[A](topicName, this)
 }
 
