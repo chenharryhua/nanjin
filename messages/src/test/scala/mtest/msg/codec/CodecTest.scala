@@ -1,15 +1,17 @@
 package mtest.msg.codec
 
+import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{KafkaSerde, SerdeOf}
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.util.Success
+import eu.timepit.refined.auto.*
 
 object CodecTestData {
   final case class Foo(a: String, b: Int)
   final case class Bar(a: Int, b: String)
-  val fooCodec: KafkaSerde[Foo] = SerdeOf[Foo].asValue(sr).topic("avro.test")
-  val barCodec: KafkaSerde[Bar] = SerdeOf[Bar].asKey(sr).topic("avro.test")
+  val fooCodec: KafkaSerde[Foo] = SerdeOf[Foo].asValue(sr).topic(TopicName("avro.test"))
+  val barCodec: KafkaSerde[Bar] = SerdeOf[Bar].asKey(sr).topic(TopicName("avro.test"))
 }
 
 class CodecTest extends AnyFunSuite {
