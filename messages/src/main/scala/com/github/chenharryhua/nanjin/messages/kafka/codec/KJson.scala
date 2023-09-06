@@ -4,7 +4,7 @@ import cats.{Distributive, Eq, Functor, Show}
 import com.sksamuel.avro4s.{Codec, FieldMapper, SchemaFor}
 import io.circe.Decoder.Result
 import io.circe.syntax.*
-import io.circe.{HCursor, Json, parser, Codec as JsonCodec, Decoder as JsonDecoder, Encoder as JsonEncoder}
+import io.circe.{parser, Codec as JsonCodec, Decoder as JsonDecoder, Encoder as JsonEncoder, HCursor, Json}
 import monocle.Iso
 import org.apache.avro.Schema
 import org.apache.avro.util.Utf8
@@ -103,7 +103,7 @@ object KJson {
           @SuppressWarnings(Array("AsInstanceOf"))
           override def deserialize(topic: String, data: Array[Byte]): KJson[A] =
             Option(data) match {
-              case None => null.asInstanceOf[KJson[A]]
+              case None     => null.asInstanceOf[KJson[A]]
               case Some(ab) => avroCodec.decode(delegate.deserialize(topic, ab))
             }
         }
