@@ -7,6 +7,7 @@ import com.github.chenharryhua.nanjin.messages.kafka.instances.toJavaProducerRec
 import com.sksamuel.avro4s.*
 import fs2.kafka.{Header as Fs2Header, Headers, ProducerRecord}
 import io.scalaland.chimney.dsl.*
+import org.apache.avro.Schema
 import org.apache.kafka.clients.producer.ProducerRecord as KafkaProducerRecord
 import shapeless.cachedImplicit
 
@@ -84,6 +85,23 @@ object NJProducerRecord {
     val d: Decoder[NJProducerRecord[K, V]]          = cachedImplicit
     val e: Encoder[NJProducerRecord[K, V]]          = cachedImplicit
     NJAvroCodec[NJProducerRecord[K, V]](s, d.withSchema(s), e.withSchema(s))
+  }
+
+  def schema(keySchema: Schema, valSchema: Schema): Schema = {
+    class KEY
+    class VAL
+    @nowarn
+    implicit val schemaForKey: SchemaFor[KEY] = new SchemaFor[KEY] {
+      override def schema: Schema           = keySchema
+      override def fieldMapper: FieldMapper = DefaultFieldMapper
+    }
+
+    @nowarn
+    implicit val schemaForVal: SchemaFor[VAL] = new SchemaFor[VAL] {
+      override def schema: Schema           = valSchema
+      override def fieldMapper: FieldMapper = DefaultFieldMapper
+    }
+    SchemaFor[NJProducerRecord[KEY, VAL]].schema
   }
 
   implicit val bifunctorNJProducerRecord: Bifunctor[NJProducerRecord] =

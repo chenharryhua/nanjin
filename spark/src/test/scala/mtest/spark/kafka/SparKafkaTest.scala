@@ -28,10 +28,6 @@ object SparKafkaTestData {
   val data: HasDuck =
     HasDuck(0, "a", LocalDate.now, Instant.ofEpochMilli(Instant.now.toEpochMilli), duck)
 
-//  implicit val hasDuckEncoder: NJAvroCodec[HasDuck] = NJAvroCodec[HasDuck]
-//  implicit val intCodec: NJAvroCodec[Int]           = NJAvroCodec[Int]
-//  implicit val stringCodec: NJAvroCodec[String]     = NJAvroCodec[String]
-
   println(SchemaFor[HasDuck].schema)
 }
 
@@ -203,5 +199,18 @@ class SparKafkaTest extends AnyFunSuite {
       .drain
       .unsafeRunSync()
     assert(2 == sparKafka.topic(topic).load.jackson(path).count.unsafeRunSync())
+  }
+
+  test("format") {
+    duckConsume.avro
+      .take(2)
+      .map(_.record.value)
+      .map(gr => topic.topicDef.consumerFormat.fromRecord(gr))
+      .map(_.toNJProducerRecord)
+      .map(topic.topicDef.producerFormat.toRecord)
+      .debug()
+      .compile
+      .drain
+      .unsafeRunSync()
   }
 }

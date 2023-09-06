@@ -22,20 +22,24 @@ final class TopicDef[K, V] private (val topicName: TopicName, val rawSerdes: Raw
   lazy val schemaPair: AvroSchemaPair =
     AvroSchemaPair(rawSerdes.key.avroCodec.schema, rawSerdes.value.avroCodec.schema)
 
-  lazy val consumerCodec: NJAvroCodec[NJConsumerRecord[K, V]] =
-    NJConsumerRecord.avroCodec(rawSerdes.key.avroCodec, rawSerdes.value.avroCodec)
+  final class ConsumerFormat(rf: RecordFormat[NJConsumerRecord[K, V]]) {
+    def toRecord(nj: NJConsumerRecord[K, V]): Record          = rf.to(nj)
+    def fromRecord(gr: IndexedRecord): NJConsumerRecord[K, V] = rf.from(gr)
+  }
 
-  lazy val producerCodec: NJAvroCodec[NJProducerRecord[K, V]] =
-    NJProducerRecord.avroCodec(rawSerdes.key.avroCodec, rawSerdes.value.avroCodec)
-
-  // producer
   final class ProducerFormat(rf: RecordFormat[NJProducerRecord[K, V]]) extends Serializable {
     def toRecord(nj: NJProducerRecord[K, V]): Record          = rf.to(nj)
     def toRecord(k: K, v: V): Record                          = rf.to(NJProducerRecord(topicName, k, v))
     def fromRecord(gr: IndexedRecord): NJProducerRecord[K, V] = rf.from(gr)
   }
 
-  lazy val consumerFormat: RecordFormat[NJConsumerRecord[K, V]] = RecordFormat(consumerCodec, consumerCodec)
+  lazy val consumerCodec: NJAvroCodec[NJConsumerRecord[K, V]] =
+    NJConsumerRecord.avroCodec(rawSerdes.key.avroCodec, rawSerdes.value.avroCodec)
+
+  lazy val producerCodec: NJAvroCodec[NJProducerRecord[K, V]] =
+    NJProducerRecord.avroCodec(rawSerdes.key.avroCodec, rawSerdes.value.avroCodec)
+
+  lazy val consumerFormat: ConsumerFormat = new ConsumerFormat(RecordFormat(consumerCodec, consumerCodec))
   lazy val producerFormat: ProducerFormat = new ProducerFormat(RecordFormat(producerCodec, producerCodec))
 
 }
