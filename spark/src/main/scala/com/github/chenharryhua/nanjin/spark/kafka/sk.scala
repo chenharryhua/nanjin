@@ -12,8 +12,6 @@ import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.common.serialization.ByteArrayDeserializer
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{Dataset, SparkSession}
-import org.apache.spark.streaming.StreamingContext
-import org.apache.spark.streaming.dstream.DStream
 import org.apache.spark.streaming.kafka010.*
 
 import java.sql.Timestamp
@@ -62,20 +60,6 @@ private[spark] object sk {
     ss: SparkSession,
     dateRange: NJDateTimeRange): F[RDD[NJConsumerRecord[K, V]]] =
     topic.context.admin(topic.topicName).offsetRangeFor(dateRange).map(kafkaBatch(topic, ss, _))
-
-  @annotation.nowarn
-  def kafkaDStream[F[_]: Async, K, V](
-    topic: KafkaTopic[F, K, V],
-    streamingContext: StreamingContext): F[DStream[NJConsumerRecord[K, V]]] =
-    topic.context.admin(topic.topicName).partitionsFor.map { topicPartitions =>
-      val consumerStrategy: ConsumerStrategy[Array[Byte], Array[Byte]] =
-        ConsumerStrategies.Assign[Array[Byte], Array[Byte]](
-          topicPartitions.value,
-          props(topic.context.settings.consumerSettings.properties).asScala)
-      KafkaUtils
-        .createDirectStream(streamingContext, LocationStrategies.PreferConsistent, consumerStrategy)
-        .map(m => topic.decode(m).toNJConsumerRecord)
-    }
 
   /** streaming
     */

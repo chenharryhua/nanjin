@@ -71,7 +71,7 @@ object Bee {
   val avroEncoder: Encoder[Bee] = shapeless.cachedImplicit
   val avroDecoder: Decoder[Bee] = shapeless.cachedImplicit
 
-  val avroCodec: NJAvroCodec[Bee]              = NJAvroCodec[Bee](schemaText).right.get
+  val avroCodec: NJAvroCodec[Bee]              = NJAvroCodec[Bee](schemaText)
   implicit val typedEncoder: TypedEncoder[Bee] = shapeless.cachedImplicit
   implicit val jsonCodec: Codec[Bee]           = io.circe.generic.semiauto.deriveCodec[Bee]
   val ate: AvroTypedEncoder[Bee]               = AvroTypedEncoder[Bee](avroCodec)

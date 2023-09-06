@@ -34,7 +34,7 @@ object ReadWriteTestData {
   implicit val ri: RowDecoder[TestData]   = shapeless.cachedImplicit
 
   val codec: NJAvroCodec[TestData] = NJAvroCodec[TestData]
-  val toRecord: ToRecord[TestData] = ToRecord(codec.avroEncoder)
+  val toRecord: ToRecord[TestData] = ToRecord(codec)
 
   val loader: LoadTable[IO, TestData] = sparkSession.loadTable[IO](AvroTypedEncoder[TestData](codec))
 

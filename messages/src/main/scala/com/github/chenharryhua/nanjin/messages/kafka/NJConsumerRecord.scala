@@ -17,7 +17,7 @@ import scala.annotation.nowarn
 
 @JsonCodec
 @AvroName("header")
-@AvroNamespace("nj.kafka")
+@AvroNamespace("nanjin.kafka")
 final case class NJHeader(key: String, value: Array[Byte])
 object NJHeader {
   // consistent with fs2.kafka
@@ -29,8 +29,8 @@ object NJHeader {
     headers.toArray.map(h => NJHeader(h.key(), h.value())).toList
 }
 
-@AvroDoc("kafka record, optional Key and Value")
-@AvroNamespace("nj.kafka")
+@AvroDoc("kafka consumer record, optional Key and optional Value")
+@AvroNamespace("nanjin.kafka")
 @AvroName("NJConsumerRecord")
 final case class NJConsumerRecord[K, V](
   @AvroDoc("kafka partition") partition: Int,
@@ -81,10 +81,10 @@ object NJConsumerRecord {
     valCodec: NJAvroCodec[V]): NJAvroCodec[NJConsumerRecord[K, V]] = {
     @nowarn implicit val schemaForKey: SchemaFor[K] = keyCodec.schemaFor
     @nowarn implicit val schemaForVal: SchemaFor[V] = valCodec.schemaFor
-    @nowarn implicit val keyDecoder: Decoder[K]     = keyCodec.avroDecoder
-    @nowarn implicit val valDecoder: Decoder[V]     = valCodec.avroDecoder
-    @nowarn implicit val keyEncoder: Encoder[K]     = keyCodec.avroEncoder
-    @nowarn implicit val valEncoder: Encoder[V]     = valCodec.avroEncoder
+    @nowarn implicit val keyDecoder: Decoder[K]     = keyCodec
+    @nowarn implicit val valDecoder: Decoder[V]     = valCodec
+    @nowarn implicit val keyEncoder: Encoder[K]     = keyCodec
+    @nowarn implicit val valEncoder: Encoder[V]     = valCodec
     val s: SchemaFor[NJConsumerRecord[K, V]]        = implicitly
     val d: Decoder[NJConsumerRecord[K, V]]          = implicitly
     val e: Encoder[NJConsumerRecord[K, V]]          = implicitly

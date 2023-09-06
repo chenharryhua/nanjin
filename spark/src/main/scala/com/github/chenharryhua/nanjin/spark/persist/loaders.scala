@@ -30,10 +30,10 @@ import scala.reflect.ClassTag
 private[spark] object loaders {
 
   def avro[A](path: NJPath, ss: SparkSession, ate: AvroTypedEncoder[A]): Dataset[A] =
-    ate.normalize(rdd.avro(path, ss, ate.avroCodec.avroDecoder)(ate.classTag), ss)
+    ate.normalize(rdd.avro(path, ss, ate.avroCodec)(ate.classTag), ss)
 
   def parquet[A](path: NJPath, ss: SparkSession, ate: AvroTypedEncoder[A]): Dataset[A] =
-    ate.normalize(rdd.parquet(path, ss, ate.avroCodec.avroDecoder)(ate.classTag), ss)
+    ate.normalize(rdd.parquet(path, ss, ate.avroCodec)(ate.classTag), ss)
 
   def kantan[A: RowDecoder](
     path: NJPath,
@@ -50,10 +50,10 @@ private[spark] object loaders {
     ate.normalize(rdd.circe[A](path, ss)(ate.classTag, dec), ss)
 
   def jackson[A](path: NJPath, ss: SparkSession, ate: AvroTypedEncoder[A]): Dataset[A] =
-    ate.normalize(rdd.jackson[A](path, ss, ate.avroCodec.avroDecoder)(ate.classTag), ss)
+    ate.normalize(rdd.jackson[A](path, ss, ate.avroCodec)(ate.classTag), ss)
 
   def binAvro[A](path: NJPath, ss: SparkSession, ate: AvroTypedEncoder[A]): Dataset[A] =
-    ate.normalize(rdd.binAvro[A](path, ss, ate.avroCodec.avroDecoder)(ate.classTag), ss)
+    ate.normalize(rdd.binAvro[A](path, ss, ate.avroCodec)(ate.classTag), ss)
 
   object spark {
     def avro[A](path: NJPath, ss: SparkSession, ate: AvroTypedEncoder[A]): Dataset[A] =

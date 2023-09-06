@@ -7,12 +7,14 @@ import com.github.chenharryhua.nanjin.messages.kafka.instances.toJavaProducerRec
 import com.sksamuel.avro4s.*
 import fs2.kafka.{Header as Fs2Header, Headers, ProducerRecord}
 import io.scalaland.chimney.dsl.*
+import org.apache.avro.Schema
 import org.apache.kafka.clients.producer.ProducerRecord as KafkaProducerRecord
 import shapeless.cachedImplicit
 
 import scala.annotation.nowarn
 
-@AvroNamespace("nj.spark.kafka")
+@AvroDoc("kafka producer record, optional Key and optional Value")
+@AvroNamespace("nanjin.kafka")
 @AvroName("NJProducerRecord")
 final case class NJProducerRecord[K, V](
   topic: String,
@@ -75,14 +77,31 @@ object NJProducerRecord {
     valCodec: NJAvroCodec[V]): NJAvroCodec[NJProducerRecord[K, V]] = {
     @nowarn implicit val schemaForKey: SchemaFor[K] = keyCodec.schemaFor
     @nowarn implicit val schemaForVal: SchemaFor[V] = valCodec.schemaFor
-    @nowarn implicit val keyDecoder: Decoder[K]     = keyCodec.avroDecoder
-    @nowarn implicit val valDecoder: Decoder[V]     = valCodec.avroDecoder
-    @nowarn implicit val keyEncoder: Encoder[K]     = keyCodec.avroEncoder
-    @nowarn implicit val valEncoder: Encoder[V]     = valCodec.avroEncoder
+    @nowarn implicit val keyDecoder: Decoder[K]     = keyCodec
+    @nowarn implicit val valDecoder: Decoder[V]     = valCodec
+    @nowarn implicit val keyEncoder: Encoder[K]     = keyCodec
+    @nowarn implicit val valEncoder: Encoder[V]     = valCodec
     val s: SchemaFor[NJProducerRecord[K, V]]        = cachedImplicit
     val d: Decoder[NJProducerRecord[K, V]]          = cachedImplicit
     val e: Encoder[NJProducerRecord[K, V]]          = cachedImplicit
     NJAvroCodec[NJProducerRecord[K, V]](s, d.withSchema(s), e.withSchema(s))
+  }
+
+  def schema(keySchema: Schema, valSchema: Schema): Schema = {
+    class KEY
+    class VAL
+    @nowarn
+    implicit val schemaForKey: SchemaFor[KEY] = new SchemaFor[KEY] {
+      override def schema: Schema           = keySchema
+      override def fieldMapper: FieldMapper = DefaultFieldMapper
+    }
+
+    @nowarn
+    implicit val schemaForVal: SchemaFor[VAL] = new SchemaFor[VAL] {
+      override def schema: Schema           = valSchema
+      override def fieldMapper: FieldMapper = DefaultFieldMapper
+    }
+    SchemaFor[NJProducerRecord[KEY, VAL]].schema
   }
 
   implicit val bifunctorNJProducerRecord: Bifunctor[NJProducerRecord] =

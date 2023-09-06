@@ -97,7 +97,7 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
     for {
       schemaPair <- kafkaContext.schemaRegistry.fetchAvroSchema(topicName)
       hadoop  = NJHadoop[F](sparkSession.sparkContext.hadoopConfiguration)
-      jackson = hadoop.jackson(schemaPair.consumerRecordSchema)
+      jackson = hadoop.jackson(schemaPair.consumerSchema)
       builder = new PushGenericRecord(kafkaContext.settings.schemaRegistrySettings, topicName, schemaPair)
       num <- hadoop.filesIn(path).flatMap { fs =>
         val ss: Stream[F, ProducerRecords[Array[Byte], Array[Byte]]] =
@@ -145,7 +145,7 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
     for {
       schemaPair <- kafkaContext.schemaRegistry.fetchAvroSchema(topicName)
       hadoop  = NJHadoop[F](sparkSession.sparkContext.hadoopConfiguration)
-      jackson = hadoop.jackson(schemaPair.consumerRecordSchema)
+      jackson = hadoop.jackson(schemaPair.consumerSchema)
       builder = new PushGenericRecord(kafkaContext.settings.schemaRegistrySettings, topicName, schemaPair)
       num <- hadoop.filesIn(path).map(jackson.source).flatMap {
         _.chunkN(chunkSize.value)

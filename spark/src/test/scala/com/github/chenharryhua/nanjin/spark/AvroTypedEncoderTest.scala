@@ -54,7 +54,7 @@ object AvroTypedEncoderTestData {
 
   implicit val roundingMode: BigDecimal.RoundingMode.Value = RoundingMode.HALF_UP
 
-  val codec: NJAvroCodec[Lion]             = NJAvroCodec[Lion](schemaText).right.get
+  val codec: NJAvroCodec[Lion]             = NJAvroCodec[Lion](schemaText)
   implicit val encoder: TypedEncoder[Lion] = shapeless.cachedImplicit
   val ate: AvroTypedEncoder[Lion]          = AvroTypedEncoder[Lion](codec)
 
@@ -150,7 +150,7 @@ class AvroTypedEncoderTest extends AnyFunSuite {
   test("loaded avro should be normalized - apache") {
     val path = root / "apache" / "avro"
     hdp.delete(path).unsafeRunSync()
-    saveRDD.avro(rdd, path, ate.avroCodec.avroEncoder, NJCompression.Uncompressed)
+    saveRDD.avro(rdd, path, ate.avroCodec, NJCompression.Uncompressed)
     val r = loaders.avro[Lion](path, sparkSession, ate)
     assert(r.collect().toSet == expected.toSet)
     assert(r.schema == expectedSchema)
@@ -158,7 +158,7 @@ class AvroTypedEncoderTest extends AnyFunSuite {
   test("loaded parquet should be normalized - apache") {
     val path = root / "apache" / "parquet"
     hdp.delete(path).unsafeRunSync()
-    saveRDD.parquet(rdd, path, ate.avroCodec.avroEncoder, NJCompression.Uncompressed)
+    saveRDD.parquet(rdd, path, ate.avroCodec, NJCompression.Uncompressed)
     val r = loaders.parquet[Lion](path, sparkSession, ate)
     assert(r.collect().toSet == expected.toSet)
     assert(r.schema == expectedSchema)

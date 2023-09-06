@@ -77,7 +77,7 @@ final class CrRdd[F[_], K, V] private[kafka] (
   }
 
   def output: RddAvroFileHoarder[F, NJConsumerRecord[K, V]] =
-    new RddAvroFileHoarder[F, NJConsumerRecord[K, V]](frdd, codec.avroEncoder)
+    new RddAvroFileHoarder[F, NJConsumerRecord[K, V]](frdd, codec)
 
   // statistics
   def stats: Statistics[F] = {

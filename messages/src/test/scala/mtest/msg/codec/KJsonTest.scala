@@ -44,8 +44,8 @@ class KJsonTest extends Properties("kjson") {
   implicit val arbKJsons: Arbitrary[List[KJson[CompositionType]]] = Arbitrary(genKJsons)
 
   property("encode/decode identity") = forAll { (ct: KJson[CompositionType]) =>
-    val en = goodJson.avroCodec.avroEncoder.encode(ct)
-    val de = goodJson.avroCodec.avroDecoder.decode(en)
+    val en = goodJson.avroCodec.encode(ct)
+    val de = goodJson.avroCodec.decode(en)
     ct == de && ct === goodJson.avroCodec.idConversion(ct)
   }
 

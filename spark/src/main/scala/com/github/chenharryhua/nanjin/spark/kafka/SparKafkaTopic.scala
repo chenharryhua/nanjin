@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
 import cats.Foldable
-import cats.data.Kleisli
 import cats.effect.kernel.{Async, Sync}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
@@ -10,11 +9,9 @@ import com.github.chenharryhua.nanjin.kafka.*
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJProducerRecord}
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
-import com.github.chenharryhua.nanjin.spark.dstream.AvroDStreamSink
 import frameless.TypedEncoder
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.streaming.StreamingContext
 
 final class SparKafkaTopic[F[_], K, V](val sparkSession: SparkSession, val topic: KafkaTopic[F, K, V])
     extends Serializable {
@@ -84,24 +81,12 @@ final class SparKafkaTopic[F[_], K, V](val sparkSession: SparkSession, val topic
     crRdd(F.blocking(sparkSession.sparkContext.emptyRDD[NJConsumerRecord[K, V]]))
 
   def prRdd(rdd: F[RDD[NJProducerRecord[K, V]]])(implicit F: Sync[F]): PrRdd[F, K, V] =
-    new PrRdd[F, K, V](rdd, topic.topicDef.producerRecord.codec)
+    new PrRdd[F, K, V](rdd, topic.topicDef.producerCodec)
 
   def prRdd[G[_]: Foldable](list: G[NJProducerRecord[K, V]])(implicit F: Sync[F]): PrRdd[F, K, V] =
     prRdd(F.blocking(sparkSession.sparkContext.parallelize(list.toList)))
 
   def emptyPrRdd(implicit F: Sync[F]): PrRdd[F, K, V] =
     prRdd(F.blocking(sparkSession.sparkContext.emptyRDD[NJProducerRecord[K, V]]))
-
-  /** DStream
-    */
-  @annotation.nowarn
-  def dstream(implicit F: Async[F]): Kleisli[F, StreamingContext, AvroDStreamSink[NJConsumerRecord[K, V]]] =
-    Kleisli((sc: StreamingContext) =>
-      sk.kafkaDStream(topic, sc)
-        .map(ds =>
-          new AvroDStreamSink(
-            ds,
-            topic.topicDef.consumerRecord.codec.avroEncoder,
-            root => ldt => root / ldt.toLocalDate)))
 
 }

@@ -1,8 +1,6 @@
 package mtest.msg.codec
 
-import cats.data.Ior
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
-import org.apache.avro.Schema
 import org.scalatest.funsuite.AnyFunSuite
 
 object ManualAvroSchemaTestData {
@@ -81,40 +79,97 @@ object ManualAvroSchemaTestData {
   ]
 }        
         """
-  }
 
+    val schema4 =
+      """
+{
+          "type": "record",
+          "name": "UnderTest",
+          "namespace": "only.namespace.diff",
+          "fields":
+          [
+              {
+                  "name": "a",
+                  "type": "int"
+              },
+              {
+                  "name": "b",
+                  "type": "string"
+              }
+          ]
+      }
+      """
+
+    val schema5 =
+      """
+{
+          "type": "record",
+          "name": "UnderTest",
+          "namespace": "mtest.msg.codec.ManualAvroSchemaTestData",
+          "fields":
+          [
+              {
+                  "name": "a",
+                  "type": "int"
+              },
+              {
+                  "name": "b",
+                  "type": "string"
+              },
+              {
+                  "name": "c",
+                  "type":
+                  [
+                      "null",
+                      "string"
+                  ],
+                  "default": null
+              }
+          ]
+      }
+         """
+
+    val schema6 =
+      """
+         {
+          "type": "record",
+          "name": "UnderTest",
+          "namespace": "mtest.msg.codec.ManualAvroSchemaTestData",
+          "fields":
+          [
+              {
+                  "name": "a",
+                  "type": "int"
+              }
+          ]
+      }
+         """
+  }
 }
 
 class ManualAvroSchemaTest extends AnyFunSuite {
   import ManualAvroSchemaTestData.*
 
-  test("decoder/encoder have the same schema") {
-    val input = (new Schema.Parser).parse(UnderTest.schema1)
-
-    val ms1: Ior[String, NJAvroCodec[UnderTest]] =
-      NJAvroCodec[UnderTest](UnderTest.schema1)
-
-    assert(input == ms1.right.get.avroDecoder.schema)
-    assert(input == ms1.right.get.avroEncoder.schema)
+  test("add doc field") {
+    NJAvroCodec[UnderTest](UnderTest.schema1)
   }
 
-  test("read-write incompatiable but acceptable") {
-    val input = (new Schema.Parser).parse(UnderTest.schema2)
-
-    val ms2: Ior[String, NJAvroCodec[UnderTest]] =
-      NJAvroCodec[UnderTest](UnderTest.schema2)
-
-    assert(input == ms2.right.get.avroDecoder.schema)
-    assert(input == ms2.right.get.avroEncoder.schema)
-    assert(ms2.isBoth)
+  test("became optional a") {
+    assertThrows[Exception](NJAvroCodec[UnderTest](UnderTest.schema2))
   }
 
-  test("incompatiable") {
-    (new Schema.Parser).parse(UnderTest.schema3)
+  test("add optional c without default") {
+    assertThrows[Exception](NJAvroCodec[UnderTest](UnderTest.schema3))
+  }
 
-    val ms3: Ior[String, NJAvroCodec[UnderTest]] =
-      NJAvroCodec[UnderTest](UnderTest.schema3)
+  test("add optional c with default") {
+    assertThrows[Exception](NJAvroCodec[UnderTest](UnderTest.schema5))
+  }
 
-    assert(ms3.isLeft)
+  test("only namespace is different") {
+    NJAvroCodec[UnderTest](UnderTest.schema4)
+  }
+  test("remove b") {
+    assertThrows[Exception](NJAvroCodec[UnderTest](UnderTest.schema6))
   }
 }

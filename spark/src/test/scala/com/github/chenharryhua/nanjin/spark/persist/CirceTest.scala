@@ -84,7 +84,7 @@ class CirceTest extends AnyFunSuite {
   }
 
   def bee(path: NJPath) =
-    new RddAvroFileHoarder[IO, Bee](IO(BeeData.rdd.repartition(1)), Bee.avroCodec.avroEncoder).circe(path)
+    new RddAvroFileHoarder[IO, Bee](IO(BeeData.rdd.repartition(1)), Bee.avroCodec).circe(path)
 
   test("circe bee byte-array rdd read/write identity multi bzip2") {
     val path = root / "bee" / "bzip2"

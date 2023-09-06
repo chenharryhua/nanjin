@@ -66,8 +66,7 @@ object DecimalTopicTestCase {
   }
   implicit val roundingMode: BigDecimal.RoundingMode.Value = RoundingMode.HALF_UP
 
-  val codec: NJAvroCodec[HasDecimal] =
-    NJAvroCodec[HasDecimal](schemaText).right.get
+  val codec: NJAvroCodec[HasDecimal] = NJAvroCodec[HasDecimal](schemaText)
 
   val topicDef: TopicDef[Int, HasDecimal] =
     TopicDef[Int, HasDecimal](TopicName("kafka.decimal.test"), codec)

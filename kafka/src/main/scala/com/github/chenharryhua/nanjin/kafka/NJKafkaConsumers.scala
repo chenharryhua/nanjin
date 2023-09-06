@@ -48,8 +48,13 @@ final class NJKafkaByteConsume[F[_]] private[kafka] (
         }
         .flatMap(_.stream)
 
-  /** @return
-    *   avro GenericData.Record
+  /** Retrieve Generic.Record from kafka
+    *
+    * @return
+    *
+    * an avro GenericData.Record instance of NJConsumerRecord
+    *
+    * key or value will be null if deserialization fails
     */
   def avro(implicit F: Async[F]): Stream[F, CommittableConsumerRecord[F, Unit, GenericData.Record]] =
     Stream.eval(getSchema).flatMap { skm =>
@@ -59,29 +64,35 @@ final class NJKafkaByteConsume[F[_]] private[kafka] (
       }
     }
 
-  /** @return
+  /** generate Jackson String using the latest schema in Schema Registry
+    * @return
     *
-    * Jackson String if success
+    * Jackson String if encoded successfully by the latest schema
     *
-    * GenericRecord if fail
+    * a Generic.Record instance of NJConsumerRecord if fail
     */
   def jackson(implicit
     F: Async[F]): Stream[F, CommittableConsumerRecord[F, Schema, Either[GenericData.Record, String]]] =
     Stream.eval(getSchema).flatMap { skm =>
       val builder = new PullGenericRecord(srs, topicName, skm)
       stream.map { cr =>
-        cr.bimap(_ => skm.consumerRecordSchema, _ => builder.toJacksonString(cr.record))
+        cr.bimap(_ => skm.consumerSchema, _ => builder.toJacksonString(cr.record))
       }
     }
 
-  /** @return
-    *   Binary Avro bytes
+  /** generate Binary Avro bytes using the latest schema in Schema Registry
+    *
+    * @return
+    *
+    * Binary Avro bytes if encoded successfully by the latest schema
+    *
+    * Empty bytes if fail
     */
   def binAvro(implicit F: Async[F]): Stream[F, CommittableConsumerRecord[F, Schema, Chunk[Byte]]] =
     Stream.eval(getSchema).flatMap { skm =>
       val builder = new PullGenericRecord(srs, topicName, skm)
       stream.map { cr =>
-        cr.bimap(_ => skm.consumerRecordSchema, _ => builder.toBinAvro(cr.record))
+        cr.bimap(_ => skm.consumerSchema, _ => builder.toBinAvro(cr.record))
       }
     }
 
@@ -101,7 +112,7 @@ final class NJKafkaByteConsume[F[_]] private[kafka] (
     Stream.eval(getSchema).flatMap { skm =>
       val builder = new PullGenericRecord(srs, topicName, skm)
       assign(tps).map { cr =>
-        cr.bimap(_ => skm.consumerRecordSchema, _ => builder.toJacksonString(cr.record))
+        cr.bimap(_ => skm.consumerSchema, _ => builder.toJacksonString(cr.record))
       }
     }
 
@@ -110,7 +121,7 @@ final class NJKafkaByteConsume[F[_]] private[kafka] (
     Stream.eval(getSchema).flatMap { skm =>
       val builder = new PullGenericRecord(srs, topicName, skm)
       assign(tps).map { cr =>
-        cr.bimap(_ => skm.consumerRecordSchema, _ => builder.toBinAvro(cr.record))
+        cr.bimap(_ => skm.consumerSchema, _ => builder.toBinAvro(cr.record))
       }
     }
 

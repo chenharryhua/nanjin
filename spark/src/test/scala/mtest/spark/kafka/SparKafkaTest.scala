@@ -28,10 +28,6 @@ object SparKafkaTestData {
   val data: HasDuck =
     HasDuck(0, "a", LocalDate.now, Instant.ofEpochMilli(Instant.now.toEpochMilli), duck)
 
-  implicit val hasDuckEncoder: NJAvroCodec[HasDuck] = NJAvroCodec[HasDuck]
-  implicit val intCodec: NJAvroCodec[Int]           = NJAvroCodec[Int]
-  implicit val stringCodec: NJAvroCodec[String]     = NJAvroCodec[String]
-
   println(SchemaFor[HasDuck].schema)
 }
 
@@ -159,7 +155,7 @@ class SparKafkaTest extends AnyFunSuite {
 
     Stream
       .eval(hdp.filesIn(path))
-      .flatMap(hdp.jackson(topic.topic.topicDef.schemaPair.consumerRecordSchema).source)
+      .flatMap(hdp.jackson(topic.topic.topicDef.schemaPair.consumerSchema).source)
       .chunkN(1)
       .through(ctx.sink(topic.topicName).updateConfig(_.withClientId("a")).build)
       .compile
@@ -178,7 +174,7 @@ class SparKafkaTest extends AnyFunSuite {
 
   test("generic record") {
     val path = NJPath("./data/test/spark/kafka/consume/duck.avro")
-    val sink = hdp.avro(topic.topicDef.schemaPair.consumerRecordSchema).sink(path)
+    val sink = hdp.avro(topic.topicDef.schemaPair.consumerSchema).sink(path)
     duckConsume.avro.take(2).map(_.record.value).chunks.through(sink).compile.drain.unsafeRunSync()
     assert(2 == sparKafka.topic(topic).load.avro(path).count.unsafeRunSync())
   }
@@ -193,7 +189,28 @@ class SparKafkaTest extends AnyFunSuite {
   test("jackson") {
     val path = NJPath("./data/test/spark/kafka/consume/duck.jackson.json")
     val sink = hdp.text.sink(path)
-    duckConsume.jackson.map(_.record.value.toOption).unNone.take(2).chunks.through(sink).compile.drain.unsafeRunSync()
+    duckConsume.jackson
+      .map(_.record.value.toOption)
+      .unNone
+      .take(2)
+      .chunks
+      .through(sink)
+      .compile
+      .drain
+      .unsafeRunSync()
     assert(2 == sparKafka.topic(topic).load.jackson(path).count.unsafeRunSync())
+  }
+
+  test("format") {
+    duckConsume.avro
+      .take(2)
+      .map(_.record.value)
+      .map(gr => topic.topicDef.consumerFormat.fromRecord(gr))
+      .map(_.toNJProducerRecord)
+      .map(topic.topicDef.producerFormat.toRecord)
+      .debug()
+      .compile
+      .drain
+      .unsafeRunSync()
   }
 }
