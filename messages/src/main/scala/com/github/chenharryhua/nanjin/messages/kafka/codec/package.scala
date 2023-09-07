@@ -36,6 +36,22 @@ package object codec {
       .getOrElse(schema)
   }
 
+  def removeNamespace(schema: Schema): Schema = {
+    val remove: Json => Json = Plated.transform[Json] { js =>
+      js.asObject match {
+        case Some(value) => value.toJson.hcursor.downField("namespace").delete.top.getOrElse(js)
+        case None => js
+      }
+    }
+
+    parser
+      .parse(schema.toString(false))
+      .toOption
+      .map(remove)
+      .map(js => (new Schema.Parser).parse(js.noSpaces))
+      .getOrElse(schema)
+  }
+
   /** replace all namespace in the schema with the provided one
     * @param schema
     *   input schema

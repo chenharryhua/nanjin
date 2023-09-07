@@ -2,10 +2,10 @@ package mtest.msg.codec
 
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.sksamuel.avro4s.AvroNamespace
+import eu.timepit.refined.auto.*
 import org.apache.avro.Schema
 import org.scalatest.funsuite.AnyFunSuite
 import shapeless.{:+:, CNil, Coproduct}
-import eu.timepit.refined.auto.*
 
 object SchemaChangeTestData {
   @AvroNamespace("schema.test.nest")
@@ -46,5 +46,30 @@ class SchemaChangeTest extends AnyFunSuite {
     val res  = newCodec.decode(en)
 
     assert(res == data)
+  }
+
+  test("remove namespace") {
+    val newCodec: NJAvroCodec[UnderTest] = codec.withoutNamespace
+    println(newCodec.schema)
+    val data = UnderTest(1, Coproduct(Nest(1)), Some(1))
+    val en   = newCodec.encode(data)
+    val res  = newCodec.decode(en)
+
+    assert(res == data)
+  }
+
+  test("remove namespace - 1") {
+    val newCodec: NJAvroCodec[UnderTest] = codec.withoutNamespace
+
+    val data = UnderTest(1, Coproduct(Nest(1)), Some(1))
+    val en   = newCodec.encode(data)
+    assertThrows[Exception](codec.decode(en))
+  }
+  test("remove namespace - 2") {
+    val newCodec: NJAvroCodec[UnderTest] = codec.withoutNamespace
+
+    val data = UnderTest(1, Coproduct(Nest(1)), Some(1))
+    val en   = codec.encode(data)
+    assertThrows[Exception](newCodec.decode(en))
   }
 }

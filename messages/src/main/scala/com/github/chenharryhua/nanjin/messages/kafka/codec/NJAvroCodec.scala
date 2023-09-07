@@ -10,7 +10,6 @@ import com.sksamuel.avro4s.{
 }
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.string.MatchesRegex
-import io.circe.parser.parse
 import org.apache.avro.Schema
 final class NJAvroCodec[A] private (
   val schemaFor: SchemaFor[A],
@@ -37,12 +36,7 @@ final class NJAvroCodec[A] private (
   def withNamespace(namespace: String Refined Namespace): NJAvroCodec[A] =
     withSchema(replaceNamespace(schema, namespace.value))
 
-  def withoutNamespace: NJAvroCodec[A] =
-    parse(schema.toString(false)).toOption
-      .flatMap(_.hcursor.downField("namespace").delete.top)
-      .map(json => withSchema((new Schema.Parser).parse(json.noSpaces)))
-      .getOrElse(this)
-
+  def withoutNamespace: NJAvroCodec[A]    = withSchema(removeNamespace(schema))
   def withoutDefaultField: NJAvroCodec[A] = withSchema(removeDefaultField(schema))
 }
 
