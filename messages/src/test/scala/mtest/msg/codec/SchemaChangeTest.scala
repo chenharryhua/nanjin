@@ -30,21 +30,21 @@ class SchemaChangeTest extends AnyFunSuite {
 
   test("remove default field") {
     val newCodec: NJAvroCodec[UnderTest] = codec.withoutDefaultField
-
+    println(newCodec.schema)
     val data = UnderTest(1, Coproduct(Nest(1)))
     val en   = codec.encode(data)
     val res  = newCodec.decode(en)
-    println(newCodec.schema)
+
     assert(res == data)
   }
 
   test("change namespace") {
     val newCodec: NJAvroCodec[UnderTest] = codec.withNamespace("new.namespace")
-
+    println(newCodec.schema)
     val data = UnderTest(1, Coproduct(Nest(1)), Some(1))
     val en   = newCodec.encode(data)
     val res  = newCodec.decode(en)
-    println(newCodec.schema)
+
     assert(res == data)
   }
 }
