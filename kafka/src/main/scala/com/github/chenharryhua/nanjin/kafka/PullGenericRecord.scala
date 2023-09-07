@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.kafka
 
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.messages.kafka.NJHeader
+import com.github.chenharryhua.nanjin.messages.kafka.codec.removeDefaultField
 import com.github.chenharryhua.nanjin.messages.kafka.instances.*
 import com.sksamuel.avro4s.SchemaFor
 import fs2.Chunk
@@ -21,7 +22,7 @@ import scala.util.{Failure, Success, Try, Using}
 
 final class PullGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName, pair: AvroSchemaPair)
     extends Serializable {
-  private val schema: Schema = pair.consumerSchema
+  private val schema: Schema = removeDefaultField(pair.consumerSchema)
   private val topic: String  = topicName.value
 
   @transient private lazy val keyDecode: Array[Byte] => Any =
