@@ -93,20 +93,19 @@ class BinAvroTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
       }
     }
 
-   val single: IO[List[Long]] =
+  val single: IO[List[Long]] =
     files.parTraverse(writeSingle).flatMap(ps => ps.parTraverse(singleRead) >> ps.traverse(sparkRead))
 
-   val rotate: IO[List[Long]] =
+  val rotate: IO[List[Long]] =
     files.parTraverse(writeRotate).flatMap(ps => ps.parTraverse(folderRead) >> ps.traverse(sparkRead))
 
-   val sparkSingle: IO[List[Long]] =
+  val sparkSingle: IO[List[Long]] =
     files.parTraverse(writeSingleSpark).flatMap(ps => ps.parTraverse(singleRead) >> ps.traverse(sparkRead))
 
-   val sparkRotate: IO[List[Long]] =
+  val sparkRotate: IO[List[Long]] =
     files.parTraverse(writeRotateSpark).flatMap(ps => ps.parTraverse(folderRead) >> ps.traverse(sparkRead))
 
-   val sparkMulti: IO[List[Long]] =
+  val sparkMulti: IO[List[Long]] =
     files.traverse(writeMultiSpark).flatMap(ps => ps.parTraverse(folderRead) >> ps.traverse(sparkRead))
-
 
 }
