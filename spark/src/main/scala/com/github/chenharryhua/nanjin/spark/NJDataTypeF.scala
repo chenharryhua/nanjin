@@ -14,29 +14,29 @@ sealed private[spark] trait NJDataTypeF[A]
 private[spark] object NJDataTypeF {
 
   // numeric types
-  final case class NJByteType[K]() extends NJDataTypeF[K]
-  final case class NJShortType[K]() extends NJDataTypeF[K]
-  final case class NJIntegerType[K]() extends NJDataTypeF[K]
-  final case class NJLongType[K]() extends NJDataTypeF[K]
-  final case class NJFloatType[K]() extends NJDataTypeF[K]
-  final case class NJDoubleType[K]() extends NJDataTypeF[K]
-  final case class NJDecimalType[K](precision: Int, scale: Int) extends NJDataTypeF[K]
+  final private case class NJByteType[K]() extends NJDataTypeF[K]
+  final private case class NJShortType[K]() extends NJDataTypeF[K]
+  final private case class NJIntegerType[K]() extends NJDataTypeF[K]
+  final private case class NJLongType[K]() extends NJDataTypeF[K]
+  final private case class NJFloatType[K]() extends NJDataTypeF[K]
+  final private case class NJDoubleType[K]() extends NJDataTypeF[K]
+  final private case class NJDecimalType[K](precision: Int, scale: Int) extends NJDataTypeF[K]
 
-  final case class NJStringType[K]() extends NJDataTypeF[K]
-  final case class NJBinaryType[K]() extends NJDataTypeF[K]
-  final case class NJBooleanType[K]() extends NJDataTypeF[K]
+  final private case class NJStringType[K]() extends NJDataTypeF[K]
+  final private case class NJBinaryType[K]() extends NJDataTypeF[K]
+  final private case class NJBooleanType[K]() extends NJDataTypeF[K]
 
-  final case class NJTimestampType[K]() extends NJDataTypeF[K]
-  final case class NJDateType[K]() extends NJDataTypeF[K]
+  final private case class NJTimestampType[K]() extends NJDataTypeF[K]
+  final private case class NJDateType[K]() extends NJDataTypeF[K]
 
-  final case class NJArrayType[K](containsNull: Boolean, cont: K) extends NJDataTypeF[K]
+  final private case class NJArrayType[K](containsNull: Boolean, cont: K) extends NJDataTypeF[K]
 
-  final case class NJMapType[K](key: NJDataType, value: NJDataType, containsNull: Boolean)
+  final private case class NJMapType[K](key: NJDataType, value: NJDataType, containsNull: Boolean)
       extends NJDataTypeF[K]
 
-  final case class NJNullType[K]() extends NJDataTypeF[K]
+  final private case class NJNullType[K]() extends NJDataTypeF[K]
 
-  final case class NJStructType[K](className: String, namespace: String, fields: List[NJStructField])
+  final private case class NJStructType[K](className: String, namespace: String, fields: List[NJStructField])
       extends NJDataTypeF[K]
 
   final case class NJStructField(index: Int, colName: String, dataType: NJDataType, nullable: Boolean) {
