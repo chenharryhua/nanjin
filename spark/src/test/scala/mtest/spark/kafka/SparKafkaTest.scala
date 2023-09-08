@@ -190,8 +190,7 @@ class SparKafkaTest extends AnyFunSuite {
     val path = NJPath("./data/test/spark/kafka/consume/duck.jackson.json")
     val sink = hdp.text.sink(path)
     duckConsume.jackson
-      .map(_.record.value.toOption)
-      .unNone
+      .map(_.record.value)
       .take(2)
       .chunks
       .through(sink)
