@@ -44,7 +44,7 @@ private object AuthConfigF {
   }
 }
 
-final private[auth] case class AuthConfig private (value: Fix[AuthConfigF]) {
+final private[auth] case class AuthConfig(value: Fix[AuthConfigF]) {
   import AuthConfigF.*
   def withAuthMaxRetries(times: Int): AuthConfig = AuthConfig(Fix(WithAuthMaxRetries(value = times, value)))
   def withAuthMaxWait(dur: FiniteDuration): AuthConfig = AuthConfig(Fix(WithAuthMaxWait(value = dur, value)))

@@ -126,7 +126,7 @@ private object ServiceConfigF {
     }
 }
 
-final case class ServiceConfig private (private val cont: Fix[ServiceConfigF]) {
+final case class ServiceConfig(private val cont: Fix[ServiceConfigF]) {
   import ServiceConfigF.*
 
   // metrics

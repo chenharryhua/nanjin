@@ -15,7 +15,7 @@ import scala.concurrent.duration.FiniteDuration
 import scala.jdk.DurationConverters.ScalaDurationOps
 
 @JsonCodec
-final case class NJError private (message: String, stackTrace: String)
+final case class NJError(message: String, stackTrace: String)
 
 private[guard] object NJError {
   implicit final val showNJError: Show[NJError] = cats.derived.semiauto.show[NJError]

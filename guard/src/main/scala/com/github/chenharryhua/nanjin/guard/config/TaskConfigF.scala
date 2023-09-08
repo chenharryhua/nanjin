@@ -33,7 +33,7 @@ private object TaskConfigF {
     }
 }
 
-final case class TaskConfig private (private val cont: Fix[TaskConfigF]) {
+final case class TaskConfig(private val cont: Fix[TaskConfigF]) {
   import TaskConfigF.*
 
   def withZoneId(zoneId: ZoneId): TaskConfig       = TaskConfig(Fix(WithZoneId(zoneId, cont)))

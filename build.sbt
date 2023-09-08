@@ -1,4 +1,4 @@
-ThisBuild / scalaVersion := "2.13.11"
+ThisBuild / scalaVersion := "2.13.12"
 
 ThisBuild / version := "0.17.3-SNAPSHOT"
 
@@ -23,7 +23,7 @@ val natchezV    = "0.3.3"
 val http4sV     = "0.23.23"
 val cron4sV     = "0.6.1"
 val jacksonV    = "2.15.2"
-val protobufV   = "3.24.2"
+val protobufV   = "3.24.3"
 val sparkV      = "3.4.1"
 val refinedV    = "0.11.0"
 val nettyV      = "4.1.97.Final"
@@ -118,7 +118,7 @@ val testLib = List(
   "org.typelevel" %% "discipline-munit"                       % "1.0.9",
   "org.typelevel" %% "cats-laws"                              % catsCoreV,
   "com.github.alexarchambault" %% "scalacheck-shapeless_1.15" % "1.3.0",
-  "org.scalatest" %% "scalatest"                              % "3.2.16",
+  "org.scalatest" %% "scalatest"                              % "3.2.17",
   "dev.optics" %% "monocle-law"                               % monocleV,
   "com.47deg" %% "scalacheck-toolbox-datetime"                % "0.7.0",
   "org.tpolecat" %% "doobie-postgres"                         % doobieV,

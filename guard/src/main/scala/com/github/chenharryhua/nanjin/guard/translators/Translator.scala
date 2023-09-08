@@ -16,7 +16,7 @@ trait UpdateTranslator[F[_], A, B] {
   def updateTranslator(f: Endo[Translator[F, A]]): B
 }
 
-@Lenses final case class Translator[F[_], A] private (
+@Lenses final case class Translator[F[_], A](
   serviceStart: Kleisli[OptionT[F, *], ServiceStart, A],
   servicePanic: Kleisli[OptionT[F, *], ServicePanic, A],
   serviceStop: Kleisli[OptionT[F, *], ServiceStop, A],

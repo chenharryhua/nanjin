@@ -180,7 +180,7 @@ private[spark] object NJDataTypeF {
     cats.derived.semiauto.functor[NJDataTypeF]
 }
 
-final case class NJDataType private (value: Fix[NJDataTypeF]) extends AnyVal {
+final case class NJDataType(value: Fix[NJDataTypeF]) extends AnyVal {
   def toSpark: DataType = scheme.cata(NJDataTypeF.algebra).apply(value)
 
   def toSchema(builder: SchemaBuilder.TypeBuilder[Schema]): Schema =

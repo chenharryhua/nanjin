@@ -12,7 +12,7 @@ import skunk.util.Typer
 import scala.concurrent.duration.Duration
 
 // https://github.com/tpolecat/skunk
-final case class SkunkSession[F[_]] private (
+final case class SkunkSession[F[_]](
   postgres: Postgres,
   max: Int,
   debug: Boolean,

@@ -62,7 +62,7 @@ private object ActionConfigF {
     }
 }
 
-final case class ActionConfig private (private val cont: Fix[ActionConfigF]) {
+final case class ActionConfig(private val cont: Fix[ActionConfigF]) {
   import ActionConfigF.*
 
   def notice: ActionConfig = ActionConfig(Fix(WithPublishStrategy(PublishStrategy.Notice, cont)))
