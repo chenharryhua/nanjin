@@ -9,7 +9,7 @@ import fs2.kafka.{ConsumerRecord, KafkaByteConsumerRecord}
 import io.confluent.kafka.streams.serdes.avro.GenericAvroDeserializer
 import io.scalaland.chimney.dsl.TransformerOps
 import org.apache.avro.Schema
-import org.apache.avro.generic.{GenericData, GenericDatumWriter}
+import org.apache.avro.generic.{GenericData, GenericDatumWriter, GenericRecordBuilder}
 import org.apache.avro.io.{BinaryEncoder, EncoderFactory, JsonEncoder}
 import org.apache.kafka.streams.scala.serialization.Serdes
 
@@ -96,7 +96,7 @@ final class PullGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName,
     record.put("headers", headers.toList.asJava)
     record.put("key", Try(keyDecode(ccr.key)).getOrElse(null))
     record.put("value", Try(valDecode(ccr.value)).getOrElse(null))
-    record
+    new GenericRecordBuilder(record).build()
   }
 
   def toRecord(ccr: ConsumerRecord[Array[Byte], Array[Byte]]): GenericData.Record =
