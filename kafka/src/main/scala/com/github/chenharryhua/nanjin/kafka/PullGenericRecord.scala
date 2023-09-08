@@ -24,14 +24,12 @@ final class PullGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName,
   private val schema: Schema = pair.consumerSchema
   private val topic: String  = topicName.value
 
-  @transient private val INSTANCE: GenericData = GenericData.get()
-
   @transient private lazy val keyDecode: Array[Byte] => Any =
     pair.key.getType match {
       case Schema.Type.RECORD =>
         val deser = new GenericAvroDeserializer()
         deser.configure(srs.config.asJava, true)
-        (data: Array[Byte]) => INSTANCE.deepCopy(pair.key, deser.deserialize(topic, data))
+        (data: Array[Byte]) => GenericData.get().deepCopy(pair.key, deser.deserialize(topic, data))
       case Schema.Type.STRING =>
         val deser = Serdes.stringSerde.deserializer()
         (data: Array[Byte]) => deser.deserialize(topic, data)
@@ -59,7 +57,7 @@ final class PullGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName,
       case Schema.Type.RECORD =>
         val deser = new GenericAvroDeserializer()
         deser.configure(srs.config.asJava, false)
-        (data: Array[Byte]) => INSTANCE.deepCopy(pair.value, deser.deserialize(topic, data))
+        (data: Array[Byte]) => GenericData.get().deepCopy(pair.value, deser.deserialize(topic, data))
       case Schema.Type.STRING =>
         val deser = Serdes.stringSerde.deserializer()
         (data: Array[Byte]) => deser.deserialize(topic, data)
