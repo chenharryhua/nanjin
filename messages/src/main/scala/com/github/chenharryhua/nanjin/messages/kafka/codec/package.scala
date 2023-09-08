@@ -40,7 +40,7 @@ package object codec {
     val remove: Json => Json = Plated.transform[Json] { js =>
       js.asObject match {
         case Some(value) => value.toJson.hcursor.downField("namespace").delete.top.getOrElse(js)
-        case None => js
+        case None        => js
       }
     }
 

@@ -31,7 +31,7 @@ class SchemaChangeTest extends AnyFunSuite {
   test("remove default field") {
     val newCodec: NJAvroCodec[UnderTest] = codec.withoutDefaultField
     val s =
-        """
+      """
          {"type":"record","name":"UnderTest","namespace":"schema.test.top","fields":[{"name":"a","type":"int"},{"name":"b","type":[{"type":"record","name":"Nest","namespace":"schema.test.nest","fields":[{"name":"a","type":"int"}]},{"type":"record","name":"Nest2","namespace":"schema.test.nest2","fields":[{"name":"b","type":"string"}]}]},{"name":"c","type":["null","int"]}]}
         """
     assert(newCodec.schema.toString == s.trim)

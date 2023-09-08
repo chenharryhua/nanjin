@@ -9,7 +9,7 @@ import fs2.kafka.{ConsumerRecord, KafkaByteConsumerRecord}
 import io.confluent.kafka.streams.serdes.avro.GenericAvroDeserializer
 import io.scalaland.chimney.dsl.TransformerOps
 import org.apache.avro.Schema
-import org.apache.avro.generic.{GenericData, GenericDatumWriter, GenericRecordBuilder}
+import org.apache.avro.generic.{GenericData, GenericDatumWriter}
 import org.apache.avro.io.{BinaryEncoder, EncoderFactory, JsonEncoder}
 import org.apache.kafka.streams.scala.serialization.Serdes
 
@@ -17,19 +17,21 @@ import java.io.ByteArrayOutputStream
 import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
 import scala.jdk.CollectionConverters.{MapHasAsJava, SeqHasAsJava}
-import scala.util.{Failure, Success, Try, Using}
+import scala.util.{Try, Using}
 
 final class PullGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName, pair: AvroSchemaPair)
     extends Serializable {
   private val schema: Schema = pair.consumerSchema
   private val topic: String  = topicName.value
 
+  @transient private val INSTANCE: GenericData = GenericData.get()
+
   @transient private lazy val keyDecode: Array[Byte] => Any =
     pair.key.getType match {
       case Schema.Type.RECORD =>
         val deser = new GenericAvroDeserializer()
         deser.configure(srs.config.asJava, true)
-        (data: Array[Byte]) => deser.deserialize(topic, data)
+        (data: Array[Byte]) => INSTANCE.deepCopy(pair.key, deser.deserialize(topic, data))
       case Schema.Type.STRING =>
         val deser = Serdes.stringSerde.deserializer()
         (data: Array[Byte]) => deser.deserialize(topic, data)
@@ -57,7 +59,7 @@ final class PullGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName,
       case Schema.Type.RECORD =>
         val deser = new GenericAvroDeserializer()
         deser.configure(srs.config.asJava, false)
-        (data: Array[Byte]) => deser.deserialize(topic, data)
+        (data: Array[Byte]) => INSTANCE.deepCopy(pair.value, deser.deserialize(topic, data))
       case Schema.Type.STRING =>
         val deser = Serdes.stringSerde.deserializer()
         (data: Array[Byte]) => deser.deserialize(topic, data)
@@ -96,7 +98,7 @@ final class PullGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName,
     record.put("headers", headers.toList.asJava)
     record.put("key", Try(keyDecode(ccr.key)).getOrElse(null))
     record.put("value", Try(valDecode(ccr.value)).getOrElse(null))
-    new GenericRecordBuilder(record).build()
+    record
   }
 
   def toRecord(ccr: ConsumerRecord[Array[Byte], Array[Byte]]): GenericData.Record =
@@ -105,20 +107,16 @@ final class PullGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName,
   @transient private lazy val datumWriter: GenericDatumWriter[GenericData.Record] =
     new GenericDatumWriter[GenericData.Record](schema)
 
-  def toJacksonString(ccr: KafkaByteConsumerRecord): Either[GenericData.Record, String] = {
-    val gr: GenericData.Record = toRecord(ccr)
+  def toJacksonString(ccr: KafkaByteConsumerRecord): String =
     Using(new ByteArrayOutputStream) { baos =>
-      val encoder: JsonEncoder = EncoderFactory.get().jsonEncoder(schema, baos)
+      val gr: GenericData.Record = toRecord(ccr)
+      val encoder: JsonEncoder   = EncoderFactory.get().jsonEncoder(schema, baos)
       datumWriter.write(gr, encoder)
       encoder.flush()
       baos.toString(StandardCharsets.UTF_8)
-    }(_.close()) match {
-      case Failure(_)     => Left(gr)
-      case Success(value) => Right(value)
-    }
-  }
+    }(_.close()).get
 
-  def toJacksonString(ccr: ConsumerRecord[Array[Byte], Array[Byte]]): Either[GenericData.Record, String] =
+  def toJacksonString(ccr: ConsumerRecord[Array[Byte], Array[Byte]]): String =
     toJacksonString(ccr.transformInto[KafkaByteConsumerRecord])
 
   def toBinAvro(ccr: KafkaByteConsumerRecord): Chunk[Byte] =
@@ -128,10 +126,7 @@ final class PullGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName,
       datumWriter.write(gr, encoder)
       encoder.flush()
       Chunk.from(baos.toByteArray)
-    }(_.close()) match {
-      case Failure(_)     => Chunk.empty[Byte]
-      case Success(value) => value
-    }
+    }(_.close()).get
 
   def toBinAvro(ccr: ConsumerRecord[Array[Byte], Array[Byte]]): Chunk[Byte] =
     toBinAvro(ccr.transformInto[KafkaByteConsumerRecord])
