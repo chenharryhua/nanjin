@@ -17,7 +17,7 @@ import scala.jdk.DurationConverters.ScalaDurationOps
 @JsonCodec
 final case class NJError(message: String, stackTrace: String)
 
-private[guard] object NJError {
+object NJError {
   implicit final val showNJError: Show[NJError] = cats.derived.semiauto.show[NJError]
   def apply(ex: Throwable): NJError =
     NJError(ExceptionUtils.getRootCauseMessage(ex), ExceptionUtils.getStackTrace(ex))
