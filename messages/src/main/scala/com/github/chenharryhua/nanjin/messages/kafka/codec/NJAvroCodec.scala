@@ -15,7 +15,7 @@ final class NJAvroCodec[A] private (
   val schemaFor: SchemaFor[A],
   avroDecoder: AvroDecoder[A],
   avroEncoder: AvroEncoder[A])
-    extends Codec[A] {
+    extends Codec[A] with Serializable {
 
   def idConversion(a: A): A = avroDecoder.decode(avroEncoder.encode(a))
 
@@ -38,7 +38,7 @@ final class NJAvroCodec[A] private (
 
   def withoutNamespace: NJAvroCodec[A]    = withSchema(removeNamespace(schema))
   def withoutDefaultField: NJAvroCodec[A] = withSchema(removeDefaultField(schema))
-  def withoutDoc:NJAvroCodec[A] = withSchema(removeDocField(schema))
+  def withoutDoc: NJAvroCodec[A]          = withSchema(removeDocField(schema))
 }
 
 object NJAvroCodec {

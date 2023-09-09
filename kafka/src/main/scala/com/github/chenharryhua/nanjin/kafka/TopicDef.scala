@@ -22,14 +22,14 @@ final class TopicDef[K, V] private (val topicName: TopicName, val rawSerdes: Raw
   lazy val schemaPair: AvroSchemaPair =
     AvroSchemaPair(rawSerdes.key.avroCodec.schema, rawSerdes.value.avroCodec.schema)
 
-  final class ConsumerFormat(rf: RecordFormat[NJConsumerRecord[K, V]]) {
+  final class ConsumerFormat(rf: RecordFormat[NJConsumerRecord[K, V]]) extends Serializable {
     def toRecord(nj: NJConsumerRecord[K, V]): Record          = rf.to(nj)
     def fromRecord(gr: IndexedRecord): NJConsumerRecord[K, V] = rf.from(gr)
   }
 
   final class ProducerFormat(rf: RecordFormat[NJProducerRecord[K, V]]) extends Serializable {
     def toRecord(nj: NJProducerRecord[K, V]): Record          = rf.to(nj)
-    def toRecord(k: K, v: V): Record                          = rf.to(NJProducerRecord(topicName, k, v))
+    def toRecord(k: K, v: V): Record                          = toRecord(NJProducerRecord(topicName, k, v))
     def fromRecord(gr: IndexedRecord): NJProducerRecord[K, V] = rf.from(gr)
   }
 

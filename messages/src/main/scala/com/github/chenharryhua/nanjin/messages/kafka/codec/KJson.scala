@@ -11,8 +11,6 @@ import org.apache.avro.util.Utf8
 import org.apache.kafka.common.serialization.{Deserializer, Serializer}
 import org.apache.kafka.streams.scala.serialization.Serdes
 
-import java.util
-
 final class KJson[A] private (val value: A) extends Serializable {
   @SuppressWarnings(Array("IsInstanceOf"))
   def canEqual(a: Any): Boolean = a.isInstanceOf[KJson[?]]
@@ -74,12 +72,8 @@ object KJson {
 
       override val serializer: Serializer[KJson[A]] =
         new Serializer[KJson[A]] with Serializable {
-          private val delegate: Serializer[String] = Serdes.stringSerde.serializer()
 
-          override def close(): Unit = delegate.close()
-
-          override def configure(configs: util.Map[String, ?], isKey: Boolean): Unit =
-            delegate.configure(configs, isKey)
+          override def close(): Unit = ()
 
           @SuppressWarnings(Array("AsInstanceOf"))
           override def serialize(topic: String, data: KJson[A]): Array[Byte] = {
@@ -87,24 +81,20 @@ object KJson {
               case None    => null.asInstanceOf[String]
               case Some(_) => avroCodec.encode(data).asInstanceOf[String]
             }
-            delegate.serialize(topic, value)
+            Serdes.stringSerde.serializer().serialize(topic, value)
           }
         }
 
       override val deserializer: Deserializer[KJson[A]] =
         new Deserializer[KJson[A]] with Serializable {
-          private val delegate: Deserializer[String] = Serdes.stringSerde.deserializer()
 
-          override def close(): Unit = delegate.close()
-
-          override def configure(configs: util.Map[String, ?], isKey: Boolean): Unit =
-            delegate.configure(configs, isKey)
+          override def close(): Unit = ()
 
           @SuppressWarnings(Array("AsInstanceOf"))
           override def deserialize(topic: String, data: Array[Byte]): KJson[A] =
             Option(data) match {
               case None     => null.asInstanceOf[KJson[A]]
-              case Some(ab) => avroCodec.decode(delegate.deserialize(topic, ab))
+              case Some(ab) => avroCodec.decode(Serdes.stringSerde.deserializer().deserialize(topic, ab))
             }
         }
 
