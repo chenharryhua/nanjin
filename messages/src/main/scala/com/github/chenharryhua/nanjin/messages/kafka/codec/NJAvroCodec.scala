@@ -38,6 +38,7 @@ final class NJAvroCodec[A] private (
 
   def withoutNamespace: NJAvroCodec[A]    = withSchema(removeNamespace(schema))
   def withoutDefaultField: NJAvroCodec[A] = withSchema(removeDefaultField(schema))
+  def withoutDoc:NJAvroCodec[A] = withSchema(removeDocField(schema))
 }
 
 object NJAvroCodec {

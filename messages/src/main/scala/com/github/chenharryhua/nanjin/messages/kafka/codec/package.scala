@@ -36,10 +36,40 @@ package object codec {
       .getOrElse(schema)
   }
 
+  /** remove namespace field from the schema
+    *
+    * @param schema
+    *   input schema
+    * @return
+    *   schema without namespace
+    */
   def removeNamespace(schema: Schema): Schema = {
     val remove: Json => Json = Plated.transform[Json] { js =>
       js.asObject match {
         case Some(value) => value.toJson.hcursor.downField("namespace").delete.top.getOrElse(js)
+        case None        => js
+      }
+    }
+
+    parser
+      .parse(schema.toString(false))
+      .toOption
+      .map(remove)
+      .map(js => (new Schema.Parser).parse(js.noSpaces))
+      .getOrElse(schema)
+  }
+
+  /** remove doc field from the schema
+    *
+    * @param schema
+    *   input schema
+    * @return
+    *   schema without doc
+    */
+  def removeDocField(schema: Schema): Schema = {
+    val remove: Json => Json = Plated.transform[Json] { js =>
+      js.asObject match {
+        case Some(value) => value.toJson.hcursor.downField("doc").delete.top.getOrElse(js)
         case None        => js
       }
     }

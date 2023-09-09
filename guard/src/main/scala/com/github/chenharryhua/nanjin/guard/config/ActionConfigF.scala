@@ -16,7 +16,7 @@ final case class ActionParams (
   retryPolicy: String, // for display
   serviceParams: ServiceParams)
 
-private object ActionParams {
+object ActionParams {
   implicit val showActionParams: Show[ActionParams] = cats.derived.semiauto.show
 
   def apply(

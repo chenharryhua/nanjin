@@ -60,7 +60,7 @@ final case class ServiceParams(
   def zonedNow[F[_]: Clock: Functor]: F[ZonedDateTime] = Clock[F].realTimeInstant.map(toZonedDateTime)
 }
 
-private object ServiceParams extends zoneddatetime with duration {
+object ServiceParams extends zoneddatetime with duration {
 
   implicit val showServiceParams: Show[ServiceParams] = cats.derived.semiauto.show[ServiceParams]
 
