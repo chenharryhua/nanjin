@@ -9,27 +9,39 @@ import fs2.kafka.{ConsumerRecord, KafkaByteConsumerRecord}
 import io.confluent.kafka.streams.serdes.avro.GenericAvroDeserializer
 import io.scalaland.chimney.dsl.TransformerOps
 import org.apache.avro.Schema
-import org.apache.avro.generic.{GenericData, GenericDatumWriter}
-import org.apache.avro.io.{BinaryEncoder, EncoderFactory, JsonEncoder}
+import org.apache.avro.generic.{GenericData, GenericDatumReader, GenericDatumWriter, GenericRecord}
+import org.apache.avro.io.{BinaryEncoder, DecoderFactory, EncoderFactory, JsonEncoder}
 import org.apache.kafka.streams.scala.serialization.Serdes
 
 import java.io.ByteArrayOutputStream
 import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
 import scala.jdk.CollectionConverters.{MapHasAsJava, SeqHasAsJava}
-import scala.util.{Try, Using}
+import scala.util.Using
 
 final class PullGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName, pair: AvroSchemaPair)
     extends Serializable {
   private val schema: Schema = pair.consumerSchema
   private val topic: String  = topicName.value
 
+  private def reSchema(latest: Schema, gr: GenericRecord): GenericRecord = {
+    val reader = new GenericDatumReader[GenericRecord](gr.getSchema, latest)
+    val writer = new GenericDatumWriter[GenericRecord](gr.getSchema)
+    Using(new ByteArrayOutputStream()) { baos =>
+      val encoder = EncoderFactory.get().binaryEncoder(baos, null)
+      writer.write(gr, encoder)
+      encoder.flush()
+      val decoder = DecoderFactory.get().binaryDecoder(baos.toByteArray, null)
+      reader.read(null, decoder)
+    }(_.close()).getOrElse(null)
+  }
+
   @transient private lazy val keyDecode: Array[Byte] => Any =
     pair.key.getType match {
       case Schema.Type.RECORD =>
         val deser = new GenericAvroDeserializer()
         deser.configure(srs.config.asJava, true)
-        (data: Array[Byte]) => GenericData.get().deepCopy(pair.key, deser.deserialize(topic, data))
+        (data: Array[Byte]) => reSchema(pair.key, deser.deserialize(topic, data))
       case Schema.Type.STRING =>
         val deser = Serdes.stringSerde.deserializer()
         (data: Array[Byte]) => deser.deserialize(topic, data)
@@ -57,7 +69,7 @@ final class PullGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName,
       case Schema.Type.RECORD =>
         val deser = new GenericAvroDeserializer()
         deser.configure(srs.config.asJava, false)
-        (data: Array[Byte]) => GenericData.get().deepCopy(pair.value, deser.deserialize(topic, data))
+        (data: Array[Byte]) => reSchema(pair.value, deser.deserialize(topic, data))
       case Schema.Type.STRING =>
         val deser = Serdes.stringSerde.deserializer()
         (data: Array[Byte]) => deser.deserialize(topic, data)
@@ -94,8 +106,8 @@ final class PullGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName,
     record.put("timestamp", ccr.timestamp())
     record.put("timestampType", ccr.timestampType().id)
     record.put("headers", headers.toList.asJava)
-    record.put("key", Try(keyDecode(ccr.key)).getOrElse(null))
-    record.put("value", Try(valDecode(ccr.value)).getOrElse(null))
+    record.put("key", keyDecode(ccr.key))
+    record.put("value", valDecode(ccr.value))
     record
   }
 
