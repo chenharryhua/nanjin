@@ -24,24 +24,24 @@ final class PullGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName,
   private val schema: Schema = pair.consumerSchema
   private val topic: String  = topicName.value
 
-  private def reSchema(latest: Schema, gr: GenericRecord): GenericRecord = {
-    val reader = new GenericDatumReader[GenericRecord](gr.getSchema, latest)
-    val writer = new GenericDatumWriter[GenericRecord](gr.getSchema)
+  private def reshape(latest: Schema, getGenericRecord: => GenericRecord): GenericRecord =
     Using(new ByteArrayOutputStream()) { baos =>
+      val gr: GenericRecord = getGenericRecord
+
       val encoder = EncoderFactory.get().binaryEncoder(baos, null)
-      writer.write(gr, encoder)
+      new GenericDatumWriter[GenericRecord](gr.getSchema).write(gr, encoder)
       encoder.flush()
+
       val decoder = DecoderFactory.get().binaryDecoder(baos.toByteArray, null)
-      reader.read(null, decoder)
+      new GenericDatumReader[GenericRecord](gr.getSchema, latest).read(null, decoder)
     }(_.close()).getOrElse(null)
-  }
 
   @transient private lazy val keyDecode: Array[Byte] => Any =
     pair.key.getType match {
       case Schema.Type.RECORD =>
         val deser = new GenericAvroDeserializer()
         deser.configure(srs.config.asJava, true)
-        (data: Array[Byte]) => reSchema(pair.key, deser.deserialize(topic, data))
+        (data: Array[Byte]) => reshape(pair.key, deser.deserialize(topic, data))
       case Schema.Type.STRING =>
         val deser = Serdes.stringSerde.deserializer()
         (data: Array[Byte]) => deser.deserialize(topic, data)
@@ -69,7 +69,7 @@ final class PullGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName,
       case Schema.Type.RECORD =>
         val deser = new GenericAvroDeserializer()
         deser.configure(srs.config.asJava, false)
-        (data: Array[Byte]) => reSchema(pair.value, deser.deserialize(topic, data))
+        (data: Array[Byte]) => reshape(pair.value, deser.deserialize(topic, data))
       case Schema.Type.STRING =>
         val deser = Serdes.stringSerde.deserializer()
         (data: Array[Byte]) => deser.deserialize(topic, data)
