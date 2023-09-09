@@ -17,14 +17,14 @@ import java.io.ByteArrayOutputStream
 import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
 import scala.jdk.CollectionConverters.{MapHasAsJava, SeqHasAsJava}
-import scala.util.Using
+import scala.util.{Try, Using}
 
 final class PullGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName, pair: AvroSchemaPair)
     extends Serializable {
   private val schema: Schema = pair.consumerSchema
   private val topic: String  = topicName.value
 
-  private def reshape(latest: Schema, getGenericRecord: => GenericRecord): GenericRecord =
+  private def reshape(latest: Schema, getGenericRecord: => GenericRecord): Try[GenericRecord] =
     Using(new ByteArrayOutputStream()) { baos =>
       val gr: GenericRecord = getGenericRecord
 
@@ -34,9 +34,9 @@ final class PullGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName,
 
       val decoder = DecoderFactory.get().binaryDecoder(baos.toByteArray, null)
       new GenericDatumReader[GenericRecord](gr.getSchema, latest).read(null, decoder)
-    }(_.close()).getOrElse(null)
+    }(_.close())
 
-  @transient private lazy val keyDecode: Array[Byte] => Any =
+  @transient private lazy val keyDecode: Array[Byte] => Try[Any] =
     pair.key.getType match {
       case Schema.Type.RECORD =>
         val deser = new GenericAvroDeserializer()
@@ -44,27 +44,27 @@ final class PullGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName,
         (data: Array[Byte]) => reshape(pair.key, deser.deserialize(topic, data))
       case Schema.Type.STRING =>
         val deser = Serdes.stringSerde.deserializer()
-        (data: Array[Byte]) => deser.deserialize(topic, data)
+        (data: Array[Byte]) => Try(deser.deserialize(topic, data))
       case Schema.Type.INT =>
         val deser = Serdes.intSerde.deserializer()
-        (data: Array[Byte]) => deser.deserialize(topic, data)
+        (data: Array[Byte]) => Try(deser.deserialize(topic, data))
       case Schema.Type.LONG =>
         val deser = Serdes.longSerde.deserializer()
-        (data: Array[Byte]) => deser.deserialize(topic, data)
+        (data: Array[Byte]) => Try(deser.deserialize(topic, data))
       case Schema.Type.FLOAT =>
         val keyDeser = Serdes.floatSerde.deserializer()
-        (data: Array[Byte]) => keyDeser.deserialize(topic, data)
+        (data: Array[Byte]) => Try(keyDeser.deserialize(topic, data))
       case Schema.Type.DOUBLE =>
         val deser = Serdes.doubleSerde.deserializer()
-        (data: Array[Byte]) => deser.deserialize(topic, data)
+        (data: Array[Byte]) => Try(deser.deserialize(topic, data))
       case Schema.Type.BYTES =>
         val deser = Serdes.byteArraySerde.deserializer()
-        (data: Array[Byte]) => deser.deserialize(topic, data)
+        (data: Array[Byte]) => Try(deser.deserialize(topic, data))
 
       case _ => throw new Exception(s"unsupported key schema ${pair.key}")
     }
 
-  @transient private lazy val valDecode: Array[Byte] => Any =
+  @transient private lazy val valDecode: Array[Byte] => Try[Any] =
     pair.value.getType match {
       case Schema.Type.RECORD =>
         val deser = new GenericAvroDeserializer()
@@ -72,22 +72,22 @@ final class PullGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName,
         (data: Array[Byte]) => reshape(pair.value, deser.deserialize(topic, data))
       case Schema.Type.STRING =>
         val deser = Serdes.stringSerde.deserializer()
-        (data: Array[Byte]) => deser.deserialize(topic, data)
+        (data: Array[Byte]) => Try(deser.deserialize(topic, data))
       case Schema.Type.INT =>
         val deser = Serdes.intSerde.deserializer()
-        (data: Array[Byte]) => deser.deserialize(topic, data)
+        (data: Array[Byte]) => Try(deser.deserialize(topic, data))
       case Schema.Type.LONG =>
         val deser = Serdes.longSerde.deserializer()
-        (data: Array[Byte]) => deser.deserialize(topic, data)
+        (data: Array[Byte]) => Try(deser.deserialize(topic, data))
       case Schema.Type.FLOAT =>
         val deser = Serdes.floatSerde.deserializer()
-        (data: Array[Byte]) => deser.deserialize(topic, data)
+        (data: Array[Byte]) => Try(deser.deserialize(topic, data))
       case Schema.Type.DOUBLE =>
         val deser = Serdes.doubleSerde.deserializer()
-        (data: Array[Byte]) => deser.deserialize(topic, data)
+        (data: Array[Byte]) => Try(deser.deserialize(topic, data))
       case Schema.Type.BYTES =>
         val deser = Serdes.byteArraySerde.deserializer()
-        (data: Array[Byte]) => deser.deserialize(topic, data)
+        (data: Array[Byte]) => Try(deser.deserialize(topic, data))
 
       case _ => throw new Exception(s"unsupported value schema ${pair.value}")
     }
@@ -106,8 +106,8 @@ final class PullGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName,
     record.put("timestamp", ccr.timestamp())
     record.put("timestampType", ccr.timestampType().id)
     record.put("headers", headers.toList.asJava)
-    record.put("key", keyDecode(ccr.key))
-    record.put("value", valDecode(ccr.value))
+    record.put("key", keyDecode(ccr.key).getOrElse(null))
+    record.put("value", valDecode(ccr.value).getOrElse(null))
     record
   }
 
