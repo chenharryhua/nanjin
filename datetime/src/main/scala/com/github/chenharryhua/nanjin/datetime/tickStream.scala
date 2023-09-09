@@ -36,7 +36,7 @@ object tickStream {
     *   sleep duration of this tick
     */
   @JsonCodec
-  final case class Tick private[tickStream] (
+  final case class Tick(
     streamId: UUID,
     previous: Instant,
     timestamp: Instant,

@@ -17,7 +17,8 @@ import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.FiniteDuration
 import scala.jdk.DurationConverters.ScalaDurationOps
 
-@JsonCodec final case class MetricParams(
+@JsonCodec
+final case class MetricParams(
   reportSchedule: Option[CronExpr],
   resetSchedule: Option[CronExpr],
   namePrefix: String,
@@ -34,7 +35,8 @@ object MetricParams {
   implicit val showMetricParams: Show[MetricParams] = cats.derived.semiauto.show[MetricParams]
 }
 
-@JsonCodec final case class ServiceParams(
+@JsonCodec
+final case class ServiceParams(
   serviceName: String,
   serviceId: UUID,
   launchTime: ZonedDateTime,
@@ -126,7 +128,7 @@ private object ServiceConfigF {
     }
 }
 
-final case class ServiceConfig private (private val cont: Fix[ServiceConfigF]) {
+final case class ServiceConfig(cont: Fix[ServiceConfigF]) extends AnyVal {
   import ServiceConfigF.*
 
   // metrics
@@ -169,7 +171,7 @@ final case class ServiceConfig private (private val cont: Fix[ServiceConfigF]) {
     scheme.cata(algebra(serviceName, serviceId, launchTime, policy, brief)).apply(cont)
 }
 
-private[guard] object ServiceConfig {
+object ServiceConfig {
 
   def apply(taskParams: TaskParams): ServiceConfig =
     new ServiceConfig(Fix(ServiceConfigF.InitParams[Fix[ServiceConfigF]](taskParams)))

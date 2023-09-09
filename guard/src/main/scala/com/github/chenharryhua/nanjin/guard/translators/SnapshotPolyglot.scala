@@ -1,13 +1,23 @@
 package com.github.chenharryhua.nanjin.guard.translators
 
 import cats.data.NonEmptyList
+import com.github.chenharryhua.nanjin.common.optics.jsonPlated
 import com.github.chenharryhua.nanjin.guard.config.{MetricID, MetricParams}
 import com.github.chenharryhua.nanjin.guard.event.MetricSnapshot
 import io.circe.syntax.EncoderOps
 import io.circe.{Json, Printer}
+import monocle.function.Plated
+
+import java.text.DecimalFormat
 
 final class SnapshotPolyglot(snapshot: MetricSnapshot, mp: MetricParams) {
-
+  private val decFmt: DecimalFormat = new DecimalFormat("#,###")
+  private val prettyNumber: Json => Json = Plated.transform[Json] { js =>
+    js.asNumber match {
+      case Some(value) => Json.fromString(decFmt.format(value.toDouble))
+      case None        => js
+    }
+  }
   private val rateUnit: String           = mp.rateUnitName
   private def convert(d: Double): String = decFmt.format(mp.rateConversion(d))
 

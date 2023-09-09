@@ -17,11 +17,27 @@ final case class KvSchemaMetadata(key: SchemaMetadata, value: SchemaMetadata)
 
 final class SchemaRegistryApi[F[_]](client: CachedSchemaRegistryClient) extends Serializable {
 
+  private def enhanceException[A](topicName: TopicName)(
+    throwable: Either[Throwable, A]): Either[Exception, A] =
+    throwable.leftMap { err =>
+      val ex = new Exception(topicName.value)
+      ex.addSuppressed(err)
+      ex
+    }
+
   def metaData(topicName: TopicName)(implicit F: Sync[F]): F[KvSchemaMetadata] = {
     val loc = SchemaLocation(topicName)
     for {
-      key <- F.blocking(client.getLatestSchemaMetadata(loc.keyLoc))
-      value <- F.blocking(client.getLatestSchemaMetadata(loc.valLoc))
+      key <- F
+        .blocking(client.getLatestSchemaMetadata(loc.keyLoc))
+        .attempt
+        .map(enhanceException(topicName))
+        .rethrow
+      value <- F
+        .blocking(client.getLatestSchemaMetadata(loc.valLoc))
+        .attempt
+        .map(enhanceException(topicName))
+        .rethrow
     } yield KvSchemaMetadata(key, value)
   }
 
@@ -34,17 +50,25 @@ final class SchemaRegistryApi[F[_]](client: CachedSchemaRegistryClient) extends 
             AvroSchemaPair(
               new AvroSchema(mkv.key.getSchema).rawSchema(),
               new AvroSchema(mkv.value.getSchema).rawSchema()))
-        case (false, true)  => F.raiseError(new Exception("key is not AVRO"))
-        case (true, false)  => F.raiseError(new Exception("value is not AVRO"))
-        case (false, false) => F.raiseError(new Exception("both key and value are not AVRO"))
+        case (false, true)  => F.raiseError(new Exception(s"$topicName key is not AVRO"))
+        case (true, false)  => F.raiseError(new Exception(s"$topicName value is not AVRO"))
+        case (false, false) => F.raiseError(new Exception(s"$topicName both key and value are not AVRO"))
       }
     } yield skv
 
   def register(topicName: TopicName, pair: AvroSchemaPair)(implicit F: Sync[F]): F[(Int, Int)] = {
     val loc = SchemaLocation(topicName)
     for {
-      k <- F.blocking(client.register(loc.keyLoc, new AvroSchema(pair.key)))
-      v <- F.blocking(client.register(loc.valLoc, new AvroSchema(pair.value)))
+      k <- F
+        .blocking(client.register(loc.keyLoc, new AvroSchema(pair.key)))
+        .attempt
+        .map(enhanceException(topicName))
+        .rethrow
+      v <- F
+        .blocking(client.register(loc.valLoc, new AvroSchema(pair.value)))
+        .attempt
+        .map(enhanceException(topicName))
+        .rethrow
     } yield (k, v)
   }
 
@@ -54,8 +78,16 @@ final class SchemaRegistryApi[F[_]](client: CachedSchemaRegistryClient) extends 
   def delete(topicName: TopicName)(implicit F: Sync[F]): F[(List[Integer], List[Integer])] = {
     val loc = SchemaLocation(topicName)
     for {
-      k <- F.blocking(client.deleteSubject(loc.keyLoc).asScala.toList)
-      v <- F.blocking(client.deleteSubject(loc.valLoc).asScala.toList)
+      k <- F
+        .blocking(client.deleteSubject(loc.keyLoc).asScala.toList)
+        .attempt
+        .map(enhanceException(topicName))
+        .rethrow
+      v <- F
+        .blocking(client.deleteSubject(loc.valLoc).asScala.toList)
+        .attempt
+        .map(enhanceException(topicName))
+        .rethrow
     } yield (k, v)
   }
 }

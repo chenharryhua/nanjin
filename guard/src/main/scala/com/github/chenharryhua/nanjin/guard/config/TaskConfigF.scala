@@ -10,7 +10,8 @@ import org.typelevel.cats.time.instances.zoneid
 
 import java.time.ZoneId
 
-@JsonCodec final case class TaskParams(taskName: String, zoneId: ZoneId, hostName: HostName)
+@JsonCodec
+final case class TaskParams(taskName: String, zoneId: ZoneId, hostName: HostName)
 
 object TaskParams extends zoneid {
   implicit val showTaskParams: Show[TaskParams] = cats.derived.semiauto.show[TaskParams]
@@ -33,7 +34,7 @@ private object TaskConfigF {
     }
 }
 
-final case class TaskConfig private (private val cont: Fix[TaskConfigF]) {
+final case class TaskConfig(cont: Fix[TaskConfigF]) extends AnyVal {
   import TaskConfigF.*
 
   def withZoneId(zoneId: ZoneId): TaskConfig       = TaskConfig(Fix(WithZoneId(zoneId, cont)))
@@ -42,7 +43,7 @@ final case class TaskConfig private (private val cont: Fix[TaskConfigF]) {
   def evalConfig: TaskParams = scheme.cata(algebra).apply(cont)
 }
 
-private[guard] object TaskConfig {
+object TaskConfig {
 
   def apply(taskName: String): TaskConfig =
     new TaskConfig(Fix(TaskConfigF.InitParams[Fix[TaskConfigF]](taskName)))

@@ -74,7 +74,7 @@ object Category {
 }
 
 @JsonCodec
-final case class MetricName private (value: String, digest: String, measurement: String)
+final case class MetricName(value: String, digest: String, measurement: String)
 object MetricName {
   implicit val showMetricName: Show[MetricName] = cats.derived.semiauto.show
   implicit val orderingMetricName: Ordering[MetricName] =

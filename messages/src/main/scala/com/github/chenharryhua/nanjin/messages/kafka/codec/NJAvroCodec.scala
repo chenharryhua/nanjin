@@ -10,14 +10,12 @@ import com.sksamuel.avro4s.{
 }
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.string.MatchesRegex
-import io.circe.parser
 import org.apache.avro.Schema
-
 final class NJAvroCodec[A] private (
   val schemaFor: SchemaFor[A],
   avroDecoder: AvroDecoder[A],
   avroEncoder: AvroEncoder[A])
-    extends Codec[A] {
+    extends Codec[A] with Serializable {
 
   def idConversion(a: A): A = avroDecoder.decode(avroEncoder.encode(a))
 
@@ -36,21 +34,11 @@ final class NJAvroCodec[A] private (
     */
   private type Namespace = MatchesRegex["^[a-zA-Z0-9_.]+$"]
   def withNamespace(namespace: String Refined Namespace): NJAvroCodec[A] =
-    parser
-      .parse(schema.toString(false))
-      .toOption
-      .flatMap(_.hcursor.downField("namespace").withFocus(_.mapString(_ => namespace.value)).top)
-      .map(json => withSchema((new Schema.Parser).parse(json.noSpaces)))
-      .getOrElse(this)
+    withSchema(replaceNamespace(schema, namespace.value))
 
-  def withoutNamespace: NJAvroCodec[A] =
-    parser
-      .parse(schema.toString(false))
-      .toOption
-      .flatMap(_.hcursor.downField("namespace").delete.top)
-      .map(json => withSchema((new Schema.Parser).parse(json.noSpaces)))
-      .getOrElse(this)
-
+  def withoutNamespace: NJAvroCodec[A]    = withSchema(removeNamespace(schema))
+  def withoutDefaultField: NJAvroCodec[A] = withSchema(removeDefaultField(schema))
+  def withoutDoc: NJAvroCodec[A]          = withSchema(removeDocField(schema))
 }
 
 object NJAvroCodec {

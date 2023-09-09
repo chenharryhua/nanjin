@@ -95,9 +95,8 @@ final case class Disorder(
 
 final case class DuplicateRecord(partition: Int, offset: Long, num: Long)
 
-final class Statistics[F[_]] private[kafka] (fds: F[Dataset[CRMetaInfo]])(implicit F: Sync[F])
+final class Statistics[F[_]] private[spark] (fds: F[Dataset[CRMetaInfo]])(implicit F: Sync[F])
     extends Serializable {
-  // private val zoneId: ZoneId = ZoneId.of(fds.sparkSession.conf.get(SPARK_ZONE_ID))
 
   def minutely: F[List[MinutelyAggResult]] = F.flatMap(fds) { ds =>
     import ds.sparkSession.implicits.*

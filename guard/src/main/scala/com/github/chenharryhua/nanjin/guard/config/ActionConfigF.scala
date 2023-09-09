@@ -7,7 +7,7 @@ import io.circe.generic.JsonCodec
 import monocle.syntax.all.*
 
 @JsonCodec
-final case class ActionParams(
+final case class ActionParams (
   metricId: MetricID,
   importance: Importance,
   publishStrategy: PublishStrategy,
@@ -62,7 +62,7 @@ private object ActionConfigF {
     }
 }
 
-final case class ActionConfig private (private val cont: Fix[ActionConfigF]) {
+final case class ActionConfig(cont: Fix[ActionConfigF]) extends AnyVal {
   import ActionConfigF.*
 
   def notice: ActionConfig = ActionConfig(Fix(WithPublishStrategy(PublishStrategy.Notice, cont)))
@@ -83,7 +83,7 @@ final case class ActionConfig private (private val cont: Fix[ActionConfigF]) {
     scheme.cata(algebra(actionName, measurement, retryPolicy)).apply(cont)
 }
 
-private[guard] object ActionConfig {
+object ActionConfig {
 
   def apply(serviceParams: ServiceParams): ActionConfig =
     ActionConfig(Fix(ActionConfigF.InitParams[Fix[ActionConfigF]](serviceParams)))

@@ -8,12 +8,12 @@ import cats.implicits.toShow
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameL}
 import com.github.chenharryhua.nanjin.kafka.streaming.{KafkaStreamsBuilder, NJStateStore}
-import com.github.chenharryhua.nanjin.messages.kafka.codec.{NJAvroCodec, SerdeOf}
+import com.github.chenharryhua.nanjin.messages.kafka.codec.{KJson, NJAvroCodec, SerdeOf}
 import fs2.Stream
 import fs2.kafka.*
+import io.circe.Json
 import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient
 import io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig
-import org.apache.avro.generic.GenericData
 import org.apache.kafka.common.serialization.Serde
 import org.apache.kafka.streams.scala.StreamsBuilder
 
@@ -42,6 +42,12 @@ final class KafkaContext[F[_]](val settings: KafkaSettings)
   def topic[K: SerdeOf, V: SerdeOf](topicName: TopicNameL): KafkaTopic[F, K, V] =
     topic[K, V](TopicName(topicName))
 
+  def jsonTopic(topicName: TopicName): KafkaTopic[F, KJson[Json], KJson[Json]] =
+    topic[KJson[Json], KJson[Json]](topicName)
+
+  def jsonTopic(topicName: TopicNameL): KafkaTopic[F, KJson[Json], KJson[Json]] =
+    topic[KJson[Json], KJson[Json]](TopicName(topicName))
+
   @transient lazy val schemaRegistry: SchemaRegistryApi[F] = {
     val url_config = AbstractKafkaSchemaSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG
     val url = settings.schemaRegistrySettings.config.get(url_config) match {
@@ -68,9 +74,7 @@ final class KafkaContext[F[_]](val settings: KafkaSettings)
   def consume(topicName: TopicNameL)(implicit F: Sync[F]): NJKafkaByteConsume[F] =
     consume(TopicName(topicName))
 
-  def monitor(topicName: TopicName)(implicit
-    F: Async[F],
-    U: UUIDGen[F]): Stream[F, Either[GenericData.Record, String]] =
+  def monitor(topicName: TopicName)(implicit F: Async[F], U: UUIDGen[F]): Stream[F, String] =
     Stream.eval(U.randomUUID).flatMap { uuid =>
       consume(topicName)
         .updateConfig( // avoid accidentally join an existing consumer-group
@@ -79,7 +83,7 @@ final class KafkaContext[F[_]](val settings: KafkaSettings)
         .map(_.record.value)
     }
 
-  def monitor(topicName: TopicNameL)(implicit F: Async[F]): Stream[F, Either[GenericData.Record, String]] =
+  def monitor(topicName: TopicNameL)(implicit F: Async[F]): Stream[F, String] =
     monitor(TopicName(topicName))
 
   def sink(topicName: TopicName)(implicit F: Sync[F]): NJGenericRecordSink[F] =

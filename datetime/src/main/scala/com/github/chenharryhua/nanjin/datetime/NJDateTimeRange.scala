@@ -13,7 +13,7 @@ import java.time.*
 import scala.concurrent.duration.FiniteDuration
 
 // lazy range
-@Lenses final case class NJDateTimeRange private (
+@Lenses final case class NJDateTimeRange(
   private val start: Option[NJDateTimeRange.TimeTypes],
   private val end: Option[NJDateTimeRange.TimeTypes],
   zoneId: ZoneId) {

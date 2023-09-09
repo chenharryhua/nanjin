@@ -35,7 +35,7 @@ final case class SchemaRegistrySettings(config: Map[String, String]) {
     copy(config = config.updatedWith(key)(_ => Some(value)))
 }
 
-final case class KafkaSettings private (
+final case class KafkaSettings(
   zoneId: ZoneId,
   consumerSettings: KafkaConsumerSettings,
   producerSettings: KafkaProducerSettings,
