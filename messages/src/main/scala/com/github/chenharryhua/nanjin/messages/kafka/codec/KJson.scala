@@ -46,7 +46,11 @@ object KJson {
   }
 
   implicit def avroKJsonCodec[A: JsonEncoder: JsonDecoder]: Codec[KJson[A]] = new Codec[KJson[A]] {
-    override def encode(value: KJson[A]): String = value.value.asJson.noSpaces
+    override def encode(value: KJson[A]): String =
+      Option(value).flatMap(v => Option(v.value)) match {
+        case Some(value) => value.asJson.noSpaces
+        case None        => null
+      }
 
     override def decode(value: Any): KJson[A] = value match {
       case str: String =>
@@ -59,7 +63,8 @@ object KJson {
           case Right(r) => r
           case Left(ex) => throw ex
         }
-      case ex => sys.error(s"${ex.getClass} is not a string: $ex")
+      case null => null
+      case ex   => sys.error(s"${ex.getClass} is not a string: $ex")
     }
 
     override def schemaFor: SchemaFor[KJson[A]] = SchemaFor[KJson[A]]
@@ -76,13 +81,8 @@ object KJson {
           override def close(): Unit = ()
 
           @SuppressWarnings(Array("AsInstanceOf"))
-          override def serialize(topic: String, data: KJson[A]): Array[Byte] = {
-            val value: String = Option(data).flatMap(v => Option(v.value)) match {
-              case None    => null.asInstanceOf[String]
-              case Some(_) => avroCodec.encode(data).asInstanceOf[String]
-            }
-            Serdes.stringSerde.serializer().serialize(topic, value)
-          }
+          override def serialize(topic: String, data: KJson[A]): Array[Byte] =
+            Serdes.stringSerde.serializer().serialize(topic, avroCodec.encode(data).asInstanceOf[String])
         }
 
       override val deserializer: Deserializer[KJson[A]] =
@@ -92,12 +92,8 @@ object KJson {
 
           @SuppressWarnings(Array("AsInstanceOf"))
           override def deserialize(topic: String, data: Array[Byte]): KJson[A] =
-            Option(data) match {
-              case None     => null.asInstanceOf[KJson[A]]
-              case Some(ab) => avroCodec.decode(Serdes.stringSerde.deserializer().deserialize(topic, ab))
-            }
+            avroCodec.decode(Serdes.stringSerde.deserializer().deserialize(topic, data))
         }
-
     }
 
   implicit val distributiveKJson: Distributive[KJson] = new Distributive[KJson] {

@@ -3,14 +3,12 @@ package mtest.spark.kafka
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
-import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
-import com.github.chenharryhua.nanjin.datetime.zones.sydneyTime
 import com.github.chenharryhua.nanjin.kafka.TopicDef
 import com.github.chenharryhua.nanjin.messages.kafka.codec.GRCodec
 import com.github.chenharryhua.nanjin.terminals.NJPath
-import com.sksamuel.avro4s.Record
 import eu.timepit.refined.auto.*
 import fs2.Stream
+import fs2.kafka.ProducerRecord
 import org.apache.avro.Schema
 import org.apache.avro.generic.{GenericData, GenericRecord}
 import org.scalatest.funsuite.AnyFunSuite
@@ -30,49 +28,40 @@ class PushPullGRTest extends AnyFunSuite {
   val baseTopic: TopicDef[Int, GenericRecord] =
     TopicDef[Int, GenericRecord](topicName, GRCodec(base))
 
-  val baseData: Stream[IO, Record] = Stream
+  val baseData: Stream[IO, ProducerRecord[Int, GenericRecord]] = Stream
     .range(0, 10)
     .map { a =>
       val record = new GenericData.Record(base)
       record.put("a", a)
-      baseTopic.producerFormat.toRecord(a, record)
+      baseTopic.producerRecord(a, record)
     }
     .covary[IO]
 
   val evolveTopic: TopicDef[Int, GenericRecord] =
     TopicDef[Int, GenericRecord](topicName, GRCodec(evolve))
 
-  val evolveData: Stream[IO, Record] = Stream
+  val evolveData: Stream[IO, ProducerRecord[Int, GenericRecord]] = Stream
     .range(10, 20)
     .map { a =>
       val record = new GenericData.Record(evolve)
       record.put("a", a)
       record.put("b", "b")
-      evolveTopic.producerFormat.toRecord(a, record)
+      evolveTopic.producerRecord(a, record)
     }
     .covary[IO]
 
   test("push - pull - base") {
-    val sink = ctx.sink(topicName).build
-    val run =
-      ctx.schemaRegistry.register(baseTopic) >> (baseData ++ evolveData).chunks.through(sink).compile.drain >>
-        ctx.schemaRegistry.fetchAvroSchema(topicName).map(_.value).flatMap(IO.println)
-
-    run.unsafeRunSync()
-    sparKafka.dump(topicName, root / "base", NJDateTimeRange(sydneyTime)).unsafeRunSync()
+    val sink = ctx.topic(baseTopic).produce.pipe
+    (baseData ++ evolveData).chunks.through(sink).compile.drain.unsafeRunSync()
+    sparKafka.topic(baseTopic).fromKafka.output.jackson(root / "base").run.unsafeRunSync()
 
   }
 
   test("push - pull - evolve") {
-    val sink = ctx.sink(topicName).build
+    val sink = ctx.topic(evolveTopic).produce.pipe
 
-    val run =
-      ctx.schemaRegistry.register(evolveTopic) >>
-        (baseData ++ evolveData).chunks.through(sink).compile.drain >>
-        ctx.schemaRegistry.fetchAvroSchema(topicName).map(_.value).flatMap(IO.println)
-
-    run.unsafeRunSync()
-    sparKafka.dump(topicName, root / "evolve", NJDateTimeRange(sydneyTime)).unsafeRunSync()
+    (baseData ++ evolveData).chunks.through(sink).compile.drain.unsafeRunSync()
+    sparKafka.topic(evolveTopic).fromKafka.output.jackson(root / "evolve").run.unsafeRunSync()
   }
 
 }

@@ -35,13 +35,16 @@ object GRCodec {
     }
 
     val encoder: Encoder[GenericRecord] = new Encoder[GenericRecord] {
-      override def encode(value: GenericRecord): GenericRecord = reshape(skm, value).get
-      override def schemaFor: SchemaFor[GenericRecord]         = skmFor
+      override def encode(value: GenericRecord): AnyRef =
+        if (value == null) null else reshape(skm, value).get
+        
+      override def schemaFor: SchemaFor[GenericRecord] = skmFor
     }
 
     val decoder: Decoder[GenericRecord] = new Decoder[GenericRecord] {
       override def decode(value: Any): GenericRecord = value match {
         case gr: GenericRecord => reshape(skm, gr).get
+        case null              => null
         case other             => sys.error(s"$other is not a generic record")
       }
 

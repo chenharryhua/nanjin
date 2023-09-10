@@ -31,7 +31,7 @@ final class PullGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName,
         val deser = new GenericAvroDeserializer()
         deser.configure(srs.config.asJava, true)
         val codec: NJAvroCodec[GenericRecord] = GRCodec(pair.key)
-        (data: Array[Byte]) => codec.decode(deser.deserialize(topic, data))
+        (data: Array[Byte]) => codec.encode(deser.deserialize(topic, data))
       case Schema.Type.STRING =>
         val deser = Serdes.stringSerde.deserializer()
         (data: Array[Byte]) => deser.deserialize(topic, data)
@@ -60,7 +60,7 @@ final class PullGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName,
         val deser = new GenericAvroDeserializer()
         deser.configure(srs.config.asJava, false)
         val codec: NJAvroCodec[GenericRecord] = GRCodec(pair.value)
-        (data: Array[Byte]) => codec.decode(deser.deserialize(topic, data))
+        (data: Array[Byte]) => codec.encode(deser.deserialize(topic, data))
       case Schema.Type.STRING =>
         val deser = Serdes.stringSerde.deserializer()
         (data: Array[Byte]) => deser.deserialize(topic, data)

@@ -68,6 +68,21 @@ object KPB {
 
   implicit def kpbSerde[A <: GeneratedMessage](implicit ev: GeneratedMessageCompanion[A]): SerdeOf[KPB[A]] =
     new SerdeOf[KPB[A]] {
+      override val avroCodec: NJAvroCodec[KPB[A]] = {
+        val kpbCodec: Codec[KPB[A]] = new Codec[KPB[A]] {
+          override def decode(value: Any): KPB[A] = value match {
+            case ab: Array[Byte] => KPB(ev.parseFrom(ab))
+            case null => null
+            case ex => sys.error(s"${ex.getClass} is not a Array[Byte] ${ex.toString}")
+          }
+
+          override def encode(value: KPB[A]): Array[Byte] =
+            if (value == null) null else value.value.toByteArray
+
+          override def schemaFor: SchemaFor[KPB[A]] = SchemaFor[Array[Byte]].forType[KPB[A]]
+        }
+        NJAvroCodec[KPB[A]](kpbCodec.schemaFor, kpbCodec, kpbCodec)
+      }
 
       override val serializer: Serializer[KPB[A]] =
         new Serializer[KPB[A]] with Serializable {
@@ -111,16 +126,6 @@ object KPB {
             }
         }
 
-      override val avroCodec: NJAvroCodec[KPB[A]] = {
-        val kpbCodec: Codec[KPB[A]] = new Codec[KPB[A]] {
-          override def decode(value: Any): KPB[A] = value match {
-            case ab: Array[Byte] => KPB(ev.parseFrom(ab))
-            case ex              => sys.error(s"${ex.getClass} is not a Array[Byte] ${ex.toString}")
-          }
-          override def encode(value: KPB[A]): Array[Byte] = value.value.toByteArray
-          override def schemaFor: SchemaFor[KPB[A]]       = SchemaFor[Array[Byte]].forType[KPB[A]]
-        }
-        NJAvroCodec[KPB[A]](kpbCodec.schemaFor, kpbCodec, kpbCodec)
-      }
+
     }
 }

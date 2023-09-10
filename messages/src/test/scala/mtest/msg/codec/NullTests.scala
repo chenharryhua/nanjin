@@ -1,5 +1,9 @@
 package mtest.msg.codec
 
+import com.github.chenharryhua.nanjin.messages.kafka.codec.{GRCodec, KJson, NJAvroCodec, SerdeOf}
+import io.circe.Json
+import org.apache.avro.Schema
+import org.apache.avro.generic.GenericRecord
 import org.scalatest.funsuite.AnyFunSuite
 
 class NullTests extends AnyFunSuite {
@@ -35,5 +39,19 @@ class NullTests extends AnyFunSuite {
     assert(byteArrayCodec.serialize(null) === null)
     assert(PrimitiveTypeCombined.primitiviesCodec.serialize(null) === null)
     assert(PrimitiveTypeCombined.jsonPrimCodec.serialize(null) === null)
+  }
+
+  test("generic record codec null") {
+    val codec: NJAvroCodec[GenericRecord] = GRCodec(Schema.create(Schema.Type.INT))
+    assert(codec.decode(null) == null)
+    assert(codec.encode(null) == null)
+    assertThrows[Exception](codec.decode(123))
+  }
+
+  test("kjson codec null") {
+    val js = SerdeOf[KJson[Json]].avroCodec
+    assert(js.encode(null) == null)
+    assert(js.encode(KJson(null)) == null)
+    assert(js.decode(null) == null)
   }
 }
