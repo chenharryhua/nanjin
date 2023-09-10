@@ -89,6 +89,8 @@ class KafkaAvroTest extends AnyFunSuite {
     val avroPath    = NJPath("./data/test/spark/kafka/coproduct/scalaenum.avro")
     val jacksonPath = NJPath("./data/test/spark/kafka/coproduct/scalaenum.jackson.json")
     val circePath   = NJPath("./data/test/spark/kafka/coproduct/scalaenum.circe.json")
+    val parquetPath   = NJPath("./data/test/spark/kafka/coproduct/scalaenum.parquet")
+
     val sk          = sparKafka.topic(topicEnum.topicDef)
 
     val run =
@@ -98,9 +100,13 @@ class KafkaAvroTest extends AnyFunSuite {
         sk.fromKafka.output.avro(avroPath).run >>
         sk.fromKafka.output.jackson(jacksonPath).run >>
         sk.fromKafka.output.circe(circePath).run >>
+        sk.fromKafka.output.parquet(parquetPath).run >>
         (sk.load.avro(avroPath).frdd.map(_.take(10).toSet))
     assert(run.unsafeRunSync().flatMap(_.value) == Set(en1, en2))
-
+    sparKafka.stats.jackson(jacksonPath).summary.unsafeRunSync()
+    sparKafka.stats.jackson(circePath).summary.unsafeRunSync()
+    sparKafka.stats.avro(avroPath).summary.unsafeRunSync()
+    sparKafka.stats.parquet(parquetPath).summary.unsafeRunSync()
   }
 
   test("sparKafka should be sent to kafka and save to multi avro") {

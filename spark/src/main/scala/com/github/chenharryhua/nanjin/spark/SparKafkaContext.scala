@@ -10,13 +10,14 @@ import com.github.chenharryhua.nanjin.kafka.*
 import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
 import com.github.chenharryhua.nanjin.messages.kafka.codec.SerdeOf
 import com.github.chenharryhua.nanjin.spark.kafka.{sk, CRMetaInfo, SparKafkaTopic, Statistics}
-import com.github.chenharryhua.nanjin.spark.persist.{loaders, RddFileHoarder}
+import com.github.chenharryhua.nanjin.spark.persist.RddFileHoarder
 import com.github.chenharryhua.nanjin.terminals.{NJHadoop, NJPath}
 import eu.timepit.refined.refineMV
 import fs2.Stream
 import fs2.kafka.*
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.{Dataset, SparkSession}
+import org.apache.spark.sql.functions.col
+import org.apache.spark.sql.{Column, Dataset, SparkSession}
 import org.typelevel.cats.time.instances.zoneid
 
 final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaContext: KafkaContext[F])
@@ -168,14 +169,29 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
     uploadInSequence(TopicName(topicName), path, refineMV(1000), identity)
 
   object stats {
+    private val cols: List[Column] =
+      List(col("topic"), col("partition"), col("offset"), col("timestamp"), col("timestampType"))
+
+    private val ate: AvroTypedEncoder[CRMetaInfo] = AvroTypedEncoder[CRMetaInfo]
+
     def avro(path: NJPath)(implicit F: Sync[F]): Statistics[F] =
-      new Statistics[F](F.interruptible(loaders.spark.avro(path, sparkSession, AvroTypedEncoder[CRMetaInfo])))
+      new Statistics[F](F.interruptible {
+        sparkSession.read
+          .format("avro")
+          .schema(ate.sparkSchema)
+          .load(path.pathStr)
+          .select(cols*)
+          .as[CRMetaInfo]
+      })
 
     def jackson(path: NJPath)(implicit F: Sync[F]): Statistics[F] =
-      new Statistics[F](F.interruptible(loaders.spark.json(path, sparkSession, AvroTypedEncoder[CRMetaInfo])))
+      new Statistics[F](F.interruptible {
+        sparkSession.read.schema(ate.sparkSchema).json(path.pathStr).select(cols*).as[CRMetaInfo]
+      })
 
     def parquet(path: NJPath)(implicit F: Sync[F]): Statistics[F] =
-      new Statistics[F](
-        F.interruptible(loaders.spark.parquet(path, sparkSession, AvroTypedEncoder[CRMetaInfo])))
+      new Statistics[F](F.interruptible {
+        sparkSession.read.schema(ate.sparkSchema).parquet(path.pathStr).select(cols*).as[CRMetaInfo]
+      })
   }
 }
