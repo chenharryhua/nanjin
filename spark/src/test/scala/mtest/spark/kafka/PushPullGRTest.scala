@@ -33,7 +33,7 @@ class PushPullGRTest extends AnyFunSuite {
     .map { a =>
       val record = new GenericData.Record(base)
       record.put("a", a)
-      baseTopic.producerRecord(a, record)
+      baseTopic.njProducerRecord(a, record).toProducerRecord
     }
     .covary[IO]
 
