@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.kafka
 
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.messages.kafka.NJHeader
+import com.github.chenharryhua.nanjin.messages.kafka.codec.{GRCodec, NJAvroCodec}
 import com.github.chenharryhua.nanjin.messages.kafka.instances.*
 import com.sksamuel.avro4s.SchemaFor
 import fs2.Chunk
@@ -9,8 +10,8 @@ import fs2.kafka.{ConsumerRecord, KafkaByteConsumerRecord}
 import io.confluent.kafka.streams.serdes.avro.GenericAvroDeserializer
 import io.scalaland.chimney.dsl.TransformerOps
 import org.apache.avro.Schema
-import org.apache.avro.generic.{GenericData, GenericDatumReader, GenericDatumWriter, GenericRecord}
-import org.apache.avro.io.{BinaryEncoder, DecoderFactory, EncoderFactory, JsonEncoder}
+import org.apache.avro.generic.{GenericData, GenericDatumWriter, GenericRecord}
+import org.apache.avro.io.{BinaryEncoder, EncoderFactory, JsonEncoder}
 import org.apache.kafka.streams.scala.serialization.Serdes
 
 import java.io.ByteArrayOutputStream
@@ -24,39 +25,28 @@ final class PullGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName,
   private val schema: Schema = pair.consumerSchema
   private val topic: String  = topicName.value
 
-  private def reshape(latest: Schema, getGenericRecord: => GenericRecord): Try[GenericRecord] =
-    Using(new ByteArrayOutputStream()) { baos =>
-      val gr: GenericRecord = getGenericRecord
-
-      val encoder = EncoderFactory.get().binaryEncoder(baos, null)
-      new GenericDatumWriter[GenericRecord](gr.getSchema).write(gr, encoder)
-      encoder.flush()
-
-      val decoder = DecoderFactory.get().binaryDecoder(baos.toByteArray, null)
-      new GenericDatumReader[GenericRecord](gr.getSchema, latest).read(null, decoder)
-    }(_.close())
-
-  @transient private lazy val keyDecode: Array[Byte] => Try[Any] =
+  @transient private lazy val keyDecode: Array[Byte] => Any =
     pair.key.getType match {
       case Schema.Type.RECORD =>
         val deser = new GenericAvroDeserializer()
         deser.configure(srs.config.asJava, true)
-        (data: Array[Byte]) => reshape(pair.key, deser.deserialize(topic, data))
+        val codec: NJAvroCodec[GenericRecord] = GRCodec(pair.key)
+        (data: Array[Byte]) => codec.decode(deser.deserialize(topic, data))
       case Schema.Type.STRING =>
         val deser = Serdes.stringSerde.deserializer()
-        (data: Array[Byte]) => Try(deser.deserialize(topic, data))
+        (data: Array[Byte]) => deser.deserialize(topic, data)
       case Schema.Type.INT =>
         val deser = Serdes.intSerde.deserializer()
-        (data: Array[Byte]) => Try(deser.deserialize(topic, data))
+        (data: Array[Byte]) => deser.deserialize(topic, data)
       case Schema.Type.LONG =>
         val deser = Serdes.longSerde.deserializer()
-        (data: Array[Byte]) => Try(deser.deserialize(topic, data))
+        (data: Array[Byte]) => deser.deserialize(topic, data)
       case Schema.Type.FLOAT =>
         val keyDeser = Serdes.floatSerde.deserializer()
-        (data: Array[Byte]) => Try(keyDeser.deserialize(topic, data))
+        (data: Array[Byte]) => keyDeser.deserialize(topic, data)
       case Schema.Type.DOUBLE =>
         val deser = Serdes.doubleSerde.deserializer()
-        (data: Array[Byte]) => Try(deser.deserialize(topic, data))
+        (data: Array[Byte]) => deser.deserialize(topic, data)
       case Schema.Type.BYTES =>
         val deser = Serdes.byteArraySerde.deserializer()
         (data: Array[Byte]) => Try(deser.deserialize(topic, data))
@@ -64,30 +54,31 @@ final class PullGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName,
       case _ => throw new Exception(s"unsupported key schema ${pair.key}")
     }
 
-  @transient private lazy val valDecode: Array[Byte] => Try[Any] =
+  @transient private lazy val valDecode: Array[Byte] => Any =
     pair.value.getType match {
       case Schema.Type.RECORD =>
         val deser = new GenericAvroDeserializer()
         deser.configure(srs.config.asJava, false)
-        (data: Array[Byte]) => reshape(pair.value, deser.deserialize(topic, data))
+        val codec: NJAvroCodec[GenericRecord] = GRCodec(pair.value)
+        (data: Array[Byte]) => codec.decode(deser.deserialize(topic, data))
       case Schema.Type.STRING =>
         val deser = Serdes.stringSerde.deserializer()
-        (data: Array[Byte]) => Try(deser.deserialize(topic, data))
+        (data: Array[Byte]) => deser.deserialize(topic, data)
       case Schema.Type.INT =>
         val deser = Serdes.intSerde.deserializer()
-        (data: Array[Byte]) => Try(deser.deserialize(topic, data))
+        (data: Array[Byte]) => deser.deserialize(topic, data)
       case Schema.Type.LONG =>
         val deser = Serdes.longSerde.deserializer()
-        (data: Array[Byte]) => Try(deser.deserialize(topic, data))
+        (data: Array[Byte]) => deser.deserialize(topic, data)
       case Schema.Type.FLOAT =>
         val deser = Serdes.floatSerde.deserializer()
-        (data: Array[Byte]) => Try(deser.deserialize(topic, data))
+        (data: Array[Byte]) => deser.deserialize(topic, data)
       case Schema.Type.DOUBLE =>
         val deser = Serdes.doubleSerde.deserializer()
-        (data: Array[Byte]) => Try(deser.deserialize(topic, data))
+        (data: Array[Byte]) => deser.deserialize(topic, data)
       case Schema.Type.BYTES =>
         val deser = Serdes.byteArraySerde.deserializer()
-        (data: Array[Byte]) => Try(deser.deserialize(topic, data))
+        (data: Array[Byte]) => deser.deserialize(topic, data)
 
       case _ => throw new Exception(s"unsupported value schema ${pair.value}")
     }
@@ -106,8 +97,8 @@ final class PullGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName,
     record.put("timestamp", ccr.timestamp())
     record.put("timestampType", ccr.timestampType().id)
     record.put("headers", headers.toList.asJava)
-    record.put("key", keyDecode(ccr.key).getOrElse(null))
-    record.put("value", valDecode(ccr.value).getOrElse(null))
+    record.put("key", Try(keyDecode(ccr.key)).getOrElse(null))
+    record.put("value", Try(valDecode(ccr.value)).getOrElse(null))
     record
   }
 

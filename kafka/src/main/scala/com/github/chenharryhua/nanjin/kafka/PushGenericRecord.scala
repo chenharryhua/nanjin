@@ -1,9 +1,9 @@
 package com.github.chenharryhua.nanjin.kafka
 
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
+import com.github.chenharryhua.nanjin.messages.kafka.codec.GRCodec
 import com.sksamuel.avro4s.Decoder
 import fs2.kafka.ProducerRecord
-import io.confluent.kafka.schemaregistry.avro.AvroSchemaUtils
 import io.confluent.kafka.streams.serdes.avro.GenericAvroSerializer
 import org.apache.avro.Schema
 import org.apache.avro.generic.GenericRecord
@@ -21,7 +21,8 @@ final class PushGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName,
       case Schema.Type.RECORD =>
         val ser = new GenericAvroSerializer()
         ser.configure(srs.config.asJava, true)
-        (data: AnyRef) => ser.serialize(topic, data.asInstanceOf[GenericRecord])
+        val keyCodec = GRCodec(pair.key)
+        (data: AnyRef) => ser.serialize(topic, keyCodec.decode(data))
 
       case Schema.Type.STRING =>
         val ser = Serdes.stringSerde.serializer()
@@ -50,7 +51,8 @@ final class PushGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName,
       case Schema.Type.RECORD =>
         val ser = new GenericAvroSerializer()
         ser.configure(srs.config.asJava, false)
-        (data: AnyRef) => ser.serialize(topic, data.asInstanceOf[GenericRecord])
+        val valCodec = GRCodec(pair.value)
+        (data: AnyRef) => ser.serialize(topic, valCodec.decode(data))
 
       case Schema.Type.STRING =>
         val ser = Serdes.stringSerde.serializer()
@@ -74,21 +76,10 @@ final class PushGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName,
       case _ => throw new Exception(s"unsupported value schema ${pair.value}")
     }
 
-  private def validateKey(ar: AnyRef): Boolean =
-    AvroSchemaUtils.getGenericData.validate(pair.key, ar) || ar == null
-
-  private def validateVal(ar: AnyRef): Boolean =
-    AvroSchemaUtils.getGenericData.validate(pair.value, ar) || ar == null
-
   def fromGenericRecord(gr: GenericRecord): ProducerRecord[Array[Byte], Array[Byte]] = {
     val key   = gr.get("key")
     val value = gr.get("value")
 
-    (validateKey(key), validateVal(value)) match {
-      case (true, true)   => ProducerRecord(topic, keySer(key), valSer(value))
-      case (true, false)  => throw new Exception(s"$topic has invalid value")
-      case (false, true)  => throw new Exception(s"$topic has invalid key")
-      case (false, false) => throw new Exception(s"$topic has invalid both key and value")
-    }
+    ProducerRecord(topic, keySer(key), valSer(value))
   }
 }
