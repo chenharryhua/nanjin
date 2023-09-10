@@ -72,8 +72,8 @@ object KPB {
         val kpbCodec: Codec[KPB[A]] = new Codec[KPB[A]] {
           override def decode(value: Any): KPB[A] = value match {
             case ab: Array[Byte] => KPB(ev.parseFrom(ab))
-            case null => null
-            case ex => sys.error(s"${ex.getClass} is not a Array[Byte] ${ex.toString}")
+            case null            => null
+            case ex              => sys.error(s"${ex.getClass} is not a Array[Byte] ${ex.toString}")
           }
 
           override def encode(value: KPB[A]): Array[Byte] =
@@ -125,7 +125,6 @@ object KPB {
               case Some(v) => KPB(ev.parseFrom(deSer.deserialize(topic, v).toByteArray))
             }
         }
-
 
     }
 }

@@ -37,7 +37,7 @@ object GRCodec {
     val encoder: Encoder[GenericRecord] = new Encoder[GenericRecord] {
       override def encode(value: GenericRecord): AnyRef =
         if (value == null) null else reshape(skm, value).get
-        
+
       override def schemaFor: SchemaFor[GenericRecord] = skmFor
     }
 
