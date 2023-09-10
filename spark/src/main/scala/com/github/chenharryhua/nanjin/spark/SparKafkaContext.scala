@@ -10,7 +10,7 @@ import com.github.chenharryhua.nanjin.kafka.*
 import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
 import com.github.chenharryhua.nanjin.messages.kafka.codec.SerdeOf
 import com.github.chenharryhua.nanjin.spark.kafka.{sk, CRMetaInfo, SparKafkaTopic, Statistics}
-import com.github.chenharryhua.nanjin.spark.persist.{loaders, RddFileHoarder}
+import com.github.chenharryhua.nanjin.spark.persist.RddFileHoarder
 import com.github.chenharryhua.nanjin.terminals.{NJHadoop, NJPath}
 import eu.timepit.refined.refineMV
 import fs2.Stream
@@ -168,14 +168,25 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
     uploadInSequence(TopicName(topicName), path, refineMV(1000), identity)
 
   object stats {
+
+    private val ate: AvroTypedEncoder[CRMetaInfo] = AvroTypedEncoder[CRMetaInfo]
+
     def avro(path: NJPath)(implicit F: Sync[F]): Statistics[F] =
-      new Statistics[F](F.interruptible(loaders.spark.avro(path, sparkSession, AvroTypedEncoder[CRMetaInfo])))
+      new Statistics[F](F.interruptible {
+        sparkSession.read.format("avro").schema(ate.sparkSchema).load(path.pathStr).as[CRMetaInfo]
+      })
 
     def jackson(path: NJPath)(implicit F: Sync[F]): Statistics[F] =
-      new Statistics[F](F.interruptible(loaders.spark.json(path, sparkSession, AvroTypedEncoder[CRMetaInfo])))
+      new Statistics[F](F.interruptible {
+        sparkSession.read.schema(ate.sparkSchema).json(path.pathStr).as[CRMetaInfo]
+      })
+
+    def circe(path: NJPath)(implicit F: Sync[F]): Statistics[F] =
+      jackson(path)
 
     def parquet(path: NJPath)(implicit F: Sync[F]): Statistics[F] =
-      new Statistics[F](
-        F.interruptible(loaders.spark.parquet(path, sparkSession, AvroTypedEncoder[CRMetaInfo])))
+      new Statistics[F](F.interruptible {
+        sparkSession.read.schema(ate.sparkSchema).parquet(path.pathStr).as[CRMetaInfo]
+      })
   }
 }

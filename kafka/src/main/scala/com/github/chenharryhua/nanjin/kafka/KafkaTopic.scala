@@ -18,7 +18,7 @@ import io.circe.Decoder
 import io.circe.generic.auto.*
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.apache.kafka.clients.consumer.ConsumerRecord as KafkaConsumerRecord
-import org.apache.kafka.clients.producer.{ProducerRecord as KafkaProducerRecord, RecordMetadata}
+import org.apache.kafka.clients.producer.RecordMetadata
 import org.apache.kafka.streams.scala.kstream.Produced
 
 import java.io.ByteArrayInputStream
@@ -103,21 +103,13 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
   def asStateStore(storeName: TopicNameL): NJStateStore[K, V] =
     asStateStore(TopicName(storeName))
 
-  // producer record
-  def kafkaProducerRecord(k: K, v: V): KafkaProducerRecord[K, V] =
-    new KafkaProducerRecord(topicDef.topicName.value, k, v)
-  def producerRecord(k: K, v: V): ProducerRecord[K, V] =
-    ProducerRecord(topicDef.topicName.value, k, v)
-  def singleProducerRecords(k: K, v: V): ProducerRecords[K, V] =
-    Chunk.singleton(producerRecord(k, v))
-
   // for testing
 
   def produceOne(pr: ProducerRecord[K, V])(implicit F: Async[F]): F[RecordMetadata] =
     produce.resource.use(_.produceOne_(pr).flatten)
 
   def produceOne(k: K, v: V)(implicit F: Async[F]): F[RecordMetadata] =
-    produceOne(producerRecord(k, v))
+    produceOne(ProducerRecord(topicName.value, k, v))
 
   /** Generate a Producer Record from a Consumer Record encoded in circe
     *

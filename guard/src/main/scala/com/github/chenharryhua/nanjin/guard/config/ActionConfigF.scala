@@ -7,7 +7,7 @@ import io.circe.generic.JsonCodec
 import monocle.syntax.all.*
 
 @JsonCodec
-final case class ActionParams (
+final case class ActionParams(
   metricId: MetricID,
   importance: Importance,
   publishStrategy: PublishStrategy,
