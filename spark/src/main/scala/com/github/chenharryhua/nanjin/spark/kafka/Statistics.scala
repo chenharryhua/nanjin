@@ -31,8 +31,8 @@ final private case class KafkaSummaryInternal(
   startTs: Long,
   endTs: Long,
   topic: String) {
-  val distance: Long               = endOffset - startOffset + 1L
-  val timeDistance: FiniteDuration = FiniteDuration(endTs - startTs, MILLISECONDS)
+  private val distance: Long               = endOffset - startOffset + 1L
+  private val timeDistance: FiniteDuration = FiniteDuration(endTs - startTs, MILLISECONDS)
 
   def toKafkaSummary(zoneId: ZoneId): KafkaSummary = KafkaSummary(
     topic,
@@ -95,10 +95,16 @@ final case class Disorder(
 
 final case class DuplicateRecord(partition: Int, offset: Long, num: Long)
 
-final class Statistics[F[_]] private[spark] (fds: F[Dataset[CRMetaInfo]])(implicit F: Sync[F])
+final class Statistics[F[_]] private[spark] (val fdataset: F[Dataset[CRMetaInfo]])(implicit F: Sync[F])
     extends Serializable {
 
-  def minutely: F[List[MinutelyAggResult]] = F.flatMap(fds) { ds =>
+  def union(other: Statistics[F]): Statistics[F] =
+    new Statistics[F](for {
+      me <- fdataset
+      you <- other.fdataset
+    } yield me.union(you))
+
+  def minutely: F[List[MinutelyAggResult]] = F.flatMap(fdataset) { ds =>
     import ds.sparkSession.implicits.*
     val zoneId: ZoneId = ZoneId.of(ds.sparkSession.conf.get(SPARK_ZONE_ID))
     F.blocking(
@@ -110,7 +116,7 @@ final class Statistics[F[_]] private[spark] (fds: F[Dataset[CRMetaInfo]])(implic
         .toList)
   }
 
-  def hourly: F[List[HourlyAggResult]] = F.flatMap(fds) { ds =>
+  def hourly: F[List[HourlyAggResult]] = F.flatMap(fdataset) { ds =>
     import ds.sparkSession.implicits.*
     val zoneId: ZoneId = ZoneId.of(ds.sparkSession.conf.get(SPARK_ZONE_ID))
     F.blocking(
@@ -122,7 +128,7 @@ final class Statistics[F[_]] private[spark] (fds: F[Dataset[CRMetaInfo]])(implic
         .toList)
   }
 
-  def daily: F[List[DailyAggResult]] = F.flatMap(fds) { ds =>
+  def daily: F[List[DailyAggResult]] = F.flatMap(fdataset) { ds =>
     import ds.sparkSession.implicits.*
     val zoneId: ZoneId = ZoneId.of(ds.sparkSession.conf.get(SPARK_ZONE_ID))
     F.blocking(
@@ -134,7 +140,7 @@ final class Statistics[F[_]] private[spark] (fds: F[Dataset[CRMetaInfo]])(implic
         .toList)
   }
 
-  def dailyHour: F[List[DailyHourAggResult]] = F.flatMap(fds) { ds =>
+  def dailyHour: F[List[DailyHourAggResult]] = F.flatMap(fdataset) { ds =>
     import ds.sparkSession.implicits.*
     val zoneId: ZoneId = ZoneId.of(ds.sparkSession.conf.get(SPARK_ZONE_ID))
     F.blocking(
@@ -146,7 +152,7 @@ final class Statistics[F[_]] private[spark] (fds: F[Dataset[CRMetaInfo]])(implic
         .toList)
   }
 
-  def dailyMinute: F[List[DailyMinuteAggResult]] = F.flatMap(fds) { ds =>
+  def dailyMinute: F[List[DailyMinuteAggResult]] = F.flatMap(fdataset) { ds =>
     import ds.sparkSession.implicits.*
     val zoneId: ZoneId = ZoneId.of(ds.sparkSession.conf.get(SPARK_ZONE_ID))
     F.blocking(
@@ -177,14 +183,14 @@ final class Statistics[F[_]] private[spark] (fds: F[Dataset[CRMetaInfo]])(implic
       .toList
   }
 
-  def summary: F[List[KafkaSummary]] = F.flatMap(fds) { ds =>
+  def summary: F[List[KafkaSummary]] = F.flatMap(fdataset) { ds =>
     val zoneId: ZoneId = ZoneId.of(ds.sparkSession.conf.get(SPARK_ZONE_ID))
     F.blocking(internalSummary(ds).map(_.toKafkaSummary(zoneId)))
   }
 
   /** Notes: offset is supposed to be monotonically increasing in a partition, except compact topic
     */
-  def missingOffsets: F[Dataset[MissingOffset]] = F.flatMap(fds) { ds =>
+  def missingOffsets: F[Dataset[MissingOffset]] = F.flatMap(fdataset) { ds =>
     import ds.sparkSession.implicits.*
     import org.apache.spark.sql.functions.col
     F.blocking {
@@ -203,7 +209,7 @@ final class Statistics[F[_]] private[spark] (fds: F[Dataset[CRMetaInfo]])(implic
     *
     * Timestamp is supposed to be ordered along with offset
     */
-  def disorders: F[Dataset[Disorder]] = F.flatMap(fds) { ds =>
+  def disorders: F[Dataset[Disorder]] = F.flatMap(fdataset) { ds =>
     import ds.sparkSession.implicits.*
     import org.apache.spark.sql.functions.col
     F.blocking {
@@ -235,7 +241,7 @@ final class Statistics[F[_]] private[spark] (fds: F[Dataset[CRMetaInfo]])(implic
 
   /** Notes: partition + offset supposed to be unique, of a topic
     */
-  def dupRecords: F[Dataset[DuplicateRecord]] = F.flatMap(fds) { ds =>
+  def dupRecords: F[Dataset[DuplicateRecord]] = F.flatMap(fdataset) { ds =>
     import ds.sparkSession.implicits.*
     import org.apache.spark.sql.functions.{asc, col, count, lit}
     F.blocking(
