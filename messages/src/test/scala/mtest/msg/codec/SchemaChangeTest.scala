@@ -90,8 +90,8 @@ class SchemaChangeTest extends AnyFunSuite {
 {"type":"record","name":"UnderTest","namespace":"schema.test.top","fields":[{"name":"a","type":"int"},{"name":"b","type":[{"type":"record","name":"Nest","namespace":"schema.test.nest","fields":[{"name":"a","type":"int"}]},{"type":"record","name":"Nest2","namespace":"schema.test.nest2","fields":[{"name":"b","type":"string"}]}]},{"name":"c","type":["null","int"],"default":null}]}"""
     assert(newCodec.schema.toString() == s.trim)
     val data = UnderTest(1, Coproduct(Nest(1)), Some(1))
-    val en = newCodec.encode(data)
-    val res = newCodec.decode(en)
+    val en   = newCodec.encode(data)
+    val res  = newCodec.decode(en)
 
     assert(res == data)
   }
