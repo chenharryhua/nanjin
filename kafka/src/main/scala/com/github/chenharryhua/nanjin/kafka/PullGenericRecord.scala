@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.kafka
 
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.messages.kafka.NJHeader
-import com.github.chenharryhua.nanjin.messages.kafka.codec.{GRCodec, NJAvroCodec}
+import com.github.chenharryhua.nanjin.messages.kafka.codec.reshape
 import com.github.chenharryhua.nanjin.messages.kafka.instances.*
 import com.sksamuel.avro4s.SchemaFor
 import fs2.Chunk
@@ -10,7 +10,7 @@ import fs2.kafka.{ConsumerRecord, KafkaByteConsumerRecord}
 import io.confluent.kafka.streams.serdes.avro.GenericAvroDeserializer
 import io.scalaland.chimney.dsl.TransformerOps
 import org.apache.avro.Schema
-import org.apache.avro.generic.{GenericData, GenericDatumWriter, GenericRecord}
+import org.apache.avro.generic.{GenericData, GenericDatumWriter}
 import org.apache.avro.io.{BinaryEncoder, EncoderFactory, JsonEncoder}
 import org.apache.kafka.streams.scala.serialization.Serdes
 
@@ -25,28 +25,27 @@ final class PullGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName,
   private val schema: Schema = pair.consumerSchema
   private val topic: String  = topicName.value
 
-  @transient private lazy val keyDecode: Array[Byte] => Any =
+  @transient private lazy val keyDecode: Array[Byte] => Try[Any] =
     pair.key.getType match {
       case Schema.Type.RECORD =>
         val deser = new GenericAvroDeserializer()
         deser.configure(srs.config.asJava, true)
-        val codec: NJAvroCodec[GenericRecord] = GRCodec(pair.key)
-        (data: Array[Byte]) => codec.encode(deser.deserialize(topic, data))
+        (data: Array[Byte]) => reshape(pair.key, deser.deserialize(topic, data))
       case Schema.Type.STRING =>
         val deser = Serdes.stringSerde.deserializer()
-        (data: Array[Byte]) => deser.deserialize(topic, data)
+        (data: Array[Byte]) => Try(deser.deserialize(topic, data))
       case Schema.Type.INT =>
         val deser = Serdes.intSerde.deserializer()
-        (data: Array[Byte]) => deser.deserialize(topic, data)
+        (data: Array[Byte]) => Try(deser.deserialize(topic, data))
       case Schema.Type.LONG =>
         val deser = Serdes.longSerde.deserializer()
-        (data: Array[Byte]) => deser.deserialize(topic, data)
+        (data: Array[Byte]) => Try(deser.deserialize(topic, data))
       case Schema.Type.FLOAT =>
         val keyDeser = Serdes.floatSerde.deserializer()
-        (data: Array[Byte]) => keyDeser.deserialize(topic, data)
+        (data: Array[Byte]) => Try(keyDeser.deserialize(topic, data))
       case Schema.Type.DOUBLE =>
         val deser = Serdes.doubleSerde.deserializer()
-        (data: Array[Byte]) => deser.deserialize(topic, data)
+        (data: Array[Byte]) => Try(deser.deserialize(topic, data))
       case Schema.Type.BYTES =>
         val deser = Serdes.byteArraySerde.deserializer()
         (data: Array[Byte]) => Try(deser.deserialize(topic, data))
@@ -54,36 +53,35 @@ final class PullGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName,
       case _ => throw new Exception(s"unsupported key schema ${pair.key}")
     }
 
-  @transient private lazy val valDecode: Array[Byte] => Any =
+  @transient private lazy val valDecode: Array[Byte] => Try[Any] =
     pair.value.getType match {
       case Schema.Type.RECORD =>
         val deser = new GenericAvroDeserializer()
         deser.configure(srs.config.asJava, false)
-        val codec: NJAvroCodec[GenericRecord] = GRCodec(pair.value)
-        (data: Array[Byte]) => codec.encode(deser.deserialize(topic, data))
+        (data: Array[Byte]) => reshape(pair.value, deser.deserialize(topic, data))
       case Schema.Type.STRING =>
         val deser = Serdes.stringSerde.deserializer()
-        (data: Array[Byte]) => deser.deserialize(topic, data)
+        (data: Array[Byte]) => Try(deser.deserialize(topic, data))
       case Schema.Type.INT =>
         val deser = Serdes.intSerde.deserializer()
-        (data: Array[Byte]) => deser.deserialize(topic, data)
+        (data: Array[Byte]) => Try(deser.deserialize(topic, data))
       case Schema.Type.LONG =>
         val deser = Serdes.longSerde.deserializer()
-        (data: Array[Byte]) => deser.deserialize(topic, data)
+        (data: Array[Byte]) => Try(deser.deserialize(topic, data))
       case Schema.Type.FLOAT =>
         val deser = Serdes.floatSerde.deserializer()
-        (data: Array[Byte]) => deser.deserialize(topic, data)
+        (data: Array[Byte]) => Try(deser.deserialize(topic, data))
       case Schema.Type.DOUBLE =>
         val deser = Serdes.doubleSerde.deserializer()
-        (data: Array[Byte]) => deser.deserialize(topic, data)
+        (data: Array[Byte]) => Try(deser.deserialize(topic, data))
       case Schema.Type.BYTES =>
         val deser = Serdes.byteArraySerde.deserializer()
-        (data: Array[Byte]) => deser.deserialize(topic, data)
+        (data: Array[Byte]) => Try(deser.deserialize(topic, data))
 
       case _ => throw new Exception(s"unsupported value schema ${pair.value}")
     }
 
-  def toRecord(ccr: KafkaByteConsumerRecord): GenericData.Record = {
+  def toAvroRecord(ccr: KafkaByteConsumerRecord): GenericData.Record = {
     val record: GenericData.Record = new GenericData.Record(schema)
     val headers: Array[GenericData.Record] = ccr.headers().toArray.map { h =>
       val header = new GenericData.Record(SchemaFor[NJHeader].schema)
@@ -97,20 +95,20 @@ final class PullGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName,
     record.put("timestamp", ccr.timestamp())
     record.put("timestampType", ccr.timestampType().id)
     record.put("headers", headers.toList.asJava)
-    record.put("key", Try(keyDecode(ccr.key)).getOrElse(null))
-    record.put("value", Try(valDecode(ccr.value)).getOrElse(null))
+    record.put("key", keyDecode(ccr.key).getOrElse(null))
+    record.put("value", valDecode(ccr.value).getOrElse(null))
     record
   }
 
-  def toRecord(ccr: ConsumerRecord[Array[Byte], Array[Byte]]): GenericData.Record =
-    toRecord(ccr.transformInto[KafkaByteConsumerRecord])
+  def toAvroRecord(ccr: ConsumerRecord[Array[Byte], Array[Byte]]): GenericData.Record =
+    toAvroRecord(ccr.transformInto[KafkaByteConsumerRecord])
 
   @transient private lazy val datumWriter: GenericDatumWriter[GenericData.Record] =
     new GenericDatumWriter[GenericData.Record](schema)
 
   def toJacksonString(ccr: KafkaByteConsumerRecord): String =
     Using(new ByteArrayOutputStream) { baos =>
-      val gr: GenericData.Record = toRecord(ccr)
+      val gr: GenericData.Record = toAvroRecord(ccr)
       val encoder: JsonEncoder   = EncoderFactory.get().jsonEncoder(schema, baos)
       datumWriter.write(gr, encoder)
       encoder.flush()
@@ -122,7 +120,7 @@ final class PullGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName,
 
   def toBinAvro(ccr: KafkaByteConsumerRecord): Chunk[Byte] =
     Using(new ByteArrayOutputStream) { baos =>
-      val gr: GenericData.Record = toRecord(ccr)
+      val gr: GenericData.Record = toAvroRecord(ccr)
       val encoder: BinaryEncoder = EncoderFactory.get().binaryEncoder(baos, null)
       datumWriter.write(gr, encoder)
       encoder.flush()

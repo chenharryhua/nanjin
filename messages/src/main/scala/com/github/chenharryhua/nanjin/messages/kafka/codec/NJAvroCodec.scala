@@ -12,7 +12,7 @@ import eu.timepit.refined.api.Refined
 import eu.timepit.refined.string.MatchesRegex
 import org.apache.avro.Schema
 final class NJAvroCodec[A] private (
-  val schemaFor: SchemaFor[A],
+  override val schemaFor: SchemaFor[A],
   avroDecoder: AvroDecoder[A],
   avroEncoder: AvroEncoder[A])
     extends Codec[A] with Serializable {

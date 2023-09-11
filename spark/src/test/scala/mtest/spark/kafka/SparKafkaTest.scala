@@ -6,8 +6,7 @@ import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, NJKafkaByteConsume, TopicDef}
 import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
-import com.github.chenharryhua.nanjin.spark.SparkSessionExt
-import com.github.chenharryhua.nanjin.terminals.{NJHadoop, NJPath}
+import com.github.chenharryhua.nanjin.terminals.NJPath
 import com.sksamuel.avro4s.SchemaFor
 import eu.timepit.refined.auto.*
 import fs2.kafka.{AutoOffsetReset, ProducerRecord, ProducerRecords}
@@ -146,7 +145,6 @@ class SparKafkaTest extends AnyFunSuite {
     assert(rst === Seq(cr1.value.get))
   }
 
-  val hdp: NJHadoop[IO] = sparkSession.hadoop[IO]
   test("should be able to reproduce") {
     import fs2.Stream
     val path  = NJPath("./data/test/spark/kafka/reproduce/jackson")
@@ -154,8 +152,8 @@ class SparKafkaTest extends AnyFunSuite {
     topic.fromKafka.output.jackson(path).run.unsafeRunSync()
 
     Stream
-      .eval(hdp.filesIn(path))
-      .flatMap(hdp.jackson(topic.topic.topicDef.schemaPair.consumerSchema).source)
+      .eval(hadoop.filesIn(path))
+      .flatMap(hadoop.jackson(topic.topic.topicDef.schemaPair.consumerSchema).source)
       .chunkN(1)
       .through(ctx.sink(topic.topicName).updateConfig(_.withClientId("a")).build)
       .compile
@@ -174,21 +172,21 @@ class SparKafkaTest extends AnyFunSuite {
 
   test("generic record") {
     val path = NJPath("./data/test/spark/kafka/consume/duck.avro")
-    val sink = hdp.avro(topic.topicDef.schemaPair.consumerSchema).sink(path)
+    val sink = hadoop.avro(topic.topicDef.schemaPair.consumerSchema).sink(path)
     duckConsume.avro.take(2).map(_.record.value).chunks.through(sink).compile.drain.unsafeRunSync()
     assert(2 == sparKafka.topic(topic).load.avro(path).count.unsafeRunSync())
   }
 
   test("bin avro") {
     val path = NJPath("./data/test/spark/kafka/consume/duck.bin.avro")
-    val sink = hdp.bytes.sink(path)
+    val sink = hadoop.bytes.sink(path)
     duckConsume.binAvro.map(_.record.value).take(2).through(sink).compile.drain.unsafeRunSync()
     assert(2 == sparKafka.topic(topic).load.binAvro(path).count.unsafeRunSync())
   }
 
   test("jackson") {
     val path = NJPath("./data/test/spark/kafka/consume/duck.jackson.json")
-    val sink = hdp.text.sink(path)
+    val sink = hadoop.text.sink(path)
     duckConsume.jackson.map(_.record.value).take(2).chunks.through(sink).compile.drain.unsafeRunSync()
     assert(2 == sparKafka.topic(topic).load.jackson(path).count.unsafeRunSync())
   }

@@ -52,16 +52,52 @@ class PushPullGRTest extends AnyFunSuite {
 
   test("push - pull - base") {
     val sink = ctx.topic(baseTopic).produce.pipe
+    val path = root / "base"
     (baseData ++ evolveData).chunks.through(sink).compile.drain.unsafeRunSync()
-    sparKafka.topic(baseTopic).fromKafka.output.jackson(root / "base").run.unsafeRunSync()
+    sparKafka.topic(baseTopic).fromKafka.output.jackson(path).run.unsafeRunSync()
+
+    sparKafka.topic(baseTopic).load.jackson(path).count.unsafeRunSync()
+   // sparKafka.topic(evolveTopic).load.jackson(path).count.unsafeRunSync()
 
   }
 
   test("push - pull - evolve") {
     val sink = ctx.topic(evolveTopic).produce.pipe
+    val path = root / "evolve"
 
     (baseData ++ evolveData).chunks.through(sink).compile.drain.unsafeRunSync()
-    sparKafka.topic(evolveTopic).fromKafka.output.jackson(root / "evolve").run.unsafeRunSync()
+    sparKafka.topic(evolveTopic).fromKafka.output.jackson(path).run.unsafeRunSync()
+
+   //  sparKafka.topic(baseTopic).load.jackson(path).count.unsafeRunSync()
+     sparKafka.topic(evolveTopic).load.jackson(path).count.unsafeRunSync()
+
   }
 
+  test("avro") {
+    val pb = root / "avro" / "base"
+    val pe = root / "avro" / "evolve"
+
+    sparKafka.topic(baseTopic).fromKafka.output.avro(pb).run.unsafeRunSync()
+    sparKafka.topic(evolveTopic).fromKafka.output.avro(pe).run.unsafeRunSync()
+
+    sparKafka.topic(evolveTopic).load.avro(pb).count.unsafeRunSync()
+    sparKafka.topic(evolveTopic).load.avro(pe).count.unsafeRunSync()
+
+    sparKafka.topic(baseTopic).load.avro(pb).count.unsafeRunSync()
+    sparKafka.topic(baseTopic).load.avro(pe).count.unsafeRunSync()
+  }
+
+  test("parquet") {
+    val pb = root / "parquet" / "base"
+    val pe = root / "parquet" / "evolve"
+
+    sparKafka.topic(baseTopic).fromKafka.output.parquet(pb).run.unsafeRunSync()
+    sparKafka.topic(evolveTopic).fromKafka.output.parquet(pe).run.unsafeRunSync()
+
+    sparKafka.topic(evolveTopic).load.parquet(pb).count.unsafeRunSync()
+    sparKafka.topic(evolveTopic).load.parquet(pe).count.unsafeRunSync()
+
+    sparKafka.topic(baseTopic).load.parquet(pb).count.unsafeRunSync()
+   // sparKafka.topic(baseTopic).load.parquet(pe).count.unsafeRunSync()
+  }
 }

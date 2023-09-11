@@ -1,6 +1,6 @@
 package mtest.msg.codec
 
-import com.github.chenharryhua.nanjin.messages.kafka.codec.{GRCodec, KJson, NJAvroCodec, SerdeOf}
+import com.github.chenharryhua.nanjin.messages.kafka.codec.{reshape, GRCodec, KJson, NJAvroCodec, SerdeOf}
 import io.circe.Json
 import org.apache.avro.Schema
 import org.apache.avro.generic.GenericRecord
@@ -46,6 +46,7 @@ class NullTests extends AnyFunSuite {
     assert(codec.decode(null) == null)
     assert(codec.encode(null) == null)
     assertThrows[Exception](codec.decode(123))
+    assert(reshape(codec.schema, null).get == null)
   }
 
   test("kjson codec null") {

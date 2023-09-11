@@ -1,11 +1,15 @@
 package com.github.chenharryhua.nanjin.messages.kafka
 
+import com.github.chenharryhua.nanjin.common.optics.jsonPlated
 import io.circe.{parser, Json}
 import monocle.function.Plated
+import org.apache.avro.generic.{GenericData, GenericDatumReader, GenericDatumWriter, GenericRecord}
+import org.apache.avro.io.{BinaryDecoder, BinaryEncoder, DecoderFactory, EncoderFactory}
 import org.apache.avro.{Schema, SchemaCompatibility}
-import com.github.chenharryhua.nanjin.common.optics.jsonPlated
 
+import java.io.ByteArrayOutputStream
 import scala.jdk.CollectionConverters.ListHasAsScala
+import scala.util.{Try, Using}
 
 package object codec {
   def backwardCompatibility(a: Schema, b: Schema): List[SchemaCompatibility.Incompatibility] =
@@ -109,5 +113,27 @@ package object codec {
       .map(js => (new Schema.Parser).parse(js.noSpaces))
       .getOrElse(schema)
   }
+
+  /** using the schema to reshape the input generic record
+    *
+    * @param schema
+    *   target schema
+    * @param getGenericRecord
+    *   input generic record - could fail
+    * @return
+    */
+  def reshape(schema: Schema, getGenericRecord: => GenericRecord): Try[GenericData.Record] =
+    Using(new ByteArrayOutputStream()) { baos =>
+      val gr: GenericRecord = getGenericRecord
+      if (gr == null) null
+      else {
+        val encoder: BinaryEncoder = EncoderFactory.get().binaryEncoder(baos, null)
+        new GenericDatumWriter[GenericRecord](gr.getSchema).write(gr, encoder)
+        encoder.flush()
+
+        val decoder: BinaryDecoder = DecoderFactory.get().binaryDecoder(baos.toByteArray, null)
+        new GenericDatumReader[GenericData.Record](gr.getSchema, schema).read(null, decoder)
+      }
+    }(_.close())
 
 }
