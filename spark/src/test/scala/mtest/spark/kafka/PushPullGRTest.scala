@@ -4,72 +4,68 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.TopicDef
-import com.github.chenharryhua.nanjin.messages.kafka.codec.GRCodec
+import com.github.chenharryhua.nanjin.messages.kafka.codec.{immigrate, NJAvroCodec}
 import com.github.chenharryhua.nanjin.terminals.NJPath
+import com.sksamuel.avro4s.Record
 import eu.timepit.refined.auto.*
 import fs2.Stream
-import fs2.kafka.ProducerRecord
-import org.apache.avro.Schema
-import org.apache.avro.generic.{GenericData, GenericRecord}
 import org.scalatest.funsuite.AnyFunSuite
 
+object version1 {
+  final case class Tiger(a: Int)
+}
+object version2 {
+  final case class Tiger(a: Int, b: Option[String] = None)
+}
+
 class PushPullGRTest extends AnyFunSuite {
-  val base: Schema = (new Schema.Parser).parse("""
-        {"type":"record","name":"Tiger","namespace":"pull","fields":[{"name":"a","type":"int"}]}
-      """)
-  val evolve: Schema = (new Schema.Parser).parse("""
-      {"type":"record","name":"Tiger","namespace":"pull","fields":[{"name":"a","type":"int"},{"name":"b","type":["null","string"],"default":null}]}
-    """)
 
   val topicName: TopicName = TopicName("pull.test")
 
   val root: NJPath = NJPath("./data/test/spark/kafka/push_pull")
 
-  val baseTopic: TopicDef[Int, GenericRecord] =
-    TopicDef[Int, GenericRecord](topicName, GRCodec(base))
+  val baseTopic: TopicDef[Int, version1.Tiger] =
+    TopicDef[Int, version1.Tiger](topicName, NJAvroCodec[version1.Tiger])
+  val evolveTopic: TopicDef[Int, version2.Tiger] =
+    TopicDef[Int, version2.Tiger](topicName, NJAvroCodec[version2.Tiger])
 
-  val baseData: Stream[IO, ProducerRecord[Int, GenericRecord]] = Stream
-    .range(0, 10)
-    .map { a =>
-      val record = new GenericData.Record(base)
-      record.put("a", a)
-      baseTopic.njProducerRecord(a, record).toProducerRecord
-    }
-    .covary[IO]
+  val baseData: Stream[IO, Record] =
+    Stream.range(0, 10).map(a => baseTopic.producerFormat.toRecord(a, version1.Tiger(a))).covary[IO]
 
-  val evolveTopic: TopicDef[Int, GenericRecord] =
-    TopicDef[Int, GenericRecord](topicName, GRCodec(evolve))
-
-  val evolveData: Stream[IO, ProducerRecord[Int, GenericRecord]] = Stream
-    .range(10, 20)
-    .map { a =>
-      val record = new GenericData.Record(evolve)
-      record.put("a", a)
-      record.put("b", "b")
-      evolveTopic.producerRecord(a, record)
-    }
-    .covary[IO]
+  val evolveData: Stream[IO, Record] =
+    Stream
+      .range(10, 20)
+      .map(a => evolveTopic.producerFormat.toRecord(a, version2.Tiger(a, Some("b"))))
+      .covary[IO]
 
   test("push - pull - base") {
-    val sink = ctx.topic(baseTopic).produce.pipe
+    val sink = ctx.sink(baseTopic.topicName).build
     val path = root / "base"
     (baseData ++ evolveData).chunks.through(sink).compile.drain.unsafeRunSync()
     sparKafka.topic(baseTopic).fromKafka.output.jackson(path).run.unsafeRunSync()
 
     sparKafka.topic(baseTopic).load.jackson(path).count.unsafeRunSync()
-   // sparKafka.topic(evolveTopic).load.jackson(path).count.unsafeRunSync()
-
+    // sparKafka.topic(evolveTopic).load.jackson(path).count.unsafeRunSync()
+    Stream // immigration
+      .eval(hadoop.filesIn(path))
+      .flatMap(hadoop.jackson(baseTopic.schemaPair.consumerSchema).source)
+      .evalTap(r => IO(assert(r.getSchema == baseTopic.schemaPair.consumerSchema)))
+      .map(r => immigrate(evolveTopic.schemaPair.consumerSchema, r))
+      .evalTap(r => IO(assert(r.get.getSchema == evolveTopic.schemaPair.consumerSchema)))
+      .compile
+      .drain
+      .unsafeRunSync()
   }
 
   test("push - pull - evolve") {
-    val sink = ctx.topic(evolveTopic).produce.pipe
+    val sink = ctx.sink(evolveTopic.topicName).build
     val path = root / "evolve"
 
     (baseData ++ evolveData).chunks.through(sink).compile.drain.unsafeRunSync()
     sparKafka.topic(evolveTopic).fromKafka.output.jackson(path).run.unsafeRunSync()
 
-   //  sparKafka.topic(baseTopic).load.jackson(path).count.unsafeRunSync()
-     sparKafka.topic(evolveTopic).load.jackson(path).count.unsafeRunSync()
+    //  sparKafka.topic(baseTopic).load.jackson(path).count.unsafeRunSync()
+    sparKafka.topic(evolveTopic).load.jackson(path).count.unsafeRunSync()
 
   }
 
@@ -98,6 +94,6 @@ class PushPullGRTest extends AnyFunSuite {
     sparKafka.topic(evolveTopic).load.parquet(pe).count.unsafeRunSync()
 
     sparKafka.topic(baseTopic).load.parquet(pb).count.unsafeRunSync()
-   // sparKafka.topic(baseTopic).load.parquet(pe).count.unsafeRunSync()
+    // sparKafka.topic(baseTopic).load.parquet(pe).count.unsafeRunSync()
   }
 }

@@ -121,8 +121,9 @@ package object codec {
     * @param getGenericRecord
     *   input generic record - could fail
     * @return
+    *   generic record which has the given schema
     */
-  def reshape(schema: Schema, getGenericRecord: => GenericRecord): Try[GenericData.Record] =
+  def immigrate(schema: Schema, getGenericRecord: => GenericRecord): Try[GenericData.Record] =
     Using(new ByteArrayOutputStream()) { baos =>
       val gr: GenericRecord = getGenericRecord
       if (gr == null) null

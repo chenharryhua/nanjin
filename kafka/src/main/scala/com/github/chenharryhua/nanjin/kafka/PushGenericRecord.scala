@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.kafka
 
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
-import com.github.chenharryhua.nanjin.messages.kafka.codec.GRCodec
+import com.github.chenharryhua.nanjin.messages.kafka.codec.immigrate
 import com.sksamuel.avro4s.Decoder
 import fs2.kafka.ProducerRecord
 import io.confluent.kafka.streams.serdes.avro.GenericAvroSerializer
@@ -21,8 +21,8 @@ final class PushGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName,
       case Schema.Type.RECORD =>
         val ser = new GenericAvroSerializer()
         ser.configure(srs.config.asJava, true)
-        val keyCodec = GRCodec(pair.key)
-        (data: AnyRef) => ser.serialize(topic, keyCodec.decode(data))
+        // java world
+        (data: AnyRef) => ser.serialize(topic, immigrate(pair.key, data.asInstanceOf[GenericRecord]).get)
 
       case Schema.Type.STRING =>
         val ser = Serdes.stringSerde.serializer()
@@ -51,8 +51,8 @@ final class PushGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName,
       case Schema.Type.RECORD =>
         val ser = new GenericAvroSerializer()
         ser.configure(srs.config.asJava, false)
-        val valCodec = GRCodec(pair.value)
-        (data: AnyRef) => ser.serialize(topic, valCodec.decode(data))
+        // java world
+        (data: AnyRef) => ser.serialize(topic, immigrate(pair.value, data.asInstanceOf[GenericRecord]).get)
 
       case Schema.Type.STRING =>
         val ser = Serdes.stringSerde.serializer()

@@ -12,6 +12,6 @@ package object kafka {
 
   val ctx: KafkaContext[IO]           = KafkaSettings.local.ioContext
   val sparKafka: SparKafkaContext[IO] = sparkSession.alongWith(ctx)
-  val hadoop: NJHadoop[IO] = sparkSession.hadoop[IO]
+  val hadoop: NJHadoop[IO]            = sparkSession.hadoop[IO]
 
 }

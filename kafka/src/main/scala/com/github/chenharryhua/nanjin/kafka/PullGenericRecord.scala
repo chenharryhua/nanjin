@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.kafka
 
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.messages.kafka.NJHeader
-import com.github.chenharryhua.nanjin.messages.kafka.codec.reshape
+import com.github.chenharryhua.nanjin.messages.kafka.codec.immigrate
 import com.github.chenharryhua.nanjin.messages.kafka.instances.*
 import com.sksamuel.avro4s.SchemaFor
 import fs2.Chunk
@@ -30,7 +30,7 @@ final class PullGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName,
       case Schema.Type.RECORD =>
         val deser = new GenericAvroDeserializer()
         deser.configure(srs.config.asJava, true)
-        (data: Array[Byte]) => reshape(pair.key, deser.deserialize(topic, data))
+        (data: Array[Byte]) => immigrate(pair.key, deser.deserialize(topic, data))
       case Schema.Type.STRING =>
         val deser = Serdes.stringSerde.deserializer()
         (data: Array[Byte]) => Try(deser.deserialize(topic, data))
@@ -58,7 +58,7 @@ final class PullGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName,
       case Schema.Type.RECORD =>
         val deser = new GenericAvroDeserializer()
         deser.configure(srs.config.asJava, false)
-        (data: Array[Byte]) => reshape(pair.value, deser.deserialize(topic, data))
+        (data: Array[Byte]) => immigrate(pair.value, deser.deserialize(topic, data))
       case Schema.Type.STRING =>
         val deser = Serdes.stringSerde.deserializer()
         (data: Array[Byte]) => Try(deser.deserialize(topic, data))
