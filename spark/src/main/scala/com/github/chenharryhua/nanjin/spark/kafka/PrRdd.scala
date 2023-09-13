@@ -21,7 +21,7 @@ final class PrRdd[F[_], K, V] private[kafka] (
 
   // transform
   def transform(f: Endo[RDD[NJProducerRecord[K, V]]]): PrRdd[F, K, V] =
-    new PrRdd[F, K, V](F.flatMap(frdd)(rdd => F.blocking(f(rdd))), codec)
+    new PrRdd[F, K, V](F.flatMap(frdd)(rdd => F.interruptible(f(rdd))), codec)
 
   def filter(f: NJProducerRecord[K, V] => Boolean): PrRdd[F, K, V] = transform(_.filter(f))
   def partitionOf(num: Int): PrRdd[F, K, V]                        = filter(_.partition.exists(_ === num))

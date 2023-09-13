@@ -24,7 +24,7 @@ final class CrRdd[F[_], K, V] private[kafka] (
 
   // transforms
   def transform(f: Endo[RDD[NJConsumerRecord[K, V]]]): CrRdd[F, K, V] =
-    new CrRdd[F, K, V](F.flatMap(frdd)(rdd => F.blocking(f(rdd))), ack, acv, ss)
+    new CrRdd[F, K, V](F.flatMap(frdd)(rdd => F.interruptible(f(rdd))), ack, acv, ss)
 
   def filter(f: NJConsumerRecord[K, V] => Boolean): CrRdd[F, K, V] = transform(_.filter(f))
   def partitionOf(num: Int): CrRdd[F, K, V]                        = filter(_.partition === num)
@@ -45,21 +45,21 @@ final class CrRdd[F[_], K, V] private[kafka] (
   def bimap[K2, V2](k: K => K2, v: V => V2)(
     ack2: NJAvroCodec[K2],
     acv2: NJAvroCodec[V2]): CrRdd[F, K2, V2] = {
-    val rdd = F.flatMap(frdd)(rdd => F.blocking(rdd.map(_.bimap(k, v))))
+    val rdd = F.flatMap(frdd)(rdd => F.interruptible(rdd.map(_.bimap(k, v))))
     new CrRdd[F, K2, V2](rdd, ack2, acv2, ss).normalize
   }
 
   def map[K2, V2](f: NJConsumerRecord[K, V] => NJConsumerRecord[K2, V2])(
     ack2: NJAvroCodec[K2],
     acv2: NJAvroCodec[V2]): CrRdd[F, K2, V2] = {
-    val rdd = F.flatMap(frdd)(rdd => F.blocking(rdd.map(f)))
+    val rdd = F.flatMap(frdd)(rdd => F.interruptible(rdd.map(f)))
     new CrRdd[F, K2, V2](rdd, ack2, acv2, ss).normalize
   }
 
   def flatMap[K2, V2](f: NJConsumerRecord[K, V] => IterableOnce[NJConsumerRecord[K2, V2]])(
     ack2: NJAvroCodec[K2],
     acv2: NJAvroCodec[V2]): CrRdd[F, K2, V2] = {
-    val rdd = F.flatMap(frdd)(rdd => F.blocking(rdd.flatMap(f)))
+    val rdd = F.flatMap(frdd)(rdd => F.interruptible(rdd.flatMap(f)))
     new CrRdd[F, K2, V2](rdd, ack2, acv2, ss).normalize
   }
 
@@ -67,12 +67,12 @@ final class CrRdd[F[_], K, V] private[kafka] (
 
   def asTable(implicit tek: TypedEncoder[K], tev: TypedEncoder[V]): NJTable[F, NJConsumerRecord[K, V]] = {
     val ate: AvroTypedEncoder[NJConsumerRecord[K, V]] = AvroTypedEncoder(ack, acv)
-    val ds = F.flatMap(frdd)(rdd => F.blocking(ss.createDataset(rdd)(ate.sparkEncoder)))
+    val ds = F.flatMap(frdd)(rdd => F.interruptible(ss.createDataset(rdd)(ate.sparkEncoder)))
     new NJTable[F, NJConsumerRecord[K, V]](ds, ate)
   }
 
   def prRdd: PrRdd[F, K, V] = {
-    val rdd = F.flatMap(frdd)(rdd => F.blocking(rdd.map(_.toNJProducerRecord)))
+    val rdd = F.flatMap(frdd)(rdd => F.interruptible(rdd.map(_.toNJProducerRecord)))
     new PrRdd[F, K, V](rdd, NJProducerRecord.avroCodec(ack, acv))
   }
 
@@ -81,7 +81,7 @@ final class CrRdd[F[_], K, V] private[kafka] (
 
   // statistics
   def stats: Statistics[F] = {
-    val ds = F.flatMap(frdd)(rdd => F.blocking(ss.createDataset(rdd.map(CRMetaInfo(_)))))
+    val ds = F.flatMap(frdd)(rdd => F.interruptible(ss.createDataset(rdd.map(CRMetaInfo(_)))))
     new Statistics[F](ds)
   }
 
@@ -89,14 +89,14 @@ final class CrRdd[F[_], K, V] private[kafka] (
 
   def cherrypick(partition: Int, offset: Long): F[Option[NJConsumerRecord[K, V]]] =
     F.flatMap(partitionOf(partition).offsetRange(offset, offset).frdd)(rdd =>
-      F.blocking(rdd.collect().headOption))
+      F.interruptible(rdd.collect().headOption))
 
   def diff(other: RDD[NJConsumerRecord[K, V]]): CrRdd[F, K, V] = transform(_.subtract(other))
   def diff(other: CrRdd[F, K, V]): CrRdd[F, K, V] = {
     val rdd = for {
       me <- frdd
       you <- other.frdd
-      rdd <- F.blocking(me.subtract(you))
+      rdd <- F.interruptible(me.subtract(you))
     } yield rdd
     new CrRdd[F, K, V](rdd, ack, acv, ss)
   }
@@ -106,7 +106,7 @@ final class CrRdd[F[_], K, V] private[kafka] (
     val rdd = for {
       me <- frdd
       you <- other.frdd
-      rdd <- F.blocking(me.union(you))
+      rdd <- F.interruptible(me.union(you))
     } yield rdd
     new CrRdd[F, K, V](rdd, ack, acv, ss)
   }

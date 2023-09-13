@@ -78,15 +78,15 @@ final class SparKafkaTopic[F[_], K, V](val sparkSession: SparkSession, val topic
     new CrRdd[F, K, V](rdd, avroKeyCodec, avroValCodec, sparkSession)
 
   def emptyCrRdd(implicit F: Sync[F]): CrRdd[F, K, V] =
-    crRdd(F.blocking(sparkSession.sparkContext.emptyRDD[NJConsumerRecord[K, V]]))
+    crRdd(F.interruptible(sparkSession.sparkContext.emptyRDD[NJConsumerRecord[K, V]]))
 
   def prRdd(rdd: F[RDD[NJProducerRecord[K, V]]])(implicit F: Sync[F]): PrRdd[F, K, V] =
     new PrRdd[F, K, V](rdd, topic.topicDef.producerCodec)
 
   def prRdd[G[_]: Foldable](list: G[NJProducerRecord[K, V]])(implicit F: Sync[F]): PrRdd[F, K, V] =
-    prRdd(F.blocking(sparkSession.sparkContext.parallelize(list.toList)))
+    prRdd(F.interruptible(sparkSession.sparkContext.parallelize(list.toList)))
 
   def emptyPrRdd(implicit F: Sync[F]): PrRdd[F, K, V] =
-    prRdd(F.blocking(sparkSession.sparkContext.emptyRDD[NJProducerRecord[K, V]]))
+    prRdd(F.interruptible(sparkSession.sparkContext.emptyRDD[NJProducerRecord[K, V]]))
 
 }
