@@ -57,6 +57,7 @@ class CancellationTest extends AnyFunSuite {
     assert(s.isInstanceOf[ServiceStart])
     assert(b.isInstanceOf[ActionFail])
     assert(c.isInstanceOf[ServiceStop])
+    assert(c.asInstanceOf[ServiceStop].cause.exitCode == 1)
   }
 
   test("3.canceled by external exception") {

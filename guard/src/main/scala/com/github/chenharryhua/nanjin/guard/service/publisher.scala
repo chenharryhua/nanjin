@@ -82,12 +82,9 @@ private object publisher {
     channel: Channel[F, NJEvent],
     serviceParams: ServiceParams,
     cause: ServiceStopCause)(implicit F: MonadError[F, Throwable]): F[Unit] =
-    for {
-      now <- serviceParams.zonedNow
-      _ <- channel
-        .send(ServiceStop(timestamp = now, serviceParams = serviceParams, cause = cause))
-        .map(_.leftMap(_ => new Exception("service stop channel closed")))
-        .rethrow
-    } yield ()
+    serviceParams.zonedNow.flatMap(now =>
+      channel
+        .closeWithElement(ServiceStop(serviceParams = serviceParams, timestamp = now, cause = cause))
+        .void)
 
 }
