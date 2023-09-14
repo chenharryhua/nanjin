@@ -107,7 +107,7 @@ final class Statistics[F[_]] private[spark] (val fdataset: F[Dataset[CRMetaInfo]
   def minutely: F[List[MinutelyAggResult]] = F.flatMap(fdataset) { ds =>
     import ds.sparkSession.implicits.*
     val zoneId: ZoneId = ZoneId.of(ds.sparkSession.conf.get(SPARK_ZONE_ID))
-    F.blocking(
+    F.interruptible(
       ds.map(m => m.localDateTime(zoneId).getMinute)
         .groupByKey(identity)
         .mapGroups((m, iter) => MinutelyAggResult(m, iter.size))
@@ -119,7 +119,7 @@ final class Statistics[F[_]] private[spark] (val fdataset: F[Dataset[CRMetaInfo]
   def hourly: F[List[HourlyAggResult]] = F.flatMap(fdataset) { ds =>
     import ds.sparkSession.implicits.*
     val zoneId: ZoneId = ZoneId.of(ds.sparkSession.conf.get(SPARK_ZONE_ID))
-    F.blocking(
+    F.interruptible(
       ds.map(m => m.localDateTime(zoneId).getHour)
         .groupByKey(identity)
         .mapGroups((m, iter) => HourlyAggResult(m, iter.size))
@@ -131,7 +131,7 @@ final class Statistics[F[_]] private[spark] (val fdataset: F[Dataset[CRMetaInfo]
   def daily: F[List[DailyAggResult]] = F.flatMap(fdataset) { ds =>
     import ds.sparkSession.implicits.*
     val zoneId: ZoneId = ZoneId.of(ds.sparkSession.conf.get(SPARK_ZONE_ID))
-    F.blocking(
+    F.interruptible(
       ds.map(m => dayResolution(m.localDateTime(zoneId)))
         .groupByKey(identity)
         .mapGroups((m, iter) => DailyAggResult(m, iter.size))
@@ -143,7 +143,7 @@ final class Statistics[F[_]] private[spark] (val fdataset: F[Dataset[CRMetaInfo]
   def dailyHour: F[List[DailyHourAggResult]] = F.flatMap(fdataset) { ds =>
     import ds.sparkSession.implicits.*
     val zoneId: ZoneId = ZoneId.of(ds.sparkSession.conf.get(SPARK_ZONE_ID))
-    F.blocking(
+    F.interruptible(
       ds.map(m => hourResolution(m.localDateTime(zoneId)).toString)
         .groupByKey(identity)
         .mapGroups((m, iter) => DailyHourAggResult(m, iter.size))
@@ -155,7 +155,7 @@ final class Statistics[F[_]] private[spark] (val fdataset: F[Dataset[CRMetaInfo]
   def dailyMinute: F[List[DailyMinuteAggResult]] = F.flatMap(fdataset) { ds =>
     import ds.sparkSession.implicits.*
     val zoneId: ZoneId = ZoneId.of(ds.sparkSession.conf.get(SPARK_ZONE_ID))
-    F.blocking(
+    F.interruptible(
       ds.map(m => minuteResolution(m.localDateTime(zoneId)).toString)
         .groupByKey(identity)
         .mapGroups((m, iter) => DailyMinuteAggResult(m, iter.size))
@@ -185,7 +185,7 @@ final class Statistics[F[_]] private[spark] (val fdataset: F[Dataset[CRMetaInfo]
 
   def summary: F[List[KafkaSummary]] = F.flatMap(fdataset) { ds =>
     val zoneId: ZoneId = ZoneId.of(ds.sparkSession.conf.get(SPARK_ZONE_ID))
-    F.blocking(internalSummary(ds).map(_.toKafkaSummary(zoneId)))
+    F.interruptible(internalSummary(ds).map(_.toKafkaSummary(zoneId)))
   }
 
   /** Notes: offset is supposed to be monotonically increasing in a partition, except compact topic
@@ -193,7 +193,7 @@ final class Statistics[F[_]] private[spark] (val fdataset: F[Dataset[CRMetaInfo]
   def missingOffsets: F[Dataset[MissingOffset]] = F.flatMap(fdataset) { ds =>
     import ds.sparkSession.implicits.*
     import org.apache.spark.sql.functions.col
-    F.blocking {
+    F.interruptible {
       val all: List[Dataset[MissingOffset]] = internalSummary(ds).map { kds =>
         val expect: Dataset[Long] = ds.sparkSession.range(kds.startOffset, kds.endOffset + 1L).map(_.toLong)
         val exist: Dataset[Long]  = ds.filter(_.partition === kds.partition).map(_.offset)
@@ -212,7 +212,7 @@ final class Statistics[F[_]] private[spark] (val fdataset: F[Dataset[CRMetaInfo]
   def disorders: F[Dataset[Disorder]] = F.flatMap(fdataset) { ds =>
     import ds.sparkSession.implicits.*
     import org.apache.spark.sql.functions.col
-    F.blocking {
+    F.interruptible {
       val zoneId: ZoneId = ZoneId.of(ds.sparkSession.conf.get(SPARK_ZONE_ID))
       val all: Array[Dataset[Disorder]] =
         ds.map(_.partition).distinct().collect().map { pt =>
@@ -244,7 +244,7 @@ final class Statistics[F[_]] private[spark] (val fdataset: F[Dataset[CRMetaInfo]
   def dupRecords: F[Dataset[DuplicateRecord]] = F.flatMap(fdataset) { ds =>
     import ds.sparkSession.implicits.*
     import org.apache.spark.sql.functions.{asc, col, count, lit}
-    F.blocking(
+    F.interruptible(
       ds.groupBy(col("partition"), col("offset"))
         .agg(count(lit(1)))
         .as[(Int, Long, Long)]

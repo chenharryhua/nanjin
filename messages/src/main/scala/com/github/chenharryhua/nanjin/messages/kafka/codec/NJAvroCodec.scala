@@ -12,7 +12,7 @@ import eu.timepit.refined.api.Refined
 import eu.timepit.refined.string.MatchesRegex
 import org.apache.avro.Schema
 final class NJAvroCodec[A] private (
-  val schemaFor: SchemaFor[A],
+  override val schemaFor: SchemaFor[A],
   avroDecoder: AvroDecoder[A],
   avroEncoder: AvroEncoder[A])
     extends Codec[A] with Serializable {
@@ -55,8 +55,8 @@ object NJAvroCodec {
     if (b.isEmpty && f.isEmpty) {
       apply(SchemaFor[A](schema), dc, ec)
     } else {
-      val msg = (b ++ f).map(_.getMessage).mkString("\n")
-      throw new Exception(msg)
+      val msg = (b ++ f).map(m => s"${m.getMessage} at ${m.getLocation}").mkString("\n")
+      throw new Exception(s"incompatible schema: $msg")
     }
   }
 

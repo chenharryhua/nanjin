@@ -49,14 +49,12 @@ final class SqsObserver[F[_]: Clock: UUIDGen](
 
   // events order should be preserved
   def observe(fifo: SqsConfig.Fifo): Pipe[F, NJEvent, NJEvent] = internal(
-    UUIDGen
-      .randomUUID[F]
-      .map(uuid =>
-        SendMessageRequest
-          .builder()
-          .messageDeduplicationId(uuid.show)
-          .queueUrl(fifo.queueUrl)
-          .messageGroupId(fifo.messageGroupId.value)))
+    UUIDGen[F].randomUUID.map(uuid =>
+      SendMessageRequest
+        .builder()
+        .messageDeduplicationId(uuid.show)
+        .queueUrl(fifo.queueUrl)
+        .messageGroupId(fifo.messageGroupId.value)))
 
   override def updateTranslator(f: Endo[Translator[F, NJEvent]]): SqsObserver[F] =
     new SqsObserver[F](client, f(translator))

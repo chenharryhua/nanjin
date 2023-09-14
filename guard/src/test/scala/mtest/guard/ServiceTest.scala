@@ -45,6 +45,7 @@ class ServiceTest extends AnyFunSuite {
       .unsafeRunSync()
     assert(a.isInstanceOf[ServiceStart])
     assert(d.isInstanceOf[ServiceStop])
+    assert(d.asInstanceOf[ServiceStop].cause.exitCode == 0)
   }
 
   test("2.escalate to up level if retry failed") {
@@ -86,6 +87,7 @@ class ServiceTest extends AnyFunSuite {
     assert(b.isInstanceOf[ActionStart])
     assert(c.isInstanceOf[ActionFail])
     assert(d.isInstanceOf[ServiceStop])
+    assert(d.asInstanceOf[ServiceStop].cause.exitCode == 2)
   }
 
   test("4.json codec") {

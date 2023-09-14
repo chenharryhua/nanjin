@@ -74,8 +74,8 @@ final class KafkaContext[F[_]](val settings: KafkaSettings)
   def consume(topicName: TopicNameL)(implicit F: Sync[F]): NJKafkaByteConsume[F] =
     consume(TopicName(topicName))
 
-  def monitor(topicName: TopicName)(implicit F: Async[F], U: UUIDGen[F]): Stream[F, String] =
-    Stream.eval(U.randomUUID).flatMap { uuid =>
+  def monitor(topicName: TopicName)(implicit F: Async[F]): Stream[F, String] =
+    Stream.eval(UUIDGen[F].randomUUID).flatMap { uuid =>
       consume(topicName)
         .updateConfig( // avoid accidentally join an existing consumer-group
           _.withGroupId(uuid.show).withEnableAutoCommit(false).withAutoOffsetReset(AutoOffsetReset.Latest))

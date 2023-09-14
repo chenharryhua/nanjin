@@ -49,7 +49,7 @@ object functions {
       val teok: TypedEncoder[Option[K]]        = shapeless.cachedImplicit
       val temk: TypedEncoder[MisorderedKey[K]] = shapeless.cachedImplicit
       F.flatMap(fdataset)(dataset =>
-        F.blocking(
+        F.interruptible(
           dataset
             .groupByKey(_.key)(TypedExpressionEncoder(teok))
             .flatMapGroups[MisorderedKey[K]] { (okey: Option[K], iter: Iterator[NJConsumerRecord[K, V]]) =>
@@ -78,7 +78,7 @@ object functions {
     def misplacedKey(implicit @unused tek: TypedEncoder[K]): F[Dataset[MisplacedKey[K]]] = {
       val te: TypedEncoder[MisplacedKey[K]] = shapeless.cachedImplicit
       F.flatMap(fdataset)(dataset =>
-        F.blocking(
+        F.interruptible(
           dataset
             .groupBy(col("key"))
             .agg(countDistinct(col("partition")).as("count"))
@@ -87,6 +87,6 @@ object functions {
             .orderBy(col("count").desc)))
     }
 
-    def stats: Statistics[F] = new Statistics[F](F.flatMap(fdataset)(ds => F.blocking(ds.map(CRMetaInfo(_)))))
+    def stats: Statistics[F] = new Statistics[F](F.flatMap(fdataset)(ds => F.interruptible(ds.map(CRMetaInfo(_)))))
   }
 }
