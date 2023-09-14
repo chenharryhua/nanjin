@@ -59,7 +59,7 @@ final case class NJConsumerRecord[K, V](
 
 }
 
-object NJConsumerRecord {
+object NJConsumerRecord extends Isos {
 
   def apply[K, V](cr: KafkaConsumerRecord[Option[K], Option[V]]): NJConsumerRecord[K, V] =
     NJConsumerRecord(
@@ -74,7 +74,7 @@ object NJConsumerRecord {
     )
 
   def apply[K, V](cr: ConsumerRecord[Option[K], Option[V]]): NJConsumerRecord[K, V] =
-    apply(cr.transformInto[ConsumerRecord[Option[K], Option[V]]])
+    apply(isoFs2ComsumerRecord.get(cr))
 
   def avroCodec[K, V](
     keyCodec: NJAvroCodec[K],
@@ -116,7 +116,7 @@ object NJConsumerRecord {
         fab.copy(key = fab.key.map(f), value = fab.value.map(g))
     }
 
-  implicit def partialOrderOptionlKV[K, V]: PartialOrder[NJConsumerRecord[K, V]] =
+  implicit def partialOrderOptionalKV[K, V]: PartialOrder[NJConsumerRecord[K, V]] =
     (x: NJConsumerRecord[K, V], y: NJConsumerRecord[K, V]) =>
       if (x.partition === y.partition) {
         if (x.offset < y.offset) -1.0 else if (x.offset > y.offset) 1.0 else 0.0
