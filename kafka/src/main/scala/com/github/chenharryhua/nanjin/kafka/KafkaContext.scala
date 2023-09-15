@@ -79,7 +79,7 @@ final class KafkaContext[F[_]](val settings: KafkaSettings)
       consume(topicName)
         .updateConfig( // avoid accidentally join an existing consumer-group
           _.withGroupId(uuid.show).withEnableAutoCommit(false).withAutoOffsetReset(AutoOffsetReset.Latest))
-        .avro
+        .genericRecords
         .map(ccr => gr2Jackson(ccr.record.value).get)
     }
 

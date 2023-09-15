@@ -55,7 +55,7 @@ final class NJKafkaByteConsume[F[_]] private[kafka] (
     *
     * key or value will be null if deserialization fails
     */
-  def avro(implicit F: Async[F]): Stream[F, CommittableConsumerRecord[F, Unit, GenericData.Record]] =
+  def genericRecords(implicit F: Async[F]): Stream[F, CommittableConsumerRecord[F, Unit, GenericData.Record]] =
     Stream.eval(getSchema).flatMap { skm =>
       val builder = new PullGenericRecord(srs, topicName, skm)
       stream.map { cr =>
