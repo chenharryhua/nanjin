@@ -7,8 +7,10 @@ import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameL}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{NJAvroCodec, SerdeOf}
 import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJProducerRecord}
 import com.sksamuel.avro4s.{Record, RecordFormat}
-import fs2.kafka.ProducerRecord
+import fs2.kafka.{ConsumerRecord, ProducerRecord}
 import org.apache.avro.generic.IndexedRecord
+import org.apache.kafka.clients.consumer.ConsumerRecord as JavaConsumerRecord
+import org.apache.kafka.clients.producer.ProducerRecord as JavaProducerRecord
 
 final class TopicDef[K, V] private (val topicName: TopicName, val rawSerdes: RawKeyValueSerdePair[K, V])
     extends Serializable {
@@ -20,20 +22,25 @@ final class TopicDef[K, V] private (val topicName: TopicName, val rawSerdes: Raw
   def withTopicName(tn: TopicName): TopicDef[K, V]  = new TopicDef[K, V](tn, rawSerdes)
   def withTopicName(tn: TopicNameL): TopicDef[K, V] = withTopicName(TopicName(tn))
 
-  def njProducerRecord(k: K, v: V): NJProducerRecord[K, V] = NJProducerRecord(topicName, k, v)
-  def producerRecord(k: K, v: V): ProducerRecord[K, V]     = ProducerRecord(topicName.value, k, v)
+  def producerRecord(k: K, v: V): ProducerRecord[K, V] = ProducerRecord(topicName.value, k, v)
 
   lazy val schemaPair: AvroSchemaPair =
     AvroSchemaPair(rawSerdes.key.avroCodec.schema, rawSerdes.value.avroCodec.schema)
 
   final class ConsumerFormat(rf: RecordFormat[NJConsumerRecord[K, V]]) extends Serializable {
-    def toRecord(nj: NJConsumerRecord[K, V]): Record          = rf.to(nj)
+    def toRecord(nj: NJConsumerRecord[K, V]): Record    = rf.to(nj)
+    def toRecord(cr: ConsumerRecord[K, V]): Record      = toRecord(NJConsumerRecord(cr))
+    def toRecord(jcr: JavaConsumerRecord[K, V]): Record = toRecord(NJConsumerRecord(jcr))
+
     def fromRecord(gr: IndexedRecord): NJConsumerRecord[K, V] = rf.from(gr)
   }
 
   final class ProducerFormat(rf: RecordFormat[NJProducerRecord[K, V]]) extends Serializable {
-    def toRecord(nj: NJProducerRecord[K, V]): Record          = rf.to(nj)
-    def toRecord(k: K, v: V): Record                          = toRecord(NJProducerRecord(topicName, k, v))
+    def toRecord(nj: NJProducerRecord[K, V]): Record    = rf.to(nj)
+    def toRecord(k: K, v: V): Record                    = toRecord(NJProducerRecord(topicName, k, v))
+    def toRecord(pr: ProducerRecord[K, V]): Record      = toRecord(NJProducerRecord(pr))
+    def toRecord(jpr: JavaProducerRecord[K, V]): Record = toRecord(NJProducerRecord(jpr))
+
     def fromRecord(gr: IndexedRecord): NJProducerRecord[K, V] = rf.from(gr)
   }
 

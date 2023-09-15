@@ -8,7 +8,7 @@ import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameL}
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.*
 import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
-import com.github.chenharryhua.nanjin.messages.kafka.codec.SerdeOf
+import com.github.chenharryhua.nanjin.messages.kafka.codec.{gr2Jackson, SerdeOf}
 import com.github.chenharryhua.nanjin.spark.kafka.{sk, CRMetaInfo, SparKafkaTopic, Statistics}
 import com.github.chenharryhua.nanjin.spark.persist.RddFileHoarder
 import com.github.chenharryhua.nanjin.terminals.{NJHadoop, NJPath}
@@ -56,7 +56,7 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
       range <- kafkaContext.admin(topicName).offsetRangeFor(dateRange)
     } yield sk
       .kafkaBatchRDD(kafkaContext.settings.consumerSettings, sparkSession, range)
-      .map(builder.toJacksonString)
+      .flatMap(elem => gr2Jackson(builder.toGenericRecord(elem)).toOption)
 
     new RddFileHoarder(grRdd).text(path).withSuffix("jackson.json").run
   }

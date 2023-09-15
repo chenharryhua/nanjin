@@ -6,9 +6,8 @@ import cats.effect.kernel.{Async, Resource}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
+import fs2.Stream
 import fs2.kafka.{CommittableConsumerRecord, ConsumerSettings, KafkaConsumer}
-import fs2.{Chunk, Stream}
-import org.apache.avro.Schema
 import org.apache.avro.generic.GenericData
 
 final class NJKafkaByteConsume[F[_]] private[kafka] (
@@ -60,38 +59,7 @@ final class NJKafkaByteConsume[F[_]] private[kafka] (
     Stream.eval(getSchema).flatMap { skm =>
       val builder = new PullGenericRecord(srs, topicName, skm)
       stream.map { cr =>
-        cr.bimap(_ => (), _ => builder.toAvroRecord(cr.record))
-      }
-    }
-
-  /** generate Jackson String using the latest schema in Schema Registry
-    * @return
-    *
-    * Jackson String if encoded successfully by the latest schema
-    *
-    * a Generic.Record instance of NJConsumerRecord if fail
-    */
-  def jackson(implicit F: Async[F]): Stream[F, CommittableConsumerRecord[F, Schema, String]] =
-    Stream.eval(getSchema).flatMap { skm =>
-      val builder = new PullGenericRecord(srs, topicName, skm)
-      stream.map { cr =>
-        cr.bimap(_ => skm.consumerSchema, _ => builder.toJacksonString(cr.record))
-      }
-    }
-
-  /** generate Binary Avro bytes using the latest schema in Schema Registry
-    *
-    * @return
-    *
-    * Binary Avro bytes if encoded successfully by the latest schema
-    *
-    * Empty bytes if fail
-    */
-  def binAvro(implicit F: Async[F]): Stream[F, CommittableConsumerRecord[F, Schema, Chunk[Byte]]] =
-    Stream.eval(getSchema).flatMap { skm =>
-      val builder = new PullGenericRecord(srs, topicName, skm)
-      stream.map { cr =>
-        cr.bimap(_ => skm.consumerSchema, _ => builder.toBinAvro(cr.record))
+        cr.bimap(_ => (), _ => builder.toGenericRecord(cr.record))
       }
     }
 
@@ -102,28 +70,9 @@ final class NJKafkaByteConsume[F[_]] private[kafka] (
     Stream.eval(getSchema).flatMap { skm =>
       val builder = new PullGenericRecord(srs, topicName, skm)
       assign(tps).map { cr =>
-        cr.bimap(_ => (), _ => builder.toAvroRecord(cr.record))
+        cr.bimap(_ => (), _ => builder.toGenericRecord(cr.record))
       }
     }
-
-  def assignJackson(tps: KafkaTopicPartition[KafkaOffset])(implicit
-    F: Async[F]): Stream[F, CommittableConsumerRecord[F, Schema, String]] =
-    Stream.eval(getSchema).flatMap { skm =>
-      val builder = new PullGenericRecord(srs, topicName, skm)
-      assign(tps).map { cr =>
-        cr.bimap(_ => skm.consumerSchema, _ => builder.toJacksonString(cr.record))
-      }
-    }
-
-  def assignBinAvro(tps: KafkaTopicPartition[KafkaOffset])(implicit
-    F: Async[F]): Stream[F, CommittableConsumerRecord[F, Schema, Chunk[Byte]]] =
-    Stream.eval(getSchema).flatMap { skm =>
-      val builder = new PullGenericRecord(srs, topicName, skm)
-      assign(tps).map { cr =>
-        cr.bimap(_ => skm.consumerSchema, _ => builder.toBinAvro(cr.record))
-      }
-    }
-
 }
 
 final class NJKafkaConsume[F[_], K, V] private[kafka] (

@@ -20,7 +20,7 @@ class IsoTest extends AnyFunSuite with FunSuiteDiscipline with Configuration {
 
   checkAll(
     "fs2.ConsumerRecord",
-    IsoTests[Fs2ConsumerRecord[Int, Int], ConsumerRecord[Int, Int]](isoFs2ComsumerRecord[Int, Int]))
+    IsoTests[Fs2ConsumerRecord[Int, Int], ConsumerRecord[Int, Int]](isoFs2ConsumerRecord[Int, Int]))
 
   checkAll(
     "kafka.ConsumerRecord",

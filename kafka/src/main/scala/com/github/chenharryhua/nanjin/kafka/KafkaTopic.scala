@@ -17,7 +17,7 @@ import fs2.kafka.*
 import io.circe.Decoder
 import io.circe.generic.auto.*
 import org.apache.commons.lang3.exception.ExceptionUtils
-import org.apache.kafka.clients.consumer.ConsumerRecord as KafkaConsumerRecord
+import org.apache.kafka.clients.consumer.ConsumerRecord as JavaConsumerRecord
 import org.apache.kafka.clients.producer.RecordMetadata
 import org.apache.kafka.streams.scala.kstream.Produced
 
@@ -47,7 +47,7 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
 
   def decode[G[_, _]: NJConsumerMessage](
     gaa: G[Array[Byte], Array[Byte]]): NJConsumerRecordWithError[K, V] = {
-    val cr: KafkaConsumerRecord[Array[Byte], Array[Byte]] = NJConsumerMessage[G].lens.get(gaa)
+    val cr: JavaConsumerRecord[Array[Byte], Array[Byte]] = NJConsumerMessage[G].lens.get(gaa)
     val k: Either[String, K] =
       serdePair.key.tryDeserialize(cr.key()).toEither.leftMap(ex => ExceptionUtils.getRootCauseMessage(ex))
     val v: Either[String, V] =

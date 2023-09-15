@@ -73,11 +73,15 @@ final class LoadTable[F[_], A] private[spark] (ate: AvroTypedEncoder[A], ss: Spa
 
   def jdbc(hikari: HikariConfig, query: TableQuery): NJTable[F, A] = {
     val sparkOptions: Map[String, String] = toMap(hikari) + ("query" -> query.value)
-    new NJTable[F, A](F.interruptible(ate.normalizeDF(ss.read.format("jdbc").options(sparkOptions).load())), ate)
+    new NJTable[F, A](
+      F.interruptible(ate.normalizeDF(ss.read.format("jdbc").options(sparkOptions).load())),
+      ate)
   }
 
   def jdbc(hikari: HikariConfig, tableName: TableName): NJTable[F, A] = {
     val sparkOptions: Map[String, String] = toMap(hikari) + ("dbtable" -> tableName.value)
-    new NJTable[F, A](F.interruptible(ate.normalizeDF(ss.read.format("jdbc").options(sparkOptions).load())), ate)
+    new NJTable[F, A](
+      F.interruptible(ate.normalizeDF(ss.read.format("jdbc").options(sparkOptions).load())),
+      ate)
   }
 }
