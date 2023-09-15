@@ -4,15 +4,19 @@ import cats.kernel.PartialOrder
 import cats.syntax.all.*
 import cats.{Bifunctor, Eq, Show}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
+import com.github.chenharryhua.nanjin.messages.kafka.instances.*
 import com.sksamuel.avro4s.*
 import fs2.kafka.{ConsumerRecord, Header as Fs2Header}
 import io.circe.generic.JsonCodec
 import io.scalaland.chimney.dsl.*
 import org.apache.avro.Schema
 import org.apache.kafka.clients.consumer.ConsumerRecord as JavaConsumerRecord
-import org.apache.kafka.common.header.Headers as KafkaHeaders
+import org.apache.kafka.common.header.internals.{RecordHeader, RecordHeaders}
+import org.apache.kafka.common.header.{Header, Headers as KafkaHeaders}
+import org.apache.kafka.common.record.TimestampType
 
 import java.time.{Instant, ZoneId, ZonedDateTime}
+import java.util.Optional
 import scala.annotation.nowarn
 
 @JsonCodec
@@ -50,6 +54,28 @@ final case class NJConsumerRecord[K, V](
 
   def toNJProducerRecord: NJProducerRecord[K, V] =
     NJProducerRecord[K, V](topic, Some(partition), Some(offset), Some(timestamp), key, value, headers)
+
+  def toJavaConsumerRecord: JavaConsumerRecord[K, V] =
+    new JavaConsumerRecord[K, V](
+      this.topic,
+      this.partition,
+      this.offset,
+      this.timestamp,
+      this.timestampType match {
+        case 0 => TimestampType.CREATE_TIME
+        case 1 => TimestampType.LOG_APPEND_TIME
+        case _ => TimestampType.NO_TIMESTAMP_TYPE
+      },
+      JavaConsumerRecord.NULL_SIZE,
+      JavaConsumerRecord.NULL_SIZE,
+      this.key.getOrElse(null.asInstanceOf[K]),
+      this.value.getOrElse(null.asInstanceOf[V]),
+      new RecordHeaders(this.headers.map(h => new RecordHeader(h.key, h.value): Header).toArray),
+      Optional.empty[Integer]()
+    )
+
+  def toConsumerRecord: ConsumerRecord[K, V] =
+    toJavaConsumerRecord.transformInto[ConsumerRecord[K, V]]
 
   def metaInfo(zoneId: ZoneId): RecordMetaInfo =
     this

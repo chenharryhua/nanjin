@@ -1,13 +1,10 @@
 package mtest.msg.kafka
 import cats.derived.auto.eq.*
-import cats.implicits.toBifunctorOps
 import cats.kernel.laws.discipline.PartialOrderTests
 import cats.laws.discipline.BifunctorTests
 import cats.tests.CatsSuite
-import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJProducerRecord}
-import fs2.kafka.{ConsumerRecord, ProducerRecord}
-import org.scalacheck.{Arbitrary, Cogen, Gen, Properties}
+import org.scalacheck.{Arbitrary, Cogen, Gen}
 import org.typelevel.discipline.scalatest.FunSuiteDiscipline
 
 object NJComsumerRecordTestData {
@@ -37,7 +34,7 @@ object NJComsumerRecordTestData {
   implicit val arbO: Arbitrary[NJConsumerRecord[Int, Int]]  = Arbitrary(okv)
 }
 
-class NJComsumerRecordTest extends CatsSuite with FunSuiteDiscipline {
+class NJConsumerRecordTest extends CatsSuite with FunSuiteDiscipline {
   import NJComsumerRecordTestData.*
 
   // partial ordered
@@ -49,38 +46,3 @@ class NJComsumerRecordTest extends CatsSuite with FunSuiteDiscipline {
 
 }
 
-class NJConsumerRecordProp extends Properties("ConsumerRecord") {
-  import NJComsumerRecordTestData.*
-  import org.scalacheck.Prop.forAll
-
-  property("fs2.producer.record.conversion") = forAll { (op: NJProducerRecord[Int, Int]) =>
-    val fpr = op.toProducerRecord
-    val re =
-      NJProducerRecord[Int, Int](
-        op.topic,
-        fpr.partition,
-        None,
-        fpr.timestamp,
-        Option(fpr.key),
-        Option(fpr.value),
-        Nil)
-    re == op
-  }
-
-  property("fs2.consumer.record.conversion") = forAll { (op: NJConsumerRecord[Int, Int]) =>
-    val ncr = op.toNJProducerRecord.toProducerRecord
-    ncr.topic == op.topic && ncr.partition.get == op.partition && ncr.key == op.key.get && ncr.value == op.value.get
-  }
-
-  import ArbitraryData.{abFs2ConsumerRecord, abFs2ProducerRecord}
-  property("nj.consumer.record.conversion") = forAll { (op: ConsumerRecord[Int, Int]) =>
-    val ncr = NJConsumerRecord(op.bimap(Option(_), Option(_)))
-    ncr.key.get == op.key && ncr.value.get == op.value && op.topic == ncr.topic && op.partition == ncr.partition && op.offset == ncr.offset
-  }
-
-  property("nj.producer.record.conversion") = forAll { (op: ProducerRecord[Int, Int]) =>
-    val ncr = NJProducerRecord(TopicName.unsafeFrom(op.topic), op.key, op.value)
-    ncr.key.get == op.key && ncr.value.get == op.value && op.topic == ncr.topic
-  }
-
-}

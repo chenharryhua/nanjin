@@ -3,12 +3,12 @@ package com.github.chenharryhua.nanjin.messages.kafka
 import cats.Bifunctor
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
-import com.github.chenharryhua.nanjin.messages.kafka.instances.toJavaProducerRecordTransformer
 import com.sksamuel.avro4s.*
 import fs2.kafka.{Header as Fs2Header, Headers, ProducerRecord}
-import io.scalaland.chimney.dsl.*
 import org.apache.avro.Schema
 import org.apache.kafka.clients.producer.ProducerRecord as JavaProducerRecord
+import org.apache.kafka.common.header.Header
+import org.apache.kafka.common.header.internals.{RecordHeader, RecordHeaders}
 import shapeless.cachedImplicit
 
 import scala.annotation.nowarn
@@ -52,8 +52,15 @@ final case class NJProducerRecord[K, V](
     }
   }
 
-  def toKafkaProducerRecord: JavaProducerRecord[K, V] =
-    toProducerRecord.transformInto[JavaProducerRecord[K, V]]
+  def toJavaProducerRecord: JavaProducerRecord[K, V] =
+    new JavaProducerRecord[K, V](
+      topic,
+      partition.map(Integer.valueOf).orNull,
+      timestamp.map(java.lang.Long.valueOf).orNull,
+      key.getOrElse(null.asInstanceOf[K]),
+      value.getOrElse(null.asInstanceOf[V]),
+      new RecordHeaders(headers.map(h => new RecordHeader(h.key, h.value): Header).toArray)
+    )
 }
 
 object NJProducerRecord extends Isos {
