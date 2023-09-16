@@ -20,7 +20,7 @@ class TickStreamTest extends AnyFunSuite {
     val ticks  = tickStream[IO](policy)
 
     val res = ticks.map(_.interval.toScala).take(5).compile.toList.unsafeRunSync()
-    assert(res.tail.forall(d => d > 0.9.seconds && d < 1.1.seconds), res)
+    assert(res.tail.forall(d => d === 1.seconds), res)
   }
 
   test("2.process longer than 1 second") {
@@ -31,8 +31,7 @@ class TickStreamTest extends AnyFunSuite {
       ticks.evalTap(_ => IO.sleep(1.5.seconds)).take(5).compile.toList.unsafeRunSync()
     fds.tail.foreach { t =>
       val interval = t.interval.toScala
-      assert(interval > 1.8.seconds)
-      assert(interval < 2.2.seconds)
+      assert(interval === 2.seconds)
     }
   }
 
@@ -44,8 +43,7 @@ class TickStreamTest extends AnyFunSuite {
       ticks.evalTap(_ => IO.sleep(0.5.seconds)).take(5).compile.toList.unsafeRunSync()
     fds.tail.foreach { t =>
       val interval = t.interval.toScala
-      assert(interval > 0.8.seconds)
-      assert(interval < 1.2.seconds)
+      assert(interval === 1.seconds)
     }
   }
 
@@ -55,7 +53,7 @@ class TickStreamTest extends AnyFunSuite {
     assert(ticks.size === 5, ticks)
     val spend = ticks(4).wakeup.toEpochMilli / 1000 - ticks.head.wakeup.toEpochMilli / 1000
     assert(spend === 4, ticks)
-    assert(ticks.map(_.id).distinct.size == 1)
+    assert(ticks.map(_.sequenceId).distinct.size == 1)
   }
 
   test("6.cron") {
@@ -79,7 +77,7 @@ class TickStreamTest extends AnyFunSuite {
           .between(t2.previous.truncatedTo(ChronoUnit.SECONDS), t2.wakeup.truncatedTo(ChronoUnit.SECONDS))
           .toScala
         assert(dur === 1.second)
-        assert(t1.id === t2.id)
+        assert(t1.sequenceId === t2.sequenceId)
         assert(t2.previous === t1.wakeup)
         val j = JavaDuration.between(t2.previous.plus(l1).plus(t2.snooze), t2.wakeup).toNanos
         assert(j > 0)
@@ -113,22 +111,6 @@ class TickStreamTest extends AnyFunSuite {
 
     ticks.evalTap(_ => sleep).take(10).map(_.wakeup).debug().compile.toList.unsafeRunSync()
   }
-//
-//  test("8.jitter") {
-//    val policy = policies.jitterBackoff[IO](0.second, 1.seconds)
-//    val ticks  = tickStream(policy)
-//    val sleep: IO[JavaDuration] =
-//      Random
-//        .scalaUtilRandom[IO]
-//        .flatMap(_.betweenLong(0, 500))
-//        .flatMap(d => IO.sleep(d.millisecond).as(JavaDuration.ofMillis(d)))
-//
-//    val jitters = ticks.evalTap(_ => sleep).take(10).compile.toList.unsafeRunSync()
-//    val t1      = jitters.head
-//    val t5      = jitters(5)
-//    val t9      = jitters(9)
-//    assert(t1.previous.plus(t5.status.cumulativeDelay.toJava) == t5.timestamp)
-//    assert(t1.previous.plus(t9.status.cumulativeDelay.toJava) == t9.timestamp)
-//  }
+
 
 }

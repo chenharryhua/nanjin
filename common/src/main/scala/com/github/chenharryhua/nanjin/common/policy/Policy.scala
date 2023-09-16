@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.common.policy
 
+import cats.Show
 import cats.implicits.{showInterpolator, toShow}
 import com.github.chenharryhua.nanjin.common.policy.Policy.{FollowBy, Limited, Repeat}
 import cron4s.CronExpr
@@ -12,6 +13,8 @@ import scala.jdk.DurationConverters.JavaDurationOps
 sealed trait Policy {
   def decide(tick: Tick, now: Instant): Option[Tick]
   def show: String
+
+  final override def toString: String = show
 }
 sealed trait InfinitePolicy extends Policy {
   final def limited(num: Int): Limited = Limited(this, num)
@@ -22,21 +25,20 @@ sealed trait FinitePolicy extends Policy {
 }
 
 object Policy {
-  def min(d1: Duration, d2: Duration): Duration = if (d1.compareTo(d2) < 0) d1 else d2
-  def max(d1: Duration, d2: Duration): Duration = if (d1.compareTo(d2) > 0) d1 else d2
+  implicit val showPolicy: Show[Policy] = _.show
 
   final case class Constant(baseDelay: Duration) extends InfinitePolicy {
     override def decide(tick: Tick, now: Instant): Option[Tick] =
       Some(
         Tick(
-          id = tick.id,
+          sequenceId = tick.sequenceId,
           start = tick.start,
           index = tick.index + 1,
           counter = tick.counter + 1,
           previous = tick.wakeup,
           snooze = baseDelay,
           acquire = now,
-          next = Some(now.plus(baseDelay.multipliedBy(2)))
+          guessNext = Some(now.plus(baseDelay.multipliedBy(2)))
         ))
 
     override def show: String = show"Constant(${baseDelay.toScala})"
@@ -50,14 +52,14 @@ object Policy {
       }
       Some(
         Tick(
-          id = tick.id,
+          sequenceId = tick.sequenceId,
           start = tick.start,
           index = tick.index + 1,
           counter = tick.counter + 1,
           previous = tick.wakeup,
           snooze = delay,
           acquire = now,
-          next = Some(now.plus(delay).plus(baseDelay))
+          guessNext = Some(now.plus(delay).plus(baseDelay))
         ))
     }
 
@@ -68,14 +70,14 @@ object Policy {
     override def decide(tick: Tick, now: Instant): Option[Tick] =
       Some(
         Tick(
-          id = tick.id,
+          sequenceId = tick.sequenceId,
           start = tick.start,
           index = tick.index + 1,
           counter = tick.counter + 1,
           previous = tick.wakeup,
           snooze = baseDelay.multipliedBy(Math.pow(2, tick.counter.toDouble).toLong),
           acquire = now,
-          next = Some(now.plus(baseDelay.multipliedBy(Math.pow(2, tick.counter.toDouble + 1).toLong)))
+          guessNext = Some(now.plus(baseDelay.multipliedBy(Math.pow(2, tick.counter.toDouble + 1).toLong)))
         ))
 
     override def show: String = show"Exponential(${baseDelay.toScala})"
@@ -85,14 +87,14 @@ object Policy {
     override def decide(tick: Tick, now: Instant): Option[Tick] =
       Some(
         Tick(
-          id = tick.id,
+          sequenceId = tick.sequenceId,
           start = tick.start,
           index = tick.index + 1,
           counter = tick.counter + 1,
           previous = tick.wakeup,
           snooze = baseDelay.multipliedBy(Fib.fibonacci(tick.counter)),
           acquire = now,
-          next = Some(now.plus(baseDelay.multipliedBy(Fib.fibonacci(tick.counter + 1))))
+          guessNext = Some(now.plus(baseDelay.multipliedBy(Fib.fibonacci(tick.counter + 1))))
         ))
 
     override def show: String = show"Fibonacci(${baseDelay.toScala})"
@@ -102,14 +104,14 @@ object Policy {
     override def decide(tick: Tick, now: Instant): Option[Tick] =
       cronExpr.next(now.atZone(zoneId)).map { zdt =>
         Tick(
-          id = tick.id,
+          sequenceId = tick.sequenceId,
           start = tick.start,
           index = tick.index + 1,
           counter = tick.counter + 1,
           previous = tick.wakeup,
           snooze = Duration.between(now, zdt),
           acquire = now,
-          next = cronExpr.next(zdt).map(_.toInstant)
+          guessNext = cronExpr.next(zdt).map(_.toInstant)
         )
       }
 
@@ -120,7 +122,7 @@ object Policy {
     override def decide(tick: Tick, now: Instant): Option[Tick] =
       policy.decide(tick, now).flatMap(t => if (t.counter <= limit) Some(t) else None)
 
-    override def show: String = show"(${policy.show}*$limit)"
+    override def show: String = show"(${policy.show}+$limit)"
   }
 
   final case class FollowBy(first: FinitePolicy, second: FinitePolicy) extends FinitePolicy {

@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.common.policy
 
-// copy from
+// copy from https://github.com/cb372/cats-retry/blob/main/modules/core/shared/src/main/scala/retry/Fibonacci.scala
+
 object Fib {
   def fibonacci(n: Int): Long =
     if (n > 0) fib(n)._1 else 0
