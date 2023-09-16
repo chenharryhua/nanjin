@@ -87,6 +87,7 @@ object functions {
             .orderBy(col("count").desc)))
     }
 
-    def stats: Statistics[F] = new Statistics[F](F.flatMap(fdataset)(ds => F.interruptible(ds.map(CRMetaInfo(_)))))
+    def stats: Statistics[F] =
+      new Statistics[F](F.flatMap(fdataset)(ds => F.interruptible(ds.map(CRMetaInfo(_)))))
   }
 }

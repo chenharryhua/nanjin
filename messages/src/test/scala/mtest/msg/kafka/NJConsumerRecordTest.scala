@@ -1,12 +1,10 @@
 package mtest.msg.kafka
-
 import cats.derived.auto.eq.*
 import cats.kernel.laws.discipline.PartialOrderTests
 import cats.laws.discipline.BifunctorTests
 import cats.tests.CatsSuite
 import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJProducerRecord}
-import eu.timepit.refined.auto.*
-import org.scalacheck.{Arbitrary, Cogen, Gen, Properties}
+import org.scalacheck.{Arbitrary, Cogen, Gen}
 import org.typelevel.discipline.scalatest.FunSuiteDiscipline
 
 object NJComsumerRecordTestData {
@@ -36,7 +34,7 @@ object NJComsumerRecordTestData {
   implicit val arbO: Arbitrary[NJConsumerRecord[Int, Int]]  = Arbitrary(okv)
 }
 
-class NJComsumerRecordTest extends CatsSuite with FunSuiteDiscipline {
+class NJConsumerRecordTest extends CatsSuite with FunSuiteDiscipline {
   import NJComsumerRecordTestData.*
 
   // partial ordered
@@ -48,21 +46,3 @@ class NJComsumerRecordTest extends CatsSuite with FunSuiteDiscipline {
 
 }
 
-class NJComsumerRecordProp extends Properties("ConsumerRecord") {
-  import NJComsumerRecordTestData.*
-  import org.scalacheck.Prop.forAll
-
-  property("fs2.producer.record.conversion") = forAll { (op: NJProducerRecord[Int, Int]) =>
-    val fpr = op.toProducerRecord
-    val re =
-      NJProducerRecord[Int, Int](
-        op.topic,
-        fpr.partition,
-        None,
-        fpr.timestamp,
-        Option(fpr.key),
-        Option(fpr.value),
-        Nil)
-    re == op
-  }
-}

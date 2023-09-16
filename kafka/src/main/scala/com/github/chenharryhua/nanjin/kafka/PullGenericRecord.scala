@@ -5,20 +5,16 @@ import com.github.chenharryhua.nanjin.messages.kafka.NJHeader
 import com.github.chenharryhua.nanjin.messages.kafka.codec.immigrate
 import com.github.chenharryhua.nanjin.messages.kafka.instances.*
 import com.sksamuel.avro4s.SchemaFor
-import fs2.Chunk
 import fs2.kafka.{ConsumerRecord, KafkaByteConsumerRecord}
 import io.confluent.kafka.streams.serdes.avro.GenericAvroDeserializer
 import io.scalaland.chimney.dsl.TransformerOps
 import org.apache.avro.Schema
-import org.apache.avro.generic.{GenericData, GenericDatumWriter}
-import org.apache.avro.io.{BinaryEncoder, EncoderFactory, JsonEncoder}
+import org.apache.avro.generic.GenericData
 import org.apache.kafka.streams.scala.serialization.Serdes
 
-import java.io.ByteArrayOutputStream
 import java.nio.ByteBuffer
-import java.nio.charset.StandardCharsets
 import scala.jdk.CollectionConverters.{MapHasAsJava, SeqHasAsJava}
-import scala.util.{Try, Using}
+import scala.util.Try
 
 final class PullGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName, pair: AvroSchemaPair)
     extends Serializable {
@@ -81,7 +77,7 @@ final class PullGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName,
       case _ => throw new Exception(s"unsupported value schema ${pair.value}")
     }
 
-  def toAvroRecord(ccr: KafkaByteConsumerRecord): GenericData.Record = {
+  def toGenericRecord(ccr: KafkaByteConsumerRecord): GenericData.Record = {
     val record: GenericData.Record = new GenericData.Record(schema)
     val headers: Array[GenericData.Record] = ccr.headers().toArray.map { h =>
       val header = new GenericData.Record(SchemaFor[NJHeader].schema)
@@ -100,34 +96,6 @@ final class PullGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName,
     record
   }
 
-  def toAvroRecord(ccr: ConsumerRecord[Array[Byte], Array[Byte]]): GenericData.Record =
-    toAvroRecord(ccr.transformInto[KafkaByteConsumerRecord])
-
-  @transient private lazy val datumWriter: GenericDatumWriter[GenericData.Record] =
-    new GenericDatumWriter[GenericData.Record](schema)
-
-  def toJacksonString(ccr: KafkaByteConsumerRecord): String =
-    Using(new ByteArrayOutputStream) { baos =>
-      val gr: GenericData.Record = toAvroRecord(ccr)
-      val encoder: JsonEncoder   = EncoderFactory.get().jsonEncoder(schema, baos)
-      datumWriter.write(gr, encoder)
-      encoder.flush()
-      baos.toString(StandardCharsets.UTF_8)
-    }(_.close()).get
-
-  def toJacksonString(ccr: ConsumerRecord[Array[Byte], Array[Byte]]): String =
-    toJacksonString(ccr.transformInto[KafkaByteConsumerRecord])
-
-  def toBinAvro(ccr: KafkaByteConsumerRecord): Chunk[Byte] =
-    Using(new ByteArrayOutputStream) { baos =>
-      val gr: GenericData.Record = toAvroRecord(ccr)
-      val encoder: BinaryEncoder = EncoderFactory.get().binaryEncoder(baos, null)
-      datumWriter.write(gr, encoder)
-      encoder.flush()
-      Chunk.from(baos.toByteArray)
-    }(_.close()).get
-
-  def toBinAvro(ccr: ConsumerRecord[Array[Byte], Array[Byte]]): Chunk[Byte] =
-    toBinAvro(ccr.transformInto[KafkaByteConsumerRecord])
-
+  def toGenericRecord(ccr: ConsumerRecord[Array[Byte], Array[Byte]]): GenericData.Record =
+    toGenericRecord(ccr.transformInto[KafkaByteConsumerRecord])
 }

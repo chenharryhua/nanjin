@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.messages.kafka
 import cats.Show
 import fs2.kafka.{CommittableConsumerRecord, ConsumerRecord}
 import io.circe.generic.JsonCodec
-import org.apache.kafka.clients.consumer.ConsumerRecord as KafkaConsumerRecord
+import org.apache.kafka.clients.consumer.ConsumerRecord as JavaConsumerRecord
 import org.apache.kafka.clients.producer.RecordMetadata
 import org.typelevel.cats.time.instances.zoneddatetime
 
@@ -16,7 +16,7 @@ object RecordMetaInfo extends zoneddatetime {
   implicit val showConsumerRecordMetaInfo: Show[RecordMetaInfo] =
     cats.derived.semiauto.show[RecordMetaInfo]
 
-  def apply(cr: KafkaConsumerRecord[?, ?], zoneId: ZoneId): RecordMetaInfo =
+  def apply(cr: JavaConsumerRecord[?, ?], zoneId: ZoneId): RecordMetaInfo =
     RecordMetaInfo(
       topic = cr.topic(),
       partition = cr.partition(),

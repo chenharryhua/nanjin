@@ -4,10 +4,11 @@ import com.github.chenharryhua.nanjin.common.optics.jsonPlated
 import io.circe.{parser, Json}
 import monocle.function.Plated
 import org.apache.avro.generic.{GenericData, GenericDatumReader, GenericDatumWriter, GenericRecord}
-import org.apache.avro.io.{BinaryDecoder, BinaryEncoder, DecoderFactory, EncoderFactory}
+import org.apache.avro.io.{BinaryDecoder, BinaryEncoder, DecoderFactory, EncoderFactory, JsonEncoder}
 import org.apache.avro.{Schema, SchemaCompatibility}
 
 import java.io.ByteArrayOutputStream
+import java.nio.charset.StandardCharsets
 import scala.jdk.CollectionConverters.ListHasAsScala
 import scala.util.{Try, Using}
 
@@ -137,4 +138,24 @@ package object codec {
       }
     }(_.close())
 
+  def gr2Jackson(getGenericRecord: => GenericRecord): Try[String] =
+    Using(new ByteArrayOutputStream()) { baos =>
+      val gr: GenericRecord    = getGenericRecord
+      val encoder: JsonEncoder = EncoderFactory.get().jsonEncoder(gr.getSchema, baos)
+      new GenericDatumWriter[GenericRecord](gr.getSchema).write(gr, encoder)
+      encoder.flush()
+      baos.toString(StandardCharsets.UTF_8)
+    }(_.close())
+
+  def gr2Circe(getGenericRecord: => GenericRecord): Try[Json] =
+    gr2Jackson(getGenericRecord).flatMap(parser.parse(_).toTry)
+
+  def gr2BinAvro(getGenericRecord: => GenericRecord): Try[Array[Byte]] =
+    Using(new ByteArrayOutputStream) { baos =>
+      val gr: GenericRecord      = getGenericRecord
+      val encoder: BinaryEncoder = EncoderFactory.get().binaryEncoder(baos, null)
+      new GenericDatumWriter[GenericRecord](gr.getSchema).write(gr, encoder)
+      encoder.flush()
+      baos.toByteArray
+    }(_.close())
 }

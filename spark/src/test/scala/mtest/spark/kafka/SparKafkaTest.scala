@@ -5,7 +5,7 @@ import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, NJKafkaByteConsume, TopicDef}
 import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
-import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
+import com.github.chenharryhua.nanjin.messages.kafka.codec.{gr2BinAvro, gr2Circe, gr2Jackson, NJAvroCodec}
 import com.github.chenharryhua.nanjin.terminals.NJPath
 import com.sksamuel.avro4s.SchemaFor
 import eu.timepit.refined.auto.*
@@ -173,26 +173,12 @@ class SparKafkaTest extends AnyFunSuite {
   test("generic record") {
     val path = NJPath("./data/test/spark/kafka/consume/duck.avro")
     val sink = hadoop.avro(topic.topicDef.schemaPair.consumerSchema).sink(path)
-    duckConsume.avro.take(2).map(_.record.value).chunks.through(sink).compile.drain.unsafeRunSync()
+    duckConsume.genericRecords.take(2).map(_.record.value).chunks.through(sink).compile.drain.unsafeRunSync()
     assert(2 == sparKafka.topic(topic).load.avro(path).count.unsafeRunSync())
   }
 
-  test("bin avro") {
-    val path = NJPath("./data/test/spark/kafka/consume/duck.bin.avro")
-    val sink = hadoop.bytes.sink(path)
-    duckConsume.binAvro.map(_.record.value).take(2).through(sink).compile.drain.unsafeRunSync()
-    assert(2 == sparKafka.topic(topic).load.binAvro(path).count.unsafeRunSync())
-  }
-
-  test("jackson") {
-    val path = NJPath("./data/test/spark/kafka/consume/duck.jackson.json")
-    val sink = hadoop.text.sink(path)
-    duckConsume.jackson.map(_.record.value).take(2).chunks.through(sink).compile.drain.unsafeRunSync()
-    assert(2 == sparKafka.topic(topic).load.jackson(path).count.unsafeRunSync())
-  }
-
   test("format") {
-    duckConsume.avro
+    duckConsume.genericRecords
       .take(2)
       .map(_.record.value)
       .map(gr => topic.topicDef.consumerFormat.fromRecord(gr))
@@ -203,4 +189,17 @@ class SparKafkaTest extends AnyFunSuite {
       .drain
       .unsafeRunSync()
   }
+
+  test("generic record conversion") {
+    duckConsume.genericRecords
+      .take(2)
+      .map(_.record.value)
+      .evalTap(gr => IO.fromTry(gr2Jackson(gr)))
+      .evalTap(gr => IO.fromTry(gr2BinAvro(gr)))
+      .evalTap(gr => IO.fromTry(gr2Circe(gr)))
+      .compile
+      .drain
+      .unsafeRunSync()
+  }
+
 }

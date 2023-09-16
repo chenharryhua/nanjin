@@ -3,12 +3,12 @@ package com.github.chenharryhua.nanjin.messages.kafka
 import cats.Bifunctor
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
-import com.github.chenharryhua.nanjin.messages.kafka.instances.toJavaProducerRecordTransformer
 import com.sksamuel.avro4s.*
 import fs2.kafka.{Header as Fs2Header, Headers, ProducerRecord}
-import io.scalaland.chimney.dsl.*
 import org.apache.avro.Schema
-import org.apache.kafka.clients.producer.ProducerRecord as KafkaProducerRecord
+import org.apache.kafka.clients.producer.ProducerRecord as JavaProducerRecord
+import org.apache.kafka.common.header.Header
+import org.apache.kafka.common.header.internals.{RecordHeader, RecordHeaders}
 import shapeless.cachedImplicit
 
 import scala.annotation.nowarn
@@ -52,22 +52,32 @@ final case class NJProducerRecord[K, V](
     }
   }
 
-  def toKafkaProducerRecord: KafkaProducerRecord[K, V] =
-    toProducerRecord.transformInto[KafkaProducerRecord[K, V]]
+  def toJavaProducerRecord: JavaProducerRecord[K, V] =
+    new JavaProducerRecord[K, V](
+      topic,
+      partition.map(Integer.valueOf).orNull,
+      timestamp.map(java.lang.Long.valueOf).orNull,
+      key.getOrElse(null.asInstanceOf[K]),
+      value.getOrElse(null.asInstanceOf[V]),
+      new RecordHeaders(headers.map(h => new RecordHeader(h.key, h.value): Header).toArray)
+    )
 }
 
-object NJProducerRecord {
+object NJProducerRecord extends Isos {
 
-  def apply[K, V](pr: KafkaProducerRecord[Option[K], Option[V]]): NJProducerRecord[K, V] =
+  def apply[K, V](pr: JavaProducerRecord[K, V]): NJProducerRecord[K, V] =
     NJProducerRecord(
       topic = pr.topic(),
       partition = Option(pr.partition.toInt),
       offset = None,
       timestamp = Option(pr.timestamp.toLong),
-      key = pr.key,
-      value = pr.value,
+      key = Option(pr.key),
+      value = Option(pr.value),
       headers = pr.headers().toArray.map(h => NJHeader(h.key(), h.value())).toList
     )
+
+  def apply[K, V](pr: ProducerRecord[K, V]): NJProducerRecord[K, V] =
+    apply(isoFs2ProducerRecord.get(pr))
 
   def apply[K, V](topicName: TopicName, k: K, v: V): NJProducerRecord[K, V] =
     NJProducerRecord(topicName.value, None, None, None, Option(k), Option(v), Nil)

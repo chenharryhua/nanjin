@@ -8,7 +8,7 @@ import cats.implicits.toShow
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameL}
 import com.github.chenharryhua.nanjin.kafka.streaming.{KafkaStreamsBuilder, NJStateStore}
-import com.github.chenharryhua.nanjin.messages.kafka.codec.{KJson, NJAvroCodec, SerdeOf}
+import com.github.chenharryhua.nanjin.messages.kafka.codec.{gr2Jackson, KJson, NJAvroCodec, SerdeOf}
 import fs2.Stream
 import fs2.kafka.*
 import io.circe.Json
@@ -79,8 +79,8 @@ final class KafkaContext[F[_]](val settings: KafkaSettings)
       consume(topicName)
         .updateConfig( // avoid accidentally join an existing consumer-group
           _.withGroupId(uuid.show).withEnableAutoCommit(false).withAutoOffsetReset(AutoOffsetReset.Latest))
-        .jackson
-        .map(_.record.value)
+        .genericRecords
+        .map(ccr => gr2Jackson(ccr.record.value).get)
     }
 
   def monitor(topicName: TopicNameL)(implicit F: Async[F]): Stream[F, String] =
