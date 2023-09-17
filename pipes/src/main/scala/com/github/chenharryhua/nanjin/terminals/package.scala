@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin
 
 import cats.effect.kernel.Resource
 import cats.effect.std.Hotswap
-import com.github.chenharryhua.nanjin.common.policy.Tick
+import com.github.chenharryhua.nanjin.common.chrono.Tick
 import eu.timepit.refined.api.{Refined, RefinedTypeOps}
 import eu.timepit.refined.cats.CatsRefinedTypeOpsSyntax
 import eu.timepit.refined.numeric.Interval.Closed

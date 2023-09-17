@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard.service
 
 import cats.effect.kernel.{Outcome, Temporal}
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.common.policy.{Policy, Tick}
+import com.github.chenharryhua.nanjin.common.chrono.{Policy, Tick}
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.event.{NJEvent, ServiceStopCause}
 import fs2.Stream

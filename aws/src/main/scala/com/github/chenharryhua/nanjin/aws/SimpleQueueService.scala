@@ -4,7 +4,7 @@ import cats.effect.kernel.{Async, Resource}
 import cats.syntax.all.*
 import cats.{Endo, Show}
 import com.github.chenharryhua.nanjin.common.aws.{S3Path, SqsConfig}
-import com.github.chenharryhua.nanjin.common.policy.{policies, Policy, Tick}
+import com.github.chenharryhua.nanjin.common.chrono.{policies, Policy, Tick}
 import fs2.{Chunk, Pull, Stream}
 import io.circe.Json
 import io.circe.generic.JsonCodec

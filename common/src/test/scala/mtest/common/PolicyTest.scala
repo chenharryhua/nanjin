@@ -1,6 +1,6 @@
 package mtest.common
 
-import com.github.chenharryhua.nanjin.common.policy.{policies, Tick}
+import com.github.chenharryhua.nanjin.common.chrono.{policies, Tick}
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.temporal.ChronoUnit

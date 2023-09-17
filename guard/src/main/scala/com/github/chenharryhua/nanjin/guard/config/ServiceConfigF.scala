@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.guard.config
 import cats.effect.kernel.Clock
 import cats.implicits.toFunctorOps
 import cats.{Functor, Show}
-import com.github.chenharryhua.nanjin.common.policy.Tick
+import com.github.chenharryhua.nanjin.common.chrono.Tick
 import cron4s.{Cron, CronExpr}
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}

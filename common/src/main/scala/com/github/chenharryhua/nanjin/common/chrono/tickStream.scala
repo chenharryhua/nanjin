@@ -1,9 +1,8 @@
-package com.github.chenharryhua.nanjin.common
+package com.github.chenharryhua.nanjin.common.chrono
 
 import cats.effect.kernel.Temporal
 import cats.effect.std.UUIDGen
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.common.policy.{Policy, Tick}
 import fs2.Stream
 
 import scala.jdk.DurationConverters.JavaDurationOps

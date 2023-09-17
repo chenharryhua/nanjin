@@ -8,8 +8,8 @@ import cats.syntax.all.*
 import com.codahale.metrics.MetricRegistry
 import com.codahale.metrics.jmx.JmxReporter
 import com.comcast.ip4s.IpLiteralSyntax
-import com.github.chenharryhua.nanjin.common.policy.{policies, Policy, Tick}
-import com.github.chenharryhua.nanjin.common.{tickStream, UpdateConfig}
+import com.github.chenharryhua.nanjin.common.chrono.{policies, tickStream, Policy, Tick}
+import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.guard.config.{
   Measurement,
   ServiceBrief,

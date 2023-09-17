@@ -2,9 +2,8 @@ package com.github.chenharryhua.nanjin.terminals
 
 import cats.effect.kernel.{Async, Resource, Sync}
 import cats.effect.std.Hotswap
-import com.github.chenharryhua.nanjin.common.policy.Policy
-import com.github.chenharryhua.nanjin.common.tickStream
-import com.github.chenharryhua.nanjin.common.policy.Tick
+import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy}
+import com.github.chenharryhua.nanjin.common.chrono.Tick
 import fs2.text.{lines, utf8}
 import fs2.{Chunk, Pipe, Stream}
 import org.apache.hadoop.conf.Configuration

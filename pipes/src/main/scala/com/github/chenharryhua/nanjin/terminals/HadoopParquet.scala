@@ -4,9 +4,8 @@ import cats.Endo
 import cats.data.Reader
 import cats.effect.kernel.{Async, Resource, Sync}
 import cats.effect.std.Hotswap
-import com.github.chenharryhua.nanjin.common.policy.Policy
-import com.github.chenharryhua.nanjin.common.tickStream
-import com.github.chenharryhua.nanjin.common.policy.Tick
+import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy}
+import com.github.chenharryhua.nanjin.common.chrono.Tick
 import fs2.{Chunk, Pipe, Stream}
 import org.apache.avro.Schema
 import org.apache.avro.generic.{GenericData, GenericRecord}

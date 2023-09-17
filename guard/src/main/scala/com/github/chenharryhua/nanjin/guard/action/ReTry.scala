@@ -5,7 +5,7 @@ import cats.effect.implicits.*
 import cats.effect.kernel.{Outcome, Temporal}
 import cats.syntax.all.*
 import com.codahale.metrics.MetricRegistry
-import com.github.chenharryhua.nanjin.common.policy.{Policy, Tick}
+import com.github.chenharryhua.nanjin.common.chrono.{Policy, Tick}
 import com.github.chenharryhua.nanjin.guard.config.{
   ActionParams,
   Category,

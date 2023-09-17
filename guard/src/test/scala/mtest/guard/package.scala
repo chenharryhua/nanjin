@@ -3,7 +3,7 @@ package mtest
 import cats.effect.IO
 import cats.effect.std.Random
 import com.github.chenharryhua.nanjin.common.aws.SnsArn
-import com.github.chenharryhua.nanjin.common.policy.{policies, Policy}
+import com.github.chenharryhua.nanjin.common.chrono.{policies, Policy}
 import cron4s.Cron
 import cron4s.expr.CronExpr
 

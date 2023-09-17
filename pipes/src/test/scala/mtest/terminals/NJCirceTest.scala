@@ -10,7 +10,7 @@ import fs2.Stream
 import io.circe.generic.auto.*
 import io.circe.syntax.EncoderOps
 import TestData.Tiger
-import com.github.chenharryhua.nanjin.common.policy.policies
+import com.github.chenharryhua.nanjin.common.chrono.policies
 import mtest.terminals.HadoopTestData.hdp
 import org.apache.hadoop.conf.Configuration
 import org.scalatest.Assertion

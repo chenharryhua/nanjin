@@ -1,7 +1,7 @@
 package mtest.terminals
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.common.policy.{policies, Policy}
+import com.github.chenharryhua.nanjin.common.chrono.{policies, Policy}
 import com.github.chenharryhua.nanjin.terminals.NJCompression.*
 import com.github.chenharryhua.nanjin.terminals.{CsvHeaderOf, KantanFile, NJHadoop, NJPath}
 import eu.timepit.refined.auto.*

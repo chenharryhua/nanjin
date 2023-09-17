@@ -1,9 +1,9 @@
-package com.github.chenharryhua.nanjin.common.policy
+package com.github.chenharryhua.nanjin.common.chrono
 
 import cats.Show
 import cats.implicits.{showInterpolator, toShow}
 import com.github.chenharryhua.nanjin.common.DurationFormatter
-import com.github.chenharryhua.nanjin.common.policy.Policy.{FollowBy, Limited, Repeat}
+import com.github.chenharryhua.nanjin.common.chrono.Policy.{FollowBy, Limited, Repeat}
 import cron4s.CronExpr
 import cron4s.lib.javatime.javaTemporalInstance
 import monocle.syntax.all.*
@@ -150,7 +150,7 @@ object Policy {
 
   final case class Limited(policy: InfinitePolicy, limit: Int) extends FinitePolicy {
     override def decide(tick: Tick, now: Instant): Option[Tick] =
-      policy.decide(tick, now).flatMap(t => if (t.counter <= limit) Some(t) else None)
+      policy.decide(tick, now).flatMap(nt => if (nt.counter <= limit) Some(nt) else None)
 
     override def show: String = show"(${policy.show}+$limit)"
   }

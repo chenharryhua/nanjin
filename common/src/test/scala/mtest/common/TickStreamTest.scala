@@ -3,8 +3,7 @@ package mtest.common
 import cats.effect.IO
 import cats.effect.std.Random
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.common.policy.policies
-import com.github.chenharryhua.nanjin.common.tickStream
+import com.github.chenharryhua.nanjin.common.chrono.{policies, tickStream}
 import cron4s.Cron
 import org.scalatest.funsuite.AnyFunSuite
 

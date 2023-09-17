@@ -2,7 +2,7 @@ package mtest.terminals
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.common.policy.policies
+import com.github.chenharryhua.nanjin.common.chrono.policies
 import com.github.chenharryhua.nanjin.terminals.{NEWLINE_SEPARATOR, NJPath}
 import eu.timepit.refined.auto.*
 import fs2.Stream

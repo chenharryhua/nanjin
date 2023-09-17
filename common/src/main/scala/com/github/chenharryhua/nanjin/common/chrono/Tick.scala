@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.common.policy
+package com.github.chenharryhua.nanjin.common.chrono
 
 import cats.effect.kernel.Clock
 import cats.effect.std.UUIDGen

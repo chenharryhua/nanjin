@@ -4,7 +4,7 @@ import cats.MonadError
 import cats.effect.kernel.Clock
 import cats.syntax.all.*
 import com.codahale.metrics.MetricRegistry
-import com.github.chenharryhua.nanjin.common.policy.Tick
+import com.github.chenharryhua.nanjin.common.chrono.Tick
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.event.*
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.{
@@ -67,13 +67,7 @@ private object publisher {
     tick: Tick,
     ex: Throwable)(implicit F: MonadError[F, Throwable]): F[Unit] =
     channel
-      .send(
-        ServicePanic(
-          serviceParams = serviceParams,
-          timestamp = serviceParams.toZonedDateTime(tick.acquire),
-          restartTime = serviceParams.toZonedDateTime(tick.wakeup),
-          error = NJError(ex)
-        ))
+      .send(ServicePanic(serviceParams, NJError(ex), tick))
       .map(_.leftMap(_ => new Exception("service panic channel closed")))
       .rethrow
 

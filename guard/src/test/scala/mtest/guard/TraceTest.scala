@@ -3,8 +3,7 @@ package mtest.guard
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.comcast.ip4s.IpLiteralSyntax
-import com.github.chenharryhua.nanjin.common.policy.policies
-import com.github.chenharryhua.nanjin.common.tickStream
+import com.github.chenharryhua.nanjin.common.chrono.{policies, tickStream}
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.observers.console
 import fs2.{Chunk, Stream}
