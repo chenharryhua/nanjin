@@ -41,10 +41,10 @@ private object textHelper extends localtime with localdatetime {
     def name(mn: MetricName): String = s"[${mn.digest}][${mn.value}]"
 
     evt match {
-      case NJEvent.ActionStart(ap, _, _)          => s"Start Action ${name(ap.metricId.metricName)}"
-      case NJEvent.ActionRetry(ap, _, _, _, _, _) => s"Action Retrying ${name(ap.metricId.metricName)}"
-      case NJEvent.ActionFail(ap, _, _, _, _)     => s"Action Failed ${name(ap.metricId.metricName)}"
-      case NJEvent.ActionDone(ap, _, _, _)        => s"Action Done ${name(ap.metricId.metricName)}"
+      case NJEvent.ActionStart(ap, _, _)      => s"Start Action ${name(ap.metricId.metricName)}"
+      case NJEvent.ActionRetry(ap, _, _, _)   => s"Action Retrying ${name(ap.metricId.metricName)}"
+      case NJEvent.ActionFail(ap, _, _, _, _) => s"Action Failed ${name(ap.metricId.metricName)}"
+      case NJEvent.ActionDone(ap, _, _, _)    => s"Action Done ${name(ap.metricId.metricName)}"
 
       case NJEvent.ServiceAlert(metricName, _, _, al, _) => s"Alert ${al.productPrefix} ${name(metricName)}"
 
@@ -96,9 +96,9 @@ private object textHelper extends localtime with localdatetime {
   }
 
   def retryText(evt: ActionRetry): String = {
-    val resumeTime = evt.timestamp.plusNanos(evt.delay.toNanos)
-    val next       = fmt.format(Duration.between(evt.timestamp, resumeTime))
+    val resumeTime = evt.serviceParams.toZonedDateTime(evt.tick.wakeup)
+    val next       = fmt.format(evt.tick.snooze)
     val localTs    = resumeTime.toLocalTime.truncatedTo(ChronoUnit.SECONDS)
-    s"*${toOrdinalWords(evt.retriesSoFar + 1)}* retry will be at $localTs, in $next"
+    s"*${toOrdinalWords(evt.tick.counter)}* retry will be at $localTs, in $next"
   }
 }

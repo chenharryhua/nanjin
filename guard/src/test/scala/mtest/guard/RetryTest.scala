@@ -3,7 +3,7 @@ package mtest.guard
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.common.policy.{policies, Policy}
+import com.github.chenharryhua.nanjin.common.policy.{Policy, policies}
 import com.github.chenharryhua.nanjin.guard.*
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
@@ -16,6 +16,7 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.ZoneId
 import scala.concurrent.duration.*
+import scala.jdk.DurationConverters.JavaDurationOps
 import scala.util.control.ControlThrowable
 
 final case class MyException() extends Exception("my exception")
@@ -78,9 +79,9 @@ class RetryTest extends AnyFunSuite {
     assert(i.isInstanceOf[ActionFail])
     assert(j.isInstanceOf[ServiceStop])
 
-    assert(b.asInstanceOf[ActionRetry].retriesSoFar == 0)
-    assert(e.asInstanceOf[ActionRetry].retriesSoFar == 0)
-    assert(h.asInstanceOf[ActionRetry].retriesSoFar == 0)
+    assert(b.asInstanceOf[ActionRetry].tick.counter == 1)
+    assert(e.asInstanceOf[ActionRetry].tick.counter == 1)
+    assert(h.asInstanceOf[ActionRetry].tick.counter == 1)
   }
 
   test("4.retry - should retry 2 times when operation fail") {
@@ -154,9 +155,9 @@ class RetryTest extends AnyFunSuite {
     assert(e.isInstanceOf[ActionFail])
     assert(f.isInstanceOf[ServiceStop])
 
-    assert(b.asInstanceOf[ActionRetry].retriesSoFar == 0)
-    assert(c.asInstanceOf[ActionRetry].retriesSoFar == 1)
-    assert(d.asInstanceOf[ActionRetry].retriesSoFar == 2)
+    assert(b.asInstanceOf[ActionRetry].tick.counter == 1)
+    assert(c.asInstanceOf[ActionRetry].tick.counter == 2)
+    assert(d.asInstanceOf[ActionRetry].tick.counter == 3)
   }
 
   test("7.retry - Null pointer exception") {
@@ -279,6 +280,16 @@ class RetryTest extends AnyFunSuite {
     assert(e.isInstanceOf[ActionRetry])
     assert(f.isInstanceOf[ActionFail])
     assert(g.isInstanceOf[ServiceStop])
+
+    val t1 = c.asInstanceOf[ActionRetry].tick
+    val t2 = d.asInstanceOf[ActionRetry].tick
+    val t3 = e.asInstanceOf[ActionRetry].tick
+
+    assert(t2.previous == t1.wakeup)
+    assert(t3.previous == t2.wakeup)
+    assert(t1.snooze.toScala < 1.seconds)
+    assert(t2.snooze.toScala < 1.seconds)
+    assert(t3.snooze.toScala < 1.seconds)
 
   }
 

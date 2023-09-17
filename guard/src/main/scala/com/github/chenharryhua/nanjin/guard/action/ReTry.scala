@@ -55,10 +55,8 @@ final private class ReTry[F[_], IN, OUT](
               ActionRetry(
                 actionParams = actionParams,
                 actionInfo = ai,
-                landTime = tick.acquire,
-                retriesSoFar = prev.counter,
-                delay = tick.snooze.toScala,
-                error = NJError(ex)
+                error = NJError(ex),
+                tick = tick
               ))
             _ <- F.sleep(tick.snooze.toScala)
           } yield {
