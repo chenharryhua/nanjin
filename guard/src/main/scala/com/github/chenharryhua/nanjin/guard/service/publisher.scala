@@ -4,6 +4,7 @@ import cats.MonadError
 import cats.effect.kernel.Clock
 import cats.syntax.all.*
 import com.codahale.metrics.MetricRegistry
+import com.github.chenharryhua.nanjin.common.policy.Tick
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.event.*
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.{
@@ -16,9 +17,7 @@ import com.github.chenharryhua.nanjin.guard.event.NJEvent.{
 import fs2.concurrent.Channel
 
 import java.time.{Instant, ZonedDateTime}
-import scala.concurrent.duration.FiniteDuration
 import scala.jdk.CollectionConverters.CollectionHasAsScala
-import scala.jdk.DurationConverters.ScalaDurationOps
 
 private object publisher {
   def metricReport[F[_]](
@@ -62,21 +61,21 @@ private object publisher {
         .rethrow
     } yield now
 
-  def servicePanic[F[_]: Clock](
+  def servicePanic[F[_]](
     channel: Channel[F, NJEvent],
     serviceParams: ServiceParams,
-    delay: FiniteDuration,
-    ex: Throwable)(implicit F: MonadError[F, Throwable]): F[ZonedDateTime] =
-    for {
-      ts <- Clock[F].realTimeInstant
-      now  = serviceParams.toZonedDateTime(ts)
-      next = serviceParams.toZonedDateTime(ts.plus(delay.toJava))
-      err  = NJError(ex)
-      _ <- channel
-        .send(ServicePanic(serviceParams = serviceParams, timestamp = now, restartTime = next, error = err))
-        .map(_.leftMap(_ => new Exception("service panic channel closed")))
-        .rethrow
-    } yield now
+    tick: Tick,
+    ex: Throwable)(implicit F: MonadError[F, Throwable]): F[Unit] =
+    channel
+      .send(
+        ServicePanic(
+          serviceParams = serviceParams,
+          timestamp = serviceParams.toZonedDateTime(tick.acquire),
+          restartTime = serviceParams.toZonedDateTime(tick.wakeup),
+          error = NJError(ex)
+        ))
+      .map(_.leftMap(_ => new Exception("service panic channel closed")))
+      .rethrow
 
   def serviceStop[F[_]: Clock](
     channel: Channel[F, NJEvent],

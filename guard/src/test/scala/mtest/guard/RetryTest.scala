@@ -3,7 +3,7 @@ package mtest.guard
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.datetime.policies
+import com.github.chenharryhua.nanjin.common.policy.{Policy, policies}
 import com.github.chenharryhua.nanjin.guard.*
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
@@ -13,9 +13,10 @@ import io.circe.Json
 import io.circe.parser.decode
 import io.circe.syntax.*
 import org.scalatest.funsuite.AnyFunSuite
-import retry.RetryPolicy
 
+import java.time.ZoneId
 import scala.concurrent.duration.*
+import scala.jdk.DurationConverters.JavaDurationOps
 import scala.util.control.ControlThrowable
 
 final case class MyException() extends Exception("my exception")
@@ -25,7 +26,7 @@ class RetryTest extends AnyFunSuite {
   val serviceGuard: ServiceGuard[IO] =
     TaskGuard[IO]("retry-guard").service("retry test").withRestartPolicy(constant_1second)
 
-  val policy: RetryPolicy[IO] = policies.constantDelay[IO](1.seconds).join(policies.limitRetries(3))
+  val policy: Policy = policies.constant(1.seconds).limited(3)
 
   test("1.retry - completed trivial") {
     val Vector(s, c) = serviceGuard.eventStream { gd =>
@@ -54,7 +55,7 @@ class RetryTest extends AnyFunSuite {
   }
 
   test("3.retry - all fail") {
-    val policy = policies.constantDelay[IO](0.1.seconds).join(policies.limitRetries(1))
+    val policy = policies.constant(0.1.seconds).limited(1)
     val Vector(s, a, b, c, d, e, f, g, h, i, j) = serviceGuard.eventStream { gd =>
       val ag = gd
         .action("t", _.notice)
@@ -78,9 +79,9 @@ class RetryTest extends AnyFunSuite {
     assert(i.isInstanceOf[ActionFail])
     assert(j.isInstanceOf[ServiceStop])
 
-    assert(b.asInstanceOf[ActionRetry].retriesSoFar == 0)
-    assert(e.asInstanceOf[ActionRetry].retriesSoFar == 0)
-    assert(h.asInstanceOf[ActionRetry].retriesSoFar == 0)
+    assert(b.asInstanceOf[ActionRetry].tick.counter == 1)
+    assert(e.asInstanceOf[ActionRetry].tick.counter == 1)
+    assert(h.asInstanceOf[ActionRetry].tick.counter == 1)
   }
 
   test("4.retry - should retry 2 times when operation fail") {
@@ -134,10 +135,10 @@ class RetryTest extends AnyFunSuite {
 
   test("6.retry - should escalate to up level if retry failed") {
     val Vector(s, b, c, d, e, f) = serviceGuard
-      .withRestartPolicy(policies.alwaysGiveUp[IO])
+      .withRestartPolicy(policies.giveUp)
       .eventStream { gd =>
         gd.action("t")
-          .withRetryPolicy(policies.constantDelay[IO](1.seconds).join(policies.limitRetries(3)))
+          .withRetryPolicy(policies.constant(1.seconds).limited(3))
           .retry((_: Int) => IO.raiseError[Int](new Exception("oops")))
           .logInput(_.asJson)
           .run(1)
@@ -154,14 +155,14 @@ class RetryTest extends AnyFunSuite {
     assert(e.isInstanceOf[ActionFail])
     assert(f.isInstanceOf[ServiceStop])
 
-    assert(b.asInstanceOf[ActionRetry].retriesSoFar == 0)
-    assert(c.asInstanceOf[ActionRetry].retriesSoFar == 1)
-    assert(d.asInstanceOf[ActionRetry].retriesSoFar == 2)
+    assert(b.asInstanceOf[ActionRetry].tick.counter == 1)
+    assert(c.asInstanceOf[ActionRetry].tick.counter == 2)
+    assert(d.asInstanceOf[ActionRetry].tick.counter == 3)
   }
 
   test("7.retry - Null pointer exception") {
     val List(a, b, c, d, e, f) = serviceGuard
-      .withRestartPolicy(policies.alwaysGiveUp[IO])
+      .withRestartPolicy(policies.giveUp)
       .eventStream(ag =>
         ag.action("t")
           .withRetryPolicy(policy)
@@ -184,10 +185,10 @@ class RetryTest extends AnyFunSuite {
 
   test("8.retry - isWorthRetry - should retry") {
     val Vector(s, b, c, d, e, f) = serviceGuard
-      .withRestartPolicy(policies.alwaysGiveUp[IO])
+      .withRestartPolicy(policies.giveUp)
       .eventStream { gd =>
         gd.action("t")
-          .withRetryPolicy(policies.constantDelay[IO](0.1.seconds).join(policies.limitRetries(3)))
+          .withRetryPolicy(policies.constant(0.1.seconds).limited(3))
           .retry(IO.raiseError(MyException()))
           .withWorthRetryM(x => IO(x.isInstanceOf[MyException]))
           .run
@@ -210,7 +211,7 @@ class RetryTest extends AnyFunSuite {
       .withRestartPolicy(constant_1hour)
       .eventStream { gd =>
         gd.action("t", _.notice)
-          .withRetryPolicy(policies.constantDelay[IO](0.1.seconds).join(policies.limitRetries(3)))
+          .withRetryPolicy(policies.constant(0.1.seconds).limited(3))
           .retry(IO.raiseError(new Exception))
           .withWorthRetry(_.isInstanceOf[MyException])
           .run
@@ -231,7 +232,7 @@ class RetryTest extends AnyFunSuite {
       .withRestartPolicy(constant_1hour)
       .eventStream { gd =>
         gd.action("t", _.notice)
-          .withRetryPolicy(policies.constantDelay[IO](0.1.seconds).join(policies.limitRetries(3)))
+          .withRetryPolicy(policies.constant(0.1.seconds).limited(3))
           .retry(IO.raiseError(new Exception))
           .withWorthRetryM(_ => IO.raiseError[Boolean](new Exception()))
           .run
@@ -261,10 +262,10 @@ class RetryTest extends AnyFunSuite {
 
   test("12.cron policy") {
     val List(a, b, c, d, e, f, g) = serviceGuard
-      .withRestartPolicy(policies.alwaysGiveUp[IO])
+      .withRestartPolicy(policies.giveUp)
       .eventStream(
         _.action("cron", _.notice)
-          .withRetryPolicy(cron_1second, _.join(policies.limitRetries(3)))
+          .withRetryPolicy(policies.crontab(cron_1second, ZoneId.systemDefault()).limited(3))
           .retry(IO.raiseError(new Exception("oops")))
           .run)
       .evalTap(console.simple[IO])
@@ -280,11 +281,21 @@ class RetryTest extends AnyFunSuite {
     assert(f.isInstanceOf[ActionFail])
     assert(g.isInstanceOf[ServiceStop])
 
+    val t1 = c.asInstanceOf[ActionRetry].tick
+    val t2 = d.asInstanceOf[ActionRetry].tick
+    val t3 = e.asInstanceOf[ActionRetry].tick
+
+    assert(t2.previous == t1.wakeup)
+    assert(t3.previous == t2.wakeup)
+    assert(t1.snooze.toScala < 1.seconds)
+    assert(t2.snooze.toScala < 1.seconds)
+    assert(t3.snooze.toScala < 1.seconds)
+
   }
 
   test("13.should not retry fatal error") {
     val List(a, b, c, d) = serviceGuard
-      .withRestartPolicy(policies.alwaysGiveUp[IO])
+      .withRestartPolicy(policies.giveUp)
       .eventStream(
         _.action("fatal", _.critical.trivial.normal.notice)
           .withRetryPolicy(constant_1second)

@@ -4,6 +4,7 @@ import cats.Endo
 import cats.effect.kernel.{Async, Resource, Unique}
 import cats.effect.std.{AtomicCell, Dispatcher}
 import com.codahale.metrics.MetricRegistry
+import com.github.chenharryhua.nanjin.common.policy.policies
 import com.github.chenharryhua.nanjin.guard.action.*
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.event.*
@@ -12,7 +13,6 @@ import fs2.io.net.Network
 import natchez.{EntryPoint, Kernel, Span}
 import org.http4s.HttpRoutes
 import org.typelevel.vault.{Key, Locker, Vault}
-import retry.RetryPolicies
 import software.amazon.awssdk.services.cloudwatch.model.StandardUnit
 
 import java.time.{Instant, ZoneId, ZonedDateTime}
@@ -96,7 +96,7 @@ final class GeneralAgent[F[_]: Network] private[service] (
       metricRegistry = self.metricRegistry,
       channel = self.channel,
       config = f,
-      retryPolicy = RetryPolicies.alwaysGiveUp[F]
+      retryPolicy = policies.giveUp
     )
   }
 

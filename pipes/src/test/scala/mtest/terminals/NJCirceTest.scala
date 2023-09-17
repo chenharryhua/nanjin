@@ -10,11 +10,11 @@ import fs2.Stream
 import io.circe.generic.auto.*
 import io.circe.syntax.EncoderOps
 import TestData.Tiger
+import com.github.chenharryhua.nanjin.common.policy.policies
 import mtest.terminals.HadoopTestData.hdp
 import org.apache.hadoop.conf.Configuration
 import org.scalatest.Assertion
 import org.scalatest.funsuite.AnyFunSuite
-import retry.RetryPolicies
 
 import scala.concurrent.duration.DurationInt
 class NJCirceTest extends AnyFunSuite {
@@ -95,7 +95,7 @@ class NJCirceTest extends AnyFunSuite {
       .repeatN(number)
       .map(_.asJson)
       .chunks
-      .through(json.sink(RetryPolicies.constantDelay[IO](1.second))(t => path / fk.fileName(t)))
+      .through(json.sink(policies.constant(1.second))(t => path / fk.fileName(t)))
       .compile
       .drain
       .unsafeRunSync()

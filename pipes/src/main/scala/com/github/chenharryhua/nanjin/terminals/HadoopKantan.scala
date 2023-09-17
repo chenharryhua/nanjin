@@ -3,9 +3,9 @@ package com.github.chenharryhua.nanjin.terminals
 import cats.effect.kernel.{Async, Resource, Sync}
 import cats.effect.std.Hotswap
 import com.github.chenharryhua.nanjin.common.ChunkSize
-import com.github.chenharryhua.nanjin.datetime.policies.Policy
-import com.github.chenharryhua.nanjin.datetime.tickStream
-import com.github.chenharryhua.nanjin.datetime.tickStream.Tick
+import com.github.chenharryhua.nanjin.common.policy.Policy
+import com.github.chenharryhua.nanjin.common.tickStream
+import com.github.chenharryhua.nanjin.common.policy.Tick
 import fs2.text.utf8
 import fs2.{Chunk, Pipe, Stream}
 import kantan.csv.*
@@ -87,7 +87,7 @@ final class HadoopKantan[F[_]] private (
         }
   }
 
-  def sink(policy: Policy[F])(pathBuilder: Tick => NJPath)(implicit
+  def sink(policy: Policy)(pathBuilder: Tick => NJPath)(implicit
     F: Async[F]): Pipe[F, Chunk[Seq[String]], Nothing] = {
     def getWriter(tick: Tick): Resource[F, HadoopWriter[F, String]] =
       HadoopWriter.stringR[F](

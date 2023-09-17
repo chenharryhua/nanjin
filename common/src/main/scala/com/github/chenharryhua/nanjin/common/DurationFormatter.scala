@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.datetime
+package com.github.chenharryhua.nanjin.common
 
 import org.apache.commons.lang3.time.DurationFormatUtils
 

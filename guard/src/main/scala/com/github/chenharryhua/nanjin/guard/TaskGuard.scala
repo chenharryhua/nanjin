@@ -3,12 +3,12 @@ import cats.Endo
 import cats.effect.kernel.{Async, Resource}
 import cats.effect.std.Console
 import com.github.chenharryhua.nanjin.common.UpdateConfig
+import com.github.chenharryhua.nanjin.common.policy.policies
 import com.github.chenharryhua.nanjin.guard.config.{ServiceName, TaskConfig}
 import com.github.chenharryhua.nanjin.guard.service.{GeneralAgent, ServiceGuard}
 import fs2.io.net.Network
 import natchez.EntryPoint
 import natchez.noop.NoopEntrypoint
-import retry.RetryPolicies
 
 /** poor man's telemetry
   */
@@ -29,7 +29,7 @@ final class TaskGuard[F[_]: Async: Network] private (
       taskParams = taskConfig.evalConfig,
       config = identity,
       entryPoint = entryPoint,
-      restartPolicy = RetryPolicies.alwaysGiveUp[F],
+      restartPolicy = policies.giveUp,
       jmxBuilder = None,
       httpBuilder = None,
       brief = Async[F].pure(None)

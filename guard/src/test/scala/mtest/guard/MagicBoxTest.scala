@@ -2,25 +2,24 @@ package mtest.guard
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.datetime.{policies, tickStream}
+import com.github.chenharryhua.nanjin.common.policy.policies
+import com.github.chenharryhua.nanjin.common.tickStream
+import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.{
   ActionDone,
   ServicePanic,
   ServiceStart,
   ServiceStop
 }
-import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
-import eu.timepit.refined.auto.*
 import io.circe.syntax.EncoderOps
 import org.scalatest.funsuite.AnyFunSuite
-import retry.RetryPolicies
 
 import scala.concurrent.duration.*
 
 class MagicBoxTest extends AnyFunSuite {
   val service: ServiceGuard[IO] =
-    TaskGuard[IO]("test").service("magic-box").withRestartPolicy(RetryPolicies.constantDelay[IO](0.1.seconds))
+    TaskGuard[IO]("test").service("magic-box").withRestartPolicy(policies.constant(0.1.seconds))
 
   test("1.atomicBox operations") {
     TaskGuard
@@ -113,7 +112,7 @@ class MagicBoxTest extends AnyFunSuite {
     val List(a, c) =
       service.eventStream { agent =>
         val box = agent.signalBox(10)
-        tickStream(policies.constantDelay[IO](0.1.seconds))
+        tickStream[IO](policies.constant(0.1.seconds))
           .evalTap(_ => box.update(_ + 1))
           .interruptWhen(box.map(_ > 20))
           .compile
@@ -135,7 +134,7 @@ class MagicBoxTest extends AnyFunSuite {
 
     val List(a) = service.eventStream { agent =>
       val box = agent.atomicBox(compute)
-      tickStream(RetryPolicies.constantDelay[IO](0.5.seconds))
+      tickStream[IO](policies.constant(0.5.seconds))
         .evalTap(_ => box.getAndUpdate(_ + 1))
         .compile
         .drain >> box.get.map(c => assert(c > 5))
@@ -156,7 +155,7 @@ class MagicBoxTest extends AnyFunSuite {
 
     val List(a) = service.eventStream { agent =>
       val box = agent.signalBox(compute)
-      tickStream(RetryPolicies.constantDelay[IO](0.5.seconds))
+      tickStream[IO](policies.constant(0.5.seconds))
         .evalTap(_ => box.getAndUpdate(_ + 1))
         .compile
         .drain >> box.get.map(c => assert(c > 5))
@@ -169,10 +168,7 @@ class MagicBoxTest extends AnyFunSuite {
 
     val List(a, b, c) = service.eventStream { agent =>
       val box = agent.atomicBox(IO.raiseError[Int](new Exception))
-      tickStream(RetryPolicies.constantDelay[IO](0.1.seconds))
-        .evalTap(_ => box.getAndUpdate(_ + 1))
-        .compile
-        .drain
+      tickStream[IO](policies.constant(0.1.seconds)).evalTap(_ => box.getAndUpdate(_ + 1)).compile.drain
     }.take(3).compile.toList.unsafeRunSync()
 
     assert(a.isInstanceOf[ServiceStart])
@@ -184,10 +180,7 @@ class MagicBoxTest extends AnyFunSuite {
 
     val List(a, b, c) = service.eventStream { agent =>
       val box = agent.signalBox(IO.raiseError[Int](new Exception))
-      tickStream(RetryPolicies.constantDelay[IO](0.1.seconds))
-        .evalTap(_ => box.getAndUpdate(_ + 1))
-        .compile
-        .drain
+      tickStream[IO](policies.constant(0.1.seconds)).evalTap(_ => box.getAndUpdate(_ + 1)).compile.drain
     }.take(3).compile.toList.unsafeRunSync()
 
     assert(a.isInstanceOf[ServiceStart])

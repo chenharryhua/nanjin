@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.terminals
 
 import com.github.chenharryhua.nanjin.datetime.codec
-import com.github.chenharryhua.nanjin.datetime.tickStream.Tick
+import com.github.chenharryhua.nanjin.common.policy.Tick
 import io.circe.generic.JsonCodec
 
 import java.time.ZoneId
@@ -9,10 +9,10 @@ import java.time.ZoneId
 @JsonCodec
 sealed abstract class NJFileKind(val fileFormat: NJFileFormat, val compression: NJCompression) {
   final val fileName: String             = compression.fileName(fileFormat)
-  final def fileName(tick: Tick): String = f"${tick.streamId.toString.take(5)}-${tick.index}%06d.$fileName"
+  final def fileName(tick: Tick): String = f"${tick.sequenceId.toString.take(5)}-${tick.index}%06d.$fileName"
 
   final def fileName(zoneId: ZoneId, tick: Tick): String = {
-    val ymd = codec.year_month_day(tick.timestamp.atZone(zoneId).toLocalDate)
+    val ymd = codec.year_month_day(tick.wakeup.atZone(zoneId).toLocalDate)
     s"$ymd/${fileName(tick)}"
   }
 }

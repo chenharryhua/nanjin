@@ -2,7 +2,7 @@ package mtest.terminals
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.datetime.policies
+import com.github.chenharryhua.nanjin.common.policy.policies
 import com.github.chenharryhua.nanjin.terminals.*
 import com.github.chenharryhua.nanjin.terminals.NJCompression.*
 import eu.timepit.refined.auto.*
@@ -69,7 +69,7 @@ class NJAvroTest extends AnyFunSuite {
       .covary[IO]
       .repeatN(number)
       .chunks
-      .through(avro.sink(policies.constantDelay[IO](1.second))(t => path / file.fileName(t)))
+      .through(avro.sink(policies.constant(1.second))(t => path / file.fileName(t)))
       .compile
       .drain
       .unsafeRunSync()

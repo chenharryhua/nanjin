@@ -4,6 +4,7 @@ import cats.data.NonEmptyList
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.toTraverseOps
+import com.github.chenharryhua.nanjin.common.policy.policies
 import com.github.chenharryhua.nanjin.datetime.zones.sydneyTime
 import com.github.chenharryhua.nanjin.terminals.NJCompression.*
 import com.github.chenharryhua.nanjin.terminals.{HadoopParquet, NJPath, ParquetFile}
@@ -12,7 +13,6 @@ import fs2.Stream
 import org.apache.avro.generic.GenericRecord
 import org.scalatest.Assertion
 import org.scalatest.funsuite.AnyFunSuite
-import retry.RetryPolicies
 
 import scala.concurrent.duration.DurationInt
 import scala.util.Try
@@ -82,8 +82,7 @@ class NJParquetTest extends AnyFunSuite {
       .covary[IO]
       .repeatN(number)
       .chunks
-      .through(parquet.sink(RetryPolicies.constantDelay[IO](1.second))(t =>
-        path / file.fileName(sydneyTime, t)))
+      .through(parquet.sink(policies.constant(1.second))(t => path / file.fileName(sydneyTime, t)))
       .compile
       .drain
       .unsafeRunSync()

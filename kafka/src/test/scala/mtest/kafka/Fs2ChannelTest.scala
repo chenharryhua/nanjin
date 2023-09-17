@@ -55,6 +55,19 @@ class Fs2ChannelTest extends AnyFunSuite {
     assert(ret.size == 1)
   }
 
+  test("record format") {
+    val topic = ctx.topic(nyc_taxi_trip)
+    val ret =
+      topic.consume.stream
+        .take(1)
+        .map(_.record)
+        .map(r => topic.topicDef.consumerFormat.toRecord(r))
+        .compile
+        .toList
+        .unsafeRunSync()
+    assert(ret.size == 1)
+  }
+
   test("should be able to consume telecom_italia_data topic") {
     val topic    = sms.in(ctx)
     val consumer = ctx.consume(topic.topicName).updateConfig(_.withGroupId("g1"))

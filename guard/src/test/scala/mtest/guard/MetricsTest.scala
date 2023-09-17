@@ -3,8 +3,8 @@ package mtest.guard
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.catsSyntaxFlatMapOps
-import com.github.chenharryhua.nanjin.common.HostName
-import com.github.chenharryhua.nanjin.datetime.tickStream
+import com.github.chenharryhua.nanjin.common.policy.policies
+import com.github.chenharryhua.nanjin.common.{tickStream, HostName}
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
@@ -17,7 +17,6 @@ import io.circe.generic.JsonCodec
 import io.circe.parser.decode
 import io.circe.syntax.*
 import org.scalatest.funsuite.AnyFunSuite
-import retry.RetryPolicies
 import software.amazon.awssdk.services.cloudwatch.model.StandardUnit
 
 import java.time.{ZoneId, ZonedDateTime}
@@ -126,10 +125,7 @@ class MetricsTest extends AnyFunSuite {
           agent.gauge("ref").ref(IO.ref(0))
 
       gauge.use(box =>
-        tickStream(RetryPolicies.constantDelay[IO](1.seconds))
-          .evalTap(_ => box.updateAndGet(_ + 1))
-          .compile
-          .drain)
+        tickStream[IO](policies.constant(1.seconds)).evalTap(_ => box.updateAndGet(_ + 1)).compile.drain)
 
     }.evalTap(console.simple[IO]).take(8).compile.drain.unsafeRunSync()
   }

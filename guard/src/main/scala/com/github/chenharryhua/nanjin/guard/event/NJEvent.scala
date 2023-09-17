@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.event
 
 import cats.Show
+import com.github.chenharryhua.nanjin.common.policy.Tick
 import com.github.chenharryhua.nanjin.datetime.DateTimeInstances
 import com.github.chenharryhua.nanjin.guard.config.{
   ActionParams,
@@ -13,6 +14,7 @@ import io.circe.Json
 import io.circe.generic.JsonCodec
 
 import java.time.{Duration, ZonedDateTime}
+import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.FiniteDuration
 
 @JsonCodec
@@ -84,14 +86,10 @@ object NJEvent extends DateTimeInstances {
     override def timestamp: ZonedDateTime = serviceParams.toZonedDateTime(actionInfo.launchTime)
   }
 
-  final case class ActionRetry(
-    actionParams: ActionParams,
-    actionInfo: ActionInfo,
-    landTime: FiniteDuration,
-    retriesSoFar: Int,
-    delay: FiniteDuration,
-    error: NJError)
+  final case class ActionRetry(actionParams: ActionParams, actionInfo: ActionInfo, error: NJError, tick: Tick)
       extends ActionEvent {
+    val landTime: FiniteDuration = FiniteDuration(tick.acquire.toEpochMilli, TimeUnit.MILLISECONDS)
+
     override def timestamp: ZonedDateTime = serviceParams.toZonedDateTime(landTime)
     def tookSoFar: Duration               = actionInfo.took(landTime)
   }

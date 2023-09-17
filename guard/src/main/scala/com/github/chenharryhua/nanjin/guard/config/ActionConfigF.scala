@@ -22,7 +22,7 @@ object ActionParams {
   def apply(
     actionName: ActionName,
     measurement: Measurement,
-    retryPolicy: Policy,
+    retryPolicy: ServicePolicy,
     serviceParams: ServiceParams
   ): ActionParams =
     ActionParams(
@@ -52,7 +52,7 @@ private object ActionConfigF {
   def algebra(
     actionName: ActionName,
     measurement: Measurement,
-    retryPolicy: Policy): Algebra[ActionConfigF, ActionParams] =
+    retryPolicy: ServicePolicy): Algebra[ActionConfigF, ActionParams] =
     Algebra[ActionConfigF, ActionParams] {
       case InitParams(serviceParams) => ActionParams(actionName, measurement, retryPolicy, serviceParams)
       case WithPublishStrategy(v, c) => c.focus(_.publishStrategy).replace(v)
@@ -79,7 +79,7 @@ final case class ActionConfig(cont: Fix[ActionConfigF]) extends AnyVal {
   def withoutCounting: ActionConfig = ActionConfig(Fix(WithCounting(value = false, cont)))
   def withoutTiming: ActionConfig   = ActionConfig(Fix(WithTiming(value = false, cont)))
 
-  def evalConfig(actionName: ActionName, measurement: Measurement, retryPolicy: Policy): ActionParams =
+  def evalConfig(actionName: ActionName, measurement: Measurement, retryPolicy: ServicePolicy): ActionParams =
     scheme.cata(algebra(actionName, measurement, retryPolicy)).apply(cont)
 }
 

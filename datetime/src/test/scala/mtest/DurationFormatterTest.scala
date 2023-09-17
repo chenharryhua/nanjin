@@ -1,6 +1,6 @@
 package mtest
 
-import com.github.chenharryhua.nanjin.datetime.DurationFormatter
+import com.github.chenharryhua.nanjin.common.DurationFormatter
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.{Instant, ZoneId}

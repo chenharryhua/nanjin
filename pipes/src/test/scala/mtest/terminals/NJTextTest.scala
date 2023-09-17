@@ -3,6 +3,7 @@ package mtest.terminals
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.toFunctorFilterOps
+import com.github.chenharryhua.nanjin.common.policy.policies
 import com.github.chenharryhua.nanjin.terminals.NJCompression.*
 import com.github.chenharryhua.nanjin.terminals.{HadoopText, NJHadoop, NJPath, TextFile}
 import eu.timepit.refined.auto.*
@@ -10,12 +11,11 @@ import fs2.Stream
 import io.circe.generic.auto.*
 import io.circe.parser.decode
 import io.circe.syntax.EncoderOps
-import TestData.Tiger
 import mtest.terminals.HadoopTestData.hdp
+import mtest.terminals.TestData.Tiger
 import org.apache.hadoop.conf.Configuration
 import org.scalatest.Assertion
 import org.scalatest.funsuite.AnyFunSuite
-import retry.RetryPolicies
 
 import scala.concurrent.duration.DurationInt
 class NJTextTest extends AnyFunSuite {
@@ -94,7 +94,7 @@ class NJTextTest extends AnyFunSuite {
       .repeatN(number)
       .map(_.toString)
       .chunks
-      .through(text.sink(RetryPolicies.constantDelay[IO](1.second))(t => path / fk.fileName(t)))
+      .through(text.sink(policies.constant(1.second))(t => path / fk.fileName(t)))
       .compile
       .drain
       .unsafeRunSync()
