@@ -44,6 +44,6 @@ private object jsonHelper {
 
   def metricIndex(index: MetricIndex): (String, Json) = index match {
     case MetricIndex.Adhoc          => "index" -> Json.Null
-    case MetricIndex.Periodic(tick) => "index" -> Json.fromInt(tick.index)
+    case MetricIndex.Periodic(tick) => "index" -> Json.fromLong(tick.index)
   }
 }

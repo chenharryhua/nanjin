@@ -27,6 +27,14 @@ sealed trait FinitePolicy extends Policy {
 object Policy {
   implicit val showPolicy: Show[Policy] = _.show
 
+  case object GiveUp extends Policy {
+    override def decide(tick: Tick, now: Instant): Option[Tick] = None
+
+    override def show: String = show"None"
+  }
+
+  type GiveUp = GiveUp.type
+
   final case class Constant(baseDelay: Duration) extends InfinitePolicy {
     override def decide(tick: Tick, now: Instant): Option[Tick] =
       Some(

@@ -45,4 +45,3 @@ class NJConsumerRecordTest extends CatsSuite with FunSuiteDiscipline {
   checkAll("NJProducerRecord", BifunctorTests[NJProducerRecord].bifunctor[Int, Int, Int, Int, Int, Int])
 
 }
-

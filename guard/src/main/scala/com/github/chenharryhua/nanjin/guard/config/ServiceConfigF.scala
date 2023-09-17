@@ -65,12 +65,12 @@ object ServiceParams extends zoneddatetime with duration {
   implicit val showServiceParams: Show[ServiceParams] = cats.derived.semiauto.show[ServiceParams]
 
   def apply(
-             serviceName: ServiceName,
-             taskParams: TaskParams,
-             serviceId: ServiceID,
-             launchTime: ServiceLaunchTime,
-             policy: ServicePolicy, // for display
-             brief: ServiceBrief
+    serviceName: ServiceName,
+    taskParams: TaskParams,
+    serviceId: ServiceID,
+    launchTime: ServiceLaunchTime,
+    policy: ServicePolicy, // for display
+    brief: ServiceBrief
   ): ServiceParams =
     ServiceParams(
       serviceName = serviceName.value,
@@ -109,11 +109,11 @@ private object ServiceConfigF {
   final case class WithHomePage[K](value: Option[String], cont: K) extends ServiceConfigF[K]
 
   def algebra(
-               serviceName: ServiceName,
-               serviceId: ServiceID,
-               launchTime: ServiceLaunchTime,
-               retryPolicy: ServicePolicy,
-               brief: ServiceBrief): Algebra[ServiceConfigF, ServiceParams] =
+    serviceName: ServiceName,
+    serviceId: ServiceID,
+    launchTime: ServiceLaunchTime,
+    retryPolicy: ServicePolicy,
+    brief: ServiceBrief): Algebra[ServiceConfigF, ServiceParams] =
     Algebra[ServiceConfigF, ServiceParams] {
       case InitParams(taskParams) =>
         ServiceParams(serviceName, taskParams, serviceId, launchTime, retryPolicy, brief)
@@ -163,11 +163,11 @@ final case class ServiceConfig(cont: Fix[ServiceConfigF]) extends AnyVal {
     ServiceConfig(Fix(WithHomePage(Some(hp), cont)))
 
   def evalConfig(
-                  serviceName: ServiceName,
-                  serviceId: ServiceID,
-                  launchTime: ServiceLaunchTime,
-                  policy: ServicePolicy,
-                  brief: ServiceBrief): ServiceParams =
+    serviceName: ServiceName,
+    serviceId: ServiceID,
+    launchTime: ServiceLaunchTime,
+    policy: ServicePolicy,
+    brief: ServiceBrief): ServiceParams =
     scheme.cata(algebra(serviceName, serviceId, launchTime, policy, brief)).apply(cont)
 }
 

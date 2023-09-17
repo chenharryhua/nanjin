@@ -20,4 +20,6 @@ object policies {
   def fibonacci(baseDelay: FiniteDuration): Policy.Fibonacci = fibonacci(baseDelay.toJava)
 
   def crontab(cronExpr: CronExpr, zoneId: ZoneId): Policy.Crontab = Policy.Crontab(cronExpr, zoneId)
+
+  val giveUp: Policy.GiveUp = Policy.GiveUp
 }

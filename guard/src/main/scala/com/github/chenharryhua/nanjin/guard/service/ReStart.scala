@@ -2,63 +2,64 @@ package com.github.chenharryhua.nanjin.guard.service
 
 import cats.effect.kernel.{Outcome, Temporal}
 import cats.syntax.all.*
+import com.github.chenharryhua.nanjin.common.policy.{Policy, Tick}
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.event.{NJEvent, ServiceStopCause}
 import fs2.Stream
 import fs2.concurrent.Channel
+import monocle.syntax.all.*
 import org.apache.commons.lang3.exception.ExceptionUtils
-import retry.{PolicyDecision, RetryPolicy, RetryStatus}
 
-import java.time.{Duration, ZonedDateTime}
-import scala.concurrent.duration.FiniteDuration
+import java.time.Duration
+import scala.jdk.DurationConverters.JavaDurationOps
 import scala.util.control.NonFatal
 
 final private class ReStart[F[_], A](
   channel: Channel[F, NJEvent],
   serviceParams: ServiceParams,
-  policy: RetryPolicy[F],
+  policy: Policy,
+  groundZero: Tick,
   theService: F[A])(implicit F: Temporal[F]) {
 
-  private case class ReStartState(retryStatus: RetryStatus, lastTime: Option[ZonedDateTime])
-
-  private def stop(cause: ServiceStopCause): F[Either[ReStartState, ServiceStopCause]] =
+  private def stop(cause: ServiceStopCause): F[Either[Tick, ServiceStopCause]] =
     F.pure(Right(cause))
 
-  private def panic(
-    retryStatus: RetryStatus,
-    delay: FiniteDuration,
-    err: Throwable): F[Either[ReStartState, ServiceStopCause]] =
+  private def panic(tick: Tick, err: Throwable): F[Either[Tick, ServiceStopCause]] =
     for {
-      ts <- publisher.servicePanic(channel, serviceParams, delay, err)
-      _ <- F.sleep(delay)
-    } yield Left(ReStartState(retryStatus.addRetry(delay), Some(ts)))
+      _ <- publisher.servicePanic(channel, serviceParams, tick, err)
+      _ <- F.sleep(tick.snooze.toScala)
+    } yield Left(tick)
 
-  private def startover(err: Throwable): F[Either[ReStartState, ServiceStopCause]] =
-    policy.decideNextRetry(RetryStatus.NoRetriesYet).flatMap {
-      case PolicyDecision.GiveUp => stop(ServiceStopCause.ByException(ExceptionUtils.getMessage(err)))
-      case PolicyDecision.DelayAndRetry(delay) => panic(RetryStatus.NoRetriesYet, delay, err)
+  private def startover(tick: Tick, err: Throwable): F[Either[Tick, ServiceStopCause]] =
+    policy.decide(tick, tick.acquire) match {
+      case None       => stop(ServiceStopCause.ByException(ExceptionUtils.getMessage(err)))
+      case Some(next) => panic(next, err)
     }
 
-  private val loop: F[ServiceStopCause] = F.tailRecM(ReStartState(RetryStatus.NoRetriesYet, None)) { state =>
-    (publisher.serviceReStart(channel, serviceParams) >> theService).attempt.flatMap {
-      case Right(_) =>
-        stop(ServiceStopCause.Normally)
-      case Left(err) if !NonFatal(err) =>
-        stop(ServiceStopCause.ByException(ExceptionUtils.getRootCauseMessage(err)))
-      case Left(err) =>
-        policy.decideNextRetry(state.retryStatus).flatMap {
-          // when run out of policies, start over
-          case PolicyDecision.GiveUp => startover(err)
-          // if no error happens for long enough, start over the policies
-          case PolicyDecision.DelayAndRetry(delay) =>
-            (state.lastTime, serviceParams.policyThreshold)
-              .traverseN((last, threshold) =>
-                serviceParams.zonedNow.map(now => Duration.between(last, now).compareTo(threshold) > 0))
-              .map(_.exists(identity))
-              .ifM(startover(err), panic(state.retryStatus, delay, err))
-        }
+  private val loop: F[ServiceStopCause] =
+    F.tailRecM(groundZero) { prev =>
+      (publisher.serviceReStart(channel, serviceParams) >> theService).attempt.flatMap {
+        case Right(_) =>
+          stop(ServiceStopCause.Normally)
+        case Left(err) if !NonFatal(err) =>
+          stop(ServiceStopCause.ByException(ExceptionUtils.getRootCauseMessage(err)))
+        case Left(err) =>
+          F.realTimeInstant.flatMap { now =>
+            policy.decide(prev, now) match {
+              case None => stop(ServiceStopCause.ByException(ExceptionUtils.getRootCauseMessage(err)))
+              // if no error happens for long enough, start over the policies
+              case Some(tick) =>
+                serviceParams.policyThreshold match {
+                  case None => panic(tick, err)
+                  case Some(value) =>
+                    if (Duration.between(prev.wakeup, now).compareTo(value) > 0)
+                      startover(tick.focus(_.counter).replace(0), err)
+                    else panic(tick, err)
+                }
+            }
+          }
+      }
     }
-  }
 
   val stream: Stream[F, Nothing] =
     Stream

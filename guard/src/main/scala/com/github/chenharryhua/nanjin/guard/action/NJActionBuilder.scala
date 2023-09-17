@@ -12,17 +12,15 @@ import cats.implicits.{
 import cats.{Alternative, Endo, Traverse}
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.common.UpdateConfig
-import com.github.chenharryhua.nanjin.datetime.policies
 import com.github.chenharryhua.nanjin.guard.config.{
   ActionConfig,
   ActionName,
   ActionParams,
   Measurement,
-  ServicePolicy,
-  ServiceParams
+  ServiceParams,
+  ServicePolicy
 }
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
-import cron4s.CronExpr
 import fs2.concurrent.Channel
 import io.circe.Json
 import org.apache.commons.lang3.exception.ExceptionUtils
@@ -59,12 +57,6 @@ final class NJActionBuilder[F[_]](
   def apply(name: String): NJActionBuilder[F]                 = copy(actionName = ActionName(name))
 
   def withRetryPolicy(rp: RetryPolicy[F]): NJActionBuilder[F] = copy(retryPolicy = rp)
-
-  def withRetryPolicy(cronExpr: CronExpr, f: Endo[RetryPolicy[F]]): NJActionBuilder[F] =
-    withRetryPolicy(f(policies.cronBackoff[F](cronExpr, serviceParams.taskParams.zoneId)))
-
-  def withRetryPolicy(cronExpr: CronExpr): NJActionBuilder[F] =
-    withRetryPolicy(cronExpr, identity)
 
   private def alwaysRetry: Throwable => F[Boolean] = (_: Throwable) => F.pure(true)
 

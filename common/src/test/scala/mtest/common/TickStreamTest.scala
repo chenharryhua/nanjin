@@ -102,7 +102,7 @@ class TickStreamTest extends AnyFunSuite {
   }
   test("8.fixed pace") {
     val policy = policies.fixedPace(1.second.toJava)
-    val ticks = tickStream[IO](policy)
+    val ticks  = tickStream[IO](policy)
     val sleep: IO[JavaDuration] =
       Random
         .scalaUtilRandom[IO]
@@ -111,6 +111,5 @@ class TickStreamTest extends AnyFunSuite {
 
     ticks.evalTap(_ => sleep).take(10).map(_.wakeup).debug().compile.toList.unsafeRunSync()
   }
-
 
 }
