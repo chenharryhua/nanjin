@@ -134,18 +134,18 @@ class PolicyTest extends AnyFunSuite {
   test("fibonacci") {
     val policy = policies.fibonacci(1.minute)
     val a1     = policy.decide(zero, t0).get
-    assert(a1.snooze == 0.minute.toJava)
+    assert(a1.snooze == 1.minute.toJava)
     val a2 = policy.decide(a1, t1).get
     assert(a2.snooze == 1.minute.toJava)
     val a3 = policy.decide(a2, t2).get
-    assert(a3.snooze == 1.minute.toJava)
+    assert(a3.snooze == 2.minute.toJava)
     val a4 = policy.decide(a3, t3).get
-    assert(a4.snooze == 2.minute.toJava)
+    assert(a4.snooze == 3.minute.toJava)
     val a5 = policy.decide(a4, t4).get
-    assert(a5.snooze == 3.minute.toJava)
+    assert(a5.snooze == 5.minute.toJava)
     val a6 = policy.decide(a5, t5).get
-    assert(a6.snooze == 5.minute.toJava)
+    assert(a6.snooze == 8.minute.toJava)
     val a7 = policy.decide(a6, t6).get
-    assert(a7.snooze == 8.minute.toJava)
+    assert(a7.snooze == 13.minute.toJava)
   }
 }

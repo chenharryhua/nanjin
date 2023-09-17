@@ -249,26 +249,25 @@ class ServiceTest extends AnyFunSuite {
 
   test("14.policy threshold start over") {
     import java.time.Duration
-    val List(a, b, c, d, e, f, g) = guard
+    val List(a, b, c, d, e, f, g, h) = guard
       .withRestartPolicy(policies.fibonacci(1.seconds))
       .updateConfig(_.withPolicyThreshold(4.seconds))
       .eventStream(_ => IO.raiseError(new Exception("oops")))
       .filter(_.isInstanceOf[ServicePanic])
       .map(_.timestamp)
-      .debug()
-      .take(7)
+      .take(8)
       .compile
       .toList
       .unsafeRunSync()
     val ab = Duration.between(a, b).toMillis
     val cd = Duration.between(c, d).toMillis
     val ef = Duration.between(e, f).toMillis
-    val fg = Duration.between(f, g).toMillis
-    // 1,1,2,3,5,8(never happen)...
+    val gh = Duration.between(g, h).toMillis
+    // 1,1,2,3,5(never happen)...
     assert(500 < ab && ab < 1500)
     assert(1500 < cd && cd < 2500)
-    assert(4500 < ef && ef < 5500)
-    assert(500 < fg && fg < 1500)
+    assert(500 < ef && ef < 1500)
+    assert(1500 < gh && gh < 2500)
   }
 
 }

@@ -7,10 +7,9 @@ import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.event.{NJEvent, ServiceStopCause}
 import fs2.Stream
 import fs2.concurrent.Channel
-import monocle.syntax.all.*
 import org.apache.commons.lang3.exception.ExceptionUtils
 
-import java.time.Duration
+import java.time.{Duration, Instant}
 import scala.jdk.DurationConverters.JavaDurationOps
 import scala.util.control.NonFatal
 
@@ -30,8 +29,8 @@ final private class ReStart[F[_], A](
       _ <- F.sleep(tick.snooze.toScala)
     } yield Left(tick)
 
-  private def startover(tick: Tick, err: Throwable): F[Either[Tick, ServiceStopCause]] =
-    policy.decide(tick, tick.acquire) match {
+  private def startover(now: Instant, err: Throwable): F[Either[Tick, ServiceStopCause]] =
+    policy.decide(groundZero, now) match {
       case None       => stop(ServiceStopCause.ByException(ExceptionUtils.getMessage(err)))
       case Some(next) => panic(next, err)
     }
@@ -52,9 +51,9 @@ final private class ReStart[F[_], A](
                 serviceParams.policyThreshold match {
                   case None => panic(tick, err)
                   case Some(value) =>
-                    if (Duration.between(prev.wakeup, now).compareTo(value) > 0)
-                      startover(tick.focus(_.counter).replace(0), err)
-                    else panic(tick, err)
+                    if (Duration.between(prev.wakeup, tick.wakeup).compareTo(value) > 0) {
+                      startover(now, err)
+                    } else panic(tick, err)
                 }
             }
           }

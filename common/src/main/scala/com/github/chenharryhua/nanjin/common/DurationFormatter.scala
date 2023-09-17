@@ -1,8 +1,8 @@
-package com.github.chenharryhua.nanjin.datetime
+package com.github.chenharryhua.nanjin.common
 
 import org.apache.commons.lang3.time.DurationFormatUtils
 
-import java.time.{Duration as JavaDuration, Instant, ZonedDateTime}
+import java.time.{Instant, ZonedDateTime, Duration as JavaDuration}
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.jdk.DurationConverters.JavaDurationOps

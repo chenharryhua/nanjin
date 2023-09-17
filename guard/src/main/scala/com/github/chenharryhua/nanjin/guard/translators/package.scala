@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard
 
-import com.github.chenharryhua.nanjin.datetime.DurationFormatter
+import com.github.chenharryhua.nanjin.common.DurationFormatter
 
 package object translators {
 
