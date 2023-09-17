@@ -23,8 +23,8 @@ class ProtoBufTest extends Properties("protobuf") {
   implicit val arbPerson: Arbitrary[MessagePerson] = Arbitrary(genPerson)
 
   property("encode/decode identity") = forAll { (p: MessagePerson) =>
-    val encoded = ser.avroCodec.avroEncoder.encode(KPB(p))
-    val decoded = ser.avroCodec.avroDecoder.decode(encoded)
+    val encoded = ser.avroCodec.encode(KPB(p))
+    val decoded = ser.avroCodec.decode(encoded)
     decoded.value == p
   }
 }

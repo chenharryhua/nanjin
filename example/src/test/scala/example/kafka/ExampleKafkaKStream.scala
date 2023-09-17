@@ -20,6 +20,6 @@ class ExampleKafkaKStream extends AnyFunSuite {
         _.mapValues(foo => Bar(Random.nextInt(), foo.a.toLong))
           .to(barTopic.topicName.value)(barTopic.asProduced))
 
-    ctx.buildStreams(top).stateUpdates.interruptAfter(3.seconds).compile.drain.unsafeRunSync()
+    ctx.buildStreams("app", top).stateUpdates.interruptAfter(3.seconds).compile.drain.unsafeRunSync()
   }
 }

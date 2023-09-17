@@ -1,7 +1,8 @@
 package example
 import cats.effect.IO
+import com.github.chenharryhua.nanjin.common.chrono.{Policy, policies}
 import com.github.chenharryhua.nanjin.datetime.zones.sydneyTime
-import com.github.chenharryhua.nanjin.datetime.{crontabs, policies}
+import com.github.chenharryhua.nanjin.datetime.crontabs
 import com.github.chenharryhua.nanjin.spark.table.{LoadTable, NJTable}
 import com.github.chenharryhua.nanjin.spark.{AvroTypedEncoder, SparkSessionExt}
 import com.github.chenharryhua.nanjin.terminals.NJPath
@@ -9,7 +10,6 @@ import com.sksamuel.avro4s.{AvroSchema, FromRecord, ToRecord}
 import frameless.TypedEncoder
 import fs2.Stream
 import org.apache.avro.Schema
-import retry.RetryPolicy
 import eu.timepit.refined.auto.*
 
 package object basic {
@@ -18,7 +18,7 @@ package object basic {
 
   val root: NJPath = NJPath("./data/example/basic")
 
-  val policy: RetryPolicy[IO] = policies.cronBackoff[IO](crontabs.secondly, sydneyTime)
+  val policy: Policy.Crontab = policies.crontab(crontabs.secondly, sydneyTime)
 
   implicit val te: TypedEncoder[Tiger] = shapeless.cachedImplicit
 
