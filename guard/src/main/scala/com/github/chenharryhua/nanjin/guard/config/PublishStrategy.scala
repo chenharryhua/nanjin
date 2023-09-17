@@ -48,9 +48,9 @@ final private[guard] case class ServiceName(value: String) extends AnyVal
 final private[guard] case class ServiceID(value: UUID) extends AnyVal
 final private[guard] case class ServiceLaunchTime(value: Instant) extends AnyVal
 final private[guard] case class ServiceBrief(value: Option[Json]) extends AnyVal
-final private[guard] case class Policy(value: String) extends AnyVal
-private[guard] object Policy {
-  def apply[F[_]](rp: RetryPolicy[F]): Policy = Policy(rp.show)
+final private[guard] case class ServicePolicy(value: String) extends AnyVal
+private[guard] object ServicePolicy {
+  def apply[F[_]](rp: RetryPolicy[F]): ServicePolicy = ServicePolicy(rp.show)
 }
 
 final private[guard] case class ActionName(value: String) extends AnyVal

@@ -18,7 +18,7 @@ import com.github.chenharryhua.nanjin.guard.config.{
   ActionName,
   ActionParams,
   Measurement,
-  Policy,
+  ServicePolicy,
   ServiceParams
 }
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
@@ -69,7 +69,7 @@ final class NJActionBuilder[F[_]](
   private def alwaysRetry: Throwable => F[Boolean] = (_: Throwable) => F.pure(true)
 
   private def params: ActionParams =
-    config(ActionConfig(serviceParams)).evalConfig(actionName, measurement, Policy(retryPolicy))
+    config(ActionConfig(serviceParams)).evalConfig(actionName, measurement, ServicePolicy(retryPolicy))
   // retries
   def retry[Z](fz: F[Z]): NJAction0[F, Z] = // 0 arity
     new NJAction0[F, Z](

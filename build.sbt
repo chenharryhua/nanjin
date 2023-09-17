@@ -1,6 +1,6 @@
 ThisBuild / scalaVersion := "2.13.12"
 
-ThisBuild / version := "0.17.3-SNAPSHOT"
+ThisBuild / version := "0.17.5-SNAPSHOT"
 
 val catsCoreV   = "2.10.0"
 val fs2V        = "3.9.2"

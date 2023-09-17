@@ -4,7 +4,7 @@ import cats.effect.kernel.Resource.ExitCase
 import cats.syntax.all.*
 import cats.{Monad, Show}
 import com.github.chenharryhua.nanjin.datetime.DateTimeInstances
-import com.github.chenharryhua.nanjin.datetime.tickStream.Tick
+import com.github.chenharryhua.nanjin.common.policy.Tick
 import io.circe.Codec
 import io.circe.generic.JsonCodec
 import natchez.Span

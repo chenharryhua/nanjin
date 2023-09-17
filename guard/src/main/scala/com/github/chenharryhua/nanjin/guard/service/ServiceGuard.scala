@@ -9,11 +9,10 @@ import com.codahale.metrics.MetricRegistry
 import com.codahale.metrics.jmx.JmxReporter
 import com.comcast.ip4s.IpLiteralSyntax
 import com.github.chenharryhua.nanjin.common.UpdateConfig
-import com.github.chenharryhua.nanjin.datetime.tickStream.Tick
-import com.github.chenharryhua.nanjin.datetime.{policies, tickStream}
+import com.github.chenharryhua.nanjin.common.policy.Tick
 import com.github.chenharryhua.nanjin.guard.config.{
   Measurement,
-  Policy,
+  ServicePolicy,
   ServiceBrief,
   ServiceConfig,
   ServiceID,
@@ -99,9 +98,9 @@ final class ServiceGuard[F[_]: Network] private[guard] (
     json <- brief
   } yield config(ServiceConfig(taskParams)).evalConfig(
     serviceName,
-    ServiceID(tick.streamId),
-    ServiceLaunchTime(tick.timestamp),
-    Policy(restartPolicy),
+    ServiceID(tick.sequenceId),
+    ServiceLaunchTime(tick.start),
+    ServicePolicy(restartPolicy),
     ServiceBrief(json))
 
   def dummyAgent(implicit C: Console[F]): Resource[F, GeneralAgent[F]] = for {
