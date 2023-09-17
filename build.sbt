@@ -185,7 +185,6 @@ val baseLib = List(
   "io.scalaland" %% "chimney"                      % chimneyV,
   "io.scalaland" %% "enumz"                        % "1.0.0",
   "com.chuusai" %% "shapeless"                     % "2.3.10",
-  "com.github.cb372" %% "cats-retry"               % "3.1.0",
   "com.github.alonsodomin.cron4s" %% "cron4s-core" % cron4sV
 ) ++ enumLib ++ drosteLib ++ catsLib ++ refinedLib ++ circeLib ++ monocleLib ++ fs2Lib
 

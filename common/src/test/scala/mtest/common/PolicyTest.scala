@@ -1,13 +1,13 @@
 package mtest.common
 
-import com.github.chenharryhua.nanjin.common.policy.{policies, Tick}
+import com.github.chenharryhua.nanjin.common.policy.{Tick, policies}
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.temporal.ChronoUnit
 import java.time.{Duration, Instant, ZoneId, ZonedDateTime}
 import java.util.UUID
 import scala.concurrent.duration.DurationInt
-import scala.jdk.DurationConverters.ScalaDurationOps
+import scala.jdk.DurationConverters.{JavaDurationOps, ScalaDurationOps}
 
 class PolicyTest extends AnyFunSuite {
   val interval: Duration = Duration.of(1, ChronoUnit.SECONDS)
@@ -43,25 +43,22 @@ class PolicyTest extends AnyFunSuite {
     assert(a1.previous === t0)
     assert(a1.acquire === t1)
     assert(a1.snooze === delay)
-    assert(a1.guessNext === Some(a1.acquire.plus(delay)))
 
     assert(a2.sequenceId == zero.sequenceId)
     assert(a2.start == zero.start)
     assert(a2.index == 2)
     assert(a2.counter == 2)
-    assert(a2.previous === t1)
+    assert(a2.previous === a1.wakeup)
     assert(a2.acquire === t2)
     assert(a2.snooze === delay)
-    assert(a2.guessNext === Some(a2.acquire.plus(delay)))
 
     assert(a3.sequenceId == zero.sequenceId)
     assert(a3.start == zero.start)
     assert(a3.index == 3)
     assert(a3.counter == 3)
-    assert(a3.previous === t2)
+    assert(a3.previous === a2.wakeup)
     assert(a3.acquire === t3)
     assert(a3.snooze === delay)
-    assert(a3.guessNext === Some(a3.acquire.plus(delay)))
 
     assert(a4.isEmpty)
   }
@@ -147,5 +144,12 @@ class PolicyTest extends AnyFunSuite {
     assert(a6.snooze == 8.minute.toJava)
     val a7 = policy.decide(a6, t6).get
     assert(a7.snooze == 13.minute.toJava)
+  }
+
+  test("jitter") {
+    val policy = policies.jitter(1.minute, 2.hour)
+    val a1     = policy.decide(zero, t0).get
+    assert(a1.snooze.toScala >= 1.minute)
+    assert(a1.snooze.toScala < 2.hour)
   }
 }

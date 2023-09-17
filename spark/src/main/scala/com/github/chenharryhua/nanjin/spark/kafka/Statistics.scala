@@ -4,11 +4,7 @@ import cats.Show
 import cats.effect.kernel.Sync
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.DurationFormatter
-import com.github.chenharryhua.nanjin.datetime.{
-  dayResolution,
-  hourResolution,
-  minuteResolution
-}
+import com.github.chenharryhua.nanjin.datetime.{dayResolution, hourResolution, minuteResolution}
 import com.github.chenharryhua.nanjin.spark.SPARK_ZONE_ID
 import io.circe.generic.JsonCodec
 import org.apache.spark.sql.Dataset

@@ -4,6 +4,7 @@ import cats.effect.kernel.{Async, Resource}
 import cats.syntax.all.*
 import cats.{Endo, Show}
 import com.github.chenharryhua.nanjin.common.aws.{S3Path, SqsConfig}
+import com.github.chenharryhua.nanjin.common.policy.{policies, Policy, Tick}
 import fs2.{Chunk, Pull, Stream}
 import io.circe.Json
 import io.circe.generic.JsonCodec
@@ -12,7 +13,6 @@ import io.circe.syntax.EncoderOps
 import monocle.macros.Lenses
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import org.typelevel.log4cats.{Logger, SelfAwareStructuredLogger}
-import retry.{PolicyDecision, RetryPolicies, RetryPolicy as DelayPolicy, RetryStatus}
 import software.amazon.awssdk.services.sqs.model.*
 import software.amazon.awssdk.services.sqs.{SqsClient, SqsClientBuilder}
 
@@ -21,6 +21,7 @@ import java.util.UUID
 import scala.collection.mutable
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.jdk.CollectionConverters.ListHasAsScala
+import scala.jdk.DurationConverters.JavaDurationOps
 
 /** @param messageIndex
   *   one based message index
@@ -59,7 +60,7 @@ sealed trait SimpleQueueService[F[_]] {
   def delete(msg: SqsMessage): F[DeleteMessageResponse]
   def resetVisibility(msg: SqsMessage): F[ChangeMessageVisibilityResponse]
   def updateBuilder(f: Endo[SqsClientBuilder]): SimpleQueueService[F]
-  def withDelayPolicy(delayPolicy: DelayPolicy[F]): SimpleQueueService[F]
+  def withDelayPolicy(delayPolicy: Policy): SimpleQueueService[F]
 
   def sendMessage(msg: SendMessageRequest): F[SendMessageResponse]
   final def sendMessage(f: Endo[SendMessageRequest.Builder]): F[SendMessageResponse] =
@@ -90,8 +91,8 @@ object SimpleQueueService {
           )
         }
 
-      override def updateBuilder(f: Endo[SqsClientBuilder]): SimpleQueueService[F]     = this
-      override def withDelayPolicy(delayPolicy: DelayPolicy[F]): SimpleQueueService[F] = this
+      override def updateBuilder(f: Endo[SqsClientBuilder]): SimpleQueueService[F] = this
+      override def withDelayPolicy(delayPolicy: Policy): SimpleQueueService[F]     = this
       override def delete(msg: SqsMessage): F[DeleteMessageResponse] =
         F.pure(DeleteMessageResponse.builder().build())
       override def sendMessage(msg: SendMessageRequest): F[SendMessageResponse] =
@@ -109,8 +110,7 @@ object SimpleQueueService {
     }))(_ => F.unit)
 
   def apply[F[_]: Async](f: Endo[SqsClientBuilder]): Resource[F, SimpleQueueService[F]] = {
-    val defaultPolicy: DelayPolicy[F] =
-      RetryPolicies.capDelay(5.minutes, RetryPolicies.exponentialBackoff(10.seconds))
+    val defaultPolicy: Policy = policies.exponential(10.seconds).limited(5).repeat
     for {
       logger <- Resource.eval(Slf4jLogger.create[F])
       sqs <- Resource.makeCase(
@@ -121,10 +121,8 @@ object SimpleQueueService {
     } yield sqs
   }
 
-  final private class AwsSQS[F[_]](
-    buildFrom: Endo[SqsClientBuilder],
-    delayPolicy: DelayPolicy[F],
-    logger: Logger[F])(implicit F: Async[F])
+  final private class AwsSQS[F[_]](buildFrom: Endo[SqsClientBuilder], delayPolicy: Policy, logger: Logger[F])(
+    implicit F: Async[F])
       extends ShutdownService[F] with SimpleQueueService[F] {
 
     private lazy val client: SqsClient = buildFrom(SqsClient.builder()).build()
@@ -135,7 +133,7 @@ object SimpleQueueService {
 
       // when no data can be retrieved, the delay policy will be applied
       // [[https://cb372.github.io/cats-retry/docs/policies.html]]
-      def receiving(status: RetryStatus, batchIndex: Long): Pull[F, SqsMessage, Unit] =
+      def receiving(status: Tick, batchIndex: Long): Pull[F, SqsMessage, Unit] =
         Pull.eval(F.blocking(client.receiveMessage(request)).onError(ex => logger.error(ex)(name))).flatMap {
           rmr =>
             val messages: mutable.Buffer[Message] = rmr.messages.asScala
@@ -150,17 +148,21 @@ object SimpleQueueService {
                   batchSize = size
                 )
               }
-              Pull.output(chunk) >> receiving(RetryStatus.NoRetriesYet, batchIndex + 1)
+              Pull.output(chunk) >> receiving(Tick.unsafeZero, batchIndex + 1)
             } else {
-              Pull.eval(delayPolicy.decideNextRetry(status)).flatMap {
-                case PolicyDecision.GiveUp => Pull.done
-                case PolicyDecision.DelayAndRetry(delay) =>
-                  Pull.sleep(delay) >> receiving(status.addRetry(delay), batchIndex)
-              }
+              Pull
+                .eval(F.realTimeInstant.map { now =>
+                  delayPolicy.decide(status, now) match {
+                    case None => Pull.done
+                    case Some(tick) =>
+                      Pull.sleep(tick.snooze.toScala) >> receiving(tick, batchIndex)
+                  }
+                })
+                .flatten
             }
         }
 
-      receiving(RetryStatus.NoRetriesYet, 0L).stream
+      receiving(Tick.unsafeZero, 0L).stream
     }
 
     override def delete(msg: SqsMessage): F[DeleteMessageResponse] = {
@@ -188,7 +190,7 @@ object SimpleQueueService {
     override def updateBuilder(f: Endo[SqsClientBuilder]): SimpleQueueService[F] =
       new AwsSQS[F](buildFrom.andThen(f), delayPolicy, logger)
 
-    override def withDelayPolicy(delayPolicy: DelayPolicy[F]): SimpleQueueService[F] =
+    override def withDelayPolicy(delayPolicy: Policy): SimpleQueueService[F] =
       new AwsSQS[F](buildFrom, delayPolicy, logger)
 
   }
