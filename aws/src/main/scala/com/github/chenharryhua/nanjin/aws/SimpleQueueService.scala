@@ -133,7 +133,7 @@ object SimpleQueueService {
 
       // when no data can be retrieved, the delay policy will be applied
       // [[https://cb372.github.io/cats-retry/docs/policies.html]]
-      def receiving(status: Tick, batchIndex: Long): Pull[F, SqsMessage, Unit] =
+      def receiving(zero: Tick, status: Tick, batchIndex: Long): Pull[F, SqsMessage, Unit] =
         Pull.eval(F.blocking(client.receiveMessage(request)).onError(ex => logger.error(ex)(name))).flatMap {
           rmr =>
             val messages: mutable.Buffer[Message] = rmr.messages.asScala
@@ -148,21 +148,21 @@ object SimpleQueueService {
                   batchSize = size
                 )
               }
-              Pull.output(chunk) >> receiving(Tick.unsafeZero, batchIndex + 1)
+              Pull.output(chunk) >> receiving(zero, zero, batchIndex + 1)
             } else {
               Pull
                 .eval(F.realTimeInstant.map { now =>
                   delayPolicy.decide(status, now) match {
                     case None => Pull.done
                     case Some(tick) =>
-                      Pull.sleep(tick.snooze.toScala) >> receiving(tick, batchIndex)
+                      Pull.sleep(tick.snooze.toScala) >> receiving(zero, tick, batchIndex)
                   }
                 })
                 .flatten
             }
         }
 
-      receiving(Tick.unsafeZero, 0L).stream
+      Stream.eval(Tick.Zero).flatMap(zero => receiving(zero, zero, 0L).stream)
     }
 
     override def delete(msg: SqsMessage): F[DeleteMessageResponse] = {

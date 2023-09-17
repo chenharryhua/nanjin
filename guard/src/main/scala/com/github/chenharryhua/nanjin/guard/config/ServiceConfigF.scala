@@ -3,6 +3,7 @@ package com.github.chenharryhua.nanjin.guard.config
 import cats.effect.kernel.Clock
 import cats.implicits.toFunctorOps
 import cats.{Functor, Show}
+import com.github.chenharryhua.nanjin.common.policy.Tick
 import cron4s.{Cron, CronExpr}
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
@@ -38,15 +39,17 @@ object MetricParams {
 @JsonCodec
 final case class ServiceParams(
   serviceName: String,
-  serviceId: UUID,
-  launchTime: ZonedDateTime,
   restartPolicy: String, // for display
   policyThreshold: Option[Duration], // policy start over interval
   taskParams: TaskParams,
   metricParams: MetricParams,
   homePage: Option[String],
-  brief: Option[Json]
+  brief: Option[Json],
+  groundZero: Tick
 ) {
+  val serviceId: UUID           = groundZero.sequenceId
+  val launchTime: ZonedDateTime = groundZero.launchTime.atZone(taskParams.zoneId)
+
   def toZonedDateTime(ts: Instant): ZonedDateTime = ts.atZone(taskParams.zoneId)
   def toZonedDateTime(fd: FiniteDuration): ZonedDateTime =
     toZonedDateTime(Instant.EPOCH.plusNanos(fd.toNanos))
@@ -67,15 +70,12 @@ object ServiceParams extends zoneddatetime with duration {
   def apply(
     serviceName: ServiceName,
     taskParams: TaskParams,
-    serviceId: ServiceID,
-    launchTime: ServiceLaunchTime,
     policy: ServicePolicy, // for display
-    brief: ServiceBrief
+    brief: ServiceBrief,
+    groundZero: Tick
   ): ServiceParams =
     ServiceParams(
       serviceName = serviceName.value,
-      serviceId = serviceId.value,
-      launchTime = launchTime.value.atZone(taskParams.zoneId),
       taskParams = taskParams,
       restartPolicy = policy.value,
       policyThreshold = None,
@@ -87,7 +87,8 @@ object ServiceParams extends zoneddatetime with duration {
         durationTimeUnit = TimeUnit.MILLISECONDS
       ),
       homePage = None,
-      brief = brief.value
+      brief = brief.value,
+      groundZero = groundZero
     )
 }
 
@@ -110,13 +111,12 @@ private object ServiceConfigF {
 
   def algebra(
     serviceName: ServiceName,
-    serviceId: ServiceID,
-    launchTime: ServiceLaunchTime,
     retryPolicy: ServicePolicy,
-    brief: ServiceBrief): Algebra[ServiceConfigF, ServiceParams] =
+    brief: ServiceBrief,
+    groundZero: Tick): Algebra[ServiceConfigF, ServiceParams] =
     Algebra[ServiceConfigF, ServiceParams] {
       case InitParams(taskParams) =>
-        ServiceParams(serviceName, taskParams, serviceId, launchTime, retryPolicy, brief)
+        ServiceParams(serviceName, taskParams, retryPolicy, brief, groundZero)
 
       case WithReportSchedule(v, c)   => c.focus(_.metricParams.reportSchedule).replace(v)
       case WithResetSchedule(v, c)    => c.focus(_.metricParams.resetSchedule).replace(v)
@@ -164,11 +164,10 @@ final case class ServiceConfig(cont: Fix[ServiceConfigF]) extends AnyVal {
 
   def evalConfig(
     serviceName: ServiceName,
-    serviceId: ServiceID,
-    launchTime: ServiceLaunchTime,
     policy: ServicePolicy,
-    brief: ServiceBrief): ServiceParams =
-    scheme.cata(algebra(serviceName, serviceId, launchTime, policy, brief)).apply(cont)
+    brief: ServiceBrief,
+    groundZero: Tick): ServiceParams =
+    scheme.cata(algebra(serviceName, policy, brief, groundZero)).apply(cont)
 }
 
 object ServiceConfig {

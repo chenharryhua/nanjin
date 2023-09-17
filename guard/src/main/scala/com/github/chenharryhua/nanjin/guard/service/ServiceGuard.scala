@@ -14,8 +14,6 @@ import com.github.chenharryhua.nanjin.guard.config.{
   Measurement,
   ServiceBrief,
   ServiceConfig,
-  ServiceID,
-  ServiceLaunchTime,
   ServiceName,
   ServiceParams,
   ServicePolicy,
@@ -97,10 +95,9 @@ final class ServiceGuard[F[_]: Network] private[guard] (
     json <- brief
   } yield config(ServiceConfig(taskParams)).evalConfig(
     serviceName,
-    ServiceID(tick.sequenceId),
-    ServiceLaunchTime(tick.start),
     ServicePolicy(restartPolicy.show),
-    ServiceBrief(json))
+    ServiceBrief(json),
+    tick)
 
   def dummyAgent(implicit C: Console[F]): Resource[F, GeneralAgent[F]] = for {
     groundZero <- Resource.eval(Tick.Zero[F])

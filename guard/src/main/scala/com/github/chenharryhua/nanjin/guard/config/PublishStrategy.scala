@@ -4,9 +4,6 @@ import enumeratum.values.{CatsOrderValueEnum, IntCirceEnum, IntEnum, IntEnumEntr
 import enumeratum.{CatsEnum, CirceEnum, Enum, EnumEntry}
 import io.circe.Json
 
-import java.time.Instant
-import java.util.UUID
-
 sealed abstract class PublishStrategy(override val entryName: String) extends EnumEntry with Product
 
 object PublishStrategy
@@ -44,8 +41,6 @@ object AlertLevel
 }
 
 final private[guard] case class ServiceName(value: String) extends AnyVal
-final private[guard] case class ServiceID(value: UUID) extends AnyVal
-final private[guard] case class ServiceLaunchTime(value: Instant) extends AnyVal
 final private[guard] case class ServiceBrief(value: Option[Json]) extends AnyVal
 final private[guard] case class ServicePolicy(value: String) extends AnyVal
 

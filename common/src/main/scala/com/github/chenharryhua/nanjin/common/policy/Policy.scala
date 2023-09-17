@@ -13,7 +13,7 @@ import java.time.{Duration, Instant, ZoneId}
 import scala.jdk.DurationConverters.{JavaDurationOps, ScalaDurationOps}
 import scala.util.Random
 
-sealed trait Policy {
+sealed trait Policy extends Serializable with Product {
   def decide(tick: Tick, now: Instant): Option[Tick]
   def show: String
 
@@ -44,7 +44,7 @@ object Policy {
       Some(
         Tick(
           sequenceId = tick.sequenceId,
-          start = tick.start,
+          launchTime = tick.launchTime,
           index = tick.index + 1,
           counter = tick.counter + 1,
           previous = tick.wakeup,
@@ -59,13 +59,13 @@ object Policy {
   final case class FixedPace(baseDelay: Duration) extends InfinitePolicy {
     override def decide(tick: Tick, now: Instant): Option[Tick] = {
       val delay = {
-        val multi = (Duration.between(tick.start, now).toScala / baseDelay.toScala).ceil.toLong
-        Duration.between(now, tick.start.plus(baseDelay.multipliedBy(multi)))
+        val multi = (Duration.between(tick.launchTime, now).toScala / baseDelay.toScala).ceil.toLong
+        Duration.between(now, tick.launchTime.plus(baseDelay.multipliedBy(multi)))
       }
       Some(
         Tick(
           sequenceId = tick.sequenceId,
-          start = tick.start,
+          launchTime = tick.launchTime,
           index = tick.index + 1,
           counter = tick.counter + 1,
           previous = tick.wakeup,
@@ -83,7 +83,7 @@ object Policy {
       Some(
         Tick(
           sequenceId = tick.sequenceId,
-          start = tick.start,
+          launchTime = tick.launchTime,
           index = tick.index + 1,
           counter = tick.counter + 1,
           previous = tick.wakeup,
@@ -100,7 +100,7 @@ object Policy {
       Some(
         Tick(
           sequenceId = tick.sequenceId,
-          start = tick.start,
+          launchTime = tick.launchTime,
           index = tick.index + 1,
           counter = tick.counter + 1,
           previous = tick.wakeup,
@@ -117,7 +117,7 @@ object Policy {
       cronExpr.next(now.atZone(zoneId)).map { zdt =>
         Tick(
           sequenceId = tick.sequenceId,
-          start = tick.start,
+          launchTime = tick.launchTime,
           index = tick.index + 1,
           counter = tick.counter + 1,
           previous = tick.wakeup,
@@ -136,7 +136,7 @@ object Policy {
       Some(
         Tick(
           sequenceId = tick.sequenceId,
-          start = tick.start,
+          launchTime = tick.launchTime,
           index = tick.index + 1,
           counter = tick.counter + 1,
           previous = tick.wakeup,

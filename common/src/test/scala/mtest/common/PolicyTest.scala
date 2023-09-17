@@ -1,6 +1,6 @@
 package mtest.common
 
-import com.github.chenharryhua.nanjin.common.policy.{Tick, policies}
+import com.github.chenharryhua.nanjin.common.policy.{policies, Tick}
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.temporal.ChronoUnit
@@ -37,7 +37,7 @@ class PolicyTest extends AnyFunSuite {
     val a3 = policy.decide(a2, t3).get
     val a4 = policy.decide(a3, t4)
     assert(a1.sequenceId == zero.sequenceId)
-    assert(a1.start == zero.start)
+    assert(a1.launchTime == zero.launchTime)
     assert(a1.index == 1)
     assert(a1.counter == 1)
     assert(a1.previous === t0)
@@ -45,7 +45,7 @@ class PolicyTest extends AnyFunSuite {
     assert(a1.snooze === delay)
 
     assert(a2.sequenceId == zero.sequenceId)
-    assert(a2.start == zero.start)
+    assert(a2.launchTime == zero.launchTime)
     assert(a2.index == 2)
     assert(a2.counter == 2)
     assert(a2.previous === a1.wakeup)
@@ -53,7 +53,7 @@ class PolicyTest extends AnyFunSuite {
     assert(a2.snooze === delay)
 
     assert(a3.sequenceId == zero.sequenceId)
-    assert(a3.start == zero.start)
+    assert(a3.launchTime == zero.launchTime)
     assert(a3.index == 3)
     assert(a3.counter == 3)
     assert(a3.previous === a2.wakeup)
@@ -108,10 +108,10 @@ class PolicyTest extends AnyFunSuite {
     val delay  = 10.minutes.toJava
     val policy = policies.fixedPace(delay)
 
-    val a1 = policy.decide(zero, zero.start.plus(5.minutes.toJava)).get
-    assert(a1.wakeup == zero.start.plus(delay))
-    val a2 = policy.decide(a1, zero.start.plus(15.minutes.toJava)).get
-    assert(a2.wakeup == zero.start.plus(delay.multipliedBy(2)))
+    val a1 = policy.decide(zero, zero.launchTime.plus(5.minutes.toJava)).get
+    assert(a1.wakeup == zero.launchTime.plus(delay))
+    val a2 = policy.decide(a1, zero.launchTime.plus(15.minutes.toJava)).get
+    assert(a2.wakeup == zero.launchTime.plus(delay.multipliedBy(2)))
   }
 
   test("exponential") {
