@@ -5,6 +5,7 @@ import cats.effect.implicits.*
 import cats.effect.kernel.{Outcome, Temporal}
 import cats.syntax.all.*
 import com.codahale.metrics.MetricRegistry
+import com.github.chenharryhua.nanjin.common.policy.{Policy, Tick}
 import com.github.chenharryhua.nanjin.guard.config.{
   ActionParams,
   Category,
@@ -17,21 +18,21 @@ import com.github.chenharryhua.nanjin.guard.event.NJEvent.{ActionDone, ActionFai
 import com.github.chenharryhua.nanjin.guard.event.{ActionInfo, NJError, NJEvent, TraceInfo}
 import fs2.concurrent.Channel
 import io.circe.Json
-import io.circe.syntax.EncoderOps
-import retry.{PolicyDecision, RetryPolicy, RetryStatus}
-
-import java.time.Duration
-import scala.util.control.NonFatal
 import io.circe.parser.parse
+import io.circe.syntax.EncoderOps
 import org.apache.commons.lang3.exception.ExceptionUtils
 
+import java.time.Duration
+import scala.jdk.DurationConverters.JavaDurationOps
+import scala.util.control.NonFatal
 import scala.util.{Failure, Success, Try}
 
 final private class ReTry[F[_], IN, OUT](
   metricRegistry: MetricRegistry,
   actionParams: ActionParams,
   channel: Channel[F, NJEvent],
-  retryPolicy: RetryPolicy[F],
+  retryPolicy: Policy,
+  groundZero: Tick,
   arrow: IN => F[OUT],
   transInput: Kleisli[Option, IN, Json],
   transOutput: Option[(IN, OUT) => Json],
@@ -41,33 +42,33 @@ final private class ReTry[F[_], IN, OUT](
 
   private val measures: MeasureAction = MeasureAction(actionParams, metricRegistry)
 
-  private def retypeFailure(ex: Throwable): F[Either[RetryStatus, OUT]] =
-    F.raiseError[OUT](ex).map[Either[RetryStatus, OUT]](Right(_))
+  private def retypeFailure(ex: Throwable): F[Either[Tick, OUT]] =
+    F.raiseError[OUT](ex).map[Either[Tick, OUT]](Right(_))
 
-  private def retrying(ai: ActionInfo, ex: Throwable, status: RetryStatus): F[Either[RetryStatus, OUT]] =
-    retryPolicy.decideNextRetry(status).flatMap {
-      case PolicyDecision.GiveUp => retypeFailure(ex)
-      case PolicyDecision.DelayAndRetry(delay) =>
-        for {
-          landTime <- F.realTime
-          _ <- channel.send(
-            ActionRetry(
-              actionParams = actionParams,
-              actionInfo = ai,
-              landTime = landTime,
-              retriesSoFar = status.retriesSoFar,
-              delay = delay,
-              error = NJError(ex)
-            ))
-          _ <- F.sleep(delay)
-        } yield {
-          measures.countRetry()
-          Left(status.addRetry(delay))
-        }
+  private def retrying(ai: ActionInfo, ex: Throwable, prev: Tick): F[Either[Tick, OUT]] =
+    F.realTimeInstant.flatMap { now =>
+      retryPolicy.decide(prev, now) match {
+        case None => retypeFailure(ex)
+        case Some(tick) =>
+          for {
+            _ <- channel.send(
+              ActionRetry(
+                actionParams = actionParams,
+                actionInfo = ai,
+                landTime = tick.acquire,
+                retriesSoFar = prev.counter,
+                delay = tick.snooze.toScala,
+                error = NJError(ex)
+              ))
+            _ <- F.sleep(tick.snooze.toScala)
+          } yield {
+            measures.countRetry()
+            Left(tick)
+          }
+      }
     }
-
   private def compute(ai: ActionInfo, in: IN): F[OUT] =
-    F.tailRecM(RetryStatus.NoRetriesYet) { status =>
+    F.tailRecM(groundZero) { status =>
       arrow(in).attempt.flatMap {
         case Right(out)                => F.pure(Right(out))
         case Left(ex) if !NonFatal(ex) => retypeFailure(ex)

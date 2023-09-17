@@ -12,6 +12,7 @@ import cats.implicits.{
 import cats.{Alternative, Endo, Traverse}
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.common.UpdateConfig
+import com.github.chenharryhua.nanjin.common.policy.Policy
 import com.github.chenharryhua.nanjin.guard.config.{
   ActionConfig,
   ActionName,
@@ -24,7 +25,6 @@ import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import fs2.concurrent.Channel
 import io.circe.Json
 import org.apache.commons.lang3.exception.ExceptionUtils
-import retry.RetryPolicy
 
 import scala.concurrent.Future
 
@@ -35,13 +35,13 @@ final class NJActionBuilder[F[_]](
   metricRegistry: MetricRegistry,
   channel: Channel[F, NJEvent],
   config: Endo[ActionConfig],
-  retryPolicy: RetryPolicy[F]
+  retryPolicy: Policy
 )(implicit F: Async[F])
     extends UpdateConfig[ActionConfig, NJActionBuilder[F]] { self =>
   private def copy(
     actionName: ActionName = self.actionName,
     config: Endo[ActionConfig] = self.config,
-    retryPolicy: RetryPolicy[F] = self.retryPolicy
+    retryPolicy: Policy = self.retryPolicy
   ): NJActionBuilder[F] =
     new NJActionBuilder[F](
       actionName = actionName,
@@ -56,12 +56,12 @@ final class NJActionBuilder[F[_]](
   def updateConfig(f: Endo[ActionConfig]): NJActionBuilder[F] = copy(config = f.compose(self.config))
   def apply(name: String): NJActionBuilder[F]                 = copy(actionName = ActionName(name))
 
-  def withRetryPolicy(rp: RetryPolicy[F]): NJActionBuilder[F] = copy(retryPolicy = rp)
+  def withRetryPolicy(rp: Policy): NJActionBuilder[F] = copy(retryPolicy = rp)
 
   private def alwaysRetry: Throwable => F[Boolean] = (_: Throwable) => F.pure(true)
 
   private def params: ActionParams =
-    config(ActionConfig(serviceParams)).evalConfig(actionName, measurement, ServicePolicy(retryPolicy))
+    config(ActionConfig(serviceParams)).evalConfig(actionName, measurement, ServicePolicy(retryPolicy.show))
   // retries
   def retry[Z](fz: F[Z]): NJAction0[F, Z] = // 0 arity
     new NJAction0[F, Z](

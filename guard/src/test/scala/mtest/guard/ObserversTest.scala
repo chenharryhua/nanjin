@@ -11,6 +11,7 @@ import com.github.chenharryhua.nanjin.aws.{
   SimpleQueueService
 }
 import com.github.chenharryhua.nanjin.common.aws.SqsConfig
+import com.github.chenharryhua.nanjin.common.policy.policies
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import com.github.chenharryhua.nanjin.guard.observers.*
@@ -20,7 +21,6 @@ import eu.timepit.refined.auto.*
 import io.circe.Json
 import io.circe.syntax.EncoderOps
 import org.scalatest.funsuite.AnyFunSuite
-import retry.RetryPolicies
 import skunk.{Command, Session, Void}
 import software.amazon.awssdk.services.cloudwatch.model.StandardUnit
 
@@ -41,7 +41,7 @@ class ObserversTest extends AnyFunSuite {
         val meter = ag.meter("meter", StandardUnit.SECONDS).withCounting
         val action = ag
           .action("nj_error", _.critical.notice.withTiming.withCounting)
-          .withRetryPolicy(RetryPolicies.constantDelay[IO](1.second).join(RetryPolicies.limitRetries(1)))
+          .withRetryPolicy(policies.constant(1.second).limited(1))
           .retry(job)
           .logInput(Json.fromString("input data"))
           .logOutput(_ => Json.fromString("output data"))

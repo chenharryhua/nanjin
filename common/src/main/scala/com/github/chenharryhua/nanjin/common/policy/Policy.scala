@@ -126,6 +126,12 @@ object Policy {
     override def show: String = show"Crontab(${cronExpr.show})"
   }
 
+  final case class Jitter(min: Duration, max: Duration) extends InfinitePolicy {
+    override def decide(tick: Tick, now: Instant): Option[Tick] = None
+
+    override def show: String = show"Jitter(${min.toScala},${max.toScala})"
+  }
+
   final case class Limited(policy: InfinitePolicy, limit: Int) extends FinitePolicy {
     override def decide(tick: Tick, now: Instant): Option[Tick] =
       policy.decide(tick, now).flatMap(t => if (t.counter <= limit) Some(t) else None)

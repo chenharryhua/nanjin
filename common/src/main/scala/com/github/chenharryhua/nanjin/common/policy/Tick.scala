@@ -46,4 +46,18 @@ object Tick {
       acquire = now,
       guessNext = None
     )
+
+  def unsafeZero: Tick = {
+    val now = Instant.now()
+    Tick(
+      sequenceId = UUID.randomUUID(),
+      index = 0L,
+      start = now,
+      counter = 0,
+      previous = now,
+      snooze = Duration.ZERO,
+      acquire = now,
+      guessNext = None
+    )
+  }
 }

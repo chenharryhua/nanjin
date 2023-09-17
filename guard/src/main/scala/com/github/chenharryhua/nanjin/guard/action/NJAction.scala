@@ -4,19 +4,19 @@ import cats.data.{Kleisli, OptionT}
 import cats.effect.kernel.Temporal
 import cats.syntax.all.*
 import com.codahale.metrics.MetricRegistry
+import com.github.chenharryhua.nanjin.common.policy.{Policy, Tick}
 import com.github.chenharryhua.nanjin.guard.config.ActionParams
 import com.github.chenharryhua.nanjin.guard.event.*
 import fs2.concurrent.Channel
 import io.circe.Json
 import natchez.Span
-import retry.RetryPolicy
 
 // https://www.microsoft.com/en-us/research/wp-content/uploads/2016/07/asynch-exns.pdf
 final class NJAction[F[_], IN, OUT] private[action] (
   metricRegistry: MetricRegistry,
   channel: Channel[F, NJEvent],
   actionParams: ActionParams,
-  retryPolicy: RetryPolicy[F],
+  retryPolicy: Policy,
   arrow: IN => F[OUT],
   transInput: Kleisli[Option, IN, Json],
   transOutput: Option[(IN, OUT) => Json],
@@ -56,6 +56,7 @@ final class NJAction[F[_], IN, OUT] private[action] (
       actionParams = actionParams,
       channel = channel,
       retryPolicy = retryPolicy,
+      groundZero = Tick.unsafeZero,
       arrow = arrow,
       transInput = transInput,
       transOutput = transOutput,
@@ -76,7 +77,7 @@ final class NJAction0[F[_], OUT] private[guard] (
   metricRegistry: MetricRegistry,
   channel: Channel[F, NJEvent],
   actionParams: ActionParams,
-  retryPolicy: RetryPolicy[F],
+  retryPolicy: Policy,
   arrow: F[OUT],
   transInput: Option[Json],
   transOutput: Option[OUT => Json],

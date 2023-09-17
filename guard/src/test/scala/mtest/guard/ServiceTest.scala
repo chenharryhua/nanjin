@@ -2,20 +2,17 @@ package mtest.guard
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.datetime.policies
+import com.github.chenharryhua.nanjin.common.policy.policies
 import com.github.chenharryhua.nanjin.guard.*
 import com.github.chenharryhua.nanjin.guard.event.*
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
 import com.github.chenharryhua.nanjin.guard.observers.console
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import cron4s.Cron
-import eu.timepit.refined.auto.*
-import fs2.Stream
 import io.circe.Json
 import io.circe.parser.decode
 import io.circe.syntax.*
 import org.scalatest.funsuite.AnyFunSuite
-import retry.{PolicyDecision, RetryPolicy, RetryStatus}
 
 import scala.concurrent.duration.*
 import scala.util.control.ControlThrowable
@@ -25,15 +22,14 @@ class ServiceTest extends AnyFunSuite {
   val guard: ServiceGuard[IO] = TaskGuard[IO]("service-level-guard")
     .service("service")
     .updateConfig(_.withHomePage("https://abc.com/efg"))
-    .withRestartPolicy(constant_1second)
+    .withRestartPolicy(policies.constant(1.seconds))
     .withBrief(Json.fromString("test"))
 
-  val policy: RetryPolicy[IO] =
-    policies.constantDelay[IO](0.1.seconds).join(policies.limitRetries(3))
+  val policy = policies.constant(0.1.seconds).limited(3)
 
   test("1.should stopped if the operation normally exits") {
     val Vector(a, d) = guard
-      .withRestartPolicy(policies.constantDelay[IO](3.seconds))
+      .withRestartPolicy(policies.constant(3.seconds))
       .updateConfig(_.withMetricReport(cron_1hour))
       .updateConfig(
         _.withMetricReset("*/30 * * ? * *").withMetricDailyReset.withMetricMonthlyReset.withMetricWeeklyReset)
@@ -50,7 +46,7 @@ class ServiceTest extends AnyFunSuite {
 
   test("2.escalate to up level if retry failed") {
     val Vector(s, a, b, c, d, e, f) = guard
-      .withRestartPolicy(policies.jitterBackoff[IO](30.minutes, 50.minutes))
+      .withRestartPolicy(policies.jitter(30.minutes, 50.minutes))
       .eventStream { gd =>
         gd.action("t", _.notice).withRetryPolicy(policy).retry(IO.raiseError(new Exception("oops"))).run
       }
@@ -92,7 +88,7 @@ class ServiceTest extends AnyFunSuite {
 
   test("4.json codec") {
     val a :: b :: c :: d :: e :: f :: g :: _ = guard
-      .withRestartPolicy(policies.alwaysGiveUp[IO])
+      .withRestartPolicy(policies.giveUp)
       .eventStream { gd =>
         gd.action("t", _.notice).withRetryPolicy(policy).delay(throw new Exception("oops")).run
 
@@ -198,7 +194,7 @@ class ServiceTest extends AnyFunSuite {
   test("11.should give up") {
 
     val List(a, b, c, d, e, f, g) = guard
-      .withRestartPolicy(policies.alwaysGiveUp[IO])
+      .withRestartPolicy(policies.giveUp)
       .eventStream { gd =>
         gd.action("t", _.notice).withRetryPolicy(policy).retry(IO.raiseError(new Exception)).run
       }
@@ -222,11 +218,12 @@ class ServiceTest extends AnyFunSuite {
 
   test("13.policy start over") {
     import java.time.Duration
-    val p1 = policies.constantDelay[IO](1.seconds).join(policies.limitRetries(1))
-    val p2 = policies.constantDelay[IO](2.seconds).join(policies.limitRetries(2))
-    val p3 = policies.constantDelay[IO](3.seconds).join(policies.limitRetries(3))
+    val p1     = policies.constant(1.seconds).limited(1)
+    val p2     = policies.constant(2.seconds).limited(2)
+    val p3     = policies.constant(3.seconds).limited(3)
+    val policy = p1.followBy(p2).followBy(p3).repeat
     val List(a, b, c, d, e, f, g, h) = guard
-      .withRestartPolicy(p1.followedBy(p2).followedBy(p3))
+      .withRestartPolicy(policy)
       .eventStream(_ => IO.raiseError(new Exception("oops")))
       .filter(_.isInstanceOf[ServicePanic])
       .map(_.timestamp)
@@ -253,11 +250,12 @@ class ServiceTest extends AnyFunSuite {
   test("14.policy threshold start over") {
     import java.time.Duration
     val List(a, b, c, d, e, f, g) = guard
-      .withRestartPolicy(policies.fibonacciBackoff[IO](1.seconds))
+      .withRestartPolicy(policies.fibonacci(1.seconds))
       .updateConfig(_.withPolicyThreshold(4.seconds))
       .eventStream(_ => IO.raiseError(new Exception("oops")))
       .filter(_.isInstanceOf[ServicePanic])
       .map(_.timestamp)
+      .debug()
       .take(7)
       .compile
       .toList
@@ -271,21 +269,6 @@ class ServiceTest extends AnyFunSuite {
     assert(1500 < cd && cd < 2500)
     assert(4500 < ef && ef < 5500)
     assert(500 < fg && fg < 1500)
-  }
-
-  test("15.eval policy") {
-    val p1 = policies.constantDelay[IO](1.seconds).join(policies.limitRetries(3))
-    val p2 = policies.constantDelay[IO](2.seconds).join(policies.limitRetries(5))
-    Stream
-      .unfoldEval[IO, RetryStatus, FiniteDuration](RetryStatus.NoRetriesYet)(s =>
-        p1.followedBy(p2).decideNextRetry(s).map {
-          case PolicyDecision.GiveUp               => None
-          case PolicyDecision.DelayAndRetry(delay) => Some(delay -> s.addRetry(delay))
-        })
-      .take(10)
-      .compile
-      .drain
-      .unsafeRunSync()
   }
 
 }

@@ -3,9 +3,9 @@ package mtest
 import cats.effect.IO
 import cats.effect.std.Random
 import com.github.chenharryhua.nanjin.common.aws.SnsArn
+import com.github.chenharryhua.nanjin.common.policy.{policies, Policy}
 import cron4s.Cron
 import cron4s.expr.CronExpr
-import retry.{RetryPolicies, RetryPolicy}
 
 import java.time.ZoneId
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -21,8 +21,8 @@ package object guard {
   final val cron_3second: CronExpr = Cron.unsafeParse("*/3 * * ? * *")
   final val cron_1minute: CronExpr = Cron.unsafeParse("0 0-59 * ? * *")
 
-  val constant_1second: RetryPolicy[IO] = RetryPolicies.constantDelay[IO](1.seconds)
-  val constant_1hour: RetryPolicy[IO]   = RetryPolicies.constantDelay[IO](1.hour)
+  val constant_1second: Policy.Constant = policies.constant(1.seconds)
+  val constant_1hour: Policy.Constant   = policies.constant(1.hour)
 
   final val beijingTime: ZoneId = ZoneId.of("Asia/Shanghai")
 

@@ -3,7 +3,8 @@ package mtest.guard
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.comcast.ip4s.IpLiteralSyntax
-import com.github.chenharryhua.nanjin.datetime.tickStream
+import com.github.chenharryhua.nanjin.common.policy.policies
+import com.github.chenharryhua.nanjin.common.tickStream
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.observers.console
 import fs2.{Chunk, Stream}
@@ -13,7 +14,6 @@ import natchez.log.Log
 import org.scalatest.funsuite.AnyFunSuite
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
-import retry.RetryPolicies
 
 import java.net.URI
 import scala.concurrent.duration.DurationInt
@@ -87,7 +87,7 @@ class TraceTest extends AnyFunSuite {
         val ss = for {
           writer <- Stream.resource(
             agent.udpClient("udp_test").withHistogram.withCounting.socket(ip"127.0.0.1", port"1026"))
-          _ <- tickStream(RetryPolicies.constantDelay[IO](1.second).join(RetryPolicies.limitRetries(3)))
+          _ <- tickStream[IO](policies.constant(1.second).limited(3))
           _ <- Stream.eval(writer.write(Chunk.from("abcdefghijklmnopqrstuvwxyz\n".getBytes())))
         } yield ()
 

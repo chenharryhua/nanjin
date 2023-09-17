@@ -21,5 +21,8 @@ object policies {
 
   def crontab(cronExpr: CronExpr, zoneId: ZoneId): Policy.Crontab = Policy.Crontab(cronExpr, zoneId)
 
+  def jitter(min: JavaDuration, max: JavaDuration): Policy.Jitter     = Policy.Jitter(min, max)
+  def jitter(min: FiniteDuration, max: FiniteDuration): Policy.Jitter = jitter(min.toJava, max.toJava)
+
   val giveUp: Policy.GiveUp = Policy.GiveUp
 }

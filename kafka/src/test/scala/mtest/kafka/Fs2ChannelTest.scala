@@ -56,8 +56,7 @@ class Fs2ChannelTest extends AnyFunSuite {
   }
 
   test("record format") {
-    val topic    = ctx.topic(nyc_taxi_trip)
-    val consumer = topic.consume.updateConfig(_.withGroupId("g1"))
+    val topic = ctx.topic(nyc_taxi_trip)
     val ret =
       topic.consume.stream
         .take(1)

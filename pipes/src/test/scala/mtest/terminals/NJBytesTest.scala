@@ -2,7 +2,7 @@ package mtest.terminals
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.datetime.policies
+import com.github.chenharryhua.nanjin.common.policy.policies
 import com.github.chenharryhua.nanjin.terminals.{NEWLINE_SEPARATOR, NJPath}
 import eu.timepit.refined.auto.*
 import fs2.Stream
@@ -10,8 +10,8 @@ import fs2.text.{lines, utf8}
 import io.circe.generic.auto.*
 import io.circe.parser.decode
 import io.circe.syntax.EncoderOps
-import TestData.Tiger
 import mtest.terminals.HadoopTestData.hdp
+import mtest.terminals.TestData.Tiger
 import org.apache.hadoop.io.compress.zlib.ZlibCompressor
 import org.scalatest.Assertion
 import org.scalatest.funsuite.AnyFunSuite
@@ -76,7 +76,7 @@ class NJBytesTest extends AnyFunSuite {
     val path   = fs2Root / "rotation"
     val number = 10000L
     hdp.delete(path).unsafeRunSync()
-    val sink = hdp.bytes.sink(policies.constantDelay[IO](1.second))(t => path / s"${t.index}.byte")
+    val sink = hdp.bytes.sink(policies.constant(1.second))(t => path / s"${t.index}.byte")
     Stream
       .emits(TestData.tigerSet.toList)
       .covary[IO]

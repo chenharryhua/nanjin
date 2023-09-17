@@ -12,7 +12,7 @@ import com.github.chenharryhua.nanjin.guard.config.{
 import io.circe.Json
 import io.circe.generic.JsonCodec
 
-import java.time.{Duration, ZonedDateTime}
+import java.time.{Duration, Instant, ZonedDateTime}
 import scala.concurrent.duration.FiniteDuration
 
 @JsonCodec
@@ -87,13 +87,14 @@ object NJEvent extends DateTimeInstances {
   final case class ActionRetry(
     actionParams: ActionParams,
     actionInfo: ActionInfo,
-    landTime: FiniteDuration,
+    landTime: Instant,
     retriesSoFar: Int,
     delay: FiniteDuration,
     error: NJError)
       extends ActionEvent {
     override def timestamp: ZonedDateTime = serviceParams.toZonedDateTime(landTime)
-    def tookSoFar: Duration               = actionInfo.took(landTime)
+    def tookSoFar: Duration =
+      Duration.between(Instant.EPOCH.plusNanos(actionInfo.launchTime.toNanos), landTime)
   }
 
   sealed trait ActionResultEvent extends ActionEvent {
