@@ -198,7 +198,7 @@ class ServiceTest extends AnyFunSuite {
     val p1     = policies.constant(1.seconds).limited(1)
     val p2     = policies.constant(2.seconds).limited(2)
     val p3     = policies.constant(3.seconds).limited(3)
-    val policy = p1.followBy(p2).followBy(p3).repeat
+    val policy = p1.followedBy(p2).followedBy(p3).repeat
     val List(a, b, c, d, e, f, g, h) = guard
       .withRestartPolicy(policy)
       .eventStream(_ => IO.raiseError(new Exception("oops")))

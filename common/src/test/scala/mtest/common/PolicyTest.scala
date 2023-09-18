@@ -59,7 +59,7 @@ class PolicyTest extends AnyFunSuite {
   test("follow by") {
     val delay = 1.second.toJava
     val policy =
-      policies.constant(delay).limited(3).followBy(policies.constant(delay.multipliedBy(2)).limited(5))
+      policies.constant(delay).limited(3).followedBy(policies.constant(delay.multipliedBy(2)).limited(5))
     println(policy.show)
     val a1 = policy.decide(zero, t1).get
     val a2 = policy.decide(a1, t2).get
@@ -79,7 +79,7 @@ class PolicyTest extends AnyFunSuite {
   test("repeat") {
     val delay = 1.second.toJava
     val policy =
-      policies.constant(delay).limited(3).followBy(policies.constant(delay.multipliedBy(2)).limited(5)).repeat
+      policies.constant(delay).limited(3).followedBy(policies.constant(delay.multipliedBy(2)).limited(5)).repeat
     println(policy.show)
     val a1 = policy.decide(zero, t1).get
     val a2 = policy.decide(a1, t2).get

@@ -17,14 +17,10 @@ sealed trait Policy extends Serializable with Product {
   def decide(tick: Tick, now: Instant): Option[Tick]
   def show: String
 
-  final override def toString: String = show
-}
-sealed trait InfinitePolicy extends Policy {
-  final def limited(num: Int): Limited = Limited(this, num)
-}
-sealed trait FinitePolicy extends Policy {
-  final def followBy(other: FinitePolicy): FollowBy = FollowBy(this, other)
-  final def repeat: Repeat                          = Repeat(this)
+  final override def toString: String           = show
+  final def limited(num: Int): Limited          = Limited(this, num)
+  final def followedBy(other: Policy): FollowBy = FollowBy(this, other)
+  final def repeat: Repeat                      = Repeat(this)
 }
 
 object Policy {
@@ -39,14 +35,14 @@ object Policy {
 
   type GiveUp = GiveUp.type
 
-  final case class Constant(baseDelay: Duration) extends InfinitePolicy {
+  final case class Constant(baseDelay: Duration) extends Policy {
     override def decide(tick: Tick, now: Instant): Option[Tick] =
       Some(tick.newTick(now, baseDelay))
 
     override def show: String = show"Constant(${fmt.format(baseDelay)})"
   }
 
-  final case class FixedPace(baseDelay: Duration) extends InfinitePolicy {
+  final case class FixedPace(baseDelay: Duration) extends Policy {
     override def decide(tick: Tick, now: Instant): Option[Tick] = {
       val delay = {
         val multi = (Duration.between(tick.launchTime, now).toScala / baseDelay.toScala).ceil.toLong
@@ -58,21 +54,21 @@ object Policy {
     override def show: String = show"FixRate(${fmt.format(baseDelay)})"
   }
 
-  final case class Exponential(baseDelay: Duration) extends InfinitePolicy {
+  final case class Exponential(baseDelay: Duration) extends Policy {
     override def decide(tick: Tick, now: Instant): Option[Tick] =
       Some(tick.newTick(now, baseDelay.multipliedBy(Math.pow(2, tick.counter.toDouble).toLong)))
 
     override def show: String = show"Exponential(${fmt.format(baseDelay)})"
   }
 
-  final case class Fibonacci(baseDelay: Duration) extends InfinitePolicy {
+  final case class Fibonacci(baseDelay: Duration) extends Policy {
     override def decide(tick: Tick, now: Instant): Option[Tick] =
       Some(tick.newTick(now, baseDelay.multipliedBy(Fib.fibonacci(tick.counter + 1))))
 
     override def show: String = show"Fibonacci(${fmt.format(baseDelay)})"
   }
 
-  final case class Crontab(cronExpr: CronExpr, zoneId: ZoneId) extends InfinitePolicy {
+  final case class Crontab(cronExpr: CronExpr, zoneId: ZoneId) extends Policy {
     override def decide(tick: Tick, now: Instant): Option[Tick] =
       cronExpr.next(now.atZone(zoneId)).map { zdt =>
         tick.newTick(now, Duration.between(now, zdt))
@@ -81,7 +77,7 @@ object Policy {
     override def show: String = show"Cron(${cronExpr.show})"
   }
 
-  final case class Jitter(min: Duration, max: Duration) extends InfinitePolicy {
+  final case class Jitter(min: Duration, max: Duration) extends Policy {
     override def decide(tick: Tick, now: Instant): Option[Tick] = {
       val delay = Duration.of(Random.between(min.toNanos, max.toNanos), ChronoUnit.NANOS)
       Some(tick.newTick(now, delay))
@@ -90,21 +86,21 @@ object Policy {
     override def show: String = show"Jitter(${fmt.format(min)},${fmt.format(max)})"
   }
 
-  final case class Limited(policy: InfinitePolicy, limit: Int) extends FinitePolicy {
+  final case class Limited(policy: Policy, limit: Int) extends Policy {
     override def decide(tick: Tick, now: Instant): Option[Tick] =
       policy.decide(tick, now).flatMap(nt => if (nt.counter <= limit) Some(nt) else None)
 
     override def show: String = show"(${policy.show}+$limit)"
   }
 
-  final case class FollowBy(first: FinitePolicy, second: FinitePolicy) extends FinitePolicy {
+  final case class FollowBy(first: Policy, second: Policy) extends Policy {
     override def decide(tick: Tick, now: Instant): Option[Tick] =
       first.decide(tick, now).orElse(second.decide(tick, now))
 
     override def show: String = show"${first.show}.followBy${second.show}"
   }
 
-  final case class Repeat(policy: Policy) extends InfinitePolicy {
+  final case class Repeat(policy: Policy) extends Policy {
     override def decide(tick: Tick, now: Instant): Option[Tick] =
       policy.decide(tick, now).orElse(policy.decide(tick.focus(_.counter).replace(0), now))
 
