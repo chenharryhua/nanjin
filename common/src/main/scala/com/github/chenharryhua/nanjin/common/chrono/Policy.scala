@@ -10,7 +10,7 @@ import monocle.syntax.all.*
 
 import java.time.temporal.ChronoUnit
 import java.time.{Duration, Instant, ZoneId}
-import scala.jdk.DurationConverters.{JavaDurationOps, ScalaDurationOps}
+import scala.jdk.DurationConverters.JavaDurationOps
 import scala.util.Random
 
 sealed trait Policy extends Serializable with Product {
@@ -34,24 +34,14 @@ object Policy {
   case object GiveUp extends Policy {
     override def decide(tick: Tick, now: Instant): Option[Tick] = None
 
-    override def show: String = show"None"
+    override def show: String = show"GiveUp"
   }
 
   type GiveUp = GiveUp.type
 
   final case class Constant(baseDelay: Duration) extends InfinitePolicy {
     override def decide(tick: Tick, now: Instant): Option[Tick] =
-      Some(
-        Tick(
-          sequenceId = tick.sequenceId,
-          launchTime = tick.launchTime,
-          index = tick.index + 1,
-          counter = tick.counter + 1,
-          previous = tick.wakeup,
-          snooze = baseDelay,
-          acquire = now,
-          guessNext = Some(now.plus(baseDelay.multipliedBy(2)))
-        ))
+      Some(tick.newTick(now, baseDelay))
 
     override def show: String = show"Constant(${fmt.format(baseDelay)})"
   }
@@ -62,17 +52,7 @@ object Policy {
         val multi = (Duration.between(tick.launchTime, now).toScala / baseDelay.toScala).ceil.toLong
         Duration.between(now, tick.launchTime.plus(baseDelay.multipliedBy(multi)))
       }
-      Some(
-        Tick(
-          sequenceId = tick.sequenceId,
-          launchTime = tick.launchTime,
-          index = tick.index + 1,
-          counter = tick.counter + 1,
-          previous = tick.wakeup,
-          snooze = delay,
-          acquire = now,
-          guessNext = Some(now.plus(delay).plus(baseDelay))
-        ))
+      Some(tick.newTick(now, delay))
     }
 
     override def show: String = show"FixRate(${fmt.format(baseDelay)})"
@@ -80,34 +60,14 @@ object Policy {
 
   final case class Exponential(baseDelay: Duration) extends InfinitePolicy {
     override def decide(tick: Tick, now: Instant): Option[Tick] =
-      Some(
-        Tick(
-          sequenceId = tick.sequenceId,
-          launchTime = tick.launchTime,
-          index = tick.index + 1,
-          counter = tick.counter + 1,
-          previous = tick.wakeup,
-          snooze = baseDelay.multipliedBy(Math.pow(2, tick.counter.toDouble).toLong),
-          acquire = now,
-          guessNext = Some(now.plus(baseDelay.multipliedBy(Math.pow(2, tick.counter.toDouble + 1).toLong)))
-        ))
+      Some(tick.newTick(now, baseDelay.multipliedBy(Math.pow(2, tick.counter.toDouble).toLong)))
 
     override def show: String = show"Exponential(${fmt.format(baseDelay)})"
   }
 
   final case class Fibonacci(baseDelay: Duration) extends InfinitePolicy {
     override def decide(tick: Tick, now: Instant): Option[Tick] =
-      Some(
-        Tick(
-          sequenceId = tick.sequenceId,
-          launchTime = tick.launchTime,
-          index = tick.index + 1,
-          counter = tick.counter + 1,
-          previous = tick.wakeup,
-          snooze = baseDelay.multipliedBy(Fib.fibonacci(tick.counter + 1)),
-          acquire = now,
-          guessNext = Some(now.plus(baseDelay.multipliedBy(Fib.fibonacci(tick.counter + 2))))
-        ))
+      Some(tick.newTick(now, baseDelay.multipliedBy(Fib.fibonacci(tick.counter + 1))))
 
     override def show: String = show"Fibonacci(${fmt.format(baseDelay)})"
   }
@@ -115,35 +75,17 @@ object Policy {
   final case class Crontab(cronExpr: CronExpr, zoneId: ZoneId) extends InfinitePolicy {
     override def decide(tick: Tick, now: Instant): Option[Tick] =
       cronExpr.next(now.atZone(zoneId)).map { zdt =>
-        Tick(
-          sequenceId = tick.sequenceId,
-          launchTime = tick.launchTime,
-          index = tick.index + 1,
-          counter = tick.counter + 1,
-          previous = tick.wakeup,
-          snooze = Duration.between(now, zdt),
-          acquire = now,
-          guessNext = cronExpr.next(zdt).map(_.toInstant)
-        )
+        tick.newTick(now, Duration.between(now, zdt))
       }
 
-    override def show: String = show"Crontab(${cronExpr.show})"
+    override def show: String = show"Cron(${cronExpr.show})"
   }
 
   final case class Jitter(min: Duration, max: Duration) extends InfinitePolicy {
-    private val guess: Duration = ((min.toScala + max.toScala) / 2).toJava
-    override def decide(tick: Tick, now: Instant): Option[Tick] =
-      Some(
-        Tick(
-          sequenceId = tick.sequenceId,
-          launchTime = tick.launchTime,
-          index = tick.index + 1,
-          counter = tick.counter + 1,
-          previous = tick.wakeup,
-          snooze = Duration.of(Random.between(min.toNanos, max.toNanos), ChronoUnit.NANOS),
-          acquire = now,
-          guessNext = Some(now.plus(guess))
-        ))
+    override def decide(tick: Tick, now: Instant): Option[Tick] = {
+      val delay = Duration.of(Random.between(min.toNanos, max.toNanos), ChronoUnit.NANOS)
+      Some(tick.newTick(now, delay))
+    }
 
     override def show: String = show"Jitter(${fmt.format(min)},${fmt.format(max)})"
   }

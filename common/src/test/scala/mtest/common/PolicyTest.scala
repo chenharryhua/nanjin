@@ -12,15 +12,8 @@ import scala.jdk.DurationConverters.{JavaDurationOps, ScalaDurationOps}
 class PolicyTest extends AnyFunSuite {
   val interval: Duration = Duration.of(1, ChronoUnit.SECONDS)
   val t0: Instant        = ZonedDateTime.of(2023, 9, 16, 16, 30, 0, 0, ZoneId.systemDefault()).toInstant
-  val zero: Tick = Tick(
-    UUID.randomUUID(),
-    t0,
-    index = 0,
-    counter = 0,
-    previous = t0,
-    snooze = Duration.ZERO,
-    acquire = t0,
-    guessNext = None)
+  val zero: Tick =
+    Tick(UUID.randomUUID(), t0, index = 0, counter = 0, previous = t0, snooze = Duration.ZERO, acquire = t0)
   val t1: Instant = t0.plus(interval)
   val t2: Instant = t1.plus(interval)
   val t3: Instant = t2.plus(interval)

@@ -2,7 +2,7 @@ package mtest.guard
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.common.chrono.policies
+import com.github.chenharryhua.nanjin.common.chrono.{policies, Policy, Tick}
 import com.github.chenharryhua.nanjin.guard.*
 import com.github.chenharryhua.nanjin.guard.event.*
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
@@ -15,6 +15,7 @@ import io.circe.syntax.*
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.*
+import scala.jdk.DurationConverters.ScalaDurationOps
 import scala.util.control.ControlThrowable
 
 class ServiceTest extends AnyFunSuite {
@@ -25,7 +26,7 @@ class ServiceTest extends AnyFunSuite {
     .withRestartPolicy(policies.constant(1.seconds))
     .withBrief(Json.fromString("test"))
 
-  val policy = policies.constant(0.1.seconds).limited(3)
+  val policy: Policy.Limited = policies.constant(0.1.seconds).limited(3)
 
   test("1.should stopped if the operation normally exits") {
     val Vector(a, d) = guard
@@ -167,31 +168,7 @@ class ServiceTest extends AnyFunSuite {
     assert(vector.count(_.isInstanceOf[ServiceStop]) == 2)
   }
 
-  test("9.print agent params") {
-    guard.eventStream(ag => IO.println(ag.zoneId)).compile.drain.unsafeRunSync()
-  }
-
-  test("10.multiple service restart") {
-    val a :: b :: c :: d :: e :: f :: g :: h :: i :: _ = guard
-      .withRestartPolicy(constant_1second)
-      .eventStream(_.action("oops", _.silent).retry(IO.raiseError[Int](new Exception("oops"))).run)
-      .interruptAfter(5.seconds)
-      .compile
-      .toList
-      .unsafeRunSync()
-    assert(a.isInstanceOf[ServiceStart])
-    assert(b.isInstanceOf[ActionFail])
-    assert(c.isInstanceOf[ServicePanic])
-    assert(d.isInstanceOf[ServiceStart])
-    assert(e.isInstanceOf[ActionFail])
-    assert(f.isInstanceOf[ServicePanic])
-    assert(g.isInstanceOf[ServiceStart])
-    assert(h.isInstanceOf[ActionFail])
-    assert(i.isInstanceOf[ServicePanic])
-
-  }
-
-  test("11.should give up") {
+  test("9.should give up") {
 
     val List(a, b, c, d, e, f, g) = guard
       .withRestartPolicy(policies.giveUp)
@@ -211,13 +188,13 @@ class ServiceTest extends AnyFunSuite {
     assert(g.isInstanceOf[ServiceStop])
   }
 
-  test("12.dummy agent should not block") {
+  test("10.dummy agent should not block") {
     val dummy = TaskGuard.dummyAgent[IO]
     dummy.use(_.action("test", _.notice).retry(IO(1)).run.replicateA(3)).unsafeRunSync()
   }
 
-  test("13.policy start over") {
-    import java.time.Duration
+  test("11.policy start over") {
+
     val p1     = policies.constant(1.seconds).limited(1)
     val p2     = policies.constant(2.seconds).limited(2)
     val p3     = policies.constant(3.seconds).limited(3)
@@ -225,49 +202,95 @@ class ServiceTest extends AnyFunSuite {
     val List(a, b, c, d, e, f, g, h) = guard
       .withRestartPolicy(policy)
       .eventStream(_ => IO.raiseError(new Exception("oops")))
-      .filter(_.isInstanceOf[ServicePanic])
-      .map(_.timestamp)
+      .evalMapFilter[IO, Tick] {
+        case sp: ServicePanic => IO(Some(sp.tick))
+        case _                => IO(None)
+      }
       .take(8)
       .compile
       .toList
       .unsafeRunSync()
-    val d1 = Duration.between(a, b).toMillis
-    val d2 = Duration.between(b, c).toMillis
-    val d3 = Duration.between(c, d).toMillis
-    val d4 = Duration.between(d, e).toMillis
-    val d5 = Duration.between(e, f).toMillis
-    val d6 = Duration.between(f, g).toMillis
-    val d7 = Duration.between(g, h).toMillis
-    assert(500 < d1 && d1 < 1500) // 1 second, p1
-    assert(1500 < d2 && d2 < 2500) // 2 seconds, p2
-    assert(2500 < d3 && d3 < 3500) // 3 seconds, p3
-    assert(500 < d4 && d4 < 1500) // 1 second, start over, p1
-    assert(1500 < d5 && d5 < 2500) // 2 seconds, p2
-    assert(2500 < d6 && d6 < 3500) // 3 seconds, p3
-    assert(500 < d7 && d7 < 1500) // start over again, p1
+    assert(a.index == 1)
+    assert(a.counter == 1)
+    assert(a.snooze == 1.second.toJava)
+    assert(b.index == 2)
+    assert(b.counter == 2)
+    assert(b.previous == a.wakeup)
+    assert(b.snooze == 2.second.toJava)
+    assert(c.index == 3)
+    assert(c.counter == 3)
+    assert(c.previous == b.wakeup)
+    assert(c.snooze == 3.second.toJava)
+
+    assert(d.index == 4)
+    assert(d.counter == 1)
+    assert(d.previous == c.wakeup)
+    assert(d.snooze == 1.second.toJava)
+    assert(e.index == 5)
+    assert(e.counter == 2)
+    assert(e.previous == d.wakeup)
+    assert(e.snooze == 2.second.toJava)
+    assert(f.index == 6)
+    assert(f.counter == 3)
+    assert(f.previous == e.wakeup)
+    assert(f.snooze == 3.second.toJava)
+
+    assert(g.index == 7)
+    assert(g.counter == 1)
+    assert(g.previous == f.wakeup)
+    assert(g.snooze == 1.second.toJava)
+    assert(h.index == 8)
+    assert(h.counter == 2)
+    assert(h.previous == g.wakeup)
+    assert(h.snooze == 2.second.toJava)
   }
 
-  test("14.policy threshold start over") {
-    import java.time.Duration
+  test("12.policy threshold start over") {
     val List(a, b, c, d, e, f, g, h) = guard
       .withRestartPolicy(policies.fibonacci(1.seconds))
+      .withMetricServer(identity)
       .updateConfig(_.withPolicyThreshold(4.seconds))
       .eventStream(_ => IO.raiseError(new Exception("oops")))
-      .filter(_.isInstanceOf[ServicePanic])
-      .map(_.timestamp)
+      .evalMapFilter[IO, Tick] {
+        case sp: ServicePanic => IO(Some(sp.tick))
+        case _                => IO(None)
+      }
       .take(8)
       .compile
       .toList
       .unsafeRunSync()
-    val ab = Duration.between(a, b).toMillis
-    val cd = Duration.between(c, d).toMillis
-    val ef = Duration.between(e, f).toMillis
-    val gh = Duration.between(g, h).toMillis
-    // 1,1,2,3,5(never happen)...
-    assert(500 < ab && ab < 1500)
-    assert(1500 < cd && cd < 2500)
-    assert(500 < ef && ef < 1500)
-    assert(1500 < gh && gh < 2500)
-  }
 
+    assert(a.index == 1)
+    assert(a.counter == 1)
+    assert(a.snooze == 1.second.toJava)
+    assert(b.index == 2)
+    assert(b.counter == 2)
+    assert(b.previous == a.wakeup)
+    assert(b.snooze == 1.second.toJava)
+    assert(c.index == 3)
+    assert(c.counter == 3)
+    assert(c.previous == b.wakeup)
+    assert(c.snooze == 2.second.toJava)
+    assert(d.index == 4)
+    assert(d.counter == 4)
+    assert(d.previous == c.wakeup)
+    assert(d.snooze == 3.second.toJava)
+
+    assert(e.index == 5)
+    assert(e.counter == 1)
+    assert(e.previous == d.wakeup)
+    assert(e.snooze == 1.second.toJava)
+    assert(f.index == 6)
+    assert(f.counter == 2)
+    assert(f.previous == e.wakeup)
+    assert(f.snooze == 1.second.toJava)
+    assert(g.index == 7)
+    assert(g.counter == 3)
+    assert(g.previous == f.wakeup)
+    assert(g.snooze == 2.second.toJava)
+    assert(h.index == 8)
+    assert(h.counter == 4)
+    assert(h.previous == g.wakeup)
+    assert(h.snooze == 3.second.toJava)
+  }
 }

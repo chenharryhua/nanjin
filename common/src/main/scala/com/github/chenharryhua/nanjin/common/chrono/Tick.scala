@@ -17,9 +17,8 @@ final case class Tick(
   index: Long, // monotonously increase
   counter: Int,
   previous: Instant, // previous tick's wakeup time
-  snooze: Duration,
   acquire: Instant,
-  guessNext: Option[Instant] // next tick's wakeup time if exists, roughly
+  snooze: Duration
 ) {
   val wakeup: Instant    = acquire.plus(snooze)
   val interval: Duration = Duration.between(previous, wakeup)
@@ -29,6 +28,15 @@ final case class Tick(
     */
   def inBetween(now: Instant): Boolean =
     (now.isAfter(previous) || (now === previous)) && now.isBefore(wakeup)
+
+  def newTick(now: Instant, delay: Duration): Tick =
+    copy(
+      index = this.index + 1,
+      counter = this.counter + 1,
+      previous = this.wakeup,
+      acquire = now,
+      snooze = delay
+    )
 }
 
 object Tick {
@@ -44,8 +52,7 @@ object Tick {
       index = 0L,
       counter = 0,
       previous = now,
-      snooze = Duration.ZERO,
       acquire = now,
-      guessNext = None
+      snooze = Duration.ZERO
     )
 }

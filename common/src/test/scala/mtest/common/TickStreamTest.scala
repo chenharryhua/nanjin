@@ -3,19 +3,19 @@ package mtest.common
 import cats.effect.IO
 import cats.effect.std.Random
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.common.chrono.{policies, tickStream}
+import com.github.chenharryhua.nanjin.common.chrono.{Policy, policies, tickStream}
 import cron4s.Cron
 import org.scalatest.funsuite.AnyFunSuite
 
-import java.time.{Duration as JavaDuration, ZoneId}
+import java.time.{ZoneId, Duration as JavaDuration}
 import java.time.temporal.ChronoUnit
 import scala.concurrent.duration.DurationDouble
 import scala.jdk.DurationConverters.{JavaDurationOps, ScalaDurationOps}
 
 class TickStreamTest extends AnyFunSuite {
-  val commonpolicy = policies.crontab(Cron.unsafeParse("0-59 * * ? * *"), ZoneId.of("Australia/Sydney"))
+  val commonality: Policy.Crontab = policies.crontab(Cron.unsafeParse("0-59 * * ? * *"), ZoneId.of("Australia/Sydney"))
   test("1.tick") {
-    val policy = commonpolicy.limited(5)
+    val policy = commonality.limited(5)
     val ticks  = tickStream[IO](policy)
 
     val res = ticks.map(_.interval.toScala).take(5).compile.toList.unsafeRunSync()
@@ -23,7 +23,7 @@ class TickStreamTest extends AnyFunSuite {
   }
 
   test("2.process longer than 1 second") {
-    val policy = commonpolicy
+    val policy = commonality
     val ticks  = tickStream[IO](policy)
 
     val fds =
@@ -35,7 +35,7 @@ class TickStreamTest extends AnyFunSuite {
   }
 
   test("3.process less than 1 second") {
-    val policy = commonpolicy
+    val policy = commonality
     val ticks  = tickStream[IO](policy)
 
     val fds =
@@ -47,7 +47,7 @@ class TickStreamTest extends AnyFunSuite {
   }
 
   test("4.ticks - session id should not be same") {
-    val policy = commonpolicy.limited(5)
+    val policy = commonality.limited(5)
     val ticks  = tickStream[IO](policy).compile.toList.unsafeRunSync()
     assert(ticks.size === 5, ticks)
     val spend = ticks(4).wakeup.toEpochMilli / 1000 - ticks.head.wakeup.toEpochMilli / 1000
@@ -56,7 +56,7 @@ class TickStreamTest extends AnyFunSuite {
   }
 
   test("6.cron") {
-    val policy = commonpolicy
+    val policy = commonality
     val ticks  = tickStream[IO](policy)
     val sleep: IO[JavaDuration] =
       Random

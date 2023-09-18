@@ -7,9 +7,10 @@ import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.event.{NJEvent, ServiceStopCause}
 import fs2.Stream
 import fs2.concurrent.Channel
+import monocle.syntax.all.*
 import org.apache.commons.lang3.exception.ExceptionUtils
 
-import java.time.{Duration, Instant}
+import java.time.Duration
 import scala.jdk.DurationConverters.JavaDurationOps
 import scala.util.control.NonFatal
 
@@ -23,36 +24,34 @@ final private class ReStart[F[_], A](
   private def stop(cause: ServiceStopCause): F[Either[Tick, ServiceStopCause]] =
     F.pure(Right(cause))
 
+  private def stopByException(err: Throwable): F[Either[Tick, ServiceStopCause]] =
+    stop(ServiceStopCause.ByException(ExceptionUtils.getMessage(err)))
+
   private def panic(tick: Tick, err: Throwable): F[Either[Tick, ServiceStopCause]] =
     for {
       _ <- publisher.servicePanic(channel, serviceParams, tick, err)
       _ <- F.sleep(tick.snooze.toScala)
     } yield Left(tick)
 
-  private def startover(now: Instant, err: Throwable): F[Either[Tick, ServiceStopCause]] =
-    policy.decide(groundZero, now) match {
-      case None       => stop(ServiceStopCause.ByException(ExceptionUtils.getMessage(err)))
-      case Some(next) => panic(next, err)
-    }
-
   private val loop: F[ServiceStopCause] =
     F.tailRecM(groundZero) { prev =>
       (publisher.serviceReStart(channel, serviceParams) >> theService).attempt.flatMap {
-        case Right(_) =>
-          stop(ServiceStopCause.Normally)
-        case Left(err) if !NonFatal(err) =>
-          stop(ServiceStopCause.ByException(ExceptionUtils.getRootCauseMessage(err)))
+        case Right(_)                    => stop(ServiceStopCause.Normally)
+        case Left(err) if !NonFatal(err) => stopByException(err)
         case Left(err) =>
           F.realTimeInstant.flatMap { now =>
             policy.decide(prev, now) match {
-              case None => stop(ServiceStopCause.ByException(ExceptionUtils.getRootCauseMessage(err)))
+              case None => stopByException(err)
               // if no error happens for long enough, start over the policies
               case Some(tick) =>
                 serviceParams.policyThreshold match {
                   case None => panic(tick, err)
-                  case Some(value) =>
-                    if (Duration.between(prev.wakeup, tick.wakeup).compareTo(value) > 0) {
-                      startover(now, err)
+                  case Some(threshold) =>
+                    if (Duration.between(prev.wakeup, tick.wakeup).compareTo(threshold) > 0) {
+                      policy.decide(prev.focus(_.counter).replace(0), now) match {
+                        case Some(value) => panic(value, err)
+                        case None        => stopByException(err)
+                      }
                     } else panic(tick, err)
                 }
             }
