@@ -5,7 +5,7 @@ import cats.effect.implicits.*
 import cats.effect.kernel.{Outcome, Temporal}
 import cats.syntax.all.*
 import com.codahale.metrics.MetricRegistry
-import com.github.chenharryhua.nanjin.common.chrono.{Policy, Tick}
+import com.github.chenharryhua.nanjin.common.chrono.TickStatus
 import com.github.chenharryhua.nanjin.guard.config.{
   ActionParams,
   Category,
@@ -31,8 +31,7 @@ final private class ReTry[F[_], IN, OUT](
   metricRegistry: MetricRegistry,
   actionParams: ActionParams,
   channel: Channel[F, NJEvent],
-  retryPolicy: Policy,
-  groundZero: Tick,
+  initTickStatus: TickStatus,
   arrow: IN => F[OUT],
   transInput: Kleisli[Option, IN, Json],
   transOutput: Option[(IN, OUT) => Json],
@@ -42,31 +41,31 @@ final private class ReTry[F[_], IN, OUT](
 
   private val measures: MeasureAction = MeasureAction(actionParams, metricRegistry)
 
-  private def retypeFailure(ex: Throwable): F[Either[Tick, OUT]] =
-    F.raiseError[OUT](ex).map[Either[Tick, OUT]](Right(_))
+  private def retypeFailure(ex: Throwable): F[Either[TickStatus, OUT]] =
+    F.raiseError[OUT](ex).map[Either[TickStatus, OUT]](Right(_))
 
-  private def retrying(ai: ActionInfo, ex: Throwable, prev: Tick): F[Either[Tick, OUT]] =
+  private def retrying(ai: ActionInfo, ex: Throwable, status: TickStatus): F[Either[TickStatus, OUT]] =
     F.realTimeInstant.flatMap { now =>
-      retryPolicy.decide(prev, now) match {
+      status.next(now) match {
         case None => retypeFailure(ex)
-        case Some(tick) =>
+        case Some(ts) =>
           for {
             _ <- channel.send(
               ActionRetry(
                 actionParams = actionParams,
                 actionInfo = ai,
                 error = NJError(ex),
-                tick = tick
+                tick = ts.tick
               ))
-            _ <- F.sleep(tick.snooze.toScala)
+            _ <- F.sleep(ts.tick.snooze.toScala)
           } yield {
             measures.countRetry()
-            Left(tick)
+            Left(ts)
           }
       }
     }
   private def compute(ai: ActionInfo, in: IN): F[OUT] =
-    F.tailRecM(groundZero) { status =>
+    F.tailRecM(initTickStatus) { status =>
       arrow(in).attempt.flatMap {
         case Right(out)                => F.pure(Right(out))
         case Left(ex) if !NonFatal(ex) => retypeFailure(ex)

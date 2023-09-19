@@ -9,13 +9,13 @@ import org.typelevel.cats.time.instances.all.*
 
 import java.time.{Duration, Instant}
 import java.util.UUID
+import scala.annotation.tailrec
 
 @JsonCodec
 final case class Tick(
   sequenceId: UUID, // immutable
   launchTime: Instant, // immutable
   index: Long, // monotonously increase
-  counter: Int,
   previous: Instant, // previous tick's wakeup time
   acquire: Instant,
   snooze: Duration
@@ -32,17 +32,17 @@ final case class Tick(
   def newTick(now: Instant, delay: Duration): Tick =
     copy(
       index = this.index + 1,
-      counter = this.counter + 1,
       previous = this.wakeup,
       acquire = now,
       snooze = delay
     )
+
 }
 
 object Tick {
   implicit val showTick: Show[Tick] = cats.derived.semiauto.show[Tick]
 
-  def Zero[F[_]: Monad](implicit F: Clock[F], U: UUIDGen[F]): F[Tick] =
+  def Zeroth[F[_]: Monad](implicit F: Clock[F], U: UUIDGen[F]): F[Tick] =
     for {
       uuid <- U.randomUUID
       now <- F.realTimeInstant
@@ -50,9 +50,36 @@ object Tick {
       sequenceId = uuid,
       launchTime = now,
       index = 0L,
-      counter = 0,
       previous = now,
       acquire = now,
       snooze = Duration.ZERO
     )
+}
+
+final class TickStatus(
+  val tick: Tick,
+  val counter: Int,
+  decisions: LazyList[(TickStatus, Instant) => Either[Manipulation, Duration]])
+    extends Serializable {
+
+  def resetCounter: TickStatus = new TickStatus(tick, 0, decisions)
+
+  @tailrec
+  def next(now: Instant): Option[TickStatus] =
+    decisions match {
+      case head #:: tail =>
+        head(this, now) match {
+          case Left(op) =>
+            op match {
+              case Manipulation.ResetCounter => new TickStatus(tick, 0, tail).next(now)
+              case Manipulation.DoNothing    => new TickStatus(tick, counter, tail).next(now)
+            }
+          case Right(delay) => Some(new TickStatus(tick.newTick(now, delay), counter + 1, tail))
+        }
+      case _ => None
+    }
+}
+object TickStatus {
+  def apply[F[_]: Clock: UUIDGen: Monad](policy: Policy): F[TickStatus] =
+    Tick.Zeroth[F].map(new TickStatus(_, 0, policy.decisions))
 }

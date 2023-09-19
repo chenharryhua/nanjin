@@ -4,7 +4,7 @@ import cats.data.{Kleisli, OptionT}
 import cats.effect.kernel.Temporal
 import cats.syntax.all.*
 import com.codahale.metrics.MetricRegistry
-import com.github.chenharryhua.nanjin.common.chrono.Policy
+import com.github.chenharryhua.nanjin.common.chrono.{Policy, TickStatus}
 import com.github.chenharryhua.nanjin.guard.config.ActionParams
 import com.github.chenharryhua.nanjin.guard.event.*
 import fs2.concurrent.Channel
@@ -55,8 +55,7 @@ final class NJAction[F[_], IN, OUT] private[action] (
       metricRegistry = metricRegistry,
       actionParams = actionParams,
       channel = channel,
-      retryPolicy = retryPolicy,
-      groundZero = actionParams.serviceParams.groundZero,
+      initTickStatus = new TickStatus(actionParams.serviceParams.zeroth, 0, retryPolicy.decisions),
       arrow = arrow,
       transInput = transInput,
       transOutput = transOutput,

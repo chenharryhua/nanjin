@@ -8,8 +8,8 @@ import cats.syntax.all.*
 import com.codahale.metrics.MetricRegistry
 import com.codahale.metrics.jmx.JmxReporter
 import com.comcast.ip4s.IpLiteralSyntax
-import com.github.chenharryhua.nanjin.common.chrono.{policies, tickStream, Policy, Tick}
-import com.github.chenharryhua.nanjin.common.UpdateConfig
+import com.github.chenharryhua.nanjin.common.chrono.{policies, tickStream, Policy, Tick, TickStatus}
+import com.github.chenharryhua.nanjin.common.{chrono, UpdateConfig}
 import com.github.chenharryhua.nanjin.guard.config.{
   Measurement,
   ServiceBrief,
@@ -91,16 +91,16 @@ final class ServiceGuard[F[_]: Network] private[guard] (
   def withBrief(json: F[Json]): ServiceGuard[F] = copy(brief = json.map(_.some))
   def withBrief(json: Json): ServiceGuard[F]    = withBrief(F.pure(json))
 
-  private def initStatus(tick: Tick): F[ServiceParams] = for {
+  private def initStatus(zeroth: Tick): F[ServiceParams] = for {
     json <- brief
   } yield config(ServiceConfig(taskParams)).evalConfig(
     serviceName,
     ServicePolicy(restartPolicy.show),
     ServiceBrief(json),
-    tick)
+    zeroth)
 
   def dummyAgent(implicit C: Console[F]): Resource[F, GeneralAgent[F]] = for {
-    groundZero <- Resource.eval(Tick.Zero[F])
+    groundZero <- Resource.eval(Tick.Zeroth[F])
     sp <- Resource.eval(initStatus(groundZero))
     signallingMapRef <- Resource.eval(SignallingMapRef.ofSingleImmutableMap[F, Unique.Token, Locker]())
     atomicCell <- Resource.eval(AtomicCell[F].of(Vault.empty))
@@ -124,8 +124,8 @@ final class ServiceGuard[F[_]: Network] private[guard] (
 
   def eventStream[A](runAgent: GeneralAgent[F] => F[A]): Stream[F, NJEvent] =
     for {
-      groundZero <- Stream.eval(Tick.Zero[F])
-      serviceParams <- Stream.eval(initStatus(groundZero))
+      zeroth <- Stream.eval(Tick.Zeroth[F])
+      serviceParams <- Stream.eval(initStatus(zeroth))
       signallingMapRef <- Stream.eval(SignallingMapRef.ofSingleImmutableMap[F, Unique.Token, Locker]())
       atomicCell <- Stream.eval(AtomicCell[F].of(Vault.empty))
       dispatcher <- Stream.resource(Dispatcher.parallel[F])
@@ -136,7 +136,11 @@ final class ServiceGuard[F[_]: Network] private[guard] (
           serviceParams.metricParams.reportSchedule match {
             case None => Stream.empty
             case Some(cron) =>
-              tickStream[F](policies.crontab(cron, serviceParams.taskParams.zoneId), groundZero)
+              tickStream[F](
+                new chrono.TickStatus(
+                  tick = zeroth,
+                  counter = 0,
+                  decisions = policies.crontab(cron, serviceParams.taskParams.zoneId).decisions))
                 .evalMap(tick =>
                   publisher.metricReport(
                     channel = channel,
@@ -151,7 +155,11 @@ final class ServiceGuard[F[_]: Network] private[guard] (
           serviceParams.metricParams.resetSchedule match {
             case None => Stream.empty
             case Some(cron) =>
-              tickStream[F](policies.crontab(cron, serviceParams.taskParams.zoneId), groundZero)
+              tickStream[F](
+                new chrono.TickStatus(
+                  tick = zeroth,
+                  counter = 0,
+                  decisions = policies.crontab(cron, serviceParams.taskParams.zoneId).decisions))
                 .evalMap(tick =>
                   publisher.metricReset(
                     channel = channel,
@@ -206,9 +214,9 @@ final class ServiceGuard[F[_]: Network] private[guard] (
           new ReStart[F, A](
             channel = channel,
             serviceParams = serviceParams,
-            policy = restartPolicy,
-            groundZero = groundZero,
-            theService = runAgent(agent)).stream
+            initTickStatus = new TickStatus(tick = zeroth, counter = 0, decisions = restartPolicy.decisions),
+            theService = runAgent(agent)
+          ).stream
 
         // put together
         channel.stream

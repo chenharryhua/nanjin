@@ -65,7 +65,7 @@ private object textHelper extends localtime with localdatetime {
     }
   }
 
-  private def toOrdinalWords(n: Int): String = {
+  private def toOrdinalWords(n: Long): String = {
     val w =
       if (n % 100 / 10 == 1) "th"
       else {
@@ -99,6 +99,6 @@ private object textHelper extends localtime with localdatetime {
     val resumeTime = evt.serviceParams.toZonedDateTime(evt.tick.wakeup)
     val next       = fmt.format(evt.tick.snooze)
     val localTs    = resumeTime.toLocalTime.truncatedTo(ChronoUnit.SECONDS)
-    s"*${toOrdinalWords(evt.tick.counter)}* retry will be at $localTs, in $next"
+    s"*${toOrdinalWords(evt.tick.index)}* retry will be at $localTs, in $next"
   }
 }

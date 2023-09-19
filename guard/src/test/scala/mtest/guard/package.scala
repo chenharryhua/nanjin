@@ -21,8 +21,8 @@ package object guard {
   final val cron_3second: CronExpr = Cron.unsafeParse("*/3 * * ? * *")
   final val cron_1minute: CronExpr = Cron.unsafeParse("0 0-59 * ? * *")
 
-  val constant_1second: Policy.Constant = policies.constant(1.seconds)
-  val constant_1hour: Policy.Constant   = policies.constant(1.hour)
+  val constant_1second: Policy = policies.constant(1.seconds)
+  val constant_1hour: Policy   = policies.constant(1.hour)
 
   final val beijingTime: ZoneId = ZoneId.of("Asia/Shanghai")
 

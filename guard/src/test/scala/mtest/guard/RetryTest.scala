@@ -79,9 +79,6 @@ class RetryTest extends AnyFunSuite {
     assert(i.isInstanceOf[ActionFail])
     assert(j.isInstanceOf[ServiceStop])
 
-    assert(b.asInstanceOf[ActionRetry].tick.counter == 1)
-    assert(e.asInstanceOf[ActionRetry].tick.counter == 1)
-    assert(h.asInstanceOf[ActionRetry].tick.counter == 1)
   }
 
   test("4.retry - should retry 2 times when operation fail") {
@@ -155,9 +152,9 @@ class RetryTest extends AnyFunSuite {
     assert(e.isInstanceOf[ActionFail])
     assert(f.isInstanceOf[ServiceStop])
 
-    assert(b.asInstanceOf[ActionRetry].tick.counter == 1)
-    assert(c.asInstanceOf[ActionRetry].tick.counter == 2)
-    assert(d.asInstanceOf[ActionRetry].tick.counter == 3)
+    assert(b.asInstanceOf[ActionRetry].tick.index == 1)
+    assert(c.asInstanceOf[ActionRetry].tick.index == 2)
+    assert(d.asInstanceOf[ActionRetry].tick.index == 3)
   }
 
   test("7.retry - Null pointer exception") {

@@ -4,7 +4,7 @@ import cats.effect.kernel.{Async, Resource}
 import cats.syntax.all.*
 import cats.{Endo, Show}
 import com.github.chenharryhua.nanjin.common.aws.{S3Path, SqsConfig}
-import com.github.chenharryhua.nanjin.common.chrono.{policies, Policy, Tick}
+import com.github.chenharryhua.nanjin.common.chrono.{policies, Policy, TickStatus}
 import fs2.{Chunk, Pull, Stream}
 import io.circe.Json
 import io.circe.generic.JsonCodec
@@ -133,7 +133,7 @@ object SimpleQueueService {
 
       // when no data can be retrieved, the delay policy will be applied
       // [[https://cb372.github.io/cats-retry/docs/policies.html]]
-      def receiving(zero: Tick, status: Tick, batchIndex: Long): Pull[F, SqsMessage, Unit] =
+      def receiving(status: TickStatus, batchIndex: Long): Pull[F, SqsMessage, Unit] =
         Pull.eval(F.blocking(client.receiveMessage(request)).onError(ex => logger.error(ex)(name))).flatMap {
           rmr =>
             val messages: mutable.Buffer[Message] = rmr.messages.asScala
@@ -148,21 +148,21 @@ object SimpleQueueService {
                   batchSize = size
                 )
               }
-              Pull.output(chunk) >> receiving(zero, zero, batchIndex + 1)
+              Pull.output(chunk) >> receiving(status.resetCounter, batchIndex + 1)
             } else {
               Pull
                 .eval(F.realTimeInstant.map { now =>
-                  delayPolicy.decide(status, now) match {
+                  status.next(now) match {
                     case None => Pull.done
-                    case Some(tick) =>
-                      Pull.sleep(tick.snooze.toScala) >> receiving(zero, tick, batchIndex)
+                    case Some(ts) =>
+                      Pull.sleep(ts.tick.snooze.toScala) >> receiving(ts, batchIndex)
                   }
                 })
                 .flatten
             }
         }
 
-      Stream.eval(Tick.Zero).flatMap(zero => receiving(zero, zero, 0L).stream)
+      Stream.eval(TickStatus(delayPolicy)).flatMap(zero => receiving(zero, 0L).stream)
     }
 
     override def delete(msg: SqsMessage): F[DeleteMessageResponse] = {

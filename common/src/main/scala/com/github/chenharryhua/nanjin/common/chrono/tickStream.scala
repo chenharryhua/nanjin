@@ -8,12 +8,12 @@ import fs2.Stream
 import scala.jdk.DurationConverters.JavaDurationOps
 
 object tickStream {
-  def apply[F[_]](policy: Policy, initTick: Tick)(implicit F: Temporal[F]): Stream[F, Tick] =
-    Stream.unfoldEval[F, Tick, Tick](initTick) { previous =>
+  def apply[F[_]](zeroth: TickStatus)(implicit F: Temporal[F]): Stream[F, Tick] =
+    Stream.unfoldEval[F, TickStatus, Tick](zeroth) { status =>
       F.realTimeInstant.flatMap { now =>
-        policy.decide(previous, now).traverse(tick => F.sleep(tick.snooze.toScala).as((tick, tick)))
+        status.next(now).traverse(nt => F.sleep(nt.tick.snooze.toScala).as((nt.tick, nt)))
       }
     }
   def apply[F[_]: UUIDGen: Temporal](policy: Policy): Stream[F, Tick] =
-    Stream.eval[F, Tick](Tick.Zero[F]).flatMap(apply(policy, _))
+    Stream.eval[F, TickStatus](TickStatus(policy)).flatMap(apply(_))
 }

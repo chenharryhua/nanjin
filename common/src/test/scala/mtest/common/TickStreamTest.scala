@@ -3,22 +3,23 @@ package mtest.common
 import cats.effect.IO
 import cats.effect.std.Random
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.common.chrono.{Policy, policies, tickStream}
+import com.github.chenharryhua.nanjin.common.chrono.{policies, tickStream, Policy}
 import cron4s.Cron
 import org.scalatest.funsuite.AnyFunSuite
 
-import java.time.{ZoneId, Duration as JavaDuration}
 import java.time.temporal.ChronoUnit
+import java.time.{Duration as JavaDuration, ZoneId}
 import scala.concurrent.duration.DurationDouble
 import scala.jdk.DurationConverters.{JavaDurationOps, ScalaDurationOps}
 
 class TickStreamTest extends AnyFunSuite {
-  val commonality: Policy.Crontab = policies.crontab(Cron.unsafeParse("0-59 * * ? * *"), ZoneId.of("Australia/Sydney"))
+  val commonality: Policy =
+    policies.crontab(Cron.unsafeParse("0-59 * * ? * *"), ZoneId.of("Australia/Sydney"))
   test("1.tick") {
     val policy = commonality.limited(5)
     val ticks  = tickStream[IO](policy)
 
-    val res = ticks.map(_.interval.toScala).take(5).compile.toList.unsafeRunSync()
+    val res = ticks.map(_.interval.toScala).compile.toList.unsafeRunSync()
     assert(res.tail.forall(d => d === 1.seconds), res)
   }
 
@@ -97,15 +98,15 @@ class TickStreamTest extends AnyFunSuite {
         .flatMap(_.betweenLong(0, 500))
         .flatMap(d => IO.sleep(d.toDouble.millisecond).as(JavaDuration.ofMillis(d)))
 
-    ticks.evalTap(_ => sleep).take(10).map(_.wakeup).debug().compile.toList.unsafeRunSync()
+    ticks.evalTap(_ => sleep).take(10).debug().compile.toList.unsafeRunSync()
   }
   test("8.fixed pace") {
-    val policy = policies.fixedPace(1.second.toJava)
+    val policy = policies.fixedPace(2.second.toJava)
     val ticks  = tickStream[IO](policy)
     val sleep: IO[JavaDuration] =
       Random
         .scalaUtilRandom[IO]
-        .flatMap(_.betweenLong(0, 1500))
+        .flatMap(_.betweenLong(0, 2500))
         .flatMap(d => IO.sleep(d.toDouble.millisecond).as(JavaDuration.ofMillis(d)))
 
     ticks.evalTap(_ => sleep).take(10).map(_.wakeup).debug().compile.toList.unsafeRunSync()

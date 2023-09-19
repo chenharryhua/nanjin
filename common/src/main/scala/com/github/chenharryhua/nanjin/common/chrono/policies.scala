@@ -7,22 +7,22 @@ import scala.concurrent.duration.FiniteDuration
 import scala.jdk.DurationConverters.ScalaDurationOps
 
 object policies {
-  def constant(baseDelay: JavaDuration): Policy.Constant   = Policy.Constant(baseDelay)
-  def constant(baseDelay: FiniteDuration): Policy.Constant = constant(baseDelay.toJava)
+  def constant(baseDelay: JavaDuration): Policy   = Policy.Constant(baseDelay)
+  def constant(baseDelay: FiniteDuration): Policy = constant(baseDelay.toJava)
 
-  def exponential(baseDelay: JavaDuration): Policy.Exponential   = Policy.Exponential(baseDelay)
-  def exponential(baseDelay: FiniteDuration): Policy.Exponential = exponential(baseDelay.toJava)
+  def exponential(baseDelay: JavaDuration): Policy   = Policy.Exponential(baseDelay)
+  def exponential(baseDelay: FiniteDuration): Policy = exponential(baseDelay.toJava)
 
-  def fixedPace(baseDelay: JavaDuration): Policy.FixedPace   = Policy.FixedPace(baseDelay)
-  def fixedPace(baseDelay: FiniteDuration): Policy.FixedPace = fixedPace(baseDelay.toJava)
+  def fixedPace(baseDelay: JavaDuration): Policy   = Policy.FixedPace(baseDelay)
+  def fixedPace(baseDelay: FiniteDuration): Policy = fixedPace(baseDelay.toJava)
 
-  def fibonacci(baseDelay: JavaDuration): Policy.Fibonacci   = Policy.Fibonacci(baseDelay)
-  def fibonacci(baseDelay: FiniteDuration): Policy.Fibonacci = fibonacci(baseDelay.toJava)
+  def fibonacci(baseDelay: JavaDuration): Policy   = Policy.Fibonacci(baseDelay)
+  def fibonacci(baseDelay: FiniteDuration): Policy = fibonacci(baseDelay.toJava)
 
-  def crontab(cronExpr: CronExpr, zoneId: ZoneId): Policy.Crontab = Policy.Crontab(cronExpr, zoneId)
+  def crontab(cronExpr: CronExpr, zoneId: ZoneId): Policy = Policy.Crontab(cronExpr, zoneId)
 
-  def jitter(min: JavaDuration, max: JavaDuration): Policy.Jitter     = Policy.Jitter(min, max)
-  def jitter(min: FiniteDuration, max: FiniteDuration): Policy.Jitter = jitter(min.toJava, max.toJava)
+  def jitter(min: JavaDuration, max: JavaDuration): Policy     = Policy.Jitter(min, max)
+  def jitter(min: FiniteDuration, max: FiniteDuration): Policy = jitter(min.toJava, max.toJava)
 
-  val giveUp: Policy.GiveUp = Policy.GiveUp
+  val giveUp: Policy = Policy.GiveUp
 }

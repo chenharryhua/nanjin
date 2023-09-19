@@ -2,8 +2,7 @@ package com.github.chenharryhua.nanjin.terminals
 
 import cats.effect.kernel.{Async, Resource, Sync}
 import cats.effect.std.Hotswap
-import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy}
-import com.github.chenharryhua.nanjin.common.chrono.Tick
+import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick, TickStatus}
 import fs2.{Chunk, Pipe, Stream}
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.Path
@@ -64,13 +63,13 @@ final class HadoopBytes[F[_]] private (
 
     // save
     (ss: Stream[F, Chunk[Byte]]) =>
-      Stream.eval(Tick.Zero).flatMap { zero =>
-        Stream.resource(init(zero)).flatMap { case (hotswap, writer) =>
+      Stream.eval(TickStatus(policy)).flatMap { zero =>
+        Stream.resource(init(zero.tick)).flatMap { case (hotswap, writer) =>
           persist[F, Byte](
             getWriter,
             hotswap,
             writer,
-            ss.map(Left(_)).mergeHaltBoth(tickStream[F](policy, zero).map(Right(_)))
+            ss.map(Left(_)).mergeHaltBoth(tickStream[F](zero).map(Right(_)))
           ).stream
         }
       }

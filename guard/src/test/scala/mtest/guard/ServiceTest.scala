@@ -26,7 +26,7 @@ class ServiceTest extends AnyFunSuite {
     .withRestartPolicy(policies.constant(1.seconds))
     .withBrief(Json.fromString("test"))
 
-  val policy: Policy.Limited = policies.constant(0.1.seconds).limited(3)
+  val policy: Policy = policies.constant(0.1.seconds).limited(3)
 
   test("1.should stopped if the operation normally exits") {
     val Vector(a, d) = guard
@@ -196,8 +196,8 @@ class ServiceTest extends AnyFunSuite {
   test("11.policy start over") {
 
     val p1     = policies.constant(1.seconds).limited(1)
-    val p2     = policies.constant(2.seconds).limited(2)
-    val p3     = policies.constant(3.seconds).limited(3)
+    val p2     = policies.constant(2.seconds).limited(1)
+    val p3     = policies.constant(3.seconds).limited(1)
     val policy = p1.followedBy(p2).followedBy(p3).repeat
     val List(a, b, c, d, e, f, g, h) = guard
       .withRestartPolicy(policy)
@@ -211,85 +211,69 @@ class ServiceTest extends AnyFunSuite {
       .toList
       .unsafeRunSync()
     assert(a.index == 1)
-    assert(a.counter == 1)
     assert(a.snooze == 1.second.toJava)
     assert(b.index == 2)
-    assert(b.counter == 2)
     assert(b.previous == a.wakeup)
     assert(b.snooze == 2.second.toJava)
     assert(c.index == 3)
-    assert(c.counter == 3)
     assert(c.previous == b.wakeup)
     assert(c.snooze == 3.second.toJava)
 
     assert(d.index == 4)
-    assert(d.counter == 1)
     assert(d.previous == c.wakeup)
     assert(d.snooze == 1.second.toJava)
     assert(e.index == 5)
-    assert(e.counter == 2)
     assert(e.previous == d.wakeup)
     assert(e.snooze == 2.second.toJava)
     assert(f.index == 6)
-    assert(f.counter == 3)
     assert(f.previous == e.wakeup)
     assert(f.snooze == 3.second.toJava)
 
     assert(g.index == 7)
-    assert(g.counter == 1)
     assert(g.previous == f.wakeup)
     assert(g.snooze == 1.second.toJava)
     assert(h.index == 8)
-    assert(h.counter == 2)
     assert(h.previous == g.wakeup)
     assert(h.snooze == 2.second.toJava)
   }
 
   test("12.policy threshold start over") {
     val List(a, b, c, d, e, f, g, h) = guard
-      .withRestartPolicy(policies.fibonacci(1.seconds))
+      .withRestartPolicy(policies.fibonacci(1.seconds).limited(4).repeat)
       .withMetricServer(identity)
-      .updateConfig(_.withPolicyThreshold(4.seconds))
       .eventStream(_ => IO.raiseError(new Exception("oops")))
       .evalMapFilter[IO, Tick] {
         case sp: ServicePanic => IO(Some(sp.tick))
         case _                => IO(None)
       }
+      .debug()
       .take(8)
       .compile
       .toList
       .unsafeRunSync()
 
     assert(a.index == 1)
-    assert(a.counter == 1)
     assert(a.snooze == 1.second.toJava)
     assert(b.index == 2)
-    assert(b.counter == 2)
     assert(b.previous == a.wakeup)
     assert(b.snooze == 1.second.toJava)
     assert(c.index == 3)
-    assert(c.counter == 3)
     assert(c.previous == b.wakeup)
     assert(c.snooze == 2.second.toJava)
     assert(d.index == 4)
-    assert(d.counter == 4)
     assert(d.previous == c.wakeup)
     assert(d.snooze == 3.second.toJava)
 
     assert(e.index == 5)
-    assert(e.counter == 1)
     assert(e.previous == d.wakeup)
     assert(e.snooze == 1.second.toJava)
     assert(f.index == 6)
-    assert(f.counter == 2)
     assert(f.previous == e.wakeup)
     assert(f.snooze == 1.second.toJava)
     assert(g.index == 7)
-    assert(g.counter == 3)
     assert(g.previous == f.wakeup)
     assert(g.snooze == 2.second.toJava)
     assert(h.index == 8)
-    assert(h.counter == 4)
     assert(h.previous == g.wakeup)
     assert(h.snooze == 3.second.toJava)
   }
