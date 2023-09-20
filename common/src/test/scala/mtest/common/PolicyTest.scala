@@ -33,7 +33,6 @@ class PolicyTest extends AnyFunSuite {
     assert(a1.tick.sequenceId == zero.sequenceId)
     assert(a1.tick.launchTime == zero.launchTime)
     assert(a1.tick.index == 1)
-    assert(a1.counter == 1)
     assert(a1.tick.previous === zero.wakeup)
     assert(a1.tick.acquire === t1)
     assert(a1.tick.snooze === delay)
@@ -41,7 +40,6 @@ class PolicyTest extends AnyFunSuite {
     assert(a2.tick.sequenceId == zero.sequenceId)
     assert(a2.tick.launchTime == zero.launchTime)
     assert(a2.tick.index == 2)
-    assert(a2.counter == 2)
     assert(a2.tick.previous === a1.tick.wakeup)
     assert(a2.tick.acquire === t2)
     assert(a2.tick.snooze === delay)
@@ -49,7 +47,6 @@ class PolicyTest extends AnyFunSuite {
     assert(a3.tick.sequenceId == zero.sequenceId)
     assert(a3.tick.launchTime == zero.launchTime)
     assert(a3.tick.index == 3)
-    assert(a3.counter == 3)
     assert(a3.tick.previous === a2.tick.wakeup)
     assert(a3.tick.acquire === t3)
     assert(a3.tick.snooze === delay)
@@ -99,7 +96,6 @@ class PolicyTest extends AnyFunSuite {
     assert(a4.tick.snooze == 2.seconds.toJava)
     assert(a5.tick.snooze == 2.seconds.toJava)
     assert(a6.tick.snooze == 1.second.toJava)
-    assert(a6.counter == 1)
   }
 
   test("fixed pace") {

@@ -31,7 +31,7 @@ final private class ReTry[F[_], IN, OUT](
   metricRegistry: MetricRegistry,
   actionParams: ActionParams,
   channel: Channel[F, NJEvent],
-  initTickStatus: TickStatus,
+  zerothTickStatus: TickStatus,
   arrow: IN => F[OUT],
   transInput: Kleisli[Option, IN, Json],
   transOutput: Option[(IN, OUT) => Json],
@@ -65,7 +65,7 @@ final private class ReTry[F[_], IN, OUT](
       }
     }
   private def compute(ai: ActionInfo, in: IN): F[OUT] =
-    F.tailRecM(initTickStatus) { status =>
+    F.tailRecM(zerothTickStatus) { status =>
       arrow(in).attempt.flatMap {
         case Right(out)                => F.pure(Right(out))
         case Left(ex) if !NonFatal(ex) => retypeFailure(ex)

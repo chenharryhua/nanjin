@@ -21,7 +21,7 @@ final case class Tick(
   snooze: Duration
 ) {
   val wakeup: Instant    = acquire.plus(snooze)
-  val interval: Duration = Duration.between(previous, wakeup)
+  def interval: Duration = Duration.between(previous, wakeup)
 
   /** check if an instant is in this tick frame from previous timestamp(inclusive) to current
     * timestamp(exclusive).
@@ -36,39 +36,29 @@ final case class Tick(
       acquire = now,
       snooze = delay
     )
-
 }
 
 object Tick {
   implicit val showTick: Show[Tick] = cats.derived.semiauto.show[Tick]
-
-  def Zeroth[F[_]: Monad](implicit F: Clock[F], U: UUIDGen[F]): F[Tick] =
-    for {
-      uuid <- U.randomUUID
-      now <- F.realTimeInstant
-    } yield Tick(
-      sequenceId = uuid,
-      launchTime = now,
-      index = 0L,
-      previous = now,
-      acquire = now,
-      snooze = Duration.ZERO
-    )
 }
 
-final class TickStatus(
+final class TickStatus private (
   val tick: Tick,
-  val counter: Int,
-  decisions: LazyList[(TickStatus, Instant) => Either[Manipulation, Duration]])
+  counter: Int,
+  decisions: LazyList[TickRequest => Either[Manipulation, Duration]])
     extends Serializable {
 
-  def resetCounter: TickStatus = new TickStatus(tick, 0, decisions)
+  def resetCounter: TickStatus =
+    new TickStatus(tick, 0, decisions)
+
+  def withPolicy(policy: Policy): TickStatus =
+    new TickStatus(tick, counter, PolicyF.decisions(policy.policy))
 
   @tailrec
   def next(now: Instant): Option[TickStatus] =
     decisions match {
       case head #:: tail =>
-        head(this, now) match {
+        head(TickRequest(tick, counter, now)) match {
           case Left(op) =>
             op match {
               case Manipulation.ResetCounter => new TickStatus(tick, 0, tail).next(now)
@@ -79,7 +69,21 @@ final class TickStatus(
       case _ => None
     }
 }
+
 object TickStatus {
   def apply[F[_]: Clock: UUIDGen: Monad](policy: Policy): F[TickStatus] =
-    Tick.Zeroth[F].map(new TickStatus(_, 0, policy.decisions))
+    for {
+      uuid <- UUIDGen[F].randomUUID
+      now <- Clock[F].realTimeInstant
+    } yield {
+      val tick = Tick(
+        sequenceId = uuid,
+        launchTime = now,
+        index = 0L,
+        previous = now,
+        acquire = now,
+        snooze = Duration.ZERO
+      )
+      new TickStatus(tick, 0, PolicyF.decisions(policy.policy))
+    }
 }
