@@ -7,7 +7,7 @@ import com.github.chenharryhua.nanjin.guard.event.{MetricIndex, MetricSnapshot, 
 import org.typelevel.cats.time.instances.{localdatetime, localtime}
 
 import java.time.temporal.ChronoUnit
-import java.time.{Duration, ZonedDateTime}
+import java.time.{Duration, LocalTime, ZonedDateTime}
 
 object textConstants {
   @inline final val CONSTANT_ACTION_ID: String   = "ActionID"
@@ -96,9 +96,9 @@ private object textHelper extends localtime with localdatetime {
   }
 
   def retryText(evt: ActionRetry): String = {
-    val resumeTime = evt.serviceParams.toZonedDateTime(evt.tick.wakeup)
-    val next       = fmt.format(evt.tick.snooze)
-    val localTs    = resumeTime.toLocalTime.truncatedTo(ChronoUnit.SECONDS)
+    val localTs: LocalTime =
+      evt.serviceParams.toZonedDateTime(evt.tick.wakeup).toLocalTime.truncatedTo(ChronoUnit.SECONDS)
+    val next = fmt.format(evt.tick.snooze)
     s"*${toOrdinalWords(evt.tick.index)}* retry will be at $localTs, in $next"
   }
 }

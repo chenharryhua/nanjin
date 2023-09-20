@@ -88,7 +88,7 @@ object NJEvent extends DateTimeInstances {
       extends ActionEvent {
     val landTime: FiniteDuration = FiniteDuration(tick.acquire.toEpochMilli, TimeUnit.MILLISECONDS)
 
-    override def timestamp: ZonedDateTime = serviceParams.toZonedDateTime(landTime)
+    override def timestamp: ZonedDateTime = serviceParams.toZonedDateTime(tick.acquire)
     def tookSoFar: Duration               = actionInfo.took(landTime)
   }
 
