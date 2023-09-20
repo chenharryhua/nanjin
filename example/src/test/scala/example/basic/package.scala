@@ -18,7 +18,7 @@ package object basic {
 
   val root: NJPath = NJPath("./data/example/basic")
 
-  val policy: Policy.Crontab = policies.crontab(crontabs.secondly, sydneyTime)
+  val policy: Policy = policies.crontab(crontabs.secondly, sydneyTime)
 
   implicit val te: TypedEncoder[Tiger] = shapeless.cachedImplicit
 

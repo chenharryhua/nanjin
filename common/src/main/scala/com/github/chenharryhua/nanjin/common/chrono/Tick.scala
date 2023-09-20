@@ -17,8 +17,8 @@ final case class Tick(
   launchTime: Instant, // immutable
   index: Long, // monotonously increase
   previous: Instant, // previous tick's wakeup time
-  acquire: Instant,
-  snooze: Duration
+  acquire: Instant, // when user acquire a new tick
+  snooze: Duration // is/was snooze
 ) {
   val wakeup: Instant    = acquire.plus(snooze)
   def interval: Duration = Duration.between(previous, wakeup)
@@ -76,7 +76,7 @@ object TickStatus {
       uuid <- UUIDGen[F].randomUUID
       now <- Clock[F].realTimeInstant
     } yield {
-      val tick = Tick(
+      val zeroth = Tick(
         sequenceId = uuid,
         launchTime = now,
         index = 0L,
@@ -84,6 +84,6 @@ object TickStatus {
         acquire = now,
         snooze = Duration.ZERO
       )
-      new TickStatus(tick, 0, PolicyF.decisions(policy.policy))
+      new TickStatus(zeroth, 0, PolicyF.decisions(policy.policy))
     }
 }
