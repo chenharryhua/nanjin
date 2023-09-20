@@ -6,13 +6,14 @@ import cats.implicits.{
   catsSyntaxApplicativeError,
   toFoldableOps,
   toFunctorOps,
+  toShow,
   toTraverseOps,
   toUnorderedFoldableOps
 }
 import cats.{Alternative, Endo, Traverse}
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.common.UpdateConfig
-import com.github.chenharryhua.nanjin.common.policy.Policy
+import com.github.chenharryhua.nanjin.common.chrono.{Policy, TickStatus}
 import com.github.chenharryhua.nanjin.guard.config.{
   ActionConfig,
   ActionName,
@@ -35,7 +36,8 @@ final class NJActionBuilder[F[_]](
   metricRegistry: MetricRegistry,
   channel: Channel[F, NJEvent],
   config: Endo[ActionConfig],
-  retryPolicy: Policy
+  retryPolicy: Policy,
+  zerothTickStatus: TickStatus
 )(implicit F: Async[F])
     extends UpdateConfig[ActionConfig, NJActionBuilder[F]] { self =>
   private def copy(
@@ -50,7 +52,8 @@ final class NJActionBuilder[F[_]](
       metricRegistry = self.metricRegistry,
       channel = self.channel,
       config = config,
-      retryPolicy = retryPolicy
+      retryPolicy = retryPolicy,
+      zerothTickStatus = self.zerothTickStatus
     )
 
   def updateConfig(f: Endo[ActionConfig]): NJActionBuilder[F] = copy(config = f.compose(self.config))
@@ -68,7 +71,7 @@ final class NJActionBuilder[F[_]](
       metricRegistry = metricRegistry,
       channel = channel,
       actionParams = params,
-      retryPolicy = retryPolicy,
+      zerothTickStatus = zerothTickStatus.withPolicy(retryPolicy),
       arrow = fz,
       transInput = None,
       transOutput = None,
@@ -83,7 +86,7 @@ final class NJActionBuilder[F[_]](
       metricRegistry = metricRegistry,
       channel = channel,
       actionParams = params,
-      retryPolicy = retryPolicy,
+      zerothTickStatus = zerothTickStatus.withPolicy(retryPolicy),
       arrow = f,
       transInput = Kleisli(_ => None),
       transOutput = None,
@@ -96,7 +99,7 @@ final class NJActionBuilder[F[_]](
       metricRegistry = metricRegistry,
       channel = channel,
       actionParams = params,
-      retryPolicy = retryPolicy,
+      zerothTickStatus = zerothTickStatus.withPolicy(retryPolicy),
       arrow = f.tupled,
       transInput = Kleisli(_ => None),
       transOutput = None,
@@ -109,7 +112,7 @@ final class NJActionBuilder[F[_]](
       metricRegistry = metricRegistry,
       channel = channel,
       actionParams = params,
-      retryPolicy = retryPolicy,
+      zerothTickStatus = zerothTickStatus.withPolicy(retryPolicy),
       arrow = f.tupled,
       transInput = Kleisli(_ => None),
       transOutput = None,
@@ -122,7 +125,7 @@ final class NJActionBuilder[F[_]](
       metricRegistry = metricRegistry,
       channel = channel,
       actionParams = params,
-      retryPolicy = retryPolicy,
+      zerothTickStatus = zerothTickStatus.withPolicy(retryPolicy),
       arrow = f.tupled,
       transInput = Kleisli(_ => None),
       transOutput = None,
@@ -135,7 +138,7 @@ final class NJActionBuilder[F[_]](
       metricRegistry = metricRegistry,
       channel = channel,
       actionParams = params,
-      retryPolicy = retryPolicy,
+      zerothTickStatus = zerothTickStatus.withPolicy(retryPolicy),
       arrow = f.tupled,
       transInput = Kleisli(_ => None),
       transOutput = None,

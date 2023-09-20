@@ -8,8 +8,8 @@ import cats.syntax.all.*
 import com.codahale.metrics.MetricRegistry
 import com.codahale.metrics.jmx.JmxReporter
 import com.comcast.ip4s.IpLiteralSyntax
-import com.github.chenharryhua.nanjin.common.policy.{policies, Policy, Tick}
-import com.github.chenharryhua.nanjin.common.{tickStream, UpdateConfig}
+import com.github.chenharryhua.nanjin.common.UpdateConfig
+import com.github.chenharryhua.nanjin.common.chrono.*
 import com.github.chenharryhua.nanjin.guard.config.{
   Measurement,
   ServiceBrief,
@@ -91,17 +91,17 @@ final class ServiceGuard[F[_]: Network] private[guard] (
   def withBrief(json: F[Json]): ServiceGuard[F] = copy(brief = json.map(_.some))
   def withBrief(json: Json): ServiceGuard[F]    = withBrief(F.pure(json))
 
-  private def initStatus(tick: Tick): F[ServiceParams] = for {
+  private def initStatus(zeroth: Tick): F[ServiceParams] = for {
     json <- brief
   } yield config(ServiceConfig(taskParams)).evalConfig(
     serviceName,
     ServicePolicy(restartPolicy.show),
     ServiceBrief(json),
-    tick)
+    zeroth)
 
   def dummyAgent(implicit C: Console[F]): Resource[F, GeneralAgent[F]] = for {
-    groundZero <- Resource.eval(Tick.Zero[F])
-    sp <- Resource.eval(initStatus(groundZero))
+    zeroth <- Resource.eval(TickStatus[F](policies.giveUp))
+    sp <- Resource.eval(initStatus(zeroth.tick))
     signallingMapRef <- Resource.eval(SignallingMapRef.ofSingleImmutableMap[F, Unique.Token, Locker]())
     atomicCell <- Resource.eval(AtomicCell[F].of(Vault.empty))
     dispatcher <- Dispatcher.parallel[F]
@@ -113,6 +113,7 @@ final class ServiceGuard[F[_]: Network] private[guard] (
       .background
   } yield new GeneralAgent[F](
     entryPoint = entryPoint,
+    zerothTickStatus = zeroth,
     serviceParams = sp,
     metricRegistry = new MetricRegistry,
     channel = chn,
@@ -124,8 +125,8 @@ final class ServiceGuard[F[_]: Network] private[guard] (
 
   def eventStream[A](runAgent: GeneralAgent[F] => F[A]): Stream[F, NJEvent] =
     for {
-      groundZero <- Stream.eval(Tick.Zero[F])
-      serviceParams <- Stream.eval(initStatus(groundZero))
+      zeroth <- Stream.eval(TickStatus[F](policies.giveUp))
+      serviceParams <- Stream.eval(initStatus(zeroth.tick))
       signallingMapRef <- Stream.eval(SignallingMapRef.ofSingleImmutableMap[F, Unique.Token, Locker]())
       atomicCell <- Stream.eval(AtomicCell[F].of(Vault.empty))
       dispatcher <- Stream.resource(Dispatcher.parallel[F])
@@ -136,7 +137,7 @@ final class ServiceGuard[F[_]: Network] private[guard] (
           serviceParams.metricParams.reportSchedule match {
             case None => Stream.empty
             case Some(cron) =>
-              tickStream[F](policies.crontab(cron, serviceParams.taskParams.zoneId), groundZero)
+              tickStream[F](policies.crontab(cron, serviceParams.taskParams.zoneId))
                 .evalMap(tick =>
                   publisher.metricReport(
                     channel = channel,
@@ -151,7 +152,7 @@ final class ServiceGuard[F[_]: Network] private[guard] (
           serviceParams.metricParams.resetSchedule match {
             case None => Stream.empty
             case Some(cron) =>
-              tickStream[F](policies.crontab(cron, serviceParams.taskParams.zoneId), groundZero)
+              tickStream[F](policies.crontab(cron, serviceParams.taskParams.zoneId))
                 .evalMap(tick =>
                   publisher.metricReset(
                     channel = channel,
@@ -193,6 +194,7 @@ final class ServiceGuard[F[_]: Network] private[guard] (
         val agent: GeneralAgent[F] =
           new GeneralAgent[F](
             entryPoint = entryPoint,
+            zerothTickStatus = zeroth,
             serviceParams = serviceParams,
             metricRegistry = metricRegistry,
             channel = channel,
@@ -203,12 +205,15 @@ final class ServiceGuard[F[_]: Network] private[guard] (
           )
 
         val surveillance: Stream[F, Nothing] =
-          new ReStart[F, A](
-            channel = channel,
-            serviceParams = serviceParams,
-            policy = restartPolicy,
-            groundZero = groundZero,
-            theService = runAgent(agent)).stream
+          Stream
+            .eval(TickStatus(restartPolicy))
+            .flatMap(status =>
+              new ReStart[F, A](
+                channel = channel,
+                serviceParams = serviceParams,
+                initTickStatus = status,
+                theService = runAgent(agent)
+              ).stream)
 
         // put together
         channel.stream

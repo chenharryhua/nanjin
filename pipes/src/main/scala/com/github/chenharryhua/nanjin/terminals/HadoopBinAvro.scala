@@ -1,9 +1,7 @@
 package com.github.chenharryhua.nanjin.terminals
 import cats.effect.kernel.{Async, Resource, Sync}
 import cats.effect.std.Hotswap
-import com.github.chenharryhua.nanjin.common.policy.Policy
-import com.github.chenharryhua.nanjin.common.tickStream
-import com.github.chenharryhua.nanjin.common.policy.Tick
+import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick, TickStatus}
 import fs2.{Chunk, Pipe, Stream}
 import org.apache.avro.Schema
 import org.apache.avro.generic.{GenericData, GenericRecord}
@@ -56,13 +54,13 @@ final class HadoopBinAvro[F[_]] private (
 
     // save
     (ss: Stream[F, Chunk[GenericRecord]]) =>
-      Stream.eval(Tick.Zero).flatMap { zero =>
-        Stream.resource(init(zero)).flatMap { case (hotswap, writer) =>
+      Stream.eval(TickStatus(policy)).flatMap { zero =>
+        Stream.resource(init(zero.tick)).flatMap { case (hotswap, writer) =>
           persist[F, GenericRecord](
             getWriter,
             hotswap,
             writer,
-            ss.map(Left(_)).mergeHaltBoth(tickStream[F](policy, zero).map(Right(_)))
+            ss.map(Left(_)).mergeHaltBoth(tickStream[F](zero).map(Right(_)))
           ).stream
         }
       }

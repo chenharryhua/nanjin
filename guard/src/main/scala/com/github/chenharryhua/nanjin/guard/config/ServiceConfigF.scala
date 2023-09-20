@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.guard.config
 import cats.effect.kernel.Clock
 import cats.implicits.toFunctorOps
 import cats.{Functor, Show}
-import com.github.chenharryhua.nanjin.common.policy.Tick
+import com.github.chenharryhua.nanjin.common.chrono.Tick
 import cron4s.{Cron, CronExpr}
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
@@ -16,7 +16,6 @@ import java.time.*
 import java.util.UUID
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.FiniteDuration
-import scala.jdk.DurationConverters.ScalaDurationOps
 
 @JsonCodec
 final case class MetricParams(
@@ -40,15 +39,14 @@ object MetricParams {
 final case class ServiceParams(
   serviceName: String,
   restartPolicy: String, // for display
-  policyThreshold: Option[Duration], // policy start over interval
   taskParams: TaskParams,
   metricParams: MetricParams,
   homePage: Option[String],
   brief: Option[Json],
-  groundZero: Tick
+  zeroth: Tick
 ) {
-  val serviceId: UUID           = groundZero.sequenceId
-  val launchTime: ZonedDateTime = groundZero.launchTime.atZone(taskParams.zoneId)
+  val serviceId: UUID           = zeroth.sequenceId
+  val launchTime: ZonedDateTime = zeroth.launchTime.atZone(taskParams.zoneId)
 
   def toZonedDateTime(ts: Instant): ZonedDateTime = ts.atZone(taskParams.zoneId)
   def toZonedDateTime(fd: FiniteDuration): ZonedDateTime =
@@ -72,13 +70,12 @@ object ServiceParams extends zoneddatetime with duration {
     taskParams: TaskParams,
     policy: ServicePolicy, // for display
     brief: ServiceBrief,
-    groundZero: Tick
+    zeroth: Tick
   ): ServiceParams =
     ServiceParams(
       serviceName = serviceName.value,
       taskParams = taskParams,
       restartPolicy = policy.value,
-      policyThreshold = None,
       metricParams = MetricParams(
         reportSchedule = None,
         resetSchedule = None,
@@ -88,7 +85,7 @@ object ServiceParams extends zoneddatetime with duration {
       ),
       homePage = None,
       brief = brief.value,
-      groundZero = groundZero
+      zeroth = zeroth
     )
 }
 
@@ -104,8 +101,6 @@ private object ServiceConfigF {
   final case class WithRateTimeUnit[K](value: TimeUnit, cont: K) extends ServiceConfigF[K]
   final case class WithDurationTimeUnit[K](value: TimeUnit, cont: K) extends ServiceConfigF[K]
   final case class WithMetricNamePrefix[K](value: String, cont: K) extends ServiceConfigF[K]
-
-  final case class WithPolicyThreshold[K](value: Option[Duration], cont: K) extends ServiceConfigF[K]
 
   final case class WithHomePage[K](value: Option[String], cont: K) extends ServiceConfigF[K]
 
@@ -123,7 +118,6 @@ private object ServiceConfigF {
       case WithRateTimeUnit(v, c)     => c.focus(_.metricParams.rateTimeUnit).replace(v)
       case WithDurationTimeUnit(v, c) => c.focus(_.metricParams.durationTimeUnit).replace(v)
       case WithMetricNamePrefix(v, c) => c.focus(_.metricParams.namePrefix).replace(v)
-      case WithPolicyThreshold(v, c)  => c.focus(_.policyThreshold).replace(v)
       case WithHomePage(v, c)         => c.focus(_.homePage).replace(v)
     }
 }
@@ -156,9 +150,6 @@ final case class ServiceConfig(cont: Fix[ServiceConfigF]) extends AnyVal {
   def withMetricNamePrefix(prefix: String): ServiceConfig =
     ServiceConfig(Fix(WithMetricNamePrefix(prefix, cont)))
 
-  def withPolicyThreshold(fd: FiniteDuration): ServiceConfig =
-    ServiceConfig(Fix(WithPolicyThreshold(Some(fd.toJava), cont)))
-
   def withHomePage(hp: String): ServiceConfig =
     ServiceConfig(Fix(WithHomePage(Some(hp), cont)))
 
@@ -166,8 +157,8 @@ final case class ServiceConfig(cont: Fix[ServiceConfigF]) extends AnyVal {
     serviceName: ServiceName,
     policy: ServicePolicy,
     brief: ServiceBrief,
-    groundZero: Tick): ServiceParams =
-    scheme.cata(algebra(serviceName, policy, brief, groundZero)).apply(cont)
+    zeroth: Tick): ServiceParams =
+    scheme.cata(algebra(serviceName, policy, brief, zeroth)).apply(cont)
 }
 
 object ServiceConfig {

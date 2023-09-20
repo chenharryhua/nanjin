@@ -3,9 +3,7 @@ package com.github.chenharryhua.nanjin.terminals
 import cats.effect.kernel.{Async, Resource, Sync}
 import cats.effect.std.Hotswap
 import com.github.chenharryhua.nanjin.common.ChunkSize
-import com.github.chenharryhua.nanjin.common.policy.Policy
-import com.github.chenharryhua.nanjin.common.tickStream
-import com.github.chenharryhua.nanjin.common.policy.Tick
+import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick, TickStatus}
 import fs2.text.utf8
 import fs2.{Chunk, Pipe, Stream}
 import kantan.csv.*
@@ -102,15 +100,15 @@ final class HadoopKantan[F[_]] private (
 
     // save
     (ss: Stream[F, Chunk[Seq[String]]]) =>
-      Stream.eval(Tick.Zero).flatMap { zero =>
-        Stream.resource(init(zero)).flatMap { case (hotswap, writer) =>
+      Stream.eval(TickStatus(policy)).flatMap { zero =>
+        Stream.resource(init(zero.tick)).flatMap { case (hotswap, writer) =>
           val header: Chunk[String] = csvHeader(csvConfiguration)
           val src: Stream[F, Chunk[String]] =
             Stream(header).filter(_.nonEmpty) ++ ss.map(_.map(buildCsvRow(csvConfiguration)))
 
           val header_crlf = header.map(_.concat(NEWLINE_SEPARATOR))
           val ts: Stream[F, Either[Chunk[String], (Tick, Chunk[String])]] =
-            tickStream[F](policy, zero).map(t => Right((t, header_crlf)))
+            tickStream[F](zero).map(t => Right((t, header_crlf)))
 
           persistString[F](
             getWriter,

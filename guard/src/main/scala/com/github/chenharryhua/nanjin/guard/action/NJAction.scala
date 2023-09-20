@@ -4,7 +4,7 @@ import cats.data.{Kleisli, OptionT}
 import cats.effect.kernel.Temporal
 import cats.syntax.all.*
 import com.codahale.metrics.MetricRegistry
-import com.github.chenharryhua.nanjin.common.policy.Policy
+import com.github.chenharryhua.nanjin.common.chrono.TickStatus
 import com.github.chenharryhua.nanjin.guard.config.ActionParams
 import com.github.chenharryhua.nanjin.guard.event.*
 import fs2.concurrent.Channel
@@ -16,7 +16,7 @@ final class NJAction[F[_], IN, OUT] private[action] (
   metricRegistry: MetricRegistry,
   channel: Channel[F, NJEvent],
   actionParams: ActionParams,
-  retryPolicy: Policy,
+  zerothTickStatus: TickStatus,
   arrow: IN => F[OUT],
   transInput: Kleisli[Option, IN, Json],
   transOutput: Option[(IN, OUT) => Json],
@@ -28,10 +28,10 @@ final class NJAction[F[_], IN, OUT] private[action] (
     transError: Kleisli[OptionT[F, *], (IN, Throwable), Json] = self.transError,
     isWorthRetry: Throwable => F[Boolean] = self.isWorthRetry): NJAction[F, IN, OUT] =
     new NJAction[F, IN, OUT](
+      zerothTickStatus = self.zerothTickStatus,
       metricRegistry = self.metricRegistry,
       channel = self.channel,
       actionParams = self.actionParams,
-      retryPolicy = self.retryPolicy,
       arrow = self.arrow,
       transInput = transInput,
       transOutput = transOutput,
@@ -55,8 +55,7 @@ final class NJAction[F[_], IN, OUT] private[action] (
       metricRegistry = metricRegistry,
       actionParams = actionParams,
       channel = channel,
-      retryPolicy = retryPolicy,
-      groundZero = actionParams.serviceParams.groundZero,
+      zerothTickStatus = zerothTickStatus,
       arrow = arrow,
       transInput = transInput,
       transOutput = transOutput,
@@ -77,7 +76,7 @@ final class NJAction0[F[_], OUT] private[guard] (
   metricRegistry: MetricRegistry,
   channel: Channel[F, NJEvent],
   actionParams: ActionParams,
-  retryPolicy: Policy,
+  zerothTickStatus: TickStatus,
   arrow: F[OUT],
   transInput: Option[Json],
   transOutput: Option[OUT => Json],
@@ -89,10 +88,10 @@ final class NJAction0[F[_], OUT] private[guard] (
     transError: Kleisli[OptionT[F, *], Throwable, Json] = self.transError,
     isWorthRetry: Throwable => F[Boolean] = self.isWorthRetry): NJAction0[F, OUT] =
     new NJAction0[F, OUT](
+      zerothTickStatus = self.zerothTickStatus,
       metricRegistry = self.metricRegistry,
       channel = self.channel,
       actionParams = self.actionParams,
-      retryPolicy = self.retryPolicy,
       arrow = self.arrow,
       transInput = transInput,
       transOutput = transOutput,
@@ -111,10 +110,10 @@ final class NJAction0[F[_], OUT] private[guard] (
   def logError(f: Throwable => Json): NJAction0[F, OUT] = logErrorM((a: Throwable) => F.pure(f(a)))
 
   private lazy val njAction = new NJAction[F, Unit, OUT](
+    zerothTickStatus = zerothTickStatus,
     metricRegistry = metricRegistry,
     channel = channel,
     actionParams = actionParams,
-    retryPolicy = retryPolicy,
     arrow = _ => arrow,
     transInput = Kleisli(_ => transInput),
     transOutput = transOutput.map(f => (_, b: OUT) => f(b)),

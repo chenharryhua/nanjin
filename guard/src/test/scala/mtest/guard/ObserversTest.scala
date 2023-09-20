@@ -11,7 +11,7 @@ import com.github.chenharryhua.nanjin.aws.{
   SimpleQueueService
 }
 import com.github.chenharryhua.nanjin.common.aws.SqsConfig
-import com.github.chenharryhua.nanjin.common.policy.policies
+import com.github.chenharryhua.nanjin.common.chrono.policies
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import com.github.chenharryhua.nanjin.guard.observers.*

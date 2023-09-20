@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.common.policy
+package com.github.chenharryhua.nanjin.common.chrono
 
 // copy from https://github.com/cb372/cats-retry/blob/main/modules/core/shared/src/main/scala/retry/Fibonacci.scala
 

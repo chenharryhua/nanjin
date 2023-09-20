@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.terminals
 
 import com.github.chenharryhua.nanjin.datetime.codec
-import com.github.chenharryhua.nanjin.common.policy.Tick
+import com.github.chenharryhua.nanjin.common.chrono.Tick
 import io.circe.generic.JsonCodec
 
 import java.time.ZoneId

@@ -4,7 +4,7 @@ import cats.Endo
 import cats.effect.kernel.{Async, Resource, Unique}
 import cats.effect.std.{AtomicCell, Dispatcher}
 import com.codahale.metrics.MetricRegistry
-import com.github.chenharryhua.nanjin.common.policy.policies
+import com.github.chenharryhua.nanjin.common.chrono.{policies, TickStatus}
 import com.github.chenharryhua.nanjin.guard.action.*
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.event.*
@@ -46,6 +46,7 @@ sealed trait Agent[F[_]] extends EntryPoint[F] {
 
 final class GeneralAgent[F[_]: Network] private[service] (
   override val entryPoint: Resource[F, EntryPoint[F]],
+  zerothTickStatus: TickStatus,
   serviceParams: ServiceParams,
   metricRegistry: MetricRegistry,
   channel: Channel[F, NJEvent],
@@ -77,6 +78,7 @@ final class GeneralAgent[F[_]: Network] private[service] (
     val name = NameConstraint.unsafeFrom(measurement).value
     new GeneralAgent[F](
       entryPoint = self.entryPoint,
+      zerothTickStatus = self.zerothTickStatus,
       serviceParams = self.serviceParams,
       metricRegistry = self.metricRegistry,
       channel = self.channel,
@@ -96,7 +98,8 @@ final class GeneralAgent[F[_]: Network] private[service] (
       metricRegistry = self.metricRegistry,
       channel = self.channel,
       config = f,
-      retryPolicy = policies.giveUp
+      retryPolicy = policies.giveUp,
+      zerothTickStatus = zerothTickStatus
     )
   }
 

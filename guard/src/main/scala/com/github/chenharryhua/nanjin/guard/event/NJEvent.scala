@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.event
 
 import cats.Show
-import com.github.chenharryhua.nanjin.common.policy.Tick
+import com.github.chenharryhua.nanjin.common.chrono.Tick
 import com.github.chenharryhua.nanjin.datetime.DateTimeInstances
 import com.github.chenharryhua.nanjin.guard.config.{
   ActionParams,
@@ -30,12 +30,10 @@ object NJEvent extends DateTimeInstances {
 
   final case class ServiceStart(serviceParams: ServiceParams, timestamp: ZonedDateTime) extends NJEvent
 
-  final case class ServicePanic(
-    serviceParams: ServiceParams,
-    timestamp: ZonedDateTime,
-    restartTime: ZonedDateTime,
-    error: NJError)
-      extends NJEvent
+  final case class ServicePanic(serviceParams: ServiceParams, error: NJError, tick: Tick) extends NJEvent {
+    val timestamp: ZonedDateTime   = serviceParams.toZonedDateTime(tick.acquire)
+    val restartTime: ZonedDateTime = serviceParams.toZonedDateTime(tick.wakeup)
+  }
 
   final case class ServiceStop(
     serviceParams: ServiceParams,
@@ -90,7 +88,7 @@ object NJEvent extends DateTimeInstances {
       extends ActionEvent {
     val landTime: FiniteDuration = FiniteDuration(tick.acquire.toEpochMilli, TimeUnit.MILLISECONDS)
 
-    override def timestamp: ZonedDateTime = serviceParams.toZonedDateTime(landTime)
+    override def timestamp: ZonedDateTime = serviceParams.toZonedDateTime(tick.acquire)
     def tookSoFar: Duration               = actionInfo.took(landTime)
   }
 

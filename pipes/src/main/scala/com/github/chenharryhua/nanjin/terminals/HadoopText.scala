@@ -2,9 +2,7 @@ package com.github.chenharryhua.nanjin.terminals
 
 import cats.effect.kernel.{Async, Resource, Sync}
 import cats.effect.std.Hotswap
-import com.github.chenharryhua.nanjin.common.policy.Policy
-import com.github.chenharryhua.nanjin.common.tickStream
-import com.github.chenharryhua.nanjin.common.policy.Tick
+import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick, TickStatus}
 import fs2.text.{lines, utf8}
 import fs2.{Chunk, Pipe, Stream}
 import org.apache.hadoop.conf.Configuration
@@ -62,10 +60,10 @@ final class HadoopText[F[_]] private (
 
     // save
     (ss: Stream[F, Chunk[String]]) =>
-      Stream.eval(Tick.Zero).flatMap { zero =>
-        Stream.resource(init(zero)).flatMap { case (hotswap, writer) =>
+      Stream.eval(TickStatus(policy)).flatMap { zero =>
+        Stream.resource(init(zero.tick)).flatMap { case (hotswap, writer) =>
           val ts: Stream[F, Either[Chunk[String], (Tick, Chunk[String])]] =
-            tickStream[F](policy, zero).map(t => Right((t, Chunk.empty)))
+            tickStream[F](zero).map(t => Right((t, Chunk.empty)))
 
           persistString[F](
             getWriter,

@@ -12,10 +12,8 @@ package object example {
 
   val ctx: KafkaContext[IO] =
     KafkaSettings.local
-      .withApplicationId("nj-example-app")
-      .withGroupId("nj-example-group")
       .withConsumerProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
-      .withClientID("nj-example")
+      .withConsumerProperty(ConsumerConfig.GROUP_ID_CONFIG, "example")
       .ioContext
 
   val sparKafka: SparKafkaContext[IO] = sparkSession.alongWith(ctx)

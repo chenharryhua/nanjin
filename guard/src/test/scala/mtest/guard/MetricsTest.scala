@@ -3,8 +3,8 @@ package mtest.guard
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.catsSyntaxFlatMapOps
-import com.github.chenharryhua.nanjin.common.policy.policies
-import com.github.chenharryhua.nanjin.common.{tickStream, HostName}
+import com.github.chenharryhua.nanjin.common.chrono.{policies, tickStream}
+import com.github.chenharryhua.nanjin.common.HostName
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
