@@ -14,10 +14,11 @@ import scala.jdk.DurationConverters.{JavaDurationOps, ScalaDurationOps}
 
 class TickStreamTest extends AnyFunSuite {
   val commonality: Policy =
-    policies.crontab(Cron.unsafeParse("0-59 * * ? * *"), ZoneId.of("Australia/Sydney"))
+    policies.crontab(Cron.unsafeParse("0-59 * * ? * *"))
+  val zoneId: ZoneId = ZoneId.of("Australia/Sydney")
   test("1.tick") {
     val policy = commonality.limited(5)
-    val ticks  = tickStream[IO](policy)
+    val ticks  = tickStream[IO](policy, zoneId)
 
     val res = ticks.map(_.interval.toScala).compile.toList.unsafeRunSync()
     assert(res.tail.forall(d => d === 1.seconds), res)
@@ -25,7 +26,7 @@ class TickStreamTest extends AnyFunSuite {
 
   test("2.process longer than 1 second") {
     val policy = commonality
-    val ticks  = tickStream[IO](policy)
+    val ticks  = tickStream[IO](policy, zoneId)
 
     val fds =
       ticks.evalTap(_ => IO.sleep(1.5.seconds)).take(5).compile.toList.unsafeRunSync()
@@ -37,7 +38,7 @@ class TickStreamTest extends AnyFunSuite {
 
   test("3.process less than 1 second") {
     val policy = commonality
-    val ticks  = tickStream[IO](policy)
+    val ticks  = tickStream[IO](policy, zoneId)
 
     val fds =
       ticks.evalTap(_ => IO.sleep(0.5.seconds)).take(5).compile.toList.unsafeRunSync()
@@ -49,7 +50,7 @@ class TickStreamTest extends AnyFunSuite {
 
   test("4.ticks - session id should not be same") {
     val policy = commonality.limited(5)
-    val ticks  = tickStream[IO](policy).compile.toList.unsafeRunSync()
+    val ticks  = tickStream[IO](policy, zoneId).compile.toList.unsafeRunSync()
     assert(ticks.size === 5, ticks)
     val spend = ticks(4).wakeup.toEpochMilli / 1000 - ticks.head.wakeup.toEpochMilli / 1000
     assert(spend === 4, ticks)
@@ -58,7 +59,7 @@ class TickStreamTest extends AnyFunSuite {
 
   test("6.cron") {
     val policy = commonality
-    val ticks  = tickStream[IO](policy)
+    val ticks  = tickStream[IO](policy, zoneId)
     val sleep: IO[JavaDuration] =
       Random
         .scalaUtilRandom[IO]
@@ -91,7 +92,7 @@ class TickStreamTest extends AnyFunSuite {
 
   test("7.constant") {
     val policy = policies.constant(1.second.toJava)
-    val ticks  = tickStream[IO](policy)
+    val ticks  = tickStream[IO](policy, zoneId)
     val sleep: IO[JavaDuration] =
       Random
         .scalaUtilRandom[IO]
@@ -102,7 +103,7 @@ class TickStreamTest extends AnyFunSuite {
   }
   test("8.fixed pace") {
     val policy = policies.fixedPace(2.second.toJava)
-    val ticks  = tickStream[IO](policy)
+    val ticks  = tickStream[IO](policy, zoneId)
     val sleep: IO[JavaDuration] =
       Random
         .scalaUtilRandom[IO]

@@ -10,6 +10,7 @@ import org.apache.hadoop.io.compress.zlib.ZlibCompressor.CompressionLevel
 import squants.information.Information
 
 import java.io.{InputStream, OutputStream}
+import java.time.ZoneId
 
 final class HadoopBytes[F[_]] private (
   configuration: Configuration,
@@ -53,7 +54,7 @@ final class HadoopBytes[F[_]] private (
   }
 
   // save
-  def sink(policy: Policy)(pathBuilder: Tick => NJPath)(implicit
+  def sink(policy: Policy, zoneId: ZoneId)(pathBuilder: Tick => NJPath)(implicit
     F: Async[F]): Pipe[F, Chunk[Byte], Nothing] = {
     def getWriter(tick: Tick): Resource[F, HadoopWriter[F, Byte]] =
       getWriterR(pathBuilder(tick).hadoopPath)
@@ -63,7 +64,7 @@ final class HadoopBytes[F[_]] private (
 
     // save
     (ss: Stream[F, Chunk[Byte]]) =>
-      Stream.eval(TickStatus(policy)).flatMap { zero =>
+      Stream.eval(TickStatus(policy, zoneId)).flatMap { zero =>
         Stream.resource(init(zero.tick)).flatMap { case (hotswap, writer) =>
           persist[F, Byte](
             getWriter,

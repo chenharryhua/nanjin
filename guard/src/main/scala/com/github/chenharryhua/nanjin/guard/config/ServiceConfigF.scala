@@ -4,7 +4,6 @@ import cats.effect.kernel.Clock
 import cats.implicits.toFunctorOps
 import cats.{Functor, Show}
 import com.github.chenharryhua.nanjin.common.chrono.Tick
-import cron4s.{Cron, CronExpr}
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
 import io.circe.Json
@@ -18,12 +17,7 @@ import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.FiniteDuration
 
 @JsonCodec
-final case class MetricParams(
-  reportSchedule: Option[CronExpr],
-  resetSchedule: Option[CronExpr],
-  namePrefix: String,
-  rateTimeUnit: TimeUnit,
-  durationTimeUnit: TimeUnit) {
+final case class MetricParams(namePrefix: String, rateTimeUnit: TimeUnit, durationTimeUnit: TimeUnit) {
 
   val rateUnitName: String = rateTimeUnit.name().toLowerCase.dropRight(1)
 
@@ -68,17 +62,15 @@ object ServiceParams extends zoneddatetime with duration {
   def apply(
     serviceName: ServiceName,
     taskParams: TaskParams,
-    policy: ServicePolicy, // for display
+    restartPolicy: ServicePolicy,
     brief: ServiceBrief,
     zeroth: Tick
   ): ServiceParams =
     ServiceParams(
       serviceName = serviceName.value,
       taskParams = taskParams,
-      restartPolicy = policy.value,
+      restartPolicy = restartPolicy.value,
       metricParams = MetricParams(
-        reportSchedule = None,
-        resetSchedule = None,
         namePrefix = "",
         rateTimeUnit = TimeUnit.SECONDS,
         durationTimeUnit = TimeUnit.MILLISECONDS
@@ -96,8 +88,6 @@ private object ServiceConfigF {
 
   final case class InitParams[K](taskParams: TaskParams) extends ServiceConfigF[K]
 
-  final case class WithReportSchedule[K](value: Option[CronExpr], cont: K) extends ServiceConfigF[K]
-  final case class WithResetSchedule[K](value: Option[CronExpr], cont: K) extends ServiceConfigF[K]
   final case class WithRateTimeUnit[K](value: TimeUnit, cont: K) extends ServiceConfigF[K]
   final case class WithDurationTimeUnit[K](value: TimeUnit, cont: K) extends ServiceConfigF[K]
   final case class WithMetricNamePrefix[K](value: String, cont: K) extends ServiceConfigF[K]
@@ -106,15 +96,19 @@ private object ServiceConfigF {
 
   def algebra(
     serviceName: ServiceName,
-    retryPolicy: ServicePolicy,
+    restartPolicy: ServicePolicy,
     brief: ServiceBrief,
-    groundZero: Tick): Algebra[ServiceConfigF, ServiceParams] =
+    zeroth: Tick): Algebra[ServiceConfigF, ServiceParams] =
     Algebra[ServiceConfigF, ServiceParams] {
       case InitParams(taskParams) =>
-        ServiceParams(serviceName, taskParams, retryPolicy, brief, groundZero)
+        ServiceParams(
+          serviceName = serviceName,
+          taskParams = taskParams,
+          restartPolicy = restartPolicy,
+          brief,
+          zeroth
+        )
 
-      case WithReportSchedule(v, c)   => c.focus(_.metricParams.reportSchedule).replace(v)
-      case WithResetSchedule(v, c)    => c.focus(_.metricParams.resetSchedule).replace(v)
       case WithRateTimeUnit(v, c)     => c.focus(_.metricParams.rateTimeUnit).replace(v)
       case WithDurationTimeUnit(v, c) => c.focus(_.metricParams.durationTimeUnit).replace(v)
       case WithMetricNamePrefix(v, c) => c.focus(_.metricParams.namePrefix).replace(v)
@@ -126,22 +120,6 @@ final case class ServiceConfig(cont: Fix[ServiceConfigF]) extends AnyVal {
   import ServiceConfigF.*
 
   // metrics
-  def withMetricReport(crontab: CronExpr): ServiceConfig =
-    ServiceConfig(Fix(WithReportSchedule(Some(crontab), cont)))
-
-  def withMetricReport(crontab: String): ServiceConfig =
-    withMetricReport(Cron.unsafeParse(crontab))
-
-  def withMetricReset(crontab: CronExpr): ServiceConfig =
-    ServiceConfig(Fix(WithResetSchedule(Some(crontab), cont)))
-  def withMetricReset(crontab: String): ServiceConfig = withMetricReset(Cron.unsafeParse(crontab))
-  def withMetricDailyReset: ServiceConfig             = withMetricReset(dailyCron)
-  def withMetricWeeklyReset: ServiceConfig            = withMetricReset(weeklyCron)
-  def withMetricMonthlyReset: ServiceConfig           = withMetricReset(monthlyCron)
-
-  def withoutMetricReport: ServiceConfig = ServiceConfig(Fix(WithReportSchedule(None, cont)))
-  def withoutMetricReset: ServiceConfig  = ServiceConfig(Fix(WithResetSchedule(None, cont)))
-
   def withMetricRateTimeUnit(tu: TimeUnit): ServiceConfig =
     ServiceConfig(Fix(WithRateTimeUnit(tu, cont)))
   def withMetricDurationTimeUnit(tu: TimeUnit): ServiceConfig =
@@ -155,10 +133,18 @@ final case class ServiceConfig(cont: Fix[ServiceConfigF]) extends AnyVal {
 
   def evalConfig(
     serviceName: ServiceName,
-    policy: ServicePolicy,
+    restartPolicy: ServicePolicy,
     brief: ServiceBrief,
     zeroth: Tick): ServiceParams =
-    scheme.cata(algebra(serviceName, policy, brief, zeroth)).apply(cont)
+    scheme
+      .cata(
+        algebra(
+          serviceName = serviceName,
+          restartPolicy = restartPolicy,
+          brief = brief,
+          zeroth = zeroth
+        ))
+      .apply(cont)
 }
 
 object ServiceConfig {

@@ -29,7 +29,9 @@ final class TaskGuard[F[_]: Async: Network] private (
       taskParams = taskConfig.evalConfig,
       config = identity,
       entryPoint = entryPoint,
-      restartPolicy = policies.giveUp,
+      serviceRestartPolicy = policies.giveUp,
+      metricReportPolicy = policies.giveUp,
+      metricResetPolicy = policies.giveUp,
       jmxBuilder = None,
       httpBuilder = None,
       brief = Async[F].pure(None)

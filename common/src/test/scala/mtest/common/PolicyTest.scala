@@ -6,7 +6,7 @@ import com.github.chenharryhua.nanjin.common.chrono.{policies, TickStatus}
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.temporal.ChronoUnit
-import java.time.{Duration, Instant, ZoneId, ZonedDateTime}
+import java.time.*
 import scala.concurrent.duration.DurationInt
 import scala.jdk.DurationConverters.{JavaDurationOps, ScalaDurationOps}
 
@@ -20,10 +20,12 @@ class PolicyTest extends AnyFunSuite {
   val t5: Instant        = t4.plus(interval)
   val t6: Instant        = t5.plus(interval)
 
+  val zoneId: ZoneId = ZoneId.systemDefault()
+
   test("constant") {
     val delay  = 1.second.toJava
     val policy = policies.constant(delay).limited(3)
-    val ts     = TickStatus[IO](policy).unsafeRunSync()
+    val ts     = TickStatus[IO](policy, zoneId).unsafeRunSync()
     val zero   = ts.tick
     val a1     = ts.next(t1).get
     val a2     = a1.next(t2).get
@@ -58,7 +60,7 @@ class PolicyTest extends AnyFunSuite {
     val delay = 1.second.toJava
     val policy =
       policies.constant(delay).limited(3).followedBy(policies.constant(delay.multipliedBy(2)).limited(2))
-    val ts = TickStatus[IO](policy).unsafeRunSync()
+    val ts = TickStatus[IO](policy, zoneId).unsafeRunSync()
     val a1 = ts.next(t1).get
     val a2 = a1.next(t2).get
     val a3 = a2.next(t3).get
@@ -82,7 +84,9 @@ class PolicyTest extends AnyFunSuite {
         .limited(3)
         .followedBy(policies.constant(delay.multipliedBy(2)).limited(2))
         .repeat
-    val ts = TickStatus[IO](policy).unsafeRunSync()
+
+    println(policy)
+    val ts = TickStatus[IO](policy, zoneId).unsafeRunSync()
     val a1 = ts.next(t1).get
     val a2 = a1.next(t2).get
     val a3 = a2.next(t3).get
@@ -101,17 +105,20 @@ class PolicyTest extends AnyFunSuite {
   test("fixed pace") {
     val delay  = 10.minutes.toJava
     val policy = policies.fixedPace(delay)
-    val ts     = TickStatus[IO](policy).unsafeRunSync()
+    val ts     = TickStatus[IO](policy, zoneId).unsafeRunSync()
     val zero   = ts.tick
     val a1     = ts.next(zero.launchTime.plus(5.minutes.toJava)).get
     assert(a1.tick.wakeup == zero.launchTime.plus(delay))
     val a2 = a1.next(zero.launchTime.plus(15.minutes.toJava)).get
     assert(a2.tick.wakeup == zero.launchTime.plus(delay.multipliedBy(2)))
+    val a3 = a2.next(zero.launchTime.plus(20.minutes.toJava)).get
+    assert(a3.tick.wakeup == zero.launchTime.plus(delay.multipliedBy(3)))
+    assert(a3.tick.snooze == delay)
   }
 
   test("exponential") {
     val policy = policies.exponential(1.second)
-    val ts     = TickStatus[IO](policy).unsafeRunSync()
+    val ts     = TickStatus[IO](policy, zoneId).unsafeRunSync()
     val a1     = ts.next(t0).get
     assert(a1.tick.snooze == 1.second.toJava)
     val a2 = a1.next(t0).get
@@ -126,7 +133,7 @@ class PolicyTest extends AnyFunSuite {
 
   test("fibonacci") {
     val policy = policies.fibonacci(1.minute)
-    val ts     = TickStatus[IO](policy).unsafeRunSync()
+    val ts     = TickStatus[IO](policy, zoneId).unsafeRunSync()
     val a1     = ts.next(t0).get
     assert(a1.tick.snooze == 1.minute.toJava)
     val a2 = a1.next(t0).get
@@ -145,7 +152,7 @@ class PolicyTest extends AnyFunSuite {
 
   test("capped") {
     val policy = policies.fibonacci(1.minute).capped(6.minutes)
-    val ts     = TickStatus[IO](policy).unsafeRunSync()
+    val ts     = TickStatus[IO](policy, zoneId).unsafeRunSync()
     val a1     = ts.next(t0).get
     assert(a1.tick.snooze == 1.minute.toJava)
     val a2 = a1.next(t0).get
@@ -163,9 +170,17 @@ class PolicyTest extends AnyFunSuite {
   }
   test("jitter") {
     val policy = policies.jitter(1.minute, 2.hour)
-    val ts     = TickStatus[IO](policy).unsafeRunSync()
+    val ts     = TickStatus[IO](policy, zoneId).unsafeRunSync()
     val a1     = ts.next(t0).get.tick
     assert(a1.snooze.toScala >= 1.minute)
     assert(a1.snooze.toScala < 2.hour)
+  }
+  test("endup") {
+    val policy = policies
+      .constant(1.second)
+      .endUp(LocalTime.of(11, 0, 0))
+      .followedBy(policies.fibonacci(1.second).endOfDay)
+      .repeat
+    println(policy)
   }
 }

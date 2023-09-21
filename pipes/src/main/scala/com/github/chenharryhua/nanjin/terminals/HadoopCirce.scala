@@ -12,6 +12,7 @@ import org.apache.hadoop.io.compress.zlib.ZlibCompressor.CompressionLevel
 import squants.information.Information
 
 import java.nio.charset.StandardCharsets
+import java.time.ZoneId
 
 final class HadoopCirce[F[_]] private (
   configuration: Configuration,
@@ -60,7 +61,7 @@ final class HadoopCirce[F[_]] private (
         }
   }
 
-  def sink(policy: Policy)(pathBuilder: Tick => NJPath)(implicit
+  def sink(policy: Policy, zoneId: ZoneId)(pathBuilder: Tick => NJPath)(implicit
     F: Async[F]): Pipe[F, Chunk[Json], Nothing] = {
     def getWriter(tick: Tick): Resource[F, HadoopWriter[F, String]] =
       HadoopWriter.stringR[F](
@@ -75,7 +76,7 @@ final class HadoopCirce[F[_]] private (
 
     // save
     (ss: Stream[F, Chunk[Json]]) =>
-      Stream.eval(TickStatus(policy)).flatMap { zero =>
+      Stream.eval(TickStatus(policy, zoneId)).flatMap { zero =>
         Stream.resource(init(zero.tick)).flatMap { case (hotswap, writer) =>
           val ts: Stream[F, Either[Chunk[String], (Tick, Chunk[String])]] =
             tickStream[F](zero).map(t => Right((t, Chunk.empty)))

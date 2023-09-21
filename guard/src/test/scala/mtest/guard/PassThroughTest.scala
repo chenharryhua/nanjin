@@ -3,6 +3,7 @@ package mtest.guard
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.syntax.all.*
+import com.github.chenharryhua.nanjin.common.chrono.policies
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.action.NJAlert
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
@@ -20,7 +21,7 @@ class PassThroughTest extends AnyFunSuite {
 
   test("1.counter") {
     val Some(last) = guard
-      .updateConfig(_.withMetricReport(cron_1second))
+      .withMetricReport(policies.crontab(cron_1second))
       .eventStream { ag =>
         val counter = ag.counter("one/two/three/counter")
         (counter.inc(1).replicateA(3) >> counter.dec(2)).delayBy(1.second) >> ag.metrics.report
@@ -40,7 +41,7 @@ class PassThroughTest extends AnyFunSuite {
 
   test("2.alert") {
     val Some(last) = guard
-      .updateConfig(_.withMetricReport(cron_1hour))
+      .withMetricReport(policies.crontab(cron_1hour))
       .eventStream { ag =>
         val alert: NJAlert[IO] = ag.alert("oops").withCounting
         alert.warn(Some("message")) >> alert.info(Some("message")) >> alert.error(Some("message")) >>
@@ -62,7 +63,7 @@ class PassThroughTest extends AnyFunSuite {
 
   test("3.meter") {
     guard
-      .updateConfig(_.withMetricReport(cron_1second))
+      .withMetricReport(policies.crontab(cron_1second))
       .eventStream { agent =>
         val meter = agent.meter("nj.test.meter", StandardUnit.BYTES_SECOND)
         (meter.mark(1000) >> agent.metrics.reset
@@ -76,7 +77,7 @@ class PassThroughTest extends AnyFunSuite {
 
   test("4.histogram") {
     guard
-      .updateConfig(_.withMetricReport(cron_1second))
+      .withMetricReport(policies.crontab(cron_1second))
       .eventStream { agent =>
         val meter = agent.histogram("nj.test.histogram", StandardUnit.BYTES_SECOND)
         IO(Random.nextInt(100).toLong).flatMap(meter.update).delayBy(1.second).replicateA(5)
@@ -89,7 +90,7 @@ class PassThroughTest extends AnyFunSuite {
 
   test("5.gauge") {
     guard
-      .updateConfig(_.withMetricReport(cron_1second))
+      .withMetricReport(policies.crontab(cron_1second))
       .eventStream { agent =>
         val g1 = agent.gauge("elapse").timed
         val g2 = agent.gauge("exception").register(IO.raiseError[Int](new Exception))

@@ -11,6 +11,7 @@ import org.apache.hadoop.conf.Configuration
 import org.scalatest.Assertion
 import org.scalatest.funsuite.AnyFunSuite
 
+import java.time.ZoneId
 import scala.concurrent.duration.DurationInt
 
 class NJJacksonTest extends AnyFunSuite {
@@ -88,7 +89,7 @@ class NJJacksonTest extends AnyFunSuite {
       .covary[IO]
       .repeatN(number)
       .chunks
-      .through(jackson.sink(policies.constant(1.second))(t => path / fk.fileName(t)))
+      .through(jackson.sink(policies.constant(1.second), ZoneId.systemDefault())(t => path / fk.fileName(t)))
       .compile
       .drain
       .unsafeRunSync()

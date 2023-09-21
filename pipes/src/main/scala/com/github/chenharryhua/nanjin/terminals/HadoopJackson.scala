@@ -10,6 +10,8 @@ import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.io.compress.zlib.ZlibCompressor.CompressionLevel
 
+import java.time.ZoneId
+
 final class HadoopJackson[F[_]] private (
   configuration: Configuration,
   blockSizeHint: Long,
@@ -42,7 +44,7 @@ final class HadoopJackson[F[_]] private (
       Stream.resource(getWriterR(path.hadoopPath)).flatMap(w => ss.foreach(w.write))
   }
 
-  def sink(policy: Policy)(pathBuilder: Tick => NJPath)(implicit
+  def sink(policy: Policy, zoneId: ZoneId)(pathBuilder: Tick => NJPath)(implicit
     F: Async[F]): Pipe[F, Chunk[GenericRecord], Nothing] = {
     def getWriter(tick: Tick): Resource[F, HadoopWriter[F, GenericRecord]] =
       getWriterR(pathBuilder(tick).hadoopPath)
@@ -53,7 +55,7 @@ final class HadoopJackson[F[_]] private (
 
     // save
     (ss: Stream[F, Chunk[GenericRecord]]) =>
-      Stream.eval(TickStatus(policy)).flatMap { zero =>
+      Stream.eval(TickStatus(policy, zoneId)).flatMap { zero =>
         Stream.resource(init(zero.tick)).flatMap { case (hotswap, writer) =>
           persist[F, GenericRecord](
             getWriter,

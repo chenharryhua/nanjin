@@ -13,6 +13,7 @@ import org.apache.hadoop.conf.Configuration
 import org.scalatest.Assertion
 import org.scalatest.funsuite.AnyFunSuite
 
+import java.time.ZoneId
 import scala.concurrent.duration.DurationInt
 
 class NJKantanTest extends AnyFunSuite {
@@ -98,7 +99,7 @@ class NJKantanTest extends AnyFunSuite {
     herd
       .map(tigerEncoder.encode)
       .chunks
-      .through(csv.sink(policy)(t => path / file.fileName(t)))
+      .through(csv.sink(policy, ZoneId.systemDefault())(t => path / file.fileName(t)))
       .compile
       .drain
       .unsafeRunSync()
@@ -123,7 +124,7 @@ class NJKantanTest extends AnyFunSuite {
     herd
       .map(tigerEncoder.encode)
       .chunks
-      .through(csv.sink(policy)(t => path / file.fileName(t)))
+      .through(csv.sink(policy, ZoneId.systemDefault())(t => path / file.fileName(t)))
       .map(tigerDecoder.decode)
       .rethrow
       .compile

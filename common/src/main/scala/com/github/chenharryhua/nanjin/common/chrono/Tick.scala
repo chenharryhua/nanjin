@@ -7,7 +7,7 @@ import cats.{Monad, Show}
 import io.circe.generic.JsonCodec
 import org.typelevel.cats.time.instances.all.*
 
-import java.time.{Duration, Instant}
+import java.time.{Duration, Instant, ZoneId}
 import java.util.UUID
 import scala.annotation.tailrec
 
@@ -45,33 +45,33 @@ object Tick {
 final class TickStatus private (
   val tick: Tick,
   counter: Int,
-  decisions: LazyList[TickRequest => Either[Manipulation, Duration]])
+  decisions: LazyList[PolicyF.TickRequest => Either[Manipulation, Tick]])
     extends Serializable {
 
   def resetCounter: TickStatus =
     new TickStatus(tick, 0, decisions)
 
-  def withPolicy(policy: Policy): TickStatus =
-    new TickStatus(tick, counter, PolicyF.decisions(policy.policy))
+  def withPolicy(policy: Policy, zoneId: ZoneId): TickStatus =
+    new TickStatus(tick, counter, PolicyF.decisions(policy.policy, zoneId))
 
   @tailrec
   def next(now: Instant): Option[TickStatus] =
     decisions match {
       case head #:: tail =>
-        head(TickRequest(tick, counter, now)) match {
+        head(PolicyF.TickRequest(tick, counter, now)) match {
           case Left(op) =>
             op match {
               case Manipulation.ResetCounter => new TickStatus(tick, 0, tail).next(now)
               case Manipulation.DoNothing    => new TickStatus(tick, counter, tail).next(now)
             }
-          case Right(delay) => Some(new TickStatus(tick.newTick(now, delay), counter + 1, tail))
+          case Right(newTick) => Some(new TickStatus(newTick, counter + 1, tail))
         }
       case _ => None
     }
 }
 
 object TickStatus {
-  def apply[F[_]: Clock: UUIDGen: Monad](policy: Policy): F[TickStatus] =
+  def apply[F[_]: Clock: UUIDGen: Monad](policy: Policy, zoneId: ZoneId): F[TickStatus] =
     for {
       uuid <- UUIDGen[F].randomUUID
       now <- Clock[F].realTimeInstant
@@ -84,6 +84,6 @@ object TickStatus {
         acquire = now,
         snooze = Duration.ZERO
       )
-      new TickStatus(zeroth, 0, PolicyF.decisions(policy.policy))
+      new TickStatus(zeroth, 0, PolicyF.decisions(policy.policy, zoneId))
     }
 }

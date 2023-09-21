@@ -16,6 +16,7 @@ import org.apache.hadoop.conf.Configuration
 import org.scalatest.Assertion
 import org.scalatest.funsuite.AnyFunSuite
 
+import java.time.ZoneId
 import scala.concurrent.duration.DurationInt
 class NJCirceTest extends AnyFunSuite {
 
@@ -95,7 +96,7 @@ class NJCirceTest extends AnyFunSuite {
       .repeatN(number)
       .map(_.asJson)
       .chunks
-      .through(json.sink(policies.constant(1.second))(t => path / fk.fileName(t)))
+      .through(json.sink(policies.constant(1.second), ZoneId.systemDefault())(t => path / fk.fileName(t)))
       .compile
       .drain
       .unsafeRunSync()

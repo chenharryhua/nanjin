@@ -1,6 +1,6 @@
 package mtest
 
-import com.github.chenharryhua.nanjin.datetime.zones.sydneyTime
+import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.spark.SparkSettings
 import org.apache.spark.sql.SparkSession
 

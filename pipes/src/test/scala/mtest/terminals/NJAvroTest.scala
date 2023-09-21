@@ -11,6 +11,7 @@ import org.apache.avro.generic.GenericRecord
 import org.scalatest.Assertion
 import org.scalatest.funsuite.AnyFunSuite
 
+import java.time.ZoneId
 import scala.concurrent.duration.DurationInt
 
 class NJAvroTest extends AnyFunSuite {
@@ -69,7 +70,7 @@ class NJAvroTest extends AnyFunSuite {
       .covary[IO]
       .repeatN(number)
       .chunks
-      .through(avro.sink(policies.constant(1.second))(t => path / file.fileName(t)))
+      .through(avro.sink(policies.constant(1.second), ZoneId.systemDefault())(t => path / file.fileName(t)))
       .compile
       .drain
       .unsafeRunSync()

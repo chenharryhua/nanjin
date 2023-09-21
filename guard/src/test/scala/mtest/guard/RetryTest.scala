@@ -14,7 +14,6 @@ import io.circe.parser.decode
 import io.circe.syntax.*
 import org.scalatest.funsuite.AnyFunSuite
 
-import java.time.ZoneId
 import scala.concurrent.duration.*
 import scala.jdk.DurationConverters.JavaDurationOps
 import scala.util.control.ControlThrowable
@@ -262,7 +261,7 @@ class RetryTest extends AnyFunSuite {
       .withRestartPolicy(policies.giveUp)
       .eventStream(
         _.action("cron", _.notice)
-          .withRetryPolicy(policies.crontab(cron_1second, ZoneId.systemDefault()).limited(3))
+          .withRetryPolicy(policies.crontab(cron_1second).limited(3))
           .retry(IO.raiseError(new Exception("oops")))
           .run)
       .evalTap(console.simple[IO])

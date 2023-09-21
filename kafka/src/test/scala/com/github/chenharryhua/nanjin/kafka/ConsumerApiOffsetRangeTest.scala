@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.kafka
 import cats.Id
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.datetime.zones.darwinTime
+import com.github.chenharryhua.nanjin.common.chrono.zones.darwinTime
 import com.github.chenharryhua.nanjin.datetime.{NJDateTimeRange, NJTimestamp}
 import eu.timepit.refined.auto.*
 import fs2.Stream

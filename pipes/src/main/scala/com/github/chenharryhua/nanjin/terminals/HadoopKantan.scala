@@ -18,6 +18,7 @@ import shapeless.{HList, LabelledGeneric}
 
 import java.io.InputStreamReader
 import java.nio.charset.StandardCharsets
+import java.time.ZoneId
 import scala.annotation.nowarn
 
 sealed trait CsvHeaderOf[A] {
@@ -85,7 +86,7 @@ final class HadoopKantan[F[_]] private (
         }
   }
 
-  def sink(policy: Policy)(pathBuilder: Tick => NJPath)(implicit
+  def sink(policy: Policy, zoneId: ZoneId)(pathBuilder: Tick => NJPath)(implicit
     F: Async[F]): Pipe[F, Chunk[Seq[String]], Nothing] = {
     def getWriter(tick: Tick): Resource[F, HadoopWriter[F, String]] =
       HadoopWriter.stringR[F](
@@ -100,7 +101,7 @@ final class HadoopKantan[F[_]] private (
 
     // save
     (ss: Stream[F, Chunk[Seq[String]]]) =>
-      Stream.eval(TickStatus(policy)).flatMap { zero =>
+      Stream.eval(TickStatus(policy, zoneId)).flatMap { zero =>
         Stream.resource(init(zero.tick)).flatMap { case (hotswap, writer) =>
           val header: Chunk[String] = csvHeader(csvConfiguration)
           val src: Stream[F, Chunk[String]] =

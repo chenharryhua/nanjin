@@ -96,8 +96,9 @@ final class EmailObserver[F[_]] private (
     if (Bytes(content.length) < maximumMessageSize) {
       ses.send(EmailContent(from, to, subject, content)).attempt.void
     } else {
-      val text = p(b(s"Message body size exceeds $maximumMessageSize. Number of events: ${eventTags.size}"))
-      val msg  = html(header, body(notice, text)).render
+      val text = p(
+        b(s"Message body size exceeds $maximumMessageSize, which contains ${eventTags.size} events."))
+      val msg = html(header, body(notice, text)).render
       ses.send(EmailContent(from, to, subject, msg)).attempt.void
     }
   }

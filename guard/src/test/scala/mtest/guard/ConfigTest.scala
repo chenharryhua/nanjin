@@ -3,6 +3,7 @@ package mtest.guard
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.{toFunctorOps, toShow}
+import com.github.chenharryhua.nanjin.common.chrono.policies
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
 import com.github.chenharryhua.nanjin.guard.observers.console
@@ -13,9 +14,7 @@ import org.scalatest.funsuite.AnyFunSuite
 
 class ConfigTest extends AnyFunSuite {
   val service: ServiceGuard[IO] =
-    TaskGuard[IO]("config")
-      .service("config")
-      .updateConfig(_.withMetricDailyReset.withMetricReport(cron_1hour))
+    TaskGuard[IO]("config").service("config").withMetricReport(policies.crontab(cron_1hour))
 
   test("1.counting") {
     val as = service.eventStream { agent =>
@@ -52,8 +51,8 @@ class ConfigTest extends AnyFunSuite {
   }
 
   test("9.report") {
-    val as = service
-      .updateConfig(_.withoutMetricReport)
+    service
+      .withMetricReport(policies.giveUp)
       .eventStream { agent =>
         agent.action("cfg", _.silent).retry(IO(1)).run
       }
@@ -61,26 +60,17 @@ class ConfigTest extends AnyFunSuite {
       .compile
       .last
       .unsafeRunSync()
-    assert(as.get.serviceParams.metricParams.reportSchedule.isEmpty)
   }
 
   test("10.reset") {
-    val as = service
-      .updateConfig(_.withoutMetricReset)
-      .eventStream { agent =>
-        agent.action("cfg", _.silent).retry(IO(1)).run
-      }
-      .filter(_.isInstanceOf[ServiceStart])
-      .compile
-      .last
-      .unsafeRunSync()
-    assert(as.get.serviceParams.metricParams.resetSchedule.isEmpty)
+    service.eventStream { agent =>
+      agent.action("cfg", _.silent).retry(IO(1)).run
+    }.filter(_.isInstanceOf[ServiceStart]).compile.last.unsafeRunSync()
   }
 
   test("13.composable service config") {
     val homepage = service
       .updateConfig(_.withHomePage("abc"))
-      .updateConfig(_.withMetricDailyReset)
       .eventStream(_ => IO(1))
       .filter(_.isInstanceOf[ServiceStart])
       .compile

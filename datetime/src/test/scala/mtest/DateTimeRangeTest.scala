@@ -5,7 +5,7 @@ import cats.kernel.laws.discipline.PartialOrderTests
 import cats.laws.discipline.AlternativeTests
 import cats.syntax.all.*
 import com.fortysevendeg.scalacheck.datetime.jdk8.ArbitraryJdk8.*
-import com.github.chenharryhua.nanjin.datetime.zones.{
+import com.github.chenharryhua.nanjin.common.chrono.zones.{
   beijingTime,
   cairoTime,
   darwinTime,
