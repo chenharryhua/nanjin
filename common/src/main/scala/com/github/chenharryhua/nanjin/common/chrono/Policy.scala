@@ -106,12 +106,13 @@ private object PolicyF extends localtime {
       case Repeat(policy) => LazyList.continually(resetCounter #:: policy).flatten
 
       case EndUp(policy, endUp) =>
-        val before = LazyList.unfold(()) { _ =>
-          val now = ZonedDateTime.now(zoneId)
-          val end = endUp.atDate(now.toLocalDate).atZone(zoneId)
-          if (end.isAfter(now)) Some(((), ())) else None
+        val timeFrame: LazyList[Unit] = LazyList.unfold(ZonedDateTime.now(zoneId)) { prev =>
+          val now     = ZonedDateTime.now(zoneId)
+          val sameDay = now.toLocalDate == prev.toLocalDate
+          val endTime = endUp.atDate(now.toLocalDate).atZone(zoneId)
+          if (endTime.isAfter(now) && sameDay) Some(((), now)) else None
         }
-        policy.zip(before).map(_._1)
+        policy.zip(timeFrame).map(_._1)
     }
 
   private val fmt: DurationFormatter = DurationFormatter.defaultFormatter
