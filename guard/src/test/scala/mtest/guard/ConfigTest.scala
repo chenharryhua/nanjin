@@ -43,14 +43,14 @@ class ConfigTest extends AnyFunSuite {
     assert(!as.actionParams.isTiming)
   }
 
-  test("8.silent") {
+  test("5.silent") {
     val as = service.eventStream { agent =>
       agent.action("cfg", _.silent).retry(IO(1)).run
     }.filter(_.isInstanceOf[ActionStart]).compile.last.unsafeRunSync()
     assert(as.isEmpty)
   }
 
-  test("9.report") {
+  test("6.report") {
     service
       .withMetricReport(policies.giveUp)
       .eventStream { agent =>
@@ -62,28 +62,14 @@ class ConfigTest extends AnyFunSuite {
       .unsafeRunSync()
   }
 
-  test("10.reset") {
+  test("7.reset") {
     service.eventStream { agent =>
       agent.action("cfg", _.silent).retry(IO(1)).run
     }.filter(_.isInstanceOf[ServiceStart]).compile.last.unsafeRunSync()
   }
 
-  test("13.composable service config") {
-    val homepage = service
-      .updateConfig(_.withHomePage("abc"))
-      .eventStream(_ => IO(1))
-      .filter(_.isInstanceOf[ServiceStart])
-      .compile
-      .last
-      .unsafeRunSync()
-      .get
-      .serviceParams
-      .homePage
-      .get
-    assert(homepage == "abc")
-  }
 
-  test("14.composable action config") {
+  test("8.composable action config") {
     val as = service
       .eventStream(_.action("abc", _.notice.withCounting).updateConfig(_.withTiming).delay(1).run)
       .filter(_.isInstanceOf[ActionStart])
@@ -97,13 +83,13 @@ class ConfigTest extends AnyFunSuite {
     assert(as.actionParams.isTiming)
   }
 
-  test("15.should not contain {},[]") {
+  test("9.should not contain {},[]") {
     assertThrows[IllegalArgumentException](NameConstraint.unsafeFrom("{a b c}"))
     assertThrows[IllegalArgumentException](NameConstraint.unsafeFrom("[a b c]"))
     NameConstraint.unsafeFrom(" a B 3 , . _ - / \\ ! @ # $ % & + * = < > ? ^ : ( )").value
   }
 
-  test("16.case") {
+  test("10.case") {
     val en = EventName.ServiceStart
     assert(en.entryName == "Service Start")
     assert(en.snake == "service_start")
@@ -113,7 +99,7 @@ class ConfigTest extends AnyFunSuite {
     assert(en.snakeJson == Json.fromString("service_start"))
   }
 
-  test("17.lenses") {
+  test("11.lenses") {
     val len =
       Translator
         .serviceStart[IO, SlackApp]

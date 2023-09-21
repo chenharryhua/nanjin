@@ -35,7 +35,6 @@ final case class ServiceParams(
   restartPolicy: String, // for display
   taskParams: TaskParams,
   metricParams: MetricParams,
-  homePage: Option[String],
   brief: Option[Json],
   zeroth: Tick
 ) {
@@ -75,7 +74,6 @@ object ServiceParams extends zoneddatetime with duration {
         rateTimeUnit = TimeUnit.SECONDS,
         durationTimeUnit = TimeUnit.MILLISECONDS
       ),
-      homePage = None,
       brief = brief.value,
       zeroth = zeroth
     )
@@ -91,8 +89,6 @@ private object ServiceConfigF {
   final case class WithRateTimeUnit[K](value: TimeUnit, cont: K) extends ServiceConfigF[K]
   final case class WithDurationTimeUnit[K](value: TimeUnit, cont: K) extends ServiceConfigF[K]
   final case class WithMetricNamePrefix[K](value: String, cont: K) extends ServiceConfigF[K]
-
-  final case class WithHomePage[K](value: Option[String], cont: K) extends ServiceConfigF[K]
 
   def algebra(
     serviceName: ServiceName,
@@ -112,7 +108,7 @@ private object ServiceConfigF {
       case WithRateTimeUnit(v, c)     => c.focus(_.metricParams.rateTimeUnit).replace(v)
       case WithDurationTimeUnit(v, c) => c.focus(_.metricParams.durationTimeUnit).replace(v)
       case WithMetricNamePrefix(v, c) => c.focus(_.metricParams.namePrefix).replace(v)
-      case WithHomePage(v, c)         => c.focus(_.homePage).replace(v)
+
     }
 }
 
@@ -122,14 +118,12 @@ final case class ServiceConfig(cont: Fix[ServiceConfigF]) extends AnyVal {
   // metrics
   def withMetricRateTimeUnit(tu: TimeUnit): ServiceConfig =
     ServiceConfig(Fix(WithRateTimeUnit(tu, cont)))
+
   def withMetricDurationTimeUnit(tu: TimeUnit): ServiceConfig =
     ServiceConfig(Fix(WithDurationTimeUnit(tu, cont)))
 
   def withMetricNamePrefix(prefix: String): ServiceConfig =
     ServiceConfig(Fix(WithMetricNamePrefix(prefix, cont)))
-
-  def withHomePage(hp: String): ServiceConfig =
-    ServiceConfig(Fix(WithHomePage(Some(hp), cont)))
 
   def evalConfig(
     serviceName: ServiceName,

@@ -21,8 +21,8 @@ import scala.util.control.ControlThrowable
 class ServiceTest extends AnyFunSuite {
 
   val guard: ServiceGuard[IO] = TaskGuard[IO]("service-level-guard")
-    .service("service")
     .updateConfig(_.withHomePage("https://abc.com/efg"))
+    .service("service")
     .withRestartPolicy(policies.constant(1.seconds))
     .withBrief(Json.fromString("test"))
 

@@ -33,7 +33,7 @@ private object SlackTranslator extends all {
 
   private def hostServiceSection(sp: ServiceParams): JuxtaposeSection = {
     val sn: String =
-      sp.homePage.fold(sp.serviceName)(hp => s"<$hp|${sp.serviceName}>")
+      sp.taskParams.homePage.fold(sp.serviceName)(hp => s"<$hp|${sp.serviceName}>")
     JuxtaposeSection(TextField(CONSTANT_SERVICE, sn), TextField(CONSTANT_HOST, sp.taskParams.hostName.value))
   }
   private def upTimeSection(evt: NJEvent): JuxtaposeSection =
