@@ -112,9 +112,12 @@ private object PolicyF extends localtime with localdate with duration {
       case FollowedBy(first, second) => first #::: (resetCounter #:: second)
 
       case Capped(policy, cap) =>
-        policy.map(_.andThen(_.map { tk =>
-          if (tk.snooze.compareTo(cap) < 0) tk else tk.newTick(tk.acquire, cap)
-        }))
+        policy.map { calcTick => (req: TickRequest) =>
+          calcTick(req).map { tick =>
+            val gap = tick.snooze.compareTo(cap)
+            if (gap <= 0) tick else req.tick.newTick(req.now, cap) // preserve index
+          }
+        }
 
       case Threshold(policy, threshold) =>
         policy.map { calcTick => (req: TickRequest) =>

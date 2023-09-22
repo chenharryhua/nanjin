@@ -72,6 +72,12 @@ class PolicyTest extends AnyFunSuite {
     val a5 = a4.next(t5).get
     val a6 = a5.next(t6)
 
+    assert(a1.tick.index == 1)
+    assert(a2.tick.index == 2)
+    assert(a3.tick.index == 3)
+    assert(a4.tick.index == 4)
+    assert(a5.tick.index == 5)
+
     assert(a1.tick.snooze == 1.second.toJava)
     assert(a2.tick.snooze == 1.second.toJava)
     assert(a3.tick.snooze == 1.second.toJava)
@@ -84,8 +90,7 @@ class PolicyTest extends AnyFunSuite {
     val delay = 1.second.toJava
     val policy =
       policies
-        .constant(delay)
-        .limited(3)
+        .accordance(policies.constant(delay).limited(3))
         .followedBy(policies.constant(delay.multipliedBy(2)).limited(2))
         .repeat
 
@@ -97,6 +102,13 @@ class PolicyTest extends AnyFunSuite {
     val a4 = a3.next(t4).get
     val a5 = a4.next(t5).get
     val a6 = a5.next(t6).get
+
+    assert(a1.tick.index == 1)
+    assert(a2.tick.index == 2)
+    assert(a3.tick.index == 3)
+    assert(a4.tick.index == 4)
+    assert(a5.tick.index == 5)
+    assert(a6.tick.index == 6)
 
     assert(a1.tick.snooze == 1.second.toJava)
     assert(a2.tick.snooze == 1.second.toJava)
@@ -113,10 +125,15 @@ class PolicyTest extends AnyFunSuite {
     val ts   = TickStatus[IO](policy, zoneId).unsafeRunSync()
     val zero = ts.tick
     val a1   = ts.next(zero.launchTime.plus(5.minutes.toJava)).get
+    val a2   = a1.next(zero.launchTime.plus(15.minutes.toJava)).get
+    val a3   = a2.next(zero.launchTime.plus(20.minutes.toJava)).get
+
+    assert(a1.tick.index == 1)
+    assert(a2.tick.index == 2)
+    assert(a3.tick.index == 3)
+
     assert(a1.tick.wakeup == zero.launchTime.plus(delay))
-    val a2 = a1.next(zero.launchTime.plus(15.minutes.toJava)).get
     assert(a2.tick.wakeup == zero.launchTime.plus(delay.multipliedBy(2)))
-    val a3 = a2.next(zero.launchTime.plus(20.minutes.toJava)).get
     assert(a3.tick.wakeup == zero.launchTime.plus(delay.multipliedBy(3)))
     assert(a3.tick.snooze == delay)
   }
@@ -126,34 +143,51 @@ class PolicyTest extends AnyFunSuite {
     println(policy.show)
     val ts = TickStatus[IO](policy, zoneId).unsafeRunSync()
     val a1 = ts.next(t0).get
-    assert(a1.tick.snooze == 1.second.toJava)
     val a2 = a1.next(t0).get
-    assert(a2.tick.snooze == 2.second.toJava)
     val a3 = a2.next(t0).get
-    assert(a3.tick.snooze == 4.seconds.toJava)
     val a4 = a3.next(t0).get
-    assert(a4.tick.snooze == 8.seconds.toJava)
     val a5 = a4.next(t0).get
+
+    assert(a1.tick.index == 1)
+    assert(a2.tick.index == 2)
+    assert(a3.tick.index == 3)
+    assert(a4.tick.index == 4)
+    assert(a5.tick.index == 5)
+
+    assert(a1.tick.snooze == 1.second.toJava)
+    assert(a2.tick.snooze == 2.second.toJava)
+    assert(a3.tick.snooze == 4.seconds.toJava)
+    assert(a4.tick.snooze == 8.seconds.toJava)
     assert(a5.tick.snooze == 16.seconds.toJava)
   }
 
   test("fibonacci") {
     val policy = policies.fibonacci(1.minute)
     println(policy.show)
+
     val ts = TickStatus[IO](policy, zoneId).unsafeRunSync()
     val a1 = ts.next(t0).get
-    assert(a1.tick.snooze == 1.minute.toJava)
     val a2 = a1.next(t0).get
-    assert(a2.tick.snooze == 1.minute.toJava)
     val a3 = a2.next(t0).get
-    assert(a3.tick.snooze == 2.minute.toJava)
     val a4 = a3.next(t0).get
-    assert(a4.tick.snooze == 3.minute.toJava)
     val a5 = a4.next(t0).get
-    assert(a5.tick.snooze == 5.minute.toJava)
     val a6 = a5.next(t0).get
-    assert(a6.tick.snooze == 8.minute.toJava)
     val a7 = a6.next(t0).get
+
+    assert(a1.tick.index == 1)
+    assert(a2.tick.index == 2)
+    assert(a3.tick.index == 3)
+    assert(a4.tick.index == 4)
+    assert(a5.tick.index == 5)
+    assert(a6.tick.index == 6)
+    assert(a7.tick.index == 7)
+
+    assert(a1.tick.snooze == 1.minute.toJava)
+    assert(a2.tick.snooze == 1.minute.toJava)
+    assert(a3.tick.snooze == 2.minute.toJava)
+    assert(a4.tick.snooze == 3.minute.toJava)
+    assert(a5.tick.snooze == 5.minute.toJava)
+    assert(a6.tick.snooze == 8.minute.toJava)
     assert(a7.tick.snooze == 13.minute.toJava)
   }
 
@@ -162,18 +196,27 @@ class PolicyTest extends AnyFunSuite {
     println(policy.show)
     val ts = TickStatus[IO](policy, zoneId).unsafeRunSync()
     val a1 = ts.next(t0).get
-    assert(a1.tick.snooze == 1.minute.toJava)
     val a2 = a1.next(t0).get
-    assert(a2.tick.snooze == 1.minute.toJava)
     val a3 = a2.next(t0).get
-    assert(a3.tick.snooze == 2.minute.toJava)
     val a4 = a3.next(t0).get
-    assert(a4.tick.snooze == 3.minute.toJava)
     val a5 = a4.next(t0).get
-    assert(a5.tick.snooze == 5.minute.toJava)
     val a6 = a5.next(t0).get
-    assert(a6.tick.snooze == 6.minute.toJava)
     val a7 = a6.next(t0).get
+
+    assert(a1.tick.index == 1)
+    assert(a2.tick.index == 2)
+    assert(a3.tick.index == 3)
+    assert(a4.tick.index == 4)
+    assert(a5.tick.index == 5)
+    assert(a6.tick.index == 6)
+    assert(a7.tick.index == 7)
+
+    assert(a1.tick.snooze == 1.minute.toJava)
+    assert(a2.tick.snooze == 1.minute.toJava)
+    assert(a3.tick.snooze == 2.minute.toJava)
+    assert(a4.tick.snooze == 3.minute.toJava)
+    assert(a5.tick.snooze == 5.minute.toJava)
+    assert(a6.tick.snooze == 6.minute.toJava)
     assert(a7.tick.snooze == 6.minute.toJava)
   }
 
@@ -182,18 +225,27 @@ class PolicyTest extends AnyFunSuite {
     println(policy.show)
     val ts = TickStatus[IO](policy, zoneId).unsafeRunSync()
     val a1 = ts.next(t0).get
-    assert(a1.tick.snooze == 1.minute.toJava)
     val a2 = a1.next(t0).get
-    assert(a2.tick.snooze == 1.minute.toJava)
     val a3 = a2.next(t0).get
-    assert(a3.tick.snooze == 2.minute.toJava)
     val a4 = a3.next(t0).get
-    assert(a4.tick.snooze == 3.minute.toJava)
     val a5 = a4.next(t0).get
-    assert(a5.tick.snooze == 5.minute.toJava)
     val a6 = a5.next(t0).get
-    assert(a6.tick.snooze == 1.minute.toJava)
     val a7 = a6.next(t0).get
+
+    assert(a1.tick.index == 1)
+    assert(a2.tick.index == 2)
+    assert(a3.tick.index == 3)
+    assert(a4.tick.index == 4)
+    assert(a5.tick.index == 5)
+    assert(a6.tick.index == 6)
+    assert(a7.tick.index == 7)
+
+    assert(a1.tick.snooze == 1.minute.toJava)
+    assert(a2.tick.snooze == 1.minute.toJava)
+    assert(a3.tick.snooze == 2.minute.toJava)
+    assert(a4.tick.snooze == 3.minute.toJava)
+    assert(a5.tick.snooze == 5.minute.toJava)
+    assert(a6.tick.snooze == 1.minute.toJava)
     assert(a7.tick.snooze == 1.minute.toJava)
   }
 
@@ -214,6 +266,12 @@ class PolicyTest extends AnyFunSuite {
     val a2 = a1.next(t0).get
     val a3 = a2.next(t0).get
     val a4 = a3.next(t0).get
+
+    assert(a1.tick.index == 1)
+    assert(a2.tick.index == 2)
+    assert(a3.tick.index == 3)
+    assert(a4.tick.index == 4)
+
     assert(a1.tick.snooze == 1.second.toJava)
     assert(a2.tick.snooze == 2.second.toJava)
     assert(a3.tick.snooze == 3.second.toJava)
