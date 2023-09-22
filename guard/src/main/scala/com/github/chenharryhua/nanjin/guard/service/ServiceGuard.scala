@@ -21,7 +21,6 @@ import com.github.chenharryhua.nanjin.guard.config.{
 }
 import com.github.chenharryhua.nanjin.guard.event.*
 import com.github.chenharryhua.nanjin.guard.translators.Translator
-import cron4s.CronExpr
 import fs2.Stream
 import fs2.concurrent.{Channel, SignallingMapRef}
 import fs2.io.net.Network
@@ -47,7 +46,9 @@ final class ServiceGuard[F[_]: Network] private[guard] (
   taskParams: TaskParams,
   config: Endo[ServiceConfig],
   entryPoint: Resource[F, EntryPoint[F]],
-  restartPolicy: Policy,
+  serviceRestartPolicy: Policy,
+  metricReportPolicy: Policy,
+  metricResetPolicy: Policy,
   jmxBuilder: Option[Endo[JmxReporter.Builder]],
   httpBuilder: Option[Endo[EmberServerBuilder[F]]],
   brief: F[Option[Json]])(implicit F: Async[F])
@@ -56,7 +57,9 @@ final class ServiceGuard[F[_]: Network] private[guard] (
   private def copy(
     serviceName: ServiceName = self.serviceName,
     config: Endo[ServiceConfig] = self.config,
-    restartPolicy: Policy = self.restartPolicy,
+    serviceRestartPolicy: Policy = self.serviceRestartPolicy,
+    metricReportPolicy: Policy = self.metricReportPolicy,
+    metricResetPolicy: Policy = self.metricResetPolicy,
     jmxBuilder: Option[JmxReporter.Builder => JmxReporter.Builder] = self.jmxBuilder,
     httpBuilder: Option[EmberServerBuilder[F] => EmberServerBuilder[F]] = self.httpBuilder,
     brief: F[Option[Json]] = self.brief
@@ -66,7 +69,9 @@ final class ServiceGuard[F[_]: Network] private[guard] (
       taskParams = self.taskParams,
       config = config,
       entryPoint = self.entryPoint,
-      restartPolicy = restartPolicy,
+      serviceRestartPolicy = serviceRestartPolicy,
+      metricReportPolicy = metricReportPolicy,
+      metricResetPolicy = metricResetPolicy,
       jmxBuilder = jmxBuilder,
       httpBuilder = httpBuilder,
       brief = brief
@@ -75,18 +80,15 @@ final class ServiceGuard[F[_]: Network] private[guard] (
   override def updateConfig(f: Endo[ServiceConfig]): ServiceGuard[F] = copy(config = f.compose(self.config))
   def apply(serviceName: String): ServiceGuard[F] = copy(serviceName = ServiceName(serviceName))
 
-  /** https://cb372.github.io/cats-retry/docs/policies.html
-    */
-  def withRestartPolicy(rp: Policy): ServiceGuard[F] = copy(restartPolicy = rp)
+  def withRestartPolicy(policy: Policy): ServiceGuard[F] = copy(serviceRestartPolicy = policy)
 
-  def withRestartPolicy(cronExpr: CronExpr): ServiceGuard[F] =
-    withRestartPolicy(policies.crontab(cronExpr, taskParams.zoneId))
+  def withMetricReport(policy: Policy): ServiceGuard[F] = copy(metricReportPolicy = policy)
+  def withMetricReset(policy: Policy): ServiceGuard[F]  = copy(metricResetPolicy = policy)
+  def withMetricDailyReset: ServiceGuard[F] = withMetricReset(policies.crontab(crontabs.daily.midnight))
 
-  def withJmx(f: Endo[JmxReporter.Builder]): ServiceGuard[F] =
-    copy(jmxBuilder = Some(f))
+  def withMetricServer(f: Endo[EmberServerBuilder[F]]): ServiceGuard[F] = copy(httpBuilder = Some(f))
 
-  def withMetricServer(f: Endo[EmberServerBuilder[F]]): ServiceGuard[F] =
-    copy(httpBuilder = Some(f))
+  def withJmx(f: Endo[JmxReporter.Builder]): ServiceGuard[F] = copy(jmxBuilder = Some(f))
 
   def withBrief(json: F[Json]): ServiceGuard[F] = copy(brief = json.map(_.some))
   def withBrief(json: Json): ServiceGuard[F]    = withBrief(F.pure(json))
@@ -95,12 +97,13 @@ final class ServiceGuard[F[_]: Network] private[guard] (
     json <- brief
   } yield config(ServiceConfig(taskParams)).evalConfig(
     serviceName,
-    ServicePolicy(restartPolicy.show),
+    ServicePolicy(serviceRestartPolicy.show),
     ServiceBrief(json),
-    zeroth)
+    zeroth
+  )
 
   def dummyAgent(implicit C: Console[F]): Resource[F, GeneralAgent[F]] = for {
-    zeroth <- Resource.eval(TickStatus[F](policies.giveUp))
+    zeroth <- Resource.eval(TickStatus[F](policies.giveUp, taskParams.zoneId))
     sp <- Resource.eval(initStatus(zeroth.tick))
     signallingMapRef <- Resource.eval(SignallingMapRef.ofSingleImmutableMap[F, Unique.Token, Locker]())
     atomicCell <- Resource.eval(AtomicCell[F].of(Vault.empty))
@@ -125,7 +128,7 @@ final class ServiceGuard[F[_]: Network] private[guard] (
 
   def eventStream[A](runAgent: GeneralAgent[F] => F[A]): Stream[F, NJEvent] =
     for {
-      zeroth <- Stream.eval(TickStatus[F](policies.giveUp))
+      zeroth <- Stream.eval(TickStatus[F](policies.giveUp, taskParams.zoneId))
       serviceParams <- Stream.eval(initStatus(zeroth.tick))
       signallingMapRef <- Stream.eval(SignallingMapRef.ofSingleImmutableMap[F, Unique.Token, Locker]())
       atomicCell <- Stream.eval(AtomicCell[F].of(Vault.empty))
@@ -134,34 +137,26 @@ final class ServiceGuard[F[_]: Network] private[guard] (
         val metricRegistry: MetricRegistry = new MetricRegistry()
 
         val metricsReport: Stream[F, Nothing] =
-          serviceParams.metricParams.reportSchedule match {
-            case None => Stream.empty
-            case Some(cron) =>
-              tickStream[F](policies.crontab(cron, serviceParams.taskParams.zoneId))
-                .evalMap(tick =>
-                  publisher.metricReport(
-                    channel = channel,
-                    serviceParams = serviceParams,
-                    metricRegistry = metricRegistry,
-                    index = MetricIndex.Periodic(tick),
-                    ts = tick.wakeup))
-                .drain
-          }
+          tickStream[F](metricReportPolicy, serviceParams.taskParams.zoneId)
+            .evalMap(tick =>
+              publisher.metricReport(
+                channel = channel,
+                serviceParams = serviceParams,
+                metricRegistry = metricRegistry,
+                index = MetricIndex.Periodic(tick),
+                ts = tick.wakeup))
+            .drain
 
         val metricsReset: Stream[F, Nothing] =
-          serviceParams.metricParams.resetSchedule match {
-            case None => Stream.empty
-            case Some(cron) =>
-              tickStream[F](policies.crontab(cron, serviceParams.taskParams.zoneId))
-                .evalMap(tick =>
-                  publisher.metricReset(
-                    channel = channel,
-                    serviceParams = serviceParams,
-                    metricRegistry = metricRegistry,
-                    index = MetricIndex.Periodic(tick),
-                    ts = tick.wakeup))
-                .drain
-          }
+          tickStream[F](metricResetPolicy, serviceParams.taskParams.zoneId)
+            .evalMap(tick =>
+              publisher.metricReset(
+                channel = channel,
+                serviceParams = serviceParams,
+                metricRegistry = metricRegistry,
+                index = MetricIndex.Periodic(tick),
+                ts = tick.wakeup))
+            .drain
 
         val jmxReporting: Stream[F, Nothing] =
           jmxBuilder match {
@@ -205,15 +200,12 @@ final class ServiceGuard[F[_]: Network] private[guard] (
           )
 
         val surveillance: Stream[F, Nothing] =
-          Stream
-            .eval(TickStatus(restartPolicy))
-            .flatMap(status =>
-              new ReStart[F, A](
-                channel = channel,
-                serviceParams = serviceParams,
-                initTickStatus = status,
-                theService = runAgent(agent)
-              ).stream)
+          new ReStart[F, A](
+            channel = channel,
+            serviceParams = serviceParams,
+            initTickStatus = zeroth.withPolicy(serviceRestartPolicy, taskParams.zoneId),
+            theService = runAgent(agent)
+          ).stream
 
         // put together
         channel.stream

@@ -11,7 +11,7 @@ import org.typelevel.cats.time.instances.zoneid
 import java.time.ZoneId
 
 @JsonCodec
-final case class TaskParams(taskName: String, zoneId: ZoneId, hostName: HostName)
+final case class TaskParams(taskName: String, zoneId: ZoneId, hostName: HostName, homePage: Option[String])
 
 object TaskParams extends zoneid {
   implicit val showTaskParams: Show[TaskParams] = cats.derived.semiauto.show[TaskParams]
@@ -25,12 +25,14 @@ private object TaskConfigF {
   final case class InitParams[K](taskName: String) extends TaskConfigF[K]
   final case class WithZoneId[K](value: ZoneId, cont: K) extends TaskConfigF[K]
   final case class WithHostName[K](value: HostName, cont: K) extends TaskConfigF[K]
+  final case class WithHomePage[K](value: Option[String], cont: K) extends TaskConfigF[K]
 
   val algebra: Algebra[TaskConfigF, TaskParams] =
     Algebra[TaskConfigF, TaskParams] {
-      case InitParams(taskName) => TaskParams(taskName, ZoneId.systemDefault(), HostName.local_host)
+      case InitParams(taskName) => TaskParams(taskName, ZoneId.systemDefault(), HostName.local_host, None)
       case WithZoneId(v, c)     => c.focus(_.zoneId).replace(v)
       case WithHostName(v, c)   => c.focus(_.hostName).replace(v)
+      case WithHomePage(v, c)   => c.focus(_.homePage).replace(v)
     }
 }
 
@@ -39,6 +41,7 @@ final case class TaskConfig(cont: Fix[TaskConfigF]) extends AnyVal {
 
   def withZoneId(zoneId: ZoneId): TaskConfig       = TaskConfig(Fix(WithZoneId(zoneId, cont)))
   def withHostName(hostName: HostName): TaskConfig = TaskConfig(Fix(WithHostName(hostName, cont)))
+  def withHomePage(hp: String): TaskConfig         = TaskConfig(Fix(WithHomePage(Some(hp), cont)))
 
   def evalConfig: TaskParams = scheme.cata(algebra).apply(cont)
 }

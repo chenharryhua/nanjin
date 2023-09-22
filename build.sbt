@@ -26,7 +26,7 @@ val jacksonV    = "2.15.2"
 val protobufV   = "3.24.3"
 val sparkV      = "3.4.1"
 val refinedV    = "0.11.0"
-val nettyV      = "4.1.97.Final"
+val nettyV      = "4.1.98.Final"
 val chimneyV    = "0.8.0-RC1"
 val enumeratumV = "1.7.3"
 val drosteV     = "0.9.0"
@@ -270,10 +270,12 @@ lazy val messages = (project in file("messages"))
   .dependsOn(common)
   .settings(commonSettings*)
   .settings(name := "nj-messages")
-  .settings(libraryDependencies ++= List(
-    "org.yaml"                       % "snakeyaml"   % "2.2", // snyk
-    "org.xerial.snappy"              % "snappy-java" % "1.1.10.3" // snyk
-  ) ++ serdeLib ++ kafkaLib.map(_ % Provided) ++ testLib)
+  .settings(
+    libraryDependencies ++= List(
+      "org.apache.commons" % "commons-compress" % "1.24.0", // snyk
+      "org.yaml"           % "snakeyaml"        % "2.2", // snyk
+      "org.xerial.snappy"  % "snappy-java"      % "1.1.10.3" // snyk
+    ) ++ serdeLib ++ kafkaLib.map(_ % Provided) ++ testLib)
 
 lazy val database = (project in file("database"))
   .dependsOn(common)
@@ -349,6 +351,8 @@ lazy val pipes = (project in file("pipes"))
       "io.circe" %% "circe-jackson212" % "0.14.0",
       "com.amazonaws"                  % "aws-java-sdk-bundle" % awsV_1,
       "org.tukaani"                    % "xz"                  % "1.9",
+      "org.eclipse.jetty"              % "jetty-xml"           % "12.0.1", // snyk
+      "org.eclipse.jetty"              % "jetty-http"          % "12.0.1", // snyk
       "org.jetbrains.kotlin"           % "kotlin-stdlib"       % "1.9.10", // snyk
       "org.codehaus.jettison"          % "jettison"            % "1.5.4", // snyk
       "io.netty"                       % "netty-handler"       % nettyV, // snyk
@@ -365,6 +369,7 @@ lazy val spark = (project in file("spark"))
   .settings(name := "nj-spark")
   .settings(
     libraryDependencies ++= List(
+      "org.apache.ivy"                         % "ivy"             % "2.5.2", // snyk
       "com.julianpeeters" %% "avrohugger-core" % "1.5.2"           % Test,
       "ch.qos.logback"                         % "logback-classic" % logbackV % Test
     ) ++ sparkLib.map(_.exclude("commons-logging", "commons-logging")) ++ testLib

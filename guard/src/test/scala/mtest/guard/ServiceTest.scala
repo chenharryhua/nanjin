@@ -2,6 +2,7 @@ package mtest.guard
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
+import com.github.chenharryhua.nanjin.common.chrono.zones.londonTime
 import com.github.chenharryhua.nanjin.common.chrono.{policies, Policy, Tick}
 import com.github.chenharryhua.nanjin.guard.*
 import com.github.chenharryhua.nanjin.guard.event.*
@@ -21,8 +22,8 @@ import scala.util.control.ControlThrowable
 class ServiceTest extends AnyFunSuite {
 
   val guard: ServiceGuard[IO] = TaskGuard[IO]("service-level-guard")
+    .updateConfig(_.withHomePage("https://abc.com/efg").withZoneId(londonTime))
     .service("service")
-    .updateConfig(_.withHomePage("https://abc.com/efg"))
     .withRestartPolicy(policies.constant(1.seconds))
     .withBrief(Json.fromString("test"))
 
@@ -31,9 +32,8 @@ class ServiceTest extends AnyFunSuite {
   test("1.should stopped if the operation normally exits") {
     val Vector(a, d) = guard
       .withRestartPolicy(policies.constant(3.seconds))
-      .updateConfig(_.withMetricReport(cron_1hour))
-      .updateConfig(
-        _.withMetricReset("*/30 * * ? * *").withMetricDailyReset.withMetricMonthlyReset.withMetricWeeklyReset)
+      .withMetricReport(policies.crontab(cron_1hour))
+      .withMetricDailyReset
       .eventStream(gd => gd.action("t", _.silent).delay(1).logOutput(_ => null).run.delayBy(1.second))
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
       .unNone
@@ -68,7 +68,7 @@ class ServiceTest extends AnyFunSuite {
 
   test("3.should stop when fatal error occurs") {
     val List(a, b, c, d) = guard
-      .withRestartPolicy(Cron.unsafeParse("0-59 * * ? * *"))
+      .withRestartPolicy(policies.crontab(Cron.unsafeParse("0-59 * * ? * *")))
       .eventStream { gd =>
         gd.action("fatal error", _.notice)
           .withRetryPolicy(policy)
@@ -109,7 +109,7 @@ class ServiceTest extends AnyFunSuite {
 
   test("5.should receive at least 3 report event") {
     val s :: b :: c :: d :: _ = guard
-      .updateConfig(_.withMetricReport(cron_1second))
+      .withMetricReport(policies.crontab(cron_1second))
       .eventStream(_.action("t", _.silent).retry(IO.never).run)
       .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
       .interruptAfter(5.second)
@@ -125,7 +125,7 @@ class ServiceTest extends AnyFunSuite {
 
   test("6.force reset") {
     val s :: b :: c :: _ = guard
-      .updateConfig(_.withMetricReport(cron_1second))
+      .withMetricReport(policies.crontab(cron_1second))
       .eventStream(ag => ag.metrics.reset >> ag.metrics.reset)
       .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
       .compile

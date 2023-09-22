@@ -15,6 +15,8 @@ import org.apache.parquet.hadoop.metadata.CompressionCodecName
 import org.apache.parquet.hadoop.util.{HadoopInputFile, HadoopOutputFile}
 import org.apache.parquet.hadoop.{ParquetFileWriter, ParquetReader}
 
+import java.time.ZoneId
+
 final class HadoopParquet[F[_]] private (
   readBuilder: Reader[Path, ParquetReader.Builder[GenericData.Record]],
   writeBuilder: Reader[Path, AvroParquetWriter.Builder[GenericRecord]]) {
@@ -48,7 +50,7 @@ final class HadoopParquet[F[_]] private (
       Stream.resource(getWriterR(path.hadoopPath)).flatMap(w => ss.foreach(w.write))
   }
 
-  def sink(policy: Policy)(pathBuilder: Tick => NJPath)(implicit
+  def sink(policy: Policy, zoneId: ZoneId)(pathBuilder: Tick => NJPath)(implicit
     F: Async[F]): Pipe[F, Chunk[GenericRecord], Nothing] = {
     def getWriter(tick: Tick): Resource[F, HadoopWriter[F, GenericRecord]] =
       getWriterR(pathBuilder(tick).hadoopPath)
@@ -59,7 +61,7 @@ final class HadoopParquet[F[_]] private (
 
     // save
     (ss: Stream[F, Chunk[GenericRecord]]) =>
-      Stream.eval(TickStatus(policy)).flatMap { zero =>
+      Stream.eval(TickStatus(policy, zoneId)).flatMap { zero =>
         Stream.resource(init(zero.tick)).flatMap { case (hotswap, writer) =>
           persist[F, GenericRecord](
             getWriter,

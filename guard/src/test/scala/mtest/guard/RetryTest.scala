@@ -3,6 +3,7 @@ package mtest.guard
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.syntax.all.*
+import com.github.chenharryhua.nanjin.common.chrono.zones.singaporeTime
 import com.github.chenharryhua.nanjin.common.chrono.{policies, Policy}
 import com.github.chenharryhua.nanjin.guard.*
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
@@ -14,7 +15,6 @@ import io.circe.parser.decode
 import io.circe.syntax.*
 import org.scalatest.funsuite.AnyFunSuite
 
-import java.time.ZoneId
 import scala.concurrent.duration.*
 import scala.jdk.DurationConverters.JavaDurationOps
 import scala.util.control.ControlThrowable
@@ -24,7 +24,10 @@ final case class MyException() extends Exception("my exception")
 class RetryTest extends AnyFunSuite {
 
   val serviceGuard: ServiceGuard[IO] =
-    TaskGuard[IO]("retry-guard").service("retry test").withRestartPolicy(constant_1second)
+    TaskGuard[IO]("retry-guard")
+      .updateConfig(_.withZoneId(singaporeTime))
+      .service("retry test")
+      .withRestartPolicy(constant_1second)
 
   val policy: Policy = policies.constant(1.seconds).limited(3)
 
@@ -262,7 +265,7 @@ class RetryTest extends AnyFunSuite {
       .withRestartPolicy(policies.giveUp)
       .eventStream(
         _.action("cron", _.notice)
-          .withRetryPolicy(policies.crontab(cron_1second, ZoneId.systemDefault()).limited(3))
+          .withRetryPolicy(policies.crontab(cron_1second).limited(3))
           .retry(IO.raiseError(new Exception("oops")))
           .run)
       .evalTap(console.simple[IO])

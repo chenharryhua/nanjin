@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.datetime
+package com.github.chenharryhua.nanjin.common.chrono
 
 import java.time.ZoneId
 object zones {

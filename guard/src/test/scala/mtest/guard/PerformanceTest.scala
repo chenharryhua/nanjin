@@ -2,10 +2,11 @@ package mtest.guard
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
+import com.github.chenharryhua.nanjin.common.chrono.policies
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import io.circe.syntax.EncoderOps
-import org.junit.Ignore
+import org.scalatest.Ignore
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.*
@@ -60,7 +61,7 @@ import scala.concurrent.duration.*
 @Ignore
 class PerformanceTest extends AnyFunSuite {
   val service: ServiceGuard[IO] =
-    TaskGuard[IO]("performance").service("actions").updateConfig(_.withMetricReport(cron_1second))
+    TaskGuard[IO]("performance").service("actions").withMetricReport(policies.crontab(cron_1second))
   val take: FiniteDuration = 15.seconds
 
   def speed(i: Int): String = f"${i / (take.toSeconds * 1000)}%4dK/s"

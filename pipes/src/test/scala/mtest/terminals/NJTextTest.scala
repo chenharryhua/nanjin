@@ -17,6 +17,7 @@ import org.apache.hadoop.conf.Configuration
 import org.scalatest.Assertion
 import org.scalatest.funsuite.AnyFunSuite
 
+import java.time.ZoneId
 import scala.concurrent.duration.DurationInt
 class NJTextTest extends AnyFunSuite {
 
@@ -94,7 +95,7 @@ class NJTextTest extends AnyFunSuite {
       .repeatN(number)
       .map(_.toString)
       .chunks
-      .through(text.sink(policies.constant(1.second))(t => path / fk.fileName(t)))
+      .through(text.sink(policies.constant(1.second), ZoneId.systemDefault())(t => path / fk.fileName(t)))
       .compile
       .drain
       .unsafeRunSync()

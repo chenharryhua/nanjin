@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.datetime
 
 import cats.syntax.all.*
 import cats.{Hash, Order, Show}
-import com.github.chenharryhua.nanjin.datetime.zones.utcTime
+import com.github.chenharryhua.nanjin.common.chrono.zones.utcTime
 
 import java.sql.Timestamp
 import java.time.*

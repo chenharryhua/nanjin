@@ -2,11 +2,11 @@ package mtest.guard
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
+import com.github.chenharryhua.nanjin.common.chrono.policies
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.*
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
 import com.github.chenharryhua.nanjin.guard.observers.{console, logging}
-import eu.timepit.refined.auto.*
 import io.circe.parser.decode
 import io.circe.syntax.*
 import org.scalatest.funsuite.AnyFunSuite
@@ -20,7 +20,7 @@ class HealthCheckTest extends AnyFunSuite {
     val s :: a :: b :: c :: _ = guard
       .service("normal")
       .withJmx(_.inDomain("abc"))
-      .updateConfig(_.withMetricReport(cron_2second))
+      .withMetricReport(policies.crontab(cron_2second))
       .eventStream(gd => gd.action("cron", _.notice).retry(never_fun).run)
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
       .unNone
@@ -40,7 +40,7 @@ class HealthCheckTest extends AnyFunSuite {
   test("2.complete-test") {
     val s :: a :: b :: c :: d :: _ = guard
       .service("success-test")
-      .updateConfig(_.withMetricReport(cron_1second))
+      .withMetricReport(policies.crontab(cron_1second))
       .eventStream(gd =>
         gd.action("a", _.notice).retry(IO(1)).run >>
           gd.action("b", _.notice).retry(never_fun).run)
@@ -63,9 +63,10 @@ class HealthCheckTest extends AnyFunSuite {
     val s :: a :: b :: c :: _ = guard
       .service("metrics-report")
       .withRestartPolicy(constant_1hour)
-      .updateConfig(_.withMetricReport(cron_1second)
-        .withMetricDurationTimeUnit(TimeUnit.MICROSECONDS)
-        .withMetricRateTimeUnit(TimeUnit.MINUTES))
+      .withMetricReport(policies.crontab(cron_1second))
+      .updateConfig(_.withMetricDurationTimeUnit(TimeUnit.MICROSECONDS)
+        .withMetricRateTimeUnit(TimeUnit.MINUTES)
+        .withMetricNamePrefix("nj_"))
       .eventStream(gd =>
         gd.action("not/fail/yet", _.notice)
           .withRetryPolicy(constant_1hour)
@@ -87,7 +88,8 @@ class HealthCheckTest extends AnyFunSuite {
   test("4.metrics reset") {
     val list = guard
       .service("metrics-reset-test")
-      .updateConfig(_.withMetricReport(cron_2second).withMetricReset(cron_3second))
+      .withMetricReport(policies.crontab(cron_2second))
+      .withMetricReset(policies.crontab(cron_3second))
       .eventStream(_.action("ok", _.silent).retry(never_fun).run)
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
       .unNone

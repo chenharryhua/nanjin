@@ -10,6 +10,7 @@ import org.apache.avro.generic.{GenericData, GenericRecord}
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.Path
 
+import java.time.ZoneId
 import scala.jdk.CollectionConverters.*
 
 final class HadoopAvro[F[_]] private (
@@ -47,7 +48,7 @@ final class HadoopAvro[F[_]] private (
       Stream.resource(getWriterR(path.hadoopPath)).flatMap(w => ss.foreach(w.write))
   }
 
-  def sink(policy: Policy)(pathBuilder: Tick => NJPath)(implicit
+  def sink(policy: Policy, zoneId: ZoneId)(pathBuilder: Tick => NJPath)(implicit
     F: Async[F]): Pipe[F, Chunk[GenericRecord], Nothing] = {
     def getWriter(tick: Tick): Resource[F, HadoopWriter[F, GenericRecord]] =
       getWriterR(pathBuilder(tick).hadoopPath)
@@ -58,7 +59,7 @@ final class HadoopAvro[F[_]] private (
 
     // save
     (ss: Stream[F, Chunk[GenericRecord]]) =>
-      Stream.eval(TickStatus[F](policy)).flatMap { zero =>
+      Stream.eval(TickStatus[F](policy, zoneId)).flatMap { zero =>
         Stream.resource(init(zero.tick)).flatMap { case (hotswap, writer) =>
           persist[F, GenericRecord](
             getWriter,

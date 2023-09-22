@@ -11,7 +11,6 @@ import io.circe.parser.decode
 import io.circe.syntax.*
 import org.scalatest.funsuite.AnyFunSuite
 
-import java.time.ZoneId
 import scala.concurrent.duration.*
 
 class CancellationTest extends AnyFunSuite {
@@ -19,7 +18,7 @@ class CancellationTest extends AnyFunSuite {
   val serviceGuard: ServiceGuard[IO] =
     TaskGuard[IO]("retry-guard").service("retry-test").withRestartPolicy(constant_1second)
 
-  val policy = policies.crontab(cron_1second, ZoneId.systemDefault()).limited(3)
+  val policy = policies.crontab(cron_1second).limited(3)
 
   test("1.cancellation - canceled actions are failed actions") {
     val Vector(a, b, c, d) = serviceGuard

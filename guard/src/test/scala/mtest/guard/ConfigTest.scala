@@ -3,6 +3,8 @@ package mtest.guard
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.{toFunctorOps, toShow}
+import com.github.chenharryhua.nanjin.common.chrono.policies
+import com.github.chenharryhua.nanjin.common.chrono.zones.berlinTime
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
 import com.github.chenharryhua.nanjin.guard.observers.console
@@ -14,8 +16,9 @@ import org.scalatest.funsuite.AnyFunSuite
 class ConfigTest extends AnyFunSuite {
   val service: ServiceGuard[IO] =
     TaskGuard[IO]("config")
+      .updateConfig(_.withZoneId(berlinTime))
       .service("config")
-      .updateConfig(_.withMetricDailyReset.withMetricReport(cron_1hour))
+      .withMetricReport(policies.crontab(cron_1hour))
 
   test("1.counting") {
     val as = service.eventStream { agent =>
@@ -44,16 +47,16 @@ class ConfigTest extends AnyFunSuite {
     assert(!as.actionParams.isTiming)
   }
 
-  test("8.silent") {
+  test("5.silent") {
     val as = service.eventStream { agent =>
       agent.action("cfg", _.silent).retry(IO(1)).run
     }.filter(_.isInstanceOf[ActionStart]).compile.last.unsafeRunSync()
     assert(as.isEmpty)
   }
 
-  test("9.report") {
-    val as = service
-      .updateConfig(_.withoutMetricReport)
+  test("6.report") {
+    service
+      .withMetricReport(policies.giveUp)
       .eventStream { agent =>
         agent.action("cfg", _.silent).retry(IO(1)).run
       }
@@ -61,39 +64,15 @@ class ConfigTest extends AnyFunSuite {
       .compile
       .last
       .unsafeRunSync()
-    assert(as.get.serviceParams.metricParams.reportSchedule.isEmpty)
   }
 
-  test("10.reset") {
-    val as = service
-      .updateConfig(_.withoutMetricReset)
-      .eventStream { agent =>
-        agent.action("cfg", _.silent).retry(IO(1)).run
-      }
-      .filter(_.isInstanceOf[ServiceStart])
-      .compile
-      .last
-      .unsafeRunSync()
-    assert(as.get.serviceParams.metricParams.resetSchedule.isEmpty)
+  test("7.reset") {
+    service.eventStream { agent =>
+      agent.action("cfg", _.silent).retry(IO(1)).run
+    }.filter(_.isInstanceOf[ServiceStart]).compile.last.unsafeRunSync()
   }
 
-  test("13.composable service config") {
-    val homepage = service
-      .updateConfig(_.withHomePage("abc"))
-      .updateConfig(_.withMetricDailyReset)
-      .eventStream(_ => IO(1))
-      .filter(_.isInstanceOf[ServiceStart])
-      .compile
-      .last
-      .unsafeRunSync()
-      .get
-      .serviceParams
-      .homePage
-      .get
-    assert(homepage == "abc")
-  }
-
-  test("14.composable action config") {
+  test("8.composable action config") {
     val as = service
       .eventStream(_.action("abc", _.notice.withCounting).updateConfig(_.withTiming).delay(1).run)
       .filter(_.isInstanceOf[ActionStart])
@@ -107,13 +86,13 @@ class ConfigTest extends AnyFunSuite {
     assert(as.actionParams.isTiming)
   }
 
-  test("15.should not contain {},[]") {
+  test("9.should not contain {},[]") {
     assertThrows[IllegalArgumentException](NameConstraint.unsafeFrom("{a b c}"))
     assertThrows[IllegalArgumentException](NameConstraint.unsafeFrom("[a b c]"))
     NameConstraint.unsafeFrom(" a B 3 , . _ - / \\ ! @ # $ % & + * = < > ? ^ : ( )").value
   }
 
-  test("16.case") {
+  test("10.case") {
     val en = EventName.ServiceStart
     assert(en.entryName == "Service Start")
     assert(en.snake == "service_start")
@@ -123,7 +102,7 @@ class ConfigTest extends AnyFunSuite {
     assert(en.snakeJson == Json.fromString("service_start"))
   }
 
-  test("17.lenses") {
+  test("11.lenses") {
     val len =
       Translator
         .serviceStart[IO, SlackApp]

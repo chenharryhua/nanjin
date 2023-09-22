@@ -1,7 +1,7 @@
 package mtest.spark
 
 import cats.effect.IO
-import com.github.chenharryhua.nanjin.datetime.zones.beijingTime
+import com.github.chenharryhua.nanjin.common.chrono.zones.beijingTime
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.{KafkaContext, KafkaSettings}
 import com.github.chenharryhua.nanjin.spark.*

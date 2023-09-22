@@ -1,7 +1,7 @@
 package mtest
 
 import cats.Alternative
-import com.github.chenharryhua.nanjin.datetime.zones.sydneyTime
+import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.datetime.{DateTimeParser, NJDateTimeRange, NJTimestamp}
 import org.scalatest.funsuite.AnyFunSuite
 

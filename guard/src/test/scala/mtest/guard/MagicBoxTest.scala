@@ -14,6 +14,7 @@ import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import io.circe.syntax.EncoderOps
 import org.scalatest.funsuite.AnyFunSuite
 
+import java.time.ZoneId
 import scala.concurrent.duration.*
 
 class MagicBoxTest extends AnyFunSuite {
@@ -111,7 +112,7 @@ class MagicBoxTest extends AnyFunSuite {
     val List(a, c) =
       service.eventStream { agent =>
         val box = agent.signalBox(10)
-        tickStream[IO](policies.constant(0.1.seconds))
+        tickStream[IO](policies.constant(0.1.seconds), ZoneId.systemDefault())
           .evalTap(_ => box.update(_ + 1))
           .interruptWhen(box.map(_ > 20))
           .compile
@@ -133,7 +134,7 @@ class MagicBoxTest extends AnyFunSuite {
 
     val List(a) = service.eventStream { agent =>
       val box = agent.atomicBox(compute)
-      tickStream[IO](policies.constant(0.5.seconds))
+      tickStream[IO](policies.constant(0.5.seconds), ZoneId.systemDefault())
         .evalTap(_ => box.getAndUpdate(_ + 1))
         .compile
         .drain >> box.get.map(c => assert(c > 5))
@@ -154,7 +155,7 @@ class MagicBoxTest extends AnyFunSuite {
 
     val List(a) = service.eventStream { agent =>
       val box = agent.signalBox(compute)
-      tickStream[IO](policies.constant(0.5.seconds))
+      tickStream[IO](policies.constant(0.5.seconds), ZoneId.systemDefault())
         .evalTap(_ => box.getAndUpdate(_ + 1))
         .compile
         .drain >> box.get.map(c => assert(c > 5))
@@ -167,7 +168,10 @@ class MagicBoxTest extends AnyFunSuite {
 
     val List(a, b, c) = service.eventStream { agent =>
       val box = agent.atomicBox(IO.raiseError[Int](new Exception))
-      tickStream[IO](policies.constant(0.1.seconds)).evalTap(_ => box.getAndUpdate(_ + 1)).compile.drain
+      tickStream[IO](policies.constant(0.1.seconds), ZoneId.systemDefault())
+        .evalTap(_ => box.getAndUpdate(_ + 1))
+        .compile
+        .drain
     }.take(3).compile.toList.unsafeRunSync()
 
     assert(a.isInstanceOf[ServiceStart])
@@ -179,7 +183,10 @@ class MagicBoxTest extends AnyFunSuite {
 
     val List(a, b, c) = service.eventStream { agent =>
       val box = agent.signalBox(IO.raiseError[Int](new Exception))
-      tickStream[IO](policies.constant(0.1.seconds)).evalTap(_ => box.getAndUpdate(_ + 1)).compile.drain
+      tickStream[IO](policies.constant(0.1.seconds), ZoneId.systemDefault())
+        .evalTap(_ => box.getAndUpdate(_ + 1))
+        .compile
+        .drain
     }.take(3).compile.toList.unsafeRunSync()
 
     assert(a.isInstanceOf[ServiceStart])

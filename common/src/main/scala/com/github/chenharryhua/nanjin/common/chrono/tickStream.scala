@@ -5,6 +5,7 @@ import cats.effect.std.UUIDGen
 import cats.syntax.all.*
 import fs2.Stream
 
+import java.time.ZoneId
 import scala.jdk.DurationConverters.JavaDurationOps
 
 object tickStream {
@@ -14,6 +15,6 @@ object tickStream {
         status.next(now).traverse(nt => F.sleep(nt.tick.snooze.toScala).as((nt.tick, nt)))
       }
     }
-  def apply[F[_]: UUIDGen: Temporal](policy: Policy): Stream[F, Tick] =
-    Stream.eval[F, TickStatus](TickStatus(policy)).flatMap(apply(_))
+  def apply[F[_]: UUIDGen: Temporal](policy: Policy, zoneId: ZoneId): Stream[F, Tick] =
+    Stream.eval[F, TickStatus](TickStatus[F](policy, zoneId)).flatMap(apply[F](_))
 }

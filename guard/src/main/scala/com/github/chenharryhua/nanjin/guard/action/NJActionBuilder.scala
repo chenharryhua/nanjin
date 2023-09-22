@@ -59,7 +59,7 @@ final class NJActionBuilder[F[_]](
   def updateConfig(f: Endo[ActionConfig]): NJActionBuilder[F] = copy(config = f.compose(self.config))
   def apply(name: String): NJActionBuilder[F]                 = copy(actionName = ActionName(name))
 
-  def withRetryPolicy(rp: Policy): NJActionBuilder[F] = copy(retryPolicy = rp)
+  def withRetryPolicy(policy: Policy): NJActionBuilder[F] = copy(retryPolicy = policy)
 
   private def alwaysRetry: Throwable => F[Boolean] = (_: Throwable) => F.pure(true)
 
@@ -71,7 +71,7 @@ final class NJActionBuilder[F[_]](
       metricRegistry = metricRegistry,
       channel = channel,
       actionParams = params,
-      zerothTickStatus = zerothTickStatus.withPolicy(retryPolicy),
+      zerothTickStatus = zerothTickStatus.withPolicy(retryPolicy, serviceParams.taskParams.zoneId),
       arrow = fz,
       transInput = None,
       transOutput = None,
@@ -86,7 +86,7 @@ final class NJActionBuilder[F[_]](
       metricRegistry = metricRegistry,
       channel = channel,
       actionParams = params,
-      zerothTickStatus = zerothTickStatus.withPolicy(retryPolicy),
+      zerothTickStatus = zerothTickStatus.withPolicy(retryPolicy, serviceParams.taskParams.zoneId),
       arrow = f,
       transInput = Kleisli(_ => None),
       transOutput = None,
@@ -99,7 +99,7 @@ final class NJActionBuilder[F[_]](
       metricRegistry = metricRegistry,
       channel = channel,
       actionParams = params,
-      zerothTickStatus = zerothTickStatus.withPolicy(retryPolicy),
+      zerothTickStatus = zerothTickStatus.withPolicy(retryPolicy, serviceParams.taskParams.zoneId),
       arrow = f.tupled,
       transInput = Kleisli(_ => None),
       transOutput = None,
@@ -112,7 +112,7 @@ final class NJActionBuilder[F[_]](
       metricRegistry = metricRegistry,
       channel = channel,
       actionParams = params,
-      zerothTickStatus = zerothTickStatus.withPolicy(retryPolicy),
+      zerothTickStatus = zerothTickStatus.withPolicy(retryPolicy, serviceParams.taskParams.zoneId),
       arrow = f.tupled,
       transInput = Kleisli(_ => None),
       transOutput = None,
@@ -125,7 +125,7 @@ final class NJActionBuilder[F[_]](
       metricRegistry = metricRegistry,
       channel = channel,
       actionParams = params,
-      zerothTickStatus = zerothTickStatus.withPolicy(retryPolicy),
+      zerothTickStatus = zerothTickStatus.withPolicy(retryPolicy, serviceParams.taskParams.zoneId),
       arrow = f.tupled,
       transInput = Kleisli(_ => None),
       transOutput = None,
@@ -138,7 +138,7 @@ final class NJActionBuilder[F[_]](
       metricRegistry = metricRegistry,
       channel = channel,
       actionParams = params,
-      zerothTickStatus = zerothTickStatus.withPolicy(retryPolicy),
+      zerothTickStatus = zerothTickStatus.withPolicy(retryPolicy, serviceParams.taskParams.zoneId),
       arrow = f.tupled,
       transInput = Kleisli(_ => None),
       transOutput = None,
