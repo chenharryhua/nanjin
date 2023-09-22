@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.translators
 
 import cats.data.NonEmptyList
-import cats.implicits.showInterpolator
 import com.github.chenharryhua.nanjin.common.optics.jsonPlated
 import com.github.chenharryhua.nanjin.guard.config.{MetricID, MetricParams}
 import com.github.chenharryhua.nanjin.guard.event.MetricSnapshot
@@ -31,20 +30,20 @@ final class SnapshotPolyglot(snapshot: MetricSnapshot, mp: MetricParams) {
     val unit = m.meter.unitShow + "/" + rateUnit
     m.metricId -> NonEmptyList.of(
       "count" -> Json.fromLong(m.meter.count),
-      "mean_rate" -> Json.fromString(show"${convert(m.meter.mean_rate.toHertz)} $unit"),
-      "m1_rate  " -> Json.fromString(show"${convert(m.meter.m1_rate.toHertz)} $unit"),
-      "m5_rate  " -> Json.fromString(show"${convert(m.meter.m5_rate.toHertz)} $unit"),
-      "m15_rate " -> Json.fromString(show"${convert(m.meter.m15_rate.toHertz)} $unit")
+      "mean_rate" -> Json.fromString(s"${convert(m.meter.mean_rate.toHertz)} $unit"),
+      "m1_rate  " -> Json.fromString(s"${convert(m.meter.m1_rate.toHertz)} $unit"),
+      "m5_rate  " -> Json.fromString(s"${convert(m.meter.m5_rate.toHertz)} $unit"),
+      "m15_rate " -> Json.fromString(s"${convert(m.meter.m15_rate.toHertz)} $unit")
     )
   }
   private def timers: List[(MetricID, NonEmptyList[(String, Json)])] = snapshot.timers.map { t =>
     val unit = "calls/" + rateUnit
     t.metricId -> NonEmptyList.of(
       "count" -> Json.fromLong(t.timer.count),
-      "mean_rate" -> Json.fromString(show"${convert(t.timer.mean_rate.toHertz)} $unit"),
-      "m1_rate  " -> Json.fromString(show"${convert(t.timer.m1_rate.toHertz)} $unit"),
-      "m5_rate  " -> Json.fromString(show"${convert(t.timer.m5_rate.toHertz)} $unit"),
-      "m15_rate " -> Json.fromString(show"${convert(t.timer.m15_rate.toHertz)} $unit"),
+      "mean_rate" -> Json.fromString(s"${convert(t.timer.mean_rate.toHertz)} $unit"),
+      "m1_rate  " -> Json.fromString(s"${convert(t.timer.m1_rate.toHertz)} $unit"),
+      "m5_rate  " -> Json.fromString(s"${convert(t.timer.m5_rate.toHertz)} $unit"),
+      "m15_rate " -> Json.fromString(s"${convert(t.timer.m15_rate.toHertz)} $unit"),
       "min   " -> Json.fromString(fmt.format(t.timer.min)),
       "max   " -> Json.fromString(fmt.format(t.timer.max)),
       "mean  " -> Json.fromString(fmt.format(t.timer.mean)),
@@ -62,16 +61,16 @@ final class SnapshotPolyglot(snapshot: MetricSnapshot, mp: MetricParams) {
     val unit = h.histogram.unitShow
     h.metricId -> NonEmptyList.of(
       "count" -> Json.fromLong(h.histogram.count),
-      "min   " -> Json.fromString(show"${decFmt.format(h.histogram.min)} $unit"),
-      "max   " -> Json.fromString(show"${decFmt.format(h.histogram.max)} $unit"),
-      "mean  " -> Json.fromString(show"${decFmt.format(h.histogram.mean)} $unit"),
-      "stddev" -> Json.fromString(show"${decFmt.format(h.histogram.stddev)} $unit"),
-      "p50   " -> Json.fromString(show"${decFmt.format(h.histogram.p50)} $unit"),
-      "p75   " -> Json.fromString(show"${decFmt.format(h.histogram.p75)} $unit"),
-      "p95   " -> Json.fromString(show"${decFmt.format(h.histogram.p95)} $unit"),
-      "p98   " -> Json.fromString(show"${decFmt.format(h.histogram.p98)} $unit"),
-      "p99   " -> Json.fromString(show"${decFmt.format(h.histogram.p99)} $unit"),
-      "p999  " -> Json.fromString(show"${decFmt.format(h.histogram.p999)} $unit")
+      "min   " -> Json.fromString(s"${decFmt.format(h.histogram.min)} $unit"),
+      "max   " -> Json.fromString(s"${decFmt.format(h.histogram.max)} $unit"),
+      "mean  " -> Json.fromString(s"${decFmt.format(h.histogram.mean)} $unit"),
+      "stddev" -> Json.fromString(s"${decFmt.format(h.histogram.stddev)} $unit"),
+      "p50   " -> Json.fromString(s"${decFmt.format(h.histogram.p50)} $unit"),
+      "p75   " -> Json.fromString(s"${decFmt.format(h.histogram.p75)} $unit"),
+      "p95   " -> Json.fromString(s"${decFmt.format(h.histogram.p95)} $unit"),
+      "p98   " -> Json.fromString(s"${decFmt.format(h.histogram.p98)} $unit"),
+      "p99   " -> Json.fromString(s"${decFmt.format(h.histogram.p99)} $unit"),
+      "p999  " -> Json.fromString(s"${decFmt.format(h.histogram.p999)} $unit")
     )
   }
 
@@ -140,10 +139,10 @@ final class SnapshotPolyglot(snapshot: MetricSnapshot, mp: MetricParams) {
           .toList
           .sortBy(_._1)
           .map { case (n, j) =>
-            val key = show"$leftParen${n.digest}$rightParen$leftParen${n.value}$rightParen"
+            val key = s"$leftParen${n.digest}$rightParen$leftParen${n.value}$rightParen"
             Json.obj(key -> j)
           }
-        show"- $measurement" -> Json.arr(arr*)
+        s"- $measurement" -> Json.arr(arr*)
       }
       .toList
       .sortBy(_._1)

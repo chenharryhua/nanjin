@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.common
 
 import cats.Show
-import cats.implicits.{catsSyntaxEq, showInterpolator}
+import cats.implicits.catsSyntaxEq
 import cats.kernel.{Eq, Monoid}
 import com.github.chenharryhua.nanjin.common.HostName.monoidHostName
 import io.circe.{Decoder, Encoder}
@@ -21,7 +21,7 @@ final class HostName(val value: String) extends AnyVal with Serializable {
 
 object HostName {
 
-  implicit final val showHostName: Show[HostName] = hn => show"HostName(value=${hn.value})"
+  implicit final val showHostName: Show[HostName] = hn => s"HostName(value=${hn.value})"
   implicit final val monoidHostName: Monoid[HostName] = new Monoid[HostName] {
     override val empty: HostName = new HostName("")
 

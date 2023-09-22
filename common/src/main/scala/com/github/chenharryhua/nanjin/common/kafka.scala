@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.common
 
 import cats.Show
-import cats.implicits.{catsSyntaxEq, showInterpolator}
+import cats.implicits.catsSyntaxEq
 import cats.kernel.Eq
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.refineV
@@ -27,7 +27,7 @@ object kafka {
       case Right(value) => value
     }
 
-    implicit val showTopicName: Show[TopicName] = tn => show"TopicName(value=${tn.value})"
+    implicit val showTopicName: Show[TopicName] = tn => s"TopicName(value=${tn.value})"
     implicit val eqTopicName: Eq[TopicName]     = Eq.instance((a, b) => a.value === b.value)
 
     implicit val encodeTopicName: Encoder[TopicName] = Encoder.encodeString.contramap(_.value)

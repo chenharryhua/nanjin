@@ -2,7 +2,6 @@ package com.github.chenharryhua.nanjin.terminals
 
 import cats.Show
 import cats.data.NonEmptyList
-import cats.implicits.showInterpolator
 import cats.kernel.Order
 import com.github.chenharryhua.nanjin.common.aws.S3Path
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
@@ -50,7 +49,7 @@ object NJPath {
   def apply(lfs: LocatedFileStatus): NJPath = apply(lfs.getPath)
   def apply(uri: URI): NJPath               = apply(new Path(uri))
 
-  implicit final val showNJPath: Show[NJPath]         = p => show"NJPath(uri=${p.pathStr})"
+  implicit final val showNJPath: Show[NJPath]         = p => s"NJPath(uri=${p.pathStr})"
   implicit final val orderingNJPath: Ordering[NJPath] = Ordering.by(_.pathStr)
   implicit final val orderNJPath: Order[NJPath]       = Order.by(_.pathStr)
 

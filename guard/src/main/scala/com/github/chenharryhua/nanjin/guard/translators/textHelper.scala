@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.translators
 
-import cats.implicits.{showInterpolator, toShow}
+import cats.implicits.toShow
 import com.github.chenharryhua.nanjin.guard.config.{MetricName, MetricParams}
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.{ActionRetry, ServicePanic}
 import com.github.chenharryhua.nanjin.guard.event.{MetricIndex, MetricSnapshot, NJEvent}
@@ -38,16 +38,16 @@ private object textHelper extends localtime with localdatetime {
   def tookText(duration: Duration): String = fmt.format(duration)
 
   def eventTitle(evt: NJEvent): String = {
-    def name(mn: MetricName): String = show"[${mn.digest}][${mn.value}]"
+    def name(mn: MetricName): String = s"[${mn.digest}][${mn.value}]"
 
     evt match {
-      case NJEvent.ActionStart(ap, _, _)      => show"Start Action ${name(ap.metricId.metricName)}"
-      case NJEvent.ActionRetry(ap, _, _, _)   => show"Action Retrying ${name(ap.metricId.metricName)}"
-      case NJEvent.ActionFail(ap, _, _, _, _) => show"Action Failed ${name(ap.metricId.metricName)}"
-      case NJEvent.ActionDone(ap, _, _, _)    => show"Action Done ${name(ap.metricId.metricName)}"
+      case NJEvent.ActionStart(ap, _, _)      => s"Start Action ${name(ap.metricId.metricName)}"
+      case NJEvent.ActionRetry(ap, _, _, _)   => s"Action Retrying ${name(ap.metricId.metricName)}"
+      case NJEvent.ActionFail(ap, _, _, _, _) => s"Action Failed ${name(ap.metricId.metricName)}"
+      case NJEvent.ActionDone(ap, _, _, _)    => s"Action Done ${name(ap.metricId.metricName)}"
 
       case NJEvent.ServiceAlert(metricName, _, _, al, _) =>
-        show"Alert ${al.productPrefix} ${name(metricName)}"
+        s"Alert ${al.productPrefix} ${name(metricName)}"
 
       case _: NJEvent.ServiceStart => "(Re)Start Service"
       case _: NJEvent.ServiceStop  => "Service Stopped"
@@ -56,12 +56,12 @@ private object textHelper extends localtime with localdatetime {
       case NJEvent.MetricReport(index, _, _, _) =>
         index match {
           case MetricIndex.Adhoc          => "Adhoc Metric Report"
-          case MetricIndex.Periodic(tick) => show"Metric Report(index=${tick.index})"
+          case MetricIndex.Periodic(tick) => s"Metric Report(index=${tick.index})"
         }
       case NJEvent.MetricReset(index, _, _, _) =>
         index match {
           case MetricIndex.Adhoc          => "Adhoc Metric Reset"
-          case MetricIndex.Periodic(tick) => show"Metric Reset(index=${tick.index})"
+          case MetricIndex.Periodic(tick) => s"Metric Reset(index=${tick.index})"
         }
     }
   }
@@ -93,13 +93,13 @@ private object textHelper extends localtime with localdatetime {
 
   def panicText(evt: ServicePanic): String = {
     val (time, dur) = localTimeAndDurationStr(evt.timestamp, evt.restartTime)
-    show"The service experienced a panic. Restart was scheduled at *$time*, roughly in $dur."
+    s"The service experienced a panic. Restart was scheduled at *$time*, roughly in $dur."
   }
 
   def retryText(evt: ActionRetry): String = {
     val localTs: LocalTime =
       evt.serviceParams.toZonedDateTime(evt.tick.wakeup).toLocalTime.truncatedTo(ChronoUnit.SECONDS)
     val next = fmt.format(evt.tick.snooze)
-    show"*${toOrdinalWords(evt.tick.index)}* retry will be at $localTs, in $next"
+    s"*${toOrdinalWords(evt.tick.index)}* retry will be at $localTs, in $next"
   }
 }
