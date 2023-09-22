@@ -2,35 +2,38 @@ package mtest.common
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.common.chrono.{policies, TickStatus}
+import cats.implicits.toShow
+import com.github.chenharryhua.nanjin.common.chrono.zones.{saltaTime, sydneyTime}
+import com.github.chenharryhua.nanjin.common.chrono.*
 import org.scalatest.funsuite.AnyFunSuite
 
-import java.time.temporal.ChronoUnit
 import java.time.*
+import java.time.temporal.ChronoUnit
 import scala.concurrent.duration.DurationInt
 import scala.jdk.DurationConverters.{JavaDurationOps, ScalaDurationOps}
 
 class PolicyTest extends AnyFunSuite {
-  val interval: Duration = Duration.of(1, ChronoUnit.SECONDS)
-  val t0: Instant        = ZonedDateTime.of(2023, 9, 16, 16, 30, 0, 0, ZoneId.systemDefault()).toInstant
-  val t1: Instant        = t0.plus(interval)
-  val t2: Instant        = t1.plus(interval)
-  val t3: Instant        = t2.plus(interval)
-  val t4: Instant        = t3.plus(interval)
-  val t5: Instant        = t4.plus(interval)
-  val t6: Instant        = t5.plus(interval)
-
-  val zoneId: ZoneId = ZoneId.systemDefault()
+  val interval: Duration   = Duration.of(1, ChronoUnit.SECONDS)
+  val localDate: LocalDate = LocalDate.of(2023, 9, 16)
+  val zoneId: ZoneId       = saltaTime
+  val t0: Instant          = ZonedDateTime.of(localDate, localTimes.amEight, zoneId).toInstant
+  val t1: Instant          = t0.plus(interval)
+  val t2: Instant          = t1.plus(interval)
+  val t3: Instant          = t2.plus(interval)
+  val t4: Instant          = t3.plus(interval)
+  val t5: Instant          = t4.plus(interval)
+  val t6: Instant          = t5.plus(interval)
 
   test("constant") {
     val delay  = 1.second.toJava
-    val policy = policies.constant(delay).limited(3)
-    val ts     = TickStatus[IO](policy, zoneId).unsafeRunSync()
-    val zero   = ts.tick
-    val a1     = ts.next(t1).get
-    val a2     = a1.next(t2).get
-    val a3     = a2.next(t3).get
-    val a4     = a3.next(t4)
+    val policy = policies.accordance(policies.constant(delay).limited(3))
+    println(policy.show)
+    val ts   = TickStatus[IO](policy, zoneId).unsafeRunSync()
+    val zero = ts.tick
+    val a1   = ts.next(t1).get
+    val a2   = a1.next(t2).get
+    val a3   = a2.next(t3).get
+    val a4   = a3.next(t4)
 
     assert(a1.tick.sequenceId == zero.sequenceId)
     assert(a1.tick.launchTime == zero.launchTime)
@@ -60,6 +63,7 @@ class PolicyTest extends AnyFunSuite {
     val delay = 1.second.toJava
     val policy =
       policies.constant(delay).limited(3).followedBy(policies.constant(delay.multipliedBy(2)).limited(2))
+    println(policy.show)
     val ts = TickStatus[IO](policy, zoneId).unsafeRunSync()
     val a1 = ts.next(t1).get
     val a2 = a1.next(t2).get
@@ -85,7 +89,7 @@ class PolicyTest extends AnyFunSuite {
         .followedBy(policies.constant(delay.multipliedBy(2)).limited(2))
         .repeat
 
-    println(policy)
+    println(policy.show)
     val ts = TickStatus[IO](policy, zoneId).unsafeRunSync()
     val a1 = ts.next(t1).get
     val a2 = a1.next(t2).get
@@ -105,9 +109,10 @@ class PolicyTest extends AnyFunSuite {
   test("fixed pace") {
     val delay  = 10.minutes.toJava
     val policy = policies.fixedPace(delay)
-    val ts     = TickStatus[IO](policy, zoneId).unsafeRunSync()
-    val zero   = ts.tick
-    val a1     = ts.next(zero.launchTime.plus(5.minutes.toJava)).get
+    println(policy.show)
+    val ts   = TickStatus[IO](policy, zoneId).unsafeRunSync()
+    val zero = ts.tick
+    val a1   = ts.next(zero.launchTime.plus(5.minutes.toJava)).get
     assert(a1.tick.wakeup == zero.launchTime.plus(delay))
     val a2 = a1.next(zero.launchTime.plus(15.minutes.toJava)).get
     assert(a2.tick.wakeup == zero.launchTime.plus(delay.multipliedBy(2)))
@@ -118,8 +123,9 @@ class PolicyTest extends AnyFunSuite {
 
   test("exponential") {
     val policy = policies.exponential(1.second)
-    val ts     = TickStatus[IO](policy, zoneId).unsafeRunSync()
-    val a1     = ts.next(t0).get
+    println(policy.show)
+    val ts = TickStatus[IO](policy, zoneId).unsafeRunSync()
+    val a1 = ts.next(t0).get
     assert(a1.tick.snooze == 1.second.toJava)
     val a2 = a1.next(t0).get
     assert(a2.tick.snooze == 2.second.toJava)
@@ -133,8 +139,9 @@ class PolicyTest extends AnyFunSuite {
 
   test("fibonacci") {
     val policy = policies.fibonacci(1.minute)
-    val ts     = TickStatus[IO](policy, zoneId).unsafeRunSync()
-    val a1     = ts.next(t0).get
+    println(policy.show)
+    val ts = TickStatus[IO](policy, zoneId).unsafeRunSync()
+    val a1 = ts.next(t0).get
     assert(a1.tick.snooze == 1.minute.toJava)
     val a2 = a1.next(t0).get
     assert(a2.tick.snooze == 1.minute.toJava)
@@ -152,8 +159,9 @@ class PolicyTest extends AnyFunSuite {
 
   test("capped") {
     val policy = policies.fibonacci(1.minute).capped(6.minutes)
-    val ts     = TickStatus[IO](policy, zoneId).unsafeRunSync()
-    val a1     = ts.next(t0).get
+    println(policy.show)
+    val ts = TickStatus[IO](policy, zoneId).unsafeRunSync()
+    val a1 = ts.next(t0).get
     assert(a1.tick.snooze == 1.minute.toJava)
     val a2 = a1.next(t0).get
     assert(a2.tick.snooze == 1.minute.toJava)
@@ -168,19 +176,59 @@ class PolicyTest extends AnyFunSuite {
     val a7 = a6.next(t0).get
     assert(a7.tick.snooze == 6.minute.toJava)
   }
+
+  test("threshold") {
+    val policy = policies.fibonacci(1.minute).threshold(6.minute)
+    println(policy.show)
+    val ts = TickStatus[IO](policy, zoneId).unsafeRunSync()
+    val a1 = ts.next(t0).get
+    assert(a1.tick.snooze == 1.minute.toJava)
+    val a2 = a1.next(t0).get
+    assert(a2.tick.snooze == 1.minute.toJava)
+    val a3 = a2.next(t0).get
+    assert(a3.tick.snooze == 2.minute.toJava)
+    val a4 = a3.next(t0).get
+    assert(a4.tick.snooze == 3.minute.toJava)
+    val a5 = a4.next(t0).get
+    assert(a5.tick.snooze == 5.minute.toJava)
+    val a6 = a5.next(t0).get
+    assert(a6.tick.snooze == 1.minute.toJava)
+    val a7 = a6.next(t0).get
+    assert(a7.tick.snooze == 1.minute.toJava)
+  }
+
   test("jitter") {
     val policy = policies.jitter(1.minute, 2.hour)
-    val ts     = TickStatus[IO](policy, zoneId).unsafeRunSync()
-    val a1     = ts.next(t0).get.tick
+    println(policy.show)
+    val ts = TickStatus[IO](policy, zoneId).unsafeRunSync()
+    val a1 = ts.next(t0).get.tick
     assert(a1.snooze.toScala >= 1.minute)
     assert(a1.snooze.toScala < 2.hour)
   }
-  test("endup") {
+
+  test("delays") {
+    val policy = policies.delays(1.second, 2.seconds, 3.seconds).repeat
+    println(policy.show)
+    val ts = TickStatus[IO](policy, zoneId).unsafeRunSync()
+    val a1 = ts.next(t0).get
+    val a2 = a1.next(t0).get
+    val a3 = a2.next(t0).get
+    val a4 = a3.next(t0).get
+    assert(a1.tick.snooze == 1.second.toJava)
+    assert(a2.tick.snooze == 2.second.toJava)
+    assert(a3.tick.snooze == 3.second.toJava)
+    assert(a4.tick.snooze == 1.second.toJava)
+  }
+
+  ignore("endup") {
+    val time = LocalTime.of(11, 25, 0)
     val policy = policies
-      .constant(1.second)
-      .endUp(LocalTime.of(11, 0, 0))
-      .followedBy(policies.fibonacci(1.second).endOfDay)
+      .crontab(crontabs.every10Seconds)
+      .endUp(time)
+      .followedBy(policies.constant(1.second).endUp(time.plus(5.seconds.toJava)))
+      .followedBy(policies.exponential(1.second).endOfDay)
       .repeat
     println(policy)
+    tickStream[IO](policy, sydneyTime).debug().compile.drain.unsafeRunSync()
   }
 }

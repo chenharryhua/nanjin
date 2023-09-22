@@ -2,6 +2,7 @@ package mtest.guard
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
+import com.github.chenharryhua.nanjin.common.chrono.zones.londonTime
 import com.github.chenharryhua.nanjin.common.chrono.{policies, Policy, Tick}
 import com.github.chenharryhua.nanjin.guard.*
 import com.github.chenharryhua.nanjin.guard.event.*
@@ -21,7 +22,7 @@ import scala.util.control.ControlThrowable
 class ServiceTest extends AnyFunSuite {
 
   val guard: ServiceGuard[IO] = TaskGuard[IO]("service-level-guard")
-    .updateConfig(_.withHomePage("https://abc.com/efg"))
+    .updateConfig(_.withHomePage("https://abc.com/efg").withZoneId(londonTime))
     .service("service")
     .withRestartPolicy(policies.constant(1.seconds))
     .withBrief(Json.fromString("test"))

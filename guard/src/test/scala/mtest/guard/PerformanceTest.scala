@@ -6,7 +6,7 @@ import com.github.chenharryhua.nanjin.common.chrono.policies
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import io.circe.syntax.EncoderOps
-import org.junit.Ignore
+import org.scalatest.Ignore
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.*

@@ -3,6 +3,7 @@ package mtest.guard
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.syntax.all.*
+import com.github.chenharryhua.nanjin.common.chrono.zones.singaporeTime
 import com.github.chenharryhua.nanjin.common.chrono.{policies, Policy}
 import com.github.chenharryhua.nanjin.guard.*
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
@@ -23,7 +24,10 @@ final case class MyException() extends Exception("my exception")
 class RetryTest extends AnyFunSuite {
 
   val serviceGuard: ServiceGuard[IO] =
-    TaskGuard[IO]("retry-guard").service("retry test").withRestartPolicy(constant_1second)
+    TaskGuard[IO]("retry-guard")
+      .updateConfig(_.withZoneId(singaporeTime))
+      .service("retry test")
+      .withRestartPolicy(constant_1second)
 
   val policy: Policy = policies.constant(1.seconds).limited(3)
 

@@ -4,6 +4,7 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.{toFunctorOps, toShow}
 import com.github.chenharryhua.nanjin.common.chrono.policies
+import com.github.chenharryhua.nanjin.common.chrono.zones.berlinTime
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
 import com.github.chenharryhua.nanjin.guard.observers.console
@@ -14,7 +15,10 @@ import org.scalatest.funsuite.AnyFunSuite
 
 class ConfigTest extends AnyFunSuite {
   val service: ServiceGuard[IO] =
-    TaskGuard[IO]("config").service("config").withMetricReport(policies.crontab(cron_1hour))
+    TaskGuard[IO]("config")
+      .updateConfig(_.withZoneId(berlinTime))
+      .service("config")
+      .withMetricReport(policies.crontab(cron_1hour))
 
   test("1.counting") {
     val as = service.eventStream { agent =>
@@ -67,7 +71,6 @@ class ConfigTest extends AnyFunSuite {
       agent.action("cfg", _.silent).retry(IO(1)).run
     }.filter(_.isInstanceOf[ServiceStart]).compile.last.unsafeRunSync()
   }
-
 
   test("8.composable action config") {
     val as = service

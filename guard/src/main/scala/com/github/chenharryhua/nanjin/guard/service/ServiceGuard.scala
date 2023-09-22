@@ -80,9 +80,7 @@ final class ServiceGuard[F[_]: Network] private[guard] (
   override def updateConfig(f: Endo[ServiceConfig]): ServiceGuard[F] = copy(config = f.compose(self.config))
   def apply(serviceName: String): ServiceGuard[F] = copy(serviceName = ServiceName(serviceName))
 
-  /** https://cb372.github.io/cats-retry/docs/policies.html
-    */
-  def withRestartPolicy(rp: Policy): ServiceGuard[F] = copy(serviceRestartPolicy = rp)
+  def withRestartPolicy(policy: Policy): ServiceGuard[F] = copy(serviceRestartPolicy = policy)
 
   def withMetricReport(policy: Policy): ServiceGuard[F] = copy(metricReportPolicy = policy)
   def withMetricReset(policy: Policy): ServiceGuard[F]  = copy(metricResetPolicy = policy)
