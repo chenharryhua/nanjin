@@ -239,7 +239,7 @@ class ServiceTest extends AnyFunSuite {
 
   test("12.policy threshold start over") {
     val List(a, b, c, d, e, f, g, h) = guard
-      .withRestartPolicy(policies.fibonacci(1.seconds).limited(4).repeat)
+      .withRestartPolicy(policies.fibonacci(1.seconds,4))
       .withMetricServer(identity)
       .eventStream(_ => IO.raiseError(new Exception("oops")))
       .evalMapFilter[IO, Tick] {
