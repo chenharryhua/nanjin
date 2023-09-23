@@ -3,8 +3,8 @@ package mtest.common
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.toShow
-import com.github.chenharryhua.nanjin.common.chrono.zones.{saltaTime, sydneyTime}
 import com.github.chenharryhua.nanjin.common.chrono.*
+import com.github.chenharryhua.nanjin.common.chrono.zones.saltaTime
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.*
@@ -61,8 +61,9 @@ class PolicyTest extends AnyFunSuite {
 
   test("follow by") {
     val delay = 1.second.toJava
-    val policy =
-      policies.constant(delay).limited(3).followedBy(policies.constant(delay.multipliedBy(2)).limited(2))
+    val policy = policies
+      .accordance(policies.constant(delay).limited(3))
+      .followedBy(policies.constant(delay.multipliedBy(2)).limited(2))
     println(policy.show)
     val ts = TickStatus[IO](policy, zoneId).unsafeRunSync()
     val a1 = ts.next(t1).get

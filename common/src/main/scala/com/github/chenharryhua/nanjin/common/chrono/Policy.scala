@@ -154,7 +154,7 @@ private object PolicyF extends localtime with localdate with duration {
 }
 
 final case class Policy(policy: Fix[PolicyF]) extends AnyVal {
-  import PolicyF.{Capped, EndUp, FollowedBy, Limited, Repeat}
+  import PolicyF.{Capped, FollowedBy, Limited, Repeat}
   override def toString: String = scheme.cata(PolicyF.show).apply(policy)
 
   def limited(num: Int): Policy         = Policy(Fix(Limited(policy, num)))
