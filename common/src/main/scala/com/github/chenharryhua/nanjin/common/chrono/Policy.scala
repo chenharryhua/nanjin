@@ -43,7 +43,6 @@ private object PolicyF extends localtime with localdate with duration {
   final case class FollowedBy[K](first: K, second: K) extends PolicyF[K]
   final case class Capped[K](policy: K, cap: Duration) extends PolicyF[K]
   final case class Repeat[K](policy: K) extends PolicyF[K]
-  final case class EndUp[K](policy: K, endUp: LocalTime) extends PolicyF[K]
   final case class Threshold[K](policy: K, threshold: Duration) extends PolicyF[K]
 
   final case class TickRequest(tick: Tick, counter: Int, now: Instant)
@@ -128,15 +127,6 @@ private object PolicyF extends localtime with localdate with duration {
         }
 
       case Repeat(policy) => LazyList.continually(resetCounter #:: policy).flatten
-
-      case EndUp(policy, endUp) =>
-        val timeFrame: LazyList[Unit] = LazyList.unfold(ZonedDateTime.now(zoneId)) { prev =>
-          val now     = ZonedDateTime.now(zoneId)
-          val sameDay = now.toLocalDate === prev.toLocalDate
-          val endTime = endUp.atDate(now.toLocalDate).atZone(zoneId)
-          if (endTime.isAfter(now) && sameDay) Some(((), now)) else None
-        }
-        policy.zip(timeFrame).map(_._1)
     }
 
   private val fmt: DurationFormatter = DurationFormatter.defaultFormatter
@@ -157,7 +147,6 @@ private object PolicyF extends localtime with localdate with duration {
     case Capped(policy, cap)          => show"$policy.capped(${fmt.format(cap)})"
     case Threshold(policy, threshold) => show"$policy.threshold(${fmt.format(threshold)})"
     case Repeat(policy)               => show"$policy.repeat"
-    case EndUp(policy, endUp)         => show"$policy.endUp($endUp)"
   }
 
   def decisions(policy: Fix[PolicyF], zoneId: ZoneId): LazyList[CalcTick] =
@@ -178,8 +167,6 @@ final case class Policy(policy: Fix[PolicyF]) extends AnyVal {
   def threshold(duration: Duration): Policy       = Policy(Fix(Threshold(policy, duration)))
   def threshold(duration: FiniteDuration): Policy = threshold(duration.toJava)
 
-  def endUp(localTime: LocalTime): Policy = Policy(Fix(EndUp(policy, localTime)))
-  def endOfDay: Policy                    = endUp(LocalTime.MAX)
 }
 
 object Policy {
