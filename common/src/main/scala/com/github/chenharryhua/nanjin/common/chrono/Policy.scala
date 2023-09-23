@@ -26,8 +26,8 @@ private object PolicyF extends localtime with localdate with duration {
   final case class Accordance[K](policy: K) extends PolicyF[K]
   final case class Constant[K](base: Duration) extends PolicyF[K]
   final case class FixedPace[K](base: Duration) extends PolicyF[K]
-  final case class Exponential[K](base: Duration, expo: Int) extends PolicyF[K]
-  final case class Fibonacci[K](base: Duration, max: Int) extends PolicyF[K]
+  final case class Exponential[K](base: Duration, length: Int) extends PolicyF[K]
+  final case class Fibonacci[K](base: Duration, length: Int) extends PolicyF[K]
   final case class Crontab[K](cronExpr: CronExpr) extends PolicyF[K]
   final case class Jitter[K](min: Duration, max: Duration) extends PolicyF[K]
   final case class Delays[K](delays: NonEmptyList[Duration]) extends PolicyF[K]
@@ -61,25 +61,25 @@ private object PolicyF extends localtime with localdate with duration {
         }
         LazyList.continually(calcTick)
 
-      case Exponential(base, expo) =>
+      case Exponential(base, length) =>
         LazyList.unfold[CalcTick, Int](0) { counter =>
           val calcTick: CalcTick = { req =>
             val delay = base.multipliedBy(Math.pow(2, counter.toDouble).toLong)
             Some(req.tick.newTick(req.now, delay))
           }
 
-          if (counter < expo - 1)
+          if (counter < length - 1)
             Some((calcTick, counter + 1))
           else
             Some((calcTick, 0))
         }
 
-      case Fibonacci(base, max) =>
+      case Fibonacci(base, length) =>
         LazyList.unfold[CalcTick, Int](1) { counter =>
           val calcTick: CalcTick =
             req => Some(req.tick.newTick(req.now, base.multipliedBy(Fib.fibonacci(counter))))
 
-          if (counter < max)
+          if (counter < length)
             Some((calcTick, counter + 1))
           else
             Some((calcTick, 1))
@@ -125,15 +125,15 @@ private object PolicyF extends localtime with localdate with duration {
   private val fmt: DurationFormatter = DurationFormatter.defaultFormatter
 
   val show: Algebra[PolicyF, String] = Algebra[PolicyF, String] {
-    case GiveUp()                => show"giveUp"
-    case Accordance(policy)      => show"accordance($policy)"
-    case Constant(base)          => show"constant(base=${fmt.format(base)})"
-    case FixedPace(base)         => show"fixedPace(base=${fmt.format(base)})"
-    case Exponential(base, expo) => show"exponential(base=${fmt.format(base)}, expo=$expo)"
-    case Fibonacci(base, max)    => show"fibonacci(base=${fmt.format(base)}, max=$max)"
-    case Crontab(cronExpr)       => show"crontab($cronExpr)"
-    case Jitter(min, max)        => show"jitter(min=${fmt.format(min)}, max=${fmt.format(max)})"
-    case Delays(delays)          => show"delays(${fmt.format(delays.head)}, ...)"
+    case GiveUp()                  => show"giveUp"
+    case Accordance(policy)        => show"accordance($policy)"
+    case Constant(base)            => show"constant(${fmt.format(base)})"
+    case FixedPace(base)           => show"fixedPace(${fmt.format(base)})"
+    case Exponential(base, length) => show"exponential(${fmt.format(base)}, $length)"
+    case Fibonacci(base, length)   => show"fibonacci(${fmt.format(base)}, $length)"
+    case Crontab(cronExpr)         => show"crontab($cronExpr)"
+    case Jitter(min, max)          => show"jitter(${fmt.format(min)}, ${fmt.format(max)})"
+    case Delays(delays)            => show"delays(${fmt.format(delays.head)}, ...)"
     // ops
     case Limited(policy, limit)    => show"$policy.limited($limit)"
     case FollowedBy(first, second) => show"$first.followedBy($second)"
@@ -172,10 +172,10 @@ object policies {
   def fixedPace(base: Duration): Policy       = Policy(Fix(FixedPace(base)))
   def fixedPace(base: FiniteDuration): Policy = fixedPace(base.toJava)
 
-  def exponential(base: Duration, expo: Int): Policy       = Policy(Fix(Exponential(base, expo)))
+  def exponential(base: Duration, length: Int): Policy     = Policy(Fix(Exponential(base, length)))
   def exponential(base: FiniteDuration, expo: Int): Policy = exponential(base.toJava, expo)
 
-  def fibonacci(base: Duration, max: Int): Policy       = Policy(Fix(Fibonacci(base, max)))
+  def fibonacci(base: Duration, length: Int): Policy    = Policy(Fix(Fibonacci(base, length)))
   def fibonacci(base: FiniteDuration, max: Int): Policy = fibonacci(base.toJava, max)
 
   def crontab(cronExpr: CronExpr): Policy = Policy(Fix(Crontab(cronExpr)))

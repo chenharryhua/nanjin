@@ -109,12 +109,7 @@ class PolicyTest extends AnyFunSuite {
     assert(a4.tick.index == 4)
     assert(a5.tick.index == 5)
     assert(a6.tick.index == 6)
-    println(a1.tick)
-    println(a2.tick)
-    println(a3.tick)
-    println(a4.tick)
-    println(a5.tick)
-    println(a6.tick)
+
     assert(a1.tick.snooze == 1.second.toJava)
     assert(a2.tick.snooze == 1.second.toJava)
     assert(a3.tick.snooze == 1.second.toJava)
@@ -144,7 +139,7 @@ class PolicyTest extends AnyFunSuite {
   }
 
   test("exponential") {
-    val policy = policies.exponential(1.minute, 5)
+    val policy = policies.exponential(3.minute, 5)
     println(policy.show)
     val ts = TickStatus[IO](policy, saltaTime).unsafeRunSync()
     val a1 = ts.next(t0).get
@@ -163,13 +158,13 @@ class PolicyTest extends AnyFunSuite {
     assert(a6.tick.index == 6)
     assert(a7.tick.index == 7)
 
-    assert(a1.tick.snooze == 1.minute.toJava)
-    assert(a2.tick.snooze == 2.minute.toJava)
-    assert(a3.tick.snooze == 4.minute.toJava)
-    assert(a4.tick.snooze == 8.minute.toJava)
-    assert(a5.tick.snooze == 16.minute.toJava)
-    assert(a6.tick.snooze == 1.minute.toJava)
-    assert(a7.tick.snooze == 2.minute.toJava)
+    assert(a1.tick.snooze == 3.minute.toJava)
+    assert(a2.tick.snooze == 6.minute.toJava)
+    assert(a3.tick.snooze == 12.minute.toJava)
+    assert(a4.tick.snooze == 24.minute.toJava)
+    assert(a5.tick.snooze == 48.minute.toJava)
+    assert(a6.tick.snooze == 3.minute.toJava)
+    assert(a7.tick.snooze == 6.minute.toJava)
 
   }
 
