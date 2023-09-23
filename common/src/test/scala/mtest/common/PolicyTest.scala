@@ -4,7 +4,7 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.toShow
 import com.github.chenharryhua.nanjin.common.chrono.*
-import com.github.chenharryhua.nanjin.common.chrono.zones.{beijingTime, berlinTime, cairoTime, darwinTime, londonTime, mumbaiTime, newyorkTime, saltaTime, singaporeTime, sydneyTime, utcTime}
+import com.github.chenharryhua.nanjin.common.chrono.zones.*
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.*
@@ -144,7 +144,7 @@ class PolicyTest extends AnyFunSuite {
   }
 
   test("exponential") {
-    val policy = policies.exponential(1.minute)
+    val policy = policies.exponential(1.minute, 5)
     println(policy.show)
     val ts = TickStatus[IO](policy, saltaTime).unsafeRunSync()
     val a1 = ts.next(t0).get
@@ -152,83 +152,32 @@ class PolicyTest extends AnyFunSuite {
     val a3 = a2.next(t0).get
     val a4 = a3.next(t0).get
     val a5 = a4.next(t0).get
+    val a6 = a5.next(t0).get
+    val a7 = a6.next(t0).get
 
     assert(a1.tick.index == 1)
     assert(a2.tick.index == 2)
     assert(a3.tick.index == 3)
     assert(a4.tick.index == 4)
     assert(a5.tick.index == 5)
+    assert(a6.tick.index == 6)
+    assert(a7.tick.index == 7)
 
     assert(a1.tick.snooze == 1.minute.toJava)
     assert(a2.tick.snooze == 2.minute.toJava)
     assert(a3.tick.snooze == 4.minute.toJava)
     assert(a4.tick.snooze == 8.minute.toJava)
     assert(a5.tick.snooze == 16.minute.toJava)
+    assert(a6.tick.snooze == 1.minute.toJava)
+    assert(a7.tick.snooze == 2.minute.toJava)
+
   }
 
   test("fibonacci") {
-    val policy = policies.fibonacci(1.minute)
+    val policy = policies.fibonacci(1.minute, 5)
     println(policy.show)
 
     val ts = TickStatus[IO](policy, cairoTime).unsafeRunSync()
-    val a1 = ts.next(t0).get
-    val a2 = a1.next(t0).get
-    val a3 = a2.next(t0).get
-    val a4 = a3.next(t0).get
-    val a5 = a4.next(t0).get
-    val a6 = a5.next(t0).get
-    val a7 = a6.next(t0).get
-
-    assert(a1.tick.index == 1)
-    assert(a2.tick.index == 2)
-    assert(a3.tick.index == 3)
-    assert(a4.tick.index == 4)
-    assert(a5.tick.index == 5)
-    assert(a6.tick.index == 6)
-    assert(a7.tick.index == 7)
-
-    assert(a1.tick.snooze == 1.minute.toJava)
-    assert(a2.tick.snooze == 1.minute.toJava)
-    assert(a3.tick.snooze == 2.minute.toJava)
-    assert(a4.tick.snooze == 3.minute.toJava)
-    assert(a5.tick.snooze == 5.minute.toJava)
-    assert(a6.tick.snooze == 8.minute.toJava)
-    assert(a7.tick.snooze == 13.minute.toJava)
-  }
-
-  test("capped") {
-    val policy = policies.fibonacci(1.minute).capped(6.minutes)
-    println(policy.show)
-    val ts = TickStatus[IO](policy, berlinTime).unsafeRunSync()
-    val a1 = ts.next(t0).get
-    val a2 = a1.next(t0).get
-    val a3 = a2.next(t0).get
-    val a4 = a3.next(t0).get
-    val a5 = a4.next(t0).get
-    val a6 = a5.next(t0).get
-    val a7 = a6.next(t0).get
-
-    assert(a1.tick.index == 1)
-    assert(a2.tick.index == 2)
-    assert(a3.tick.index == 3)
-    assert(a4.tick.index == 4)
-    assert(a5.tick.index == 5)
-    assert(a6.tick.index == 6)
-    assert(a7.tick.index == 7)
-
-    assert(a1.tick.snooze == 1.minute.toJava)
-    assert(a2.tick.snooze == 1.minute.toJava)
-    assert(a3.tick.snooze == 2.minute.toJava)
-    assert(a4.tick.snooze == 3.minute.toJava)
-    assert(a5.tick.snooze == 5.minute.toJava)
-    assert(a6.tick.snooze == 6.minute.toJava)
-    assert(a7.tick.snooze == 6.minute.toJava)
-  }
-
-  test("threshold") {
-    val policy = policies.fibonacci(1.minute).threshold(6.minute)
-    println(policy.show)
-    val ts = TickStatus[IO](policy, londonTime).unsafeRunSync()
     val a1 = ts.next(t0).get
     val a2 = a1.next(t0).get
     val a3 = a2.next(t0).get
@@ -288,7 +237,7 @@ class PolicyTest extends AnyFunSuite {
     val policy = policies
       .accordance(policies.crontab(crontabs.every10Seconds).endUp(time))
       .followedBy(policies.constant(1.second).endUp(time.plus(5.seconds.toJava)))
-      .followedBy(policies.exponential(7.second).endOfDay)
+      .followedBy(policies.exponential(7.second, 20).endOfDay)
       .repeat
     println(policy)
     tickStream[IO](policy, sydneyTime).debug().compile.drain.unsafeRunSync()

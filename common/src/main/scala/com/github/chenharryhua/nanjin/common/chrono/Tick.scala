@@ -9,7 +9,6 @@ import org.typelevel.cats.time.instances.all.*
 
 import java.time.{Duration, Instant, ZoneId}
 import java.util.UUID
-import scala.annotation.tailrec
 
 @JsonCodec
 final case class Tick(

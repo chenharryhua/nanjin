@@ -4,7 +4,6 @@ import cats.data.NonEmptyList
 import cats.implicits.{catsSyntaxEq, showInterpolator}
 import cats.{Functor, Show}
 import com.github.chenharryhua.nanjin.common.DurationFormatter
-import com.github.chenharryhua.nanjin.common.chrono.PolicyF.Threshold
 import cron4s.CronExpr
 import cron4s.lib.javatime.javaTemporalInstance
 import higherkindness.droste.data.Fix
@@ -25,19 +24,17 @@ private object PolicyF extends localtime with localdate with duration {
 
   final case class GiveUp[K]() extends PolicyF[K]
   final case class Accordance[K](policy: K) extends PolicyF[K]
-  final case class Constant[K](baseDelay: Duration) extends PolicyF[K]
-  final case class FixedPace[K](baseDelay: Duration) extends PolicyF[K]
-  final case class Exponential[K](baseDelay: Duration) extends PolicyF[K]
-  final case class Fibonacci[K](baseDelay: Duration) extends PolicyF[K]
+  final case class Constant[K](base: Duration) extends PolicyF[K]
+  final case class FixedPace[K](base: Duration) extends PolicyF[K]
+  final case class Exponential[K](base: Duration, expo: Int) extends PolicyF[K]
+  final case class Fibonacci[K](base: Duration, max: Int) extends PolicyF[K]
   final case class Crontab[K](cronExpr: CronExpr) extends PolicyF[K]
   final case class Jitter[K](min: Duration, max: Duration) extends PolicyF[K]
   final case class Delays[K](delays: NonEmptyList[Duration]) extends PolicyF[K]
 
   final case class Limited[K](policy: K, limit: Int) extends PolicyF[K]
   final case class FollowedBy[K](first: K, second: K) extends PolicyF[K]
-  final case class Capped[K](policy: K, cap: Duration) extends PolicyF[K]
   final case class Repeat[K](policy: Fix[PolicyF]) extends PolicyF[K]
-  final case class Threshold[K](policy: K, threshold: Duration) extends PolicyF[K]
   final case class EndUp[K](policy: K, endUp: LocalTime) extends PolicyF[K]
 
   private type CalcTick = TickRequest => Option[Tick]
@@ -50,34 +47,42 @@ private object PolicyF extends localtime with localdate with duration {
 
       case Accordance(policy) => policy
 
-      case Constant(baseDelay) =>
-        LazyList.continually(req => Some(req.tick.newTick(req.now, baseDelay)))
+      case Constant(base) =>
+        LazyList.continually(req => Some(req.tick.newTick(req.now, base)))
 
-      case FixedPace(baseDelay) =>
+      case FixedPace(base) =>
         val calcTick: CalcTick = { case TickRequest(tick, now) =>
-          val multi = (Duration.between(tick.launchTime, now).toScala / baseDelay.toScala).ceil.toLong
-          val gap   = Duration.between(now, tick.launchTime.plus(baseDelay.multipliedBy(multi)))
+          val multi = (Duration.between(tick.launchTime, now).toScala / base.toScala).ceil.toLong
+          val gap   = Duration.between(now, tick.launchTime.plus(base.multipliedBy(multi)))
           if (gap === Duration.ZERO) {
-            val gap = Duration.between(now, tick.launchTime.plus(baseDelay.multipliedBy(multi + 1)))
+            val gap = Duration.between(now, tick.launchTime.plus(base.multipliedBy(multi + 1)))
             Some(tick.newTick(now, gap))
           } else Some(tick.newTick(now, gap))
         }
         LazyList.continually(calcTick)
 
-      case Exponential(baseDelay) =>
+      case Exponential(base, expo) =>
         LazyList.unfold[CalcTick, Int](0) { counter =>
-          Some(
-            (
-              req =>
-                Some(req.tick.newTick(req.now, baseDelay.multipliedBy(Math.pow(2, counter.toDouble).toLong))),
-              counter + 1))
+          val calcTick: CalcTick = { req =>
+            val delay = base.multipliedBy(Math.pow(2, counter.toDouble).toLong)
+            Some(req.tick.newTick(req.now, delay))
+          }
+
+          if (counter < expo - 1)
+            Some((calcTick, counter + 1))
+          else
+            Some((calcTick, 0))
         }
 
-      case Fibonacci(baseDelay) =>
-        LazyList.unfold[CalcTick, Int](0) { counter =>
+      case Fibonacci(base, max) =>
+        LazyList.unfold[CalcTick, Int](1) { counter =>
           val calcTick: CalcTick =
-            req => Some(req.tick.newTick(req.now, baseDelay.multipliedBy(Fib.fibonacci(counter + 1))))
-          Some((calcTick, counter + 1))
+            req => Some(req.tick.newTick(req.now, base.multipliedBy(Fib.fibonacci(counter))))
+
+          if (counter < max)
+            Some((calcTick, counter + 1))
+          else
+            Some((calcTick, 1))
         }
 
       case Crontab(cronExpr) =>
@@ -104,22 +109,6 @@ private object PolicyF extends localtime with localdate with duration {
 
       case FollowedBy(first, second) => first #::: second
 
-      case Capped(policy, cap) =>
-        policy.map { calcTick => (req: TickRequest) =>
-          calcTick(req).map { tick =>
-            val gap = tick.snooze.compareTo(cap)
-            if (gap <= 0) tick else req.tick.newTick(req.now, cap) // preserve index
-          }
-        }
-
-      case Threshold(policy, threshold) =>
-        policy.map { calcTick => (req: TickRequest) =>
-          calcTick(req).flatMap { tick =>
-            val gap = Duration.between(req.now, tick.wakeup)
-            if (gap.compareTo(threshold) < 0) Some(tick) else None
-          }
-        }
-
       case Repeat(policy) =>
         LazyList.continually(decisions(policy, zoneId)).flatten
 
@@ -136,22 +125,20 @@ private object PolicyF extends localtime with localdate with duration {
   private val fmt: DurationFormatter = DurationFormatter.defaultFormatter
 
   val show: Algebra[PolicyF, String] = Algebra[PolicyF, String] {
-    case GiveUp()               => show"giveUp"
-    case Accordance(policy)     => show"accordance($policy)"
-    case Constant(baseDelay)    => show"constant(${fmt.format(baseDelay)})"
-    case FixedPace(baseDelay)   => show"fixedPace(${fmt.format(baseDelay)})"
-    case Exponential(baseDelay) => show"exponential(${fmt.format(baseDelay)})"
-    case Fibonacci(baseDelay)   => show"fibonacci(${fmt.format(baseDelay)})"
-    case Crontab(cronExpr)      => show"crontab($cronExpr)"
-    case Jitter(min, max)       => show"jitter(${fmt.format(min)}, ${fmt.format(max)})"
-    case Delays(delays)         => show"delays(${fmt.format(delays.head)}, ...)"
+    case GiveUp()                => show"giveUp"
+    case Accordance(policy)      => show"accordance($policy)"
+    case Constant(base)          => show"constant(base=${fmt.format(base)})"
+    case FixedPace(base)         => show"fixedPace(base=${fmt.format(base)})"
+    case Exponential(base, expo) => show"exponential(base=${fmt.format(base)}, expo=$expo)"
+    case Fibonacci(base, max)    => show"fibonacci(base=${fmt.format(base)}, max=$max)"
+    case Crontab(cronExpr)       => show"crontab($cronExpr)"
+    case Jitter(min, max)        => show"jitter(min=${fmt.format(min)}, max=${fmt.format(max)})"
+    case Delays(delays)          => show"delays(${fmt.format(delays.head)}, ...)"
     // ops
-    case Limited(policy, limit)       => show"$policy.limited($limit)"
-    case FollowedBy(first, second)    => show"$first.followedBy($second)"
-    case Capped(policy, cap)          => show"$policy.capped(${fmt.format(cap)})"
-    case Threshold(policy, threshold) => show"$policy.threshold(${fmt.format(threshold)})"
-    case Repeat(policy)               => show"${Policy(policy)}.repeat"
-    case EndUp(policy, endUp)         => show"$policy.endUp($endUp)"
+    case Limited(policy, limit)    => show"$policy.limited($limit)"
+    case FollowedBy(first, second) => show"$first.followedBy($second)"
+    case Repeat(policy)            => show"${Policy(policy)}.repeat"
+    case EndUp(policy, endUp)      => show"$policy.endUp($endUp)"
   }
 
   def decisions(policy: Fix[PolicyF], zoneId: ZoneId): LazyList[CalcTick] =
@@ -159,18 +146,12 @@ private object PolicyF extends localtime with localdate with duration {
 }
 
 final case class Policy(policy: Fix[PolicyF]) extends AnyVal {
-  import PolicyF.{Capped, EndUp, FollowedBy, Limited, Repeat}
+  import PolicyF.{EndUp, FollowedBy, Limited, Repeat}
   override def toString: String = scheme.cata(PolicyF.show).apply(policy)
 
   def limited(num: Int): Policy         = Policy(Fix(Limited(policy, num)))
   def followedBy(other: Policy): Policy = Policy(Fix(FollowedBy(policy, other.policy)))
   def repeat: Policy                    = Policy(Fix(Repeat(policy)))
-
-  def capped(duration: Duration): Policy       = Policy(Fix(Capped(policy, duration)))
-  def capped(duration: FiniteDuration): Policy = capped(duration.toJava)
-
-  def threshold(duration: Duration): Policy       = Policy(Fix(Threshold(policy, duration)))
-  def threshold(duration: FiniteDuration): Policy = threshold(duration.toJava)
 
   def endUp(localTime: LocalTime): Policy = Policy(Fix(EndUp(policy, localTime)))
   def endOfDay: Policy                    = endUp(LocalTime.MAX)
@@ -185,17 +166,17 @@ object policies {
 
   def accordance(policy: Policy): Policy = Policy(Fix(Accordance(policy.policy)))
 
-  def constant(baseDelay: Duration): Policy       = Policy(Fix(Constant(baseDelay)))
-  def constant(baseDelay: FiniteDuration): Policy = constant(baseDelay.toJava)
+  def constant(base: Duration): Policy       = Policy(Fix(Constant(base)))
+  def constant(base: FiniteDuration): Policy = constant(base.toJava)
 
-  def exponential(baseDelay: Duration): Policy       = Policy(Fix(Exponential(baseDelay)))
-  def exponential(baseDelay: FiniteDuration): Policy = exponential(baseDelay.toJava)
+  def fixedPace(base: Duration): Policy       = Policy(Fix(FixedPace(base)))
+  def fixedPace(base: FiniteDuration): Policy = fixedPace(base.toJava)
 
-  def fixedPace(baseDelay: Duration): Policy       = Policy(Fix(FixedPace(baseDelay)))
-  def fixedPace(baseDelay: FiniteDuration): Policy = fixedPace(baseDelay.toJava)
+  def exponential(base: Duration, expo: Int): Policy       = Policy(Fix(Exponential(base, expo)))
+  def exponential(base: FiniteDuration, expo: Int): Policy = exponential(base.toJava, expo)
 
-  def fibonacci(baseDelay: Duration): Policy       = Policy(Fix(Fibonacci(baseDelay)))
-  def fibonacci(baseDelay: FiniteDuration): Policy = fibonacci(baseDelay.toJava)
+  def fibonacci(base: Duration, max: Int): Policy       = Policy(Fix(Fibonacci(base, max)))
+  def fibonacci(base: FiniteDuration, max: Int): Policy = fibonacci(base.toJava, max)
 
   def crontab(cronExpr: CronExpr): Policy = Policy(Fix(Crontab(cronExpr)))
 
