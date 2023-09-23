@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.common.chrono
 
 import cats.data.NonEmptyList
-import cats.implicits.{catsSyntaxEq, showInterpolator, toShow}
+import cats.implicits.{catsSyntaxEq, showInterpolator}
 import cats.{Functor, Show}
 import com.github.chenharryhua.nanjin.common.DurationFormatter
 import com.github.chenharryhua.nanjin.common.chrono.PolicyF.Threshold
@@ -143,21 +143,21 @@ private object PolicyF extends localtime with localdate with duration {
 
   val show: Algebra[PolicyF, String] = Algebra[PolicyF, String] {
     case GiveUp()               => show"giveUp"
-    case Accordance(policy)     => show"accordance(${policy.show})"
+    case Accordance(policy)     => show"accordance($policy)"
     case Constant(baseDelay)    => show"constant(${fmt.format(baseDelay)})"
-    case FixedPace(baseDelay)   => show"fixRate(${fmt.format(baseDelay)})"
+    case FixedPace(baseDelay)   => show"fixedPace(${fmt.format(baseDelay)})"
     case Exponential(baseDelay) => show"exponential(${fmt.format(baseDelay)})"
     case Fibonacci(baseDelay)   => show"fibonacci(${fmt.format(baseDelay)})"
-    case Crontab(cronExpr)      => show"crontab(${cronExpr.show})"
+    case Crontab(cronExpr)      => show"crontab($cronExpr)"
     case Jitter(min, max)       => show"jitter(${fmt.format(min)}, ${fmt.format(max)})"
     case Delays(delays)         => show"delays(${fmt.format(delays.head)}, ...)"
     // ops
-    case Limited(policy, limit)       => show"${policy.show}.limited($limit)"
-    case FollowedBy(first, second)    => show"${first.show}.followedBy(${second.show})"
-    case Capped(policy, cap)          => show"${policy.show}.capped(${fmt.format(cap)})"
-    case Threshold(policy, threshold) => show"${policy.show}.threshold(${fmt.format(threshold)})"
-    case Repeat(policy)               => show"${policy.show}.repeat"
-    case EndUp(policy, endUp)         => show"${policy.show}.endUp(${endUp.show})"
+    case Limited(policy, limit)       => show"$policy.limited($limit)"
+    case FollowedBy(first, second)    => show"$first.followedBy($second)"
+    case Capped(policy, cap)          => show"$policy.capped(${fmt.format(cap)})"
+    case Threshold(policy, threshold) => show"$policy.threshold(${fmt.format(threshold)})"
+    case Repeat(policy)               => show"$policy.repeat"
+    case EndUp(policy, endUp)         => show"$policy.endUp($endUp)"
   }
 
   def decisions(policy: Fix[PolicyF], zoneId: ZoneId): LazyList[CalcTick] =
