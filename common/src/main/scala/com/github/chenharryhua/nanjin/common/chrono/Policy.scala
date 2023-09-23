@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.common.chrono
 
 import cats.data.NonEmptyList
-import cats.implicits.{catsSyntaxEq, showInterpolator}
+import cats.implicits.{catsSyntaxEq, catsSyntaxOptionId, showInterpolator}
 import cats.{Functor, Show}
 import com.github.chenharryhua.nanjin.common.DurationFormatter
 import cron4s.CronExpr
@@ -48,16 +48,16 @@ private object PolicyF extends localtime with localdate with duration {
       case Accordance(policy) => policy
 
       case Constant(base) =>
-        LazyList.continually(req => Some(req.tick.newTick(req.now, base)))
+        LazyList.continually(req => req.tick.newTick(req.now, base).some)
 
       case FixedPace(base) =>
         val calcTick: CalcTick = { case TickRequest(tick, now) =>
           val multi = (Duration.between(tick.launchTime, now).toScala / base.toScala).ceil.toLong
-          val gap   = Duration.between(now, tick.launchTime.plus(base.multipliedBy(multi)))
-          if (gap === Duration.ZERO) {
-            val gap = Duration.between(now, tick.launchTime.plus(base.multipliedBy(multi + 1)))
-            Some(tick.newTick(now, gap))
-          } else Some(tick.newTick(now, gap))
+          val delay = Duration.between(now, tick.launchTime.plus(base.multipliedBy(multi)))
+          if (delay === Duration.ZERO) {
+            val delay = Duration.between(now, tick.launchTime.plus(base.multipliedBy(multi + 1)))
+            tick.newTick(now, delay).some
+          } else tick.newTick(now, delay).some
         }
         LazyList.continually(calcTick)
 
@@ -65,24 +65,26 @@ private object PolicyF extends localtime with localdate with duration {
         LazyList.unfold[CalcTick, Int](0) { counter =>
           val calcTick: CalcTick = { req =>
             val delay = base.multipliedBy(Math.pow(2, counter.toDouble).toLong)
-            Some(req.tick.newTick(req.now, delay))
+            req.tick.newTick(req.now, delay).some
           }
 
           if (counter < length - 1)
-            Some((calcTick, counter + 1))
+            (calcTick, counter + 1).some
           else
-            Some((calcTick, 0))
+            (calcTick, 0).some
         }
 
       case Fibonacci(base, length) =>
         LazyList.unfold[CalcTick, Int](1) { counter =>
-          val calcTick: CalcTick =
-            req => Some(req.tick.newTick(req.now, base.multipliedBy(Fib.fibonacci(counter))))
+          val calcTick: CalcTick = { req =>
+            val delay = base.multipliedBy(Fib.fibonacci(counter))
+            req.tick.newTick(req.now, delay).some
+          }
 
           if (counter < length)
-            Some((calcTick, counter + 1))
+            (calcTick, counter + 1).some
           else
-            Some((calcTick, 1))
+            (calcTick, 1).some
         }
 
       case Crontab(cronExpr) =>
@@ -93,16 +95,16 @@ private object PolicyF extends localtime with localdate with duration {
 
       case Jitter(min, max) =>
         val calcTick: CalcTick = { req =>
-          Some(
-            req.tick
-              .newTick(req.now, Duration.of(Random.between(min.toNanos, max.toNanos), ChronoUnit.NANOS)))
+          val delay = Duration.of(Random.between(min.toNanos, max.toNanos), ChronoUnit.NANOS)
+          req.tick.newTick(req.now, delay).some
         }
         LazyList.continually(calcTick)
 
       case Delays(delays) =>
-        LazyList.from(delays.toList.map { delay =>
-          { case TickRequest(tick, now) => Some(tick.newTick(now, delay)) }
+        val seed: LazyList[CalcTick] = LazyList.from(delays.toList.map[CalcTick] { delay =>
+          { case TickRequest(tick, now) => tick.newTick(now, delay).some }
         })
+        LazyList.continually(seed).flatten
 
       // ops
       case Limited(policy, limit) => policy.take(limit)

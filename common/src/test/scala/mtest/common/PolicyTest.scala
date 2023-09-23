@@ -208,23 +208,32 @@ class PolicyTest extends AnyFunSuite {
   }
 
   test("delays") {
-    val policy = policies.delays(1.second, 2.seconds, 3.seconds).repeat
+    val policy = policies.delays(1.second, 2.seconds, 3.seconds)
     println(policy.show)
     val ts = TickStatus[IO](policy, mumbaiTime).unsafeRunSync()
     val a1 = ts.next(t0).get
     val a2 = a1.next(t0).get
     val a3 = a2.next(t0).get
     val a4 = a3.next(t0).get
+    val a5 = a4.next(t0).get
+    val a6 = a5.next(t0).get
+    val a7 = a6.next(t0).get
 
     assert(a1.tick.index == 1)
     assert(a2.tick.index == 2)
     assert(a3.tick.index == 3)
     assert(a4.tick.index == 4)
+    assert(a5.tick.index == 5)
+    assert(a6.tick.index == 6)
+    assert(a7.tick.index == 7)
 
     assert(a1.tick.snooze == 1.second.toJava)
     assert(a2.tick.snooze == 2.second.toJava)
     assert(a3.tick.snooze == 3.second.toJava)
     assert(a4.tick.snooze == 1.second.toJava)
+    assert(a5.tick.snooze == 2.second.toJava)
+    assert(a6.tick.snooze == 3.second.toJava)
+    assert(a7.tick.snooze == 1.second.toJava)
   }
 
   ignore("endup") {
