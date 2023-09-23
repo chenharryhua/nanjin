@@ -17,12 +17,6 @@ import scala.concurrent.duration.FiniteDuration
 import scala.jdk.DurationConverters.{JavaDurationOps, ScalaDurationOps}
 import scala.util.Random
 
-sealed trait Manipulation
-private object Manipulation {
-  case object ResetCounter extends Manipulation
-  case object DoNothing extends Manipulation
-}
-
 sealed trait PolicyF[K]
 
 private object PolicyF extends localtime with localdate with duration {
@@ -46,10 +40,8 @@ private object PolicyF extends localtime with localdate with duration {
   final case class Threshold[K](policy: K, threshold: Duration) extends PolicyF[K]
   final case class EndUp[K](policy: K, endUp: LocalTime) extends PolicyF[K]
 
-  private type CalcTick = TickRequest => Either[Manipulation, Tick]
-  final case class TickRequest(tick: Tick, counter: Int, now: Instant)
-
-  private val resetCounter: CalcTick = _ => Left(Manipulation.ResetCounter)
+  private type CalcTick = TickRequest => Option[Tick]
+  final case class TickRequest(tick: Tick, now: Instant)
 
   private def algebra(zoneId: ZoneId): Algebra[PolicyF, LazyList[CalcTick]] =
     Algebra[PolicyF, LazyList[CalcTick]] {
@@ -59,57 +51,58 @@ private object PolicyF extends localtime with localdate with duration {
       case Accordance(policy) => policy
 
       case Constant(baseDelay) =>
-        LazyList.continually { case TickRequest(tick, _, now) => Right(tick.newTick(now, baseDelay)) }
+        LazyList.continually(req => Some(req.tick.newTick(req.now, baseDelay)))
 
       case FixedPace(baseDelay) =>
-        val calcTick: CalcTick = { case TickRequest(tick, _, now) =>
-          Right {
-            val multi = (Duration.between(tick.launchTime, now).toScala / baseDelay.toScala).ceil.toLong
-            val gap   = Duration.between(now, tick.launchTime.plus(baseDelay.multipliedBy(multi)))
-            if (gap === Duration.ZERO) {
-              val gap = Duration.between(now, tick.launchTime.plus(baseDelay.multipliedBy(multi + 1)))
-              tick.newTick(now, gap)
-            } else tick.newTick(now, gap)
-          }
+        val calcTick: CalcTick = { case TickRequest(tick, now) =>
+          val multi = (Duration.between(tick.launchTime, now).toScala / baseDelay.toScala).ceil.toLong
+          val gap   = Duration.between(now, tick.launchTime.plus(baseDelay.multipliedBy(multi)))
+          if (gap === Duration.ZERO) {
+            val gap = Duration.between(now, tick.launchTime.plus(baseDelay.multipliedBy(multi + 1)))
+            Some(tick.newTick(now, gap))
+          } else Some(tick.newTick(now, gap))
         }
         LazyList.continually(calcTick)
 
       case Exponential(baseDelay) =>
-        val calcTick: CalcTick = { case TickRequest(tick, counter, now) =>
-          Right(tick.newTick(now, baseDelay.multipliedBy(Math.pow(2, counter.toDouble).toLong)))
+        LazyList.unfold[CalcTick, Int](0) { counter =>
+          Some(
+            (
+              req =>
+                Some(req.tick.newTick(req.now, baseDelay.multipliedBy(Math.pow(2, counter.toDouble).toLong))),
+              counter + 1))
         }
-        LazyList.continually(calcTick)
 
       case Fibonacci(baseDelay) =>
-        val calcTick: CalcTick = { case TickRequest(tick, counter, now) =>
-          Right(tick.newTick(now, baseDelay.multipliedBy(Fib.fibonacci(counter + 1))))
+        LazyList.unfold[CalcTick, Int](0) { counter =>
+          val calcTick: CalcTick =
+            req => Some(req.tick.newTick(req.now, baseDelay.multipliedBy(Fib.fibonacci(counter + 1))))
+          Some((calcTick, counter + 1))
         }
-        LazyList.continually(calcTick)
 
       case Crontab(cronExpr) =>
-        val calcTick: CalcTick = { case TickRequest(tick, _, now) =>
-          cronExpr.next(now.atZone(zoneId)).map(zdt => Duration.between(now, zdt)) match {
-            case Some(value) => Right(tick.newTick(now, value))
-            case None        => Left(Manipulation.DoNothing)
-          }
+        val calcTick: CalcTick = { case TickRequest(tick, now) =>
+          cronExpr.next(now.atZone(zoneId)).map(zdt => Duration.between(now, zdt)).map(tick.newTick(now, _))
         }
         LazyList.continually(calcTick)
 
       case Jitter(min, max) =>
-        val calcTick: CalcTick = { case TickRequest(tick, _, now) =>
-          Right(tick.newTick(now, Duration.of(Random.between(min.toNanos, max.toNanos), ChronoUnit.NANOS)))
+        val calcTick: CalcTick = { req =>
+          Some(
+            req.tick
+              .newTick(req.now, Duration.of(Random.between(min.toNanos, max.toNanos), ChronoUnit.NANOS)))
         }
         LazyList.continually(calcTick)
 
       case Delays(delays) =>
         LazyList.from(delays.toList.map { delay =>
-          { case TickRequest(tick, _, now) => Right(tick.newTick(now, delay)) }
+          { case TickRequest(tick, now) => Some(tick.newTick(now, delay)) }
         })
 
       // ops
       case Limited(policy, limit) => policy.take(limit)
 
-      case FollowedBy(first, second) => first #::: (resetCounter #:: second)
+      case FollowedBy(first, second) => first #::: second
 
       case Capped(policy, cap) =>
         policy.map { calcTick => (req: TickRequest) =>
@@ -123,12 +116,12 @@ private object PolicyF extends localtime with localdate with duration {
         policy.map { calcTick => (req: TickRequest) =>
           calcTick(req).flatMap { tick =>
             val gap = Duration.between(req.now, tick.wakeup)
-            if (gap.compareTo(threshold) < 0) Right(tick) else Left(Manipulation.ResetCounter)
+            if (gap.compareTo(threshold) < 0) Some(tick) else None
           }
         }
 
       case Repeat(policy) =>
-        LazyList.continually(resetCounter #:: decisions(policy, zoneId)).flatten
+        LazyList.continually(decisions(policy, zoneId)).flatten
 
       case EndUp(policy, endUp) =>
         val timeFrame: LazyList[Unit] = LazyList.unfold(ZonedDateTime.now(zoneId)) { prev =>
