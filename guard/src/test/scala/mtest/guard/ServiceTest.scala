@@ -24,14 +24,14 @@ class ServiceTest extends AnyFunSuite {
   val guard: ServiceGuard[IO] = TaskGuard[IO]("service-level-guard")
     .updateConfig(_.withHomePage("https://abc.com/efg").withZoneId(londonTime))
     .service("service")
-    .withRestartPolicy(policies.constant(1.seconds))
+    .withRestartPolicy(policies.fixedDelay(1.seconds))
     .withBrief(Json.fromString("test"))
 
-  val policy: Policy = policies.constant(0.1.seconds).limited(3)
+  val policy: Policy = policies.fixedDelay(0.1.seconds).limited(3)
 
   test("1.should stopped if the operation normally exits") {
     val Vector(a, d) = guard
-      .withRestartPolicy(policies.constant(3.seconds))
+      .withRestartPolicy(policies.fixedDelay(3.seconds))
       .withMetricReport(policies.crontab(cron_1hour))
       .withMetricDailyReset
       .eventStream(gd => gd.action("t", _.silent).delay(1).logOutput(_ => null).run.delayBy(1.second))
@@ -195,9 +195,9 @@ class ServiceTest extends AnyFunSuite {
 
   test("11.policy start over") {
 
-    val p1     = policies.constant(1.seconds).limited(1)
-    val p2     = policies.constant(2.seconds).limited(1)
-    val p3     = policies.constant(3.seconds).limited(1)
+    val p1     = policies.fixedDelay(1.seconds).limited(1)
+    val p2     = policies.fixedDelay(2.seconds).limited(1)
+    val p3     = policies.fixedDelay(3.seconds).limited(1)
     val policy = p1.followedBy(p2).followedBy(p3).repeat
     val List(a, b, c, d, e, f, g, h) = guard
       .withRestartPolicy(policy)
@@ -239,7 +239,7 @@ class ServiceTest extends AnyFunSuite {
 
   test("12.policy threshold start over") {
     val List(a, b, c, d, e, f, g, h) = guard
-      .withRestartPolicy(policies.fibonacci(1.seconds,4))
+      .withRestartPolicy(policies.fixedDelay(1.seconds, 1.seconds, 2.seconds, 3.seconds))
       .withMetricServer(identity)
       .eventStream(_ => IO.raiseError(new Exception("oops")))
       .evalMapFilter[IO, Tick] {

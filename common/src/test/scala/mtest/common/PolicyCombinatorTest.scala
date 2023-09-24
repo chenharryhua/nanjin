@@ -78,7 +78,7 @@ class PolicyCombinatorTest extends AnyFunSuite {
     val policy = policies
       .accordance(policies.crontab(crontabs.every10Seconds).endUp(time))
       .followedBy(policies.fixedRate(1.second).endUp(time.plus(5.seconds.toJava)))
-      .followedBy(policies.exponential(7.second, 20).endOfDay)
+      .followedBy(policies.fixedDelay(7.second).endOfDay)
       .repeat
     println(policy)
     tickStream[IO](policy, sydneyTime).debug().compile.drain.unsafeRunSync()

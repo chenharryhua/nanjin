@@ -95,7 +95,7 @@ class NJTextTest extends AnyFunSuite {
       .repeatN(number)
       .map(_.toString)
       .chunks
-      .through(text.sink(policies.constant(1.second), ZoneId.systemDefault())(t => path / fk.fileName(t)))
+      .through(text.sink(policies.fixedDelay(1.second), ZoneId.systemDefault())(t => path / fk.fileName(t)))
       .compile
       .drain
       .unsafeRunSync()

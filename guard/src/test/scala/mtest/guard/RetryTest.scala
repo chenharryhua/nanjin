@@ -29,7 +29,7 @@ class RetryTest extends AnyFunSuite {
       .service("retry test")
       .withRestartPolicy(constant_1second)
 
-  val policy: Policy = policies.constant(1.seconds).limited(3)
+  val policy: Policy = policies.fixedDelay(1.seconds).limited(3)
 
   test("1.retry - completed trivial") {
     val Vector(s, c) = serviceGuard.eventStream { gd =>
@@ -58,7 +58,7 @@ class RetryTest extends AnyFunSuite {
   }
 
   test("3.retry - all fail") {
-    val policy = policies.constant(0.1.seconds).limited(1)
+    val policy = policies.fixedDelay(0.1.seconds).limited(1)
     val Vector(s, a, b, c, d, e, f, g, h, i, j) = serviceGuard.eventStream { gd =>
       val ag = gd
         .action("t", _.notice)
@@ -138,7 +138,7 @@ class RetryTest extends AnyFunSuite {
       .withRestartPolicy(policies.giveUp)
       .eventStream { gd =>
         gd.action("t")
-          .withRetryPolicy(policies.constant(1.seconds).limited(3))
+          .withRetryPolicy(policies.fixedDelay(1.seconds).limited(3))
           .retry((_: Int) => IO.raiseError[Int](new Exception("oops")))
           .logInput(_.asJson)
           .run(1)
@@ -188,7 +188,7 @@ class RetryTest extends AnyFunSuite {
       .withRestartPolicy(policies.giveUp)
       .eventStream { gd =>
         gd.action("t")
-          .withRetryPolicy(policies.constant(0.1.seconds).limited(3))
+          .withRetryPolicy(policies.fixedDelay(0.1.seconds).limited(3))
           .retry(IO.raiseError(MyException()))
           .withWorthRetryM(x => IO(x.isInstanceOf[MyException]))
           .run
@@ -211,7 +211,7 @@ class RetryTest extends AnyFunSuite {
       .withRestartPolicy(constant_1hour)
       .eventStream { gd =>
         gd.action("t", _.notice)
-          .withRetryPolicy(policies.constant(0.1.seconds).limited(3))
+          .withRetryPolicy(policies.fixedDelay(0.1.seconds).limited(3))
           .retry(IO.raiseError(new Exception))
           .withWorthRetry(_.isInstanceOf[MyException])
           .run
@@ -232,7 +232,7 @@ class RetryTest extends AnyFunSuite {
       .withRestartPolicy(constant_1hour)
       .eventStream { gd =>
         gd.action("t", _.notice)
-          .withRetryPolicy(policies.constant(0.1.seconds).limited(3))
+          .withRetryPolicy(policies.fixedDelay(0.1.seconds).limited(3))
           .retry(IO.raiseError(new Exception))
           .withWorthRetryM(_ => IO.raiseError[Boolean](new Exception()))
           .run

@@ -83,7 +83,7 @@ class NJParquetTest extends AnyFunSuite {
       .covary[IO]
       .repeatN(number)
       .chunks
-      .through(parquet.sink(policies.constant(1.second), ZoneId.systemDefault())(t =>
+      .through(parquet.sink(policies.fixedDelay(1.second), ZoneId.systemDefault())(t =>
         path / file.fileName(sydneyTime, t)))
       .compile
       .drain

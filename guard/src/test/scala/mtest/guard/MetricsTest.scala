@@ -125,7 +125,7 @@ class MetricsTest extends AnyFunSuite {
           agent.gauge("ref").ref(IO.ref(0))
 
       gauge.use(box =>
-        tickStream[IO](policies.constant(1.seconds), agent.zoneId)
+        tickStream[IO](policies.fixedDelay(1.seconds), agent.zoneId)
           .evalTap(_ => box.updateAndGet(_ + 1))
           .compile
           .drain)

@@ -41,7 +41,7 @@ class ObserversTest extends AnyFunSuite {
         val meter = ag.meter("meter", StandardUnit.SECONDS).withCounting
         val action = ag
           .action("nj_error", _.critical.notice.withTiming.withCounting)
-          .withRetryPolicy(policies.constant(1.second).limited(1))
+          .withRetryPolicy(policies.fixedRate(1.second).limited(1))
           .retry(job)
           .logInput(Json.fromString("input data"))
           .logOutput(_ => Json.fromString("output data"))
