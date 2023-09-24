@@ -8,6 +8,7 @@ import com.github.chenharryhua.nanjin.common.chrono.zones.*
 import org.scalatest.funsuite.AnyFunSuite
 import org.typelevel.cats.time.instances.duration.*
 
+import java.time.Instant
 import scala.concurrent.duration.DurationInt
 import scala.jdk.DurationConverters.{JavaDurationOps, ScalaDurationOps}
 
@@ -146,4 +147,10 @@ class PolicyBaseTest extends AnyFunSuite {
     assert(a3.tick.snooze == 15.minutes.toJava)
     assert(a4.tick.snooze == 1.hour.toJava)
   }
+
+  test("giveUp") {
+    val ts = TickStatus[IO](policies.giveUp, beijingTime).unsafeRunSync()
+    assert(ts.next(Instant.now).isEmpty)
+  }
+
 }

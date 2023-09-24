@@ -67,4 +67,9 @@ class TickStreamTest extends AnyFunSuite {
     ticks.evalTap(_ => sleep).map(_.wakeup).debug().compile.toList.unsafeRunSync()
   }
 
+  test("6. giveUp") {
+    val ticks = tickStream[IO](policies.giveUp, saltaTime).compile.toList.unsafeRunSync()
+    assert(ticks.isEmpty)
+  }
+
 }
