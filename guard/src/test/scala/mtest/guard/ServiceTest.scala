@@ -240,41 +240,42 @@ class ServiceTest extends AnyFunSuite {
 
   test("12.policy threshold start over") {
     val List(a, b, c, d, e, f, g, h) = guard
-      .withRestartPolicy(policies.fixedDelay(1.seconds, 1.seconds, 2.seconds, 3.seconds))
+      .withRestartPolicy(policies.fixedDelay(1.seconds, 2.seconds, 3.seconds, 4.seconds, 5.seconds))
+      .updateConfig(_.withRestartThreshold(3.seconds))
       .eventStream(_ => IO.raiseError(new Exception("oops")))
       .evalMapFilter[IO, Tick] {
         case sp: ServicePanic => IO(Some(sp.tick))
         case _                => IO(None)
       }
-      .debug()
       .take(8)
       .compile
       .toList
       .unsafeRunSync()
 
     assert(a.index == 1)
-    assert(a.snooze == 1.second.toJava)
     assert(b.index == 2)
-    assert(b.previous == a.wakeup)
-    assert(b.snooze == 1.second.toJava)
     assert(c.index == 3)
-    assert(c.previous == b.wakeup)
-    assert(c.snooze == 2.second.toJava)
     assert(d.index == 4)
-    assert(d.previous == c.wakeup)
-    assert(d.snooze == 3.second.toJava)
-
     assert(e.index == 5)
-    assert(e.previous == d.wakeup)
-    assert(e.snooze == 1.second.toJava)
     assert(f.index == 6)
-    assert(f.previous == e.wakeup)
-    assert(f.snooze == 1.second.toJava)
     assert(g.index == 7)
-    assert(g.previous == f.wakeup)
-    assert(g.snooze == 2.second.toJava)
     assert(h.index == 8)
+
+    assert(b.previous == a.wakeup)
+    assert(c.previous == b.wakeup)
+    assert(d.previous == c.wakeup)
+    assert(e.previous == d.wakeup)
+    assert(f.previous == e.wakeup)
+    assert(g.previous == f.wakeup)
     assert(h.previous == g.wakeup)
-    assert(h.snooze == 3.second.toJava)
+
+    assert(a.snooze == 1.second.toJava)
+    assert(b.snooze == 2.second.toJava)
+    assert(c.snooze == 3.second.toJava)
+    assert(d.snooze == 1.second.toJava)
+    assert(e.snooze == 2.second.toJava)
+    assert(f.snooze == 3.second.toJava)
+    assert(g.snooze == 1.second.toJava)
+    assert(h.snooze == 2.second.toJava)
   }
 }

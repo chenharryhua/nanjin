@@ -42,7 +42,7 @@ final private class ReStart[F[_], A](
           F.realTimeInstant.flatMap { now =>
             val tickStatus: TickStatus = serviceParams.threshold match {
               case Some(threshold) =>
-                if (Duration.between(status.tick.wakeup, now) > threshold) status.resetPolicy else status
+                if (Duration.between(status.tick.acquire, now) > threshold) status.resetPolicy else status
               case None => status
             }
 
