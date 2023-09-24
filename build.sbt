@@ -12,7 +12,7 @@ val monocleV    = "3.2.0"
 val confluentV  = "7.5.0"
 val kafkaV      = "7.5.0-ce"
 val fs2KafkaV   = "3.0.1"
-val avroV       = "1.11.2"
+val avroV       = "1.11.3"
 val parquetV    = "1.13.1"
 val circeV      = "0.14.6"
 val kantanV     = "0.7.0"
@@ -274,7 +274,7 @@ lazy val messages = (project in file("messages"))
     libraryDependencies ++= List(
       "org.apache.commons" % "commons-compress" % "1.24.0", // snyk
       "org.yaml"           % "snakeyaml"        % "2.2", // snyk
-      "org.xerial.snappy"  % "snappy-java"      % "1.1.10.3" // snyk
+      "org.xerial.snappy"  % "snappy-java"      % "1.1.10.4" // snyk
     ) ++ serdeLib ++ kafkaLib.map(_ % Provided) ++ testLib)
 
 lazy val database = (project in file("database"))
@@ -370,7 +370,7 @@ lazy val spark = (project in file("spark"))
   .settings(
     libraryDependencies ++= List(
       "org.apache.ivy"                         % "ivy"             % "2.5.2", // snyk
-      "com.julianpeeters" %% "avrohugger-core" % "1.5.2"           % Test,
+      "com.julianpeeters" %% "avrohugger-core" % "1.5.3"           % Test,
       "ch.qos.logback"                         % "logback-classic" % logbackV % Test
     ) ++ sparkLib.map(_.exclude("commons-logging", "commons-logging")) ++ testLib
   )
