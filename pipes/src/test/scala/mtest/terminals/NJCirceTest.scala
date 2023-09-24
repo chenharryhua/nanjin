@@ -96,7 +96,7 @@ class NJCirceTest extends AnyFunSuite {
       .repeatN(number)
       .map(_.asJson)
       .chunks
-      .through(json.sink(policies.constant(1.second), ZoneId.systemDefault())(t => path / fk.fileName(t)))
+      .through(json.sink(policies.fixedDelay(1.second), ZoneId.systemDefault())(t => path / fk.fileName(t)))
       .compile
       .drain
       .unsafeRunSync()

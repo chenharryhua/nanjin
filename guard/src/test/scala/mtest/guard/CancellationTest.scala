@@ -119,7 +119,7 @@ class CancellationTest extends AnyFunSuite {
   }
 
   test("6.cancellation - sequentially - no chance to cancel") {
-    val policy = policies.constant(1.seconds).limited(1)
+    val policy = policies.fixedDelay(1.seconds).limited(1)
     val Vector(s, a, b, c, d, e, f) = serviceGuard
       .withRestartPolicy(policies.giveUp)
       .eventStream { ag =>
@@ -194,7 +194,7 @@ class CancellationTest extends AnyFunSuite {
   }
 
   test("8.cancellation - cancel in middle of retrying") {
-    val policy = policies.constant(2.seconds)
+    val policy = policies.fixedDelay(2.seconds)
     val Vector(s, a, b, c, d, e) = serviceGuard
       .withRestartPolicy(constant_1hour)
       .eventStream { ag =>

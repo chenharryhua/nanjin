@@ -46,7 +46,8 @@ private object textHelper extends localtime with localdatetime {
       case NJEvent.ActionFail(ap, _, _, _, _) => s"Action Failed ${name(ap.metricId.metricName)}"
       case NJEvent.ActionDone(ap, _, _, _)    => s"Action Done ${name(ap.metricId.metricName)}"
 
-      case NJEvent.ServiceAlert(metricName, _, _, al, _) => s"Alert ${al.productPrefix} ${name(metricName)}"
+      case NJEvent.ServiceAlert(metricName, _, _, al, _) =>
+        s"Alert ${al.productPrefix} ${name(metricName)}"
 
       case _: NJEvent.ServiceStart => "(Re)Start Service"
       case _: NJEvent.ServiceStop  => "Service Stopped"

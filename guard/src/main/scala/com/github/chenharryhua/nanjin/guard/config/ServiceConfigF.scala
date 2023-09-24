@@ -36,11 +36,9 @@ final case class ServiceParams(
   taskParams: TaskParams,
   metricParams: MetricParams,
   brief: Option[Json],
-  zeroth: Tick
+  serviceId: UUID,
+  launchTime: ZonedDateTime
 ) {
-  val serviceId: UUID           = zeroth.sequenceId
-  val launchTime: ZonedDateTime = zeroth.launchTime.atZone(taskParams.zoneId)
-
   def toZonedDateTime(ts: Instant): ZonedDateTime = ts.atZone(taskParams.zoneId)
   def toZonedDateTime(fd: FiniteDuration): ZonedDateTime =
     toZonedDateTime(Instant.EPOCH.plusNanos(fd.toNanos))
@@ -75,7 +73,8 @@ object ServiceParams extends zoneddatetime with duration {
         durationTimeUnit = TimeUnit.MILLISECONDS
       ),
       brief = brief.value,
-      zeroth = zeroth
+      serviceId = zeroth.sequenceId,
+      launchTime = zeroth.launchTime.atZone(taskParams.zoneId)
     )
 }
 

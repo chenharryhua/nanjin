@@ -9,7 +9,7 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.Duration as JavaDuration
 import scala.concurrent.duration.DurationDouble
-import scala.jdk.DurationConverters.{JavaDurationOps, ScalaDurationOps}
+import scala.jdk.DurationConverters.JavaDurationOps
 
 class TickStreamTest extends AnyFunSuite {
   test("1.tick") {
@@ -45,7 +45,7 @@ class TickStreamTest extends AnyFunSuite {
   }
 
   test("4.constant") {
-    val policy = policies.constant(1.second.toJava).limited(5)
+    val policy = policies.fixedDelay(1.second).limited(5)
     val ticks  = tickStream[IO](policy, saltaTime)
     val sleep: IO[JavaDuration] =
       Random
@@ -55,8 +55,8 @@ class TickStreamTest extends AnyFunSuite {
 
     ticks.evalTap(_ => sleep).debug().compile.toList.unsafeRunSync()
   }
-  test("5.fixed pace") {
-    val policy = policies.fixedPace(2.second.toJava).limited(5)
+  test("5.fixed rate") {
+    val policy = policies.fixedRate(2.second).limited(5)
     val ticks  = tickStream[IO](policy, darwinTime)
     val sleep: IO[JavaDuration] =
       Random
@@ -65,6 +65,11 @@ class TickStreamTest extends AnyFunSuite {
         .flatMap(d => IO.sleep(d.toDouble.millisecond).as(JavaDuration.ofMillis(d)))
 
     ticks.evalTap(_ => sleep).map(_.wakeup).debug().compile.toList.unsafeRunSync()
+  }
+
+  test("6. giveUp") {
+    val ticks = tickStream[IO](policies.giveUp, saltaTime).compile.toList.unsafeRunSync()
+    assert(ticks.isEmpty)
   }
 
 }

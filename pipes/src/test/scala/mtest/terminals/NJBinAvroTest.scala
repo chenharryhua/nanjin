@@ -71,7 +71,7 @@ class NJBinAvroTest extends AnyFunSuite {
       .covary[IO]
       .repeatN(number)
       .chunks
-      .through(binAvro.sink(policies.constant(1.second), ZoneId.systemDefault())(t =>
+      .through(binAvro.sink(policies.fixedDelay(1.second), ZoneId.systemDefault())(t =>
         path / file.fileName(t)))
       .compile
       .drain

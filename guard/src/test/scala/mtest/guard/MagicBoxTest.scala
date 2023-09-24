@@ -19,7 +19,7 @@ import scala.concurrent.duration.*
 
 class MagicBoxTest extends AnyFunSuite {
   val service: ServiceGuard[IO] =
-    TaskGuard[IO]("test").service("magic-box").withRestartPolicy(policies.constant(0.1.seconds))
+    TaskGuard[IO]("test").service("magic-box").withRestartPolicy(policies.fixedDelay(0.1.seconds))
 
   test("1.atomicBox operations") {
     TaskGuard
@@ -112,7 +112,7 @@ class MagicBoxTest extends AnyFunSuite {
     val List(a, c) =
       service.eventStream { agent =>
         val box = agent.signalBox(10)
-        tickStream[IO](policies.constant(0.1.seconds), ZoneId.systemDefault())
+        tickStream[IO](policies.fixedRate(0.1.seconds), ZoneId.systemDefault())
           .evalTap(_ => box.update(_ + 1))
           .interruptWhen(box.map(_ > 20))
           .compile
@@ -134,7 +134,7 @@ class MagicBoxTest extends AnyFunSuite {
 
     val List(a) = service.eventStream { agent =>
       val box = agent.atomicBox(compute)
-      tickStream[IO](policies.constant(0.5.seconds), ZoneId.systemDefault())
+      tickStream[IO](policies.fixedDelay(0.5.seconds), ZoneId.systemDefault())
         .evalTap(_ => box.getAndUpdate(_ + 1))
         .compile
         .drain >> box.get.map(c => assert(c > 5))
@@ -155,7 +155,7 @@ class MagicBoxTest extends AnyFunSuite {
 
     val List(a) = service.eventStream { agent =>
       val box = agent.signalBox(compute)
-      tickStream[IO](policies.constant(0.5.seconds), ZoneId.systemDefault())
+      tickStream[IO](policies.fixedDelay(0.5.seconds), ZoneId.systemDefault())
         .evalTap(_ => box.getAndUpdate(_ + 1))
         .compile
         .drain >> box.get.map(c => assert(c > 5))
@@ -168,7 +168,7 @@ class MagicBoxTest extends AnyFunSuite {
 
     val List(a, b, c) = service.eventStream { agent =>
       val box = agent.atomicBox(IO.raiseError[Int](new Exception))
-      tickStream[IO](policies.constant(0.1.seconds), ZoneId.systemDefault())
+      tickStream[IO](policies.fixedDelay(0.1.seconds), ZoneId.systemDefault())
         .evalTap(_ => box.getAndUpdate(_ + 1))
         .compile
         .drain
@@ -183,7 +183,7 @@ class MagicBoxTest extends AnyFunSuite {
 
     val List(a, b, c) = service.eventStream { agent =>
       val box = agent.signalBox(IO.raiseError[Int](new Exception))
-      tickStream[IO](policies.constant(0.1.seconds), ZoneId.systemDefault())
+      tickStream[IO](policies.fixedDelay(0.1.seconds), ZoneId.systemDefault())
         .evalTap(_ => box.getAndUpdate(_ + 1))
         .compile
         .drain

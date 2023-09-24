@@ -78,7 +78,7 @@ class NJBytesTest extends AnyFunSuite {
     val number = 10000L
     hdp.delete(path).unsafeRunSync()
     val sink =
-      hdp.bytes.sink(policies.constant(1.second), ZoneId.systemDefault())(t => path / s"${t.index}.byte")
+      hdp.bytes.sink(policies.fixedDelay(1.second), ZoneId.systemDefault())(t => path / s"${t.index}.byte")
     Stream
       .emits(TestData.tigerSet.toList)
       .covary[IO]
