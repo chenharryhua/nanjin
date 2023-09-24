@@ -61,7 +61,7 @@ sealed trait SimpleQueueService[F[_]] {
   def delete(msg: SqsMessage): F[DeleteMessageResponse]
   def resetVisibility(msg: SqsMessage): F[ChangeMessageVisibilityResponse]
   def updateBuilder(f: Endo[SqsClientBuilder]): SimpleQueueService[F]
-  def withDelayPolicy(delayPolicy: Policy, zoneId: ZoneId): SimpleQueueService[F]
+  def withDelayPolicy(delayPolicy: Policy): SimpleQueueService[F]
 
   def sendMessage(msg: SendMessageRequest): F[SendMessageResponse]
   final def sendMessage(f: Endo[SendMessageRequest.Builder]): F[SendMessageResponse] =
@@ -93,7 +93,7 @@ object SimpleQueueService {
         }
 
       override def updateBuilder(f: Endo[SqsClientBuilder]): SimpleQueueService[F]             = this
-      override def withDelayPolicy(delayPolicy: Policy, zoneId: ZoneId): SimpleQueueService[F] = this
+      override def withDelayPolicy(delayPolicy: Policy): SimpleQueueService[F] = this
       override def delete(msg: SqsMessage): F[DeleteMessageResponse] =
         F.pure(DeleteMessageResponse.builder().build())
       override def sendMessage(msg: SendMessageRequest): F[SendMessageResponse] =
@@ -193,8 +193,8 @@ object SimpleQueueService {
     override def updateBuilder(f: Endo[SqsClientBuilder]): SimpleQueueService[F] =
       new AwsSQS[F](buildFrom.andThen(f), zeroth, logger)
 
-    override def withDelayPolicy(delayPolicy: Policy, zoneId: ZoneId): SimpleQueueService[F] =
-      new AwsSQS[F](buildFrom, zeroth.withPolicy(delayPolicy, zoneId), logger)
+    override def withDelayPolicy(delayPolicy: Policy): SimpleQueueService[F] =
+      new AwsSQS[F](buildFrom, zeroth.withPolicy(delayPolicy), logger)
 
   }
 }

@@ -203,7 +203,7 @@ final class ServiceGuard[F[_]: Network] private[guard] (
           new ReStart[F, A](
             channel = channel,
             serviceParams = serviceParams,
-            initTickStatus = zeroth.withPolicy(serviceRestartPolicy, taskParams.zoneId),
+            initTickStatus = zeroth.withPolicy(serviceRestartPolicy),
             theService = runAgent(agent)
           ).stream
 

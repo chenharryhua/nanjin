@@ -64,7 +64,7 @@ class TickStreamTest extends AnyFunSuite {
         .flatMap(_.betweenLong(0, 2500))
         .flatMap(d => IO.sleep(d.toDouble.millisecond).as(JavaDuration.ofMillis(d)))
 
-    ticks.evalTap(_ => sleep).map(_.wakeup).debug().compile.toList.unsafeRunSync()
+    ticks.evalTap(_ => sleep).debug().compile.toList.unsafeRunSync()
   }
 
   test("6. giveUp") {

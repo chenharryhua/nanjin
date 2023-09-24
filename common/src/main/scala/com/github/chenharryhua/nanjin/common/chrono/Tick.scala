@@ -14,8 +14,9 @@ import java.util.UUID
 final case class Tick(
   sequenceId: UUID, // immutable
   launchTime: Instant, // immutable
-  index: Long, // monotonously increase
+  zoneId: ZoneId,
   previous: Instant, // previous tick's wakeup time
+  index: Long, // monotonously increase
   acquire: Instant, // when user acquire a new tick
   snooze: Duration // is/was snooze
 ) {
@@ -30,8 +31,8 @@ final case class Tick(
 
   def newTick(now: Instant, delay: Duration): Tick =
     copy(
-      index = this.index + 1,
       previous = this.wakeup,
+      index = this.index + 1,
       acquire = now,
       snooze = delay
     )
@@ -44,19 +45,18 @@ object Tick {
 final class TickStatus private (
   val tick: Tick,
   policy: Policy,
-  zoneId: ZoneId,
   decisions: LazyList[PolicyF.TickRequest => Option[Tick]])
     extends Serializable {
 
   def resetPolicy: TickStatus =
-    new TickStatus(tick, policy, zoneId, PolicyF.decisions(policy.policy, zoneId))
+    new TickStatus(tick, policy, PolicyF.decisions(policy.policy, tick.zoneId))
 
-  def withPolicy(policy: Policy, zoneId: ZoneId): TickStatus =
-    new TickStatus(tick, policy, zoneId, PolicyF.decisions(policy.policy, zoneId))
+  def withPolicy(policy: Policy): TickStatus =
+    new TickStatus(tick, policy, PolicyF.decisions(policy.policy, tick.zoneId))
 
   def next(now: Instant): Option[TickStatus] =
     decisions match {
-      case head #:: tail => head(PolicyF.TickRequest(tick, now)).map(new TickStatus(_, policy, zoneId, tail))
+      case head #:: tail => head(PolicyF.TickRequest(tick, now)).map(new TickStatus(_, policy, tail))
       case _             => None
     }
 }
@@ -70,11 +70,12 @@ object TickStatus {
       val zeroth = Tick(
         sequenceId = uuid,
         launchTime = now,
-        index = 0L,
+        zoneId = zoneId,
         previous = now,
+        index = 0L,
         acquire = now,
         snooze = Duration.ZERO
       )
-      new TickStatus(zeroth, policy, zoneId, PolicyF.decisions(policy.policy, zoneId))
+      new TickStatus(zeroth, policy, PolicyF.decisions(policy.policy, zoneId))
     }
 }
