@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.common.chrono
 
 import cats.data.NonEmptyList
-import cats.implicits.{catsSyntaxEq, catsSyntaxOptionId, showInterpolator}
+import cats.syntax.all.*
 import cats.{Functor, Show}
 import com.github.chenharryhua.nanjin.common.DurationFormatter
 import cron4s.CronExpr
@@ -24,18 +24,16 @@ private object PolicyF extends localtime with localdate with duration {
 
   final case class GiveUp[K]() extends PolicyF[K]
   final case class Accordance[K](policy: K) extends PolicyF[K]
-  final case class Constant[K](base: Duration) extends PolicyF[K]
-  final case class FixedPace[K](base: Duration) extends PolicyF[K]
-  final case class Exponential[K](base: Duration, num: Int) extends PolicyF[K]
-  final case class Fibonacci[K](base: Duration, num: Int) extends PolicyF[K]
   final case class Crontab[K](cronExpr: CronExpr) extends PolicyF[K]
   final case class Jitter[K](min: Duration, max: Duration) extends PolicyF[K]
-  final case class Delays[K](delays: NonEmptyList[Duration]) extends PolicyF[K]
+  final case class FixedDelay[K](delays: NonEmptyList[Duration]) extends PolicyF[K]
+  final case class FixedRate[K](delays: NonEmptyList[Duration]) extends PolicyF[K]
 
   final case class Limited[K](policy: K, limit: Int) extends PolicyF[K]
   final case class FollowedBy[K](first: K, second: K) extends PolicyF[K]
   final case class Repeat[K](policy: Fix[PolicyF]) extends PolicyF[K]
   final case class EndUp[K](policy: K, endUp: LocalTime) extends PolicyF[K]
+  final case class Join[K](first: K, second: K) extends PolicyF[K]
 
   private type CalcTick = TickRequest => Option[Tick]
   final case class TickRequest(tick: Tick, now: Instant)
@@ -46,46 +44,6 @@ private object PolicyF extends localtime with localdate with duration {
       case GiveUp() => LazyList.empty
 
       case Accordance(policy) => policy
-
-      case Constant(base) =>
-        LazyList.continually(req => req.tick.newTick(req.now, base).some)
-
-      case FixedPace(base) =>
-        val calcTick: CalcTick = { case TickRequest(tick, now) =>
-          val multi = (Duration.between(tick.launchTime, now).toScala / base.toScala).ceil.toLong
-          val delay = Duration.between(now, tick.launchTime.plus(base.multipliedBy(multi)))
-          if (delay === Duration.ZERO) {
-            val delay = Duration.between(now, tick.launchTime.plus(base.multipliedBy(multi + 1)))
-            tick.newTick(now, delay).some
-          } else tick.newTick(now, delay).some
-        }
-        LazyList.continually(calcTick)
-
-      case Exponential(base, num) =>
-        LazyList.unfold[CalcTick, Int](0) { counter =>
-          val calcTick: CalcTick = { req =>
-            val delay = base.multipliedBy(Math.pow(2, counter.toDouble).toLong)
-            req.tick.newTick(req.now, delay).some
-          }
-
-          if (counter < num - 1)
-            (calcTick, counter + 1).some
-          else
-            (calcTick, 0).some
-        }
-
-      case Fibonacci(base, num) =>
-        LazyList.unfold[CalcTick, Int](1) { counter =>
-          val calcTick: CalcTick = { req =>
-            val delay = base.multipliedBy(Fib.fibonacci(counter))
-            req.tick.newTick(req.now, delay).some
-          }
-
-          if (counter < num)
-            (calcTick, counter + 1).some
-          else
-            (calcTick, 1).some
-        }
 
       case Crontab(cronExpr) =>
         val calcTick: CalcTick = { case TickRequest(tick, now) =>
@@ -100,10 +58,23 @@ private object PolicyF extends localtime with localdate with duration {
         }
         LazyList.continually(calcTick)
 
-      case Delays(delays) =>
-        val seed: LazyList[CalcTick] = LazyList.from(delays.toList.map[CalcTick] { delay =>
+      case FixedDelay(delays) =>
+        val seed: LazyList[CalcTick] = LazyList.from(delays.toList).map[CalcTick] { delay =>
           { case TickRequest(tick, now) => tick.newTick(now, delay).some }
-        })
+        }
+        LazyList.continually(seed).flatten
+
+      case FixedRate(delays) =>
+        val seed: LazyList[CalcTick] = LazyList.from(delays.toList).map[CalcTick] { delay =>
+          { case TickRequest(tick, now) =>
+            val multi = (Duration.between(tick.launchTime, now).toScala / delay.toScala).ceil.toLong
+            val gap   = Duration.between(now, tick.launchTime.plus(delay.multipliedBy(multi)))
+            if (gap === Duration.ZERO) {
+              val gap = Duration.between(now, tick.launchTime.plus(delay.multipliedBy(multi + 1)))
+              tick.newTick(now, gap).some
+            } else tick.newTick(now, gap).some
+          }
+        }
         LazyList.continually(seed).flatten
 
       // ops
@@ -122,25 +93,35 @@ private object PolicyF extends localtime with localdate with duration {
           if (endTime.isAfter(now) && sameDay) Some(((), now)) else None
         }
         policy.zip(timeFrame).map(_._1)
+
+      case Join(first, second) =>
+        first.zip(second).map { case (fa: CalcTick, fb: CalcTick) =>
+          (req: TickRequest) =>
+            (fa(req), fb(req)).mapN { (ra, rb) =>
+              if (ra.snooze > rb.snooze) ra else rb // longer win
+            }
+        }
     }
 
   private val fmt: DurationFormatter = DurationFormatter.defaultFormatter
 
-  val show: Algebra[PolicyF, String] = Algebra[PolicyF, String] {
-    case GiveUp()                  => show"giveUp"
-    case Accordance(policy)        => show"accordance($policy)"
-    case Constant(base)            => show"constant(${fmt.format(base)})"
-    case FixedPace(base)           => show"fixedPace(${fmt.format(base)})"
-    case Exponential(base, num) => show"exponential(${fmt.format(base)}, $num)"
-    case Fibonacci(base, num)   => show"fibonacci(${fmt.format(base)}, $num)"
-    case Crontab(cronExpr)         => show"crontab($cronExpr)"
-    case Jitter(min, max)          => show"jitter(${fmt.format(min)}, ${fmt.format(max)})"
-    case Delays(delays)            => show"delays(${fmt.format(delays.head)}, ...)"
+  val showPolicy: Algebra[PolicyF, String] = Algebra[PolicyF, String] {
+    case GiveUp()           => show"giveUp"
+    case Accordance(policy) => show"accordance($policy)"
+    case Crontab(cronExpr)  => show"crontab($cronExpr)"
+    case Jitter(min, max)   => show"jitter(${fmt.format(min)}, ${fmt.format(max)})"
+
+    case FixedDelay(delays) if delays.size === 1 => show"fixedDelay(${fmt.format(delays.head)})"
+    case FixedDelay(delays)                      => show"fixedDelay(${fmt.format(delays.head)}, ...)"
+    case FixedRate(delays) if delays.size === 1  => show"fixedRate(${fmt.format(delays.head)})"
+    case FixedRate(delays)                       => show"fixedRate(${fmt.format(delays.head)}, ...)"
+
     // ops
     case Limited(policy, limit)    => show"$policy.limited($limit)"
     case FollowedBy(first, second) => show"$first.followedBy($second)"
     case Repeat(policy)            => show"${Policy(policy)}.repeat"
     case EndUp(policy, endUp)      => show"$policy.endUp($endUp)"
+    case Join(first, second)       => show"$first.join($second)"
   }
 
   def decisions(policy: Fix[PolicyF], zoneId: ZoneId): LazyList[CalcTick] =
@@ -148,12 +129,13 @@ private object PolicyF extends localtime with localdate with duration {
 }
 
 final case class Policy(policy: Fix[PolicyF]) extends AnyVal {
-  import PolicyF.{EndUp, FollowedBy, Limited, Repeat}
-  override def toString: String = scheme.cata(PolicyF.show).apply(policy)
+  import PolicyF.{EndUp, FollowedBy, Join, Limited, Repeat}
+  override def toString: String = scheme.cata(PolicyF.showPolicy).apply(policy)
 
   def limited(num: Int): Policy         = Policy(Fix(Limited(policy, num)))
   def followedBy(other: Policy): Policy = Policy(Fix(FollowedBy(policy, other.policy)))
   def repeat: Policy                    = Policy(Fix(Repeat(policy)))
+  def join(other: Policy): Policy       = Policy(Fix(Join(policy, other.policy)))
 
   def endUp(localTime: LocalTime): Policy = Policy(Fix(EndUp(policy, localTime)))
   def endOfDay: Policy                    = endUp(LocalTime.MAX)
@@ -164,30 +146,21 @@ object Policy {
 }
 
 object policies {
-  import PolicyF.{Accordance, Constant, Crontab, Delays, Exponential, Fibonacci, FixedPace, GiveUp, Jitter}
+  import PolicyF.{Accordance, Crontab, FixedDelay, FixedRate, GiveUp, Jitter}
 
   def accordance(policy: Policy): Policy = Policy(Fix(Accordance(policy.policy)))
 
-  def constant(base: Duration): Policy       = Policy(Fix(Constant(base)))
-  def constant(base: FiniteDuration): Policy = constant(base.toJava)
-
-  def fixedPace(base: Duration): Policy       = Policy(Fix(FixedPace(base)))
-  def fixedPace(base: FiniteDuration): Policy = fixedPace(base.toJava)
-
-  def exponential(base: Duration, num: Int): Policy       = Policy(Fix(Exponential(base, num)))
-  def exponential(base: FiniteDuration, num: Int): Policy = exponential(base.toJava, num)
-
-  def fibonacci(base: Duration, num: Int): Policy       = Policy(Fix(Fibonacci(base, num)))
-  def fibonacci(base: FiniteDuration, num: Int): Policy = fibonacci(base.toJava, num)
-
   def crontab(cronExpr: CronExpr): Policy = Policy(Fix(Crontab(cronExpr)))
 
-  def jitter(min: Duration, max: Duration): Policy             = Policy(Fix(Jitter(min, max)))
-  def jitter(min: FiniteDuration, max: FiniteDuration): Policy = jitter(min.toJava, max.toJava)
+  def jitter(min: FiniteDuration, max: FiniteDuration): Policy = Policy(Fix(Jitter(min.toJava, max.toJava)))
 
-  def delays(head: Duration, tail: Duration*): Policy = Policy(Fix(Delays(NonEmptyList(head, tail.toList))))
-  def delays(head: FiniteDuration, tail: FiniteDuration*): Policy =
-    Policy(Fix(Delays(NonEmptyList(head.toJava, tail.toList.map(_.toJava)))))
+  def fixedDelay(delays: NonEmptyList[Duration]): Policy = Policy(Fix(FixedDelay(delays)))
+  def fixedDelay(head: FiniteDuration, tail: FiniteDuration*): Policy =
+    fixedDelay(NonEmptyList(head.toJava, tail.toList.map(_.toJava)))
+
+  def fixedRate(delays: NonEmptyList[Duration]): Policy = Policy(Fix(FixedRate(delays)))
+  def fixedRate(head: FiniteDuration, tail: FiniteDuration*): Policy =
+    fixedRate(NonEmptyList(head.toJava, tail.toList.map(_.toJava)))
 
   val giveUp: Policy = Policy(Fix(GiveUp()))
 }

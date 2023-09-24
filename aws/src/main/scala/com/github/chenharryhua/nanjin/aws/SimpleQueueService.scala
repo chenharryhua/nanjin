@@ -112,7 +112,8 @@ object SimpleQueueService {
     }))(_ => F.unit)
 
   def apply[F[_]: Async](f: Endo[SqsClientBuilder]): Resource[F, SimpleQueueService[F]] = {
-    val defaultPolicy: Policy = policies.exponential(10.seconds,5)
+    val defaultPolicy: Policy =
+      policies.fixedDelay(10.seconds, 20.second, 40.seconds, 80.seconds, 160.seconds, 320.seconds)
     for {
       logger <- Resource.eval(Slf4jLogger.create[F])
       sqs <- Resource.makeCase(
