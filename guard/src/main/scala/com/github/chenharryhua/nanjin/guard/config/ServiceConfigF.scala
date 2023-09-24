@@ -15,6 +15,7 @@ import java.time.*
 import java.util.UUID
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.FiniteDuration
+import scala.jdk.DurationConverters.ScalaDurationOps
 
 @JsonCodec
 final case class MetricParams(namePrefix: String, rateTimeUnit: TimeUnit, durationTimeUnit: TimeUnit) {
@@ -33,6 +34,7 @@ object MetricParams {
 final case class ServiceParams(
   serviceName: String,
   restartPolicy: String, // for display
+  threshold: Option[Duration],
   taskParams: TaskParams,
   metricParams: MetricParams,
   brief: Option[Json],
@@ -67,6 +69,7 @@ object ServiceParams extends zoneddatetime with duration {
       serviceName = serviceName.value,
       taskParams = taskParams,
       restartPolicy = restartPolicy.value,
+      threshold = None,
       metricParams = MetricParams(
         namePrefix = "",
         rateTimeUnit = TimeUnit.SECONDS,
@@ -88,6 +91,7 @@ private object ServiceConfigF {
   final case class WithRateTimeUnit[K](value: TimeUnit, cont: K) extends ServiceConfigF[K]
   final case class WithDurationTimeUnit[K](value: TimeUnit, cont: K) extends ServiceConfigF[K]
   final case class WithMetricNamePrefix[K](value: String, cont: K) extends ServiceConfigF[K]
+  final case class WithRestartThreshold[K](value: Option[Duration], cont: K) extends ServiceConfigF[K]
 
   def algebra(
     serviceName: ServiceName,
@@ -100,13 +104,14 @@ private object ServiceConfigF {
           serviceName = serviceName,
           taskParams = taskParams,
           restartPolicy = restartPolicy,
-          brief,
-          zeroth
+          brief = brief,
+          zeroth = zeroth
         )
 
       case WithRateTimeUnit(v, c)     => c.focus(_.metricParams.rateTimeUnit).replace(v)
       case WithDurationTimeUnit(v, c) => c.focus(_.metricParams.durationTimeUnit).replace(v)
       case WithMetricNamePrefix(v, c) => c.focus(_.metricParams.namePrefix).replace(v)
+      case WithRestartThreshold(v, c) => c.focus(_.threshold).replace(v)
 
     }
 }
@@ -123,6 +128,9 @@ final case class ServiceConfig(cont: Fix[ServiceConfigF]) extends AnyVal {
 
   def withMetricNamePrefix(prefix: String): ServiceConfig =
     ServiceConfig(Fix(WithMetricNamePrefix(prefix, cont)))
+
+  def withRestartThreshold(fd: FiniteDuration): ServiceConfig =
+    ServiceConfig(Fix(WithRestartThreshold(Some(fd.toJava), cont)))
 
   def evalConfig(
     serviceName: ServiceName,

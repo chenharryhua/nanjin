@@ -116,20 +116,16 @@ object SimpleQueueService {
       policies.fixedDelay(10.seconds, 20.second, 40.seconds, 80.seconds, 160.seconds, 320.seconds)
     for {
       logger <- Resource.eval(Slf4jLogger.create[F])
-      sqs <- Resource.makeCase(
-        logger
-          .info(s"initialize $name")
-          .map(_ => new AwsSQS[F](f, defaultPolicy, ZoneId.systemDefault(), logger))) { case (cw, quitCase) =>
-        cw.shutdown(name, quitCase, logger)
+      zeroth <- Resource.eval(TickStatus[F](defaultPolicy, ZoneId.systemDefault()))
+      sqs <- Resource.makeCase(logger.info(s"initialize $name").map(_ => new AwsSQS[F](f, zeroth, logger))) {
+        case (cw, quitCase) =>
+          cw.shutdown(name, quitCase, logger)
       }
     } yield sqs
   }
 
-  final private class AwsSQS[F[_]](
-    buildFrom: Endo[SqsClientBuilder],
-    delayPolicy: Policy,
-    zoneId: ZoneId,
-    logger: Logger[F])(implicit F: Async[F])
+  final private class AwsSQS[F[_]](buildFrom: Endo[SqsClientBuilder], zeroth: TickStatus, logger: Logger[F])(
+    implicit F: Async[F])
       extends ShutdownService[F] with SimpleQueueService[F] {
 
     private lazy val client: SqsClient = buildFrom(SqsClient.builder()).build()
@@ -155,7 +151,7 @@ object SimpleQueueService {
                   batchSize = size
                 )
               }
-              Pull.output(chunk) >> receiving(status.resetCounter, batchIndex + 1)
+              Pull.output(chunk) >> receiving(status.resetPolicy, batchIndex + 1)
             } else {
               Pull
                 .eval(F.realTimeInstant.map { now =>
@@ -169,7 +165,7 @@ object SimpleQueueService {
             }
         }
 
-      Stream.eval(TickStatus(delayPolicy, zoneId)).flatMap(zero => receiving(zero, 0L).stream)
+      receiving(zeroth, 0L).stream
     }
 
     override def delete(msg: SqsMessage): F[DeleteMessageResponse] = {
@@ -195,10 +191,10 @@ object SimpleQueueService {
     }
 
     override def updateBuilder(f: Endo[SqsClientBuilder]): SimpleQueueService[F] =
-      new AwsSQS[F](buildFrom.andThen(f), delayPolicy, zoneId, logger)
+      new AwsSQS[F](buildFrom.andThen(f), zeroth, logger)
 
     override def withDelayPolicy(delayPolicy: Policy, zoneId: ZoneId): SimpleQueueService[F] =
-      new AwsSQS[F](buildFrom, delayPolicy, zoneId, logger)
+      new AwsSQS[F](buildFrom, zeroth.withPolicy(delayPolicy, zoneId), logger)
 
   }
 }

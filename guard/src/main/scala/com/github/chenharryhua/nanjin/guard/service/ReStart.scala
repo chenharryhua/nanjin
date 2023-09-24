@@ -8,7 +8,9 @@ import com.github.chenharryhua.nanjin.guard.event.{NJEvent, ServiceStopCause}
 import fs2.Stream
 import fs2.concurrent.Channel
 import org.apache.commons.lang3.exception.ExceptionUtils
+import org.typelevel.cats.time.instances.duration
 
+import java.time.Duration
 import scala.jdk.DurationConverters.JavaDurationOps
 import scala.util.control.NonFatal
 
@@ -16,7 +18,8 @@ final private class ReStart[F[_], A](
   channel: Channel[F, NJEvent],
   serviceParams: ServiceParams,
   initTickStatus: TickStatus,
-  theService: F[A])(implicit F: Temporal[F]) {
+  theService: F[A])(implicit F: Temporal[F])
+    extends duration {
 
   private def stop(cause: ServiceStopCause): F[Either[TickStatus, ServiceStopCause]] =
     F.pure(Right(cause))
@@ -37,9 +40,15 @@ final private class ReStart[F[_], A](
         case Left(err) if !NonFatal(err) => stopByException(err)
         case Left(err) =>
           F.realTimeInstant.flatMap { now =>
-            status.next(now) match {
-              case None       => stopByException(err)
-              case Some(tick) => panic(tick, err)
+            val tickStatus: TickStatus = serviceParams.threshold match {
+              case Some(threshold) =>
+                if (Duration.between(status.tick.wakeup, now) > threshold) status.resetPolicy else status
+              case None => status
+            }
+
+            tickStatus.next(now) match {
+              case None      => stopByException(err)
+              case Some(nts) => panic(nts, err)
             }
           }
       }

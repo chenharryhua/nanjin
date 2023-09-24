@@ -33,6 +33,7 @@ class ServiceTest extends AnyFunSuite {
     val Vector(a, d) = guard
       .withRestartPolicy(policies.fixedDelay(3.seconds))
       .withMetricReport(policies.crontab(cron_1hour))
+      .withMetricServer(identity)
       .withMetricDailyReset
       .eventStream(gd => gd.action("t", _.silent).delay(1).logOutput(_ => null).run.delayBy(1.second))
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
@@ -240,7 +241,6 @@ class ServiceTest extends AnyFunSuite {
   test("12.policy threshold start over") {
     val List(a, b, c, d, e, f, g, h) = guard
       .withRestartPolicy(policies.fixedDelay(1.seconds, 1.seconds, 2.seconds, 3.seconds))
-      .withMetricServer(identity)
       .eventStream(_ => IO.raiseError(new Exception("oops")))
       .evalMapFilter[IO, Tick] {
         case sp: ServicePanic => IO(Some(sp.tick))

@@ -89,7 +89,8 @@ class NJJacksonTest extends AnyFunSuite {
       .covary[IO]
       .repeatN(number)
       .chunks
-      .through(jackson.sink(policies.fixedDelay(1.second), ZoneId.systemDefault())(t => path / fk.fileName(t)))
+      .through(jackson.sink(policies.fixedDelay(1.second), ZoneId.systemDefault())(t =>
+        path / fk.fileName(t)))
       .compile
       .drain
       .unsafeRunSync()
