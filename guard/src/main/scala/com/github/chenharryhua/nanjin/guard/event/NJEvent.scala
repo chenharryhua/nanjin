@@ -28,11 +28,13 @@ sealed trait NJEvent extends Product with Serializable {
 object NJEvent extends DateTimeInstances {
   implicit final val showNJEvent: Show[NJEvent] = cats.derived.semiauto.show[NJEvent]
 
-  final case class ServiceStart(serviceParams: ServiceParams, timestamp: ZonedDateTime) extends NJEvent
+  final case class ServiceStart(serviceParams: ServiceParams, tick: Tick) extends NJEvent {
+    val timestamp: ZonedDateTime = tick.wakeup.atZone(tick.zoneId)
+  }
 
   final case class ServicePanic(serviceParams: ServiceParams, error: NJError, tick: Tick) extends NJEvent {
-    val timestamp: ZonedDateTime   = serviceParams.toZonedDateTime(tick.acquire)
-    val restartTime: ZonedDateTime = serviceParams.toZonedDateTime(tick.wakeup)
+    val timestamp: ZonedDateTime   = tick.acquire.atZone(tick.zoneId)
+    val restartTime: ZonedDateTime = tick.wakeup.atZone(tick.zoneId)
   }
 
   final case class ServiceStop(
@@ -74,7 +76,6 @@ object NJEvent extends DateTimeInstances {
 
     final override def serviceParams: ServiceParams = actionParams.serviceParams
 
-    final def traceId: String    = actionInfo.traceId.getOrElse("null")
     final def actionId: String   = actionInfo.actionId.toString
     final def metricId: MetricID = actionParams.metricId
   }

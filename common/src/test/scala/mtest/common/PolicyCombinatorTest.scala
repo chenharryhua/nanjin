@@ -90,7 +90,15 @@ class PolicyCombinatorTest extends AnyFunSuite {
     assert(a4.snooze == 1.second.toJava)
     assert(a5.snooze == 1.second.toJava)
     assert(a6.snooze == 1.second.toJava)
+  }
 
+  test("infinite") {
+    val policy = policies.fixedRate(1.second).limited(500).repeat
+
+    val loop: Long     = 1000000
+    val ts: TickStatus = TickStatus[IO](policy, darwinTime).unsafeRunSync()
+    val tick           = lazyTickList(ts).dropWhile(_.index < loop).take(1).head
+    assert(tick.index == loop)
   }
 
   ignore("endup") {

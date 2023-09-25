@@ -82,6 +82,8 @@ class RetryTest extends AnyFunSuite {
     assert(i.isInstanceOf[ActionFail])
     assert(j.isInstanceOf[ServiceStop])
 
+    val ap = h.asInstanceOf[ActionRetry]
+    assert(ap.tick.sequenceId == ap.actionParams.serviceParams.serviceId)
   }
 
   test("4.retry - should retry 2 times when operation fail") {

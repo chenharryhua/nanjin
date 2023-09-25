@@ -7,7 +7,7 @@ import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.common.chrono.TickStatus
 import com.github.chenharryhua.nanjin.guard.config.{ActionParams, PublishStrategy}
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.{ActionDone, ActionFail, ActionRetry, ActionStart}
-import com.github.chenharryhua.nanjin.guard.event.{ActionInfo, NJError, NJEvent, TraceInfo}
+import com.github.chenharryhua.nanjin.guard.event.{ActionInfo, NJError, NJEvent}
 import fs2.concurrent.Channel
 import io.circe.Json
 import io.circe.parser.parse
@@ -124,7 +124,10 @@ final private class ReTry[F[_], IN, OUT](
       case PublishStrategy.Notice =>
         new KickOff {
           override def apply(ai: ActionInfo, in: IN): F[OUT] =
-            channel.send(ActionStart(actionParams, ai, transInput(in))) >> compute(ai, in)
+            for {
+              _ <- channel.send(ActionStart(actionParams, ai, transInput(in)))
+              out <- compute(ai, in)
+            } yield out
         }
       case PublishStrategy.Aware =>
         new KickOff {
@@ -153,9 +156,9 @@ final private class ReTry[F[_], IN, OUT](
         }
     }
 
-  def run(in: IN, traceInfo: Option[TraceInfo]): F[OUT] =
+  def run(in: IN): F[OUT] =
     (F.realTime, F.unique).flatMapN { (launchTime, token) =>
-      val ai = ActionInfo(token.hash, launchTime, traceInfo)
+      val ai = ActionInfo(token.hash, launchTime)
       F.onCancel(kickoff(ai, in), sendFailure(ai, in, ActionCancelException))
     }
 }

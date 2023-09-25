@@ -16,7 +16,7 @@ import com.github.chenharryhua.nanjin.guard.event.NJEvent.{
 }
 import fs2.concurrent.Channel
 
-import java.time.{Instant, ZonedDateTime}
+import java.time.Instant
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 
 private object publisher {
@@ -51,15 +51,12 @@ private object publisher {
         ))
       .map(_ => metricRegistry.getCounters().values().asScala.foreach(c => c.dec(c.getCount)))
 
-  def serviceReStart[F[_]: Clock](channel: Channel[F, NJEvent], serviceParams: ServiceParams)(implicit
-    F: MonadError[F, Throwable]): F[ZonedDateTime] =
-    for {
-      now <- serviceParams.zonedNow
-      _ <- channel
-        .send(ServiceStart(serviceParams, now))
-        .map(_.leftMap(_ => new Exception("service restart channel closed")))
-        .rethrow
-    } yield now
+  def serviceReStart[F[_]](channel: Channel[F, NJEvent], serviceParams: ServiceParams, tick: Tick)(implicit
+    F: MonadError[F, Throwable]): F[Unit] =
+    channel
+      .send(ServiceStart(serviceParams, tick))
+      .map(_.leftMap(_ => new Exception("service restart channel closed")))
+      .rethrow
 
   def servicePanic[F[_]](
     channel: Channel[F, NJEvent],

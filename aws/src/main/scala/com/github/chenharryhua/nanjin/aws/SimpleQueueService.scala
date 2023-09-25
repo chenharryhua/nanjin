@@ -61,7 +61,7 @@ sealed trait SimpleQueueService[F[_]] {
   def delete(msg: SqsMessage): F[DeleteMessageResponse]
   def resetVisibility(msg: SqsMessage): F[ChangeMessageVisibilityResponse]
   def updateBuilder(f: Endo[SqsClientBuilder]): SimpleQueueService[F]
-  def withDelayPolicy(delayPolicy: Policy): SimpleQueueService[F]
+  def withDelayPolicy(delayPolicy: Policy, zoneId: ZoneId): SimpleQueueService[F]
 
   def sendMessage(msg: SendMessageRequest): F[SendMessageResponse]
   final def sendMessage(f: Endo[SendMessageRequest.Builder]): F[SendMessageResponse] =
@@ -93,7 +93,7 @@ object SimpleQueueService {
         }
 
       override def updateBuilder(f: Endo[SqsClientBuilder]): SimpleQueueService[F]             = this
-      override def withDelayPolicy(delayPolicy: Policy): SimpleQueueService[F] = this
+      override def withDelayPolicy(delayPolicy: Policy, zoneId: ZoneId): SimpleQueueService[F] = this
       override def delete(msg: SqsMessage): F[DeleteMessageResponse] =
         F.pure(DeleteMessageResponse.builder().build())
       override def sendMessage(msg: SendMessageRequest): F[SendMessageResponse] =
@@ -116,16 +116,20 @@ object SimpleQueueService {
       policies.fixedDelay(10.seconds, 20.second, 40.seconds, 80.seconds, 160.seconds, 320.seconds)
     for {
       logger <- Resource.eval(Slf4jLogger.create[F])
-      zeroth <- Resource.eval(TickStatus[F](defaultPolicy, ZoneId.systemDefault()))
-      sqs <- Resource.makeCase(logger.info(s"initialize $name").map(_ => new AwsSQS[F](f, zeroth, logger))) {
-        case (cw, quitCase) =>
-          cw.shutdown(name, quitCase, logger)
+      sqs <- Resource.makeCase(
+        logger
+          .info(s"initialize $name")
+          .map(_ => new AwsSQS[F](f, defaultPolicy, ZoneId.systemDefault(), logger))) { case (cw, quitCase) =>
+        cw.shutdown(name, quitCase, logger)
       }
     } yield sqs
   }
 
-  final private class AwsSQS[F[_]](buildFrom: Endo[SqsClientBuilder], zeroth: TickStatus, logger: Logger[F])(
-    implicit F: Async[F])
+  final private class AwsSQS[F[_]](
+    buildFrom: Endo[SqsClientBuilder],
+    policy: Policy,
+    zoneId: ZoneId,
+    logger: Logger[F])(implicit F: Async[F])
       extends ShutdownService[F] with SimpleQueueService[F] {
 
     private lazy val client: SqsClient = buildFrom(SqsClient.builder()).build()
@@ -151,7 +155,7 @@ object SimpleQueueService {
                   batchSize = size
                 )
               }
-              Pull.output(chunk) >> receiving(status.resetPolicy, batchIndex + 1)
+              Pull.output(chunk) >> receiving(status.renewPolicy(policy), batchIndex + 1)
             } else {
               Pull
                 .eval(F.realTimeInstant.map { now =>
@@ -165,7 +169,7 @@ object SimpleQueueService {
             }
         }
 
-      receiving(zeroth, 0L).stream
+      Stream.eval(TickStatus(policy, zoneId)).flatMap(zeroth => receiving(zeroth, 0L).stream)
     }
 
     override def delete(msg: SqsMessage): F[DeleteMessageResponse] = {
@@ -191,10 +195,10 @@ object SimpleQueueService {
     }
 
     override def updateBuilder(f: Endo[SqsClientBuilder]): SimpleQueueService[F] =
-      new AwsSQS[F](buildFrom.andThen(f), zeroth, logger)
+      new AwsSQS[F](buildFrom.andThen(f), policy, zoneId, logger)
 
-    override def withDelayPolicy(delayPolicy: Policy): SimpleQueueService[F] =
-      new AwsSQS[F](buildFrom, zeroth.withPolicy(delayPolicy), logger)
+    override def withDelayPolicy(delayPolicy: Policy, zoneId: ZoneId): SimpleQueueService[F] =
+      new AwsSQS[F](buildFrom, policy, zoneId, logger)
 
   }
 }

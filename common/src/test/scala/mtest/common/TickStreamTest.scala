@@ -18,6 +18,7 @@ class TickStreamTest extends AnyFunSuite {
 
     val res = ticks.map(_.interval.toScala).compile.toList.unsafeRunSync()
     assert(res.tail.forall(d => d === 1.seconds), res)
+    assert(res.size == 5)
   }
 
   test("2.process longer than 1 second") {

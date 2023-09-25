@@ -2,26 +2,27 @@ package mtest.guard
 
 import cats.Eq
 import cats.effect.IO
+import cats.effect.unsafe.implicits.global
 import cats.laws.discipline.eq.*
 import cats.laws.discipline.{ExhaustiveCheck, FunctorFilterTests, MonadTests}
+import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
+import com.github.chenharryhua.nanjin.common.chrono.{policies, TickStatus}
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.event.*
+import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import com.github.chenharryhua.nanjin.guard.translators.Translator
 import eu.timepit.refined.auto.*
 import munit.DisciplineSuite
 import org.scalacheck.{Arbitrary, Gen}
-
-import java.time.ZonedDateTime
-import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
 // TODO
 
 object gendata {
   val service: ServiceGuard[IO] = TaskGuard[IO]("monad").service("tailrecM")
-
+  val tick                      = TickStatus[IO](policies.giveUp, sydneyTime).unsafeRunSync().tick
   implicit val exhaustiveCheck: ExhaustiveCheck[NJEvent] =
-    ExhaustiveCheck.instance(List(ServiceStart(null.asInstanceOf[ServiceParams], ZonedDateTime.now())))
+    ExhaustiveCheck.instance(List(ServiceStart(null.asInstanceOf[ServiceParams], tick)))
 
   implicit def translatorEq: Eq[Translator[Option, Int]] =
     Eq.by[Translator[Option, Int], NJEvent => Option[Option[Int]]](_.translate)

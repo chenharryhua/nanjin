@@ -47,14 +47,14 @@ private object PolicyF extends localtime with localdate with duration {
 
       case Crontab(cronExpr) =>
         val calcTick: CalcTick = { case TickRequest(tick, now) =>
-          cronExpr.next(now.atZone(zoneId)).map(zdt => Duration.between(now, zdt)).map(tick.newTick(now, _))
+          cronExpr.next(now.atZone(tick.zoneId)).map(zdt => tick.newTick(now, Duration.between(now, zdt)))
         }
         LazyList.continually(calcTick)
 
       case Jitter(min, max) =>
-        val calcTick: CalcTick = { req =>
+        val calcTick: CalcTick = { case TickRequest(tick, now) =>
           val delay = Duration.of(Random.between(min.toNanos, max.toNanos), ChronoUnit.NANOS)
-          req.tick.newTick(req.now, delay).some
+          tick.newTick(now, delay).some
         }
         LazyList.continually(calcTick)
 

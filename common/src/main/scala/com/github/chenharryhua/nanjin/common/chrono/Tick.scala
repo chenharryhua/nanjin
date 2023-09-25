@@ -42,21 +42,15 @@ object Tick {
   implicit val showTick: Show[Tick] = cats.derived.semiauto.show[Tick]
 }
 
-final class TickStatus private (
-  val tick: Tick,
-  policy: Policy,
-  decisions: LazyList[PolicyF.TickRequest => Option[Tick]])
+final class TickStatus private (val tick: Tick, decisions: LazyList[PolicyF.TickRequest => Option[Tick]])
     extends Serializable {
 
-  def resetPolicy: TickStatus =
-    new TickStatus(tick, policy, PolicyF.decisions(policy.policy, tick.zoneId))
-
-  def withPolicy(policy: Policy): TickStatus =
-    new TickStatus(tick, policy, PolicyF.decisions(policy.policy, tick.zoneId))
+  def renewPolicy(policy: Policy): TickStatus =
+    new TickStatus(tick, PolicyF.decisions(policy.policy, tick.zoneId))
 
   def next(now: Instant): Option[TickStatus] =
     decisions match {
-      case head #:: tail => head(PolicyF.TickRequest(tick, now)).map(new TickStatus(_, policy, tail))
+      case head #:: tail => head(PolicyF.TickRequest(tick, now)).map(new TickStatus(_, tail))
       case _             => None
     }
 }
@@ -76,6 +70,6 @@ object TickStatus {
         acquire = now,
         snooze = Duration.ZERO
       )
-      new TickStatus(zeroth, policy, PolicyF.decisions(policy.policy, zoneId))
+      new TickStatus(zeroth, PolicyF.decisions(policy.policy, zoneId))
     }
 }

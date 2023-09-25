@@ -79,7 +79,6 @@ private object PrettyJsonTranslator {
           publishStrategy(evt),
           serviceName(evt),
           serviceId(evt),
-          traceInfo(evt),
           notes(evt.notes)
         ))
 
@@ -95,7 +94,6 @@ private object PrettyJsonTranslator {
           publishStrategy(evt),
           serviceName(evt),
           serviceId(evt),
-          traceInfo(evt),
           policy(evt.actionParams),
           errCause(evt.error)
         ))
@@ -112,7 +110,6 @@ private object PrettyJsonTranslator {
           publishStrategy(evt),
           serviceName(evt),
           serviceId(evt),
-          traceInfo(evt),
           took(evt),
           policy(evt.actionParams),
           notes(evt.notes),
@@ -131,7 +128,6 @@ private object PrettyJsonTranslator {
           publishStrategy(evt),
           serviceName(evt),
           serviceId(evt),
-          traceInfo(evt),
           took(evt),
           notes(evt.notes)
         ))

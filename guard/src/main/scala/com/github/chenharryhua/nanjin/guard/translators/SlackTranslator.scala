@@ -172,7 +172,6 @@ private object SlackTranslator extends all {
     )
   }
 
-  private def traceId(evt: ActionEvent): String = s"*$CONSTANT_TRACE_ID:* ${evt.traceId}"
   private def serviceId(evt: ActionEvent): String =
     s"*$CONSTANT_SERVICE_ID:* ${evt.serviceParams.serviceId.show}"
   private def policy(evt: ActionEvent): String = s"*$CONSTANT_POLICY:* ${evt.actionParams.retryPolicy}"
@@ -190,7 +189,6 @@ private object SlackTranslator extends all {
               first = TextField(CONSTANT_ACTION_ID, evt.actionId),
               second = TextField(CONSTANT_TIMEZONE, evt.serviceParams.taskParams.zoneId.show)),
             MarkdownSection(s"""|${measurement(evt.actionParams.metricId.metricName)}
-                                |${traceId(evt)}
                                 |${serviceId(evt)}""".stripMargin)
           ) ++ evt.notes.map(js => MarkdownSection(s"""```${abbreviate(js)}```"""))
         ))
@@ -232,7 +230,6 @@ private object SlackTranslator extends all {
               second = TextField(CONSTANT_TOOK, tookText(evt.took))),
             MarkdownSection(s"""|${policy(evt)}
                                 |${measurement(evt.actionParams.metricId.metricName)}
-                                |${traceId(evt)}
                                 |${serviceId(evt)}""".stripMargin)
           ) ++ evt.notes.map(js => MarkdownSection(s"""```${abbreviate(js)}```"""))
         ),
@@ -256,7 +253,6 @@ private object SlackTranslator extends all {
               first = TextField(CONSTANT_ACTION_ID, evt.actionId),
               second = TextField(CONSTANT_TOOK, tookText(evt.took))),
             MarkdownSection(s"""|${measurement(evt.actionParams.metricId.metricName)}
-                                |${traceId(evt)}
                                 |${serviceId(evt)}""".stripMargin)
           ) ++ evt.notes.map(js => MarkdownSection(s"""```${abbreviate(js)}```"""))
         )
