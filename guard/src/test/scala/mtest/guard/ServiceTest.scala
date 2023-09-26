@@ -47,6 +47,8 @@ class ServiceTest extends AnyFunSuite {
     assert(d.asInstanceOf[ServiceStop].cause.exitCode == 0)
     val ss = a.asInstanceOf[ServiceStart]
     assert(ss.tick.sequenceId == ss.serviceParams.serviceId)
+    assert(ss.tick.zoneId == ss.serviceParams.taskParams.zoneId)
+
   }
 
   test("2.escalate to up level if retry failed") {
@@ -70,6 +72,7 @@ class ServiceTest extends AnyFunSuite {
     assert(f.isInstanceOf[ServicePanic])
     val sp = f.asInstanceOf[ServicePanic]
     assert(sp.tick.sequenceId == sp.serviceParams.serviceId)
+    assert(sp.tick.zoneId == sp.serviceParams.taskParams.zoneId)
   }
 
   test("3.should stop when fatal error occurs") {

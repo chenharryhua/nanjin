@@ -370,7 +370,7 @@ lazy val spark = (project in file("spark"))
   .settings(
     libraryDependencies ++= List(
       "org.apache.ivy"                         % "ivy"             % "2.5.2", // snyk
-      "com.julianpeeters" %% "avrohugger-core" % "1.5.3"           % Test,
+      "com.julianpeeters" %% "avrohugger-core" % "1.5.4"           % Test,
       "ch.qos.logback"                         % "logback-classic" % logbackV % Test
     ) ++ sparkLib.map(_.exclude("commons-logging", "commons-logging")) ++ testLib
   )
@@ -397,4 +397,3 @@ lazy val example = (project in file("example"))
 lazy val nanjin =
   (project in file(".")).aggregate(common, datetime, http, aws, guard, messages, pipes, kafka, database, spark)
 // format: on
-
