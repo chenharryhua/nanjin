@@ -17,7 +17,7 @@ val parquetV    = "1.13.1"
 val circeV      = "0.14.6"
 val kantanV     = "0.7.0"
 val slf4jV      = "2.0.9"
-val metricsV    = "4.2.19"
+val metricsV    = "4.2.20"
 val skunkV      = "0.6.0"
 val natchezV    = "0.3.3"
 val http4sV     = "0.23.23"
@@ -397,3 +397,4 @@ lazy val example = (project in file("example"))
 lazy val nanjin =
   (project in file(".")).aggregate(common, datetime, http, aws, guard, messages, pipes, kafka, database, spark)
 // format: on
+
