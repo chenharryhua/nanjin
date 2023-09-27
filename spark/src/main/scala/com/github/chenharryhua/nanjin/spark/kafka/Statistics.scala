@@ -1,8 +1,8 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
-import cats.Show
 import cats.effect.kernel.Sync
 import cats.syntax.all.*
+import cats.{Endo, Show}
 import com.github.chenharryhua.nanjin.common.DurationFormatter
 import com.github.chenharryhua.nanjin.datetime.{dayResolution, hourResolution, minuteResolution}
 import com.github.chenharryhua.nanjin.spark.SPARK_ZONE_ID
@@ -93,6 +93,15 @@ final case class DuplicateRecord(partition: Int, offset: Long, num: Long)
 
 final class Statistics[F[_]] private[spark] (val fdataset: F[Dataset[CRMetaInfo]])(implicit F: Sync[F])
     extends Serializable {
+
+  def cherryPick(partition: Int, offset: Long): F[List[ZonedCRMetaInfo]] =
+    fdataset.map { ds =>
+      val zoneId: ZoneId = ZoneId.of(ds.sparkSession.conf.get(SPARK_ZONE_ID))
+      ds.filter(m => m.offset === offset && m.partition === partition).collect().toList.map(_.zoned(zoneId))
+    }
+
+  def transform(f: Endo[Dataset[CRMetaInfo]]): Statistics[F] =
+    new Statistics[F](fdataset.map(f))
 
   def union(other: Statistics[F]): Statistics[F] =
     new Statistics[F](for {

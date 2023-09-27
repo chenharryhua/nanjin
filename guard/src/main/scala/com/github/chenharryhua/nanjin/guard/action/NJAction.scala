@@ -17,12 +17,12 @@ final class NJAction[F[_], IN, OUT] private[action] (
   actionParams: ActionParams,
   zerothTickStatus: TickStatus,
   arrow: IN => F[OUT],
-  transInput: Kleisli[Option, IN, Json],
+  transInput: Option[IN => Json],
   transOutput: Option[(IN, OUT) => Json],
   transError: Kleisli[OptionT[F, *], (IN, Throwable), Json],
   isWorthRetry: Throwable => F[Boolean])(implicit F: Temporal[F]) { self =>
   private def copy(
-    transInput: Kleisli[Option, IN, Json] = self.transInput,
+    transInput: Option[IN => Json] = self.transInput,
     transOutput: Option[(IN, OUT) => Json] = self.transOutput,
     transError: Kleisli[OptionT[F, *], (IN, Throwable), Json] = self.transError,
     isWorthRetry: Throwable => F[Boolean] = self.isWorthRetry): NJAction[F, IN, OUT] =
@@ -42,7 +42,7 @@ final class NJAction[F[_], IN, OUT] private[action] (
   def withWorthRetry(f: Throwable => Boolean): NJAction[F, IN, OUT] =
     withWorthRetryM((ex: Throwable) => F.pure(f(ex)))
 
-  def logInput(f: IN => Json): NJAction[F, IN, OUT] = copy(transInput = Kleisli((a: IN) => Some(f(a))))
+  def logInput(f: IN => Json): NJAction[F, IN, OUT]         = copy(transInput = Some(f))
   def logOutput(f: (IN, OUT) => Json): NJAction[F, IN, OUT] = copy(transOutput = Some(f))
   def logErrorM(f: (IN, Throwable) => F[Json]): NJAction[F, IN, OUT] =
     copy(transError = Kleisli((a: (IN, Throwable)) => OptionT(f(a._1, a._2).map(_.some))))
@@ -108,7 +108,7 @@ final class NJAction0[F[_], OUT] private[guard] (
     channel = channel,
     actionParams = actionParams,
     arrow = _ => arrow,
-    transInput = Kleisli(_ => transInput),
+    transInput = transInput.map(j => _ => j),
     transOutput = transOutput.map(f => (_, b: OUT) => f(b)),
     transError = transError.local(_._2),
     isWorthRetry = isWorthRetry
