@@ -101,11 +101,11 @@ class PolicyCombinatorTest extends AnyFunSuite {
     assert(tick.index == loop)
   }
 
-  ignore("endup") {
+  ignore("end at") {
     val time = LocalTime.of(16, 55, 0)
     val policy = policies
-      .accordance(policies.crontab(crontabs.every10Seconds).endUp(time))
-      .followedBy(policies.fixedRate(1.second).endUp(time.plus(5.seconds.toJava)))
+      .accordance(policies.crontab(crontabs.every10Seconds).endAt(time))
+      .followedBy(policies.fixedRate(1.second).endAt(time.plus(5.seconds.toJava)))
       .followedBy(policies.fixedDelay(7.second).endOfDay)
       .repeat
     println(policy)

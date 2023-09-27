@@ -14,11 +14,11 @@ import java.util.UUID
 final case class Tick(
   sequenceId: UUID, // immutable
   launchTime: Instant, // immutable
-  zoneId: ZoneId,
+  zoneId: ZoneId, // immutable
   previous: Instant, // previous tick's wakeup time
   index: Long, // monotonously increase
   acquire: Instant, // when user acquire a new tick
-  snooze: Duration // is/was snooze
+  snooze: Duration // sleep duration
 ) {
   val wakeup: Instant    = acquire.plus(snooze)
   def interval: Duration = Duration.between(previous, wakeup)

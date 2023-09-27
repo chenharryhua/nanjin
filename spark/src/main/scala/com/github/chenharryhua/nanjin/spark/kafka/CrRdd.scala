@@ -87,7 +87,7 @@ final class CrRdd[F[_], K, V] private[kafka] (
 
   def count: F[Long] = F.flatMap(frdd)(rdd => F.interruptible(rdd.count()))
 
-  def cherrypick(partition: Int, offset: Long): F[Option[NJConsumerRecord[K, V]]] =
+  def cherryPick(partition: Int, offset: Long): F[Option[NJConsumerRecord[K, V]]] =
     F.flatMap(partitionOf(partition).offsetRange(offset, offset).frdd)(rdd =>
       F.interruptible(rdd.collect().headOption))
 

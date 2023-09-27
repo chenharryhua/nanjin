@@ -88,7 +88,7 @@ final class NJActionBuilder[F[_]](
       actionParams = params,
       zerothTickStatus = zerothTickStatus.renewPolicy(retryPolicy),
       arrow = f,
-      transInput = Kleisli(_ => None),
+      transInput = None,
       transOutput = None,
       transError = Kleisli(_ => OptionT(F.pure(None))),
       isWorthRetry = alwaysRetry
@@ -101,7 +101,7 @@ final class NJActionBuilder[F[_]](
       actionParams = params,
       zerothTickStatus = zerothTickStatus.renewPolicy(retryPolicy),
       arrow = f.tupled,
-      transInput = Kleisli(_ => None),
+      transInput = None,
       transOutput = None,
       transError = Kleisli(_ => OptionT(F.pure(None))),
       isWorthRetry = alwaysRetry
@@ -114,7 +114,7 @@ final class NJActionBuilder[F[_]](
       actionParams = params,
       zerothTickStatus = zerothTickStatus.renewPolicy(retryPolicy),
       arrow = f.tupled,
-      transInput = Kleisli(_ => None),
+      transInput = None,
       transOutput = None,
       transError = Kleisli(_ => OptionT(F.pure(None))),
       isWorthRetry = alwaysRetry
@@ -127,7 +127,7 @@ final class NJActionBuilder[F[_]](
       actionParams = params,
       zerothTickStatus = zerothTickStatus.renewPolicy(retryPolicy),
       arrow = f.tupled,
-      transInput = Kleisli(_ => None),
+      transInput = None,
       transOutput = None,
       transError = Kleisli(_ => OptionT(F.pure(None))),
       isWorthRetry = alwaysRetry
@@ -140,7 +140,7 @@ final class NJActionBuilder[F[_]](
       actionParams = params,
       zerothTickStatus = zerothTickStatus.renewPolicy(retryPolicy),
       arrow = f.tupled,
-      transInput = Kleisli(_ => None),
+      transInput = None,
       transOutput = None,
       transError = Kleisli(_ => OptionT(F.pure(None))),
       isWorthRetry = alwaysRetry

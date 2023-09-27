@@ -24,7 +24,7 @@ final private class ReTry[F[_], IN, OUT](
   channel: Channel[F, NJEvent],
   zerothTickStatus: TickStatus,
   arrow: IN => F[OUT],
-  transInput: Kleisli[Option, IN, Json],
+  transInput: Option[IN => Json],
   transOutput: Option[(IN, OUT) => Json],
   transError: Kleisli[OptionT[F, *], (IN, Throwable), Json],
   isWorthRetry: Throwable => F[Boolean]
@@ -125,7 +125,7 @@ final private class ReTry[F[_], IN, OUT](
         new KickOff {
           override def apply(ai: ActionInfo, in: IN): F[OUT] =
             for {
-              _ <- channel.send(ActionStart(actionParams, ai, transInput(in)))
+              _ <- channel.send(ActionStart(actionParams, ai, transInput.map(_(in))))
               out <- compute(ai, in)
             } yield out
         }
