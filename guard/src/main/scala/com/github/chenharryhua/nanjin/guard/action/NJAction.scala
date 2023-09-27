@@ -9,7 +9,6 @@ import com.github.chenharryhua.nanjin.guard.config.ActionParams
 import com.github.chenharryhua.nanjin.guard.event.*
 import fs2.concurrent.Channel
 import io.circe.Json
-import natchez.Span
 
 // https://www.microsoft.com/en-us/research/wp-content/uploads/2016/07/asynch-exns.pdf
 final class NJAction[F[_], IN, OUT] private[action] (
@@ -18,12 +17,12 @@ final class NJAction[F[_], IN, OUT] private[action] (
   actionParams: ActionParams,
   zerothTickStatus: TickStatus,
   arrow: IN => F[OUT],
-  transInput: Kleisli[Option, IN, Json],
+  transInput: Option[IN => Json],
   transOutput: Option[(IN, OUT) => Json],
   transError: Kleisli[OptionT[F, *], (IN, Throwable), Json],
   isWorthRetry: Throwable => F[Boolean])(implicit F: Temporal[F]) { self =>
   private def copy(
-    transInput: Kleisli[Option, IN, Json] = self.transInput,
+    transInput: Option[IN => Json] = self.transInput,
     transOutput: Option[(IN, OUT) => Json] = self.transOutput,
     transError: Kleisli[OptionT[F, *], (IN, Throwable), Json] = self.transError,
     isWorthRetry: Throwable => F[Boolean] = self.isWorthRetry): NJAction[F, IN, OUT] =
@@ -43,7 +42,7 @@ final class NJAction[F[_], IN, OUT] private[action] (
   def withWorthRetry(f: Throwable => Boolean): NJAction[F, IN, OUT] =
     withWorthRetryM((ex: Throwable) => F.pure(f(ex)))
 
-  def logInput(f: IN => Json): NJAction[F, IN, OUT] = copy(transInput = Kleisli((a: IN) => Some(f(a))))
+  def logInput(f: IN => Json): NJAction[F, IN, OUT]         = copy(transInput = Some(f))
   def logOutput(f: (IN, OUT) => Json): NJAction[F, IN, OUT] = copy(transOutput = Some(f))
   def logErrorM(f: (IN, Throwable) => F[Json]): NJAction[F, IN, OUT] =
     copy(transError = Kleisli((a: (IN, Throwable)) => OptionT(f(a._1, a._2).map(_.some))))
@@ -63,13 +62,7 @@ final class NJAction[F[_], IN, OUT] private[action] (
       isWorthRetry = isWorthRetry
     )
 
-  def run(input: IN): F[OUT] = actionRunner.run(input, None)
-
-  def runInSpan(input: IN)(span: Span[F]): F[OUT] =
-    for {
-      ti <- TraceInfo(span)
-      out <- actionRunner.run(input, ti)
-    } yield out
+  def run(input: IN): F[OUT] = actionRunner.run(input)
 }
 
 final class NJAction0[F[_], OUT] private[guard] (
@@ -115,12 +108,11 @@ final class NJAction0[F[_], OUT] private[guard] (
     channel = channel,
     actionParams = actionParams,
     arrow = _ => arrow,
-    transInput = Kleisli(_ => transInput),
+    transInput = transInput.map(j => _ => j),
     transOutput = transOutput.map(f => (_, b: OUT) => f(b)),
     transError = transError.local(_._2),
     isWorthRetry = isWorthRetry
   )
 
-  def run: F[OUT]                      = njAction.run(())
-  def runInSpan(span: Span[F]): F[OUT] = njAction.runInSpan(())(span)
+  def run: F[OUT] = njAction.run(())
 }

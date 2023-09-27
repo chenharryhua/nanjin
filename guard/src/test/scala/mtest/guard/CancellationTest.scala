@@ -34,7 +34,7 @@ class CancellationTest extends AnyFunSuite {
     assert(b.isInstanceOf[ActionStart])
     assert(c.isInstanceOf[ActionFail])
     assert(d.isInstanceOf[ServiceStop])
-    assert(d.asInstanceOf[ServiceStop].cause.isInstanceOf[ServiceStopCause.ByCancelation.type])
+    assert(d.asInstanceOf[ServiceStop].cause.isInstanceOf[ServiceStopCause.ByCancellation.type])
 
   }
 

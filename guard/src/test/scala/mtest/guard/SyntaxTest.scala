@@ -25,24 +25,7 @@ class SyntaxTest extends AnyFunSuite {
         val f4 = ag("f4").retryFuture(fun4fut _).run((1, 2, 3, 4))
         val f5 = ag("f5").retryFuture(fun5fut _).run((1, 2, 3, 4, 5))
         val d0 = ag("d0").delay(3).run
-        a0 >> a1 >> a2 >> a3 >> a4 >> a5 >> f0 >> f1 >> f2 >> f3 >> f4 >> f5 >> d0 >>
-          agent.root("root-span").use { span =>
-            val ag = agent.action("span", _.notice)
-            val a0 = ag("a0").retry(unit_fun).runInSpan(span)
-            val a1 = ag("a1").retry(fun1 _).runInSpan(1)(span)
-            val a2 = ag("a2").retry(fun2 _).runInSpan((1, 2))(span)
-            val a3 = ag("a3").retry(fun3 _).runInSpan((1, 2, 3))(span)
-            val a4 = ag("a4").retry(fun4 _).runInSpan((1, 2, 3, 4))(span)
-            val a5 = ag("a5").retry(fun5 _).runInSpan((1, 2, 3, 4, 5))(span)
-            val f0 = ag("f0").retryFuture(fun0fut).runInSpan(span)
-            val f1 = ag("f1").retryFuture(fun1fut _).runInSpan(1)(span)
-            val f2 = ag("f2").retryFuture(fun2fut _).runInSpan((1, 2))(span)
-            val f3 = ag("f3").retryFuture(fun3fut _).runInSpan((1, 2, 3))(span)
-            val f4 = ag("f4").retryFuture(fun4fut _).runInSpan((1, 2, 3, 4))(span)
-            val f5 = ag("f5").retryFuture(fun5fut _).runInSpan((1, 2, 3, 4, 5))(span)
-            val d0 = ag("d0").delay(3).run
-            a0 >> a1 >> a2 >> a3 >> a4 >> a5 >> f0 >> f1 >> f2 >> f3 >> f4 >> f5 >> d0
-          }
+        a0 >> a1 >> a2 >> a3 >> a4 >> a5 >> f0 >> f1 >> f2 >> f3 >> f4 >> f5 >> d0
       }
       .evalTap(console.simple[IO])
       .compile

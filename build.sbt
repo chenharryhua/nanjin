@@ -17,7 +17,7 @@ val parquetV    = "1.13.1"
 val circeV      = "0.14.6"
 val kantanV     = "0.7.0"
 val slf4jV      = "2.0.9"
-val metricsV    = "4.2.19"
+val metricsV    = "4.2.20"
 val skunkV      = "0.6.0"
 val natchezV    = "0.3.3"
 val http4sV     = "0.23.23"
@@ -370,7 +370,7 @@ lazy val spark = (project in file("spark"))
   .settings(
     libraryDependencies ++= List(
       "org.apache.ivy"                         % "ivy"             % "2.5.2", // snyk
-      "com.julianpeeters" %% "avrohugger-core" % "1.5.3"           % Test,
+      "com.julianpeeters" %% "avrohugger-core" % "1.5.4"           % Test,
       "ch.qos.logback"                         % "logback-classic" % logbackV % Test
     ) ++ sparkLib.map(_.exclude("commons-logging", "commons-logging")) ++ testLib
   )

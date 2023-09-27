@@ -137,7 +137,7 @@ final class ServiceGuard[F[_]: Network] private[guard] (
         val metricRegistry: MetricRegistry = new MetricRegistry()
 
         val metricsReport: Stream[F, Nothing] =
-          tickStream[F](metricReportPolicy, serviceParams.taskParams.zoneId)
+          tickStream[F](zeroth.renewPolicy(metricReportPolicy))
             .evalMap(tick =>
               publisher.metricReport(
                 channel = channel,
@@ -148,7 +148,7 @@ final class ServiceGuard[F[_]: Network] private[guard] (
             .drain
 
         val metricsReset: Stream[F, Nothing] =
-          tickStream[F](metricResetPolicy, serviceParams.taskParams.zoneId)
+          tickStream[F](zeroth.renewPolicy(metricResetPolicy))
             .evalMap(tick =>
               publisher.metricReset(
                 channel = channel,
@@ -203,7 +203,8 @@ final class ServiceGuard[F[_]: Network] private[guard] (
           new ReStart[F, A](
             channel = channel,
             serviceParams = serviceParams,
-            initTickStatus = zeroth.withPolicy(serviceRestartPolicy, taskParams.zoneId),
+            zerothTickStatus = zeroth,
+            policy = serviceRestartPolicy,
             theService = runAgent(agent)
           ).stream
 

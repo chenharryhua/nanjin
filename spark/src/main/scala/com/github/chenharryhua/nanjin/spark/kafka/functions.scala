@@ -7,9 +7,9 @@ import frameless.{TypedEncoder, TypedExpressionEncoder}
 import org.apache.spark.sql.{Dataset, Encoder}
 import org.apache.spark.sql.functions.{col, countDistinct}
 
-import java.time.{Instant, LocalDateTime, ZoneId}
+import java.time.{Instant, LocalDateTime, ZoneId, ZonedDateTime}
 import scala.annotation.unused
-
+import io.scalaland.chimney.dsl.*
 final case class CRMetaInfo(
   topic: String,
   partition: Int,
@@ -18,7 +18,15 @@ final case class CRMetaInfo(
   timestampType: Int) {
   def localDateTime(zoneId: ZoneId): LocalDateTime =
     Instant.ofEpochMilli(timestamp).atZone(zoneId).toLocalDateTime
+
+  def zoned(zoneId: ZoneId): ZonedCRMetaInfo =
+    this
+      .into[ZonedCRMetaInfo]
+      .withFieldComputed(_.timestamp, cr => Instant.ofEpochMilli(cr.timestamp).atZone(zoneId))
+      .transform
 }
+
+final case class ZonedCRMetaInfo(topic: String, partition: Int, offset: Long, timestamp: ZonedDateTime)
 
 object CRMetaInfo {
   implicit val typedEncoderCRMetaInfo: TypedEncoder[CRMetaInfo] = shapeless.cachedImplicit

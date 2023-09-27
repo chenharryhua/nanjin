@@ -2,6 +2,7 @@ package mtest.guard
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
+import cats.implicits.toShow
 import com.github.chenharryhua.nanjin.common.chrono.zones.londonTime
 import com.github.chenharryhua.nanjin.common.chrono.{policies, Policy, Tick}
 import com.github.chenharryhua.nanjin.guard.*
@@ -33,6 +34,7 @@ class ServiceTest extends AnyFunSuite {
     val Vector(a, d) = guard
       .withRestartPolicy(policies.fixedDelay(3.seconds))
       .withMetricReport(policies.crontab(cron_1hour))
+      .withMetricServer(identity)
       .withMetricDailyReset
       .eventStream(gd => gd.action("t", _.silent).delay(1).logOutput(_ => null).run.delayBy(1.second))
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
@@ -43,6 +45,10 @@ class ServiceTest extends AnyFunSuite {
     assert(a.isInstanceOf[ServiceStart])
     assert(d.isInstanceOf[ServiceStop])
     assert(d.asInstanceOf[ServiceStop].cause.exitCode == 0)
+    val ss = a.asInstanceOf[ServiceStart]
+    assert(ss.tick.sequenceId == ss.serviceParams.serviceId)
+    assert(ss.tick.zoneId == ss.serviceParams.taskParams.zoneId)
+
   }
 
   test("2.escalate to up level if retry failed") {
@@ -64,6 +70,9 @@ class ServiceTest extends AnyFunSuite {
     assert(d.isInstanceOf[ActionRetry])
     assert(e.isInstanceOf[ActionFail])
     assert(f.isInstanceOf[ServicePanic])
+    val sp = f.asInstanceOf[ServicePanic]
+    assert(sp.tick.sequenceId == sp.serviceParams.serviceId)
+    assert(sp.tick.zoneId == sp.serviceParams.taskParams.zoneId)
   }
 
   test("3.should stop when fatal error occurs") {
@@ -121,6 +130,8 @@ class ServiceTest extends AnyFunSuite {
     assert(b.isInstanceOf[MetricReport])
     assert(c.isInstanceOf[MetricReport])
     assert(d.isInstanceOf[MetricReport])
+    val mr = d.asInstanceOf[MetricReport]
+    assert(mr.index.asInstanceOf[MetricIndex.Periodic].tick.sequenceId == mr.serviceParams.serviceId)
   }
 
   test("6.force reset") {
@@ -199,6 +210,7 @@ class ServiceTest extends AnyFunSuite {
     val p2     = policies.fixedDelay(2.seconds).limited(1)
     val p3     = policies.fixedDelay(3.seconds).limited(1)
     val policy = p1.followedBy(p2).followedBy(p3).repeat
+    println(policy.show)
     val List(a, b, c, d, e, f, g, h) = guard
       .withRestartPolicy(policy)
       .eventStream(_ => IO.raiseError(new Exception("oops")))
@@ -211,70 +223,72 @@ class ServiceTest extends AnyFunSuite {
       .toList
       .unsafeRunSync()
     assert(a.index == 1)
-    assert(a.snooze == 1.second.toJava)
     assert(b.index == 2)
-    assert(b.previous == a.wakeup)
-    assert(b.snooze == 2.second.toJava)
     assert(c.index == 3)
-    assert(c.previous == b.wakeup)
-    assert(c.snooze == 3.second.toJava)
-
     assert(d.index == 4)
-    assert(d.previous == c.wakeup)
-    assert(d.snooze == 1.second.toJava)
     assert(e.index == 5)
-    assert(e.previous == d.wakeup)
-    assert(e.snooze == 2.second.toJava)
     assert(f.index == 6)
-    assert(f.previous == e.wakeup)
-    assert(f.snooze == 3.second.toJava)
-
     assert(g.index == 7)
-    assert(g.previous == f.wakeup)
-    assert(g.snooze == 1.second.toJava)
     assert(h.index == 8)
+
+    assert(b.previous == a.wakeup)
+    assert(c.previous == b.wakeup)
+    assert(d.previous == c.wakeup)
+    assert(e.previous == d.wakeup)
+    assert(f.previous == e.wakeup)
+    assert(g.previous == f.wakeup)
     assert(h.previous == g.wakeup)
+
+    assert(a.snooze == 1.second.toJava)
+    assert(b.snooze == 2.second.toJava)
+    assert(c.snooze == 3.second.toJava)
+    assert(d.snooze == 1.second.toJava)
+    assert(e.snooze == 2.second.toJava)
+    assert(f.snooze == 3.second.toJava)
+    assert(g.snooze == 1.second.toJava)
     assert(h.snooze == 2.second.toJava)
   }
 
   test("12.policy threshold start over") {
+    val policy: Policy = policies.fixedDelay(1.seconds, 2.seconds, 3.seconds, 4.seconds, 5.seconds)
+    println(policy)
     val List(a, b, c, d, e, f, g, h) = guard
-      .withRestartPolicy(policies.fixedDelay(1.seconds, 1.seconds, 2.seconds, 3.seconds))
-      .withMetricServer(identity)
+      .withRestartPolicy(policy)
+      .updateConfig(_.withRestartThreshold(3.seconds))
       .eventStream(_ => IO.raiseError(new Exception("oops")))
       .evalMapFilter[IO, Tick] {
         case sp: ServicePanic => IO(Some(sp.tick))
         case _                => IO(None)
       }
-      .debug()
       .take(8)
       .compile
       .toList
       .unsafeRunSync()
 
     assert(a.index == 1)
-    assert(a.snooze == 1.second.toJava)
     assert(b.index == 2)
-    assert(b.previous == a.wakeup)
-    assert(b.snooze == 1.second.toJava)
     assert(c.index == 3)
-    assert(c.previous == b.wakeup)
-    assert(c.snooze == 2.second.toJava)
     assert(d.index == 4)
-    assert(d.previous == c.wakeup)
-    assert(d.snooze == 3.second.toJava)
-
     assert(e.index == 5)
-    assert(e.previous == d.wakeup)
-    assert(e.snooze == 1.second.toJava)
     assert(f.index == 6)
-    assert(f.previous == e.wakeup)
-    assert(f.snooze == 1.second.toJava)
     assert(g.index == 7)
-    assert(g.previous == f.wakeup)
-    assert(g.snooze == 2.second.toJava)
     assert(h.index == 8)
+
+    assert(b.previous == a.wakeup)
+    assert(c.previous == b.wakeup)
+    assert(d.previous == c.wakeup)
+    assert(e.previous == d.wakeup)
+    assert(f.previous == e.wakeup)
+    assert(g.previous == f.wakeup)
     assert(h.previous == g.wakeup)
-    assert(h.snooze == 3.second.toJava)
+
+    assert(a.snooze == 1.second.toJava)
+    assert(b.snooze == 2.second.toJava)
+    assert(c.snooze == 3.second.toJava)
+    assert(d.snooze == 1.second.toJava)
+    assert(e.snooze == 2.second.toJava)
+    assert(f.snooze == 3.second.toJava)
+    assert(g.snooze == 1.second.toJava)
+    assert(h.snooze == 2.second.toJava)
   }
 }

@@ -18,6 +18,7 @@ class TickStreamTest extends AnyFunSuite {
 
     val res = ticks.map(_.interval.toScala).compile.toList.unsafeRunSync()
     assert(res.tail.forall(d => d === 1.seconds), res)
+    assert(res.size == 5)
   }
 
   test("2.process longer than 1 second") {
@@ -64,7 +65,7 @@ class TickStreamTest extends AnyFunSuite {
         .flatMap(_.betweenLong(0, 2500))
         .flatMap(d => IO.sleep(d.toDouble.millisecond).as(JavaDuration.ofMillis(d)))
 
-    ticks.evalTap(_ => sleep).map(_.wakeup).debug().compile.toList.unsafeRunSync()
+    ticks.evalTap(_ => sleep).debug().compile.toList.unsafeRunSync()
   }
 
   test("6. giveUp") {

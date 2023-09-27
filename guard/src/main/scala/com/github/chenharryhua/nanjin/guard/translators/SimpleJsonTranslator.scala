@@ -76,7 +76,6 @@ private object SimpleJsonTranslator {
       metricMeasurement(evt.actionParams.metricId.metricName),
       importance(evt),
       publishStrategy(evt),
-      traceInfo(evt),
       notes(evt.notes),
       serviceId(evt),
       timestamp(evt)
@@ -91,7 +90,6 @@ private object SimpleJsonTranslator {
       metricMeasurement(evt.actionParams.metricId.metricName),
       importance(evt),
       publishStrategy(evt),
-      traceInfo(evt),
       errCause(evt.error),
       serviceId(evt),
       timestamp(evt)
@@ -107,7 +105,6 @@ private object SimpleJsonTranslator {
       importance(evt),
       publishStrategy(evt),
       took(evt),
-      traceInfo(evt),
       notes(evt.notes),
       stackTrace(evt.error),
       serviceId(evt),
@@ -124,7 +121,6 @@ private object SimpleJsonTranslator {
       importance(evt),
       publishStrategy(evt),
       took(evt),
-      traceInfo(evt),
       notes(evt.notes),
       serviceId(evt),
       timestamp(evt)

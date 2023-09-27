@@ -127,7 +127,7 @@ object SimpleQueueService {
 
   final private class AwsSQS[F[_]](
     buildFrom: Endo[SqsClientBuilder],
-    delayPolicy: Policy,
+    policy: Policy,
     zoneId: ZoneId,
     logger: Logger[F])(implicit F: Async[F])
       extends ShutdownService[F] with SimpleQueueService[F] {
@@ -155,7 +155,7 @@ object SimpleQueueService {
                   batchSize = size
                 )
               }
-              Pull.output(chunk) >> receiving(status.resetCounter, batchIndex + 1)
+              Pull.output(chunk) >> receiving(status.renewPolicy(policy), batchIndex + 1)
             } else {
               Pull
                 .eval(F.realTimeInstant.map { now =>
@@ -169,7 +169,7 @@ object SimpleQueueService {
             }
         }
 
-      Stream.eval(TickStatus(delayPolicy, zoneId)).flatMap(zero => receiving(zero, 0L).stream)
+      Stream.eval(TickStatus(policy, zoneId)).flatMap(zeroth => receiving(zeroth, 0L).stream)
     }
 
     override def delete(msg: SqsMessage): F[DeleteMessageResponse] = {
@@ -195,10 +195,10 @@ object SimpleQueueService {
     }
 
     override def updateBuilder(f: Endo[SqsClientBuilder]): SimpleQueueService[F] =
-      new AwsSQS[F](buildFrom.andThen(f), delayPolicy, zoneId, logger)
+      new AwsSQS[F](buildFrom.andThen(f), policy, zoneId, logger)
 
     override def withDelayPolicy(delayPolicy: Policy, zoneId: ZoneId): SimpleQueueService[F] =
-      new AwsSQS[F](buildFrom, delayPolicy, zoneId, logger)
+      new AwsSQS[F](buildFrom, policy, zoneId, logger)
 
   }
 }

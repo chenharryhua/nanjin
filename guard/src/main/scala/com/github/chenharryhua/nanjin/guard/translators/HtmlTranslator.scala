@@ -111,13 +111,11 @@ private object HtmlTranslator extends all {
     val start = frag(
       tr(
         td(b(CONSTANT_ACTION_ID)),
-        td(b(CONSTANT_TRACE_ID)),
         td(b(CONSTANT_MEASUREMENT)),
         td(b(CONSTANT_IMPORTANCE)),
         td(b(CONSTANT_STRATEGY))),
       tr(
         td(evt.actionId),
-        td(evt.traceId),
         td(evt.actionParams.metricId.metricName.measurement),
         td(evt.actionParams.importance.entryName),
         td(evt.actionParams.publishStrategy.entryName)
@@ -135,13 +133,11 @@ private object HtmlTranslator extends all {
     val retry = frag(
       tr(
         td(b(CONSTANT_ACTION_ID)),
-        td(b(CONSTANT_TRACE_ID)),
         td(b(CONSTANT_MEASUREMENT)),
         td(b(CONSTANT_IMPORTANCE)),
         td(b(CONSTANT_STRATEGY))),
       tr(
         td(evt.actionId),
-        td(evt.traceId),
         td(evt.actionParams.metricId.metricName.measurement),
         td(evt.actionParams.importance.entryName),
         td(evt.actionParams.publishStrategy.entryName)
@@ -160,7 +156,6 @@ private object HtmlTranslator extends all {
     frag(
       tr(
         td(b(CONSTANT_ACTION_ID)),
-        td(b(CONSTANT_TRACE_ID)),
         td(b(CONSTANT_MEASUREMENT)),
         td(b(CONSTANT_IMPORTANCE)),
         td(b(CONSTANT_STRATEGY)),
@@ -168,7 +163,6 @@ private object HtmlTranslator extends all {
       ),
       tr(
         td(evt.actionId),
-        td(evt.traceId),
         td(evt.actionParams.metricId.metricName.measurement),
         td(evt.actionParams.importance.entryName),
         td(evt.actionParams.publishStrategy.entryName),

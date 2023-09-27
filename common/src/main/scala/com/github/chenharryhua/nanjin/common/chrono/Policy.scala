@@ -32,7 +32,7 @@ private object PolicyF extends localtime with localdate with duration {
   final case class Limited[K](policy: K, limit: Int) extends PolicyF[K]
   final case class FollowedBy[K](first: K, second: K) extends PolicyF[K]
   final case class Repeat[K](policy: Fix[PolicyF]) extends PolicyF[K]
-  final case class EndUp[K](policy: K, endUp: LocalTime) extends PolicyF[K]
+  final case class EndAt[K](policy: K, end: LocalTime) extends PolicyF[K]
   final case class Join[K](first: K, second: K) extends PolicyF[K]
 
   private type CalcTick = TickRequest => Option[Tick]
@@ -47,14 +47,14 @@ private object PolicyF extends localtime with localdate with duration {
 
       case Crontab(cronExpr) =>
         val calcTick: CalcTick = { case TickRequest(tick, now) =>
-          cronExpr.next(now.atZone(zoneId)).map(zdt => Duration.between(now, zdt)).map(tick.newTick(now, _))
+          cronExpr.next(now.atZone(tick.zoneId)).map(zdt => tick.newTick(now, Duration.between(now, zdt)))
         }
         LazyList.continually(calcTick)
 
       case Jitter(min, max) =>
-        val calcTick: CalcTick = { req =>
+        val calcTick: CalcTick = { case TickRequest(tick, now) =>
           val delay = Duration.of(Random.between(min.toNanos, max.toNanos), ChronoUnit.NANOS)
-          req.tick.newTick(req.now, delay).some
+          tick.newTick(now, delay).some
         }
         LazyList.continually(calcTick)
 
@@ -85,11 +85,11 @@ private object PolicyF extends localtime with localdate with duration {
       case Repeat(policy) =>
         LazyList.continually(decisions(policy, zoneId)).flatten
 
-      case EndUp(policy, endUp) =>
+      case EndAt(policy, end) =>
         val timeFrame: LazyList[Unit] = LazyList.unfold(ZonedDateTime.now(zoneId)) { prev =>
           val now     = ZonedDateTime.now(zoneId)
           val sameDay = now.toLocalDate === prev.toLocalDate
-          val endTime = endUp.atDate(now.toLocalDate).atZone(zoneId)
+          val endTime = end.atDate(now.toLocalDate).atZone(zoneId)
           if (endTime.isAfter(now) && sameDay) Some(((), now)) else None
         }
         policy.zip(timeFrame).map(_._1)
@@ -120,7 +120,7 @@ private object PolicyF extends localtime with localdate with duration {
     case Limited(policy, limit)    => show"$policy.limited($limit)"
     case FollowedBy(first, second) => show"$first.followedBy($second)"
     case Repeat(policy)            => show"${Policy(policy)}.repeat"
-    case EndUp(policy, endUp)      => show"$policy.endUp($endUp)"
+    case EndAt(policy, end)        => show"$policy.endAt($end)"
     case Join(first, second)       => show"$first.join($second)"
   }
 
@@ -129,7 +129,7 @@ private object PolicyF extends localtime with localdate with duration {
 }
 
 final case class Policy(policy: Fix[PolicyF]) extends AnyVal {
-  import PolicyF.{EndUp, FollowedBy, Join, Limited, Repeat}
+  import PolicyF.{EndAt, FollowedBy, Join, Limited, Repeat}
   override def toString: String = scheme.cata(PolicyF.showPolicy).apply(policy)
 
   def limited(num: Int): Policy         = Policy(Fix(Limited(policy, num)))
@@ -137,8 +137,8 @@ final case class Policy(policy: Fix[PolicyF]) extends AnyVal {
   def repeat: Policy                    = Policy(Fix(Repeat(policy)))
   def join(other: Policy): Policy       = Policy(Fix(Join(policy, other.policy)))
 
-  def endUp(localTime: LocalTime): Policy = Policy(Fix(EndUp(policy, localTime)))
-  def endOfDay: Policy                    = endUp(LocalTime.MAX)
+  def endAt(localTime: LocalTime): Policy = Policy(Fix(EndAt(policy, localTime)))
+  def endOfDay: Policy                    = endAt(LocalTime.MAX)
 }
 
 object Policy {

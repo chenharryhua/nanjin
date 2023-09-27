@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.translators
 
-import cats.implicits.toShow
+import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.config.{MetricName, MetricParams}
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.{ActionRetry, ServicePanic}
 import com.github.chenharryhua.nanjin.guard.event.{MetricIndex, MetricSnapshot, NJEvent}
@@ -11,7 +11,6 @@ import java.time.{Duration, LocalTime, ZonedDateTime}
 
 object textConstants {
   @inline final val CONSTANT_ACTION_ID: String   = "ActionID"
-  @inline final val CONSTANT_TRACE_ID: String    = "TraceID"
   @inline final val CONSTANT_TIMESTAMP: String   = "Timestamp"
   @inline final val CONSTANT_POLICY: String      = "Policy"
   @inline final val CONSTANT_CAUSE: String       = "Cause"
@@ -49,9 +48,9 @@ private object textHelper extends localtime with localdatetime {
       case NJEvent.ServiceAlert(metricName, _, _, al, _) =>
         s"Alert ${al.productPrefix} ${name(metricName)}"
 
-      case _: NJEvent.ServiceStart => "(Re)Start Service"
-      case _: NJEvent.ServiceStop  => "Service Stopped"
-      case _: NJEvent.ServicePanic => "Service Panic"
+      case NJEvent.ServiceStart(_, tick) => if (tick.index === 0) "Start Service" else "Restart Service"
+      case _: NJEvent.ServiceStop        => "Service Stopped"
+      case _: NJEvent.ServicePanic       => "Service Panic"
 
       case NJEvent.MetricReport(index, _, _, _) =>
         index match {

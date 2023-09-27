@@ -23,12 +23,11 @@ private object SimpleTextTranslator {
 
   private def actionEvent(ae: ActionEvent): String = {
     val id          = s"$CONSTANT_ACTION_ID:${ae.actionId}"
-    val trace       = s"$CONSTANT_TRACE_ID:${ae.traceId}"
     val importance  = s"$CONSTANT_IMPORTANCE:${ae.actionParams.importance.entryName}"
     val strategy    = s"$CONSTANT_STRATEGY:${ae.actionParams.publishStrategy.entryName}"
     val measurement = s"$CONSTANT_MEASUREMENT:${ae.actionParams.metricId.metricName.measurement}"
     s"""  ${serviceEvent(ae)}
-       |  $id, $trace, $measurement, $importance, $strategy""".stripMargin
+       |  $id, $measurement, $importance, $strategy""".stripMargin
   }
 
   private def serviceStarted(evt: ServiceStart): String =
