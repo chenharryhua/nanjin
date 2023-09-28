@@ -101,7 +101,7 @@ final class HadoopKantan[F[_]] private (
 
     // save
     (ss: Stream[F, Chunk[Seq[String]]]) =>
-      Stream.eval(TickStatus(policy, zoneId)).flatMap { zero =>
+      Stream.eval(TickStatus.zeroth[F](policy, zoneId)).flatMap { zero =>
         Stream.resource(init(zero.tick)).flatMap { case (hotswap, writer) =>
           val header: Chunk[String] = csvHeader(csvConfiguration)
           val src: Stream[F, Chunk[String]] =

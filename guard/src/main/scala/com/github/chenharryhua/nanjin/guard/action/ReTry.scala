@@ -118,42 +118,28 @@ final private class ReTry[F[_], IN, OUT](
       }
     }
 
-  sealed private trait KickOff { def apply(ai: ActionInfo, in: IN): F[OUT] }
-  private val kickoff: KickOff =
+  private[this] val kickoff: (ActionInfo, IN) => F[OUT] =
     actionParams.publishStrategy match {
       case PublishStrategy.Notice =>
-        new KickOff {
-          override def apply(ai: ActionInfo, in: IN): F[OUT] =
-            for {
-              _ <- channel.send(ActionStart(actionParams, ai, transInput.map(_(in))))
-              out <- compute(ai, in)
-            } yield out
-        }
+        (ai: ActionInfo, in: IN) =>
+          channel.send(ActionStart(actionParams, ai, transInput.map(_(in)))) >> compute(ai, in)
+
       case PublishStrategy.Aware =>
-        new KickOff {
-          override def apply(ai: ActionInfo, in: IN): F[OUT] = compute(ai, in)
-        }
+        (ai: ActionInfo, in: IN) => compute(ai, in)
 
       case PublishStrategy.Silent if actionParams.isTiming =>
-        new KickOff {
-          override def apply(ai: ActionInfo, in: IN): F[OUT] =
-            for {
-              out <- computeSilently(ai, in)
-              fd <- F.realTime
-              _ = measures.done(ai.took(fd))
-            } yield out
-        }
+        (ai: ActionInfo, in: IN) =>
+          for {
+            out <- computeSilently(ai, in)
+            fd <- F.realTime
+            _ = measures.done(ai.took(fd))
+          } yield out
 
       case PublishStrategy.Silent if actionParams.isCounting =>
-        new KickOff {
-          override def apply(ai: ActionInfo, in: IN): F[OUT] =
-            computeSilently(ai, in) <* F.pure(measures.done(Duration.ZERO))
-        }
+        (ai: ActionInfo, in: IN) => computeSilently(ai, in) <* F.pure(measures.done(Duration.ZERO))
 
       case PublishStrategy.Silent =>
-        new KickOff {
-          override def apply(ai: ActionInfo, in: IN): F[OUT] = computeSilently(ai, in)
-        }
+        (ai: ActionInfo, in: IN) => computeSilently(ai, in)
     }
 
   def run(in: IN): F[OUT] =

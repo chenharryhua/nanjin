@@ -169,7 +169,7 @@ object SimpleQueueService {
             }
         }
 
-      Stream.eval(TickStatus(policy, zoneId)).flatMap(zeroth => receiving(zeroth, 0L).stream)
+      Stream.eval(TickStatus.zeroth(policy, zoneId)).flatMap(zeroth => receiving(zeroth, 0L).stream)
     }
 
     override def delete(msg: SqsMessage): F[DeleteMessageResponse] = {

@@ -42,8 +42,7 @@ object Tick {
   implicit val showTick: Show[Tick] = cats.derived.semiauto.show[Tick]
 }
 
-final class TickStatus private (val tick: Tick, decisions: LazyList[PolicyF.TickRequest => Option[Tick]])
-    extends Serializable {
+final class TickStatus private (val tick: Tick, decisions: LazyList[PolicyF.CalcTick]) extends Serializable {
 
   def renewPolicy(policy: Policy): TickStatus =
     new TickStatus(tick, PolicyF.decisions(policy.policy, tick.zoneId))
@@ -56,7 +55,7 @@ final class TickStatus private (val tick: Tick, decisions: LazyList[PolicyF.Tick
 }
 
 object TickStatus {
-  def apply[F[_]: Clock: UUIDGen: Monad](policy: Policy, zoneId: ZoneId): F[TickStatus] =
+  def zeroth[F[_]: Clock: UUIDGen: Monad](policy: Policy, zoneId: ZoneId): F[TickStatus] =
     for {
       uuid <- UUIDGen[F].randomUUID
       now <- Clock[F].realTimeInstant

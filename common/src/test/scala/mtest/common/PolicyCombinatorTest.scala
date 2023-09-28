@@ -18,7 +18,7 @@ class PolicyCombinatorTest extends AnyFunSuite {
       .accordance(policies.fixedDelay(1.second).limited(3))
       .followedBy(policies.fixedDelay(2.seconds).limited(2))
     println(policy.show)
-    val ts = TickStatus[IO](policy, singaporeTime).unsafeRunSync()
+    val ts = TickStatus.zeroth[IO](policy, singaporeTime).unsafeRunSync()
     val t0 = ts.tick.launchTime
     val a1 = ts.next(t0).get
     val a2 = a1.next(t0).get
@@ -49,7 +49,7 @@ class PolicyCombinatorTest extends AnyFunSuite {
         .repeat
 
     println(policy.show)
-    val ts: TickStatus = TickStatus[IO](policy, darwinTime).unsafeRunSync()
+    val ts: TickStatus = TickStatus.zeroth[IO](policy, darwinTime).unsafeRunSync()
 
     val List(a1, a2, a3, a4, a5, a6) = lazyTickList(ts).take(6).toList
 
@@ -73,7 +73,7 @@ class PolicyCombinatorTest extends AnyFunSuite {
       policies.fixedRate(1.second).join(policies.fixedDelay(1.seconds))
 
     println(policy.show)
-    val ts: TickStatus = TickStatus[IO](policy, sydneyTime).unsafeRunSync()
+    val ts: TickStatus = TickStatus.zeroth[IO](policy, sydneyTime).unsafeRunSync()
 
     val List(a1, a2, a3, a4, a5, a6) = lazyTickList(ts).take(6).toList
 
@@ -96,7 +96,7 @@ class PolicyCombinatorTest extends AnyFunSuite {
     val policy = policies.fixedRate(1.second).limited(500).repeat
 
     val loop: Long     = 1000000
-    val ts: TickStatus = TickStatus[IO](policy, darwinTime).unsafeRunSync()
+    val ts: TickStatus = TickStatus.zeroth[IO](policy, darwinTime).unsafeRunSync()
     val tick           = lazyTickList(ts).dropWhile(_.index < loop).take(1).head
     assert(tick.index == loop)
   }

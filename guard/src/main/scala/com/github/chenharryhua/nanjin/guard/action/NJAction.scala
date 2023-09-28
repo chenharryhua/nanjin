@@ -62,7 +62,16 @@ final class NJAction[F[_], IN, OUT] private[action] (
       isWorthRetry = isWorthRetry
     )
 
-  def run(input: IN): F[OUT] = actionRunner.run(input)
+  def run[A](a: A)(implicit ev: A =:= IN): F[OUT] =
+    actionRunner.run(a)
+  def run[A, B](a: A, b: B)(implicit ev: (A, B) =:= IN): F[OUT] =
+    actionRunner.run((a, b))
+  def run[A, B, C](a: A, b: B, c: C)(implicit ev: (A, B, C) =:= IN): F[OUT] =
+    actionRunner.run((a, b, c))
+  def run[A, B, C, D](a: A, b: B, c: C, d: D)(implicit ev: (A, B, C, D) =:= IN): F[OUT] =
+    actionRunner.run((a, b, c, d))
+  def run[A, B, C, D, E](a: A, b: B, c: C, d: D, e: E)(implicit ev: (A, B, C, D, E) =:= IN): F[OUT] =
+    actionRunner.run((a, b, c, d, e))
 }
 
 final class NJAction0[F[_], OUT] private[guard] (
@@ -114,5 +123,5 @@ final class NJAction0[F[_], OUT] private[guard] (
     isWorthRetry = isWorthRetry
   )
 
-  def run: F[OUT] = njAction.run(())
+  lazy val run: F[OUT] = njAction.run(())
 }

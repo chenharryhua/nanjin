@@ -16,5 +16,5 @@ object tickStream {
       }
     }
   def apply[F[_]: UUIDGen: Temporal](policy: Policy, zoneId: ZoneId): Stream[F, Tick] =
-    Stream.eval[F, TickStatus](TickStatus[F](policy, zoneId)).flatMap(apply[F](_))
+    Stream.eval[F, TickStatus](TickStatus.zeroth[F](policy, zoneId)).flatMap(apply[F](_))
 }
