@@ -274,7 +274,7 @@ lazy val messages = (project in file("messages"))
     libraryDependencies ++= List(
       "org.apache.commons" % "commons-compress" % "1.24.0", // snyk
       "org.yaml"           % "snakeyaml"        % "2.2", // snyk
-      "org.xerial.snappy"  % "snappy-java"      % "1.1.10.4" // snyk
+      "org.xerial.snappy"  % "snappy-java"      % "1.1.10.5" // snyk
     ) ++ serdeLib ++ kafkaLib.map(_ % Provided) ++ testLib)
 
 lazy val database = (project in file("database"))
