@@ -8,7 +8,7 @@ import monocle.syntax.all.*
 
 @JsonCodec
 final case class ActionParams(
-  metricId: MetricID,
+  metricName: MetricName,
   importance: Importance,
   publishStrategy: PublishStrategy,
   isCounting: Boolean,
@@ -26,8 +26,7 @@ object ActionParams {
     serviceParams: ServiceParams
   ): ActionParams =
     ActionParams(
-      metricId =
-        MetricID(serviceParams, measurement, Category.Timer(TimerKind.ActionTimer), actionName.value),
+      metricName = MetricName(serviceParams, measurement, actionName.value),
       importance = Importance.Normal,
       publishStrategy = PublishStrategy.Silent,
       isCounting = false,

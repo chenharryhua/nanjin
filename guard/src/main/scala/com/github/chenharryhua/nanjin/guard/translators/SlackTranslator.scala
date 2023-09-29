@@ -188,7 +188,7 @@ private object SlackTranslator extends all {
             JuxtaposeSection(
               first = TextField(CONSTANT_ACTION_ID, evt.actionId),
               second = TextField(CONSTANT_TIMEZONE, evt.serviceParams.taskParams.zoneId.show)),
-            MarkdownSection(s"""|${measurement(evt.actionParams.metricId.metricName)}
+            MarkdownSection(s"""|${measurement(evt.actionParams.metricName)}
                                 |${serviceId(evt)}""".stripMargin)
           ) ++ evt.notes.map(js => MarkdownSection(s"""```${abbreviate(js)}```"""))
         ))
@@ -208,7 +208,7 @@ private object SlackTranslator extends all {
               second = TextField(CONSTANT_DELAYED, tookText(evt.tookSoFar))),
             MarkdownSection(s"""|${retryText(evt)}
                                 |${policy(evt)}
-                                |${measurement(evt.actionParams.metricId.metricName)}
+                                |${measurement(evt.actionParams.metricName)}
                                 |${serviceId(evt)}""".stripMargin),
             KeyValueSection(CONSTANT_CAUSE, s"""```${abbreviate(evt.error.message)}```""")
           )
@@ -229,7 +229,7 @@ private object SlackTranslator extends all {
               first = TextField(CONSTANT_ACTION_ID, evt.actionId),
               second = TextField(CONSTANT_TOOK, tookText(evt.took))),
             MarkdownSection(s"""|${policy(evt)}
-                                |${measurement(evt.actionParams.metricId.metricName)}
+                                |${measurement(evt.actionParams.metricName)}
                                 |${serviceId(evt)}""".stripMargin)
           ) ++ evt.notes.map(js => MarkdownSection(s"""```${abbreviate(js)}```"""))
         ),
@@ -252,7 +252,7 @@ private object SlackTranslator extends all {
             JuxtaposeSection(
               first = TextField(CONSTANT_ACTION_ID, evt.actionId),
               second = TextField(CONSTANT_TOOK, tookText(evt.took))),
-            MarkdownSection(s"""|${measurement(evt.actionParams.metricId.metricName)}
+            MarkdownSection(s"""|${measurement(evt.actionParams.metricName)}
                                 |${serviceId(evt)}""".stripMargin)
           ) ++ evt.notes.map(js => MarkdownSection(s"""```${abbreviate(js)}```"""))
         )

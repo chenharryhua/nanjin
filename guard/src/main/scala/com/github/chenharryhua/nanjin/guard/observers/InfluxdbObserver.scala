@@ -51,13 +51,13 @@ final class InfluxdbObserver[F[_]](
     val unit = ar.actionParams.serviceParams.metricParams.durationTimeUnit
     Some(
       Point
-        .measurement(ar.actionParams.metricId.metricName.measurement)
+        .measurement(ar.actionParams.metricName.measurement)
         .time(ar.timestamp.toInstant, writePrecision)
         .addTag(CONSTANT_SERVICE_ID, ar.serviceParams.serviceId.show)
-        .addTag(METRICS_DIGEST, ar.actionParams.metricId.metricName.digest)
+        .addTag(METRICS_DIGEST, ar.actionParams.metricName.digest)
         .addTag("done", NJEvent.isActionDone(ar).show) // for query
         .addTags(tags.asJava)
-        .addField(ar.actionParams.metricId.metricName.value, unit.convert(ar.took)) // Long
+        .addField(ar.actionParams.metricName.value, unit.convert(ar.took)) // Long
     )
   }
 
