@@ -56,10 +56,8 @@ final private class ReTry[F[_], IN, OUT](
     for {
       fd <- F.realTime
       _ <- channel.send(ActionDone(actionParams, ai, fd, transOutput.map(_(in, out))))
-    } yield {
-      measures.done(ai.took(fd))
-      Right(out)
-    }
+      _ = measures.done(ai.took(fd))
+    } yield Right(out)
 
   private def sendFailure(ai: ActionInfo, in: IN, ex: Throwable): F[Unit] =
     for {
@@ -76,70 +74,84 @@ final private class ReTry[F[_], IN, OUT](
     in: IN,
     ex: Throwable,
     status: TickStatus): F[Either[TickStatus, OUT]] =
-    F.realTimeInstant.flatMap { now =>
-      status.next(now) match {
-        case None => failing(ai, in, ex)
-        case Some(ts) =>
-          for {
-            _ <- channel.send(
-              ActionRetry(
-                actionParams = actionParams,
-                actionInfo = ai,
-                error = NJError(ex),
-                tick = ts.tick
-              ))
-            _ = measures.countRetry()
-            _ <- F.sleep(ts.tick.snooze.toScala)
-          } yield Left(ts)
-      }
-    }
-
-  private def compute(ai: ActionInfo, in: IN): F[OUT] =
-    F.tailRecM(zerothTickStatus) { status =>
-      arrow(in).attempt.flatMap {
-        case Right(out)                => succeeding(ai, in, out)
-        case Left(ex) if !NonFatal(ex) => failing(ai, in, ex)
-        case Left(ex) =>
-          isWorthRetry(ex).attempt
-            .map(_.exists(identity))
-            .ifM(retrying(ai, in, ex, status), failing(ai, in, ex))
-      }
-    }
-
-  private def computeSilently(ai: ActionInfo, in: IN): F[OUT] =
-    F.tailRecM(zerothTickStatus) { status =>
-      arrow(in).attempt.flatMap {
-        case Right(out)                => F.pure(Right(out))
-        case Left(ex) if !NonFatal(ex) => failing(ai, in, ex)
-        case Left(ex) =>
-          isWorthRetry(ex).attempt
-            .map(_.exists(identity))
-            .ifM(retrying(ai, in, ex, status), failing(ai, in, ex))
-      }
+    isWorthRetry(ex).attempt.map(_.exists(identity)).flatMap {
+      case false => failing(ai, in, ex)
+      case true =>
+        for {
+          next <- F.realTimeInstant.map(status.next)
+          res <- next match {
+            case None => failing(ai, in, ex)
+            case Some(ts) =>
+              for {
+                _ <- channel.send(
+                  ActionRetry(
+                    actionParams = actionParams,
+                    actionInfo = ai,
+                    error = NJError(ex),
+                    tick = ts.tick
+                  ))
+                _ = measures.countRetry()
+                _ <- F.sleep(ts.tick.snooze.toScala)
+              } yield Left(ts)
+          }
+        } yield res
     }
 
   private[this] val kickoff: (ActionInfo, IN) => F[OUT] =
     actionParams.publishStrategy match {
       case PublishStrategy.Notice =>
         (ai: ActionInfo, in: IN) =>
-          channel.send(ActionStart(actionParams, ai, transInput.map(_(in)))) >> compute(ai, in)
+          channel.send(ActionStart(actionParams, ai, transInput.map(_(in)))).flatMap { _ =>
+            F.tailRecM(zerothTickStatus) { status =>
+              arrow(in).attempt.flatMap {
+                case Right(out)                => succeeding(ai, in, out)
+                case Left(ex) if !NonFatal(ex) => failing(ai, in, ex)
+                case Left(ex)                  => retrying(ai, in, ex, status)
+              }
+            }
+          }
 
       case PublishStrategy.Aware =>
-        (ai: ActionInfo, in: IN) => compute(ai, in)
+        (ai: ActionInfo, in: IN) =>
+          F.tailRecM(zerothTickStatus) { status =>
+            arrow(in).attempt.flatMap {
+              case Right(out)                => succeeding(ai, in, out)
+              case Left(ex) if !NonFatal(ex) => failing(ai, in, ex)
+              case Left(ex)                  => retrying(ai, in, ex, status)
+            }
+          }
 
       case PublishStrategy.Silent if actionParams.isTiming =>
         (ai: ActionInfo, in: IN) =>
-          for {
-            out <- computeSilently(ai, in)
-            fd <- F.realTime
-            _ = measures.done(ai.took(fd))
-          } yield out
+          F.tailRecM(zerothTickStatus) { status =>
+            arrow(in).attempt.flatMap {
+              case Right(out) => F.realTime.map { fd => measures.done(ai.took(fd)); Right(out) }
+              case Left(ex) if !NonFatal(ex) => failing(ai, in, ex)
+              case Left(ex)                  => retrying(ai, in, ex, status)
+            }
+          }
 
       case PublishStrategy.Silent if actionParams.isCounting =>
-        (ai: ActionInfo, in: IN) => computeSilently(ai, in) <* F.pure(measures.done(Duration.ZERO))
+        (ai: ActionInfo, in: IN) =>
+          F.tailRecM(zerothTickStatus) { status =>
+            arrow(in).attempt.flatMap {
+              case Right(out) =>
+                measures.done(Duration.ZERO)
+                F.pure(Right(out))
+              case Left(ex) if !NonFatal(ex) => failing(ai, in, ex)
+              case Left(ex)                  => retrying(ai, in, ex, status)
+            }
+          }
 
       case PublishStrategy.Silent =>
-        (ai: ActionInfo, in: IN) => computeSilently(ai, in)
+        (ai: ActionInfo, in: IN) =>
+          F.tailRecM(zerothTickStatus) { status =>
+            arrow(in).attempt.flatMap {
+              case Right(out)                => F.pure(Right(out))
+              case Left(ex) if !NonFatal(ex) => failing(ai, in, ex)
+              case Left(ex)                  => retrying(ai, in, ex, status)
+            }
+          }
     }
 
   def run(in: IN): F[OUT] =
