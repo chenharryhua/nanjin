@@ -70,7 +70,7 @@ object NJEvent extends DateTimeInstances {
 
     final override def serviceParams: ServiceParams = actionParams.serviceParams
 
-    final def actionId: String   = actionInfo.actionId.toString
+    final def actionId: String = actionInfo.actionId.toString
   }
 
   final case class ActionStart(actionParams: ActionParams, actionInfo: ActionInfo, notes: Option[Json])
