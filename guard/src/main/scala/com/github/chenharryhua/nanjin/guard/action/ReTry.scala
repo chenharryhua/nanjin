@@ -31,6 +31,7 @@ final private class ReTry[F[_], IN, OUT](
 )(implicit F: Temporal[F]) {
 
   private val measures: MeasureAction = MeasureAction(actionParams, metricRegistry)
+  def unregister(): Unit              = measures.unregister()
 
   private def jsonError(throwable: Throwable): Option[Json] =
     Some(

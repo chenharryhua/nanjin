@@ -376,4 +376,16 @@ class RetryTest extends AnyFunSuite {
     assert(k == 2)
   }
 
+  test("18. resource") {
+    serviceGuard
+      .eventStream(agent =>
+        agent
+          .action("resource", _.withTiming.withCounting)
+          .retry((i: Int) => IO(i.toString))
+          .asResource
+          .use(_.run(1)))
+      .compile
+      .drain
+      .unsafeRunSync()
+  }
 }
