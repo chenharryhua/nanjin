@@ -22,7 +22,7 @@ private object SimpleTextTranslator {
   private def errorStr(err: NJError): String = s"Cause:${err.stackTrace}"
 
   private def actionEvent(ae: ActionEvent): String = {
-    val id          = s"$CONSTANT_ACTION_ID:${ae.actionId}"
+    val id          = s"$CONSTANT_ACTION_ID:${ae.actionInfo.actionId}"
     val importance  = s"$CONSTANT_IMPORTANCE:${ae.actionParams.importance.entryName}"
     val strategy    = s"$CONSTANT_STRATEGY:${ae.actionParams.publishStrategy.entryName}"
     val measurement = s"$CONSTANT_MEASUREMENT:${ae.actionParams.metricName.measurement}"
@@ -78,7 +78,7 @@ private object SimpleTextTranslator {
   private def actionRetry(evt: ActionRetry): String =
     s"""${eventTitle(evt)}
        |${actionEvent(evt)}
-       |  $CONSTANT_TOOK:${tookText(evt.tookSoFar)}
+       |  $CONSTANT_TOOK:${tookText(evt.took)}
        |  $CONSTANT_POLICY:${evt.actionParams.retryPolicy}
        |  ${errorStr(evt.error)}
        |""".stripMargin
