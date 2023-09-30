@@ -15,47 +15,45 @@ import scala.concurrent.duration.*
 
 /** last time: (run more than once, pick up the best)
   *
-  * trace:1143K/s
+  * silent.time.count: 879K/s
   *
-  * silent.time.count: 847K/s
+  * aware.time.count: 397K/s
   *
-  * aware.time.count: 353K/s
+  * aware.time.count.notes: 471K/s
   *
-  * aware.time.count.notes: 406K/s
+  * notice.time.count: 351K/s
   *
-  * notice.time.count: 310K/s
+  * notice.time.count.notes: 341K/s
   *
-  * notice.time.count.notes: 291K/s
+  * silent.time: 830K/s
   *
-  * silent.time: 777K/s
+  * aware.time: 495K/s
   *
-  * aware.time: 347K/s
+  * aware.time.notes: 468K/s
   *
-  * aware.time.notes: 393K/s
+  * notice.time: 346K/s
   *
-  * notice.time: 289K/s
+  * notice.time.notes: 323K/s
   *
-  * notice.time.notes: 301K/s
+  * silent.count: 1143K/s
   *
-  * silent.count: 1061K/s
+  * aware.count: 552K/s
   *
-  * aware.count: 503K/s
+  * aware.count.notes: 541K/s
   *
-  * aware.count.notes: 465K/s
+  * notice.count: 394K/s
   *
-  * notice.count: 349K/s
+  * notice.count.notes: 384K/s
   *
-  * notice.count.notes: 339K/s
+  * silent: 1334K/s
   *
-  * silent: 1122K/s
+  * aware: 560K/s
   *
-  * aware: 206K/s
+  * aware.notes: 533K/s
   *
-  * aware.notes: 466K/s
+  * notice: 386K/s
   *
-  * notice: 349K/s
-  *
-  * notice.notes: 344K/s
+  * notice.notes: 385K/s
   */
 
 @Ignore

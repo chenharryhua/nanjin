@@ -1,7 +1,14 @@
 package com.github.chenharryhua.nanjin.guard.action
 
 import com.codahale.metrics.MetricRegistry
-import com.github.chenharryhua.nanjin.guard.config.{ActionParams, Category, CounterKind, MetricID, MetricName}
+import com.github.chenharryhua.nanjin.guard.config.{
+  ActionParams,
+  Category,
+  CounterKind,
+  MetricID,
+  MetricName,
+  TimerKind
+}
 import io.circe.syntax.EncoderOps
 
 import java.time.Duration
@@ -10,49 +17,77 @@ sealed private trait MeasureAction {
   def done(fd: => Duration): Unit
   def fail(fd: => Duration): Unit
   def countRetry(): Unit
+  def unregister(): Unit
 }
 private object MeasureAction {
   def apply(actionParams: ActionParams, metricRegistry: MetricRegistry): MeasureAction = {
-    val metricName: MetricName     = actionParams.metricId.metricName
-    val doneCat: Category.Counter  = Category.Counter(CounterKind.ActionDone)
-    val failCat: Category.Counter  = Category.Counter(CounterKind.ActionFail)
-    val retryCat: Category.Counter = Category.Counter(CounterKind.ActionRetry)
+    val metricName: MetricName = actionParams.metricName
+    val doneID  = MetricID(metricName, Category.Counter(CounterKind.ActionDone)).asJson.noSpaces
+    val failID  = MetricID(metricName, Category.Counter(CounterKind.ActionFail)).asJson.noSpaces
+    val retryID = MetricID(metricName, Category.Counter(CounterKind.ActionRetry)).asJson.noSpaces
+
+    val doneTimerID = MetricID(metricName, Category.Timer(TimerKind.ActionDoneTimer)).asJson.noSpaces
+    val failTimerID = MetricID(metricName, Category.Timer(TimerKind.ActionFailTimer)).asJson.noSpaces
 
     (actionParams.isCounting, actionParams.isTiming) match {
       case (true, true) =>
         new MeasureAction {
-          private lazy val failC  = metricRegistry.counter(MetricID(metricName, failCat).asJson.noSpaces)
-          private lazy val doneC  = metricRegistry.counter(MetricID(metricName, doneCat).asJson.noSpaces)
-          private lazy val retryC = metricRegistry.counter(MetricID(metricName, retryCat).asJson.noSpaces)
-          private lazy val timer  = metricRegistry.timer(actionParams.metricId.asJson.noSpaces)
+          private lazy val failC  = metricRegistry.counter(failID)
+          private lazy val doneC  = metricRegistry.counter(doneID)
+          private lazy val retryC = metricRegistry.counter(retryID)
+          private lazy val doneT  = metricRegistry.timer(doneTimerID)
+          private lazy val failT  = metricRegistry.timer(failTimerID)
 
           override def done(fd: => Duration): Unit = {
             doneC.inc(1)
-            timer.update(fd)
+            doneT.update(fd)
           }
           override def fail(fd: => Duration): Unit = {
             failC.inc(1)
-            timer.update(fd)
+            failT.update(fd)
           }
           override def countRetry(): Unit = retryC.inc(1)
+
+          override def unregister(): Unit = {
+            metricRegistry.remove(failID)
+            metricRegistry.remove(doneID)
+            metricRegistry.remove(retryID)
+            metricRegistry.remove(doneTimerID)
+            metricRegistry.remove(failTimerID)
+            ()
+          }
         }
       case (true, false) =>
         new MeasureAction {
-          private lazy val failC  = metricRegistry.counter(MetricID(metricName, failCat).asJson.noSpaces)
-          private lazy val doneC  = metricRegistry.counter(MetricID(metricName, doneCat).asJson.noSpaces)
-          private lazy val retryC = metricRegistry.counter(MetricID(metricName, retryCat).asJson.noSpaces)
+          private lazy val failC  = metricRegistry.counter(failID)
+          private lazy val doneC  = metricRegistry.counter(doneID)
+          private lazy val retryC = metricRegistry.counter(retryID)
 
           override def done(fd: => Duration): Unit = doneC.inc(1)
           override def fail(fd: => Duration): Unit = failC.inc(1)
           override def countRetry(): Unit          = retryC.inc(1)
+
+          override def unregister(): Unit = {
+            metricRegistry.remove(failID)
+            metricRegistry.remove(doneID)
+            metricRegistry.remove(retryID)
+            ()
+          }
         }
       case (false, true) =>
         new MeasureAction {
-          private lazy val timer = metricRegistry.timer(actionParams.metricId.asJson.noSpaces)
+          private lazy val doneT = metricRegistry.timer(doneTimerID)
+          private lazy val failT = metricRegistry.timer(failTimerID)
 
-          override def done(fd: => Duration): Unit = timer.update(fd)
-          override def fail(fd: => Duration): Unit = timer.update(fd)
+          override def done(fd: => Duration): Unit = doneT.update(fd)
+          override def fail(fd: => Duration): Unit = failT.update(fd)
           override def countRetry(): Unit          = ()
+
+          override def unregister(): Unit = {
+            metricRegistry.remove(doneTimerID)
+            metricRegistry.remove(failTimerID)
+            ()
+          }
         }
 
       case (false, false) =>
@@ -60,6 +95,7 @@ private object MeasureAction {
           override def done(fd: => Duration): Unit = ()
           override def fail(fd: => Duration): Unit = ()
           override def countRetry(): Unit          = ()
+          override def unregister(): Unit          = ()
         }
     }
   }

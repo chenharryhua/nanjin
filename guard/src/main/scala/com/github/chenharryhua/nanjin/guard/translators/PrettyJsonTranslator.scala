@@ -72,9 +72,9 @@ private object PrettyJsonTranslator {
       EventName.ActionStart.camel ->
         Json.obj(
           actionId(evt),
-          metricName(evt.actionParams.metricId.metricName),
-          metricDigest(evt.actionParams.metricId.metricName),
-          metricMeasurement(evt.actionParams.metricId.metricName),
+          metricName(evt.actionParams.metricName),
+          metricDigest(evt.actionParams.metricName),
+          metricMeasurement(evt.actionParams.metricName),
           importance(evt),
           publishStrategy(evt),
           serviceName(evt),
@@ -87,9 +87,9 @@ private object PrettyJsonTranslator {
       EventName.ActionRetry.camel ->
         Json.obj(
           actionId(evt),
-          metricName(evt.actionParams.metricId.metricName),
-          metricDigest(evt.actionParams.metricId.metricName),
-          metricMeasurement(evt.actionParams.metricId.metricName),
+          metricName(evt.actionParams.metricName),
+          metricDigest(evt.actionParams.metricName),
+          metricMeasurement(evt.actionParams.metricName),
           importance(evt),
           publishStrategy(evt),
           serviceName(evt),
@@ -103,9 +103,9 @@ private object PrettyJsonTranslator {
       EventName.ActionFail.camel ->
         Json.obj(
           actionId(evt),
-          metricName(evt.actionParams.metricId.metricName),
-          metricDigest(evt.actionParams.metricId.metricName),
-          metricMeasurement(evt.actionParams.metricId.metricName),
+          metricName(evt.actionParams.metricName),
+          metricDigest(evt.actionParams.metricName),
+          metricMeasurement(evt.actionParams.metricName),
           importance(evt),
           publishStrategy(evt),
           serviceName(evt),
@@ -121,9 +121,9 @@ private object PrettyJsonTranslator {
       EventName.ActionDone.camel ->
         Json.obj(
           actionId(evt),
-          metricName(evt.actionParams.metricId.metricName),
-          metricDigest(evt.actionParams.metricId.metricName),
-          metricMeasurement(evt.actionParams.metricId.metricName),
+          metricName(evt.actionParams.metricName),
+          metricDigest(evt.actionParams.metricName),
+          metricMeasurement(evt.actionParams.metricName),
           importance(evt),
           publishStrategy(evt),
           serviceName(evt),

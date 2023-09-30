@@ -3,13 +3,7 @@ package com.github.chenharryhua.nanjin.guard.event
 import cats.Show
 import com.github.chenharryhua.nanjin.common.chrono.Tick
 import com.github.chenharryhua.nanjin.datetime.DateTimeInstances
-import com.github.chenharryhua.nanjin.guard.config.{
-  ActionParams,
-  AlertLevel,
-  MetricID,
-  MetricName,
-  ServiceParams
-}
+import com.github.chenharryhua.nanjin.guard.config.{ActionParams, AlertLevel, MetricName, ServiceParams}
 import io.circe.Json
 import io.circe.generic.JsonCodec
 
@@ -76,8 +70,7 @@ object NJEvent extends DateTimeInstances {
 
     final override def serviceParams: ServiceParams = actionParams.serviceParams
 
-    final def actionId: String   = actionInfo.actionId.toString
-    final def metricId: MetricID = actionParams.metricId
+    final def actionId: String = actionInfo.actionId.toString
   }
 
   final case class ActionStart(actionParams: ActionParams, actionInfo: ActionInfo, notes: Option[Json])

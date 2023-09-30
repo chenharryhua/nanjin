@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.action
 
 import cats.data.{Kleisli, OptionT}
-import cats.effect.kernel.Temporal
+import cats.effect.kernel.{Async, Resource}
 import cats.syntax.all.*
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.common.chrono.TickStatus
@@ -20,7 +20,7 @@ final class NJAction[F[_], IN, OUT] private[action] (
   transInput: Option[IN => Json],
   transOutput: Option[(IN, OUT) => Json],
   transError: Kleisli[OptionT[F, *], (IN, Throwable), Json],
-  isWorthRetry: Throwable => F[Boolean])(implicit F: Temporal[F]) { self =>
+  isWorthRetry: Throwable => F[Boolean])(implicit F: Async[F]) { self =>
   private def copy(
     transInput: Option[IN => Json] = self.transInput,
     transOutput: Option[(IN, OUT) => Json] = self.transOutput,
@@ -62,7 +62,32 @@ final class NJAction[F[_], IN, OUT] private[action] (
       isWorthRetry = isWorthRetry
     )
 
-  def run(input: IN): F[OUT] = actionRunner.run(input)
+  def run[A](a: A)(implicit ev: A =:= IN): F[OUT] =
+    actionRunner.run(a)
+  def run[A, B](a: A, b: B)(implicit ev: (A, B) =:= IN): F[OUT] =
+    actionRunner.run((a, b))
+  def run[A, B, C](a: A, b: B, c: C)(implicit ev: (A, B, C) =:= IN): F[OUT] =
+    actionRunner.run((a, b, c))
+  def run[A, B, C, D](a: A, b: B, c: C, d: D)(implicit ev: (A, B, C, D) =:= IN): F[OUT] =
+    actionRunner.run((a, b, c, d))
+  def run[A, B, C, D, E](a: A, b: B, c: C, d: D, e: E)(implicit ev: (A, B, C, D, E) =:= IN): F[OUT] =
+    actionRunner.run((a, b, c, d, e))
+
+  def asResource: Resource[F, NJActionR[F, IN, OUT]] =
+    Resource.make(F.pure(actionRunner))(ar => F.delay(ar.unregister())).map(new NJActionR[F, IN, OUT](_))
+}
+
+final class NJActionR[F[_], IN, OUT](private val actionRunner: ReTry[F, IN, OUT]) extends AnyVal {
+  def run[A](a: A)(implicit ev: A =:= IN): F[OUT] =
+    actionRunner.run(a)
+  def run[A, B](a: A, b: B)(implicit ev: (A, B) =:= IN): F[OUT] =
+    actionRunner.run((a, b))
+  def run[A, B, C](a: A, b: B, c: C)(implicit ev: (A, B, C) =:= IN): F[OUT] =
+    actionRunner.run((a, b, c))
+  def run[A, B, C, D](a: A, b: B, c: C, d: D)(implicit ev: (A, B, C, D) =:= IN): F[OUT] =
+    actionRunner.run((a, b, c, d))
+  def run[A, B, C, D, E](a: A, b: B, c: C, d: D, e: E)(implicit ev: (A, B, C, D, E) =:= IN): F[OUT] =
+    actionRunner.run((a, b, c, d, e))
 }
 
 final class NJAction0[F[_], OUT] private[guard] (
@@ -74,7 +99,7 @@ final class NJAction0[F[_], OUT] private[guard] (
   transInput: Option[Json],
   transOutput: Option[OUT => Json],
   transError: Kleisli[OptionT[F, *], Throwable, Json],
-  isWorthRetry: Throwable => F[Boolean])(implicit F: Temporal[F]) { self =>
+  isWorthRetry: Throwable => F[Boolean])(implicit F: Async[F]) { self =>
   private def copy(
     transInput: Option[Json] = self.transInput,
     transOutput: Option[OUT => Json] = self.transOutput,

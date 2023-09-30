@@ -103,7 +103,7 @@ final class ServiceGuard[F[_]: Network] private[guard] (
   )
 
   def dummyAgent(implicit C: Console[F]): Resource[F, GeneralAgent[F]] = for {
-    zeroth <- Resource.eval(TickStatus[F](policies.giveUp, taskParams.zoneId))
+    zeroth <- Resource.eval(TickStatus.zeroth[F](policies.giveUp, taskParams.zoneId))
     sp <- Resource.eval(initStatus(zeroth.tick))
     signallingMapRef <- Resource.eval(SignallingMapRef.ofSingleImmutableMap[F, Unique.Token, Locker]())
     atomicCell <- Resource.eval(AtomicCell[F].of(Vault.empty))
@@ -128,7 +128,7 @@ final class ServiceGuard[F[_]: Network] private[guard] (
 
   def eventStream[A](runAgent: GeneralAgent[F] => F[A]): Stream[F, NJEvent] =
     for {
-      zeroth <- Stream.eval(TickStatus[F](policies.giveUp, taskParams.zoneId))
+      zeroth <- Stream.eval(TickStatus.zeroth[F](policies.giveUp, taskParams.zoneId))
       serviceParams <- Stream.eval(initStatus(zeroth.tick))
       signallingMapRef <- Stream.eval(SignallingMapRef.ofSingleImmutableMap[F, Unique.Token, Locker]())
       atomicCell <- Stream.eval(AtomicCell[F].of(Vault.empty))

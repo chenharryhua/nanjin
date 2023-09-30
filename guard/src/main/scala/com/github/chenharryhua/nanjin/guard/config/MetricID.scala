@@ -33,7 +33,8 @@ object TimerKind extends Enum[TimerKind] with CirceEnum[TimerKind] with CatsEnum
   val values: IndexedSeq[TimerKind] = findValues
 
   case object Dropwizard extends TimerKind("timer")
-  case object ActionTimer extends TimerKind("action_timer")
+  case object ActionDoneTimer extends TimerKind("action_done_timer")
+  case object ActionFailTimer extends TimerKind("action_fail_timer")
 }
 
 sealed abstract class HistogramKind(override val entryName: String)

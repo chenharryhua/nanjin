@@ -376,4 +376,20 @@ class RetryTest extends AnyFunSuite {
     assert(k == 2)
   }
 
+  test("18. resource") {
+    val List(a, b, c, d) = serviceGuard
+      .eventStream(agent =>
+        agent
+          .action("resource", _.withTiming.withCounting)
+          .retry((i: Int) => IO(i.toString))
+          .asResource
+          .use(_.run(1) >> agent.metrics.report) >> agent.metrics.report)
+      .compile
+      .toList
+      .unsafeRunSync()
+    assert(a.isInstanceOf[ServiceStart])
+    assert(b.asInstanceOf[MetricReport].snapshot.timers.nonEmpty)
+    assert(c.asInstanceOf[MetricReport].snapshot.timers.isEmpty)
+    assert(d.isInstanceOf[ServiceStop])
+  }
 }

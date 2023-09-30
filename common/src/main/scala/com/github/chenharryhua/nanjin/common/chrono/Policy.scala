@@ -35,7 +35,7 @@ private object PolicyF extends localtime with localdate with duration {
   final case class EndAt[K](policy: K, end: LocalTime) extends PolicyF[K]
   final case class Join[K](first: K, second: K) extends PolicyF[K]
 
-  private type CalcTick = TickRequest => Option[Tick]
+  type CalcTick = TickRequest => Option[Tick]
   final case class TickRequest(tick: Tick, now: Instant)
 
   private def algebra(zoneId: ZoneId): Algebra[PolicyF, LazyList[CalcTick]] =

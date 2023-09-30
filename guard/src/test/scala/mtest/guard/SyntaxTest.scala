@@ -25,7 +25,12 @@ class SyntaxTest extends AnyFunSuite {
         val f4 = ag("f4").retryFuture(fun4fut _).run((1, 2, 3, 4))
         val f5 = ag("f5").retryFuture(fun5fut _).run((1, 2, 3, 4, 5))
         val d0 = ag("d0").delay(3).run
-        a0 >> a1 >> a2 >> a3 >> a4 >> a5 >> f0 >> f1 >> f2 >> f3 >> f4 >> f5 >> d0
+        val b1 = ag("a1").retry(fun1 _).run(1)
+        val b2 = ag("a2").retry(fun2 _).run(1, 2)
+        val b3 = ag("a3").retry(fun3 _).run(1, 2, 3)
+        val b4 = ag("a4").retry(fun4 _).run(1, 2, 3, 4)
+        val b5 = ag("a5").retry(fun5 _).run(1, 2, 3, 4, 5)
+        a0 >> a1 >> a2 >> a3 >> a4 >> a5 >> f0 >> f1 >> f2 >> f3 >> f4 >> f5 >> d0 >> b1 >> b2 >> b2 >> b3 >> b4 >> b5
       }
       .evalTap(console.simple[IO])
       .compile

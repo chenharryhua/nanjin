@@ -18,7 +18,7 @@ class PolicyBaseTest extends AnyFunSuite {
     val policy = policies.fixedDelay(1.second)
     println(policy.show)
 
-    val ts: TickStatus = TickStatus[IO](policy, beijingTime).unsafeRunSync()
+    val ts: TickStatus = TickStatus.zeroth[IO](policy, beijingTime).unsafeRunSync()
 
     val List(a1, a2, a3, a4, a5) = lazyTickList(ts).take(5).toList
 
@@ -57,7 +57,7 @@ class PolicyBaseTest extends AnyFunSuite {
     val policy = policies.fixedRate(1.second)
     println(policy.show)
 
-    val ts: TickStatus = TickStatus[IO](policy, beijingTime).unsafeRunSync()
+    val ts: TickStatus = TickStatus.zeroth[IO](policy, beijingTime).unsafeRunSync()
 
     val List(a1, a2, a3, a4, a5) = lazyTickList(ts).take(5).toList
 
@@ -95,7 +95,7 @@ class PolicyBaseTest extends AnyFunSuite {
   test("jitter") {
     val policy = policies.jitter(1.minute, 2.hour)
     println(policy.show)
-    val ts    = TickStatus[IO](policy, newyorkTime).unsafeRunSync()
+    val ts    = TickStatus.zeroth[IO](policy, newyorkTime).unsafeRunSync()
     val ticks = lazyTickList(ts).take(500).toList
 
     ticks.foreach { tk =>
@@ -107,7 +107,7 @@ class PolicyBaseTest extends AnyFunSuite {
   test("fixed delays") {
     val policy = policies.fixedDelay(1.second, 2.seconds, 3.seconds)
     println(policy.show)
-    val ts: TickStatus = TickStatus[IO](policy, mumbaiTime).unsafeRunSync()
+    val ts: TickStatus = TickStatus.zeroth[IO](policy, mumbaiTime).unsafeRunSync()
 
     val List(a1, a2, a3, a4, a5, a6, a7) = lazyTickList(ts).take(7).toList
 
@@ -131,7 +131,7 @@ class PolicyBaseTest extends AnyFunSuite {
   test("cron") {
     val policy = policies.crontab(crontabs.hourly)
     println(policy.show)
-    val ts = TickStatus[IO](policy, beijingTime).unsafeRunSync()
+    val ts = TickStatus.zeroth[IO](policy, beijingTime).unsafeRunSync()
 
     val a1 = ts.next(ts.tick.launchTime.plus(1.hour.toJava)).get
     val a2 = a1.next(a1.tick.wakeup.plus(30.minutes.toJava)).get
@@ -149,7 +149,7 @@ class PolicyBaseTest extends AnyFunSuite {
   }
 
   test("giveUp") {
-    val ts = TickStatus[IO](policies.giveUp, beijingTime).unsafeRunSync()
+    val ts = TickStatus.zeroth[IO](policies.giveUp, beijingTime).unsafeRunSync()
     assert(ts.next(Instant.now).isEmpty)
   }
 

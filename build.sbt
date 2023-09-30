@@ -6,7 +6,7 @@ val catsCoreV   = "2.10.0"
 val fs2V        = "3.9.2"
 val awsV_1      = "1.12.550"
 val awsV_2      = "2.20.150"
-val catsEffectV = "3.5.1"
+val catsEffectV = "3.5.2"
 val hadoopV     = "3.3.6"
 val monocleV    = "3.2.0"
 val confluentV  = "7.5.0"
@@ -25,8 +25,9 @@ val cron4sV     = "0.6.1"
 val jacksonV    = "2.15.2"
 val protobufV   = "3.24.3"
 val sparkV      = "3.4.1"
+val framelessV  = "0.15.0"
 val refinedV    = "0.11.0"
-val nettyV      = "4.1.98.Final"
+val nettyV      = "4.1.99.Final"
 val chimneyV    = "0.8.0-RC1"
 val enumeratumV = "1.7.3"
 val drosteV     = "0.9.0"
@@ -274,7 +275,7 @@ lazy val messages = (project in file("messages"))
     libraryDependencies ++= List(
       "org.apache.commons" % "commons-compress" % "1.24.0", // snyk
       "org.yaml"           % "snakeyaml"        % "2.2", // snyk
-      "org.xerial.snappy"  % "snappy-java"      % "1.1.10.4" // snyk
+      "org.xerial.snappy"  % "snappy-java"      % "1.1.10.5" // snyk
     ) ++ serdeLib ++ kafkaLib.map(_ % Provided) ++ testLib)
 
 lazy val database = (project in file("database"))
@@ -336,7 +337,7 @@ val sparkLib = List(
 ).map(_ % sparkV) ++ List(
   "org.typelevel" %% "frameless-dataset",
   "org.typelevel" %% "frameless-core"
-).map(_ % "0.14.1") ++ List(
+).map(_ % framelessV) ++ List(
   "org.apache.avro" % "avro-compiler",
   "org.apache.avro" % "avro-mapred"
 ).map(_ % avroV)
