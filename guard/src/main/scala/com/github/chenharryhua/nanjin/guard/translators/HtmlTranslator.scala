@@ -115,7 +115,7 @@ private object HtmlTranslator extends all {
         td(b(CONSTANT_IMPORTANCE)),
         td(b(CONSTANT_STRATEGY))),
       tr(
-        td(evt.actionId),
+        td(evt.actionInfo.actionId),
         td(evt.actionParams.metricName.measurement),
         td(evt.actionParams.importance.entryName),
         td(evt.actionParams.publishStrategy.entryName)
@@ -137,7 +137,7 @@ private object HtmlTranslator extends all {
         td(b(CONSTANT_IMPORTANCE)),
         td(b(CONSTANT_STRATEGY))),
       tr(
-        td(evt.actionId),
+        td(evt.actionInfo.actionId),
         td(evt.actionParams.metricName.measurement),
         td(evt.actionParams.importance.entryName),
         td(evt.actionParams.publishStrategy.entryName)
@@ -162,7 +162,7 @@ private object HtmlTranslator extends all {
         td(b(CONSTANT_TOOK))
       ),
       tr(
-        td(evt.actionId),
+        td(evt.actionInfo.actionId),
         td(evt.actionParams.metricName.measurement),
         td(evt.actionParams.importance.entryName),
         td(evt.actionParams.publishStrategy.entryName),

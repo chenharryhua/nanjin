@@ -40,10 +40,10 @@ private object textHelper extends localtime with localdatetime {
     def name(mn: MetricName): String = s"[${mn.digest}][${mn.value}]"
 
     evt match {
-      case NJEvent.ActionStart(ap, _, _, _)      => s"Start Action ${name(ap.metricName)}"
-      case NJEvent.ActionRetry(ap, _, _, _, _)   => s"Action Retrying ${name(ap.metricName)}"
-      case NJEvent.ActionFail(ap, _, _, _, _, _) => s"Action Failed ${name(ap.metricName)}"
-      case NJEvent.ActionDone(ap, _, _, _, _)    => s"Action Done ${name(ap.metricName)}"
+      case NJEvent.ActionStart(ap, _, _)      => s"Start Action ${name(ap.metricName)}"
+      case NJEvent.ActionRetry(ap, _, _, _)   => s"Action Retrying ${name(ap.metricName)}"
+      case NJEvent.ActionFail(ap, _, _, _, _) => s"Action Failed ${name(ap.metricName)}"
+      case NJEvent.ActionDone(ap, _, _, _)    => s"Action Done ${name(ap.metricName)}"
 
       case NJEvent.ServiceAlert(metricName, _, _, al, _) =>
         s"Alert ${al.productPrefix} ${name(metricName)}"

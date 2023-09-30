@@ -7,14 +7,13 @@ import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.common.chrono.TickStatus
 import com.github.chenharryhua.nanjin.guard.config.{ActionParams, PublishStrategy}
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.{ActionDone, ActionFail, ActionRetry, ActionStart}
-import com.github.chenharryhua.nanjin.guard.event.{NJError, NJEvent}
+import com.github.chenharryhua.nanjin.guard.event.{ActionInfo, NJError, NJEvent}
 import fs2.concurrent.Channel
 import io.circe.Json
 import io.circe.parser.parse
 import org.apache.commons.lang3.exception.ExceptionUtils
 
 import java.time.Duration
-import scala.concurrent.duration.FiniteDuration
 import scala.jdk.DurationConverters.{JavaDurationOps, ScalaDurationOps}
 import scala.util.control.NonFatal
 import scala.util.{Failure, Success, Try}
@@ -54,67 +53,38 @@ final private class ReTry[F[_], IN, OUT](
         })
   }
 
-  private def succeeding(
-    actionId: Int,
-    launchTime: FiniteDuration,
-    in: IN,
-    out: OUT): F[Either[TickStatus, OUT]] =
+  private def succeeding(ai: ActionInfo, in: IN, out: OUT): F[Either[TickStatus, OUT]] =
     for {
       fd <- F.realTime
-      _ <- channel.send(
-        ActionDone(
-          actionParams = actionParams,
-          actionId = actionId,
-          launchTime = launchTime,
-          landTime = fd,
-          notes = transOutput.map(_(in, out))))
-      _ = measures.done((fd - launchTime).toJava)
+      _ <- channel.send(ActionDone(actionParams, ai, fd, transOutput.map(_(in, out))))
+      _ = measures.done((fd - ai.launchTime).toJava)
     } yield Right(out)
 
-  private def sendFailure(actionId: Int, launchTime: FiniteDuration, in: IN, ex: Throwable): F[Unit] =
+  private def sendFailure(ai: ActionInfo, in: IN, ex: Throwable): F[Unit] =
     for {
       js <- handleJson(transError((in, ex)).value)
       fd <- F.realTime
-      _ <- channel.send(
-        ActionFail(
-          actionParams = actionParams,
-          actionId = actionId,
-          launchTime = launchTime,
-          landTime = fd,
-          error = NJError(ex),
-          notes = js))
-    } yield measures.fail((fd - launchTime).toJava)
+      _ <- channel.send(ActionFail(actionParams, ai, fd, NJError(ex), js))
+    } yield measures.fail((fd - ai.launchTime).toJava)
 
-  private def failing(
-    actionId: Int,
-    launchTime: FiniteDuration,
-    in: IN,
-    ex: Throwable): F[Either[TickStatus, OUT]] =
-    sendFailure(actionId, launchTime, in, ex) >> F.raiseError[OUT](ex).map[Either[TickStatus, OUT]](Right(_))
+  private def failing(ai: ActionInfo, in: IN, ex: Throwable): F[Either[TickStatus, OUT]] =
+    sendFailure(ai, in, ex) >> F.raiseError[OUT](ex).map[Either[TickStatus, OUT]](Right(_))
 
   private def retrying(
-    actionId: Int,
-    launchTime: FiniteDuration,
+    ai: ActionInfo,
     in: IN,
     ex: Throwable,
     status: TickStatus): F[Either[TickStatus, OUT]] =
     isWorthRetry(ex).attempt.map(_.exists(identity)).flatMap {
-      case false => failing(actionId, launchTime, in, ex)
+      case false => failing(ai, in, ex)
       case true =>
         for {
           next <- F.realTimeInstant.map(status.next)
           res <- next match {
-            case None => failing(actionId, launchTime, in, ex)
+            case None => failing(ai, in, ex)
             case Some(ts) =>
               for {
-                _ <- channel.send(
-                  ActionRetry(
-                    actionParams = actionParams,
-                    actionId = actionId,
-                    launchTime = launchTime,
-                    error = NJError(ex),
-                    tick = ts.tick
-                  ))
+                _ <- channel.send(ActionRetry(actionParams, ai, NJError(ex), ts.tick))
                 _ = measures.countRetry()
                 _ <- F.sleep(ts.tick.snooze.toScala)
               } yield Left(ts)
@@ -122,75 +92,66 @@ final private class ReTry[F[_], IN, OUT](
         } yield res
     }
 
-  private[this] val kickoff: (Int, FiniteDuration, IN) => F[OUT] =
+  private[this] val kickoff: (ActionInfo, IN) => F[OUT] =
     actionParams.publishStrategy match {
       case PublishStrategy.Notice =>
-        (actionId: Int, launchTime: FiniteDuration, in: IN) =>
-          channel
-            .send(
-              ActionStart(
-                actionParams = actionParams,
-                actionId = actionId,
-                launchTime = launchTime,
-                notes = transInput.map(_(in))))
-            .flatMap { _ =>
-              F.tailRecM(zerothTickStatus) { status =>
-                arrow(in).attempt.flatMap {
-                  case Right(out)                => succeeding(actionId, launchTime, in, out)
-                  case Left(ex) if !NonFatal(ex) => failing(actionId, launchTime, in, ex)
-                  case Left(ex)                  => retrying(actionId, launchTime, in, ex, status)
-                }
+        (ai, in) =>
+          channel.send(ActionStart(actionParams, ai, transInput.map(_(in)))).flatMap { _ =>
+            F.tailRecM(zerothTickStatus) { status =>
+              arrow(in).attempt.flatMap {
+                case Right(out)                => succeeding(ai, in, out)
+                case Left(ex) if !NonFatal(ex) => failing(ai, in, ex)
+                case Left(ex)                  => retrying(ai, in, ex, status)
               }
             }
-
+          }
       case PublishStrategy.Aware =>
-        (actionId: Int, launchTime: FiniteDuration, in: IN) =>
+        (ai, in) =>
           F.tailRecM(zerothTickStatus) { status =>
             arrow(in).attempt.flatMap {
-              case Right(out)                => succeeding(actionId, launchTime, in, out)
-              case Left(ex) if !NonFatal(ex) => failing(actionId, launchTime, in, ex)
-              case Left(ex)                  => retrying(actionId, launchTime, in, ex, status)
+              case Right(out)                => succeeding(ai, in, out)
+              case Left(ex) if !NonFatal(ex) => failing(ai, in, ex)
+              case Left(ex)                  => retrying(ai, in, ex, status)
             }
           }
-
       case PublishStrategy.Silent if actionParams.isTiming =>
-        (actionId: Int, launchTime: FiniteDuration, in: IN) =>
+        (ai, in) =>
           F.tailRecM(zerothTickStatus) { status =>
             arrow(in).attempt.flatMap {
-              case Right(out) => F.realTime.map { fd => measures.done((fd - launchTime).toJava); Right(out) }
-              case Left(ex) if !NonFatal(ex) => failing(actionId, launchTime, in, ex)
-              case Left(ex)                  => retrying(actionId, launchTime, in, ex, status)
+              case Right(out) =>
+                F.realTime.map { fd => measures.done((fd - ai.launchTime).toJava); Right(out) }
+              case Left(ex) if !NonFatal(ex) => failing(ai, in, ex)
+              case Left(ex)                  => retrying(ai, in, ex, status)
             }
           }
 
       case PublishStrategy.Silent if actionParams.isCounting =>
-        (actionId: Int, launchTime: FiniteDuration, in: IN) =>
+        (ai, in) =>
           F.tailRecM(zerothTickStatus) { status =>
             arrow(in).attempt.flatMap {
               case Right(out) =>
                 measures.done(Duration.ZERO)
                 F.pure(Right(out))
-              case Left(ex) if !NonFatal(ex) => failing(actionId, launchTime, in, ex)
-              case Left(ex)                  => retrying(actionId, launchTime, in, ex, status)
+              case Left(ex) if !NonFatal(ex) => failing(ai, in, ex)
+              case Left(ex)                  => retrying(ai, in, ex, status)
             }
           }
 
       case PublishStrategy.Silent =>
-        (actionId: Int, launchTime: FiniteDuration, in: IN) =>
+        (ai, in) =>
           F.tailRecM(zerothTickStatus) { status =>
             arrow(in).attempt.flatMap {
               case Right(out)                => F.pure(Right(out))
-              case Left(ex) if !NonFatal(ex) => failing(actionId, launchTime, in, ex)
-              case Left(ex)                  => retrying(actionId, launchTime, in, ex, status)
+              case Left(ex) if !NonFatal(ex) => failing(ai, in, ex)
+              case Left(ex)                  => retrying(ai, in, ex, status)
             }
           }
     }
 
   def run(in: IN): F[OUT] =
     (F.unique, F.realTime).flatMapN { (token, launchTime) =>
-      F.onCancel(
-        kickoff(token.hash, launchTime, in),
-        sendFailure(token.hash, launchTime, in, ActionCancelException))
+      val ai = ActionInfo(token.hash, launchTime)
+      F.onCancel(kickoff(ai, in), sendFailure(ai, in, ActionCancelException))
     }
 }
 

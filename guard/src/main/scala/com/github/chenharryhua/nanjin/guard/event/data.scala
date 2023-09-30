@@ -3,8 +3,13 @@ package com.github.chenharryhua.nanjin.guard.event
 import cats.Show
 import cats.effect.kernel.Resource.ExitCase
 import com.github.chenharryhua.nanjin.common.chrono.Tick
+import com.github.chenharryhua.nanjin.datetime.DateTimeInstances
 import io.circe.generic.JsonCodec
 import org.apache.commons.lang3.exception.ExceptionUtils
+
+import java.time.Duration
+import scala.concurrent.duration.FiniteDuration
+import scala.jdk.DurationConverters.ScalaDurationOps
 
 @JsonCodec
 final case class NJError(message: String, stackTrace: String)
@@ -45,4 +50,13 @@ object ServiceStopCause {
   case object Normally extends ServiceStopCause(0)
   case object ByCancellation extends ServiceStopCause(1)
   final case class ByException(msg: String) extends ServiceStopCause(2)
+}
+
+@JsonCodec
+final case class ActionInfo(actionId: Int, launchTime: FiniteDuration) {
+  def took(landTime: FiniteDuration): Duration = landTime.minus(launchTime).toJava
+}
+
+object ActionInfo extends DateTimeInstances {
+  implicit final val showActionInfo: Show[ActionInfo] = cats.derived.semiauto.show[ActionInfo]
 }
