@@ -2,7 +2,7 @@ package example.basic
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.common.chrono.crontabs
+import com.github.chenharryhua.nanjin.common.chrono.{crontabs, policies}
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.observers.console
@@ -18,7 +18,7 @@ class RWTest extends AnyFunSuite {
   val task: ServiceGuard[IO] = TaskGuard[IO]("basic")
     .updateConfig(_.withZoneId(sydneyTime))
     .service("test")
-    .updateConfig(_.withMetricReport(crontabs.trisecondly))
+    .withMetricReport(policies.crontab(crontabs.trisecondly))
 
   test("avro") {
     task.eventStream(a => new AvroTest(a, root).run).evalTap(console.simple[IO]).compile.drain.unsafeRunSync()

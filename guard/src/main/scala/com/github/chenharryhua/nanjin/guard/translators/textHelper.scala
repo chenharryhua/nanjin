@@ -15,7 +15,6 @@ object textConstants {
   @inline final val CONSTANT_POLICY: String      = "Policy"
   @inline final val CONSTANT_CAUSE: String       = "Cause"
   @inline final val CONSTANT_TOOK: String        = "Took"
-  @inline final val CONSTANT_DELAYED: String     = "Delayed"
   @inline final val CONSTANT_SNOOZE: String      = "Snooze"
   @inline final val CONSTANT_UPTIME: String      = "UpTime"
   @inline final val CONSTANT_BRIEF: String       = "Brief"
@@ -99,6 +98,6 @@ private object textHelper extends localtime with localdatetime {
   def retryText(evt: ActionRetry): String = {
     val localTs: LocalTime =
       evt.tick.wakeup.atZone(evt.tick.zoneId).toLocalTime.truncatedTo(ChronoUnit.SECONDS)
-    s"*${toOrdinalWords(evt.tick.index)}* retry was scheduled at $localTs"
+    s"${toOrdinalWords(evt.tick.index)} retry was scheduled at $localTs"
   }
 }

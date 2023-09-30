@@ -2,6 +2,7 @@ package example.basic
 
 import cats.effect.IO
 import cats.syntax.all.*
+import com.github.chenharryhua.nanjin.common.chrono.zones.{mumbaiTime, singaporeTime}
 import com.github.chenharryhua.nanjin.guard.service.Agent
 import com.github.chenharryhua.nanjin.terminals.{BinAvroFile, NJCompression, NJPath}
 import eu.timepit.refined.auto.*
@@ -31,7 +32,7 @@ class BinAvroTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
 
   private def writeRotate(file: BinAvroFile): IO[NJPath] = {
     val path = root / "rotate" / file.fileName
-    val sink = bin_avro.sink(policy)(t => path / file.fileName(t))
+    val sink = bin_avro.sink(policy, mumbaiTime)(t => path / file.fileName(t))
     write(path.uri.getPath) { meter =>
       data.evalTap(_ => meter.mark(1)).map(encoder.to).chunkN(1000).through(sink).compile.drain.as(path)
     }
@@ -55,7 +56,7 @@ class BinAvroTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
 
   private def writeRotateSpark(file: BinAvroFile): IO[NJPath] = {
     val path = root / "spark" / "rotate" / file.fileName
-    val sink = bin_avro.sink(policy)(t => path / file.fileName(t))
+    val sink = bin_avro.sink(policy, singaporeTime)(t => path / file.fileName(t))
     write(path.uri.getPath) { meter =>
       table.output
         .stream(1000)

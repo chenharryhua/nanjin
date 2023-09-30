@@ -2,6 +2,7 @@ package example.basic
 
 import cats.effect.IO
 import cats.syntax.all.*
+import com.github.chenharryhua.nanjin.common.chrono.zones.{darwinTime, utcTime}
 import com.github.chenharryhua.nanjin.guard.service.Agent
 import com.github.chenharryhua.nanjin.terminals.{KantanFile, NJCompression, NJPath}
 import eu.timepit.refined.auto.*
@@ -44,7 +45,7 @@ class KantanTest(agent: Agent[IO], base: NJPath, rfc: CsvConfiguration) extends 
 
   private def writeRotate(file: KantanFile): IO[NJPath] = {
     val path = root / "rotate" / file.fileName
-    val sink = kantan.sink(policy)(t => path / file.fileName(t))
+    val sink = kantan.sink(policy, darwinTime)(t => path / file.fileName(t))
     write(path.uri.getPath) { meter =>
       data
         .evalTap(_ => meter.mark(1))
@@ -81,7 +82,7 @@ class KantanTest(agent: Agent[IO], base: NJPath, rfc: CsvConfiguration) extends 
 
   private def writeRotateSpark(file: KantanFile): IO[NJPath] = {
     val path = root / "spark" / "rotate" / file.fileName
-    val sink = kantan.sink(policy)(t => path / file.fileName(t))
+    val sink = kantan.sink(policy, utcTime)(t => path / file.fileName(t))
     write(path.uri.getPath) { meter =>
       table.output
         .stream(1000)

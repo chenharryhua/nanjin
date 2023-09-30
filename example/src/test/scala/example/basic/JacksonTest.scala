@@ -2,6 +2,7 @@ package example.basic
 
 import cats.effect.IO
 import cats.syntax.all.*
+import com.github.chenharryhua.nanjin.common.chrono.zones.{cairoTime, saltaTime}
 import com.github.chenharryhua.nanjin.guard.service.Agent
 import com.github.chenharryhua.nanjin.terminals.{JacksonFile, NJCompression, NJPath}
 import eu.timepit.refined.auto.*
@@ -31,7 +32,7 @@ class JacksonTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
 
   private def writeRotate(file: JacksonFile): IO[NJPath] = {
     val path = root / "rotate" / file.fileName
-    val sink = jackson.sink(policy)(t => path / file.fileName(t))
+    val sink = jackson.sink(policy, cairoTime)(t => path / file.fileName(t))
     write(path.uri.getPath) { meter =>
       data.evalTap(_ => meter.mark(1)).map(encoder.to).chunkN(1000).through(sink).compile.drain.as(path)
     }
@@ -60,7 +61,7 @@ class JacksonTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
 
   private def writeRotateSpark(file: JacksonFile): IO[NJPath] = {
     val path = root / "spark" / "rotate" / file.fileName
-    val sink = jackson.sink(policy)(t => path / file.fileName(t))
+    val sink = jackson.sink(policy, saltaTime)(t => path / file.fileName(t))
     write(path.uri.getPath) { meter =>
       table.output
         .stream(1000)
