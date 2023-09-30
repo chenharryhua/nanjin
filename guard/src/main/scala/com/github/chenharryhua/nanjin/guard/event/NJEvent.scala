@@ -10,6 +10,7 @@ import io.circe.generic.JsonCodec
 import java.time.{Duration, ZonedDateTime}
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.FiniteDuration
+import scala.jdk.DurationConverters.ScalaDurationOps
 
 @JsonCodec
 sealed trait NJEvent extends Product with Serializable {
@@ -65,21 +66,31 @@ object NJEvent extends DateTimeInstances {
       extends MetricEvent
 
   sealed trait ActionEvent extends NJEvent {
-    def actionInfo: ActionInfo // action runtime information
     def actionParams: ActionParams
+    def actionId: Int
+    def launchTime: FiniteDuration
     def landTime: FiniteDuration
 
     final override def timestamp: ZonedDateTime     = serviceParams.toZonedDateTime(landTime)
     final override def serviceParams: ServiceParams = actionParams.serviceParams
-    final def took: Duration                        = actionInfo.took(landTime)
+    final def took: Duration                        = (landTime - launchTime).toJava
   }
 
-  final case class ActionStart(actionParams: ActionParams, actionInfo: ActionInfo, notes: Option[Json])
+  final case class ActionStart(
+    actionParams: ActionParams,
+    actionId: Int,
+    launchTime: FiniteDuration,
+    notes: Option[Json])
       extends ActionEvent {
-    override val landTime: FiniteDuration = actionInfo.launchTime
+    override val landTime: FiniteDuration = launchTime
   }
 
-  final case class ActionRetry(actionParams: ActionParams, actionInfo: ActionInfo, error: NJError, tick: Tick)
+  final case class ActionRetry(
+    actionParams: ActionParams,
+    actionId: Int,
+    launchTime: FiniteDuration,
+    error: NJError,
+    tick: Tick)
       extends ActionEvent {
     val landTime: FiniteDuration = FiniteDuration(tick.acquire.toEpochMilli, TimeUnit.MILLISECONDS)
   }
@@ -90,7 +101,8 @@ object NJEvent extends DateTimeInstances {
 
   final case class ActionFail(
     actionParams: ActionParams,
-    actionInfo: ActionInfo,
+    actionId: Int,
+    launchTime: FiniteDuration,
     landTime: FiniteDuration,
     error: NJError,
     notes: Option[Json])
@@ -98,7 +110,8 @@ object NJEvent extends DateTimeInstances {
 
   final case class ActionDone(
     actionParams: ActionParams,
-    actionInfo: ActionInfo,
+    actionId: Int,
+    launchTime: FiniteDuration,
     landTime: FiniteDuration,
     notes: Option[Json])
       extends ActionResultEvent
