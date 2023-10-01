@@ -105,6 +105,7 @@ private object SlackTranslator extends all {
             hostServiceSection(evt.serviceParams),
             upTimeSection(evt),
             MarkdownSection(s"""|*$CONSTANT_SERVICE_ID:* ${evt.serviceParams.serviceId.show}
+                                |*$CONSTANT_POLICY:* ${evt.serviceParams.restartPolicy}
                                 |*$CONSTANT_CAUSE:* ${abbreviate(evt.cause.show)}""".stripMargin)
           )
         )
@@ -189,6 +190,7 @@ private object SlackTranslator extends all {
               first = TextField(CONSTANT_ACTION_ID, evt.actionId.show),
               second = TextField(CONSTANT_TIMEZONE, evt.serviceParams.taskParams.zoneId.show)),
             MarkdownSection(s"""|${measurement(evt.actionParams.metricName)}
+                                |${policy(evt)}
                                 |${serviceId(evt)}""".stripMargin)
           ) ++ evt.notes.map(js => MarkdownSection(s"""```${abbreviate(js)}```"""))
         ))

@@ -24,8 +24,7 @@ object textConstants {
   @inline final val CONSTANT_SERVICE_ID: String  = "ServiceID"
   @inline final val CONSTANT_HOST: String        = "Host"
   @inline final val CONSTANT_TASK: String        = "Task"
-  @inline final val CONSTANT_IMPORTANCE: String  = "Importance"
-  @inline final val CONSTANT_STRATEGY: String    = "Strategy"
+  @inline final val CONSTANT_CONFIG: String      = "Config"
   @inline final val CONSTANT_MEASUREMENT: String = "Measurement"
 }
 

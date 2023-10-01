@@ -150,7 +150,8 @@ class ServiceTest extends AnyFunSuite {
 
   test("7.normal service stop after two operations") {
     val Vector(s, a, b, c, d, e) = guard
-      .eventStream(gd => gd.action("t", _.bipartite).delay(1).run >> gd.action("t", _.bipartite).retry(IO(2)).run)
+      .eventStream(gd =>
+        gd.action("t", _.bipartite).delay(1).run >> gd.action("t", _.bipartite).retry(IO(2)).run)
       .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
       .compile
       .toVector

@@ -35,11 +35,8 @@ private object jsonHelper {
   def serviceName(evt: NJEvent): (String, Json) =
     "serviceName" -> Json.fromString(evt.serviceParams.serviceName)
 
-  def importance(evt: ActionEvent): (String, Json) =
-    "importance" -> Json.fromString(evt.actionParams.importance.entryName)
-
-  def publishStrategy(evt: ActionEvent): (String, Json) =
-    "strategy" -> Json.fromString(evt.actionParams.publishStrategy.entryName)
+  def config(evt: ActionEvent): (String, Json) =
+    "config" -> Json.fromString(evt.actionParams.configStr)
 
   def metricIndex(index: MetricIndex): (String, Json) = index match {
     case MetricIndex.Adhoc          => "index" -> Json.Null

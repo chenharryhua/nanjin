@@ -14,7 +14,13 @@ final case class ActionParams(
   isCounting: Boolean,
   isTiming: Boolean,
   retryPolicy: String, // for display
-  serviceParams: ServiceParams)
+  serviceParams: ServiceParams) {
+  val configStr: String = {
+    val cc = if (isCounting) ".withCounting" else ""
+    val tc = if (isTiming) ".withTiming" else ""
+    s"${publishStrategy.entryName}.${importance.entryName}$tc$cc"
+  }
+}
 
 object ActionParams {
   implicit val showActionParams: Show[ActionParams] = cats.derived.semiauto.show

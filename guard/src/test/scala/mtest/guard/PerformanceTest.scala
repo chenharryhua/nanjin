@@ -15,46 +15,47 @@ import scala.concurrent.duration.*
 
 /** last time: (run more than once, pick up the best)
   *
-  * silent.time.count: 1301K/s
+  * silent.time.count: 982K/s
   *
-  * aware.time.count: 333K/s
+  * unipartite.time.count: 350K/s
   *
-  * aware.time.count.notes: 429K/s
+  * unipartite.time.count.notes: 420K/s
   *
-  * notice.time.count: 323K/s
+  * bipartite.time.count: 295K/s
   *
-  * notice.time.count.notes: 318K/s
+  * bipartite.time.count.notes: 307K/s
   *
-  * silent.time: 1193K/s
+  * silent.time: 1123K/s
   *
-  * aware.time: 459K/s
+  * unipartite.time: 465K/s
   *
-  * aware.time.notes: 431K/s
+  * unipartite.time.notes: 398K/s
   *
-  * notice.time: 298K/s
+  * bipartite.time: 315K/s
   *
-  * notice.time.notes: 313K/s
+  * bipartite.time.notes: 311K/s
   *
-  * silent.count: 2015K/s
+  * silent.count: 1918K/s
   *
-  * aware.count: 499K/s
+  * unipartite.count: 490K/s
   *
-  * aware.count.notes: 469K/s
+  * unipartite.count.notes: 452K/s
   *
-  * notice.count: 335K/s
+  * bipartite.count: 322K/s
   *
-  * notice.count.notes: 332K/s
+  * bipartite.count.notes: 271K/s
   *
-  * silent: 2017K/s
+  * silent: 1767K/s
   *
-  * aware: 481K/s
+  * unipartite: 456K/s
   *
-  * aware.notes: 465K/s
+  * unipartite.notes: 450K/s
   *
-  * notice: 332K/s
+  * bipartite: 307K/s
   *
-  * notice.notes: 305K/s
+  * bipartite.notes: 316K/s
   */
+
 @Ignore
 class PerformanceTest extends AnyFunSuite {
   val service: ServiceGuard[IO] =
@@ -62,16 +63,6 @@ class PerformanceTest extends AnyFunSuite {
   val take: FiniteDuration = 15.seconds
 
   def speed(i: Int): String = f"${i / (take.toSeconds * 1000)}%4dK/s"
-
-  ignore("alert") {
-    print("alert:")
-    var i = 0
-    service.eventStream { ag =>
-      val ts = ag.alert("alert").info("alert").map(_ => i += 1)
-      ts.foreverM.timeout(take).attempt
-    }.compile.drain.unsafeRunSync()
-    println(speed(i))
-  }
 
   test("silent.time.count") {
     print("silent.time.count: ")
@@ -83,8 +74,8 @@ class PerformanceTest extends AnyFunSuite {
     println(speed(i))
   }
 
-  test("aware.time.count") {
-    print("aware.time.count: ")
+  test("unipartite.time.count") {
+    print("unipartite.time.count: ")
     var i: Int = 0
     service.eventStream { ag =>
       val ts = ag.action("t", _.unipartite.withCounting.withTiming).retry(IO(i += 1)).run
@@ -93,22 +84,22 @@ class PerformanceTest extends AnyFunSuite {
     println(speed(i))
   }
 
-  test("aware.time.count.notes") {
-    print("aware.time.count.notes: ")
+  test("unipartite.time.count.notes") {
+    print("unipartite.time.count.notes: ")
     var i: Int = 0
     service.eventStream { ag =>
       val ts = ag
         .action("t", _.unipartite.withCounting.withTiming)
         .retry(IO(i += 1))
-        .logOutput(_ => "aware.time.count.notes".asJson)
+        .logOutput(_ => "unipartite.time.count.notes".asJson)
         .run
       ts.foreverM.timeout(take).attempt
     }.compile.drain.unsafeRunSync()
     println(speed(i))
   }
 
-  test("notice.time.count") {
-    print("notice.time.count: ")
+  test("bipartite.time.count") {
+    print("bipartite.time.count: ")
     var i: Int = 0
     service.eventStream { ag =>
       val ts = ag.action("t", _.bipartite.withCounting.withTiming).retry(IO(i += 1)).run
@@ -117,14 +108,14 @@ class PerformanceTest extends AnyFunSuite {
     println(speed(i))
   }
 
-  test("notice.time.count.notes") {
-    print("notice.time.count.notes: ")
+  test("bipartite.time.count.notes") {
+    print("bipartite.time.count.notes: ")
     var i: Int = 0
     service.eventStream { ag =>
       val ts = ag
         .action("t", _.bipartite.withCounting.withTiming)
         .retry(IO(i += 1))
-        .logOutput(_ => "notice.time.count.notes".asJson)
+        .logOutput(_ => "bipartite.time.count.notes".asJson)
         .run
       ts.foreverM.timeout(take).attempt
     }.compile.drain.unsafeRunSync()
@@ -141,8 +132,8 @@ class PerformanceTest extends AnyFunSuite {
     println(speed(i))
   }
 
-  test("aware.time") {
-    print("aware.time: ")
+  test("unipartite.time") {
+    print("unipartite.time: ")
     var i: Int = 0
     service.eventStream { ag =>
       val ts = ag.action("t", _.unipartite.withTiming.withoutCounting).retry(IO(i += 1)).run
@@ -151,22 +142,22 @@ class PerformanceTest extends AnyFunSuite {
     println(speed(i))
 
   }
-  test("aware.time.notes") {
-    print("aware.time.notes: ")
+  test("unipartite.time.notes") {
+    print("unipartite.time.notes: ")
     var i: Int = 0
     service.eventStream { ag =>
       val ts = ag
         .action("t", _.unipartite.withTiming.withoutCounting)
         .retry(IO(i += 1))
-        .logOutput(_ => "aware.time.notes".asJson)
+        .logOutput(_ => "unipartite.time.notes".asJson)
         .run
       ts.foreverM.timeout(take).attempt
     }.compile.drain.unsafeRunSync()
     println(speed(i))
 
   }
-  test("notice.time") {
-    print("notice.time: ")
+  test("bipartite.time") {
+    print("bipartite.time: ")
     var i = 0
     service.eventStream { ag =>
       val ts =
@@ -177,14 +168,14 @@ class PerformanceTest extends AnyFunSuite {
 
   }
 
-  test("notice.time.notes") {
-    print("notice.time.notes: ")
+  test("bipartite.time.notes") {
+    print("bipartite.time.notes: ")
     var i = 0
     service.eventStream { ag =>
       val ts =
         ag.action("t", _.bipartite.withTiming.withoutCounting)
           .retry(IO(i += 1))
-          .logOutput(_ => "notice.time.notes".asJson)
+          .logOutput(_ => "bipartite.time.notes".asJson)
           .run
       ts.foreverM.timeout(take).attempt
     }.compile.drain.unsafeRunSync()
@@ -203,8 +194,8 @@ class PerformanceTest extends AnyFunSuite {
 
   }
 
-  test("aware.counting") {
-    print("aware.count: ")
+  test("unipartite.counting") {
+    print("unipartite.count: ")
     var i: Int = 0
     service.eventStream { ag =>
       val ts = ag.action("t", _.unipartite.withoutTiming.withCounting).retry(IO(i += 1)).run
@@ -214,14 +205,14 @@ class PerformanceTest extends AnyFunSuite {
 
   }
 
-  test("aware.counting.notes") {
-    print("aware.count.notes: ")
+  test("unipartite.counting.notes") {
+    print("unipartite.count.notes: ")
     var i: Int = 0
     service.eventStream { ag =>
       val ts = ag
         .action("t", _.unipartite.withoutTiming.withCounting)
         .retry(IO(i += 1))
-        .logOutput(_ => "aware.counting.notes".asJson)
+        .logOutput(_ => "unipartite.counting.notes".asJson)
         .run
       ts.foreverM.timeout(take).attempt
     }.compile.drain.unsafeRunSync()
@@ -229,8 +220,8 @@ class PerformanceTest extends AnyFunSuite {
 
   }
 
-  test("notice.counting") {
-    print("notice.count: ")
+  test("bipartite.counting") {
+    print("bipartite.count: ")
     var i = 0
     service.eventStream { ag =>
       val ts =
@@ -241,14 +232,14 @@ class PerformanceTest extends AnyFunSuite {
 
   }
 
-  test("notice.counting.notes") {
-    print("notice.count.notes: ")
+  test("bipartite.counting.notes") {
+    print("bipartite.count.notes: ")
     var i = 0
     service.eventStream { ag =>
       val ts =
         ag.action("t", _.bipartite.withoutTiming.withCounting)
           .retry(IO(i += 1))
-          .logOutput(_ => "notice.counting.notes".asJson)
+          .logOutput(_ => "bipartite.counting.notes".asJson)
           .run
       ts.foreverM.timeout(take).attempt
     }.compile.drain.unsafeRunSync()
@@ -267,8 +258,8 @@ class PerformanceTest extends AnyFunSuite {
 
   }
 
-  test("aware") {
-    print("aware: ")
+  test("unipartite") {
+    print("unipartite: ")
     var i: Int = 0
     service.eventStream { ag =>
       val ts = ag.action("t", _.unipartite.withoutTiming.withoutCounting).retry(IO(i += 1)).run
@@ -277,23 +268,23 @@ class PerformanceTest extends AnyFunSuite {
     println(speed(i))
 
   }
-  test("aware.notes") {
-    print("aware.notes: ")
+  test("unipartite.notes") {
+    print("unipartite.notes: ")
     var i: Int = 0
     service.eventStream { ag =>
       val ts = ag
         .action("t", _.unipartite.withoutTiming.withoutCounting)
         .retry(IO(i += 1))
-        .logOutput(_ => "aware.notes".asJson)
+        .logOutput(_ => "unipartite.notes".asJson)
         .run
       ts.foreverM.timeout(take).attempt
     }.compile.drain.unsafeRunSync()
     println(speed(i))
 
   }
-  test("notice") {
+  test("bipartite") {
     var i = 0
-    print("notice: ")
+    print("bipartite: ")
     service.eventStream { ag =>
       val ts =
         ag.action("t", _.bipartite.withoutTiming.withoutCounting).retry(IO(i += 1)).run
@@ -303,14 +294,14 @@ class PerformanceTest extends AnyFunSuite {
 
   }
 
-  test("notice.notes") {
+  test("bipartite.notes") {
     var i = 0
-    print("notice.notes: ")
+    print("bipartite.notes: ")
     service.eventStream { ag =>
       val ts =
         ag.action("t", _.bipartite.withoutTiming.withoutCounting)
           .retry(IO(i += 1))
-          .logOutput(_ => "notice.notes".asJson)
+          .logOutput(_ => "bipartite.notes".asJson)
           .run
       ts.foreverM.timeout(take).attempt
     }.compile.drain.unsafeRunSync()

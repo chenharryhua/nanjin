@@ -152,7 +152,10 @@ class CancellationTest extends AnyFunSuite {
         .eventStream { ag =>
           val a1 = ag.action("complete-1", _.bipartite).retry(IO.sleep(1.second) >> IO(1)).run
           val a2 =
-            ag.action("fail-2", _.bipartite).withRetryPolicy(policy).retry(IO.raiseError[Int](new Exception)).run
+            ag.action("fail-2", _.bipartite)
+              .withRetryPolicy(policy)
+              .retry(IO.raiseError[Int](new Exception))
+              .run
           val a3 = ag.action("cancel-3", _.bipartite).retry(never_fun).run
           ag.action("supervisor", _.bipartite)
             .withRetryPolicy(policy2)
