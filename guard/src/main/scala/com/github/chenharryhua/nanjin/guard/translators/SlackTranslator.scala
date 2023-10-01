@@ -186,7 +186,7 @@ private object SlackTranslator extends all {
             MarkdownSection(s"*${eventTitle(evt)}*"),
             hostServiceSection(evt.serviceParams),
             JuxtaposeSection(
-              first = TextField(CONSTANT_ACTION_ID, evt.actionInfo.actionId.show),
+              first = TextField(CONSTANT_ACTION_ID, evt.actionId.show),
               second = TextField(CONSTANT_TIMEZONE, evt.serviceParams.taskParams.zoneId.show)),
             MarkdownSection(s"""|${measurement(evt.actionParams.metricName)}
                                 |${serviceId(evt)}""".stripMargin)
@@ -204,7 +204,7 @@ private object SlackTranslator extends all {
             MarkdownSection(s"*${eventTitle(evt)}*"),
             hostServiceSection(evt.serviceParams),
             JuxtaposeSection(
-              first = TextField(CONSTANT_ACTION_ID, evt.actionInfo.actionId.show),
+              first = TextField(CONSTANT_ACTION_ID, evt.actionId.show),
               second = TextField(CONSTANT_SNOOZE, tookText(evt.tick.snooze))),
             MarkdownSection(s"""|${retryText(evt)}
                                 |${policy(evt)}
@@ -226,7 +226,7 @@ private object SlackTranslator extends all {
             MarkdownSection(s"*${eventTitle(evt)}*"),
             hostServiceSection(evt.serviceParams),
             JuxtaposeSection(
-              first = TextField(CONSTANT_ACTION_ID, evt.actionInfo.actionId.show),
+              first = TextField(CONSTANT_ACTION_ID, evt.actionId.show),
               second = TextField(CONSTANT_TOOK, tookText(evt.took))),
             MarkdownSection(s"""|${policy(evt)}
                                 |${measurement(evt.actionParams.metricName)}
@@ -250,7 +250,7 @@ private object SlackTranslator extends all {
             MarkdownSection(s"*${eventTitle(evt)}*"),
             hostServiceSection(evt.serviceParams),
             JuxtaposeSection(
-              first = TextField(CONSTANT_ACTION_ID, evt.actionInfo.actionId.show),
+              first = TextField(CONSTANT_ACTION_ID, evt.actionId.show),
               second = TextField(CONSTANT_TOOK, tookText(evt.took))),
             MarkdownSection(s"""|${measurement(evt.actionParams.metricName)}
                                 |${serviceId(evt)}""".stripMargin)

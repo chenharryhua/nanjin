@@ -6,6 +6,7 @@ import com.github.chenharryhua.nanjin.common.chrono.policies
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import io.circe.syntax.EncoderOps
+import org.scalatest.Ignore
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.*
@@ -14,47 +15,47 @@ import scala.concurrent.duration.*
 
 /** last time: (run more than once, pick up the best)
   *
-  * silent.time.count: 879K/s
+  * silent.time.count: 1301K/s
   *
-  * aware.time.count: 397K/s
+  * aware.time.count: 333K/s
   *
-  * aware.time.count.notes: 471K/s
+  * aware.time.count.notes: 429K/s
   *
-  * notice.time.count: 351K/s
+  * notice.time.count: 323K/s
   *
-  * notice.time.count.notes: 341K/s
+  * notice.time.count.notes: 318K/s
   *
-  * silent.time: 830K/s
+  * silent.time: 1193K/s
   *
-  * aware.time: 495K/s
+  * aware.time: 459K/s
   *
-  * aware.time.notes: 468K/s
+  * aware.time.notes: 431K/s
   *
-  * notice.time: 346K/s
+  * notice.time: 298K/s
   *
-  * notice.time.notes: 323K/s
+  * notice.time.notes: 313K/s
   *
-  * silent.count: 1143K/s
+  * silent.count: 2015K/s
   *
-  * aware.count: 552K/s
+  * aware.count: 499K/s
   *
-  * aware.count.notes: 541K/s
+  * aware.count.notes: 469K/s
   *
-  * notice.count: 394K/s
+  * notice.count: 335K/s
   *
-  * notice.count.notes: 384K/s
+  * notice.count.notes: 332K/s
   *
-  * silent: 1334K/s
+  * silent: 2017K/s
   *
-  * aware: 560K/s
+  * aware: 481K/s
   *
-  * aware.notes: 533K/s
+  * aware.notes: 465K/s
   *
-  * notice: 386K/s
+  * notice: 332K/s
   *
-  * notice.notes: 385K/s
+  * notice.notes: 305K/s
   */
-
+@Ignore
 class PerformanceTest extends AnyFunSuite {
   val service: ServiceGuard[IO] =
     TaskGuard[IO]("performance").service("actions").withMetricReport(policies.crontab(cron_1second))

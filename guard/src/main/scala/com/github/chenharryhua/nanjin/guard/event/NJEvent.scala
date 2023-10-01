@@ -67,31 +67,42 @@ object NJEvent extends DateTimeInstances {
 
   sealed trait ActionEvent extends NJEvent {
     def actionParams: ActionParams
-    def actionInfo: ActionInfo
+    def actionId: Int
+    def launchTime: FiniteDuration
     def landTime: FiniteDuration
 
     final override def timestamp: ZonedDateTime     = serviceParams.toZonedDateTime(landTime)
     final override def serviceParams: ServiceParams = actionParams.serviceParams
   }
 
-  final case class ActionStart(actionParams: ActionParams, actionInfo: ActionInfo, notes: Option[Json])
+  final case class ActionStart(
+    actionParams: ActionParams,
+    actionId: Int,
+    launchTime: FiniteDuration,
+    notes: Option[Json])
       extends ActionEvent {
-    override def landTime: FiniteDuration = actionInfo.launchTime
+    override def landTime: FiniteDuration = launchTime
   }
 
-  final case class ActionRetry(actionParams: ActionParams, actionInfo: ActionInfo, error: NJError, tick: Tick)
+  final case class ActionRetry(
+    actionParams: ActionParams,
+    actionId: Int,
+    launchTime: FiniteDuration,
+    error: NJError,
+    tick: Tick)
       extends ActionEvent {
     override def landTime: FiniteDuration = FiniteDuration(tick.acquire.toEpochMilli, TimeUnit.MILLISECONDS)
   }
 
   sealed trait ActionResultEvent extends ActionEvent {
     def notes: Option[Json]
-    final def took: Duration = (landTime - actionInfo.launchTime).toJava
+    final def took: Duration = (landTime - launchTime).toJava
   }
 
   final case class ActionFail(
     actionParams: ActionParams,
-    actionInfo: ActionInfo,
+    actionId: Int,
+    launchTime: FiniteDuration,
     landTime: FiniteDuration,
     error: NJError,
     notes: Option[Json])
@@ -99,7 +110,8 @@ object NJEvent extends DateTimeInstances {
 
   final case class ActionDone(
     actionParams: ActionParams,
-    actionInfo: ActionInfo,
+    actionId: Int,
+    launchTime: FiniteDuration,
     landTime: FiniteDuration,
     notes: Option[Json])
       extends ActionResultEvent
