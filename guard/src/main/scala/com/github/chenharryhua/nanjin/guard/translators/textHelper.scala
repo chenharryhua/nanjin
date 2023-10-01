@@ -91,7 +91,7 @@ private object textHelper extends localtime with localdatetime {
 
   def panicText(evt: ServicePanic): String = {
     val (time, dur) = localTimeAndDurationStr(evt.timestamp, evt.restartTime)
-    s"The service experienced a panic. Restart was scheduled at *$time*, roughly in $dur."
+    s"The service experienced a panic. Restart was scheduled at $time, roughly in $dur."
   }
 
   def retryText(evt: ActionRetry): String = {

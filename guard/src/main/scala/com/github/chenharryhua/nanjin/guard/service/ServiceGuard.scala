@@ -16,7 +16,7 @@ import com.github.chenharryhua.nanjin.guard.config.{
   ServiceConfig,
   ServiceName,
   ServiceParams,
-  ServicePolicy,
+  ServicePolicies,
   TaskParams
 }
 import com.github.chenharryhua.nanjin.guard.event.*
@@ -97,9 +97,10 @@ final class ServiceGuard[F[_]: Network] private[guard] (
     json <- brief
   } yield config(ServiceConfig(taskParams)).evalConfig(
     serviceName = serviceName,
-    serviceRestartPolicy = ServicePolicy(serviceRestartPolicy.show),
-    metricReportPolicy = ServicePolicy(metricReportPolicy.show),
-    metricResetPolicy = ServicePolicy(metricResetPolicy.show),
+    servicePolicies = ServicePolicies(
+      restart = serviceRestartPolicy.show,
+      metricReport = metricReportPolicy.show,
+      metricReset = metricResetPolicy.show),
     brief = ServiceBrief(json),
     zeroth = zeroth
   )

@@ -40,28 +40,28 @@ private object SimpleTextTranslator {
     s"""${eventTitle(evt)}
        |  ${serviceEvent(evt)}
        |  ${panicText(evt).replace("*", "")}
-       |  $CONSTANT_POLICY:${evt.serviceParams.serviceRestartPolicy}
+       |  $CONSTANT_POLICY:${evt.serviceParams.servicePolicies.restart}
        |  ${errorStr(evt.error)}
        |""".stripMargin
 
   private def serviceStopped(evt: ServiceStop): String =
     s"""${eventTitle(evt)}
        |  ${serviceEvent(evt)}
-       |  $CONSTANT_POLICY:${evt.serviceParams.serviceRestartPolicy}
+       |  $CONSTANT_POLICY:${evt.serviceParams.servicePolicies.restart}
        |  $CONSTANT_CAUSE:${evt.cause.show}
        |""".stripMargin
 
   private def metricReport(evt: MetricReport): String =
     s"""${eventTitle(evt)}
        |  ${serviceEvent(evt)}
-       |  $CONSTANT_POLICY:${evt.serviceParams.metricReportPolicy}
+       |  $CONSTANT_POLICY:${evt.serviceParams.servicePolicies.metricReport}
        |${yamlMetrics(evt.snapshot, evt.serviceParams.metricParams)}
        |""".stripMargin
 
   private def metricReset(evt: MetricReset): String =
     s"""${eventTitle(evt)}
        |  ${serviceEvent(evt)}
-       |  $CONSTANT_POLICY:${evt.serviceParams.metricResetPolicy}
+       |  $CONSTANT_POLICY:${evt.serviceParams.servicePolicies.metricReset}
        |${yamlMetrics(evt.snapshot, evt.serviceParams.metricParams)}
        |""".stripMargin
 

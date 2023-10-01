@@ -31,11 +31,12 @@ object MetricParams {
 }
 
 @JsonCodec
+final case class ServicePolicies(restart: String, metricReport: String, metricReset: String) // for display
+
+@JsonCodec
 final case class ServiceParams(
   serviceName: String,
-  serviceRestartPolicy: String, // for display
-  metricReportPolicy: String, // for display
-  metricResetPolicy: String, // for display
+  servicePolicies: ServicePolicies,
   threshold: Option[Duration],
   taskParams: TaskParams,
   metricParams: MetricParams,
@@ -63,18 +64,14 @@ object ServiceParams extends zoneddatetime with duration {
   def apply(
     serviceName: ServiceName,
     taskParams: TaskParams,
-    serviceRestartPolicy: ServicePolicy,
-    metricReportPolicy: ServicePolicy,
-    metricResetPolicy: ServicePolicy,
+    servicePolicies: ServicePolicies,
     brief: ServiceBrief,
     zeroth: Tick
   ): ServiceParams =
     ServiceParams(
       serviceName = serviceName.value,
       taskParams = taskParams,
-      serviceRestartPolicy = serviceRestartPolicy.value,
-      metricReportPolicy = metricReportPolicy.value,
-      metricResetPolicy = metricResetPolicy.value,
+      servicePolicies = servicePolicies,
       threshold = None,
       metricParams = MetricParams(
         namePrefix = "",
@@ -101,9 +98,7 @@ private object ServiceConfigF {
 
   def algebra(
     serviceName: ServiceName,
-    serviceRestartPolicy: ServicePolicy,
-    metricReportPolicy: ServicePolicy,
-    metricResetPolicy: ServicePolicy,
+    servicePolicies: ServicePolicies,
     brief: ServiceBrief,
     zeroth: Tick): Algebra[ServiceConfigF, ServiceParams] =
     Algebra[ServiceConfigF, ServiceParams] {
@@ -111,9 +106,7 @@ private object ServiceConfigF {
         ServiceParams(
           serviceName = serviceName,
           taskParams = taskParams,
-          serviceRestartPolicy = serviceRestartPolicy,
-          metricReportPolicy = metricReportPolicy,
-          metricResetPolicy = metricResetPolicy,
+          servicePolicies = servicePolicies,
           brief = brief,
           zeroth = zeroth
         )
@@ -144,18 +137,14 @@ final case class ServiceConfig(cont: Fix[ServiceConfigF]) extends AnyVal {
 
   def evalConfig(
     serviceName: ServiceName,
-    serviceRestartPolicy: ServicePolicy,
-    metricReportPolicy: ServicePolicy,
-    metricResetPolicy: ServicePolicy,
+    servicePolicies: ServicePolicies,
     brief: ServiceBrief,
     zeroth: Tick): ServiceParams =
     scheme
       .cata(
         algebra(
           serviceName = serviceName,
-          serviceRestartPolicy = serviceRestartPolicy,
-          metricReportPolicy = metricReportPolicy,
-          metricResetPolicy = metricResetPolicy,
+          servicePolicies = servicePolicies,
           brief = brief,
           zeroth = zeroth
         ))
