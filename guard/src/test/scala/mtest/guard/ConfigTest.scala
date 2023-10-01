@@ -22,27 +22,27 @@ class ConfigTest extends AnyFunSuite {
 
   test("1.counting") {
     val as = service.eventStream { agent =>
-      agent.action("cfg", _.notice.withCounting).retry(IO(1)).run
+      agent.action("cfg", _.bipartite.withCounting).retry(IO(1)).run
     }.filter(_.isInstanceOf[ActionStart]).compile.last.unsafeRunSync().get.asInstanceOf[ActionStart]
     assert(as.actionParams.isCounting)
   }
   test("2.without counting") {
     val as = service.eventStream { agent =>
-      agent.action("cfg", _.notice.withoutCounting).retry(IO(1)).run
+      agent.action("cfg", _.bipartite.withoutCounting).retry(IO(1)).run
     }.filter(_.isInstanceOf[ActionStart]).compile.last.unsafeRunSync().get.asInstanceOf[ActionStart]
     assert(!as.actionParams.isCounting)
   }
 
   test("3.timing") {
     val as = service.eventStream { agent =>
-      agent.action("cfg", _.notice.withTiming).retry(IO(1)).run
+      agent.action("cfg", _.bipartite.withTiming).retry(IO(1)).run
     }.filter(_.isInstanceOf[ActionStart]).compile.last.unsafeRunSync().get.asInstanceOf[ActionStart]
     assert(as.actionParams.isTiming)
   }
 
   test("4.without timing") {
     val as = service.eventStream { agent =>
-      agent.action("cfg", _.notice.withoutTiming).retry(IO(1)).run
+      agent.action("cfg", _.bipartite.withoutTiming).retry(IO(1)).run
     }.filter(_.isInstanceOf[ActionStart]).compile.last.unsafeRunSync().get.asInstanceOf[ActionStart]
     assert(!as.actionParams.isTiming)
   }
@@ -74,7 +74,7 @@ class ConfigTest extends AnyFunSuite {
 
   test("8.composable action config") {
     val as = service
-      .eventStream(_.action("abc", _.notice.withCounting).updateConfig(_.withTiming).delay(1).run)
+      .eventStream(_.action("abc", _.bipartite.withCounting).updateConfig(_.withTiming).delay(1).run)
       .filter(_.isInstanceOf[ActionStart])
       .compile
       .last

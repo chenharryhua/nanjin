@@ -24,7 +24,7 @@ class CancellationTest extends AnyFunSuite {
     val Vector(a, b, c, d) = serviceGuard
       .withRestartPolicy(constant_1hour)
       .eventStream(ag =>
-        ag.action("canceled", _.notice).withRetryPolicy(policy).retry(IO(1) <* IO.canceled).run)
+        ag.action("canceled", _.bipartite).withRetryPolicy(policy).retry(IO(1) <* IO.canceled).run)
       .map(_.asJson.noSpaces)
       .evalMap(e => IO(decode[NJEvent](e)).rethrow)
       .compile
@@ -98,10 +98,10 @@ class CancellationTest extends AnyFunSuite {
     val Vector(s, a, b, c, d, e) = serviceGuard
       .withRestartPolicy(constant_1hour)
       .eventStream { ag =>
-        ag.action("a1", _.notice).retry(IO(1)).run >>
-          ag.action("a2", _.notice).retry(IO(1)).run >>
+        ag.action("a1", _.bipartite).retry(IO(1)).run >>
+          ag.action("a2", _.bipartite).retry(IO(1)).run >>
           IO.canceled >>
-          ag.action("a3", _.notice).retry(IO(1)).run
+          ag.action("a3", _.bipartite).retry(IO(1)).run
       }
       .map(_.asJson.noSpaces)
       .evalMap(e => IO(decode[NJEvent](e)).rethrow)
@@ -123,10 +123,10 @@ class CancellationTest extends AnyFunSuite {
     val Vector(s, a, b, c, d, e, f) = serviceGuard
       .withRestartPolicy(policies.giveUp)
       .eventStream { ag =>
-        ag.action("a1", _.notice).retry(IO(1)).run >>
-          ag.action("a2", _.notice).withRetryPolicy(policy).retry(IO.raiseError(new Exception)).run >>
+        ag.action("a1", _.bipartite).retry(IO(1)).run >>
+          ag.action("a2", _.bipartite).withRetryPolicy(policy).retry(IO.raiseError(new Exception)).run >>
           IO.canceled >> // no chance to cancel since a2 never success
-          ag.action("a3", _.notice).retry(IO(1)).run
+          ag.action("a3", _.bipartite).retry(IO(1)).run
       }
       .map(_.asJson.noSpaces)
       .evalMap(e => IO(decode[NJEvent](e)).rethrow)
@@ -150,11 +150,11 @@ class CancellationTest extends AnyFunSuite {
       serviceGuard
         .withRestartPolicy(policies.giveUp)
         .eventStream { ag =>
-          val a1 = ag.action("complete-1", _.notice).retry(IO.sleep(1.second) >> IO(1)).run
+          val a1 = ag.action("complete-1", _.bipartite).retry(IO.sleep(1.second) >> IO(1)).run
           val a2 =
-            ag.action("fail-2", _.notice).withRetryPolicy(policy).retry(IO.raiseError[Int](new Exception)).run
-          val a3 = ag.action("cancel-3", _.notice).retry(never_fun).run
-          ag.action("supervisor", _.notice)
+            ag.action("fail-2", _.bipartite).withRetryPolicy(policy).retry(IO.raiseError[Int](new Exception)).run
+          val a3 = ag.action("cancel-3", _.bipartite).retry(never_fun).run
+          ag.action("supervisor", _.bipartite)
             .withRetryPolicy(policy2)
             .retry(IO.parSequenceN(5)(List(a1, a2, a3)))
             .run
@@ -199,7 +199,7 @@ class CancellationTest extends AnyFunSuite {
       .withRestartPolicy(constant_1hour)
       .eventStream { ag =>
         val a1 = ag
-          .action("exception", _.notice)
+          .action("exception", _.bipartite)
           .withRetryPolicy(policy)
           .retry(IO.raiseError[Int](new Exception))
           .run

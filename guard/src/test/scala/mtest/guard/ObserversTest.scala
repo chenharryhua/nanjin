@@ -40,7 +40,7 @@ class ObserversTest extends AnyFunSuite {
           box.getAndUpdate(_ + 1).map(_ % 3 == 0).ifM(IO(1), IO.raiseError[Int](new Exception("oops")))
         val meter = ag.meter("meter", StandardUnit.SECONDS).withCounting
         val action = ag
-          .action("nj_error", _.critical.notice.withTiming.withCounting)
+          .action("nj_error", _.critical.bipartite.withTiming.withCounting)
           .withRetryPolicy(policies.fixedRate(1.second).limited(1))
           .retry(job)
           .logInput(Json.fromString("input data"))

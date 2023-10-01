@@ -55,7 +55,7 @@ class ServiceTest extends AnyFunSuite {
     val Vector(s, a, b, c, d, e, f) = guard
       .withRestartPolicy(policies.jitter(30.minutes, 50.minutes))
       .eventStream { gd =>
-        gd.action("t", _.notice).withRetryPolicy(policy).retry(IO.raiseError(new Exception("oops"))).run
+        gd.action("t", _.bipartite).withRetryPolicy(policy).retry(IO.raiseError(new Exception("oops"))).run
       }
       .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
       .interruptAfter(5.seconds)
@@ -79,7 +79,7 @@ class ServiceTest extends AnyFunSuite {
     val List(a, b, c, d) = guard
       .withRestartPolicy(policies.crontab(Cron.unsafeParse("0-59 * * ? * *")))
       .eventStream { gd =>
-        gd.action("fatal error", _.notice)
+        gd.action("fatal error", _.bipartite)
           .withRetryPolicy(policy)
           .retry(IO.raiseError(new ControlThrowable("fatal error") {}))
           .run
@@ -100,7 +100,7 @@ class ServiceTest extends AnyFunSuite {
     val a :: b :: c :: d :: e :: f :: g :: _ = guard
       .withRestartPolicy(policies.giveUp)
       .eventStream { gd =>
-        gd.action("t", _.notice).withRetryPolicy(policy).delay(throw new Exception("oops")).run
+        gd.action("t", _.bipartite).withRetryPolicy(policy).delay(throw new Exception("oops")).run
 
       }
       .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
@@ -150,7 +150,7 @@ class ServiceTest extends AnyFunSuite {
 
   test("7.normal service stop after two operations") {
     val Vector(s, a, b, c, d, e) = guard
-      .eventStream(gd => gd.action("t", _.notice).delay(1).run >> gd.action("t", _.notice).retry(IO(2)).run)
+      .eventStream(gd => gd.action("t", _.bipartite).delay(1).run >> gd.action("t", _.bipartite).retry(IO(2)).run)
       .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
       .compile
       .toVector
@@ -170,9 +170,9 @@ class ServiceTest extends AnyFunSuite {
     val s2    = guard.service("s2")
 
     val ss1 = s1.eventStream(gd =>
-      gd.action("t", _.notice).retry(IO(1)).run >> gd.action("t", _.notice).retry(IO(2)).run)
+      gd.action("t", _.bipartite).retry(IO(1)).run >> gd.action("t", _.bipartite).retry(IO(2)).run)
     val ss2 = s2.eventStream(gd =>
-      gd.action("t", _.notice).retry(IO(1)).run >> gd.action("t", _.notice).retry(IO(2)).run)
+      gd.action("t", _.bipartite).retry(IO(1)).run >> gd.action("t", _.bipartite).retry(IO(2)).run)
 
     val vector = ss1.merge(ss2).compile.toVector.unsafeRunSync()
     assert(vector.count(_.isInstanceOf[ActionDone]) == 4)
@@ -184,7 +184,7 @@ class ServiceTest extends AnyFunSuite {
     val List(a, b, c, d, e, f, g) = guard
       .withRestartPolicy(policies.giveUp)
       .eventStream { gd =>
-        gd.action("t", _.notice).withRetryPolicy(policy).retry(IO.raiseError(new Exception)).run
+        gd.action("t", _.bipartite).withRetryPolicy(policy).retry(IO.raiseError(new Exception)).run
       }
       .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
       .compile
@@ -201,7 +201,7 @@ class ServiceTest extends AnyFunSuite {
 
   test("10.dummy agent should not block") {
     val dummy = TaskGuard.dummyAgent[IO]
-    dummy.use(_.action("test", _.notice).retry(IO(1)).run.replicateA(3)).unsafeRunSync()
+    dummy.use(_.action("test", _.bipartite).retry(IO(1)).run.replicateA(3)).unsafeRunSync()
   }
 
   test("11.policy start over") {

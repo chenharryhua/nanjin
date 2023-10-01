@@ -10,8 +10,8 @@ object PublishStrategy
     extends Enum[PublishStrategy] with CirceEnum[PublishStrategy] with CatsEnum[PublishStrategy] {
   override val values: IndexedSeq[PublishStrategy] = findValues
 
-  case object Notice extends PublishStrategy("notice") // publish start and done event
-  case object Aware extends PublishStrategy("aware") // publish done event
+  case object Bipartite extends PublishStrategy("bipartite") // publish start and done event
+  case object Unipartite extends PublishStrategy("unipartite") // publish done event
   case object Silent extends PublishStrategy("silent") // publish nothing
 }
 

@@ -102,7 +102,7 @@ final private class ReTry[F[_], IN, OUT](
         } yield res
     }
 
-  private def notice(in: IN): F[OUT] =
+  private def bipartite(in: IN): F[OUT] =
     (F.unique, F.realTime).flatMapN { (token, launchTime) =>
       val go =
         channel.send(ActionStart(actionParams, token.hash, launchTime, transInput.map(_(in)))).flatMap { _ =>
@@ -117,30 +117,28 @@ final private class ReTry[F[_], IN, OUT](
       F.onCancel(go, sendFailure(token, launchTime, in, ActionCancelException))
     }
 
-  private def aware(in: IN): F[OUT] =
+  private def unipartite(in: IN): F[OUT] =
     (F.unique, F.realTime).flatMapN { (token, launchTime) =>
-      val go =
-        F.tailRecM(zerothTickStatus) { status =>
-          arrow(in).attempt.flatMap[Either[TickStatus, OUT]] {
-            case Right(out)                => succeeding(token, launchTime, in, out)
-            case Left(ex) if !NonFatal(ex) => failing(token, launchTime, in, ex)
-            case Left(ex)                  => retrying(token, launchTime, in, ex, status)
-          }
+      val go = F.tailRecM(zerothTickStatus) { status =>
+        arrow(in).attempt.flatMap[Either[TickStatus, OUT]] {
+          case Right(out)                => succeeding(token, launchTime, in, out)
+          case Left(ex) if !NonFatal(ex) => failing(token, launchTime, in, ex)
+          case Left(ex)                  => retrying(token, launchTime, in, ex, status)
         }
+      }
       F.onCancel(go, sendFailure(token, launchTime, in, ActionCancelException))
     }
 
   private def silentTime(in: IN): F[OUT] =
     F.realTime.flatMap { launchTime =>
-      val go =
-        F.tailRecM(zerothTickStatus) { status =>
-          arrow(in).attempt.flatMap[Either[TickStatus, OUT]] {
-            case Right(out) =>
-              F.realTime.map { fd => measures.done(fd.minus(launchTime).toJava); Right(out) }
-            case Left(ex) if !NonFatal(ex) => F.unique.flatMap(failing(_, launchTime, in, ex))
-            case Left(ex)                  => F.unique.flatMap(retrying(_, launchTime, in, ex, status))
-          }
+      val go = F.tailRecM(zerothTickStatus) { status =>
+        arrow(in).attempt.flatMap[Either[TickStatus, OUT]] {
+          case Right(out) =>
+            F.realTime.map { fd => measures.done(fd.minus(launchTime).toJava); Right(out) }
+          case Left(ex) if !NonFatal(ex) => F.unique.flatMap(failing(_, launchTime, in, ex))
+          case Left(ex)                  => F.unique.flatMap(retrying(_, launchTime, in, ex, status))
         }
+      }
       F.onCancel(go, F.unique.flatMap(sendFailure(_, launchTime, in, ActionCancelException)))
     }
 
@@ -172,8 +170,8 @@ final private class ReTry[F[_], IN, OUT](
 
   val run: IN => F[OUT] =
     actionParams.publishStrategy match {
-      case PublishStrategy.Notice                            => notice
-      case PublishStrategy.Aware                             => aware
+      case PublishStrategy.Bipartite                         => bipartite
+      case PublishStrategy.Unipartite                        => unipartite
       case PublishStrategy.Silent if actionParams.isTiming   => silentTime
       case PublishStrategy.Silent if actionParams.isCounting => silentCount
       case PublishStrategy.Silent                            => silent

@@ -21,7 +21,7 @@ class HealthCheckTest extends AnyFunSuite {
       .service("normal")
       .withJmx(_.inDomain("abc"))
       .withMetricReport(policies.crontab(cron_2second))
-      .eventStream(gd => gd.action("cron", _.notice).retry(never_fun).run)
+      .eventStream(gd => gd.action("cron", _.bipartite).retry(never_fun).run)
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
       .unNone
       .interruptAfter(9.second)
@@ -42,8 +42,8 @@ class HealthCheckTest extends AnyFunSuite {
       .service("success-test")
       .withMetricReport(policies.crontab(cron_1second))
       .eventStream(gd =>
-        gd.action("a", _.notice).retry(IO(1)).run >>
-          gd.action("b", _.notice).retry(never_fun).run)
+        gd.action("a", _.bipartite).retry(IO(1)).run >>
+          gd.action("b", _.bipartite).retry(never_fun).run)
       .evalTap(console.simple[IO])
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
       .unNone
@@ -68,7 +68,7 @@ class HealthCheckTest extends AnyFunSuite {
         .withMetricRateTimeUnit(TimeUnit.MINUTES)
         .withMetricNamePrefix("nj_"))
       .eventStream(gd =>
-        gd.action("not/fail/yet", _.notice)
+        gd.action("not/fail/yet", _.bipartite)
           .withRetryPolicy(constant_1hour)
           .retry(IO.raiseError(new Exception))
           .run)

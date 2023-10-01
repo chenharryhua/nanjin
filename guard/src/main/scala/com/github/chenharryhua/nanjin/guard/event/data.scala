@@ -3,13 +3,8 @@ package com.github.chenharryhua.nanjin.guard.event
 import cats.Show
 import cats.effect.kernel.Resource.ExitCase
 import com.github.chenharryhua.nanjin.common.chrono.Tick
-import com.github.chenharryhua.nanjin.datetime.DateTimeInstances
 import io.circe.generic.JsonCodec
 import org.apache.commons.lang3.exception.ExceptionUtils
-
-import java.time.Duration
-import scala.concurrent.duration.FiniteDuration
-import scala.jdk.DurationConverters.ScalaDurationOps
 
 @JsonCodec
 final case class NJError(message: String, stackTrace: String)

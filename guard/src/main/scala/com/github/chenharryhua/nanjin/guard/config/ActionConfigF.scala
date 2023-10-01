@@ -64,9 +64,9 @@ private object ActionConfigF {
 final case class ActionConfig(cont: Fix[ActionConfigF]) extends AnyVal {
   import ActionConfigF.*
 
-  def notice: ActionConfig = ActionConfig(Fix(WithPublishStrategy(PublishStrategy.Notice, cont)))
-  def aware: ActionConfig  = ActionConfig(Fix(WithPublishStrategy(PublishStrategy.Aware, cont)))
-  def silent: ActionConfig = ActionConfig(Fix(WithPublishStrategy(PublishStrategy.Silent, cont)))
+  def bipartite: ActionConfig  = ActionConfig(Fix(WithPublishStrategy(PublishStrategy.Bipartite, cont)))
+  def unipartite: ActionConfig = ActionConfig(Fix(WithPublishStrategy(PublishStrategy.Unipartite, cont)))
+  def silent: ActionConfig     = ActionConfig(Fix(WithPublishStrategy(PublishStrategy.Silent, cont)))
 
   def critical: ActionConfig      = ActionConfig(Fix(WithImportance(value = Importance.Critical, cont)))
   def normal: ActionConfig        = ActionConfig(Fix(WithImportance(value = Importance.Normal, cont)))

@@ -87,7 +87,7 @@ class PerformanceTest extends AnyFunSuite {
     print("aware.time.count: ")
     var i: Int = 0
     service.eventStream { ag =>
-      val ts = ag.action("t", _.aware.withCounting.withTiming).retry(IO(i += 1)).run
+      val ts = ag.action("t", _.unipartite.withCounting.withTiming).retry(IO(i += 1)).run
       ts.foreverM.timeout(take).attempt
     }.compile.drain.unsafeRunSync()
     println(speed(i))
@@ -98,7 +98,7 @@ class PerformanceTest extends AnyFunSuite {
     var i: Int = 0
     service.eventStream { ag =>
       val ts = ag
-        .action("t", _.aware.withCounting.withTiming)
+        .action("t", _.unipartite.withCounting.withTiming)
         .retry(IO(i += 1))
         .logOutput(_ => "aware.time.count.notes".asJson)
         .run
@@ -111,7 +111,7 @@ class PerformanceTest extends AnyFunSuite {
     print("notice.time.count: ")
     var i: Int = 0
     service.eventStream { ag =>
-      val ts = ag.action("t", _.notice.withCounting.withTiming).retry(IO(i += 1)).run
+      val ts = ag.action("t", _.bipartite.withCounting.withTiming).retry(IO(i += 1)).run
       ts.foreverM.timeout(take).attempt
     }.compile.drain.unsafeRunSync()
     println(speed(i))
@@ -122,7 +122,7 @@ class PerformanceTest extends AnyFunSuite {
     var i: Int = 0
     service.eventStream { ag =>
       val ts = ag
-        .action("t", _.notice.withCounting.withTiming)
+        .action("t", _.bipartite.withCounting.withTiming)
         .retry(IO(i += 1))
         .logOutput(_ => "notice.time.count.notes".asJson)
         .run
@@ -145,7 +145,7 @@ class PerformanceTest extends AnyFunSuite {
     print("aware.time: ")
     var i: Int = 0
     service.eventStream { ag =>
-      val ts = ag.action("t", _.aware.withTiming.withoutCounting).retry(IO(i += 1)).run
+      val ts = ag.action("t", _.unipartite.withTiming.withoutCounting).retry(IO(i += 1)).run
       ts.foreverM.timeout(take).attempt
     }.compile.drain.unsafeRunSync()
     println(speed(i))
@@ -156,7 +156,7 @@ class PerformanceTest extends AnyFunSuite {
     var i: Int = 0
     service.eventStream { ag =>
       val ts = ag
-        .action("t", _.aware.withTiming.withoutCounting)
+        .action("t", _.unipartite.withTiming.withoutCounting)
         .retry(IO(i += 1))
         .logOutput(_ => "aware.time.notes".asJson)
         .run
@@ -170,7 +170,7 @@ class PerformanceTest extends AnyFunSuite {
     var i = 0
     service.eventStream { ag =>
       val ts =
-        ag.action("t", _.notice.withTiming.withoutCounting).retry(IO(i += 1)).run
+        ag.action("t", _.bipartite.withTiming.withoutCounting).retry(IO(i += 1)).run
       ts.foreverM.timeout(take).attempt
     }.compile.drain.unsafeRunSync()
     println(speed(i))
@@ -182,7 +182,7 @@ class PerformanceTest extends AnyFunSuite {
     var i = 0
     service.eventStream { ag =>
       val ts =
-        ag.action("t", _.notice.withTiming.withoutCounting)
+        ag.action("t", _.bipartite.withTiming.withoutCounting)
           .retry(IO(i += 1))
           .logOutput(_ => "notice.time.notes".asJson)
           .run
@@ -207,7 +207,7 @@ class PerformanceTest extends AnyFunSuite {
     print("aware.count: ")
     var i: Int = 0
     service.eventStream { ag =>
-      val ts = ag.action("t", _.aware.withoutTiming.withCounting).retry(IO(i += 1)).run
+      val ts = ag.action("t", _.unipartite.withoutTiming.withCounting).retry(IO(i += 1)).run
       ts.foreverM.timeout(take).attempt
     }.compile.drain.unsafeRunSync()
     println(speed(i))
@@ -219,7 +219,7 @@ class PerformanceTest extends AnyFunSuite {
     var i: Int = 0
     service.eventStream { ag =>
       val ts = ag
-        .action("t", _.aware.withoutTiming.withCounting)
+        .action("t", _.unipartite.withoutTiming.withCounting)
         .retry(IO(i += 1))
         .logOutput(_ => "aware.counting.notes".asJson)
         .run
@@ -234,7 +234,7 @@ class PerformanceTest extends AnyFunSuite {
     var i = 0
     service.eventStream { ag =>
       val ts =
-        ag.action("t", _.notice.withoutTiming.withCounting).retry(IO(i += 1)).run
+        ag.action("t", _.bipartite.withoutTiming.withCounting).retry(IO(i += 1)).run
       ts.foreverM.timeout(take).attempt
     }.compile.drain.unsafeRunSync()
     println(speed(i))
@@ -246,7 +246,7 @@ class PerformanceTest extends AnyFunSuite {
     var i = 0
     service.eventStream { ag =>
       val ts =
-        ag.action("t", _.notice.withoutTiming.withCounting)
+        ag.action("t", _.bipartite.withoutTiming.withCounting)
           .retry(IO(i += 1))
           .logOutput(_ => "notice.counting.notes".asJson)
           .run
@@ -271,7 +271,7 @@ class PerformanceTest extends AnyFunSuite {
     print("aware: ")
     var i: Int = 0
     service.eventStream { ag =>
-      val ts = ag.action("t", _.aware.withoutTiming.withoutCounting).retry(IO(i += 1)).run
+      val ts = ag.action("t", _.unipartite.withoutTiming.withoutCounting).retry(IO(i += 1)).run
       ts.foreverM.timeout(take).attempt
     }.compile.drain.unsafeRunSync()
     println(speed(i))
@@ -282,7 +282,7 @@ class PerformanceTest extends AnyFunSuite {
     var i: Int = 0
     service.eventStream { ag =>
       val ts = ag
-        .action("t", _.aware.withoutTiming.withoutCounting)
+        .action("t", _.unipartite.withoutTiming.withoutCounting)
         .retry(IO(i += 1))
         .logOutput(_ => "aware.notes".asJson)
         .run
@@ -296,7 +296,7 @@ class PerformanceTest extends AnyFunSuite {
     print("notice: ")
     service.eventStream { ag =>
       val ts =
-        ag.action("t", _.notice.withoutTiming.withoutCounting).retry(IO(i += 1)).run
+        ag.action("t", _.bipartite.withoutTiming.withoutCounting).retry(IO(i += 1)).run
       ts.foreverM.timeout(take).attempt
     }.compile.drain.unsafeRunSync()
     println(speed(i))
@@ -308,7 +308,7 @@ class PerformanceTest extends AnyFunSuite {
     print("notice.notes: ")
     service.eventStream { ag =>
       val ts =
-        ag.action("t", _.notice.withoutTiming.withoutCounting)
+        ag.action("t", _.bipartite.withoutTiming.withoutCounting)
           .retry(IO(i += 1))
           .logOutput(_ => "notice.notes".asJson)
           .run
