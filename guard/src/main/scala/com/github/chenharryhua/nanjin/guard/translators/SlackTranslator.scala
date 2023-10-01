@@ -64,7 +64,7 @@ private object SlackTranslator extends all {
             MarkdownSection(s":rocket: *${eventTitle(evt)}*"),
             hostServiceSection(evt.serviceParams),
             upTimeSection(evt),
-            MarkdownSection(s"""|*$CONSTANT_POLICY:* ${evt.serviceParams.restartPolicy}
+            MarkdownSection(s"""|*$CONSTANT_POLICY:* ${evt.serviceParams.serviceRestartPolicy}
                                 |*$CONSTANT_SERVICE_ID:* ${evt.serviceParams.serviceId.show}""".stripMargin)
           )
         )) ++ evt.serviceParams.brief.map(bf => Attachment(color = color, blocks = List(brief(bf))))
@@ -82,7 +82,7 @@ private object SlackTranslator extends all {
             MarkdownSection(":alarm:" + panicText(evt)),
             hostServiceSection(evt.serviceParams),
             upTimeSection(evt),
-            MarkdownSection(s"""|*$CONSTANT_POLICY:* ${evt.serviceParams.restartPolicy}
+            MarkdownSection(s"""|*$CONSTANT_POLICY:* ${evt.serviceParams.serviceRestartPolicy}
                                 |*$CONSTANT_SERVICE_ID:* ${evt.serviceParams.serviceId.show}""".stripMargin)
           )
         ),
@@ -104,8 +104,8 @@ private object SlackTranslator extends all {
             MarkdownSection(s":octagonal_sign: *${eventTitle(evt)}*"),
             hostServiceSection(evt.serviceParams),
             upTimeSection(evt),
-            MarkdownSection(s"""|*$CONSTANT_SERVICE_ID:* ${evt.serviceParams.serviceId.show}
-                                |*$CONSTANT_POLICY:* ${evt.serviceParams.restartPolicy}
+            MarkdownSection(s"""|*$CONSTANT_POLICY:* ${evt.serviceParams.serviceRestartPolicy}
+                                |*$CONSTANT_SERVICE_ID:* ${evt.serviceParams.serviceId.show}
                                 |*$CONSTANT_CAUSE:* ${abbreviate(evt.cause.show)}""".stripMargin)
           )
         )

@@ -96,10 +96,12 @@ final class ServiceGuard[F[_]: Network] private[guard] (
   private def initStatus(zeroth: Tick): F[ServiceParams] = for {
     json <- brief
   } yield config(ServiceConfig(taskParams)).evalConfig(
-    serviceName,
-    ServicePolicy(serviceRestartPolicy.show),
-    ServiceBrief(json),
-    zeroth
+    serviceName = serviceName,
+    serviceRestartPolicy = ServicePolicy(serviceRestartPolicy.show),
+    metricReportPolicy = ServicePolicy(metricReportPolicy.show),
+    metricResetPolicy = ServicePolicy(metricResetPolicy.show),
+    brief = ServiceBrief(json),
+    zeroth = zeroth
   )
 
   def dummyAgent(implicit C: Console[F]): Resource[F, GeneralAgent[F]] = for {

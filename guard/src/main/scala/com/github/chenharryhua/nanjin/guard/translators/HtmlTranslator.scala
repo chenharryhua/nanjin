@@ -74,7 +74,7 @@ private object HtmlTranslator extends all {
       h3(style := coloring(evt))(eventTitle(evt)),
       table(hostServiceTable(evt)),
       p(b(panicText(evt).replace("*", ""))),
-      p(b(s"$CONSTANT_POLICY: "), evt.serviceParams.restartPolicy),
+      p(b(s"$CONSTANT_POLICY: "), evt.serviceParams.serviceRestartPolicy),
       causeText(evt.error)
     )
 
