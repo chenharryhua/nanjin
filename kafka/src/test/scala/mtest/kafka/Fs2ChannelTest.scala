@@ -62,6 +62,7 @@ class Fs2ChannelTest extends AnyFunSuite {
         .take(1)
         .map(_.record)
         .map(r => topic.topicDef.consumerFormat.toRecord(r))
+        .timeout(3.seconds)
         .compile
         .toList
         .unsafeRunSync()
