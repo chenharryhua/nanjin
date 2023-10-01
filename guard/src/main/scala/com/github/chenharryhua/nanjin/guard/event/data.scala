@@ -51,12 +51,3 @@ object ServiceStopCause {
   case object ByCancellation extends ServiceStopCause(1)
   final case class ByException(msg: String) extends ServiceStopCause(2)
 }
-
-@JsonCodec
-final case class ActionInfo(actionId: Int, launchTime: FiniteDuration) {
-  def took(landTime: FiniteDuration): Duration = landTime.minus(launchTime).toJava
-}
-
-object ActionInfo extends DateTimeInstances {
-  implicit final val showActionInfo: Show[ActionInfo] = cats.derived.semiauto.show[ActionInfo]
-}

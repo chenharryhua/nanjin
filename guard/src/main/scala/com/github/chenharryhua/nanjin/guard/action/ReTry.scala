@@ -95,8 +95,8 @@ final private class ReTry[F[_], IN, OUT](
             case Some(ts) =>
               for {
                 _ <- channel.send(ActionRetry(actionParams, token.hash, launchTime, NJError(ex), ts.tick))
-                _ = measures.countRetry()
                 _ <- F.sleep(ts.tick.snooze.toScala)
+                _ = measures.countRetry()
               } yield Left(ts)
           }
         } yield res

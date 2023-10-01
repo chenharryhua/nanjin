@@ -71,8 +71,8 @@ final class SlackObserver[F[_]: Clock](
             case ActionStart(ap, _, _, _)      => ap.importance === Importance.Critical
             case ActionDone(ap, _, _, _, _)    => ap.importance === Importance.Critical
             case ActionRetry(ap, _, _, _, _)   => ap.importance > Importance.Insignificant
-            case ActionFail(ap, _, _, _,  _,_) => ap.importance > Importance.Trivial
-            case _                          => true
+            case ActionFail(ap, _, _, _, _, _) => ap.importance > Importance.Trivial
+            case _                             => true
           }.translate(e).flatMap(_.traverse(msg => publish(sns, snsArn, msg.asJson.noSpaces))))
         .onFinalizeCase(
           ofm.terminated(_).flatMap(_.traverse(msg => publish(sns, snsArn, msg.asJson.noSpaces))).void)
