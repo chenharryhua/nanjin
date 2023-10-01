@@ -71,7 +71,7 @@ final case class ActionConfig(cont: Fix[ActionConfigF]) extends AnyVal {
   def critical: ActionConfig      = ActionConfig(Fix(WithImportance(value = Importance.Critical, cont)))
   def normal: ActionConfig        = ActionConfig(Fix(WithImportance(value = Importance.Normal, cont)))
   def insignificant: ActionConfig = ActionConfig(Fix(WithImportance(value = Importance.Insignificant, cont)))
-  def trivial: ActionConfig       = ActionConfig(Fix(WithImportance(value = Importance.Trivial, cont)))
+  def suppressed: ActionConfig    = ActionConfig(Fix(WithImportance(value = Importance.Suppressed, cont)))
 
   def withCounting: ActionConfig    = ActionConfig(Fix(WithCounting(value = true, cont)))
   def withTiming: ActionConfig      = ActionConfig(Fix(WithTiming(value = true, cont)))

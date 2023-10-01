@@ -301,7 +301,7 @@ class RetryTest extends AnyFunSuite {
     val List(a, b, c, d) = serviceGuard
       .withRestartPolicy(policies.giveUp)
       .eventStream(
-        _.action("fatal", _.critical.trivial.normal.notice)
+        _.action("fatal", _.critical.suppressed.normal.notice)
           .withRetryPolicy(constant_1second)
           .retry(IO.raiseError(new ControlThrowable("fatal error") {}))
           .run)

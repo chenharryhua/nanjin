@@ -81,7 +81,7 @@ object NJEvent extends DateTimeInstances {
     launchTime: FiniteDuration,
     notes: Option[Json])
       extends ActionEvent {
-    override def landTime: FiniteDuration = launchTime
+    override val landTime: FiniteDuration = launchTime
   }
 
   final case class ActionRetry(
@@ -91,7 +91,7 @@ object NJEvent extends DateTimeInstances {
     error: NJError,
     tick: Tick)
       extends ActionEvent {
-    override def landTime: FiniteDuration = FiniteDuration(tick.acquire.toEpochMilli, TimeUnit.MILLISECONDS)
+    override val landTime: FiniteDuration = FiniteDuration(tick.acquire.toEpochMilli, TimeUnit.MILLISECONDS)
   }
 
   sealed trait ActionResultEvent extends ActionEvent {

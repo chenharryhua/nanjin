@@ -25,7 +25,7 @@ object Importance
   case object Critical extends Importance(4, "critical")
   case object Normal extends Importance(3, "normal")
   case object Insignificant extends Importance(2, "insignificant")
-  case object Trivial extends Importance(1, "trivial")
+  case object Suppressed extends Importance(1, "suppressed")
 }
 
 sealed abstract class AlertLevel(override val value: Int, val entryName: String)
