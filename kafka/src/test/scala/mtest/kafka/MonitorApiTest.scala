@@ -39,6 +39,7 @@ class MonitorApiTest extends AnyFunSuite {
     .through(st.produce.pipe)
 
   test("monitor") {
+    ctx.schemaRegistry.register(topic.topicDef).attempt.unsafeRunSync()
     sender
       .concurrently(ctx.monitor(topic.topicName).debug())
       .interruptAfter(8.seconds)
