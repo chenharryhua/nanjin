@@ -5,20 +5,21 @@ import cats.data.Reader
 import cats.effect.kernel.{Async, Sync}
 import cats.effect.std.UUIDGen
 import cats.implicits.toShow
+import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameL}
 import com.github.chenharryhua.nanjin.kafka.streaming.{KafkaStreamsBuilder, NJStateStore}
-import com.github.chenharryhua.nanjin.messages.kafka.codec.{gr2Jackson, KJson, NJAvroCodec, SerdeOf}
+import com.github.chenharryhua.nanjin.messages.kafka.codec.*
 import fs2.Stream
 import fs2.kafka.*
 import io.circe.Json
+import io.circe.parser.parse
 import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient
 import io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig
 import org.apache.kafka.common.serialization.Serde
 import org.apache.kafka.streams.scala.StreamsBuilder
 
 import scala.util.Try
-
 final class KafkaContext[F[_]](val settings: KafkaSettings)
     extends UpdateConfig[KafkaSettings, KafkaContext[F]] with Serializable {
 
@@ -86,17 +87,32 @@ final class KafkaContext[F[_]](val settings: KafkaSettings)
   def monitor(topicName: TopicNameL)(implicit F: Async[F]): Stream[F, String] =
     monitor(TopicName(topicName))
 
+  private def bytesProducerSettings(implicit F: Sync[F]): ProducerSettings[F, Array[Byte], Array[Byte]] =
+    ProducerSettings[F, Array[Byte], Array[Byte]](Serializer[F, Array[Byte]], Serializer[F, Array[Byte]])
+      .withProperties(settings.producerSettings.properties)
+
   def sink(topicName: TopicName)(implicit F: Sync[F]): NJGenericRecordSink[F] =
     new NJGenericRecordSink[F](
       topicName,
-      ProducerSettings[F, Array[Byte], Array[Byte]](Serializer[F, Array[Byte]], Serializer[F, Array[Byte]])
-        .withProperties(settings.producerSettings.properties),
+      bytesProducerSettings,
       schemaRegistry.fetchAvroSchema(topicName),
       settings.schemaRegistrySettings
     )
 
   def sink(topicName: TopicNameL)(implicit F: Sync[F]): NJGenericRecordSink[F] =
     sink(TopicName(topicName))
+
+  def produce(jackson: String)(implicit F: Async[F]): F[ProducerResult[Array[Byte], Array[Byte]]] =
+    for {
+      tn <- F.fromEither(parse(jackson).flatMap(_.hcursor.get[String]("topic")))
+      topicName <- F.fromEither(TopicName.from(tn))
+      schemaPair <- schemaRegistry.fetchAvroSchema(topicName)
+      gr <- F.fromTry(jackson2GR(schemaPair.consumerSchema, jackson))
+      builder = new PushGenericRecord(settings.schemaRegistrySettings, topicName, schemaPair)
+      res <- KafkaProducer
+        .resource(bytesProducerSettings)
+        .use(_.produce(ProducerRecords.one(builder.fromGenericRecord(gr))).flatten)
+    } yield res
 
   def store[K: SerdeOf, V: SerdeOf](storeName: TopicName): NJStateStore[K, V] =
     NJStateStore[K, V](

@@ -15,7 +15,7 @@ object textConstants {
   @inline final val CONSTANT_POLICY: String      = "Policy"
   @inline final val CONSTANT_CAUSE: String       = "Cause"
   @inline final val CONSTANT_TOOK: String        = "Took"
-  @inline final val CONSTANT_DELAYED: String     = "Delayed"
+  @inline final val CONSTANT_SNOOZE: String      = "Snooze"
   @inline final val CONSTANT_UPTIME: String      = "UpTime"
   @inline final val CONSTANT_BRIEF: String       = "Brief"
   @inline final val CONSTANT_METRICS: String     = "Metrics"
@@ -24,8 +24,7 @@ object textConstants {
   @inline final val CONSTANT_SERVICE_ID: String  = "ServiceID"
   @inline final val CONSTANT_HOST: String        = "Host"
   @inline final val CONSTANT_TASK: String        = "Task"
-  @inline final val CONSTANT_IMPORTANCE: String  = "Importance"
-  @inline final val CONSTANT_STRATEGY: String    = "Strategy"
+  @inline final val CONSTANT_CONFIG: String      = "Config"
   @inline final val CONSTANT_MEASUREMENT: String = "Measurement"
 }
 
@@ -40,10 +39,10 @@ private object textHelper extends localtime with localdatetime {
     def name(mn: MetricName): String = s"[${mn.digest}][${mn.value}]"
 
     evt match {
-      case NJEvent.ActionStart(ap, _, _)      => s"Start Action ${name(ap.metricName)}"
-      case NJEvent.ActionRetry(ap, _, _, _)   => s"Action Retrying ${name(ap.metricName)}"
-      case NJEvent.ActionFail(ap, _, _, _, _) => s"Action Failed ${name(ap.metricName)}"
-      case NJEvent.ActionDone(ap, _, _, _)    => s"Action Done ${name(ap.metricName)}"
+      case NJEvent.ActionStart(ap, _, _, _)      => s"Start Action ${name(ap.metricName)}"
+      case NJEvent.ActionRetry(ap, _, _, _, _)   => s"Action Retrying ${name(ap.metricName)}"
+      case NJEvent.ActionFail(ap, _, _, _, _, _) => s"Action Failed ${name(ap.metricName)}"
+      case NJEvent.ActionDone(ap, _, _, _, _)    => s"Action Done ${name(ap.metricName)}"
 
       case NJEvent.ServiceAlert(metricName, _, _, al, _) =>
         s"Alert ${al.productPrefix} ${name(metricName)}"
@@ -92,13 +91,12 @@ private object textHelper extends localtime with localdatetime {
 
   def panicText(evt: ServicePanic): String = {
     val (time, dur) = localTimeAndDurationStr(evt.timestamp, evt.restartTime)
-    s"The service experienced a panic. Restart was scheduled at *$time*, roughly in $dur."
+    s"The service experienced a panic. Restart was scheduled at $time, roughly in $dur."
   }
 
   def retryText(evt: ActionRetry): String = {
     val localTs: LocalTime =
-      evt.serviceParams.toZonedDateTime(evt.tick.wakeup).toLocalTime.truncatedTo(ChronoUnit.SECONDS)
-    val next = fmt.format(evt.tick.snooze)
-    s"*${toOrdinalWords(evt.tick.index)}* retry will be at $localTs, in $next"
+      evt.tick.wakeup.atZone(evt.tick.zoneId).toLocalTime.truncatedTo(ChronoUnit.SECONDS)
+    s"${toOrdinalWords(evt.tick.index)} retry was scheduled at $localTs"
   }
 }

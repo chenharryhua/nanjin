@@ -73,8 +73,8 @@ private object HtmlTranslator extends all {
     div(
       h3(style := coloring(evt))(eventTitle(evt)),
       table(hostServiceTable(evt)),
-      p(b(panicText(evt).replace("*", ""))),
-      p(b(s"$CONSTANT_POLICY: "), evt.serviceParams.restartPolicy),
+      p(b(panicText(evt))),
+      p(b(s"$CONSTANT_POLICY: "), evt.serviceParams.servicePolicies.restart),
       causeText(evt.error)
     )
 
@@ -109,16 +109,11 @@ private object HtmlTranslator extends all {
 
   private def actionStart(evt: ActionStart): Text.TypedTag[String] = {
     val start = frag(
-      tr(
-        td(b(CONSTANT_ACTION_ID)),
-        td(b(CONSTANT_MEASUREMENT)),
-        td(b(CONSTANT_IMPORTANCE)),
-        td(b(CONSTANT_STRATEGY))),
+      tr(td(b(CONSTANT_ACTION_ID)), td(b(CONSTANT_MEASUREMENT)), td(b(CONSTANT_CONFIG))),
       tr(
         td(evt.actionId),
         td(evt.actionParams.metricName.measurement),
-        td(evt.actionParams.importance.entryName),
-        td(evt.actionParams.publishStrategy.entryName)
+        td(evt.actionParams.configStr)
       )
     )
     div(
@@ -131,22 +126,17 @@ private object HtmlTranslator extends all {
   private def actionRetrying(evt: ActionRetry): Text.TypedTag[String] = {
 
     val retry = frag(
-      tr(
-        td(b(CONSTANT_ACTION_ID)),
-        td(b(CONSTANT_MEASUREMENT)),
-        td(b(CONSTANT_IMPORTANCE)),
-        td(b(CONSTANT_STRATEGY))),
+      tr(td(b(CONSTANT_ACTION_ID)), td(b(CONSTANT_MEASUREMENT)), td(b(CONSTANT_CONFIG))),
       tr(
         td(evt.actionId),
         td(evt.actionParams.metricName.measurement),
-        td(evt.actionParams.importance.entryName),
-        td(evt.actionParams.publishStrategy.entryName)
+        td(evt.actionParams.configStr)
       )
     )
     div(
       h3(style := coloring(evt))(eventTitle(evt)),
       table(hostServiceTable(evt), retry),
-      p(b(retryText(evt).replace("*", ""))),
+      p(b(retryText(evt))),
       p(b(s"$CONSTANT_POLICY: "), evt.actionParams.retryPolicy),
       causeText(evt.error)
     )
@@ -157,15 +147,13 @@ private object HtmlTranslator extends all {
       tr(
         td(b(CONSTANT_ACTION_ID)),
         td(b(CONSTANT_MEASUREMENT)),
-        td(b(CONSTANT_IMPORTANCE)),
-        td(b(CONSTANT_STRATEGY)),
+        td(b(CONSTANT_CONFIG)),
         td(b(CONSTANT_TOOK))
       ),
       tr(
         td(evt.actionId),
         td(evt.actionParams.metricName.measurement),
-        td(evt.actionParams.importance.entryName),
-        td(evt.actionParams.publishStrategy.entryName),
+        td(evt.actionParams.configStr),
         td(tookText(evt.took))
       )
     )

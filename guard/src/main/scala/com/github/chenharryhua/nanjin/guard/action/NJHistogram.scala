@@ -32,7 +32,7 @@ final class NJHistogram[F[_]] private[guard] (
     metricRegistry.remove(counterName)
   }.void
 
-  def withCounting: NJHistogram[F] = new NJHistogram[F](name, metricRegistry, unit, true)
+  def counted: NJHistogram[F] = new NJHistogram[F](name, metricRegistry, unit, true)
 
   def unsafeUpdate(num: Long): Unit = {
     histogram.update(num)

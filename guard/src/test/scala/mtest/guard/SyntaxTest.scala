@@ -11,7 +11,7 @@ class SyntaxTest extends AnyFunSuite {
     TaskGuard[IO]("task")
       .service("service")
       .eventStream { agent =>
-        val ag = agent.action("tmp", _.aware)
+        val ag = agent.action("tmp", _.unipartite)
         val a0 = ag("a0").retry(unit_fun).run
         val a1 = ag("a1").retry(fun1 _).run(1)
         val a2 = ag("a2").retry(fun2 _).run((1, 2))

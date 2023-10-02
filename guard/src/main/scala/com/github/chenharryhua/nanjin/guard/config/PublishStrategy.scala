@@ -10,8 +10,8 @@ object PublishStrategy
     extends Enum[PublishStrategy] with CirceEnum[PublishStrategy] with CatsEnum[PublishStrategy] {
   override val values: IndexedSeq[PublishStrategy] = findValues
 
-  case object Notice extends PublishStrategy("notice") // publish start and done event
-  case object Aware extends PublishStrategy("aware") // publish done event
+  case object Bipartite extends PublishStrategy("bipartite") // publish start and done event
+  case object Unipartite extends PublishStrategy("unipartite") // publish done event
   case object Silent extends PublishStrategy("silent") // publish nothing
 }
 
@@ -25,7 +25,7 @@ object Importance
   case object Critical extends Importance(4, "critical")
   case object Normal extends Importance(3, "normal")
   case object Insignificant extends Importance(2, "insignificant")
-  case object Trivial extends Importance(1, "trivial")
+  case object Suppressed extends Importance(1, "suppressed")
 }
 
 sealed abstract class AlertLevel(override val value: Int, val entryName: String)

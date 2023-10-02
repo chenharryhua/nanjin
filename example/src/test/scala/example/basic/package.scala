@@ -1,15 +1,14 @@
 package example
 import cats.effect.IO
-import com.github.chenharryhua.nanjin.common.chrono.{Policy, crontabs, policies}
-import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
+import com.github.chenharryhua.nanjin.common.chrono.{crontabs, policies, Policy}
 import com.github.chenharryhua.nanjin.spark.table.{LoadTable, NJTable}
 import com.github.chenharryhua.nanjin.spark.{AvroTypedEncoder, SparkSessionExt}
 import com.github.chenharryhua.nanjin.terminals.NJPath
 import com.sksamuel.avro4s.{AvroSchema, FromRecord, ToRecord}
+import eu.timepit.refined.auto.*
 import frameless.TypedEncoder
 import fs2.Stream
 import org.apache.avro.Schema
-import eu.timepit.refined.auto.*
 
 package object basic {
   val size: Long              = 10_000
@@ -17,7 +16,7 @@ package object basic {
 
   val root: NJPath = NJPath("./data/example/basic")
 
-  val policy: Policy = policies.crontab(crontabs.secondly, sydneyTime)
+  val policy: Policy = policies.crontab(crontabs.secondly)
 
   implicit val te: TypedEncoder[Tiger] = shapeless.cachedImplicit
 

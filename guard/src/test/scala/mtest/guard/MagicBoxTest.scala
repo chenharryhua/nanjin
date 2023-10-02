@@ -76,7 +76,7 @@ class MagicBoxTest extends AnyFunSuite {
         val box = agent.signalBox(IO(10))
         for {
           _ <- box.updateAndGet(_ + 1)
-          _ <- agent.action("publish", _.aware).retry(box.get).logOutput(_.asJson).run
+          _ <- agent.action("publish", _.unipartite).retry(box.get).logOutput(_.asJson).run
           _ <- IO.raiseError[Int](new Exception)
         } yield ()
       }.debug().take(7).compile.toList.unsafeRunSync()
@@ -95,7 +95,7 @@ class MagicBoxTest extends AnyFunSuite {
         val box = agent.atomicBox(IO(10))
         for {
           _ <- box.getAndUpdate(_ + 1)
-          _ <- agent.action("publish", _.aware).retry(box.get).logOutput(_.asJson).run
+          _ <- agent.action("publish", _.unipartite).retry(box.get).logOutput(_.asJson).run
           _ <- IO.raiseError[Int](new Exception)
         } yield ()
       }.take(7).compile.toList.unsafeRunSync()

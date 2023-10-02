@@ -58,7 +58,7 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
       .kafkaBatchRDD(kafkaContext.settings.consumerSettings, sparkSession, range)
       .flatMap(elem => gr2Jackson(builder.toGenericRecord(elem)).toOption)
 
-    new RddFileHoarder(grRdd).text(path).withSuffix("jackson.json").run
+    new RddFileHoarder(grRdd).text(path).append.withSuffix("jackson.json").run
   }
 
   def dump(topicName: TopicNameL, path: NJPath)(implicit F: Async[F]): F[Unit] =

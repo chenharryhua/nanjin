@@ -25,8 +25,8 @@ final class NJUdpClient[F[_]: Network](
   isCounting: Boolean,
   isHistogram: Boolean)(implicit F: Async[F]) {
 
-  def withHistogram: NJUdpClient[F] = new NJUdpClient[F](name, metricRegistry, isCounting, isHistogram = true)
-  def withCounting: NJUdpClient[F]  = new NJUdpClient[F](name, metricRegistry, isCounting = true, isHistogram)
+  def histogram: NJUdpClient[F] = new NJUdpClient[F](name, metricRegistry, isCounting, isHistogram = true)
+  def counted: NJUdpClient[F]   = new NJUdpClient[F](name, metricRegistry, isCounting = true, isHistogram)
 
   private class Writer(socket: DatagramSocket[F], remote: SocketAddress[IpAddress]) {
     private val histogramId: MetricID =

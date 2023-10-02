@@ -16,7 +16,7 @@ import com.github.chenharryhua.nanjin.guard.config.{
   ServiceConfig,
   ServiceName,
   ServiceParams,
-  ServicePolicy,
+  ServicePolicies,
   TaskParams
 }
 import com.github.chenharryhua.nanjin.guard.event.*
@@ -96,10 +96,13 @@ final class ServiceGuard[F[_]: Network] private[guard] (
   private def initStatus(zeroth: Tick): F[ServiceParams] = for {
     json <- brief
   } yield config(ServiceConfig(taskParams)).evalConfig(
-    serviceName,
-    ServicePolicy(serviceRestartPolicy.show),
-    ServiceBrief(json),
-    zeroth
+    serviceName = serviceName,
+    servicePolicies = ServicePolicies(
+      restart = serviceRestartPolicy.show,
+      metricReport = metricReportPolicy.show,
+      metricReset = metricResetPolicy.show),
+    brief = ServiceBrief(json),
+    zeroth = zeroth
   )
 
   def dummyAgent(implicit C: Console[F]): Resource[F, GeneralAgent[F]] = for {

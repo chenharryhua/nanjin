@@ -24,7 +24,7 @@ final class NJMeter[F[_]] private[guard] (
     metricRegistry.remove(counterName)
   }.void
 
-  def withCounting: NJMeter[F] = new NJMeter[F](name, metricRegistry, unit, true)
+  def counted: NJMeter[F] = new NJMeter[F](name, metricRegistry, unit, true)
 
   def unsafeMark(num: Long): Unit = {
     meter.mark(num)

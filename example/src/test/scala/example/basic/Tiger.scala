@@ -17,7 +17,7 @@ abstract class WriteRead(agent: Agent[IO]) {
       .gauge(name)
       .timed
       .flatMap(_ => agent.meterR(name, StandardUnit.COUNT))
-      .use(meter => agent.action(name, _.notice).retry(action(meter)).logOutput(_.asJson).run)
+      .use(meter => agent.action(name, _.bipartite).retry(action(meter)).logOutput(_.asJson).run)
   }
 
   final protected def read(job: String)(action: NJMeter[IO] => IO[Long]): IO[Long] = {
@@ -26,7 +26,7 @@ abstract class WriteRead(agent: Agent[IO]) {
       .gauge(name)
       .timed
       .flatMap(_ => agent.meterR(name, StandardUnit.COUNT))
-      .use(meter => agent.action(name, _.notice).retry(action(meter)).logOutput(_.asJson).run)
+      .use(meter => agent.action(name, _.bipartite).retry(action(meter)).logOutput(_.asJson).run)
       .map(_.ensuring(_ === size))
   }
   def single: IO[List[Long]]

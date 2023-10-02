@@ -43,7 +43,7 @@ class PassThroughTest extends AnyFunSuite {
     val Some(last) = guard
       .withMetricReport(policies.crontab(cron_1hour))
       .eventStream { ag =>
-        val alert: NJAlert[IO] = ag.alert("oops").withCounting
+        val alert: NJAlert[IO] = ag.alert("oops").counted
         alert.warn(Some("message")) >> alert.info(Some("message")) >> alert.error(Some("message")) >>
           ag.metrics.report
       }

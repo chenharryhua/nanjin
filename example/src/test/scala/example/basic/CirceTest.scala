@@ -2,6 +2,7 @@ package example.basic
 
 import cats.effect.IO
 import cats.syntax.all.*
+import com.github.chenharryhua.nanjin.common.chrono.zones.{berlinTime, londonTime}
 import com.github.chenharryhua.nanjin.guard.service.Agent
 import com.github.chenharryhua.nanjin.terminals.{CirceFile, NJCompression, NJPath}
 import eu.timepit.refined.auto.*
@@ -33,7 +34,7 @@ class CirceTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
 
   private def writeRotate(file: CirceFile): IO[NJPath] = {
     val path = root / "rotate" / file.fileName
-    val sink = circe.sink(policy)(t => path / file.fileName(t))
+    val sink = circe.sink(policy, berlinTime)(t => path / file.fileName(t))
     write(path.uri.getPath) { meter =>
       data.evalTap(_ => meter.mark(1)).map(_.asJson).chunkN(1000).through(sink).compile.drain.as(path)
     }
@@ -62,7 +63,7 @@ class CirceTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
 
   private def writeRotateSpark(file: CirceFile): IO[NJPath] = {
     val path = root / "spark" / "rotate" / file.fileName
-    val sink = circe.sink(policy)(t => path / file.fileName(t))
+    val sink = circe.sink(policy, londonTime)(t => path / file.fileName(t))
     write(path.uri.getPath) { meter =>
       table.output
         .stream(1000)

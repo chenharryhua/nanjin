@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.common
 
 import cats.Show
-import cats.implicits.catsSyntaxEq
+import cats.implicits.{catsSyntaxEq, toBifunctorOps}
 import cats.kernel.Eq
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.refineV
@@ -22,8 +22,10 @@ object kafka {
 
     private def trans(str: String): Either[String, TopicName] = refineV[MR](str).map(apply)
 
-    def unsafeFrom(str: String): TopicName = trans(str) match {
-      case Left(value)  => throw new Exception(value)
+    def from(str: String): Either[Exception, TopicName] = trans(str).leftMap(new Exception(_))
+
+    def unsafeFrom(str: String): TopicName = from(str) match {
+      case Left(value)  => throw value
       case Right(value) => value
     }
 

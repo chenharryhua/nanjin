@@ -22,12 +22,12 @@ private object SimpleTextTranslator {
   private def errorStr(err: NJError): String = s"Cause:${err.stackTrace}"
 
   private def actionEvent(ae: ActionEvent): String = {
-    val id          = s"$CONSTANT_ACTION_ID:${ae.actionId}"
-    val importance  = s"$CONSTANT_IMPORTANCE:${ae.actionParams.importance.entryName}"
-    val strategy    = s"$CONSTANT_STRATEGY:${ae.actionParams.publishStrategy.entryName}"
-    val measurement = s"$CONSTANT_MEASUREMENT:${ae.actionParams.metricName.measurement}"
+    val id  = s"$CONSTANT_ACTION_ID:${ae.actionId.show}"
+    val mm  = s"$CONSTANT_MEASUREMENT:${ae.actionParams.metricName.measurement}"
+    val cfg = s"$CONSTANT_CONFIG:${ae.actionParams.configStr}"
+
     s"""  ${serviceEvent(ae)}
-       |  $id, $measurement, $importance, $strategy""".stripMargin
+       |  $id, $mm, $cfg""".stripMargin
   }
 
   private def serviceStarted(evt: ServiceStart): String =
@@ -39,27 +39,29 @@ private object SimpleTextTranslator {
   private def servicePanic(evt: ServicePanic): String =
     s"""${eventTitle(evt)}
        |  ${serviceEvent(evt)}
-       |  ${panicText(evt).replace("*", "")}
-       |  $CONSTANT_POLICY:${evt.serviceParams.restartPolicy}
+       |  ${panicText(evt)}
+       |  $CONSTANT_POLICY:${evt.serviceParams.servicePolicies.restart}
        |  ${errorStr(evt.error)}
        |""".stripMargin
 
   private def serviceStopped(evt: ServiceStop): String =
     s"""${eventTitle(evt)}
        |  ${serviceEvent(evt)}
-       |  $CONSTANT_POLICY:${evt.serviceParams.restartPolicy}
+       |  $CONSTANT_POLICY:${evt.serviceParams.servicePolicies.restart}
        |  $CONSTANT_CAUSE:${evt.cause.show}
        |""".stripMargin
 
   private def metricReport(evt: MetricReport): String =
     s"""${eventTitle(evt)}
        |  ${serviceEvent(evt)}
+       |  $CONSTANT_POLICY:${evt.serviceParams.servicePolicies.metricReport}
        |${yamlMetrics(evt.snapshot, evt.serviceParams.metricParams)}
        |""".stripMargin
 
   private def metricReset(evt: MetricReset): String =
     s"""${eventTitle(evt)}
        |  ${serviceEvent(evt)}
+       |  $CONSTANT_POLICY:${evt.serviceParams.servicePolicies.metricReset}
        |${yamlMetrics(evt.snapshot, evt.serviceParams.metricParams)}
        |""".stripMargin
 
@@ -78,7 +80,7 @@ private object SimpleTextTranslator {
   private def actionRetry(evt: ActionRetry): String =
     s"""${eventTitle(evt)}
        |${actionEvent(evt)}
-       |  $CONSTANT_TOOK:${tookText(evt.tookSoFar)}
+       |  $CONSTANT_SNOOZE:${tookText(evt.tick.snooze)}
        |  $CONSTANT_POLICY:${evt.actionParams.retryPolicy}
        |  ${errorStr(evt.error)}
        |""".stripMargin

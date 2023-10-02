@@ -28,8 +28,8 @@ class SchemaRegistryTest extends AnyFunSuite {
   }
 
   test("register schema should be identical") {
-    val topic = TopicDef[Int, Int](TopicName("test.register.schema"))
-    val report = ctx.schemaRegistry.delete(topic.topicName) >>
+    val topic = TopicDef[reddit_post, reddit_post](TopicName("test.register.schema"))
+    val report = ctx.schemaRegistry.delete(topic.topicName).attempt >>
       ctx.schemaRegistry.register(topic) >>
       ctx.schemaRegistry.fetchAvroSchema(topic.topicName)
     assert(report.unsafeRunSync().isIdentical(topic.schemaPair))

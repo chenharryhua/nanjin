@@ -10,6 +10,7 @@ import io.circe.generic.JsonCodec
 import java.time.{Duration, ZonedDateTime}
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.FiniteDuration
+import scala.jdk.DurationConverters.ScalaDurationOps
 
 @JsonCodec
 sealed trait NJEvent extends Product with Serializable {
@@ -65,38 +66,43 @@ object NJEvent extends DateTimeInstances {
       extends MetricEvent
 
   sealed trait ActionEvent extends NJEvent {
-    def actionInfo: ActionInfo // action runtime information
     def actionParams: ActionParams
+    def actionId: Int
+    def launchTime: FiniteDuration
+    def landTime: FiniteDuration
 
+    final override def timestamp: ZonedDateTime     = serviceParams.toZonedDateTime(landTime)
     final override def serviceParams: ServiceParams = actionParams.serviceParams
-
-    final def actionId: String = actionInfo.actionId.toString
   }
 
-  final case class ActionStart(actionParams: ActionParams, actionInfo: ActionInfo, notes: Option[Json])
+  final case class ActionStart(
+    actionParams: ActionParams,
+    actionId: Int,
+    launchTime: FiniteDuration,
+    notes: Option[Json])
       extends ActionEvent {
-    override def timestamp: ZonedDateTime = serviceParams.toZonedDateTime(actionInfo.launchTime)
+    override val landTime: FiniteDuration = launchTime
   }
 
-  final case class ActionRetry(actionParams: ActionParams, actionInfo: ActionInfo, error: NJError, tick: Tick)
+  final case class ActionRetry(
+    actionParams: ActionParams,
+    actionId: Int,
+    launchTime: FiniteDuration,
+    error: NJError,
+    tick: Tick)
       extends ActionEvent {
-    val landTime: FiniteDuration = FiniteDuration(tick.acquire.toEpochMilli, TimeUnit.MILLISECONDS)
-
-    override def timestamp: ZonedDateTime = serviceParams.toZonedDateTime(tick.acquire)
-    def tookSoFar: Duration               = actionInfo.took(landTime)
+    override val landTime: FiniteDuration = FiniteDuration(tick.acquire.toEpochMilli, TimeUnit.MILLISECONDS)
   }
 
   sealed trait ActionResultEvent extends ActionEvent {
-    def landTime: FiniteDuration
     def notes: Option[Json]
-
-    final override def timestamp: ZonedDateTime = serviceParams.toZonedDateTime(landTime)
-    final def took: Duration                    = actionInfo.took(landTime)
+    final def took: Duration = (landTime - launchTime).toJava
   }
 
   final case class ActionFail(
     actionParams: ActionParams,
-    actionInfo: ActionInfo,
+    actionId: Int,
+    launchTime: FiniteDuration,
     landTime: FiniteDuration,
     error: NJError,
     notes: Option[Json])
@@ -104,10 +110,13 @@ object NJEvent extends DateTimeInstances {
 
   final case class ActionDone(
     actionParams: ActionParams,
-    actionInfo: ActionInfo,
+    actionId: Int,
+    launchTime: FiniteDuration,
     landTime: FiniteDuration,
     notes: Option[Json])
       extends ActionResultEvent
+
+  // filters
 
   final def isPivotalEvent(evt: NJEvent): Boolean = evt match {
     case _: ActionDone  => false

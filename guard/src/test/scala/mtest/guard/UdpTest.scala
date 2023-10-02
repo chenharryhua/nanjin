@@ -20,7 +20,7 @@ class UdpTest extends AnyFunSuite {
       .eventStream { agent =>
         val ss = for {
           writer <- Stream.resource(
-            agent.udpClient("udp_test").withHistogram.withCounting.socket(ip"127.0.0.1", port"1026"))
+            agent.udpClient("udp_test").histogram.counted.socket(ip"127.0.0.1", port"1026"))
           _ <- tickStream[IO](policies.fixedDelay(1.second).limited(3), agent.zoneId)
           _ <- Stream.eval(writer.write(Chunk.from("abcdefghijklmnopqrstuvwxyz\n".getBytes())))
         } yield ()

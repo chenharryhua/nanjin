@@ -46,7 +46,7 @@ final class NJAlert[F[_]: Monad: Clock] private[guard] (
           message = msg))
     } yield ()
 
-  def withCounting: NJAlert[F] =
+  def counted: NJAlert[F] =
     new NJAlert[F](name, metricRegistry, channel, serviceParams, dispatcher, true)
 
   def error[S: Encoder](msg: S): F[Unit] =

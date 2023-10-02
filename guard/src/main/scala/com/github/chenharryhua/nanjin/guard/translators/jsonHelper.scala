@@ -16,12 +16,13 @@ private object jsonHelper {
   def exitCode(sc: ServiceStopCause): (String, Json)   = "exitCode" -> Json.fromInt(sc.exitCode)
   def exitCause(sc: ServiceStopCause): (String, Json)  = "exitCause" -> Json.fromString(sc.show)
 
-  def policy(evt: NJEvent): (String, Json)     = "policy" -> Json.fromString(evt.serviceParams.restartPolicy)
+  def policy(evt: NJEvent): (String, Json) =
+    "policy" -> Json.fromString(evt.serviceParams.servicePolicies.restart)
   def policy(ap: ActionParams): (String, Json) = "policy" -> Json.fromString(ap.retryPolicy)
   def errCause(err: NJError): (String, Json)   = "cause" -> Json.fromString(err.message)
   def stackTrace(err: NJError): (String, Json) = "stackTrace" -> Json.fromString(err.stackTrace)
 
-  def actionId(evt: ActionEvent): (String, Json)   = "id" -> Json.fromString(evt.actionId)
+  def actionId(evt: ActionEvent): (String, Json)   = "id" -> Json.fromInt(evt.actionId)
   def took(evt: ActionResultEvent): (String, Json) = "took" -> Json.fromString(fmt.format(evt.took))
 
   def notes(oj: Option[Json]): (String, Json) = "notes" -> oj.asJson
@@ -35,11 +36,8 @@ private object jsonHelper {
   def serviceName(evt: NJEvent): (String, Json) =
     "serviceName" -> Json.fromString(evt.serviceParams.serviceName)
 
-  def importance(evt: ActionEvent): (String, Json) =
-    "importance" -> Json.fromString(evt.actionParams.importance.entryName)
-
-  def publishStrategy(evt: ActionEvent): (String, Json) =
-    "strategy" -> Json.fromString(evt.actionParams.publishStrategy.entryName)
+  def config(evt: ActionEvent): (String, Json) =
+    "config" -> Json.fromString(evt.actionParams.configStr)
 
   def metricIndex(index: MetricIndex): (String, Json) = index match {
     case MetricIndex.Adhoc          => "index" -> Json.Null

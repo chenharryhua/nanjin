@@ -51,7 +51,7 @@ class MetricsTest extends AnyFunSuite {
 
   test("2.full") {
     val last = service
-      .eventStream(ag => ag.action("one", _.withCounting).retry(IO(0)).run >> IO.sleep(10.minutes))
+      .eventStream(ag => ag.action("one", _.counted).retry(IO(0)).run >> IO.sleep(10.minutes))
       .evalTap(console(Translator.simpleText[IO]))
       .map(_.asJson.noSpaces)
       .evalMap(e => IO(decode[NJEvent](e)).rethrow)
@@ -66,8 +66,8 @@ class MetricsTest extends AnyFunSuite {
     service
       .withMetricReport(policies.crontab(cron_1second))
       .eventStream { ag =>
-        val one = ag.action("one", _.notice).retry(IO(0) <* IO.sleep(10.minutes)).run
-        val two = ag.action("two", _.notice).retry(IO(0) <* IO.sleep(10.minutes)).run
+        val one = ag.action("one", _.bipartite).retry(IO(0) <* IO.sleep(10.minutes)).run
+        val two = ag.action("two", _.bipartite).retry(IO(0) <* IO.sleep(10.minutes)).run
         IO.parSequenceN(2)(List(one, two))
       }
       .map(_.asJson.noSpaces)
@@ -82,8 +82,8 @@ class MetricsTest extends AnyFunSuite {
   test("4.reset") {
     val last = service.eventStream { ag =>
       val metric = ag.metrics
-      ag.action("one", _.notice.withTiming.withCounting).retry(IO(0)).run >> ag
-        .action("two", _.notice.withTiming.withCounting)
+      ag.action("one", _.bipartite.timed.counted).retry(IO(0)).run >> ag
+        .action("two", _.bipartite.timed.counted)
         .retry(IO(1))
         .run >> metric.report >> metric.reset >> IO.sleep(10.minutes)
     }.evalTap(console(Translator.simpleText[IO]))
@@ -143,14 +143,14 @@ class MetricsTest extends AnyFunSuite {
         ag.gauge(name)
           .timed
           .surround(
-            ag.action(name, _.notice.withCounting.withTiming).retry(IO(())).run >>
-              ag.alert(name).withCounting.error("error") >>
-              ag.alert(name).withCounting.warn("warn") >>
-              ag.alert(name).withCounting.info("info") >>
-              ag.meter(name, StandardUnit.GIGABITS).withCounting.mark(100) >>
+            ag.action(name, _.bipartite.counted.timed).retry(IO(())).run >>
+              ag.alert(name).counted.error("error") >>
+              ag.alert(name).counted.warn("warn") >>
+              ag.alert(name).counted.info("info") >>
+              ag.meter(name, StandardUnit.GIGABITS).counted.mark(100) >>
               ag.counter(name).inc(32) >>
               ag.counter(name).asRisk.inc(10) >>
-              ag.histogram(name, StandardUnit.SECONDS).withCounting.update(64) >>
+              ag.histogram(name, StandardUnit.SECONDS).counted.update(64) >>
               ag.metrics.report)
       }
       .evalTap(console.simple[IO])

@@ -14,7 +14,13 @@ final case class ActionParams(
   isCounting: Boolean,
   isTiming: Boolean,
   retryPolicy: String, // for display
-  serviceParams: ServiceParams)
+  serviceParams: ServiceParams) {
+  val configStr: String = {
+    val cc = if (isCounting) ".counted" else ""
+    val tc = if (isTiming) ".timed" else ""
+    s"${publishStrategy.entryName}.${importance.entryName}$tc$cc"
+  }
+}
 
 object ActionParams {
   implicit val showActionParams: Show[ActionParams] = cats.derived.semiauto.show
@@ -64,19 +70,19 @@ private object ActionConfigF {
 final case class ActionConfig(cont: Fix[ActionConfigF]) extends AnyVal {
   import ActionConfigF.*
 
-  def notice: ActionConfig = ActionConfig(Fix(WithPublishStrategy(PublishStrategy.Notice, cont)))
-  def aware: ActionConfig  = ActionConfig(Fix(WithPublishStrategy(PublishStrategy.Aware, cont)))
-  def silent: ActionConfig = ActionConfig(Fix(WithPublishStrategy(PublishStrategy.Silent, cont)))
+  def bipartite: ActionConfig  = ActionConfig(Fix(WithPublishStrategy(PublishStrategy.Bipartite, cont)))
+  def unipartite: ActionConfig = ActionConfig(Fix(WithPublishStrategy(PublishStrategy.Unipartite, cont)))
+  def silent: ActionConfig     = ActionConfig(Fix(WithPublishStrategy(PublishStrategy.Silent, cont)))
 
   def critical: ActionConfig      = ActionConfig(Fix(WithImportance(value = Importance.Critical, cont)))
   def normal: ActionConfig        = ActionConfig(Fix(WithImportance(value = Importance.Normal, cont)))
   def insignificant: ActionConfig = ActionConfig(Fix(WithImportance(value = Importance.Insignificant, cont)))
-  def trivial: ActionConfig       = ActionConfig(Fix(WithImportance(value = Importance.Trivial, cont)))
+  def suppressed: ActionConfig    = ActionConfig(Fix(WithImportance(value = Importance.Suppressed, cont)))
 
-  def withCounting: ActionConfig    = ActionConfig(Fix(WithCounting(value = true, cont)))
-  def withTiming: ActionConfig      = ActionConfig(Fix(WithTiming(value = true, cont)))
-  def withoutCounting: ActionConfig = ActionConfig(Fix(WithCounting(value = false, cont)))
-  def withoutTiming: ActionConfig   = ActionConfig(Fix(WithTiming(value = false, cont)))
+  def counted: ActionConfig   = ActionConfig(Fix(WithCounting(value = true, cont)))
+  def timed: ActionConfig     = ActionConfig(Fix(WithTiming(value = true, cont)))
+  def uncounted: ActionConfig = ActionConfig(Fix(WithCounting(value = false, cont)))
+  def untimed: ActionConfig   = ActionConfig(Fix(WithTiming(value = false, cont)))
 
   def evalConfig(actionName: ActionName, measurement: Measurement, retryPolicy: ServicePolicy): ActionParams =
     scheme.cata(algebra(actionName, measurement, retryPolicy)).apply(cont)
