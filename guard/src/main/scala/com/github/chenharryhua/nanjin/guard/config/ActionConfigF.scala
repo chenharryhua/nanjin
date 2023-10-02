@@ -16,8 +16,8 @@ final case class ActionParams(
   retryPolicy: String, // for display
   serviceParams: ServiceParams) {
   val configStr: String = {
-    val cc = if (isCounting) ".withCounting" else ""
-    val tc = if (isTiming) ".withTiming" else ""
+    val cc = if (isCounting) ".counted" else ""
+    val tc = if (isTiming) ".timed" else ""
     s"${publishStrategy.entryName}.${importance.entryName}$tc$cc"
   }
 }
@@ -79,10 +79,10 @@ final case class ActionConfig(cont: Fix[ActionConfigF]) extends AnyVal {
   def insignificant: ActionConfig = ActionConfig(Fix(WithImportance(value = Importance.Insignificant, cont)))
   def suppressed: ActionConfig    = ActionConfig(Fix(WithImportance(value = Importance.Suppressed, cont)))
 
-  def withCounting: ActionConfig    = ActionConfig(Fix(WithCounting(value = true, cont)))
-  def withTiming: ActionConfig      = ActionConfig(Fix(WithTiming(value = true, cont)))
-  def withoutCounting: ActionConfig = ActionConfig(Fix(WithCounting(value = false, cont)))
-  def withoutTiming: ActionConfig   = ActionConfig(Fix(WithTiming(value = false, cont)))
+  def counted: ActionConfig   = ActionConfig(Fix(WithCounting(value = true, cont)))
+  def timed: ActionConfig     = ActionConfig(Fix(WithTiming(value = true, cont)))
+  def uncounted: ActionConfig = ActionConfig(Fix(WithCounting(value = false, cont)))
+  def untimed: ActionConfig   = ActionConfig(Fix(WithTiming(value = false, cont)))
 
   def evalConfig(actionName: ActionName, measurement: Measurement, retryPolicy: ServicePolicy): ActionParams =
     scheme.cata(algebra(actionName, measurement, retryPolicy)).apply(cont)

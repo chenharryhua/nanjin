@@ -2,66 +2,87 @@ package mtest.kafka
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.*
-import com.github.chenharryhua.nanjin.messages.kafka.codec.{KJson, NJAvroCodec}
-import com.landoop.telecom.telecomitalia.telecommunications.{smsCallInternet, Key}
-import fs2.kafka.{AutoOffsetReset, CommittableProducerRecords, ProducerRecord, TransactionalProducerRecords}
+import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
+import com.github.chenharryhua.nanjin.messages.kafka.codec.gr2Jackson
+import eu.timepit.refined.auto.*
 import io.circe.generic.auto.*
-import org.apache.kafka.common.TopicPartition
+import io.circe.syntax.EncoderOps
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.*
-import eu.timepit.refined.auto.*
+
+object Fs2ChannelTestData {
+  final case class Fs2Kafka(a: Int, b: String, c: Double)
+  val topicDef: TopicDef[Int, Fs2Kafka]    = TopicDef[Int, Fs2Kafka](TopicName("fs2.kafka.test"))
+  val topic: KafkaTopic[IO, Int, Fs2Kafka] = ctx.topic(topicDef)
+  val jackson =
+    """
+      {
+      "partition" : 0,
+      "offset" : 0,
+      "timestamp" : 1696207641300,
+      "key" : {
+        "int" : 1
+      },
+      "value" : {
+        "mtest.kafka.Fs2ChannelTestData.Fs2Kafka" : {
+          "a" : 1,
+          "b" : "a",
+          "c" : 1.0
+        }
+      },
+      "topic" : "whatever",
+      "timestampType" : 0,
+      "headers" : [
+      ]
+    }
+     """
+
+  val json =
+    """
+      {
+      "partition" : 0,
+      "offset" : 0,
+      "timestamp" : 1696207641300,
+      "key" : 1,
+      "value" : {
+        "a" : 1,
+        "b" : "a",
+        "c" : 1.0
+      },
+      "topic" : "don't care",
+      "timestampType" : 0,
+      "headers" : [
+      ]
+    } """
+}
 
 class Fs2ChannelTest extends AnyFunSuite {
-  val backblaze_smart: TopicDef[KJson[lenses_record_key], String] =
-    TopicDef[KJson[lenses_record_key], String](TopicName("backblaze_smart"))
-  val nyc_taxi_trip: TopicDef[Array[Byte], trip_record] =
-    TopicDef[Array[Byte], trip_record](TopicName("nyc_yellow_taxi_trip_data"))
-
-  val sms: TopicDef[Key, smsCallInternet] = TopicDef(
-    TopicName("telecom_italia_data"),
-    NJAvroCodec[Key](Key.schema),
-    NJAvroCodec[smsCallInternet](smsCallInternet.schema))
-
-  test("should be able to consume json topic") {
-    val topic = backblaze_smart.in(ctx)
-    val consumer =
-      ctx
-        .consume(topic.topicName)
-        .updateConfig(_.withGroupId("fs2"))
-        .updateConfig(_.withAutoOffsetReset(AutoOffsetReset.Earliest))
-
-    val ret =
-      consumer.stream
-        .map(m => topic.decoder(m).tryDecodeKeyValue)
-        .take(1)
-        .map(_.show)
-        .map(println)
-        .timeout(3.seconds)
-        .compile
-        .toList
-        .unsafeRunSync()
-    assert(ret.size == 1)
-  }
-
+  import Fs2ChannelTestData.*
   test("should be able to consume avro topic") {
-    val topic    = ctx.topic(nyc_taxi_trip)
-    val consumer = topic.consume.updateConfig(_.withGroupId("g1"))
+
     val ret =
-      consumer.stream.take(1).map(_.toString).map(println).timeout(3.seconds).compile.toList.unsafeRunSync()
-    assert(ret.size == 1)
+      ctx.schemaRegistry.register(topicDef).attempt >>
+        topic.produceOne(1, Fs2Kafka(1, "a", 1.0)) >>
+        topic.consume
+          .updateConfig(_.withGroupId("g1"))
+          .stream
+          .take(1)
+          .map(ccr => NJConsumerRecord(ccr.record).asJson)
+          .timeout(3.seconds)
+          .compile
+          .toList
+    assert(ret.unsafeRunSync().size == 1)
   }
 
   test("record format") {
-    val topic = ctx.topic(nyc_taxi_trip)
     val ret =
       topic.consume.stream
         .take(1)
         .map(_.record)
-        .map(r => topic.topicDef.consumerFormat.toRecord(r))
+        .map(r => gr2Jackson(topic.topicDef.consumerFormat.toRecord(r)).get)
         .timeout(3.seconds)
         .compile
         .toList
@@ -69,57 +90,37 @@ class Fs2ChannelTest extends AnyFunSuite {
     assert(ret.size == 1)
   }
 
-  test("should be able to consume telecom_italia_data topic") {
-    val topic    = sms.in(ctx)
-    val consumer = ctx.consume(topic.topicName).updateConfig(_.withGroupId("g1"))
-    val ret = consumer
-      .assign(KafkaTopicPartition(Map(new TopicPartition(topic.topicName.value, 0) -> KafkaOffset(0))))
-      .map(m => topic.decoder(m).tryDecode)
-      .map(_.toEither)
-      .rethrow
-      .take(1)
-      .map(_.toString)
-      .timeout(3.seconds)
-      .compile
-      .toList
-      .unsafeRunSync()
-    assert(ret.size == 1)
+  test("circe") {
+    topic.produceCirce(json).unsafeRunSync()
   }
 
-  test("should return empty when topic-partition is empty") {
-    val topic    = sms.in(ctx)
-    val consumer = ctx.consume(topic.topicName).updateConfig(_.withGroupId("g1"))
-    val ret = consumer
-      .assign(KafkaTopicPartition.emptyOffset)
-      .map(m => topic.decoder(m).tryDecode)
-      .map(_.toEither)
-      .rethrow
-      .timeout(3.seconds)
-      .compile
-      .toList
-      .unsafeRunSync()
-    assert(ret.isEmpty)
+  test("jackson") {
+    topic.produceJackson(jackson).unsafeRunSync()
   }
 
-  test("transactional producer") {
-    val src = sms.in(ctx)
-    val txntopic = sms
-      .in(ctx)
-      .withTopicName("txn-target")
-      .produce
-      .updateConfig(_.withRetries(3))
-      .transactional("txn")
-      .updateConfig(_.withTransactionTimeout(4.seconds))
-    val run = for {
-      producer <- txntopic.stream
-      cr <- src.consume.stream.take(10)
-      pr = TransactionalProducerRecords.one(
-        CommittableProducerRecords.one[IO, Key, smsCallInternet](
-          ProducerRecord("txn-target", cr.record.key, cr.record.value),
-          cr.offset))
-      _ <- fs2.Stream.eval(producer.produce(pr))
-    } yield pr
-
-    run.timeout(5.seconds).compile.drain.unsafeRunSync()
+  test("produce") {
+    val jackson =
+      """
+      {
+      "partition" : 0,
+      "offset" : 0,
+      "timestamp" : 1696207641300,
+      "key" : {
+        "int" : 2
+      },
+      "value" : {
+        "mtest.kafka.Fs2ChannelTestData.Fs2Kafka" : {
+          "a" : 2,
+          "b" : "b",
+          "c" : 2.0
+        }
+      },
+      "topic" : "fs2.kafka.test",
+      "timestampType" : 0,
+      "headers" : [
+      ]
+    }
+     """
+    ctx.produce(jackson).flatMap(IO.println).unsafeRunSync()
   }
 }

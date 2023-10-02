@@ -13,6 +13,13 @@ import io.circe.syntax.EncoderOps
 
 import java.time.Duration
 
+/** TimeUnit.NANOSECONDS.toNanos((fd1:FiniteDuration - fd2:FiniteDuration).toNano)
+  *
+  * slightly cost more than
+  *
+  * (fd1:FiniteDuration - fd2:FiniteDuration).toJava.toNano
+  */
+
 sealed private trait MeasureAction {
   def done(fd: => Duration): Unit
   def fail(fd: => Duration): Unit

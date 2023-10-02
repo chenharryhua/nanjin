@@ -38,9 +38,9 @@ class ObserversTest extends AnyFunSuite {
         val box = ag.atomicBox(1)
         val job = // fail twice, then success
           box.getAndUpdate(_ + 1).map(_ % 3 == 0).ifM(IO(1), IO.raiseError[Int](new Exception("oops")))
-        val meter = ag.meter("meter", StandardUnit.SECONDS).withCounting
+        val meter = ag.meter("meter", StandardUnit.SECONDS).counted
         val action = ag
-          .action("nj_error", _.critical.bipartite.withTiming.withCounting)
+          .action("nj_error", _.critical.bipartite.timed.counted)
           .withRetryPolicy(policies.fixedRate(1.second).limited(1))
           .retry(job)
           .logInput(Json.fromString("input data"))
@@ -51,7 +51,7 @@ class ObserversTest extends AnyFunSuite {
           .run
 
         val counter   = ag.counter("nj counter").asRisk
-        val histogram = ag.histogram("nj histogram", StandardUnit.SECONDS).withCounting
+        val histogram = ag.histogram("nj histogram", StandardUnit.SECONDS).counted
         val alert     = ag.alert("nj alert")
         val gauge     = ag.gauge("nj gauge")
 

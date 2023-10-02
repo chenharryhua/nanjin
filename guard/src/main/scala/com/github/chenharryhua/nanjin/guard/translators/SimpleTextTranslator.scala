@@ -39,7 +39,7 @@ private object SimpleTextTranslator {
   private def servicePanic(evt: ServicePanic): String =
     s"""${eventTitle(evt)}
        |  ${serviceEvent(evt)}
-       |  ${panicText(evt).replace("*", "")}
+       |  ${panicText(evt)}
        |  $CONSTANT_POLICY:${evt.serviceParams.servicePolicies.restart}
        |  ${errorStr(evt.error)}
        |""".stripMargin

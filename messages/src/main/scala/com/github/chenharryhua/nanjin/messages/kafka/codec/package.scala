@@ -4,10 +4,10 @@ import com.github.chenharryhua.nanjin.common.optics.jsonPlated
 import io.circe.{parser, Json}
 import monocle.function.Plated
 import org.apache.avro.generic.{GenericData, GenericDatumReader, GenericDatumWriter, GenericRecord}
-import org.apache.avro.io.{BinaryDecoder, BinaryEncoder, DecoderFactory, EncoderFactory, JsonEncoder}
+import org.apache.avro.io.*
 import org.apache.avro.{Schema, SchemaCompatibility}
 
-import java.io.ByteArrayOutputStream
+import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
 import java.nio.charset.StandardCharsets
 import scala.jdk.CollectionConverters.ListHasAsScala
 import scala.util.{Try, Using}
@@ -157,5 +157,12 @@ package object codec {
       new GenericDatumWriter[GenericRecord](gr.getSchema).write(gr, encoder)
       encoder.flush()
       baos.toByteArray
+    }(_.close())
+
+  def jackson2GR(schema: Schema, jackson: String): Try[GenericData.Record] =
+    Using(new ByteArrayInputStream(jackson.getBytes)) { bais =>
+      val jsonDecoder = DecoderFactory.get().jsonDecoder(schema, bais)
+      val datumReader = new GenericDatumReader[GenericData.Record](schema)
+      datumReader.read(null, jsonDecoder)
     }(_.close())
 }
