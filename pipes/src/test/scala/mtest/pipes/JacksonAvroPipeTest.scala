@@ -4,13 +4,13 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.pipes.JacksonSerde
 import com.sksamuel.avro4s.{AvroSchema, ToRecord}
-import eu.timepit.refined.auto.*
 import fs2.Stream
+import org.apache.avro.Schema
 import org.scalatest.funsuite.AnyFunSuite
 class JacksonAvroPipeTest extends AnyFunSuite {
   import mtest.terminals.TestData.*
   val encoder: ToRecord[Tiger] = ToRecord[Tiger](Tiger.avroEncoder)
-  val schema                   = AvroSchema[Tiger]
+  val schema: Schema           = AvroSchema[Tiger]
   val data: Stream[IO, Tiger]  = Stream.emits(tigers)
 
   test("json-avro identity") {
@@ -23,21 +23,6 @@ class JacksonAvroPipeTest extends AnyFunSuite {
         .compile
         .toList
         .unsafeRunSync() === tigers)
-  }
-
-  test("jackson-compact-string size") {
-    assert(
-      data
-        .map(encoder.to)
-        .through(JacksonSerde.compactJson(schema))
-        .compile
-        .toList
-        .unsafeRunSync()
-        .size == 10)
-  }
-  test("jackson-pretty-string size") {
-    assert(
-      data.map(encoder.to).through(JacksonSerde.prettyJson(schema)).compile.toList.unsafeRunSync().size == 10)
   }
 
 }
