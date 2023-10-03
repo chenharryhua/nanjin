@@ -121,6 +121,7 @@ class ServiceTest extends AnyFunSuite {
   test("5.should receive at least 3 report event") {
     val s :: b :: c :: d :: _ = guard
       .withMetricReport(policies.crontab(cron_1second))
+      .withJmx(identity)
       .eventStream(_.action("t", _.silent).retry(IO.never).run)
       .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
       .interruptAfter(5.second)
@@ -299,10 +300,15 @@ class ServiceTest extends AnyFunSuite {
     val client = EmberClientBuilder
       .default[IO]
       .build
-      .use(_.expect[String]("http://localhost:9999/service/stop"))
+      .use { c =>
+        c.expect[String]("http://localhost:9999/metrics") >>
+          c.expect[String]("http://localhost:9999/metrics/vanilla") >>
+          c.expect[String]("http://localhost:9999/metrics/yaml") >>
+          c.expect[String]("http://localhost:9999/service") >>
+          c.expect[String]("http://localhost:9999/service/stop")
+      }
       .delayBy(3.seconds)
-      .attempt
-      .flatMap(IO.println)
+
     val res =
       guard
         .withHttpServer(_.withPort(port"9999"))
