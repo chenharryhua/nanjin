@@ -4,10 +4,11 @@ import cats.Endo
 import cats.effect.kernel.{Async, Resource, Unique}
 import cats.effect.std.{AtomicCell, Dispatcher}
 import com.codahale.metrics.MetricRegistry
-import com.github.chenharryhua.nanjin.common.chrono.{policies, TickStatus}
+import com.github.chenharryhua.nanjin.common.chrono.*
 import com.github.chenharryhua.nanjin.guard.action.*
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.event.*
+import fs2.Stream
 import fs2.concurrent.{Channel, SignallingMapRef}
 import fs2.io.net.Network
 import natchez.{EntryPoint, Kernel, Span}
@@ -42,6 +43,9 @@ sealed trait Agent[F[_]] extends EntryPoint[F] {
 
   // udp
   def udpClient(udpName: String): NJUdpClient[F]
+
+  // tick stream
+  def ticks(policy: Policy): Stream[F, Tick]
 }
 
 final class GeneralAgent[F[_]: Network] private[service] (
@@ -172,6 +176,9 @@ final class GeneralAgent[F[_]: Network] private[service] (
       isCounting = false,
       isHistogram = false)
   }
+
+  override def ticks(policy: Policy): Stream[F, Tick] =
+    tickStream[F](zerothTickStatus.renewPolicy(policy))
 
   // general agent section, not in Agent API
 

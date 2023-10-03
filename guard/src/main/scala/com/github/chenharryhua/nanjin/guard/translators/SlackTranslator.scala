@@ -104,8 +104,7 @@ private object SlackTranslator extends all {
             MarkdownSection(s":octagonal_sign: *${eventTitle(evt)}*"),
             hostServiceSection(evt.serviceParams),
             upTimeSection(evt),
-            MarkdownSection(s"""|*$CONSTANT_POLICY:* ${evt.serviceParams.servicePolicies.restart}
-                                |*$CONSTANT_SERVICE_ID:* ${evt.serviceParams.serviceId.show}
+            MarkdownSection(s"""|*$CONSTANT_SERVICE_ID:* ${evt.serviceParams.serviceId.show}
                                 |*$CONSTANT_CAUSE:* ${abbreviate(evt.cause.show)}""".stripMargin)
           )
         )

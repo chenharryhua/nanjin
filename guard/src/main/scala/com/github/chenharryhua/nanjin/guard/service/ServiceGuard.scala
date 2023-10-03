@@ -11,6 +11,7 @@ import com.comcast.ip4s.IpLiteralSyntax
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.common.chrono.*
 import com.github.chenharryhua.nanjin.guard.config.{
+  EmberServerParams,
   Measurement,
   ServiceBrief,
   ServiceConfig,
@@ -31,10 +32,10 @@ import org.typelevel.vault.{Locker, Vault}
 
 // format: off
 /** @example
-  *   {{{ val guard = TaskGuard[IO]("appName").service("service-name") 
+  *   {{{ val guard = TaskGuard[IO]("appName").service("service-name")
   *       val es: Stream[IO,NJEvent] = guard.eventStream {
   *           gd => gd.action("action-1").retry(IO(1)).run >>
-  *                  IO("other computation") >> 
+  *                  IO("other computation") >>
   *                  gd.action("action-2").retry(IO(2)).run
   *            }
   * }}}
@@ -86,12 +87,15 @@ final class ServiceGuard[F[_]: Network] private[guard] (
   def withMetricReset(policy: Policy): ServiceGuard[F]  = copy(metricResetPolicy = policy)
   def withMetricDailyReset: ServiceGuard[F] = withMetricReset(policies.crontab(crontabs.daily.midnight))
 
-  def withMetricServer(f: Endo[EmberServerBuilder[F]]): ServiceGuard[F] = copy(httpBuilder = Some(f))
+  def withHttpServer(f: Endo[EmberServerBuilder[F]]): ServiceGuard[F] = copy(httpBuilder = Some(f))
 
   def withJmx(f: Endo[JmxReporter.Builder]): ServiceGuard[F] = copy(jmxBuilder = Some(f))
 
   def withBrief(json: F[Json]): ServiceGuard[F] = copy(brief = json.map(_.some))
   def withBrief(json: Json): ServiceGuard[F]    = withBrief(F.pure(json))
+
+  private lazy val emberServerBuilder: Option[EmberServerBuilder[F]] =
+    httpBuilder.map(_(EmberServerBuilder.default[F].withHost(ip"0.0.0.0").withPort(port"1026")))
 
   private def initStatus(zeroth: Tick): F[ServiceParams] = for {
     json <- brief
@@ -101,6 +105,7 @@ final class ServiceGuard[F[_]: Network] private[guard] (
       restart = serviceRestartPolicy.show,
       metricReport = metricReportPolicy.show,
       metricReset = metricResetPolicy.show),
+    emberServerParams = emberServerBuilder.map(EmberServerParams(_)),
     brief = ServiceBrief(json),
     zeroth = zeroth
   )
@@ -179,14 +184,19 @@ final class ServiceGuard[F[_]: Network] private[guard] (
               })(r => F.blocking(r.stop())) >> Stream.never[F]
           }
 
-        val metricsServer: Stream[F, Nothing] =
-          httpBuilder match {
+        val httpServer: Stream[F, Nothing] =
+          emberServerBuilder match {
             case None => Stream.empty
-            case Some(build) =>
+            case Some(builder) =>
               Stream.resource(
-                build(EmberServerBuilder.default[F].withHost(ip"0.0.0.0").withPort(port"1026"))
-                  .withHttpApp(new MetricsRouter[F](metricRegistry, serviceParams).router)
-                  .build) >> Stream.never[F]
+                builder
+                  .withHttpApp(
+                    new HttpRouter[F](
+                      metricRegistry = metricRegistry,
+                      serviceParams = serviceParams,
+                      channel = channel).router)
+                  .build) >>
+                Stream.never[F]
           }
 
         val agent: GeneralAgent[F] =
@@ -216,7 +226,7 @@ final class ServiceGuard[F[_]: Network] private[guard] (
           .concurrently(jmxReporting)
           .concurrently(metricsReset)
           .concurrently(metricsReport)
-          .concurrently(metricsServer)
+          .concurrently(httpServer)
           .concurrently(surveillance)
       }
     } yield event

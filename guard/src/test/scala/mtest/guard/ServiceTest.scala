@@ -3,6 +3,7 @@ package mtest.guard
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.toShow
+import com.comcast.ip4s.IpLiteralSyntax
 import com.github.chenharryhua.nanjin.common.chrono.zones.londonTime
 import com.github.chenharryhua.nanjin.common.chrono.{policies, Policy, Tick}
 import com.github.chenharryhua.nanjin.guard.*
@@ -14,6 +15,7 @@ import cron4s.Cron
 import io.circe.Json
 import io.circe.parser.decode
 import io.circe.syntax.*
+import org.http4s.ember.client.EmberClientBuilder
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.*
@@ -34,7 +36,7 @@ class ServiceTest extends AnyFunSuite {
     val Vector(a, d) = guard
       .withRestartPolicy(policies.fixedDelay(3.seconds))
       .withMetricReport(policies.crontab(cron_1hour))
-      .withMetricServer(identity)
+      .withHttpServer(identity)
       .withMetricDailyReset
       .eventStream(gd => gd.action("t", _.silent).delay(1).logOutput(_ => null).run.delayBy(1.second))
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
@@ -291,5 +293,25 @@ class ServiceTest extends AnyFunSuite {
     assert(f.snooze == 3.second.toJava)
     assert(g.snooze == 1.second.toJava)
     assert(h.snooze == 2.second.toJava)
+  }
+
+  test("stop service") {
+    val client = EmberClientBuilder
+      .default[IO]
+      .build
+      .use(_.expect[String]("http://localhost:9999/service/stop"))
+      .delayBy(3.seconds)
+      .attempt
+      .flatMap(IO.println)
+    val res =
+      guard
+        .withHttpServer(_.withPort(port"9999"))
+        .eventStream(_ => IO.sleep(10.hours))
+        .debug()
+        .compile
+        .toList <& client
+    val List(a, b) = res.unsafeRunSync()
+    assert(a.isInstanceOf[ServiceStart])
+    assert(b.isInstanceOf[ServiceStop])
   }
 }

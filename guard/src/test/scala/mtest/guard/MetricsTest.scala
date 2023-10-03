@@ -4,7 +4,7 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.catsSyntaxFlatMapOps
 import com.github.chenharryhua.nanjin.common.HostName
-import com.github.chenharryhua.nanjin.common.chrono.{policies, tickStream}
+import com.github.chenharryhua.nanjin.common.chrono.policies
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
@@ -125,10 +125,7 @@ class MetricsTest extends AnyFunSuite {
           agent.gauge("ref").ref(IO.ref(0))
 
       gauge.use(box =>
-        tickStream[IO](policies.fixedDelay(1.seconds), agent.zoneId)
-          .evalTap(_ => box.updateAndGet(_ + 1))
-          .compile
-          .drain)
+        agent.ticks(policies.fixedDelay(1.seconds)).evalTap(_ => box.updateAndGet(_ + 1)).compile.drain)
 
     }.evalTap(console.simple[IO]).take(8).compile.drain.unsafeRunSync()
   }
