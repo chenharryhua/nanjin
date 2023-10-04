@@ -4,14 +4,21 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.toShow
 import com.github.chenharryhua.nanjin.common.chrono.zones.{darwinTime, singaporeTime, sydneyTime}
-import com.github.chenharryhua.nanjin.common.chrono.{crontabs, policies, tickStream, Policy, TickStatus}
+import com.github.chenharryhua.nanjin.common.chrono.{
+  crontabs,
+  localTimes,
+  policies,
+  tickStream,
+  Policy,
+  TickStatus
+}
+import io.circe.parser.decode
+import io.circe.syntax.EncoderOps
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.LocalTime
 import scala.concurrent.duration.DurationInt
 import scala.jdk.DurationConverters.ScalaDurationOps
-import io.circe.parser.decode
-import io.circe.syntax.EncoderOps
 
 class PolicyCombinatorTest extends AnyFunSuite {
 
@@ -140,4 +147,45 @@ class PolicyCombinatorTest extends AnyFunSuite {
 
     tickStream[IO](policy, sydneyTime).debug().take(3).compile.drain.unsafeRunSync()
   }
+
+  test("local time") {
+    val policy = policies
+      .accordance(policies.crontab(crontabs.monthly).endAt(localTimes.midnight))
+      .followedBy(policies.crontab(crontabs.weekly).endAt(localTimes.midnight).repeat)
+      .join(policies.crontab(crontabs.daily.amOne).endAt(localTimes.amOne))
+      .followedBy(policies.crontab(crontabs.daily.amTwo).endAt(localTimes.amTwo).limited(3))
+      .followedBy(policies.crontab(crontabs.daily.amThree).endAt(localTimes.amThree))
+      .followedBy(policies.crontab(crontabs.daily.amFour).endAt(localTimes.amFour))
+      .followedBy(policies.crontab(crontabs.daily.amFive).endAt(localTimes.amFive))
+      .followedBy(policies.crontab(crontabs.daily.amSix).endAt(localTimes.amSix))
+      .followedBy(policies.crontab(crontabs.daily.amSeven).endAt(localTimes.amSeven))
+      .followedBy(policies.crontab(crontabs.daily.amEight).endAt(localTimes.amEight))
+      .join(policies.crontab(crontabs.daily.amNine).endAt(localTimes.amNine))
+      .followedBy(policies.crontab(crontabs.daily.amTen).endAt(localTimes.amTen))
+      .followedBy(policies.crontab(crontabs.daily.amEleven).endAt(localTimes.amEleven))
+      .followedBy(policies.crontab(crontabs.daily.noon).endAt(localTimes.noon))
+      .followedBy(policies.crontab(crontabs.daily.pmOne).endAt(localTimes.pmOne))
+      .followedBy(policies.crontab(crontabs.daily.pmTwo).endAt(localTimes.pmTwo))
+      .followedBy(policies.crontab(crontabs.daily.pmThree).endAt(localTimes.pmThree).limited(1))
+      .followedBy(policies.crontab(crontabs.daily.pmFour).endAt(localTimes.pmFour))
+      .join(policies.crontab(crontabs.daily.pmFive).endAt(localTimes.pmFive))
+      .followedBy(policies.crontab(crontabs.daily.pmSix).endAt(localTimes.pmSix).limited(1).repeat)
+      .followedBy(policies.crontab(crontabs.daily.pmSeven).endAt(localTimes.pmSeven))
+      .followedBy(policies.crontab(crontabs.daily.pmEight).endAt(localTimes.pmEight))
+      .followedBy(policies.crontab(crontabs.daily.pmNine).endAt(localTimes.pmNine))
+      .followedBy(policies.crontab(crontabs.daily.pmTen).endAt(localTimes.pmTen))
+      .followedBy(policies.crontab(crontabs.daily.pmEleven).endAt(localTimes.pmEleven))
+      .followedBy(policies.crontab(crontabs.daily.midnight).endOfDay)
+      .repeat
+      .repeat
+
+    println(policy)
+    println(policy.asJson)
+    assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
+  }
+
+  test("decode error") {
+    assert(decode[Policy]("""{"a":1}""").toOption.isEmpty)
+  }
+
 }
