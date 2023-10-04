@@ -3,6 +3,9 @@ package com.github.chenharryhua.nanjin.common.chrono
 import cron4s.{Cron, CronExpr}
 
 object crontabs {
+  final val monthly: CronExpr = Cron.unsafeParse("0 0 0 1 * ?")
+  final val weekly: CronExpr  = Cron.unsafeParse("0 0 0 ? * 0")
+
   object daily {
     final val midnight: CronExpr = Cron.unsafeParse("0 0 0 ? * *")
     final val amOne: CronExpr    = Cron.unsafeParse("0 0 1 ? * *")

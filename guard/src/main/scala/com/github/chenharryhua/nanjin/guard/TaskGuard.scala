@@ -3,7 +3,6 @@ import cats.Endo
 import cats.effect.kernel.{Async, Resource}
 import cats.effect.std.Console
 import com.github.chenharryhua.nanjin.common.UpdateConfig
-import com.github.chenharryhua.nanjin.common.chrono.policies
 import com.github.chenharryhua.nanjin.guard.config.{ServiceName, TaskConfig}
 import com.github.chenharryhua.nanjin.guard.service.{GeneralAgent, ServiceGuard}
 import fs2.io.net.Network
@@ -29,9 +28,6 @@ final class TaskGuard[F[_]: Async: Network] private (
       taskParams = taskConfig.evalConfig,
       config = identity,
       entryPoint = entryPoint,
-      serviceRestartPolicy = policies.giveUp,
-      metricReportPolicy = policies.giveUp,
-      metricResetPolicy = policies.giveUp,
       jmxBuilder = None,
       httpBuilder = None,
       brief = Async[F].pure(None)

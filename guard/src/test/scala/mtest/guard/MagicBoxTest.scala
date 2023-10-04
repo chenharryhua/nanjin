@@ -19,7 +19,9 @@ import scala.concurrent.duration.*
 
 class MagicBoxTest extends AnyFunSuite {
   val service: ServiceGuard[IO] =
-    TaskGuard[IO]("test").service("magic-box").withRestartPolicy(policies.fixedDelay(0.1.seconds))
+    TaskGuard[IO]("test")
+      .service("magic-box")
+      .updateConfig(_.withRestartPolicy(policies.fixedDelay(0.1.seconds)))
 
   test("1.atomicBox operations") {
     TaskGuard

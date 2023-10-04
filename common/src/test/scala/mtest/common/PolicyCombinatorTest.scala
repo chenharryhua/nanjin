@@ -4,20 +4,38 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.toShow
 import com.github.chenharryhua.nanjin.common.chrono.zones.{darwinTime, singaporeTime, sydneyTime}
-import com.github.chenharryhua.nanjin.common.chrono.{crontabs, policies, tickStream, TickStatus}
+import com.github.chenharryhua.nanjin.common.chrono.{crontabs, policies, tickStream, Policy, TickStatus}
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.LocalTime
 import scala.concurrent.duration.DurationInt
 import scala.jdk.DurationConverters.ScalaDurationOps
+import io.circe.parser.decode
+import io.circe.syntax.EncoderOps
 
 class PolicyCombinatorTest extends AnyFunSuite {
+
+  test("simple followed by") {
+    val policy = policies.giveUp.followedBy(policies.fixedDelay(1.second))
+    println(policy.asJson)
+    assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
+  }
+
+  test("accordance") {
+    val policy = policies.accordance(policies.fixedDelay(1.second))
+    println(policy.asJson)
+    assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
+  }
 
   test("follow by") {
     val policy = policies
       .accordance(policies.fixedDelay(1.second).limited(3))
       .followedBy(policies.fixedDelay(2.seconds).limited(2))
+
     println(policy.show)
+    println(policy.asJson)
+    assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
+
     val ts = TickStatus.zeroth[IO](policy, singaporeTime).unsafeRunSync()
     val t0 = ts.tick.launchTime
     val a1 = ts.next(t0).get
@@ -49,6 +67,9 @@ class PolicyCombinatorTest extends AnyFunSuite {
         .repeat
 
     println(policy.show)
+    println(policy.asJson)
+    assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
+
     val ts: TickStatus = TickStatus.zeroth[IO](policy, darwinTime).unsafeRunSync()
 
     val List(a1, a2, a3, a4, a5, a6) = lazyTickList(ts).take(6).toList
@@ -73,6 +94,9 @@ class PolicyCombinatorTest extends AnyFunSuite {
       policies.fixedRate(1.second).join(policies.fixedDelay(1.seconds))
 
     println(policy.show)
+    println(policy.asJson)
+    assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
+
     val ts: TickStatus = TickStatus.zeroth[IO](policy, sydneyTime).unsafeRunSync()
 
     val List(a1, a2, a3, a4, a5, a6) = lazyTickList(ts).take(6).toList
@@ -94,6 +118,8 @@ class PolicyCombinatorTest extends AnyFunSuite {
 
   test("infinite") {
     val policy = policies.fixedRate(1.second).limited(500).repeat
+    println(policy.asJson)
+    assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
 
     val loop: Long     = 1000000
     val ts: TickStatus = TickStatus.zeroth[IO](policy, darwinTime).unsafeRunSync()
@@ -101,14 +127,17 @@ class PolicyCombinatorTest extends AnyFunSuite {
     assert(tick.index == loop)
   }
 
-  ignore("end at") {
+  test("end at") {
     val time = LocalTime.of(16, 55, 0)
     val policy = policies
-      .accordance(policies.crontab(crontabs.every10Seconds).endAt(time))
+      .accordance(policies.crontab(crontabs.secondly).endAt(time))
       .followedBy(policies.fixedRate(1.second).endAt(time.plus(5.seconds.toJava)))
-      .followedBy(policies.fixedDelay(7.second).endOfDay)
+      .followedBy(policies.fixedDelay(2.second).endOfDay)
       .repeat
     println(policy)
-    tickStream[IO](policy, sydneyTime).debug().compile.drain.unsafeRunSync()
+    println(policy.asJson)
+    assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
+
+    tickStream[IO](policy, sydneyTime).debug().take(3).compile.drain.unsafeRunSync()
   }
 }

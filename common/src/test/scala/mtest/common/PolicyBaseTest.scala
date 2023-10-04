@@ -5,18 +5,20 @@ import cats.effect.unsafe.implicits.global
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.chrono.*
 import com.github.chenharryhua.nanjin.common.chrono.zones.*
+import io.circe.syntax.EncoderOps
 import org.scalatest.funsuite.AnyFunSuite
 import org.typelevel.cats.time.instances.duration.*
 
 import java.time.Instant
 import scala.concurrent.duration.DurationInt
 import scala.jdk.DurationConverters.{JavaDurationOps, ScalaDurationOps}
-
+import io.circe.parser.decode
 class PolicyBaseTest extends AnyFunSuite {
 
   test("fixed delay") {
-    val policy = policies.fixedDelay(1.second)
+    val policy = policies.fixedDelay(1.second, 1.second)
     println(policy.show)
+    assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
 
     val ts: TickStatus = TickStatus.zeroth[IO](policy, beijingTime).unsafeRunSync()
 
@@ -54,8 +56,9 @@ class PolicyBaseTest extends AnyFunSuite {
   }
 
   test("fixed rate") {
-    val policy = policies.fixedRate(1.second)
+    val policy = policies.fixedRate(1.second, 1.second)
     println(policy.show)
+    assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
 
     val ts: TickStatus = TickStatus.zeroth[IO](policy, beijingTime).unsafeRunSync()
 
@@ -95,6 +98,8 @@ class PolicyBaseTest extends AnyFunSuite {
   test("jitter") {
     val policy = policies.jitter(1.minute, 2.hour)
     println(policy.show)
+    assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
+
     val ts    = TickStatus.zeroth[IO](policy, newyorkTime).unsafeRunSync()
     val ticks = lazyTickList(ts).take(500).toList
 
@@ -107,6 +112,8 @@ class PolicyBaseTest extends AnyFunSuite {
   test("fixed delays") {
     val policy = policies.fixedDelay(1.second, 2.seconds, 3.seconds)
     println(policy.show)
+    assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
+
     val ts: TickStatus = TickStatus.zeroth[IO](policy, mumbaiTime).unsafeRunSync()
 
     val List(a1, a2, a3, a4, a5, a6, a7) = lazyTickList(ts).take(7).toList
@@ -131,6 +138,8 @@ class PolicyBaseTest extends AnyFunSuite {
   test("cron") {
     val policy = policies.crontab(crontabs.hourly)
     println(policy.show)
+    assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
+
     val ts = TickStatus.zeroth[IO](policy, beijingTime).unsafeRunSync()
 
     val a1 = ts.next(ts.tick.launchTime.plus(1.hour.toJava)).get
@@ -149,8 +158,11 @@ class PolicyBaseTest extends AnyFunSuite {
   }
 
   test("giveUp") {
+    val policy = policies.giveUp
+    println(policy.show)
+    assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
+
     val ts = TickStatus.zeroth[IO](policies.giveUp, beijingTime).unsafeRunSync()
     assert(ts.next(Instant.now).isEmpty)
   }
-
 }

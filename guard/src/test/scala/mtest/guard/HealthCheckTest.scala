@@ -20,7 +20,7 @@ class HealthCheckTest extends AnyFunSuite {
     val s :: a :: b :: c :: _ = guard
       .service("normal")
       .withJmx(_.inDomain("abc"))
-      .withMetricReport(policies.crontab(cron_2second))
+      .updateConfig(_.withMetricReport(policies.crontab(cron_2second)))
       .eventStream(gd => gd.action("cron", _.bipartite).retry(never_fun).run)
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
       .unNone
@@ -40,7 +40,7 @@ class HealthCheckTest extends AnyFunSuite {
   test("2.complete-test") {
     val s :: a :: b :: c :: d :: _ = guard
       .service("success-test")
-      .withMetricReport(policies.crontab(cron_1second))
+      .updateConfig(_.withMetricReport(policies.crontab(cron_1second)))
       .eventStream(gd =>
         gd.action("a", _.bipartite).retry(IO(1)).run >>
           gd.action("b", _.bipartite).retry(never_fun).run)
@@ -62,16 +62,12 @@ class HealthCheckTest extends AnyFunSuite {
   test("3.never complete") {
     val s :: a :: b :: c :: _ = guard
       .service("metrics-report")
-      .withRestartPolicy(constant_1hour)
-      .withMetricReport(policies.crontab(cron_1second))
+      .updateConfig(_.withRestartPolicy(constant_1hour).withMetricReport(policies.crontab(cron_1second)))
       .updateConfig(_.withMetricDurationTimeUnit(TimeUnit.MICROSECONDS)
         .withMetricRateTimeUnit(TimeUnit.MINUTES)
         .withMetricNamePrefix("nj_"))
       .eventStream(gd =>
-        gd.action("not/fail/yet", _.bipartite)
-          .withRetryPolicy(constant_1hour)
-          .retry(IO.raiseError(new Exception))
-          .run)
+        gd.action("not/fail/yet", _.bipartite.policy(constant_1hour)).retry(IO.raiseError(new Exception)).run)
       .interruptAfter(5.second)
       .evalTap(logging.simple[IO])
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
@@ -88,8 +84,8 @@ class HealthCheckTest extends AnyFunSuite {
   test("4.metrics reset") {
     val list = guard
       .service("metrics-reset-test")
-      .withMetricReport(policies.crontab(cron_2second))
-      .withMetricReset(policies.crontab(cron_3second))
+      .updateConfig(
+        _.withMetricReport(policies.crontab(cron_2second)).withMetricReset(policies.crontab(cron_3second)))
       .eventStream(_.action("ok", _.silent).retry(never_fun).run)
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
       .unNone

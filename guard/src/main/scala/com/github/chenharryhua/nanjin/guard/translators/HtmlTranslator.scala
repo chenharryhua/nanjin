@@ -74,7 +74,7 @@ private object HtmlTranslator extends all {
       h3(style := coloring(evt))(eventTitle(evt)),
       table(hostServiceTable(evt)),
       p(b(panicText(evt))),
-      p(b(s"$CONSTANT_POLICY: "), evt.serviceParams.servicePolicies.restart),
+      p(b(s"$CONSTANT_POLICY: "), evt.serviceParams.servicePolicies.restart.show),
       causeText(evt.error)
     )
 
@@ -137,7 +137,7 @@ private object HtmlTranslator extends all {
       h3(style := coloring(evt))(eventTitle(evt)),
       table(hostServiceTable(evt), retry),
       p(b(retryText(evt))),
-      p(b(s"$CONSTANT_POLICY: "), evt.actionParams.retryPolicy),
+      p(b(s"$CONSTANT_POLICY: "), evt.actionParams.retryPolicy.show),
       causeText(evt.error)
     )
   }
@@ -162,7 +162,7 @@ private object HtmlTranslator extends all {
     div(
       h3(style := coloring(evt))(eventTitle(evt)),
       table(hostServiceTable(evt), actionResultTable(evt)),
-      p(b(s"$CONSTANT_POLICY: "), evt.actionParams.retryPolicy),
+      p(b(s"$CONSTANT_POLICY: "), evt.actionParams.retryPolicy.show),
       causeText(evt.error),
       evt.notes.fold(div())(js => jsonText(js))
     )

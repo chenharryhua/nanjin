@@ -42,7 +42,6 @@ object AlertLevel
 
 final private[guard] case class ServiceName(value: String) extends AnyVal
 final private[guard] case class ServiceBrief(value: Option[Json]) extends AnyVal
-final private[guard] case class ServicePolicy(value: String) extends AnyVal
 
 final private[guard] case class ActionName(value: String) extends AnyVal
 final private[guard] case class Measurement(value: String) extends AnyVal

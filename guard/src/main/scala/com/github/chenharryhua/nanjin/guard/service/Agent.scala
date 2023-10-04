@@ -50,7 +50,6 @@ sealed trait Agent[F[_]] extends EntryPoint[F] {
 
 final class GeneralAgent[F[_]: Network] private[service] (
   override val entryPoint: Resource[F, EntryPoint[F]],
-  zerothTickStatus: TickStatus,
   serviceParams: ServiceParams,
   metricRegistry: MetricRegistry,
   channel: Channel[F, NJEvent],
@@ -82,7 +81,6 @@ final class GeneralAgent[F[_]: Network] private[service] (
     val name = NameConstraint.unsafeFrom(measurement).value
     new GeneralAgent[F](
       entryPoint = self.entryPoint,
-      zerothTickStatus = self.zerothTickStatus,
       serviceParams = self.serviceParams,
       metricRegistry = self.metricRegistry,
       channel = self.channel,
@@ -101,9 +99,7 @@ final class GeneralAgent[F[_]: Network] private[service] (
       measurement = self.measurement,
       metricRegistry = self.metricRegistry,
       channel = self.channel,
-      config = f,
-      retryPolicy = policies.giveUp,
-      zerothTickStatus = zerothTickStatus
+      config = f
     )
   }
 
@@ -178,7 +174,7 @@ final class GeneralAgent[F[_]: Network] private[service] (
   }
 
   override def ticks(policy: Policy): Stream[F, Tick] =
-    tickStream[F](zerothTickStatus.renewPolicy(policy))
+    tickStream[F](TickStatus(serviceParams.zerothTick).renewPolicy(policy))
 
   // general agent section, not in Agent API
 

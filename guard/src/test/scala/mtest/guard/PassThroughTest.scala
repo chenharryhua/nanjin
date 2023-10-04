@@ -21,7 +21,7 @@ class PassThroughTest extends AnyFunSuite {
 
   test("1.counter") {
     val Some(last) = guard
-      .withMetricReport(policies.crontab(cron_1second))
+      .updateConfig(_.withMetricReport(policies.crontab(cron_1second)))
       .eventStream { ag =>
         val counter = ag.counter("one/two/three/counter")
         (counter.inc(1).replicateA(3) >> counter.dec(2)).delayBy(1.second) >> ag.metrics.report
@@ -41,7 +41,7 @@ class PassThroughTest extends AnyFunSuite {
 
   test("2.alert") {
     val Some(last) = guard
-      .withMetricReport(policies.crontab(cron_1hour))
+      .updateConfig(_.withMetricReport(policies.crontab(cron_1hour)))
       .eventStream { ag =>
         val alert: NJAlert[IO] = ag.alert("oops").counted
         alert.warn(Some("message")) >> alert.info(Some("message")) >> alert.error(Some("message")) >>
@@ -63,7 +63,7 @@ class PassThroughTest extends AnyFunSuite {
 
   test("3.meter") {
     guard
-      .withMetricReport(policies.crontab(cron_1second))
+      .updateConfig(_.withMetricReport(policies.crontab(cron_1second)))
       .eventStream { agent =>
         val meter = agent.meter("nj.test.meter", StandardUnit.BYTES_SECOND)
         (meter.mark(1000) >> agent.metrics.reset
@@ -77,7 +77,7 @@ class PassThroughTest extends AnyFunSuite {
 
   test("4.histogram") {
     guard
-      .withMetricReport(policies.crontab(cron_1second))
+      .updateConfig(_.withMetricReport(policies.crontab(cron_1second)))
       .eventStream { agent =>
         val meter = agent.histogram("nj.test.histogram", StandardUnit.BYTES_SECOND)
         IO(Random.nextInt(100).toLong).flatMap(meter.update).delayBy(1.second).replicateA(5)
@@ -90,7 +90,7 @@ class PassThroughTest extends AnyFunSuite {
 
   test("5.gauge") {
     guard
-      .withMetricReport(policies.crontab(cron_1second))
+      .updateConfig(_.withMetricReport(policies.crontab(cron_1second)))
       .eventStream { agent =>
         val g1 = agent.gauge("elapse").timed
         val g2 = agent.gauge("exception").register(IO.raiseError[Int](new Exception))

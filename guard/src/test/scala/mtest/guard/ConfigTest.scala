@@ -18,7 +18,7 @@ class ConfigTest extends AnyFunSuite {
     TaskGuard[IO]("config")
       .updateConfig(_.withZoneId(berlinTime))
       .service("config")
-      .withMetricReport(policies.crontab(cron_1hour))
+      .updateConfig(_.withMetricReport(policies.crontab(cron_1hour)))
 
   test("1.counting") {
     val as = service.eventStream { agent =>
@@ -56,7 +56,7 @@ class ConfigTest extends AnyFunSuite {
 
   test("6.report") {
     service
-      .withMetricReport(policies.giveUp)
+      .updateConfig(_.withMetricReport(policies.giveUp))
       .eventStream { agent =>
         agent.action("cfg", _.silent).retry(IO(1)).run
       }

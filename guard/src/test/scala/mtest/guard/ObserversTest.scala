@@ -33,15 +33,16 @@ class ObserversTest extends AnyFunSuite {
     TaskGuard[IO]("nanjin")
       .service("observing")
       .withBrief(Json.fromString("brief"))
-      .withRestartPolicy(constant_1second)
+      .updateConfig(_.withRestartPolicy(constant_1second))
       .eventStream { ag =>
         val box = ag.atomicBox(1)
         val job = // fail twice, then success
           box.getAndUpdate(_ + 1).map(_ % 3 == 0).ifM(IO(1), IO.raiseError[Int](new Exception("oops")))
         val meter = ag.meter("meter", StandardUnit.SECONDS).counted
         val action = ag
-          .action("nj_error", _.critical.bipartite.timed.counted)
-          .withRetryPolicy(policies.fixedRate(1.second).limited(1))
+          .action(
+            "nj_error",
+            _.critical.bipartite.timed.counted.policy(policies.fixedRate(1.second).limited(1)))
           .retry(job)
           .logInput(Json.fromString("input data"))
           .logOutput(_ => Json.fromString("output data"))
