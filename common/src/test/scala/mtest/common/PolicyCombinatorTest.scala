@@ -12,6 +12,7 @@ import com.github.chenharryhua.nanjin.common.chrono.{
   Policy,
   TickStatus
 }
+import cron4s.CronExpr
 import io.circe.parser.decode
 import io.circe.syntax.EncoderOps
 import org.scalatest.funsuite.AnyFunSuite
@@ -148,7 +149,7 @@ class PolicyCombinatorTest extends AnyFunSuite {
     tickStream[IO](policy, sydneyTime).debug().take(3).compile.drain.unsafeRunSync()
   }
 
-  test("local time") {
+  test("complex policy") {
     val policy = policies
       .accordance(policies.crontab(crontabs.monthly).endAt(localTimes.midnight))
       .followedBy(policies.crontab(crontabs.weekly).endAt(localTimes.midnight).repeat)
@@ -185,7 +186,9 @@ class PolicyCombinatorTest extends AnyFunSuite {
   }
 
   test("decode error") {
+    import com.github.chenharryhua.nanjin.common.chrono.*
     assert(decode[Policy]("""{"a":1}""").toOption.isEmpty)
+    assert(decode[CronExpr]("""{"a",1}""").toOption.isEmpty)
   }
 
 }

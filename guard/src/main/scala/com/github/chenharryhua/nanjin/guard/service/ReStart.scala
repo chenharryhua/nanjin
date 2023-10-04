@@ -17,7 +17,6 @@ import scala.util.control.NonFatal
 final private class ReStart[F[_], A](
   channel: Channel[F, NJEvent],
   serviceParams: ServiceParams,
-  zerothTickStatus: TickStatus,
   theService: F[A])(implicit F: Temporal[F])
     extends duration {
 
@@ -34,26 +33,27 @@ final private class ReStart[F[_], A](
     } yield Left(ts)
 
   private val loop: F[ServiceStopCause] =
-    F.tailRecM(zerothTickStatus.renewPolicy(serviceParams.servicePolicies.restart)) { status =>
-      (publisher.serviceReStart(channel, serviceParams, status.tick) >> theService).attempt.flatMap {
-        case Right(_)                    => stop(ServiceStopCause.Normally)
-        case Left(err) if !NonFatal(err) => stopByException(err)
-        case Left(err) =>
-          F.realTimeInstant.flatMap { now =>
-            val tickStatus: TickStatus = serviceParams.threshold match {
-              case Some(threshold) =>
-                if (Duration.between(status.tick.acquire, now) > threshold)
-                  status.renewPolicy(serviceParams.servicePolicies.restart)
-                else status
-              case None => status
-            }
+    F.tailRecM(TickStatus(serviceParams.zerothTick).renewPolicy(serviceParams.servicePolicies.restart)) {
+      status =>
+        (publisher.serviceReStart(channel, serviceParams, status.tick) >> theService).attempt.flatMap {
+          case Right(_)                    => stop(ServiceStopCause.Normally)
+          case Left(err) if !NonFatal(err) => stopByException(err)
+          case Left(err) =>
+            F.realTimeInstant.flatMap { now =>
+              val tickStatus: TickStatus = serviceParams.threshold match {
+                case Some(threshold) => // if no error occurs long enough, reset the policy
+                  if (Duration.between(status.tick.acquire, now) > threshold)
+                    status.renewPolicy(serviceParams.servicePolicies.restart)
+                  else status
+                case None => status
+              }
 
-            tickStatus.next(now) match {
-              case None      => stopByException(err)
-              case Some(nts) => panic(nts, err)
+              tickStatus.next(now) match {
+                case None      => stopByException(err)
+                case Some(nts) => panic(nts, err)
+              }
             }
-          }
-      }
+        }
     }
 
   val stream: Stream[F, Nothing] =

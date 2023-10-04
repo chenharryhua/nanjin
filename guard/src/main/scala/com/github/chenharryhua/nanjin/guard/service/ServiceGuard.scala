@@ -194,7 +194,6 @@ final class ServiceGuard[F[_]: Network] private[guard] (
           new ReStart[F, A](
             channel = channel,
             serviceParams = serviceParams,
-            zerothTickStatus = zeroth,
             theService = runAgent(agent)
           ).stream
 

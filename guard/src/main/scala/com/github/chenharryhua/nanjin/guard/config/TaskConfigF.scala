@@ -36,7 +36,7 @@ private object TaskConfigF {
     }
 }
 
-final case class TaskConfig(cont: Fix[TaskConfigF]) extends AnyVal {
+final case class TaskConfig(cont: Fix[TaskConfigF]) {
   import TaskConfigF.*
 
   def withZoneId(zoneId: ZoneId): TaskConfig       = TaskConfig(Fix(WithZoneId(zoneId, cont)))

@@ -66,7 +66,7 @@ private object ActionConfigF {
     }
 }
 
-final case class ActionConfig(cont: Fix[ActionConfigF]) extends AnyVal {
+final case class ActionConfig(cont: Fix[ActionConfigF]) {
   import ActionConfigF.*
 
   def bipartite: ActionConfig  = ActionConfig(Fix(WithPublishStrategy(PublishStrategy.Bipartite, cont)))
