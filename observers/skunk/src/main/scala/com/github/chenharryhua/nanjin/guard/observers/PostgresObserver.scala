@@ -1,18 +1,19 @@
 package com.github.chenharryhua.nanjin.guard.observers
 
+import cats.Endo
 import cats.effect.kernel.{Clock, Concurrent, Resource}
 import cats.syntax.all.*
-import cats.Endo
 import com.github.chenharryhua.nanjin.common.database.TableName
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.ServiceStart
+import com.github.chenharryhua.nanjin.guard.observers.FinalizeMonitor
 import com.github.chenharryhua.nanjin.guard.translators.{Translator, UpdateTranslator}
 import fs2.{Pipe, Stream}
 import io.circe.Json
-import skunk.{Command, PreparedCommand, Session}
 import skunk.circe.codec.json.json
 import skunk.data.Completion
 import skunk.implicits.toStringOps
+import skunk.{Command, PreparedCommand, Session}
 
 import java.util.UUID
 

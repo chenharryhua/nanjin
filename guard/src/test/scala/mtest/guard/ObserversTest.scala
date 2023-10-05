@@ -2,7 +2,6 @@ package mtest.guard
 
 import cats.data.NonEmptyList
 import cats.effect.IO
-import cats.effect.kernel.Resource
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.aws.{
   CloudWatch,
@@ -15,13 +14,10 @@ import com.github.chenharryhua.nanjin.common.chrono.policies
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import com.github.chenharryhua.nanjin.guard.observers.*
-import com.influxdb.client.domain.WritePrecision
-import com.influxdb.client.{InfluxDBClientFactory, InfluxDBClientOptions}
 import eu.timepit.refined.auto.*
 import io.circe.Json
 import io.circe.syntax.EncoderOps
 import org.scalatest.funsuite.AnyFunSuite
-import skunk.{Command, Session, Void}
 import software.amazon.awssdk.services.cloudwatch.model.StandardUnit
 
 import scala.concurrent.duration.*
@@ -121,51 +117,11 @@ class ObserversTest extends AnyFunSuite {
     }
   }
 
-  test("9.postgres") {
-    import natchez.Trace.Implicits.noop
-    import skunk.implicits.toStringOps
-
-    val session: Resource[IO, Session[IO]] =
-      Session.single[IO](
-        host = "localhost",
-        port = 5432,
-        user = "postgres",
-        database = "postgres",
-        password = Some("postgres"),
-        debug = true)
-
-    val cmd: Command[Void] =
-      sql"""CREATE TABLE IF NOT EXISTS log (
-              info json NULL,
-              id SERIAL,
-              timestamp timestamptz default current_timestamp)""".command
-
-    val run = session.use(_.execute(cmd)) >>
-      service.evalTap(console.verbose[IO]).through(PostgresObserver(session).observe("log")).compile.drain
-
-    run.unsafeRunSync()
-  }
   test("10.sqs") {
     val sqs = SqsObserver(SimpleQueueService.fake[IO](1.seconds, "")).updateTranslator(_.skipActionDone)
     service.through(sqs.observe(SqsConfig.Fifo("https://google.com/abc.fifo"))).compile.drain.unsafeRunSync()
   }
 
-  test("11.influx db") {
-    val options = InfluxDBClientOptions
-      .builder()
-      .url("http://localhost:8086")
-      .authenticate("chenh", "chenhchenh".toCharArray)
-      .bucket("nanjin")
-      .org("nanjin")
-      .build()
-
-    val influx = InfluxdbObserver[IO](IO(InfluxDBClientFactory.create(options)))
-      .withWriteOptions(_.batchSize(1))
-      .withWritePrecision(WritePrecision.NS)
-      .addTag("tag", "customer")
-      .addTags(Map("a" -> "b"))
-    service.evalTap(console.simple[IO]).through(influx.observe).compile.drain.unsafeRunSync()
-  }
   test("12.cloudwatch") {
     val cloudwatch = CloudWatchObserver(CloudWatch.fake[IO])
       .withStorageResolution(10)

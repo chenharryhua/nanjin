@@ -248,19 +248,37 @@ lazy val guard = (project in file("guard"))
   .settings(name := "nj-guard")
   .settings(
     libraryDependencies ++= List(
-      "com.influxdb"                        % "influxdb-client-java" % "6.10.0",
-      "io.dropwizard.metrics"               % "metrics-core"         % metricsV,
-      "io.dropwizard.metrics"               % "metrics-jmx"          % metricsV,
+      "io.dropwizard.metrics"               % "metrics-core"   % metricsV,
+      "io.dropwizard.metrics"               % "metrics-jmx"    % metricsV,
       "org.typelevel" %% "vault"            % "3.5.0",
       "com.lihaoyi" %% "scalatags"          % "0.12.0",
-      "org.tpolecat" %% "skunk-core"        % skunkV,
-      "org.tpolecat" %% "skunk-circe"       % skunkV,
       "org.http4s" %% "http4s-core"         % http4sV,
       "org.http4s" %% "http4s-dsl"          % http4sV,
       "org.http4s" %% "http4s-ember-server" % http4sV,
       "org.http4s" %% "http4s-scalatags"    % "0.25.2",
-      "org.slf4j"                           % "slf4j-reload4j"       % slf4jV % Test
+      "org.slf4j"                           % "slf4j-reload4j" % slf4jV % Test
     ) ++ logLib ++ testLib
+  )
+
+lazy val guard_observer_skunk = (project in file("observers/skunk"))
+  .dependsOn(guard)
+  .settings(commonSettings*)
+  .settings(name := "nj-observer-skunk")
+  .settings(
+    libraryDependencies ++= List(
+      "org.tpolecat" %% "skunk-core"  % skunkV,
+      "org.tpolecat" %% "skunk-circe" % skunkV
+    ) ++ testLib
+  )
+
+lazy val guard_observer_influxdb = (project in file("observers/influxdb"))
+  .dependsOn(guard)
+  .settings(commonSettings*)
+  .settings(name := "nj-observer-influxdb")
+  .settings(
+    libraryDependencies ++= List(
+      "com.influxdb" % "influxdb-client-java" % "6.10.0"
+    ) ++ testLib
   )
 
 lazy val messages = (project in file("messages"))
@@ -389,8 +407,19 @@ lazy val example = (project in file("example"))
   ) ++ testLib)
   .settings(Compile / PB.targets := List(scalapb.gen() -> (Compile / sourceManaged).value / "scalapb"))
 
-// format: off  
 lazy val nanjin =
-  (project in file(".")).aggregate(common, datetime, http, aws, guard, messages, pipes, kafka, database, spark)
-// format: on
+  (project in file("."))
+    .aggregate(
+      common,
+      datetime,
+      http,
+      aws,
+      messages,
+      pipes,
+      kafka,
+      database,
+      spark,
+      guard,
+      guard_observer_skunk,
+      guard_observer_influxdb)
 
