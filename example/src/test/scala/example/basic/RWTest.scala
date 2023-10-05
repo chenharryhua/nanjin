@@ -18,7 +18,7 @@ class RWTest extends AnyFunSuite {
   val task: ServiceGuard[IO] = TaskGuard[IO]("basic")
     .updateConfig(_.withZoneId(sydneyTime))
     .service("test")
-    .withMetricReport(policies.crontab(crontabs.trisecondly))
+    .updateConfig(_.withMetricReport(policies.crontab(crontabs.trisecondly)))
 
   test("avro") {
     task.eventStream(a => new AvroTest(a, root).run).evalTap(console.simple[IO]).compile.drain.unsafeRunSync()

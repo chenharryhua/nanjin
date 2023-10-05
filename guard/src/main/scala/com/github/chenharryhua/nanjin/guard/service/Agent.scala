@@ -11,18 +11,12 @@ import com.github.chenharryhua.nanjin.guard.event.*
 import fs2.Stream
 import fs2.concurrent.{Channel, SignallingMapRef}
 import fs2.io.net.Network
-import natchez.{EntryPoint, Kernel, Span}
-import org.http4s.HttpRoutes
 import org.typelevel.vault.{Key, Locker, Vault}
 import software.amazon.awssdk.services.cloudwatch.model.StandardUnit
 
 import java.time.{Instant, ZoneId, ZonedDateTime}
 
-sealed trait Agent[F[_]] extends EntryPoint[F] {
-  // trace
-  def entryPoint: Resource[F, EntryPoint[F]]
-  def traceServer(routes: Span[F] => HttpRoutes[F]): HttpRoutes[F]
-
+sealed trait Agent[F[_]] {
   // date-time
   def zoneId: ZoneId
   def zonedNow: F[ZonedDateTime]
@@ -49,7 +43,6 @@ sealed trait Agent[F[_]] extends EntryPoint[F] {
 }
 
 final class GeneralAgent[F[_]: Network] private[service] (
-  override val entryPoint: Resource[F, EntryPoint[F]],
   serviceParams: ServiceParams,
   metricRegistry: MetricRegistry,
   channel: Channel[F, NJEvent],
@@ -58,19 +51,6 @@ final class GeneralAgent[F[_]: Network] private[service] (
   dispatcher: Dispatcher[F],
   measurement: Measurement)(implicit F: Async[F])
     extends Agent[F] { self =>
-  // trace
-  override def root(name: String, options: Span.Options): Resource[F, Span[F]] =
-    entryPoint.flatMap(_.root(name, options))
-
-  override def continue(name: String, kernel: Kernel, options: Span.Options): Resource[F, Span[F]] =
-    entryPoint.flatMap(_.continue(name, kernel, options))
-
-  override def continueOrElseRoot(name: String, kernel: Kernel, options: Span.Options): Resource[F, Span[F]] =
-    entryPoint.flatMap(_.continueOrElseRoot(name, kernel, options))
-
-  override def traceServer(routes: Span[F] => HttpRoutes[F]): HttpRoutes[F] =
-    HttpTrace.server[F](routes, self.entryPoint)
-
   // data time
   override val zonedNow: F[ZonedDateTime]                  = serviceParams.zonedNow[F]
   override def toZonedDateTime(ts: Instant): ZonedDateTime = serviceParams.toZonedDateTime(ts)
@@ -80,7 +60,6 @@ final class GeneralAgent[F[_]: Network] private[service] (
   override def withMeasurement(measurement: String): Agent[F] = {
     val name = NameConstraint.unsafeFrom(measurement).value
     new GeneralAgent[F](
-      entryPoint = self.entryPoint,
       serviceParams = self.serviceParams,
       metricRegistry = self.metricRegistry,
       channel = self.channel,

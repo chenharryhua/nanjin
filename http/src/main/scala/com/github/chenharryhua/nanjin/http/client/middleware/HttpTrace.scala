@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.guard.service
+package com.github.chenharryhua.nanjin.http.client.middleware
 
 import cats.data.{Kleisli, OptionT}
 import cats.effect.implicits.monadCancelOps
@@ -9,7 +9,7 @@ import org.apache.commons.lang3.exception.ExceptionUtils
 import org.http4s.{HttpRoutes, Response}
 import org.typelevel.ci.*
 
-private object HttpTrace {
+object HttpTrace {
   // copy from https://github.com/tpolecat/natchez-http4s
   private val ExcludedHeaders: Set[CIString] = {
     import org.http4s.headers.*

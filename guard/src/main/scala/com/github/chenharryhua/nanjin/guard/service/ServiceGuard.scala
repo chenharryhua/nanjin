@@ -25,7 +25,6 @@ import fs2.Stream
 import fs2.concurrent.{Channel, SignallingMapRef}
 import fs2.io.net.Network
 import io.circe.Json
-import natchez.EntryPoint
 import org.http4s.ember.server.EmberServerBuilder
 import org.typelevel.vault.{Locker, Vault}
 
@@ -45,7 +44,6 @@ final class ServiceGuard[F[_]: Network] private[guard] (
   serviceName: ServiceName,
   taskParams: TaskParams,
   config: Endo[ServiceConfig],
-  entryPoint: Resource[F, EntryPoint[F]],
   jmxBuilder: Option[Endo[JmxReporter.Builder]],
   httpBuilder: Option[Endo[EmberServerBuilder[F]]],
   brief: F[Option[Json]])(implicit F: Async[F])
@@ -62,7 +60,6 @@ final class ServiceGuard[F[_]: Network] private[guard] (
       serviceName = serviceName,
       taskParams = self.taskParams,
       config = config,
-      entryPoint = self.entryPoint,
       jmxBuilder = jmxBuilder,
       httpBuilder = httpBuilder,
       brief = brief
@@ -103,7 +100,6 @@ final class ServiceGuard[F[_]: Network] private[guard] (
       .drain
       .background
   } yield new GeneralAgent[F](
-    entryPoint = entryPoint,
     serviceParams = sp,
     metricRegistry = new MetricRegistry,
     channel = chn,
@@ -180,7 +176,6 @@ final class ServiceGuard[F[_]: Network] private[guard] (
 
         val agent: GeneralAgent[F] =
           new GeneralAgent[F](
-            entryPoint = entryPoint,
             serviceParams = serviceParams,
             metricRegistry = metricRegistry,
             channel = channel,

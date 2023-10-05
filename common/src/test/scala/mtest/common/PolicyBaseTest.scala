@@ -15,6 +15,11 @@ import scala.jdk.DurationConverters.{JavaDurationOps, ScalaDurationOps}
 import io.circe.parser.decode
 class PolicyBaseTest extends AnyFunSuite {
 
+  test("fibonacci") {
+    assert(fibonacci.take(10).toList == List(1, 1, 2, 3, 5, 8, 13, 21, 34, 55))
+    assert(exponential.take(10).toList == List(1, 2, 4, 8, 16, 32, 64, 128, 256, 512))
+  }
+
   test("fixed delay") {
     val policy = policies.fixedDelay(1.second, 1.second)
     println(policy.show)

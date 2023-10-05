@@ -4,7 +4,16 @@ import cron4s.{Cron, CronExpr}
 
 object crontabs {
   final val monthly: CronExpr = Cron.unsafeParse("0 0 0 1 * ?")
-  final val weekly: CronExpr  = Cron.unsafeParse("0 0 0 ? * 0")
+
+  object weekly {
+    final val sunday    = Cron.unsafeParse("0 0 0 ? * 0")
+    final val monday    = Cron.unsafeParse("0 0 0 ? * 1")
+    final val tuesday   = Cron.unsafeParse("0 0 0 ? * 2")
+    final val wednesday = Cron.unsafeParse("0 0 0 ? * 3")
+    final val thursday  = Cron.unsafeParse("0 0 0 ? * 4")
+    final val friday    = Cron.unsafeParse("0 0 0 ? * 5")
+    final val saturday  = Cron.unsafeParse("0 0 0 ? * 6")
+  }
 
   object daily {
     final val midnight: CronExpr = Cron.unsafeParse("0 0 0 ? * *")

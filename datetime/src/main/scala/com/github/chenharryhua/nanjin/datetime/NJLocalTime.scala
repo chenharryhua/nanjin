@@ -16,7 +16,7 @@ final case class NJLocalTime(value: LocalTime) {
 final case class NJLocalTimeRange(start: LocalTime, duration: FiniteDuration, zoneId: ZoneId) {
 
   // start time inclusive, end time exclusive
-  def isInBetween(instant: Instant): Boolean =
+  def inBetween(instant: Instant): Boolean =
     if (duration >= oneDay) true
     else if (duration <= Duration.Zero) false
     else {
@@ -30,6 +30,6 @@ final case class NJLocalTimeRange(start: LocalTime, duration: FiniteDuration, zo
       }
     }
 
-  def isInBetween(zonedDateTime: ZonedDateTime): Boolean =
-    isInBetween(zonedDateTime.toInstant)
+  def inBetween(zonedDateTime: ZonedDateTime): Boolean =
+    inBetween(zonedDateTime.toInstant)
 }

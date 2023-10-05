@@ -1,14 +1,13 @@
 package com.github.chenharryhua.nanjin.http.client.auth
 
+import cats.Endo
 import cats.data.NonEmptyList
 import cats.effect.kernel.{Async, Ref, Resource}
 import cats.effect.syntax.all.*
 import cats.syntax.all.*
-import cats.Endo
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import io.circe.generic.auto.*
-import io.jsonwebtoken.{Jwts, SignatureAlgorithm}
-import org.http4s.{Credentials, Request, Uri, UrlForm}
+import io.jsonwebtoken.Jwts
 import org.http4s.Method.*
 import org.http4s.Uri.Path.Segment
 import org.http4s.circe.CirceEntityCodec.circeEntityDecoder
@@ -16,6 +15,7 @@ import org.http4s.client.Client
 import org.http4s.client.dsl.Http4sClientDsl
 import org.http4s.headers.Authorization
 import org.http4s.implicits.http4sLiteralsSyntax
+import org.http4s.{Credentials, Request, Uri, UrlForm}
 import org.typelevel.ci.CIString
 
 import java.lang.Boolean.TRUE
@@ -134,14 +134,18 @@ object adobe {
 
       def getToken(expiresIn: FiniteDuration): F[Token] =
         F.realTimeInstant.map { ts =>
-          Jwts.builder
-            .setSubject(technical_account_key)
-            .setIssuer(ims_org_id)
-            .setAudience(audience)
-            .setExpiration(Date.from(ts.plusSeconds(expiresIn.toSeconds)))
-            .addClaims(claims)
-            .signWith(private_key, SignatureAlgorithm.RS256)
-            .compact
+          Jwts
+            .builder()
+            .subject(technical_account_key)
+            .issuer(ims_org_id)
+            .expiration(Date.from(ts.plusSeconds(expiresIn.toSeconds)))
+            .claims(claims)
+            .signWith(private_key, Jwts.SIG.RS256)
+            .audience()
+            .add(audience)
+            .and()
+            .compact()
+
         }.flatMap(jwt =>
           params
             .authClient(client)

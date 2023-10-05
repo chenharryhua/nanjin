@@ -4,8 +4,8 @@ ThisBuild / version := "0.17.5-SNAPSHOT"
 
 val catsCoreV   = "2.10.0"
 val fs2V        = "3.9.2"
-val awsV_1      = "1.12.550"
-val awsV_2      = "2.20.150"
+val awsV_1      = "1.12.560"
+val awsV_2      = "2.20.160"
 val catsEffectV = "3.5.2"
 val hadoopV     = "3.3.6"
 val monocleV    = "3.2.0"
@@ -23,7 +23,7 @@ val natchezV    = "0.3.3"
 val http4sV     = "0.23.23"
 val cron4sV     = "0.6.1"
 val jacksonV    = "2.15.2"
-val protobufV   = "3.24.3"
+val protobufV   = "3.24.4"
 val sparkV      = "3.4.1"
 val framelessV  = "0.15.0"
 val refinedV    = "0.11.0"
@@ -35,6 +35,7 @@ val log4catsV   = "2.6.0"
 val logbackV    = "1.4.11"
 val doobieV     = "1.0.0-RC4"
 val okioV       = "3.6.0"
+val jwtV        = "0.12.1"
 
 lazy val commonSettings = List(
   organization := "com.github.chenharryhua",
@@ -173,9 +174,9 @@ val logLib = List(
 
 val jwtLib = List(
   "org.bouncycastle" % "bcpkix-jdk18on" % "1.76",
-  "io.jsonwebtoken"  % "jjwt-api"       % "0.11.5",
-  "io.jsonwebtoken"  % "jjwt-impl"      % "0.11.5",
-  "io.jsonwebtoken"  % "jjwt-jackson"   % "0.11.5"
+  "io.jsonwebtoken"  % "jjwt-api"       % jwtV,
+  "io.jsonwebtoken"  % "jjwt-impl"      % jwtV,
+  "io.jsonwebtoken"  % "jjwt-jackson"   % jwtV
 )
 
 val baseLib = List(
@@ -243,7 +244,6 @@ lazy val datetime = (project in file("datetime"))
 
 lazy val guard = (project in file("guard"))
   .dependsOn(aws)
-  .dependsOn(datetime)
   .settings(commonSettings*)
   .settings(name := "nj-guard")
   .settings(
@@ -255,14 +255,10 @@ lazy val guard = (project in file("guard"))
       "com.lihaoyi" %% "scalatags"          % "0.12.0",
       "org.tpolecat" %% "skunk-core"        % skunkV,
       "org.tpolecat" %% "skunk-circe"       % skunkV,
-      "org.tpolecat" %% "natchez-core"      % natchezV,
-      "org.tpolecat" %% "natchez-noop"      % natchezV,
       "org.http4s" %% "http4s-core"         % http4sV,
       "org.http4s" %% "http4s-dsl"          % http4sV,
       "org.http4s" %% "http4s-ember-server" % http4sV,
       "org.http4s" %% "http4s-scalatags"    % "0.25.2",
-      "org.tpolecat" %% "natchez-jaeger"    % natchezV               % Test,
-      "org.tpolecat" %% "natchez-log"       % natchezV               % Test,
       "org.slf4j"                           % "slf4j-reload4j"       % slf4jV % Test
     ) ++ logLib ++ testLib
   )
@@ -349,14 +345,14 @@ lazy val pipes = (project in file("pipes"))
   .settings(name := "nj-pipes")
   .settings {
     val libs = List(
-      "com.amazonaws"                  % "aws-java-sdk-bundle" % awsV_1,
-      "org.tukaani"                    % "xz"                  % "1.9",
-      "org.eclipse.jetty"              % "jetty-xml"           % "12.0.1", // snyk
-      "org.eclipse.jetty"              % "jetty-http"          % "12.0.1", // snyk
-      "org.jetbrains.kotlin"           % "kotlin-stdlib"       % "1.9.10", // snyk
-      "org.codehaus.jettison"          % "jettison"            % "1.5.4", // snyk
-      "io.netty"                       % "netty-handler"       % nettyV, // snyk
-      "org.slf4j"                      % "slf4j-jdk14"         % slf4jV % Test
+      "com.amazonaws"         % "aws-java-sdk-bundle" % awsV_1,
+      "org.tukaani"           % "xz"                  % "1.9",
+      "org.eclipse.jetty"     % "jetty-xml"           % "12.0.1", // snyk
+      "org.eclipse.jetty"     % "jetty-http"          % "12.0.1", // snyk
+      "org.jetbrains.kotlin"  % "kotlin-stdlib"       % "1.9.10", // snyk
+      "org.codehaus.jettison" % "jettison"            % "1.5.4", // snyk
+      "io.netty"              % "netty-handler"       % nettyV, // snyk
+      "org.slf4j"             % "slf4j-jdk14"         % slf4jV % Test
     ) ++ kantanLib ++ logLib ++ testLib ++ hadoopLib
     libraryDependencies ++= libs.map(_.exclude("org.codehaus.jackson", "jackson-mapper-asl")) // snyk
   }

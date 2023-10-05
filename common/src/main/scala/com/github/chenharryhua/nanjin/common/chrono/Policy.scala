@@ -106,6 +106,9 @@ private object PolicyF extends localtime with localdate with duration {
         }
     }
 
+  def decisions(policy: Fix[PolicyF], zoneId: ZoneId): LazyList[CalcTick] =
+    scheme.cata(algebra(zoneId)).apply(policy)
+
   private val fmt: DurationFormatter = DurationFormatter.defaultFormatter
 
   private val GIVE_UP: String              = "giveUp"
@@ -146,9 +149,6 @@ private object PolicyF extends localtime with localdate with duration {
     case Join(first, second)          => show"$first.$JOIN($second)"
   }
 
-  def decisions(policy: Fix[PolicyF], zoneId: ZoneId): LazyList[CalcTick] =
-    scheme.cata(algebra(zoneId)).apply(policy)
-
   // json encoder
   private val jsonAlgebra: Algebra[PolicyF, Json] = Algebra[PolicyF, Json] {
     case GiveUp() =>
@@ -168,14 +168,14 @@ private object PolicyF extends localtime with localdate with duration {
     case FollowedBy(leader, follower) =>
       Json.obj(FOLLOWED_BY -> Json.obj(FOLLOWED_BY_LEADER -> leader, FOLLOWED_BY_FOLLOWER -> follower))
     case Repeat(policy) =>
-      Json.obj(REPEAT -> policy.asJson)
+      Json.obj(REPEAT -> encoderFixPolicyF(policy))
     case EndAt(policy, end) =>
       Json.obj(END_AT -> end.asJson, POLICY -> policy)
     case Join(first, second) =>
       Json.obj(JOIN -> Json.obj(JOIN_FIRST -> first, JOIN_SECOND -> second))
   }
 
-  implicit val encoderFixPolicyF: Encoder[Fix[PolicyF]] =
+  val encoderFixPolicyF: Encoder[Fix[PolicyF]] =
     (a: Fix[PolicyF]) => scheme.cata(jsonAlgebra).apply(a)
 
   // json decoder
@@ -186,7 +186,7 @@ private object PolicyF extends localtime with localdate with duration {
     def accordance(hc: HCursor): Result[Accordance[HCursor]] =
       hc.downField(ACCORDANCE).as[HCursor].map(Accordance[HCursor])
 
-    def crontab(hc: HCursor): Either[DecodingFailure, Crontab[HCursor]] =
+    def crontab(hc: HCursor): Result[Crontab[HCursor]] =
       hc.get[CronExpr](CRONTAB).map(ce => Crontab[HCursor](ce))
 
     def jitter(hc: HCursor): Result[Jitter[HCursor]] = {
@@ -271,7 +271,7 @@ object Policy {
   implicit val showPolicy: Show[Policy] = _.toString
 
   implicit val encoderPolicy: Encoder[Policy] =
-    (a: Policy) => a.policy.asJson
+    (a: Policy) => PolicyF.encoderFixPolicyF(a.policy)
 
   implicit val decoderPolicy: Decoder[Policy] =
     (c: HCursor) => PolicyF.decoderFixPolicyF(c).map(Policy(_))

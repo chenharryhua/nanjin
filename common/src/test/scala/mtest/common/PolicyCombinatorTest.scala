@@ -152,7 +152,6 @@ class PolicyCombinatorTest extends AnyFunSuite {
   test("complex policy") {
     val policy = policies
       .accordance(policies.crontab(crontabs.monthly).endAt(localTimes.midnight))
-      .followedBy(policies.crontab(crontabs.weekly).endAt(localTimes.midnight).repeat)
       .join(policies.crontab(crontabs.daily.amOne).endAt(localTimes.amOne))
       .followedBy(policies.crontab(crontabs.daily.amTwo).endAt(localTimes.amTwo).limited(3))
       .followedBy(policies.crontab(crontabs.daily.amThree).endAt(localTimes.amThree))
@@ -164,6 +163,7 @@ class PolicyCombinatorTest extends AnyFunSuite {
       .join(policies.crontab(crontabs.daily.amNine).endAt(localTimes.amNine))
       .followedBy(policies.crontab(crontabs.daily.amTen).endAt(localTimes.amTen))
       .followedBy(policies.crontab(crontabs.daily.amEleven).endAt(localTimes.amEleven))
+      .followedBy(policies.giveUp)
       .followedBy(policies.crontab(crontabs.daily.noon).endAt(localTimes.noon))
       .followedBy(policies.crontab(crontabs.daily.pmOne).endAt(localTimes.pmOne))
       .followedBy(policies.crontab(crontabs.daily.pmTwo).endAt(localTimes.pmTwo))
@@ -178,7 +178,19 @@ class PolicyCombinatorTest extends AnyFunSuite {
       .followedBy(policies.crontab(crontabs.daily.pmEleven).endAt(localTimes.pmEleven))
       .followedBy(policies.crontab(crontabs.daily.midnight).endOfDay)
       .repeat
+      .followedBy(policies.fixedDelay(1.second))
+      .followedBy(policies.fixedRate(3.second))
+      .followedBy(policies.fixedDelay(1.second, 2.seconds))
+      .followedBy(policies.fixedRate(2.seconds, 3.second))
+      .followedBy(policies.jitter(1.hours, 2.hours))
       .repeat
+      .followedBy(policies.crontab(crontabs.weekly.monday).endAt(localTimes.midnight))
+      .followedBy(policies.crontab(crontabs.weekly.tuesday).endAt(localTimes.midnight))
+      .followedBy(policies.crontab(crontabs.weekly.wednesday).endAt(localTimes.midnight))
+      .followedBy(policies.crontab(crontabs.weekly.thursday).endAt(localTimes.midnight))
+      .followedBy(policies.crontab(crontabs.weekly.friday).endAt(localTimes.midnight))
+      .followedBy(policies.crontab(crontabs.weekly.saturday).endAt(localTimes.midnight))
+      .followedBy(policies.crontab(crontabs.weekly.sunday).endAt(localTimes.midnight))
 
     println(policy)
     println(policy.asJson)
@@ -188,7 +200,6 @@ class PolicyCombinatorTest extends AnyFunSuite {
   test("decode error") {
     import com.github.chenharryhua.nanjin.common.chrono.*
     assert(decode[Policy]("""{"a":1}""").toOption.isEmpty)
-    assert(decode[CronExpr]("""{"a",1}""").toOption.isEmpty)
+    assert(decode[CronExpr]("""*/4 * * ? *""").toOption.isEmpty)
   }
-
 }
