@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.config
 
 import cats.{Functor, Show}
+import com.github.chenharryhua.nanjin.common.chrono.{policies, Policy}
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
 import io.circe.generic.JsonCodec
@@ -13,7 +14,7 @@ final case class ActionParams(
   publishStrategy: PublishStrategy,
   isCounting: Boolean,
   isTiming: Boolean,
-  retryPolicy: String, // for display
+  retryPolicy: Policy,
   serviceParams: ServiceParams) {
   val configStr: String = {
     val cc = if (isCounting) ".counted" else ""
@@ -28,7 +29,6 @@ object ActionParams {
   def apply(
     actionName: ActionName,
     measurement: Measurement,
-    retryPolicy: ServicePolicy,
     serviceParams: ServiceParams
   ): ActionParams =
     ActionParams(
@@ -37,7 +37,7 @@ object ActionParams {
       publishStrategy = PublishStrategy.Silent,
       isCounting = false,
       isTiming = false,
-      retryPolicy = retryPolicy.value,
+      retryPolicy = policies.giveUp,
       serviceParams = serviceParams
     )
 }
@@ -53,21 +53,20 @@ private object ActionConfigF {
   final case class WithTiming[K](value: Boolean, cont: K) extends ActionConfigF[K]
   final case class WithCounting[K](value: Boolean, cont: K) extends ActionConfigF[K]
   final case class WithImportance[K](value: Importance, cont: K) extends ActionConfigF[K]
+  final case class WithRetryPolicy[K](value: Policy, cont: K) extends ActionConfigF[K]
 
-  def algebra(
-    actionName: ActionName,
-    measurement: Measurement,
-    retryPolicy: ServicePolicy): Algebra[ActionConfigF, ActionParams] =
+  def algebra(actionName: ActionName, measurement: Measurement): Algebra[ActionConfigF, ActionParams] =
     Algebra[ActionConfigF, ActionParams] {
-      case InitParams(serviceParams) => ActionParams(actionName, measurement, retryPolicy, serviceParams)
+      case InitParams(serviceParams) => ActionParams(actionName, measurement, serviceParams)
       case WithPublishStrategy(v, c) => c.focus(_.publishStrategy).replace(v)
       case WithTiming(v, c)          => c.focus(_.isTiming).replace(v)
       case WithCounting(v, c)        => c.focus(_.isCounting).replace(v)
       case WithImportance(v, c)      => c.focus(_.importance).replace(v)
+      case WithRetryPolicy(v, c)     => c.focus(_.retryPolicy).replace(v)
     }
 }
 
-final case class ActionConfig(cont: Fix[ActionConfigF]) extends AnyVal {
+final case class ActionConfig(cont: Fix[ActionConfigF]) {
   import ActionConfigF.*
 
   def bipartite: ActionConfig  = ActionConfig(Fix(WithPublishStrategy(PublishStrategy.Bipartite, cont)))
@@ -84,8 +83,10 @@ final case class ActionConfig(cont: Fix[ActionConfigF]) extends AnyVal {
   def uncounted: ActionConfig = ActionConfig(Fix(WithCounting(value = false, cont)))
   def untimed: ActionConfig   = ActionConfig(Fix(WithTiming(value = false, cont)))
 
-  def evalConfig(actionName: ActionName, measurement: Measurement, retryPolicy: ServicePolicy): ActionParams =
-    scheme.cata(algebra(actionName, measurement, retryPolicy)).apply(cont)
+  def policy(retryPolicy: Policy): ActionConfig = ActionConfig(Fix(WithRetryPolicy(retryPolicy, cont)))
+
+  def evalConfig(actionName: ActionName, measurement: Measurement): ActionParams =
+    scheme.cata(algebra(actionName, measurement)).apply(cont)
 }
 
 object ActionConfig {

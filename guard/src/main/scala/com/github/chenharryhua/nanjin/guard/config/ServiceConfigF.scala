@@ -1,14 +1,15 @@
 package com.github.chenharryhua.nanjin.guard.config
 
 import cats.effect.kernel.Clock
-import cats.implicits.toFunctorOps
+import cats.implicits.{toFunctorOps, toShow}
 import cats.{Functor, Show}
-import com.github.chenharryhua.nanjin.common.chrono.Tick
+import com.github.chenharryhua.nanjin.common.chrono.{crontabs, policies, Policy, Tick}
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
 import io.circe.Json
 import io.circe.generic.JsonCodec
 import monocle.syntax.all.*
+import org.http4s.ember.server.EmberServerBuilder
 import org.typelevel.cats.time.instances.{duration, zoneddatetime}
 
 import java.time.*
@@ -31,19 +32,40 @@ object MetricParams {
 }
 
 @JsonCodec
-final case class ServicePolicies(restart: String, metricReport: String, metricReset: String) // for display
+final case class ServicePolicies(restart: Policy, metricReport: Policy, metricReset: Policy)
+
+@JsonCodec
+final case class EmberServerParams(
+  host: Option[String],
+  port: Int,
+  maxConnections: Int,
+  receiveBufferSize: Int,
+  maxHeaderSize: Int)
+
+object EmberServerParams {
+  def apply[F[_]](esb: EmberServerBuilder[F]): EmberServerParams =
+    EmberServerParams(
+      host = esb.host.map(_.show),
+      port = esb.port.value,
+      maxConnections = esb.maxConnections,
+      receiveBufferSize = esb.receiveBufferSize,
+      maxHeaderSize = esb.maxHeaderSize
+    )
+}
 
 @JsonCodec
 final case class ServiceParams(
   serviceName: String,
   servicePolicies: ServicePolicies,
+  emberServerParams: Option[EmberServerParams],
   threshold: Option[Duration],
   taskParams: TaskParams,
   metricParams: MetricParams,
   brief: Option[Json],
-  serviceId: UUID,
-  launchTime: ZonedDateTime
+  zerothTick: Tick
 ) {
+  val serviceId: UUID                             = zerothTick.sequenceId
+  val launchTime: ZonedDateTime                   = zerothTick.launchTime.atZone(zerothTick.zoneId)
   def toZonedDateTime(ts: Instant): ZonedDateTime = ts.atZone(taskParams.zoneId)
   def toZonedDateTime(fd: FiniteDuration): ZonedDateTime =
     toZonedDateTime(Instant.EPOCH.plusNanos(fd.toNanos))
@@ -64,14 +86,18 @@ object ServiceParams extends zoneddatetime with duration {
   def apply(
     serviceName: ServiceName,
     taskParams: TaskParams,
-    servicePolicies: ServicePolicies,
+    emberServerParams: Option[EmberServerParams],
     brief: ServiceBrief,
-    zeroth: Tick
+    zerothTick: Tick
   ): ServiceParams =
     ServiceParams(
       serviceName = serviceName.value,
       taskParams = taskParams,
-      servicePolicies = servicePolicies,
+      servicePolicies = ServicePolicies(
+        restart = policies.giveUp,
+        metricReport = policies.giveUp,
+        metricReset = policies.giveUp),
+      emberServerParams = emberServerParams,
       threshold = None,
       metricParams = MetricParams(
         namePrefix = "",
@@ -79,8 +105,7 @@ object ServiceParams extends zoneddatetime with duration {
         durationTimeUnit = TimeUnit.MILLISECONDS
       ),
       brief = brief.value,
-      serviceId = zeroth.sequenceId,
-      launchTime = zeroth.launchTime.atZone(zeroth.zoneId)
+      zerothTick = zerothTick
     )
 }
 
@@ -95,31 +120,37 @@ private object ServiceConfigF {
   final case class WithDurationTimeUnit[K](value: TimeUnit, cont: K) extends ServiceConfigF[K]
   final case class WithMetricNamePrefix[K](value: String, cont: K) extends ServiceConfigF[K]
   final case class WithRestartThreshold[K](value: Option[Duration], cont: K) extends ServiceConfigF[K]
+  final case class WithRestartPolicy[K](value: Policy, cont: K) extends ServiceConfigF[K]
+  final case class WithMetricReportPolicy[K](value: Policy, cont: K) extends ServiceConfigF[K]
+  final case class WithMetricResetPolicy[K](value: Policy, cont: K) extends ServiceConfigF[K]
 
   def algebra(
     serviceName: ServiceName,
-    servicePolicies: ServicePolicies,
+    emberServerParams: Option[EmberServerParams],
     brief: ServiceBrief,
-    zeroth: Tick): Algebra[ServiceConfigF, ServiceParams] =
+    zerothTick: Tick): Algebra[ServiceConfigF, ServiceParams] =
     Algebra[ServiceConfigF, ServiceParams] {
       case InitParams(taskParams) =>
         ServiceParams(
           serviceName = serviceName,
           taskParams = taskParams,
-          servicePolicies = servicePolicies,
+          emberServerParams = emberServerParams,
           brief = brief,
-          zeroth = zeroth
+          zerothTick = zerothTick
         )
 
-      case WithRateTimeUnit(v, c)     => c.focus(_.metricParams.rateTimeUnit).replace(v)
-      case WithDurationTimeUnit(v, c) => c.focus(_.metricParams.durationTimeUnit).replace(v)
-      case WithMetricNamePrefix(v, c) => c.focus(_.metricParams.namePrefix).replace(v)
-      case WithRestartThreshold(v, c) => c.focus(_.threshold).replace(v)
+      case WithRateTimeUnit(v, c)       => c.focus(_.metricParams.rateTimeUnit).replace(v)
+      case WithDurationTimeUnit(v, c)   => c.focus(_.metricParams.durationTimeUnit).replace(v)
+      case WithMetricNamePrefix(v, c)   => c.focus(_.metricParams.namePrefix).replace(v)
+      case WithRestartThreshold(v, c)   => c.focus(_.threshold).replace(v)
+      case WithRestartPolicy(v, c)      => c.focus(_.servicePolicies.restart).replace(v)
+      case WithMetricReportPolicy(v, c) => c.focus(_.servicePolicies.metricReport).replace(v)
+      case WithMetricResetPolicy(v, c)  => c.focus(_.servicePolicies.metricReset).replace(v)
 
     }
 }
 
-final case class ServiceConfig(cont: Fix[ServiceConfigF]) extends AnyVal {
+final case class ServiceConfig(cont: Fix[ServiceConfigF]) {
   import ServiceConfigF.*
 
   // metrics
@@ -135,18 +166,30 @@ final case class ServiceConfig(cont: Fix[ServiceConfigF]) extends AnyVal {
   def withRestartThreshold(fd: FiniteDuration): ServiceConfig =
     ServiceConfig(Fix(WithRestartThreshold(Some(fd.toJava), cont)))
 
+  def withRestartPolicy(restart: Policy): ServiceConfig =
+    ServiceConfig(Fix(WithRestartPolicy(restart, cont)))
+
+  def withMetricReport(report: Policy): ServiceConfig =
+    ServiceConfig(Fix(WithMetricReportPolicy(report, cont)))
+
+  def withMetricReset(reset: Policy): ServiceConfig =
+    ServiceConfig(Fix(WithMetricResetPolicy(reset, cont)))
+
+  def withMetricDailyReset: ServiceConfig =
+    withMetricReset(policies.crontab(crontabs.daily.midnight))
+
   def evalConfig(
     serviceName: ServiceName,
-    servicePolicies: ServicePolicies,
+    emberServerParams: Option[EmberServerParams],
     brief: ServiceBrief,
-    zeroth: Tick): ServiceParams =
+    zerothTick: Tick): ServiceParams =
     scheme
       .cata(
         algebra(
           serviceName = serviceName,
-          servicePolicies = servicePolicies,
+          emberServerParams = emberServerParams,
           brief = brief,
-          zeroth = zeroth
+          zerothTick = zerothTick
         ))
       .apply(cont)
 }

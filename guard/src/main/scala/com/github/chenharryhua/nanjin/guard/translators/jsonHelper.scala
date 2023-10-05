@@ -17,8 +17,8 @@ private object jsonHelper {
   def exitCause(sc: ServiceStopCause): (String, Json)  = "exitCause" -> Json.fromString(sc.show)
 
   def policy(evt: NJEvent): (String, Json) =
-    "policy" -> Json.fromString(evt.serviceParams.servicePolicies.restart)
-  def policy(ap: ActionParams): (String, Json) = "policy" -> Json.fromString(ap.retryPolicy)
+    "policy" -> Json.fromString(evt.serviceParams.servicePolicies.restart.show)
+  def policy(ap: ActionParams): (String, Json) = "policy" -> Json.fromString(ap.retryPolicy.show)
   def errCause(err: NJError): (String, Json)   = "cause" -> Json.fromString(err.message)
   def stackTrace(err: NJError): (String, Json) = "stackTrace" -> Json.fromString(err.stackTrace)
 

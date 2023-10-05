@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.guard.translators
 import cats.data.Cont
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.config.{AlertLevel, Category, CounterKind}
-import com.github.chenharryhua.nanjin.guard.event.{MetricSnapshot, NJEvent}
+import com.github.chenharryhua.nanjin.guard.event.{MetricSnapshot, NJEvent, ServiceStopCause}
 import enumeratum.values.{CatsOrderValueEnum, IntEnum, IntEnumEntry}
 
 sealed abstract class ColorScheme(override val value: Int) extends IntEnumEntry
@@ -34,13 +34,19 @@ object ColorScheme extends CatsOrderValueEnum[Int, ColorScheme] with IntEnum[Col
 
   def decorate[A](evt: NJEvent): Cont[A, ColorScheme] =
     Cont.pure[A, NJEvent](evt).map {
-      case _: ServiceStart          => InfoColor
-      case _: ServicePanic          => ErrorColor
-      case ServiceStop(_, _, cause) => if (cause.exitCode === 0) GoodColor else ErrorColor
-      case _: ActionStart           => InfoColor
-      case _: ActionRetry           => WarnColor
-      case _: ActionFail            => ErrorColor
-      case _: ActionDone            => GoodColor
+      case _: ServiceStart => InfoColor
+      case _: ServicePanic => ErrorColor
+      case ServiceStop(_, _, cause) =>
+        cause match {
+          case ServiceStopCause.Normally       => GoodColor
+          case ServiceStopCause.ByCancellation => WarnColor
+          case ServiceStopCause.ByException(_) => ErrorColor
+          case ServiceStopCause.ByUser         => InfoColor
+        }
+      case _: ActionStart => InfoColor
+      case _: ActionRetry => WarnColor
+      case _: ActionFail  => ErrorColor
+      case _: ActionDone  => GoodColor
       case ServiceAlert(_, _, _, alertLevel, _) =>
         alertLevel match {
           case AlertLevel.Error => ErrorColor

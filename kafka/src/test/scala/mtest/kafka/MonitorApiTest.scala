@@ -19,9 +19,6 @@ class MonitorApiTest extends AnyFunSuite {
   val headers1: Headers = Headers.fromSeq(List(Header("a", "aaaaa")))
   val headers2: Headers = Headers.fromSeq(List(Header("b", ""), Header("warn", "value is null as expected")))
 
-  (ctx.admin(topic.topicName).iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence >> ctx.schemaRegistry
-    .register(topic.topicDef)).unsafeRunSync()
-
   val sender: Stream[IO, ProducerResult[Int, Array[Byte]]] = Stream
     .emits(List(
       ProducerRecord[Int, Array[Byte]](st.topicName.value, 0, Array(0, 0, 0, 1)).withHeaders(headers1),
@@ -39,6 +36,7 @@ class MonitorApiTest extends AnyFunSuite {
     .through(st.produce.pipe)
 
   test("monitor") {
+    ctx.schemaRegistry.register(topic.topicDef).attempt.unsafeRunSync()
     sender
       .concurrently(ctx.monitor(topic.topicName).debug())
       .interruptAfter(8.seconds)

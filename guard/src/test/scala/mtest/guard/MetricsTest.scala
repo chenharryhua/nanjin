@@ -4,7 +4,7 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.catsSyntaxFlatMapOps
 import com.github.chenharryhua.nanjin.common.HostName
-import com.github.chenharryhua.nanjin.common.chrono.{policies, tickStream}
+import com.github.chenharryhua.nanjin.common.chrono.policies
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
@@ -33,11 +33,11 @@ class MetricsTest extends AnyFunSuite {
     TaskGuard[IO]("metrics")
       .updateConfig(_.withZoneId(zoneId).withHostName(HostName.local_host))
       .service("delta")
-      .withMetricReport(policies.crontab(cron_1second))
+      .updateConfig(_.withMetricReport(policies.crontab(cron_1second)))
 
   test("1.lazy counting") {
     val last = service("delta")
-      .withMetricReport(policies.crontab(cron_1second))
+      .updateConfig(_.withMetricReport(policies.crontab(cron_1second)))
       .eventStream(ag => ag.action("one", _.silent).retry(IO(0)).run >> IO.sleep(10.minutes))
       .evalTap(console.simple[IO])
       .map(_.asJson.noSpaces)
@@ -64,7 +64,7 @@ class MetricsTest extends AnyFunSuite {
 
   test("3.ongoing action alignment") {
     service
-      .withMetricReport(policies.crontab(cron_1second))
+      .updateConfig(_.withMetricReport(policies.crontab(cron_1second)))
       .eventStream { ag =>
         val one = ag.action("one", _.bipartite).retry(IO(0) <* IO.sleep(10.minutes)).run
         val two = ag.action("two", _.bipartite).retry(IO(0) <* IO.sleep(10.minutes)).run
@@ -98,7 +98,8 @@ class MetricsTest extends AnyFunSuite {
   }
 
   test("5.show timestamp") {
-    val s = service("timing").withMetricReport(policies.crontab(Cron.unsafeParse("0-59 * * ? * *")))
+    val s =
+      service("timing").updateConfig(_.withMetricReport(policies.crontab(Cron.unsafeParse("0-59 * * ? * *"))))
 
     val s1 = s("s1").eventStream(_ => IO.never)
     val s2 = s("s2").eventStream(_ => IO.never)
@@ -125,10 +126,7 @@ class MetricsTest extends AnyFunSuite {
           agent.gauge("ref").ref(IO.ref(0))
 
       gauge.use(box =>
-        tickStream[IO](policies.fixedDelay(1.seconds), agent.zoneId)
-          .evalTap(_ => box.updateAndGet(_ + 1))
-          .compile
-          .drain)
+        agent.ticks(policies.fixedDelay(1.seconds)).evalTap(_ => box.updateAndGet(_ + 1)).compile.drain)
 
     }.evalTap(console.simple[IO]).take(8).compile.drain.unsafeRunSync()
   }
@@ -137,8 +135,7 @@ class MetricsTest extends AnyFunSuite {
     val name = "(name).space.test"
     TaskGuard[IO]("observers")
       .service("same_name_space")
-      .withRestartPolicy(constant_1hour)
-      .withMetricReport(policies.crontab(cron_1second))
+      .updateConfig(_.withRestartPolicy(constant_1hour).withMetricReport(policies.crontab(cron_1second)))
       .eventStream { ag =>
         ag.gauge(name)
           .timed

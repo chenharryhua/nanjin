@@ -55,6 +55,7 @@ final class TickStatus private (val tick: Tick, decisions: LazyList[PolicyF.Calc
 }
 
 object TickStatus {
+  def apply(tick: Tick): TickStatus = new TickStatus(tick, LazyList.empty)
   def zeroth[F[_]: Clock: UUIDGen: Monad](policy: Policy, zoneId: ZoneId): F[TickStatus] =
     for {
       uuid <- UUIDGen[F].randomUUID

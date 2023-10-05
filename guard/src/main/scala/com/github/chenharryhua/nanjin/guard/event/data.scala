@@ -30,6 +30,7 @@ sealed abstract class ServiceStopCause(val exitCode: Int) extends Product with S
     case ServiceStopCause.Normally         => "normally exit"
     case ServiceStopCause.ByCancellation   => "abnormally exit due to cancellation"
     case ServiceStopCause.ByException(msg) => s"abnormally exit due to $msg"
+    case ServiceStopCause.ByUser           => "stop by user"
   }
 }
 
@@ -45,4 +46,5 @@ object ServiceStopCause {
   case object Normally extends ServiceStopCause(0)
   case object ByCancellation extends ServiceStopCause(1)
   final case class ByException(msg: String) extends ServiceStopCause(2)
+  case object ByUser extends ServiceStopCause(3)
 }

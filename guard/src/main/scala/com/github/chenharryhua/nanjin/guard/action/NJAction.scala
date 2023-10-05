@@ -15,7 +15,6 @@ final class NJAction[F[_], IN, OUT] private[action] (
   metricRegistry: MetricRegistry,
   channel: Channel[F, NJEvent],
   actionParams: ActionParams,
-  zerothTickStatus: TickStatus,
   arrow: IN => F[OUT],
   transInput: Option[IN => Json],
   transOutput: Option[(IN, OUT) => Json],
@@ -27,7 +26,6 @@ final class NJAction[F[_], IN, OUT] private[action] (
     transError: Kleisli[OptionT[F, *], (IN, Throwable), Json] = self.transError,
     isWorthRetry: Throwable => F[Boolean] = self.isWorthRetry): NJAction[F, IN, OUT] =
     new NJAction[F, IN, OUT](
-      zerothTickStatus = self.zerothTickStatus,
       metricRegistry = self.metricRegistry,
       channel = self.channel,
       actionParams = self.actionParams,
@@ -54,7 +52,8 @@ final class NJAction[F[_], IN, OUT] private[action] (
       metricRegistry = metricRegistry,
       actionParams = actionParams,
       channel = channel,
-      zerothTickStatus = zerothTickStatus,
+      zerothTickStatus =
+        TickStatus(actionParams.serviceParams.zerothTick).renewPolicy(actionParams.retryPolicy),
       arrow = arrow,
       transInput = transInput,
       transOutput = transOutput,
@@ -94,7 +93,6 @@ final class NJAction0[F[_], OUT] private[guard] (
   metricRegistry: MetricRegistry,
   channel: Channel[F, NJEvent],
   actionParams: ActionParams,
-  zerothTickStatus: TickStatus,
   arrow: F[OUT],
   transInput: Option[Json],
   transOutput: Option[OUT => Json],
@@ -106,7 +104,6 @@ final class NJAction0[F[_], OUT] private[guard] (
     transError: Kleisli[OptionT[F, *], Throwable, Json] = self.transError,
     isWorthRetry: Throwable => F[Boolean] = self.isWorthRetry): NJAction0[F, OUT] =
     new NJAction0[F, OUT](
-      zerothTickStatus = self.zerothTickStatus,
       metricRegistry = self.metricRegistry,
       channel = self.channel,
       actionParams = self.actionParams,
@@ -128,7 +125,6 @@ final class NJAction0[F[_], OUT] private[guard] (
   def logError(f: Throwable => Json): NJAction0[F, OUT] = logErrorM((a: Throwable) => F.pure(f(a)))
 
   private lazy val njAction = new NJAction[F, Unit, OUT](
-    zerothTickStatus = zerothTickStatus,
     metricRegistry = metricRegistry,
     channel = channel,
     actionParams = actionParams,

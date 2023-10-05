@@ -11,12 +11,12 @@ import com.comcast.ip4s.IpLiteralSyntax
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.common.chrono.*
 import com.github.chenharryhua.nanjin.guard.config.{
+  EmberServerParams,
   Measurement,
   ServiceBrief,
   ServiceConfig,
   ServiceName,
   ServiceParams,
-  ServicePolicies,
   TaskParams
 }
 import com.github.chenharryhua.nanjin.guard.event.*
@@ -25,16 +25,15 @@ import fs2.Stream
 import fs2.concurrent.{Channel, SignallingMapRef}
 import fs2.io.net.Network
 import io.circe.Json
-import natchez.EntryPoint
 import org.http4s.ember.server.EmberServerBuilder
 import org.typelevel.vault.{Locker, Vault}
 
 // format: off
 /** @example
-  *   {{{ val guard = TaskGuard[IO]("appName").service("service-name") 
+  *   {{{ val guard = TaskGuard[IO]("appName").service("service-name")
   *       val es: Stream[IO,NJEvent] = guard.eventStream {
   *           gd => gd.action("action-1").retry(IO(1)).run >>
-  *                  IO("other computation") >> 
+  *                  IO("other computation") >>
   *                  gd.action("action-2").retry(IO(2)).run
   *            }
   * }}}
@@ -45,10 +44,6 @@ final class ServiceGuard[F[_]: Network] private[guard] (
   serviceName: ServiceName,
   taskParams: TaskParams,
   config: Endo[ServiceConfig],
-  entryPoint: Resource[F, EntryPoint[F]],
-  serviceRestartPolicy: Policy,
-  metricReportPolicy: Policy,
-  metricResetPolicy: Policy,
   jmxBuilder: Option[Endo[JmxReporter.Builder]],
   httpBuilder: Option[Endo[EmberServerBuilder[F]]],
   brief: F[Option[Json]])(implicit F: Async[F])
@@ -57,9 +52,6 @@ final class ServiceGuard[F[_]: Network] private[guard] (
   private def copy(
     serviceName: ServiceName = self.serviceName,
     config: Endo[ServiceConfig] = self.config,
-    serviceRestartPolicy: Policy = self.serviceRestartPolicy,
-    metricReportPolicy: Policy = self.metricReportPolicy,
-    metricResetPolicy: Policy = self.metricResetPolicy,
     jmxBuilder: Option[JmxReporter.Builder => JmxReporter.Builder] = self.jmxBuilder,
     httpBuilder: Option[EmberServerBuilder[F] => EmberServerBuilder[F]] = self.httpBuilder,
     brief: F[Option[Json]] = self.brief
@@ -68,10 +60,6 @@ final class ServiceGuard[F[_]: Network] private[guard] (
       serviceName = serviceName,
       taskParams = self.taskParams,
       config = config,
-      entryPoint = self.entryPoint,
-      serviceRestartPolicy = serviceRestartPolicy,
-      metricReportPolicy = metricReportPolicy,
-      metricResetPolicy = metricResetPolicy,
       jmxBuilder = jmxBuilder,
       httpBuilder = httpBuilder,
       brief = brief
@@ -80,34 +68,28 @@ final class ServiceGuard[F[_]: Network] private[guard] (
   override def updateConfig(f: Endo[ServiceConfig]): ServiceGuard[F] = copy(config = f.compose(self.config))
   def apply(serviceName: String): ServiceGuard[F] = copy(serviceName = ServiceName(serviceName))
 
-  def withRestartPolicy(policy: Policy): ServiceGuard[F] = copy(serviceRestartPolicy = policy)
-
-  def withMetricReport(policy: Policy): ServiceGuard[F] = copy(metricReportPolicy = policy)
-  def withMetricReset(policy: Policy): ServiceGuard[F]  = copy(metricResetPolicy = policy)
-  def withMetricDailyReset: ServiceGuard[F] = withMetricReset(policies.crontab(crontabs.daily.midnight))
-
-  def withMetricServer(f: Endo[EmberServerBuilder[F]]): ServiceGuard[F] = copy(httpBuilder = Some(f))
+  def withHttpServer(f: Endo[EmberServerBuilder[F]]): ServiceGuard[F] = copy(httpBuilder = Some(f))
 
   def withJmx(f: Endo[JmxReporter.Builder]): ServiceGuard[F] = copy(jmxBuilder = Some(f))
 
   def withBrief(json: F[Json]): ServiceGuard[F] = copy(brief = json.map(_.some))
   def withBrief(json: Json): ServiceGuard[F]    = withBrief(F.pure(json))
 
-  private def initStatus(zeroth: Tick): F[ServiceParams] = for {
+  private lazy val emberServerBuilder: Option[EmberServerBuilder[F]] =
+    httpBuilder.map(_(EmberServerBuilder.default[F].withHost(ip"0.0.0.0").withPort(port"1026")))
+
+  private def initStatus(zeroth: TickStatus): F[ServiceParams] = for {
     json <- brief
   } yield config(ServiceConfig(taskParams)).evalConfig(
     serviceName = serviceName,
-    servicePolicies = ServicePolicies(
-      restart = serviceRestartPolicy.show,
-      metricReport = metricReportPolicy.show,
-      metricReset = metricResetPolicy.show),
+    emberServerParams = emberServerBuilder.map(EmberServerParams(_)),
     brief = ServiceBrief(json),
-    zeroth = zeroth
+    zerothTick = zeroth.tick
   )
 
   def dummyAgent(implicit C: Console[F]): Resource[F, GeneralAgent[F]] = for {
     zeroth <- Resource.eval(TickStatus.zeroth[F](policies.giveUp, taskParams.zoneId))
-    sp <- Resource.eval(initStatus(zeroth.tick))
+    sp <- Resource.eval(initStatus(zeroth))
     signallingMapRef <- Resource.eval(SignallingMapRef.ofSingleImmutableMap[F, Unique.Token, Locker]())
     atomicCell <- Resource.eval(AtomicCell[F].of(Vault.empty))
     dispatcher <- Dispatcher.parallel[F]
@@ -118,8 +100,6 @@ final class ServiceGuard[F[_]: Network] private[guard] (
       .drain
       .background
   } yield new GeneralAgent[F](
-    entryPoint = entryPoint,
-    zerothTickStatus = zeroth,
     serviceParams = sp,
     metricRegistry = new MetricRegistry,
     channel = chn,
@@ -132,7 +112,7 @@ final class ServiceGuard[F[_]: Network] private[guard] (
   def eventStream[A](runAgent: GeneralAgent[F] => F[A]): Stream[F, NJEvent] =
     for {
       zeroth <- Stream.eval(TickStatus.zeroth[F](policies.giveUp, taskParams.zoneId))
-      serviceParams <- Stream.eval(initStatus(zeroth.tick))
+      serviceParams <- Stream.eval(initStatus(zeroth))
       signallingMapRef <- Stream.eval(SignallingMapRef.ofSingleImmutableMap[F, Unique.Token, Locker]())
       atomicCell <- Stream.eval(AtomicCell[F].of(Vault.empty))
       dispatcher <- Stream.resource(Dispatcher.parallel[F])
@@ -140,7 +120,7 @@ final class ServiceGuard[F[_]: Network] private[guard] (
         val metricRegistry: MetricRegistry = new MetricRegistry()
 
         val metricsReport: Stream[F, Nothing] =
-          tickStream[F](zeroth.renewPolicy(metricReportPolicy))
+          tickStream[F](zeroth.renewPolicy(serviceParams.servicePolicies.metricReport))
             .evalMap(tick =>
               publisher.metricReport(
                 channel = channel,
@@ -151,7 +131,7 @@ final class ServiceGuard[F[_]: Network] private[guard] (
             .drain
 
         val metricsReset: Stream[F, Nothing] =
-          tickStream[F](zeroth.renewPolicy(metricResetPolicy))
+          tickStream[F](zeroth.renewPolicy(serviceParams.servicePolicies.metricReset))
             .evalMap(tick =>
               publisher.metricReset(
                 channel = channel,
@@ -179,20 +159,23 @@ final class ServiceGuard[F[_]: Network] private[guard] (
               })(r => F.blocking(r.stop())) >> Stream.never[F]
           }
 
-        val metricsServer: Stream[F, Nothing] =
-          httpBuilder match {
+        val httpServer: Stream[F, Nothing] =
+          emberServerBuilder match {
             case None => Stream.empty
-            case Some(build) =>
+            case Some(builder) =>
               Stream.resource(
-                build(EmberServerBuilder.default[F].withHost(ip"0.0.0.0").withPort(port"1026"))
-                  .withHttpApp(new MetricsRouter[F](metricRegistry, serviceParams).router)
-                  .build) >> Stream.never[F]
+                builder
+                  .withHttpApp(
+                    new HttpRouter[F](
+                      metricRegistry = metricRegistry,
+                      serviceParams = serviceParams,
+                      channel = channel).router)
+                  .build) >>
+                Stream.never[F]
           }
 
         val agent: GeneralAgent[F] =
           new GeneralAgent[F](
-            entryPoint = entryPoint,
-            zerothTickStatus = zeroth,
             serviceParams = serviceParams,
             metricRegistry = metricRegistry,
             channel = channel,
@@ -206,8 +189,6 @@ final class ServiceGuard[F[_]: Network] private[guard] (
           new ReStart[F, A](
             channel = channel,
             serviceParams = serviceParams,
-            zerothTickStatus = zeroth,
-            policy = serviceRestartPolicy,
             theService = runAgent(agent)
           ).stream
 
@@ -216,7 +197,7 @@ final class ServiceGuard[F[_]: Network] private[guard] (
           .concurrently(jmxReporting)
           .concurrently(metricsReset)
           .concurrently(metricsReport)
-          .concurrently(metricsServer)
+          .concurrently(httpServer)
           .concurrently(surveillance)
       }
     } yield event

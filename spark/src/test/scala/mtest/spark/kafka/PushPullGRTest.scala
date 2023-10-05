@@ -41,6 +41,7 @@ class PushPullGRTest extends AnyFunSuite {
   test("push - pull - base") {
     val sink = ctx.sink(baseTopic.topicName).build
     val path = root / "base"
+    (ctx.schemaRegistry.register(baseTopic) >> ctx.schemaRegistry.register(evolveTopic)).unsafeRunSync()
     (baseData ++ evolveData).chunks.through(sink).compile.drain.unsafeRunSync()
     sparKafka.topic(baseTopic).fromKafka.output.jackson(path).run.unsafeRunSync()
 

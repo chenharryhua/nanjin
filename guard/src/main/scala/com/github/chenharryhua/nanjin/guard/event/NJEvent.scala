@@ -2,15 +2,15 @@ package com.github.chenharryhua.nanjin.guard.event
 
 import cats.Show
 import com.github.chenharryhua.nanjin.common.chrono.Tick
-import com.github.chenharryhua.nanjin.datetime.DateTimeInstances
 import com.github.chenharryhua.nanjin.guard.config.{ActionParams, AlertLevel, MetricName, ServiceParams}
-import io.circe.Json
+import io.circe.{Decoder, Encoder, Json}
 import io.circe.generic.JsonCodec
+import org.typelevel.cats.time.instances.all
 
 import java.time.{Duration, ZonedDateTime}
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.FiniteDuration
-import scala.jdk.DurationConverters.ScalaDurationOps
+import scala.jdk.DurationConverters.{JavaDurationOps, ScalaDurationOps}
 
 @JsonCodec
 sealed trait NJEvent extends Product with Serializable {
@@ -20,8 +20,13 @@ sealed trait NJEvent extends Product with Serializable {
   final def upTime: Duration = serviceParams.upTime(timestamp)
 }
 
-object NJEvent extends DateTimeInstances {
+object NJEvent extends all {
   implicit final val showNJEvent: Show[NJEvent] = cats.derived.semiauto.show[NJEvent]
+
+  implicit final private val finiteDurationCirceEncoder: Encoder[FiniteDuration] =
+    Encoder.encodeDuration.contramap[FiniteDuration](_.toJava)
+  implicit final private val finiteDurationCirceDecoder: Decoder[FiniteDuration] =
+    Decoder.decodeDuration.map[FiniteDuration](_.toScala)
 
   final case class ServiceStart(serviceParams: ServiceParams, tick: Tick) extends NJEvent {
     val timestamp: ZonedDateTime = tick.wakeup.atZone(tick.zoneId)

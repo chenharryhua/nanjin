@@ -16,7 +16,8 @@ class SchemaRegistryTest extends AnyFunSuite {
   val topic: KafkaTopic[IO, Int, trip_record] = nyc.in(ctx)
 
   test("compatible") {
-    val res = ctx.schemaRegistry.fetchAvroSchema(topic.topicName).unsafeRunSync()
+    val res = (ctx.schemaRegistry.register(nyc) >> ctx.schemaRegistry.fetchAvroSchema(topic.topicName))
+      .unsafeRunSync()
     assert(res.isFullCompatible(nyc.schemaPair))
   }
 
