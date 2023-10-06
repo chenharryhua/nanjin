@@ -5,8 +5,9 @@ import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.aws.CloudWatch
 import com.github.chenharryhua.nanjin.common.aws.CloudWatchNamespace
 import com.github.chenharryhua.nanjin.guard.config.{MetricID, ServiceParams}
-import com.github.chenharryhua.nanjin.guard.event.NJEvent
+import com.github.chenharryhua.nanjin.guard.event.{DurationUnit, MeasurementUnit, NJEvent}
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.MetricReport
+import com.github.chenharryhua.nanjin.guard.translators.metricConstants
 import com.github.chenharryhua.nanjin.guard.translators.textConstants.*
 import fs2.{Pipe, Pull, Stream}
 import org.typelevel.cats.time.instances.localdate.*
@@ -69,6 +70,40 @@ final class CloudWatchObserver[F[_]: Sync](
       case TimeUnit.DAYS         => (TimeUnit.SECONDS.convert(duration), StandardUnit.SECONDS)
     }
 
+  private def toStandardUnit(mu: MeasurementUnit): StandardUnit =
+    mu match {
+      case DurationUnit.DAYS                => StandardUnit.SECONDS
+      case DurationUnit.HOURS               => StandardUnit.SECONDS
+      case DurationUnit.MINUTES             => StandardUnit.SECONDS
+      case DurationUnit.SECONDS             => StandardUnit.SECONDS
+      case DurationUnit.MILLISECONDS        => StandardUnit.MILLISECONDS
+      case DurationUnit.MICROSECONDS        => StandardUnit.MICROSECONDS
+      case DurationUnit.NANOSECONDS         => StandardUnit.MICROSECONDS
+      case MeasurementUnit.BYTES            => StandardUnit.BYTES
+      case MeasurementUnit.KILOBYTES        => StandardUnit.KILOBYTES
+      case MeasurementUnit.MEGABYTES        => StandardUnit.MEGABYTES
+      case MeasurementUnit.GIGABYTES        => StandardUnit.GIGABYTES
+      case MeasurementUnit.TERABYTES        => StandardUnit.TERABYTES
+      case MeasurementUnit.BITS             => StandardUnit.BITS
+      case MeasurementUnit.KILOBITS         => StandardUnit.KILOBITS
+      case MeasurementUnit.MEGABITS         => StandardUnit.MEGABITS
+      case MeasurementUnit.GIGABITS         => StandardUnit.GIGABITS
+      case MeasurementUnit.TERABITS         => StandardUnit.TERABITS
+      case MeasurementUnit.PERCENT          => StandardUnit.PERCENT
+      case MeasurementUnit.COUNT            => StandardUnit.COUNT
+      case MeasurementUnit.BYTES_SECOND     => StandardUnit.BYTES_SECOND
+      case MeasurementUnit.KILOBYTES_SECOND => StandardUnit.KILOBYTES_SECOND
+      case MeasurementUnit.MEGABYTES_SECOND => StandardUnit.MEGABYTES_SECOND
+      case MeasurementUnit.GIGABYTES_SECOND => StandardUnit.GIGABYTES_SECOND
+      case MeasurementUnit.TERABYTES_SECOND => StandardUnit.TERABYTES_SECOND
+      case MeasurementUnit.BITS_SECOND      => StandardUnit.BITS_SECOND
+      case MeasurementUnit.KILOBITS_SECOND  => StandardUnit.KILOBITS_SECOND
+      case MeasurementUnit.MEGABITS_SECOND  => StandardUnit.MEGABITS_SECOND
+      case MeasurementUnit.GIGABITS_SECOND  => StandardUnit.GIGABITS_SECOND
+      case MeasurementUnit.TERABITS_SECOND  => StandardUnit.TERABITS_SECOND
+      case MeasurementUnit.COUNT_SECOND     => StandardUnit.COUNT_SECOND
+    }
+
   private lazy val interestedHistogramFields: List[HistogramField] = fields.distinct
   private def computeDatum(
     report: MetricReport,
@@ -79,7 +114,7 @@ final class CloudWatchObserver[F[_]: Sync](
       timer <- report.snapshot.timers
     } yield {
       val (dur, category) = hf.pick(timer)
-      val (item, unit)    = unitConversion(dur, report.serviceParams.metricParams.durationTimeUnit)
+      val (item, unit)    = unitConversion(dur, timer.timer.unit.timeUnit)
       MetricKey(
         serviceParams = report.serviceParams,
         id = timer.metricId,
@@ -98,7 +133,7 @@ final class CloudWatchObserver[F[_]: Sync](
         serviceParams = report.serviceParams,
         id = histo.metricId,
         category = s"${histo.metricId.category.name}_$category",
-        standardUnit = histo.histogram.unit,
+        standardUnit = toStandardUnit(histo.histogram.unit),
         storageResolution = storageResolution
       ).metricDatum(report.timestamp.toInstant, value)
     }
@@ -118,7 +153,7 @@ final class CloudWatchObserver[F[_]: Sync](
         serviceParams = report.serviceParams,
         id = meter.metricId,
         category = s"${meter.metricId.category.name}_count",
-        standardUnit = meter.meter.unit,
+        standardUnit = toStandardUnit(meter.meter.unit),
         storageResolution = storageResolution
       ) -> meter.meter.count
     }.toMap
@@ -191,10 +226,10 @@ final private case class MetricKey(
         Dimension.builder().name(CONSTANT_HOST).value(serviceParams.taskParams.hostName.value).build(),
         Dimension
           .builder()
-          .name(METRICS_LAUNCH_TIME)
+          .name(metricConstants.METRICS_LAUNCH_TIME)
           .value(serviceParams.launchTime.toLocalDate.show)
           .build(),
-        Dimension.builder().name(METRICS_DIGEST).value(id.metricName.digest).build(),
+        Dimension.builder().name(metricConstants.METRICS_DIGEST).value(id.metricName.digest).build(),
         Dimension.builder().name(CONSTANT_MEASUREMENT).value(id.metricName.measurement).build()
       )
       .metricName(s"${id.metricName.value}($category)")

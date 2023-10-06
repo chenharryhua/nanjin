@@ -24,11 +24,11 @@ private class HttpRouter[F[_]: Monad: Clock](
     extends Http4sDsl[F] {
   private val metrics = HttpRoutes.of[F] {
     case GET -> Root / "metrics" =>
-      Ok(new SnapshotPolyglot(MetricSnapshot(metricRegistry), serviceParams.metricParams).toPrettyJson)
+      Ok(new SnapshotPolyglot(MetricSnapshot(metricRegistry)).toPrettyJson)
     case GET -> Root / "metrics" / "vanilla" =>
-      Ok(new SnapshotPolyglot(MetricSnapshot(metricRegistry), serviceParams.metricParams).toVanillaJson)
+      Ok(new SnapshotPolyglot(MetricSnapshot(metricRegistry)).toVanillaJson)
     case GET -> Root / "metrics" / "yaml" =>
-      val text = new SnapshotPolyglot(MetricSnapshot(metricRegistry), serviceParams.metricParams).toYaml
+      val text = new SnapshotPolyglot(MetricSnapshot(metricRegistry)).toYaml
       Ok(html(body(pre(text))))
     case GET -> Root / "service" => Ok(serviceParams.asJson)
     case GET -> Root / "service" / "stop" =>

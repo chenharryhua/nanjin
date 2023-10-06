@@ -3,10 +3,10 @@ package example.basic
 import cats.effect.IO
 import cats.implicits.catsSyntaxEq
 import com.github.chenharryhua.nanjin.guard.action.NJMeter
+import com.github.chenharryhua.nanjin.guard.event.MeasurementUnit
 import com.github.chenharryhua.nanjin.guard.service.Agent
 import com.github.chenharryhua.nanjin.terminals.NJPath
 import io.circe.syntax.EncoderOps
-import software.amazon.awssdk.services.cloudwatch.model.StandardUnit
 
 final case class Tiger(a: Long, c: String)
 
@@ -16,7 +16,7 @@ abstract class WriteRead(agent: Agent[IO]) {
     agent
       .gauge(name)
       .timed
-      .flatMap(_ => agent.meterR(name, StandardUnit.COUNT))
+      .flatMap(_ => agent.meterR(name, MeasurementUnit.COUNT))
       .use(meter => agent.action(name, _.bipartite).retry(action(meter)).logOutput(_.asJson).run)
   }
 
@@ -25,7 +25,7 @@ abstract class WriteRead(agent: Agent[IO]) {
     agent
       .gauge(name)
       .timed
-      .flatMap(_ => agent.meterR(name, StandardUnit.COUNT))
+      .flatMap(_ => agent.meterR(name, MeasurementUnit.COUNT))
       .use(meter => agent.action(name, _.bipartite).retry(action(meter)).logOutput(_.asJson).run)
       .map(_.ensuring(_ === size))
   }

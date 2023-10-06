@@ -1,6 +1,5 @@
 package com.github.chenharryhua.nanjin.guard.translators
 import cats.Applicative
-import com.github.chenharryhua.nanjin.guard.config.MetricParams
 import com.github.chenharryhua.nanjin.guard.event.MetricSnapshot
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
 import io.circe.Json
@@ -9,8 +8,8 @@ private object PrettyJsonTranslator {
 
   import jsonHelper.*
 
-  private def prettyMetrics(ss: MetricSnapshot, mp: MetricParams): (String, Json) =
-    "metrics" -> new SnapshotPolyglot(ss, mp).toPrettyJson
+  private def prettyMetrics(ss: MetricSnapshot): (String, Json) =
+    "metrics" -> new SnapshotPolyglot(ss).toPrettyJson
 
   // events handlers
   private def serviceStarted(evt: ServiceStart): Json =
@@ -43,7 +42,7 @@ private object PrettyJsonTranslator {
           serviceName(evt),
           serviceId(evt),
           uptime(evt),
-          prettyMetrics(evt.snapshot, evt.serviceParams.metricParams)))
+          prettyMetrics(evt.snapshot)))
 
   private def metricReset(evt: MetricReset): Json =
     Json.obj(
@@ -53,7 +52,7 @@ private object PrettyJsonTranslator {
           serviceName(evt),
           serviceId(evt),
           uptime(evt),
-          prettyMetrics(evt.snapshot, evt.serviceParams.metricParams)))
+          prettyMetrics(evt.snapshot)))
 
   private def serviceAlert(evt: ServiceAlert): Json =
     Json.obj(

@@ -11,10 +11,10 @@ import com.github.chenharryhua.nanjin.guard.config.{
   MetricID,
   MetricName
 }
+import com.github.chenharryhua.nanjin.guard.event.MeasurementUnit
 import fs2.Chunk
 import fs2.io.net.{Datagram, DatagramSocket, Network}
 import io.circe.syntax.EncoderOps
-import software.amazon.awssdk.services.cloudwatch.model.StandardUnit
 
 sealed trait UdpSocketWriter[F[_]] { def write(chunk: Chunk[Byte]): F[Unit] }
 
@@ -30,7 +30,7 @@ final class NJUdpClient[F[_]: Network](
 
   private class Writer(socket: DatagramSocket[F], remote: SocketAddress[IpAddress]) {
     private val histogramId: MetricID =
-      MetricID(name, Category.Histogram(HistogramKind.UdpHistogram, StandardUnit.BYTES))
+      MetricID(name, Category.Histogram(HistogramKind.UdpHistogram, MeasurementUnit.BYTES))
     private val counterId: MetricID =
       MetricID(name, Category.Counter(CounterKind.UdpCounter))
 
@@ -38,8 +38,8 @@ final class NJUdpClient[F[_]: Network](
       (isHistogram, isCounting) match {
         case (true, true) =>
           new UdpSocketWriter[F] {
-            private lazy val histogram: Histogram = metricRegistry.histogram(histogramId.asJson.noSpaces)
-            private lazy val counter: Counter     = metricRegistry.counter(counterId.asJson.noSpaces)
+            private lazy val histogram: Histogram = metricRegistry.histogram(histogramId.identifier)
+            private lazy val counter: Counter     = metricRegistry.counter(counterId.identifier)
 
             override def write(chunk: Chunk[Byte]): F[Unit] = socket.write(Datagram(remote, chunk)).map { _ =>
               histogram.update(chunk.size)

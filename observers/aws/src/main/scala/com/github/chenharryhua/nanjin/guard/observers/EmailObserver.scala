@@ -14,7 +14,7 @@ import com.github.chenharryhua.nanjin.guard.translators.{ColorScheme, Translator
 import fs2.{Chunk, Pipe, Stream}
 import org.typelevel.cats.time.instances.all
 import scalatags.Text
-import scalatags.Text.all.*
+import scalatags.Text.all.{tag, *}
 import squants.information.{Bytes, Information, Megabytes}
 
 import java.util.UUID

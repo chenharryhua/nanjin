@@ -16,7 +16,9 @@ import scala.concurrent.duration.*
 class CancellationTest extends AnyFunSuite {
 
   val serviceGuard: ServiceGuard[IO] =
-    TaskGuard[IO]("retry-guard").service("retry-test").updateConfig(_.withRestartPolicy(constant_1second))
+    TaskGuard[IO]("retry-guard")
+      .service("retry-test")
+      .updateConfig(_.withRestartPolicy(policies.fixedDelay(1.seconds)))
 
   val policy: Policy = policies.crontab(cron_1second).limited(3)
 
@@ -144,7 +146,7 @@ class CancellationTest extends AnyFunSuite {
   }
 
   test("7.cancellation - parallel") {
-    val policy2 = constant_1second.limited(1)
+    val policy2 = policies.fixedDelay(1.seconds).limited(1)
     val v =
       serviceGuard
         .updateConfig(_.withRestartPolicy(policies.giveUp))

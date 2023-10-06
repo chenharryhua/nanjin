@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.translators
 
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.guard.config.{MetricName, MetricParams}
+import com.github.chenharryhua.nanjin.guard.config.MetricName
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.{ActionRetry, ServicePanic}
 import com.github.chenharryhua.nanjin.guard.event.{MetricIndex, MetricSnapshot, NJEvent}
 import org.typelevel.cats.time.instances.{localdatetime, localtime}
@@ -9,28 +9,9 @@ import org.typelevel.cats.time.instances.{localdatetime, localtime}
 import java.time.temporal.ChronoUnit
 import java.time.{Duration, LocalTime, ZonedDateTime}
 
-object textConstants {
-  @inline final val CONSTANT_ACTION_ID: String   = "ActionID"
-  @inline final val CONSTANT_TIMESTAMP: String   = "Timestamp"
-  @inline final val CONSTANT_POLICY: String      = "Policy"
-  @inline final val CONSTANT_CAUSE: String       = "Cause"
-  @inline final val CONSTANT_TOOK: String        = "Took"
-  @inline final val CONSTANT_SNOOZE: String      = "Snooze"
-  @inline final val CONSTANT_UPTIME: String      = "UpTime"
-  @inline final val CONSTANT_BRIEF: String       = "Brief"
-  @inline final val CONSTANT_METRICS: String     = "Metrics"
-  @inline final val CONSTANT_TIMEZONE: String    = "TimeZone"
-  @inline final val CONSTANT_SERVICE: String     = "Service"
-  @inline final val CONSTANT_SERVICE_ID: String  = "ServiceID"
-  @inline final val CONSTANT_HOST: String        = "Host"
-  @inline final val CONSTANT_TASK: String        = "Task"
-  @inline final val CONSTANT_CONFIG: String      = "Config"
-  @inline final val CONSTANT_MEASUREMENT: String = "Measurement"
-}
-
 private object textHelper extends localtime with localdatetime {
-  def yamlMetrics(ss: MetricSnapshot, mp: MetricParams): String =
-    new SnapshotPolyglot(ss, mp).toYaml
+  def yamlMetrics(ss: MetricSnapshot): String =
+    new SnapshotPolyglot(ss).toYaml
 
   def upTimeText(evt: NJEvent): String     = fmt.format(evt.upTime)
   def tookText(duration: Duration): String = fmt.format(duration)

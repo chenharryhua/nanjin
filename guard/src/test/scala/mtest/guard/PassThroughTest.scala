@@ -6,12 +6,12 @@ import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.chrono.policies
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.action.NJAlert
+import com.github.chenharryhua.nanjin.guard.event.MeasurementUnit
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
 import com.github.chenharryhua.nanjin.guard.observers.{console, logging}
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import com.github.chenharryhua.nanjin.guard.translators.Translator
 import org.scalatest.funsuite.AnyFunSuite
-import software.amazon.awssdk.services.cloudwatch.model.StandardUnit
 
 import scala.concurrent.duration.DurationInt
 import scala.util.Random
@@ -65,7 +65,7 @@ class PassThroughTest extends AnyFunSuite {
     guard
       .updateConfig(_.withMetricReport(policies.crontab(cron_1second)))
       .eventStream { agent =>
-        val meter = agent.meter("nj.test.meter", StandardUnit.BYTES_SECOND)
+        val meter = agent.meter("nj.test.meter", MeasurementUnit.BYTES_SECOND)
         (meter.mark(1000) >> agent.metrics.reset
           .whenA(Random.nextInt(3) == 1)).delayBy(1.second).replicateA(5)
       }
@@ -79,7 +79,7 @@ class PassThroughTest extends AnyFunSuite {
     guard
       .updateConfig(_.withMetricReport(policies.crontab(cron_1second)))
       .eventStream { agent =>
-        val meter = agent.histogram("nj.test.histogram", StandardUnit.BYTES_SECOND)
+        val meter = agent.histogram("nj.test.histogram", MeasurementUnit.BYTES_SECOND)
         IO(Random.nextInt(100).toLong).flatMap(meter.update).delayBy(1.second).replicateA(5)
       }
       .evalTap(logging(Translator.simpleText[IO]))

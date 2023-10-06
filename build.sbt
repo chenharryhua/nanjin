@@ -243,21 +243,43 @@ lazy val datetime = (project in file("datetime"))
   )
 
 lazy val guard = (project in file("guard"))
-  .dependsOn(aws)
+  .dependsOn(common)
   .settings(commonSettings*)
   .settings(name := "nj-guard")
   .settings(
     libraryDependencies ++= List(
+      "commons-codec"                       % "commons-codec"  % "1.16.0",
       "io.dropwizard.metrics"               % "metrics-core"   % metricsV,
-      "io.dropwizard.metrics"               % "metrics-jmx"    % metricsV,
       "org.typelevel" %% "vault"            % "3.5.0",
       "com.lihaoyi" %% "scalatags"          % "0.12.0",
       "org.http4s" %% "http4s-core"         % http4sV,
       "org.http4s" %% "http4s-dsl"          % http4sV,
       "org.http4s" %% "http4s-ember-server" % http4sV,
+      "org.http4s" %% "http4s-circe"        % http4sV,
       "org.http4s" %% "http4s-scalatags"    % "0.25.2",
+      "org.http4s" %% "http4s-ember-client" % http4sV          % Test,
       "org.slf4j"                           % "slf4j-reload4j" % slf4jV % Test
     ) ++ logLib ++ testLib
+  )
+
+lazy val guard_observer_aws = (project in file("observers/aws"))
+  .dependsOn(guard)
+  .dependsOn(aws)
+  .settings(commonSettings*)
+  .settings(name := "nj-observer-aws")
+  .settings(
+    libraryDependencies ++= testLib
+  )
+
+lazy val guard_observer_jmx = (project in file("observers/jmx"))
+  .dependsOn(guard)
+  .settings(commonSettings*)
+  .settings(name := "nj-observer-jmx")
+  .settings(
+    libraryDependencies ++=
+      List(
+        "io.dropwizard.metrics" % "metrics-jmx" % metricsV
+      ) ++ testLib
   )
 
 lazy val guard_observer_skunk = (project in file("observers/skunk"))
@@ -394,12 +416,16 @@ lazy val example = (project in file("example"))
   .dependsOn(datetime)
   .dependsOn(http)
   .dependsOn(aws)
-  .dependsOn(guard)
   .dependsOn(messages)
   .dependsOn(pipes)
   .dependsOn(kafka)
   .dependsOn(database)
   .dependsOn(spark)
+  .dependsOn(guard)
+  .dependsOn(guard_observer_aws)
+  .dependsOn(guard_observer_skunk)
+  .dependsOn(guard_observer_influxdb)
+  .dependsOn(guard_observer_jmx)
   .settings(commonSettings*)
   .settings(name := "nj-example")
   .settings(libraryDependencies ++= List(
@@ -420,6 +446,8 @@ lazy val nanjin =
       database,
       spark,
       guard,
+      guard_observer_aws,
       guard_observer_skunk,
-      guard_observer_influxdb)
+      guard_observer_influxdb,
+      guard_observer_jmx)
 

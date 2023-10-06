@@ -4,18 +4,11 @@ import cats.Show
 import cats.kernel.Monoid
 import cats.syntax.all.*
 import com.codahale.metrics.*
-import com.github.chenharryhua.nanjin.guard.config.{
-  showStandardUnit,
-  standardUnitDecoder,
-  standardUnitEncoder,
-  Category,
-  MetricID
-}
+import com.github.chenharryhua.nanjin.guard.config.{Category, MetricID}
 import io.circe.Json
 import io.circe.generic.JsonCodec
 import io.circe.parser.{decode, parse}
 import org.typelevel.cats.time.instances.duration
-import software.amazon.awssdk.services.cloudwatch.model.StandardUnit
 import squants.time.{Frequency, Hertz}
 
 import java.time.Duration
@@ -31,7 +24,7 @@ object Snapshot {
 
   @JsonCodec
   final case class MeterData(
-    unit: StandardUnit,
+    unit: MeasurementUnit,
     count: Long,
     mean_rate: Frequency,
     m1_rate: Frequency,
@@ -45,6 +38,7 @@ object Snapshot {
 
   @JsonCodec
   final case class TimerData(
+    unit: DurationUnit,
     count: Long,
     mean_rate: Frequency,
     m1_rate: Frequency,
@@ -66,7 +60,7 @@ object Snapshot {
 
   @JsonCodec
   final case class HistogramData(
-    unit: StandardUnit,
+    unit: MeasurementUnit,
     count: Long,
     min: Long,
     max: Long,
@@ -132,30 +126,36 @@ object MetricSnapshot extends duration {
 
   def timers(metricRegistry: MetricRegistry): List[Snapshot.Timer] =
     metricRegistry.getTimers().asScala.toList.mapFilter { case (name, timer) =>
-      decode[MetricID](name).toOption.map { id =>
-        val ss = timer.getSnapshot
-        Snapshot.Timer(
-          metricId = id,
-          Snapshot.TimerData(
-            count = timer.getCount,
-            // meter
-            mean_rate = Hertz(timer.getMeanRate),
-            m1_rate = Hertz(timer.getOneMinuteRate),
-            m5_rate = Hertz(timer.getFiveMinuteRate),
-            m15_rate = Hertz(timer.getFifteenMinuteRate),
-            // histogram
-            min = Duration.ofNanos(ss.getMin),
-            max = Duration.ofNanos(ss.getMax),
-            mean = Duration.ofNanos(ss.getMean.toLong),
-            stddev = Duration.ofNanos(ss.getStdDev.toLong),
-            p50 = Duration.ofNanos(ss.getMedian.toLong),
-            p75 = Duration.ofNanos(ss.get75thPercentile().toLong),
-            p95 = Duration.ofNanos(ss.get95thPercentile().toLong),
-            p98 = Duration.ofNanos(ss.get98thPercentile().toLong),
-            p99 = Duration.ofNanos(ss.get99thPercentile().toLong),
-            p999 = Duration.ofNanos(ss.get999thPercentile().toLong)
-          )
-        )
+      decode[MetricID](name).toOption.mapFilter { id =>
+        id.category match {
+          case Category.Timer(_, unit) =>
+            val ss = timer.getSnapshot
+            Some(
+              Snapshot.Timer(
+                metricId = id,
+                Snapshot.TimerData(
+                  unit = unit,
+                  count = timer.getCount,
+                  // meter
+                  mean_rate = Hertz(timer.getMeanRate),
+                  m1_rate = Hertz(timer.getOneMinuteRate),
+                  m5_rate = Hertz(timer.getFiveMinuteRate),
+                  m15_rate = Hertz(timer.getFifteenMinuteRate),
+                  // histogram
+                  min = Duration.ofNanos(ss.getMin),
+                  max = Duration.ofNanos(ss.getMax),
+                  mean = Duration.ofNanos(ss.getMean.toLong),
+                  stddev = Duration.ofNanos(ss.getStdDev.toLong),
+                  p50 = Duration.ofNanos(ss.getMedian.toLong),
+                  p75 = Duration.ofNanos(ss.get75thPercentile().toLong),
+                  p95 = Duration.ofNanos(ss.get95thPercentile().toLong),
+                  p98 = Duration.ofNanos(ss.get98thPercentile().toLong),
+                  p99 = Duration.ofNanos(ss.get99thPercentile().toLong),
+                  p999 = Duration.ofNanos(ss.get999thPercentile().toLong)
+                )
+              ))
+          case _ => None
+        }
       }
     }
 

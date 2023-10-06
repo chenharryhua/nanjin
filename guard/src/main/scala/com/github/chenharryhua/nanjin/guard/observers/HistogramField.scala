@@ -10,6 +10,7 @@ sealed private trait HistogramField {
 }
 
 private object HistogramField {
+  import com.github.chenharryhua.nanjin.guard.translators.metricConstants.*
   case object Min extends HistogramField {
     override def pick(timer: Snapshot.Timer): (Duration, String) = (timer.timer.min, METRICS_MIN)
     override def pick(histo: Snapshot.Histogram): (Double, String) =

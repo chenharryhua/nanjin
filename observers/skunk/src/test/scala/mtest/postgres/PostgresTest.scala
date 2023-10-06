@@ -1,22 +1,21 @@
 package mtest.postgres
 
-import org.scalatest.funsuite.AnyFunSuite
 import cats.effect.IO
 import cats.effect.kernel.Resource
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.chrono.policies
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.event.NJEvent
+import com.github.chenharryhua.nanjin.guard.event.{MeasurementUnit, NJEvent}
 import com.github.chenharryhua.nanjin.guard.observers.*
 import eu.timepit.refined.auto.*
 import io.circe.Json
 import io.circe.syntax.EncoderOps
+import org.scalatest.funsuite.AnyFunSuite
 import skunk.{Command, Session}
-import software.amazon.awssdk.services.cloudwatch.model.StandardUnit
 
 import scala.concurrent.duration.*
 
-class PostgresTest extends AnyFunSuite{
+class PostgresTest extends AnyFunSuite {
 
   val service: fs2.Stream[IO, NJEvent] =
     TaskGuard[IO]("nanjin")
@@ -27,7 +26,7 @@ class PostgresTest extends AnyFunSuite{
         val box = ag.atomicBox(1)
         val job = // fail twice, then success
           box.getAndUpdate(_ + 1).map(_ % 3 == 0).ifM(IO(1), IO.raiseError[Int](new Exception("oops")))
-        val meter = ag.meter("meter", StandardUnit.SECONDS).counted
+        val meter = ag.meter("meter", MeasurementUnit.SECONDS).counted
         val action = ag
           .action(
             "nj_error",
@@ -40,10 +39,10 @@ class PostgresTest extends AnyFunSuite{
               Json.obj("developer's advice" -> "no worries".asJson, "message" -> ex.getMessage.asJson)))
           .run
 
-        val counter = ag.counter("nj counter").asRisk
-        val histogram = ag.histogram("nj histogram", StandardUnit.SECONDS).counted
-        val alert = ag.alert("nj alert")
-        val gauge = ag.gauge("nj gauge")
+        val counter   = ag.counter("nj counter").asRisk
+        val histogram = ag.histogram("nj histogram", MeasurementUnit.SECONDS).counted
+        val alert     = ag.alert("nj alert")
+        val gauge     = ag.gauge("nj gauge")
 
         gauge
           .register(100)
@@ -56,7 +55,6 @@ class PostgresTest extends AnyFunSuite{
                 alert.error("alarm") >>
                 ag.metrics.report))
       }
-
 
   test("postgres") {
     import natchez.Trace.Implicits.noop
