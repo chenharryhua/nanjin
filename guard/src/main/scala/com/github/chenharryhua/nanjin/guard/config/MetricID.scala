@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.config
 
 import cats.{Order, Show}
-import com.github.chenharryhua.nanjin.guard.event.{DurationUnit, MeasurementUnit}
+import com.github.chenharryhua.nanjin.guard.event.MeasurementUnit
 import enumeratum.{CatsEnum, CirceEnum, Enum, EnumEntry}
 import io.circe.Encoder
 import io.circe.generic.JsonCodec
@@ -69,7 +69,7 @@ object MeterKind extends Enum[MeterKind] with CirceEnum[MeterKind] with CatsEnum
 sealed abstract class Category(val name: String) extends Product with Serializable
 object Category {
   final case class Gauge(kind: GaugeKind) extends Category(kind.entryName)
-  final case class Timer(kind: TimerKind, unit: DurationUnit) extends Category(kind.entryName)
+  final case class Timer(kind: TimerKind) extends Category(kind.entryName)
   final case class Counter(kind: CounterKind) extends Category(kind.entryName)
   final case class Meter(kind: MeterKind, unit: MeasurementUnit) extends Category(kind.entryName)
   final case class Histogram(kind: HistogramKind, unit: MeasurementUnit) extends Category(kind.entryName)

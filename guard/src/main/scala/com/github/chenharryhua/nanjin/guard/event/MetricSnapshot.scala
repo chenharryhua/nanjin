@@ -38,7 +38,6 @@ object Snapshot {
 
   @JsonCodec
   final case class TimerData(
-    unit: DurationUnit,
     count: Long,
     mean_rate: Frequency,
     m1_rate: Frequency,
@@ -126,36 +125,30 @@ object MetricSnapshot extends duration {
 
   def timers(metricRegistry: MetricRegistry): List[Snapshot.Timer] =
     metricRegistry.getTimers().asScala.toList.mapFilter { case (name, timer) =>
-      decode[MetricID](name).toOption.mapFilter { id =>
-        id.category match {
-          case Category.Timer(_, unit) =>
-            val ss = timer.getSnapshot
-            Some(
-              Snapshot.Timer(
-                metricId = id,
-                Snapshot.TimerData(
-                  unit = unit,
-                  count = timer.getCount,
-                  // meter
-                  mean_rate = Hertz(timer.getMeanRate),
-                  m1_rate = Hertz(timer.getOneMinuteRate),
-                  m5_rate = Hertz(timer.getFiveMinuteRate),
-                  m15_rate = Hertz(timer.getFifteenMinuteRate),
-                  // histogram
-                  min = Duration.ofNanos(ss.getMin),
-                  max = Duration.ofNanos(ss.getMax),
-                  mean = Duration.ofNanos(ss.getMean.toLong),
-                  stddev = Duration.ofNanos(ss.getStdDev.toLong),
-                  p50 = Duration.ofNanos(ss.getMedian.toLong),
-                  p75 = Duration.ofNanos(ss.get75thPercentile().toLong),
-                  p95 = Duration.ofNanos(ss.get95thPercentile().toLong),
-                  p98 = Duration.ofNanos(ss.get98thPercentile().toLong),
-                  p99 = Duration.ofNanos(ss.get99thPercentile().toLong),
-                  p999 = Duration.ofNanos(ss.get999thPercentile().toLong)
-                )
-              ))
-          case _ => None
-        }
+      decode[MetricID](name).toOption.map { id =>
+        val ss = timer.getSnapshot
+        Snapshot.Timer(
+          metricId = id,
+          Snapshot.TimerData(
+            count = timer.getCount,
+            // meter
+            mean_rate = Hertz(timer.getMeanRate),
+            m1_rate = Hertz(timer.getOneMinuteRate),
+            m5_rate = Hertz(timer.getFiveMinuteRate),
+            m15_rate = Hertz(timer.getFifteenMinuteRate),
+            // histogram
+            min = Duration.ofNanos(ss.getMin),
+            max = Duration.ofNanos(ss.getMax),
+            mean = Duration.ofNanos(ss.getMean.toLong),
+            stddev = Duration.ofNanos(ss.getStdDev.toLong),
+            p50 = Duration.ofNanos(ss.getMedian.toLong),
+            p75 = Duration.ofNanos(ss.get75thPercentile().toLong),
+            p95 = Duration.ofNanos(ss.get95thPercentile().toLong),
+            p98 = Duration.ofNanos(ss.get98thPercentile().toLong),
+            p99 = Duration.ofNanos(ss.get99thPercentile().toLong),
+            p999 = Duration.ofNanos(ss.get999thPercentile().toLong)
+          )
+        )
       }
     }
 

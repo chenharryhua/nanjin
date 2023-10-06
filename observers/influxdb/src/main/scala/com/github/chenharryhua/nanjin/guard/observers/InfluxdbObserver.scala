@@ -18,6 +18,7 @@ import com.influxdb.client.{InfluxDBClient, WriteOptions}
 import fs2.{Pipe, Stream}
 import org.typelevel.cats.time.instances.localdate
 
+import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.FiniteDuration
 import scala.jdk.CollectionConverters.*
 
@@ -27,29 +28,37 @@ object InfluxdbObserver {
     * the default write precision is set to nanosecond unless otherwise specified
     */
   def apply[F[_]: Async](client: F[InfluxDBClient]): InfluxdbObserver[F] =
-    new InfluxdbObserver[F](client, identity, WritePrecision.NS, Map.empty[String, String])
+    new InfluxdbObserver[F](
+      client,
+      identity,
+      WritePrecision.NS,
+      TimeUnit.MILLISECONDS,
+      Map.empty[String, String])
 }
 
 final class InfluxdbObserver[F[_]](
   client: F[InfluxDBClient],
   writeOptions: Endo[WriteOptions.Builder],
   writePrecision: WritePrecision,
+  durationUnit: TimeUnit,
   tags: Map[String, String])(implicit F: Async[F])
     extends localdate {
   def withWriteOptions(writeOptions: Endo[WriteOptions.Builder]): InfluxdbObserver[F] =
-    new InfluxdbObserver[F](client, writeOptions, writePrecision, tags)
+    new InfluxdbObserver[F](client, writeOptions, writePrecision, durationUnit, tags)
 
   def withWritePrecision(wp: WritePrecision): InfluxdbObserver[F] =
-    new InfluxdbObserver[F](client, writeOptions, wp, tags)
+    new InfluxdbObserver[F](client, writeOptions, wp, durationUnit, tags)
+
+  def withDurationUnit(durationUnit: TimeUnit): InfluxdbObserver[F] =
+    new InfluxdbObserver[F](client, writeOptions, writePrecision, durationUnit, tags)
 
   def addTag(key: String, value: String): InfluxdbObserver[F] =
-    new InfluxdbObserver[F](client, writeOptions, writePrecision, tags + (key -> value))
+    new InfluxdbObserver[F](client, writeOptions, writePrecision, durationUnit, tags + (key -> value))
 
   def addTags(tagsToAdd: Map[String, String]): InfluxdbObserver[F] =
-    new InfluxdbObserver[F](client, writeOptions, writePrecision, tags ++ tagsToAdd)
+    new InfluxdbObserver[F](client, writeOptions, writePrecision, durationUnit, tags ++ tagsToAdd)
 
-  private def defaultTransform(ar: NJEvent.ActionResultEvent): Option[Point] = {
-    val unit = ar.actionParams.durationUnit.timeUnit
+  private def defaultTransform(ar: NJEvent.ActionResultEvent): Option[Point] =
     Some(
       Point
         .measurement(ar.actionParams.metricName.measurement)
@@ -58,9 +67,8 @@ final class InfluxdbObserver[F[_]](
         .addTag(metricConstants.METRICS_DIGEST, ar.actionParams.metricName.digest)
         .addTag("done", NJEvent.isActionDone(ar).show) // for query
         .addTags(tags.asJava)
-        .addField(ar.actionParams.metricName.value, unit.convert(ar.took)) // Long
+        .addField(ar.actionParams.metricName.value, durationUnit.convert(ar.took)) // Long
     )
-  }
 
   /** @param chunkSize
     *   is the maximum number of elements to include in a chunk.

@@ -34,9 +34,9 @@ private object MeasureAction {
     val retryID: String = MetricID(metricName, Category.Counter(CounterKind.ActionRetry)).identifier
 
     val doneTimerID: String =
-      MetricID(metricName, Category.Timer(TimerKind.ActionDoneTimer, actionParams.durationUnit)).identifier
+      MetricID(metricName, Category.Timer(TimerKind.ActionDoneTimer)).identifier
     val failTimerID: String =
-      MetricID(metricName, Category.Timer(TimerKind.ActionFailTimer, actionParams.durationUnit)).identifier
+      MetricID(metricName, Category.Timer(TimerKind.ActionFailTimer)).identifier
 
     (actionParams.isCounting, actionParams.isTiming) match {
       case (true, true) =>

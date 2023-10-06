@@ -3,22 +3,12 @@ package mtest.aws
 import cats.data.NonEmptyList
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.aws.{
-  CloudWatch,
-  SimpleEmailService,
-  SimpleNotificationService,
-  SimpleQueueService
-}
+import com.github.chenharryhua.nanjin.aws.{CloudWatch, SimpleEmailService, SimpleNotificationService, SimpleQueueService}
 import com.github.chenharryhua.nanjin.common.aws.{SnsArn, SqsConfig}
 import com.github.chenharryhua.nanjin.common.chrono.policies
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.event.{MeasurementUnit, NJEvent}
-import com.github.chenharryhua.nanjin.guard.observers.{
-  CloudWatchObserver,
-  EmailObserver,
-  SlackObserver,
-  SqsObserver
-}
+import com.github.chenharryhua.nanjin.guard.event.{DurationUnit, NJEvent}
+import com.github.chenharryhua.nanjin.guard.observers.{CloudWatchObserver, EmailObserver, SlackObserver, SqsObserver}
 import eu.timepit.refined.auto.*
 import io.circe.Json
 import io.circe.syntax.EncoderOps
@@ -36,7 +26,7 @@ class AwsObserverTest extends AnyFunSuite {
         val box = ag.atomicBox(1)
         val job = // fail twice, then success
           box.getAndUpdate(_ + 1).map(_ % 3 == 0).ifM(IO(1), IO.raiseError[Int](new Exception("oops")))
-        val meter = ag.meter("meter", MeasurementUnit.SECONDS).counted
+        val meter = ag.meter("meter", DurationUnit.SECONDS).counted
         val action = ag
           .action(
             "nj_error",
@@ -50,7 +40,7 @@ class AwsObserverTest extends AnyFunSuite {
           .run
 
         val counter   = ag.counter("nj counter").asRisk
-        val histogram = ag.histogram("nj histogram", MeasurementUnit.SECONDS).counted
+        val histogram = ag.histogram("nj histogram", DurationUnit.SECONDS).counted
         val alert     = ag.alert("nj alert")
         val gauge     = ag.gauge("nj gauge")
 

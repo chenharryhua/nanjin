@@ -146,7 +146,7 @@ class MetricsTest extends AnyFunSuite {
               ag.meter(name, MeasurementUnit.GIGABITS).counted.mark(100) >>
               ag.counter(name).inc(32) >>
               ag.counter(name).asRisk.inc(10) >>
-              ag.histogram(name, MeasurementUnit.SECONDS).counted.update(64) >>
+              ag.histogram(name, MeasurementUnit.GIGABITS).counted.update(64) >>
               ag.metrics.report)
       }
       .evalTap(console.simple[IO])

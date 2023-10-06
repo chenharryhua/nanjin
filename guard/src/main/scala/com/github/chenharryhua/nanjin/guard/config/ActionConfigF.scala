@@ -1,17 +1,15 @@
 package com.github.chenharryhua.nanjin.guard.config
 
 import cats.{Functor, Show}
-import com.github.chenharryhua.nanjin.common.chrono.{policies, Policy}
-import com.github.chenharryhua.nanjin.guard.event.DurationUnit
+import com.github.chenharryhua.nanjin.common.chrono.{Policy, policies}
 import higherkindness.droste.data.Fix
-import higherkindness.droste.{scheme, Algebra}
+import higherkindness.droste.{Algebra, scheme}
 import io.circe.generic.JsonCodec
 import monocle.syntax.all.*
 
 @JsonCodec
 final case class ActionParams(
   metricName: MetricName,
-  durationUnit: DurationUnit,
   importance: Importance,
   publishStrategy: PublishStrategy,
   isCounting: Boolean,
@@ -35,7 +33,6 @@ object ActionParams {
   ): ActionParams =
     ActionParams(
       metricName = MetricName(serviceParams, measurement, actionName.value),
-      durationUnit = DurationUnit.MILLISECONDS,
       importance = Importance.Normal,
       publishStrategy = PublishStrategy.Silent,
       isCounting = false,
@@ -58,8 +55,6 @@ private object ActionConfigF {
   final case class WithImportance[K](value: Importance, cont: K) extends ActionConfigF[K]
   final case class WithRetryPolicy[K](value: Policy, cont: K) extends ActionConfigF[K]
 
-  final case class WithDurationTimeUnit[K](value: DurationUnit, cont: K) extends ActionConfigF[K]
-
   def algebra(actionName: ActionName, measurement: Measurement): Algebra[ActionConfigF, ActionParams] =
     Algebra[ActionConfigF, ActionParams] {
       case InitParams(serviceParams) => ActionParams(actionName, measurement, serviceParams)
@@ -68,8 +63,6 @@ private object ActionConfigF {
       case WithCounting(v, c)        => c.focus(_.isCounting).replace(v)
       case WithImportance(v, c)      => c.focus(_.importance).replace(v)
       case WithRetryPolicy(v, c)     => c.focus(_.retryPolicy).replace(v)
-
-      case WithDurationTimeUnit(v, c) => c.focus(_.durationUnit).replace(v)
     }
 }
 
@@ -91,9 +84,6 @@ final case class ActionConfig(cont: Fix[ActionConfigF]) {
   def untimed: ActionConfig   = ActionConfig(Fix(WithTiming(value = false, cont)))
 
   def policy(retryPolicy: Policy): ActionConfig = ActionConfig(Fix(WithRetryPolicy(retryPolicy, cont)))
-
-  def durationUnit(duration: DurationUnit): ActionConfig =
-    ActionConfig(Fix(WithDurationTimeUnit(duration, cont)))
 
   def evalConfig(actionName: ActionName, measurement: Measurement): ActionParams =
     scheme.cata(algebra(actionName, measurement)).apply(cont)

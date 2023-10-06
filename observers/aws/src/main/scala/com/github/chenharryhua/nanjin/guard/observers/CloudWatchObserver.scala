@@ -5,8 +5,8 @@ import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.aws.CloudWatch
 import com.github.chenharryhua.nanjin.common.aws.CloudWatchNamespace
 import com.github.chenharryhua.nanjin.guard.config.{MetricID, ServiceParams}
-import com.github.chenharryhua.nanjin.guard.event.{DurationUnit, MeasurementUnit, NJEvent}
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.MetricReport
+import com.github.chenharryhua.nanjin.guard.event.{DurationUnit, MeasurementUnit, NJEvent}
 import com.github.chenharryhua.nanjin.guard.translators.metricConstants
 import com.github.chenharryhua.nanjin.guard.translators.textConstants.*
 import fs2.{Pipe, Pull, Stream}
@@ -24,15 +24,16 @@ import scala.jdk.CollectionConverters.*
 
 object CloudWatchObserver {
   def apply[F[_]: Sync](client: Resource[F, CloudWatch[F]]): CloudWatchObserver[F] =
-    new CloudWatchObserver[F](client, 60, List.empty)
+    new CloudWatchObserver[F](client, 60, TimeUnit.MILLISECONDS, List.empty)
 }
 
 final class CloudWatchObserver[F[_]: Sync](
   client: Resource[F, CloudWatch[F]],
   storageResolution: Int,
+  durationUnit: TimeUnit,
   fields: List[HistogramField]) {
   private def add(hf: HistogramField): CloudWatchObserver[F] =
-    new CloudWatchObserver[F](client, storageResolution, hf :: fields)
+    new CloudWatchObserver[F](client, storageResolution, durationUnit, hf :: fields)
 
   def withMin: CloudWatchObserver[F]    = add(HistogramField.Min)
   def withMax: CloudWatchObserver[F]    = add(HistogramField.Max)
@@ -56,8 +57,11 @@ final class CloudWatchObserver[F[_]: Sync](
     require(
       storageResolution > 0 && storageResolution <= 60,
       s"storageResolution($storageResolution) should be between 1 and 60 inclusively")
-    new CloudWatchObserver(client, storageResolution, fields)
+    new CloudWatchObserver(client, storageResolution, durationUnit, fields)
   }
+
+  def withDurationUnit(durationUnit: TimeUnit): CloudWatchObserver[F] =
+    new CloudWatchObserver[F](client, storageResolution, durationUnit, fields)
 
   private def unitConversion(duration: Duration, timeUnit: TimeUnit): (Long, StandardUnit) =
     timeUnit match {
@@ -114,7 +118,7 @@ final class CloudWatchObserver[F[_]: Sync](
       timer <- report.snapshot.timers
     } yield {
       val (dur, category) = hf.pick(timer)
-      val (item, unit)    = unitConversion(dur, timer.timer.unit.timeUnit)
+      val (item, unit)    = unitConversion(dur, durationUnit)
       MetricKey(
         serviceParams = report.serviceParams,
         id = timer.metricId,
