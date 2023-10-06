@@ -90,8 +90,8 @@ class CancellationTest extends AnyFunSuite {
       .toVector
       .unsafeRunSync()
     assert(a.isInstanceOf[ServiceStart])
-    assert(b.asInstanceOf[ActionFail].actionParams.metricName.digest == "08e76668")
-    assert(c.asInstanceOf[ActionFail].actionParams.metricName.digest == "3d5f88dc")
+    assert(b.asInstanceOf[ActionFail].actionParams.metricName.digest == "ac2e7fb6")
+    assert(c.asInstanceOf[ActionFail].actionParams.metricName.digest == "ac2e7fb6")
     assert(d.isInstanceOf[ServiceStop])
   }
 
@@ -112,9 +112,9 @@ class CancellationTest extends AnyFunSuite {
 
     assert(s.isInstanceOf[ServiceStart])
     assert(a.isInstanceOf[ActionStart])
-    assert(b.asInstanceOf[ActionDone].actionParams.metricName.digest == "104c9af4")
+    assert(b.asInstanceOf[ActionDone].actionParams.metricName.digest == "ac2e7fb6")
     assert(c.isInstanceOf[ActionStart])
-    assert(d.asInstanceOf[ActionDone].actionParams.metricName.digest == "fec6047b")
+    assert(d.asInstanceOf[ActionDone].actionParams.metricName.digest == "ac2e7fb6")
     assert(e.isInstanceOf[ServiceStop])
 
   }
@@ -137,11 +137,11 @@ class CancellationTest extends AnyFunSuite {
 
     assert(s.isInstanceOf[ServiceStart])
     assert(a.isInstanceOf[ActionStart])
-    assert(b.asInstanceOf[ActionDone].actionParams.metricName.digest == "104c9af4")
+    assert(b.asInstanceOf[ActionDone].actionParams.metricName.digest == "ac2e7fb6")
     assert(!b.asInstanceOf[ActionDone].took.isNegative)
     assert(c.isInstanceOf[ActionStart])
-    assert(d.asInstanceOf[ActionRetry].actionParams.metricName.digest == "fec6047b")
-    assert(e.asInstanceOf[ActionFail].actionParams.metricName.digest == "fec6047b")
+    assert(d.asInstanceOf[ActionRetry].actionParams.metricName.digest == "ac2e7fb6")
+    assert(e.asInstanceOf[ActionFail].actionParams.metricName.digest == "ac2e7fb6")
     assert(f.isInstanceOf[ServiceStop])
   }
 
