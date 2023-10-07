@@ -6,7 +6,14 @@ import com.github.chenharryhua.nanjin.aws.CloudWatch
 import com.github.chenharryhua.nanjin.common.aws.CloudWatchNamespace
 import com.github.chenharryhua.nanjin.guard.config.{MetricID, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.MetricReport
-import com.github.chenharryhua.nanjin.guard.event.{DurationUnit, MeasurementUnit, NJEvent}
+import com.github.chenharryhua.nanjin.guard.event.{
+  MeasurementUnit,
+  NJDataRateUnit,
+  NJDimensionlessUnit,
+  NJEvent,
+  NJInformationUnit,
+  NJTimeUnit
+}
 import com.github.chenharryhua.nanjin.guard.translators.metricConstants
 import com.github.chenharryhua.nanjin.guard.translators.textConstants.*
 import fs2.{Pipe, Pull, Stream}
@@ -17,20 +24,21 @@ import software.amazon.awssdk.services.cloudwatch.model.{
   PutMetricDataResponse,
   StandardUnit
 }
+import squants.time.TimeConversions.scalaDurationToTime
 
-import java.time.{Duration, Instant}
-import java.util.concurrent.TimeUnit
+import java.time.Instant
 import scala.jdk.CollectionConverters.*
+import scala.jdk.DurationConverters.JavaDurationOps
 
 object CloudWatchObserver {
   def apply[F[_]: Sync](client: Resource[F, CloudWatch[F]]): CloudWatchObserver[F] =
-    new CloudWatchObserver[F](client, 60, TimeUnit.MILLISECONDS, List.empty)
+    new CloudWatchObserver[F](client, 60, NJTimeUnit.MILLISECONDS, List.empty)
 }
 
 final class CloudWatchObserver[F[_]: Sync](
   client: Resource[F, CloudWatch[F]],
   storageResolution: Int,
-  durationUnit: TimeUnit,
+  durationUnit: NJTimeUnit,
   fields: List[HistogramField]) {
   private def add(hf: HistogramField): CloudWatchObserver[F] =
     new CloudWatchObserver[F](client, storageResolution, durationUnit, hf :: fields)
@@ -60,52 +68,38 @@ final class CloudWatchObserver[F[_]: Sync](
     new CloudWatchObserver(client, storageResolution, durationUnit, fields)
   }
 
-  def withDurationUnit(durationUnit: TimeUnit): CloudWatchObserver[F] =
+  def withDurationUnit(durationUnit: NJTimeUnit): CloudWatchObserver[F] =
     new CloudWatchObserver[F](client, storageResolution, durationUnit, fields)
-
-  private def unitConversion(duration: Duration, timeUnit: TimeUnit): (Long, StandardUnit) =
-    timeUnit match {
-      case TimeUnit.NANOSECONDS  => (TimeUnit.MICROSECONDS.convert(duration), StandardUnit.MICROSECONDS)
-      case TimeUnit.MICROSECONDS => (TimeUnit.MICROSECONDS.convert(duration), StandardUnit.MICROSECONDS)
-      case TimeUnit.MILLISECONDS => (TimeUnit.MILLISECONDS.convert(duration), StandardUnit.MILLISECONDS)
-      case TimeUnit.SECONDS      => (TimeUnit.SECONDS.convert(duration), StandardUnit.SECONDS)
-      case TimeUnit.MINUTES      => (TimeUnit.SECONDS.convert(duration), StandardUnit.SECONDS)
-      case TimeUnit.HOURS        => (TimeUnit.SECONDS.convert(duration), StandardUnit.SECONDS)
-      case TimeUnit.DAYS         => (TimeUnit.SECONDS.convert(duration), StandardUnit.SECONDS)
-    }
 
   private def toStandardUnit(mu: MeasurementUnit): StandardUnit =
     mu match {
-      case DurationUnit.DAYS                => StandardUnit.SECONDS
-      case DurationUnit.HOURS               => StandardUnit.SECONDS
-      case DurationUnit.MINUTES             => StandardUnit.SECONDS
-      case DurationUnit.SECONDS             => StandardUnit.SECONDS
-      case DurationUnit.MILLISECONDS        => StandardUnit.MILLISECONDS
-      case DurationUnit.MICROSECONDS        => StandardUnit.MICROSECONDS
-      case DurationUnit.NANOSECONDS         => StandardUnit.MICROSECONDS
-      case MeasurementUnit.BYTES            => StandardUnit.BYTES
-      case MeasurementUnit.KILOBYTES        => StandardUnit.KILOBYTES
-      case MeasurementUnit.MEGABYTES        => StandardUnit.MEGABYTES
-      case MeasurementUnit.GIGABYTES        => StandardUnit.GIGABYTES
-      case MeasurementUnit.TERABYTES        => StandardUnit.TERABYTES
-      case MeasurementUnit.BITS             => StandardUnit.BITS
-      case MeasurementUnit.KILOBITS         => StandardUnit.KILOBITS
-      case MeasurementUnit.MEGABITS         => StandardUnit.MEGABITS
-      case MeasurementUnit.GIGABITS         => StandardUnit.GIGABITS
-      case MeasurementUnit.TERABITS         => StandardUnit.TERABITS
-      case MeasurementUnit.PERCENT          => StandardUnit.PERCENT
-      case MeasurementUnit.COUNT            => StandardUnit.COUNT
-      case MeasurementUnit.BYTES_SECOND     => StandardUnit.BYTES_SECOND
-      case MeasurementUnit.KILOBYTES_SECOND => StandardUnit.KILOBYTES_SECOND
-      case MeasurementUnit.MEGABYTES_SECOND => StandardUnit.MEGABYTES_SECOND
-      case MeasurementUnit.GIGABYTES_SECOND => StandardUnit.GIGABYTES_SECOND
-      case MeasurementUnit.TERABYTES_SECOND => StandardUnit.TERABYTES_SECOND
-      case MeasurementUnit.BITS_SECOND      => StandardUnit.BITS_SECOND
-      case MeasurementUnit.KILOBITS_SECOND  => StandardUnit.KILOBITS_SECOND
-      case MeasurementUnit.MEGABITS_SECOND  => StandardUnit.MEGABITS_SECOND
-      case MeasurementUnit.GIGABITS_SECOND  => StandardUnit.GIGABITS_SECOND
-      case MeasurementUnit.TERABITS_SECOND  => StandardUnit.TERABITS_SECOND
-      case MeasurementUnit.COUNT_SECOND     => StandardUnit.COUNT_SECOND
+      case NJTimeUnit.SECONDS              => StandardUnit.SECONDS
+      case NJTimeUnit.MILLISECONDS         => StandardUnit.MILLISECONDS
+      case NJTimeUnit.MICROSECONDS         => StandardUnit.MICROSECONDS
+      case NJInformationUnit.BYTES         => StandardUnit.BYTES
+      case NJInformationUnit.KILOBYTES     => StandardUnit.KILOBYTES
+      case NJInformationUnit.MEGABYTES     => StandardUnit.MEGABYTES
+      case NJInformationUnit.GIGABYTES     => StandardUnit.GIGABYTES
+      case NJInformationUnit.TERABYTES     => StandardUnit.TERABYTES
+      case NJInformationUnit.BITS          => StandardUnit.BITS
+      case NJInformationUnit.KILOBITS      => StandardUnit.KILOBITS
+      case NJInformationUnit.MEGABITS      => StandardUnit.MEGABITS
+      case NJInformationUnit.GIGABITS      => StandardUnit.GIGABITS
+      case NJInformationUnit.TERABITS      => StandardUnit.TERABITS
+      case NJDimensionlessUnit.PERCENT     => StandardUnit.PERCENT
+      case NJDimensionlessUnit.COUNT       => StandardUnit.COUNT
+      case NJDataRateUnit.BYTES_SECOND     => StandardUnit.BYTES_SECOND
+      case NJDataRateUnit.KILOBYTES_SECOND => StandardUnit.KILOBYTES_SECOND
+      case NJDataRateUnit.MEGABYTES_SECOND => StandardUnit.MEGABYTES_SECOND
+      case NJDataRateUnit.GIGABYTES_SECOND => StandardUnit.GIGABYTES_SECOND
+      case NJDataRateUnit.TERABYTES_SECOND => StandardUnit.TERABYTES_SECOND
+      case NJDataRateUnit.BITS_SECOND      => StandardUnit.BITS_SECOND
+      case NJDataRateUnit.KILOBITS_SECOND  => StandardUnit.KILOBITS_SECOND
+      case NJDataRateUnit.MEGABITS_SECOND  => StandardUnit.MEGABITS_SECOND
+      case NJDataRateUnit.GIGABITS_SECOND  => StandardUnit.GIGABITS_SECOND
+      case NJDataRateUnit.TERABITS_SECOND  => StandardUnit.TERABITS_SECOND
+
+      case _ => StandardUnit.NONE
     }
 
   private lazy val interestedHistogramFields: List[HistogramField] = fields.distinct
@@ -118,14 +112,13 @@ final class CloudWatchObserver[F[_]: Sync](
       timer <- report.snapshot.timers
     } yield {
       val (dur, category) = hf.pick(timer)
-      val (item, unit)    = unitConversion(dur, durationUnit)
       MetricKey(
         serviceParams = report.serviceParams,
         id = timer.metricId,
         category = s"${timer.metricId.category.name}_$category",
-        standardUnit = unit,
+        standardUnit = toStandardUnit(durationUnit),
         storageResolution = storageResolution
-      ).metricDatum(report.timestamp.toInstant, item.toDouble)
+      ).metricDatum(report.timestamp.toInstant, dur.toScala.in(durationUnit.mUnit).value)
     }
 
     val histograms: List[MetricDatum] = for {

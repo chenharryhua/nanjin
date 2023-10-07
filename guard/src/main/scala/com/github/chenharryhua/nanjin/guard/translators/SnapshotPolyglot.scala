@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.translators
 
 import cats.data.NonEmptyList
-import cats.implicits.toShow
 import com.github.chenharryhua.nanjin.common.optics.jsonPlated
 import com.github.chenharryhua.nanjin.guard.config.MetricID
 import com.github.chenharryhua.nanjin.guard.event.MetricSnapshot
@@ -26,7 +25,7 @@ final class SnapshotPolyglot(snapshot: MetricSnapshot) {
     snapshot.gauges.map(g => g.metricId -> g.value)
 
   private def meters: List[(MetricID, NonEmptyList[(String, Json)])] = snapshot.meters.map { m =>
-    val unit = m.meter.unit.show + "/second"
+    val unit = m.meter.unit.mUnit.symbol + "/second"
     m.metricId -> NonEmptyList.of(
       "count" -> Json.fromLong(m.meter.count),
       "mean_rate" -> Json.fromString(s"${m.meter.mean_rate.toHertz} $unit"),
@@ -57,7 +56,7 @@ final class SnapshotPolyglot(snapshot: MetricSnapshot) {
   }
 
   private def histograms: List[(MetricID, NonEmptyList[(String, Json)])] = snapshot.histograms.map { h =>
-    val unit = h.histogram.unit.show
+    val unit = h.histogram.unit.mUnit.symbol
     h.metricId -> NonEmptyList.of(
       "count" -> Json.fromLong(h.histogram.count),
       "min   " -> Json.fromString(s"${decFmt.format(h.histogram.min)} $unit"),

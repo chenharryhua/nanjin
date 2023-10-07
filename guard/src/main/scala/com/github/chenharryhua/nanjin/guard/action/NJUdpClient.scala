@@ -11,7 +11,7 @@ import com.github.chenharryhua.nanjin.guard.config.{
   MetricID,
   MetricName
 }
-import com.github.chenharryhua.nanjin.guard.event.MeasurementUnit
+import com.github.chenharryhua.nanjin.guard.event.NJInformationUnit
 import fs2.Chunk
 import fs2.io.net.{Datagram, DatagramSocket, Network}
 import io.circe.syntax.EncoderOps
@@ -30,7 +30,7 @@ final class NJUdpClient[F[_]: Network](
 
   private class Writer(socket: DatagramSocket[F], remote: SocketAddress[IpAddress]) {
     private val histogramId: MetricID =
-      MetricID(name, Category.Histogram(HistogramKind.UdpHistogram, MeasurementUnit.BYTES))
+      MetricID(name, Category.Histogram(HistogramKind.UdpHistogram, NJInformationUnit.BYTES))
     private val counterId: MetricID =
       MetricID(name, Category.Counter(CounterKind.UdpCounter))
 

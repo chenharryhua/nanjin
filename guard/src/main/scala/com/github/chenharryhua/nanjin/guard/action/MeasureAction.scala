@@ -29,9 +29,9 @@ sealed private trait MeasureAction {
 private object MeasureAction {
   def apply(actionParams: ActionParams, metricRegistry: MetricRegistry): MeasureAction = {
     val metricName: MetricName = actionParams.metricName
-    val doneID: String  = MetricID(metricName, Category.Counter(CounterKind.ActionDone)).identifier
-    val failID: String  = MetricID(metricName, Category.Counter(CounterKind.ActionFail)).identifier
-    val retryID: String = MetricID(metricName, Category.Counter(CounterKind.ActionRetry)).identifier
+    val doneID: String         = MetricID(metricName, Category.Counter(CounterKind.ActionDone)).identifier
+    val failID: String         = MetricID(metricName, Category.Counter(CounterKind.ActionFail)).identifier
+    val retryID: String        = MetricID(metricName, Category.Counter(CounterKind.ActionRetry)).identifier
 
     val doneTimerID: String =
       MetricID(metricName, Category.Timer(TimerKind.ActionDoneTimer)).identifier

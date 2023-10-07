@@ -4,7 +4,7 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.chrono.policies
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.event.{MeasurementUnit, NJEvent}
+import com.github.chenharryhua.nanjin.guard.event.{NJDimensionlessUnit, NJEvent, NJInformationUnit}
 import com.github.chenharryhua.nanjin.guard.observers.*
 import io.circe.Json
 import io.circe.syntax.EncoderOps
@@ -24,7 +24,7 @@ class ObserversTest extends AnyFunSuite {
         val box = ag.atomicBox(1)
         val job = // fail twice, then success
           box.getAndUpdate(_ + 1).map(_ % 3 == 0).ifM(IO(1), IO.raiseError[Int](new Exception("oops")))
-        val meter = ag.meter("meter", MeasurementUnit.COUNT).counted
+        val meter = ag.meter("meter", NJDimensionlessUnit.COUNT).counted
         val action = ag
           .action(
             "nj_error",
@@ -38,7 +38,7 @@ class ObserversTest extends AnyFunSuite {
           .run
 
         val counter   = ag.counter("nj counter").asRisk
-        val histogram = ag.histogram("nj histogram", MeasurementUnit.BYTES).counted
+        val histogram = ag.histogram("nj histogram", NJInformationUnit.BYTES).counted
         val alert     = ag.alert("nj alert")
         val gauge     = ag.gauge("nj gauge")
 

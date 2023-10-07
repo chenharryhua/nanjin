@@ -1,9 +1,9 @@
 package com.github.chenharryhua.nanjin.guard.config
 
 import cats.{Functor, Show}
-import com.github.chenharryhua.nanjin.common.chrono.{Policy, policies}
+import com.github.chenharryhua.nanjin.common.chrono.{policies, Policy}
 import higherkindness.droste.data.Fix
-import higherkindness.droste.{Algebra, scheme}
+import higherkindness.droste.{scheme, Algebra}
 import io.circe.generic.JsonCodec
 import monocle.syntax.all.*
 

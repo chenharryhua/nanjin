@@ -4,7 +4,7 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.chrono.policies
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.event.{DurationUnit, NJEvent}
+import com.github.chenharryhua.nanjin.guard.event.{NJEvent, NJTimeUnit}
 import com.github.chenharryhua.nanjin.guard.observers.*
 import com.influxdb.client.domain.WritePrecision
 import com.influxdb.client.{InfluxDBClientFactory, InfluxDBClientOptions}
@@ -24,7 +24,7 @@ class InfluxDBTest extends AnyFunSuite {
         val box = ag.atomicBox(1)
         val job = // fail twice, then success
           box.getAndUpdate(_ + 1).map(_ % 3 == 0).ifM(IO(1), IO.raiseError[Int](new Exception("oops")))
-        val meter = ag.meter("meter", DurationUnit.SECONDS).counted
+        val meter = ag.meter("meter", NJTimeUnit.SECONDS).counted
         val action = ag
           .action(
             "nj_error",
@@ -38,7 +38,7 @@ class InfluxDBTest extends AnyFunSuite {
           .run
 
         val counter   = ag.counter("nj counter").asRisk
-        val histogram = ag.histogram("nj histogram", DurationUnit.SECONDS).counted
+        val histogram = ag.histogram("nj histogram", NJTimeUnit.SECONDS).counted
         val alert     = ag.alert("nj alert")
         val gauge     = ag.gauge("nj gauge")
 

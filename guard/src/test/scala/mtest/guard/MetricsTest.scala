@@ -7,7 +7,7 @@ import com.github.chenharryhua.nanjin.common.HostName
 import com.github.chenharryhua.nanjin.common.chrono.policies
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
-import com.github.chenharryhua.nanjin.guard.event.{MeasurementUnit, NJEvent}
+import com.github.chenharryhua.nanjin.guard.event.{NJEvent, NJInformationUnit}
 import com.github.chenharryhua.nanjin.guard.observers.{console, sampling}
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import com.github.chenharryhua.nanjin.guard.translators.Translator
@@ -17,6 +17,7 @@ import io.circe.generic.JsonCodec
 import io.circe.parser.decode
 import io.circe.syntax.*
 import org.scalatest.funsuite.AnyFunSuite
+import squants.information.InformationConversions.InformationConversions
 
 import java.time.{ZoneId, ZonedDateTime}
 import scala.concurrent.duration.*
@@ -143,10 +144,10 @@ class MetricsTest extends AnyFunSuite {
               ag.alert(name).counted.error("error") >>
               ag.alert(name).counted.warn("warn") >>
               ag.alert(name).counted.info("info") >>
-              ag.meter(name, MeasurementUnit.GIGABITS).counted.mark(100) >>
+              ag.meter(name, NJInformationUnit.GIGABITS).counted.mark(100) >>
               ag.counter(name).inc(32) >>
               ag.counter(name).asRisk.inc(10) >>
-              ag.histogram(name, MeasurementUnit.GIGABITS).counted.update(64) >>
+              ag.histogram(name, NJInformationUnit.BITS).counted.update(100) >>
               ag.metrics.report)
       }
       .evalTap(console.simple[IO])

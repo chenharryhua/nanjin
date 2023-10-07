@@ -31,7 +31,7 @@ object Snapshot {
     m5_rate: Frequency,
     m15_rate: Frequency
   ) {
-    val unitShow: String = unit.show
+    val unitShow: String = unit.mUnit.symbol
   }
   @JsonCodec
   final case class Meter(metricId: MetricID, meter: MeterData) extends Snapshot
@@ -72,7 +72,7 @@ object Snapshot {
     p99: Double,
     p999: Double
   ) {
-    val unitShow: String = unit.show
+    val unitShow: String = unit.mUnit.symbol
   }
   @JsonCodec
   final case class Histogram(metricId: MetricID, histogram: HistogramData) extends Snapshot

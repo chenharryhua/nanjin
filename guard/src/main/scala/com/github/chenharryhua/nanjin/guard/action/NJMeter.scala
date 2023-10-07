@@ -5,6 +5,7 @@ import cats.implicits.toFunctorOps
 import com.codahale.metrics.{Counter, Meter, MetricRegistry}
 import com.github.chenharryhua.nanjin.guard.config.{Category, CounterKind, MeterKind, MetricID, MetricName}
 import com.github.chenharryhua.nanjin.guard.event.MeasurementUnit
+import squants.Quantity
 
 // counter can be reset, meter can't
 final class NJMeter[F[_]] private[guard] (
@@ -30,6 +31,7 @@ final class NJMeter[F[_]] private[guard] (
     if (isCounting) counter.inc(num)
   }
 
-  def mark(num: Long): F[Unit] = F.delay(unsafeMark(num))
+  def mark(num: Long): F[Unit]                                           = F.delay(unsafeMark(num))
+  def mark[A <: Quantity[A]](num: A)(implicit ev: A =:= unit.Q): F[Unit] = mark(unit.in(num))
 
 }
