@@ -38,6 +38,5 @@ final class NJHistogram[F[_]] private[guard] (
     if (isCounting) counter.inc()
   }
 
-  def update(num: Long): F[Unit]   = F.delay(unsafeUpdate(num))
-  def update(num: unit.Q): F[Unit] = update(unit.in(num))
+  def update(num: Long): F[Unit] = F.delay(unsafeUpdate(num))
 }

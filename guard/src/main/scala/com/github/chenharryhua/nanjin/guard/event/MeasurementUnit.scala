@@ -13,7 +13,7 @@ import squants.{Dimensionless, DimensionlessUnit, Each, Percent, Quantity, UnitO
 sealed trait MeasurementUnit extends EnumEntry {
   type Q <: Quantity[Q]
   def mUnit: UnitOfMeasure[Q]
-  def in(q: Q): Long = q.in(mUnit).value.toLong
+  def symbol: String = mUnit.symbol
 }
 
 sealed abstract class NJTimeUnit(val mUnit: TimeUnit) extends MeasurementUnit {
