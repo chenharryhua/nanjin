@@ -17,7 +17,6 @@ import io.circe.generic.JsonCodec
 import io.circe.parser.decode
 import io.circe.syntax.*
 import org.scalatest.funsuite.AnyFunSuite
-import squants.information.InformationConversions.InformationConversions
 
 import java.time.{ZoneId, ZonedDateTime}
 import scala.concurrent.duration.*
