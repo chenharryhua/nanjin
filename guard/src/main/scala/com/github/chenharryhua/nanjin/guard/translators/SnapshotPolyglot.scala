@@ -28,20 +28,20 @@ final class SnapshotPolyglot(snapshot: MetricSnapshot) {
     val unit = s"${m.meter.unit.symbol}/second"
     m.metricId -> NonEmptyList.of(
       "count" -> Json.fromLong(m.meter.count),
-      "mean_rate" -> Json.fromString(s"${m.meter.mean_rate.toHertz} $unit"),
-      "m1_rate  " -> Json.fromString(s"${m.meter.m1_rate.toHertz} $unit"),
-      "m5_rate  " -> Json.fromString(s"${m.meter.m5_rate.toHertz} $unit"),
-      "m15_rate " -> Json.fromString(s"${m.meter.m15_rate.toHertz} $unit")
+      "mean_rate" -> Json.fromString(s"${decFmt.format(m.meter.mean_rate.toHertz)} $unit"),
+      "m1_rate  " -> Json.fromString(s"${decFmt.format(m.meter.m1_rate.toHertz)} $unit"),
+      "m5_rate  " -> Json.fromString(s"${decFmt.format(m.meter.m5_rate.toHertz)} $unit"),
+      "m15_rate " -> Json.fromString(s"${decFmt.format(m.meter.m15_rate.toHertz)} $unit")
     )
   }
   private def timers: List[(MetricID, NonEmptyList[(String, Json)])] = snapshot.timers.map { t =>
     val unit = "calls/second"
     t.metricId -> NonEmptyList.of(
       "count" -> Json.fromLong(t.timer.count),
-      "mean_rate" -> Json.fromString(s"${t.timer.mean_rate.toHertz} $unit"),
-      "m1_rate  " -> Json.fromString(s"${t.timer.m1_rate.toHertz} $unit"),
-      "m5_rate  " -> Json.fromString(s"${t.timer.m5_rate.toHertz} $unit"),
-      "m15_rate " -> Json.fromString(s"${t.timer.m15_rate.toHertz} $unit"),
+      "mean_rate" -> Json.fromString(s"${decFmt.format(t.timer.mean_rate.toHertz)} $unit"),
+      "m1_rate  " -> Json.fromString(s"${decFmt.format(t.timer.m1_rate.toHertz)} $unit"),
+      "m5_rate  " -> Json.fromString(s"${decFmt.format(t.timer.m5_rate.toHertz)} $unit"),
+      "m15_rate " -> Json.fromString(s"${decFmt.format(t.timer.m15_rate.toHertz)} $unit"),
       "min   " -> Json.fromString(fmt.format(t.timer.min)),
       "max   " -> Json.fromString(fmt.format(t.timer.max)),
       "mean  " -> Json.fromString(fmt.format(t.timer.mean)),

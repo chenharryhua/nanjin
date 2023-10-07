@@ -282,13 +282,13 @@ lazy val guard_observer_jmx = (project in file("observers/jmx"))
       ) ++ testLib
   )
 
-lazy val guard_observer_skunk = (project in file("observers/skunk"))
+lazy val guard_observer_db = (project in file("observers/database"))
   .dependsOn(guard)
+  .dependsOn(database)
   .settings(commonSettings*)
-  .settings(name := "nj-observer-skunk")
+  .settings(name := "nj-observer-database")
   .settings(
     libraryDependencies ++= List(
-      "org.tpolecat" %% "skunk-core"  % skunkV,
       "org.tpolecat" %% "skunk-circe" % skunkV
     ) ++ testLib
   )
@@ -423,7 +423,7 @@ lazy val example = (project in file("example"))
   .dependsOn(spark)
   .dependsOn(guard)
   .dependsOn(guard_observer_aws)
-  .dependsOn(guard_observer_skunk)
+  .dependsOn(guard_observer_db)
   .dependsOn(guard_observer_influxdb)
   .dependsOn(guard_observer_jmx)
   .settings(commonSettings*)
@@ -447,7 +447,7 @@ lazy val nanjin =
       spark,
       guard,
       guard_observer_aws,
-      guard_observer_skunk,
+      guard_observer_db,
       guard_observer_influxdb,
       guard_observer_jmx)
 
