@@ -171,6 +171,13 @@ class MetricsTest extends AnyFunSuite {
     assert(MeasurementUnit.MICROSECONDS.toFiniteDuration(Time(fd)) == fd)
   }
 
+  test("meter") {
+    service("meter").eventStream { agent =>
+      val meter = agent.meter("meter", MeasurementUnit.DAYS)
+      meter.mark(1) >> agent.metrics.report
+    }.evalTap(console.simple[IO]).compile.drain.unsafeRunSync()
+  }
+
   test("distinct symbol") {
     import MeasurementUnit.*
     val symbols = List(
