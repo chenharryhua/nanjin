@@ -120,22 +120,4 @@ object NJEvent extends all {
     landTime: FiniteDuration,
     notes: Option[Json])
       extends ActionResultEvent
-
-  // filters
-
-  final def isPivotalEvent(evt: NJEvent): Boolean = evt match {
-    case _: ActionDone  => false
-    case _: ActionStart => false
-    case _              => true
-  }
-
-  final def isServiceEvent(evt: NJEvent): Boolean = evt match {
-    case _: ActionEvent => false
-    case _              => true
-  }
-
-  final def isActionDone(evt: ActionResultEvent): Boolean = evt match {
-    case _: ActionFail => false
-    case _: ActionDone => true
-  }
 }

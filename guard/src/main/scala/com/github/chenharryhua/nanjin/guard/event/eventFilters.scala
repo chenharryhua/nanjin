@@ -1,7 +1,15 @@
-package com.github.chenharryhua.nanjin.guard.observers
+package com.github.chenharryhua.nanjin.guard.event
+
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.guard.event.NJEvent.MetricReport
-import com.github.chenharryhua.nanjin.guard.event.{MetricIndex, NJEvent}
+import com.github.chenharryhua.nanjin.guard.config.Importance
+import com.github.chenharryhua.nanjin.guard.event.NJEvent.{
+  ActionDone,
+  ActionEvent,
+  ActionFail,
+  ActionResultEvent,
+  ActionStart,
+  MetricReport
+}
 import cron4s.CronExpr
 import cron4s.lib.javatime.javaTemporalInstance
 import eu.timepit.refined.api.Refined
@@ -11,13 +19,33 @@ import java.time.{Duration, Instant}
 import scala.concurrent.duration.FiniteDuration
 import scala.jdk.DurationConverters.{JavaDurationOps, ScalaDurationOps}
 
-object sampling {
+object eventFilters {
+  final def isPivotalEvent(evt: NJEvent): Boolean = evt match {
+    case _: ActionDone  => false
+    case _: ActionStart => false
+    case _              => true
+  }
+
+  final def isServiceEvent(evt: NJEvent): Boolean = evt match {
+    case _: ActionEvent => false
+    case _              => true
+  }
+
+  final def isActionDone(evt: ActionResultEvent): Boolean = evt match {
+    case _: ActionFail => false
+    case _: ActionDone => true
+  }
+
+  final def nonSuppress(evt: NJEvent): Boolean = evt match {
+    case ae: ActionEvent => ae.actionParams.importance > Importance.Suppressed
+    case _               => true
+  }
 
   /** interval based sampling
     *
     * in every interval, only one MetricReport is allowed to pass
     */
-  def apply(interval: FiniteDuration)(evt: NJEvent): Boolean =
+  def sampling(interval: FiniteDuration)(evt: NJEvent): Boolean =
     evt match {
       case MetricReport(mrt, sp, now, _) =>
         mrt match {
@@ -36,7 +64,7 @@ object sampling {
     *
     * report index mod divisor === 0
     */
-  def apply(divisor: Refined[Int, Positive])(evt: NJEvent): Boolean =
+  def sampling(divisor: Refined[Int, Positive])(evt: NJEvent): Boolean =
     evt match {
       case MetricReport(mrt, _, _, _) =>
         mrt match {
@@ -48,7 +76,7 @@ object sampling {
 
   /** cron based sampling
     */
-  def apply(cronExpr: CronExpr)(evt: NJEvent): Boolean =
+  def sampling(cronExpr: CronExpr)(evt: NJEvent): Boolean =
     evt match {
       case MetricReport(mrt, sp, _, _) =>
         mrt match {

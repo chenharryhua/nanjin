@@ -4,14 +4,9 @@ import cats.Endo
 import cats.effect.kernel.Async
 import cats.implicits.{toFunctorOps, toShow}
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
-import com.github.chenharryhua.nanjin.guard.event.{NJEvent, Snapshot}
+import com.github.chenharryhua.nanjin.guard.event.{NJEvent, Snapshot, eventFilters}
 import com.github.chenharryhua.nanjin.guard.translators.metricConstants
-import com.github.chenharryhua.nanjin.guard.translators.textConstants.{
-  CONSTANT_HOST,
-  CONSTANT_SERVICE,
-  CONSTANT_SERVICE_ID,
-  CONSTANT_TASK
-}
+import com.github.chenharryhua.nanjin.guard.translators.textConstants.{CONSTANT_HOST, CONSTANT_SERVICE, CONSTANT_SERVICE_ID, CONSTANT_TASK}
 import com.influxdb.client.domain.WritePrecision
 import com.influxdb.client.write.Point
 import com.influxdb.client.{InfluxDBClient, WriteOptions}
@@ -65,7 +60,7 @@ final class InfluxdbObserver[F[_]](
         .time(ar.timestamp.toInstant, writePrecision)
         .addTag(CONSTANT_SERVICE_ID, ar.serviceParams.serviceId.show)
         .addTag(metricConstants.METRICS_DIGEST, ar.actionParams.metricName.digest)
-        .addTag("done", NJEvent.isActionDone(ar).show) // for query
+        .addTag("done", eventFilters.isActionDone(ar).show) // for query
         .addTags(tags.asJava)
         .addField(ar.actionParams.metricName.value, durationUnit.convert(ar.took)) // Long
     )

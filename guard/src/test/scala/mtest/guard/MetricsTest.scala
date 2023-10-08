@@ -7,8 +7,8 @@ import com.github.chenharryhua.nanjin.common.HostName
 import com.github.chenharryhua.nanjin.common.chrono.policies
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
-import com.github.chenharryhua.nanjin.guard.event.{NJEvent, NJInformationUnit}
-import com.github.chenharryhua.nanjin.guard.observers.{console, sampling}
+import com.github.chenharryhua.nanjin.guard.event.{NJEvent, NJInformationUnit,eventFilters}
+import com.github.chenharryhua.nanjin.guard.observers.console
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import com.github.chenharryhua.nanjin.guard.translators.Translator
 import cron4s.Cron
@@ -71,7 +71,7 @@ class MetricsTest extends AnyFunSuite {
       }
       .map(_.asJson.noSpaces)
       .evalMap(e => IO(decode[NJEvent](e)).rethrow)
-      .evalTap(console.simple[IO].updateTranslator(_.filter(sampling(1))))
+      .evalTap(console.simple[IO].updateTranslator(_.filter(eventFilters.sampling(1))))
       .interruptAfter(5.seconds)
       .compile
       .drain
