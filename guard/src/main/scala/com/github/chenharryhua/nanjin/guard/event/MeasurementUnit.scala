@@ -52,6 +52,9 @@ object MeasurementUnit {
   val MEGABITS_SECOND: NJDataRateUnit.MEGABITS_SECOND.type = NJDataRateUnit.MEGABITS_SECOND
   val GIGABITS_SECOND: NJDataRateUnit.GIGABITS_SECOND.type = NJDataRateUnit.GIGABITS_SECOND
   val TERABITS_SECOND: NJDataRateUnit.TERABITS_SECOND.type = NJDataRateUnit.TERABITS_SECOND
+
+  val PERCENT: NJDimensionlessUnit.PERCENT.type = NJDimensionlessUnit.PERCENT
+  val COUNT: NJDimensionlessUnit.COUNT.type = NJDimensionlessUnit.COUNT
 }
 
 sealed abstract class NJTimeUnit(val mUnit: TimeUnit) extends MeasurementUnit with EnumEntry {

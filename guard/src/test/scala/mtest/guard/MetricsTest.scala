@@ -170,4 +170,42 @@ class MetricsTest extends AnyFunSuite {
     assert(MeasurementUnit.MILLISECONDS.toJavaDuration(Time(fd)) == fd.toJava)
     assert(MeasurementUnit.MICROSECONDS.toFiniteDuration(Time(fd)) == fd)
   }
+
+  test("distinct symbol") {
+    import MeasurementUnit.*
+    val symbols = List(
+      DAYS,
+      HOURS,
+      MINUTES,
+      SECONDS,
+      MILLISECONDS,
+      MICROSECONDS,
+      NANOSECONDS,
+      BYTES,
+      KILOBYTES,
+      MEGABYTES,
+      GIGABYTES,
+      TERABYTES,
+      BITS,
+      KILOBITS,
+      MEGABITS,
+      GIGABITS,
+      TERABITS,
+      BYTES_SECOND,
+      KILOBYTES_SECOND,
+      MEGABYTES_SECOND,
+      GIGABYTES_SECOND,
+      TERABYTES_SECOND,
+      BITS_SECOND,
+      KILOBITS_SECOND,
+      MEGABITS_SECOND,
+      GIGABITS_SECOND,
+      TERABITS_SECOND,
+      PERCENT,
+      COUNT
+    ).map(_.symbol)
+
+    assert(symbols.distinct.size == symbols.size)
+  }
+
 }
