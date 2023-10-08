@@ -7,7 +7,13 @@ import com.github.chenharryhua.nanjin.common.HostName
 import com.github.chenharryhua.nanjin.common.chrono.policies
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
-import com.github.chenharryhua.nanjin.guard.event.{NJEvent, NJInformationUnit,eventFilters}
+import com.github.chenharryhua.nanjin.guard.event.{
+  eventFilters,
+  MeasurementUnit,
+  NJEvent,
+  NJInformationUnit,
+  NJTimeUnit
+}
 import com.github.chenharryhua.nanjin.guard.observers.console
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import com.github.chenharryhua.nanjin.guard.translators.Translator
@@ -17,9 +23,11 @@ import io.circe.generic.JsonCodec
 import io.circe.parser.decode
 import io.circe.syntax.*
 import org.scalatest.funsuite.AnyFunSuite
+import squants.time.Time
 
 import java.time.{ZoneId, ZonedDateTime}
 import scala.concurrent.duration.*
+import scala.jdk.DurationConverters.ScalaDurationOps
 import scala.util.Random
 
 @JsonCodec
@@ -153,5 +161,13 @@ class MetricsTest extends AnyFunSuite {
       .compile
       .drain
       .unsafeRunSync()
+  }
+
+  test("measurement unit") {
+    implicitly[MeasurementUnit.DAYS.type =:= NJTimeUnit.DAYS.type]
+    implicitly[MeasurementUnit.DAYS.Q =:= Time]
+    val fd: FiniteDuration = 10.seconds
+    assert(MeasurementUnit.MILLISECONDS.toJavaDuration(Time(fd)) == fd.toJava)
+    assert(MeasurementUnit.MICROSECONDS.toFiniteDuration(Time(fd)) == fd)
   }
 }
