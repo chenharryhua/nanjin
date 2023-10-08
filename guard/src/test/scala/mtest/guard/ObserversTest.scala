@@ -4,7 +4,7 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.chrono.policies
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.event.{NJDimensionlessUnit, NJEvent, NJInformationUnit}
+import com.github.chenharryhua.nanjin.guard.event.{MeasurementUnit, NJDimensionlessUnit, NJEvent, NJInformationUnit}
 import com.github.chenharryhua.nanjin.guard.observers.*
 import io.circe.Json
 import io.circe.syntax.EncoderOps
@@ -38,7 +38,7 @@ class ObserversTest extends AnyFunSuite {
           .run
 
         val counter   = ag.counter("nj counter").asRisk
-        val histogram = ag.histogram("nj histogram", NJInformationUnit.BYTES).counted
+        val histogram = ag.histogram("nj histogram", MeasurementUnit.DAYS).counted
         val alert     = ag.alert("nj alert")
         val gauge     = ag.gauge("nj gauge")
 

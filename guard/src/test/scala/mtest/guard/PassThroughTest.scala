@@ -6,7 +6,7 @@ import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.chrono.policies
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.action.NJAlert
-import com.github.chenharryhua.nanjin.guard.event.NJDataRateUnit
+import com.github.chenharryhua.nanjin.guard.event.{MeasurementUnit, NJDataRateUnit}
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
 import com.github.chenharryhua.nanjin.guard.observers.{console, logging}
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
@@ -67,7 +67,7 @@ class PassThroughTest extends AnyFunSuite {
     guard
       .updateConfig(_.withMetricReport(policies.crontab(cron_1second)))
       .eventStream { agent =>
-        val meter = agent.meter("nj.test.meter", NJDataRateUnit.BYTES_SECOND)
+        val meter = agent.meter("nj.test.meter", MeasurementUnit.MINUTES)
         (meter.mark(1000) >> agent.metrics.reset
           .whenA(Random.nextInt(3) == 1)).delayBy(1.second).replicateA(5)
       }
@@ -81,7 +81,7 @@ class PassThroughTest extends AnyFunSuite {
     guard
       .updateConfig(_.withMetricReport(policies.crontab(cron_1second)))
       .eventStream { agent =>
-        val meter = agent.histogram("nj.test.histogram", NJDataRateUnit.BYTES_SECOND)
+        val meter = agent.histogram("nj.test.histogram", MeasurementUnit.HOURS)
         IO(Random.nextInt(100).toLong).flatMap(meter.update).delayBy(1.second).replicateA(5)
       }
       .evalTap(logging(Translator.simpleText[IO]))
