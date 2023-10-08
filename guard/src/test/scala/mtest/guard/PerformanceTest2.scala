@@ -3,7 +3,7 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.config.ActionConfig
-import com.github.chenharryhua.nanjin.guard.event.{NJEvent, eventFilters}
+import com.github.chenharryhua.nanjin.guard.event.eventFilters
 import com.github.chenharryhua.nanjin.guard.observers.console
 import com.github.chenharryhua.nanjin.guard.service.Agent
 import org.scalatest.funsuite.AnyFunSuite
