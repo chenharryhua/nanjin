@@ -4,20 +4,13 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.toShow
 import com.github.chenharryhua.nanjin.common.chrono.zones.{darwinTime, singaporeTime, sydneyTime}
-import com.github.chenharryhua.nanjin.common.chrono.{
-  crontabs,
-  localTimes,
-  policies,
-  tickStream,
-  Policy,
-  TickStatus
-}
+import com.github.chenharryhua.nanjin.common.chrono.{Policy, TickStatus, crontabs, localTimes, policies, tickStream}
 import cron4s.CronExpr
 import io.circe.parser.decode
 import io.circe.syntax.EncoderOps
 import org.scalatest.funsuite.AnyFunSuite
 
-import java.time.LocalTime
+import java.time.{LocalDateTime, LocalTime}
 import scala.concurrent.duration.DurationInt
 import scala.jdk.DurationConverters.ScalaDurationOps
 
@@ -167,6 +160,7 @@ class PolicyCombinatorTest extends AnyFunSuite {
       .followedBy(policies.crontab(crontabs.daily.noon).endAt(localTimes.noon))
       .followedBy(policies.crontab(crontabs.daily.pmOne).endAt(localTimes.pmOne))
       .followedBy(policies.crontab(crontabs.daily.pmTwo).endAt(localTimes.pmTwo))
+      .expireAt(LocalDateTime.of(2023,10,8,11,50,0))
       .followedBy(policies.crontab(crontabs.daily.pmThree).endAt(localTimes.pmThree).limited(1))
       .followedBy(policies.crontab(crontabs.daily.pmFour).endAt(localTimes.pmFour))
       .join(policies.crontab(crontabs.daily.pmFive).endAt(localTimes.pmFive))

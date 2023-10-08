@@ -4,14 +4,15 @@ import cats.data.NonEmptyList
 import cats.syntax.all.*
 import cats.{Functor, Show}
 import com.github.chenharryhua.nanjin.common.DurationFormatter
+import com.github.chenharryhua.nanjin.common.chrono.PolicyF.ExpireAt
 import cron4s.CronExpr
 import cron4s.lib.javatime.javaTemporalInstance
 import higherkindness.droste.data.Fix
-import higherkindness.droste.{scheme, Algebra, Coalgebra}
+import higherkindness.droste.{Algebra, Coalgebra, scheme}
 import io.circe.*
 import io.circe.Decoder.Result
 import io.circe.syntax.EncoderOps
-import org.typelevel.cats.time.instances.{duration, localdate, localtime}
+import org.typelevel.cats.time.instances.all
 
 import java.time.*
 import java.time.temporal.ChronoUnit
@@ -21,7 +22,7 @@ import scala.util.{Random, Try}
 
 sealed trait PolicyF[K]
 
-private object PolicyF extends localtime with localdate with duration {
+private object PolicyF extends all {
 
   implicit val functorPolicyF: Functor[PolicyF] = cats.derived.semiauto.functor[PolicyF]
 
@@ -36,6 +37,7 @@ private object PolicyF extends localtime with localdate with duration {
   final case class FollowedBy[K](leader: K, follower: K) extends PolicyF[K]
   final case class Repeat[K](policy: Fix[PolicyF]) extends PolicyF[K]
   final case class EndAt[K](policy: K, end: LocalTime) extends PolicyF[K]
+  final case class ExpireAt[K](policy: K, expire: LocalDateTime) extends PolicyF[K]
   final case class Join[K](first: K, second: K) extends PolicyF[K]
 
   type CalcTick = TickRequest => Option[Tick]
@@ -97,6 +99,12 @@ private object PolicyF extends localtime with localdate with duration {
         }
         policy.zip(timeFrame).map(_._1)
 
+      case ExpireAt(policy, expire) =>
+        val timeFrame: LazyList[Unit] = LazyList.unfold(()) { _ =>
+          if (expire.isAfter(LocalDateTime.now)) Some(((), ())) else None
+        }
+        policy.zip(timeFrame).map(_._1)
+
       case Join(first, second) =>
         first.zip(second).map { case (fa: CalcTick, fb: CalcTick) =>
           (req: TickRequest) =>
@@ -125,6 +133,7 @@ private object PolicyF extends localtime with localdate with duration {
   private val FOLLOWED_BY_LEADER: String   = "leader"
   private val FOLLOWED_BY_FOLLOWER: String = "follower"
   private val END_AT: String               = "endAt"
+  private val EXPIRE_AT: String            = "expireAt"
   private val JOIN: String                 = "join"
   private val JOIN_FIRST: String           = "first"
   private val JOIN_SECOND: String          = "second"
@@ -146,6 +155,7 @@ private object PolicyF extends localtime with localdate with duration {
     case FollowedBy(leader, follower) => show"$leader.$FOLLOWED_BY($follower)"
     case Repeat(policy)               => show"${Policy(policy)}.$REPEAT"
     case EndAt(policy, end)           => show"$policy.$END_AT($end)"
+    case ExpireAt(policy, expire)     => show"$policy.$EXPIRE_AT($expire)"
     case Join(first, second)          => show"$first.$JOIN($second)"
   }
 
@@ -171,6 +181,8 @@ private object PolicyF extends localtime with localdate with duration {
       Json.obj(REPEAT -> encoderFixPolicyF(policy))
     case EndAt(policy, end) =>
       Json.obj(END_AT -> end.asJson, POLICY -> policy)
+    case ExpireAt(policy, expire) =>
+      Json.obj(EXPIRE_AT -> expire.asJson, POLICY -> policy)
     case Join(first, second) =>
       Json.obj(JOIN -> Json.obj(JOIN_FIRST -> first, JOIN_SECOND -> second))
   }
@@ -219,6 +231,12 @@ private object PolicyF extends localtime with localdate with duration {
       (plc, ea).mapN(EndAt[HCursor])
     }
 
+    def expireAt(hc: HCursor): Result[ExpireAt[HCursor]] = {
+      val ea  = hc.get[LocalDateTime](EXPIRE_AT)
+      val plc = hc.downField(POLICY).as[HCursor]
+      (plc, ea).mapN(ExpireAt[HCursor])
+    }
+
     def join(hc: HCursor): Result[Join[HCursor]] = {
       val first  = hc.downField(JOIN).downField(JOIN_FIRST).as[HCursor]
       val second = hc.downField(JOIN).downField(JOIN_SECOND).as[HCursor]
@@ -237,6 +255,7 @@ private object PolicyF extends localtime with localdate with duration {
           .orElse(fixedRate(hc))
           .orElse(limited(hc))
           .orElse(endAt(hc))
+          .orElse(expireAt(hc))
           .orElse(followedBy(hc))
           .orElse(accordance(hc))
           .orElse(join(hc))
@@ -262,6 +281,8 @@ final case class Policy(policy: Fix[PolicyF]) { // don't extends AnyVal, monocle
   def followedBy(other: Policy): Policy = Policy(Fix(FollowedBy(policy, other.policy)))
   def repeat: Policy                    = Policy(Fix(Repeat(policy)))
   def join(other: Policy): Policy       = Policy(Fix(Join(policy, other.policy)))
+
+  def expireAt(localDateTime: LocalDateTime): Policy = Policy(Fix(ExpireAt(policy, localDateTime)))
 
   def endAt(localTime: LocalTime): Policy = Policy(Fix(EndAt(policy, localTime)))
   def endOfDay: Policy                    = endAt(LocalTime.MAX)
