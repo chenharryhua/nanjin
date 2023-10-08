@@ -229,7 +229,7 @@ final private case class MetricKey(
         Dimension.builder().name(metricConstants.METRICS_DIGEST).value(id.metricName.digest).build(),
         Dimension.builder().name(CONSTANT_MEASUREMENT).value(id.metricName.measurement).build()
       )
-      .metricName(s"${id.metricName.value}($category)")
+      .metricName(s"${id.metricName.name}($category)")
       .unit(standardUnit)
       .timestamp(ts)
       .value(value)

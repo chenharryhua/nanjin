@@ -190,10 +190,10 @@ object MetricSnapshot extends duration {
 
   def apply(metricRegistry: MetricRegistry): MetricSnapshot =
     MetricSnapshot(
-      gauges = gauges(metricRegistry).sortBy(_.metricId.metricName.value),
-      counters = counters(metricRegistry).sortBy(_.metricId.metricName.value),
-      meters = meters(metricRegistry).sortBy(_.metricId.metricName.value),
-      timers = timers(metricRegistry).sortBy(_.metricId.metricName.value),
-      histograms = histograms(metricRegistry).sortBy(_.metricId.metricName.value)
+      gauges = gauges(metricRegistry).sortBy(_.metricId.metricName.name),
+      counters = counters(metricRegistry).sortBy(_.metricId.metricName.name),
+      meters = meters(metricRegistry).sortBy(_.metricId.metricName.name),
+      timers = timers(metricRegistry).sortBy(_.metricId.metricName.name),
+      histograms = histograms(metricRegistry).sortBy(_.metricId.metricName.name)
     )
 }

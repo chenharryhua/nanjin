@@ -62,7 +62,7 @@ final class InfluxdbObserver[F[_]](
         .addTag(metricConstants.METRICS_DIGEST, ar.actionParams.metricName.digest)
         .addTag("done", eventFilters.isActionDone(ar).show) // for query
         .addTags(tags.asJava)
-        .addField(ar.actionParams.metricName.value, durationUnit.convert(ar.took)) // Long
+        .addField(ar.actionParams.metricName.name, durationUnit.convert(ar.took)) // Long
     )
 
   /** @param chunkSize
@@ -114,7 +114,7 @@ final class InfluxdbObserver[F[_]](
   private def dimension(ms: Snapshot): Map[String, String] =
     Map(
       metricConstants.METRICS_DIGEST -> ms.metricId.metricName.digest,
-      metricConstants.METRICS_NAME -> ms.metricId.metricName.value)
+      metricConstants.METRICS_NAME -> ms.metricId.metricName.name)
 
   val observe: Pipe[F, NJEvent, NJEvent] = (events: Stream[F, NJEvent]) =>
     for {

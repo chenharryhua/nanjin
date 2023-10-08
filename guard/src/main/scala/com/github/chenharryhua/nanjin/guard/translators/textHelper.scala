@@ -17,7 +17,7 @@ private object textHelper extends localtime with localdatetime {
   def tookText(duration: Duration): String = fmt.format(duration)
 
   def eventTitle(evt: NJEvent): String = {
-    def name(mn: MetricName): String = s"[${mn.digest}][${mn.value}]"
+    def name(mn: MetricName): String = s"[${mn.digest}][${mn.name}]"
 
     evt match {
       case NJEvent.ActionStart(ap, _, _, _)      => s"Start Action ${name(ap.metricName)}"

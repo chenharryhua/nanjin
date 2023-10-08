@@ -76,11 +76,11 @@ object Category {
 }
 
 @JsonCodec
-final case class MetricName(value: String, digest: String, measurement: String)
+final case class MetricName(name: String, digest: String, measurement: String)
 object MetricName {
   implicit val showMetricName: Show[MetricName] = cats.derived.semiauto.show
   implicit val orderingMetricName: Ordering[MetricName] =
-    (x: MetricName, y: MetricName) => x.value.compare(y.value)
+    (x: MetricName, y: MetricName) => x.name.compare(y.name)
   implicit val orderMetricName: Order[MetricName] = Order.fromOrdering
 
   def apply(serviceParams: ServiceParams, measurement: Measurement, name: String): MetricName = {
@@ -89,7 +89,7 @@ object MetricName {
     val digest = DigestUtils.sha256Hex(fullName.mkString("/")).take(8)
 
     MetricName(
-      value = name,
+      name = name,
       digest = digest,
       measurement = measurement.value
     )

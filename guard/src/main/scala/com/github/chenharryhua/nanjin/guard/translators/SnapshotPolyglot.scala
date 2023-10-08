@@ -96,7 +96,7 @@ final class SnapshotPolyglot(snapshot: MetricSnapshot) {
           }
           .toList
           .sortBy(_._1)
-          .map { case (n, j) => Json.obj(n.value -> j) }
+          .map { case (n, j) => Json.obj(n.name -> j) }
         measurement -> Json.arr(arr*)
       }
       .toList
@@ -137,7 +137,7 @@ final class SnapshotPolyglot(snapshot: MetricSnapshot) {
           .toList
           .sortBy(_._1)
           .map { case (n, j) =>
-            val key = s"$leftParen${n.digest}$rightParen$leftParen${n.value}$rightParen"
+            val key = s"$leftParen${n.digest}$rightParen$leftParen${n.name}$rightParen"
             Json.obj(key -> j)
           }
         s"- $measurement" -> Json.arr(arr*)
