@@ -4,17 +4,16 @@ import cats.effect.kernel.Sync
 import cats.implicits.toFunctorOps
 import com.codahale.metrics.{Counter, Meter, MetricRegistry}
 import com.github.chenharryhua.nanjin.guard.config.{Category, CounterKind, MeterKind, MetricID, MetricName}
-import io.circe.syntax.EncoderOps
-import software.amazon.awssdk.services.cloudwatch.model.StandardUnit
+import com.github.chenharryhua.nanjin.guard.event.MeasurementUnit
 
 // counter can be reset, meter can't
 final class NJMeter[F[_]] private[guard] (
   name: MetricName,
   metricRegistry: MetricRegistry,
-  unit: StandardUnit,
+  unit: MeasurementUnit,
   isCounting: Boolean)(implicit F: Sync[F]) {
-  private val meterName   = MetricID(name, Category.Meter(MeterKind.Dropwizard, unit)).asJson.noSpaces
-  private val counterName = MetricID(name, Category.Counter(CounterKind.MeterCounter)).asJson.noSpaces
+  private val meterName   = MetricID(name, Category.Meter(MeterKind.Dropwizard, unit)).identifier
+  private val counterName = MetricID(name, Category.Counter(CounterKind.MeterCounter)).identifier
 
   private lazy val meter: Meter     = metricRegistry.meter(meterName)
   private lazy val counter: Counter = metricRegistry.counter(counterName)

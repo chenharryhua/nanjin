@@ -16,7 +16,9 @@ import scala.concurrent.duration.*
 class CancellationTest extends AnyFunSuite {
 
   val serviceGuard: ServiceGuard[IO] =
-    TaskGuard[IO]("retry-guard").service("retry-test").updateConfig(_.withRestartPolicy(constant_1second))
+    TaskGuard[IO]("retry-guard")
+      .service("retry-test")
+      .updateConfig(_.withRestartPolicy(policies.fixedDelay(1.seconds)))
 
   val policy: Policy = policies.crontab(cron_1second).limited(3)
 
@@ -88,8 +90,8 @@ class CancellationTest extends AnyFunSuite {
       .toVector
       .unsafeRunSync()
     assert(a.isInstanceOf[ServiceStart])
-    assert(b.asInstanceOf[ActionFail].actionParams.metricName.digest == "08e76668")
-    assert(c.asInstanceOf[ActionFail].actionParams.metricName.digest == "3d5f88dc")
+    assert(b.asInstanceOf[ActionFail].actionParams.metricName.digest == "ac2e7fb6")
+    assert(c.asInstanceOf[ActionFail].actionParams.metricName.digest == "ac2e7fb6")
     assert(d.isInstanceOf[ServiceStop])
   }
 
@@ -110,9 +112,9 @@ class CancellationTest extends AnyFunSuite {
 
     assert(s.isInstanceOf[ServiceStart])
     assert(a.isInstanceOf[ActionStart])
-    assert(b.asInstanceOf[ActionDone].actionParams.metricName.digest == "104c9af4")
+    assert(b.asInstanceOf[ActionDone].actionParams.metricName.digest == "ac2e7fb6")
     assert(c.isInstanceOf[ActionStart])
-    assert(d.asInstanceOf[ActionDone].actionParams.metricName.digest == "fec6047b")
+    assert(d.asInstanceOf[ActionDone].actionParams.metricName.digest == "ac2e7fb6")
     assert(e.isInstanceOf[ServiceStop])
 
   }
@@ -135,16 +137,16 @@ class CancellationTest extends AnyFunSuite {
 
     assert(s.isInstanceOf[ServiceStart])
     assert(a.isInstanceOf[ActionStart])
-    assert(b.asInstanceOf[ActionDone].actionParams.metricName.digest == "104c9af4")
+    assert(b.asInstanceOf[ActionDone].actionParams.metricName.digest == "ac2e7fb6")
     assert(!b.asInstanceOf[ActionDone].took.isNegative)
     assert(c.isInstanceOf[ActionStart])
-    assert(d.asInstanceOf[ActionRetry].actionParams.metricName.digest == "fec6047b")
-    assert(e.asInstanceOf[ActionFail].actionParams.metricName.digest == "fec6047b")
+    assert(d.asInstanceOf[ActionRetry].actionParams.metricName.digest == "ac2e7fb6")
+    assert(e.asInstanceOf[ActionFail].actionParams.metricName.digest == "ac2e7fb6")
     assert(f.isInstanceOf[ServiceStop])
   }
 
   test("7.cancellation - parallel") {
-    val policy2 = constant_1second.limited(1)
+    val policy2 = policies.fixedDelay(1.seconds).limited(1)
     val v =
       serviceGuard
         .updateConfig(_.withRestartPolicy(policies.giveUp))

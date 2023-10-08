@@ -9,7 +9,6 @@ import com.github.chenharryhua.nanjin.guard.config.{
   MetricName,
   TimerKind
 }
-import io.circe.syntax.EncoderOps
 
 import java.time.Duration
 
@@ -26,15 +25,18 @@ sealed private trait MeasureAction {
   def countRetry(): Unit
   def unregister(): Unit
 }
+
 private object MeasureAction {
   def apply(actionParams: ActionParams, metricRegistry: MetricRegistry): MeasureAction = {
     val metricName: MetricName = actionParams.metricName
-    val doneID  = MetricID(metricName, Category.Counter(CounterKind.ActionDone)).asJson.noSpaces
-    val failID  = MetricID(metricName, Category.Counter(CounterKind.ActionFail)).asJson.noSpaces
-    val retryID = MetricID(metricName, Category.Counter(CounterKind.ActionRetry)).asJson.noSpaces
+    val doneID: String         = MetricID(metricName, Category.Counter(CounterKind.ActionDone)).identifier
+    val failID: String         = MetricID(metricName, Category.Counter(CounterKind.ActionFail)).identifier
+    val retryID: String        = MetricID(metricName, Category.Counter(CounterKind.ActionRetry)).identifier
 
-    val doneTimerID = MetricID(metricName, Category.Timer(TimerKind.ActionDoneTimer)).asJson.noSpaces
-    val failTimerID = MetricID(metricName, Category.Timer(TimerKind.ActionFailTimer)).asJson.noSpaces
+    val doneTimerID: String =
+      MetricID(metricName, Category.Timer(TimerKind.ActionDoneTimer)).identifier
+    val failTimerID: String =
+      MetricID(metricName, Category.Timer(TimerKind.ActionFailTimer)).identifier
 
     (actionParams.isCounting, actionParams.isTiming) match {
       case (true, true) =>

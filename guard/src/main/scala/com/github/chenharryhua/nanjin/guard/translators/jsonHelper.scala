@@ -27,7 +27,7 @@ private object jsonHelper {
 
   def notes(oj: Option[Json]): (String, Json) = "notes" -> oj.asJson
 
-  def metricName(mn: MetricName): (String, Json)        = "name" -> Json.fromString(mn.value)
+  def metricName(mn: MetricName): (String, Json)        = "name" -> Json.fromString(mn.name)
   def metricDigest(mn: MetricName): (String, Json)      = "digest" -> Json.fromString(mn.digest)
   def metricMeasurement(id: MetricName): (String, Json) = "measurement" -> Json.fromString(id.measurement)
 

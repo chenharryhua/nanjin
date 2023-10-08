@@ -4,18 +4,11 @@ import cats.Show
 import cats.kernel.Monoid
 import cats.syntax.all.*
 import com.codahale.metrics.*
-import com.github.chenharryhua.nanjin.guard.config.{
-  showStandardUnit,
-  standardUnitDecoder,
-  standardUnitEncoder,
-  Category,
-  MetricID
-}
+import com.github.chenharryhua.nanjin.guard.config.{Category, MetricID}
 import io.circe.Json
 import io.circe.generic.JsonCodec
 import io.circe.parser.{decode, parse}
 import org.typelevel.cats.time.instances.duration
-import software.amazon.awssdk.services.cloudwatch.model.StandardUnit
 import squants.time.{Frequency, Hertz}
 
 import java.time.Duration
@@ -31,15 +24,14 @@ object Snapshot {
 
   @JsonCodec
   final case class MeterData(
-    unit: StandardUnit,
+    unit: MeasurementUnit,
     count: Long,
     mean_rate: Frequency,
     m1_rate: Frequency,
     m5_rate: Frequency,
     m15_rate: Frequency
-  ) {
-    val unitShow: String = unit.show
-  }
+  )
+  
   @JsonCodec
   final case class Meter(metricId: MetricID, meter: MeterData) extends Snapshot
 
@@ -66,7 +58,7 @@ object Snapshot {
 
   @JsonCodec
   final case class HistogramData(
-    unit: StandardUnit,
+    unit: MeasurementUnit,
     count: Long,
     min: Long,
     max: Long,
@@ -78,9 +70,8 @@ object Snapshot {
     p98: Double,
     p99: Double,
     p999: Double
-  ) {
-    val unitShow: String = unit.show
-  }
+  )
+
   @JsonCodec
   final case class Histogram(metricId: MetricID, histogram: HistogramData) extends Snapshot
 }
@@ -197,10 +188,10 @@ object MetricSnapshot extends duration {
 
   def apply(metricRegistry: MetricRegistry): MetricSnapshot =
     MetricSnapshot(
-      gauges = gauges(metricRegistry).sortBy(_.metricId.metricName.value),
-      counters = counters(metricRegistry).sortBy(_.metricId.metricName.value),
-      meters = meters(metricRegistry).sortBy(_.metricId.metricName.value),
-      timers = timers(metricRegistry).sortBy(_.metricId.metricName.value),
-      histograms = histograms(metricRegistry).sortBy(_.metricId.metricName.value)
+      gauges = gauges(metricRegistry).sortBy(_.metricId.metricName.name),
+      counters = counters(metricRegistry).sortBy(_.metricId.metricName.name),
+      meters = meters(metricRegistry).sortBy(_.metricId.metricName.name),
+      timers = timers(metricRegistry).sortBy(_.metricId.metricName.name),
+      histograms = histograms(metricRegistry).sortBy(_.metricId.metricName.name)
     )
 }

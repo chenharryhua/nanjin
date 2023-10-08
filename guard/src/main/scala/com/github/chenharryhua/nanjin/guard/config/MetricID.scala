@@ -1,10 +1,11 @@
 package com.github.chenharryhua.nanjin.guard.config
 
 import cats.{Order, Show}
+import com.github.chenharryhua.nanjin.guard.event.MeasurementUnit
 import enumeratum.{CatsEnum, CirceEnum, Enum, EnumEntry}
+import io.circe.Encoder
 import io.circe.generic.JsonCodec
 import org.apache.commons.codec.digest.DigestUtils
-import software.amazon.awssdk.services.cloudwatch.model.StandardUnit
 
 sealed abstract class CounterKind(override val entryName: String)
     extends EnumEntry with Product with Serializable
@@ -70,26 +71,25 @@ object Category {
   final case class Gauge(kind: GaugeKind) extends Category(kind.entryName)
   final case class Timer(kind: TimerKind) extends Category(kind.entryName)
   final case class Counter(kind: CounterKind) extends Category(kind.entryName)
-  final case class Meter(kind: MeterKind, unit: StandardUnit) extends Category(kind.entryName)
-  final case class Histogram(kind: HistogramKind, unit: StandardUnit) extends Category(kind.entryName)
+  final case class Meter(kind: MeterKind, unit: MeasurementUnit) extends Category(kind.entryName)
+  final case class Histogram(kind: HistogramKind, unit: MeasurementUnit) extends Category(kind.entryName)
 }
 
 @JsonCodec
-final case class MetricName(value: String, digest: String, measurement: String)
+final case class MetricName(name: String, digest: String, measurement: String)
 object MetricName {
   implicit val showMetricName: Show[MetricName] = cats.derived.semiauto.show
   implicit val orderingMetricName: Ordering[MetricName] =
-    (x: MetricName, y: MetricName) => x.value.compare(y.value)
+    (x: MetricName, y: MetricName) => x.name.compare(y.name)
   implicit val orderMetricName: Order[MetricName] = Order.fromOrdering
 
   def apply(serviceParams: ServiceParams, measurement: Measurement, name: String): MetricName = {
-    val withPrefix = serviceParams.metricParams.namePrefix + name
     val fullName: List[String] =
-      serviceParams.taskParams.taskName :: serviceParams.serviceName :: measurement.value :: withPrefix :: Nil
+      serviceParams.taskParams.taskName :: serviceParams.serviceName :: measurement.value :: Nil
     val digest = DigestUtils.sha256Hex(fullName.mkString("/")).take(8)
 
     MetricName(
-      value = withPrefix,
+      name = name,
       digest = digest,
       measurement = measurement.value
     )
@@ -97,7 +97,9 @@ object MetricName {
 }
 
 @JsonCodec
-final case class MetricID(metricName: MetricName, category: Category)
+final case class MetricID(metricName: MetricName, category: Category) {
+  val identifier: String = Encoder[MetricID].apply(this).noSpaces
+}
 object MetricID {
   implicit val showMetricID: Show[MetricID] = cats.derived.semiauto.show
 

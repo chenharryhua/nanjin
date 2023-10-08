@@ -6,9 +6,15 @@ import cats.implicits.catsSyntaxFlatMapOps
 import com.github.chenharryhua.nanjin.common.HostName
 import com.github.chenharryhua.nanjin.common.chrono.policies
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
-import com.github.chenharryhua.nanjin.guard.observers.{console, sampling}
+import com.github.chenharryhua.nanjin.guard.event.{
+  eventFilters,
+  MeasurementUnit,
+  NJEvent,
+  NJInformationUnit,
+  NJTimeUnit
+}
+import com.github.chenharryhua.nanjin.guard.observers.console
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import com.github.chenharryhua.nanjin.guard.translators.Translator
 import cron4s.Cron
@@ -17,10 +23,11 @@ import io.circe.generic.JsonCodec
 import io.circe.parser.decode
 import io.circe.syntax.*
 import org.scalatest.funsuite.AnyFunSuite
-import software.amazon.awssdk.services.cloudwatch.model.StandardUnit
+import squants.time.Time
 
 import java.time.{ZoneId, ZonedDateTime}
 import scala.concurrent.duration.*
+import scala.jdk.DurationConverters.ScalaDurationOps
 import scala.util.Random
 
 @JsonCodec
@@ -72,7 +79,7 @@ class MetricsTest extends AnyFunSuite {
       }
       .map(_.asJson.noSpaces)
       .evalMap(e => IO(decode[NJEvent](e)).rethrow)
-      .evalTap(console.simple[IO].updateTranslator(_.filter(sampling(1))))
+      .evalTap(console.simple[IO].updateTranslator(_.filter(eventFilters.sampling(1))))
       .interruptAfter(5.seconds)
       .compile
       .drain
@@ -144,10 +151,10 @@ class MetricsTest extends AnyFunSuite {
               ag.alert(name).counted.error("error") >>
               ag.alert(name).counted.warn("warn") >>
               ag.alert(name).counted.info("info") >>
-              ag.meter(name, StandardUnit.GIGABITS).counted.mark(100) >>
+              ag.meter(name, NJInformationUnit.GIGABITS).counted.mark(100) >>
               ag.counter(name).inc(32) >>
               ag.counter(name).asRisk.inc(10) >>
-              ag.histogram(name, StandardUnit.SECONDS).counted.update(64) >>
+              ag.histogram(name, NJInformationUnit.BITS).counted.update(100) >>
               ag.metrics.report)
       }
       .evalTap(console.simple[IO])
@@ -155,4 +162,57 @@ class MetricsTest extends AnyFunSuite {
       .drain
       .unsafeRunSync()
   }
+
+  test("measurement unit") {
+    implicitly[MeasurementUnit.DAYS.type =:= NJTimeUnit.DAYS.type]
+    implicitly[MeasurementUnit.DAYS.Q =:= Time]
+    val fd: FiniteDuration = 10.seconds
+    assert(MeasurementUnit.MILLISECONDS.toJavaDuration(Time(fd)) == fd.toJava)
+    assert(MeasurementUnit.MICROSECONDS.toFiniteDuration(Time(fd)) == fd)
+  }
+
+  test("meter") {
+    service("meter").eventStream { agent =>
+      val meter = agent.meter("meter", MeasurementUnit.DAYS)
+      meter.mark(1) >> agent.metrics.report
+    }.evalTap(console.simple[IO]).compile.drain.unsafeRunSync()
+  }
+
+  test("distinct symbol") {
+    import MeasurementUnit.*
+    val symbols = List(
+      DAYS,
+      HOURS,
+      MINUTES,
+      SECONDS,
+      MILLISECONDS,
+      MICROSECONDS,
+      NANOSECONDS,
+      BYTES,
+      KILOBYTES,
+      MEGABYTES,
+      GIGABYTES,
+      TERABYTES,
+      BITS,
+      KILOBITS,
+      MEGABITS,
+      GIGABITS,
+      TERABITS,
+      BYTES_SECOND,
+      KILOBYTES_SECOND,
+      MEGABYTES_SECOND,
+      GIGABYTES_SECOND,
+      TERABYTES_SECOND,
+      BITS_SECOND,
+      KILOBITS_SECOND,
+      MEGABITS_SECOND,
+      GIGABITS_SECOND,
+      TERABITS_SECOND,
+      PERCENT,
+      COUNT
+    ).map(_.symbol)
+
+    assert(symbols.distinct.size == symbols.size)
+  }
+
 }

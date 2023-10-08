@@ -6,7 +6,6 @@ import cats.effect.kernel.{Async, Resource, Unique}
 import cats.effect.std.{AtomicCell, Console, Dispatcher}
 import cats.syntax.all.*
 import com.codahale.metrics.MetricRegistry
-import com.codahale.metrics.jmx.JmxReporter
 import com.comcast.ip4s.IpLiteralSyntax
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.common.chrono.*
@@ -44,7 +43,6 @@ final class ServiceGuard[F[_]: Network] private[guard] (
   serviceName: ServiceName,
   taskParams: TaskParams,
   config: Endo[ServiceConfig],
-  jmxBuilder: Option[Endo[JmxReporter.Builder]],
   httpBuilder: Option[Endo[EmberServerBuilder[F]]],
   brief: F[Option[Json]])(implicit F: Async[F])
     extends UpdateConfig[ServiceConfig, ServiceGuard[F]] { self =>
@@ -52,7 +50,6 @@ final class ServiceGuard[F[_]: Network] private[guard] (
   private def copy(
     serviceName: ServiceName = self.serviceName,
     config: Endo[ServiceConfig] = self.config,
-    jmxBuilder: Option[JmxReporter.Builder => JmxReporter.Builder] = self.jmxBuilder,
     httpBuilder: Option[EmberServerBuilder[F] => EmberServerBuilder[F]] = self.httpBuilder,
     brief: F[Option[Json]] = self.brief
   ): ServiceGuard[F] =
@@ -60,7 +57,6 @@ final class ServiceGuard[F[_]: Network] private[guard] (
       serviceName = serviceName,
       taskParams = self.taskParams,
       config = config,
-      jmxBuilder = jmxBuilder,
       httpBuilder = httpBuilder,
       brief = brief
     )
@@ -69,8 +65,6 @@ final class ServiceGuard[F[_]: Network] private[guard] (
   def apply(serviceName: String): ServiceGuard[F] = copy(serviceName = ServiceName(serviceName))
 
   def withHttpServer(f: Endo[EmberServerBuilder[F]]): ServiceGuard[F] = copy(httpBuilder = Some(f))
-
-  def withJmx(f: Endo[JmxReporter.Builder]): ServiceGuard[F] = copy(jmxBuilder = Some(f))
 
   def withBrief(json: F[Json]): ServiceGuard[F] = copy(brief = json.map(_.some))
   def withBrief(json: Json): ServiceGuard[F]    = withBrief(F.pure(json))
@@ -141,24 +135,6 @@ final class ServiceGuard[F[_]: Network] private[guard] (
                 ts = tick.wakeup))
             .drain
 
-        val jmxReporting: Stream[F, Nothing] =
-          jmxBuilder match {
-            case None => Stream.empty
-            case Some(build) =>
-              Stream.bracket(F.blocking {
-                val reporter =
-                  build(
-                    JmxReporter
-                      .forRegistry(metricRegistry)
-                      .convertDurationsTo(serviceParams.metricParams.durationTimeUnit)
-                      .convertRatesTo(serviceParams.metricParams.rateTimeUnit))
-                    .createsObjectNamesWith(objectNameFactory) // respect builder except object name factory
-                    .build()
-                reporter.start()
-                reporter
-              })(r => F.blocking(r.stop())) >> Stream.never[F]
-          }
-
         val httpServer: Stream[F, Nothing] =
           emberServerBuilder match {
             case None => Stream.empty
@@ -194,7 +170,6 @@ final class ServiceGuard[F[_]: Network] private[guard] (
 
         // put together
         channel.stream
-          .concurrently(jmxReporting)
           .concurrently(metricsReset)
           .concurrently(metricsReport)
           .concurrently(httpServer)

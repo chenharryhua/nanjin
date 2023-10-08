@@ -9,8 +9,8 @@ val awsV_2      = "2.20.160"
 val catsEffectV = "3.5.2"
 val hadoopV     = "3.3.6"
 val monocleV    = "3.2.0"
-val confluentV  = "7.5.0"
-val kafkaV      = "7.5.0-ce"
+val confluentV  = "7.5.1"
+val kafkaV      = "7.5.1-ce"
 val fs2KafkaV   = "3.1.0"
 val avroV       = "1.11.3"
 val parquetV    = "1.13.1"
@@ -35,7 +35,7 @@ val log4catsV   = "2.6.0"
 val logbackV    = "1.4.11"
 val doobieV     = "1.0.0-RC4"
 val okioV       = "3.6.0"
-val jwtV        = "0.12.1"
+val jwtV        = "0.12.2"
 
 lazy val commonSettings = List(
   organization := "com.github.chenharryhua",
@@ -243,30 +243,52 @@ lazy val datetime = (project in file("datetime"))
   )
 
 lazy val guard = (project in file("guard"))
-  .dependsOn(aws)
+  .dependsOn(common)
   .settings(commonSettings*)
   .settings(name := "nj-guard")
   .settings(
     libraryDependencies ++= List(
+      "commons-codec"                       % "commons-codec"  % "1.16.0",
       "io.dropwizard.metrics"               % "metrics-core"   % metricsV,
-      "io.dropwizard.metrics"               % "metrics-jmx"    % metricsV,
       "org.typelevel" %% "vault"            % "3.5.0",
       "com.lihaoyi" %% "scalatags"          % "0.12.0",
       "org.http4s" %% "http4s-core"         % http4sV,
       "org.http4s" %% "http4s-dsl"          % http4sV,
       "org.http4s" %% "http4s-ember-server" % http4sV,
+      "org.http4s" %% "http4s-circe"        % http4sV,
       "org.http4s" %% "http4s-scalatags"    % "0.25.2",
+      "org.http4s" %% "http4s-ember-client" % http4sV          % Test,
       "org.slf4j"                           % "slf4j-reload4j" % slf4jV % Test
     ) ++ logLib ++ testLib
   )
 
-lazy val guard_observer_skunk = (project in file("observers/skunk"))
+lazy val guard_observer_aws = (project in file("observers/aws"))
+  .dependsOn(guard)
+  .dependsOn(aws)
+  .settings(commonSettings*)
+  .settings(name := "nj-observer-aws")
+  .settings(
+    libraryDependencies ++= testLib
+  )
+
+lazy val guard_observer_jmx = (project in file("observers/jmx"))
   .dependsOn(guard)
   .settings(commonSettings*)
-  .settings(name := "nj-observer-skunk")
+  .settings(name := "nj-observer-jmx")
+  .settings(
+    libraryDependencies ++=
+      List(
+        "io.dropwizard.metrics" % "metrics-jmx" % metricsV
+      ) ++ testLib
+  )
+
+lazy val guard_observer_db = (project in file("observers/database"))
+  .dependsOn(guard)
+  .dependsOn(database)
+  .settings(commonSettings*)
+  .settings(name := "nj-observer-database")
   .settings(
     libraryDependencies ++= List(
-      "org.tpolecat" %% "skunk-core"  % skunkV,
       "org.tpolecat" %% "skunk-circe" % skunkV
     ) ++ testLib
   )
@@ -384,7 +406,7 @@ lazy val spark = (project in file("spark"))
   .settings(
     libraryDependencies ++= List(
       "org.apache.ivy"                         % "ivy"             % "2.5.2", // snyk
-      "com.julianpeeters" %% "avrohugger-core" % "1.5.6"           % Test,
+      "com.julianpeeters" %% "avrohugger-core" % "1.6.0"           % Test,
       "ch.qos.logback"                         % "logback-classic" % logbackV % Test
     ) ++ sparkLib.map(_.exclude("commons-logging", "commons-logging")) ++ testLib
   )
@@ -394,12 +416,16 @@ lazy val example = (project in file("example"))
   .dependsOn(datetime)
   .dependsOn(http)
   .dependsOn(aws)
-  .dependsOn(guard)
   .dependsOn(messages)
   .dependsOn(pipes)
   .dependsOn(kafka)
   .dependsOn(database)
   .dependsOn(spark)
+  .dependsOn(guard)
+  .dependsOn(guard_observer_aws)
+  .dependsOn(guard_observer_db)
+  .dependsOn(guard_observer_influxdb)
+  .dependsOn(guard_observer_jmx)
   .settings(commonSettings*)
   .settings(name := "nj-example")
   .settings(libraryDependencies ++= List(
@@ -420,6 +446,8 @@ lazy val nanjin =
       database,
       spark,
       guard,
-      guard_observer_skunk,
-      guard_observer_influxdb)
+      guard_observer_aws,
+      guard_observer_db,
+      guard_observer_influxdb,
+      guard_observer_jmx)
 

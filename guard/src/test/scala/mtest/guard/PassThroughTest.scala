@@ -6,12 +6,12 @@ import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.chrono.policies
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.action.NJAlert
+import com.github.chenharryhua.nanjin.guard.event.MeasurementUnit
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
 import com.github.chenharryhua.nanjin.guard.observers.{console, logging}
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import com.github.chenharryhua.nanjin.guard.translators.Translator
 import org.scalatest.funsuite.AnyFunSuite
-import software.amazon.awssdk.services.cloudwatch.model.StandardUnit
 
 import scala.concurrent.duration.DurationInt
 import scala.util.Random
@@ -27,6 +27,7 @@ class PassThroughTest extends AnyFunSuite {
         (counter.inc(1).replicateA(3) >> counter.dec(2)).delayBy(1.second) >> ag.metrics.report
       }
       .filter(_.isInstanceOf[MetricReport])
+      .debug()
       .compile
       .last
       .unsafeRunSync()
@@ -35,7 +36,7 @@ class PassThroughTest extends AnyFunSuite {
         .asInstanceOf[MetricReport]
         .snapshot
         .counters
-        .find(_.metricId.metricName.digest == "59d2456f")
+        .find(_.metricId.metricName.digest == "fd72177d")
         .size == 1)
   }
 
@@ -49,6 +50,7 @@ class PassThroughTest extends AnyFunSuite {
       }
       .filter(_.isInstanceOf[MetricReport])
       .interruptAfter(5.seconds)
+      .debug()
       .compile
       .last
       .unsafeRunSync()
@@ -57,7 +59,7 @@ class PassThroughTest extends AnyFunSuite {
         .asInstanceOf[MetricReport]
         .snapshot
         .counters
-        .find(_.metricId.metricName.digest == "d42eee33")
+        .find(_.metricId.metricName.digest == "fd72177d")
         .size == 1)
   }
 
@@ -65,7 +67,7 @@ class PassThroughTest extends AnyFunSuite {
     guard
       .updateConfig(_.withMetricReport(policies.crontab(cron_1second)))
       .eventStream { agent =>
-        val meter = agent.meter("nj.test.meter", StandardUnit.BYTES_SECOND)
+        val meter = agent.meter("nj.test.meter", MeasurementUnit.MINUTES)
         (meter.mark(1000) >> agent.metrics.reset
           .whenA(Random.nextInt(3) == 1)).delayBy(1.second).replicateA(5)
       }
@@ -79,7 +81,7 @@ class PassThroughTest extends AnyFunSuite {
     guard
       .updateConfig(_.withMetricReport(policies.crontab(cron_1second)))
       .eventStream { agent =>
-        val meter = agent.histogram("nj.test.histogram", StandardUnit.BYTES_SECOND)
+        val meter = agent.histogram("nj.test.histogram", MeasurementUnit.HOURS)
         IO(Random.nextInt(100).toLong).flatMap(meter.update).delayBy(1.second).replicateA(5)
       }
       .evalTap(logging(Translator.simpleText[IO]))

@@ -24,7 +24,7 @@ final class NJGauge[F[_]] private[guard] (
     Json.fromString(DurationFormatter.defaultFormatter.format(start, end))
 
   def register[A: Encoder](value: F[A]): Resource[F, Unit] = {
-    val metricId: String = MetricID(name, Category.Gauge(GaugeKind.Dropwizard)).asJson.noSpaces
+    val metricId: String = MetricID(name, Category.Gauge(GaugeKind.Dropwizard)).identifier
     Resource
       .make(F.delay {
         metricRegistry.gauge(

@@ -12,7 +12,6 @@ import fs2.Stream
 import fs2.concurrent.{Channel, SignallingMapRef}
 import fs2.io.net.Network
 import org.typelevel.vault.{Key, Locker, Vault}
-import software.amazon.awssdk.services.cloudwatch.model.StandardUnit
 
 import java.time.{Instant, ZoneId, ZonedDateTime}
 
@@ -29,10 +28,10 @@ sealed trait Agent[F[_]] {
   def action(actionName: String): NJActionBuilder[F]
   def alert(alertName: String): NJAlert[F]
   def counter(counterName: String): NJCounter[F]
-  def meter(meterName: String, unitOfMeasure: StandardUnit): NJMeter[F]
-  def meterR(meterName: String, unitOfMeasure: StandardUnit): Resource[F, NJMeter[F]]
-  def histogram(histoName: String, unitOfMeasure: StandardUnit): NJHistogram[F]
-  def histogramR(histoName: String, unitOfMeasure: StandardUnit): Resource[F, NJHistogram[F]]
+  def meter(meterName: String, unitOfMeasure: MeasurementUnit): NJMeter[F]
+  def meterR(meterName: String, unitOfMeasure: MeasurementUnit): Resource[F, NJMeter[F]]
+  def histogram(histoName: String, unitOfMeasure: MeasurementUnit): NJHistogram[F]
+  def histogramR(histoName: String, unitOfMeasure: MeasurementUnit): Resource[F, NJHistogram[F]]
   def gauge(gaugeName: String): NJGauge[F]
 
   // udp
@@ -104,7 +103,7 @@ final class GeneralAgent[F[_]: Network] private[service] (
       isRisk = false)
   }
 
-  override def meter(meterName: String, unitOfMeasure: StandardUnit): NJMeter[F] = {
+  override def meter(meterName: String, unitOfMeasure: MeasurementUnit): NJMeter[F] = {
     val name = NameConstraint.unsafeFrom(meterName).value
     new NJMeter[F](
       name = MetricName(self.serviceParams, self.measurement, name),
@@ -113,10 +112,10 @@ final class GeneralAgent[F[_]: Network] private[service] (
       isCounting = false
     )
   }
-  override def meterR(meterName: String, unitOfMeasure: StandardUnit): Resource[F, NJMeter[F]] =
+  override def meterR(meterName: String, unitOfMeasure: MeasurementUnit): Resource[F, NJMeter[F]] =
     Resource.make(F.pure(meter(meterName, unitOfMeasure)))(_.unregister)
 
-  override def histogram(histoName: String, unitOfMeasure: StandardUnit): NJHistogram[F] = {
+  override def histogram(histoName: String, unitOfMeasure: MeasurementUnit): NJHistogram[F] = {
     val name = NameConstraint.unsafeFrom(histoName).value
     new NJHistogram[F](
       name = MetricName(self.serviceParams, self.measurement, name),
@@ -125,7 +124,7 @@ final class GeneralAgent[F[_]: Network] private[service] (
       isCounting = false
     )
   }
-  override def histogramR(histoName: String, unitOfMeasure: StandardUnit): Resource[F, NJHistogram[F]] =
+  override def histogramR(histoName: String, unitOfMeasure: MeasurementUnit): Resource[F, NJHistogram[F]] =
     Resource.make(F.pure(histogram(histoName, unitOfMeasure)))(_.unregister)
 
   override def gauge(gaugeName: String): NJGauge[F] = {

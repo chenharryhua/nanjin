@@ -27,7 +27,7 @@ class RetryTest extends AnyFunSuite {
     TaskGuard[IO]("retry-guard")
       .updateConfig(_.withZoneId(singaporeTime))
       .service("retry test")
-      .updateConfig(_.withRestartPolicy(constant_1second))
+      .updateConfig(_.withRestartPolicy(policies.fixedDelay(1.seconds)))
 
   val policy: Policy = policies.fixedDelay(1.seconds).limited(3)
 
@@ -292,7 +292,7 @@ class RetryTest extends AnyFunSuite {
     val List(a, b, c, d) = serviceGuard
       .updateConfig(_.withRestartPolicy(policies.giveUp))
       .eventStream(
-        _.action("fatal", _.critical.suppressed.normal.bipartite.policy(constant_1second))
+        _.action("fatal", _.critical.suppressed.normal.bipartite.policy(policies.fixedDelay(1.seconds)))
           .retry(IO.raiseError(new ControlThrowable("fatal error") {}))
           .run)
       .compile
@@ -361,7 +361,7 @@ class RetryTest extends AnyFunSuite {
     def tt = if (k == 0) { k += 1; throw new Exception() }
     else { k += 1; 0 }
     serviceGuard.eventStream { agent =>
-      agent.action("delay", _.bipartite.insignificant.policy(constant_1second)).delay(tt).run
+      agent.action("delay", _.bipartite.insignificant.policy(policies.fixedDelay(1.seconds))).delay(tt).run
     }.evalTap(console.simple[IO]).compile.drain.unsafeRunSync()
     assert(k == 2)
   }

@@ -1,9 +1,15 @@
-package com.github.chenharryhua.nanjin.guard
+package com.github.chenharryhua.nanjin.guard.event
 
 import cats.syntax.all.*
-import com.codahale.metrics.MetricAttribute
-import com.github.chenharryhua.nanjin.guard.event.NJEvent.MetricReport
-import com.github.chenharryhua.nanjin.guard.event.{MetricIndex, NJEvent}
+import com.github.chenharryhua.nanjin.guard.config.Importance
+import com.github.chenharryhua.nanjin.guard.event.NJEvent.{
+  ActionDone,
+  ActionEvent,
+  ActionFail,
+  ActionResultEvent,
+  ActionStart,
+  MetricReport
+}
 import cron4s.CronExpr
 import cron4s.lib.javatime.javaTemporalInstance
 import eu.timepit.refined.api.Refined
@@ -13,35 +19,27 @@ import java.time.{Duration, Instant}
 import scala.concurrent.duration.FiniteDuration
 import scala.jdk.DurationConverters.{JavaDurationOps, ScalaDurationOps}
 
-package object observers {
+object eventFilters {
+  final def isPivotalEvent(evt: NJEvent): Boolean = evt match {
+    case _: ActionDone  => false
+    case _: ActionStart => false
+    case _              => true
+  }
 
-  // counters
-  @inline final val METRICS_COUNT: String = MetricAttribute.COUNT.getCode
+  final def isServiceEvent(evt: NJEvent): Boolean = evt match {
+    case _: ActionEvent => false
+    case _              => true
+  }
 
-  // meters
-  @inline final val METRICS_MEAN_RATE: String      = MetricAttribute.MEAN_RATE.getCode
-  @inline final val METRICS_1_MINUTE_RATE: String  = MetricAttribute.M1_RATE.getCode
-  @inline final val METRICS_5_MINUTE_RATE: String  = MetricAttribute.M5_RATE.getCode
-  @inline final val METRICS_15_MINUTE_RATE: String = MetricAttribute.M15_RATE.getCode
+  final def isActionDone(evt: ActionResultEvent): Boolean = evt match {
+    case _: ActionFail => false
+    case _: ActionDone => true
+  }
 
-  // histograms
-  @inline final val METRICS_MIN: String     = MetricAttribute.MIN.getCode
-  @inline final val METRICS_MAX: String     = MetricAttribute.MAX.getCode
-  @inline final val METRICS_MEAN: String    = MetricAttribute.MEAN.getCode
-  @inline final val METRICS_STD_DEV: String = MetricAttribute.STDDEV.getCode
-
-  @inline final val METRICS_P50: String  = MetricAttribute.P50.getCode
-  @inline final val METRICS_P75: String  = MetricAttribute.P75.getCode
-  @inline final val METRICS_P95: String  = MetricAttribute.P95.getCode
-  @inline final val METRICS_P98: String  = MetricAttribute.P98.getCode
-  @inline final val METRICS_P99: String  = MetricAttribute.P99.getCode
-  @inline final val METRICS_P999: String = MetricAttribute.P999.getCode
-
-  // dimensions
-  @inline final val METRICS_LAUNCH_TIME: String = "LaunchTime"
-  @inline final val METRICS_CATEGORY: String    = "Category"
-  @inline final val METRICS_DIGEST: String      = "Digest"
-  @inline final val METRICS_NAME: String        = "MetricName"
+  final def nonSuppress(evt: NJEvent): Boolean = evt match {
+    case ae: ActionEvent => ae.actionParams.importance > Importance.Suppressed
+    case _               => true
+  }
 
   /** interval based sampling
     *
@@ -88,4 +86,5 @@ package object observers {
         }
       case _ => true
     }
+
 }

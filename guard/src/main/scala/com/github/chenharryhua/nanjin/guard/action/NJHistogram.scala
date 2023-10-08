@@ -10,19 +10,18 @@ import com.github.chenharryhua.nanjin.guard.config.{
   MetricID,
   MetricName
 }
-import io.circe.syntax.EncoderOps
-import software.amazon.awssdk.services.cloudwatch.model.StandardUnit
+import com.github.chenharryhua.nanjin.guard.event.MeasurementUnit
 
 final class NJHistogram[F[_]] private[guard] (
   name: MetricName,
   metricRegistry: MetricRegistry,
-  unit: StandardUnit,
+  unit: MeasurementUnit,
   isCounting: Boolean)(implicit F: Sync[F]) {
 
   private val histogramName: String =
-    MetricID(name, Category.Histogram(HistogramKind.Dropwizard, unit)).asJson.noSpaces
+    MetricID(name, Category.Histogram(HistogramKind.Dropwizard, unit)).identifier
   private val counterName: String =
-    MetricID(name, Category.Counter(CounterKind.HistoCounter)).asJson.noSpaces
+    MetricID(name, Category.Counter(CounterKind.HistoCounter)).identifier
 
   private lazy val histogram: Histogram = metricRegistry.histogram(histogramName)
   private lazy val counter: Counter     = metricRegistry.counter(counterName)

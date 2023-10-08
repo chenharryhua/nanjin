@@ -3,7 +3,6 @@ package com.github.chenharryhua.nanjin.guard.action
 import cats.effect.kernel.Sync
 import com.codahale.metrics.{Counter, MetricRegistry}
 import com.github.chenharryhua.nanjin.guard.config.{Category, CounterKind, MetricID, MetricName}
-import io.circe.syntax.EncoderOps
 
 final class NJCounter[F[_]] private[guard] (
   name: MetricName,
@@ -12,9 +11,9 @@ final class NJCounter[F[_]] private[guard] (
 
   private lazy val counter: Counter =
     if (isRisk)
-      metricRegistry.counter(MetricID(name, Category.Counter(CounterKind.RiskCounter)).asJson.noSpaces)
+      metricRegistry.counter(MetricID(name, Category.Counter(CounterKind.RiskCounter)).identifier)
     else
-      metricRegistry.counter(MetricID(name, Category.Counter(CounterKind.Dropwizard)).asJson.noSpaces)
+      metricRegistry.counter(MetricID(name, Category.Counter(CounterKind.Dropwizard)).identifier)
 
   def asRisk: NJCounter[F] = new NJCounter[F](name, metricRegistry, isRisk = true)
 

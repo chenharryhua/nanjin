@@ -18,7 +18,6 @@ import io.circe.syntax.*
 import org.http4s.ember.client.EmberClientBuilder
 import org.scalatest.funsuite.AnyFunSuite
 
-import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.*
 import scala.jdk.DurationConverters.ScalaDurationOps
 import scala.util.control.ControlThrowable
@@ -121,7 +120,6 @@ class ServiceTest extends AnyFunSuite {
   test("5.should receive at least 3 report event") {
     val s :: b :: c :: d :: _ = guard
       .updateConfig(_.withMetricReport(policies.crontab(cron_1second)))
-      .withJmx(identity)
       .eventStream(_.action("t", _.silent).retry(IO.never).run)
       .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
       .interruptAfter(5.second)
@@ -329,10 +327,7 @@ class ServiceTest extends AnyFunSuite {
           .withMetricReset(policies.giveUp)
           .withMetricReport(policies.crontab(crontabs.secondly))
           .withMetricDailyReset
-          .withMetricDurationTimeUnit(TimeUnit.SECONDS)
-          .withMetricRateTimeUnit(TimeUnit.SECONDS)
-          .withRestartThreshold(2.second)
-          .withMetricNamePrefix("abc"))
+          .withRestartThreshold(2.second))
       .eventStream(_ => IO(()))
       .compile
       .drain

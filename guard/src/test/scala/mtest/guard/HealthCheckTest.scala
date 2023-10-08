@@ -11,7 +11,6 @@ import io.circe.parser.decode
 import io.circe.syntax.*
 import org.scalatest.funsuite.AnyFunSuite
 
-import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.*
 
 class HealthCheckTest extends AnyFunSuite {
@@ -19,7 +18,6 @@ class HealthCheckTest extends AnyFunSuite {
   test("1.should receive 3 MetricsReport event") {
     val s :: a :: b :: c :: _ = guard
       .service("normal")
-      .withJmx(_.inDomain("abc"))
       .updateConfig(_.withMetricReport(policies.crontab(cron_2second)))
       .eventStream(gd => gd.action("cron", _.bipartite).retry(never_fun).run)
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
@@ -63,9 +61,6 @@ class HealthCheckTest extends AnyFunSuite {
     val s :: a :: b :: c :: _ = guard
       .service("metrics-report")
       .updateConfig(_.withRestartPolicy(constant_1hour).withMetricReport(policies.crontab(cron_1second)))
-      .updateConfig(_.withMetricDurationTimeUnit(TimeUnit.MICROSECONDS)
-        .withMetricRateTimeUnit(TimeUnit.MINUTES)
-        .withMetricNamePrefix("nj_"))
       .eventStream(gd =>
         gd.action("not/fail/yet", _.bipartite.policy(constant_1hour)).retry(IO.raiseError(new Exception)).run)
       .interruptAfter(5.second)

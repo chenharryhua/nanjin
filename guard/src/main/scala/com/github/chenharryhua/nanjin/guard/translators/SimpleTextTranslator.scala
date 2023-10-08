@@ -55,14 +55,14 @@ private object SimpleTextTranslator {
     s"""${eventTitle(evt)}
        |  ${serviceEvent(evt)}
        |  $CONSTANT_POLICY:${evt.serviceParams.servicePolicies.metricReport}
-       |${yamlMetrics(evt.snapshot, evt.serviceParams.metricParams)}
+       |${yamlMetrics(evt.snapshot)}
        |""".stripMargin
 
   private def metricReset(evt: MetricReset): String =
     s"""${eventTitle(evt)}
        |  ${serviceEvent(evt)}
        |  $CONSTANT_POLICY:${evt.serviceParams.servicePolicies.metricReset}
-       |${yamlMetrics(evt.snapshot, evt.serviceParams.metricParams)}
+       |${yamlMetrics(evt.snapshot)}
        |""".stripMargin
 
   private def serviceAlert(evt: ServiceAlert): String =
