@@ -6,6 +6,11 @@ import squants.information.*
 import squants.time.*
 import squants.{Dimensionless, DimensionlessUnit, Each, Percent, Quantity, UnitOfMeasure}
 
+import java.time.Duration as JavaDuration
+import java.util.concurrent.TimeUnit as JavaTimeUnit
+import scala.concurrent.duration.{Duration, FiniteDuration}
+import scala.jdk.DurationConverters.{JavaDurationOps, ScalaDurationOps}
+
 // consistent with software.amazon.awssdk.services.cloudwatch.model.StandardUnit
 
 @JsonCodec
@@ -52,6 +57,23 @@ object MeasurementUnit {
 
 sealed abstract class NJTimeUnit(val mUnit: TimeUnit) extends MeasurementUnit with EnumEntry {
   type Q = Time
+
+  def toFiniteDuration(time: Time): FiniteDuration = time.unit match {
+    case Nanoseconds  => FiniteDuration(time.value.toLong, JavaTimeUnit.NANOSECONDS)
+    case Microseconds => FiniteDuration(time.value.toLong, JavaTimeUnit.MICROSECONDS)
+    case Milliseconds => FiniteDuration(time.value.toLong, JavaTimeUnit.MILLISECONDS)
+    case Seconds      => FiniteDuration(time.value.toLong, JavaTimeUnit.SECONDS)
+    case Minutes      => FiniteDuration(time.value.toLong, JavaTimeUnit.MINUTES)
+    case Hours        => FiniteDuration(time.value.toLong, JavaTimeUnit.HOURS)
+    case Days         => FiniteDuration(time.value.toLong, JavaTimeUnit.DAYS)
+    case others       => sys.error(s"unknown $others")
+  }
+
+  def toJavaDuration(time: Time): JavaDuration = toFiniteDuration(time).toJava
+
+  def from(duration: Duration): Time     = TimeConversions.scalaDurationToTime(duration)
+  def from(duration: JavaDuration): Time = from(duration.toScala)
+
 }
 
 object NJTimeUnit extends enumeratum.Enum[NJTimeUnit] {

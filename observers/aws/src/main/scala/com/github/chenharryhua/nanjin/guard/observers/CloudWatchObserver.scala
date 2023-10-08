@@ -6,29 +6,15 @@ import com.github.chenharryhua.nanjin.aws.CloudWatch
 import com.github.chenharryhua.nanjin.common.aws.CloudWatchNamespace
 import com.github.chenharryhua.nanjin.guard.config.{MetricID, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.MetricReport
-import com.github.chenharryhua.nanjin.guard.event.{
-  MeasurementUnit,
-  NJDataRateUnit,
-  NJDimensionlessUnit,
-  NJEvent,
-  NJInformationUnit,
-  NJTimeUnit
-}
+import com.github.chenharryhua.nanjin.guard.event.{MeasurementUnit, NJDataRateUnit, NJDimensionlessUnit, NJEvent, NJInformationUnit, NJTimeUnit}
 import com.github.chenharryhua.nanjin.guard.translators.metricConstants
 import com.github.chenharryhua.nanjin.guard.translators.textConstants.*
 import fs2.{Pipe, Pull, Stream}
 import org.typelevel.cats.time.instances.localdate.*
-import software.amazon.awssdk.services.cloudwatch.model.{
-  Dimension,
-  MetricDatum,
-  PutMetricDataResponse,
-  StandardUnit
-}
-import squants.time.TimeConversions.scalaDurationToTime
+import software.amazon.awssdk.services.cloudwatch.model.{Dimension, MetricDatum, PutMetricDataResponse, StandardUnit}
 
 import java.time.Instant
 import scala.jdk.CollectionConverters.*
-import scala.jdk.DurationConverters.JavaDurationOps
 
 object CloudWatchObserver {
   def apply[F[_]: Sync](client: Resource[F, CloudWatch[F]]): CloudWatchObserver[F] =
@@ -118,7 +104,7 @@ final class CloudWatchObserver[F[_]: Sync](
         category = s"${timer.metricId.category.name}_$category",
         standardUnit = toStandardUnit(durationUnit),
         storageResolution = storageResolution
-      ).metricDatum(report.timestamp.toInstant, dur.toScala.in(durationUnit.mUnit).value)
+      ).metricDatum(report.timestamp.toInstant, durationUnit.from(dur).value)
     }
 
     val histograms: List[MetricDatum] = for {
