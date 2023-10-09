@@ -284,8 +284,10 @@ final case class Policy(policy: Fix[PolicyF]) { // don't extends AnyVal, monocle
 
   def expireAt(localDateTime: LocalDateTime): Policy = Policy(Fix(ExpireAt(policy, localDateTime)))
 
-  def endAt(localTime: LocalTime): Policy = Policy(Fix(EndAt(policy, localTime)))
-  def endOfDay: Policy                    = endAt(LocalTime.MAX)
+  def endAt(localTime: LocalTime): Policy            = Policy(Fix(EndAt(policy, localTime)))
+  def endAt(f: localTimes.type => LocalTime): Policy = endAt(f(localTimes))
+
+  def endOfDay: Policy = endAt(LocalTime.MAX)
 }
 
 object Policy {

@@ -12,11 +12,14 @@ import com.github.chenharryhua.nanjin.guard.event.{
   NJDimensionlessUnit,
   NJEvent,
   NJInformationUnit,
-  NJTimeUnit
+  NJTimeUnit,
+  Normalized,
+  UnitNormalization
 }
 import com.github.chenharryhua.nanjin.guard.translators.metricConstants
 import com.github.chenharryhua.nanjin.guard.translators.textConstants.*
 import fs2.{Pipe, Pull, Stream}
+import monocle.syntax.all.*
 import org.typelevel.cats.time.instances.localdate.*
 import software.amazon.awssdk.services.cloudwatch.model.{
   Dimension,
@@ -30,7 +33,15 @@ import scala.jdk.CollectionConverters.*
 
 object CloudWatchObserver {
   def apply[F[_]: Sync](client: Resource[F, CloudWatch[F]]): CloudWatchObserver[F] =
-    new CloudWatchObserver[F](client, 60, CloudWatchTimeUnit.MILLISECONDS, List.empty)
+    new CloudWatchObserver[F](
+      client = client,
+      storageResolution = 60,
+      UnitNormalization(
+        timeUnit = CloudWatchTimeUnit.MILLISECONDS,
+        infoUnit = NJInformationUnit.BYTES,
+        rateUnit = NJDataRateUnit.BYTES_SECOND),
+      fields = List.empty
+    )
 }
 
 object CloudWatchTimeUnit {
@@ -42,10 +53,10 @@ object CloudWatchTimeUnit {
 final class CloudWatchObserver[F[_]: Sync](
   client: Resource[F, CloudWatch[F]],
   storageResolution: Int,
-  durationUnit: NJTimeUnit,
+  unitNormalization: UnitNormalization,
   fields: List[HistogramField]) {
   private def add(hf: HistogramField): CloudWatchObserver[F] =
-    new CloudWatchObserver[F](client, storageResolution, durationUnit, hf :: fields)
+    new CloudWatchObserver[F](client, storageResolution, unitNormalization, hf :: fields)
 
   def withMin: CloudWatchObserver[F]    = add(HistogramField.Min)
   def withMax: CloudWatchObserver[F]    = add(HistogramField.Max)
@@ -69,11 +80,29 @@ final class CloudWatchObserver[F[_]: Sync](
     require(
       storageResolution > 0 && storageResolution <= 60,
       s"storageResolution($storageResolution) should be between 1 and 60 inclusively")
-    new CloudWatchObserver(client, storageResolution, durationUnit, fields)
+    new CloudWatchObserver(client, storageResolution, unitNormalization, fields)
   }
 
-  def withDurationUnit(f: CloudWatchTimeUnit.type => NJTimeUnit): CloudWatchObserver[F] =
-    new CloudWatchObserver[F](client, storageResolution, f(CloudWatchTimeUnit), fields)
+  def withTimeUnit(f: CloudWatchTimeUnit.type => NJTimeUnit): CloudWatchObserver[F] =
+    new CloudWatchObserver[F](
+      client,
+      storageResolution,
+      unitNormalization.focus(_.timeUnit).replace(f(CloudWatchTimeUnit)),
+      fields)
+
+  def withInformationUnit(f: NJInformationUnit.type => NJInformationUnit): CloudWatchObserver[F] =
+    new CloudWatchObserver[F](
+      client,
+      storageResolution,
+      unitNormalization.focus(_.infoUnit).replace(f(NJInformationUnit)),
+      fields)
+
+  def withRateUnit(f: NJDataRateUnit.type => NJDataRateUnit): CloudWatchObserver[F] =
+    new CloudWatchObserver[F](
+      client,
+      storageResolution,
+      unitNormalization.focus(_.rateUnit).replace(f(NJDataRateUnit)),
+      fields)
 
   private def toStandardUnit(mu: MeasurementUnit): StandardUnit =
     mu match {
@@ -90,7 +119,6 @@ final class CloudWatchObserver[F[_]: Sync](
       case NJInformationUnit.MEGABITS      => StandardUnit.MEGABITS
       case NJInformationUnit.GIGABITS      => StandardUnit.GIGABITS
       case NJInformationUnit.TERABITS      => StandardUnit.TERABITS
-      case NJDimensionlessUnit.PERCENT     => StandardUnit.PERCENT
       case NJDimensionlessUnit.COUNT       => StandardUnit.COUNT
       case NJDataRateUnit.BYTES_SECOND     => StandardUnit.BYTES_SECOND
       case NJDataRateUnit.KILOBYTES_SECOND => StandardUnit.KILOBYTES_SECOND
@@ -107,6 +135,7 @@ final class CloudWatchObserver[F[_]: Sync](
     }
 
   private lazy val interestedHistogramFields: List[HistogramField] = fields.distinct
+
   private def computeDatum(
     report: MetricReport,
     last: Map[MetricKey, Long]): (List[MetricDatum], Map[MetricKey, Long]) = {
@@ -120,23 +149,24 @@ final class CloudWatchObserver[F[_]: Sync](
         serviceParams = report.serviceParams,
         id = timer.metricId,
         category = s"${timer.metricId.category.name}_$category",
-        standardUnit = toStandardUnit(durationUnit),
+        standardUnit = toStandardUnit(unitNormalization.timeUnit),
         storageResolution = storageResolution
-      ).metricDatum(report.timestamp.toInstant, durationUnit.from(dur).value)
+      ).metricDatum(report.timestamp.toInstant, unitNormalization.timeUnit.from(dur).value)
     }
 
     val histograms: List[MetricDatum] = for {
       hf <- interestedHistogramFields
       histo <- report.snapshot.histograms
     } yield {
-      val (value, category) = hf.pick(histo)
+      val (value, category)      = hf.pick(histo)
+      val Normalized(data, unit) = unitNormalization.normalize(histo.histogram.unit, value)
       MetricKey(
         serviceParams = report.serviceParams,
         id = histo.metricId,
         category = s"${histo.metricId.category.name}_$category",
-        standardUnit = toStandardUnit(histo.histogram.unit),
+        standardUnit = toStandardUnit(unit),
         storageResolution = storageResolution
-      ).metricDatum(report.timestamp.toInstant, value)
+      ).metricDatum(report.timestamp.toInstant, data)
     }
 
     val timer_count: Map[MetricKey, Long] = report.snapshot.timers.map { timer =>
@@ -150,13 +180,14 @@ final class CloudWatchObserver[F[_]: Sync](
     }.toMap
 
     val meter_count: Map[MetricKey, Long] = report.snapshot.meters.map { meter =>
+      val Normalized(data, unit) = unitNormalization.normalize(meter.meter.unit, meter.meter.count)
       MetricKey(
         serviceParams = report.serviceParams,
         id = meter.metricId,
         category = s"${meter.metricId.category.name}_count",
-        standardUnit = toStandardUnit(meter.meter.unit),
+        standardUnit = toStandardUnit(unit),
         storageResolution = storageResolution
-      ) -> meter.meter.count
+      ) -> data.toLong
     }.toMap
 
     val histogram_count: Map[MetricKey, Long] = report.snapshot.histograms.map { histo =>

@@ -4,7 +4,7 @@ import enumeratum.EnumEntry
 import io.circe.generic.JsonCodec
 import squants.information.*
 import squants.time.*
-import squants.{Dimensionless, DimensionlessUnit, Each, Percent, Quantity, UnitOfMeasure}
+import squants.{Dimensionless, DimensionlessUnit, Each, Quantity, UnitOfMeasure}
 
 import java.time.Duration as JavaDuration
 import java.util.concurrent.TimeUnit as JavaTimeUnit
@@ -53,8 +53,7 @@ object MeasurementUnit {
   val GIGABITS_SECOND: NJDataRateUnit.GIGABITS_SECOND.type = NJDataRateUnit.GIGABITS_SECOND
   val TERABITS_SECOND: NJDataRateUnit.TERABITS_SECOND.type = NJDataRateUnit.TERABITS_SECOND
 
-  val PERCENT: NJDimensionlessUnit.PERCENT.type = NJDimensionlessUnit.PERCENT
-  val COUNT: NJDimensionlessUnit.COUNT.type     = NJDimensionlessUnit.COUNT
+  val COUNT: NJDimensionlessUnit.COUNT.type = NJDimensionlessUnit.COUNT
 }
 
 sealed abstract class NJTimeUnit(val mUnit: TimeUnit) extends MeasurementUnit with EnumEntry {
@@ -134,6 +133,5 @@ sealed abstract class NJDimensionlessUnit(val mUnit: DimensionlessUnit)
 object NJDimensionlessUnit extends enumeratum.Enum[NJDimensionlessUnit] {
   val values: IndexedSeq[NJDimensionlessUnit] = findValues
 
-  case object PERCENT extends NJDimensionlessUnit(Percent)
   case object COUNT extends NJDimensionlessUnit(Each)
 }

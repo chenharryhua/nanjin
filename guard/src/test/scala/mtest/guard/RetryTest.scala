@@ -206,7 +206,7 @@ class RetryTest extends AnyFunSuite {
 
   test("9.retry - isWorthRetry - should not retry") {
     val Vector(s, a, b, c) = serviceGuard
-      .updateConfig(_.withRestartPolicy(constant_1hour))
+      .updateConfig(_.withRestartPolicy(policies.fixedDelay(1.hour)))
       .eventStream { gd =>
         gd.action("t", _.bipartite.policy(policies.fixedDelay(0.1.seconds).limited(3)))
           .retry(IO.raiseError(new Exception))
@@ -226,7 +226,7 @@ class RetryTest extends AnyFunSuite {
 
   test("10.retry - isWorthRetry - throw exception") {
     val Vector(s, a, b, c) = serviceGuard
-      .updateConfig(_.withRestartPolicy(constant_1hour))
+      .updateConfig(_.withRestartPolicy(policies.fixedDelay(1.hour)))
       .eventStream { gd =>
         gd.action("t", _.bipartite.policy(policies.fixedDelay(0.1.seconds).limited(3)))
           .retry(IO.raiseError(new Exception))

@@ -137,7 +137,8 @@ class MetricsTest extends AnyFunSuite {
     val name = "(name).space.test"
     TaskGuard[IO]("observers")
       .service("same_name_space")
-      .updateConfig(_.withRestartPolicy(constant_1hour).withMetricReport(policies.crontab(_.secondly)))
+      .updateConfig(
+        _.withRestartPolicy(policies.fixedDelay(1.hour)).withMetricReport(policies.crontab(_.secondly)))
       .eventStream { ag =>
         ag.gauge(name)
           .timed
@@ -204,7 +205,6 @@ class MetricsTest extends AnyFunSuite {
       MEGABITS_SECOND,
       GIGABITS_SECOND,
       TERABITS_SECOND,
-      PERCENT,
       COUNT
     ).map(_.symbol)
 

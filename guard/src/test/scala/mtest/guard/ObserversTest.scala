@@ -37,10 +37,13 @@ class ObserversTest extends AnyFunSuite {
               Json.obj("developer's advice" -> "no worries".asJson, "message" -> ex.getMessage.asJson)))
           .run
 
-        val counter   = ag.counter("nj counter").asRisk
-        val histogram = ag.histogram("nj histogram", _.DAYS).counted
-        val alert     = ag.alert("nj alert")
-        val gauge     = ag.gauge("nj gauge")
+        val counter = ag.counter("nj counter").asRisk
+        val histo1  = ag.histogram("histo1", _.MICROSECONDS).counted
+        val histo2  = ag.histogram("histo2", _.BYTES_SECOND).counted
+        val histo3  = ag.histogram("histo3", _.MEGABYTES).counted
+        val histo4  = ag.histogram("histo4", _.COUNT)
+        val alert   = ag.alert("nj alert")
+        val gauge   = ag.gauge("nj gauge")
 
         gauge
           .register(100)
@@ -49,7 +52,10 @@ class ObserversTest extends AnyFunSuite {
               action >>
                 meter.mark(1000) >>
                 counter.inc(10000) >>
-                histogram.update(10000000000000L) >>
+                histo1.update(10000000000000L) >>
+                histo2.update(2000) >>
+                histo3.update(300) >>
+                histo4.update(4) >>
                 alert.error("alarm") >>
                 ag.metrics.report))
       }

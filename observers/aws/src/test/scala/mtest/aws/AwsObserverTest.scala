@@ -110,7 +110,7 @@ class AwsObserverTest extends AnyFunSuite {
       .withP98
       .withP99
       .withP999
-      .withDurationUnit(_.MICROSECONDS)
+      .withTimeUnit(_.MICROSECONDS)
     service.through(cloudwatch.observe("cloudwatch")).compile.drain.unsafeRunSync()
   }
 }

@@ -2,16 +2,12 @@ package mtest
 
 import cats.effect.IO
 import cats.effect.std.Random
-import com.github.chenharryhua.nanjin.common.chrono.{policies, Policy}
 
 import java.time.ZoneId
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
-import scala.concurrent.duration.DurationInt
 
 package object guard {
-
-  val constant_1hour: Policy = policies.fixedDelay(1.hour)
 
   final val beijingTime: ZoneId = ZoneId.of("Asia/Shanghai")
 
