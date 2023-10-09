@@ -12,7 +12,7 @@ import com.github.chenharryhua.nanjin.aws.{
 import com.github.chenharryhua.nanjin.common.aws.{SnsArn, SqsConfig}
 import com.github.chenharryhua.nanjin.common.chrono.policies
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.event.{NJEvent, NJTimeUnit}
+import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import com.github.chenharryhua.nanjin.guard.observers.{
   CloudWatchObserver,
   EmailObserver,
@@ -36,7 +36,7 @@ class AwsObserverTest extends AnyFunSuite {
         val box = ag.atomicBox(1)
         val job = // fail twice, then success
           box.getAndUpdate(_ + 1).map(_ % 3 == 0).ifM(IO(1), IO.raiseError[Int](new Exception("oops")))
-        val meter = ag.meter("meter", NJTimeUnit.SECONDS).counted
+        val meter = ag.meter("meter").counted
         val action = ag
           .action(
             "nj_error",
@@ -50,7 +50,7 @@ class AwsObserverTest extends AnyFunSuite {
           .run
 
         val counter   = ag.counter("nj counter").asRisk
-        val histogram = ag.histogram("nj histogram", NJTimeUnit.SECONDS).counted
+        val histogram = ag.histogram("nj histogram", _.SECONDS).counted
         val alert     = ag.alert("nj alert")
         val gauge     = ag.gauge("nj gauge")
 
@@ -110,6 +110,7 @@ class AwsObserverTest extends AnyFunSuite {
       .withP98
       .withP99
       .withP999
+      .withDurationUnit(_.MICROSECONDS)
     service.through(cloudwatch.observe("cloudwatch")).compile.drain.unsafeRunSync()
   }
 }

@@ -14,7 +14,7 @@ import scala.jdk.DurationConverters.{JavaDurationOps, ScalaDurationOps}
 // consistent with software.amazon.awssdk.services.cloudwatch.model.StandardUnit
 
 @JsonCodec
-sealed trait MeasurementUnit {
+sealed trait MeasurementUnit extends Product with Serializable {
   type Q <: Quantity[Q]
   val mUnit: UnitOfMeasure[Q] {}
   final val symbol: String = mUnit.symbol
@@ -54,7 +54,7 @@ object MeasurementUnit {
   val TERABITS_SECOND: NJDataRateUnit.TERABITS_SECOND.type = NJDataRateUnit.TERABITS_SECOND
 
   val PERCENT: NJDimensionlessUnit.PERCENT.type = NJDimensionlessUnit.PERCENT
-  val COUNT: NJDimensionlessUnit.COUNT.type = NJDimensionlessUnit.COUNT
+  val COUNT: NJDimensionlessUnit.COUNT.type     = NJDimensionlessUnit.COUNT
 }
 
 sealed abstract class NJTimeUnit(val mUnit: TimeUnit) extends MeasurementUnit with EnumEntry {

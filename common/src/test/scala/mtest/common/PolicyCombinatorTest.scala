@@ -4,7 +4,14 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.toShow
 import com.github.chenharryhua.nanjin.common.chrono.zones.{darwinTime, singaporeTime, sydneyTime}
-import com.github.chenharryhua.nanjin.common.chrono.{Policy, TickStatus, crontabs, localTimes, policies, tickStream}
+import com.github.chenharryhua.nanjin.common.chrono.{
+  crontabs,
+  localTimes,
+  policies,
+  tickStream,
+  Policy,
+  TickStatus
+}
 import cron4s.CronExpr
 import io.circe.parser.decode
 import io.circe.syntax.EncoderOps
@@ -157,10 +164,10 @@ class PolicyCombinatorTest extends AnyFunSuite {
       .followedBy(policies.crontab(crontabs.daily.amTen).endAt(localTimes.amTen))
       .followedBy(policies.crontab(crontabs.daily.amEleven).endAt(localTimes.amEleven))
       .followedBy(policies.giveUp)
-      .followedBy(policies.crontab(crontabs.daily.noon).endAt(localTimes.noon))
+      .followedBy(policies.crontab(_.daily.noon).endAt(localTimes.noon))
       .followedBy(policies.crontab(crontabs.daily.pmOne).endAt(localTimes.pmOne))
       .followedBy(policies.crontab(crontabs.daily.pmTwo).endAt(localTimes.pmTwo))
-      .expireAt(LocalDateTime.of(2023,10,8,11,50,0))
+      .expireAt(LocalDateTime.of(2023, 10, 8, 11, 50, 0))
       .followedBy(policies.crontab(crontabs.daily.pmThree).endAt(localTimes.pmThree).limited(1))
       .followedBy(policies.crontab(crontabs.daily.pmFour).endAt(localTimes.pmFour))
       .join(policies.crontab(crontabs.daily.pmFive).endAt(localTimes.pmFive))
@@ -170,7 +177,7 @@ class PolicyCombinatorTest extends AnyFunSuite {
       .followedBy(policies.crontab(crontabs.daily.pmNine).endAt(localTimes.pmNine))
       .followedBy(policies.crontab(crontabs.daily.pmTen).endAt(localTimes.pmTen))
       .followedBy(policies.crontab(crontabs.daily.pmEleven).endAt(localTimes.pmEleven))
-      .followedBy(policies.crontab(crontabs.daily.midnight).endOfDay)
+      .followedBy(policies.crontab(_.daily.midnight).endOfDay)
       .repeat
       .followedBy(policies.fixedDelay(1.second))
       .followedBy(policies.fixedRate(3.second))

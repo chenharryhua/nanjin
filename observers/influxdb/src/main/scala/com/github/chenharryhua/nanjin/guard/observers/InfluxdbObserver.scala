@@ -4,9 +4,14 @@ import cats.Endo
 import cats.effect.kernel.Async
 import cats.implicits.{toFunctorOps, toShow}
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
-import com.github.chenharryhua.nanjin.guard.event.{NJEvent, Snapshot, eventFilters}
+import com.github.chenharryhua.nanjin.guard.event.{eventFilters, NJEvent, Snapshot}
 import com.github.chenharryhua.nanjin.guard.translators.metricConstants
-import com.github.chenharryhua.nanjin.guard.translators.textConstants.{CONSTANT_HOST, CONSTANT_SERVICE, CONSTANT_SERVICE_ID, CONSTANT_TASK}
+import com.github.chenharryhua.nanjin.guard.translators.textConstants.{
+  CONSTANT_HOST,
+  CONSTANT_SERVICE,
+  CONSTANT_SERVICE_ID,
+  CONSTANT_TASK
+}
 import com.influxdb.client.domain.WritePrecision
 import com.influxdb.client.write.Point
 import com.influxdb.client.{InfluxDBClient, WriteOptions}

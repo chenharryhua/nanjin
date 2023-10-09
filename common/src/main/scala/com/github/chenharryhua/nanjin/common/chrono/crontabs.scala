@@ -3,16 +3,31 @@ package com.github.chenharryhua.nanjin.common.chrono
 import cron4s.{Cron, CronExpr}
 
 object crontabs {
+  object yearly {
+    final val january: CronExpr   = Cron.unsafeParse("0 0 0 1 1 ?")
+    final val february: CronExpr  = Cron.unsafeParse("0 0 0 1 2 ?")
+    final val march: CronExpr     = Cron.unsafeParse("0 0 0 1 3 ?")
+    final val april: CronExpr     = Cron.unsafeParse("0 0 0 1 4 ?")
+    final val may: CronExpr       = Cron.unsafeParse("0 0 0 1 5 ?")
+    final val june: CronExpr      = Cron.unsafeParse("0 0 0 1 6 ?")
+    final val july: CronExpr      = Cron.unsafeParse("0 0 0 1 7 ?")
+    final val august: CronExpr    = Cron.unsafeParse("0 0 0 1 8 ?")
+    final val september: CronExpr = Cron.unsafeParse("0 0 0 1 9 ?")
+    final val october: CronExpr   = Cron.unsafeParse("0 0 0 1 10 ?")
+    final val november: CronExpr  = Cron.unsafeParse("0 0 0 1 11 ?")
+    final val december: CronExpr  = Cron.unsafeParse("0 0 0 1 12 ?")
+  }
+
   final val monthly: CronExpr = Cron.unsafeParse("0 0 0 1 * ?")
 
   object weekly {
-    final val sunday    = Cron.unsafeParse("0 0 0 ? * 0")
-    final val monday    = Cron.unsafeParse("0 0 0 ? * 1")
-    final val tuesday   = Cron.unsafeParse("0 0 0 ? * 2")
-    final val wednesday = Cron.unsafeParse("0 0 0 ? * 3")
-    final val thursday  = Cron.unsafeParse("0 0 0 ? * 4")
-    final val friday    = Cron.unsafeParse("0 0 0 ? * 5")
-    final val saturday  = Cron.unsafeParse("0 0 0 ? * 6")
+    final val sunday: CronExpr    = Cron.unsafeParse("0 0 0 ? * 0")
+    final val monday: CronExpr    = Cron.unsafeParse("0 0 0 ? * 1")
+    final val tuesday: CronExpr   = Cron.unsafeParse("0 0 0 ? * 2")
+    final val wednesday: CronExpr = Cron.unsafeParse("0 0 0 ? * 3")
+    final val thursday: CronExpr  = Cron.unsafeParse("0 0 0 ? * 4")
+    final val friday: CronExpr    = Cron.unsafeParse("0 0 0 ? * 5")
+    final val saturday: CronExpr  = Cron.unsafeParse("0 0 0 ? * 6")
   }
 
   object daily {

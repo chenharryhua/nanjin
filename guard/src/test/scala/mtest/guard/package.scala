@@ -3,8 +3,6 @@ package mtest
 import cats.effect.IO
 import cats.effect.std.Random
 import com.github.chenharryhua.nanjin.common.chrono.{policies, Policy}
-import cron4s.Cron
-import cron4s.expr.CronExpr
 
 import java.time.ZoneId
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -12,12 +10,6 @@ import scala.concurrent.Future
 import scala.concurrent.duration.DurationInt
 
 package object guard {
-
-  final val cron_1hour: CronExpr   = Cron.unsafeParse("0 0 0-23 ? * *")
-  final val cron_1second: CronExpr = Cron.unsafeParse("0-59 * * ? * *")
-  final val cron_2second: CronExpr = Cron.unsafeParse("*/2 * * ? * *")
-  final val cron_3second: CronExpr = Cron.unsafeParse("*/3 * * ? * *")
-  final val cron_1minute: CronExpr = Cron.unsafeParse("0 0-59 * ? * *")
 
   val constant_1hour: Policy = policies.fixedDelay(1.hour)
 

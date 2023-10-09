@@ -8,7 +8,7 @@ import com.github.chenharryhua.nanjin.common.chrono.PolicyF.ExpireAt
 import cron4s.CronExpr
 import cron4s.lib.javatime.javaTemporalInstance
 import higherkindness.droste.data.Fix
-import higherkindness.droste.{Algebra, Coalgebra, scheme}
+import higherkindness.droste.{scheme, Algebra, Coalgebra}
 import io.circe.*
 import io.circe.Decoder.Result
 import io.circe.syntax.EncoderOps
@@ -304,7 +304,8 @@ object policies {
 
   def accordance(policy: Policy): Policy = Policy(Fix(Accordance(policy.policy)))
 
-  def crontab(cronExpr: CronExpr): Policy = Policy(Fix(Crontab(cronExpr)))
+  def crontab(cronExpr: CronExpr): Policy           = Policy(Fix(Crontab(cronExpr)))
+  def crontab(f: crontabs.type => CronExpr): Policy = crontab(f(crontabs))
 
   def jitter(min: FiniteDuration, max: FiniteDuration): Policy = Policy(Fix(Jitter(min.toJava, max.toJava)))
 

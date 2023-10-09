@@ -7,13 +7,7 @@ import com.github.chenharryhua.nanjin.common.HostName
 import com.github.chenharryhua.nanjin.common.chrono.policies
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
-import com.github.chenharryhua.nanjin.guard.event.{
-  eventFilters,
-  MeasurementUnit,
-  NJEvent,
-  NJInformationUnit,
-  NJTimeUnit
-}
+import com.github.chenharryhua.nanjin.guard.event.{eventFilters, MeasurementUnit, NJEvent, NJTimeUnit}
 import com.github.chenharryhua.nanjin.guard.observers.console
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import com.github.chenharryhua.nanjin.guard.translators.Translator
@@ -23,6 +17,7 @@ import io.circe.generic.JsonCodec
 import io.circe.parser.decode
 import io.circe.syntax.*
 import org.scalatest.funsuite.AnyFunSuite
+import squants.information.InformationConversions.InformationConversions
 import squants.time.Time
 
 import java.time.{ZoneId, ZonedDateTime}
@@ -40,11 +35,11 @@ class MetricsTest extends AnyFunSuite {
     TaskGuard[IO]("metrics")
       .updateConfig(_.withZoneId(zoneId).withHostName(HostName.local_host))
       .service("delta")
-      .updateConfig(_.withMetricReport(policies.crontab(cron_1second)))
+      .updateConfig(_.withMetricReport(policies.crontab(_.secondly)))
 
   test("1.lazy counting") {
     val last = service("delta")
-      .updateConfig(_.withMetricReport(policies.crontab(cron_1second)))
+      .updateConfig(_.withMetricReport(policies.crontab(_.secondly)))
       .eventStream(ag => ag.action("one", _.silent).retry(IO(0)).run >> IO.sleep(10.minutes))
       .evalTap(console.simple[IO])
       .map(_.asJson.noSpaces)
@@ -71,7 +66,7 @@ class MetricsTest extends AnyFunSuite {
 
   test("3.ongoing action alignment") {
     service
-      .updateConfig(_.withMetricReport(policies.crontab(cron_1second)))
+      .updateConfig(_.withMetricReport(policies.crontab(_.secondly)))
       .eventStream { ag =>
         val one = ag.action("one", _.bipartite).retry(IO(0) <* IO.sleep(10.minutes)).run
         val two = ag.action("two", _.bipartite).retry(IO(0) <* IO.sleep(10.minutes)).run
@@ -142,7 +137,7 @@ class MetricsTest extends AnyFunSuite {
     val name = "(name).space.test"
     TaskGuard[IO]("observers")
       .service("same_name_space")
-      .updateConfig(_.withRestartPolicy(constant_1hour).withMetricReport(policies.crontab(cron_1second)))
+      .updateConfig(_.withRestartPolicy(constant_1hour).withMetricReport(policies.crontab(_.secondly)))
       .eventStream { ag =>
         ag.gauge(name)
           .timed
@@ -151,10 +146,10 @@ class MetricsTest extends AnyFunSuite {
               ag.alert(name).counted.error("error") >>
               ag.alert(name).counted.warn("warn") >>
               ag.alert(name).counted.info("info") >>
-              ag.meter(name, NJInformationUnit.GIGABITS).counted.mark(100) >>
+              ag.meter(name, _.GIGABITS).counted.mark(100) >>
               ag.counter(name).inc(32) >>
               ag.counter(name).asRisk.inc(10) >>
-              ag.histogram(name, NJInformationUnit.BITS).counted.update(100) >>
+              ag.histogram(name, _.BITS).counted.update(100) >>
               ag.metrics.report)
       }
       .evalTap(console.simple[IO])
@@ -173,8 +168,9 @@ class MetricsTest extends AnyFunSuite {
 
   test("meter") {
     service("meter").eventStream { agent =>
-      val meter = agent.meter("meter", MeasurementUnit.DAYS)
-      meter.mark(1) >> agent.metrics.report
+      val meter = agent.meter("meter", _.BYTES)
+      meter.unsafeMark(1000)
+      meter.mark(1.kb) >> agent.metrics.report
     }.evalTap(console.simple[IO]).compile.drain.unsafeRunSync()
   }
 

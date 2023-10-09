@@ -20,7 +20,7 @@ class CancellationTest extends AnyFunSuite {
       .service("retry-test")
       .updateConfig(_.withRestartPolicy(policies.fixedDelay(1.seconds)))
 
-  val policy: Policy = policies.crontab(cron_1second).limited(3)
+  val policy: Policy = policies.crontab(_.secondly).limited(3)
 
   test("1.cancellation - canceled actions are failed actions") {
     val Vector(a, b, c, d) = serviceGuard

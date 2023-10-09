@@ -36,7 +36,7 @@ class ServiceTest extends AnyFunSuite {
     val Vector(a, d) = guard
       .updateConfig(
         _.withRestartPolicy(policies.fixedDelay(3.seconds))
-          .withMetricReport(policies.crontab(cron_1hour))
+          .withMetricReport(policies.crontab(_.hourly))
           .withMetricDailyReset)
       .withHttpServer(identity)
       .eventStream(gd => gd.action("t", _.silent).delay(1).logOutput(_ => null).run.delayBy(1.second))
@@ -119,7 +119,7 @@ class ServiceTest extends AnyFunSuite {
 
   test("5.should receive at least 3 report event") {
     val s :: b :: c :: d :: _ = guard
-      .updateConfig(_.withMetricReport(policies.crontab(cron_1second)))
+      .updateConfig(_.withMetricReport(policies.crontab(_.secondly)))
       .eventStream(_.action("t", _.silent).retry(IO.never).run)
       .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
       .interruptAfter(5.second)
@@ -137,7 +137,7 @@ class ServiceTest extends AnyFunSuite {
 
   test("6.force reset") {
     val s :: b :: c :: _ = guard
-      .updateConfig(_.withMetricReport(policies.crontab(cron_1second)))
+      .updateConfig(_.withMetricReport(policies.crontab(_.secondly)))
       .eventStream(ag => ag.metrics.reset >> ag.metrics.reset)
       .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
       .compile

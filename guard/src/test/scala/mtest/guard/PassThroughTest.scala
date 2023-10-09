@@ -6,7 +6,6 @@ import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.chrono.policies
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.action.NJAlert
-import com.github.chenharryhua.nanjin.guard.event.MeasurementUnit
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
 import com.github.chenharryhua.nanjin.guard.observers.{console, logging}
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
@@ -21,7 +20,7 @@ class PassThroughTest extends AnyFunSuite {
 
   test("1.counter") {
     val Some(last) = guard
-      .updateConfig(_.withMetricReport(policies.crontab(cron_1second)))
+      .updateConfig(_.withMetricReport(policies.crontab(_.secondly)))
       .eventStream { ag =>
         val counter = ag.counter("one/two/three/counter")
         (counter.inc(1).replicateA(3) >> counter.dec(2)).delayBy(1.second) >> ag.metrics.report
@@ -42,7 +41,7 @@ class PassThroughTest extends AnyFunSuite {
 
   test("2.alert") {
     val Some(last) = guard
-      .updateConfig(_.withMetricReport(policies.crontab(cron_1hour)))
+      .updateConfig(_.withMetricReport(policies.crontab(_.hourly)))
       .eventStream { ag =>
         val alert: NJAlert[IO] = ag.alert("oops").counted
         alert.warn(Some("message")) >> alert.info(Some("message")) >> alert.error(Some("message")) >>
@@ -65,9 +64,9 @@ class PassThroughTest extends AnyFunSuite {
 
   test("3.meter") {
     guard
-      .updateConfig(_.withMetricReport(policies.crontab(cron_1second)))
+      .updateConfig(_.withMetricReport(policies.crontab(_.secondly)))
       .eventStream { agent =>
-        val meter = agent.meter("nj.test.meter", MeasurementUnit.MINUTES)
+        val meter = agent.meter("nj.test.meter", _.BITS)
         (meter.mark(1000) >> agent.metrics.reset
           .whenA(Random.nextInt(3) == 1)).delayBy(1.second).replicateA(5)
       }
@@ -79,9 +78,9 @@ class PassThroughTest extends AnyFunSuite {
 
   test("4.histogram") {
     guard
-      .updateConfig(_.withMetricReport(policies.crontab(cron_1second)))
+      .updateConfig(_.withMetricReport(policies.crontab(_.secondly)))
       .eventStream { agent =>
-        val meter = agent.histogram("nj.test.histogram", MeasurementUnit.HOURS)
+        val meter = agent.histogram("nj.test.histogram", _.HOURS)
         IO(Random.nextInt(100).toLong).flatMap(meter.update).delayBy(1.second).replicateA(5)
       }
       .evalTap(logging(Translator.simpleText[IO]))
@@ -92,7 +91,7 @@ class PassThroughTest extends AnyFunSuite {
 
   test("5.gauge") {
     guard
-      .updateConfig(_.withMetricReport(policies.crontab(cron_1second)))
+      .updateConfig(_.withMetricReport(policies.crontab(_.secondly)))
       .eventStream { agent =>
         val g1 = agent.gauge("elapse").timed
         val g2 = agent.gauge("exception").register(IO.raiseError[Int](new Exception))

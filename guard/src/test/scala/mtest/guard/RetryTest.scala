@@ -260,7 +260,7 @@ class RetryTest extends AnyFunSuite {
     val List(a, b, c, d, e, f, g) = serviceGuard
       .updateConfig(_.withRestartPolicy(policies.giveUp))
       .eventStream(
-        _.action("cron", _.bipartite.policy(policies.crontab(cron_1second).limited(3)))
+        _.action("cron", _.bipartite.policy(policies.crontab(_.secondly).limited(3)))
           .retry(IO.raiseError(new Exception("oops")))
           .run)
       .evalTap(console.simple[IO])

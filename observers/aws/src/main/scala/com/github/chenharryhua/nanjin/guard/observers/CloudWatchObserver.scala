@@ -6,19 +6,37 @@ import com.github.chenharryhua.nanjin.aws.CloudWatch
 import com.github.chenharryhua.nanjin.common.aws.CloudWatchNamespace
 import com.github.chenharryhua.nanjin.guard.config.{MetricID, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.MetricReport
-import com.github.chenharryhua.nanjin.guard.event.{MeasurementUnit, NJDataRateUnit, NJDimensionlessUnit, NJEvent, NJInformationUnit, NJTimeUnit}
+import com.github.chenharryhua.nanjin.guard.event.{
+  MeasurementUnit,
+  NJDataRateUnit,
+  NJDimensionlessUnit,
+  NJEvent,
+  NJInformationUnit,
+  NJTimeUnit
+}
 import com.github.chenharryhua.nanjin.guard.translators.metricConstants
 import com.github.chenharryhua.nanjin.guard.translators.textConstants.*
 import fs2.{Pipe, Pull, Stream}
 import org.typelevel.cats.time.instances.localdate.*
-import software.amazon.awssdk.services.cloudwatch.model.{Dimension, MetricDatum, PutMetricDataResponse, StandardUnit}
+import software.amazon.awssdk.services.cloudwatch.model.{
+  Dimension,
+  MetricDatum,
+  PutMetricDataResponse,
+  StandardUnit
+}
 
 import java.time.Instant
 import scala.jdk.CollectionConverters.*
 
 object CloudWatchObserver {
   def apply[F[_]: Sync](client: Resource[F, CloudWatch[F]]): CloudWatchObserver[F] =
-    new CloudWatchObserver[F](client, 60, NJTimeUnit.MILLISECONDS, List.empty)
+    new CloudWatchObserver[F](client, 60, CloudWatchTimeUnit.MILLISECONDS, List.empty)
+}
+
+object CloudWatchTimeUnit {
+  val MICROSECONDS: NJTimeUnit.MICROSECONDS.type = NJTimeUnit.MICROSECONDS
+  val MILLISECONDS: NJTimeUnit.MILLISECONDS.type = NJTimeUnit.MILLISECONDS
+  val SECONDS: NJTimeUnit.SECONDS.type           = NJTimeUnit.SECONDS
 }
 
 final class CloudWatchObserver[F[_]: Sync](
@@ -54,8 +72,8 @@ final class CloudWatchObserver[F[_]: Sync](
     new CloudWatchObserver(client, storageResolution, durationUnit, fields)
   }
 
-  def withDurationUnit(durationUnit: NJTimeUnit): CloudWatchObserver[F] =
-    new CloudWatchObserver[F](client, storageResolution, durationUnit, fields)
+  def withDurationUnit(f: CloudWatchTimeUnit.type => NJTimeUnit): CloudWatchObserver[F] =
+    new CloudWatchObserver[F](client, storageResolution, f(CloudWatchTimeUnit), fields)
 
   private def toStandardUnit(mu: MeasurementUnit): StandardUnit =
     mu match {

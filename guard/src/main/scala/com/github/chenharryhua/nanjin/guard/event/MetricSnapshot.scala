@@ -31,7 +31,7 @@ object Snapshot {
     m5_rate: Frequency,
     m15_rate: Frequency
   )
-  
+
   @JsonCodec
   final case class Meter(metricId: MetricID, meter: MeterData) extends Snapshot
 

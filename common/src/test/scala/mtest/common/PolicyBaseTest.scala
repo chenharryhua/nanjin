@@ -141,7 +141,7 @@ class PolicyBaseTest extends AnyFunSuite {
   }
 
   test("cron") {
-    val policy = policies.crontab(crontabs.hourly)
+    val policy = policies.crontab(_.hourly)
     println(policy.show)
     assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
 
