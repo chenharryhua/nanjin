@@ -30,6 +30,11 @@ object metricConstants {
   @inline final val METRICS_CATEGORY: String    = "Category"
   @inline final val METRICS_DIGEST: String      = "Digest"
   @inline final val METRICS_NAME: String        = "MetricName"
+
+  // count name
+  @inline final val COUNT_NAME_HISTOGRAM: String = "updates"
+  @inline final val COUNT_NAME_METER: String     = "sum"
+  @inline final val COUNT_NAME_TIMER: String     = "calls"
 }
 
 object textConstants {

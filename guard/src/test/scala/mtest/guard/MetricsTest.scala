@@ -3,6 +3,7 @@ package mtest.guard
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.catsSyntaxFlatMapOps
+import com.codahale.metrics.SlidingTimeWindowArrayReservoir
 import com.github.chenharryhua.nanjin.common.HostName
 import com.github.chenharryhua.nanjin.common.chrono.policies
 import com.github.chenharryhua.nanjin.guard.TaskGuard
@@ -17,12 +18,11 @@ import io.circe.generic.JsonCodec
 import io.circe.parser.decode
 import io.circe.syntax.*
 import org.scalatest.funsuite.AnyFunSuite
-import squants.information.InformationConversions.InformationConversions
 import squants.time.Time
 
 import java.time.{ZoneId, ZonedDateTime}
+import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.*
-import scala.jdk.DurationConverters.ScalaDurationOps
 import scala.util.Random
 
 @JsonCodec
@@ -39,6 +39,7 @@ class MetricsTest extends AnyFunSuite {
 
   test("1.lazy counting") {
     val last = service("delta")
+      .withJmx(identity)
       .updateConfig(_.withMetricReport(policies.crontab(_.secondly)))
       .eventStream(ag => ag.action("one", _.silent).retry(IO(0)).run >> IO.sleep(10.minutes))
       .evalTap(console.simple[IO])
@@ -162,16 +163,24 @@ class MetricsTest extends AnyFunSuite {
   test("measurement unit") {
     implicitly[MeasurementUnit.DAYS.type =:= NJTimeUnit.DAYS.type]
     implicitly[MeasurementUnit.DAYS.Q =:= Time]
-    val fd: FiniteDuration = 10.seconds
-    assert(MeasurementUnit.MILLISECONDS.toJavaDuration(Time(fd)) == fd.toJava)
-    assert(MeasurementUnit.MICROSECONDS.toFiniteDuration(Time(fd)) == fd)
   }
 
   test("meter") {
     service("meter").eventStream { agent =>
-      val meter = agent.meter("meter", _.BYTES)
-      meter.unsafeMark(1000)
-      meter.mark(1.kb) >> agent.metrics.report
+      val meter = agent.meter("meter", _.MEGABYTES)
+      meter.unsafeMark(10)
+      meter.mark(20) >> agent.metrics.report
+    }.evalTap(console.simple[IO]).compile.drain.unsafeRunSync()
+  }
+
+  test("histogram") {
+    service("histo").eventStream { agent =>
+      val histo = agent
+        .histogram("histo", _.MEGABYTES)
+        .counted
+        .withReservoir(new SlidingTimeWindowArrayReservoir(2, TimeUnit.SECONDS))
+      histo.unsafeUpdate(1)
+      histo.update(2) >> histo.update(3) >> histo.update(4) >> agent.metrics.report
     }.evalTap(console.simple[IO]).compile.drain.unsafeRunSync()
   }
 
@@ -205,7 +214,8 @@ class MetricsTest extends AnyFunSuite {
       MEGABITS_SECOND,
       GIGABITS_SECOND,
       TERABITS_SECOND,
-      COUNT
+      COUNT,
+      PERCENT
     ).map(_.symbol)
 
     assert(symbols.distinct.size == symbols.size)

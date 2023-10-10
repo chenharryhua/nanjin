@@ -22,8 +22,8 @@ object CounterKind extends Enum[CounterKind] with CirceEnum[CounterKind] with Ca
   case object AlertWarn extends CounterKind("alert_warn")
   case object AlertInfo extends CounterKind("alert_info")
 
-  case object HistoCounter extends CounterKind("histogram_count")
-  case object MeterCounter extends CounterKind("meter_count")
+  case object HistoCounter extends CounterKind("histogram_updates")
+  case object MeterCounter extends CounterKind("meter_sum")
   case object UdpCounter extends CounterKind("udp_count")
   case object RiskCounter extends CounterKind("risk_count")
 }

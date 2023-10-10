@@ -36,10 +36,7 @@ object CloudWatchObserver {
     new CloudWatchObserver[F](
       client = client,
       storageResolution = 60,
-      UnitNormalization(
-        timeUnit = CloudWatchTimeUnit.MILLISECONDS,
-        infoUnit = NJInformationUnit.BYTES,
-        rateUnit = NJDataRateUnit.BYTES_SECOND),
+      UnitNormalization(timeUnit = CloudWatchTimeUnit.MILLISECONDS, infoUnit = None, rateUnit = None),
       fields = List.empty
     )
 }
@@ -90,18 +87,18 @@ final class CloudWatchObserver[F[_]: Sync](
       unitNormalization.focus(_.timeUnit).replace(f(CloudWatchTimeUnit)),
       fields)
 
-  def withInformationUnit(f: NJInformationUnit.type => NJInformationUnit): CloudWatchObserver[F] =
+  def withInfoUnit(f: NJInformationUnit.type => NJInformationUnit): CloudWatchObserver[F] =
     new CloudWatchObserver[F](
       client,
       storageResolution,
-      unitNormalization.focus(_.infoUnit).replace(f(NJInformationUnit)),
+      unitNormalization.focus(_.infoUnit).replace(Some(f(NJInformationUnit))),
       fields)
 
   def withRateUnit(f: NJDataRateUnit.type => NJDataRateUnit): CloudWatchObserver[F] =
     new CloudWatchObserver[F](
       client,
       storageResolution,
-      unitNormalization.focus(_.rateUnit).replace(f(NJDataRateUnit)),
+      unitNormalization.focus(_.rateUnit).replace(Some(f(NJDataRateUnit))),
       fields)
 
   private def toStandardUnit(mu: MeasurementUnit): StandardUnit =
@@ -151,7 +148,7 @@ final class CloudWatchObserver[F[_]: Sync](
         category = s"${timer.metricId.category.name}_$category",
         standardUnit = toStandardUnit(unitNormalization.timeUnit),
         storageResolution = storageResolution
-      ).metricDatum(report.timestamp.toInstant, unitNormalization.timeUnit.from(dur).value)
+      ).metricDatum(report.timestamp.toInstant, unitNormalization.normalize(dur).value)
     }
 
     val histograms: List[MetricDatum] = for {
@@ -173,7 +170,7 @@ final class CloudWatchObserver[F[_]: Sync](
       MetricKey(
         serviceParams = report.serviceParams,
         id = timer.metricId,
-        category = s"${timer.metricId.category.name}_count",
+        category = s"${timer.metricId.category.name}_${metricConstants.COUNT_NAME_TIMER}",
         standardUnit = StandardUnit.COUNT,
         storageResolution = storageResolution
       ) -> timer.timer.count
@@ -184,7 +181,7 @@ final class CloudWatchObserver[F[_]: Sync](
       MetricKey(
         serviceParams = report.serviceParams,
         id = meter.metricId,
-        category = s"${meter.metricId.category.name}_count",
+        category = s"${meter.metricId.category.name}_${metricConstants.COUNT_NAME_METER}",
         standardUnit = toStandardUnit(unit),
         storageResolution = storageResolution
       ) -> data.toLong
@@ -194,7 +191,7 @@ final class CloudWatchObserver[F[_]: Sync](
       MetricKey(
         serviceParams = report.serviceParams,
         id = histo.metricId,
-        category = s"${histo.metricId.category.name}_count",
+        category = s"${histo.metricId.category.name}_${metricConstants.COUNT_NAME_HISTOGRAM}",
         standardUnit = StandardUnit.COUNT,
         storageResolution = storageResolution
       ) -> histo.histogram.count

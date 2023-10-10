@@ -250,6 +250,7 @@ lazy val guard = (project in file("guard"))
     libraryDependencies ++= List(
       "commons-codec"                       % "commons-codec"  % "1.16.0",
       "io.dropwizard.metrics"               % "metrics-core"   % metricsV,
+      "io.dropwizard.metrics"               % "metrics-jmx"    % metricsV,
       "org.typelevel" %% "vault"            % "3.5.0",
       "com.lihaoyi" %% "scalatags"          % "0.12.0",
       "org.http4s" %% "http4s-core"         % http4sV,
@@ -271,15 +272,13 @@ lazy val guard_observer_aws = (project in file("observers/aws"))
     libraryDependencies ++= testLib
   )
 
-lazy val guard_observer_jmx = (project in file("observers/jmx"))
+lazy val guard_observer_kafka = (project in file("observers/kafka"))
   .dependsOn(guard)
+  .dependsOn(kafka)
   .settings(commonSettings*)
-  .settings(name := "nj-observer-jmx")
+  .settings(name := "nj-observer-kafka")
   .settings(
-    libraryDependencies ++=
-      List(
-        "io.dropwizard.metrics" % "metrics-jmx" % metricsV
-      ) ++ testLib
+    libraryDependencies ++= testLib
   )
 
 lazy val guard_observer_db = (project in file("observers/database"))
@@ -425,7 +424,7 @@ lazy val example = (project in file("example"))
   .dependsOn(guard_observer_aws)
   .dependsOn(guard_observer_db)
   .dependsOn(guard_observer_influxdb)
-  .dependsOn(guard_observer_jmx)
+  .dependsOn(guard_observer_kafka)
   .settings(commonSettings*)
   .settings(name := "nj-example")
   .settings(libraryDependencies ++= List(
@@ -449,5 +448,5 @@ lazy val nanjin =
       guard_observer_aws,
       guard_observer_db,
       guard_observer_influxdb,
-      guard_observer_jmx)
+      guard_observer_kafka)
 

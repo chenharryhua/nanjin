@@ -21,6 +21,7 @@ final class TaskGuard[F[_]: Async: Network] private (taskConfig: TaskConfig)
       taskParams = taskConfig.evalConfig,
       config = identity,
       httpBuilder = None,
+      jmxBuilder = None,
       brief = Async[F].pure(None)
     )
 }

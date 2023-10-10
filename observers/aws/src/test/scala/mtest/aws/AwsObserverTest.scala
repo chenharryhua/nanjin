@@ -36,7 +36,7 @@ class AwsObserverTest extends AnyFunSuite {
         val box = ag.atomicBox(1)
         val job = // fail twice, then success
           box.getAndUpdate(_ + 1).map(_ % 3 == 0).ifM(IO(1), IO.raiseError[Int](new Exception("oops")))
-        val meter = ag.meter("meter").counted
+        val meter = ag.meter("meter",_.COUNT).counted
         val action = ag
           .action(
             "nj_error",
@@ -111,6 +111,8 @@ class AwsObserverTest extends AnyFunSuite {
       .withP99
       .withP999
       .withTimeUnit(_.MICROSECONDS)
+      .withInfoUnit(_.BITS)
+      .withRateUnit(_.BYTES_SECOND)
     service.through(cloudwatch.observe("cloudwatch")).compile.drain.unsafeRunSync()
   }
 }
