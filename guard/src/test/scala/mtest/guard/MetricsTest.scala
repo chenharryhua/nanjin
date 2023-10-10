@@ -8,7 +8,16 @@ import com.github.chenharryhua.nanjin.common.HostName
 import com.github.chenharryhua.nanjin.common.chrono.policies
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
-import com.github.chenharryhua.nanjin.guard.event.{eventFilters, MeasurementUnit, NJEvent, NJTimeUnit}
+import com.github.chenharryhua.nanjin.guard.event.{
+  eventFilters,
+  MeasurementUnit,
+  NJDataRateUnit,
+  NJEvent,
+  NJInformationUnit,
+  NJTimeUnit,
+  Normalized,
+  UnitNormalization
+}
 import com.github.chenharryhua.nanjin.guard.observers.console
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import com.github.chenharryhua.nanjin.guard.translators.Translator
@@ -219,6 +228,27 @@ class MetricsTest extends AnyFunSuite {
     ).map(_.symbol)
 
     assert(symbols.distinct.size == symbols.size)
+  }
+
+  test("normalization") {
+    val um = UnitNormalization(
+      NJTimeUnit.SECONDS,
+      Some(NJInformationUnit.KILOBYTES),
+      Some(NJDataRateUnit.KILOBITS_SECOND))
+
+    assert(um.normalize(10.minutes) == Normalized(600.0, NJTimeUnit.SECONDS))
+    assert(um.normalize(NJInformationUnit.BYTES, 1000) == Normalized(1.0, NJInformationUnit.KILOBYTES))
+    assert(
+      um.normalize(NJDataRateUnit.MEGABITS_SECOND, 1) == Normalized(1000.0, NJDataRateUnit.KILOBITS_SECOND))
+  }
+
+  test("normalization - 2") {
+    val um = UnitNormalization(NJTimeUnit.SECONDS, None, None)
+
+    assert(um.normalize(10.minutes) == Normalized(600.0, NJTimeUnit.SECONDS))
+    assert(um.normalize(NJInformationUnit.BYTES, 1000) == Normalized(1000.0, NJInformationUnit.BYTES))
+    assert(
+      um.normalize(NJDataRateUnit.MEGABITS_SECOND, 1) == Normalized(1.0, NJDataRateUnit.MEGABITS_SECOND))
   }
 
 }
