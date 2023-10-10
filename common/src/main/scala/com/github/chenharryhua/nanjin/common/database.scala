@@ -1,6 +1,5 @@
 package com.github.chenharryhua.nanjin.common
 
-import cats.Show
 import eu.timepit.refined.api.{Refined, RefinedTypeOps}
 import eu.timepit.refined.boolean.And
 import eu.timepit.refined.cats.*
@@ -38,20 +37,12 @@ object database {
     port: Port,
     database: DatabaseName)
 
-  object Postgres {
-    implicit final val showPostgres: Show[Postgres] = cats.derived.semiauto.show[Postgres]
-  }
-
   @JsonCodec final case class Redshift(
     username: Username,
     password: Password,
     host: Host,
     port: Port,
     database: DatabaseName)
-
-  object Redshift {
-    implicit final val showPostgres: Show[Redshift] = cats.derived.semiauto.show[Redshift]
-  }
 
   @JsonCodec final case class SqlServer(
     username: Username,
@@ -60,7 +51,4 @@ object database {
     port: Port,
     database: DatabaseName)
 
-  object SqlServer {
-    implicit final val showSqlServer: Show[SqlServer] = cats.derived.semiauto.show[SqlServer]
-  }
 }

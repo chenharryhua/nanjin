@@ -1,21 +1,16 @@
 package com.github.chenharryhua.nanjin.guard.config
 
-import cats.{Functor, Show}
+import cats.Functor
 import com.github.chenharryhua.nanjin.common.HostName
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
 import io.circe.generic.JsonCodec
 import monocle.syntax.all.*
-import org.typelevel.cats.time.instances.zoneid
 
 import java.time.ZoneId
 
 @JsonCodec
 final case class TaskParams(taskName: String, zoneId: ZoneId, hostName: HostName, homePage: Option[String])
-
-object TaskParams extends zoneid {
-  implicit val showTaskParams: Show[TaskParams] = cats.derived.semiauto.show[TaskParams]
-}
 
 sealed private[guard] trait TaskConfigF[X]
 

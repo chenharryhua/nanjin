@@ -1,6 +1,5 @@
 package com.github.chenharryhua.nanjin.guard.event
 
-import cats.Show
 import cats.kernel.Monoid
 import cats.syntax.all.*
 import com.codahale.metrics.*
@@ -85,8 +84,6 @@ final case class MetricSnapshot(
   histograms: List[Snapshot.Histogram])
 
 object MetricSnapshot extends duration {
-
-  implicit val showMetricSnapshot: Show[MetricSnapshot] = cats.derived.semiauto.show[MetricSnapshot]
 
   implicit val monoidMetricFilter: Monoid[MetricFilter] = new Monoid[MetricFilter] {
     override val empty: MetricFilter = MetricFilter.ALL

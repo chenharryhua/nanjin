@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.config
 
-import cats.{Order, Show}
+import cats.Order
 import com.github.chenharryhua.nanjin.guard.event.MeasurementUnit
 import enumeratum.{CatsEnum, CirceEnum, Enum, EnumEntry}
 import io.circe.Encoder
@@ -78,7 +78,6 @@ object Category {
 @JsonCodec
 final case class MetricName(name: String, digest: String, measurement: String)
 object MetricName {
-  implicit val showMetricName: Show[MetricName] = cats.derived.semiauto.show
   implicit val orderingMetricName: Ordering[MetricName] =
     (x: MetricName, y: MetricName) => x.name.compare(y.name)
   implicit val orderMetricName: Order[MetricName] = Order.fromOrdering
@@ -101,7 +100,6 @@ final case class MetricID(metricName: MetricName, category: Category) {
   val identifier: String = Encoder[MetricID].apply(this).noSpaces
 }
 object MetricID {
-  implicit val showMetricID: Show[MetricID] = cats.derived.semiauto.show
 
   def apply(
     serviceParams: ServiceParams,

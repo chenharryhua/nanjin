@@ -33,10 +33,6 @@ object aws {
     val s3a: String = s"${S3Protocols.S3A.entryName}://$bucket/$key"
   }
 
-  object S3Path {
-    implicit final val showS3Path: Show[S3Path] = cats.derived.semiauto.show[S3Path]
-  }
-
   // https://docs.aws.amazon.com/systems-manager/latest/userguide/systems-manager-parameter-store.html
   @JsonCodec
   final case class ParameterStorePath(value: String, isSecure: Boolean = true)
@@ -60,10 +56,6 @@ object aws {
     body: String,
     cc: List[EmailAddr] = List.empty,
     bcc: List[EmailAddr] = List.empty)
-
-  object EmailContent {
-    implicit val showEmailContent: Show[EmailContent] = cats.derived.semiauto.show[EmailContent]
-  }
 
   // sqs
 
