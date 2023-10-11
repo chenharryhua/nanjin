@@ -24,7 +24,7 @@ class ObserversTest extends AnyFunSuite {
         val box = ag.atomicBox(1)
         val job = // fail twice, then success
           box.getAndUpdate(_ + 1).map(_ % 3 == 0).ifM(IO(1), IO.raiseError[Int](new Exception("oops")))
-        val meter = ag.meter("meter",_.COUNT).counted
+        val meter = ag.meter("meter", _.COUNT).counted
         val action = ag
           .action(
             "nj_error",

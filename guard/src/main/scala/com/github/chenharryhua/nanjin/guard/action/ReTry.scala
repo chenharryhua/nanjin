@@ -16,8 +16,8 @@ import org.apache.commons.lang3.exception.ExceptionUtils
 import java.time.Duration
 import scala.concurrent.duration.FiniteDuration
 import scala.jdk.DurationConverters.{JavaDurationOps, ScalaDurationOps}
+import scala.util.Try
 import scala.util.control.NonFatal
-import scala.util.{Failure, Success, Try}
 
 final private class ReTry[F[_], IN, OUT](
   metricRegistry: MetricRegistry,
@@ -44,13 +44,9 @@ final private class ReTry[F[_], IN, OUT](
     case Left(ex) => jsonError(ex)
     case Right(value) =>
       value.flatMap(js =>
-        Try(js.noSpaces).map(parse) match {
-          case Failure(ex) => jsonError(ex)
-          case Success(value) =>
-            value match {
-              case Left(ex)     => jsonError(ex)
-              case Right(value) => Some(value)
-            }
+        Try(js.noSpaces).toEither.flatMap(parse) match {
+          case Left(ex)     => jsonError(ex)
+          case Right(value) => Some(value)
         })
   }
 
@@ -77,7 +73,7 @@ final private class ReTry[F[_], IN, OUT](
     launchTime: FiniteDuration,
     in: IN,
     ex: Throwable): F[Either[TickStatus, OUT]] =
-    sendFailure(token, launchTime, in, ex) >> F.raiseError[OUT](ex).map[Either[TickStatus, OUT]](Right(_))
+    sendFailure(token, launchTime, in, ex).flatMap(_ => F.raiseError[Either[TickStatus, OUT]](ex))
 
   private def retrying(
     token: Unique.Token,

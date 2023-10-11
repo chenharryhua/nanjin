@@ -18,6 +18,7 @@ import io.circe.syntax.*
 import org.http4s.ember.client.EmberClientBuilder
 import org.scalatest.funsuite.AnyFunSuite
 
+import java.time.Instant
 import scala.concurrent.duration.*
 import scala.jdk.DurationConverters.ScalaDurationOps
 import scala.util.control.ControlThrowable
@@ -58,7 +59,9 @@ class ServiceTest extends AnyFunSuite {
     val Vector(s, a, b, c, d, e, f) = guard
       .updateConfig(_.withRestartPolicy(policies.jitter(30.minutes, 50.minutes)))
       .eventStream { gd =>
-        gd.action("t", _.bipartite.policy(policy)).retry(IO.raiseError(new Exception("oops"))).run
+        gd.action("t", _.bipartite.policy(policy))
+          .retry(IO.raiseError(new Exception(gd.toZonedDateTime(Instant.now()).toString)))
+          .run
       }
       .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
       .interruptAfter(5.seconds)
@@ -296,7 +299,7 @@ class ServiceTest extends AnyFunSuite {
     assert(h.snooze == 2.second.toJava)
   }
 
-  test("13. stop service") {
+  test("13.stop service") {
     val client = EmberClientBuilder
       .default[IO]
       .build
@@ -321,7 +324,7 @@ class ServiceTest extends AnyFunSuite {
     assert(b.isInstanceOf[ServiceStop])
   }
 
-  test("14. service config") {
+  test("14.service config") {
     TaskGuard[IO]("abc")
       .service("abc")
       .updateConfig(

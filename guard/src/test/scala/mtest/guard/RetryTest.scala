@@ -64,7 +64,7 @@ class RetryTest extends AnyFunSuite {
     val policy = policies.fixedDelay(0.1.seconds).limited(1)
     val Vector(s, a, b, c, d, e, f, g, h, i, j) = serviceGuard.eventStream { gd =>
       val ag = gd
-        .action("t", _.bipartite.policy(policy))
+        .action("t", _.bipartite.counted.policy(policy))
         .retry((_: Int, _: Int, _: Int) => IO.raiseError[Int](new Exception))
         .logOutput((in, out) => (in._3, out).asJson)
         .logOutput((in, out) => (in, out).asJson)
@@ -93,7 +93,7 @@ class RetryTest extends AnyFunSuite {
   test("4.retry - should retry 2 times when operation fail") {
     var i = 0
     val Vector(s, a, b, c, d, e) = serviceGuard.eventStream { gd =>
-      gd.action("t", _.bipartite.policy(policy))
+      gd.action("t", _.bipartite.timed.policy(policy))
         .retry((_: Int) =>
           IO(if (i < 2) {
             i += 1; throw new Exception
@@ -141,7 +141,7 @@ class RetryTest extends AnyFunSuite {
     val Vector(s, b, c, d, e, f) = serviceGuard
       .updateConfig(_.withRestartPolicy(policies.giveUp))
       .eventStream { gd =>
-        gd.action("t", _.policy(policies.fixedDelay(1.seconds).limited(3)))
+        gd.action("t", _.counted.policy(policies.fixedDelay(1.seconds).limited(3)))
           .retry((_: Int) => IO.raiseError[Int](new Exception("oops")))
           .logInput(_.asJson)
           .run(1)
@@ -167,7 +167,7 @@ class RetryTest extends AnyFunSuite {
     val List(a, b, c, d, e, f) = serviceGuard
       .updateConfig(_.withRestartPolicy(policies.giveUp))
       .eventStream(ag =>
-        ag.action("t", _.policy(policy))
+        ag.action("t", _.normal.timed.policy(policy))
           .retry(IO.raiseError[Int](new NullPointerException))
           .logOutput(_.asJson)
           .run)
@@ -191,11 +191,12 @@ class RetryTest extends AnyFunSuite {
       .eventStream { gd =>
         gd.action("t", _.policy(policies.fixedDelay(0.1.seconds).limited(3)))
           .retry(IO.raiseError(MyException()))
-          .withWorthRetry(x => x.isInstanceOf[MyException])
-          .logErrorM(_ => IO(Json.Null))
+          .withWorthRetry(_.isInstanceOf[MyException])
+          .logErrorM(_ => IO(Json.fromString("worth-retry")))
           .run
       }
       .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
+      .debug()
       .compile
       .toVector
       .unsafeRunSync()
@@ -212,10 +213,12 @@ class RetryTest extends AnyFunSuite {
     val Vector(s, a, b, c) = serviceGuard
       .updateConfig(_.withRestartPolicy(policies.fixedDelay(1.hour)))
       .eventStream { gd =>
-        gd.action("t", _.bipartite.policy(policies.fixedDelay(0.1.seconds).limited(3)))
-          .retry(IO.raiseError(new Exception))
-          .withWorthRetryM(x => IO(x.isInstanceOf[MyException]))
-          .run
+        gd.zonedNow >>
+          gd.action("t", _.bipartite.policy(policies.fixedDelay(0.1.seconds).limited(3)))
+            .retry(IO.raiseError(new Exception))
+            .withWorthRetryM(x => IO(x.isInstanceOf[MyException]))
+            .logError(_ => Json.Null)
+            .run
       }
       .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
       .interruptAfter(2.seconds)
@@ -293,12 +296,19 @@ class RetryTest extends AnyFunSuite {
   }
 
   test("13.should not retry fatal error") {
-    val List(a, b, c, d) = serviceGuard
+    val err = IO.raiseError(new ControlThrowable("fatal error") {})
+    val List(a, b, c, d, e, f, g, h) = serviceGuard
       .updateConfig(_.withRestartPolicy(policies.giveUp))
-      .eventStream(
-        _.action("fatal", _.critical.suppressed.normal.bipartite.policy(policies.fixedDelay(1.seconds)))
-          .retry(IO.raiseError(new ControlThrowable("fatal error") {}))
-          .run)
+      .eventStream { agent =>
+        val a =
+          agent.action("a", _.policy(policies.fixedDelay(1.seconds)).timed.counted.bipartite).retry(err).run
+        val b =
+          agent.action("b", _.policy(policies.fixedDelay(1.seconds)).timed.counted.unipartite).retry(err).run
+        val c = agent.action("c", _.policy(policies.fixedDelay(1.seconds)).timed).retry(err).run
+        val d = agent.action("d", _.policy(policies.fixedDelay(1.seconds)).counted).retry(err).run
+        val e = agent.action("d", _.policy(policies.fixedDelay(1.seconds))).retry(err).run
+        agent.action("q").quasi(a, b, c, d, e).run
+      }
       .compile
       .toList
       .unsafeRunSync()
@@ -306,7 +316,11 @@ class RetryTest extends AnyFunSuite {
     assert(a.isInstanceOf[ServiceStart])
     assert(b.isInstanceOf[ActionStart])
     assert(c.isInstanceOf[ActionFail])
-    assert(d.isInstanceOf[ServiceStop])
+    assert(d.isInstanceOf[ActionFail])
+    assert(e.isInstanceOf[ActionFail])
+    assert(f.isInstanceOf[ActionFail])
+    assert(g.isInstanceOf[ActionFail])
+    assert(h.isInstanceOf[ServiceStop])
   }
 
   test("14.logError json exception") {

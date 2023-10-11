@@ -60,9 +60,12 @@ class HealthCheckTest extends AnyFunSuite {
   test("3.never complete") {
     val s :: a :: b :: c :: _ = guard
       .service("metrics-report")
-      .updateConfig(_.withRestartPolicy(policies.fixedDelay(1.hour)).withMetricReport(policies.crontab(_.secondly)))
+      .updateConfig(
+        _.withRestartPolicy(policies.fixedDelay(1.hour)).withMetricReport(policies.crontab(_.secondly)))
       .eventStream(gd =>
-        gd.action("not/fail/yet", _.bipartite.policy(policies.fixedDelay(1.hour))).retry(IO.raiseError(new Exception)).run)
+        gd.action("not/fail/yet", _.bipartite.policy(policies.fixedDelay(1.hour)))
+          .retry(IO.raiseError(new Exception))
+          .run)
       .interruptAfter(5.second)
       .evalTap(logging.simple[IO])
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)

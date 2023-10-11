@@ -48,7 +48,7 @@ object MeasurementUnit {
   val GIGABITS_SECOND: NJDataRateUnit.GIGABITS_SECOND.type = NJDataRateUnit.GIGABITS_SECOND
   val TERABITS_SECOND: NJDataRateUnit.TERABITS_SECOND.type = NJDataRateUnit.TERABITS_SECOND
 
-  val COUNT: NJDimensionlessUnit.COUNT.type = NJDimensionlessUnit.COUNT
+  val COUNT: NJDimensionlessUnit.COUNT.type     = NJDimensionlessUnit.COUNT
   val PERCENT: NJDimensionlessUnit.PERCENT.type = NJDimensionlessUnit.PERCENT
 }
 
