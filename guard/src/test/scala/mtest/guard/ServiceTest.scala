@@ -316,6 +316,7 @@ class ServiceTest extends AnyFunSuite {
       guard
         .withHttpServer(_.withPort(port"9999"))
         .eventStream(_ => IO.sleep(10.hours))
+        .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
         .debug()
         .compile
         .toList <& client

@@ -19,17 +19,14 @@ object ColorScheme extends CatsOrderValueEnum[Int, ColorScheme] with IntEnum[Col
   private def colorSnapshot(ss: MetricSnapshot): ColorScheme =
     ss.counters
       .filter(_.count > 0)
-      .map(_.metricId.category match {
-        case Category.Counter(sub) =>
-          sub match {
-            case CounterKind.ActionFail  => WarnColor
-            case CounterKind.AlertError  => WarnColor
-            case CounterKind.AlertWarn   => WarnColor
-            case CounterKind.RiskCounter => WarnColor
-            case _                       => InfoColor
-          }
-        case _ => InfoColor
-      })
+      .collect(_.metricId.category match { case Category.Counter(kind) => kind })
+      .map {
+        case CounterKind.ActionFail  => WarnColor
+        case CounterKind.AlertError  => WarnColor
+        case CounterKind.AlertWarn   => WarnColor
+        case CounterKind.RiskCounter => WarnColor
+        case _                       => InfoColor
+      }
       .foldLeft(InfoColor: ColorScheme) { case (s, i) => s.max(i) }
 
   def decorate[A](evt: NJEvent): Cont[A, ColorScheme] =

@@ -60,7 +60,7 @@ class PerformanceTest extends AnyFunSuite {
     TaskGuard[IO]("performance")
       .service("actions")
       .updateConfig(_.withMetricReport(policies.crontab(_.secondly)))
-  val take: FiniteDuration = 3.seconds
+  val take: FiniteDuration = 2.seconds
 
   def speed(i: Int): String = f"${i / (take.toSeconds * 1000)}%4dK/s"
 
