@@ -346,7 +346,7 @@ class RetryTest extends AnyFunSuite {
     val List(a, b, c) = TaskGuard[IO]("logError")
       .service("no exception")
       .eventStream(
-        _.action("exception", _.unipartite)
+        _.action("exception", _.silent.counted)
           .retry(IO.raiseError(new Exception))
           .logError(_ => null.asInstanceOf[String].asJson)
           .run)
@@ -411,5 +411,24 @@ class RetryTest extends AnyFunSuite {
     serviceGuard.eventStream { agent =>
       agent.action("quasi.seq").parQuasi(2)(IO(1), IO(2)).run
     }.compile.drain.unsafeRunSync()
+  }
+
+  test("21.silent count") {
+    val List(a, b, c) = TaskGuard[IO]("silent")
+      .service("count")
+      .eventStream(
+        _.action("exception", _.silent.counted.policy(policies.fixedDelay(1.seconds)))
+          .retry((_: Int) => IO.raiseError(new Exception))
+          .withWorthRetry(_ => true)
+          .logErrorM((_, _) => IO(Json.fromInt(1)))
+          .run(1))
+      .take(3)
+      .debug()
+      .compile
+      .toList
+      .unsafeRunSync()
+    assert(a.isInstanceOf[ServiceStart])
+    assert(b.isInstanceOf[ActionRetry])
+    assert(c.isInstanceOf[ActionRetry])
   }
 }
