@@ -124,6 +124,23 @@ class PolicyCombinatorTest extends AnyFunSuite {
     assert(a6.snooze == 1.second.toJava)
   }
 
+  test("join >") {
+    val policy =
+      policies.fixedDelay(1.second).join(policies.fixedRate(1.seconds))
+
+    println(policy.show)
+    println(policy.asJson)
+    assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
+    val ts: TickStatus               = TickStatus.zeroth[IO](policy, sydneyTime).unsafeRunSync()
+    val List(a1, a2, a3, a4, a5, a6) = lazyTickList(ts).take(6).toList
+    assert(a1.snooze == 1.second.toJava)
+    assert(a2.snooze == 1.second.toJava)
+    assert(a3.snooze == 1.second.toJava)
+    assert(a4.snooze == 1.second.toJava)
+    assert(a5.snooze == 1.second.toJava)
+    assert(a6.snooze == 1.second.toJava)
+  }
+
   test("infinite") {
     val policy = policies.fixedRate(1.second).limited(500).repeat
     println(policy.asJson)
@@ -142,11 +159,27 @@ class PolicyCombinatorTest extends AnyFunSuite {
       .followedBy(policies.fixedRate(1.second).endAt(time.plus(5.seconds.toJava)))
       .followedBy(policies.fixedDelay(2.second).endOfDay)
       .repeat
+      .expireAt(LocalDateTime.MAX)
     println(policy)
     println(policy.asJson)
     assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
 
     tickStream[IO](policy, sydneyTime).debug().take(3).compile.drain.unsafeRunSync()
+  }
+
+  test("end at midnight") {
+    val policy = policies.crontab(crontabs.secondly).endAt(_.midnight)
+    println(policy)
+    println(policy.asJson)
+    assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
+    assert(tickStream[IO](policy, sydneyTime).compile.toList.unsafeRunSync().isEmpty)
+  }
+  test("expire at") {
+    val policy = policies.crontab(crontabs.secondly).expireAt(LocalDateTime.of(2023, 1, 1, 12, 0, 0))
+    println(policy)
+    println(policy.asJson)
+    assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
+    assert(tickStream[IO](policy, sydneyTime).compile.toList.unsafeRunSync().isEmpty)
   }
 
   test("complex policy") {
@@ -202,7 +235,7 @@ class PolicyCombinatorTest extends AnyFunSuite {
 
   test("decode error") {
     import com.github.chenharryhua.nanjin.common.chrono.*
-    assert(decode[Policy]("""{"a":1}""").toOption.isEmpty)
-    assert(decode[CronExpr]("""*/4 * * ? *""").toOption.isEmpty)
+    assert(decode[Policy](""" {"crontab":"*/4 * * ? *"} """).toOption.isEmpty)
+    assert(decode[CronExpr](""" "*/4 * * ? *" """).toOption.isEmpty)
   }
 }

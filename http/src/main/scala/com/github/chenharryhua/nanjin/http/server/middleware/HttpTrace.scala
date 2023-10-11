@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.http.client.middleware
+package com.github.chenharryhua.nanjin.http.server.middleware
 
 import cats.data.{Kleisli, OptionT}
 import cats.effect.implicits.monadCancelOps

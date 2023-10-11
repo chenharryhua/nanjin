@@ -186,7 +186,10 @@ class ServiceTest extends AnyFunSuite {
     val List(a, b, c, d, e, f, g) = guard
       .updateConfig(_.withRestartPolicy(policies.giveUp))
       .eventStream { gd =>
-        gd.action("t", _.bipartite.policy(policy)).retry(IO.raiseError(new Exception)).run
+        gd.withMeasurement("measurement")
+          .action("t", _.bipartite.policy(policy))
+          .retry(IO.raiseError(new Exception))
+          .run
       }
       .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
       .compile
@@ -202,8 +205,7 @@ class ServiceTest extends AnyFunSuite {
   }
 
   test("10.dummy agent should not block") {
-    val dummy = TaskGuard.dummyAgent[IO]
-    dummy.use(_.action("test", _.bipartite).retry(IO(1)).run.replicateA(3)).unsafeRunSync()
+    TaskGuard.dummyAgent[IO].use(_.action("test", _.bipartite).retry(IO(1)).run).unsafeRunSync()
   }
 
   test("11.policy start over") {

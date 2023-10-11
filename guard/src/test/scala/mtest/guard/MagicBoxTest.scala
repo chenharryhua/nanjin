@@ -196,7 +196,7 @@ class MagicBoxTest extends AnyFunSuite {
     assert(c.isInstanceOf[ServiceStart])
   }
 
-  test("10. signalBox release") {
+  test("10.signalBox release") {
     service.eventStream { agent =>
       val box = agent.signalBox(0)
       for {
@@ -211,7 +211,7 @@ class MagicBoxTest extends AnyFunSuite {
       }
     }.compile.drain.unsafeRunSync()
   }
-  test("11. atomicBox release") {
+  test("11.atomicBox release") {
     service.eventStream { agent =>
       val box = agent.atomicBox(100)
       for {

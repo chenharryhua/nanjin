@@ -43,7 +43,10 @@ class RetryTest extends AnyFunSuite {
   test("2.retry - completed notice") {
     val Vector(s, a, b, c, d, e, f, g) = serviceGuard.eventStream { gd =>
       val ag =
-        gd.action("t", _.bipartite).retry(fun5 _).logInput(_._3.asJson).withWorthRetry(_ => true)
+        gd.action("t", _.bipartite.timed.counted)
+          .retry(fun5 _)
+          .logInput(_._3.asJson)
+          .withWorthRetry(_ => true)
       List(1, 2, 3).traverse(i => ag.run((i, i, i, i, i)))
     }.evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow).compile.toVector.unsafeRunSync()
 
@@ -188,7 +191,8 @@ class RetryTest extends AnyFunSuite {
       .eventStream { gd =>
         gd.action("t", _.policy(policies.fixedDelay(0.1.seconds).limited(3)))
           .retry(IO.raiseError(MyException()))
-          .withWorthRetryM(x => IO(x.isInstanceOf[MyException]))
+          .withWorthRetry(x => x.isInstanceOf[MyException])
+          .logErrorM(_ => IO(Json.Null))
           .run
       }
       .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
@@ -210,7 +214,7 @@ class RetryTest extends AnyFunSuite {
       .eventStream { gd =>
         gd.action("t", _.bipartite.policy(policies.fixedDelay(0.1.seconds).limited(3)))
           .retry(IO.raiseError(new Exception))
-          .withWorthRetry(_.isInstanceOf[MyException])
+          .withWorthRetryM(x => IO(x.isInstanceOf[MyException]))
           .run
       }
       .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
@@ -248,12 +252,12 @@ class RetryTest extends AnyFunSuite {
     serviceGuard.eventStream { ag =>
       val builder = ag.action("quasi", _.bipartite)
       builder.parQuasi(IO("a"), IO("b")).run >>
-        builder.parQuasi(List(IO("a"), IO("b"))).run >>
-        builder.parQuasi(8, List(IO("a"), IO("b"))).run >>
+        builder.parQuasi(List(IO.raiseError(new Exception("a")), IO.raiseError(new Exception("b")))).run >>
+        builder.parQuasi(8, List(IO("a"), IO.raiseError(new Exception("a")))).run >>
         builder.quasi(List(IO("a"), IO("b"))).run >>
-        builder.quasi(IO("a"), IO("b")).run >>
+        builder.quasi(IO("a"), IO.raiseError(new Exception)).run >>
         builder.quasi(IO.print("a"), IO.print("b")).run
-    }
+    }.compile.drain.unsafeRunSync()
   }
 
   test("12.cron policy") {
@@ -305,7 +309,7 @@ class RetryTest extends AnyFunSuite {
     assert(d.isInstanceOf[ServiceStop])
   }
 
-  test("14. logError json exception") {
+  test("14.logError json exception") {
     val List(a, b, c, d) = serviceGuard
       .eventStream(agent =>
         agent
@@ -324,7 +328,7 @@ class RetryTest extends AnyFunSuite {
     assert(d.isInstanceOf[ServiceStop])
   }
 
-  test("15. logError null") {
+  test("15.logError null") {
     val List(a, b, c) = TaskGuard[IO]("logError")
       .service("no exception")
       .eventStream(
@@ -366,7 +370,7 @@ class RetryTest extends AnyFunSuite {
     assert(k == 2)
   }
 
-  test("18. resource") {
+  test("18.resource") {
     val List(a, b, c, d) = serviceGuard
       .eventStream(agent =>
         agent
@@ -383,13 +387,13 @@ class RetryTest extends AnyFunSuite {
     assert(d.isInstanceOf[ServiceStop])
   }
 
-  test("19. seq quasi") {
+  test("19.seq quasi") {
     serviceGuard.eventStream { agent =>
       agent.action("quasi.seq").quasi(IO(1), IO.raiseError(new Exception)).run
     }.compile.drain.unsafeRunSync()
   }
 
-  test("20. par quasi") {
+  test("20.par quasi") {
     serviceGuard.eventStream { agent =>
       agent.action("quasi.seq").parQuasi(2)(IO(1), IO(2)).run
     }.compile.drain.unsafeRunSync()

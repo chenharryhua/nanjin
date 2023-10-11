@@ -23,7 +23,9 @@ class PassThroughTest extends AnyFunSuite {
       .updateConfig(_.withMetricReport(policies.crontab(_.secondly)))
       .eventStream { ag =>
         val counter = ag.counter("one/two/three/counter")
-        (counter.inc(1).replicateA(3) >> counter.dec(2)).delayBy(1.second) >> ag.metrics.report
+        (counter.inc(1).replicateA(3) >>
+          counter.dec(2)).delayBy(1.second) >>
+          counter.getCount >> ag.metrics.report
       }
       .filter(_.isInstanceOf[MetricReport])
       .debug()
@@ -44,6 +46,12 @@ class PassThroughTest extends AnyFunSuite {
       .updateConfig(_.withMetricReport(policies.crontab(_.hourly)))
       .eventStream { ag =>
         val alert: NJAlert[IO] = ag.alert("oops").counted
+        alert.unsafeError("oops")
+        alert.unsafeError(Some("oops"))
+        alert.unsafeWarn("oops")
+        alert.unsafeWarn(Some("oops"))
+        alert.unsafeInfo("oops")
+        alert.unsafeInfo(Some("oops"))
         alert.warn(Some("message")) >> alert.info(Some("message")) >> alert.error(Some("message")) >>
           ag.metrics.report
       }
@@ -67,8 +75,9 @@ class PassThroughTest extends AnyFunSuite {
       .updateConfig(_.withMetricReport(policies.crontab(_.secondly)))
       .eventStream { agent =>
         val meter = agent.meter("nj.test.meter", _.BITS)
-        (meter.mark(1000) >> agent.metrics.reset
-          .whenA(Random.nextInt(3) == 1)).delayBy(1.second).replicateA(5)
+        agent.meterR("meterR", _.BYTES).use(_.mark(10)) >>
+          (meter.mark(1000) >> agent.metrics.reset
+            .whenA(Random.nextInt(3) == 1)).delayBy(1.second).replicateA(5)
       }
       .evalTap(logging(Translator.simpleText[IO]))
       .compile
@@ -80,8 +89,9 @@ class PassThroughTest extends AnyFunSuite {
     guard
       .updateConfig(_.withMetricReport(policies.crontab(_.secondly)))
       .eventStream { agent =>
-        val meter = agent.histogram("nj.test.histogram", _.HOURS)
-        IO(Random.nextInt(100).toLong).flatMap(meter.update).delayBy(1.second).replicateA(5)
+        val histo = agent.histogram("nj.test.histogram", _.HOURS)
+        agent.histogramR("histoR", _.DAYS).use(_.update(1)) >>
+          IO(Random.nextInt(100).toLong).flatMap(histo.update).delayBy(1.second).replicateA(5)
       }
       .evalTap(logging(Translator.simpleText[IO]))
       .compile

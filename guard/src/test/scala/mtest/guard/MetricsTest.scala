@@ -48,7 +48,6 @@ class MetricsTest extends AnyFunSuite {
 
   test("1.lazy counting") {
     val last = service("delta")
-      .withJmx(identity)
       .updateConfig(_.withMetricReport(policies.crontab(_.secondly)))
       .eventStream(ag => ag.action("one", _.silent).retry(IO(0)).run >> IO.sleep(10.minutes))
       .evalTap(console.simple[IO])
@@ -130,23 +129,11 @@ class MetricsTest extends AnyFunSuite {
         .drain).unsafeRunSync()
   }
 
-  test("6.gauge") {
-    service("gauge").eventStream { agent =>
-      val gauge =
-        agent.gauge("random").register(Random.nextInt(100)) >>
-          agent.gauge("time").timed >>
-          agent.gauge("ref").ref(IO.ref(0))
-
-      gauge.use(box =>
-        agent.ticks(policies.fixedDelay(1.seconds)).evalTap(_ => box.updateAndGet(_ + 1)).compile.drain)
-
-    }.evalTap(console.simple[IO]).take(8).compile.drain.unsafeRunSync()
-  }
-
-  test("7. namespace merge") {
+  test("6.namespace merge") {
     val name = "(name).space.test"
     TaskGuard[IO]("observers")
       .service("same_name_space")
+      .withJmx(identity)
       .updateConfig(
         _.withRestartPolicy(policies.fixedDelay(1.hour)).withMetricReport(policies.crontab(_.secondly)))
       .eventStream { ag =>
@@ -169,31 +156,7 @@ class MetricsTest extends AnyFunSuite {
       .unsafeRunSync()
   }
 
-  test("measurement unit") {
-    implicitly[MeasurementUnit.DAYS.type =:= NJTimeUnit.DAYS.type]
-    implicitly[MeasurementUnit.DAYS.Q =:= Time]
-  }
-
-  test("meter") {
-    service("meter").eventStream { agent =>
-      val meter = agent.meter("meter", _.MEGABYTES)
-      meter.unsafeMark(10)
-      meter.mark(20) >> agent.metrics.report
-    }.evalTap(console.simple[IO]).compile.drain.unsafeRunSync()
-  }
-
-  test("histogram") {
-    service("histo").eventStream { agent =>
-      val histo = agent
-        .histogram("histo", _.MEGABYTES)
-        .counted
-        .withReservoir(new SlidingTimeWindowArrayReservoir(2, TimeUnit.SECONDS))
-      histo.unsafeUpdate(1)
-      histo.update(2) >> histo.update(3) >> histo.update(4) >> agent.metrics.report
-    }.evalTap(console.simple[IO]).compile.drain.unsafeRunSync()
-  }
-
-  test("distinct symbol") {
+  test("7.distinct symbol") {
     import MeasurementUnit.*
     val symbols = List(
       DAYS,
@@ -230,7 +193,44 @@ class MetricsTest extends AnyFunSuite {
     assert(symbols.distinct.size == symbols.size)
   }
 
-  test("normalization") {
+  test("8.gauge") {
+    service("gauge").eventStream { agent =>
+      val gauge =
+        agent.gauge("random").register(Random.nextInt(100)) >>
+          agent.gauge("time").timed >>
+          agent.gauge("ref").ref(IO.ref(0))
+
+      gauge.use(box =>
+        agent.ticks(policies.fixedDelay(1.seconds)).evalTap(_ => box.updateAndGet(_ + 1)).compile.drain)
+
+    }.evalTap(console.simple[IO]).take(8).compile.drain.unsafeRunSync()
+  }
+
+  test("9.measurement unit") {
+    implicitly[MeasurementUnit.DAYS.type =:= NJTimeUnit.DAYS.type]
+    implicitly[MeasurementUnit.DAYS.Q =:= Time]
+  }
+
+  test("10.meter") {
+    service("meter").eventStream { agent =>
+      val meter = agent.meter("meter", _.MEGABYTES)
+      meter.unsafeMark(10)
+      meter.mark(20) >> agent.metrics.report
+    }.evalTap(console.simple[IO]).compile.drain.unsafeRunSync()
+  }
+
+  test("11.histogram") {
+    service("histo").eventStream { agent =>
+      val histo = agent
+        .histogram("histo", _.MEGABYTES)
+        .counted
+        .withReservoir(new SlidingTimeWindowArrayReservoir(2, TimeUnit.SECONDS))
+      histo.unsafeUpdate(1)
+      histo.update(2) >> histo.update(3) >> histo.update(4) >> agent.metrics.report
+    }.evalTap(console.simple[IO]).compile.drain.unsafeRunSync()
+  }
+
+  test("12.normalization") {
     val um = UnitNormalization(
       NJTimeUnit.SECONDS,
       Some(NJInformationUnit.KILOBYTES),
@@ -242,13 +242,12 @@ class MetricsTest extends AnyFunSuite {
       um.normalize(NJDataRateUnit.MEGABITS_SECOND, 1) == Normalized(1000.0, NJDataRateUnit.KILOBITS_SECOND))
   }
 
-  test("normalization - 2") {
+  test("13.normalization - 2") {
     val um = UnitNormalization(NJTimeUnit.SECONDS, None, None)
 
     assert(um.normalize(10.minutes) == Normalized(600.0, NJTimeUnit.SECONDS))
     assert(um.normalize(NJInformationUnit.BYTES, 1000) == Normalized(1000.0, NJInformationUnit.BYTES))
-    assert(
-      um.normalize(NJDataRateUnit.MEGABITS_SECOND, 1) == Normalized(1.0, NJDataRateUnit.MEGABITS_SECOND))
+    assert(um.normalize(NJDataRateUnit.MEGABITS_SECOND, 1) == Normalized(1.0, NJDataRateUnit.MEGABITS_SECOND))
   }
 
 }
