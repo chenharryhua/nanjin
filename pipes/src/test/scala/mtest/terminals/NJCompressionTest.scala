@@ -1,7 +1,7 @@
 package mtest.terminals
 
 import com.github.chenharryhua.nanjin.terminals.*
-import io.circe.parser.decode
+import io.circe.jawn.decode
 import org.scalatest.funsuite.AnyFunSuite
 import io.circe.syntax.*
 import eu.timepit.refined.auto.*

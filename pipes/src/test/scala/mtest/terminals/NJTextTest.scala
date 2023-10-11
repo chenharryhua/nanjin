@@ -9,7 +9,7 @@ import com.github.chenharryhua.nanjin.terminals.{HadoopText, NJHadoop, NJPath, T
 import eu.timepit.refined.auto.*
 import fs2.Stream
 import io.circe.generic.auto.*
-import io.circe.parser.decode
+import io.circe.jawn.decode
 import io.circe.syntax.EncoderOps
 import mtest.terminals.HadoopTestData.hdp
 import mtest.terminals.TestData.Tiger

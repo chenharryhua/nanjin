@@ -12,7 +12,7 @@ import org.typelevel.cats.time.instances.duration.*
 import java.time.Instant
 import scala.concurrent.duration.DurationInt
 import scala.jdk.DurationConverters.{JavaDurationOps, ScalaDurationOps}
-import io.circe.parser.decode
+import io.circe.jawn.decode
 class PolicyBaseTest extends AnyFunSuite {
 
   test("fibonacci") {

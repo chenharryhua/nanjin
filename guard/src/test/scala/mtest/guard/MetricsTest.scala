@@ -25,7 +25,7 @@ import com.github.chenharryhua.nanjin.guard.translators.Translator
 import cron4s.Cron
 import eu.timepit.refined.auto.*
 import io.circe.generic.JsonCodec
-import io.circe.parser.decode
+import io.circe.jawn.decode
 import io.circe.syntax.*
 import org.scalatest.funsuite.AnyFunSuite
 import squants.time.Time

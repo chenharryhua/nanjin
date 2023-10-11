@@ -13,7 +13,7 @@ import com.github.chenharryhua.nanjin.common.chrono.{
   TickStatus
 }
 import cron4s.CronExpr
-import io.circe.parser.decode
+import io.circe.jawn.decode
 import io.circe.syntax.EncoderOps
 import org.scalatest.funsuite.AnyFunSuite
 
