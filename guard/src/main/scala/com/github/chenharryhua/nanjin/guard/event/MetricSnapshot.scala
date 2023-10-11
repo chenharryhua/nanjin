@@ -6,7 +6,7 @@ import com.codahale.metrics.*
 import com.github.chenharryhua.nanjin.guard.config.{Category, MetricID}
 import io.circe.Json
 import io.circe.generic.JsonCodec
-import io.circe.parser.{decode, parse}
+import io.circe.jawn.{decode, parse}
 import org.typelevel.cats.time.instances.duration
 import squants.time.{Frequency, Hertz}
 

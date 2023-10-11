@@ -4,7 +4,7 @@ import cats.{Distributive, Eq, Functor, Show}
 import com.sksamuel.avro4s.{Codec, FieldMapper, SchemaFor}
 import io.circe.Decoder.Result
 import io.circe.syntax.*
-import io.circe.{parser, Codec as JsonCodec, Decoder as JsonDecoder, Encoder as JsonEncoder, HCursor, Json}
+import io.circe.{jawn, Codec as JsonCodec, Decoder as JsonDecoder, Encoder as JsonEncoder, HCursor, Json}
 import monocle.Iso
 import org.apache.avro.Schema
 import org.apache.avro.util.Utf8
@@ -54,12 +54,12 @@ object KJson {
 
     override def decode(value: Any): KJson[A] = value match {
       case str: String =>
-        parser.decode[KJson[A]](str) match {
+        jawn.decode[KJson[A]](str) match {
           case Right(r) => r
           case Left(ex) => throw ex
         }
       case utf8: Utf8 =>
-        parser.decode[KJson[A]](utf8.toString) match {
+        jawn.decode[KJson[A]](utf8.toString) match {
           case Right(r) => r
           case Left(ex) => throw ex
         }

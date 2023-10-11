@@ -13,7 +13,7 @@ import com.github.chenharryhua.nanjin.messages.kafka.codec.*
 import fs2.Stream
 import fs2.kafka.*
 import io.circe.Json
-import io.circe.parser.parse
+import io.circe.jawn.parse
 import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient
 import io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig
 import org.apache.kafka.common.serialization.Serde

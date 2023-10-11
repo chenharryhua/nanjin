@@ -6,7 +6,7 @@ import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick, T
 import fs2.text.{lines, utf8}
 import fs2.{Chunk, Pipe, Stream}
 import io.circe.Json
-import io.circe.parser.parse
+import io.circe.jawn.parse
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.io.compress.zlib.ZlibCompressor.CompressionLevel
 import squants.information.Information

@@ -4,7 +4,7 @@ import cats.Order
 import com.github.chenharryhua.nanjin.messages.kafka.codec.KJson
 import frameless.{Injection, SQLDate, SQLTimestamp}
 import io.circe.{Decoder as JsonDecoder, Encoder as JsonEncoder, Json}
-import io.circe.parser.{decode, parse}
+import io.circe.jawn.{decode, parse}
 import io.circe.syntax.*
 import org.apache.spark.sql.catalyst.util.DateTimeUtils
 import shapeless.Witness

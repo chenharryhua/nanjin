@@ -10,7 +10,7 @@ import com.github.chenharryhua.nanjin.guard.event.NJEvent.{ActionDone, ActionFai
 import com.github.chenharryhua.nanjin.guard.event.{NJError, NJEvent}
 import fs2.concurrent.Channel
 import io.circe.Json
-import io.circe.parser.parse
+import io.circe.jawn.parse
 import org.apache.commons.lang3.exception.ExceptionUtils
 
 import java.time.Duration

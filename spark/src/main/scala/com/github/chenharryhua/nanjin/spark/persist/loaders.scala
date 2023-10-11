@@ -4,7 +4,7 @@ import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.terminals.NJPath
 import com.sksamuel.avro4s.{AvroInputStream, Decoder as AvroDecoder}
 import io.circe.Decoder as JsonDecoder
-import io.circe.parser.decode
+import io.circe.jawn.decode
 import kantan.csv.{CsvConfiguration, RowDecoder}
 import kantan.csv.ops.toCsvInputOps
 import kantan.csv.CsvConfiguration.QuotePolicy

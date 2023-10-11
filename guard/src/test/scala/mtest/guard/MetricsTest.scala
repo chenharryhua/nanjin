@@ -12,6 +12,7 @@ import com.github.chenharryhua.nanjin.guard.event.{
   eventFilters,
   MeasurementUnit,
   NJDataRateUnit,
+  NJDimensionlessUnit,
   NJEvent,
   NJInformationUnit,
   NJTimeUnit,
@@ -32,6 +33,7 @@ import squants.time.Time
 import java.time.{ZoneId, ZonedDateTime}
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.*
+import scala.jdk.DurationConverters.ScalaDurationOps
 import scala.util.Random
 
 @JsonCodec
@@ -236,16 +238,19 @@ class MetricsTest extends AnyFunSuite {
       Some(NJInformationUnit.KILOBYTES),
       Some(NJDataRateUnit.KILOBITS_SECOND))
 
+    assert(um.normalize(NJTimeUnit.MINUTES, 10) == Normalized(600.0, NJTimeUnit.SECONDS))
     assert(um.normalize(10.minutes) == Normalized(600.0, NJTimeUnit.SECONDS))
     assert(um.normalize(NJInformationUnit.BYTES, 1000) == Normalized(1.0, NJInformationUnit.KILOBYTES))
     assert(
       um.normalize(NJDataRateUnit.MEGABITS_SECOND, 1) == Normalized(1000.0, NJDataRateUnit.KILOBITS_SECOND))
+    assert(um.normalize(NJDimensionlessUnit.COUNT, 1) == Normalized(1.0, NJDimensionlessUnit.COUNT))
   }
 
   test("13.normalization - 2") {
     val um = UnitNormalization(NJTimeUnit.SECONDS, None, None)
 
     assert(um.normalize(10.minutes) == Normalized(600.0, NJTimeUnit.SECONDS))
+    assert(um.normalize(10.minutes.toJava) == Normalized(600.0, NJTimeUnit.SECONDS))
     assert(um.normalize(NJInformationUnit.BYTES, 1000) == Normalized(1000.0, NJInformationUnit.BYTES))
     assert(um.normalize(NJDataRateUnit.MEGABITS_SECOND, 1) == Normalized(1.0, NJDataRateUnit.MEGABITS_SECOND))
   }
