@@ -24,6 +24,8 @@ class PassThroughTest extends AnyFunSuite {
       .updateConfig(_.withMetricReport(policies.crontab(_.secondly)))
       .eventStream { ag =>
         val counter = ag.counter("one/two/three/counter")
+        counter.unsafeInc(1)
+        counter.unsafeDec(1)
         (counter.inc(1).replicateA(3) >>
           counter.dec(2)).delayBy(1.second) >>
           counter.getCount >> ag.metrics.report
@@ -38,7 +40,7 @@ class PassThroughTest extends AnyFunSuite {
         .asInstanceOf[MetricReport]
         .snapshot
         .counters
-        .find(_.metricId.metricName.digest == "fd72177d")
+        .find(_.metricId.metricName.digest == "59d2456f")
         .size == 1)
   }
 
@@ -67,7 +69,7 @@ class PassThroughTest extends AnyFunSuite {
         .asInstanceOf[MetricReport]
         .snapshot
         .counters
-        .find(_.metricId.metricName.digest == "fd72177d")
+        .find(_.metricId.metricName.digest == "d42eee33")
         .size == 1)
   }
 

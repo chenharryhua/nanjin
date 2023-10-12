@@ -84,7 +84,7 @@ object MetricName {
 
   def apply(serviceParams: ServiceParams, measurement: Measurement, name: String): MetricName = {
     val fullName: List[String] =
-      serviceParams.taskParams.taskName :: serviceParams.serviceName :: measurement.value :: Nil
+      serviceParams.taskParams.taskName :: serviceParams.serviceName :: measurement.value :: name :: Nil
     val digest = DigestUtils.sha256Hex(fullName.mkString("/")).take(8)
 
     MetricName(
