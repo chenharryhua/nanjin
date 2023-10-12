@@ -4,7 +4,7 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.chrono.policies
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.event.{NJEvent, NJTimeUnit}
+import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import com.github.chenharryhua.nanjin.guard.observers.*
 import com.influxdb.client.domain.WritePrecision
 import com.influxdb.client.{InfluxDBClientFactory, InfluxDBClientOptions}
@@ -12,6 +12,7 @@ import io.circe.Json
 import io.circe.syntax.EncoderOps
 import org.scalatest.funsuite.AnyFunSuite
 
+import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.*
 
 class InfluxDBTest extends AnyFunSuite {
@@ -24,7 +25,7 @@ class InfluxDBTest extends AnyFunSuite {
         val box = ag.atomicBox(1)
         val job = // fail twice, then success
           box.getAndUpdate(_ + 1).map(_ % 3 == 0).ifM(IO(1), IO.raiseError[Int](new Exception("oops")))
-        val meter = ag.meter("meter", NJTimeUnit.SECONDS).counted
+        val meter = ag.meter("meter", _.BYTES).counted
         val action = ag
           .action(
             "nj_error",
@@ -38,7 +39,7 @@ class InfluxDBTest extends AnyFunSuite {
           .run
 
         val counter   = ag.counter("nj counter").asRisk
-        val histogram = ag.histogram("nj histogram", NJTimeUnit.SECONDS).counted
+        val histogram = ag.histogram("nj histogram", _.SECONDS).counted
         val alert     = ag.alert("nj alert")
         val gauge     = ag.gauge("nj gauge")
 
@@ -49,9 +50,9 @@ class InfluxDBTest extends AnyFunSuite {
               action >>
                 meter.mark(1000) >>
                 counter.inc(10000) >>
-                histogram.update(10000000000000L) >>
+                histogram.update(100) >>
                 alert.error("alarm") >>
-                ag.metrics.report))
+                ag.metrics.report)) >> ag.metrics.reset
       }
 
   test("influx db") {
@@ -66,6 +67,7 @@ class InfluxDBTest extends AnyFunSuite {
     val influx = InfluxdbObserver[IO](IO(InfluxDBClientFactory.create(options)))
       .withWriteOptions(_.batchSize(1))
       .withWritePrecision(WritePrecision.NS)
+      .withDurationUnit(TimeUnit.MILLISECONDS)
       .addTag("tag", "customer")
       .addTags(Map("a" -> "b"))
     service.evalTap(console.simple[IO]).through(influx.observe).compile.drain.unsafeRunSync()

@@ -3,6 +3,7 @@ package mtest.guard
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.catsSyntaxFlatMapOps
+import com.codahale.metrics.SlidingTimeWindowArrayReservoir
 import com.github.chenharryhua.nanjin.common.HostName
 import com.github.chenharryhua.nanjin.common.chrono.policies
 import com.github.chenharryhua.nanjin.guard.TaskGuard
@@ -10,9 +11,13 @@ import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
 import com.github.chenharryhua.nanjin.guard.event.{
   eventFilters,
   MeasurementUnit,
+  NJDataRateUnit,
+  NJDimensionlessUnit,
   NJEvent,
   NJInformationUnit,
-  NJTimeUnit
+  NJTimeUnit,
+  Normalized,
+  UnitNormalization
 }
 import com.github.chenharryhua.nanjin.guard.observers.console
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
@@ -20,12 +25,13 @@ import com.github.chenharryhua.nanjin.guard.translators.Translator
 import cron4s.Cron
 import eu.timepit.refined.auto.*
 import io.circe.generic.JsonCodec
-import io.circe.parser.decode
+import io.circe.jawn.decode
 import io.circe.syntax.*
 import org.scalatest.funsuite.AnyFunSuite
 import squants.time.Time
 
 import java.time.{ZoneId, ZonedDateTime}
+import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.*
 import scala.jdk.DurationConverters.ScalaDurationOps
 import scala.util.Random
@@ -40,11 +46,11 @@ class MetricsTest extends AnyFunSuite {
     TaskGuard[IO]("metrics")
       .updateConfig(_.withZoneId(zoneId).withHostName(HostName.local_host))
       .service("delta")
-      .updateConfig(_.withMetricReport(policies.crontab(cron_1second)))
+      .updateConfig(_.withMetricReport(policies.crontab(_.secondly)))
 
   test("1.lazy counting") {
     val last = service("delta")
-      .updateConfig(_.withMetricReport(policies.crontab(cron_1second)))
+      .updateConfig(_.withMetricReport(policies.crontab(_.secondly)))
       .eventStream(ag => ag.action("one", _.silent).retry(IO(0)).run >> IO.sleep(10.minutes))
       .evalTap(console.simple[IO])
       .map(_.asJson.noSpaces)
@@ -71,7 +77,7 @@ class MetricsTest extends AnyFunSuite {
 
   test("3.ongoing action alignment") {
     service
-      .updateConfig(_.withMetricReport(policies.crontab(cron_1second)))
+      .updateConfig(_.withMetricReport(policies.crontab(_.secondly)))
       .eventStream { ag =>
         val one = ag.action("one", _.bipartite).retry(IO(0) <* IO.sleep(10.minutes)).run
         val two = ag.action("two", _.bipartite).retry(IO(0) <* IO.sleep(10.minutes)).run
@@ -125,24 +131,12 @@ class MetricsTest extends AnyFunSuite {
         .drain).unsafeRunSync()
   }
 
-  test("6.gauge") {
-    service("gauge").eventStream { agent =>
-      val gauge =
-        agent.gauge("random").register(Random.nextInt(100)) >>
-          agent.gauge("time").timed >>
-          agent.gauge("ref").ref(IO.ref(0))
-
-      gauge.use(box =>
-        agent.ticks(policies.fixedDelay(1.seconds)).evalTap(_ => box.updateAndGet(_ + 1)).compile.drain)
-
-    }.evalTap(console.simple[IO]).take(8).compile.drain.unsafeRunSync()
-  }
-
-  test("7. namespace merge") {
+  test("6.namespace merge") {
     val name = "(name).space.test"
     TaskGuard[IO]("observers")
       .service("same_name_space")
-      .updateConfig(_.withRestartPolicy(constant_1hour).withMetricReport(policies.crontab(cron_1second)))
+      .updateConfig(
+        _.withRestartPolicy(policies.fixedDelay(1.hour)).withMetricReport(policies.crontab(_.secondly)))
       .eventStream { ag =>
         ag.gauge(name)
           .timed
@@ -151,10 +145,10 @@ class MetricsTest extends AnyFunSuite {
               ag.alert(name).counted.error("error") >>
               ag.alert(name).counted.warn("warn") >>
               ag.alert(name).counted.info("info") >>
-              ag.meter(name, NJInformationUnit.GIGABITS).counted.mark(100) >>
+              ag.meter(name, _.GIGABITS).counted.mark(100) >>
               ag.counter(name).inc(32) >>
               ag.counter(name).asRisk.inc(10) >>
-              ag.histogram(name, NJInformationUnit.BITS).counted.update(100) >>
+              ag.histogram(name, _.BITS).counted.update(100) >>
               ag.metrics.report)
       }
       .evalTap(console.simple[IO])
@@ -163,22 +157,7 @@ class MetricsTest extends AnyFunSuite {
       .unsafeRunSync()
   }
 
-  test("measurement unit") {
-    implicitly[MeasurementUnit.DAYS.type =:= NJTimeUnit.DAYS.type]
-    implicitly[MeasurementUnit.DAYS.Q =:= Time]
-    val fd: FiniteDuration = 10.seconds
-    assert(MeasurementUnit.MILLISECONDS.toJavaDuration(Time(fd)) == fd.toJava)
-    assert(MeasurementUnit.MICROSECONDS.toFiniteDuration(Time(fd)) == fd)
-  }
-
-  test("meter") {
-    service("meter").eventStream { agent =>
-      val meter = agent.meter("meter", MeasurementUnit.DAYS)
-      meter.mark(1) >> agent.metrics.report
-    }.evalTap(console.simple[IO]).compile.drain.unsafeRunSync()
-  }
-
-  test("distinct symbol") {
+  test("7.distinct symbol") {
     import MeasurementUnit.*
     val symbols = List(
       DAYS,
@@ -208,11 +187,71 @@ class MetricsTest extends AnyFunSuite {
       MEGABITS_SECOND,
       GIGABITS_SECOND,
       TERABITS_SECOND,
-      PERCENT,
-      COUNT
+      COUNT,
+      PERCENT
     ).map(_.symbol)
 
     assert(symbols.distinct.size == symbols.size)
+  }
+
+  test("8.gauge") {
+    service("gauge").eventStream { agent =>
+      val gauge =
+        agent.gauge("random").register(Random.nextInt(100)) >>
+          agent.gauge("time").timed >>
+          agent.gauge("ref").ref(IO.ref(0))
+
+      gauge.use(box =>
+        agent.ticks(policies.fixedDelay(1.seconds)).evalTap(_ => box.updateAndGet(_ + 1)).compile.drain)
+
+    }.evalTap(console.simple[IO]).take(8).compile.drain.unsafeRunSync()
+  }
+
+  test("9.measurement unit") {
+    implicitly[MeasurementUnit.DAYS.type =:= NJTimeUnit.DAYS.type]
+    implicitly[MeasurementUnit.DAYS.Q =:= Time]
+  }
+
+  test("10.meter") {
+    service("meter").eventStream { agent =>
+      val meter = agent.meter("meter", _.MEGABYTES)
+      meter.unsafeMark(10)
+      meter.mark(20) >> agent.metrics.report
+    }.evalTap(console.simple[IO]).compile.drain.unsafeRunSync()
+  }
+
+  test("11.histogram") {
+    service("histo").eventStream { agent =>
+      val histo = agent
+        .histogram("histo", _.MEGABYTES)
+        .counted
+        .withReservoir(new SlidingTimeWindowArrayReservoir(2, TimeUnit.SECONDS))
+      histo.unsafeUpdate(1)
+      histo.update(2) >> histo.update(3) >> histo.update(4) >> agent.metrics.report
+    }.evalTap(console.simple[IO]).compile.drain.unsafeRunSync()
+  }
+
+  test("12.normalization") {
+    val um = UnitNormalization(
+      NJTimeUnit.SECONDS,
+      Some(NJInformationUnit.KILOBYTES),
+      Some(NJDataRateUnit.KILOBITS_SECOND))
+
+    assert(um.normalize(NJTimeUnit.MINUTES, 10) == Normalized(600.0, NJTimeUnit.SECONDS))
+    assert(um.normalize(10.minutes) == Normalized(600.0, NJTimeUnit.SECONDS))
+    assert(um.normalize(NJInformationUnit.BYTES, 1000) == Normalized(1.0, NJInformationUnit.KILOBYTES))
+    assert(
+      um.normalize(NJDataRateUnit.MEGABITS_SECOND, 1) == Normalized(1000.0, NJDataRateUnit.KILOBITS_SECOND))
+    assert(um.normalize(NJDimensionlessUnit.COUNT, 1) == Normalized(1.0, NJDimensionlessUnit.COUNT))
+  }
+
+  test("13.normalization - 2") {
+    val um = UnitNormalization(NJTimeUnit.SECONDS, None, None)
+
+    assert(um.normalize(10.minutes) == Normalized(600.0, NJTimeUnit.SECONDS))
+    assert(um.normalize(10.minutes.toJava) == Normalized(600.0, NJTimeUnit.SECONDS))
+    assert(um.normalize(NJInformationUnit.BYTES, 1000) == Normalized(1000.0, NJInformationUnit.BYTES))
+    assert(um.normalize(NJDataRateUnit.MEGABITS_SECOND, 1) == Normalized(1.0, NJDataRateUnit.MEGABITS_SECOND))
   }
 
 }

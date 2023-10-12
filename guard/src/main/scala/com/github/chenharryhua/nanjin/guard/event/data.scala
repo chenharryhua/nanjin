@@ -10,7 +10,6 @@ import org.apache.commons.lang3.exception.ExceptionUtils
 final case class NJError(message: String, stackTrace: String)
 
 object NJError {
-  implicit final val showNJError: Show[NJError] = cats.derived.semiauto.show[NJError]
   def apply(ex: Throwable): NJError =
     NJError(ExceptionUtils.getRootCauseMessage(ex), ExceptionUtils.getStackTrace(ex))
 }

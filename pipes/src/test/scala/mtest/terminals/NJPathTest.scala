@@ -3,7 +3,7 @@ package mtest.terminals
 import cats.kernel.Eq
 import com.github.chenharryhua.nanjin.terminals.NJPath
 import eu.timepit.refined.auto.*
-import io.circe.parser.decode
+import io.circe.jawn.decode
 import io.circe.syntax.EncoderOps
 import org.scalatest.funsuite.AnyFunSuite
 

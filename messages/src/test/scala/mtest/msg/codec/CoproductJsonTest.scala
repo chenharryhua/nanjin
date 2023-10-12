@@ -1,7 +1,7 @@
 package mtest.msg.codec
 
 import io.circe.generic.auto.*
-import io.circe.parser.decode
+import io.circe.jawn.decode
 import io.circe.shapes.*
 import io.circe.syntax.*
 import org.scalatest.funsuite.AnyFunSuite

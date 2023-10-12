@@ -12,7 +12,7 @@ import org.typelevel.cats.time.instances.duration.*
 import java.time.Instant
 import scala.concurrent.duration.DurationInt
 import scala.jdk.DurationConverters.{JavaDurationOps, ScalaDurationOps}
-import io.circe.parser.decode
+import io.circe.jawn.decode
 class PolicyBaseTest extends AnyFunSuite {
 
   test("fibonacci") {
@@ -141,8 +141,9 @@ class PolicyBaseTest extends AnyFunSuite {
   }
 
   test("cron") {
-    val policy = policies.crontab(crontabs.hourly)
+    val policy = policies.crontab(_.hourly)
     println(policy.show)
+    println(policy.asJson)
     assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
 
     val ts = TickStatus.zeroth[IO](policy, beijingTime).unsafeRunSync()

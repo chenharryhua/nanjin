@@ -13,11 +13,12 @@ import com.github.chenharryhua.nanjin.guard.observers.console
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import cron4s.Cron
 import io.circe.Json
-import io.circe.parser.decode
+import io.circe.jawn.decode
 import io.circe.syntax.*
 import org.http4s.ember.client.EmberClientBuilder
 import org.scalatest.funsuite.AnyFunSuite
 
+import java.time.Instant
 import scala.concurrent.duration.*
 import scala.jdk.DurationConverters.ScalaDurationOps
 import scala.util.control.ControlThrowable
@@ -36,7 +37,7 @@ class ServiceTest extends AnyFunSuite {
     val Vector(a, d) = guard
       .updateConfig(
         _.withRestartPolicy(policies.fixedDelay(3.seconds))
-          .withMetricReport(policies.crontab(cron_1hour))
+          .withMetricReport(policies.crontab(_.hourly))
           .withMetricDailyReset)
       .withHttpServer(identity)
       .eventStream(gd => gd.action("t", _.silent).delay(1).logOutput(_ => null).run.delayBy(1.second))
@@ -58,7 +59,9 @@ class ServiceTest extends AnyFunSuite {
     val Vector(s, a, b, c, d, e, f) = guard
       .updateConfig(_.withRestartPolicy(policies.jitter(30.minutes, 50.minutes)))
       .eventStream { gd =>
-        gd.action("t", _.bipartite.policy(policy)).retry(IO.raiseError(new Exception("oops"))).run
+        gd.action("t", _.bipartite.policy(policy))
+          .retry(IO.raiseError(new Exception(gd.toZonedDateTime(Instant.now()).toString)))
+          .run
       }
       .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
       .interruptAfter(5.seconds)
@@ -119,7 +122,7 @@ class ServiceTest extends AnyFunSuite {
 
   test("5.should receive at least 3 report event") {
     val s :: b :: c :: d :: _ = guard
-      .updateConfig(_.withMetricReport(policies.crontab(cron_1second)))
+      .updateConfig(_.withMetricReport(policies.crontab(_.secondly)))
       .eventStream(_.action("t", _.silent).retry(IO.never).run)
       .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
       .interruptAfter(5.second)
@@ -137,7 +140,7 @@ class ServiceTest extends AnyFunSuite {
 
   test("6.force reset") {
     val s :: b :: c :: _ = guard
-      .updateConfig(_.withMetricReport(policies.crontab(cron_1second)))
+      .updateConfig(_.withMetricReport(policies.crontab(_.secondly)))
       .eventStream(ag => ag.metrics.reset >> ag.metrics.reset)
       .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
       .compile
@@ -186,7 +189,10 @@ class ServiceTest extends AnyFunSuite {
     val List(a, b, c, d, e, f, g) = guard
       .updateConfig(_.withRestartPolicy(policies.giveUp))
       .eventStream { gd =>
-        gd.action("t", _.bipartite.policy(policy)).retry(IO.raiseError(new Exception)).run
+        gd.withMeasurement("measurement")
+          .action("t", _.bipartite.policy(policy))
+          .retry(IO.raiseError(new Exception))
+          .run
       }
       .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
       .compile
@@ -201,12 +207,7 @@ class ServiceTest extends AnyFunSuite {
     assert(g.isInstanceOf[ServiceStop])
   }
 
-  test("10.dummy agent should not block") {
-    val dummy = TaskGuard.dummyAgent[IO]
-    dummy.use(_.action("test", _.bipartite).retry(IO(1)).run.replicateA(3)).unsafeRunSync()
-  }
-
-  test("11.policy start over") {
+  test("10.policy start over") {
 
     val p1     = policies.fixedDelay(1.seconds).limited(1)
     val p2     = policies.fixedDelay(2.seconds).limited(1)
@@ -251,7 +252,7 @@ class ServiceTest extends AnyFunSuite {
     assert(h.snooze == 2.second.toJava)
   }
 
-  test("12.policy threshold start over") {
+  test("11.policy threshold start over") {
     val policy: Policy = policies.fixedDelay(1.seconds, 2.seconds, 3.seconds, 4.seconds, 5.seconds)
     println(policy)
     val List(a, b, c, d, e, f, g, h) = guard
@@ -294,7 +295,7 @@ class ServiceTest extends AnyFunSuite {
     assert(h.snooze == 2.second.toJava)
   }
 
-  test("13. stop service") {
+  test("12.stop service") {
     val client = EmberClientBuilder
       .default[IO]
       .build
@@ -311,7 +312,8 @@ class ServiceTest extends AnyFunSuite {
       guard
         .withHttpServer(_.withPort(port"9999"))
         .eventStream(_ => IO.sleep(10.hours))
-        .debug()
+        .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
+        .evalTap(console.simple[IO])
         .compile
         .toList <& client
     val List(a, b) = res.unsafeRunSync()
@@ -319,7 +321,7 @@ class ServiceTest extends AnyFunSuite {
     assert(b.isInstanceOf[ServiceStop])
   }
 
-  test("14. service config") {
+  test("13.service config") {
     TaskGuard[IO]("abc")
       .service("abc")
       .updateConfig(

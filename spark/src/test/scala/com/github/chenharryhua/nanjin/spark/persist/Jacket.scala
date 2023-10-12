@@ -8,7 +8,7 @@ import com.github.chenharryhua.nanjin.spark.injection.*
 import frameless.TypedEncoder
 import io.circe.{Codec, Json}
 import io.circe.generic.auto.*
-import io.circe.parser.parse
+import io.circe.jawn.parse
 import mtest.spark.*
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.Dataset

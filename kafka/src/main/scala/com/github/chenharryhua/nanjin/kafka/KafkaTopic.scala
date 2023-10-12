@@ -119,7 +119,7 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
     */
   def produceCirce(
     circeStr: String)(implicit F: Async[F], @nowarn k: Decoder[K], @nowarn v: Decoder[V]): F[RecordMetadata] =
-    io.circe.parser
+    io.circe.jawn
       .decode[NJConsumerRecord[K, V]](circeStr)
       .map(_.toNJProducerRecord.noMeta.withTopicName(topicName).toProducerRecord)
       .traverse(produceOne)

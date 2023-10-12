@@ -206,7 +206,7 @@ private object SlackTranslator extends all {
             hostServiceSection(evt.serviceParams),
             JuxtaposeSection(
               first = TextField(CONSTANT_ACTION_ID, evt.actionId.show),
-              second = TextField(CONSTANT_SNOOZE, tookText(evt.tick.snooze))),
+              second = TextField(CONSTANT_SNOOZE, fmt.format(evt.tick.snooze))),
             MarkdownSection(s"""|${retryText(evt)}
                                 |${policy(evt)}
                                 |${measurement(evt.actionParams.metricName)}
@@ -228,7 +228,7 @@ private object SlackTranslator extends all {
             hostServiceSection(evt.serviceParams),
             JuxtaposeSection(
               first = TextField(CONSTANT_ACTION_ID, evt.actionId.show),
-              second = TextField(CONSTANT_TOOK, tookText(evt.took))),
+              second = TextField(CONSTANT_TOOK, tookText(evt))),
             MarkdownSection(s"""|${policy(evt)}
                                 |${measurement(evt.actionParams.metricName)}
                                 |${serviceId(evt)}""".stripMargin)
@@ -252,7 +252,7 @@ private object SlackTranslator extends all {
             hostServiceSection(evt.serviceParams),
             JuxtaposeSection(
               first = TextField(CONSTANT_ACTION_ID, evt.actionId.show),
-              second = TextField(CONSTANT_TOOK, tookText(evt.took))),
+              second = TextField(CONSTANT_TOOK, tookText(evt))),
             MarkdownSection(s"""|${measurement(evt.actionParams.metricName)}
                                 |${serviceId(evt)}""".stripMargin)
           ) ++ evt.notes.map(js => MarkdownSection(s"""```${abbreviate(js)}```"""))

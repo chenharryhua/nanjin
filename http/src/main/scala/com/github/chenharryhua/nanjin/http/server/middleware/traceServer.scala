@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.http.client.middleware
+package com.github.chenharryhua.nanjin.http.server.middleware
 
 import cats.data.{Kleisli, OptionT}
 import cats.effect.implicits.monadCancelOps
@@ -9,7 +9,7 @@ import org.apache.commons.lang3.exception.ExceptionUtils
 import org.http4s.{HttpRoutes, Response}
 import org.typelevel.ci.*
 
-object HttpTrace {
+object traceServer {
   // copy from https://github.com/tpolecat/natchez-http4s
   private val ExcludedHeaders: Set[CIString] = {
     import org.http4s.headers.*
@@ -34,7 +34,7 @@ object HttpTrace {
     * https://docs.aws.amazon.com/xray/latest/devguide/xray-api-segmentdocuments.html
     */
 
-  def server[F[_]](routes: Span[F] => HttpRoutes[F], entryPoint: Resource[F, EntryPoint[F]])(implicit
+  def apply[F[_]](routes: Span[F] => HttpRoutes[F], entryPoint: Resource[F, EntryPoint[F]])(implicit
     F: MonadCancel[F, Throwable]): HttpRoutes[F] =
     Kleisli { req =>
       val kernelHeaders = req.headers.headers.collect {

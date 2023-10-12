@@ -56,4 +56,18 @@ class CrontabsTest extends AnyFunSuite {
 
     assert(crontabs.businessHour.next(now).nonEmpty)
   }
+  test("yearly") {
+    assert(crontabs.yearly.january.next(LocalDateTime.now).get.toString.drop(5) == "01-01T00:00")
+    assert(crontabs.yearly.february.next(LocalDateTime.now).get.toString.drop(5) == "02-01T00:00")
+    assert(crontabs.yearly.march.next(LocalDateTime.now).get.toString.drop(5) == "03-01T00:00")
+    assert(crontabs.yearly.april.next(LocalDateTime.now).get.toString.drop(5) == "04-01T00:00")
+    assert(crontabs.yearly.may.next(LocalDateTime.now).get.toString.drop(5) == "05-01T00:00")
+    assert(crontabs.yearly.june.next(LocalDateTime.now).get.toString.drop(5) == "06-01T00:00")
+    assert(crontabs.yearly.july.next(LocalDateTime.now).get.toString.drop(5) == "07-01T00:00")
+    assert(crontabs.yearly.august.next(LocalDateTime.now).get.toString.drop(5) == "08-01T00:00")
+    assert(crontabs.yearly.september.next(LocalDateTime.now).get.toString.drop(5) == "09-01T00:00")
+    assert(crontabs.yearly.october.next(LocalDateTime.now).get.toString.drop(5) == "10-01T00:00")
+    assert(crontabs.yearly.november.next(LocalDateTime.now).get.toString.drop(5) == "11-01T00:00")
+    assert(crontabs.yearly.december.next(LocalDateTime.now).get.toString.drop(5) == "12-01T00:00")
+  }
 }

@@ -78,11 +78,11 @@ object eventFilters {
     */
   def sampling(cronExpr: CronExpr)(evt: NJEvent): Boolean =
     evt match {
-      case MetricReport(mrt, sp, _, _) =>
+      case MetricReport(mrt, _, _, _) =>
         mrt match {
           case MetricIndex.Adhoc => true
           case MetricIndex.Periodic(tick) =>
-            cronExpr.next(sp.toZonedDateTime(tick.previous)).exists(zdt => tick.inBetween(zdt.toInstant))
+            cronExpr.next(tick.previous.atZone(tick.zoneId)).exists(zdt => tick.inBetween(zdt.toInstant))
         }
       case _ => true
     }

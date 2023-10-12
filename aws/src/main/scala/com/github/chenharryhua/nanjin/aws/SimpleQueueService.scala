@@ -8,7 +8,7 @@ import com.github.chenharryhua.nanjin.common.chrono.{policies, Policy, TickStatu
 import fs2.{Chunk, Pull, Stream}
 import io.circe.Json
 import io.circe.generic.JsonCodec
-import io.circe.parser.*
+import io.circe.jawn.*
 import io.circe.syntax.EncoderOps
 import monocle.macros.Lenses
 import org.typelevel.log4cats.slf4j.Slf4jLogger

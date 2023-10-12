@@ -1,8 +1,8 @@
 package com.github.chenharryhua.nanjin.guard.config
 
+import cats.Functor
 import cats.effect.kernel.Clock
 import cats.implicits.{toFunctorOps, toShow}
-import cats.{Functor, Show}
 import com.github.chenharryhua.nanjin.common.chrono.{crontabs, policies, Policy, Tick}
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
@@ -65,8 +65,6 @@ final case class ServiceParams(
 }
 
 object ServiceParams extends zoneddatetime with duration {
-
-  implicit val showServiceParams: Show[ServiceParams] = cats.derived.semiauto.show[ServiceParams]
 
   def apply(
     serviceName: ServiceName,

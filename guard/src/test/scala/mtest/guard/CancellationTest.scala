@@ -2,12 +2,14 @@ package mtest.guard
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
+import cats.implicits.catsSyntaxEq
 import com.github.chenharryhua.nanjin.common.chrono.{policies, Policy}
 import com.github.chenharryhua.nanjin.guard.*
 import com.github.chenharryhua.nanjin.guard.event.*
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
+import com.github.chenharryhua.nanjin.guard.observers.console
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
-import io.circe.parser.decode
+import io.circe.jawn.decode
 import io.circe.syntax.*
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -20,11 +22,11 @@ class CancellationTest extends AnyFunSuite {
       .service("retry-test")
       .updateConfig(_.withRestartPolicy(policies.fixedDelay(1.seconds)))
 
-  val policy: Policy = policies.crontab(cron_1second).limited(3)
+  val policy: Policy = policies.crontab(_.secondly).limited(3)
 
   test("1.cancellation - canceled actions are failed actions") {
     val Vector(a, b, c, d) = serviceGuard
-      .updateConfig(_.withRestartPolicy(constant_1hour))
+      .updateConfig(_.withRestartPolicy(policies.fixedDelay(1.hour)))
       .eventStream(ag => ag.action("canceled", _.bipartite.policy(policy)).retry(IO(1) <* IO.canceled).run)
       .map(_.asJson.noSpaces)
       .evalMap(e => IO(decode[NJEvent](e)).rethrow)
@@ -36,12 +38,13 @@ class CancellationTest extends AnyFunSuite {
     assert(c.isInstanceOf[ActionFail])
     assert(d.isInstanceOf[ServiceStop])
     assert(d.asInstanceOf[ServiceStop].cause.isInstanceOf[ServiceStopCause.ByCancellation.type])
+    assert(b.asInstanceOf[ActionEvent].actionId == c.asInstanceOf[ActionEvent].actionId)
 
   }
 
   test("2.cancellation - can be canceled externally") {
     val Vector(s, b, c) = serviceGuard
-      .updateConfig(_.withRestartPolicy(constant_1hour))
+      .updateConfig(_.withRestartPolicy(policies.fixedDelay(1.hour)))
       .eventStream { ag =>
         val a1 = ag.action("never", _.silent).retry(never_fun).run
         IO.parSequenceN(2)(List(IO.sleep(2.second) >> IO.canceled, a1))
@@ -97,7 +100,7 @@ class CancellationTest extends AnyFunSuite {
 
   test("5.cancellation - sequentially - cancel after two complete") {
     val Vector(s, a, b, c, d, e) = serviceGuard
-      .updateConfig(_.withRestartPolicy(constant_1hour))
+      .updateConfig(_.withRestartPolicy(policies.fixedDelay(1.hour)))
       .eventStream { ag =>
         ag.action("a1", _.bipartite).retry(IO(1)).run >>
           ag.action("a2", _.bipartite).retry(IO(1)).run >>
@@ -117,6 +120,9 @@ class CancellationTest extends AnyFunSuite {
     assert(d.asInstanceOf[ActionDone].actionParams.metricName.digest == "ac2e7fb6")
     assert(e.isInstanceOf[ServiceStop])
 
+    assert(a.asInstanceOf[ActionEvent].actionId == b.asInstanceOf[ActionEvent].actionId)
+    assert(c.asInstanceOf[ActionEvent].actionId == d.asInstanceOf[ActionEvent].actionId)
+    assert(a.asInstanceOf[ActionEvent].actionId =!= c.asInstanceOf[ActionEvent].actionId)
   }
 
   test("6.cancellation - sequentially - no chance to cancel") {
@@ -138,7 +144,6 @@ class CancellationTest extends AnyFunSuite {
     assert(s.isInstanceOf[ServiceStart])
     assert(a.isInstanceOf[ActionStart])
     assert(b.asInstanceOf[ActionDone].actionParams.metricName.digest == "ac2e7fb6")
-    assert(!b.asInstanceOf[ActionDone].took.isNegative)
     assert(c.isInstanceOf[ActionStart])
     assert(d.asInstanceOf[ActionRetry].actionParams.metricName.digest == "ac2e7fb6")
     assert(e.asInstanceOf[ActionFail].actionParams.metricName.digest == "ac2e7fb6")
@@ -194,7 +199,7 @@ class CancellationTest extends AnyFunSuite {
   test("8.cancellation - cancel in middle of retrying") {
     val policy = policies.fixedDelay(2.seconds)
     val Vector(s, a, b, c, d, e) = serviceGuard
-      .updateConfig(_.withRestartPolicy(constant_1hour))
+      .updateConfig(_.withRestartPolicy(policies.fixedDelay(1.hour)))
       .eventStream { ag =>
         val a1 =
           ag.action("exception", _.bipartite.policy(policy)).retry(IO.raiseError[Int](new Exception)).run
@@ -202,6 +207,7 @@ class CancellationTest extends AnyFunSuite {
       }
       .map(_.asJson.noSpaces)
       .evalMap(e => IO(decode[NJEvent](e)).rethrow)
+      .evalTap(console.simple[IO])
       .compile
       .toVector
       .unsafeRunSync()
@@ -210,13 +216,16 @@ class CancellationTest extends AnyFunSuite {
     assert(b.isInstanceOf[ActionRetry])
     assert(c.isInstanceOf[ActionRetry])
     assert(d.isInstanceOf[ActionFail])
-    assert(!d.asInstanceOf[ActionFail].took.isNegative)
     assert(e.isInstanceOf[ServiceStop])
+
+    assert(a.asInstanceOf[ActionEvent].actionId == b.asInstanceOf[ActionEvent].actionId)
+    assert(a.asInstanceOf[ActionEvent].actionId == c.asInstanceOf[ActionEvent].actionId)
+    assert(a.asInstanceOf[ActionEvent].actionId == d.asInstanceOf[ActionEvent].actionId)
   }
 
   test("9.cancellation - wrapped within uncancelable") {
     val Vector(s, b, c, d, e, f) = serviceGuard
-      .updateConfig(_.withRestartPolicy(constant_1hour))
+      .updateConfig(_.withRestartPolicy(policies.fixedDelay(1.hour)))
       .eventStream { ag =>
         val a1 = ag.action("exception", _.policy(policy)).retry(IO.raiseError[Int](new Exception)).run
         IO.parSequenceN(2)(List(IO.sleep(2.second) >> IO.canceled, IO.uncancelable(_ => a1)))
@@ -233,11 +242,14 @@ class CancellationTest extends AnyFunSuite {
     assert(d.isInstanceOf[ActionRetry])
     assert(e.isInstanceOf[ActionFail])
     assert(f.isInstanceOf[ServiceStop])
+    assert(b.asInstanceOf[ActionEvent].actionId == c.asInstanceOf[ActionEvent].actionId)
+    assert(b.asInstanceOf[ActionEvent].actionId == d.asInstanceOf[ActionEvent].actionId)
+    assert(b.asInstanceOf[ActionEvent].actionId == e.asInstanceOf[ActionEvent].actionId)
   }
   test("10.cancellation - never can be canceled") {
     var i = 0
     serviceGuard
-      .updateConfig(_.withRestartPolicy(constant_1hour))
+      .updateConfig(_.withRestartPolicy(policies.fixedDelay(1.hour)))
       .eventStream(_.action("never").retry(IO.never.onCancel(IO { i = 1 })).run)
       .map(_.asJson.noSpaces)
       .evalMap(e => IO(decode[NJEvent](e)).rethrow)

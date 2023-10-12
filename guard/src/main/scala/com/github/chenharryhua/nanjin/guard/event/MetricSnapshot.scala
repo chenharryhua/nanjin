@@ -1,13 +1,12 @@
 package com.github.chenharryhua.nanjin.guard.event
 
-import cats.Show
 import cats.kernel.Monoid
 import cats.syntax.all.*
 import com.codahale.metrics.*
 import com.github.chenharryhua.nanjin.guard.config.{Category, MetricID}
 import io.circe.Json
 import io.circe.generic.JsonCodec
-import io.circe.parser.{decode, parse}
+import io.circe.jawn.{decode, parse}
 import org.typelevel.cats.time.instances.duration
 import squants.time.{Frequency, Hertz}
 
@@ -31,7 +30,7 @@ object Snapshot {
     m5_rate: Frequency,
     m15_rate: Frequency
   )
-  
+
   @JsonCodec
   final case class Meter(metricId: MetricID, meter: MeterData) extends Snapshot
 
@@ -85,8 +84,6 @@ final case class MetricSnapshot(
   histograms: List[Snapshot.Histogram])
 
 object MetricSnapshot extends duration {
-
-  implicit val showMetricSnapshot: Show[MetricSnapshot] = cats.derived.semiauto.show[MetricSnapshot]
 
   implicit val monoidMetricFilter: Monoid[MetricFilter] = new Monoid[MetricFilter] {
     override val empty: MetricFilter = MetricFilter.ALL

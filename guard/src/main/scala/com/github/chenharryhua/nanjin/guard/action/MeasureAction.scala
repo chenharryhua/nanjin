@@ -1,14 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.action
 
 import com.codahale.metrics.MetricRegistry
-import com.github.chenharryhua.nanjin.guard.config.{
-  ActionParams,
-  Category,
-  CounterKind,
-  MetricID,
-  MetricName,
-  TimerKind
-}
+import com.github.chenharryhua.nanjin.guard.config.*
 
 import java.time.Duration
 
@@ -20,8 +13,8 @@ import java.time.Duration
   */
 
 sealed private trait MeasureAction {
-  def done(fd: => Duration): Unit
-  def fail(fd: => Duration): Unit
+  def done(fd: Option[Duration]): Unit
+  def fail(fd: Option[Duration]): Unit
   def countRetry(): Unit
   def unregister(): Unit
 }
@@ -47,13 +40,13 @@ private object MeasureAction {
           private lazy val doneT  = metricRegistry.timer(doneTimerID)
           private lazy val failT  = metricRegistry.timer(failTimerID)
 
-          override def done(fd: => Duration): Unit = {
+          override def done(fd: Option[Duration]): Unit = {
             doneC.inc(1)
-            doneT.update(fd)
+            fd.foreach(doneT.update)
           }
-          override def fail(fd: => Duration): Unit = {
+          override def fail(fd: Option[Duration]): Unit = {
             failC.inc(1)
-            failT.update(fd)
+            fd.foreach(failT.update)
           }
           override def countRetry(): Unit = retryC.inc(1)
 
@@ -72,9 +65,9 @@ private object MeasureAction {
           private lazy val doneC  = metricRegistry.counter(doneID)
           private lazy val retryC = metricRegistry.counter(retryID)
 
-          override def done(fd: => Duration): Unit = doneC.inc(1)
-          override def fail(fd: => Duration): Unit = failC.inc(1)
-          override def countRetry(): Unit          = retryC.inc(1)
+          override def done(fd: Option[Duration]): Unit = doneC.inc(1)
+          override def fail(fd: Option[Duration]): Unit = failC.inc(1)
+          override def countRetry(): Unit               = retryC.inc(1)
 
           override def unregister(): Unit = {
             metricRegistry.remove(failID)
@@ -88,9 +81,9 @@ private object MeasureAction {
           private lazy val doneT = metricRegistry.timer(doneTimerID)
           private lazy val failT = metricRegistry.timer(failTimerID)
 
-          override def done(fd: => Duration): Unit = doneT.update(fd)
-          override def fail(fd: => Duration): Unit = failT.update(fd)
-          override def countRetry(): Unit          = ()
+          override def done(fd: Option[Duration]): Unit = fd.foreach(doneT.update)
+          override def fail(fd: Option[Duration]): Unit = fd.foreach(failT.update)
+          override def countRetry(): Unit               = ()
 
           override def unregister(): Unit = {
             metricRegistry.remove(doneTimerID)
@@ -101,10 +94,10 @@ private object MeasureAction {
 
       case (false, false) =>
         new MeasureAction {
-          override def done(fd: => Duration): Unit = ()
-          override def fail(fd: => Duration): Unit = ()
-          override def countRetry(): Unit          = ()
-          override def unregister(): Unit          = ()
+          override def done(fd: Option[Duration]): Unit = ()
+          override def fail(fd: Option[Duration]): Unit = ()
+          override def countRetry(): Unit               = ()
+          override def unregister(): Unit               = ()
         }
     }
   }

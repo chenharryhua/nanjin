@@ -7,7 +7,7 @@ import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.*
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
 import com.github.chenharryhua.nanjin.guard.observers.{console, logging}
-import io.circe.parser.decode
+import io.circe.jawn.decode
 import io.circe.syntax.*
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -18,7 +18,7 @@ class HealthCheckTest extends AnyFunSuite {
   test("1.should receive 3 MetricsReport event") {
     val s :: a :: b :: c :: _ = guard
       .service("normal")
-      .updateConfig(_.withMetricReport(policies.crontab(cron_2second)))
+      .updateConfig(_.withMetricReport(policies.crontab(_.bisecondly)))
       .eventStream(gd => gd.action("cron", _.bipartite).retry(never_fun).run)
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
       .unNone
@@ -38,7 +38,7 @@ class HealthCheckTest extends AnyFunSuite {
   test("2.complete-test") {
     val s :: a :: b :: c :: d :: _ = guard
       .service("success-test")
-      .updateConfig(_.withMetricReport(policies.crontab(cron_1second)))
+      .updateConfig(_.withMetricReport(policies.crontab(_.secondly)))
       .eventStream(gd =>
         gd.action("a", _.bipartite).retry(IO(1)).run >>
           gd.action("b", _.bipartite).retry(never_fun).run)
@@ -60,9 +60,12 @@ class HealthCheckTest extends AnyFunSuite {
   test("3.never complete") {
     val s :: a :: b :: c :: _ = guard
       .service("metrics-report")
-      .updateConfig(_.withRestartPolicy(constant_1hour).withMetricReport(policies.crontab(cron_1second)))
+      .updateConfig(
+        _.withRestartPolicy(policies.fixedDelay(1.hour)).withMetricReport(policies.crontab(_.secondly)))
       .eventStream(gd =>
-        gd.action("not/fail/yet", _.bipartite.policy(constant_1hour)).retry(IO.raiseError(new Exception)).run)
+        gd.action("not/fail/yet", _.bipartite.policy(policies.fixedDelay(1.hour)))
+          .retry(IO.raiseError(new Exception))
+          .run)
       .interruptAfter(5.second)
       .evalTap(logging.simple[IO])
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
@@ -80,7 +83,7 @@ class HealthCheckTest extends AnyFunSuite {
     val list = guard
       .service("metrics-reset-test")
       .updateConfig(
-        _.withMetricReport(policies.crontab(cron_2second)).withMetricReset(policies.crontab(cron_3second)))
+        _.withMetricReport(policies.crontab(_.bisecondly)).withMetricReset(policies.crontab(_.trisecondly)))
       .eventStream(_.action("ok", _.silent).retry(never_fun).run)
       .map(e => decode[NJEvent](e.asJson.noSpaces).toOption)
       .unNone

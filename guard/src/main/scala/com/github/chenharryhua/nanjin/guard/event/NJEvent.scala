@@ -3,14 +3,11 @@ package com.github.chenharryhua.nanjin.guard.event
 import cats.Show
 import com.github.chenharryhua.nanjin.common.chrono.Tick
 import com.github.chenharryhua.nanjin.guard.config.{ActionParams, AlertLevel, MetricName, ServiceParams}
-import io.circe.{Decoder, Encoder, Json}
+import io.circe.Json
 import io.circe.generic.JsonCodec
 import org.typelevel.cats.time.instances.all
 
-import java.time.{Duration, ZonedDateTime}
-import java.util.concurrent.TimeUnit
-import scala.concurrent.duration.FiniteDuration
-import scala.jdk.DurationConverters.{JavaDurationOps, ScalaDurationOps}
+import java.time.{Duration, Instant, ZonedDateTime}
 
 @JsonCodec
 sealed trait NJEvent extends Product with Serializable {
@@ -22,11 +19,6 @@ sealed trait NJEvent extends Product with Serializable {
 
 object NJEvent extends all {
   implicit final val showNJEvent: Show[NJEvent] = cats.derived.semiauto.show[NJEvent]
-
-  implicit final private val finiteDurationCirceEncoder: Encoder[FiniteDuration] =
-    Encoder.encodeDuration.contramap[FiniteDuration](_.toJava)
-  implicit final private val finiteDurationCirceDecoder: Decoder[FiniteDuration] =
-    Decoder.decodeDuration.map[FiniteDuration](_.toScala)
 
   final case class ServiceStart(serviceParams: ServiceParams, tick: Tick) extends NJEvent {
     val timestamp: ZonedDateTime = tick.wakeup.atZone(tick.zoneId)
@@ -73,8 +65,7 @@ object NJEvent extends all {
   sealed trait ActionEvent extends NJEvent {
     def actionParams: ActionParams
     def actionId: Int
-    def launchTime: FiniteDuration
-    def landTime: FiniteDuration
+    def landTime: Instant
 
     final override def timestamp: ZonedDateTime     = serviceParams.toZonedDateTime(landTime)
     final override def serviceParams: ServiceParams = actionParams.serviceParams
@@ -83,32 +74,33 @@ object NJEvent extends all {
   final case class ActionStart(
     actionParams: ActionParams,
     actionId: Int,
-    launchTime: FiniteDuration,
+    launchTime: Instant,
     notes: Option[Json])
       extends ActionEvent {
-    override val landTime: FiniteDuration = launchTime
+    override val landTime: Instant = launchTime
   }
 
   final case class ActionRetry(
     actionParams: ActionParams,
     actionId: Int,
-    launchTime: FiniteDuration,
+    launchTime: Option[Instant],
     error: NJError,
     tick: Tick)
       extends ActionEvent {
-    override val landTime: FiniteDuration = FiniteDuration(tick.acquire.toEpochMilli, TimeUnit.MILLISECONDS)
+    override val landTime: Instant = tick.acquire
   }
 
   sealed trait ActionResultEvent extends ActionEvent {
     def notes: Option[Json]
-    final def took: Duration = (landTime - launchTime).toJava
+    def launchTime: Option[Instant]
+    final def took: Option[Duration] = launchTime.map(Duration.between(_, landTime))
   }
 
   final case class ActionFail(
     actionParams: ActionParams,
     actionId: Int,
-    launchTime: FiniteDuration,
-    landTime: FiniteDuration,
+    launchTime: Option[Instant],
+    landTime: Instant,
     error: NJError,
     notes: Option[Json])
       extends ActionResultEvent
@@ -116,8 +108,8 @@ object NJEvent extends all {
   final case class ActionDone(
     actionParams: ActionParams,
     actionId: Int,
-    launchTime: FiniteDuration,
-    landTime: FiniteDuration,
+    launchTime: Option[Instant],
+    landTime: Instant,
     notes: Option[Json])
       extends ActionResultEvent
 }

@@ -8,7 +8,7 @@ import eu.timepit.refined.auto.*
 import fs2.Stream
 import fs2.text.{lines, utf8}
 import io.circe.generic.auto.*
-import io.circe.parser.decode
+import io.circe.jawn.decode
 import io.circe.syntax.EncoderOps
 import mtest.terminals.HadoopTestData.hdp
 import mtest.terminals.TestData.Tiger

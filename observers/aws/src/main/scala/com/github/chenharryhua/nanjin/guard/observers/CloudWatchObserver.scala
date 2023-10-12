@@ -6,28 +6,54 @@ import com.github.chenharryhua.nanjin.aws.CloudWatch
 import com.github.chenharryhua.nanjin.common.aws.CloudWatchNamespace
 import com.github.chenharryhua.nanjin.guard.config.{MetricID, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.MetricReport
-import com.github.chenharryhua.nanjin.guard.event.{MeasurementUnit, NJDataRateUnit, NJDimensionlessUnit, NJEvent, NJInformationUnit, NJTimeUnit}
+import com.github.chenharryhua.nanjin.guard.event.{
+  MeasurementUnit,
+  NJDataRateUnit,
+  NJDimensionlessUnit,
+  NJEvent,
+  NJInformationUnit,
+  NJTimeUnit,
+  Normalized,
+  UnitNormalization
+}
 import com.github.chenharryhua.nanjin.guard.translators.metricConstants
 import com.github.chenharryhua.nanjin.guard.translators.textConstants.*
 import fs2.{Pipe, Pull, Stream}
+import monocle.syntax.all.*
 import org.typelevel.cats.time.instances.localdate.*
-import software.amazon.awssdk.services.cloudwatch.model.{Dimension, MetricDatum, PutMetricDataResponse, StandardUnit}
+import software.amazon.awssdk.services.cloudwatch.model.{
+  Dimension,
+  MetricDatum,
+  PutMetricDataResponse,
+  StandardUnit
+}
 
 import java.time.Instant
 import scala.jdk.CollectionConverters.*
 
 object CloudWatchObserver {
   def apply[F[_]: Sync](client: Resource[F, CloudWatch[F]]): CloudWatchObserver[F] =
-    new CloudWatchObserver[F](client, 60, NJTimeUnit.MILLISECONDS, List.empty)
+    new CloudWatchObserver[F](
+      client = client,
+      storageResolution = 60,
+      UnitNormalization(timeUnit = CloudWatchTimeUnit.MILLISECONDS, infoUnit = None, rateUnit = None),
+      fields = List.empty
+    )
+}
+
+object CloudWatchTimeUnit {
+  val MICROSECONDS: NJTimeUnit.MICROSECONDS.type = NJTimeUnit.MICROSECONDS
+  val MILLISECONDS: NJTimeUnit.MILLISECONDS.type = NJTimeUnit.MILLISECONDS
+  val SECONDS: NJTimeUnit.SECONDS.type           = NJTimeUnit.SECONDS
 }
 
 final class CloudWatchObserver[F[_]: Sync](
   client: Resource[F, CloudWatch[F]],
   storageResolution: Int,
-  durationUnit: NJTimeUnit,
+  unitNormalization: UnitNormalization,
   fields: List[HistogramField]) {
   private def add(hf: HistogramField): CloudWatchObserver[F] =
-    new CloudWatchObserver[F](client, storageResolution, durationUnit, hf :: fields)
+    new CloudWatchObserver[F](client, storageResolution, unitNormalization, hf :: fields)
 
   def withMin: CloudWatchObserver[F]    = add(HistogramField.Min)
   def withMax: CloudWatchObserver[F]    = add(HistogramField.Max)
@@ -51,11 +77,29 @@ final class CloudWatchObserver[F[_]: Sync](
     require(
       storageResolution > 0 && storageResolution <= 60,
       s"storageResolution($storageResolution) should be between 1 and 60 inclusively")
-    new CloudWatchObserver(client, storageResolution, durationUnit, fields)
+    new CloudWatchObserver(client, storageResolution, unitNormalization, fields)
   }
 
-  def withDurationUnit(durationUnit: NJTimeUnit): CloudWatchObserver[F] =
-    new CloudWatchObserver[F](client, storageResolution, durationUnit, fields)
+  def withTimeUnit(f: CloudWatchTimeUnit.type => NJTimeUnit): CloudWatchObserver[F] =
+    new CloudWatchObserver[F](
+      client,
+      storageResolution,
+      unitNormalization.focus(_.timeUnit).replace(f(CloudWatchTimeUnit)),
+      fields)
+
+  def withInfoUnit(f: NJInformationUnit.type => NJInformationUnit): CloudWatchObserver[F] =
+    new CloudWatchObserver[F](
+      client,
+      storageResolution,
+      unitNormalization.focus(_.infoUnit).replace(Some(f(NJInformationUnit))),
+      fields)
+
+  def withRateUnit(f: NJDataRateUnit.type => NJDataRateUnit): CloudWatchObserver[F] =
+    new CloudWatchObserver[F](
+      client,
+      storageResolution,
+      unitNormalization.focus(_.rateUnit).replace(Some(f(NJDataRateUnit))),
+      fields)
 
   private def toStandardUnit(mu: MeasurementUnit): StandardUnit =
     mu match {
@@ -72,7 +116,6 @@ final class CloudWatchObserver[F[_]: Sync](
       case NJInformationUnit.MEGABITS      => StandardUnit.MEGABITS
       case NJInformationUnit.GIGABITS      => StandardUnit.GIGABITS
       case NJInformationUnit.TERABITS      => StandardUnit.TERABITS
-      case NJDimensionlessUnit.PERCENT     => StandardUnit.PERCENT
       case NJDimensionlessUnit.COUNT       => StandardUnit.COUNT
       case NJDataRateUnit.BYTES_SECOND     => StandardUnit.BYTES_SECOND
       case NJDataRateUnit.KILOBYTES_SECOND => StandardUnit.KILOBYTES_SECOND
@@ -89,6 +132,7 @@ final class CloudWatchObserver[F[_]: Sync](
     }
 
   private lazy val interestedHistogramFields: List[HistogramField] = fields.distinct
+
   private def computeDatum(
     report: MetricReport,
     last: Map[MetricKey, Long]): (List[MetricDatum], Map[MetricKey, Long]) = {
@@ -102,50 +146,52 @@ final class CloudWatchObserver[F[_]: Sync](
         serviceParams = report.serviceParams,
         id = timer.metricId,
         category = s"${timer.metricId.category.name}_$category",
-        standardUnit = toStandardUnit(durationUnit),
+        standardUnit = toStandardUnit(unitNormalization.timeUnit),
         storageResolution = storageResolution
-      ).metricDatum(report.timestamp.toInstant, durationUnit.from(dur).value)
+      ).metricDatum(report.timestamp.toInstant, unitNormalization.normalize(dur).value)
     }
 
     val histograms: List[MetricDatum] = for {
       hf <- interestedHistogramFields
       histo <- report.snapshot.histograms
     } yield {
-      val (value, category) = hf.pick(histo)
+      val (value, category)      = hf.pick(histo)
+      val Normalized(data, unit) = unitNormalization.normalize(histo.histogram.unit, value)
       MetricKey(
         serviceParams = report.serviceParams,
         id = histo.metricId,
         category = s"${histo.metricId.category.name}_$category",
-        standardUnit = toStandardUnit(histo.histogram.unit),
+        standardUnit = toStandardUnit(unit),
         storageResolution = storageResolution
-      ).metricDatum(report.timestamp.toInstant, value)
+      ).metricDatum(report.timestamp.toInstant, data)
     }
 
     val timer_count: Map[MetricKey, Long] = report.snapshot.timers.map { timer =>
       MetricKey(
         serviceParams = report.serviceParams,
         id = timer.metricId,
-        category = s"${timer.metricId.category.name}_count",
+        category = s"${timer.metricId.category.name}_${metricConstants.COUNT_NAME_TIMER}",
         standardUnit = StandardUnit.COUNT,
         storageResolution = storageResolution
       ) -> timer.timer.count
     }.toMap
 
     val meter_count: Map[MetricKey, Long] = report.snapshot.meters.map { meter =>
+      val Normalized(data, unit) = unitNormalization.normalize(meter.meter.unit, meter.meter.count)
       MetricKey(
         serviceParams = report.serviceParams,
         id = meter.metricId,
-        category = s"${meter.metricId.category.name}_count",
-        standardUnit = toStandardUnit(meter.meter.unit),
+        category = s"${meter.metricId.category.name}_${metricConstants.COUNT_NAME_METER}",
+        standardUnit = toStandardUnit(unit),
         storageResolution = storageResolution
-      ) -> meter.meter.count
+      ) -> data.toLong
     }.toMap
 
     val histogram_count: Map[MetricKey, Long] = report.snapshot.histograms.map { histo =>
       MetricKey(
         serviceParams = report.serviceParams,
         id = histo.metricId,
-        category = s"${histo.metricId.category.name}_count",
+        category = s"${histo.metricId.category.name}_${metricConstants.COUNT_NAME_HISTOGRAM}",
         standardUnit = StandardUnit.COUNT,
         storageResolution = storageResolution
       ) -> histo.histogram.count

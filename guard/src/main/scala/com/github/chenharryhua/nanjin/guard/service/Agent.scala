@@ -28,12 +28,13 @@ sealed trait Agent[F[_]] {
   def action(actionName: String): NJActionBuilder[F]
   def alert(alertName: String): NJAlert[F]
   def counter(counterName: String): NJCounter[F]
-  def meter(meterName: String, unitOfMeasure: MeasurementUnit): NJMeter[F]
-  def meterR(meterName: String, unitOfMeasure: MeasurementUnit): Resource[F, NJMeter[F]]
-  def histogram(histoName: String, unitOfMeasure: MeasurementUnit): NJHistogram[F]
-  def histogramR(histoName: String, unitOfMeasure: MeasurementUnit): Resource[F, NJHistogram[F]]
+
+  def histogram(histoName: String, f: MeasurementUnit.type => MeasurementUnit): NJHistogram[F]
+  def histogramR(histoName: String, f: MeasurementUnit.type => MeasurementUnit): Resource[F, NJHistogram[F]]
   def gauge(gaugeName: String): NJGauge[F]
 
+  def meter(meterName: String, f: MeasurementUnit.type => MeasurementUnit): NJMeter[F]
+  def meterR(meterName: String, f: MeasurementUnit.type => MeasurementUnit): Resource[F, NJMeter[F]]
   // udp
   def udpClient(udpName: String): NJUdpClient[F]
 
@@ -103,29 +104,35 @@ final class GeneralAgent[F[_]: Network] private[service] (
       isRisk = false)
   }
 
-  override def meter(meterName: String, unitOfMeasure: MeasurementUnit): NJMeter[F] = {
+  override def meter(meterName: String, f: MeasurementUnit.type => MeasurementUnit): NJMeter[F] = {
     val name = NameConstraint.unsafeFrom(meterName).value
     new NJMeter[F](
       name = MetricName(self.serviceParams, self.measurement, name),
       metricRegistry = self.metricRegistry,
-      unit = unitOfMeasure,
-      isCounting = false
+      isCounting = false,
+      f(MeasurementUnit)
     )
   }
-  override def meterR(meterName: String, unitOfMeasure: MeasurementUnit): Resource[F, NJMeter[F]] =
-    Resource.make(F.pure(meter(meterName, unitOfMeasure)))(_.unregister)
 
-  override def histogram(histoName: String, unitOfMeasure: MeasurementUnit): NJHistogram[F] = {
+  override def meterR(
+    meterName: String,
+    f: MeasurementUnit.type => MeasurementUnit): Resource[F, NJMeter[F]] =
+    Resource.make(F.pure(meter(meterName, f)))(_.unregister)
+
+  override def histogram(histoName: String, f: MeasurementUnit.type => MeasurementUnit): NJHistogram[F] = {
     val name = NameConstraint.unsafeFrom(histoName).value
     new NJHistogram[F](
       name = MetricName(self.serviceParams, self.measurement, name),
       metricRegistry = self.metricRegistry,
-      unit = unitOfMeasure,
-      isCounting = false
+      unit = f(MeasurementUnit),
+      isCounting = false,
+      reservoir = None
     )
   }
-  override def histogramR(histoName: String, unitOfMeasure: MeasurementUnit): Resource[F, NJHistogram[F]] =
-    Resource.make(F.pure(histogram(histoName, unitOfMeasure)))(_.unregister)
+  override def histogramR(
+    histoName: String,
+    f: MeasurementUnit.type => MeasurementUnit): Resource[F, NJHistogram[F]] =
+    Resource.make(F.pure(histogram(histoName, f)))(_.unregister)
 
   override def gauge(gaugeName: String): NJGauge[F] = {
     val name = NameConstraint.unsafeFrom(gaugeName).value

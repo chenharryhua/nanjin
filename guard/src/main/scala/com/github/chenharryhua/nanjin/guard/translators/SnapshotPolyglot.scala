@@ -3,10 +3,18 @@ package com.github.chenharryhua.nanjin.guard.translators
 import cats.data.NonEmptyList
 import com.github.chenharryhua.nanjin.common.optics.jsonPlated
 import com.github.chenharryhua.nanjin.guard.config.MetricID
-import com.github.chenharryhua.nanjin.guard.event.MetricSnapshot
+import com.github.chenharryhua.nanjin.guard.event.{
+  MeasurementUnit,
+  MetricSnapshot,
+  NJDataRateUnit,
+  NJDimensionlessUnit,
+  NJInformationUnit,
+  NJTimeUnit
+}
 import io.circe.syntax.EncoderOps
 import io.circe.{Json, Printer}
 import monocle.function.Plated
+import squants.time.TimeConversions
 
 import java.text.DecimalFormat
 
@@ -19,25 +27,31 @@ final class SnapshotPolyglot(snapshot: MetricSnapshot) {
     }
   }
 
+  private def normalize[A: Numeric](mu: MeasurementUnit, data: A): String = mu match {
+    case unit: NJTimeUnit          => fmt.format(TimeConversions.timeToScalaDuration(unit.mUnit(data)))
+    case unit: NJInformationUnit   => s"${decFmt.format(unit.mUnit(data).value.toLong)} ${unit.symbol}"
+    case unit: NJDataRateUnit      => s"${decFmt.format(unit.mUnit(data).value.toLong)} ${unit.symbol}"
+    case unit: NJDimensionlessUnit => s"${decFmt.format(unit.mUnit(data).value.toLong)} ${unit.symbol}"
+  }
+
   private def counters: List[(MetricID, Json)] =
     snapshot.counters.map(c => c.metricId -> Json.fromLong(c.count))
   private def gauges: List[(MetricID, Json)] =
     snapshot.gauges.map(g => g.metricId -> g.value)
 
   private def meters: List[(MetricID, NonEmptyList[(String, Json)])] = snapshot.meters.map { m =>
-    val unit = s"${m.meter.unit.symbol}/second"
     m.metricId -> NonEmptyList.of(
-      "count" -> Json.fromLong(m.meter.count),
-      "mean_rate" -> Json.fromString(s"${decFmt.format(m.meter.mean_rate.toHertz)} $unit"),
-      "m1_rate  " -> Json.fromString(s"${decFmt.format(m.meter.m1_rate.toHertz)} $unit"),
-      "m5_rate  " -> Json.fromString(s"${decFmt.format(m.meter.m5_rate.toHertz)} $unit"),
-      "m15_rate " -> Json.fromString(s"${decFmt.format(m.meter.m15_rate.toHertz)} $unit")
+      metricConstants.COUNT_NAME_METER -> Json.fromString(normalize(m.meter.unit, m.meter.count)),
+      "mean_rate" -> Json.fromString(s"${normalize(m.meter.unit, m.meter.mean_rate.toHertz)}/s"),
+      "m1_rate  " -> Json.fromString(s"${normalize(m.meter.unit, m.meter.m1_rate.toHertz)}/s"),
+      "m5_rate  " -> Json.fromString(s"${normalize(m.meter.unit, m.meter.m5_rate.toHertz)}/s"),
+      "m15_rate " -> Json.fromString(s"${normalize(m.meter.unit, m.meter.m15_rate.toHertz)}/s")
     )
   }
   private def timers: List[(MetricID, NonEmptyList[(String, Json)])] = snapshot.timers.map { t =>
-    val unit = "calls/second"
+    val unit = s"${metricConstants.COUNT_NAME_TIMER}/${NJTimeUnit.SECONDS.symbol}"
     t.metricId -> NonEmptyList.of(
-      "count" -> Json.fromLong(t.timer.count),
+      metricConstants.COUNT_NAME_TIMER -> Json.fromLong(t.timer.count),
       "mean_rate" -> Json.fromString(s"${decFmt.format(t.timer.mean_rate.toHertz)} $unit"),
       "m1_rate  " -> Json.fromString(s"${decFmt.format(t.timer.m1_rate.toHertz)} $unit"),
       "m5_rate  " -> Json.fromString(s"${decFmt.format(t.timer.m5_rate.toHertz)} $unit"),
@@ -56,19 +70,20 @@ final class SnapshotPolyglot(snapshot: MetricSnapshot) {
   }
 
   private def histograms: List[(MetricID, NonEmptyList[(String, Json)])] = snapshot.histograms.map { h =>
-    val unit = h.histogram.unit.symbol
+    val unit  = h.histogram.unit
+    val histo = h.histogram
     h.metricId -> NonEmptyList.of(
-      "count" -> Json.fromLong(h.histogram.count),
-      "min   " -> Json.fromString(s"${decFmt.format(h.histogram.min)} $unit"),
-      "max   " -> Json.fromString(s"${decFmt.format(h.histogram.max)} $unit"),
-      "mean  " -> Json.fromString(s"${decFmt.format(h.histogram.mean)} $unit"),
-      "stddev" -> Json.fromString(s"${decFmt.format(h.histogram.stddev)} $unit"),
-      "p50   " -> Json.fromString(s"${decFmt.format(h.histogram.p50)} $unit"),
-      "p75   " -> Json.fromString(s"${decFmt.format(h.histogram.p75)} $unit"),
-      "p95   " -> Json.fromString(s"${decFmt.format(h.histogram.p95)} $unit"),
-      "p98   " -> Json.fromString(s"${decFmt.format(h.histogram.p98)} $unit"),
-      "p99   " -> Json.fromString(s"${decFmt.format(h.histogram.p99)} $unit"),
-      "p999  " -> Json.fromString(s"${decFmt.format(h.histogram.p999)} $unit")
+      metricConstants.COUNT_NAME_HISTOGRAM -> Json.fromLong(histo.count),
+      "min   " -> Json.fromString(normalize(unit, histo.min)),
+      "max   " -> Json.fromString(normalize(unit, histo.max)),
+      "mean  " -> Json.fromString(normalize(unit, histo.mean)),
+      "stddev" -> Json.fromString(normalize(unit, histo.stddev)),
+      "p50   " -> Json.fromString(normalize(unit, histo.p50)),
+      "p75   " -> Json.fromString(normalize(unit, histo.p75)),
+      "p95   " -> Json.fromString(normalize(unit, histo.p95)),
+      "p98   " -> Json.fromString(normalize(unit, histo.p98)),
+      "p99   " -> Json.fromString(normalize(unit, histo.p99)),
+      "p999  " -> Json.fromString(normalize(unit, histo.p999))
     )
   }
 

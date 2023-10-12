@@ -4,7 +4,7 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.chrono.policies
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.event.{MeasurementUnit, NJDimensionlessUnit, NJEvent}
+import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import com.github.chenharryhua.nanjin.guard.observers.*
 import io.circe.Json
 import io.circe.syntax.EncoderOps
@@ -19,12 +19,13 @@ class ObserversTest extends AnyFunSuite {
     TaskGuard[IO]("nanjin")
       .service("observing")
       .withBrief(Json.fromString("brief"))
-      .updateConfig(_.withRestartPolicy(policies.fixedDelay(1.seconds)))
+      .updateConfig(_.withRestartPolicy(policies.fixedDelay(1.seconds))
+        .withMetricReport(policies.crontab(_.secondly).limited(3)))
       .eventStream { ag =>
         val box = ag.atomicBox(1)
         val job = // fail twice, then success
           box.getAndUpdate(_ + 1).map(_ % 3 == 0).ifM(IO(1), IO.raiseError[Int](new Exception("oops")))
-        val meter = ag.meter("meter", NJDimensionlessUnit.COUNT).counted
+        val meter = ag.meter("meter", _.COUNT).counted
         val action = ag
           .action(
             "nj_error",
@@ -37,10 +38,13 @@ class ObserversTest extends AnyFunSuite {
               Json.obj("developer's advice" -> "no worries".asJson, "message" -> ex.getMessage.asJson)))
           .run
 
-        val counter   = ag.counter("nj counter").asRisk
-        val histogram = ag.histogram("nj histogram", MeasurementUnit.DAYS).counted
-        val alert     = ag.alert("nj alert")
-        val gauge     = ag.gauge("nj gauge")
+        val counter = ag.counter("nj counter").asRisk
+        val histo1  = ag.histogram("histo1", _.MICROSECONDS).counted
+        val histo2  = ag.histogram("histo2", _.BYTES_SECOND).counted
+        val histo3  = ag.histogram("histo3", _.MEGABYTES).counted
+        val histo4  = ag.histogram("histo4", _.COUNT)
+        val alert   = ag.alert("nj alert")
+        val gauge   = ag.gauge("nj gauge")
 
         gauge
           .register(100)
@@ -49,36 +53,47 @@ class ObserversTest extends AnyFunSuite {
               action >>
                 meter.mark(1000) >>
                 counter.inc(10000) >>
-                histogram.update(10000000000000L) >>
+                histo1.update(10000000000000L) >>
+                histo2.update(2000) >>
+                histo3.update(300) >>
+                histo4.update(4) >>
                 alert.error("alarm") >>
-                ag.metrics.report))
+                ag.metrics.report)) >> ag.metrics.reset
       }
 
   test("1.logging verbose") {
-    service.evalTap(logging.verbose[IO]).compile.drain.unsafeRunSync()
+    service
+      .evalTap(logging.verbose[IO].updateTranslator(_.withMetricReport(_ => None)))
+      .compile
+      .drain
+      .unsafeRunSync()
   }
 
-  test("1.2.logging json") {
+  test("2.logging json") {
     service.evalTap(logging.json[IO].withLoggerName("json")).compile.drain.unsafeRunSync()
   }
 
-  test("1.3 logging simple") {
+  test("3 logging simple") {
     service.evalTap(logging.simple[IO]).compile.drain.unsafeRunSync()
   }
 
-  test("2.console - simple text") {
+  test("4.console - simple text") {
     service.evalTap(console.simple[IO]).compile.drain.unsafeRunSync()
   }
 
-  test("3.console - pretty json") {
+  test("5.console - verbose text") {
+    service.evalTap(console.verbose[IO]).compile.drain.unsafeRunSync()
+  }
+
+  test("6.console - pretty json") {
     service.evalTap(console.json[IO]).compile.drain.unsafeRunSync()
   }
 
-  test("3.1.console - simple json") {
+  test("7.console - simple json") {
     service.evalTap(console.simpleJson[IO]).compile.drain.unsafeRunSync()
   }
 
-  test("3.2.console - verbose json") {
+  test("8.console - verbose json") {
     service.evalTap(console.verboseJson[IO]).compile.drain.unsafeRunSync()
   }
 

@@ -54,7 +54,7 @@ class AwsArnTest extends AnyFunSuite {
 
   }
   test("sqs json") {
-    import io.circe.parser.decode
+    import io.circe.jawn.decode
     val fifo: SqsConfig  = SqsConfig.Fifo("https://abc.com/xyz.fifo")
     val stand: SqsConfig = SqsConfig.Standard("https://abc.com")
 

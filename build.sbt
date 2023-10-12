@@ -18,7 +18,7 @@ val circeV      = "0.14.6"
 val kantanV     = "0.7.0"
 val slf4jV      = "2.0.9"
 val metricsV    = "4.2.20"
-val skunkV      = "0.6.0"
+val skunkV      = "0.6.1"
 val natchezV    = "0.3.3"
 val http4sV     = "0.23.23"
 val cron4sV     = "0.6.1"
@@ -27,8 +27,8 @@ val protobufV   = "3.24.4"
 val sparkV      = "3.4.1"
 val framelessV  = "0.15.0"
 val refinedV    = "0.11.0"
-val nettyV      = "4.1.99.Final"
-val chimneyV    = "0.8.0-RC1"
+val nettyV      = "4.1.100.Final"
+val chimneyV    = "0.8.0"
 val enumeratumV = "1.7.3"
 val drosteV     = "0.9.0"
 val log4catsV   = "2.6.0"
@@ -60,7 +60,6 @@ lazy val commonSettings = List(
 val circeLib = List(
   "io.circe" %% "circe-core",
   "io.circe" %% "circe-generic",
-  "io.circe" %% "circe-parser",
   "io.circe" %% "circe-shapes",
   "io.circe" %% "circe-jawn",
   "io.circe" %% "circe-refined"
@@ -250,6 +249,7 @@ lazy val guard = (project in file("guard"))
     libraryDependencies ++= List(
       "commons-codec"                       % "commons-codec"  % "1.16.0",
       "io.dropwizard.metrics"               % "metrics-core"   % metricsV,
+      "io.dropwizard.metrics"               % "metrics-jmx"    % metricsV,
       "org.typelevel" %% "vault"            % "3.5.0",
       "com.lihaoyi" %% "scalatags"          % "0.12.0",
       "org.http4s" %% "http4s-core"         % http4sV,
@@ -271,15 +271,13 @@ lazy val guard_observer_aws = (project in file("observers/aws"))
     libraryDependencies ++= testLib
   )
 
-lazy val guard_observer_jmx = (project in file("observers/jmx"))
+lazy val guard_observer_kafka = (project in file("observers/kafka"))
   .dependsOn(guard)
+  .dependsOn(kafka)
   .settings(commonSettings*)
-  .settings(name := "nj-observer-jmx")
+  .settings(name := "nj-observer-kafka")
   .settings(
-    libraryDependencies ++=
-      List(
-        "io.dropwizard.metrics" % "metrics-jmx" % metricsV
-      ) ++ testLib
+    libraryDependencies ++= testLib
   )
 
 lazy val guard_observer_db = (project in file("observers/database"))
@@ -387,8 +385,8 @@ lazy val pipes = (project in file("pipes"))
     val libs = List(
       "com.amazonaws"         % "aws-java-sdk-bundle" % awsV_1,
       "org.tukaani"           % "xz"                  % "1.9",
-      "org.eclipse.jetty"     % "jetty-xml"           % "12.0.1", // snyk
-      "org.eclipse.jetty"     % "jetty-http"          % "12.0.1", // snyk
+      "org.eclipse.jetty"     % "jetty-xml"           % "12.0.2", // snyk
+      "org.eclipse.jetty"     % "jetty-http"          % "12.0.2", // snyk
       "org.jetbrains.kotlin"  % "kotlin-stdlib"       % "1.9.10", // snyk
       "org.codehaus.jettison" % "jettison"            % "1.5.4", // snyk
       "io.netty"              % "netty-handler"       % nettyV, // snyk
@@ -425,7 +423,7 @@ lazy val example = (project in file("example"))
   .dependsOn(guard_observer_aws)
   .dependsOn(guard_observer_db)
   .dependsOn(guard_observer_influxdb)
-  .dependsOn(guard_observer_jmx)
+  .dependsOn(guard_observer_kafka)
   .settings(commonSettings*)
   .settings(name := "nj-example")
   .settings(libraryDependencies ++= List(
@@ -449,5 +447,5 @@ lazy val nanjin =
       guard_observer_aws,
       guard_observer_db,
       guard_observer_influxdb,
-      guard_observer_jmx)
+      guard_observer_kafka)
 

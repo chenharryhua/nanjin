@@ -1,14 +1,14 @@
 package com.github.chenharryhua.nanjin.guard.observers
 
-import cats.{Endo, Eval, Monad}
 import cats.effect.std.Console
 import cats.implicits.toFunctorOps
 import cats.syntax.all.*
+import cats.{Endo, Eval, Monad}
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import com.github.chenharryhua.nanjin.guard.translators.{ColorScheme, Translator, UpdateTranslator}
-import fs2.Chunk
-import scala.Console as SConsole
+
 import java.time.format.DateTimeFormatter
+import scala.Console as SConsole
 
 object console {
   def apply[F[_]: Console: Monad](translator: Translator[F, String]): TextConsole[F] =
@@ -44,7 +44,5 @@ object console {
         .translate(event)
         .flatMap(_.traverse(evt =>
           C.println(s"${event.timestamp.format(fmt)} ${coloring(event)} - $evt")).void)
-
-    def chunk(events: Chunk[NJEvent]): F[Unit] = events.traverse(apply).void
   }
 }

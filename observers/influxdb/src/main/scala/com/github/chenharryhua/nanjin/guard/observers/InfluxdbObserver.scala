@@ -4,9 +4,14 @@ import cats.Endo
 import cats.effect.kernel.Async
 import cats.implicits.{toFunctorOps, toShow}
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
-import com.github.chenharryhua.nanjin.guard.event.{NJEvent, Snapshot, eventFilters}
+import com.github.chenharryhua.nanjin.guard.event.{eventFilters, NJEvent, Snapshot}
 import com.github.chenharryhua.nanjin.guard.translators.metricConstants
-import com.github.chenharryhua.nanjin.guard.translators.textConstants.{CONSTANT_HOST, CONSTANT_SERVICE, CONSTANT_SERVICE_ID, CONSTANT_TASK}
+import com.github.chenharryhua.nanjin.guard.translators.textConstants.{
+  CONSTANT_HOST,
+  CONSTANT_SERVICE,
+  CONSTANT_SERVICE_ID,
+  CONSTANT_TASK
+}
 import com.influxdb.client.domain.WritePrecision
 import com.influxdb.client.write.Point
 import com.influxdb.client.{InfluxDBClient, WriteOptions}
@@ -54,7 +59,7 @@ final class InfluxdbObserver[F[_]](
     new InfluxdbObserver[F](client, writeOptions, writePrecision, durationUnit, tags ++ tagsToAdd)
 
   private def defaultTransform(ar: NJEvent.ActionResultEvent): Option[Point] =
-    Some(
+    ar.took.map { duration =>
       Point
         .measurement(ar.actionParams.metricName.measurement)
         .time(ar.timestamp.toInstant, writePrecision)
@@ -62,8 +67,8 @@ final class InfluxdbObserver[F[_]](
         .addTag(metricConstants.METRICS_DIGEST, ar.actionParams.metricName.digest)
         .addTag("done", eventFilters.isActionDone(ar).show) // for query
         .addTags(tags.asJava)
-        .addField(ar.actionParams.metricName.name, durationUnit.convert(ar.took)) // Long
-    )
+        .addField(ar.actionParams.metricName.name, durationUnit.convert(duration)) // Long
+    }
 
   /** @param chunkSize
     *   is the maximum number of elements to include in a chunk.

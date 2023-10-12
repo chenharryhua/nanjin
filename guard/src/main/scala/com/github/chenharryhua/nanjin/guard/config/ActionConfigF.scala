@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.config
 
-import cats.{Functor, Show}
+import cats.Functor
 import com.github.chenharryhua.nanjin.common.chrono.{policies, Policy}
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
@@ -24,7 +24,6 @@ final case class ActionParams(
 }
 
 object ActionParams {
-  implicit val showActionParams: Show[ActionParams] = cats.derived.semiauto.show
 
   def apply(
     actionName: ActionName,

@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.messages.kafka
 
 import com.github.chenharryhua.nanjin.common.optics.jsonPlated
-import io.circe.{parser, Json}
+import io.circe.{jawn, Json}
 import monocle.function.Plated
 import org.apache.avro.generic.{GenericData, GenericDatumReader, GenericDatumWriter, GenericRecord}
 import org.apache.avro.io.*
@@ -33,7 +33,7 @@ package object codec {
       }
     }
 
-    parser
+    jawn
       .parse(schema.toString(false))
       .toOption
       .map(remove)
@@ -56,7 +56,7 @@ package object codec {
       }
     }
 
-    parser
+    jawn
       .parse(schema.toString(false))
       .toOption
       .map(remove)
@@ -79,7 +79,7 @@ package object codec {
       }
     }
 
-    parser
+    jawn
       .parse(schema.toString(false))
       .toOption
       .map(remove)
@@ -107,7 +107,7 @@ package object codec {
       }
     }
 
-    parser
+    jawn
       .parse(schema.toString(false))
       .toOption
       .map(replace)
@@ -148,7 +148,7 @@ package object codec {
     }(_.close())
 
   def gr2Circe(getGenericRecord: => GenericRecord): Try[Json] =
-    gr2Jackson(getGenericRecord).flatMap(parser.parse(_).toTry)
+    gr2Jackson(getGenericRecord).flatMap(jawn.parse(_).toTry)
 
   def gr2BinAvro(getGenericRecord: => GenericRecord): Try[Array[Byte]] =
     Using(new ByteArrayOutputStream) { baos =>
