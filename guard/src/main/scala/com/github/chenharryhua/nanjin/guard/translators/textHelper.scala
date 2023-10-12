@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard.translators
 
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.config.MetricName
-import com.github.chenharryhua.nanjin.guard.event.NJEvent.{ActionRetry, ServicePanic}
+import com.github.chenharryhua.nanjin.guard.event.NJEvent.{ActionResultEvent, ActionRetry, ServicePanic}
 import com.github.chenharryhua.nanjin.guard.event.{MetricIndex, MetricSnapshot, NJEvent}
 import org.typelevel.cats.time.instances.{localdatetime, localtime}
 
@@ -13,8 +13,8 @@ private object textHelper extends localtime with localdatetime {
   def yamlMetrics(ss: MetricSnapshot): String =
     new SnapshotPolyglot(ss).toYaml
 
-  def upTimeText(evt: NJEvent): String     = fmt.format(evt.upTime)
-  def tookText(duration: Duration): String = fmt.format(duration)
+  def upTimeText(evt: NJEvent): String         = fmt.format(evt.upTime)
+  def tookText(evt: ActionResultEvent): String = evt.took.map(fmt.format).getOrElse("unknown")
 
   def eventTitle(evt: NJEvent): String = {
     def name(mn: MetricName): String = s"[${mn.digest}][${mn.name}]"

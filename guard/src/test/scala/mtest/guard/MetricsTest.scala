@@ -135,7 +135,6 @@ class MetricsTest extends AnyFunSuite {
     val name = "(name).space.test"
     TaskGuard[IO]("observers")
       .service("same_name_space")
-      .withJmx(identity)
       .updateConfig(
         _.withRestartPolicy(policies.fixedDelay(1.hour)).withMetricReport(policies.crontab(_.secondly)))
       .eventStream { ag =>

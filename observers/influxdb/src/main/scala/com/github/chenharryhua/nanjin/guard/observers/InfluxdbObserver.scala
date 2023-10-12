@@ -59,7 +59,7 @@ final class InfluxdbObserver[F[_]](
     new InfluxdbObserver[F](client, writeOptions, writePrecision, durationUnit, tags ++ tagsToAdd)
 
   private def defaultTransform(ar: NJEvent.ActionResultEvent): Option[Point] =
-    Some(
+    ar.took.map { duration =>
       Point
         .measurement(ar.actionParams.metricName.measurement)
         .time(ar.timestamp.toInstant, writePrecision)
@@ -67,8 +67,8 @@ final class InfluxdbObserver[F[_]](
         .addTag(metricConstants.METRICS_DIGEST, ar.actionParams.metricName.digest)
         .addTag("done", eventFilters.isActionDone(ar).show) // for query
         .addTags(tags.asJava)
-        .addField(ar.actionParams.metricName.name, durationUnit.convert(ar.took)) // Long
-    )
+        .addField(ar.actionParams.metricName.name, durationUnit.convert(duration)) // Long
+    }
 
   /** @param chunkSize
     *   is the maximum number of elements to include in a chunk.

@@ -63,7 +63,7 @@ class AwsObserverTest extends AnyFunSuite {
                 counter.inc(10000) >>
                 histogram.update(100L) >>
                 alert.error("alarm") >>
-                ag.metrics.report))
+                ag.metrics.report)) >> ag.metrics.reset
       }
 
   test("1.sqs") {

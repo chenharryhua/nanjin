@@ -18,7 +18,7 @@ val circeV      = "0.14.6"
 val kantanV     = "0.7.0"
 val slf4jV      = "2.0.9"
 val metricsV    = "4.2.20"
-val skunkV      = "0.6.0"
+val skunkV      = "0.6.1"
 val natchezV    = "0.3.3"
 val http4sV     = "0.23.23"
 val cron4sV     = "0.6.1"
@@ -28,7 +28,7 @@ val sparkV      = "3.4.1"
 val framelessV  = "0.15.0"
 val refinedV    = "0.11.0"
 val nettyV      = "4.1.100.Final"
-val chimneyV    = "0.8.0-RC1"
+val chimneyV    = "0.8.0"
 val enumeratumV = "1.7.3"
 val drosteV     = "0.9.0"
 val log4catsV   = "2.6.0"
@@ -60,7 +60,6 @@ lazy val commonSettings = List(
 val circeLib = List(
   "io.circe" %% "circe-core",
   "io.circe" %% "circe-generic",
-  "io.circe" %% "circe-parser",
   "io.circe" %% "circe-shapes",
   "io.circe" %% "circe-jawn",
   "io.circe" %% "circe-refined"

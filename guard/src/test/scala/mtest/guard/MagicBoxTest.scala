@@ -1,5 +1,6 @@
 package mtest.guard
 
+import cats.data.State
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.chrono.{policies, tickStream}
@@ -24,52 +25,53 @@ class MagicBoxTest extends AnyFunSuite {
       .updateConfig(_.withRestartPolicy(policies.fixedDelay(0.1.seconds)))
 
   test("1.atomicBox operations") {
-    TaskGuard
-      .dummyAgent[IO]
-      .use { ag =>
-        val box = ag.atomicBox(0)
-        for {
-          v1 <- box.getAndSet(-1)
-          _ <- box.set(1) // 1
-          v2 <- box.getAndUpdate(_ + 1) // 2
-          v3 <- box.updateAndGet(_ + 1) // 3
-          _ <- box.update(_ + 1) // 4
-          _ <- box.evalUpdate(x => IO(x + 1)) // 5
-          v4 <- box.evalGetAndUpdate(x => IO(x + 1)) // 6
-          v5 <- box.evalUpdateAndGet(x => IO(x + 1)) // 7
-          v6 <- box.get
-        } yield {
-          assert(v1 == 0)
-          assert(v2 == 1)
-          assert(v3 == 3)
-          assert(v4 == 5)
-          assert(v5 == 7)
-          assert(v6 == 7)
-        }
+    service.eventStream { ag =>
+      val box = ag.atomicBox(0)
+      for {
+        v1 <- box.getAndSet(-1)
+        _ <- box.set(1) // 1
+        v2 <- box.getAndUpdate(_ + 1) // 2
+        v3 <- box.updateAndGet(_ + 1) // 3
+        _ <- box.update(_ + 1) // 4
+        _ <- box.evalUpdate(x => IO(x + 1)) // 5
+        v4 <- box.evalGetAndUpdate(x => IO(x + 1)) // 6
+        v5 <- box.evalUpdateAndGet(x => IO(x + 1)) // 7
+        v6 <- box.modify(x => (x, x)) // 8
+        v7 <- box.get
+      } yield {
+        assert(v1 == 0)
+        assert(v2 == 1)
+        assert(v3 == 3)
+        assert(v4 == 5)
+        assert(v5 == 7)
+        assert(v6 == 7)
+        assert(v7 == 7)
       }
-      .unsafeRunSync()
+    }.timeout(3.seconds).compile.drain.unsafeRunSync()
   }
 
   test("2.signalBox operations") {
-    TaskGuard
-      .dummyAgent[IO]
-      .use { ag =>
-        val box = ag.signalBox(0)
-        for {
-          v1 <- box.getAndSet(-1)
-          _ <- box.set(1) // 1
-          v2 <- box.getAndUpdate(_ + 1) // 2
-          v3 <- box.updateAndGet(_ + 1) // 3
-          _ <- box.update(_ + 1) // 4
-          v6 <- box.get
-        } yield {
-          assert(v1 == 0)
-          assert(v2 == 1)
-          assert(v3 == 3)
-          assert(v6 == 4)
-        }
+    service.eventStream { ag =>
+      val box = ag.signalBox(0)
+      for {
+        v1 <- box.getAndSet(-1)
+        _ <- box.set(1) // 1
+        v2 <- box.getAndUpdate(_ + 1) // 2
+        v3 <- box.updateAndGet(_ + 1) // 3
+        _ <- box.update(_ + 1) // 4
+        _ <- box.access
+        _ <- box.tryUpdate(identity)
+        _ <- box.tryModify(x => (x, x))
+        _ <- box.tryModifyState(State(x => (x, x)))
+        _ <- box.modifyState(State(x => (x, x)))
+        v6 <- box.get
+      } yield {
+        assert(v1 == 0)
+        assert(v2 == 1)
+        assert(v3 == 3)
+        assert(v6 == 4)
       }
-      .unsafeRunSync()
+    }.timeout(3.seconds).compile.drain.unsafeRunSync()
   }
 
   test("3.signalBox should survive panic") {
@@ -91,7 +93,7 @@ class MagicBoxTest extends AnyFunSuite {
     assert(g.isInstanceOf[ServiceStart])
   }
 
-  test("4.atomicbox should survive panic") {
+  test("4.atomic box should survive panic") {
     val List(a, b, c, d, e, f, g) =
       service.eventStream { agent =>
         val box = agent.atomicBox(IO(10))
@@ -119,6 +121,19 @@ class MagicBoxTest extends AnyFunSuite {
           .interruptWhen(box.map(_ > 20))
           .compile
           .drain
+      }.compile.toList.unsafeRunSync()
+    assert(a.isInstanceOf[ServiceStart])
+    assert(c.isInstanceOf[ServiceStop])
+  }
+
+  test("6.signalBox should work as signal") {
+    val List(a, c) =
+      service.eventStream { agent =>
+        val box = agent.signalBox(false)
+        tickStream[IO](policies.fixedRate(0.1.seconds), ZoneId.systemDefault())
+          .interruptWhen(box.continuous)
+          .compile
+          .drain &> box.set(true).delayBy(2.seconds)
       }.compile.toList.unsafeRunSync()
     assert(a.isInstanceOf[ServiceStart])
     assert(c.isInstanceOf[ServiceStop])

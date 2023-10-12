@@ -6,7 +6,6 @@ import cats.syntax.all.*
 import cats.{Endo, Eval}
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import com.github.chenharryhua.nanjin.guard.translators.{ColorScheme, Translator, UpdateTranslator}
-import fs2.Chunk
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import org.typelevel.log4cats.{LoggerName, SelfAwareStructuredLogger}
 
@@ -41,7 +40,5 @@ object logging {
           }
         case None => Sync[F].unit
       }
-
-    def chunk(events: Chunk[NJEvent]): F[Unit] = events.traverse(apply).void
   }
 }

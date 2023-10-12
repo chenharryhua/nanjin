@@ -154,7 +154,7 @@ private object HtmlTranslator extends all {
         td(evt.actionId),
         td(evt.actionParams.metricName.measurement),
         td(evt.actionParams.configStr),
-        td(tookText(evt.took))
+        td(tookText(evt))
       )
     )
 

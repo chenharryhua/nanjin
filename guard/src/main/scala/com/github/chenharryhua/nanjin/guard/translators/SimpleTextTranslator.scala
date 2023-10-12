@@ -80,7 +80,7 @@ private object SimpleTextTranslator {
   private def actionRetry(evt: ActionRetry): String =
     s"""${eventTitle(evt)}
        |${actionEvent(evt)}
-       |  $CONSTANT_SNOOZE:${tookText(evt.tick.snooze)}
+       |  $CONSTANT_SNOOZE:${fmt.format(evt.tick.snooze)}
        |  $CONSTANT_POLICY:${evt.actionParams.retryPolicy}
        |  ${errorStr(evt.error)}
        |""".stripMargin
@@ -88,7 +88,7 @@ private object SimpleTextTranslator {
   private def actionFail(evt: ActionFail): String =
     s"""${eventTitle(evt)}
        |${actionEvent(evt)}
-       |  $CONSTANT_TOOK:${tookText(evt.took)}
+       |  $CONSTANT_TOOK:${tookText(evt)}
        |  $CONSTANT_POLICY:${evt.actionParams.retryPolicy}
        |  ${errorStr(evt.error)}
        |${evt.notes.fold("")(_.spaces2)}
@@ -97,7 +97,7 @@ private object SimpleTextTranslator {
   private def actionDone(evt: ActionDone): String =
     s"""${eventTitle(evt)}
        |${actionEvent(evt)}
-       |  $CONSTANT_TOOK:${tookText(evt.took)}
+       |  $CONSTANT_TOOK:${tookText(evt)}
        |${evt.notes.fold("")(_.spaces2)}
        |""".stripMargin
 

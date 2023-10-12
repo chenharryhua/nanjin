@@ -2,10 +2,12 @@ package mtest.guard
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
+import cats.implicits.catsSyntaxEq
 import com.github.chenharryhua.nanjin.common.chrono.{policies, Policy}
 import com.github.chenharryhua.nanjin.guard.*
 import com.github.chenharryhua.nanjin.guard.event.*
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
+import com.github.chenharryhua.nanjin.guard.observers.console
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import io.circe.jawn.decode
 import io.circe.syntax.*
@@ -36,6 +38,7 @@ class CancellationTest extends AnyFunSuite {
     assert(c.isInstanceOf[ActionFail])
     assert(d.isInstanceOf[ServiceStop])
     assert(d.asInstanceOf[ServiceStop].cause.isInstanceOf[ServiceStopCause.ByCancellation.type])
+    assert(b.asInstanceOf[ActionEvent].actionId == c.asInstanceOf[ActionEvent].actionId)
 
   }
 
@@ -117,6 +120,9 @@ class CancellationTest extends AnyFunSuite {
     assert(d.asInstanceOf[ActionDone].actionParams.metricName.digest == "ac2e7fb6")
     assert(e.isInstanceOf[ServiceStop])
 
+    assert(a.asInstanceOf[ActionEvent].actionId == b.asInstanceOf[ActionEvent].actionId)
+    assert(c.asInstanceOf[ActionEvent].actionId == d.asInstanceOf[ActionEvent].actionId)
+    assert(a.asInstanceOf[ActionEvent].actionId =!= c.asInstanceOf[ActionEvent].actionId)
   }
 
   test("6.cancellation - sequentially - no chance to cancel") {
@@ -138,7 +144,6 @@ class CancellationTest extends AnyFunSuite {
     assert(s.isInstanceOf[ServiceStart])
     assert(a.isInstanceOf[ActionStart])
     assert(b.asInstanceOf[ActionDone].actionParams.metricName.digest == "ac2e7fb6")
-    assert(!b.asInstanceOf[ActionDone].took.isNegative)
     assert(c.isInstanceOf[ActionStart])
     assert(d.asInstanceOf[ActionRetry].actionParams.metricName.digest == "ac2e7fb6")
     assert(e.asInstanceOf[ActionFail].actionParams.metricName.digest == "ac2e7fb6")
@@ -202,6 +207,7 @@ class CancellationTest extends AnyFunSuite {
       }
       .map(_.asJson.noSpaces)
       .evalMap(e => IO(decode[NJEvent](e)).rethrow)
+      .evalTap(console.simple[IO])
       .compile
       .toVector
       .unsafeRunSync()
@@ -210,8 +216,11 @@ class CancellationTest extends AnyFunSuite {
     assert(b.isInstanceOf[ActionRetry])
     assert(c.isInstanceOf[ActionRetry])
     assert(d.isInstanceOf[ActionFail])
-    assert(!d.asInstanceOf[ActionFail].took.isNegative)
     assert(e.isInstanceOf[ServiceStop])
+
+    assert(a.asInstanceOf[ActionEvent].actionId == b.asInstanceOf[ActionEvent].actionId)
+    assert(a.asInstanceOf[ActionEvent].actionId == c.asInstanceOf[ActionEvent].actionId)
+    assert(a.asInstanceOf[ActionEvent].actionId == d.asInstanceOf[ActionEvent].actionId)
   }
 
   test("9.cancellation - wrapped within uncancelable") {
@@ -233,6 +242,9 @@ class CancellationTest extends AnyFunSuite {
     assert(d.isInstanceOf[ActionRetry])
     assert(e.isInstanceOf[ActionFail])
     assert(f.isInstanceOf[ServiceStop])
+    assert(b.asInstanceOf[ActionEvent].actionId == c.asInstanceOf[ActionEvent].actionId)
+    assert(b.asInstanceOf[ActionEvent].actionId == d.asInstanceOf[ActionEvent].actionId)
+    assert(b.asInstanceOf[ActionEvent].actionId == e.asInstanceOf[ActionEvent].actionId)
   }
   test("10.cancellation - never can be canceled") {
     var i = 0

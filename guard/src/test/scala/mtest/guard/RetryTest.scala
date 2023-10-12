@@ -58,6 +58,13 @@ class RetryTest extends AnyFunSuite {
     assert(e.isInstanceOf[ActionStart])
     assert(f.isInstanceOf[ActionDone])
     assert(g.isInstanceOf[ServiceStop])
+
+    assert(a.asInstanceOf[ActionEvent].actionId == b.asInstanceOf[ActionEvent].actionId)
+    assert(c.asInstanceOf[ActionEvent].actionId == d.asInstanceOf[ActionEvent].actionId)
+    assert(e.asInstanceOf[ActionEvent].actionId == f.asInstanceOf[ActionEvent].actionId)
+
+    assert(a.asInstanceOf[ActionEvent].actionId =!= c.asInstanceOf[ActionEvent].actionId)
+    assert(a.asInstanceOf[ActionEvent].actionId =!= e.asInstanceOf[ActionEvent].actionId)
   }
 
   test("3.retry - all fail") {
@@ -88,6 +95,12 @@ class RetryTest extends AnyFunSuite {
     assert(ap.tick.sequenceId == ap.actionParams.serviceParams.serviceId)
     assert(ap.tick.zoneId == ap.serviceParams.taskParams.zoneId)
 
+    assert(a.asInstanceOf[ActionEvent].actionId == b.asInstanceOf[ActionEvent].actionId)
+    assert(a.asInstanceOf[ActionEvent].actionId == c.asInstanceOf[ActionEvent].actionId)
+    assert(d.asInstanceOf[ActionEvent].actionId == e.asInstanceOf[ActionEvent].actionId)
+    assert(d.asInstanceOf[ActionEvent].actionId == f.asInstanceOf[ActionEvent].actionId)
+    assert(g.asInstanceOf[ActionEvent].actionId == h.asInstanceOf[ActionEvent].actionId)
+    assert(g.asInstanceOf[ActionEvent].actionId == i.asInstanceOf[ActionEvent].actionId)
   }
 
   test("4.retry - should retry 2 times when operation fail") {
@@ -112,6 +125,10 @@ class RetryTest extends AnyFunSuite {
     assert(d.isInstanceOf[ActionDone])
     assert(d.asInstanceOf[ActionDone].notes.nonEmpty)
     assert(e.isInstanceOf[ServiceStop])
+
+    assert(a.asInstanceOf[ActionEvent].actionId == b.asInstanceOf[ActionEvent].actionId)
+    assert(a.asInstanceOf[ActionEvent].actionId == c.asInstanceOf[ActionEvent].actionId)
+    assert(a.asInstanceOf[ActionEvent].actionId == d.asInstanceOf[ActionEvent].actionId)
   }
 
   test("5.retry - should retry 2 times when operation fail - low") {
@@ -297,7 +314,7 @@ class RetryTest extends AnyFunSuite {
 
   test("13.should not retry fatal error") {
     val err = IO.raiseError(new ControlThrowable("fatal error") {})
-    val List(a, b, c, d, e, f, g, h) = serviceGuard
+    val List(a, b, c, d, e, f, g, h, i) = serviceGuard
       .updateConfig(_.withRestartPolicy(policies.giveUp))
       .eventStream { agent =>
         val a =
@@ -306,8 +323,9 @@ class RetryTest extends AnyFunSuite {
           agent.action("b", _.policy(policies.fixedDelay(1.seconds)).timed.counted.unipartite).retry(err).run
         val c = agent.action("c", _.policy(policies.fixedDelay(1.seconds)).timed).retry(err).run
         val d = agent.action("d", _.policy(policies.fixedDelay(1.seconds)).counted).retry(err).run
-        val e = agent.action("d", _.policy(policies.fixedDelay(1.seconds))).retry(err).run
-        agent.action("q").quasi(a, b, c, d, e).run
+        val e = agent.action("e", _.policy(policies.fixedDelay(1.seconds))).retry(err).run
+        val f = agent.action("f", _.policy(policies.fixedDelay(1.seconds)).unipartite).retry(err).run
+        agent.action("q").quasi(a, b, c, d, e, f).run
       }
       .compile
       .toList
@@ -320,7 +338,8 @@ class RetryTest extends AnyFunSuite {
     assert(e.isInstanceOf[ActionFail])
     assert(f.isInstanceOf[ActionFail])
     assert(g.isInstanceOf[ActionFail])
-    assert(h.isInstanceOf[ServiceStop])
+    assert(h.isInstanceOf[ActionFail])
+    assert(i.isInstanceOf[ServiceStop])
   }
 
   test("14.logError json exception") {
@@ -417,6 +436,25 @@ class RetryTest extends AnyFunSuite {
       .service("count")
       .eventStream(
         _.action("exception", _.silent.counted.policy(policies.fixedDelay(1.seconds)))
+          .retry((_: Int) => IO.raiseError(new Exception))
+          .withWorthRetry(_ => true)
+          .logErrorM((_, _) => IO(Json.fromInt(1)))
+          .run(1))
+      .take(3)
+      .debug()
+      .compile
+      .toList
+      .unsafeRunSync()
+    assert(a.isInstanceOf[ServiceStart])
+    assert(b.isInstanceOf[ActionRetry])
+    assert(c.isInstanceOf[ActionRetry])
+  }
+
+  test("22.unipartite time") {
+    val List(a, b, c) = TaskGuard[IO]("unipartite")
+      .service("time")
+      .eventStream(
+        _.action("exception", _.unipartite.timed.policy(policies.fixedDelay(1.seconds)))
           .retry((_: Int) => IO.raiseError(new Exception))
           .withWorthRetry(_ => true)
           .logErrorM((_, _) => IO(Json.fromInt(1)))

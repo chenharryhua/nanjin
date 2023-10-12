@@ -19,7 +19,8 @@ class ObserversTest extends AnyFunSuite {
     TaskGuard[IO]("nanjin")
       .service("observing")
       .withBrief(Json.fromString("brief"))
-      .updateConfig(_.withRestartPolicy(policies.fixedDelay(1.seconds)))
+      .updateConfig(_.withRestartPolicy(policies.fixedDelay(1.seconds))
+        .withMetricReport(policies.crontab(_.secondly).limited(3)))
       .eventStream { ag =>
         val box = ag.atomicBox(1)
         val job = // fail twice, then success
@@ -57,34 +58,42 @@ class ObserversTest extends AnyFunSuite {
                 histo3.update(300) >>
                 histo4.update(4) >>
                 alert.error("alarm") >>
-                ag.metrics.report))
+                ag.metrics.report)) >> ag.metrics.reset
       }
 
   test("1.logging verbose") {
-    service.evalTap(logging.verbose[IO]).compile.drain.unsafeRunSync()
+    service
+      .evalTap(logging.verbose[IO].updateTranslator(_.withMetricReport(_ => None)))
+      .compile
+      .drain
+      .unsafeRunSync()
   }
 
-  test("1.2.logging json") {
+  test("2.logging json") {
     service.evalTap(logging.json[IO].withLoggerName("json")).compile.drain.unsafeRunSync()
   }
 
-  test("1.3 logging simple") {
+  test("3 logging simple") {
     service.evalTap(logging.simple[IO]).compile.drain.unsafeRunSync()
   }
 
-  test("2.console - simple text") {
+  test("4.console - simple text") {
     service.evalTap(console.simple[IO]).compile.drain.unsafeRunSync()
   }
 
-  test("3.console - pretty json") {
+  test("5.console - verbose text") {
+    service.evalTap(console.verbose[IO]).compile.drain.unsafeRunSync()
+  }
+
+  test("6.console - pretty json") {
     service.evalTap(console.json[IO]).compile.drain.unsafeRunSync()
   }
 
-  test("3.1.console - simple json") {
+  test("7.console - simple json") {
     service.evalTap(console.simpleJson[IO]).compile.drain.unsafeRunSync()
   }
 
-  test("3.2.console - verbose json") {
+  test("8.console - verbose json") {
     service.evalTap(console.verboseJson[IO]).compile.drain.unsafeRunSync()
   }
 

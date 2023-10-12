@@ -1,26 +1,16 @@
 package com.github.chenharryhua.nanjin.guard.service
 
 import cats.Endo
-import cats.effect.implicits.genSpawnOps
-import cats.effect.kernel.{Async, Resource, Unique}
-import cats.effect.std.{AtomicCell, Console, Dispatcher}
+import cats.effect.kernel.{Async, Unique}
+import cats.effect.std.{AtomicCell, Dispatcher}
 import cats.syntax.all.*
 import com.codahale.metrics.MetricRegistry
 import com.codahale.metrics.jmx.JmxReporter
 import com.comcast.ip4s.IpLiteralSyntax
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.common.chrono.*
-import com.github.chenharryhua.nanjin.guard.config.{
-  EmberServerParams,
-  Measurement,
-  ServiceBrief,
-  ServiceConfig,
-  ServiceName,
-  ServiceParams,
-  TaskParams
-}
+import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.event.*
-import com.github.chenharryhua.nanjin.guard.translators.Translator
 import fs2.Stream
 import fs2.concurrent.{Channel, SignallingMapRef}
 import fs2.io.net.Network
@@ -86,28 +76,6 @@ final class ServiceGuard[F[_]: Network] private[guard] (
     zerothTick = zeroth.tick
   )
 
-  def dummyAgent(implicit C: Console[F]): Resource[F, GeneralAgent[F]] = for {
-    zeroth <- Resource.eval(TickStatus.zeroth[F](policies.giveUp, taskParams.zoneId))
-    sp <- Resource.eval(initStatus(zeroth))
-    signallingMapRef <- Resource.eval(SignallingMapRef.ofSingleImmutableMap[F, Unique.Token, Locker]())
-    atomicCell <- Resource.eval(AtomicCell[F].of(Vault.empty))
-    dispatcher <- Dispatcher.parallel[F]
-    chn <- Resource.eval(Channel.unbounded[F, NJEvent])
-    _ <- chn.stream
-      .evalMap(evt => Translator.simpleText[F].translate(evt).flatMap(_.traverse(C.println)))
-      .compile
-      .drain
-      .background
-  } yield new GeneralAgent[F](
-    serviceParams = sp,
-    metricRegistry = new MetricRegistry,
-    channel = chn,
-    signallingMapRef = signallingMapRef,
-    atomicCell = atomicCell,
-    dispatcher = dispatcher,
-    measurement = Measurement(sp.serviceName)
-  )
-
   def eventStream[A](runAgent: GeneralAgent[F] => F[A]): Stream[F, NJEvent] =
     for {
       zeroth <- Stream.eval(TickStatus.zeroth[F](policies.giveUp, taskParams.zoneId))
@@ -151,7 +119,8 @@ final class ServiceGuard[F[_]: Network] private[guard] (
                     .build()
                 reporter.start()
                 reporter
-              })(r => F.blocking(r.stop())) >> Stream.never[F]
+              })(r => F.blocking(r.stop())) >>
+                Stream.never[F]
           }
 
         val httpServer: Stream[F, Nothing] =

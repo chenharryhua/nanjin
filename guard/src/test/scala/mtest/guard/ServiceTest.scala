@@ -207,11 +207,7 @@ class ServiceTest extends AnyFunSuite {
     assert(g.isInstanceOf[ServiceStop])
   }
 
-  test("10.dummy agent should not block") {
-    TaskGuard.dummyAgent[IO].use(_.action("test", _.bipartite).retry(IO(1)).run).unsafeRunSync()
-  }
-
-  test("11.policy start over") {
+  test("10.policy start over") {
 
     val p1     = policies.fixedDelay(1.seconds).limited(1)
     val p2     = policies.fixedDelay(2.seconds).limited(1)
@@ -256,7 +252,7 @@ class ServiceTest extends AnyFunSuite {
     assert(h.snooze == 2.second.toJava)
   }
 
-  test("12.policy threshold start over") {
+  test("11.policy threshold start over") {
     val policy: Policy = policies.fixedDelay(1.seconds, 2.seconds, 3.seconds, 4.seconds, 5.seconds)
     println(policy)
     val List(a, b, c, d, e, f, g, h) = guard
@@ -299,7 +295,7 @@ class ServiceTest extends AnyFunSuite {
     assert(h.snooze == 2.second.toJava)
   }
 
-  test("13.stop service") {
+  test("12.stop service") {
     val client = EmberClientBuilder
       .default[IO]
       .build
@@ -317,7 +313,7 @@ class ServiceTest extends AnyFunSuite {
         .withHttpServer(_.withPort(port"9999"))
         .eventStream(_ => IO.sleep(10.hours))
         .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
-        .debug()
+        .evalTap(console.simple[IO])
         .compile
         .toList <& client
     val List(a, b) = res.unsafeRunSync()
@@ -325,7 +321,7 @@ class ServiceTest extends AnyFunSuite {
     assert(b.isInstanceOf[ServiceStop])
   }
 
-  test("14.service config") {
+  test("13.service config") {
     TaskGuard[IO]("abc")
       .service("abc")
       .updateConfig(

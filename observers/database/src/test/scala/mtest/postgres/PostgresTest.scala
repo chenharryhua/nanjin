@@ -53,7 +53,7 @@ class PostgresTest extends AnyFunSuite {
                 counter.inc(10000) >>
                 histogram.update(10000000000000L) >>
                 alert.error("alarm") >>
-                ag.metrics.report))
+                ag.metrics.report)) >> ag.metrics.reset
       }
 
   test("postgres") {

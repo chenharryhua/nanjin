@@ -12,6 +12,7 @@ import io.circe.Json
 import io.circe.syntax.EncoderOps
 import org.scalatest.funsuite.AnyFunSuite
 
+import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.*
 
 class InfluxDBTest extends AnyFunSuite {
@@ -51,7 +52,7 @@ class InfluxDBTest extends AnyFunSuite {
                 counter.inc(10000) >>
                 histogram.update(100) >>
                 alert.error("alarm") >>
-                ag.metrics.report))
+                ag.metrics.report)) >> ag.metrics.reset
       }
 
   test("influx db") {
@@ -66,6 +67,7 @@ class InfluxDBTest extends AnyFunSuite {
     val influx = InfluxdbObserver[IO](IO(InfluxDBClientFactory.create(options)))
       .withWriteOptions(_.batchSize(1))
       .withWritePrecision(WritePrecision.NS)
+      .withDurationUnit(TimeUnit.MILLISECONDS)
       .addTag("tag", "customer")
       .addTags(Map("a" -> "b"))
     service.evalTap(console.simple[IO]).through(influx.observe).compile.drain.unsafeRunSync()

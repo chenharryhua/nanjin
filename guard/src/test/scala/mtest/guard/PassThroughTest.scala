@@ -20,6 +20,7 @@ class PassThroughTest extends AnyFunSuite {
 
   test("1.counter") {
     val Some(last) = guard
+      .withJmx(identity)
       .updateConfig(_.withMetricReport(policies.crontab(_.secondly)))
       .eventStream { ag =>
         val counter = ag.counter("one/two/three/counter")
