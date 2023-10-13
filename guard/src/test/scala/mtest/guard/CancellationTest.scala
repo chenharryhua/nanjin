@@ -89,12 +89,13 @@ class CancellationTest extends AnyFunSuite {
       }
       .map(_.asJson.noSpaces)
       .evalMap(e => IO(decode[NJEvent](e)).rethrow)
+      .evalTap(console.json[IO])
       .compile
       .toVector
       .unsafeRunSync()
     assert(a.isInstanceOf[ServiceStart])
-    assert(b.asInstanceOf[ActionFail].actionParams.metricName.digest == "ac2e7fb6")
-    assert(c.asInstanceOf[ActionFail].actionParams.metricName.digest == "ac2e7fb6")
+    assert(b.asInstanceOf[ActionFail].actionParams.metricName.digest == "08e76668")
+    assert(c.asInstanceOf[ActionFail].actionParams.metricName.digest == "3d5f88dc")
     assert(d.isInstanceOf[ServiceStop])
   }
 
@@ -109,15 +110,16 @@ class CancellationTest extends AnyFunSuite {
       }
       .map(_.asJson.noSpaces)
       .evalMap(e => IO(decode[NJEvent](e)).rethrow)
+      .evalTap(console.simple[IO])
       .compile
       .toVector
       .unsafeRunSync()
 
     assert(s.isInstanceOf[ServiceStart])
     assert(a.isInstanceOf[ActionStart])
-    assert(b.asInstanceOf[ActionDone].actionParams.metricName.digest == "ac2e7fb6")
+    assert(b.asInstanceOf[ActionDone].actionParams.metricName.digest == "104c9af4")
     assert(c.isInstanceOf[ActionStart])
-    assert(d.asInstanceOf[ActionDone].actionParams.metricName.digest == "ac2e7fb6")
+    assert(d.asInstanceOf[ActionDone].actionParams.metricName.digest == "fec6047b")
     assert(e.isInstanceOf[ServiceStop])
 
     assert(a.asInstanceOf[ActionEvent].actionId == b.asInstanceOf[ActionEvent].actionId)
@@ -137,17 +139,19 @@ class CancellationTest extends AnyFunSuite {
       }
       .map(_.asJson.noSpaces)
       .evalMap(e => IO(decode[NJEvent](e)).rethrow)
+      .evalTap(console.verbose[IO])
       .compile
       .toVector
       .unsafeRunSync()
 
     assert(s.isInstanceOf[ServiceStart])
     assert(a.isInstanceOf[ActionStart])
-    assert(b.asInstanceOf[ActionDone].actionParams.metricName.digest == "ac2e7fb6")
+    assert(b.asInstanceOf[ActionDone].actionParams.metricName.digest == "104c9af4")
     assert(c.isInstanceOf[ActionStart])
-    assert(d.asInstanceOf[ActionRetry].actionParams.metricName.digest == "ac2e7fb6")
-    assert(e.asInstanceOf[ActionFail].actionParams.metricName.digest == "ac2e7fb6")
+    assert(d.asInstanceOf[ActionRetry].actionParams.metricName.digest == "fec6047b")
+    assert(e.asInstanceOf[ActionFail].actionParams.metricName.digest == "fec6047b")
     assert(f.isInstanceOf[ServiceStop])
+    assert(d.asInstanceOf[ActionRetry].actionId == e.asInstanceOf[ActionFail].actionId)
   }
 
   test("7.cancellation - parallel") {
@@ -223,7 +227,7 @@ class CancellationTest extends AnyFunSuite {
     assert(a.asInstanceOf[ActionEvent].actionId == d.asInstanceOf[ActionEvent].actionId)
   }
 
-  test("9.cancellation - wrapped within uncancelable") {
+  test("9.cancellation - wrapped within cancelable") {
     val Vector(s, b, c, d, e, f) = serviceGuard
       .updateConfig(_.withRestartPolicy(policies.fixedDelay(1.hour)))
       .eventStream { ag =>
