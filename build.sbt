@@ -17,12 +17,12 @@ val parquetV    = "1.13.1"
 val circeV      = "0.14.6"
 val kantanV     = "0.7.0"
 val slf4jV      = "2.0.9"
-val metricsV    = "4.2.20"
+val metricsV    = "4.2.21"
 val skunkV      = "0.6.1"
 val natchezV    = "0.3.3"
 val http4sV     = "0.23.23"
 val cron4sV     = "0.6.1"
-val jacksonV    = "2.15.2"
+val jacksonV    = "2.15.3"
 val protobufV   = "3.24.4"
 val sparkV      = "3.4.1"
 val framelessV  = "0.15.0"
@@ -451,4 +451,3 @@ lazy val nanjin =
       guard_observer_db,
       guard_observer_influxdb,
       guard_observer_kafka)
-
