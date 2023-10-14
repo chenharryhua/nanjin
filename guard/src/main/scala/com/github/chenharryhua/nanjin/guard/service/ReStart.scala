@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.service
 
-import cats.effect.kernel.{Outcome, Temporal}
+import cats.effect.kernel.Temporal
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.chrono.TickStatus
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
@@ -20,19 +20,19 @@ final private class ReStart[F[_], A](
   theService: F[A])(implicit F: Temporal[F])
     extends duration {
 
-  private def stop(cause: ServiceStopCause): F[Either[TickStatus, ServiceStopCause]] =
-    F.pure(Right(cause))
+  private def stop(cause: ServiceStopCause): F[Either[TickStatus, Unit]] =
+    publisher.serviceStop(channel, serviceParams, cause).as(Right(()))
 
-  private def stopByException(err: Throwable): F[Either[TickStatus, ServiceStopCause]] =
+  private def stopByException(err: Throwable): F[Either[TickStatus, Unit]] =
     stop(ServiceStopCause.ByException(ExceptionUtils.getMessage(err)))
 
-  private def panic(ts: TickStatus, err: Throwable): F[Either[TickStatus, ServiceStopCause]] =
+  private def panic(ts: TickStatus, err: Throwable): F[Either[TickStatus, Unit]] =
     for {
       _ <- publisher.servicePanic(channel, serviceParams, ts.tick, err)
       _ <- F.sleep(ts.tick.snooze.toScala)
     } yield Left(ts)
 
-  private val loop: F[ServiceStopCause] =
+  private val loop: F[Unit] =
     F.tailRecM(TickStatus(serviceParams.zerothTick).renewPolicy(serviceParams.servicePolicies.restart)) {
       status =>
         (publisher.serviceReStart(channel, serviceParams, status.tick) >> theService).attempt.flatMap {
@@ -58,14 +58,6 @@ final private class ReStart[F[_], A](
 
   val stream: Stream[F, Nothing] =
     Stream
-      .eval(F.guaranteeCase(loop) {
-        case Outcome.Succeeded(fa) =>
-          fa.flatMap(cause => publisher.serviceStop(channel, serviceParams, cause))
-        case Outcome.Errored(e) =>
-          publisher
-            .serviceStop(channel, serviceParams, ServiceStopCause.ByException(ExceptionUtils.getMessage(e)))
-        case Outcome.Canceled() =>
-          publisher.serviceStop(channel, serviceParams, ServiceStopCause.ByCancellation)
-      })
+      .eval(F.onCancel(loop, publisher.serviceStop(channel, serviceParams, ServiceStopCause.ByCancellation)))
       .drain
 }
