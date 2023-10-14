@@ -76,7 +76,7 @@ class PostgresTest extends AnyFunSuite {
               timestamp timestamptz default current_timestamp)""".command
 
     val run = session.use(_.execute(cmd)) >>
-      service.evalTap(console.verbose[IO]).through(PostgresObserver(session).observe("log")).compile.drain
+      service.evalTap(console.simple[IO]).through(PostgresObserver(session).observe("log")).compile.drain
 
     run.unsafeRunSync()
   }
