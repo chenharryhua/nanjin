@@ -62,7 +62,11 @@ class ObserversTest extends AnyFunSuite {
       }
 
   test("2.logging json") {
-    service.evalTap(logging.json[IO].withLoggerName("json")).compile.drain.unsafeRunSync()
+    service
+      .evalTap(logging.json[IO].withLoggerName("json").updateTranslator(_.withMetricReport(_ => None)))
+      .compile
+      .drain
+      .unsafeRunSync()
   }
 
   test("3 logging simple") {
