@@ -9,7 +9,6 @@ import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
 import io.circe.Json
 import io.circe.syntax.*
 import monocle.macros.Lenses
-import org.typelevel.cats.time.instances.zoneddatetime
 import scalatags.Text
 
 trait UpdateTranslator[F[_], A, B] {
@@ -220,7 +219,7 @@ trait UpdateTranslator[F[_], A, B] {
   }
 }
 
-object Translator extends zoneddatetime {
+object Translator {
   implicit final def monadTranslator[F[_]](implicit
     F: Monad[F]): Monad[Translator[F, *]] & FunctorFilter[Translator[F, *]] =
     new Monad[Translator[F, *]] with FunctorFilter[Translator[F, *]] {

@@ -260,3 +260,86 @@ object NJCompression {
     override val fileExtension: String = ".zst"
   }
 }
+
+object AvroCompression {
+  val uncompressed: AvroCompression                       = NJCompression.Uncompressed
+  val snappy: AvroCompression                             = NJCompression.Snappy
+  val bzip2: AvroCompression                              = NJCompression.Bzip2
+  def deflate(level: NJCompressionLevel): AvroCompression = NJCompression.Deflate(level)
+  def xz(level: NJCompressionLevel): AvroCompression      = NJCompression.Xz(level)
+  def zstd(level: NJCompressionLevel): AvroCompression    = NJCompression.Zstandard(level)
+}
+
+object BinaryAvroCompression {
+  val uncompressed: BinaryAvroCompression                       = NJCompression.Uncompressed
+  val snappy: BinaryAvroCompression                             = NJCompression.Snappy
+  val bzip2: BinaryAvroCompression                              = NJCompression.Bzip2
+  val gzip: BinaryAvroCompression                               = NJCompression.Gzip
+  val lz4: BinaryAvroCompression                                = NJCompression.Lz4
+  val lz4_raw: BinaryAvroCompression                            = NJCompression.Lz4_Raw
+  def deflate(level: NJCompressionLevel): BinaryAvroCompression = NJCompression.Deflate(level)
+}
+
+object JacksonCompression {
+  val uncompressed: JacksonCompression                       = NJCompression.Uncompressed
+  val snappy: JacksonCompression                             = NJCompression.Snappy
+  val bzip2: JacksonCompression                              = NJCompression.Bzip2
+  val gzip: JacksonCompression                               = NJCompression.Gzip
+  val lz4: JacksonCompression                                = NJCompression.Lz4
+  val lz4_raw: JacksonCompression                            = NJCompression.Lz4_Raw
+  def deflate(level: NJCompressionLevel): JacksonCompression = NJCompression.Deflate(level)
+}
+
+object CirceCompression {
+  val uncompressed: CirceCompression                       = NJCompression.Uncompressed
+  val snappy: CirceCompression                             = NJCompression.Snappy
+  val bzip2: CirceCompression                              = NJCompression.Bzip2
+  val gzip: CirceCompression                               = NJCompression.Gzip
+  val lz4: CirceCompression                                = NJCompression.Lz4
+  val lz4_raw: CirceCompression                            = NJCompression.Lz4_Raw
+  def deflate(level: NJCompressionLevel): CirceCompression = NJCompression.Deflate(level)
+}
+
+object KantanCompression {
+  val uncompressed: KantanCompression                       = NJCompression.Uncompressed
+  val snappy: KantanCompression                             = NJCompression.Snappy
+  val bzip2: KantanCompression                              = NJCompression.Bzip2
+  val gzip: KantanCompression                               = NJCompression.Gzip
+  val lz4: KantanCompression                                = NJCompression.Lz4
+  val lz4_raw: KantanCompression                            = NJCompression.Lz4_Raw
+  def deflate(level: NJCompressionLevel): KantanCompression = NJCompression.Deflate(level)
+}
+
+object TextCompression {
+  val uncompressed: TextCompression                       = NJCompression.Uncompressed
+  val snappy: TextCompression                             = NJCompression.Snappy
+  val bzip2: TextCompression                              = NJCompression.Bzip2
+  val gzip: TextCompression                               = NJCompression.Gzip
+  val lz4: TextCompression                                = NJCompression.Lz4
+  val lz4_raw: TextCompression                            = NJCompression.Lz4_Raw
+  def deflate(level: NJCompressionLevel): TextCompression = NJCompression.Deflate(level)
+}
+
+object ParquetCompression {
+  val uncompressed: ParquetCompression                    = NJCompression.Uncompressed
+  val snappy: ParquetCompression                          = NJCompression.Snappy
+  val gzip: ParquetCompression                            = NJCompression.Gzip
+  val lz4: ParquetCompression                             = NJCompression.Lz4
+  val lz4_raw: ParquetCompression                         = NJCompression.Lz4_Raw
+  val brotli: ParquetCompression                          = NJCompression.Brotli
+  val lzo: ParquetCompression                             = NJCompression.Lzo
+  def zstd(level: NJCompressionLevel): ParquetCompression = NJCompression.Zstandard(level)
+}
+
+object ProtobufCompression {
+  val uncompressed: ProtobufCompression                       = NJCompression.Uncompressed
+  val snappy: ProtobufCompression                             = NJCompression.Snappy
+  val bzip2: ProtobufCompression                              = NJCompression.Bzip2
+  val gzip: ProtobufCompression                               = NJCompression.Gzip
+  val lz4: ProtobufCompression                                = NJCompression.Lz4
+  val lz4_raw: ProtobufCompression                            = NJCompression.Lz4_Raw
+  val brotli: ProtobufCompression                             = NJCompression.Brotli
+  val lzo: ProtobufCompression                                = NJCompression.Lzo
+  def deflate(level: NJCompressionLevel): ProtobufCompression = NJCompression.Deflate(level)
+  def xz(level: NJCompressionLevel): ProtobufCompression      = NJCompression.Xz(level)
+}

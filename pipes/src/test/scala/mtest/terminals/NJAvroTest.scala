@@ -32,27 +32,27 @@ class NJAvroTest extends AnyFunSuite {
   val fs2Root: NJPath = NJPath("./data/test/terminals/avro/panda")
 
   test("snappy avro") {
-    fs2(fs2Root, AvroFile(Snappy), pandaSet)
+    fs2(fs2Root, AvroFile(_.snappy), pandaSet)
   }
 
   test("deflate 6 avro") {
-    fs2(fs2Root, AvroFile(Deflate(6)), pandaSet)
+    fs2(fs2Root, AvroFile(_.deflate(6)), pandaSet)
   }
 
   test("uncompressed avro") {
-    fs2(fs2Root, AvroFile(Uncompressed), pandaSet)
+    fs2(fs2Root, AvroFile(_.uncompressed), pandaSet)
   }
 
   test("xz 1 avro") {
-    fs2(fs2Root, AvroFile(Xz(1)), pandaSet)
+    fs2(fs2Root, AvroFile(_.xz(1)), pandaSet)
   }
 
   test("bzip2 avro") {
-    fs2(fs2Root, AvroFile(Bzip2), pandaSet)
+    fs2(fs2Root, AvroFile(_.bzip2), pandaSet)
   }
 
   test("zstandard avro") {
-    fs2(fs2Root, AvroFile(Zstandard(1)), pandaSet)
+    fs2(fs2Root, AvroFile(_.zstd(1)), pandaSet)
   }
 
   test("laziness") {

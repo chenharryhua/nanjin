@@ -37,19 +37,19 @@ class NJCirceTest extends AnyFunSuite {
   val fs2Root: NJPath = NJPath("./data/test/terminals/circe/tiger")
 
   test("uncompressed") {
-    fs2(fs2Root, CirceFile(Uncompressed), TestData.tigerSet)
+    fs2(fs2Root, CirceFile(_.uncompressed), TestData.tigerSet)
   }
 
   test("gzip") {
-    fs2(fs2Root, CirceFile(Gzip), TestData.tigerSet)
+    fs2(fs2Root, CirceFile(_.gzip), TestData.tigerSet)
   }
 
   test("snappy") {
-    fs2(fs2Root, CirceFile(Snappy), TestData.tigerSet)
+    fs2(fs2Root, CirceFile(_.snappy), TestData.tigerSet)
   }
 
   test("bzip2") {
-    fs2(fs2Root, CirceFile(Bzip2), TestData.tigerSet)
+    fs2(fs2Root, CirceFile(_.bzip2), TestData.tigerSet)
   }
 
   test("lz4") {
@@ -57,7 +57,7 @@ class NJCirceTest extends AnyFunSuite {
   }
 
   test("deflate - 1") {
-    fs2(fs2Root, CirceFile(Deflate(1)), TestData.tigerSet)
+    fs2(fs2Root, CirceFile(_.deflate(1)), TestData.tigerSet)
   }
 
   test("ftp") {
