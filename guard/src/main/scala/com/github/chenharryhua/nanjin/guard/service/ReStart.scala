@@ -21,7 +21,7 @@ final private class ReStart[F[_], A](
     extends duration {
 
   private def stop(cause: ServiceStopCause): F[Either[TickStatus, Unit]] =
-    publisher.serviceStop(channel, serviceParams, cause).as(Right(()))
+    publisher.serviceStop(channel, serviceParams, cause).map(Right(_))
 
   private def stopByException(err: Throwable): F[Either[TickStatus, Unit]] =
     stop(ServiceStopCause.ByException(ExceptionUtils.getMessage(err)))
