@@ -14,8 +14,7 @@ object console {
   def apply[F[_]: Console: Monad](translator: Translator[F, String]): TextConsole[F] =
     new TextConsole[F](translator)
 
-  def verbose[F[_]: Console: Monad]: TextConsole[F] = apply[F](Translator.verboseText[F])
-  def simple[F[_]: Console: Monad]: TextConsole[F]  = apply[F](Translator.simpleText[F])
+  def simple[F[_]: Console: Monad]: TextConsole[F] = apply[F](Translator.simpleText[F])
 
   def json[F[_]: Console: Monad]: TextConsole[F]        = apply[F](Translator.prettyJson.map(_.noSpaces))
   def verboseJson[F[_]: Console: Monad]: TextConsole[F] = apply[F](Translator.verboseJson.map(_.spaces2))

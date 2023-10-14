@@ -363,19 +363,6 @@ object Translator {
       .withActionFail((_: NJEvent).asJson)
       .withActionDone((_: NJEvent).asJson)
 
-  def verboseText[F[_]: Applicative]: Translator[F, String] =
-    empty[F, String]
-      .withServiceStart((_: NJEvent).show)
-      .withServicePanic((_: NJEvent).show)
-      .withServiceStop((_: NJEvent).show)
-      .withServiceAlert((_: NJEvent).show)
-      .withMetricReset((_: NJEvent).show)
-      .withMetricReport((_: NJEvent).show)
-      .withActionStart((_: NJEvent).show)
-      .withActionRetry((_: NJEvent).show)
-      .withActionFail((_: NJEvent).show)
-      .withActionDone((_: NJEvent).show)
-
   def simpleText[F[_]: Applicative]: Translator[F, String]    = SimpleTextTranslator[F]
   def simpleJson[F[_]: Applicative]: Translator[F, Json]      = SimpleJsonTranslator[F] // for db
   def prettyJson[F[_]: Applicative]: Translator[F, Json]      = PrettyJsonTranslator[F] // for logs

@@ -61,14 +61,6 @@ class ObserversTest extends AnyFunSuite {
                 ag.metrics.report)) >> ag.metrics.reset
       }
 
-  test("1.logging verbose") {
-    service
-      .evalTap(logging.verbose[IO].updateTranslator(_.withMetricReport(_ => None)))
-      .compile
-      .drain
-      .unsafeRunSync()
-  }
-
   test("2.logging json") {
     service.evalTap(logging.json[IO].withLoggerName("json")).compile.drain.unsafeRunSync()
   }
@@ -79,10 +71,6 @@ class ObserversTest extends AnyFunSuite {
 
   test("4.console - simple text") {
     service.evalTap(console.simple[IO]).compile.drain.unsafeRunSync()
-  }
-
-  test("5.console - verbose text") {
-    service.evalTap(console.verbose[IO]).compile.drain.unsafeRunSync()
   }
 
   test("6.console - pretty json") {

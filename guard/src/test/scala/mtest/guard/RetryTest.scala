@@ -398,7 +398,7 @@ class RetryTest extends AnyFunSuite {
     else { k += 1; 0 }
     serviceGuard.eventStream { agent =>
       agent.action("delay", _.bipartite.insignificant.policy(policies.fixedDelay(1.seconds))).delay(tt).run
-    }.evalTap(x => IO.println(x.show)).compile.drain.unsafeRunSync()
+    }.evalTap(console.simple[IO]).compile.drain.unsafeRunSync()
     assert(k == 2)
   }
 
