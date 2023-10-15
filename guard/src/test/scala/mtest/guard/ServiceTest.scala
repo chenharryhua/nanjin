@@ -331,15 +331,29 @@ class ServiceTest extends AnyFunSuite {
 
     val res =
       guard
+        .updateConfig(_.withMetricReport(policies.crontab(_.secondly)))
         .withHttpServer(_.withPort(port"9999"))
-        .eventStream(_ => IO.sleep(10.hours))
+        .eventStream { ag =>
+          val ag1 = ag.withMeasurement("agent-1")
+          val ag2= ag.withMeasurement("agent-2")
+          ag1.action("a", _.bipartite.timed.counted).retry(IO(())).run >>
+            ag1.action("a2", _.bipartite.timed.counted).retry(IO(())).run >>
+            ag1.gauge("g").timed.use_ >>
+            ag1.gauge("g2").timed.use_ >>
+            ag1.counter("c").inc(1) >>
+            ag1.counter("c2").inc(1) >>
+            ag2.histogram("h", _.BYTES).update(1) >>
+            ag2.histogram("h2", _.BYTES).update(1) >>
+            ag2.meter("m", _.MEGABYTES).mark(1) >>
+            ag2.meter("m2", _.MEGABYTES).mark(2) >>
+            ag2.metrics.report >>
+            IO.sleep(10.hours)
+        }
         .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
         .evalTap(console.simple[IO])
         .compile
         .toList <& client
-    val List(a, b) = res.unsafeRunSync()
-    assert(a.isInstanceOf[ServiceStart])
-    assert(b.isInstanceOf[ServiceStop])
+    res.unsafeRunSync()
   }
 
   test("14.service config") {

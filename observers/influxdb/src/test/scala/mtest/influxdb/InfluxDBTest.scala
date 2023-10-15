@@ -71,5 +71,6 @@ class InfluxDBTest extends AnyFunSuite {
       .addTag("tag", "customer")
       .addTags(Map("a" -> "b"))
     service.evalTap(console.simple[IO]).through(influx.observe).compile.drain.unsafeRunSync()
+    service.evalTap(console.simple[IO]).through(influx.observe(10, 10.seconds)).compile.drain.unsafeRunSync()
   }
 }
