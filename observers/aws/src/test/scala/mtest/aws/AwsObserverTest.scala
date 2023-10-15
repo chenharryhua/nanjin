@@ -29,18 +29,20 @@ import scala.concurrent.duration.DurationInt
 class AwsObserverTest extends AnyFunSuite {
   val service: fs2.Stream[IO, NJEvent] =
     TaskGuard[IO]("nanjin")
+      .updateConfig(_.withHomePage("http://abc.efg"))
       .service("observing")
       .withBrief(Json.fromString("brief"))
-      .updateConfig(_.withRestartPolicy(policies.fixedRate(1.second)))
+      .updateConfig(
+        _.withRestartPolicy(policies.fixedRate(1.second)).withMetricReport(policies.crontab(_.secondly)))
       .eventStream { ag =>
         val box = ag.atomicBox(1)
-        val job = // fail twice, then success
-          box.getAndUpdate(_ + 1).map(_ % 3 == 0).ifM(IO(1), IO.raiseError[Int](new Exception("oops")))
+        val job =
+          box.getAndUpdate(_ + 1).map(_ % 12 == 0).ifM(IO(1), IO.raiseError[Int](new Exception("oops")))
         val meter = ag.meter("meter", _.COUNT).counted
         val action = ag
           .action(
             "nj_error",
-            _.critical.bipartite.timed.counted.policy(policies.fixedRate(1.second).limited(1)))
+            _.critical.bipartite.timed.counted.policy(policies.fixedRate(1.second).limited(3)))
           .retry(job)
           .logInput(Json.fromString("input data"))
           .logOutput(_ => Json.fromString("output data"))
@@ -63,6 +65,8 @@ class AwsObserverTest extends AnyFunSuite {
                 counter.inc(10000) >>
                 histogram.update(100L) >>
                 alert.error("alarm") >>
+                alert.warn("warn") >>
+                alert.info("info") >>
                 ag.metrics.report)) >> ag.metrics.reset
       }
 
