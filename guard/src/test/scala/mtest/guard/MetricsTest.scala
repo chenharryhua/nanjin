@@ -143,16 +143,16 @@ class MetricsTest extends AnyFunSuite {
           .timed
           .surround(
             ag.action(name, _.bipartite.counted.timed).retry(IO(())).run >>
-              ag.alert(name).counted.error("error") >>
-              ag.alert(name).counted.warn("warn") >>
-              ag.alert(name).counted.info("info") >>
+              ag.alert(name).error("error") >>
+              ag.alert(name).warn("warn") >>
+              ag.alert(name).info("info") >>
               ag.meter(name, _.GIGABITS).counted.mark(100) >>
               ag.counter(name).inc(32) >>
               ag.counter(name).asRisk.inc(10) >>
               ag.histogram(name, _.BITS).counted.update(100) >>
               ag.metrics.report)
       }
-      .evalTap(console.simple[IO])
+      .evalTap(console.verboseJson[IO])
       .compile
       .drain
       .unsafeRunSync()
@@ -203,9 +203,13 @@ class MetricsTest extends AnyFunSuite {
           agent.gauge("ref").ref(IO.ref(0))
 
       gauge.use(box =>
-        agent.ticks(policies.fixedDelay(1.seconds)).evalTap(_ => box.updateAndGet(_ + 1)).compile.drain)
-
-    }.evalTap(console.simple[IO]).take(8).compile.drain.unsafeRunSync()
+        agent
+          .ticks(policies.fixedDelay(1.seconds).limited(3))
+          .evalTap(_ => box.updateAndGet(_ + 1))
+          .compile
+          .drain) >>
+        agent.metrics.report >> agent.metrics.reset
+    }.evalTap(console.simple[IO]).compile.drain.unsafeRunSync()
   }
 
   test("9.measurement unit") {

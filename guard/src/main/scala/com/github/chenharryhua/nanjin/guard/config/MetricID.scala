@@ -97,18 +97,3 @@ object MetricName {
 final case class MetricID(metricName: MetricName, category: Category) {
   val identifier: String = Encoder[MetricID].apply(this).noSpaces
 }
-object MetricID {
-
-  def apply(
-    serviceParams: ServiceParams,
-    measurement: Measurement,
-    category: Category,
-    name: String): MetricID =
-    MetricID(
-      metricName = MetricName(
-        serviceParams = serviceParams,
-        measurement = measurement,
-        name = name
-      ),
-      category = category)
-}

@@ -1,6 +1,5 @@
 package com.github.chenharryhua.nanjin.guard.event
 
-import cats.kernel.Monoid
 import cats.syntax.all.*
 import com.codahale.metrics.*
 import com.github.chenharryhua.nanjin.guard.config.{Category, MetricID}
@@ -85,13 +84,6 @@ final case class MetricSnapshot(
 
 object MetricSnapshot extends duration {
 
-  implicit val monoidMetricFilter: Monoid[MetricFilter] = new Monoid[MetricFilter] {
-    override val empty: MetricFilter = MetricFilter.ALL
-
-    override def combine(x: MetricFilter, y: MetricFilter): MetricFilter =
-      (name: String, metric: Metric) => x.matches(name, metric) && y.matches(name, metric)
-  }
-
   def counters(metricRegistry: MetricRegistry): List[Snapshot.Counter] =
     metricRegistry.getCounters().asScala.toList.mapFilter { case (name, counter) =>
       decode[MetricID](name).toOption.map(id => Snapshot.Counter(id, counter.getCount))
@@ -99,23 +91,22 @@ object MetricSnapshot extends duration {
 
   def meters(metricRegistry: MetricRegistry): List[Snapshot.Meter] =
     metricRegistry.getMeters().asScala.toList.mapFilter { case (name, meter) =>
-      decode[MetricID](name).toOption.mapFilter(id =>
+      decode[MetricID](name).toOption.collect { id =>
         id.category match {
           case Category.Meter(_, unit) =>
-            Some(
-              Snapshot.Meter(
-                metricId = id,
-                Snapshot.MeterData(
-                  unit = unit,
-                  count = meter.getCount,
-                  mean_rate = Hertz(meter.getMeanRate),
-                  m1_rate = Hertz(meter.getOneMinuteRate),
-                  m5_rate = Hertz(meter.getFiveMinuteRate),
-                  m15_rate = Hertz(meter.getFifteenMinuteRate)
-                )
-              ))
-          case _ => None
-        })
+            Snapshot.Meter(
+              metricId = id,
+              Snapshot.MeterData(
+                unit = unit,
+                count = meter.getCount,
+                mean_rate = Hertz(meter.getMeanRate),
+                m1_rate = Hertz(meter.getOneMinuteRate),
+                m5_rate = Hertz(meter.getFiveMinuteRate),
+                m15_rate = Hertz(meter.getFifteenMinuteRate)
+              )
+            )
+        }
+      }
     }
 
   def timers(metricRegistry: MetricRegistry): List[Snapshot.Timer] =
@@ -149,29 +140,27 @@ object MetricSnapshot extends duration {
 
   def histograms(metricRegistry: MetricRegistry): List[Snapshot.Histogram] =
     metricRegistry.getHistograms().asScala.toList.mapFilter { case (name, histo) =>
-      decode[MetricID](name).toOption.flatMap { id =>
+      decode[MetricID](name).toOption.collect { id =>
         id.category match {
           case Category.Histogram(_, unit) =>
             val ss = histo.getSnapshot
-            Some(
-              Snapshot.Histogram(
-                metricId = id,
-                Snapshot.HistogramData(
-                  unit = unit,
-                  count = histo.getCount,
-                  min = ss.getMin,
-                  max = ss.getMax,
-                  mean = ss.getMean,
-                  stddev = ss.getStdDev,
-                  p50 = ss.getMedian,
-                  p75 = ss.get75thPercentile(),
-                  p95 = ss.get95thPercentile(),
-                  p98 = ss.get98thPercentile(),
-                  p99 = ss.get99thPercentile(),
-                  p999 = ss.get999thPercentile()
-                )
-              ))
-          case _ => None
+            Snapshot.Histogram(
+              metricId = id,
+              Snapshot.HistogramData(
+                unit = unit,
+                count = histo.getCount,
+                min = ss.getMin,
+                max = ss.getMax,
+                mean = ss.getMean,
+                stddev = ss.getStdDev,
+                p50 = ss.getMedian,
+                p75 = ss.get75thPercentile(),
+                p95 = ss.get95thPercentile(),
+                p98 = ss.get98thPercentile(),
+                p99 = ss.get99thPercentile(),
+                p999 = ss.get999thPercentile()
+              )
+            )
         }
       }
     }
@@ -185,10 +174,10 @@ object MetricSnapshot extends duration {
 
   def apply(metricRegistry: MetricRegistry): MetricSnapshot =
     MetricSnapshot(
-      gauges = gauges(metricRegistry).sortBy(_.metricId.metricName.name),
-      counters = counters(metricRegistry).sortBy(_.metricId.metricName.name),
-      meters = meters(metricRegistry).sortBy(_.metricId.metricName.name),
-      timers = timers(metricRegistry).sortBy(_.metricId.metricName.name),
-      histograms = histograms(metricRegistry).sortBy(_.metricId.metricName.name)
+      gauges = gauges(metricRegistry).sortBy(_.metricId.metricName),
+      counters = counters(metricRegistry).sortBy(_.metricId.metricName),
+      meters = meters(metricRegistry).sortBy(_.metricId.metricName),
+      timers = timers(metricRegistry).sortBy(_.metricId.metricName),
+      histograms = histograms(metricRegistry).sortBy(_.metricId.metricName)
     )
 }

@@ -10,7 +10,6 @@ import io.circe.Json
 import io.circe.generic.JsonCodec
 import monocle.syntax.all.*
 import org.http4s.ember.server.EmberServerBuilder
-import org.typelevel.cats.time.instances.{duration, zoneddatetime}
 
 import java.time.*
 import java.util.UUID
@@ -54,12 +53,11 @@ final case class ServiceParams(
   def toZonedDateTime(ts: Instant): ZonedDateTime = ts.atZone(taskParams.zoneId)
 
   def upTime(ts: ZonedDateTime): Duration = Duration.between(launchTime, ts)
-  def upTime(ts: Instant): Duration       = Duration.between(launchTime, toZonedDateTime(ts))
 
   def zonedNow[F[_]: Clock: Functor]: F[ZonedDateTime] = Clock[F].realTimeInstant.map(toZonedDateTime)
 }
 
-object ServiceParams extends zoneddatetime with duration {
+object ServiceParams {
 
   def apply(
     serviceName: ServiceName,
@@ -82,7 +80,7 @@ object ServiceParams extends zoneddatetime with duration {
     )
 }
 
-sealed private[guard] trait ServiceConfigF[X]
+sealed private[guard] trait ServiceConfigF[X] extends Product with Serializable
 
 private object ServiceConfigF {
   implicit val functorServiceConfigF: Functor[ServiceConfigF] = cats.derived.semiauto.functor[ServiceConfigF]
