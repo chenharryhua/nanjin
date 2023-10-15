@@ -24,7 +24,6 @@ object CounterKind extends Enum[CounterKind] with CirceEnum[CounterKind] with Ca
 
   case object HistoCounter extends CounterKind("histogram_updates")
   case object MeterCounter extends CounterKind("meter_sum")
-  case object UdpCounter extends CounterKind("udp_count")
   case object RiskCounter extends CounterKind("risk_count")
 }
 
@@ -44,7 +43,6 @@ object HistogramKind extends Enum[HistogramKind] with CirceEnum[HistogramKind] w
   val values: IndexedSeq[HistogramKind] = findValues
 
   case object Dropwizard extends HistogramKind("histogram")
-  case object UdpHistogram extends HistogramKind("udp_histogram")
 }
 
 sealed abstract class GaugeKind(override val entryName: String)
@@ -78,9 +76,9 @@ object Category {
 @JsonCodec
 final case class MetricName(name: String, digest: String, measurement: String)
 object MetricName {
-  implicit val orderingMetricName: Ordering[MetricName] =
+  implicit final val orderingMetricName: Ordering[MetricName] =
     (x: MetricName, y: MetricName) => x.name.compare(y.name)
-  implicit val orderMetricName: Order[MetricName] = Order.fromOrdering
+  implicit final val orderMetricName: Order[MetricName] = Order.fromOrdering
 
   def apply(serviceParams: ServiceParams, measurement: Measurement, name: String): MetricName = {
     val fullName: List[String] =

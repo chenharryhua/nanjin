@@ -2,11 +2,12 @@ package mtest.guard
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import cats.implicits.catsSyntaxFlatMapOps
+import cats.implicits.{catsSyntaxFlatMapOps, catsSyntaxPartialOrder}
 import com.codahale.metrics.SlidingTimeWindowArrayReservoir
 import com.github.chenharryhua.nanjin.common.HostName
 import com.github.chenharryhua.nanjin.common.chrono.policies
 import com.github.chenharryhua.nanjin.guard.TaskGuard
+import com.github.chenharryhua.nanjin.guard.config.MetricName
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
 import com.github.chenharryhua.nanjin.guard.event.{
   eventFilters,
@@ -252,6 +253,12 @@ class MetricsTest extends AnyFunSuite {
     assert(um.normalize(10.minutes.toJava) == Normalized(600.0, NJTimeUnit.SECONDS))
     assert(um.normalize(NJInformationUnit.BYTES, 1000) == Normalized(1000.0, NJInformationUnit.BYTES))
     assert(um.normalize(NJDataRateUnit.MEGABITS_SECOND, 1) == Normalized(1.0, NJDataRateUnit.MEGABITS_SECOND))
+  }
+
+  test("ordered metric-name") {
+    val m1 = MetricName("a", "o", "o")
+    val m2 = MetricName("b", "o", "o")
+    assert(m2 > m1)
   }
 
 }
