@@ -207,7 +207,28 @@ class ServiceTest extends AnyFunSuite {
     assert(g.isInstanceOf[ServiceStop])
   }
 
-  test("10.policy start over") {
+  test("10.should stop after 2 panic") {
+
+    val List(a, b, c, d, e, f, g, h, i) = guard
+      .updateConfig(_.withRestartPolicy(policies.fixedDelay(1.seconds).limited(2)))
+      .eventStream(_.action("t").retry(IO.raiseError(new Exception)).run)
+      .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
+      .evalTap(console.json[IO])
+      .compile
+      .toList
+      .unsafeRunSync()
+    assert(a.isInstanceOf[ServiceStart])
+    assert(b.isInstanceOf[ActionFail])
+    assert(c.isInstanceOf[ServicePanic])
+    assert(d.isInstanceOf[ServiceStart])
+    assert(e.isInstanceOf[ActionFail])
+    assert(f.isInstanceOf[ServicePanic])
+    assert(g.isInstanceOf[ServiceStart])
+    assert(h.isInstanceOf[ActionFail])
+    assert(i.isInstanceOf[ServiceStop])
+  }
+
+  test("11.policy start over") {
 
     val p1     = policies.fixedDelay(1.seconds).limited(1)
     val p2     = policies.fixedDelay(2.seconds).limited(1)
@@ -252,7 +273,7 @@ class ServiceTest extends AnyFunSuite {
     assert(h.snooze == 2.second.toJava)
   }
 
-  test("11.policy threshold start over") {
+  test("12.policy threshold start over") {
     val policy: Policy = policies.fixedDelay(1.seconds, 2.seconds, 3.seconds, 4.seconds, 5.seconds)
     println(policy)
     val List(a, b, c, d, e, f, g, h) = guard
@@ -295,7 +316,7 @@ class ServiceTest extends AnyFunSuite {
     assert(h.snooze == 2.second.toJava)
   }
 
-  test("12.stop service") {
+  test("13.stop service") {
     val client = EmberClientBuilder
       .default[IO]
       .build
@@ -321,7 +342,7 @@ class ServiceTest extends AnyFunSuite {
     assert(b.isInstanceOf[ServiceStop])
   }
 
-  test("13.service config") {
+  test("14.service config") {
     TaskGuard[IO]("abc")
       .service("abc")
       .updateConfig(

@@ -23,24 +23,21 @@ object MetricIndex {
 }
 
 @JsonCodec
-sealed abstract class ServiceStopCause(val exitCode: Int) extends Product with Serializable {
+sealed abstract class ServiceStopCause(val exitCode: Int) extends Product with Serializable
 
-  final override def toString: String = this match {
+object ServiceStopCause {
+  def apply(ec: ExitCase): ServiceStopCause = ec match {
+    case ExitCase.Succeeded   => ServiceStopCause.Normally
+    case ExitCase.Errored(ex) => ServiceStopCause.ByException(ExceptionUtils.getRootCauseMessage(ex))
+    case ExitCase.Canceled    => ServiceStopCause.ByCancellation
+  }
+
+  implicit final val showServiceStopCause: Show[ServiceStopCause] = {
     case ServiceStopCause.Normally         => "normally exit"
     case ServiceStopCause.ByCancellation   => "abnormally exit due to cancellation"
     case ServiceStopCause.ByException(msg) => s"abnormally exit due to $msg"
     case ServiceStopCause.ByUser           => "stop by user"
   }
-}
-
-object ServiceStopCause {
-  def apply(ec: ExitCase): ServiceStopCause = ec match {
-    case ExitCase.Succeeded  => ServiceStopCause.Normally
-    case ExitCase.Errored(e) => ServiceStopCause.ByException(ExceptionUtils.getRootCauseMessage(e))
-    case ExitCase.Canceled   => ServiceStopCause.ByCancellation
-  }
-
-  implicit final val showServiceStopCause: Show[ServiceStopCause] = Show.fromToString
 
   case object Normally extends ServiceStopCause(0)
   case object ByCancellation extends ServiceStopCause(1)
