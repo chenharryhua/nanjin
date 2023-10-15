@@ -2,14 +2,12 @@ package com.github.chenharryhua.nanjin.guard.observers
 
 import cats.Endo
 import cats.data.NonEmptyList
-import cats.effect.kernel.Resource.ExitCase
 import cats.effect.kernel.{Async, Resource}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.aws.*
 import com.github.chenharryhua.nanjin.common.aws.EmailContent
 import com.github.chenharryhua.nanjin.common.{ChunkSize, EmailAddr}
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
-import com.github.chenharryhua.nanjin.guard.event.NJEvent.ServiceStart
 import com.github.chenharryhua.nanjin.guard.translators.{ColorScheme, Translator, UpdateTranslator}
 import fs2.{Chunk, Pipe, Stream}
 import org.typelevel.cats.time.instances.all
@@ -17,7 +15,6 @@ import scalatags.Text
 import scalatags.Text.all.{tag, *}
 import squants.information.{Bytes, Information, Megabytes}
 
-import java.util.UUID
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 
 object EmailObserver {
@@ -107,28 +104,12 @@ final class EmailObserver[F[_]] private (
     (events: Stream[F, NJEvent]) =>
       val computation = for {
         ses <- Stream.resource(client)
-        ofm <- Stream.eval(
-          F.ref[Map[UUID, ServiceStart]](Map.empty).map(new FinalizeMonitor(translator.translate, _)))
         _ <- events
-          .evalTap(ofm.monitoring)
           .evalMap(evt =>
             translator.translate(evt).map(_.map(tags => (tags, ColorScheme.decorate(evt).eval.value))))
           .unNone
           .groupWithin(chunkSize.value, interval)
           .evalTap(publish(_, ses, from, to, subject))
-          .onFinalizeCase(exitCase =>
-            ofm.terminated(exitCase).flatMap { chk =>
-              val tags: Chunk[(Text.TypedTag[String], ColorScheme)] = chk.map(tag =>
-                (
-                  tag,
-                  exitCase match {
-                    case ExitCase.Succeeded  => ColorScheme.GoodColor
-                    case ExitCase.Errored(_) => ColorScheme.ErrorColor
-                    case ExitCase.Canceled   => ColorScheme.ErrorColor
-                  }))
-              if (tags.nonEmpty) publish(tags, ses, from, to, subject)
-              else F.unit
-            })
       } yield ()
       computation.drain
   }

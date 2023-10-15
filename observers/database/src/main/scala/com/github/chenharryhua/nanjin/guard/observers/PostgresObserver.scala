@@ -5,8 +5,6 @@ import cats.effect.kernel.{Clock, Concurrent, Resource}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.database.TableName
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
-import com.github.chenharryhua.nanjin.guard.event.NJEvent.ServiceStart
-import com.github.chenharryhua.nanjin.guard.observers.FinalizeMonitor
 import com.github.chenharryhua.nanjin.guard.translators.{Translator, UpdateTranslator}
 import fs2.{Pipe, Stream}
 import io.circe.Json
@@ -14,8 +12,6 @@ import skunk.circe.codec.json.json
 import skunk.data.Completion
 import skunk.implicits.toStringOps
 import skunk.{Command, PreparedCommand, Session}
-
-import java.util.UUID
 
 /** DDL:
   *
@@ -42,12 +38,7 @@ final class PostgresObserver[F[_]: Clock](session: Resource[F, Session[F]], tran
     val cmd: Command[Json] = sql"INSERT INTO #${tableName.value} VALUES ($json)".command
     for {
       pg <- Stream.resource(session.evalMap(_.prepare(cmd)))
-      ofm <- Stream.eval(
-        F.ref[Map[UUID, ServiceStart]](Map.empty).map(new FinalizeMonitor(translator.translate, _)))
-      event <- events
-        .evalTap(ofm.monitoring)
-        .evalTap(evt => translator.translate(evt).flatMap(_.traverse(execute(pg, _))).void)
-        .onFinalizeCase(ofm.terminated(_).flatMap(_.traverse(execute(pg, _))).void)
+      event <- events.evalTap(evt => translator.translate(evt).flatMap(_.traverse(execute(pg, _))).void)
     } yield event
   }
 }

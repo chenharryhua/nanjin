@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.event
 
 import cats.Show
-import cats.effect.kernel.Resource.ExitCase
 import com.github.chenharryhua.nanjin.common.chrono.Tick
 import io.circe.generic.JsonCodec
 import org.apache.commons.lang3.exception.ExceptionUtils
@@ -26,12 +25,6 @@ object MetricIndex {
 sealed abstract class ServiceStopCause(val exitCode: Int) extends Product with Serializable
 
 object ServiceStopCause {
-  def apply(ec: ExitCase): ServiceStopCause = ec match {
-    case ExitCase.Succeeded   => ServiceStopCause.Normally
-    case ExitCase.Errored(ex) => ServiceStopCause.ByException(ExceptionUtils.getRootCauseMessage(ex))
-    case ExitCase.Canceled    => ServiceStopCause.ByCancellation
-  }
-
   implicit final val showServiceStopCause: Show[ServiceStopCause] = {
     case ServiceStopCause.Normally         => "normally exit"
     case ServiceStopCause.ByCancellation   => "abnormally exit due to cancellation"

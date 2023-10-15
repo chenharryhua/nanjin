@@ -7,13 +7,10 @@ import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.aws.SimpleQueueService
 import com.github.chenharryhua.nanjin.common.aws.SqsConfig
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
-import com.github.chenharryhua.nanjin.guard.event.NJEvent.ServiceStart
 import com.github.chenharryhua.nanjin.guard.translators.{Translator, UpdateTranslator}
 import fs2.{Pipe, Stream}
 import io.circe.Json
 import software.amazon.awssdk.services.sqs.model.SendMessageRequest
-
-import java.util.UUID
 
 object SqsObserver {
   def apply[F[_]: Concurrent: Clock: UUIDGen](client: Resource[F, SimpleQueueService[F]]): SqsObserver[F] =
@@ -32,17 +29,10 @@ final class SqsObserver[F[_]: Clock: UUIDGen](
     (es: Stream[F, NJEvent]) =>
       for {
         sqs <- Stream.resource(client)
-        ofm <- Stream.eval(F.ref[Map[UUID, ServiceStart]](Map.empty).map(new FinalizeMonitor(translate, _)))
-        event <- es
-          .evalTap(ofm.monitoring)
-          .evalTap { e =>
-            translate(e).flatMap(_.traverse(json =>
-              builder.flatMap(b => sqs.sendMessage(b.messageBody(json.noSpaces).build()).attempt)))
-          }
-          .onFinalizeCase(ofm
-            .terminated(_)
-            .flatMap(_.traverse(json =>
-              builder.flatMap(b => sqs.sendMessage(b.messageBody(json.noSpaces).build()).attempt)).void))
+        event <- es.evalTap { e =>
+          translate(e).flatMap(_.traverse(json =>
+            builder.flatMap(b => sqs.sendMessage(b.messageBody(json.noSpaces).build()).attempt)))
+        }
       } yield event
 
   def observe(builder: SendMessageRequest.Builder): Pipe[F, NJEvent, NJEvent] = internal(F.pure(builder))
