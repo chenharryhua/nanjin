@@ -2,14 +2,7 @@ package com.github.chenharryhua.nanjin.guard.event
 
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.config.Importance
-import com.github.chenharryhua.nanjin.guard.event.NJEvent.{
-  ActionDone,
-  ActionEvent,
-  ActionFail,
-  ActionResultEvent,
-  ActionStart,
-  MetricReport
-}
+import com.github.chenharryhua.nanjin.guard.event.NJEvent.{ActionDone, ActionEvent, ActionStart, MetricReport}
 import cron4s.CronExpr
 import cron4s.lib.javatime.javaTemporalInstance
 import eu.timepit.refined.api.Refined
@@ -29,11 +22,6 @@ object eventFilters {
   final def isServiceEvent(evt: NJEvent): Boolean = evt match {
     case _: ActionEvent => false
     case _              => true
-  }
-
-  final def isActionDone(evt: ActionResultEvent): Boolean = evt match {
-    case _: ActionFail => false
-    case _: ActionDone => true
   }
 
   final def nonSuppress(evt: NJEvent): Boolean = evt match {
