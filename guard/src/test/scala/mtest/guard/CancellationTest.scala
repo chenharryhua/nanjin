@@ -139,7 +139,6 @@ class CancellationTest extends AnyFunSuite {
       }
       .map(_.asJson.noSpaces)
       .evalMap(e => IO(decode[NJEvent](e)).rethrow)
-      .evalTap(console.verbose[IO])
       .compile
       .toVector
       .unsafeRunSync()

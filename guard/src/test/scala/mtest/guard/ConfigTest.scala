@@ -122,4 +122,25 @@ class ConfigTest extends AnyFunSuite {
       .drain
       .unsafeRunSync()
   }
+
+  test("12.lenses - 2") {
+    val len =
+      Translator
+        .serviceStart[IO, SlackApp]
+        .modify(_.map(_.prependMarkdown("prepend").appendMarkdown("append")))
+        .apply(Translator.slack[IO])
+
+    TaskGuard[IO]("lenses")
+      .service("lenses")
+      .eventStream { ag =>
+        val err =
+          ag.action("error", _.critical).retry(IO.raiseError[Int](new Exception("oops"))).run
+        err.attempt
+      }
+      .evalTap(console(len.map(_.show)))
+      .compile
+      .drain
+      .unsafeRunSync()
+  }
+
 }

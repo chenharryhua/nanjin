@@ -56,14 +56,15 @@ class PassThroughTest extends AnyFunSuite {
         alert.unsafeInfo("oops")
         alert.unsafeInfo(Some("oops"))
         alert.warn(Some("message")) >> alert.info(Some("message")) >> alert.error(Some("message")) >>
-          ag.metrics.report
+          ag.metrics.report >> ag.metrics.reset
       }
+      .evalTap(console.simple[IO])
       .filter(_.isInstanceOf[MetricReport])
       .interruptAfter(5.seconds)
-      .debug()
       .compile
       .last
       .unsafeRunSync()
+
     assert(
       last
         .asInstanceOf[MetricReport]

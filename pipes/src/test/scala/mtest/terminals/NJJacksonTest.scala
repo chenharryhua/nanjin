@@ -31,27 +31,27 @@ class NJJacksonTest extends AnyFunSuite {
 
   val fs2Root: NJPath = NJPath("./data/test/terminals/jackson/panda")
   test("uncompressed") {
-    fs2(fs2Root, JacksonFile(Uncompressed), pandaSet)
+    fs2(fs2Root, JacksonFile(_.uncompressed), pandaSet)
   }
 
   test("gzip") {
-    fs2(fs2Root, JacksonFile(Gzip), pandaSet)
+    fs2(fs2Root, JacksonFile(_.gzip), pandaSet)
   }
 
   test("snappy") {
-    fs2(fs2Root, JacksonFile(Snappy), pandaSet)
+    fs2(fs2Root, JacksonFile(_.snappy), pandaSet)
   }
 
   test("bzip2") {
-    fs2(fs2Root, JacksonFile(Bzip2), pandaSet)
+    fs2(fs2Root, JacksonFile(_.bzip2), pandaSet)
   }
 
   test("lz4") {
-    fs2(fs2Root, JacksonFile(Lz4), pandaSet)
+    fs2(fs2Root, JacksonFile(_.lz4), pandaSet)
   }
 
   test("deflate - 1") {
-    fs2(fs2Root, JacksonFile(Deflate(1)), pandaSet)
+    fs2(fs2Root, JacksonFile(_.deflate(1)), pandaSet)
   }
 
   test("ftp") {

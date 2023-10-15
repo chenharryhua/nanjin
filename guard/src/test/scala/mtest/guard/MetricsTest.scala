@@ -2,11 +2,12 @@ package mtest.guard
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import cats.implicits.catsSyntaxFlatMapOps
+import cats.implicits.{catsSyntaxFlatMapOps, catsSyntaxPartialOrder}
 import com.codahale.metrics.SlidingTimeWindowArrayReservoir
 import com.github.chenharryhua.nanjin.common.HostName
 import com.github.chenharryhua.nanjin.common.chrono.policies
 import com.github.chenharryhua.nanjin.guard.TaskGuard
+import com.github.chenharryhua.nanjin.guard.config.MetricName
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
 import com.github.chenharryhua.nanjin.guard.event.{
   eventFilters,
@@ -142,16 +143,16 @@ class MetricsTest extends AnyFunSuite {
           .timed
           .surround(
             ag.action(name, _.bipartite.counted.timed).retry(IO(())).run >>
-              ag.alert(name).counted.error("error") >>
-              ag.alert(name).counted.warn("warn") >>
-              ag.alert(name).counted.info("info") >>
+              ag.alert(name).error("error") >>
+              ag.alert(name).warn("warn") >>
+              ag.alert(name).info("info") >>
               ag.meter(name, _.GIGABITS).counted.mark(100) >>
               ag.counter(name).inc(32) >>
               ag.counter(name).asRisk.inc(10) >>
               ag.histogram(name, _.BITS).counted.update(100) >>
               ag.metrics.report)
       }
-      .evalTap(console.simple[IO])
+      .evalTap(console.verboseJson[IO])
       .compile
       .drain
       .unsafeRunSync()
@@ -202,9 +203,13 @@ class MetricsTest extends AnyFunSuite {
           agent.gauge("ref").ref(IO.ref(0))
 
       gauge.use(box =>
-        agent.ticks(policies.fixedDelay(1.seconds)).evalTap(_ => box.updateAndGet(_ + 1)).compile.drain)
-
-    }.evalTap(console.simple[IO]).take(8).compile.drain.unsafeRunSync()
+        agent
+          .ticks(policies.fixedDelay(1.seconds).limited(3))
+          .evalTap(_ => box.updateAndGet(_ + 1))
+          .compile
+          .drain) >>
+        agent.metrics.report >> agent.metrics.reset
+    }.evalTap(console.simple[IO]).compile.drain.unsafeRunSync()
   }
 
   test("9.measurement unit") {
@@ -252,6 +257,12 @@ class MetricsTest extends AnyFunSuite {
     assert(um.normalize(10.minutes.toJava) == Normalized(600.0, NJTimeUnit.SECONDS))
     assert(um.normalize(NJInformationUnit.BYTES, 1000) == Normalized(1000.0, NJInformationUnit.BYTES))
     assert(um.normalize(NJDataRateUnit.MEGABITS_SECOND, 1) == Normalized(1.0, NJDataRateUnit.MEGABITS_SECOND))
+  }
+
+  test("ordered metric-name") {
+    val m1 = MetricName("a", "o", "o")
+    val m2 = MetricName("b", "o", "o")
+    assert(m2 > m1)
   }
 
 }

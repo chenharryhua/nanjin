@@ -13,9 +13,8 @@ object logging {
   def apply[F[_]: Sync](translator: Translator[F, String]): TextLogging[F] =
     new TextLogging[F](translator, LoggerName("nanjin"))
 
-  def verbose[F[_]: Sync]: TextLogging[F] = apply[F](Translator.verboseText[F])
-  def simple[F[_]: Sync]: TextLogging[F]  = apply(Translator.simpleText[F])
-  def json[F[_]: Sync]: TextLogging[F]    = apply(Translator.prettyJson[F].map(_.noSpaces))
+  def simple[F[_]: Sync]: TextLogging[F] = apply(Translator.simpleText[F])
+  def json[F[_]: Sync]: TextLogging[F]   = apply(Translator.prettyJson[F].map(_.noSpaces))
 
   final class TextLogging[F[_]: Sync](translator: Translator[F, String], loggerName: LoggerName)
       extends (NJEvent => F[Unit]) with UpdateTranslator[F, String, TextLogging[F]] {

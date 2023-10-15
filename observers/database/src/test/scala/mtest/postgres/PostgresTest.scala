@@ -51,7 +51,7 @@ class PostgresTest extends AnyFunSuite {
               action >>
                 meter.mark(1000) >>
                 counter.inc(10000) >>
-                histogram.update(10000000000000L) >>
+                histogram.update(100) >>
                 alert.error("alarm") >>
                 ag.metrics.report)) >> ag.metrics.reset
       }
@@ -76,7 +76,7 @@ class PostgresTest extends AnyFunSuite {
               timestamp timestamptz default current_timestamp)""".command
 
     val run = session.use(_.execute(cmd)) >>
-      service.evalTap(console.verbose[IO]).through(PostgresObserver(session).observe("log")).compile.drain
+      service.evalTap(console.simple[IO]).through(PostgresObserver(session).observe("log")).compile.drain
 
     run.unsafeRunSync()
   }

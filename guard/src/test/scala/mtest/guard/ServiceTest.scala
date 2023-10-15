@@ -207,7 +207,28 @@ class ServiceTest extends AnyFunSuite {
     assert(g.isInstanceOf[ServiceStop])
   }
 
-  test("10.policy start over") {
+  test("10.should stop after 2 panic") {
+
+    val List(a, b, c, d, e, f, g, h, i) = guard
+      .updateConfig(_.withRestartPolicy(policies.fixedDelay(1.seconds).limited(2)))
+      .eventStream(_.action("t").retry(IO.raiseError(new Exception)).run)
+      .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
+      .evalTap(console.json[IO])
+      .compile
+      .toList
+      .unsafeRunSync()
+    assert(a.isInstanceOf[ServiceStart])
+    assert(b.isInstanceOf[ActionFail])
+    assert(c.isInstanceOf[ServicePanic])
+    assert(d.isInstanceOf[ServiceStart])
+    assert(e.isInstanceOf[ActionFail])
+    assert(f.isInstanceOf[ServicePanic])
+    assert(g.isInstanceOf[ServiceStart])
+    assert(h.isInstanceOf[ActionFail])
+    assert(i.isInstanceOf[ServiceStop])
+  }
+
+  test("11.policy start over") {
 
     val p1     = policies.fixedDelay(1.seconds).limited(1)
     val p2     = policies.fixedDelay(2.seconds).limited(1)
@@ -252,7 +273,7 @@ class ServiceTest extends AnyFunSuite {
     assert(h.snooze == 2.second.toJava)
   }
 
-  test("11.policy threshold start over") {
+  test("12.policy threshold start over") {
     val policy: Policy = policies.fixedDelay(1.seconds, 2.seconds, 3.seconds, 4.seconds, 5.seconds)
     println(policy)
     val List(a, b, c, d, e, f, g, h) = guard
@@ -295,7 +316,7 @@ class ServiceTest extends AnyFunSuite {
     assert(h.snooze == 2.second.toJava)
   }
 
-  test("12.stop service") {
+  test("13.stop service") {
     val client = EmberClientBuilder
       .default[IO]
       .build
@@ -310,18 +331,32 @@ class ServiceTest extends AnyFunSuite {
 
     val res =
       guard
+        .updateConfig(_.withMetricReport(policies.crontab(_.secondly)))
         .withHttpServer(_.withPort(port"9999"))
-        .eventStream(_ => IO.sleep(10.hours))
+        .eventStream { ag =>
+          val ag1 = ag.withMeasurement("agent-1")
+          val ag2= ag.withMeasurement("agent-2")
+          ag1.action("a", _.bipartite.timed.counted).retry(IO(())).run >>
+            ag1.action("a2", _.bipartite.timed.counted).retry(IO(())).run >>
+            ag1.gauge("g").timed.use_ >>
+            ag1.gauge("g2").timed.use_ >>
+            ag1.counter("c").inc(1) >>
+            ag1.counter("c2").inc(1) >>
+            ag2.histogram("h", _.BYTES).update(1) >>
+            ag2.histogram("h2", _.BYTES).update(1) >>
+            ag2.meter("m", _.MEGABYTES).mark(1) >>
+            ag2.meter("m2", _.MEGABYTES).mark(2) >>
+            ag2.metrics.report >>
+            IO.sleep(10.hours)
+        }
         .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
         .evalTap(console.simple[IO])
         .compile
         .toList <& client
-    val List(a, b) = res.unsafeRunSync()
-    assert(a.isInstanceOf[ServiceStart])
-    assert(b.isInstanceOf[ServiceStop])
+    res.unsafeRunSync()
   }
 
-  test("13.service config") {
+  test("14.service config") {
     TaskGuard[IO]("abc")
       .service("abc")
       .updateConfig(

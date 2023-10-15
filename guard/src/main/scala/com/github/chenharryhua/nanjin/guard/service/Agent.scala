@@ -35,8 +35,6 @@ sealed trait Agent[F[_]] {
 
   def meter(meterName: String, f: MeasurementUnit.type => MeasurementUnit): NJMeter[F]
   def meterR(meterName: String, f: MeasurementUnit.type => MeasurementUnit): Resource[F, NJMeter[F]]
-  // udp
-  def udpClient(udpName: String): NJUdpClient[F]
 
   // tick stream
   def ticks(policy: Policy): Stream[F, Tick]
@@ -148,15 +146,6 @@ final class GeneralAgent[F[_]: Network] private[service] (
       channel = self.channel,
       metricRegistry = self.metricRegistry,
       serviceParams = self.serviceParams)
-
-  override def udpClient(udpName: String): NJUdpClient[F] = {
-    val name = NameConstraint.unsafeFrom(udpName).value
-    new NJUdpClient[F](
-      name = MetricName(self.serviceParams, self.measurement, name),
-      metricRegistry = self.metricRegistry,
-      isCounting = false,
-      isHistogram = false)
-  }
 
   override def ticks(policy: Policy): Stream[F, Tick] =
     tickStream[F](TickStatus(serviceParams.zerothTick).renewPolicy(policy))

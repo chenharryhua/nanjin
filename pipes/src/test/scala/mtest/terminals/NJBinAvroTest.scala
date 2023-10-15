@@ -17,7 +17,7 @@ import scala.concurrent.duration.DurationInt
 class NJBinAvroTest extends AnyFunSuite {
   import HadoopTestData.*
 
-  val binAvro = hdp.binAvro(pandaSchema)
+  private val binAvro = hdp.binAvro(pandaSchema)
 
   def fs2(path: NJPath, file: BinAvroFile, data: Set[GenericRecord]): Assertion = {
     val tgt = path / file.fileName
@@ -33,27 +33,27 @@ class NJBinAvroTest extends AnyFunSuite {
   val fs2Root: NJPath = NJPath("./data/test/terminals/bin_avro/panda")
 
   test("uncompressed") {
-    fs2(fs2Root, BinAvroFile(Uncompressed), pandaSet)
+    fs2(fs2Root, BinAvroFile(_.uncompressed), pandaSet)
   }
 
   test("gzip") {
-    fs2(fs2Root, BinAvroFile(Gzip), pandaSet)
+    fs2(fs2Root, BinAvroFile(_.gzip), pandaSet)
   }
 
   test("snappy") {
-    fs2(fs2Root, BinAvroFile(Snappy), pandaSet)
+    fs2(fs2Root, BinAvroFile(_.snappy), pandaSet)
   }
 
   test("bzip2") {
-    fs2(fs2Root, BinAvroFile(Bzip2), pandaSet)
+    fs2(fs2Root, BinAvroFile(_.bzip2), pandaSet)
   }
 
   test("lz4") {
-    fs2(fs2Root, BinAvroFile(Lz4), pandaSet)
+    fs2(fs2Root, BinAvroFile(_.lz4), pandaSet)
   }
 
   test("deflate - 1") {
-    fs2(fs2Root, BinAvroFile(Deflate(1)), pandaSet)
+    fs2(fs2Root, BinAvroFile(_.deflate(1)), pandaSet)
   }
 
   test("laziness") {

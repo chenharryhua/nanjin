@@ -11,7 +11,9 @@ import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra, Coalgebra}
 import io.circe.*
 import io.circe.Decoder.Result
+import io.circe.DecodingFailure.Reason
 import io.circe.syntax.EncoderOps
+import org.apache.commons.lang3.exception.ExceptionUtils
 import org.typelevel.cats.time.instances.all
 
 import java.time.*
@@ -20,7 +22,7 @@ import scala.concurrent.duration.FiniteDuration
 import scala.jdk.DurationConverters.{JavaDurationOps, ScalaDurationOps}
 import scala.util.{Random, Try}
 
-sealed trait PolicyF[K]
+sealed trait PolicyF[K] extends Product with Serializable
 
 private object PolicyF extends all {
 
@@ -269,8 +271,12 @@ private object PolicyF extends all {
   }
 
   val decoderFixPolicyF: Decoder[Fix[PolicyF]] =
-    (c: HCursor) =>
-      Try(scheme.ana(jsonCoalgebra).apply(c)).toEither.leftMap(ex => DecodingFailure.fromThrowable(ex, Nil))
+    (hc: HCursor) =>
+      Try(scheme.ana(jsonCoalgebra).apply(hc)).toEither.leftMap { ex =>
+        val reason = Reason.CustomReason(ExceptionUtils.getMessage(ex))
+        DecodingFailure(reason, hc)
+      }
+
 }
 
 final case class Policy(policy: Fix[PolicyF]) { // don't extends AnyVal, monocle doesn't like it
