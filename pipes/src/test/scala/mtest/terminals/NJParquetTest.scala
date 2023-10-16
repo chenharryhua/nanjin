@@ -5,7 +5,6 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.toTraverseOps
 import com.github.chenharryhua.nanjin.common.chrono.policies
-import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.terminals.NJCompression.*
 import com.github.chenharryhua.nanjin.terminals.{HadoopParquet, NJPath, ParquetFile}
 import eu.timepit.refined.auto.*
@@ -84,7 +83,7 @@ class NJParquetTest extends AnyFunSuite {
       .repeatN(number)
       .chunks
       .through(parquet.sink(policies.fixedDelay(1.second), ZoneId.systemDefault())(t =>
-        path / file.fileName(sydneyTime, t)))
+        path / file.ymdFileName(t)))
       .compile
       .drain
       .unsafeRunSync()
