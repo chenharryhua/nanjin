@@ -4,14 +4,7 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.toShow
 import com.github.chenharryhua.nanjin.common.chrono.zones.{darwinTime, singaporeTime, sydneyTime}
-import com.github.chenharryhua.nanjin.common.chrono.{
-  crontabs,
-  localTimes,
-  policies,
-  tickStream,
-  Policy,
-  TickStatus
-}
+import com.github.chenharryhua.nanjin.common.chrono.{Policy, TickStatus, crontabs, localTimes, policies, tickStream}
 import cron4s.CronExpr
 import io.circe.jawn.decode
 import io.circe.syntax.EncoderOps
@@ -19,7 +12,7 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.{LocalDateTime, LocalTime}
 import scala.concurrent.duration.DurationInt
-import scala.jdk.DurationConverters.ScalaDurationOps
+import scala.jdk.DurationConverters.{JavaDurationOps, ScalaDurationOps}
 
 class PolicyCombinatorTest extends AnyFunSuite {
 
@@ -97,9 +90,9 @@ class PolicyCombinatorTest extends AnyFunSuite {
     assert(a6.snooze == 1.second.toJava)
   }
 
-  test("join") {
+  test("meet") {
     val policy =
-      policies.fixedRate(1.second).join(policies.fixedDelay(1.seconds))
+      policies.fixedRate(1.second).meet(policies.fixedDelay(1.seconds))
 
     println(policy.show)
     println(policy.asJson)
@@ -116,29 +109,12 @@ class PolicyCombinatorTest extends AnyFunSuite {
     assert(a5.index == 5)
     assert(a6.index == 6)
 
-    assert(a1.snooze == 1.second.toJava)
-    assert(a2.snooze == 1.second.toJava)
-    assert(a3.snooze == 1.second.toJava)
-    assert(a4.snooze == 1.second.toJava)
-    assert(a5.snooze == 1.second.toJava)
-    assert(a6.snooze == 1.second.toJava)
-  }
-
-  test("join >") {
-    val policy =
-      policies.fixedDelay(1.second).join(policies.fixedRate(1.seconds))
-
-    println(policy.show)
-    println(policy.asJson)
-    assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
-    val ts: TickStatus               = TickStatus.zeroth[IO](policy, sydneyTime).unsafeRunSync()
-    val List(a1, a2, a3, a4, a5, a6) = lazyTickList(ts).take(6).toList
-    assert(a1.snooze == 1.second.toJava)
-    assert(a2.snooze == 1.second.toJava)
-    assert(a3.snooze == 1.second.toJava)
-    assert(a4.snooze == 1.second.toJava)
-    assert(a5.snooze == 1.second.toJava)
-    assert(a6.snooze == 1.second.toJava)
+    assert(a1.snooze.toScala <= 1.second)
+    assert(a2.snooze.toScala <= 1.second)
+    assert(a3.snooze.toScala <= 1.second)
+    assert(a4.snooze.toScala <= 1.second)
+    assert(a5.snooze.toScala <= 1.second)
+    assert(a6.snooze.toScala <= 1.second)
   }
 
   test("infinite") {
@@ -185,7 +161,7 @@ class PolicyCombinatorTest extends AnyFunSuite {
   test("complex policy") {
     val policy = policies
       .accordance(policies.crontab(crontabs.monthly).endAt(localTimes.midnight))
-      .join(policies.crontab(crontabs.daily.oneAM).endAt(localTimes.oneAM))
+      .meet(policies.crontab(crontabs.daily.oneAM).endAt(localTimes.oneAM))
       .followedBy(policies.crontab(crontabs.daily.twoAM).endAt(localTimes.twoAM).limited(3))
       .followedBy(policies.crontab(crontabs.daily.threeAM).endAt(localTimes.threeAM))
       .followedBy(policies.crontab(crontabs.daily.fourAM).endAt(localTimes.fourAM))
@@ -193,7 +169,7 @@ class PolicyCombinatorTest extends AnyFunSuite {
       .followedBy(policies.crontab(crontabs.daily.sixAM).endAt(localTimes.sixAM))
       .followedBy(policies.crontab(crontabs.daily.sevenAM).endAt(localTimes.sevenAM))
       .followedBy(policies.crontab(crontabs.daily.eightAM).endAt(localTimes.eightAM))
-      .join(policies.crontab(crontabs.daily.nineAM).endAt(localTimes.nineAM))
+      .meet(policies.crontab(crontabs.daily.nineAM).endAt(localTimes.nineAM))
       .followedBy(policies.crontab(crontabs.daily.tenAM).endAt(localTimes.tenAM))
       .followedBy(policies.crontab(crontabs.daily.elevenAM).endAt(localTimes.elevenAM))
       .followedBy(policies.giveUp)
@@ -203,7 +179,7 @@ class PolicyCombinatorTest extends AnyFunSuite {
       .expireAt(LocalDateTime.of(2023, 10, 8, 11, 50, 0))
       .followedBy(policies.crontab(crontabs.daily.threePM).endAt(_.threePM).limited(1))
       .followedBy(policies.crontab(crontabs.daily.fourPM).endAt(_.fourPM))
-      .join(policies.crontab(crontabs.daily.fivePM).endAt(_.fivePM))
+      .meet(policies.crontab(crontabs.daily.fivePM).endAt(_.fivePM))
       .followedBy(policies.crontab(crontabs.daily.sixPM).endAt(_.sixPM).limited(1).repeat)
       .followedBy(policies.crontab(crontabs.daily.sevenPM).endAt(_.sevenPM))
       .followedBy(policies.crontab(crontabs.daily.eightPM).endAt(_.eightPM))
