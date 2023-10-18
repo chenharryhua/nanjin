@@ -4,7 +4,7 @@ ThisBuild / version := "0.17.5-SNAPSHOT"
 
 val catsCoreV   = "2.10.0"
 val fs2V        = "3.9.2"
-val awsV_1      = "1.12.560"
+val awsV_1      = "1.12.568"
 val awsV_2      = "2.21.2"
 val catsEffectV = "3.5.2"
 val hadoopV     = "3.3.6"
@@ -84,7 +84,7 @@ val kantanLib = List(
 ).map(_ % kantanV)
 
 val pbLib = List(
-  "com.thesamet.scalapb" %% "scalapb-runtime" % "0.11.13",
+  "com.thesamet.scalapb" %% "scalapb-runtime" % "0.11.14",
   "com.google.protobuf"                       % "protobuf-java"             % protobufV,
   "com.google.protobuf"                       % "protobuf-java-util"        % protobufV,
   "io.confluent"                              % "kafka-protobuf-serializer" % confluentV,
