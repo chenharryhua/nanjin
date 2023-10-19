@@ -4,7 +4,14 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.toShow
 import com.github.chenharryhua.nanjin.common.chrono.zones.{darwinTime, singaporeTime, sydneyTime}
-import com.github.chenharryhua.nanjin.common.chrono.{Policy, TickStatus, crontabs, localTimes, policies, tickStream}
+import com.github.chenharryhua.nanjin.common.chrono.{
+  crontabs,
+  localTimes,
+  policies,
+  tickStream,
+  Policy,
+  TickStatus
+}
 import cron4s.CronExpr
 import io.circe.jawn.decode
 import io.circe.syntax.EncoderOps

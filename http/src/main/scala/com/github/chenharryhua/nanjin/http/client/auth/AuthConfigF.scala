@@ -5,25 +5,25 @@ import cats.effect.Async
 import cats.kernel.Order
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
-import monocle.macros.Lenses
+import monocle.syntax.all.*
 import org.http4s.client.Client
-import org.http4s.client.middleware.RetryPolicy.{exponentialBackoff, isErrorOrRetriableStatus}
+import org.http4s.client.middleware.RetryPolicy.exponentialBackoff
 import org.http4s.client.middleware.{Logger, Retry, RetryPolicy}
 
 import scala.concurrent.duration.*
 
-@Lenses final case class AuthParams(maxRetries: Int, maxWait: FiniteDuration, unsecureLog: Boolean) {
+final case class AuthParams(maxRetries: Int, maxWait: FiniteDuration, insecureLog: Boolean) {
   private val preact: FiniteDuration = maxWait * maxRetries.toLong
 
   def dormant(delay: FiniteDuration): FiniteDuration = Order.max(delay - preact, Duration.Zero)
 
   def authClient[F[_]](client: Client[F])(implicit F: Async[F]): Client[F] =
-    Retry[F](RetryPolicy[F](exponentialBackoff(maxWait, maxRetries), (_, r) => isErrorOrRetriableStatus(r)))(
-      Logger(unsecureLog, unsecureLog, _ => !unsecureLog)(client))
+    Retry[F](RetryPolicy[F](exponentialBackoff(maxWait, maxRetries)))(
+      Logger(insecureLog, insecureLog, _ => !insecureLog)(client))
 }
 
 object AuthParams {
-  def apply(): AuthParams = AuthParams(maxRetries = 10, maxWait = 6.seconds, unsecureLog = false)
+  def apply(): AuthParams = AuthParams(maxRetries = 10, maxWait = 6.seconds, insecureLog = false)
 }
 
 sealed private[auth] trait AuthConfigF[K]
@@ -38,9 +38,9 @@ private object AuthConfigF {
 
   val algebra: Algebra[AuthConfigF, AuthParams] = Algebra[AuthConfigF, AuthParams] {
     case InitParams()                     => AuthParams()
-    case WithAuthMaxRetries(value, cont)  => AuthParams.maxRetries.replace(value)(cont)
-    case WithAuthMaxWait(value, cont)     => AuthParams.maxWait.replace(value)(cont)
-    case WithAuthInsecureLog(value, cont) => AuthParams.unsecureLog.replace(value)(cont)
+    case WithAuthMaxRetries(value, cont)  => cont.focus(_.maxRetries).replace(value)
+    case WithAuthMaxWait(value, cont)     => cont.focus(_.maxWait).replace(value)
+    case WithAuthInsecureLog(value, cont) => cont.focus(_.insecureLog).replace(value)
   }
 }
 

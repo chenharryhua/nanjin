@@ -5,10 +5,11 @@ import cats.effect.{IO, Resource}
 import com.comcast.ip4s.*
 import com.github.chenharryhua.nanjin.common.chrono.policies
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
-import com.github.chenharryhua.nanjin.http.client.middleware.ClientConfig
+import com.github.chenharryhua.nanjin.http.client.middleware.{cookieBox, retry}
 import io.circe.Json
 import org.http4s.circe.CirceEntityCodec.circeEntityEncoder
 import org.http4s.client.Client
+import org.http4s.client.middleware.Logger
 import org.http4s.dsl.io.*
 import org.http4s.ember.client.EmberClientBuilder
 import org.http4s.ember.server.EmberServerBuilder
@@ -18,6 +19,7 @@ import org.http4s.server.{Router, Server}
 import org.http4s.{HttpRoutes, Method, Request}
 import org.scalatest.funsuite.AnyFunSuite
 
+import java.net.CookieManager
 import scala.concurrent.duration.DurationInt
 import scala.util.Random
 
@@ -37,29 +39,17 @@ class HttpClientConfigTest extends AnyFunSuite {
     .build
 
   val ember: Resource[IO, Client[IO]] =
-    EmberClientBuilder.default[IO].build
+    EmberClientBuilder.default[IO].build.map(Logger(logHeaders = true, logBody = true, _ => false)(_))
 
   test("hello, world") {
-    val client = ClientConfig(sydneyTime).params.client[IO](ember)
+    val client = ember
     server
       .surround(client.use(_.expect[String]("http://0.0.0.0:8080/hello/world").flatMap(IO.println)))
       .unsafeRunSync()
   }
 
   test("timeout") {
-    val client =
-      ClientConfig(sydneyTime).withLog.withPolicy(policies.fixedRate(1.seconds)).params.client[IO](ember)
-    server
-      .surround(client.use(_.expect[String]("http://0.0.0.0:8080/timeout/one").flatMap(IO.println)))
-      .unsafeRunSync()
-  }
-
-  test("timeout - 2") {
-    val client =
-      ClientConfig(sydneyTime).withLog
-        .withPolicy(policies.fixedRate(1.seconds).limited(2))
-        .params
-        .client[IO](ember)
+    val client = ember.map(retry(policies.fixedRate(1.seconds).limited(2), sydneyTime))
     server
       .surround(
         client.use(c =>
@@ -73,31 +63,33 @@ class HttpClientConfigTest extends AnyFunSuite {
   }
 
   test("failure") {
-    val client =
-      ClientConfig(sydneyTime).withLog
-        .withPolicy(policies.fixedRate(1.seconds).limited(3))
-        .params
-        .client[IO](ember)
+    val client = ember.map(retry(policies.fixedRate(1.seconds).limited(3), sydneyTime))
     val run = server.surround(client.use(_.expect[String]("http://0.0.0.0:8080/failure").flatMap(IO.println)))
     assertThrows[Exception](run.unsafeRunSync())
   }
 
   test("give up") {
-    val client =
-      ClientConfig(sydneyTime).withLog.withPolicy(policies.giveUp).params.client[IO](ember)
+    val client = ember.map(retry(policies.giveUp, sydneyTime))
     val run = server.surround(client.use(_.expect[String]("http://0.0.0.0:8080/failure").flatMap(IO.println)))
     assertThrows[Exception](run.unsafeRunSync())
   }
 
-  test("post - redact all") {
+  test("post") {
     val postRequest = Request[IO](
       method = Method.POST,
       uri = uri"http://0.0.0.0:8080/post"
     ).withEntity(
       Json.obj("a" -> Json.fromString("a"), "b" -> Json.fromInt(1))
     )
-    val cfg    = ClientConfig(sydneyTime).withHeaderLog.withBodyLog.withCookie.withRedact(_ => true).params
-    val client = cfg.client[IO](ember)
+    val client = ember.map(retry(policies.giveUp, sydneyTime))
     server.surround(client.use(_.expect[String](postRequest).flatMap(IO.println))).unsafeRunSync()
   }
+
+  test("cookie box") {
+    val client = ember.map(cookieBox(new CookieManager()))
+    server
+      .surround(client.use(_.expect[String]("http://0.0.0.0:8080/hello/world").flatMap(IO.println)))
+      .unsafeRunSync()
+  }
+
 }

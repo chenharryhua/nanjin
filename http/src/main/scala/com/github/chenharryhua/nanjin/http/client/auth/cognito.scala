@@ -1,19 +1,19 @@
 package com.github.chenharryhua.nanjin.http.client.auth
 
+import cats.Endo
 import cats.data.NonEmptyList
 import cats.effect.kernel.{Async, Ref, Resource}
 import cats.effect.syntax.all.*
 import cats.syntax.all.*
-import cats.Endo
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import io.circe.generic.auto.*
-import org.http4s.{BasicCredentials, Credentials, Request, Uri, UrlForm}
 import org.http4s.Method.POST
 import org.http4s.circe.CirceEntityCodec.circeEntityDecoder
 import org.http4s.client.Client
 import org.http4s.client.dsl.Http4sClientDsl
 import org.http4s.headers.Authorization
 import org.http4s.implicits.http4sLiteralsSyntax
+import org.http4s.{BasicCredentials, Credentials, Request, Uri, UrlForm}
 import org.typelevel.ci.CIString
 
 import scala.concurrent.duration.*
@@ -30,8 +30,7 @@ object cognito {
     code: String,
     redirect_uri: String,
     code_verifier: String,
-    cfg: AuthConfig,
-    middleware: Endo[Client[F]])
+    cfg: AuthConfig)
       extends Http4sClientDsl[F] with Login[F, AuthorizationCode[F]]
       with UpdateConfig[AuthConfig, AuthorizationCode[F]] {
 
@@ -85,20 +84,8 @@ object cognito {
       def withToken(token: Token, req: Request[F]): Request[F] =
         req.putHeaders(Authorization(Credentials.Token(CIString(token.token_type), token.access_token)))
 
-      loginInternal(middleware(client), getToken, updateToken, withToken)
+      loginInternal(client, getToken, updateToken, withToken)
     }
-
-    override def withMiddleware(f: Client[F] => Client[F]): AuthorizationCode[F] =
-      new AuthorizationCode[F](
-        auth_endpoint = auth_endpoint,
-        client_id = client_id,
-        client_secret = client_secret,
-        code = code,
-        redirect_uri = redirect_uri,
-        code_verifier = code_verifier,
-        cfg = cfg,
-        middleware = middleware.compose(f)
-      )
 
     override def updateConfig(f: Endo[AuthConfig]): AuthorizationCode[F] =
       new AuthorizationCode[F](
@@ -108,8 +95,7 @@ object cognito {
         code = code,
         redirect_uri = redirect_uri,
         code_verifier = code_verifier,
-        cfg = f(cfg),
-        middleware = middleware
+        cfg = f(cfg)
       )
   }
 
@@ -128,8 +114,7 @@ object cognito {
         code = code,
         redirect_uri = redirect_uri,
         code_verifier = code_verifier,
-        cfg = AuthConfig(),
-        middleware = identity
+        cfg = AuthConfig()
       )
 
   }
@@ -139,8 +124,7 @@ object cognito {
     client_id: String,
     client_secret: String,
     scopes: NonEmptyList[String],
-    cfg: AuthConfig,
-    middleware: Endo[Client[F]])
+    cfg: AuthConfig)
       extends Http4sClientDsl[F] with Login[F, ClientCredentials[F]]
       with UpdateConfig[AuthConfig, ClientCredentials[F]] {
 
@@ -175,18 +159,8 @@ object cognito {
       def withToken(token: Token, req: Request[F]): Request[F] =
         req.putHeaders(Authorization(Credentials.Token(CIString(token.token_type), token.access_token)))
 
-      loginInternal(middleware(client), getToken, updateToken, withToken)
+      loginInternal(client, getToken, updateToken, withToken)
     }
-
-    override def withMiddleware(f: Endo[Client[F]]): ClientCredentials[F] =
-      new ClientCredentials[F](
-        auth_endpoint = auth_endpoint,
-        client_id = client_id,
-        client_secret = client_secret,
-        scopes = scopes,
-        cfg = cfg,
-        middleware = middleware.compose(f)
-      )
 
     override def updateConfig(f: Endo[AuthConfig]): ClientCredentials[F] =
       new ClientCredentials[F](
@@ -194,8 +168,7 @@ object cognito {
         client_id = client_id,
         client_secret = client_secret,
         scopes = scopes,
-        cfg = f(cfg),
-        middleware = middleware
+        cfg = f(cfg)
       )
   }
 
@@ -210,8 +183,7 @@ object cognito {
         client_id = client_id,
         client_secret = client_secret,
         scopes = scopes,
-        cfg = AuthConfig(),
-        middleware = identity)
+        cfg = AuthConfig())
 
     def apply[F[_]](
       auth_endpoint: Uri,

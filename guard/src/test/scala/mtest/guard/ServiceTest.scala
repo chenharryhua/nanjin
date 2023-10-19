@@ -335,7 +335,7 @@ class ServiceTest extends AnyFunSuite {
         .withHttpServer(_.withPort(port"9999"))
         .eventStream { ag =>
           val ag1 = ag.withMeasurement("agent-1")
-          val ag2= ag.withMeasurement("agent-2")
+          val ag2 = ag.withMeasurement("agent-2")
           ag1.action("a", _.bipartite.timed.counted).retry(IO(())).run >>
             ag1.action("a2", _.bipartite.timed.counted).retry(IO(())).run >>
             ag1.gauge("g").timed.use_ >>

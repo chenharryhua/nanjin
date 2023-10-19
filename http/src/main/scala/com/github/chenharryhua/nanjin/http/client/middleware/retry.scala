@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.http.client.middleware
 
+import cats.Endo
 import cats.effect.kernel.{Resource, Temporal}
 import cats.effect.std.{Hotswap, UUIDGen}
 import cats.syntax.all.*
@@ -13,57 +14,57 @@ import java.time.ZoneId
 import scala.concurrent.duration.{DurationLong, FiniteDuration}
 import scala.jdk.DurationConverters.JavaDurationOps
 
-private object retry {
+object retry {
 
-  def apply[F[_]: UUIDGen: Temporal](policy: Policy, zoneId: ZoneId)(client: Client[F]): Client[F] = {
-
-    def nextAttempt(
-      req: Request[F],
-      tickStatus: TickStatus,
-      retryHeader: Option[`Retry-After`],
-      hotswap: Hotswap[F, Either[Throwable, Response[F]]]
-    ): F[Response[F]] = {
-      val headerDuration: F[Option[FiniteDuration]] =
-        retryHeader.traverse { h =>
-          h.retry match {
-            case Left(date)  => Temporal[F].realTime.map(date.toDuration - _)
-            case Right(secs) => secs.seconds.pure[F]
+  def apply[F[_]: UUIDGen: Temporal](policy: Policy, zoneId: ZoneId): Endo[Client[F]] = (client: Client[F]) =>
+    {
+      def nextAttempt(
+        req: Request[F],
+        tickStatus: TickStatus,
+        retryHeader: Option[`Retry-After`],
+        hotswap: Hotswap[F, Either[Throwable, Response[F]]]
+      ): F[Response[F]] = {
+        val headerDuration: F[Option[FiniteDuration]] =
+          retryHeader.traverse { h =>
+            h.retry match {
+              case Left(date)  => Temporal[F].realTime.map(date.toDuration - _)
+              case Right(secs) => secs.seconds.pure[F]
+            }
           }
+        val sleepDuration = headerDuration.map {
+          case Some(value) => value.max(tickStatus.tick.snooze.toScala)
+          case None        => tickStatus.tick.snooze.toScala
         }
-      val sleepDuration = headerDuration.map {
-        case Some(value) => value.max(tickStatus.tick.snooze.toScala)
-        case None        => tickStatus.tick.snooze.toScala
+        sleepDuration.flatMap(Temporal[F].sleep(_)) >> retryLoop(req, tickStatus, hotswap)
       }
-      sleepDuration.flatMap(Temporal[F].sleep(_)) >> retryLoop(req, tickStatus, hotswap)
-    }
 
-    def retryLoop(
-      req: Request[F],
-      tickStatus: TickStatus,
-      hotswap: Hotswap[F, Either[Throwable, Response[F]]]
-    ): F[Response[F]] =
-      hotswap.clear >>
-        hotswap.swap(client.run(req).attempt).flatMap {
-          case Left(ex) =>
-            Temporal[F].realTimeInstant.flatMap(now =>
-              tickStatus.next(now) match {
-                case Some(ts) => nextAttempt(req, ts, None, hotswap)
-                case None     => ex.raiseError
-              })
-          case Right(response) =>
-            if (RetryPolicy.defaultRetriable(req, Right(response))) {
+      def retryLoop(
+        req: Request[F],
+        tickStatus: TickStatus,
+        hotswap: Hotswap[F, Either[Throwable, Response[F]]]
+      ): F[Response[F]] =
+        hotswap.clear >>
+          hotswap.swap(client.run(req).attempt).flatMap {
+            case Left(ex) =>
               Temporal[F].realTimeInstant.flatMap(now =>
                 tickStatus.next(now) match {
-                  case Some(ts) => nextAttempt(req, ts, response.headers.get[`Retry-After`], hotswap)
-                  case None     => response.pure[F]
+                  case Some(ts) => nextAttempt(req, ts, None, hotswap)
+                  case None     => ex.raiseError
                 })
-            } else response.pure[F]
-        }
+            case Right(response) =>
+              if (RetryPolicy.defaultRetriable(req, Right(response))) {
+                Temporal[F].realTimeInstant.flatMap(now =>
+                  tickStatus.next(now) match {
+                    case Some(ts) => nextAttempt(req, ts, response.headers.get[`Retry-After`], hotswap)
+                    case None     => response.pure[F]
+                  })
+              } else response.pure[F]
+          }
 
-    Client[F] { (req: Request[F]) =>
-      Hotswap.create[F, Either[Throwable, Response[F]]].flatMap { hotswap =>
-        Resource.eval(TickStatus.zeroth(policy, zoneId).flatMap(ts => retryLoop(req, ts, hotswap)))
+      Client[F] { (req: Request[F]) =>
+        Hotswap.create[F, Either[Throwable, Response[F]]].flatMap { hotswap =>
+          Resource.eval(TickStatus.zeroth(policy, zoneId).flatMap(ts => retryLoop(req, ts, hotswap)))
+        }
       }
     }
-  }
 }

@@ -281,7 +281,7 @@ private object PolicyF extends all {
 }
 
 final case class Policy(policy: Fix[PolicyF]) { // don't extends AnyVal, monocle doesn't like it
-  import PolicyF.{EndAt, FollowedBy, Meet, Limited, Repeat}
+  import PolicyF.{EndAt, FollowedBy, Limited, Meet, Repeat}
   override def toString: String = scheme.cata(PolicyF.showPolicy).apply(policy)
 
   def limited(num: Int): Policy         = Policy(Fix(Limited(policy, num)))
