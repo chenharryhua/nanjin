@@ -29,17 +29,17 @@ class NJConsumerRecordDecoderTest extends AnyFunSuite {
   test("decode bad key") {
     val rst = topic.decode(badKey)
     assert(rst.value.contains(2))
-    assert(rst.key.isLeft)
+    assert(rst.key.isEmpty)
   }
   test("decode bad value") {
     val rst = topic.decode(badVal)
     assert(rst.key.contains(1))
-    assert(rst.value.isLeft)
+    assert(rst.value.isEmpty)
   }
   test("decode bad key vaule") {
     val rst = topic.decode(badKV)
-    assert(rst.key.isLeft)
-    assert(rst.value.isLeft)
+    assert(rst.key.isEmpty)
+    assert(rst.value.isEmpty)
   }
 
 }

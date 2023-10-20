@@ -11,12 +11,9 @@ import io.circe.generic.JsonCodec
 import io.scalaland.chimney.dsl.*
 import org.apache.avro.Schema
 import org.apache.kafka.clients.consumer.ConsumerRecord as JavaConsumerRecord
-import org.apache.kafka.common.header.internals.{RecordHeader, RecordHeaders}
-import org.apache.kafka.common.header.{Header, Headers as KafkaHeaders}
-import org.apache.kafka.common.record.TimestampType
+import org.apache.kafka.common.header.Headers as KafkaHeaders
 
 import java.time.{Instant, ZoneId, ZonedDateTime}
-import java.util.Optional
 import scala.annotation.nowarn
 
 @JsonCodec
@@ -37,14 +34,17 @@ object NJHeader {
 @AvroNamespace("nanjin.kafka")
 @AvroName("NJConsumerRecord")
 final case class NJConsumerRecord[K, V](
+  @AvroDoc("kafka topic name") topic: String,
   @AvroDoc("kafka partition") partition: Int,
   @AvroDoc("kafka offset") offset: Long,
   @AvroDoc("kafka timestamp in millisecond") timestamp: Long,
+  @AvroDoc("kafka timestamp type") timestampType: Int,
+  @AvroDoc("kafka key size") serializedKeySize: Option[Int],
+  @AvroDoc("kafka value size") serializedValueSize: Option[Int],
   @AvroDoc("kafka key") key: Option[K],
   @AvroDoc("kafka value") value: Option[V],
-  @AvroDoc("kafka topic name") topic: String,
-  @AvroDoc("kafka timestamp type") timestampType: Int,
-  @AvroDoc("kafka headers") headers: List[NJHeader]) {
+  @AvroDoc("kafka headers") headers: List[NJHeader],
+  @AvroDoc("kafka leader epoch") leaderEpoch: Option[Int]) {
 
   def flatten[K2, V2](implicit
     evK: K <:< Option[K2],
@@ -55,27 +55,8 @@ final case class NJConsumerRecord[K, V](
   def toNJProducerRecord: NJProducerRecord[K, V] =
     NJProducerRecord[K, V](topic, Some(partition), Some(offset), Some(timestamp), key, value, headers)
 
-  def toJavaConsumerRecord: JavaConsumerRecord[K, V] =
-    new JavaConsumerRecord[K, V](
-      this.topic,
-      this.partition,
-      this.offset,
-      this.timestamp,
-      this.timestampType match {
-        case 0 => TimestampType.CREATE_TIME
-        case 1 => TimestampType.LOG_APPEND_TIME
-        case _ => TimestampType.NO_TIMESTAMP_TYPE
-      },
-      JavaConsumerRecord.NULL_SIZE,
-      JavaConsumerRecord.NULL_SIZE,
-      this.key.getOrElse(null.asInstanceOf[K]),
-      this.value.getOrElse(null.asInstanceOf[V]),
-      new RecordHeaders(this.headers.map(h => new RecordHeader(h.key, h.value): Header).toArray),
-      Optional.empty[Integer]()
-    )
-
-  def toConsumerRecord: ConsumerRecord[K, V] =
-    toJavaConsumerRecord.transformInto[ConsumerRecord[K, V]]
+  def toJavaConsumerRecord: JavaConsumerRecord[K, V] = this.transformInto[JavaConsumerRecord[K, V]]
+  def toConsumerRecord: ConsumerRecord[K, V] = toJavaConsumerRecord.transformInto[ConsumerRecord[K, V]]
 
   def metaInfo(zoneId: ZoneId): RecordMetaInfo =
     this
@@ -85,22 +66,13 @@ final case class NJConsumerRecord[K, V](
 
 }
 
-object NJConsumerRecord extends Isos {
+object NJConsumerRecord extends NJConsumerRecordTransformers {
 
   def apply[K, V](cr: JavaConsumerRecord[K, V]): NJConsumerRecord[K, V] =
-    NJConsumerRecord(
-      partition = cr.partition,
-      offset = cr.offset,
-      timestamp = cr.timestamp,
-      key = Option(cr.key),
-      value = Option(cr.value),
-      topic = cr.topic,
-      timestampType = cr.timestampType.id,
-      headers = NJHeader(cr.headers())
-    )
+    cr.transformInto[NJConsumerRecord[K, V]]
 
   def apply[K, V](cr: ConsumerRecord[K, V]): NJConsumerRecord[K, V] =
-    apply(isoFs2ConsumerRecord.get(cr))
+    cr.transformInto[NJConsumerRecord[K, V]]
 
   def avroCodec[K, V](
     keyCodec: NJAvroCodec[K],

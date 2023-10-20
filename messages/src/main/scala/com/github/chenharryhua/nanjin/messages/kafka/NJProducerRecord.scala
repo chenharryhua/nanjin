@@ -4,11 +4,10 @@ import cats.Bifunctor
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.sksamuel.avro4s.*
-import fs2.kafka.{Header as Fs2Header, Headers, ProducerRecord}
+import fs2.kafka.ProducerRecord
+import io.scalaland.chimney.dsl.TransformerOps
 import org.apache.avro.Schema
 import org.apache.kafka.clients.producer.ProducerRecord as JavaProducerRecord
-import org.apache.kafka.common.header.Header
-import org.apache.kafka.common.header.internals.{RecordHeader, RecordHeaders}
 import shapeless.cachedImplicit
 
 import scala.annotation.nowarn
@@ -38,46 +37,17 @@ final case class NJProducerRecord[K, V](
 
   def noMeta: NJProducerRecord[K, V] = copy(partition = None, timestamp = None, headers = Nil)
 
-  @SuppressWarnings(Array("AsInstanceOf"))
-  def toProducerRecord: ProducerRecord[K, V] = {
-    val hds = Headers.fromSeq(headers.map(h => Fs2Header(h.key, h.value)))
-    val pr =
-      ProducerRecord(topic, key.getOrElse(null.asInstanceOf[K]), value.getOrElse(null.asInstanceOf[V]))
-        .withHeaders(hds)
-    (partition, timestamp) match {
-      case (None, None)       => pr
-      case (Some(p), None)    => pr.withPartition(p)
-      case (None, Some(t))    => pr.withTimestamp(t)
-      case (Some(p), Some(t)) => pr.withPartition(p).withTimestamp(t)
-    }
-  }
-
-  def toJavaProducerRecord: JavaProducerRecord[K, V] =
-    new JavaProducerRecord[K, V](
-      topic,
-      partition.map(Integer.valueOf).orNull,
-      timestamp.map(java.lang.Long.valueOf).orNull,
-      key.getOrElse(null.asInstanceOf[K]),
-      value.getOrElse(null.asInstanceOf[V]),
-      new RecordHeaders(headers.map(h => new RecordHeader(h.key, h.value): Header).toArray)
-    )
+  def toProducerRecord: ProducerRecord[K, V]         = this.transformInto[ProducerRecord[K, V]]
+  def toJavaProducerRecord: JavaProducerRecord[K, V] = this.transformInto[JavaProducerRecord[K, V]]
 }
 
-object NJProducerRecord extends Isos {
+object NJProducerRecord extends NJProducerRecordTransformers {
 
   def apply[K, V](pr: JavaProducerRecord[K, V]): NJProducerRecord[K, V] =
-    NJProducerRecord(
-      topic = pr.topic(),
-      partition = Option(pr.partition.toInt),
-      offset = None,
-      timestamp = Option(pr.timestamp.toLong),
-      key = Option(pr.key),
-      value = Option(pr.value),
-      headers = pr.headers().toArray.map(h => NJHeader(h.key(), h.value())).toList
-    )
+    pr.transformInto[NJProducerRecord[K, V]]
 
   def apply[K, V](pr: ProducerRecord[K, V]): NJProducerRecord[K, V] =
-    apply(isoFs2ProducerRecord.get(pr))
+    pr.transformInto[NJProducerRecord[K, V]]
 
   def apply[K, V](topicName: TopicName, k: K, v: V): NJProducerRecord[K, V] =
     NJProducerRecord(topicName.value, None, None, None, Option(k), Option(v), Nil)

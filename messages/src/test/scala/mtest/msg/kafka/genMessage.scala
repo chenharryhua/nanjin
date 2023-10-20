@@ -72,7 +72,18 @@ object genMessage {
       timestampType <- Gen.oneOf(-1, 0, 1)
       key <- arbitrary[Int]
       value <- arbitrary[Int]
-    } yield NJConsumerRecord(partition, offset, timestamp, Some(key), Some(value), topic, timestampType, Nil)
+    } yield NJConsumerRecord(
+      topic,
+      partition,
+      offset,
+      timestamp,
+      timestampType,
+      None,
+      None,
+      Some(key),
+      Some(value),
+      Nil,
+      None)
 
     val genProducerRecord: Gen[ProducerRecord[Int, Int]] = for {
       topic <- Gen.asciiPrintableStr

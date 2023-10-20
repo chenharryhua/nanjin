@@ -64,7 +64,8 @@ object NJConsumerMessage {
           ConsumerRecord[K1, V1],
           ConsumerRecord[K2, V2],
           JavaConsumerRecord[K1, V1],
-          JavaConsumerRecord[K2, V2]](_.transformInto)(b => _ => b.transformInto)
+          JavaConsumerRecord[K2, V2]](_.transformInto[JavaConsumerRecord[K1, V1]])(b =>
+          _ => b.transformInto[ConsumerRecord[K2, V2]])
 
     }
 
@@ -80,8 +81,8 @@ object NJConsumerMessage {
           CommittableConsumerRecord[F, K1, V1],
           CommittableConsumerRecord[F, K2, V2],
           JavaConsumerRecord[K1, V1],
-          JavaConsumerRecord[K2, V2]](_.record.transformInto) { b => s =>
-          CommittableConsumerRecord(b.transformInto, s.offset)
+          JavaConsumerRecord[K2, V2]](_.record.transformInto[JavaConsumerRecord[K1, V1]]) { b => s =>
+          CommittableConsumerRecord(b.transformInto[ConsumerRecord[K2, V2]], s.offset)
         }
     }
 
@@ -97,7 +98,8 @@ object NJConsumerMessage {
           NJConsumerRecord[K1, V1],
           NJConsumerRecord[K2, V2],
           JavaConsumerRecord[K1, V1],
-          JavaConsumerRecord[K2, V2]](_.toJavaConsumerRecord)(b => _ => NJConsumerRecord(b))
+          JavaConsumerRecord[K2, V2]](_.toJavaConsumerRecord)(b =>
+          _ => b.transformInto[NJConsumerRecord[K2, V2]])
     }
 }
 
