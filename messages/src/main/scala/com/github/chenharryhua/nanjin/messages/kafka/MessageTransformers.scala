@@ -95,7 +95,5 @@ private trait MessageTransformers {
         .map(pr => Option(src.timestamp()).fold(pr)(pr.withTimestamp(_)))
         .eval
         .value
-
   }
-
 }

@@ -13,9 +13,9 @@ private[kafka] trait NJProducerRecordTransformers extends NJHeaderTransformers {
     (src: JavaProducerRecord[K, V]) =>
       NJProducerRecord(
         topic = src.topic(),
-        partition = Option(src.partition().toInt),
+        partition = Option(src.partition()).map(_.toInt),
         offset = None,
-        timestamp = Option(src.timestamp().toLong),
+        timestamp = Option(src.timestamp()).map(_.toLong),
         key = Option(src.key()),
         value = Option(src.value()),
         headers = src.headers().toArray.map(_.transformInto[NJHeader]).toList
