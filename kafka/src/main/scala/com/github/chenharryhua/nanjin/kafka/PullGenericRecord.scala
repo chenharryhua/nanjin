@@ -91,8 +91,8 @@ final class PullGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName,
     record.put("timestamp", ccr.timestamp())
     record.put("timestampType", ccr.timestampType().id)
     record.put("headers", headers.toList.asJava)
-    record.put("key", keyDecode(ccr.key).getOrElse(null))
-    record.put("value", valDecode(ccr.value).getOrElse(null))
+    record.put("key", keyDecode(ccr.key).toOption.orNull)
+    record.put("value", valDecode(ccr.value).toOption.orNull)
     record
   }
 

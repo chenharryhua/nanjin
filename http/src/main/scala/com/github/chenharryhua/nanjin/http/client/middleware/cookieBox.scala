@@ -10,7 +10,7 @@ import java.net.{CookieManager, CookieStore, HttpCookie, URI}
 import scala.jdk.CollectionConverters.*
 
 object cookieBox {
-  def apply[F[_]: Sync](cookieManager: CookieManager): Endo[Client[F]] = (client: Client[F]) => {
+  def apply[F[_]: MonadCancelThrow](cookieManager: CookieManager): Endo[Client[F]] = (client: Client[F]) => {
     val cookieStore: CookieStore = cookieManager.getCookieStore
     Client[F] { req =>
       for {

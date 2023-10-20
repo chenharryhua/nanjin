@@ -34,7 +34,7 @@ object traceServer {
     * https://docs.aws.amazon.com/xray/latest/devguide/xray-api-segmentdocuments.html
     */
 
-  def apply[F[_]](routes: Span[F] => HttpRoutes[F], entryPoint: Resource[F, EntryPoint[F]])(implicit
+  def apply[F[_]](entryPoint: Resource[F, EntryPoint[F]])(routes: Span[F] => HttpRoutes[F])(implicit
     F: MonadCancel[F, Throwable]): HttpRoutes[F] =
     Kleisli { req =>
       val kernelHeaders = req.headers.headers.collect {
@@ -71,4 +71,8 @@ object traceServer {
       }
       OptionT(response)
     }
+
+  def apply[F[_]](entryPoint: EntryPoint[F])(routes: Span[F] => HttpRoutes[F])(implicit
+    F: MonadCancel[F, Throwable]): HttpRoutes[F] =
+    apply[F](Resource.pure[F, EntryPoint[F]](entryPoint))(routes)
 }

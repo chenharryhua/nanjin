@@ -75,17 +75,15 @@ final class KafkaContext[F[_]](val settings: KafkaSettings)
   def consume(topicName: TopicNameL)(implicit F: Sync[F]): NJKafkaByteConsume[F] =
     consume(TopicName(topicName))
 
-  def monitor(topicName: TopicName)(implicit F: Async[F]): Stream[F, String] =
+  def monitor(topicName: TopicNameL, f: AutoOffsetReset.type => AutoOffsetReset = _.Latest)(implicit
+    F: Async[F]): Stream[F, String] =
     Stream.eval(UUIDGen[F].randomUUID).flatMap { uuid =>
-      consume(topicName)
+      consume(TopicName(topicName))
         .updateConfig( // avoid accidentally join an existing consumer-group
-          _.withGroupId(uuid.show).withEnableAutoCommit(false).withAutoOffsetReset(AutoOffsetReset.Latest))
+          _.withGroupId(uuid.show).withEnableAutoCommit(false).withAutoOffsetReset(f(AutoOffsetReset)))
         .genericRecords
         .map(ccr => gr2Jackson(ccr.record.value).get)
     }
-
-  def monitor(topicName: TopicNameL)(implicit F: Async[F]): Stream[F, String] =
-    monitor(TopicName(topicName))
 
   private def bytesProducerSettings(implicit F: Sync[F]): ProducerSettings[F, Array[Byte], Array[Byte]] =
     ProducerSettings[F, Array[Byte], Array[Byte]](Serializer[F, Array[Byte]], Serializer[F, Array[Byte]])
