@@ -30,15 +30,15 @@ private[kafka] trait NJConsumerRecordTransformers extends NJHeaderTransformers {
   implicit def transformCRJavaNJ[K, V]: Transformer[JavaConsumerRecord[K, V], NJConsumerRecord[K, V]] =
     (src: JavaConsumerRecord[K, V]) =>
       NJConsumerRecord(
+        topic = src.topic(),
         partition = src.partition(),
         offset = src.offset(),
         timestamp = src.timestamp(),
+        timestampType = src.timestampType().id,
         serializedKeySize = Option(src.serializedKeySize()),
         serializedValueSize = Option(src.serializedValueSize()),
         key = Option(src.key()),
         value = Option(src.value()),
-        timestampType = src.timestampType().id,
-        topic = src.topic(),
         headers = src.headers().toArray.map(_.transformInto[NJHeader]).toList,
         leaderEpoch = src.leaderEpoch().toScala.map(_.toInt)
       )

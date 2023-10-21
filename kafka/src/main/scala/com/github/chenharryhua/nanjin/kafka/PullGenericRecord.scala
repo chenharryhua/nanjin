@@ -14,6 +14,7 @@ import org.apache.kafka.streams.scala.serialization.Serdes
 
 import java.nio.ByteBuffer
 import scala.jdk.CollectionConverters.{MapHasAsJava, SeqHasAsJava}
+import scala.jdk.OptionConverters.RichOptional
 import scala.util.Try
 
 final class PullGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName, pair: AvroSchemaPair)
@@ -90,9 +91,12 @@ final class PullGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName,
     record.put("offset", ccr.offset)
     record.put("timestamp", ccr.timestamp())
     record.put("timestampType", ccr.timestampType().id)
-    record.put("headers", headers.toList.asJava)
+    record.put("serializedKeySize", ccr.serializedKeySize())
+    record.put("serializedValueSize", ccr.serializedValueSize())
     record.put("key", keyDecode(ccr.key).toOption.orNull)
     record.put("value", valDecode(ccr.value).toOption.orNull)
+    record.put("headers", headers.toList.asJava)
+    record.put("leaderEpoch", ccr.leaderEpoch().toScala.orNull)
     record
   }
 
