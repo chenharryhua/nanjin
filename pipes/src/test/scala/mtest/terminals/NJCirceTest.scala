@@ -3,15 +3,15 @@ package mtest.terminals
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.toFunctorFilterOps
+import com.github.chenharryhua.nanjin.common.chrono.policies
 import com.github.chenharryhua.nanjin.terminals.NJCompression.*
 import com.github.chenharryhua.nanjin.terminals.{CirceFile, HadoopCirce, NJHadoop, NJPath}
 import eu.timepit.refined.auto.*
 import fs2.Stream
 import io.circe.generic.auto.*
 import io.circe.syntax.EncoderOps
-import TestData.Tiger
-import com.github.chenharryhua.nanjin.common.chrono.policies
 import mtest.terminals.HadoopTestData.hdp
+import mtest.terminals.TestData.Tiger
 import org.apache.hadoop.conf.Configuration
 import org.scalatest.Assertion
 import org.scalatest.funsuite.AnyFunSuite
@@ -37,27 +37,27 @@ class NJCirceTest extends AnyFunSuite {
   val fs2Root: NJPath = NJPath("./data/test/terminals/circe/tiger")
 
   test("uncompressed") {
-    fs2(fs2Root, CirceFile(_.uncompressed), TestData.tigerSet)
+    fs2(fs2Root, CirceFile(_.Uncompressed), TestData.tigerSet)
   }
 
   test("gzip") {
-    fs2(fs2Root, CirceFile(_.gzip), TestData.tigerSet)
+    fs2(fs2Root, CirceFile(_.Gzip), TestData.tigerSet)
   }
 
   test("snappy") {
-    fs2(fs2Root, CirceFile(_.snappy), TestData.tigerSet)
+    fs2(fs2Root, CirceFile(_.Snappy), TestData.tigerSet)
   }
 
   test("bzip2") {
-    fs2(fs2Root, CirceFile(_.bzip2), TestData.tigerSet)
+    fs2(fs2Root, CirceFile(_.Bzip2), TestData.tigerSet)
   }
 
   test("lz4") {
-    fs2(fs2Root, CirceFile(Lz4), TestData.tigerSet)
+    fs2(fs2Root, CirceFile(_.Lz4), TestData.tigerSet)
   }
 
   test("deflate - 1") {
-    fs2(fs2Root, CirceFile(_.deflate(1)), TestData.tigerSet)
+    fs2(fs2Root, CirceFile(_.Deflate(1)), TestData.tigerSet)
   }
 
   test("ftp") {

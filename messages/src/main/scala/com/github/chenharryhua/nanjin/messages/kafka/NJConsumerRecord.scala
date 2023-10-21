@@ -4,7 +4,6 @@ import cats.kernel.PartialOrder
 import cats.syntax.all.*
 import cats.{Bifunctor, Eq, Show}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
-import com.github.chenharryhua.nanjin.messages.kafka.instances.*
 import com.sksamuel.avro4s.*
 import fs2.kafka.{ConsumerRecord, Header as Fs2Header}
 import io.circe.generic.JsonCodec
@@ -52,12 +51,14 @@ final case class NJConsumerRecord[K, V](
     NJProducerRecord[K, V](topic, Some(partition), Some(offset), Some(timestamp), key, value, headers)
 
   def toJavaConsumerRecord: JavaConsumerRecord[K, V] = this.transformInto[JavaConsumerRecord[K, V]]
-  def toConsumerRecord: ConsumerRecord[K, V] = toJavaConsumerRecord.transformInto[ConsumerRecord[K, V]]
+  def toConsumerRecord: ConsumerRecord[K, V]         = this.transformInto[ConsumerRecord[K, V]]
 
   def metaInfo(zoneId: ZoneId): RecordMetaInfo =
     this
       .into[RecordMetaInfo]
-      .withFieldComputed(_.timestamp, x => ZonedDateTime.ofInstant(Instant.ofEpochMilli(x.timestamp), zoneId))
+      .withFieldComputed(
+        _.timestamp,
+        ts => ZonedDateTime.ofInstant(Instant.ofEpochMilli(ts.timestamp), zoneId))
       .transform
 }
 

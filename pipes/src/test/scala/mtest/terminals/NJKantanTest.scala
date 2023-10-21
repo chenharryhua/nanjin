@@ -35,34 +35,34 @@ class NJKantanTest extends AnyFunSuite {
 
   test("uncompressed - with-header") {
     val cfg = CsvConfiguration.rfc.withHeader(tigerHeader.modify(identity))
-    fs2(fs2Root / "header", KantanFile(_.uncompressed), cfg, tigerSet)
+    fs2(fs2Root / "header", KantanFile(_.Uncompressed), cfg, tigerSet)
   }
 
   test("uncompressed - without-header") {
     val cfg = CsvConfiguration.rfc.withHeader(false)
-    fs2(fs2Root / "no-header", KantanFile(_.uncompressed), cfg, tigerSet)
+    fs2(fs2Root / "no-header", KantanFile(_.Uncompressed), cfg, tigerSet)
   }
 
   test("gzip") {
     val cfg = CsvConfiguration.rfc
-    fs2(fs2Root, KantanFile(_.gzip), cfg, tigerSet)
+    fs2(fs2Root, KantanFile(_.Gzip), cfg, tigerSet)
   }
   test("snappy") {
     val cfg = CsvConfiguration.rfc
-    fs2(fs2Root, KantanFile(_.snappy), cfg, tigerSet)
+    fs2(fs2Root, KantanFile(_.Snappy), cfg, tigerSet)
   }
   test("bzip2") {
     val cfg = CsvConfiguration.rfc.withCellSeparator('?')
-    fs2(fs2Root, KantanFile(_.bzip2), cfg, tigerSet)
+    fs2(fs2Root, KantanFile(_.Bzip2), cfg, tigerSet)
   }
   test("lz4") {
     val cfg = CsvConfiguration.rfc.withQuotePolicy(CsvConfiguration.QuotePolicy.WhenNeeded)
-    fs2(fs2Root, KantanFile(_.lz4), cfg, tigerSet)
+    fs2(fs2Root, KantanFile(_.Lz4), cfg, tigerSet)
   }
 
   test("deflate") {
     val cfg = CsvConfiguration.rfc.withQuote('*')
-    fs2(fs2Root, KantanFile(_.deflate(1)), cfg, tigerSet)
+    fs2(fs2Root, KantanFile(_.Deflate(1)), cfg, tigerSet)
   }
 
   test("ftp") {
