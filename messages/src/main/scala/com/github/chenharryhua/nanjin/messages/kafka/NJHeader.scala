@@ -16,8 +16,8 @@ final case class NJHeader(key: String, value: Array[Byte])
 object NJHeader {
   // consistent with fs2.kafka
   implicit val showNJHeader: Show[NJHeader] = (a: NJHeader) => Header(a.key, a.value).show
-  implicit val eqNJHeader: Eq[NJHeader] = (x: NJHeader, y: NJHeader) =>
-    Header(x.key, x.value) === Header(y.key, y.value)
+  implicit val eqNJHeader: Eq[NJHeader] =
+    (x: NJHeader, y: NJHeader) => (x.key === y.key) && x.value.sameElements(y.value)
 
   implicit val transformerHeaderNJFs2: Transformer[NJHeader, Header] =
     (src: NJHeader) => Header(src.key, src.value)
