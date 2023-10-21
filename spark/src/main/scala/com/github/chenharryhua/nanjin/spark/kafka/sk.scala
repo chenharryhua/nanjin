@@ -52,8 +52,7 @@ private[spark] object sk {
     topic: KafkaTopic[F, K, V],
     ss: SparkSession,
     offsetRange: KafkaTopicPartition[Option[KafkaOffsetRange]]): RDD[NJConsumerRecord[K, V]] =
-    kafkaBatchRDD(topic.context.settings.consumerSettings, ss, offsetRange)
-      .map(topic.decode(_).toNJConsumerRecord)
+    kafkaBatchRDD(topic.context.settings.consumerSettings, ss, offsetRange).map(topic.decode(_))
 
   def kafkaBatch[F[_]: Async, K, V](
     topic: KafkaTopic[F, K, V],
@@ -96,14 +95,17 @@ private[spark] object sk {
       .as[(Array[Byte], Array[Byte], String, Int, Long, Timestamp, Int, Array[NJHeader])]
       .mapPartitions(_.map { case (key, value, topic, partition, offset, timestamp, timestampType, headers) =>
         NJConsumerRecord(
-          partition,
-          offset,
-          timestamp.getTime,
-          Option(key),
-          Option(value),
-          topic,
-          timestampType,
-          Option(headers).traverse(_.toList).flatten
+          topic = topic,
+          partition = partition,
+          offset = offset,
+          timestamp = timestamp.getTime,
+          timestampType = timestampType,
+          serializedKeySize = None,
+          serializedValueSize = None,
+          key = Option(key),
+          value = Option(value),
+          headers = Option(headers).traverse(_.toList).flatten,
+          leaderEpoch = None
         )
       })
   }

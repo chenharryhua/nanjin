@@ -31,8 +31,7 @@ object adobe {
     client_id: String,
     client_code: String,
     client_secret: String,
-    cfg: AuthConfig,
-    middleware: Endo[Client[F]])
+    cfg: AuthConfig)
       extends Http4sClientDsl[F] with Login[F, IMS[F]] with UpdateConfig[AuthConfig, IMS[F]] {
 
     private case class Token(
@@ -67,7 +66,7 @@ object adobe {
           Authorization(Credentials.Token(CIString(token.token_type), token.access_token)),
           "x-api-key" -> client_id)
 
-      loginInternal(middleware(client), getToken, updateToken, withToken)
+      loginInternal(client, getToken, updateToken, withToken)
     }
 
     override def updateConfig(f: Endo[AuthConfig]): IMS[F] =
@@ -76,18 +75,8 @@ object adobe {
         client_id = client_id,
         client_code = client_code,
         client_secret = client_secret,
-        cfg = f(cfg),
-        middleware = middleware)
+        cfg = f(cfg))
 
-    override def withMiddleware(f: Endo[Client[F]]): IMS[F] =
-      new IMS[F](
-        auth_endpoint = auth_endpoint,
-        client_id = client_id,
-        client_code = client_code,
-        client_secret = client_secret,
-        cfg = cfg,
-        middleware = middleware.compose(f)
-      )
   }
 
   object IMS {
@@ -101,8 +90,7 @@ object adobe {
         client_id = client_id,
         client_code = client_code,
         client_secret = client_secret,
-        cfg = AuthConfig(),
-        middleware = identity
+        cfg = AuthConfig()
       )
   }
 
@@ -115,8 +103,7 @@ object adobe {
     technical_account_key: String,
     metascopes: NonEmptyList[AdobeMetascope],
     private_key: PrivateKey,
-    cfg: AuthConfig,
-    middleware: Endo[Client[F]])
+    cfg: AuthConfig)
       extends Http4sClientDsl[F] with Login[F, JWT[F]] with UpdateConfig[AuthConfig, JWT[F]] {
 
     private case class Token(
@@ -169,7 +156,7 @@ object adobe {
           "x-gw-ims-org-id" -> ims_org_id,
           "x-api-key" -> client_id)
 
-      loginInternal(middleware(client), getToken(12.hours), updateToken, withToken)
+      loginInternal(client, getToken(12.hours), updateToken, withToken)
     }
 
     override def updateConfig(f: Endo[AuthConfig]): JWT[F] =
@@ -181,22 +168,9 @@ object adobe {
         technical_account_key = technical_account_key,
         metascopes = metascopes,
         private_key = private_key,
-        cfg = f(cfg),
-        middleware = middleware
+        cfg = f(cfg)
       )
 
-    override def withMiddleware(f: Endo[Client[F]]): JWT[F] =
-      new JWT[F](
-        auth_endpoint = auth_endpoint,
-        ims_org_id = ims_org_id,
-        client_id = client_id,
-        client_secret = client_secret,
-        technical_account_key = technical_account_key,
-        metascopes = metascopes,
-        private_key = private_key,
-        cfg = cfg,
-        middleware = middleware.compose(f)
-      )
   }
 
   object JWT {
@@ -216,8 +190,7 @@ object adobe {
         technical_account_key = technical_account_key,
         metascopes = metascopes,
         private_key = private_key,
-        cfg = AuthConfig(),
-        middleware = identity
+        cfg = AuthConfig()
       )
 
     def apply[F[_]](

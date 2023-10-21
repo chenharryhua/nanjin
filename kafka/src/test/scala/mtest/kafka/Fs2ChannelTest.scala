@@ -115,10 +115,13 @@ class Fs2ChannelTest extends AnyFunSuite {
           "c" : 2.0
         }
       },
+      "serializedKeySize":null,
+      "serializedValueSize":null,
       "topic" : "fs2.kafka.test",
       "timestampType" : 0,
       "headers" : [
-      ]
+      ],
+      "leaderEpoch":null
     }
      """
     ctx.produce(jackson).flatMap(IO.println).unsafeRunSync()

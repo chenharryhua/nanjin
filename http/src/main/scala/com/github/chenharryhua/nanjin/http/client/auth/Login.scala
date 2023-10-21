@@ -17,8 +17,6 @@ trait Login[F[_], A] {
   final def login(client: Client[F])(implicit F: Async[F]): Stream[F, Client[F]] =
     Stream.resource(loginR(client))
 
-  def withMiddleware(f: Client[F] => Client[F]): A
-
   /** @param client
     *   http4s client
     * @param getToken

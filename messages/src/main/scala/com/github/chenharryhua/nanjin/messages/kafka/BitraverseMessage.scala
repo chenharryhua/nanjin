@@ -37,7 +37,7 @@ object NJConsumerMessage {
 
   def apply[F[_, _]](implicit ev: NJConsumerMessage[F]): Aux[F] = ev
 
-  implicit val icrbi1: Aux[JavaConsumerRecord] =
+  implicit val njConsumerMessageJavaConsumerRecord: Aux[JavaConsumerRecord] =
     new NJConsumerMessage[JavaConsumerRecord] {
 
       override def lens[K1, V1, K2, V2]: PLens[
@@ -52,7 +52,7 @@ object NJConsumerMessage {
           JavaConsumerRecord[K2, V2]](s => s)(b => _ => b)
     }
 
-  implicit val icrbi2: Aux[ConsumerRecord] =
+  implicit val njConsumerMessageConsumerRecord: Aux[ConsumerRecord] =
     new NJConsumerMessage[ConsumerRecord] {
 
       override def lens[K1, V1, K2, V2]: PLens[
@@ -64,11 +64,12 @@ object NJConsumerMessage {
           ConsumerRecord[K1, V1],
           ConsumerRecord[K2, V2],
           JavaConsumerRecord[K1, V1],
-          JavaConsumerRecord[K2, V2]](_.transformInto)(b => _ => b.transformInto)
+          JavaConsumerRecord[K2, V2]](_.transformInto[JavaConsumerRecord[K1, V1]])(b =>
+          _ => b.transformInto[ConsumerRecord[K2, V2]])
 
     }
 
-  implicit def icrbi5[F[_]]: Aux[CommittableConsumerRecord[F, *, *]] =
+  implicit def njConsumerMessageCommittableConsumerRecord[F[_]]: Aux[CommittableConsumerRecord[F, *, *]] =
     new NJConsumerMessage[CommittableConsumerRecord[F, *, *]] {
 
       override def lens[K1, V1, K2, V2]: PLens[
@@ -80,12 +81,12 @@ object NJConsumerMessage {
           CommittableConsumerRecord[F, K1, V1],
           CommittableConsumerRecord[F, K2, V2],
           JavaConsumerRecord[K1, V1],
-          JavaConsumerRecord[K2, V2]](_.record.transformInto) { b => s =>
-          CommittableConsumerRecord(b.transformInto, s.offset)
+          JavaConsumerRecord[K2, V2]](_.record.transformInto[JavaConsumerRecord[K1, V1]]) { b => s =>
+          CommittableConsumerRecord(b.transformInto[ConsumerRecord[K2, V2]], s.offset)
         }
     }
 
-  implicit val icrbi6: Aux[NJConsumerRecord] =
+  implicit val njConsumerMessageNJConsumerRecord: Aux[NJConsumerRecord] =
     new NJConsumerMessage[NJConsumerRecord] {
 
       override def lens[K1, V1, K2, V2]: PLens[
@@ -97,7 +98,8 @@ object NJConsumerMessage {
           NJConsumerRecord[K1, V1],
           NJConsumerRecord[K2, V2],
           JavaConsumerRecord[K1, V1],
-          JavaConsumerRecord[K2, V2]](_.toJavaConsumerRecord)(b => _ => NJConsumerRecord(b))
+          JavaConsumerRecord[K2, V2]](_.toJavaConsumerRecord)(b =>
+          _ => b.transformInto[NJConsumerRecord[K2, V2]])
     }
 }
 
@@ -111,7 +113,7 @@ object NJProducerMessage {
 
   def apply[F[_, _]](implicit ev: NJProducerMessage[F]): Aux[F] = ev
 
-  implicit val iprbi1: Aux[JavaProducerRecord] =
+  implicit val njProducerMessageJavaProducerRecord: Aux[JavaProducerRecord] =
     new NJProducerMessage[JavaProducerRecord] {
 
       override def lens[K1, V1, K2, V2]: PLens[
@@ -126,7 +128,7 @@ object NJProducerMessage {
           JavaProducerRecord[K2, V2]](s => s)(b => _ => b)
     }
 
-  implicit val iprbi2: Aux[ProducerRecord] =
+  implicit val njProducerMessageProducerRecord: Aux[ProducerRecord] =
     new NJProducerMessage[ProducerRecord] {
 
       override def lens[K1, V1, K2, V2]: PLens[

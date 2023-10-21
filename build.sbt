@@ -212,6 +212,7 @@ lazy val http = (project in file("http"))
     "com.fasterxml.jackson.core"          % "jackson-databind" % jacksonV, // snyk
     "org.http4s" %% "http4s-ember-server" % http4sV            % Test,
     "org.http4s" %% "http4s-ember-client" % http4sV            % Test,
+    "org.tpolecat" %% "natchez-log"       % natchezV           % Test,
     "org.slf4j"                           % "slf4j-reload4j"   % slf4jV % Test
   ) ++ jwtLib ++ logLib ++ testLib)
 
@@ -435,19 +436,18 @@ lazy val example = (project in file("example"))
   .settings(Compile / PB.targets := List(scalapb.gen() -> (Compile / sourceManaged).value / "scalapb"))
 
 lazy val nanjin =
-  (project in file("."))
-    .aggregate(
-      common,
-      datetime,
-      http,
-      aws,
-      messages,
-      pipes,
-      kafka,
-      database,
-      spark,
-      guard,
-      guard_observer_aws,
-      guard_observer_db,
-      guard_observer_influxdb,
-      guard_observer_kafka)
+  (project in file(".")).aggregate(
+    common,
+    datetime,
+    http,
+    aws,
+    messages,
+    pipes,
+    kafka,
+    database,
+    spark,
+    guard,
+    guard_observer_aws,
+    guard_observer_db,
+    guard_observer_influxdb,
+    guard_observer_kafka)

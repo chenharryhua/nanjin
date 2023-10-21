@@ -40,7 +40,7 @@ private object PolicyF extends all {
   final case class Repeat[K](policy: Fix[PolicyF]) extends PolicyF[K]
   final case class EndAt[K](policy: K, end: LocalTime) extends PolicyF[K]
   final case class ExpireAt[K](policy: K, expire: LocalDateTime) extends PolicyF[K]
-  final case class Join[K](first: K, second: K) extends PolicyF[K]
+  final case class Meet[K](first: K, second: K) extends PolicyF[K]
 
   type CalcTick = TickRequest => Option[Tick]
   final case class TickRequest(tick: Tick, now: Instant)
@@ -107,11 +107,12 @@ private object PolicyF extends all {
         }
         policy.zip(timeFrame).map(_._1)
 
-      case Join(first, second) =>
+      // https://en.wikipedia.org/wiki/Join_and_meet
+      case Meet(first, second) =>
         first.zip(second).map { case (fa: CalcTick, fb: CalcTick) =>
           (req: TickRequest) =>
             (fa(req), fb(req)).mapN { (ra, rb) =>
-              if (ra.snooze > rb.snooze) ra else rb // longer win
+              if (ra.snooze < rb.snooze) ra else rb // shorter win
             }
         }
     }
@@ -136,9 +137,9 @@ private object PolicyF extends all {
   private val FOLLOWED_BY_FOLLOWER: String = "follower"
   private val END_AT: String               = "endAt"
   private val EXPIRE_AT: String            = "expireAt"
-  private val JOIN: String                 = "join"
-  private val JOIN_FIRST: String           = "first"
-  private val JOIN_SECOND: String          = "second"
+  private val MEET: String                 = "meet"
+  private val MEET_FIRST: String           = "first"
+  private val MEET_SECOND: String          = "second"
   private val REPEAT: String               = "repeat"
 
   val showPolicy: Algebra[PolicyF, String] = Algebra[PolicyF, String] {
@@ -158,7 +159,7 @@ private object PolicyF extends all {
     case Repeat(policy)               => show"${Policy(policy)}.$REPEAT"
     case EndAt(policy, end)           => show"$policy.$END_AT($end)"
     case ExpireAt(policy, expire)     => show"$policy.$EXPIRE_AT($expire)"
-    case Join(first, second)          => show"$first.$JOIN($second)"
+    case Meet(first, second)          => show"$first.$MEET($second)"
   }
 
   // json encoder
@@ -185,8 +186,8 @@ private object PolicyF extends all {
       Json.obj(END_AT -> end.asJson, POLICY -> policy)
     case ExpireAt(policy, expire) =>
       Json.obj(EXPIRE_AT -> expire.asJson, POLICY -> policy)
-    case Join(first, second) =>
-      Json.obj(JOIN -> Json.obj(JOIN_FIRST -> first, JOIN_SECOND -> second))
+    case Meet(first, second) =>
+      Json.obj(MEET -> Json.obj(MEET_FIRST -> first, MEET_SECOND -> second))
   }
 
   val encoderFixPolicyF: Encoder[Fix[PolicyF]] =
@@ -239,10 +240,10 @@ private object PolicyF extends all {
       (plc, ea).mapN(ExpireAt[HCursor])
     }
 
-    def join(hc: HCursor): Result[Join[HCursor]] = {
-      val first  = hc.downField(JOIN).downField(JOIN_FIRST).as[HCursor]
-      val second = hc.downField(JOIN).downField(JOIN_SECOND).as[HCursor]
-      (first, second).mapN(Join[HCursor])
+    def meet(hc: HCursor): Result[Meet[HCursor]] = {
+      val first  = hc.downField(MEET).downField(MEET_FIRST).as[HCursor]
+      val second = hc.downField(MEET).downField(MEET_SECOND).as[HCursor]
+      (first, second).mapN(Meet[HCursor])
     }
 
     def repeat(hc: HCursor): Result[Repeat[HCursor]] =
@@ -260,7 +261,7 @@ private object PolicyF extends all {
           .orElse(expireAt(hc))
           .orElse(followedBy(hc))
           .orElse(accordance(hc))
-          .orElse(join(hc))
+          .orElse(meet(hc))
           .orElse(repeat(hc))
 
       result match {
@@ -280,13 +281,13 @@ private object PolicyF extends all {
 }
 
 final case class Policy(policy: Fix[PolicyF]) { // don't extends AnyVal, monocle doesn't like it
-  import PolicyF.{EndAt, FollowedBy, Join, Limited, Repeat}
+  import PolicyF.{EndAt, FollowedBy, Limited, Meet, Repeat}
   override def toString: String = scheme.cata(PolicyF.showPolicy).apply(policy)
 
   def limited(num: Int): Policy         = Policy(Fix(Limited(policy, num)))
   def followedBy(other: Policy): Policy = Policy(Fix(FollowedBy(policy, other.policy)))
   def repeat: Policy                    = Policy(Fix(Repeat(policy)))
-  def join(other: Policy): Policy       = Policy(Fix(Join(policy, other.policy)))
+  def meet(other: Policy): Policy       = Policy(Fix(Meet(policy, other.policy)))
 
   def expireAt(localDateTime: LocalDateTime): Policy = Policy(Fix(ExpireAt(policy, localDateTime)))
 

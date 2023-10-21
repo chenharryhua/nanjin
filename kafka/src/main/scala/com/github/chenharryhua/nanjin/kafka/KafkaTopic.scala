@@ -5,18 +5,12 @@ import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameL}
 import com.github.chenharryhua.nanjin.kafka.streaming.{KafkaStreamingConsumer, NJStateStore}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.KafkaGenericDecoder
-import com.github.chenharryhua.nanjin.messages.kafka.{
-  NJConsumerMessage,
-  NJConsumerRecord,
-  NJConsumerRecordWithError,
-  NJHeader
-}
+import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerMessage, NJConsumerRecord}
 import com.sksamuel.avro4s.AvroInputStream
 import fs2.Chunk
 import fs2.kafka.*
 import io.circe.Decoder
 import io.circe.generic.auto.*
-import org.apache.commons.lang3.exception.ExceptionUtils
 import org.apache.kafka.clients.consumer.ConsumerRecord as JavaConsumerRecord
 import org.apache.kafka.clients.producer.RecordMetadata
 import org.apache.kafka.streams.scala.kstream.Produced
@@ -45,26 +39,12 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
     cr: G[Array[Byte], Array[Byte]]): KafkaGenericDecoder[G, K, V] =
     new KafkaGenericDecoder[G, K, V](cr, serdePair.key, serdePair.value)
 
-  def decode[G[_, _]: NJConsumerMessage](
-    gaa: G[Array[Byte], Array[Byte]]): NJConsumerRecordWithError[K, V] = {
-    val cr: JavaConsumerRecord[Array[Byte], Array[Byte]] = NJConsumerMessage[G].lens.get(gaa)
-    val k: Either[String, K] =
-      serdePair.key.tryDeserialize(cr.key()).toEither.leftMap(ex => ExceptionUtils.getRootCauseMessage(ex))
-    val v: Either[String, V] =
-      serdePair.value
-        .tryDeserialize(cr.value())
-        .toEither
-        .leftMap(ex => ExceptionUtils.getRootCauseMessage(ex))
-    NJConsumerRecordWithError(
-      partition = cr.partition,
-      offset = cr.offset,
-      timestamp = cr.timestamp,
-      key = k,
-      value = v,
-      topic = cr.topic,
-      timestampType = cr.timestampType.id,
-      headers = cr.headers().toArray.map(h => NJHeader(h.key(), h.value())).toList
-    )
+  def decode[G[_, _]: NJConsumerMessage](gaa: G[Array[Byte], Array[Byte]]): NJConsumerRecord[K, V] = {
+    val jcr: JavaConsumerRecord[Option[K], Option[V]] =
+      NJConsumerMessage[JavaConsumerRecord].bimap(NJConsumerMessage[G].lens.get(gaa))(
+        serdePair.key.tryDeserialize(_).toOption,
+        serdePair.value.tryDeserialize(_).toOption)
+    NJConsumerRecord(jcr).flatten
   }
 
   def serializeKey(k: K): Array[Byte] = serdePair.key.serialize(k)
