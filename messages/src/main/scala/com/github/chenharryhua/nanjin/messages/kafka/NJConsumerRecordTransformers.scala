@@ -6,26 +6,12 @@ import io.scalaland.chimney.Transformer
 import io.scalaland.chimney.dsl.*
 import org.apache.kafka.clients.consumer.ConsumerRecord as JavaConsumerRecord
 import org.apache.kafka.common.header.Header as JavaHeader
-import org.apache.kafka.common.header.internals.{RecordHeader, RecordHeaders}
+import org.apache.kafka.common.header.internals.RecordHeaders
 import org.apache.kafka.common.record.TimestampType as JavaTimestampType
 
 import scala.jdk.OptionConverters.{RichOption, RichOptional}
 
-private trait NJHeaderTransformers {
-
-  implicit val transformerHeaderNJFs2: Transformer[NJHeader, Header] =
-    (src: NJHeader) => Header(src.key, src.value)
-  implicit val transformHeaderFs2NJ: Transformer[Header, NJHeader] =
-    (src: Header) => NJHeader(src.key(), src.value())
-
-  implicit val transformHeaderJavaNJ: Transformer[JavaHeader, NJHeader] =
-    (src: JavaHeader) => NJHeader(src.key(), src.value())
-
-  implicit val transformHeaderNJJava: Transformer[NJHeader, JavaHeader] =
-    (src: NJHeader) => new RecordHeader(src.key, src.value)
-}
-
-private[kafka] trait NJConsumerRecordTransformers extends NJHeaderTransformers {
+private[kafka] trait NJConsumerRecordTransformers {
 
   implicit def transformCRJavaNJ[K, V]: Transformer[JavaConsumerRecord[K, V], NJConsumerRecord[K, V]] =
     (src: JavaConsumerRecord[K, V]) =>

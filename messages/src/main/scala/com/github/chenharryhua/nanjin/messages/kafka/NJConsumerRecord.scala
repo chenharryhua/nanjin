@@ -1,29 +1,18 @@
 package com.github.chenharryhua.nanjin.messages.kafka
 
+import cats.Bifunctor
 import cats.kernel.PartialOrder
 import cats.syntax.all.*
-import cats.{Bifunctor, Eq, Show}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.sksamuel.avro4s.*
-import fs2.kafka.{ConsumerRecord, Header as Fs2Header}
-import io.circe.generic.JsonCodec
+import fs2.kafka.ConsumerRecord
+import io.circe.{Decoder as JsonDecoder, Encoder as JsonEncoder}
 import io.scalaland.chimney.dsl.*
 import org.apache.avro.Schema
 import org.apache.kafka.clients.consumer.ConsumerRecord as JavaConsumerRecord
 
 import java.time.{Instant, ZoneId, ZonedDateTime}
 import scala.annotation.nowarn
-
-@JsonCodec
-@AvroName("header")
-@AvroNamespace("nanjin.kafka")
-final case class NJHeader(key: String, value: Array[Byte])
-object NJHeader {
-  // consistent with fs2.kafka
-  implicit val showNJHeader: Show[NJHeader] = (a: NJHeader) => Fs2Header(a.key, a.value).show
-  implicit val eqNJHeader: Eq[NJHeader] = (x: NJHeader, y: NJHeader) =>
-    Fs2Header(x.key, x.value) === Fs2Header(y.key, y.value)
-}
 
 @AvroDoc("kafka consumer record, optional Key and optional Value")
 @AvroNamespace("nanjin.kafka")
@@ -101,6 +90,14 @@ object NJConsumerRecord extends NJConsumerRecordTransformers {
     }
     SchemaFor[NJConsumerRecord[KEY, VAL]].schema
   }
+
+  @nowarn
+  implicit def encoderNJConsumerRecord[K: JsonEncoder, V: JsonEncoder]: JsonEncoder[NJConsumerRecord[K, V]] =
+    io.circe.generic.semiauto.deriveEncoder[NJConsumerRecord[K, V]]
+
+  @nowarn
+  implicit def decoderNJConsumerRecord[K: JsonDecoder, V: JsonDecoder]: JsonDecoder[NJConsumerRecord[K, V]] =
+    io.circe.generic.semiauto.deriveDecoder[NJConsumerRecord[K, V]]
 
   implicit val bifunctorOptionalKV: Bifunctor[NJConsumerRecord] =
     new Bifunctor[NJConsumerRecord] {

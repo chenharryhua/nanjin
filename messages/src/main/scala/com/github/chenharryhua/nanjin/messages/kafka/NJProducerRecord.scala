@@ -11,6 +11,7 @@ import org.apache.kafka.clients.producer.ProducerRecord as JavaProducerRecord
 import shapeless.cachedImplicit
 
 import scala.annotation.nowarn
+import io.circe.{Decoder as JsonDecoder, Encoder as JsonEncoder}
 
 @AvroDoc("kafka producer record, optional Key and optional Value")
 @AvroNamespace("nanjin.kafka")
@@ -83,6 +84,14 @@ object NJProducerRecord extends NJProducerRecordTransformers {
     }
     SchemaFor[NJProducerRecord[KEY, VAL]].schema
   }
+
+  @nowarn
+  implicit def encoderNJProducerRecord[K: JsonEncoder, V: JsonEncoder]: JsonEncoder[NJProducerRecord[K, V]] =
+    io.circe.generic.semiauto.deriveEncoder[NJProducerRecord[K, V]]
+
+  @nowarn
+  implicit def decoderNJProducerRecord[K: JsonDecoder, V: JsonDecoder]: JsonDecoder[NJProducerRecord[K, V]] =
+    io.circe.generic.semiauto.deriveDecoder[NJProducerRecord[K, V]]
 
   implicit val bifunctorNJProducerRecord: Bifunctor[NJProducerRecord] =
     new Bifunctor[NJProducerRecord] {

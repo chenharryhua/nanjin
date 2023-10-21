@@ -15,7 +15,7 @@ class KafkaRecordProp extends Properties("Kafka-Record") {
     abKafkaConsumerRecord,
     abKafkaProducerRecord
   }
-  import NJComsumerRecordTestData.*
+  import NJConsumerRecordTestData.*
   import org.apache.kafka.clients.producer.ProducerRecord as JavaProducerRecord
   import org.scalacheck.Prop.forAll
 

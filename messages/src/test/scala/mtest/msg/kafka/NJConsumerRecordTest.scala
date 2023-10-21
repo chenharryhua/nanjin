@@ -7,7 +7,7 @@ import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJProduc
 import org.scalacheck.{Arbitrary, Cogen, Gen}
 import org.typelevel.discipline.scalatest.FunSuiteDiscipline
 
-object NJComsumerRecordTestData {
+object NJConsumerRecordTestData {
   implicit val ocogen: Cogen[NJConsumerRecord[Int, Int]] =
     Cogen[NJConsumerRecord[Int, Int]]((o: NJConsumerRecord[Int, Int]) => o.offset)
 
@@ -35,7 +35,7 @@ object NJComsumerRecordTestData {
 }
 
 class NJConsumerRecordTest extends CatsSuite with FunSuiteDiscipline {
-  import NJComsumerRecordTestData.*
+  import NJConsumerRecordTestData.*
 
   // partial ordered
   checkAll("OptionalKV", PartialOrderTests[NJConsumerRecord[Int, Int]].partialOrder)

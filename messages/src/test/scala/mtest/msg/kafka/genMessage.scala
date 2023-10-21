@@ -18,6 +18,7 @@ import org.apache.kafka.common.header.internals.{RecordHeader, RecordHeaders}
 import org.apache.kafka.common.record.TimestampType
 import org.scalacheck.Arbitrary.{arbitrary, *}
 import org.scalacheck.Gen
+import io.scalaland.chimney.dsl.*
 
 import java.util.Optional
 import scala.jdk.OptionConverters.RichOption
@@ -100,10 +101,10 @@ object genMessage {
     import fs2.kafka.{CommittableConsumerRecord, CommittableOffset, ProducerRecords}
 
     val genFs2ConsumerRecord: Gen[Fs2ConsumerRecord[Int, Int]] =
-      genConsumerRecord.map(isoFs2ConsumerRecord.reverseGet)
+      genConsumerRecord.map(_.transformInto[Fs2ConsumerRecord[Int, Int]])
 
     val genFs2ProducerRecord: Gen[Fs2ProducerRecord[Int, Int]] =
-      genProducerRecord.map(isoFs2ProducerRecord.reverseGet)
+      genProducerRecord.map(_.transformInto[Fs2ProducerRecord[Int, Int]])
 
     val genFs2CommittableOffset: Gen[CommittableOffset[IO]] =
       for {
