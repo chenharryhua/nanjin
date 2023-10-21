@@ -1,5 +1,4 @@
 package com.github.chenharryhua.nanjin.http.client.middleware
-import cats.Endo
 import cats.effect.kernel.*
 import cats.syntax.all.*
 import org.http4s.RequestCookie
@@ -10,7 +9,7 @@ import java.net.{CookieManager, CookieStore, HttpCookie, URI}
 import scala.jdk.CollectionConverters.*
 
 object cookieBox {
-  def apply[F[_]: MonadCancelThrow](cookieManager: CookieManager): Endo[Client[F]] = (client: Client[F]) => {
+  def apply[F[_]: MonadCancelThrow](cookieManager: CookieManager)(client: Client[F]): Client[F] = {
     val cookieStore: CookieStore = cookieManager.getCookieStore
     Client[F] { req =>
       for {
