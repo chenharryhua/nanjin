@@ -11,7 +11,6 @@ import io.circe.generic.JsonCodec
 import io.scalaland.chimney.dsl.*
 import org.apache.avro.Schema
 import org.apache.kafka.clients.consumer.ConsumerRecord as JavaConsumerRecord
-import org.apache.kafka.common.header.Headers as KafkaHeaders
 
 import java.time.{Instant, ZoneId, ZonedDateTime}
 import scala.annotation.nowarn
@@ -25,9 +24,6 @@ object NJHeader {
   implicit val showNJHeader: Show[NJHeader] = (a: NJHeader) => Fs2Header(a.key, a.value).show
   implicit val eqNJHeader: Eq[NJHeader] = (x: NJHeader, y: NJHeader) =>
     Fs2Header(x.key, x.value) === Fs2Header(y.key, y.value)
-
-  def apply(headers: KafkaHeaders): List[NJHeader] =
-    headers.toArray.map(h => NJHeader(h.key(), h.value())).toList
 }
 
 @AvroDoc("kafka consumer record, optional Key and optional Value")
@@ -63,7 +59,6 @@ final case class NJConsumerRecord[K, V](
       .into[RecordMetaInfo]
       .withFieldComputed(_.timestamp, x => ZonedDateTime.ofInstant(Instant.ofEpochMilli(x.timestamp), zoneId))
       .transform
-
 }
 
 object NJConsumerRecord extends NJConsumerRecordTransformers {
