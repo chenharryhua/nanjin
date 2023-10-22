@@ -11,7 +11,7 @@ import org.apache.kafka.common.record.TimestampType as JavaTimestampType
 
 import scala.jdk.OptionConverters.{RichOption, RichOptional}
 
-private trait NJConsumerRecordTransformers {
+private[kafka] trait NJConsumerRecordTransformers {
 
   implicit def transformCRJavaNJ[K, V]: Transformer[JavaConsumerRecord[K, V], NJConsumerRecord[K, V]] =
     (src: JavaConsumerRecord[K, V]) =>
