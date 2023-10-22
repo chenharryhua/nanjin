@@ -8,7 +8,7 @@ import org.apache.kafka.common.header.Header as JavaHeader
 
 import scala.jdk.CollectionConverters.*
 
-private[kafka] trait NJProducerRecordTransformers {
+private trait NJProducerRecordTransformers {
   implicit def transformJavaNJ[K, V]: Transformer[JavaProducerRecord[K, V], NJProducerRecord[K, V]] =
     (src: JavaProducerRecord[K, V]) =>
       NJProducerRecord(

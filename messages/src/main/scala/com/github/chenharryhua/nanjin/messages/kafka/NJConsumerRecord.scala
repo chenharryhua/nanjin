@@ -99,7 +99,7 @@ object NJConsumerRecord extends NJConsumerRecordTransformers {
   implicit def decoderNJConsumerRecord[K: JsonDecoder, V: JsonDecoder]: JsonDecoder[NJConsumerRecord[K, V]] =
     io.circe.generic.semiauto.deriveDecoder[NJConsumerRecord[K, V]]
 
-  implicit val bifunctorOptionalKV: Bifunctor[NJConsumerRecord] =
+  implicit val bifunctorNJConsumerRecord: Bifunctor[NJConsumerRecord] =
     new Bifunctor[NJConsumerRecord] {
 
       override def bimap[A, B, C, D](
