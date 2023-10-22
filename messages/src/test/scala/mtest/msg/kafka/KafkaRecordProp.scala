@@ -8,7 +8,7 @@ import io.scalaland.chimney.dsl.*
 import org.apache.kafka.clients.consumer.ConsumerRecord as JavaConsumerRecord
 import org.scalacheck.Properties
 
-class KafkaRecordProp extends Properties("Kafka-Record") {
+class KafkaRecordProp extends Properties("KafkaRecordProp") {
   import ArbitraryData.{
     abFs2ConsumerRecord,
     abFs2ProducerRecord,

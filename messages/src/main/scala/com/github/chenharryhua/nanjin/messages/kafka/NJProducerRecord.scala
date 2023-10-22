@@ -104,14 +104,13 @@ object NJProducerRecord extends NJProducerRecordTransformers {
     }
 
   implicit def eqNJProducerRecord[K: Eq, V: Eq]: Eq[NJProducerRecord[K, V]] =
-    Eq.instance {
-      case (l, r) =>
-        l.topic === r.topic &&
-          l.partition === r.partition &&
-          l.offset === r.offset &&
-          l.timestamp === r.timestamp &&
-          l.key === r.key &&
-          l.value === r.value &&
-          l.headers === r.headers
+    Eq.instance { case (l, r) =>
+      l.topic === r.topic &&
+      l.partition === r.partition &&
+      l.offset === r.offset &&
+      l.timestamp === r.timestamp &&
+      l.key === r.key &&
+      l.value === r.value &&
+      l.headers === r.headers
     }
 }
