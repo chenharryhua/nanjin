@@ -3,7 +3,6 @@ package com.github.chenharryhua.nanjin.messages.kafka.codec
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.sksamuel.avro4s.{Decoder as AvroDecoder, Encoder as AvroEncoder, SchemaFor}
 import io.confluent.kafka.streams.serdes.avro.{GenericAvroDeserializer, GenericAvroSerializer}
-import org.apache.avro.Schema
 import org.apache.avro.generic.GenericRecord
 import org.apache.kafka.common.serialization.{Deserializer, Serde, Serializer}
 import org.apache.kafka.streams.scala.serialization.Serdes
@@ -54,12 +53,6 @@ trait SerdeOf[A] extends Serde[A] with Serializable { outer =>
       serializer.configure(props.asJava, false)
       deserializer.configure(props.asJava, false)
     }
-
-  final def withSchema(schema: Schema): SerdeOf[A] = new SerdeOf[A] {
-    override def avroCodec: NJAvroCodec[A]     = outer.avroCodec.withSchema(schema)
-    override def serializer: Serializer[A]     = outer.serializer()
-    override def deserializer: Deserializer[A] = outer.deserializer()
-  }
 }
 
 private[codec] trait LowerPriority {

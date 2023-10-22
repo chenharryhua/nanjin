@@ -16,40 +16,40 @@ sealed trait MeasurementUnit extends Product with Serializable {
 }
 
 object MeasurementUnit {
-  val DAYS: NJTimeUnit.DAYS.type                 = NJTimeUnit.DAYS
-  val HOURS: NJTimeUnit.HOURS.type               = NJTimeUnit.HOURS
-  val MINUTES: NJTimeUnit.MINUTES.type           = NJTimeUnit.MINUTES
-  val SECONDS: NJTimeUnit.SECONDS.type           = NJTimeUnit.SECONDS
-  val MILLISECONDS: NJTimeUnit.MILLISECONDS.type = NJTimeUnit.MILLISECONDS
-  val MICROSECONDS: NJTimeUnit.MICROSECONDS.type = NJTimeUnit.MICROSECONDS
-  val NANOSECONDS: NJTimeUnit.NANOSECONDS.type   = NJTimeUnit.NANOSECONDS
+  val DAYS: NJTimeUnit         = NJTimeUnit.DAYS
+  val HOURS: NJTimeUnit        = NJTimeUnit.HOURS
+  val MINUTES: NJTimeUnit      = NJTimeUnit.MINUTES
+  val SECONDS: NJTimeUnit      = NJTimeUnit.SECONDS
+  val MILLISECONDS: NJTimeUnit = NJTimeUnit.MILLISECONDS
+  val MICROSECONDS: NJTimeUnit = NJTimeUnit.MICROSECONDS
+  val NANOSECONDS: NJTimeUnit  = NJTimeUnit.NANOSECONDS
 
-  val BYTES: NJInformationUnit.BYTES.type         = NJInformationUnit.BYTES
-  val KILOBYTES: NJInformationUnit.KILOBYTES.type = NJInformationUnit.KILOBYTES
-  val MEGABYTES: NJInformationUnit.MEGABYTES.type = NJInformationUnit.MEGABYTES
-  val GIGABYTES: NJInformationUnit.GIGABYTES.type = NJInformationUnit.GIGABYTES
-  val TERABYTES: NJInformationUnit.TERABYTES.type = NJInformationUnit.TERABYTES
+  val BYTES: NJInformationUnit     = NJInformationUnit.BYTES
+  val KILOBYTES: NJInformationUnit = NJInformationUnit.KILOBYTES
+  val MEGABYTES: NJInformationUnit = NJInformationUnit.MEGABYTES
+  val GIGABYTES: NJInformationUnit = NJInformationUnit.GIGABYTES
+  val TERABYTES: NJInformationUnit = NJInformationUnit.TERABYTES
 
-  val BITS: NJInformationUnit.BITS.type         = NJInformationUnit.BITS
-  val KILOBITS: NJInformationUnit.KILOBITS.type = NJInformationUnit.KILOBITS
-  val MEGABITS: NJInformationUnit.MEGABITS.type = NJInformationUnit.MEGABITS
-  val GIGABITS: NJInformationUnit.GIGABITS.type = NJInformationUnit.GIGABITS
-  val TERABITS: NJInformationUnit.TERABITS.type = NJInformationUnit.TERABITS
+  val BITS: NJInformationUnit     = NJInformationUnit.BITS
+  val KILOBITS: NJInformationUnit = NJInformationUnit.KILOBITS
+  val MEGABITS: NJInformationUnit = NJInformationUnit.MEGABITS
+  val GIGABITS: NJInformationUnit = NJInformationUnit.GIGABITS
+  val TERABITS: NJInformationUnit = NJInformationUnit.TERABITS
 
-  val BYTES_SECOND: NJDataRateUnit.BYTES_SECOND.type         = NJDataRateUnit.BYTES_SECOND
-  val KILOBYTES_SECOND: NJDataRateUnit.KILOBYTES_SECOND.type = NJDataRateUnit.KILOBYTES_SECOND
-  val MEGABYTES_SECOND: NJDataRateUnit.MEGABYTES_SECOND.type = NJDataRateUnit.MEGABYTES_SECOND
-  val GIGABYTES_SECOND: NJDataRateUnit.GIGABYTES_SECOND.type = NJDataRateUnit.GIGABYTES_SECOND
-  val TERABYTES_SECOND: NJDataRateUnit.TERABYTES_SECOND.type = NJDataRateUnit.TERABYTES_SECOND
+  val BYTES_SECOND: NJDataRateUnit     = NJDataRateUnit.BYTES_SECOND
+  val KILOBYTES_SECOND: NJDataRateUnit = NJDataRateUnit.KILOBYTES_SECOND
+  val MEGABYTES_SECOND: NJDataRateUnit = NJDataRateUnit.MEGABYTES_SECOND
+  val GIGABYTES_SECOND: NJDataRateUnit = NJDataRateUnit.GIGABYTES_SECOND
+  val TERABYTES_SECOND: NJDataRateUnit = NJDataRateUnit.TERABYTES_SECOND
 
-  val BITS_SECOND: NJDataRateUnit.BITS_SECOND.type         = NJDataRateUnit.BITS_SECOND
-  val KILOBITS_SECOND: NJDataRateUnit.KILOBITS_SECOND.type = NJDataRateUnit.KILOBITS_SECOND
-  val MEGABITS_SECOND: NJDataRateUnit.MEGABITS_SECOND.type = NJDataRateUnit.MEGABITS_SECOND
-  val GIGABITS_SECOND: NJDataRateUnit.GIGABITS_SECOND.type = NJDataRateUnit.GIGABITS_SECOND
-  val TERABITS_SECOND: NJDataRateUnit.TERABITS_SECOND.type = NJDataRateUnit.TERABITS_SECOND
+  val BITS_SECOND: NJDataRateUnit     = NJDataRateUnit.BITS_SECOND
+  val KILOBITS_SECOND: NJDataRateUnit = NJDataRateUnit.KILOBITS_SECOND
+  val MEGABITS_SECOND: NJDataRateUnit = NJDataRateUnit.MEGABITS_SECOND
+  val GIGABITS_SECOND: NJDataRateUnit = NJDataRateUnit.GIGABITS_SECOND
+  val TERABITS_SECOND: NJDataRateUnit = NJDataRateUnit.TERABITS_SECOND
 
-  val COUNT: NJDimensionlessUnit.COUNT.type     = NJDimensionlessUnit.COUNT
-  val PERCENT: NJDimensionlessUnit.PERCENT.type = NJDimensionlessUnit.PERCENT
+  val COUNT: NJDimensionlessUnit   = NJDimensionlessUnit.COUNT
+  val PERCENT: NJDimensionlessUnit = NJDimensionlessUnit.PERCENT
 }
 
 sealed abstract class NJTimeUnit(val mUnit: TimeUnit) extends MeasurementUnit with EnumEntry {

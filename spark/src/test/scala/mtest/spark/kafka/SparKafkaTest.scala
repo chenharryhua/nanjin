@@ -4,13 +4,12 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, NJKafkaByteConsume, TopicDef}
-import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{gr2BinAvro, gr2Circe, gr2Jackson, NJAvroCodec}
+import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJProducerRecord}
 import com.github.chenharryhua.nanjin.terminals.NJPath
 import com.sksamuel.avro4s.SchemaFor
 import eu.timepit.refined.auto.*
 import fs2.kafka.{AutoOffsetReset, ProducerRecord, ProducerRecords}
-import io.circe.generic.auto.*
 import io.circe.syntax.*
 import monocle.syntax.all.*
 import mtest.spark.sparkSession
@@ -152,6 +151,26 @@ class SparKafkaTest extends AnyFunSuite {
         .transform(_.distinct())
     val rst = t.frdd.map(_.collect().flatMap(_.value)).unsafeRunSync()
     assert(rst === Seq(cr1.value.get))
+  }
+
+  test("identical json") {
+    val cr1: NJConsumerRecord[Int, Int] =
+      NJConsumerRecord(
+        topic = "t",
+        partition = 0,
+        offset = 1,
+        timestamp = 0,
+        timestampType = 0,
+        serializedKeySize = Some(1),
+        serializedValueSize = Some(2),
+        key = None,
+        value = Some(1),
+        headers = Nil,
+        leaderEpoch = Some(1)
+      )
+    assert(io.circe.jawn.decode[NJConsumerRecord[Int, Int]](cr1.asJson.noSpaces).toOption.get == cr1)
+    val pr1 = cr1.toNJProducerRecord
+    assert(io.circe.jawn.decode[NJProducerRecord[Int, Int]](pr1.asJson.noSpaces).toOption.get == pr1)
   }
 
   test("should be able to reproduce") {

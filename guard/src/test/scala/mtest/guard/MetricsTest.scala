@@ -213,7 +213,6 @@ class MetricsTest extends AnyFunSuite {
   }
 
   test("9.measurement unit") {
-    implicitly[MeasurementUnit.DAYS.type =:= NJTimeUnit.DAYS.type]
     implicitly[MeasurementUnit.DAYS.Q =:= Time]
   }
 

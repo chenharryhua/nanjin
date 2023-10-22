@@ -36,27 +36,27 @@ class NJTextTest extends AnyFunSuite {
   val fs2Root: NJPath = NJPath("./data/test/terminals/text/tiger")
 
   test("uncompressed") {
-    fs2(fs2Root, TextFile(_.uncompressed), TestData.tigerSet)
+    fs2(fs2Root, TextFile(_.Uncompressed), TestData.tigerSet)
   }
 
   test("gzip") {
-    fs2(fs2Root, TextFile(_.gzip), TestData.tigerSet)
+    fs2(fs2Root, TextFile(_.Gzip), TestData.tigerSet)
   }
 
   test("snappy") {
-    fs2(fs2Root, TextFile(_.snappy), TestData.tigerSet)
+    fs2(fs2Root, TextFile(_.Snappy), TestData.tigerSet)
   }
 
   test("bzip2") {
-    fs2(fs2Root, TextFile(_.bzip2), TestData.tigerSet)
+    fs2(fs2Root, TextFile(_.Bzip2), TestData.tigerSet)
   }
 
   test("lz4") {
-    fs2(fs2Root, TextFile(_.lz4), TestData.tigerSet)
+    fs2(fs2Root, TextFile(_.Lz4), TestData.tigerSet)
   }
 
   test("deflate - 1") {
-    fs2(fs2Root, TextFile(_.deflate(1)), TestData.tigerSet)
+    fs2(fs2Root, TextFile(_.Deflate(1)), TestData.tigerSet)
   }
 
   test("ftp") {

@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.observers
 
 import cats.effect.kernel.Async
-import com.github.chenharryhua.nanjin.common.kafka.TopicName
+import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameL}
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import com.github.chenharryhua.nanjin.kafka.KafkaContext
 import com.github.chenharryhua.nanjin.messages.kafka.codec.KJson
@@ -20,4 +20,7 @@ final class KafkaObserver[F[_]: Async](ctx: KafkaContext[F]) {
       .through(ctx.topic[String, KJson[NJEvent]](topicName).produce.pipe)
       .drain
   }
+
+  def observe(topicName: TopicNameL): Pipe[F, NJEvent, Nothing] =
+    observe(TopicName(topicName))
 }

@@ -11,7 +11,7 @@ val hadoopV     = "3.3.6"
 val monocleV    = "3.2.0"
 val confluentV  = "7.5.1"
 val kafkaV      = "7.5.1-ce"
-val fs2KafkaV   = "3.1.0"
+val fs2KafkaV   = "3.2.0"
 val avroV       = "1.11.3"
 val parquetV    = "1.13.1"
 val circeV      = "0.14.6"
@@ -408,7 +408,7 @@ lazy val spark = (project in file("spark"))
     libraryDependencies ++= List(
       "org.apache.ivy"                         % "ivy"             % "2.5.2", // snyk
       "io.netty"                               % "netty-all"       % nettyV, // snyk
-      "com.julianpeeters" %% "avrohugger-core" % "1.6.0"           % Test,
+      "com.julianpeeters" %% "avrohugger-core" % "1.7.0"           % Test,
       "ch.qos.logback"                         % "logback-classic" % logbackV % Test
     ) ++ sparkLib.map(_.exclude("commons-logging", "commons-logging")) ++ testLib
   )

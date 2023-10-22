@@ -10,13 +10,11 @@ import com.sksamuel.avro4s.AvroInputStream
 import fs2.Chunk
 import fs2.kafka.*
 import io.circe.Decoder
-import io.circe.generic.auto.*
 import org.apache.kafka.clients.consumer.ConsumerRecord as JavaConsumerRecord
 import org.apache.kafka.clients.producer.RecordMetadata
 import org.apache.kafka.streams.scala.kstream.Produced
 
 import java.io.ByteArrayInputStream
-import scala.annotation.nowarn
 
 final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V], val context: KafkaContext[F])
     extends Serializable {
@@ -97,8 +95,7 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
     *   circe string
     * @return
     */
-  def produceCirce(
-    circeStr: String)(implicit F: Async[F], @nowarn k: Decoder[K], @nowarn v: Decoder[V]): F[RecordMetadata] =
+  def produceCirce(circeStr: String)(implicit F: Async[F], k: Decoder[K], v: Decoder[V]): F[RecordMetadata] =
     io.circe.jawn
       .decode[NJConsumerRecord[K, V]](circeStr)
       .map(_.toNJProducerRecord.noMeta.withTopicName(topicName).toProducerRecord)

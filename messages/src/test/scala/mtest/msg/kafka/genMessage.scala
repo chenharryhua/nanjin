@@ -1,7 +1,7 @@
 package mtest.msg.kafka
 
 import cats.effect.IO
-import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
+import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJHeader}
 import com.github.chenharryhua.nanjin.messages.kafka.instances.*
 import fs2.Chunk
 import fs2.kafka.{
@@ -18,6 +18,7 @@ import org.apache.kafka.common.header.internals.{RecordHeader, RecordHeaders}
 import org.apache.kafka.common.record.TimestampType
 import org.scalacheck.Arbitrary.{arbitrary, *}
 import org.scalacheck.Gen
+import io.scalaland.chimney.dsl.*
 
 import java.util.Optional
 import scala.jdk.OptionConverters.RichOption
@@ -30,6 +31,11 @@ object genMessage {
       value <-
         Gen.containerOfN[Array, Byte](2, arbitrary[Byte]) // avoid GC overhead limit exceeded issue
     } yield new RecordHeader(key, value)
+
+    val genNJHeader: Gen[NJHeader] = for {
+      key <- Gen.asciiPrintableStr
+      value <- Gen.containerOfN[Array, Byte](5, arbitrary[Byte])
+    } yield NJHeader(key, value)
 
     val genHeaders: Gen[RecordHeaders] = for {
       rcs <- Gen.containerOfN[Array, Header](2, genHeader) // avoid GC overhead limit exceeded issue
@@ -100,10 +106,10 @@ object genMessage {
     import fs2.kafka.{CommittableConsumerRecord, CommittableOffset, ProducerRecords}
 
     val genFs2ConsumerRecord: Gen[Fs2ConsumerRecord[Int, Int]] =
-      genConsumerRecord.map(isoFs2ConsumerRecord.reverseGet)
+      genConsumerRecord.map(_.transformInto[Fs2ConsumerRecord[Int, Int]])
 
     val genFs2ProducerRecord: Gen[Fs2ProducerRecord[Int, Int]] =
-      genProducerRecord.map(isoFs2ProducerRecord.reverseGet)
+      genProducerRecord.map(_.transformInto[Fs2ProducerRecord[Int, Int]])
 
     val genFs2CommittableOffset: Gen[CommittableOffset[IO]] =
       for {

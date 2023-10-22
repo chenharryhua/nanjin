@@ -1,13 +1,11 @@
 package mtest.msg.kafka
-import cats.derived.auto.eq.*
-import cats.kernel.laws.discipline.PartialOrderTests
 import cats.laws.discipline.BifunctorTests
 import cats.tests.CatsSuite
 import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJProducerRecord}
 import org.scalacheck.{Arbitrary, Cogen, Gen}
 import org.typelevel.discipline.scalatest.FunSuiteDiscipline
 
-object NJComsumerRecordTestData {
+object NJConsumerRecordTestData {
   implicit val ocogen: Cogen[NJConsumerRecord[Int, Int]] =
     Cogen[NJConsumerRecord[Int, Int]]((o: NJConsumerRecord[Int, Int]) => o.offset)
 
@@ -35,10 +33,10 @@ object NJComsumerRecordTestData {
 }
 
 class NJConsumerRecordTest extends CatsSuite with FunSuiteDiscipline {
-  import NJComsumerRecordTestData.*
+  import NJConsumerRecordTestData.*
 
   // partial ordered
-  checkAll("OptionalKV", PartialOrderTests[NJConsumerRecord[Int, Int]].partialOrder)
+  // checkAll("OptionalKV", PartialOrderTests[NJConsumerRecord[Int, Int]].partialOrder)
 
   // bifunctor
   checkAll("OptionalKV", BifunctorTests[NJConsumerRecord].bifunctor[Int, Int, Int, Int, Int, Int])

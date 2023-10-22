@@ -1,6 +1,5 @@
 package com.github.chenharryhua.nanjin.kafka
 
-import cats.Show
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{
   backwardCompatibility,
@@ -33,9 +32,4 @@ final case class AvroSchemaPair(key: Schema, value: Schema) {
 
   def isIdentical(other: AvroSchemaPair): Boolean =
     key.equals(other.key) && value.equals(other.value)
-
-}
-
-object AvroSchemaPair {
-  implicit val showAvroSchemaPair: Show[AvroSchemaPair] = _.consumerSchema.toString
 }

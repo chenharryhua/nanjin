@@ -37,34 +37,34 @@ class NJParquetTest extends AnyFunSuite {
   val fs2Root: NJPath = NJPath("./data/test/terminals/parquet/panda")
 
   test("parquet snappy") {
-    fs2(fs2Root, ParquetFile(_.snappy), pandaSet)
+    fs2(fs2Root, ParquetFile(_.Snappy), pandaSet)
   }
   test("parquet gzip") {
-    fs2(fs2Root, ParquetFile(_.gzip), pandaSet)
+    fs2(fs2Root, ParquetFile(_.Gzip), pandaSet)
   }
 
   test("uncompressed parquet") {
-    fs2(fs2Root, ParquetFile(_.uncompressed), pandaSet)
+    fs2(fs2Root, ParquetFile(_.Uncompressed), pandaSet)
   }
 
   test("LZ4 parquet") {
-    fs2(fs2Root, ParquetFile(_.lz4), pandaSet)
+    fs2(fs2Root, ParquetFile(_.Lz4), pandaSet)
   }
 
   test("LZ4_RAW parquet") {
-    fs2(fs2Root, ParquetFile(_.lz4_raw), pandaSet)
+    fs2(fs2Root, ParquetFile(_.Lz4_Raw), pandaSet)
   }
 
   test("Zstandard parquet - 1") {
-    fs2(fs2Root, ParquetFile(_.zstd(1)), pandaSet)
+    fs2(fs2Root, ParquetFile(_.Zstandard(1)), pandaSet)
   }
 
   ignore("LZO parquet") {
-    fs2(fs2Root, ParquetFile(_.lzo), pandaSet)
+    fs2(fs2Root, ParquetFile(_.Lzo), pandaSet)
   }
 
   ignore("BROTLI parquet") {
-    fs2(fs2Root, ParquetFile(_.brotli), pandaSet)
+    fs2(fs2Root, ParquetFile(_.Brotli), pandaSet)
   }
 
   test("laziness") {
