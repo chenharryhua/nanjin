@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.messages.kafka
 
 import cats.data.Cont
+import cats.implicits.catsSyntaxEq
 import fs2.kafka.*
 import io.scalaland.chimney.Transformer
 import io.scalaland.chimney.dsl.*
@@ -21,8 +22,12 @@ private[kafka] trait NJConsumerRecordTransformers {
         offset = src.offset(),
         timestamp = src.timestamp(),
         timestampType = src.timestampType().id,
-        serializedKeySize = Option(src.serializedKeySize()),
-        serializedValueSize = Option(src.serializedValueSize()),
+        serializedKeySize =
+          if (src.serializedKeySize() === JavaConsumerRecord.NULL_SIZE) None
+          else Some(src.serializedKeySize()),
+        serializedValueSize =
+          if (src.serializedValueSize() === JavaConsumerRecord.NULL_SIZE) None
+          else Some(src.serializedValueSize()),
         key = Option(src.key()),
         value = Option(src.value()),
         headers = src.headers().toArray.map(_.transformInto[NJHeader]).toList,

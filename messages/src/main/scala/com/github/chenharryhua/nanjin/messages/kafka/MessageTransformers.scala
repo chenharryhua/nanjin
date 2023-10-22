@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.messages.kafka
 import cats.data.Cont
+import cats.implicits.catsSyntaxEq
 import fs2.kafka.*
 import io.scalaland.chimney.Transformer
 import io.scalaland.chimney.dsl.*
@@ -34,9 +35,7 @@ private trait MessageTransformers {
             offset = src.offset(),
             key = src.key(),
             value = src.value()
-          ).withHeaders(src.headers().transformInto[Headers])
-            .withSerializedKeySize(src.serializedKeySize())
-            .withSerializedValueSize(src.serializedValueSize()))
+          ).withHeaders(src.headers().transformInto[Headers]))
         .map(cr => src.leaderEpoch().toScala.fold(cr)(cr.withLeaderEpoch(_)))
         .map(cr =>
           src.timestampType() match {
@@ -47,6 +46,12 @@ private trait MessageTransformers {
             case JavaTimestampType.LOG_APPEND_TIME =>
               cr.withTimestamp(Timestamp.logAppendTime(src.timestamp()))
           })
+        .map(cr =>
+          if (src.serializedKeySize() === JavaConsumerRecord.NULL_SIZE) cr
+          else cr.withSerializedKeySize(src.serializedKeySize()))
+        .map(cr =>
+          if (src.serializedValueSize() === JavaConsumerRecord.NULL_SIZE) cr
+          else cr.withSerializedValueSize(src.serializedValueSize()))
         .eval
         .value
 
