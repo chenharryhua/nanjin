@@ -11,7 +11,7 @@ val hadoopV     = "3.3.6"
 val monocleV    = "3.2.0"
 val confluentV  = "7.5.1"
 val kafkaV      = "7.5.1-ce"
-val fs2KafkaV   = "3.1.0"
+val fs2KafkaV   = "3.2.0"
 val avroV       = "1.11.3"
 val parquetV    = "1.13.1"
 val circeV      = "0.14.6"
@@ -451,3 +451,11 @@ lazy val nanjin =
     guard_observer_db,
     guard_observer_influxdb,
     guard_observer_kafka)
+.settings(
+  publish / skip := true,
+  ThisBuild / credentials += Credentials(Path.userHome / ".sbt" / ".credentials"),
+  ThisBuild / publishTo := Some(
+    "tabcorp-maven".at("https://artifacts.tabdigital.com.au/artifactory/tabcorp-maven")),
+  ThisBuild / publishConfiguration      := publishConfiguration.value.withOverwrite(true),
+  ThisBuild / publishLocalConfiguration := publishLocalConfiguration.value.withOverwrite(true)
+)
