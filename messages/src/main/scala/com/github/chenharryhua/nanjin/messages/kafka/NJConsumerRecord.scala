@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.messages.kafka
 
 import cats.Bifunctor
-import cats.kernel.PartialOrder
+import cats.kernel.Eq
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.sksamuel.avro4s.*
@@ -107,9 +107,18 @@ object NJConsumerRecord extends NJConsumerRecordTransformers {
         fab.copy(key = fab.key.map(f), value = fab.value.map(g))
     }
 
-  implicit def partialOrderOptionalKV[K, V]: PartialOrder[NJConsumerRecord[K, V]] =
-    (x: NJConsumerRecord[K, V], y: NJConsumerRecord[K, V]) =>
-      if (x.partition === y.partition) {
-        if (x.offset < y.offset) -1.0 else if (x.offset > y.offset) 1.0 else 0.0
-      } else Double.NaN
+  implicit def eqNJConsumerRecord[K: Eq, V: Eq]: Eq[NJConsumerRecord[K, V]] =
+    Eq.instance { case (l, r) =>
+      l.topic === r.topic &&
+      l.partition === r.partition &&
+      l.offset === r.offset &&
+      l.timestamp === r.timestamp &&
+      l.timestampType === r.timestampType &&
+      l.serializedKeySize === r.serializedKeySize &&
+      l.serializedValueSize === r.serializedValueSize &&
+      l.key === r.key &&
+      l.value === r.value &&
+      l.headers === r.headers &&
+      l.leaderEpoch === r.leaderEpoch
+    }
 }

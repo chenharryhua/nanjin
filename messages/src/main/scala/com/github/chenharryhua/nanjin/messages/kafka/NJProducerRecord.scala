@@ -1,6 +1,8 @@
 package com.github.chenharryhua.nanjin.messages.kafka
 
 import cats.Bifunctor
+import cats.implicits.catsSyntaxEq
+import cats.kernel.Eq
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.sksamuel.avro4s.*
@@ -99,5 +101,17 @@ object NJProducerRecord extends NJProducerRecordTransformers {
       override def bimap[A, B, C, D](
         fab: NJProducerRecord[A, B])(f: A => C, g: B => D): NJProducerRecord[C, D] =
         fab.copy(key = fab.key.map(f), value = fab.value.map(g))
+    }
+
+  implicit def eqNJProducerRecord[K: Eq, V: Eq]: Eq[NJProducerRecord[K, V]] =
+    Eq.instance {
+      case (l, r) =>
+        l.topic === r.topic &&
+          l.partition === r.partition &&
+          l.offset === r.offset &&
+          l.timestamp === r.timestamp &&
+          l.key === r.key &&
+          l.value === r.value &&
+          l.headers === r.headers
     }
 }

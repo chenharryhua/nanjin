@@ -1,6 +1,4 @@
 package mtest.msg.kafka
-import cats.derived.auto.eq.*
-import cats.kernel.laws.discipline.PartialOrderTests
 import cats.laws.discipline.BifunctorTests
 import cats.tests.CatsSuite
 import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJProducerRecord}
@@ -38,7 +36,7 @@ class NJConsumerRecordTest extends CatsSuite with FunSuiteDiscipline {
   import NJConsumerRecordTestData.*
 
   // partial ordered
-  checkAll("OptionalKV", PartialOrderTests[NJConsumerRecord[Int, Int]].partialOrder)
+  // checkAll("OptionalKV", PartialOrderTests[NJConsumerRecord[Int, Int]].partialOrder)
 
   // bifunctor
   checkAll("OptionalKV", BifunctorTests[NJConsumerRecord].bifunctor[Int, Int, Int, Int, Int, Int])

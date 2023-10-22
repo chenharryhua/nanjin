@@ -1,7 +1,7 @@
 package mtest.msg.kafka
 
 import cats.effect.IO
-import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
+import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJHeader}
 import com.github.chenharryhua.nanjin.messages.kafka.instances.*
 import fs2.Chunk
 import fs2.kafka.{
@@ -31,6 +31,11 @@ object genMessage {
       value <-
         Gen.containerOfN[Array, Byte](2, arbitrary[Byte]) // avoid GC overhead limit exceeded issue
     } yield new RecordHeader(key, value)
+
+    val genNJHeader: Gen[NJHeader] = for {
+      key <- Gen.asciiPrintableStr
+      value <- Gen.containerOfN[Array, Byte](5, arbitrary[Byte])
+    } yield NJHeader(key, value)
 
     val genHeaders: Gen[RecordHeaders] = for {
       rcs <- Gen.containerOfN[Array, Header](2, genHeader) // avoid GC overhead limit exceeded issue
