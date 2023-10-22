@@ -16,11 +16,10 @@ class KafkaObserverTest extends AnyFunSuite {
     TaskGuard[IO]("observer")
       .service("observer")
       .eventStream(_.action("observer", _.bipartite).retry(IO(())).run)
-      .through(KafkaObserver(ctx).observe(topic))
+      .observe(KafkaObserver(ctx).observe(topic))
       .debug()
       .compile
       .drain
       .unsafeRunSync()
-
   }
 }
