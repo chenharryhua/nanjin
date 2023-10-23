@@ -28,6 +28,7 @@ class NJBytesTest extends AnyFunSuite {
     val sink = hdp.bytes
       .withCompressionLevel(ZlibCompressor.CompressionLevel.BEST_SPEED)
       .withBufferSize(Bytes(8192))
+      .withBlockSizeHint(1000)
       .sink(path)
     val src = hdp.bytes.source(path)
     val action = ts
@@ -40,6 +41,7 @@ class NJBytesTest extends AnyFunSuite {
       .drain >>
       src.through(utf8.decode).through(lines).map(decode[Tiger](_)).rethrow.compile.toList
     assert(action.unsafeRunSync().toSet == data)
+
   }
   val fs2Root: NJPath = NJPath("./data/test/terminals/bytes/fs2")
 

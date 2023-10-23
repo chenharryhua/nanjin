@@ -3,9 +3,11 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.chrono.policies
 import com.github.chenharryhua.nanjin.terminals.NJCompression.*
-import com.github.chenharryhua.nanjin.terminals.{HadoopJackson, JacksonFile, NJHadoop, NJPath}
+import com.github.chenharryhua.nanjin.terminals.{HadoopJackson, JacksonFile, NJFileKind, NJHadoop, NJPath}
 import eu.timepit.refined.auto.*
 import fs2.Stream
+import io.circe.jawn
+import io.circe.syntax.EncoderOps
 import org.apache.avro.generic.GenericRecord
 import org.apache.hadoop.conf.Configuration
 import org.scalatest.Assertion
@@ -22,11 +24,13 @@ class NJJacksonTest extends AnyFunSuite {
   def fs2(path: NJPath, file: JacksonFile, data: Set[GenericRecord]): Assertion = {
     val tgt = path / file.fileName
     hdp.delete(tgt).unsafeRunSync()
-    val sink   = jackson.withCompressionLevel(file.compression.compressionLevel).sink(tgt)
+    val sink   = jackson.withCompressionLevel(file.compression.compressionLevel).withBlockSizeHint(1000).sink(tgt)
     val src    = jackson.source(tgt)
     val ts     = Stream.emits(data.toList).covary[IO].chunks
     val action = ts.through(sink).compile.drain >> src.compile.toList
     assert(action.unsafeRunSync().toSet == data)
+    val fileName = (file: NJFileKind).asJson.noSpaces
+    assert(jawn.decode[NJFileKind](fileName).toOption.get == file)
   }
 
   val fs2Root: NJPath = NJPath("./data/test/terminals/jackson/panda")
@@ -51,7 +55,7 @@ class NJJacksonTest extends AnyFunSuite {
   }
 
   test("deflate - 1") {
-    fs2(fs2Root, JacksonFile(_.Deflate(1)), pandaSet)
+    fs2(fs2Root, JacksonFile(_.Deflate(5)), pandaSet)
   }
 
   test("ftp") {

@@ -38,7 +38,7 @@ final class HadoopBytes[F[_]] private (
     paths.foldLeft(Stream.empty.covaryAll[F, Byte]) { case (s, p) => s ++ source(p) }
 
   def inputStream(path: NJPath)(implicit F: Sync[F]): Resource[F, InputStream] =
-    HadoopReader.inputStreamR(configuration, path.hadoopPath)
+    HadoopReader.inputStreamR[F](configuration, path.hadoopPath)
 
   def outputStream(path: NJPath)(implicit F: Sync[F]): Resource[F, OutputStream] =
     HadoopWriter.outputStreamR[F](path.hadoopPath, configuration, compressLevel, blockSizeHint)

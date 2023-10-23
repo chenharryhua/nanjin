@@ -6,9 +6,11 @@ import cats.effect.unsafe.implicits.global
 import cats.implicits.toTraverseOps
 import com.github.chenharryhua.nanjin.common.chrono.policies
 import com.github.chenharryhua.nanjin.terminals.NJCompression.*
-import com.github.chenharryhua.nanjin.terminals.{HadoopParquet, NJPath, ParquetFile}
+import com.github.chenharryhua.nanjin.terminals.{HadoopParquet, NJFileKind, NJPath, ParquetFile}
 import eu.timepit.refined.auto.*
 import fs2.Stream
+import io.circe.jawn
+import io.circe.syntax.EncoderOps
 import org.apache.avro.generic.GenericRecord
 import org.scalatest.Assertion
 import org.scalatest.funsuite.AnyFunSuite
@@ -32,6 +34,8 @@ class NJParquetTest extends AnyFunSuite {
         .drain >>
         parquet.source(tgt).compile.toList
     assert(action.unsafeRunSync().toSet == data)
+    val fileName = (file: NJFileKind).asJson.noSpaces
+    assert(jawn.decode[NJFileKind](fileName).toOption.get == file)
   }
 
   val fs2Root: NJPath = NJPath("./data/test/terminals/parquet/panda")
@@ -56,7 +60,7 @@ class NJParquetTest extends AnyFunSuite {
   }
 
   test("Zstandard parquet - 1") {
-    fs2(fs2Root, ParquetFile(_.Zstandard(1)), pandaSet)
+    fs2(fs2Root, ParquetFile(_.Zstandard(7)), pandaSet)
   }
 
   ignore("LZO parquet") {

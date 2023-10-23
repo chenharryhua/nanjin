@@ -5,10 +5,11 @@ import cats.effect.unsafe.implicits.global
 import cats.implicits.toFunctorFilterOps
 import com.github.chenharryhua.nanjin.common.chrono.policies
 import com.github.chenharryhua.nanjin.terminals.NJCompression.*
-import com.github.chenharryhua.nanjin.terminals.{HadoopText, NJHadoop, NJPath, TextFile}
+import com.github.chenharryhua.nanjin.terminals.{HadoopText, NJFileKind, NJHadoop, NJPath, TextFile}
 import eu.timepit.refined.auto.*
 import fs2.Stream
 import io.circe.generic.auto.*
+import io.circe.jawn
 import io.circe.jawn.decode
 import io.circe.syntax.EncoderOps
 import mtest.terminals.HadoopTestData.hdp
@@ -16,6 +17,7 @@ import mtest.terminals.TestData.Tiger
 import org.apache.hadoop.conf.Configuration
 import org.scalatest.Assertion
 import org.scalatest.funsuite.AnyFunSuite
+import squants.information.InformationConversions.InformationConversions
 
 import java.time.ZoneId
 import scala.concurrent.duration.DurationInt
@@ -27,10 +29,12 @@ class NJTextTest extends AnyFunSuite {
     val tgt = path / file.fileName
     hdp.delete(tgt).unsafeRunSync()
     val ts     = Stream.emits(data.toList).covary[IO].map(_.asJson.noSpaces).chunks
-    val sink   = text.withCompressionLevel(file.compression.compressionLevel).sink(tgt)
+    val sink   = text.withCompressionLevel(file.compression.compressionLevel).withBufferSize(32.kb).withBlockSizeHint(1000).sink(tgt)
     val src    = text.source(tgt).mapFilter(decode[Tiger](_).toOption)
     val action = ts.through(sink).compile.drain >> src.compile.toList
     assert(action.unsafeRunSync().toSet == data)
+    val fileName = (file: NJFileKind).asJson.noSpaces
+    assert(jawn.decode[NJFileKind](fileName).toOption.get == file)
   }
 
   val fs2Root: NJPath = NJPath("./data/test/terminals/text/tiger")
@@ -56,7 +60,7 @@ class NJTextTest extends AnyFunSuite {
   }
 
   test("deflate - 1") {
-    fs2(fs2Root, TextFile(_.Deflate(1)), TestData.tigerSet)
+    fs2(fs2Root, TextFile(_.Deflate(8)), TestData.tigerSet)
   }
 
   test("ftp") {

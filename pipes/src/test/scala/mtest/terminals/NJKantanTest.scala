@@ -1,11 +1,13 @@
 package mtest.terminals
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.common.chrono.{policies, Policy}
+import com.github.chenharryhua.nanjin.common.chrono.{Policy, policies}
 import com.github.chenharryhua.nanjin.terminals.NJCompression.*
-import com.github.chenharryhua.nanjin.terminals.{CsvHeaderOf, KantanFile, NJHadoop, NJPath}
+import com.github.chenharryhua.nanjin.terminals.{CsvHeaderOf, KantanFile, NJFileKind, NJHadoop, NJPath}
 import eu.timepit.refined.auto.*
 import fs2.Stream
+import io.circe.jawn
+import io.circe.syntax.EncoderOps
 import kantan.csv.{CsvConfiguration, RowDecoder, RowEncoder}
 import mtest.terminals.HadoopTestData.hdp
 import mtest.terminals.TestData.*
@@ -24,11 +26,17 @@ class NJKantanTest extends AnyFunSuite {
   def fs2(path: NJPath, file: KantanFile, csvConfiguration: CsvConfiguration, data: Set[Tiger]): Assertion = {
     val tgt = path / file.fileName
     hdp.delete(tgt).unsafeRunSync()
-    val ts   = Stream.emits(data.toList).covary[IO].map(tigerEncoder.encode).chunks
-    val sink = hdp.kantan(csvConfiguration).withCompressionLevel(file.compression.compressionLevel).sink(tgt)
-    val src  = hdp.kantan(csvConfiguration).source(tgt, 100).map(tigerDecoder.decode).rethrow
+    val ts = Stream.emits(data.toList).covary[IO].map(tigerEncoder.encode).chunks
+    val sink = hdp
+      .kantan(csvConfiguration)
+      .withCompressionLevel(file.compression.compressionLevel)
+      .withBlockSizeHint(1000)
+      .sink(tgt)
+    val src    = hdp.kantan(csvConfiguration).source(tgt, 100).map(tigerDecoder.decode).rethrow
     val action = ts.through(sink).compile.drain >> src.compile.toList
     assert(action.unsafeRunSync().toSet == data)
+    val fileName = (file: NJFileKind).asJson.noSpaces
+    assert(jawn.decode[NJFileKind](fileName).toOption.get == file)
   }
 
   val fs2Root: NJPath = NJPath("./data/test/terminals/csv/tiger")
@@ -36,6 +44,11 @@ class NJKantanTest extends AnyFunSuite {
   test("uncompressed - with-header") {
     val cfg = CsvConfiguration.rfc.withHeader(tigerHeader.modify(identity))
     fs2(fs2Root / "header", KantanFile(_.Uncompressed), cfg, tigerSet)
+  }
+
+  test("uncompressed - with-implicit-header") {
+    val cfg = CsvConfiguration.rfc.withHeader
+    fs2(fs2Root / "header-implicit", KantanFile(_.Uncompressed), cfg, tigerSet)
   }
 
   test("uncompressed - without-header") {
@@ -62,7 +75,7 @@ class NJKantanTest extends AnyFunSuite {
 
   test("deflate") {
     val cfg = CsvConfiguration.rfc.withQuote('*')
-    fs2(fs2Root, KantanFile(_.Deflate(1)), cfg, tigerSet)
+    fs2(fs2Root, KantanFile(_.Deflate(6)), cfg, tigerSet)
   }
 
   test("ftp") {

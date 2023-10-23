@@ -41,4 +41,10 @@ class HadoopTest extends AnyFunSuite {
     assert(hdp.isExist(p1).unsafeRunSync())
     assert(hdp.locatedFileStatus(path).unsafeRunSync().count(_.isFile) == 4)
   }
+
+  test("file in") {
+    val files =  hdp.filesIn(p1).unsafeRunSync()
+    assert(files.size ===1)
+    assert(files.head.pathStr.takeRight(5) === "a.txt")
+  }
 }
