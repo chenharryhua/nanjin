@@ -53,6 +53,7 @@ object KJson {
       }
 
     override def decode(value: Any): KJson[A] = value match {
+      case null => null
       case str: String =>
         jawn.decode[KJson[A]](str) match {
           case Right(r) => r
@@ -63,8 +64,7 @@ object KJson {
           case Right(r) => r
           case Left(ex) => throw ex
         }
-      case null => null
-      case ex   => sys.error(s"${ex.getClass} is not a string: $ex")
+      case ex => sys.error(s"${ex.getClass} is not a string: $ex")
     }
 
     override def schemaFor: SchemaFor[KJson[A]] = SchemaFor[KJson[A]]

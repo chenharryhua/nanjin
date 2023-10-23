@@ -45,7 +45,7 @@ object KafkaStreamingData {
     ctx
       .consume(tgt.topicName)
       .stream
-      .map(x => tgt.decoder(x).decode)
+      .map(x => tgt.decoder.decode(x))
       .observe(_.map(_.offset).through(commitBatchWithin[IO](1, 0.1.seconds)).drain)
       .map(_.record.value)
       .debug(o => s"harvest: $o")

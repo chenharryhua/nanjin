@@ -33,15 +33,12 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
   @transient lazy val serdePair: KeyValueSerdePair[K, V] =
     topicDef.rawSerdes.register(context.settings.schemaRegistrySettings, topicName)
 
-  @inline def decoder[G[_, _]: NJConsumerMessage](
-    cr: G[Array[Byte], Array[Byte]]): KafkaGenericDecoder[G, K, V] =
-    new KafkaGenericDecoder[G, K, V](cr, serdePair.key, serdePair.value)
+  lazy val decoder: KafkaGenericDecoder[K, V] =
+    new KafkaGenericDecoder[K, V](serdePair.key, serdePair.value)
 
   def decode[G[_, _]: NJConsumerMessage](gaa: G[Array[Byte], Array[Byte]]): NJConsumerRecord[K, V] = {
     val jcr: JavaConsumerRecord[Option[K], Option[V]] =
-      NJConsumerMessage[JavaConsumerRecord].bimap(NJConsumerMessage[G].lens.get(gaa))(
-        serdePair.key.tryDeserialize(_).toOption,
-        serdePair.value.tryDeserialize(_).toOption)
+      NJConsumerMessage[G].lens.get(decoder.optionalKeyValue(gaa))
     NJConsumerRecord(jcr).flatten
   }
 
