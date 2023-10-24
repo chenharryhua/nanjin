@@ -4,9 +4,11 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.chrono.policies
 import com.github.chenharryhua.nanjin.terminals.NJCompression.*
-import com.github.chenharryhua.nanjin.terminals.{BinAvroFile, NJPath}
+import com.github.chenharryhua.nanjin.terminals.{BinAvroFile, NJFileKind, NJPath}
 import eu.timepit.refined.auto.*
 import fs2.Stream
+import io.circe.jawn
+import io.circe.syntax.EncoderOps
 import org.apache.avro.generic.GenericRecord
 import org.scalatest.Assertion
 import org.scalatest.funsuite.AnyFunSuite
@@ -23,10 +25,13 @@ class NJBinAvroTest extends AnyFunSuite {
     val tgt = path / file.fileName
 
     hdp.delete(tgt).unsafeRunSync()
-    val sink   = binAvro.withCompressionLevel(file.compression.compressionLevel).sink(tgt)
+    val sink =
+      binAvro.withCompressionLevel(file.compression.compressionLevel).withBlockSizeHint(1000).sink(tgt)
     val src    = binAvro.source(tgt)
     val ts     = Stream.emits(data.toList).covary[IO].chunks
     val action = ts.through(sink).compile.drain >> src.compile.toList
+    val fileName = (file: NJFileKind).asJson.noSpaces
+    assert(jawn.decode[NJFileKind](fileName).toOption.get == file)
     assert(action.unsafeRunSync().toSet == data)
   }
 
@@ -53,7 +58,7 @@ class NJBinAvroTest extends AnyFunSuite {
   }
 
   test("deflate - 1") {
-    fs2(fs2Root, BinAvroFile(_.Deflate(1)), pandaSet)
+    fs2(fs2Root, BinAvroFile(_.Deflate(2)), pandaSet)
   }
 
   test("laziness") {

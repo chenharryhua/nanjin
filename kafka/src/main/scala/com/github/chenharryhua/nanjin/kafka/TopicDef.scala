@@ -57,7 +57,7 @@ final class TopicDef[K, V] private (val topicName: TopicName, val rawSerdes: Raw
 
 object TopicDef {
 
-  implicit def showTopicDef[K, V]: Show[TopicDef[K, V]] = _.toString
+  implicit def showTopicDef[K, V]: Show[TopicDef[K, V]] = Show.fromToString
 
   implicit def eqTopicDef[K, V]: Eq[TopicDef[K, V]] =
     (x: TopicDef[K, V], y: TopicDef[K, V]) =>

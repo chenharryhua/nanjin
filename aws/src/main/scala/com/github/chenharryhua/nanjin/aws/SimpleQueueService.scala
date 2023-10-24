@@ -1,8 +1,8 @@
 package com.github.chenharryhua.nanjin.aws
 
+import cats.Endo
 import cats.effect.kernel.{Async, Resource}
 import cats.syntax.all.*
-import cats.{Endo, Show}
 import com.github.chenharryhua.nanjin.common.aws.{S3Path, SqsConfig}
 import com.github.chenharryhua.nanjin.common.chrono.{policies, Policy, TickStatus}
 import fs2.{Chunk, Pull, Stream}
@@ -206,9 +206,6 @@ object SimpleQueueService {
 object sqsS3Parser {
   @JsonCodec @Lenses
   final case class SqsS3File(path: S3Path, size: Long)
-  object SqsS3File {
-    implicit val showSqsS3File: Show[SqsS3File] = cats.derived.semiauto.show[SqsS3File]
-  }
 
   /** [[https://docs.aws.amazon.com/AmazonS3/latest/userguide/notification-content-structure.html]]
     *

@@ -1,12 +1,11 @@
 package mtest.msg.codec
 
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
-import com.github.chenharryhua.nanjin.messages.kafka.codec.{KafkaGenericDecoder, KafkaSerde, SerdeOf}
+import com.github.chenharryhua.nanjin.messages.kafka.codec.{KafkaSerde, SerdeOf}
+import eu.timepit.refined.auto.*
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.util.Success
-import eu.timepit.refined.auto.*
-import fs2.kafka.ConsumerRecord
 
 object CodecTestData {
   final case class Foo(a: String, b: Int)

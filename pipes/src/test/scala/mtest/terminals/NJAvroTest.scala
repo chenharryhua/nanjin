@@ -7,13 +7,14 @@ import com.github.chenharryhua.nanjin.terminals.*
 import com.github.chenharryhua.nanjin.terminals.NJCompression.*
 import eu.timepit.refined.auto.*
 import fs2.Stream
+import io.circe.syntax.EncoderOps
 import org.apache.avro.generic.GenericRecord
 import org.scalatest.Assertion
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.ZoneId
 import scala.concurrent.duration.DurationInt
-
+import io.circe.jawn
 class NJAvroTest extends AnyFunSuite {
   import HadoopTestData.*
 
@@ -22,10 +23,12 @@ class NJAvroTest extends AnyFunSuite {
   def fs2(path: NJPath, file: AvroFile, data: Set[GenericRecord]): Assertion = {
     val tgt = path / file.fileName
     hdp.delete(tgt).unsafeRunSync()
-    val sink   = avro.withBlockSizeHint(1000).withCompression(file.compression).sink(tgt)
-    val src    = avro.source(tgt, 100)
-    val ts     = Stream.emits(data.toList).covary[IO].chunks
-    val action = ts.through(sink).compile.drain >> src.compile.toList
+    val sink     = avro.withBlockSizeHint(1000).withCompression(file.compression).sink(tgt)
+    val src      = avro.source(tgt, 100)
+    val ts       = Stream.emits(data.toList).covary[IO].chunks
+    val action   = ts.through(sink).compile.drain >> src.compile.toList
+    val fileName = (file: NJFileKind).asJson.noSpaces
+    assert(jawn.decode[NJFileKind](fileName).toOption.get == file)
     assert(action.unsafeRunSync().toSet == data)
   }
 

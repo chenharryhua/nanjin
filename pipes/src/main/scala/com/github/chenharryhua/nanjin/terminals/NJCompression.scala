@@ -38,7 +38,7 @@ sealed trait NJCompression extends Product with Serializable {
     case 6 => CompressionLevel.SIX
     case 7 => CompressionLevel.SEVEN
     case 8 => CompressionLevel.EIGHT
-    case 9 => CompressionLevel.BEST_SPEED
+    case 9 => CompressionLevel.BEST_COMPRESSION
     case _ => CompressionLevel.DEFAULT_COMPRESSION
   }
 
@@ -238,7 +238,7 @@ object NJCompression {
 
   case object Lzo extends NJCompression with ParquetCompression with ProtobufCompression {
     override val shortName: String     = "lzo"
-    override def fileExtension: String = ".lzo"
+    override val fileExtension: String = ".lzo"
   }
 
   final case class Deflate(level: NJCompressionLevel)

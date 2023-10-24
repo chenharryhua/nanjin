@@ -73,7 +73,7 @@ class SparkKafkaStreamTest extends AnyFunSuite {
 
     sparKafka
       .sstream(rooster.topicName)
-      .flatMap(rooster.decoder(_).tryDecode.toOption)
+      .flatMap(rooster.decoder.tryDecode(_).toOption)
       .writeStream
       .format("console")
       .start()

@@ -24,9 +24,6 @@ final class HadoopAvro[F[_]] private (
   def withCompression(compression: AvroCompression): HadoopAvro[F] =
     new HadoopAvro[F](configuration, schema, compression, blockSizeHint)
 
-  def withCompression(f: AvroCompression.type => AvroCompression): HadoopAvro[F] =
-    withCompression(f(AvroCompression))
-
   def withBlockSizeHint(bsh: Long): HadoopAvro[F] =
     new HadoopAvro[F](configuration, schema, compression, bsh)
 

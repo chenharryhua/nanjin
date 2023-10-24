@@ -5,16 +5,18 @@ import cats.effect.unsafe.implicits.global
 import cats.implicits.toFunctorFilterOps
 import com.github.chenharryhua.nanjin.common.chrono.policies
 import com.github.chenharryhua.nanjin.terminals.NJCompression.*
-import com.github.chenharryhua.nanjin.terminals.{CirceFile, HadoopCirce, NJHadoop, NJPath}
+import com.github.chenharryhua.nanjin.terminals.{CirceFile, HadoopCirce, NJFileKind, NJHadoop, NJPath}
 import eu.timepit.refined.auto.*
 import fs2.Stream
 import io.circe.generic.auto.*
+import io.circe.jawn
 import io.circe.syntax.EncoderOps
 import mtest.terminals.HadoopTestData.hdp
 import mtest.terminals.TestData.Tiger
 import org.apache.hadoop.conf.Configuration
 import org.scalatest.Assertion
 import org.scalatest.funsuite.AnyFunSuite
+import squants.information.InformationConversions.InformationConversions
 
 import java.time.ZoneId
 import scala.concurrent.duration.DurationInt
@@ -25,13 +27,19 @@ class NJCirceTest extends AnyFunSuite {
   def fs2(path: NJPath, file: CirceFile, data: Set[Tiger]): Assertion = {
     val tgt = path / file.fileName
     hdp.delete(tgt).unsafeRunSync()
-    val ts     = Stream.emits(data.toList).covary[IO].map(_.asJson).chunks
-    val sink   = json.withCompressionLevel(file.compression.compressionLevel).sink(tgt)
+    val ts = Stream.emits(data.toList).covary[IO].map(_.asJson).chunks
+    val sink = json
+      .withCompressionLevel(file.compression.compressionLevel)
+      .withBufferSize(32.kb)
+      .withBlockSizeHint(1000)
+      .sink(tgt)
     val src    = json.source(tgt).mapFilter(_.as[Tiger].toOption)
     val action = ts.through(sink).compile.drain >> src.compile.toList
     assert(action.unsafeRunSync().toSet == data)
     val lines = hdp.text.source(tgt).compile.fold(0) { case (s, _) => s + 1 }
     assert(lines.unsafeRunSync() === data.size)
+    val fileName = (file: NJFileKind).asJson.noSpaces
+    assert(jawn.decode[NJFileKind](fileName).toOption.get == file)
   }
 
   val fs2Root: NJPath = NJPath("./data/test/terminals/circe/tiger")
@@ -57,7 +65,7 @@ class NJCirceTest extends AnyFunSuite {
   }
 
   test("deflate - 1") {
-    fs2(fs2Root, CirceFile(_.Deflate(1)), TestData.tigerSet)
+    fs2(fs2Root, CirceFile(_.Deflate(4)), TestData.tigerSet)
   }
 
   test("ftp") {

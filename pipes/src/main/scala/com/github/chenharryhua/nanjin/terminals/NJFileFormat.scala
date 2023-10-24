@@ -10,8 +10,6 @@ sealed abstract class NJFileFormat(val value: Int, val format: String, val alias
 
   final def suffix: String = s"$alias.$format"
 
-  final override def toString: String = suffix
-
   final override def entryName: String = suffix
 }
 

@@ -36,7 +36,7 @@ class ExampleKafkaBasic extends AnyFunSuite {
     ctx
       .consume(fooTopic.topicName)
       .stream
-      .map(x => fooTopic.decoder(x).decode)
+      .map(fooTopic.decoder.decodeValue(_))
       .debug()
       .interruptAfter(3.seconds)
       .compile
