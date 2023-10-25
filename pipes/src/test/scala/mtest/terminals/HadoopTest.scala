@@ -43,8 +43,8 @@ class HadoopTest extends AnyFunSuite {
   }
 
   test("file in") {
-    val files =  hdp.filesIn(p1).unsafeRunSync()
-    assert(files.size ===1)
+    val files = hdp.filesIn(p1).unsafeRunSync()
+    assert(files.size === 1)
     assert(files.head.pathStr.takeRight(5) === "a.txt")
   }
 }

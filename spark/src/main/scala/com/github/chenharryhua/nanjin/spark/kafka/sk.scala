@@ -52,7 +52,8 @@ private[spark] object sk {
     topic: KafkaTopic[F, K, V],
     ss: SparkSession,
     offsetRange: KafkaTopicPartition[Option[KafkaOffsetRange]]): RDD[NJConsumerRecord[K, V]] =
-    kafkaBatchRDD(topic.context.settings.consumerSettings, ss, offsetRange).map(topic.decode(_))
+    kafkaBatchRDD(topic.context.settings.consumerSettings, ss, offsetRange)
+      .map(topic.serde.toNJConsumerRecord(_))
 
   def kafkaBatch[F[_]: Async, K, V](
     topic: KafkaTopic[F, K, V],

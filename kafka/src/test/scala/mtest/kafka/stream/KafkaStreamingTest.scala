@@ -45,7 +45,7 @@ object KafkaStreamingData {
     ctx
       .consume(tgt.topicName)
       .stream
-      .map(x => tgt.decoder.decode(x))
+      .map(x => tgt.serde.deserialize(x))
       .observe(_.map(_.offset).through(commitBatchWithin[IO](1, 0.1.seconds)).drain)
       .map(_.record.value)
       .debug(o => s"harvest: $o")
@@ -116,12 +116,16 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
 
     val sendS1Data = Stream
       .emits(List(
-        s1TopicBin.topicDef.producerRecord(s1Topic.serializeKey(1), s1Topic.serializeVal(StreamOne("a", 1))),
-        s1TopicBin.topicDef.producerRecord(s1Topic.serializeKey(2), "exception1".getBytes),
-        s1TopicBin.topicDef.producerRecord(s1Topic.serializeKey(3), s1Topic.serializeVal(StreamOne("c", 3))),
-        s1TopicBin.topicDef.producerRecord(s1Topic.serializeKey(4), s1Topic.serializeVal(StreamOne("d", 4))),
-        s1TopicBin.topicDef.producerRecord(s1Topic.serializeKey(5), "exception2".getBytes),
-        s1TopicBin.topicDef.producerRecord(s1Topic.serializeKey(6), s1Topic.serializeVal(StreamOne("f", 6)))
+        s1TopicBin.topicDef
+          .producerRecord(s1Topic.serde.serializeKey(1), s1Topic.serde.serializeVal(StreamOne("a", 1))),
+        s1TopicBin.topicDef.producerRecord(s1Topic.serde.serializeKey(2), "exception1".getBytes),
+        s1TopicBin.topicDef
+          .producerRecord(s1Topic.serde.serializeKey(3), s1Topic.serde.serializeVal(StreamOne("c", 3))),
+        s1TopicBin.topicDef
+          .producerRecord(s1Topic.serde.serializeKey(4), s1Topic.serde.serializeVal(StreamOne("d", 4))),
+        s1TopicBin.topicDef.producerRecord(s1Topic.serde.serializeKey(5), "exception2".getBytes),
+        s1TopicBin.topicDef
+          .producerRecord(s1Topic.serde.serializeKey(6), s1Topic.serde.serializeVal(StreamOne("f", 6)))
       ).map(ProducerRecords.one))
       .covary[IO]
       .metered(1.seconds)
@@ -153,9 +157,9 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
 
     val sendS1Data = Stream
       .emits(List(
-        s1TopicBin.topicDef.producerRecord(1, s1Topic.serializeVal(StreamOne("a", 1))),
+        s1TopicBin.topicDef.producerRecord(1, s1Topic.serde.serializeVal(StreamOne("a", 1))),
         s1TopicBin.topicDef.producerRecord(2, "exception1".getBytes),
-        s1TopicBin.topicDef.producerRecord(3, s1Topic.serializeVal(StreamOne("c", 3)))
+        s1TopicBin.topicDef.producerRecord(3, s1Topic.serde.serializeVal(StreamOne("c", 3)))
       ).map(ProducerRecords.one))
       .covary[IO]
       .metered(1.seconds)
