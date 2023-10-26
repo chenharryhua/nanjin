@@ -24,7 +24,8 @@ class NJJacksonTest extends AnyFunSuite {
   def fs2(path: NJPath, file: JacksonFile, data: Set[GenericRecord]): Assertion = {
     val tgt = path / file.fileName
     hdp.delete(tgt).unsafeRunSync()
-    val sink   = jackson.withCompressionLevel(file.compression.compressionLevel).withBlockSizeHint(1000).sink(tgt)
+    val sink =
+      jackson.withCompressionLevel(file.compression.compressionLevel).withBlockSizeHint(1000).sink(tgt)
     val src    = jackson.source(tgt)
     val ts     = Stream.emits(data.toList).covary[IO].chunks
     val action = ts.through(sink).compile.drain >> src.compile.toList
