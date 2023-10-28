@@ -134,4 +134,18 @@ final class KafkaContext[F[_]](val settings: KafkaSettings)
 
   def admin(topicName: TopicNameL)(implicit F: Async[F]): KafkaAdminApi[F] =
     admin(TopicName(topicName))
+
+  def cherryPick(topicName: TopicName, partition: Int, offset: Long)(implicit
+    F: Async[F]): F[Option[String]] =
+    for {
+      raw <- admin(topicName).retrieveRecord(partition, offset)
+      schemaPair <- schemaRegistry.fetchAvroSchema(topicName)
+    } yield {
+      val pgr = new PullGenericRecord(settings.schemaRegistrySettings, topicName, schemaPair)
+      raw.map(pgr.toGenericRecord).flatMap(gr2Jackson(_).toOption)
+    }
+
+  def cherryPick(topicName: TopicNameL, partition: Int, offset: Long)(implicit
+    F: Async[F]): F[Option[String]] =
+    cherryPick(TopicName(topicName), partition, offset)
 }
