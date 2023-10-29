@@ -17,7 +17,8 @@ final class HadoopAvro[F[_]] private (
   configuration: Configuration,
   schema: Schema,
   compression: AvroCompression,
-  blockSizeHint: Long) {
+  blockSizeHint: Long)
+    extends GenericRecordSink[F] {
 
   // config
 

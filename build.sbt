@@ -5,7 +5,7 @@ ThisBuild / version := "0.17.5-SNAPSHOT"
 val catsCoreV   = "2.10.0"
 val fs2V        = "3.9.2"
 val awsV_1      = "1.12.570"
-val awsV_2      = "2.21.2"
+val awsV_2      = "2.21.10"
 val catsEffectV = "3.5.2"
 val hadoopV     = "3.3.6"
 val monocleV    = "3.2.0"
@@ -157,7 +157,7 @@ val catsLib = List(
 ).map(_ % catsCoreV) ++
   List(
     "org.typelevel" %% "cats-mtl"              % "1.4.0",
-    "org.typelevel" %% "kittens"               % "3.0.0",
+    "org.typelevel" %% "kittens"               % "3.1.0",
     "org.typelevel" %% "cats-collections-core" % "0.9.8"
   )
 

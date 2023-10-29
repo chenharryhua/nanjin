@@ -21,23 +21,23 @@ class NJConsumerRecordDecoderTest extends AnyFunSuite {
   val badKV: ConsumerRecord[Array[Byte], Array[Byte]] =
     ConsumerRecord("test", 0, 0, Array[Byte](0), Array[Byte](0))
   test("decode good key value") {
-    val rst = topic.decode(goodData)
+    val rst = topic.serde.toNJConsumerRecord(goodData)
     assert(rst.key.contains(1))
     assert(rst.value.contains(2))
   }
 
   test("decode bad key") {
-    val rst = topic.decode(badKey)
+    val rst = topic.serde.toNJConsumerRecord(badKey)
     assert(rst.value.contains(2))
     assert(rst.key.isEmpty)
   }
   test("decode bad value") {
-    val rst = topic.decode(badVal)
+    val rst = topic.serde.toNJConsumerRecord(badVal)
     assert(rst.key.contains(1))
     assert(rst.value.isEmpty)
   }
   test("decode bad key vaule") {
-    val rst = topic.decode(badKV)
+    val rst = topic.serde.toNJConsumerRecord(badKV)
     assert(rst.key.isEmpty)
     assert(rst.value.isEmpty)
   }

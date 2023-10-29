@@ -9,7 +9,7 @@ import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.{NJDateTimeRange, NJTimestamp}
 import fs2.kafka.{AdminClientSettings, AutoOffsetReset, ConsumerSettings, KafkaAdminClient}
 import org.apache.kafka.clients.admin.{NewTopic, TopicDescription}
-import org.apache.kafka.clients.consumer.OffsetAndMetadata
+import org.apache.kafka.clients.consumer.{ConsumerRecord, OffsetAndMetadata}
 import org.apache.kafka.common.TopicPartition
 
 // delegate to https://ovotech.github.io/fs2-kafka/
@@ -35,6 +35,9 @@ sealed trait KafkaAdminApi[F[_]] extends UpdateConfig[AdminClientSettings, Kafka
   def resetOffsetsToBegin(groupId: String): F[Unit]
   def resetOffsetsToEnd(groupId: String): F[Unit]
   def resetOffsetsForTimes(groupId: String, ts: NJTimestamp): F[Unit]
+
+  def retrieveRecord(partition: Int, offset: Long): F[Option[ConsumerRecord[Array[Byte], Array[Byte]]]]
+
 }
 
 object KafkaAdminApi {
@@ -146,5 +149,7 @@ object KafkaAdminApi {
     override def updateConfig(f: Endo[AdminClientSettings]): KafkaAdminApi[F] =
       new KafkaTopicAdminApiImpl[F](topicName, consumerSettings, f(adminSettings))
 
+    override def retrieveRecord(partition: Int, offset: Long): F[Option[ConsumerRecord[Array[Byte], Array[Byte]]]] =
+      transientConsumer(initCS).retrieveRecord(KafkaPartition(partition),KafkaOffset(offset))
   }
 }

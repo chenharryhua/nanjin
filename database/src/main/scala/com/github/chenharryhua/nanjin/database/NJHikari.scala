@@ -1,7 +1,10 @@
 package com.github.chenharryhua.nanjin.database
 
+import cats.effect.kernel.{Async, Resource}
 import com.github.chenharryhua.nanjin.common.database.*
 import com.zaxxer.hikari.HikariConfig
+import doobie.hikari.HikariTransactor
+import fs2.Stream
 
 /** [[https://tpolecat.github.io/doobie/]]
   * @param cfg
@@ -19,6 +22,12 @@ sealed abstract class NJHikari(cfg: HikariConfig, updateOps: List[HikariConfig =
     cfg.validate()
     cfg
   }
+
+  final def transactorResource[F[_]: Async]: Resource[F, HikariTransactor[F]] =
+    HikariTransactor.fromHikariConfig[F](hikariConfig)
+
+  final def transactorStream[F[_]: Async]: Stream[F, HikariTransactor[F]] =
+    Stream.resource(transactorResource)
 }
 
 object NJHikari {

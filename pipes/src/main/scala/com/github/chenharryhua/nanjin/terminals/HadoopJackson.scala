@@ -16,7 +16,8 @@ final class HadoopJackson[F[_]] private (
   configuration: Configuration,
   blockSizeHint: Long,
   compressLevel: CompressionLevel,
-  schema: Schema) {
+  schema: Schema)
+    extends GenericRecordSink[F] {
 
   // config
 
