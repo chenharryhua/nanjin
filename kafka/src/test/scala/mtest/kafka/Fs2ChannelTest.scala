@@ -2,6 +2,7 @@ package mtest.kafka
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
+import cats.implicits.toBifunctorOps
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.*
@@ -71,7 +72,9 @@ class Fs2ChannelTest extends AnyFunSuite {
           .updateConfig(_.withGroupId("g1"))
           .stream
           .take(1)
-          .map(ccr => NJConsumerRecord(ccr.record).metaInfo(sydneyTime).asJson)
+          .map { ccr =>
+            NJConsumerRecord(ccr.record).metaInfo(sydneyTime).asJson
+          }
           .timeout(3.seconds)
           .compile
           .toList
@@ -89,6 +92,30 @@ class Fs2ChannelTest extends AnyFunSuite {
         .toList
         .unsafeRunSync()
     assert(ret.size == 1)
+  }
+
+  test("serde") {
+    ctx
+      .consume(topic.topicName)
+      .stream
+      .take(1)
+      .map { ccr =>
+        topic.serde.deserialize(ccr)
+        topic.serde.deserializeKey(ccr)
+        topic.serde.deserializeValue(ccr.record)
+        topic.serde.tryDeserialize(ccr.record)
+        topic.serde.tryDeserializeKey(ccr.record)
+        topic.serde.tryDeserializeValue(ccr.record)
+        topic.serde.tryDeserializeKeyValue(ccr.record)
+        topic.serde.nullableDeserialize(ccr.record)
+        topic.serde.nullableDeserialize(ccr.record.bimap[Array[Byte], Array[Byte]](_ => null, _ => null))
+        val nj = topic.serde.toNJConsumerRecord(ccr).toNJProducerRecord.toProducerRecord
+        topic.serde.serialize(nj)
+      }
+      .timeout(3.seconds)
+      .compile
+      .toList
+      .unsafeRunSync()
   }
 
   test("circe") {

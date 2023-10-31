@@ -4,10 +4,9 @@ import cats.Id
 import cats.data.Kleisli
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import eu.timepit.refined.auto.*
 import fs2.Stream
-import fs2.kafka.{commitBatchWithin, ProducerRecord, ProducerRecords}
+import fs2.kafka.{ProducerRecord, ProducerRecords, commitBatchWithin}
 import mtest.kafka.*
 import org.apache.kafka.streams.processor.api
 import org.apache.kafka.streams.processor.api.{Processor, ProcessorSupplier, Record}
@@ -24,7 +23,7 @@ class TransformerTest extends AnyFunSuite {
   val appid = "transform_test"
 
   test("stream transformer") {
-    val store = ctx.store[Int, String](TopicName("stream.builder.test.store"))
+    val store = ctx.store[Int, String]("stream.builder.test.store")
 
     val topic1 = ctx.topic[Int, String]("stream.builder.test.stream1")
     val topic2 = ctx.topic[Int, String]("stream.builder.test.table2")

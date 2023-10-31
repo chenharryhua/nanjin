@@ -149,7 +149,9 @@ object KafkaAdminApi {
     override def updateConfig(f: Endo[AdminClientSettings]): KafkaAdminApi[F] =
       new KafkaTopicAdminApiImpl[F](topicName, consumerSettings, f(adminSettings))
 
-    override def retrieveRecord(partition: Int, offset: Long): F[Option[ConsumerRecord[Array[Byte], Array[Byte]]]] =
-      transientConsumer(initCS).retrieveRecord(KafkaPartition(partition),KafkaOffset(offset))
+    override def retrieveRecord(
+      partition: Int,
+      offset: Long): F[Option[ConsumerRecord[Array[Byte], Array[Byte]]]] =
+      transientConsumer(initCS).retrieveRecord(KafkaPartition(partition), KafkaOffset(offset))
   }
 }

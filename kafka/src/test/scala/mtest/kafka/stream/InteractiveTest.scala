@@ -49,7 +49,7 @@ class InteractiveTest extends AnyFunSuite {
     val res: Stream[IO, List[KeyValue[Int, String]]] =
       for {
         _ <- feedData
-        kss1 <- ctx.buildStreams(appid, top).kafkaStreams
+        kss1 <- ctx.buildStreams(appid, top.run).kafkaStreams
         kss2 <- ctx.buildStreams(appid, gtop).kafkaStreams
         _ <- Stream.sleep[IO](2.seconds)
       } yield {
