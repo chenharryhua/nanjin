@@ -388,8 +388,8 @@ lazy val pipes = (project in file("pipes"))
       "com.amazonaws"         % "aws-java-sdk-bundle" % awsV_1,
       "org.tukaani"           % "xz"                  % "1.9",
       "org.apache.zookeeper"  % "zookeeper"           % "3.9.1", // snyk
-      "org.eclipse.jetty"     % "jetty-xml"           % "12.0.2", // snyk
-      "org.eclipse.jetty"     % "jetty-http"          % "12.0.2", // snyk
+      "org.eclipse.jetty"     % "jetty-xml"           % "12.0.3", // snyk
+      "org.eclipse.jetty"     % "jetty-http"          % "12.0.3", // snyk
       "org.jetbrains.kotlin"  % "kotlin-stdlib"       % "1.9.10", // snyk
       "org.codehaus.jettison" % "jettison"            % "1.5.4", // snyk
       "io.netty"              % "netty-all"           % nettyV, // snyk
