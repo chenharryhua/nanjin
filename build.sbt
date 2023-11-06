@@ -324,7 +324,7 @@ lazy val database = (project in file("database"))
       "org.tpolecat" %% "doobie-hikari" % doobieV,
       "org.tpolecat" %% "doobie-free"   % doobieV,
       "org.tpolecat" %% "skunk-core"    % skunkV,
-      ("com.zaxxer"                     % "HikariCP" % "5.0.1").exclude("org.slf4j", "slf4j-api")
+      ("com.zaxxer"                     % "HikariCP" % "5.1.0").exclude("org.slf4j", "slf4j-api")
     ) ++ testLib
   )
 
