@@ -408,7 +408,7 @@ lazy val spark = (project in file("spark"))
     libraryDependencies ++= List(
       "org.apache.ivy"                         % "ivy"             % "2.5.2", // snyk
       "io.netty"                               % "netty-all"       % nettyV, // snyk
-      "com.julianpeeters" %% "avrohugger-core" % "1.7.0"           % Test,
+      "com.julianpeeters" %% "avrohugger-core" % "2.8.0"           % Test,
       "ch.qos.logback"                         % "logback-classic" % logbackV % Test
     ) ++ sparkLib.map(_.exclude("commons-logging", "commons-logging")) ++ testLib
   )
