@@ -47,7 +47,7 @@ final class KafkaContext[F[_]](val settings: KafkaSettings)
     topic[KJson[Json], KJson[Json]](topicName)
 
   def jsonTopic(topicName: TopicNameL): KafkaTopic[F, KJson[Json], KJson[Json]] =
-    topic[KJson[Json], KJson[Json]](TopicName(topicName))
+    jsonTopic(TopicName(topicName))
 
   @transient lazy val schemaRegistry: SchemaRegistryApi[F] = {
     val url_config = AbstractKafkaSchemaSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG

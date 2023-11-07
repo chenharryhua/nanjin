@@ -6,7 +6,7 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import eu.timepit.refined.auto.*
 import fs2.Stream
-import fs2.kafka.{ProducerRecord, ProducerRecords, commitBatchWithin}
+import fs2.kafka.{commitBatchWithin, ProducerRecord, ProducerRecords}
 import mtest.kafka.*
 import org.apache.kafka.streams.processor.api
 import org.apache.kafka.streams.processor.api.{Processor, ProcessorSupplier, Record}

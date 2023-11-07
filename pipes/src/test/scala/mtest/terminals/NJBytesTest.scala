@@ -49,6 +49,14 @@ class NJBytesTest extends AnyFunSuite {
     fs2(fs2Root / "tiger.json", TestData.tigerSet)
   }
 
+  test("input/output stream") {
+    hdp.bytes
+      .inputStream(fs2Root / "tiger.json")
+      .flatMap(is => hdp.bytes.outputStream(fs2Root / "io.tiger.json").map(os => is.transferTo(os)))
+      .use_
+      .unsafeRunSync()
+  }
+
   test("gzip") {
     fs2(fs2Root / "tiger.json.gz", TestData.tigerSet)
   }
