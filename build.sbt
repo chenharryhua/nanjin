@@ -3,32 +3,32 @@ ThisBuild / scalaVersion := "2.13.12"
 ThisBuild / version := "0.17.5-SNAPSHOT"
 
 val catsCoreV   = "2.10.0"
-val fs2V        = "3.9.2"
-val awsV_1      = "1.12.570"
-val awsV_2      = "2.21.10"
+val fs2V        = "3.9.3"
+val awsV_1      = "1.12.581"
+val awsV_2      = "2.21.20"
 val catsEffectV = "3.5.2"
 val hadoopV     = "3.3.6"
 val monocleV    = "3.2.0"
-val confluentV  = "7.5.1"
-val kafkaV      = "7.5.1-ce"
+val confluentV  = "7.5.2"
+val kafkaV      = "7.5.2-ce"
 val fs2KafkaV   = "3.2.0"
 val avroV       = "1.11.3"
 val parquetV    = "1.13.1"
 val circeV      = "0.14.6"
 val kantanV     = "0.7.0"
 val slf4jV      = "2.0.9"
-val metricsV    = "4.2.21"
+val metricsV    = "4.2.22"
 val skunkV      = "0.6.1"
-val natchezV    = "0.3.3"
+val natchezV    = "0.3.4"
 val http4sV     = "0.23.23"
 val cron4sV     = "0.6.1"
 val jacksonV    = "2.15.3"
-val protobufV   = "3.24.4"
+val protobufV   = "3.25.0"
 val sparkV      = "3.4.1"
 val framelessV  = "0.15.0"
 val refinedV    = "0.11.0"
-val nettyV      = "4.1.100.Final"
-val chimneyV    = "0.8.0"
+val nettyV      = "4.1.101.Final"
+val chimneyV    = "0.8.2"
 val enumeratumV = "1.7.3"
 val drosteV     = "0.9.0"
 val log4catsV   = "2.6.0"
@@ -239,7 +239,7 @@ lazy val datetime = (project in file("datetime"))
   .settings(commonSettings*)
   .settings(name := "nj-datetime")
   .settings(
-    libraryDependencies ++= List("org.typelevel" %% "cats-parse" % "0.3.10") ++
+    libraryDependencies ++= List("org.typelevel" %% "cats-parse" % "1.0.0") ++
       testLib
   )
 
@@ -324,7 +324,7 @@ lazy val database = (project in file("database"))
       "org.tpolecat" %% "doobie-hikari" % doobieV,
       "org.tpolecat" %% "doobie-free"   % doobieV,
       "org.tpolecat" %% "skunk-core"    % skunkV,
-      ("com.zaxxer"                     % "HikariCP" % "5.0.1").exclude("org.slf4j", "slf4j-api")
+      ("com.zaxxer"                     % "HikariCP" % "5.1.0").exclude("org.slf4j", "slf4j-api")
     ) ++ testLib
   )
 
@@ -388,9 +388,9 @@ lazy val pipes = (project in file("pipes"))
       "com.amazonaws"         % "aws-java-sdk-bundle" % awsV_1,
       "org.tukaani"           % "xz"                  % "1.9",
       "org.apache.zookeeper"  % "zookeeper"           % "3.9.1", // snyk
-      "org.eclipse.jetty"     % "jetty-xml"           % "12.0.2", // snyk
-      "org.eclipse.jetty"     % "jetty-http"          % "12.0.2", // snyk
-      "org.jetbrains.kotlin"  % "kotlin-stdlib"       % "1.9.10", // snyk
+      "org.eclipse.jetty"     % "jetty-xml"           % "12.0.3", // snyk
+      "org.eclipse.jetty"     % "jetty-http"          % "12.0.3", // snyk
+      "org.jetbrains.kotlin"  % "kotlin-stdlib"       % "1.9.20", // snyk
       "org.codehaus.jettison" % "jettison"            % "1.5.4", // snyk
       "io.netty"              % "netty-all"           % nettyV, // snyk
       "org.slf4j"             % "slf4j-jdk14"         % slf4jV % Test
@@ -408,7 +408,7 @@ lazy val spark = (project in file("spark"))
     libraryDependencies ++= List(
       "org.apache.ivy"                         % "ivy"             % "2.5.2", // snyk
       "io.netty"                               % "netty-all"       % nettyV, // snyk
-      "com.julianpeeters" %% "avrohugger-core" % "1.7.0"           % Test,
+      "com.julianpeeters" %% "avrohugger-core" % "2.8.0"           % Test,
       "ch.qos.logback"                         % "logback-classic" % logbackV % Test
     ) ++ sparkLib.map(_.exclude("commons-logging", "commons-logging")) ++ testLib
   )

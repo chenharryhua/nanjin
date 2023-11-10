@@ -2,9 +2,12 @@ package mtest.kafka
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
+import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
+import com.github.chenharryhua.nanjin.datetime.{NJDateTimeRange, NJTimestamp}
 import com.github.chenharryhua.nanjin.kafka.*
 import eu.timepit.refined.auto.*
 import io.circe.syntax.EncoderOps
+import org.apache.kafka.clients.consumer.OffsetAndMetadata
 import org.apache.kafka.common.TopicPartition
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -24,8 +27,8 @@ class AdminApiTest extends AnyFunSuite {
       info <- admin.describe
     } yield println(info)
     run.unsafeRunSync()
-
   }
+
   test("mirrorTo") {
     val admin: KafkaAdminApi[IO]  = ctx.admin(topic.topicName)
     val madmin: KafkaAdminApi[IO] = ctx.admin(mirror.topicName)
@@ -40,8 +43,23 @@ class AdminApiTest extends AnyFunSuite {
   }
 
   test("groups") {
-    val gp: List[KafkaGroupId] = ctx.admin(topic.topicName).groups.unsafeRunSync()
-    assert(gp.asJson.as[List[KafkaGroupId]].toOption.get == gp)
+    val gid   = "g1"
+    val tpo   = Map(new TopicPartition(topic.topicName.value, 0) -> new OffsetAndMetadata(0))
+    val admin = ctx.admin("admin").updateConfig(identity)
+    val gp =
+      topic.produceOne(0, 0) >>
+        admin.commitSync(gid, tpo) >>
+        admin.retrieveRecord(0, 0) >>
+        admin.resetOffsetsToBegin(gid) >>
+        admin.resetOffsetsForTimes(gid, NJTimestamp(0)) >>
+        admin.resetOffsetsToEnd(gid) >>
+        admin.group(gid) >>
+        admin.offsetRangeFor(NJDateTimeRange(sydneyTime).withToday) >>
+        admin.partitionsFor >>
+        admin.groups
+    assert(gp.unsafeRunSync().map(_.value).contains(gid))
+    val gp2 = admin.deleteConsumerGroupOffsets(gid) >> admin.groups
+    assert(!gp2.unsafeRunSync().map(_.value).contains(gid))
   }
 
   test("KafkaOffset") {
