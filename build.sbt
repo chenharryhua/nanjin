@@ -33,7 +33,7 @@ val enumeratumV = "1.7.3"
 val drosteV     = "0.9.0"
 val log4catsV   = "2.6.0"
 val logbackV    = "1.4.11"
-val doobieV     = "1.0.0-RC4"
+val doobieV     = "1.0.0-RC5"
 val okioV       = "3.6.0"
 val jwtV        = "0.12.3"
 
