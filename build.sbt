@@ -194,7 +194,7 @@ lazy val common = (project in file("common"))
   .settings(name := "nj-common")
   .settings(
     libraryDependencies ++= List(
-      "org.apache.commons"               % "commons-lang3" % "3.13.0",
+      "org.apache.commons"               % "commons-lang3" % "3.14.0",
       "io.dropwizard.metrics"            % "metrics-core"  % metricsV % Provided,
       "org.typelevel" %% "log4cats-core" % log4catsV       % Provided
     ) ++ baseLib ++ testLib
