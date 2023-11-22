@@ -28,12 +28,12 @@ val sparkV      = "3.4.1"
 val framelessV  = "0.15.0"
 val refinedV    = "0.11.0"
 val nettyV      = "4.1.101.Final"
-val chimneyV    = "0.8.2"
+val chimneyV    = "0.8.3"
 val enumeratumV = "1.7.3"
 val drosteV     = "0.9.0"
 val log4catsV   = "2.6.0"
 val logbackV    = "1.4.11"
-val doobieV     = "1.0.0-RC4"
+val doobieV     = "1.0.0-RC5"
 val okioV       = "3.6.0"
 val jwtV        = "0.12.3"
 
@@ -123,7 +123,7 @@ val testLib = List(
   "dev.optics" %% "monocle-law"                               % monocleV,
   "com.47deg" %% "scalacheck-toolbox-datetime"                % "0.7.0",
   "org.tpolecat" %% "doobie-postgres"                         % doobieV,
-  "org.postgresql"                                            % "postgresql" % "42.6.0", // snyk
+  "org.postgresql"                                            % "postgresql" % "42.7.0", // snyk
   "org.typelevel" %% "algebra-laws"                           % catsCoreV,
   "com.github.pathikrit" %% "better-files"                    % "3.9.2"
 ).map(_ % Test)
@@ -194,7 +194,7 @@ lazy val common = (project in file("common"))
   .settings(name := "nj-common")
   .settings(
     libraryDependencies ++= List(
-      "org.apache.commons"               % "commons-lang3" % "3.13.0",
+      "org.apache.commons"               % "commons-lang3" % "3.14.0",
       "io.dropwizard.metrics"            % "metrics-core"  % metricsV % Provided,
       "org.typelevel" %% "log4cats-core" % log4catsV       % Provided
     ) ++ baseLib ++ testLib
