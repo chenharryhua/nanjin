@@ -4,7 +4,7 @@ ThisBuild / version := "0.17.5-SNAPSHOT"
 
 val catsCoreV   = "2.10.0"
 val fs2V        = "3.9.3"
-val awsV_1      = "1.12.590"
+val awsV_1      = "1.12.610"
 val awsV_2      = "2.21.40"
 val catsEffectV = "3.5.2"
 val hadoopV     = "3.3.6"
@@ -27,7 +27,7 @@ val protobufV   = "3.25.1"
 val sparkV      = "3.4.2"
 val framelessV  = "0.15.0"
 val refinedV    = "0.11.0"
-val nettyV      = "4.1.101.Final"
+val nettyV      = "4.1.102.Final"
 val chimneyV    = "0.8.3"
 val enumeratumV = "1.7.3"
 val drosteV     = "0.9.0"
@@ -410,7 +410,7 @@ lazy val spark = (project in file("spark"))
     libraryDependencies ++= List(
       "org.apache.ivy"                         % "ivy"             % "2.5.2", // snyk
       "io.netty"                               % "netty-all"       % nettyV, // snyk
-      "com.julianpeeters" %% "avrohugger-core" % "2.8.0"           % Test,
+      "com.julianpeeters" %% "avrohugger-core" % "2.8.1"           % Test,
       "ch.qos.logback"                         % "logback-classic" % logbackV % Test
     ) ++ sparkLib.map(_.exclude("commons-logging", "commons-logging")) ++ testLib
   )
