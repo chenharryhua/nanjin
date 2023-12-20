@@ -28,7 +28,7 @@ val sparkV      = "3.4.2"
 val framelessV  = "0.15.0"
 val refinedV    = "0.11.0"
 val nettyV      = "4.1.104.Final"
-val chimneyV    = "0.8.3"
+val chimneyV    = "0.8.4"
 val enumeratumV = "1.7.3"
 val drosteV     = "0.9.0"
 val log4catsV   = "2.6.0"
@@ -390,8 +390,8 @@ lazy val pipes = (project in file("pipes"))
       "org.apache.zookeeper"  % "zookeeper"           % "3.9.1", // snyk
       "ch.qos.logback"        % "logback-classic"     % logbackV, // snyk by zookeeper
       "ch.qos.logback"        % "logback-core"        % logbackV, // snyk by zookeeper
-      "org.eclipse.jetty"     % "jetty-xml"           % "12.0.4", // snyk
-      "org.eclipse.jetty"     % "jetty-http"          % "12.0.4", // snyk
+      "org.eclipse.jetty"     % "jetty-xml"           % "12.0.5", // snyk
+      "org.eclipse.jetty"     % "jetty-http"          % "12.0.5", // snyk
       "org.jetbrains.kotlin"  % "kotlin-stdlib"       % "1.9.21", // snyk
       "org.codehaus.jettison" % "jettison"            % "1.5.4", // snyk
       "io.netty"              % "netty-all"           % nettyV, // snyk
