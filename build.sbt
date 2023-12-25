@@ -22,10 +22,10 @@ val skunkV      = "0.6.2"
 val natchezV    = "0.3.5"
 val http4sV     = "0.23.24"
 val cron4sV     = "0.6.1"
-val jacksonV    = "2.16.0"
+val jacksonV    = "2.16.1"
 val protobufV   = "3.25.1"
-val sparkV      = "3.4.2"
-val framelessV  = "0.15.0"
+val sparkV      = "3.5.0"
+val framelessV  = "0.16.0"
 val refinedV    = "0.11.0"
 val nettyV      = "4.1.104.Final"
 val chimneyV    = "0.8.4"
@@ -392,10 +392,9 @@ lazy val pipes = (project in file("pipes"))
       "ch.qos.logback"        % "logback-core"        % logbackV, // snyk by zookeeper
       "org.eclipse.jetty"     % "jetty-xml"           % "12.0.5", // snyk
       "org.eclipse.jetty"     % "jetty-http"          % "12.0.5", // snyk
-      "org.jetbrains.kotlin"  % "kotlin-stdlib"       % "1.9.21", // snyk
+      "org.jetbrains.kotlin"  % "kotlin-stdlib"       % "1.9.22", // snyk
       "org.codehaus.jettison" % "jettison"            % "1.5.4", // snyk
-      "io.netty"              % "netty-all"           % nettyV, // snyk
-      "org.slf4j"             % "slf4j-jdk14"         % slf4jV % Test
+      "io.netty"              % "netty-all"           % nettyV // snyk
     ) ++ kantanLib ++ logLib ++ testLib ++ hadoopLib
     libraryDependencies ++= libs.map(_.exclude("org.codehaus.jackson", "jackson-mapper-asl")) // snyk
   }
