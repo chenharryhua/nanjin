@@ -4,8 +4,8 @@ ThisBuild / version := "0.18.0-SNAPSHOT"
 
 val catsCoreV   = "2.10.0"
 val fs2V        = "3.9.3"
-val awsV_1      = "1.12.630"
-val awsV_2      = "2.22.10"
+val awsV_1      = "1.12.637"
+val awsV_2      = "2.23.3"
 val catsEffectV = "3.5.2"
 val hadoopV     = "3.3.6"
 val monocleV    = "3.2.0"
@@ -28,7 +28,7 @@ val sparkV      = "3.5.0"
 val framelessV  = "0.16.0"
 val refinedV    = "0.11.0"
 val nettyV      = "4.1.104.Final"
-val chimneyV    = "0.8.5"
+val chimneyV    = "1.0.0-M1"
 val enumeratumV = "1.7.3"
 val drosteV     = "0.9.0"
 val log4catsV   = "2.6.0"
@@ -157,7 +157,7 @@ val catsLib = List(
 ).map(_ % catsCoreV) ++
   List(
     "org.typelevel" %% "cats-mtl"              % "1.4.0",
-    "org.typelevel" %% "kittens"               % "3.1.0",
+    "org.typelevel" %% "kittens"               % "3.2.0",
     "org.typelevel" %% "cats-collections-core" % "0.9.8"
   )
 
