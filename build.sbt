@@ -3,7 +3,7 @@ ThisBuild / scalaVersion := "2.13.12"
 ThisBuild / version := "0.18.0-SNAPSHOT"
 
 val catsCoreV   = "2.10.0"
-val fs2V        = "3.9.3"
+val fs2V        = "3.9.4"
 val awsV_2      = "2.23.5"
 val awsV_1      = "1.12.639"
 val catsEffectV = "3.5.3"
