@@ -13,6 +13,6 @@ addSbtPlugin("com.orrsella"      % "sbt-stats"                 % "1.0.7")
 
 addSbtPlugin("com.thesamet" % "sbt-protoc" % "1.0.6")
 
-libraryDependencies += "com.thesamet.scalapb" %% "compilerplugin" % "0.11.14"
+libraryDependencies += "com.thesamet.scalapb" %% "compilerplugin" % "0.11.15"
 
 libraryDependencySchemes += "org.scala-lang.modules" %% "scala-xml" % VersionScheme.Always
