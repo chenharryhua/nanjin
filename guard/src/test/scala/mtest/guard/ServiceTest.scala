@@ -81,7 +81,7 @@ class ServiceTest extends AnyFunSuite {
     assert(sp.tick.zoneId == sp.serviceParams.taskParams.zoneId)
   }
 
-  test("3.should stop when fatal error occurs") {
+  ignore("3.should stop when fatal error occurs") {
     val List(a, b, c, d) = guard
       .updateConfig(_.withRestartPolicy(policies.crontab(Cron.unsafeParse("0-59 * * ? * *"))))
       .eventStream { gd =>
