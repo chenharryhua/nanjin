@@ -3,8 +3,8 @@ ThisBuild / scalaVersion := "2.13.12"
 ThisBuild / version := "0.18.0-SNAPSHOT"
 
 val catsCoreV   = "2.10.0"
-val fs2V        = "3.9.3"
-val awsV_2      = "2.23.5"
+val fs2V        = "3.9.4"
+val awsV_2      = "2.23.10"
 val awsV_1      = "1.12.639"
 val catsEffectV = "3.5.3"
 val hadoopV     = "3.3.6"
@@ -17,8 +17,8 @@ val parquetV    = "1.13.1"
 val circeV      = "0.14.6"
 val kantanV     = "0.7.0"
 val slf4jV      = "2.0.11"
-val metricsV    = "4.2.23"
-val skunkV      = "0.6.2"
+val metricsV    = "4.2.25"
+val skunkV      = "0.6.3"
 val natchezV    = "0.3.5"
 val http4sV     = "0.23.25"
 val cron4sV     = "0.7.0"
@@ -27,7 +27,7 @@ val protobufV   = "3.25.2"
 val sparkV      = "3.5.0"
 val framelessV  = "0.16.0"
 val refinedV    = "0.11.0"
-val nettyV      = "4.1.105.Final"
+val nettyV      = "4.1.106.Final"
 val chimneyV    = "1.0.0-M1"
 val enumeratumV = "1.7.3"
 val drosteV     = "0.9.0"
@@ -84,7 +84,7 @@ val kantanLib = List(
 ).map(_ % kantanV)
 
 val pbLib = List(
-  "com.thesamet.scalapb" %% "scalapb-runtime" % "0.11.14",
+  "com.thesamet.scalapb" %% "scalapb-runtime" % "0.11.15",
   "com.google.protobuf"                       % "protobuf-java"             % protobufV,
   "com.google.protobuf"                       % "protobuf-java-util"        % protobufV,
   "io.confluent"                              % "kafka-protobuf-serializer" % confluentV,

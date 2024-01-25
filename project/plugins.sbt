@@ -11,8 +11,8 @@ addSbtPlugin("org.scalameta"     % "sbt-scalafmt"              % "2.5.2")
 addSbtPlugin("com.timushev.sbt"  % "sbt-updates"               % "0.6.4")
 addSbtPlugin("com.orrsella"      % "sbt-stats"                 % "1.0.7")
 
-addSbtPlugin("com.thesamet" % "sbt-protoc" % "1.0.6")
+addSbtPlugin("com.thesamet" % "sbt-protoc" % "1.0.7")
 
-libraryDependencies += "com.thesamet.scalapb" %% "compilerplugin" % "0.11.14"
+libraryDependencies += "com.thesamet.scalapb" %% "compilerplugin" % "0.11.15"
 
 libraryDependencySchemes += "org.scala-lang.modules" %% "scala-xml" % VersionScheme.Always

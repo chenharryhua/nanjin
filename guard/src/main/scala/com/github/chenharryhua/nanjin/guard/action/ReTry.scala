@@ -16,7 +16,6 @@ import org.apache.commons.lang3.exception.ExceptionUtils
 import java.time.{Duration, Instant}
 import scala.jdk.DurationConverters.JavaDurationOps
 import scala.util.Try
-import scala.util.control.NonFatal
 
 final private class ReTry[F[_], IN, OUT](
   metricRegistry: MetricRegistry,
@@ -100,13 +99,12 @@ final private class ReTry[F[_], IN, OUT](
   // static functions
 
   private def bipartite(in: IN): F[OUT] = (F.unique, F.realTimeInstant).flatMapN { (token, launchTime) =>
-    val go =
+    val go: F[OUT] =
       channel.send(ActionStart(actionParams, token.hash, launchTime, transInput.map(_(in)))).flatMap { _ =>
         F.tailRecM(zerothTickStatus) { status =>
           arrow(in).attempt.flatMap[Either[TickStatus, OUT]] {
-            case Right(out)                => succeeding(token, Some(launchTime), in, out)
-            case Left(ex) if !NonFatal(ex) => failing(token, Some(launchTime), in, ex)
-            case Left(ex)                  => retrying(token, Some(launchTime), in, ex, status)
+            case Right(out) => succeeding(token, Some(launchTime), in, out)
+            case Left(ex)   => retrying(token, Some(launchTime), in, ex, status)
           }
         }
       }
@@ -114,63 +112,63 @@ final private class ReTry[F[_], IN, OUT](
   }
 
   private def unipartiteTime(in: IN): F[OUT] = (F.unique, F.realTimeInstant).flatMapN { (token, launchTime) =>
-    val go = F.tailRecM(zerothTickStatus) { status =>
-      arrow(in).attempt.flatMap[Either[TickStatus, OUT]] {
-        case Right(out)                => succeeding(token, Some(launchTime), in, out)
-        case Left(ex) if !NonFatal(ex) => failing(token, Some(launchTime), in, ex)
-        case Left(ex)                  => retrying(token, Some(launchTime), in, ex, status)
+    val go: F[OUT] =
+      F.tailRecM(zerothTickStatus) { status =>
+        arrow(in).attempt.flatMap[Either[TickStatus, OUT]] {
+          case Right(out) => succeeding(token, Some(launchTime), in, out)
+          case Left(ex)   => retrying(token, Some(launchTime), in, ex, status)
+        }
       }
-    }
     F.onCancel(go, sendFailure(token, Some(launchTime), in, ActionCancelException))
   }
 
   private def unipartite(in: IN): F[OUT] = F.unique.flatMap { token =>
-    val go = F.tailRecM(zerothTickStatus) { status =>
-      arrow(in).attempt.flatMap[Either[TickStatus, OUT]] {
-        case Right(out)                => succeeding(token, None, in, out)
-        case Left(ex) if !NonFatal(ex) => failing(token, None, in, ex)
-        case Left(ex)                  => retrying(token, None, in, ex, status)
+    val go: F[OUT] =
+      F.tailRecM(zerothTickStatus) { status =>
+        arrow(in).attempt.flatMap[Either[TickStatus, OUT]] {
+          case Right(out) => succeeding(token, None, in, out)
+          case Left(ex)   => retrying(token, None, in, ex, status)
+        }
       }
-    }
     F.onCancel(go, sendFailure(token, None, in, ActionCancelException))
   }
 
   private def silentTime(in: IN): F[OUT] = (F.unique, F.realTimeInstant).flatMapN { (token, launchTime) =>
-    val go = F.tailRecM(zerothTickStatus) { status =>
-      arrow(in).attempt.flatMap[Either[TickStatus, OUT]] {
-        case Right(out) =>
-          F.realTimeInstant.map { now =>
-            measures.done(Some(Duration.between(launchTime, now)))
-            Right(out)
-          }
-        case Left(ex) if !NonFatal(ex) => failing(token, Some(launchTime), in, ex)
-        case Left(ex)                  => retrying(token, Some(launchTime), in, ex, status)
+    val go: F[OUT] =
+      F.tailRecM(zerothTickStatus) { status =>
+        arrow(in).attempt.flatMap[Either[TickStatus, OUT]] {
+          case Right(out) =>
+            F.realTimeInstant.map { now =>
+              measures.done(Some(Duration.between(launchTime, now)))
+              Right(out)
+            }
+          case Left(ex) => retrying(token, Some(launchTime), in, ex, status)
+        }
       }
-    }
     F.onCancel(go, sendFailure(token, Some(launchTime), in, ActionCancelException))
   }
 
   private def silentCount(in: IN): F[OUT] = F.unique.flatMap { token =>
-    val go = F.tailRecM(zerothTickStatus) { status =>
-      arrow(in).attempt.flatMap[Either[TickStatus, OUT]] {
-        case Right(out) =>
-          measures.done(None)
-          F.pure(Right(out))
-        case Left(ex) if !NonFatal(ex) => failing(token, None, in, ex)
-        case Left(ex)                  => retrying(token, None, in, ex, status)
+    val go: F[OUT] =
+      F.tailRecM(zerothTickStatus) { status =>
+        arrow(in).attempt.flatMap[Either[TickStatus, OUT]] {
+          case Right(out) =>
+            measures.done(None)
+            F.pure(Right(out))
+          case Left(ex) => retrying(token, None, in, ex, status)
+        }
       }
-    }
     F.onCancel(go, sendFailure(token, None, in, ActionCancelException))
   }
 
   private def silent(in: IN): F[OUT] = F.unique.flatMap { token =>
-    val go = F.tailRecM(zerothTickStatus) { status =>
-      arrow(in).attempt.flatMap[Either[TickStatus, OUT]] {
-        case Right(out)                => F.pure(Right(out))
-        case Left(ex) if !NonFatal(ex) => failing(token, None, in, ex)
-        case Left(ex)                  => retrying(token, None, in, ex, status)
+    val go: F[OUT] =
+      F.tailRecM(zerothTickStatus) { status =>
+        arrow(in).attempt.flatMap[Either[TickStatus, OUT]] {
+          case Right(out) => F.pure(Right(out))
+          case Left(ex)   => retrying(token, None, in, ex, status)
+        }
       }
-    }
     F.onCancel(go, sendFailure(token, None, in, ActionCancelException))
   }
 

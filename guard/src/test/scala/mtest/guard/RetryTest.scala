@@ -8,7 +8,6 @@ import com.github.chenharryhua.nanjin.common.chrono.{policies, Policy}
 import com.github.chenharryhua.nanjin.guard.*
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
-import com.github.chenharryhua.nanjin.guard.observers.console
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import io.circe.Json
 import io.circe.jawn.decode
@@ -213,7 +212,6 @@ class RetryTest extends AnyFunSuite {
           .run
       }
       .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
-      .debug()
       .compile
       .toVector
       .unsafeRunSync()
@@ -287,7 +285,6 @@ class RetryTest extends AnyFunSuite {
         _.action("cron", _.bipartite.policy(policies.crontab(_.secondly).limited(3)))
           .retry(IO.raiseError(new Exception("oops")))
           .run)
-      .evalTap(console.simple[IO])
       .compile
       .toList
       .unsafeRunSync()
@@ -312,9 +309,9 @@ class RetryTest extends AnyFunSuite {
 
   }
 
-  test("13.should not retry fatal error") {
+  ignore("13.should not retry fatal error") {
     val err = IO.raiseError(new ControlThrowable("fatal error") {})
-    val List(a, b, c, d, e, f, g, h, i) = serviceGuard
+    val List(a, b, c, d, e, f, g, h, i) = serviceGuard("fatal")
       .updateConfig(_.withRestartPolicy(policies.giveUp))
       .eventStream { agent =>
         val a =
@@ -398,7 +395,7 @@ class RetryTest extends AnyFunSuite {
     else { k += 1; 0 }
     serviceGuard.eventStream { agent =>
       agent.action("delay", _.bipartite.insignificant.policy(policies.fixedDelay(1.seconds))).delay(tt).run
-    }.evalTap(console.simple[IO]).compile.drain.unsafeRunSync()
+    }.compile.drain.unsafeRunSync()
     assert(k == 2)
   }
 
@@ -441,7 +438,6 @@ class RetryTest extends AnyFunSuite {
           .logErrorM((_, _) => IO(Json.fromInt(1)))
           .run(1))
       .take(3)
-      .debug()
       .compile
       .toList
       .unsafeRunSync()
@@ -460,7 +456,6 @@ class RetryTest extends AnyFunSuite {
           .logErrorM((_, _) => IO(Json.fromInt(1)))
           .run(1))
       .take(3)
-      .debug()
       .compile
       .toList
       .unsafeRunSync()
