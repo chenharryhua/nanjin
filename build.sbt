@@ -299,7 +299,7 @@ lazy val guard_observer_influxdb = (project in file("observers/influxdb"))
   .settings(name := "nj-observer-influxdb")
   .settings(
     libraryDependencies ++= List(
-      "com.influxdb" % "influxdb-client-java" % "7.0.0"
+      "com.influxdb" % "influxdb-client-java" % "6.12.0"
     ) ++ testLib
   )
 
@@ -390,8 +390,8 @@ lazy val pipes = (project in file("pipes"))
       "org.apache.zookeeper"  % "zookeeper"           % "3.9.1", // snyk
       "ch.qos.logback"        % "logback-classic"     % logbackV, // snyk by zookeeper
       "ch.qos.logback"        % "logback-core"        % logbackV, // snyk by zookeeper
-      "org.eclipse.jetty"     % "jetty-xml"           % "12.0.5", // snyk
-      "org.eclipse.jetty"     % "jetty-http"          % "12.0.5", // snyk
+      "org.eclipse.jetty"     % "jetty-xml"           % "12.0.6", // snyk
+      "org.eclipse.jetty"     % "jetty-http"          % "12.0.6", // snyk
       "org.jetbrains.kotlin"  % "kotlin-stdlib"       % "1.9.22", // snyk
       "org.codehaus.jettison" % "jettison"            % "1.5.4", // snyk
       "io.netty"              % "netty-all"           % nettyV // snyk
