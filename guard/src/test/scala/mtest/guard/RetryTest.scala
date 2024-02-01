@@ -428,7 +428,13 @@ class RetryTest extends AnyFunSuite {
     }.compile.drain.unsafeRunSync()
   }
 
-  test("21.silent count") {
+  test("21.all fail quasi") {
+    serviceGuard.eventStream { agent =>
+      agent.action("quasi.seq").quasi(IO.raiseError(new Exception), IO.raiseError(new Exception)).run
+    }.compile.drain.unsafeRunSync()
+  }
+
+  test("22.silent count") {
     val List(a, b, c) = TaskGuard[IO]("silent")
       .service("count")
       .eventStream(
@@ -446,7 +452,7 @@ class RetryTest extends AnyFunSuite {
     assert(c.isInstanceOf[ActionRetry])
   }
 
-  test("22.unipartite time") {
+  test("23.unipartite time") {
     val List(a, b, c) = TaskGuard[IO]("unipartite")
       .service("time")
       .eventStream(
