@@ -53,10 +53,9 @@ final private class ReStart[F[_], A](
           )
       }
       .onFinalizeCase {
-        case ExitCase.Succeeded  => F.unit
-        case ExitCase.Errored(_) => F.unit
         case ExitCase.Canceled =>
           publisher.serviceStop(channel, serviceParams, ServiceStopCause.ByCancellation)
+        case _ => F.unit
       }
       .drain
 }
