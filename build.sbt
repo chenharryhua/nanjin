@@ -35,7 +35,7 @@ val log4catsV   = "2.6.0"
 val logbackV    = "1.4.14"
 val doobieV     = "1.0.0-RC5"
 val okioV       = "3.7.0"
-val jwtV        = "0.12.4"
+val jwtV        = "0.12.5"
 
 lazy val commonSettings = List(
   organization := "com.github.chenharryhua",
