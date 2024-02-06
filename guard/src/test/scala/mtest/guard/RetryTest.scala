@@ -274,7 +274,7 @@ class RetryTest extends AnyFunSuite {
         builder.parQuasi(8, List(IO("a"), IO.raiseError(new Exception("a")))).run >>
         builder.quasi(List(IO("a"), IO("b"))).run >>
         builder.quasi(IO("a"), IO.raiseError(new Exception)).run >>
-        builder.quasi(IO.print("a"), IO.print("b")).run
+        builder.quasi(IO("a"), IO("b")).run
     }.compile.drain.unsafeRunSync()
   }
 
