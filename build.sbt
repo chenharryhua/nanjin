@@ -4,7 +4,7 @@ ThisBuild / version := "0.18.0-SNAPSHOT"
 
 val catsCoreV   = "2.10.0"
 val fs2V        = "3.9.4"
-val awsV_2      = "2.23.18"
+val awsV_2      = "2.23.20"
 val awsV_1      = "1.12.652"
 val catsEffectV = "3.5.3"
 val hadoopV     = "3.3.6"
@@ -119,7 +119,7 @@ val testLib = List(
   "org.typelevel" %% "discipline-munit"                       % "1.0.9",
   "org.typelevel" %% "cats-laws"                              % catsCoreV,
   "com.github.alexarchambault" %% "scalacheck-shapeless_1.15" % "1.3.0",
-  "org.scalatest" %% "scalatest"                              % "3.2.17",
+  "org.scalatest" %% "scalatest"                              % "3.2.18",
   "dev.optics" %% "monocle-law"                               % monocleV,
   "com.47deg" %% "scalacheck-toolbox-datetime"                % "0.7.0",
   "org.tpolecat" %% "doobie-postgres"                         % doobieV,
