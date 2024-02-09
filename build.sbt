@@ -4,8 +4,8 @@ ThisBuild / version := "0.18.0-SNAPSHOT"
 
 val catsCoreV   = "2.10.0"
 val fs2V        = "3.9.4"
-val awsV_2      = "2.23.20"
-val awsV_1      = "1.12.652"
+val awsV_2      = "2.23.21"
+val awsV_1      = "1.12.655"
 val catsEffectV = "3.5.3"
 val hadoopV     = "3.3.6"
 val monocleV    = "3.2.0"
@@ -249,7 +249,7 @@ lazy val guard = (project in file("guard"))
   .settings(name := "nj-guard")
   .settings(
     libraryDependencies ++= List(
-      "commons-codec"                       % "commons-codec"  % "1.16.0",
+      "commons-codec"                       % "commons-codec"  % "1.16.1",
       "io.dropwizard.metrics"               % "metrics-core"   % metricsV,
       "io.dropwizard.metrics"               % "metrics-jmx"    % metricsV,
       "org.typelevel" %% "vault"            % "3.5.0",
