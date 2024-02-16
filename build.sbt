@@ -5,7 +5,7 @@ ThisBuild / version := "0.18.0-SNAPSHOT"
 val catsCoreV   = "2.10.0"
 val fs2V        = "3.9.4"
 val awsV_2      = "2.24.0"
-val awsV_1      = "1.12.655"
+val awsV_1      = "1.12.660"
 val catsEffectV = "3.5.3"
 val hadoopV     = "3.3.6"
 val monocleV    = "3.2.0"
@@ -22,11 +22,11 @@ val natchezV    = "0.3.5"
 val http4sV     = "0.23.25"
 val cron4sV     = "0.7.0"
 val jacksonV    = "2.16.1"
-val protobufV   = "3.25.2"
+val protobufV   = "3.25.3"
 val sparkV      = "3.5.0"
 val framelessV  = "0.16.0"
 val refinedV    = "0.11.1"
-val nettyV      = "4.1.106.Final"
+val nettyV      = "4.1.107.Final"
 val chimneyV    = "1.0.0-M1"
 val enumeratumV = "1.7.3"
 val drosteV     = "0.9.0"
@@ -93,7 +93,7 @@ val pbLib = List(
 )
 
 val serdeLib = List(
-  ("com.sksamuel.avro4s" %% "avro4s-core" % "4.1.1").excludeAll(ExclusionRule(organization = "org.json4s")),
+  ("com.sksamuel.avro4s" %% "avro4s-core" % "4.1.2").excludeAll(ExclusionRule(organization = "org.json4s")),
   "org.apache.parquet"                    % "parquet-common"           % parquetV,
   "org.apache.parquet"                    % "parquet-hadoop"           % parquetV,
   "org.apache.parquet"                    % "parquet-avro"             % parquetV,
