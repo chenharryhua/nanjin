@@ -38,13 +38,10 @@ class InteractiveTest extends AnyFunSuite {
     topic.asConsumer.gktable(globalStore.persistentKeyValueStore.supplier).void
 
   test("interactive") {
-
+    val pr: ProducerRecords[Int, String] = ProducerRecords.one(
+      ProducerRecord(topic.topicName.value, Random.nextInt(3), s"a${Random.nextInt(1000)}"))
     val feedData: Stream[IO, ProducerResult[Int, String]] =
-      Stream(
-        ProducerRecords.one(
-          ProducerRecord(topic.topicName.value, Random.nextInt(3), s"a${Random.nextInt(1000)}")))
-        .covary[IO]
-        .through(topic.produce.pipe)
+      topic.produce.stream.evalMap(_.produce(pr).flatten)
 
     val res: Stream[IO, List[KeyValue[Int, String]]] =
       for {
@@ -53,9 +50,11 @@ class InteractiveTest extends AnyFunSuite {
         kss2 <- ctx.buildStreams(appid, gtop).kafkaStreams
         _ <- Stream.sleep[IO](2.seconds)
       } yield {
-        val g = kss1.store(localStore.query.keyValueStore).all().asScala.toList.sortBy(_.key)
-        val q = kss2.store(globalStore.query.keyValueStore).all().asScala.toList.sortBy(_.key)
-        assert(q == g)
+        val g: List[KeyValue[Int, String]] =
+          kss1.store(localStore.query.keyValueStore).all().asScala.toList.sortBy(_.key)
+        val q: List[KeyValue[Int, String]] =
+          kss2.store(globalStore.query.keyValueStore).all().asScala.toList.sortBy(_.key)
+        assert(q === g)
         q
       }
 
