@@ -351,7 +351,8 @@ val hadoopLib = List(
   "org.apache.hadoop" % "hadoop-client-runtime"        % hadoopV,
   "org.apache.hadoop" % "hadoop-hdfs"                  % hadoopV,
   "org.apache.hadoop" % "hadoop-hdfs-client"           % hadoopV,
-  "org.slf4j"         % "jcl-over-slf4j"               % slf4jV
+  "org.slf4j"         % "jcl-over-slf4j"               % slf4jV,
+  "com.nimbusds"      % "nimbus-jose-jwt"              % "9.37.3" // snyk
 ).map(
   _.exclude("log4j", "log4j")
     .exclude("org.slf4j", "slf4j-reload4j")
