@@ -11,7 +11,7 @@ val hadoopV     = "3.3.6"
 val monocleV    = "3.2.0"
 val confluentV  = "7.6.0"
 val kafkaV      = "7.6.0-ce"
-val fs2KafkaV   = "3.2.0"
+val fs2KafkaV   = "3.3.1"
 val avroV       = "1.11.3"
 val parquetV    = "1.13.1"
 val circeV      = "0.14.6"
@@ -32,7 +32,7 @@ val enumeratumV = "1.7.3"
 val drosteV     = "0.9.0"
 val slf4jV      = "2.0.12"
 val log4catsV   = "2.6.0"
-val logbackV    = "1.4.14"
+val logbackV    = "1.5.0"
 val doobieV     = "1.0.0-RC5"
 val okioV       = "3.8.0"
 val jwtV        = "0.12.5"
@@ -351,7 +351,8 @@ val hadoopLib = List(
   "org.apache.hadoop" % "hadoop-client-runtime"        % hadoopV,
   "org.apache.hadoop" % "hadoop-hdfs"                  % hadoopV,
   "org.apache.hadoop" % "hadoop-hdfs-client"           % hadoopV,
-  "org.slf4j"         % "jcl-over-slf4j"               % slf4jV
+  "org.slf4j"         % "jcl-over-slf4j"               % slf4jV,
+  "com.nimbusds"      % "nimbus-jose-jwt"              % "9.37.3" // snyk
 ).map(
   _.exclude("log4j", "log4j")
     .exclude("org.slf4j", "slf4j-reload4j")
