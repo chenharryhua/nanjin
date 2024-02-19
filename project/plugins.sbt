@@ -2,7 +2,7 @@ resolvers ++= Resolver.sonatypeOssRepos("releases")
 
 addDependencyTreePlugin
 
-addSbtPlugin("org.scoverage"     % "sbt-scoverage"             % "2.0.9")
+addSbtPlugin("org.scoverage"     % "sbt-scoverage"             % "2.0.10")
 addSbtPlugin("com.github.cb372"  % "sbt-explicit-dependencies" % "0.3.1")
 addSbtPlugin("de.heikoseeberger" % "sbt-header"                % "5.10.0")
 addSbtPlugin("net.virtual-void"  % "sbt-dependency-graph"      % "0.10.0-RC1")
