@@ -39,8 +39,8 @@ class SparkExtTest extends AnyFunSuite {
     val dr   = NJDateTimeRange(sydneyTime).withEndTime(Instant.now)
     val data = sparKafka.topic(topic).fromKafka(dr)
     val res = for {
-      a <- data.output.stream(100).compile.toList
-      b <- data.asTable.output.stream(100).compile.toList
+      a <- data.output.stream(10).compile.toList
+      b <- data.asTable.output.stream(5).compile.toList
     } yield assert(a.toSet === b.toSet)
     res.unsafeRunSync()
   }
