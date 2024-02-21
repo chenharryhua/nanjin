@@ -258,7 +258,7 @@ class MetricsTest extends AnyFunSuite {
     assert(um.normalize(NJDataRateUnit.MEGABITS_SECOND, 1) == Normalized(1.0, NJDataRateUnit.MEGABITS_SECOND))
   }
 
-  test("ordered metric-name") {
+  test("14.ordered metric-name") {
     val m1 = MetricName("a", "o", "o")
     val m2 = MetricName("b", "o", "o")
     assert(m2 > m1)
