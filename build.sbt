@@ -123,7 +123,7 @@ val testLib = List(
   "dev.optics" %% "monocle-law"                               % monocleV,
   "com.47deg" %% "scalacheck-toolbox-datetime"                % "0.7.0",
   "org.tpolecat" %% "doobie-postgres"                         % doobieV,
-  "org.postgresql"                                            % "postgresql" % "42.7.1", // snyk
+  "org.postgresql"                                            % "postgresql" % "42.7.2", // snyk
   "org.typelevel" %% "algebra-laws"                           % catsCoreV,
   "com.github.pathikrit" %% "better-files"                    % "3.9.2"
 ).map(_ % Test)
