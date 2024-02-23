@@ -4,7 +4,7 @@ ThisBuild / version := "0.18.0-SNAPSHOT"
 
 val catsCoreV   = "2.10.0"
 val fs2V        = "3.9.4"
-val awsV_2      = "2.24.0"
+val awsV_2      = "2.24.10"
 val awsV_1      = "1.12.660"
 val catsEffectV = "3.5.3"
 val hadoopV     = "3.3.6"
@@ -43,7 +43,7 @@ lazy val commonSettings = List(
     Resolver.sonatypeOssRepos("public") ++
       Resolver.sonatypeOssRepos("releases") :+
       "Confluent Maven Repo".at("https://packages.confluent.io/maven/"),
-  addCompilerPlugin(("org.typelevel" %% "kind-projector" % "0.13.2").cross(CrossVersion.full)),
+  addCompilerPlugin(("org.typelevel" %% "kind-projector" % "0.13.3").cross(CrossVersion.full)),
   addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.1"),
   libraryDependencies ++= List(
     "org.scala-lang" % "scala-reflect"  % scalaVersion.value % Provided,
