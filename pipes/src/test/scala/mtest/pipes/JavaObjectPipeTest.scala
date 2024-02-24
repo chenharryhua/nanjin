@@ -5,7 +5,6 @@ import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.pipes.JavaObjectSerde
 import fs2.Stream
 import org.scalatest.funsuite.AnyFunSuite
-import eu.timepit.refined.auto.*
 class JavaObjectPipeTest extends AnyFunSuite {
   import mtest.terminals.TestData.*
   test("java object identity") {

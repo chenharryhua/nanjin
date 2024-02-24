@@ -5,11 +5,12 @@ import com.github.chenharryhua.nanjin.guard.config.Importance
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.{ActionDone, ActionEvent, ActionStart, MetricReport}
 import cron4s.CronExpr
 import cron4s.lib.javatime.javaTemporalInstance
+import cron4s.syntax.all.*
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.numeric.Positive
 
 import java.time.{Duration, Instant}
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration.*
 import scala.jdk.DurationConverters.{JavaDurationOps, ScalaDurationOps}
 
 object eventFilters {

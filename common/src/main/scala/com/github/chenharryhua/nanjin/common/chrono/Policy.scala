@@ -7,6 +7,7 @@ import com.github.chenharryhua.nanjin.common.DurationFormatter
 import com.github.chenharryhua.nanjin.common.chrono.PolicyF.ExpireAt
 import cron4s.CronExpr
 import cron4s.lib.javatime.javaTemporalInstance
+import cron4s.syntax.all.*
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra, Coalgebra}
 import io.circe.*

@@ -45,7 +45,7 @@ object ArbitaryData {
     Arbitrary(Gen.choose[Long](-dateRange, dateRange).map(d => LocalDate.ofEpochDay(d.toLong)))
 
   implicit val arbSQLDate: Arbitrary[SQLDate] =
-    Arbitrary(arbitrary[Int].map(SQLDate))
+    Arbitrary(arbitrary[Int].map(SQLDate(_)))
 
   implicit val arbLocalDateTime: Arbitrary[LocalDateTime] =
     Arbitrary(
