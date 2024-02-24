@@ -32,6 +32,7 @@ sealed trait KafkaAdminApi[F[_]] extends UpdateConfig[AdminClientSettings, Kafka
   def offsetRangeFor(dtr: NJDateTimeRange): F[KafkaTopicPartition[Option[KafkaOffsetRange]]]
 
   def commitSync(groupId: String, offsets: Map[TopicPartition, OffsetAndMetadata]): F[Unit]
+  def commitSync(groupId: String, partition: Int, offset: Long): F[Unit]
   def resetOffsetsToBegin(groupId: String): F[Unit]
   def resetOffsetsToEnd(groupId: String): F[Unit]
   def resetOffsetsForTimes(groupId: String, ts: NJTimestamp): F[Unit]
@@ -136,6 +137,12 @@ object KafkaAdminApi {
 
     override def commitSync(groupId: String, offsets: Map[TopicPartition, OffsetAndMetadata]): F[Unit] =
       transientConsumer(initCS.withGroupId(groupId)).commitSync(offsets)
+
+    override def commitSync(groupId: String, partition: Int, offset: Long): F[Unit] = {
+      val tp  = new TopicPartition(topicName.value, partition)
+      val oam = new OffsetAndMetadata(offset)
+      commitSync(groupId, Map(tp -> oam))
+    }
 
     override def resetOffsetsToBegin(groupId: String): F[Unit] =
       transientConsumer(initCS.withGroupId(groupId)).resetOffsetsToBegin

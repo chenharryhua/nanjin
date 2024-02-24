@@ -14,8 +14,8 @@ class InjectionTest extends CatsSuite with FunSuiteDiscipline with InjectionInst
   implicit val coTimestamp: Cogen[SQLTimestamp] =
     Cogen[SQLTimestamp]((a: SQLTimestamp) => a.us)
 
-  implicit val arbDate: Arbitrary[SQLDate]           = Arbitrary(Gen.posNum[Int].map(SQLDate))
-  implicit val arbTimestamp: Arbitrary[SQLTimestamp] = Arbitrary(Gen.posNum[Long].map(SQLTimestamp))
+  implicit val arbDate: Arbitrary[SQLDate]           = Arbitrary(Gen.posNum[Int].map(SQLDate(_)))
+  implicit val arbTimestamp: Arbitrary[SQLTimestamp] = Arbitrary(Gen.posNum[Long].map(SQLTimestamp(_)))
 
   checkAll("SQLDate", OrderTests[SQLDate].order)
   checkAll("SQLTimestamp", OrderTests[SQLTimestamp].order)

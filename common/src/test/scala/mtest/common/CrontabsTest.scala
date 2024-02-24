@@ -2,6 +2,7 @@ package mtest.common
 
 import com.github.chenharryhua.nanjin.common.chrono.crontabs
 import cron4s.lib.javatime.javaTemporalInstance
+import cron4s.syntax.all.*
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.LocalDateTime

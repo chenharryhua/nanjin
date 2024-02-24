@@ -4,7 +4,6 @@ import cats.Endo
 import cats.data.Reader
 import cats.effect.kernel.{Async, Sync}
 import cats.effect.std.UUIDGen
-import cats.implicits.toShow
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameL}

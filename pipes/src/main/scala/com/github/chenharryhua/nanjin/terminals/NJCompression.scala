@@ -117,9 +117,9 @@ object NJCompression {
       case Lz4_Raw.shortName      => Right(Lz4_Raw)
       case Brotli.shortName       => Right(Brotli)
       case Lzo.shortName          => Right(Lzo)
-      case s"deflate-${level}"    => convertLevel(level).map(Deflate)
-      case s"xz-${level}"         => convertLevel(level).map(Xz)
-      case s"zstd-${level}"       => convertLevel(level).map(Zstandard)
+      case s"deflate-${level}"    => convertLevel(level).map(Deflate(_))
+      case s"xz-${level}"         => convertLevel(level).map(Xz(_))
+      case s"zstd-${level}"       => convertLevel(level).map(Zstandard(_))
       case unknown                => Left(s"unknown compression: $unknown")
     }
 

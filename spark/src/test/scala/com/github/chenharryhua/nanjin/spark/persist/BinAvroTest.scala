@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.spark.SparkSessionExt
+import com.github.chenharryhua.nanjin.spark.{RddExt, SparkSessionExt}
 import com.github.chenharryhua.nanjin.terminals.{HadoopBinAvro, NJPath}
 import com.sksamuel.avro4s.{FromRecord, ToRecord}
 import eu.timepit.refined.auto.*

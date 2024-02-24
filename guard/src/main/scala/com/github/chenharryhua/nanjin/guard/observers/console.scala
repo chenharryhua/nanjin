@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.observers
 
 import cats.effect.std.Console
-import cats.implicits.toFunctorOps
 import cats.syntax.all.*
 import cats.{Endo, Eval, Monad}
 import com.github.chenharryhua.nanjin.guard.event.NJEvent

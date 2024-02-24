@@ -13,7 +13,6 @@ import com.github.chenharryhua.nanjin.guard.event.*
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import com.github.chenharryhua.nanjin.guard.translators.Translator
-import eu.timepit.refined.auto.*
 import munit.DisciplineSuite
 import org.scalacheck.{Arbitrary, Gen}
 // TODO
