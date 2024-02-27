@@ -11,6 +11,7 @@ import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import eu.timepit.refined.auto.*
 import fs2.Stream
 import fs2.kafka.{commitBatchWithin, ProducerRecord, ProducerRecords}
+import io.circe.syntax.EncoderOps
 import mtest.kafka.*
 import org.apache.kafka.common.serialization.Serde
 import org.apache.kafka.streams.scala.ImplicitConversions.*
@@ -170,6 +171,7 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
       (IO.println(Console.CYAN + "kafka stream exception" + Console.RESET) >> ctx
         .buildStreams(appId, top)
         .stateUpdates
+        .map(_.asJson)
         .debug()
         .concurrently(sendS1Data)
         .concurrently(harvest)
