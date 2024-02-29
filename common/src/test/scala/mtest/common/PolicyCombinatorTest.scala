@@ -124,6 +124,32 @@ class PolicyCombinatorTest extends AnyFunSuite {
     assert(a6.snooze.toScala <= 1.second)
   }
 
+  test("meet - 2") {
+    val policy = policies.fixedDelay(1.seconds).meet(policies.fixedRate(1.second))
+
+    println(policy.show)
+    println(policy.asJson)
+    assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
+
+    val ts: TickStatus = TickStatus.zeroth[IO](policy, sydneyTime).unsafeRunSync()
+
+    val List(a1, a2, a3, a4, a5, a6) = lazyTickList(ts).take(6).toList
+
+    assert(a1.index == 1)
+    assert(a2.index == 2)
+    assert(a3.index == 3)
+    assert(a4.index == 4)
+    assert(a5.index == 5)
+    assert(a6.index == 6)
+
+    assert(a1.snooze.toScala <= 1.second)
+    assert(a2.snooze.toScala <= 1.second)
+    assert(a3.snooze.toScala <= 1.second)
+    assert(a4.snooze.toScala <= 1.second)
+    assert(a5.snooze.toScala <= 1.second)
+    assert(a6.snooze.toScala <= 1.second)
+  }
+
   test("infinite") {
     val policy = policies.fixedRate(1.second).limited(500).repeat
     println(policy.asJson)
@@ -198,7 +224,7 @@ class PolicyCombinatorTest extends AnyFunSuite {
       .followedBy(policies.fixedDelay(1.second))
       .followedBy(policies.fixedRate(3.second))
       .followedBy(policies.fixedDelay(1.second, 2.seconds))
-      .followedBy(policies.fixedRate(2.seconds, 3.second))
+      .followedBy(policies.fixedRate(2.seconds))
       .followedBy(policies.jitter(1.hours, 2.hours))
       .repeat
       .followedBy(policies.crontab(crontabs.weekly.monday).endAt(_.oneAM))
