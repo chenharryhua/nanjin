@@ -61,7 +61,7 @@ class PolicyBaseTest extends AnyFunSuite {
   }
 
   test("fixed rate") {
-    val policy = policies.fixedRate(1.second, 1.second)
+    val policy = policies.fixedRate(1.second)
     println(policy.show)
     assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
 

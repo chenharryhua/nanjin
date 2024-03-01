@@ -34,7 +34,7 @@ private object PolicyF extends all {
   final case class Crontab[K](cronExpr: CronExpr) extends PolicyF[K]
   final case class Jitter[K](min: Duration, max: Duration) extends PolicyF[K]
   final case class FixedDelay[K](delays: NonEmptyList[Duration]) extends PolicyF[K]
-  final case class FixedRate[K](delays: NonEmptyList[Duration]) extends PolicyF[K]
+  final case class FixedRate[K](delay: Duration) extends PolicyF[K]
 
   final case class Limited[K](policy: K, limit: Int) extends PolicyF[K]
   final case class FollowedBy[K](leader: K, follower: K) extends PolicyF[K]
@@ -72,8 +72,8 @@ private object PolicyF extends all {
         }
         LazyList.continually(seed).flatten
 
-      case FixedRate(delays) =>
-        val seed: LazyList[CalcTick] = LazyList.from(delays.toList).map[CalcTick] { delay =>
+      case FixedRate(rate) =>
+        LazyList.continually(rate).map[CalcTick] { delay =>
           { case TickRequest(tick, now) =>
             val multi = (Duration.between(tick.launchTime, now).toScala / delay.toScala).ceil.toLong
             val gap   = Duration.between(now, tick.launchTime.plus(delay.multipliedBy(multi)))
@@ -83,7 +83,6 @@ private object PolicyF extends all {
             } else tick.newTick(now, gap).some
           }
         }
-        LazyList.continually(seed).flatten
 
       // ops
       case Limited(policy, limit) => policy.take(limit)
@@ -151,8 +150,7 @@ private object PolicyF extends all {
 
     case FixedDelay(delays) if delays.size === 1 => show"$FIXED_DELAY(${fmt.format(delays.head)})"
     case FixedDelay(delays)                      => show"$FIXED_DELAY(${fmt.format(delays.head)}, ...)"
-    case FixedRate(delays) if delays.size === 1  => show"$FIXED_RATE(${fmt.format(delays.head)})"
-    case FixedRate(delays)                       => show"$FIXED_RATE(${fmt.format(delays.head)}, ...)"
+    case FixedRate(delay)                        => show"$FIXED_RATE(${fmt.format(delay)})"
 
     // ops
     case Limited(policy, limit)       => show"$policy.$LIMITED($limit)"
@@ -215,7 +213,7 @@ private object PolicyF extends all {
       hc.get[NonEmptyList[Duration]](FIXED_DELAY).map(FixedDelay[HCursor])
 
     def fixedRate(hc: HCursor): Result[FixedRate[HCursor]] =
-      hc.get[NonEmptyList[Duration]](FIXED_RATE).map(FixedRate[HCursor])
+      hc.get[Duration](FIXED_RATE).map(FixedRate[HCursor])
 
     def limited(hc: HCursor): Result[Limited[HCursor]] = {
       val lmt = hc.get[Int](LIMITED)
@@ -323,9 +321,7 @@ object policies {
   def fixedDelay(head: FiniteDuration, tail: FiniteDuration*): Policy =
     fixedDelay(NonEmptyList(head.toJava, tail.toList.map(_.toJava)))
 
-  def fixedRate(delays: NonEmptyList[Duration]): Policy = Policy(Fix(FixedRate(delays)))
-  def fixedRate(head: FiniteDuration, tail: FiniteDuration*): Policy =
-    fixedRate(NonEmptyList(head.toJava, tail.toList.map(_.toJava)))
+  def fixedRate(delay: FiniteDuration): Policy = Policy(Fix(FixedRate(delay.toJava)))
 
   val giveUp: Policy = Policy(Fix(GiveUp()))
 }

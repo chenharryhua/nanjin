@@ -65,7 +65,14 @@ class InteractiveTest extends AnyFunSuite {
 
   test("startup timeout") {
     println(Console.CYAN + "startup timeout" + Console.RESET)
-    val to1 = ctx.buildStreams(appid, top).withStartUpTimeout(0.seconds).stateUpdates.compile.drain
+    val to1 = ctx
+      .buildStreams(appid, top)
+      .withProperty(ConsumerConfig.GROUP_ID_CONFIG, "gid")
+      .withStartUpTimeout(0.seconds)
+      .stateUpdates
+      .debug()
+      .compile
+      .drain
     assertThrows[TimeoutException](to1.unsafeRunSync())
     val to2 =
       ctx.buildStreams(appid, top).withStartUpTimeout(1.day).kafkaStreams.map(_.state()).debug().compile.drain
