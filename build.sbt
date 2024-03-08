@@ -157,7 +157,7 @@ val catsLib = List(
 ).map(_ % catsCoreV) ++
   List(
     "org.typelevel" %% "cats-mtl"              % "1.4.0",
-    "org.typelevel" %% "kittens"               % "3.2.0",
+    "org.typelevel" %% "kittens"               % "3.3.0",
     "org.typelevel" %% "cats-collections-core" % "0.9.8"
   )
 
