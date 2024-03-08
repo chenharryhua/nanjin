@@ -4,8 +4,8 @@ ThisBuild / version := "0.18.0-SNAPSHOT"
 
 val catsCoreV   = "2.10.0"
 val fs2V        = "3.9.4"
-val awsV_2      = "2.25.3"
-val awsV_1      = "1.12.670"
+val awsV_2      = "2.25.5"
+val awsV_1      = "1.12.675"
 val catsEffectV = "3.5.4"
 val hadoopV     = "3.3.6"
 val monocleV    = "3.2.0"
@@ -391,9 +391,9 @@ lazy val pipes = (project in file("pipes"))
       "org.apache.zookeeper"  % "zookeeper"           % "3.9.1", // snyk
       "ch.qos.logback"        % "logback-classic"     % logbackV, // snyk by zookeeper
       "ch.qos.logback"        % "logback-core"        % logbackV, // snyk by zookeeper
-      "org.eclipse.jetty"     % "jetty-xml"           % "12.0.6", // snyk
-      "org.eclipse.jetty"     % "jetty-http"          % "12.0.6", // snyk
-      "org.jetbrains.kotlin"  % "kotlin-stdlib"       % "1.9.22", // snyk
+      "org.eclipse.jetty"     % "jetty-xml"           % "12.0.7", // snyk
+      "org.eclipse.jetty"     % "jetty-http"          % "12.0.7", // snyk
+      "org.jetbrains.kotlin"  % "kotlin-stdlib"       % "1.9.23", // snyk
       "org.codehaus.jettison" % "jettison"            % "1.5.4", // snyk
       "io.netty"              % "netty-all"           % nettyV // snyk
     ) ++ kantanLib ++ logLib ++ testLib ++ hadoopLib
