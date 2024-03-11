@@ -21,7 +21,7 @@ val skunkV      = "0.6.3"
 val natchezV    = "0.3.5"
 val http4sV     = "0.23.26"
 val cron4sV     = "0.7.0"
-val jacksonV    = "2.16.1"
+val jacksonV    = "2.16.2"
 val protobufV   = "3.25.3"
 val sparkV      = "3.5.1"
 val framelessV  = "0.16.0"
@@ -309,7 +309,7 @@ lazy val messages = (project in file("messages"))
   .settings(name := "nj-messages")
   .settings(
     libraryDependencies ++= List(
-      "org.apache.commons" % "commons-compress" % "1.26.0", // snyk
+      "org.apache.commons" % "commons-compress" % "1.26.1", // snyk
       "org.yaml"           % "snakeyaml"        % "2.2", // snyk
       "org.xerial.snappy"  % "snappy-java"      % "1.1.10.5" // snyk
     ) ++ serdeLib ++ kafkaLib.map(_ % Provided) ++ testLib)
