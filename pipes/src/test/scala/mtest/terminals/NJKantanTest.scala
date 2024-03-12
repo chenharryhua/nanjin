@@ -105,7 +105,7 @@ class NJKantanTest extends AnyFunSuite {
 
   val policy: Policy = policies.fixedDelay(1.second)
   test("rotation - with-header") {
-    val csv  = hdp.kantan(CsvConfiguration.rfc.withHeader(CsvHeaderOf[Tiger]))
+    val csv  = hdp.kantan(_.withHeader(CsvHeaderOf[Tiger]))
     val path = fs2Root / "rotation" / "header"
     val file = KantanFile(Uncompressed)
     hdp.delete(path).unsafeRunSync()

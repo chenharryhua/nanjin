@@ -17,7 +17,7 @@ import org.apache.parquet.hadoop.util.HadoopInputFile
 import squants.information.Information
 
 import java.io.InputStream
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 
 private object HadoopReader {
 
@@ -61,8 +61,16 @@ private object HadoopReader {
       val datumReader: GenericDatumReader[GenericData.Record] =
         new GenericDatumReader[GenericData.Record](schema)
 
-      def next: Try[GenericData.Record] = Try(datumReader.read(null, jsonDecoder))
-      Stream.unfold(next)(s => s.toOption.map(gr => (gr, next)))
+      def next: Option[GenericData.Record] = Try(datumReader.read(null, jsonDecoder)) match {
+        case Failure(exception) =>
+          exception match {
+            case _: java.io.EOFException => None
+            case err                     => throw new Exception(path.getName, err)
+          }
+        case Success(value) => Some(value)
+      }
+
+      Stream.unfold(next)(s => s.map(gr => (gr, next)))
     }
 
   def binAvroS[F[_]](configuration: Configuration, schema: Schema, path: Path)(implicit
@@ -72,8 +80,15 @@ private object HadoopReader {
       val datumReader: GenericDatumReader[GenericData.Record] =
         new GenericDatumReader[GenericData.Record](schema)
 
-      def next: Try[GenericData.Record] = Try(datumReader.read(null, binDecoder))
-      Stream.unfold(next)(s => s.toOption.map(gr => (gr, next)))
-    }
+      def next: Option[GenericData.Record] = Try(datumReader.read(null, binDecoder)) match {
+        case Failure(exception) =>
+          exception match {
+            case _: java.io.EOFException => None
+            case err                     => throw new Exception(path.getName, err)
+          }
+        case Success(value) => Some(value)
+      }
 
+      Stream.unfold(next)(s => s.map(gr => (gr, next)))
+    }
 }
