@@ -4,7 +4,7 @@ ThisBuild / version := "0.18.0-SNAPSHOT"
 
 val catsCoreV   = "2.10.0"
 val fs2V        = "3.9.4"
-val awsV_2      = "2.25.5"
+val awsV_2      = "2.25.7"
 val awsV_1      = "1.12.675"
 val catsEffectV = "3.5.4"
 val hadoopV     = "3.3.6"
