@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.terminals
 
 import cats.effect.kernel.{Async, Resource, Sync}
 import cats.effect.std.Hotswap
+import cats.implicits.toBifunctorOps
 import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick, TickStatus}
 import fs2.text.utf8
@@ -60,13 +61,16 @@ final class HadoopKantan[F[_]] private (
     F: Sync[F],
     engine: ReaderEngine): Stream[F, Seq[String]] =
     HadoopReader.inputStreamS[F](configuration, path.hadoopPath).flatMap { is =>
-      val reader: CsvReader[Seq[String]] =
+      val reader: CsvReader[ReadResult[Seq[String]]] =
         if (csvConfiguration.hasHeader)
-          engine.unsafeReaderFor(new InputStreamReader(is), csvConfiguration).drop(1)
+          engine.readerFor(new InputStreamReader(is), csvConfiguration).drop(1)
         else
-          engine.unsafeReaderFor(new InputStreamReader(is), csvConfiguration)
+          engine.readerFor(new InputStreamReader(is), csvConfiguration)
 
-      Stream.fromBlockingIterator[F](reader.iterator, chunkSize.value)
+      Stream
+        .fromBlockingIterator[F](reader.iterator, chunkSize.value)
+        .map(_.leftMap(err => new Exception(path.pathStr, err)))
+        .rethrow
     }
 
   def source(paths: List[NJPath], chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, Seq[String]] =

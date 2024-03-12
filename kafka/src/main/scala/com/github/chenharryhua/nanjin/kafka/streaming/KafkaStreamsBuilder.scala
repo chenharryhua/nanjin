@@ -13,7 +13,7 @@ import org.apache.kafka.streams.KafkaStreams.State
 import org.apache.kafka.streams.processor.StateStore
 import org.apache.kafka.streams.scala.StreamsBuilder
 import org.apache.kafka.streams.state.StoreBuilder
-import org.apache.kafka.streams.{KafkaStreams, StreamsConfig, Topology}
+import org.apache.kafka.streams.{KafkaStreams, StreamsBuilder as JavaStreamsBuilder, StreamsConfig, Topology}
 
 import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.jdk.CollectionConverters.MapHasAsJava
@@ -36,7 +36,7 @@ final class KafkaStreamsBuilder[F[_]] private (
   applicationId: String,
   settings: KafkaStreamSettings,
   top: Reader[StreamsBuilder, Unit],
-  localStateStores: Cont[StreamsBuilder, StreamsBuilder],
+  localStateStores: Cont[JavaStreamsBuilder, JavaStreamsBuilder],
   startUpTimeout: Duration)(implicit F: Async[F]) {
 
   final private class StateChange(
@@ -109,12 +109,12 @@ final class KafkaStreamsBuilder[F[_]] private (
       applicationId = applicationId,
       settings = settings,
       top = top,
-      localStateStores = localStateStores.map(sb => new StreamsBuilder(sb.addStateStore(storeBuilder))),
+      localStateStores = localStateStores.map(_.addStateStore(storeBuilder)),
       startUpTimeout = startUpTimeout
     )
 
   lazy val topology: Topology = {
-    val builder: StreamsBuilder = localStateStores.eval.value
+    val builder: StreamsBuilder = new StreamsBuilder(localStateStores.eval.value)
     top.run(builder)
     builder.build()
   }
@@ -129,7 +129,7 @@ object KafkaStreamsBuilder {
       applicationId = applicationId,
       settings = settings,
       top = top,
-      localStateStores = Cont.defer(new StreamsBuilder()),
+      localStateStores = Cont.defer(new JavaStreamsBuilder()),
       startUpTimeout = Duration.Inf
     )
 }

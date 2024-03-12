@@ -388,7 +388,7 @@ lazy val pipes = (project in file("pipes"))
     val libs = List(
       "com.amazonaws"         % "aws-java-sdk-bundle" % awsV_1,
       "org.tukaani"           % "xz"                  % "1.9",
-      "org.apache.zookeeper"  % "zookeeper"           % "3.9.1", // snyk
+      "org.apache.zookeeper"  % "zookeeper"           % "3.9.2", // snyk
       "ch.qos.logback"        % "logback-classic"     % logbackV, // snyk by zookeeper
       "ch.qos.logback"        % "logback-core"        % logbackV, // snyk by zookeeper
       "org.eclipse.jetty"     % "jetty-xml"           % "12.0.7", // snyk

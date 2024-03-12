@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.terminals
 
 import cats.effect.kernel.{Async, Resource, Sync}
 import cats.effect.std.Hotswap
+import cats.implicits.toBifunctorOps
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick, TickStatus}
 import fs2.text.{lines, utf8}
 import fs2.{Chunk, Pipe, Stream}
@@ -39,7 +40,7 @@ final class HadoopCirce[F[_]] private (
       .through(utf8.decode)
       .through(lines)
       .filter(_.nonEmpty)
-      .mapChunks(_.map(parse))
+      .mapChunks(_.map(parse(_).leftMap(err => new Exception(path.pathStr, err))))
       .rethrow
 
   def source(paths: List[NJPath])(implicit F: Sync[F]): Stream[F, Json] =

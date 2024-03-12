@@ -3,6 +3,7 @@ package com.github.chenharryhua.nanjin.terminals
 import cats.data.Reader
 import cats.effect.Resource
 import cats.effect.kernel.Sync
+import cats.implicits.{catsSyntaxApplicativeError, catsSyntaxMonadErrorRethrow, toBifunctorOps, toFunctorOps}
 import fs2.Stream
 import fs2.io.readInputStream
 import org.apache.avro.Schema
@@ -17,7 +18,7 @@ import org.apache.parquet.hadoop.util.HadoopInputFile
 import squants.information.Information
 
 import java.io.InputStream
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 
 private object HadoopReader {
 
@@ -26,13 +27,22 @@ private object HadoopReader {
     for {
       is <- Resource.make(F.blocking(HadoopInputFile.fromPath(path, configuration).newStream()))(r =>
         F.blocking(r.close()))
-      dfs <- Resource.make[F, DataFileStream[GenericData.Record]](
-        F.blocking(new DataFileStream(is, new GenericDatumReader(schema))))(r => F.blocking(r.close()))
+      dfs <- Resource.make[F, DataFileStream[GenericData.Record]] {
+        F.blocking[DataFileStream[GenericData.Record]](new DataFileStream(is, new GenericDatumReader(schema)))
+          .attempt
+          .map(_.leftMap(err => new Exception(path.toString, err)))
+          .rethrow
+      }(r => F.blocking(r.close()))
     } yield dfs
 
   def parquetR[F[_]](readBuilder: Reader[Path, ParquetReader.Builder[GenericData.Record]], path: Path)(
     implicit F: Sync[F]): Resource[F, ParquetReader[GenericData.Record]] =
-    Resource.make(F.blocking(readBuilder.run(path).build()))(r => F.blocking(r.close()))
+    Resource.make {
+      F.blocking[ParquetReader[GenericData.Record]](readBuilder.run(path).build())
+        .attempt
+        .map(_.leftMap(err => new Exception(path.toString, err)))
+        .rethrow
+    }(r => F.blocking(r.close()))
 
   private def fileInputStream(path: Path, configuration: Configuration): InputStream = {
     val is: InputStream = HadoopInputFile.fromPath(path, configuration).newStream()
@@ -61,8 +71,16 @@ private object HadoopReader {
       val datumReader: GenericDatumReader[GenericData.Record] =
         new GenericDatumReader[GenericData.Record](schema)
 
-      def next: Try[GenericData.Record] = Try(datumReader.read(null, jsonDecoder))
-      Stream.unfold(next)(s => s.toOption.map(gr => (gr, next)))
+      def next: Option[GenericData.Record] = Try(datumReader.read(null, jsonDecoder)) match {
+        case Failure(exception) =>
+          exception match {
+            case _: java.io.EOFException => None
+            case err                     => throw new Exception(path.toString, err)
+          }
+        case Success(value) => Some(value)
+      }
+
+      Stream.unfold(next)(s => s.map(gr => (gr, next)))
     }
 
   def binAvroS[F[_]](configuration: Configuration, schema: Schema, path: Path)(implicit
@@ -72,8 +90,15 @@ private object HadoopReader {
       val datumReader: GenericDatumReader[GenericData.Record] =
         new GenericDatumReader[GenericData.Record](schema)
 
-      def next: Try[GenericData.Record] = Try(datumReader.read(null, binDecoder))
-      Stream.unfold(next)(s => s.toOption.map(gr => (gr, next)))
-    }
+      def next: Option[GenericData.Record] = Try(datumReader.read(null, binDecoder)) match {
+        case Failure(exception) =>
+          exception match {
+            case _: java.io.EOFException => None
+            case err                     => throw new Exception(path.toString, err)
+          }
+        case Success(value) => Some(value)
+      }
 
+      Stream.unfold(next)(s => s.map(gr => (gr, next)))
+    }
 }
