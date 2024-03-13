@@ -32,7 +32,7 @@ class NJKantanTest extends AnyFunSuite {
       .withCompressionLevel(file.compression.compressionLevel)
       .withBlockSizeHint(1000)
       .sink(tgt)
-    val src    = hdp.kantan(csvConfiguration).source(tgt, 100).map(tigerDecoder.decode).rethrow
+    val src    = hdp.kantan(csvConfiguration).source(tgt, 100).rethrow.map(tigerDecoder.decode).rethrow
     val action = ts.through(sink).compile.drain >> src.compile.toList
     assert(action.unsafeRunSync().toSet == data)
     val fileName = (file: NJFileKind).asJson.noSpaces
@@ -119,6 +119,7 @@ class NJKantanTest extends AnyFunSuite {
     val size =
       Stream
         .force(hdp.filesIn(path).map(csv.source(_, 100)))
+        .rethrow
         .map(tigerDecoder.decode)
         .rethrow
         .compile
@@ -146,6 +147,7 @@ class NJKantanTest extends AnyFunSuite {
     val size =
       Stream
         .force(hdp.filesIn(path).map(csv.source(_, 1000)))
+        .rethrow
         .map(tigerDecoder.decode)
         .rethrow
         .compile

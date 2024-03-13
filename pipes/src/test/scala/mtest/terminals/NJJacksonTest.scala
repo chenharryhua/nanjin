@@ -26,7 +26,7 @@ class NJJacksonTest extends AnyFunSuite {
     hdp.delete(tgt).unsafeRunSync()
     val sink =
       jackson.withCompressionLevel(file.compression.compressionLevel).withBlockSizeHint(1000).sink(tgt)
-    val src    = jackson.source(tgt)
+    val src    = jackson.source(tgt).rethrow
     val ts     = Stream.emits(data.toList).covary[IO].chunks
     val action = ts.through(sink).compile.drain >> src.compile.toList
     assert(action.unsafeRunSync().toSet == data)

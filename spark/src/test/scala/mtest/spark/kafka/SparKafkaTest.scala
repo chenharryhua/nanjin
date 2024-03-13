@@ -182,6 +182,7 @@ class SparKafkaTest extends AnyFunSuite {
     Stream
       .eval(hadoop.filesIn(path))
       .flatMap(hadoop.jackson(topic.topic.topicDef.schemaPair.consumerSchema).source)
+      .rethrow
       .chunkN(1)
       .through(ctx.sink(topic.topicName).updateConfig(_.withClientId("a")).build)
       .compile

@@ -21,10 +21,16 @@ class CirceTest extends AnyFunSuite {
   val circe: HadoopCirce[IO] = hdp.circe
 
   def loadRoosters(path: NJPath): IO[List[Rooster]] =
-    fs2.Stream.eval(hdp.filesIn(path)).flatMap(circe.source).map(_.as[Rooster]).rethrow.compile.toList
+    fs2.Stream
+      .eval(hdp.filesIn(path))
+      .flatMap(circe.source)
+      .map(_.flatMap(_.as[Rooster]))
+      .rethrow
+      .compile
+      .toList
 
   def loadBees(path: NJPath): IO[List[Bee]] =
-    fs2.Stream.eval(hdp.filesIn(path)).flatMap(circe.source).map(_.as[Bee]).rethrow.compile.toList
+    fs2.Stream.eval(hdp.filesIn(path)).flatMap(circe.source).map(_.flatMap(_.as[Bee])).rethrow.compile.toList
 
   val root = NJPath("./data/test/spark/persist/circe")
 

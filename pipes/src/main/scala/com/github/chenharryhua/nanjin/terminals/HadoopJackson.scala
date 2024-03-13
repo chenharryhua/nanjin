@@ -29,11 +29,13 @@ final class HadoopJackson[F[_]] private (
 
   // read
 
-  def source(path: NJPath)(implicit F: Async[F]): Stream[F, GenericData.Record] =
+  def source(path: NJPath)(implicit F: Async[F]): Stream[F, Either[Throwable, GenericData.Record]] =
     HadoopReader.jacksonS[F](configuration, schema, path.hadoopPath)
 
-  def source(paths: List[NJPath])(implicit F: Async[F]): Stream[F, GenericData.Record] =
-    paths.foldLeft(Stream.empty.covaryAll[F, GenericData.Record]) { case (s, p) => s ++ source(p) }
+  def source(paths: List[NJPath])(implicit F: Async[F]): Stream[F, Either[Throwable, GenericData.Record]] =
+    paths.foldLeft(Stream.empty.covaryAll[F, Either[Throwable, GenericData.Record]]) { case (s, p) =>
+      s ++ source(p)
+    }
 
   // write
 
