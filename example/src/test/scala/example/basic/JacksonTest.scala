@@ -82,15 +82,16 @@ class JacksonTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
     read(path.uri.getPath) { meter =>
       hadoop
         .filesIn(path)
-        .flatMap(jackson.source(_).map(decoder.from).evalTap(_ => meter.mark(1)).compile.fold(0L) {
+        .flatMap(jackson.source(_).rethrow.map(decoder.from).evalTap(_ => meter.mark(1)).compile.fold(0L) {
           case (s, _) => s + 1
         })
     }
 
   private def singleRead(path: NJPath): IO[Long] =
     read(path.uri.getPath) { meter =>
-      jackson.source(path).map(decoder.from).evalTap(_ => meter.mark(1)).compile.fold(0L) { case (s, _) =>
-        s + 1
+      jackson.source(path).rethrow.map(decoder.from).evalTap(_ => meter.mark(1)).compile.fold(0L) {
+        case (s, _) =>
+          s + 1
       }
     }
 

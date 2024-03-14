@@ -23,7 +23,12 @@ class JacksonTest extends AnyFunSuite {
   val fromRecord: FromRecord[Rooster] = FromRecord(Rooster.avroCodec)
 
   def loadRooster(path: NJPath): IO[Set[Rooster]] =
-    Stream.eval(hdp.filesIn(path)).flatMap(jackson.source(_).map(fromRecord.from)).compile.toList.map(_.toSet)
+    Stream
+      .eval(hdp.filesIn(path))
+      .flatMap(jackson.source(_).rethrow.map(fromRecord.from))
+      .compile
+      .toList
+      .map(_.toSet)
 
   val root = NJPath("./data/test/spark/persist/jackson/")
   test("datetime read/write identity - uncompressed") {

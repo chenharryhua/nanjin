@@ -2,7 +2,7 @@ package mtest.guard
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.common.chrono.{crontabs, policies}
+import com.github.chenharryhua.nanjin.common.chrono.policies
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.{MetricReport, ServiceStart, ServiceStop}
 import com.github.chenharryhua.nanjin.guard.event.eventFilters
@@ -75,7 +75,7 @@ class EventFilterTest extends AnyFunSuite {
       .updateConfig(_.withMetricReport(policy))
       .eventStream(agent => agent.action("sleep").retry(IO.sleep(7.seconds)).run >> agent.metrics.report)
       .debug()
-      .filter(eventFilters.sampling(crontabs.every3Seconds))
+      .filter(eventFilters.sampling(_.every3Seconds))
       .compile
       .toList
       .unsafeRunSync()

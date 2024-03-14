@@ -1,8 +1,8 @@
 package com.github.chenharryhua.nanjin.guard.observers
 
 import cats.Endo
-import cats.effect.kernel.Async
-import cats.implicits.{toFunctorOps, toShow}
+import cats.effect.kernel.{Async, Resource}
+import cats.implicits.toShow
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.event.{NJEvent, Snapshot}
 import com.github.chenharryhua.nanjin.guard.translators.metricConstants
@@ -29,15 +29,18 @@ object InfluxdbObserver {
     */
   def apply[F[_]: Async](client: F[InfluxDBClient]): InfluxdbObserver[F] =
     new InfluxdbObserver[F](
-      client,
+      Resource.make(client)(c => Async[F].blocking(c.close())),
       identity,
       WritePrecision.NS,
       TimeUnit.MILLISECONDS,
       Map.empty[String, String])
+
+  def apply[F[_]: Async](client: => InfluxDBClient): InfluxdbObserver[F] =
+    apply[F](Async[F].blocking(client))
 }
 
 final class InfluxdbObserver[F[_]](
-  client: F[InfluxDBClient],
+  client: Resource[F, InfluxDBClient],
   writeOptions: Endo[WriteOptions.Builder],
   writePrecision: WritePrecision,
   durationUnit: TimeUnit,
@@ -86,10 +89,8 @@ final class InfluxdbObserver[F[_]](
     timeout: FiniteDuration,
     f: NJEvent.ActionResultEvent => Option[Point]): Pipe[F, NJEvent, Nothing] = {
     (events: Stream[F, NJEvent]) =>
-      Stream
-        .bracket(client.map(_.makeWriteApi(writeOptions(WriteOptions.builder()).build())))(c =>
-          F.blocking(c.close()))
-        .flatMap { writer =>
+      Stream.resource(client.map(_.makeWriteApi(writeOptions(WriteOptions.builder()).build()))).flatMap {
+        writer =>
           events
             .groupWithin(chunkSize, timeout)
             .evalMap { chunk =>
@@ -100,7 +101,7 @@ final class InfluxdbObserver[F[_]](
               F.blocking(writer.writePoints(points.asJava))
             }
             .drain
-        }
+      }
   }
 
   def observe(chunkSize: Int, timeout: FiniteDuration): Pipe[F, NJEvent, Nothing] =
@@ -128,8 +129,7 @@ final class InfluxdbObserver[F[_]](
 
   val observe: Pipe[F, NJEvent, NJEvent] = (events: Stream[F, NJEvent]) =>
     for {
-      writer <- Stream.bracket(client.map(_.makeWriteApi(writeOptions(WriteOptions.builder()).build())))(c =>
-        F.blocking(c.close()))
+      writer <- Stream.resource(client.map(_.makeWriteApi(writeOptions(WriteOptions.builder()).build())))
       event <- events.evalTap {
         case NJEvent.MetricReport(_, sp, ts, snapshot) =>
           val spDimensions: Map[String, String] = dimension(sp)

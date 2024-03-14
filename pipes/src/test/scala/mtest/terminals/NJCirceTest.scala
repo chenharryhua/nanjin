@@ -33,7 +33,7 @@ class NJCirceTest extends AnyFunSuite {
       .withBufferSize(32.kb)
       .withBlockSizeHint(1000)
       .sink(tgt)
-    val src    = json.source(tgt).mapFilter(_.as[Tiger].toOption)
+    val src    = json.source(tgt).rethrow.mapFilter(_.as[Tiger].toOption)
     val action = ts.through(sink).compile.drain >> src.compile.toList
     assert(action.unsafeRunSync().toSet == data)
     val lines = hdp.text.source(tgt).compile.fold(0) { case (s, _) => s + 1 }

@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.event
 
 import cats.syntax.all.*
+import com.github.chenharryhua.nanjin.common.chrono.crontabs
 import com.github.chenharryhua.nanjin.guard.config.Importance
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.{ActionDone, ActionEvent, ActionStart, MetricReport}
 import cron4s.CronExpr
@@ -75,5 +76,8 @@ object eventFilters {
         }
       case _ => true
     }
+
+  def sampling(f: crontabs.type => CronExpr)(evt: NJEvent): Boolean =
+    sampling(f(crontabs))(evt)
 
 }
