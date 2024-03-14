@@ -104,17 +104,30 @@ class KantanTest(agent: Agent[IO], base: NJPath, rfc: CsvConfiguration) extends 
       hadoop
         .filesIn(path)
         .flatMap(
-          kantan.source(_, 1000).map(rowDecoder.decode).rethrow.evalTap(_ => meter.mark(1)).compile.fold(0L) {
-            case (s, _) => s + 1
-          })
+          kantan
+            .source(_, 1000)
+            .rethrow
+            .map(rowDecoder.decode)
+            .rethrow
+            .evalTap(_ => meter.mark(1))
+            .compile
+            .fold(0L) { case (s, _) =>
+              s + 1
+            })
     }
 
   private def singleRead(path: NJPath): IO[Long] =
     read(path.uri.getPath) { meter =>
-      kantan.source(path, 1000).map(rowDecoder.decode).rethrow.evalTap(_ => meter.mark(1)).compile.fold(0L) {
-        case (s, _) =>
+      kantan
+        .source(path, 1000)
+        .rethrow
+        .map(rowDecoder.decode)
+        .rethrow
+        .evalTap(_ => meter.mark(1))
+        .compile
+        .fold(0L) { case (s, _) =>
           s + 1
-      }
+        }
     }
 
   val single: IO[List[Long]] =

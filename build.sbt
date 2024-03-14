@@ -23,7 +23,7 @@ val doobieV     = "1.0.0-RC5"
 val natchezV    = "0.3.5"
 val http4sV     = "0.23.26"
 val cron4sV     = "0.7.0"
-val protobufV   = "3.25.3"
+val protobufV   = "4.26.0"
 val sparkV      = "3.5.1"
 val framelessV  = "0.16.0"
 val refinedV    = "0.11.1"
@@ -453,3 +453,11 @@ lazy val nanjin =
     guard_observer_db,
     guard_observer_influxdb,
     guard_observer_kafka)
+.settings(
+  publish / skip := true,
+  ThisBuild / credentials += Credentials(Path.userHome / ".sbt" / ".credentials"),
+  ThisBuild / publishTo := Some(
+    "tabcorp-maven".at("https://artifacts.tabdigital.com.au/artifactory/tabcorp-maven")),
+  ThisBuild / publishConfiguration      := publishConfiguration.value.withOverwrite(true),
+  ThisBuild / publishLocalConfiguration := publishLocalConfiguration.value.withOverwrite(true)
+)

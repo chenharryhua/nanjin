@@ -84,7 +84,10 @@ private object HadoopWriter {
     outputStreamR(path, configuration, compressionLevel, blockSizeHint).map(os =>
       new HadoopWriter[F, Byte] {
         override def write(ck: Chunk[Byte]): F[Unit] =
-          F.blocking(os.write(ck.toArray)) >> F.blocking(os.flush())
+          F.blocking {
+            os.write(ck.toArray)
+            os.flush()
+          }
       })
 
   def stringR[F[_]](
@@ -98,12 +101,15 @@ private object HadoopWriter {
         F.blocking(
           new PrintWriter(
             fileOutputStream(path, configuration, compressionLevel, blockSizeHint),
-            true,
+            false,
             charset)))(r => F.blocking(r.close()))
-      .map(os =>
+      .map(pw =>
         new HadoopWriter[F, String] {
           override def write(ck: Chunk[String]): F[Unit] =
-            F.blocking(ck.foreach(os.write))
+            F.blocking {
+              ck.foreach(pw.write)
+              pw.flush()
+            }
         })
 
   private def genericRecordWriter[F[_]](
@@ -118,7 +124,10 @@ private object HadoopWriter {
       val datumWriter      = new GenericDatumWriter[GenericRecord](schema)
       new HadoopWriter[F, GenericRecord] {
         override def write(ck: Chunk[GenericRecord]): F[Unit] =
-          F.blocking(ck.foreach(gr => datumWriter.write(gr, encoder))) >> F.blocking(encoder.flush())
+          F.blocking {
+            ck.foreach(gr => datumWriter.write(gr, encoder))
+            encoder.flush()
+          }
       }
     }
 
