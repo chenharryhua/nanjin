@@ -7,7 +7,6 @@ import com.github.chenharryhua.nanjin.common.chrono.{policies, Policy}
 import com.github.chenharryhua.nanjin.guard.*
 import com.github.chenharryhua.nanjin.guard.event.*
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
-import com.github.chenharryhua.nanjin.guard.observers.console
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import io.circe.jawn.decode
 import io.circe.syntax.*
@@ -89,7 +88,6 @@ class CancellationTest extends AnyFunSuite {
       }
       .map(_.asJson.noSpaces)
       .evalMap(e => IO(decode[NJEvent](e)).rethrow)
-      .evalTap(console.json[IO])
       .compile
       .toVector
       .unsafeRunSync()
@@ -110,7 +108,6 @@ class CancellationTest extends AnyFunSuite {
       }
       .map(_.asJson.noSpaces)
       .evalMap(e => IO(decode[NJEvent](e)).rethrow)
-      .evalTap(console.simple[IO])
       .compile
       .toVector
       .unsafeRunSync()
@@ -210,7 +207,6 @@ class CancellationTest extends AnyFunSuite {
       }
       .map(_.asJson.noSpaces)
       .evalMap(e => IO(decode[NJEvent](e)).rethrow)
-      .evalTap(console.simple[IO])
       .compile
       .toVector
       .unsafeRunSync()
@@ -245,22 +241,24 @@ class CancellationTest extends AnyFunSuite {
     assert(d.isInstanceOf[ActionRetry])
     assert(e.isInstanceOf[ActionFail])
     assert(f.isInstanceOf[ServiceStop])
+
     assert(b.asInstanceOf[ActionEvent].actionId == c.asInstanceOf[ActionEvent].actionId)
     assert(b.asInstanceOf[ActionEvent].actionId == d.asInstanceOf[ActionEvent].actionId)
     assert(b.asInstanceOf[ActionEvent].actionId == e.asInstanceOf[ActionEvent].actionId)
   }
   test("10.cancellation - never can be canceled") {
-    var i = 0
-    serviceGuard
-      .updateConfig(_.withRestartPolicy(policies.fixedDelay(1.hour)))
-      .eventStream(_.action("never").retry(IO.never.onCancel(IO { i = 1 })).run)
-      .map(_.asJson.noSpaces)
-      .evalMap(e => IO(decode[NJEvent](e)).rethrow)
-      .interruptAfter(2.seconds)
-      .compile
-      .drain
-      .unsafeRunSync()
-    assert(i == 1)
+    val Vector(a, b) =
+      serviceGuard
+        .updateConfig(_.withRestartPolicy(policies.fixedDelay(1.hour)))
+        .eventStream(_.action("never", _.bipartite).retry(IO.never).run)
+        .map(_.asJson.noSpaces)
+        .evalMap(e => IO(decode[NJEvent](e)).rethrow)
+        .interruptAfter(2.seconds)
+        .compile
+        .toVector
+        .unsafeRunSync()
+    assert(a.isInstanceOf[ServiceStart])
+    assert(b.isInstanceOf[ActionStart])
   }
 
 }
