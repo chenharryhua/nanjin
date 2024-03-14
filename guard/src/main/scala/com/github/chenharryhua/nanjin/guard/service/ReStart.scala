@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.service
 
-import cats.effect.kernel.Resource.ExitCase
+import cats.effect.implicits.monadCancelOps_
 import cats.effect.kernel.Temporal
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.chrono.TickStatus
@@ -51,11 +51,7 @@ final private class ReStart[F[_], A](
             err => panic(status, err),
             _ => publisher.serviceStop(channel, serviceParams, ServiceStopCause.Normally).as(None)
           )
-      }
-      .onFinalizeCase {
-        case ExitCase.Canceled =>
-          publisher.serviceStop(channel, serviceParams, ServiceStopCause.ByCancellation)
-        case _ => F.unit
+          .onCancel(publisher.serviceStop(channel, serviceParams, ServiceStopCause.ByCancellation))
       }
       .drain
 }
