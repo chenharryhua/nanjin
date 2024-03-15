@@ -2,7 +2,6 @@ package com.github.chenharryhua.nanjin.terminals
 
 import cats.data.Reader
 import cats.effect.kernel.{Resource, Sync}
-import cats.implicits.catsSyntaxFlatMapOps
 import fs2.Chunk
 import org.apache.avro.Schema
 import org.apache.avro.file.{CodecFactory, DataFileWriter}
@@ -38,11 +37,14 @@ private object HadoopWriter {
       os <-
         Resource.make(
           F.blocking(HadoopOutputFile.fromPath(path, configuration).createOrOverwrite(blockSizeHint)))(r =>
-          F.blocking(r.flush()) >> F.blocking(r.close()))
+          F.blocking(r.close()))
       writer <- Resource.make(F.blocking(dfw.create(schema, os)))(r => F.blocking(r.close()))
     } yield new HadoopWriter[F, GenericRecord] {
       override def write(ck: Chunk[GenericRecord]): F[Unit] =
-        F.blocking(ck.foreach(writer.append)) // don't flush
+        F.blocking {
+          ck.foreach(writer.append)
+          writer.flush()
+        }
     }
 
   def parquetR[F[_]](writeBuilder: Reader[Path, AvroParquetWriter.Builder[GenericRecord]], path: Path)(
