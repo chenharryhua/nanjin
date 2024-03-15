@@ -7,11 +7,19 @@ import com.github.chenharryhua.nanjin.aws.SimpleNotificationService
 import com.github.chenharryhua.nanjin.common.aws.SnsArn
 import com.github.chenharryhua.nanjin.guard.config.Importance
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
-import com.github.chenharryhua.nanjin.guard.event.NJEvent.{ActionDone, ActionFail, ActionRetry, ActionStart}
+import com.github.chenharryhua.nanjin.guard.event.NJEvent.{
+  ActionDone,
+  ActionFail,
+  ActionRetry,
+  ActionStart,
+  ServiceStart
+}
 import com.github.chenharryhua.nanjin.guard.translators.*
 import fs2.{Pipe, Stream}
 import io.circe.syntax.*
 import software.amazon.awssdk.services.sns.model.{PublishRequest, PublishResponse}
+
+import java.util.UUID
 
 object SlackObserver {
   def apply[F[_]: Concurrent: Clock](client: Resource[F, SimpleNotificationService[F]]): SlackObserver[F] =
@@ -54,13 +62,19 @@ final class SlackObserver[F[_]: Clock](
   def observe(snsArn: SnsArn): Pipe[F, NJEvent, NJEvent] = (es: Stream[F, NJEvent]) =>
     for {
       sns <- Stream.resource(client)
-      event <- es.evalTap(e =>
-        translator.filter {
-          case ActionStart(ap, _, _, _)      => ap.importance === Importance.Critical
-          case ActionDone(ap, _, _, _, _)    => ap.importance === Importance.Critical
-          case ActionRetry(ap, _, _, _, _)   => ap.importance > Importance.Insignificant
-          case ActionFail(ap, _, _, _, _, _) => ap.importance > Importance.Suppressed
-          case _                             => true
-        }.translate(e).flatMap(_.traverse(msg => publish(sns, snsArn, msg.asJson.noSpaces))))
+      ofm <- Stream.eval(
+        F.ref[Map[UUID, ServiceStart]](Map.empty).map(new FinalizeMonitor(translator.translate, _)))
+      event <- es
+        .evalTap(ofm.monitoring)
+        .evalTap(e =>
+          translator.filter {
+            case ActionStart(ap, _, _, _)      => ap.importance === Importance.Critical
+            case ActionDone(ap, _, _, _, _)    => ap.importance === Importance.Critical
+            case ActionRetry(ap, _, _, _, _)   => ap.importance > Importance.Insignificant
+            case ActionFail(ap, _, _, _, _, _) => ap.importance > Importance.Suppressed
+            case _                             => true
+          }.translate(e).flatMap(_.traverse(msg => publish(sns, snsArn, msg.asJson.noSpaces))))
+        .onFinalizeCase(
+          ofm.terminated(_).flatMap(_.traverse(msg => publish(sns, snsArn, msg.asJson.noSpaces))).void)
     } yield event
 }

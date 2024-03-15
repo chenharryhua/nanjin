@@ -18,13 +18,13 @@ final class NJKafkaProduce[F[_], K, V] private[kafka] (producerSettings: Produce
   def transactional(transactionalId: String): NJKafkaTransactional[F, K, V] =
     new NJKafkaTransactional[F, K, V](TransactionalProducerSettings(transactionalId, producerSettings))
 
-  def resource(implicit F: Async[F]): Resource[F, KafkaProducer.Metrics[F, K, V]] =
+  def clientR(implicit F: Async[F]): Resource[F, KafkaProducer.Metrics[F, K, V]] =
     KafkaProducer.resource(producerSettings)
 
   def pipe(implicit F: Async[F]): Pipe[F, ProducerRecords[K, V], ProducerResult[K, V]] =
     KafkaProducer.pipe[F, K, V](producerSettings)
 
-  def stream(implicit F: Async[F]): Stream[F, KafkaProducer.Metrics[F, K, V]] =
+  def client(implicit F: Async[F]): Stream[F, KafkaProducer.Metrics[F, K, V]] =
     KafkaProducer.stream(producerSettings)
 
   override def updateConfig(f: Endo[ProducerSettings[F, K, V]]): NJKafkaProduce[F, K, V] =
@@ -34,7 +34,7 @@ final class NJKafkaProduce[F[_], K, V] private[kafka] (producerSettings: Produce
 final class NJKafkaTransactional[F[_], K, V] private[kafka] (
   txnSettings: TransactionalProducerSettings[F, K, V])
     extends UpdateConfig[TransactionalProducerSettings[F, K, V], NJKafkaTransactional[F, K, V]] {
-  def stream(implicit F: Async[F]): Stream[F, TransactionalKafkaProducer[F, K, V]] =
+  def client(implicit F: Async[F]): Stream[F, TransactionalKafkaProducer[F, K, V]] =
     TransactionalKafkaProducer.stream(txnSettings)
 
   override def updateConfig(f: Endo[TransactionalProducerSettings[F, K, V]]): NJKafkaTransactional[F, K, V] =
