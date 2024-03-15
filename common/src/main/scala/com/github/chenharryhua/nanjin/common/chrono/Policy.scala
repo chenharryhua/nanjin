@@ -19,8 +19,9 @@ import org.typelevel.cats.time.instances.all
 
 import java.time.*
 import java.time.temporal.ChronoUnit
+import scala.annotation.tailrec
 import scala.concurrent.duration.FiniteDuration
-import scala.jdk.DurationConverters.{JavaDurationOps, ScalaDurationOps}
+import scala.jdk.DurationConverters.ScalaDurationOps
 import scala.util.{Random, Try}
 
 sealed trait PolicyF[K] extends Product with Serializable
@@ -45,6 +46,14 @@ private object PolicyF extends all {
 
   type CalcTick = TickRequest => Option[Tick]
   final case class TickRequest(tick: Tick, now: Instant)
+
+  @tailrec
+  private def fixedRateSnooze(wakeup: Instant, now: Instant, delay: Duration, count: Long): Duration = {
+    val next = wakeup.plus(delay.multipliedBy(count))
+    if (next.isAfter(now)) Duration.between(now, next)
+    else
+      fixedRateSnooze(wakeup, now, delay, count + 1)
+  }
 
   private def algebra(zoneId: ZoneId): Algebra[PolicyF, LazyList[CalcTick]] =
     Algebra[PolicyF, LazyList[CalcTick]] {
@@ -72,16 +81,9 @@ private object PolicyF extends all {
         }
         LazyList.continually(seed).flatten
 
-      case FixedRate(rate) =>
-        LazyList.continually(rate).map[CalcTick] { delay =>
-          { case TickRequest(tick, now) =>
-            val multi = (Duration.between(tick.launchTime, now).toScala / delay.toScala).ceil.toLong
-            val gap   = Duration.between(now, tick.launchTime.plus(delay.multipliedBy(multi)))
-            if (gap === Duration.ZERO) {
-              val gap = Duration.between(now, tick.launchTime.plus(delay.multipliedBy(multi + 1)))
-              tick.newTick(now, gap).some
-            } else tick.newTick(now, gap).some
-          }
+      case FixedRate(delay) =>
+        LazyList.continually { case TickRequest(tick, now) =>
+          tick.newTick(now, fixedRateSnooze(tick.wakeup, now, delay, 1)).some
         }
 
       // ops

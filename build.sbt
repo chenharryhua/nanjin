@@ -4,8 +4,8 @@ ThisBuild / version := "0.18.0-SNAPSHOT"
 
 val catsCoreV   = "2.10.0"
 val fs2V        = "3.9.4"
-val awsV_2      = "2.25.9"
-val awsV_1      = "1.12.679"
+val awsV_2      = "2.25.10"
+val awsV_1      = "1.12.680"
 val catsEffectV = "3.5.4"
 val hadoopV     = "3.3.6"
 val monocleV    = "3.2.0"
@@ -123,7 +123,7 @@ val testLib = List(
   "dev.optics" %% "monocle-law"                               % monocleV,
   "com.47deg" %% "scalacheck-toolbox-datetime"                % "0.7.0",
   "org.tpolecat" %% "doobie-postgres"                         % doobieV,
-  "org.postgresql"                                            % "postgresql" % "42.7.2", // snyk
+  "org.postgresql"                                            % "postgresql" % "42.7.3", // snyk
   "org.typelevel" %% "algebra-laws"                           % catsCoreV,
   "com.github.pathikrit" %% "better-files"                    % "3.9.2"
 ).map(_ % Test)
