@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.event
 
 import cats.Show
-import cats.effect.kernel.Resource.ExitCase
 import com.github.chenharryhua.nanjin.common.chrono.Tick
 import io.circe.generic.JsonCodec
 import org.apache.commons.lang3.exception.ExceptionUtils
@@ -32,13 +31,6 @@ object ServiceStopCause {
     case ServiceStopCause.ByException(msg) => s"abnormally exit due to $msg"
     case ServiceStopCause.ByUser           => "stop by user"
   }
-
-  def apply(ec: ExitCase): ServiceStopCause =
-    ec match {
-      case ExitCase.Succeeded  => Normally
-      case ExitCase.Errored(e) => ByException(ExceptionUtils.getMessage(e))
-      case ExitCase.Canceled   => ByCancellation
-    }
 
   case object Normally extends ServiceStopCause(0)
   case object ByCancellation extends ServiceStopCause(1)

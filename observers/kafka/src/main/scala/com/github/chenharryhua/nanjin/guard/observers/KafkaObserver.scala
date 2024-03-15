@@ -38,9 +38,8 @@ final class KafkaObserver[F[_]](ctx: KafkaContext[F])(implicit F: Async[F]) {
             KJson(evt))
           client.produceOne(msg).flatten
         }
-        .onFinalizeCase(
-          ofm
-            .terminated(_)
+        .onFinalize(
+          ofm.terminated
             .map(
               _.map(evt =>
                 ProducerRecord(

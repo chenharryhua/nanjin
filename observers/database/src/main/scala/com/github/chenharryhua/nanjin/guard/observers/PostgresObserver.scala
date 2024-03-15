@@ -46,7 +46,7 @@ final class PostgresObserver[F[_]: Clock](session: Resource[F, Session[F]], tran
       event <- events
         .evalTap(ofm.monitoring)
         .evalTap(evt => translator.translate(evt).flatMap(_.traverse(execute(pg, _))).void)
-        .onFinalizeCase(ofm.terminated(_).flatMap(_.traverse(execute(pg, _))).void)
+        .onFinalize(ofm.terminated.flatMap(_.traverse(execute(pg, _))).void)
     } yield event
   }
 }
