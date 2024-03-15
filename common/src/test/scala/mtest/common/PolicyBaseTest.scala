@@ -5,14 +5,13 @@ import cats.effect.unsafe.implicits.global
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.chrono.*
 import com.github.chenharryhua.nanjin.common.chrono.zones.*
+import io.circe.jawn.decode
 import io.circe.syntax.EncoderOps
 import org.scalatest.funsuite.AnyFunSuite
-import org.typelevel.cats.time.instances.duration.*
 
 import java.time.Instant
 import scala.concurrent.duration.DurationInt
 import scala.jdk.DurationConverters.{JavaDurationOps, ScalaDurationOps}
-import io.circe.jawn.decode
 class PolicyBaseTest extends AnyFunSuite {
 
   test("fibonacci") {
@@ -73,31 +72,31 @@ class PolicyBaseTest extends AnyFunSuite {
     assert(a1.launchTime == ts.tick.launchTime)
     assert(a1.index == 1)
     assert(a1.previous === ts.tick.wakeup)
-    assert(a1.snooze < 1.second.toJava)
+    assert(a1.wakeup == a1.previous.plus(1.seconds.toJava))
 
     assert(a2.sequenceId == ts.tick.sequenceId)
     assert(a2.launchTime == ts.tick.launchTime)
     assert(a2.index == 2)
     assert(a2.previous === a1.wakeup)
-    assert(a2.snooze < 1.second.toJava)
+    assert(a2.wakeup == a2.previous.plus(1.seconds.toJava))
 
     assert(a3.sequenceId == ts.tick.sequenceId)
     assert(a3.launchTime == ts.tick.launchTime)
     assert(a3.index == 3)
     assert(a3.previous === a2.wakeup)
-    assert(a3.snooze < 1.second.toJava)
+    assert(a3.wakeup == a3.previous.plus(1.seconds.toJava))
 
     assert(a4.sequenceId == ts.tick.sequenceId)
     assert(a4.launchTime == ts.tick.launchTime)
     assert(a4.index == 4)
     assert(a4.previous === a3.wakeup)
-    assert(a4.snooze < 1.second.toJava)
+    assert(a4.wakeup == a4.previous.plus(1.seconds.toJava))
 
     assert(a5.sequenceId == ts.tick.sequenceId)
     assert(a5.launchTime == ts.tick.launchTime)
     assert(a5.index == 5)
     assert(a5.previous === a4.wakeup)
-    assert(a5.snooze < 1.second.toJava)
+    assert(a5.wakeup == a5.previous.plus(1.seconds.toJava))
   }
 
   test("jitter") {

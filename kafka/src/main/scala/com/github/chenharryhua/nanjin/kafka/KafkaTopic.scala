@@ -69,7 +69,7 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
   // for testing
 
   def produceOne(pr: ProducerRecord[K, V])(implicit F: Async[F]): F[RecordMetadata] =
-    produce.resource.use(_.produceOne_(pr).flatten)
+    produce.clientR.use(_.produceOne_(pr).flatten)
 
   def produceOne(k: K, v: V)(implicit F: Async[F]): F[RecordMetadata] =
     produceOne(ProducerRecord(topicName.value, k, v))
@@ -103,6 +103,6 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
           .iterator
           .map(_.toNJProducerRecord.noMeta.withTopicName(topicName).toProducerRecord))
 
-      produce.resource.use(_.produce(prs).flatten)
+      produce.clientR.use(_.produce(prs).flatten)
     }
 }
