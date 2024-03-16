@@ -36,6 +36,7 @@ val log4catsV   = "2.6.0"
 val logbackV    = "1.5.3"
 val okioV       = "3.9.0"
 val jwtV        = "0.12.5"
+val postgresV   = "42.7.3"
 
 lazy val commonSettings = List(
   organization := "com.github.chenharryhua",
@@ -118,13 +119,11 @@ val testLib = List(
   "org.typelevel" %% "discipline-scalatest"                   % "2.2.0",
   "org.typelevel" %% "discipline-munit"                       % "1.0.9",
   "org.typelevel" %% "cats-laws"                              % catsCoreV,
+  "org.typelevel" %% "algebra-laws"                           % catsCoreV,
   "com.github.alexarchambault" %% "scalacheck-shapeless_1.15" % "1.3.0",
   "org.scalatest" %% "scalatest"                              % "3.2.18",
   "dev.optics" %% "monocle-law"                               % monocleV,
   "com.47deg" %% "scalacheck-toolbox-datetime"                % "0.7.0",
-  "org.tpolecat" %% "doobie-postgres"                         % doobieV,
-  "org.postgresql"                                            % "postgresql" % "42.7.3", // snyk
-  "org.typelevel" %% "algebra-laws"                           % catsCoreV,
   "com.github.pathikrit" %% "better-files"                    % "3.9.2"
 ).map(_ % Test)
 
@@ -324,7 +323,8 @@ lazy val database = (project in file("database"))
       "org.tpolecat" %% "doobie-hikari" % doobieV,
       "org.tpolecat" %% "doobie-free"   % doobieV,
       "org.tpolecat" %% "skunk-core"    % skunkV,
-      ("com.zaxxer"                     % "HikariCP" % "5.1.0").exclude("org.slf4j", "slf4j-api")
+      ("com.zaxxer"                     % "HikariCP"   % "5.1.0").exclude("org.slf4j", "slf4j-api"),
+      "org.postgresql"                  % "postgresql" % postgresV % Test
     ) ++ testLib
   )
 
@@ -411,7 +411,8 @@ lazy val spark = (project in file("spark"))
       "org.apache.ivy"                         % "ivy"             % "2.5.2", // snyk
       "io.netty"                               % "netty-all"       % nettyV, // snyk
       "com.julianpeeters" %% "avrohugger-core" % "2.8.3"           % Test,
-      "ch.qos.logback"                         % "logback-classic" % logbackV % Test
+      "ch.qos.logback"                         % "logback-classic" % logbackV  % Test,
+      "org.postgresql"                         % "postgresql"      % postgresV % Test
     ) ++ sparkLib.map(_.exclude("commons-logging", "commons-logging")) ++ testLib
   )
 
