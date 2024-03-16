@@ -15,7 +15,7 @@ object ecs {
     for {
       v4 <- env.get("ECS_CONTAINER_METADATA_URI_V4")
       v3 <- env.get("ECS_CONTAINER_METADATA_URI")
-    } yield v4.orElse(v3).map(Uri.fromString).flatMap(_.toOption)
+    } yield v4.orElse(v3).flatMap(Uri.fromString(_).toOption)
   }
 
   // https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-metadata-endpoint-v4.html
