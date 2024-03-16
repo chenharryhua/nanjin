@@ -33,12 +33,12 @@ class DoobieMetaTest extends AnyFunSuite with FunSuiteDiscipline with Configurat
     assert(nj.hikariConfig.getPassword == password.value)
     assert(nj.hikariConfig.getMaximumPoolSize == 10)
 
-    val stream = for {
+    val stream: Stream[IO, Int] = for {
       tnx <- Stream.resource(HikariTransactor.fromHikariConfig[IO](nj.hikariConfig))
       n <- Stream.eval(tnx.trans.apply(42.pure[ConnectionIO]))
     } yield n
 
-    val res = stream.compile.lastOrError.unsafeRunSync()
-    assert(res == 42)
+    val res: Int = stream.compile.lastOrError.unsafeRunSync()
+    assert(res === 42)
   }
 }

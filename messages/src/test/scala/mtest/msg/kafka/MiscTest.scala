@@ -23,7 +23,7 @@ class MiscTest extends AnyFunSuite {
       leaderEpoch = Some(1)
     )
 
-    val cr1 = decode[NJConsumerRecord[Int, Int]](cr.asJson.noSpaces).toOption.get
+    val cr1: NJConsumerRecord[Int, Int] = decode[NJConsumerRecord[Int, Int]](cr.asJson.noSpaces).toOption.get
     assert(cr1.eqv(cr))
 
     val cr2: ConsumerRecord[Int, Int] = cr.transformInto[ConsumerRecord[Int, Int]]
