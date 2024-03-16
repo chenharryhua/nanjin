@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.observers
 
 import cats.Monad
-import cats.effect.kernel.Resource.ExitCase
 import cats.effect.kernel.{Clock, Ref}
 import cats.implicits.{toFlatMapOps, toFunctorOps}
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.{ServiceStart, ServiceStop}
@@ -19,13 +18,16 @@ final private class FinalizeMonitor[F[_]: Clock: Monad, A](
     case _                => Monad[F].unit
   }
 
-  def terminated(ec: ExitCase): F[Chunk[A]] = for {
+  val terminated: F[Chunk[A]] = for {
     ts <- Clock[F].realTimeInstant
     messages <- ref.get.flatMap(m =>
       Chunk
         .from(m.values)
         .traverseFilter(ss =>
           translate(
-            ServiceStop(ss.serviceParams, ss.serviceParams.toZonedDateTime(ts), ServiceStopCause(ec)))))
+            ServiceStop(
+              ss.serviceParams,
+              ss.serviceParams.toZonedDateTime(ts),
+              ServiceStopCause.ByCancellation))))
   } yield messages
 }

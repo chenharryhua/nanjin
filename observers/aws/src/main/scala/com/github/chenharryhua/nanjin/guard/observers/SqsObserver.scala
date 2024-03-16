@@ -39,10 +39,8 @@ final class SqsObserver[F[_]: Clock: UUIDGen](
             translate(e).flatMap(_.traverse(json =>
               builder.flatMap(b => sqs.sendMessage(b.messageBody(json.noSpaces).build()).attempt)))
           }
-          .onFinalizeCase(ofm
-            .terminated(_)
-            .flatMap(_.traverse(json =>
-              builder.flatMap(b => sqs.sendMessage(b.messageBody(json.noSpaces).build()).attempt)).void))
+          .onFinalize(ofm.terminated.flatMap(_.traverse(json =>
+            builder.flatMap(b => sqs.sendMessage(b.messageBody(json.noSpaces).build()).attempt)).void))
       } yield event
 
   def observe(builder: SendMessageRequest.Builder): Pipe[F, NJEvent, NJEvent] = internal(F.pure(builder))
