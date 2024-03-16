@@ -39,8 +39,6 @@ final class SlackObserver[F[_]: Clock](
     * ServicePanic
     *
     * ServiceStop
-    *
-    * ServiceTermination
     */
   def at(supporters: String): SlackObserver[F] = {
     val sp = Translator.servicePanic[F, SlackApp].modify(_.map(_.prependMarkdown(supporters)))
