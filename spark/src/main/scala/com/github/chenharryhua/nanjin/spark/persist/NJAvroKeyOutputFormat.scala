@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
+import com.github.chenharryhua.nanjin.spark.utils
 import com.github.chenharryhua.nanjin.terminals.NJFileFormat
 import org.apache.avro.Schema
 import org.apache.avro.file.{CodecFactory, DataFileWriter}

@@ -81,7 +81,7 @@ final class KafkaContext[F[_]](val settings: KafkaSettings)
         .updateConfig( // avoid accidentally join an existing consumer-group
           _.withGroupId(uuid.show).withEnableAutoCommit(false).withAutoOffsetReset(f(AutoOffsetReset)))
         .genericRecords
-        .map(ccr => gr2Jackson(ccr.record.value).get)
+        .evalMap(ccr => F.fromTry(gr2Jackson(ccr.record.value)))
     }
 
   private def bytesProducerSettings(implicit F: Sync[F]): ProducerSettings[F, Array[Byte], Array[Byte]] =

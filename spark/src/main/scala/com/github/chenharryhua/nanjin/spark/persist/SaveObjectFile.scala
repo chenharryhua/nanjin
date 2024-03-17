@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.effect.kernel.Sync
 import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.SaveMode
 
 final class SaveObjectFile[F[_], A](frdd: F[RDD[A]], cfg: HoarderConfig)
     extends Serializable with BuildRunnable[F] {
@@ -11,9 +12,8 @@ final class SaveObjectFile[F[_], A](frdd: F[RDD[A]], cfg: HoarderConfig)
   private def updateConfig(cfg: HoarderConfig): SaveObjectFile[F, A] =
     new SaveObjectFile[F, A](frdd, cfg)
 
-  def overwrite: SaveObjectFile[F, A]      = updateConfig(cfg.overwriteMode)
-  def errorIfExists: SaveObjectFile[F, A]  = updateConfig(cfg.errorMode)
-  def ignoreIfExists: SaveObjectFile[F, A] = updateConfig(cfg.ignoreMode)
+  def withSaveMode(sm: SaveMode): SaveObjectFile[F, A]                   = updateConfig(cfg.saveMode(sm))
+  def withSaveMode(f: NJSaveMode.type => SaveMode): SaveObjectFile[F, A] = withSaveMode(f(NJSaveMode))
 
   def run(implicit F: Sync[F]): F[Unit] =
     F.flatMap(frdd) { rdd =>

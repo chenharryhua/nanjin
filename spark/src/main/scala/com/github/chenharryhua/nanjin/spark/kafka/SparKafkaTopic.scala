@@ -8,7 +8,7 @@ import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.*
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJProducerRecord}
-import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
+import com.github.chenharryhua.nanjin.spark.{utils, AvroTypedEncoder}
 import frameless.TypedEncoder
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
@@ -39,7 +39,7 @@ final class SparKafkaTopic[F[_], K, V](val sparkSession: SparkSession, val topic
   /** download all topic data, up to now
     */
   def fromKafka(implicit F: Async[F]): CrRdd[F, K, V] =
-    fromKafka(NJDateTimeRange(topic.context.settings.zoneId))
+    fromKafka(NJDateTimeRange(utils.sparkZoneId(sparkSession)))
 
   /** download topic according to offset range
     * @param offsets

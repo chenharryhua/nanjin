@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
-import cats.Show
 import cats.effect.kernel.Sync
+import cats.{Endo, Show}
 import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.terminals.NJFileFormat.*
 import com.github.chenharryhua.nanjin.terminals.NJPath
@@ -34,6 +34,13 @@ sealed class RddFileHoarder[F[_], A](frdd: F[RDD[A]]) extends Serializable {
   final def kantan(path: NJPath, cfg: CsvConfiguration)(implicit
     encoder: RowEncoder[A]): SaveKantanCsv[F, A] =
     new SaveKantanCsv[F, A](frdd, cfg, HoarderConfig(path).outputFormat(Kantan), encoder)
+
+  final def kantan(path: NJPath, f: Endo[CsvConfiguration])(implicit
+    encoder: RowEncoder[A]): SaveKantanCsv[F, A] =
+    kantan(path, f(CsvConfiguration.rfc))
+
+  final def kantan(path: NJPath)(implicit encoder: RowEncoder[A]): SaveKantanCsv[F, A] =
+    kantan(path, CsvConfiguration.rfc)
 
   final def stream(chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, A] =
     Stream.eval(frdd).flatMap(rdd => Stream.fromBlockingIterator(rdd.toLocalIterator, chunkSize.value))

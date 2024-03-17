@@ -5,7 +5,7 @@ import cats.syntax.all.*
 import cats.{Endo, Show}
 import com.github.chenharryhua.nanjin.common.DurationFormatter
 import com.github.chenharryhua.nanjin.datetime.{dayResolution, hourResolution, minuteResolution}
-import com.github.chenharryhua.nanjin.spark.SPARK_ZONE_ID
+import com.github.chenharryhua.nanjin.spark.utils
 import io.circe.generic.JsonCodec
 import org.apache.spark.sql.Dataset
 import org.typelevel.cats.time.instances.{localdatetime, zoneid}
@@ -96,7 +96,7 @@ final class Statistics[F[_]] private[spark] (val fdataset: F[Dataset[CRMetaInfo]
 
   def cherryPick(partition: Int, offset: Long): F[List[ZonedCRMetaInfo]] =
     fdataset.map { ds =>
-      val zoneId: ZoneId = ZoneId.of(ds.sparkSession.conf.get(SPARK_ZONE_ID))
+      val zoneId: ZoneId = utils.sparkZoneId(ds.sparkSession)
       ds.filter(m => m.offset === offset && m.partition === partition).collect().toList.map(_.zoned(zoneId))
     }
 
@@ -111,7 +111,7 @@ final class Statistics[F[_]] private[spark] (val fdataset: F[Dataset[CRMetaInfo]
 
   def minutely: F[List[MinutelyAggResult]] = F.flatMap(fdataset) { ds =>
     import ds.sparkSession.implicits.*
-    val zoneId: ZoneId = ZoneId.of(ds.sparkSession.conf.get(SPARK_ZONE_ID))
+    val zoneId: ZoneId = utils.sparkZoneId(ds.sparkSession)
     F.interruptible(
       ds.map(m => m.localDateTime(zoneId).getMinute)
         .groupByKey(identity)
@@ -123,7 +123,7 @@ final class Statistics[F[_]] private[spark] (val fdataset: F[Dataset[CRMetaInfo]
 
   def hourly: F[List[HourlyAggResult]] = F.flatMap(fdataset) { ds =>
     import ds.sparkSession.implicits.*
-    val zoneId: ZoneId = ZoneId.of(ds.sparkSession.conf.get(SPARK_ZONE_ID))
+    val zoneId: ZoneId = utils.sparkZoneId(ds.sparkSession)
     F.interruptible(
       ds.map(m => m.localDateTime(zoneId).getHour)
         .groupByKey(identity)
@@ -135,7 +135,7 @@ final class Statistics[F[_]] private[spark] (val fdataset: F[Dataset[CRMetaInfo]
 
   def daily: F[List[DailyAggResult]] = F.flatMap(fdataset) { ds =>
     import ds.sparkSession.implicits.*
-    val zoneId: ZoneId = ZoneId.of(ds.sparkSession.conf.get(SPARK_ZONE_ID))
+    val zoneId: ZoneId = utils.sparkZoneId(ds.sparkSession)
     F.interruptible(
       ds.map(m => dayResolution(m.localDateTime(zoneId)))
         .groupByKey(identity)
@@ -147,7 +147,7 @@ final class Statistics[F[_]] private[spark] (val fdataset: F[Dataset[CRMetaInfo]
 
   def dailyHour: F[List[DailyHourAggResult]] = F.flatMap(fdataset) { ds =>
     import ds.sparkSession.implicits.*
-    val zoneId: ZoneId = ZoneId.of(ds.sparkSession.conf.get(SPARK_ZONE_ID))
+    val zoneId: ZoneId = utils.sparkZoneId(ds.sparkSession)
     F.interruptible(
       ds.map(m => hourResolution(m.localDateTime(zoneId)).toString)
         .groupByKey(identity)
@@ -159,7 +159,7 @@ final class Statistics[F[_]] private[spark] (val fdataset: F[Dataset[CRMetaInfo]
 
   def dailyMinute: F[List[DailyMinuteAggResult]] = F.flatMap(fdataset) { ds =>
     import ds.sparkSession.implicits.*
-    val zoneId: ZoneId = ZoneId.of(ds.sparkSession.conf.get(SPARK_ZONE_ID))
+    val zoneId: ZoneId = utils.sparkZoneId(ds.sparkSession)
     F.interruptible(
       ds.map(m => minuteResolution(m.localDateTime(zoneId)).toString)
         .groupByKey(identity)
@@ -189,7 +189,7 @@ final class Statistics[F[_]] private[spark] (val fdataset: F[Dataset[CRMetaInfo]
   }
 
   def summary: F[List[KafkaSummary]] = F.flatMap(fdataset) { ds =>
-    val zoneId: ZoneId = ZoneId.of(ds.sparkSession.conf.get(SPARK_ZONE_ID))
+    val zoneId: ZoneId = utils.sparkZoneId(ds.sparkSession)
     F.interruptible(internalSummary(ds).map(_.toKafkaSummary(zoneId)))
   }
 
@@ -218,7 +218,7 @@ final class Statistics[F[_]] private[spark] (val fdataset: F[Dataset[CRMetaInfo]
     import ds.sparkSession.implicits.*
     import org.apache.spark.sql.functions.col
     F.interruptible {
-      val zoneId: ZoneId = ZoneId.of(ds.sparkSession.conf.get(SPARK_ZONE_ID))
+      val zoneId: ZoneId = utils.sparkZoneId(ds.sparkSession)
       val all: Array[Dataset[Disorder]] =
         ds.map(_.partition).distinct().collect().map { pt =>
           val curr: Dataset[(Long, CRMetaInfo)] = ds.filter(_.partition === pt).map(x => (x.offset, x))
