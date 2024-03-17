@@ -15,7 +15,7 @@ class TextTest extends AnyFunSuite {
   val root                = NJPath("./data/test/spark/persist/text/tablet")
   test("tablet") {
     val path = root / "uncompressed"
-    saver(path).errorIfExists.ignoreIfExists.overwrite.run.unsafeRunSync()
+    saver(path).run.unsafeRunSync()
   }
   test("tablet - with new suffix") {
     val path = root / "new-suffix"
@@ -52,7 +52,7 @@ class TextTest extends AnyFunSuite {
     val t1 =
       try sparkSession.read.text(path.pathStr).count()
       catch { case _: Throwable => 0 }
-    saver(path).append.run.unsafeRunSync()
+    saver(path).withSaveMode(_.Append).run.unsafeRunSync()
     val t2 = sparkSession.read.text(path.pathStr).count()
 
     assert(t1 + rdd.count() == t2)

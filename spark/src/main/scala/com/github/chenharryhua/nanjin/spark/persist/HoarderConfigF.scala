@@ -47,11 +47,6 @@ final private[spark] case class HoarderConfig(value: Fix[HoarderConfigF]) {
   def saveMode(sm: SaveMode): HoarderConfig =
     HoarderConfig(Fix(WithSaveMode(sm, value)))
 
-  def errorMode: HoarderConfig     = saveMode(SaveMode.ErrorIfExists)
-  def ignoreMode: HoarderConfig    = saveMode(SaveMode.Ignore)
-  def overwriteMode: HoarderConfig = saveMode(SaveMode.Overwrite)
-  def appendMode: HoarderConfig    = saveMode(SaveMode.Append)
-
   def outputFormat(fmt: NJFileFormat): HoarderConfig =
     HoarderConfig(Fix(WithFileFormat(fmt, value)))
 

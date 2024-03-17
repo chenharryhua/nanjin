@@ -36,7 +36,7 @@ class CirceTest extends AnyFunSuite {
 
   test("circe rooster rdd read/write identity multi.uncompressed") {
     val path = root / "rooster" / "uncompressed"
-    rooster(path).errorIfExists.ignoreIfExists.overwrite.withCompression(_.Uncompressed).run.unsafeRunSync()
+    rooster(path).withCompression(_.Uncompressed).run.unsafeRunSync()
     val t = loaders.rdd.circe[Rooster](path, sparkSession)
     assert(RoosterData.expected == t.collect().toSet)
     val t2 = loaders.spark.json[Rooster](path, sparkSession, Rooster.ate)
@@ -147,7 +147,7 @@ class CirceTest extends AnyFunSuite {
     val t1 =
       try loaders.rdd.circe[Json](path, sparkSession).count()
       catch { case _: Throwable => 0 }
-    saver.append.run.unsafeRunSync()
+    saver.withSaveMode(_.Append).run.unsafeRunSync()
     val t2 = loaders.rdd.circe[Json](path, sparkSession).count()
     assert(data.size + t1 == t2)
   }

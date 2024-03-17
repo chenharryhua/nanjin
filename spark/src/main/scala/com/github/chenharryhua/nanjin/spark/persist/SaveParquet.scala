@@ -4,6 +4,7 @@ import cats.effect.kernel.Sync
 import com.github.chenharryhua.nanjin.terminals.ParquetCompression
 import com.sksamuel.avro4s.Encoder as AvroEncoder
 import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.SaveMode
 final class SaveParquet[F[_], A](frdd: F[RDD[A]], encoder: AvroEncoder[A], cfg: HoarderConfig)
     extends Serializable with BuildRunnable[F] {
 
@@ -12,10 +13,8 @@ final class SaveParquet[F[_], A](frdd: F[RDD[A]], encoder: AvroEncoder[A], cfg: 
   private def updateConfig(cfg: HoarderConfig): SaveParquet[F, A] =
     new SaveParquet[F, A](frdd, encoder, cfg)
 
-  def append: SaveParquet[F, A]         = updateConfig(cfg.appendMode)
-  def overwrite: SaveParquet[F, A]      = updateConfig(cfg.overwriteMode)
-  def errorIfExists: SaveParquet[F, A]  = updateConfig(cfg.errorMode)
-  def ignoreIfExists: SaveParquet[F, A] = updateConfig(cfg.ignoreMode)
+  def withSaveMode(sm: SaveMode): SaveParquet[F, A]                   = updateConfig(cfg.saveMode(sm))
+  def withSaveMode(f: NJSaveMode.type => SaveMode): SaveParquet[F, A] = withSaveMode(f(NJSaveMode))
 
   def withCompression(pc: ParquetCompression): SaveParquet[F, A] = updateConfig(cfg.outputCompression(pc))
   def withCompression(f: ParquetCompression.type => ParquetCompression): SaveParquet[F, A] =

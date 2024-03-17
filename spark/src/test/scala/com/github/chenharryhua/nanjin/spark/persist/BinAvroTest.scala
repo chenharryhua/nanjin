@@ -19,7 +19,7 @@ class BinAvroTest extends AnyFunSuite {
   def saver(path: NJPath) =
     new RddAvroFileHoarder[IO, Rooster](IO(RoosterData.rdd.repartition(2)), Rooster.avroCodec)
       .binAvro(path)
-      .overwrite
+      .withSaveMode(_.Overwrite)
 
   def loadRooster(path: NJPath): IO[Set[Rooster]] =
     Stream
@@ -33,7 +33,7 @@ class BinAvroTest extends AnyFunSuite {
   val root = NJPath("./data/test/spark/persist/bin_avro/") / "rooster"
   test("binary avro - uncompressed") {
     val path = root / "rooster" / "uncompressed"
-    saver(path).withCompression(_.Uncompressed).append.errorIfExists.ignoreIfExists.overwrite.run.unsafeRunSync()
+    saver(path).withCompression(_.Uncompressed).run.unsafeRunSync()
     val t1 = loaders.rdd.binAvro[Rooster](path, sparkSession, Rooster.avroCodec).collect().toSet
     val t2 = loaders.binAvro[Rooster](path, sparkSession, Rooster.ate).collect().toSet
     assert(RoosterData.expected == t1)

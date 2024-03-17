@@ -4,6 +4,7 @@ import cats.effect.kernel.Sync
 import com.github.chenharryhua.nanjin.terminals.JacksonCompression
 import com.sksamuel.avro4s.Encoder as AvroEncoder
 import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.SaveMode
 
 final class SaveJackson[F[_], A](frdd: F[RDD[A]], encoder: AvroEncoder[A], cfg: HoarderConfig)
     extends Serializable with BuildRunnable[F] {
@@ -13,10 +14,8 @@ final class SaveJackson[F[_], A](frdd: F[RDD[A]], encoder: AvroEncoder[A], cfg: 
   private def updateConfig(cfg: HoarderConfig): SaveJackson[F, A] =
     new SaveJackson[F, A](frdd, encoder, cfg)
 
-  def append: SaveJackson[F, A]         = updateConfig(cfg.appendMode)
-  def overwrite: SaveJackson[F, A]      = updateConfig(cfg.overwriteMode)
-  def errorIfExists: SaveJackson[F, A]  = updateConfig(cfg.errorMode)
-  def ignoreIfExists: SaveJackson[F, A] = updateConfig(cfg.ignoreMode)
+  def withSaveMode(sm: SaveMode): SaveJackson[F, A]                   = updateConfig(cfg.saveMode(sm))
+  def withSaveMode(f: NJSaveMode.type => SaveMode): SaveJackson[F, A] = withSaveMode(f(NJSaveMode))
 
   def withCompression(jc: JacksonCompression): SaveJackson[F, A] = updateConfig(cfg.outputCompression(jc))
   def withCompression(f: JacksonCompression.type => JacksonCompression): SaveJackson[F, A] =
