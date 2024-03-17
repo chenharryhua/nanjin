@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.terminals
 
+import cats.Endo
 import cats.data.NonEmptyList
 import cats.effect.kernel.Sync
 import com.github.chenharryhua.nanjin.datetime.codec
@@ -127,8 +128,7 @@ final class NJHadoop[F[_]] private (config: Configuration) {
   def parquet(schema: Schema): HadoopParquet[F] = HadoopParquet[F](config, schema)
 
   def kantan(csvConf: CsvConfiguration): HadoopKantan[F] = HadoopKantan[F](config, csvConf)
-  def kantan(f: CsvConfiguration => CsvConfiguration): HadoopKantan[F] =
-    kantan(f(CsvConfiguration.rfc))
+  def kantan(f: Endo[CsvConfiguration]): HadoopKantan[F] = kantan(f(CsvConfiguration.rfc))
 
   def circe: HadoopCirce[F] = HadoopCirce[F](config)
   def text: HadoopText[F]   = HadoopText[F](config)
