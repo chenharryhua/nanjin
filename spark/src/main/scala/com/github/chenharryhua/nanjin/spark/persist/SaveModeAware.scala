@@ -12,15 +12,15 @@ final private[persist] class SaveModeAware[F[_]](
   hadoopConfiguration: Configuration)
     extends Serializable {
 
-  def checkAndRun(f: F[Unit])(implicit F: Sync[F]): F[Unit] = {
+  def checkAndRun(job: F[Unit])(implicit F: Sync[F]): F[Unit] = {
     val hadoop: NJHadoop[F] = NJHadoop[F](hadoopConfiguration)
 
     saveMode match {
-      case SaveMode.Append    => f
-      case SaveMode.Overwrite => hadoop.delete(outPath) >> f
-      case SaveMode.Ignore    => hadoop.isExist(outPath).ifM(F.pure(()), f)
+      case SaveMode.Append    => job
+      case SaveMode.Overwrite => hadoop.delete(outPath) >> job
+      case SaveMode.Ignore    => hadoop.isExist(outPath).ifM(F.unit, job)
       case SaveMode.ErrorIfExists =>
-        hadoop.isExist(outPath).ifM(F.raiseError(new Exception(s"$outPath already exist")), f)
+        hadoop.isExist(outPath).ifM(F.raiseError(new Exception(s"$outPath already exist")), job)
     }
   }
 }
