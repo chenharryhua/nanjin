@@ -10,8 +10,6 @@ import org.apache.kafka.common.config.SaslConfigs
 import org.apache.kafka.common.security.auth.SecurityProtocol
 import org.typelevel.cats.time.instances.zoneid
 
-import java.time.ZoneId
-
 /** [[https://kafka.apache.org/]]
   */
 
@@ -36,19 +34,14 @@ final case class SchemaRegistrySettings(config: Map[String, String]) {
 }
 
 final case class KafkaSettings(
-  zoneId: ZoneId,
   consumerSettings: KafkaConsumerSettings,
   producerSettings: KafkaProducerSettings,
   adminSettings: AdminClientSettings,
   streamSettings: KafkaStreamSettings,
   schemaRegistrySettings: SchemaRegistrySettings) {
 
-  def withZoneId(zoneId: ZoneId): KafkaSettings =
-    copy(zoneId = zoneId)
-
   def withBrokers(brokers: String): KafkaSettings =
     KafkaSettings(
-      zoneId,
       consumerSettings.withProperty(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, brokers),
       producerSettings.withProperty(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, brokers),
       adminSettings.withBootstrapServers(brokers),
@@ -58,7 +51,6 @@ final case class KafkaSettings(
 
   def withSaslJaas(sasl: String): KafkaSettings =
     KafkaSettings(
-      zoneId,
       consumerSettings.withProperty(SaslConfigs.SASL_JAAS_CONFIG, sasl),
       producerSettings.withProperty(SaslConfigs.SASL_JAAS_CONFIG, sasl),
       adminSettings.withProperty(SaslConfigs.SASL_JAAS_CONFIG, sasl),
@@ -68,7 +60,6 @@ final case class KafkaSettings(
 
   def withSecurityProtocol(sp: SecurityProtocol): KafkaSettings =
     KafkaSettings(
-      zoneId,
       consumerSettings.withProperty(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, sp.name),
       producerSettings.withProperty(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, sp.name),
       adminSettings.withProperty(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, sp.name),
@@ -97,7 +88,6 @@ object KafkaSettings extends zoneid {
 
   def apply(brokers: String, schemaRegistry: String): KafkaSettings =
     KafkaSettings(
-      ZoneId.systemDefault(),
       KafkaConsumerSettings(Map.empty),
       KafkaProducerSettings(Map.empty),
       AdminClientSettings(brokers),

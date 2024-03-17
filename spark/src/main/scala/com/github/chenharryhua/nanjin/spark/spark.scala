@@ -14,8 +14,6 @@ import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.apache.spark.sql.types.DataType
 
 package object spark {
-  final val SPARK_ZONE_ID: String = "spark.sql.session.timeZone"
-
   object injection extends InjectionInstances
 
   implicit final class RddExt[F[_], A](frdd: F[RDD[A]]) extends Serializable {

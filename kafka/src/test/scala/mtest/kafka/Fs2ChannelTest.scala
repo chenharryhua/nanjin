@@ -66,15 +66,13 @@ class Fs2ChannelTest extends AnyFunSuite {
   test("should be able to consume avro topic") {
 
     val ret =
-      ctx.updateConfig(_.withZoneId(sydneyTime)).schemaRegistry.register(topicDef).attempt >>
+      ctx.schemaRegistry.register(topicDef).attempt >>
         topic.produceOne(1, Fs2Kafka(1, "a", 1.0)) >>
         topic.consume
           .updateConfig(_.withGroupId("g1"))
           .stream
           .take(1)
-          .map { ccr =>
-            NJConsumerRecord(ccr.record).metaInfo(sydneyTime).asJson
-          }
+          .map(ccr => NJConsumerRecord(ccr.record).metaInfo(sydneyTime).asJson)
           .timeout(3.seconds)
           .compile
           .toList
