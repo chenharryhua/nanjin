@@ -8,24 +8,11 @@ import org.apache.avro.Schema
 import org.apache.avro.generic.{GenericData, GenericRecord}
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.Path
-import org.apache.hadoop.io.compress.zlib.ZlibCompressor.CompressionLevel
 
 import java.time.ZoneId
 
-final class HadoopJackson[F[_]] private (
-  configuration: Configuration,
-  blockSizeHint: Long,
-  compressLevel: CompressionLevel,
-  schema: Schema)
+final class HadoopJackson[F[_]] private (configuration: Configuration, schema: Schema)
     extends GenericRecordSink[F] {
-
-  // config
-
-  def withBlockSizeHint(bsh: Long): HadoopJackson[F] =
-    new HadoopJackson[F](configuration, bsh, compressLevel, schema)
-
-  def withCompressionLevel(cl: CompressionLevel): HadoopJackson[F] =
-    new HadoopJackson[F](configuration, blockSizeHint, cl, schema)
 
   // read
 
@@ -40,7 +27,7 @@ final class HadoopJackson[F[_]] private (
   // write
 
   private def getWriterR(path: Path)(implicit F: Sync[F]): Resource[F, HadoopWriter[F, GenericRecord]] =
-    HadoopWriter.jacksonR[F](configuration, compressLevel, blockSizeHint, schema, path)
+    HadoopWriter.jacksonR[F](configuration, schema, path)
 
   def sink(path: NJPath)(implicit F: Sync[F]): Pipe[F, Chunk[GenericRecord], Nothing] = {
     (ss: Stream[F, Chunk[GenericRecord]]) =>
@@ -73,5 +60,5 @@ final class HadoopJackson[F[_]] private (
 
 object HadoopJackson {
   def apply[F[_]](configuration: Configuration, schema: Schema): HadoopJackson[F] =
-    new HadoopJackson[F](configuration, BLOCK_SIZE_HINT, CompressionLevel.DEFAULT_COMPRESSION, schema)
+    new HadoopJackson[F](configuration, schema)
 }

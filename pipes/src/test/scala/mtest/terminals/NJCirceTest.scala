@@ -27,12 +27,8 @@ class NJCirceTest extends AnyFunSuite {
   def fs2(path: NJPath, file: CirceFile, data: Set[Tiger]): Assertion = {
     val tgt = path / file.fileName
     hdp.delete(tgt).unsafeRunSync()
-    val ts = Stream.emits(data.toList).covary[IO].map(_.asJson).chunks
-    val sink = json
-      .withCompressionLevel(file.compression.compressionLevel)
-      .withBufferSize(32.kb)
-      .withBlockSizeHint(1000)
-      .sink(tgt)
+    val ts     = Stream.emits(data.toList).covary[IO].map(_.asJson).chunks
+    val sink   = json.withBufferSize(32.kb).sink(tgt)
     val src    = json.source(tgt).rethrow.mapFilter(_.as[Tiger].toOption)
     val action = ts.through(sink).compile.drain >> src.compile.toList
     assert(action.unsafeRunSync().toSet == data)

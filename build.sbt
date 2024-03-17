@@ -1,6 +1,7 @@
-ThisBuild / scalaVersion := "2.13.13"
-
-ThisBuild / version := "0.18.0-SNAPSHOT"
+ThisBuild / scalaVersion       := "2.13.13"
+ThisBuild / version            := "0.18.0-SNAPSHOT"
+ThisBuild / evictionErrorLevel := Level.Info
+ThisBuild / versionScheme      := Some("early-semver")
 
 val catsCoreV   = "2.10.0"
 val fs2V        = "3.9.4"
@@ -50,8 +51,6 @@ lazy val commonSettings = List(
     "org.scala-lang" % "scala-reflect"  % scalaVersion.value % Provided,
     "org.scala-lang" % "scala-compiler" % scalaVersion.value % Provided
   ),
-  evictionErrorLevel := Level.Info,
-  versionScheme      := Some("early-semver"),
   scalacOptions ++= List("-Ymacro-annotations", "-Xsource:3", "-Wconf:src=src_managed/.*:silent"),
   Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat,
   Test / tpolecatExcludeOptions += org.typelevel.scalacoptions.ScalacOptions.warnNonUnitStatement,

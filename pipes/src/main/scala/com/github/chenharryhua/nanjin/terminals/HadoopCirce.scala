@@ -8,28 +8,17 @@ import fs2.{Chunk, Pipe, Stream}
 import io.circe.jawn.parse
 import io.circe.{Json, ParsingFailure}
 import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.io.compress.zlib.ZlibCompressor.CompressionLevel
 import squants.information.Information
 
 import java.nio.charset.StandardCharsets
 import java.time.ZoneId
 
-final class HadoopCirce[F[_]] private (
-  configuration: Configuration,
-  blockSizeHint: Long,
-  bufferSize: Information,
-  compressLevel: CompressionLevel) {
+final class HadoopCirce[F[_]] private (configuration: Configuration, bufferSize: Information) {
 
   // config
 
-  def withBlockSizeHint(bsh: Long): HadoopCirce[F] =
-    new HadoopCirce[F](configuration, bsh, bufferSize, compressLevel)
-
   def withBufferSize(bs: Information): HadoopCirce[F] =
-    new HadoopCirce[F](configuration, blockSizeHint, bs, compressLevel)
-
-  def withCompressionLevel(cl: CompressionLevel): HadoopCirce[F] =
-    new HadoopCirce[F](configuration, blockSizeHint, bufferSize, cl)
+    new HadoopCirce[F](configuration, bs)
 
   // read
 
@@ -48,27 +37,20 @@ final class HadoopCirce[F[_]] private (
 
   def sink(path: NJPath)(implicit F: Sync[F]): Pipe[F, Chunk[Json], Nothing] = {
     (ss: Stream[F, Chunk[Json]]) =>
-      Stream
-        .resource(HadoopWriter.byteR[F](configuration, compressLevel, blockSizeHint, path.hadoopPath))
-        .flatMap { w =>
-          ss.unchunks
-            .mapChunks(_.map(_.noSpaces))
-            .intersperse(NEWLINE_SEPARATOR)
-            .through(utf8.encode)
-            .chunks
-            .foreach(w.write)
-        }
+      Stream.resource(HadoopWriter.byteR[F](configuration, path.hadoopPath)).flatMap { w =>
+        ss.unchunks
+          .mapChunks(_.map(_.noSpaces))
+          .intersperse(NEWLINE_SEPARATOR)
+          .through(utf8.encode)
+          .chunks
+          .foreach(w.write)
+      }
   }
 
   def sink(policy: Policy, zoneId: ZoneId)(pathBuilder: Tick => NJPath)(implicit
     F: Async[F]): Pipe[F, Chunk[Json], Nothing] = {
     def getWriter(tick: Tick): Resource[F, HadoopWriter[F, String]] =
-      HadoopWriter.stringR[F](
-        configuration,
-        compressLevel,
-        blockSizeHint,
-        StandardCharsets.UTF_8,
-        pathBuilder(tick).hadoopPath)
+      HadoopWriter.stringR[F](configuration, StandardCharsets.UTF_8, pathBuilder(tick).hadoopPath)
 
     def init(tick: Tick): Resource[F, (Hotswap[F, HadoopWriter[F, String]], HadoopWriter[F, String])] =
       Hotswap(getWriter(tick))
@@ -94,5 +76,5 @@ final class HadoopCirce[F[_]] private (
 
 object HadoopCirce {
   def apply[F[_]](cfg: Configuration): HadoopCirce[F] =
-    new HadoopCirce[F](cfg, BLOCK_SIZE_HINT, BUFFER_SIZE, CompressionLevel.DEFAULT_COMPRESSION)
+    new HadoopCirce[F](cfg, BUFFER_SIZE)
 }

@@ -11,7 +11,6 @@ import kantan.csv.CsvConfiguration.Header
 import kantan.csv.engine.ReaderEngine
 import monocle.syntax.all.*
 import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.io.compress.zlib.ZlibCompressor.CompressionLevel
 import shapeless.ops.hlist.ToTraversable
 import shapeless.ops.record.Keys
 import shapeless.{HList, LabelledGeneric}
@@ -41,18 +40,8 @@ object CsvHeaderOf {
 
 final class HadoopKantan[F[_]] private (
   configuration: Configuration,
-  blockSizeHint: Long,
-  compressLevel: CompressionLevel,
   csvConfiguration: CsvConfiguration
 ) {
-
-  // config
-
-  def withBlockSizeHint(bsh: Long): HadoopKantan[F] =
-    new HadoopKantan[F](configuration, bsh, compressLevel, csvConfiguration)
-
-  def withCompressionLevel(cl: CompressionLevel): HadoopKantan[F] =
-    new HadoopKantan[F](configuration, blockSizeHint, cl, csvConfiguration)
 
   // read
 
@@ -79,25 +68,18 @@ final class HadoopKantan[F[_]] private (
 
   def sink(path: NJPath)(implicit F: Sync[F]): Pipe[F, Chunk[Seq[String]], Nothing] = {
     (ss: Stream[F, Chunk[Seq[String]]]) =>
-      Stream
-        .resource(HadoopWriter.byteR[F](configuration, compressLevel, blockSizeHint, path.hadoopPath))
-        .flatMap { w =>
-          val src: Stream[F, Chunk[String]] =
-            Stream(csvHeader(csvConfiguration)).filter(_.nonEmpty) ++
-              ss.map(_.map(buildCsvRow(csvConfiguration)))
-          src.unchunks.intersperse(NEWLINE_SEPARATOR).through(utf8.encode).chunks.foreach(w.write)
-        }
+      Stream.resource(HadoopWriter.byteR[F](configuration, path.hadoopPath)).flatMap { w =>
+        val src: Stream[F, Chunk[String]] =
+          Stream(csvHeader(csvConfiguration)).filter(_.nonEmpty) ++
+            ss.map(_.map(buildCsvRow(csvConfiguration)))
+        src.unchunks.intersperse(NEWLINE_SEPARATOR).through(utf8.encode).chunks.foreach(w.write)
+      }
   }
 
   def sink(policy: Policy, zoneId: ZoneId)(pathBuilder: Tick => NJPath)(implicit
     F: Async[F]): Pipe[F, Chunk[Seq[String]], Nothing] = {
     def getWriter(tick: Tick): Resource[F, HadoopWriter[F, String]] =
-      HadoopWriter.stringR[F](
-        configuration,
-        compressLevel,
-        blockSizeHint,
-        StandardCharsets.UTF_8,
-        pathBuilder(tick).hadoopPath)
+      HadoopWriter.stringR[F](configuration, StandardCharsets.UTF_8, pathBuilder(tick).hadoopPath)
 
     def init(tick: Tick): Resource[F, (Hotswap[F, HadoopWriter[F, String]], HadoopWriter[F, String])] =
       Hotswap(getWriter(tick))
@@ -128,5 +110,5 @@ final class HadoopKantan[F[_]] private (
 
 object HadoopKantan {
   def apply[F[_]](hadoopCfg: Configuration, csvCfg: CsvConfiguration): HadoopKantan[F] =
-    new HadoopKantan[F](hadoopCfg, BLOCK_SIZE_HINT, CompressionLevel.DEFAULT_COMPRESSION, csvCfg)
+    new HadoopKantan[F](hadoopCfg, csvCfg)
 }

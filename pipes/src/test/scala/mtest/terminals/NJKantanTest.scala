@@ -26,13 +26,9 @@ class NJKantanTest extends AnyFunSuite {
   def fs2(path: NJPath, file: KantanFile, csvConfiguration: CsvConfiguration, data: Set[Tiger]): Assertion = {
     val tgt = path / file.fileName
     hdp.delete(tgt).unsafeRunSync()
-    val ts = Stream.emits(data.toList).covary[IO].map(tigerEncoder.encode).chunks
-    val sink = hdp
-      .kantan(csvConfiguration)
-      .withCompressionLevel(file.compression.compressionLevel)
-      .withBlockSizeHint(1000)
-      .sink(tgt)
-    val src    = hdp.kantan(csvConfiguration).source(tgt, 100).rethrow.map(tigerDecoder.decode).rethrow
+    val ts   = Stream.emits(data.toList).covary[IO].map(tigerEncoder.encode).chunks
+    val sink = hdp.kantan(csvConfiguration).sink(tgt)
+    val src  = hdp.kantan(csvConfiguration).source(tgt, 100).rethrow.map(tigerDecoder.decode).rethrow
     val action = ts.through(sink).compile.drain >> src.compile.toList
     assert(action.unsafeRunSync().toSet == data)
     val fileName = (file: NJFileKind).asJson.noSpaces

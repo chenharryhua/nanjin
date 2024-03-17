@@ -12,7 +12,6 @@ import io.circe.jawn.decode
 import io.circe.syntax.EncoderOps
 import mtest.terminals.HadoopTestData.hdp
 import mtest.terminals.TestData.Tiger
-import org.apache.hadoop.io.compress.zlib.ZlibCompressor
 import org.scalatest.Assertion
 import org.scalatest.funsuite.AnyFunSuite
 import squants.information.Bytes
@@ -26,9 +25,7 @@ class NJBytesTest extends AnyFunSuite {
     hdp.delete(path).unsafeRunSync()
     val ts = Stream.emits(data.toList).covary[IO]
     val sink = hdp.bytes
-      .withCompressionLevel(ZlibCompressor.CompressionLevel.BEST_SPEED)
       .withBufferSize(Bytes(8192))
-      .withBlockSizeHint(1000)
       .sink(path)
     val src = hdp.bytes.source(path)
     val action = ts

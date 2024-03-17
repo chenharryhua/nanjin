@@ -7,24 +7,13 @@ import org.apache.avro.Schema
 import org.apache.avro.generic.{GenericData, GenericRecord}
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.Path
-import org.apache.hadoop.io.compress.zlib.ZlibCompressor.CompressionLevel
 
 import java.time.ZoneId
 
 final class HadoopBinAvro[F[_]] private (
   configuration: Configuration,
-  blockSizeHint: Long,
-  compressLevel: CompressionLevel,
   schema: Schema
 ) extends GenericRecordSink[F] {
-
-  // config
-
-  def withBlockSizeHint(bsh: Long): HadoopBinAvro[F] =
-    new HadoopBinAvro[F](configuration, bsh, compressLevel, schema)
-
-  def withCompressionLevel(cl: CompressionLevel): HadoopBinAvro[F] =
-    new HadoopBinAvro[F](configuration, blockSizeHint, cl, schema)
 
   // read
 
@@ -37,7 +26,7 @@ final class HadoopBinAvro[F[_]] private (
   // write
 
   private def getWriterR(path: Path)(implicit F: Sync[F]): Resource[F, HadoopWriter[F, GenericRecord]] =
-    HadoopWriter.binAvroR[F](configuration, compressLevel, blockSizeHint, schema, path)
+    HadoopWriter.binAvroR[F](configuration, schema, path)
 
   def sink(path: NJPath)(implicit F: Sync[F]): Pipe[F, Chunk[GenericRecord], Nothing] = {
     (ss: Stream[F, Chunk[GenericRecord]]) =>
@@ -71,5 +60,5 @@ final class HadoopBinAvro[F[_]] private (
 
 object HadoopBinAvro {
   def apply[F[_]](configuration: Configuration, schema: Schema): HadoopBinAvro[F] =
-    new HadoopBinAvro[F](configuration, BLOCK_SIZE_HINT, CompressionLevel.DEFAULT_COMPRESSION, schema)
+    new HadoopBinAvro[F](configuration, schema)
 }

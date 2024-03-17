@@ -23,7 +23,7 @@ class NJAvroTest extends AnyFunSuite {
   def fs2(path: NJPath, file: AvroFile, data: Set[GenericRecord]): Assertion = {
     val tgt = path / file.fileName
     hdp.delete(tgt).unsafeRunSync()
-    val sink     = avro.withBlockSizeHint(1000).withCompression(file.compression).sink(tgt)
+    val sink     = avro.withCompression(file.compression).sink(tgt)
     val src      = avro.source(tgt, 100)
     val ts       = Stream.emits(data.toList).covary[IO].chunks
     val action   = ts.through(sink).compile.drain >> src.compile.toList

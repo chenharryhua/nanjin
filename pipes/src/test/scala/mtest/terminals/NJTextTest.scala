@@ -28,12 +28,8 @@ class NJTextTest extends AnyFunSuite {
   def fs2(path: NJPath, file: TextFile, data: Set[Tiger]): Assertion = {
     val tgt = path / file.fileName
     hdp.delete(tgt).unsafeRunSync()
-    val ts = Stream.emits(data.toList).covary[IO].map(_.asJson.noSpaces).chunks
-    val sink = text
-      .withCompressionLevel(file.compression.compressionLevel)
-      .withBufferSize(32.kb)
-      .withBlockSizeHint(1000)
-      .sink(tgt)
+    val ts     = Stream.emits(data.toList).covary[IO].map(_.asJson.noSpaces).chunks
+    val sink   = text.withBufferSize(32.kb).sink(tgt)
     val src    = text.source(tgt).mapFilter(decode[Tiger](_).toOption)
     val action = ts.through(sink).compile.drain >> src.compile.toList
     assert(action.unsafeRunSync().toSet == data)

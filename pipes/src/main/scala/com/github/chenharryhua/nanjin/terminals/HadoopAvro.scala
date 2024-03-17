@@ -16,17 +16,13 @@ import scala.jdk.CollectionConverters.*
 final class HadoopAvro[F[_]] private (
   configuration: Configuration,
   schema: Schema,
-  compression: AvroCompression,
-  blockSizeHint: Long)
+  compression: AvroCompression)
     extends GenericRecordSink[F] {
 
   // config
 
   def withCompression(compression: AvroCompression): HadoopAvro[F] =
-    new HadoopAvro[F](configuration, schema, compression, blockSizeHint)
-
-  def withBlockSizeHint(bsh: Long): HadoopAvro[F] =
-    new HadoopAvro[F](configuration, schema, compression, bsh)
+    new HadoopAvro[F](configuration, schema, compression)
 
   // read
 
@@ -42,7 +38,7 @@ final class HadoopAvro[F[_]] private (
   // write
 
   private def getWriterR(path: Path)(implicit F: Sync[F]): Resource[F, HadoopWriter[F, GenericRecord]] =
-    HadoopWriter.avroR[F](compression.codecFactory, schema, configuration, blockSizeHint, path)
+    HadoopWriter.avroR[F](compression.codecFactory, schema, configuration, path)
 
   def sink(path: NJPath)(implicit F: Sync[F]): Pipe[F, Chunk[GenericRecord], Nothing] = {
     (ss: Stream[F, Chunk[GenericRecord]]) =>
@@ -75,5 +71,5 @@ final class HadoopAvro[F[_]] private (
 
 object HadoopAvro {
   def apply[F[_]](cfg: Configuration, schema: Schema): HadoopAvro[F] =
-    new HadoopAvro[F](cfg, schema, NJCompression.Uncompressed, BLOCK_SIZE_HINT)
+    new HadoopAvro[F](cfg, schema, NJCompression.Uncompressed)
 }

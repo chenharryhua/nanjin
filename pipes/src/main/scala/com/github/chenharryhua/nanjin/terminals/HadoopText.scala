@@ -6,28 +6,17 @@ import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick, T
 import fs2.text.{lines, utf8}
 import fs2.{Chunk, Pipe, Stream}
 import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.io.compress.zlib.ZlibCompressor.CompressionLevel
 import squants.information.Information
 
 import java.nio.charset.StandardCharsets
 import java.time.ZoneId
 
-final class HadoopText[F[_]] private (
-  configuration: Configuration,
-  blockSizeHint: Long,
-  bufferSize: Information,
-  compressLevel: CompressionLevel) {
+final class HadoopText[F[_]] private (configuration: Configuration, bufferSize: Information) {
 
   // config
 
-  def withBlockSizeHint(bsh: Long): HadoopText[F] =
-    new HadoopText[F](configuration, bsh, bufferSize, compressLevel)
-
   def withBufferSize(bs: Information): HadoopText[F] =
-    new HadoopText[F](configuration, blockSizeHint, bs, compressLevel)
-
-  def withCompressionLevel(cl: CompressionLevel): HadoopText[F] =
-    new HadoopText[F](configuration, blockSizeHint, bufferSize, cl)
+    new HadoopText[F](configuration, bs)
 
   // read
 
@@ -42,19 +31,14 @@ final class HadoopText[F[_]] private (
   def sink(path: NJPath)(implicit F: Sync[F]): Pipe[F, Chunk[String], Nothing] = {
     (ss: Stream[F, Chunk[String]]) =>
       Stream
-        .resource(HadoopWriter.byteR[F](configuration, compressLevel, blockSizeHint, path.hadoopPath))
+        .resource(HadoopWriter.byteR[F](configuration, path.hadoopPath))
         .flatMap(w => ss.unchunks.intersperse(NEWLINE_SEPARATOR).through(utf8.encode).chunks.foreach(w.write))
   }
 
   def sink(policy: Policy, zoneId: ZoneId)(pathBuilder: Tick => NJPath)(implicit
     F: Async[F]): Pipe[F, Chunk[String], Nothing] = {
     def getWriter(tick: Tick): Resource[F, HadoopWriter[F, String]] =
-      HadoopWriter.stringR(
-        configuration,
-        compressLevel,
-        blockSizeHint,
-        StandardCharsets.UTF_8,
-        pathBuilder(tick).hadoopPath)
+      HadoopWriter.stringR(configuration, StandardCharsets.UTF_8, pathBuilder(tick).hadoopPath)
 
     def init(tick: Tick): Resource[F, (Hotswap[F, HadoopWriter[F, String]], HadoopWriter[F, String])] =
       Hotswap(getWriter(tick))
@@ -80,5 +64,5 @@ final class HadoopText[F[_]] private (
 
 object HadoopText {
   def apply[F[_]](configuration: Configuration): HadoopText[F] =
-    new HadoopText[F](configuration, BLOCK_SIZE_HINT, BUFFER_SIZE, CompressionLevel.DEFAULT_COMPRESSION)
+    new HadoopText[F](configuration, BUFFER_SIZE)
 }
