@@ -28,11 +28,11 @@ class NJCirceTest extends AnyFunSuite {
     val tgt = path / file.fileName
     hdp.delete(tgt).unsafeRunSync()
     val ts     = Stream.emits(data.toList).covary[IO].map(_.asJson).chunks
-    val sink   = json.withBufferSize(32.kb).sink(tgt)
-    val src    = json.source(tgt).rethrow.mapFilter(_.as[Tiger].toOption)
+    val sink   = json.sink(tgt)
+    val src    = json.source(tgt, 32.kb).rethrow.mapFilter(_.as[Tiger].toOption)
     val action = ts.through(sink).compile.drain >> src.compile.toList
     assert(action.unsafeRunSync().toSet == data)
-    val lines = hdp.text.source(tgt).compile.fold(0) { case (s, _) => s + 1 }
+    val lines = hdp.text.source(tgt, 32.kb).compile.fold(0) { case (s, _) => s + 1 }
     assert(lines.unsafeRunSync() === data.size)
     val fileName = (file: NJFileKind).asJson.noSpaces
     assert(jawn.decode[NJFileKind](fileName).toOption.get == file)
@@ -85,7 +85,7 @@ class NJCirceTest extends AnyFunSuite {
   }
 
   test("laziness") {
-    json.source(NJPath("./does/not/exist"))
+    json.source(NJPath("./does/not/exist"), 1.kb)
     json.sink(NJPath("./does/not/exist"))
   }
 
@@ -104,7 +104,8 @@ class NJCirceTest extends AnyFunSuite {
       .compile
       .drain
       .unsafeRunSync()
-    val size = Stream.eval(hdp.filesIn(path)).flatMap(json.source).compile.toList.map(_.size).unsafeRunSync()
+    val size =
+      Stream.eval(hdp.filesIn(path)).flatMap(json.source(_, 1.kb)).compile.toList.map(_.size).unsafeRunSync()
     assert(size == number * 10)
   }
 }

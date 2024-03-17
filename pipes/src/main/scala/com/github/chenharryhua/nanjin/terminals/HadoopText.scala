@@ -11,20 +11,15 @@ import squants.information.Information
 import java.nio.charset.StandardCharsets
 import java.time.ZoneId
 
-final class HadoopText[F[_]] private (configuration: Configuration, bufferSize: Information) {
-
-  // config
-
-  def withBufferSize(bs: Information): HadoopText[F] =
-    new HadoopText[F](configuration, bs)
+final class HadoopText[F[_]] private (configuration: Configuration) {
 
   // read
 
-  def source(path: NJPath)(implicit F: Sync[F]): Stream[F, String] =
+  def source(path: NJPath, bufferSize: Information)(implicit F: Sync[F]): Stream[F, String] =
     HadoopReader.byteS[F](configuration, bufferSize, path.hadoopPath).through(utf8.decode).through(lines)
 
-  def source(paths: List[NJPath])(implicit F: Sync[F]): Stream[F, String] =
-    paths.foldLeft(Stream.empty.covaryAll[F, String]) { case (s, p) => s ++ source(p) }
+  def source(paths: List[NJPath], bufferSize: Information)(implicit F: Sync[F]): Stream[F, String] =
+    paths.foldLeft(Stream.empty.covaryAll[F, String]) { case (s, p) => s ++ source(p, bufferSize) }
 
   // write
 
@@ -63,6 +58,5 @@ final class HadoopText[F[_]] private (configuration: Configuration, bufferSize: 
 }
 
 object HadoopText {
-  def apply[F[_]](configuration: Configuration): HadoopText[F] =
-    new HadoopText[F](configuration, BUFFER_SIZE)
+  def apply[F[_]](configuration: Configuration): HadoopText[F] = new HadoopText[F](configuration)
 }

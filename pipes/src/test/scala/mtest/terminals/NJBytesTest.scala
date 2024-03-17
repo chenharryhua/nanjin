@@ -14,20 +14,19 @@ import mtest.terminals.HadoopTestData.hdp
 import mtest.terminals.TestData.Tiger
 import org.scalatest.Assertion
 import org.scalatest.funsuite.AnyFunSuite
-import squants.information.Bytes
+import squants.information.{Bytes, Information}
 
 import java.time.ZoneId
 import scala.concurrent.duration.DurationInt
 
 class NJBytesTest extends AnyFunSuite {
+  val bufferSize: Information = Bytes(1024 * 8)
 
   def fs2(path: NJPath, data: Set[Tiger]): Assertion = {
     hdp.delete(path).unsafeRunSync()
-    val ts = Stream.emits(data.toList).covary[IO]
-    val sink = hdp.bytes
-      .withBufferSize(Bytes(8192))
-      .sink(path)
-    val src = hdp.bytes.source(path)
+    val ts   = Stream.emits(data.toList).covary[IO]
+    val sink = hdp.bytes.sink(path)
+    val src  = hdp.bytes.source(path, bufferSize)
     val action = ts
       .map(_.asJson.noSpaces)
       .intersperse(NEWLINE_SEPARATOR)
@@ -76,7 +75,7 @@ class NJBytesTest extends AnyFunSuite {
   }
 
   test("laziness") {
-    hdp.bytes.source(NJPath("./does/not/exist"))
+    hdp.bytes.source(NJPath("./does/not/exist"), bufferSize)
     hdp.bytes.sink(NJPath("./does/not/exist"))
   }
 
@@ -99,7 +98,7 @@ class NJBytesTest extends AnyFunSuite {
       .drain
       .unsafeRunSync()
     val size = Stream
-      .force(hdp.filesIn(path).map(hdp.bytes.source))
+      .force(hdp.filesIn(path).map(hdp.bytes.source(_, bufferSize)))
       .through(utf8.decode)
       .through(lines)
       .compile

@@ -29,8 +29,8 @@ class NJTextTest extends AnyFunSuite {
     val tgt = path / file.fileName
     hdp.delete(tgt).unsafeRunSync()
     val ts     = Stream.emits(data.toList).covary[IO].map(_.asJson.noSpaces).chunks
-    val sink   = text.withBufferSize(32.kb).sink(tgt)
-    val src    = text.source(tgt).mapFilter(decode[Tiger](_).toOption)
+    val sink   = text.sink(tgt)
+    val src    = text.source(tgt, 2.kb).mapFilter(decode[Tiger](_).toOption)
     val action = ts.through(sink).compile.drain >> src.compile.toList
     assert(action.unsafeRunSync().toSet == data)
     val fileName = (file: NJFileKind).asJson.noSpaces
@@ -84,7 +84,7 @@ class NJTextTest extends AnyFunSuite {
   }
 
   test("laziness") {
-    text.source(NJPath("./does/not/exist"))
+    text.source(NJPath("./does/not/exist"), 1.kb)
     text.sink(NJPath("./does/not/exist"))
   }
 
@@ -103,7 +103,8 @@ class NJTextTest extends AnyFunSuite {
       .compile
       .drain
       .unsafeRunSync()
-    val size = Stream.eval(hdp.filesIn(path)).flatMap(text.source).compile.toList.map(_.size).unsafeRunSync()
+    val size =
+      Stream.eval(hdp.filesIn(path)).flatMap(text.source(_, 2.kb)).compile.toList.map(_.size).unsafeRunSync()
     assert(size == number * 10)
   }
 }

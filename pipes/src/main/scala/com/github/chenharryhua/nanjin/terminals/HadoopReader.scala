@@ -61,8 +61,10 @@ private object HadoopReader {
 
   def byteS[F[_]](configuration: Configuration, bufferSize: Information, path: Path)(implicit
     F: Sync[F]): Stream[F, Byte] =
-    inputStreamS[F](configuration, path).flatMap(is =>
-      readInputStream[F](F.pure(is), bufferSize.toBytes.toInt, closeAfterUse = true))
+    readInputStream[F](
+      fis = F.blocking(fileInputStream(path, configuration)),
+      chunkSize = bufferSize.toBytes.toInt,
+      closeAfterUse = true)
 
   def jacksonS[F[_]](configuration: Configuration, schema: Schema, path: Path)(implicit
     F: Sync[F]): Stream[F, Either[Throwable, GenericData.Record]] =

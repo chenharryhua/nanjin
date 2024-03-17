@@ -13,16 +13,12 @@ import squants.information.Information
 import java.nio.charset.StandardCharsets
 import java.time.ZoneId
 
-final class HadoopCirce[F[_]] private (configuration: Configuration, bufferSize: Information) {
-
-  // config
-
-  def withBufferSize(bs: Information): HadoopCirce[F] =
-    new HadoopCirce[F](configuration, bs)
+final class HadoopCirce[F[_]] private (configuration: Configuration) {
 
   // read
 
-  def source(path: NJPath)(implicit F: Sync[F]): Stream[F, Either[ParsingFailure, Json]] =
+  def source(path: NJPath, bufferSize: Information)(implicit
+    F: Sync[F]): Stream[F, Either[ParsingFailure, Json]] =
     HadoopReader
       .byteS(configuration, bufferSize, path.hadoopPath)
       .through(utf8.decode)
@@ -30,8 +26,11 @@ final class HadoopCirce[F[_]] private (configuration: Configuration, bufferSize:
       .filter(_.nonEmpty)
       .mapChunks(_.map(parse))
 
-  def source(paths: List[NJPath])(implicit F: Sync[F]): Stream[F, Either[ParsingFailure, Json]] =
-    paths.foldLeft(Stream.empty.covaryAll[F, Either[ParsingFailure, Json]]) { case (s, p) => s ++ source(p) }
+  def source(paths: List[NJPath], bufferSize: Information)(implicit
+    F: Sync[F]): Stream[F, Either[ParsingFailure, Json]] =
+    paths.foldLeft(Stream.empty.covaryAll[F, Either[ParsingFailure, Json]]) { case (s, p) =>
+      s ++ source(p, bufferSize)
+    }
 
   // write
 
@@ -75,6 +74,5 @@ final class HadoopCirce[F[_]] private (configuration: Configuration, bufferSize:
 }
 
 object HadoopCirce {
-  def apply[F[_]](cfg: Configuration): HadoopCirce[F] =
-    new HadoopCirce[F](cfg, BUFFER_SIZE)
+  def apply[F[_]](cfg: Configuration): HadoopCirce[F] = new HadoopCirce[F](cfg)
 }

@@ -10,15 +10,14 @@ import fs2.{Chunk, Pull, Stream}
 import kantan.csv.CsvConfiguration
 import kantan.csv.CsvConfiguration.Header
 import kantan.csv.engine.WriterEngine
-import squants.information.{Bytes, Information}
 
 import java.io.StringWriter
+
 package object terminals {
   @inline final val NEWLINE_SEPARATOR: String                = "\r\n"
   @inline private val NEWLINE_SEPARATOR_CHUNK: Chunk[String] = Chunk(NEWLINE_SEPARATOR)
 
-  final val BLOCK_SIZE_HINT: Long    = -1
-  final val BUFFER_SIZE: Information = Bytes(1024 * 64)
+  final val BLOCK_SIZE_HINT: Long = -1
 
   type NJCompressionLevel = Int Refined Closed[1, 9]
   object NJCompressionLevel extends RefinedTypeOps[NJCompressionLevel, Int] with CatsRefinedTypeOpsSyntax

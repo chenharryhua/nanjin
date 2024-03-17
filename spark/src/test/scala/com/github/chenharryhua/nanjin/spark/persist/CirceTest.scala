@@ -12,6 +12,7 @@ import io.circe.generic.auto.*
 import mtest.spark.*
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
+import squants.information.InformationConversions.InformationConversions
 
 @DoNotDiscover
 class CirceTest extends AnyFunSuite {
@@ -23,14 +24,20 @@ class CirceTest extends AnyFunSuite {
   def loadRoosters(path: NJPath): IO[List[Rooster]] =
     fs2.Stream
       .eval(hdp.filesIn(path))
-      .flatMap(circe.source)
+      .flatMap(circe.source(_, 2.kb))
       .map(_.flatMap(_.as[Rooster]))
       .rethrow
       .compile
       .toList
 
   def loadBees(path: NJPath): IO[List[Bee]] =
-    fs2.Stream.eval(hdp.filesIn(path)).flatMap(circe.source).map(_.flatMap(_.as[Bee])).rethrow.compile.toList
+    fs2.Stream
+      .eval(hdp.filesIn(path))
+      .flatMap(circe.source(_, 2.kb))
+      .map(_.flatMap(_.as[Bee]))
+      .rethrow
+      .compile
+      .toList
 
   val root = NJPath("./data/test/spark/persist/circe")
 

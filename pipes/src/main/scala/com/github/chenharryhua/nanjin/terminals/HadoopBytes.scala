@@ -11,20 +11,13 @@ import squants.information.Information
 import java.io.{InputStream, OutputStream}
 import java.time.ZoneId
 
-final class HadoopBytes[F[_]] private (configuration: Configuration, bufferSize: Information) {
+final class HadoopBytes[F[_]] private (configuration: Configuration) {
 
-  // config
-
-  def withBufferSize(bs: Information): HadoopBytes[F] =
-    new HadoopBytes[F](configuration, bs)
-
-  // read
-
-  def source(path: NJPath)(implicit F: Sync[F]): Stream[F, Byte] =
+  def source(path: NJPath, bufferSize: Information)(implicit F: Sync[F]): Stream[F, Byte] =
     HadoopReader.byteS(configuration, bufferSize, path.hadoopPath)
 
-  def source(paths: List[NJPath])(implicit F: Sync[F]): Stream[F, Byte] =
-    paths.foldLeft(Stream.empty.covaryAll[F, Byte]) { case (s, p) => s ++ source(p) }
+  def source(paths: List[NJPath], bufferSize: Information)(implicit F: Sync[F]): Stream[F, Byte] =
+    paths.foldLeft(Stream.empty.covaryAll[F, Byte]) { case (s, p) => s ++ source(p, bufferSize) }
 
   def inputStream(path: NJPath)(implicit F: Sync[F]): Resource[F, InputStream] =
     HadoopReader.inputStreamR[F](configuration, path.hadoopPath)
@@ -67,6 +60,5 @@ final class HadoopBytes[F[_]] private (configuration: Configuration, bufferSize:
 }
 
 object HadoopBytes {
-  def apply[F[_]](cfg: Configuration): HadoopBytes[F] =
-    new HadoopBytes[F](cfg, BUFFER_SIZE)
+  def apply[F[_]](cfg: Configuration): HadoopBytes[F] = new HadoopBytes[F](cfg)
 }
