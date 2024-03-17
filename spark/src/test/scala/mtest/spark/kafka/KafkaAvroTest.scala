@@ -148,7 +148,7 @@ class KafkaAvroTest extends AnyFunSuite {
       ctx.admin(topicEnum.topicName).iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt >>
         ctx.schemaRegistry.register(topicEnum.topicDef) >>
         data.compile.drain >>
-        sk.fromKafka.output.avro(path).snappy.run >>
+        sk.fromKafka.output.avro(path).withCompression(_.Snappy).run >>
         sk.load.avro(path).frdd.map(_.take(10).toSet)
     assert(run.unsafeRunSync().flatMap(_.value) == Set(en1, en2))
   }
@@ -168,7 +168,7 @@ class KafkaAvroTest extends AnyFunSuite {
       ctx.admin(topicEnum.topicName).iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt >>
         ctx.schemaRegistry.register(topicEnum.topicDef) >>
         data.compile.drain >>
-        sk.fromKafka.output.binAvro(path).bzip2.run >>
+        sk.fromKafka.output.binAvro(path).withCompression(_.Bzip2).run >>
         sk.load.binAvro(path).frdd.map(_.take(10).toSet)
     assert(run.unsafeRunSync().flatMap(_.value) == Set(en1, en2))
   }

@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.Show
 import cats.effect.kernel.Sync
-import com.github.chenharryhua.nanjin.terminals.{NJCompression, NJCompressionLevel, TextCompression}
+import com.github.chenharryhua.nanjin.terminals.TextCompression
 import org.apache.spark.rdd.RDD
 
 final class SaveText[F[_], A](frdd: F[RDD[A]], cfg: HoarderConfig, show: Show[A], suffix: String)
@@ -24,15 +24,9 @@ final class SaveText[F[_], A](frdd: F[RDD[A]], cfg: HoarderConfig, show: Show[A]
   def errorIfExists: SaveText[F, A]  = updateConfig(cfg.errorMode)
   def ignoreIfExists: SaveText[F, A] = updateConfig(cfg.ignoreMode)
 
-  def bzip2: SaveText[F, A] = updateConfig(cfg.outputCompression(NJCompression.Bzip2))
-  def deflate(level: NJCompressionLevel): SaveText[F, A] = updateConfig(
-    cfg.outputCompression(NJCompression.Deflate(level)))
-  def gzip: SaveText[F, A]       = updateConfig(cfg.outputCompression(NJCompression.Gzip))
-  def lz4: SaveText[F, A]        = updateConfig(cfg.outputCompression(NJCompression.Lz4))
-  def uncompressed: SaveText[F, A] = updateConfig(cfg.outputCompression(NJCompression.Uncompressed))
-  def snappy: SaveText[F, A]     = updateConfig(cfg.outputCompression(NJCompression.Snappy))
-
   def withCompression(tc: TextCompression): SaveText[F, A] = updateConfig(cfg.outputCompression(tc))
+  def withCompression(f: TextCompression.type => TextCompression): SaveText[F, A] =
+    withCompression(f(TextCompression))
 
   def run(implicit F: Sync[F]): F[Unit] =
     F.flatMap(frdd) { rdd =>

@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.effect.kernel.Sync
-import com.github.chenharryhua.nanjin.terminals.{JacksonCompression, NJCompression, NJCompressionLevel}
+import com.github.chenharryhua.nanjin.terminals.JacksonCompression
 import com.sksamuel.avro4s.Encoder as AvroEncoder
 import org.apache.spark.rdd.RDD
 
@@ -18,15 +18,9 @@ final class SaveJackson[F[_], A](frdd: F[RDD[A]], encoder: AvroEncoder[A], cfg: 
   def errorIfExists: SaveJackson[F, A]  = updateConfig(cfg.errorMode)
   def ignoreIfExists: SaveJackson[F, A] = updateConfig(cfg.ignoreMode)
 
-  def bzip2: SaveJackson[F, A] = updateConfig(cfg.outputCompression(NJCompression.Bzip2))
-  def deflate(level: NJCompressionLevel): SaveJackson[F, A] = updateConfig(
-    cfg.outputCompression(NJCompression.Deflate(level)))
-  def gzip: SaveJackson[F, A]       = updateConfig(cfg.outputCompression(NJCompression.Gzip))
-  def lz4: SaveJackson[F, A]        = updateConfig(cfg.outputCompression(NJCompression.Lz4))
-  def uncompressed: SaveJackson[F, A] = updateConfig(cfg.outputCompression(NJCompression.Uncompressed))
-  def snappy: SaveJackson[F, A]     = updateConfig(cfg.outputCompression(NJCompression.Snappy))
-
   def withCompression(jc: JacksonCompression): SaveJackson[F, A] = updateConfig(cfg.outputCompression(jc))
+  def withCompression(f: JacksonCompression.type => JacksonCompression): SaveJackson[F, A] =
+    withCompression(f(JacksonCompression))
 
   def run(implicit F: Sync[F]): F[Unit] =
     F.flatMap(frdd) { rdd =>

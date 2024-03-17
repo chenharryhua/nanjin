@@ -33,7 +33,7 @@ class BinAvroTest extends AnyFunSuite {
   val root = NJPath("./data/test/spark/persist/bin_avro/") / "rooster"
   test("binary avro - uncompressed") {
     val path = root / "rooster" / "uncompressed"
-    saver(path).uncompressed.append.errorIfExists.ignoreIfExists.overwrite.run.unsafeRunSync()
+    saver(path).withCompression(_.Uncompressed).append.errorIfExists.ignoreIfExists.overwrite.run.unsafeRunSync()
     val t1 = loaders.rdd.binAvro[Rooster](path, sparkSession, Rooster.avroCodec).collect().toSet
     val t2 = loaders.binAvro[Rooster](path, sparkSession, Rooster.ate).collect().toSet
     assert(RoosterData.expected == t1)
@@ -44,7 +44,7 @@ class BinAvroTest extends AnyFunSuite {
 
   test("binary avro - gzip") {
     val path = root / "gzip"
-    saver(path).gzip.run.unsafeRunSync()
+    saver(path).withCompression(_.Gzip).run.unsafeRunSync()
     val t1 = loaders.rdd.binAvro[Rooster](path, sparkSession, Rooster.avroCodec).collect().toSet
     val t2 = loaders.binAvro[Rooster](path, sparkSession, Rooster.ate).collect().toSet
     assert(RoosterData.expected == t1)
@@ -55,7 +55,7 @@ class BinAvroTest extends AnyFunSuite {
 
   test("binary avro - lz4") {
     val path = root / "lz4"
-    saver(path).lz4.run.unsafeRunSync()
+    saver(path).withCompression(_.Lz4).run.unsafeRunSync()
     val t1 = loaders.rdd.binAvro[Rooster](path, sparkSession, Rooster.avroCodec).collect().toSet
     val t2 = loaders.binAvro[Rooster](path, sparkSession, Rooster.ate).collect().toSet
     assert(RoosterData.expected == t1)
@@ -66,7 +66,7 @@ class BinAvroTest extends AnyFunSuite {
 
   test("binary avro - bzip2") {
     val path = root / "bzip2"
-    saver(path).bzip2.run.unsafeRunSync()
+    saver(path).withCompression(_.Bzip2).run.unsafeRunSync()
     val t1 = loaders.rdd.binAvro[Rooster](path, sparkSession, Rooster.avroCodec).collect().toSet
     val t2 = loaders.binAvro[Rooster](path, sparkSession, Rooster.ate).collect().toSet
     assert(RoosterData.expected == t1)
@@ -76,7 +76,7 @@ class BinAvroTest extends AnyFunSuite {
   }
   test("binary avro - deflate2") {
     val path = root / "deflate2"
-    saver(path).deflate(2).run.unsafeRunSync()
+    saver(path).withCompression(_.Deflate(2)).run.unsafeRunSync()
     val t1 = loaders.rdd.binAvro[Rooster](path, sparkSession, Rooster.avroCodec).collect().toSet
     val t2 = loaders.binAvro[Rooster](path, sparkSession, Rooster.ate).collect().toSet
     assert(RoosterData.expected == t1)
@@ -86,7 +86,7 @@ class BinAvroTest extends AnyFunSuite {
   }
   test("binary avro - deflate-2") {
     val path = root / "deflate-2"
-    saver(path).deflate(2).run.unsafeRunSync()
+    saver(path).withCompression(_.Deflate(2)).run.unsafeRunSync()
     val t1 = loaders.rdd.binAvro[Rooster](path, sparkSession, Rooster.avroCodec).collect().toSet
     val t2 = loaders.binAvro[Rooster](path, sparkSession, Rooster.ate).collect().toSet
     assert(RoosterData.expected == t1)
@@ -97,7 +97,7 @@ class BinAvroTest extends AnyFunSuite {
 
   test("binary avro - snappy") {
     val path = root / "snappy"
-    saver(path).snappy.run.unsafeRunSync()
+    saver(path).withCompression(_.Snappy).run.unsafeRunSync()
     val t1 = loaders.rdd.binAvro[Rooster](path, sparkSession, Rooster.avroCodec).collect().toSet
     val t2 = loaders.binAvro[Rooster](path, sparkSession, Rooster.ate).collect().toSet
     assert(RoosterData.expected == t1)

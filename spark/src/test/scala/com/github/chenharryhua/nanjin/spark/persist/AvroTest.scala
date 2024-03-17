@@ -19,7 +19,7 @@ class AvroTest extends AnyFunSuite {
   def singleAvro(path: NJPath): Set[Rooster] =
     avro.source(path, 10).map(Rooster.avroCodec.decode).compile.toList.unsafeRunSync().toSet
 
-  def rooster =
+  def rooster: RddAvroFileHoarder[IO, Rooster] =
     new RddAvroFileHoarder[IO, Rooster](IO(RoosterData.ds.rdd.repartition(3)), Rooster.avroCodec)
 
   def loadRoosters(path: NJPath): IO[List[Rooster]] =
@@ -44,7 +44,7 @@ class AvroTest extends AnyFunSuite {
 
   test("datetime read/write identity - multi.uncompressed") {
     val path = root / "rooster" / "uncompressed"
-    rooster.avro(path).uncompressed.run.unsafeRunSync()
+    rooster.avro(path).withCompression(_.Uncompressed).run.unsafeRunSync()
     val r = loaders.rdd.avro[Rooster](path, sparkSession, Rooster.avroCodec).collect().toSet
     val t = loaders.avro[Rooster](path, sparkSession, Rooster.ate).collect().toSet
     assert(RoosterData.expected == r)
@@ -54,7 +54,7 @@ class AvroTest extends AnyFunSuite {
 
   test("datetime read/write identity - multi.snappy") {
     val path = root / "rooster" / "snappy"
-    rooster.avro(path).snappy.run.unsafeRunSync()
+    rooster.avro(path).withCompression(_.Snappy).run.unsafeRunSync()
     val r = loaders.rdd.avro[Rooster](path, sparkSession, Rooster.avroCodec).collect().toSet
     val t = loaders.avro[Rooster](path, sparkSession, Rooster.ate).collect().toSet
     assert(RoosterData.expected == r)
@@ -64,7 +64,7 @@ class AvroTest extends AnyFunSuite {
 
   test("datetime read/write identity - multi.deflate") {
     val path = root / "rooster" / "deflate"
-    rooster.avro(path).deflate(3).run.unsafeRunSync()
+    rooster.avro(path).withCompression(_.Deflate(3)).run.unsafeRunSync()
     val r = loaders.rdd.avro[Rooster](path, sparkSession, Rooster.avroCodec).collect().toSet
     val t = loaders.avro[Rooster](path, sparkSession, Rooster.ate).collect().toSet
     assert(RoosterData.expected == r)
@@ -74,7 +74,7 @@ class AvroTest extends AnyFunSuite {
 
   test("datetime read/write identity - multi.xz 3") {
     val path = root / "rooster" / "xz3"
-    rooster.avro(path).xz(3).run.unsafeRunSync()
+    rooster.avro(path).withCompression(_.Xz(3)).run.unsafeRunSync()
     val r = loaders.rdd.avro[Rooster](path, sparkSession, Rooster.avroCodec).collect().toSet
     val t = loaders.avro[Rooster](path, sparkSession, Rooster.ate).collect().toSet
     assert(RoosterData.expected == r)
@@ -84,7 +84,7 @@ class AvroTest extends AnyFunSuite {
 
   test("datetime read/write identity - multi.bzip2") {
     val path = root / "rooster" / "bzip2"
-    rooster.avro(path).bzip2.run.unsafeRunSync()
+    rooster.avro(path).withCompression(_.Bzip2).run.unsafeRunSync()
     val r = loaders.rdd.avro[Rooster](path, sparkSession, Rooster.avroCodec).collect().toSet
     val t = loaders.avro[Rooster](path, sparkSession, Rooster.ate).collect().toSet
     assert(RoosterData.expected == r)

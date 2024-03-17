@@ -33,7 +33,7 @@ class JacksonTest extends AnyFunSuite {
   val root = NJPath("./data/test/spark/persist/jackson/")
   test("datetime read/write identity - uncompressed") {
     val path = root / "rooster" / "uncompressed"
-    rooster(path).errorIfExists.ignoreIfExists.overwrite.uncompressed.run.unsafeRunSync()
+    rooster(path).errorIfExists.ignoreIfExists.overwrite.withCompression(_.Uncompressed).run.unsafeRunSync()
     val r = loaders.rdd.jackson[Rooster](path, sparkSession, Rooster.avroCodec)
     assert(RoosterData.expected == r.collect().toSet)
     assert(RoosterData.expected == loadRooster(path).unsafeRunSync())
@@ -45,7 +45,7 @@ class JacksonTest extends AnyFunSuite {
   test("byte-array read/write identity - multi") {
     import cats.implicits.*
     val path = root / "bee" / "uncompressed"
-    bee(path).uncompressed.run.unsafeRunSync()
+    bee(path).withCompression(_.Uncompressed).run.unsafeRunSync()
     val t = loaders.rdd.jackson[Bee](path, sparkSession, Bee.avroCodec).collect().toList
     assert(BeeData.bees.sortBy(_.b).zip(t.sortBy(_.b)).forall { case (a, b) => a.eqv(b) })
   }
@@ -53,7 +53,7 @@ class JacksonTest extends AnyFunSuite {
   test("byte-array read/write identity - multi.gzip") {
     import cats.implicits.*
     val path = root / "bee" / "gzip"
-    bee(path).gzip.run.unsafeRunSync()
+    bee(path).withCompression(_.Gzip).run.unsafeRunSync()
     val t = loaders.rdd.jackson[Bee](path, sparkSession, Bee.avroCodec).collect().toList
     assert(BeeData.bees.sortBy(_.b).zip(t.sortBy(_.b)).forall { case (a, b) => a.eqv(b) })
   }
@@ -61,7 +61,7 @@ class JacksonTest extends AnyFunSuite {
   test("byte-array read/write identity - multi.bzip2") {
     import cats.implicits.*
     val path = root / "bee" / "bzip2"
-    bee(path).bzip2.run.unsafeRunSync()
+    bee(path).withCompression(_.Bzip2).run.unsafeRunSync()
     val t = loaders.rdd.jackson[Bee](path, sparkSession, Bee.avroCodec).collect().toList
     assert(BeeData.bees.sortBy(_.b).zip(t.sortBy(_.b)).forall { case (a, b) => a.eqv(b) })
   }
@@ -69,7 +69,7 @@ class JacksonTest extends AnyFunSuite {
   test("byte-array read/write identity - multi.deflate 9") {
     import cats.implicits.*
     val path = root / "bee" / "deflate9"
-    bee(path).deflate(9).run.unsafeRunSync()
+    bee(path).withCompression(_.Deflate(9)).run.unsafeRunSync()
     val t = loaders.rdd.jackson[Bee](path, sparkSession, Bee.avroCodec).collect().toList
     assert(BeeData.bees.sortBy(_.b).zip(t.sortBy(_.b)).forall { case (a, b) => a.eqv(b) })
   }
@@ -77,7 +77,7 @@ class JacksonTest extends AnyFunSuite {
   test("byte-array read/write identity - multi.lz4") {
     import cats.implicits.*
     val path = root / "bee" / "lz4"
-    bee(path).lz4.run.unsafeRunSync()
+    bee(path).withCompression(_.Lz4).run.unsafeRunSync()
     val t = loaders.rdd.jackson[Bee](path, sparkSession, Bee.avroCodec).collect().toList
     assert(BeeData.bees.sortBy(_.b).zip(t.sortBy(_.b)).forall { case (a, b) => a.eqv(b) })
   }
@@ -85,7 +85,7 @@ class JacksonTest extends AnyFunSuite {
   test("byte-array read/write identity - multi.snappy") {
     import cats.implicits.*
     val path = root / "bee" / "snappy"
-    bee(path).snappy.run.unsafeRunSync()
+    bee(path).withCompression(_.Snappy).run.unsafeRunSync()
     val t = loaders.rdd.jackson[Bee](path, sparkSession, Bee.avroCodec).collect().toList
     assert(BeeData.bees.sortBy(_.b).zip(t.sortBy(_.b)).forall { case (a, b) => a.eqv(b) })
   }

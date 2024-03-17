@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.effect.kernel.Sync
-import com.github.chenharryhua.nanjin.terminals.{NJCompression, NJCompressionLevel, ParquetCompression}
+import com.github.chenharryhua.nanjin.terminals.ParquetCompression
 import com.sksamuel.avro4s.Encoder as AvroEncoder
 import org.apache.spark.rdd.RDD
 final class SaveParquet[F[_], A](frdd: F[RDD[A]], encoder: AvroEncoder[A], cfg: HoarderConfig)
@@ -17,17 +17,9 @@ final class SaveParquet[F[_], A](frdd: F[RDD[A]], encoder: AvroEncoder[A], cfg: 
   def errorIfExists: SaveParquet[F, A]  = updateConfig(cfg.errorMode)
   def ignoreIfExists: SaveParquet[F, A] = updateConfig(cfg.ignoreMode)
 
-//  def brotli: SaveParquet[F, A] = updateConfig(cfg.outputCompression(NJCompression.Brotli))
-//  def lzo: SaveParquet[F, A]        = updateConfig(cfg.outputCompression(NJCompression.Lzo))
-  def gzip: SaveParquet[F, A]       = updateConfig(cfg.outputCompression(NJCompression.Gzip))
-  def lz4: SaveParquet[F, A]        = updateConfig(cfg.outputCompression(NJCompression.Lz4))
-  def lz4raw: SaveParquet[F, A]     = updateConfig(cfg.outputCompression(NJCompression.Lz4_Raw))
-  def snappy: SaveParquet[F, A]     = updateConfig(cfg.outputCompression(NJCompression.Snappy))
-  def uncompressed: SaveParquet[F, A] = updateConfig(cfg.outputCompression(NJCompression.Uncompressed))
-  def zstd(level: NJCompressionLevel): SaveParquet[F, A] =
-    updateConfig(cfg.outputCompression(NJCompression.Zstandard(level)))
-
   def withCompression(pc: ParquetCompression): SaveParquet[F, A] = updateConfig(cfg.outputCompression(pc))
+  def withCompression(f: ParquetCompression.type => ParquetCompression): SaveParquet[F, A] =
+    withCompression(f(ParquetCompression))
 
   def run(implicit F: Sync[F]): F[Unit] =
     F.flatMap(frdd) { rdd =>

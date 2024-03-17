@@ -19,32 +19,32 @@ class TextTest extends AnyFunSuite {
   }
   test("tablet - with new suffix") {
     val path = root / "new-suffix"
-    saver(path).withSuffix("text").uncompressed.run.unsafeRunSync()
+    saver(path).withSuffix("text").withCompression(_.Uncompressed).run.unsafeRunSync()
   }
 
   test("tablet - deflate") {
     val path = root / "deflate5"
-    saver(path).deflate(5).run.unsafeRunSync()
+    saver(path).withCompression(_.Deflate(5)).run.unsafeRunSync()
   }
 
   test("tablet - gzip") {
     val path = root / "gzip"
-    saver(path).gzip.run.unsafeRunSync()
+    saver(path).withCompression(_.Gzip).run.unsafeRunSync()
   }
 
   test("tablet - bzip2") {
     val path = root / "bzip2"
-    saver(path).bzip2.run.unsafeRunSync()
+    saver(path).withCompression(_.Bzip2).run.unsafeRunSync()
   }
 
   test("tablet - lz4") {
     val path = root / "lz4"
-    saver(path).lz4.run.unsafeRunSync()
+    saver(path).withCompression(_.Lz4).run.unsafeRunSync()
   }
 
   test("tablet - snappy") {
     val path = root / "snappy"
-    saver(path).snappy.run.unsafeRunSync()
+    saver(path).withCompression(_.Snappy).run.unsafeRunSync()
   }
 
   test("tablet - append") {

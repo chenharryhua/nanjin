@@ -7,12 +7,12 @@ import com.github.chenharryhua.nanjin.spark.*
 import com.github.chenharryhua.nanjin.terminals.{csvHeader, NJHadoop, NJPath}
 import eu.timepit.refined.auto.*
 import fs2.Stream
-import kantan.csv.generic.*
-import kantan.csv.java8.*
 import kantan.csv.{CsvConfiguration, RowDecoder, RowEncoder}
 import mtest.spark.*
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
+import kantan.csv.generic.*
+import kantan.csv.java8.*
 
 @DoNotDiscover
 class KantanCsvTest extends AnyFunSuite {
@@ -42,7 +42,7 @@ class KantanCsvTest extends AnyFunSuite {
   test("tablet read/write identity multi.uncompressed") {
     val path = root / "uncompressed"
     val cfg  = CsvConfiguration.rfc
-    val s    = saver(path, cfg).uncompressed
+    val s    = saver(path, cfg).withCompression(_.Uncompressed)
     s.run.unsafeRunSync()
     val t = loaders.rdd.kantan[Tablet](path, sparkSession, cfg)
     assert(data.toSet == t.collect().toSet)
@@ -54,7 +54,7 @@ class KantanCsvTest extends AnyFunSuite {
   test("tablet read/write identity multi.gzip") {
     val path = root / "gzip"
     val cfg  = CsvConfiguration.rfc
-    val s    = saver(path, cfg).gzip
+    val s    = saver(path, cfg).withCompression(_.Gzip)
     s.run.unsafeRunSync()
 
     val t = loaders.rdd.kantan[Tablet](path, sparkSession, cfg)
@@ -66,7 +66,7 @@ class KantanCsvTest extends AnyFunSuite {
     val path = root / "deflate9"
     val cfg  = CsvConfiguration.rfc
     val s    = saver(path, cfg)
-    s.deflate(9).run.unsafeRunSync()
+    s.withCompression(_.Deflate(9)).run.unsafeRunSync()
 
     val t = loaders.rdd.kantan[Tablet](path, sparkSession, cfg)
     assert(data.toSet == t.collect().toSet)
@@ -76,7 +76,7 @@ class KantanCsvTest extends AnyFunSuite {
   test("tablet read/write identity multi.bzip2") {
     val path = root / "bzip2"
     val cfg  = CsvConfiguration.rfc.withHeader
-    val s    = saver(path, cfg).bzip2
+    val s    = saver(path, cfg).withCompression(_.Bzip2)
     s.run.unsafeRunSync()
     val t = loaders.rdd.kantan[Tablet](path, sparkSession, cfg)
     assert(data.toSet == t.collect().toSet)
@@ -86,7 +86,7 @@ class KantanCsvTest extends AnyFunSuite {
   test("tablet read/write identity multi.lz4") {
     val path = root / "lz4"
     val cfg  = CsvConfiguration.rfc.withHeader
-    val s    = saver(path, cfg).lz4
+    val s    = saver(path, cfg).withCompression(_.Lz4)
     s.run.unsafeRunSync()
     val t = loaders.rdd.kantan[Tablet](path, sparkSession, cfg)
     assert(data.toSet == t.collect().toSet)
