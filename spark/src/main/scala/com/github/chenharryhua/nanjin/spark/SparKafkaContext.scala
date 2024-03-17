@@ -8,8 +8,8 @@ import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameL}
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.*
 import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
-import com.github.chenharryhua.nanjin.messages.kafka.codec.{SerdeOf, gr2Jackson}
-import com.github.chenharryhua.nanjin.spark.kafka.{CRMetaInfo, SparKafkaTopic, Statistics, sk}
+import com.github.chenharryhua.nanjin.messages.kafka.codec.{gr2Jackson, SerdeOf}
+import com.github.chenharryhua.nanjin.spark.kafka.{sk, CRMetaInfo, SparKafkaTopic, Statistics}
 import com.github.chenharryhua.nanjin.spark.persist.RddFileHoarder
 import com.github.chenharryhua.nanjin.terminals.{NJHadoop, NJPath}
 import eu.timepit.refined.refineMV
@@ -18,8 +18,6 @@ import fs2.kafka.*
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{Dataset, SparkSession}
 import org.typelevel.cats.time.instances.zoneid
-
-import java.time.ZoneId
 
 final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaContext: KafkaContext[F])
     extends Serializable with zoneid {
@@ -64,7 +62,7 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
   }
 
   def dump(topicName: TopicNameL, path: NJPath)(implicit F: Async[F]): F[Unit] =
-    dump(TopicName(topicName), path, NJDateTimeRange(ZoneId.systemDefault()))
+    dump(TopicName(topicName), path, NJDateTimeRange(utils.sparkZoneId(sparkSession)))
 
   /** upload data from given folder to a kafka topic. files read in parallel
     *
