@@ -33,7 +33,7 @@ class JacksonTest extends AnyFunSuite {
   val root = NJPath("./data/test/spark/persist/jackson/")
   test("datetime read/write identity - uncompressed") {
     val path = root / "rooster" / "uncompressed"
-    rooster(path).errorIfExists.ignoreIfExists.overwrite.uncompress.run.unsafeRunSync()
+    rooster(path).errorIfExists.ignoreIfExists.overwrite.uncompressed.run.unsafeRunSync()
     val r = loaders.rdd.jackson[Rooster](path, sparkSession, Rooster.avroCodec)
     assert(RoosterData.expected == r.collect().toSet)
     assert(RoosterData.expected == loadRooster(path).unsafeRunSync())
@@ -45,7 +45,7 @@ class JacksonTest extends AnyFunSuite {
   test("byte-array read/write identity - multi") {
     import cats.implicits.*
     val path = root / "bee" / "uncompressed"
-    bee(path).uncompress.run.unsafeRunSync()
+    bee(path).uncompressed.run.unsafeRunSync()
     val t = loaders.rdd.jackson[Bee](path, sparkSession, Bee.avroCodec).collect().toList
     assert(BeeData.bees.sortBy(_.b).zip(t.sortBy(_.b)).forall { case (a, b) => a.eqv(b) })
   }

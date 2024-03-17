@@ -23,7 +23,7 @@ final class SaveJackson[F[_], A](frdd: F[RDD[A]], encoder: AvroEncoder[A], cfg: 
     cfg.outputCompression(NJCompression.Deflate(level)))
   def gzip: SaveJackson[F, A]       = updateConfig(cfg.outputCompression(NJCompression.Gzip))
   def lz4: SaveJackson[F, A]        = updateConfig(cfg.outputCompression(NJCompression.Lz4))
-  def uncompress: SaveJackson[F, A] = updateConfig(cfg.outputCompression(NJCompression.Uncompressed))
+  def uncompressed: SaveJackson[F, A] = updateConfig(cfg.outputCompression(NJCompression.Uncompressed))
   def snappy: SaveJackson[F, A]     = updateConfig(cfg.outputCompression(NJCompression.Snappy))
 
   def withCompression(jc: JacksonCompression): SaveJackson[F, A] = updateConfig(cfg.outputCompression(jc))

@@ -33,7 +33,7 @@ class BinAvroTest extends AnyFunSuite {
   val root = NJPath("./data/test/spark/persist/bin_avro/") / "rooster"
   test("binary avro - uncompressed") {
     val path = root / "rooster" / "uncompressed"
-    saver(path).uncompress.append.errorIfExists.ignoreIfExists.overwrite.run.unsafeRunSync()
+    saver(path).uncompressed.append.errorIfExists.ignoreIfExists.overwrite.run.unsafeRunSync()
     val t1 = loaders.rdd.binAvro[Rooster](path, sparkSession, Rooster.avroCodec).collect().toSet
     val t2 = loaders.binAvro[Rooster](path, sparkSession, Rooster.ate).collect().toSet
     assert(RoosterData.expected == t1)

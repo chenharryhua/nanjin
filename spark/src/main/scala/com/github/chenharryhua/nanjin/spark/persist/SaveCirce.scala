@@ -32,7 +32,7 @@ final class SaveCirce[F[_], A](
     cfg.outputCompression(NJCompression.Deflate(level)))
   def gzip: SaveCirce[F, A]       = updateConfig(cfg.outputCompression(NJCompression.Gzip))
   def lz4: SaveCirce[F, A]        = updateConfig(cfg.outputCompression(NJCompression.Lz4))
-  def uncompress: SaveCirce[F, A] = updateConfig(cfg.outputCompression(NJCompression.Uncompressed))
+  def uncompressed: SaveCirce[F, A] = updateConfig(cfg.outputCompression(NJCompression.Uncompressed))
   def snappy: SaveCirce[F, A]     = updateConfig(cfg.outputCompression(NJCompression.Snappy))
 
   def withCompression(cc: CirceCompression): SaveCirce[F, A] =

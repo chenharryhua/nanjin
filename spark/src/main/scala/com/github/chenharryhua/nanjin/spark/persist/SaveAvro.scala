@@ -22,7 +22,7 @@ final class SaveAvro[F[_], A](frdd: F[RDD[A]], encoder: AvroEncoder[A], cfg: Hoa
   def deflate(level: NJCompressionLevel): SaveAvro[F, A] = updateConfig(
     cfg.outputCompression(NJCompression.Deflate(level)))
   def snappy: SaveAvro[F, A]     = updateConfig(cfg.outputCompression(NJCompression.Snappy))
-  def uncompress: SaveAvro[F, A] = updateConfig(cfg.outputCompression(NJCompression.Uncompressed))
+  def uncompressed: SaveAvro[F, A] = updateConfig(cfg.outputCompression(NJCompression.Uncompressed))
   def xz(level: NJCompressionLevel): SaveAvro[F, A] =
     updateConfig(cfg.outputCompression(NJCompression.Xz(level)))
 

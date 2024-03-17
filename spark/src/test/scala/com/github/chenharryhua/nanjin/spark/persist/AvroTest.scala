@@ -44,7 +44,7 @@ class AvroTest extends AnyFunSuite {
 
   test("datetime read/write identity - multi.uncompressed") {
     val path = root / "rooster" / "uncompressed"
-    rooster.avro(path).uncompress.run.unsafeRunSync()
+    rooster.avro(path).uncompressed.run.unsafeRunSync()
     val r = loaders.rdd.avro[Rooster](path, sparkSession, Rooster.avroCodec).collect().toSet
     val t = loaders.avro[Rooster](path, sparkSession, Rooster.ate).collect().toSet
     assert(RoosterData.expected == r)
