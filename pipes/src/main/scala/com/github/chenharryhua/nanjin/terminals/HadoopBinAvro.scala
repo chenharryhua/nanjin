@@ -39,14 +39,10 @@ final class HadoopBinAvro[F[_]] private (
     def getWriter(tick: Tick): Resource[F, HadoopWriter[F, GenericRecord]] =
       getWriterR(pathBuilder(tick).hadoopPath)
 
-    def init(
-      tick: Tick): Resource[F, (Hotswap[F, HadoopWriter[F, GenericRecord]], HadoopWriter[F, GenericRecord])] =
-      Hotswap(getWriter(tick))
-
     // save
     (ss: Stream[F, Chunk[GenericRecord]]) =>
       Stream.eval(TickStatus.zeroth[F](policy, zoneId)).flatMap { zero =>
-        Stream.resource(init(zero.tick)).flatMap { case (hotswap, writer) =>
+        Stream.resource(Hotswap(getWriter(zero.tick))).flatMap { case (hotswap, writer) =>
           persist[F, GenericRecord](
             getWriter,
             hotswap,

@@ -21,6 +21,7 @@ sealed private trait HadoopWriter[F[_], A] {
 }
 
 private object HadoopWriter {
+  final private val BLOCK_SIZE_HINT: Long = -1
 
   def avroR[F[_]](codecFactory: CodecFactory, schema: Schema, configuration: Configuration, path: Path)(
     implicit F: Sync[F]): Resource[F, HadoopWriter[F, GenericRecord]] =

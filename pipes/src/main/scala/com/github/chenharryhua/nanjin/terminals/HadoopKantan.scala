@@ -15,7 +15,7 @@ import shapeless.ops.hlist.ToTraversable
 import shapeless.ops.record.Keys
 import shapeless.{HList, LabelledGeneric}
 
-import java.io.InputStreamReader
+import java.io.{BufferedReader, InputStreamReader}
 import java.nio.charset.StandardCharsets
 import java.time.ZoneId
 import scala.annotation.nowarn
@@ -49,11 +49,10 @@ final class HadoopKantan[F[_]] private (
     F: Sync[F],
     engine: ReaderEngine): Stream[F, ReadResult[Seq[String]]] =
     HadoopReader.inputStreamS[F](configuration, path.hadoopPath).flatMap { is =>
-      val reader: CsvReader[ReadResult[Seq[String]]] =
-        if (csvConfiguration.hasHeader)
-          engine.readerFor(new InputStreamReader(is), csvConfiguration).drop(1)
-        else
-          engine.readerFor(new InputStreamReader(is), csvConfiguration)
+      val reader: CsvReader[ReadResult[Seq[String]]] = {
+        val cr = engine.readerFor(new BufferedReader(new InputStreamReader(is)), csvConfiguration)
+        if (csvConfiguration.hasHeader) cr.drop(1) else cr
+      }
 
       Stream.fromBlockingIterator[F](reader.iterator, chunkSize.value)
     }
@@ -81,13 +80,10 @@ final class HadoopKantan[F[_]] private (
     def getWriter(tick: Tick): Resource[F, HadoopWriter[F, String]] =
       HadoopWriter.stringR[F](configuration, StandardCharsets.UTF_8, pathBuilder(tick).hadoopPath)
 
-    def init(tick: Tick): Resource[F, (Hotswap[F, HadoopWriter[F, String]], HadoopWriter[F, String])] =
-      Hotswap(getWriter(tick))
-
     // save
     (ss: Stream[F, Chunk[Seq[String]]]) =>
       Stream.eval(TickStatus.zeroth[F](policy, zoneId)).flatMap { zero =>
-        Stream.resource(init(zero.tick)).flatMap { case (hotswap, writer) =>
+        Stream.resource(Hotswap(getWriter(zero.tick))).flatMap { case (hotswap, writer) =>
           val header: Chunk[String] = csvHeader(csvConfiguration)
           val src: Stream[F, Chunk[String]] =
             Stream(header).filter(_.nonEmpty) ++ ss.map(_.map(buildCsvRow(csvConfiguration)))

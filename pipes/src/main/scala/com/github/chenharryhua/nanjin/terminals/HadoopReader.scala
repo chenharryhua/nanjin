@@ -15,6 +15,7 @@ import org.apache.hadoop.fs.Path
 import org.apache.hadoop.io.compress.CompressionCodecFactory
 import org.apache.parquet.hadoop.ParquetReader
 import org.apache.parquet.hadoop.util.HadoopInputFile
+import org.apache.parquet.io.SeekableInputStream
 import squants.information.Information
 
 import java.io.InputStream
@@ -45,7 +46,7 @@ private object HadoopReader {
     }(r => F.blocking(r.close()))
 
   private def fileInputStream(path: Path, configuration: Configuration): InputStream = {
-    val is: InputStream = HadoopInputFile.fromPath(path, configuration).newStream()
+    val is: SeekableInputStream = HadoopInputFile.fromPath(path, configuration).newStream()
     Option(new CompressionCodecFactory(configuration).getCodec(path)) match {
       case Some(cc) => cc.createInputStream(is)
       case None     => is

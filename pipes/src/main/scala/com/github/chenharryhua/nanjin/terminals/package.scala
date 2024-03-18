@@ -17,8 +17,6 @@ package object terminals {
   @inline final val NEWLINE_SEPARATOR: String                = "\r\n"
   @inline private val NEWLINE_SEPARATOR_CHUNK: Chunk[String] = Chunk(NEWLINE_SEPARATOR)
 
-  final val BLOCK_SIZE_HINT: Long = -1
-
   type NJCompressionLevel = Int Refined Closed[1, 9]
   object NJCompressionLevel extends RefinedTypeOps[NJCompressionLevel, Int] with CatsRefinedTypeOpsSyntax
 

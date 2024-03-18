@@ -41,13 +41,10 @@ final class HadoopBytes[F[_]] private (configuration: Configuration) {
     def getWriter(tick: Tick): Resource[F, HadoopWriter[F, Byte]] =
       getWriterR(pathBuilder(tick).hadoopPath)
 
-    def init(tick: Tick): Resource[F, (Hotswap[F, HadoopWriter[F, Byte]], HadoopWriter[F, Byte])] =
-      Hotswap(getWriter(tick))
-
     // save
     (ss: Stream[F, Chunk[Byte]]) =>
       Stream.eval(TickStatus.zeroth[F](policy, zoneId)).flatMap { zero =>
-        Stream.resource(init(zero.tick)).flatMap { case (hotswap, writer) =>
+        Stream.resource(Hotswap(getWriter(zero.tick))).flatMap { case (hotswap, writer) =>
           persist[F, Byte](
             getWriter,
             hotswap,
