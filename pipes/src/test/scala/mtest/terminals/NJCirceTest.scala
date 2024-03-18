@@ -4,19 +4,18 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.toFunctorFilterOps
 import com.github.chenharryhua.nanjin.common.chrono.policies
+import com.github.chenharryhua.nanjin.terminals.*
 import com.github.chenharryhua.nanjin.terminals.NJCompression.*
-import com.github.chenharryhua.nanjin.terminals.{CirceFile, HadoopCirce, NJFileKind, NJHadoop, NJPath}
 import eu.timepit.refined.auto.*
-import fs2.Stream
+import fs2.{Chunk, Pipe, Stream}
 import io.circe.generic.auto.*
-import io.circe.jawn
 import io.circe.syntax.EncoderOps
+import io.circe.{jawn, Json}
 import mtest.terminals.HadoopTestData.hdp
 import mtest.terminals.TestData.Tiger
 import org.apache.hadoop.conf.Configuration
 import org.scalatest.Assertion
 import org.scalatest.funsuite.AnyFunSuite
-import squants.information.InformationConversions.InformationConversions
 
 import java.time.ZoneId
 import scala.concurrent.duration.DurationInt
@@ -27,12 +26,12 @@ class NJCirceTest extends AnyFunSuite {
   def fs2(path: NJPath, file: CirceFile, data: Set[Tiger]): Assertion = {
     val tgt = path / file.fileName
     hdp.delete(tgt).unsafeRunSync()
-    val ts     = Stream.emits(data.toList).covary[IO].map(_.asJson).chunks
-    val sink   = json.sink(tgt)
-    val src    = json.source(tgt, 32.kb).rethrow.mapFilter(_.as[Tiger].toOption)
-    val action = ts.through(sink).compile.drain >> src.compile.toList
+    val ts: Stream[IO, Chunk[Json]]          = Stream.emits(data.toList).covary[IO].map(_.asJson).chunks
+    val sink: Pipe[IO, Chunk[Json], Nothing] = json.sink(tgt)
+    val src: Stream[IO, Tiger]               = json.source(tgt, 30).rethrow.mapFilter(_.as[Tiger].toOption)
+    val action: IO[List[Tiger]]              = ts.through(sink).compile.drain >> src.compile.toList
     assert(action.unsafeRunSync().toSet == data)
-    val lines = hdp.text.source(tgt, 32.kb).compile.fold(0) { case (s, _) => s + 1 }
+    val lines = hdp.text.source(tgt, 32).compile.fold(0) { case (s, _) => s + 1 }
     assert(lines.unsafeRunSync() === data.size)
     val fileName = (file: NJFileKind).asJson.noSpaces
     assert(jawn.decode[NJFileKind](fileName).toOption.get == file)
@@ -85,7 +84,7 @@ class NJCirceTest extends AnyFunSuite {
   }
 
   test("laziness") {
-    json.source(NJPath("./does/not/exist"), 1.kb)
+    json.source(NJPath("./does/not/exist"), 100)
     json.sink(NJPath("./does/not/exist"))
   }
 
@@ -105,7 +104,7 @@ class NJCirceTest extends AnyFunSuite {
       .drain
       .unsafeRunSync()
     val size =
-      Stream.eval(hdp.filesIn(path)).flatMap(json.source(_, 1.kb)).compile.toList.map(_.size).unsafeRunSync()
+      Stream.eval(hdp.filesIn(path)).flatMap(json.source(_, 100)).compile.toList.map(_.size).unsafeRunSync()
     assert(size == number * 10)
   }
 }

@@ -5,9 +5,9 @@ import cats.effect.unsafe.implicits.global
 import cats.implicits.toFunctorFilterOps
 import com.github.chenharryhua.nanjin.common.chrono.policies
 import com.github.chenharryhua.nanjin.terminals.NJCompression.*
-import com.github.chenharryhua.nanjin.terminals.{HadoopText, NJFileKind, NJHadoop, NJPath, TextFile}
+import com.github.chenharryhua.nanjin.terminals.*
 import eu.timepit.refined.auto.*
-import fs2.Stream
+import fs2.{Chunk, Pipe, Stream}
 import io.circe.generic.auto.*
 import io.circe.jawn
 import io.circe.jawn.decode
@@ -17,7 +17,6 @@ import mtest.terminals.TestData.Tiger
 import org.apache.hadoop.conf.Configuration
 import org.scalatest.Assertion
 import org.scalatest.funsuite.AnyFunSuite
-import squants.information.InformationConversions.InformationConversions
 
 import java.time.ZoneId
 import scala.concurrent.duration.DurationInt
@@ -28,10 +27,10 @@ class NJTextTest extends AnyFunSuite {
   def fs2(path: NJPath, file: TextFile, data: Set[Tiger]): Assertion = {
     val tgt = path / file.fileName
     hdp.delete(tgt).unsafeRunSync()
-    val ts     = Stream.emits(data.toList).covary[IO].map(_.asJson.noSpaces).chunks
-    val sink   = text.sink(tgt)
-    val src    = text.source(tgt, 2.kb).mapFilter(decode[Tiger](_).toOption)
-    val action = ts.through(sink).compile.drain >> src.compile.toList
+    val ts: Stream[IO, Chunk[String]] = Stream.emits(data.toList).covary[IO].map(_.asJson.noSpaces).chunks
+    val sink: Pipe[IO, Chunk[String], Nothing] = text.sink(tgt)
+    val src: Stream[IO, Tiger]                 = text.source(tgt, 2).mapFilter(decode[Tiger](_).toOption)
+    val action: IO[List[Tiger]]                = ts.through(sink).compile.drain >> src.compile.toList
     assert(action.unsafeRunSync().toSet == data)
     val fileName = (file: NJFileKind).asJson.noSpaces
     assert(jawn.decode[NJFileKind](fileName).toOption.get == file)
@@ -84,7 +83,7 @@ class NJTextTest extends AnyFunSuite {
   }
 
   test("laziness") {
-    text.source(NJPath("./does/not/exist"), 1.kb)
+    text.source(NJPath("./does/not/exist"), 1)
     text.sink(NJPath("./does/not/exist"))
   }
 
@@ -104,7 +103,7 @@ class NJTextTest extends AnyFunSuite {
       .drain
       .unsafeRunSync()
     val size =
-      Stream.eval(hdp.filesIn(path)).flatMap(text.source(_, 2.kb)).compile.toList.map(_.size).unsafeRunSync()
+      Stream.eval(hdp.filesIn(path)).flatMap(text.source(_, 2)).compile.toList.map(_.size).unsafeRunSync()
     assert(size == number * 10)
   }
 }

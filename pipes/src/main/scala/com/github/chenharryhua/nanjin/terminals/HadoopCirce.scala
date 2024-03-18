@@ -2,13 +2,13 @@ package com.github.chenharryhua.nanjin.terminals
 
 import cats.effect.kernel.{Async, Resource, Sync}
 import cats.effect.std.Hotswap
+import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick, TickStatus}
-import fs2.text.{lines, utf8}
+import fs2.text.utf8
 import fs2.{Chunk, Pipe, Stream}
 import io.circe.jawn.parse
 import io.circe.{Json, ParsingFailure}
 import org.apache.hadoop.conf.Configuration
-import squants.information.Information
 
 import java.nio.charset.StandardCharsets
 import java.time.ZoneId
@@ -17,19 +17,14 @@ final class HadoopCirce[F[_]] private (configuration: Configuration) {
 
   // read
 
-  def source(path: NJPath, bufferSize: Information)(implicit
+  def source(path: NJPath, chunkSize: ChunkSize)(implicit
     F: Sync[F]): Stream[F, Either[ParsingFailure, Json]] =
-    HadoopReader
-      .byteS(configuration, bufferSize, path.hadoopPath)
-      .through(utf8.decode)
-      .through(lines)
-      .filter(_.nonEmpty)
-      .mapChunks(_.map(parse))
+    HadoopReader.stringS(configuration, path.hadoopPath, chunkSize).mapChunks(_.map(parse))
 
-  def source(paths: List[NJPath], bufferSize: Information)(implicit
+  def source(paths: List[NJPath], chunkSize: ChunkSize)(implicit
     F: Sync[F]): Stream[F, Either[ParsingFailure, Json]] =
     paths.foldLeft(Stream.empty.covaryAll[F, Either[ParsingFailure, Json]]) { case (s, p) =>
-      s ++ source(p, bufferSize)
+      s ++ source(p, chunkSize)
     }
 
   // write

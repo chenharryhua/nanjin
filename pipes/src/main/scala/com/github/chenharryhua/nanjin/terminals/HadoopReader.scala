@@ -4,12 +4,14 @@ import cats.data.Reader
 import cats.effect.Resource
 import cats.effect.kernel.Sync
 import cats.implicits.{catsSyntaxApplicativeError, catsSyntaxMonadErrorRethrow, toBifunctorOps, toFunctorOps}
+import com.github.chenharryhua.nanjin.common.ChunkSize
 import fs2.Stream
 import fs2.io.readInputStream
 import org.apache.avro.Schema
 import org.apache.avro.file.DataFileStream
 import org.apache.avro.generic.{GenericData, GenericDatumReader}
 import org.apache.avro.io.{BinaryDecoder, DecoderFactory, JsonDecoder}
+import org.apache.commons.io.IOUtils
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.io.compress.CompressionCodecFactory
@@ -19,6 +21,8 @@ import org.apache.parquet.io.SeekableInputStream
 import squants.information.Information
 
 import java.io.InputStream
+import java.nio.charset.StandardCharsets
+import scala.jdk.CollectionConverters.IteratorHasAsScala
 import scala.util.{Failure, Success, Try}
 
 private object HadoopReader {
@@ -66,6 +70,13 @@ private object HadoopReader {
       fis = F.blocking(fileInputStream(path, configuration)),
       chunkSize = bufferSize.toBytes.toInt,
       closeAfterUse = true)
+
+  def stringS[F[_]](configuration: Configuration, path: Path, chunkSize: ChunkSize)(implicit
+    F: Sync[F]): Stream[F, String] =
+    inputStreamS[F](configuration, path).flatMap { is =>
+      val iterator: Iterator[String] = IOUtils.lineIterator(is, StandardCharsets.UTF_8).asScala
+      Stream.fromIterator(iterator, chunkSize.value)
+    }
 
   def jacksonS[F[_]](configuration: Configuration, schema: Schema, path: Path)(implicit
     F: Sync[F]): Stream[F, Either[Throwable, GenericData.Record]] =

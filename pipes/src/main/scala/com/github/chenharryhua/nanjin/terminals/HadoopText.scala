@@ -2,11 +2,11 @@ package com.github.chenharryhua.nanjin.terminals
 
 import cats.effect.kernel.{Async, Resource, Sync}
 import cats.effect.std.Hotswap
+import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick, TickStatus}
-import fs2.text.{lines, utf8}
+import fs2.text.utf8
 import fs2.{Chunk, Pipe, Stream}
 import org.apache.hadoop.conf.Configuration
-import squants.information.Information
 
 import java.nio.charset.StandardCharsets
 import java.time.ZoneId
@@ -15,11 +15,11 @@ final class HadoopText[F[_]] private (configuration: Configuration) {
 
   // read
 
-  def source(path: NJPath, bufferSize: Information)(implicit F: Sync[F]): Stream[F, String] =
-    HadoopReader.byteS[F](configuration, bufferSize, path.hadoopPath).through(utf8.decode).through(lines)
+  def source(path: NJPath, chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, String] =
+    HadoopReader.stringS[F](configuration, path.hadoopPath, chunkSize)
 
-  def source(paths: List[NJPath], bufferSize: Information)(implicit F: Sync[F]): Stream[F, String] =
-    paths.foldLeft(Stream.empty.covaryAll[F, String]) { case (s, p) => s ++ source(p, bufferSize) }
+  def source(paths: List[NJPath], chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, String] =
+    paths.foldLeft(Stream.empty.covaryAll[F, String]) { case (s, p) => s ++ source(p, chunkSize) }
 
   // write
 
