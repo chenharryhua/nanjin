@@ -2,8 +2,8 @@ package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.datetime.instances.*
 import com.github.chenharryhua.nanjin.messages.kafka.codec.KJson
+import com.github.chenharryhua.nanjin.datetime.instances.*
 import com.github.chenharryhua.nanjin.spark.*
 import com.github.chenharryhua.nanjin.terminals.{HadoopCirce, NJPath}
 import eu.timepit.refined.auto.*
@@ -12,7 +12,6 @@ import io.circe.generic.auto.*
 import mtest.spark.*
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
-import squants.information.InformationConversions.InformationConversions
 
 @DoNotDiscover
 class CirceTest extends AnyFunSuite {
@@ -24,7 +23,7 @@ class CirceTest extends AnyFunSuite {
   def loadRoosters(path: NJPath): IO[List[Rooster]] =
     fs2.Stream
       .eval(hdp.filesIn(path))
-      .flatMap(circe.source(_, 2.kb))
+      .flatMap(circe.source(_, 2))
       .map(_.flatMap(_.as[Rooster]))
       .rethrow
       .compile
@@ -33,7 +32,7 @@ class CirceTest extends AnyFunSuite {
   def loadBees(path: NJPath): IO[List[Bee]] =
     fs2.Stream
       .eval(hdp.filesIn(path))
-      .flatMap(circe.source(_, 2.kb))
+      .flatMap(circe.source(_, 2))
       .map(_.flatMap(_.as[Bee]))
       .rethrow
       .compile

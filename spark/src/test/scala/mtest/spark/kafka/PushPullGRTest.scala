@@ -49,7 +49,7 @@ class PushPullGRTest extends AnyFunSuite {
     // sparKafka.topic(evolveTopic).load.jackson(path).count.unsafeRunSync()
     Stream // immigration
       .eval(hadoop.filesIn(path))
-      .flatMap(hadoop.jackson(baseTopic.schemaPair.consumerSchema).source)
+      .flatMap(hadoop.jackson(baseTopic.schemaPair.consumerSchema).source(_, 100))
       .rethrow
       .evalTap(r => IO(assert(r.getSchema == baseTopic.schemaPair.consumerSchema)))
       .map(r => immigrate(evolveTopic.schemaPair.consumerSchema, r))
