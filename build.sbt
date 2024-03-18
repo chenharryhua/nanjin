@@ -4,7 +4,7 @@ ThisBuild / evictionErrorLevel := Level.Info
 ThisBuild / versionScheme      := Some("early-semver")
 
 val catsCoreV   = "2.10.0"
-val fs2V        = "3.9.4"
+val fs2V        = "3.10.0"
 val awsV_2      = "2.25.10"
 val awsV_1      = "1.12.680"
 val catsEffectV = "3.5.4"
