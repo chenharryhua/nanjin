@@ -26,7 +26,7 @@ class NJJacksonTest extends AnyFunSuite {
     hdp.delete(tgt).unsafeRunSync()
     val sink =
       jackson.sink(tgt)
-    val src    = jackson.source(tgt).rethrow
+    val src    = jackson.source(tgt, 10).rethrow
     val ts     = Stream.emits(data.toList).covary[IO].chunks
     val action = ts.through(sink).compile.drain >> src.compile.toList
     assert(action.unsafeRunSync().toSet == data)
@@ -80,7 +80,7 @@ class NJJacksonTest extends AnyFunSuite {
   }
 
   test("laziness") {
-    jackson.source(NJPath("./does/not/exist"))
+    jackson.source(NJPath("./does/not/exist"), 10)
     jackson.sink(NJPath("./does/not/exist"))
   }
 
@@ -100,7 +100,7 @@ class NJJacksonTest extends AnyFunSuite {
       .drain
       .unsafeRunSync()
     val size =
-      Stream.eval(hdp.filesIn(path)).flatMap(jackson.source).compile.toList.map(_.size).unsafeRunSync()
+      Stream.eval(hdp.filesIn(path)).flatMap(jackson.source(_, 10)).compile.toList.map(_.size).unsafeRunSync()
     assert(size == number * 2)
   }
 }

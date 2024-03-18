@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.terminals
 import cats.effect.kernel.{Async, Resource, Sync}
 import cats.effect.std.Hotswap
+import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick, TickStatus}
 import fs2.{Chunk, Pipe, Stream}
 import org.apache.avro.Schema
@@ -17,11 +18,11 @@ final class HadoopBinAvro[F[_]] private (
 
   // read
 
-  def source(path: NJPath)(implicit F: Sync[F]): Stream[F, GenericData.Record] =
-    HadoopReader.binAvroS[F](configuration, schema, path.hadoopPath)
+  def source(path: NJPath, chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, GenericData.Record] =
+    HadoopReader.binAvroS[F](configuration, schema, path.hadoopPath, chunkSize)
 
-  def source(paths: List[NJPath])(implicit F: Sync[F]): Stream[F, GenericData.Record] =
-    paths.foldLeft(Stream.empty.covaryAll[F, GenericData.Record]) { case (s, p) => s ++ source(p) }
+  def source(paths: List[NJPath], chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, GenericData.Record] =
+    paths.foldLeft(Stream.empty.covaryAll[F, GenericData.Record]) { case (s, p) => s ++ source(p, chunkSize) }
 
   // write
 

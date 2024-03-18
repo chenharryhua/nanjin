@@ -4,6 +4,7 @@ import cats.Endo
 import cats.data.Reader
 import cats.effect.kernel.{Async, Resource, Sync}
 import cats.effect.std.Hotswap
+import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick, TickStatus}
 import fs2.{Chunk, Pipe, Stream}
 import org.apache.avro.Schema
@@ -32,14 +33,14 @@ final class HadoopParquet[F[_]] private (
 
   // read
 
-  def source(path: NJPath)(implicit F: Sync[F]): Stream[F, GenericData.Record] =
-    for {
-      rd <- Stream.resource(HadoopReader.parquetR(readBuilder, path.hadoopPath))
-      gr <- Stream.repeatEval(F.blocking(Option(rd.read()))).unNoneTerminate
-    } yield gr
+  def source(path: NJPath, chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, GenericData.Record] =
+    Stream.resource(HadoopReader.parquetR(readBuilder, path.hadoopPath)).flatMap { pr =>
+      val iterator = Iterator.continually(Option(pr.read())).takeWhile(_.nonEmpty).map(_.get)
+      Stream.fromIterator[F](iterator, chunkSize.value)
+    }
 
-  def source(paths: List[NJPath])(implicit F: Sync[F]): Stream[F, GenericData.Record] =
-    paths.foldLeft(Stream.empty.covaryAll[F, GenericData.Record]) { case (s, p) => s ++ source(p) }
+  def source(paths: List[NJPath], chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, GenericData.Record] =
+    paths.foldLeft(Stream.empty.covaryAll[F, GenericData.Record]) { case (s, p) => s ++ source(p, chunkSize) }
 
   // write
 

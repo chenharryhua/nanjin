@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.terminals
 
 import cats.effect.kernel.{Async, Resource, Sync}
 import cats.effect.std.Hotswap
+import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick, TickStatus}
 import fs2.{Chunk, Pipe, Stream}
 import org.apache.avro.Schema
@@ -16,12 +17,14 @@ final class HadoopJackson[F[_]] private (configuration: Configuration, schema: S
 
   // read
 
-  def source(path: NJPath)(implicit F: Async[F]): Stream[F, Either[Throwable, GenericData.Record]] =
-    HadoopReader.jacksonS[F](configuration, schema, path.hadoopPath)
+  def source(path: NJPath, chunkSize: ChunkSize)(implicit
+    F: Async[F]): Stream[F, Either[Throwable, GenericData.Record]] =
+    HadoopReader.jacksonS[F](configuration, schema, path.hadoopPath, chunkSize)
 
-  def source(paths: List[NJPath])(implicit F: Async[F]): Stream[F, Either[Throwable, GenericData.Record]] =
+  def source(paths: List[NJPath], chunkSize: ChunkSize)(implicit
+    F: Async[F]): Stream[F, Either[Throwable, GenericData.Record]] =
     paths.foldLeft(Stream.empty.covaryAll[F, Either[Throwable, GenericData.Record]]) { case (s, p) =>
-      s ++ source(p)
+      s ++ source(p, chunkSize)
     }
 
   // write

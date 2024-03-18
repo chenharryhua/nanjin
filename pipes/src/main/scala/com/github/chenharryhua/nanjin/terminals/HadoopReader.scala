@@ -98,6 +98,26 @@ private object HadoopReader {
       Stream.unfold(next)(_.map(gr => (gr, next)))
     }
 
+  def jacksonS[F[_]](configuration: Configuration, schema: Schema, path: Path, chunkSize: ChunkSize)(implicit
+    F: Sync[F]): Stream[F, Either[Throwable, GenericData.Record]] =
+    inputStreamS[F](configuration, path).flatMap { is =>
+      val jsonDecoder: JsonDecoder = DecoderFactory.get().jsonDecoder(schema, is)
+      val datumReader: GenericDatumReader[GenericData.Record] =
+        new GenericDatumReader[GenericData.Record](schema)
+
+      def next: Option[Either[Throwable, GenericData.Record]] =
+        Try(datumReader.read(null, jsonDecoder)) match {
+          case Failure(exception) =>
+            exception match {
+              case _: java.io.EOFException => None
+              case err                     => Some(Left(err))
+            }
+          case Success(value) => Some(Right(value))
+        }
+      val iterator = Iterator.continually(next).takeWhile(_.nonEmpty).map(_.get)
+      Stream.fromIterator[F](iterator, chunkSize.value)
+    }
+
   def binAvroS[F[_]](configuration: Configuration, schema: Schema, path: Path)(implicit
     F: Sync[F]): Stream[F, GenericData.Record] =
     inputStreamS[F](configuration, path).flatMap { is =>
@@ -116,4 +136,25 @@ private object HadoopReader {
 
       Stream.unfold(next)(_.map(gr => (gr, next)))
     }
+
+  def binAvroS[F[_]](configuration: Configuration, schema: Schema, path: Path, chunkSize: ChunkSize)(implicit
+    F: Sync[F]): Stream[F, GenericData.Record] =
+    inputStreamS[F](configuration, path).flatMap { is =>
+      val binDecoder: BinaryDecoder = DecoderFactory.get().binaryDecoder(is, null)
+      val datumReader: GenericDatumReader[GenericData.Record] =
+        new GenericDatumReader[GenericData.Record](schema)
+
+      def next: Option[GenericData.Record] = Try(datumReader.read(null, binDecoder)) match {
+        case Failure(exception) =>
+          exception match {
+            case _: java.io.EOFException => None
+            case err                     => throw new Exception(path.toString, err)
+          }
+        case Success(value) => Some(value)
+      }
+
+      val iterator: Iterator[GenericData.Record] = Iterator.continually(next).takeWhile(_.nonEmpty).map(_.get)
+      Stream.fromIterator[F](iterator, chunkSize.value)
+    }
+
 }
