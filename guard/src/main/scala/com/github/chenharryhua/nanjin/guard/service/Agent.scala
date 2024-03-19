@@ -52,7 +52,7 @@ final class GeneralAgent[F[_]: Network] private[service] (
   // data time
   override val zonedNow: F[ZonedDateTime]                  = serviceParams.zonedNow[F]
   override def toZonedDateTime(ts: Instant): ZonedDateTime = serviceParams.toZonedDateTime(ts)
-  override val zoneId: ZoneId                              = serviceParams.taskParams.zoneId
+  override val zoneId: ZoneId                              = serviceParams.zerothTick.zoneId
 
   // metrics
   override def withMeasurement(measurement: String): Agent[F] = {

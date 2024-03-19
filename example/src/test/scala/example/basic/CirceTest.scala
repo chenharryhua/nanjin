@@ -84,14 +84,14 @@ class CirceTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
     read(path.uri.getPath) { meter =>
       hadoop
         .filesIn(path)
-        .flatMap(circe.source(_).map(_.as[Tiger]).evalTap(_ => meter.mark(1)).compile.fold(0L) {
+        .flatMap(circe.source(_, 100).map(_.as[Tiger]).evalTap(_ => meter.mark(1)).compile.fold(0L) {
           case (s, _) => s + 1
         })
     }
 
   private def singleRead(path: NJPath): IO[Long] =
     read(path.uri.getPath) { meter =>
-      circe.source(path).map(_.as[Tiger]).evalTap(_ => meter.mark(1)).compile.fold(0L) { case (s, _) =>
+      circe.source(path, 100).map(_.as[Tiger]).evalTap(_ => meter.mark(1)).compile.fold(0L) { case (s, _) =>
         s + 1
       }
     }

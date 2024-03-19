@@ -82,15 +82,16 @@ class BinAvroTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
     read(path.uri.getPath) { meter =>
       hadoop
         .filesIn(path)
-        .flatMap(bin_avro.source(_).map(decoder.from).evalTap(_ => meter.mark(1)).compile.fold(0L) {
+        .flatMap(bin_avro.source(_, 100).map(decoder.from).evalTap(_ => meter.mark(1)).compile.fold(0L) {
           case (s, _) => s + 1
         })
     }
 
   private def singleRead(path: NJPath): IO[Long] =
     read(path.uri.getPath) { meter =>
-      bin_avro.source(path).map(decoder.from).evalTap(_ => meter.mark(1)).compile.fold(0L) { case (s, _) =>
-        s + 1
+      bin_avro.source(path, 100).map(decoder.from).evalTap(_ => meter.mark(1)).compile.fold(0L) {
+        case (s, _) =>
+          s + 1
       }
     }
 

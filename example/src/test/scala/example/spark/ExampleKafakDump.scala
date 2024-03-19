@@ -17,6 +17,6 @@ class ExampleKafakDump extends AnyFunSuite {
   }
   test("dump kafka data in avro compressed by snappy") {
     val path = NJPath("./data/example/foo/batch/avro")
-    sparKafka.topic(fooTopic).fromKafka.output.avro(path).snappy.run.unsafeRunSync()
+    sparKafka.topic(fooTopic).fromKafka.output.avro(path).withCompression(_.Snappy).run.unsafeRunSync()
   }
 }

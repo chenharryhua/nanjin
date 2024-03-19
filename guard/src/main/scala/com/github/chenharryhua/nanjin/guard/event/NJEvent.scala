@@ -18,12 +18,12 @@ sealed trait NJEvent extends Product with Serializable {
 object NJEvent {
 
   final case class ServiceStart(serviceParams: ServiceParams, tick: Tick) extends NJEvent {
-    val timestamp: ZonedDateTime = tick.wakeup.atZone(tick.zoneId)
+    val timestamp: ZonedDateTime = tick.zonedWakeup
   }
 
   final case class ServicePanic(serviceParams: ServiceParams, error: NJError, tick: Tick) extends NJEvent {
     val timestamp: ZonedDateTime   = tick.acquire.atZone(tick.zoneId)
-    val restartTime: ZonedDateTime = tick.wakeup.atZone(tick.zoneId)
+    val restartTime: ZonedDateTime = tick.zonedWakeup
   }
 
   final case class ServiceStop(
