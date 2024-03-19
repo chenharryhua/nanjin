@@ -24,7 +24,7 @@ class BinAvroTest extends AnyFunSuite {
   def loadRooster(path: NJPath): IO[Set[Rooster]] =
     Stream
       .eval(hdp.filesIn(path))
-      .flatMap(bin_avro.source)
+      .flatMap(bin_avro.source(_, 100))
       .map(FromRecord(Rooster.avroCodec).from)
       .compile
       .toList

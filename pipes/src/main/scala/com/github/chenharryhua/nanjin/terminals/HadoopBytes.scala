@@ -6,47 +6,29 @@ import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick, T
 import fs2.{Chunk, Pipe, Stream}
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.Path
-import org.apache.hadoop.io.compress.zlib.ZlibCompressor.CompressionLevel
 import squants.information.Information
 
 import java.io.{InputStream, OutputStream}
 import java.time.ZoneId
 
-final class HadoopBytes[F[_]] private (
-  configuration: Configuration,
-  blockSizeHint: Long,
-  bufferSize: Information,
-  compressLevel: CompressionLevel) {
+final class HadoopBytes[F[_]] private (configuration: Configuration) {
 
-  // config
-
-  def withBufferSize(bs: Information): HadoopBytes[F] =
-    new HadoopBytes[F](configuration, blockSizeHint, bs, compressLevel)
-
-  def withBlockSizeHint(bsh: Long): HadoopBytes[F] =
-    new HadoopBytes[F](configuration, bsh, bufferSize, compressLevel)
-
-  def withCompressionLevel(cl: CompressionLevel): HadoopBytes[F] =
-    new HadoopBytes[F](configuration, blockSizeHint, bufferSize, cl)
-
-  // read
-
-  def source(path: NJPath)(implicit F: Sync[F]): Stream[F, Byte] =
+  def source(path: NJPath, bufferSize: Information)(implicit F: Sync[F]): Stream[F, Byte] =
     HadoopReader.byteS(configuration, bufferSize, path.hadoopPath)
 
-  def source(paths: List[NJPath])(implicit F: Sync[F]): Stream[F, Byte] =
-    paths.foldLeft(Stream.empty.covaryAll[F, Byte]) { case (s, p) => s ++ source(p) }
+  def source(paths: List[NJPath], bufferSize: Information)(implicit F: Sync[F]): Stream[F, Byte] =
+    paths.foldLeft(Stream.empty.covaryAll[F, Byte]) { case (s, p) => s ++ source(p, bufferSize) }
 
   def inputStream(path: NJPath)(implicit F: Sync[F]): Resource[F, InputStream] =
     HadoopReader.inputStreamR[F](configuration, path.hadoopPath)
 
   def outputStream(path: NJPath)(implicit F: Sync[F]): Resource[F, OutputStream] =
-    HadoopWriter.outputStreamR[F](path.hadoopPath, configuration, compressLevel, blockSizeHint)
+    HadoopWriter.outputStreamR[F](path.hadoopPath, configuration)
 
   // write
 
   private def getWriterR(path: Path)(implicit F: Sync[F]): Resource[F, HadoopWriter[F, Byte]] =
-    HadoopWriter.byteR[F](configuration, compressLevel, blockSizeHint, path)
+    HadoopWriter.byteR[F](configuration, path)
 
   def sink(path: NJPath)(implicit F: Sync[F]): Pipe[F, Chunk[Byte], Nothing] = {
     (ss: Stream[F, Chunk[Byte]]) =>
@@ -59,13 +41,10 @@ final class HadoopBytes[F[_]] private (
     def getWriter(tick: Tick): Resource[F, HadoopWriter[F, Byte]] =
       getWriterR(pathBuilder(tick).hadoopPath)
 
-    def init(tick: Tick): Resource[F, (Hotswap[F, HadoopWriter[F, Byte]], HadoopWriter[F, Byte])] =
-      Hotswap(getWriter(tick))
-
     // save
     (ss: Stream[F, Chunk[Byte]]) =>
       Stream.eval(TickStatus.zeroth[F](policy, zoneId)).flatMap { zero =>
-        Stream.resource(init(zero.tick)).flatMap { case (hotswap, writer) =>
+        Stream.resource(Hotswap(getWriter(zero.tick))).flatMap { case (hotswap, writer) =>
           persist[F, Byte](
             getWriter,
             hotswap,
@@ -78,6 +57,5 @@ final class HadoopBytes[F[_]] private (
 }
 
 object HadoopBytes {
-  def apply[F[_]](cfg: Configuration): HadoopBytes[F] =
-    new HadoopBytes[F](cfg, BLOCK_SIZE_HINT, BUFFER_SIZE, CompressionLevel.DEFAULT_COMPRESSION)
+  def apply[F[_]](cfg: Configuration): HadoopBytes[F] = new HadoopBytes[F](cfg)
 }

@@ -4,20 +4,25 @@ import cats.data.Reader
 import cats.effect.Resource
 import cats.effect.kernel.Sync
 import cats.implicits.{catsSyntaxApplicativeError, catsSyntaxMonadErrorRethrow, toBifunctorOps, toFunctorOps}
+import com.github.chenharryhua.nanjin.common.ChunkSize
 import fs2.Stream
 import fs2.io.readInputStream
 import org.apache.avro.Schema
 import org.apache.avro.file.DataFileStream
 import org.apache.avro.generic.{GenericData, GenericDatumReader}
 import org.apache.avro.io.{BinaryDecoder, DecoderFactory, JsonDecoder}
+import org.apache.commons.io.IOUtils
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.io.compress.CompressionCodecFactory
 import org.apache.parquet.hadoop.ParquetReader
 import org.apache.parquet.hadoop.util.HadoopInputFile
+import org.apache.parquet.io.SeekableInputStream
 import squants.information.Information
 
 import java.io.InputStream
+import java.nio.charset.StandardCharsets
+import scala.jdk.CollectionConverters.IteratorHasAsScala
 import scala.util.{Failure, Success, Try}
 
 private object HadoopReader {
@@ -45,7 +50,7 @@ private object HadoopReader {
     }(r => F.blocking(r.close()))
 
   private def fileInputStream(path: Path, configuration: Configuration): InputStream = {
-    val is: InputStream = HadoopInputFile.fromPath(path, configuration).newStream()
+    val is: SeekableInputStream = HadoopInputFile.fromPath(path, configuration).newStream()
     Option(new CompressionCodecFactory(configuration).getCodec(path)) match {
       case Some(cc) => cc.createInputStream(is)
       case None     => is
@@ -61,10 +66,19 @@ private object HadoopReader {
 
   def byteS[F[_]](configuration: Configuration, bufferSize: Information, path: Path)(implicit
     F: Sync[F]): Stream[F, Byte] =
-    inputStreamS[F](configuration, path).flatMap(is =>
-      readInputStream[F](F.pure(is), bufferSize.toBytes.toInt, closeAfterUse = true))
+    readInputStream[F](
+      fis = F.blocking(fileInputStream(path, configuration)),
+      chunkSize = bufferSize.toBytes.toInt,
+      closeAfterUse = true)
 
-  def jacksonS[F[_]](configuration: Configuration, schema: Schema, path: Path)(implicit
+  def stringS[F[_]](configuration: Configuration, path: Path, chunkSize: ChunkSize)(implicit
+    F: Sync[F]): Stream[F, String] =
+    inputStreamS[F](configuration, path).flatMap { is =>
+      val iterator: Iterator[String] = IOUtils.lineIterator(is, StandardCharsets.UTF_8).asScala
+      Stream.fromIterator(iterator, chunkSize.value)
+    }
+
+  def jacksonS[F[_]](configuration: Configuration, schema: Schema, path: Path, chunkSize: ChunkSize)(implicit
     F: Sync[F]): Stream[F, Either[Throwable, GenericData.Record]] =
     inputStreamS[F](configuration, path).flatMap { is =>
       val jsonDecoder: JsonDecoder = DecoderFactory.get().jsonDecoder(schema, is)
@@ -80,11 +94,11 @@ private object HadoopReader {
             }
           case Success(value) => Some(Right(value))
         }
-
-      Stream.unfold(next)(_.map(gr => (gr, next)))
+      val iterator = Iterator.continually(next).takeWhile(_.nonEmpty).map(_.get)
+      Stream.fromIterator[F](iterator, chunkSize.value)
     }
 
-  def binAvroS[F[_]](configuration: Configuration, schema: Schema, path: Path)(implicit
+  def binAvroS[F[_]](configuration: Configuration, schema: Schema, path: Path, chunkSize: ChunkSize)(implicit
     F: Sync[F]): Stream[F, GenericData.Record] =
     inputStreamS[F](configuration, path).flatMap { is =>
       val binDecoder: BinaryDecoder = DecoderFactory.get().binaryDecoder(is, null)
@@ -100,6 +114,8 @@ private object HadoopReader {
         case Success(value) => Some(value)
       }
 
-      Stream.unfold(next)(_.map(gr => (gr, next)))
+      val iterator: Iterator[GenericData.Record] = Iterator.continually(next).takeWhile(_.nonEmpty).map(_.get)
+      Stream.fromIterator[F](iterator, chunkSize.value)
     }
+
 }

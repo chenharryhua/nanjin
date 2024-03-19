@@ -26,8 +26,8 @@ class NJBinAvroTest extends AnyFunSuite {
 
     hdp.delete(tgt).unsafeRunSync()
     val sink =
-      binAvro.withCompressionLevel(file.compression.compressionLevel).withBlockSizeHint(1000).sink(tgt)
-    val src      = binAvro.source(tgt)
+      binAvro.sink(tgt)
+    val src      = binAvro.source(tgt, 100)
     val ts       = Stream.emits(data.toList).covary[IO].chunks
     val action   = ts.through(sink).compile.drain >> src.compile.toList
     val fileName = (file: NJFileKind).asJson.noSpaces
@@ -62,7 +62,7 @@ class NJBinAvroTest extends AnyFunSuite {
   }
 
   test("laziness") {
-    binAvro.source(NJPath("./does/not/exist"))
+    binAvro.source(NJPath("./does/not/exist"), 10)
     binAvro.sink(NJPath("./does/not/exist"))
   }
 
@@ -82,7 +82,7 @@ class NJBinAvroTest extends AnyFunSuite {
       .drain
       .unsafeRunSync()
     val size =
-      Stream.eval(hdp.filesIn(path)).flatMap(binAvro.source).compile.toList.map(_.size).unsafeRunSync()
+      Stream.eval(hdp.filesIn(path)).flatMap(binAvro.source(_, 10)).compile.toList.map(_.size).unsafeRunSync()
     assert(size == number * 2)
   }
 }

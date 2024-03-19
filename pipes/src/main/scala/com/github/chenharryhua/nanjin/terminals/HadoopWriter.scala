@@ -10,8 +10,6 @@ import org.apache.avro.io.{Encoder, EncoderFactory}
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.io.compress.CompressionCodecFactory
-import org.apache.hadoop.io.compress.zlib.ZlibCompressor.CompressionLevel
-import org.apache.hadoop.io.compress.zlib.ZlibFactory
 import org.apache.parquet.avro.AvroParquetWriter
 import org.apache.parquet.hadoop.util.HadoopOutputFile
 
@@ -23,20 +21,17 @@ sealed private trait HadoopWriter[F[_], A] {
 }
 
 private object HadoopWriter {
+  final private val BLOCK_SIZE_HINT: Long = -1
 
-  def avroR[F[_]](
-    codecFactory: CodecFactory,
-    schema: Schema,
-    configuration: Configuration,
-    blockSizeHint: Long,
-    path: Path)(implicit F: Sync[F]): Resource[F, HadoopWriter[F, GenericRecord]] =
+  def avroR[F[_]](codecFactory: CodecFactory, schema: Schema, configuration: Configuration, path: Path)(
+    implicit F: Sync[F]): Resource[F, HadoopWriter[F, GenericRecord]] =
     for {
       dfw <- Resource.make[F, DataFileWriter[GenericRecord]](
         F.blocking(new DataFileWriter(new GenericDatumWriter(schema)).setCodec(codecFactory)))(r =>
         F.blocking(r.close()))
       os <-
         Resource.make(
-          F.blocking(HadoopOutputFile.fromPath(path, configuration).createOrOverwrite(blockSizeHint)))(r =>
+          F.blocking(HadoopOutputFile.fromPath(path, configuration).createOrOverwrite(BLOCK_SIZE_HINT)))(r =>
           F.blocking(r.close()))
       writer <- Resource.make(F.blocking(dfw.create(schema, os)))(r => F.blocking(r.close()))
     } yield new HadoopWriter[F, GenericRecord] {
@@ -57,33 +52,21 @@ private object HadoopWriter {
             F.blocking(ck.foreach(pw.write))
         })
 
-  private def fileOutputStream(
-    path: Path,
-    configuration: Configuration,
-    compressionLevel: CompressionLevel,
-    blockSizeHint: Long): OutputStream = {
-    ZlibFactory.setCompressionLevel(configuration, compressionLevel)
-    val os: OutputStream = HadoopOutputFile.fromPath(path, configuration).createOrOverwrite(blockSizeHint)
+  private def fileOutputStream(path: Path, configuration: Configuration): OutputStream = {
+    val os: OutputStream = HadoopOutputFile.fromPath(path, configuration).createOrOverwrite(BLOCK_SIZE_HINT)
     Option(new CompressionCodecFactory(configuration).getCodec(path)) match {
       case Some(cc) => cc.createOutputStream(os)
       case None     => os
     }
   }
 
-  def outputStreamR[F[_]](
-    path: Path,
-    configuration: Configuration,
-    compressionLevel: CompressionLevel,
-    blockSizeHint: Long)(implicit F: Sync[F]): Resource[F, OutputStream] =
-    Resource.make(F.blocking(fileOutputStream(path, configuration, compressionLevel, blockSizeHint)))(r =>
-      F.blocking(r.close()))
+  def outputStreamR[F[_]](path: Path, configuration: Configuration)(implicit
+    F: Sync[F]): Resource[F, OutputStream] =
+    Resource.make(F.blocking(fileOutputStream(path, configuration)))(r => F.blocking(r.close()))
 
-  def byteR[F[_]](
-    configuration: Configuration,
-    compressionLevel: CompressionLevel,
-    blockSizeHint: Long,
-    path: Path)(implicit F: Sync[F]): Resource[F, HadoopWriter[F, Byte]] =
-    outputStreamR(path, configuration, compressionLevel, blockSizeHint).map(os =>
+  def byteR[F[_]](configuration: Configuration, path: Path)(implicit
+    F: Sync[F]): Resource[F, HadoopWriter[F, Byte]] =
+    outputStreamR(path, configuration).map(os =>
       new HadoopWriter[F, Byte] {
         override def write(ck: Chunk[Byte]): F[Unit] =
           F.blocking {
@@ -92,19 +75,11 @@ private object HadoopWriter {
           }
       })
 
-  def stringR[F[_]](
-    configuration: Configuration,
-    compressionLevel: CompressionLevel,
-    blockSizeHint: Long,
-    charset: Charset,
-    path: Path)(implicit F: Sync[F]): Resource[F, HadoopWriter[F, String]] =
+  def stringR[F[_]](configuration: Configuration, charset: Charset, path: Path)(implicit
+    F: Sync[F]): Resource[F, HadoopWriter[F, String]] =
     Resource
-      .make(
-        F.blocking(
-          new PrintWriter(
-            fileOutputStream(path, configuration, compressionLevel, blockSizeHint),
-            false,
-            charset)))(r => F.blocking(r.close()))
+      .make(F.blocking(new PrintWriter(fileOutputStream(path, configuration), false, charset)))(r =>
+        F.blocking(r.close()))
       .map(pw =>
         new HadoopWriter[F, String] {
           override def write(ck: Chunk[String]): F[Unit] =
@@ -117,11 +92,9 @@ private object HadoopWriter {
   private def genericRecordWriter[F[_]](
     getEncoder: OutputStream => Encoder,
     configuration: Configuration,
-    compressionLevel: CompressionLevel,
-    blockSizeHint: Long,
     schema: Schema,
     path: Path)(implicit F: Sync[F]): Resource[F, HadoopWriter[F, GenericRecord]] =
-    outputStreamR(path, configuration, compressionLevel, blockSizeHint).map { os =>
+    outputStreamR(path, configuration).map { os =>
       val encoder: Encoder = getEncoder(os)
       val datumWriter      = new GenericDatumWriter[GenericRecord](schema)
       new HadoopWriter[F, GenericRecord] {
@@ -133,31 +106,19 @@ private object HadoopWriter {
       }
     }
 
-  def jacksonR[F[_]](
-    configuration: Configuration,
-    compressionLevel: CompressionLevel,
-    blockSizeHint: Long,
-    schema: Schema,
-    path: Path)(implicit F: Sync[F]): Resource[F, HadoopWriter[F, GenericRecord]] =
+  def jacksonR[F[_]](configuration: Configuration, schema: Schema, path: Path)(implicit
+    F: Sync[F]): Resource[F, HadoopWriter[F, GenericRecord]] =
     genericRecordWriter[F](
       (os: OutputStream) => EncoderFactory.get().jsonEncoder(schema, os),
       configuration,
-      compressionLevel,
-      blockSizeHint,
       schema,
       path)
 
-  def binAvroR[F[_]](
-    configuration: Configuration,
-    compressionLevel: CompressionLevel,
-    blockSizeHint: Long,
-    schema: Schema,
-    path: Path)(implicit F: Sync[F]): Resource[F, HadoopWriter[F, GenericRecord]] =
+  def binAvroR[F[_]](configuration: Configuration, schema: Schema, path: Path)(implicit
+    F: Sync[F]): Resource[F, HadoopWriter[F, GenericRecord]] =
     genericRecordWriter[F](
       (os: OutputStream) => EncoderFactory.get().binaryEncoder(os, null),
       configuration,
-      compressionLevel,
-      blockSizeHint,
       schema,
       path)
 }

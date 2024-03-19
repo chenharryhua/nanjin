@@ -129,6 +129,7 @@ final class NJHadoop[F[_]] private (config: Configuration) {
 
   def kantan(csvConf: CsvConfiguration): HadoopKantan[F] = HadoopKantan[F](config, csvConf)
   def kantan(f: Endo[CsvConfiguration]): HadoopKantan[F] = kantan(f(CsvConfiguration.rfc))
+  def kantan: HadoopKantan[F]                            = kantan(CsvConfiguration.rfc)
 
   def circe: HadoopCirce[F] = HadoopCirce[F](config)
   def text: HadoopText[F]   = HadoopText[F](config)

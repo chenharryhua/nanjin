@@ -20,7 +20,7 @@ class ParquetTest extends AnyFunSuite {
   def loadRooster(path: NJPath): IO[Set[Rooster]] =
     fs2.Stream
       .eval(hdp.filesIn(path))
-      .flatMap(parquet.source)
+      .flatMap(parquet.source(_, 10))
       .map(FromRecord(Rooster.avroCodec).from)
       .compile
       .toList

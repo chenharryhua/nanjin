@@ -16,17 +16,15 @@ import scala.jdk.CollectionConverters.*
 final class HadoopAvro[F[_]] private (
   configuration: Configuration,
   schema: Schema,
-  compression: AvroCompression,
-  blockSizeHint: Long)
+  compression: AvroCompression)
     extends GenericRecordSink[F] {
 
   // config
 
   def withCompression(compression: AvroCompression): HadoopAvro[F] =
-    new HadoopAvro[F](configuration, schema, compression, blockSizeHint)
-
-  def withBlockSizeHint(bsh: Long): HadoopAvro[F] =
-    new HadoopAvro[F](configuration, schema, compression, bsh)
+    new HadoopAvro[F](configuration, schema, compression)
+  def withCompression(f: AvroCompression.type => AvroCompression): HadoopAvro[F] =
+    withCompression(f(AvroCompression))
 
   // read
 
@@ -42,7 +40,7 @@ final class HadoopAvro[F[_]] private (
   // write
 
   private def getWriterR(path: Path)(implicit F: Sync[F]): Resource[F, HadoopWriter[F, GenericRecord]] =
-    HadoopWriter.avroR[F](compression.codecFactory, schema, configuration, blockSizeHint, path)
+    HadoopWriter.avroR[F](compression.codecFactory, schema, configuration, path)
 
   def sink(path: NJPath)(implicit F: Sync[F]): Pipe[F, Chunk[GenericRecord], Nothing] = {
     (ss: Stream[F, Chunk[GenericRecord]]) =>
@@ -54,14 +52,10 @@ final class HadoopAvro[F[_]] private (
     def getWriter(tick: Tick): Resource[F, HadoopWriter[F, GenericRecord]] =
       getWriterR(pathBuilder(tick).hadoopPath)
 
-    def init(
-      tick: Tick): Resource[F, (Hotswap[F, HadoopWriter[F, GenericRecord]], HadoopWriter[F, GenericRecord])] =
-      Hotswap(getWriter(tick))
-
     // save
     (ss: Stream[F, Chunk[GenericRecord]]) =>
       Stream.eval(TickStatus.zeroth[F](policy, zoneId)).flatMap { zero =>
-        Stream.resource(init(zero.tick)).flatMap { case (hotswap, writer) =>
+        Stream.resource(Hotswap(getWriter(zero.tick))).flatMap { case (hotswap, writer) =>
           persist[F, GenericRecord](
             getWriter,
             hotswap,
@@ -75,5 +69,5 @@ final class HadoopAvro[F[_]] private (
 
 object HadoopAvro {
   def apply[F[_]](cfg: Configuration, schema: Schema): HadoopAvro[F] =
-    new HadoopAvro[F](cfg, schema, NJCompression.Uncompressed, BLOCK_SIZE_HINT)
+    new HadoopAvro[F](cfg, schema, NJCompression.Uncompressed)
 }

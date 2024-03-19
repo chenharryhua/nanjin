@@ -9,6 +9,7 @@ import eu.timepit.refined.auto.*
 import fs2.Stream
 import org.apache.hadoop.conf.Configuration
 import org.scalatest.funsuite.AnyFunSuite
+import squants.information.InformationConversions.InformationConversions
 
 class BinaryAvroPipeTest extends AnyFunSuite {
   import mtest.terminals.TestData.*
@@ -57,7 +58,7 @@ class BinaryAvroPipeTest extends AnyFunSuite {
         .through(hd.bytes.sink(path))
     val read =
       hd.bytes
-        .source(path)
+        .source(path, 1.kb)
         .through(BinaryAvroSerde.fromBytes[IO](AvroSchema[Tiger]))
         .map(Tiger.avroDecoder.decode)
     val run = write.compile.drain >> read.compile.toList

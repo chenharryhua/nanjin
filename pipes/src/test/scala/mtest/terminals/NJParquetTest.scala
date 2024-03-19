@@ -32,7 +32,7 @@ class NJParquetTest extends AnyFunSuite {
       ts.through(parquet.updateWriter(_.withCompressionCodec(file.compression.codecName)).sink(tgt))
         .compile
         .drain >>
-        parquet.source(tgt).compile.toList
+        parquet.source(tgt, 100).compile.toList
     assert(action.unsafeRunSync().toSet == data)
     val fileName = (file: NJFileKind).asJson.noSpaces
     assert(jawn.decode[NJFileKind](fileName).toOption.get == file)
@@ -72,7 +72,7 @@ class NJParquetTest extends AnyFunSuite {
   }
 
   test("laziness") {
-    parquet.source(NJPath("./does/not/exist"))
+    parquet.source(NJPath("./does/not/exist"), 100)
     parquet.sink(NJPath("./does/not/exist"))
   }
 
@@ -93,7 +93,10 @@ class NJParquetTest extends AnyFunSuite {
       .unsafeRunSync()
     val size = Stream
       .force(
-        hdp.dataFolders(path).flatMap(_.flatTraverse(hdp.filesIn)).map(parquet.updateReader(identity).source))
+        hdp
+          .dataFolders(path)
+          .flatMap(_.flatTraverse(hdp.filesIn))
+          .map(parquet.updateReader(identity).source(_, 10)))
       .compile
       .toList
       .map(_.size)
