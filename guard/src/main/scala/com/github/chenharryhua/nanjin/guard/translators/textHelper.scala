@@ -77,7 +77,7 @@ private object textHelper extends localtime with localdatetime {
 
   def retryText(evt: ActionRetry): String = {
     val localTs: LocalTime =
-      evt.tick.wakeup.atZone(evt.tick.zoneId).toLocalTime.truncatedTo(ChronoUnit.SECONDS)
+      evt.tick.zonedWakeup.toLocalTime.truncatedTo(ChronoUnit.SECONDS)
     s"${toOrdinalWords(evt.tick.index)} retry was scheduled at $localTs"
   }
 }

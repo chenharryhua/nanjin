@@ -7,7 +7,7 @@ import cats.syntax.all.*
 import io.circe.generic.JsonCodec
 import org.typelevel.cats.time.instances.all.*
 
-import java.time.{Duration, Instant, ZoneId}
+import java.time.{Duration, Instant, ZoneId, ZonedDateTime}
 import java.util.UUID
 
 @JsonCodec
@@ -17,10 +17,13 @@ final case class Tick(
   zoneId: ZoneId, // immutable
   previous: Instant, // previous tick's wakeup time
   index: Long, // monotonously increase
-  acquire: Instant, // when user acquire a new tick
+  acquire: Instant, // when acquire a new tick
   snooze: Duration // sleep duration
 ) {
-  val wakeup: Instant    = acquire.plus(snooze)
+
+  val wakeup: Instant            = acquire.plus(snooze)
+  def zonedWakeup: ZonedDateTime = wakeup.atZone(zoneId)
+
   def interval: Duration = Duration.between(previous, wakeup)
 
   /** check if an instant is in this tick frame from previous timestamp(inclusive) to current
