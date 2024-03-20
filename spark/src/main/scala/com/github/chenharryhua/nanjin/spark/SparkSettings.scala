@@ -46,7 +46,7 @@ object SparkSettings {
           .set("spark.debug.maxToStringFields", "1000")
           .set(
             "spark.hadoop.fs.s3a.aws.credentials.provider",
-            "com.amazonaws.auth.DefaultAWSCredentialsProviderChain")
+            "software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider")
           .set("spark.hadoop.fs.s3a.connection.maximum", "100")
           .set("spark.hadoop.fs.s3a.experimental.input.fadvise", "sequential")
           .set("spark.hadoop.fs.s3a.committer.name", "directory")

@@ -5,10 +5,9 @@ ThisBuild / versionScheme      := Some("early-semver")
 
 val catsCoreV   = "2.10.0"
 val fs2V        = "3.10.0"
-val awsV_2      = "2.25.10"
-val awsV_1      = "1.12.680"
+val awsV        = "2.25.10"
 val catsEffectV = "3.5.4"
-val hadoopV     = "3.3.6"
+val hadoopV     = "3.4.0"
 val monocleV    = "3.2.0"
 val confluentV  = "7.6.0"
 val kafkaV      = "7.6.0-ce"
@@ -219,12 +218,12 @@ lazy val aws = (project in file("aws"))
   .settings(commonSettings*)
   .settings(name := "nj-aws")
   .settings(libraryDependencies ++= List(
-    "software.amazon.awssdk"              % "cloudwatch"        % awsV_2,
-    "software.amazon.awssdk"              % "sqs"               % awsV_2,
-    "software.amazon.awssdk"              % "ssm"               % awsV_2,
-    "software.amazon.awssdk"              % "sns"               % awsV_2,
-    "software.amazon.awssdk"              % "ses"               % awsV_2,
-    "software.amazon.awssdk"              % "sdk-core"          % awsV_2,
+    "software.amazon.awssdk"              % "cloudwatch"        % awsV,
+    "software.amazon.awssdk"              % "sqs"               % awsV,
+    "software.amazon.awssdk"              % "ssm"               % awsV,
+    "software.amazon.awssdk"              % "sns"               % awsV,
+    "software.amazon.awssdk"              % "ses"               % awsV,
+    "software.amazon.awssdk"              % "sdk-core"          % awsV,
     "com.fasterxml.jackson.core"          % "jackson-databind"  % jacksonV, // snyk
     "io.netty"                            % "netty-handler"     % nettyV, // snyk
     "io.netty"                            % "netty-codec-http2" % nettyV, // snyk
@@ -385,16 +384,16 @@ lazy val pipes = (project in file("pipes"))
   .settings(name := "nj-pipes")
   .settings {
     val libs = List(
-      "com.amazonaws"         % "aws-java-sdk-bundle" % awsV_1,
-      "org.tukaani"           % "xz"                  % "1.9",
-      "org.apache.zookeeper"  % "zookeeper"           % "3.9.2", // snyk
-      "ch.qos.logback"        % "logback-classic"     % logbackV, // snyk by zookeeper
-      "ch.qos.logback"        % "logback-core"        % logbackV, // snyk by zookeeper
-      "org.eclipse.jetty"     % "jetty-xml"           % "12.0.7", // snyk
-      "org.eclipse.jetty"     % "jetty-http"          % "12.0.7", // snyk
-      "org.jetbrains.kotlin"  % "kotlin-stdlib"       % "1.9.23", // snyk
-      "org.codehaus.jettison" % "jettison"            % "1.5.4", // snyk
-      "io.netty"              % "netty-all"           % nettyV // snyk
+      "software.amazon.awssdk" % "bundle"          % awsV,
+      "org.tukaani"            % "xz"              % "1.9",
+      "org.apache.zookeeper"   % "zookeeper"       % "3.9.2", // snyk
+      "ch.qos.logback"         % "logback-classic" % logbackV, // snyk by zookeeper
+      "ch.qos.logback"         % "logback-core"    % logbackV, // snyk by zookeeper
+      "org.eclipse.jetty"      % "jetty-xml"       % "12.0.7", // snyk
+      "org.eclipse.jetty"      % "jetty-http"      % "12.0.7", // snyk
+      "org.jetbrains.kotlin"   % "kotlin-stdlib"   % "1.9.23", // snyk
+      "org.codehaus.jettison"  % "jettison"        % "1.5.4", // snyk
+      "io.netty"               % "netty-all"       % nettyV // snyk
     ) ++ kantanLib ++ logLib ++ testLib ++ hadoopLib
     libraryDependencies ++= libs.map(_.exclude("org.codehaus.jackson", "jackson-mapper-asl")) // snyk
   }
