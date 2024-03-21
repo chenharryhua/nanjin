@@ -14,6 +14,7 @@ import io.circe.*
 import io.circe.Decoder.Result
 import io.circe.DecodingFailure.Reason
 import io.circe.syntax.EncoderOps
+import monocle.Monocle.toAppliedFocusOps
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.typelevel.cats.time.instances.all
 
@@ -43,6 +44,7 @@ private object PolicyF extends all {
   final case class EndAt[K](policy: K, end: LocalTime) extends PolicyF[K]
   final case class ExpireAt[K](policy: K, expire: LocalDateTime) extends PolicyF[K]
   final case class Meet[K](first: K, second: K) extends PolicyF[K]
+  final case class Except[K](policy: K, except: LocalTime) extends PolicyF[K]
 
   type CalcTick = TickRequest => Option[Tick]
   final case class TickRequest(tick: Tick, now: Instant)
@@ -116,6 +118,17 @@ private object PolicyF extends all {
               if (ra.snooze < rb.snooze) ra else rb // shorter win
             }
         }
+
+      case Except(policy, except) =>
+        policy.map { (f: CalcTick) => (req: TickRequest) =>
+          f(req).flatMap { tick =>
+            if (tick.zonedWakeup.toLocalTime === except) {
+              f(TickRequest(tick, tick.wakeup)).map { nt =>
+                tick.focus(_.snooze).modify(_.plus(nt.snooze))
+              }
+            } else Some(tick)
+          }
+        }
     }
 
   def decisions(policy: Fix[PolicyF], zoneId: ZoneId): LazyList[CalcTick] =
@@ -142,6 +155,7 @@ private object PolicyF extends all {
   private val MEET_FIRST: String           = "first"
   private val MEET_SECOND: String          = "second"
   private val REPEAT: String               = "repeat"
+  private val EXCEPT: String               = "except"
 
   val showPolicy: Algebra[PolicyF, String] = Algebra[PolicyF, String] {
     case GiveUp()           => show"$GIVE_UP"
@@ -160,6 +174,7 @@ private object PolicyF extends all {
     case EndAt(policy, end)           => show"$policy.$END_AT($end)"
     case ExpireAt(policy, expire)     => show"$policy.$EXPIRE_AT($expire)"
     case Meet(first, second)          => show"$first.$MEET($second)"
+    case Except(policy, except)       => show"$policy.$EXCEPT($except)"
   }
 
   // json encoder
@@ -188,6 +203,8 @@ private object PolicyF extends all {
       Json.obj(EXPIRE_AT -> expire.asJson, POLICY -> policy)
     case Meet(first, second) =>
       Json.obj(MEET -> Json.obj(MEET_FIRST -> first, MEET_SECOND -> second))
+    case Except(policy, except) =>
+      Json.obj(EXCEPT -> except.asJson, POLICY -> policy)
   }
 
   val encoderFixPolicyF: Encoder[Fix[PolicyF]] =
@@ -249,6 +266,12 @@ private object PolicyF extends all {
     def repeat(hc: HCursor): Result[Repeat[HCursor]] =
       hc.downField(REPEAT).as[HCursor].map(Repeat[HCursor])
 
+    def except(hc: HCursor): Result[Except[HCursor]] = {
+      val ept = hc.get[LocalTime](EXCEPT)
+      val plc = hc.downField(POLICY).as[HCursor]
+      (plc, ept).mapN(Except[HCursor])
+    }
+
     Coalgebra[PolicyF, HCursor] { hc =>
       val result =
         giveUp(hc)
@@ -262,6 +285,7 @@ private object PolicyF extends all {
           .orElse(followedBy(hc))
           .orElse(accordance(hc))
           .orElse(meet(hc))
+          .orElse(except(hc))
           .orElse(repeat(hc))
 
       result match {
@@ -281,20 +305,20 @@ private object PolicyF extends all {
 }
 
 final case class Policy(policy: Fix[PolicyF]) { // don't extends AnyVal, monocle doesn't like it
-  import PolicyF.{EndAt, FollowedBy, Limited, Meet, Repeat}
+  import PolicyF.{EndAt, Except, FollowedBy, Limited, Meet, Repeat}
   override def toString: String = scheme.cata(PolicyF.showPolicy).apply(policy)
 
-  def limited(num: Int): Policy         = Policy(Fix(Limited(policy, num)))
-  def followedBy(other: Policy): Policy = Policy(Fix(FollowedBy(policy, other.policy)))
-  def repeat: Policy                    = Policy(Fix(Repeat(policy)))
-  def meet(other: Policy): Policy       = Policy(Fix(Meet(policy, other.policy)))
+  def limited(num: Int): Policy                       = Policy(Fix(Limited(policy, num)))
+  def followedBy(other: Policy): Policy               = Policy(Fix(FollowedBy(policy, other.policy)))
+  def repeat: Policy                                  = Policy(Fix(Repeat(policy)))
+  def meet(other: Policy): Policy                     = Policy(Fix(Meet(policy, other.policy)))
+  def except(localTime: LocalTime): Policy            = Policy(Fix(Except(policy, localTime)))
+  def except(f: localTimes.type => LocalTime): Policy = except(f(localTimes))
 
   def expireAt(localDateTime: LocalDateTime): Policy = Policy(Fix(ExpireAt(policy, localDateTime)))
 
   def endAt(localTime: LocalTime): Policy            = Policy(Fix(EndAt(policy, localTime)))
   def endAt(f: localTimes.type => LocalTime): Policy = endAt(f(localTimes))
-
-  def endOfDay: Policy = endAt(LocalTime.MAX)
 }
 
 object Policy {

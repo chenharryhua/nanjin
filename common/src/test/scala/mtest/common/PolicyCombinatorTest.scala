@@ -3,21 +3,24 @@ package mtest.common
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.toShow
-import com.github.chenharryhua.nanjin.common.chrono.zones.{darwinTime, singaporeTime, sydneyTime}
+import com.github.chenharryhua.nanjin.common.chrono.zones.{beijingTime, darwinTime, singaporeTime, sydneyTime}
 import com.github.chenharryhua.nanjin.common.chrono.{
   crontabs,
   localTimes,
   policies,
   tickStream,
   Policy,
+  Tick,
   TickStatus
 }
+import com.github.chenharryhua.nanjin.common.utils.zzffEpoch
 import cron4s.CronExpr
 import io.circe.jawn.decode
 import io.circe.syntax.EncoderOps
 import org.scalatest.funsuite.AnyFunSuite
 
-import java.time.{LocalDateTime, LocalTime}
+import java.time.{Duration, LocalDateTime, LocalTime, ZonedDateTime}
+import java.util.UUID
 import scala.concurrent.duration.DurationInt
 import scala.jdk.DurationConverters.{JavaDurationOps, ScalaDurationOps}
 
@@ -166,7 +169,7 @@ class PolicyCombinatorTest extends AnyFunSuite {
     val policy = policies
       .accordance(policies.crontab(crontabs.secondly).endAt(time))
       .followedBy(policies.fixedRate(1.second).endAt(time.plus(5.seconds.toJava)))
-      .followedBy(policies.fixedDelay(2.second).endOfDay)
+      .followedBy(policies.fixedDelay(2.second).endAt(_.endOfDay))
       .repeat
       .expireAt(LocalDateTime.MAX)
     println(policy)
@@ -219,12 +222,14 @@ class PolicyCombinatorTest extends AnyFunSuite {
       .followedBy(policies.crontab(_.daily.ninePM).endAt(_.ninePM))
       .followedBy(policies.crontab(_.daily.tenPM).endAt(_.tenPM))
       .followedBy(policies.crontab(_.daily.elevenPM).endAt(_.elevenPM))
-      .followedBy(policies.crontab(_.daily.midnight).endOfDay)
+      .followedBy(policies.crontab(_.daily.midnight).endAt(_.endOfDay))
       .repeat
+      .except(_.midnight)
       .followedBy(policies.fixedDelay(1.second))
       .followedBy(policies.fixedRate(3.second))
       .followedBy(policies.fixedDelay(1.second, 2.seconds))
       .followedBy(policies.fixedRate(2.seconds))
+      .except(_.twoPM)
       .followedBy(policies.jitter(1.hours, 2.hours))
       .repeat
       .followedBy(policies.crontab(crontabs.weekly.monday).endAt(_.oneAM))
@@ -246,5 +251,38 @@ class PolicyCombinatorTest extends AnyFunSuite {
     import com.github.chenharryhua.nanjin.common.chrono.*
     assert(decode[Policy](""" {"crontab":"*/4 * * ? *"} """).toOption.isEmpty)
     assert(decode[CronExpr](""" "*/4 * * ? *" """).toOption.isEmpty)
+  }
+
+  test("except") {
+    val policy = policies.crontab(_.hourly).except(_.midnight).except(_.elevenPM).except(_.midnight)
+    println(policy.show)
+    println(policy.asJson)
+    assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
+
+    val today: ZonedDateTime = zzffEpoch.atZone(beijingTime)
+
+    val ts: TickStatus = TickStatus(
+      Tick(
+        sequenceId = UUID.randomUUID(),
+        launchTime = today.toInstant,
+        zoneId = beijingTime,
+        previous = today.toInstant,
+        index = 0,
+        acquire = today.toInstant,
+        snooze = Duration.ZERO
+      )).renewPolicy(policy)
+
+    val ticks  = lazyTickList(ts).take(8).toList
+    val wakeup = ticks.map(_.zonedWakeup.toLocalTime)
+    assert(wakeup.size == 8)
+    assert(wakeup.head == localTimes.sevenPM)
+    assert(wakeup(1) == localTimes.eightPM)
+    assert(wakeup(2) == localTimes.ninePM)
+    assert(wakeup(3) == localTimes.tenPM)
+    assert(wakeup(4) == localTimes.oneAM)
+    assert(wakeup(5) == localTimes.twoAM)
+    assert(wakeup(6) == localTimes.threeAM)
+    assert(wakeup(7) == localTimes.fourAM)
+    ticks.foreach(println)
   }
 }

@@ -39,6 +39,9 @@ final case class Tick(
       acquire = now,
       snooze = delay
     )
+
+  override def toString: String =
+    s"pre=${previous.atZone(zoneId)}, acq=${acquire.atZone(zoneId)}, wak=$zonedWakeup, snz=$snooze, idx=$index"
 }
 
 final class TickStatus private (val tick: Tick, decisions: LazyList[PolicyF.CalcTick]) extends Serializable {
