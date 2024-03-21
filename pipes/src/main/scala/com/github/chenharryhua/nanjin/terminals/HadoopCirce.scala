@@ -32,8 +32,8 @@ final class HadoopCirce[F[_]] private (configuration: Configuration) {
   def sink(path: NJPath)(implicit F: Sync[F]): Pipe[F, Chunk[Json], Nothing] = {
     (ss: Stream[F, Chunk[Json]]) =>
       Stream.resource(HadoopWriter.byteR[F](configuration, path.hadoopPath)).flatMap { w =>
-        ss.unchunks
-          .mapChunks(_.map(_.noSpaces))
+        ss.map(_.map(_.noSpaces))
+          .unchunks
           .intersperse(NEWLINE_SEPARATOR)
           .through(utf8.encode)
           .chunks
@@ -50,14 +50,13 @@ final class HadoopCirce[F[_]] private (configuration: Configuration) {
     (ss: Stream[F, Chunk[Json]]) =>
       Stream.eval(TickStatus.zeroth[F](policy, zoneId)).flatMap { zero =>
         Stream.resource(Hotswap(getWriter(zero.tick))).flatMap { case (hotswap, writer) =>
-          val ts: Stream[F, Either[Chunk[String], (Tick, Chunk[String])]] =
-            tickStream[F](zero).map(t => Right((t, Chunk.empty)))
+          val ticks: Stream[F, Either[Chunk[String], Tick]] = tickStream[F](zero).map(Right(_))
 
-          persistString[F](
+          persistText[F](
             getWriter,
             hotswap,
             writer,
-            ss.map(ck => Left(ck.map(_.noSpaces))).mergeHaltBoth(ts),
+            ss.map(ck => Left(ck.map(_.noSpaces))).mergeHaltBoth(ticks),
             Chunk.empty
           ).stream
         }

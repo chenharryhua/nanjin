@@ -88,7 +88,7 @@ class NJTextTest extends AnyFunSuite {
   }
 
   test("rotation") {
-    val path   = fs2Root / "rotation"
+    val path   = fs2Root / "rotation" / "data"
     val number = 10000L
     hdp.delete(path).unsafeRunSync()
     val fk = TextFile(Uncompressed)
@@ -105,5 +105,21 @@ class NJTextTest extends AnyFunSuite {
     val size =
       Stream.eval(hdp.filesIn(path)).flatMap(text.source(_, 2)).compile.toList.map(_.size).unsafeRunSync()
     assert(size == number * 10)
+  }
+
+  test("rotation - empty") {
+    val text = hdp.text
+    val path = fs2Root / "rotation" / "empty"
+    hdp.delete(path).unsafeRunSync()
+    val fk = TextFile(Uncompressed)
+    (Stream.sleep[IO](10.hours) >>
+      Stream.empty.covaryAll[IO, String]).chunks
+      .through(text.sink(policies.fixedDelay(1.second).limited(3), ZoneId.systemDefault())(t =>
+        path / fk.fileName(t)))
+      .compile
+      .drain
+      .unsafeRunSync()
+    import better.files.*
+    hdp.filesIn(path).unsafeRunSync().foreach(np => assert(File(np.uri).lines.isEmpty))
   }
 }

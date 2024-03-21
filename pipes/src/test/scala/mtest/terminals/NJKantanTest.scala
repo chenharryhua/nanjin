@@ -38,7 +38,7 @@ class NJKantanTest extends AnyFunSuite {
   val fs2Root: NJPath = NJPath("./data/test/terminals/csv/tiger")
 
   test("uncompressed - with-header") {
-    val cfg = CsvConfiguration.rfc.withHeader(tigerHeader.modify(identity))
+    val cfg = CsvConfiguration.rfc.withHeader(tigerHeader.modify(_ + "_tiger"))
     fs2(fs2Root / "header", KantanFile(_.Uncompressed), cfg, tigerSet)
   }
 
@@ -101,8 +101,8 @@ class NJKantanTest extends AnyFunSuite {
 
   val policy: Policy = policies.fixedDelay(1.second)
   test("rotation - with-header") {
-    val csv  = hdp.kantan(_.withHeader(CsvHeaderOf[Tiger]))
-    val path = fs2Root / "rotation" / "header"
+    val csv  = hdp.kantan(_.withHeader(CsvHeaderOf[Tiger].header))
+    val path = fs2Root / "rotation" / "header" / "data"
     val file = KantanFile(Uncompressed)
     hdp.delete(path).unsafeRunSync()
     herd
@@ -125,9 +125,25 @@ class NJKantanTest extends AnyFunSuite {
     assert(size == herd_number)
   }
 
-  test("rotation") {
+  test("rotation - empty(with header)") {
+    val csv  = hdp.kantan(_.withHeader(CsvHeaderOf[Tiger].header))
+    val path = fs2Root / "rotation" / "header" / "empty"
+    hdp.delete(path).unsafeRunSync()
+    val fk = KantanFile(Uncompressed)
+    (Stream.sleep[IO](10.hours) >>
+      Stream.empty.covaryAll[IO, Seq[String]]).chunks
+      .through(csv.sink(policies.fixedDelay(1.second).limited(3), ZoneId.systemDefault())(t =>
+        path / fk.fileName(t)))
+      .compile
+      .drain
+      .unsafeRunSync()
+    import better.files.*
+    hdp.filesIn(path).unsafeRunSync().foreach(np => assert(File(np.uri).lines.size == 1))
+  }
+
+  test("rotation - no header") {
     val csv    = hdp.kantan(CsvConfiguration.rfc)
-    val path   = fs2Root / "rotation" / "no-header"
+    val path   = fs2Root / "rotation" / "no-header" / "data"
     val number = 10000L
     val file   = KantanFile(Uncompressed)
     hdp.delete(path).unsafeRunSync()
@@ -151,5 +167,21 @@ class NJKantanTest extends AnyFunSuite {
         .map(_.size)
         .unsafeRunSync()
     assert(size == number)
+  }
+
+  test("rotation - empty(no header)") {
+    val csv  = hdp.kantan(CsvConfiguration.rfc)
+    val path = fs2Root / "rotation" / "no-header" / "empty"
+    hdp.delete(path).unsafeRunSync()
+    val fk = KantanFile(Uncompressed)
+    (Stream.sleep[IO](10.hours) >>
+      Stream.empty.covaryAll[IO, Seq[String]]).chunks
+      .through(csv.sink(policies.fixedDelay(1.second).limited(3), ZoneId.systemDefault())(t =>
+        path / fk.fileName(t)))
+      .compile
+      .drain
+      .unsafeRunSync()
+    import better.files.*
+    hdp.filesIn(path).unsafeRunSync().foreach(np => assert(File(np.uri).lines.isEmpty))
   }
 }

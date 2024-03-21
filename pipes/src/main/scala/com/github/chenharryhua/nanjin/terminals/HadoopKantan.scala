@@ -27,7 +27,7 @@ sealed trait CsvHeaderOf[A] {
 }
 
 object CsvHeaderOf {
-  def apply[A](implicit ev: CsvHeaderOf[A]): Header.Explicit = ev.header
+  def apply[A](implicit ev: CsvHeaderOf[A]): ev.type = ev
 
   implicit def inferKantanCsvHeader[A, Repr <: HList, KeysRepr <: HList](implicit
     @nowarn gen: LabelledGeneric.Aux[A, Repr],
@@ -84,21 +84,33 @@ final class HadoopKantan[F[_]] private (
     (ss: Stream[F, Chunk[Seq[String]]]) =>
       Stream.eval(TickStatus.zeroth[F](policy, zoneId)).flatMap { zero =>
         Stream.resource(Hotswap(getWriter(zero.tick))).flatMap { case (hotswap, writer) =>
-          val header: Chunk[String] = csvHeader(csvConfiguration)
-          val src: Stream[F, Chunk[String]] =
-            Stream(header).filter(_.nonEmpty) ++ ss.map(_.map(buildCsvRow(csvConfiguration)))
+          val ticks: Stream[F, Either[Chunk[String], Tick]] = tickStream[F](zero).map(Right(_))
 
-          val header_crlf = header.map(_.concat(NEWLINE_SEPARATOR))
-          val ts: Stream[F, Either[Chunk[String], (Tick, Chunk[String])]] =
-            tickStream[F](zero).map(t => Right((t, header_crlf)))
+          if (csvConfiguration.hasHeader) {
+            val header: Chunk[String] = csvHeader(csvConfiguration)
+            val src: Stream[F, Either[Chunk[String], Tick]] =
+              (Stream(header) ++ ss.map(_.map(buildCsvRow(csvConfiguration)))).map(Left(_))
 
-          persistString[F](
-            getWriter,
-            hotswap,
-            writer,
-            src.map(Left(_)).mergeHaltBoth(ts),
-            Chunk.empty
-          ).stream
+            persistCsvWithHeader[F](
+              getWriter,
+              header,
+              hotswap,
+              writer,
+              src.mergeHaltBoth(ticks),
+              Chunk.empty
+            ).stream
+          } else {
+            val src: Stream[F, Either[Chunk[String], Tick]] =
+              ss.map(_.map(buildCsvRow(csvConfiguration))).map(Left(_))
+
+            persistText[F](
+              getWriter,
+              hotswap,
+              writer,
+              src.mergeHaltBoth(ticks),
+              Chunk.empty
+            ).stream
+          }
         }
       }
   }

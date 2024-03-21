@@ -39,11 +39,11 @@ package object terminals {
       case None => Pull.done
     }
 
-  private[terminals] def persistString[F[_]](
+  private[terminals] def persistText[F[_]](
     getWriter: Tick => Resource[F, HadoopWriter[F, String]],
     hotswap: Hotswap[F, HadoopWriter[F, String]],
     writer: HadoopWriter[F, String],
-    ss: Stream[F, Either[Chunk[String], (Tick, Chunk[String])]],
+    ss: Stream[F, Either[Chunk[String], Tick]],
     newLineSeparator: Chunk[String]
   ): Pull[F, Nothing, Unit] =
     ss.pull.uncons1.flatMap {
@@ -52,12 +52,36 @@ package object terminals {
           case Left(data) =>
             val (rest, last) = data.splitAt(data.size - 1)
             Pull.eval(writer.write(newLineSeparator ++ rest.map(_.concat(NEWLINE_SEPARATOR)) ++ last)) >>
-              persistString[F](getWriter, hotswap, writer, tail, NEWLINE_SEPARATOR_CHUNK)
+              persistText[F](getWriter, hotswap, writer, tail, NEWLINE_SEPARATOR_CHUNK)
 
-          case Right((tick, header)) =>
+          case Right(tick) =>
+            Pull.eval(hotswap.swap(getWriter(tick))).flatMap { writer =>
+              persistText(getWriter, hotswap, writer, tail, Chunk.empty)
+            }
+        }
+      case None => Pull.done
+    }
+
+  private[terminals] def persistCsvWithHeader[F[_]](
+    getWriter: Tick => Resource[F, HadoopWriter[F, String]],
+    header: Chunk[String],
+    hotswap: Hotswap[F, HadoopWriter[F, String]],
+    writer: HadoopWriter[F, String],
+    ss: Stream[F, Either[Chunk[String], Tick]],
+    newLineSeparator: Chunk[String]
+  ): Pull[F, Nothing, Unit] =
+    ss.pull.uncons1.flatMap {
+      case Some((head, tail)) =>
+        head match {
+          case Left(data) =>
+            val (rest, last) = data.splitAt(data.size - 1)
+            Pull.eval(writer.write(newLineSeparator ++ rest.map(_.concat(NEWLINE_SEPARATOR)) ++ last)) >>
+              persistCsvWithHeader[F](getWriter, header, hotswap, writer, tail, NEWLINE_SEPARATOR_CHUNK)
+
+          case Right(tick) =>
             Pull.eval(hotswap.swap(getWriter(tick))).flatMap { writer =>
               Pull.eval(writer.write(header)) >>
-                persistString(getWriter, hotswap, writer, tail, Chunk.empty)
+                persistCsvWithHeader(getWriter, header, hotswap, writer, tail, NEWLINE_SEPARATOR_CHUNK)
             }
         }
       case None => Pull.done
