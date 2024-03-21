@@ -27,7 +27,7 @@ sealed trait CsvHeaderOf[A] {
 }
 
 object CsvHeaderOf {
-  def apply[A](implicit ev: CsvHeaderOf[A]): Header.Explicit = ev.header
+  def apply[A](implicit ev: CsvHeaderOf[A]): ev.type = ev
 
   implicit def inferKantanCsvHeader[A, Repr <: HList, KeysRepr <: HList](implicit
     @nowarn gen: LabelledGeneric.Aux[A, Repr],

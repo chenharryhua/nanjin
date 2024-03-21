@@ -70,7 +70,7 @@ class PolicyCombinatorTest extends AnyFunSuite {
   test("repeat") {
     val policy =
       policies
-        .accordance(policies.fixedDelay(1.second).repeat.limited(3))
+        .accordance(policies.fixedDelay(1.second).limited(1).repeat.limited(3))
         .followedBy(policies.fixedDelay(2.seconds).limited(2))
         .repeat
 

@@ -94,7 +94,9 @@ private object HadoopReader {
             }
           case Success(value) => Some(Right(value))
         }
-      val iterator = Iterator.continually(next).takeWhile(_.nonEmpty).map(_.get)
+
+      val iterator: Iterator[Either[Throwable, GenericData.Record]] =
+        Iterator.continually(next).takeWhile(_.nonEmpty).map(_.get)
       Stream.fromIterator[F](iterator, chunkSize.value)
     }
 
@@ -114,8 +116,8 @@ private object HadoopReader {
         case Success(value) => Some(value)
       }
 
-      val iterator: Iterator[GenericData.Record] = Iterator.continually(next).takeWhile(_.nonEmpty).map(_.get)
+      val iterator: Iterator[GenericData.Record] =
+        Iterator.continually(next).takeWhile(_.nonEmpty).map(_.get)
       Stream.fromIterator[F](iterator, chunkSize.value)
     }
-
 }

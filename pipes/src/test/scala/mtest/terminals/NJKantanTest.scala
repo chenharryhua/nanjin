@@ -38,7 +38,7 @@ class NJKantanTest extends AnyFunSuite {
   val fs2Root: NJPath = NJPath("./data/test/terminals/csv/tiger")
 
   test("uncompressed - with-header") {
-    val cfg = CsvConfiguration.rfc.withHeader(tigerHeader.modify(identity))
+    val cfg = CsvConfiguration.rfc.withHeader(tigerHeader.modify(_ + "_tiger"))
     fs2(fs2Root / "header", KantanFile(_.Uncompressed), cfg, tigerSet)
   }
 
@@ -101,7 +101,7 @@ class NJKantanTest extends AnyFunSuite {
 
   val policy: Policy = policies.fixedDelay(1.second)
   test("rotation - with-header") {
-    val csv  = hdp.kantan(_.withHeader(CsvHeaderOf[Tiger]))
+    val csv  = hdp.kantan(_.withHeader(CsvHeaderOf[Tiger].header))
     val path = fs2Root / "rotation" / "header"
     val file = KantanFile(Uncompressed)
     hdp.delete(path).unsafeRunSync()

@@ -39,7 +39,7 @@ private object PolicyF extends all {
 
   final case class Limited[K](policy: K, limit: Int) extends PolicyF[K]
   final case class FollowedBy[K](leader: K, follower: K) extends PolicyF[K]
-  final case class Repeat[K](policy: Fix[PolicyF]) extends PolicyF[K]
+  final case class Repeat[K](policy: K) extends PolicyF[K]
   final case class EndAt[K](policy: K, end: LocalTime) extends PolicyF[K]
   final case class ExpireAt[K](policy: K, expire: LocalDateTime) extends PolicyF[K]
   final case class Meet[K](first: K, second: K) extends PolicyF[K]
@@ -91,8 +91,7 @@ private object PolicyF extends all {
 
       case FollowedBy(leader, follower) => leader #::: follower
 
-      case Repeat(policy) =>
-        LazyList.continually(decisions(policy, zoneId)).flatten
+      case Repeat(policy) => LazyList.continually(policy).flatten
 
       case EndAt(policy, end) =>
         val timeFrame: LazyList[Unit] = LazyList.unfold(ZonedDateTime.now(zoneId)) { prev =>
@@ -157,7 +156,7 @@ private object PolicyF extends all {
     // ops
     case Limited(policy, limit)       => show"$policy.$LIMITED($limit)"
     case FollowedBy(leader, follower) => show"$leader.$FOLLOWED_BY($follower)"
-    case Repeat(policy)               => show"${Policy(policy)}.$REPEAT"
+    case Repeat(policy)               => show"$policy.$REPEAT"
     case EndAt(policy, end)           => show"$policy.$END_AT($end)"
     case ExpireAt(policy, expire)     => show"$policy.$EXPIRE_AT($expire)"
     case Meet(first, second)          => show"$first.$MEET($second)"
@@ -182,7 +181,7 @@ private object PolicyF extends all {
     case FollowedBy(leader, follower) =>
       Json.obj(FOLLOWED_BY -> Json.obj(FOLLOWED_BY_LEADER -> leader, FOLLOWED_BY_FOLLOWER -> follower))
     case Repeat(policy) =>
-      Json.obj(REPEAT -> encoderFixPolicyF(policy))
+      Json.obj(REPEAT -> policy)
     case EndAt(policy, end) =>
       Json.obj(END_AT -> end.asJson, POLICY -> policy)
     case ExpireAt(policy, expire) =>
@@ -248,7 +247,7 @@ private object PolicyF extends all {
     }
 
     def repeat(hc: HCursor): Result[Repeat[HCursor]] =
-      hc.downField(REPEAT).as[HCursor].flatMap(c => decoderFixPolicyF(c).map(Repeat[HCursor]))
+      hc.downField(REPEAT).as[HCursor].map(Repeat[HCursor])
 
     Coalgebra[PolicyF, HCursor] { hc =>
       val result =

@@ -32,8 +32,8 @@ final class HadoopCirce[F[_]] private (configuration: Configuration) {
   def sink(path: NJPath)(implicit F: Sync[F]): Pipe[F, Chunk[Json], Nothing] = {
     (ss: Stream[F, Chunk[Json]]) =>
       Stream.resource(HadoopWriter.byteR[F](configuration, path.hadoopPath)).flatMap { w =>
-        ss.unchunks
-          .mapChunks(_.map(_.noSpaces))
+        ss.map(_.map(_.noSpaces))
+          .unchunks
           .intersperse(NEWLINE_SEPARATOR)
           .through(utf8.encode)
           .chunks
