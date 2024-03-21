@@ -88,8 +88,8 @@ class NJCirceTest extends AnyFunSuite {
     json.sink(NJPath("./does/not/exist"))
   }
 
-  test("rotation") {
-    val path   = fs2Root / "rotation"
+  test("rotation - data") {
+    val path   = fs2Root / "rotation" / "data"
     val number = 10000L
     hdp.delete(path).unsafeRunSync()
     val fk = CirceFile(Uncompressed)
@@ -105,6 +105,21 @@ class NJCirceTest extends AnyFunSuite {
       .unsafeRunSync()
     val size =
       Stream.eval(hdp.filesIn(path)).flatMap(json.source(_, 100)).compile.toList.map(_.size).unsafeRunSync()
-    assert(size == number * 10)
+    assert(size == number * TestData.tigerSet.toList.size)
+  }
+
+  test("rotation - empty") {
+    val path = fs2Root / "rotation" / "empty"
+    hdp.delete(path).unsafeRunSync()
+    val fk = CirceFile(Uncompressed)
+    (Stream.sleep[IO](10.hours) >>
+      Stream.empty.covaryAll[IO, Json]).chunks
+      .through(json.sink(policies.fixedDelay(1.second).limited(3), ZoneId.systemDefault())(t =>
+        path / fk.fileName(t)))
+      .compile
+      .drain
+      .unsafeRunSync()
+    import better.files.*
+    hdp.filesIn(path).unsafeRunSync().foreach(np => assert(File(np.uri).lines.isEmpty))
   }
 }
