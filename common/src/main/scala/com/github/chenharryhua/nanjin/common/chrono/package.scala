@@ -16,4 +16,7 @@ package object chrono {
   val fibonacci: LazyList[Long]   = 1L #:: 1L #:: fibonacci.zip(fibonacci.tail).map { case (a, b) => a + b }
   val exponential: LazyList[Long] = LazyList.from(0).map(x => pow(2, x.toDouble).toLong)
 
+  def lazyTickList(init: TickStatus): LazyList[Tick] =
+    LazyList.unfold(init)(ts => ts.next(ts.tick.wakeup).map(s => (s.tick, s)))
+
 }

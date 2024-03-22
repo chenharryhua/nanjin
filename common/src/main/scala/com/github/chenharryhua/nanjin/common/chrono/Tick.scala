@@ -39,12 +39,15 @@ final case class Tick(
       acquire = now,
       snooze = delay
     )
+
+  override def toString: String =
+    s"pre=${previous.atZone(zoneId)}, wak=${zonedWakeup.toLocalDateTime}, snz=$snooze, idx=$index"
 }
 
 final class TickStatus private (val tick: Tick, decisions: LazyList[PolicyF.CalcTick]) extends Serializable {
 
   def renewPolicy(policy: Policy): TickStatus =
-    new TickStatus(tick, PolicyF.decisions(policy.policy, tick.zoneId))
+    new TickStatus(tick, PolicyF.decisions(policy.policy))
 
   def next(now: Instant): Option[TickStatus] =
     decisions match {
@@ -69,6 +72,6 @@ object TickStatus {
         acquire = now,
         snooze = Duration.ZERO
       )
-      new TickStatus(zeroth, PolicyF.decisions(policy.policy, zoneId))
+      new TickStatus(zeroth, PolicyF.decisions(policy.policy))
     }
 }
