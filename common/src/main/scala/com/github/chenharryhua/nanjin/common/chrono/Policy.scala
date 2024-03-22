@@ -31,12 +31,12 @@ private object PolicyF extends all {
   implicit val functorPolicyF: Functor[PolicyF] = cats.derived.semiauto.functor[PolicyF]
 
   final case class GiveUp[K]() extends PolicyF[K]
-  final case class Accordance[K](policy: K) extends PolicyF[K]
   final case class Crontab[K](cronExpr: CronExpr) extends PolicyF[K]
   final case class Jitter[K](min: Duration, max: Duration) extends PolicyF[K]
   final case class FixedDelay[K](delays: NonEmptyList[Duration]) extends PolicyF[K]
   final case class FixedRate[K](delay: Duration) extends PolicyF[K]
 
+  final case class Accordance[K](policy: K) extends PolicyF[K]
   final case class Limited[K](policy: K, limit: Int) extends PolicyF[K]
   final case class FollowedBy[K](leader: K, follower: K) extends PolicyF[K]
   final case class Repeat[K](policy: K) extends PolicyF[K]
