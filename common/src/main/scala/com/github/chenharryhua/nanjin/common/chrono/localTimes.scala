@@ -27,6 +27,4 @@ object localTimes {
   final val ninePM: LocalTime   = LocalTime.of(21, 0, 0)
   final val tenPM: LocalTime    = LocalTime.of(22, 0, 0)
   final val elevenPM: LocalTime = LocalTime.of(23, 0, 0)
-
-  final val endOfDay: LocalTime = LocalTime.MAX
 }

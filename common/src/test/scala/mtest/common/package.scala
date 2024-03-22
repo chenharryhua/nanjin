@@ -1,11 +1,23 @@
 package mtest
 
+import com.github.chenharryhua.nanjin.common.chrono.zones.beijingTime
 import com.github.chenharryhua.nanjin.common.chrono.{Tick, TickStatus}
 
-import scala.concurrent.duration.DurationInt
-import scala.jdk.DurationConverters.ScalaDurationOps
+import java.time.{Duration, ZonedDateTime}
+import java.util.UUID
 
 package object common {
-  def lazyTickList(init: TickStatus): LazyList[Tick] =
-    LazyList.unfold(init)(ts => ts.next(ts.tick.wakeup.plus(1.milliseconds.toJava)).map(s => ((s.tick, s))))
+
+  private val today: ZonedDateTime = ZonedDateTime.of(2050, 1, 1, 0, 0, 0, 0, beijingTime)
+
+  val zeroTickStatus: TickStatus = TickStatus(
+    Tick(
+      sequenceId = UUID.randomUUID(),
+      launchTime = today.toInstant,
+      zoneId = beijingTime,
+      previous = today.toInstant,
+      index = 0,
+      acquire = today.toInstant,
+      snooze = Duration.ZERO
+    ))
 }

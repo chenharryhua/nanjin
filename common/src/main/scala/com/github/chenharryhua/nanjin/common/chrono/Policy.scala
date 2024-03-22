@@ -4,7 +4,6 @@ import cats.data.NonEmptyList
 import cats.syntax.all.*
 import cats.{Functor, Show}
 import com.github.chenharryhua.nanjin.common.DurationFormatter
-import com.github.chenharryhua.nanjin.common.chrono.PolicyF.ExpireAt
 import cron4s.CronExpr
 import cron4s.lib.javatime.javaTemporalInstance
 import cron4s.syntax.all.*
@@ -41,8 +40,6 @@ private object PolicyF extends all {
   final case class Limited[K](policy: K, limit: Int) extends PolicyF[K]
   final case class FollowedBy[K](leader: K, follower: K) extends PolicyF[K]
   final case class Repeat[K](policy: K) extends PolicyF[K]
-  final case class EndAt[K](policy: K, end: LocalTime) extends PolicyF[K]
-  final case class ExpireAt[K](policy: K, expire: LocalDateTime) extends PolicyF[K]
   final case class Meet[K](first: K, second: K) extends PolicyF[K]
   final case class Except[K](policy: K, except: LocalTime) extends PolicyF[K]
 
@@ -57,7 +54,7 @@ private object PolicyF extends all {
       fixedRateSnooze(wakeup, now, delay, count + 1)
   }
 
-  private def algebra(zoneId: ZoneId): Algebra[PolicyF, LazyList[CalcTick]] =
+  private val algebra: Algebra[PolicyF, LazyList[CalcTick]] =
     Algebra[PolicyF, LazyList[CalcTick]] {
 
       case GiveUp() => LazyList.empty
@@ -95,21 +92,6 @@ private object PolicyF extends all {
 
       case Repeat(policy) => LazyList.continually(policy).flatten
 
-      case EndAt(policy, end) =>
-        val timeFrame: LazyList[Unit] = LazyList.unfold(ZonedDateTime.now(zoneId)) { prev =>
-          val now     = ZonedDateTime.now(zoneId)
-          val sameDay = now.toLocalDate === prev.toLocalDate
-          val endTime = end.atDate(now.toLocalDate).atZone(zoneId)
-          if (endTime.isAfter(now) && sameDay) Some(((), now)) else None
-        }
-        policy.zip(timeFrame).map(_._1)
-
-      case ExpireAt(policy, expire) =>
-        val timeFrame: LazyList[Unit] = LazyList.unfold(()) { _ =>
-          if (expire.isAfter(LocalDateTime.now)) Some(((), ())) else None
-        }
-        policy.zip(timeFrame).map(_._1)
-
       // https://en.wikipedia.org/wiki/Join_and_meet
       case Meet(first, second) =>
         first.zip(second).map { case (fa: CalcTick, fb: CalcTick) =>
@@ -131,8 +113,8 @@ private object PolicyF extends all {
         }
     }
 
-  def decisions(policy: Fix[PolicyF], zoneId: ZoneId): LazyList[CalcTick] =
-    scheme.cata(algebra(zoneId)).apply(policy)
+  def decisions(policy: Fix[PolicyF]): LazyList[CalcTick] =
+    scheme.cata(algebra).apply(policy)
 
   private val fmt: DurationFormatter = DurationFormatter.defaultFormatter
 
@@ -149,8 +131,6 @@ private object PolicyF extends all {
   private val FOLLOWED_BY: String          = "followedBy"
   private val FOLLOWED_BY_LEADER: String   = "leader"
   private val FOLLOWED_BY_FOLLOWER: String = "follower"
-  private val END_AT: String               = "endAt"
-  private val EXPIRE_AT: String            = "expireAt"
   private val MEET: String                 = "meet"
   private val MEET_FIRST: String           = "first"
   private val MEET_SECOND: String          = "second"
@@ -171,8 +151,6 @@ private object PolicyF extends all {
     case Limited(policy, limit)       => show"$policy.$LIMITED($limit)"
     case FollowedBy(leader, follower) => show"$leader.$FOLLOWED_BY($follower)"
     case Repeat(policy)               => show"$policy.$REPEAT"
-    case EndAt(policy, end)           => show"$policy.$END_AT($end)"
-    case ExpireAt(policy, expire)     => show"$policy.$EXPIRE_AT($expire)"
     case Meet(first, second)          => show"$first.$MEET($second)"
     case Except(policy, except)       => show"$policy.$EXCEPT($except)"
   }
@@ -197,10 +175,6 @@ private object PolicyF extends all {
       Json.obj(FOLLOWED_BY -> Json.obj(FOLLOWED_BY_LEADER -> leader, FOLLOWED_BY_FOLLOWER -> follower))
     case Repeat(policy) =>
       Json.obj(REPEAT -> policy)
-    case EndAt(policy, end) =>
-      Json.obj(END_AT -> end.asJson, POLICY -> policy)
-    case ExpireAt(policy, expire) =>
-      Json.obj(EXPIRE_AT -> expire.asJson, POLICY -> policy)
     case Meet(first, second) =>
       Json.obj(MEET -> Json.obj(MEET_FIRST -> first, MEET_SECOND -> second))
     case Except(policy, except) =>
@@ -245,18 +219,6 @@ private object PolicyF extends all {
       (leader, follower).mapN(FollowedBy[HCursor])
     }
 
-    def endAt(hc: HCursor): Result[EndAt[HCursor]] = {
-      val ea  = hc.get[LocalTime](END_AT)
-      val plc = hc.downField(POLICY).as[HCursor]
-      (plc, ea).mapN(EndAt[HCursor])
-    }
-
-    def expireAt(hc: HCursor): Result[ExpireAt[HCursor]] = {
-      val ea  = hc.get[LocalDateTime](EXPIRE_AT)
-      val plc = hc.downField(POLICY).as[HCursor]
-      (plc, ea).mapN(ExpireAt[HCursor])
-    }
-
     def meet(hc: HCursor): Result[Meet[HCursor]] = {
       val first  = hc.downField(MEET).downField(MEET_FIRST).as[HCursor]
       val second = hc.downField(MEET).downField(MEET_SECOND).as[HCursor]
@@ -280,8 +242,6 @@ private object PolicyF extends all {
           .orElse(fixedDelay(hc))
           .orElse(fixedRate(hc))
           .orElse(limited(hc))
-          .orElse(endAt(hc))
-          .orElse(expireAt(hc))
           .orElse(followedBy(hc))
           .orElse(accordance(hc))
           .orElse(meet(hc))
@@ -305,20 +265,16 @@ private object PolicyF extends all {
 }
 
 final case class Policy(policy: Fix[PolicyF]) { // don't extends AnyVal, monocle doesn't like it
-  import PolicyF.{EndAt, Except, FollowedBy, Limited, Meet, Repeat}
+  import PolicyF.{Except, FollowedBy, Limited, Meet, Repeat}
   override def toString: String = scheme.cata(PolicyF.showPolicy).apply(policy)
 
-  def limited(num: Int): Policy                       = Policy(Fix(Limited(policy, num)))
-  def followedBy(other: Policy): Policy               = Policy(Fix(FollowedBy(policy, other.policy)))
-  def repeat: Policy                                  = Policy(Fix(Repeat(policy)))
-  def meet(other: Policy): Policy                     = Policy(Fix(Meet(policy, other.policy)))
+  def limited(num: Int): Policy         = Policy(Fix(Limited(policy, num)))
+  def followedBy(other: Policy): Policy = Policy(Fix(FollowedBy(policy, other.policy)))
+  def repeat: Policy                    = Policy(Fix(Repeat(policy)))
+  def meet(other: Policy): Policy       = Policy(Fix(Meet(policy, other.policy)))
+
   def except(localTime: LocalTime): Policy            = Policy(Fix(Except(policy, localTime)))
   def except(f: localTimes.type => LocalTime): Policy = except(f(localTimes))
-
-  def expireAt(localDateTime: LocalDateTime): Policy = Policy(Fix(ExpireAt(policy, localDateTime)))
-
-  def endAt(localTime: LocalTime): Policy            = Policy(Fix(EndAt(policy, localTime)))
-  def endAt(f: localTimes.type => LocalTime): Policy = endAt(f(localTimes))
 }
 
 object Policy {

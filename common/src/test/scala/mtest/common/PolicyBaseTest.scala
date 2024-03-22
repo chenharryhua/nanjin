@@ -1,10 +1,7 @@
 package mtest.common
 
-import cats.effect.IO
-import cats.effect.unsafe.implicits.global
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.chrono.*
-import com.github.chenharryhua.nanjin.common.chrono.zones.*
 import io.circe.jawn.decode
 import io.circe.syntax.EncoderOps
 import org.scalatest.funsuite.AnyFunSuite
@@ -24,7 +21,7 @@ class PolicyBaseTest extends AnyFunSuite {
     println(policy.show)
     assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
 
-    val ts: TickStatus = TickStatus.zeroth[IO](policy, beijingTime).unsafeRunSync()
+    val ts: TickStatus = zeroTickStatus.renewPolicy(policy)
 
     val List(a1, a2, a3, a4, a5) = lazyTickList(ts).take(5).toList
 
@@ -64,7 +61,7 @@ class PolicyBaseTest extends AnyFunSuite {
     println(policy.show)
     assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
 
-    val ts: TickStatus = TickStatus.zeroth[IO](policy, beijingTime).unsafeRunSync()
+    val ts: TickStatus = zeroTickStatus.renewPolicy(policy)
 
     val List(a1, a2, a3, a4, a5) = lazyTickList(ts).take(5).toList
 
@@ -104,7 +101,7 @@ class PolicyBaseTest extends AnyFunSuite {
     println(policy.show)
     assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
 
-    val ts    = TickStatus.zeroth[IO](policy, newyorkTime).unsafeRunSync()
+    val ts    = zeroTickStatus.renewPolicy(policy)
     val ticks = lazyTickList(ts).take(500).toList
 
     ticks.foreach { tk =>
@@ -118,7 +115,7 @@ class PolicyBaseTest extends AnyFunSuite {
     println(policy.show)
     assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
 
-    val ts: TickStatus = TickStatus.zeroth[IO](policy, mumbaiTime).unsafeRunSync()
+    val ts: TickStatus = zeroTickStatus.renewPolicy(policy)
 
     val List(a1, a2, a3, a4, a5, a6, a7) = lazyTickList(ts).take(7).toList
 
@@ -145,7 +142,7 @@ class PolicyBaseTest extends AnyFunSuite {
     println(policy.asJson)
     assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
 
-    val ts = TickStatus.zeroth[IO](policy, beijingTime).unsafeRunSync()
+    val ts = zeroTickStatus.renewPolicy(policy)
 
     val a1 = ts.next(ts.tick.launchTime.plus(1.hour.toJava)).get
     val a2 = a1.next(a1.tick.wakeup.plus(30.minutes.toJava)).get
@@ -167,7 +164,7 @@ class PolicyBaseTest extends AnyFunSuite {
     println(policy.show)
     assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
 
-    val ts = TickStatus.zeroth[IO](policies.giveUp, beijingTime).unsafeRunSync()
+    val ts = zeroTickStatus.renewPolicy(policy)
     assert(ts.next(Instant.now).isEmpty)
   }
 }
