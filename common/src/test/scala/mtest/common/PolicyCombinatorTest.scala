@@ -220,7 +220,7 @@ class PolicyCombinatorTest extends AnyFunSuite {
     println(policy.asJson)
     assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
 
-    val ticks = lazyTickList(zeroTickStatus.renewPolicy(policy)).take(8).toList
+    val ticks  = lazyTickList(zeroTickStatus.renewPolicy(policy)).take(8).toList
     val wakeup = ticks.map(_.zonedWakeup.toLocalTime)
     assert(wakeup.size == 8)
     assert(wakeup.head == localTimes.threeAM)
