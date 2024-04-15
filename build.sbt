@@ -250,7 +250,7 @@ lazy val guard = (project in file("guard"))
       "io.dropwizard.metrics"               % "metrics-core"   % metricsV,
       "io.dropwizard.metrics"               % "metrics-jmx"    % metricsV,
       "org.typelevel" %% "vault"            % "3.5.0",
-      "com.lihaoyi" %% "scalatags"          % "0.12.0",
+      "com.lihaoyi" %% "scalatags"          % "0.13.1",
       "org.http4s" %% "http4s-core"         % http4sV,
       "org.http4s" %% "http4s-dsl"          % http4sV,
       "org.http4s" %% "http4s-ember-server" % http4sV,
