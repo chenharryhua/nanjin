@@ -246,7 +246,7 @@ lazy val guard = (project in file("guard"))
   .settings(name := "nj-guard")
   .settings(
     libraryDependencies ++= List(
-      "commons-codec"                       % "commons-codec"  % "1.16.1",
+      "commons-codec"                       % "commons-codec"  % "1.17.0",
       "io.dropwizard.metrics"               % "metrics-core"   % metricsV,
       "io.dropwizard.metrics"               % "metrics-jmx"    % metricsV,
       "org.typelevel" %% "vault"            % "3.5.0",
