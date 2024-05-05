@@ -1,4 +1,4 @@
-ThisBuild / scalaVersion       := "2.13.13"
+ThisBuild / scalaVersion       := "2.13.14"
 ThisBuild / version            := "0.18.0-SNAPSHOT"
 ThisBuild / evictionErrorLevel := Level.Info
 ThisBuild / versionScheme      := Some("early-semver")
