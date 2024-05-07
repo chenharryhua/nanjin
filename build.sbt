@@ -391,7 +391,7 @@ lazy val pipes = (project in file("pipes"))
       "ch.qos.logback"         % "logback-core"    % logbackV, // snyk by zookeeper
       "org.eclipse.jetty"      % "jetty-xml"       % "12.0.7", // snyk
       "org.eclipse.jetty"      % "jetty-http"      % "12.0.7", // snyk
-      "org.jetbrains.kotlin"   % "kotlin-stdlib"   % "1.9.23", // snyk
+      "org.jetbrains.kotlin"   % "kotlin-stdlib"   % "1.9.24", // snyk
       "org.codehaus.jettison"  % "jettison"        % "1.5.4", // snyk
       "io.netty"               % "netty-all"       % nettyV // snyk
     ) ++ kantanLib ++ logLib ++ testLib ++ hadoopLib
