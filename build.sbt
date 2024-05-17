@@ -296,7 +296,7 @@ lazy val guard_observer_influxdb = (project in file("observers/influxdb"))
   .settings(name := "nj-observer-influxdb")
   .settings(
     libraryDependencies ++= List(
-      "com.influxdb" % "influxdb-client-java" % "6.12.0"
+      "com.influxdb" % "influxdb-client-java" % "7.1.0"
     ) ++ testLib
   )
 
