@@ -114,7 +114,7 @@ val monocleLib = List(
 val testLib = List(
   "org.typelevel" %% "cats-effect-testkit"                    % catsEffectV,
   "org.typelevel" %% "cats-testkit-scalatest"                 % "2.1.5",
-  "org.typelevel" %% "discipline-scalatest"                   % "2.2.0",
+  "org.typelevel" %% "discipline-scalatest"                   % "2.3.0",
   "org.typelevel" %% "discipline-munit"                       % "1.0.9",
   "org.typelevel" %% "cats-laws"                              % catsCoreV,
   "org.typelevel" %% "algebra-laws"                           % catsCoreV,
