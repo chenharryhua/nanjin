@@ -1,11 +1,11 @@
 package mtest.guard
 
+import cats.data.Kleisli
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.chrono.policies
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
-import io.circe.syntax.EncoderOps
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.*
@@ -56,44 +56,27 @@ import scala.concurrent.duration.*
   */
 
 class PerformanceTest extends AnyFunSuite {
-  val service: ServiceGuard[IO] =
+  private val service: ServiceGuard[IO] =
     TaskGuard[IO]("performance")
       .service("actions")
       .updateConfig(_.withMetricReport(policies.crontab(_.secondly)))
-  val take: FiniteDuration = 2.seconds
 
-  def speed(i: Int): String = f"${i / (take.toSeconds * 1000)}%4dK/s"
+  private val take: FiniteDuration = 10.seconds
 
-  test("silent.time.count") {
-    print("silent.time.count: ")
+  private def speed(i: Int): String =
+    f"${i / (take.toSeconds * 1000)}%4dK/s, ${fmt.format(take / i.toLong)}"
+
+  test("warm-up") {
+    print("warm-up: ")
     var i = 0
-    service.eventStream { ag =>
-      val ts = ag.action("t", _.silent.timed.counted).retry(IO(i += 1)).run
-      ts.foreverM.timeout(take).attempt
-    }.compile.drain.unsafeRunSync()
-    println(speed(i))
-  }
-
-  test("unipartite.time.count") {
-    print("unipartite.time.count: ")
-    var i: Int = 0
-    service.eventStream { ag =>
-      val ts = ag.action("t", _.unipartite.counted.timed).retry(IO(i += 1)).run
-      ts.foreverM.timeout(take).attempt
-    }.compile.drain.unsafeRunSync()
-    println(speed(i))
-  }
-
-  test("unipartite.time.count.notes") {
-    print("unipartite.time.count.notes: ")
-    var i: Int = 0
-    service.eventStream { ag =>
-      val ts = ag
-        .action("t", _.unipartite.counted.timed)
-        .retry(IO(i += 1))
-        .logOutput(_ => "unipartite.time.count.notes".asJson)
-        .run
-      ts.foreverM.timeout(take).attempt
+    service.eventStream { ga =>
+      val run = for {
+        action <- ga.action("t", _.unipartite).retry(IO(i += 1)).buildWith(identity)
+        timer <- ga.timer("t")
+      } yield Kleisli { (_: Unit) =>
+        action.run(()).timed.flatMap(fd => timer.update(fd._1))
+      }
+      run.use(_.run(()).foreverM.timeout(take).attempt)
     }.compile.drain.unsafeRunSync()
     println(speed(i))
   }
@@ -102,32 +85,71 @@ class PerformanceTest extends AnyFunSuite {
     print("bipartite.time.count: ")
     var i: Int = 0
     service.eventStream { ag =>
-      val ts = ag.action("t", _.bipartite.counted.timed).retry(IO(i += 1)).run
-      ts.foreverM.timeout(take).attempt
+      ag.action("t", _.bipartite.counted.timed).retry(IO(i += 1)).buildWith(identity).use {
+        _.run(()).foreverM.timeout(take).attempt
+      }
     }.compile.drain.unsafeRunSync()
     println(speed(i))
   }
 
-  test("bipartite.time.count.notes") {
-    print("bipartite.time.count.notes: ")
-    var i: Int = 0
+  test("bipartite.time") {
+    print("bipartite.time: ")
+    var i = 0
     service.eventStream { ag =>
-      val ts = ag
-        .action("t", _.bipartite.counted.timed)
+      ag.action("t", _.bipartite.timed).retry(IO(i += 1)).buildWith(identity).use {
+        _.run(()).foreverM.timeout(take).attempt
+      }
+    }.compile.drain.unsafeRunSync()
+    println(speed(i))
+  }
+  test("kleisli.bipartite.time") {
+    print("kleisli.bipartite.time: ")
+    var i = 0
+    service.eventStream { ga =>
+      val run = for {
+        action <- ga.action("t", _.bipartite).retry(IO(i += 1).timed).buildWith(identity)
+        timer <- ga.timer("t")
+      } yield for {
+        (t, _) <- action
+        _ <- timer.kleisli((_: Unit) => t)
+      } yield ()
+      run.use(_.run(()).foreverM.timeout(take).attempt)
+    }.compile.drain.unsafeRunSync()
+    println(speed(i))
+  }
+
+  test("bipartite.counting") {
+    print("bipartite.count: ")
+    var i = 0
+    service.eventStream { ag =>
+      ag.action("t", _.bipartite.counted)
         .retry(IO(i += 1))
-        .logOutput(_ => "bipartite.time.count.notes".asJson)
-        .run
-      ts.foreverM.timeout(take).attempt
+        .buildWith(identity)
+        .use(_.run(()).foreverM.timeout(take).attempt)
     }.compile.drain.unsafeRunSync()
     println(speed(i))
   }
 
-  test("silent.time") {
-    print("silent.time: ")
+  test("bipartite") {
+    var i = 0
+    print("bipartite: ")
+    service.eventStream { ag =>
+      ag.action("t", _.bipartite)
+        .retry(IO(i += 1))
+        .buildWith(identity)
+        .use(_.run(()).foreverM.timeout(take).attempt)
+    }.compile.drain.unsafeRunSync()
+    println(speed(i))
+  }
+
+  test("unipartite.time.count") {
+    print("unipartite.time.count: ")
     var i: Int = 0
     service.eventStream { ag =>
-      val ts = ag.action("t", _.silent.timed.uncounted).retry(IO(i += 1)).run
-      ts.foreverM.timeout(take).attempt
+      ag.action("t", _.unipartite.counted.timed)
+        .retry(IO(i += 1))
+        .buildWith(identity)
+        .use(_.run(()).foreverM.timeout(take).attempt)
     }.compile.drain.unsafeRunSync()
     println(speed(i))
   }
@@ -136,177 +158,186 @@ class PerformanceTest extends AnyFunSuite {
     print("unipartite.time: ")
     var i: Int = 0
     service.eventStream { ag =>
-      val ts = ag.action("t", _.unipartite.timed.uncounted).retry(IO(i += 1)).run
-      ts.foreverM.timeout(take).attempt
-    }.compile.drain.unsafeRunSync()
-    println(speed(i))
-
-  }
-  test("unipartite.time.notes") {
-    print("unipartite.time.notes: ")
-    var i: Int = 0
-    service.eventStream { ag =>
-      val ts = ag
-        .action("t", _.unipartite.timed.uncounted)
+      ag.action("t", _.unipartite.timed)
         .retry(IO(i += 1))
-        .logOutput(_ => "unipartite.time.notes".asJson)
-        .run
-      ts.foreverM.timeout(take).attempt
+        .buildWith(identity)
+        .use(_.run(()).foreverM.timeout(take).attempt)
     }.compile.drain.unsafeRunSync()
     println(speed(i))
-
   }
-  test("bipartite.time") {
-    print("bipartite.time: ")
+  test("kleisli.unipartite.time") {
+    print("kleisli.unipartite.time: ")
     var i = 0
-    service.eventStream { ag =>
-      val ts =
-        ag.action("t", _.bipartite.timed.uncounted).retry(IO(i += 1)).run
-      ts.foreverM.timeout(take).attempt
+    service.eventStream { ga =>
+      val run = for {
+        action <- ga.action("t", _.unipartite).retry(IO(i += 1).timed).buildWith(identity)
+        timer <- ga.timer("t")
+      } yield for {
+        (t, _) <- action
+        _ <- timer.kleisli((_: Unit) => t)
+      } yield ()
+      run.use(_.run(()).foreverM.timeout(take).attempt)
     }.compile.drain.unsafeRunSync()
     println(speed(i))
-
-  }
-
-  test("bipartite.time.notes") {
-    print("bipartite.time.notes: ")
-    var i = 0
-    service.eventStream { ag =>
-      val ts =
-        ag.action("t", _.bipartite.timed.uncounted)
-          .retry(IO(i += 1))
-          .logOutput(_ => "bipartite.time.notes".asJson)
-          .run
-      ts.foreverM.timeout(take).attempt
-    }.compile.drain.unsafeRunSync()
-    println(speed(i))
-
-  }
-
-  test("silent.counting") {
-    print("silent.count: ")
-    var i: Int = 0
-    service.eventStream { ag =>
-      val ts = ag.action("t", _.silent.untimed.counted).retry(IO(i += 1)).run
-      ts.foreverM.timeout(take).attempt
-    }.compile.drain.unsafeRunSync()
-    println(speed(i))
-
   }
 
   test("unipartite.counting") {
     print("unipartite.count: ")
     var i: Int = 0
     service.eventStream { ag =>
-      val ts = ag.action("t", _.unipartite.untimed.counted).retry(IO(i += 1)).run
-      ts.foreverM.timeout(take).attempt
-    }.compile.drain.unsafeRunSync()
-    println(speed(i))
-
-  }
-
-  test("unipartite.counting.notes") {
-    print("unipartite.count.notes: ")
-    var i: Int = 0
-    service.eventStream { ag =>
-      val ts = ag
-        .action("t", _.unipartite.untimed.counted)
+      ag.action("t", _.unipartite.counted)
         .retry(IO(i += 1))
-        .logOutput(_ => "unipartite.counting.notes".asJson)
-        .run
-      ts.foreverM.timeout(take).attempt
+        .buildWith(identity)
+        .use(_.run(()).foreverM.timeout(take).attempt)
     }.compile.drain.unsafeRunSync()
     println(speed(i))
-
-  }
-
-  test("bipartite.counting") {
-    print("bipartite.count: ")
-    var i = 0
-    service.eventStream { ag =>
-      val ts =
-        ag.action("t", _.bipartite.untimed.counted).retry(IO(i += 1)).run
-      ts.foreverM.timeout(take).attempt
-    }.compile.drain.unsafeRunSync()
-    println(speed(i))
-
-  }
-
-  test("bipartite.counting.notes") {
-    print("bipartite.count.notes: ")
-    var i = 0
-    service.eventStream { ag =>
-      val ts =
-        ag.action("t", _.bipartite.untimed.counted)
-          .retry(IO(i += 1))
-          .logOutput(_ => "bipartite.counting.notes".asJson)
-          .run
-      ts.foreverM.timeout(take).attempt
-    }.compile.drain.unsafeRunSync()
-    println(speed(i))
-
-  }
-
-  test("silent") {
-    print("silent: ")
-    var i: Int = 0
-    service.eventStream { ag =>
-      val ts = ag.action("t", _.silent.untimed.uncounted).retry(IO(i += 1)).run
-      ts.foreverM.timeout(take).attempt
-    }.compile.drain.unsafeRunSync()
-    println(speed(i))
-
   }
 
   test("unipartite") {
     print("unipartite: ")
     var i: Int = 0
     service.eventStream { ag =>
-      val ts = ag.action("t", _.unipartite.untimed.uncounted).retry(IO(i += 1)).run
-      ts.foreverM.timeout(take).attempt
+      ag.action("t", _.unipartite)
+        .retry(IO(i += 1))
+        .buildWith(identity)
+        .use(_.run(()).foreverM.timeout(take).attempt)
     }.compile.drain.unsafeRunSync()
     println(speed(i))
-
   }
-  test("unipartite.notes") {
-    print("unipartite.notes: ")
+
+  test("silent.time.count") {
+    print("silent.time.count: ")
+    var i = 0
+    service.eventStream { ag =>
+      ag.action("t", _.silent.timed.counted)
+        .retry(IO(i += 1))
+        .buildWith(identity)
+        .use(_.run(()).foreverM.timeout(take).attempt)
+    }.compile.drain.unsafeRunSync()
+    println(speed(i))
+  }
+
+  test("silent.time") {
+    print("silent.time: ")
     var i: Int = 0
     service.eventStream { ag =>
-      val ts = ag
-        .action("t", _.unipartite.untimed.uncounted)
+      ag.action("t", _.silent.timed)
         .retry(IO(i += 1))
-        .logOutput(_ => "unipartite.notes".asJson)
-        .run
-      ts.foreverM.timeout(take).attempt
+        .buildWith(identity)
+        .use(_.run(()).foreverM.timeout(take).attempt)
     }.compile.drain.unsafeRunSync()
     println(speed(i))
-
   }
-  test("bipartite") {
+  test("kleisli.silent.time") {
+    print("kleisli.silent.time: ")
     var i = 0
-    print("bipartite: ")
-    service.eventStream { ag =>
-      val ts =
-        ag.action("t", _.bipartite.untimed.uncounted).retry(IO(i += 1)).run
-      ts.foreverM.timeout(take).attempt
+    service.eventStream { ga =>
+      val run = for {
+        action <- ga.action("t", _.silent).retry(IO(i += 1).timed).buildWith(identity)
+        timer <- ga.timer("t")
+      } yield for {
+        (t, _) <- action
+        _ <- timer.kleisli((_: Unit) => t)
+      } yield ()
+      run.use(_.run(()).foreverM.timeout(take).attempt)
     }.compile.drain.unsafeRunSync()
     println(speed(i))
-
   }
 
-  test("bipartite.notes") {
+  test("silent.counting") {
+    print("silent.count: ")
+    var i: Int = 0
+    service.eventStream { ag =>
+      ag.action("t", _.silent.counted)
+        .retry(IO(i += 1))
+        .buildWith(identity)
+        .use(_.run(()).foreverM.timeout(take).attempt)
+    }.compile.drain.unsafeRunSync()
+    println(speed(i))
+  }
+
+  test("silent") {
+    print("silent: ")
+    var i: Int = 0
+    service.eventStream { ag =>
+      ag.action("t", _.silent)
+        .retry(IO(i += 1))
+        .buildWith(identity)
+        .use(_.run(()).foreverM.timeout(take).attempt)
+    }.compile.drain.unsafeRunSync()
+    println(speed(i))
+  }
+
+  test("flow-meter") {
+    print("flow-meter: ")
+    var i: Int = 0
+    service.eventStream { ag =>
+      val name = "flow-meter"
+      ag.flowMeter(name, _.withUnit(_.COUNT)).use(_.update(1).map(_ => i += 1).foreverM.timeout(take).attempt)
+    }.compile.drain.unsafeRunSync()
+    println(speed(i))
+  }
+
+  test("meter") {
     var i = 0
-    print("bipartite.notes: ")
+    print("meter: ")
     service.eventStream { ag =>
-      val ts =
-        ag.action("t", _.bipartite.untimed.uncounted)
-          .retry(IO(i += 1))
-          .logOutput(_ => "bipartite.notes".asJson)
-          .run
-      ts.foreverM.timeout(take).attempt
+      ag.meter("meter").use(_.mark(1).map(_ => i += 1).foreverM.timeout(take).attempt)
     }.compile.drain.unsafeRunSync()
     println(speed(i))
-
   }
 
+  test("meter.count") {
+    var i = 0
+    print("meter.count: ")
+    service.eventStream { ag =>
+      ag.meter("meter", _.counted).use(_.mark(1).map(_ => i += 1).foreverM.timeout(take).attempt)
+    }.compile.drain.unsafeRunSync()
+    println(speed(i))
+  }
+
+  test("histogram") {
+    var i = 0
+    print("histogram: ")
+    service.eventStream { ag =>
+      ag.histogram("histogram").use(_.update(1).map(_ => i += 1).foreverM.timeout(take).attempt)
+    }.compile.drain.unsafeRunSync()
+    println(speed(i))
+  }
+
+  test("histogram.count") {
+    var i = 0
+    print("histogram.count: ")
+    service.eventStream { ag =>
+      ag.histogram("histogram", _.counted).use(_.update(1).map(_ => i += 1).foreverM.timeout(take).attempt)
+    }.compile.drain.unsafeRunSync()
+    println(speed(i))
+  }
+
+  test("timer") {
+    var i = 0
+    print("timer: ")
+    service.eventStream { ag =>
+      ag.timer("timer").use(_.update(1.seconds).map(_ => i += 1).foreverM.timeout(take).attempt)
+    }.compile.drain.unsafeRunSync()
+    println(speed(i))
+  }
+
+  test("timer.count") {
+    var i = 0
+    print("timer.count: ")
+    service.eventStream { ag =>
+      ag.timer("timer", _.counted).use(_.update(1.seconds).map(_ => i += 1).foreverM.timeout(take).attempt)
+    }.compile.drain.unsafeRunSync()
+    println(speed(i))
+  }
+
+  test("count") {
+    var i = 0
+    print("count: ")
+    service.eventStream { ag =>
+      ag.counter("count").use(_.inc(1).map(_ => i += 1).foreverM.timeout(take).attempt)
+    }.compile.drain.unsafeRunSync()
+    println(speed(i))
+  }
 }

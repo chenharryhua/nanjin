@@ -10,8 +10,8 @@ import com.sksamuel.avro4s.Encoder as AvroEncoder
 import com.zaxxer.hikari.HikariConfig
 import org.apache.avro.Schema
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.apache.spark.sql.types.DataType
+import org.apache.spark.sql.{DataFrame, SparkSession}
 
 package object spark {
   object injection extends InjectionInstances
@@ -59,7 +59,7 @@ package object spark {
       new SparKafkaContext[F](ss, ctx)
 
     def topic[F[_], K, V](topic: KafkaTopic[F, K, V]): SparKafkaTopic[F, K, V] =
-      new SparKafkaContext[F](ss, topic.context).topic(topic.topicDef)
+      new SparKafkaContext[F](ss, KafkaContext[F](topic.settings)).topic(topic.topicDef)
 
     def hadoop[F[_]]: NJHadoop[F] = NJHadoop[F](ss.sparkContext.hadoopConfiguration)
 

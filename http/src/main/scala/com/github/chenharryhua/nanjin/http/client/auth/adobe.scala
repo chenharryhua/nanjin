@@ -3,6 +3,7 @@ package com.github.chenharryhua.nanjin.http.client.auth
 import cats.Endo
 import cats.data.NonEmptyList
 import cats.effect.kernel.{Async, Ref, Resource}
+import cats.effect.std.UUIDGen
 import cats.effect.syntax.all.*
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.UpdateConfig
@@ -13,7 +14,7 @@ import org.http4s.Uri.Path.Segment
 import org.http4s.circe.CirceEntityCodec.circeEntityDecoder
 import org.http4s.client.Client
 import org.http4s.client.dsl.Http4sClientDsl
-import org.http4s.headers.Authorization
+import org.http4s.headers.{`Idempotency-Key`, Authorization}
 import org.http4s.implicits.http4sLiteralsSyntax
 import org.http4s.{Credentials, Request, Uri, UrlForm}
 import org.typelevel.ci.CIString
@@ -42,31 +43,33 @@ object adobe {
     private val params: AuthParams = cfg.evalConfig
 
     override def loginR(client: Client[F])(implicit F: Async[F]): Resource[F, Client[F]] = {
-      val getToken: F[Token] =
-        params
-          .authClient(client)
-          .expect[Token](POST(
-            UrlForm(
-              "grant_type" -> "authorization_code",
-              "client_id" -> client_id,
-              "client_secret" -> client_secret,
-              "code" -> client_code),
-            auth_endpoint.withPath(path"/ims/token/v1")
-          ))
+      val get_token: F[Token] =
+        UUIDGen[F].randomUUID.flatMap { uuid =>
+          params
+            .authClient(client)
+            .expect[Token](POST(
+              UrlForm(
+                "grant_type" -> "authorization_code",
+                "client_id" -> client_id,
+                "client_secret" -> client_secret,
+                "code" -> client_code),
+              auth_endpoint.withPath(path"/ims/token/v1")
+            ).putHeaders(`Idempotency-Key`(show"$uuid")))
+        }
 
-      def updateToken(ref: Ref[F, Token]): F[Unit] =
+      def update_token(ref: Ref[F, Token]): F[Unit] =
         for {
           oldToken <- ref.get
-          newToken <- getToken.delayBy(params.dormant(oldToken.expires_in.millisecond))
+          newToken <- get_token.delayBy(params.dormant(oldToken.expires_in.millisecond))
           _ <- ref.set(newToken)
         } yield ()
 
-      def withToken(token: Token, req: Request[F]): Request[F] =
+      def with_token(token: Token, req: Request[F]): Request[F] =
         req.putHeaders(
           Authorization(Credentials.Token(CIString(token.token_type), token.access_token)),
           "x-api-key" -> client_id)
 
-      loginInternal(client, getToken, updateToken, withToken)
+      loginInternal(client, get_token, update_token, with_token)
     }
 
     override def updateConfig(f: Endo[AuthConfig]): IMS[F] =
@@ -120,27 +123,28 @@ object adobe {
       }.toList.toMap.asJava
 
       def getToken(expiresIn: FiniteDuration): F[Token] =
-        F.realTimeInstant.map { ts =>
-          Jwts
-            .builder()
-            .subject(technical_account_key)
-            .issuer(ims_org_id)
-            .expiration(Date.from(ts.plusSeconds(expiresIn.toSeconds)))
-            .claims(claims)
-            .signWith(private_key, Jwts.SIG.RS256)
-            .audience()
-            .add(audience)
-            .and()
-            .compact()
-
-        }.flatMap(jwt =>
-          params
-            .authClient(client)
-            .expect[Token](
-              POST(
-                UrlForm("client_id" -> client_id, "client_secret" -> client_secret, "jwt_token" -> jwt),
-                auth_endpoint.withPath(path"/ims/exchange/jwt")
-              )))
+        UUIDGen[F].randomUUID.flatMap { uuid =>
+          F.realTimeInstant.map { ts =>
+            Jwts
+              .builder()
+              .subject(technical_account_key)
+              .issuer(ims_org_id)
+              .expiration(Date.from(ts.plusSeconds(expiresIn.toSeconds)))
+              .claims(claims)
+              .signWith(private_key, Jwts.SIG.RS256)
+              .audience()
+              .add(audience)
+              .and()
+              .compact()
+          }.flatMap(jwt =>
+            params
+              .authClient(client)
+              .expect[Token](
+                POST(
+                  UrlForm("client_id" -> client_id, "client_secret" -> client_secret, "jwt_token" -> jwt),
+                  auth_endpoint.withPath(path"/ims/exchange/jwt")
+                ).putHeaders(`Idempotency-Key`(show"$uuid"))))
+        }
 
       def updateToken(ref: Ref[F, Token]): F[Unit] =
         for {

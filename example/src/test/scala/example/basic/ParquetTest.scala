@@ -25,8 +25,8 @@ class ParquetTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
   private def writeSingle(file: ParquetFile): IO[NJPath] = {
     val path = root / "single" / file.fileName
     val sink = parquet.updateWriter(_.withCompressionCodec(file.compression.codecName)).sink(path)
-    write(path.uri.getPath) { meter =>
-      data.evalTap(_ => meter.mark(1)).map(encoder.to).chunkN(1000).through(sink).compile.drain.as(path)
+    write(path.uri.getPath).use { meter =>
+      data.evalTap(_ => meter.mark(1)).map(encoder.to).through(sink).compile.drain.as(path)
     }
   }
 
@@ -35,20 +35,19 @@ class ParquetTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
     val sink = parquet
       .updateWriter(_.withCompressionCodec(file.compression.codecName))
       .sink(policy, beijingTime)(t => path / file.fileName(t))
-    write(path.uri.getPath) { meter =>
-      data.evalTap(_ => meter.mark(1)).map(encoder.to).chunkN(1000).through(sink).compile.drain.as(path)
+    write(path.uri.getPath).use { meter =>
+      data.evalTap(_ => meter.mark(1)).map(encoder.to).through(sink).compile.drain.as(path)
     }
   }
 
   private def writeSingleSpark(file: ParquetFile): IO[NJPath] = {
     val path = root / "spark" / "single" / file.fileName
     val sink = parquet.updateWriter(_.withCompressionCodec(file.compression.codecName)).sink(path)
-    write(path.uri.getPath) { meter =>
+    write(path.uri.getPath).use { meter =>
       table.output
         .stream(1000)
         .evalTap(_ => meter.mark(1))
         .map(encoder.to)
-        .chunkN(1000)
         .through(sink)
         .compile
         .drain
@@ -58,7 +57,8 @@ class ParquetTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
 
   private def writeMultiSpark(file: ParquetFile): IO[NJPath] = {
     val path = root / "spark" / "multi" / file.fileName
-    write(path.uri.getPath)(_ => table.output.parquet(path).withCompression(file.compression).run.as(path))
+    write(path.uri.getPath).use(_ =>
+      table.output.parquet(path).withCompression(file.compression).run.as(path))
   }
 
   private def writeRotateSpark(file: ParquetFile): IO[NJPath] = {
@@ -66,12 +66,11 @@ class ParquetTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
     val sink = parquet
       .updateWriter(_.withCompressionCodec(file.compression.codecName))
       .sink(policy, sydneyTime)(t => path / file.fileName(t))
-    write(path.uri.getPath) { meter =>
+    write(path.uri.getPath).use { meter =>
       table.output
         .stream(1000)
         .evalTap(_ => meter.mark(1))
         .map(encoder.to)
-        .chunkN(1000)
         .through(sink)
         .compile
         .drain
@@ -80,10 +79,10 @@ class ParquetTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
   }
 
   private def sparkRead(path: NJPath): IO[Long] =
-    read(path.uri.getPath)(_ => loader.parquet(path).count)
+    read(path.uri.getPath).use(_ => loader.parquet(path).count)
 
   private def folderRead(path: NJPath): IO[Long] =
-    read(path.uri.getPath) { meter =>
+    read(path.uri.getPath).use { meter =>
       hadoop
         .filesIn(path)
         .flatMap(parquet.source(_, 100).map(decoder.from).evalTap(_ => meter.mark(1)).compile.fold(0L) {
@@ -92,7 +91,7 @@ class ParquetTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
     }
 
   private def singleRead(path: NJPath): IO[Long] =
-    read(path.uri.getPath) { meter =>
+    read(path.uri.getPath).use { meter =>
       parquet.source(path, 100).map(decoder.from).evalTap(_ => meter.mark(1)).compile.fold(0L) {
         case (s, _) =>
           s + 1

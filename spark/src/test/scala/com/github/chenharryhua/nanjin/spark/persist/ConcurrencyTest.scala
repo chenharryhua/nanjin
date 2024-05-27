@@ -104,7 +104,7 @@ class ConcurrencyTest extends AnyFunSuite {
         .filter(_.name.contains(".jackson.json.deflate"))
         .ensuring(_.nonEmpty)
       File(root.pathStr + "gzip").list.toList.filter(_.name.contains(".jackson.json.gz")).ensuring(_.nonEmpty)
-      File(root.pathStr + "uncompress").list.toList
+      File(root.pathStr + "uncompressed").list.toList
         .filter(_.name.contains(".jackson.json"))
         .ensuring(_.nonEmpty)
     }

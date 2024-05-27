@@ -51,7 +51,7 @@ final class SparKafkaTopic[F[_], K, V](val sparkSession: SparkSession, val topic
     */
   def fromKafka(offsets: Map[Int, (Long, Long)])(implicit F: Async[F]): CrRdd[F, K, V] =
     crRdd(
-      topic.context
+      KafkaContext[F](topic.settings)
         .admin(topicName)
         .partitionsFor
         .map { partitions =>

@@ -22,11 +22,11 @@ import scala.util.Random
 class InteractiveTest extends AnyFunSuite {
   val appid = "interactive_test"
   val ctx: KafkaContext[IO] =
-    KafkaSettings.local
-      .withConsumerProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest")
-      .withConsumerProperty(ConsumerConfig.GROUP_ID_CONFIG, "nj-kafka-interactive-unit-test-group")
-      .withStreamingProperty("state.dir", "./data/kafka_states")
-      .ioContext
+    KafkaContext[IO](
+      KafkaSettings.local
+        .withConsumerProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest")
+        .withConsumerProperty(ConsumerConfig.GROUP_ID_CONFIG, "nj-kafka-interactive-unit-test-group")
+        .withStreamingProperty("state.dir", "./data/kafka_states"))
 
   val topic       = ctx.topic[Int, String]("stream.test.interactive.5")
   val localStore  = topic.asStateStore("stream.test.interactive.local.store.5")

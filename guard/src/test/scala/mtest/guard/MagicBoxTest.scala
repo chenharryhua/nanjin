@@ -20,7 +20,7 @@ import scala.concurrent.duration.*
 
 class MagicBoxTest extends AnyFunSuite {
   val service: ServiceGuard[IO] =
-    TaskGuard[IO]("test")
+    TaskGuard[IO]("magic")
       .service("magic-box")
       .updateConfig(_.withRestartPolicy(policies.fixedDelay(0.1.seconds)))
 
@@ -47,7 +47,7 @@ class MagicBoxTest extends AnyFunSuite {
         assert(v6 == 7)
         assert(v7 == 7)
       }
-    }.timeout(3.seconds).compile.drain.unsafeRunSync()
+    }.map(checkJson).timeout(3.seconds).compile.drain.unsafeRunSync()
   }
 
   test("2.signalBox operations") {
@@ -71,7 +71,7 @@ class MagicBoxTest extends AnyFunSuite {
         assert(v3 == 3)
         assert(v6 == 4)
       }
-    }.timeout(3.seconds).compile.drain.unsafeRunSync()
+    }.map(checkJson).timeout(3.seconds).compile.drain.unsafeRunSync()
   }
 
   test("3.signalBox should survive panic") {
@@ -80,15 +80,19 @@ class MagicBoxTest extends AnyFunSuite {
         val box = agent.signalBox(IO(10))
         for {
           _ <- box.updateAndGet(_ + 1)
-          _ <- agent.action("publish", _.unipartite).retry(box.get).logOutput(_.asJson).run
+          _ <- agent
+            .action("publish", _.unipartite)
+            .retry(box.get)
+            .buildWith(_.tapOutput((_, a) => a.asJson))
+            .use(_.run(()))
           _ <- IO.raiseError[Int](new Exception)
         } yield ()
-      }.debug().take(7).compile.toList.unsafeRunSync()
+      }.map(checkJson).take(7).compile.toList.unsafeRunSync()
     assert(a.isInstanceOf[ServiceStart])
-    assert(b.asInstanceOf[ActionDone].notes.get.asNumber.flatMap(_.toInt).get == 11)
+    assert(b.asInstanceOf[ActionDone].notes.asNumber.flatMap(_.toInt).get == 11)
     assert(c.isInstanceOf[ServicePanic])
     assert(d.isInstanceOf[ServiceStart])
-    assert(e.asInstanceOf[ActionDone].notes.get.asNumber.flatMap(_.toInt).get == 12)
+    assert(e.asInstanceOf[ActionDone].notes.asNumber.flatMap(_.toInt).get == 12)
     assert(f.isInstanceOf[ServicePanic])
     assert(g.isInstanceOf[ServiceStart])
   }
@@ -99,15 +103,19 @@ class MagicBoxTest extends AnyFunSuite {
         val box = agent.atomicBox(IO(10))
         for {
           _ <- box.getAndUpdate(_ + 1)
-          _ <- agent.action("publish", _.unipartite).retry(box.get).logOutput(_.asJson).run
+          _ <- agent
+            .action("publish", _.unipartite)
+            .retry(box.get)
+            .buildWith(_.tapOutput((_, a) => a.asJson))
+            .use(_.run(()))
           _ <- IO.raiseError[Int](new Exception)
         } yield ()
-      }.take(7).compile.toList.unsafeRunSync()
+      }.map(checkJson).take(7).compile.toList.unsafeRunSync()
     assert(a.isInstanceOf[ServiceStart])
-    assert(b.asInstanceOf[ActionDone].notes.get.asNumber.flatMap(_.toInt).get == 11)
+    assert(b.asInstanceOf[ActionDone].notes.asNumber.flatMap(_.toInt).get == 11)
     assert(c.isInstanceOf[ServicePanic])
     assert(d.isInstanceOf[ServiceStart])
-    assert(e.asInstanceOf[ActionDone].notes.get.asNumber.flatMap(_.toInt).get == 12)
+    assert(e.asInstanceOf[ActionDone].notes.asNumber.flatMap(_.toInt).get == 12)
     assert(f.isInstanceOf[ServicePanic])
     assert(g.isInstanceOf[ServiceStart])
   }
@@ -121,7 +129,7 @@ class MagicBoxTest extends AnyFunSuite {
           .interruptWhen(box.map(_ > 20))
           .compile
           .drain
-      }.compile.toList.unsafeRunSync()
+      }.map(checkJson).compile.toList.unsafeRunSync()
     assert(a.isInstanceOf[ServiceStart])
     assert(c.isInstanceOf[ServiceStop])
   }
@@ -134,7 +142,7 @@ class MagicBoxTest extends AnyFunSuite {
           .interruptWhen(box.continuous)
           .compile
           .drain &> box.set(true).delayBy(2.seconds)
-      }.compile.toList.unsafeRunSync()
+      }.map(checkJson).compile.toList.unsafeRunSync()
     assert(a.isInstanceOf[ServiceStart])
     assert(c.isInstanceOf[ServiceStop])
   }
@@ -155,7 +163,7 @@ class MagicBoxTest extends AnyFunSuite {
         .evalTap(_ => box.getAndUpdate(_ + 1))
         .compile
         .drain >> box.get.map(c => assert(c > 5))
-    }.interruptAfter(3.second).compile.toList.unsafeRunSync()
+    }.map(checkJson).interruptAfter(3.second).compile.toList.unsafeRunSync()
     assert(i == 1)
     assert(a.isInstanceOf[ServiceStart])
   }
@@ -176,7 +184,7 @@ class MagicBoxTest extends AnyFunSuite {
         .evalTap(_ => box.getAndUpdate(_ + 1))
         .compile
         .drain >> box.get.map(c => assert(c > 5))
-    }.interruptAfter(3.second).compile.toList.unsafeRunSync()
+    }.map(checkJson).interruptAfter(3.second).compile.toList.unsafeRunSync()
     assert(i == 1)
     assert(a.isInstanceOf[ServiceStart])
   }
@@ -189,7 +197,7 @@ class MagicBoxTest extends AnyFunSuite {
         .evalTap(_ => box.getAndUpdate(_ + 1))
         .compile
         .drain
-    }.take(3).compile.toList.unsafeRunSync()
+    }.map(checkJson).take(3).compile.toList.unsafeRunSync()
 
     assert(a.isInstanceOf[ServiceStart])
     assert(b.isInstanceOf[ServicePanic])
@@ -204,7 +212,7 @@ class MagicBoxTest extends AnyFunSuite {
         .evalTap(_ => box.getAndUpdate(_ + 1))
         .compile
         .drain
-    }.take(3).compile.toList.unsafeRunSync()
+    }.map(checkJson).take(3).compile.toList.unsafeRunSync()
 
     assert(a.isInstanceOf[ServiceStart])
     assert(b.isInstanceOf[ServicePanic])
@@ -224,7 +232,7 @@ class MagicBoxTest extends AnyFunSuite {
         assert(v1 == 1)
         assert(v3 == 0)
       }
-    }.compile.drain.unsafeRunSync()
+    }.map(checkJson).compile.drain.unsafeRunSync()
   }
   test("11.atomicBox release") {
     service.eventStream { agent =>
@@ -243,6 +251,6 @@ class MagicBoxTest extends AnyFunSuite {
         assert(v3 == 0)
         assert(v4 == 100)
       }
-    }.compile.drain.unsafeRunSync()
+    }.map(checkJson).compile.drain.unsafeRunSync()
   }
 }

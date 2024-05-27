@@ -7,7 +7,7 @@ import com.github.chenharryhua.nanjin.common.chrono.policies
 import com.github.chenharryhua.nanjin.terminals.*
 import com.github.chenharryhua.nanjin.terminals.NJCompression.*
 import eu.timepit.refined.auto.*
-import fs2.{Chunk, Pipe, Stream}
+import fs2.Stream
 import io.circe.generic.auto.*
 import io.circe.syntax.EncoderOps
 import io.circe.{jawn, Json}
@@ -26,10 +26,10 @@ class NJCirceTest extends AnyFunSuite {
   def fs2(path: NJPath, file: CirceFile, data: Set[Tiger]): Assertion = {
     val tgt = path / file.fileName
     hdp.delete(tgt).unsafeRunSync()
-    val ts: Stream[IO, Chunk[Json]]          = Stream.emits(data.toList).covary[IO].map(_.asJson).chunks
-    val sink: Pipe[IO, Chunk[Json], Nothing] = json.sink(tgt)
-    val src: Stream[IO, Tiger]               = json.source(tgt, 30).rethrow.mapFilter(_.as[Tiger].toOption)
-    val action: IO[List[Tiger]]              = ts.through(sink).compile.drain >> src.compile.toList
+    val ts                      = Stream.emits(data.toList).covary[IO].map(_.asJson)
+    val sink                    = json.sink(tgt)
+    val src: Stream[IO, Tiger]  = json.source(tgt, 30).rethrow.mapFilter(_.as[Tiger].toOption)
+    val action: IO[List[Tiger]] = ts.through(sink).compile.drain >> src.compile.toList
     assert(action.unsafeRunSync().toSet == data)
     val lines = hdp.text.source(tgt, 32).compile.fold(0) { case (s, _) => s + 1 }
     assert(lines.unsafeRunSync() === data.size)
@@ -76,7 +76,6 @@ class NJCirceTest extends AnyFunSuite {
       .emits(TestData.tigerSet.toList)
       .covary[IO]
       .map(_.asJson)
-      .chunks
       .through(conn.sink(path))
       .compile
       .drain
@@ -98,7 +97,6 @@ class NJCirceTest extends AnyFunSuite {
       .covary[IO]
       .repeatN(number)
       .map(_.asJson)
-      .chunks
       .through(json.sink(policies.fixedDelay(1.second), ZoneId.systemDefault())(t => path / fk.fileName(t)))
       .compile
       .drain
@@ -113,7 +111,7 @@ class NJCirceTest extends AnyFunSuite {
     hdp.delete(path).unsafeRunSync()
     val fk = CirceFile(Uncompressed)
     (Stream.sleep[IO](10.hours) >>
-      Stream.empty.covaryAll[IO, Json]).chunks
+      Stream.empty.covaryAll[IO, Json])
       .through(json.sink(policies.fixedDelay(1.second).limited(3), ZoneId.systemDefault())(t =>
         path / fk.fileName(t)))
       .compile

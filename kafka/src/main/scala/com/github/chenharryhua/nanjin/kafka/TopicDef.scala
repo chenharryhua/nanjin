@@ -15,8 +15,6 @@ import org.apache.kafka.clients.producer.ProducerRecord as JavaProducerRecord
 final class TopicDef[K, V] private (val topicName: TopicName, val rawSerdes: RawKeyValueSerdePair[K, V])
     extends Serializable {
 
-  def in[F[_]](ctx: KafkaContext[F]): KafkaTopic[F, K, V] = ctx.topic[K, V](this)
-
   override def toString: String = topicName.value
 
   def withTopicName(tn: TopicName): TopicDef[K, V]  = new TopicDef[K, V](tn, rawSerdes)

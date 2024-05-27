@@ -1,49 +1,179 @@
 package mtest.guard
 
+import cats.Endo
+import cats.data.Kleisli
 import cats.effect.IO
+import cats.effect.kernel.Resource
 import cats.effect.unsafe.implicits.global
+import cats.implicits.catsSyntaxSemigroup
 import com.github.chenharryhua.nanjin.guard.TaskGuard
+import com.github.chenharryhua.nanjin.guard.action.*
+import com.github.chenharryhua.nanjin.guard.event.NJEvent.MetricReport
+import com.github.chenharryhua.nanjin.guard.event.retrieveMetricIds
 import com.github.chenharryhua.nanjin.guard.observers.console
+import com.github.chenharryhua.nanjin.guard.service.Agent
 import org.scalatest.funsuite.AnyFunSuite
 
-class SyntaxTest extends AnyFunSuite {
-  test("builder syntax") {
-    TaskGuard[IO]("task")
-      .service("service")
-      .eventStream { agent =>
-        val ag = agent.action("tmp", _.unipartite.timed.counted.critical)
-        val a0 = ag("a0").retry(unit_fun).run
-        val a1 = ag("a1").retry(fun1 _).run(1)
-        val a2 = ag("a2").retry(fun2 _).run((1, 2))
-        val a3 = ag("a3").retry(fun3 _).run((1, 2, 3))
-        val a4 = ag("a4").retry(fun4 _).run((1, 2, 3, 4))
-        val a5 = ag("a5").retry(fun5 _).run((1, 2, 3, 4, 5))
-        val f0 = ag("f0").retryFuture(fun0fut).run
-        val f1 = ag("f1").retryFuture(fun1fut _).run(1)
-        val f2 = ag("f2").retryFuture(fun2fut _).run((1, 2))
-        val f3 = ag("f3").retryFuture(fun3fut _).run((1, 2, 3))
-        val f4 = ag("f4").retryFuture(fun4fut _).run((1, 2, 3, 4))
-        val f5 = ag("f5").retryFuture(fun5fut _).run((1, 2, 3, 4, 5))
-        val d0 = ag("d0").delay(3).run
-        val b1 = ag("a1").retry(fun1 _).run(1)
-        val b2 = ag("a2").retry(fun2 _).run(1, 2)
-        val b3 = ag("a3").retry(fun3 _).run(1, 2, 3)
-        val b4 = ag("a4").retry(fun4 _).run(1, 2, 3, 4)
-        val b5 = ag("a5").retry(fun5 _).run(1, 2, 3, 4, 5)
-        val r1 = ag("r1").updateConfig(_.untimed.uncounted).retry(fun1 _).asResource.use(_.run(1))
-        val r2 = ag("r1").updateConfig(_.untimed).retry(fun2 _).asResource.use(_.run(1, 2))
-        val r3 = ag("r1").updateConfig(_.uncounted).retry(fun3 _).asResource.use(_.run(1, 2, 3))
-        val r4 = ag("r1").updateConfig(_.suppressed).retry(fun4 _).asResource.use(_.run(1, 2, 3, 4))
-        val r5 = ag("r1").updateConfig(_.bipartite).retry(fun5 _).asResource.use(_.run(1, 2, 3, 4, 5))
+import scala.concurrent.duration.DurationInt
 
-        a0 >> a1 >> a2 >> a3 >> a4 >> a5 >>
-          f0 >> f1 >> f2 >> f3 >> f4 >> f5 >>
-          d0 >> b1 >> b2 >> b2 >> b3 >> b4 >> b5 >>
-          r1 >> r2 >> r3 >> r4 >> r5 >> agent.metrics.report
-      }
-      .evalTap(console.simple[IO])
+class SyntaxTest extends AnyFunSuite {
+  private val service = TaskGuard[IO]("task").service("service")
+
+  test("1.builder syntax") {
+    service.eventStream { agent =>
+      val a0 = agent.action("a0").retry(unit_fun).buildWith(identity).use(_.run(()))
+      val a1 = agent.action("a1").retry(fun1 _).buildWith(identity).use(_.run(1))
+      val a2 = agent.action("a2").retry(fun2 _).buildWith(identity).use(_.run((1, 2)))
+      val a3 = agent.action("a3").retry(fun3 _).buildWith(identity).use(_.run((1, 2, 3)))
+      val a4 = agent.action("a4").retry(fun4 _).buildWith(identity).use(_.run((1, 2, 3, 4)))
+      val a5 = agent.action("a5").retry(fun5 _).buildWith(identity).use(_.run((1, 2, 3, 4, 5)))
+      val f0 = agent.action("f0").retryFuture(fun0fut).buildWith(identity).use(_.run(()))
+      val f1 = agent.action("f1").retryFuture(fun1fut _).buildWith(identity).use(_.run(1))
+      val f2 = agent.action("f2").retryFuture(fun2fut _).buildWith(identity).use(_.run((1, 2)))
+      val f3 = agent.action("f3").retryFuture(fun3fut _).buildWith(identity).use(_.run((1, 2, 3)))
+      val f4 = agent.action("f4").retryFuture(fun4fut _).buildWith(identity).use(_.run((1, 2, 3, 4)))
+      val f5 = agent.action("f5").retryFuture(fun5fut _).buildWith(identity).use(_.run((1, 2, 3, 4, 5)))
+      val d0 = agent.action("d0").delay(3).buildWith(identity).use(_.run(()))
+
+      a0 >> a1 >> a2 >> a3 >> a4 >> a5 >>
+        f0 >> f1 >> f2 >> f3 >> f4 >> f5 >>
+        d0 >> agent.metrics.report
+    }.map(checkJson).compile.drain.unsafeRunSync()
+  }
+
+  test("2.should be in one namespace") {
+    def job(agent: Agent[IO]): Resource[IO, Kleisli[IO, Int, Long]] = {
+      val name: String = "app"
+      agent
+        .gauge(name)
+        .timed
+        .flatMap(_ =>
+          for {
+            timer <- agent.timer(name, _.counted).map(_.kleisli((in: Int) => in.seconds))
+            runner <- agent.action(name, _.timed.counted).retry(fun1 _).buildWith(identity)
+            histogram <- agent.histogram(name, _.withUnit(_.BYTES).counted)
+            meter <- agent.meter(name, _.withUnit(_.COUNT).counted)
+            counter <- agent.counter(name, _.asRisk)
+          } yield for {
+            _ <- timer
+            out <- runner
+            _ <- histogram.kleisli((_: Int) => out)
+            _ <- meter.kleisli((_: Int) => out)
+            _ <- counter.kleisli((_: Int) => out)
+          } yield out)
+    }
+    val List(a: MetricReport, b: MetricReport) = service
+      .eventStream(ga => job(ga).use(_.run(1) >> ga.metrics.report) >> ga.metrics.report)
+      .map(checkJson)
+      .evalTap(console.text[IO])
+      .evalMapFilter(e => IO(metricReport(e)))
       .compile
-      .drain
+      .toList
       .unsafeRunSync()
+
+    assert(a.snapshot.timers.nonEmpty)
+    assert(a.snapshot.meters.nonEmpty)
+    assert(a.snapshot.histograms.nonEmpty)
+    assert(a.snapshot.gauges.nonEmpty)
+    assert(a.snapshot.counters.nonEmpty)
+
+    assert(b.snapshot.timers.isEmpty)
+    assert(b.snapshot.meters.isEmpty)
+    assert(b.snapshot.histograms.isEmpty)
+    assert(b.snapshot.gauges.isEmpty)
+    assert(b.snapshot.counters.isEmpty)
+
+  }
+
+  test("3.resource should be cleaned up") {
+    def job(agent: Agent[IO]): Resource[IO, Kleisli[IO, Int, Long]] = {
+      val name: String = "app2"
+      for {
+        _ <- agent.jvmGauge.garbageCollectors
+        _ <- agent.gauge(name).timed
+        action <- agent.action(name, _.timed.counted).retry(fun1 _).buildWith(identity)
+        histogram <- agent.histogram(name, _.withUnit(_.BYTES).counted)
+        meter <- agent.meter(name, _.withUnit(_.KILOBITS).counted)
+        counter <- agent.counter(name, _.asRisk)
+        timer <- agent.timer(name, _.counted)
+        alert <- agent.alert(name, _.counted)
+      } yield for {
+        out <- action
+        _ <- histogram.kleisli((_: Int) => out)
+        _ <- meter.kleisli((_: Int) => out)
+        _ <- counter.kleisli((_: Int) => out)
+        _ <- timer.kleisli((in: Int) => in.milliseconds)
+        _ <- Kleisli((in: Int) => alert.info(in))
+      } yield out
+    }
+
+    val List(a: MetricReport, b: MetricReport) = service
+      .eventStream(ga => job(ga).use(_.run(1) >> ga.metrics.report) >> ga.metrics.report)
+      .map(checkJson)
+      .evalTap(console.text[IO])
+      .evalMapFilter(e => IO(metricReport(e)))
+      .compile
+      .toList
+      .unsafeRunSync()
+
+    assert(a.snapshot.timers.nonEmpty)
+    assert(a.snapshot.meters.nonEmpty)
+    assert(a.snapshot.histograms.nonEmpty)
+    assert(a.snapshot.gauges.nonEmpty)
+    assert(a.snapshot.counters.nonEmpty)
+
+    assert(b.snapshot.timers.isEmpty)
+    assert(b.snapshot.counters.isEmpty)
+    assert(b.snapshot.meters.isEmpty)
+    assert(b.snapshot.histograms.isEmpty)
+    assert(b.snapshot.gauges.isEmpty)
+  }
+
+  test("4.measurement") {
+    val measurement  = "measurement"
+    val name: String = "service-1"
+
+    val mr: MetricReport = service.eventStream { ga =>
+      val a = ga.alert(name, _.withMeasurement(measurement)).evalMap(_.info(1))
+      val b = ga.counter(name, _.withMeasurement(measurement)).evalMap(_.inc(1))
+      val c = ga.gauge(name, _.withMeasurement(measurement)).register(IO(1))
+      val d = ga.healthCheck(name, _.withMeasurement(measurement)).register(IO(true))
+      val e = ga.histogram(name, _.withMeasurement(measurement)).evalMap(_.update(1))
+      val f = ga.meter(name, _.withMeasurement(measurement)).evalMap(_.mark(1))
+      val g = ga.timer(name, _.withMeasurement(measurement)).evalMap(_.update(1.second))
+      (a |+| b |+| c |+| d |+| e |+| f |+| g).surround(ga.metrics.report)
+    }.map(checkJson)
+      .evalTap(console.text[IO])
+      .evalMapFilter(e => IO(metricReport(e)))
+      .compile
+      .lastOrError
+      .unsafeRunSync()
+
+    val ms = retrieveMetricIds(mr.snapshot)
+    assert(ms.map(_.metricName.measurement).forall(_ == measurement))
+    assert(ms.map(_.metricName.name).forall(_ == name))
+    assert(ms.size == 6)
+  }
+
+  test("5.config builders") {
+    val alert: Endo[NJAlert.Builder]         = _.withMeasurement("alert").counted
+    val counter: Endo[NJCounter.Builder]     = _.withMeasurement("counter").asRisk
+    val gauge: Endo[NJGauge.Builder]         = _.withMeasurement("gauge").withTimeout(1.second)
+    val hc: Endo[NJHealthCheck.Builder]      = _.withMeasurement("health-check").withTimeout(1.second)
+    val histogram: Endo[NJHistogram.Builder] = _.withMeasurement("histogram").counted.withUnit(_.BYTES)
+    val meter: Endo[NJMeter.Builder]         = _.withMeasurement("meter").counted.withUnit(_.KILOBITS)
+    val timer: Endo[NJTimer.Builder]         = _.withMeasurement("timer").counted
+
+    val name = "config"
+    service.eventStream { ga =>
+      val a = ga.alert(name, alert).evalMap(_.info(1))
+      val b = ga.counter(name, counter).evalMap(_.inc(1))
+      val c = ga.gauge(name, gauge).register(IO(1))
+      val d = ga.healthCheck(name, hc).register(IO(true))
+      val e = ga.histogram(name, histogram).evalMap(_.update(1))
+      val f = ga.meter(name, meter).evalMap(_.mark(1))
+      val g = ga.timer(name, timer).evalMap(_.update(1.second))
+      (a |+| b |+| c |+| d |+| e |+| f |+| g).use_ >> ga.metrics.report
+    }.map(checkJson).evalTap(console.text[IO]).compile.drain.unsafeRunSync()
   }
 }

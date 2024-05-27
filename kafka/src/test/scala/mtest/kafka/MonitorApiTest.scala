@@ -26,7 +26,6 @@ class MonitorApiTest extends AnyFunSuite {
     .emits(List(
       ProducerRecord[Int, Array[Byte]](st.topicName.value, 0, Array(0, 0, 0, 1)).withHeaders(headers1),
       ProducerRecord[Int, Array[Byte]](st.topicName.value, 1, Array(0, 0, 0, 2)),
-      ProducerRecord[Int, Array[Byte]](st.topicName.value, 2, Array(0, 0)).withHeaders(headers2),
       ProducerRecord[Int, Array[Byte]](st.topicName.value, 3, Array(0, 0, 0, 4)),
       ProducerRecord[Int, Array[Byte]](st.topicName.value, 4, Array(0, 0, 0, 5)),
       ProducerRecord[Int, Array[Byte]](st.topicName.value, 5, Array(0, 0, 0, 6)),

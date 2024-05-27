@@ -11,10 +11,10 @@ package object example {
   lazy val sparkSession: SparkSession = SparkSettings(sydneyTime).sparkSession
 
   val ctx: KafkaContext[IO] =
-    KafkaSettings.local
-      .withConsumerProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
-      .withConsumerProperty(ConsumerConfig.GROUP_ID_CONFIG, "example")
-      .ioContext
+    KafkaContext[IO](
+      KafkaSettings.local
+        .withConsumerProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
+        .withConsumerProperty(ConsumerConfig.GROUP_ID_CONFIG, "example"))
 
   val sparKafka: SparKafkaContext[IO] = sparkSession.alongWith(ctx)
   val hadoop: NJHadoop[IO]            = sparkSession.hadoop[IO]

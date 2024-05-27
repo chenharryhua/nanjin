@@ -69,7 +69,7 @@ class SparkKafkaStreamTest extends AnyFunSuite {
 //
   test("console") {
     import sparKafka.sparkSession.implicits.*
-    val rooster = roosterTopic.withTopicName("sstream.file.rooster").in(ctx)
+    val rooster = ctx.topic(roosterTopic.withTopicName("sstream.file.rooster"))
 
     sparKafka
       .sstream(rooster.topicName)

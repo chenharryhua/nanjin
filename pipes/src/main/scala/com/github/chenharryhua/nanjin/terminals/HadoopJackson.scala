@@ -29,28 +29,30 @@ final class HadoopJackson[F[_]] private (configuration: Configuration, schema: S
 
   // write
 
-  private def getWriterR(path: Path)(implicit F: Sync[F]): Resource[F, HadoopWriter[F, GenericRecord]] =
+  private def get_writerR(path: Path)(implicit F: Sync[F]): Resource[F, HadoopWriter[F, GenericRecord]] =
     HadoopWriter.jacksonR[F](configuration, schema, path)
 
-  def sink(path: NJPath)(implicit F: Sync[F]): Pipe[F, Chunk[GenericRecord], Nothing] = {
-    (ss: Stream[F, Chunk[GenericRecord]]) =>
-      Stream.resource(getWriterR(path.hadoopPath)).flatMap(w => ss.foreach(w.write))
+  override def sink(path: NJPath)(implicit F: Sync[F]): Pipe[F, GenericRecord, Nothing] = {
+    (ss: Stream[F, GenericRecord]) =>
+      Stream.resource(get_writerR(path.hadoopPath)).flatMap(w => ss.chunks.foreach(w.write))
   }
 
-  def sink(policy: Policy, zoneId: ZoneId)(pathBuilder: Tick => NJPath)(implicit
-    F: Async[F]): Pipe[F, Chunk[GenericRecord], Nothing] = {
+  override def sink(policy: Policy, zoneId: ZoneId)(pathBuilder: Tick => NJPath)(implicit
+    F: Async[F]): Pipe[F, GenericRecord, Nothing] = {
     def getWriter(tick: Tick): Resource[F, HadoopWriter[F, GenericRecord]] =
-      getWriterR(pathBuilder(tick).hadoopPath)
+      get_writerR(pathBuilder(tick).hadoopPath)
 
     // save
-    (ss: Stream[F, Chunk[GenericRecord]]) =>
+    (ss: Stream[F, GenericRecord]) =>
       Stream.eval(TickStatus.zeroth[F](policy, zoneId)).flatMap { zero =>
+        val ticks: Stream[F, Either[Chunk[GenericRecord], Tick]] = tickStream[F](zero).map(Right(_))
+
         Stream.resource(Hotswap(getWriter(zero.tick))).flatMap { case (hotswap, writer) =>
           persist[F, GenericRecord](
             getWriter,
             hotswap,
             writer,
-            ss.map(Left(_)).mergeHaltBoth(tickStream[F](zero).map(Right(_)))
+            ss.chunks.map(Left(_)).mergeHaltBoth(ticks)
           ).stream
         }
       }

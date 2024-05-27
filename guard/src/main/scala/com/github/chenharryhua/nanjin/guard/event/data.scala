@@ -1,39 +1,67 @@
 package com.github.chenharryhua.nanjin.guard.event
 
-import cats.Show
+import cats.implicits.toFunctorOps
 import com.github.chenharryhua.nanjin.common.chrono.Tick
+import io.circe.{Decoder, DecodingFailure, Encoder, Json}
 import io.circe.generic.JsonCodec
+import io.circe.syntax.EncoderOps
 import org.apache.commons.lang3.exception.ExceptionUtils
 
+import java.time.ZonedDateTime
+import scala.jdk.CollectionConverters.ListHasAsScala
+
 @JsonCodec
-final case class NJError(message: String, stackTrace: String)
+final case class NJError(message: String, stack: List[String])
 
 object NJError {
   def apply(ex: Throwable): NJError =
-    NJError(ExceptionUtils.getRootCauseMessage(ex), ExceptionUtils.getStackTrace(ex))
+    NJError(
+      ExceptionUtils.getRootCauseMessage(ex),
+      ExceptionUtils.getRootCauseStackTraceList(ex).asScala.toList.map(_.replace("\t", "")))
 }
 
 @JsonCodec
-sealed trait MetricIndex extends Product with Serializable
+sealed trait MetricIndex extends Product with Serializable {
+  def timestamp: ZonedDateTime
+}
 
 object MetricIndex {
-  case object Adhoc extends MetricIndex
-  final case class Periodic(tick: Tick) extends MetricIndex
+  final case class Adhoc(value: ZonedDateTime) extends MetricIndex {
+    override val timestamp: ZonedDateTime = value
+  }
+  final case class Periodic(tick: Tick) extends MetricIndex {
+    override val timestamp: ZonedDateTime = tick.zonedWakeup
+  }
 }
 
-@JsonCodec
 sealed abstract class ServiceStopCause(val exitCode: Int) extends Product with Serializable
 
 object ServiceStopCause {
-  implicit final val showServiceStopCause: Show[ServiceStopCause] = {
-    case ServiceStopCause.Normally         => "normally exit"
-    case ServiceStopCause.ByCancellation   => "abnormally exit due to cancellation"
-    case ServiceStopCause.ByException(msg) => s"abnormally exit due to $msg"
-    case ServiceStopCause.ByUser           => "stop by user"
+  case object Normally extends ServiceStopCause(0)
+  case object Maintenance extends ServiceStopCause(1)
+  case object ByCancellation extends ServiceStopCause(2)
+  final case class ByException(error: NJError) extends ServiceStopCause(3)
+
+  private val NORMALLY: String        = "Normally"
+  private val BY_CANCELLATION: String = "ByCancellation"
+  private val MAINTENANCE: String     = "Maintenance"
+  private val BY_EXCEPTION: String    = "ByException"
+
+  implicit val encoderServiceStopCause: Encoder[ServiceStopCause] = Encoder.instance {
+    case Normally           => Json.fromString(NORMALLY)
+    case ByCancellation     => Json.fromString(BY_CANCELLATION)
+    case ByException(error) => Json.obj(BY_EXCEPTION -> error.asJson)
+    case Maintenance        => Json.fromString(MAINTENANCE)
   }
 
-  case object Normally extends ServiceStopCause(0)
-  case object ByCancellation extends ServiceStopCause(1)
-  final case class ByException(msg: String) extends ServiceStopCause(2)
-  case object ByUser extends ServiceStopCause(3)
+  implicit val decoderServiceStopCause: Decoder[ServiceStopCause] =
+    List[Decoder[ServiceStopCause]](
+      _.as[String].flatMap {
+        case NORMALLY        => Right(Normally)
+        case BY_CANCELLATION => Right(ByCancellation)
+        case MAINTENANCE     => Right(Maintenance)
+        case unknown         => Left(DecodingFailure(s"unrecognized: $unknown", Nil))
+      }.widen,
+      _.downField(BY_EXCEPTION).as[NJError].map(err => ByException(err)).widen
+    ).reduceLeft(_ or _)
 }

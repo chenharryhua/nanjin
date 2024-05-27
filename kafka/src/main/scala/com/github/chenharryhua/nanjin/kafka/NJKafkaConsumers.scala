@@ -10,6 +10,8 @@ import fs2.Stream
 import fs2.kafka.{CommittableConsumerRecord, ConsumerSettings, KafkaConsumer}
 import org.apache.avro.generic.GenericData
 
+import scala.util.Try
+
 final class NJKafkaByteConsume[F[_]] private[kafka] (
   topicName: TopicName,
   consumerSettings: ConsumerSettings[F, Array[Byte], Array[Byte]],
@@ -52,11 +54,9 @@ final class NJKafkaByteConsume[F[_]] private[kafka] (
     * @return
     *
     * an avro GenericData.Record instance of NJConsumerRecord
-    *
-    * key or value will be null if deserialization fails
     */
   def genericRecords(implicit
-    F: Async[F]): Stream[F, CommittableConsumerRecord[F, Unit, GenericData.Record]] =
+    F: Async[F]): Stream[F, CommittableConsumerRecord[F, Unit, Try[GenericData.Record]]] =
     Stream.eval(getSchema).flatMap { skm =>
       val builder = new PullGenericRecord(srs, topicName, skm)
       stream.map { cr =>
@@ -67,7 +67,7 @@ final class NJKafkaByteConsume[F[_]] private[kafka] (
   // assignment
 
   def assignAvro(tps: KafkaTopicPartition[KafkaOffset])(implicit
-    F: Async[F]): Stream[F, CommittableConsumerRecord[F, Unit, GenericData.Record]] =
+    F: Async[F]): Stream[F, CommittableConsumerRecord[F, Unit, Try[GenericData.Record]]] =
     Stream.eval(getSchema).flatMap { skm =>
       val builder = new PullGenericRecord(srs, topicName, skm)
       assign(tps).map { cr =>

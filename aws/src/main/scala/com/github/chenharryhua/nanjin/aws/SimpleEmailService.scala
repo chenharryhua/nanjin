@@ -4,14 +4,14 @@ import cats.Endo
 import cats.effect.kernel.{Resource, Sync}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.aws.EmailContent
+import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
-import org.typelevel.log4cats.{Logger, SelfAwareStructuredLogger}
 import software.amazon.awssdk.services.ses.model.*
 import software.amazon.awssdk.services.ses.{SesClient, SesClientBuilder}
 
 import scala.jdk.CollectionConverters.*
 
-sealed trait SimpleEmailService[F[_]] {
+trait SimpleEmailService[F[_]] {
   def send(req: SendEmailRequest): F[SendEmailResponse]
   def send(req: SendRawEmailRequest): F[SendRawEmailResponse]
   def updateBuilder(f: Endo[SesClientBuilder]): SimpleEmailService[F]
@@ -50,20 +50,6 @@ object SimpleEmailService {
         case (cw, quitCase) => cw.shutdown(name, quitCase, logger)
       }
     } yield er
-
-  def fake[F[_]](implicit F: Sync[F]): Resource[F, SimpleEmailService[F]] = {
-    val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLogger[F]
-    Resource.make(F.pure(new SimpleEmailService[F] {
-      override def send(txt: SendEmailRequest): F[SendEmailResponse] =
-        logger.info(txt.toString) *> F.pure(SendEmailResponse.builder().messageId("fake.message.id").build())
-
-      override def updateBuilder(f: Endo[SesClientBuilder]): SimpleEmailService[F] = this
-
-      override def send(req: SendRawEmailRequest): F[SendRawEmailResponse] =
-        logger.info(req.toString) *> F.pure(
-          SendRawEmailResponse.builder().messageId("fake.raw.email.message.id").build())
-    }))(_ => F.unit)
-  }
 
   final private class AwsSES[F[_]](buildFrom: Endo[SesClientBuilder], logger: Logger[F])(implicit F: Sync[F])
       extends ShutdownService[F] with SimpleEmailService[F] {

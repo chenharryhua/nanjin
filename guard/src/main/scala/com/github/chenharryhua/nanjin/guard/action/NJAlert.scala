@@ -1,40 +1,38 @@
 package com.github.chenharryhua.nanjin.guard.action
 
-import cats.Monad
-import cats.effect.kernel.Clock
-import cats.effect.std.Dispatcher
+import cats.effect.kernel.{Resource, Sync, Unique}
 import cats.syntax.all.*
 import com.codahale.metrics.{Counter, MetricRegistry}
-import com.github.chenharryhua.nanjin.guard.config.{
-  AlertLevel,
-  Category,
-  CounterKind,
-  MetricID,
-  MetricName,
-  ServiceParams
-}
+import com.github.chenharryhua.nanjin.guard.config.*
+import com.github.chenharryhua.nanjin.guard.config.CategoryKind.CounterKind
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.ServiceAlert
 import fs2.concurrent.Channel
 import io.circe.syntax.EncoderOps
 import io.circe.{Encoder, Json}
 
-final class NJAlert[F[_]: Monad: Clock] private[guard] (
-  name: MetricName,
-  metricRegistry: MetricRegistry,
-  channel: Channel[F, NJEvent],
-  serviceParams: ServiceParams,
-  dispatcher: Dispatcher[F],
-  isCounting: Boolean
+final class NJAlert[F[_]: Sync] private (
+  private[this] val token: Unique.Token,
+  private[this] val name: MetricName,
+  private[this] val metricRegistry: MetricRegistry,
+  private[this] val channel: Channel[F, NJEvent],
+  private[this] val serviceParams: ServiceParams,
+  private[this] val isCounting: Boolean
 ) {
-  private lazy val errorCounter: Counter =
-    metricRegistry.counter(MetricID(name, Category.Counter(CounterKind.AlertError)).identifier)
-  private lazy val warnCounter: Counter =
-    metricRegistry.counter(MetricID(name, Category.Counter(CounterKind.AlertWarn)).identifier)
-  private lazy val infoCounter: Counter =
-    metricRegistry.counter(MetricID(name, Category.Counter(CounterKind.AlertInfo)).identifier)
+  private[this] val F = Sync[F]
 
-  private def alert(msg: Json, alertLevel: AlertLevel): F[Unit] =
+  private[this] val error_counter_name =
+    MetricID(name, Category.Counter(CounterKind.AlertError), token.hash).identifier
+  private[this] val warn_counter_name =
+    MetricID(name, Category.Counter(CounterKind.AlertWarn), token.hash).identifier
+  private[this] val info_counter_name =
+    MetricID(name, Category.Counter(CounterKind.AlertInfo), token.hash).identifier
+
+  private[this] lazy val error_counter: Counter = metricRegistry.counter(error_counter_name)
+  private[this] lazy val warn_counter: Counter  = metricRegistry.counter(warn_counter_name)
+  private[this] lazy val info_counter: Counter  = metricRegistry.counter(info_counter_name)
+
+  private[this] def alert(msg: Json, alertLevel: AlertLevel): F[Unit] =
     for {
       ts <- serviceParams.zonedNow
       _ <- channel.send(
@@ -46,27 +44,42 @@ final class NJAlert[F[_]: Monad: Clock] private[guard] (
           message = msg))
     } yield ()
 
-  def counted: NJAlert[F] =
-    new NJAlert[F](name, metricRegistry, channel, serviceParams, dispatcher, true)
-
   def error[S: Encoder](msg: S): F[Unit] =
-    alert(msg.asJson, AlertLevel.Error).map(_ => if (isCounting) errorCounter.inc(1))
+    alert(msg.asJson, AlertLevel.Error).map(_ => if (isCounting) error_counter.inc(1))
   def error[S: Encoder](msg: Option[S]): F[Unit] = msg.traverse(error(_)).void
 
-  def unsafeError[S: Encoder](msg: S): Unit         = dispatcher.unsafeRunSync(error(msg))
-  def unsafeError[S: Encoder](msg: Option[S]): Unit = dispatcher.unsafeRunSync(error(msg))
-
   def warn[S: Encoder](msg: S): F[Unit] =
-    alert(msg.asJson, AlertLevel.Warn).map(_ => if (isCounting) warnCounter.inc(1))
+    alert(msg.asJson, AlertLevel.Warn).map(_ => if (isCounting) warn_counter.inc(1))
   def warn[S: Encoder](msg: Option[S]): F[Unit] = msg.traverse(warn(_)).void
 
-  def unsafeWarn[S: Encoder](msg: S): Unit         = dispatcher.unsafeRunSync(warn(msg))
-  def unsafeWarn[S: Encoder](msg: Option[S]): Unit = dispatcher.unsafeRunSync(warn(msg))
-
   def info[S: Encoder](msg: S): F[Unit] =
-    alert(msg.asJson, AlertLevel.Info).map(_ => if (isCounting) infoCounter.inc(1))
+    alert(msg.asJson, AlertLevel.Info).map(_ => if (isCounting) info_counter.inc(1))
   def info[S: Encoder](msg: Option[S]): F[Unit] = msg.traverse(info(_)).void
 
-  def unsafeInfo[S: Encoder](msg: S): Unit         = dispatcher.unsafeRunSync(info(msg))
-  def unsafeInfo[S: Encoder](msg: Option[S]): Unit = dispatcher.unsafeRunSync(info(msg))
+  private val unregister: F[Unit] = F.delay {
+    metricRegistry.remove(error_counter_name)
+    metricRegistry.remove(warn_counter_name)
+    metricRegistry.remove(info_counter_name)
+  }.void
+
+}
+
+object NJAlert {
+  final class Builder private[guard] (measurement: Measurement, isCounting: Boolean) {
+
+    def withMeasurement(measurement: String): Builder = new Builder(Measurement(measurement), isCounting)
+
+    def counted: Builder = new Builder(measurement, true)
+
+    private[guard] def build[F[_]: Sync](
+      name: String,
+      metricRegistry: MetricRegistry,
+      channel: Channel[F, NJEvent],
+      serviceParams: ServiceParams): Resource[F, NJAlert[F]] = {
+      val metricName = MetricName(serviceParams, measurement, name)
+      Resource.make(
+        Sync[F].unique.map(
+          new NJAlert[F](_, metricName, metricRegistry, channel, serviceParams, isCounting)))(_.unregister)
+    }
+  }
 }

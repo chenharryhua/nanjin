@@ -4,10 +4,18 @@ import com.github.chenharryhua.nanjin.common.chrono.Tick
 import com.github.chenharryhua.nanjin.datetime.codec
 import io.circe.generic.JsonCodec
 
+import java.time.format.DateTimeFormatter
+
 @JsonCodec
 sealed abstract class NJFileKind(val fileFormat: NJFileFormat, val compression: NJCompression) {
-  final val fileName: String             = compression.fileName(fileFormat)
-  final def fileName(tick: Tick): String = f"${tick.sequenceId.toString.take(5)}-${tick.index}%06d.$fileName"
+  private val fmt: DateTimeFormatter = DateTimeFormatter.ofPattern("HHmmss")
+
+  final val fileName: String = compression.fileName(fileFormat)
+  final def fileName(tick: Tick): String = {
+    val seqId: String = tick.sequenceId.toString.take(5)
+    val time: String  = fmt.format(tick.zonedWakeup.toLocalTime)
+    f"$seqId-${tick.index}%05d-$time.$fileName"
+  }
 
   final def ymdFileName(tick: Tick): String = {
     val ymd = codec.year_month_day(tick.zonedWakeup.toLocalDate)

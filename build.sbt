@@ -1,42 +1,43 @@
-ThisBuild / scalaVersion       := "2.13.13"
+ThisBuild / scalaVersion       := "2.13.14"
 ThisBuild / version            := "0.18.0-SNAPSHOT"
 ThisBuild / evictionErrorLevel := Level.Info
 ThisBuild / versionScheme      := Some("early-semver")
 
 val catsCoreV   = "2.10.0"
-val fs2V        = "3.10.0"
-val awsV        = "2.25.15"
+val fs2V        = "3.10.2"
+val awsV        = "2.25.60"
 val catsEffectV = "3.5.4"
 val hadoopV     = "3.4.0"
 val monocleV    = "3.2.0"
-val confluentV  = "7.6.0"
-val kafkaV      = "7.6.0-ce"
-val fs2KafkaV   = "3.4.0"
+val confluentV  = "7.6.1"
+val kafkaV      = "7.6.1-ce"
+val fs2KafkaV   = "3.5.1"
 val avroV       = "1.11.3"
-val parquetV    = "1.13.1"
-val circeV      = "0.14.6"
-val jacksonV    = "2.17.0"
+val parquetV    = "1.14.0"
+val circeV      = "0.14.7"
+val jacksonV    = "2.17.1"
 val kantanV     = "0.7.0"
 val metricsV    = "4.2.25"
-val skunkV      = "0.6.3"
+val skunkV      = "0.6.4"
 val doobieV     = "1.0.0-RC5"
 val natchezV    = "0.3.5"
-val http4sV     = "0.23.26"
+val http4sV     = "0.23.27"
 val cron4sV     = "0.7.0"
-val protobufV   = "4.26.0"
+val protobufV   = "4.26.1"
 val sparkV      = "3.5.1"
 val framelessV  = "0.16.0"
 val refinedV    = "0.11.1"
-val nettyV      = "4.1.108.Final"
-val chimneyV    = "1.0.0-M1"
+val nettyV      = "4.1.110.Final"
+val chimneyV    = "1.0.0"
 val enumeratumV = "1.7.3"
 val drosteV     = "0.9.0"
-val slf4jV      = "2.0.12"
-val log4catsV   = "2.6.0"
-val logbackV    = "1.5.3"
+val slf4jV      = "2.0.13"
+val log4catsV   = "2.7.0"
+val logbackV    = "1.5.6"
 val okioV       = "3.9.0"
 val jwtV        = "0.12.5"
 val postgresV   = "42.7.3"
+val acyclicV    = "0.3.12"
 
 lazy val commonSettings = List(
   organization := "com.github.chenharryhua",
@@ -46,13 +47,18 @@ lazy val commonSettings = List(
       "Confluent Maven Repo".at("https://packages.confluent.io/maven/"),
   addCompilerPlugin(("org.typelevel" %% "kind-projector" % "0.13.3").cross(CrossVersion.full)),
   addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.1"),
+  addCompilerPlugin(("com.lihaoyi" %% "acyclic" % acyclicV).cross(CrossVersion.full)),
   libraryDependencies ++= List(
     "org.scala-lang" % "scala-reflect"  % scalaVersion.value % Provided,
     "org.scala-lang" % "scala-compiler" % scalaVersion.value % Provided
   ),
-  scalacOptions ++= List("-Ymacro-annotations", "-Xsource:3", "-Wconf:src=src_managed/.*:silent"),
+  scalacOptions ++= List(
+    "-Ymacro-annotations",
+    "-Xsource:3",
+    "-Wconf:src=src_managed/.*:silent",
+    "-P:acyclic:warn"),
   Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat,
-  Test / tpolecatExcludeOptions += org.typelevel.scalacoptions.ScalacOptions.warnNonUnitStatement,
+  Compile / tpolecatExcludeOptions += org.typelevel.scalacoptions.ScalacOptions.warnNonUnitStatement,
   Test / parallelExecution := false
 )
 
@@ -62,7 +68,8 @@ val circeLib = List(
   "io.circe" %% "circe-shapes",
   "io.circe" %% "circe-jawn",
   "io.circe" %% "circe-refined"
-).map(_ % circeV)
+).map(_ % circeV) ++
+  List("io.circe" %% "circe-optics" % "0.15.0")
 
 val jacksonLib = List(
   "com.fasterxml.jackson.core"     % "jackson-annotations",
@@ -114,8 +121,8 @@ val monocleLib = List(
 val testLib = List(
   "org.typelevel" %% "cats-effect-testkit"                    % catsEffectV,
   "org.typelevel" %% "cats-testkit-scalatest"                 % "2.1.5",
-  "org.typelevel" %% "discipline-scalatest"                   % "2.2.0",
-  "org.typelevel" %% "discipline-munit"                       % "1.0.9",
+  "org.typelevel" %% "discipline-scalatest"                   % "2.3.0",
+  "org.typelevel" %% "discipline-munit"                       % "2.0.0",
   "org.typelevel" %% "cats-laws"                              % catsCoreV,
   "org.typelevel" %% "algebra-laws"                           % catsCoreV,
   "com.github.alexarchambault" %% "scalacheck-shapeless_1.15" % "1.3.0",
@@ -169,7 +176,7 @@ val logLib = List(
 )
 
 val jwtLib = List(
-  "org.bouncycastle" % "bcpkix-jdk18on" % "1.77",
+  "org.bouncycastle" % "bcpkix-jdk18on" % "1.78.1",
   "io.jsonwebtoken"  % "jjwt-api"       % jwtV,
   "io.jsonwebtoken"  % "jjwt-impl"      % jwtV,
   "io.jsonwebtoken"  % "jjwt-jackson"   % jwtV
@@ -182,12 +189,13 @@ val baseLib = List(
   "org.typelevel" %% "case-insensitive"            % "1.4.0",
   "io.scalaland" %% "chimney"                      % chimneyV,
   "io.scalaland" %% "enumz"                        % "1.0.0",
-  "com.chuusai" %% "shapeless"                     % "2.3.10",
-  "com.github.alonsodomin.cron4s" %% "cron4s-core" % cron4sV
+  "com.chuusai" %% "shapeless"                     % "2.3.12",
+  "com.github.alonsodomin.cron4s" %% "cron4s-core" % cron4sV,
+  ("com.lihaoyi" %% "acyclic"                      % acyclicV).cross(CrossVersion.full) % "provided"
 ) ++ enumLib ++ drosteLib ++ catsLib ++ refinedLib ++ circeLib ++ monocleLib ++ fs2Lib
 
 lazy val common = (project in file("common"))
-  .settings(commonSettings*)
+  .settings(commonSettings *)
   .settings(name := "nj-common")
   .settings(
     libraryDependencies ++= List(
@@ -199,7 +207,7 @@ lazy val common = (project in file("common"))
 
 lazy val http = (project in file("http"))
   .dependsOn(common)
-  .settings(commonSettings*)
+  .settings(commonSettings *)
   .settings(name := "nj-http")
   .settings(libraryDependencies ++= List(
     "org.http4s" %% "http4s-circe"        % http4sV,
@@ -215,7 +223,7 @@ lazy val http = (project in file("http"))
 
 lazy val aws = (project in file("aws"))
   .dependsOn(common)
-  .settings(commonSettings*)
+  .settings(commonSettings *)
   .settings(name := "nj-aws")
   .settings(libraryDependencies ++= List(
     "software.amazon.awssdk"              % "cloudwatch"        % awsV,
@@ -233,7 +241,7 @@ lazy val aws = (project in file("aws"))
 
 lazy val datetime = (project in file("datetime"))
   .dependsOn(common)
-  .settings(commonSettings*)
+  .settings(commonSettings *)
   .settings(name := "nj-datetime")
   .settings(
     libraryDependencies ++= List("org.typelevel" %% "cats-parse" % "1.0.0") ++
@@ -242,47 +250,56 @@ lazy val datetime = (project in file("datetime"))
 
 lazy val guard = (project in file("guard"))
   .dependsOn(common)
-  .settings(commonSettings*)
+  .settings(commonSettings *)
   .settings(name := "nj-guard")
   .settings(
     libraryDependencies ++= List(
-      "commons-codec"                       % "commons-codec"  % "1.16.1",
-      "io.dropwizard.metrics"               % "metrics-core"   % metricsV,
-      "io.dropwizard.metrics"               % "metrics-jmx"    % metricsV,
+      "commons-codec"                       % "commons-codec"        % "1.17.0",
+      "org.apache.commons"                  % "commons-collections4" % "4.4",
+      "io.dropwizard.metrics"               % "metrics-core"         % metricsV,
+      "io.dropwizard.metrics"               % "metrics-jmx"          % metricsV,
       "org.typelevel" %% "vault"            % "3.5.0",
-      "com.lihaoyi" %% "scalatags"          % "0.12.0",
+      "com.lihaoyi" %% "scalatags"          % "0.13.1",
       "org.http4s" %% "http4s-core"         % http4sV,
       "org.http4s" %% "http4s-dsl"          % http4sV,
       "org.http4s" %% "http4s-ember-server" % http4sV,
       "org.http4s" %% "http4s-circe"        % http4sV,
       "org.http4s" %% "http4s-scalatags"    % "0.25.2",
-      "org.http4s" %% "http4s-ember-client" % http4sV          % Test,
-      "org.slf4j"                           % "slf4j-reload4j" % slf4jV % Test
-    ) ++ logLib ++ testLib
+      "org.http4s" %% "http4s-ember-client" % http4sV                % Test
+    ) ++ testLib
   )
 
-lazy val guard_observer_aws = (project in file("observers/aws"))
+lazy val observer_logging = (project in file("observers/logging"))
+  .dependsOn(guard)
+  .settings(commonSettings *)
+  .settings(name := "nj-observer-logging")
+  .settings(
+    libraryDependencies ++=
+      List("org.slf4j" % "slf4j-reload4j" % slf4jV % Test) ++ logLib ++ testLib
+  )
+
+lazy val observer_aws = (project in file("observers/aws"))
   .dependsOn(guard)
   .dependsOn(aws)
-  .settings(commonSettings*)
+  .settings(commonSettings *)
   .settings(name := "nj-observer-aws")
   .settings(
     libraryDependencies ++= testLib
   )
 
-lazy val guard_observer_kafka = (project in file("observers/kafka"))
+lazy val observer_kafka = (project in file("observers/kafka"))
   .dependsOn(guard)
   .dependsOn(kafka)
-  .settings(commonSettings*)
+  .settings(commonSettings *)
   .settings(name := "nj-observer-kafka")
   .settings(
     libraryDependencies ++= testLib
   )
 
-lazy val guard_observer_db = (project in file("observers/database"))
+lazy val observer_database = (project in file("observers/database"))
   .dependsOn(guard)
   .dependsOn(database)
-  .settings(commonSettings*)
+  .settings(commonSettings *)
   .settings(name := "nj-observer-database")
   .settings(
     libraryDependencies ++= List(
@@ -290,9 +307,9 @@ lazy val guard_observer_db = (project in file("observers/database"))
     ) ++ testLib
   )
 
-lazy val guard_observer_influxdb = (project in file("observers/influxdb"))
+lazy val observer_influxdb = (project in file("observers/influxdb"))
   .dependsOn(guard)
-  .settings(commonSettings*)
+  .settings(commonSettings *)
   .settings(name := "nj-observer-influxdb")
   .settings(
     libraryDependencies ++= List(
@@ -300,9 +317,47 @@ lazy val guard_observer_influxdb = (project in file("observers/influxdb"))
     ) ++ testLib
   )
 
+lazy val instrument_ehcache = (project in file("instrument/ehcache"))
+  .dependsOn(guard)
+  .settings(commonSettings *)
+  .settings(name := "nj-instrument-ehcache")
+  .settings(
+    libraryDependencies ++= List(
+      "org.ehcache" % "ehcache" % "3.10.8"
+    ) ++ testLib
+  )
+
+lazy val instrument_caffeine = (project in file("instrument/caffeine"))
+  .dependsOn(guard)
+  .settings(commonSettings *)
+  .settings(name := "nj-instrument-caffeine")
+  .settings(
+    libraryDependencies ++= List(
+      "com.github.ben-manes.caffeine" % "caffeine" % "3.1.8"
+    ) ++ testLib
+  )
+
+lazy val instrument_http4s = (project in file("instrument/http4s"))
+  .dependsOn(guard)
+  .settings(commonSettings *)
+  .settings(name := "nj-instrument-http4s")
+  .settings(
+    libraryDependencies ++=
+      List("org.http4s" %% "http4s-ember-client" % http4sV % Test) ++
+        testLib)
+
+lazy val instrument_neo4j = (project in file("instrument/neo4j"))
+  .dependsOn(guard)
+  .settings(commonSettings *)
+  .settings(name := "nj-instrument-neo4j")
+  .settings(
+    libraryDependencies ++=
+      List("org.neo4j.driver" % "neo4j-java-driver" % "4.4.16") ++
+        testLib)
+
 lazy val messages = (project in file("messages"))
   .dependsOn(common)
-  .settings(commonSettings*)
+  .settings(commonSettings *)
   .settings(name := "nj-messages")
   .settings(
     libraryDependencies ++= List(
@@ -313,7 +368,7 @@ lazy val messages = (project in file("messages"))
 
 lazy val database = (project in file("database"))
   .dependsOn(common)
-  .settings(commonSettings*)
+  .settings(commonSettings *)
   .settings(name := "nj-database")
   .settings(
     libraryDependencies ++= List(
@@ -330,7 +385,7 @@ lazy val kafka = (project in file("kafka"))
   .dependsOn(messages)
   .dependsOn(datetime)
   .dependsOn(common)
-  .settings(commonSettings*)
+  .settings(commonSettings *)
   .settings(name := "nj-kafka")
   .settings(libraryDependencies ++= List(
     "ch.qos.logback" % "logback-classic" % logbackV % Test
@@ -350,7 +405,7 @@ val hadoopLib = List(
   "org.apache.hadoop" % "hadoop-hdfs"                  % hadoopV,
   "org.apache.hadoop" % "hadoop-hdfs-client"           % hadoopV,
   "org.slf4j"         % "jcl-over-slf4j"               % slf4jV,
-  "com.nimbusds"      % "nimbus-jose-jwt"              % "9.37.3" // snyk
+  "com.nimbusds"      % "nimbus-jose-jwt"              % "9.39.1" // snyk
 ).map(
   _.exclude("log4j", "log4j")
     .exclude("org.slf4j", "slf4j-reload4j")
@@ -380,7 +435,7 @@ val sparkLib = List(
 lazy val pipes = (project in file("pipes"))
   .dependsOn(datetime)
   .dependsOn(messages)
-  .settings(commonSettings*)
+  .settings(commonSettings *)
   .settings(name := "nj-pipes")
   .settings {
     val libs = List(
@@ -389,9 +444,9 @@ lazy val pipes = (project in file("pipes"))
       "org.apache.zookeeper"   % "zookeeper"       % "3.9.2", // snyk
       "ch.qos.logback"         % "logback-classic" % logbackV, // snyk by zookeeper
       "ch.qos.logback"         % "logback-core"    % logbackV, // snyk by zookeeper
-      "org.eclipse.jetty"      % "jetty-xml"       % "12.0.7", // snyk
-      "org.eclipse.jetty"      % "jetty-http"      % "12.0.7", // snyk
-      "org.jetbrains.kotlin"   % "kotlin-stdlib"   % "1.9.23", // snyk
+      "org.eclipse.jetty"      % "jetty-xml"       % "12.0.9", // snyk
+      "org.eclipse.jetty"      % "jetty-http"      % "12.0.9", // snyk
+      "org.jetbrains.kotlin"   % "kotlin-stdlib"   % "2.0.0", // snyk
       "org.codehaus.jettison"  % "jettison"        % "1.5.4", // snyk
       "io.netty"               % "netty-all"       % nettyV // snyk
     ) ++ kantanLib ++ logLib ++ testLib ++ hadoopLib
@@ -402,7 +457,7 @@ lazy val spark = (project in file("spark"))
   .dependsOn(kafka)
   .dependsOn(pipes)
   .dependsOn(database)
-  .settings(commonSettings*)
+  .settings(commonSettings *)
   .settings(name := "nj-spark")
   .settings(
     libraryDependencies ++= List(
@@ -425,16 +480,23 @@ lazy val example = (project in file("example"))
   .dependsOn(database)
   .dependsOn(spark)
   .dependsOn(guard)
-  .dependsOn(guard_observer_aws)
-  .dependsOn(guard_observer_db)
-  .dependsOn(guard_observer_influxdb)
-  .dependsOn(guard_observer_kafka)
-  .settings(commonSettings*)
+  .dependsOn(observer_logging)
+  .dependsOn(observer_aws)
+  .dependsOn(observer_database)
+  .dependsOn(observer_influxdb)
+  .dependsOn(observer_kafka)
+  .dependsOn(instrument_ehcache)
+  .dependsOn(instrument_caffeine)
+  .dependsOn(instrument_http4s)
+  .dependsOn(instrument_neo4j)
+  .settings(commonSettings *)
   .settings(name := "nj-example")
   .settings(libraryDependencies ++= List(
     "ch.qos.logback" % "logback-classic" % logbackV % Test
   ) ++ testLib)
-  .settings(Compile / PB.targets := List(scalapb.gen() -> (Compile / sourceManaged).value / "scalapb"))
+  .settings(Test / PB.targets := Seq(
+    scalapb.gen() -> (Test / sourceManaged).value / "scalapb"
+  ))
 
 lazy val nanjin =
   (project in file(".")).aggregate(
@@ -448,7 +510,13 @@ lazy val nanjin =
     database,
     spark,
     guard,
-    guard_observer_aws,
-    guard_observer_db,
-    guard_observer_influxdb,
-    guard_observer_kafka)
+    observer_aws,
+    observer_database,
+    observer_influxdb,
+    observer_kafka,
+    observer_logging,
+    instrument_ehcache,
+    instrument_caffeine,
+    instrument_http4s,
+    instrument_neo4j
+  )

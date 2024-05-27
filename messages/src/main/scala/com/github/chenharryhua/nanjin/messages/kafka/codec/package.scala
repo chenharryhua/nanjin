@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.messages.kafka
 
-import com.github.chenharryhua.nanjin.common.optics.jsonPlated
+import io.circe.optics.all.*
 import io.circe.{jawn, Json}
 import monocle.function.Plated
 import org.apache.avro.generic.{GenericData, GenericDatumReader, GenericDatumWriter, GenericRecord}

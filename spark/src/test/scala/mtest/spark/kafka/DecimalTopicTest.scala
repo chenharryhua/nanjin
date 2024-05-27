@@ -82,7 +82,7 @@ object DecimalTopicTestCase {
 class DecimalTopicTest extends AnyFunSuite {
   import DecimalTopicTestCase.*
 
-  val topic: KafkaTopic[IO, Int, HasDecimal]      = topicDef.in(ctx)
+  val topic: KafkaTopic[IO, Int, HasDecimal]      = ctx.topic(topicDef)
   val stopic: SparKafkaTopic[IO, Int, HasDecimal] = sparKafka.topic(topicDef)
 
   val loadData =

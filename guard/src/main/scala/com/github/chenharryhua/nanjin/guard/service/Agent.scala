@@ -1,8 +1,8 @@
 package com.github.chenharryhua.nanjin.guard.service
 
 import cats.Endo
-import cats.effect.kernel.{Async, Resource, Unique}
-import cats.effect.std.{AtomicCell, Dispatcher}
+import cats.effect.kernel.{Async, Resource, Sync, Unique}
+import cats.effect.std.AtomicCell
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.common.chrono.*
 import com.github.chenharryhua.nanjin.guard.action.*
@@ -10,10 +10,10 @@ import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.event.*
 import fs2.Stream
 import fs2.concurrent.{Channel, SignallingMapRef}
-import fs2.io.net.Network
 import org.typelevel.vault.{Key, Locker, Vault}
 
 import java.time.{Instant, ZoneId, ZonedDateTime}
+import scala.concurrent.duration.DurationInt
 
 sealed trait Agent[F[_]] {
   // date-time
@@ -22,145 +22,163 @@ sealed trait Agent[F[_]] {
   def toZonedDateTime(ts: Instant): ZonedDateTime
 
   // metrics
-  def withMeasurement(measurement: String): Agent[F]
   def metrics: NJMetrics[F]
-  def action(actionName: String, f: Endo[ActionConfig]): NJActionBuilder[F]
-  def action(actionName: String): NJActionBuilder[F]
-  def alert(alertName: String): NJAlert[F]
-  def counter(counterName: String): NJCounter[F]
+  def withMeasurement(name: String): Agent[F]
 
-  def histogram(histoName: String, f: MeasurementUnit.type => MeasurementUnit): NJHistogram[F]
-  def histogramR(histoName: String, f: MeasurementUnit.type => MeasurementUnit): Resource[F, NJHistogram[F]]
-  def gauge(gaugeName: String): NJGauge[F]
+  // actions
+  def action(actionName: String, f: Endo[ActionConfig]): NJAction[F]
+  final def action(actionName: String): NJAction[F] = action(actionName, identity)
 
-  def meter(meterName: String, f: MeasurementUnit.type => MeasurementUnit): NJMeter[F]
-  def meterR(meterName: String, f: MeasurementUnit.type => MeasurementUnit): Resource[F, NJMeter[F]]
+  def batch(name: String, f: Endo[ActionConfig]): NJBatch[F]
+  final def batch(name: String): NJBatch[F] = batch(name, identity)
+
+  // health check
+  def healthCheck(hcName: String, f: Endo[NJHealthCheck.Builder]): NJHealthCheck[F]
+  final def healthCheck(hcName: String): NJHealthCheck[F] = healthCheck(hcName, identity)
+
+  // metrics
+  def jvmGauge: JvmGauge[F]
+
+  def ratio(ratioName: String, f: Endo[NJRatio.Builder]): Resource[F, NJRatio[F]]
+  final def ratio(ratioName: String): Resource[F, NJRatio[F]] = ratio(ratioName, identity)
+
+  def gauge(gaugeName: String, f: Endo[NJGauge.Builder]): NJGauge[F]
+  final def gauge(gaugeName: String): NJGauge[F] = gauge(gaugeName, identity)
+
+  def alert(alertName: String, f: Endo[NJAlert.Builder]): Resource[F, NJAlert[F]]
+  final def alert(alertName: String): Resource[F, NJAlert[F]] = alert(alertName, identity)
+
+  def counter(counterName: String, f: Endo[NJCounter.Builder]): Resource[F, NJCounter[F]]
+  final def counter(counterName: String): Resource[F, NJCounter[F]] = counter(counterName, identity)
+
+  def meter(meterName: String, f: Endo[NJMeter.Builder]): Resource[F, NJMeter[F]]
+  final def meter(meterName: String): Resource[F, NJMeter[F]] = meter(meterName, identity)
+
+  def histogram(histogramName: String, f: Endo[NJHistogram.Builder]): Resource[F, NJHistogram[F]]
+  final def histogram(histogramName: String): Resource[F, NJHistogram[F]] =
+    histogram(histogramName, identity)
+
+  def flowMeter(name: String, f: Endo[NJFlowMeter.Builder]): Resource[F, NJFlowMeter[F]]
+  final def flowMeter(name: String): Resource[F, NJFlowMeter[F]] = flowMeter(name, identity)
+
+  def timer(timerName: String, f: Endo[NJTimer.Builder]): Resource[F, NJTimer[F]]
+  final def timer(timerName: String): Resource[F, NJTimer[F]] = timer(timerName, identity)
 
   // tick stream
   def ticks(policy: Policy): Stream[F, Tick]
 }
 
-final class GeneralAgent[F[_]: Network] private[service] (
+final class GeneralAgent[F[_]: Async] private[service] (
   serviceParams: ServiceParams,
   metricRegistry: MetricRegistry,
   channel: Channel[F, NJEvent],
   signallingMapRef: SignallingMapRef[F, Unique.Token, Option[Locker]],
   atomicCell: AtomicCell[F, Vault],
-  dispatcher: Dispatcher[F],
-  measurement: Measurement)(implicit F: Async[F])
-    extends Agent[F] { self =>
+  measurement: Measurement)
+    extends Agent[F] {
+
+  private val F = Sync[F]
+
   // data time
-  override val zonedNow: F[ZonedDateTime]                  = serviceParams.zonedNow[F]
+  override val zonedNow: F[ZonedDateTime] = serviceParams.zonedNow[F]
+  override val zoneId: ZoneId             = serviceParams.zoneId
+
   override def toZonedDateTime(ts: Instant): ZonedDateTime = serviceParams.toZonedDateTime(ts)
-  override val zoneId: ZoneId                              = serviceParams.zerothTick.zoneId
 
-  // metrics
-  override def withMeasurement(measurement: String): Agent[F] = {
-    val name = NameConstraint.unsafeFrom(measurement).value
+  override def withMeasurement(name: String): Agent[F] =
     new GeneralAgent[F](
-      serviceParams = self.serviceParams,
-      metricRegistry = self.metricRegistry,
-      channel = self.channel,
-      signallingMapRef = self.signallingMapRef,
-      atomicCell = self.atomicCell,
-      dispatcher = self.dispatcher,
-      measurement = Measurement(name)
+      serviceParams,
+      metricRegistry,
+      channel,
+      signallingMapRef,
+      atomicCell,
+      Measurement(name))
+
+  override def action(actionName: String, f: Endo[ActionConfig]): NJAction[F] =
+    new NJAction[F](
+      actionParams = f(ActionConfig(ActionName(actionName), measurement, serviceParams)).evalConfig,
+      metricRegistry = metricRegistry,
+      channel = channel
     )
+
+  override def batch(name: String, f: Endo[ActionConfig]): NJBatch[F] = {
+    val act: NJAction[F] = action(name, f)
+    new NJBatch[F](
+      action = act,
+      ratio = ratio(name, _.withMeasurement(act.actionParams.measurement.value)),
+      gauge(name, _.withMeasurement(act.actionParams.measurement.value)))
   }
 
-  override def action(actionName: String, f: Endo[ActionConfig]): NJActionBuilder[F] = {
-    val name = NameConstraint.unsafeFrom(actionName).value
-    new NJActionBuilder[F](
-      actionName = ActionName(name),
-      serviceParams = self.serviceParams,
-      measurement = self.measurement,
-      metricRegistry = self.metricRegistry,
-      channel = self.channel,
-      config = f
-    )
+  override def alert(alertName: String, f: Endo[NJAlert.Builder]): Resource[F, NJAlert[F]] = {
+    val init = new NJAlert.Builder(measurement = measurement, isCounting = false)
+    f(init).build[F](alertName, metricRegistry, channel, serviceParams)
   }
 
-  override def action(actionName: String): NJActionBuilder[F] = action(actionName, identity)
-
-  override def alert(alertName: String): NJAlert[F] = {
-    val name = NameConstraint.unsafeFrom(alertName).value
-    new NJAlert(
-      name = MetricName(self.serviceParams, self.measurement, name),
-      metricRegistry = self.metricRegistry,
-      channel = self.channel,
-      serviceParams = self.serviceParams,
-      dispatcher = self.dispatcher,
-      isCounting = false
-    )
+  override def counter(counterName: String, f: Endo[NJCounter.Builder]): Resource[F, NJCounter[F]] = {
+    val init = new NJCounter.Builder(measurement = measurement, isRisk = false)
+    f(init).build[F](counterName, metricRegistry, serviceParams)
   }
 
-  override def counter(counterName: String): NJCounter[F] = {
-    val name = NameConstraint.unsafeFrom(counterName).value
-    new NJCounter(
-      name = MetricName(self.serviceParams, self.measurement, name),
-      metricRegistry = self.metricRegistry,
-      isRisk = false)
+  override def meter(meterName: String, f: Endo[NJMeter.Builder]): Resource[F, NJMeter[F]] = {
+    val init = new NJMeter.Builder(measurement = measurement, unit = NJUnits.COUNT, isCounting = false)
+    f(init).build[F](meterName, metricRegistry, serviceParams)
   }
 
-  override def meter(meterName: String, f: MeasurementUnit.type => MeasurementUnit): NJMeter[F] = {
-    val name = NameConstraint.unsafeFrom(meterName).value
-    new NJMeter[F](
-      name = MetricName(self.serviceParams, self.measurement, name),
-      metricRegistry = self.metricRegistry,
+  override def histogram(histogramName: String, f: Endo[NJHistogram.Builder]): Resource[F, NJHistogram[F]] = {
+    val init = new NJHistogram.Builder(
+      measurement = measurement,
+      unit = NJUnits.COUNT,
       isCounting = false,
-      f(MeasurementUnit)
-    )
+      reservoir = None)
+    f(init).build[F](histogramName, metricRegistry, serviceParams)
   }
 
-  override def meterR(
-    meterName: String,
-    f: MeasurementUnit.type => MeasurementUnit): Resource[F, NJMeter[F]] =
-    Resource.make(F.pure(meter(meterName, f)))(_.unregister)
-
-  override def histogram(histoName: String, f: MeasurementUnit.type => MeasurementUnit): NJHistogram[F] = {
-    val name = NameConstraint.unsafeFrom(histoName).value
-    new NJHistogram[F](
-      name = MetricName(self.serviceParams, self.measurement, name),
-      metricRegistry = self.metricRegistry,
-      unit = f(MeasurementUnit),
+  override def flowMeter(name: String, f: Endo[NJFlowMeter.Builder]): Resource[F, NJFlowMeter[F]] = {
+    val init = new NJFlowMeter.Builder(
+      measurement = measurement,
+      unit = NJUnits.COUNT,
       isCounting = false,
-      reservoir = None
-    )
-  }
-  override def histogramR(
-    histoName: String,
-    f: MeasurementUnit.type => MeasurementUnit): Resource[F, NJHistogram[F]] =
-    Resource.make(F.pure(histogram(histoName, f)))(_.unregister)
-
-  override def gauge(gaugeName: String): NJGauge[F] = {
-    val name = NameConstraint.unsafeFrom(gaugeName).value
-    new NJGauge[F](
-      name = MetricName(self.serviceParams, self.measurement, name),
-      metricRegistry = self.metricRegistry,
-      dispatcher = self.dispatcher
-    )
+      reservoir = None)
+    f(init).build[F](name, metricRegistry, serviceParams)
   }
 
-  override lazy val metrics: NJMetrics[F] =
-    new NJMetrics[F](
-      channel = self.channel,
-      metricRegistry = self.metricRegistry,
-      serviceParams = self.serviceParams)
+  override def timer(timerName: String, f: Endo[NJTimer.Builder]): Resource[F, NJTimer[F]] = {
+    val init = new NJTimer.Builder(measurement = measurement, isCounting = false, reservoir = None)
+    f(init).build[F](timerName, metricRegistry, serviceParams)
+  }
+
+  override def gauge(gaugeName: String, f: Endo[NJGauge.Builder]): NJGauge[F] = {
+    val init = new NJGauge.Builder(measurement = measurement, timeout = 5.seconds)
+    f(init).build[F](gaugeName, metricRegistry, serviceParams)
+  }
+
+  override def healthCheck(hcName: String, f: Endo[NJHealthCheck.Builder]): NJHealthCheck[F] = {
+    val init = new NJHealthCheck.Builder(measurement = measurement, timeout = 5.seconds)
+    f(init).build[F](hcName, metricRegistry, serviceParams)
+  }
+
+  override def ratio(ratioName: String, f: Endo[NJRatio.Builder]): Resource[F, NJRatio[F]] = {
+    val init = new NJRatio.Builder(measurement = measurement)
+    f(init).build[F](ratioName, metricRegistry, serviceParams)
+  }
 
   override def ticks(policy: Policy): Stream[F, Tick] =
     tickStream[F](TickStatus(serviceParams.zerothTick).renewPolicy(policy))
+
+  override object jvmGauge extends JvmGauge[F](metricRegistry)
+
+  override object metrics extends NJMetrics[F](channel, serviceParams, metricRegistry)
 
   // general agent section, not in Agent API
 
   def signalBox[A](initValue: F[A]): NJSignalBox[F, A] = {
     val token = new Unique.Token
     val key   = new Key[A](token)
-    new NJSignalBox[F, A](self.signallingMapRef(token), key, initValue)
+    new NJSignalBox[F, A](signallingMapRef(token), key, initValue)
   }
   def signalBox[A](initValue: => A): NJSignalBox[F, A] = signalBox(F.delay(initValue))
 
   def atomicBox[A](initValue: F[A]): NJAtomicBox[F, A] =
-    new NJAtomicBox[F, A](self.atomicCell, new Key[A](new Unique.Token), initValue)
+    new NJAtomicBox[F, A](atomicCell, new Key[A](new Unique.Token), initValue)
   def atomicBox[A](initValue: => A): NJAtomicBox[F, A] = atomicBox[A](F.delay(initValue))
-
 }

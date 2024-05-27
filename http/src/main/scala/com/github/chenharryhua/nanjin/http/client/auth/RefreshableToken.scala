@@ -4,6 +4,7 @@ import cats.effect.kernel.{Async, Ref, Resource}
 import cats.effect.syntax.all.*
 import cats.syntax.all.*
 import cats.Endo
+import cats.effect.std.UUIDGen
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import io.circe.generic.auto.*
 import org.http4s.{Credentials, Request, Uri, UrlForm}
@@ -11,7 +12,7 @@ import org.http4s.Method.POST
 import org.http4s.circe.CirceEntityCodec.circeEntityDecoder
 import org.http4s.client.Client
 import org.http4s.client.dsl.Http4sClientDsl
-import org.http4s.headers.Authorization
+import org.http4s.headers.{`Idempotency-Key`, Authorization}
 import org.http4s.implicits.http4sLiteralsSyntax
 import org.typelevel.ci.CIString
 
@@ -35,19 +36,20 @@ final class RefreshableToken[F[_]] private (
 
   override def loginR(client: Client[F])(implicit F: Async[F]): Resource[F, Client[F]] = {
 
-    val authURI: Uri = auth_endpoint.withPath(path"oauth/token")
-    val getToken: F[Token] =
-      params
-        .authClient(client)
-        .expect[Token](
-          POST(
-            UrlForm(
-              "grant_type" -> "client_credentials",
-              "client_id" -> client_id,
-              "client_secret" -> client_secret),
-            authURI))
-
-    def refreshToken(pre: Token): F[Token] =
+    val auth_uri: Uri = auth_endpoint.withPath(path"oauth/token")
+    val get_token: F[Token] =
+      UUIDGen[F].randomUUID.flatMap { uuid =>
+        params
+          .authClient(client)
+          .expect[Token](
+            POST(
+              UrlForm(
+                "grant_type" -> "client_credentials",
+                "client_id" -> client_id,
+                "client_secret" -> client_secret),
+              auth_uri).putHeaders(`Idempotency-Key`(show"$uuid")))
+      }
+    def refresh_token(pre: Token): F[Token] =
       params
         .authClient(client)
         .expect[Token](
@@ -57,19 +59,19 @@ final class RefreshableToken[F[_]] private (
               "refresh_token" -> pre.refresh_token,
               "client_id" -> client_id,
               "client_secret" -> client_secret),
-            authURI))
+            auth_uri).putHeaders(`Idempotency-Key`(client_id)))
 
-    def updateToken(ref: Ref[F, Token]): F[Unit] =
+    def update_token(ref: Ref[F, Token]): F[Unit] =
       for {
         oldToken <- ref.get
-        newToken <- refreshToken(oldToken).delayBy(params.dormant(oldToken.expires_in.seconds))
+        newToken <- refresh_token(oldToken).delayBy(params.dormant(oldToken.expires_in.seconds))
         _ <- ref.set(newToken)
       } yield ()
 
-    def withToken(token: Token, req: Request[F]): Request[F] =
+    def with_token(token: Token, req: Request[F]): Request[F] =
       req.putHeaders(Authorization(Credentials.Token(CIString(token.token_type), token.access_token)))
 
-    loginInternal(client, getToken, updateToken, withToken)
+    loginInternal(client, get_token, update_token, with_token)
 
   }
 

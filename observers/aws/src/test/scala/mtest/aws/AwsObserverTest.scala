@@ -3,25 +3,16 @@ package mtest.aws
 import cats.data.NonEmptyList
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.aws.{
-  CloudWatch,
-  SimpleEmailService,
-  SimpleNotificationService,
-  SimpleQueueService
-}
 import com.github.chenharryhua.nanjin.common.aws.{SnsArn, SqsConfig}
 import com.github.chenharryhua.nanjin.common.chrono.policies
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
-import com.github.chenharryhua.nanjin.guard.observers.{
-  CloudWatchObserver,
-  EmailObserver,
-  SlackObserver,
-  SqsObserver
-}
+import com.github.chenharryhua.nanjin.guard.observers.cloudwatch.CloudWatchObserver
+import com.github.chenharryhua.nanjin.guard.observers.ses.EmailObserver
+import com.github.chenharryhua.nanjin.guard.observers.sns.SlackObserver
+import com.github.chenharryhua.nanjin.guard.observers.sqs.SqsObserver
 import eu.timepit.refined.auto.*
 import io.circe.Json
-import io.circe.syntax.EncoderOps
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.DurationInt
@@ -29,55 +20,39 @@ import scala.concurrent.duration.DurationInt
 class AwsObserverTest extends AnyFunSuite {
   val service: fs2.Stream[IO, NJEvent] =
     TaskGuard[IO]("nanjin")
-      .updateConfig(_.withHomePage("http://abc.efg"))
+      .updateConfig(_.withHomePage("http://abc.efg").addBrief(Json.fromString("brief")))
       .service("observing")
-      .withBrief(Json.fromString("brief"))
       .updateConfig(
         _.withRestartPolicy(policies.fixedRate(1.second)).withMetricReport(policies.crontab(_.secondly)))
       .eventStream { ag =>
         val box = ag.atomicBox(1)
         val job =
           box.getAndUpdate(_ + 1).map(_ % 12 == 0).ifM(IO(1), IO.raiseError[Int](new Exception("oops")))
-        val meter = ag.meter("meter", _.COUNT).counted
-        val action = ag
-          .action(
-            "nj_error",
-            _.critical.bipartite.timed.counted.policy(policies.fixedRate(1.second).limited(3)))
-          .retry(job)
-          .logInput(Json.fromString("input data"))
-          .logOutput(_ => Json.fromString("output data"))
-          .logErrorM(ex =>
-            IO.delay(
-              Json.obj("developer's advice" -> "no worries".asJson, "message" -> ex.getMessage.asJson)))
-          .run
-
-        val counter   = ag.counter("nj counter").asRisk
-        val histogram = ag.histogram("nj histogram", _.SECONDS).counted
-        val alert     = ag.alert("nj alert")
-        val gauge     = ag.gauge("nj gauge")
-
-        gauge
-          .register(100)
-          .surround(
-            gauge.timed.surround(
-              action >>
-                meter.mark(1000) >>
-                counter.inc(10000) >>
-                histogram.update(100L) >>
-                alert.error("alarm") >>
-                alert.warn("warn") >>
-                alert.info("info") >>
-                ag.metrics.report)) >> ag.metrics.reset
+        val env = for {
+          meter <- ag.meter("meter", _.withUnit(_.COUNT).counted)
+          action <- ag
+            .action(
+              "nj_error",
+              _.critical.bipartite.timed.counted.policy(policies.fixedRate(1.second).limited(3)))
+            .retry(job)
+            .buildWith(identity)
+          counter <- ag.counter("nj counter", _.asRisk)
+          histogram <- ag.histogram("nj histogram", _.withUnit(_.SECONDS).counted)
+          alert <- ag.alert("nj alert")
+          _ <- ag.gauge("nj gauge").register(box.get)
+        } yield meter.mark(1) >> action.run(()) >> counter.inc(1) >>
+          histogram.update(1) >> alert.info(1) >> ag.metrics.report
+        env.use(identity)
       }
 
   test("1.sqs") {
-    val sqs = SqsObserver(SimpleQueueService.fake[IO](1.seconds, "")).updateTranslator(_.skipActionDone)
+    val sqs = SqsObserver(sqs_client(1.seconds, "")).updateTranslator(_.skipActionDone)
     service.through(sqs.observe(SqsConfig.Fifo("https://google.com/abc.fifo"))).compile.drain.unsafeRunSync()
   }
 
   test("2.ses mail") {
     val mail =
-      EmailObserver(SimpleEmailService.fake[IO]).withInterval(5.seconds).withChunkSize(100).withOldestFirst
+      EmailObserver(ses_client).withInterval(5.seconds).withChunkSize(100).withOldestFirst
 
     service
       .through(mail.observe("abc@google.com", NonEmptyList.one("efg@tek.com"), "title"))
@@ -87,22 +62,18 @@ class AwsObserverTest extends AnyFunSuite {
   }
 
   test("3.syntax") {
-    EmailObserver(SimpleEmailService.fake[IO]).withInterval(1.minute).withChunkSize(10).updateTranslator {
+    EmailObserver(ses_client).withInterval(1.minute).withChunkSize(10).updateTranslator {
       _.skipMetricReset.skipMetricReport.skipActionStart.skipActionRetry.skipActionFail.skipActionDone.skipServiceAlert.skipServiceStart.skipServicePanic.skipServiceStop.skipAll
     }
   }
 
   test("4.slack") {
     val snsArn: SnsArn = SnsArn("arn:aws:sns:aaaa:123456789012:bb")
-    service
-      .through(SlackObserver(SimpleNotificationService.fake[IO]).at("@chenh").observe(snsArn))
-      .compile
-      .drain
-      .unsafeRunSync()
+    service.through(SlackObserver(sns_client).at("@chenh").observe(snsArn)).compile.drain.unsafeRunSync()
   }
 
   test("5.cloudwatch") {
-    val cloudwatch = CloudWatchObserver(CloudWatch.fake[IO])
+    val cloudwatch = CloudWatchObserver(cloudwatch_client)
       .withStorageResolution(10)
       .withMax
       .withMin

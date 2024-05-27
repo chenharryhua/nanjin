@@ -22,18 +22,18 @@ object retry {
       retryHeader: Option[`Retry-After`],
       hotswap: Hotswap[F, Either[Throwable, Response[F]]]
     ): F[Response[F]] = {
-      val headerDuration: F[Option[FiniteDuration]] =
+      val header_duration: F[Option[FiniteDuration]] =
         retryHeader.traverse { h =>
           h.retry match {
             case Left(date)  => Temporal[F].realTime.map(date.toDuration - _)
             case Right(secs) => secs.seconds.pure[F]
           }
         }
-      val sleepDuration = headerDuration.map {
+      val sleep_duration = header_duration.map {
         case Some(value) => value.max(tickStatus.tick.snooze.toScala)
         case None        => tickStatus.tick.snooze.toScala
       }
-      sleepDuration.flatMap(Temporal[F].sleep(_)) >> retryLoop(req, tickStatus, hotswap)
+      sleep_duration.flatMap(Temporal[F].sleep(_)) >> retryLoop(req, tickStatus, hotswap)
     }
 
     def retryLoop(

@@ -37,13 +37,16 @@ object eventFilters {
     */
   def sampling(interval: FiniteDuration)(evt: NJEvent): Boolean =
     evt match {
-      case MetricReport(mrt, sp, now, _) =>
+      case MetricReport(mrt, sp, _, _) =>
         mrt match {
-          case MetricIndex.Adhoc => true
+          case MetricIndex.Adhoc(_) => true
           case MetricIndex.Periodic(tick) =>
             val expect: Instant =
               sp.launchTime
-                .plus(((Duration.between(sp.launchTime, now).toScala / interval).toLong * interval).toJava)
+                .plus(
+                  ((Duration
+                    .between(sp.launchTime, tick.zonedWakeup)
+                    .toScala / interval).toLong * interval).toJava)
                 .toInstant
             tick.inBetween(expect)
         }
@@ -58,7 +61,7 @@ object eventFilters {
     evt match {
       case MetricReport(mrt, _, _, _) =>
         mrt match {
-          case MetricIndex.Adhoc          => true
+          case MetricIndex.Adhoc(_)       => true
           case MetricIndex.Periodic(tick) => (tick.index % divisor.value) === 0
         }
       case _ => true
@@ -70,9 +73,9 @@ object eventFilters {
     evt match {
       case MetricReport(mrt, _, _, _) =>
         mrt match {
-          case MetricIndex.Adhoc => true
+          case MetricIndex.Adhoc(_) => true
           case MetricIndex.Periodic(tick) =>
-            cronExpr.next(tick.previous.atZone(tick.zoneId)).exists(zdt => tick.inBetween(zdt.toInstant))
+            cronExpr.next(tick.zonedPrevious).exists(zdt => tick.inBetween(zdt.toInstant))
         }
       case _ => true
     }

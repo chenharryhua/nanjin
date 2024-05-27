@@ -28,7 +28,7 @@ class NJBinAvroTest extends AnyFunSuite {
     val sink =
       binAvro.sink(tgt)
     val src      = binAvro.source(tgt, 100)
-    val ts       = Stream.emits(data.toList).covary[IO].chunks
+    val ts       = Stream.emits(data.toList).covary[IO]
     val action   = ts.through(sink).compile.drain >> src.compile.toList
     val fileName = (file: NJFileKind).asJson.noSpaces
     assert(jawn.decode[NJFileKind](fileName).toOption.get == file)
@@ -75,7 +75,6 @@ class NJBinAvroTest extends AnyFunSuite {
       .emits(pandaSet.toList)
       .covary[IO]
       .repeatN(number)
-      .chunks
       .through(binAvro.sink(policies.fixedDelay(1.second), ZoneId.systemDefault())(t =>
         path / file.fileName(t)))
       .compile

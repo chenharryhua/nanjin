@@ -10,7 +10,7 @@ package object kafka {
 
   val range: NJDateTimeRange = NJDateTimeRange(beijingTime)
 
-  val ctx: KafkaContext[IO]           = KafkaSettings.local.ioContext
+  val ctx: KafkaContext[IO]           = KafkaContext[IO](KafkaSettings.local)
   val sparKafka: SparKafkaContext[IO] = sparkSession.alongWith(ctx)
   val hadoop: NJHadoop[IO]            = sparkSession.hadoop[IO]
 

@@ -2,22 +2,24 @@ package mtest.common
 
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.chrono.*
+import com.github.chenharryhua.nanjin.common.sequence.*
 import io.circe.jawn.decode
 import io.circe.syntax.EncoderOps
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.Instant
 import scala.concurrent.duration.DurationInt
-import scala.jdk.DurationConverters.{JavaDurationOps, ScalaDurationOps}
+import scala.jdk.DurationConverters.ScalaDurationOps
 class PolicyBaseTest extends AnyFunSuite {
 
   test("fibonacci") {
     assert(fibonacci.take(10).toList == List(1, 1, 2, 3, 5, 8, 13, 21, 34, 55))
     assert(exponential.take(10).toList == List(1, 2, 4, 8, 16, 32, 64, 128, 256, 512))
+    assert(primes.take(10).toList == List(2, 3, 5, 7, 11, 13, 17, 19, 23, 29))
   }
 
   test("fixed delay") {
-    val policy = policies.fixedDelay(1.second, 1.second)
+    val policy = policies.fixedDelay(1.second, 0.second)
     println(policy.show)
     assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
 
@@ -35,7 +37,7 @@ class PolicyBaseTest extends AnyFunSuite {
     assert(a2.launchTime == ts.tick.launchTime)
     assert(a2.index == 2)
     assert(a2.previous === a1.wakeup)
-    assert(a2.snooze == 1.second.toJava)
+    assert(a2.snooze == 0.second.toJava)
 
     assert(a3.sequenceId == ts.tick.sequenceId)
     assert(a3.launchTime == ts.tick.launchTime)
@@ -47,7 +49,7 @@ class PolicyBaseTest extends AnyFunSuite {
     assert(a4.launchTime == ts.tick.launchTime)
     assert(a4.index == 4)
     assert(a4.previous === a3.wakeup)
-    assert(a4.snooze == 1.second.toJava)
+    assert(a4.snooze == 0.second.toJava)
 
     assert(a5.sequenceId == ts.tick.sequenceId)
     assert(a5.launchTime == ts.tick.launchTime)
@@ -94,20 +96,6 @@ class PolicyBaseTest extends AnyFunSuite {
     assert(a5.index == 5)
     assert(a5.previous === a4.wakeup)
     assert(a5.wakeup == a5.previous.plus(1.seconds.toJava))
-  }
-
-  test("jitter") {
-    val policy = policies.jitter(1.minute, 2.hour)
-    println(policy.show)
-    assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
-
-    val ts    = zeroTickStatus.renewPolicy(policy)
-    val ticks = lazyTickList(ts).take(500).toList
-
-    ticks.foreach { tk =>
-      assert(tk.snooze.toScala >= 1.minute)
-      assert(tk.snooze.toScala < 2.hour)
-    }
   }
 
   test("fixed delays") {

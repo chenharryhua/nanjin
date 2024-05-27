@@ -56,31 +56,33 @@ class HttpTest extends AnyFunSuite {
     server
       .surround(
         client.use(c =>
-          c.expect[String]("http://0.0.0.0:8080/timeout/one").attempt.flatMap(IO.println) >>
-            c.expect[String]("http://0.0.0.0:8080/timeout/two").attempt.flatMap(IO.println) >>
-            c.expect[String]("http://0.0.0.0:8080/timeout/three").attempt.flatMap(IO.println) >>
-            c.expect[String]("http://0.0.0.0:8080/timeout/four").attempt.flatMap(IO.println) >>
-            c.expect[String]("http://0.0.0.0:8080/timeout/five").attempt.flatMap(IO.println) >>
-            c.expect[String]("http://0.0.0.0:8080/timeout/six").attempt.flatMap(IO.println)))
+          c.expect[String]("http://127.0.0.1:8080/timeout/one").attempt.flatMap(IO.println) >>
+            c.expect[String]("http://127.0.0.1:8080/timeout/two").attempt.flatMap(IO.println) >>
+            c.expect[String]("http://127.0.0.1:8080/timeout/three").attempt.flatMap(IO.println) >>
+            c.expect[String]("http://127.0.0.1:8080/timeout/four").attempt.flatMap(IO.println) >>
+            c.expect[String]("http://127.0.0.1:8080/timeout/five").attempt.flatMap(IO.println) >>
+            c.expect[String]("http://127.0.0.1:8080/timeout/six").attempt.flatMap(IO.println)))
       .unsafeRunSync()
   }
 
   test("failure") {
     val client = ember.map(retry(policies.fixedRate(1.seconds).limited(3), sydneyTime))
-    val run = server.surround(client.use(_.expect[String]("http://0.0.0.0:8080/failure").flatMap(IO.println)))
+    val run =
+      server.surround(client.use(_.expect[String]("http://127.0.0.1:8080/failure").flatMap(IO.println)))
     assertThrows[Exception](run.unsafeRunSync())
   }
 
   test("give up") {
     val client = ember.map(retry(policies.giveUp, sydneyTime))
-    val run = server.surround(client.use(_.expect[String]("http://0.0.0.0:8080/failure").flatMap(IO.println)))
+    val run =
+      server.surround(client.use(_.expect[String]("http://127.0.0.1:8080/failure").flatMap(IO.println)))
     assertThrows[Exception](run.unsafeRunSync())
   }
 
   test("post") {
     val postRequest = Request[IO](
       method = Method.POST,
-      uri = uri"http://0.0.0.0:8080/post"
+      uri = uri"http://127.0.0.1:8080/post"
     ).withEntity(
       Json.obj("a" -> Json.fromString("a"), "b" -> Json.fromInt(1))
     )
@@ -91,14 +93,14 @@ class HttpTest extends AnyFunSuite {
   test("cookie box") {
     val client = ember.map(cookieBox(new CookieManager()))
     server
-      .surround(client.use(_.expect[String]("http://0.0.0.0:8080/cookie").flatMap(IO.println)))
+      .surround(client.use(_.expect[String]("http://127.0.0.1:8080/cookie").flatMap(IO.println)))
       .unsafeRunSync()
   }
 
   test("trace") {
     val client = entryPoint.root("root").flatMap(ep => ember.map(traceClient(ep)))
     server
-      .surround(client.use(_.expect[String]("http://0.0.0.0:8080/trace/world").flatMap(IO.println)))
+      .surround(client.use(_.expect[String]("http://127.0.0.1:8080/trace/world").flatMap(IO.println)))
       .unsafeRunSync()
   }
 

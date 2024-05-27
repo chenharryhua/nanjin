@@ -10,7 +10,6 @@ import org.apache.spark.sql.*
 import org.apache.spark.sql.avro.SchemaConverters
 import org.apache.spark.sql.types.*
 
-import scala.annotation.nowarn
 import scala.reflect.ClassTag
 
 final class AvroTypedEncoder[A] private (val avroCodec: NJAvroCodec[A], val typedEncoder: TypedEncoder[A])
@@ -53,8 +52,8 @@ object AvroTypedEncoder {
     new AvroTypedEncoder[A](NJAvroCodec[A](sf, dec, enc), te)
 
   def apply[K, V](keyCodec: NJAvroCodec[K], valCodec: NJAvroCodec[V])(implicit
-    @nowarn tek: TypedEncoder[K],
-    @nowarn tev: TypedEncoder[V]): AvroTypedEncoder[NJConsumerRecord[K, V]] = {
+    tek: TypedEncoder[K],
+    tev: TypedEncoder[V]): AvroTypedEncoder[NJConsumerRecord[K, V]] = {
     val ote: TypedEncoder[NJConsumerRecord[K, V]] = shapeless.cachedImplicit
     AvroTypedEncoder[NJConsumerRecord[K, V]](ote, NJConsumerRecord.avroCodec(keyCodec, valCodec))
   }

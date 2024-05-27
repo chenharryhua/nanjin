@@ -1,14 +1,14 @@
 package com.github.chenharryhua.nanjin.aws
 
+import cats.Endo
 import cats.effect.kernel.{Resource, Sync}
 import cats.syntax.all.*
-import cats.Endo
-import org.typelevel.log4cats.{Logger, SelfAwareStructuredLogger}
+import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
-import software.amazon.awssdk.services.sns.{SnsClient, SnsClientBuilder}
 import software.amazon.awssdk.services.sns.model.{PublishRequest, PublishResponse}
+import software.amazon.awssdk.services.sns.{SnsClient, SnsClientBuilder}
 
-sealed trait SimpleNotificationService[F[_]] {
+trait SimpleNotificationService[F[_]] {
   def publish(request: PublishRequest): F[PublishResponse]
   def updateBuilder(f: Endo[SnsClientBuilder]): SimpleNotificationService[F]
 
@@ -19,22 +19,6 @@ sealed trait SimpleNotificationService[F[_]] {
 object SimpleNotificationService {
 
   private val name: String = "aws.SNS"
-
-  def fake[F[_]](implicit F: Sync[F]): Resource[F, SimpleNotificationService[F]] = {
-    val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLogger[F]
-    Resource.make(F.pure(new SimpleNotificationService[F] {
-      override def publish(request: PublishRequest): F[PublishResponse] =
-        logger.info(request.toString) *> F.pure(
-          PublishResponse
-            .builder()
-            .messageId("fake.message.id")
-            .sequenceNumber("fake.sequence.number")
-            .build())
-
-      override def updateBuilder(f: Endo[SnsClientBuilder]): SimpleNotificationService[F] =
-        this
-    }))(_ => F.unit)
-  }
 
   def apply[F[_]: Sync](f: Endo[SnsClientBuilder]): Resource[F, SimpleNotificationService[F]] =
     for {

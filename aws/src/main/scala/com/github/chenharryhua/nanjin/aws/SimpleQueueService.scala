@@ -11,16 +11,15 @@ import io.circe.generic.JsonCodec
 import io.circe.jawn.*
 import io.circe.syntax.EncoderOps
 import monocle.macros.Lenses
+import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
-import org.typelevel.log4cats.{Logger, SelfAwareStructuredLogger}
 import software.amazon.awssdk.services.sqs.model.*
 import software.amazon.awssdk.services.sqs.{SqsClient, SqsClientBuilder}
 
 import java.net.URLDecoder
 import java.time.ZoneId
-import java.util.UUID
 import scala.collection.mutable
-import scala.concurrent.duration.{DurationInt, FiniteDuration}
+import scala.concurrent.duration.DurationInt
 import scala.jdk.CollectionConverters.ListHasAsScala
 import scala.jdk.DurationConverters.JavaDurationOps
 
@@ -43,7 +42,7 @@ final case class SqsMessage(
       "batchSize" -> batchSize.asJson)
 }
 
-sealed trait SimpleQueueService[F[_]] {
+trait SimpleQueueService[F[_]] {
   def receive(request: ReceiveMessageRequest): Stream[F, SqsMessage]
   final def receive(f: Endo[ReceiveMessageRequest.Builder]): Stream[F, SqsMessage] =
     receive(f(ReceiveMessageRequest.builder()).build())
@@ -71,45 +70,6 @@ sealed trait SimpleQueueService[F[_]] {
 object SimpleQueueService {
 
   private val name: String = "aws.SQS"
-
-  def fake[F[_]](duration: FiniteDuration, body: String)(implicit
-    F: Async[F]): Resource[F, SimpleQueueService[F]] =
-    Resource.make(F.pure(new SimpleQueueService[F] {
-      val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLogger[F]
-      override def receive(request: ReceiveMessageRequest): Stream[F, SqsMessage] =
-        Stream.fixedRate(duration).zipWithIndex.map { case (_, idx) =>
-          SqsMessage(
-            request = request,
-            response = Message
-              .builder()
-              .messageId(UUID.randomUUID().show)
-              .body(body)
-              .receiptHandle(idx.toString)
-              .build(),
-            batchIndex = idx,
-            messageIndex = 1,
-            batchSize = 1
-          )
-        }
-
-      override def updateBuilder(f: Endo[SqsClientBuilder]): SimpleQueueService[F]             = this
-      override def withDelayPolicy(delayPolicy: Policy, zoneId: ZoneId): SimpleQueueService[F] = this
-      override def delete(msg: SqsMessage): F[DeleteMessageResponse] =
-        F.pure(DeleteMessageResponse.builder().build())
-      override def sendMessage(msg: SendMessageRequest): F[SendMessageResponse] =
-        logger
-          .info(msg.messageBody())
-          .map(_ =>
-            SendMessageResponse
-              .builder()
-              .messageId("fake.message.id")
-              .sequenceNumber("fake.sequence.number")
-              .build())
-
-      override def resetVisibility(msg: SqsMessage): F[ChangeMessageVisibilityResponse] =
-        F.pure(ChangeMessageVisibilityResponse.builder().build())
-
-    }))(_ => F.unit)
 
   def apply[F[_]: Async](f: Endo[SqsClientBuilder]): Resource[F, SimpleQueueService[F]] = {
     val defaultPolicy: Policy =

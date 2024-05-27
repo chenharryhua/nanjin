@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.kafka.streaming
 
 import cats.data.{Cont, Reader}
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
-import com.github.chenharryhua.nanjin.kafka.KafkaTopic
+import com.github.chenharryhua.nanjin.kafka.KeyValueSerdePair
 import org.apache.kafka.streams.Topology
 import org.apache.kafka.streams.kstream.GlobalKTable
 import org.apache.kafka.streams.processor.TimestampExtractor
@@ -11,18 +11,17 @@ import org.apache.kafka.streams.scala.{ByteArrayKeyValueStore, StreamsBuilder}
 import org.apache.kafka.streams.state.{KeyValueBytesStoreSupplier, StateSerdes}
 
 final class KafkaStreamingConsumer[F[_], K, V] private[kafka] (
-  topic: KafkaTopic[F, K, V],
+  topicName: TopicName,
+  serdePair: KeyValueSerdePair[K, V],
   resetPolicy: Option[Topology.AutoOffsetReset],
   processorName: Option[String],
   timestampExtractor: Option[TimestampExtractor]) {
-
-  def topicName: TopicName = topic.topicName
 
   private def copy(
     resetPolicy: Option[Topology.AutoOffsetReset] = resetPolicy,
     processorName: Option[String] = processorName,
     timestampExtractor: Option[TimestampExtractor] = timestampExtractor): KafkaStreamingConsumer[F, K, V] =
-    new KafkaStreamingConsumer[F, K, V](topic, resetPolicy, processorName, timestampExtractor)
+    new KafkaStreamingConsumer[F, K, V](topicName, serdePair, resetPolicy, processorName, timestampExtractor)
 
   def withOffsetResetPolicy(resetPolicy: Topology.AutoOffsetReset): KafkaStreamingConsumer[F, K, V] =
     copy(resetPolicy = Some(resetPolicy))
@@ -34,11 +33,11 @@ final class KafkaStreamingConsumer[F[_], K, V] private[kafka] (
     copy(timestampExtractor = Some(timestampExtractor))
 
   def stateSerdes: StateSerdes[K, V] =
-    new StateSerdes[K, V](topic.topicName.value, topic.serdePair.key.serde, topic.serdePair.value.serde)
+    new StateSerdes[K, V](topicName.value, serdePair.key.serde, serdePair.value.serde)
 
   private lazy val consumed: Consumed[K, V] =
     Cont
-      .pure(Consumed.`with`[K, V](topic.serdePair.key.serde, topic.serdePair.value.serde))
+      .pure(Consumed.`with`[K, V](serdePair.key.serde, serdePair.value.serde))
       .map(c => resetPolicy.fold(c)(c.withOffsetResetPolicy))
       .map(c => timestampExtractor.fold(c)(c.withTimestampExtractor))
       .map(c => processorName.fold(c)(c.withName))
@@ -46,23 +45,23 @@ final class KafkaStreamingConsumer[F[_], K, V] private[kafka] (
       .value
 
   def kstream: Reader[StreamsBuilder, KStream[K, V]] =
-    Reader(builder => builder.stream[K, V](topic.topicName.value)(consumed))
+    Reader(builder => builder.stream[K, V](topicName.value)(consumed))
 
   def ktable: Reader[StreamsBuilder, KTable[K, V]] =
-    Reader(builder => builder.table[K, V](topic.topicName.value)(consumed))
+    Reader(builder => builder.table[K, V](topicName.value)(consumed))
 
   def ktable(mat: Materialized[K, V, ByteArrayKeyValueStore]): Reader[StreamsBuilder, KTable[K, V]] =
-    Reader(builder => builder.table[K, V](topic.topicName.value, mat)(consumed))
+    Reader(builder => builder.table[K, V](topicName.value, mat)(consumed))
 
   def ktable(supplier: KeyValueBytesStoreSupplier): Reader[StreamsBuilder, KTable[K, V]] =
-    ktable(Materialized.as[K, V](supplier)(topic.serdePair.key.serde, topic.serdePair.value.serde))
+    ktable(Materialized.as[K, V](supplier)(serdePair.key.serde, serdePair.value.serde))
 
   def gktable: Reader[StreamsBuilder, GlobalKTable[K, V]] =
-    Reader(builder => builder.globalTable[K, V](topic.topicName.value)(consumed))
+    Reader(builder => builder.globalTable[K, V](topicName.value)(consumed))
 
   def gktable(mat: Materialized[K, V, ByteArrayKeyValueStore]): Reader[StreamsBuilder, GlobalKTable[K, V]] =
-    Reader(builder => builder.globalTable[K, V](topic.topicName.value, mat)(consumed))
+    Reader(builder => builder.globalTable[K, V](topicName.value, mat)(consumed))
 
   def gktable(supplier: KeyValueBytesStoreSupplier): Reader[StreamsBuilder, GlobalKTable[K, V]] =
-    gktable(Materialized.as[K, V](supplier)(topic.serdePair.key.serde, topic.serdePair.value.serde))
+    gktable(Materialized.as[K, V](supplier)(serdePair.key.serde, serdePair.value.serde))
 }

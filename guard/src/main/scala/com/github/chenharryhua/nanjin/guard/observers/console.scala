@@ -4,7 +4,8 @@ import cats.effect.std.Console
 import cats.syntax.all.*
 import cats.{Endo, Eval, Monad}
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
-import com.github.chenharryhua.nanjin.guard.translators.{ColorScheme, Translator, UpdateTranslator}
+import com.github.chenharryhua.nanjin.guard.translator.{ColorScheme, Translator, UpdateTranslator}
+import io.circe.syntax.EncoderOps
 
 import java.time.format.DateTimeFormatter
 import scala.Console as SConsole
@@ -13,15 +14,19 @@ object console {
   def apply[F[_]: Console: Monad](translator: Translator[F, String]): TextConsole[F] =
     new TextConsole[F](translator)
 
-  def simple[F[_]: Console: Monad]: TextConsole[F] = apply[F](Translator.simpleText[F])
+  def text[F[_]: Console: Monad]: TextConsole[F] =
+    apply[F](SimpleTextTranslator[F])
 
-  def json[F[_]: Console: Monad]: TextConsole[F]        = apply[F](Translator.prettyJson.map(_.noSpaces))
-  def verboseJson[F[_]: Console: Monad]: TextConsole[F] = apply[F](Translator.verboseJson.map(_.spaces2))
-  def simpleJson[F[_]: Console: Monad]: TextConsole[F]  = apply[F](Translator.simpleJson.map(_.spaces2))
+  def json[F[_]: Console: Monad]: TextConsole[F] =
+    apply[F](PrettyJsonTranslator[F].map(_.noSpaces))
 
-  final class TextConsole[F[_]: Monad](translator: Translator[F, String])(implicit C: Console[F])
+  def verbose[F[_]: Console: Monad]: TextConsole[F] =
+    apply[F](Translator.idTranslator.map(_.asJson.spaces2))
+
+  final class TextConsole[F[_]: Console: Monad](translator: Translator[F, String])
       extends (NJEvent => F[Unit]) with UpdateTranslator[F, String, TextConsole[F]] {
-    private def coloring(evt: NJEvent): String =
+    private[this] val C = Console[F]
+    private[this] def coloring(evt: NJEvent): String =
       ColorScheme
         .decorate(evt)
         .run {

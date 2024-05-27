@@ -12,7 +12,7 @@ import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.event.*
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
-import com.github.chenharryhua.nanjin.guard.translators.Translator
+import com.github.chenharryhua.nanjin.guard.translator.Translator
 import munit.DisciplineSuite
 import org.scalacheck.{Arbitrary, Gen}
 // TODO

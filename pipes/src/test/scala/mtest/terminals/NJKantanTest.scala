@@ -26,7 +26,7 @@ class NJKantanTest extends AnyFunSuite {
   def fs2(path: NJPath, file: KantanFile, csvConfiguration: CsvConfiguration, data: Set[Tiger]): Assertion = {
     val tgt = path / file.fileName
     hdp.delete(tgt).unsafeRunSync()
-    val ts     = Stream.emits(data.toList).covary[IO].map(tigerEncoder.encode).chunks
+    val ts     = Stream.emits(data.toList).covary[IO].map(tigerEncoder.encode)
     val sink   = hdp.kantan(csvConfiguration).sink(tgt)
     val src    = hdp.kantan(csvConfiguration).source(tgt, 100).rethrow.map(tigerDecoder.decode).rethrow
     val action = ts.through(sink).compile.drain >> src.compile.toList
@@ -87,7 +87,6 @@ class NJKantanTest extends AnyFunSuite {
       .emits(tigerSet.toList)
       .covary[IO]
       .map(tigerEncoder.encode)
-      .chunks
       .through(conn.sink(path))
       .compile
       .drain
@@ -107,7 +106,6 @@ class NJKantanTest extends AnyFunSuite {
     hdp.delete(path).unsafeRunSync()
     herd
       .map(tigerEncoder.encode)
-      .chunks
       .through(csv.sink(policy, ZoneId.systemDefault())(t => path / file.fileName(t)))
       .compile
       .drain
@@ -131,7 +129,7 @@ class NJKantanTest extends AnyFunSuite {
     hdp.delete(path).unsafeRunSync()
     val fk = KantanFile(Uncompressed)
     (Stream.sleep[IO](10.hours) >>
-      Stream.empty.covaryAll[IO, Seq[String]]).chunks
+      Stream.empty.covaryAll[IO, Seq[String]])
       .through(csv.sink(policies.fixedDelay(1.second).limited(3), ZoneId.systemDefault())(t =>
         path / fk.fileName(t)))
       .compile
@@ -149,7 +147,6 @@ class NJKantanTest extends AnyFunSuite {
     hdp.delete(path).unsafeRunSync()
     herd
       .map(tigerEncoder.encode)
-      .chunks
       .through(csv.sink(policy, ZoneId.systemDefault())(t => path / file.fileName(t)))
       .map(tigerDecoder.decode)
       .rethrow
@@ -175,7 +172,7 @@ class NJKantanTest extends AnyFunSuite {
     hdp.delete(path).unsafeRunSync()
     val fk = KantanFile(Uncompressed)
     (Stream.sleep[IO](10.hours) >>
-      Stream.empty.covaryAll[IO, Seq[String]]).chunks
+      Stream.empty.covaryAll[IO, Seq[String]])
       .through(csv.sink(policies.fixedDelay(1.second).limited(3), ZoneId.systemDefault())(t =>
         path / fk.fileName(t)))
       .compile
