@@ -118,7 +118,7 @@ final class EmailObserver[F[_]] private (
           .unNone
           .groupWithin(chunkSize.value, interval)
           .evalTap(publish(_, ses, from, to, subject) >> ofm.reset)
-          .onFinalize(ofm.terminated.flatMap(publish(_, ses, from, to, subject)))
+          .onFinalize(ofm.terminated.flatMap(ca => publish(ca, ses, from, to, subject).whenA(ca.nonEmpty)))
       } yield ()
       computation.drain
   }

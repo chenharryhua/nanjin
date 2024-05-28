@@ -1,12 +1,10 @@
 package com.github.chenharryhua.nanjin.http.client.auth
 
-import cats.Endo
 import cats.data.NonEmptyList
 import cats.effect.kernel.{Async, Ref, Resource}
 import cats.effect.std.UUIDGen
 import cats.effect.syntax.all.*
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.common.UpdateConfig
 import io.circe.generic.auto.*
 import org.http4s.Method.POST
 import org.http4s.circe.CirceEntityCodec.circeEntityDecoder
@@ -31,9 +29,8 @@ object cognito {
     code: String,
     redirect_uri: String,
     code_verifier: String,
-    cfg: AuthConfig)
-      extends Http4sClientDsl[F] with Login[F, AuthorizationCode[F]]
-      with UpdateConfig[AuthConfig, AuthorizationCode[F]] {
+    authClient: Resource[F, Client[F]])
+      extends Http4sClientDsl[F] with Login[F, AuthorizationCode[F]] {
 
     private case class Token(
       access_token: String,
@@ -43,16 +40,14 @@ object cognito {
       expires_in: Int // in second
     )
 
-    private val params: AuthParams = cfg.evalConfig
-
     override def loginR(client: Client[F])(implicit F: Async[F]): Resource[F, Client[F]] = {
 
       val authURI = auth_endpoint.withPath(path"/oauth2/token")
+
       val get_token: F[Token] =
         UUIDGen[F].randomUUID.flatMap { uuid =>
-          params
-            .authClient(client)
-            .expect[Token](POST(
+          authClient.use(
+            _.expect[Token](POST(
               UrlForm(
                 "grant_type" -> "authorization_code",
                 "client_id" -> client_id,
@@ -62,24 +57,26 @@ object cognito {
               ),
               authURI,
               Authorization(BasicCredentials(client_id, client_secret))
-            ).putHeaders(`Idempotency-Key`(show"$uuid")))
+            ).putHeaders(`Idempotency-Key`(show"$uuid"))))
         }
+
       def refresh_token(pre: Token): F[Token] =
-        params
-          .authClient(client)
-          .expect[Token](POST(
-            UrlForm(
-              "grant_type" -> "refresh_token",
-              "client_id" -> client_id,
-              "refresh_token" -> pre.refresh_token),
-            authURI,
-            Authorization(BasicCredentials(client_id, client_secret))
-          ).putHeaders(`Idempotency-Key`(client_id)))
+        UUIDGen[F].randomUUID.flatMap { uuid =>
+          authClient.use(
+            _.expect[Token](POST(
+              UrlForm(
+                "grant_type" -> "refresh_token",
+                "client_id" -> client_id,
+                "refresh_token" -> pre.refresh_token),
+              authURI,
+              Authorization(BasicCredentials(client_id, client_secret))
+            ).putHeaders(`Idempotency-Key`(show"$uuid"))))
+        }
 
       def update_token(ref: Ref[F, Token]): F[Unit] =
         for {
           oldToken <- ref.get
-          newToken <- refresh_token(oldToken).delayBy(params.dormant(oldToken.expires_in.seconds))
+          newToken <- refresh_token(oldToken).delayBy(oldToken.expires_in.seconds)
           _ <- ref.set(newToken)
         } yield ()
 
@@ -88,21 +85,10 @@ object cognito {
 
       loginInternal(client, get_token, update_token, with_token)
     }
-
-    override def updateConfig(f: Endo[AuthConfig]): AuthorizationCode[F] =
-      new AuthorizationCode[F](
-        auth_endpoint = auth_endpoint,
-        client_id = client_id,
-        client_secret = client_secret,
-        code = code,
-        redirect_uri = redirect_uri,
-        code_verifier = code_verifier,
-        cfg = f(cfg)
-      )
   }
 
   object AuthorizationCode {
-    def apply[F[_]](
+    def apply[F[_]](authClient: Resource[F, Client[F]])(
       auth_endpoint: Uri,
       client_id: String,
       client_secret: String,
@@ -116,9 +102,8 @@ object cognito {
         code = code,
         redirect_uri = redirect_uri,
         code_verifier = code_verifier,
-        cfg = AuthConfig()
+        authClient = authClient
       )
-
   }
 
   final class ClientCredentials[F[_]] private (
@@ -126,9 +111,8 @@ object cognito {
     client_id: String,
     client_secret: String,
     scopes: NonEmptyList[String],
-    cfg: AuthConfig)
-      extends Http4sClientDsl[F] with Login[F, ClientCredentials[F]]
-      with UpdateConfig[AuthConfig, ClientCredentials[F]] {
+    authClient: Resource[F, Client[F]])
+      extends Http4sClientDsl[F] with Login[F, ClientCredentials[F]] {
 
     private case class Token(
       access_token: String,
@@ -136,27 +120,24 @@ object cognito {
       expires_in: Int // in second
     )
 
-    private val params: AuthParams = cfg.evalConfig
-
     override def loginR(client: Client[F])(implicit F: Async[F]): Resource[F, Client[F]] = {
       val getToken: F[Token] =
         UUIDGen[F].randomUUID.flatMap { uuid =>
-          params
-            .authClient(client)
-            .expect[Token](POST(
+          authClient.use(
+            _.expect[Token](POST(
               UrlForm(
                 "grant_type" -> "client_credentials",
                 "scope" -> scopes.toList.mkString(" ")
               ),
               auth_endpoint.withPath(path"/oauth2/token"),
               Authorization(BasicCredentials(client_id, client_secret))
-            ).putHeaders(`Idempotency-Key`(show"$uuid")))
+            ).putHeaders(`Idempotency-Key`(show"$uuid"))))
         }
 
       def updateToken(ref: Ref[F, Token]): F[Unit] =
         for {
           oldToken <- ref.get
-          newToken <- getToken.delayBy(params.dormant(oldToken.expires_in.seconds))
+          newToken <- getToken.delayBy(oldToken.expires_in.seconds)
           _ <- ref.set(newToken)
         } yield ()
 
@@ -165,19 +146,10 @@ object cognito {
 
       loginInternal(client, getToken, updateToken, withToken)
     }
-
-    override def updateConfig(f: Endo[AuthConfig]): ClientCredentials[F] =
-      new ClientCredentials[F](
-        auth_endpoint = auth_endpoint,
-        client_id = client_id,
-        client_secret = client_secret,
-        scopes = scopes,
-        cfg = f(cfg)
-      )
   }
 
   object ClientCredentials {
-    def apply[F[_]](
+    def apply[F[_]](authClient: Resource[F, Client[F]])(
       auth_endpoint: Uri,
       client_id: String,
       client_secret: String,
@@ -187,13 +159,6 @@ object cognito {
         client_id = client_id,
         client_secret = client_secret,
         scopes = scopes,
-        cfg = AuthConfig())
-
-    def apply[F[_]](
-      auth_endpoint: Uri,
-      client_id: String,
-      client_secret: String,
-      scope: String): ClientCredentials[F] =
-      apply(auth_endpoint, client_id, client_secret, NonEmptyList.one(scope))
+        authClient = authClient)
   }
 }
