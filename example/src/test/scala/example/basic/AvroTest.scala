@@ -24,28 +24,27 @@ class AvroTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
   private def writeSingle(file: AvroFile): IO[NJPath] = {
     val path = root / "single" / file.fileName
     val sink = avro.withCompression(file.compression).sink(path)
-    write(path.uri.getPath) { meter =>
-      data.evalTap(_ => meter.mark(1)).map(encoder.to).chunkN(1000).through(sink).compile.drain.as(path)
+    write(path.uri.getPath).use { meter =>
+      data.evalTap(_ => meter.mark(1)).map(encoder.to).through(sink).compile.drain.as(path)
     }
   }
 
   private def writeRotate(file: AvroFile): IO[NJPath] = {
     val path = root / "rotate" / file.fileName
     val sink = avro.withCompression(file.compression).sink(policy, sydneyTime)(t => path / file.fileName(t))
-    write(path.uri.getPath) { meter =>
-      data.evalTap(_ => meter.mark(1)).map(encoder.to).chunkN(1000).through(sink).compile.drain.as(path)
+    write(path.uri.getPath).use { meter =>
+      data.evalTap(_ => meter.mark(1)).map(encoder.to).through(sink).compile.drain.as(path)
     }
   }
 
   private def writeSingleSpark(file: AvroFile): IO[NJPath] = {
     val path = root / "spark" / "single" / file.fileName
     val sink = avro.withCompression(file.compression).sink(path)
-    write(path.uri.getPath) { meter =>
+    write(path.uri.getPath).use { meter =>
       table.output
         .stream(1000)
         .evalTap(_ => meter.mark(1))
         .map(encoder.to)
-        .chunkN(1000)
         .through(sink)
         .compile
         .drain
@@ -55,18 +54,17 @@ class AvroTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
 
   private def writeMultiSpark(file: AvroFile): IO[NJPath] = {
     val path = root / "spark" / "multi" / file.fileName
-    write(path.uri.getPath)(_ => table.output.avro(path).withCompression(file.compression).run.as(path))
+    write(path.uri.getPath).use(_ => table.output.avro(path).withCompression(file.compression).run.as(path))
   }
 
   private def writeRotateSpark(file: AvroFile): IO[NJPath] = {
     val path = root / "spark" / "rotate" / file.fileName
     val sink = avro.withCompression(file.compression).sink(policy, beijingTime)(t => path / file.fileName(t))
-    write(path.uri.getPath) { meter =>
+    write(path.uri.getPath).use { meter =>
       table.output
         .stream(1000)
         .evalTap(_ => meter.mark(1))
         .map(encoder.to)
-        .chunkN(1000)
         .through(sink)
         .compile
         .drain
@@ -75,10 +73,10 @@ class AvroTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
   }
 
   private def sparkRead(path: NJPath): IO[Long] =
-    read(path.uri.getPath)(_ => loader.avro(path).count)
+    read(path.uri.getPath).use(_ => loader.avro(path).count)
 
   private def folderRead(path: NJPath): IO[Long] =
-    read(path.uri.getPath) { meter =>
+    read(path.uri.getPath).use { meter =>
       hadoop
         .filesIn(path)
         .flatMap(avro.source(_, 1000).map(decoder.from).evalTap(_ => meter.mark(1)).compile.fold(0L) {
@@ -87,7 +85,7 @@ class AvroTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
     }
 
   private def singleRead(path: NJPath): IO[Long] =
-    read(path.uri.getPath) { meter =>
+    read(path.uri.getPath).use { meter =>
       avro.source(path, 1000).map(decoder.from).evalTap(_ => meter.mark(1)).compile.fold(0L) { case (s, _) =>
         s + 1
       }

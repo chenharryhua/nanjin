@@ -163,7 +163,7 @@ class PolicyCombinatorTest extends AnyFunSuite {
       .meet(policies.crontab(crontabs.daily.oneAM))
       .followedBy(policies.crontab(crontabs.daily.twoAM))
       .followedBy(policies.crontab(crontabs.daily.threeAM))
-      .followedBy(policies.crontab(crontabs.daily.fourAM))
+      .followedBy(policies.crontab(crontabs.daily.fourAM).jitter(2.seconds))
       .followedBy(policies.crontab(crontabs.daily.fiveAM))
       .followedBy(policies.crontab(crontabs.daily.sixAM))
       .followedBy(policies.crontab(crontabs.daily.sevenAM))
@@ -192,7 +192,6 @@ class PolicyCombinatorTest extends AnyFunSuite {
       .followedBy(policies.fixedDelay(1.second, 2.seconds))
       .followedBy(policies.fixedRate(2.seconds))
       .except(_.twoPM)
-      .followedBy(policies.jitter(1.hours, 2.hours))
       .repeat
       .followedBy(policies.crontab(crontabs.weekly.monday))
       .followedBy(policies.crontab(crontabs.weekly.tuesday))
@@ -220,7 +219,7 @@ class PolicyCombinatorTest extends AnyFunSuite {
     println(policy.asJson)
     assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
 
-    val ticks = lazyTickList(zeroTickStatus.renewPolicy(policy)).take(8).toList
+    val ticks  = lazyTickList(zeroTickStatus.renewPolicy(policy)).take(8).toList
     val wakeup = ticks.map(_.zonedWakeup.toLocalTime)
     assert(wakeup.size == 8)
     assert(wakeup.head == localTimes.threeAM)
@@ -231,5 +230,27 @@ class PolicyCombinatorTest extends AnyFunSuite {
     assert(wakeup(5) == localTimes.sixPM)
     assert(wakeup(6) == localTimes.ninePM)
     assert(wakeup(7) == localTimes.threeAM)
+  }
+
+  test("offset") {
+    val policy = policies.crontab(_.hourly).offset(3.seconds)
+    println(policy.show)
+    println(policy.asJson)
+    assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
+    val ticks  = lazyTickList(zeroTickStatus.renewPolicy(policy)).take(32).toList
+    val wakeup = ticks.map(_.zonedWakeup.toLocalTime.getSecond)
+    wakeup.forall(_ == 3)
+  }
+
+  test("jitter") {
+    val policy = policies.crontab(_.hourly).jitter(3.seconds)
+    println(policy.show)
+    println(policy.asJson)
+    assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
+
+    val ts    = zeroTickStatus.renewPolicy(policy)
+    val ticks = lazyTickList(ts).take(10).toList
+
+    ticks.foreach(tk => println(tk))
   }
 }

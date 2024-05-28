@@ -1,14 +1,12 @@
 package com.github.chenharryhua.nanjin.kafka
 
 import cats.Show
-import cats.effect.IO
 import fs2.kafka.AdminClientSettings
 import io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig
 import org.apache.kafka.clients.CommonClientConfigs
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.common.config.SaslConfigs
 import org.apache.kafka.common.security.auth.SecurityProtocol
-import org.typelevel.cats.time.instances.zoneid
 
 /** [[https://kafka.apache.org/]]
   */
@@ -79,11 +77,9 @@ final case class KafkaSettings(
   def withSchemaRegistryProperty(key: String, value: String): KafkaSettings =
     copy(schemaRegistrySettings = schemaRegistrySettings.withProperty(key, value))
 
-  def ioContext: KafkaContext[IO]    = new KafkaContext[IO](this)
-  def context[F[_]]: KafkaContext[F] = new KafkaContext[F](this)
 }
 
-object KafkaSettings extends zoneid {
+object KafkaSettings {
   implicit val showKafkaSettings: Show[KafkaSettings] = cats.derived.semiauto.show[KafkaSettings]
 
   def apply(brokers: String, schemaRegistry: String): KafkaSettings =

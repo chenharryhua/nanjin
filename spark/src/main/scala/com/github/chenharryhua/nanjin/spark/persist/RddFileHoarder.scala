@@ -66,7 +66,3 @@ final class RddAvroFileHoarder[F[_], A](frdd: F[RDD[A]], encoder: AvroEncoder[A]
   def parquet(path: NJPath): SaveParquet[F, A] =
     new SaveParquet[F, A](frdd, encoder, HoarderConfig(path).outputFormat(Parquet))
 }
-
-trait BuildRunnable[F[_]] {
-  def run(implicit F: Sync[F]): F[Unit]
-}

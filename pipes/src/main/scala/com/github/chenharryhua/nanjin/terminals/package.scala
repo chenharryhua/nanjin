@@ -15,7 +15,7 @@ import java.io.StringWriter
 
 package object terminals {
   @inline final val NEWLINE_SEPARATOR: String                = "\r\n"
-  @inline private val NEWLINE_SEPARATOR_CHUNK: Chunk[String] = Chunk(NEWLINE_SEPARATOR)
+  @inline private val NEWLINE_SEPARATOR_CHUNK: Chunk[String] = Chunk.singleton(NEWLINE_SEPARATOR)
 
   type NJCompressionLevel = Int Refined Closed[1, 9]
   object NJCompressionLevel extends RefinedTypeOps[NJCompressionLevel, Int] with CatsRefinedTypeOpsSyntax
@@ -87,16 +87,16 @@ package object terminals {
       case None => Pull.done
     }
 
-  def buildCsvRow(csvConfiguration: CsvConfiguration)(row: Seq[String])(implicit
-    engine: WriterEngine): String = {
+  def buildCsvRow(csvConfiguration: CsvConfiguration)(row: Seq[String]): String = {
     val sw = new StringWriter()
-    engine.writerFor(sw, csvConfiguration).write(row).close()
+    WriterEngine.internalCsvWriterEngine.writerFor(sw, csvConfiguration).write(row).close()
     sw.toString.dropRight(2) // drop CRLF
   }
 
-  def csvHeader(csvConfiguration: CsvConfiguration): Chunk[String] = csvConfiguration.header match {
-    case Header.None             => Chunk.empty
-    case Header.Implicit         => Chunk("no header was explicitly provided")
-    case Header.Explicit(header) => Chunk(buildCsvRow(csvConfiguration)(header))
-  }
+  def csvHeader(csvConfiguration: CsvConfiguration): Chunk[String] =
+    csvConfiguration.header match {
+      case Header.None             => Chunk.empty
+      case Header.Implicit         => Chunk.singleton("no header was explicitly provided")
+      case Header.Explicit(header) => Chunk.singleton(buildCsvRow(csvConfiguration)(header))
+    }
 }

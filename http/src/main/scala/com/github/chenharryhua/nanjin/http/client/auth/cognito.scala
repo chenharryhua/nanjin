@@ -3,6 +3,7 @@ package com.github.chenharryhua.nanjin.http.client.auth
 import cats.Endo
 import cats.data.NonEmptyList
 import cats.effect.kernel.{Async, Ref, Resource}
+import cats.effect.std.UUIDGen
 import cats.effect.syntax.all.*
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.UpdateConfig
@@ -11,7 +12,7 @@ import org.http4s.Method.POST
 import org.http4s.circe.CirceEntityCodec.circeEntityDecoder
 import org.http4s.client.Client
 import org.http4s.client.dsl.Http4sClientDsl
-import org.http4s.headers.Authorization
+import org.http4s.headers.{`Idempotency-Key`, Authorization}
 import org.http4s.implicits.http4sLiteralsSyntax
 import org.http4s.{BasicCredentials, Credentials, Request, Uri, UrlForm}
 import org.typelevel.ci.CIString
@@ -47,22 +48,23 @@ object cognito {
     override def loginR(client: Client[F])(implicit F: Async[F]): Resource[F, Client[F]] = {
 
       val authURI = auth_endpoint.withPath(path"/oauth2/token")
-      val getToken: F[Token] =
-        params
-          .authClient(client)
-          .expect[Token](POST(
-            UrlForm(
-              "grant_type" -> "authorization_code",
-              "client_id" -> client_id,
-              "code" -> code,
-              "redirect_uri" -> redirect_uri,
-              "code_verifier" -> code_verifier
-            ),
-            authURI,
-            Authorization(BasicCredentials(client_id, client_secret))
-          ))
-
-      def refreshToken(pre: Token): F[Token] =
+      val get_token: F[Token] =
+        UUIDGen[F].randomUUID.flatMap { uuid =>
+          params
+            .authClient(client)
+            .expect[Token](POST(
+              UrlForm(
+                "grant_type" -> "authorization_code",
+                "client_id" -> client_id,
+                "code" -> code,
+                "redirect_uri" -> redirect_uri,
+                "code_verifier" -> code_verifier
+              ),
+              authURI,
+              Authorization(BasicCredentials(client_id, client_secret))
+            ).putHeaders(`Idempotency-Key`(show"$uuid")))
+        }
+      def refresh_token(pre: Token): F[Token] =
         params
           .authClient(client)
           .expect[Token](POST(
@@ -72,19 +74,19 @@ object cognito {
               "refresh_token" -> pre.refresh_token),
             authURI,
             Authorization(BasicCredentials(client_id, client_secret))
-          ))
+          ).putHeaders(`Idempotency-Key`(client_id)))
 
-      def updateToken(ref: Ref[F, Token]): F[Unit] =
+      def update_token(ref: Ref[F, Token]): F[Unit] =
         for {
           oldToken <- ref.get
-          newToken <- refreshToken(oldToken).delayBy(params.dormant(oldToken.expires_in.seconds))
+          newToken <- refresh_token(oldToken).delayBy(params.dormant(oldToken.expires_in.seconds))
           _ <- ref.set(newToken)
         } yield ()
 
-      def withToken(token: Token, req: Request[F]): Request[F] =
+      def with_token(token: Token, req: Request[F]): Request[F] =
         req.putHeaders(Authorization(Credentials.Token(CIString(token.token_type), token.access_token)))
 
-      loginInternal(client, getToken, updateToken, withToken)
+      loginInternal(client, get_token, update_token, with_token)
     }
 
     override def updateConfig(f: Endo[AuthConfig]): AuthorizationCode[F] =
@@ -138,16 +140,18 @@ object cognito {
 
     override def loginR(client: Client[F])(implicit F: Async[F]): Resource[F, Client[F]] = {
       val getToken: F[Token] =
-        params
-          .authClient(client)
-          .expect[Token](POST(
-            UrlForm(
-              "grant_type" -> "client_credentials",
-              "scope" -> scopes.toList.mkString(" ")
-            ),
-            auth_endpoint.withPath(path"/oauth2/token"),
-            Authorization(BasicCredentials(client_id, client_secret))
-          ))
+        UUIDGen[F].randomUUID.flatMap { uuid =>
+          params
+            .authClient(client)
+            .expect[Token](POST(
+              UrlForm(
+                "grant_type" -> "client_credentials",
+                "scope" -> scopes.toList.mkString(" ")
+              ),
+              auth_endpoint.withPath(path"/oauth2/token"),
+              Authorization(BasicCredentials(client_id, client_secret))
+            ).putHeaders(`Idempotency-Key`(show"$uuid")))
+        }
 
       def updateToken(ref: Ref[F, Token]): F[Unit] =
         for {

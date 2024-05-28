@@ -21,12 +21,12 @@ class RWTest extends AnyFunSuite {
     .updateConfig(_.withMetricReport(policies.crontab(crontabs.trisecondly)))
 
   test("avro") {
-    task.eventStream(a => new AvroTest(a, root).run).evalTap(console.simple[IO]).compile.drain.unsafeRunSync()
+    task.eventStream(a => new AvroTest(a, root).run).evalTap(console.text[IO]).compile.drain.unsafeRunSync()
   }
   test("circe") {
     task
       .eventStream(a => new CirceTest(a, root).run)
-      .evalTap(console.simple[IO])
+      .evalTap(console.text[IO])
       .compile
       .drain
       .unsafeRunSync()
@@ -34,7 +34,7 @@ class RWTest extends AnyFunSuite {
   test("jackson") {
     task
       .eventStream(a => new JacksonTest(a, root).run)
-      .evalTap(console.simple[IO])
+      .evalTap(console.text[IO])
       .compile
       .drain
       .unsafeRunSync()
@@ -42,7 +42,7 @@ class RWTest extends AnyFunSuite {
   test("bin_avro") {
     task
       .eventStream(a => new BinAvroTest(a, root).run)
-      .evalTap(console.simple[IO])
+      .evalTap(console.text[IO])
       .compile
       .drain
       .unsafeRunSync()
@@ -50,7 +50,7 @@ class RWTest extends AnyFunSuite {
   test("parquet") {
     task
       .eventStream(a => new ParquetTest(a, root).run)
-      .evalTap(console.simple[IO])
+      .evalTap(console.text[IO])
       .compile
       .drain
       .unsafeRunSync()
@@ -58,7 +58,7 @@ class RWTest extends AnyFunSuite {
   test("kantan - no-header") {
     task
       .eventStream(a => new KantanTest(a, root, CsvConfiguration.rfc).run)
-      .evalTap(console.simple[IO])
+      .evalTap(console.text[IO])
       .compile
       .drain
       .unsafeRunSync()
@@ -67,7 +67,7 @@ class RWTest extends AnyFunSuite {
     val tiger: CsvHeaderOf[Tiger] = shapeless.cachedImplicit
     task
       .eventStream(a => new KantanTest(a, root, CsvConfiguration.rfc.withHeader(tiger.header)).run)
-      .evalTap(console.simple[IO])
+      .evalTap(console.text[IO])
       .compile
       .drain
       .unsafeRunSync()

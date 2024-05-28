@@ -1,0 +1,7 @@
+syntax = "proto3";
+package mtest.pb;
+
+message Whale {
+  string name = 1;
+  int32 age = 2;
+}

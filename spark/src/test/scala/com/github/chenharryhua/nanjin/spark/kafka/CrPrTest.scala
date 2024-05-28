@@ -80,7 +80,7 @@ class CrPrTest extends AnyFunSuite {
     ))
 
   val prRdd: PrRdd[IO, Long, Rooster] = crRdd.prRdd.partitionOf(0)
-  val topic                           = roosterLike.in(ctx)
+  val topic                           = ctx.topic(roosterLike)
   val ack                             = topic.topicDef.rawSerdes.key.avroCodec
   val acv                             = topic.topicDef.rawSerdes.key.avroCodec
 

@@ -1,52 +1,81 @@
 package com.github.chenharryhua.nanjin.guard.action
 
-import cats.effect.kernel.Sync
-import cats.implicits.toFunctorOps
+import cats.data.Kleisli
+import cats.effect.kernel.{Resource, Sync, Unique}
+import cats.implicits.{catsSyntaxHash, toFunctorOps}
 import com.codahale.metrics.*
-import com.github.chenharryhua.nanjin.guard.config.{
-  Category,
-  CounterKind,
-  HistogramKind,
-  MetricID,
-  MetricName
-}
-import com.github.chenharryhua.nanjin.guard.event.MeasurementUnit
+import com.github.chenharryhua.nanjin.guard.config.*
+import com.github.chenharryhua.nanjin.guard.config.CategoryKind.{CounterKind, HistogramKind}
+import com.github.chenharryhua.nanjin.guard.event.{MeasurementUnit, NJUnits}
 
-final class NJHistogram[F[_]] private[guard] (
-  name: MetricName,
-  metricRegistry: MetricRegistry,
-  unit: MeasurementUnit,
-  isCounting: Boolean,
-  reservoir: Option[Reservoir])(implicit F: Sync[F]) {
+final class NJHistogram[F[_]: Sync] private (
+  private[this] val token: Unique.Token,
+  private[this] val name: MetricName,
+  private[this] val metricRegistry: MetricRegistry,
+  private[this] val unit: MeasurementUnit,
+  private[this] val isCounting: Boolean,
+  private[this] val reservoir: Option[Reservoir]) {
 
-  private val histogramName: String =
-    MetricID(name, Category.Histogram(HistogramKind.Dropwizard, unit)).identifier
-  private val counterName: String =
-    MetricID(name, Category.Counter(CounterKind.HistoCounter)).identifier
+  private[this] val F = Sync[F]
 
-  private lazy val supplier: MetricRegistry.MetricSupplier[Histogram] = () =>
+  private[this] val histogram_name: String =
+    MetricID(name, Category.Histogram(HistogramKind.Histogram, unit), token.hash).identifier
+  private[this] val counter_name: String =
+    MetricID(name, Category.Counter(CounterKind.Histogram), token.hash).identifier
+
+  private[this] val supplier: MetricRegistry.MetricSupplier[Histogram] = () =>
     reservoir match {
       case Some(value) => new Histogram(value)
       case None        => new Histogram(new ExponentiallyDecayingReservoir) // default reservoir
     }
 
-  private lazy val histogram: Histogram = metricRegistry.histogram(histogramName, supplier)
-  private lazy val counter: Counter     = metricRegistry.counter(counterName)
+  private[this] lazy val histogram: Histogram = metricRegistry.histogram(histogram_name, supplier)
+  private[this] lazy val counter: Counter     = metricRegistry.counter(counter_name)
 
-  private[guard] def unregister: F[Unit] = F.blocking {
-    metricRegistry.remove(histogramName)
-    metricRegistry.remove(counterName)
+  private[this] val calculate: Long => Unit =
+    if (isCounting) { (num: Long) =>
+      histogram.update(num)
+      counter.inc(1)
+    } else (num: Long) => histogram.update(num)
+
+  def unsafeUpdate(num: Long): Unit = calculate(num)
+  def update(num: Long): F[Unit]    = F.delay(calculate(num))
+
+  def kleisli[A](f: A => Long): Kleisli[F, A, Unit] = Kleisli(update).local(f)
+
+  private val unregister: F[Unit] = F.delay {
+    metricRegistry.remove(histogram_name)
+    metricRegistry.remove(counter_name)
   }.void
 
-  def withReservoir(reservoir: Reservoir): NJHistogram[F] =
-    new NJHistogram[F](name, metricRegistry, unit, isCounting, Some(reservoir))
+}
 
-  def counted: NJHistogram[F] = new NJHistogram[F](name, metricRegistry, unit, true, reservoir)
+object NJHistogram {
 
-  def unsafeUpdate(num: Long): Unit = {
-    histogram.update(num)
-    if (isCounting) counter.inc()
+  final class Builder private[guard] (
+    measurement: Measurement,
+    unit: MeasurementUnit,
+    isCounting: Boolean,
+    reservoir: Option[Reservoir]) {
+    def withMeasurement(measurement: String): Builder =
+      new Builder(Measurement(measurement), unit, isCounting, reservoir)
+
+    def counted: Builder = new Builder(measurement, unit, true, reservoir)
+
+    def withUnit(f: NJUnits.type => MeasurementUnit): Builder =
+      new Builder(measurement, f(NJUnits), isCounting, reservoir)
+
+    def withReservoir(reservoir: Reservoir): Builder =
+      new Builder(measurement, unit, isCounting, Some(reservoir))
+
+    private[guard] def build[F[_]: Sync](
+      name: String,
+      metricRegistry: MetricRegistry,
+      serviceParams: ServiceParams): Resource[F, NJHistogram[F]] = {
+      val metricName = MetricName(serviceParams, measurement, name)
+      Resource.make(
+        Sync[F].unique.map(new NJHistogram[F](_, metricName, metricRegistry, unit, isCounting, reservoir)))(
+        _.unregister)
+    }
   }
-
-  def update(num: Long): F[Unit] = F.delay(unsafeUpdate(num))
 }

@@ -39,7 +39,7 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
     val cs: ConsumerSettings[Id, Nothing, Nothing] = ConsumerSettings[Id, Nothing, Nothing](null, null)
     TransientConsumer[IO](
       topic.topicName,
-      cs.withProperties(topic.context.settings.consumerSettings.properties).withGroupId("consumer-api-test"))
+      cs.withProperties(topic.settings.consumerSettings.properties).withGroupId("consumer-api-test"))
   }
 
   test("start and end are both in range") {

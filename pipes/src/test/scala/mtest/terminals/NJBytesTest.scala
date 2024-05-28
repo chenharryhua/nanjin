@@ -31,7 +31,6 @@ class NJBytesTest extends AnyFunSuite {
       .map(_.asJson.noSpaces)
       .intersperse(NEWLINE_SEPARATOR)
       .through(utf8.encode)
-      .chunks
       .through(sink)
       .compile
       .drain >>
@@ -92,7 +91,6 @@ class NJBytesTest extends AnyFunSuite {
       .map(_.asJson.noSpaces)
       .intersperse(NEWLINE_SEPARATOR)
       .through(utf8.encode)
-      .chunks
       .through(sink)
       .compile
       .drain

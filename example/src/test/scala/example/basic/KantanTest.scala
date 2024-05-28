@@ -7,8 +7,8 @@ import com.github.chenharryhua.nanjin.guard.service.Agent
 import com.github.chenharryhua.nanjin.terminals.{KantanFile, NJCompression, NJPath}
 import eu.timepit.refined.auto.*
 import example.hadoop
-import kantan.csv.generic.*
 import kantan.csv.{CsvConfiguration, RowDecoder, RowEncoder}
+import kantan.csv.generic.*
 
 class KantanTest(agent: Agent[IO], base: NJPath, rfc: CsvConfiguration) extends WriteRead(agent) {
   private val header = if (rfc.hasHeader) "kantan-with-header" else "kantan-without-header"
@@ -31,42 +31,27 @@ class KantanTest(agent: Agent[IO], base: NJPath, rfc: CsvConfiguration) extends 
   private def writeSingle(file: KantanFile): IO[NJPath] = {
     val path = root / "single" / file.fileName
     val sink = kantan.sink(path)
-    write(path.uri.getPath) { meter =>
-      data
-        .evalTap(_ => meter.mark(1))
-        .map(rowEncoder.encode)
-        .chunkN(1000)
-        .through(sink)
-        .compile
-        .drain
-        .as(path)
+    write(path.uri.getPath).use { meter =>
+      data.evalTap(_ => meter.mark(1)).map(rowEncoder.encode).through(sink).compile.drain.as(path)
     }
   }
 
   private def writeRotate(file: KantanFile): IO[NJPath] = {
     val path = root / "rotate" / file.fileName
     val sink = kantan.sink(policy, darwinTime)(t => path / file.fileName(t))
-    write(path.uri.getPath) { meter =>
-      data
-        .evalTap(_ => meter.mark(1))
-        .map(rowEncoder.encode)
-        .chunkN(1000)
-        .through(sink)
-        .compile
-        .drain
-        .as(path)
+    write(path.uri.getPath).use { meter =>
+      data.evalTap(_ => meter.mark(1)).map(rowEncoder.encode).through(sink).compile.drain.as(path)
     }
   }
 
   private def writeSingleSpark(file: KantanFile): IO[NJPath] = {
     val path = root / "spark" / "single" / file.fileName
     val sink = kantan.sink(path)
-    write(path.uri.getPath) { meter =>
+    write(path.uri.getPath).use { meter =>
       table.output
         .stream(1000)
         .evalTap(_ => meter.mark(1))
         .map(rowEncoder.encode)
-        .chunkN(1000)
         .through(sink)
         .compile
         .drain
@@ -76,19 +61,18 @@ class KantanTest(agent: Agent[IO], base: NJPath, rfc: CsvConfiguration) extends 
 
   private def writeMultiSpark(file: KantanFile): IO[NJPath] = {
     val path = root / "spark" / "multi" / file.fileName
-    write(path.uri.getPath)(_ =>
+    write(path.uri.getPath).use(_ =>
       table.output.kantan(path, rfc).withCompression(file.compression).run.as(path))
   }
 
   private def writeRotateSpark(file: KantanFile): IO[NJPath] = {
     val path = root / "spark" / "rotate" / file.fileName
     val sink = kantan.sink(policy, utcTime)(t => path / file.fileName(t))
-    write(path.uri.getPath) { meter =>
+    write(path.uri.getPath).use { meter =>
       table.output
         .stream(1000)
         .evalTap(_ => meter.mark(1))
         .map(rowEncoder.encode)
-        .chunkN(1000)
         .through(sink)
         .compile
         .drain
@@ -97,10 +81,10 @@ class KantanTest(agent: Agent[IO], base: NJPath, rfc: CsvConfiguration) extends 
   }
 
   private def sparkRead(path: NJPath): IO[Long] =
-    read(path.uri.getPath)(_ => loader.kantan(path, rfc).count)
+    read(path.uri.getPath).use(_ => loader.kantan(path, rfc).count)
 
   private def folderRead(path: NJPath): IO[Long] =
-    read(path.uri.getPath) { meter =>
+    read(path.uri.getPath).use { meter =>
       hadoop
         .filesIn(path)
         .flatMap(
@@ -117,7 +101,7 @@ class KantanTest(agent: Agent[IO], base: NJPath, rfc: CsvConfiguration) extends 
     }
 
   private def singleRead(path: NJPath): IO[Long] =
-    read(path.uri.getPath) { meter =>
+    read(path.uri.getPath).use { meter =>
       kantan
         .source(path, 1000)
         .rethrow

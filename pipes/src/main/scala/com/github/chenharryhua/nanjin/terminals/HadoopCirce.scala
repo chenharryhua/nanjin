@@ -29,34 +29,27 @@ final class HadoopCirce[F[_]] private (configuration: Configuration) {
 
   // write
 
-  def sink(path: NJPath)(implicit F: Sync[F]): Pipe[F, Chunk[Json], Nothing] = {
-    (ss: Stream[F, Chunk[Json]]) =>
-      Stream.resource(HadoopWriter.byteR[F](configuration, path.hadoopPath)).flatMap { w =>
-        ss.map(_.map(_.noSpaces))
-          .unchunks
-          .intersperse(NEWLINE_SEPARATOR)
-          .through(utf8.encode)
-          .chunks
-          .foreach(w.write)
-      }
+  def sink(path: NJPath)(implicit F: Sync[F]): Pipe[F, Json, Nothing] = { (ss: Stream[F, Json]) =>
+    Stream.resource(HadoopWriter.byteR[F](configuration, path.hadoopPath)).flatMap { w =>
+      ss.map(_.noSpaces).intersperse(NEWLINE_SEPARATOR).through(utf8.encode).chunks.foreach(w.write)
+    }
   }
 
   def sink(policy: Policy, zoneId: ZoneId)(pathBuilder: Tick => NJPath)(implicit
-    F: Async[F]): Pipe[F, Chunk[Json], Nothing] = {
-    def getWriter(tick: Tick): Resource[F, HadoopWriter[F, String]] =
+    F: Async[F]): Pipe[F, Json, Nothing] = {
+    def get_writer(tick: Tick): Resource[F, HadoopWriter[F, String]] =
       HadoopWriter.stringR[F](configuration, StandardCharsets.UTF_8, pathBuilder(tick).hadoopPath)
 
     // save
-    (ss: Stream[F, Chunk[Json]]) =>
+    (ss: Stream[F, Json]) =>
       Stream.eval(TickStatus.zeroth[F](policy, zoneId)).flatMap { zero =>
-        Stream.resource(Hotswap(getWriter(zero.tick))).flatMap { case (hotswap, writer) =>
-          val ticks: Stream[F, Either[Chunk[String], Tick]] = tickStream[F](zero).map(Right(_))
-
+        val ticks: Stream[F, Either[Chunk[String], Tick]] = tickStream[F](zero).map(Right(_))
+        Stream.resource(Hotswap(get_writer(zero.tick))).flatMap { case (hotswap, writer) =>
           persistText[F](
-            getWriter,
+            get_writer,
             hotswap,
             writer,
-            ss.map(ck => Left(ck.map(_.noSpaces))).mergeHaltBoth(ticks),
+            ss.map(_.noSpaces).chunks.map(Left(_)).mergeHaltBoth(ticks),
             Chunk.empty
           ).stream
         }

@@ -1,7 +1,0 @@
-syntax = "proto3";
-package mtest.pb;
-
-message Lion {
-  string name = 1;
-  int32 age = 2;
-}

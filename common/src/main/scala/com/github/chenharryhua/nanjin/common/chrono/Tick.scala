@@ -21,10 +21,14 @@ final case class Tick(
   snooze: Duration // sleep duration
 ) {
 
-  val wakeup: Instant            = acquire.plus(snooze)
-  def zonedWakeup: ZonedDateTime = wakeup.atZone(zoneId)
+  val wakeup: Instant              = acquire.plus(snooze)
+  def zonedWakeup: ZonedDateTime   = wakeup.atZone(zoneId)
+  def zonedAcquire: ZonedDateTime  = acquire.atZone(zoneId)
+  def zonedPrevious: ZonedDateTime = previous.atZone(zoneId)
 
-  def interval: Duration = Duration.between(previous, wakeup)
+  def interval: Duration    = Duration.between(previous, wakeup)
+  def uptoAcquire: Duration = Duration.between(launchTime, acquire)
+  def uptoWakeup: Duration  = Duration.between(launchTime, wakeup)
 
   /** check if an instant is in this tick frame from previous timestamp(inclusive) to current
     * timestamp(exclusive).
@@ -41,37 +45,24 @@ final case class Tick(
     )
 
   override def toString: String =
-    s"pre=${previous.atZone(zoneId)}, wak=${zonedWakeup.toLocalDateTime}, snz=$snooze, idx=$index"
+    f"idx=$index%04d, wak=${zonedWakeup.toLocalDateTime}, acq=${zonedAcquire.toLocalDateTime}, snz=${snooze.show}"
 }
 
-final class TickStatus private (val tick: Tick, decisions: LazyList[PolicyF.CalcTick]) extends Serializable {
+object Tick {
+  def zeroth(uuid: UUID, zoneId: ZoneId, now: Instant): Tick =
+    Tick(
+      sequenceId = uuid,
+      launchTime = now,
+      zoneId = zoneId,
+      previous = now,
+      index = 0L,
+      acquire = now,
+      snooze = Duration.ZERO
+    )
 
-  def renewPolicy(policy: Policy): TickStatus =
-    new TickStatus(tick, PolicyF.decisions(policy.policy))
-
-  def next(now: Instant): Option[TickStatus] =
-    decisions match {
-      case head #:: tail => head(PolicyF.TickRequest(tick, now)).map(new TickStatus(_, tail))
-      case _             => None
-    }
-}
-
-object TickStatus {
-  def apply(tick: Tick): TickStatus = new TickStatus(tick, LazyList.empty)
-  def zeroth[F[_]: Clock: UUIDGen: Monad](policy: Policy, zoneId: ZoneId): F[TickStatus] =
+  def zeroth[F[_]: Clock: UUIDGen: Monad](zoneId: ZoneId): F[Tick] =
     for {
       uuid <- UUIDGen[F].randomUUID
       now <- Clock[F].realTimeInstant
-    } yield {
-      val zeroth = Tick(
-        sequenceId = uuid,
-        launchTime = now,
-        zoneId = zoneId,
-        previous = now,
-        index = 0L,
-        acquire = now,
-        snooze = Duration.ZERO
-      )
-      new TickStatus(zeroth, PolicyF.decisions(policy.policy))
-    }
+    } yield zeroth(uuid, zoneId, now)
 }

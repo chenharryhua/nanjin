@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.common
 
+import cats.implicits.catsSyntaxEq
 import org.apache.commons.lang3.time.DurationFormatUtils
 
 import java.time.{Duration as JavaDuration, Instant, ZonedDateTime}
@@ -30,18 +31,20 @@ object DurationFormatter {
   final val defaultFormatter: DurationFormatter = (duration: Duration) => {
     val dur: Duration = if (duration < Duration.Zero) duration.neg() else duration
     if (dur < microsecond) {
-      val nano = dur.toNanos
-      if (nano == 1) "1 nanosecond" else s"$nano nanoseconds"
+      s"${dur.toNanos} nano"
     } else if (dur < millisecond) {
       val micro = dur.toMicros
-      if (micro == 1) "1 microsecond" else s"$micro microseconds"
+      val nano  = dur.toNanos % 1000
+      if (nano === 0) s"$micro micro" else s"$micro micro $nano nano"
     } else if (dur < second) {
       val milli = dur.toMillis
-      if (milli == 1) "1 millisecond" else s"$milli milliseconds"
+      val micro = dur.toMicros % 1000
+      if (micro === 0) s"$milli milli" else s"$milli milli $micro micro"
     } else if (dur < minute) {
-      val sec   = DurationFormatUtils.formatDurationWords(dur.toMillis, true, true)
-      val milli = dur.toMillis % 1000
-      if (milli == 0) sec else if (milli == 1) s"$sec 1 millisecond" else s"$sec $milli milliseconds"
+      val millis = dur.toMillis
+      val sec    = DurationFormatUtils.formatDurationWords(millis, true, true)
+      val milli  = millis % 1000
+      if (milli === 0) sec else s"$sec $milli milli"
     } else if (dur < hour)
       DurationFormatUtils.formatDurationWords(dur.toSeconds * 1000, true, true)
     else if (dur < day)

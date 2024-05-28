@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.event
 
+import com.github.chenharryhua.nanjin.guard.event.MeasurementUnit.*
 import squants.Dimensionless
 import squants.information.{DataRate, Information}
 import squants.time.{Time, TimeConversions}

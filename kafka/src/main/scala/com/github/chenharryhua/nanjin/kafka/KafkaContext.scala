@@ -19,7 +19,8 @@ import org.apache.kafka.common.serialization.Serde
 import org.apache.kafka.streams.scala.StreamsBuilder
 
 import scala.util.Try
-final class KafkaContext[F[_]](val settings: KafkaSettings)
+
+final class KafkaContext[F[_]] private (val settings: KafkaSettings)
     extends UpdateConfig[KafkaSettings, KafkaContext[F]] with Serializable {
 
   override def updateConfig(f: Endo[KafkaSettings]): KafkaContext[F] =
@@ -34,7 +35,7 @@ final class KafkaContext[F[_]](val settings: KafkaSettings)
     SerdeOf[V](avro).asValue(settings.schemaRegistrySettings.config).serde
 
   def topic[K, V](topicDef: TopicDef[K, V]): KafkaTopic[F, K, V] =
-    new KafkaTopic[F, K, V](topicDef, this)
+    new KafkaTopic[F, K, V](topicDef, settings)
 
   def topic[K: SerdeOf, V: SerdeOf](topicName: TopicName): KafkaTopic[F, K, V] =
     topic[K, V](TopicDef[K, V](topicName))
@@ -81,7 +82,15 @@ final class KafkaContext[F[_]](val settings: KafkaSettings)
         .updateConfig( // avoid accidentally join an existing consumer-group
           _.withGroupId(uuid.show).withEnableAutoCommit(false).withAutoOffsetReset(f(AutoOffsetReset)))
         .genericRecords
-        .evalMap(ccr => F.fromTry(gr2Jackson(ccr.record.value)))
+        .map { ccr =>
+          val rcd = ccr.record
+          rcd.value
+            .flatMap(gr2Jackson(_))
+            .toEither
+            .leftMap(e =>
+              new Exception(s"topic=${rcd.topic}, partition=${rcd.partition}, offset=${rcd.offset}", e))
+        }
+        .rethrow
     }
 
   private def bytesProducerSettings(implicit F: Sync[F]): ProducerSettings[F, Array[Byte], Array[Byte]] =
@@ -134,17 +143,20 @@ final class KafkaContext[F[_]](val settings: KafkaSettings)
   def admin(topicName: TopicNameL)(implicit F: Async[F]): KafkaAdminApi[F] =
     admin(TopicName(topicName))
 
-  def cherryPick(topicName: TopicName, partition: Int, offset: Long)(implicit
-    F: Async[F]): F[Option[String]] =
-    for {
-      raw <- admin(topicName).retrieveRecord(partition, offset)
-      schemaPair <- schemaRegistry.fetchAvroSchema(topicName)
-    } yield {
-      val pgr = new PullGenericRecord(settings.schemaRegistrySettings, topicName, schemaPair)
-      raw.map(pgr.toGenericRecord).flatMap(gr2Jackson(_).toOption)
+  def cherryPick(topicName: TopicName, partition: Int, offset: Long)(implicit F: Async[F]): F[String] =
+    admin(topicName).retrieveRecord(partition, offset).flatMap {
+      case None => F.raiseError(new Exception("no record"))
+      case Some(value) =>
+        schemaRegistry.fetchAvroSchema(topicName).flatMap { schemaPair =>
+          val pgr = new PullGenericRecord(settings.schemaRegistrySettings, topicName, schemaPair)
+          F.fromTry(pgr.toGenericRecord(value).flatMap(gr2Jackson(_)))
+        }
     }
 
-  def cherryPick(topicName: TopicNameL, partition: Int, offset: Long)(implicit
-    F: Async[F]): F[Option[String]] =
+  def cherryPick(topicName: TopicNameL, partition: Int, offset: Long)(implicit F: Async[F]): F[String] =
     cherryPick(TopicName(topicName), partition, offset)
+}
+
+object KafkaContext {
+  def apply[F[_]](settings: KafkaSettings): KafkaContext[F] = new KafkaContext[F](settings)
 }

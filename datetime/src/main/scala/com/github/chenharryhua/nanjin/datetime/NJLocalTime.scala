@@ -1,15 +1,17 @@
 package com.github.chenharryhua.nanjin.datetime
 
-import java.time.{Instant, LocalTime, ZoneId, ZonedDateTime}
-import java.util.concurrent.TimeUnit
+import java.time.{Duration as JavaDuration, Instant, LocalTime, ZoneId, ZonedDateTime}
 import scala.concurrent.duration.{Duration, FiniteDuration}
-import scala.jdk.DurationConverters.ScalaDurationOps
+import scala.jdk.DurationConverters.{JavaDurationOps, ScalaDurationOps}
 
 final case class NJLocalTime(value: LocalTime) {
 
   def distance(other: LocalTime): FiniteDuration = {
-    val diff: Long = other.toSecondOfDay.toLong - value.toSecondOfDay
-    FiniteDuration(if (diff >= 0) diff else diff + 24 * 3600, TimeUnit.SECONDS)
+    val dur = JavaDuration.between(value, other)
+    val res = if (dur.isNegative) {
+      dur.plusHours(24)
+    } else dur
+    res.toScala
   }
 }
 

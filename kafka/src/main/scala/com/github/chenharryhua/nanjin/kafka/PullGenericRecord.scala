@@ -22,7 +22,7 @@ final class PullGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName,
   private val schema: Schema = pair.consumerSchema
   private val topic: String  = topicName.value
 
-  @transient private lazy val keyDecode: Array[Byte] => Try[Any] =
+  @transient private lazy val key_decode: Array[Byte] => Try[Any] =
     pair.key.getType match {
       case Schema.Type.RECORD =>
         val deser = new GenericAvroDeserializer()
@@ -50,7 +50,7 @@ final class PullGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName,
       case _ => throw new Exception(s"unsupported key schema ${pair.key}")
     }
 
-  @transient private lazy val valDecode: Array[Byte] => Try[Any] =
+  @transient private lazy val val_decode: Array[Byte] => Try[Any] =
     pair.value.getType match {
       case Schema.Type.RECORD =>
         val deser = new GenericAvroDeserializer()
@@ -78,28 +78,32 @@ final class PullGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName,
       case _ => throw new Exception(s"unsupported value schema ${pair.value}")
     }
 
-  def toGenericRecord(ccr: KafkaByteConsumerRecord): GenericData.Record = {
-    val record: GenericData.Record = new GenericData.Record(schema)
-    val headers: Array[GenericData.Record] = ccr.headers().toArray.map { h =>
-      val header = new GenericData.Record(SchemaFor[NJHeader].schema)
-      header.put("key", h.key())
-      header.put("value", ByteBuffer.wrap(h.value()))
-      header
+  def toGenericRecord(ccr: KafkaByteConsumerRecord): Try[GenericData.Record] =
+    for {
+      key <- key_decode(ccr.key)
+      value <- val_decode(ccr.value)
+    } yield {
+      val record: GenericData.Record = new GenericData.Record(schema)
+      val headers: Array[GenericData.Record] = ccr.headers().toArray.map { h =>
+        val header = new GenericData.Record(SchemaFor[NJHeader].schema)
+        header.put("key", h.key())
+        header.put("value", ByteBuffer.wrap(h.value()))
+        header
+      }
+      record.put("topic", ccr.topic)
+      record.put("partition", ccr.partition)
+      record.put("offset", ccr.offset)
+      record.put("timestamp", ccr.timestamp())
+      record.put("timestampType", ccr.timestampType().id)
+      record.put("serializedKeySize", ccr.serializedKeySize())
+      record.put("serializedValueSize", ccr.serializedValueSize())
+      record.put("key", key)
+      record.put("value", value)
+      record.put("headers", headers.toList.asJava)
+      record.put("leaderEpoch", ccr.leaderEpoch().toScala.orNull)
+      record
     }
-    record.put("topic", ccr.topic)
-    record.put("partition", ccr.partition)
-    record.put("offset", ccr.offset)
-    record.put("timestamp", ccr.timestamp())
-    record.put("timestampType", ccr.timestampType().id)
-    record.put("serializedKeySize", ccr.serializedKeySize())
-    record.put("serializedValueSize", ccr.serializedValueSize())
-    record.put("key", keyDecode(ccr.key).toOption.orNull)
-    record.put("value", valDecode(ccr.value).toOption.orNull)
-    record.put("headers", headers.toList.asJava)
-    record.put("leaderEpoch", ccr.leaderEpoch().toScala.orNull)
-    record
-  }
 
-  def toGenericRecord(ccr: ConsumerRecord[Array[Byte], Array[Byte]]): GenericData.Record =
+  def toGenericRecord(ccr: ConsumerRecord[Array[Byte], Array[Byte]]): Try[GenericData.Record] =
     toGenericRecord(ccr.transformInto[KafkaByteConsumerRecord])
 }

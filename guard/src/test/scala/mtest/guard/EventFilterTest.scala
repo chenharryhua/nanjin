@@ -17,16 +17,16 @@ class EventFilterTest extends AnyFunSuite {
 
   test("1.isPivotalEvent") {
     val List(a, b) = service.eventStream { agent =>
-      agent.action("pivotal", _.bipartite).retry(IO(())).run
-    }.filter(eventFilters.isPivotalEvent).compile.toList.unsafeRunSync()
+      agent.action("pivotal", _.bipartite).retry(IO(())).buildWith(identity).use(_.run(()))
+    }.map(checkJson).filter(eventFilters.isPivotalEvent).compile.toList.unsafeRunSync()
     assert(a.isInstanceOf[ServiceStart])
     assert(b.isInstanceOf[ServiceStop])
   }
 
   test("2.isServiceEvent") {
     val List(a, b) = service.eventStream { agent =>
-      agent.action("service", _.bipartite).retry(IO(())).run
-    }.filter(eventFilters.isServiceEvent).compile.toList.unsafeRunSync()
+      agent.action("service", _.bipartite).retry(IO(())).buildWith(identity).use(_.run(()))
+    }.map(checkJson).filter(eventFilters.isServiceEvent).compile.toList.unsafeRunSync()
 
     assert(a.isInstanceOf[ServiceStart])
     assert(b.isInstanceOf[ServiceStop])
@@ -34,8 +34,8 @@ class EventFilterTest extends AnyFunSuite {
 
   test("3.nonSuppress") {
     val List(a, b) = service.eventStream { agent =>
-      agent.action("nonSuppress", _.bipartite.suppressed).retry(IO(())).run
-    }.filter(eventFilters.nonSuppress).compile.toList.unsafeRunSync()
+      agent.action("nonSuppress", _.bipartite.suppressed).retry(IO(())).buildWith(identity).use(_.run(()))
+    }.map(checkJson).filter(eventFilters.nonSuppress).compile.toList.unsafeRunSync()
     assert(a.isInstanceOf[ServiceStart])
     assert(b.isInstanceOf[ServiceStop])
   }
@@ -43,7 +43,13 @@ class EventFilterTest extends AnyFunSuite {
   test("4.sampling - FiniteDuration") {
     val List(a, b, c, d, e) = service
       .updateConfig(_.withMetricReport(policies.crontab(_.secondly)))
-      .eventStream(agent => agent.action("sleep").retry(IO.sleep(5.seconds)).run >> agent.metrics.report)
+      .eventStream(agent =>
+        agent
+          .action("sleep")
+          .retry(IO.sleep(5.seconds))
+          .buildWith(identity)
+          .use(_.run(())) >> agent.metrics.report)
+      .map(checkJson)
       .filter(eventFilters.sampling(3.seconds))
       .compile
       .toList
@@ -58,7 +64,13 @@ class EventFilterTest extends AnyFunSuite {
   test("5.sampling - divisor") {
     val List(a, b, c, d) = service
       .updateConfig(_.withMetricReport(policies.crontab(_.secondly)))
-      .eventStream(agent => agent.action("sleep").retry(IO.sleep(5.seconds)).run >> agent.metrics.report)
+      .eventStream(agent =>
+        agent
+          .action("sleep")
+          .retry(IO.sleep(5.seconds))
+          .buildWith(identity)
+          .use(_.run(())) >> agent.metrics.report)
+      .map(checkJson)
       .filter(eventFilters.sampling(3))
       .compile
       .toList
@@ -73,8 +85,13 @@ class EventFilterTest extends AnyFunSuite {
     val policy = policies.crontab(_.secondly)
     val lst = service
       .updateConfig(_.withMetricReport(policy))
-      .eventStream(agent => agent.action("sleep").retry(IO.sleep(7.seconds)).run >> agent.metrics.report)
-      .debug()
+      .eventStream(agent =>
+        agent
+          .action("sleep")
+          .retry(IO.sleep(7.seconds))
+          .buildWith(identity)
+          .use(_.run(())) >> agent.metrics.report)
+      .map(checkJson)
       .filter(eventFilters.sampling(_.every3Seconds))
       .compile
       .toList

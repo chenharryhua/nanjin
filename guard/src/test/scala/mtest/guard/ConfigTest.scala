@@ -2,64 +2,106 @@ package mtest.guard
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import cats.implicits.{toFunctorOps, toShow}
 import com.github.chenharryhua.nanjin.common.chrono.policies
 import com.github.chenharryhua.nanjin.common.chrono.zones.berlinTime
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
-import com.github.chenharryhua.nanjin.guard.observers.console
-import com.github.chenharryhua.nanjin.guard.service.{NameConstraint, ServiceGuard}
-import com.github.chenharryhua.nanjin.guard.translators.{Attachment, EventName, SlackApp, Translator}
+import com.github.chenharryhua.nanjin.guard.translator.*
 import io.circe.Json
+import io.circe.syntax.EncoderOps
 import org.scalatest.funsuite.AnyFunSuite
 
 class ConfigTest extends AnyFunSuite {
-  val service: ServiceGuard[IO] =
+  val task: TaskGuard[IO] =
     TaskGuard[IO]("config")
       .updateConfig(_.withZoneId(berlinTime))
-      .service("config")
       .updateConfig(_.withMetricReport(policies.crontab(_.hourly)))
 
   test("1.counting") {
-    val as = service.eventStream { agent =>
-      agent.action("cfg", _.bipartite.counted).retry(IO(1)).run
-    }.filter(_.isInstanceOf[ActionStart]).compile.last.unsafeRunSync().get.asInstanceOf[ActionStart]
+    val as = task
+      .service("counting")
+      .eventStream { agent =>
+        agent.action("cfg", _.bipartite.counted).retry(IO(1)).buildWith(identity).use(_.run(()))
+      }
+      .map(checkJson)
+      .filter(_.isInstanceOf[ActionStart])
+      .compile
+      .last
+      .unsafeRunSync()
+      .get
+      .asInstanceOf[ActionStart]
     assert(as.actionParams.isCounting)
   }
   test("2.without counting") {
-    val as = service.eventStream { agent =>
-      agent.action("cfg", _.bipartite.uncounted).retry(IO(1)).run
-    }.filter(_.isInstanceOf[ActionStart]).compile.last.unsafeRunSync().get.asInstanceOf[ActionStart]
+    val as = task
+      .service("no count")
+      .eventStream { agent =>
+        agent.action("cfg", _.bipartite).retry(IO(1)).buildWith(identity).use(_.run(()))
+      }
+      .map(checkJson)
+      .filter(_.isInstanceOf[ActionStart])
+      .compile
+      .last
+      .unsafeRunSync()
+      .get
+      .asInstanceOf[ActionStart]
     assert(!as.actionParams.isCounting)
   }
 
   test("3.timing") {
-    val as = service.eventStream { agent =>
-      agent.action("cfg", _.bipartite.timed).retry(IO(1)).run
-    }.filter(_.isInstanceOf[ActionStart]).compile.last.unsafeRunSync().get.asInstanceOf[ActionStart]
+    val as = task
+      .service("timing")
+      .eventStream { agent =>
+        agent.action("cfg", _.bipartite.timed).retry(IO(1)).buildWith(identity).use(_.run(()))
+      }
+      .map(checkJson)
+      .filter(_.isInstanceOf[ActionStart])
+      .compile
+      .last
+      .unsafeRunSync()
+      .get
+      .asInstanceOf[ActionStart]
     assert(as.actionParams.isTiming)
   }
 
   test("4.without timing") {
-    val as = service.eventStream { agent =>
-      agent.action("cfg", _.bipartite.untimed).retry(IO(1)).run
-    }.filter(_.isInstanceOf[ActionStart]).compile.last.unsafeRunSync().get.asInstanceOf[ActionStart]
+    val as = task
+      .service("no timing")
+      .eventStream { agent =>
+        agent.action("cfg", _.bipartite).retry(IO(1)).buildWith(identity).use(_.run(()))
+      }
+      .map(checkJson)
+      .filter(_.isInstanceOf[ActionStart])
+      .compile
+      .last
+      .unsafeRunSync()
+      .get
+      .asInstanceOf[ActionStart]
     assert(!as.actionParams.isTiming)
   }
 
   test("5.silent") {
-    val as = service.eventStream { agent =>
-      agent.action("cfg", _.silent).retry(IO(1)).run
-    }.filter(_.isInstanceOf[ActionStart]).compile.last.unsafeRunSync()
+    val as = task
+      .service("silent")
+      .eventStream { agent =>
+        agent.action("cfg", _.silent).retry(IO(1)).buildWith(identity).use(_.run(()))
+      }
+      .map(checkJson)
+      .filter(_.isInstanceOf[ActionStart])
+      .compile
+      .last
+      .unsafeRunSync()
     assert(as.isEmpty)
   }
 
   test("6.report") {
-    service
+    task
+      .service("report")
       .updateConfig(_.withMetricReport(policies.giveUp))
       .eventStream { agent =>
-        agent.action("cfg", _.silent).retry(IO(1)).run
+        agent.action("cfg", _.silent).retry(IO(1)).buildWith(identity).use(_.run(()))
       }
+      .map(checkJson)
       .filter(_.isInstanceOf[ServiceStart])
       .compile
       .last
@@ -67,14 +109,30 @@ class ConfigTest extends AnyFunSuite {
   }
 
   test("7.reset") {
-    service.eventStream { agent =>
-      agent.action("cfg", _.silent).retry(IO(1)).run
-    }.filter(_.isInstanceOf[ServiceStart]).compile.last.unsafeRunSync()
+    task
+      .service("reset")
+      .eventStream { agent =>
+        agent.action("cfg", _.silent).retry(IO(1)).buildWith(identity).use(_.run(()))
+      }
+      .map(checkJson)
+      .filter(_.isInstanceOf[ServiceStart])
+      .compile
+      .last
+      .unsafeRunSync()
   }
 
   test("8.composable action config") {
-    val as = service
-      .eventStream(_.action("abc", _.bipartite.counted).updateConfig(_.timed).delay(1).run)
+    val as = task
+      .service("composable action")
+      .eventStream(
+        _.action("abc", _.bipartite.counted.timed)
+          .delay(1)
+          .buildWith(_.tapInput(_ => Json.Null)
+            .tapOutput((_, _) => Json.Null)
+            .tapError(_ => Json.Null)
+            .worthRetry(_ => true))
+          .use(_.run(())))
+      .map(checkJson)
       .filter(_.isInstanceOf[ActionStart])
       .compile
       .last
@@ -86,13 +144,7 @@ class ConfigTest extends AnyFunSuite {
     assert(as.actionParams.isTiming)
   }
 
-  test("9.should not contain {},[]") {
-    assertThrows[IllegalArgumentException](NameConstraint.unsafeFrom("{a b c}"))
-    assertThrows[IllegalArgumentException](NameConstraint.unsafeFrom("[a b c]"))
-    NameConstraint.unsafeFrom(" a B 3 , . _ - / \\ ! @ # $ % & + * = < > ? ^ : ( )").value
-  }
-
-  test("10.case") {
+  test("9.case") {
     val en = EventName.ServiceStart
     assert(en.entryName == "Service Start")
     assert(en.snake == "service_start")
@@ -100,47 +152,29 @@ class ConfigTest extends AnyFunSuite {
     assert(en.camel == "serviceStart")
     assert(en.camelJson == Json.fromString("serviceStart"))
     assert(en.snakeJson == Json.fromString("service_start"))
+    assert(en.compactJson == Json.fromString("ServiceStart"))
   }
 
-  test("11.lenses") {
-    val len =
-      Translator
-        .serviceStart[IO, SlackApp]
-        .modify(_.map(s =>
-          s.copy(attachments = Attachment("modified by lense", List.empty) :: s.attachments)))
-        .apply(Translator.slack[IO])
+  test("10.brief merge") {
+    import io.circe.generic.auto.*
+    final case class A(a: Int, z: Int)
+    final case class B(b: Int, z: String)
 
-    TaskGuard[IO]("lenses")
-      .service("lenses")
-      .eventStream { ag =>
-        val err =
-          ag.action("error", _.critical).retry(IO.raiseError[Int](new Exception("oops"))).run
-        err.attempt
-      }
-      .evalTap(console(len.map(_.show)))
+    val ss = task
+      .service("brief merge")
+      .updateConfig(_.addBrief(A(1, 3).asJson))
+      .updateConfig(_.addBrief(B(2, "b")))
+      .updateConfig(_.addBrief(Json.Null))
+      .updateConfig(_.addBrief(IO(A(1, 3))))
+      .eventStream(_.action("cfg").retry(IO(1)).buildWith(identity).use(_.run(())))
+      .map(checkJson)
+      .filter(_.isInstanceOf[ServiceStart])
       .compile
-      .drain
+      .last
       .unsafeRunSync()
+      .get
+      .asInstanceOf[ServiceStart]
+    val ab = ss.serviceParams.brief.noSpaces
+    assert(ab === """[{"a":1,"z":3},{"b":2,"z":"b"}]""")
   }
-
-  test("12.lenses - 2") {
-    val len =
-      Translator
-        .serviceStart[IO, SlackApp]
-        .modify(_.map(_.prependMarkdown("prepend").appendMarkdown("append")))
-        .apply(Translator.slack[IO])
-
-    TaskGuard[IO]("lenses")
-      .service("lenses")
-      .eventStream { ag =>
-        val err =
-          ag.action("error", _.critical).retry(IO.raiseError[Int](new Exception("oops"))).run
-        err.attempt
-      }
-      .evalTap(console(len.map(_.show)))
-      .compile
-      .drain
-      .unsafeRunSync()
-  }
-
 }

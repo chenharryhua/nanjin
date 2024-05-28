@@ -4,6 +4,7 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.toShow
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
+import com.github.chenharryhua.nanjin.messages.kafka.CRMetaInfo
 import mtest.spark.sparkSession
 import org.apache.spark.sql.Dataset
 import org.scalatest.funsuite.AnyFunSuite
@@ -27,7 +28,6 @@ object StatisticsTestData {
     CRMetaInfo("topic", 1, 2, dt.plus(unit * 3).milliseconds, 0),
     CRMetaInfo("topic", 1, 3, dt.plus(unit * 4).milliseconds, 0)
   )
-  import sparkSession.implicits.*
 
   val ds: Dataset[CRMetaInfo] = sparkSession.createDataset(list)
 

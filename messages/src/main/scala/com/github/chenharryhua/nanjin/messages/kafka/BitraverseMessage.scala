@@ -98,7 +98,7 @@ object NJConsumerMessage {
           NJConsumerRecord[K1, V1],
           NJConsumerRecord[K2, V2],
           JavaConsumerRecord[K1, V1],
-          JavaConsumerRecord[K2, V2]](_.toJavaConsumerRecord)(b =>
+          JavaConsumerRecord[K2, V2]](_.transformInto[JavaConsumerRecord[K1, V1]])(b =>
           _ => b.transformInto[NJConsumerRecord[K2, V2]])
     }
 }

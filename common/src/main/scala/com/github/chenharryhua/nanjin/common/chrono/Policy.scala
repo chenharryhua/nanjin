@@ -3,7 +3,6 @@ package com.github.chenharryhua.nanjin.common.chrono
 import cats.data.NonEmptyList
 import cats.syntax.all.*
 import cats.{Functor, Show}
-import com.github.chenharryhua.nanjin.common.DurationFormatter
 import cron4s.CronExpr
 import cron4s.lib.javatime.javaTemporalInstance
 import cron4s.syntax.all.*
@@ -20,7 +19,7 @@ import org.typelevel.cats.time.instances.all
 import java.time.*
 import java.time.temporal.ChronoUnit
 import scala.annotation.tailrec
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration.{Duration as ScalaDuration, FiniteDuration}
 import scala.jdk.DurationConverters.ScalaDurationOps
 import scala.util.{Random, Try}
 
@@ -32,7 +31,6 @@ private object PolicyF extends all {
 
   final case class GiveUp[K]() extends PolicyF[K]
   final case class Crontab[K](cronExpr: CronExpr) extends PolicyF[K]
-  final case class Jitter[K](min: Duration, max: Duration) extends PolicyF[K]
   final case class FixedDelay[K](delays: NonEmptyList[Duration]) extends PolicyF[K]
   final case class FixedRate[K](delay: Duration) extends PolicyF[K]
 
@@ -42,8 +40,10 @@ private object PolicyF extends all {
   final case class Repeat[K](policy: K) extends PolicyF[K]
   final case class Meet[K](first: K, second: K) extends PolicyF[K]
   final case class Except[K](policy: K, except: LocalTime) extends PolicyF[K]
+  final case class Offset[K](policy: K, offset: Duration) extends PolicyF[K]
+  final case class Jitter[K](policy: K, min: Duration, max: Duration) extends PolicyF[K]
 
-  type CalcTick = TickRequest => Option[Tick]
+  type CalcTick = TickRequest => Tick
   final case class TickRequest(tick: Tick, now: Instant)
 
   @tailrec
@@ -63,26 +63,23 @@ private object PolicyF extends all {
 
       case Crontab(cronExpr) =>
         val calcTick: CalcTick = { case TickRequest(tick, now) =>
-          cronExpr.next(now.atZone(tick.zoneId)).map(zdt => tick.newTick(now, Duration.between(now, zdt)))
-        }
-        LazyList.continually(calcTick)
-
-      case Jitter(min, max) =>
-        val calcTick: CalcTick = { case TickRequest(tick, now) =>
-          val delay = Duration.of(Random.between(min.toNanos, max.toNanos), ChronoUnit.NANOS)
-          tick.newTick(now, delay).some
+          cronExpr.next(now.atZone(tick.zoneId)) match {
+            case Some(value) => tick.newTick(now, Duration.between(now, value))
+            case None => // should not happen but in case
+              sys.error(show"$cronExpr return None at $now. idx=${tick.index}")
+          }
         }
         LazyList.continually(calcTick)
 
       case FixedDelay(delays) =>
         val seed: LazyList[CalcTick] = LazyList.from(delays.toList).map[CalcTick] { delay =>
-          { case TickRequest(tick, now) => tick.newTick(now, delay).some }
+          { case TickRequest(tick, now) => tick.newTick(now, delay) }
         }
         LazyList.continually(seed).flatten
 
       case FixedRate(delay) =>
         LazyList.continually { case TickRequest(tick, now) =>
-          tick.newTick(now, fixedRateSnooze(tick.wakeup, now, delay, 1)).some
+          tick.newTick(now, fixedRateSnooze(tick.wakeup, now, delay, 1))
         }
 
       // ops
@@ -96,27 +93,36 @@ private object PolicyF extends all {
       case Meet(first, second) =>
         first.zip(second).map { case (fa: CalcTick, fb: CalcTick) =>
           (req: TickRequest) =>
-            (fa(req), fb(req)).mapN { (ra, rb) =>
-              if (ra.snooze < rb.snooze) ra else rb // shorter win
-            }
+            val ra = fa(req)
+            val rb = fb(req)
+            if (ra.snooze < rb.snooze) ra else rb // shorter win
         }
 
       case Except(policy, except) =>
         policy.map { (f: CalcTick) => (req: TickRequest) =>
-          f(req).flatMap { tick =>
+          {
+            val tick = f(req)
             if (tick.zonedWakeup.toLocalTime === except) {
-              f(TickRequest(tick, tick.wakeup)).map { nt =>
-                tick.focus(_.snooze).modify(_.plus(nt.snooze))
-              }
-            } else Some(tick)
+              val nt = f(TickRequest(tick, tick.wakeup))
+              tick.focus(_.snooze).modify(_.plus(nt.snooze))
+            } else tick
           }
+        }
+
+      case Offset(policy, offset) =>
+        policy.map { (f: CalcTick) => (req: TickRequest) =>
+          f(req).focus(_.snooze).modify(_.plus(offset))
+        }
+
+      case Jitter(policy, min, max) =>
+        policy.map { (f: CalcTick) => (req: TickRequest) =>
+          val delay = Duration.of(Random.between(min.toNanos, max.toNanos), ChronoUnit.NANOS)
+          f(req).focus(_.snooze).modify(_.plus(delay))
         }
     }
 
   def decisions(policy: Fix[PolicyF]): LazyList[CalcTick] =
     scheme.cata(algebra).apply(policy)
-
-  private val fmt: DurationFormatter = DurationFormatter.defaultFormatter
 
   private val GIVE_UP: String              = "giveUp"
   private val ACCORDANCE: String           = "accordance"
@@ -136,16 +142,15 @@ private object PolicyF extends all {
   private val MEET_SECOND: String          = "second"
   private val REPEAT: String               = "repeat"
   private val EXCEPT: String               = "except"
+  private val OFFSET: String               = "offset"
 
   val showPolicy: Algebra[PolicyF, String] = Algebra[PolicyF, String] {
     case GiveUp()           => show"$GIVE_UP"
     case Accordance(policy) => show"$ACCORDANCE($policy)"
     case Crontab(cronExpr)  => show"$CRONTAB($cronExpr)"
-    case Jitter(min, max)   => show"$JITTER(${fmt.format(min)}, ${fmt.format(max)})"
 
-    case FixedDelay(delays) if delays.size === 1 => show"$FIXED_DELAY(${fmt.format(delays.head)})"
-    case FixedDelay(delays)                      => show"$FIXED_DELAY(${fmt.format(delays.head)}, ...)"
-    case FixedRate(delay)                        => show"$FIXED_RATE(${fmt.format(delay)})"
+    case FixedDelay(delays) => show"$FIXED_DELAY(${delays.toList.mkString(",")})"
+    case FixedRate(delay)   => show"$FIXED_RATE($delay)"
 
     // ops
     case Limited(policy, limit)       => show"$policy.$LIMITED($limit)"
@@ -153,18 +158,18 @@ private object PolicyF extends all {
     case Repeat(policy)               => show"$policy.$REPEAT"
     case Meet(first, second)          => show"$first.$MEET($second)"
     case Except(policy, except)       => show"$policy.$EXCEPT($except)"
+    case Offset(policy, offset)       => show"$policy.$OFFSET($offset)"
+    case Jitter(policy, min, max)     => show"$policy.$JITTER($min,$max)"
   }
 
   // json encoder
   private val jsonAlgebra: Algebra[PolicyF, Json] = Algebra[PolicyF, Json] {
     case GiveUp() =>
-      Json.obj(GIVE_UP -> Json.Null)
+      Json.obj(GIVE_UP -> Json.True)
     case Accordance(policy) =>
       Json.obj(ACCORDANCE -> policy)
     case Crontab(cronExpr) =>
       Json.obj(CRONTAB -> cronExpr.asJson)
-    case Jitter(min, max) =>
-      Json.obj(JITTER -> Json.obj(JITTER_MIN -> min.asJson, JITTER_MAX -> max.asJson))
     case FixedDelay(delays) =>
       Json.obj(FIXED_DELAY -> delays.asJson)
     case FixedRate(delays) =>
@@ -179,6 +184,10 @@ private object PolicyF extends all {
       Json.obj(MEET -> Json.obj(MEET_FIRST -> first, MEET_SECOND -> second))
     case Except(policy, except) =>
       Json.obj(EXCEPT -> except.asJson, POLICY -> policy)
+    case Offset(policy, offset) =>
+      Json.obj(OFFSET -> offset.asJson, POLICY -> policy)
+    case Jitter(policy, min, max) =>
+      Json.obj(JITTER -> Json.obj(JITTER_MIN -> min.asJson, JITTER_MAX -> max.asJson, POLICY -> policy))
   }
 
   val encoderFixPolicyF: Encoder[Fix[PolicyF]] =
@@ -198,7 +207,9 @@ private object PolicyF extends all {
     def jitter(hc: HCursor): Result[Jitter[HCursor]] = {
       val min = hc.downField(JITTER).downField(JITTER_MIN).as[Duration]
       val max = hc.downField(JITTER).downField(JITTER_MAX).as[Duration]
-      (min, max).mapN(Jitter[HCursor])
+      val plc = hc.downField(JITTER).downField(POLICY).as[HCursor]
+
+      (plc, min, max).mapN(Jitter[HCursor])
     }
 
     def fixedDelay(hc: HCursor): Result[FixedDelay[HCursor]] =
@@ -234,6 +245,12 @@ private object PolicyF extends all {
       (plc, ept).mapN(Except[HCursor])
     }
 
+    def offset(hc: HCursor): Result[Offset[HCursor]] = {
+      val ost = hc.get[Duration](OFFSET)
+      val plc = hc.downField(POLICY).as[HCursor]
+      (plc, ost).mapN(Offset[HCursor])
+    }
+
     Coalgebra[PolicyF, HCursor] { hc =>
       val result =
         giveUp(hc)
@@ -246,6 +263,7 @@ private object PolicyF extends all {
           .orElse(accordance(hc))
           .orElse(meet(hc))
           .orElse(except(hc))
+          .orElse(offset(hc))
           .orElse(repeat(hc))
 
       result match {
@@ -264,17 +282,48 @@ private object PolicyF extends all {
 
 }
 
-final case class Policy(policy: Fix[PolicyF]) { // don't extends AnyVal, monocle doesn't like it
-  import PolicyF.{Except, FollowedBy, Limited, Meet, Repeat}
+final case class Policy(private[chrono] val policy: Fix[PolicyF]) { // don't extends AnyVal, monocle doesn't like it
+  import PolicyF.{Except, FollowedBy, Jitter, Limited, Meet, Offset, Repeat}
   override def toString: String = scheme.cata(PolicyF.showPolicy).apply(policy)
 
-  def limited(num: Int): Policy         = Policy(Fix(Limited(policy, num)))
+  /** @param num
+    *   bigger than zero
+    */
+  def limited(num: Int): Policy = {
+    require(num > 0, s"$num should be bigger than zero")
+    Policy(Fix(Limited(policy, num)))
+  }
   def followedBy(other: Policy): Policy = Policy(Fix(FollowedBy(policy, other.policy)))
   def repeat: Policy                    = Policy(Fix(Repeat(policy)))
   def meet(other: Policy): Policy       = Policy(Fix(Meet(policy, other.policy)))
 
   def except(localTime: LocalTime): Policy            = Policy(Fix(Except(policy, localTime)))
   def except(f: localTimes.type => LocalTime): Policy = except(f(localTimes))
+
+  def offset(fd: FiniteDuration): Policy = {
+    require(fd > ScalaDuration.Zero, s"$fd should be positive")
+    Policy(Fix(Offset(policy, fd.toJava)))
+  }
+
+  /** @param min
+    *   non-negative
+    * @param max
+    *   bigger than zero
+    *
+    * max should be bigger than min
+    */
+  def jitter(min: FiniteDuration, max: FiniteDuration): Policy = {
+    require(min >= ScalaDuration.Zero, s"$min should not be negative")
+    require(max > min, s"$max should be bigger than $min")
+    Policy(Fix(Jitter(policy, min.toJava, max.toJava)))
+  }
+
+  /** @param max
+    *   bigger than zero
+    */
+  def jitter(max: FiniteDuration): Policy =
+    jitter(ScalaDuration.Zero, max)
+
 }
 
 object Policy {
@@ -289,20 +338,30 @@ object Policy {
 }
 
 object policies {
-  import PolicyF.{Accordance, Crontab, FixedDelay, FixedRate, GiveUp, Jitter}
+  import PolicyF.{Accordance, Crontab, FixedDelay, FixedRate, GiveUp}
 
   def accordance(policy: Policy): Policy = Policy(Fix(Accordance(policy.policy)))
 
   def crontab(cronExpr: CronExpr): Policy           = Policy(Fix(Crontab(cronExpr)))
   def crontab(f: crontabs.type => CronExpr): Policy = crontab(f(crontabs))
 
-  def jitter(min: FiniteDuration, max: FiniteDuration): Policy = Policy(Fix(Jitter(min.toJava, max.toJava)))
+  def fixedDelay(delays: NonEmptyList[Duration]): Policy = {
+    require(delays.forall(!_.isNegative), "every delay should be positive or zero")
+    Policy(Fix(FixedDelay(delays)))
+  }
 
-  def fixedDelay(delays: NonEmptyList[Duration]): Policy = Policy(Fix(FixedDelay(delays)))
+  /** should be non-negative
+    */
   def fixedDelay(head: FiniteDuration, tail: FiniteDuration*): Policy =
     fixedDelay(NonEmptyList(head.toJava, tail.toList.map(_.toJava)))
 
-  def fixedRate(delay: FiniteDuration): Policy = Policy(Fix(FixedRate(delay.toJava)))
+  /** @param delay
+    *   should be bigger than zero
+    */
+  def fixedRate(delay: FiniteDuration): Policy = {
+    require(delay > ScalaDuration.Zero, s"$delay should be bigger than zero")
+    Policy(Fix(FixedRate(delay.toJava)))
+  }
 
   val giveUp: Policy = Policy(Fix(GiveUp()))
 }

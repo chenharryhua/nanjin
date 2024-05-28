@@ -7,9 +7,9 @@ import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameL}
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.*
-import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
+import com.github.chenharryhua.nanjin.messages.kafka.{CRMetaInfo, NJConsumerRecord}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{gr2Jackson, SerdeOf}
-import com.github.chenharryhua.nanjin.spark.kafka.{sk, CRMetaInfo, SparKafkaTopic, Statistics}
+import com.github.chenharryhua.nanjin.spark.kafka.{sk, SparKafkaTopic, Statistics}
 import com.github.chenharryhua.nanjin.spark.persist.RddFileHoarder
 import com.github.chenharryhua.nanjin.terminals.{NJHadoop, NJPath}
 import eu.timepit.refined.refineMV
@@ -23,7 +23,7 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
     extends Serializable with zoneid {
 
   def topic[K, V](topicDef: TopicDef[K, V]): SparKafkaTopic[F, K, V] =
-    new SparKafkaTopic[F, K, V](sparkSession, topicDef.in[F](kafkaContext))
+    new SparKafkaTopic[F, K, V](sparkSession, kafkaContext.topic(topicDef))
 
   def topic[K, V](kt: KafkaTopic[F, K, V]): SparKafkaTopic[F, K, V] =
     topic[K, V](kt.topicDef)
@@ -56,13 +56,16 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
       range <- kafkaContext.admin(topicName).offsetRangeFor(dateRange)
     } yield sk
       .kafkaBatchRDD(kafkaContext.settings.consumerSettings, sparkSession, range)
-      .flatMap(elem => gr2Jackson(builder.toGenericRecord(elem)).toOption)
+      .flatMap(builder.toGenericRecord(_).flatMap(gr2Jackson(_)).toOption)
 
     new RddFileHoarder(grRdd).text(path).withSaveMode(_.Append).withSuffix("jackson.json").run
   }
 
   def dump(topicName: TopicNameL, path: NJPath)(implicit F: Async[F]): F[Unit] =
     dump(TopicName(topicName), path, NJDateTimeRange(utils.sparkZoneId(sparkSession)))
+
+  def dump(topicName: TopicName, path: NJPath)(implicit F: Async[F]): F[Unit] =
+    dump(topicName, path, NJDateTimeRange(utils.sparkZoneId(sparkSession)))
 
   /** upload data from given folder to a kafka topic. files read in parallel
     *
@@ -165,6 +168,7 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
     uploadInSequence(TopicName(topicName), path, refineMV(1000), identity)
 
   object stats {
+    import kafka.{encoderCRMetaInfo, typedEncoderCRMetaInfo}
 
     private val ate: AvroTypedEncoder[CRMetaInfo] = AvroTypedEncoder[CRMetaInfo]
 

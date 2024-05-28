@@ -12,13 +12,13 @@ import org.apache.spark.sql.{Dataset, SaveMode, SparkSession}
 final class NJTable[F[_], A](val fdataset: F[Dataset[A]], ate: AvroTypedEncoder[A])(implicit F: Sync[F]) {
 
   def map[B](bate: AvroTypedEncoder[B])(f: A => B): NJTable[F, B] =
-    new NJTable[F, B](F.flatMap(fdataset)(ds => F.interruptible(ds.map(f)(bate.sparkEncoder))), bate)
+    new NJTable[F, B](fdataset.map(ds => ds.map(f)(bate.sparkEncoder)), bate)
 
   def flatMap[B](bate: AvroTypedEncoder[B])(f: A => IterableOnce[B]): NJTable[F, B] =
-    new NJTable[F, B](F.flatMap(fdataset)(ds => F.interruptible(ds.flatMap(f)(bate.sparkEncoder))), bate)
+    new NJTable[F, B](fdataset.map(ds => ds.flatMap(f)(bate.sparkEncoder)), bate)
 
   def transform(f: Endo[Dataset[A]]): NJTable[F, A] =
-    new NJTable[F, A](F.flatMap(fdataset)(ds => F.interruptible(f(ds))), ate)
+    new NJTable[F, A](fdataset.map(ds => f(ds)), ate)
 
   def repartition(numPartitions: Int): NJTable[F, A] = transform(_.repartition(numPartitions))
   def normalize: NJTable[F, A]                       = transform(ate.normalize)
@@ -28,8 +28,7 @@ final class NJTable[F[_], A](val fdataset: F[Dataset[A]], ate: AvroTypedEncoder[
     val ds = for {
       me <- fdataset
       you <- other.fdataset
-      ds <- F.interruptible(me.except(you))
-    } yield ds
+    } yield me.except(you)
     new NJTable[F, A](ds, ate)
   }
 
@@ -38,28 +37,26 @@ final class NJTable[F[_], A](val fdataset: F[Dataset[A]], ate: AvroTypedEncoder[
     val ds = for {
       me <- fdataset
       you <- other.fdataset
-      ds <- F.interruptible(me.union(you))
-    } yield ds
+    } yield me.union(you)
     new NJTable[F, A](ds, ate)
   }
 
   def output: RddAvroFileHoarder[F, A] =
-    new RddAvroFileHoarder[F, A](F.flatMap(fdataset)(ds => F.interruptible(ds.rdd)), ate.avroCodec)
+    new RddAvroFileHoarder[F, A](fdataset.map(ds => ds.rdd), ate.avroCodec)
 
-  def count: F[Long] = F.flatMap(fdataset)(ds => F.interruptible(ds.count()))
+  def count: F[Long] = fdataset.map(ds => ds.count())
 
   def upload(hikariConfig: HikariConfig, tableName: TableName, saveMode: SaveMode): F[Unit] =
-    F.flatMap(fdataset)(ds =>
-      F.interruptible(
-        ds.write
-          .mode(saveMode)
-          .format("jdbc")
-          .option("driver", hikariConfig.getDriverClassName)
-          .option("url", hikariConfig.getJdbcUrl)
-          .option("user", hikariConfig.getUsername)
-          .option("password", hikariConfig.getPassword)
-          .option("dbtable", tableName.value)
-          .save()))
+    fdataset.map(ds =>
+      ds.write
+        .mode(saveMode)
+        .format("jdbc")
+        .option("driver", hikariConfig.getDriverClassName)
+        .option("url", hikariConfig.getJdbcUrl)
+        .option("user", hikariConfig.getUsername)
+        .option("password", hikariConfig.getPassword)
+        .option("dbtable", tableName.value)
+        .save())
 }
 
 object NJTable {

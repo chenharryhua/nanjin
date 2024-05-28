@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard.service
 
 import cats.Endo
 import cats.effect.kernel.{Async, Unique}
-import cats.effect.std.{AtomicCell, Dispatcher}
+import cats.effect.std.AtomicCell
 import cats.syntax.all.*
 import com.codahale.metrics.MetricRegistry
 import com.codahale.metrics.jmx.JmxReporter
@@ -11,12 +11,15 @@ import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.common.chrono.*
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.event.*
+import com.github.chenharryhua.nanjin.guard.event.NJEvent.{MetricReport, ServicePanic}
 import fs2.Stream
 import fs2.concurrent.{Channel, SignallingMapRef}
 import fs2.io.net.Network
-import io.circe.Json
+import io.circe.syntax.*
+import org.apache.commons.collections4.queue.CircularFifoQueue
 import org.http4s.ember.server.EmberServerBuilder
 import org.typelevel.vault.{Locker, Vault}
+
 
 // format: off
 /** @example
@@ -30,86 +33,62 @@ import org.typelevel.vault.{Locker, Vault}
   */
 // format: on
 
-final class ServiceGuard[F[_]: Network] private[guard] (
-  serviceName: ServiceName,
-  taskParams: TaskParams,
-  config: Endo[ServiceConfig],
-  httpBuilder: Option[Endo[EmberServerBuilder[F]]],
-  jmxBuilder: Option[Endo[JmxReporter.Builder]],
-  brief: F[Option[Json]])(implicit F: Async[F])
-    extends UpdateConfig[ServiceConfig, ServiceGuard[F]] { self =>
+final class ServiceGuard[F[_]: Network] private[guard] (serviceName: ServiceName, config: ServiceConfig[F])(
+  implicit F: Async[F])
+    extends UpdateConfig[ServiceConfig[F], ServiceGuard[F]] { self =>
 
-  private def copy(
-    serviceName: ServiceName = self.serviceName,
-    config: Endo[ServiceConfig] = self.config,
-    httpBuilder: Option[EmberServerBuilder[F] => EmberServerBuilder[F]] = self.httpBuilder,
-    jmxBuilder: Option[Endo[JmxReporter.Builder]] = self.jmxBuilder,
-    brief: F[Option[Json]] = self.brief
-  ): ServiceGuard[F] =
-    new ServiceGuard[F](
-      serviceName = serviceName,
-      taskParams = self.taskParams,
-      config = config,
-      httpBuilder = httpBuilder,
-      jmxBuilder = jmxBuilder,
-      brief = brief
-    )
-
-  override def updateConfig(f: Endo[ServiceConfig]): ServiceGuard[F] = copy(config = f.compose(self.config))
-  def apply(serviceName: String): ServiceGuard[F] = copy(serviceName = ServiceName(serviceName))
-
-  def withHttpServer(f: Endo[EmberServerBuilder[F]]): ServiceGuard[F] = copy(httpBuilder = Some(f))
-  def withJmx(f: Endo[JmxReporter.Builder]): ServiceGuard[F]          = copy(jmxBuilder = Some(f))
-
-  def withBrief(json: F[Json]): ServiceGuard[F] = copy(brief = json.map(_.some))
-  def withBrief(json: Json): ServiceGuard[F]    = withBrief(F.pure(json))
+  override def updateConfig(f: Endo[ServiceConfig[F]]): ServiceGuard[F] =
+    new ServiceGuard[F](serviceName, f(config))
 
   private lazy val emberServerBuilder: Option[EmberServerBuilder[F]] =
-    httpBuilder.map(_(EmberServerBuilder.default[F].withHost(ip"0.0.0.0").withPort(port"1026")))
+    config.httpBuilder.map(_(EmberServerBuilder.default[F].withHost(ip"0.0.0.0").withPort(port"1026")))
 
-  private def initStatus(zeroth: TickStatus): F[ServiceParams] = for {
-    json <- brief
-  } yield config(ServiceConfig(taskParams)).evalConfig(
+  private def initStatus: F[ServiceParams] = for {
+    jsons <- config.briefs
+    zeroth <- Tick.zeroth[F](config.zoneId)
+  } yield config.evalConfig(
     serviceName = serviceName,
     emberServerParams = emberServerBuilder.map(EmberServerParams(_)),
-    brief = ServiceBrief(json),
-    zerothTick = zeroth.tick
+    brief = ServiceBrief(jsons.filterNot(_.isNull).distinct.asJson),
+    zerothTick = zeroth
   )
 
   def eventStream[A](runAgent: GeneralAgent[F] => F[A]): Stream[F, NJEvent] =
     for {
-      zeroth <- Stream.eval(TickStatus.zeroth[F](policies.giveUp, taskParams.zoneId))
-      serviceParams <- Stream.eval(initStatus(zeroth))
+      serviceParams <- Stream.eval(initStatus)
       signallingMapRef <- Stream.eval(SignallingMapRef.ofSingleImmutableMap[F, Unique.Token, Locker]())
       atomicCell <- Stream.eval(AtomicCell[F].of(Vault.empty))
-      dispatcher <- Stream.resource(Dispatcher.parallel[F])
+      panicHistory <- Stream.eval(AtomicCell[F].of(new CircularFifoQueue[ServicePanic]()))
+      metricsHistory <- Stream.eval(AtomicCell[F].of(new CircularFifoQueue[MetricReport]()))
       event <- Stream.eval(Channel.unbounded[F, NJEvent]).flatMap { channel =>
         val metricRegistry: MetricRegistry = new MetricRegistry()
 
-        val metricsReport: Stream[F, Nothing] =
-          tickStream[F](zeroth.renewPolicy(serviceParams.servicePolicies.metricReport))
+        val metrics_report: Stream[F, Nothing] =
+          tickStream[F](
+            TickStatus(serviceParams.zerothTick).renewPolicy(serviceParams.servicePolicies.metricReport))
             .evalMap(tick =>
-              publisher.metricReport(
-                channel = channel,
-                serviceParams = serviceParams,
-                metricRegistry = metricRegistry,
-                index = MetricIndex.Periodic(tick),
-                ts = tick.wakeup))
+              publisher
+                .metricReport(
+                  channel = channel,
+                  serviceParams = serviceParams,
+                  metricRegistry = metricRegistry,
+                  index = MetricIndex.Periodic(tick))
+                .flatMap(mr => metricsHistory.modify(queue => (queue, queue.add(mr)))))
             .drain
 
-        val metricsReset: Stream[F, Nothing] =
-          tickStream[F](zeroth.renewPolicy(serviceParams.servicePolicies.metricReset))
+        val metrics_reset: Stream[F, Nothing] =
+          tickStream[F](
+            TickStatus(serviceParams.zerothTick).renewPolicy(serviceParams.servicePolicies.metricReset))
             .evalMap(tick =>
               publisher.metricReset(
                 channel = channel,
                 serviceParams = serviceParams,
                 metricRegistry = metricRegistry,
-                index = MetricIndex.Periodic(tick),
-                ts = tick.wakeup))
+                index = MetricIndex.Periodic(tick)))
             .drain
 
-        val jmxReport: Stream[F, Nothing] =
-          jmxBuilder match {
+        val jmx_report: Stream[F, Nothing] =
+          config.jmxBuilder match {
             case None => Stream.empty
             case Some(build) =>
               Stream.bracket(F.blocking {
@@ -123,7 +102,7 @@ final class ServiceGuard[F[_]: Network] private[guard] (
                 Stream.never[F]
           }
 
-        val httpServer: Stream[F, Nothing] =
+        val http_server: Stream[F, Nothing] =
           emberServerBuilder match {
             case None => Stream.empty
             case Some(builder) =>
@@ -133,6 +112,8 @@ final class ServiceGuard[F[_]: Network] private[guard] (
                     new HttpRouter[F](
                       metricRegistry = metricRegistry,
                       serviceParams = serviceParams,
+                      panicHistory = panicHistory,
+                      metricsHistory = metricsHistory,
                       channel = channel).router)
                   .build) >>
                 Stream.never[F]
@@ -145,23 +126,23 @@ final class ServiceGuard[F[_]: Network] private[guard] (
             channel = channel,
             signallingMapRef = signallingMapRef,
             atomicCell = atomicCell,
-            dispatcher = dispatcher,
-            measurement = Measurement(serviceParams.serviceName)
+            measurement = Measurement(serviceParams.serviceName.value)
           )
 
         val surveillance: Stream[F, Nothing] =
           new ReStart[F, A](
             channel = channel,
             serviceParams = serviceParams,
+            panicHistory = panicHistory,
             theService = runAgent(agent)
           ).stream
 
         // put together
         channel.stream
-          .concurrently(metricsReset)
-          .concurrently(metricsReport)
-          .concurrently(jmxReport)
-          .concurrently(httpServer)
+          .concurrently(metrics_reset)
+          .concurrently(metrics_report)
+          .concurrently(jmx_report)
+          .concurrently(http_server)
           .concurrently(surveillance)
       }
     } yield event

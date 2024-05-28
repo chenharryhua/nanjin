@@ -10,11 +10,11 @@ import scala.jdk.CollectionConverters.*
 
 object cookieBox {
   def apply[F[_]: MonadCancelThrow](cookieManager: CookieManager)(client: Client[F]): Client[F] = {
-    val cookieStore: CookieStore = cookieManager.getCookieStore
+    val cookie_store: CookieStore = cookieManager.getCookieStore
     Client[F] { req =>
       for {
         cookies <- Resource.pure(
-          cookieStore
+          cookie_store
             .get(URI.create(req.uri.renderString))
             .asScala
             .toList
@@ -24,7 +24,7 @@ object cookieBox {
         out.headers.headers
           .filter(_.name === `Set-Cookie`.name)
           .flatMap(c => HttpCookie.parse(c.value).asScala)
-          .foreach(hc => cookieStore.add(URI.create(req.uri.renderString), hc))
+          .foreach(hc => cookie_store.add(URI.create(req.uri.renderString), hc))
         out
       }
     }

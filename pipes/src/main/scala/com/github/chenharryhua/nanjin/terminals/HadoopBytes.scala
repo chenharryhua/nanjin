@@ -27,29 +27,30 @@ final class HadoopBytes[F[_]] private (configuration: Configuration) {
 
   // write
 
-  private def getWriterR(path: Path)(implicit F: Sync[F]): Resource[F, HadoopWriter[F, Byte]] =
+  private def get_writerR(path: Path)(implicit F: Sync[F]): Resource[F, HadoopWriter[F, Byte]] =
     HadoopWriter.byteR[F](configuration, path)
 
-  def sink(path: NJPath)(implicit F: Sync[F]): Pipe[F, Chunk[Byte], Nothing] = {
-    (ss: Stream[F, Chunk[Byte]]) =>
-      Stream.resource(getWriterR(path.hadoopPath)).flatMap(os => ss.foreach(os.write))
+  def sink(path: NJPath)(implicit F: Sync[F]): Pipe[F, Byte, Nothing] = { (ss: Stream[F, Byte]) =>
+    Stream.resource(get_writerR(path.hadoopPath)).flatMap(os => ss.chunks.foreach(os.write))
   }
 
   // save
   def sink(policy: Policy, zoneId: ZoneId)(pathBuilder: Tick => NJPath)(implicit
-    F: Async[F]): Pipe[F, Chunk[Byte], Nothing] = {
+    F: Async[F]): Pipe[F, Byte, Nothing] = {
     def getWriter(tick: Tick): Resource[F, HadoopWriter[F, Byte]] =
-      getWriterR(pathBuilder(tick).hadoopPath)
+      get_writerR(pathBuilder(tick).hadoopPath)
 
     // save
-    (ss: Stream[F, Chunk[Byte]]) =>
+    (ss: Stream[F, Byte]) =>
       Stream.eval(TickStatus.zeroth[F](policy, zoneId)).flatMap { zero =>
+        val ticks: Stream[F, Either[Chunk[Byte], Tick]] = tickStream[F](zero).map(Right(_))
+
         Stream.resource(Hotswap(getWriter(zero.tick))).flatMap { case (hotswap, writer) =>
           persist[F, Byte](
             getWriter,
             hotswap,
             writer,
-            ss.map(Left(_)).mergeHaltBoth(tickStream[F](zero).map(Right(_)))
+            ss.chunks.map(Left(_)).mergeHaltBoth(ticks)
           ).stream
         }
       }

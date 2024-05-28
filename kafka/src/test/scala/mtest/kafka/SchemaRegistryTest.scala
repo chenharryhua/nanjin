@@ -13,7 +13,7 @@ class SchemaRegistryTest extends AnyFunSuite {
   val nyc: TopicDef[Int, trip_record] =
     TopicDef[Int, trip_record](topicName)
 
-  val topic: KafkaTopic[IO, Int, trip_record] = nyc.in(ctx)
+  val topic: KafkaTopic[IO, Int, trip_record] = ctx.topic(nyc)
 
   test("compatible") {
     val res = (ctx.schemaRegistry.register(nyc) >> ctx.schemaRegistry.fetchAvroSchema(topic.topicName))

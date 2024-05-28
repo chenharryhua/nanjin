@@ -33,7 +33,7 @@ class SparKafkaTest extends AnyFunSuite {
   import SparKafkaTestData.*
   implicit val ss: SparkSession = sparkSession
 
-  val topic: KafkaTopic[IO, Int, HasDuck] = TopicDef[Int, HasDuck](TopicName("duck.test")).in(ctx)
+  val topic: KafkaTopic[IO, Int, HasDuck] = ctx.topic(TopicDef[Int, HasDuck](TopicName("duck.test")))
 
   val loadData: IO[Unit] =
     fs2
@@ -183,7 +183,6 @@ class SparKafkaTest extends AnyFunSuite {
       .eval(hadoop.filesIn(path))
       .flatMap(hadoop.jackson(topic.topic.topicDef.schemaPair.consumerSchema).source(_, 10))
       .rethrow
-      .chunkN(1)
       .through(ctx.sink(topic.topicName).updateConfig(_.withClientId("a")).build)
       .compile
       .drain
@@ -202,7 +201,14 @@ class SparKafkaTest extends AnyFunSuite {
   test("generic record") {
     val path = NJPath("./data/test/spark/kafka/consume/duck.avro")
     val sink = hadoop.avro(topic.topicDef.schemaPair.consumerSchema).sink(path)
-    duckConsume.genericRecords.take(2).map(_.record.value).chunks.through(sink).compile.drain.unsafeRunSync()
+    duckConsume.genericRecords
+      .take(2)
+      .map(_.record.value)
+      .evalMap(IO.fromTry)
+      .through(sink)
+      .compile
+      .drain
+      .unsafeRunSync()
     assert(2 == sparKafka.topic(topic).load.avro(path).count.unsafeRunSync())
   }
 
@@ -210,10 +216,10 @@ class SparKafkaTest extends AnyFunSuite {
     duckConsume.genericRecords
       .take(2)
       .map(_.record.value)
+      .evalMap(IO.fromTry)
       .map(gr => topic.topicDef.consumerFormat.fromRecord(gr))
       .map(_.toNJProducerRecord)
       .map(topic.topicDef.producerFormat.toRecord)
-      .debug()
       .compile
       .drain
       .unsafeRunSync()
@@ -222,13 +228,18 @@ class SparKafkaTest extends AnyFunSuite {
   test("generic record conversion") {
     duckConsume.genericRecords
       .take(2)
-      .map(_.record.value)
-      .evalTap(gr => IO.fromTry(gr2Jackson(gr)))
-      .evalTap(gr => IO.fromTry(gr2BinAvro(gr)))
-      .evalTap(gr => IO.fromTry(gr2Circe(gr)))
+      .evalTap(gr => IO.fromTry(gr.record.value.flatMap(gr2Jackson(_))))
+      .evalTap(gr => IO.fromTry(gr.record.value.flatMap(gr2BinAvro(_))))
+      .evalTap(gr => IO.fromTry(gr.record.value.flatMap(gr2Circe(_))))
       .compile
       .drain
       .unsafeRunSync()
   }
 
+  test("empty") {
+    val prc = sparKafka.topic(topic.topicDef).emptyPrRdd.count.unsafeRunSync()
+    val crc = sparKafka.topic(topic.topicDef).emptyCrRdd.count.unsafeRunSync()
+    assert(prc == 0)
+    assert(crc == 0)
+  }
 }

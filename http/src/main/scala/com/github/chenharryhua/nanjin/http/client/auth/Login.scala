@@ -38,7 +38,7 @@ trait Login[F[_], A] {
   )(implicit F: Async[F]): Resource[F, Client[F]] =
     for {
       authToken <- Resource.eval(getToken.flatMap(F.ref))
-      _ <- F.background[Unit](updateToken(authToken).foreverM)
+      _ <- F.background[Nothing](updateToken(authToken).foreverM)
     } yield Client[F] { req =>
       for {
         token <- Resource.eval(authToken.get)

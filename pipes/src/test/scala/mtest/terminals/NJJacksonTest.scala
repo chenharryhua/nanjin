@@ -27,7 +27,7 @@ class NJJacksonTest extends AnyFunSuite {
     val sink =
       jackson.sink(tgt)
     val src    = jackson.source(tgt, 10).rethrow
-    val ts     = Stream.emits(data.toList).covary[IO].chunks
+    val ts     = Stream.emits(data.toList).covary[IO]
     val action = ts.through(sink).compile.drain >> src.compile.toList
     assert(action.unsafeRunSync().toSet == data)
     val fileName = (file: NJFileKind).asJson.noSpaces
@@ -72,7 +72,6 @@ class NJJacksonTest extends AnyFunSuite {
       .emits(TestData.tigerSet.toList)
       .covary[IO]
       .map(TestData.Tiger.to.to)
-      .chunks
       .through(conn.sink(path))
       .compile
       .drain
@@ -93,7 +92,6 @@ class NJJacksonTest extends AnyFunSuite {
       .emits(pandaSet.toList)
       .covary[IO]
       .repeatN(number)
-      .chunks
       .through(jackson.sink(policies.fixedDelay(1.second), ZoneId.systemDefault())(t =>
         path / fk.fileName(t)))
       .compile

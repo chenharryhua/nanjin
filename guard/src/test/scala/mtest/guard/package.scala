@@ -2,6 +2,11 @@ package mtest
 
 import cats.effect.IO
 import cats.effect.std.Random
+import com.github.chenharryhua.nanjin.common.DurationFormatter
+import com.github.chenharryhua.nanjin.guard.event.NJEvent
+import io.circe.jawn.decode
+import io.circe.syntax.EncoderOps
+import monocle.macros.GenPrism
 
 import java.time.ZoneId
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -22,7 +27,7 @@ package object guard {
 
   def err_fun(i: Int): IO[Int] = IO.raiseError[Int](new Exception(s"oops: $i"))
 
-  def fun1(i: Int): IO[Int]                                 = IO(i + 1)
+  def fun1(i: Int): IO[Long]                                = IO(i + 1L)
   def fun2(a: Int, b: Int): IO[Int]                         = IO(a + b)
   def fun3(a: Int, b: Int, c: Int): IO[Int]                 = IO(a + b + c)
   def fun4(a: Int, b: Int, c: Int, d: Int): IO[Int]         = IO(a + b + c + d)
@@ -35,4 +40,16 @@ package object guard {
   def fun4fut(a: Int, b: Int, c: Int, d: Int): Future[Int]         = Future(a + b + c + d)
   def fun5fut(a: Int, b: Int, c: Int, d: Int, e: Int): Future[Int] = Future(a + b + c + d + e)
 
+  val fmt: DurationFormatter = DurationFormatter.defaultFormatter
+
+  def metricReport: NJEvent => Option[NJEvent.MetricReport] =
+    GenPrism[NJEvent, NJEvent.MetricReport].getOption(_)
+
+  def checkJson(evt: NJEvent): NJEvent =
+    decode[NJEvent](evt.asJson.noSpaces) match {
+      case Left(value) => throw value
+      case Right(value) =>
+        assert(value == evt, s"${evt.toString} \n-------- ${value.toString}")
+        value
+    }
 }

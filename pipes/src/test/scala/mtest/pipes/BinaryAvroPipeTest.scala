@@ -54,7 +54,6 @@ class BinaryAvroPipeTest extends AnyFunSuite {
       data
         .map(encoder.to)
         .through(BinaryAvroSerde.toBytes[IO](AvroSchema[Tiger]))
-        .chunks
         .through(hd.bytes.sink(path))
     val read =
       hd.bytes

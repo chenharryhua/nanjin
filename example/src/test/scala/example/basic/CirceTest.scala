@@ -27,61 +27,45 @@ class CirceTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
   private def writeSingle(file: CirceFile): IO[NJPath] = {
     val path = root / "single" / file.fileName
     val sink = circe.sink(path)
-    write(path.uri.getPath) { meter =>
-      data.evalTap(_ => meter.mark(1)).map(_.asJson).chunkN(1000).through(sink).compile.drain.as(path)
+    write(path.uri.getPath).use { meter =>
+      data.evalTap(_ => meter.mark(1)).map(_.asJson).through(sink).compile.drain.as(path)
     }
   }
 
   private def writeRotate(file: CirceFile): IO[NJPath] = {
     val path = root / "rotate" / file.fileName
     val sink = circe.sink(policy, berlinTime)(t => path / file.fileName(t))
-    write(path.uri.getPath) { meter =>
-      data.evalTap(_ => meter.mark(1)).map(_.asJson).chunkN(1000).through(sink).compile.drain.as(path)
+    write(path.uri.getPath).use { meter =>
+      data.evalTap(_ => meter.mark(1)).map(_.asJson).through(sink).compile.drain.as(path)
     }
   }
 
   private def writeSingleSpark(file: CirceFile): IO[NJPath] = {
     val path = root / "spark" / "single" / file.fileName
     val sink = circe.sink(path)
-    write(path.uri.getPath) { meter =>
-      table.output
-        .stream(1000)
-        .evalTap(_ => meter.mark(1))
-        .map(_.asJson)
-        .chunkN(1000)
-        .through(sink)
-        .compile
-        .drain
-        .as(path)
+    write(path.uri.getPath).use { meter =>
+      table.output.stream(1000).evalTap(_ => meter.mark(1)).map(_.asJson).through(sink).compile.drain.as(path)
     }
   }
 
   private def writeMultiSpark(file: CirceFile): IO[NJPath] = {
     val path = root / "spark" / "multi" / file.fileName
-    write(path.uri.getPath)(_ => table.output.circe(path).withCompression(file.compression).run.as(path))
+    write(path.uri.getPath).use(_ => table.output.circe(path).withCompression(file.compression).run.as(path))
   }
 
   private def writeRotateSpark(file: CirceFile): IO[NJPath] = {
     val path = root / "spark" / "rotate" / file.fileName
     val sink = circe.sink(policy, londonTime)(t => path / file.fileName(t))
-    write(path.uri.getPath) { meter =>
-      table.output
-        .stream(1000)
-        .evalTap(_ => meter.mark(1))
-        .map(_.asJson)
-        .chunkN(1000)
-        .through(sink)
-        .compile
-        .drain
-        .as(path)
+    write(path.uri.getPath).use { meter =>
+      table.output.stream(1000).evalTap(_ => meter.mark(1)).map(_.asJson).through(sink).compile.drain.as(path)
     }
   }
 
   private def sparkRead(path: NJPath): IO[Long] =
-    read(path.uri.getPath)(_ => loader.circe(path).count)
+    read(path.uri.getPath).use(_ => loader.circe(path).count)
 
   private def folderRead(path: NJPath): IO[Long] =
-    read(path.uri.getPath) { meter =>
+    read(path.uri.getPath).use { meter =>
       hadoop
         .filesIn(path)
         .flatMap(circe.source(_, 100).map(_.as[Tiger]).evalTap(_ => meter.mark(1)).compile.fold(0L) {
@@ -90,7 +74,7 @@ class CirceTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
     }
 
   private def singleRead(path: NJPath): IO[Long] =
-    read(path.uri.getPath) { meter =>
+    read(path.uri.getPath).use { meter =>
       circe.source(path, 100).map(_.as[Tiger]).evalTap(_ => meter.mark(1)).compile.fold(0L) { case (s, _) =>
         s + 1
       }

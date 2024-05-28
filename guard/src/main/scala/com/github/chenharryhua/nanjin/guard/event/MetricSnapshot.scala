@@ -23,7 +23,7 @@ object Snapshot {
   @JsonCodec
   final case class MeterData(
     unit: MeasurementUnit,
-    count: Long,
+    sum: Long,
     mean_rate: Frequency,
     m1_rate: Frequency,
     m5_rate: Frequency,
@@ -35,7 +35,7 @@ object Snapshot {
 
   @JsonCodec
   final case class TimerData(
-    count: Long,
+    calls: Long,
     mean_rate: Frequency,
     m1_rate: Frequency,
     m5_rate: Frequency,
@@ -57,7 +57,7 @@ object Snapshot {
   @JsonCodec
   final case class HistogramData(
     unit: MeasurementUnit,
-    count: Long,
+    updates: Long,
     min: Long,
     max: Long,
     mean: Double,
@@ -76,11 +76,11 @@ object Snapshot {
 
 @JsonCodec
 final case class MetricSnapshot(
-  gauges: List[Snapshot.Gauge], // important measurement comes first.
   counters: List[Snapshot.Counter],
   meters: List[Snapshot.Meter],
   timers: List[Snapshot.Timer],
-  histograms: List[Snapshot.Histogram])
+  histograms: List[Snapshot.Histogram],
+  gauges: List[Snapshot.Gauge])
 
 object MetricSnapshot extends duration {
 
@@ -98,7 +98,7 @@ object MetricSnapshot extends duration {
               metricId = id,
               Snapshot.MeterData(
                 unit = unit,
-                count = meter.getCount,
+                sum = meter.getCount,
                 mean_rate = Hertz(meter.getMeanRate),
                 m1_rate = Hertz(meter.getOneMinuteRate),
                 m5_rate = Hertz(meter.getFiveMinuteRate),
@@ -116,7 +116,7 @@ object MetricSnapshot extends duration {
         Snapshot.Timer(
           metricId = id,
           Snapshot.TimerData(
-            count = timer.getCount,
+            calls = timer.getCount,
             // meter
             mean_rate = Hertz(timer.getMeanRate),
             m1_rate = Hertz(timer.getOneMinuteRate),
@@ -148,7 +148,7 @@ object MetricSnapshot extends duration {
               metricId = id,
               Snapshot.HistogramData(
                 unit = unit,
-                count = histo.getCount,
+                updates = histo.getCount,
                 min = ss.getMin,
                 max = ss.getMax,
                 mean = ss.getMean,
@@ -174,10 +174,10 @@ object MetricSnapshot extends duration {
 
   def apply(metricRegistry: MetricRegistry): MetricSnapshot =
     MetricSnapshot(
-      gauges = gauges(metricRegistry).sortBy(_.metricId.metricName),
-      counters = counters(metricRegistry).sortBy(_.metricId.metricName),
-      meters = meters(metricRegistry).sortBy(_.metricId.metricName),
-      timers = timers(metricRegistry).sortBy(_.metricId.metricName),
-      histograms = histograms(metricRegistry).sortBy(_.metricId.metricName)
+      counters = counters(metricRegistry),
+      meters = meters(metricRegistry),
+      timers = timers(metricRegistry),
+      histograms = histograms(metricRegistry),
+      gauges = gauges(metricRegistry)
     )
 }

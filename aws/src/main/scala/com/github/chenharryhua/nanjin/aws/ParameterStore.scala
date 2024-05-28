@@ -11,7 +11,7 @@ import software.amazon.awssdk.services.ssm.{SsmClient, SsmClientBuilder}
 
 import java.util.Base64
 
-sealed trait ParameterStore[F[_]] {
+trait ParameterStore[F[_]] {
   def fetch(path: ParameterStorePath): F[ParameterStoreContent]
 
   final def base64(path: ParameterStorePath)(implicit F: Applicative[F]): F[Array[Byte]] =
@@ -23,15 +23,6 @@ sealed trait ParameterStore[F[_]] {
 object ParameterStore {
 
   private val name: String = "aws.ParameterStore"
-
-  def fake[F[_]](content: String)(implicit F: Applicative[F]): Resource[F, ParameterStore[F]] =
-    Resource.make(F.pure(new ParameterStore[F] {
-
-      override def fetch(path: ParameterStorePath): F[ParameterStoreContent] =
-        ParameterStoreContent(content).pure
-
-      override def updateBuilder(f: Endo[SsmClientBuilder]): ParameterStore[F] = this
-    }))(_ => F.unit)
 
   def apply[F[_]: Sync](f: Endo[SsmClientBuilder]): Resource[F, ParameterStore[F]] =
     for {

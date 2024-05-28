@@ -16,39 +16,31 @@ import com.github.chenharryhua.nanjin.guard.event.NJEvent.{
 }
 import fs2.concurrent.Channel
 
-import java.time.Instant
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 
 private object publisher {
-  def metricReport[F[_]](
+  def metricReport[F[_]: Clock](
     channel: Channel[F, NJEvent],
     serviceParams: ServiceParams,
     metricRegistry: MetricRegistry,
-    index: MetricIndex,
-    ts: Instant)(implicit F: Functor[F]): F[Unit] = {
-    val msg = MetricReport(
-      index = index,
-      serviceParams = serviceParams,
-      timestamp = serviceParams.toZonedDateTime(ts),
-      snapshot = MetricSnapshot(metricRegistry))
+    index: MetricIndex)(implicit F: Monad[F]): F[MetricReport] =
+    for {
+      ss <- F.pure(MetricSnapshot(metricRegistry))
+      now <- serviceParams.zonedNow[F]
+      mr = MetricReport(index, serviceParams, ss, now)
+      _ <- channel.send(mr)
+    } yield mr
 
-    channel.send(msg).void
-  }
-
-  def metricReset[F[_]](
+  def metricReset[F[_]: Clock](
     channel: Channel[F, NJEvent],
     serviceParams: ServiceParams,
     metricRegistry: MetricRegistry,
-    index: MetricIndex,
-    ts: Instant)(implicit F: Functor[F]): F[Unit] = {
-    val msg = MetricReset(
-      index = index,
-      serviceParams = serviceParams,
-      timestamp = serviceParams.toZonedDateTime(ts),
-      snapshot = MetricSnapshot(metricRegistry))
-
-    channel.send(msg).map(_ => metricRegistry.getCounters().values().asScala.foreach(c => c.dec(c.getCount)))
-  }
+    index: MetricIndex)(implicit F: Monad[F]): F[Unit] =
+    for {
+      ss <- F.pure(MetricSnapshot(metricRegistry))
+      now <- serviceParams.zonedNow[F]
+      _ <- channel.send(MetricReset(index, serviceParams, ss, now))
+    } yield metricRegistry.getCounters().values().asScala.foreach(c => c.dec(c.getCount))
 
   def serviceReStart[F[_]](channel: Channel[F, NJEvent], serviceParams: ServiceParams, tick: Tick)(implicit
     F: Functor[F]): F[Unit] =
@@ -58,8 +50,10 @@ private object publisher {
     channel: Channel[F, NJEvent],
     serviceParams: ServiceParams,
     tick: Tick,
-    ex: Throwable)(implicit F: Functor[F]): F[Unit] =
-    channel.send(ServicePanic(serviceParams, NJError(ex), tick)).void
+    error: NJError)(implicit F: Functor[F]): F[ServicePanic] = {
+    val panic: ServicePanic = ServicePanic(serviceParams, error, tick)
+    channel.send(panic).as(panic)
+  }
 
   def serviceStop[F[_]: Clock](
     channel: Channel[F, NJEvent],

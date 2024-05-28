@@ -5,7 +5,7 @@ import com.github.chenharryhua.nanjin.guard.config.{ActionParams, AlertLevel, Me
 import io.circe.Json
 import io.circe.generic.JsonCodec
 
-import java.time.{Duration, Instant, ZonedDateTime}
+import java.time.{Duration, ZonedDateTime}
 
 @JsonCodec
 sealed trait NJEvent extends Product with Serializable {
@@ -43,70 +43,60 @@ object NJEvent {
   sealed trait MetricEvent extends NJEvent {
     def index: MetricIndex
     def snapshot: MetricSnapshot
+    final def took: Duration = Duration.between(index.timestamp, timestamp)
   }
 
   final case class MetricReport(
-    index: MetricIndex,
+    index: MetricIndex, // launch time
     serviceParams: ServiceParams,
-    timestamp: ZonedDateTime,
-    snapshot: MetricSnapshot)
+    snapshot: MetricSnapshot,
+    timestamp: ZonedDateTime) // land time
       extends MetricEvent
 
   final case class MetricReset(
-    index: MetricIndex,
+    index: MetricIndex, // launch time
     serviceParams: ServiceParams,
-    timestamp: ZonedDateTime,
-    snapshot: MetricSnapshot)
+    snapshot: MetricSnapshot,
+    timestamp: ZonedDateTime) // land time
       extends MetricEvent
 
   sealed trait ActionEvent extends NJEvent {
     def actionParams: ActionParams
-    def actionId: Int
-    def landTime: Instant
-
-    final override def timestamp: ZonedDateTime     = serviceParams.toZonedDateTime(landTime)
     final override def serviceParams: ServiceParams = actionParams.serviceParams
   }
 
-  final case class ActionStart(
-    actionParams: ActionParams,
-    actionId: Int,
-    launchTime: Instant,
-    notes: Option[Json])
-      extends ActionEvent {
-    override val landTime: Instant = launchTime
-  }
+  final case class ActionStart(actionParams: ActionParams, timestamp: ZonedDateTime, notes: Json)
+      extends ActionEvent
 
-  final case class ActionRetry(
-    actionParams: ActionParams,
-    actionId: Int,
-    launchTime: Option[Instant],
-    error: NJError,
-    tick: Tick)
-      extends ActionEvent {
-    override val landTime: Instant = tick.acquire
+  final case class ActionRetry(actionParams: ActionParams, error: NJError, tick: Tick) extends ActionEvent {
+    override val timestamp: ZonedDateTime = tick.zonedAcquire
   }
 
   sealed trait ActionResultEvent extends ActionEvent {
-    def notes: Option[Json]
-    def launchTime: Option[Instant]
-    final def took: Option[Duration] = launchTime.map(Duration.between(_, landTime))
+    def notes: Json
+    def isDone: Boolean
   }
 
   final case class ActionFail(
     actionParams: ActionParams,
-    actionId: Int,
-    launchTime: Option[Instant],
-    landTime: Instant,
+    launchTime: Option[ZonedDateTime],
+    timestamp: ZonedDateTime, // land time
     error: NJError,
-    notes: Option[Json])
-      extends ActionResultEvent
+    notes: Json)
+      extends ActionResultEvent {
+    override val isDone: Boolean = false
+
+    lazy val took: Option[Duration] = launchTime.map(Duration.between(_, timestamp))
+  }
 
   final case class ActionDone(
     actionParams: ActionParams,
-    actionId: Int,
-    launchTime: Option[Instant],
-    landTime: Instant,
-    notes: Option[Json])
-      extends ActionResultEvent
+    launchTime: ZonedDateTime,
+    timestamp: ZonedDateTime, // land time
+    notes: Json)
+      extends ActionResultEvent {
+    override val isDone: Boolean = true
+
+    lazy val took: Duration = Duration.between(launchTime, timestamp)
+  }
 }

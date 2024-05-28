@@ -9,7 +9,8 @@ import monocle.syntax.all.*
 
 @JsonCodec
 final case class ActionParams(
-  metricName: MetricName,
+  actionName: ActionName,
+  measurement: Measurement,
   importance: Importance,
   publishStrategy: PublishStrategy,
   isCounting: Boolean,
@@ -21,17 +22,19 @@ final case class ActionParams(
     val tc = if (isTiming) ".timed" else ""
     s"${publishStrategy.entryName}.${importance.entryName}$tc$cc"
   }
+
+  val metricName: MetricName = MetricName(serviceParams, measurement, actionName.value)
 }
 
 object ActionParams {
-
   def apply(
     actionName: ActionName,
     measurement: Measurement,
     serviceParams: ServiceParams
   ): ActionParams =
     ActionParams(
-      metricName = MetricName(serviceParams, measurement, actionName.value),
+      actionName = actionName,
+      measurement = measurement,
       importance = Importance.Normal,
       publishStrategy = PublishStrategy.Silent,
       isCounting = false,
@@ -46,50 +49,66 @@ sealed private[guard] trait ActionConfigF[X]
 private object ActionConfigF {
   implicit val functorActionConfigF: Functor[ActionConfigF] = cats.derived.semiauto.functor[ActionConfigF]
 
-  final case class InitParams[K](value: ServiceParams) extends ActionConfigF[K]
+  final case class InitParams[K](
+    actionName: ActionName,
+    measurement: Measurement,
+    serviceParams: ServiceParams)
+      extends ActionConfigF[K]
 
   final case class WithPublishStrategy[K](value: PublishStrategy, cont: K) extends ActionConfigF[K]
   final case class WithTiming[K](value: Boolean, cont: K) extends ActionConfigF[K]
   final case class WithCounting[K](value: Boolean, cont: K) extends ActionConfigF[K]
   final case class WithImportance[K](value: Importance, cont: K) extends ActionConfigF[K]
   final case class WithRetryPolicy[K](value: Policy, cont: K) extends ActionConfigF[K]
+  final case class WithMeasurement[K](value: Measurement, cont: K) extends ActionConfigF[K]
 
-  def algebra(actionName: ActionName, measurement: Measurement): Algebra[ActionConfigF, ActionParams] =
+  val algebra: Algebra[ActionConfigF, ActionParams] =
     Algebra[ActionConfigF, ActionParams] {
-      case InitParams(serviceParams) => ActionParams(actionName, measurement, serviceParams)
+      case InitParams(actionName, measurement, serviceParams) =>
+        ActionParams(actionName, measurement, serviceParams)
       case WithPublishStrategy(v, c) => c.focus(_.publishStrategy).replace(v)
       case WithTiming(v, c)          => c.focus(_.isTiming).replace(v)
       case WithCounting(v, c)        => c.focus(_.isCounting).replace(v)
       case WithImportance(v, c)      => c.focus(_.importance).replace(v)
       case WithRetryPolicy(v, c)     => c.focus(_.retryPolicy).replace(v)
+      case WithMeasurement(v, c)     => c.focus(_.measurement).replace(v)
     }
 }
 
-final case class ActionConfig(cont: Fix[ActionConfigF]) {
+final class ActionConfig private (cont: Fix[ActionConfigF]) {
   import ActionConfigF.*
 
-  def bipartite: ActionConfig  = ActionConfig(Fix(WithPublishStrategy(PublishStrategy.Bipartite, cont)))
-  def unipartite: ActionConfig = ActionConfig(Fix(WithPublishStrategy(PublishStrategy.Unipartite, cont)))
-  def silent: ActionConfig     = ActionConfig(Fix(WithPublishStrategy(PublishStrategy.Silent, cont)))
+  private def strategy(ps: PublishStrategy): ActionConfig =
+    new ActionConfig(Fix(WithPublishStrategy(ps, cont)))
+  def bipartite: ActionConfig  = strategy(PublishStrategy.Bipartite)
+  def unipartite: ActionConfig = strategy(PublishStrategy.Unipartite)
+  def silent: ActionConfig     = strategy(PublishStrategy.Silent)
 
-  def critical: ActionConfig      = ActionConfig(Fix(WithImportance(value = Importance.Critical, cont)))
-  def normal: ActionConfig        = ActionConfig(Fix(WithImportance(value = Importance.Normal, cont)))
-  def insignificant: ActionConfig = ActionConfig(Fix(WithImportance(value = Importance.Insignificant, cont)))
-  def suppressed: ActionConfig    = ActionConfig(Fix(WithImportance(value = Importance.Suppressed, cont)))
+  private def importance(im: Importance): ActionConfig =
+    new ActionConfig(Fix(WithImportance(value = im, cont)))
+  def critical: ActionConfig      = importance(Importance.Critical)
+  def normal: ActionConfig        = importance(Importance.Normal)
+  def insignificant: ActionConfig = importance(Importance.Insignificant)
+  def suppressed: ActionConfig    = importance(Importance.Suppressed)
 
-  def counted: ActionConfig   = ActionConfig(Fix(WithCounting(value = true, cont)))
-  def timed: ActionConfig     = ActionConfig(Fix(WithTiming(value = true, cont)))
-  def uncounted: ActionConfig = ActionConfig(Fix(WithCounting(value = false, cont)))
-  def untimed: ActionConfig   = ActionConfig(Fix(WithTiming(value = false, cont)))
+  def counted: ActionConfig =
+    new ActionConfig(Fix(WithCounting(value = true, cont)))
 
-  def policy(retryPolicy: Policy): ActionConfig = ActionConfig(Fix(WithRetryPolicy(retryPolicy, cont)))
+  def timed: ActionConfig =
+    new ActionConfig(Fix(WithTiming(value = true, cont)))
 
-  def evalConfig(actionName: ActionName, measurement: Measurement): ActionParams =
-    scheme.cata(algebra(actionName, measurement)).apply(cont)
+  def policy(retryPolicy: Policy): ActionConfig =
+    new ActionConfig(Fix(WithRetryPolicy(retryPolicy, cont)))
+
+  def withMeasurement(measurement: String): ActionConfig =
+    new ActionConfig(Fix(WithMeasurement(Measurement(measurement), cont)))
+
+  private[guard] def evalConfig: ActionParams = scheme.cata(algebra).apply(cont)
 }
 
 object ActionConfig {
 
-  def apply(serviceParams: ServiceParams): ActionConfig =
-    ActionConfig(Fix(ActionConfigF.InitParams[Fix[ActionConfigF]](serviceParams)))
+  def apply(actionName: ActionName, measurement: Measurement, serviceParams: ServiceParams): ActionConfig =
+    new ActionConfig(
+      Fix(ActionConfigF.InitParams[Fix[ActionConfigF]](actionName, measurement, serviceParams)))
 }

@@ -3,7 +3,6 @@ package mtest.kafka
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.toBifunctorOps
-import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.*
 import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
@@ -72,7 +71,7 @@ class Fs2ChannelTest extends AnyFunSuite {
           .updateConfig(_.withGroupId("g1"))
           .stream
           .take(1)
-          .map(ccr => NJConsumerRecord(ccr.record).metaInfo(sydneyTime).asJson)
+          .map(ccr => NJConsumerRecord(ccr.record).asJson)
           .timeout(3.seconds)
           .compile
           .toList

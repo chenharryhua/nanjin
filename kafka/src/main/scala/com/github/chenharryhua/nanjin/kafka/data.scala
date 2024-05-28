@@ -148,7 +148,6 @@ object KafkaTopicPartition {
 
   final private case class TPV[V](topic: String, partition: Int, value: V)
 
-  @annotation.nowarn
   implicit def codecKafkaTopicPartition[V: Encoder: Decoder]: Codec[KafkaTopicPartition[V]] =
     new Codec[KafkaTopicPartition[V]] {
       override def apply(a: KafkaTopicPartition[V]): Json =

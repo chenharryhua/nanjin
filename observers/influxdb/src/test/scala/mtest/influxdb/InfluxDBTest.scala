@@ -6,10 +6,10 @@ import com.github.chenharryhua.nanjin.common.chrono.policies
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import com.github.chenharryhua.nanjin.guard.observers.*
+import com.github.chenharryhua.nanjin.guard.observers.influxdb.InfluxdbObserver
 import com.influxdb.client.domain.WritePrecision
 import com.influxdb.client.{InfluxDBClientFactory, InfluxDBClientOptions}
 import io.circe.Json
-import io.circe.syntax.EncoderOps
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.util.concurrent.TimeUnit
@@ -19,40 +19,26 @@ class InfluxDBTest extends AnyFunSuite {
   val service: fs2.Stream[IO, NJEvent] =
     TaskGuard[IO]("nanjin")
       .service("observing")
-      .withBrief(Json.fromString("brief"))
-      .updateConfig(_.withRestartPolicy(policies.fixedRate(1.second)))
+      .updateConfig(_.withRestartPolicy(policies.fixedRate(1.second)).addBrief(Json.fromString("brief")))
       .eventStream { ag =>
         val box = ag.atomicBox(1)
-        val job = // fail twice, then success
-          box.getAndUpdate(_ + 1).map(_ % 3 == 0).ifM(IO(1), IO.raiseError[Int](new Exception("oops")))
-        val meter = ag.meter("meter", _.BYTES).counted
-        val action = ag
-          .action(
-            "nj_error",
-            _.critical.bipartite.timed.counted.policy(policies.fixedRate(1.second).limited(1)))
-          .retry(job)
-          .logInput(Json.fromString("input data"))
-          .logOutput(_ => Json.fromString("output data"))
-          .logErrorM(ex =>
-            IO.delay(
-              Json.obj("developer's advice" -> "no worries".asJson, "message" -> ex.getMessage.asJson)))
-          .run
-
-        val counter   = ag.counter("nj counter").asRisk
-        val histogram = ag.histogram("nj histogram", _.SECONDS).counted
-        val alert     = ag.alert("nj alert")
-        val gauge     = ag.gauge("nj gauge")
-
-        gauge
-          .register(100)
-          .surround(
-            gauge.timed.surround(
-              action >>
-                meter.mark(1000) >>
-                counter.inc(10000) >>
-                histogram.update(100) >>
-                alert.error("alarm") >>
-                ag.metrics.report)) >> ag.metrics.reset
+        val job =
+          box.getAndUpdate(_ + 1).map(_ % 12 == 0).ifM(IO(1), IO.raiseError[Int](new Exception("oops")))
+        val env = for {
+          meter <- ag.meter("meter", _.withUnit(_.COUNT).counted)
+          action <- ag
+            .action(
+              "nj_error",
+              _.critical.bipartite.timed.counted.policy(policies.fixedRate(1.second).limited(3)))
+            .retry(job)
+            .buildWith(identity)
+          counter <- ag.counter("nj counter", _.asRisk)
+          histogram <- ag.histogram("nj histogram", _.withUnit(_.SECONDS).counted)
+          alert <- ag.alert("nj alert")
+          _ <- ag.gauge("nj gauge").register(box.get)
+        } yield meter.mark(1) >> action.run(()) >> counter.inc(1) >>
+          histogram.update(1) >> alert.info(1) >> ag.metrics.report
+        env.use(identity)
       }
 
   test("influx db") {
@@ -70,7 +56,7 @@ class InfluxDBTest extends AnyFunSuite {
       .withDurationUnit(TimeUnit.MILLISECONDS)
       .addTag("tag", "customer")
       .addTags(Map("a" -> "b"))
-    service.evalTap(console.simple[IO]).through(influx.observe).compile.drain.unsafeRunSync()
-    service.evalTap(console.simple[IO]).through(influx.observe(10, 10.seconds)).compile.drain.unsafeRunSync()
+    service.evalTap(console.text[IO]).through(influx.observe).compile.drain.unsafeRunSync()
+    service.evalTap(console.text[IO]).through(influx.observe(10, 10.seconds)).compile.drain.unsafeRunSync()
   }
 }
