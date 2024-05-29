@@ -395,17 +395,18 @@ lazy val kafka = (project in file("kafka"))
   */
 
 val hadoopLib = List(
-  "org.apache.hadoop" % "hadoop-mapreduce-client-core" % hadoopV,
-  "org.apache.hadoop" % "hadoop-aws"                   % hadoopV,
-  "org.apache.hadoop" % "hadoop-auth"                  % hadoopV,
-  "org.apache.hadoop" % "hadoop-annotations"           % hadoopV,
-  "org.apache.hadoop" % "hadoop-common"                % hadoopV,
-  "org.apache.hadoop" % "hadoop-client"                % hadoopV,
-  "org.apache.hadoop" % "hadoop-client-runtime"        % hadoopV,
-  "org.apache.hadoop" % "hadoop-hdfs"                  % hadoopV,
-  "org.apache.hadoop" % "hadoop-hdfs-client"           % hadoopV,
-  "org.slf4j"         % "jcl-over-slf4j"               % slf4jV,
-  "com.nimbusds"      % "nimbus-jose-jwt"              % "9.39.1" // snyk
+  "org.apache.hadoop"  % "hadoop-mapreduce-client-core" % hadoopV,
+  "org.apache.hadoop"  % "hadoop-aws"                   % hadoopV,
+  "org.apache.hadoop"  % "hadoop-auth"                  % hadoopV,
+  "org.apache.hadoop"  % "hadoop-annotations"           % hadoopV,
+  "org.apache.hadoop"  % "hadoop-common"                % hadoopV,
+  "org.apache.hadoop"  % "hadoop-client"                % hadoopV,
+  "org.apache.hadoop"  % "hadoop-client-runtime"        % hadoopV,
+  "org.apache.hadoop"  % "hadoop-hdfs"                  % hadoopV,
+  "org.apache.hadoop"  % "hadoop-hdfs-client"           % hadoopV,
+  "org.slf4j"          % "jcl-over-slf4j"               % slf4jV,
+  "com.nimbusds"       % "nimbus-jose-jwt"              % "9.39.1", // snyk
+  "org.apache.commons" % "commons-configuration2"       % "2.10.1" // snyk
 ).map(
   _.exclude("log4j", "log4j")
     .exclude("org.slf4j", "slf4j-reload4j")
