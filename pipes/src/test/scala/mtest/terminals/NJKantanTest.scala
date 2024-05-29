@@ -33,6 +33,8 @@ class NJKantanTest extends AnyFunSuite {
     assert(action.unsafeRunSync().toSet == data)
     val fileName = (file: NJFileKind).asJson.noSpaces
     assert(jawn.decode[NJFileKind](fileName).toOption.get == file)
+    val size = ts.through(sink).fold(0)(_ + _).compile.lastOrError.unsafeRunSync()
+    assert(size == data.size)
   }
 
   val fs2Root: NJPath = NJPath("./data/test/terminals/csv/tiger")
@@ -147,7 +149,7 @@ class NJKantanTest extends AnyFunSuite {
     hdp.delete(path).unsafeRunSync()
     herd
       .map(tigerEncoder.encode)
-      .through(csv.sink(policy, ZoneId.systemDefault())(t => path / file.fileName(t)))
+      .through(csv.sink(policy, ZoneId.systemDefault())(t => path / file.fileName(t)).andThen(_.drain))
       .map(tigerDecoder.decode)
       .rethrow
       .compile

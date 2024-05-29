@@ -14,7 +14,7 @@ import org.apache.parquet.avro.AvroParquetWriter
 import org.apache.parquet.hadoop.util.HadoopOutputFile
 
 import java.io.{OutputStream, PrintWriter}
-import java.nio.charset.Charset
+import java.nio.charset.StandardCharsets
 
 sealed private trait HadoopWriter[F[_], A] {
   def write(ck: Chunk[A]): F[Unit]
@@ -75,11 +75,27 @@ private object HadoopWriter {
           }
       })
 
-  def stringR[F[_]](configuration: Configuration, charset: Charset, path: Path)(implicit
+  def stringR[F[_]](configuration: Configuration, path: Path)(implicit
     F: Sync[F]): Resource[F, HadoopWriter[F, String]] =
     Resource
-      .make(F.blocking(new PrintWriter(fileOutputStream(path, configuration), false, charset)))(r =>
-        F.blocking(r.close()))
+      .make(
+        F.blocking(new PrintWriter(fileOutputStream(path, configuration), false, StandardCharsets.UTF_8)))(
+        r => F.blocking(r.close()))
+      .map(pw =>
+        new HadoopWriter[F, String] {
+          override def write(ck: Chunk[String]): F[Unit] =
+            F.blocking {
+              ck.foreach(pw.println)
+              pw.flush()
+            }
+        })
+
+  def csvR[F[_]](configuration: Configuration, path: Path)(implicit
+    F: Sync[F]): Resource[F, HadoopWriter[F, String]] =
+    Resource
+      .make(
+        F.blocking(new PrintWriter(fileOutputStream(path, configuration), false, StandardCharsets.UTF_8)))(
+        r => F.blocking(r.close()))
       .map(pw =>
         new HadoopWriter[F, String] {
           override def write(ck: Chunk[String]): F[Unit] =

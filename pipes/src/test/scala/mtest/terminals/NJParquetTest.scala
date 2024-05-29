@@ -25,17 +25,18 @@ class NJParquetTest extends AnyFunSuite {
   val parquet: HadoopParquet[IO] = hdp.parquet(pandaSchema)
 
   def fs2(path: NJPath, file: ParquetFile, data: Set[GenericRecord]): Assertion = {
-    val tgt = path / file.fileName
-    val ts  = Stream.emits(data.toList).covary[IO]
+    val tgt  = path / file.fileName
+    val ts   = Stream.emits(data.toList).covary[IO]
+    val sink = parquet.updateWriter(_.withCompressionCodec(file.compression.codecName)).sink(tgt)
     hdp.delete(tgt).unsafeRunSync()
     val action =
-      ts.through(parquet.updateWriter(_.withCompressionCodec(file.compression.codecName)).sink(tgt))
-        .compile
-        .drain >>
+      ts.through(sink).compile.drain >>
         parquet.source(tgt, 100).compile.toList
     assert(action.unsafeRunSync().toSet == data)
     val fileName = (file: NJFileKind).asJson.noSpaces
     assert(jawn.decode[NJFileKind](fileName).toOption.get == file)
+    val size = ts.through(sink).fold(0)(_ + _).compile.lastOrError.unsafeRunSync()
+    assert(size == data.size)
   }
 
   val fs2Root: NJPath = NJPath("./data/test/terminals/parquet/panda")
@@ -81,14 +82,15 @@ class NJParquetTest extends AnyFunSuite {
     val number = 10000L
     hdp.delete(path).unsafeRunSync()
     val file = ParquetFile(Snappy)
-    Stream
+    val processedSize = Stream
       .emits(pandaSet.toList)
       .covary[IO]
       .repeatN(number)
       .through(parquet.sink(policies.fixedDelay(1.second), ZoneId.systemDefault())(t =>
         path / file.ymdFileName(t)))
+      .fold(0)(_ + _)
       .compile
-      .drain
+      .lastOrError
       .unsafeRunSync()
     val size = Stream
       .force(
@@ -101,6 +103,7 @@ class NJParquetTest extends AnyFunSuite {
       .map(_.size)
       .unsafeRunSync()
     assert(size == number * 2)
+    assert(processedSize == number * 2)
   }
 
   test("best") {

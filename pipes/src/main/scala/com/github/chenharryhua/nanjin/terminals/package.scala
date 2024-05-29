@@ -14,8 +14,7 @@ import kantan.csv.engine.WriterEngine
 import java.io.StringWriter
 
 package object terminals {
-  @inline final val NEWLINE_SEPARATOR: String                = "\r\n"
-  @inline private val NEWLINE_SEPARATOR_CHUNK: Chunk[String] = Chunk.singleton(NEWLINE_SEPARATOR)
+  @inline final val NEWLINE_SEPARATOR: String = "\r\n"
 
   type NJCompressionLevel = Int Refined Closed[1, 9]
   object NJCompressionLevel extends RefinedTypeOps[NJCompressionLevel, Int] with CatsRefinedTypeOpsSyntax
@@ -25,12 +24,13 @@ package object terminals {
     hotswap: Hotswap[F, HadoopWriter[F, A]],
     writer: HadoopWriter[F, A],
     ss: Stream[F, Either[Chunk[A], Tick]]
-  ): Pull[F, Nothing, Unit] =
+  ): Pull[F, Int, Unit] =
     ss.pull.uncons1.flatMap {
       case Some((head, tail)) =>
         head match {
           case Left(data) =>
-            Pull.eval(writer.write(data)) >> persist(getWriter, hotswap, writer, tail)
+            Pull.output1(data.size) >>
+              Pull.eval(writer.write(data)) >> persist(getWriter, hotswap, writer, tail)
           case Right(tick) =>
             Pull.eval(hotswap.swap(getWriter(tick))).flatMap { writer =>
               persist(getWriter, hotswap, writer, tail)
@@ -43,20 +43,19 @@ package object terminals {
     getWriter: Tick => Resource[F, HadoopWriter[F, String]],
     hotswap: Hotswap[F, HadoopWriter[F, String]],
     writer: HadoopWriter[F, String],
-    ss: Stream[F, Either[Chunk[String], Tick]],
-    newLineSeparator: Chunk[String]
-  ): Pull[F, Nothing, Unit] =
+    ss: Stream[F, Either[Chunk[String], Tick]]
+  ): Pull[F, Int, Unit] =
     ss.pull.uncons1.flatMap {
       case Some((head, tail)) =>
         head match {
           case Left(data) =>
-            val (rest, last) = data.splitAt(data.size - 1)
-            Pull.eval(writer.write(newLineSeparator ++ rest.map(_.concat(NEWLINE_SEPARATOR)) ++ last)) >>
-              persistText[F](getWriter, hotswap, writer, tail, NEWLINE_SEPARATOR_CHUNK)
+            Pull.output1(data.size) >>
+              Pull.eval(writer.write(data)) >>
+              persistText[F](getWriter, hotswap, writer, tail)
 
           case Right(tick) =>
             Pull.eval(hotswap.swap(getWriter(tick))).flatMap { writer =>
-              persistText(getWriter, hotswap, writer, tail, Chunk.empty)
+              persistText(getWriter, hotswap, writer, tail)
             }
         }
       case None => Pull.done
@@ -64,39 +63,38 @@ package object terminals {
 
   private[terminals] def persistCsvWithHeader[F[_]](
     getWriter: Tick => Resource[F, HadoopWriter[F, String]],
-    header: Chunk[String],
     hotswap: Hotswap[F, HadoopWriter[F, String]],
     writer: HadoopWriter[F, String],
     ss: Stream[F, Either[Chunk[String], Tick]],
-    newLineSeparator: Chunk[String]
-  ): Pull[F, Nothing, Unit] =
+    header: Chunk[String]
+  ): Pull[F, Int, Unit] =
     ss.pull.uncons1.flatMap {
       case Some((head, tail)) =>
         head match {
           case Left(data) =>
-            val (rest, last) = data.splitAt(data.size - 1)
-            Pull.eval(writer.write(newLineSeparator ++ rest.map(_.concat(NEWLINE_SEPARATOR)) ++ last)) >>
-              persistCsvWithHeader[F](getWriter, header, hotswap, writer, tail, NEWLINE_SEPARATOR_CHUNK)
+            Pull.output1(data.size) >>
+              Pull.eval(writer.write(data)) >>
+              persistCsvWithHeader[F](getWriter, hotswap, writer, tail, header)
 
           case Right(tick) =>
             Pull.eval(hotswap.swap(getWriter(tick))).flatMap { writer =>
               Pull.eval(writer.write(header)) >>
-                persistCsvWithHeader(getWriter, header, hotswap, writer, tail, NEWLINE_SEPARATOR_CHUNK)
+                persistCsvWithHeader(getWriter, hotswap, writer, tail, header)
             }
         }
       case None => Pull.done
     }
 
-  def buildCsvRow(csvConfiguration: CsvConfiguration)(row: Seq[String]): String = {
+  def csvRow(csvConfiguration: CsvConfiguration)(row: Seq[String]): String = {
     val sw = new StringWriter()
     WriterEngine.internalCsvWriterEngine.writerFor(sw, csvConfiguration).write(row).close()
-    sw.toString.dropRight(2) // drop CRLF
+    sw.toString
   }
 
   def csvHeader(csvConfiguration: CsvConfiguration): Chunk[String] =
     csvConfiguration.header match {
       case Header.None             => Chunk.empty
-      case Header.Implicit         => Chunk.singleton("no header was explicitly provided")
-      case Header.Explicit(header) => Chunk.singleton(buildCsvRow(csvConfiguration)(header))
+      case Header.Implicit         => Chunk.singleton("no header was explicitly provided" + NEWLINE_SEPARATOR)
+      case Header.Explicit(header) => Chunk.singleton(csvRow(csvConfiguration)(header))
     }
 }

@@ -3,7 +3,7 @@ import cats.Traverse
 import cats.effect.kernel.{Async, Resource, Unique}
 import cats.effect.std.UUIDGen
 import cats.syntax.all.*
-import io.circe.Json
+import io.circe.{Encoder, Json}
 import io.circe.generic.JsonCodec
 import io.circe.syntax.EncoderOps
 
@@ -97,7 +97,7 @@ final class NJBatch[F[_]: Async] private[guard] (
 
   // batch
 
-  def sequential[G[_]: Traverse, Z](gfz: G[F[Z]]): F[G[Z]] = {
+  def sequential[G[_]: Traverse, Z: Encoder](gfz: G[F[Z]]): F[G[Z]] = {
     val size: Long = gfz.size
     val run: Resource[F, F[G[Z]]] = for {
       _ <- gauge.timed
@@ -106,8 +106,9 @@ final class NJBatch[F[_]: Async] private[guard] (
         .retry((_: Int, _: Unique.Token, fz: F[Z]) => fz)
         .buildWith(_.tapInput { case (idx, token, _) =>
           Json.obj("batch" -> Json.obj(batch_id(token), start(idx), jobs(size), mode(None)))
-        }.tapOutput { case ((idx, token, _), _) =>
-          Json.obj("batch" -> Json.obj(batch_id(token), finish(idx), jobs(size), mode(None)))
+        }.tapOutput { case ((idx, token, _), out) =>
+          Json.obj(
+            "batch" -> Json.obj(batch_id(token), finish(idx), jobs(size), mode(None), "out" -> out.asJson))
         }.tapError { case (idx, token, _) =>
           Json.obj("batch" -> Json.obj(batch_id(token), failed(idx), jobs(size), mode(None)))
         })
@@ -119,10 +120,10 @@ final class NJBatch[F[_]: Async] private[guard] (
     run.use(identity)
   }
 
-  def sequential[Z](fzs: F[Z]*): F[List[Z]] =
+  def sequential[Z: Encoder](fzs: F[Z]*): F[List[Z]] =
     sequential[List, Z](fzs.toList)
 
-  private def parallel_run[G[_]: Traverse, Z](parallelism: Int, gfz: G[F[Z]]): F[G[Z]] = {
+  private def parallel_run[G[_]: Traverse, Z: Encoder](parallelism: Int, gfz: G[F[Z]]): F[G[Z]] = {
     val size: Long = gfz.size
     val run: Resource[F, F[G[Z]]] = for {
       _ <- gauge.timed
@@ -131,8 +132,9 @@ final class NJBatch[F[_]: Async] private[guard] (
         .retry((_: Int, _: Unique.Token, fz: F[Z]) => fz)
         .buildWith(_.tapInput { case (idx, token, _) =>
           Json.obj("batch" -> Json.obj(batch_id(token), start(idx), jobs(size), mode(Some(parallelism))))
-        }.tapOutput { case ((idx, token, _), _) =>
-          Json.obj("batch" -> Json.obj(batch_id(token), finish(idx), jobs(size), mode(Some(parallelism))))
+        }.tapOutput { case ((idx, token, _), out) =>
+          Json.obj("batch" -> Json
+            .obj(batch_id(token), finish(idx), jobs(size), mode(Some(parallelism)), "out" -> out.asJson))
         }.tapError { case (idx, token, _) =>
           Json.obj("batch" -> Json.obj(batch_id(token), failed(idx), jobs(size), mode(Some(parallelism))))
         })
@@ -144,9 +146,9 @@ final class NJBatch[F[_]: Async] private[guard] (
     run.use(identity)
   }
 
-  def parallel[Z](parallelism: Int)(fzs: F[Z]*): F[List[Z]] =
+  def parallel[Z: Encoder](parallelism: Int)(fzs: F[Z]*): F[List[Z]] =
     parallel_run[List, Z](parallelism, fzs.toList)
 
-  def parallel[Z](fzs: F[Z]*): F[List[Z]] =
+  def parallel[Z: Encoder](fzs: F[Z]*): F[List[Z]] =
     parallel_run[List, Z](fzs.size, fzs.toList)
 }

@@ -4,6 +4,7 @@ import cats.Endo
 import cats.data.Reader
 import cats.effect.kernel.{Async, Resource, Sync}
 import cats.effect.std.Hotswap
+import cats.implicits.toFunctorOps
 import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick, TickStatus}
 import fs2.{Chunk, Pipe, Stream}
@@ -47,13 +48,15 @@ final class HadoopParquet[F[_]] private (
   private def get_writerR(path: Path)(implicit F: Sync[F]): Resource[F, HadoopWriter[F, GenericRecord]] =
     HadoopWriter.parquetR[F](writeBuilder, path)
 
-  override def sink(path: NJPath)(implicit F: Sync[F]): Pipe[F, GenericRecord, Nothing] = {
+  override def sink(path: NJPath)(implicit F: Sync[F]): Pipe[F, GenericRecord, Int] = {
     (ss: Stream[F, GenericRecord]) =>
-      Stream.resource(get_writerR(path.hadoopPath)).flatMap(w => ss.chunks.foreach(w.write))
+      Stream
+        .resource(get_writerR(path.hadoopPath))
+        .flatMap(w => ss.chunks.evalMap(c => w.write(c).as(c.size)))
   }
 
   override def sink(policy: Policy, zoneId: ZoneId)(pathBuilder: Tick => NJPath)(implicit
-    F: Async[F]): Pipe[F, GenericRecord, Nothing] = {
+    F: Async[F]): Pipe[F, GenericRecord, Int] = {
     def getWriter(tick: Tick): Resource[F, HadoopWriter[F, GenericRecord]] =
       get_writerR(pathBuilder(tick).hadoopPath)
 

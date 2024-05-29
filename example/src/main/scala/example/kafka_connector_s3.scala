@@ -13,7 +13,7 @@ import com.github.chenharryhua.nanjin.messages.kafka.codec.gr2Jackson
 import com.github.chenharryhua.nanjin.terminals.{HadoopText, JacksonFile, NJHadoop, NJPath}
 import eu.timepit.refined.auto.*
 import fs2.Pipe
-import fs2.kafka.{commitBatchWithin, AutoOffsetReset, CommittableConsumerRecord}
+import fs2.kafka.{AutoOffsetReset, CommittableConsumerRecord, commitBatchWithin}
 import io.circe.syntax.EncoderOps
 import org.apache.avro.generic.GenericData
 import org.apache.hadoop.conf.Configuration
@@ -49,7 +49,7 @@ object kafka_connector_s3 {
     .service("dump kafka topic to s3")
     .eventStream { ga =>
       val jackson = JacksonFile(_.Uncompressed)
-      val sink: Pipe[IO, String, Nothing] = // rotate files every 5 minutes
+      val sink: Pipe[IO, String, Int] = // rotate files every 5 minutes
         hadoop.sink(policies.crontab(_.every5Minutes), ga.zoneId)(tick => root / jackson.ymdFileName(tick))
       decoder(ga).use { decode =>
         ctx

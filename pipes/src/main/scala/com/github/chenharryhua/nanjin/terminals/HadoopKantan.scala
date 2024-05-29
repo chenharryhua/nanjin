@@ -3,9 +3,9 @@ package com.github.chenharryhua.nanjin.terminals
 import cats.Endo
 import cats.effect.kernel.{Async, Resource, Sync}
 import cats.effect.std.Hotswap
+import cats.implicits.toFunctorOps
 import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick, TickStatus}
-import fs2.text.utf8
 import fs2.{Chunk, Pipe, Stream}
 import kantan.csv.CsvConfiguration.Header
 import kantan.csv.engine.ReaderEngine
@@ -17,7 +17,6 @@ import shapeless.ops.record.Keys
 import shapeless.{HList, LabelledGeneric}
 
 import java.io.{BufferedReader, InputStreamReader}
-import java.nio.charset.StandardCharsets
 import java.time.ZoneId
 import scala.annotation.nowarn
 
@@ -65,20 +64,21 @@ final class HadoopKantan[F[_]] private (
 
   // write
 
-  def sink(path: NJPath)(implicit F: Sync[F]): Pipe[F, Seq[String], Nothing] = {
-    (ss: Stream[F, Seq[String]]) =>
-      Stream.resource(HadoopWriter.byteR[F](configuration, path.hadoopPath)).flatMap { w =>
-        val src: Stream[F, String] =
-          Stream.chunk(csvHeader(csvConfiguration)) ++
-            ss.map(buildCsvRow(csvConfiguration))
-        src.intersperse(NEWLINE_SEPARATOR).through(utf8.encode).chunks.foreach(w.write)
-      }
+  def sink(path: NJPath)(implicit F: Sync[F]): Pipe[F, Seq[String], Int] = { (ss: Stream[F, Seq[String]]) =>
+    Stream.resource(HadoopWriter.csvR[F](configuration, path.hadoopPath)).flatMap { w =>
+      if (csvConfiguration.hasHeader) {
+        Stream.eval(w.write(csvHeader(csvConfiguration))) >>
+          ss.chunks.evalMap(c => w.write(c.map(csvRow(csvConfiguration))).as(c.size))
+      } else
+        ss.chunks.evalMap(c => w.write(c.map(csvRow(csvConfiguration))).as(c.size))
+    }
   }
 
   def sink(policy: Policy, zoneId: ZoneId)(pathBuilder: Tick => NJPath)(implicit
-    F: Async[F]): Pipe[F, Seq[String], Nothing] = {
+    F: Async[F]): Pipe[F, Seq[String], Int] = {
+
     def get_writer(tick: Tick): Resource[F, HadoopWriter[F, String]] =
-      HadoopWriter.stringR[F](configuration, StandardCharsets.UTF_8, pathBuilder(tick).hadoopPath)
+      HadoopWriter.csvR[F](configuration, pathBuilder(tick).hadoopPath)
 
     // save
     (ss: Stream[F, Seq[String]]) =>
@@ -86,29 +86,25 @@ final class HadoopKantan[F[_]] private (
         val ticks: Stream[F, Either[Chunk[String], Tick]] = tickStream[F](zero).map(Right(_))
 
         Stream.resource(Hotswap(get_writer(zero.tick))).flatMap { case (hotswap, writer) =>
+          val src: Stream[F, Either[Chunk[String], Tick]] =
+            ss.map(csvRow(csvConfiguration)).chunks.map(Left(_))
+
           if (csvConfiguration.hasHeader) {
             val header: Chunk[String] = csvHeader(csvConfiguration)
-            val src: Stream[F, Either[Chunk[String], Tick]] =
-              (Stream(header) ++ ss.map(buildCsvRow(csvConfiguration)).chunks).map(Left(_))
-
-            persistCsvWithHeader[F](
-              get_writer,
-              header,
-              hotswap,
-              writer,
-              src.mergeHaltBoth(ticks),
-              Chunk.empty
-            ).stream
+            Stream.eval(writer.write(header)) >>
+              persistCsvWithHeader[F](
+                get_writer,
+                hotswap,
+                writer,
+                src.mergeHaltBoth(ticks),
+                header
+              ).stream
           } else {
-            val src: Stream[F, Either[Chunk[String], Tick]] =
-              ss.map(buildCsvRow(csvConfiguration)).chunks.map(Left(_))
-
             persistText[F](
               get_writer,
               hotswap,
               writer,
-              src.mergeHaltBoth(ticks),
-              Chunk.empty
+              src.mergeHaltBoth(ticks)
             ).stream
           }
         }

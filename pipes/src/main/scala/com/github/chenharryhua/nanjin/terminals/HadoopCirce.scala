@@ -2,15 +2,14 @@ package com.github.chenharryhua.nanjin.terminals
 
 import cats.effect.kernel.{Async, Resource, Sync}
 import cats.effect.std.Hotswap
+import cats.implicits.toFunctorOps
 import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick, TickStatus}
-import fs2.text.utf8
 import fs2.{Chunk, Pipe, Stream}
 import io.circe.jawn.parse
 import io.circe.{Json, ParsingFailure}
 import org.apache.hadoop.conf.Configuration
 
-import java.nio.charset.StandardCharsets
 import java.time.ZoneId
 
 final class HadoopCirce[F[_]] private (configuration: Configuration) {
@@ -29,16 +28,16 @@ final class HadoopCirce[F[_]] private (configuration: Configuration) {
 
   // write
 
-  def sink(path: NJPath)(implicit F: Sync[F]): Pipe[F, Json, Nothing] = { (ss: Stream[F, Json]) =>
-    Stream.resource(HadoopWriter.byteR[F](configuration, path.hadoopPath)).flatMap { w =>
-      ss.map(_.noSpaces).intersperse(NEWLINE_SEPARATOR).through(utf8.encode).chunks.foreach(w.write)
+  def sink(path: NJPath)(implicit F: Async[F]): Pipe[F, Json, Int] = { (ss: Stream[F, Json]) =>
+    Stream.resource(HadoopWriter.stringR[F](configuration, path.hadoopPath)).flatMap { w =>
+      ss.chunks.evalMap(c => w.write(c.map(_.noSpaces)).as(c.size))
     }
   }
 
   def sink(policy: Policy, zoneId: ZoneId)(pathBuilder: Tick => NJPath)(implicit
-    F: Async[F]): Pipe[F, Json, Nothing] = {
+    F: Async[F]): Pipe[F, Json, Int] = {
     def get_writer(tick: Tick): Resource[F, HadoopWriter[F, String]] =
-      HadoopWriter.stringR[F](configuration, StandardCharsets.UTF_8, pathBuilder(tick).hadoopPath)
+      HadoopWriter.stringR[F](configuration, pathBuilder(tick).hadoopPath)
 
     // save
     (ss: Stream[F, Json]) =>
@@ -49,8 +48,7 @@ final class HadoopCirce[F[_]] private (configuration: Configuration) {
             get_writer,
             hotswap,
             writer,
-            ss.map(_.noSpaces).chunks.map(Left(_)).mergeHaltBoth(ticks),
-            Chunk.empty
+            ss.chunks.map(c => Left(c.map(_.noSpaces))).mergeHaltBoth(ticks)
           ).stream
         }
       }
