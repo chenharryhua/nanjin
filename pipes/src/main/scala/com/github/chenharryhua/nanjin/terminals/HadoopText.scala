@@ -22,7 +22,7 @@ final class HadoopText[F[_]] private (configuration: Configuration) {
 
   // write
 
-  def sink(path: NJPath)(implicit F: Async[F]): Pipe[F, String, Int] = { (ss: Stream[F, String]) =>
+  def sink(path: NJPath)(implicit F: Sync[F]): Pipe[F, String, Int] = { (ss: Stream[F, String]) =>
     Stream
       .resource(HadoopWriter.stringR[F](configuration, path.hadoopPath))
       .flatMap(w => ss.chunks.evalMap(c => w.write(c).as(c.size)))

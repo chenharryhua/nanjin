@@ -66,11 +66,12 @@ final class HadoopKantan[F[_]] private (
 
   def sink(path: NJPath)(implicit F: Sync[F]): Pipe[F, Seq[String], Int] = { (ss: Stream[F, Seq[String]]) =>
     Stream.resource(HadoopWriter.csvR[F](configuration, path.hadoopPath)).flatMap { w =>
-      if (csvConfiguration.hasHeader) {
-        Stream.eval(w.write(csvHeader(csvConfiguration))) >>
-          ss.chunks.evalMap(c => w.write(c.map(csvRow(csvConfiguration))).as(c.size))
-      } else
+      val process: Stream[F, Int] =
         ss.chunks.evalMap(c => w.write(c.map(csvRow(csvConfiguration))).as(c.size))
+
+      val header: Stream[F, Unit] = Stream.eval(w.write(csvHeader(csvConfiguration)))
+
+      if (csvConfiguration.hasHeader) header >> process else process
     }
   }
 

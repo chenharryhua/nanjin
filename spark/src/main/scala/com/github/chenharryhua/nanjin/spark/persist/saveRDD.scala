@@ -3,9 +3,8 @@ package com.github.chenharryhua.nanjin.spark.persist
 import cats.Show
 import cats.syntax.show.*
 import com.github.chenharryhua.nanjin.terminals.*
-import com.sksamuel.avro4s.{AvroOutputStream, Encoder as AvroEncoder, ToRecord}
-import io.circe.{Encoder as JsonEncoder, Json}
-import kantan.csv.engine.WriterEngine
+import com.sksamuel.avro4s.{AvroOutputStream, ToRecord, Encoder as AvroEncoder}
+import io.circe.{Json, Encoder as JsonEncoder}
 import kantan.csv.{CsvConfiguration, RowEncoder}
 import org.apache.avro.generic.GenericRecord
 import org.apache.avro.mapred.AvroKey
@@ -18,7 +17,7 @@ import org.apache.parquet.hadoop.ParquetOutputFormat
 import org.apache.spark.rdd.RDD
 import scalapb.GeneratedMessage
 
-import java.io.{ByteArrayOutputStream, StringWriter}
+import java.io.ByteArrayOutputStream
 
 private[spark] object saveRDD {
 
@@ -171,20 +170,14 @@ private[spark] object saveRDD {
     config.set(NJTextOutputFormat.suffix, NJFileFormat.Kantan.suffix)
     compressionConfig.set(config, compression)
 
-    val header_crlf = csvHeader(csvCfg).map(_.concat(NEWLINE_SEPARATOR)).toList.mkString
-
-    def row(r: Seq[String])(implicit engine: WriterEngine): String = {
-      val sw = new StringWriter()
-      engine.writerFor(sw, csvCfg).write(r).close()
-      sw.toString
-    }
+    val header_crlf = csvHeader(csvCfg).toList.mkString
 
     // run
     rdd
       .mapPartitions(
         iter =>
           Iterator(Tuple2(NullWritable.get(), new Text(header_crlf))) ++ // header
-            iter.map(r => (NullWritable.get(), new Text(row(encoder.encode(r))))), // body
+            iter.map(r => (NullWritable.get(), new Text(csvRow(csvCfg)(encoder.encode(r))))), // body
         preservesPartitioning = true
       )
       .saveAsNewAPIHadoopFile(

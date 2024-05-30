@@ -28,7 +28,7 @@ final class HadoopCirce[F[_]] private (configuration: Configuration) {
 
   // write
 
-  def sink(path: NJPath)(implicit F: Async[F]): Pipe[F, Json, Int] = { (ss: Stream[F, Json]) =>
+  def sink(path: NJPath)(implicit F: Sync[F]): Pipe[F, Json, Int] = { (ss: Stream[F, Json]) =>
     Stream.resource(HadoopWriter.stringR[F](configuration, path.hadoopPath)).flatMap { w =>
       ss.chunks.evalMap(c => w.write(c.map(_.noSpaces)).as(c.size))
     }

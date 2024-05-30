@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin.kafka
 
 import cats.effect.kernel.{Async, Resource}
-import cats.effect.std.UUIDGen
 import cats.syntax.all.*
 import cats.{Endo, Id}
 import com.github.chenharryhua.nanjin.common.UpdateConfig
@@ -118,22 +117,15 @@ object KafkaAdminApi {
       */
     override def deleteConsumerGroupOffsets(groupId: String): F[Unit] =
       for {
-        uuid <- UUIDGen[F].randomUUID
-        tps <- transientConsumer(initCS.withGroupId(uuid.show)).partitionsFor
+        tps <- transientConsumer(initCS.withGroupId(groupId)).partitionsFor
         _ <- adminResource.use(_.deleteConsumerGroupOffsets(groupId, tps.value.toSet))
       } yield ()
 
     override def offsetRangeFor(dtr: NJDateTimeRange): F[KafkaTopicPartition[Option[KafkaOffsetRange]]] =
-      for {
-        uuid <- UUIDGen[F].randomUUID
-        kor <- transientConsumer(initCS.withGroupId(uuid.show)).offsetRangeFor(dtr)
-      } yield kor
+      transientConsumer(initCS).offsetRangeFor(dtr)
 
     override def partitionsFor: F[ListOfTopicPartitions] =
-      for {
-        uuid <- UUIDGen[F].randomUUID
-        kor <- transientConsumer(initCS.withGroupId(uuid.show)).partitionsFor
-      } yield kor
+      transientConsumer(initCS).partitionsFor
 
     override def commitSync(groupId: String, offsets: Map[TopicPartition, OffsetAndMetadata]): F[Unit] =
       transientConsumer(initCS.withGroupId(groupId)).commitSync(offsets)
