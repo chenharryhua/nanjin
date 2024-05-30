@@ -1,25 +1,27 @@
 package com.github.chenharryhua.nanjin.guard.action
 import cats.Traverse
 import cats.effect.kernel.{Async, Resource, Unique}
-import cats.effect.std.UUIDGen
 import cats.syntax.all.*
-import io.circe.{Encoder, Json}
+import com.codahale.metrics.MetricRegistry
+import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import io.circe.generic.JsonCodec
 import io.circe.syntax.EncoderOps
+import io.circe.{Encoder, Json}
 
 import java.time.Duration
-import java.util.UUID
 import scala.jdk.DurationConverters.ScalaDurationOps
 
 @JsonCodec
 final case class Detail(nth_job: Int, took: Duration, is_done: Boolean)
 @JsonCodec
-final case class QuasiResult(uuid: UUID, mode: String, details: List[Detail])
+final case class QuasiResult(token: Int, mode: String, details: List[Detail])
 
 final class NJBatch[F[_]: Async] private[guard] (
+  serviceParams: ServiceParams,
+  metricRegistry: MetricRegistry,
   action: NJAction[F],
-  ratio: Resource[F, NJRatio[F]],
-  gauge: NJGauge[F]) {
+  ratioBuilder: NJRatio.Builder,
+  gaugeBuilder: NJGauge.Builder) {
   private val F = Async[F]
 
   private def mode(par: Option[Int]): (String, Json) =
@@ -28,34 +30,44 @@ final class NJBatch[F[_]: Async] private[guard] (
   private def start(idx: Int): (String, Json)               = "started_at" -> idx.asJson
   private def finish(idx: Int): (String, Json)              = "done_at" -> idx.asJson
   private def failed(idx: Int): (String, Json)              = "failed_at" -> idx.asJson
-  private def batch_id(uuid: UUID): (String, Json)          = "uuid" -> uuid.asJson
   private def batch_id(token: Unique.Token): (String, Json) = "token" -> Json.fromInt(token.hash)
+
+  private def ratio(token: Unique.Token): Resource[F, NJRatio[F]] =
+    for {
+      _ <- gaugeBuilder
+        .withMeasurement(action.actionParams.measurement.value)
+        .build[F](action.actionParams.actionName.value, metricRegistry, serviceParams, Some(token))
+        .timed
+      rat <- ratioBuilder
+        .withMeasurement(action.actionParams.measurement.value)
+        .build(action.actionParams.actionName.value, metricRegistry, serviceParams, Some(token))
+    } yield rat
 
   object quasi {
 
     def sequential[G[_]: Traverse, Z](gfz: G[F[Z]]): F[QuasiResult] = {
       val size: Long = gfz.size
       val run: Resource[F, F[QuasiResult]] = for {
-        _ <- gauge.timed
-        rat <- ratio.evalTap(_.incDenominator(size))
+        token <- Resource.eval(F.unique)
+        rat <- ratio(token).evalTap(_.incDenominator(size))
         act <- action
-          .retry((_: Int, _: UUID, fz: F[Z]) => fz)
-          .buildWith(_.tapInput { case (idx, uuid, _) =>
-            Json.obj("quasi" -> Json.obj(batch_id(uuid), start(idx), jobs(size), mode(None)))
-          }.tapOutput { case ((idx, uuid, _), _) =>
-            Json.obj("quasi" -> Json.obj(batch_id(uuid), finish(idx), jobs(size), mode(None)))
-          }.tapError { case (idx, uuid, _) =>
-            Json.obj("quasi" -> Json.obj(batch_id(uuid), failed(idx), jobs(size), mode(None)))
-          })
-      } yield UUIDGen[F].randomUUID.flatMap { uuid =>
-        gfz.zipWithIndex.traverse { case (fz, idx) =>
-          val oneBase = idx + 1
-          F.timed(act.run((oneBase, uuid, fz)).attempt).flatTap(_ => rat.incNumerator(1)).map {
-            case (fd, result) =>
-              Detail(nth_job = oneBase, took = fd.toJava, is_done = result.isRight)
-          }
-        }.map(details => QuasiResult(uuid, "sequential", details.toList))
-      }
+          .retry((_: Int, fz: F[Z]) => fz)
+          .buildWithToken(token)(
+            _.tapInput { case (idx, _) =>
+              Json.obj("quasi" -> Json.obj(batch_id(token), start(idx), jobs(size), mode(None)))
+            }.tapOutput { case ((idx, _), _) =>
+              Json.obj("quasi" -> Json.obj(batch_id(token), finish(idx), jobs(size), mode(None)))
+            }.tapError { case (idx, _) =>
+              Json.obj("quasi" -> Json.obj(batch_id(token), failed(idx), jobs(size), mode(None)))
+            }
+          )
+      } yield gfz.zipWithIndex.traverse { case (fz, idx) =>
+        val oneBase = idx + 1
+        F.timed(act.run((oneBase, fz)).attempt).flatTap(_ => rat.incNumerator(1)).map { case (fd, result) =>
+          Detail(nth_job = oneBase, took = fd.toJava, is_done = result.isRight)
+        }
+      }.map(details => QuasiResult(token.hash, "sequential", details.toList))
+
       run.use(identity)
     }
 
@@ -65,26 +77,28 @@ final class NJBatch[F[_]: Async] private[guard] (
     private def parallel_run[G[_]: Traverse, Z](parallelism: Int, gfz: G[F[Z]]): F[QuasiResult] = {
       val size: Long = gfz.size
       val run: Resource[F, F[QuasiResult]] = for {
-        _ <- gauge.timed
-        rat <- ratio.evalTap(_.incDenominator(size))
+        token <- Resource.eval(F.unique)
+        rat <- ratio(token).evalTap(_.incDenominator(size))
         act <- action
-          .retry((_: Int, _: UUID, fz: F[Z]) => fz)
-          .buildWith(_.tapInput { case (idx, uuid, _) =>
-            Json.obj("quasi" -> Json.obj(batch_id(uuid), start(idx), jobs(size), mode(Some(parallelism))))
-          }.tapOutput { case ((idx, uuid, _), _) =>
-            Json.obj("quasi" -> Json.obj(batch_id(uuid), finish(idx), jobs(size), mode(Some(parallelism))))
-          }.tapError { case (idx, uuid, _) =>
-            Json.obj("quasi" -> Json.obj(batch_id(uuid), failed(idx), jobs(size), mode(Some(parallelism))))
-          })
-      } yield UUIDGen[F].randomUUID.flatMap { uuid =>
-        F.parTraverseN(parallelism)(gfz.zipWithIndex) { case (fz, idx) =>
+          .retry((_: Int, fz: F[Z]) => fz)
+          .buildWithToken(token)(
+            _.tapInput { case (idx, _) =>
+              Json.obj("quasi" -> Json.obj(batch_id(token), start(idx), jobs(size), mode(Some(parallelism))))
+            }.tapOutput { case ((idx, _), _) =>
+              Json.obj("quasi" -> Json.obj(batch_id(token), finish(idx), jobs(size), mode(Some(parallelism))))
+            }.tapError { case (idx, _) =>
+              Json.obj("quasi" -> Json.obj(batch_id(token), failed(idx), jobs(size), mode(Some(parallelism))))
+            }
+          )
+      } yield F
+        .parTraverseN(parallelism)(gfz.zipWithIndex) { case (fz, idx) =>
           val oneBase = idx + 1
-          F.timed(act.run((oneBase, uuid, fz)).attempt).flatTap(_ => rat.incNumerator(1)).map {
-            case (fd, result) =>
-              Detail(nth_job = oneBase, took = fd.toJava, is_done = result.isRight)
+          F.timed(act.run((oneBase, fz)).attempt).flatTap(_ => rat.incNumerator(1)).map { case (fd, result) =>
+            Detail(nth_job = oneBase, took = fd.toJava, is_done = result.isRight)
           }
-        }.map(details => QuasiResult(uuid, s"parallel-$parallelism", details.toList.sortBy(_.nth_job)))
-      }
+        }
+        .map(details => QuasiResult(token.hash, s"parallel-$parallelism", details.toList.sortBy(_.nth_job)))
+
       run.use(identity)
     }
 
@@ -100,22 +114,23 @@ final class NJBatch[F[_]: Async] private[guard] (
   def sequential[G[_]: Traverse, Z: Encoder](gfz: G[F[Z]]): F[G[Z]] = {
     val size: Long = gfz.size
     val run: Resource[F, F[G[Z]]] = for {
-      _ <- gauge.timed
-      rat <- ratio.evalTap(_.incDenominator(size))
+      token <- Resource.eval(F.unique)
+      rat <- ratio(token).evalTap(_.incDenominator(size))
       act <- action
-        .retry((_: Int, _: Unique.Token, fz: F[Z]) => fz)
-        .buildWith(_.tapInput { case (idx, token, _) =>
-          Json.obj("batch" -> Json.obj(batch_id(token), start(idx), jobs(size), mode(None)))
-        }.tapOutput { case ((idx, token, _), out) =>
-          Json.obj(
-            "batch" -> Json.obj(batch_id(token), finish(idx), jobs(size), mode(None), "out" -> out.asJson))
-        }.tapError { case (idx, token, _) =>
-          Json.obj("batch" -> Json.obj(batch_id(token), failed(idx), jobs(size), mode(None)))
-        })
-    } yield Unique[F].unique.flatMap { token =>
-      gfz.zipWithIndex.traverse { case (fz, idx) =>
-        act.run((idx + 1, token, fz)).flatTap(_ => rat.incNumerator(1))
-      }
+        .retry((_: Int, fz: F[Z]) => fz)
+        .buildWithToken(token)(
+          _.tapInput { case (idx, _) =>
+            Json.obj("batch" -> Json.obj(batch_id(token), start(idx), jobs(size), mode(None)))
+          }.tapOutput { case ((idx, _), out) =>
+            Json.obj(
+              "batch" -> Json.obj(batch_id(token), finish(idx), jobs(size), mode(None), "out" -> out.asJson))
+          }.tapError { case (idx, _) =>
+            Json.obj("batch" -> Json.obj(batch_id(token), failed(idx), jobs(size), mode(None)))
+          }
+        )
+    } yield gfz.zipWithIndex.traverse { case (fz, idx) =>
+      act.run((idx + 1, fz)).flatTap(_ => rat.incNumerator(1))
+
     }
     run.use(identity)
   }
@@ -126,23 +141,24 @@ final class NJBatch[F[_]: Async] private[guard] (
   private def parallel_run[G[_]: Traverse, Z: Encoder](parallelism: Int, gfz: G[F[Z]]): F[G[Z]] = {
     val size: Long = gfz.size
     val run: Resource[F, F[G[Z]]] = for {
-      _ <- gauge.timed
-      rat <- ratio.evalTap(_.incDenominator(size))
+      token <- Resource.eval(F.unique)
+      rat <- ratio(token).evalTap(_.incDenominator(size))
       act <- action
-        .retry((_: Int, _: Unique.Token, fz: F[Z]) => fz)
-        .buildWith(_.tapInput { case (idx, token, _) =>
-          Json.obj("batch" -> Json.obj(batch_id(token), start(idx), jobs(size), mode(Some(parallelism))))
-        }.tapOutput { case ((idx, token, _), out) =>
-          Json.obj("batch" -> Json
-            .obj(batch_id(token), finish(idx), jobs(size), mode(Some(parallelism)), "out" -> out.asJson))
-        }.tapError { case (idx, token, _) =>
-          Json.obj("batch" -> Json.obj(batch_id(token), failed(idx), jobs(size), mode(Some(parallelism))))
-        })
-    } yield Unique[F].unique.flatMap { token =>
-      F.parTraverseN(parallelism)(gfz.zipWithIndex) { case (fz, idx) =>
-        act.run((idx + 1, token, fz)).flatTap(_ => rat.incNumerator(1))
-      }
+        .retry((_: Int, fz: F[Z]) => fz)
+        .buildWithToken(token)(
+          _.tapInput { case (idx, _) =>
+            Json.obj("batch" -> Json.obj(batch_id(token), start(idx), jobs(size), mode(Some(parallelism))))
+          }.tapOutput { case ((idx, _), out) =>
+            Json.obj("batch" -> Json
+              .obj(batch_id(token), finish(idx), jobs(size), mode(Some(parallelism)), "out" -> out.asJson))
+          }.tapError { case (idx, _) =>
+            Json.obj("batch" -> Json.obj(batch_id(token), failed(idx), jobs(size), mode(Some(parallelism))))
+          }
+        )
+    } yield F.parTraverseN(parallelism)(gfz.zipWithIndex) { case (fz, idx) =>
+      act.run((idx + 1, fz)).flatTap(_ => rat.incNumerator(1))
     }
+
     run.use(identity)
   }
 

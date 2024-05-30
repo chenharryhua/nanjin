@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.action
 
 import cats.data.{Ior, Kleisli}
-import cats.effect.kernel.{Async, Ref, Resource}
+import cats.effect.kernel.{Async, Ref, Resource, Unique}
 import cats.effect.std.Dispatcher
 import cats.syntax.all.*
 import com.codahale.metrics.{Gauge, MetricRegistry}
@@ -58,14 +58,15 @@ object NJRatio {
     private[guard] def build[F[_]: Async](
       name: String,
       metricRegistry: MetricRegistry,
-      serviceParams: ServiceParams): Resource[F, NJRatio[F]] = {
+      serviceParams: ServiceParams,
+      token: Option[Unique.Token]): Resource[F, NJRatio[F]] = {
       val metricName = MetricName(serviceParams, measurement, name)
 
       val F = Async[F]
 
       for {
-        token <- Resource.eval(F.unique)
-        metricID = MetricID(metricName, Category.Gauge(GaugeKind.Ratio), token.hash).identifier
+        unique <- token.fold(Resource.eval(F.unique))(Resource.pure)
+        metricID = MetricID(metricName, Category.Gauge(GaugeKind.Ratio), unique.hash).identifier
         ref <- Resource.eval(F.ref(Ior.Left(0.0d): Ior[Double, Double]))
         dispatcher <- Dispatcher.sequential[F]
         _ <- Resource.make(F.delay {

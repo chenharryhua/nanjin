@@ -184,7 +184,8 @@ private object ReTry {
     transInput: Reader[IN, Json],
     transOutput: Reader[(IN, OUT), Json],
     transError: Reader[IN, Json],
-    isWorthRetry: Reader[Throwable, Boolean])(implicit F: Async[F]): Resource[F, Kleisli[F, IN, OUT]] = {
+    isWorthRetry: Reader[Throwable, Boolean],
+    token: Option[Unique.Token])(implicit F: Async[F]): Resource[F, Kleisli[F, IN, OUT]] = {
     def action_runner(token: Unique.Token): ReTry[F, IN, OUT] =
       new ReTry[F, IN, OUT](
         token = token,
@@ -199,6 +200,6 @@ private object ReTry {
         transError = transError,
         isWorthRetry = isWorthRetry
       )
-    Resource.make(F.unique.map(action_runner))(_.unregister).map(_.kleisli)
+    Resource.make(token.fold(F.unique)(F.pure).map(action_runner))(_.unregister).map(_.kleisli)
   }
 }

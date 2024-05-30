@@ -86,16 +86,23 @@ final class SnapshotPolyglot(snapshot: MetricSnapshot) {
           .groupBy(_._1.metricName) // metric-name group
           .toList
           .sortBy(_._1.name)
-          .map { case (name, mjs) =>
+          .map { case (name, items) =>
             val inner =
-              mjs.groupBy(_._1.category.kind.group.value).toList.sortBy(_._1).flatMap { case (_, js) =>
-                js.sortBy(_._1.category.order).map { case (mId, j) =>
-                  Json.obj(mId.category.kind.entryName -> j)
-                }
+              items.groupBy(_._1.uniqueToken).map { case (_, items) =>
+                items
+                  .groupBy(_._1.category.kind.group.value)
+                  .toList
+                  .sortBy(_._1)
+                  .flatMap { case (_, items) =>
+                    items.sortBy(_._1.category.order)(Ordering[Int].reverse).map { case (mId, js) =>
+                      Json.obj(mId.category.kind.entryName -> js)
+                    }
+                  }
+                  .reduce(_ deepMerge _)
               }
             name -> inner.asJson
           }
-          .map { case (n, j) => Json.obj("digest" -> Json.fromString(n.digest), n.name -> j) }
+          .map { case (n, js) => Json.obj("digest" -> Json.fromString(n.digest), n.name -> js) }
         Json.obj(measurement -> Json.arr(arr*))
       }
       .asJson

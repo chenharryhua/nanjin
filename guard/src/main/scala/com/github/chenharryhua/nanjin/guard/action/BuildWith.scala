@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard.action
 
 import cats.Endo
 import cats.data.{Kleisli, Reader}
-import cats.effect.kernel.{Async, Resource}
+import cats.effect.kernel.{Async, Resource, Unique}
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.guard.config.ActionParams
 import com.github.chenharryhua.nanjin.guard.event.*
@@ -15,16 +15,21 @@ final class BuildWith[F[_]: Async, IN, OUT] private[action] (
   actionParams: ActionParams,
   arrow: Kleisli[F, IN, OUT]) {
 
-  def buildWith(f: Endo[BuildWith.Builder[F, IN, OUT]]): Resource[F, Kleisli[F, IN, OUT]] = {
-    val init = new BuildWith.Builder[F, IN, OUT](
+  private val init: BuildWith.Builder[F, IN, OUT] =
+    new BuildWith.Builder[F, IN, OUT](
       transInput = Reader((_: IN) => Json.Null),
       transOutput = Reader((_: (IN, OUT)) => Json.Null),
       transError = Reader((_: IN) => Json.Null),
       isWorthRetry = Reader((_: Throwable) => true)
     )
 
-    f(init).build(metricRegistry, channel, actionParams, arrow)
-  }
+  def buildWith(f: Endo[BuildWith.Builder[F, IN, OUT]]): Resource[F, Kleisli[F, IN, OUT]] =
+    f(init).build(metricRegistry, channel, actionParams, arrow, None)
+
+  def buildWithToken(token: Unique.Token)(
+    f: Endo[BuildWith.Builder[F, IN, OUT]]): Resource[F, Kleisli[F, IN, OUT]] =
+    f(init).build(metricRegistry, channel, actionParams, arrow, Some(token))
+
 }
 
 object BuildWith {
@@ -66,7 +71,8 @@ object BuildWith {
       metricRegistry: MetricRegistry,
       channel: Channel[F, NJEvent],
       actionParams: ActionParams,
-      arrow: Kleisli[F, IN, OUT]): Resource[F, Kleisli[F, IN, OUT]] =
+      arrow: Kleisli[F, IN, OUT],
+      token: Option[Unique.Token]): Resource[F, Kleisli[F, IN, OUT]] =
       ReTry(
         metricRegistry = metricRegistry,
         channel = channel,
@@ -75,7 +81,8 @@ object BuildWith {
         transInput = transInput,
         transOutput = transOutput,
         transError = transError,
-        isWorthRetry = isWorthRetry
+        isWorthRetry = isWorthRetry,
+        token = token
       )
   }
 }
