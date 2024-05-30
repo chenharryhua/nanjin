@@ -3,7 +3,7 @@ ThisBuild / version            := "0.18.0-SNAPSHOT"
 ThisBuild / evictionErrorLevel := Level.Info
 ThisBuild / versionScheme      := Some("early-semver")
 
-val catsCoreV   = "2.10.0"
+val catsCoreV   = "2.12.0"
 val fs2V        = "3.10.2"
 val awsV        = "2.25.60"
 val catsEffectV = "3.5.4"
@@ -23,7 +23,7 @@ val doobieV     = "1.0.0-RC5"
 val natchezV    = "0.3.5"
 val http4sV     = "0.23.27"
 val cron4sV     = "0.7.0"
-val protobufV   = "4.26.1"
+val protobufV   = "4.27.0"
 val sparkV      = "3.5.1"
 val framelessV  = "0.16.0"
 val refinedV    = "0.11.1"
@@ -258,7 +258,7 @@ lazy val guard = (project in file("guard"))
       "org.apache.commons"                  % "commons-collections4" % "4.4",
       "io.dropwizard.metrics"               % "metrics-core"         % metricsV,
       "io.dropwizard.metrics"               % "metrics-jmx"          % metricsV,
-      "org.typelevel" %% "vault"            % "3.5.0",
+      "org.typelevel" %% "vault"            % "3.6.0",
       "com.lihaoyi" %% "scalatags"          % "0.13.1",
       "org.http4s" %% "http4s-core"         % http4sV,
       "org.http4s" %% "http4s-dsl"          % http4sV,
@@ -361,7 +361,7 @@ lazy val messages = (project in file("messages"))
   .settings(name := "nj-messages")
   .settings(
     libraryDependencies ++= List(
-      "org.apache.commons" % "commons-compress" % "1.26.1", // snyk
+      "org.apache.commons" % "commons-compress" % "1.26.2", // snyk
       "org.yaml"           % "snakeyaml"        % "2.2", // snyk
       "org.xerial.snappy"  % "snappy-java"      % "1.1.10.5" // snyk
     ) ++ serdeLib ++ kafkaLib.map(_ % Provided) ++ testLib)
@@ -395,17 +395,18 @@ lazy val kafka = (project in file("kafka"))
   */
 
 val hadoopLib = List(
-  "org.apache.hadoop" % "hadoop-mapreduce-client-core" % hadoopV,
-  "org.apache.hadoop" % "hadoop-aws"                   % hadoopV,
-  "org.apache.hadoop" % "hadoop-auth"                  % hadoopV,
-  "org.apache.hadoop" % "hadoop-annotations"           % hadoopV,
-  "org.apache.hadoop" % "hadoop-common"                % hadoopV,
-  "org.apache.hadoop" % "hadoop-client"                % hadoopV,
-  "org.apache.hadoop" % "hadoop-client-runtime"        % hadoopV,
-  "org.apache.hadoop" % "hadoop-hdfs"                  % hadoopV,
-  "org.apache.hadoop" % "hadoop-hdfs-client"           % hadoopV,
-  "org.slf4j"         % "jcl-over-slf4j"               % slf4jV,
-  "com.nimbusds"      % "nimbus-jose-jwt"              % "9.39.1" // snyk
+  "org.apache.hadoop"  % "hadoop-mapreduce-client-core" % hadoopV,
+  "org.apache.hadoop"  % "hadoop-aws"                   % hadoopV,
+  "org.apache.hadoop"  % "hadoop-auth"                  % hadoopV,
+  "org.apache.hadoop"  % "hadoop-annotations"           % hadoopV,
+  "org.apache.hadoop"  % "hadoop-common"                % hadoopV,
+  "org.apache.hadoop"  % "hadoop-client"                % hadoopV,
+  "org.apache.hadoop"  % "hadoop-client-runtime"        % hadoopV,
+  "org.apache.hadoop"  % "hadoop-hdfs"                  % hadoopV,
+  "org.apache.hadoop"  % "hadoop-hdfs-client"           % hadoopV,
+  "org.slf4j"          % "jcl-over-slf4j"               % slf4jV,
+  "com.nimbusds"       % "nimbus-jose-jwt"              % "9.39.2", // snyk
+  "org.apache.commons" % "commons-configuration2"       % "2.10.1" // snyk
 ).map(
   _.exclude("log4j", "log4j")
     .exclude("org.slf4j", "slf4j-reload4j")

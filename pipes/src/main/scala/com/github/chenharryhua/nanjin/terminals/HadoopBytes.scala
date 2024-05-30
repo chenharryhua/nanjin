@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.terminals
 
 import cats.effect.kernel.{Async, Resource, Sync}
 import cats.effect.std.Hotswap
+import cats.implicits.toFunctorOps
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick, TickStatus}
 import fs2.{Chunk, Pipe, Stream}
 import org.apache.hadoop.conf.Configuration
@@ -30,13 +31,13 @@ final class HadoopBytes[F[_]] private (configuration: Configuration) {
   private def get_writerR(path: Path)(implicit F: Sync[F]): Resource[F, HadoopWriter[F, Byte]] =
     HadoopWriter.byteR[F](configuration, path)
 
-  def sink(path: NJPath)(implicit F: Sync[F]): Pipe[F, Byte, Nothing] = { (ss: Stream[F, Byte]) =>
-    Stream.resource(get_writerR(path.hadoopPath)).flatMap(os => ss.chunks.foreach(os.write))
+  def sink(path: NJPath)(implicit F: Sync[F]): Pipe[F, Byte, Int] = { (ss: Stream[F, Byte]) =>
+    Stream.resource(get_writerR(path.hadoopPath)).flatMap(w => ss.chunks.evalMap(c => w.write(c).as(c.size)))
   }
 
   // save
   def sink(policy: Policy, zoneId: ZoneId)(pathBuilder: Tick => NJPath)(implicit
-    F: Async[F]): Pipe[F, Byte, Nothing] = {
+    F: Async[F]): Pipe[F, Byte, Int] = {
     def getWriter(tick: Tick): Resource[F, HadoopWriter[F, Byte]] =
       get_writerR(pathBuilder(tick).hadoopPath)
 

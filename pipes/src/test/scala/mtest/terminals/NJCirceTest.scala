@@ -35,6 +35,8 @@ class NJCirceTest extends AnyFunSuite {
     assert(lines.unsafeRunSync() === data.size)
     val fileName = (file: NJFileKind).asJson.noSpaces
     assert(jawn.decode[NJFileKind](fileName).toOption.get == file)
+    val size = ts.through(sink).fold(0)(_ + _).compile.lastOrError.unsafeRunSync()
+    assert(size == data.size)
   }
 
   val fs2Root: NJPath = NJPath("./data/test/terminals/circe/tiger")
@@ -92,18 +94,20 @@ class NJCirceTest extends AnyFunSuite {
     val number = 10000L
     hdp.delete(path).unsafeRunSync()
     val fk = CirceFile(Uncompressed)
-    Stream
+    val processedSize = Stream
       .emits(TestData.tigerSet.toList)
       .covary[IO]
       .repeatN(number)
       .map(_.asJson)
       .through(json.sink(policies.fixedDelay(1.second), ZoneId.systemDefault())(t => path / fk.fileName(t)))
+      .fold(0)(_ + _)
       .compile
-      .drain
+      .lastOrError
       .unsafeRunSync()
     val size =
       Stream.eval(hdp.filesIn(path)).flatMap(json.source(_, 100)).compile.toList.map(_.size).unsafeRunSync()
     assert(size == number * TestData.tigerSet.toList.size)
+    assert(processedSize == number * TestData.tigerSet.toList.size)
   }
 
   test("rotation - empty") {

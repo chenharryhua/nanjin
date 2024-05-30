@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard.action
 
 import cats.Eval
 import cats.effect.implicits.genTemporalOps
-import cats.effect.kernel.{Async, Resource}
+import cats.effect.kernel.{Async, Resource, Unique}
 import cats.effect.std.Dispatcher
 import cats.syntax.all.*
 import com.codahale.metrics.{Gauge, MetricRegistry}
@@ -22,7 +22,8 @@ import scala.util.Try
 final class NJGauge[F[_]: Async] private (
   private[this] val name: MetricName,
   private[this] val metricRegistry: MetricRegistry,
-  private[this] val timeout: FiniteDuration) {
+  private[this] val timeout: FiniteDuration,
+  private[this] val token: Option[Unique.Token]) {
 
   private[this] val F = Async[F]
 
@@ -48,8 +49,11 @@ final class NJGauge[F[_]: Async] private (
         .void
     }
 
+  private[this] val unique: Resource[F, Unique.Token] =
+    token.fold(Resource.eval(F.unique))(Resource.pure)
+
   private[guard] def instrument[A: Encoder](value: F[A]): Resource[F, Unit] =
-    Resource.eval(F.unique).flatMap { token =>
+    unique.flatMap { token =>
       val metricID: MetricID = MetricID(name, Category.Gauge(GaugeKind.Instrument), token.hash)
       json_gauge(metricID, value)
     }
@@ -58,7 +62,7 @@ final class NJGauge[F[_]: Async] private (
     instrument(F.catchNonFatalEval(value))
 
   val timed: Resource[F, Unit] =
-    Resource.eval(F.unique).flatMap { token =>
+    unique.flatMap { token =>
       val metricID: MetricID = MetricID(name, Category.Gauge(GaugeKind.Timed), token.hash)
       Resource.eval(F.monotonic).flatMap { kickoff =>
         json_gauge(metricID, F.monotonic.map(elapse(kickoff, _)))
@@ -66,7 +70,7 @@ final class NJGauge[F[_]: Async] private (
     }
 
   def register[A: Encoder](value: F[A]): Resource[F, Unit] =
-    Resource.eval(F.unique).flatMap { token =>
+    unique.flatMap { token =>
       val metricID: MetricID = MetricID(name, Category.Gauge(GaugeKind.Gauge), token.hash)
       json_gauge(metricID, value)
     }
@@ -99,9 +103,10 @@ object NJGauge {
     private[guard] def build[F[_]: Async](
       name: String,
       metricRegistry: MetricRegistry,
-      serviceParams: ServiceParams): NJGauge[F] = {
+      serviceParams: ServiceParams,
+      token: Option[Unique.Token]): NJGauge[F] = {
       val metricName = MetricName(serviceParams, measurement, name)
-      new NJGauge[F](metricName, metricRegistry, timeout)
+      new NJGauge[F](metricName, metricRegistry, timeout, token)
     }
   }
 }

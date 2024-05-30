@@ -2,13 +2,12 @@ package com.github.chenharryhua.nanjin.terminals
 
 import cats.effect.kernel.{Async, Resource, Sync}
 import cats.effect.std.Hotswap
+import cats.implicits.toFunctorOps
 import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick, TickStatus}
-import fs2.text.utf8
 import fs2.{Chunk, Pipe, Stream}
 import org.apache.hadoop.conf.Configuration
 
-import java.nio.charset.StandardCharsets
 import java.time.ZoneId
 
 final class HadoopText[F[_]] private (configuration: Configuration) {
@@ -23,16 +22,16 @@ final class HadoopText[F[_]] private (configuration: Configuration) {
 
   // write
 
-  def sink(path: NJPath)(implicit F: Sync[F]): Pipe[F, String, Nothing] = { (ss: Stream[F, String]) =>
+  def sink(path: NJPath)(implicit F: Sync[F]): Pipe[F, String, Int] = { (ss: Stream[F, String]) =>
     Stream
-      .resource(HadoopWriter.byteR[F](configuration, path.hadoopPath))
-      .flatMap(w => ss.intersperse(NEWLINE_SEPARATOR).through(utf8.encode).chunks.foreach(w.write))
+      .resource(HadoopWriter.stringR[F](configuration, path.hadoopPath))
+      .flatMap(w => ss.chunks.evalMap(c => w.write(c).as(c.size)))
   }
 
   def sink(policy: Policy, zoneId: ZoneId)(pathBuilder: Tick => NJPath)(implicit
-    F: Async[F]): Pipe[F, String, Nothing] = {
+    F: Async[F]): Pipe[F, String, Int] = {
     def get_writer(tick: Tick): Resource[F, HadoopWriter[F, String]] =
-      HadoopWriter.stringR(configuration, StandardCharsets.UTF_8, pathBuilder(tick).hadoopPath)
+      HadoopWriter.stringR(configuration, pathBuilder(tick).hadoopPath)
 
     // save
     (ss: Stream[F, String]) =>
@@ -44,8 +43,7 @@ final class HadoopText[F[_]] private (configuration: Configuration) {
             get_writer,
             hotswap,
             writer,
-            ss.chunks.map(Left(_)).mergeHaltBoth(ticks),
-            Chunk.empty
+            ss.chunks.map(Left(_)).mergeHaltBoth(ticks)
           ).stream
         }
       }

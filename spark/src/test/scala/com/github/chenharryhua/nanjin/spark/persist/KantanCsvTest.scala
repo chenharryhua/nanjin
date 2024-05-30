@@ -39,7 +39,7 @@ class KantanCsvTest extends AnyFunSuite {
   }
 
   val root: NJPath = NJPath("./data/test/spark/persist/csv/tablet")
-  test("tablet read/write identity multi.uncompressed") {
+  test("1.tablet read/write identity multi.uncompressed") {
     val path = root / "uncompressed"
     val cfg  = CsvConfiguration.rfc
     val s    = saver(path, cfg).withCompression(_.Uncompressed)
@@ -51,7 +51,7 @@ class KantanCsvTest extends AnyFunSuite {
     //  assert(data.toSet == t3)
   }
 
-  test("tablet read/write identity multi.gzip") {
+  test("2.tablet read/write identity multi.gzip") {
     val path = root / "gzip"
     val cfg  = CsvConfiguration.rfc
     val s    = saver(path, cfg).withCompression(_.Gzip)
@@ -62,7 +62,7 @@ class KantanCsvTest extends AnyFunSuite {
     assert(data.toSet == loadTablet(path, cfg).unsafeRunSync())
   }
 
-  test("tablet read/write identity multi.9.deflate") {
+  test("3.tablet read/write identity multi.9.deflate") {
     val path = root / "deflate9"
     val cfg  = CsvConfiguration.rfc
     val s    = saver(path, cfg)
@@ -73,7 +73,7 @@ class KantanCsvTest extends AnyFunSuite {
     assert(data.toSet == loadTablet(path, cfg).unsafeRunSync())
   }
 
-  test("tablet read/write identity multi.bzip2") {
+  test("4.tablet read/write identity multi.bzip2") {
     val path = root / "bzip2"
     val cfg  = CsvConfiguration.rfc.withHeader
     val s    = saver(path, cfg).withCompression(_.Bzip2)
@@ -83,7 +83,7 @@ class KantanCsvTest extends AnyFunSuite {
     assert(data.toSet == loadTablet(path, cfg).unsafeRunSync())
   }
 
-  test("tablet read/write identity multi.lz4") {
+  test("5.tablet read/write identity multi.lz4") {
     val path = root / "lz4"
     val cfg  = CsvConfiguration.rfc.withHeader
     val s    = saver(path, cfg).withCompression(_.Lz4)
@@ -108,7 +108,7 @@ class KantanCsvTest extends AnyFunSuite {
       .map(_.lineIterator.toList.head === header)
       .foreach(assert(_))
 
-  test("tablet read/write identity with-explicit-header") {
+  test("6.tablet read/write identity with-explicit-header") {
     val path = root / "header_explicit"
     val cfg  = CsvConfiguration.rfc.withHeader("x", "y", "z")
     val s    = saver(path, cfg)
@@ -119,7 +119,7 @@ class KantanCsvTest extends AnyFunSuite {
     checkHeader(path, "x,y,z")
   }
 
-  test("tablet read/write identity with-implicit-header") {
+  test("7.tablet read/write identity with-implicit-header") {
     val path = root / "header_implicit"
     val cfg  = CsvConfiguration.rfc.withHeader
     val s    = saver(path, cfg)
@@ -127,10 +127,10 @@ class KantanCsvTest extends AnyFunSuite {
     val t = loaders.rdd.kantan[Tablet](path, sparkSession, cfg)
     assert(data.toSet == t.collect().toSet)
     assert(data.toSet == loadTablet(path, cfg).unsafeRunSync())
-    checkHeader(path, csvHeader(cfg).toList.mkString)
+    checkHeader(path, csvHeader(cfg).head.get.dropRight(2))
   }
 
-  test("tablet read/write identity with-header-delimiter") {
+  test("8.tablet read/write identity with-header-delimiter") {
     val path = root / "header_delimiter"
     val cfg  = CsvConfiguration.rfc.withCellSeparator('|').withHeader("a", "b")
     val s    = saver(path, cfg)
@@ -141,7 +141,7 @@ class KantanCsvTest extends AnyFunSuite {
     checkHeader(path, "a|b")
   }
 
-  test("tablet read/write identity with-header-delimiter-quote") {
+  test("9.tablet read/write identity with-header-delimiter-quote") {
     val path = root / "header_delimiter_quote"
     val cfg  = CsvConfiguration.rfc.withHeader("", "b", "").withCellSeparator('|').withQuote('*').quoteAll
     val s    = saver(path, cfg)

@@ -1,12 +1,10 @@
 package com.github.chenharryhua.nanjin.http.client.auth
 
-import cats.Endo
 import cats.data.NonEmptyList
 import cats.effect.kernel.{Async, Ref, Resource}
 import cats.effect.std.UUIDGen
 import cats.effect.syntax.all.*
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.common.UpdateConfig
 import io.circe.generic.auto.*
 import io.jsonwebtoken.Jwts
 import org.http4s.Method.*
@@ -32,35 +30,32 @@ object adobe {
     client_id: String,
     client_code: String,
     client_secret: String,
-    cfg: AuthConfig)
-      extends Http4sClientDsl[F] with Login[F, IMS[F]] with UpdateConfig[AuthConfig, IMS[F]] {
+    authClient: Resource[F, Client[F]])
+      extends Http4sClientDsl[F] with Login[F, IMS[F]] {
 
     private case class Token(
       token_type: String,
       expires_in: Long, // in milliseconds
       access_token: String)
 
-    private val params: AuthParams = cfg.evalConfig
-
     override def loginR(client: Client[F])(implicit F: Async[F]): Resource[F, Client[F]] = {
       val get_token: F[Token] =
         UUIDGen[F].randomUUID.flatMap { uuid =>
-          params
-            .authClient(client)
-            .expect[Token](POST(
+          authClient.use(
+            _.expect[Token](POST(
               UrlForm(
                 "grant_type" -> "authorization_code",
                 "client_id" -> client_id,
                 "client_secret" -> client_secret,
                 "code" -> client_code),
               auth_endpoint.withPath(path"/ims/token/v1")
-            ).putHeaders(`Idempotency-Key`(show"$uuid")))
+            ).putHeaders(`Idempotency-Key`(show"$uuid"))))
         }
 
       def update_token(ref: Ref[F, Token]): F[Unit] =
         for {
           oldToken <- ref.get
-          newToken <- get_token.delayBy(params.dormant(oldToken.expires_in.millisecond))
+          newToken <- get_token.delayBy(oldToken.expires_in.millisecond)
           _ <- ref.set(newToken)
         } yield ()
 
@@ -71,19 +66,10 @@ object adobe {
 
       loginInternal(client, get_token, update_token, with_token)
     }
-
-    override def updateConfig(f: Endo[AuthConfig]): IMS[F] =
-      new IMS[F](
-        auth_endpoint = auth_endpoint,
-        client_id = client_id,
-        client_code = client_code,
-        client_secret = client_secret,
-        cfg = f(cfg))
-
   }
 
   object IMS {
-    def apply[F[_]](
+    def apply[F[_]](authClient: Resource[F, Client[F]])(
       auth_endpoint: Uri,
       client_id: String,
       client_code: String,
@@ -93,7 +79,7 @@ object adobe {
         client_id = client_id,
         client_code = client_code,
         client_secret = client_secret,
-        cfg = AuthConfig()
+        authClient = authClient
       )
   }
 
@@ -106,15 +92,13 @@ object adobe {
     technical_account_key: String,
     metascopes: NonEmptyList[AdobeMetascope],
     private_key: PrivateKey,
-    cfg: AuthConfig)
-      extends Http4sClientDsl[F] with Login[F, JWT[F]] with UpdateConfig[AuthConfig, JWT[F]] {
+    authClient: Resource[F, Client[F]])
+      extends Http4sClientDsl[F] with Login[F, JWT[F]] {
 
     private case class Token(
       token_type: String,
       expires_in: Long, // in milliseconds
       access_token: String)
-
-    private val params: AuthParams = cfg.evalConfig
 
     override def loginR(client: Client[F])(implicit F: Async[F]): Resource[F, Client[F]] = {
       val audience: String = auth_endpoint.withPath(path"c" / Segment(client_id)).renderString
@@ -137,20 +121,19 @@ object adobe {
               .and()
               .compact()
           }.flatMap(jwt =>
-            params
-              .authClient(client)
-              .expect[Token](
+            authClient.use(
+              _.expect[Token](
                 POST(
                   UrlForm("client_id" -> client_id, "client_secret" -> client_secret, "jwt_token" -> jwt),
                   auth_endpoint.withPath(path"/ims/exchange/jwt")
-                ).putHeaders(`Idempotency-Key`(show"$uuid"))))
+                ).putHeaders(`Idempotency-Key`(show"$uuid")))))
         }
 
       def updateToken(ref: Ref[F, Token]): F[Unit] =
         for {
           oldToken <- ref.get
           expiresIn = oldToken.expires_in.millisecond
-          newToken <- getToken(expiresIn).delayBy(params.dormant(expiresIn))
+          newToken <- getToken(expiresIn).delayBy(expiresIn)
           _ <- ref.set(newToken)
         } yield ()
 
@@ -162,23 +145,10 @@ object adobe {
 
       loginInternal(client, getToken(12.hours), updateToken, withToken)
     }
-
-    override def updateConfig(f: Endo[AuthConfig]): JWT[F] =
-      new JWT[F](
-        auth_endpoint = auth_endpoint,
-        ims_org_id = ims_org_id,
-        client_id = client_id,
-        client_secret = client_secret,
-        technical_account_key = technical_account_key,
-        metascopes = metascopes,
-        private_key = private_key,
-        cfg = f(cfg)
-      )
-
   }
 
   object JWT {
-    def apply[F[_]](
+    def apply[F[_]](authClient: Resource[F, Client[F]])(
       auth_endpoint: Uri,
       ims_org_id: String,
       client_id: String,
@@ -194,24 +164,7 @@ object adobe {
         technical_account_key = technical_account_key,
         metascopes = metascopes,
         private_key = private_key,
-        cfg = AuthConfig()
+        authClient = authClient
       )
-
-    def apply[F[_]](
-      auth_endpoint: Uri,
-      ims_org_id: String,
-      client_id: String,
-      client_secret: String,
-      technical_account_key: String,
-      metascope: AdobeMetascope,
-      private_key: PrivateKey): JWT[F] =
-      apply[F](
-        auth_endpoint,
-        ims_org_id,
-        client_id,
-        client_secret,
-        technical_account_key,
-        NonEmptyList.one(metascope),
-        private_key)
   }
 }

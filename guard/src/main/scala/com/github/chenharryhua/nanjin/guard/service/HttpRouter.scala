@@ -14,7 +14,7 @@ import com.github.chenharryhua.nanjin.guard.event.{
   NJEvent,
   ServiceStopCause
 }
-import com.github.chenharryhua.nanjin.guard.translator.{fmt, SnapshotPolyglot}
+import com.github.chenharryhua.nanjin.guard.translator.{fmt, prettifyJson, SnapshotPolyglot}
 import fs2.concurrent.Channel
 import io.circe.Json
 import io.circe.syntax.EncoderOps
@@ -63,7 +63,7 @@ private class HttpRouter[F[_]](
       } yield res
 
     case GET -> Root / "metrics" / "jvm" =>
-      Ok(mxBeans.allJvmGauge.value.asJson)
+      Ok(prettifyJson(mxBeans.allJvmGauge.value.asJson))
 
     case GET -> Root / "metrics" / "history" =>
       val json = serviceParams.zonedNow.flatMap { now =>

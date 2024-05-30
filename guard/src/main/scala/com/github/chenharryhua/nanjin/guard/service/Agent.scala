@@ -101,66 +101,78 @@ final class GeneralAgent[F[_]: Async] private[service] (
       channel = channel
     )
 
-  override def batch(name: String, f: Endo[ActionConfig]): NJBatch[F] = {
-    val act: NJAction[F] = action(name, f)
+  private object builders {
+    lazy val ratio: NJRatio.Builder =
+      new NJRatio.Builder(measurement = measurement)
+
+    lazy val gauge: NJGauge.Builder =
+      new NJGauge.Builder(measurement = measurement, timeout = 5.seconds)
+
+    lazy val healthCheck: NJHealthCheck.Builder =
+      new NJHealthCheck.Builder(measurement = measurement, timeout = 5.seconds)
+
+    lazy val timer: NJTimer.Builder =
+      new NJTimer.Builder(measurement = measurement, isCounting = false, reservoir = None)
+
+    lazy val flowerMeter: NJFlowMeter.Builder =
+      new NJFlowMeter.Builder(
+        measurement = measurement,
+        unit = NJUnits.COUNT,
+        isCounting = false,
+        reservoir = None)
+
+    lazy val histogram: NJHistogram.Builder =
+      new NJHistogram.Builder(
+        measurement = measurement,
+        unit = NJUnits.COUNT,
+        isCounting = false,
+        reservoir = None)
+
+    lazy val meter: NJMeter.Builder =
+      new NJMeter.Builder(measurement = measurement, unit = NJUnits.COUNT, isCounting = false)
+
+    lazy val counter: NJCounter.Builder =
+      new NJCounter.Builder(measurement = measurement, isRisk = false)
+
+    lazy val alert: NJAlert.Builder =
+      new NJAlert.Builder(measurement = measurement, isCounting = false)
+  }
+
+  override def batch(name: String, f: Endo[ActionConfig]): NJBatch[F] =
     new NJBatch[F](
-      action = act,
-      ratio = ratio(name, _.withMeasurement(act.actionParams.measurement.value)),
-      gauge(name, _.withMeasurement(act.actionParams.measurement.value)))
-  }
+      serviceParams = serviceParams,
+      metricRegistry = metricRegistry,
+      action = action(name, f),
+      ratioBuilder = builders.ratio,
+      gaugeBuilder = builders.gauge
+    )
 
-  override def alert(alertName: String, f: Endo[NJAlert.Builder]): Resource[F, NJAlert[F]] = {
-    val init = new NJAlert.Builder(measurement = measurement, isCounting = false)
-    f(init).build[F](alertName, metricRegistry, channel, serviceParams)
-  }
+  override def alert(alertName: String, f: Endo[NJAlert.Builder]): Resource[F, NJAlert[F]] =
+    f(builders.alert).build[F](alertName, metricRegistry, channel, serviceParams)
 
-  override def counter(counterName: String, f: Endo[NJCounter.Builder]): Resource[F, NJCounter[F]] = {
-    val init = new NJCounter.Builder(measurement = measurement, isRisk = false)
-    f(init).build[F](counterName, metricRegistry, serviceParams)
-  }
+  override def counter(counterName: String, f: Endo[NJCounter.Builder]): Resource[F, NJCounter[F]] =
+    f(builders.counter).build[F](counterName, metricRegistry, serviceParams)
 
-  override def meter(meterName: String, f: Endo[NJMeter.Builder]): Resource[F, NJMeter[F]] = {
-    val init = new NJMeter.Builder(measurement = measurement, unit = NJUnits.COUNT, isCounting = false)
-    f(init).build[F](meterName, metricRegistry, serviceParams)
-  }
+  override def meter(meterName: String, f: Endo[NJMeter.Builder]): Resource[F, NJMeter[F]] =
+    f(builders.meter).build[F](meterName, metricRegistry, serviceParams)
 
-  override def histogram(histogramName: String, f: Endo[NJHistogram.Builder]): Resource[F, NJHistogram[F]] = {
-    val init = new NJHistogram.Builder(
-      measurement = measurement,
-      unit = NJUnits.COUNT,
-      isCounting = false,
-      reservoir = None)
-    f(init).build[F](histogramName, metricRegistry, serviceParams)
-  }
+  override def histogram(histogramName: String, f: Endo[NJHistogram.Builder]): Resource[F, NJHistogram[F]] =
+    f(builders.histogram).build[F](histogramName, metricRegistry, serviceParams)
 
-  override def flowMeter(name: String, f: Endo[NJFlowMeter.Builder]): Resource[F, NJFlowMeter[F]] = {
-    val init = new NJFlowMeter.Builder(
-      measurement = measurement,
-      unit = NJUnits.COUNT,
-      isCounting = false,
-      reservoir = None)
-    f(init).build[F](name, metricRegistry, serviceParams)
-  }
+  override def flowMeter(name: String, f: Endo[NJFlowMeter.Builder]): Resource[F, NJFlowMeter[F]] =
+    f(builders.flowerMeter).build[F](name, metricRegistry, serviceParams)
 
-  override def timer(timerName: String, f: Endo[NJTimer.Builder]): Resource[F, NJTimer[F]] = {
-    val init = new NJTimer.Builder(measurement = measurement, isCounting = false, reservoir = None)
-    f(init).build[F](timerName, metricRegistry, serviceParams)
-  }
+  override def timer(timerName: String, f: Endo[NJTimer.Builder]): Resource[F, NJTimer[F]] =
+    f(builders.timer).build[F](timerName, metricRegistry, serviceParams)
 
-  override def gauge(gaugeName: String, f: Endo[NJGauge.Builder]): NJGauge[F] = {
-    val init = new NJGauge.Builder(measurement = measurement, timeout = 5.seconds)
-    f(init).build[F](gaugeName, metricRegistry, serviceParams)
-  }
+  override def gauge(gaugeName: String, f: Endo[NJGauge.Builder]): NJGauge[F] =
+    f(builders.gauge).build[F](gaugeName, metricRegistry, serviceParams, None)
 
-  override def healthCheck(hcName: String, f: Endo[NJHealthCheck.Builder]): NJHealthCheck[F] = {
-    val init = new NJHealthCheck.Builder(measurement = measurement, timeout = 5.seconds)
-    f(init).build[F](hcName, metricRegistry, serviceParams)
-  }
+  override def healthCheck(hcName: String, f: Endo[NJHealthCheck.Builder]): NJHealthCheck[F] =
+    f(builders.healthCheck).build[F](hcName, metricRegistry, serviceParams)
 
-  override def ratio(ratioName: String, f: Endo[NJRatio.Builder]): Resource[F, NJRatio[F]] = {
-    val init = new NJRatio.Builder(measurement = measurement)
-    f(init).build[F](ratioName, metricRegistry, serviceParams)
-  }
+  override def ratio(ratioName: String, f: Endo[NJRatio.Builder]): Resource[F, NJRatio[F]] =
+    f(builders.ratio).build[F](ratioName, metricRegistry, serviceParams, None)
 
   override def ticks(policy: Policy): Stream[F, Tick] =
     tickStream[F](TickStatus(serviceParams.zerothTick).renewPolicy(policy))

@@ -62,13 +62,13 @@ class HttpServerTest extends AnyFunSuite {
       .default[IO]
       .build
       .use { c =>
-        c.expect[String]("http://localhost:9999/service/health_check").attempt.map(r => assert(r.isLeft)) >>
-          c.expect[String]("http://localhost:9999/service/stop")
+        c.expect[String]("http://localhost:9998/service/health_check").attempt.map(r => assert(r.isLeft)) >>
+          c.expect[String]("http://localhost:9998/service/stop")
       }
       .delayBy(2.seconds)
     val res = TaskGuard[IO]("panic")
       .service("panic")
-      .updateConfig(_.withRestartPolicy(policies.fixedDelay(1.hour)).withHttpServer(_.withPort(port"9999")))
+      .updateConfig(_.withRestartPolicy(policies.fixedDelay(1.hour)).withHttpServer(_.withPort(port"9998")))
       .eventStream {
         _.action("panic").retry(IO.raiseError[Int](new Exception)).buildWith(identity).use(_.run(()))
       }
@@ -83,7 +83,7 @@ class HttpServerTest extends AnyFunSuite {
       .default[IO]
       .build
       .use { c =>
-        c.expect[String]("http://localhost:9999/service/history")
+        c.expect[String]("http://localhost:9997/service/history")
           .map(j =>
             assert(
               jawn
@@ -96,13 +96,13 @@ class HttpServerTest extends AnyFunSuite {
                 .toOption
                 .get
                 .size > 2)) >>
-          c.expect[String]("http://localhost:9999/service/stop")
+          c.expect[String]("http://localhost:9997/service/stop")
       }
       .delayBy(5.seconds)
 
     val res = TaskGuard[IO]("panic")
       .service("history")
-      .updateConfig(_.withRestartPolicy(policies.fixedDelay(1.second)).withHttpServer(_.withPort(port"9999")))
+      .updateConfig(_.withRestartPolicy(policies.fixedDelay(1.second)).withHttpServer(_.withPort(port"9997")))
       .eventStream {
         _.action("panic history").retry(IO.raiseError[Int](new Exception)).buildWith(identity).use(_.run(()))
       }
@@ -117,13 +117,13 @@ class HttpServerTest extends AnyFunSuite {
       .default[IO]
       .build
       .use { c =>
-        c.expect[String]("http://localhost:9999/metrics/yaml").map(println) >>
-          c.expect[String]("http://localhost:9999/service/stop")
+        c.expect[String]("http://localhost:9996/metrics/yaml").map(println) >>
+          c.expect[String]("http://localhost:9996/service/stop")
       }
       .delayBy(5.seconds)
     val res = TaskGuard[IO]("never")
       .service("never")
-      .updateConfig(_.withHttpServer(_.withPort(port"9999")))
+      .updateConfig(_.withHttpServer(_.withPort(port"9996")))
       .eventStream {
         _.action("panic", _.timed.counted)
           .retry(IO.sleep(1.seconds))

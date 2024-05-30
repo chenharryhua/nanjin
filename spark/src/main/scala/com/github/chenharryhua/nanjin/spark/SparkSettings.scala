@@ -48,6 +48,7 @@ object SparkSettings {
             "spark.hadoop.fs.s3a.aws.credentials.provider",
             "software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider")
           .set("spark.hadoop.fs.s3a.connection.maximum", "100")
+          .set("spark.hadoop.fs.s3a.connection.establish.timeout", "15000")
           .set("spark.hadoop.fs.s3a.experimental.input.fadvise", "sequential")
           .set("spark.hadoop.fs.s3a.committer.name", "directory")
           .set("spark.hadoop.fs.s3a.committer.staging.unique-filenames", "false")

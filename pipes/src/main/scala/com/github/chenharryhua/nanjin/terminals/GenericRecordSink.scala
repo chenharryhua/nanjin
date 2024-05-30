@@ -8,9 +8,9 @@ import org.apache.avro.generic.GenericRecord
 import java.time.ZoneId
 
 trait GenericRecordSink[F[_]] {
-  def sink(path: NJPath)(implicit F: Sync[F]): Pipe[F, GenericRecord, Nothing]
+  def sink(path: NJPath)(implicit F: Sync[F]): Pipe[F, GenericRecord, Int]
 
   def sink(policy: Policy, zoneId: ZoneId)(pathBuilder: Tick => NJPath)(implicit
-    F: Async[F]): Pipe[F, GenericRecord, Nothing]
+    F: Async[F]): Pipe[F, GenericRecord, Int]
 
 }
