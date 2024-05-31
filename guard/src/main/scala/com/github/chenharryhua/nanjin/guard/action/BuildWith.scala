@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard.action
 
 import cats.Endo
 import cats.data.{Kleisli, Reader}
-import cats.effect.kernel.{Async, Resource, Unique}
+import cats.effect.kernel.{Async, Resource}
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.guard.config.ActionParams
 import com.github.chenharryhua.nanjin.guard.event.*
@@ -24,12 +24,7 @@ final class BuildWith[F[_]: Async, IN, OUT] private[action] (
     )
 
   def buildWith(f: Endo[BuildWith.Builder[F, IN, OUT]]): Resource[F, Kleisli[F, IN, OUT]] =
-    f(init).build(metricRegistry, channel, actionParams, arrow, None)
-
-  def buildWithToken(token: Unique.Token)(
-    f: Endo[BuildWith.Builder[F, IN, OUT]]): Resource[F, Kleisli[F, IN, OUT]] =
-    f(init).build(metricRegistry, channel, actionParams, arrow, Some(token))
-
+    f(init).build(metricRegistry, channel, actionParams, arrow)
 }
 
 object BuildWith {
@@ -71,8 +66,7 @@ object BuildWith {
       metricRegistry: MetricRegistry,
       channel: Channel[F, NJEvent],
       actionParams: ActionParams,
-      arrow: Kleisli[F, IN, OUT],
-      token: Option[Unique.Token]): Resource[F, Kleisli[F, IN, OUT]] =
+      arrow: Kleisli[F, IN, OUT]): Resource[F, Kleisli[F, IN, OUT]] =
       ReTry(
         metricRegistry = metricRegistry,
         channel = channel,
@@ -81,8 +75,7 @@ object BuildWith {
         transInput = transInput,
         transOutput = transOutput,
         transError = transError,
-        isWorthRetry = isWorthRetry,
-        token = token
+        isWorthRetry = isWorthRetry
       )
   }
 }

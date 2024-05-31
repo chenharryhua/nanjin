@@ -67,4 +67,9 @@ class DurationFormatterTest extends AnyFunSuite {
     val duration = Duration.ofMinutes(67)
     assert(fmt.format(duration) == "1 hour 7 minutes")
   }
+
+  test("hour 2") {
+    val duration = Duration.ofSeconds(3659)
+    assert(fmt.format(duration) == "1 hour")
+  }
 }

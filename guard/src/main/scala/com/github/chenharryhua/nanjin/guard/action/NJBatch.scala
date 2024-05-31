@@ -32,15 +32,15 @@ final class NJBatch[F[_]: Async] private[guard] (
   private def failed(idx: Int): (String, Json)              = "failed_at" -> idx.asJson
   private def batch_id(token: Unique.Token): (String, Json) = "token" -> Json.fromInt(token.hash)
 
-  private def ratio(token: Unique.Token): Resource[F, NJRatio[F]] =
+  private val ratio: Resource[F, NJRatio[F]] =
     for {
       _ <- gaugeBuilder
         .withMeasurement(action.actionParams.measurement.value)
-        .build[F](action.actionParams.actionName.value, metricRegistry, serviceParams, Some(token))
+        .build[F](action.actionParams.actionName.value, metricRegistry, serviceParams)
         .timed
       rat <- ratioBuilder
         .withMeasurement(action.actionParams.measurement.value)
-        .build(action.actionParams.actionName.value, metricRegistry, serviceParams, Some(token))
+        .build(action.actionParams.actionName.value, metricRegistry, serviceParams)
     } yield rat
 
   object quasi {
@@ -49,10 +49,10 @@ final class NJBatch[F[_]: Async] private[guard] (
       val size: Long = gfz.size
       val run: Resource[F, F[QuasiResult]] = for {
         token <- Resource.eval(F.unique)
-        rat <- ratio(token).evalTap(_.incDenominator(size))
+        rat <- ratio.evalTap(_.incDenominator(size))
         act <- action
           .retry((_: Int, fz: F[Z]) => fz)
-          .buildWithToken(token)(
+          .buildWith(
             _.tapInput { case (idx, _) =>
               Json.obj("quasi" -> Json.obj(batch_id(token), start(idx), jobs(size), mode(None)))
             }.tapOutput { case ((idx, _), _) =>
@@ -78,10 +78,10 @@ final class NJBatch[F[_]: Async] private[guard] (
       val size: Long = gfz.size
       val run: Resource[F, F[QuasiResult]] = for {
         token <- Resource.eval(F.unique)
-        rat <- ratio(token).evalTap(_.incDenominator(size))
+        rat <- ratio.evalTap(_.incDenominator(size))
         act <- action
           .retry((_: Int, fz: F[Z]) => fz)
-          .buildWithToken(token)(
+          .buildWith(
             _.tapInput { case (idx, _) =>
               Json.obj("quasi" -> Json.obj(batch_id(token), start(idx), jobs(size), mode(Some(parallelism))))
             }.tapOutput { case ((idx, _), _) =>
@@ -115,10 +115,10 @@ final class NJBatch[F[_]: Async] private[guard] (
     val size: Long = gfz.size
     val run: Resource[F, F[G[Z]]] = for {
       token <- Resource.eval(F.unique)
-      rat <- ratio(token).evalTap(_.incDenominator(size))
+      rat <- ratio.evalTap(_.incDenominator(size))
       act <- action
         .retry((_: Int, fz: F[Z]) => fz)
-        .buildWithToken(token)(
+        .buildWith(
           _.tapInput { case (idx, _) =>
             Json.obj("batch" -> Json.obj(batch_id(token), start(idx), jobs(size), mode(None)))
           }.tapOutput { case ((idx, _), out) =>
@@ -130,8 +130,8 @@ final class NJBatch[F[_]: Async] private[guard] (
         )
     } yield gfz.zipWithIndex.traverse { case (fz, idx) =>
       act.run((idx + 1, fz)).flatTap(_ => rat.incNumerator(1))
-
     }
+
     run.use(identity)
   }
 
@@ -142,10 +142,10 @@ final class NJBatch[F[_]: Async] private[guard] (
     val size: Long = gfz.size
     val run: Resource[F, F[G[Z]]] = for {
       token <- Resource.eval(F.unique)
-      rat <- ratio(token).evalTap(_.incDenominator(size))
+      rat <- ratio.evalTap(_.incDenominator(size))
       act <- action
         .retry((_: Int, fz: F[Z]) => fz)
-        .buildWithToken(token)(
+        .buildWith(
           _.tapInput { case (idx, _) =>
             Json.obj("batch" -> Json.obj(batch_id(token), start(idx), jobs(size), mode(Some(parallelism))))
           }.tapOutput { case ((idx, _), out) =>
