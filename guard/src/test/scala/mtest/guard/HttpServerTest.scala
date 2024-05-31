@@ -23,7 +23,7 @@ class HttpServerTest extends AnyFunSuite {
       .default[IO]
       .build
       .use { c =>
-        c.expect[String]("http://localhost:9999/index.html").flatMap(IO.println) >>
+        c.expect[String]("http://localhost:9999/index.html") >>
           c.expect[String]("http://localhost:9999/metrics/yaml") >>
           c.expect[String]("http://localhost:9999/metrics/vanilla") >>
           c.expect[String]("http://localhost:9999/metrics/json") >>

@@ -125,7 +125,7 @@ private class HttpRouter[F[_]](
         td, th {text-align: left; padding: 2px; border: 1px solid;}
         table {
           border-collapse: collapse;
-          width: 90%;
+          width: 60%;
         }
       """))
       Ok(text.map(t => html(header, body(t))))
