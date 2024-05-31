@@ -34,7 +34,6 @@ val drosteV     = "0.9.0"
 val slf4jV      = "2.0.13"
 val log4catsV   = "2.7.0"
 val logbackV    = "1.5.6"
-// val okioV       = "3.9.0"
 val jwtV        = "0.12.5"
 val postgresV   = "42.7.3"
 val acyclicV    = "0.3.12"
@@ -94,8 +93,6 @@ val pbLib = List(
   "com.google.protobuf"                       % "protobuf-java"             % protobufV,
   "com.google.protobuf"                       % "protobuf-java-util"        % protobufV,
   "io.confluent"                              % "kafka-protobuf-serializer" % confluentV,
-//  "com.squareup.okio" % "okio"     % okioV, // synk by kafka-protobuf-serializer
-//  "com.squareup.okio" % "okio-jvm" % okioV // synk by kafka-protobuf-serializer
 )
 
 val serdeLib = List(
@@ -214,7 +211,6 @@ lazy val http = (project in file("http"))
     "org.http4s" %% "http4s-client"       % http4sV,
     "org.http4s" %% "http4s-dsl"          % http4sV,
     "org.tpolecat" %% "natchez-core"      % natchezV,
-   // "com.fasterxml.jackson.core"          % "jackson-databind" % jacksonV, // snyk
     "org.http4s" %% "http4s-ember-server" % http4sV            % Test,
     "org.http4s" %% "http4s-ember-client" % http4sV            % Test,
     "org.tpolecat" %% "natchez-log"       % natchezV           % Test,
@@ -232,7 +228,7 @@ lazy val aws = (project in file("aws"))
     "software.amazon.awssdk"              % "sns"               % awsV,
     "software.amazon.awssdk"              % "ses"               % awsV,
     "software.amazon.awssdk"              % "sdk-core"          % awsV,
-    "com.fasterxml.jackson.core"          % "jackson-databind"  % jacksonV, // snyk
+//    "com.fasterxml.jackson.core"          % "jackson-databind"  % jacksonV, // snyk
     "io.netty"                            % "netty-handler"     % nettyV, // snyk
     "io.netty"                            % "netty-codec-http2" % nettyV, // snyk
     "org.http4s" %% "http4s-ember-client" % http4sV,
