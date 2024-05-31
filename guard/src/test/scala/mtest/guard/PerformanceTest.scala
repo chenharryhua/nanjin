@@ -61,7 +61,7 @@ class PerformanceTest extends AnyFunSuite {
       .service("actions")
       .updateConfig(_.withMetricReport(policies.crontab(_.secondly)))
 
-  private val take: FiniteDuration = 10.seconds
+  private val take: FiniteDuration = 5.seconds
 
   private def speed(i: Int): String =
     f"${i / (take.toSeconds * 1000)}%4dK/s, ${fmt.format(take / i.toLong)}"

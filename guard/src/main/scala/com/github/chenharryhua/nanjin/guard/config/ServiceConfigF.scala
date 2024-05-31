@@ -49,8 +49,8 @@ final case class ServiceParams(
   servicePolicies: ServicePolicies,
   emberServerParams: Option[EmberServerParams],
   threshold: Option[Duration],
-  brief: Json,
-  zerothTick: Tick
+  zerothTick: Tick,
+  brief: Json
 ) {
   val zoneId: ZoneId  = zerothTick.zoneId
   val serviceId: UUID = zerothTick.sequenceId
@@ -86,8 +86,8 @@ object ServiceParams {
         metricReset = policies.giveUp),
       emberServerParams = emberServerParams,
       threshold = None,
-      brief = brief.value,
-      zerothTick = zerothTick
+      zerothTick = zerothTick,
+      brief = brief.value
     )
 }
 

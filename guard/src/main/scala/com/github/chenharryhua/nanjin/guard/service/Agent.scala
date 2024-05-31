@@ -166,13 +166,13 @@ final class GeneralAgent[F[_]: Async] private[service] (
     f(builders.timer).build[F](timerName, metricRegistry, serviceParams)
 
   override def gauge(gaugeName: String, f: Endo[NJGauge.Builder]): NJGauge[F] =
-    f(builders.gauge).build[F](gaugeName, metricRegistry, serviceParams, None)
+    f(builders.gauge).build[F](gaugeName, metricRegistry, serviceParams)
 
   override def healthCheck(hcName: String, f: Endo[NJHealthCheck.Builder]): NJHealthCheck[F] =
     f(builders.healthCheck).build[F](hcName, metricRegistry, serviceParams)
 
   override def ratio(ratioName: String, f: Endo[NJRatio.Builder]): Resource[F, NJRatio[F]] =
-    f(builders.ratio).build[F](ratioName, metricRegistry, serviceParams, None)
+    f(builders.ratio).build[F](ratioName, metricRegistry, serviceParams)
 
   override def ticks(policy: Policy): Stream[F, Tick] =
     tickStream[F](TickStatus(serviceParams.zerothTick).renewPolicy(policy))

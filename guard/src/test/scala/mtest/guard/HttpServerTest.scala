@@ -23,18 +23,19 @@ class HttpServerTest extends AnyFunSuite {
       .default[IO]
       .build
       .use { c =>
-        c.expect[String]("http://localhost:9999/metrics") >>
-          c.expect[String]("http://localhost:9999/metrics/vanilla") >>
+        c.expect[String]("http://localhost:9999/index.html").flatMap(IO.println) >>
           c.expect[String]("http://localhost:9999/metrics/yaml") >>
+          c.expect[String]("http://localhost:9999/metrics/vanilla") >>
+          c.expect[String]("http://localhost:9999/metrics/json") >>
           c.expect[String]("http://localhost:9999/metrics/reset") >>
           c.expect[String]("http://localhost:9999/metrics/jvm") >>
           c.expect[String]("http://localhost:9999/metrics/history") >>
-          c.expect[String]("http://localhost:9999/service") >>
+          c.expect[String]("http://localhost:9999/service/params") >>
           c.expect[String]("http://localhost:9999/service/health_check") >>
           c.expect[String]("http://localhost:9999/service/history") >>
           c.expect[String]("http://localhost:9999/service/stop")
       }
-      .delayBy(3.seconds)
+      .delayBy(5.seconds)
 
     val res =
       guard
@@ -117,7 +118,7 @@ class HttpServerTest extends AnyFunSuite {
       .default[IO]
       .build
       .use { c =>
-        c.expect[String]("http://localhost:9996/metrics/yaml").map(println) >>
+        c.expect[String]("http://localhost:9996/metrics/json") >>
           c.expect[String]("http://localhost:9996/service/stop")
       }
       .delayBy(5.seconds)
@@ -136,5 +137,4 @@ class HttpServerTest extends AnyFunSuite {
       .drain &> client
     res.unsafeRunSync()
   }
-
 }
