@@ -14,6 +14,7 @@ import com.github.chenharryhua.nanjin.guard.event.{
   NJEvent,
   ServiceStopCause
 }
+import com.github.chenharryhua.nanjin.guard.translator.htmlHelper.htmlColoring
 import com.github.chenharryhua.nanjin.guard.translator.{fmt, prettifyJson, SnapshotPolyglot}
 import fs2.concurrent.Channel
 import io.circe.Json
@@ -51,7 +52,7 @@ private class HttpRouter[F[_]](
 
   private def html_table_title(now: ZonedDateTime): Text.TypedTag[String] =
     table(
-      tr(td(b("Service")), td(b("Report Policy")), td(b("Time Zone")), td(b("Up Time"))),
+      tr(th("Service"), th("Report Policy"), th("Time Zone"), th("Up Time")),
       tr(
         td(serviceParams.serviceName.value),
         td(serviceParams.servicePolicies.metricReport.show),
@@ -125,9 +126,9 @@ private class HttpRouter[F[_]](
                 case MetricIndex.Periodic(tick) =>
                   Some(
                     div(
-                      h3("Report Index: ", tick.index),
+                      h3(style := htmlColoring(mr))("Report Index: ", tick.index),
                       table(
-                        tr(td(b("Launch Time")), td(b("Took"))),
+                        tr(th("Launch Time"), th("Took")),
                         tr(td(tick.zonedWakeup.toLocalDateTime.show), td(fmt.format(mr.took)))),
                       pre(small(new SnapshotPolyglot(mr.snapshot).toYaml))
                     ))
