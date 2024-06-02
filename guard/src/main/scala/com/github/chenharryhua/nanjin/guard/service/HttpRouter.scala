@@ -15,6 +15,8 @@ import com.github.chenharryhua.nanjin.guard.event.{
   ServiceStopCause
 }
 import com.github.chenharryhua.nanjin.guard.translator.htmlHelper.htmlColoring
+import com.github.chenharryhua.nanjin.guard.translator.metricConstants.METRICS_LAUNCH_TIME
+import com.github.chenharryhua.nanjin.guard.translator.textConstants.{CONSTANT_HEALTHY, CONSTANT_TOOK}
 import com.github.chenharryhua.nanjin.guard.translator.{fmt, prettifyJson, SnapshotPolyglot}
 import fs2.concurrent.Channel
 import io.circe.Json
@@ -129,8 +131,12 @@ private class HttpRouter[F[_]](
                     div(
                       h3(style := htmlColoring(mr))("Report Index: ", tick.index),
                       table(
-                        tr(th("Launch Time"), th("Took")),
-                        tr(td(tick.zonedWakeup.toLocalDateTime.show), td(fmt.format(mr.took)))),
+                        tr(th(METRICS_LAUNCH_TIME), th(CONSTANT_TOOK), th(CONSTANT_HEALTHY)),
+                        tr(
+                          td(tick.zonedWakeup.toLocalDateTime.show),
+                          td(fmt.format(mr.took)),
+                          td(retrieveHealthChecks(mr.snapshot.gauges).values.forall(identity).show))
+                      ),
                       pre(small(new SnapshotPolyglot(mr.snapshot).toYaml))
                     ))
               }

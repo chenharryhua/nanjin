@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard.observers.ses
 
 import cats.Applicative
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.guard.event.{NJError, NJEvent}
+import com.github.chenharryhua.nanjin.guard.event.{retrieveHealthChecks, NJError, NJEvent}
 import com.github.chenharryhua.nanjin.guard.translator.{htmlHelper, textConstants, textHelper, Translator}
 import io.circe.Json
 import io.circe.syntax.EncoderOps
@@ -74,19 +74,46 @@ private object HtmlTranslator extends all {
       json_text(evt.serviceParams.brief)
     )
 
-  private def metric_report(evt: MetricReport): Text.TypedTag[String] =
-    div(
-      h3(style := htmlColoring(evt))(eventTitle(evt)),
-      table(service_table(evt)),
-      pre(small(yamlMetrics(evt.snapshot)))
+  private def metric_report(evt: MetricReport): Text.TypedTag[String] = {
+    val result = frag(
+      tr(
+        th(CONSTANT_HEALTHY),
+        th(CONSTANT_POLICY),
+        th(CONSTANT_TOOK)
+      ),
+      tr(
+        td(retrieveHealthChecks(evt.snapshot.gauges).values.forall(identity).show),
+        td(evt.serviceParams.servicePolicies.metricReport.show),
+        td(tookText(evt.took))
+      )
     )
 
-  private def metric_reset(evt: MetricReset): Text.TypedTag[String] =
     div(
       h3(style := htmlColoring(evt))(eventTitle(evt)),
-      table(service_table(evt)),
+      table(service_table(evt), result),
       pre(small(yamlMetrics(evt.snapshot)))
     )
+  }
+
+  private def metric_reset(evt: MetricReset): Text.TypedTag[String] = {
+    val result = frag(
+      tr(
+        th(CONSTANT_HEALTHY),
+        th(CONSTANT_POLICY),
+        th(CONSTANT_TOOK)
+      ),
+      tr(
+        td(retrieveHealthChecks(evt.snapshot.gauges).values.forall(identity).show),
+        td(evt.serviceParams.servicePolicies.metricReset.show),
+        td(tookText(evt.took))
+      )
+    )
+    div(
+      h3(style := htmlColoring(evt))(eventTitle(evt)),
+      table(service_table(evt), result),
+      pre(small(yamlMetrics(evt.snapshot)))
+    )
+  }
 
   private def service_alert(evt: ServiceAlert): Text.TypedTag[String] =
     div(
