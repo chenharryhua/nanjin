@@ -75,6 +75,7 @@ private class HttpRouter[F[_]](
     case GET -> Root / "index.html" =>
       val text: Text.TypedTag[String] = html(
         body(
+          h3(s"Service: ${serviceParams.serviceName.value}"),
           a(href := "/metrics/yaml")(p("Metrics Now")),
           a(href := "/metrics/history")(p("Metrics History")),
           a(href := "/metrics/reset")(p("Metrics Counters Reset")),
