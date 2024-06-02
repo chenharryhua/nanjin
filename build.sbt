@@ -217,7 +217,7 @@ lazy val http = (project in file("http"))
     "org.http4s" %% "http4s-ember-client" % http4sV          % Test,
     "org.tpolecat" %% "natchez-log"       % natchezV         % Test,
     "org.slf4j"                           % "slf4j-reload4j" % slf4jV % Test
-  ) ++ jwtLib ++ logLib ++ testLib)
+  ) ++ jwtLib ++ testLib)
 
 lazy val aws = (project in file("aws"))
   .dependsOn(common)
@@ -379,7 +379,7 @@ lazy val kafka = (project in file("kafka"))
   .settings(name := "nj-kafka")
   .settings(libraryDependencies ++= List(
     "ch.qos.logback" % "logback-classic" % logbackV % Test
-  ) ++ kafkaLib ++ logLib ++ testLib)
+  ) ++ kafkaLib ++ testLib)
 
 /** hadoop based
   */
@@ -417,7 +417,7 @@ lazy val pipes = (project in file("pipes"))
       "software.amazon.awssdk" % "bundle"    % awsV,
       "org.tukaani"            % "xz"        % "1.9",
       "org.apache.zookeeper"   % "zookeeper" % "3.9.2" // snyk
-    ) ++ kantanLib ++ logLib ++ hadoopLib ++ serdeLib ++ testLib
+    ) ++ kantanLib ++ serdeLib ++ hadoopLib ++ testLib
     libraryDependencies ++= libs.map(_.exclude("org.codehaus.jackson", "jackson-mapper-asl")) // snyk
   }
 
