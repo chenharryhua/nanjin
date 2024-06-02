@@ -1,15 +1,15 @@
 package com.github.chenharryhua.nanjin.guard.observers.ses
 
+import cats.Applicative
 import cats.syntax.all.*
-import cats.{Applicative, Eval}
-import com.github.chenharryhua.nanjin.guard.event.{NJError, NJEvent}
-import com.github.chenharryhua.nanjin.guard.translator.{textConstants, textHelper, ColorScheme, Translator}
+import com.github.chenharryhua.nanjin.guard.event.{retrieveHealthChecks, NJError, NJEvent}
+import com.github.chenharryhua.nanjin.guard.translator.{htmlHelper, textConstants, textHelper, Translator}
 import io.circe.Json
 import io.circe.syntax.EncoderOps
 import org.typelevel.cats.time.instances.all
+import scalatags.{generic, Text}
 import scalatags.Text.all.*
 import scalatags.text.Builder
-import scalatags.{generic, Text}
 
 import java.time.temporal.ChronoUnit
 
@@ -17,20 +17,11 @@ import java.time.temporal.ChronoUnit
   */
 private object HtmlTranslator extends all {
   import NJEvent.*
+  import htmlHelper.*
   import textConstants.*
   import textHelper.*
 
-  private def coloring(evt: NJEvent): String = ColorScheme
-    .decorate(evt)
-    .run {
-      case ColorScheme.GoodColor  => Eval.now("color:darkgreen")
-      case ColorScheme.InfoColor  => Eval.now("color:black")
-      case ColorScheme.WarnColor  => Eval.now("color:#b3b300")
-      case ColorScheme.ErrorColor => Eval.now("color:red")
-    }
-    .value
-
-  private def host_service_table(evt: NJEvent): generic.Frag[Builder, String] = {
+  private def service_table(evt: NJEvent): generic.Frag[Builder, String] = {
     val serviceName =
       evt.serviceParams.homePage.fold(td(evt.serviceParams.serviceName.value))(hp =>
         td(a(href := hp.value)(evt.serviceParams.serviceName.value)))
@@ -38,25 +29,21 @@ private object HtmlTranslator extends all {
     frag(
       tr(
         th(CONSTANT_TIMESTAMP),
-        th(CONSTANT_SERVICE_ID),
-        th(CONSTANT_SERVICE),
-        th(CONSTANT_TASK),
         th(CONSTANT_HOST),
-        th(CONSTANT_UPTIME)
+        th(CONSTANT_TASK)
       ),
       tr(
         td(evt.timestamp.toLocalTime.truncatedTo(ChronoUnit.SECONDS).show),
-        td(evt.serviceParams.serviceId.show),
-        serviceName,
-        td(evt.serviceParams.taskName.value),
         td(evt.serviceParams.hostName.value),
-        td(uptimeText(evt))
-      )
+        td(evt.serviceParams.taskName.value)
+      ),
+      tr(th(CONSTANT_SERVICE), th(CONSTANT_SERVICE_ID), th(CONSTANT_UPTIME)),
+      tr(serviceName, td(evt.serviceParams.serviceId.show), td(uptimeText(evt)))
     )
   }
 
   private def cause_text(c: NJError): Text.TypedTag[String] =
-    p(b(s"$CONSTANT_CAUSE: "), pre(small(c.stack.mkString("\n"))))
+    p(b(s"$CONSTANT_CAUSE: "), pre(small(c.stack.mkString("\n\t"))))
 
   private def json_text(js: Json): Text.TypedTag[String] =
     pre(small(js.spaces2))
@@ -65,15 +52,15 @@ private object HtmlTranslator extends all {
 
   private def service_started(evt: ServiceStart): Text.TypedTag[String] =
     div(
-      h3(style := coloring(evt))(eventTitle(evt)),
-      table(host_service_table(evt)),
+      h3(style := htmlColoring(evt))(eventTitle(evt)),
+      table(service_table(evt)),
       json_text(evt.serviceParams.asJson)
     )
 
   private def service_panic(evt: ServicePanic): Text.TypedTag[String] =
     div(
-      h3(style := coloring(evt))(eventTitle(evt)),
-      table(host_service_table(evt)),
+      h3(style := htmlColoring(evt))(eventTitle(evt)),
+      table(service_table(evt)),
       p(b(panicText(evt))),
       p(b(s"$CONSTANT_POLICY: "), evt.serviceParams.servicePolicies.restart.show),
       cause_text(evt.error)
@@ -81,68 +68,133 @@ private object HtmlTranslator extends all {
 
   private def service_stopped(evt: ServiceStop): Text.TypedTag[String] =
     div(
-      h3(style := coloring(evt))(eventTitle(evt)),
-      table(host_service_table(evt)),
+      h3(style := htmlColoring(evt))(eventTitle(evt)),
+      table(service_table(evt)),
       p(b(s"$CONSTANT_CAUSE: "), stopCause(evt.cause)),
       json_text(evt.serviceParams.brief)
     )
 
-  private def metric_report(evt: MetricReport): Text.TypedTag[String] =
-    div(
-      h3(style := coloring(evt))(eventTitle(evt)),
-      table(host_service_table(evt)),
-      pre(small(yamlMetrics(evt.snapshot)))
+  private def metric_report(evt: MetricReport): Text.TypedTag[String] = {
+    val result = frag(
+      tr(
+        th(CONSTANT_HEALTHY),
+        th(CONSTANT_POLICY),
+        th(CONSTANT_TOOK)
+      ),
+      tr(
+        td(retrieveHealthChecks(evt.snapshot.gauges).values.forall(identity).show),
+        td(evt.serviceParams.servicePolicies.metricReport.show),
+        td(tookText(evt.took))
+      )
     )
 
-  private def metric_reset(evt: MetricReset): Text.TypedTag[String] =
     div(
-      h3(style := coloring(evt))(eventTitle(evt)),
-      table(host_service_table(evt)),
+      h3(style := htmlColoring(evt))(eventTitle(evt)),
+      table(service_table(evt), result),
       pre(small(yamlMetrics(evt.snapshot)))
     )
+  }
+
+  private def metric_reset(evt: MetricReset): Text.TypedTag[String] = {
+    val result = frag(
+      tr(
+        th(CONSTANT_HEALTHY),
+        th(CONSTANT_POLICY),
+        th(CONSTANT_TOOK)
+      ),
+      tr(
+        td(retrieveHealthChecks(evt.snapshot.gauges).values.forall(identity).show),
+        td(evt.serviceParams.servicePolicies.metricReset.show),
+        td(tookText(evt.took))
+      )
+    )
+    div(
+      h3(style := htmlColoring(evt))(eventTitle(evt)),
+      table(service_table(evt), result),
+      pre(small(yamlMetrics(evt.snapshot)))
+    )
+  }
 
   private def service_alert(evt: ServiceAlert): Text.TypedTag[String] =
     div(
-      h3(style := coloring(evt))(eventTitle(evt)),
-      table(host_service_table(evt)),
+      h3(style := htmlColoring(evt))(eventTitle(evt)),
+      table(service_table(evt)),
       json_text(evt.message)
     )
 
   private def action_start(evt: ActionStart): Text.TypedTag[String] = {
     val start = frag(
-      tr(td(b(CONSTANT_MEASUREMENT)), td(b(CONSTANT_CONFIG))),
+      tr(th(CONSTANT_MEASUREMENT), th(CONSTANT_POLICY), th(CONSTANT_CONFIG)),
       tr(
         td(evt.actionParams.metricName.measurement),
+        td(evt.actionParams.retryPolicy.show),
         td(evt.actionParams.configStr)
       )
     )
     div(
-      h3(style := coloring(evt))(eventTitle(evt)),
-      table(host_service_table(evt), start),
+      h3(style := htmlColoring(evt))(eventTitle(evt)),
+      table(service_table(evt), start),
       json_text(evt.notes)
     )
   }
 
   private def action_retrying(evt: ActionRetry): Text.TypedTag[String] = {
-
     val retry = frag(
-      tr(td(b(CONSTANT_MEASUREMENT)), td(b(CONSTANT_CONFIG))),
+      tr(th(CONSTANT_MEASUREMENT), th(CONSTANT_POLICY), th(CONSTANT_CONFIG)),
       tr(
         td(evt.actionParams.metricName.measurement),
+        td(evt.actionParams.retryPolicy.show),
         td(evt.actionParams.configStr)
       )
     )
     div(
-      h3(style := coloring(evt))(eventTitle(evt)),
-      table(host_service_table(evt), retry),
+      h3(style := htmlColoring(evt))(eventTitle(evt)),
+      table(service_table(evt), retry),
       p(b(retryText(evt))),
-      p(b(s"$CONSTANT_POLICY: "), evt.actionParams.retryPolicy.show),
       cause_text(evt.error)
     )
   }
 
-  private def action_result_table(evt: ActionResultEvent): generic.Frag[Builder, String] =
-    frag(
+  private def action_fail(evt: ActionFail): Text.TypedTag[String] = {
+    val result = evt.took match {
+      case Some(value) =>
+        frag(
+          tr(
+            th(CONSTANT_MEASUREMENT),
+            th(CONSTANT_POLICY),
+            th(CONSTANT_TOOK)
+          ),
+          tr(
+            td(evt.actionParams.metricName.measurement),
+            td(evt.actionParams.retryPolicy.show),
+            td(tookText(value))
+          )
+        )
+      case None =>
+        frag(
+          tr(
+            th(CONSTANT_MEASUREMENT),
+            th(CONSTANT_POLICY),
+            th(CONSTANT_CONFIG)
+          ),
+          tr(
+            td(evt.actionParams.metricName.measurement),
+            td(evt.actionParams.retryPolicy.show),
+            td(evt.actionParams.configStr)
+          )
+        )
+    }
+
+    div(
+      h3(style := htmlColoring(evt))(eventTitle(evt)),
+      table(service_table(evt), result),
+      cause_text(evt.error),
+      json_text(evt.notes)
+    )
+  }
+
+  private def action_done(evt: ActionDone): Text.TypedTag[String] = {
+    val result = frag(
       tr(
         td(b(CONSTANT_MEASUREMENT)),
         td(b(CONSTANT_CONFIG)),
@@ -151,28 +203,16 @@ private object HtmlTranslator extends all {
       tr(
         td(evt.actionParams.metricName.measurement),
         td(evt.actionParams.configStr),
-        td(evt match {
-          case af: ActionFail => tookText(af.took)
-          case ad: ActionDone => tookText(ad.took)
-        })
+        td(tookText(evt.took))
       )
     )
 
-  private def action_fail(evt: ActionFail): Text.TypedTag[String] =
     div(
-      h3(style := coloring(evt))(eventTitle(evt)),
-      table(host_service_table(evt), action_result_table(evt)),
-      p(b(s"$CONSTANT_POLICY: "), evt.actionParams.retryPolicy.show),
-      cause_text(evt.error),
+      h3(style := htmlColoring(evt))(eventTitle(evt)),
+      table(service_table(evt), result),
       json_text(evt.notes)
     )
-
-  private def action_done(evt: ActionDone): Text.TypedTag[String] =
-    div(
-      h3(style := coloring(evt))(eventTitle(evt)),
-      table(host_service_table(evt), action_result_table(evt)),
-      json_text(evt.notes)
-    )
+  }
 
   def apply[F[_]: Applicative]: Translator[F, Text.TypedTag[String]] =
     Translator

@@ -14,6 +14,9 @@ import com.github.chenharryhua.nanjin.guard.event.{
   NJEvent,
   ServiceStopCause
 }
+import com.github.chenharryhua.nanjin.guard.translator.htmlHelper.htmlColoring
+import com.github.chenharryhua.nanjin.guard.translator.metricConstants.METRICS_LAUNCH_TIME
+import com.github.chenharryhua.nanjin.guard.translator.textConstants.{CONSTANT_HEALTHY, CONSTANT_TOOK}
 import com.github.chenharryhua.nanjin.guard.translator.{fmt, prettifyJson, SnapshotPolyglot}
 import fs2.concurrent.Channel
 import io.circe.Json
@@ -28,8 +31,8 @@ import org.typelevel.cats.time.instances.all
 import scalatags.Text
 import scalatags.Text.all.*
 
-import java.time.Duration
 import java.time.temporal.ChronoUnit
+import java.time.{Duration, ZonedDateTime}
 import scala.jdk.CollectionConverters.IteratorHasAsScala
 
 private class HttpRouter[F[_]](
@@ -40,7 +43,27 @@ private class HttpRouter[F[_]](
   channel: Channel[F, NJEvent])(implicit F: Async[F])
     extends Http4sDsl[F] with all {
 
-  private val dependenciesHealthCheck: F[Json] =
+  private val html_header: Text.TypedTag[String] =
+    head(tag("style")("""
+        td, th {text-align: left; padding: 2px; border: 1px solid;}
+        table {
+          border-collapse: collapse;
+          width: 60%;
+        }
+      """))
+
+  private def html_table_title(now: ZonedDateTime): Text.TypedTag[String] =
+    table(
+      tr(th("Service"), th("Report Policy"), th("Time Zone"), th("Up Time")),
+      tr(
+        td(serviceParams.serviceName.value),
+        td(serviceParams.servicePolicies.metricReport.show),
+        td(serviceParams.zoneId.show),
+        td(fmt.format(serviceParams.upTime(now)))
+      )
+    )
+
+  private val deps_health_check: F[Json] =
     serviceParams.zonedNow[F].flatMap { now =>
       F.timed(F.delay(retrieveHealthChecks(metricRegistry).values.forall(identity))).map { case (fd, b) =>
         Json.obj(
@@ -54,10 +77,11 @@ private class HttpRouter[F[_]](
     case GET -> Root / "index.html" =>
       val text: Text.TypedTag[String] = html(
         body(
-          a(href := "/metrics/yaml")(p("Metrics")),
+          h3(s"Service: ${serviceParams.serviceName.value}"),
+          a(href := "/metrics/yaml")(p("Metrics Now")),
           a(href := "/metrics/history")(p("Metrics History")),
           a(href := "/metrics/reset")(p("Metrics Counters Reset")),
-          a(href := "/metrics/jvm")(p("Jvm Gauge")),
+          a(href := "/metrics/jvm")(p("Jvm Gauges")),
           a(href := "/service/params")(p("Service Parameters")),
           a(href := "/service/history")(p("Service Panic History")),
           a(href := "/service/health_check")(p("Service Health Check")),
@@ -69,20 +93,27 @@ private class HttpRouter[F[_]](
       Ok(text)
 
     case GET -> Root / "metrics" / "yaml" =>
-      val text = new SnapshotPolyglot(MetricSnapshot(metricRegistry)).toYaml
-      Ok(html(body(pre(text))))
+      val text: F[Text.TypedTag[String]] =
+        serviceParams.zonedNow.map { now =>
+          val yaml = new SnapshotPolyglot(MetricSnapshot(metricRegistry)).toYaml
+          html(html_header, body(div(html_table_title(now), pre(yaml))))
+        }
+      Ok(text)
 
     case GET -> Root / "metrics" / "vanilla" =>
-      Ok(new SnapshotPolyglot(MetricSnapshot(metricRegistry)).toVanillaJson)
+      val vanilla = new SnapshotPolyglot(MetricSnapshot(metricRegistry)).toVanillaJson
+      Ok(vanilla)
 
     case GET -> Root / "metrics" / "json" =>
-      Ok(new SnapshotPolyglot(MetricSnapshot(metricRegistry)).toPrettyJson)
+      val json = new SnapshotPolyglot(MetricSnapshot(metricRegistry)).toPrettyJson
+      Ok(json)
 
     case GET -> Root / "metrics" / "reset" =>
       for {
         ts <- serviceParams.zonedNow
         _ <- publisher.metricReset[F](channel, serviceParams, metricRegistry, MetricIndex.Adhoc(ts))
-        response <- Ok(html(body(pre(new SnapshotPolyglot(MetricSnapshot(metricRegistry)).toYaml))))
+        yaml = new SnapshotPolyglot(MetricSnapshot(metricRegistry)).toYaml
+        response <- Ok(html(html_header, body(div(html_table_title(ts), pre(yaml)))))
       } yield response
 
     case GET -> Root / "metrics" / "jvm" =>
@@ -98,37 +129,22 @@ private class HttpRouter[F[_]](
                 case MetricIndex.Periodic(tick) =>
                   Some(
                     div(
-                      h3("Report Index: ", tick.index),
+                      h3(style := htmlColoring(mr))("Report Index: ", tick.index),
                       table(
-                        tr(td(b("Launch Time")), td(b("Took"))),
-                        tr(td(tick.zonedWakeup.toLocalDateTime.show), td(fmt.format(mr.took)))),
+                        tr(th(METRICS_LAUNCH_TIME), th(CONSTANT_TOOK), th(CONSTANT_HEALTHY)),
+                        tr(
+                          td(tick.zonedWakeup.toLocalDateTime.show),
+                          td(fmt.format(mr.took)),
+                          td(retrieveHealthChecks(mr.snapshot.gauges).values.forall(identity).show))
+                      ),
                       pre(small(new SnapshotPolyglot(mr.snapshot).toYaml))
                     ))
               }
             })
-          history.map { hist =>
-            div(
-              table(
-                tr(td(b("Service")), td(b("Report Policy")), td(b("Time Zone")), td(b("Up Time"))),
-                tr(
-                  td(serviceParams.serviceName.value),
-                  td(serviceParams.servicePolicies.metricReport.show),
-                  td(serviceParams.zoneId.show),
-                  td(fmt.format(serviceParams.upTime(now)))
-                )
-              ),
-              hist
-            )
-          }
+          history.map(hist => div(html_table_title(now), hist))
         }
-      val header: Text.TypedTag[String] = head(tag("style")("""
-        td, th {text-align: left; padding: 2px; border: 1px solid;}
-        table {
-          border-collapse: collapse;
-          width: 60%;
-        }
-      """))
-      Ok(text.map(t => html(header, body(t))))
+
+      Ok(text.map(t => html(html_header, body(t))))
 
     // service part
 
@@ -139,14 +155,14 @@ private class HttpRouter[F[_]](
 
     case GET -> Root / "service" / "health_check" =>
       panicHistory.get.map(_.iterator().asScala.toList.lastOption).flatMap {
-        case None => dependenciesHealthCheck.flatMap(Ok(_))
+        case None => deps_health_check.flatMap(Ok(_))
         case Some(evt) =>
           Clock[F].realTimeInstant.flatMap { now =>
             if (evt.tick.wakeup.isAfter(now)) {
               val recover = Duration.between(now, evt.tick.wakeup)
               ServiceUnavailable(s"Service panic! Restart will be in ${fmt.format(recover)}")
             } else {
-              dependenciesHealthCheck.flatMap(Ok(_))
+              deps_health_check.flatMap(Ok(_))
             }
           }
       }

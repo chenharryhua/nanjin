@@ -1,12 +1,9 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
-import cats.effect.kernel.Sync
 import cats.{Endo, Show}
-import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.terminals.NJFileFormat.*
 import com.github.chenharryhua.nanjin.terminals.NJPath
 import com.sksamuel.avro4s.Encoder as AvroEncoder
-import fs2.Stream
 import io.circe.Encoder as JsonEncoder
 import kantan.csv.{CsvConfiguration, RowEncoder}
 import org.apache.spark.rdd.RDD
@@ -41,10 +38,6 @@ sealed class RddFileHoarder[F[_], A](frdd: F[RDD[A]]) extends Serializable {
 
   final def kantan(path: NJPath)(implicit encoder: RowEncoder[A]): SaveKantanCsv[F, A] =
     kantan(path, CsvConfiguration.rfc)
-
-  final def stream(chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, A] =
-    Stream.eval(frdd).flatMap(rdd => Stream.fromBlockingIterator(rdd.toLocalIterator, chunkSize.value))
-
 }
 
 final class RddAvroFileHoarder[F[_], A](frdd: F[RDD[A]], encoder: AvroEncoder[A])

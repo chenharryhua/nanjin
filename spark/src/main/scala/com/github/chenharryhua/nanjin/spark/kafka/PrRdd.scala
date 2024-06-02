@@ -9,8 +9,8 @@ import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.messages.kafka.NJProducerRecord
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.github.chenharryhua.nanjin.spark.persist.RddAvroFileHoarder
-import fs2.kafka.ProducerRecords
 import fs2.Stream
+import fs2.kafka.ProducerRecords
 import org.apache.spark.rdd.RDD
 
 final class PrRdd[F[_], K, V] private[kafka] (
@@ -50,6 +50,10 @@ final class PrRdd[F[_], K, V] private[kafka] (
 
   def output: RddAvroFileHoarder[F, NJProducerRecord[K, V]] =
     new RddAvroFileHoarder[F, NJProducerRecord[K, V]](frdd, codec)
+
+  def stream(chunkSize: ChunkSize): Stream[F, NJProducerRecord[K, V]] =
+    Stream.eval(frdd).flatMap(rdd => Stream.fromBlockingIterator[F](rdd.toLocalIterator, chunkSize.value))
+
 
   def producerRecords(chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, ProducerRecords[K, V]] =
     Stream

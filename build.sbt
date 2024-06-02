@@ -101,7 +101,7 @@ val serdeLib = List(
   "org.apache.parquet"                    % "parquet-hadoop"           % parquetV,
   "org.apache.parquet"                    % "parquet-avro"             % parquetV,
   "io.airlift"                            % "aircompressor"            % "0.27", // snyk by parquet
-  "org.apache.commons"                    % "commons-compress"         % "1.26.1", // snyk by avro
+  "org.apache.commons"                    % "commons-compress"         % "1.26.2", // snyk by avro
   "org.apache.avro"                       % "avro"                     % avroV,
   "io.confluent"                          % "kafka-streams-avro-serde" % confluentV
 ) ++ jacksonLib ++ circeLib ++ pbLib
@@ -217,7 +217,7 @@ lazy val http = (project in file("http"))
     "org.http4s" %% "http4s-ember-client" % http4sV          % Test,
     "org.tpolecat" %% "natchez-log"       % natchezV         % Test,
     "org.slf4j"                           % "slf4j-reload4j" % slf4jV % Test
-  ) ++ jwtLib ++ logLib ++ testLib)
+  ) ++ jwtLib ++ testLib)
 
 lazy val aws = (project in file("aws"))
   .dependsOn(common)
@@ -354,7 +354,10 @@ lazy val messages = (project in file("messages"))
   .dependsOn(common)
   .settings(commonSettings *)
   .settings(name := "nj-messages")
-  .settings(libraryDependencies ++= serdeLib ++ kafkaLib.map(_ % Provided) ++ testLib)
+  .settings(
+    libraryDependencies ++=
+      List("org.typelevel" %% "frameless-core" % framelessV) ++
+        serdeLib ++ kafkaLib.map(_ % Provided) ++ testLib)
 
 lazy val database = (project in file("database"))
   .dependsOn(common)
@@ -372,14 +375,14 @@ lazy val database = (project in file("database"))
   )
 
 lazy val kafka = (project in file("kafka"))
+  .dependsOn(common)
   .dependsOn(messages)
   .dependsOn(datetime)
-  .dependsOn(common)
   .settings(commonSettings *)
   .settings(name := "nj-kafka")
   .settings(libraryDependencies ++= List(
     "ch.qos.logback" % "logback-classic" % logbackV % Test
-  ) ++ kafkaLib ++ logLib ++ testLib)
+  ) ++ kafkaLib ++ testLib)
 
 /** hadoop based
   */
@@ -407,6 +410,20 @@ val hadoopLib = List(
     .exclude("io.netty", "netty") // snyk
 )
 
+lazy val pipes = (project in file("pipes"))
+  .dependsOn(common)
+  .dependsOn(datetime)
+  .settings(commonSettings *)
+  .settings(name := "nj-pipes")
+  .settings {
+    val libs = List(
+      "software.amazon.awssdk" % "bundle"    % awsV,
+      "org.tukaani"            % "xz"        % "1.9",
+      "org.apache.zookeeper"   % "zookeeper" % "3.9.2" // snyk
+    ) ++ kantanLib ++ serdeLib ++ hadoopLib ++ testLib
+    libraryDependencies ++= libs.map(_.exclude("org.codehaus.jackson", "jackson-mapper-asl")) // snyk
+  }
+
 val sparkLib = List(
   "org.apache.spark" %% "spark-catalyst",
   "org.apache.spark" %% "spark-core",
@@ -424,21 +441,10 @@ val sparkLib = List(
   "org.apache.avro" % "avro-mapred"
 ).map(_ % avroV)
 
-lazy val pipes = (project in file("pipes"))
+lazy val spark = (project in file("spark"))
+  .dependsOn(common)
   .dependsOn(datetime)
   .dependsOn(messages)
-  .settings(commonSettings *)
-  .settings(name := "nj-pipes")
-  .settings {
-    val libs = List(
-      "software.amazon.awssdk" % "bundle"    % awsV,
-      "org.tukaani"            % "xz"        % "1.9",
-      "org.apache.zookeeper"   % "zookeeper" % "3.9.2" // snyk
-    ) ++ kantanLib ++ logLib ++ hadoopLib ++ testLib
-    libraryDependencies ++= libs.map(_.exclude("org.codehaus.jackson", "jackson-mapper-asl")) // snyk
-  }
-
-lazy val spark = (project in file("spark"))
   .dependsOn(kafka)
   .dependsOn(pipes)
   .dependsOn(database)

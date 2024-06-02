@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.spark.{RddExt, SparkSessionExt}
+import com.github.chenharryhua.nanjin.spark.SparkSessionExt
 import com.github.chenharryhua.nanjin.terminals.{HadoopBinAvro, NJPath}
 import com.sksamuel.avro4s.{FromRecord, ToRecord}
 import eu.timepit.refined.auto.*
@@ -110,8 +110,7 @@ class BinAvroTest extends AnyFunSuite {
   val toRecord: ToRecord[Rooster] = ToRecord(Rooster.avroCodec)
   test("reverse read/write gzip") {
     val path = reverseRoot / "rooster.binary.avro.gz"
-    IO(RoosterData.rdd).output
-      .stream(100)
+    Stream.fromBlockingIterator[IO](RoosterData.rdd.toLocalIterator, 100)
       .map(toRecord.to)
       .through(bin_avro.sink(path))
       .compile
@@ -123,8 +122,7 @@ class BinAvroTest extends AnyFunSuite {
   }
   test("reverse read/write bzip2") {
     val path = reverseRoot / "rooster.binary.avro.bz2"
-    IO(RoosterData.rdd).output
-      .stream(100)
+    Stream.fromBlockingIterator[IO](RoosterData.rdd.toLocalIterator, 100)
       .map(toRecord.to)
       .through(bin_avro.sink(path))
       .compile
@@ -137,8 +135,7 @@ class BinAvroTest extends AnyFunSuite {
 
   test("reverse read/write uncompress") {
     val path = reverseRoot / "rooster.binary.avro"
-    IO(RoosterData.rdd).output
-      .stream(100)
+    Stream.fromBlockingIterator[IO](RoosterData.rdd.toLocalIterator, 100)
       .map(toRecord.to)
       .through(bin_avro.sink(path))
       .compile
@@ -151,8 +148,7 @@ class BinAvroTest extends AnyFunSuite {
 
   test("ftp") {
     val path = NJPath("ftp://localhost/data2/bin_avro.avro")
-    IO(RoosterData.rdd).output
-      .stream(100)
+    Stream.fromBlockingIterator[IO](RoosterData.rdd.toLocalIterator, 100)
       .map(toRecord.to)
       .through(bin_avro.sink(path))
       .compile
