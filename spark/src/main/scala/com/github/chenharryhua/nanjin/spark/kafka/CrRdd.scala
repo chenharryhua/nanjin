@@ -3,13 +3,15 @@ package com.github.chenharryhua.nanjin.spark.kafka
 import cats.Endo
 import cats.effect.kernel.Sync
 import cats.syntax.all.*
+import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
-import com.github.chenharryhua.nanjin.messages.kafka.{CRMetaInfo, NJConsumerRecord, NJProducerRecord}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
+import com.github.chenharryhua.nanjin.messages.kafka.{CRMetaInfo, NJConsumerRecord, NJProducerRecord}
+import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.spark.persist.RddAvroFileHoarder
 import com.github.chenharryhua.nanjin.spark.table.NJTable
-import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import frameless.TypedEncoder
+import fs2.Stream
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 
@@ -78,6 +80,9 @@ final class CrRdd[F[_], K, V] private[kafka] (
 
   def output: RddAvroFileHoarder[F, NJConsumerRecord[K, V]] =
     new RddAvroFileHoarder[F, NJConsumerRecord[K, V]](frdd, codec)
+
+  def stream(chunkSize: ChunkSize): Stream[F, NJConsumerRecord[K, V]] =
+    Stream.eval(frdd).flatMap(rdd => Stream.fromBlockingIterator[F](rdd.toLocalIterator, chunkSize.value))
 
   // statistics
   def stats: Statistics[F] = {

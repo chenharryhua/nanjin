@@ -3,11 +3,15 @@ package com.github.chenharryhua.nanjin.spark.table
 import cats.Endo
 import cats.effect.kernel.Sync
 import cats.syntax.all.*
+import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.common.database.TableName
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.spark.persist.RddAvroFileHoarder
 import com.zaxxer.hikari.HikariConfig
 import org.apache.spark.sql.{Dataset, SaveMode, SparkSession}
+import fs2.Stream
+
+import scala.jdk.CollectionConverters.IteratorHasAsScala
 
 final class NJTable[F[_], A](val fdataset: F[Dataset[A]], ate: AvroTypedEncoder[A])(implicit F: Sync[F]) {
 
@@ -43,6 +47,10 @@ final class NJTable[F[_], A](val fdataset: F[Dataset[A]], ate: AvroTypedEncoder[
 
   def output: RddAvroFileHoarder[F, A] =
     new RddAvroFileHoarder[F, A](fdataset.map(ds => ds.rdd), ate.avroCodec)
+
+  def stream(chunkSize: ChunkSize): Stream[F, A] =
+    Stream.force(
+      fdataset.map(ds => Stream.fromBlockingIterator[F](ds.toLocalIterator().asScala, chunkSize.value)))
 
   def count: F[Long] = fdataset.map(ds => ds.count())
 

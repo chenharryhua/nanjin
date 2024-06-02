@@ -2,15 +2,14 @@ package mtest.spark.kafka
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
+import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.messages.kafka.NJProducerRecord
 import com.github.chenharryhua.nanjin.messages.kafka.codec.KJson
 import com.github.chenharryhua.nanjin.terminals.NJPath
 import eu.timepit.refined.auto.*
 import io.circe.Json
-import io.circe.generic.auto.*
 import org.scalatest.funsuite.AnyFunSuite
 
 class KJsonTest extends AnyFunSuite {
@@ -27,7 +26,6 @@ class KJsonTest extends AnyFunSuite {
     sparKafka
       .topic(topic)
       .prRdd(data)
-      .output
       .stream(1)
       .map(_.toProducerRecord)
       .chunks
