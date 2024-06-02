@@ -15,12 +15,16 @@ import org.scalatest.funsuite.AnyFunSuite
 class KJsonTest extends AnyFunSuite {
   val topic: KafkaTopic[IO, KJson[Json], KJson[Json]] = ctx.jsonTopic("kjson.test")
 
-  val data = List
+  val data: List[NJProducerRecord[KJson[Json], KJson[Json]]] = List
     .range(0, 10)
     .map(a =>
       NJProducerRecord(topic.topicName, KJson(Json.fromInt(a)), KJson(Json.fromString("test.string"))))
 
   val root: NJPath = NJPath("./data/test/spark/kafka/kjson")
+
+  test("to table, should compile") {
+    sparKafka.topic(topic).emptyCrRdd.toTable
+  }
 
   test("load - unload") {
     sparKafka

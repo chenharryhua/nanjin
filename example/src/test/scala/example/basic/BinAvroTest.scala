@@ -42,7 +42,7 @@ class BinAvroTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
     val path = root / "spark" / "single" / file.fileName
     val sink = bin_avro.sink(path)
     write(path.uri.getPath).use { meter =>
-      table.output
+      table
         .stream(1000)
         .evalTap(_ => meter.mark(1))
         .map(encoder.to)
@@ -57,7 +57,7 @@ class BinAvroTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
     val path = root / "spark" / "rotate" / file.fileName
     val sink = bin_avro.sink(policy, singaporeTime)(t => path / file.fileName(t))
     write(path.uri.getPath).use { meter =>
-      table.output
+      table
         .stream(1000)
         .evalTap(_ => meter.mark(1))
         .map(encoder.to)

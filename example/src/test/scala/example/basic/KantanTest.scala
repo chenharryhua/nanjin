@@ -48,7 +48,7 @@ class KantanTest(agent: Agent[IO], base: NJPath, rfc: CsvConfiguration) extends 
     val path = root / "spark" / "single" / file.fileName
     val sink = kantan.sink(path)
     write(path.uri.getPath).use { meter =>
-      table.output
+      table
         .stream(1000)
         .evalTap(_ => meter.mark(1))
         .map(rowEncoder.encode)
@@ -69,7 +69,7 @@ class KantanTest(agent: Agent[IO], base: NJPath, rfc: CsvConfiguration) extends 
     val path = root / "spark" / "rotate" / file.fileName
     val sink = kantan.sink(policy, utcTime)(t => path / file.fileName(t))
     write(path.uri.getPath).use { meter =>
-      table.output
+      table
         .stream(1000)
         .evalTap(_ => meter.mark(1))
         .map(rowEncoder.encode)

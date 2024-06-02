@@ -53,6 +53,12 @@ class KJsonTest extends Properties("kjson") {
     val id = ct.map(goodJson.avroCodec.idConversion)
     ct == id && ct === id
   }
+
+  property("encode/decode injection identity") = forAll { (ct: List[KJson[CompositionType]]) =>
+    val ins = ct.map(KJson.injectionKJson[CompositionType].apply(_))
+    val rev = ins.map(KJson.injectionKJson[CompositionType].invert(_))
+    ct == rev
+  }
 }
 
 class KJsonEqTest extends CatsSuite with FunSuiteDiscipline {

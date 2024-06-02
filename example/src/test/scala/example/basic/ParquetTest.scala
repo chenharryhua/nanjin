@@ -44,7 +44,7 @@ class ParquetTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
     val path = root / "spark" / "single" / file.fileName
     val sink = parquet.updateWriter(_.withCompressionCodec(file.compression.codecName)).sink(path)
     write(path.uri.getPath).use { meter =>
-      table.output
+      table
         .stream(1000)
         .evalTap(_ => meter.mark(1))
         .map(encoder.to)
@@ -67,7 +67,7 @@ class ParquetTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
       .updateWriter(_.withCompressionCodec(file.compression.codecName))
       .sink(policy, sydneyTime)(t => path / file.fileName(t))
     write(path.uri.getPath).use { meter =>
-      table.output
+      table
         .stream(1000)
         .evalTap(_ => meter.mark(1))
         .map(encoder.to)
