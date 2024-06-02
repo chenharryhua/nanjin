@@ -198,7 +198,7 @@ private object SlackTranslator extends all {
             MarkdownSection(s"*${eventTitle(evt)}*"),
             host_service_section(evt.serviceParams),
             JuxtaposeSection(
-              first = TextField(CONSTANT_MEASUREMENT, measurement(evt.actionParams.metricName)),
+              first = TextField(CONSTANT_MEASUREMENT, evt.actionParams.metricName.measurement),
               second = TextField(CONSTANT_TIMEZONE, evt.serviceParams.zoneId.show)),
             MarkdownSection(s"""|${policy(evt)}
                                 |${service_id(evt)}""".stripMargin),
@@ -217,7 +217,7 @@ private object SlackTranslator extends all {
             MarkdownSection(s"*${eventTitle(evt)}*"),
             host_service_section(evt.serviceParams),
             JuxtaposeSection(
-              first = TextField(CONSTANT_MEASUREMENT, measurement(evt.actionParams.metricName)),
+              first = TextField(CONSTANT_MEASUREMENT, evt.actionParams.metricName.measurement),
               second = TextField(CONSTANT_SNOOZE, fmt.format(evt.tick.snooze))),
             MarkdownSection(s"""|${retryText(evt)}
                                 |${policy(evt)}
@@ -238,7 +238,7 @@ private object SlackTranslator extends all {
             MarkdownSection(s"*${eventTitle(evt)}*"),
             host_service_section(evt.serviceParams),
             JuxtaposeSection(
-              first = TextField(CONSTANT_MEASUREMENT, measurement(evt.actionParams.metricName)),
+              first = TextField(CONSTANT_MEASUREMENT, evt.actionParams.metricName.measurement),
               second = TextField(CONSTANT_TOOK, tookText(evt.took))),
             MarkdownSection(s"""|${policy(evt)}
                                 |${service_id(evt)}""".stripMargin),
@@ -263,7 +263,7 @@ private object SlackTranslator extends all {
             MarkdownSection(s"*${eventTitle(evt)}*"),
             host_service_section(evt.serviceParams),
             JuxtaposeSection(
-              first = TextField(CONSTANT_MEASUREMENT, measurement(evt.actionParams.metricName)),
+              first = TextField(CONSTANT_MEASUREMENT, evt.actionParams.metricName.measurement),
               second = TextField(CONSTANT_TOOK, tookText(evt.took))),
             MarkdownSection(service_id(evt)),
             MarkdownSection(s"""```${abbreviate(evt.notes)}```""")
