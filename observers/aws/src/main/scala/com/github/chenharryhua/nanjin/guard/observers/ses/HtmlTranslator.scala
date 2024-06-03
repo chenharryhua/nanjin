@@ -2,14 +2,14 @@ package com.github.chenharryhua.nanjin.guard.observers.ses
 
 import cats.Applicative
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.guard.event.{retrieveHealthChecks, NJError, NJEvent}
+import com.github.chenharryhua.nanjin.guard.event.{NJError, NJEvent}
 import com.github.chenharryhua.nanjin.guard.translator.{htmlHelper, textConstants, textHelper, Translator}
 import io.circe.Json
 import io.circe.syntax.EncoderOps
 import org.typelevel.cats.time.instances.all
-import scalatags.{generic, Text}
 import scalatags.Text.all.*
 import scalatags.text.Builder
+import scalatags.{generic, Text}
 
 import java.time.temporal.ChronoUnit
 
@@ -22,21 +22,20 @@ private object HtmlTranslator extends all {
   import textHelper.*
 
   private def service_table(evt: NJEvent): generic.Frag[Builder, String] = {
-    val serviceName =
+    val serviceName: Text.TypedTag[String] =
       evt.serviceParams.homePage.fold(td(evt.serviceParams.serviceName.value))(hp =>
         td(a(href := hp.value)(evt.serviceParams.serviceName.value)))
 
     frag(
       tr(
-        th(CONSTANT_TIMESTAMP),
+        th(CONSTANT_TASK),
         th(CONSTANT_HOST),
-        th(CONSTANT_TASK)
+        th(CONSTANT_TIMESTAMP)
       ),
       tr(
-        td(evt.timestamp.toLocalTime.truncatedTo(ChronoUnit.SECONDS).show),
-        td(evt.serviceParams.hostName.value),
-        td(evt.serviceParams.taskName.value)
-      ),
+        td(evt.serviceParams.taskName.value),
+        td(hostText(evt.serviceParams)),
+        td(evt.timestamp.toLocalTime.truncatedTo(ChronoUnit.SECONDS).show)),
       tr(th(CONSTANT_SERVICE), th(CONSTANT_SERVICE_ID), th(CONSTANT_UPTIME)),
       tr(serviceName, td(evt.serviceParams.serviceId.show), td(uptimeText(evt)))
     )
@@ -77,12 +76,12 @@ private object HtmlTranslator extends all {
   private def metric_report(evt: MetricReport): Text.TypedTag[String] = {
     val result = frag(
       tr(
-        th(CONSTANT_HEALTHY),
+        th(CONSTANT_TIMEZONE),
         th(CONSTANT_POLICY),
         th(CONSTANT_TOOK)
       ),
       tr(
-        td(retrieveHealthChecks(evt.snapshot.gauges).values.forall(identity).show),
+        td(evt.serviceParams.zoneId.show),
         td(evt.serviceParams.servicePolicies.metricReport.show),
         td(tookText(evt.took))
       )
@@ -98,12 +97,12 @@ private object HtmlTranslator extends all {
   private def metric_reset(evt: MetricReset): Text.TypedTag[String] = {
     val result = frag(
       tr(
-        th(CONSTANT_HEALTHY),
+        th(CONSTANT_TIMEZONE),
         th(CONSTANT_POLICY),
         th(CONSTANT_TOOK)
       ),
       tr(
-        td(retrieveHealthChecks(evt.snapshot.gauges).values.forall(identity).show),
+        td(evt.serviceParams.zoneId.show),
         td(evt.serviceParams.servicePolicies.metricReset.show),
         td(tookText(evt.took))
       )

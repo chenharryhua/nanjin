@@ -10,7 +10,12 @@ import fs2.Stream
 import software.amazon.awssdk.services.cloudwatch.CloudWatchClientBuilder
 import software.amazon.awssdk.services.cloudwatch.model.{PutMetricDataRequest, PutMetricDataResponse}
 import software.amazon.awssdk.services.ses.SesClientBuilder
-import software.amazon.awssdk.services.ses.model.{SendEmailRequest, SendEmailResponse, SendRawEmailRequest, SendRawEmailResponse}
+import software.amazon.awssdk.services.ses.model.{
+  SendEmailRequest,
+  SendEmailResponse,
+  SendRawEmailRequest,
+  SendRawEmailResponse
+}
 import software.amazon.awssdk.services.sns.SnsClientBuilder
 import software.amazon.awssdk.services.sns.model.{PublishRequest, PublishResponse}
 import software.amazon.awssdk.services.sqs.SqsClientBuilder
@@ -21,7 +26,7 @@ import java.util.UUID
 import scala.concurrent.duration.FiniteDuration
 
 package object aws {
-  def cloudwatch_client: Resource[IO, CloudWatch[IO]] = {
+  def cloudwatch_client: Resource[IO, CloudWatch[IO]] =
     Resource.pure[IO, CloudWatch[IO]](new CloudWatch[IO] {
       override def putMetricData(putMetricDataRequest: PutMetricDataRequest): IO[PutMetricDataResponse] =
         IO.println(putMetricDataRequest.toString) *> IO.pure(PutMetricDataResponse.builder().build())
@@ -29,7 +34,6 @@ package object aws {
       override def updateBuilder(f: Endo[CloudWatchClientBuilder]): CloudWatch[IO] =
         this
     })
-  }
 
   def ses_client: Resource[IO, SimpleEmailService[IO]] =
     Resource.make(IO.pure(new SimpleEmailService[IO] {

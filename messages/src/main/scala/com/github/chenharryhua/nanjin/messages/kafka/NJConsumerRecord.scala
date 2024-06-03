@@ -2,7 +2,8 @@ package com.github.chenharryhua.nanjin.messages.kafka
 
 import cats.Bifunctor
 import cats.data.Cont
-import cats.implicits.catsSyntaxEq
+import cats.syntax.eq.catsSyntaxEq
+import cats.syntax.semigroup.catsSyntaxSemigroup
 import cats.kernel.Eq
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.sksamuel.avro4s.*
@@ -33,6 +34,8 @@ final case class NJConsumerRecord[K, V](
   @AvroDoc("kafka value") value: Option[V],
   @AvroDoc("kafka headers") headers: List[NJHeader],
   @AvroDoc("kafka leader epoch") leaderEpoch: Option[Int]) {
+
+  def size: Option[Int] = serializedKeySize |+| serializedValueSize
 
   def flatten[K2, V2](implicit
     evK: K <:< Option[K2],

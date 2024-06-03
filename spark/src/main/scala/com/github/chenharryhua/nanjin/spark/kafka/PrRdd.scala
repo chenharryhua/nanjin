@@ -54,7 +54,6 @@ final class PrRdd[F[_], K, V] private[kafka] (
   def stream(chunkSize: ChunkSize): Stream[F, NJProducerRecord[K, V]] =
     Stream.eval(frdd).flatMap(rdd => Stream.fromBlockingIterator[F](rdd.toLocalIterator, chunkSize.value))
 
-
   def producerRecords(chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, ProducerRecords[K, V]] =
     Stream
       .eval(frdd)

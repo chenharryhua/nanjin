@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.translator
 
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.guard.config.MetricName
+import com.github.chenharryhua.nanjin.guard.config.{MetricName, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.{ActionRetry, ServicePanic}
 import com.github.chenharryhua.nanjin.guard.event.{MetricIndex, MetricSnapshot, NJEvent, ServiceStopCause}
 import org.typelevel.cats.time.instances.{localdatetime, localtime}
@@ -17,6 +17,12 @@ object textHelper extends localtime with localdatetime {
 
   def tookText(dur: Duration): String         = fmt.format(dur)
   def tookText(dur: Option[Duration]): String = dur.map(fmt.format).getOrElse("unknown")
+
+  def hostText(sp: ServiceParams): String =
+    sp.emberServerParams match {
+      case Some(esp) => s"${sp.hostName.value}:${esp.port}"
+      case None        => sp.hostName.value
+    }
 
   def stopCause(ssc: ServiceStopCause): String = ssc match {
     case ServiceStopCause.Normally           => "Normally"

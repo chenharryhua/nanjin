@@ -48,5 +48,4 @@ object textConstants {
   @inline final val CONSTANT_TASK: String        = "Task"
   @inline final val CONSTANT_CONFIG: String      = "Config"
   @inline final val CONSTANT_MEASUREMENT: String = "Measurement"
-  @inline final val CONSTANT_HEALTHY: String     = "Healthy"
 }
