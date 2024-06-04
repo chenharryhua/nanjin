@@ -86,10 +86,11 @@ class SparKafkaTest extends AnyFunSuite {
     val birst =
       sparKafka
         .topic(src.topicDef)
-        .crRdd((ds.rdd))
+        .crRdd(ds.rdd)
         .bimap(_.toString, _ + 1)(NJAvroCodec[String], NJAvroCodec[Int])
         .rdd
-        .collect().toSet
+        .collect()
+        .toSet
 
     assert(birst.flatMap(_.value) == Set(2, 3, 5))
   }
@@ -108,12 +109,13 @@ class SparKafkaTest extends AnyFunSuite {
     val birst =
       sparKafka
         .topic(src.topicDef)
-        .crRdd( (ds.rdd))
+        .crRdd(ds.rdd)
         .flatMap(m => m.value.map(x => m.focus(_.value).replace(Some(x - 1))))(
           NJAvroCodec[Int],
           NJAvroCodec[Int])
         .rdd
-        .collect().toSet
+        .collect()
+        .toSet
     assert(birst.flatMap(_.value) == Set(0, 1, 3))
   }
 
@@ -144,7 +146,7 @@ class SparKafkaTest extends AnyFunSuite {
     val t =
       sparKafka
         .topic[Int, Int]("some.value")
-        .crRdd((ds.rdd))
+        .crRdd(ds.rdd)
         .repartition(3)
         .descendTimestamp
         .transform(_.distinct())

@@ -7,9 +7,9 @@ import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameL}
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.*
-import com.github.chenharryhua.nanjin.messages.kafka.codec.{SerdeOf, gr2Jackson}
+import com.github.chenharryhua.nanjin.messages.kafka.codec.{gr2Jackson, SerdeOf}
 import com.github.chenharryhua.nanjin.messages.kafka.{CRMetaInfo, NJConsumerRecord}
-import com.github.chenharryhua.nanjin.spark.kafka.{SparKafkaTopic, Statistics, sk}
+import com.github.chenharryhua.nanjin.spark.kafka.{sk, SparKafkaTopic, Statistics}
 import com.github.chenharryhua.nanjin.spark.persist.RddFileHoarder
 import com.github.chenharryhua.nanjin.terminals.{NJHadoop, NJPath}
 import eu.timepit.refined.refineMV

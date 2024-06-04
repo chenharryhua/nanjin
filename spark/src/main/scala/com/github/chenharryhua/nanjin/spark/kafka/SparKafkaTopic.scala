@@ -8,7 +8,7 @@ import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.*
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJProducerRecord}
-import com.github.chenharryhua.nanjin.spark.{AvroTypedEncoder, utils}
+import com.github.chenharryhua.nanjin.spark.{utils, AvroTypedEncoder}
 import frameless.TypedEncoder
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession

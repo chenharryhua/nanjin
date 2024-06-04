@@ -39,15 +39,13 @@ class CopyDataTest extends AnyFunSuite {
       _ <- sparKafka
         .topic(src.topicDef)
         .fromKafka
-        .flatMap(_.prRdd
-        .noPartition
-        .noTimestamp
-        .noMeta
-        .withTopicName(tgt.topicName)
-        .producerRecords[IO](100)
-        .through(tgt.produce.pipe)
-        .compile
-        .drain)
+        .flatMap(
+          _.prRdd.noPartition.noTimestamp.noMeta
+            .withTopicName(tgt.topicName)
+            .producerRecords[IO](100)
+            .through(tgt.produce.pipe)
+            .compile
+            .drain)
       srcData = sparKafka.topic(src.topicDef).fromKafka.map(_.rdd.collect()).unsafeRunSync()
       tgtData = sparKafka.topic(tgt.topicDef).fromKafka.map(_.rdd.collect()).unsafeRunSync()
     } yield {

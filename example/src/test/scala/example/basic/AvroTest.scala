@@ -42,7 +42,7 @@ class AvroTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
     val sink = avro.withCompression(file.compression).sink(path)
     write(path.uri.getPath).use { meter =>
       table
-        .stream(1000)
+        .stream[IO](1000)
         .evalTap(_ => meter.mark(1))
         .map(encoder.to)
         .through(sink)
@@ -54,7 +54,7 @@ class AvroTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
 
   private def writeMultiSpark(file: AvroFile): IO[NJPath] = {
     val path = root / "spark" / "multi" / file.fileName
-    write(path.uri.getPath).use(_ => table.output.avro(path).withCompression(file.compression).run.as(path))
+    write(path.uri.getPath).use(_ => table.output.avro(path).withCompression(file.compression).run[IO].as(path))
   }
 
   private def writeRotateSpark(file: AvroFile): IO[NJPath] = {
@@ -62,7 +62,7 @@ class AvroTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
     val sink = avro.withCompression(file.compression).sink(policy, beijingTime)(t => path / file.fileName(t))
     write(path.uri.getPath).use { meter =>
       table
-        .stream(1000)
+        .stream[IO](1000)
         .evalTap(_ => meter.mark(1))
         .map(encoder.to)
         .through(sink)
@@ -73,7 +73,7 @@ class AvroTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
   }
 
   private def sparkRead(path: NJPath): IO[Long] =
-    read(path.uri.getPath).use(_ => loader.avro(path).count)
+    read(path.uri.getPath).use(_ => loader.avro(path).count[IO])
 
   private def folderRead(path: NJPath): IO[Long] =
     read(path.uri.getPath).use { meter =>

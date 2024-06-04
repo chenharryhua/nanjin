@@ -1,5 +1,6 @@
 package example.kafka
 
+import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.messages.kafka.NJProducerRecord
 import com.github.chenharryhua.nanjin.terminals.NJPath
@@ -25,7 +26,7 @@ class ExampleKafkaBasic extends AnyFunSuite {
     sparKafka
       .topic(fooTopic)
       .prRdd(producerRecords)
-      .producerRecords(100)
+      .producerRecords[IO](100)
       .through(fooTopic.produce.pipe)
       .compile
       .drain
@@ -46,13 +47,13 @@ class ExampleKafkaBasic extends AnyFunSuite {
 
   test("persist messages to local disk and then load data back into kafka") {
     val path = NJPath("./data/example/foo.json")
-    sparKafka.topic(fooTopic).fromKafka.output.circe(path).run.unsafeRunSync()
+    sparKafka.topic(fooTopic).fromKafka.flatMap(_.output.circe(path).run[IO]).unsafeRunSync()
     sparKafka
       .topic(fooTopic)
       .load
       .circe(path)
       .prRdd
-      .producerRecords(2)
+      .producerRecords[IO](2)
       .through(fooTopic.produce.pipe)
       .compile
       .drain

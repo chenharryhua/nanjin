@@ -1,5 +1,6 @@
 package example.spark
 
+import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.terminals.NJPath
 import eu.timepit.refined.auto.*
@@ -13,10 +14,14 @@ import io.circe.generic.auto.*
 class ExampleKafakDump extends AnyFunSuite {
   test("dump kafka data in json") {
     val path = NJPath("./data/example/foo/batch/circe.json")
-    sparKafka.topic(fooTopic).fromKafka.output.circe(path).run.unsafeRunSync()
+    sparKafka.topic(fooTopic).fromKafka.flatMap(_.output.circe(path).run[IO]).unsafeRunSync()
   }
   test("dump kafka data in avro compressed by snappy") {
     val path = NJPath("./data/example/foo/batch/avro")
-    sparKafka.topic(fooTopic).fromKafka.output.avro(path).withCompression(_.Snappy).run.unsafeRunSync()
+    sparKafka
+      .topic(fooTopic)
+      .fromKafka
+      .flatMap(_.output.avro(path).withCompression(_.Snappy).run[IO])
+      .unsafeRunSync()
   }
 }

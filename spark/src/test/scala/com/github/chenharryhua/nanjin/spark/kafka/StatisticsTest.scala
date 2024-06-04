@@ -37,9 +37,9 @@ object StatisticsTestData {
 
 class StatisticsTest extends AnyFunSuite {
   import StatisticsTestData.*
-  val stats = new Statistics((ds))
+  val stats = new Statistics(ds)
 
-  val emptyStats = new Statistics((empty))
+  val emptyStats = new Statistics(empty)
 
   test("dupRecords") {
     val res = stats.dupRecords[IO].map(_.collect().toSet).unsafeRunSync()

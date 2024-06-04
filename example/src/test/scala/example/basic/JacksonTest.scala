@@ -43,7 +43,7 @@ class JacksonTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
     val sink = jackson.sink(path)
     write(path.uri.getPath).use { meter =>
       table
-        .stream(1000)
+        .stream[IO](1000)
         .evalTap(_ => meter.mark(1))
         .map(encoder.to)
         .through(sink)
@@ -56,7 +56,7 @@ class JacksonTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
   private def writeMultiSpark(file: JacksonFile): IO[NJPath] = {
     val path = root / "spark" / "multi" / file.fileName
     write(path.uri.getPath).use(_ =>
-      table.output.jackson(path).withCompression(file.compression).run.as(path))
+      table.output.jackson(path).withCompression(file.compression).run[IO].as(path))
   }
 
   private def writeRotateSpark(file: JacksonFile): IO[NJPath] = {
@@ -64,7 +64,7 @@ class JacksonTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
     val sink = jackson.sink(policy, saltaTime)(t => path / file.fileName(t))
     write(path.uri.getPath).use { meter =>
       table
-        .stream(1000)
+        .stream[IO](1000)
         .evalTap(_ => meter.mark(1))
         .map(encoder.to)
         .through(sink)
@@ -75,7 +75,7 @@ class JacksonTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
   }
 
   private def sparkRead(path: NJPath): IO[Long] =
-    read(path.uri.getPath).use(_ => loader.jackson(path).count)
+    read(path.uri.getPath).use(_ => loader.jackson(path).count[IO])
 
   private def folderRead(path: NJPath): IO[Long] =
     read(path.uri.getPath).use { meter =>

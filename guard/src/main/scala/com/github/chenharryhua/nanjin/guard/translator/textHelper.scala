@@ -21,7 +21,7 @@ object textHelper extends localtime with localdatetime {
   def hostText(sp: ServiceParams): String =
     sp.emberServerParams match {
       case Some(esp) => s"${sp.hostName.value}:${esp.port}"
-      case None        => sp.hostName.value
+      case None      => sp.hostName.value
     }
 
   def stopCause(ssc: ServiceStopCause): String = ssc match {

@@ -43,7 +43,7 @@ class BinAvroTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
     val sink = bin_avro.sink(path)
     write(path.uri.getPath).use { meter =>
       table
-        .stream(1000)
+        .stream[IO](1000)
         .evalTap(_ => meter.mark(1))
         .map(encoder.to)
         .through(sink)
@@ -58,7 +58,7 @@ class BinAvroTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
     val sink = bin_avro.sink(policy, singaporeTime)(t => path / file.fileName(t))
     write(path.uri.getPath).use { meter =>
       table
-        .stream(1000)
+        .stream[IO](1000)
         .evalTap(_ => meter.mark(1))
         .map(encoder.to)
         .through(sink)
@@ -71,11 +71,11 @@ class BinAvroTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
   private def writeMultiSpark(file: BinAvroFile): IO[NJPath] = {
     val path = root / "spark" / "multi" / file.fileName
     write(path.uri.getPath).use(_ =>
-      table.output.binAvro(path).withCompression(file.compression).run.as(path))
+      table.output.binAvro(path).withCompression(file.compression).run[IO].as(path))
   }
 
   private def sparkRead(path: NJPath): IO[Long] =
-    read(path.uri.getPath).use(_ => loader.binAvro(path).count)
+    read(path.uri.getPath).use(_ => loader.binAvro(path).count[IO])
 
   private def folderRead(path: NJPath): IO[Long] =
     read(path.uri.getPath).use { meter =>

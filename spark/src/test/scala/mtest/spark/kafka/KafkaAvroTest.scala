@@ -101,7 +101,7 @@ class KafkaAvroTest extends AnyFunSuite {
         sk.fromKafka.flatMap(_.output.jackson(jacksonPath).run[IO]) >>
         sk.fromKafka.flatMap(_.output.circe(circePath).run[IO]) >>
         sk.fromKafka.flatMap(_.output.parquet(parquetPath).run[IO]) >>
-        IO((sk.load.avro(avroPath).rdd.take(10).toSet))
+        IO(sk.load.avro(avroPath).rdd.take(10).toSet)
     assert(run.unsafeRunSync().flatMap(_.value) == Set(en1, en2))
     sparKafka.stats.jackson(jacksonPath).summary[IO].unsafeRunSync()
     sparKafka.stats.circe(circePath).summary[IO].unsafeRunSync()

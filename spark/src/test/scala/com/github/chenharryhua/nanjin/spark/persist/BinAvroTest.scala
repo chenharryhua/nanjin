@@ -17,7 +17,7 @@ class BinAvroTest extends AnyFunSuite {
   val bin_avro: HadoopBinAvro[IO] = hdp.binAvro(Rooster.schema)
 
   def saver(path: NJPath) =
-    new RddAvroFileHoarder[Rooster]((RoosterData.rdd.repartition(2)), Rooster.avroCodec)
+    new RddAvroFileHoarder[Rooster](RoosterData.rdd.repartition(2), Rooster.avroCodec)
       .binAvro(path)
       .withSaveMode(_.Overwrite)
 
