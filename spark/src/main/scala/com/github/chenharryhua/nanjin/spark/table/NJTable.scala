@@ -12,7 +12,9 @@ import org.apache.spark.sql.{Dataset, SaveMode, SparkSession}
 
 import scala.jdk.CollectionConverters.IteratorHasAsScala
 
-final class NJTable[A](val dataset: Dataset[A], ate: AvroTypedEncoder[A]) {
+final class NJTable[A] private[spark] (val dataset: Dataset[A], ate: AvroTypedEncoder[A]) {
+
+  // transform
 
   def map[B](bate: AvroTypedEncoder[B])(f: A => B): NJTable[B] =
     new NJTable[B](dataset.map(f)(bate.sparkEncoder), bate)
@@ -20,11 +22,11 @@ final class NJTable[A](val dataset: Dataset[A], ate: AvroTypedEncoder[A]) {
   def flatMap[B](bate: AvroTypedEncoder[B])(f: A => IterableOnce[B]): NJTable[B] =
     new NJTable[B](dataset.flatMap(f)(bate.sparkEncoder), bate)
 
-  def transform(f: Endo[Dataset[A]]): NJTable[A] =
-    new NJTable[A](f(dataset), ate)
+  def transform(f: Endo[Dataset[A]]): NJTable[A] = new NJTable[A](f(dataset), ate)
 
   def repartition(numPartitions: Int): NJTable[A] = transform(_.repartition(numPartitions))
-  def normalize: NJTable[A]                       = transform(ate.normalize)
+
+  def normalize: NJTable[A] = transform(ate.normalize)
 
   def diff(other: Dataset[A]): NJTable[A] = transform(_.except(other))
   def diff(other: NJTable[A]): NJTable[A] = diff(other.dataset)
@@ -32,17 +34,20 @@ final class NJTable[A](val dataset: Dataset[A], ate: AvroTypedEncoder[A]) {
   def union(other: Dataset[A]): NJTable[A] = transform(_.union(other))
   def union(other: NJTable[A]): NJTable[A] = union(other.dataset)
 
-  def output: RddAvroFileHoarder[A] =
-    new RddAvroFileHoarder[A](dataset.rdd, ate.avroCodec)
+  // transition
+
+  def output: RddAvroFileHoarder[A] = new RddAvroFileHoarder[A](dataset.rdd, ate.avroCodec)
+
+  // IO
 
   def stream[F[_]: Sync](chunkSize: ChunkSize): Stream[F, A] =
     Stream.fromBlockingIterator[F](dataset.toLocalIterator().asScala, chunkSize.value)
 
-  def count[F[_]](implicit F: Sync[F]): F[Long] = F.delay(dataset.count())
+  def count[F[_]](implicit F: Sync[F]): F[Long] = F.blocking(dataset.count())
 
   def upload[F[_]](hikariConfig: HikariConfig, tableName: TableName, saveMode: SaveMode)(implicit
     F: Sync[F]): F[Unit] =
-    F.delay(
+    F.blocking(
       dataset.write
         .mode(saveMode)
         .format("jdbc")

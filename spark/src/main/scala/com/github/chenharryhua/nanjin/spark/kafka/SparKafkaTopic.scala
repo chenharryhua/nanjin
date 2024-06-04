@@ -68,7 +68,7 @@ final class SparKafkaTopic[F[_], K, V](val sparkSession: SparkSession, val topic
   /** load topic data from disk
     */
 
-  def load: LoadTopicFile[F, K, V] = new LoadTopicFile[F, K, V](topic, sparkSession)
+  def load: LoadTopicFile[K, V] = new LoadTopicFile[K, V](topic.topicDef, sparkSession)
 
   /** rdd and dataset
     */

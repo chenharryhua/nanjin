@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
-import com.github.chenharryhua.nanjin.kafka.KafkaTopic
+import com.github.chenharryhua.nanjin.kafka.TopicDef
 import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.github.chenharryhua.nanjin.spark.persist.loaders
@@ -9,11 +9,11 @@ import com.sksamuel.avro4s.Decoder
 import io.circe.Decoder as JsonDecoder
 import org.apache.spark.sql.SparkSession
 
-final class LoadTopicFile[F[_], K, V] private[kafka] (topic: KafkaTopic[F, K, V], ss: SparkSession)
+final class LoadTopicFile[K, V] private[kafka] (topicDef: TopicDef[K, V], ss: SparkSession)
     extends Serializable {
 
-  private val ack: NJAvroCodec[K] = topic.topicDef.rawSerdes.key.avroCodec
-  private val acv: NJAvroCodec[V] = topic.topicDef.rawSerdes.value.avroCodec
+  private val ack: NJAvroCodec[K] = topicDef.rawSerdes.key.avroCodec
+  private val acv: NJAvroCodec[V] = topicDef.rawSerdes.value.avroCodec
 
   private val decoder: Decoder[NJConsumerRecord[K, V]] = NJConsumerRecord.avroCodec(ack, acv)
 

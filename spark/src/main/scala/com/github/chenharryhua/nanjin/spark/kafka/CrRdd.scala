@@ -25,6 +25,7 @@ final class CrRdd[K, V] private[kafka] (
   protected val codec: NJAvroCodec[NJConsumerRecord[K, V]] = NJConsumerRecord.avroCodec(ack, acv)
 
   // transforms
+
   def transform(f: Endo[RDD[NJConsumerRecord[K, V]]]): CrRdd[K, V] =
     new CrRdd[K, V](f(rdd), ack, acv, ss)
 
@@ -43,7 +44,6 @@ final class CrRdd[K, V] private[kafka] (
 
   def normalize: CrRdd[K, V] = transform(_.map(codec.idConversion))
 
-  // maps
   def bimap[K2, V2](k: K => K2, v: V => V2)(ack2: NJAvroCodec[K2], acv2: NJAvroCodec[V2]): CrRdd[K2, V2] =
     new CrRdd[K2, V2](rdd.map(_.bimap(k, v)), ack2, acv2, ss).normalize
 
@@ -56,6 +56,12 @@ final class CrRdd[K, V] private[kafka] (
     ack2: NJAvroCodec[K2],
     acv2: NJAvroCodec[V2]): CrRdd[K2, V2] =
     new CrRdd[K2, V2](rdd.flatMap(f), ack2, acv2, ss).normalize
+
+  def diff(other: RDD[NJConsumerRecord[K, V]]): CrRdd[K, V] = transform(_.subtract(other))
+  def diff(other: CrRdd[K, V]): CrRdd[K, V]                 = diff(other.rdd)
+
+  def union(other: RDD[NJConsumerRecord[K, V]]): CrRdd[K, V] = transform(_.union(other))
+  def union(other: CrRdd[K, V]): CrRdd[K, V]                 = union(other.rdd)
 
   // transition
 
@@ -70,21 +76,17 @@ final class CrRdd[K, V] private[kafka] (
   def output: RddAvroFileHoarder[NJConsumerRecord[K, V]] =
     new RddAvroFileHoarder[NJConsumerRecord[K, V]](rdd, codec)
 
-  def stream[F[_]: Sync](chunkSize: ChunkSize): Stream[F, NJConsumerRecord[K, V]] =
-    Stream.fromBlockingIterator[F](rdd.toLocalIterator, chunkSize.value)
-
-  // statistics
   def stats: Statistics =
     new Statistics(ss.createDataset(rdd.map(CRMetaInfo(_))))
 
-  def count[F[_]](implicit F: Sync[F]): F[Long] = F.interruptible(rdd.count())
+  // IO
+
+  def count[F[_]](implicit F: Sync[F]): F[Long] = F.blocking(rdd.count())
 
   def cherryPick[F[_]](partition: Int, offset: Long)(implicit F: Sync[F]): F[Option[NJConsumerRecord[K, V]]] =
-    F.delay(partitionOf(partition).offsetRange(offset, offset).rdd.collect().headOption)
+    F.blocking(partitionOf(partition).offsetRange(offset, offset).rdd.collect().headOption)
 
-  def diff(other: RDD[NJConsumerRecord[K, V]]): CrRdd[K, V] = transform(_.subtract(other))
-  def diff(other: CrRdd[K, V]): CrRdd[K, V]                 = diff(other.rdd)
+  def stream[F[_]: Sync](chunkSize: ChunkSize): Stream[F, NJConsumerRecord[K, V]] =
+    Stream.fromBlockingIterator[F](rdd.toLocalIterator, chunkSize.value)
 
-  def union(other: RDD[NJConsumerRecord[K, V]]): CrRdd[K, V] = transform(_.union(other))
-  def union(other: CrRdd[K, V]): CrRdd[K, V]                 = union(other.rdd)
 }
