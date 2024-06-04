@@ -13,55 +13,47 @@ import fs2.Stream
 import fs2.kafka.ProducerRecords
 import org.apache.spark.rdd.RDD
 
-final class PrRdd[F[_], K, V] private[kafka] (
-  val frdd: F[RDD[NJProducerRecord[K, V]]],
+final class PrRdd[K, V] private[kafka] (
+  val rdd: RDD[NJProducerRecord[K, V]],
   codec: NJAvroCodec[NJProducerRecord[K, V]]
-)(implicit F: Sync[F])
-    extends Serializable {
+) extends Serializable {
 
   // transform
-  def transform(f: Endo[RDD[NJProducerRecord[K, V]]]): PrRdd[F, K, V] =
-    new PrRdd[F, K, V](F.flatMap(frdd)(rdd => F.interruptible(f(rdd))), codec)
+  def transform(f: Endo[RDD[NJProducerRecord[K, V]]]): PrRdd[K, V] =
+    new PrRdd[K, V](f(rdd), codec)
 
-  def filter(f: NJProducerRecord[K, V] => Boolean): PrRdd[F, K, V] = transform(_.filter(f))
-  def partitionOf(num: Int): PrRdd[F, K, V]                        = filter(_.partition.exists(_ === num))
+  def filter(f: NJProducerRecord[K, V] => Boolean): PrRdd[K, V] = transform(_.filter(f))
+  def partitionOf(num: Int): PrRdd[K, V]                        = filter(_.partition.exists(_ === num))
 
-  def offsetRange(start: Long, end: Long): PrRdd[F, K, V] = transform(range.pr.offset(start, end))
-  def timeRange(dr: NJDateTimeRange): PrRdd[F, K, V]      = transform(range.pr.timestamp(dr))
+  def offsetRange(start: Long, end: Long): PrRdd[K, V] = transform(range.pr.offset(start, end))
+  def timeRange(dr: NJDateTimeRange): PrRdd[K, V]      = transform(range.pr.timestamp(dr))
 
-  def ascendTimestamp: PrRdd[F, K, V]  = transform(sort.ascend.pr.timestamp)
-  def descendTimestamp: PrRdd[F, K, V] = transform(sort.descend.pr.timestamp)
-  def ascendOffset: PrRdd[F, K, V]     = transform(sort.ascend.pr.offset)
-  def descendOffset: PrRdd[F, K, V]    = transform(sort.descend.pr.offset)
+  def ascendTimestamp: PrRdd[K, V]  = transform(sort.ascend.pr.timestamp)
+  def descendTimestamp: PrRdd[K, V] = transform(sort.descend.pr.timestamp)
+  def ascendOffset: PrRdd[K, V]     = transform(sort.ascend.pr.offset)
+  def descendOffset: PrRdd[K, V]    = transform(sort.descend.pr.offset)
 
-  def noTimestamp: PrRdd[F, K, V]                          = transform(_.map(_.noTimestamp))
-  def noPartition: PrRdd[F, K, V]                          = transform(_.map(_.noPartition))
-  def noMeta: PrRdd[F, K, V]                               = transform(_.map(_.noMeta))
-  def withTopicName(topicName: TopicName): PrRdd[F, K, V]  = transform(_.map(_.withTopicName(topicName)))
-  def withTopicName(topicName: TopicNameL): PrRdd[F, K, V] = withTopicName(TopicName(topicName))
-  def replicate(num: Int): PrRdd[F, K, V] =
+  def noTimestamp: PrRdd[K, V]                          = transform(_.map(_.noTimestamp))
+  def noPartition: PrRdd[K, V]                          = transform(_.map(_.noPartition))
+  def noMeta: PrRdd[K, V]                               = transform(_.map(_.noMeta))
+  def withTopicName(topicName: TopicName): PrRdd[K, V]  = transform(_.map(_.withTopicName(topicName)))
+  def withTopicName(topicName: TopicNameL): PrRdd[K, V] = withTopicName(TopicName(topicName))
+  def replicate(num: Int): PrRdd[K, V] =
     transform(rdd => (1 until num).foldLeft(rdd) { case (r, _) => r.union(rdd) })
 
-  def normalize: PrRdd[F, K, V] = transform(_.map(codec.idConversion))
+  def normalize: PrRdd[K, V] = transform(_.map(codec.idConversion))
 
   // actions
 
-  def count: F[Long] = F.flatMap(frdd)(rdd => F.interruptible(rdd.count()))
+  def count[F[_]](implicit F: Sync[F]): F[Long] = F.interruptible(rdd.count())
 
-  def output: RddAvroFileHoarder[F, NJProducerRecord[K, V]] =
-    new RddAvroFileHoarder[F, NJProducerRecord[K, V]](frdd, codec)
+  def output: RddAvroFileHoarder[NJProducerRecord[K, V]] =
+    new RddAvroFileHoarder[NJProducerRecord[K, V]](rdd, codec)
 
-  def stream(chunkSize: ChunkSize): Stream[F, NJProducerRecord[K, V]] =
-    Stream.eval(frdd).flatMap(rdd => Stream.fromBlockingIterator[F](rdd.toLocalIterator, chunkSize.value))
+  def stream[F[_]: Sync](chunkSize: ChunkSize): Stream[F, NJProducerRecord[K, V]] =
+    Stream.fromBlockingIterator[F](rdd.toLocalIterator, chunkSize.value)
 
-
-  def producerRecords(chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, ProducerRecords[K, V]] =
-    Stream
-      .eval(frdd)
-      .flatMap(rdd =>
-        Stream
-          .fromBlockingIterator(rdd.toLocalIterator, chunkSize.value)
-          .chunks
-          .map(_.map(_.toProducerRecord)))
+  def producerRecords[F[_]](chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, ProducerRecords[K, V]] =
+    Stream.fromBlockingIterator(rdd.toLocalIterator, chunkSize.value).chunks.map(_.map(_.toProducerRecord))
 
 }

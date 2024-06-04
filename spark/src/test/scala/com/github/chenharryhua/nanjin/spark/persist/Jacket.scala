@@ -6,6 +6,7 @@ import com.github.chenharryhua.nanjin.messages.kafka.codec.{KJson, NJAvroCodec}
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.spark.injection.*
 import frameless.TypedEncoder
+import io.circe.generic.JsonCodec
 import io.circe.{Codec, Json}
 import io.circe.generic.auto.*
 import io.circe.jawn.parse
@@ -21,7 +22,9 @@ import scala.util.Random
 object Pocket extends Enumeration {
   val R, L = Value
 }
+@JsonCodec
 final case class Neck(d: Date, t: Timestamp, j: Json)
+@JsonCodec
 final case class Jacket(a: Int, p: Pocket.Value, neck: KJson[Neck])
 
 object Jacket {

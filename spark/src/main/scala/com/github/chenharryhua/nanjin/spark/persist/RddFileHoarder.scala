@@ -9,53 +9,51 @@ import kantan.csv.{CsvConfiguration, RowEncoder}
 import org.apache.spark.rdd.RDD
 import scalapb.GeneratedMessage
 
-sealed class RddFileHoarder[F[_], A](frdd: F[RDD[A]]) extends Serializable {
+sealed class RddFileHoarder[A](rdd: RDD[A]) extends Serializable {
 
 // 1
-  final def circe(path: NJPath)(implicit encoder: JsonEncoder[A]): SaveCirce[F, A] =
-    new SaveCirce[F, A](frdd, HoarderConfig(path).outputFormat(Circe), isKeepNull = true, encoder)
+  final def circe(path: NJPath)(implicit encoder: JsonEncoder[A]): SaveCirce[A] =
+    new SaveCirce[A](rdd, HoarderConfig(path).outputFormat(Circe), isKeepNull = true, encoder)
 
 // 2
-  final def text(path: NJPath)(implicit encoder: Show[A]): SaveText[F, A] =
-    new SaveText[F, A](frdd, HoarderConfig(path).outputFormat(Text), encoder, Text.suffix)
+  final def text(path: NJPath)(implicit encoder: Show[A]): SaveText[A] =
+    new SaveText[A](rdd, HoarderConfig(path).outputFormat(Text), encoder, Text.suffix)
 
 // 3
-  final def objectFile(path: NJPath): SaveObjectFile[F, A] =
-    new SaveObjectFile[F, A](frdd, HoarderConfig(path).outputFormat(JavaObject))
+  final def objectFile(path: NJPath): SaveObjectFile[A] =
+    new SaveObjectFile[A](rdd, HoarderConfig(path).outputFormat(JavaObject))
 
 // 4
-  final def protobuf(path: NJPath)(implicit evidence: A <:< GeneratedMessage): SaveProtobuf[F, A] =
-    new SaveProtobuf[F, A](frdd, HoarderConfig(path).outputFormat(ProtoBuf), evidence)
+  final def protobuf(path: NJPath)(implicit evidence: A <:< GeneratedMessage): SaveProtobuf[A] =
+    new SaveProtobuf[A](rdd, HoarderConfig(path).outputFormat(ProtoBuf), evidence)
 
 // 5
-  final def kantan(path: NJPath, cfg: CsvConfiguration)(implicit
-    encoder: RowEncoder[A]): SaveKantanCsv[F, A] =
-    new SaveKantanCsv[F, A](frdd, cfg, HoarderConfig(path).outputFormat(Kantan), encoder)
+  final def kantan(path: NJPath, cfg: CsvConfiguration)(implicit encoder: RowEncoder[A]): SaveKantanCsv[A] =
+    new SaveKantanCsv[A](rdd, cfg, HoarderConfig(path).outputFormat(Kantan), encoder)
 
   final def kantan(path: NJPath, f: Endo[CsvConfiguration])(implicit
-    encoder: RowEncoder[A]): SaveKantanCsv[F, A] =
+    encoder: RowEncoder[A]): SaveKantanCsv[A] =
     kantan(path, f(CsvConfiguration.rfc))
 
-  final def kantan(path: NJPath)(implicit encoder: RowEncoder[A]): SaveKantanCsv[F, A] =
+  final def kantan(path: NJPath)(implicit encoder: RowEncoder[A]): SaveKantanCsv[A] =
     kantan(path, CsvConfiguration.rfc)
 }
 
-final class RddAvroFileHoarder[F[_], A](frdd: F[RDD[A]], encoder: AvroEncoder[A])
-    extends RddFileHoarder[F, A](frdd) {
+final class RddAvroFileHoarder[A](rdd: RDD[A], encoder: AvroEncoder[A]) extends RddFileHoarder[A](rdd) {
 
 // 1
-  def jackson(path: NJPath): SaveJackson[F, A] =
-    new SaveJackson[F, A](frdd, encoder, HoarderConfig(path).outputFormat(Jackson))
+  def jackson(path: NJPath): SaveJackson[A] =
+    new SaveJackson[A](rdd, encoder, HoarderConfig(path).outputFormat(Jackson))
 
 // 2
-  def avro(path: NJPath): SaveAvro[F, A] =
-    new SaveAvro[F, A](frdd, encoder, HoarderConfig(path).outputFormat(Avro))
+  def avro(path: NJPath): SaveAvro[A] =
+    new SaveAvro[A](rdd, encoder, HoarderConfig(path).outputFormat(Avro))
 
 // 3
-  def binAvro(path: NJPath): SaveBinaryAvro[F, A] =
-    new SaveBinaryAvro[F, A](frdd, encoder, HoarderConfig(path).outputFormat(BinaryAvro))
+  def binAvro(path: NJPath): SaveBinaryAvro[A] =
+    new SaveBinaryAvro[A](rdd, encoder, HoarderConfig(path).outputFormat(BinaryAvro))
 
 // 4
-  def parquet(path: NJPath): SaveParquet[F, A] =
-    new SaveParquet[F, A](frdd, encoder, HoarderConfig(path).outputFormat(Parquet))
+  def parquet(path: NJPath): SaveParquet[A] =
+    new SaveParquet[A](rdd, encoder, HoarderConfig(path).outputFormat(Parquet))
 }

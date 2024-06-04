@@ -1,6 +1,5 @@
 package com.github.chenharryhua.nanjin
 
-import cats.effect.kernel.Sync
 import com.github.chenharryhua.nanjin.kafka.{KafkaContext, KafkaTopic}
 import com.github.chenharryhua.nanjin.spark.kafka.SparKafkaTopic
 import com.github.chenharryhua.nanjin.spark.persist.*
@@ -16,12 +15,12 @@ import org.apache.spark.sql.{DataFrame, SparkSession}
 package object spark {
   object injection extends InjectionInstances
 
-  implicit final class RddExt[F[_], A](frdd: F[RDD[A]]) extends Serializable {
+  implicit final class RddExt[F[_], A](rdd: RDD[A]) extends Serializable {
 
-    def output: RddFileHoarder[F, A] = new RddFileHoarder[F, A](frdd)
+    def output: RddFileHoarder[A] = new RddFileHoarder[A](rdd)
 
-    def output(encoder: AvroEncoder[A]): RddAvroFileHoarder[F, A] =
-      new RddAvroFileHoarder[F, A](frdd, encoder)
+    def output(encoder: AvroEncoder[A]): RddAvroFileHoarder[A] =
+      new RddAvroFileHoarder[A](rdd, encoder)
   }
 
   implicit final class DataframeExt(df: DataFrame) extends Serializable {
@@ -48,12 +47,7 @@ package object spark {
       ss.read.format("jdbc").options(options).load()
     }
 
-    final class PartialApplyAvroTypedEncoder[F[_]] {
-      def apply[A](ate: AvroTypedEncoder[A])(implicit F: Sync[F]): LoadTable[F, A] =
-        new LoadTable[F, A](ate, ss)
-    }
-
-    def loadTable[F[_]]: PartialApplyAvroTypedEncoder[F] = new PartialApplyAvroTypedEncoder[F]
+    def loadTable[A](ate: AvroTypedEncoder[A]): LoadTable[A] = new LoadTable[A](ate, ss)
 
     def alongWith[F[_]](ctx: KafkaContext[F]): SparKafkaContext[F] =
       new SparKafkaContext[F](ss, ctx)

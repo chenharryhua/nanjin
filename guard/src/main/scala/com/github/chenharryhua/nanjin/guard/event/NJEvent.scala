@@ -43,7 +43,7 @@ object NJEvent {
   sealed trait MetricEvent extends NJEvent {
     def index: MetricIndex
     def snapshot: MetricSnapshot
-    final def took: Duration = Duration.between(index.timestamp, timestamp)
+    final def took: Duration = Duration.between(index.launchTime, timestamp)
   }
 
   final case class MetricReport(

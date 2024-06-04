@@ -48,27 +48,27 @@ class SparKafkaTest extends AnyFunSuite {
     ctx.schemaRegistry.register(topic.topicDef) >> loadData).unsafeRunSync()
 
   test("sparKafka read topic from kafka") {
-    val rst = sparKafka.topic(topic.topicDef).fromKafka.frdd.map(_.collect()).unsafeRunSync()
+    val rst = sparKafka.topic(topic.topicDef).fromKafka.map(_.rdd.collect()).unsafeRunSync()
     assert(rst.toList.flatMap(_.value) === List(data, data))
   }
 
   test("sparKafka read topic from kafka and show minutely aggragation result") {
-    sparKafka.topic(topic.topicDef).fromKafka.stats.minutely.unsafeRunSync()
+    sparKafka.topic(topic.topicDef).fromKafka.flatMap(_.stats.minutely[IO]).unsafeRunSync()
   }
   test("sparKafka read topic from kafka and show daily-hour aggragation result") {
-    sparKafka.topic(topic.topicDef).fromKafka.stats.dailyHour.unsafeRunSync()
+    sparKafka.topic(topic.topicDef).fromKafka.flatMap(_.stats.dailyHour[IO]).unsafeRunSync()
   }
   test("sparKafka read topic from kafka and show daily-minutes aggragation result") {
-    sparKafka.topic(topic.topicDef).fromKafka.stats.dailyMinute.unsafeRunSync()
+    sparKafka.topic(topic.topicDef).fromKafka.flatMap(_.stats.dailyMinute[IO]).unsafeRunSync()
   }
   test("sparKafka read topic from kafka and show daily aggragation result") {
-    sparKafka.topic(topic.topicDef).fromKafka.stats.daily.unsafeRunSync()
+    sparKafka.topic(topic.topicDef).fromKafka.flatMap(_.stats.daily[IO]).unsafeRunSync()
   }
   test("sparKafka read topic from kafka and show hourly aggragation result") {
-    sparKafka.topic(topic.topicDef).fromKafka.stats.hourly.unsafeRunSync()
+    sparKafka.topic(topic.topicDef).fromKafka.flatMap(_.stats.hourly[IO]).unsafeRunSync()
   }
   test("sparKafka read topic from kafka and show summary") {
-    sparKafka.topic(topic.topicDef).fromKafka.stats.summary.unsafeRunSync()
+    sparKafka.topic(topic.topicDef).fromKafka.flatMap(_.stats.summary[IO]).unsafeRunSync()
   }
   import sparkSession.implicits.*
   test("sparKafka should be able to bimap to other topic") {
@@ -86,11 +86,12 @@ class SparKafkaTest extends AnyFunSuite {
     val birst =
       sparKafka
         .topic(src.topicDef)
-        .crRdd(IO(ds.rdd))
+        .crRdd(ds.rdd)
         .bimap(_.toString, _ + 1)(NJAvroCodec[String], NJAvroCodec[Int])
-        .frdd
-        .map(_.collect().toSet)
-        .unsafeRunSync()
+        .rdd
+        .collect()
+        .toSet
+
     assert(birst.flatMap(_.value) == Set(2, 3, 5))
   }
 
@@ -108,13 +109,13 @@ class SparKafkaTest extends AnyFunSuite {
     val birst =
       sparKafka
         .topic(src.topicDef)
-        .crRdd(IO(ds.rdd))
+        .crRdd(ds.rdd)
         .flatMap(m => m.value.map(x => m.focus(_.value).replace(Some(x - 1))))(
           NJAvroCodec[Int],
           NJAvroCodec[Int])
-        .frdd
-        .map(_.collect().toSet)
-        .unsafeRunSync()
+        .rdd
+        .collect()
+        .toSet
     assert(birst.flatMap(_.value) == Set(0, 1, 3))
   }
 
@@ -145,11 +146,11 @@ class SparKafkaTest extends AnyFunSuite {
     val t =
       sparKafka
         .topic[Int, Int]("some.value")
-        .crRdd(IO(ds.rdd))
+        .crRdd(ds.rdd)
         .repartition(3)
         .descendTimestamp
         .transform(_.distinct())
-    val rst = t.frdd.map(_.collect().flatMap(_.value)).unsafeRunSync()
+    val rst = t.rdd.collect().flatMap(_.value)
     assert(rst === Seq(cr1.value.get))
   }
 
@@ -177,7 +178,7 @@ class SparKafkaTest extends AnyFunSuite {
     import fs2.Stream
     val path  = NJPath("./data/test/spark/kafka/reproduce/jackson")
     val topic = sparKafka.topic[Int, HasDuck]("duck.test")
-    topic.fromKafka.output.jackson(path).run.unsafeRunSync()
+    topic.fromKafka.flatMap(_.output.jackson(path).run[IO]).unsafeRunSync()
 
     Stream
       .eval(hadoop.filesIn(path))
@@ -209,7 +210,7 @@ class SparKafkaTest extends AnyFunSuite {
       .compile
       .drain
       .unsafeRunSync()
-    assert(2 == sparKafka.topic(topic).load.avro(path).count.unsafeRunSync())
+    assert(2 == sparKafka.topic(topic).load.avro(path).count[IO].unsafeRunSync())
   }
 
   test("format") {
@@ -237,8 +238,8 @@ class SparKafkaTest extends AnyFunSuite {
   }
 
   test("empty") {
-    val prc = sparKafka.topic(topic.topicDef).emptyPrRdd.count.unsafeRunSync()
-    val crc = sparKafka.topic(topic.topicDef).emptyCrRdd.count.unsafeRunSync()
+    val prc = sparKafka.topic(topic.topicDef).emptyPrRdd.count[IO].unsafeRunSync()
+    val crc = sparKafka.topic(topic.topicDef).emptyCrRdd.count[IO].unsafeRunSync()
     assert(prc == 0)
     assert(crc == 0)
   }

@@ -4,13 +4,12 @@ import cats.effect.IO
 import cats.effect.kernel.Resource
 import cats.effect.unsafe.implicits.global
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.database.NJHikari
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
+import com.github.chenharryhua.nanjin.database.NJHikari
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
-import com.github.chenharryhua.nanjin.spark.{AvroTypedEncoder, SparkSessionExt}
-import com.github.chenharryhua.nanjin.spark.injection.*
 import com.github.chenharryhua.nanjin.spark.listeners.SparkContextListener
 import com.github.chenharryhua.nanjin.spark.table.LoadTable
+import com.github.chenharryhua.nanjin.spark.{AvroTypedEncoder, SparkSessionExt}
 import com.github.chenharryhua.nanjin.terminals.NJPath
 import com.zaxxer.hikari.HikariConfig
 import doobie.hikari.HikariTransactor
@@ -19,13 +18,13 @@ import eu.timepit.refined.auto.*
 import frameless.{TypedDataset, TypedEncoder}
 import io.circe.generic.auto.*
 import io.scalaland.chimney.dsl.*
-import kantan.csv.{CsvConfiguration, RowDecoder, RowEncoder}
 import kantan.csv.generic.*
 import kantan.csv.java8.*
+import kantan.csv.{CsvConfiguration, RowDecoder, RowEncoder}
 import mtest.spark.sparkSession
 import org.apache.spark.sql.{SaveMode, SparkSession}
 import org.scalatest.funsuite.AnyFunSuite
-
+import com.github.chenharryhua.nanjin.spark.injection.*
 import java.sql.Date
 import java.time.*
 import java.time.temporal.ChronoUnit
@@ -95,8 +94,8 @@ class SparkTableTest extends AnyFunSuite {
 
   pg.use(txn => (DBTable.drop *> DBTable.create).transact(txn)).unsafeRunSync()
 
-  val hikari: HikariConfig           = NJHikari(postgres).hikariConfig
-  val loader: LoadTable[IO, DBTable] = ss.loadTable[IO](ate)
+  val hikari: HikariConfig       = NJHikari(postgres).hikariConfig
+  val loader: LoadTable[DBTable] = ss.loadTable(ate)
 
   test("load data") {
     val tds = TypedDataset.create(List(dbData))
@@ -104,10 +103,10 @@ class SparkTableTest extends AnyFunSuite {
     val d2  = loader.data(tds)
     val d3  = loader.data(tds.dataset)
     val d4  = loader.data(tds.dataset.rdd)
-    assert(d1.diff(d2).fdataset.map(_.count()).unsafeRunSync() == 0)
-    assert(d3.diff(d4).fdataset.map(_.count()).unsafeRunSync() == 0)
+    assert(d1.diff(d2).dataset.count() == 0)
+    assert(d3.diff(d4).dataset.count() == 0)
     fs2.Stream
-      .eval(IO.sleep(2.seconds) >> d1.diff(d2).fdataset)
+      .eval(IO.sleep(2.seconds) >> IO(d1.diff(d2).dataset))
       .concurrently(listener)
       .compile
       .drain
@@ -117,24 +116,29 @@ class SparkTableTest extends AnyFunSuite {
 
   test("upload dataset to table") {
     val data = TypedDataset.create(List(dbData))
-    loader.data(data).upload(hikari, "sparktest", SaveMode.Overwrite).unsafeRunSync()
+    loader.data(data).upload[IO](hikari, "sparktest", SaveMode.Overwrite).unsafeRunSync()
   }
 
   test("dump and count") {
-    val d = loader.jdbc(hikari, "sparktest").fdataset.map(_.collect().head).unsafeRunSync()
+    val d = loader.jdbc(hikari, "sparktest").dataset.collect().head
     assert(d == dbData)
   }
 
   test("save/load") {
-    loader.jdbc(hikari, "sparktest").output.avro(root / "base").run.unsafeRunSync()
+    loader.jdbc(hikari, "sparktest").output.avro(root / "base").run[IO].unsafeRunSync()
 
-    loader.avro(root / "base").output.avro(root / "avro" / 1).run.unsafeRunSync()
-    loader.avro(root / "base").output.binAvro(root / "bin.avro" / 1).run.unsafeRunSync()
-    loader.avro(root / "base").output.jackson(root / "jackson" / 1).run.unsafeRunSync()
-    loader.avro(root / "base").output.circe(root / "circe" / 1).run.unsafeRunSync()
-    loader.avro(root / "base").output.kantan(root / "kantan" / 1, CsvConfiguration.rfc).run.unsafeRunSync()
-    loader.avro(root / "base").output.parquet(root / "parquet" / 1).run.unsafeRunSync()
-    loader.avro(root / "base").output.objectFile(root / "obj" / 1).run.unsafeRunSync()
+    loader.avro(root / "base").output.avro(root / "avro" / 1).run[IO].unsafeRunSync()
+    loader.avro(root / "base").output.binAvro(root / "bin.avro" / 1).run[IO].unsafeRunSync()
+    loader.avro(root / "base").output.jackson(root / "jackson" / 1).run[IO].unsafeRunSync()
+    loader.avro(root / "base").output.circe(root / "circe" / 1).run[IO].unsafeRunSync()
+    loader
+      .avro(root / "base")
+      .output
+      .kantan(root / "kantan" / 1, CsvConfiguration.rfc)
+      .run[IO]
+      .unsafeRunSync()
+    loader.avro(root / "base").output.parquet(root / "parquet" / 1).run[IO].unsafeRunSync()
+    loader.avro(root / "base").output.objectFile(root / "obj" / 1).run[IO].unsafeRunSync()
 
     val avro    = loader.avro(root / "avro" / 1)
     val binAvro = loader.binAvro(root / "bin.avro" / 1)
@@ -144,10 +148,10 @@ class SparkTableTest extends AnyFunSuite {
     val parquet = loader.parquet(root / "parquet" / 1)
     val obj     = loader.objectFile(root / "obj" / 1)
 
-    assert(avro.diff(binAvro).fdataset.map(_.count()).unsafeRunSync() == 0)
-    assert(jackson.diff(circe).fdataset.map(_.count()).unsafeRunSync() == 0)
-    assert(kantan.diff(parquet).fdataset.map(_.count()).unsafeRunSync() == 0)
-    assert(kantan.diff(obj).fdataset.map(_.count()).unsafeRunSync() == 0)
+    assert(avro.diff(binAvro).dataset.count() == 0)
+    assert(jackson.diff(circe).dataset.count() == 0)
+    assert(kantan.diff(parquet).dataset.count() == 0)
+    assert(kantan.diff(obj).dataset.count() == 0)
   }
 
   test("spark") {
@@ -156,37 +160,19 @@ class SparkTableTest extends AnyFunSuite {
     val csv     = root / "spark" / "csv"
     val avro    = root / "spark" / "avro"
 
-    loader
-      .avro(root / "base")
-      .fdataset
-      .map(_.write.mode(SaveMode.Overwrite).parquet(parquet.pathStr))
-      .unsafeRunSync()
-    loader
-      .avro(root / "base")
-      .fdataset
-      .map(_.write.mode(SaveMode.Overwrite).json(json.pathStr))
-      .unsafeRunSync()
-    loader.avro(root / "base").fdataset.map(_.write.mode(SaveMode.Overwrite).csv(csv.pathStr)).unsafeRunSync()
-    loader
-      .avro(root / "base")
-      .fdataset
-      .map(_.write.mode(SaveMode.Overwrite).format("avro").save(avro.pathStr))
-      .unsafeRunSync()
+    loader.avro(root / "base").dataset.write.mode(SaveMode.Overwrite).parquet(parquet.pathStr)
+
+    loader.avro(root / "base").dataset.write.mode(SaveMode.Overwrite).json(json.pathStr)
+
+    loader.avro(root / "base").dataset.write.mode(SaveMode.Overwrite).csv(csv.pathStr)
+    loader.avro(root / "base").dataset.write.mode(SaveMode.Overwrite).format("avro").save(avro.pathStr)
 
     assert(
-      loader.spark
-        .csv(csv, CsvConfiguration.rfc)
-        .diff(loader.spark.json(json))
-        .fdataset
-        .map(_.count())
-        .unsafeRunSync() == 0)
+      loader.spark.csv(csv, CsvConfiguration.rfc).diff(loader.spark.json(json)).dataset.count()
+        == 0)
     assert(
-      loader.spark
-        .avro(avro)
-        .diff(loader.spark.parquet(parquet))
-        .fdataset
-        .map(_.count())
-        .unsafeRunSync() == 0)
+      loader.spark.avro(avro).diff(loader.spark.parquet(parquet)).dataset.count()
+        == 0)
   }
 
 }

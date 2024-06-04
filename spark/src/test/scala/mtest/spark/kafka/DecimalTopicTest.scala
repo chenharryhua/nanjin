@@ -12,7 +12,6 @@ import io.circe.Codec
 //import frameless.cats.implicits._
 import cats.effect.unsafe.implicits.global
 import eu.timepit.refined.auto.*
-import io.circe.generic.auto.*
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.Instant
@@ -88,7 +87,7 @@ class DecimalTopicTest extends AnyFunSuite {
   val loadData =
     stopic
       .prRdd(List(NJProducerRecord(stopic.topicName, 1, data), NJProducerRecord(stopic.topicName, 2, data)))
-      .producerRecords(100)
+      .producerRecords[IO](100)
       .through(stopic.topic.produce.pipe)
       .compile
       .drain
@@ -99,49 +98,49 @@ class DecimalTopicTest extends AnyFunSuite {
 
   test("sparKafka kafka and spark agree on circe") {
     val path = NJPath("./data/test/spark/kafka/decimal.circe")
-    stopic.fromKafka.output.circe(path).run.unsafeRunSync()
+    stopic.fromKafka.flatMap(_.output.circe(path).run[IO]).unsafeRunSync()
 
-    val res = stopic.load.circe(path).frdd.map(_.collect().head.value.get).unsafeRunSync()
+    val res = stopic.load.circe(path).rdd.collect().head.value.get
     assert(res == expected)
   }
 
   test("sparKafka kafka and spark agree on parquet") {
     val path = NJPath("./data/test/spark/kafka/decimal.parquet")
-    stopic.fromKafka.output.parquet(path).run.unsafeRunSync()
+    stopic.fromKafka.flatMap(_.output.parquet(path).run[IO]).unsafeRunSync()
 
-    val res = stopic.load.parquet(path).frdd.map(_.collect().head.value.get).unsafeRunSync()
+    val res = stopic.load.parquet(path).rdd.collect().head.value.get
     assert(res == expected)
   }
 
   test("sparKafka kafka and spark agree on jackson") {
     val path = NJPath("./data/test/spark/kafka/decimal.jackson")
-    stopic.fromKafka.output.jackson(path).run.unsafeRunSync()
+    stopic.fromKafka.flatMap(_.output.jackson(path).run[IO]).unsafeRunSync()
 
-    val res = stopic.load.jackson(path).frdd.map(_.collect().head.value.get).unsafeRunSync()
+    val res = stopic.load.jackson(path).rdd.collect().head.value.get
     assert(res == expected)
   }
 
   test("sparKafka kafka and spark agree on avro") {
     val path = NJPath("./data/test/spark/kafka/decimal.avro")
-    stopic.fromKafka.output.avro(path).run.unsafeRunSync()
+    stopic.fromKafka.flatMap(_.output.avro(path).run[IO]).unsafeRunSync()
 
-    val res = stopic.load.avro(path).frdd.map(_.collect().head.value.get).unsafeRunSync()
+    val res = stopic.load.avro(path).rdd.collect().head.value.get
     assert(res == expected)
   }
 
   test("sparKafka kafka and spark agree on obj") {
     val path = NJPath("./data/test/spark/kafka/decimal.obj")
-    stopic.fromKafka.output.objectFile(path).run.unsafeRunSync()
+    stopic.fromKafka.flatMap(_.output.objectFile(path).run[IO]).unsafeRunSync()
 
-    val res = stopic.load.objectFile(path).frdd.map(_.collect().head.value.get).unsafeRunSync()
+    val res = stopic.load.objectFile(path).rdd.collect().head.value.get
     assert(res == expected)
   }
 
   test("sparKafka kafka and spark agree on binavro") {
     val path = NJPath("./data/test/spark/kafka/decimal.bin.avro")
-    stopic.fromKafka.output.binAvro(path).run.unsafeRunSync()
+    stopic.fromKafka.flatMap(_.output.binAvro(path).run[IO]).unsafeRunSync()
 
-    val res = stopic.load.binAvro(path).frdd.map(_.collect().head.value.get).unsafeRunSync()
+    val res = stopic.load.binAvro(path).rdd.collect().head.value.get
     assert(res == expected)
   }
 

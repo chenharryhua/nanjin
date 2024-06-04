@@ -22,15 +22,15 @@ object NJError {
 
 @JsonCodec
 sealed trait MetricIndex extends Product with Serializable {
-  def timestamp: ZonedDateTime
+  def launchTime: ZonedDateTime
 }
 
 object MetricIndex {
   final case class Adhoc(value: ZonedDateTime) extends MetricIndex {
-    override val timestamp: ZonedDateTime = value
+    override val launchTime: ZonedDateTime = value
   }
   final case class Periodic(tick: Tick) extends MetricIndex {
-    override val timestamp: ZonedDateTime = tick.zonedWakeup
+    override val launchTime: ZonedDateTime = tick.zonedWakeup
   }
 }
 

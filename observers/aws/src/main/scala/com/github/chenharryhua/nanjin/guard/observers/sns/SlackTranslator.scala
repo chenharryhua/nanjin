@@ -35,10 +35,9 @@ private object SlackTranslator extends all {
   private def host_service_section(sp: ServiceParams): JuxtaposeSection = {
     val sn: String =
       sp.homePage.fold(sp.serviceName.value)(hp => s"<${hp.value}|${sp.serviceName.value}>")
-    val host: String =
-      sp.emberServerParams.fold(sp.hostName.value)(esp => s"${sp.hostName.value}:${esp.port}")
-    JuxtaposeSection(TextField(CONSTANT_SERVICE, sn), TextField(CONSTANT_HOST, host))
+    JuxtaposeSection(TextField(CONSTANT_SERVICE, sn), TextField(CONSTANT_HOST, hostText(sp)))
   }
+
   private def uptime_section(evt: NJEvent): JuxtaposeSection =
     JuxtaposeSection(
       first = TextField(CONSTANT_UPTIME, uptimeText(evt)),
@@ -56,7 +55,7 @@ private object SlackTranslator extends all {
     KeyValueSection(CONSTANT_BRIEF, s"```${abbreviate(json.spaces2)}```")
 
   private def stack_trace(err: NJError): String =
-    abbreviate(err.stack.mkString("\n"))
+    abbreviate(err.stack.mkString("\n\t"))
 
 // events
   private def service_started(evt: ServiceStart): SlackApp = {

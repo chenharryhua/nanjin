@@ -4,7 +4,6 @@ import cats.{Distributive, Eq, Functor, Show}
 import com.sksamuel.avro4s.{Codec, FieldMapper, SchemaFor}
 import frameless.Injection
 import io.circe.Decoder.Result
-import io.circe.jawn.parse
 import io.circe.syntax.*
 import io.circe.{jawn, Codec as JsonCodec, Decoder as JsonDecoder, Encoder as JsonEncoder, HCursor, Json}
 import monocle.Iso
@@ -116,9 +115,9 @@ object KJson {
       override def apply(a: KJson[A]): String = a.asJson.noSpaces
 
       override def invert(b: String): KJson[A] =
-        parse(b).flatMap(_.as[KJson[A]]) match {
-          case Left(err)    => throw err
+        jawn.decode[KJson[A]](b) match {
           case Right(value) => value
+          case Left(err)    => throw err
         }
     }
 }

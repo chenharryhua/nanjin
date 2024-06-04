@@ -49,7 +49,7 @@ class KantanTest(agent: Agent[IO], base: NJPath, rfc: CsvConfiguration) extends 
     val sink = kantan.sink(path)
     write(path.uri.getPath).use { meter =>
       table
-        .stream(1000)
+        .stream[IO](1000)
         .evalTap(_ => meter.mark(1))
         .map(rowEncoder.encode)
         .through(sink)
@@ -62,7 +62,7 @@ class KantanTest(agent: Agent[IO], base: NJPath, rfc: CsvConfiguration) extends 
   private def writeMultiSpark(file: KantanFile): IO[NJPath] = {
     val path = root / "spark" / "multi" / file.fileName
     write(path.uri.getPath).use(_ =>
-      table.output.kantan(path, rfc).withCompression(file.compression).run.as(path))
+      table.output.kantan(path, rfc).withCompression(file.compression).run[IO].as(path))
   }
 
   private def writeRotateSpark(file: KantanFile): IO[NJPath] = {
@@ -70,7 +70,7 @@ class KantanTest(agent: Agent[IO], base: NJPath, rfc: CsvConfiguration) extends 
     val sink = kantan.sink(policy, utcTime)(t => path / file.fileName(t))
     write(path.uri.getPath).use { meter =>
       table
-        .stream(1000)
+        .stream[IO](1000)
         .evalTap(_ => meter.mark(1))
         .map(rowEncoder.encode)
         .through(sink)
@@ -81,7 +81,7 @@ class KantanTest(agent: Agent[IO], base: NJPath, rfc: CsvConfiguration) extends 
   }
 
   private def sparkRead(path: NJPath): IO[Long] =
-    read(path.uri.getPath).use(_ => loader.kantan(path, rfc).count)
+    read(path.uri.getPath).use(_ => loader.kantan(path, rfc).count[IO])
 
   private def folderRead(path: NJPath): IO[Long] =
     read(path.uri.getPath).use { meter =>

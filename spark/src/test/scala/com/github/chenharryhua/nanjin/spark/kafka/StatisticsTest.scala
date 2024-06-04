@@ -37,27 +37,27 @@ object StatisticsTestData {
 
 class StatisticsTest extends AnyFunSuite {
   import StatisticsTestData.*
-  val stats = new Statistics(IO(ds))
+  val stats = new Statistics(ds)
 
-  val emptyStats = new Statistics(IO(empty))
+  val emptyStats = new Statistics(empty)
 
   test("dupRecords") {
-    val res = stats.dupRecords.map(_.collect().toSet).unsafeRunSync()
+    val res = stats.dupRecords[IO].map(_.collect().toSet).unsafeRunSync()
     assert(res == Set(DuplicateRecord(0, 7, 3)))
-    assert(emptyStats.dupRecords.map(_.count()).unsafeRunSync() == 0)
-    stats.summary.unsafeRunSync().foreach(x => println(x.show))
+    assert(emptyStats.dupRecords[IO].map(_.count()).unsafeRunSync() == 0)
+    stats.summary[IO].unsafeRunSync().foreach(x => println(x.show))
   }
 
   test("disorders") {
-    val res = stats.disorders.map(_.collect().toSet).unsafeRunSync()
+    val res = stats.disorders[IO].map(_.collect().toSet).unsafeRunSync()
     assert(res == Set(Disorder(0, 3, 1351620000000L, "2012-10-31T05:00", "2012-10-28T05:00", 259200000L, 0)))
 
-    assert(emptyStats.disorders.map(_.count()).unsafeRunSync() == 0)
+    assert(emptyStats.disorders[IO].map(_.count()).unsafeRunSync() == 0)
   }
 
   test("missingOffsets") {
-    val res = stats.missingOffsets.map(_.collect().toSet).unsafeRunSync()
+    val res = stats.missingOffsets[IO].map(_.collect().toSet).unsafeRunSync()
     assert(res == Set(MissingOffset(0, 1)))
-    assert(emptyStats.missingOffsets.map(_.count()).unsafeRunSync() == 0)
+    assert(emptyStats.missingOffsets[IO].map(_.count()).unsafeRunSync() == 0)
   }
 }

@@ -3,7 +3,6 @@ package com.github.chenharryhua.nanjin.spark.persist
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.messages.kafka.codec.KJson
-import com.github.chenharryhua.nanjin.datetime.instances.*
 import com.github.chenharryhua.nanjin.spark.*
 import com.github.chenharryhua.nanjin.terminals.{HadoopCirce, NJPath}
 import eu.timepit.refined.auto.*
@@ -16,7 +15,7 @@ import org.scalatest.funsuite.AnyFunSuite
 @DoNotDiscover
 class CirceTest extends AnyFunSuite {
 
-  def rooster(path: NJPath)  = new RddFileHoarder[IO, Rooster](IO(RoosterData.ds.rdd)).circe(path)
+  def rooster(path: NJPath)  = new RddFileHoarder[Rooster](RoosterData.ds.rdd).circe(path)
   val hdp                    = sparkSession.hadoop[IO]
   val circe: HadoopCirce[IO] = hdp.circe
 
@@ -42,7 +41,7 @@ class CirceTest extends AnyFunSuite {
 
   test("circe rooster rdd read/write identity multi.uncompressed") {
     val path = root / "rooster" / "uncompressed"
-    rooster(path).withCompression(_.Uncompressed).run.unsafeRunSync()
+    rooster(path).withCompression(_.Uncompressed).run[IO].unsafeRunSync()
     val t = loaders.rdd.circe[Rooster](path, sparkSession)
     assert(RoosterData.expected == t.collect().toSet)
     val t2 = loaders.spark.json[Rooster](path, sparkSession, Rooster.ate)
@@ -53,7 +52,7 @@ class CirceTest extends AnyFunSuite {
 
   test("circe rooster rdd read/write identity multi.gzip") {
     val path = root / "rooster" / "gzip"
-    rooster(path).withCompression(_.Gzip).run.unsafeRunSync()
+    rooster(path).withCompression(_.Gzip).run[IO].unsafeRunSync()
     val t = loaders.rdd.circe[Rooster](path, sparkSession)
     assert(RoosterData.expected == t.collect().toSet)
     val t2 = loaders.spark.json[Rooster](path, sparkSession, Rooster.ate)
@@ -64,7 +63,7 @@ class CirceTest extends AnyFunSuite {
 
   test("circe rooster rdd read/write identity multi.deflate 3") {
     val path = root / "rooster" / "deflate3"
-    rooster(path).withCompression(_.Deflate(3)).run.unsafeRunSync()
+    rooster(path).withCompression(_.Deflate(3)).run[IO].unsafeRunSync()
     val t = loaders.rdd.circe[Rooster](path, sparkSession)
     assert(RoosterData.expected == t.collect().toSet)
     val t2 = loaders.spark.json[Rooster](path, sparkSession, Rooster.ate)
@@ -75,7 +74,7 @@ class CirceTest extends AnyFunSuite {
 
   test("circe rooster rdd read/write identity multi.lz4") {
     val path = root / "rooster" / "lz4"
-    rooster(path).withCompression(_.Lz4).run.unsafeRunSync()
+    rooster(path).withCompression(_.Lz4).run[IO].unsafeRunSync()
     val t = loaders.rdd.circe[Rooster](path, sparkSession)
     assert(RoosterData.expected == t.collect().toSet)
     val t2 = loaders.spark.json[Rooster](path, sparkSession, Rooster.ate)
@@ -86,7 +85,7 @@ class CirceTest extends AnyFunSuite {
 
   test("circe rooster rdd read/write identity multi.snappy") {
     val path = root / "rooster" / "snappy"
-    rooster(path).withCompression(_.Snappy).run.unsafeRunSync()
+    rooster(path).withCompression(_.Snappy).run[IO].unsafeRunSync()
     val t = loaders.rdd.circe[Rooster](path, sparkSession)
     assert(RoosterData.expected == t.collect().toSet)
     val t2 = loaders.spark.json[Rooster](path, sparkSession, Rooster.ate)
@@ -96,11 +95,11 @@ class CirceTest extends AnyFunSuite {
   }
 
   def bee(path: NJPath) =
-    new RddAvroFileHoarder[IO, Bee](IO(BeeData.rdd.repartition(1)), Bee.avroCodec).circe(path)
+    new RddAvroFileHoarder[Bee](BeeData.rdd.repartition(1), Bee.avroCodec).circe(path)
 
   test("circe bee byte-array rdd read/write identity multi bzip2") {
     val path = root / "bee" / "bzip2"
-    bee(path).dropNull.withCompression(_.Bzip2).run.unsafeRunSync()
+    bee(path).dropNull.withCompression(_.Bzip2).run[IO].unsafeRunSync()
     val t = loaders.rdd.circe[Bee](path, sparkSession)
     assert(t.collect().map(_.toWasp).toSet == BeeData.bees.map(_.toWasp).toSet)
     val t3 = loadBees(path).unsafeRunSync().toSet
@@ -109,7 +108,7 @@ class CirceTest extends AnyFunSuite {
 
   test("circe bee byte-array rdd read/write identity multi uncompressed") {
     val path = root / "bee" / "uncompressed" / "drop_null"
-    bee(path).dropNull.run.unsafeRunSync()
+    bee(path).dropNull.run[IO].unsafeRunSync()
     val t = loaders.rdd.circe[Bee](path, sparkSession)
     assert(t.collect().map(_.toWasp).toSet == BeeData.bees.map(_.toWasp).toSet)
     val t3 = loadBees(path).unsafeRunSync().toSet
@@ -118,7 +117,7 @@ class CirceTest extends AnyFunSuite {
 
   test("circe rooster rdd read/write identity multi.uncompressed - keep null") {
     val path = root / "bee" / "uncompressed" / "keep_null"
-    rooster(path).keepNull.run.unsafeRunSync()
+    rooster(path).keepNull.run[IO].unsafeRunSync()
     val t = loaders.rdd.circe[Rooster](path, sparkSession)
     assert(RoosterData.expected == t.collect().toSet)
     val t2 = loaders.spark.json[Rooster](path, sparkSession, Rooster.ate)
@@ -129,8 +128,8 @@ class CirceTest extends AnyFunSuite {
     val path  = NJPath("./data/test/spark/persist/circe/jacket-neck-multi.json")
     val data  = JacketData.expected.map(_.neck)
     val rdd   = sparkSession.sparkContext.parallelize(data)
-    val saver = new RddFileHoarder[IO, KJson[Neck]](IO(rdd.repartition(1))).circe(path)
-    saver.run.unsafeRunSync()
+    val saver = new RddFileHoarder[KJson[Neck]](rdd.repartition(1)).circe(path)
+    saver.run[IO].unsafeRunSync()
     val t = loaders.rdd.circe[KJson[Neck]](path, sparkSession).collect().toSet
     assert(data.toSet == t)
   }
@@ -139,8 +138,8 @@ class CirceTest extends AnyFunSuite {
     val path  = NJPath("./data/test/spark/persist/circe/jacket-neck-multi.json")
     val data  = JacketData.expected.map(_.neck.value.j)
     val rdd   = sparkSession.sparkContext.parallelize(data)
-    val saver = new RddFileHoarder[IO, Json](IO(rdd.repartition(1))).circe(path)
-    saver.run.unsafeRunSync()
+    val saver = new RddFileHoarder[Json](rdd.repartition(1)).circe(path)
+    saver.run[IO].unsafeRunSync()
     val t = loaders.rdd.circe[Json](path, sparkSession).collect().toSet
     assert(data.toSet == t)
   }
@@ -149,11 +148,11 @@ class CirceTest extends AnyFunSuite {
     val path  = NJPath("./data/test/spark/persist/circe/jacket-append.json")
     val data  = JacketData.expected.map(_.neck.value.j)
     val rdd   = sparkSession.sparkContext.parallelize(data)
-    val saver = new RddFileHoarder[IO, Json](IO(rdd.repartition(1))).circe(path)
+    val saver = new RddFileHoarder[Json](rdd.repartition(1)).circe(path)
     val t1 =
       try loaders.rdd.circe[Json](path, sparkSession).count()
       catch { case _: Throwable => 0 }
-    saver.withSaveMode(_.Append).run.unsafeRunSync()
+    saver.withSaveMode(_.Append).run[IO].unsafeRunSync()
     val t2 = loaders.rdd.circe[Json](path, sparkSession).count()
     assert(data.size + t1 == t2)
   }
@@ -162,8 +161,8 @@ class CirceTest extends AnyFunSuite {
     val path  = NJPath("./data/test/spark/persist/circe/kjson.json")
     val data  = JacketData.expected.map(_.neck.value.j)
     val rdd   = sparkSession.sparkContext.parallelize(data).map(KJson(_))
-    val saver = new RddFileHoarder[IO, KJson[Json]](IO(rdd.repartition(1))).circe(path)
-    saver.run.unsafeRunSync()
+    val saver = new RddFileHoarder[KJson[Json]](rdd.repartition(1)).circe(path)
+    saver.run[IO].unsafeRunSync()
     val t = loaders.rdd.circe[Json](path, sparkSession).collect().toSet
     assert(data.toSet == t)
   }

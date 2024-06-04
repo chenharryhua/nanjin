@@ -11,40 +11,40 @@ import org.scalatest.funsuite.AnyFunSuite
 @DoNotDiscover
 class TextTest extends AnyFunSuite {
   import TabletData.*
-  def saver(path: NJPath) = new RddFileHoarder[IO, Tablet](IO(rdd)).text(path)
+  def saver(path: NJPath) = new RddFileHoarder[Tablet](rdd).text(path)
   val root                = NJPath("./data/test/spark/persist/text/tablet")
   test("tablet") {
     val path = root / "uncompressed"
-    saver(path).run.unsafeRunSync()
+    saver(path).run[IO].unsafeRunSync()
   }
   test("tablet - with new suffix") {
     val path = root / "new-suffix"
-    saver(path).withSuffix("text").withCompression(_.Uncompressed).run.unsafeRunSync()
+    saver(path).withSuffix("text").withCompression(_.Uncompressed).run[IO].unsafeRunSync()
   }
 
   test("tablet - deflate") {
     val path = root / "deflate5"
-    saver(path).withCompression(_.Deflate(5)).run.unsafeRunSync()
+    saver(path).withCompression(_.Deflate(5)).run[IO].unsafeRunSync()
   }
 
   test("tablet - gzip") {
     val path = root / "gzip"
-    saver(path).withCompression(_.Gzip).run.unsafeRunSync()
+    saver(path).withCompression(_.Gzip).run[IO].unsafeRunSync()
   }
 
   test("tablet - bzip2") {
     val path = root / "bzip2"
-    saver(path).withCompression(_.Bzip2).run.unsafeRunSync()
+    saver(path).withCompression(_.Bzip2).run[IO].unsafeRunSync()
   }
 
   test("tablet - lz4") {
     val path = root / "lz4"
-    saver(path).withCompression(_.Lz4).run.unsafeRunSync()
+    saver(path).withCompression(_.Lz4).run[IO].unsafeRunSync()
   }
 
   test("tablet - snappy") {
     val path = root / "snappy"
-    saver(path).withCompression(_.Snappy).run.unsafeRunSync()
+    saver(path).withCompression(_.Snappy).run[IO].unsafeRunSync()
   }
 
   test("tablet - append") {
@@ -52,7 +52,7 @@ class TextTest extends AnyFunSuite {
     val t1 =
       try sparkSession.read.text(path.pathStr).count()
       catch { case _: Throwable => 0 }
-    saver(path).withSaveMode(_.Append).run.unsafeRunSync()
+    saver(path).withSaveMode(_.Append).run[IO].unsafeRunSync()
     val t2 = sparkSession.read.text(path.pathStr).count()
 
     assert(t1 + rdd.count() == t2)
