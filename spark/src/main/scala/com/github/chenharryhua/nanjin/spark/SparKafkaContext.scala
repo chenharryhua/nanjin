@@ -1,15 +1,15 @@
 package com.github.chenharryhua.nanjin.spark
 
 import cats.Endo
-import cats.effect.kernel.{Async, Sync}
+import cats.effect.kernel.Async
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameL}
 import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.*
+import com.github.chenharryhua.nanjin.messages.kafka.codec.{SerdeOf, gr2Jackson}
 import com.github.chenharryhua.nanjin.messages.kafka.{CRMetaInfo, NJConsumerRecord}
-import com.github.chenharryhua.nanjin.messages.kafka.codec.{gr2Jackson, SerdeOf}
-import com.github.chenharryhua.nanjin.spark.kafka.{sk, SparKafkaTopic, Statistics}
+import com.github.chenharryhua.nanjin.spark.kafka.{SparKafkaTopic, Statistics, sk}
 import com.github.chenharryhua.nanjin.spark.persist.RddFileHoarder
 import com.github.chenharryhua.nanjin.terminals.{NJHadoop, NJPath}
 import eu.timepit.refined.refineMV
@@ -58,7 +58,7 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
       .kafkaBatchRDD(kafkaContext.settings.consumerSettings, sparkSession, range)
       .flatMap(builder.toGenericRecord(_).flatMap(gr2Jackson(_)).toOption)
 
-    new RddFileHoarder(grRdd).text(path).withSaveMode(_.Append).withSuffix("jackson.json").run
+    grRdd.flatMap(new RddFileHoarder(_).text(path).withSaveMode(_.Append).withSuffix("jackson.json").run)
   }
 
   def dump(topicName: TopicNameL, path: NJPath)(implicit F: Async[F]): F[Unit] =
@@ -172,22 +172,22 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
 
     private val ate: AvroTypedEncoder[CRMetaInfo] = AvroTypedEncoder[CRMetaInfo]
 
-    def avro(path: NJPath)(implicit F: Sync[F]): Statistics[F] =
-      new Statistics[F](F.interruptible {
+    def avro(path: NJPath): Statistics =
+      new Statistics(
         sparkSession.read.format("avro").schema(ate.sparkSchema).load(path.pathStr).as[CRMetaInfo]
-      })
+      )
 
-    def jackson(path: NJPath)(implicit F: Sync[F]): Statistics[F] =
-      new Statistics[F](F.interruptible {
+    def jackson(path: NJPath): Statistics =
+      new Statistics(
         sparkSession.read.schema(ate.sparkSchema).json(path.pathStr).as[CRMetaInfo]
-      })
+      )
 
-    def circe(path: NJPath)(implicit F: Sync[F]): Statistics[F] =
+    def circe(path: NJPath): Statistics =
       jackson(path)
 
-    def parquet(path: NJPath)(implicit F: Sync[F]): Statistics[F] =
-      new Statistics[F](F.interruptible {
+    def parquet(path: NJPath): Statistics =
+      new Statistics(
         sparkSession.read.schema(ate.sparkSchema).parquet(path.pathStr).as[CRMetaInfo]
-      })
+      )
   }
 }

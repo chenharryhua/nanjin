@@ -72,8 +72,8 @@ class KafkaAvroTest extends AnyFunSuite {
       ctx.admin(topicCO.topicName).iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt >>
         ctx.schemaRegistry.register(topicCO.topicDef) >>
         data.compile.drain >>
-        sk.fromKafka.output.avro(path).run >>
-        sk.load.avro(path).frdd.map(_.collect().toSet)
+        sk.fromKafka.flatMap(_.output.avro(path).run[IO]) >>
+        IO(sk.load.avro(path).rdd.collect().toSet)
     intercept[Exception](run.unsafeRunSync().flatMap(_.value) == Set(co1, co2))
   }
 
@@ -97,16 +97,16 @@ class KafkaAvroTest extends AnyFunSuite {
       ctx.admin(topicEnum.topicName).iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt >>
         ctx.schemaRegistry.register(topicEnum.topicDef) >>
         data.compile.drain >>
-        sk.fromKafka.output.avro(avroPath).run >>
-        sk.fromKafka.output.jackson(jacksonPath).run >>
-        sk.fromKafka.output.circe(circePath).run >>
-        sk.fromKafka.output.parquet(parquetPath).run >>
-        (sk.load.avro(avroPath).frdd.map(_.take(10).toSet))
+        sk.fromKafka.flatMap(_.output.avro(avroPath).run[IO]) >>
+        sk.fromKafka.flatMap(_.output.jackson(jacksonPath).run[IO]) >>
+        sk.fromKafka.flatMap(_.output.circe(circePath).run[IO]) >>
+        sk.fromKafka.flatMap(_.output.parquet(parquetPath).run[IO]) >>
+        IO((sk.load.avro(avroPath).rdd.take(10).toSet))
     assert(run.unsafeRunSync().flatMap(_.value) == Set(en1, en2))
-    sparKafka.stats.jackson(jacksonPath).summary.unsafeRunSync()
-    sparKafka.stats.circe(circePath).summary.unsafeRunSync()
-    sparKafka.stats.avro(avroPath).summary.unsafeRunSync()
-    sparKafka.stats.parquet(parquetPath).summary.unsafeRunSync()
+    sparKafka.stats.jackson(jacksonPath).summary[IO].unsafeRunSync()
+    sparKafka.stats.circe(circePath).summary[IO].unsafeRunSync()
+    sparKafka.stats.avro(avroPath).summary[IO].unsafeRunSync()
+    sparKafka.stats.parquet(parquetPath).summary[IO].unsafeRunSync()
   }
 
   test("sparKafka should be sent to kafka and save to multi avro") {
@@ -126,8 +126,8 @@ class KafkaAvroTest extends AnyFunSuite {
       ctx.admin(topicEnum.topicName).iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt >>
         ctx.schemaRegistry.register(topicEnum.topicDef) >>
         data.compile.drain >>
-        sk.fromKafka.output.avro(path).run >>
-        sk.load.avro(path).frdd.map(_.take(10).toSet)
+        sk.fromKafka.flatMap(_.output.avro(path).run[IO]) >>
+        IO(sk.load.avro(path).rdd.take(10).toSet)
     assert(run.unsafeRunSync().flatMap(_.value) == Set(en1, en2))
   }
 
@@ -148,8 +148,8 @@ class KafkaAvroTest extends AnyFunSuite {
       ctx.admin(topicEnum.topicName).iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt >>
         ctx.schemaRegistry.register(topicEnum.topicDef) >>
         data.compile.drain >>
-        sk.fromKafka.output.avro(path).withCompression(_.Snappy).run >>
-        sk.load.avro(path).frdd.map(_.take(10).toSet)
+        sk.fromKafka.flatMap(_.output.avro(path).withCompression(_.Snappy).run[IO]) >>
+        IO(sk.load.avro(path).rdd.take(10).toSet)
     assert(run.unsafeRunSync().flatMap(_.value) == Set(en1, en2))
   }
   test("should be sent to kafka and save to binary bzip2 avro") {
@@ -168,8 +168,8 @@ class KafkaAvroTest extends AnyFunSuite {
       ctx.admin(topicEnum.topicName).iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt >>
         ctx.schemaRegistry.register(topicEnum.topicDef) >>
         data.compile.drain >>
-        sk.fromKafka.output.binAvro(path).withCompression(_.Bzip2).run >>
-        sk.load.binAvro(path).frdd.map(_.take(10).toSet)
+        sk.fromKafka.flatMap(_.output.binAvro(path).withCompression(_.Bzip2).run[IO]) >>
+        IO(sk.load.binAvro(path).rdd.take(10).toSet)
     assert(run.unsafeRunSync().flatMap(_.value) == Set(en1, en2))
   }
 

@@ -6,31 +6,25 @@ import io.circe.Encoder as JsonEncoder
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SaveMode
 
-final class SaveCirce[F[_], A](
-  frdd: F[RDD[A]],
-  cfg: HoarderConfig,
-  isKeepNull: Boolean,
-  encoder: JsonEncoder[A])
-    extends Serializable with BuildRunnable[F] {
-  def keepNull: SaveCirce[F, A] = new SaveCirce[F, A](frdd, cfg, true, encoder)
-  def dropNull: SaveCirce[F, A] = new SaveCirce[F, A](frdd, cfg, false, encoder)
+final class SaveCirce[A](rdd: RDD[A], cfg: HoarderConfig, isKeepNull: Boolean, encoder: JsonEncoder[A])
+    extends Serializable with BuildRunnable {
+  def keepNull: SaveCirce[A] = new SaveCirce[A](rdd, cfg, true, encoder)
+  def dropNull: SaveCirce[A] = new SaveCirce[A](rdd, cfg, false, encoder)
 
   val params: HoarderParams = cfg.evalConfig
 
-  private def updateConfig(cfg: HoarderConfig): SaveCirce[F, A] =
-    new SaveCirce[F, A](frdd, cfg, isKeepNull, encoder)
+  private def updateConfig(cfg: HoarderConfig): SaveCirce[A] =
+    new SaveCirce[A](rdd, cfg, isKeepNull, encoder)
 
-  def withSaveMode(sm: SaveMode): SaveCirce[F, A]                   = updateConfig(cfg.saveMode(sm))
-  def withSaveMode(f: NJSaveMode.type => SaveMode): SaveCirce[F, A] = withSaveMode(f(NJSaveMode))
+  def withSaveMode(sm: SaveMode): SaveCirce[A]                   = updateConfig(cfg.saveMode(sm))
+  def withSaveMode(f: NJSaveMode.type => SaveMode): SaveCirce[A] = withSaveMode(f(NJSaveMode))
 
-  def withCompression(cc: CirceCompression): SaveCirce[F, A] =
+  def withCompression(cc: CirceCompression): SaveCirce[A] =
     updateConfig(cfg.outputCompression(cc))
-  def withCompression(f: CirceCompression.type => CirceCompression): SaveCirce[F, A] =
+  def withCompression(f: CirceCompression.type => CirceCompression): SaveCirce[A] =
     withCompression(f(CirceCompression))
 
-  def run(implicit F: Sync[F]): F[Unit] =
-    F.flatMap(frdd) { rdd =>
-      new SaveModeAware[F](params.saveMode, params.outPath, rdd.sparkContext.hadoopConfiguration).checkAndRun(
-        F.interruptible(saveRDD.circe(rdd, params.outPath, params.compression, isKeepNull)(encoder)))
-    }
+  def run[F[_]](implicit F: Sync[F]): F[Unit] =
+    new SaveModeAware[F](params.saveMode, params.outPath, rdd.sparkContext.hadoopConfiguration).checkAndRun(
+      F.interruptible(saveRDD.circe(rdd, params.outPath, params.compression, isKeepNull)(encoder)))
 }

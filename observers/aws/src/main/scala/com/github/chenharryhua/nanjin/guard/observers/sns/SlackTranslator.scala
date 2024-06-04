@@ -55,7 +55,7 @@ private object SlackTranslator extends all {
     KeyValueSection(CONSTANT_BRIEF, s"```${abbreviate(json.spaces2)}```")
 
   private def stack_trace(err: NJError): String =
-    abbreviate(err.stack.mkString("\n"))
+    abbreviate(err.stack.mkString("\n\t"))
 
 // events
   private def service_started(evt: ServiceStart): SlackApp = {

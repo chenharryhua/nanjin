@@ -68,19 +68,19 @@ object InvestigationTestData {
 class InvestigationTest extends AnyFunSuite {
   import InvestigationTestData.*
   implicit val ss: SparkSession = sparkSession
-  val table: LoadTable[IO, NJConsumerRecord[String, Mouse]] =
-    ss.loadTable[IO](AvroTypedEncoder[NJConsumerRecord[String, Mouse]])
+  val table: LoadTable[NJConsumerRecord[String, Mouse]] =
+    ss.loadTable(AvroTypedEncoder[NJConsumerRecord[String, Mouse]])
 
   test("sparKafka identical") {
     val m1 = table.data(mouses1)
     val m2 = table.data(mouses2)
-    assert(0 === m1.diff(m2).fdataset.map(_.count()).unsafeRunSync())
+    assert(0 === m1.diff(m2).count[IO].unsafeRunSync())
   }
 
   test("sparKafka one mismatch") {
     val m1  = table.data(mouses1)
     val m3  = table.data(mouses3)
-    val rst = m1.diff(m3).fdataset.map(_.collect().toSet).unsafeRunSync()
+    val rst = m1.diff(m3).dataset.collect().toSet
     assert(
       rst === Set(
         NJConsumerRecord("topic", 1, 6, 60, 0, None, None, Some("mike6"), Some(Mouse(6, 0.6f)), Nil, None)))
@@ -91,7 +91,7 @@ class InvestigationTest extends AnyFunSuite {
     val m4 = table.data(mouses4)
 
     assert(
-      m1.diff(m4).fdataset.map(_.collect().toSet).unsafeRunSync() === Set(
+      m1.diff(m4).dataset.collect().toSet === Set(
         NJConsumerRecord("topic", 1, 5, 50, 0, None, None, Some("mike5"), Some(Mouse(5, 0.5f)), Nil, None)))
   }
 }

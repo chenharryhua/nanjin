@@ -13,11 +13,11 @@ import frameless.TypedEncoder
 import fs2.Stream
 import io.circe.generic.auto.*
 import io.circe.syntax.EncoderOps
+import kantan.csv.generic.*
 import kantan.csv.{CsvConfiguration, RowDecoder, RowEncoder}
 import monocle.syntax.all.*
 import mtest.spark.sparkSession
 import org.scalatest.funsuite.AnyFunSuite
-import kantan.csv.generic.*
 
 import java.time.ZoneId
 import scala.concurrent.duration.*
@@ -37,7 +37,7 @@ object ReadWriteTestData {
   val codec: NJAvroCodec[TestData] = NJAvroCodec[TestData]
   val toRecord: ToRecord[TestData] = ToRecord(codec)
 
-  val loader: LoadTable[IO, TestData] = sparkSession.loadTable[IO](AvroTypedEncoder[TestData](codec))
+  val loader: LoadTable[TestData] = sparkSession.loadTable(AvroTypedEncoder[TestData](codec))
 
 }
 
@@ -50,7 +50,7 @@ class ReadWriteTest extends AnyFunSuite {
     val policy = policies.fixedDelay(0.3.second)
     val writer = hdp.circe.sink(policy, ZoneId.systemDefault())(t => path / t.index)
     data.map(_.asJson).through(writer).compile.drain.unsafeRunSync()
-    val count = loader.circe(path).count.unsafeRunSync()
+    val count = loader.circe(path).count[IO].unsafeRunSync()
     assert(count == number)
   }
   test("jackson write - read") {
@@ -59,7 +59,7 @@ class ReadWriteTest extends AnyFunSuite {
     val policy = policies.fixedDelay(0.3.second)
     val writer = hdp.jackson(codec.schema).sink(policy, ZoneId.systemDefault())(t => path / t.index)
     data.map(toRecord.to).through(writer).compile.drain.unsafeRunSync()
-    val count = loader.jackson(path).count.unsafeRunSync()
+    val count = loader.jackson(path).count[IO].unsafeRunSync()
     assert(count == number)
   }
   test("kantan write - read") {
@@ -69,9 +69,9 @@ class ReadWriteTest extends AnyFunSuite {
     val writer = hdp.kantan(CsvConfiguration.rfc).sink(policy, ZoneId.systemDefault())(t => path / t.index)
     data.map(hd.encode).through(writer).compile.drain.unsafeRunSync()
     val count = sparkSession
-      .loadTable[IO](AvroTypedEncoder[TestData])
+      .loadTable(AvroTypedEncoder[TestData])
       .kantan(path, CsvConfiguration.rfc)
-      .count
+      .count[IO]
       .unsafeRunSync()
     assert(count == number)
   }
@@ -81,7 +81,7 @@ class ReadWriteTest extends AnyFunSuite {
     val policy = policies.fixedDelay(0.3.second)
     val writer = hdp.avro(codec.schema).sink(policy, ZoneId.systemDefault())(t => path / t.index)
     data.map(toRecord.to).through(writer).compile.drain.unsafeRunSync()
-    val count = loader.avro(path).count.unsafeRunSync()
+    val count = loader.avro(path).count[IO].unsafeRunSync()
     assert(count == number)
   }
   test("bin-avro write - read") {
@@ -90,7 +90,7 @@ class ReadWriteTest extends AnyFunSuite {
     val policy = policies.fixedDelay(0.3.second)
     val writer = hdp.binAvro(codec.schema).sink(policy, ZoneId.systemDefault())(t => path / t.index)
     data.map(toRecord.to).through(writer).compile.drain.unsafeRunSync()
-    val count = loader.binAvro(path).count.unsafeRunSync()
+    val count = loader.binAvro(path).count[IO].unsafeRunSync()
     assert(count == number)
   }
 
@@ -100,7 +100,7 @@ class ReadWriteTest extends AnyFunSuite {
     val policy = policies.fixedDelay(0.3.second)
     val writer = hdp.parquet(codec.schema).sink(policy, ZoneId.systemDefault())(t => path / t.index)
     data.map(toRecord.to).through(writer).compile.drain.unsafeRunSync()
-    val count = loader.parquet(path).count.unsafeRunSync()
+    val count = loader.parquet(path).count[IO].unsafeRunSync()
     assert(count == number)
   }
 }

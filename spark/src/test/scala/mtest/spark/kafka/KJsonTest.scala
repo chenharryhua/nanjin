@@ -30,7 +30,7 @@ class KJsonTest extends AnyFunSuite {
     sparKafka
       .topic(topic)
       .prRdd(data)
-      .stream(1)
+      .stream[IO](1)
       .map(_.toProducerRecord)
       .chunks
       .through(topic.produce.pipe)
@@ -38,7 +38,7 @@ class KJsonTest extends AnyFunSuite {
       .drain
       .unsafeRunSync()
     ctx.schemaRegistry.register(topic.topicDef).unsafeRunSync()
-    sparKafka.topic(topic).fromKafka.output.circe(root / "circe").run.unsafeRunSync()
+    sparKafka.topic(topic).fromKafka.flatMap(_.output.circe(root / "circe").run[IO]).unsafeRunSync()
     sparKafka.dump(topic.topicName, root / "jackson", NJDateTimeRange(sydneyTime)).unsafeRunSync()
   }
 }

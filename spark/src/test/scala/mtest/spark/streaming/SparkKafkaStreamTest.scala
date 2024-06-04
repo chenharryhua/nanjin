@@ -1,5 +1,6 @@
 package mtest.spark.streaming
 
+import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.TopicDef
@@ -83,7 +84,7 @@ class SparkKafkaStreamTest extends AnyFunSuite {
       .prRdd(data)
       .withTopicName(rooster.topicName)
       .replicate(100)
-      .producerRecords(1)
+      .producerRecords[IO](1)
       .metered(1.seconds)
       .through(rooster.produce.pipe)
 
