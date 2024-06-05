@@ -49,7 +49,7 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
     * @param dateRange
     *   datetime range
     */
-  def dump(topicName: TopicName, path: NJPath, dateRange: NJDateTimeRange)(implicit F: Async[F]): F[Unit] = {
+  def dump(topicName: TopicName, path: NJPath, dateRange: NJDateTimeRange)(implicit F: Async[F]): F[Long] = {
     val grRdd: F[RDD[String]] = for {
       schemaPair <- kafkaContext.schemaRegistry.fetchAvroSchema(topicName)
       builder = new PullGenericRecord(kafkaContext.settings.schemaRegistrySettings, topicName, schemaPair)
@@ -58,13 +58,19 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
       .kafkaBatchRDD(kafkaContext.settings.consumerSettings, sparkSession, range)
       .flatMap(builder.toGenericRecord(_).flatMap(gr2Jackson(_)).toOption)
 
-    grRdd.flatMap(new RddFileHoarder(_).text(path).withSaveMode(_.Append).withSuffix("jackson.json").run)
+    grRdd.flatMap(rdd =>
+      new RddFileHoarder(rdd)
+        .text(path)
+        .withSaveMode(_.Append)
+        .withSuffix("jackson.json")
+        .run[F]
+        .as(rdd.count()))
   }
 
-  def dump(topicName: TopicNameL, path: NJPath)(implicit F: Async[F]): F[Unit] =
+  def dump(topicName: TopicNameL, path: NJPath)(implicit F: Async[F]): F[Long] =
     dump(TopicName(topicName), path, NJDateTimeRange(utils.sparkZoneId(sparkSession)))
 
-  def dump(topicName: TopicName, path: NJPath)(implicit F: Async[F]): F[Unit] =
+  def dump(topicName: TopicName, path: NJPath)(implicit F: Async[F]): F[Long] =
     dump(topicName, path, NJDateTimeRange(utils.sparkZoneId(sparkSession)))
 
   /** upload data from given folder to a kafka topic. files read in parallel
