@@ -68,7 +68,7 @@ private object HadoopReader {
     F: Sync[F]): Stream[F, String] =
     inputStreamS[F](configuration, path).flatMap { is =>
       val iterator: Iterator[String] = IOUtils.lineIterator(is, StandardCharsets.UTF_8).asScala
-      Stream.fromIterator(iterator, chunkSize.value)
+      Stream.fromBlockingIterator(iterator, chunkSize.value)
     }
 
   def jacksonS[F[_]](configuration: Configuration, schema: Schema, path: Path, chunkSize: ChunkSize)(implicit
@@ -89,7 +89,7 @@ private object HadoopReader {
         }
 
       val iterator: Iterator[GenericData.Record] = Iterator.continually(next).takeWhile(_.nonEmpty).map(_.get)
-      Stream.fromIterator[F](iterator, chunkSize.value)
+      Stream.fromBlockingIterator[F](iterator, chunkSize.value)
     }
 
   def binAvroS[F[_]](configuration: Configuration, schema: Schema, path: Path, chunkSize: ChunkSize)(implicit
@@ -109,6 +109,6 @@ private object HadoopReader {
       }
 
       val iterator: Iterator[GenericData.Record] = Iterator.continually(next).takeWhile(_.nonEmpty).map(_.get)
-      Stream.fromIterator[F](iterator, chunkSize.value)
+      Stream.fromBlockingIterator[F](iterator, chunkSize.value)
     }
 }
