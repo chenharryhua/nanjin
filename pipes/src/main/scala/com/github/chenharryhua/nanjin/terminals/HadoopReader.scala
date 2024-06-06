@@ -3,7 +3,6 @@ package com.github.chenharryhua.nanjin.terminals
 import cats.data.Reader
 import cats.effect.Resource
 import cats.effect.kernel.Sync
-import cats.implicits.{catsSyntaxApplicativeError, catsSyntaxMonadErrorRethrow, toBifunctorOps, toFunctorOps}
 import com.github.chenharryhua.nanjin.common.ChunkSize
 import fs2.Stream
 import fs2.io.readInputStream
@@ -34,9 +33,6 @@ private object HadoopReader {
         F.blocking(r.close()))
       dfs <- Resource.make[F, DataFileStream[GenericData.Record]] {
         F.blocking[DataFileStream[GenericData.Record]](new DataFileStream(is, new GenericDatumReader(schema)))
-          .attempt
-          .map(_.leftMap(err => new Exception(path.toString, err)))
-          .rethrow
       }(r => F.blocking(r.close()))
     } yield dfs
 
@@ -44,9 +40,6 @@ private object HadoopReader {
     implicit F: Sync[F]): Resource[F, ParquetReader[GenericData.Record]] =
     Resource.make {
       F.blocking[ParquetReader[GenericData.Record]](readBuilder.run(path).build())
-        .attempt
-        .map(_.leftMap(err => new Exception(path.toString, err)))
-        .rethrow
     }(r => F.blocking(r.close()))
 
   private def fileInputStream(path: Path, configuration: Configuration): InputStream = {
@@ -79,24 +72,23 @@ private object HadoopReader {
     }
 
   def jacksonS[F[_]](configuration: Configuration, schema: Schema, path: Path, chunkSize: ChunkSize)(implicit
-    F: Sync[F]): Stream[F, Either[Throwable, GenericData.Record]] =
+    F: Sync[F]): Stream[F, GenericData.Record] =
     inputStreamS[F](configuration, path).flatMap { is =>
       val jsonDecoder: JsonDecoder = DecoderFactory.get().jsonDecoder(schema, is)
       val datumReader: GenericDatumReader[GenericData.Record] =
         new GenericDatumReader[GenericData.Record](schema)
 
-      def next: Option[Either[Throwable, GenericData.Record]] =
+      def next: Option[GenericData.Record] =
         Try(datumReader.read(null, jsonDecoder)) match {
           case Failure(exception) =>
             exception match {
               case _: java.io.EOFException => None
-              case err                     => Some(Left(err))
+              case err                     => throw err
             }
-          case Success(value) => Some(Right(value))
+          case Success(value) => Some(value)
         }
 
-      val iterator: Iterator[Either[Throwable, GenericData.Record]] =
-        Iterator.continually(next).takeWhile(_.nonEmpty).map(_.get)
+      val iterator: Iterator[GenericData.Record] = Iterator.continually(next).takeWhile(_.nonEmpty).map(_.get)
       Stream.fromIterator[F](iterator, chunkSize.value)
     }
 
@@ -111,13 +103,12 @@ private object HadoopReader {
         case Failure(exception) =>
           exception match {
             case _: java.io.EOFException => None
-            case err                     => throw new Exception(path.toString, err)
+            case err                     => throw err
           }
         case Success(value) => Some(value)
       }
 
-      val iterator: Iterator[GenericData.Record] =
-        Iterator.continually(next).takeWhile(_.nonEmpty).map(_.get)
+      val iterator: Iterator[GenericData.Record] = Iterator.continually(next).takeWhile(_.nonEmpty).map(_.get)
       Stream.fromIterator[F](iterator, chunkSize.value)
     }
 }

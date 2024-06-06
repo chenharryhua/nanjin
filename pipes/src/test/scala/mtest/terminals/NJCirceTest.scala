@@ -28,7 +28,7 @@ class NJCirceTest extends AnyFunSuite {
     hdp.delete(tgt).unsafeRunSync()
     val ts                      = Stream.emits(data.toList).covary[IO].map(_.asJson)
     val sink                    = json.sink(tgt)
-    val src: Stream[IO, Tiger]  = json.source(tgt, 30).rethrow.mapFilter(_.as[Tiger].toOption)
+    val src: Stream[IO, Tiger]  = json.source(tgt, 30).mapFilter(_.as[Tiger].toOption)
     val action: IO[List[Tiger]] = ts.through(sink).compile.drain >> src.compile.toList
     assert(action.unsafeRunSync().toSet == data)
     val lines = hdp.text.source(tgt, 32).compile.fold(0) { case (s, _) => s + 1 }

@@ -25,7 +25,7 @@ class JacksonTest extends AnyFunSuite {
   def loadRooster(path: NJPath): IO[Set[Rooster]] =
     Stream
       .eval(hdp.filesIn(path))
-      .flatMap(jackson.source(_, 10).rethrow.map(fromRecord.from))
+      .flatMap(jackson.source(_, 10).map(fromRecord.from))
       .compile
       .toList
       .map(_.toSet)

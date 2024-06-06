@@ -31,7 +31,7 @@ class KantanCsvTest extends AnyFunSuite {
     Stream
       .eval(hdp.filesIn(path))
       .flatMap(kantan.source(_, 100))
-      .map(_.flatMap(decoderTablet.decode))
+      .map(decoderTablet.decode)
       .rethrow
       .compile
       .toList
