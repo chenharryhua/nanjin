@@ -4,7 +4,7 @@ import cats.effect.kernel.{Async, Resource, Sync}
 import cats.effect.std.Hotswap
 import cats.implicits.toFunctorOps
 import com.github.chenharryhua.nanjin.common.ChunkSize
-import com.github.chenharryhua.nanjin.common.chrono.{Policy, Tick, TickStatus, tickStream}
+import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick, TickStatus}
 import fs2.{Chunk, Pipe, Stream}
 import io.circe.Json
 import io.circe.jawn.parse
@@ -40,7 +40,7 @@ final class HadoopCirce[F[_]] private (configuration: Configuration) {
       Stream.eval(TickStatus.zeroth[F](policy, zoneId)).flatMap { zero =>
         val ticks: Stream[F, Either[Chunk[String], Tick]] = tickStream[F](zero).map(Right(_))
         Stream.resource(Hotswap(get_writer(zero.tick))).flatMap { case (hotswap, writer) =>
-          persistText[F](
+          persist[F, String](
             get_writer,
             hotswap,
             writer,

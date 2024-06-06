@@ -100,7 +100,7 @@ final class HadoopKantan[F[_]] private (
                 header
               ).stream
           } else {
-            persistText[F](
+            persist[F, String](
               get_writer,
               hotswap,
               writer,

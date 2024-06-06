@@ -30,32 +30,11 @@ package object terminals {
         head match {
           case Left(data) =>
             Pull.output1(data.size) >>
-              Pull.eval(writer.write(data)) >> persist(getWriter, hotswap, writer, tail)
+              Pull.eval(writer.write(data)) >>
+              persist(getWriter, hotswap, writer, tail)
           case Right(tick) =>
             Pull.eval(hotswap.swap(getWriter(tick))).flatMap { writer =>
               persist(getWriter, hotswap, writer, tail)
-            }
-        }
-      case None => Pull.done
-    }
-
-  private[terminals] def persistText[F[_]](
-    getWriter: Tick => Resource[F, HadoopWriter[F, String]],
-    hotswap: Hotswap[F, HadoopWriter[F, String]],
-    writer: HadoopWriter[F, String],
-    ss: Stream[F, Either[Chunk[String], Tick]]
-  ): Pull[F, Int, Unit] =
-    ss.pull.uncons1.flatMap {
-      case Some((head, tail)) =>
-        head match {
-          case Left(data) =>
-            Pull.output1(data.size) >>
-              Pull.eval(writer.write(data)) >>
-              persistText[F](getWriter, hotswap, writer, tail)
-
-          case Right(tick) =>
-            Pull.eval(hotswap.swap(getWriter(tick))).flatMap { writer =>
-              persistText(getWriter, hotswap, writer, tail)
             }
         }
       case None => Pull.done
