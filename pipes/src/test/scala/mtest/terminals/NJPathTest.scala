@@ -59,7 +59,7 @@ class NJPathTest extends AnyFunSuite {
     val r1: NJPath = NJPath("s3a://bucket")
     val ld         = LocalDateTime.of(2020, 1, 1, 0, 0, 0, 0)
     val r2: NJPath = r1 / ld / 32 / "abc.json"
-    assert(r2.pathStr == "s3a://bucket/Year=2020/Month=01/Day=01/Hour=00/32/abc.json")
+    assert(r2.pathStr == "s3a://bucket/Year=2020/Month=01/Day=01/Hour=00/0032/abc.json")
   }
 
   test("json") {

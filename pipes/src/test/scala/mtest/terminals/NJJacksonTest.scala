@@ -26,7 +26,7 @@ class NJJacksonTest extends AnyFunSuite {
     hdp.delete(tgt).unsafeRunSync()
     val sink =
       jackson.sink(tgt)
-    val src    = jackson.source(tgt, 10).rethrow
+    val src    = jackson.source(tgt, 10)
     val ts     = Stream.emits(data.toList).covary[IO]
     val action = ts.through(sink).compile.drain >> src.compile.toList
     assert(action.unsafeRunSync().toSet == data)

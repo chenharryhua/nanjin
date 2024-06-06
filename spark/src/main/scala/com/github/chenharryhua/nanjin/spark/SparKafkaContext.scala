@@ -49,7 +49,7 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
     * @param dateRange
     *   datetime range
     */
-  def dump(topicName: TopicName, path: NJPath, dateRange: NJDateTimeRange)(implicit F: Async[F]): F[Unit] = {
+  def dump(topicName: TopicName, path: NJPath, dateRange: NJDateTimeRange)(implicit F: Async[F]): F[Long] = {
     val grRdd: F[RDD[String]] = for {
       schemaPair <- kafkaContext.schemaRegistry.fetchAvroSchema(topicName)
       builder = new PullGenericRecord(kafkaContext.settings.schemaRegistrySettings, topicName, schemaPair)
@@ -58,13 +58,19 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
       .kafkaBatchRDD(kafkaContext.settings.consumerSettings, sparkSession, range)
       .flatMap(builder.toGenericRecord(_).flatMap(gr2Jackson(_)).toOption)
 
-    grRdd.flatMap(new RddFileHoarder(_).text(path).withSaveMode(_.Append).withSuffix("jackson.json").run)
+    grRdd.flatMap(rdd =>
+      new RddFileHoarder(rdd)
+        .text(path)
+        .withSaveMode(_.Append)
+        .withSuffix("jackson.json")
+        .run[F]
+        .as(rdd.count()))
   }
 
-  def dump(topicName: TopicNameL, path: NJPath)(implicit F: Async[F]): F[Unit] =
+  def dump(topicName: TopicNameL, path: NJPath)(implicit F: Async[F]): F[Long] =
     dump(TopicName(topicName), path, NJDateTimeRange(utils.sparkZoneId(sparkSession)))
 
-  def dump(topicName: TopicName, path: NJPath)(implicit F: Async[F]): F[Unit] =
+  def dump(topicName: TopicName, path: NJPath)(implicit F: Async[F]): F[Long] =
     dump(topicName, path, NJDateTimeRange(utils.sparkZoneId(sparkSession)))
 
   /** upload data from given folder to a kafka topic. files read in parallel
@@ -102,7 +108,7 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
       num <- hadoop.filesIn(path).flatMap { fs =>
         val ss: Stream[F, ProducerRecords[Array[Byte], Array[Byte]]] =
           fs.foldLeft(Stream.empty.covaryAll[F, ProducerRecords[Array[Byte], Array[Byte]]]) { case (s, p) =>
-            s.merge(jackson.source(p, chunkSize).rethrow.map(builder.fromGenericRecord).chunks)
+            s.merge(jackson.source(p, chunkSize).map(builder.fromGenericRecord).chunks)
           }
         KafkaProducer.pipe(producerSettings).apply(ss).compile.fold(0L) { case (sum, prs) => sum + prs.size }
       }
@@ -148,7 +154,7 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
       jackson = hadoop.jackson(schemaPair.consumerSchema)
       builder = new PushGenericRecord(kafkaContext.settings.schemaRegistrySettings, topicName, schemaPair)
       num <- hadoop.filesIn(path).map(jackson.source(_, chunkSize)).flatMap {
-        _.rethrow.chunks
+        _.chunks
           .map(_.map(builder.fromGenericRecord))
           .through(KafkaProducer.pipe(producerSettings))
           .compile

@@ -43,17 +43,19 @@ final class PrRdd[K, V] private[kafka] (
 
   def normalize: PrRdd[K, V] = transform(_.map(codec.idConversion))
 
-  // actions
-
-  def count[F[_]](implicit F: Sync[F]): F[Long] = F.interruptible(rdd.count())
+  // transition
 
   def output: RddAvroFileHoarder[NJProducerRecord[K, V]] =
     new RddAvroFileHoarder[NJProducerRecord[K, V]](rdd, codec)
+
+  // IO
+
+  def count[F[_]](implicit F: Sync[F]): F[Long] = F.blocking(rdd.count())
 
   def stream[F[_]: Sync](chunkSize: ChunkSize): Stream[F, NJProducerRecord[K, V]] =
     Stream.fromBlockingIterator[F](rdd.toLocalIterator, chunkSize.value)
 
   def producerRecords[F[_]](chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, ProducerRecords[K, V]] =
-    Stream.fromBlockingIterator(rdd.toLocalIterator, chunkSize.value).chunks.map(_.map(_.toProducerRecord))
+    Stream.fromBlockingIterator(rdd.toLocalIterator.map(_.toProducerRecord), chunkSize.value).chunks
 
 }

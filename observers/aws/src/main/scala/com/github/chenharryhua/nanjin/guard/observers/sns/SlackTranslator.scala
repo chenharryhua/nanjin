@@ -228,6 +228,11 @@ private object SlackTranslator extends all {
 
   private def action_failed(evt: ActionFail): SlackApp = {
     val color: String = coloring(evt)
+    val tookField: TextField = evt.took match {
+      case Some(value) => TextField(CONSTANT_TOOK, tookText(value))
+      case None        => TextField(CONSTANT_CONFIG, evt.actionParams.configStr)
+    }
+
     SlackApp(
       username = evt.serviceParams.taskName.value,
       attachments = List(
@@ -238,7 +243,7 @@ private object SlackTranslator extends all {
             host_service_section(evt.serviceParams),
             JuxtaposeSection(
               first = TextField(CONSTANT_MEASUREMENT, evt.actionParams.metricName.measurement),
-              second = TextField(CONSTANT_TOOK, tookText(evt.took))),
+              second = tookField),
             MarkdownSection(s"""|${policy(evt)}
                                 |${service_id(evt)}""".stripMargin),
             MarkdownSection(s"""```${abbreviate(evt.notes)}```""")

@@ -23,7 +23,7 @@ class CirceTest extends AnyFunSuite {
     fs2.Stream
       .eval(hdp.filesIn(path))
       .flatMap(circe.source(_, 2))
-      .map(_.flatMap(_.as[Rooster]))
+      .map(_.as[Rooster])
       .rethrow
       .compile
       .toList
@@ -32,7 +32,7 @@ class CirceTest extends AnyFunSuite {
     fs2.Stream
       .eval(hdp.filesIn(path))
       .flatMap(circe.source(_, 2))
-      .map(_.flatMap(_.as[Bee]))
+      .map(_.as[Bee])
       .rethrow
       .compile
       .toList

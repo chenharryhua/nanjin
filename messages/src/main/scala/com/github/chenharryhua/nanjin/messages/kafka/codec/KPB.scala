@@ -10,6 +10,7 @@ import scalapb.descriptors.{Descriptor, FieldDescriptor, PValue, Reads}
 import scalapb.{GeneratedEnumCompanion, GeneratedMessage, GeneratedMessageCompanion}
 
 import java.util
+import scala.annotation.nowarn
 
 // kafka protobuf
 final class KPB[A <: GeneratedMessage] private (val value: A) extends GeneratedMessage with Serializable {
@@ -26,6 +27,7 @@ final class KPB[A <: GeneratedMessage] private (val value: A) extends GeneratedM
 
   // override GeneratedMessage
   override def writeTo(output: CodedOutputStream): Unit = value.writeTo(output)
+  @nowarn
   override def getFieldByNumber(fieldNumber: Int): Any  = value.getFieldByNumber(fieldNumber)
   override def getField(field: FieldDescriptor): PValue = value.getField(field)
   override def companion: GeneratedMessageCompanion[?]  = value.companion

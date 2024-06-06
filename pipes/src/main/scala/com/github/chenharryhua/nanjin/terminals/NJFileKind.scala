@@ -14,7 +14,7 @@ sealed abstract class NJFileKind(val fileFormat: NJFileFormat, val compression: 
   final def fileName(tick: Tick): String = {
     val seqId: String = tick.sequenceId.toString.take(5)
     val time: String  = fmt.format(tick.zonedWakeup.toLocalTime)
-    f"$seqId-${tick.index}%05d-$time.$fileName"
+    f"$seqId-${tick.index}%04d-$time.$fileName"
   }
 
   final def ymdFileName(tick: Tick): String = {

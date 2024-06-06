@@ -22,8 +22,8 @@ final class NJPath private (segments: NonEmptyList[String]) extends Serializable
   def /(tn: TopicName): NJPath = new NJPath(segments.append(tn.value))
   def /(uuid: UUID): NJPath    = new NJPath(segments.append(uuid.toString))
 
-  def /(num: Long): NJPath = new NJPath(segments.append(num.toString))
-  def /(num: Int): NJPath  = new NJPath(segments.append(num.toString))
+  def /(num: Long): NJPath = new NJPath(segments.append(f"$num%04d"))
+  def /(num: Int): NJPath  = new NJPath(segments.append(f"$num%04d"))
 
   // Year=2020/Month=01/Day=05
   def /(ld: LocalDate): NJPath =
