@@ -83,8 +83,10 @@ private object HadoopReader {
 
       val iterator: Iterator[GenericData.Record] =
         Iterator.continually {
-          try Some(datumReader.read(null, decoder))
-          catch {
+          try {
+            val gr = datumReader.read(null, decoder)
+            Some(gr)
+          } catch {
             case _: java.io.EOFException => None
           }
         }.takeWhile(_.nonEmpty).map(_.get)
