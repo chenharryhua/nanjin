@@ -129,7 +129,7 @@ class ConfigTest extends AnyFunSuite {
           .delay(1)
           .buildWith(_.tapInput(_ => Json.Null)
             .tapOutput((_, _) => Json.Null)
-            .tapError(_ => Json.Null)
+            .tapError((_, _) => Json.Null)
             .worthRetry(_ => true))
           .use(_.run(())))
       .map(checkJson)

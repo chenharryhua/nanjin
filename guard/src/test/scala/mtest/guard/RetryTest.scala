@@ -7,7 +7,6 @@ import com.github.chenharryhua.nanjin.common.chrono.zones.singaporeTime
 import com.github.chenharryhua.nanjin.common.chrono.{policies, Policy}
 import com.github.chenharryhua.nanjin.guard.*
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
-import io.circe.Json
 import io.circe.syntax.*
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -114,7 +113,7 @@ class RetryTest extends AnyFunSuite {
             IO(if (i < 2) {
               i += 1; throw new Exception
             } else i))
-          .buildWith(_.tapOutput((a, _) => a.asJson).tapInput(_.asJson).tapError(_.asJson))
+          .buildWith(_.tapOutput((a, _) => a.asJson).tapInput(_.asJson))
           .use(_.run(1))
       }
       .map(checkJson)
@@ -213,7 +212,7 @@ class RetryTest extends AnyFunSuite {
       .eventStream { gd =>
         gd.action("t", _.policy(policies.fixedDelay(0.1.seconds).limited(3)))
           .retry(IO.raiseError[Int](MyException()))
-          .buildWith(_.worthRetry(_.isInstanceOf[MyException]).tapError(_ => Json.fromString("worth-retry")))
+          .buildWith(_.worthRetry(_.isInstanceOf[MyException]))
           .use(_.run(()))
       }
       .map(checkJson)
@@ -237,7 +236,7 @@ class RetryTest extends AnyFunSuite {
         gd.zonedNow >>
           gd.action("t", _.bipartite.policy(policies.fixedDelay(0.1.seconds).limited(3)))
             .retry(IO.raiseError[Int](new Exception))
-            .buildWith(_.worthRetry(x => x.isInstanceOf[MyException]).tapError(_ => Json.Null))
+            .buildWith(_.worthRetry(x => x.isInstanceOf[MyException]))
             .use(_.run(()))
       }
       // .debug()

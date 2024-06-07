@@ -15,12 +15,13 @@ object SimpleTextTranslator {
   import textHelper.*
 
   private def service_event(se: NJEvent): String = {
-    val host: String      = s"$CONSTANT_HOST:${se.serviceParams.hostName.value}"
+    val host: String      = s"$CONSTANT_HOST:${hostText(se.serviceParams)}"
     val sn: String        = s"$CONSTANT_SERVICE:${se.serviceParams.serviceName.value}"
     val tn: String        = s"$CONSTANT_TASK:${se.serviceParams.taskName.value}"
-    val serviceId: String = s"SID:${se.serviceParams.serviceId.show.takeRight(12)}"
+    val serviceId: String = s"$CONSTANT_SERVICE_ID:${se.serviceParams.serviceId.show}"
     val uptime: String    = s"$CONSTANT_UPTIME:${uptimeText(se)}"
-    s"$sn, $tn, $host, $serviceId, $uptime"
+    s"""|$sn, $tn, $serviceId, 
+        |  $host, $uptime""".stripMargin
   }
 
   private def error_str(err: NJError): String =

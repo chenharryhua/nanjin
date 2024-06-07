@@ -26,7 +26,7 @@ final private class ReTry[F[_]: Async, IN, OUT] private (
   private[this] val arrow: Kleisli[F, IN, OUT],
   private[this] val transInput: Reader[IN, Json],
   private[this] val transOutput: Reader[(IN, OUT), Json],
-  private[this] val transError: Reader[IN, Json],
+  private[this] val transError: Reader[(IN, Throwable), Json],
   private[this] val isWorthRetry: Reader[Throwable, Boolean]
 ) {
   private[this] val F = Async[F]
@@ -36,9 +36,9 @@ final private class ReTry[F[_]: Async, IN, OUT] private (
   private[this] def to_zdt(fd: FiniteDuration): ZonedDateTime =
     actionParams.serviceParams.toZonedDateTime(fd)
 
-  private[this] def output_json(in: IN, out: OUT): Json = transOutput.run((in, out))
-  private[this] def input_json(in: IN): Json            = transInput.run(in)
-  private[this] def error_json(in: IN): Json            = transError.run(in)
+  private[this] def output_json(in: IN, out: OUT): Json     = transOutput.run((in, out))
+  private[this] def input_json(in: IN): Json                = transInput.run(in)
+  private[this] def error_json(in: IN, ex: Throwable): Json = transError.run((in, ex))
 
   private[this] def execute(in: IN): F[Either[Throwable, OUT]] = arrow.run(in).attempt
 
@@ -51,7 +51,7 @@ final private class ReTry[F[_]: Async, IN, OUT] private (
           launchTime = launchTime.map(to_zdt),
           timestamp = to_zdt(now),
           error = NJError(ex),
-          notes = error_json(in)))
+          notes = error_json(in, ex)))
     } yield measures.fail()
 
   private[this] def succeeded(launchTime: FiniteDuration, in: IN, out: OUT): F[Either[TickStatus, OUT]] =
@@ -183,7 +183,7 @@ private object ReTry {
     arrow: Kleisli[F, IN, OUT],
     transInput: Reader[IN, Json],
     transOutput: Reader[(IN, OUT), Json],
-    transError: Reader[IN, Json],
+    transError: Reader[(IN, Throwable), Json],
     isWorthRetry: Reader[Throwable, Boolean])(implicit F: Async[F]): Resource[F, Kleisli[F, IN, OUT]] = {
     def action_runner(token: Unique.Token): ReTry[F, IN, OUT] =
       new ReTry[F, IN, OUT](

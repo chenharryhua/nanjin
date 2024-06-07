@@ -90,7 +90,6 @@ class KantanTest(agent: Agent[IO], base: NJPath, rfc: CsvConfiguration) extends 
         .flatMap(
           kantan
             .source(_, 1000)
-            .rethrow
             .map(rowDecoder.decode)
             .rethrow
             .evalTap(_ => meter.mark(1))
@@ -104,7 +103,6 @@ class KantanTest(agent: Agent[IO], base: NJPath, rfc: CsvConfiguration) extends 
     read(path.uri.getPath).use { meter =>
       kantan
         .source(path, 1000)
-        .rethrow
         .map(rowDecoder.decode)
         .rethrow
         .evalTap(_ => meter.mark(1))

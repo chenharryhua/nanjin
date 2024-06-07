@@ -14,7 +14,7 @@ import scala.jdk.DurationConverters.ScalaDurationOps
 @JsonCodec
 final case class Detail(nth_job: Int, took: Duration, is_done: Boolean)
 @JsonCodec
-final case class QuasiResult(token: Int, mode: String, details: List[Detail])
+final case class QuasiResult(token: String, took: Duration, mode: String, details: List[Detail])
 
 final class NJBatch[F[_]: Async] private[guard] (
   serviceParams: ServiceParams,
@@ -57,7 +57,7 @@ final class NJBatch[F[_]: Async] private[guard] (
               Json.obj("quasi" -> Json.obj(batch_id(token), start(idx), jobs(size), mode(None)))
             }.tapOutput { case ((idx, _), _) =>
               Json.obj("quasi" -> Json.obj(batch_id(token), finish(idx), jobs(size), mode(None)))
-            }.tapError { case (idx, _) =>
+            }.tapError { case ((idx, _), _) =>
               Json.obj("quasi" -> Json.obj(batch_id(token), failed(idx), jobs(size), mode(None)))
             }
           )
@@ -66,7 +66,12 @@ final class NJBatch[F[_]: Async] private[guard] (
         F.timed(act.run((oneBase, fz)).attempt).flatTap(_ => rat.incNumerator(1)).map { case (fd, result) =>
           Detail(nth_job = oneBase, took = fd.toJava, is_done = result.isRight)
         }
-      }.map(details => QuasiResult(token.hash, "sequential", details.toList))
+      }.map(details =>
+        QuasiResult(
+          token = token.hash.show,
+          took = details.map(_.took).foldLeft(Duration.ZERO)(_ plus _),
+          mode = "sequential",
+          details = details.toList))
 
       run.use(identity)
     }
@@ -86,7 +91,7 @@ final class NJBatch[F[_]: Async] private[guard] (
               Json.obj("quasi" -> Json.obj(batch_id(token), start(idx), jobs(size), mode(Some(parallelism))))
             }.tapOutput { case ((idx, _), _) =>
               Json.obj("quasi" -> Json.obj(batch_id(token), finish(idx), jobs(size), mode(Some(parallelism))))
-            }.tapError { case (idx, _) =>
+            }.tapError { case ((idx, _), _) =>
               Json.obj("quasi" -> Json.obj(batch_id(token), failed(idx), jobs(size), mode(Some(parallelism))))
             }
           )
@@ -97,7 +102,12 @@ final class NJBatch[F[_]: Async] private[guard] (
             Detail(nth_job = oneBase, took = fd.toJava, is_done = result.isRight)
           }
         }
-        .map(details => QuasiResult(token.hash, s"parallel-$parallelism", details.toList.sortBy(_.nth_job)))
+        .map(details =>
+          QuasiResult(
+            token = token.hash.show,
+            took = details.map(_.took).foldLeft(Duration.ZERO)(_ plus _),
+            mode = s"parallel-$parallelism",
+            details = details.toList.sortBy(_.nth_job)))
 
       run.use(identity)
     }
@@ -124,7 +134,7 @@ final class NJBatch[F[_]: Async] private[guard] (
           }.tapOutput { case ((idx, _), out) =>
             Json.obj(
               "batch" -> Json.obj(batch_id(token), finish(idx), jobs(size), mode(None), "out" -> out.asJson))
-          }.tapError { case (idx, _) =>
+          }.tapError { case ((idx, _), _) =>
             Json.obj("batch" -> Json.obj(batch_id(token), failed(idx), jobs(size), mode(None)))
           }
         )
@@ -151,7 +161,7 @@ final class NJBatch[F[_]: Async] private[guard] (
           }.tapOutput { case ((idx, _), out) =>
             Json.obj("batch" -> Json
               .obj(batch_id(token), finish(idx), jobs(size), mode(Some(parallelism)), "out" -> out.asJson))
-          }.tapError { case (idx, _) =>
+          }.tapError { case ((idx, _), _) =>
             Json.obj("batch" -> Json.obj(batch_id(token), failed(idx), jobs(size), mode(Some(parallelism))))
           }
         )
