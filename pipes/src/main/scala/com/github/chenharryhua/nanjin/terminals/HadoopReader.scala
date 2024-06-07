@@ -22,7 +22,6 @@ import squants.information.Information
 import java.io.InputStream
 import java.nio.charset.StandardCharsets
 import scala.jdk.CollectionConverters.IteratorHasAsScala
-import scala.util.{Failure, Success, Try}
 
 private object HadoopReader {
 
@@ -82,18 +81,13 @@ private object HadoopReader {
       val datumReader: GenericDatumReader[GenericData.Record] =
         new GenericDatumReader[GenericData.Record](schema)
 
-      def next: Option[GenericData.Record] =
-        Try(datumReader.read(null, decoder)) match {
-          case Failure(exception) =>
-            exception match {
-              case _: java.io.EOFException => None
-              case err                     => throw err
-            }
-          case Success(value) => Some(value)
-        }
-
       val iterator: Iterator[GenericData.Record] =
-        Iterator.continually(next).takeWhile(_.nonEmpty).map(_.get)
+        Iterator.continually {
+          try Some(datumReader.read(null, decoder))
+          catch {
+            case _: java.io.EOFException => None
+          }
+        }.takeWhile(_.nonEmpty).map(_.get)
 
       Stream.fromBlockingIterator[F](iterator, chunkSize.value)
     }
