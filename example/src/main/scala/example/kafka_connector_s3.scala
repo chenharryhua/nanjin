@@ -13,7 +13,7 @@ import com.github.chenharryhua.nanjin.messages.kafka.codec.gr2Jackson
 import com.github.chenharryhua.nanjin.terminals.{HadoopText, JacksonFile, NJHadoop, NJPath}
 import eu.timepit.refined.auto.*
 import fs2.Pipe
-import fs2.kafka.{AutoOffsetReset, CommittableConsumerRecord, commitBatchWithin}
+import fs2.kafka.{commitBatchWithin, AutoOffsetReset, CommittableConsumerRecord}
 import io.circe.syntax.EncoderOps
 import org.apache.avro.generic.GenericData
 import org.apache.hadoop.conf.Configuration
@@ -35,7 +35,7 @@ object kafka_connector_s3 {
       action <- agent
         .action(name)
         .retry((ccr: CCR) => IO.fromTry(ccr.record.value.flatMap(gr2Jackson(_))))
-        .buildWith(_.tapError(CRMetaInfo(_).zoned(agent.zoneId).asJson))
+        .buildWith(_.tapError((cr, _) => CRMetaInfo(cr).zoned(agent.zoneId).asJson))
       flow <- agent.flowMeter(name, _.withUnit(_.BYTES))
     } yield Kleisli { (ccr: CCR) =>
       action.run(ccr).flatTap(_ => flow.update(calcSize(ccr)))

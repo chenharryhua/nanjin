@@ -45,7 +45,7 @@ private object HadoopReader {
     val is: SeekableInputStream = HadoopInputFile.fromPath(path, configuration).newStream()
     Option(new CompressionCodecFactory(configuration).getCodec(path)) match {
       case Some(cc) => cc.createInputStream(is)
-      case None     => is
+      case None     => IOUtils.buffer(is)
     }
   }
 

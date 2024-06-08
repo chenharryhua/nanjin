@@ -11,6 +11,7 @@ class PrettifyJsonTest extends AnyFunSuite {
   test("prettify case class") {
     val qr = QuasiResult(
       "123",
+      3.seconds.toJava,
       "sequential",
       List(Detail(1, 2.seconds.toJava, is_done = true), Detail(2, 1.second.toJava, is_done = false)))
     val res = prettifyJson(qr)
@@ -18,6 +19,7 @@ class PrettifyJsonTest extends AnyFunSuite {
       """
         |{
         |  "token" : "123",
+        |  "took" : "3 seconds",
         |  "mode" : "sequential",
         |  "details" : [
         |    {
