@@ -23,12 +23,12 @@ val doobieV     = "1.0.0-RC5"
 val natchezV    = "0.3.5"
 val http4sV     = "0.23.27"
 val cron4sV     = "0.7.0"
-val protobufV   = "4.27.0"
+val protobufV   = "4.27.1"
 val sparkV      = "3.5.1"
 val framelessV  = "0.16.0"
 val refinedV    = "0.11.2"
 val nettyV      = "4.1.110.Final"
-val chimneyV    = "1.0.0"
+val chimneyV    = "1.1.0"
 val enumeratumV = "1.7.3"
 val drosteV     = "0.9.0"
 val slf4jV      = "2.0.13"
@@ -399,7 +399,7 @@ val hadoopLib = List(
   "org.apache.hadoop"  % "hadoop-hdfs-client"           % hadoopV,
   "org.slf4j"          % "jcl-over-slf4j"               % slf4jV,
   "io.netty"           % "netty-all"                    % nettyV, // snyk
-  "com.nimbusds"       % "nimbus-jose-jwt"              % "9.39.3", // snyk
+  "com.nimbusds"       % "nimbus-jose-jwt"              % "9.40", // snyk
   "org.apache.commons" % "commons-configuration2"       % "2.10.1" // snyk
 ).map(
   _.exclude("log4j", "log4j")

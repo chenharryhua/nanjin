@@ -100,7 +100,7 @@ private object HadoopWriter {
         new HadoopWriter[F, String] {
           override def write(cs: Chunk[String]): F[Unit] =
             F.blocking {
-              cs.foreach(pw.write) // already has
+              cs.foreach(pw.write) // already has new line separator
               pw.flush()
             }
         })

@@ -9,7 +9,7 @@ import fs2.io.readInputStream
 import org.apache.avro.Schema
 import org.apache.avro.file.DataFileStream
 import org.apache.avro.generic.{GenericData, GenericDatumReader}
-import org.apache.avro.io.{BinaryDecoder, DecoderFactory, JsonDecoder}
+import org.apache.avro.io.{Decoder, DecoderFactory}
 import org.apache.commons.io.IOUtils
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.Path
@@ -22,7 +22,6 @@ import squants.information.Information
 import java.io.InputStream
 import java.nio.charset.StandardCharsets
 import scala.jdk.CollectionConverters.IteratorHasAsScala
-import scala.util.{Failure, Success, Try}
 
 private object HadoopReader {
 
@@ -46,7 +45,7 @@ private object HadoopReader {
     val is: SeekableInputStream = HadoopInputFile.fromPath(path, configuration).newStream()
     Option(new CompressionCodecFactory(configuration).getCodec(path)) match {
       case Some(cc) => cc.createInputStream(is)
-      case None     => is
+      case None     => IOUtils.buffer(is)
     }
   }
 
@@ -68,47 +67,48 @@ private object HadoopReader {
     F: Sync[F]): Stream[F, String] =
     inputStreamS[F](configuration, path).flatMap { is =>
       val iterator: Iterator[String] = IOUtils.lineIterator(is, StandardCharsets.UTF_8).asScala
-      Stream.fromIterator(iterator, chunkSize.value)
+      Stream.fromBlockingIterator(iterator, chunkSize.value)
+    }
+
+  private def genericRecordReaderS[F[_]](
+    getDecoder: InputStream => Decoder,
+    configuration: Configuration,
+    schema: Schema,
+    path: Path,
+    chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, GenericData.Record] =
+    inputStreamS[F](configuration, path).flatMap { is =>
+      val decoder: Decoder = getDecoder(is)
+      val datumReader: GenericDatumReader[GenericData.Record] =
+        new GenericDatumReader[GenericData.Record](schema)
+
+      val iterator: Iterator[GenericData.Record] =
+        Iterator.continually {
+          try {
+            val gr = datumReader.read(null, decoder)
+            Some(gr)
+          } catch {
+            case _: java.io.EOFException => None
+          }
+        }.takeWhile(_.nonEmpty).map(_.get)
+
+      Stream.fromBlockingIterator[F](iterator, chunkSize.value)
     }
 
   def jacksonS[F[_]](configuration: Configuration, schema: Schema, path: Path, chunkSize: ChunkSize)(implicit
     F: Sync[F]): Stream[F, GenericData.Record] =
-    inputStreamS[F](configuration, path).flatMap { is =>
-      val jsonDecoder: JsonDecoder = DecoderFactory.get().jsonDecoder(schema, is)
-      val datumReader: GenericDatumReader[GenericData.Record] =
-        new GenericDatumReader[GenericData.Record](schema)
-
-      def next: Option[GenericData.Record] =
-        Try(datumReader.read(null, jsonDecoder)) match {
-          case Failure(exception) =>
-            exception match {
-              case _: java.io.EOFException => None
-              case err                     => throw err
-            }
-          case Success(value) => Some(value)
-        }
-
-      val iterator: Iterator[GenericData.Record] = Iterator.continually(next).takeWhile(_.nonEmpty).map(_.get)
-      Stream.fromIterator[F](iterator, chunkSize.value)
-    }
+    genericRecordReaderS[F](
+      getDecoder = is => DecoderFactory.get.jsonDecoder(schema, is),
+      configuration = configuration,
+      schema = schema,
+      path = path,
+      chunkSize = chunkSize)
 
   def binAvroS[F[_]](configuration: Configuration, schema: Schema, path: Path, chunkSize: ChunkSize)(implicit
     F: Sync[F]): Stream[F, GenericData.Record] =
-    inputStreamS[F](configuration, path).flatMap { is =>
-      val binDecoder: BinaryDecoder = DecoderFactory.get().binaryDecoder(is, null)
-      val datumReader: GenericDatumReader[GenericData.Record] =
-        new GenericDatumReader[GenericData.Record](schema)
-
-      def next: Option[GenericData.Record] = Try(datumReader.read(null, binDecoder)) match {
-        case Failure(exception) =>
-          exception match {
-            case _: java.io.EOFException => None
-            case err                     => throw err
-          }
-        case Success(value) => Some(value)
-      }
-
-      val iterator: Iterator[GenericData.Record] = Iterator.continually(next).takeWhile(_.nonEmpty).map(_.get)
-      Stream.fromIterator[F](iterator, chunkSize.value)
-    }
+    genericRecordReaderS[F](
+      getDecoder = is => DecoderFactory.get.binaryDecoder(is, null),
+      configuration = configuration,
+      schema = schema,
+      path = path,
+      chunkSize = chunkSize)
 }

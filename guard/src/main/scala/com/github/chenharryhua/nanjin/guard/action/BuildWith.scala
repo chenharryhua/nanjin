@@ -19,7 +19,7 @@ final class BuildWith[F[_]: Async, IN, OUT] private[action] (
     new BuildWith.Builder[F, IN, OUT](
       transInput = Reader((_: IN) => Json.Null),
       transOutput = Reader((_: (IN, OUT)) => Json.Null),
-      transError = Reader((_: IN) => Json.Null),
+      transError = Reader[(IN, Throwable), Json](_ => Json.Null),
       isWorthRetry = Reader((_: Throwable) => true)
     )
 
@@ -31,7 +31,7 @@ object BuildWith {
   final class Builder[F[_]: Async, IN, OUT] private[action] (
     transInput: Reader[IN, Json],
     transOutput: Reader[(IN, OUT), Json],
-    transError: Reader[IN, Json],
+    transError: Reader[(IN, Throwable), Json],
     isWorthRetry: Reader[Throwable, Boolean]
   ) {
     def tapInput(f: IN => Json): Builder[F, IN, OUT] =
@@ -44,15 +44,15 @@ object BuildWith {
     def tapOutput(f: (IN, OUT) => Json): Builder[F, IN, OUT] =
       new Builder[F, IN, OUT](
         transInput = transInput,
-        transOutput = Reader[(IN, OUT), Json](a => f(a._1, a._2)),
+        transOutput = Reader[(IN, OUT), Json](f.tupled),
         transError = transError,
         isWorthRetry = isWorthRetry)
 
-    def tapError(f: IN => Json): Builder[F, IN, OUT] =
+    def tapError(f: (IN, Throwable) => Json): Builder[F, IN, OUT] =
       new Builder[F, IN, OUT](
         transInput = transInput,
         transOutput = transOutput,
-        transError = Reader[IN, Json](f),
+        transError = Reader[(IN, Throwable), Json](f.tupled),
         isWorthRetry = isWorthRetry)
 
     def worthRetry(f: Throwable => Boolean): Builder[F, IN, OUT] =
