@@ -7,7 +7,7 @@ import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick, TickStatus}
 import fs2.{Chunk, Pipe, Stream}
 import io.circe.Json
-import io.circe.jawn.parse
+import io.circe.jackson.syntax.JacksonPrintingOps
 import org.apache.hadoop.conf.Configuration
 
 import java.time.ZoneId
@@ -17,7 +17,7 @@ final class HadoopCirce[F[_]] private (configuration: Configuration) {
   // read
 
   def source(path: NJPath, chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, Json] =
-    HadoopReader.stringS(configuration, path.hadoopPath, chunkSize).mapChunks(_.map(parse)).rethrow
+    HadoopReader.jawnJsonS[F](configuration, path.hadoopPath, chunkSize)
 
   def source(paths: List[NJPath], chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, Json] =
     paths.foldLeft(Stream.empty.covaryAll[F, Json]) { case (s, p) => s ++ source(p, chunkSize) }
@@ -26,7 +26,7 @@ final class HadoopCirce[F[_]] private (configuration: Configuration) {
 
   def sink(path: NJPath)(implicit F: Sync[F]): Pipe[F, Json, Int] = { (ss: Stream[F, Json]) =>
     Stream.resource(HadoopWriter.stringR[F](configuration, path.hadoopPath)).flatMap { w =>
-      ss.chunks.evalMap(c => w.write(c.map(_.noSpaces)).as(c.size))
+      ss.chunks.evalMap(c => w.write(c.map(_.jacksonPrint)).as(c.size))
     }
   }
 

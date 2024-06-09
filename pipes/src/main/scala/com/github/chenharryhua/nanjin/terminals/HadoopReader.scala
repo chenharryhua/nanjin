@@ -6,20 +6,23 @@ import cats.effect.kernel.Sync
 import com.github.chenharryhua.nanjin.common.ChunkSize
 import fs2.Stream
 import fs2.io.readInputStream
+import io.circe.Json
+import io.circe.jawn.CirceSupportParser.facade
 import org.apache.avro.Schema
 import org.apache.avro.file.DataFileStream
 import org.apache.avro.generic.{GenericData, GenericDatumReader}
 import org.apache.avro.io.{Decoder, DecoderFactory}
-import org.apache.commons.io.IOUtils
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.io.compress.{CompressionCodecFactory, CompressionInputStream, PassthroughCodec}
 import org.apache.parquet.hadoop.ParquetReader
 import org.apache.parquet.hadoop.util.HadoopInputFile
 import org.apache.parquet.io.SeekableInputStream
+import org.typelevel.jawn.AsyncParser
 import squants.information.Information
 
-import java.io.InputStream
+import java.io.{BufferedReader, InputStream, InputStreamReader}
+import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
 import scala.jdk.CollectionConverters.IteratorHasAsScala
 
@@ -66,7 +69,35 @@ private object HadoopReader {
   def stringS[F[_]](configuration: Configuration, path: Path, chunkSize: ChunkSize)(implicit
     F: Sync[F]): Stream[F, String] =
     inputStreamS[F](configuration, path).flatMap { is =>
-      val iterator: Iterator[String] = IOUtils.lineIterator(is, StandardCharsets.UTF_8).asScala
+      val iterator: Iterator[String] =
+        new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8)).lines().iterator().asScala
+      Stream.fromBlockingIterator[F](iterator, chunkSize.value)
+    }
+
+  def jawnJsonS[F[_]](configuration: Configuration, path: Path, chunkSize: ChunkSize)(implicit
+    F: Sync[F]): Stream[F, Json] =
+    inputStreamS[F](configuration, path).flatMap { is =>
+      val bufferSize: Int     = 131072 // align with AsyncParser
+      val buffer: Array[Byte] = Array.ofDim[Byte](bufferSize)
+
+      val iterator: Iterator[Json] =
+        Iterator
+          .unfold((AsyncParser[Json](AsyncParser.ValueStream), 0)) { case (statefulParser, offset) =>
+            val numBytes = is.read(buffer, offset, bufferSize - offset)
+            if (numBytes == -1) None // end of input stream
+            else {
+              statefulParser.absorb(ByteBuffer.wrap(buffer, offset, numBytes)) match {
+                case Left(ex) => throw ex
+                case Right(jsonSeq) =>
+                  if (offset + numBytes == bufferSize)
+                    Some((jsonSeq, (statefulParser, 0)))
+                  else
+                    Some((jsonSeq, (statefulParser, offset + numBytes)))
+              }
+            }
+          }
+          .flatten
+
       Stream.fromBlockingIterator[F](iterator, chunkSize.value)
     }
 
