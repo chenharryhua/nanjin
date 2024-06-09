@@ -13,7 +13,7 @@ import org.apache.avro.io.{Decoder, DecoderFactory}
 import org.apache.commons.io.IOUtils
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.Path
-import org.apache.hadoop.io.compress.CompressionCodecFactory
+import org.apache.hadoop.io.compress.{CompressionCodecFactory, CompressionInputStream, PassthroughCodec}
 import org.apache.parquet.hadoop.ParquetReader
 import org.apache.parquet.hadoop.util.HadoopInputFile
 import org.apache.parquet.io.SeekableInputStream
@@ -41,20 +41,20 @@ private object HadoopReader {
       F.blocking[ParquetReader[GenericData.Record]](readBuilder.run(path).build())
     }(r => F.blocking(r.close()))
 
-  private def fileInputStream(path: Path, configuration: Configuration): InputStream = {
-    val is: SeekableInputStream = HadoopInputFile.fromPath(path, configuration).newStream()
+  private def fileInputStream(path: Path, configuration: Configuration): CompressionInputStream = {
+    val sis: SeekableInputStream = HadoopInputFile.fromPath(path, configuration).newStream()
     Option(new CompressionCodecFactory(configuration).getCodec(path)) match {
-      case Some(cc) => cc.createInputStream(is)
-      case None     => IOUtils.buffer(is)
+      case Some(cc) => cc.createInputStream(sis)
+      case None     => new PassthroughCodec().createInputStream(sis)
     }
   }
 
   def inputStreamR[F[_]](configuration: Configuration, path: Path)(implicit
-    F: Sync[F]): Resource[F, InputStream] =
+    F: Sync[F]): Resource[F, CompressionInputStream] =
     Resource.make(F.blocking(fileInputStream(path, configuration)))(r => F.blocking(r.close()))
 
   def inputStreamS[F[_]](configuration: Configuration, path: Path)(implicit
-    F: Sync[F]): Stream[F, InputStream] = Stream.resource(inputStreamR(configuration, path))
+    F: Sync[F]): Stream[F, CompressionInputStream] = Stream.resource(inputStreamR(configuration, path))
 
   def byteS[F[_]](configuration: Configuration, bufferSize: Information, path: Path)(implicit
     F: Sync[F]): Stream[F, Byte] =
@@ -67,7 +67,7 @@ private object HadoopReader {
     F: Sync[F]): Stream[F, String] =
     inputStreamS[F](configuration, path).flatMap { is =>
       val iterator: Iterator[String] = IOUtils.lineIterator(is, StandardCharsets.UTF_8).asScala
-      Stream.fromBlockingIterator(iterator, chunkSize.value)
+      Stream.fromBlockingIterator[F](iterator, chunkSize.value)
     }
 
   private def genericRecordReaderS[F[_]](
