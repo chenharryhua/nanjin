@@ -14,7 +14,6 @@ import kantan.csv.engine.WriterEngine
 import java.io.StringWriter
 
 package object terminals {
-  @inline final val NEWLINE_SEPARATOR: String = "\r\n"
 
   type NJCompressionLevel = Int Refined Closed[1, 9]
   object NJCompressionLevel extends RefinedTypeOps[NJCompressionLevel, Int] with CatsRefinedTypeOpsSyntax
@@ -73,7 +72,7 @@ package object terminals {
   def csvHeader(csvConfiguration: CsvConfiguration): Chunk[String] =
     csvConfiguration.header match {
       case Header.None             => Chunk.empty
-      case Header.Implicit         => Chunk.singleton("no header was explicitly provided" + NEWLINE_SEPARATOR)
+      case Header.Implicit         => Chunk.singleton("no header was explicitly provided\r\n") // csv use CRLF
       case Header.Explicit(header) => Chunk.singleton(csvRow(csvConfiguration)(header))
     }
 }

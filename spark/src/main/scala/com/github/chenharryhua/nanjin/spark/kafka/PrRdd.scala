@@ -56,6 +56,6 @@ final class PrRdd[K, V] private[kafka] (
     Stream.fromBlockingIterator[F](rdd.toLocalIterator, chunkSize.value)
 
   def producerRecords[F[_]](chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, ProducerRecords[K, V]] =
-    Stream.fromBlockingIterator(rdd.toLocalIterator.map(_.toProducerRecord), chunkSize.value).chunks
+    Stream.fromBlockingIterator[F](rdd.toLocalIterator.map(_.toProducerRecord), chunkSize.value).chunks
 
 }

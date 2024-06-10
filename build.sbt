@@ -17,7 +17,7 @@ val parquetV    = "1.14.0"
 val circeV      = "0.14.7"
 val jacksonV    = "2.17.1"
 val kantanV     = "0.7.0"
-val metricsV    = "4.2.25"
+val metricsV    = "4.2.26"
 val skunkV      = "0.6.4"
 val doobieV     = "1.0.0-RC5"
 val natchezV    = "0.3.5"
@@ -417,9 +417,10 @@ lazy val pipes = (project in file("pipes"))
   .settings(name := "nj-pipes")
   .settings {
     val libs = List(
-      "software.amazon.awssdk" % "bundle"    % awsV,
-      "org.tukaani"            % "xz"        % "1.9",
-      "org.apache.zookeeper"   % "zookeeper" % "3.9.2" // snyk
+      "io.circe" %% "circe-jackson210" % "0.14.0",
+      "software.amazon.awssdk"         % "bundle"    % awsV,
+      "org.tukaani"                    % "xz"        % "1.9",
+      "org.apache.zookeeper"           % "zookeeper" % "3.9.2" // snyk
     ) ++ kantanLib ++ serdeLib ++ hadoopLib ++ testLib
     libraryDependencies ++= libs.map(_.exclude("org.codehaus.jackson", "jackson-mapper-asl")) // snyk
   }

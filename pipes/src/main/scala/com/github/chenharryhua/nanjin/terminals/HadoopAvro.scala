@@ -32,7 +32,7 @@ final class HadoopAvro[F[_]] private (
   def source(path: NJPath, chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, GenericData.Record] =
     for {
       dfs <- Stream.resource(HadoopReader.avroR(configuration, schema, path.hadoopPath))
-      gr <- Stream.fromBlockingIterator(dfs.iterator().asScala, chunkSize.value)
+      gr <- Stream.fromBlockingIterator[F](dfs.iterator().asScala, chunkSize.value)
     } yield gr
 
   def source(paths: List[NJPath], chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, GenericData.Record] =

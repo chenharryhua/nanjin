@@ -7,9 +7,10 @@ import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick, T
 import fs2.{Chunk, Pipe, Stream}
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.Path
+import org.apache.hadoop.io.compress.CompressionInputStream
 import squants.information.Information
 
-import java.io.{InputStream, OutputStream}
+import java.io.OutputStream
 import java.time.ZoneId
 
 final class HadoopBytes[F[_]] private (configuration: Configuration) {
@@ -20,7 +21,7 @@ final class HadoopBytes[F[_]] private (configuration: Configuration) {
   def source(paths: List[NJPath], bufferSize: Information)(implicit F: Sync[F]): Stream[F, Byte] =
     paths.foldLeft(Stream.empty.covaryAll[F, Byte]) { case (s, p) => s ++ source(p, bufferSize) }
 
-  def inputStream(path: NJPath)(implicit F: Sync[F]): Resource[F, InputStream] =
+  def inputStream(path: NJPath)(implicit F: Sync[F]): Resource[F, CompressionInputStream] =
     HadoopReader.inputStreamR[F](configuration, path.hadoopPath)
 
   def outputStream(path: NJPath)(implicit F: Sync[F]): Resource[F, OutputStream] =
@@ -35,7 +36,6 @@ final class HadoopBytes[F[_]] private (configuration: Configuration) {
     Stream.resource(get_writerR(path.hadoopPath)).flatMap(w => ss.chunks.evalMap(c => w.write(c).as(c.size)))
   }
 
-  // save
   def sink(policy: Policy, zoneId: ZoneId)(pathBuilder: Tick => NJPath)(implicit
     F: Async[F]): Pipe[F, Byte, Int] = {
     def getWriter(tick: Tick): Resource[F, HadoopWriter[F, Byte]] =

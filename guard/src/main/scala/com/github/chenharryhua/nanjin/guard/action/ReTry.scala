@@ -163,14 +163,19 @@ final private class ReTry[F[_]: Async, IN, OUT] private (
     F.onCancel(go, F.defer(send_failure(None, in, ActionCancelException)))
   }
 
-  val kleisli: Kleisli[F, IN, OUT] = Kleisli(actionParams.publishStrategy match {
-    case PublishStrategy.Bipartite  => bipartite
-    case PublishStrategy.Unipartite => unipartite
+  val kleisli: Kleisli[F, IN, OUT] = {
+    val choose: IN => F[OUT] =
+      actionParams.publishStrategy match {
+        case PublishStrategy.Bipartite  => bipartite
+        case PublishStrategy.Unipartite => unipartite
 
-    case PublishStrategy.Silent if actionParams.isTiming   => silent_time
-    case PublishStrategy.Silent if actionParams.isCounting => silent_count
-    case PublishStrategy.Silent                            => silent
-  })
+        case PublishStrategy.Silent if actionParams.isTiming   => silent_time
+        case PublishStrategy.Silent if actionParams.isCounting => silent_count
+        case PublishStrategy.Silent                            => silent
+      }
+
+    Kleisli[F, IN, OUT](choose)
+  }
 
   val unregister: F[Unit] = F.delay(measures.unregister())
 }

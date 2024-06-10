@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin.pipes
 
 import cats.effect.kernel.Async
-import com.github.chenharryhua.nanjin.terminals.NEWLINE_SEPARATOR
 import fs2.io.toInputStream
 import fs2.{Chunk, Pipe, Pull, Stream}
 import org.apache.avro.Schema
@@ -23,7 +22,7 @@ object JacksonSerde {
         encoder.flush()
         baos.close()
         baos.toByteArray
-      }.intersperse(NEWLINE_SEPARATOR.getBytes(StandardCharsets.ISO_8859_1)) // JsonEncoder use ISO_8859_1
+      }.intersperse(System.lineSeparator().getBytes(StandardCharsets.ISO_8859_1)) // JsonEncoder use ISO_8859_1
         .flatMap(ba => Stream.chunk(Chunk.from(ba.toVector)))
   }
 

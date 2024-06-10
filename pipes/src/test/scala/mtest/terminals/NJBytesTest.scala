@@ -3,7 +3,7 @@ package mtest.terminals
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.chrono.policies
-import com.github.chenharryhua.nanjin.terminals.{NEWLINE_SEPARATOR, NJPath}
+import com.github.chenharryhua.nanjin.terminals.NJPath
 import eu.timepit.refined.auto.*
 import fs2.Stream
 import fs2.text.{lines, utf8}
@@ -29,7 +29,7 @@ class NJBytesTest extends AnyFunSuite {
     val src  = hdp.bytes.source(path, bufferSize)
     val action = ts
       .map(_.asJson.noSpaces)
-      .intersperse(NEWLINE_SEPARATOR)
+      .intersperse(System.lineSeparator())
       .through(utf8.encode)
       .through(sink)
       .compile
@@ -89,7 +89,7 @@ class NJBytesTest extends AnyFunSuite {
       .covary[IO]
       .repeatN(number)
       .map(_.asJson.noSpaces)
-      .intersperse(NEWLINE_SEPARATOR)
+      .intersperse(System.lineSeparator())
       .through(utf8.encode)
       .through(sink)
       .compile
