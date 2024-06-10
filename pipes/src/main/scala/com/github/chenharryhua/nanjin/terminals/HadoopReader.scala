@@ -4,8 +4,7 @@ import cats.data.Reader
 import cats.effect.Resource
 import cats.effect.kernel.Sync
 import com.github.chenharryhua.nanjin.common.ChunkSize
-import fs2.Stream
-import fs2.io.readInputStream
+import fs2.{Chunk, Stream}
 import io.circe.Json
 import io.circe.jawn.CirceSupportParser.facade
 import org.apache.avro.Schema
@@ -19,7 +18,6 @@ import org.apache.parquet.hadoop.ParquetReader
 import org.apache.parquet.hadoop.util.HadoopInputFile
 import org.apache.parquet.io.SeekableInputStream
 import org.typelevel.jawn.AsyncParser
-import squants.information.Information
 
 import java.io.{BufferedReader, InputStream, InputStreamReader}
 import java.nio.ByteBuffer
@@ -52,19 +50,36 @@ private object HadoopReader {
     }
   }
 
-  def inputStreamR[F[_]](configuration: Configuration, path: Path)(implicit
+  private def inputStreamR[F[_]](configuration: Configuration, path: Path)(implicit
     F: Sync[F]): Resource[F, CompressionInputStream] =
     Resource.make(F.blocking(fileInputStream(path, configuration)))(r => F.blocking(r.close()))
 
   def inputStreamS[F[_]](configuration: Configuration, path: Path)(implicit
     F: Sync[F]): Stream[F, CompressionInputStream] = Stream.resource(inputStreamR(configuration, path))
 
-  def byteS[F[_]](configuration: Configuration, bufferSize: Information, path: Path)(implicit
+  def byteS[F[_]](configuration: Configuration, chunkSize: ChunkSize, path: Path)(implicit
     F: Sync[F]): Stream[F, Byte] =
-    readInputStream[F](
-      fis = F.blocking(fileInputStream(path, configuration)),
-      chunkSize = bufferSize.toBytes.toInt,
-      closeAfterUse = true)
+    inputStreamS[F](configuration, path).flatMap { is =>
+      val bufferSize: Int     = chunkSize.value
+      val buffer: Array[Byte] = Array.ofDim[Byte](bufferSize)
+
+      val iterator: Iterator[Byte] =
+        Iterator
+          .unfold(0) { offset =>
+            val numBytes: Int = is.read(buffer, offset, bufferSize - offset)
+            if (numBytes == -1) None // end of input stream
+            else {
+              val ab: Array[Byte] = Chunk.array(buffer, offset, numBytes).toArray
+              if (offset + numBytes == bufferSize)
+                Some((ab, 0))
+              else
+                Some((ab, offset + numBytes))
+            }
+          }
+          .flatten
+
+      Stream.fromBlockingIterator[F](iterator, chunkSize.value)
+    }
 
   def stringS[F[_]](configuration: Configuration, path: Path, chunkSize: ChunkSize)(implicit
     F: Sync[F]): Stream[F, String] =

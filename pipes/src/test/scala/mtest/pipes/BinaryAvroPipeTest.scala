@@ -9,14 +9,13 @@ import eu.timepit.refined.auto.*
 import fs2.Stream
 import org.apache.hadoop.conf.Configuration
 import org.scalatest.funsuite.AnyFunSuite
-import squants.information.InformationConversions.InformationConversions
 
 class BinaryAvroPipeTest extends AnyFunSuite {
   import mtest.terminals.TestData.*
   val encoder: ToRecord[Tiger] = ToRecord[Tiger](Tiger.avroEncoder)
   val data: Stream[IO, Tiger]  = Stream.emits(tigers)
-  val hd                       = NJHadoop[IO](new Configuration)
-  val root                     = NJPath("./data/test/pipes/bin_avro/")
+  val hdp: NJHadoop[IO] = NJHadoop[IO](new Configuration)
+  val root: NJPath = NJPath("./data/test/pipes/bin_avro/")
   test("binary-json identity") {
 
     assert(
@@ -49,15 +48,15 @@ class BinaryAvroPipeTest extends AnyFunSuite {
 
   test("write/read identity") {
     val path = root / "bin-avro.avro"
-    hd.delete(path).unsafeRunSync()
+    hdp.delete(path).unsafeRunSync()
     val write =
       data
         .map(encoder.to)
         .through(BinaryAvroSerde.toBytes[IO](AvroSchema[Tiger]))
-        .through(hd.bytes.sink(path))
+        .through(hdp.bytes.sink(path))
     val read =
-      hd.bytes
-        .source(path, 1.kb)
+      hdp.bytes
+        .source(path, 100)
         .through(BinaryAvroSerde.fromBytes[IO](AvroSchema[Tiger]))
         .map(Tiger.avroDecoder.decode)
     val run = write.compile.drain >> read.compile.toList
