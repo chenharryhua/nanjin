@@ -4,7 +4,7 @@ import cats.data.Reader
 import cats.effect.Resource
 import cats.effect.kernel.Sync
 import com.github.chenharryhua.nanjin.common.ChunkSize
-import fs2.{Chunk, Stream}
+import fs2.Stream
 import io.circe.Json
 import io.circe.jawn.CirceSupportParser.facade
 import org.apache.avro.Schema
@@ -20,7 +20,6 @@ import org.apache.parquet.io.SeekableInputStream
 import org.typelevel.jawn.AsyncParser
 
 import java.io.{BufferedReader, InputStream, InputStreamReader}
-import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
 import scala.jdk.CollectionConverters.IteratorHasAsScala
 
@@ -69,7 +68,7 @@ private object HadoopReader {
             val numBytes: Int = is.read(buffer, offset, bufferSize - offset)
             if (numBytes == -1) None // end of input stream
             else {
-              val ab: Array[Byte] = Chunk.array(buffer, offset, numBytes).toArray
+              val ab: Array[Byte] = buffer.slice(offset, offset + numBytes)
               if (offset + numBytes == bufferSize)
                 Some((ab, 0))
               else
@@ -101,7 +100,7 @@ private object HadoopReader {
             val numBytes: Int = is.read(buffer, offset, bufferSize - offset)
             if (numBytes == -1) None // end of input stream
             else {
-              statefulParser.absorb(ByteBuffer.wrap(buffer, offset, numBytes)) match {
+              statefulParser.absorb(buffer.slice(offset, offset + numBytes)) match {
                 case Left(ex) => throw ex
                 case Right(jsonSeq) =>
                   if (offset + numBytes == bufferSize)
