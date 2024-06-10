@@ -36,7 +36,6 @@ final class HadoopBytes[F[_]] private (configuration: Configuration) {
     Stream.resource(get_writerR(path.hadoopPath)).flatMap(w => ss.chunks.evalMap(c => w.write(c).as(c.size)))
   }
 
-  // save
   def sink(policy: Policy, zoneId: ZoneId)(pathBuilder: Tick => NJPath)(implicit
     F: Async[F]): Pipe[F, Byte, Int] = {
     def getWriter(tick: Tick): Resource[F, HadoopWriter[F, Byte]] =

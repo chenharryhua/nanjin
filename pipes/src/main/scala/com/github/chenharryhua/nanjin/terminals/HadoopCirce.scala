@@ -7,7 +7,6 @@ import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick, TickStatus}
 import fs2.{Chunk, Pipe, Stream}
 import io.circe.Json
-import io.circe.jackson.syntax.JacksonPrintingOps
 import org.apache.hadoop.conf.Configuration
 
 import java.time.ZoneId
@@ -26,7 +25,7 @@ final class HadoopCirce[F[_]] private (configuration: Configuration) {
 
   def sink(path: NJPath)(implicit F: Sync[F]): Pipe[F, Json, Int] = { (ss: Stream[F, Json]) =>
     Stream.resource(HadoopWriter.stringR[F](configuration, path.hadoopPath)).flatMap { w =>
-      ss.chunks.evalMap(c => w.write(c.map(_.jacksonPrint)).as(c.size))
+      ss.chunks.evalMap(c => w.write(c.map(_.noSpaces)).as(c.size))
     }
   }
 

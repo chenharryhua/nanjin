@@ -83,7 +83,7 @@ private object HadoopReader {
       val iterator: Iterator[Json] =
         Iterator
           .unfold((AsyncParser[Json](AsyncParser.ValueStream), 0)) { case (statefulParser, offset) =>
-            val numBytes = is.read(buffer, offset, bufferSize - offset)
+            val numBytes: Int = is.read(buffer, offset, bufferSize - offset)
             if (numBytes == -1) None // end of input stream
             else {
               statefulParser.absorb(ByteBuffer.wrap(buffer, offset, numBytes)) match {

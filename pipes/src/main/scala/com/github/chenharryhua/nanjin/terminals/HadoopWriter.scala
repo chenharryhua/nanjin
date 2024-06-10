@@ -105,7 +105,7 @@ private object HadoopWriter {
             }
         })
 
-  private def genericRecordWriter[F[_]](
+  private def genericRecordWriterR[F[_]](
     getEncoder: OutputStream => Encoder,
     configuration: Configuration,
     schema: Schema,
@@ -124,7 +124,7 @@ private object HadoopWriter {
 
   def jacksonR[F[_]](configuration: Configuration, schema: Schema, path: Path)(implicit
     F: Sync[F]): Resource[F, HadoopWriter[F, GenericRecord]] =
-    genericRecordWriter[F](
+    genericRecordWriterR[F](
       (os: OutputStream) => EncoderFactory.get().jsonEncoder(schema, os),
       configuration,
       schema,
@@ -132,7 +132,7 @@ private object HadoopWriter {
 
   def binAvroR[F[_]](configuration: Configuration, schema: Schema, path: Path)(implicit
     F: Sync[F]): Resource[F, HadoopWriter[F, GenericRecord]] =
-    genericRecordWriter[F](
+    genericRecordWriterR[F](
       (os: OutputStream) => EncoderFactory.get().binaryEncoder(os, null),
       configuration,
       schema,
