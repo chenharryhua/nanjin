@@ -93,7 +93,7 @@ private[spark] object saveRDD {
     compressionConfig.set(config, compression)
     // run
     rdd
-      .map(x => (NullWritable.get(), new Text(encode(x).noSpaces + NEWLINE_SEPARATOR)))
+      .map(x => (NullWritable.get(), new Text(encode(x).noSpaces.concat(System.lineSeparator()))))
       .saveAsNewAPIHadoopFile(
         path.pathStr,
         classOf[NullWritable],
@@ -150,7 +150,7 @@ private[spark] object saveRDD {
     compressionConfig.set(config, compression)
     // run
     rdd
-      .map(a => (NullWritable.get(), new Text(a.show.concat(NEWLINE_SEPARATOR))))
+      .map(a => (NullWritable.get(), new Text(a.show.concat(System.lineSeparator()))))
       .saveAsNewAPIHadoopFile(
         path.pathStr,
         classOf[NullWritable],
