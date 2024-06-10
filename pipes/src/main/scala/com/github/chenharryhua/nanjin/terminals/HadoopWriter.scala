@@ -2,6 +2,9 @@ package com.github.chenharryhua.nanjin.terminals
 
 import cats.data.Reader
 import cats.effect.kernel.{Resource, Sync}
+import com.fasterxml.jackson.core.{JsonFactory, JsonGenerator}
+import com.fasterxml.jackson.core.util.MinimalPrettyPrinter
+import com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
 import fs2.Chunk
 import org.apache.avro.Schema
 import org.apache.avro.file.{CodecFactory, DataFileWriter}
@@ -104,6 +107,23 @@ private object HadoopWriter {
               pw.flush()
             }
         })
+
+  def jsonNodeR[F[_]](configuration: Configuration, path: Path, mapper: ObjectMapper)(implicit
+    F: Sync[F]): Resource[F, HadoopWriter[F, JsonNode]] =
+    outputStreamR(path, configuration).map { os =>
+      val generator: JsonGenerator  = new JsonFactory().createGenerator(os)
+      val mpp: MinimalPrettyPrinter = new MinimalPrettyPrinter()
+      mpp.setRootValueSeparator(System.lineSeparator())
+      generator.setPrettyPrinter(mpp)
+      generator.setCodec(mapper)
+      new HadoopWriter[F, JsonNode] {
+        override def write(cjn: Chunk[JsonNode]): F[Unit] =
+          F.blocking {
+            cjn.foreach(generator.writeTree)
+            os.flush()
+          }
+      }
+    }
 
   private def genericRecordWriterR[F[_]](
     getEncoder: OutputStream => Encoder,
