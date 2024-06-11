@@ -32,10 +32,10 @@ final class NJMeter[F[_]: Sync] private (
       counter.inc(num)
     } else (num: Long) => meter.mark(num)
 
-  def unsafeMark(num: Long): Unit = calculate(num)
-  def mark(num: Long): F[Unit]    = F.delay(calculate(num))
+  def unsafeUpdate(num: Long): Unit = calculate(num)
+  def update(num: Long): F[Unit]    = F.delay(calculate(num))
 
-  def kleisli[A](f: A => Long): Kleisli[F, A, Unit] = Kleisli(mark).local(f)
+  def kleisli[A](f: A => Long): Kleisli[F, A, Unit] = Kleisli(update).local(f)
 
   private val unregister: F[Unit] = F.delay {
     metricRegistry.remove(meter_name)

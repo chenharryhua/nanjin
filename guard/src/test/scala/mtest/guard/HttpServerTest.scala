@@ -47,7 +47,7 @@ class HttpServerTest extends AnyFunSuite {
             _ <- ag.gauge("a").register(1)
             _ <- ag.counter("a").evalMap(_.inc(1))
             _ <- ag.histogram("a", _.withUnit(_.BYTES)).evalMap(_.update(1))
-            _ <- ag.meter("a", _.withUnit(_.MEGABYTES)).evalMap(_.mark(1))
+            _ <- ag.meter("a", _.withUnit(_.MEGABYTES)).evalMap(_.update(1))
           } yield ()
 
           m.surround(ag.metrics.report >> IO.sleep(10.hours))

@@ -282,7 +282,7 @@ class PerformanceTest extends AnyFunSuite {
     var i = 0
     print("meter: ")
     service.eventStream { ag =>
-      ag.meter("meter").use(_.mark(1).map(_ => i += 1).foreverM.timeout(take).attempt)
+      ag.meter("meter").use(_.update(1).map(_ => i += 1).foreverM.timeout(take).attempt)
     }.compile.drain.unsafeRunSync()
     println(speed(i))
   }
@@ -291,7 +291,7 @@ class PerformanceTest extends AnyFunSuite {
     var i = 0
     print("meter.count: ")
     service.eventStream { ag =>
-      ag.meter("meter", _.counted).use(_.mark(1).map(_ => i += 1).foreverM.timeout(take).attempt)
+      ag.meter("meter", _.counted).use(_.update(1).map(_ => i += 1).foreverM.timeout(take).attempt)
     }.compile.drain.unsafeRunSync()
     println(speed(i))
   }

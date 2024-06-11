@@ -26,7 +26,7 @@ class BinAvroTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
     val path = root / "single" / file.fileName
     val sink = bin_avro.sink(path)
     write(path.uri.getPath).use { meter =>
-      data.evalTap(_ => meter.mark(1)).map(encoder.to).through(sink).compile.drain.as(path)
+      data.evalTap(_ => meter.update(1)).map(encoder.to).through(sink).compile.drain.as(path)
     }
   }
 
@@ -34,7 +34,7 @@ class BinAvroTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
     val path = root / "rotate" / file.fileName
     val sink = bin_avro.sink(policy, mumbaiTime)(t => path / file.fileName(t))
     write(path.uri.getPath).use { meter =>
-      data.evalTap(_ => meter.mark(1)).map(encoder.to).through(sink).compile.drain.as(path)
+      data.evalTap(_ => meter.update(1)).map(encoder.to).through(sink).compile.drain.as(path)
     }
   }
 
@@ -44,7 +44,7 @@ class BinAvroTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
     write(path.uri.getPath).use { meter =>
       table
         .stream[IO](1000)
-        .evalTap(_ => meter.mark(1))
+        .evalTap(_ => meter.update(1))
         .map(encoder.to)
         .through(sink)
         .compile
@@ -59,7 +59,7 @@ class BinAvroTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
     write(path.uri.getPath).use { meter =>
       table
         .stream[IO](1000)
-        .evalTap(_ => meter.mark(1))
+        .evalTap(_ => meter.update(1))
         .map(encoder.to)
         .through(sink)
         .compile
@@ -81,14 +81,14 @@ class BinAvroTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
     read(path.uri.getPath).use { meter =>
       hadoop
         .filesIn(path)
-        .flatMap(bin_avro.source(_, 100).map(decoder.from).evalTap(_ => meter.mark(1)).compile.fold(0L) {
+        .flatMap(bin_avro.source(_, 100).map(decoder.from).evalTap(_ => meter.update(1)).compile.fold(0L) {
           case (s, _) => s + 1
         })
     }
 
   private def singleRead(path: NJPath): IO[Long] =
     read(path.uri.getPath).use { meter =>
-      bin_avro.source(path, 100).map(decoder.from).evalTap(_ => meter.mark(1)).compile.fold(0L) {
+      bin_avro.source(path, 100).map(decoder.from).evalTap(_ => meter.update(1)).compile.fold(0L) {
         case (s, _) =>
           s + 1
       }

@@ -28,7 +28,7 @@ class CirceTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
     val path = root / "single" / file.fileName
     val sink = circe.sink(path)
     write(path.uri.getPath).use { meter =>
-      data.evalTap(_ => meter.mark(1)).map(_.asJson).through(sink).compile.drain.as(path)
+      data.evalTap(_ => meter.update(1)).map(_.asJson).through(sink).compile.drain.as(path)
     }
   }
 
@@ -36,7 +36,7 @@ class CirceTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
     val path = root / "rotate" / file.fileName
     val sink = circe.sink(policy, berlinTime)(t => path / file.fileName(t))
     write(path.uri.getPath).use { meter =>
-      data.evalTap(_ => meter.mark(1)).map(_.asJson).through(sink).compile.drain.as(path)
+      data.evalTap(_ => meter.update(1)).map(_.asJson).through(sink).compile.drain.as(path)
     }
   }
 
@@ -44,7 +44,7 @@ class CirceTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
     val path = root / "spark" / "single" / file.fileName
     val sink = circe.sink(path)
     write(path.uri.getPath).use { meter =>
-      table.stream[IO](1000).evalTap(_ => meter.mark(1)).map(_.asJson).through(sink).compile.drain.as(path)
+      table.stream[IO](1000).evalTap(_ => meter.update(1)).map(_.asJson).through(sink).compile.drain.as(path)
     }
   }
 
@@ -57,7 +57,7 @@ class CirceTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
     val path = root / "spark" / "rotate" / file.fileName
     val sink = circe.sink(policy, londonTime)(t => path / file.fileName(t))
     write(path.uri.getPath).use { meter =>
-      table.stream[IO](1000).evalTap(_ => meter.mark(1)).map(_.asJson).through(sink).compile.drain.as(path)
+      table.stream[IO](1000).evalTap(_ => meter.update(1)).map(_.asJson).through(sink).compile.drain.as(path)
     }
   }
 
@@ -68,14 +68,14 @@ class CirceTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
     read(path.uri.getPath).use { meter =>
       hadoop
         .filesIn(path)
-        .flatMap(circe.source(_, 100).map(_.as[Tiger]).evalTap(_ => meter.mark(1)).compile.fold(0L) {
+        .flatMap(circe.source(_, 100).map(_.as[Tiger]).evalTap(_ => meter.update(1)).compile.fold(0L) {
           case (s, _) => s + 1
         })
     }
 
   private def singleRead(path: NJPath): IO[Long] =
     read(path.uri.getPath).use { meter =>
-      circe.source(path, 100).map(_.as[Tiger]).evalTap(_ => meter.mark(1)).compile.fold(0L) { case (s, _) =>
+      circe.source(path, 100).map(_.as[Tiger]).evalTap(_ => meter.update(1)).compile.fold(0L) { case (s, _) =>
         s + 1
       }
     }

@@ -32,7 +32,7 @@ class KantanTest(agent: Agent[IO], base: NJPath, rfc: CsvConfiguration) extends 
     val path = root / "single" / file.fileName
     val sink = kantan.sink(path)
     write(path.uri.getPath).use { meter =>
-      data.evalTap(_ => meter.mark(1)).map(rowEncoder.encode).through(sink).compile.drain.as(path)
+      data.evalTap(_ => meter.update(1)).map(rowEncoder.encode).through(sink).compile.drain.as(path)
     }
   }
 
@@ -40,7 +40,7 @@ class KantanTest(agent: Agent[IO], base: NJPath, rfc: CsvConfiguration) extends 
     val path = root / "rotate" / file.fileName
     val sink = kantan.sink(policy, darwinTime)(t => path / file.fileName(t))
     write(path.uri.getPath).use { meter =>
-      data.evalTap(_ => meter.mark(1)).map(rowEncoder.encode).through(sink).compile.drain.as(path)
+      data.evalTap(_ => meter.update(1)).map(rowEncoder.encode).through(sink).compile.drain.as(path)
     }
   }
 
@@ -50,7 +50,7 @@ class KantanTest(agent: Agent[IO], base: NJPath, rfc: CsvConfiguration) extends 
     write(path.uri.getPath).use { meter =>
       table
         .stream[IO](1000)
-        .evalTap(_ => meter.mark(1))
+        .evalTap(_ => meter.update(1))
         .map(rowEncoder.encode)
         .through(sink)
         .compile
@@ -71,7 +71,7 @@ class KantanTest(agent: Agent[IO], base: NJPath, rfc: CsvConfiguration) extends 
     write(path.uri.getPath).use { meter =>
       table
         .stream[IO](1000)
-        .evalTap(_ => meter.mark(1))
+        .evalTap(_ => meter.update(1))
         .map(rowEncoder.encode)
         .through(sink)
         .compile
@@ -92,7 +92,7 @@ class KantanTest(agent: Agent[IO], base: NJPath, rfc: CsvConfiguration) extends 
             .source(_, 1000)
             .map(rowDecoder.decode)
             .rethrow
-            .evalTap(_ => meter.mark(1))
+            .evalTap(_ => meter.update(1))
             .compile
             .fold(0L) { case (s, _) =>
               s + 1
@@ -105,7 +105,7 @@ class KantanTest(agent: Agent[IO], base: NJPath, rfc: CsvConfiguration) extends 
         .source(path, 1000)
         .map(rowDecoder.decode)
         .rethrow
-        .evalTap(_ => meter.mark(1))
+        .evalTap(_ => meter.update(1))
         .compile
         .fold(0L) { case (s, _) =>
           s + 1

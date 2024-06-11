@@ -40,7 +40,7 @@ class AwsObserverTest extends AnyFunSuite {
           histogram <- ag.histogram("nj histogram", _.withUnit(_.SECONDS).counted)
           alert <- ag.alert("nj alert")
           _ <- ag.gauge("nj gauge").register(box.get)
-        } yield meter.mark(1) >> action.run(()) >> counter.inc(1) >>
+        } yield meter.update(1) >> action.run(()) >> counter.inc(1) >>
           histogram.update(1) >> alert.info(1) >> ag.metrics.report
         env.use(identity)
       }

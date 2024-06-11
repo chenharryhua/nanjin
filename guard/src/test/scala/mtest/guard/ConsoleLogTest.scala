@@ -25,7 +25,7 @@ class ConsoleLogTest extends AnyFunSuite {
           _ <- ag.jvmGauge.garbageCollectors
           _ <- ag.jvmGauge.classloader
           _ <- ag.timer("job", _.counted).evalMap(_.update(10.second).replicateA(100))
-          _ <- ag.meter("job", _.withUnit(_.COUNT).counted).evalMap(_.mark(10000).replicateA(100))
+          _ <- ag.meter("job", _.withUnit(_.COUNT).counted).evalMap(_.update(10000).replicateA(100))
           _ <- ag.counter("job", _.asRisk).evalMap(_.inc(1000))
           _ <- ag.histogram("job", _.withUnit(_.BYTES).counted).evalMap(_.update(10000L).replicateA(100))
           _ <- ag.alert("job", _.counted).evalMap(_.error("alarm"))
