@@ -49,7 +49,7 @@ final class HadoopJackson[F[_]] private (configuration: Configuration, schema: S
         val ticks: Stream[F, Either[Chunk[GenericRecord], Tick]] = tickStream[F](zero).map(Right(_))
 
         Stream.resource(Hotswap(getWriter(zero.tick))).flatMap { case (hotswap, writer) =>
-          persist[F, GenericRecord](
+          periodically.persist[F, GenericRecord](
             getWriter,
             hotswap,
             writer,

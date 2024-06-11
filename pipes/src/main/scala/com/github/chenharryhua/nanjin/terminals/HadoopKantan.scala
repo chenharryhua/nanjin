@@ -92,7 +92,7 @@ final class HadoopKantan[F[_]] private (
           if (csvConfiguration.hasHeader) {
             val header: Chunk[String] = csvHeader(csvConfiguration)
             Stream.eval(writer.write(header)) >>
-              persistCsvWithHeader[F](
+              periodically.persist[F](
                 get_writer,
                 hotswap,
                 writer,
@@ -100,7 +100,7 @@ final class HadoopKantan[F[_]] private (
                 header
               ).stream
           } else {
-            persist[F, String](
+            periodically.persist[F, String](
               get_writer,
               hotswap,
               writer,

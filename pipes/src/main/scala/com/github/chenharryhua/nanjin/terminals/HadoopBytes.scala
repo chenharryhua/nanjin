@@ -46,7 +46,7 @@ final class HadoopBytes[F[_]] private (configuration: Configuration) {
         val ticks: Stream[F, Either[Chunk[Byte], Tick]] = tickStream[F](zero).map(Right(_))
 
         Stream.resource(Hotswap(getWriter(zero.tick))).flatMap { case (hotswap, writer) =>
-          persist[F, Byte](
+          periodically.persist[F, Byte](
             getWriter,
             hotswap,
             writer,
