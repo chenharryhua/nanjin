@@ -139,7 +139,7 @@ class SyntaxTest extends AnyFunSuite {
       val c = ga.gauge(name, _.withMeasurement(measurement)).register(IO(1))
       val d = ga.healthCheck(name, _.withMeasurement(measurement)).register(IO(true))
       val e = ga.histogram(name, _.withMeasurement(measurement)).evalMap(_.update(1))
-      val f = ga.meter(name, _.withMeasurement(measurement)).evalMap(_.mark(1))
+      val f = ga.meter(name, _.withMeasurement(measurement)).evalMap(_.update(1))
       val g = ga.timer(name, _.withMeasurement(measurement)).evalMap(_.update(1.second))
       (a |+| b |+| c |+| d |+| e |+| f |+| g).surround(ga.metrics.report)
     }.map(checkJson)
@@ -171,7 +171,7 @@ class SyntaxTest extends AnyFunSuite {
       val c = ga.gauge(name, gauge).register(IO(1))
       val d = ga.healthCheck(name, hc).register(IO(true))
       val e = ga.histogram(name, histogram).evalMap(_.update(1))
-      val f = ga.meter(name, meter).evalMap(_.mark(1))
+      val f = ga.meter(name, meter).evalMap(_.update(1))
       val g = ga.timer(name, timer).evalMap(_.update(1.second))
       (a |+| b |+| c |+| d |+| e |+| f |+| g).use_ >> ga.metrics.report
     }.map(checkJson).evalTap(console.text[IO]).compile.drain.unsafeRunSync()

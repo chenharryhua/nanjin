@@ -18,7 +18,7 @@ final class HadoopCirce[F[_]] private (configuration: Configuration) {
   // read
 
   def source(path: NJPath, chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, Json] =
-    HadoopReader.jawnJsonS[F](configuration, path.hadoopPath, chunkSize)
+    HadoopReader.jawnS[F](configuration, path.hadoopPath, chunkSize)
 
   def source(paths: List[NJPath], chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, Json] =
     paths.foldLeft(Stream.empty.covaryAll[F, Json]) { case (s, p) => s ++ source(p, chunkSize) }

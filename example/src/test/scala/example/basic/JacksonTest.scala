@@ -26,7 +26,7 @@ class JacksonTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
     val path = root / "single" / file.fileName
     val sink = jackson.sink(path)
     write(path.uri.getPath).use { meter =>
-      data.evalTap(_ => meter.mark(1)).map(encoder.to).through(sink).compile.drain.as(path)
+      data.evalTap(_ => meter.update(1)).map(encoder.to).through(sink).compile.drain.as(path)
     }
   }
 
@@ -34,7 +34,7 @@ class JacksonTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
     val path = root / "rotate" / file.fileName
     val sink = jackson.sink(policy, cairoTime)(t => path / file.fileName(t))
     write(path.uri.getPath).use { meter =>
-      data.evalTap(_ => meter.mark(1)).map(encoder.to).through(sink).compile.drain.as(path)
+      data.evalTap(_ => meter.update(1)).map(encoder.to).through(sink).compile.drain.as(path)
     }
   }
 
@@ -44,7 +44,7 @@ class JacksonTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
     write(path.uri.getPath).use { meter =>
       table
         .stream[IO](1000)
-        .evalTap(_ => meter.mark(1))
+        .evalTap(_ => meter.update(1))
         .map(encoder.to)
         .through(sink)
         .compile
@@ -65,7 +65,7 @@ class JacksonTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
     write(path.uri.getPath).use { meter =>
       table
         .stream[IO](1000)
-        .evalTap(_ => meter.mark(1))
+        .evalTap(_ => meter.update(1))
         .map(encoder.to)
         .through(sink)
         .compile
@@ -82,14 +82,14 @@ class JacksonTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
       hadoop
         .filesIn(path)
         .flatMap(
-          jackson.source(_, 100).map(decoder.from).evalTap(_ => meter.mark(1)).compile.fold(0L) {
+          jackson.source(_, 100).map(decoder.from).evalTap(_ => meter.update(1)).compile.fold(0L) {
             case (s, _) => s + 1
           })
     }
 
   private def singleRead(path: NJPath): IO[Long] =
     read(path.uri.getPath).use { meter =>
-      jackson.source(path, 100).map(decoder.from).evalTap(_ => meter.mark(1)).compile.fold(0L) {
+      jackson.source(path, 100).map(decoder.from).evalTap(_ => meter.update(1)).compile.fold(0L) {
         case (s, _) =>
           s + 1
       }

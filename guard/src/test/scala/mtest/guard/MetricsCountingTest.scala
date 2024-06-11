@@ -397,8 +397,8 @@ class MetricsCountingTest extends AnyFunSuite {
       .service("meter")
       .eventStream { ga =>
         ga.meter("counter").use { meter =>
-          meter.unsafeMark(1)
-          meter.mark(2) >> ga.metrics.report
+          meter.unsafeUpdate(1)
+          meter.update(2) >> ga.metrics.report
         }
       }
       .map(checkJson)

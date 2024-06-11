@@ -22,7 +22,9 @@ object JacksonSerde {
         encoder.flush()
         baos.close()
         baos.toByteArray
-      }.intersperse(System.lineSeparator().getBytes(StandardCharsets.ISO_8859_1)) // JsonEncoder use ISO_8859_1
+      }.intersperse(
+        System.lineSeparator().getBytes(StandardCharsets.ISO_8859_1)
+      ) // JsonEncoder use ISO_8859_1
         .flatMap(ba => Stream.chunk(Chunk.from(ba.toVector)))
   }
 

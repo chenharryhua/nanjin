@@ -9,6 +9,7 @@ import fs2.{Chunk, Pipe, Stream}
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.Path
 
+import java.io.{InputStream, OutputStream}
 import java.time.ZoneId
 
 final class HadoopBytes[F[_]] private (configuration: Configuration) {
@@ -18,6 +19,12 @@ final class HadoopBytes[F[_]] private (configuration: Configuration) {
 
   def source(paths: List[NJPath], chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, Byte] =
     paths.foldLeft(Stream.empty.covaryAll[F, Byte]) { case (s, p) => s ++ source(p, chunkSize) }
+
+  def inputStream(path: NJPath)(implicit F: Sync[F]): Resource[F, InputStream] =
+    HadoopReader.inputStreamR[F](configuration, path.hadoopPath)
+
+  def outputStream(path: NJPath)(implicit F: Sync[F]): Resource[F, OutputStream] =
+    HadoopWriter.outputStreamR[F](path.hadoopPath, configuration)
 
   // write
 

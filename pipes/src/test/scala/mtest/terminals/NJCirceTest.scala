@@ -2,12 +2,13 @@ package mtest.terminals
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import cats.implicits.toFunctorFilterOps
+import cats.implicits.{toFunctorFilterOps, toTraverseOps}
 import com.github.chenharryhua.nanjin.common.chrono.policies
 import com.github.chenharryhua.nanjin.terminals.*
 import com.github.chenharryhua.nanjin.terminals.NJCompression.*
 import eu.timepit.refined.auto.*
 import fs2.Stream
+import fs2.text.{lines, utf8}
 import io.circe.generic.auto.*
 import io.circe.syntax.EncoderOps
 import io.circe.{jawn, Json}
@@ -108,6 +109,20 @@ class NJCirceTest extends AnyFunSuite {
       Stream.eval(hdp.filesIn(path)).flatMap(json.source(_, 100)).compile.toList.map(_.size).unsafeRunSync()
     assert(size == number * TestData.tigerSet.toList.size)
     assert(processedSize == number * TestData.tigerSet.toList.size)
+
+    def countTiger(path: NJPath): IO[Int] = hdp.bytes
+      .source(path, 64)
+      .through(utf8.decode)
+      .through(lines)
+      .map(jawn.decode[Tiger])
+      .rethrow
+      .map(_ => 1)
+      .compile
+      .fold(0)(_ + _)
+
+    val num = hdp.filesIn(path).flatMap(_.traverse(countTiger)).unsafeRunSync().sum
+
+    assert(num == number * TestData.tigerSet.toList.size)
   }
 
   test("rotation - empty") {

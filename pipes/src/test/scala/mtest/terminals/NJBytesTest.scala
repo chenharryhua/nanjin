@@ -42,7 +42,6 @@ class NJBytesTest extends AnyFunSuite {
     fs2(fs2Root / "tiger.json", TestData.tigerSet)
   }
 
-
   test("gzip") {
     fs2(fs2Root / "tiger.json.gz", TestData.tigerSet)
   }

@@ -25,7 +25,7 @@ class AvroTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
     val path = root / "single" / file.fileName
     val sink = avro.withCompression(file.compression).sink(path)
     write(path.uri.getPath).use { meter =>
-      data.evalTap(_ => meter.mark(1)).map(encoder.to).through(sink).compile.drain.as(path)
+      data.evalTap(_ => meter.update(1)).map(encoder.to).through(sink).compile.drain.as(path)
     }
   }
 
@@ -33,7 +33,7 @@ class AvroTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
     val path = root / "rotate" / file.fileName
     val sink = avro.withCompression(file.compression).sink(policy, sydneyTime)(t => path / file.fileName(t))
     write(path.uri.getPath).use { meter =>
-      data.evalTap(_ => meter.mark(1)).map(encoder.to).through(sink).compile.drain.as(path)
+      data.evalTap(_ => meter.update(1)).map(encoder.to).through(sink).compile.drain.as(path)
     }
   }
 
@@ -43,7 +43,7 @@ class AvroTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
     write(path.uri.getPath).use { meter =>
       table
         .stream[IO](1000)
-        .evalTap(_ => meter.mark(1))
+        .evalTap(_ => meter.update(1))
         .map(encoder.to)
         .through(sink)
         .compile
@@ -63,7 +63,7 @@ class AvroTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
     write(path.uri.getPath).use { meter =>
       table
         .stream[IO](1000)
-        .evalTap(_ => meter.mark(1))
+        .evalTap(_ => meter.update(1))
         .map(encoder.to)
         .through(sink)
         .compile
@@ -79,14 +79,14 @@ class AvroTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
     read(path.uri.getPath).use { meter =>
       hadoop
         .filesIn(path)
-        .flatMap(avro.source(_, 1000).map(decoder.from).evalTap(_ => meter.mark(1)).compile.fold(0L) {
+        .flatMap(avro.source(_, 1000).map(decoder.from).evalTap(_ => meter.update(1)).compile.fold(0L) {
           case (s, _) => s + 1
         })
     }
 
   private def singleRead(path: NJPath): IO[Long] =
     read(path.uri.getPath).use { meter =>
-      avro.source(path, 1000).map(decoder.from).evalTap(_ => meter.mark(1)).compile.fold(0L) { case (s, _) =>
+      avro.source(path, 1000).map(decoder.from).evalTap(_ => meter.update(1)).compile.fold(0L) { case (s, _) =>
         s + 1
       }
     }
