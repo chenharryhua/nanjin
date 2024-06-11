@@ -7,7 +7,6 @@ import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick, TickStatus}
 import fs2.{Chunk, Pipe, Stream}
 import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.fs.Path
 
 import java.io.{InputStream, OutputStream}
 import java.time.ZoneId
@@ -28,30 +27,31 @@ final class HadoopBytes[F[_]] private (configuration: Configuration) {
 
   // write
 
-  private def get_writerR(path: Path)(implicit F: Sync[F]): Resource[F, HadoopWriter[F, Byte]] =
-    HadoopWriter.byteR[F](configuration, path)
-
   def sink(path: NJPath)(implicit F: Sync[F]): Pipe[F, Byte, Int] = { (ss: Stream[F, Byte]) =>
-    Stream.resource(get_writerR(path.hadoopPath)).flatMap(w => ss.chunks.evalMap(c => w.write(c).as(c.size)))
+    Stream
+      .resource(HadoopWriter.byteR[F](configuration, path.hadoopPath))
+      .flatMap(w => ss.chunks.evalMap(c => w.write(c).as(c.size)))
   }
 
   def sink(policy: Policy, zoneId: ZoneId)(pathBuilder: Tick => NJPath)(implicit
     F: Async[F]): Pipe[F, Byte, Int] = {
-    def getWriter(tick: Tick): Resource[F, HadoopWriter[F, Byte]] =
-      get_writerR(pathBuilder(tick).hadoopPath)
+    def get_writer(tick: Tick): Resource[F, HadoopWriter[F, Byte]] =
+      HadoopWriter.byteR[F](configuration, pathBuilder(tick).hadoopPath)
 
     // save
     (ss: Stream[F, Byte]) =>
       Stream.eval(TickStatus.zeroth[F](policy, zoneId)).flatMap { zero =>
         val ticks: Stream[F, Either[Chunk[Byte], Tick]] = tickStream[F](zero).map(Right(_))
 
-        Stream.resource(Hotswap(getWriter(zero.tick))).flatMap { case (hotswap, writer) =>
-          periodically.persist[F, Byte](
-            getWriter,
-            hotswap,
-            writer,
-            ss.chunks.map(Left(_)).mergeHaltBoth(ticks)
-          ).stream
+        Stream.resource(Hotswap(get_writer(zero.tick))).flatMap { case (hotswap, writer) =>
+          periodically
+            .persist[F, Byte](
+              get_writer,
+              hotswap,
+              writer,
+              ss.chunks.map(Left(_)).mergeHaltBoth(ticks)
+            )
+            .stream
         }
       }
   }
