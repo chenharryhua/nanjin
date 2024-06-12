@@ -3,8 +3,9 @@ package com.github.chenharryhua.nanjin.terminals
 import cats.data.Reader
 import cats.effect.Resource
 import cats.effect.kernel.Sync
+import cats.implicits.toFunctorOps
 import com.github.chenharryhua.nanjin.common.ChunkSize
-import fs2.Stream
+import fs2.{Chunk, Stream}
 import io.circe.Json
 import io.circe.jawn.CirceSupportParser.facade
 import org.apache.avro.Schema
@@ -64,27 +65,29 @@ private object HadoopReader {
       Stream.fromBlockingIterator[F](iterator, chunkSize.value)
     }
 
-  private val magicNumber: Int = 8192
-
   def byteS[F[_]](configuration: Configuration, chunkSize: ChunkSize, path: Path)(implicit
     F: Sync[F]): Stream[F, Byte] =
     inputStreamS[F](configuration, path).flatMap { is =>
-      val iterator: Iterator[Byte] = {
-        val bufferSize: Int     = magicNumber
-        val buffer: Array[Byte] = Array.ofDim[Byte](bufferSize)
-        Iterator.continually(is.read(buffer, 0, bufferSize)).takeWhile(_ != -1).flatMap { numBytes =>
-          if (numBytes == bufferSize) buffer else buffer.slice(0, numBytes)
+      val bufferSize: Int     = chunkSize.value
+      val buffer: Array[Byte] = Array.ofDim[Byte](bufferSize)
+
+      Stream.unfoldChunkEval[F, InputStream, Byte](is) { reader =>
+        F.blocking(reader.read(buffer, 0, bufferSize)).map { numBytes =>
+          if (numBytes == -1) None
+          else {
+            if (numBytes == bufferSize) Some((Chunk.array(buffer), reader))
+            else
+              Some((Chunk.array(buffer, 0, numBytes), reader))
+          }
         }
       }
-
-      Stream.fromBlockingIterator[F](iterator, chunkSize.value)
     }
 
   def jawnS[F[_]](configuration: Configuration, path: Path, chunkSize: ChunkSize)(implicit
     F: Sync[F]): Stream[F, Json] =
     inputStreamS[F](configuration, path).flatMap { is =>
       val iterator: Iterator[Json] = {
-        val bufferSize: Int     = magicNumber
+        val bufferSize: Int     = 131072 // see AsyncParser
         val buffer: Array[Byte] = Array.ofDim[Byte](bufferSize)
 
         Iterator
