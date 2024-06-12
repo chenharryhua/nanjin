@@ -6,7 +6,7 @@ import fs2.io.toInputStream
 
 import java.io.*
 
-object JavaObjectSerde {
+object javaObject {
 
   def toBytes[F[_], A]: Pipe[F, A, Byte] = { (ss: Stream[F, A]) =>
     ss.chunks.flatMap { as =>

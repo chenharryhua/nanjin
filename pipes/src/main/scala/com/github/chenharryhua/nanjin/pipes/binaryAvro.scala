@@ -9,7 +9,7 @@ import org.apache.avro.io.{BinaryEncoder, DecoderFactory, EncoderFactory}
 
 import java.io.{ByteArrayOutputStream, EOFException, InputStream}
 
-object BinaryAvroSerde {
+object binaryAvro {
 
   def toBytes[F[_]](schema: Schema): Pipe[F, GenericRecord, Byte] = { (ss: Stream[F, GenericRecord]) =>
     val datumWriter = new GenericDatumWriter[GenericRecord](schema)
