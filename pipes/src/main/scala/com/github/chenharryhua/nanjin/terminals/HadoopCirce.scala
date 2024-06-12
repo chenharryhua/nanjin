@@ -43,12 +43,14 @@ final class HadoopCirce[F[_]] private (configuration: Configuration) {
       Stream.eval(TickStatus.zeroth[F](policy, zoneId)).flatMap { zero =>
         val ticks: Stream[F, Either[Chunk[JsonNode], Tick]] = tickStream[F](zero).map(Right(_))
         Stream.resource(Hotswap(get_writer(zero.tick))).flatMap { case (hotswap, writer) =>
-          persist[F, JsonNode](
-            get_writer,
-            hotswap,
-            writer,
-            ss.chunks.map(c => Left(c.map(circeToJackson))).mergeHaltBoth(ticks)
-          ).stream
+          periodically
+            .persist[F, JsonNode](
+              get_writer,
+              hotswap,
+              writer,
+              ss.chunks.map(c => Left(c.map(circeToJackson))).mergeHaltBoth(ticks)
+            )
+            .stream
         }
       }
   }

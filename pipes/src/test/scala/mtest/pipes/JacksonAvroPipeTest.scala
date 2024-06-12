@@ -2,7 +2,7 @@ package mtest.pipes
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.pipes.JacksonSerde
+import com.github.chenharryhua.nanjin.pipes.jackson
 import com.sksamuel.avro4s.{AvroSchema, ToRecord}
 import fs2.Stream
 import org.apache.avro.Schema
@@ -17,8 +17,8 @@ class JacksonAvroPipeTest extends AnyFunSuite {
     assert(
       data
         .map(encoder.to)
-        .through(JacksonSerde.toBytes(schema))
-        .through(JacksonSerde.fromBytes(schema))
+        .through(jackson.toBytes(schema))
+        .through(jackson.fromBytes(schema))
         .map(Tiger.avroDecoder.decode)
         .compile
         .toList

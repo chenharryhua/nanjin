@@ -2,7 +2,7 @@ package mtest.pipes
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.pipes.BinaryAvroSerde
+import com.github.chenharryhua.nanjin.pipes.binaryAvro
 import com.github.chenharryhua.nanjin.terminals.{NJHadoop, NJPath}
 import com.sksamuel.avro4s.{AvroSchema, ToRecord}
 import eu.timepit.refined.auto.*
@@ -21,8 +21,8 @@ class BinaryAvroPipeTest extends AnyFunSuite {
     assert(
       data
         .map(encoder.to)
-        .through(BinaryAvroSerde.toBytes[IO](AvroSchema[Tiger]))
-        .through(BinaryAvroSerde.fromBytes[IO](AvroSchema[Tiger]))
+        .through(binaryAvro.toBytes[IO](AvroSchema[Tiger]))
+        .through(binaryAvro.fromBytes[IO](AvroSchema[Tiger]))
         .map(Tiger.avroDecoder.decode)
         .compile
         .toList
@@ -50,14 +50,11 @@ class BinaryAvroPipeTest extends AnyFunSuite {
     val path = root / "bin-avro.avro"
     hdp.delete(path).unsafeRunSync()
     val write =
-      data
-        .map(encoder.to)
-        .through(BinaryAvroSerde.toBytes[IO](AvroSchema[Tiger]))
-        .through(hdp.bytes.sink(path))
+      data.map(encoder.to).through(binaryAvro.toBytes[IO](AvroSchema[Tiger])).through(hdp.bytes.sink(path))
     val read =
       hdp.bytes
         .source(path, 100)
-        .through(BinaryAvroSerde.fromBytes[IO](AvroSchema[Tiger]))
+        .through(binaryAvro.fromBytes[IO](AvroSchema[Tiger]))
         .map(Tiger.avroDecoder.decode)
     val run = write.compile.drain >> read.compile.toList
     assert(run.unsafeRunSync() === tigers)

@@ -2,7 +2,7 @@ package mtest.pipes
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.pipes.JavaObjectSerde
+import com.github.chenharryhua.nanjin.pipes.javaObject
 import fs2.Stream
 import org.scalatest.funsuite.AnyFunSuite
 class JavaObjectPipeTest extends AnyFunSuite {
@@ -12,8 +12,8 @@ class JavaObjectPipeTest extends AnyFunSuite {
 
     assert(
       data
-        .through(JavaObjectSerde.toBytes)
-        .through(JavaObjectSerde.fromBytes)
+        .through(javaObject.toBytes)
+        .through(javaObject.fromBytes)
         .compile
         .toList
         .unsafeRunSync() === tigers)

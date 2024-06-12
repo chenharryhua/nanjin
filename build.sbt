@@ -5,7 +5,7 @@ ThisBuild / versionScheme      := Some("early-semver")
 
 val catsCoreV   = "2.12.0"
 val fs2V        = "3.10.2"
-val awsV        = "2.25.65"
+val awsV        = "2.26.0"
 val catsEffectV = "3.5.4"
 val hadoopV     = "3.4.0"
 val monocleV    = "3.2.0"
@@ -27,7 +27,7 @@ val protobufV   = "4.27.1"
 val sparkV      = "3.5.1"
 val framelessV  = "0.16.0"
 val refinedV    = "0.11.2"
-val nettyV      = "4.1.110.Final"
+val nettyV      = "4.1.111.Final"
 val chimneyV    = "1.1.0"
 val enumeratumV = "1.7.3"
 val drosteV     = "0.9.0"
@@ -400,7 +400,7 @@ val hadoopLib = List(
   "org.slf4j"          % "jcl-over-slf4j"               % slf4jV,
   "io.netty"           % "netty-all"                    % nettyV, // snyk
   "com.nimbusds"       % "nimbus-jose-jwt"              % "9.40", // snyk
-  "org.apache.commons" % "commons-configuration2"       % "2.10.1" // snyk
+  "org.apache.commons" % "commons-configuration2"       % "2.11.0" // snyk
 ).map(
   _.exclude("log4j", "log4j")
     .exclude("org.slf4j", "slf4j-reload4j")
@@ -420,7 +420,8 @@ lazy val pipes = (project in file("pipes"))
       "io.circe" %% "circe-jackson210" % "0.14.0",
       "software.amazon.awssdk"         % "bundle"    % awsV,
       "org.tukaani"                    % "xz"        % "1.9",
-      "org.apache.zookeeper"           % "zookeeper" % "3.9.2" // snyk
+      "org.apache.zookeeper"           % "zookeeper" % "3.9.2", // snyk
+      "org.typelevel" %% "jawn-fs2"    % "2.4.0"     % Test
     ) ++ kantanLib ++ serdeLib ++ hadoopLib ++ testLib
     libraryDependencies ++= libs.map(_.exclude("org.codehaus.jackson", "jackson-mapper-asl")) // snyk
   }

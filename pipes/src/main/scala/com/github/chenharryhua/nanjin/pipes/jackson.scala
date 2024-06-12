@@ -10,7 +10,7 @@ import org.apache.avro.io.{DecoderFactory, EncoderFactory, JsonEncoder}
 import java.io.{ByteArrayOutputStream, EOFException, InputStream}
 import java.nio.charset.StandardCharsets
 
-object JacksonSerde {
+object jackson {
 
   def toBytes[F[_]](schema: Schema): Pipe[F, GenericRecord, Byte] = {
     val datumWriter = new GenericDatumWriter[GenericRecord](schema)
@@ -21,10 +21,8 @@ object JacksonSerde {
         grs.foreach(gr => datumWriter.write(gr, encoder))
         encoder.flush()
         baos.close()
-        baos.toByteArray
-      }.intersperse(
-        System.lineSeparator().getBytes(StandardCharsets.ISO_8859_1)
-      ) // JsonEncoder use ISO_8859_1
+        baos.toByteArray // JsonEncoder use ISO_8859_1
+      }.intersperse(System.lineSeparator().getBytes(StandardCharsets.ISO_8859_1))
         .flatMap(ba => Stream.chunk(Chunk.from(ba.toVector)))
   }
 

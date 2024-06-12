@@ -39,12 +39,14 @@ final class HadoopText[F[_]] private (configuration: Configuration) {
         val ticks: Stream[F, Either[Chunk[String], Tick]] = tickStream[F](zero).map(Right(_))
 
         Stream.resource(Hotswap(get_writer(zero.tick))).flatMap { case (hotswap, writer) =>
-          persist[F, String](
-            get_writer,
-            hotswap,
-            writer,
-            ss.chunks.map(Left(_)).mergeHaltBoth(ticks)
-          ).stream
+          periodically
+            .persist[F, String](
+              get_writer,
+              hotswap,
+              writer,
+              ss.chunks.map(Left(_)).mergeHaltBoth(ticks)
+            )
+            .stream
         }
       }
   }
