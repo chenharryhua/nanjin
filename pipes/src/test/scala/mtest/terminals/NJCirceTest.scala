@@ -11,12 +11,13 @@ import fs2.Stream
 import fs2.text.{lines, utf8}
 import io.circe.generic.auto.*
 import io.circe.syntax.EncoderOps
-import io.circe.{jawn, Json}
+import io.circe.{Json, jawn}
 import mtest.terminals.HadoopTestData.hdp
 import mtest.terminals.TestData.Tiger
 import org.apache.hadoop.conf.Configuration
 import org.scalatest.Assertion
 import org.scalatest.funsuite.AnyFunSuite
+import squants.information.InformationConversions.InformationConversions
 
 import java.time.ZoneId
 import scala.concurrent.duration.DurationInt
@@ -29,7 +30,7 @@ class NJCirceTest extends AnyFunSuite {
     hdp.delete(tgt).unsafeRunSync()
     val ts                      = Stream.emits(data.toList).covary[IO].map(_.asJson)
     val sink                    = json.sink(tgt)
-    val src: Stream[IO, Tiger]  = json.source(tgt, 30).mapFilter(_.as[Tiger].toOption)
+    val src: Stream[IO, Tiger]  = json.source(tgt, 30.bytes).mapFilter(_.as[Tiger].toOption)
     val action: IO[List[Tiger]] = ts.through(sink).compile.drain >> src.compile.toList
     assert(action.unsafeRunSync().toSet == data)
     val lines = hdp.text.source(tgt, 32).compile.fold(0) { case (s, _) => s + 1 }
@@ -86,7 +87,7 @@ class NJCirceTest extends AnyFunSuite {
   }
 
   test("laziness") {
-    json.source(NJPath("./does/not/exist"), 100)
+    json.source(NJPath("./does/not/exist"), 100.bytes)
     json.sink(NJPath("./does/not/exist"))
   }
 
@@ -106,12 +107,12 @@ class NJCirceTest extends AnyFunSuite {
       .lastOrError
       .unsafeRunSync()
     val size =
-      Stream.eval(hdp.filesIn(path)).flatMap(json.source(_, 100)).compile.toList.map(_.size).unsafeRunSync()
+      Stream.eval(hdp.filesIn(path)).flatMap(json.source(_, 100.bytes)).compile.toList.map(_.size).unsafeRunSync()
     assert(size == number * TestData.tigerSet.toList.size)
     assert(processedSize == number * TestData.tigerSet.toList.size)
 
     def countTiger(path: NJPath): IO[Int] = hdp.bytes
-      .source(path, 64)
+      .source(path, 64.bytes)
       .through(utf8.decode)
       .through(lines)
       .map(jawn.decode[Tiger])

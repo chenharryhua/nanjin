@@ -64,7 +64,7 @@ final class HadoopKantan[F[_]] private (
   // write
 
   def sink(path: NJPath)(implicit F: Sync[F]): Pipe[F, Seq[String], Int] = { (ss: Stream[F, Seq[String]]) =>
-    Stream.resource(HadoopWriter.csvR[F](configuration, path.hadoopPath)).flatMap { w =>
+    Stream.resource(HadoopWriter.csvStringR[F](configuration, path.hadoopPath)).flatMap { w =>
       val process: Stream[F, Int] =
         ss.chunks.evalMap(c => w.write(c.map(csvRow(csvConfiguration))).as(c.size))
 
@@ -78,7 +78,7 @@ final class HadoopKantan[F[_]] private (
     F: Async[F]): Pipe[F, Seq[String], Int] = {
 
     def get_writer(tick: Tick): Resource[F, HadoopWriter[F, String]] =
-      HadoopWriter.csvR[F](configuration, pathBuilder(tick).hadoopPath)
+      HadoopWriter.csvStringR[F](configuration, pathBuilder(tick).hadoopPath)
 
     // save
     (ss: Stream[F, Seq[String]]) =>
