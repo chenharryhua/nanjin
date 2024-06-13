@@ -9,6 +9,7 @@ import eu.timepit.refined.auto.*
 import example.hadoop
 import io.circe.generic.auto.*
 import io.circe.syntax.EncoderOps
+import squants.information.InformationConversions.InformationConversions
 
 class CirceTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
   private val root = base / "circe"
@@ -68,14 +69,14 @@ class CirceTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
     read(path.uri.getPath).use { meter =>
       hadoop
         .filesIn(path)
-        .flatMap(circe.source(_, 100).map(_.as[Tiger]).evalTap(_ => meter.update(1)).compile.fold(0L) {
+        .flatMap(circe.source(_, 100.bytes).map(_.as[Tiger]).evalTap(_ => meter.update(1)).compile.fold(0L) {
           case (s, _) => s + 1
         })
     }
 
   private def singleRead(path: NJPath): IO[Long] =
     read(path.uri.getPath).use { meter =>
-      circe.source(path, 100).map(_.as[Tiger]).evalTap(_ => meter.update(1)).compile.fold(0L) { case (s, _) =>
+      circe.source(path, 100.bytes).map(_.as[Tiger]).evalTap(_ => meter.update(1)).compile.fold(0L) { case (s, _) =>
         s + 1
       }
     }

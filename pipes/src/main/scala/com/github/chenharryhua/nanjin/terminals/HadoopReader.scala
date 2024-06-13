@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.terminals
 import cats.data.Reader
 import cats.effect.Resource
 import cats.effect.kernel.Sync
-import cats.implicits.toFunctorOps
+import cats.implicits.{catsSyntaxOptionId, toFlatMapOps, toFunctorOps}
 import com.github.chenharryhua.nanjin.common.ChunkSize
 import fs2.{Chunk, Stream}
 import io.circe.Json
@@ -18,7 +18,8 @@ import org.apache.hadoop.io.compress.CompressionCodecFactory
 import org.apache.parquet.hadoop.ParquetReader
 import org.apache.parquet.hadoop.util.HadoopInputFile
 import org.apache.parquet.io.SeekableInputStream
-import org.typelevel.jawn.{AsyncParser, ParseException}
+import org.typelevel.jawn.AsyncParser
+import squants.information.Information
 
 import java.io.{BufferedReader, InputStream, InputStreamReader}
 import java.nio.charset.StandardCharsets
@@ -57,6 +58,24 @@ private object HadoopReader {
   def inputStreamS[F[_]](configuration: Configuration, path: Path)(implicit
     F: Sync[F]): Stream[F, InputStream] = Stream.resource(inputStreamR(configuration, path))
 
+  def byteS[F[_]](configuration: Configuration, path: Path, bufferSize: Information)(implicit
+    F: Sync[F]): Stream[F, Byte] =
+    inputStreamS[F](configuration, path).flatMap { is =>
+      val size: Int           = bufferSize.toBytes.toInt
+      val buffer: Array[Byte] = Array.ofDim[Byte](size)
+
+      Stream.unfoldChunkEval[F, InputStream, Byte](is) { reader =>
+        F.blocking(reader.read(buffer, 0, size)).map { numBytes =>
+          if (numBytes == -1)
+            None
+          else if (numBytes == size)
+            Some((Chunk.array(buffer), reader))
+          else
+            Some((Chunk.array(buffer, 0, numBytes), reader))
+        }
+      }
+    }
+
   def stringS[F[_]](configuration: Configuration, path: Path, chunkSize: ChunkSize)(implicit
     F: Sync[F]): Stream[F, String] =
     inputStreamS[F](configuration, path).flatMap { is =>
@@ -65,53 +84,25 @@ private object HadoopReader {
       Stream.fromBlockingIterator[F](iterator, chunkSize.value)
     }
 
-  def byteS[F[_]](configuration: Configuration, chunkSize: ChunkSize, path: Path)(implicit
-    F: Sync[F]): Stream[F, Byte] =
-    inputStreamS[F](configuration, path).flatMap { is =>
-      val bufferSize: Int     = chunkSize.value
-      val buffer: Array[Byte] = Array.ofDim[Byte](bufferSize)
+  def jawnS[F[_]](configuration: Configuration, path: Path, bufferSize: Information)(implicit
+    F: Sync[F]): Stream[F, Json] = {
 
-      Stream.unfoldChunkEval[F, InputStream, Byte](is) { reader =>
-        F.blocking(reader.read(buffer, 0, bufferSize)).map { numBytes =>
-          if (numBytes == -1) None
-          else {
-            if (numBytes == bufferSize) Some((Chunk.array(buffer), reader))
-            else
-              Some((Chunk.array(buffer, 0, numBytes), reader))
+    def handle(data: Array[Byte], parser: AsyncParser[Json]): F[Option[(Chunk[Json], AsyncParser[Json])]] =
+      F.fromEither(parser.absorb(data)).map(js => (Chunk.from(js), parser).some)
+
+    inputStreamS[F](configuration, path).flatMap { is =>
+      val size: Int           = bufferSize.toBytes.toInt
+      val buffer: Array[Byte] = Array.ofDim[Byte](size)
+      Stream.unfoldChunkEval[F, AsyncParser[Json], Json](AsyncParser[Json](AsyncParser.ValueStream)) {
+        parser =>
+          F.blocking(is.read(buffer, 0, size)).flatMap { numBytes =>
+            if (numBytes == -1) F.pure(None)
+            else if (numBytes == size) handle(buffer, parser)
+            else handle(buffer.slice(0, numBytes), parser)
           }
-        }
       }
     }
-
-  def jawnS[F[_]](configuration: Configuration, path: Path, chunkSize: ChunkSize)(implicit
-    F: Sync[F]): Stream[F, Json] =
-    inputStreamS[F](configuration, path).flatMap { is =>
-      val iterator: Iterator[Json] = {
-        val bufferSize: Int     = 131072 // see AsyncParser
-        val buffer: Array[Byte] = Array.ofDim[Byte](bufferSize)
-
-        Iterator
-          .unfold(AsyncParser[Json](AsyncParser.ValueStream)) { statefulParser =>
-            val numBytes: Int = is.read(buffer, 0, bufferSize)
-            if (numBytes == -1) None // end of input stream
-            else {
-              val result: Either[ParseException, collection.Seq[Json]] =
-                if (numBytes == bufferSize)
-                  statefulParser.absorb(buffer)
-                else
-                  statefulParser.absorb(buffer.slice(0, numBytes))
-
-              result match {
-                case Left(ex)       => throw ex
-                case Right(jsonSeq) => Some((jsonSeq, statefulParser))
-              }
-            }
-          }
-          .flatten
-      }
-
-      Stream.fromBlockingIterator[F](iterator, chunkSize.value)
-    }
+  }
 
   private def genericRecordReaderS[F[_]](
     getDecoder: InputStream => Decoder,

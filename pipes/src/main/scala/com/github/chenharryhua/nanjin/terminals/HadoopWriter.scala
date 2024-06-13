@@ -2,8 +2,8 @@ package com.github.chenharryhua.nanjin.terminals
 
 import cats.data.Reader
 import cats.effect.kernel.{Resource, Sync}
-import com.fasterxml.jackson.core.{JsonFactory, JsonGenerator}
 import com.fasterxml.jackson.core.util.MinimalPrettyPrinter
+import com.fasterxml.jackson.core.{JsonFactory, JsonGenerator}
 import com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
 import fs2.Chunk
 import org.apache.avro.Schema
@@ -93,7 +93,7 @@ private object HadoopWriter {
             }
         })
 
-  def csvR[F[_]](configuration: Configuration, path: Path)(implicit
+  def csvStringR[F[_]](configuration: Configuration, path: Path)(implicit
     F: Sync[F]): Resource[F, HadoopWriter[F, String]] =
     Resource
       .make(

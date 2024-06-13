@@ -3,21 +3,21 @@ package com.github.chenharryhua.nanjin.terminals
 import cats.effect.kernel.{Async, Resource, Sync}
 import cats.effect.std.Hotswap
 import cats.implicits.toFunctorOps
-import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick, TickStatus}
 import fs2.{Chunk, Pipe, Stream}
 import org.apache.hadoop.conf.Configuration
+import squants.information.Information
 
 import java.io.{InputStream, OutputStream}
 import java.time.ZoneId
 
 final class HadoopBytes[F[_]] private (configuration: Configuration) {
 
-  def source(path: NJPath, chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, Byte] =
-    HadoopReader.byteS(configuration, chunkSize, path.hadoopPath)
+  def source(path: NJPath, bufferSize: Information)(implicit F: Sync[F]): Stream[F, Byte] =
+    HadoopReader.byteS(configuration, path.hadoopPath, bufferSize)
 
-  def source(paths: List[NJPath], chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, Byte] =
-    paths.foldLeft(Stream.empty.covaryAll[F, Byte]) { case (s, p) => s ++ source(p, chunkSize) }
+  def source(paths: List[NJPath], bufferSize: Information)(implicit F: Sync[F]): Stream[F, Byte] =
+    paths.foldLeft(Stream.empty.covaryAll[F, Byte]) { case (s, p) => s ++ source(p, bufferSize) }
 
   def inputStream(path: NJPath)(implicit F: Sync[F]): Resource[F, InputStream] =
     HadoopReader.inputStreamR[F](configuration, path.hadoopPath)

@@ -4,12 +4,12 @@ import cats.effect.kernel.{Async, Resource, Sync}
 import cats.effect.std.Hotswap
 import cats.implicits.toFunctorOps
 import com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
-import com.github.chenharryhua.nanjin.common.ChunkSize
-import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick, TickStatus}
+import com.github.chenharryhua.nanjin.common.chrono.{Policy, Tick, TickStatus, tickStream}
 import fs2.{Chunk, Pipe, Stream}
 import io.circe.Json
 import io.circe.jackson.circeToJackson
 import org.apache.hadoop.conf.Configuration
+import squants.information.Information
 
 import java.time.ZoneId
 
@@ -17,11 +17,11 @@ final class HadoopCirce[F[_]] private (configuration: Configuration) {
 
   // read
 
-  def source(path: NJPath, chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, Json] =
-    HadoopReader.jawnS[F](configuration, path.hadoopPath, chunkSize)
+  def source(path: NJPath, bufferSize: Information)(implicit F: Sync[F]): Stream[F, Json] =
+    HadoopReader.jawnS[F](configuration, path.hadoopPath, bufferSize)
 
-  def source(paths: List[NJPath], chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, Json] =
-    paths.foldLeft(Stream.empty.covaryAll[F, Json]) { case (s, p) => s ++ source(p, chunkSize) }
+  def source(paths: List[NJPath], bufferSize: Information)(implicit F: Sync[F]): Stream[F, Json] =
+    paths.foldLeft(Stream.empty.covaryAll[F, Json]) { case (s, p) => s ++ source(p, bufferSize) }
 
   // write
 

@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.spark.persist
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.spark.SparkSessionExt
-import com.github.chenharryhua.nanjin.terminals.{HadoopBinAvro, NJPath}
+import com.github.chenharryhua.nanjin.terminals.{HadoopBinAvro, NJHadoop, NJPath}
 import com.sksamuel.avro4s.{FromRecord, ToRecord}
 import eu.timepit.refined.auto.*
 import fs2.Stream
@@ -13,10 +13,10 @@ import org.scalatest.funsuite.AnyFunSuite
 
 @DoNotDiscover
 class BinAvroTest extends AnyFunSuite {
-  val hdp                         = sparkSession.hadoop[IO]
+  val hdp: NJHadoop[IO] = sparkSession.hadoop[IO]
   val bin_avro: HadoopBinAvro[IO] = hdp.binAvro(Rooster.schema)
 
-  def saver(path: NJPath) =
+  def saver(path: NJPath): SaveBinaryAvro[Rooster] =
     new RddAvroFileHoarder[Rooster](RoosterData.rdd.repartition(2), Rooster.avroCodec)
       .binAvro(path)
       .withSaveMode(_.Overwrite)
