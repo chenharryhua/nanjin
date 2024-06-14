@@ -58,23 +58,64 @@ private object HadoopReader {
   def inputStreamS[F[_]](configuration: Configuration, path: Path)(implicit
     F: Sync[F]): Stream[F, InputStream] = Stream.resource(inputStreamR(configuration, path))
 
+  // best effort
   def byteS[F[_]](configuration: Configuration, path: Path, bufferSize: Information)(implicit
     F: Sync[F]): Stream[F, Byte] =
     inputStreamS[F](configuration, path).flatMap { is =>
       val size: Int           = bufferSize.toBytes.toInt
       val buffer: Array[Byte] = Array.ofDim[Byte](size)
 
-      Stream.unfoldChunkEval[F, InputStream, Byte](is) { reader =>
-        F.blocking(reader.read(buffer, 0, size)).map { numBytes =>
+      Stream.unfoldChunkEval[F, Unit, Byte](()) { _ =>
+        F.blocking(is.read(buffer, 0, size)).map { numBytes =>
           if (numBytes == -1)
             None
           else if (numBytes == size)
-            Some((Chunk.array(buffer), reader))
+            Some((Chunk.array(buffer), ()))
           else
-            Some((Chunk.array(buffer, 0, numBytes), reader))
+            Some((Chunk.array(buffer, 0, numBytes), ()))
         }
       }
     }
+
+  // respect chunk size
+  def byteS[F[_]](configuration: Configuration, path: Path, chunkSize: ChunkSize)(implicit
+    F: Sync[F]): Stream[F, Byte] =
+    inputStreamS[F](configuration, path).flatMap { is =>
+      val size: Int           = chunkSize.value
+      val buffer: Array[Byte] = Array.ofDim[Byte](size)
+
+      Stream.unfoldLoopEval[F, Int, Chunk[Byte]](0) { offset =>
+        F.blocking(is.read(buffer, offset, size - offset)).map { numBytes =>
+          if (numBytes == -1) // churn buffer
+            (Chunk.array(buffer, 0, offset), None)
+          else if (numBytes + offset == size)
+            (Chunk.array(buffer), Some(0))
+          else
+            (Chunk.empty, Some(offset + numBytes))
+        }
+      }
+    }.unchunks
+
+  def jawnS[F[_]](configuration: Configuration, path: Path, bufferSize: Information)(implicit
+    F: Sync[F]): Stream[F, Json] =
+    inputStreamS[F](configuration, path).flatMap { is =>
+      type Status = (AsyncParser[Json], Int)
+      val size: Int           = bufferSize.toBytes.toInt
+      val buffer: Array[Byte] = Array.ofDim[Byte](size)
+      // parser and offset
+      val initStatus: Status = (AsyncParser[Json](AsyncParser.ValueStream), 0)
+
+      Stream.unfoldLoopEval[F, Status, Chunk[Json]](initStatus) { case (parser, offset) =>
+        F.blocking(is.read(buffer, offset, size - offset)).flatMap { numBytes =>
+          if (numBytes == -1)
+            F.fromEither(parser.finalAbsorb(buffer.slice(0, offset))).map(js => (Chunk.from(js), None))
+          else if (numBytes + offset == size)
+            F.fromEither(parser.absorb(buffer)).map(js => (Chunk.from(js), (parser, 0).some))
+          else
+            F.pure((Chunk.empty[Json], (parser, numBytes + offset).some))
+        }
+      }
+    }.unchunks
 
   def stringS[F[_]](configuration: Configuration, path: Path, chunkSize: ChunkSize)(implicit
     F: Sync[F]): Stream[F, String] =
@@ -83,26 +124,6 @@ private object HadoopReader {
         new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8)).lines().iterator().asScala
       Stream.fromBlockingIterator[F](iterator, chunkSize.value)
     }
-
-  def jawnS[F[_]](configuration: Configuration, path: Path, bufferSize: Information)(implicit
-    F: Sync[F]): Stream[F, Json] = {
-
-    def handle(data: Array[Byte], parser: AsyncParser[Json]): F[Option[(Chunk[Json], AsyncParser[Json])]] =
-      F.fromEither(parser.absorb(data)).map(js => (Chunk.from(js), parser).some)
-
-    inputStreamS[F](configuration, path).flatMap { is =>
-      val size: Int           = bufferSize.toBytes.toInt
-      val buffer: Array[Byte] = Array.ofDim[Byte](size)
-      Stream.unfoldChunkEval[F, AsyncParser[Json], Json](AsyncParser[Json](AsyncParser.ValueStream)) {
-        parser =>
-          F.blocking(is.read(buffer, 0, size)).flatMap { numBytes =>
-            if (numBytes == -1) F.pure(None)
-            else if (numBytes == size) handle(buffer, parser)
-            else handle(buffer.slice(0, numBytes), parser)
-          }
-      }
-    }
-  }
 
   private def genericRecordReaderS[F[_]](
     getDecoder: InputStream => Decoder,

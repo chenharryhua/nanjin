@@ -11,7 +11,7 @@ import fs2.Stream
 import fs2.text.{lines, utf8}
 import io.circe.generic.auto.*
 import io.circe.syntax.EncoderOps
-import io.circe.{Json, jawn}
+import io.circe.{jawn, Json}
 import mtest.terminals.HadoopTestData.hdp
 import mtest.terminals.TestData.Tiger
 import org.apache.hadoop.conf.Configuration
@@ -30,7 +30,7 @@ class NJCirceTest extends AnyFunSuite {
     hdp.delete(tgt).unsafeRunSync()
     val ts                      = Stream.emits(data.toList).covary[IO].map(_.asJson)
     val sink                    = json.sink(tgt)
-    val src: Stream[IO, Tiger]  = json.source(tgt, 30.bytes).mapFilter(_.as[Tiger].toOption)
+    val src: Stream[IO, Tiger]  = json.source(tgt, 2.bytes).mapFilter(_.as[Tiger].toOption)
     val action: IO[List[Tiger]] = ts.through(sink).compile.drain >> src.compile.toList
     assert(action.unsafeRunSync().toSet == data)
     val lines = hdp.text.source(tgt, 32).compile.fold(0) { case (s, _) => s + 1 }
@@ -107,12 +107,18 @@ class NJCirceTest extends AnyFunSuite {
       .lastOrError
       .unsafeRunSync()
     val size =
-      Stream.eval(hdp.filesIn(path)).flatMap(json.source(_, 100.bytes)).compile.toList.map(_.size).unsafeRunSync()
+      Stream
+        .eval(hdp.filesIn(path))
+        .flatMap(json.source(_, 100.bytes))
+        .compile
+        .toList
+        .map(_.size)
+        .unsafeRunSync()
     assert(size == number * TestData.tigerSet.toList.size)
     assert(processedSize == number * TestData.tigerSet.toList.size)
 
     def countTiger(path: NJPath): IO[Int] = hdp.bytes
-      .source(path, 64.bytes)
+      .source(path, 64)
       .through(utf8.decode)
       .through(lines)
       .map(jawn.decode[Tiger])
