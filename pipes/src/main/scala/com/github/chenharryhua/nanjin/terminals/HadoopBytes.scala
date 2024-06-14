@@ -14,9 +14,15 @@ import java.time.ZoneId
 
 final class HadoopBytes[F[_]] private (configuration: Configuration) {
 
+  /**
+   * @return a stream which is chunked by ''chunkSize'' except the last chunk.
+   */
   def source(path: NJPath, chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, Byte] =
     HadoopReader.byteS(configuration, path.hadoopPath, chunkSize)
 
+  /**
+   * @return a stream whose chunk size is uncertain, though not larger than ''bufferSize''
+   */
   def source(path: NJPath, bufferSize: Information)(implicit F: Sync[F]): Stream[F, Byte] =
     HadoopReader.byteS(configuration, path.hadoopPath, bufferSize)
 

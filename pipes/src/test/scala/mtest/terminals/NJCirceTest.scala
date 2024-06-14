@@ -109,7 +109,7 @@ class NJCirceTest extends AnyFunSuite {
     val size =
       Stream
         .eval(hdp.filesIn(path))
-        .flatMap(json.source(_, 100.bytes))
+        .flatMap(json.source(_, 5.megabytes))
         .compile
         .toList
         .map(_.size)

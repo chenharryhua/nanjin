@@ -99,24 +99,25 @@ private object HadoopReader {
   def jawnS[F[_]](configuration: Configuration, path: Path, bufferSize: Information)(implicit
     F: Sync[F]): Stream[F, Json] =
     inputStreamS[F](configuration, path).flatMap { is =>
-      type Status = (AsyncParser[Json], Int)
       val size: Int           = bufferSize.toBytes.toInt
       val buffer: Array[Byte] = Array.ofDim[Byte](size)
-      // parser and offset
+      // parser and offset of buffer
+      type Status = (AsyncParser[Json], Int)
       val initStatus: Status = (AsyncParser[Json](AsyncParser.ValueStream), 0)
 
       Stream.unfoldLoopEval[F, Status, Chunk[Json]](initStatus) { case (parser, offset) =>
         F.blocking(is.read(buffer, offset, size - offset)).flatMap { numBytes =>
-          if (numBytes == -1)
+          if (numBytes == -1) // churn buffer
             F.fromEither(parser.finalAbsorb(buffer.slice(0, offset))).map(js => (Chunk.from(js), None))
-          else if (numBytes + offset == size)
+          else if (numBytes + offset == size) // absorb when buffer is full so that less absorb is needed
             F.fromEither(parser.absorb(buffer)).map(js => (Chunk.from(js), (parser, 0).some))
-          else
+          else // otherwise, read more bytes
             F.pure((Chunk.empty[Json], (parser, numBytes + offset).some))
         }
       }
     }.unchunks
 
+  // last empty line is removed.
   def stringS[F[_]](configuration: Configuration, path: Path, chunkSize: ChunkSize)(implicit
     F: Sync[F]): Stream[F, String] =
     inputStreamS[F](configuration, path).flatMap { is =>
