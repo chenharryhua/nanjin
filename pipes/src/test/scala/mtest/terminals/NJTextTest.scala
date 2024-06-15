@@ -2,7 +2,7 @@ package mtest.terminals
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import cats.implicits.toFunctorFilterOps
+import cats.implicits.{toFunctorFilterOps, toTraverseOps}
 import com.github.chenharryhua.nanjin.common.chrono.policies
 import com.github.chenharryhua.nanjin.terminals.*
 import com.github.chenharryhua.nanjin.terminals.NJCompression.*
@@ -104,7 +104,11 @@ class NJTextTest extends AnyFunSuite {
       .lastOrError
       .unsafeRunSync()
     val size =
-      Stream.eval(hdp.filesIn(path)).flatMap(text.source(_, 2)).compile.toList.map(_.size).unsafeRunSync()
+      hdp
+        .filesIn(path)
+        .flatMap(_.traverse(text.source(_, 2).compile.toList.map(_.size)))
+        .map(_.sum)
+        .unsafeRunSync()
     assert(size == number * 10)
     assert(processedSize == number * 10)
 

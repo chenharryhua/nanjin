@@ -1,6 +1,7 @@
 package mtest.terminals
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
+import cats.implicits.toTraverseOps
 import com.github.chenharryhua.nanjin.common.chrono.{policies, Policy}
 import com.github.chenharryhua.nanjin.terminals.NJCompression.*
 import com.github.chenharryhua.nanjin.terminals.{CsvHeaderOf, KantanFile, NJFileKind, NJHadoop, NJPath}
@@ -112,14 +113,12 @@ class NJKantanTest extends AnyFunSuite {
       .compile
       .drain
       .unsafeRunSync()
+
     val size =
-      Stream
-        .force(hdp.filesIn(path).map(csv.source(_, 100)))
-        .map(tigerDecoder.decode)
-        .rethrow
-        .compile
-        .toList
-        .map(_.size)
+      hdp
+        .filesIn(path)
+        .flatMap(_.traverse(csv.source(_, 1000).map(tigerDecoder.decode).rethrow.compile.toList.map(_.size)))
+        .map(_.sum)
         .unsafeRunSync()
     assert(size == herd_number)
   }
@@ -155,13 +154,10 @@ class NJKantanTest extends AnyFunSuite {
       .drain
       .unsafeRunSync()
     val size =
-      Stream
-        .force(hdp.filesIn(path).map(csv.source(_, 1000)))
-        .map(tigerDecoder.decode)
-        .rethrow
-        .compile
-        .toList
-        .map(_.size)
+      hdp
+        .filesIn(path)
+        .flatMap(_.traverse(csv.source(_, 1000).map(tigerDecoder.decode).rethrow.compile.toList.map(_.size)))
+        .map(_.sum)
         .unsafeRunSync()
     assert(size == number)
   }

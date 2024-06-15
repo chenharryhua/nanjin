@@ -40,9 +40,6 @@ final class HadoopParquet[F[_]] private (
       Stream.fromBlockingIterator[F](iterator, chunkSize.value)
     }
 
-  def source(paths: List[NJPath], chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, GenericData.Record] =
-    paths.foldLeft(Stream.empty.covaryAll[F, GenericData.Record]) { case (s, p) => s ++ source(p, chunkSize) }
-
   // write
 
   override def sink(path: NJPath)(implicit F: Sync[F]): Pipe[F, GenericRecord, Int] = {

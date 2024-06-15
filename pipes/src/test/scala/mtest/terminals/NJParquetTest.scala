@@ -92,16 +92,13 @@ class NJParquetTest extends AnyFunSuite {
       .compile
       .lastOrError
       .unsafeRunSync()
-    val size = Stream
-      .force(
-        hdp
-          .dataFolders(path)
-          .flatMap(_.flatTraverse(hdp.filesIn))
-          .map(parquet.updateReader(identity).source(_, 10)))
-      .compile
-      .toList
-      .map(_.size)
-      .unsafeRunSync()
+    val size =
+      hdp
+        .dataFolders(path)
+        .flatMap(_.flatTraverse(hdp.filesIn))
+        .flatMap(_.traverse(parquet.updateReader(identity).source(_, 10).compile.toList.map(_.size)))
+        .map(_.sum)
+        .unsafeRunSync()
     assert(size == number * 2)
     assert(processedSize == number * 2)
   }

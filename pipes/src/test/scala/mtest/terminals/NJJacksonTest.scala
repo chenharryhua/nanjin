@@ -1,6 +1,7 @@
 package mtest.terminals
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
+import cats.implicits.toTraverseOps
 import com.github.chenharryhua.nanjin.common.chrono.policies
 import com.github.chenharryhua.nanjin.terminals.NJCompression.*
 import com.github.chenharryhua.nanjin.terminals.{HadoopJackson, JacksonFile, NJFileKind, NJHadoop, NJPath}
@@ -102,7 +103,11 @@ class NJJacksonTest extends AnyFunSuite {
       .lastOrError
       .unsafeRunSync()
     val size =
-      Stream.eval(hdp.filesIn(path)).flatMap(jackson.source(_, 10)).compile.toList.map(_.size).unsafeRunSync()
+      hdp
+        .filesIn(path)
+        .flatMap(_.traverse(jackson.source(_, 10).compile.toList.map(_.size)))
+        .map(_.sum)
+        .unsafeRunSync()
     assert(size == number * 2)
     assert(processedSize == number * 2)
   }

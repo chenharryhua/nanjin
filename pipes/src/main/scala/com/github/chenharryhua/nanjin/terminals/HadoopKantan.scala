@@ -56,11 +56,6 @@ final class HadoopKantan[F[_]] private (
       Stream.fromBlockingIterator[F](reader.iterator, chunkSize.value).rethrow
     }
 
-  def source(paths: List[NJPath], chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, Seq[String]] =
-    paths.foldLeft(Stream.empty.covaryAll[F, Seq[String]]) { case (s, p) =>
-      s ++ source(p, chunkSize)
-    }
-
   // write
 
   def sink(path: NJPath)(implicit F: Sync[F]): Pipe[F, Seq[String], Int] = { (ss: Stream[F, Seq[String]]) =>
