@@ -14,7 +14,7 @@ import org.apache.avro.generic.{GenericData, GenericDatumReader}
 import org.apache.avro.io.{Decoder, DecoderFactory}
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.Path
-import org.apache.hadoop.io.compress.CompressionCodecFactory
+import org.apache.hadoop.io.compress.{CodecPool, CompressionCodecFactory, Decompressor}
 import org.apache.parquet.hadoop.ParquetReader
 import org.apache.parquet.hadoop.util.HadoopInputFile
 import org.apache.parquet.io.SeekableInputStream
@@ -46,8 +46,10 @@ private object HadoopReader {
   private def fileInputStream(path: Path, configuration: Configuration): InputStream = {
     val sis: SeekableInputStream = HadoopInputFile.fromPath(path, configuration).newStream()
     Option(new CompressionCodecFactory(configuration).getCodec(path)) match {
-      case Some(cc) => cc.createInputStream(sis)
-      case None     => sis
+      case Some(cc) =>
+        val decompressor: Decompressor = CodecPool.getDecompressor(cc)
+        cc.createInputStream(sis, decompressor)
+      case None => sis
     }
   }
 
@@ -117,7 +119,6 @@ private object HadoopReader {
       }
     }.unchunks
 
-  // last empty line is removed.
   def stringS[F[_]](configuration: Configuration, path: Path, chunkSize: ChunkSize)(implicit
     F: Sync[F]): Stream[F, String] =
     inputStreamS[F](configuration, path).flatMap { is =>

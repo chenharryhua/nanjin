@@ -15,13 +15,12 @@ import java.time.ZoneId
 
 final class HadoopCirce[F[_]] private (configuration: Configuration) {
 
-  // read
 
+  /**
+   * @return a stream that its chunk size is roughly equal to ''bufferSize'' / json size
+   */
   def source(path: NJPath, bufferSize: Information)(implicit F: Sync[F]): Stream[F, Json] =
     HadoopReader.jawnS[F](configuration, path.hadoopPath, bufferSize)
-
-  def source(paths: List[NJPath], bufferSize: Information)(implicit F: Sync[F]): Stream[F, Json] =
-    paths.foldLeft(Stream.empty.covaryAll[F, Json]) { case (s, p) => s ++ source(p, bufferSize) }
 
   // write
 

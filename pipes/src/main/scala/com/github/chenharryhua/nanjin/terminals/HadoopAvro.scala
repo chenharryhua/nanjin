@@ -34,9 +34,6 @@ final class HadoopAvro[F[_]] private (
       gr <- Stream.fromBlockingIterator[F](dfs.iterator().asScala, chunkSize.value)
     } yield gr
 
-  def source(paths: List[NJPath], chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, GenericData.Record] =
-    paths.foldLeft(Stream.empty.covaryAll[F, GenericData.Record]) { case (s, p) => s ++ source(p, chunkSize) }
-
   // write
 
   override def sink(path: NJPath)(implicit F: Sync[F]): Pipe[F, GenericRecord, Int] = {

@@ -153,13 +153,18 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
       hadoop  = NJHadoop[F](sparkSession.sparkContext.hadoopConfiguration)
       jackson = hadoop.jackson(schemaPair.consumerSchema)
       builder = new PushGenericRecord(kafkaContext.settings.schemaRegistrySettings, topicName, schemaPair)
-      num <- hadoop.filesIn(path).map(jackson.source(_, chunkSize)).flatMap {
-        _.chunks
-          .map(_.map(builder.fromGenericRecord))
-          .through(KafkaProducer.pipe(producerSettings))
-          .compile
-          .fold(0L) { case (sum, prs) => sum + prs.size }
-      }
+      num <- hadoop
+        .filesIn(path)
+        .flatMap(
+          _.traverse(
+            jackson
+              .source(_, chunkSize)
+              .chunks
+              .map(_.map(builder.fromGenericRecord))
+              .through(KafkaProducer.pipe(producerSettings))
+              .compile
+              .fold(0L) { case (sum, prs) => sum + prs.size }))
+        .map(_.sum)
     } yield num
   }
 

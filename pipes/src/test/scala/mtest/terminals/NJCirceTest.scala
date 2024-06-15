@@ -107,12 +107,10 @@ class NJCirceTest extends AnyFunSuite {
       .lastOrError
       .unsafeRunSync()
     val size =
-      Stream
-        .eval(hdp.filesIn(path))
-        .flatMap(json.source(_, 5.megabytes))
-        .compile
-        .toList
-        .map(_.size)
+      hdp
+        .filesIn(path)
+        .flatMap(_.traverse(json.source(_, 5.megabytes).compile.toList.map(_.size)))
+        .map(_.sum)
         .unsafeRunSync()
     assert(size == number * TestData.tigerSet.toList.size)
     assert(processedSize == number * TestData.tigerSet.toList.size)

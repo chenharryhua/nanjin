@@ -17,9 +17,6 @@ final class HadoopText[F[_]] private (configuration: Configuration) {
   def source(path: NJPath, chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, String] =
     HadoopReader.stringS[F](configuration, path.hadoopPath, chunkSize)
 
-  def source(paths: List[NJPath], chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, String] =
-    paths.foldLeft(Stream.empty.covaryAll[F, String]) { case (s, p) => s ++ source(p, chunkSize) }
-
   // write
 
   def sink(path: NJPath)(implicit F: Sync[F]): Pipe[F, String, Int] = { (ss: Stream[F, String]) =>
