@@ -13,7 +13,7 @@ import org.scalatest.funsuite.AnyFunSuite
 
 @DoNotDiscover
 class BinAvroTest extends AnyFunSuite {
-  val hdp: NJHadoop[IO] = sparkSession.hadoop[IO]
+  val hdp: NJHadoop[IO]           = sparkSession.hadoop[IO]
   val bin_avro: HadoopBinAvro[IO] = hdp.binAvro(Rooster.schema)
 
   def saver(path: NJPath): SaveBinaryAvro[Rooster] =
