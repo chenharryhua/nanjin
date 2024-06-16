@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
+import cats.implicits.toTraverseOps
 import com.github.chenharryhua.nanjin.spark.SparkSessionExt
 import com.github.chenharryhua.nanjin.terminals.{HadoopParquet, NJCompression, NJHadoop, NJPath}
 import com.sksamuel.avro4s.FromRecord
@@ -18,12 +19,9 @@ class ParquetTest extends AnyFunSuite {
   val parquet: HadoopParquet[IO] = hdp.parquet(Rooster.avroCodec.schema)
 
   def loadRooster(path: NJPath): IO[Set[Rooster]] =
-    fs2.Stream
-      .eval(hdp.filesIn(path))
-      .flatMap(parquet.source(_, 10))
-      .map(FromRecord(Rooster.avroCodec).from)
-      .compile
-      .toList
+    hdp
+      .filesIn(path)
+      .flatMap(_.flatTraverse(parquet.source(_, 100).map(FromRecord(Rooster.avroCodec).from).compile.toList))
       .map(_.toSet)
 
   def roosterSaver(path: NJPath): SaveParquet[Rooster] =

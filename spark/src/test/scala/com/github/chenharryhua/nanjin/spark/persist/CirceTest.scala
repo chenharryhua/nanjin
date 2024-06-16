@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
+import cats.implicits.toTraverseOps
 import com.github.chenharryhua.nanjin.messages.kafka.codec.KJson
 import com.github.chenharryhua.nanjin.spark.*
 import com.github.chenharryhua.nanjin.terminals.{HadoopCirce, NJHadoop, NJPath}
@@ -10,7 +11,6 @@ import io.circe.Json
 import mtest.spark.*
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
-import squants.information.InformationConversions.InformationConversions
 
 @DoNotDiscover
 class CirceTest extends AnyFunSuite {
@@ -21,18 +21,12 @@ class CirceTest extends AnyFunSuite {
   val circe: HadoopCirce[IO] = hdp.circe
 
   def loadRoosters(path: NJPath): IO[List[Rooster]] =
-    fs2.Stream
-      .eval(hdp.filesIn(path))
-      .flatMap(circe.source(_, 2.kb))
-      .map(_.as[Rooster])
-      .rethrow
-      .compile
-      .toList
+    hdp.filesIn(path).flatMap(_.flatTraverse(circe.source(_).map(_.as[Rooster]).rethrow.compile.toList))
 
   def loadBees(path: NJPath): IO[List[Bee]] =
-    fs2.Stream.eval(hdp.filesIn(path)).flatMap(circe.source(_, 2.kb)).map(_.as[Bee]).rethrow.compile.toList
+    hdp.filesIn(path).flatMap(_.flatTraverse(circe.source(_).map(_.as[Bee]).rethrow.compile.toList))
 
-  val root = NJPath("./data/test/spark/persist/circe")
+  val root: NJPath = NJPath("./data/test/spark/persist/circe")
 
   test("circe rooster rdd read/write identity multi.uncompressed") {
     val path = root / "rooster" / "uncompressed"
@@ -89,7 +83,7 @@ class CirceTest extends AnyFunSuite {
     assert(RoosterData.expected == t3)
   }
 
-  def bee(path: NJPath) =
+  def bee(path: NJPath): SaveCirce[Bee] =
     new RddAvroFileHoarder[Bee](BeeData.rdd.repartition(1), Bee.avroCodec).circe(path)
 
   test("circe bee byte-array rdd read/write identity multi bzip2") {

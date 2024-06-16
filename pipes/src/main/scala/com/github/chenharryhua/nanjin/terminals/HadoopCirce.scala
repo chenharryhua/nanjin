@@ -9,7 +9,7 @@ import fs2.{Chunk, Pipe, Stream}
 import io.circe.Json
 import io.circe.jackson.circeToJackson
 import org.apache.hadoop.conf.Configuration
-import squants.information.Information
+import squants.information.{Bytes, Information}
 
 import java.time.ZoneId
 
@@ -20,6 +20,9 @@ final class HadoopCirce[F[_]] private (configuration: Configuration) {
     */
   def source(path: NJPath, bufferSize: Information)(implicit F: Sync[F]): Stream[F, Json] =
     HadoopReader.jawnS[F](configuration, path.hadoopPath, bufferSize)
+
+  def source(path: NJPath)(implicit F: Sync[F]): Stream[F, Json] =
+    source(path: NJPath, Bytes(1024 * 1024))
 
   // write
 

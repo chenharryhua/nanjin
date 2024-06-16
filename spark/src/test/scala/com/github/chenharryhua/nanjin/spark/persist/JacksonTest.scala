@@ -2,11 +2,11 @@ package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
+import cats.implicits.toTraverseOps
 import com.github.chenharryhua.nanjin.spark.SparkSessionExt
 import com.github.chenharryhua.nanjin.terminals.{HadoopJackson, NJHadoop, NJPath}
 import com.sksamuel.avro4s.FromRecord
 import eu.timepit.refined.auto.*
-import fs2.Stream
 import mtest.spark.*
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
@@ -23,11 +23,9 @@ class JacksonTest extends AnyFunSuite {
   val fromRecord: FromRecord[Rooster] = FromRecord(Rooster.avroCodec)
 
   def loadRooster(path: NJPath): IO[Set[Rooster]] =
-    Stream
-      .eval(hdp.filesIn(path))
-      .flatMap(jackson.source(_, 10).map(fromRecord.from))
-      .compile
-      .toList
+    hdp
+      .filesIn(path)
+      .flatMap(_.flatTraverse(jackson.source(_, 100).map(fromRecord.from).compile.toList))
       .map(_.toSet)
 
   val root = NJPath("./data/test/spark/persist/jackson/")

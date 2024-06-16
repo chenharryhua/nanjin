@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
+import cats.implicits.toTraverseOps
 import com.github.chenharryhua.nanjin.spark.*
 import com.github.chenharryhua.nanjin.terminals.{HadoopAvro, NJHadoop, NJPath}
 import eu.timepit.refined.auto.*
@@ -23,12 +24,9 @@ class AvroTest extends AnyFunSuite {
     new RddAvroFileHoarder[Rooster](RoosterData.ds.rdd.repartition(3), Rooster.avroCodec)
 
   def loadRoosters(path: NJPath): IO[List[Rooster]] =
-    fs2.Stream
-      .eval(hadoop.filesIn(path))
-      .flatMap(avro.source(_, 100))
-      .map(Rooster.avroCodec.decode)
-      .compile
-      .toList
+    hadoop
+      .filesIn(path)
+      .flatMap(_.flatTraverse(avro.source(_, 100).map(Rooster.avroCodec.decode).compile.toList))
 
   val root: NJPath = NJPath("./data/test/spark/persist/avro/")
 

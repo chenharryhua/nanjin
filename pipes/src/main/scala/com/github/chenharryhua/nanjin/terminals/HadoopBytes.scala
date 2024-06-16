@@ -7,7 +7,7 @@ import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick, TickStatus}
 import fs2.{Chunk, Pipe, Stream}
 import org.apache.hadoop.conf.Configuration
-import squants.information.Information
+import squants.information.{Bytes, Information}
 
 import java.io.{InputStream, OutputStream}
 import java.time.ZoneId
@@ -25,6 +25,9 @@ final class HadoopBytes[F[_]] private (configuration: Configuration) {
     */
   def source(path: NJPath, bufferSize: Information)(implicit F: Sync[F]): Stream[F, Byte] =
     HadoopReader.byteS(configuration, path.hadoopPath, bufferSize)
+
+  def source(path: NJPath)(implicit F: Sync[F]): Stream[F, Byte] =
+    source(path, ChunkSize(Bytes(1024 * 1024)))
 
   def inputStream(path: NJPath)(implicit F: Sync[F]): Resource[F, InputStream] =
     HadoopReader.inputStreamR[F](configuration, path.hadoopPath)

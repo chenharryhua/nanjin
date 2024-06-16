@@ -87,7 +87,7 @@ class NJCirceTest extends AnyFunSuite {
   }
 
   test("laziness") {
-    json.source(NJPath("./does/not/exist"), 100.bytes)
+    json.source(NJPath("./does/not/exist"))
     json.sink(NJPath("./does/not/exist"))
   }
 

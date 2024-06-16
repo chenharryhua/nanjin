@@ -93,7 +93,7 @@ private object HadoopReader {
           else if (numBytes + offset == size)
             (Chunk.array(buffer), Some(0))
           else
-            (Chunk.empty, Some(offset + numBytes))
+            (Chunk.empty[Byte], Some(offset + numBytes))
         }
       }
     }.unchunks

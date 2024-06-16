@@ -2,9 +2,10 @@ package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
+import cats.implicits.toTraverseOps
 import com.github.chenharryhua.nanjin.spark.SparkSessionExt
 import com.github.chenharryhua.nanjin.terminals.{HadoopBinAvro, NJHadoop, NJPath}
-import com.sksamuel.avro4s.{FromRecord, ToRecord}
+import com.sksamuel.avro4s.ToRecord
 import eu.timepit.refined.auto.*
 import fs2.Stream
 import mtest.spark.*
@@ -22,15 +23,12 @@ class BinAvroTest extends AnyFunSuite {
       .withSaveMode(_.Overwrite)
 
   def loadRooster(path: NJPath): IO[Set[Rooster]] =
-    Stream
-      .eval(hdp.filesIn(path))
-      .flatMap(bin_avro.source(_, 100))
-      .map(FromRecord(Rooster.avroCodec).from)
-      .compile
-      .toList
+    hdp
+      .filesIn(path)
+      .flatMap(_.flatTraverse(bin_avro.source(_, 100).map(Rooster.avroCodec.decode).compile.toList))
       .map(_.toSet)
 
-  val root = NJPath("./data/test/spark/persist/bin_avro/") / "rooster"
+  val root: NJPath = NJPath("./data/test/spark/persist/bin_avro/") / "rooster"
   test("binary avro - uncompressed") {
     val path = root / "rooster" / "uncompressed"
     saver(path).withCompression(_.Uncompressed).run[IO].unsafeRunSync()
