@@ -51,7 +51,8 @@ class CirceTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
 
   private def writeMultiSpark(file: CirceFile): IO[NJPath] = {
     val path = root / "spark" / "multi" / file.fileName
-    write(path.uri.getPath).use(_ => table.output.circe(path).withCompression(file.compression).run[IO].as(path))
+    write(path.uri.getPath).use(_ =>
+      table.output.circe(path).withCompression(file.compression).run[IO].as(path))
   }
 
   private def writeRotateSpark(file: CirceFile): IO[NJPath] = {
@@ -69,16 +70,23 @@ class CirceTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
     read(path.uri.getPath).use { meter =>
       hadoop
         .filesIn(path)
-        .flatMap(circe.source(_, 100.bytes).map(_.as[Tiger]).evalTap(_ => meter.update(1)).compile.fold(0L) {
-          case (s, _) => s + 1
-        })
+        .flatMap(_.traverse(
+          circe.source(_, 100.bytes).map(_.as[Tiger]).evalTap(_ => meter.update(1)).compile.fold(0L) {
+            case (s, _) => s + 1
+          }))
+        .map(_.sum)
     }
 
   private def singleRead(path: NJPath): IO[Long] =
     read(path.uri.getPath).use { meter =>
-      circe.source(path, 100.bytes).map(_.as[Tiger]).evalTap(_ => meter.update(1)).compile.fold(0L) { case (s, _) =>
-        s + 1
-      }
+      circe
+        .source(path, 100.bytes)
+        .mapChunks(_.map(_.as[Tiger]))
+        .evalTap(_ => meter.update(1))
+        .compile
+        .fold(0L) { case (s, _) =>
+          s + 1
+        }
     }
 
   val single: IO[List[Long]] =

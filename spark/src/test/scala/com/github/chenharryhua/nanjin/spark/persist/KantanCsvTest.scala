@@ -3,16 +3,16 @@ package com.github.chenharryhua.nanjin.spark.persist
 import better.files.File
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
+import cats.implicits.toTraverseOps
 import com.github.chenharryhua.nanjin.spark.*
-import com.github.chenharryhua.nanjin.terminals.{csvHeader, NJHadoop, NJPath}
+import com.github.chenharryhua.nanjin.terminals.{NJHadoop, NJPath, csvHeader}
 import eu.timepit.refined.auto.*
-import fs2.Stream
+import kantan.csv.generic.*
+import kantan.csv.java8.*
 import kantan.csv.{CsvConfiguration, RowDecoder, RowEncoder}
 import mtest.spark.*
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
-import kantan.csv.generic.*
-import kantan.csv.java8.*
 
 @DoNotDiscover
 class KantanCsvTest extends AnyFunSuite {
@@ -28,13 +28,9 @@ class KantanCsvTest extends AnyFunSuite {
 
   def loadTablet(path: NJPath, cfg: CsvConfiguration): IO[Set[Tablet]] = {
     val kantan = hdp.kantan(cfg)
-    Stream
-      .eval(hdp.filesIn(path))
-      .flatMap(kantan.source(_, 100))
-      .map(decoderTablet.decode)
-      .rethrow
-      .compile
-      .toList
+    hdp
+      .filesIn(path)
+      .flatMap(_.flatTraverse(kantan.source(_, 100).map(decoderTablet.decode).rethrow.compile.toList))
       .map(_.toSet)
   }
 

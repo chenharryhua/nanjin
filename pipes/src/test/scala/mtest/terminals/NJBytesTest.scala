@@ -64,7 +64,7 @@ class NJBytesTest extends AnyFunSuite {
   }
 
   test("laziness") {
-    hdp.bytes.source(NJPath("./does/not/exist"), 64)
+    hdp.bytes.source(NJPath("./does/not/exist"))
     hdp.bytes.sink(NJPath("./does/not/exist"))
   }
 

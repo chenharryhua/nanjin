@@ -87,7 +87,7 @@ class KantanTest(agent: Agent[IO], base: NJPath, rfc: CsvConfiguration) extends 
     read(path.uri.getPath).use { meter =>
       hadoop
         .filesIn(path)
-        .flatMap(
+        .flatMap(_.traverse(
           kantan
             .source(_, 1000)
             .map(rowDecoder.decode)
@@ -96,14 +96,14 @@ class KantanTest(agent: Agent[IO], base: NJPath, rfc: CsvConfiguration) extends 
             .compile
             .fold(0L) { case (s, _) =>
               s + 1
-            })
+            })).map(_.sum)
     }
 
   private def singleRead(path: NJPath): IO[Long] =
     read(path.uri.getPath).use { meter =>
       kantan
         .source(path, 1000)
-        .map(rowDecoder.decode)
+        .mapChunks(_.map(rowDecoder.decode))
         .rethrow
         .evalTap(_ => meter.update(1))
         .compile
