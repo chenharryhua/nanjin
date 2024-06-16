@@ -41,15 +41,16 @@ final class NJKafkaTransactional[F[_], K, V] private[kafka] (
     new NJKafkaTransactional[F, K, V](f(txnSettings))
 }
 
-final class NJGenericRecordSink[F[_]] private[kafka] (
+final class NJGenericRecordSinkBuilder[F[_]] private[kafka] (
   topicName: TopicName,
   producerSettings: ProducerSettings[F, Array[Byte], Array[Byte]],
   getSchema: F[AvroSchemaPair],
   srs: SchemaRegistrySettings)
-    extends UpdateConfig[ProducerSettings[F, Array[Byte], Array[Byte]], NJGenericRecordSink[F]] {
+    extends UpdateConfig[ProducerSettings[F, Array[Byte], Array[Byte]], NJGenericRecordSinkBuilder[F]] {
 
-  override def updateConfig(f: Endo[ProducerSettings[F, Array[Byte], Array[Byte]]]): NJGenericRecordSink[F] =
-    new NJGenericRecordSink[F](topicName, f(producerSettings), getSchema, srs)
+  override def updateConfig(
+    f: Endo[ProducerSettings[F, Array[Byte], Array[Byte]]]): NJGenericRecordSinkBuilder[F] =
+    new NJGenericRecordSinkBuilder[F](topicName, f(producerSettings), getSchema, srs)
 
   def build(implicit F: Async[F]): Pipe[F, GenericRecord, ProducerResult[Array[Byte], Array[Byte]]] = {
     (ss: Stream[F, GenericRecord]) =>
