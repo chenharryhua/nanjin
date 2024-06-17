@@ -354,8 +354,10 @@ lazy val messages = (project in file("messages"))
   .dependsOn(common)
   .settings(commonSettings *)
   .settings(name := "nj-messages")
-  .settings(libraryDependencies ++=
-    serdeLib ++ kafkaLib.map(_ % Provided) ++ testLib)
+  .settings(
+    libraryDependencies ++=
+      List("org.typelevel" %% "frameless-core" % framelessV) ++
+        serdeLib ++ kafkaLib.map(_ % Provided) ++ testLib)
 
 lazy val database = (project in file("database"))
   .dependsOn(common)

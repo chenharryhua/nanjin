@@ -4,6 +4,7 @@ import cats.Show
 import cats.kernel.Eq
 import com.google.protobuf.{CodedInputStream, CodedOutputStream, Descriptors, DynamicMessage}
 import com.sksamuel.avro4s.{Codec, SchemaFor}
+import frameless.Injection
 import io.confluent.kafka.serializers.protobuf.{KafkaProtobufDeserializer, KafkaProtobufSerializer}
 import org.apache.kafka.common.serialization.{Deserializer, Serializer}
 import scalapb.descriptors.{Descriptor, FieldDescriptor, PValue, Reads}
@@ -127,6 +128,10 @@ object KPB {
               case Some(v) => KPB(ev.parseFrom(deSer.deserialize(topic, v).toByteArray))
             }
         }
-
     }
+
+  implicit def injectionKPB[A <: GeneratedMessage]: Injection[KPB[A], A] = new Injection[KPB[A], A] {
+    override def apply(a: KPB[A]): A  = a.value
+    override def invert(b: A): KPB[A] = KPB(b)
+  }
 }
