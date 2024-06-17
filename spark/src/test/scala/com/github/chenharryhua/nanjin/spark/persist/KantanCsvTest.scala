@@ -5,7 +5,7 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.toTraverseOps
 import com.github.chenharryhua.nanjin.spark.*
-import com.github.chenharryhua.nanjin.terminals.{NJHadoop, NJPath, csvHeader}
+import com.github.chenharryhua.nanjin.terminals.{csvHeader, NJHadoop, NJPath}
 import eu.timepit.refined.auto.*
 import kantan.csv.generic.*
 import kantan.csv.java8.*

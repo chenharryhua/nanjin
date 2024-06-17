@@ -25,7 +25,7 @@ class PolicyBaseTest extends AnyFunSuite {
 
     val ts: TickStatus = zeroTickStatus.renewPolicy(policy)
 
-    val List(a1, a2, a3, a4, a5) = lazyTickList(ts).take(5).toList
+    val List(a1, a2, a3, a4, a5) = tickLazyList(ts).take(5).toList
 
     assert(a1.sequenceId == ts.tick.sequenceId)
     assert(a1.launchTime == ts.tick.launchTime)
@@ -65,7 +65,7 @@ class PolicyBaseTest extends AnyFunSuite {
 
     val ts: TickStatus = zeroTickStatus.renewPolicy(policy)
 
-    val List(a1, a2, a3, a4, a5) = lazyTickList(ts).take(5).toList
+    val List(a1, a2, a3, a4, a5) = tickLazyList(ts).take(5).toList
 
     assert(a1.sequenceId == ts.tick.sequenceId)
     assert(a1.launchTime == ts.tick.launchTime)
@@ -105,7 +105,7 @@ class PolicyBaseTest extends AnyFunSuite {
 
     val ts: TickStatus = zeroTickStatus.renewPolicy(policy)
 
-    val List(a1, a2, a3, a4, a5, a6, a7) = lazyTickList(ts).take(7).toList
+    val List(a1, a2, a3, a4, a5, a6, a7) = tickLazyList(ts).take(7).toList
 
     assert(a1.index == 1)
     assert(a2.index == 2)
