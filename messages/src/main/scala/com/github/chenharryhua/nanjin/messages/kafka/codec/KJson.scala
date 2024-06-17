@@ -2,7 +2,6 @@ package com.github.chenharryhua.nanjin.messages.kafka.codec
 
 import cats.{Distributive, Eq, Functor, Show}
 import com.sksamuel.avro4s.{Codec, FieldMapper, SchemaFor}
-import frameless.Injection
 import io.circe.Decoder.Result
 import io.circe.syntax.*
 import io.circe.{jawn, Codec as JsonCodec, Decoder as JsonDecoder, Encoder as JsonEncoder, HCursor, Json}
@@ -108,16 +107,4 @@ object KJson {
   }
 
   implicit def isoKJson[A]: Iso[KJson[A], A] = Iso[KJson[A], A](_.value)(KJson(_))
-
-  implicit def injectionKJson[A: JsonEncoder: JsonDecoder]: Injection[KJson[A], String] =
-    new Injection[KJson[A], String] {
-
-      override def apply(a: KJson[A]): String = a.asJson.noSpaces
-
-      override def invert(b: String): KJson[A] =
-        jawn.decode[KJson[A]](b) match {
-          case Right(value) => value
-          case Left(err)    => throw err
-        }
-    }
 }

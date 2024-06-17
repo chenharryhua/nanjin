@@ -166,13 +166,4 @@ class ParquetTest extends AnyFunSuite {
 
   /** frameless/spark does not support coproduct so cocop and cpcop do not compile
     */
-
-  test("13.parquet jacket multi uncompress") {
-    import JacketData.*
-    val path  = NJPath("./data/test/spark/persist/parquet/jacket/multi/jacket.parquet")
-    val saver = new RddAvroFileHoarder[Jacket](rdd, Jacket.avroCodec).parquet(path)
-    saver.withCompression(_.Uncompressed).run[IO].unsafeRunSync()
-    val t = loaders.parquet(path, sparkSession, Jacket.ate)
-    assert(expected.toSet == t.collect().toSet)
-  }
 }

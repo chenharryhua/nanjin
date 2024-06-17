@@ -22,10 +22,6 @@ class KJsonTest extends AnyFunSuite {
 
   val root: NJPath = NJPath("./data/test/spark/kafka/kjson")
 
-  test("to table, should compile") {
-    sparKafka.topic(topic).emptyCrRdd.toTable
-  }
-
   test("load - unload") {
     sparKafka
       .topic(topic)
