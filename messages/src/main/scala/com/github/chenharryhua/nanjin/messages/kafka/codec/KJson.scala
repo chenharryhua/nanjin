@@ -109,15 +109,8 @@ object KJson {
 
   implicit def isoKJson[A]: Iso[KJson[A], A] = Iso[KJson[A], A](_.value)(KJson(_))
 
-  implicit def injectionKJson[A: JsonEncoder: JsonDecoder]: Injection[KJson[A], String] =
-    new Injection[KJson[A], String] {
-
-      override def apply(a: KJson[A]): String = a.asJson.noSpaces
-
-      override def invert(b: String): KJson[A] =
-        jawn.decode[KJson[A]](b) match {
-          case Right(value) => value
-          case Left(err)    => throw err
-        }
-    }
+  implicit def injectionKJson[A]: Injection[KJson[A], A] = new Injection[KJson[A], A] {
+    override def apply(a: KJson[A]): A  = a.value
+    override def invert(b: A): KJson[A] = KJson(b)
+  }
 }

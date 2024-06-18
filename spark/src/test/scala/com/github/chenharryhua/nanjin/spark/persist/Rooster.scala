@@ -4,7 +4,6 @@ import cats.Show
 import com.github.chenharryhua.nanjin.datetime.instances.*
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
-import com.github.chenharryhua.nanjin.spark.injection.*
 import frameless.TypedEncoder
 import io.circe.Codec
 import kantan.csv.RowEncoder

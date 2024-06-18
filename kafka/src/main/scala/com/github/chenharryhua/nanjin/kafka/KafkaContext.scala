@@ -97,15 +97,15 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
     ProducerSettings[F, Array[Byte], Array[Byte]](Serializer[F, Array[Byte]], Serializer[F, Array[Byte]])
       .withProperties(settings.producerSettings.properties)
 
-  def sink(topicName: TopicName)(implicit F: Sync[F]): NJGenericRecordSink[F] =
-    new NJGenericRecordSink[F](
+  def sink(topicName: TopicName)(implicit F: Sync[F]): NJGenericRecordSinkBuilder[F] =
+    new NJGenericRecordSinkBuilder[F](
       topicName,
       bytesProducerSettings,
       schemaRegistry.fetchAvroSchema(topicName),
       settings.schemaRegistrySettings
     )
 
-  def sink(topicName: TopicNameL)(implicit F: Sync[F]): NJGenericRecordSink[F] =
+  def sink(topicName: TopicNameL)(implicit F: Sync[F]): NJGenericRecordSinkBuilder[F] =
     sink(TopicName(topicName))
 
   def produce(jackson: String)(implicit F: Async[F]): F[ProducerResult[Array[Byte], Array[Byte]]] =

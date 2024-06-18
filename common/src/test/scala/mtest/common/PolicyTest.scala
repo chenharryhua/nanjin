@@ -1,6 +1,6 @@
 package mtest.common
 
-import com.github.chenharryhua.nanjin.common.chrono.{lazyTickList, policies, TickStatus}
+import com.github.chenharryhua.nanjin.common.chrono.{policies, tickLazyList, TickStatus}
 import cron4s.Cron
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -14,7 +14,7 @@ class PolicyTest extends AnyFunSuite {
         .except(_.noon)
 
     val ts = zeroTickStatus.renewPolicy(policy)
-    lazyTickList(ts).take(10).foreach { t =>
+    tickLazyList(ts).take(10).foreach { t =>
       println(t.uptoWakeup)
       println(t.uptoAcquire)
       println(t.zonedPrevious)
@@ -27,6 +27,6 @@ class PolicyTest extends AnyFunSuite {
       .meet(policies.crontab(Cron.unsafeParse("0 0 0 1-25 12 ?")))
 
     val ts: TickStatus = zeroTickStatus.renewPolicy(policy)
-    lazyTickList(ts).slice(320, 365).foreach(println)
+    tickLazyList(ts).slice(320, 365).foreach(println)
   }
 }

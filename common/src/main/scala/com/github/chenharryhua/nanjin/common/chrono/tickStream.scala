@@ -22,7 +22,9 @@ object tickStream {
     Stream.eval[F, TickStatus](TickStatus.zeroth[F](policy, zoneId)).flatMap(apply[F])
 }
 
-object lazyTickList {
+/** for testing
+  */
+object tickLazyList {
   def apply(init: TickStatus): LazyList[Tick] =
     LazyList.unfold(init)(ts =>
       ts.next(ts.tick.wakeup.plus(Random.between(1, 5).milliseconds.toJava)).map(s => (s.tick, s)))

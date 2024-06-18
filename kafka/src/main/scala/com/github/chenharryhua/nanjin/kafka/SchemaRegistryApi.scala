@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.kafka
 
 import cats.effect.kernel.Sync
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.common.kafka.TopicName
+import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameL}
 import io.confluent.kafka.schemaregistry.avro.AvroSchema
 import io.confluent.kafka.schemaregistry.client.{CachedSchemaRegistryClient, SchemaMetadata}
 
@@ -17,26 +17,18 @@ final case class KvSchemaMetadata(key: SchemaMetadata, value: SchemaMetadata)
 
 final class SchemaRegistryApi[F[_]](client: CachedSchemaRegistryClient) extends Serializable {
 
-  private def enhanceException[A](topicName: TopicName)(
-    throwable: Either[Throwable, A]): Either[Exception, A] =
-    throwable.leftMap { err =>
-      val ex = new Exception(topicName.value)
-      ex.addSuppressed(err)
-      ex
-    }
-
-  def metaData(topicName: TopicName)(implicit F: Sync[F]): F[KvSchemaMetadata] = {
+  private def metaData(topicName: TopicName)(implicit F: Sync[F]): F[KvSchemaMetadata] = {
     val loc = SchemaLocation(topicName)
     for {
       key <- F
         .blocking(client.getLatestSchemaMetadata(loc.keyLoc))
         .attempt
-        .map(enhanceException(topicName))
+        .map(_.leftMap(err => new Exception(topicName.value, err)))
         .rethrow
       value <- F
         .blocking(client.getLatestSchemaMetadata(loc.valLoc))
         .attempt
-        .map(enhanceException(topicName))
+        .map(_.leftMap(err => new Exception(topicName.value, err)))
         .rethrow
     } yield KvSchemaMetadata(key, value)
   }
@@ -56,18 +48,21 @@ final class SchemaRegistryApi[F[_]](client: CachedSchemaRegistryClient) extends 
       }
     } yield skv
 
+  def fetchAvroSchema(topicName: TopicNameL)(implicit F: Sync[F]): F[AvroSchemaPair] =
+    fetchAvroSchema(TopicName(topicName))
+
   def register(topicName: TopicName, pair: AvroSchemaPair)(implicit F: Sync[F]): F[(Int, Int)] = {
     val loc = SchemaLocation(topicName)
     for {
       k <- F
         .blocking(client.register(loc.keyLoc, new AvroSchema(pair.key)))
         .attempt
-        .map(enhanceException(topicName))
+        .map(_.leftMap(err => new Exception(topicName.value, err)))
         .rethrow
       v <- F
         .blocking(client.register(loc.valLoc, new AvroSchema(pair.value)))
         .attempt
-        .map(enhanceException(topicName))
+        .map(_.leftMap(err => new Exception(topicName.value, err)))
         .rethrow
     } yield (k, v)
   }
@@ -81,12 +76,12 @@ final class SchemaRegistryApi[F[_]](client: CachedSchemaRegistryClient) extends 
       k <- F
         .blocking(client.deleteSubject(loc.keyLoc).asScala.toList)
         .attempt
-        .map(enhanceException(topicName))
+        .map(_.leftMap(err => new Exception(topicName.value, err)))
         .rethrow
       v <- F
         .blocking(client.deleteSubject(loc.valLoc).asScala.toList)
         .attempt
-        .map(enhanceException(topicName))
+        .map(_.leftMap(err => new Exception(topicName.value, err)))
         .rethrow
     } yield (k, v)
   }
