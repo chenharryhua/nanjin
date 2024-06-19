@@ -27,7 +27,7 @@ final class HadoopBytes[F[_]] private (configuration: Configuration) {
     HadoopReader.byteS(configuration, path.hadoopPath, bufferSize)
 
   def source(path: NJPath)(implicit F: Sync[F]): Stream[F, Byte] =
-    source(path, ChunkSize(Bytes(1024 * 1024)))
+    source(path, ChunkSize(Bytes(1024 * 256)))
 
   def inputStream(path: NJPath)(implicit F: Sync[F]): Resource[F, InputStream] =
     HadoopReader.inputStreamR[F](configuration, path.hadoopPath)

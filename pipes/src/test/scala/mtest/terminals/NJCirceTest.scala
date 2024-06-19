@@ -10,6 +10,7 @@ import eu.timepit.refined.auto.*
 import fs2.Stream
 import fs2.text.{lines, utf8}
 import io.circe.generic.auto.*
+import io.circe.jawn.CirceSupportParser.facade
 import io.circe.syntax.EncoderOps
 import io.circe.{jawn, Json}
 import mtest.terminals.HadoopTestData.hdp
@@ -17,6 +18,7 @@ import mtest.terminals.TestData.Tiger
 import org.apache.hadoop.conf.Configuration
 import org.scalatest.Assertion
 import org.scalatest.funsuite.AnyFunSuite
+import org.typelevel.jawn.fs2.JsonStreamSyntax
 import squants.information.InformationConversions.InformationConversions
 
 import java.time.ZoneId
@@ -115,19 +117,22 @@ class NJCirceTest extends AnyFunSuite {
     assert(size == number * TestData.tigerSet.toList.size)
     assert(processedSize == number * TestData.tigerSet.toList.size)
 
-    def countTiger(path: NJPath): IO[Int] = hdp.bytes
-      .source(path, 64)
-      .through(utf8.decode)
-      .through(lines)
-      .map(jawn.decode[Tiger])
-      .rethrow
-      .map(_ => 1)
-      .compile
-      .fold(0)(_ + _)
+    def tigers1(path: NJPath): Stream[IO, Tiger] =
+      hdp.bytes
+        .source(path)
+        .through(utf8.decode)
+        .through(lines)
+        .map(jawn.decode[Tiger])
+        .rethrow
 
-    val num = hdp.filesIn(path).flatMap(_.traverse(countTiger)).unsafeRunSync().sum
+    def tigers2(path: NJPath): Stream[IO, Tiger] =
+      hdp.bytes.source(path).chunks.parseJsonStream.map(_.as[Tiger]).rethrow
 
-    assert(num == number * TestData.tigerSet.toList.size)
+    hdp
+      .filesIn(path)
+      .flatMap(_.traverse(p =>
+        tigers1(p).interleave(tigers2(p)).chunkN(2).map(c => assert(c(0) == c(1))).compile.drain))
+      .unsafeRunSync()
   }
 
   test("rotation - empty") {
