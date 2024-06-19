@@ -16,15 +16,15 @@ import org.apache.hadoop.io.compress.CompressionCodecFactory
 import org.apache.parquet.avro.AvroParquetWriter
 import org.apache.parquet.hadoop.util.HadoopOutputFile
 
-import java.io.{OutputStream, PrintWriter}
-import java.nio.charset.StandardCharsets
+import java.io.OutputStream
+import java.nio.charset.{Charset, StandardCharsets}
 
 sealed private trait HadoopWriter[F[_], A] {
   def write(ck: Chunk[A]): F[Unit]
 }
 
 private object HadoopWriter {
-  final private val BLOCK_SIZE_HINT: Long = -1
+  final private[this] val BLOCK_SIZE_HINT: Long = -1
 
   def avroR[F[_]](codecFactory: CodecFactory, schema: Schema, configuration: Configuration, path: Path)(
     implicit F: Sync[F]): Resource[F, HadoopWriter[F, GenericRecord]] =
@@ -78,35 +78,33 @@ private object HadoopWriter {
           }
       })
 
+  final private[this] val CHARSET: Charset     = StandardCharsets.UTF_8
+  final private[this] val NEWLINE: Array[Byte] = System.lineSeparator().getBytes(CHARSET)
+
   def stringR[F[_]](configuration: Configuration, path: Path)(implicit
     F: Sync[F]): Resource[F, HadoopWriter[F, String]] =
-    Resource
-      .make(
-        F.blocking(new PrintWriter(fileOutputStream(path, configuration), false, StandardCharsets.UTF_8)))(
-        r => F.blocking(r.close()))
-      .map(pw =>
-        new HadoopWriter[F, String] {
-          override def write(cs: Chunk[String]): F[Unit] =
-            F.blocking {
-              cs.foreach(pw.println)
-              pw.flush()
+    outputStreamR(path, configuration).map(os =>
+      new HadoopWriter[F, String] {
+        override def write(cs: Chunk[String]): F[Unit] =
+          F.blocking {
+            cs.foreach { s =>
+              os.write(s.getBytes(CHARSET))
+              os.write(NEWLINE)
             }
-        })
+            os.flush()
+          }
+      })
 
   def csvStringR[F[_]](configuration: Configuration, path: Path)(implicit
     F: Sync[F]): Resource[F, HadoopWriter[F, String]] =
-    Resource
-      .make(
-        F.blocking(new PrintWriter(fileOutputStream(path, configuration), false, StandardCharsets.UTF_8)))(
-        r => F.blocking(r.close()))
-      .map(pw =>
-        new HadoopWriter[F, String] {
-          override def write(cs: Chunk[String]): F[Unit] =
-            F.blocking {
-              cs.foreach(pw.write) // already has new line separator
-              pw.flush()
-            }
-        })
+    outputStreamR(path, configuration).map(os =>
+      new HadoopWriter[F, String] {
+        override def write(cs: Chunk[String]): F[Unit] =
+          F.blocking {
+            cs.foreach(s => os.write(s.getBytes(CHARSET))) // already has new line separator
+            os.flush()
+          }
+      })
 
   def jsonNodeR[F[_]](configuration: Configuration, path: Path, mapper: ObjectMapper)(implicit
     F: Sync[F]): Resource[F, HadoopWriter[F, JsonNode]] =
