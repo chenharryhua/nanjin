@@ -22,7 +22,7 @@ final class HadoopCirce[F[_]] private (configuration: Configuration) {
     HadoopReader.jawnS[F](configuration, path.hadoopPath, bufferSize)
 
   def source(path: NJPath)(implicit F: Sync[F]): Stream[F, Json] =
-    source(path: NJPath, Bytes(1024 * 256))
+    source(path: NJPath, Bytes(1024 * 512))
 
   // write
 
