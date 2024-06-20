@@ -26,7 +26,7 @@ class JacksonTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
     val path = root / "single" / file.fileName
     val sink = jackson.sink(path)
     write(path.uri.getPath).use { meter =>
-      data.evalTap(_ => meter.update(1)).map(encoder.to).through(sink).compile.drain.as(path)
+      data.evalTap(_ => meter.update(1)).map(encoder.to).chunks.through(sink).compile.drain.as(path)
     }
   }
 
@@ -34,7 +34,7 @@ class JacksonTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
     val path = root / "rotate" / file.fileName
     val sink = jackson.sink(policy, cairoTime)(t => path / file.fileName(t))
     write(path.uri.getPath).use { meter =>
-      data.evalTap(_ => meter.update(1)).map(encoder.to).through(sink).compile.drain.as(path)
+      data.evalTap(_ => meter.update(1)).map(encoder.to).chunks.through(sink).compile.drain.as(path)
     }
   }
 
@@ -45,7 +45,7 @@ class JacksonTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
       table
         .stream[IO](1000)
         .evalTap(_ => meter.update(1))
-        .map(encoder.to)
+        .map(encoder.to).chunks
         .through(sink)
         .compile
         .drain
@@ -66,7 +66,7 @@ class JacksonTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
       table
         .stream[IO](1000)
         .evalTap(_ => meter.update(1))
-        .map(encoder.to)
+        .map(encoder.to).chunks
         .through(sink)
         .compile
         .drain
@@ -82,7 +82,7 @@ class JacksonTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
       hadoop
         .filesIn(path)
         .flatMap(
-          _.traverse(jackson.source(_, 100).map(decoder.from).evalTap(_ => meter.update(1)).compile.fold(0L) {
+          _.traverse(jackson.source(_, 100).unchunks.map(decoder.from).evalTap(_ => meter.update(1)).compile.fold(0L) {
             case (s, _) => s + 1
           }))
         .map(_.sum)
@@ -90,7 +90,7 @@ class JacksonTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
 
   private def singleRead(path: NJPath): IO[Long] =
     read(path.uri.getPath).use { meter =>
-      jackson.source(path, 100).map(decoder.from).evalTap(_ => meter.update(1)).compile.fold(0L) {
+      jackson.source(path, 100).unchunks.map(decoder.from).evalTap(_ => meter.update(1)).compile.fold(0L) {
         case (s, _) =>
           s + 1
       }

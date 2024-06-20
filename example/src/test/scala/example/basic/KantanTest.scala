@@ -32,7 +32,7 @@ class KantanTest(agent: Agent[IO], base: NJPath, rfc: CsvConfiguration) extends 
     val path = root / "single" / file.fileName
     val sink = kantan.sink(path)
     write(path.uri.getPath).use { meter =>
-      data.evalTap(_ => meter.update(1)).map(rowEncoder.encode).through(sink).compile.drain.as(path)
+      data.evalTap(_ => meter.update(1)).map(rowEncoder.encode).chunks.through(sink).compile.drain.as(path)
     }
   }
 
@@ -40,7 +40,7 @@ class KantanTest(agent: Agent[IO], base: NJPath, rfc: CsvConfiguration) extends 
     val path = root / "rotate" / file.fileName
     val sink = kantan.sink(policy, darwinTime)(t => path / file.fileName(t))
     write(path.uri.getPath).use { meter =>
-      data.evalTap(_ => meter.update(1)).map(rowEncoder.encode).through(sink).compile.drain.as(path)
+      data.evalTap(_ => meter.update(1)).map(rowEncoder.encode).chunks.through(sink).compile.drain.as(path)
     }
   }
 
@@ -51,7 +51,7 @@ class KantanTest(agent: Agent[IO], base: NJPath, rfc: CsvConfiguration) extends 
       table
         .stream[IO](1000)
         .evalTap(_ => meter.update(1))
-        .map(rowEncoder.encode)
+        .map(rowEncoder.encode).chunks
         .through(sink)
         .compile
         .drain
@@ -72,7 +72,7 @@ class KantanTest(agent: Agent[IO], base: NJPath, rfc: CsvConfiguration) extends 
       table
         .stream[IO](1000)
         .evalTap(_ => meter.update(1))
-        .map(rowEncoder.encode)
+        .map(rowEncoder.encode).chunks
         .through(sink)
         .compile
         .drain
@@ -89,7 +89,7 @@ class KantanTest(agent: Agent[IO], base: NJPath, rfc: CsvConfiguration) extends 
         .filesIn(path)
         .flatMap(_.traverse(
           kantan
-            .source(_, 1000)
+            .source(_, 1000).unchunks
             .map(rowDecoder.decode)
             .rethrow
             .evalTap(_ => meter.update(1))
@@ -102,7 +102,7 @@ class KantanTest(agent: Agent[IO], base: NJPath, rfc: CsvConfiguration) extends 
   private def singleRead(path: NJPath): IO[Long] =
     read(path.uri.getPath).use { meter =>
       kantan
-        .source(path, 1000)
+        .source(path, 1000).unchunks
         .mapChunks(_.map(rowDecoder.decode))
         .rethrow
         .evalTap(_ => meter.update(1))

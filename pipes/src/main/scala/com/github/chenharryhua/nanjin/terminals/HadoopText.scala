@@ -19,19 +19,20 @@ final class HadoopText[F[_]] private (configuration: Configuration) {
 
   // write
 
-  def sink(path: NJPath)(implicit F: Sync[F]): Pipe[F, String, Int] = { (ss: Stream[F, String]) =>
-    Stream
-      .resource(HadoopWriter.stringR[F](configuration, path.hadoopPath))
-      .flatMap(w => ss.chunks.evalMap(c => w.write(c).as(c.size)))
+  def sink(path: NJPath)(implicit F: Sync[F]): Pipe[F, Chunk[String], Int] = {
+    (ss: Stream[F, Chunk[String]]) =>
+      Stream
+        .resource(HadoopWriter.stringR[F](configuration, path.hadoopPath))
+        .flatMap(w => ss.evalMap(c => w.write(c).as(c.size)))
   }
 
   def sink(policy: Policy, zoneId: ZoneId)(pathBuilder: Tick => NJPath)(implicit
-    F: Async[F]): Pipe[F, String, Int] = {
+    F: Async[F]): Pipe[F, Chunk[String], Int] = {
     def get_writer(tick: Tick): Resource[F, HadoopWriter[F, String]] =
       HadoopWriter.stringR(configuration, pathBuilder(tick).hadoopPath)
 
     // save
-    (ss: Stream[F, String]) =>
+    (ss: Stream[F, Chunk[String]]) =>
       Stream.eval(TickStatus.zeroth[F](policy, zoneId)).flatMap { zero =>
         val ticks: Stream[F, Either[Chunk[String], Tick]] = tickStream[F](zero).map(Right(_))
 
@@ -41,7 +42,7 @@ final class HadoopText[F[_]] private (configuration: Configuration) {
               get_writer,
               hotswap,
               writer,
-              ss.chunks.map(Left(_)).mergeHaltBoth(ticks)
+              ss.map(Left(_)).mergeHaltBoth(ticks)
             )
             .stream
         }

@@ -26,12 +26,12 @@ class NJParquetTest extends AnyFunSuite {
 
   def fs2(path: NJPath, file: ParquetFile, data: Set[GenericRecord]): Assertion = {
     val tgt  = path / file.fileName
-    val ts   = Stream.emits(data.toList).covary[IO]
+    val ts   = Stream.emits(data.toList).covary[IO].chunks
     val sink = parquet.updateWriter(_.withCompressionCodec(file.compression.codecName)).sink(tgt)
     hdp.delete(tgt).unsafeRunSync()
     val action =
       ts.through(sink).compile.drain >>
-        parquet.source(tgt, 100).compile.toList
+        parquet.source(tgt, 100).compile.toList.map(_.toList)
     assert(action.unsafeRunSync().toSet == data)
     val fileName = (file: NJFileKind).asJson.noSpaces
     assert(jawn.decode[NJFileKind](fileName).toOption.get == file)
@@ -86,6 +86,7 @@ class NJParquetTest extends AnyFunSuite {
       .emits(pandaSet.toList)
       .covary[IO]
       .repeatN(number)
+      .chunks
       .through(parquet.sink(policies.fixedDelay(1.second), ZoneId.systemDefault())(t =>
         path / file.ymdFileName(t)))
       .fold(0)(_ + _)

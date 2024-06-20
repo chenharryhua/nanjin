@@ -14,7 +14,7 @@ import java.time.ZoneId
 final class HadoopBinAvro[F[_]] private (
   configuration: Configuration,
   schema: Schema
-) extends GenericRecordSink[F] {
+) {
 
   // read
 
@@ -23,21 +23,21 @@ final class HadoopBinAvro[F[_]] private (
 
   // write
 
-  override def sink(path: NJPath)(implicit F: Sync[F]): Pipe[F, GenericRecord, Int] = {
-    (ss: Stream[F, GenericRecord]) =>
+  def sink(path: NJPath)(implicit F: Sync[F]): Pipe[F, Chunk[GenericRecord], Int] = {
+    (ss: Stream[F, Chunk[GenericRecord]]) =>
       Stream
         .resource(HadoopWriter.binAvroR[F](configuration, schema, path.hadoopPath))
-        .flatMap(w => ss.chunks.evalMap(c => w.write(c).as(c.size)))
+        .flatMap(w => ss.evalMap(c => w.write(c).as(c.size)))
   }
 
-  override def sink(policy: Policy, zoneId: ZoneId)(pathBuilder: Tick => NJPath)(implicit
-    F: Async[F]): Pipe[F, GenericRecord, Int] = {
+  def sink(policy: Policy, zoneId: ZoneId)(pathBuilder: Tick => NJPath)(implicit
+    F: Async[F]): Pipe[F, Chunk[GenericRecord], Int] = {
 
     def get_writer(tick: Tick): Resource[F, HadoopWriter[F, GenericRecord]] =
       HadoopWriter.binAvroR[F](configuration, schema, pathBuilder(tick).hadoopPath)
 
     // save
-    (ss: Stream[F, GenericRecord]) =>
+    (ss: Stream[F, Chunk[GenericRecord]]) =>
       Stream.eval(TickStatus.zeroth[F](policy, zoneId)).flatMap { zero =>
         val ticks: Stream[F, Either[Chunk[GenericRecord], Tick]] = tickStream[F](zero).map(Right(_))
 
@@ -47,7 +47,7 @@ final class HadoopBinAvro[F[_]] private (
               get_writer,
               hotswap,
               writer,
-              ss.chunks.map(Left(_)).mergeHaltBoth(ticks)
+              ss.map(Left(_)).mergeHaltBoth(ticks)
             )
             .stream
         }

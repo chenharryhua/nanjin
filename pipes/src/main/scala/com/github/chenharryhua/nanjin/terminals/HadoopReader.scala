@@ -3,9 +3,9 @@ package com.github.chenharryhua.nanjin.terminals
 import cats.data.Reader
 import cats.effect.Resource
 import cats.effect.kernel.Sync
-import cats.implicits.{catsSyntaxOptionId, toFlatMapOps, toFunctorOps}
+import cats.implicits.toFlatMapOps
 import com.github.chenharryhua.nanjin.common.ChunkSize
-import fs2.{Chunk, Stream}
+import fs2.{Chunk, Pull, Stream}
 import io.circe.Json
 import io.circe.jawn.CirceSupportParser.facade
 import org.apache.avro.Schema
@@ -19,7 +19,6 @@ import org.apache.parquet.hadoop.ParquetReader
 import org.apache.parquet.hadoop.util.HadoopInputFile
 import org.apache.parquet.io.SeekableInputStream
 import org.typelevel.jawn.AsyncParser
-import squants.information.Information
 
 import java.io.{BufferedReader, InputStream, InputStreamReader}
 import java.nio.charset.StandardCharsets
@@ -27,21 +26,28 @@ import scala.jdk.CollectionConverters.IteratorHasAsScala
 
 private object HadoopReader {
 
-  def avroR[F[_]](configuration: Configuration, schema: Schema, path: Path)(implicit
-    F: Sync[F]): Resource[F, DataFileStream[GenericData.Record]] =
+  def avroS[F[_]](configuration: Configuration, schema: Schema, path: Path, chunkSize: ChunkSize)(implicit
+    F: Sync[F]): Stream[F, GenericData.Record] =
     for {
-      is <- Resource.make(F.blocking(HadoopInputFile.fromPath(path, configuration).newStream()))(r =>
+      is <- Stream.bracket(F.blocking(HadoopInputFile.fromPath(path, configuration).newStream()))(r =>
         F.blocking(r.close()))
-      dfs <- Resource.make[F, DataFileStream[GenericData.Record]] {
+      dfs <- Stream.bracket {
         F.blocking[DataFileStream[GenericData.Record]](new DataFileStream(is, new GenericDatumReader(schema)))
       }(r => F.blocking(r.close()))
-    } yield dfs
+      gr <- Stream.fromBlockingIterator[F](dfs.iterator().asScala, chunkSize.value)
+    } yield gr
 
-  def parquetR[F[_]](readBuilder: Reader[Path, ParquetReader.Builder[GenericData.Record]], path: Path)(
-    implicit F: Sync[F]): Resource[F, ParquetReader[GenericData.Record]] =
-    Resource.make {
-      F.blocking[ParquetReader[GenericData.Record]](readBuilder.run(path).build())
-    }(r => F.blocking(r.close()))
+  def parquetS[F[_]](
+    readBuilder: Reader[Path, ParquetReader.Builder[GenericData.Record]],
+    path: Path,
+    chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, GenericData.Record] =
+    Stream
+      .bracket(F.blocking[ParquetReader[GenericData.Record]](readBuilder.run(path).build()))(r =>
+        F.blocking(r.close()))
+      .flatMap { reader =>
+        val iterator = Iterator.continually(Option(reader.read())).takeWhile(_.nonEmpty).map(_.get)
+        Stream.fromBlockingIterator[F](iterator, chunkSize.value)
+      }
 
   private def fileInputStream(path: Path, configuration: Configuration): InputStream = {
     val sis: SeekableInputStream = HadoopInputFile.fromPath(path, configuration).newStream()
@@ -60,64 +66,50 @@ private object HadoopReader {
   def inputStreamS[F[_]](configuration: Configuration, path: Path)(implicit
     F: Sync[F]): Stream[F, InputStream] = Stream.resource(inputStreamR(configuration, path))
 
-  // best effort
-  def byteS[F[_]](configuration: Configuration, path: Path, bufferSize: Information)(implicit
-    F: Sync[F]): Stream[F, Byte] =
-    inputStreamS[F](configuration, path).flatMap { is =>
-      val size: Int           = bufferSize.toBytes.toInt
-      val buffer: Array[Byte] = Array.ofDim[Byte](size)
-
-      Stream.unfoldChunkEval[F, Unit, Byte](()) { _ =>
-        F.blocking(is.read(buffer, 0, size)).map { numBytes =>
-          if (numBytes == -1)
-            None
-          else if (numBytes == size)
-            Some((Chunk.array(buffer), ()))
-          else
-            Some((Chunk.array(buffer, 0, numBytes), ()))
-        }
-      }
-    }
-
   // respect chunk size
   def byteS[F[_]](configuration: Configuration, path: Path, chunkSize: ChunkSize)(implicit
     F: Sync[F]): Stream[F, Byte] =
     inputStreamS[F](configuration, path).flatMap { is =>
-      val size: Int           = chunkSize.value
-      val buffer: Array[Byte] = Array.ofDim[Byte](size)
-
-      Stream.unfoldLoopEval[F, Int, Chunk[Byte]](0) { offset =>
-        F.blocking(is.read(buffer, offset, size - offset)).map { numBytes =>
-          if (numBytes == -1) // churn buffer
-            (Chunk.array(buffer, 0, offset), None)
-          else if (numBytes + offset == size)
-            (Chunk.array(buffer), Some(0))
-          else
-            (Chunk.empty[Byte], Some(offset + numBytes))
+      val bufferSize: Int     = chunkSize.value
+      val buffer: Array[Byte] = Array.ofDim[Byte](bufferSize)
+      def go(offset: Int): Pull[F, Byte, Unit] =
+        Pull.eval(F.blocking(is.read(buffer, offset, bufferSize - offset))).flatMap { numBytes =>
+          if (numBytes == -1) Pull.output(Chunk.array(buffer, 0, offset)) >> Pull.done
+          else if (numBytes + offset == bufferSize) Pull.output(Chunk.array(buffer)) >> go(0)
+          else go(offset + numBytes)
         }
-      }
-    }.unchunks
+      go(0).stream
+    }
 
-  def jawnS[F[_]](configuration: Configuration, path: Path, bufferSize: Information)(implicit
+  def jawnS[F[_]](configuration: Configuration, path: Path, chunkSize: ChunkSize)(implicit
     F: Sync[F]): Stream[F, Json] =
     inputStreamS[F](configuration, path).flatMap { is =>
-      val size: Int           = bufferSize.toBytes.toInt
-      val buffer: Array[Byte] = Array.ofDim[Byte](size)
-      // parser and offset of buffer
-      type Status = (AsyncParser[Json], Int)
-      val initStatus: Status = (AsyncParser[Json](AsyncParser.ValueStream), 0)
+      val bufferSize: Int           = 1024 * 512
+      val buffer: Array[Byte]       = Array.ofDim[Byte](bufferSize) // mutable
+      val parser: AsyncParser[Json] = AsyncParser[Json](AsyncParser.ValueStream) // mutable
 
-      Stream.unfoldLoopEval[F, Status, Chunk[Json]](initStatus) { case (parser, offset) =>
-        F.blocking(is.read(buffer, offset, size - offset)).flatMap { numBytes =>
-          if (numBytes == -1) // churn buffer
-            F.fromEither(parser.finalAbsorb(buffer.slice(0, offset))).map(js => (Chunk.from(js), None))
-          else if (numBytes + offset == size) // absorb when buffer is full so that less absorb is needed
-            F.fromEither(parser.absorb(buffer)).map(js => (Chunk.from(js), (parser, 0).some))
-          else // otherwise, read more bytes
-            F.pure((Chunk.empty[Json], (parser, numBytes + offset).some))
+      def go(buf: Chunk[Json]): Pull[F, Json, Unit] =
+        Pull.eval(F.blocking(is.read(buffer, 0, bufferSize))).flatMap { numBytes =>
+          if (numBytes == -1) {
+            Pull
+              .eval(F.blocking(parser.finish()).flatMap(F.fromEither))
+              .flatMap(sj => Pull.output(buf ++ Chunk.from(sj))) >>
+              Pull.done
+          } else {
+            parser.absorb(buffer.slice(0, numBytes)) match {
+              case Left(ex) => Pull.raiseError(ex)
+              case Right(jsons) =>
+                val total: Chunk[Json] = buf ++ Chunk.from(jsons)
+                if (total.size >= chunkSize.value) {
+                  val (first, second) = total.splitAt(chunkSize.value)
+                  Pull.output(first) >> go(second)
+                } else go(total)
+            }
+          }
         }
-      }
-    }.unchunks
+
+      go(Chunk.empty).stream
+    }
 
   def stringS[F[_]](configuration: Configuration, path: Path, chunkSize: ChunkSize)(implicit
     F: Sync[F]): Stream[F, String] =

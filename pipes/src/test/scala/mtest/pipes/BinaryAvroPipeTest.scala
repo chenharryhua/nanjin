@@ -50,7 +50,11 @@ class BinaryAvroPipeTest extends AnyFunSuite {
     val path = root / "bin-avro.avro"
     hdp.delete(path).unsafeRunSync()
     val write =
-      data.map(encoder.to).through(binaryAvro.toBytes[IO](AvroSchema[Tiger])).through(hdp.bytes.sink(path))
+      data
+        .map(encoder.to)
+        .through(binaryAvro.toBytes[IO](AvroSchema[Tiger]))
+        .chunks
+        .through(hdp.bytes.sink(path))
     val read =
       hdp.bytes
         .source(path, 100)
