@@ -31,7 +31,7 @@ class NJParquetTest extends AnyFunSuite {
     hdp.delete(tgt).unsafeRunSync()
     val action =
       ts.through(sink).compile.drain >>
-        parquet.source(tgt, 100).compile.toList.map(_.flatMap(_.toList))
+        parquet.source(tgt, 100).compile.toList.map(_.toList)
     assert(action.unsafeRunSync().toSet == data)
     val fileName = (file: NJFileKind).asJson.noSpaces
     assert(jawn.decode[NJFileKind](fileName).toOption.get == file)
@@ -97,8 +97,7 @@ class NJParquetTest extends AnyFunSuite {
       hdp
         .dataFolders(path)
         .flatMap(_.flatTraverse(hdp.filesIn))
-        .flatMap(
-          _.traverse(parquet.updateReader(identity).source(_, 10).compile.toList.map(_.map(_.size).sum)))
+        .flatMap(_.traverse(parquet.updateReader(identity).source(_, 10).compile.toList.map(_.size)))
         .map(_.sum)
         .unsafeRunSync()
     assert(size == number * 2)

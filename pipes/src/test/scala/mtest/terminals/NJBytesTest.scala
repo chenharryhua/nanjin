@@ -33,7 +33,7 @@ class NJBytesTest extends AnyFunSuite {
       .through(sink)
       .compile
       .drain >>
-      src.unchunks.through(utf8.decode).through(lines).map(decode[Tiger](_)).rethrow.compile.toList
+      src.through(utf8.decode).through(lines).map(decode[Tiger](_)).rethrow.compile.toList
     assert(action.unsafeRunSync().toSet == data)
 
   }

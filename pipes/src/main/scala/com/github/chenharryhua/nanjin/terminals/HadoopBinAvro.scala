@@ -18,7 +18,7 @@ final class HadoopBinAvro[F[_]] private (
 
   // read
 
-  def source(path: NJPath, chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, Chunk[GenericData.Record]] =
+  def source(path: NJPath, chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, GenericData.Record] =
     HadoopReader.binAvroS[F](configuration, schema, path.hadoopPath, chunkSize)
 
   // write

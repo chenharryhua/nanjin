@@ -17,10 +17,10 @@ final class HadoopBytes[F[_]] private (configuration: Configuration) {
   /** @return
     *   a stream which is chunked by ''chunkSize'' except the last chunk.
     */
-  def source(path: NJPath, chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, Chunk[Byte]] =
+  def source(path: NJPath, chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, Byte] =
     HadoopReader.byteS(configuration, path.hadoopPath, chunkSize)
 
-  def source(path: NJPath)(implicit F: Sync[F]): Stream[F, Chunk[Byte]] =
+  def source(path: NJPath)(implicit F: Sync[F]): Stream[F, Byte] =
     source(path, ChunkSize(Bytes(1024 * 512)))
 
   def inputStream(path: NJPath)(implicit F: Sync[F]): Resource[F, InputStream] =

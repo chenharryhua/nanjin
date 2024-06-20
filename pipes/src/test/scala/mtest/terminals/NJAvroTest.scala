@@ -27,7 +27,7 @@ class NJAvroTest extends AnyFunSuite {
     val sink     = avro.withCompression(file.compression).sink(tgt)
     val src      = avro.source(tgt, 100)
     val ts       = Stream.emits(data.toList).covary[IO].chunks
-    val action   = ts.through(sink).compile.drain >> src.compile.toList.map(_.flatMap(_.toList))
+    val action   = ts.through(sink).compile.drain >> src.compile.toList.map(_.toList)
     val fileName = (file: NJFileKind).asJson.noSpaces
     assert(jawn.decode[NJFileKind](fileName).toOption.get == file)
     assert(action.unsafeRunSync().toSet == data)
@@ -84,7 +84,7 @@ class NJAvroTest extends AnyFunSuite {
     val size =
       hdp
         .filesIn(path)
-        .flatMap(_.traverse(avro.source(_, 100).compile.toList.map(_.map(_.size).sum)))
+        .flatMap(_.traverse(avro.source(_, 100).compile.toList.map(_.size)))
         .map(_.sum)
         .unsafeRunSync()
     assert(size == number * 2)

@@ -29,7 +29,7 @@ class NJJacksonTest extends AnyFunSuite {
       jackson.sink(tgt)
     val src    = jackson.source(tgt, 10)
     val ts     = Stream.emits(data.toList).covary[IO].chunks
-    val action = ts.through(sink).compile.drain >> src.compile.toList.map(_.flatMap(_.toList))
+    val action = ts.through(sink).compile.drain >> src.compile.toList.map(_.toList)
     assert(action.unsafeRunSync().toSet == data)
     val fileName = (file: NJFileKind).asJson.noSpaces
     assert(jawn.decode[NJFileKind](fileName).toOption.get == file)
@@ -107,7 +107,7 @@ class NJJacksonTest extends AnyFunSuite {
     val size =
       hdp
         .filesIn(path)
-        .flatMap(_.traverse(jackson.source(_, 10).compile.toList.map(_.map(_.size).sum)))
+        .flatMap(_.traverse(jackson.source(_, 10).compile.toList.map(_.size)))
         .map(_.sum)
         .unsafeRunSync()
     assert(size == number * 2)

@@ -29,7 +29,7 @@ class NJKantanTest extends AnyFunSuite {
     hdp.delete(tgt).unsafeRunSync()
     val ts     = Stream.emits(data.toList).covary[IO].map(tigerEncoder.encode).chunks
     val sink   = hdp.kantan(csvConfiguration).sink(tgt)
-    val src    = hdp.kantan(csvConfiguration).source(tgt, 100).unchunks.map(tigerDecoder.decode).rethrow
+    val src    = hdp.kantan(csvConfiguration).source(tgt, 100).map(tigerDecoder.decode).rethrow
     val action = ts.through(sink).compile.drain >> src.compile.toList
     assert(action.unsafeRunSync().toSet == data)
     val fileName = (file: NJFileKind).asJson.noSpaces
@@ -119,15 +119,7 @@ class NJKantanTest extends AnyFunSuite {
     val size =
       hdp
         .filesIn(path)
-        .flatMap(
-          _.traverse(
-            csv
-              .source(_, 1000)
-              .map(_.traverse(tigerDecoder.decode))
-              .rethrow
-              .compile
-              .toList
-              .map(_.map(_.size).sum)))
+        .flatMap(_.traverse(csv.source(_, 1000).map(tigerDecoder.decode).rethrow.compile.toList.map(_.size)))
         .map(_.sum)
         .unsafeRunSync()
     assert(size == herd_number)
@@ -167,15 +159,7 @@ class NJKantanTest extends AnyFunSuite {
     val size =
       hdp
         .filesIn(path)
-        .flatMap(
-          _.traverse(
-            csv
-              .source(_, 1000)
-              .map(_.traverse(tigerDecoder.decode))
-              .rethrow
-              .compile
-              .toList
-              .map(_.map(_.size).sum)))
+        .flatMap(_.traverse(csv.source(_, 1000).map(tigerDecoder.decode).rethrow.compile.toList.map(_.size)))
         .map(_.sum)
         .unsafeRunSync()
     assert(size == number)

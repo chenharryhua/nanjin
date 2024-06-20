@@ -15,7 +15,7 @@ import java.time.ZoneId
 
 final class HadoopCirce[F[_]] private (configuration: Configuration) {
 
-  def source(path: NJPath, chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, Chunk[Json]] =
+  def source(path: NJPath, chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, Json] =
     HadoopReader.jawnS[F](configuration, path.hadoopPath, chunkSize)
 
   def sink(path: NJPath)(implicit F: Sync[F]): Pipe[F, Chunk[Json], Int] = { (ss: Stream[F, Chunk[Json]]) =>

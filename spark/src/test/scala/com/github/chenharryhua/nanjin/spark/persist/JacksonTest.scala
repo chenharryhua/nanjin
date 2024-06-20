@@ -25,7 +25,7 @@ class JacksonTest extends AnyFunSuite {
   def loadRooster(path: NJPath): IO[Set[Rooster]] =
     hdp
       .filesIn(path)
-      .flatMap(_.flatTraverse(jackson.source(_, 100).unchunks.map(fromRecord.from).compile.toList))
+      .flatMap(_.flatTraverse(jackson.source(_, 100).map(fromRecord.from).compile.toList))
       .map(_.toSet)
 
   val root = NJPath("./data/test/spark/persist/jackson/")

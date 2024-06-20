@@ -30,8 +30,7 @@ class KantanCsvTest extends AnyFunSuite {
     val kantan = hdp.kantan(cfg)
     hdp
       .filesIn(path)
-      .flatMap(
-        _.flatTraverse(kantan.source(_, 100).unchunks.map(decoderTablet.decode).rethrow.compile.toList))
+      .flatMap(_.flatTraverse(kantan.source(_, 100).map(decoderTablet.decode).rethrow.compile.toList))
       .map(_.toSet)
   }
 

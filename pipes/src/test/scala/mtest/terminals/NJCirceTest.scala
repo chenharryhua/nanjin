@@ -7,7 +7,7 @@ import com.github.chenharryhua.nanjin.common.chrono.policies
 import com.github.chenharryhua.nanjin.terminals.*
 import com.github.chenharryhua.nanjin.terminals.NJCompression.*
 import eu.timepit.refined.auto.*
-import fs2.Stream
+import fs2.{Chunk, Pipe, Stream}
 import fs2.text.{lines, utf8}
 import io.circe.generic.auto.*
 import io.circe.jawn.CirceSupportParser.facade
@@ -29,12 +29,12 @@ class NJCirceTest extends AnyFunSuite {
   def fs2(path: NJPath, file: CirceFile, data: Set[Tiger]): Assertion = {
     val tgt = path / file.fileName
     hdp.delete(tgt).unsafeRunSync()
-    val ts                      = Stream.emits(data.toList).covary[IO].map(_.asJson)
-    val sink                    = json.sink(tgt)
-    val src: Stream[IO, Tiger]  = json.source(tgt, 2).unchunks.mapFilter(_.as[Tiger].toOption)
-    val action: IO[List[Tiger]] = ts.chunks.through(sink).compile.drain >> src.compile.toList
+    val ts: Stream[IO, Json]             = Stream.emits(data.toList).covary[IO].map(_.asJson)
+    val sink: Pipe[IO, Chunk[Json], Int] = json.sink(tgt)
+    val src: Stream[IO, Tiger]           = json.source(tgt, 2).mapFilter(_.as[Tiger].toOption)
+    val action: IO[List[Tiger]]          = ts.chunks.through(sink).compile.drain >> src.compile.toList
     assert(action.unsafeRunSync().toSet == data)
-    val lines = hdp.text.source(tgt, 32).compile.fold(0) { case (s, c) => s + c.size }
+    val lines = hdp.text.source(tgt, 32).compile.fold(0) { case (s, _) => s + 1 }
     assert(lines.unsafeRunSync() === data.size)
     val fileName = (file: NJFileKind).asJson.noSpaces
     assert(jawn.decode[NJFileKind](fileName).toOption.get == file)
@@ -112,17 +112,17 @@ class NJCirceTest extends AnyFunSuite {
     val size =
       hdp
         .filesIn(path)
-        .flatMap(_.traverse(json.source(_, 5).compile.toList.map(_.map(_.size).sum)))
+        .flatMap(_.traverse(json.source(_, 5).compile.toList.map(_.size)))
         .map(_.sum)
         .unsafeRunSync()
     assert(size == number * TestData.tigerSet.toList.size)
     assert(processedSize == number * TestData.tigerSet.toList.size)
 
     def tigers1(path: NJPath): Stream[IO, Tiger] =
-      hdp.bytes.source(path).unchunks.through(utf8.decode).through(lines).map(jawn.decode[Tiger]).rethrow
+      hdp.bytes.source(path).through(utf8.decode).through(lines).map(jawn.decode[Tiger]).rethrow
 
     def tigers2(path: NJPath): Stream[IO, Tiger] =
-      hdp.bytes.source(path).parseJsonStream.map(_.as[Tiger]).rethrow
+      hdp.bytes.source(path).chunks.parseJsonStream.map(_.as[Tiger]).rethrow
 
     hdp
       .filesIn(path)

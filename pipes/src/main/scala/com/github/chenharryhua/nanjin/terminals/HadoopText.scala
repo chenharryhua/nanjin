@@ -14,7 +14,7 @@ final class HadoopText[F[_]] private (configuration: Configuration) {
 
   // read
 
-  def source(path: NJPath, chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, Chunk[String]] =
+  def source(path: NJPath, chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, String] =
     HadoopReader.stringS[F](configuration, path.hadoopPath, chunkSize)
 
   // write

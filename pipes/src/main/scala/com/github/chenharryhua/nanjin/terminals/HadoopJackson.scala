@@ -16,7 +16,7 @@ final class HadoopJackson[F[_]] private (configuration: Configuration, schema: S
 
   // read
 
-  def source(path: NJPath, chunkSize: ChunkSize)(implicit F: Async[F]): Stream[F, Chunk[GenericData.Record]] =
+  def source(path: NJPath, chunkSize: ChunkSize)(implicit F: Async[F]): Stream[F, GenericData.Record] =
     HadoopReader.jacksonS[F](configuration, schema, path.hadoopPath, chunkSize)
 
   // write

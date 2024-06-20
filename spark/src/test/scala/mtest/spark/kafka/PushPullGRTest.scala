@@ -52,7 +52,6 @@ class PushPullGRTest extends AnyFunSuite {
       .flatMap(
         _.map(hadoop.jackson(baseTopic.schemaPair.consumerSchema).source(_, 100))
           .reduce(_ ++ _)
-          .unchunks
           .evalTap(r => IO(assert(r.getSchema == baseTopic.schemaPair.consumerSchema)))
           .map(r => immigrate(evolveTopic.schemaPair.consumerSchema, r))
           .evalTap(r => IO(assert(r.get.getSchema == evolveTopic.schemaPair.consumerSchema))))

@@ -33,7 +33,7 @@ final class HadoopParquet[F[_]] private (
 
   // read
 
-  def source(path: NJPath, chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, Chunk[GenericData.Record]] =
+  def source(path: NJPath, chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, GenericData.Record] =
     HadoopReader.parquetS(readBuilder, path.hadoopPath, chunkSize)
 
   // write

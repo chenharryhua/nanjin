@@ -45,14 +45,14 @@ final class HadoopKantan[F[_]] private (
 
   // read
 
-  def source(path: NJPath, chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, Chunk[Seq[String]]] =
+  def source(path: NJPath, chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, Seq[String]] =
     HadoopReader.inputStreamS[F](configuration, path.hadoopPath).flatMap { is =>
       val reader: CsvReader[ReadResult[Seq[String]]] = {
         val cr = ReaderEngine.internalCsvReaderEngine.readerFor(new InputStreamReader(is), csvConfiguration)
         if (csvConfiguration.hasHeader) cr.drop(1) else cr
       }
 
-      Stream.fromBlockingIterator[F](reader.iterator, chunkSize.value).rethrow.chunks
+      Stream.fromBlockingIterator[F](reader.iterator, chunkSize.value).rethrow
     }
 
   // write
