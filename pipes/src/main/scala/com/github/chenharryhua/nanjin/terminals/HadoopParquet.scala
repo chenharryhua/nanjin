@@ -21,8 +21,7 @@ import java.time.ZoneId
 
 final class HadoopParquet[F[_]] private (
   readBuilder: Reader[Path, ParquetReader.Builder[GenericData.Record]],
-  writeBuilder: Reader[Path, AvroParquetWriter.Builder[GenericRecord]])
-    extends GenericRecordSink[F] {
+  writeBuilder: Reader[Path, AvroParquetWriter.Builder[GenericRecord]]) {
 
   // config
 
@@ -34,28 +33,25 @@ final class HadoopParquet[F[_]] private (
 
   // read
 
-  def source(path: NJPath, chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, GenericData.Record] =
-    Stream.resource(HadoopReader.parquetR(readBuilder, path.hadoopPath)).flatMap { pr =>
-      val iterator = Iterator.continually(Option(pr.read())).takeWhile(_.nonEmpty).map(_.get)
-      Stream.fromBlockingIterator[F](iterator, chunkSize.value)
-    }
+  def source(path: NJPath, chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, Chunk[GenericData.Record]] =
+    HadoopReader.parquetS(readBuilder, path.hadoopPath, chunkSize)
 
   // write
 
-  override def sink(path: NJPath)(implicit F: Sync[F]): Pipe[F, GenericRecord, Int] = {
-    (ss: Stream[F, GenericRecord]) =>
+  def sink(path: NJPath)(implicit F: Sync[F]): Pipe[F, Chunk[GenericRecord], Int] = {
+    (ss: Stream[F, Chunk[GenericRecord]]) =>
       Stream
         .resource(HadoopWriter.parquetR[F](writeBuilder, path.hadoopPath))
-        .flatMap(w => ss.chunks.evalMap(c => w.write(c).as(c.size)))
+        .flatMap(w => ss.evalMap(c => w.write(c).as(c.size)))
   }
 
-  override def sink(policy: Policy, zoneId: ZoneId)(pathBuilder: Tick => NJPath)(implicit
-    F: Async[F]): Pipe[F, GenericRecord, Int] = {
+  def sink(policy: Policy, zoneId: ZoneId)(pathBuilder: Tick => NJPath)(implicit
+    F: Async[F]): Pipe[F, Chunk[GenericRecord], Int] = {
     def get_writer(tick: Tick): Resource[F, HadoopWriter[F, GenericRecord]] =
       HadoopWriter.parquetR[F](writeBuilder, pathBuilder(tick).hadoopPath)
 
     // save
-    (ss: Stream[F, GenericRecord]) =>
+    (ss: Stream[F, Chunk[GenericRecord]]) =>
       Stream.eval(TickStatus.zeroth[F](policy, zoneId)).flatMap { zero =>
         val ticks: Stream[F, Either[Chunk[GenericRecord], Tick]] = tickStream[F](zero).map(Right(_))
 
@@ -65,7 +61,7 @@ final class HadoopParquet[F[_]] private (
               get_writer,
               hotswap,
               writer,
-              ss.chunks.map(Left(_)).mergeHaltBoth(ticks)
+              ss.map(Left(_)).mergeHaltBoth(ticks)
             )
             .stream
         }

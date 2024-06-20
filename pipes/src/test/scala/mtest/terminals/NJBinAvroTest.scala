@@ -29,14 +29,13 @@ class NJBinAvroTest extends AnyFunSuite {
     val sink =
       binAvro.sink(tgt)
     val src      = binAvro.source(tgt, 100)
-    val ts       = Stream.emits(data.toList).covary[IO]
-    val action   = ts.through(sink).compile.drain >> src.compile.toList
+    val ts       = Stream.emits(data.toList).covary[IO].chunks
+    val action   = ts.through(sink).compile.drain >> src.compile.toList.map(_.flatMap(_.toList))
     val fileName = (file: NJFileKind).asJson.noSpaces
     assert(jawn.decode[NJFileKind](fileName).toOption.get == file)
     assert(action.unsafeRunSync().toSet == data)
     val size = ts.through(sink).fold(0)(_ + _).compile.lastOrError.unsafeRunSync()
     assert(size == data.size)
-
   }
 
   val fs2Root: NJPath = NJPath("./data/test/terminals/bin_avro/panda")
@@ -79,6 +78,7 @@ class NJBinAvroTest extends AnyFunSuite {
       .emits(pandaSet.toList)
       .covary[IO]
       .repeatN(number)
+      .chunks
       .through(binAvro.sink(policies.fixedDelay(1.second), ZoneId.systemDefault())(t =>
         path / file.fileName(t)))
       .fold(0)(_ + _)
@@ -88,7 +88,7 @@ class NJBinAvroTest extends AnyFunSuite {
     val size =
       hdp
         .filesIn(path)
-        .flatMap(_.traverse(binAvro.source(_, 10).compile.toList.map(_.size)))
+        .flatMap(_.traverse(binAvro.source(_, 10).compile.toList.map(_.map(_.size).sum)))
         .map(_.sum)
         .unsafeRunSync()
     assert(size == number * 2)

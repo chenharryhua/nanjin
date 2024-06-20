@@ -27,9 +27,9 @@ class NJTextTest extends AnyFunSuite {
   def fs2(path: NJPath, file: TextFile, data: Set[Tiger]): Assertion = {
     val tgt = path / file.fileName
     hdp.delete(tgt).unsafeRunSync()
-    val ts                      = Stream.emits(data.toList).covary[IO].map(_.asJson.noSpaces)
+    val ts                      = Stream.emits(data.toList).covary[IO].map(_.asJson.noSpaces).chunks
     val sink                    = text.sink(tgt)
-    val src: Stream[IO, Tiger]  = text.source(tgt, 2).mapFilter(decode[Tiger](_).toOption)
+    val src: Stream[IO, Tiger]  = text.source(tgt, 2).unchunks.mapFilter(decode[Tiger](_).toOption)
     val action: IO[List[Tiger]] = ts.through(sink).compile.drain >> src.compile.toList
     assert(action.unsafeRunSync().toSet == data)
     val fileName = (file: NJFileKind).asJson.noSpaces
@@ -77,6 +77,7 @@ class NJTextTest extends AnyFunSuite {
       .emits(TestData.tigerSet.toList)
       .covary[IO]
       .map(_.toString)
+      .chunks
       .through(conn.sink(path))
       .compile
       .drain
@@ -98,6 +99,7 @@ class NJTextTest extends AnyFunSuite {
       .covary[IO]
       .repeatN(number)
       .map(_.toString)
+      .chunks
       .through(text.sink(policies.fixedDelay(1.second), ZoneId.systemDefault())(t => path / fk.fileName(t)))
       .fold(0)(_ + _)
       .compile
@@ -106,7 +108,7 @@ class NJTextTest extends AnyFunSuite {
     val size =
       hdp
         .filesIn(path)
-        .flatMap(_.traverse(text.source(_, 2).compile.toList.map(_.size)))
+        .flatMap(_.traverse(text.source(_, 2).compile.toList.map(_.map(_.size).sum)))
         .map(_.sum)
         .unsafeRunSync()
     assert(size == number * 10)
@@ -120,7 +122,7 @@ class NJTextTest extends AnyFunSuite {
     hdp.delete(path).unsafeRunSync()
     val fk = TextFile(Uncompressed)
     (Stream.sleep[IO](10.hours) >>
-      Stream.empty.covaryAll[IO, String])
+      Stream.empty.covaryAll[IO, String]).chunks
       .through(text.sink(policies.fixedDelay(1.second).limited(3), ZoneId.systemDefault())(t =>
         path / fk.fileName(t)))
       .compile

@@ -185,6 +185,7 @@ class SparKafkaTest extends AnyFunSuite {
       .flatMap(
         _.map(hadoop.jackson(topic.topic.topicDef.schemaPair.consumerSchema).source(_, 10))
           .reduce(_ ++ _)
+          .unchunks
           .through(ctx.sink(topic.topicName).updateConfig(_.withClientId("a")).build))
       .compile
       .drain
@@ -207,6 +208,7 @@ class SparKafkaTest extends AnyFunSuite {
       .take(2)
       .map(_.record.value)
       .evalMap(IO.fromTry)
+      .chunks
       .through(sink)
       .compile
       .drain

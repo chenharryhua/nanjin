@@ -7,7 +7,7 @@ import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick, TickStatus}
 import fs2.{Chunk, Pipe, Stream}
 import org.apache.hadoop.conf.Configuration
-import squants.information.{Bytes, Information}
+import squants.information.Bytes
 
 import java.io.{InputStream, OutputStream}
 import java.time.ZoneId
@@ -17,16 +17,10 @@ final class HadoopBytes[F[_]] private (configuration: Configuration) {
   /** @return
     *   a stream which is chunked by ''chunkSize'' except the last chunk.
     */
-  def source(path: NJPath, chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, Byte] =
+  def source(path: NJPath, chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, Chunk[Byte]] =
     HadoopReader.byteS(configuration, path.hadoopPath, chunkSize)
 
-  /** @return
-    *   a stream whose chunk size is uncertain, though not larger than ''bufferSize''
-    */
-  def source(path: NJPath, bufferSize: Information)(implicit F: Sync[F]): Stream[F, Byte] =
-    HadoopReader.byteS(configuration, path.hadoopPath, bufferSize)
-
-  def source(path: NJPath)(implicit F: Sync[F]): Stream[F, Byte] =
+  def source(path: NJPath)(implicit F: Sync[F]): Stream[F, Chunk[Byte]] =
     source(path, ChunkSize(Bytes(1024 * 512)))
 
   def inputStream(path: NJPath)(implicit F: Sync[F]): Resource[F, InputStream] =
@@ -37,19 +31,19 @@ final class HadoopBytes[F[_]] private (configuration: Configuration) {
 
   // write
 
-  def sink(path: NJPath)(implicit F: Sync[F]): Pipe[F, Byte, Int] = { (ss: Stream[F, Byte]) =>
+  def sink(path: NJPath)(implicit F: Sync[F]): Pipe[F, Chunk[Byte], Int] = { (ss: Stream[F, Chunk[Byte]]) =>
     Stream
       .resource(HadoopWriter.byteR[F](configuration, path.hadoopPath))
-      .flatMap(w => ss.chunks.evalMap(c => w.write(c).as(c.size)))
+      .flatMap(w => ss.evalMap(c => w.write(c).as(c.size)))
   }
 
   def sink(policy: Policy, zoneId: ZoneId)(pathBuilder: Tick => NJPath)(implicit
-    F: Async[F]): Pipe[F, Byte, Int] = {
+    F: Async[F]): Pipe[F, Chunk[Byte], Int] = {
     def get_writer(tick: Tick): Resource[F, HadoopWriter[F, Byte]] =
       HadoopWriter.byteR[F](configuration, pathBuilder(tick).hadoopPath)
 
     // save
-    (ss: Stream[F, Byte]) =>
+    (ss: Stream[F, Chunk[Byte]]) =>
       Stream.eval(TickStatus.zeroth[F](policy, zoneId)).flatMap { zero =>
         val ticks: Stream[F, Either[Chunk[Byte], Tick]] = tickStream[F](zero).map(Right(_))
 
@@ -59,7 +53,7 @@ final class HadoopBytes[F[_]] private (configuration: Configuration) {
               get_writer,
               hotswap,
               writer,
-              ss.chunks.map(Left(_)).mergeHaltBoth(ticks)
+              ss.map(Left(_)).mergeHaltBoth(ticks)
             )
             .stream
         }

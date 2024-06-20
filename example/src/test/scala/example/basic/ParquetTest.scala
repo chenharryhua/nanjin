@@ -26,7 +26,7 @@ class ParquetTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
     val path = root / "single" / file.fileName
     val sink = parquet.updateWriter(_.withCompressionCodec(file.compression.codecName)).sink(path)
     write(path.uri.getPath).use { meter =>
-      data.evalTap(_ => meter.update(1)).map(encoder.to).through(sink).compile.drain.as(path)
+      data.evalTap(_ => meter.update(1)).map(encoder.to).chunks.through(sink).compile.drain.as(path)
     }
   }
 
@@ -36,7 +36,7 @@ class ParquetTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
       .updateWriter(_.withCompressionCodec(file.compression.codecName))
       .sink(policy, beijingTime)(t => path / file.fileName(t))
     write(path.uri.getPath).use { meter =>
-      data.evalTap(_ => meter.update(1)).map(encoder.to).through(sink).compile.drain.as(path)
+      data.evalTap(_ => meter.update(1)).map(encoder.to).chunks.through(sink).compile.drain.as(path)
     }
   }
 
@@ -47,7 +47,7 @@ class ParquetTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
       table
         .stream[IO](1000)
         .evalTap(_ => meter.update(1))
-        .map(encoder.to)
+        .map(encoder.to).chunks
         .through(sink)
         .compile
         .drain
@@ -70,7 +70,7 @@ class ParquetTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
       table
         .stream[IO](1000)
         .evalTap(_ => meter.update(1))
-        .map(encoder.to)
+        .map(encoder.to).chunks
         .through(sink)
         .compile
         .drain
@@ -85,14 +85,14 @@ class ParquetTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
     read(path.uri.getPath).use { meter =>
       hadoop
         .filesIn(path)
-        .flatMap(_.traverse(parquet.source(_, 100).map(decoder.from).evalTap(_ => meter.update(1)).compile.fold(0L) {
+        .flatMap(_.traverse(parquet.source(_, 100).unchunks.map(decoder.from).evalTap(_ => meter.update(1)).compile.fold(0L) {
           case (s, _) => s + 1
         })).map(_.sum)
     }
 
   private def singleRead(path: NJPath): IO[Long] =
     read(path.uri.getPath).use { meter =>
-      parquet.source(path, 100).map(decoder.from).evalTap(_ => meter.update(1)).compile.fold(0L) {
+      parquet.source(path, 100).unchunks.map(decoder.from).evalTap(_ => meter.update(1)).compile.fold(0L) {
         case (s, _) =>
           s + 1
       }

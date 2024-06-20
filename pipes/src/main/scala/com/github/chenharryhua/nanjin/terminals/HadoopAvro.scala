@@ -11,13 +11,11 @@ import org.apache.avro.generic.{GenericData, GenericRecord}
 import org.apache.hadoop.conf.Configuration
 
 import java.time.ZoneId
-import scala.jdk.CollectionConverters.*
 
 final class HadoopAvro[F[_]] private (
   configuration: Configuration,
   schema: Schema,
-  compression: AvroCompression)
-    extends GenericRecordSink[F] {
+  compression: AvroCompression) {
 
   // config
 
@@ -28,28 +26,25 @@ final class HadoopAvro[F[_]] private (
 
   // read
 
-  def source(path: NJPath, chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, GenericData.Record] =
-    for {
-      dfs <- Stream.resource(HadoopReader.avroR(configuration, schema, path.hadoopPath))
-      gr <- Stream.fromBlockingIterator[F](dfs.iterator().asScala, chunkSize.value)
-    } yield gr
+  def source(path: NJPath, chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, Chunk[GenericData.Record]] =
+    HadoopReader.avroS(configuration, schema, path.hadoopPath, chunkSize)
 
   // write
 
-  override def sink(path: NJPath)(implicit F: Sync[F]): Pipe[F, GenericRecord, Int] = {
-    (ss: Stream[F, GenericRecord]) =>
+  def sink(path: NJPath)(implicit F: Sync[F]): Pipe[F, Chunk[GenericRecord], Int] = {
+    (ss: Stream[F, Chunk[GenericRecord]]) =>
       Stream
         .resource(HadoopWriter.avroR[F](compression.codecFactory, schema, configuration, path.hadoopPath))
-        .flatMap(w => ss.chunks.evalMap(c => w.write(c).as(c.size)))
+        .flatMap(w => ss.evalMap(c => w.write(c).as(c.size)))
   }
 
-  override def sink(policy: Policy, zoneId: ZoneId)(pathBuilder: Tick => NJPath)(implicit
-    F: Async[F]): Pipe[F, GenericRecord, Int] = {
+  def sink(policy: Policy, zoneId: ZoneId)(pathBuilder: Tick => NJPath)(implicit
+    F: Async[F]): Pipe[F, Chunk[GenericRecord], Int] = {
     def get_writer(tick: Tick): Resource[F, HadoopWriter[F, GenericRecord]] =
       HadoopWriter.avroR[F](compression.codecFactory, schema, configuration, pathBuilder(tick).hadoopPath)
 
     // save
-    (ss: Stream[F, GenericRecord]) =>
+    (ss: Stream[F, Chunk[GenericRecord]]) =>
       Stream.eval(TickStatus.zeroth[F](policy, zoneId)).flatMap { zero =>
         val ticks: Stream[F, Either[Chunk[GenericRecord], Tick]] = tickStream[F](zero).map(Right(_))
 
@@ -59,7 +54,7 @@ final class HadoopAvro[F[_]] private (
               get_writer,
               hotswap,
               writer,
-              ss.chunks.map(Left(_)).mergeHaltBoth(ticks)
+              ss.map(Left(_)).mergeHaltBoth(ticks)
             )
             .stream
         }

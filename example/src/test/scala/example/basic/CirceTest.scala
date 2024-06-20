@@ -29,7 +29,7 @@ class CirceTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
     val path = root / "single" / file.fileName
     val sink = circe.sink(path)
     write(path.uri.getPath).use { meter =>
-      data.evalTap(_ => meter.update(1)).map(_.asJson).through(sink).compile.drain.as(path)
+      data.evalTap(_ => meter.update(1)).map(_.asJson).chunks.through(sink).compile.drain.as(path)
     }
   }
 
@@ -37,7 +37,7 @@ class CirceTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
     val path = root / "rotate" / file.fileName
     val sink = circe.sink(policy, berlinTime)(t => path / file.fileName(t))
     write(path.uri.getPath).use { meter =>
-      data.evalTap(_ => meter.update(1)).map(_.asJson).through(sink).compile.drain.as(path)
+      data.evalTap(_ => meter.update(1)).map(_.asJson).chunks.through(sink).compile.drain.as(path)
     }
   }
 
@@ -45,7 +45,7 @@ class CirceTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
     val path = root / "spark" / "single" / file.fileName
     val sink = circe.sink(path)
     write(path.uri.getPath).use { meter =>
-      table.stream[IO](1000).evalTap(_ => meter.update(1)).map(_.asJson).through(sink).compile.drain.as(path)
+      table.stream[IO](1000).evalTap(_ => meter.update(1)).map(_.asJson).chunks.through(sink).compile.drain.as(path)
     }
   }
 
@@ -59,7 +59,7 @@ class CirceTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
     val path = root / "spark" / "rotate" / file.fileName
     val sink = circe.sink(policy, londonTime)(t => path / file.fileName(t))
     write(path.uri.getPath).use { meter =>
-      table.stream[IO](1000).evalTap(_ => meter.update(1)).map(_.asJson).through(sink).compile.drain.as(path)
+      table.stream[IO](1000).evalTap(_ => meter.update(1)).map(_.asJson).chunks.through(sink).compile.drain.as(path)
     }
   }
 

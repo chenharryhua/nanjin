@@ -29,10 +29,11 @@ class NJBytesTest extends AnyFunSuite {
       .map(_.asJson.noSpaces)
       .intersperse(System.lineSeparator())
       .through(utf8.encode)
+      .chunks
       .through(sink)
       .compile
       .drain >>
-      src.through(utf8.decode).through(lines).map(decode[Tiger](_)).rethrow.compile.toList
+      src.unchunks.through(utf8.decode).through(lines).map(decode[Tiger](_)).rethrow.compile.toList
     assert(action.unsafeRunSync().toSet == data)
 
   }
@@ -81,6 +82,7 @@ class NJBytesTest extends AnyFunSuite {
       .map(_.asJson.noSpaces)
       .intersperse(System.lineSeparator())
       .through(utf8.encode)
+      .chunks
       .through(sink)
       .compile
       .drain
