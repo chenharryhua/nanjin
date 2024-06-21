@@ -89,7 +89,7 @@ class KantanTest(agent: Agent[IO], base: NJPath, rfc: CsvConfiguration) extends 
         .filesIn(path)
         .flatMap(_.traverse(
           kantan
-            .source(_, 1000).unchunks
+            .source(_, 1000)
             .map(rowDecoder.decode)
             .rethrow
             .evalTap(_ => meter.update(1))
@@ -102,7 +102,7 @@ class KantanTest(agent: Agent[IO], base: NJPath, rfc: CsvConfiguration) extends 
   private def singleRead(path: NJPath): IO[Long] =
     read(path.uri.getPath).use { meter =>
       kantan
-        .source(path, 1000).unchunks
+        .source(path, 1000)
         .mapChunks(_.map(rowDecoder.decode))
         .rethrow
         .evalTap(_ => meter.update(1))

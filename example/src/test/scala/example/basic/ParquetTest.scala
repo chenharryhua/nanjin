@@ -85,14 +85,14 @@ class ParquetTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
     read(path.uri.getPath).use { meter =>
       hadoop
         .filesIn(path)
-        .flatMap(_.traverse(parquet.source(_, 100).unchunks.map(decoder.from).evalTap(_ => meter.update(1)).compile.fold(0L) {
+        .flatMap(_.traverse(parquet.source(_, 100).map(decoder.from).evalTap(_ => meter.update(1)).compile.fold(0L) {
           case (s, _) => s + 1
         })).map(_.sum)
     }
 
   private def singleRead(path: NJPath): IO[Long] =
     read(path.uri.getPath).use { meter =>
-      parquet.source(path, 100).unchunks.map(decoder.from).evalTap(_ => meter.update(1)).compile.fold(0L) {
+      parquet.source(path, 100).map(decoder.from).evalTap(_ => meter.update(1)).compile.fold(0L) {
         case (s, _) =>
           s + 1
       }
