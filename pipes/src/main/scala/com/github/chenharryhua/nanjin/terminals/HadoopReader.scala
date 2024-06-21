@@ -3,7 +3,6 @@ package com.github.chenharryhua.nanjin.terminals
 import cats.data.Reader
 import cats.effect.Resource
 import cats.effect.kernel.Sync
-import cats.implicits.toFlatMapOps
 import com.github.chenharryhua.nanjin.common.ChunkSize
 import fs2.{Chunk, Pull, Stream}
 import io.circe.Json
@@ -19,6 +18,7 @@ import org.apache.parquet.hadoop.ParquetReader
 import org.apache.parquet.hadoop.util.HadoopInputFile
 import org.apache.parquet.io.SeekableInputStream
 import org.typelevel.jawn.AsyncParser
+import squants.information.Information
 
 import java.io.{BufferedReader, InputStream, InputStreamReader}
 import java.nio.charset.StandardCharsets
@@ -81,35 +81,13 @@ private object HadoopReader {
       go(0).stream
     }
 
-  def jawnS[F[_]](configuration: Configuration, path: Path, chunkSize: ChunkSize)(implicit
-    F: Sync[F]): Stream[F, Json] =
-    inputStreamS[F](configuration, path).flatMap { is =>
-      val bufferSize: Int           = 1024 * 512
-      val buffer: Array[Byte]       = Array.ofDim[Byte](bufferSize) // mutable
-      val parser: AsyncParser[Json] = AsyncParser[Json](AsyncParser.ValueStream) // mutable
-
-      def go(buf: Chunk[Json]): Pull[F, Json, Unit] =
-        Pull.eval(F.blocking(is.read(buffer, 0, bufferSize))).flatMap { numBytes =>
-          if (numBytes == -1) {
-            Pull
-              .eval(F.blocking(parser.finish()).flatMap(F.fromEither))
-              .flatMap(sj => Pull.output(buf ++ Chunk.from(sj))) >>
-              Pull.done
-          } else {
-            parser.absorb(buffer.slice(0, numBytes)) match {
-              case Left(ex) => Pull.raiseError(ex)
-              case Right(jsons) =>
-                val total: Chunk[Json] = buf ++ Chunk.from(jsons)
-                if (total.size >= chunkSize.value) {
-                  val (first, second) = total.splitAt(chunkSize.value)
-                  Pull.output(first) >> go(second)
-                } else go(total)
-            }
-          }
-        }
-
-      go(Chunk.empty).stream
-    }
+  def jawnS[F[_]](configuration: Configuration, path: Path, bs: Information)(implicit
+    F: Sync[F]): Stream[F, Json] = {
+    val parser: AsyncParser[Json] = AsyncParser[Json](AsyncParser.ValueStream) // stateful
+    byteS[F](configuration, path, ChunkSize(bs)).chunks
+      .evalMap(bs => F.fromEither(parser.absorb(bs.toByteBuffer)))
+      .flatMap(Stream.emits)
+  }
 
   def stringS[F[_]](configuration: Configuration, path: Path, chunkSize: ChunkSize)(implicit
     F: Sync[F]): Stream[F, String] =
@@ -126,22 +104,22 @@ private object HadoopReader {
     path: Path,
     chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, GenericData.Record] =
     inputStreamS[F](configuration, path).flatMap { is =>
-      val iterator: Iterator[GenericData.Record] = {
-        val decoder: Decoder = getDecoder(is)
-        val datumReader: GenericDatumReader[GenericData.Record] =
-          new GenericDatumReader[GenericData.Record](schema)
-
-        Iterator.continually {
-          try {
-            val gr: GenericData.Record = datumReader.read(null, decoder)
-            Some(gr)
-          } catch {
-            case _: java.io.EOFException => None
+      val decoder: Decoder = getDecoder(is)
+      def go(datumReader: GenericDatumReader[GenericData.Record]): Pull[F, GenericData.Record, Unit] = {
+        val builder      = Vector.newBuilder[GenericData.Record]
+        var counter: Int = 0
+        try {
+          while (counter < chunkSize.value) {
+            builder += datumReader.read(null, decoder)
+            counter += 1
           }
-        }.takeWhile(_.nonEmpty).map(_.get) // faster than .flatten
+          Pull.output(Chunk.from(builder.result())) >> go(datumReader)
+        } catch {
+          case _: java.io.EOFException =>
+            Pull.output(Chunk.from(builder.result())) >> Pull.done
+        }
       }
-
-      Stream.fromBlockingIterator[F](iterator, chunkSize.value)
+      go(new GenericDatumReader[GenericData.Record](schema)).stream
     }
 
   def jacksonS[F[_]](configuration: Configuration, schema: Schema, path: Path, chunkSize: ChunkSize)(implicit

@@ -4,19 +4,22 @@ import cats.effect.kernel.{Async, Resource, Sync}
 import cats.effect.std.Hotswap
 import cats.implicits.toFunctorOps
 import com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
-import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick, TickStatus}
 import fs2.{Chunk, Pipe, Stream}
 import io.circe.Json
 import io.circe.jackson.circeToJackson
 import org.apache.hadoop.conf.Configuration
+import squants.information.{Bytes, Information}
 
 import java.time.ZoneId
 
 final class HadoopCirce[F[_]] private (configuration: Configuration) {
 
-  def source(path: NJPath, chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, Json] =
-    HadoopReader.jawnS[F](configuration, path.hadoopPath, chunkSize)
+  def source(path: NJPath, bufferSize: Information)(implicit F: Sync[F]): Stream[F, Json] =
+    HadoopReader.jawnS[F](configuration, path.hadoopPath, bufferSize)
+
+  def source(path: NJPath)(implicit F: Sync[F]): Stream[F, Json] =
+    source(path, Bytes(1024 * 512))
 
   def sink(path: NJPath)(implicit F: Sync[F]): Pipe[F, Chunk[Json], Int] = { (ss: Stream[F, Chunk[Json]]) =>
     Stream.resource(HadoopWriter.jsonNodeR[F](configuration, path.hadoopPath, new ObjectMapper())).flatMap {

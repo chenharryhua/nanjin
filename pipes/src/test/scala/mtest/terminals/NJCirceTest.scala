@@ -31,7 +31,7 @@ class NJCirceTest extends AnyFunSuite {
     hdp.delete(tgt).unsafeRunSync()
     val ts: Stream[IO, Json]             = Stream.emits(data.toList).covary[IO].map(_.asJson)
     val sink: Pipe[IO, Chunk[Json], Int] = json.sink(tgt)
-    val src: Stream[IO, Tiger]           = json.source(tgt, 2).mapFilter(_.as[Tiger].toOption)
+    val src: Stream[IO, Tiger]           = json.source(tgt).mapFilter(_.as[Tiger].toOption)
     val action: IO[List[Tiger]]          = ts.chunks.through(sink).compile.drain >> src.compile.toList
     assert(action.unsafeRunSync().toSet == data)
     val lines = hdp.text.source(tgt, 32).compile.fold(0) { case (s, _) => s + 1 }
@@ -89,7 +89,7 @@ class NJCirceTest extends AnyFunSuite {
   }
 
   test("laziness") {
-    json.source(NJPath("./does/not/exist"), 1)
+    json.source(NJPath("./does/not/exist"))
     json.sink(NJPath("./does/not/exist"))
   }
 
@@ -112,7 +112,7 @@ class NJCirceTest extends AnyFunSuite {
     val size =
       hdp
         .filesIn(path)
-        .flatMap(_.traverse(json.source(_, 5).compile.toList.map(_.size)))
+        .flatMap(_.traverse(json.source(_).compile.toList.map(_.size)))
         .map(_.sum)
         .unsafeRunSync()
     assert(size == number * TestData.tigerSet.toList.size)
