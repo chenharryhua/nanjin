@@ -41,7 +41,7 @@ object CsvHeaderOf {
 final class HadoopKantan[F[_]] private (
   configuration: Configuration,
   csvConfiguration: CsvConfiguration
-) {
+) extends HadoopSink[F, Seq[String]] {
 
   // read
 

@@ -14,7 +14,7 @@ import java.time.ZoneId
 final class HadoopBinAvro[F[_]] private (
   configuration: Configuration,
   schema: Schema
-) {
+) extends HadoopSink[F, GenericRecord] {
 
   // read
 

@@ -13,7 +13,7 @@ import squants.information.{Bytes, Information}
 
 import java.time.ZoneId
 
-final class HadoopCirce[F[_]] private (configuration: Configuration) {
+final class HadoopCirce[F[_]] private (configuration: Configuration) extends HadoopSink[F, Json] {
 
   def source(path: NJPath, bufferSize: Information)(implicit F: Sync[F]): Stream[F, Json] =
     HadoopReader.jawnS[F](configuration, path.hadoopPath, bufferSize)

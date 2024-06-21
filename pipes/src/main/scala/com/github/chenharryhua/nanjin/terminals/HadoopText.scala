@@ -10,7 +10,7 @@ import org.apache.hadoop.conf.Configuration
 
 import java.time.ZoneId
 
-final class HadoopText[F[_]] private (configuration: Configuration) {
+final class HadoopText[F[_]] private (configuration: Configuration) extends HadoopSink[F, String] {
 
   // read
 

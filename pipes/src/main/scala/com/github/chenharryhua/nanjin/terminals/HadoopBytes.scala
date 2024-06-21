@@ -12,7 +12,7 @@ import squants.information.{Bytes, Information}
 import java.io.{InputStream, OutputStream}
 import java.time.ZoneId
 
-final class HadoopBytes[F[_]] private (configuration: Configuration) {
+final class HadoopBytes[F[_]] private (configuration: Configuration) extends HadoopSink[F, Byte] {
 
   /** @return
     *   a byte stream which is chunked by ''bufferSize'' except the last chunk.

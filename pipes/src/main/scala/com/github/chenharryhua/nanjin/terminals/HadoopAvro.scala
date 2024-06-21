@@ -15,7 +15,8 @@ import java.time.ZoneId
 final class HadoopAvro[F[_]] private (
   configuration: Configuration,
   schema: Schema,
-  compression: AvroCompression) {
+  compression: AvroCompression)
+    extends HadoopSink[F, GenericRecord] {
 
   // config
 
