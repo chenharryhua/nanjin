@@ -14,6 +14,7 @@ import mtest.terminals.HadoopTestData.hdp
 import mtest.terminals.TestData.Tiger
 import org.scalatest.Assertion
 import org.scalatest.funsuite.AnyFunSuite
+import squants.information.InformationConversions.InformationConversions
 
 import java.time.ZoneId
 import scala.concurrent.duration.DurationInt
@@ -24,7 +25,7 @@ class NJBytesTest extends AnyFunSuite {
     hdp.delete(path).unsafeRunSync()
     val ts   = Stream.emits(data.toList).covary[IO]
     val sink = hdp.bytes.sink(path)
-    val src  = hdp.bytes.source(path, 64)
+    val src  = hdp.bytes.source(path, 64.bytes)
     val action = ts
       .map(_.asJson.noSpaces)
       .intersperse(System.lineSeparator())
