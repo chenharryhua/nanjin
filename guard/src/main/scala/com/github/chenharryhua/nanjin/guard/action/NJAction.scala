@@ -26,8 +26,8 @@ final class NJAction[F[_]: Async] private[guard] (
       arrow = kleisli
     )
 
-  def retry[Z](fz: F[Z]): BuildWith[F, Unit, Z] =
-    retry(Kleisli((_: Unit) => fz))
+  def retry[Z](fz: => F[Z]): BuildWith[F, Unit, Z] =
+    retry(Kleisli((_: Unit) => F.defer(fz)))
 
   def delay[Z](z: => Z): BuildWith[F, Unit, Z] =
     retry(Kleisli((_: Unit) => F.delay(z)))
@@ -48,7 +48,7 @@ final class NJAction[F[_]: Async] private[guard] (
     retry(Kleisli(f.tupled))
 
   // future
-  def retryFuture[Z](future: F[Future[Z]]): BuildWith[F, Unit, Z] =
+  def retryFuture[Z](future: => F[Future[Z]]): BuildWith[F, Unit, Z] =
     retry(F.fromFuture(future))
 
   def retryFuture[A, Z](f: A => Future[Z]): BuildWith[F, A, Z] =

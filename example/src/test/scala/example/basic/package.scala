@@ -11,7 +11,7 @@ import fs2.Stream
 import org.apache.avro.Schema
 
 package object basic {
-  val size: Long              = 10_000
+  val size: Long              = 1000
   val data: Stream[IO, Tiger] = Stream.range(0, size).map(a => Tiger(a, "a" * 1000))
 
   val root: NJPath = NJPath("./data/example/basic")
