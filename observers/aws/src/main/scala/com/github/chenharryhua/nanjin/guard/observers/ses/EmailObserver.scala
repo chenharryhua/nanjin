@@ -105,9 +105,9 @@ final class EmailObserver[F[_]] private (
   private def translate(evt: NJEvent): F[Option[(Text.TypedTag[String], ColorScheme)]] =
     translator.translate(evt).map(_.map(tags => (tags, ColorScheme.decorate(evt).eval.value)))
 
-  def observe(from: EmailAddr, to: NonEmptyList[EmailAddr], subject: String): Pipe[F, NJEvent, Nothing] = {
+  def observe(from: EmailAddr, to: NonEmptyList[EmailAddr], subject: String): Pipe[F, NJEvent, NJEvent] = {
     (events: Stream[F, NJEvent]) =>
-      val computation = for {
+      val sendEmail: Stream[F, Unit] = for {
         ses <- Stream.resource(client)
         buff <- Stream.eval(F.ref[Vector[NJEvent]](Vector.empty))
         ref <- Stream.eval(F.ref[Map[UUID, ServiceStart]](Map.empty))
@@ -120,7 +120,7 @@ final class EmailObserver[F[_]] private (
           .evalTap(publish(_, ses, from, to, subject) >> ofm.reset)
           .onFinalize(ofm.terminated.flatMap(ca => publish(ca, ses, from, to, subject).whenA(ca.nonEmpty)))
       } yield ()
-      computation.drain
+      events.concurrently(sendEmail)
   }
 }
 

@@ -54,12 +54,13 @@ private class HttpRouter[F[_]](
 
   private def html_table_title(now: ZonedDateTime): Text.TypedTag[String] =
     table(
-      tr(th("Service"), th("Report Policy"), th("Time Zone"), th("Up Time")),
+      tr(th("Service"), th("Report Policy"), th("Time Zone"), th("Up Time"), th("Present")),
       tr(
         td(serviceParams.serviceName.value),
         td(serviceParams.servicePolicies.metricReport.show),
         td(serviceParams.zoneId.show),
-        td(fmt.format(serviceParams.upTime(now)))
+        td(fmt.format(serviceParams.upTime(now))),
+        td(now.toLocalTime.truncatedTo(ChronoUnit.SECONDS).show)
       )
     )
 
@@ -78,7 +79,7 @@ private class HttpRouter[F[_]](
       val text: Text.TypedTag[String] = html(
         body(
           h3(s"Service: ${serviceParams.serviceName.value}"),
-          a(href := "/metrics/yaml")("Metrics Now"),
+          a(href := "/metrics/yaml")("Metrics At Present"),
           br(),
           a(href := "/metrics/history")("Metrics History"),
           br(),
@@ -140,7 +141,7 @@ private class HttpRouter[F[_]](
                         tr(th(METRICS_LAUNCH_TIME), th(CONSTANT_TOOK)),
                         tr(td(tick.zonedWakeup.toLocalDateTime.show), td(fmt.format(mr.took)))
                       ),
-                      pre(small(new SnapshotPolyglot(mr.snapshot).toYaml))
+                      pre(new SnapshotPolyglot(mr.snapshot).toYaml)
                     ))
               }
             })
