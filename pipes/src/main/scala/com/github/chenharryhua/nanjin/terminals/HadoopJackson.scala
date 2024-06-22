@@ -12,7 +12,8 @@ import org.apache.hadoop.conf.Configuration
 
 import java.time.ZoneId
 
-final class HadoopJackson[F[_]] private (configuration: Configuration, schema: Schema) {
+final class HadoopJackson[F[_]] private (configuration: Configuration, schema: Schema)
+    extends HadoopSink[F, GenericRecord] {
 
   // read
 

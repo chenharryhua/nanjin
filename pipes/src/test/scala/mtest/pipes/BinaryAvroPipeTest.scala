@@ -57,7 +57,7 @@ class BinaryAvroPipeTest extends AnyFunSuite {
         .through(hdp.bytes.sink(path))
     val read =
       hdp.bytes
-        .source(path, 100)
+        .source(path)
         .through(binaryAvro.fromBytes[IO](AvroSchema[Tiger]))
         .map(Tiger.avroDecoder.decode)
     val run = write.compile.drain >> read.compile.toList

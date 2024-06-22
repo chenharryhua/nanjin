@@ -21,7 +21,8 @@ import java.time.ZoneId
 
 final class HadoopParquet[F[_]] private (
   readBuilder: Reader[Path, ParquetReader.Builder[GenericData.Record]],
-  writeBuilder: Reader[Path, AvroParquetWriter.Builder[GenericRecord]]) {
+  writeBuilder: Reader[Path, AvroParquetWriter.Builder[GenericRecord]])
+    extends HadoopSink[F, GenericRecord] {
 
   // config
 

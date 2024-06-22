@@ -7,21 +7,21 @@ import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick, TickStatus}
 import fs2.{Chunk, Pipe, Stream}
 import org.apache.hadoop.conf.Configuration
-import squants.information.Bytes
+import squants.information.{Bytes, Information}
 
 import java.io.{InputStream, OutputStream}
 import java.time.ZoneId
 
-final class HadoopBytes[F[_]] private (configuration: Configuration) {
+final class HadoopBytes[F[_]] private (configuration: Configuration) extends HadoopSink[F, Byte] {
 
   /** @return
-    *   a stream which is chunked by ''chunkSize'' except the last chunk.
+    *   a byte stream which is chunked by ''bufferSize'' except the last chunk.
     */
-  def source(path: NJPath, chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, Byte] =
-    HadoopReader.byteS(configuration, path.hadoopPath, chunkSize)
+  def source(path: NJPath, bufferSize: Information)(implicit F: Sync[F]): Stream[F, Byte] =
+    HadoopReader.byteS(configuration, path.hadoopPath, ChunkSize(bufferSize))
 
   def source(path: NJPath)(implicit F: Sync[F]): Stream[F, Byte] =
-    source(path, ChunkSize(Bytes(1024 * 512)))
+    source(path, Bytes(1024 * 512))
 
   def inputStream(path: NJPath)(implicit F: Sync[F]): Resource[F, InputStream] =
     HadoopReader.inputStreamR[F](configuration, path.hadoopPath)
