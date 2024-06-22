@@ -107,20 +107,20 @@ final class EmailObserver[F[_]] private (
 
   def observe(from: EmailAddr, to: NonEmptyList[EmailAddr], subject: String): Pipe[F, NJEvent, NJEvent] = {
     (events: Stream[F, NJEvent]) =>
-      val sendEmail: Stream[F, Unit] = for {
+      for {
         ses <- Stream.resource(client)
         buff <- Stream.eval(F.ref[Vector[NJEvent]](Vector.empty))
         ref <- Stream.eval(F.ref[Map[UUID, ServiceStart]](Map.empty))
         ofm = new EmailFinalizeMonitor(translate, buff, ref)
-        _ <- events
+        event <- events
           .evalTap(ofm.monitoring)
-          .evalMap(translate)
-          .unNone
-          .groupWithin(chunkSize.value, interval)
-          .evalTap(publish(_, ses, from, to, subject) >> ofm.reset)
+          .observe(
+            _.evalMap(translate).unNone
+              .groupWithin(chunkSize.value, interval)
+              .evalMap(publish(_, ses, from, to, subject) >> ofm.reset)
+              .drain)
           .onFinalize(ofm.terminated.flatMap(ca => publish(ca, ses, from, to, subject).whenA(ca.nonEmpty)))
-      } yield ()
-      events.concurrently(sendEmail)
+      } yield event
   }
 }
 
