@@ -82,12 +82,13 @@ private object HadoopReader {
     }
 
   def jawnS[F[_]](configuration: Configuration, path: Path, bs: Information)(implicit
-    F: Sync[F]): Stream[F, Json] = {
-    val parser: AsyncParser[Json] = AsyncParser[Json](AsyncParser.ValueStream) // stateful
-    byteS[F](configuration, path, ChunkSize(bs)).chunks
-      .evalMap(bs => F.fromEither(parser.absorb(bs.toByteBuffer)))
-      .flatMap(Stream.emits)
-  }
+    F: Sync[F]): Stream[F, Json] =
+    Stream
+      .emit(AsyncParser[Json](AsyncParser.ValueStream))
+      .flatMap(parser =>
+        byteS[F](configuration, path, ChunkSize(bs)).chunks
+          .evalMap(bs => F.fromEither(parser.absorb(bs.toByteBuffer)))
+          .flatMap(Stream.emits))
 
   def stringS[F[_]](configuration: Configuration, path: Path, chunkSize: ChunkSize)(implicit
     F: Sync[F]): Stream[F, String] =

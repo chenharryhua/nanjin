@@ -26,7 +26,7 @@ final class NJAction[F[_]: Async] private[guard] (
       arrow = kleisli
     )
 
-  def retry[Z](fz: F[Z]): BuildWith[F, Unit, Z] =
+  def retry[Z](fz: => F[Z]): BuildWith[F, Unit, Z] =
     retry(Kleisli((_: Unit) => fz))
 
   def delay[Z](z: => Z): BuildWith[F, Unit, Z] =

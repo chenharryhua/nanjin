@@ -3,6 +3,7 @@ package example
 import cats.effect.IO
 import com.comcast.ip4s.IpLiteralSyntax
 import com.github.chenharryhua.nanjin.aws.{ec2, ecs}
+import com.github.chenharryhua.nanjin.common.HostName
 import com.github.chenharryhua.nanjin.common.chrono.policies
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.guard.TaskGuard
@@ -18,7 +19,7 @@ object aws_task_template {
   val task: TaskGuard[IO] = TaskGuard[IO]("nanjin").updateConfig(
     _.withZoneId(sydneyTime)
       .withHomePage("https://github.com/chenharryhua/nanjin")
-      .withHostName(ec2.private_ip / ec2.instance_id)
+      .withHostName(ec2.private_ip / HostName.local_host)
       .withMetricReport(policies.crontab(_.every15Minutes))
       .withMetricReset(policies.crontab(_.daily.midnight))
       .withRestartPolicy(policies
