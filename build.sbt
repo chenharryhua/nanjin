@@ -34,7 +34,7 @@ val drosteV     = "0.9.0"
 val slf4jV      = "2.0.13"
 val log4catsV   = "2.7.0"
 val logbackV    = "1.5.6"
-val jwtV        = "0.12.5"
+val jwtV        = "0.12.6"
 val postgresV   = "42.7.3"
 val acyclicV    = "0.3.12"
 
@@ -125,7 +125,7 @@ val testLib = List(
   "org.typelevel" %% "cats-laws"                              % catsCoreV,
   "org.typelevel" %% "algebra-laws"                           % catsCoreV,
   "com.github.alexarchambault" %% "scalacheck-shapeless_1.15" % "1.3.0",
-  "org.scalatest" %% "scalatest"                              % "3.2.18",
+  "org.scalatest" %% "scalatest"                              % "3.2.19",
   "dev.optics" %% "monocle-law"                               % monocleV,
   "com.47deg" %% "scalacheck-toolbox-datetime"                % "0.7.0",
   "com.github.pathikrit" %% "better-files"                    % "3.9.2"
