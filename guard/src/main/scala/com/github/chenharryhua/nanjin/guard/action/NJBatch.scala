@@ -1,5 +1,4 @@
 package com.github.chenharryhua.nanjin.guard.action
-import cats.Traverse
 import cats.effect.kernel.{Async, Resource, Unique}
 import cats.syntax.all.*
 import com.codahale.metrics.MetricRegistry
@@ -12,9 +11,9 @@ import java.time.Duration
 import scala.jdk.DurationConverters.ScalaDurationOps
 
 @JsonCodec
-final case class Detail(nth_job: Int, took: Duration, is_done: Boolean)
+final case class Detail(name: String, took: Duration, is_done: Boolean)
 @JsonCodec
-final case class QuasiResult(token: String, took: Duration, mode: String, details: List[Detail])
+final case class QuasiResult(id: String, total: Duration, mode: String, details: List[Detail])
 
 final class NJBatch[F[_]: Async] private[guard] (
   serviceParams: ServiceParams,
@@ -26,11 +25,13 @@ final class NJBatch[F[_]: Async] private[guard] (
 
   private def mode(par: Option[Int]): (String, Json) =
     "mode" -> Json.fromString(par.fold("sequential")(p => s"parallel-$p"))
-  private def jobs(size: Long): (String, Json)              = "total_jobs" -> Json.fromLong(size)
-  private def start(idx: Int): (String, Json)               = "started_at" -> idx.asJson
-  private def finish(idx: Int): (String, Json)              = "done_at" -> idx.asJson
-  private def failed(idx: Int): (String, Json)              = "failed_at" -> idx.asJson
-  private def batch_id(token: Unique.Token): (String, Json) = "token" -> Json.fromInt(token.hash)
+  private def jobs(size: Long): (String, Json)              = "jobs" -> Json.fromLong(size)
+  private def start(name: String): (String, Json)           = "start" -> name.asJson
+  private def finish(name: String): (String, Json)          = "done" -> name.asJson
+  private def failed(name: String): (String, Json)          = "failed" -> name.asJson
+  private def batch_id(token: Unique.Token): (String, Json) = "id" -> Json.fromInt(token.hash)
+
+  private def jobName(idx: Int): String = s"job-${idx + 1}"
 
   private val ratio: Resource[F, NJRatio[F]] =
     for {
@@ -45,136 +46,155 @@ final class NJBatch[F[_]: Async] private[guard] (
 
   object quasi {
 
-    def sequential[G[_]: Traverse, Z](gfz: G[F[Z]]): F[QuasiResult] = {
-      val size: Long = gfz.size
+    private def sequential_run[Z](gfz: List[(String, F[Z])]): F[QuasiResult] = {
+      val size: Long = gfz.size.toLong
       val run: Resource[F, F[QuasiResult]] = for {
         token <- Resource.eval(F.unique)
         rat <- ratio.evalTap(_.incDenominator(size))
         act <- action
-          .retry((_: Int, fz: F[Z]) => fz)
+          .retry((_: String, fz: F[Z]) => fz)
           .buildWith(
-            _.tapInput { case (idx, _) =>
-              Json.obj("quasi" -> Json.obj(batch_id(token), start(idx), jobs(size), mode(None)))
-            }.tapOutput { case ((idx, _), _) =>
-              Json.obj("quasi" -> Json.obj(batch_id(token), finish(idx), jobs(size), mode(None)))
-            }.tapError { case ((idx, _), _) =>
-              Json.obj("quasi" -> Json.obj(batch_id(token), failed(idx), jobs(size), mode(None)))
+            _.tapInput { case (name, _) =>
+              Json.obj("quasi" -> Json.obj(batch_id(token), start(name), jobs(size), mode(None)))
+            }.tapOutput { case ((name, _), _) =>
+              Json.obj("quasi" -> Json.obj(batch_id(token), finish(name), jobs(size), mode(None)))
+            }.tapError { case ((name, _), _) =>
+              Json.obj("quasi" -> Json.obj(batch_id(token), failed(name), jobs(size), mode(None)))
             }
           )
-      } yield gfz.zipWithIndex.traverse { case (fz, idx) =>
-        val oneBase = idx + 1
-        F.timed(act.run((oneBase, fz)).attempt).flatTap(_ => rat.incNumerator(1)).map { case (fd, result) =>
-          Detail(nth_job = oneBase, took = fd.toJava, is_done = result.isRight)
+      } yield gfz.traverse { case (name, fz) =>
+        F.timed(act.run((name, fz)).attempt).flatTap(_ => rat.incNumerator(1)).map { case (fd, result) =>
+          Detail(name = name, took = fd.toJava, is_done = result.isRight)
         }
       }.map(details =>
         QuasiResult(
-          token = token.hash.show,
-          took = details.map(_.took).foldLeft(Duration.ZERO)(_ plus _),
+          id = token.hash.show,
+          total = details.map(_.took).foldLeft(Duration.ZERO)(_ plus _),
           mode = "sequential",
-          details = details.toList))
+          details = details))
 
       run.use(identity)
     }
 
     def sequential[Z](fzs: F[Z]*): F[QuasiResult] =
-      sequential[List, Z](fzs.toList)
+      sequential_run[Z](fzs.toList.zipWithIndex.map { case (fz, idx) => jobName(idx) -> fz })
 
-    private def parallel_run[G[_]: Traverse, Z](parallelism: Int, gfz: G[F[Z]]): F[QuasiResult] = {
-      val size: Long = gfz.size
+    def namedSequential[Z](fzs: (String, F[Z])*): F[QuasiResult] =
+      sequential_run[Z](fzs.toList)
+
+    private def parallel_run[Z](parallelism: Int, gfz: List[(String, F[Z])]): F[QuasiResult] = {
+      val size: Long = gfz.size.toLong
       val run: Resource[F, F[QuasiResult]] = for {
         token <- Resource.eval(F.unique)
         rat <- ratio.evalTap(_.incDenominator(size))
         act <- action
-          .retry((_: Int, fz: F[Z]) => fz)
+          .retry((_: String, fz: F[Z]) => fz)
           .buildWith(
-            _.tapInput { case (idx, _) =>
-              Json.obj("quasi" -> Json.obj(batch_id(token), start(idx), jobs(size), mode(Some(parallelism))))
-            }.tapOutput { case ((idx, _), _) =>
-              Json.obj("quasi" -> Json.obj(batch_id(token), finish(idx), jobs(size), mode(Some(parallelism))))
-            }.tapError { case ((idx, _), _) =>
-              Json.obj("quasi" -> Json.obj(batch_id(token), failed(idx), jobs(size), mode(Some(parallelism))))
+            _.tapInput { case (name, _) =>
+              Json.obj("quasi" -> Json.obj(batch_id(token), start(name), jobs(size), mode(Some(parallelism))))
+            }.tapOutput { case ((name, _), _) =>
+              Json.obj(
+                "quasi" -> Json.obj(batch_id(token), finish(name), jobs(size), mode(Some(parallelism))))
+            }.tapError { case ((name, _), _) =>
+              Json.obj(
+                "quasi" -> Json.obj(batch_id(token), failed(name), jobs(size), mode(Some(parallelism))))
             }
           )
       } yield F
-        .parTraverseN(parallelism)(gfz.zipWithIndex) { case (fz, idx) =>
-          val oneBase = idx + 1
-          F.timed(act.run((oneBase, fz)).attempt).flatTap(_ => rat.incNumerator(1)).map { case (fd, result) =>
-            Detail(nth_job = oneBase, took = fd.toJava, is_done = result.isRight)
+        .parTraverseN(parallelism)(gfz) { case (name, fz) =>
+          F.timed(act.run((name, fz)).attempt).flatTap(_ => rat.incNumerator(1)).map { case (fd, result) =>
+            Detail(name = name, took = fd.toJava, is_done = result.isRight)
           }
         }
         .map(details =>
           QuasiResult(
-            token = token.hash.show,
-            took = details.map(_.took).foldLeft(Duration.ZERO)(_ plus _),
+            id = token.hash.show,
+            total = details.map(_.took).foldLeft(Duration.ZERO)(_ plus _),
             mode = s"parallel-$parallelism",
-            details = details.toList.sortBy(_.nth_job)))
+            details = details))
 
       run.use(identity)
     }
 
     def parallel[Z](parallelism: Int)(fzs: F[Z]*): F[QuasiResult] =
-      parallel_run[List, Z](parallelism, fzs.toList)
+      parallel_run[Z](parallelism, fzs.toList.zipWithIndex.map { case (fz, idx) => jobName(idx) -> fz })
+
+    def namedParallel[Z](parallelism: Int)(fzs: (String, F[Z])*): F[QuasiResult] =
+      parallel_run[Z](parallelism, fzs.toList)
 
     def parallel[Z](fzs: F[Z]*): F[QuasiResult] =
-      parallel_run[List, Z](fzs.size, fzs.toList)
+      parallel_run[Z](fzs.size, fzs.toList.zipWithIndex.map { case (fz, idx) => jobName(idx) -> fz })
+
+    def namedParallel[Z](fzs: (String, F[Z])*): F[QuasiResult] =
+      parallel_run[Z](fzs.size, fzs.toList)
+
   }
 
   // batch
 
-  def sequential[G[_]: Traverse, Z: Encoder](gfz: G[F[Z]]): F[G[Z]] = {
-    val size: Long = gfz.size
-    val run: Resource[F, F[G[Z]]] = for {
+  private def sequential_run[Z: Encoder](gfz: List[(String, F[Z])]): F[List[Z]] = {
+    val size: Long = gfz.size.toLong
+    val run: Resource[F, F[List[Z]]] = for {
       token <- Resource.eval(F.unique)
       rat <- ratio.evalTap(_.incDenominator(size))
       act <- action
-        .retry((_: Int, fz: F[Z]) => fz)
+        .retry((_: String, fz: F[Z]) => fz)
         .buildWith(
-          _.tapInput { case (idx, _) =>
-            Json.obj("batch" -> Json.obj(batch_id(token), start(idx), jobs(size), mode(None)))
-          }.tapOutput { case ((idx, _), out) =>
+          _.tapInput { case (name, _) =>
+            Json.obj("batch" -> Json.obj(batch_id(token), start(name), jobs(size), mode(None)))
+          }.tapOutput { case ((name, _), out) =>
             Json.obj(
-              "batch" -> Json.obj(batch_id(token), finish(idx), jobs(size), mode(None), "out" -> out.asJson))
-          }.tapError { case ((idx, _), _) =>
-            Json.obj("batch" -> Json.obj(batch_id(token), failed(idx), jobs(size), mode(None)))
+              "batch" -> Json.obj(batch_id(token), finish(name), jobs(size), mode(None), "out" -> out.asJson))
+          }.tapError { case ((name, _), _) =>
+            Json.obj("batch" -> Json.obj(batch_id(token), failed(name), jobs(size), mode(None)))
           }
         )
-    } yield gfz.zipWithIndex.traverse { case (fz, idx) =>
-      act.run((idx + 1, fz)).flatTap(_ => rat.incNumerator(1))
+    } yield gfz.traverse { case (name, fz) =>
+      act.run((name, fz)).flatTap(_ => rat.incNumerator(1))
     }
 
     run.use(identity)
   }
 
   def sequential[Z: Encoder](fzs: F[Z]*): F[List[Z]] =
-    sequential[List, Z](fzs.toList)
+    sequential_run[Z](fzs.toList.zipWithIndex.map { case (fz, idx) => jobName(idx) -> fz })
 
-  private def parallel_run[G[_]: Traverse, Z: Encoder](parallelism: Int, gfz: G[F[Z]]): F[G[Z]] = {
-    val size: Long = gfz.size
-    val run: Resource[F, F[G[Z]]] = for {
+  def namedSequential[Z: Encoder](fzs: (String, F[Z])*): F[List[Z]] =
+    sequential_run[Z](fzs.toList)
+
+  private def parallel_run[Z: Encoder](parallelism: Int, gfz: List[(String, F[Z])]): F[List[Z]] = {
+    val size: Long = gfz.size.toLong
+    val run: Resource[F, F[List[Z]]] = for {
       token <- Resource.eval(F.unique)
       rat <- ratio.evalTap(_.incDenominator(size))
       act <- action
-        .retry((_: Int, fz: F[Z]) => fz)
+        .retry((_: String, fz: F[Z]) => fz)
         .buildWith(
-          _.tapInput { case (idx, _) =>
-            Json.obj("batch" -> Json.obj(batch_id(token), start(idx), jobs(size), mode(Some(parallelism))))
-          }.tapOutput { case ((idx, _), out) =>
+          _.tapInput { case (name, _) =>
+            Json.obj("batch" -> Json.obj(batch_id(token), start(name), jobs(size), mode(Some(parallelism))))
+          }.tapOutput { case ((name, _), out) =>
             Json.obj("batch" -> Json
-              .obj(batch_id(token), finish(idx), jobs(size), mode(Some(parallelism)), "out" -> out.asJson))
-          }.tapError { case ((idx, _), _) =>
-            Json.obj("batch" -> Json.obj(batch_id(token), failed(idx), jobs(size), mode(Some(parallelism))))
+              .obj(batch_id(token), finish(name), jobs(size), mode(Some(parallelism)), "out" -> out.asJson))
+          }.tapError { case ((name, _), _) =>
+            Json.obj("batch" -> Json.obj(batch_id(token), failed(name), jobs(size), mode(Some(parallelism))))
           }
         )
-    } yield F.parTraverseN(parallelism)(gfz.zipWithIndex) { case (fz, idx) =>
-      act.run((idx + 1, fz)).flatTap(_ => rat.incNumerator(1))
+    } yield F.parTraverseN(parallelism)(gfz) { case (name, fz) =>
+      act.run((name, fz)).flatTap(_ => rat.incNumerator(1))
     }
 
     run.use(identity)
   }
 
   def parallel[Z: Encoder](parallelism: Int)(fzs: F[Z]*): F[List[Z]] =
-    parallel_run[List, Z](parallelism, fzs.toList)
+    parallel_run[Z](parallelism, fzs.toList.zipWithIndex.map { case (fz, idx) => jobName(idx) -> fz })
+
+  def namedParallel[Z: Encoder](parallelism: Int)(fzs: (String, F[Z])*): F[List[Z]] =
+    parallel_run[Z](parallelism, fzs.toList)
 
   def parallel[Z: Encoder](fzs: F[Z]*): F[List[Z]] =
-    parallel_run[List, Z](fzs.size, fzs.toList)
+    parallel_run[Z](fzs.size, fzs.toList.zipWithIndex.map { case (fz, idx) => jobName(idx) -> fz })
+
+  def namedParallel[Z: Encoder](fzs: (String, F[Z])*): F[List[Z]] =
+    parallel_run[Z](fzs.size, fzs.toList)
 }

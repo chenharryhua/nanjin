@@ -11,7 +11,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import io.circe.generic.auto.*
 
 @DoNotDiscover
-class ExampleKafakDump extends AnyFunSuite {
+class ExampleKafkaDump extends AnyFunSuite {
   test("dump kafka data in json") {
     val path = NJPath("./data/example/foo/batch/circe.json")
     sparKafka.topic(fooTopic).fromKafka.flatMap(_.output.circe(path).run[IO]).unsafeRunSync()

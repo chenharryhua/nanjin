@@ -10,25 +10,28 @@ import io.circe.jawn.parse
 class PrettifyJsonTest extends AnyFunSuite {
   test("prettify case class") {
     val qr = QuasiResult(
-      "123",
-      3.seconds.toJava,
-      "sequential",
-      List(Detail(1, 2.seconds.toJava, is_done = true), Detail(2, 1.second.toJava, is_done = false)))
+      id = "123",
+      total = 3.seconds.toJava,
+      mode = "sequential",
+      details = List(
+        Detail(name = "job-1", took = 2.seconds.toJava, is_done = true),
+        Detail(name = "job-2", took = 1.second.toJava, is_done = false))
+    )
     val res = prettifyJson(qr)
     val json =
       """
         |{
-        |  "token" : "123",
-        |  "took" : "3 seconds",
+        |  "id" : "123",
+        |  "total" : "3 seconds",
         |  "mode" : "sequential",
         |  "details" : [
         |    {
-        |      "nth_job" : "1",
+        |      "name" : "job-1",
         |      "took" : "2 seconds",
         |      "is_done" : true
         |    },
         |    {
-        |      "nth_job" : "2",
+        |      "name" : "job-2",
         |      "took" : "1 second",
         |      "is_done" : false
         |    }

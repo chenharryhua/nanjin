@@ -18,13 +18,14 @@ class BatchTest extends AnyFunSuite {
     service.eventStream { ga =>
       ga.batch("quasi.sequential", _.timed.counted.bipartite.withMeasurement("batch-seq-quasi"))
         .quasi
-        .sequential(
-          IO.raiseError(new Exception()),
-          IO.sleep(1.second),
-          IO.sleep(2.seconds),
-          IO.raiseError(new Exception()),
-          IO.sleep(1.seconds),
-          IO.raiseError(new Exception))
+        .namedSequential(
+          "a" -> IO.raiseError(new Exception()),
+          "b" -> IO.sleep(1.second),
+          "c" -> IO.sleep(2.seconds),
+          "d" -> IO.raiseError(new Exception()),
+          "e" -> IO.sleep(1.seconds),
+          "f" -> IO.raiseError(new Exception)
+        )
         .map { qr =>
           assert(!qr.details.head.is_done)
           assert(qr.details(1).is_done)
@@ -40,13 +41,14 @@ class BatchTest extends AnyFunSuite {
     service.eventStream { ga =>
       ga.batch("quasi.parallel", _.timed.counted.bipartite.policy(policies.fixedDelay(1.second).limited(1)))
         .quasi
-        .parallel(3)(
-          IO.sleep(3.second),
-          IO.sleep(2.seconds),
-          IO.raiseError(new Exception),
-          IO.sleep(3.seconds),
-          IO.raiseError(new Exception),
-          IO.sleep(4.seconds))
+        .namedParallel(3)(
+          "a" -> IO.sleep(3.second),
+          "b" -> IO.sleep(2.seconds),
+          "c" -> IO.raiseError(new Exception),
+          "d" -> IO.sleep(3.seconds),
+          "e" -> IO.raiseError(new Exception),
+          "f" -> IO.sleep(4.seconds)
+        )
         .map { qr =>
           assert(qr.details.head.is_done)
           assert(qr.details(1).is_done)
