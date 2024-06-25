@@ -12,47 +12,53 @@ import scala.concurrent.duration.*
 
 // sbt "guard/testOnly mtest.guard.PerformanceTest"
 
-/** last time: (run more than once, pick up the best)
+/** warm-up: 295K/s, 3 micro 389 nano
   *
-  * silent.time.count: 1000K/s
+  * bipartite.time.count: 382K/s, 2 micro 613 nano
   *
-  * unipartite.time.count: 399K/s
+  * bipartite.time: 390K/s, 2 micro 561 nano
   *
-  * unipartite.time.count.notes: 427K/s
+  * kleisli.bipartite.time: 281K/s, 3 micro 554 nano
   *
-  * bipartite.time.count: 313K/s
+  * bipartite.count: 439K/s, 2 micro 273 nano
   *
-  * bipartite.time.count.notes: 343K/s
+  * bipartite: 432K/s, 2 micro 310 nano
   *
-  * silent.time: 1201K/s
+  * unipartite.time.count: 552K/s, 1 micro 809 nano
   *
-  * unipartite.time: 489K/s
+  * unipartite.time: 470K/s, 2 micro 124 nano
   *
-  * unipartite.time.notes: 448K/s
+  * kleisli.unipartite.time: 327K/s, 3 micro 54 nano
   *
-  * bipartite.time: 341K/s
+  * unipartite.count: 634K/s, 1 micro 577 nano
   *
-  * bipartite.time.notes: 332K/s
+  * unipartite: 622K/s, 1 micro 605 nano
   *
-  * silent.count: 2001K/s
+  * silent.time.count: 1301K/s, 768 nano
   *
-  * unipartite.count: 549K/s
+  * silent.time: 1307K/s, 764 nano
   *
-  * unipartite.count.notes: 501K/s
+  * kleisli.silent.time: 818K/s, 1 micro 221 nano
   *
-  * bipartite.count: 364K/s
+  * silent.count: 3655K/s, 273 nano
   *
-  * bipartite.count.notes: 343K/s
+  * silent: 3772K/s, 265 nano
   *
-  * silent: 2008K/s
+  * flow-meter: 2984K/s, 335 nano
   *
-  * unipartite: 538K/s
+  * meter: 5023K/s, 199 nano
   *
-  * unipartite.notes: 503K/s
+  * meter.count: 4711K/s, 212 nano
   *
-  * bipartite: 353K/s
+  * histogram: 3713K/s, 269 nano
   *
-  * bipartite.notes: 348K/s
+  * histogram.count: 3556K/s, 281 nano
+  *
+  * timer: 2896K/s, 345 nano
+  *
+  * timer.count: 2911K/s, 343 nano
+  *
+  * count: 6845K/s, 146 nano
   */
 
 class PerformanceTest extends AnyFunSuite {

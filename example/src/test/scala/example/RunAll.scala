@@ -2,7 +2,7 @@ package example
 
 import example.database.ExampleDatabase
 import example.kafka.{ExampleKafkaBasic, ExampleKafkaKStream}
-import example.spark.{ExampleKafakDump, ProblematicTest}
+import example.spark.ExampleKafkaDump
 import org.scalatest.Sequential
 
 class RunAll
@@ -10,5 +10,5 @@ class RunAll
       new ExampleKafkaBasic,
       new ExampleKafkaKStream,
       new ExampleDatabase,
-      new ExampleKafakDump
+      new ExampleKafkaDump
     )
