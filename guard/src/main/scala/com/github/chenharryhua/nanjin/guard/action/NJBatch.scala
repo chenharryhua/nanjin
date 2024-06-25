@@ -110,10 +110,9 @@ final class NJBatch[F[_]: Async] private[guard] (
   object quasi {
 
     private def sequential_run[Z](gfz: List[(BatchJob, F[Z])]): F[QuasiResult] = {
-      val size: Long = gfz.size.toLong
       val run: Resource[F, F[QuasiResult]] = for {
         token <- Resource.eval(F.unique)
-        rat <- ratio.evalTap(_.incDenominator(size))
+        rat <- ratio.evalTap(_.incDenominator(gfz.size.toLong))
         act <- action.retry((_: BatchJob, _: Unique.Token, fz: F[Z]) => fz).buildWith(tap)
       } yield gfz.traverse { case (job, fz) =>
         F.timed(act.run((job, token, fz)).attempt)
@@ -140,10 +139,9 @@ final class NJBatch[F[_]: Async] private[guard] (
       })
 
     private def parallel_run[Z](parallelism: Int, gfz: List[(BatchJob, F[Z])]): F[QuasiResult] = {
-      val size: Long = gfz.size.toLong
       val run: Resource[F, F[QuasiResult]] = for {
         token <- Resource.eval(F.unique)
-        rat <- ratio.evalTap(_.incDenominator(size))
+        rat <- ratio.evalTap(_.incDenominator(gfz.size.toLong))
         act <- action.retry((_: BatchJob, _: Unique.Token, fz: F[Z]) => fz).buildWith(tap)
       } yield F
         .parTraverseN(parallelism)(gfz) { case (job, fz) =>
@@ -183,10 +181,9 @@ final class NJBatch[F[_]: Async] private[guard] (
   // batch
 
   private def sequential_run[Z](gfz: List[(BatchJob, F[Z])]): F[List[Z]] = {
-    val size: Long = gfz.size.toLong
     val run: Resource[F, F[List[Z]]] = for {
       token <- Resource.eval(F.unique)
-      rat <- ratio.evalTap(_.incDenominator(size))
+      rat <- ratio.evalTap(_.incDenominator(gfz.size.toLong))
       act <- action.retry((_: BatchJob, _: Unique.Token, fz: F[Z]) => fz).buildWith(tap)
     } yield gfz.traverse { case (job, fz) =>
       act.run((job, token, fz)).flatTap(_ => rat.incNumerator(1))
@@ -206,10 +203,9 @@ final class NJBatch[F[_]: Async] private[guard] (
     })
 
   private def parallel_run[Z](parallelism: Int, gfz: List[(BatchJob, F[Z])]): F[List[Z]] = {
-    val size: Long = gfz.size.toLong
     val run: Resource[F, F[List[Z]]] = for {
       token <- Resource.eval(F.unique)
-      rat <- ratio.evalTap(_.incDenominator(size))
+      rat <- ratio.evalTap(_.incDenominator(gfz.size.toLong))
       act <- action.retry((_: BatchJob, _: Unique.Token, fz: F[Z]) => fz).buildWith(tap)
     } yield F.parTraverseN(parallelism)(gfz) { case (job, fz) =>
       act.run((job, token, fz)).flatTap(_ => rat.incNumerator(1))
