@@ -27,12 +27,12 @@ class BatchTest extends AnyFunSuite {
           "f" -> IO.raiseError(new Exception)
         )
         .map { qr =>
-          assert(!qr.details.head.is_done)
-          assert(qr.details(1).is_done)
-          assert(qr.details(3).is_done)
-          assert(!qr.details(4).is_done)
-          assert(qr.details(5).is_done)
-          assert(!qr.details(6).is_done)
+          assert(!qr.details.head.done)
+          assert(qr.details(1).done)
+          assert(qr.details(2).done)
+          assert(!qr.details(3).done)
+          assert(qr.details(4).done)
+          assert(!qr.details(5).done)
         }
     }.map(checkJson).evalTap(console.text[IO]).compile.drain.unsafeRunSync()
   }
@@ -50,12 +50,12 @@ class BatchTest extends AnyFunSuite {
           "f" -> IO.sleep(4.seconds)
         )
         .map { qr =>
-          assert(qr.details.head.is_done)
-          assert(qr.details(1).is_done)
-          assert(!qr.details(2).is_done)
-          assert(qr.details(3).is_done)
-          assert(!qr.details(4).is_done)
-          assert(qr.details(5).is_done)
+          assert(qr.details.head.done)
+          assert(qr.details(1).done)
+          assert(!qr.details(2).done)
+          assert(qr.details(3).done)
+          assert(!qr.details(4).done)
+          assert(qr.details(5).done)
         }
     }.map(checkJson).evalTap(console.text[IO]).compile.drain.unsafeRunSync()
   }
@@ -87,13 +87,14 @@ class BatchTest extends AnyFunSuite {
 
   test("6.parallel.exception") {
     val jobs = List(
-      IO.sleep(1.second),
-      IO.sleep(2.seconds),
-      IO.sleep(3.seconds),
-      IO.sleep(3.seconds) >> IO.raiseError(new Exception),
-      IO.sleep(4.seconds))
+      "a" -> IO.sleep(1.second),
+      "b" -> IO.sleep(2.seconds),
+      "c" -> IO.sleep(3.seconds),
+      "d" -> (IO.sleep(3.seconds) >> IO.raiseError(new Exception)),
+      "e" -> IO.sleep(4.seconds)
+    )
     service.eventStream { ga =>
-      ga.batch("parallel", _.timed.counted.bipartite).parallel(jobs*)
+      ga.batch("parallel", _.timed.counted.bipartite).namedParallel(3)(jobs*)
     }.map(checkJson).evalTap(console.text[IO]).compile.drain.unsafeRunSync()
   }
 }
