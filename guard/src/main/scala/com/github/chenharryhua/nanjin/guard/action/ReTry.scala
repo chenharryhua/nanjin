@@ -27,7 +27,7 @@ final private class ReTry[F[_]: Async, IN, OUT] private (
   private[this] val transInput: Reader[IN, Json],
   private[this] val transOutput: Reader[(IN, OUT), Json],
   private[this] val transError: Reader[(IN, Throwable), Json],
-  private[this] val isWorthRetry: Reader[Throwable, Boolean]
+  private[this] val isWorthRetry: Reader[(IN, Throwable), Boolean]
 ) {
   private[this] val F = Async[F]
 
@@ -74,7 +74,7 @@ final private class ReTry[F[_]: Async, IN, OUT] private (
     in: IN,
     ex: Throwable,
     status: TickStatus): F[Either[TickStatus, OUT]] =
-    if (isWorthRetry.run(ex)) {
+    if (isWorthRetry.run((in, ex))) {
       for {
         next <- F.realTimeInstant.map(status.next)
         res <- next match {
@@ -189,7 +189,7 @@ private object ReTry {
     transInput: Reader[IN, Json],
     transOutput: Reader[(IN, OUT), Json],
     transError: Reader[(IN, Throwable), Json],
-    isWorthRetry: Reader[Throwable, Boolean])(implicit F: Async[F]): Resource[F, Kleisli[F, IN, OUT]] = {
+    isWorthRetry: Reader[(IN, Throwable), Boolean])(implicit F: Async[F]): Resource[F, Kleisli[F, IN, OUT]] = {
     def action_runner(token: Unique.Token): ReTry[F, IN, OUT] =
       new ReTry[F, IN, OUT](
         token = token,

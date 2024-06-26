@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.action
 
-import cats.data.Kleisli
+import cats.data.{Kleisli, Reader}
 import cats.effect.kernel.Async
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.guard.config.*
@@ -10,10 +10,11 @@ import fs2.concurrent.Channel
 import scala.concurrent.Future
 
 final class NJAction[F[_]: Async] private[guard] (
-  val actionParams: ActionParams,
+  actionConfig: ActionConfig,
   metricRegistry: MetricRegistry,
   channel: Channel[F, NJEvent]
 ) {
+  val actionParams: ActionParams = actionConfig.evalConfig
 
   private val F = Async[F]
 
@@ -23,6 +24,7 @@ final class NJAction[F[_]: Async] private[guard] (
       metricRegistry = metricRegistry,
       channel = channel,
       actionParams = actionParams,
+      isWorthRetry = Reader(_ => true),
       arrow = kleisli
     )
 
