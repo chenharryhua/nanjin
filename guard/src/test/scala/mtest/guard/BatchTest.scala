@@ -4,8 +4,11 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.chrono.policies
 import com.github.chenharryhua.nanjin.guard.TaskGuard
+import com.github.chenharryhua.nanjin.guard.action.BatchMode
 import com.github.chenharryhua.nanjin.guard.observers.console
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
+import io.circe.Json
+import io.circe.syntax.EncoderOps
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.DurationInt
@@ -17,7 +20,6 @@ class BatchTest extends AnyFunSuite {
   test("1.quasi.sequential") {
     service.eventStream { ga =>
       ga.batch("quasi.sequential", _.timed.counted.bipartite.withMeasurement("batch-seq-quasi"))
-        .quasi
         .namedSequential(
           "a" -> IO.raiseError(new Exception()),
           "b" -> IO.sleep(1.second),
@@ -26,6 +28,7 @@ class BatchTest extends AnyFunSuite {
           "e" -> IO.sleep(1.seconds),
           "f" -> IO.raiseError(new Exception)
         )
+        .quasi
         .map { qr =>
           assert(!qr.details.head.done)
           assert(qr.details(1).done)
@@ -33,14 +36,15 @@ class BatchTest extends AnyFunSuite {
           assert(!qr.details(3).done)
           assert(qr.details(4).done)
           assert(!qr.details(5).done)
+          qr
         }
+        .flatTap(qr => IO.println(qr.asJson))
     }.map(checkJson).evalTap(console.text[IO]).compile.drain.unsafeRunSync()
   }
 
   test("2.quasi.parallel") {
     service.eventStream { ga =>
       ga.batch("quasi.parallel", _.timed.counted.bipartite.policy(policies.fixedDelay(1.second).limited(1)))
-        .quasi
         .namedParallel(3)(
           "a" -> IO.sleep(3.second),
           "b" -> IO.sleep(2.seconds),
@@ -49,6 +53,7 @@ class BatchTest extends AnyFunSuite {
           "e" -> IO.raiseError(new Exception),
           "f" -> IO.sleep(4.seconds)
         )
+        .quasi(_ => Json.fromString("json"))
         .map { qr =>
           assert(qr.details.head.done)
           assert(qr.details(1).done)
@@ -56,7 +61,8 @@ class BatchTest extends AnyFunSuite {
           assert(qr.details(3).done)
           assert(!qr.details(4).done)
           assert(qr.details(5).done)
-        }
+          qr
+        }.flatTap(qr => IO.println(qr.asJson))
     }.map(checkJson).evalTap(console.text[IO]).compile.drain.unsafeRunSync()
   }
 
@@ -64,6 +70,7 @@ class BatchTest extends AnyFunSuite {
     service.eventStream { ga =>
       ga.batch("sequential", _.timed.counted.bipartite.withMeasurement("batch-seq"))
         .sequential(IO.sleep(1.second), IO.sleep(2.seconds), IO.sleep(1.seconds))
+        .run
     }.map(checkJson).evalTap(console.text[IO]).compile.drain.unsafeRunSync()
   }
 
@@ -71,6 +78,7 @@ class BatchTest extends AnyFunSuite {
     service.eventStream { ga =>
       ga.batch("parallel", _.timed.counted.bipartite)
         .parallel(3)(IO.sleep(3.second), IO.sleep(2.seconds), IO.sleep(3.seconds), IO.sleep(4.seconds))
+        .run
     }.map(checkJson).evalTap(console.text[IO]).compile.drain.unsafeRunSync()
   }
 
@@ -82,6 +90,7 @@ class BatchTest extends AnyFunSuite {
           IO.sleep(2.seconds),
           IO.raiseError(new Exception),
           IO.sleep(1.seconds))
+        .run
     }.map(checkJson).evalTap(console.text[IO]).compile.drain.unsafeRunSync()
   }
 
@@ -94,7 +103,32 @@ class BatchTest extends AnyFunSuite {
       "e" -> IO.sleep(4.seconds)
     )
     service.eventStream { ga =>
-      ga.batch("parallel", _.timed.counted.bipartite).namedParallel(3)(jobs*)
+      ga.batch("parallel", _.timed.counted.bipartite).namedParallel(3)(jobs*).run
     }.map(checkJson).evalTap(console.text[IO]).compile.drain.unsafeRunSync()
+  }
+
+  test("batch mode") {
+    val j1 = service
+      .eventStream(
+        _.batch("parallel-1", _.bipartite)
+          .parallel(IO(0))
+          .quasi
+          .map(r => assert(r.mode == BatchMode.Parallel(1))))
+      .map(checkJson)
+      .evalTap(console.text[IO])
+      .compile
+      .drain
+
+    val j2 = service
+      .eventStream(ga =>
+        ga.batch("sequential", _.bipartite)
+          .sequential(IO(0))
+          .quasi
+          .map(r => assert(r.mode == BatchMode.Sequential)))
+      .map(checkJson)
+      .evalTap(console.text[IO])
+      .compile
+      .drain
+    (j1 >> j2).unsafeRunSync()
   }
 }
