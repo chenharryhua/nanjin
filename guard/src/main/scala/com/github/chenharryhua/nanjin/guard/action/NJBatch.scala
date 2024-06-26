@@ -53,7 +53,7 @@ object BatchRunner {
     ratioBuilder: NJRatio.Builder,
     gaugeBuilder: NJGauge.Builder,
     parallelism: Int,
-    jobs: List[(Option[String], F[A])])
+    jobs: List[(Option[BatchJobName], F[A])])
       extends Runner[F, A](serviceParams, metricRegistry, action, ratioBuilder, gaugeBuilder) {
 
     def quasi(f: A => Json): F[QuasiResult] = {
@@ -107,7 +107,7 @@ object BatchRunner {
     action: NJAction[F],
     ratioBuilder: NJRatio.Builder,
     gaugeBuilder: NJGauge.Builder,
-    jobs: List[(Option[String], F[A])])
+    jobs: List[(Option[BatchJobName], F[A])])
       extends Runner[F, A](serviceParams, metricRegistry, action, ratioBuilder, gaugeBuilder) {
 
     def quasi(f: A => Json): F[QuasiResult] = {
@@ -163,17 +163,19 @@ final class NJBatch[F[_]: Async] private[guard] (
   gaugeBuilder: NJGauge.Builder
 ) {
   def sequential[A](fas: F[A]*): BatchRunner.Sequential[F, A] = {
-    val jobs: List[(Option[String], F[A])] = fas.toList.map(none -> _)
+    val jobs: List[(Option[BatchJobName], F[A])] = fas.toList.map(none -> _)
     new BatchRunner.Sequential[F, A](serviceParams, metricRegistry, action, ratioBuilder, gaugeBuilder, jobs)
   }
 
   def namedSequential[A](fas: (String, F[A])*): BatchRunner.Sequential[F, A] = {
-    val jobs: List[(Option[String], F[A])] = fas.toList.map { case (name, fa) => name.some -> fa }
+    val jobs: List[(Option[BatchJobName], F[A])] = fas.toList.map { case (name, fa) =>
+      BatchJobName(name).some -> fa
+    }
     new BatchRunner.Sequential[F, A](serviceParams, metricRegistry, action, ratioBuilder, gaugeBuilder, jobs)
   }
 
   def parallel[A](parallelism: Int)(fas: F[A]*): BatchRunner.Parallel[F, A] = {
-    val jobs: List[(Option[String], F[A])] = fas.toList.map(none -> _)
+    val jobs: List[(Option[BatchJobName], F[A])] = fas.toList.map(none -> _)
     new BatchRunner.Parallel[F, A](
       serviceParams,
       metricRegistry,
@@ -188,7 +190,9 @@ final class NJBatch[F[_]: Async] private[guard] (
     parallel[A](fas.size)(fas*)
 
   def namedParallel[A](parallelism: Int)(fas: (String, F[A])*): BatchRunner.Parallel[F, A] = {
-    val jobs: List[(Option[String], F[A])] = fas.toList.map { case (name, fa) => name.some -> fa }
+    val jobs: List[(Option[BatchJobName], F[A])] = fas.toList.map { case (name, fa) =>
+      BatchJobName(name).some -> fa
+    }
     new BatchRunner.Parallel[F, A](
       serviceParams,
       metricRegistry,

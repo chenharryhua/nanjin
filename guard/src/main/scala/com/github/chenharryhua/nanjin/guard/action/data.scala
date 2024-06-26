@@ -32,7 +32,13 @@ object BatchMode {
     (a: BatchMode) => Json.fromString(a.show)
 }
 
-final case class BatchJob(kind: BatchKind, mode: BatchMode, name: Option[String], index: Int, jobs: Int)
+final case class BatchJobName(value: String) extends AnyVal
+object BatchJobName {
+  implicit val showBatchJobName: Show[BatchJobName]       = _.value
+  implicit val encoderBatchJobName: Encoder[BatchJobName] = Encoder.encodeString.contramap(_.value)
+}
+
+final case class BatchJob(kind: BatchKind, mode: BatchMode, name: Option[BatchJobName], index: Int, jobs: Int)
 
 object BatchJob {
   implicit val encoderBatchJob: Encoder[BatchJob] = (a: BatchJob) =>
