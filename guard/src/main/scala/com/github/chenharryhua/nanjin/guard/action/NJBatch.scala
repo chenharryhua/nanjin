@@ -73,7 +73,7 @@ object BatchRunner {
         .map(details =>
           QuasiResult(
             token = token,
-            spent = details.map(_.took).foldLeft(Duration.ZERO)(_ plus _),
+            spent = details.map(_.took).max,
             mode = BatchMode.Parallel(parallelism),
             details = details.sortBy(_.job.index)))
 

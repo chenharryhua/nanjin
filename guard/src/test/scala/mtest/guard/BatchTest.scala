@@ -5,6 +5,7 @@ import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.chrono.policies
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.action.BatchMode
+import com.github.chenharryhua.nanjin.guard.event.NJEvent.ServiceStop
 import com.github.chenharryhua.nanjin.guard.observers.console
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import io.circe.Json
@@ -12,6 +13,7 @@ import io.circe.syntax.EncoderOps
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.DurationInt
+import scala.jdk.DurationConverters.JavaDurationOps
 
 class BatchTest extends AnyFunSuite {
   private val service: ServiceGuard[IO] =
@@ -62,7 +64,8 @@ class BatchTest extends AnyFunSuite {
           assert(!qr.details(4).done)
           assert(qr.details(5).done)
           qr
-        }.flatTap(qr => IO.println(qr.asJson))
+        }
+        .flatTap(qr => IO.println(qr.asJson))
     }.map(checkJson).evalTap(console.text[IO]).compile.drain.unsafeRunSync()
   }
 
@@ -130,5 +133,34 @@ class BatchTest extends AnyFunSuite {
       .compile
       .drain
     (j1 >> j2).unsafeRunSync()
+  }
+
+  test("worth retry") {
+    case object Unworthy extends Exception("do.not.retry")
+    val a1 = IO.raiseError[Int](Unworthy)
+    val a2 = IO.raiseError[Int](new Exception())
+    val ss = service
+      .eventStream(ga =>
+        ga.batch(
+          "retry",
+          _.worthRetry {
+            case Unworthy => false
+            case _        => true
+          }.policy(policies.fixedDelay(1.seconds).limited(3)).unipartite)
+          .namedParallel("a1" -> a1, "a2" -> a2)
+          .quasi
+          .flatTap(qr =>
+            IO.pure {
+              assert(qr.details.head.took.toScala < 1.seconds)
+              assert(qr.details(1).took.toScala > 2.seconds)
+              assert(!qr.details.head.done)
+              assert(!qr.details(1).done)
+            } >> IO.println(qr.asJson.spaces2)))
+      .map(checkJson)
+      .evalTap(console.text[IO])
+      .compile
+      .lastOrError
+      .unsafeRunSync()
+    assert(ss.asInstanceOf[ServiceStop].cause.exitCode == 0)
   }
 }

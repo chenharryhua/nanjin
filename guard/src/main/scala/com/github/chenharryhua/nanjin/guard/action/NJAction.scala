@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.action
 
-import cats.data.{Kleisli, Reader}
+import cats.data.Kleisli
 import cats.effect.kernel.Async
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.guard.config.*
@@ -24,7 +24,7 @@ final class NJAction[F[_]: Async] private[guard] (
       metricRegistry = metricRegistry,
       channel = channel,
       actionParams = actionParams,
-      isWorthRetry = Reader(_ => true),
+      isWorthRetry = actionConfig.isWorthRetry,
       arrow = kleisli
     )
 
