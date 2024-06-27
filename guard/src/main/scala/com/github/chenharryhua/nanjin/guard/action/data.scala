@@ -52,18 +52,14 @@ object BatchJob {
 }
 
 final case class Detail(job: BatchJob, took: Duration, done: Boolean)
-final case class QuasiResult(token: Unique.Token, mode: BatchMode, details: List[Detail])
+final case class QuasiResult(token: Unique.Token, spent: Duration, mode: BatchMode, details: List[Detail])
 object QuasiResult {
   final val BatchIdTag: String = "id"
   implicit val encoderQuasiResult: Encoder[QuasiResult] = { (a: QuasiResult) =>
-    val spent: Duration = a.mode match {
-      case BatchMode.Parallel(_) => a.details.map(_.took).max
-      case BatchMode.Sequential  => a.details.map(_.took).foldLeft(Duration.ZERO)(_ plus _)
-    }
     Json.obj(
       BatchIdTag -> a.token.hash.asJson,
       "mode" -> a.mode.asJson,
-      "spent" -> fmt.format(spent).asJson,
+      "spent" -> fmt.format(a.spent).asJson,
       "details" -> a.details
         .map(d =>
           Json

@@ -7,6 +7,7 @@ import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import io.circe.Json
 import io.circe.syntax.EncoderOps
 
+import java.time.Duration
 import scala.jdk.DurationConverters.ScalaDurationOps
 
 object BatchRunner {
@@ -17,14 +18,14 @@ object BatchRunner {
     ratioBuilder: NJRatio.Builder,
     gaugeBuilder: NJGauge.Builder
   ) {
-    protected val F: Async[F] = Async[F]
+    protected[this] val F: Async[F] = Async[F]
 
-    protected val BatchIdTag: String = QuasiResult.BatchIdTag
-    private val ResultTag: String    = "result"
+    protected[this] val BatchIdTag: String = QuasiResult.BatchIdTag
+    private[this] val ResultTag: String    = "result"
 
-    protected val nullTransform: A => Json = _ => Json.Null
+    protected[this] val nullTransform: A => Json = _ => Json.Null
 
-    protected def tap(f: A => Json): Endo[BuildWith.Builder[F, (BatchJob, Unique.Token, F[A]), A]] =
+    protected[this] def tap(f: A => Json): Endo[BuildWith.Builder[F, (BatchJob, Unique.Token, F[A]), A]] =
       _.tapInput { case (job, token, _) =>
         job.asJson.deepMerge(Json.obj(BatchIdTag -> token.hash.asJson))
       }.tapOutput { case ((job, token, _), out) =>
@@ -33,7 +34,7 @@ object BatchRunner {
         job.asJson.deepMerge(Json.obj(BatchIdTag -> token.hash.asJson))
       }
 
-    protected val ratio: Resource[F, NJRatio[F]] =
+    protected[this] val ratio: Resource[F, NJRatio[F]] =
       for {
         _ <- gaugeBuilder
           .withMeasurement(action.actionParams.measurement.value)
@@ -64,12 +65,14 @@ object BatchRunner {
         rat <- ratio.evalTap(_.incDenominator(batchJobs.size.toLong))
         act <- action.retry((_: BatchJob, _: Unique.Token, fa: F[A]) => fa).buildWith(tap(f))
       } yield F
-        .parTraverseN(parallelism)(batchJobs) { case (job, fa) =>
+        .timed(F.parTraverseN(parallelism)(batchJobs) { case (job, fa) =>
           F.timed(act.run((job, token, fa)).attempt)
             .map { case (fd, result) => Detail(job, fd.toJava, result.isRight) }
             .flatTap(_ => rat.incNumerator(1))
+        })
+        .map { case (fd, details) =>
+          QuasiResult(token, fd.toJava, BatchMode.Parallel(parallelism), details.sortBy(_.job.index))
         }
-        .map(details => QuasiResult(token, BatchMode.Parallel(parallelism), details.sortBy(_.job.index)))
 
       exec.use(identity)
     }
@@ -117,7 +120,12 @@ object BatchRunner {
         F.timed(act.run((job, token, fa)).attempt)
           .map { case (fd, result) => Detail(job, fd.toJava, result.isRight) }
           .flatTap(_ => rat.incNumerator(1))
-      }.map(details => QuasiResult(token, BatchMode.Sequential, details.sortBy(_.job.index)))
+      }.map(details =>
+        QuasiResult(
+          token = token,
+          spent = details.map(_.took).foldLeft(Duration.ZERO)(_ plus _),
+          mode = BatchMode.Sequential,
+          details = details.sortBy(_.job.index)))
 
       exec.use(identity)
     }

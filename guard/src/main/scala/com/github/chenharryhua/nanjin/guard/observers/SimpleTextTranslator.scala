@@ -100,7 +100,7 @@ object SimpleTextTranslator {
 
   private def action_fail(evt: ActionFail): String =
     s"""${eventTitle(evt)}
-       |${action_event(evt)}, $CONSTANT_TOOK:${tookText(evt.took)}
+       |${action_event(evt)}
        |  $CONSTANT_POLICY:${evt.actionParams.retryPolicy}
        |  ${error_str(evt.error)}
        |${notes(evt.notes)}

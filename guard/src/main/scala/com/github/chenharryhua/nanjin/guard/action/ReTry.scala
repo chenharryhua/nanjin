@@ -42,13 +42,12 @@ final private class ReTry[F[_]: Async, IN, OUT] private (
 
   private[this] def execute(in: IN): F[Either[Throwable, OUT]] = arrow.run(in).attempt
 
-  private[this] def send_failure(launchTime: Option[FiniteDuration], in: IN, ex: Throwable): F[Unit] =
+  private[this] def send_failure(in: IN, ex: Throwable): F[Unit] =
     for {
       now <- F.realTime
       _ <- channel.send(
         ActionFail(
           actionParams = actionParams,
-          launchTime = launchTime.map(to_zdt),
           timestamp = to_zdt(now),
           error = NJError(ex),
           notes = error_json(in, ex)))
@@ -63,22 +62,15 @@ final private class ReTry[F[_]: Async, IN, OUT] private (
       Right(out)
     }
 
-  private[this] def failed(
-    launchTime: Option[FiniteDuration],
-    in: IN,
-    ex: Throwable): F[Either[TickStatus, OUT]] =
-    send_failure(launchTime, in, ex) >> F.raiseError[Either[TickStatus, OUT]](ex)
+  private[this] def failed(in: IN, ex: Throwable): F[Either[TickStatus, OUT]] =
+    send_failure(in, ex) >> F.raiseError[Either[TickStatus, OUT]](ex)
 
-  private[this] def retrying(
-    launchTime: Option[FiniteDuration],
-    in: IN,
-    ex: Throwable,
-    status: TickStatus): F[Either[TickStatus, OUT]] =
+  private[this] def retrying(in: IN, ex: Throwable, status: TickStatus): F[Either[TickStatus, OUT]] =
     if (isWorthRetry.run((in, ex))) {
       for {
         next <- F.realTimeInstant.map(status.next)
         res <- next match {
-          case None => failed(launchTime, in, ex)
+          case None => failed(in, ex)
           case Some(ts) =>
             for {
               _ <- channel.send(ActionRetry(actionParams, NJError(ex), ts.tick))
@@ -90,7 +82,7 @@ final private class ReTry[F[_]: Async, IN, OUT] private (
         }
       } yield res
     } else {
-      failed(launchTime, in, ex)
+      failed(in, ex)
     }
 
   // static functions
@@ -102,11 +94,11 @@ final private class ReTry[F[_]: Async, IN, OUT] private (
           F.tailRecM(zerothTickStatus) { status =>
             execute(in).flatMap[Either[TickStatus, OUT]] {
               case Right(out) => succeeded(launchTime, in, out)
-              case Left(ex)   => retrying(Some(launchTime), in, ex, status)
+              case Left(ex)   => retrying(in, ex, status)
             }
           }
         }
-      F.onCancel(go, F.defer(send_failure(Some(launchTime), in, ActionCancelException)))
+      F.onCancel(go, F.defer(send_failure(in, ActionCancelException)))
     }
 
   private[this] def unipartite(in: IN): F[OUT] =
@@ -115,10 +107,10 @@ final private class ReTry[F[_]: Async, IN, OUT] private (
         F.tailRecM(zerothTickStatus) { status =>
           execute(in).flatMap[Either[TickStatus, OUT]] {
             case Right(out) => succeeded(launchTime, in, out)
-            case Left(ex)   => retrying(Some(launchTime), in, ex, status)
+            case Left(ex)   => retrying(in, ex, status)
           }
         }
-      F.onCancel(go, F.defer(send_failure(Some(launchTime), in, ActionCancelException)))
+      F.onCancel(go, F.defer(send_failure(in, ActionCancelException)))
     }
 
   private[this] def silent_time(in: IN): F[OUT] =
@@ -132,10 +124,10 @@ final private class ReTry[F[_]: Async, IN, OUT] private (
                 Right(out)
               }
             case Left(ex) =>
-              retrying(None, in, ex, status)
+              retrying(in, ex, status)
           }
         }
-      F.onCancel(go, F.defer(send_failure(None, in, ActionCancelException)))
+      F.onCancel(go, F.defer(send_failure(in, ActionCancelException)))
     }
 
   private[this] def silent_count(in: IN): F[OUT] = {
@@ -146,10 +138,10 @@ final private class ReTry[F[_]: Async, IN, OUT] private (
             measures.done(ScalaDuration.Zero)
             F.pure(Right(out))
           case Left(ex) =>
-            retrying(None, in, ex, status)
+            retrying(in, ex, status)
         }
       }
-    F.onCancel(go, F.defer(send_failure(None, in, ActionCancelException)))
+    F.onCancel(go, F.defer(send_failure(in, ActionCancelException)))
   }
 
   private[this] def silent(in: IN): F[OUT] = {
@@ -157,10 +149,10 @@ final private class ReTry[F[_]: Async, IN, OUT] private (
       F.tailRecM(zerothTickStatus) { status =>
         execute(in).flatMap[Either[TickStatus, OUT]] {
           case Right(out) => F.pure(Right(out))
-          case Left(ex)   => retrying(None, in, ex, status)
+          case Left(ex)   => retrying(in, ex, status)
         }
       }
-    F.onCancel(go, F.defer(send_failure(None, in, ActionCancelException)))
+    F.onCancel(go, F.defer(send_failure(in, ActionCancelException)))
   }
 
   val kleisli: Kleisli[F, IN, OUT] = {
