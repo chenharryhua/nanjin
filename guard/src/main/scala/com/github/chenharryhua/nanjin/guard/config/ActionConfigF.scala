@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.config
 
 import cats.Functor
+import cats.data.Reader
 import com.github.chenharryhua.nanjin.common.chrono.{policies, Policy}
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
@@ -75,33 +76,38 @@ private object ActionConfigF {
     }
 }
 
-final class ActionConfig private (cont: Fix[ActionConfigF]) {
+final class ActionConfig private (
+  private[guard] val isWorthRetry: Reader[Throwable, Boolean],
+  cont: Fix[ActionConfigF]) {
   import ActionConfigF.*
 
   private def strategy(ps: PublishStrategy): ActionConfig =
-    new ActionConfig(Fix(WithPublishStrategy(ps, cont)))
+    new ActionConfig(isWorthRetry, Fix(WithPublishStrategy(ps, cont)))
   def bipartite: ActionConfig  = strategy(PublishStrategy.Bipartite)
   def unipartite: ActionConfig = strategy(PublishStrategy.Unipartite)
   def silent: ActionConfig     = strategy(PublishStrategy.Silent)
 
   private def importance(im: Importance): ActionConfig =
-    new ActionConfig(Fix(WithImportance(value = im, cont)))
+    new ActionConfig(isWorthRetry, Fix(WithImportance(value = im, cont)))
   def critical: ActionConfig      = importance(Importance.Critical)
   def normal: ActionConfig        = importance(Importance.Normal)
   def insignificant: ActionConfig = importance(Importance.Insignificant)
   def suppressed: ActionConfig    = importance(Importance.Suppressed)
 
   def counted: ActionConfig =
-    new ActionConfig(Fix(WithCounting(value = true, cont)))
+    new ActionConfig(isWorthRetry, Fix(WithCounting(value = true, cont)))
 
   def timed: ActionConfig =
-    new ActionConfig(Fix(WithTiming(value = true, cont)))
+    new ActionConfig(isWorthRetry, Fix(WithTiming(value = true, cont)))
 
   def policy(retryPolicy: Policy): ActionConfig =
-    new ActionConfig(Fix(WithRetryPolicy(retryPolicy, cont)))
+    new ActionConfig(isWorthRetry, Fix(WithRetryPolicy(retryPolicy, cont)))
 
   def withMeasurement(measurement: String): ActionConfig =
-    new ActionConfig(Fix(WithMeasurement(Measurement(measurement), cont)))
+    new ActionConfig(isWorthRetry, Fix(WithMeasurement(Measurement(measurement), cont)))
+
+  def worthRetry(f: Throwable => Boolean) =
+    new ActionConfig(Reader(f), cont)
 
   private[guard] def evalConfig: ActionParams = scheme.cata(algebra).apply(cont)
 }
@@ -110,5 +116,6 @@ object ActionConfig {
 
   def apply(actionName: ActionName, measurement: Measurement, serviceParams: ServiceParams): ActionConfig =
     new ActionConfig(
+      Reader(_ => true),
       Fix(ActionConfigF.InitParams[Fix[ActionConfigF]](actionName, measurement, serviceParams)))
 }

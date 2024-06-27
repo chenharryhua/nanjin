@@ -1,8 +1,8 @@
 package com.github.chenharryhua.nanjin.guard.observers
 
 import cats.Applicative
-import com.github.chenharryhua.nanjin.guard.event.{MetricSnapshot, NJEvent}
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
+import com.github.chenharryhua.nanjin.guard.event.{MetricSnapshot, NJEvent}
 import com.github.chenharryhua.nanjin.guard.translator.*
 import io.circe.Json
 
@@ -14,8 +14,6 @@ object PrettyJsonTranslator {
 
   private def took(dur: Duration): (String, Json) =
     "took" -> Json.fromString(fmt.format(dur))
-  private def took(dur: Option[Duration]): (String, Json) =
-    "took" -> dur.map(fmt.format).fold(Json.Null)(Json.fromString)
 
   private def uptime(evt: NJEvent): (String, Json) =
     "upTime" -> Json.fromString(fmt.format(evt.upTime))
@@ -117,7 +115,6 @@ object PrettyJsonTranslator {
           config(evt),
           serviceName(evt),
           serviceId(evt),
-          took(evt.took),
           policy(evt.actionParams),
           notes(evt.notes),
           stack(evt.error)

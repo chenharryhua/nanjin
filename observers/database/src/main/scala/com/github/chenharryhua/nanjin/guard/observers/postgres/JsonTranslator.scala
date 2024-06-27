@@ -12,8 +12,7 @@ private object JsonTranslator {
   import NJEvent.*
   import jsonHelper.*
 
-  private def took(dur: Duration): (String, Json)         = "took" -> dur.asJson
-  private def took(dur: Option[Duration]): (String, Json) = "took" -> dur.asJson
+  private def took(dur: Duration): (String, Json) = "took" -> dur.asJson
 
   private def metrics(ss: MetricSnapshot): (String, Json) =
     "metrics" -> new SnapshotPolyglot(ss).toVanillaJson
@@ -106,7 +105,6 @@ private object JsonTranslator {
       metricDigest(evt.actionParams.metricName),
       metricMeasurement(evt.actionParams.metricName),
       config(evt),
-      took(evt.took),
       notes(evt.notes),
       stack(evt.error),
       serviceId(evt),

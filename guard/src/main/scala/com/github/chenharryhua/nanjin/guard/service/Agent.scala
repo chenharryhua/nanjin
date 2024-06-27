@@ -96,7 +96,7 @@ final class GeneralAgent[F[_]: Async] private[service] (
 
   override def action(actionName: String, f: Endo[ActionConfig]): NJAction[F] =
     new NJAction[F](
-      actionParams = f(ActionConfig(ActionName(actionName), measurement, serviceParams)).evalConfig,
+      actionConfig = f(ActionConfig(ActionName(actionName), measurement, serviceParams)),
       metricRegistry = metricRegistry,
       channel = channel
     )

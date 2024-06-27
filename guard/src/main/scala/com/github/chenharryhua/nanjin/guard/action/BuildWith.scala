@@ -13,6 +13,7 @@ final class BuildWith[F[_]: Async, IN, OUT] private[action] (
   metricRegistry: MetricRegistry,
   channel: Channel[F, NJEvent],
   actionParams: ActionParams,
+  isWorthRetry: Reader[Throwable, Boolean],
   arrow: Kleisli[F, IN, OUT]) {
 
   private val init: BuildWith.Builder[F, IN, OUT] =
@@ -20,7 +21,7 @@ final class BuildWith[F[_]: Async, IN, OUT] private[action] (
       transInput = Reader((_: IN) => Json.Null),
       transOutput = Reader((_: (IN, OUT)) => Json.Null),
       transError = Reader[(IN, Throwable), Json](_ => Json.Null),
-      isWorthRetry = Reader((_: Throwable) => true)
+      isWorthRetry = isWorthRetry.local((tup: (IN, Throwable)) => tup._2)
     )
 
   def buildWith(f: Endo[BuildWith.Builder[F, IN, OUT]]): Resource[F, Kleisli[F, IN, OUT]] =
@@ -32,7 +33,7 @@ object BuildWith {
     transInput: Reader[IN, Json],
     transOutput: Reader[(IN, OUT), Json],
     transError: Reader[(IN, Throwable), Json],
-    isWorthRetry: Reader[Throwable, Boolean]
+    isWorthRetry: Reader[(IN, Throwable), Boolean]
   ) {
     def tapInput(f: IN => Json): Builder[F, IN, OUT] =
       new Builder[F, IN, OUT](
@@ -55,12 +56,19 @@ object BuildWith {
         transError = Reader[(IN, Throwable), Json](f.tupled),
         isWorthRetry = isWorthRetry)
 
+    def worthRetry(f: (IN, Throwable) => Boolean): Builder[F, IN, OUT] =
+      new Builder[F, IN, OUT](
+        transInput = transInput,
+        transOutput = transOutput,
+        transError = transError,
+        isWorthRetry = Reader[(IN, Throwable), Boolean](f.tupled))
+
     def worthRetry(f: Throwable => Boolean): Builder[F, IN, OUT] =
       new Builder[F, IN, OUT](
         transInput = transInput,
         transOutput = transOutput,
         transError = transError,
-        isWorthRetry = Reader[Throwable, Boolean](f))
+        isWorthRetry = Reader(f).local((tup: (IN, Throwable)) => tup._2))
 
     private[action] def build(
       metricRegistry: MetricRegistry,

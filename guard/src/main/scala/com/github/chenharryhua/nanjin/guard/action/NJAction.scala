@@ -10,10 +10,11 @@ import fs2.concurrent.Channel
 import scala.concurrent.Future
 
 final class NJAction[F[_]: Async] private[guard] (
-  val actionParams: ActionParams,
+  actionConfig: ActionConfig,
   metricRegistry: MetricRegistry,
   channel: Channel[F, NJEvent]
 ) {
+  val actionParams: ActionParams = actionConfig.evalConfig
 
   private val F = Async[F]
 
@@ -23,6 +24,7 @@ final class NJAction[F[_]: Async] private[guard] (
       metricRegistry = metricRegistry,
       channel = channel,
       actionParams = actionParams,
+      isWorthRetry = actionConfig.isWorthRetry,
       arrow = kleisli
     )
 

@@ -155,34 +155,18 @@ private object HtmlTranslator extends all {
   }
 
   private def action_fail(evt: ActionFail): Text.TypedTag[String] = {
-    val result = evt.took match {
-      case Some(value) =>
-        frag(
-          tr(
-            th(CONSTANT_MEASUREMENT),
-            th(CONSTANT_POLICY),
-            th(CONSTANT_TOOK)
-          ),
-          tr(
-            td(evt.actionParams.metricName.measurement),
-            td(evt.actionParams.retryPolicy.show),
-            td(tookText(value))
-          )
-        )
-      case None =>
-        frag(
-          tr(
-            th(CONSTANT_MEASUREMENT),
-            th(CONSTANT_POLICY),
-            th(CONSTANT_CONFIG)
-          ),
-          tr(
-            td(evt.actionParams.metricName.measurement),
-            td(evt.actionParams.retryPolicy.show),
-            td(evt.actionParams.configStr)
-          )
-        )
-    }
+    val result = frag(
+      tr(
+        th(CONSTANT_MEASUREMENT),
+        th(CONSTANT_POLICY),
+        th(CONSTANT_CONFIG)
+      ),
+      tr(
+        td(evt.actionParams.metricName.measurement),
+        td(evt.actionParams.retryPolicy.show),
+        td(evt.actionParams.configStr)
+      )
+    )
 
     div(
       h3(style := htmlColoring(evt))(eventTitle(evt)),
