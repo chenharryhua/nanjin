@@ -5,7 +5,7 @@ ThisBuild / versionScheme      := Some("early-semver")
 
 val catsCoreV   = "2.12.0"
 val fs2V        = "3.10.2"
-val awsV        = "2.26.0"
+val awsV        = "2.26.10"
 val catsEffectV = "3.5.4"
 val hadoopV     = "3.4.0"
 val monocleV    = "3.2.0"
@@ -28,7 +28,7 @@ val sparkV      = "3.5.1"
 val framelessV  = "0.16.0"
 val refinedV    = "0.11.2"
 val nettyV      = "4.1.111.Final"
-val chimneyV    = "1.1.0"
+val chimneyV    = "1.2.0"
 val enumeratumV = "1.7.3"
 val drosteV     = "0.9.0"
 val slf4jV      = "2.0.13"
@@ -347,7 +347,7 @@ lazy val instrument_neo4j = (project in file("instrument/neo4j"))
   .settings(name := "nj-instrument-neo4j")
   .settings(
     libraryDependencies ++=
-      List("org.neo4j.driver" % "neo4j-java-driver" % "4.4.17") ++
+      List("org.neo4j.driver" % "neo4j-java-driver" % "4.4.18") ++
         testLib)
 
 lazy val messages = (project in file("messages"))
