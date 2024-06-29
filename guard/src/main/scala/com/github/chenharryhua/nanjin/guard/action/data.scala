@@ -41,14 +41,14 @@ object BatchJobName {
 final case class BatchJob(kind: BatchKind, mode: BatchMode, name: Option[BatchJobName], index: Int, jobs: Int)
 object BatchJob {
   implicit val encoderBatchJob: Encoder[BatchJob] = (a: BatchJob) =>
-    Json
-      .obj(
-        show"${a.kind}" -> Json.obj(
+    Json.obj(
+      show"${a.kind}" -> Json
+        .obj(
           "mode" -> a.mode.asJson,
           "name" -> a.name.asJson,
           "index" -> (a.index + 1).asJson,
-          "jobs" -> a.jobs.asJson))
-      .deepDropNullValues
+          "jobs" -> a.jobs.asJson)
+        .dropNullValues)
 }
 
 final case class Detail(job: BatchJob, took: Duration, done: Boolean)
@@ -73,3 +73,5 @@ object QuasiResult {
     )
   }
 }
+
+private case object ActionCancelException extends Exception("action was canceled")

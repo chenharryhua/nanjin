@@ -15,8 +15,6 @@ import java.time.ZonedDateTime
 import scala.concurrent.duration.{Duration as ScalaDuration, FiniteDuration}
 import scala.jdk.DurationConverters.JavaDurationOps
 
-private case object ActionCancelException extends Exception("action was canceled")
-
 final private class ReTry[F[_]: Async, IN, OUT] private (
   private[this] val token: Unique.Token,
   private[this] val metricRegistry: MetricRegistry,
@@ -40,6 +38,10 @@ final private class ReTry[F[_]: Async, IN, OUT] private (
   private[this] def input_json(in: IN): Json                = transInput.run(in)
   private[this] def error_json(in: IN, ex: Throwable): Json = transError.run((in, ex))
 
+  private[this] def measure_fail(): Unit                   = measures.fail()
+  private[this] def measure_retry(): Unit                  = measures.count_retry()
+  private[this] def measure_done(fd: FiniteDuration): Unit = measures.done(fd)
+
   private[this] def execute(in: IN): F[Either[Throwable, OUT]] = arrow.run(in).attempt
 
   private[this] def send_failure(in: IN, ex: Throwable): F[Unit] =
@@ -51,14 +53,14 @@ final private class ReTry[F[_]: Async, IN, OUT] private (
           timestamp = to_zdt(now),
           error = NJError(ex),
           notes = error_json(in, ex)))
-    } yield measures.fail()
+    } yield measure_fail()
 
   private[this] def succeeded(launchTime: FiniteDuration, in: IN, out: OUT): F[Either[TickStatus, OUT]] =
     for {
       now <- F.realTime
       _ <- channel.send(ActionDone(actionParams, to_zdt(launchTime), to_zdt(now), output_json(in, out)))
     } yield {
-      measures.done(now - launchTime)
+      measure_done(now - launchTime)
       Right(out)
     }
 
@@ -76,7 +78,7 @@ final private class ReTry[F[_]: Async, IN, OUT] private (
               _ <- channel.send(ActionRetry(actionParams, NJError(ex), ts.tick))
               _ <- F.sleep(ts.tick.snooze.toScala)
             } yield {
-              measures.count_retry()
+              measure_retry()
               Left(ts)
             }
         }
@@ -120,7 +122,7 @@ final private class ReTry[F[_]: Async, IN, OUT] private (
           execute(in).flatMap[Either[TickStatus, OUT]] {
             case Right(out) =>
               F.monotonic.map { now =>
-                measures.done(now - launchTime)
+                measure_done(now - launchTime)
                 Right(out)
               }
             case Left(ex) =>
@@ -135,7 +137,7 @@ final private class ReTry[F[_]: Async, IN, OUT] private (
       F.tailRecM(zerothTickStatus) { status =>
         execute(in).flatMap[Either[TickStatus, OUT]] {
           case Right(out) =>
-            measures.done(ScalaDuration.Zero)
+            measure_done(ScalaDuration.Zero)
             F.pure(Right(out))
           case Left(ex) =>
             retrying(in, ex, status)

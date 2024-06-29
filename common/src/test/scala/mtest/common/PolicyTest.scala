@@ -15,8 +15,6 @@ class PolicyTest extends AnyFunSuite {
 
     val ts = zeroTickStatus.renewPolicy(policy)
     tickLazyList(ts).take(10).foreach { t =>
-      println(t.uptoWakeup)
-      println(t.uptoAcquire)
       println(t.zonedPrevious)
     }
   }

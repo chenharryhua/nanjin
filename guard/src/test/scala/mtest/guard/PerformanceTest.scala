@@ -12,53 +12,53 @@ import scala.concurrent.duration.*
 
 // sbt "guard/testOnly mtest.guard.PerformanceTest"
 
-/** warm-up: 295K/s, 3 micro 389 nano
+/** ---warm-up: 424K/s, 2 micro 355 nano
   *
-  * bipartite.time.count: 382K/s, 2 micro 613 nano
+  * bipartite.time.count: 417K/s, 2 micro 397 nano
   *
-  * bipartite.time: 390K/s, 2 micro 561 nano
+  * bipartite.time: 449K/s, 2 micro 225 nano
   *
-  * kleisli.bipartite.time: 281K/s, 3 micro 554 nano
+  * bipartite.count: 514K/s, 1 micro 943 nano
   *
-  * bipartite.count: 439K/s, 2 micro 273 nano
+  * bipartite: 523K/s, 1 micro 910 nano
   *
-  * bipartite: 432K/s, 2 micro 310 nano
+  * ---kleisli.bipartite.time: 339K/s, 2 micro 947 nano
   *
-  * unipartite.time.count: 552K/s, 1 micro 809 nano
+  * unipartite.time.count: 634K/s, 1 micro 577 nano
   *
-  * unipartite.time: 470K/s, 2 micro 124 nano
+  * unipartite.time: 635K/s, 1 micro 573 nano
   *
-  * kleisli.unipartite.time: 327K/s, 3 micro 54 nano
+  * unipartite.count: 759K/s, 1 micro 316 nano
   *
-  * unipartite.count: 634K/s, 1 micro 577 nano
+  * unipartite: 769K/s, 1 micro 298 nano
   *
-  * unipartite: 622K/s, 1 micro 605 nano
+  * ---kleisli.unipartite.time: 420K/s, 2 micro 377 nano
   *
-  * silent.time.count: 1301K/s, 768 nano
+  * silent.time.count: 1543K/s, 648 nano
   *
-  * silent.time: 1307K/s, 764 nano
+  * silent.time: 1548K/s, 645 nano
   *
-  * kleisli.silent.time: 818K/s, 1 micro 221 nano
+  * silent.count: 4428K/s, 225 nano
   *
-  * silent.count: 3655K/s, 273 nano
+  * silent: 4595K/s, 217 nano
   *
-  * silent: 3772K/s, 265 nano
+  * ---kleisli.silent.time: 1000K/s, 999 nano
   *
-  * flow-meter: 2984K/s, 335 nano
+  * flow-meter: 3329K/s, 300 nano
   *
-  * meter: 5023K/s, 199 nano
+  * meter: 5751K/s, 173 nano
   *
-  * meter.count: 4711K/s, 212 nano
+  * meter.count: 4391K/s, 227 nano
   *
-  * histogram: 3713K/s, 269 nano
+  * histogram: 4069K/s, 245 nano
   *
-  * histogram.count: 3556K/s, 281 nano
+  * histogram.count: 3436K/s, 290 nano
   *
-  * timer: 2896K/s, 345 nano
+  * timer: 3245K/s, 308 nano
   *
-  * timer.count: 2911K/s, 343 nano
+  * timer.count: 2794K/s, 357 nano
   *
-  * count: 6845K/s, 146 nano
+  * count: 5952K/s, 168 nano
   */
 
 class PerformanceTest extends AnyFunSuite {
@@ -73,7 +73,7 @@ class PerformanceTest extends AnyFunSuite {
     f"${i / (take.toSeconds * 1000)}%4dK/s, ${fmt.format(take / i.toLong)}"
 
   test("warm-up") {
-    print("warm-up: ")
+    print("---warm-up: ")
     var i = 0
     service.eventStream { ga =>
       val run = for {
@@ -108,21 +108,6 @@ class PerformanceTest extends AnyFunSuite {
     }.compile.drain.unsafeRunSync()
     println(speed(i))
   }
-  test("kleisli.bipartite.time") {
-    print("kleisli.bipartite.time: ")
-    var i = 0
-    service.eventStream { ga =>
-      val run = for {
-        action <- ga.action("t", _.bipartite).retry(IO(i += 1).timed).buildWith(identity)
-        timer <- ga.timer("t")
-      } yield for {
-        (t, _) <- action
-        _ <- timer.kleisli((_: Unit) => t)
-      } yield ()
-      run.use(_.run(()).foreverM.timeout(take).attempt)
-    }.compile.drain.unsafeRunSync()
-    println(speed(i))
-  }
 
   test("bipartite.counting") {
     print("bipartite.count: ")
@@ -148,6 +133,22 @@ class PerformanceTest extends AnyFunSuite {
     println(speed(i))
   }
 
+  test("kleisli.bipartite.time") {
+    print("---kleisli.bipartite.time: ")
+    var i = 0
+    service.eventStream { ga =>
+      val run = for {
+        action <- ga.action("t", _.bipartite).retry(IO(i += 1).timed).buildWith(identity)
+        timer <- ga.timer("t")
+      } yield for {
+        (t, _) <- action
+        _ <- timer.kleisli((_: Unit) => t)
+      } yield ()
+      run.use(_.run(()).foreverM.timeout(take).attempt)
+    }.compile.drain.unsafeRunSync()
+    println(speed(i))
+  }
+
   test("unipartite.time.count") {
     print("unipartite.time.count: ")
     var i: Int = 0
@@ -168,21 +169,6 @@ class PerformanceTest extends AnyFunSuite {
         .retry(IO(i += 1))
         .buildWith(identity)
         .use(_.run(()).foreverM.timeout(take).attempt)
-    }.compile.drain.unsafeRunSync()
-    println(speed(i))
-  }
-  test("kleisli.unipartite.time") {
-    print("kleisli.unipartite.time: ")
-    var i = 0
-    service.eventStream { ga =>
-      val run = for {
-        action <- ga.action("t", _.unipartite).retry(IO(i += 1).timed).buildWith(identity)
-        timer <- ga.timer("t")
-      } yield for {
-        (t, _) <- action
-        _ <- timer.kleisli((_: Unit) => t)
-      } yield ()
-      run.use(_.run(()).foreverM.timeout(take).attempt)
     }.compile.drain.unsafeRunSync()
     println(speed(i))
   }
@@ -211,6 +197,22 @@ class PerformanceTest extends AnyFunSuite {
     println(speed(i))
   }
 
+  test("kleisli.unipartite.time") {
+    print("---kleisli.unipartite.time: ")
+    var i = 0
+    service.eventStream { ga =>
+      val run = for {
+        action <- ga.action("t", _.unipartite).retry(IO(i += 1).timed).buildWith(identity)
+        timer <- ga.timer("t")
+      } yield for {
+        (t, _) <- action
+        _ <- timer.kleisli((_: Unit) => t)
+      } yield ()
+      run.use(_.run(()).foreverM.timeout(take).attempt)
+    }.compile.drain.unsafeRunSync()
+    println(speed(i))
+  }
+
   test("silent.time.count") {
     print("silent.time.count: ")
     var i = 0
@@ -231,21 +233,6 @@ class PerformanceTest extends AnyFunSuite {
         .retry(IO(i += 1))
         .buildWith(identity)
         .use(_.run(()).foreverM.timeout(take).attempt)
-    }.compile.drain.unsafeRunSync()
-    println(speed(i))
-  }
-  test("kleisli.silent.time") {
-    print("kleisli.silent.time: ")
-    var i = 0
-    service.eventStream { ga =>
-      val run = for {
-        action <- ga.action("t", _.silent).retry(IO(i += 1).timed).buildWith(identity)
-        timer <- ga.timer("t")
-      } yield for {
-        (t, _) <- action
-        _ <- timer.kleisli((_: Unit) => t)
-      } yield ()
-      run.use(_.run(()).foreverM.timeout(take).attempt)
     }.compile.drain.unsafeRunSync()
     println(speed(i))
   }
@@ -270,6 +257,22 @@ class PerformanceTest extends AnyFunSuite {
         .retry(IO(i += 1))
         .buildWith(identity)
         .use(_.run(()).foreverM.timeout(take).attempt)
+    }.compile.drain.unsafeRunSync()
+    println(speed(i))
+  }
+
+  test("kleisli.silent.time") {
+    print("---kleisli.silent.time: ")
+    var i = 0
+    service.eventStream { ga =>
+      val run = for {
+        action <- ga.action("t", _.silent).retry(IO(i += 1).timed).buildWith(identity)
+        timer <- ga.timer("t")
+      } yield for {
+        (t, _) <- action
+        _ <- timer.kleisli((_: Unit) => t)
+      } yield ()
+      run.use(_.run(()).foreverM.timeout(take).attempt)
     }.compile.drain.unsafeRunSync()
     println(speed(i))
   }
