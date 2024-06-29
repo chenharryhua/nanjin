@@ -15,8 +15,6 @@ import java.time.ZonedDateTime
 import scala.concurrent.duration.{Duration as ScalaDuration, FiniteDuration}
 import scala.jdk.DurationConverters.JavaDurationOps
 
-private case object ActionCancelException extends Exception("action was canceled")
-
 final private class ReTry[F[_]: Async, IN, OUT] private (
   private[this] val token: Unique.Token,
   private[this] val metricRegistry: MetricRegistry,
