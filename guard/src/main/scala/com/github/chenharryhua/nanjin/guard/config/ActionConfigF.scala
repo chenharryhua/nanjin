@@ -45,7 +45,7 @@ object ActionParams {
     )
 }
 
-sealed private[guard] trait ActionConfigF[X]
+sealed private trait ActionConfigF[X]
 
 private object ActionConfigF {
   implicit val functorActionConfigF: Functor[ActionConfigF] = cats.derived.semiauto.functor[ActionConfigF]
@@ -106,7 +106,7 @@ final class ActionConfig private (
   def withMeasurement(measurement: String): ActionConfig =
     new ActionConfig(isWorthRetry, Fix(WithMeasurement(Measurement(measurement), cont)))
 
-  def worthRetry(f: Throwable => Boolean) =
+  def worthRetry(f: Throwable => Boolean): ActionConfig =
     new ActionConfig(Reader(f), cont)
 
   private[guard] def evalConfig: ActionParams = scheme.cata(algebra).apply(cont)

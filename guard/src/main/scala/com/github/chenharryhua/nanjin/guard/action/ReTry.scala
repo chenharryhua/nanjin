@@ -71,8 +71,8 @@ final private class ReTry[F[_]: Async, IN, OUT] private (
     if (isWorthRetry.run((in, ex))) {
       for {
         next <- F.realTimeInstant.map(status.next)
-        res <- next match {
-          case None => failed(in, ex)
+        left <- next match {
+          case None => failed(in, ex) // run out of policy
           case Some(ts) =>
             for {
               _ <- channel.send(ActionRetry(actionParams, NJError(ex), ts.tick))
@@ -82,9 +82,9 @@ final private class ReTry[F[_]: Async, IN, OUT] private (
               Left(ts)
             }
         }
-      } yield res
+      } yield left
     } else {
-      failed(in, ex)
+      failed(in, ex) // unworthy to retry
     }
 
   // static functions
@@ -116,7 +116,7 @@ final private class ReTry[F[_]: Async, IN, OUT] private (
     }
 
   private[this] def silent_time(in: IN): F[OUT] =
-    F.monotonic.flatMap { launchTime =>
+    F.monotonic.flatMap { launchTime => // faster than F.timed
       val go: F[OUT] =
         F.tailRecM(zerothTickStatus) { status =>
           execute(in).flatMap[Either[TickStatus, OUT]] {

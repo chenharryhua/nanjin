@@ -20,8 +20,8 @@ object BatchRunner {
   ) {
     protected[this] val F: Async[F] = Async[F]
 
-    protected[this] val BatchIdTag: String = QuasiResult.BatchIdTag
-    private[this] val ResultTag: String    = "result"
+    private[this] val BatchIdTag: String = QuasiResult.BatchIdTag
+    private[this] val ResultTag: String  = "result"
 
     protected[this] val nullTransform: A => Json = _ => Json.Null
 
