@@ -142,7 +142,7 @@ object MetricName {
 }
 
 /** @param uniqueToken
-  *   hash of Unique.Token
+  *   hash of Unique.Token. it is runtime identifier of a metric
   */
 @JsonCodec
 final case class MetricID(metricName: MetricName, category: Category, uniqueToken: Int) {

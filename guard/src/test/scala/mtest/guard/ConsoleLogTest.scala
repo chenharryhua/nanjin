@@ -19,8 +19,8 @@ class ConsoleLogTest extends AnyFunSuite {
       .updateConfig(_.addBrief(Json.fromString("brief")))
       .eventStream { ag =>
         val go = for {
-          _ <- ag.gauge("job").register(1000000000)
-          _ <- ag.healthCheck("job").register(true)
+          _ <- ag.gauge("job").register(IO(1000000000))
+          _ <- ag.healthCheck("job").register(IO(true))
           _ <- ag.gauge("job").timed
           _ <- ag.jvmGauge.garbageCollectors
           _ <- ag.jvmGauge.classloader

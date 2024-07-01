@@ -44,7 +44,7 @@ class HttpServerTest extends AnyFunSuite {
         .eventStream { ag =>
           val m = for {
             _ <- ag.gauge("a").timed
-            _ <- ag.gauge("a").register(1)
+            _ <- ag.gauge("a").register(IO(1))
             _ <- ag.counter("a").evalMap(_.inc(1))
             _ <- ag.histogram("a", _.withUnit(_.BYTES)).evalMap(_.update(1))
             _ <- ag.meter("a", _.withUnit(_.MEGABYTES)).evalMap(_.update(1))

@@ -11,12 +11,21 @@ import java.time.Duration
 import scala.concurrent.duration.FiniteDuration
 import scala.jdk.DurationConverters.ScalaDurationOps
 
-final class NJTimer[F[_]: Sync] private (
+sealed trait NJTimer[F[_]] {
+  def update(fd: FiniteDuration): F[Unit]
+  def unsafeUpdate(fd: FiniteDuration): Unit
+
+  final def kleisli[A](f: A => FiniteDuration): Kleisli[F, A, Unit] =
+    Kleisli(update).local(f)
+}
+
+private class NJTimerImpl[F[_]: Sync](
   private[this] val token: Unique.Token,
   private[this] val name: MetricName,
   private[this] val metricRegistry: MetricRegistry,
   private[this] val isCounting: Boolean,
-  private[this] val reservoir: Option[Reservoir]) {
+  private[this] val reservoir: Option[Reservoir]
+) extends NJTimer[F] {
 
   private[this] val F = Sync[F]
 
@@ -41,13 +50,11 @@ final class NJTimer[F[_]: Sync] private (
       counter.inc(1)
     } else (duration: Duration) => timer.update(duration)
 
-  def update(fd: FiniteDuration): F[Unit] = F.delay(calculate(fd.toJava))
+  override def update(fd: FiniteDuration): F[Unit] = F.delay(calculate(fd.toJava))
 
-  def unsafeUpdate(fd: FiniteDuration): Unit = calculate(fd.toJava)
+  override def unsafeUpdate(fd: FiniteDuration): Unit = calculate(fd.toJava)
 
-  def kleisli[A](f: A => FiniteDuration): Kleisli[F, A, Unit] = Kleisli(update).local(f)
-
-  private val unregister: F[Unit] = F.delay {
+  val unregister: F[Unit] = F.delay {
     metricRegistry.remove(timer_name)
     metricRegistry.remove(counter_name)
   }.void
@@ -58,23 +65,38 @@ object NJTimer {
   final class Builder private[guard] (
     measurement: Measurement,
     isCounting: Boolean,
-    reservoir: Option[Reservoir]) {
+    reservoir: Option[Reservoir],
+    isEnabled: Boolean) {
 
     def withMeasurement(measurement: String): Builder =
-      new Builder(Measurement(measurement), isCounting, reservoir)
+      new Builder(Measurement(measurement), isCounting, reservoir, isEnabled)
 
-    def counted: Builder = new Builder(measurement, true, reservoir)
+    def counted: Builder = new Builder(measurement, true, reservoir, isEnabled)
 
     def withReservoir(reservoir: Reservoir): Builder =
-      new Builder(measurement, isCounting, Some(reservoir))
+      new Builder(measurement, isCounting, Some(reservoir), isEnabled)
 
-    private[guard] def build[F[_]: Sync](
+    def enable(value: Boolean): Builder =
+      new Builder(measurement, isCounting, reservoir, value)
+
+    private[guard] def build[F[_]](
       name: String,
       metricRegistry: MetricRegistry,
-      serviceParams: ServiceParams): Resource[F, NJTimer[F]] = {
-      val metricName = MetricName(serviceParams, measurement, name)
-      Resource.make(Sync[F].unique.map(new NJTimer[F](_, metricName, metricRegistry, isCounting, reservoir)))(
-        _.unregister)
-    }
+      serviceParams: ServiceParams)(implicit F: Sync[F]): Resource[F, NJTimer[F]] =
+      if (isEnabled) {
+        val metricName = MetricName(serviceParams, measurement, name)
+        Resource.make(
+          F.unique.map(token =>
+            new NJTimerImpl[F](
+              token = token,
+              name = metricName,
+              metricRegistry = metricRegistry,
+              isCounting = isCounting,
+              reservoir = reservoir)))(_.unregister)
+      } else
+        Resource.pure(new NJTimer[F] {
+          override def update(fd: FiniteDuration): F[Unit]    = F.unit
+          override def unsafeUpdate(fd: FiniteDuration): Unit = ()
+        })
   }
 }

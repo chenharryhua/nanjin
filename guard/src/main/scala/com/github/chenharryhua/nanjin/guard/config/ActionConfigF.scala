@@ -16,6 +16,7 @@ final case class ActionParams(
   publishStrategy: PublishStrategy,
   isCounting: Boolean,
   isTiming: Boolean,
+  isEnabled: Boolean,
   retryPolicy: Policy,
   serviceParams: ServiceParams) {
   val configStr: String = {
@@ -40,12 +41,13 @@ object ActionParams {
       publishStrategy = PublishStrategy.Silent,
       isCounting = false,
       isTiming = false,
+      isEnabled = true,
       retryPolicy = policies.giveUp,
       serviceParams = serviceParams
     )
 }
 
-sealed private[guard] trait ActionConfigF[X]
+sealed private trait ActionConfigF[X]
 
 private object ActionConfigF {
   implicit val functorActionConfigF: Functor[ActionConfigF] = cats.derived.semiauto.functor[ActionConfigF]
@@ -59,6 +61,7 @@ private object ActionConfigF {
   final case class WithPublishStrategy[K](value: PublishStrategy, cont: K) extends ActionConfigF[K]
   final case class WithTiming[K](value: Boolean, cont: K) extends ActionConfigF[K]
   final case class WithCounting[K](value: Boolean, cont: K) extends ActionConfigF[K]
+  final case class WithEnabled[K](value: Boolean, cont: K) extends ActionConfigF[K]
   final case class WithImportance[K](value: Importance, cont: K) extends ActionConfigF[K]
   final case class WithRetryPolicy[K](value: Policy, cont: K) extends ActionConfigF[K]
   final case class WithMeasurement[K](value: Measurement, cont: K) extends ActionConfigF[K]
@@ -70,6 +73,7 @@ private object ActionConfigF {
       case WithPublishStrategy(v, c) => c.focus(_.publishStrategy).replace(v)
       case WithTiming(v, c)          => c.focus(_.isTiming).replace(v)
       case WithCounting(v, c)        => c.focus(_.isCounting).replace(v)
+      case WithEnabled(v, c)         => c.focus(_.isEnabled).replace(v)
       case WithImportance(v, c)      => c.focus(_.importance).replace(v)
       case WithRetryPolicy(v, c)     => c.focus(_.retryPolicy).replace(v)
       case WithMeasurement(v, c)     => c.focus(_.measurement).replace(v)
@@ -106,8 +110,11 @@ final class ActionConfig private (
   def withMeasurement(measurement: String): ActionConfig =
     new ActionConfig(isWorthRetry, Fix(WithMeasurement(Measurement(measurement), cont)))
 
-  def worthRetry(f: Throwable => Boolean) =
+  def worthRetry(f: Throwable => Boolean): ActionConfig =
     new ActionConfig(Reader(f), cont)
+
+  def enable(value: Boolean): ActionConfig =
+    new ActionConfig(isWorthRetry, Fix(WithEnabled(value = value, cont)))
 
   private[guard] def evalConfig: ActionParams = scheme.cata(algebra).apply(cont)
 }

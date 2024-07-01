@@ -8,12 +8,21 @@ import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.config.CategoryKind.{CounterKind, MeterKind}
 import com.github.chenharryhua.nanjin.guard.event.{MeasurementUnit, NJUnits}
 
-final class NJMeter[F[_]: Sync] private (
+sealed trait NJMeter[F[_]] {
+  def unsafeUpdate(num: Long): Unit
+  def update(num: Long): F[Unit]
+
+  final def kleisli[A](f: A => Long): Kleisli[F, A, Unit] =
+    Kleisli(update).local(f)
+}
+
+private class NJMeterImpl[F[_]: Sync](
   private[this] val token: Unique.Token,
   private[this] val name: MetricName,
   private[this] val metricRegistry: MetricRegistry,
   private[this] val isCounting: Boolean,
-  private[this] val unit: MeasurementUnit) {
+  private[this] val unit: MeasurementUnit)
+    extends NJMeter[F] {
 
   private[this] val F = Sync[F]
 
@@ -32,12 +41,10 @@ final class NJMeter[F[_]: Sync] private (
       counter.inc(num)
     } else (num: Long) => meter.mark(num)
 
-  def unsafeUpdate(num: Long): Unit = calculate(num)
-  def update(num: Long): F[Unit]    = F.delay(calculate(num))
+  override def unsafeUpdate(num: Long): Unit = calculate(num)
+  override def update(num: Long): F[Unit]    = F.delay(calculate(num))
 
-  def kleisli[A](f: A => Long): Kleisli[F, A, Unit] = Kleisli(update).local(f)
-
-  private val unregister: F[Unit] = F.delay {
+  val unregister: F[Unit] = F.delay {
     metricRegistry.remove(meter_name)
     metricRegistry.remove(counter_name)
   }.void
@@ -45,22 +52,40 @@ final class NJMeter[F[_]: Sync] private (
 
 object NJMeter {
 
-  final class Builder private[guard] (measurement: Measurement, unit: MeasurementUnit, isCounting: Boolean) {
+  final class Builder private[guard] (
+    measurement: Measurement,
+    unit: MeasurementUnit,
+    isCounting: Boolean,
+    isEnabled: Boolean) {
     def withMeasurement(measurement: String): Builder =
-      new Builder(Measurement(measurement), unit, isCounting)
+      new Builder(Measurement(measurement), unit, isCounting, isEnabled)
 
-    def counted: Builder = new Builder(measurement, unit, true)
+    def counted: Builder = new Builder(measurement, unit, true, isEnabled)
 
     def withUnit(f: NJUnits.type => MeasurementUnit): Builder =
-      new Builder(measurement, f(NJUnits), isCounting)
+      new Builder(measurement, f(NJUnits), isCounting, isEnabled)
 
-    private[guard] def build[F[_]: Sync](
+    def enable(value: Boolean): Builder =
+      new Builder(measurement, unit, isCounting, value)
+
+    private[guard] def build[F[_]](
       name: String,
       metricRegistry: MetricRegistry,
-      serviceParams: ServiceParams): Resource[F, NJMeter[F]] = {
-      val metricName = MetricName(serviceParams, measurement, name)
-      Resource.make(Sync[F].unique.map(new NJMeter[F](_, metricName, metricRegistry, isCounting, unit)))(
-        _.unregister)
-    }
+      serviceParams: ServiceParams)(implicit F: Sync[F]): Resource[F, NJMeter[F]] =
+      if (isEnabled) {
+        val metricName = MetricName(serviceParams, measurement, name)
+        Resource.make(
+          F.unique.map(token =>
+            new NJMeterImpl[F](
+              token = token,
+              name = metricName,
+              metricRegistry = metricRegistry,
+              isCounting = isCounting,
+              unit = unit)))(_.unregister)
+      } else
+        Resource.pure(new NJMeter[F] {
+          override def unsafeUpdate(num: Long): Unit = ()
+          override def update(num: Long): F[Unit]    = F.unit
+        })
   }
 }

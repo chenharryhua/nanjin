@@ -435,7 +435,7 @@ class MetricsCountingTest extends AnyFunSuite {
       .eventStream { agent =>
         val g1 = agent.gauge("elapse").timed
         val g2 = agent.gauge("exception").register(IO.raiseError[Int](new Exception))
-        val g3 = agent.gauge("good").register(10)
+        val g3 = agent.gauge("good").register(IO(10))
         g1.both(g2).both(g3).surround(IO.sleep(3.seconds) >> agent.metrics.report)
       }
       .map(checkJson)
@@ -452,7 +452,7 @@ class MetricsCountingTest extends AnyFunSuite {
     val res = task
       .service("heal-check")
       .eventStream { ga =>
-        (ga.healthCheck("c1").register(true) >> ga.healthCheck("c2").register(true)).use(_ =>
+        (ga.healthCheck("c1").register(IO(true)) >> ga.healthCheck("c2").register(IO(true))).use(_ =>
           ga.metrics.report)
       }
       .map(checkJson)

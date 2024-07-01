@@ -13,14 +13,25 @@ import java.time.ZoneId
 import scala.concurrent.duration.FiniteDuration
 import scala.util.Try
 
-final class NJHealthCheck[F[_]: Async] private (
+sealed trait NJHealthCheck[F[_]] {
+  def register(hc: F[Boolean]): Resource[F, Unit]
+
+  /** heath check sometimes is expensive.
+    * @param hc
+    *   health check method.
+    */
+  def register(hc: F[Boolean], policy: Policy, zoneId: ZoneId): Resource[F, Unit]
+}
+
+private class NJHealthCheckImpl[F[_]: Async](
   private[this] val name: MetricName,
   private[this] val metricRegistry: MetricRegistry,
-  private[this] val timeout: FiniteDuration) {
+  private[this] val timeout: FiniteDuration)
+    extends NJHealthCheck[F] {
 
   private[this] val F = Async[F]
 
-  def register(hc: F[Boolean]): Resource[F, Unit] =
+  override def register(hc: F[Boolean]): Resource[F, Unit] =
     Dispatcher.sequential[F].flatMap { dispatcher =>
       Resource.eval(F.unique).flatMap { token =>
         val metricID: MetricID = MetricID(name, Category.Gauge(GaugeKind.HealthCheck), token.hash)
@@ -38,13 +49,8 @@ final class NJHealthCheck[F[_]: Async] private (
           .void
       }
     }
-  def register(hc: => Boolean): Resource[F, Unit] = register(F.delay(hc))
 
-  /** heath check sometimes is expensive.
-    * @param hc
-    *   health check method.
-    */
-  def register(hc: F[Boolean], policy: Policy, zoneId: ZoneId): Resource[F, Unit] = {
+  override def register(hc: F[Boolean], policy: Policy, zoneId: ZoneId): Resource[F, Unit] = {
     val check: F[Boolean] = hc.timeout(timeout).attempt.map(_.fold(_ => false, identity))
     for {
       init <- Resource.eval(check)
@@ -53,25 +59,33 @@ final class NJHealthCheck[F[_]: Async] private (
       _ <- register(ref.get)
     } yield ()
   }
-
-  def register(hc: => Boolean, policy: Policy, zoneId: ZoneId): Resource[F, Unit] =
-    register(F.delay(hc), policy, zoneId)
 }
 
 object NJHealthCheck {
 
-  final class Builder private[guard] (measurement: Measurement, timeout: FiniteDuration) {
+  final class Builder private[guard] (measurement: Measurement, timeout: FiniteDuration, isEnabled: Boolean) {
 
-    def withMeasurement(measurement: String): Builder = new Builder(Measurement(measurement), timeout)
+    def withMeasurement(measurement: String): Builder =
+      new Builder(Measurement(measurement), timeout, isEnabled)
 
-    def withTimeout(timeout: FiniteDuration): Builder = new Builder(measurement, timeout)
+    def withTimeout(timeout: FiniteDuration): Builder = new Builder(measurement, timeout, isEnabled)
+
+    def enable(value: Boolean): Builder = new Builder(measurement, timeout, value)
 
     private[guard] def build[F[_]: Async](
       name: String,
       metricRegistry: MetricRegistry,
-      serviceParams: ServiceParams): NJHealthCheck[F] = {
-      val metricName = MetricName(serviceParams, measurement, name)
-      new NJHealthCheck[F](metricName, metricRegistry, timeout)
-    }
+      serviceParams: ServiceParams): NJHealthCheck[F] =
+      if (isEnabled) {
+        val metricName = MetricName(serviceParams, measurement, name)
+        new NJHealthCheckImpl[F](metricName, metricRegistry, timeout)
+      } else {
+        new NJHealthCheck[F] {
+          override def register(hc: F[Boolean]): Resource[F, Unit] =
+            Resource.unit[F]
+          override def register(hc: F[Boolean], policy: Policy, zoneId: ZoneId): Resource[F, Unit] =
+            Resource.unit[F]
+        }
+      }
   }
 }

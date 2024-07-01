@@ -71,8 +71,8 @@ final private class ReTry[F[_]: Async, IN, OUT] private (
     if (isWorthRetry.run((in, ex))) {
       for {
         next <- F.realTimeInstant.map(status.next)
-        res <- next match {
-          case None => failed(in, ex)
+        left <- next match {
+          case None => failed(in, ex) // run out of policy
           case Some(ts) =>
             for {
               _ <- channel.send(ActionRetry(actionParams, NJError(ex), ts.tick))
@@ -82,9 +82,9 @@ final private class ReTry[F[_]: Async, IN, OUT] private (
               Left(ts)
             }
         }
-      } yield res
+      } yield left
     } else {
-      failed(in, ex)
+      failed(in, ex) // unworthy to retry
     }
 
   // static functions
@@ -116,7 +116,7 @@ final private class ReTry[F[_]: Async, IN, OUT] private (
     }
 
   private[this] def silent_time(in: IN): F[OUT] =
-    F.monotonic.flatMap { launchTime =>
+    F.monotonic.flatMap { launchTime => // faster than F.timed
       val go: F[OUT] =
         F.tailRecM(zerothTickStatus) { status =>
           execute(in).flatMap[Either[TickStatus, OUT]] {
@@ -175,7 +175,7 @@ final private class ReTry[F[_]: Async, IN, OUT] private (
 }
 
 private object ReTry {
-  def apply[F[_]: Async, IN, OUT](
+  def apply[F[_], IN, OUT](
     metricRegistry: MetricRegistry,
     channel: Channel[F, NJEvent],
     actionParams: ActionParams,
@@ -183,7 +183,8 @@ private object ReTry {
     transInput: Reader[IN, Json],
     transOutput: Reader[(IN, OUT), Json],
     transError: Reader[(IN, Throwable), Json],
-    isWorthRetry: Reader[(IN, Throwable), Boolean]): Resource[F, Kleisli[F, IN, OUT]] = {
+    isWorthRetry: Reader[(IN, Throwable), Boolean])(implicit
+    F: Async[F]): Resource[F, Kleisli[F, IN, OUT]] = {
     def action_runner(token: Unique.Token): ReTry[F, IN, OUT] =
       new ReTry[F, IN, OUT](
         token = token,
@@ -198,6 +199,10 @@ private object ReTry {
         transError = transError,
         isWorthRetry = isWorthRetry
       )
-    Resource.make(Async[F].unique.map(action_runner))(_.unregister).map(_.kleisli)
+
+    if (actionParams.isEnabled)
+      Resource.make(F.unique.map(action_runner))(_.unregister).map(_.kleisli)
+    else
+      Resource.pure(arrow)
   }
 }

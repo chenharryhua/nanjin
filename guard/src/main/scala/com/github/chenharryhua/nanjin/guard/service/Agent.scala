@@ -103,39 +103,45 @@ final class GeneralAgent[F[_]: Async] private[service] (
 
   private object builders {
     lazy val ratio: NJRatio.Builder =
-      new NJRatio.Builder(measurement = measurement)
+      new NJRatio.Builder(measurement = measurement, isEnabled = true)
 
     lazy val gauge: NJGauge.Builder =
-      new NJGauge.Builder(measurement = measurement, timeout = 5.seconds)
+      new NJGauge.Builder(measurement = measurement, timeout = 5.seconds, isEnabled = true)
 
     lazy val healthCheck: NJHealthCheck.Builder =
-      new NJHealthCheck.Builder(measurement = measurement, timeout = 5.seconds)
+      new NJHealthCheck.Builder(measurement = measurement, timeout = 5.seconds, isEnabled = true)
 
     lazy val timer: NJTimer.Builder =
-      new NJTimer.Builder(measurement = measurement, isCounting = false, reservoir = None)
+      new NJTimer.Builder(measurement = measurement, isCounting = false, reservoir = None, isEnabled = true)
 
     lazy val flowerMeter: NJFlowMeter.Builder =
       new NJFlowMeter.Builder(
         measurement = measurement,
         unit = NJUnits.COUNT,
         isCounting = false,
-        reservoir = None)
+        reservoir = None,
+        isEnabled = true)
 
     lazy val histogram: NJHistogram.Builder =
       new NJHistogram.Builder(
         measurement = measurement,
         unit = NJUnits.COUNT,
         isCounting = false,
-        reservoir = None)
+        reservoir = None,
+        isEnabled = true)
 
     lazy val meter: NJMeter.Builder =
-      new NJMeter.Builder(measurement = measurement, unit = NJUnits.COUNT, isCounting = false)
+      new NJMeter.Builder(
+        measurement = measurement,
+        unit = NJUnits.COUNT,
+        isCounting = false,
+        isEnabled = true)
 
     lazy val counter: NJCounter.Builder =
-      new NJCounter.Builder(measurement = measurement, isRisk = false)
+      new NJCounter.Builder(measurement = measurement, isRisk = false, isEnabled = true)
 
     lazy val alert: NJAlert.Builder =
-      new NJAlert.Builder(measurement = measurement, isCounting = false)
+      new NJAlert.Builder(measurement = measurement, isCounting = false, isEnabled = true)
   }
 
   override def batch(name: String, f: Endo[ActionConfig]): NJBatch[F] =

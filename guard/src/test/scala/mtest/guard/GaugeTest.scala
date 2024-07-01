@@ -27,7 +27,7 @@ class GaugeTest extends AnyFunSuite {
       (ga.jvmGauge.heapMemory |+|
         ga.jvmGauge.deadlocks |+|
         ga.jvmGauge.garbageCollectors |+|
-        ga.gauge("user").register(UserGauge(1, "a"))).surround(IO.sleep(4.seconds))
+        ga.gauge("user").register(IO(UserGauge(1, "a")))).surround(IO.sleep(4.seconds))
     }.map(checkJson).evalMapFilter(e => IO(metricReport(e))).compile.lastOrError.unsafeRunSync()
 
     val ug = retrieveGauge[UserGauge](res.snapshot.gauges).values.head
@@ -45,9 +45,9 @@ class GaugeTest extends AnyFunSuite {
       .updateConfig(_.withJmx(identity))
       .eventStream { agent =>
         val gauge: Resource[IO, Ref[IO, Float]] =
-          agent.gauge("free memory").register(Runtime.getRuntime.freeMemory()) >>
+          agent.gauge("free memory").register(IO(Runtime.getRuntime.freeMemory())) >>
             agent.gauge("cost IO").register(IO(1), policy, agent.zoneId) >>
-            agent.gauge("cost ByName").register(2, policy, agent.zoneId) >>
+            agent.gauge("cost ByName").register(IO(2), policy, agent.zoneId) >>
             agent.gauge("time").timed >>
             agent.jvmGauge.classloader >>
             agent.jvmGauge.deadlocks >>
@@ -56,9 +56,9 @@ class GaugeTest extends AnyFunSuite {
             agent.jvmGauge.garbageCollectors >>
             agent.jvmGauge.threadState >>
             agent.healthCheck("health check IO").register(IO.raiseError(new Exception)) >>
-            agent.healthCheck("health check ByName").register(true) >>
+            agent.healthCheck("health check ByName").register(IO(true)) >>
             agent.healthCheck("cost check IO").register(IO(true), policy, agent.zoneId) >>
-            agent.healthCheck("cost check ByName").register(hc = true, policy, agent.zoneId) >>
+            agent.healthCheck("cost check ByName").register(hc = IO(true), policy, agent.zoneId) >>
             Resource.eval(Ref[IO].of(0.1f)).flatMap(ac => agent.gauge("cell").register(ac.get).map(_ => ac))
 
         gauge.use(box =>

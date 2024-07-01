@@ -11,21 +11,30 @@ import fs2.concurrent.Channel
 import io.circe.syntax.EncoderOps
 import io.circe.{Encoder, Json}
 
-final class NJAlert[F[_]: Sync] private (
+sealed trait NJAlert[F[_]] {
+  def error[S: Encoder](msg: S): F[Unit]
+  def error[S: Encoder](msg: Option[S]): F[Unit]
+  def warn[S: Encoder](msg: S): F[Unit]
+  def warn[S: Encoder](msg: Option[S]): F[Unit]
+  def info[S: Encoder](msg: S): F[Unit]
+  def info[S: Encoder](msg: Option[S]): F[Unit]
+}
+
+private class NJAlertImpl[F[_]: Sync](
   private[this] val token: Unique.Token,
   private[this] val name: MetricName,
   private[this] val metricRegistry: MetricRegistry,
   private[this] val channel: Channel[F, NJEvent],
   private[this] val serviceParams: ServiceParams,
   private[this] val isCounting: Boolean
-) {
+) extends NJAlert[F] {
   private[this] val F = Sync[F]
 
-  private[this] val error_counter_name =
+  private[this] val error_counter_name: String =
     MetricID(name, Category.Counter(CounterKind.AlertError), token.hash).identifier
-  private[this] val warn_counter_name =
+  private[this] val warn_counter_name: String =
     MetricID(name, Category.Counter(CounterKind.AlertWarn), token.hash).identifier
-  private[this] val info_counter_name =
+  private[this] val info_counter_name: String =
     MetricID(name, Category.Counter(CounterKind.AlertInfo), token.hash).identifier
 
   private[this] lazy val error_counter: Counter = metricRegistry.counter(error_counter_name)
@@ -44,42 +53,58 @@ final class NJAlert[F[_]: Sync] private (
           message = msg))
     } yield ()
 
-  def error[S: Encoder](msg: S): F[Unit] =
+  override def error[S: Encoder](msg: S): F[Unit] =
     alert(msg.asJson, AlertLevel.Error).map(_ => if (isCounting) error_counter.inc(1))
-  def error[S: Encoder](msg: Option[S]): F[Unit] = msg.traverse(error(_)).void
+  override def error[S: Encoder](msg: Option[S]): F[Unit] =
+    msg.traverse(error(_)).void
 
-  def warn[S: Encoder](msg: S): F[Unit] =
+  override def warn[S: Encoder](msg: S): F[Unit] =
     alert(msg.asJson, AlertLevel.Warn).map(_ => if (isCounting) warn_counter.inc(1))
-  def warn[S: Encoder](msg: Option[S]): F[Unit] = msg.traverse(warn(_)).void
+  override def warn[S: Encoder](msg: Option[S]): F[Unit] =
+    msg.traverse(warn(_)).void
 
-  def info[S: Encoder](msg: S): F[Unit] =
+  override def info[S: Encoder](msg: S): F[Unit] =
     alert(msg.asJson, AlertLevel.Info).map(_ => if (isCounting) info_counter.inc(1))
-  def info[S: Encoder](msg: Option[S]): F[Unit] = msg.traverse(info(_)).void
+  override def info[S: Encoder](msg: Option[S]): F[Unit] =
+    msg.traverse(info(_)).void
 
-  private val unregister: F[Unit] = F.delay {
+  val unregister: F[Unit] = F.delay {
     metricRegistry.remove(error_counter_name)
     metricRegistry.remove(warn_counter_name)
     metricRegistry.remove(info_counter_name)
   }.void
-
 }
 
 object NJAlert {
-  final class Builder private[guard] (measurement: Measurement, isCounting: Boolean) {
+  final class Builder private[guard] (measurement: Measurement, isCounting: Boolean, isEnabled: Boolean) {
 
-    def withMeasurement(measurement: String): Builder = new Builder(Measurement(measurement), isCounting)
+    def withMeasurement(measurement: String): Builder =
+      new Builder(Measurement(measurement), isCounting, isEnabled)
 
-    def counted: Builder = new Builder(measurement, true)
+    def counted: Builder = new Builder(measurement, true, isEnabled)
 
-    private[guard] def build[F[_]: Sync](
+    def enable(value: Boolean): Builder = new Builder(measurement, isCounting, value)
+
+    private[guard] def build[F[_]](
       name: String,
       metricRegistry: MetricRegistry,
       channel: Channel[F, NJEvent],
-      serviceParams: ServiceParams): Resource[F, NJAlert[F]] = {
-      val metricName = MetricName(serviceParams, measurement, name)
-      Resource.make(
-        Sync[F].unique.map(
-          new NJAlert[F](_, metricName, metricRegistry, channel, serviceParams, isCounting)))(_.unregister)
-    }
+      serviceParams: ServiceParams)(implicit F: Sync[F]): Resource[F, NJAlert[F]] =
+      if (isEnabled) {
+        val metricName = MetricName(serviceParams, measurement, name)
+        Resource.make(
+          F.unique.map(
+            new NJAlertImpl[F](_, metricName, metricRegistry, channel, serviceParams, isCounting)))(
+          _.unregister)
+      } else {
+        Resource.pure(new NJAlert[F] {
+          override def error[S: Encoder](msg: S): F[Unit]         = F.unit
+          override def error[S: Encoder](msg: Option[S]): F[Unit] = F.unit
+          override def warn[S: Encoder](msg: S): F[Unit]          = F.unit
+          override def warn[S: Encoder](msg: Option[S]): F[Unit]  = F.unit
+          override def info[S: Encoder](msg: S): F[Unit]          = F.unit
+          override def info[S: Encoder](msg: Option[S]): F[Unit]  = F.unit
+        })
+      }
   }
 }

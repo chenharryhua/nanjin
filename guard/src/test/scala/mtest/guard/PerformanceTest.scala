@@ -1,6 +1,5 @@
 package mtest.guard
 
-import cats.data.Kleisli
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.chrono.policies
@@ -8,9 +7,8 @@ import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import org.scalatest.funsuite.AnyFunSuite
 
+import java.text.DecimalFormat
 import scala.concurrent.duration.*
-
-// sbt "guard/testOnly mtest.guard.PerformanceTest"
 
 /** ---warm-up: 424K/s, 2 micro 355 nano
   *
@@ -67,22 +65,28 @@ class PerformanceTest extends AnyFunSuite {
       .service("actions")
       .updateConfig(_.withMetricReport(policies.crontab(_.secondly)))
 
+  // sbt "guard/testOnly mtest.guard.PerformanceTest"
   private val take: FiniteDuration = 5.seconds
 
-  private def speed(i: Int): String =
-    f"${i / (take.toSeconds * 1000)}%4dK/s, ${fmt.format(take / i.toLong)}"
+  private def speed(i: Int): String = {
+    val df = new DecimalFormat("#,###.##")
+    s"\t${df.format(i / take.toSeconds)} /s, \t${fmt.format(take / i.toLong)}"
+  }
 
-  test("warm-up") {
-    print("---warm-up: ")
+  test("baseline") {
+    print("---baseline: ")
     var i = 0
-    service.eventStream { ga =>
-      val run = for {
-        action <- ga.action("t", _.unipartite).retry(IO(i += 1)).buildWith(identity)
-        timer <- ga.timer("t")
-      } yield Kleisli { (_: Unit) =>
-        action.run(()).timed.flatMap(fd => timer.update(fd._1))
+    service.eventStream(_ => IO(i += 1).foreverM.timeout(take).attempt).compile.drain.unsafeRunSync()
+    println(speed(i))
+  }
+
+  test("disabled") {
+    print("---disabled: ")
+    var i: Int = 0
+    service.eventStream { ag =>
+      ag.action("t", _.bipartite.counted.timed.enable(false)).retry(IO(i += 1)).buildWith(identity).use {
+        _.run(()).foreverM.timeout(take).attempt
       }
-      run.use(_.run(()).foreverM.timeout(take).attempt)
     }.compile.drain.unsafeRunSync()
     println(speed(i))
   }
@@ -99,7 +103,7 @@ class PerformanceTest extends AnyFunSuite {
   }
 
   test("bipartite.time") {
-    print("bipartite.time: ")
+    print("bipartite.time:     ")
     var i = 0
     service.eventStream { ag =>
       ag.action("t", _.bipartite.timed).retry(IO(i += 1)).buildWith(identity).use {
@@ -110,7 +114,7 @@ class PerformanceTest extends AnyFunSuite {
   }
 
   test("bipartite.counting") {
-    print("bipartite.count: ")
+    print("bipartite.count:    ")
     var i = 0
     service.eventStream { ag =>
       ag.action("t", _.bipartite.counted)
@@ -123,7 +127,7 @@ class PerformanceTest extends AnyFunSuite {
 
   test("bipartite") {
     var i = 0
-    print("bipartite: ")
+    print("bipartite:        ")
     service.eventStream { ag =>
       ag.action("t", _.bipartite)
         .retry(IO(i += 1))
@@ -162,7 +166,7 @@ class PerformanceTest extends AnyFunSuite {
   }
 
   test("unipartite.time") {
-    print("unipartite.time: ")
+    print("unipartite.time:      ")
     var i: Int = 0
     service.eventStream { ag =>
       ag.action("t", _.unipartite.timed)
@@ -174,7 +178,7 @@ class PerformanceTest extends AnyFunSuite {
   }
 
   test("unipartite.counting") {
-    print("unipartite.count: ")
+    print("unipartite.count:    ")
     var i: Int = 0
     service.eventStream { ag =>
       ag.action("t", _.unipartite.counted)
@@ -186,7 +190,7 @@ class PerformanceTest extends AnyFunSuite {
   }
 
   test("unipartite") {
-    print("unipartite: ")
+    print("unipartite:         ")
     var i: Int = 0
     service.eventStream { ag =>
       ag.action("t", _.unipartite)
@@ -226,7 +230,7 @@ class PerformanceTest extends AnyFunSuite {
   }
 
   test("silent.time") {
-    print("silent.time: ")
+    print("silent.time:      ")
     var i: Int = 0
     service.eventStream { ag =>
       ag.action("t", _.silent.timed)
@@ -238,7 +242,7 @@ class PerformanceTest extends AnyFunSuite {
   }
 
   test("silent.counting") {
-    print("silent.count: ")
+    print("silent.count:     ")
     var i: Int = 0
     service.eventStream { ag =>
       ag.action("t", _.silent.counted)
@@ -250,7 +254,7 @@ class PerformanceTest extends AnyFunSuite {
   }
 
   test("silent") {
-    print("silent: ")
+    print("silent:           ")
     var i: Int = 0
     service.eventStream { ag =>
       ag.action("t", _.silent)
@@ -278,7 +282,7 @@ class PerformanceTest extends AnyFunSuite {
   }
 
   test("flow-meter") {
-    print("flow-meter: ")
+    print("flow-meter:       ")
     var i: Int = 0
     service.eventStream { ag =>
       val name = "flow-meter"
@@ -289,7 +293,7 @@ class PerformanceTest extends AnyFunSuite {
 
   test("meter") {
     var i = 0
-    print("meter: ")
+    print("meter:            ")
     service.eventStream { ag =>
       ag.meter("meter").use(_.update(1).map(_ => i += 1).foreverM.timeout(take).attempt)
     }.compile.drain.unsafeRunSync()
@@ -298,7 +302,7 @@ class PerformanceTest extends AnyFunSuite {
 
   test("meter.count") {
     var i = 0
-    print("meter.count: ")
+    print("meter.count:      ")
     service.eventStream { ag =>
       ag.meter("meter", _.counted).use(_.update(1).map(_ => i += 1).foreverM.timeout(take).attempt)
     }.compile.drain.unsafeRunSync()
@@ -307,7 +311,7 @@ class PerformanceTest extends AnyFunSuite {
 
   test("histogram") {
     var i = 0
-    print("histogram: ")
+    print("histogram:        ")
     service.eventStream { ag =>
       ag.histogram("histogram").use(_.update(1).map(_ => i += 1).foreverM.timeout(take).attempt)
     }.compile.drain.unsafeRunSync()
@@ -325,7 +329,7 @@ class PerformanceTest extends AnyFunSuite {
 
   test("timer") {
     var i = 0
-    print("timer: ")
+    print("timer:          ")
     service.eventStream { ag =>
       ag.timer("timer").use(_.update(1.seconds).map(_ => i += 1).foreverM.timeout(take).attempt)
     }.compile.drain.unsafeRunSync()
@@ -334,7 +338,7 @@ class PerformanceTest extends AnyFunSuite {
 
   test("timer.count") {
     var i = 0
-    print("timer.count: ")
+    print("timer.count:    ")
     service.eventStream { ag =>
       ag.timer("timer", _.counted).use(_.update(1.seconds).map(_ => i += 1).foreverM.timeout(take).attempt)
     }.compile.drain.unsafeRunSync()
@@ -343,7 +347,7 @@ class PerformanceTest extends AnyFunSuite {
 
   test("count") {
     var i = 0
-    print("count: ")
+    print("count:          ")
     service.eventStream { ag =>
       ag.counter("count").use(_.inc(1).map(_ => i += 1).foreverM.timeout(take).attempt)
     }.compile.drain.unsafeRunSync()
