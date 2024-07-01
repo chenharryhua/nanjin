@@ -26,7 +26,7 @@ final case class Tick(
   def zonedAcquire: ZonedDateTime  = acquire.atZone(zoneId)
   def zonedPrevious: ZonedDateTime = previous.atZone(zoneId)
 
-  def interval: Duration    = Duration.between(previous, wakeup)
+  def interval: Duration = Duration.between(previous, wakeup)
 
   /** check if an instant is in this tick frame from previous timestamp(inclusive) to current
     * timestamp(exclusive).

@@ -37,10 +37,12 @@ object BatchRunner {
     protected[this] val ratio: Resource[F, NJRatio[F]] =
       for {
         _ <- gaugeBuilder
+          .enable(action.actionParams.isEnabled)
           .withMeasurement(action.actionParams.measurement.value)
           .build[F](action.actionParams.actionName.value, metricRegistry, serviceParams)
           .timed
         rat <- ratioBuilder
+          .enable(action.actionParams.isEnabled)
           .withMeasurement(action.actionParams.measurement.value)
           .build(action.actionParams.actionName.value, metricRegistry, serviceParams)
       } yield rat

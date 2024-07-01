@@ -12,7 +12,33 @@ import io.circe.syntax.EncoderOps
 
 import scala.util.Try
 
-final class NJRatio[F[_]] private (private[this] val ref: Ref[F, Ior[Double, Double]]) {
+sealed trait NJRatio[F[_]] {
+
+  /** @param numerator
+    *   The number above the fraction line, representing the part of the whole. For example, in the fraction
+    *   3/4, 3 is the numerator.
+    */
+  def incNumerator[A: Numeric](numerator: A): F[Unit]
+
+  /** @param denominator
+    *   The number below the fraction line, representing the total number of equal parts. For example, in the
+    *   fraction 3/4, 4 is the denominator.
+    */
+  def incDenominator[A: Numeric](denominator: A): F[Unit]
+
+  /** @param numerator
+    *   The number above the fraction line, representing the part of the whole. For example, in the fraction
+    *   3/4, 3 is the numerator.
+    * @param denominator
+    *   The number below the fraction line, representing the total number of equal parts. For example, in the
+    *   fraction 3/4, 4 is the denominator.
+    */
+  def incBoth[A: Numeric, B: Numeric](numerator: A, denominator: B): F[Unit]
+
+  def kleisli[A](f: A => Ior[Double, Double]): Kleisli[F, A, Unit]
+}
+
+private class NJRatioImpl[F[_]](private[this] val ref: Ref[F, Ior[Double, Double]]) extends NJRatio[F] {
 
   private[this] def update[A, B](ior: Ior[A, B])(implicit NA: Numeric[A], NB: Numeric[B]): F[Unit] = {
     val dab: Ior[Double, Double] = ior match {
@@ -23,37 +49,22 @@ final class NJRatio[F[_]] private (private[this] val ref: Ref[F, Ior[Double, Dou
     ref.update(_ |+| dab)
   }
 
-  /** @param numerator
-    *   The number above the fraction line, representing the part of the whole. For example, in the fraction
-    *   3/4, 3 is the numerator.
-    */
-  def incNumerator[A: Numeric](numerator: A): F[Unit] = update(Ior.Left(numerator))
-
-  /** @param denominator
-    *   The number below the fraction line, representing the total number of equal parts. For example, in the
-    *   fraction 3/4, 4 is the denominator.
-    */
-  def incDenominator[A: Numeric](denominator: A): F[Unit] = update(Ior.Right(denominator))
-
-  /** @param numerator
-    *   The number above the fraction line, representing the part of the whole. For example, in the fraction
-    *   3/4, 3 is the numerator.
-    * @param denominator
-    *   The number below the fraction line, representing the total number of equal parts. For example, in the
-    *   fraction 3/4, 4 is the denominator.
-    */
-  def incBoth[A: Numeric, B: Numeric](numerator: A, denominator: B): F[Unit] =
+  override def incNumerator[A: Numeric](numerator: A): F[Unit]     = update(Ior.Left(numerator))
+  override def incDenominator[A: Numeric](denominator: A): F[Unit] = update(Ior.Right(denominator))
+  override def incBoth[A: Numeric, B: Numeric](numerator: A, denominator: B): F[Unit] =
     update(Ior.Both(numerator, denominator))
 
-  def kleisli[A](f: A => Ior[Double, Double]): Kleisli[F, A, Unit] =
+  override def kleisli[A](f: A => Ior[Double, Double]): Kleisli[F, A, Unit] =
     Kleisli(update[Double, Double]).local(f)
 }
 
 object NJRatio {
 
-  final class Builder private[guard] (measurement: Measurement) {
+  final class Builder private[guard] (measurement: Measurement, isEnabled: Boolean) {
 
-    def withMeasurement(measurement: String): Builder = new Builder(Measurement(measurement))
+    def withMeasurement(measurement: String): Builder = new Builder(Measurement(measurement), isEnabled)
+
+    def enable(value: Boolean): Builder = new Builder(measurement, value)
 
     private[guard] def build[F[_]: Async](
       name: String,
@@ -63,7 +74,7 @@ object NJRatio {
 
       val F = Async[F]
 
-      for {
+      val impl: Resource[F, NJRatio[F]] = for {
         unique <- Resource.eval(F.unique)
         metricID = MetricID(metricName, Category.Gauge(GaugeKind.Ratio), unique.hash).identifier
         ref <- Resource.eval(F.ref(Ior.Left(0.0d): Ior[Double, Double]))
@@ -73,7 +84,7 @@ object NJRatio {
             metricID,
             () =>
               new Gauge[Json] {
-                private val calc: F[Option[Double]] = ref.get.map {
+                private[this] val calc: F[Option[Double]] = ref.get.map {
                   case Ior.Left(_)  => None
                   case Ior.Right(_) => Some(0.0)
                   case Ior.Both(a, b) =>
@@ -91,7 +102,17 @@ object NJRatio {
               }
           )
         })(_ => F.delay(metricRegistry.remove(metricID)).void)
-      } yield new NJRatio[F](ref)
+      } yield new NJRatioImpl[F](ref)
+
+      val dummy: Resource[F, NJRatio[F]] = Resource.pure(new NJRatio[F] {
+        override def incNumerator[A: Numeric](numerator: A): F[Unit]                        = F.unit
+        override def incDenominator[A: Numeric](denominator: A): F[Unit]                    = F.unit
+        override def incBoth[A: Numeric, B: Numeric](numerator: A, denominator: B): F[Unit] = F.unit
+        override def kleisli[A](f: A => Ior[Double, Double]): Kleisli[F, A, Unit] =
+          Kleisli((_: A) => F.unit)
+      })
+
+      if (isEnabled) impl else dummy
     }
   }
 }

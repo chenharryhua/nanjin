@@ -216,4 +216,47 @@ class MetricsTest extends AnyFunSuite {
       .drain
       .unsafeRunSync()
   }
+
+  test("17.disable") {
+    val mr = TaskGuard[IO]("nanjin")
+      .service("disable")
+      .eventStream { ag =>
+        val go = for {
+          _ <- ag.gauge("job", _.enable(false)).register(IO(1000000000))
+          _ <- ag.healthCheck("job", _.enable(false)).register(IO(true))
+          _ <- ag.timer("job", _.counted.enable(false)).evalMap(_.update(10.second).replicateA(100))
+          _ <- ag
+            .meter("job", _.withUnit(_.COUNT).counted.enable(false))
+            .evalMap(_.update(10000).replicateA(100))
+          _ <- ag.counter("job", _.asRisk.enable(false)).evalMap(_.inc(1000))
+          _ <- ag
+            .histogram("job", _.withUnit(_.BYTES).counted.enable(false))
+            .evalMap(_.update(10000L).replicateA(100))
+          _ <- ag.alert("job", _.counted.enable(false)).evalMap(_.error("alarm"))
+          _ <- ag.flowMeter("job", _.withUnit(_.KILOBITS).counted.enable(false)).evalMap(_.update(200000))
+          _ <- ag
+            .action("job", _.timed.counted.bipartite.enable(false))
+            .retry(IO(0))
+            .buildWith(identity)
+            .evalMap(_.run(()))
+          _ <- ag
+            .ratio("job", _.enable(false))
+            .evalMap(f => f.incDenominator(50) >> f.incNumerator(79.999) >> f.incBoth(20.0, 50))
+        } yield ()
+        go.surround(ag.metrics.report)
+      }
+      .evalTap(console.text[IO])
+      .mapFilter(metricReport)
+      .compile
+      .lastOrError
+      .unsafeRunSync()
+    val ss = mr.snapshot
+
+    assert(ss.gauges.isEmpty)
+    assert(ss.counters.isEmpty)
+    assert(ss.timers.isEmpty)
+    assert(ss.meters.isEmpty)
+    assert(ss.histograms.isEmpty)
+  }
+
 }

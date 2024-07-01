@@ -175,7 +175,7 @@ final private class ReTry[F[_]: Async, IN, OUT] private (
 }
 
 private object ReTry {
-  def apply[F[_]: Async, IN, OUT](
+  def apply[F[_], IN, OUT](
     metricRegistry: MetricRegistry,
     channel: Channel[F, NJEvent],
     actionParams: ActionParams,
@@ -183,7 +183,8 @@ private object ReTry {
     transInput: Reader[IN, Json],
     transOutput: Reader[(IN, OUT), Json],
     transError: Reader[(IN, Throwable), Json],
-    isWorthRetry: Reader[(IN, Throwable), Boolean]): Resource[F, Kleisli[F, IN, OUT]] = {
+    isWorthRetry: Reader[(IN, Throwable), Boolean])(implicit
+    F: Async[F]): Resource[F, Kleisli[F, IN, OUT]] = {
     def action_runner(token: Unique.Token): ReTry[F, IN, OUT] =
       new ReTry[F, IN, OUT](
         token = token,
@@ -198,6 +199,10 @@ private object ReTry {
         transError = transError,
         isWorthRetry = isWorthRetry
       )
-    Resource.make(Async[F].unique.map(action_runner))(_.unregister).map(_.kleisli)
+
+    if (actionParams.isEnabled)
+      Resource.make(F.unique.map(action_runner))(_.unregister).map(_.kleisli)
+    else
+      Resource.pure(arrow)
   }
 }
