@@ -49,7 +49,7 @@ object CategoryKind {
     case object Deadlocks extends GaugeKind("deadlocks", CategoryGroup.Deadlocks)
     case object Timed extends GaugeKind("elapsed", CategoryGroup.Timed)
     case object Instrument extends GaugeKind("instrument", CategoryGroup.Instrument)
-    case object Ratio extends GaugeKind("ratio(%)", CategoryGroup.Ratio)
+    case object Ratio extends GaugeKind("ratio", CategoryGroup.Ratio)
 
     case object Gauge extends GaugeKind("gauge", CategoryGroup.Gauge)
   }

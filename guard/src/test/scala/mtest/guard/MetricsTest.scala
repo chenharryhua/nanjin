@@ -241,7 +241,7 @@ class MetricsTest extends AnyFunSuite {
             .evalMap(_.run(()))
           _ <- ag
             .ratio("job", _.enable(false))
-            .evalMap(f => f.incDenominator(50) >> f.incNumerator(79.999) >> f.incBoth(20.0, 50))
+            .evalMap(f => f.incDenominator(50) >> f.incNumerator(79) >> f.incBoth(20, 50))
         } yield ()
         go.surround(ag.metrics.report)
       }

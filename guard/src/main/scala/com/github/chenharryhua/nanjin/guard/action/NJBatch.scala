@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.action
 import cats.Endo
+import cats.data.Ior
 import cats.effect.kernel.{Async, Resource, Unique}
 import cats.syntax.all.*
 import com.codahale.metrics.MetricRegistry
@@ -34,6 +35,19 @@ object BatchRunner {
         job.asJson.deepMerge(Json.obj(BatchIdTag -> token.hash.asJson))
       }
 
+    private[this] val translator: Ior[Long, Long] => Json = {
+      case Ior.Left(a)  => Json.fromString(s"$a/0")
+      case Ior.Right(b) => Json.fromString(s"0/$b")
+      case Ior.Both(a, b) =>
+        val expression = s"$a/$b"
+        if (b === 0) { Json.fromString(expression) }
+        else {
+          val rounded: Float =
+            BigDecimal(a * 100.0 / b).setScale(2, BigDecimal.RoundingMode.HALF_UP).toFloat
+          Json.fromString(s"$rounded% ($expression)")
+        }
+    }
+
     protected[this] val ratio: Resource[F, NJRatio[F]] =
       for {
         _ <- gaugeBuilder
@@ -44,6 +58,7 @@ object BatchRunner {
         rat <- ratioBuilder
           .enable(action.actionParams.isEnabled)
           .withMeasurement(action.actionParams.measurement.value)
+          .withTranslator(translator)
           .build(action.actionParams.actionName.value, metricRegistry, serviceParams)
       } yield rat
   }

@@ -33,7 +33,7 @@ class ConsoleLogTest extends AnyFunSuite {
           _ <- ag.action("job", _.timed.counted.bipartite).retry(IO(0)).buildWith(identity).evalMap(_.run(()))
           _ <- ag
             .ratio("job")
-            .evalMap(f => f.incDenominator(50) >> f.incNumerator(79.999) >> f.incBoth(20.0, 50))
+            .evalMap(f => f.incDenominator(500) >> f.incNumerator(60) >> f.incBoth(299, 500))
         } yield ()
         go.surround(ag.metrics.report)
       }

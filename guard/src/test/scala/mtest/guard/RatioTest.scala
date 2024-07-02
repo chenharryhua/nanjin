@@ -5,6 +5,7 @@ import cats.effect.unsafe.implicits.global
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.retrieveRatioGauge
+import io.circe.Json
 import org.scalatest.funsuite.AnyFunSuite
 
 class RatioTest extends AnyFunSuite {
@@ -12,7 +13,7 @@ class RatioTest extends AnyFunSuite {
 
   test("1. init") {
     val mr = service.eventStream { ga =>
-      ga.ratio("init").use(_ => ga.metrics.report)
+      ga.ratio("init", _.withTranslator(_ => Json.Null)).use(_ => ga.metrics.report)
     }.map(checkJson).mapFilter(metricReport).compile.lastOrError.unsafeRunSync()
 
     assert(retrieveRatioGauge(mr.snapshot.gauges).head._2.isEmpty)
