@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.action
 import cats.Endo
-import cats.effect.kernel.{Async, Resource, Unique}
+import cats.data.Ior
+import cats.effect.kernel.{Async, Resource}
 import cats.syntax.all.*
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
@@ -20,19 +21,29 @@ object BatchRunner {
   ) {
     protected[this] val F: Async[F] = Async[F]
 
-    private[this] val BatchIdTag: String = QuasiResult.BatchIdTag
-    private[this] val ResultTag: String  = "result"
-
     protected[this] val nullTransform: A => Json = _ => Json.Null
 
-    protected[this] def tap(f: A => Json): Endo[BuildWith.Builder[F, (BatchJob, Unique.Token, F[A]), A]] =
-      _.tapInput { case (job, token, _) =>
-        job.asJson.deepMerge(Json.obj(BatchIdTag -> token.hash.asJson))
-      }.tapOutput { case ((job, token, _), out) =>
-        job.asJson.deepMerge(Json.obj(BatchIdTag -> token.hash.asJson, ResultTag -> f(out)).dropNullValues)
-      }.tapError { case ((job, token, _), _) =>
-        job.asJson.deepMerge(Json.obj(BatchIdTag -> token.hash.asJson))
+    protected[this] def tap(f: A => Json): Endo[BuildWith.Builder[F, (BatchJob, F[A]), A]] =
+      _.tapInput { case (job, _) =>
+        job.asJson
+      }.tapOutput { case ((job, _), out) =>
+        job.asJson.deepMerge(Json.obj("result" -> f(out)))
+      }.tapError { case ((job, _), _) =>
+        job.asJson
       }
+
+    private[this] val translator: Ior[Long, Long] => Json = {
+      case Ior.Left(a)  => Json.fromString(s"$a/0")
+      case Ior.Right(b) => Json.fromString(s"0/$b")
+      case Ior.Both(a, b) =>
+        val expression = s"$a/$b"
+        if (b === 0) { Json.fromString(expression) }
+        else {
+          val rounded: Float =
+            BigDecimal(a * 100.0 / b).setScale(2, BigDecimal.RoundingMode.HALF_UP).toFloat
+          Json.fromString(s"$rounded% ($expression)")
+        }
+    }
 
     protected[this] val ratio: Resource[F, NJRatio[F]] =
       for {
@@ -44,6 +55,7 @@ object BatchRunner {
         rat <- ratioBuilder
           .enable(action.actionParams.isEnabled)
           .withMeasurement(action.actionParams.measurement.value)
+          .withTranslator(translator)
           .build(action.actionParams.actionName.value, metricRegistry, serviceParams)
       } yield rat
   }
@@ -63,17 +75,16 @@ object BatchRunner {
         BatchJob(BatchKind.Quasi, BatchMode.Parallel(parallelism), name, idx, jobs.size) -> fa
       }
       val exec: Resource[F, F[QuasiResult]] = for {
-        token <- Resource.eval(F.unique)
         rat <- ratio.evalTap(_.incDenominator(batchJobs.size.toLong))
-        act <- action.retry((_: BatchJob, _: Unique.Token, fa: F[A]) => fa).buildWith(tap(f))
+        act <- action.retry((_: BatchJob, fa: F[A]) => fa).buildWith(tap(f))
       } yield F
         .timed(F.parTraverseN(parallelism)(batchJobs) { case (job, fa) =>
-          F.timed(act.run((job, token, fa)).attempt)
+          F.timed(act.run((job, fa)).attempt)
             .map { case (fd, result) => Detail(job, fd.toJava, result.isRight) }
             .flatTap(_ => rat.incNumerator(1))
         })
         .map { case (fd, details) =>
-          QuasiResult(token, fd.toJava, BatchMode.Parallel(parallelism), details.sortBy(_.job.index))
+          QuasiResult(fd.toJava, BatchMode.Parallel(parallelism), details.sortBy(_.job.index))
         }
 
       exec.use(identity)
@@ -87,11 +98,10 @@ object BatchRunner {
       }
 
       val exec: Resource[F, F[List[A]]] = for {
-        token <- Resource.eval(F.unique)
         rat <- ratio.evalTap(_.incDenominator(batchJobs.size.toLong))
-        act <- action.retry((_: BatchJob, _: Unique.Token, fa: F[A]) => fa).buildWith(tap(f))
+        act <- action.retry((_: BatchJob, fa: F[A]) => fa).buildWith(tap(f))
       } yield F.parTraverseN(parallelism)(batchJobs) { case (job, fa) =>
-        act.run((job, token, fa)).flatTap(_ => rat.incNumerator(1))
+        act.run((job, fa)).flatTap(_ => rat.incNumerator(1))
       }
 
       exec.use(identity)
@@ -115,16 +125,14 @@ object BatchRunner {
       }
 
       val exec: Resource[F, F[QuasiResult]] = for {
-        token <- Resource.eval(F.unique)
         rat <- ratio.evalTap(_.incDenominator(batchJobs.size.toLong))
-        act <- action.retry((_: BatchJob, _: Unique.Token, fa: F[A]) => fa).buildWith(tap(f))
+        act <- action.retry((_: BatchJob, fa: F[A]) => fa).buildWith(tap(f))
       } yield batchJobs.traverse { case (job, fa) =>
-        F.timed(act.run((job, token, fa)).attempt)
+        F.timed(act.run((job, fa)).attempt)
           .map { case (fd, result) => Detail(job, fd.toJava, result.isRight) }
           .flatTap(_ => rat.incNumerator(1))
       }.map(details =>
         QuasiResult(
-          token = token,
           spent = details.map(_.took).foldLeft(Duration.ZERO)(_ plus _),
           mode = BatchMode.Sequential,
           details = details.sortBy(_.job.index)))
@@ -140,11 +148,10 @@ object BatchRunner {
       }
 
       val exec: Resource[F, F[List[A]]] = for {
-        token <- Resource.eval(F.unique)
         rat <- ratio.evalTap(_.incDenominator(batchJobs.size.toLong))
-        act <- action.retry((_: BatchJob, _: Unique.Token, fa: F[A]) => fa).buildWith(tap(f))
+        act <- action.retry((_: BatchJob, fa: F[A]) => fa).buildWith(tap(f))
       } yield batchJobs.traverse { case (job, fa) =>
-        act.run((job, token, fa)).flatTap(_ => rat.incNumerator(1))
+        act.run((job, fa)).flatTap(_ => rat.incNumerator(1))
       }
 
       exec.use(identity)

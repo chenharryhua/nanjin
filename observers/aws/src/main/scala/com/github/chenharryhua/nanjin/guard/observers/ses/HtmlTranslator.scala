@@ -123,11 +123,11 @@ private object HtmlTranslator extends all {
 
   private def action_start(evt: ActionStart): Text.TypedTag[String] = {
     val start = frag(
-      tr(th(CONSTANT_MEASUREMENT), th(CONSTANT_POLICY), th(CONSTANT_CONFIG)),
+      tr(th(CONSTANT_MEASUREMENT), th(CONSTANT_ACTION_ID), th(CONSTANT_POLICY)),
       tr(
         td(evt.actionParams.metricName.measurement),
-        td(evt.actionParams.retryPolicy.show),
-        td(evt.actionParams.configStr)
+        td(evt.actionID.uniqueToken),
+        td(evt.actionParams.retryPolicy.show)
       )
     )
     div(
@@ -139,11 +139,11 @@ private object HtmlTranslator extends all {
 
   private def action_retrying(evt: ActionRetry): Text.TypedTag[String] = {
     val retry = frag(
-      tr(th(CONSTANT_MEASUREMENT), th(CONSTANT_POLICY), th(CONSTANT_CONFIG)),
+      tr(th(CONSTANT_MEASUREMENT), th(CONSTANT_ACTION_ID), th(CONSTANT_POLICY)),
       tr(
         td(evt.actionParams.metricName.measurement),
-        td(evt.actionParams.retryPolicy.show),
-        td(evt.actionParams.configStr)
+        td(evt.actionID.uniqueToken),
+        td(evt.actionParams.retryPolicy.show)
       )
     )
     div(
@@ -158,13 +158,13 @@ private object HtmlTranslator extends all {
     val result = frag(
       tr(
         th(CONSTANT_MEASUREMENT),
-        th(CONSTANT_POLICY),
-        th(CONSTANT_CONFIG)
+        th(CONSTANT_ACTION_ID),
+        th(CONSTANT_POLICY)
       ),
       tr(
         td(evt.actionParams.metricName.measurement),
-        td(evt.actionParams.retryPolicy.show),
-        td(evt.actionParams.configStr)
+        td(evt.actionID.uniqueToken),
+        td(evt.actionParams.retryPolicy.show)
       )
     )
 
@@ -180,12 +180,12 @@ private object HtmlTranslator extends all {
     val result = frag(
       tr(
         td(b(CONSTANT_MEASUREMENT)),
-        td(b(CONSTANT_CONFIG)),
+        td(b(CONSTANT_ACTION_ID)),
         td(b(CONSTANT_TOOK))
       ),
       tr(
         td(evt.actionParams.metricName.measurement),
-        td(evt.actionParams.configStr),
+        td(evt.actionID.uniqueToken),
         td(tookText(evt.took))
       )
     )

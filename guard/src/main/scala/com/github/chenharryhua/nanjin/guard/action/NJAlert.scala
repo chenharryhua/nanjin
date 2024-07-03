@@ -31,11 +31,11 @@ private class NJAlertImpl[F[_]: Sync](
   private[this] val F = Sync[F]
 
   private[this] val error_counter_name: String =
-    MetricID(name, Category.Counter(CounterKind.AlertError), token.hash).identifier
+    MetricID(name, Category.Counter(CounterKind.AlertError), token).identifier
   private[this] val warn_counter_name: String =
-    MetricID(name, Category.Counter(CounterKind.AlertWarn), token.hash).identifier
+    MetricID(name, Category.Counter(CounterKind.AlertWarn), token).identifier
   private[this] val info_counter_name: String =
-    MetricID(name, Category.Counter(CounterKind.AlertInfo), token.hash).identifier
+    MetricID(name, Category.Counter(CounterKind.AlertInfo), token).identifier
 
   private[this] lazy val error_counter: Counter = metricRegistry.counter(error_counter_name)
   private[this] lazy val warn_counter: Counter  = metricRegistry.counter(warn_counter_name)

@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard.action
 
 import cats.data.Kleisli
 import cats.effect.kernel.{Resource, Sync, Unique}
-import cats.implicits.{catsSyntaxHash, toFunctorOps}
+import cats.implicits.toFunctorOps
 import com.codahale.metrics.*
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.config.CategoryKind.{CounterKind, TimerKind}
@@ -30,10 +30,10 @@ private class NJTimerImpl[F[_]: Sync](
   private[this] val F = Sync[F]
 
   private[this] val timer_name: String =
-    MetricID(name, Category.Timer(TimerKind.Timer), token.hash).identifier
+    MetricID(name, Category.Timer(TimerKind.Timer), token).identifier
 
   private[this] val counter_name: String =
-    MetricID(name, Category.Counter(CounterKind.Timer), token.hash).identifier
+    MetricID(name, Category.Counter(CounterKind.Timer), token).identifier
 
   private[this] val supplier: MetricRegistry.MetricSupplier[Timer] = () =>
     reservoir match {

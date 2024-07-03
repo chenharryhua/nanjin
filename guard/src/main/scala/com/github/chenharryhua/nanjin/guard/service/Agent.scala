@@ -103,7 +103,7 @@ final class GeneralAgent[F[_]: Async] private[service] (
 
   private object builders {
     lazy val ratio: NJRatio.Builder =
-      new NJRatio.Builder(measurement = measurement, isEnabled = true)
+      new NJRatio.Builder(measurement = measurement, translator = NJRatio.translator, isEnabled = true)
 
     lazy val gauge: NJGauge.Builder =
       new NJGauge.Builder(measurement = measurement, timeout = 5.seconds, isEnabled = true)

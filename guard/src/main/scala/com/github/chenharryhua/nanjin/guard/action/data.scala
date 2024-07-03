@@ -1,6 +1,5 @@
 package com.github.chenharryhua.nanjin.guard.action
 import cats.Show
-import cats.effect.kernel.Unique
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.translator.fmt
 import io.circe.syntax.EncoderOps
@@ -52,12 +51,10 @@ object BatchJob {
 }
 
 final case class Detail(job: BatchJob, took: Duration, done: Boolean)
-final case class QuasiResult(token: Unique.Token, spent: Duration, mode: BatchMode, details: List[Detail])
+final case class QuasiResult(spent: Duration, mode: BatchMode, details: List[Detail])
 object QuasiResult {
-  final val BatchIdTag: String = "id"
   implicit val encoderQuasiResult: Encoder[QuasiResult] = { (a: QuasiResult) =>
     Json.obj(
-      BatchIdTag -> a.token.hash.asJson,
       "mode" -> a.mode.asJson,
       "spent" -> fmt.format(a.spent).asJson,
       "details" -> a.details

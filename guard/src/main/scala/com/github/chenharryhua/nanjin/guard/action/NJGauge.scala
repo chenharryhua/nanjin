@@ -24,8 +24,8 @@ sealed trait NJGauge[F[_]] {
   def register[A: Encoder](value: F[A], policy: Policy, zoneId: ZoneId): Resource[F, Unit]
   def timed: Resource[F, Unit]
 
-  private[guard] def instrument[A: Encoder](value: F[A]): Resource[F, Unit]
-  private[guard] def instrument[A: Encoder](value: Eval[A]): Resource[F, Unit]
+  def instrument[A: Encoder](value: F[A]): Resource[F, Unit]
+  def instrument[A: Encoder](value: Eval[A]): Resource[F, Unit]
 }
 
 private class NJGaugeImpl[F[_]: Async](
@@ -58,18 +58,18 @@ private class NJGaugeImpl[F[_]: Async](
         .void
     }
 
-  override private[guard] def instrument[A: Encoder](value: F[A]): Resource[F, Unit] =
+  override def instrument[A: Encoder](value: F[A]): Resource[F, Unit] =
     Resource.eval(F.unique).flatMap { token =>
-      val metricID: MetricID = MetricID(name, Category.Gauge(GaugeKind.Instrument), token.hash)
+      val metricID: MetricID = MetricID(name, Category.Gauge(GaugeKind.Instrument), token)
       json_gauge(metricID, value)
     }
 
-  override private[guard] def instrument[A: Encoder](value: Eval[A]): Resource[F, Unit] =
+  override def instrument[A: Encoder](value: Eval[A]): Resource[F, Unit] =
     instrument(F.catchNonFatalEval(value))
 
   override val timed: Resource[F, Unit] =
     Resource.eval(F.unique).flatMap { token =>
-      val metricID: MetricID = MetricID(name, Category.Gauge(GaugeKind.Timed), token.hash)
+      val metricID: MetricID = MetricID(name, Category.Gauge(GaugeKind.Timed), token)
       Resource.eval(F.monotonic).flatMap { kickoff =>
         json_gauge(metricID, F.monotonic.map(elapse(kickoff, _)))
       }
@@ -77,7 +77,7 @@ private class NJGaugeImpl[F[_]: Async](
 
   override def register[A: Encoder](value: F[A]): Resource[F, Unit] =
     Resource.eval(F.unique).flatMap { token =>
-      val metricID: MetricID = MetricID(name, Category.Gauge(GaugeKind.Gauge), token.hash)
+      val metricID: MetricID = MetricID(name, Category.Gauge(GaugeKind.Gauge), token)
       json_gauge(metricID, value)
     }
 
@@ -118,9 +118,9 @@ object NJGauge {
             Resource.unit[F]
           override def timed: Resource[F, Unit] =
             Resource.unit[F]
-          override private[guard] def instrument[A: Encoder](value: F[A]): Resource[F, Unit] =
+          override def instrument[A: Encoder](value: F[A]): Resource[F, Unit] =
             Resource.unit[F]
-          override private[guard] def instrument[A: Encoder](value: Eval[A]): Resource[F, Unit] =
+          override def instrument[A: Encoder](value: Eval[A]): Resource[F, Unit] =
             Resource.unit[F]
         }
   }

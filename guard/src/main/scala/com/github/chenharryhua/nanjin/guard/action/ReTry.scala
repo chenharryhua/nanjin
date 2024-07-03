@@ -7,7 +7,7 @@ import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.common.chrono.TickStatus
 import com.github.chenharryhua.nanjin.guard.config.{ActionParams, PublishStrategy}
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.{ActionDone, ActionFail, ActionRetry, ActionStart}
-import com.github.chenharryhua.nanjin.guard.event.{NJError, NJEvent}
+import com.github.chenharryhua.nanjin.guard.event.{ActionID, NJError, NJEvent}
 import fs2.concurrent.Channel
 import io.circe.Json
 
@@ -44,11 +44,14 @@ final private class ReTry[F[_]: Async, IN, OUT] private (
 
   private[this] def execute(in: IN): F[Either[Throwable, OUT]] = arrow.run(in).attempt
 
+  private[this] val actionID: ActionID = ActionID(token)
+
   private[this] def send_failure(in: IN, ex: Throwable): F[Unit] =
     for {
       now <- F.realTime
       _ <- channel.send(
         ActionFail(
+          actionID = actionID,
           actionParams = actionParams,
           timestamp = to_zdt(now),
           error = NJError(ex),
@@ -58,7 +61,8 @@ final private class ReTry[F[_]: Async, IN, OUT] private (
   private[this] def succeeded(launchTime: FiniteDuration, in: IN, out: OUT): F[Either[TickStatus, OUT]] =
     for {
       now <- F.realTime
-      _ <- channel.send(ActionDone(actionParams, to_zdt(launchTime), to_zdt(now), output_json(in, out)))
+      _ <- channel.send(
+        ActionDone(actionID, actionParams, to_zdt(launchTime), to_zdt(now), output_json(in, out)))
     } yield {
       measure_done(now - launchTime)
       Right(out)
@@ -75,7 +79,7 @@ final private class ReTry[F[_]: Async, IN, OUT] private (
           case None => failed(in, ex) // run out of policy
           case Some(ts) =>
             for {
-              _ <- channel.send(ActionRetry(actionParams, NJError(ex), ts.tick))
+              _ <- channel.send(ActionRetry(actionID, actionParams, NJError(ex), ts.tick))
               _ <- F.sleep(ts.tick.snooze.toScala)
             } yield {
               measure_retry()
@@ -92,7 +96,7 @@ final private class ReTry[F[_]: Async, IN, OUT] private (
   private[this] def bipartite(in: IN): F[OUT] =
     F.realTime.flatMap { launchTime =>
       val go: F[OUT] =
-        channel.send(ActionStart(actionParams, to_zdt(launchTime), input_json(in))).flatMap { _ =>
+        channel.send(ActionStart(actionID, actionParams, to_zdt(launchTime), input_json(in))).flatMap { _ =>
           F.tailRecM(zerothTickStatus) { status =>
             execute(in).flatMap[Either[TickStatus, OUT]] {
               case Right(out) => succeeded(launchTime, in, out)

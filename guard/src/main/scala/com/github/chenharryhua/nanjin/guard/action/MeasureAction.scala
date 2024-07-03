@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.action
 
 import cats.effect.kernel.Unique
-import cats.implicits.catsSyntaxHash
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.config.CategoryKind.{CounterKind, TimerKind}
@@ -31,14 +30,14 @@ private object MeasureAction {
     val metricName: MetricName = actionParams.metricName
 
     val doneID: String =
-      MetricID(metricName, Category.Counter(CounterKind.ActionDone), token.hash).identifier
+      MetricID(metricName, Category.Counter(CounterKind.ActionDone), token).identifier
     val failID: String =
-      MetricID(metricName, Category.Counter(CounterKind.ActionFail), token.hash).identifier
+      MetricID(metricName, Category.Counter(CounterKind.ActionFail), token).identifier
     val retryID: String =
-      MetricID(metricName, Category.Counter(CounterKind.ActionRetry), token.hash).identifier
+      MetricID(metricName, Category.Counter(CounterKind.ActionRetry), token).identifier
 
     val doneTimerID: String =
-      MetricID(metricName, Category.Timer(TimerKind.Action), token.hash).identifier
+      MetricID(metricName, Category.Timer(TimerKind.Action), token).identifier
 
     (actionParams.isCounting, actionParams.isTiming) match {
       case (true, true) =>

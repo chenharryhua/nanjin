@@ -14,7 +14,7 @@ import org.scalatest.funsuite.AnyFunSuite
 class ConfigTest extends AnyFunSuite {
   val task: TaskGuard[IO] =
     TaskGuard[IO]("config")
-      .updateConfig(_.withZoneId(berlinTime))
+      .updateConfig(_.withZoneId(berlinTime).withPanicHistoryCapacity(1).withMetricHistoryCapacity(2))
       .updateConfig(_.withMetricReport(policies.crontab(_.hourly)))
 
   test("1.counting") {

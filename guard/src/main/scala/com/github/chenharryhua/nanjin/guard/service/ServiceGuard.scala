@@ -58,8 +58,10 @@ final class ServiceGuard[F[_]: Network] private[guard] (serviceName: ServiceName
       serviceParams <- Stream.eval(initStatus)
       signallingMapRef <- Stream.eval(SignallingMapRef.ofSingleImmutableMap[F, Unique.Token, Locker]())
       atomicCell <- Stream.eval(AtomicCell[F].of(Vault.empty))
-      panicHistory <- Stream.eval(AtomicCell[F].of(new CircularFifoQueue[ServicePanic]()))
-      metricsHistory <- Stream.eval(AtomicCell[F].of(new CircularFifoQueue[MetricReport]()))
+      panicHistory <- Stream.eval(
+        AtomicCell[F].of(new CircularFifoQueue[ServicePanic](serviceParams.historyCapacity.panic)))
+      metricsHistory <- Stream.eval(
+        AtomicCell[F].of(new CircularFifoQueue[MetricReport](serviceParams.historyCapacity.metric)))
       event <- Stream.eval(Channel.unbounded[F, NJEvent]).flatMap { channel =>
         val metricRegistry: MetricRegistry = new MetricRegistry()
 

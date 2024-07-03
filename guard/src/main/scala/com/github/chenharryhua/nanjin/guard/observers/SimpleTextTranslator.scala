@@ -31,7 +31,7 @@ object SimpleTextTranslator {
 
   private def action_event(ae: ActionEvent): String = {
     val mm  = s"$CONSTANT_MEASUREMENT:${ae.actionParams.metricName.measurement}"
-    val cfg = s"$CONSTANT_CONFIG:${ae.actionParams.configStr}"
+    val cfg = s"$CONSTANT_ACTION_ID:${ae.actionID.uniqueToken}"
 
     s"""  ${service_event(ae)}
        |  $mm, $cfg""".stripMargin

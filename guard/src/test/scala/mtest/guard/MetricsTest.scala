@@ -206,12 +206,16 @@ class MetricsTest extends AnyFunSuite {
     task
       .service("dup")
       .eventStream { ga =>
-        val jvm = ga.jvmGauge.classloader >> ga.jvmGauge.classloader
+        val jvm = ga.jvmGauge.classloader >>
+          ga.jvmGauge.classloader >>
+          ga.jvmGauge.heapMemory >>
+          ga.jvmGauge.heapMemory >>
+          ga.jvmGauge.heapMemory
         jvm.surround(ga.metrics.report)
       }
       .map(checkJson)
       .mapFilter(metricReport)
-      .evalTap(console.json[IO])
+      .evalTap(console.text[IO])
       .compile
       .drain
       .unsafeRunSync()
@@ -241,7 +245,7 @@ class MetricsTest extends AnyFunSuite {
             .evalMap(_.run(()))
           _ <- ag
             .ratio("job", _.enable(false))
-            .evalMap(f => f.incDenominator(50) >> f.incNumerator(79.999) >> f.incBoth(20.0, 50))
+            .evalMap(f => f.incDenominator(50) >> f.incNumerator(79) >> f.incBoth(20, 50))
         } yield ()
         go.surround(ag.metrics.report)
       }
