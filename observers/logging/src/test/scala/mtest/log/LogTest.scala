@@ -34,9 +34,7 @@ class LogTest extends AnyFunSuite {
             .retry(IO(0))
             .buildWith(identity)
             .evalMap(_.run(()).replicateA(100))
-          _ <- ag
-            .ratio("job")
-            .evalMap(f => f.incDenominator(50) >> f.incNumerator(79.99) >> f.incBoth(20.0, 50))
+          _ <- ag.ratio("job").evalMap(f => f.incDenominator(50) >> f.incNumerator(79) >> f.incBoth(20, 50))
         } yield ()
         go.surround(ag.metrics.report)
       }

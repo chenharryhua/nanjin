@@ -1,10 +1,12 @@
 package com.github.chenharryhua.nanjin.guard.event
 
-import cats.implicits.toFunctorOps
+import cats.Show
+import cats.effect.kernel.Unique
+import cats.implicits.{catsSyntaxHash, toFunctorOps}
 import com.github.chenharryhua.nanjin.common.chrono.Tick
-import io.circe.{Decoder, DecodingFailure, Encoder, Json}
 import io.circe.generic.JsonCodec
 import io.circe.syntax.EncoderOps
+import io.circe.{Decoder, DecodingFailure, Encoder, Json}
 import org.apache.commons.lang3.exception.ExceptionUtils
 
 import java.time.ZonedDateTime
@@ -64,4 +66,13 @@ object ServiceStopCause {
       }.widen,
       _.downField(BY_EXCEPTION).as[NJError].map(err => ByException(err)).widen
     ).reduceLeft(_ or _)
+}
+
+final case class ActionID(uniqueToken: Int) extends AnyVal
+object ActionID {
+  implicit val showActionID: Show[ActionID]       = _.uniqueToken.toString
+  implicit val encoderActionID: Encoder[ActionID] = Encoder.encodeInt.contramap(_.uniqueToken)
+  implicit val decoderActionID: Decoder[ActionID] = Decoder.decodeInt.map(ActionID(_))
+
+  def apply(token: Unique.Token): ActionID = ActionID(token.hash)
 }

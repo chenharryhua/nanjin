@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard.action
 
 import cats.data.Kleisli
 import cats.effect.kernel.{Resource, Sync, Unique}
-import cats.implicits.{catsSyntaxHash, toFunctorOps}
+import cats.implicits.toFunctorOps
 import com.codahale.metrics.*
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.config.CategoryKind.{CounterKind, HistogramKind, MeterKind}
@@ -28,13 +28,13 @@ private class NJFlowMeterImpl[F[_]: Sync](
   private[this] val F = Sync[F]
 
   private[this] val histogram_name: String =
-    MetricID(name, Category.Histogram(HistogramKind.FlowMeter, unit), token.hash).identifier
+    MetricID(name, Category.Histogram(HistogramKind.FlowMeter, unit), token).identifier
 
   private[this] val meter_name: String =
-    MetricID(name, Category.Meter(MeterKind.FlowMeter, unit), token.hash).identifier
+    MetricID(name, Category.Meter(MeterKind.FlowMeter, unit), token).identifier
 
   private[this] val counter_name: String =
-    MetricID(name, Category.Counter(CounterKind.FlowMeter), token.hash).identifier
+    MetricID(name, Category.Counter(CounterKind.FlowMeter), token).identifier
 
   private[this] val supplier: MetricRegistry.MetricSupplier[Histogram] = () =>
     reservoir match {

@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard.action
 
 import cats.data.Kleisli
 import cats.effect.kernel.{Resource, Sync, Unique}
-import cats.implicits.{catsSyntaxHash, toFunctorOps}
+import cats.implicits.toFunctorOps
 import com.codahale.metrics.{Counter, Meter, MetricRegistry}
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.config.CategoryKind.{CounterKind, MeterKind}
@@ -27,10 +27,10 @@ private class NJMeterImpl[F[_]: Sync](
   private[this] val F = Sync[F]
 
   private[this] val meter_name: String =
-    MetricID(name, Category.Meter(MeterKind.Meter, unit), token.hash).identifier
+    MetricID(name, Category.Meter(MeterKind.Meter, unit), token).identifier
 
   private[this] val counter_name: String =
-    MetricID(name, Category.Counter(CounterKind.Meter), token.hash).identifier
+    MetricID(name, Category.Counter(CounterKind.Meter), token).identifier
 
   private[this] lazy val meter: Meter     = metricRegistry.meter(meter_name)
   private[this] lazy val counter: Counter = metricRegistry.counter(counter_name)

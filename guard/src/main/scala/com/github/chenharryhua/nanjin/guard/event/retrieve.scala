@@ -45,11 +45,11 @@ object retrieveDeadlocks {
 }
 
 object retrieveRatioGauge {
-  def apply(gauges: List[Snapshot.Gauge]): Map[MetricID, Option[Double]] =
+  def apply(gauges: List[Snapshot.Gauge]): Map[MetricID, Json] =
     gauges.collect { gg =>
       gg.metricId.category match {
         case Category.Gauge(GaugeKind.Ratio) =>
-          gg.metricId -> gg.value.as[Option[Double]].toOption.flatten
+          gg.metricId -> gg.value
       }
     }.toMap
 }

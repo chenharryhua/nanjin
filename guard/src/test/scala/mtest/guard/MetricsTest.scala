@@ -206,12 +206,16 @@ class MetricsTest extends AnyFunSuite {
     task
       .service("dup")
       .eventStream { ga =>
-        val jvm = ga.jvmGauge.classloader >> ga.jvmGauge.classloader
+        val jvm = ga.jvmGauge.classloader >>
+          ga.jvmGauge.classloader >>
+          ga.jvmGauge.heapMemory >>
+          ga.jvmGauge.heapMemory >>
+          ga.jvmGauge.heapMemory
         jvm.surround(ga.metrics.report)
       }
       .map(checkJson)
       .mapFilter(metricReport)
-      .evalTap(console.json[IO])
+      .evalTap(console.text[IO])
       .compile
       .drain
       .unsafeRunSync()

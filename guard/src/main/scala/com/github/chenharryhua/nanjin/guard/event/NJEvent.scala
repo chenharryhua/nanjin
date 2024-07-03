@@ -61,14 +61,20 @@ object NJEvent {
       extends MetricEvent
 
   sealed trait ActionEvent extends NJEvent {
+    def actionID: ActionID
     def actionParams: ActionParams
     final override def serviceParams: ServiceParams = actionParams.serviceParams
   }
 
-  final case class ActionStart(actionParams: ActionParams, timestamp: ZonedDateTime, notes: Json)
+  final case class ActionStart(
+    actionID: ActionID,
+    actionParams: ActionParams,
+    timestamp: ZonedDateTime,
+    notes: Json)
       extends ActionEvent
 
-  final case class ActionRetry(actionParams: ActionParams, error: NJError, tick: Tick) extends ActionEvent {
+  final case class ActionRetry(actionID: ActionID, actionParams: ActionParams, error: NJError, tick: Tick)
+      extends ActionEvent {
     override val timestamp: ZonedDateTime = tick.zonedAcquire
   }
 
@@ -78,6 +84,7 @@ object NJEvent {
   }
 
   final case class ActionFail(
+    actionID: ActionID,
     actionParams: ActionParams,
     timestamp: ZonedDateTime, // land time
     error: NJError,
@@ -87,6 +94,7 @@ object NJEvent {
   }
 
   final case class ActionDone(
+    actionID: ActionID,
     actionParams: ActionParams,
     launchTime: ZonedDateTime,
     timestamp: ZonedDateTime, // land time

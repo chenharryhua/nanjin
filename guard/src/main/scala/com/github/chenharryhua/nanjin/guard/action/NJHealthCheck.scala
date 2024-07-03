@@ -34,7 +34,7 @@ private class NJHealthCheckImpl[F[_]: Async](
   override def register(hc: F[Boolean]): Resource[F, Unit] =
     Dispatcher.sequential[F].flatMap { dispatcher =>
       Resource.eval(F.unique).flatMap { token =>
-        val metricID: MetricID = MetricID(name, Category.Gauge(GaugeKind.HealthCheck), token.hash)
+        val metricID: MetricID = MetricID(name, Category.Gauge(GaugeKind.HealthCheck), token)
         Resource
           .make(F.delay {
             metricRegistry.gauge(

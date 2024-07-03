@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard.action
 
 import cats.data.Kleisli
 import cats.effect.kernel.{Resource, Sync, Unique}
-import cats.implicits.{catsSyntaxHash, toFunctorOps}
+import cats.implicits.toFunctorOps
 import com.codahale.metrics.{Counter, MetricRegistry}
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.config.CategoryKind.CounterKind
@@ -28,10 +28,10 @@ private class NJCounterImpl[F[_]: Sync](
 
   private[this] lazy val (counter_name: String, counter: Counter) =
     if (isRisk) {
-      val id = MetricID(name, Category.Counter(CounterKind.Risk), token.hash).identifier
+      val id = MetricID(name, Category.Counter(CounterKind.Risk), token).identifier
       (id, metricRegistry.counter(id))
     } else {
-      val id = MetricID(name, Category.Counter(CounterKind.Counter), token.hash).identifier
+      val id = MetricID(name, Category.Counter(CounterKind.Counter), token).identifier
       (id, metricRegistry.counter(id))
     }
 

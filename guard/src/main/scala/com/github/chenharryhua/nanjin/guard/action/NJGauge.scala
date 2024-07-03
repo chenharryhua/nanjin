@@ -60,7 +60,7 @@ private class NJGaugeImpl[F[_]: Async](
 
   override def instrument[A: Encoder](value: F[A]): Resource[F, Unit] =
     Resource.eval(F.unique).flatMap { token =>
-      val metricID: MetricID = MetricID(name, Category.Gauge(GaugeKind.Instrument), token.hash)
+      val metricID: MetricID = MetricID(name, Category.Gauge(GaugeKind.Instrument), token)
       json_gauge(metricID, value)
     }
 
@@ -69,7 +69,7 @@ private class NJGaugeImpl[F[_]: Async](
 
   override val timed: Resource[F, Unit] =
     Resource.eval(F.unique).flatMap { token =>
-      val metricID: MetricID = MetricID(name, Category.Gauge(GaugeKind.Timed), token.hash)
+      val metricID: MetricID = MetricID(name, Category.Gauge(GaugeKind.Timed), token)
       Resource.eval(F.monotonic).flatMap { kickoff =>
         json_gauge(metricID, F.monotonic.map(elapse(kickoff, _)))
       }
@@ -77,7 +77,7 @@ private class NJGaugeImpl[F[_]: Async](
 
   override def register[A: Encoder](value: F[A]): Resource[F, Unit] =
     Resource.eval(F.unique).flatMap { token =>
-      val metricID: MetricID = MetricID(name, Category.Gauge(GaugeKind.Gauge), token.hash)
+      val metricID: MetricID = MetricID(name, Category.Gauge(GaugeKind.Gauge), token)
       json_gauge(metricID, value)
     }
 

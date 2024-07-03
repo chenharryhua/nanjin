@@ -20,6 +20,8 @@ import scala.jdk.DurationConverters.ScalaDurationOps
 
 @JsonCodec
 final case class ServicePolicies(restart: Policy, metricReport: Policy, metricReset: Policy)
+@JsonCodec
+final case class HistoryCapacity(metric: Int, panic: Int)
 
 @JsonCodec
 final case class EmberServerParams(
@@ -50,6 +52,7 @@ final case class ServiceParams(
   emberServerParams: Option[EmberServerParams],
   threshold: Option[Duration],
   zerothTick: Tick,
+  historyCapacity: HistoryCapacity,
   brief: Json
 ) {
   val zoneId: ZoneId  = zerothTick.zoneId
@@ -87,6 +90,7 @@ object ServiceParams {
       emberServerParams = emberServerParams,
       threshold = None,
       zerothTick = zerothTick,
+      historyCapacity = HistoryCapacity(32, 32),
       brief = brief.value
     )
 }
@@ -105,6 +109,9 @@ private object ServiceConfigF {
 
   final case class WithHostName[K](value: HostName, cont: K) extends ServiceConfigF[K]
   final case class WithHomePage[K](value: Option[HomePage], cont: K) extends ServiceConfigF[K]
+
+  final case class WithMetricCapacity[K](value: Int, cont: K) extends ServiceConfigF[K]
+  final case class WithPanicCapacity[K](value: Int, cont: K) extends ServiceConfigF[K]
 
   def algebra(
     serviceName: ServiceName,
@@ -127,6 +134,9 @@ private object ServiceConfigF {
       case WithMetricResetPolicy(v, c)  => c.focus(_.servicePolicies.metricReset).replace(v)
       case WithHostName(v, c)           => c.focus(_.hostName).replace(v)
       case WithHomePage(v, c)           => c.focus(_.homePage).replace(v)
+
+      case WithMetricCapacity(v, c) => c.focus(_.historyCapacity.metric).replace(v)
+      case WithPanicCapacity(v, c)  => c.focus(_.historyCapacity.panic).replace(v)
     }
 }
 
@@ -171,6 +181,11 @@ final case class ServiceConfig[F[_]: Applicative](
     copy(httpBuilder = Some(f))
   def disableHttpServer: ServiceConfig[F] =
     copy(httpBuilder = None)
+
+  def withPanicHistoryCapacity(value: Int): ServiceConfig[F] =
+    copy(cont = Fix(WithPanicCapacity(value, cont)))
+  def withMetricHistoryCapacity(value: Int): ServiceConfig[F] =
+    copy(cont = Fix(WithMetricCapacity(value, cont)))
 
   def addBrief[A: Encoder](fa: F[A]): ServiceConfig[F] = copy(briefs = (fa, briefs).mapN(_.asJson :: _))
   def addBrief[A: Encoder](a: => A): ServiceConfig[F]  = addBrief(a.pure[F])

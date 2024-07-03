@@ -1,5 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.config
 
+import cats.effect.kernel.Unique
+import cats.implicits.catsSyntaxHash
 import com.github.chenharryhua.nanjin.guard.event.MeasurementUnit
 import enumeratum.values.{IntCirceEnum, IntEnum, IntEnumEntry}
 import enumeratum.{CirceEnum, Enum, EnumEntry}
@@ -147,4 +149,9 @@ object MetricName {
 @JsonCodec
 final case class MetricID(metricName: MetricName, category: Category, uniqueToken: Int) {
   val identifier: String = Encoder[MetricID].apply(this).noSpaces
+}
+
+object MetricID {
+  def apply(metricName: MetricName, category: Category, token: Unique.Token): MetricID =
+    MetricID(metricName, category, token.hash)
 }

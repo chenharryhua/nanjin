@@ -38,7 +38,7 @@ abstract class JvmGauge[F[_]] private[service] (metricRegistry: MetricRegistry)(
   val classloader: Resource[F, Unit] = {
     val name: MetricName = MetricName("classloader", "00001", measurement)
     Resource.eval(F.unique).flatMap { token =>
-      val metricID: MetricID = MetricID(name, Category.Gauge(GaugeKind.Instrument), token.hash)
+      val metricID: MetricID = MetricID(name, Category.Gauge(GaugeKind.Instrument), token)
 
       json_gauge(metricID, mxBeans.classloader)
     }
@@ -47,7 +47,7 @@ abstract class JvmGauge[F[_]] private[service] (metricRegistry: MetricRegistry)(
   val deadlocks: Resource[F, Unit] = {
     val name: MetricName = MetricName("deadlocks", "00002", measurement)
     Resource.eval(F.unique).flatMap { token =>
-      val metricID: MetricID = MetricID(name, Category.Gauge(GaugeKind.Deadlocks), token.hash)
+      val metricID: MetricID = MetricID(name, Category.Gauge(GaugeKind.Deadlocks), token)
 
       json_gauge(metricID, mxBeans.deadlocks)
     }
@@ -56,7 +56,7 @@ abstract class JvmGauge[F[_]] private[service] (metricRegistry: MetricRegistry)(
   val garbageCollectors: Resource[F, Unit] = {
     val name: MetricName = MetricName("garbage_collectors", "00003", measurement)
     Resource.eval(F.unique).flatMap { token =>
-      val metricID: MetricID = MetricID(name, Category.Gauge(GaugeKind.Instrument), token.hash)
+      val metricID: MetricID = MetricID(name, Category.Gauge(GaugeKind.Instrument), token)
 
       json_gauge(metricID, mxBeans.garbageCollectors)
     }
@@ -65,7 +65,7 @@ abstract class JvmGauge[F[_]] private[service] (metricRegistry: MetricRegistry)(
   val heapMemory: Resource[F, Unit] = {
     val name: MetricName = MetricName("heap_memory", "00004", measurement)
     Resource.eval(F.unique).flatMap { token =>
-      val metricID: MetricID = MetricID(name, Category.Gauge(GaugeKind.Instrument), token.hash)
+      val metricID: MetricID = MetricID(name, Category.Gauge(GaugeKind.Instrument), token)
 
       json_gauge(metricID, mxBeans.heapMemory)
     }
@@ -74,7 +74,7 @@ abstract class JvmGauge[F[_]] private[service] (metricRegistry: MetricRegistry)(
   val nonHeapMemory: Resource[F, Unit] = {
     val name: MetricName = MetricName("non_heap_memory", "00005", measurement)
     Resource.eval(F.unique).flatMap { token =>
-      val metricID: MetricID = MetricID(name, Category.Gauge(GaugeKind.Instrument), token.hash)
+      val metricID: MetricID = MetricID(name, Category.Gauge(GaugeKind.Instrument), token)
 
       json_gauge(metricID, mxBeans.nonHeapMemory)
     }
@@ -83,7 +83,7 @@ abstract class JvmGauge[F[_]] private[service] (metricRegistry: MetricRegistry)(
   val threadState: Resource[F, Unit] = {
     val name: MetricName = MetricName("thread_state", "00006", measurement)
     Resource.eval(F.unique).flatMap { token =>
-      val metricID: MetricID = MetricID(name, Category.Gauge(GaugeKind.Instrument), token.hash)
+      val metricID: MetricID = MetricID(name, Category.Gauge(GaugeKind.Instrument), token)
 
       json_gauge(metricID, mxBeans.threadState)
     }
