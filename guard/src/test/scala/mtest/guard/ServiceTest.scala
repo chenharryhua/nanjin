@@ -347,11 +347,16 @@ class ServiceTest extends AnyFunSuite {
       .drain
       .unsafeRunSync()
   }
-  test("14. java exception") {
+
+  test("14.throw exception in construction") {
     val List(a, b) = guard
       .service("simple")
       .updateConfig(_.withRestartPolicy(policies.giveUp))
-      .eventStream(_ => IO.raiseError[Int](new Exception))
+      .eventStream { _ =>
+        val c        = true
+        val err: Int = if (c) throw new Exception else 1
+        IO.println(err)
+      }
       .map(checkJson)
       .debug()
       .compile
