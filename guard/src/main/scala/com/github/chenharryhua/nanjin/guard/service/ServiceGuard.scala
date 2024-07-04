@@ -136,7 +136,7 @@ final class ServiceGuard[F[_]: Network] private[guard] (serviceName: ServiceName
             channel = channel,
             serviceParams = serviceParams,
             panicHistory = panicHistory,
-            theService = runAgent(agent)
+            theService = F.defer(runAgent(agent))
           ).stream
 
         // put together

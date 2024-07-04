@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.spark
 
 import cats.Endo
-import cats.effect.kernel.Async
+import cats.effect.kernel.{Async, Sync}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameL}
@@ -183,22 +183,28 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
 
     private val ate: AvroTypedEncoder[CRMetaInfo] = AvroTypedEncoder[CRMetaInfo]
 
-    def avro(path: NJPath): Statistics =
-      new Statistics(
-        sparkSession.read.format("avro").schema(ate.sparkSchema).load(path.pathStr).as[CRMetaInfo]
-      )
+    def avro(path: NJPath)(implicit F: Sync[F]): F[Statistics] =
+      F.blocking {
+        new Statistics(
+          sparkSession.read.format("avro").schema(ate.sparkSchema).load(path.pathStr).as[CRMetaInfo]
+        )
+      }
 
-    def jackson(path: NJPath): Statistics =
-      new Statistics(
-        sparkSession.read.schema(ate.sparkSchema).json(path.pathStr).as[CRMetaInfo]
-      )
+    def jackson(path: NJPath)(implicit F: Sync[F]): F[Statistics] =
+      F.blocking {
+        new Statistics(
+          sparkSession.read.schema(ate.sparkSchema).json(path.pathStr).as[CRMetaInfo]
+        )
+      }
 
-    def circe(path: NJPath): Statistics =
+    def circe(path: NJPath)(implicit F: Sync[F]): F[Statistics] =
       jackson(path)
 
-    def parquet(path: NJPath): Statistics =
-      new Statistics(
-        sparkSession.read.schema(ate.sparkSchema).parquet(path.pathStr).as[CRMetaInfo]
-      )
+    def parquet(path: NJPath)(implicit F: Sync[F]): F[Statistics] =
+      F.blocking {
+        new Statistics(
+          sparkSession.read.schema(ate.sparkSchema).parquet(path.pathStr).as[CRMetaInfo]
+        )
+      }
   }
 }
