@@ -1,16 +1,14 @@
 package com.github.chenharryhua.nanjin.guard.service
 
 import cats.Endo
-import cats.effect.kernel.{Async, Resource, Sync, Unique}
-import cats.effect.std.AtomicCell
+import cats.effect.kernel.{Async, Resource}
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.common.chrono.*
 import com.github.chenharryhua.nanjin.guard.action.*
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.event.*
 import fs2.Stream
-import fs2.concurrent.{Channel, SignallingMapRef}
-import org.typelevel.vault.{Key, Locker, Vault}
+import fs2.concurrent.Channel
 
 import java.time.{Instant, ZoneId, ZonedDateTime}
 import scala.concurrent.duration.DurationInt
@@ -68,16 +66,12 @@ sealed trait Agent[F[_]] {
   def ticks(policy: Policy): Stream[F, Tick]
 }
 
-final class GeneralAgent[F[_]: Async] private[service] (
+final private class GeneralAgent[F[_]: Async] private[service] (
   serviceParams: ServiceParams,
   metricRegistry: MetricRegistry,
   channel: Channel[F, NJEvent],
-  signallingMapRef: SignallingMapRef[F, Unique.Token, Option[Locker]],
-  atomicCell: AtomicCell[F, Vault],
   measurement: Measurement)
     extends Agent[F] {
-
-  private val F = Sync[F]
 
   // data time
   override val zonedNow: F[ZonedDateTime] = serviceParams.zonedNow[F]
@@ -86,13 +80,7 @@ final class GeneralAgent[F[_]: Async] private[service] (
   override def toZonedDateTime(ts: Instant): ZonedDateTime = serviceParams.toZonedDateTime(ts)
 
   override def withMeasurement(name: String): Agent[F] =
-    new GeneralAgent[F](
-      serviceParams,
-      metricRegistry,
-      channel,
-      signallingMapRef,
-      atomicCell,
-      Measurement(name))
+    new GeneralAgent[F](serviceParams, metricRegistry, channel, Measurement(name))
 
   override def action(actionName: String, f: Endo[ActionConfig]): NJAction[F] =
     new NJAction[F](
@@ -186,17 +174,4 @@ final class GeneralAgent[F[_]: Async] private[service] (
   override object jvmGauge extends JvmGauge[F](metricRegistry)
 
   override object metrics extends NJMetrics[F](channel, serviceParams, metricRegistry)
-
-  // general agent section, not in Agent API
-
-  def signalBox[A](initValue: F[A]): NJSignalBox[F, A] = {
-    val token = new Unique.Token
-    val key   = new Key[A](token)
-    new NJSignalBox[F, A](signallingMapRef(token), key, initValue)
-  }
-  def signalBox[A](initValue: => A): NJSignalBox[F, A] = signalBox(F.delay(initValue))
-
-  def atomicBox[A](initValue: F[A]): NJAtomicBox[F, A] =
-    new NJAtomicBox[F, A](atomicCell, new Key[A](new Unique.Token), initValue)
-  def atomicBox[A](initValue: => A): NJAtomicBox[F, A] = atomicBox[A](F.delay(initValue))
 }

@@ -253,7 +253,6 @@ lazy val guard = (project in file("guard"))
       "org.apache.commons"                  % "commons-collections4" % "4.4",
       "io.dropwizard.metrics"               % "metrics-core"         % metricsV,
       "io.dropwizard.metrics"               % "metrics-jmx"          % metricsV,
-      "org.typelevel" %% "vault"            % "3.6.0",
       "com.lihaoyi" %% "scalatags"          % "0.13.1",
       "org.http4s" %% "http4s-core"         % http4sV,
       "org.http4s" %% "http4s-dsl"          % http4sV,

@@ -1,6 +1,7 @@
 package mtest.guard
 
 import cats.effect.IO
+import cats.effect.std.AtomicCell
 import cats.effect.unsafe.implicits.global
 import cats.implicits.toShow
 import com.github.chenharryhua.nanjin.common.chrono.zones.londonTime
@@ -301,24 +302,28 @@ class ServiceTest extends AnyFunSuite {
 
     val policy: Policy = policies.fixedDelay(1.seconds, 2.seconds, 3.seconds, 4.seconds, 5.seconds)
     println(policy)
-    val List(a, b, c) = guard
-      .service("threshold")
-      .updateConfig(_.withRestartPolicy(policy))
-      .updateConfig(_.withRestartThreshold(2.seconds))
-      .eventStream { ga =>
-        val box = ga.atomicBox(0.seconds)
-        box.getAndUpdate(_ + 1.second).flatMap(IO.sleep) >>
-          IO.raiseError[Int](new Exception("oops"))
-      }
-      .map(checkJson)
-      .evalMapFilter[IO, Tick] {
-        case sp: ServicePanic => IO(Some(sp.tick))
-        case _                => IO(None)
-      }
-      .take(3)
-      .compile
-      .toList
-      .unsafeRunSync()
+    val List(a, b, c) =
+      fs2.Stream
+        .eval(AtomicCell[IO].of(0.seconds))
+        .flatMap { box =>
+          guard
+            .service("threshold")
+            .updateConfig(_.withRestartPolicy(policy))
+            .updateConfig(_.withRestartThreshold(2.seconds))
+            .eventStream { _ =>
+              box.getAndUpdate(_ + 1.second).flatMap(IO.sleep) >>
+                IO.raiseError[Int](new Exception("oops"))
+            }
+            .map(checkJson)
+            .evalMapFilter[IO, Tick] {
+              case sp: ServicePanic => IO(Some(sp.tick))
+              case _                => IO(None)
+            }
+        }
+        .take(3)
+        .compile
+        .toList
+        .unsafeRunSync()
 
     assert(a.index == 1)
     assert(b.index == 2)
