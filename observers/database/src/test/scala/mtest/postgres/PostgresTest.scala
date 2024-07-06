@@ -2,6 +2,7 @@ package mtest.postgres
 
 import cats.effect.IO
 import cats.effect.kernel.Resource
+import cats.effect.std.AtomicCell
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.chrono.policies
 import com.github.chenharryhua.nanjin.guard.TaskGuard
@@ -17,29 +18,30 @@ import scala.concurrent.duration.*
 class PostgresTest extends AnyFunSuite {
 
   val service: fs2.Stream[IO, NJEvent] =
-    TaskGuard[IO]("nanjin")
-      .service("observing")
-      .updateConfig(_.withRestartPolicy(policies.fixedRate(1.second)))
-      .eventStream { ag =>
-        val box = ag.atomicBox(1)
-        val job =
-          box.getAndUpdate(_ + 1).map(_ % 12 == 0).ifM(IO(1), IO.raiseError[Int](new Exception("oops")))
-        val env = for {
-          meter <- ag.meter("meter", _.withUnit(_.COUNT).counted)
-          action <- ag
-            .action(
-              "nj_error",
-              _.critical.bipartite.timed.counted.policy(policies.fixedRate(1.second).limited(3)))
-            .retry(job)
-            .buildWith(identity)
-          counter <- ag.counter("nj counter", _.asRisk)
-          histogram <- ag.histogram("nj histogram", _.withUnit(_.SECONDS).counted)
-          alert <- ag.alert("nj alert")
-          _ <- ag.gauge("nj gauge").register(box.get)
-        } yield meter.update(1) >> action.run(()) >> counter.inc(1) >>
-          histogram.update(1) >> alert.info(1) >> ag.metrics.report
-        env.use(identity)
-      }
+    fs2.Stream.eval(AtomicCell[IO].of(1)).flatMap { box =>
+      TaskGuard[IO]("nanjin")
+        .service("observing")
+        .updateConfig(_.withRestartPolicy(policies.fixedRate(1.second)))
+        .eventStream { ag =>
+          val job =
+            box.getAndUpdate(_ + 1).map(_ % 12 == 0).ifM(IO(1), IO.raiseError[Int](new Exception("oops")))
+          val env = for {
+            meter <- ag.meter("meter", _.withUnit(_.COUNT).counted)
+            action <- ag
+              .action(
+                "nj_error",
+                _.critical.bipartite.timed.counted.policy(policies.fixedRate(1.second).limited(3)))
+              .retry(job)
+              .buildWith(identity)
+            counter <- ag.counter("nj counter", _.asRisk)
+            histogram <- ag.histogram("nj histogram", _.withUnit(_.SECONDS).counted)
+            alert <- ag.alert("nj alert")
+            _ <- ag.gauge("nj gauge").register(box.get)
+          } yield meter.update(1) >> action.run(()) >> counter.inc(1) >>
+            histogram.update(1) >> alert.info(1) >> ag.metrics.report
+          env.use(identity)
+        }
+    }
 
   test("postgres") {
     import natchez.Trace.Implicits.noop

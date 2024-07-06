@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.service
 
 import cats.Endo
-import cats.effect.kernel.{Async, Unique}
+import cats.effect.kernel.Async
 import cats.effect.std.AtomicCell
 import cats.syntax.all.*
 import com.codahale.metrics.MetricRegistry
@@ -13,12 +13,11 @@ import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.event.*
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.{MetricReport, ServicePanic}
 import fs2.Stream
-import fs2.concurrent.{Channel, SignallingMapRef}
+import fs2.concurrent.Channel
 import fs2.io.net.Network
 import io.circe.syntax.*
 import org.apache.commons.collections4.queue.CircularFifoQueue
 import org.http4s.ember.server.EmberServerBuilder
-import org.typelevel.vault.{Locker, Vault}
 
 
 // format: off
@@ -53,11 +52,9 @@ final class ServiceGuard[F[_]: Network] private[guard] (serviceName: ServiceName
     zerothTick = zeroth
   )
 
-  def eventStream[A](runAgent: GeneralAgent[F] => F[A]): Stream[F, NJEvent] =
+  def eventStream[A](runAgent: Agent[F] => F[A]): Stream[F, NJEvent] =
     for {
       serviceParams <- Stream.eval(initStatus)
-      signallingMapRef <- Stream.eval(SignallingMapRef.ofSingleImmutableMap[F, Unique.Token, Locker]())
-      atomicCell <- Stream.eval(AtomicCell[F].of(Vault.empty))
       panicHistory <- Stream.eval(
         AtomicCell[F].of(new CircularFifoQueue[ServicePanic](serviceParams.historyCapacity.panic)))
       metricsHistory <- Stream.eval(
@@ -126,8 +123,6 @@ final class ServiceGuard[F[_]: Network] private[guard] (serviceName: ServiceName
             serviceParams = serviceParams,
             metricRegistry = metricRegistry,
             channel = channel,
-            signallingMapRef = signallingMapRef,
-            atomicCell = atomicCell,
             measurement = Measurement(serviceParams.serviceName.value)
           )
 
@@ -136,7 +131,7 @@ final class ServiceGuard[F[_]: Network] private[guard] (serviceName: ServiceName
             channel = channel,
             serviceParams = serviceParams,
             panicHistory = panicHistory,
-            theService = runAgent(agent)
+            theService = F.defer(runAgent(agent))
           ).stream
 
         // put together

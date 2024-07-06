@@ -110,7 +110,7 @@ class BatchTest extends AnyFunSuite {
     }.map(checkJson).evalTap(console.text[IO]).compile.drain.unsafeRunSync()
   }
 
-  test("batch mode") {
+  test("7.batch mode") {
     val j1 = service
       .eventStream(
         _.batch("parallel-1", _.bipartite)
@@ -135,7 +135,7 @@ class BatchTest extends AnyFunSuite {
     (j1 >> j2).unsafeRunSync()
   }
 
-  test("worth retry") {
+  test("8.worth retry") {
     case object Unworthy extends Exception("do.not.retry")
     val a1 = IO.raiseError[Int](Unworthy)
     val a2 = IO.raiseError[Int](new Exception())

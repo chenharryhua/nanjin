@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.action
 
 import cats.data.{Kleisli, Reader}
+import cats.effect.implicits.monadCancelOps_
 import cats.effect.kernel.{Async, Resource, Unique}
 import cats.syntax.all.*
 import com.codahale.metrics.MetricRegistry
@@ -95,71 +96,59 @@ final private class ReTry[F[_]: Async, IN, OUT] private (
 
   private[this] def bipartite(in: IN): F[OUT] =
     F.realTime.flatMap { launchTime =>
-      val go: F[OUT] =
-        channel.send(ActionStart(actionID, actionParams, to_zdt(launchTime), input_json(in))).flatMap { _ =>
-          F.tailRecM(zerothTickStatus) { status =>
-            execute(in).flatMap[Either[TickStatus, OUT]] {
-              case Right(out) => succeeded(launchTime, in, out)
-              case Left(ex)   => retrying(in, ex, status)
-            }
-          }
-        }
-      F.onCancel(go, F.defer(send_failure(in, ActionCancelException)))
-    }
-
-  private[this] def unipartite(in: IN): F[OUT] =
-    F.realTime.flatMap { launchTime =>
-      val go: F[OUT] =
+      channel.send(ActionStart(actionID, actionParams, to_zdt(launchTime), input_json(in))).flatMap { _ =>
         F.tailRecM(zerothTickStatus) { status =>
           execute(in).flatMap[Either[TickStatus, OUT]] {
             case Right(out) => succeeded(launchTime, in, out)
             case Left(ex)   => retrying(in, ex, status)
           }
         }
-      F.onCancel(go, F.defer(send_failure(in, ActionCancelException)))
-    }
+      }
+    }.onCancel(send_failure(in, ActionCancelException))
+
+  private[this] def unipartite(in: IN): F[OUT] =
+    F.realTime.flatMap { launchTime =>
+      F.tailRecM(zerothTickStatus) { status =>
+        execute(in).flatMap[Either[TickStatus, OUT]] {
+          case Right(out) => succeeded(launchTime, in, out)
+          case Left(ex)   => retrying(in, ex, status)
+        }
+      }
+    }.onCancel(send_failure(in, ActionCancelException))
 
   private[this] def silent_time(in: IN): F[OUT] =
     F.monotonic.flatMap { launchTime => // faster than F.timed
-      val go: F[OUT] =
-        F.tailRecM(zerothTickStatus) { status =>
-          execute(in).flatMap[Either[TickStatus, OUT]] {
-            case Right(out) =>
-              F.monotonic.map { now =>
-                measure_done(now - launchTime)
-                Right(out)
-              }
-            case Left(ex) =>
-              retrying(in, ex, status)
-          }
-        }
-      F.onCancel(go, F.defer(send_failure(in, ActionCancelException)))
-    }
-
-  private[this] def silent_count(in: IN): F[OUT] = {
-    val go: F[OUT] =
       F.tailRecM(zerothTickStatus) { status =>
         execute(in).flatMap[Either[TickStatus, OUT]] {
           case Right(out) =>
-            measure_done(ScalaDuration.Zero)
-            F.pure(Right(out))
+            F.monotonic.map { now =>
+              measure_done(now - launchTime)
+              Right(out)
+            }
           case Left(ex) =>
             retrying(in, ex, status)
         }
       }
-    F.onCancel(go, F.defer(send_failure(in, ActionCancelException)))
-  }
+    }.onCancel(send_failure(in, ActionCancelException))
 
-  private[this] def silent(in: IN): F[OUT] = {
-    val go: F[OUT] =
-      F.tailRecM(zerothTickStatus) { status =>
-        execute(in).flatMap[Either[TickStatus, OUT]] {
-          case Right(out) => F.pure(Right(out))
-          case Left(ex)   => retrying(in, ex, status)
-        }
+  private[this] def silent_count(in: IN): F[OUT] =
+    F.tailRecM(zerothTickStatus) { status =>
+      execute(in).flatMap[Either[TickStatus, OUT]] {
+        case Right(out) =>
+          measure_done(ScalaDuration.Zero)
+          F.pure(Right(out))
+        case Left(ex) =>
+          retrying(in, ex, status)
       }
-    F.onCancel(go, F.defer(send_failure(in, ActionCancelException)))
-  }
+    }.onCancel(send_failure(in, ActionCancelException))
+
+  private[this] def silent(in: IN): F[OUT] =
+    F.tailRecM(zerothTickStatus) { status =>
+      execute(in).flatMap[Either[TickStatus, OUT]] {
+        case Right(out) => F.pure(Right(out))
+        case Left(ex)   => retrying(in, ex, status)
+      }
+    }.onCancel(send_failure(in, ActionCancelException))
 
   val kleisli: Kleisli[F, IN, OUT] = {
     val choose: IN => F[OUT] =

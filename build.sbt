@@ -15,7 +15,7 @@ val fs2KafkaV   = "3.5.1"
 val avroV       = "1.11.3"
 val parquetV    = "1.14.1"
 val circeV      = "0.14.9"
-val jacksonV    = "2.17.1"
+val jacksonV    = "2.17.2"
 val kantanV     = "0.7.0"
 val metricsV    = "4.2.26"
 val skunkV      = "0.6.4"
@@ -253,7 +253,6 @@ lazy val guard = (project in file("guard"))
       "org.apache.commons"                  % "commons-collections4" % "4.4",
       "io.dropwizard.metrics"               % "metrics-core"         % metricsV,
       "io.dropwizard.metrics"               % "metrics-jmx"          % metricsV,
-      "org.typelevel" %% "vault"            % "3.6.0",
       "com.lihaoyi" %% "scalatags"          % "0.13.1",
       "org.http4s" %% "http4s-core"         % http4sV,
       "org.http4s" %% "http4s-dsl"          % http4sV,
