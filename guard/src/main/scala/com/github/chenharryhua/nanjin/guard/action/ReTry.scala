@@ -1,8 +1,8 @@
 package com.github.chenharryhua.nanjin.guard.action
 
 import cats.data.{Kleisli, Reader}
-import cats.effect.implicits.monadCancelOps
-import cats.effect.kernel.{Async, Outcome, Resource, Unique}
+import cats.effect.implicits.monadCancelOps_
+import cats.effect.kernel.{Async, Poll, Resource, Unique}
 import cats.syntax.all.*
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.common.chrono.TickStatus
@@ -58,11 +58,11 @@ final private class ReTry[F[_]: Async, IN, OUT] private (
     } yield measure_fail()
 
   private[this] def send_success(launchTime: FiniteDuration, in: IN, out: OUT): F[Unit] =
-    for {
-      now <- F.realTime
-      _ <- channel.send(
-        ActionDone(actionID, actionParams, to_zdt(launchTime), to_zdt(now), output_json(in, out)))
-    } yield measure_done(now - launchTime)
+    F.realTime.flatMap { now =>
+      channel
+        .send(ActionDone(actionID, actionParams, to_zdt(launchTime), to_zdt(now), output_json(in, out)))
+        .map(_ => measure_done(now - launchTime))
+    }
 
   private[this] def retrying(in: IN, ex: Throwable, status: TickStatus): F[Either[TickStatus, OUT]] =
     if (isWorthRetry.run((in, ex))) {
@@ -84,59 +84,45 @@ final private class ReTry[F[_]: Async, IN, OUT] private (
       F.raiseError[Either[TickStatus, OUT]](ex) // unworthy to retry
     }
 
-  private[this] def execute(in: IN): F[OUT] =
+  private[this] def execute(in: IN, onSuccess: OUT => F[Unit])(poll: Poll[F]): F[OUT] =
     F.tailRecM(zerothTickStatus) { status =>
-      arrow.run(in).attempt.flatMap[Either[TickStatus, OUT]] {
-        case Right(out) => F.pure(Right(out))
-        case Left(ex)   => retrying(in, ex, status)
+      poll(arrow.run(in)).attempt.flatMap[Either[TickStatus, OUT]] {
+        case Right(out) => onSuccess(out).as(Right(out))
+        case Left(ex)   => poll(retrying(in, ex, status))
       }
-    }
+    }.onCancel(send_failure(in, ActionCancelException))
+      .onError(send_failure(in, _))
 
   // static functions
 
   private[this] def bipartite(in: IN): F[OUT] =
-    F.realTime.flatMap { launchTime =>
-      channel
-        .send(ActionStart(actionID, actionParams, to_zdt(launchTime), input_json(in)))
-        .flatMap(_ => execute(in))
-        .guaranteeCase {
-          case Outcome.Succeeded(fa) => fa.flatMap(send_success(launchTime, in, _))
-          case Outcome.Errored(ex)   => send_failure(in, ex)
-          case Outcome.Canceled()    => send_failure(in, ActionCancelException)
-        }
+    F.uncancelable { poll =>
+      F.realTime.flatMap { launchTime => // start and complete should come in pair
+        channel
+          .send(ActionStart(actionID, actionParams, to_zdt(launchTime), input_json(in)))
+          .flatMap(_ => execute(in, send_success(launchTime, in, _))(poll))
+      }
     }
 
   private[this] def unipartite(in: IN): F[OUT] =
-    F.realTime.flatMap { launchTime =>
-      execute(in).guaranteeCase {
-        case Outcome.Succeeded(fa) => fa.flatMap(send_success(launchTime, in, _))
-        case Outcome.Errored(ex)   => send_failure(in, ex)
-        case Outcome.Canceled()    => send_failure(in, ActionCancelException)
+    F.uncancelable { poll =>
+      F.realTime.flatMap { launchTime =>
+        execute(in, send_success(launchTime, in, _))(poll)
       }
     }
 
   private[this] def silent_time(in: IN): F[OUT] =
-    F.monotonic.flatMap { launchTime => // faster than F.timed
-      execute(in).guaranteeCase {
-        case Outcome.Succeeded(_) => F.monotonic.map(now => measure_done(now - launchTime))
-        case Outcome.Errored(ex)  => send_failure(in, ex)
-        case Outcome.Canceled()   => send_failure(in, ActionCancelException)
+    F.uncancelable { poll =>
+      F.monotonic.flatMap { launchTime => // faster than F.timed
+        execute(in, _ => F.monotonic.map(now => measure_done(now - launchTime)))(poll)
       }
     }
 
   private[this] def silent_count(in: IN): F[OUT] =
-    execute(in).guaranteeCase {
-      case Outcome.Succeeded(fa) => fa.map(_ => measure_done(Duration.Zero))
-      case Outcome.Errored(ex)   => send_failure(in, ex)
-      case Outcome.Canceled()    => send_failure(in, ActionCancelException)
-    }
+    F.uncancelable(execute(in, _ => F.delay(measure_done(Duration.Zero))))
 
   private[this] def silent(in: IN): F[OUT] =
-    execute(in).guaranteeCase {
-      case Outcome.Succeeded(_) => F.unit
-      case Outcome.Errored(ex)  => send_failure(in, ex)
-      case Outcome.Canceled()   => send_failure(in, ActionCancelException)
-    }
+    F.uncancelable(poll => execute(in, _ => F.unit)(poll))
 
   val kleisli: Kleisli[F, IN, OUT] = {
     val choose: IN => F[OUT] =
