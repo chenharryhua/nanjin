@@ -1,8 +1,9 @@
 package com.github.chenharryhua.nanjin.guard.action
 
 import cats.data.Kleisli
+import cats.effect.implicits.clockOps
 import cats.effect.kernel.{Resource, Sync, Unique}
-import cats.implicits.toFunctorOps
+import cats.implicits.{toFlatMapOps, toFunctorOps}
 import com.codahale.metrics.*
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.config.CategoryKind.{CounterKind, TimerKind}
@@ -14,6 +15,8 @@ import scala.jdk.DurationConverters.ScalaDurationOps
 sealed trait NJTimer[F[_]] {
   def update(fd: FiniteDuration): F[Unit]
   def unsafeUpdate(fd: FiniteDuration): Unit
+
+  def timing[A](fa: F[A]): F[A]
 
   final def kleisli[A](f: A => FiniteDuration): Kleisli[F, A, Unit] =
     Kleisli(update).local(f)
@@ -51,6 +54,9 @@ private class NJTimerImpl[F[_]: Sync](
     } else (duration: Duration) => timer.update(duration)
 
   override def update(fd: FiniteDuration): F[Unit] = F.delay(calculate(fd.toJava))
+
+  override def timing[A](fa: F[A]): F[A] =
+    fa.timed.flatMap { case (fd, a) => update(fd).as(a) }
 
   override def unsafeUpdate(fd: FiniteDuration): Unit = calculate(fd.toJava)
 
@@ -97,6 +103,8 @@ object NJTimer {
         Resource.pure(new NJTimer[F] {
           override def update(fd: FiniteDuration): F[Unit]    = F.unit
           override def unsafeUpdate(fd: FiniteDuration): Unit = ()
+
+          override def timing[A](fa: F[A]): F[A] = fa
         })
   }
 }

@@ -4,7 +4,7 @@ import cats.effect.kernel.{Async, Ref, Resource}
 import cats.syntax.all.*
 import fs2.Stream
 import org.http4s.client.Client
-import org.http4s.Request
+import org.http4s.{Request, Status}
 
 /** @tparam A
   *   Implementation class
@@ -42,7 +42,14 @@ trait Login[F[_], A] {
     } yield Client[F] { req =>
       for {
         token <- Resource.eval(authToken.get)
-        out <- client.run(withToken(token, req))
+        out <- client.run(withToken(token, req)).flatMap { response =>
+          if (response.status === Status.Unauthorized) {
+            Resource
+              .eval(getToken) // retrieve token in case token was expired
+              .evalTap(authToken.set) // update cache if success
+              .flatMap(tkn => client.run(withToken(tkn, req))) // re-run the request using new token
+          } else Resource.pure(response)
+        }
       } yield out
     }
 }
