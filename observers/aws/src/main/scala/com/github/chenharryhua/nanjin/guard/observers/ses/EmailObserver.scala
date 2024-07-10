@@ -138,9 +138,11 @@ final private class EmailFinalizeMonitor[F[_]: Clock: Monad, A](
 
   val terminated: F[Chunk[A]] = for {
     ts <- Clock[F].realTimeInstant
-    stopEvents <- ref.get.map(m =>
-      m.values.toVector.map(ss =>
-        ServiceStop(ss.serviceParams, ss.serviceParams.toZonedDateTime(ts), ServiceStopCause.ByCancellation)))
+    stopEvents <- ref.get.map { m =>
+      m.values.toVector.map { ss =>
+        ServiceStop(ss.serviceParams, ss.serviceParams.toZonedDateTime(ts), ServiceStopCause.ByCancellation)
+      }
+    }
     msg <- buff.get.flatMap(events => Chunk.from(events ++ stopEvents).traverseFilter(translate))
   } yield msg
 }

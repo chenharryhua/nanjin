@@ -29,47 +29,46 @@ final class RefreshableToken[F[_]] private (
     expires_in: Long, // in seconds
     refresh_token: String)
 
-  override def loginR(client: Client[F])(implicit F: Async[F]): Resource[F, Client[F]] = {
+  override def loginR(client: Client[F])(implicit F: Async[F]): Resource[F, Client[F]] =
+    authClient.flatMap { authenticationClient =>
+      val auth_uri: Uri = auth_endpoint.withPath(path"oauth/token")
 
-    val auth_uri: Uri = auth_endpoint.withPath(path"oauth/token")
-
-    val get_token: F[Token] =
-      UUIDGen[F].randomUUID.flatMap { uuid =>
-        authClient.use(
-          _.expect[Token](
+      val get_token: F[Token] =
+        UUIDGen[F].randomUUID.flatMap { uuid =>
+          authenticationClient.expect[Token](
             POST(
               UrlForm(
                 "grant_type" -> "client_credentials",
                 "client_id" -> client_id,
                 "client_secret" -> client_secret),
-              auth_uri).putHeaders(`Idempotency-Key`(show"$uuid"))))
-      }
+              auth_uri).putHeaders(`Idempotency-Key`(show"$uuid")))
+        }
 
-    def refresh_token(pre: Token): F[Token] =
-      UUIDGen[F].randomUUID.flatMap { uuid =>
-        authClient.use(
-          _.expect[Token](
-            POST(
-              UrlForm(
-                "grant_type" -> "refresh_token",
-                "refresh_token" -> pre.refresh_token,
-                "client_id" -> client_id,
-                "client_secret" -> client_secret),
-              auth_uri).putHeaders(`Idempotency-Key`(show"$uuid"))))
-      }
+      def refresh_token(pre: Token): F[Token] =
+        UUIDGen[F].randomUUID.flatMap { uuid =>
+          authClient.use(
+            _.expect[Token](
+              POST(
+                UrlForm(
+                  "grant_type" -> "refresh_token",
+                  "refresh_token" -> pre.refresh_token,
+                  "client_id" -> client_id,
+                  "client_secret" -> client_secret),
+                auth_uri).putHeaders(`Idempotency-Key`(show"$uuid"))))
+        }
 
-    def update_token(ref: Ref[F, Token]): F[Unit] =
-      for {
-        oldToken <- ref.get
-        newToken <- refresh_token(oldToken).delayBy(oldToken.expires_in.seconds)
-        _ <- ref.set(newToken)
-      } yield ()
+      def update_token(ref: Ref[F, Token]): F[Unit] =
+        for {
+          oldToken <- ref.get
+          newToken <- refresh_token(oldToken).delayBy(oldToken.expires_in.seconds)
+          _ <- ref.set(newToken)
+        } yield ()
 
-    def with_token(token: Token, req: Request[F]): Request[F] =
-      req.putHeaders(Authorization(Credentials.Token(CIString(token.token_type), token.access_token)))
+      def with_token(token: Token, req: Request[F]): Request[F] =
+        req.putHeaders(Authorization(Credentials.Token(CIString(token.token_type), token.access_token)))
 
-    loginInternal(client, get_token, update_token, with_token)
-  }
+      loginInternal(client, get_token, update_token, with_token)
+    }
 }
 
 object RefreshableToken {

@@ -38,34 +38,35 @@ object adobe {
       expires_in: Long, // in milliseconds
       access_token: String)
 
-    override def loginR(client: Client[F])(implicit F: Async[F]): Resource[F, Client[F]] = {
-      val get_token: F[Token] =
-        UUIDGen[F].randomUUID.flatMap { uuid =>
-          authClient.use(
-            _.expect[Token](POST(
-              UrlForm(
-                "grant_type" -> "authorization_code",
-                "client_id" -> client_id,
-                "client_secret" -> client_secret,
-                "code" -> client_code),
-              auth_endpoint.withPath(path"/ims/token/v1")
-            ).putHeaders(`Idempotency-Key`(show"$uuid"))))
-        }
+    override def loginR(client: Client[F])(implicit F: Async[F]): Resource[F, Client[F]] =
+      authClient.flatMap { authenticationClient =>
+        val get_token: F[Token] =
+          UUIDGen[F].randomUUID.flatMap { uuid =>
+            authenticationClient.expect[Token](
+              POST(
+                UrlForm(
+                  "grant_type" -> "authorization_code",
+                  "client_id" -> client_id,
+                  "client_secret" -> client_secret,
+                  "code" -> client_code),
+                auth_endpoint.withPath(path"/ims/token/v1")
+              ).putHeaders(`Idempotency-Key`(show"$uuid")))
+          }
 
-      def update_token(ref: Ref[F, Token]): F[Unit] =
-        for {
-          oldToken <- ref.get
-          newToken <- get_token.delayBy(oldToken.expires_in.millisecond)
-          _ <- ref.set(newToken)
-        } yield ()
+        def update_token(ref: Ref[F, Token]): F[Unit] =
+          for {
+            oldToken <- ref.get
+            newToken <- get_token.delayBy(oldToken.expires_in.millisecond)
+            _ <- ref.set(newToken)
+          } yield ()
 
-      def with_token(token: Token, req: Request[F]): Request[F] =
-        req.putHeaders(
-          Authorization(Credentials.Token(CIString(token.token_type), token.access_token)),
-          "x-api-key" -> client_id)
+        def with_token(token: Token, req: Request[F]): Request[F] =
+          req.putHeaders(
+            Authorization(Credentials.Token(CIString(token.token_type), token.access_token)),
+            "x-api-key" -> client_id)
 
-      loginInternal(client, get_token, update_token, with_token)
-    }
+        loginInternal(client, get_token, update_token, with_token)
+      }
   }
 
   object IMS {
@@ -100,51 +101,51 @@ object adobe {
       expires_in: Long, // in milliseconds
       access_token: String)
 
-    override def loginR(client: Client[F])(implicit F: Async[F]): Resource[F, Client[F]] = {
-      val audience: String = auth_endpoint.withPath(path"c" / Segment(client_id)).renderString
-      val claims: java.util.Map[String, AnyRef] = metascopes.map { ms =>
-        auth_endpoint.withPath(path"s" / Segment(ms.entryName)).renderString -> (TRUE: AnyRef)
-      }.toList.toMap.asJava
+    override def loginR(client: Client[F])(implicit F: Async[F]): Resource[F, Client[F]] =
+      authClient.flatMap { authenticationClient =>
+        val audience: String = auth_endpoint.withPath(path"c" / Segment(client_id)).renderString
+        val claims: java.util.Map[String, AnyRef] = metascopes.map { ms =>
+          auth_endpoint.withPath(path"s" / Segment(ms.entryName)).renderString -> (TRUE: AnyRef)
+        }.toList.toMap.asJava
 
-      def getToken(expiresIn: FiniteDuration): F[Token] =
-        UUIDGen[F].randomUUID.flatMap { uuid =>
-          F.realTimeInstant.map { ts =>
-            Jwts
-              .builder()
-              .subject(technical_account_key)
-              .issuer(ims_org_id)
-              .expiration(Date.from(ts.plusSeconds(expiresIn.toSeconds)))
-              .claims(claims)
-              .signWith(private_key, Jwts.SIG.RS256)
-              .audience()
-              .add(audience)
-              .and()
-              .compact()
-          }.flatMap(jwt =>
-            authClient.use(
-              _.expect[Token](
+        def getToken(expiresIn: FiniteDuration): F[Token] =
+          UUIDGen[F].randomUUID.flatMap { uuid =>
+            F.realTimeInstant.map { ts =>
+              Jwts
+                .builder()
+                .subject(technical_account_key)
+                .issuer(ims_org_id)
+                .expiration(Date.from(ts.plusSeconds(expiresIn.toSeconds)))
+                .claims(claims)
+                .signWith(private_key, Jwts.SIG.RS256)
+                .audience()
+                .add(audience)
+                .and()
+                .compact()
+            }.flatMap(jwt =>
+              authenticationClient.expect[Token](
                 POST(
                   UrlForm("client_id" -> client_id, "client_secret" -> client_secret, "jwt_token" -> jwt),
                   auth_endpoint.withPath(path"/ims/exchange/jwt")
-                ).putHeaders(`Idempotency-Key`(show"$uuid")))))
-        }
+                ).putHeaders(`Idempotency-Key`(show"$uuid"))))
+          }
 
-      def updateToken(ref: Ref[F, Token]): F[Unit] =
-        for {
-          oldToken <- ref.get
-          expiresIn = oldToken.expires_in.millisecond
-          newToken <- getToken(expiresIn).delayBy(expiresIn)
-          _ <- ref.set(newToken)
-        } yield ()
+        def updateToken(ref: Ref[F, Token]): F[Unit] =
+          for {
+            oldToken <- ref.get
+            expiresIn = oldToken.expires_in.millisecond
+            newToken <- getToken(expiresIn).delayBy(expiresIn)
+            _ <- ref.set(newToken)
+          } yield ()
 
-      def withToken(token: Token, req: Request[F]): Request[F] =
-        req.putHeaders(
-          Authorization(Credentials.Token(CIString(token.token_type), token.access_token)),
-          "x-gw-ims-org-id" -> ims_org_id,
-          "x-api-key" -> client_id)
+        def withToken(token: Token, req: Request[F]): Request[F] =
+          req.putHeaders(
+            Authorization(Credentials.Token(CIString(token.token_type), token.access_token)),
+            "x-gw-ims-org-id" -> ims_org_id,
+            "x-api-key" -> client_id)
 
-      loginInternal(client, getToken(12.hours), updateToken, withToken)
-    }
+        loginInternal(client, getToken(12.hours), updateToken, withToken)
+      }
   }
 
   object JWT {

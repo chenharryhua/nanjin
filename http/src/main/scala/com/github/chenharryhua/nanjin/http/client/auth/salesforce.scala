@@ -21,7 +21,9 @@ object salesforce {
   // ??? https://developer.salesforce.com/docs/atlas.en-us.mc-app-development.meta/mc-app-development/authorization-code.htm
 
   sealed private trait InstanceURL
+
   private case object Rest extends InstanceURL
+
   private case object Soap extends InstanceURL
 
   final class MarketingCloud[F[_]] private (
@@ -40,11 +42,11 @@ object salesforce {
       soap_instance_url: String,
       rest_instance_url: String)
 
-    override def loginR(client: Client[F])(implicit F: Async[F]): Resource[F, Client[F]] = {
-      val get_token: F[Token] =
-        UUIDGen[F].randomUUID.flatMap { uuid =>
-          authClient.use(
-            _.expect[Token](
+    override def loginR(client: Client[F])(implicit F: Async[F]): Resource[F, Client[F]] =
+      authClient.flatMap { authenticationClient =>
+        val get_token: F[Token] =
+          UUIDGen[F].randomUUID.flatMap { uuid =>
+            authenticationClient.expect[Token](
               POST(
                 UrlForm(
                   "grant_type" -> "client_credentials",
@@ -52,28 +54,28 @@ object salesforce {
                   "client_secret" -> client_secret
                 ),
                 auth_endpoint.withPath(path"/v2/token")
-              ).putHeaders(`Idempotency-Key`(show"$uuid"))))
+              ).putHeaders(`Idempotency-Key`(show"$uuid")))
+          }
+
+        def update_token(ref: Ref[F, Token]): F[Unit] =
+          for {
+            oldToken <- ref.get
+            newToken <- get_token.delayBy(oldToken.expires_in.seconds)
+            _ <- ref.set(newToken)
+          } yield ()
+
+        def with_token(token: Token, req: Request[F]): Request[F] = {
+          val iu: Uri = instanceURL match {
+            case Rest => Uri.unsafeFromString(token.rest_instance_url).withPath(req.pathInfo)
+            case Soap => Uri.unsafeFromString(token.soap_instance_url).withPath(req.pathInfo)
+          }
+          req
+            .withUri(iu)
+            .putHeaders(Authorization(Credentials.Token(CIString(token.token_type), token.access_token)))
         }
 
-      def update_token(ref: Ref[F, Token]): F[Unit] =
-        for {
-          oldToken <- ref.get
-          newToken <- get_token.delayBy(oldToken.expires_in.seconds)
-          _ <- ref.set(newToken)
-        } yield ()
-
-      def with_token(token: Token, req: Request[F]): Request[F] = {
-        val iu: Uri = instanceURL match {
-          case Rest => Uri.unsafeFromString(token.rest_instance_url).withPath(req.pathInfo)
-          case Soap => Uri.unsafeFromString(token.soap_instance_url).withPath(req.pathInfo)
-        }
-        req
-          .withUri(iu)
-          .putHeaders(Authorization(Credentials.Token(CIString(token.token_type), token.access_token)))
+        loginInternal(client, get_token, update_token, with_token)
       }
-
-      loginInternal(client, get_token, update_token, with_token)
-    }
   }
 
   object MarketingCloud {
@@ -88,6 +90,7 @@ object salesforce {
         instanceURL = Rest,
         authClient = authClient
       )
+
     def soap[F[_]](authClient: Resource[F, Client[F]])(
       auth_endpoint: Uri,
       client_id: String,
@@ -120,32 +123,33 @@ object salesforce {
       issued_at: String,
       signature: String)
 
-    override def loginR(client: Client[F])(implicit F: Async[F]): Resource[F, Client[F]] = {
-      val get_token: F[Token] =
-        UUIDGen[F].randomUUID.flatMap { uuid =>
-          authClient.use(
-            _.expect[Token](POST(
-              UrlForm(
-                "grant_type" -> "password",
-                "client_id" -> client_id,
-                "client_secret" -> client_secret,
-                "username" -> username,
-                "password" -> password
-              ),
-              auth_endpoint.withPath(path"/services/oauth2/token")
-            ).putHeaders(`Idempotency-Key`(show"$uuid"))))
-        }
+    override def loginR(client: Client[F])(implicit F: Async[F]): Resource[F, Client[F]] =
+      authClient.flatMap { authenticationClient =>
+        val get_token: F[Token] =
+          UUIDGen[F].randomUUID.flatMap { uuid =>
+            authenticationClient.expect[Token](
+              POST(
+                UrlForm(
+                  "grant_type" -> "password",
+                  "client_id" -> client_id,
+                  "client_secret" -> client_secret,
+                  "username" -> username,
+                  "password" -> password
+                ),
+                auth_endpoint.withPath(path"/services/oauth2/token")
+              ).putHeaders(`Idempotency-Key`(show"$uuid")))
+          }
 
-      def update_token(ref: Ref[F, Token]): F[Unit] =
-        get_token.delayBy(expiresIn).flatMap(ref.set)
+        def update_token(ref: Ref[F, Token]): F[Unit] =
+          get_token.delayBy(expiresIn).flatMap(ref.set)
 
-      def with_token(token: Token, req: Request[F]): Request[F] =
-        req
-          .withUri(Uri.unsafeFromString(token.instance_url).withPath(req.pathInfo))
-          .putHeaders(Authorization(Credentials.Token(CIString(token.token_type), token.access_token)))
+        def with_token(token: Token, req: Request[F]): Request[F] =
+          req
+            .withUri(Uri.unsafeFromString(token.instance_url).withPath(req.pathInfo))
+            .putHeaders(Authorization(Credentials.Token(CIString(token.token_type), token.access_token)))
 
-      loginInternal(client, get_token, update_token, with_token)
-    }
+        loginInternal(client, get_token, update_token, with_token)
+      }
   }
 
   object Iot {
