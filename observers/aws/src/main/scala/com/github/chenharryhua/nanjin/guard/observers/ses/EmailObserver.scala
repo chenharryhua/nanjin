@@ -1,70 +1,82 @@
 package com.github.chenharryhua.nanjin.guard.observers.ses
 
+import cats.Endo
 import cats.data.NonEmptyList
-import cats.effect.kernel.{Async, Clock, Ref, Resource}
+import cats.effect.Temporal
+import cats.effect.kernel.{Ref, Resource}
+import cats.effect.std.UUIDGen
 import cats.syntax.all.*
-import cats.{Endo, Monad}
 import com.github.chenharryhua.nanjin.aws.*
 import com.github.chenharryhua.nanjin.common.aws.EmailContent
+import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick}
 import com.github.chenharryhua.nanjin.common.{ChunkSize, EmailAddr}
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.{ServiceStart, ServiceStop}
 import com.github.chenharryhua.nanjin.guard.event.{NJEvent, ServiceStopCause}
 import com.github.chenharryhua.nanjin.guard.translator.{ColorScheme, Translator, UpdateTranslator}
-import fs2.{Chunk, Pipe, Stream}
-import org.typelevel.cats.time.instances.all
+import fs2.{Chunk, Pipe, Pull, Stream}
 import scalatags.Text
 import scalatags.Text.all.*
 import squants.information.{Bytes, Information, Megabytes}
 
+import java.time.ZoneId
 import java.util.UUID
-import scala.concurrent.duration.{DurationInt, FiniteDuration}
+
+sealed trait EmailObserver[F[_]] extends UpdateTranslator[F, Text.TypedTag[String], EmailObserver[F]] {
+  def withOldestFirst: EmailObserver[F]
+  def observe(from: EmailAddr, to: NonEmptyList[EmailAddr], subject: String): Pipe[F, NJEvent, NJEvent]
+}
 
 object EmailObserver {
 
-  def apply[F[_]: Async](client: Resource[F, SimpleEmailService[F]]): EmailObserver[F] =
-    new EmailObserver[F](
+  /** @param client
+    *   Simple Email Service Client
+    * @param chunkSize
+    *   maximum number of events in an email
+    * @param policy
+    *   email publish policy
+    * @param zoneId
+    *   timezone of the service
+    */
+  def apply[F[_]: UUIDGen: Temporal](
+    client: Resource[F, SimpleEmailService[F]],
+    chunkSize: ChunkSize,
+    policy: Policy,
+    zoneId: ZoneId): EmailObserver[F] =
+    new EmailObserverImpl[F](
       client = client,
-      chunkSize = ChunkSize(180),
-      interval = 12.hours,
+      translator = HtmlTranslator[F],
       isNewestFirst = true,
-      translator = HtmlTranslator[F])
+      chunkSize = chunkSize,
+      policy = policy,
+      zoneId = zoneId
+    )
 }
 
-final class EmailObserver[F[_]] private (
+private class EmailObserverImpl[F[_]: UUIDGen](
   client: Resource[F, SimpleEmailService[F]],
-  chunkSize: ChunkSize, // number of events in an email
-  interval: FiniteDuration, // send out email every interval
-  isNewestFirst: Boolean, // the latest event comes first
-  translator: Translator[F, Text.TypedTag[String]])(implicit F: Async[F])
-    extends UpdateTranslator[F, Text.TypedTag[String], EmailObserver[F]] with all {
+  translator: Translator[F, Text.TypedTag[String]],
+  isNewestFirst: Boolean,
+  chunkSize: ChunkSize,
+  policy: Policy,
+  zoneId: ZoneId)(implicit F: Temporal[F])
+    extends EmailObserver[F] {
 
   private[this] def copy(
-    chunkSize: ChunkSize = chunkSize,
-    interval: FiniteDuration = interval,
     isNewestFirst: Boolean = isNewestFirst,
     translator: Translator[F, Text.TypedTag[String]] = translator): EmailObserver[F] =
-    new EmailObserver[F](client, chunkSize, interval, isNewestFirst, translator)
+    new EmailObserverImpl[F](client, translator, isNewestFirst, chunkSize, policy, zoneId)
 
-  def withInterval(fd: FiniteDuration): EmailObserver[F] = copy(interval = fd)
-
-  def withChunkSize(cs: ChunkSize): EmailObserver[F] = copy(chunkSize = cs)
-
-  def withOldestFirst: EmailObserver[F] = copy(isNewestFirst = false)
+  override def withOldestFirst: EmailObserver[F] = copy(isNewestFirst = false)
 
   override def updateTranslator(f: Endo[Translator[F, Text.TypedTag[String]]]): EmailObserver[F] =
     copy(translator = f(translator))
 
-  // aws ses maximum message size
-  private val maximumMessageSize: Information = Megabytes(10)
+  private def translate(evt: NJEvent): F[Option[ColoredTag]] =
+    translator.translate(evt).map(_.map(tag => ColoredTag(tag, ColorScheme.decorate(evt).eval.value)))
 
-  private def publish(
-    eventTags: Chunk[(Text.TypedTag[String], ColorScheme)],
-    ses: SimpleEmailService[F],
-    from: EmailAddr,
-    to: NonEmptyList[EmailAddr],
-    subject: String): F[Unit] = {
-    val (warns, errors) = eventTags.foldLeft((0, 0)) { case ((w, e), i) =>
-      i._2 match {
+  private def compose_letter(tags: Chunk[ColoredTag]): Letter = {
+    val (warns, errors) = tags.foldLeft((0, 0)) { case ((w, e), i) =>
+      i.color match {
         case ColorScheme.GoodColor  => (w, e)
         case ColorScheme.InfoColor  => (w, e)
         case ColorScheme.WarnColor  => (w + 1, e)
@@ -72,75 +84,112 @@ final class EmailObserver[F[_]] private (
       }
     }
 
-    val header: Text.TypedTag[String] = head(tag("style")("""
-        td, th {text-align: left; padding: 2px; border: 1px solid;}
-        table {
-          border-collapse: collapse;
-          width: 90%;
-        }
-      """))
-
     val notice: Text.TypedTag[String] =
       if ((warns + errors) > 0) h2(style := "color:red")(s"Pay Attention - $errors Errors, $warns Warnings")
       else h2("All Good")
 
-    val text: List[Text.TypedTag[String]] =
-      if (isNewestFirst) eventTags.map(tag => hr(tag._1)).toList.reverse
-      else eventTags.map(tag => hr(tag._1)).toList
-
-    val content: String = html(
-      header,
-      body(notice, text, footer(hr(p(b("Events/Max: "), s"${eventTags.size}/$chunkSize"))))).render
-
-    if (Bytes(content.length) < maximumMessageSize) {
-      ses.send(EmailContent(from, to, subject, content)).attempt.void
-    } else {
-      val text = p(
-        b(s"Message body size exceeds $maximumMessageSize, which contains ${eventTags.size} events."))
-      val msg = html(header, body(notice, text)).render
-      ses.send(EmailContent(from, to, subject, msg)).attempt.void
+    val content: List[Text.TypedTag[String]] = {
+      val lst = tags.map(tag => hr(tag.tag)).toList
+      if (isNewestFirst) lst.reverse else lst
     }
+
+    Letter(warns, errors, notice, content)
   }
 
-  private def translate(evt: NJEvent): F[Option[(Text.TypedTag[String], ColorScheme)]] =
-    translator.translate(evt).map(_.map(tags => (tags, ColorScheme.decorate(evt).eval.value)))
+  private def publish_one_email(
+    ses: SimpleEmailService[F],
+    from: EmailAddr,
+    to: NonEmptyList[EmailAddr],
+    subject: String)(data: Chunk[ColoredTag]): F[Unit] = {
+    // aws ses maximum message size
+    val maximumMessageSize: Information = Megabytes(10)
 
-  def observe(from: EmailAddr, to: NonEmptyList[EmailAddr], subject: String): Pipe[F, NJEvent, NJEvent] = {
+    val letter = compose_letter(data)
+
+    val content: String = letter.emailBody(chunkSize)
+
+    val email: EmailContent =
+      if (Bytes(content.length) < maximumMessageSize) {
+        EmailContent(from, to, subject, content)
+      } else {
+        val text = p(b(s"Message body size exceeds $maximumMessageSize, which contains ${data.size} events."))
+        val msg  = html(header, body(letter.notice, text)).render
+        EmailContent(from, to, subject, msg)
+      }
+
+    ses.send(email).attempt.whenA(data.nonEmpty)
+  }
+
+  private def good_bye(
+    state: Ref[F, Map[UUID, ServiceStart]],
+    cache: Ref[F, Chunk[ColoredTag]]): F[Chunk[ColoredTag]] =
+    F.realTimeInstant.flatMap { ts =>
+      state.get.flatMap { sm =>
+        val stop: F[Chunk[ColoredTag]] =
+          Chunk
+            .from(sm.values)
+            .traverse { ss =>
+              translate(
+                ServiceStop(
+                  ss.serviceParams,
+                  ss.serviceParams.toZonedDateTime(ts),
+                  ServiceStopCause.ByCancellation))
+            }
+            .map(_.flattenOption)
+        (cache.get, stop).mapN(_ ++ _)
+      }
+    }
+
+  override def observe(
+    from: EmailAddr,
+    to: NonEmptyList[EmailAddr],
+    subject: String): Pipe[F, NJEvent, NJEvent] = {
+
+    def go(
+      ss: Stream[F, Either[NJEvent, Tick]],
+      send_email: Chunk[ColoredTag] => F[Unit],
+      cache: Ref[F, Chunk[ColoredTag]]): Pull[F, NJEvent, Unit] =
+      ss.pull.uncons1.flatMap {
+        case Some((head, tail)) =>
+          head match {
+            case Left(event) =>
+              val send_and_update: F[Unit] = translate(event).flatMap {
+                case Some(ct) =>
+                  cache.get.flatMap { tags =>
+                    if (tags.size >= chunkSize.value) {
+                      send_email(tags) *> cache.set(Chunk.singleton(ct))
+                    } else {
+                      cache.update(_ ++ Chunk.singleton(ct))
+                    }
+                  }
+                case None => F.unit
+              }
+
+              Pull.output1(event) >>
+                Pull.eval(send_and_update) >>
+                go(tail, send_email, cache)
+
+            case Right(_) => // tick
+              Pull.eval(cache.get.flatMap(send_email) *> cache.set(Chunk.empty)) >>
+                go(tail, send_email, cache)
+          }
+        case None => Pull.done // leave cache to be handled by finalizer
+      }
+
     (events: Stream[F, NJEvent]) =>
       for {
         ses <- Stream.resource(client)
-        buff <- Stream.eval(F.ref[Vector[NJEvent]](Vector.empty))
-        ref <- Stream.eval(F.ref[Map[UUID, ServiceStart]](Map.empty))
-        ofm = new EmailFinalizeMonitor(translate, buff, ref)
-        event <- events
-          .evalTap(ofm.monitoring)
-          .observe(
-            _.evalMap(translate).unNone
-              .groupWithin(chunkSize.value, interval)
-              .evalMap(publish(_, ses, from, to, subject) >> ofm.reset)
-              .drain)
-          .onFinalize(ofm.terminated.flatMap(ca => publish(ca, ses, from, to, subject).whenA(ca.nonEmpty)))
+        state <- Stream.eval(F.ref(Map.empty[UUID, ServiceStart]))
+        cache <- Stream.eval(F.ref(Chunk.empty[ColoredTag]))
+        monitor = events.evalTap {
+          case ss: ServiceStart => state.update(_.updated(ss.serviceParams.serviceId, ss))
+          case ss: ServiceStop  => state.update(_.removed(ss.serviceParams.serviceId))
+          case _                => F.unit
+        }.map(Left(_))
+        ticks      = tickStream(policy, zoneId).map(Right(_))
+        send_email = publish_one_email(ses, from, to, subject)(_)
+        event <- go(monitor.mergeHaltL(ticks), send_email, cache).stream
+          .onFinalize(good_bye(state, cache).flatMap(send_email))
       } yield event
   }
-}
-
-final private class EmailFinalizeMonitor[F[_]: Clock: Monad, A](
-  translate: NJEvent => F[Option[A]],
-  buff: Ref[F, Vector[NJEvent]],
-  ref: Ref[F, Map[UUID, ServiceStart]]) {
-  def monitoring(event: NJEvent): F[Unit] = (event match {
-    case ss: ServiceStart => ref.update(_.updated(ss.serviceParams.serviceId, ss))
-    case ss: ServiceStop  => ref.update(_.removed(ss.serviceParams.serviceId))
-    case _                => Monad[F].unit
-  }) >> buff.update(_.appended(event))
-
-  def reset: F[Unit] = buff.set(Vector.empty)
-
-  val terminated: F[Chunk[A]] = for {
-    ts <- Clock[F].realTimeInstant
-    stopEvents <- ref.get.map(m =>
-      m.values.toVector.map(ss =>
-        ServiceStop(ss.serviceParams, ss.serviceParams.toZonedDateTime(ts), ServiceStopCause.ByCancellation)))
-    msg <- buff.get.flatMap(events => Chunk.from(events ++ stopEvents).traverseFilter(translate))
-  } yield msg
 }

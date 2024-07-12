@@ -40,51 +40,51 @@ object cognito {
       expires_in: Int // in second
     )
 
-    override def loginR(client: Client[F])(implicit F: Async[F]): Resource[F, Client[F]] = {
+    override def loginR(client: Client[F])(implicit F: Async[F]): Resource[F, Client[F]] =
+      authClient.flatMap { authenticationClient =>
+        val authURI = auth_endpoint.withPath(path"/oauth2/token")
 
-      val authURI = auth_endpoint.withPath(path"/oauth2/token")
+        val get_token: F[Token] =
+          UUIDGen[F].randomUUID.flatMap { uuid =>
+            authenticationClient.expect[Token](
+              POST(
+                UrlForm(
+                  "grant_type" -> "authorization_code",
+                  "client_id" -> client_id,
+                  "code" -> code,
+                  "redirect_uri" -> redirect_uri,
+                  "code_verifier" -> code_verifier
+                ),
+                authURI,
+                Authorization(BasicCredentials(client_id, client_secret))
+              ).putHeaders(`Idempotency-Key`(show"$uuid")))
+          }
 
-      val get_token: F[Token] =
-        UUIDGen[F].randomUUID.flatMap { uuid =>
-          authClient.use(
-            _.expect[Token](POST(
-              UrlForm(
-                "grant_type" -> "authorization_code",
-                "client_id" -> client_id,
-                "code" -> code,
-                "redirect_uri" -> redirect_uri,
-                "code_verifier" -> code_verifier
-              ),
-              authURI,
-              Authorization(BasicCredentials(client_id, client_secret))
-            ).putHeaders(`Idempotency-Key`(show"$uuid"))))
-        }
+        def refresh_token(pre: Token): F[Token] =
+          UUIDGen[F].randomUUID.flatMap { uuid =>
+            authClient.use(
+              _.expect[Token](POST(
+                UrlForm(
+                  "grant_type" -> "refresh_token",
+                  "client_id" -> client_id,
+                  "refresh_token" -> pre.refresh_token),
+                authURI,
+                Authorization(BasicCredentials(client_id, client_secret))
+              ).putHeaders(`Idempotency-Key`(show"$uuid"))))
+          }
 
-      def refresh_token(pre: Token): F[Token] =
-        UUIDGen[F].randomUUID.flatMap { uuid =>
-          authClient.use(
-            _.expect[Token](POST(
-              UrlForm(
-                "grant_type" -> "refresh_token",
-                "client_id" -> client_id,
-                "refresh_token" -> pre.refresh_token),
-              authURI,
-              Authorization(BasicCredentials(client_id, client_secret))
-            ).putHeaders(`Idempotency-Key`(show"$uuid"))))
-        }
+        def update_token(ref: Ref[F, Token]): F[Unit] =
+          for {
+            oldToken <- ref.get
+            newToken <- refresh_token(oldToken).delayBy(oldToken.expires_in.seconds)
+            _ <- ref.set(newToken)
+          } yield ()
 
-      def update_token(ref: Ref[F, Token]): F[Unit] =
-        for {
-          oldToken <- ref.get
-          newToken <- refresh_token(oldToken).delayBy(oldToken.expires_in.seconds)
-          _ <- ref.set(newToken)
-        } yield ()
+        def with_token(token: Token, req: Request[F]): Request[F] =
+          req.putHeaders(Authorization(Credentials.Token(CIString(token.token_type), token.access_token)))
 
-      def with_token(token: Token, req: Request[F]): Request[F] =
-        req.putHeaders(Authorization(Credentials.Token(CIString(token.token_type), token.access_token)))
-
-      loginInternal(client, get_token, update_token, with_token)
-    }
+        loginInternal(client, get_token, update_token, with_token)
+      }
   }
 
   object AuthorizationCode {
@@ -120,32 +120,33 @@ object cognito {
       expires_in: Int // in second
     )
 
-    override def loginR(client: Client[F])(implicit F: Async[F]): Resource[F, Client[F]] = {
-      val getToken: F[Token] =
-        UUIDGen[F].randomUUID.flatMap { uuid =>
-          authClient.use(
-            _.expect[Token](POST(
-              UrlForm(
-                "grant_type" -> "client_credentials",
-                "scope" -> scopes.toList.mkString(" ")
-              ),
-              auth_endpoint.withPath(path"/oauth2/token"),
-              Authorization(BasicCredentials(client_id, client_secret))
-            ).putHeaders(`Idempotency-Key`(show"$uuid"))))
-        }
+    override def loginR(client: Client[F])(implicit F: Async[F]): Resource[F, Client[F]] =
+      authClient.flatMap { authenticationClient =>
+        val getToken: F[Token] =
+          UUIDGen[F].randomUUID.flatMap { uuid =>
+            authenticationClient.expect[Token](
+              POST(
+                UrlForm(
+                  "grant_type" -> "client_credentials",
+                  "scope" -> scopes.toList.mkString(" ")
+                ),
+                auth_endpoint.withPath(path"/oauth2/token"),
+                Authorization(BasicCredentials(client_id, client_secret))
+              ).putHeaders(`Idempotency-Key`(show"$uuid")))
+          }
 
-      def updateToken(ref: Ref[F, Token]): F[Unit] =
-        for {
-          oldToken <- ref.get
-          newToken <- getToken.delayBy(oldToken.expires_in.seconds)
-          _ <- ref.set(newToken)
-        } yield ()
+        def updateToken(ref: Ref[F, Token]): F[Unit] =
+          for {
+            oldToken <- ref.get
+            newToken <- getToken.delayBy(oldToken.expires_in.seconds)
+            _ <- ref.set(newToken)
+          } yield ()
 
-      def withToken(token: Token, req: Request[F]): Request[F] =
-        req.putHeaders(Authorization(Credentials.Token(CIString(token.token_type), token.access_token)))
+        def withToken(token: Token, req: Request[F]): Request[F] =
+          req.putHeaders(Authorization(Credentials.Token(CIString(token.token_type), token.access_token)))
 
-      loginInternal(client, getToken, updateToken, withToken)
-    }
+        loginInternal(client, getToken, updateToken, withToken)
+      }
   }
 
   object ClientCredentials {

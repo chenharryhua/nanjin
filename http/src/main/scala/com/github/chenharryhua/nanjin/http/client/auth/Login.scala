@@ -14,7 +14,13 @@ trait Login[F[_], A] {
 
   def loginR(client: Client[F])(implicit F: Async[F]): Resource[F, Client[F]]
 
+  final def loginR(client: Resource[F, Client[F]])(implicit F: Async[F]): Resource[F, Client[F]] =
+    client.flatMap(loginR)
+
   final def login(client: Client[F])(implicit F: Async[F]): Stream[F, Client[F]] =
+    Stream.resource(loginR(client))
+
+  final def login(client: Resource[F, Client[F]])(implicit F: Async[F]): Stream[F, Client[F]] =
     Stream.resource(loginR(client))
 
   /** @param client
@@ -38,7 +44,7 @@ trait Login[F[_], A] {
   )(implicit F: Async[F]): Resource[F, Client[F]] =
     for {
       authToken <- Resource.eval(getToken.flatMap(F.ref))
-      _ <- F.background[Nothing](updateToken(authToken).foreverM)
+      _ <- F.background[Nothing](updateToken(authToken).attempt.foreverM)
     } yield Client[F] { req =>
       for {
         token <- Resource.eval(authToken.get)
