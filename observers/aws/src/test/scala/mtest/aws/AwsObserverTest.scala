@@ -6,6 +6,7 @@ import cats.effect.std.AtomicCell
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.aws.{SnsArn, SqsConfig}
 import com.github.chenharryhua.nanjin.common.chrono.policies
+import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import com.github.chenharryhua.nanjin.guard.observers.cloudwatch.CloudWatchObserver
@@ -54,17 +55,18 @@ class AwsObserverTest extends AnyFunSuite {
 
   test("2.ses mail") {
     val mail =
-      EmailObserver(ses_client).withInterval(5.seconds).withChunkSize(100).withOldestFirst
+      EmailObserver(ses_client, 100, policies.fixedDelay(5.seconds), sydneyTime).withOldestFirst
 
     service
       .through(mail.observe("abc@google.com", NonEmptyList.one("efg@tek.com"), "title"))
+      .debug()
       .compile
       .drain
       .unsafeRunSync()
   }
 
   test("3.syntax") {
-    EmailObserver(ses_client).withInterval(1.minute).withChunkSize(10).updateTranslator {
+    EmailObserver(ses_client, 100, policies.crontab(_.every2Minutes), sydneyTime).updateTranslator {
       _.skipMetricReset.skipMetricReport.skipActionStart.skipActionRetry.skipActionFail.skipActionDone.skipServiceAlert.skipServiceStart.skipServicePanic.skipServiceStop.skipAll
     }
   }

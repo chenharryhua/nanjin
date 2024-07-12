@@ -14,7 +14,13 @@ trait Login[F[_], A] {
 
   def loginR(client: Client[F])(implicit F: Async[F]): Resource[F, Client[F]]
 
+  final def loginR(client: Resource[F, Client[F]])(implicit F: Async[F]): Resource[F, Client[F]] =
+    client.flatMap(loginR)
+
   final def login(client: Client[F])(implicit F: Async[F]): Stream[F, Client[F]] =
+    Stream.resource(loginR(client))
+
+  final def login(client: Resource[F, Client[F]])(implicit F: Async[F]): Stream[F, Client[F]] =
     Stream.resource(loginR(client))
 
   /** @param client
