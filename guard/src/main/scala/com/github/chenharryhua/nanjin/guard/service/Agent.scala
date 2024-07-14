@@ -24,10 +24,10 @@ sealed trait Agent[F[_]] {
   def withMeasurement(name: String): Agent[F]
 
   // actions
-  def action(actionName: String, f: Endo[ActionConfig]): NJAction[F]
+  def action(actionName: String, f: Endo[NJAction.Builder]): NJAction[F]
   final def action(actionName: String): NJAction[F] = action(actionName, identity)
 
-  def batch(name: String, f: Endo[ActionConfig]): NJBatch[F]
+  def batch(name: String, f: Endo[NJAction.Builder]): NJBatch[F]
   final def batch(name: String): NJBatch[F] = batch(name, identity)
 
   // health check
@@ -82,14 +82,8 @@ final private class GeneralAgent[F[_]: Async] private[service] (
   override def withMeasurement(name: String): Agent[F] =
     new GeneralAgent[F](serviceParams, metricRegistry, channel, Measurement(name))
 
-  override def action(actionName: String, f: Endo[ActionConfig]): NJAction[F] =
-    new NJAction[F](
-      actionConfig = f(ActionConfig(ActionName(actionName), measurement, serviceParams)),
-      metricRegistry = metricRegistry,
-      channel = channel
-    )
-
   private object builders {
+
     lazy val ratio: NJRatio.Builder =
       new NJRatio.Builder(measurement = measurement, translator = NJRatio.translator, isEnabled = true)
 
@@ -132,7 +126,14 @@ final private class GeneralAgent[F[_]: Async] private[service] (
       new NJAlert.Builder(measurement = measurement, isCounting = false, isEnabled = true)
   }
 
-  override def batch(name: String, f: Endo[ActionConfig]): NJBatch[F] =
+  override def action(actionName: String, f: Endo[NJAction.Builder]): NJAction[F] =
+    new NJAction[F](
+      actionConfig = f(ActionConfig(ActionName(actionName), measurement, serviceParams)),
+      metricRegistry = metricRegistry,
+      channel = channel
+    )
+
+  override def batch(name: String, f: Endo[NJAction.Builder]): NJBatch[F] =
     new NJBatch[F](
       serviceParams = serviceParams,
       metricRegistry = metricRegistry,
