@@ -19,7 +19,7 @@ class PolicyBaseTest extends AnyFunSuite {
   }
 
   test("fixed delay") {
-    val policy = policies.fixedDelay(1.second, 0.second)
+    val policy = Policy.fixedDelay(1.second, 0.second)
     println(policy.show)
     assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
 
@@ -59,7 +59,7 @@ class PolicyBaseTest extends AnyFunSuite {
   }
 
   test("fixed rate") {
-    val policy = policies.fixedRate(1.second)
+    val policy = Policy.fixedRate(1.second)
     println(policy.show)
     assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
 
@@ -99,7 +99,7 @@ class PolicyBaseTest extends AnyFunSuite {
   }
 
   test("fixed delays") {
-    val policy = policies.fixedDelay(1.second, 2.seconds, 3.seconds)
+    val policy = Policy.fixedDelay(1.second, 2.seconds, 3.seconds)
     println(policy.show)
     assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
 
@@ -125,7 +125,7 @@ class PolicyBaseTest extends AnyFunSuite {
   }
 
   test("cron") {
-    val policy = policies.crontab(_.hourly)
+    val policy = Policy.crontab(_.hourly)
     println(policy.show)
     println(policy.asJson)
     assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
@@ -148,7 +148,7 @@ class PolicyBaseTest extends AnyFunSuite {
   }
 
   test("giveUp") {
-    val policy = policies.giveUp
+    val policy = Policy.giveUp
     println(policy.show)
     assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
 

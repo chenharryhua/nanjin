@@ -54,6 +54,7 @@ lazy val commonSettings = List(
   scalacOptions ++= List(
     "-Ymacro-annotations",
     "-Xsource:3",
+    "-Xsource-features:case-apply-copy-access",
     "-Wconf:src=src_managed/.*:silent",
     "-P:acyclic:warn"),
   Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat,
@@ -511,3 +512,4 @@ lazy val nanjin =
     instrument_http4s,
     instrument_neo4j
   )
+ 

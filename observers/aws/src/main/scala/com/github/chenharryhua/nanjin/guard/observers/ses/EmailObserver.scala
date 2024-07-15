@@ -126,16 +126,13 @@ private class EmailObserverImpl[F[_]: UUIDGen](
     F.realTimeInstant.flatMap { ts =>
       state.get.flatMap { sm =>
         val stop: F[Chunk[ColoredTag]] =
-          Chunk
-            .from(sm.values)
-            .traverse { ss =>
-              translate(
-                ServiceStop(
-                  ss.serviceParams,
-                  ss.serviceParams.toZonedDateTime(ts),
-                  ServiceStopCause.ByCancellation))
-            }
-            .map(_.flattenOption)
+          Chunk.from(sm.values).traverseFilter { ss =>
+            translate(
+              ServiceStop(
+                ss.serviceParams,
+                ss.serviceParams.toZonedDateTime(ts),
+                ServiceStopCause.ByCancellation))
+          }
         (cache.get, stop).mapN(_ ++ _)
       }
     }

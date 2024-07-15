@@ -282,7 +282,7 @@ private object PolicyF extends all {
 
 }
 
-final case class Policy(private[chrono] val policy: Fix[PolicyF]) { // don't extends AnyVal, monocle doesn't like it
+final class Policy private (private[chrono] val policy: Fix[PolicyF]) extends AnyVal {
   import PolicyF.{Except, FollowedBy, Jitter, Limited, Meet, Offset, Repeat}
   override def toString: String = scheme.cata(PolicyF.showPolicy).apply(policy)
 
@@ -291,18 +291,18 @@ final case class Policy(private[chrono] val policy: Fix[PolicyF]) { // don't ext
     */
   def limited(num: Int): Policy = {
     require(num > 0, s"$num should be bigger than zero")
-    Policy(Fix(Limited(policy, num)))
+    new Policy(Fix(Limited(policy, num)))
   }
-  def followedBy(other: Policy): Policy = Policy(Fix(FollowedBy(policy, other.policy)))
-  def repeat: Policy                    = Policy(Fix(Repeat(policy)))
-  def meet(other: Policy): Policy       = Policy(Fix(Meet(policy, other.policy)))
+  def followedBy(other: Policy): Policy = new Policy(Fix(FollowedBy(policy, other.policy)))
+  def repeat: Policy                    = new Policy(Fix(Repeat(policy)))
+  def meet(other: Policy): Policy       = new Policy(Fix(Meet(policy, other.policy)))
 
-  def except(localTime: LocalTime): Policy            = Policy(Fix(Except(policy, localTime)))
+  def except(localTime: LocalTime): Policy            = new Policy(Fix(Except(policy, localTime)))
   def except(f: localTimes.type => LocalTime): Policy = except(f(localTimes))
 
   def offset(fd: FiniteDuration): Policy = {
     require(fd > ScalaDuration.Zero, s"$fd should be positive")
-    Policy(Fix(Offset(policy, fd.toJava)))
+    new Policy(Fix(Offset(policy, fd.toJava)))
   }
 
   /** @param min
@@ -315,7 +315,7 @@ final case class Policy(private[chrono] val policy: Fix[PolicyF]) { // don't ext
   def jitter(min: FiniteDuration, max: FiniteDuration): Policy = {
     require(min >= ScalaDuration.Zero, s"$min should not be negative")
     require(max > min, s"$max should be bigger than $min")
-    Policy(Fix(Jitter(policy, min.toJava, max.toJava)))
+    new Policy(Fix(Jitter(policy, min.toJava, max.toJava)))
   }
 
   /** @param max
@@ -327,27 +327,24 @@ final case class Policy(private[chrono] val policy: Fix[PolicyF]) { // don't ext
 }
 
 object Policy {
+  import PolicyF.{Accordance, Crontab, FixedDelay, FixedRate, GiveUp}
+
   implicit val showPolicy: Show[Policy] = _.toString
 
   implicit val encoderPolicy: Encoder[Policy] =
     (a: Policy) => PolicyF.encoderFixPolicyF(a.policy)
 
   implicit val decoderPolicy: Decoder[Policy] =
-    (c: HCursor) => PolicyF.decoderFixPolicyF(c).map(Policy(_))
+    (c: HCursor) => PolicyF.decoderFixPolicyF(c).map(new Policy(_))
 
-}
+  def accordance(policy: Policy): Policy = new Policy(Fix(Accordance(policy.policy)))
 
-object policies {
-  import PolicyF.{Accordance, Crontab, FixedDelay, FixedRate, GiveUp}
-
-  def accordance(policy: Policy): Policy = Policy(Fix(Accordance(policy.policy)))
-
-  def crontab(cronExpr: CronExpr): Policy           = Policy(Fix(Crontab(cronExpr)))
+  def crontab(cronExpr: CronExpr): Policy           = new Policy(Fix(Crontab(cronExpr)))
   def crontab(f: crontabs.type => CronExpr): Policy = crontab(f(crontabs))
 
   def fixedDelay(delays: NonEmptyList[Duration]): Policy = {
     require(delays.forall(!_.isNegative), "every delay should be positive or zero")
-    Policy(Fix(FixedDelay(delays)))
+    new Policy(Fix(FixedDelay(delays)))
   }
 
   /** should be non-negative
@@ -360,8 +357,8 @@ object policies {
     */
   def fixedRate(delay: FiniteDuration): Policy = {
     require(delay > ScalaDuration.Zero, s"$delay should be bigger than zero")
-    Policy(Fix(FixedRate(delay.toJava)))
+    new Policy(Fix(FixedRate(delay.toJava)))
   }
 
-  val giveUp: Policy = Policy(Fix(GiveUp()))
+  val giveUp: Policy = new Policy(Fix(GiveUp()))
 }

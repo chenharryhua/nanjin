@@ -73,7 +73,7 @@ final private class GeneralAgent[F[_]: Async] private[service] (
   measurement: Measurement)
     extends Agent[F] {
 
-  // data time
+  // date time
   override val zonedNow: F[ZonedDateTime] = serviceParams.zonedNow[F]
   override val zoneId: ZoneId             = serviceParams.zoneId
 
@@ -172,7 +172,7 @@ final private class GeneralAgent[F[_]: Async] private[service] (
   override def ticks(policy: Policy): Stream[F, Tick] =
     tickStream[F](TickStatus(serviceParams.zerothTick).renewPolicy(policy))
 
-  override object jvmGauge extends JvmGauge[F](metricRegistry)
+  override object jvmGauge extends JvmGauge[F](metricRegistry, serviceParams)
 
   override object metrics extends NJMetrics[F](channel, serviceParams, metricRegistry)
 }

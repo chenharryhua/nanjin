@@ -5,7 +5,13 @@ import cats.effect.kernel.{Resource, Sync}
 import cats.syntax.all.*
 import com.codahale.metrics.{Gauge, MetricRegistry}
 import com.github.chenharryhua.nanjin.guard.config.CategoryKind.GaugeKind
-import com.github.chenharryhua.nanjin.guard.config.{Category, MetricID, MetricName}
+import com.github.chenharryhua.nanjin.guard.config.{
+  Category,
+  Measurement,
+  MetricID,
+  MetricName,
+  ServiceParams
+}
 import io.circe.syntax.EncoderOps
 import io.circe.{Encoder, Json}
 import org.apache.commons.lang3.StringUtils
@@ -13,9 +19,10 @@ import org.apache.commons.lang3.exception.ExceptionUtils
 
 import scala.util.Try
 
-abstract class JvmGauge[F[_]] private[service] (metricRegistry: MetricRegistry)(implicit F: Sync[F]) {
+abstract class JvmGauge[F[_]] private[service] (metricRegistry: MetricRegistry, serviceParams: ServiceParams)(
+  implicit F: Sync[F]) {
 
-  private val measurement: String = "jvm"
+  private val measurement: Measurement = Measurement("jvm")
 
   private def json_gauge[A: Encoder](metricID: MetricID, data: Eval[A]): Resource[F, Unit] = {
     def trans_error(ex: Throwable): Json =
@@ -36,7 +43,7 @@ abstract class JvmGauge[F[_]] private[service] (metricRegistry: MetricRegistry)(
   }
 
   val classloader: Resource[F, Unit] = {
-    val name: MetricName = MetricName("classloader", "00001", measurement)
+    val name: MetricName = MetricName(serviceParams, measurement, "classloader")
     Resource.eval(F.unique).flatMap { token =>
       val metricID: MetricID = MetricID(name, Category.Gauge(GaugeKind.Instrument), token)
 
@@ -45,7 +52,7 @@ abstract class JvmGauge[F[_]] private[service] (metricRegistry: MetricRegistry)(
   }
 
   val deadlocks: Resource[F, Unit] = {
-    val name: MetricName = MetricName("deadlocks", "00002", measurement)
+    val name: MetricName = MetricName(serviceParams, measurement, "deadlocks")
     Resource.eval(F.unique).flatMap { token =>
       val metricID: MetricID = MetricID(name, Category.Gauge(GaugeKind.Deadlocks), token)
 
@@ -54,7 +61,7 @@ abstract class JvmGauge[F[_]] private[service] (metricRegistry: MetricRegistry)(
   }
 
   val garbageCollectors: Resource[F, Unit] = {
-    val name: MetricName = MetricName("garbage_collectors", "00003", measurement)
+    val name: MetricName = MetricName(serviceParams, measurement, "garbage_collectors")
     Resource.eval(F.unique).flatMap { token =>
       val metricID: MetricID = MetricID(name, Category.Gauge(GaugeKind.Instrument), token)
 
@@ -63,7 +70,7 @@ abstract class JvmGauge[F[_]] private[service] (metricRegistry: MetricRegistry)(
   }
 
   val heapMemory: Resource[F, Unit] = {
-    val name: MetricName = MetricName("heap_memory", "00004", measurement)
+    val name: MetricName = MetricName(serviceParams, measurement, "heap_memory")
     Resource.eval(F.unique).flatMap { token =>
       val metricID: MetricID = MetricID(name, Category.Gauge(GaugeKind.Instrument), token)
 
@@ -72,7 +79,7 @@ abstract class JvmGauge[F[_]] private[service] (metricRegistry: MetricRegistry)(
   }
 
   val nonHeapMemory: Resource[F, Unit] = {
-    val name: MetricName = MetricName("non_heap_memory", "00005", measurement)
+    val name: MetricName = MetricName(serviceParams, measurement, "non_heap_memory")
     Resource.eval(F.unique).flatMap { token =>
       val metricID: MetricID = MetricID(name, Category.Gauge(GaugeKind.Instrument), token)
 
@@ -81,7 +88,7 @@ abstract class JvmGauge[F[_]] private[service] (metricRegistry: MetricRegistry)(
   }
 
   val threadState: Resource[F, Unit] = {
-    val name: MetricName = MetricName("thread_state", "00006", measurement)
+    val name: MetricName = MetricName(serviceParams, measurement, "thread_state")
     Resource.eval(F.unique).flatMap { token =>
       val metricID: MetricID = MetricID(name, Category.Gauge(GaugeKind.Instrument), token)
 

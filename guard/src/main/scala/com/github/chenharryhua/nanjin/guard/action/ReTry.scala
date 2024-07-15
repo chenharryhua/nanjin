@@ -16,8 +16,10 @@ import java.time.ZonedDateTime
 import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.jdk.DurationConverters.JavaDurationOps
 
+private case object ActionCancelException extends Exception("action was canceled")
+
 final private class ReTry[F[_]: Async, IN, OUT] private (
-  private[this] val token: Unique.Token,
+  private[this] val actionID: ActionID,
   private[this] val metricRegistry: MetricRegistry,
   private[this] val actionParams: ActionParams,
   private[this] val channel: Channel[F, NJEvent],
@@ -30,7 +32,7 @@ final private class ReTry[F[_]: Async, IN, OUT] private (
 ) {
   private[this] val F = Async[F]
 
-  private[this] val measures: MeasureAction = MeasureAction(actionParams, metricRegistry, token)
+  private[this] val measures: MeasureAction = MeasureAction(actionParams, metricRegistry, actionID)
 
   private[this] def to_zdt(fd: FiniteDuration): ZonedDateTime =
     actionParams.serviceParams.toZonedDateTime(fd)
@@ -42,8 +44,6 @@ final private class ReTry[F[_]: Async, IN, OUT] private (
   private[this] def measure_fail(): Unit                   = measures.fail()
   private[this] def measure_retry(): Unit                  = measures.count_retry()
   private[this] def measure_done(fd: FiniteDuration): Unit = measures.done(fd)
-
-  private[this] val actionID: ActionID = ActionID(token)
 
   private[this] def send_failure(in: IN, ex: Throwable): F[Unit] =
     for {
@@ -168,7 +168,7 @@ private object ReTry {
     F: Async[F]): Resource[F, Kleisli[F, IN, OUT]] = {
     def action_runner(token: Unique.Token): ReTry[F, IN, OUT] =
       new ReTry[F, IN, OUT](
-        token = token,
+        actionID = ActionID(token),
         metricRegistry = metricRegistry,
         actionParams = actionParams,
         channel = channel,

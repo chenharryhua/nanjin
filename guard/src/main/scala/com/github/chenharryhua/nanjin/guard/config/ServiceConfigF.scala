@@ -140,13 +140,21 @@ private object ServiceConfigF {
     }
 }
 
-final case class ServiceConfig[F[_]: Applicative](
-  private[guard] val cont: Fix[ServiceConfigF],
+final class ServiceConfig[F[_]: Applicative] private (
+  cont: Fix[ServiceConfigF],
   private[guard] val zoneId: ZoneId,
   private[guard] val jmxBuilder: Option[Endo[JmxReporter.Builder]],
   private[guard] val httpBuilder: Option[Endo[EmberServerBuilder[F]]],
   private[guard] val briefs: F[List[Json]]) {
   import ServiceConfigF.*
+
+  private def copy(
+    cont: Fix[ServiceConfigF] = this.cont,
+    zoneId: ZoneId = this.zoneId,
+    jmxBuilder: Option[Endo[JmxReporter.Builder]] = this.jmxBuilder,
+    httpBuilder: Option[Endo[EmberServerBuilder[F]]] = this.httpBuilder,
+    briefs: F[List[Json]] = this.briefs): ServiceConfig[F] =
+    new ServiceConfig[F](cont, zoneId, jmxBuilder, httpBuilder, briefs)
 
   def withRestartThreshold(fd: FiniteDuration): ServiceConfig[F] =
     copy(cont = Fix(WithRestartThreshold(Some(fd.toJava), cont)))
@@ -206,7 +214,7 @@ final case class ServiceConfig[F[_]: Applicative](
       .apply(cont)
 }
 
-object ServiceConfig {
+private[guard] object ServiceConfig {
 
   def apply[F[_]: Applicative](taskName: TaskName): ServiceConfig[F] =
     new ServiceConfig[F](

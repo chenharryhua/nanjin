@@ -1,9 +1,9 @@
 package com.github.chenharryhua.nanjin.guard.action
 
-import cats.effect.kernel.Unique
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.config.CategoryKind.{CounterKind, TimerKind}
+import com.github.chenharryhua.nanjin.guard.event.ActionID
 
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.FiniteDuration
@@ -23,21 +23,18 @@ sealed private trait MeasureAction {
 }
 
 private object MeasureAction {
-  def apply(
-    actionParams: ActionParams,
-    metricRegistry: MetricRegistry,
-    token: Unique.Token): MeasureAction = {
+  def apply(actionParams: ActionParams, metricRegistry: MetricRegistry, actionID: ActionID): MeasureAction = {
     val metricName: MetricName = actionParams.metricName
 
     val doneID: String =
-      MetricID(metricName, Category.Counter(CounterKind.ActionDone), token).identifier
+      MetricID(metricName, Category.Counter(CounterKind.ActionDone), actionID).identifier
     val failID: String =
-      MetricID(metricName, Category.Counter(CounterKind.ActionFail), token).identifier
+      MetricID(metricName, Category.Counter(CounterKind.ActionFail), actionID).identifier
     val retryID: String =
-      MetricID(metricName, Category.Counter(CounterKind.ActionRetry), token).identifier
+      MetricID(metricName, Category.Counter(CounterKind.ActionRetry), actionID).identifier
 
     val doneTimerID: String =
-      MetricID(metricName, Category.Timer(TimerKind.Action), token).identifier
+      MetricID(metricName, Category.Timer(TimerKind.Action), actionID).identifier
 
     (actionParams.isCounting, actionParams.isTiming) match {
       case (true, true) =>

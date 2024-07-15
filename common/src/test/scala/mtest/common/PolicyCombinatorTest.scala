@@ -1,14 +1,7 @@
 package mtest.common
 
 import cats.implicits.toShow
-import com.github.chenharryhua.nanjin.common.chrono.{
-  crontabs,
-  localTimes,
-  policies,
-  tickLazyList,
-  Policy,
-  TickStatus
-}
+import com.github.chenharryhua.nanjin.common.chrono.{crontabs, localTimes, tickLazyList, Policy, TickStatus}
 import cron4s.CronExpr
 import io.circe.jawn.decode
 import io.circe.syntax.EncoderOps
@@ -20,21 +13,21 @@ import scala.jdk.DurationConverters.{JavaDurationOps, ScalaDurationOps}
 class PolicyCombinatorTest extends AnyFunSuite {
 
   test("simple followed by") {
-    val policy = policies.giveUp.followedBy(policies.fixedDelay(1.second))
+    val policy = Policy.giveUp.followedBy(Policy.fixedDelay(1.second))
     println(policy.asJson)
     assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
   }
 
   test("accordance") {
-    val policy = policies.accordance(policies.fixedDelay(1.second))
+    val policy = Policy.accordance(Policy.fixedDelay(1.second))
     println(policy.asJson)
     assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
   }
 
   test("follow by") {
-    val policy = policies
-      .accordance(policies.fixedDelay(1.second).limited(3))
-      .followedBy(policies.fixedDelay(2.seconds).limited(2))
+    val policy = Policy
+      .accordance(Policy.fixedDelay(1.second).limited(3))
+      .followedBy(Policy.fixedDelay(2.seconds).limited(2))
 
     println(policy.show)
     println(policy.asJson)
@@ -65,9 +58,9 @@ class PolicyCombinatorTest extends AnyFunSuite {
 
   test("repeat") {
     val policy =
-      policies
-        .accordance(policies.fixedDelay(1.second).limited(1).repeat.limited(3))
-        .followedBy(policies.fixedDelay(2.seconds).limited(2))
+      Policy
+        .accordance(Policy.fixedDelay(1.second).limited(1).repeat.limited(3))
+        .followedBy(Policy.fixedDelay(2.seconds).limited(2))
         .repeat
 
     println(policy.show)
@@ -95,7 +88,7 @@ class PolicyCombinatorTest extends AnyFunSuite {
 
   test("meet") {
     val policy =
-      policies.fixedRate(1.second).meet(policies.fixedDelay(1.seconds))
+      Policy.fixedRate(1.second).meet(Policy.fixedDelay(1.seconds))
 
     println(policy.show)
     println(policy.asJson)
@@ -121,7 +114,7 @@ class PolicyCombinatorTest extends AnyFunSuite {
   }
 
   test("meet - 2") {
-    val policy = policies.fixedDelay(1.seconds).meet(policies.fixedRate(1.second))
+    val policy = Policy.fixedDelay(1.seconds).meet(Policy.fixedRate(1.second))
 
     println(policy.show)
     println(policy.asJson)
@@ -147,7 +140,7 @@ class PolicyCombinatorTest extends AnyFunSuite {
   }
 
   test("infinite") {
-    val policy = policies.fixedRate(1.second).limited(500).repeat
+    val policy = Policy.fixedRate(1.second).limited(500).repeat
     println(policy.asJson)
     assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
 
@@ -158,48 +151,48 @@ class PolicyCombinatorTest extends AnyFunSuite {
   }
 
   test("complex policy") {
-    val policy = policies
-      .accordance(policies.crontab(crontabs.monthly))
-      .meet(policies.crontab(crontabs.daily.oneAM))
-      .followedBy(policies.crontab(crontabs.daily.twoAM))
-      .followedBy(policies.crontab(crontabs.daily.threeAM))
-      .followedBy(policies.crontab(crontabs.daily.fourAM).jitter(2.seconds))
-      .followedBy(policies.crontab(crontabs.daily.fiveAM))
-      .followedBy(policies.crontab(crontabs.daily.sixAM))
-      .followedBy(policies.crontab(crontabs.daily.sevenAM))
-      .followedBy(policies.crontab(crontabs.daily.eightAM))
-      .meet(policies.crontab(crontabs.daily.nineAM))
-      .followedBy(policies.crontab(crontabs.daily.tenAM))
-      .followedBy(policies.crontab(crontabs.daily.elevenAM))
-      .followedBy(policies.giveUp)
-      .followedBy(policies.crontab(_.daily.noon))
-      .followedBy(policies.crontab(_.daily.onePM))
-      .followedBy(policies.crontab(_.daily.twoPM))
-      .followedBy(policies.crontab(_.daily.threePM).limited(1))
-      .followedBy(policies.crontab(_.daily.fourPM))
-      .meet(policies.crontab(_.daily.fivePM))
-      .followedBy(policies.crontab(_.daily.sixPM).limited(1).repeat)
-      .followedBy(policies.crontab(_.daily.sevenPM))
-      .followedBy(policies.crontab(_.daily.eightPM))
-      .followedBy(policies.crontab(_.daily.ninePM))
-      .followedBy(policies.crontab(_.daily.tenPM))
-      .followedBy(policies.crontab(_.daily.elevenPM))
-      .followedBy(policies.crontab(_.daily.midnight))
+    val policy = Policy
+      .accordance(Policy.crontab(crontabs.monthly))
+      .meet(Policy.crontab(crontabs.daily.oneAM))
+      .followedBy(Policy.crontab(crontabs.daily.twoAM))
+      .followedBy(Policy.crontab(crontabs.daily.threeAM))
+      .followedBy(Policy.crontab(crontabs.daily.fourAM).jitter(2.seconds))
+      .followedBy(Policy.crontab(crontabs.daily.fiveAM))
+      .followedBy(Policy.crontab(crontabs.daily.sixAM))
+      .followedBy(Policy.crontab(crontabs.daily.sevenAM))
+      .followedBy(Policy.crontab(crontabs.daily.eightAM))
+      .meet(Policy.crontab(crontabs.daily.nineAM))
+      .followedBy(Policy.crontab(crontabs.daily.tenAM))
+      .followedBy(Policy.crontab(crontabs.daily.elevenAM))
+      .followedBy(Policy.giveUp)
+      .followedBy(Policy.crontab(_.daily.noon))
+      .followedBy(Policy.crontab(_.daily.onePM))
+      .followedBy(Policy.crontab(_.daily.twoPM))
+      .followedBy(Policy.crontab(_.daily.threePM).limited(1))
+      .followedBy(Policy.crontab(_.daily.fourPM))
+      .meet(Policy.crontab(_.daily.fivePM))
+      .followedBy(Policy.crontab(_.daily.sixPM).limited(1).repeat)
+      .followedBy(Policy.crontab(_.daily.sevenPM))
+      .followedBy(Policy.crontab(_.daily.eightPM))
+      .followedBy(Policy.crontab(_.daily.ninePM))
+      .followedBy(Policy.crontab(_.daily.tenPM))
+      .followedBy(Policy.crontab(_.daily.elevenPM))
+      .followedBy(Policy.crontab(_.daily.midnight))
       .repeat
       .except(_.midnight)
-      .followedBy(policies.fixedDelay(1.second))
-      .followedBy(policies.fixedRate(3.second))
-      .followedBy(policies.fixedDelay(1.second, 2.seconds))
-      .followedBy(policies.fixedRate(2.seconds))
+      .followedBy(Policy.fixedDelay(1.second))
+      .followedBy(Policy.fixedRate(3.second))
+      .followedBy(Policy.fixedDelay(1.second, 2.seconds))
+      .followedBy(Policy.fixedRate(2.seconds))
       .except(_.twoPM)
       .repeat
-      .followedBy(policies.crontab(crontabs.weekly.monday))
-      .followedBy(policies.crontab(crontabs.weekly.tuesday))
-      .followedBy(policies.crontab(crontabs.weekly.wednesday))
-      .followedBy(policies.crontab(crontabs.weekly.thursday))
-      .followedBy(policies.crontab(crontabs.weekly.friday))
-      .followedBy(policies.crontab(crontabs.weekly.saturday))
-      .followedBy(policies.crontab(crontabs.weekly.sunday))
+      .followedBy(Policy.crontab(crontabs.weekly.monday))
+      .followedBy(Policy.crontab(crontabs.weekly.tuesday))
+      .followedBy(Policy.crontab(crontabs.weekly.wednesday))
+      .followedBy(Policy.crontab(crontabs.weekly.thursday))
+      .followedBy(Policy.crontab(crontabs.weekly.friday))
+      .followedBy(Policy.crontab(crontabs.weekly.saturday))
+      .followedBy(Policy.crontab(crontabs.weekly.sunday))
       .repeat
 
     println(policy)
@@ -214,7 +207,7 @@ class PolicyCombinatorTest extends AnyFunSuite {
   }
 
   test("except") {
-    val policy = policies.crontab(_.trihourly).except(_.midnight).except(_.elevenPM).except(_.midnight)
+    val policy = Policy.crontab(_.trihourly).except(_.midnight).except(_.elevenPM).except(_.midnight)
     println(policy.show)
     println(policy.asJson)
     assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
@@ -233,7 +226,7 @@ class PolicyCombinatorTest extends AnyFunSuite {
   }
 
   test("offset") {
-    val policy = policies.crontab(_.hourly).offset(3.seconds)
+    val policy = Policy.crontab(_.hourly).offset(3.seconds)
     println(policy.show)
     println(policy.asJson)
     assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
@@ -243,7 +236,7 @@ class PolicyCombinatorTest extends AnyFunSuite {
   }
 
   test("jitter") {
-    val policy = policies.crontab(_.hourly).jitter(3.seconds)
+    val policy = Policy.crontab(_.hourly).jitter(3.seconds)
     println(policy.show)
     println(policy.asJson)
     assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)

@@ -119,7 +119,7 @@ final class ActionConfig private (
   private[guard] def evalConfig: ActionParams = scheme.cata(algebra).apply(cont)
 }
 
-object ActionConfig {
+private[guard] object ActionConfig {
 
   def apply(actionName: ActionName, measurement: Measurement, serviceParams: ServiceParams): ActionConfig =
     new ActionConfig(

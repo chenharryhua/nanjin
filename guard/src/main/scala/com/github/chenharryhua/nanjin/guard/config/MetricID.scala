@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard.config
 
 import cats.effect.kernel.Unique
 import cats.implicits.catsSyntaxHash
-import com.github.chenharryhua.nanjin.guard.event.MeasurementUnit
+import com.github.chenharryhua.nanjin.guard.event.{ActionID, MeasurementUnit}
 import enumeratum.values.{IntCirceEnum, IntEnum, IntEnumEntry}
 import enumeratum.{CirceEnum, Enum, EnumEntry}
 import io.circe.Encoder
@@ -128,7 +128,7 @@ object Category {
 }
 
 @JsonCodec
-final case class MetricName(name: String, digest: String, measurement: String)
+final case class MetricName private (name: String, digest: String, measurement: String)
 object MetricName {
   def apply(serviceParams: ServiceParams, measurement: Measurement, name: String): MetricName = {
     val full_name: List[String] =
@@ -147,11 +147,14 @@ object MetricName {
   *   hash of Unique.Token. it is runtime identifier of a metric
   */
 @JsonCodec
-final case class MetricID(metricName: MetricName, category: Category, uniqueToken: Int) {
+final case class MetricID private (metricName: MetricName, category: Category, uniqueToken: Int) {
   val identifier: String = Encoder[MetricID].apply(this).noSpaces
 }
 
 object MetricID {
   def apply(metricName: MetricName, category: Category, token: Unique.Token): MetricID =
     MetricID(metricName, category, token.hash)
+
+  def apply(metricName: MetricName, category: Category, actionID: ActionID): MetricID =
+    MetricID(metricName, category, actionID.uniqueToken)
 }
