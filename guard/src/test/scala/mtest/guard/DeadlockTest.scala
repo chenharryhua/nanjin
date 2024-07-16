@@ -2,7 +2,7 @@ package mtest.guard
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.common.chrono.policies
+import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.MetricReport
 import com.github.chenharryhua.nanjin.guard.event.retrieveDeadlocks
@@ -47,7 +47,7 @@ class DeadlockTest extends AnyFunSuite {
 
     TaskGuard[IO]("deadlock")
       .service("deadlock")
-      .updateConfig(_.withMetricReport(policies.crontab(_.secondly)))
+      .updateConfig(_.withMetricReport(Policy.crontab(_.secondly)))
       .eventStream { ga =>
         ga.jvmGauge.deadlocks.surround(locked)
       }

@@ -2,7 +2,7 @@ package mtest.guard
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.common.chrono.policies
+import com.github.chenharryhua.nanjin.common.chrono.Policy.*
 import com.github.chenharryhua.nanjin.common.chrono.zones.berlinTime
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
@@ -15,7 +15,7 @@ class ConfigTest extends AnyFunSuite {
   val task: TaskGuard[IO] =
     TaskGuard[IO]("config")
       .updateConfig(_.withZoneId(berlinTime).withPanicHistoryCapacity(1).withMetricHistoryCapacity(2))
-      .updateConfig(_.withMetricReport(policies.crontab(_.hourly)))
+      .updateConfig(_.withMetricReport(crontab(_.hourly)))
 
   test("1.counting") {
     val as = task
@@ -97,7 +97,7 @@ class ConfigTest extends AnyFunSuite {
   test("6.report") {
     task
       .service("report")
-      .updateConfig(_.withMetricReport(policies.giveUp))
+      .updateConfig(_.withMetricReport(giveUp))
       .eventStream { agent =>
         agent.action("cfg", _.silent).retry(IO(1)).buildWith(identity).use(_.run(()))
       }

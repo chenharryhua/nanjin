@@ -4,7 +4,7 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.HostName
-import com.github.chenharryhua.nanjin.common.chrono.policies
+import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.MeasurementUnit.*
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
@@ -28,14 +28,14 @@ class MetricsTest extends AnyFunSuite {
     TaskGuard[IO]("metrics").updateConfig(
       _.withZoneId(zoneId)
         .withHostName(HostName.local_host)
-        .withMetricReport(policies.crontab(_.secondly))
+        .withMetricReport(Policy.crontab(_.secondly))
         .disableHttpServer
         .disableJmx)
 
   test("1.lazy counting") {
     val last = task
       .service("delta")
-      .updateConfig(_.withMetricReport(policies.crontab(_.secondly)))
+      .updateConfig(_.withMetricReport(Policy.crontab(_.secondly)))
       .eventStream(ag =>
         ag.action("one", _.silent).retry(IO(0)).buildWith(identity).use(_.run(())) >> IO.sleep(10.minutes))
       .map(checkJson)
@@ -49,7 +49,7 @@ class MetricsTest extends AnyFunSuite {
   test("3.ongoing action alignment") {
     task
       .service("alignment")
-      .updateConfig(_.withMetricReport(policies.crontab(_.secondly)))
+      .updateConfig(_.withMetricReport(Policy.crontab(_.secondly)))
       .eventStream { ag =>
         val one =
           ag.action("one", _.bipartite)
@@ -90,7 +90,7 @@ class MetricsTest extends AnyFunSuite {
 
   test("5.show timestamp") {
     val s =
-      task.updateConfig(_.withMetricReport(policies.crontab(Cron.unsafeParse("0-59 * * ? * *"))))
+      task.updateConfig(_.withMetricReport(Policy.crontab(Cron.unsafeParse("0-59 * * ? * *"))))
 
     val s1 = s.service("s1").eventStream(_ => IO.never)
     val s2 = s.service("s2").eventStream(_ => IO.never)

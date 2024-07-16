@@ -2,7 +2,7 @@ package mtest.guard
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.common.chrono.policies
+import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.action.BatchMode
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.ServiceStop
@@ -17,7 +17,7 @@ import scala.jdk.DurationConverters.JavaDurationOps
 
 class BatchTest extends AnyFunSuite {
   private val service: ServiceGuard[IO] =
-    TaskGuard[IO]("quasi").service("quasi").updateConfig(_.withMetricReport(policies.crontab(_.secondly)))
+    TaskGuard[IO]("quasi").service("quasi").updateConfig(_.withMetricReport(Policy.crontab(_.secondly)))
 
   test("1.quasi.sequential") {
     service.eventStream { ga =>
@@ -46,7 +46,7 @@ class BatchTest extends AnyFunSuite {
 
   test("2.quasi.parallel") {
     service.eventStream { ga =>
-      ga.batch("quasi.parallel", _.timed.counted.bipartite.policy(policies.fixedDelay(1.second).limited(1)))
+      ga.batch("quasi.parallel", _.timed.counted.bipartite.policy(Policy.fixedDelay(1.second).limited(1)))
         .namedParallel(3)(
           "a" -> IO.sleep(3.second),
           "b" -> IO.sleep(2.seconds),
@@ -146,7 +146,7 @@ class BatchTest extends AnyFunSuite {
           _.worthRetry {
             case Unworthy => false
             case _        => true
-          }.policy(policies.fixedDelay(1.seconds).limited(3)).unipartite)
+          }.policy(Policy.fixedDelay(1.seconds).limited(3)).unipartite)
           .namedParallel("a1" -> a1, "a2" -> a2)
           .quasi
           .flatTap(qr =>

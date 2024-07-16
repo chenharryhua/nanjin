@@ -3,7 +3,7 @@ package mtest.terminals
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.{toFunctorFilterOps, toTraverseOps}
-import com.github.chenharryhua.nanjin.common.chrono.policies
+import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.terminals.*
 import com.github.chenharryhua.nanjin.terminals.NJCompression.*
 import eu.timepit.refined.auto.*
@@ -100,7 +100,7 @@ class NJTextTest extends AnyFunSuite {
       .repeatN(number)
       .map(_.toString)
       .chunks
-      .through(text.sink(policies.fixedDelay(1.second), ZoneId.systemDefault())(t => path / fk.fileName(t)))
+      .through(text.sink(Policy.fixedDelay(1.second), ZoneId.systemDefault())(t => path / fk.fileName(t)))
       .fold(0)(_ + _)
       .compile
       .lastOrError
@@ -123,7 +123,7 @@ class NJTextTest extends AnyFunSuite {
     val fk = TextFile(Uncompressed)
     (Stream.sleep[IO](10.hours) >>
       Stream.empty.covaryAll[IO, String]).chunks
-      .through(text.sink(policies.fixedDelay(1.second).limited(3), ZoneId.systemDefault())(t =>
+      .through(text.sink(Policy.fixedDelay(1.second).limited(3), ZoneId.systemDefault())(t =>
         path / fk.fileName(t)))
       .compile
       .drain

@@ -4,7 +4,7 @@ import cats.effect.IO
 import cats.effect.kernel.{Ref, Resource}
 import cats.effect.unsafe.implicits.global
 import cats.implicits.{catsSyntaxFlatMapOps, catsSyntaxSemigroup}
-import com.github.chenharryhua.nanjin.common.chrono.policies
+import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.MetricReport
 import com.github.chenharryhua.nanjin.guard.event.{retrieveDeadlocks, retrieveGauge, retrieveInstrument}
@@ -20,7 +20,7 @@ case class UserGauge(a: Int, b: String)
 
 class GaugeTest extends AnyFunSuite {
   val service: ServiceGuard[IO] =
-    TaskGuard[IO]("gauge").service("gauge").updateConfig(_.withMetricReport(policies.crontab(_.secondly)))
+    TaskGuard[IO]("gauge").service("gauge").updateConfig(_.withMetricReport(Policy.crontab(_.secondly)))
 
   test("user gauge") {
     val res: MetricReport = service.eventStream { ga =>
@@ -40,7 +40,7 @@ class GaugeTest extends AnyFunSuite {
   }
 
   test("2.gauge") {
-    val policy = policies.crontab(_.secondly)
+    val policy = Policy.crontab(_.secondly)
     val mr: MetricReport = service
       .updateConfig(_.withJmx(identity))
       .eventStream { agent =>
@@ -63,7 +63,7 @@ class GaugeTest extends AnyFunSuite {
 
         gauge.use(box =>
           agent
-            .ticks(policies.fixedDelay(1.seconds).limited(3))
+            .ticks(Policy.fixedDelay(1.seconds).limited(3))
             .evalTap(_ => box.updateAndGet(_ + 1))
             .compile
             .drain) >>

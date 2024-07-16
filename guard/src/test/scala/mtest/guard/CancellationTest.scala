@@ -2,8 +2,9 @@ package mtest.guard
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
+import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
-import com.github.chenharryhua.nanjin.common.chrono.{policies, Policy}
+import com.github.chenharryhua.nanjin.common.chrono.Policy.*
 import com.github.chenharryhua.nanjin.guard.*
 import com.github.chenharryhua.nanjin.guard.event.*
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
@@ -18,14 +19,14 @@ class CancellationTest extends AnyFunSuite {
       _.disableJmx.disableHttpServer
         .withZoneId(sydneyTime)
         .withMetricDailyReset
-        .withRestartPolicy(policies.fixedDelay(1.seconds)))
+        .withRestartPolicy(fixedDelay(1.seconds)))
 
-  val policy: Policy = policies.crontab(_.secondly).limited(3)
+  val policy: Policy = crontab(_.secondly).limited(3)
 
   test("1.cancellation - canceled actions are failed actions") {
     val Vector(a, b, c, d) = task
       .service("failed")
-      .updateConfig(_.withRestartPolicy(policies.fixedDelay(1.hour)))
+      .updateConfig(_.withRestartPolicy(fixedDelay(1.hour)))
       .eventStream(ag =>
         ag.action("canceled", _.bipartite.policy(policy))
           .retry(IO(1) <* IO.canceled)
@@ -46,7 +47,7 @@ class CancellationTest extends AnyFunSuite {
   test("2.cancellation - can be canceled externally") {
     val Vector(s, b, c) = task
       .service("externally")
-      .updateConfig(_.withRestartPolicy(policies.fixedDelay(1.hour)))
+      .updateConfig(_.withRestartPolicy(fixedDelay(1.hour)))
       .eventStream { ag =>
         val a1 = ag.action("never", _.silent).retry(never_fun).buildWith(identity).use(_.run(()))
         IO.parSequenceN(2)(List(IO.sleep(2.second) >> IO.canceled, a1))
@@ -64,7 +65,7 @@ class CancellationTest extends AnyFunSuite {
   test("3.canceled by external exception") {
     val Vector(s, b, c) = task
       .service("external exception")
-      .updateConfig(_.withRestartPolicy(policies.giveUp))
+      .updateConfig(_.withRestartPolicy(giveUp))
       .eventStream { ag =>
         val a1 = ag.action("never").retry(never_fun).buildWith(identity).use(_.run(()))
         IO.parSequenceN(2)(List(IO.sleep(1.second) >> err_fun(1), a1))
@@ -82,7 +83,7 @@ class CancellationTest extends AnyFunSuite {
   test("4.cancellation should propagate in right order") {
     val Vector(a, b, c, d) = task
       .service("order")
-      .updateConfig(_.withRestartPolicy(policies.giveUp))
+      .updateConfig(_.withRestartPolicy(giveUp))
       .eventStream { ag =>
         val a1 = ag.action("one/two/inner", _.silent).retry(IO.never[Int]).buildWith(identity).use(_.run(()))
         ag.action("one/two/three/outer", _.silent)
@@ -103,7 +104,7 @@ class CancellationTest extends AnyFunSuite {
   test("5.cancellation - sequentially - cancel after two complete") {
     val Vector(s, a, b, c, d, e) = task
       .service("sequentially")
-      .updateConfig(_.withRestartPolicy(policies.fixedDelay(1.hour)))
+      .updateConfig(_.withRestartPolicy(fixedDelay(1.hour)))
       .eventStream { ag =>
         ag.action("a1", _.bipartite).retry(IO(1)).buildWith(identity).use(_.run(())) >>
           ag.action("a2", _.bipartite).retry(IO(1)).buildWith(identity).use(_.run(())) >>
@@ -125,10 +126,10 @@ class CancellationTest extends AnyFunSuite {
   }
 
   test("6.cancellation - sequentially - no chance to cancel") {
-    val policy = policies.fixedDelay(1.seconds).limited(1)
+    val policy = fixedDelay(1.seconds).limited(1)
     val Vector(s, a, b, c, d, e, f) = task
       .service("no cancel")
-      .updateConfig(_.withRestartPolicy(policies.giveUp))
+      .updateConfig(_.withRestartPolicy(giveUp))
       .eventStream { ag =>
         ag.action("a1", _.bipartite).retry(IO(1)).buildWith(identity).use(_.run(())) >>
           ag.action("a2", _.bipartite.policy(policy))
@@ -153,11 +154,11 @@ class CancellationTest extends AnyFunSuite {
   }
 
   test("7.cancellation - parallel") {
-    val policy: Policy = policies.fixedDelay(1.seconds).limited(3)
+    val policy: Policy = fixedDelay(1.seconds).limited(3)
     val v: Vector[NJEvent] =
       task
         .service("parallel")
-        .updateConfig(_.withRestartPolicy(policies.giveUp))
+        .updateConfig(_.withRestartPolicy(giveUp))
         .eventStream { ag =>
           val a1 =
             ag.action("complete-1", _.bipartite)
@@ -197,10 +198,10 @@ class CancellationTest extends AnyFunSuite {
   }
 
   test("8.cancellation - cancel in middle of retrying") {
-    val policy = policies.fixedDelay(2.seconds)
+    val policy = fixedDelay(2.seconds)
     val Vector(s, a, b, c, d, e) = task
       .service("cancel retry")
-      .updateConfig(_.withRestartPolicy(policies.fixedDelay(1.hour)))
+      .updateConfig(_.withRestartPolicy(fixedDelay(1.hour)))
       .eventStream { ag =>
         val a1 =
           ag.action("exception", _.bipartite.policy(policy))
@@ -225,7 +226,7 @@ class CancellationTest extends AnyFunSuite {
   test("9.cancellation - wrapped within cancelable") {
     val Vector(s, b, c, d, e, f) = task
       .service("wrap")
-      .updateConfig(_.withRestartPolicy(policies.fixedDelay(1.hour)))
+      .updateConfig(_.withRestartPolicy(fixedDelay(1.hour)))
       .eventStream { ag =>
         val a1 = ag
           .action("exception", _.policy(policy))
@@ -251,7 +252,7 @@ class CancellationTest extends AnyFunSuite {
     val Vector(a, b) =
       task
         .service("never")
-        .updateConfig(_.withRestartPolicy(policies.fixedDelay(1.hour)))
+        .updateConfig(_.withRestartPolicy(fixedDelay(1.hour)))
         .eventStream(_.action("never", _.bipartite).retry(IO.never[Int]).buildWith(identity).use(_.run(())))
         .map(checkJson)
         .interruptAfter(2.seconds)

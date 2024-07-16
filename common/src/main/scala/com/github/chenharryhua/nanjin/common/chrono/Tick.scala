@@ -11,7 +11,7 @@ import java.time.{Duration, Instant, ZoneId, ZonedDateTime}
 import java.util.UUID
 
 @JsonCodec
-final case class Tick(
+final case class Tick private[chrono] (
   sequenceId: UUID, // immutable
   launchTime: Instant, // immutable
   zoneId: ZoneId, // immutable

@@ -2,7 +2,7 @@ package mtest.guard
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.common.chrono.policies
+import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import org.scalatest.funsuite.AnyFunSuite
@@ -63,7 +63,7 @@ class PerformanceTest extends AnyFunSuite {
   private val service: ServiceGuard[IO] =
     TaskGuard[IO]("performance")
       .service("actions")
-      .updateConfig(_.withMetricReport(policies.crontab(_.secondly)))
+      .updateConfig(_.withMetricReport(Policy.crontab(_.secondly)))
 
   // sbt "guard/testOnly mtest.guard.PerformanceTest"
   private val take: FiniteDuration = 5.seconds

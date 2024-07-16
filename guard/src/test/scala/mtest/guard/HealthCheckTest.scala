@@ -2,7 +2,7 @@ package mtest.guard
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.common.chrono.policies
+import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.MetricReport
 import com.github.chenharryhua.nanjin.guard.observers.console
@@ -13,7 +13,7 @@ import scala.jdk.DurationConverters.JavaDurationOps
 
 class HealthCheckTest extends AnyFunSuite {
   val guard: TaskGuard[IO] =
-    TaskGuard[IO]("health-check").updateConfig(_.withMetricReport(policies.crontab(_.secondly)))
+    TaskGuard[IO]("health-check").updateConfig(_.withMetricReport(Policy.crontab(_.secondly)))
   test("1.never health-check - should terminate") {
     val res: List[MetricReport] = guard
       .service("health-check")
@@ -52,7 +52,7 @@ class HealthCheckTest extends AnyFunSuite {
       .service("health-check-cost")
       .eventStream(gd =>
         gd.healthCheck("health-never", _.withTimeout(2.seconds))
-          .register(IO.never[Boolean], policies.fixedDelay(1.seconds), gd.zoneId)
+          .register(IO.never[Boolean], Policy.fixedDelay(1.seconds), gd.zoneId)
           .surround(IO.sleep(3.seconds)))
       .map(checkJson)
       .evalTap(console.text[IO])
@@ -68,7 +68,7 @@ class HealthCheckTest extends AnyFunSuite {
       .service("gauge-cost")
       .eventStream(gd =>
         gd.gauge("gauge-never-cost", _.withTimeout(2.seconds))
-          .register(IO.never[Boolean], policies.fixedDelay(1.seconds), gd.zoneId)
+          .register(IO.never[Boolean], Policy.fixedDelay(1.seconds), gd.zoneId)
           .surround(IO.sleep(3.seconds)))
       .map(checkJson)
       .evalTap(console.text[IO])

@@ -4,7 +4,7 @@ import cats.Endo
 import cats.effect.kernel.{Async, Resource}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.aws.{S3Path, SqsConfig}
-import com.github.chenharryhua.nanjin.common.chrono.{policies, Policy, TickStatus}
+import com.github.chenharryhua.nanjin.common.chrono.{Policy, TickStatus}
 import fs2.{Chunk, Pull, Stream}
 import io.circe.Json
 import io.circe.generic.JsonCodec
@@ -73,7 +73,7 @@ object SimpleQueueService {
 
   def apply[F[_]: Async](f: Endo[SqsClientBuilder]): Resource[F, SimpleQueueService[F]] = {
     val defaultPolicy: Policy =
-      policies.fixedDelay(10.seconds, 20.second, 40.seconds, 80.seconds, 160.seconds, 320.seconds)
+      Policy.fixedDelay(10.seconds, 20.second, 40.seconds, 80.seconds, 160.seconds, 320.seconds)
     for {
       logger <- Resource.eval(Slf4jLogger.create[F])
       sqs <- Resource.makeCase(

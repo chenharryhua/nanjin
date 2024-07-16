@@ -4,7 +4,7 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.syntax.all.*
 import com.codahale.metrics.SlidingWindowReservoir
-import com.github.chenharryhua.nanjin.common.chrono.policies
+import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.config.Category.Counter
@@ -33,7 +33,7 @@ import scala.concurrent.duration.DurationInt
 class MetricsCountingTest extends AnyFunSuite {
   private val task: TaskGuard[IO] =
     TaskGuard[IO]("metrics.counting").updateConfig(_.withZoneId(sydneyTime))
-  private val policy = policies.fixedDelay(1.seconds).limited(1)
+  private val policy = Policy.fixedDelay(1.seconds).limited(1)
 
   def counterSucc(mr: MetricReport): Long =
     mr.snapshot.counters.find(_.metricId.category == Counter(ActionDone)).get.count

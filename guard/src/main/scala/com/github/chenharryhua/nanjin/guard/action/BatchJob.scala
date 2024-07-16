@@ -70,5 +70,3 @@ object QuasiResult {
     )
   }
 }
-
-private case object ActionCancelException extends Exception("action was canceled")

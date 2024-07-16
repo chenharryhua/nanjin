@@ -13,7 +13,7 @@ import java.time.ZonedDateTime
 import scala.jdk.CollectionConverters.ListHasAsScala
 
 @JsonCodec
-final case class NJError(message: String, stack: List[String])
+final case class NJError private (message: String, stack: List[String])
 
 object NJError {
   def apply(ex: Throwable): NJError =
@@ -68,7 +68,7 @@ object ServiceStopCause {
     ).reduceLeft(_ or _)
 }
 
-final case class ActionID(uniqueToken: Int) extends AnyVal
+final case class ActionID private (uniqueToken: Int)
 object ActionID {
   implicit val showActionID: Show[ActionID]       = _.uniqueToken.toString
   implicit val encoderActionID: Encoder[ActionID] = Encoder.encodeInt.contramap(_.uniqueToken)

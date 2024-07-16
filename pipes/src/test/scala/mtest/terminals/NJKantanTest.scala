@@ -2,7 +2,7 @@ package mtest.terminals
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.toTraverseOps
-import com.github.chenharryhua.nanjin.common.chrono.{policies, Policy}
+import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.terminals.NJCompression.*
 import com.github.chenharryhua.nanjin.terminals.{CsvHeaderOf, KantanFile, NJFileKind, NJHadoop, NJPath}
 import eu.timepit.refined.auto.*
@@ -102,7 +102,7 @@ class NJKantanTest extends AnyFunSuite {
     hdp.kantan(CsvConfiguration.rfc).sink(NJPath("./does/not/exist"))
   }
 
-  val policy: Policy = policies.fixedDelay(1.second)
+  val policy: Policy = Policy.fixedDelay(1.second)
   test("rotation - with-header") {
     val csv  = hdp.kantan(_.withHeader(CsvHeaderOf[Tiger].header))
     val path = fs2Root / "rotation" / "header" / "data"
@@ -132,7 +132,7 @@ class NJKantanTest extends AnyFunSuite {
     val fk = KantanFile(Uncompressed)
     (Stream.sleep[IO](10.hours) >>
       Stream.empty.covaryAll[IO, Seq[String]]).chunks
-      .through(csv.sink(policies.fixedDelay(1.second).limited(3), ZoneId.systemDefault())(t =>
+      .through(csv.sink(Policy.fixedDelay(1.second).limited(3), ZoneId.systemDefault())(t =>
         path / fk.fileName(t)))
       .compile
       .drain
@@ -172,7 +172,7 @@ class NJKantanTest extends AnyFunSuite {
     val fk = KantanFile(Uncompressed)
     (Stream.sleep[IO](10.hours) >>
       Stream.empty.covaryAll[IO, Seq[String]]).chunks
-      .through(csv.sink(policies.fixedDelay(1.second).limited(3), ZoneId.systemDefault())(t =>
+      .through(csv.sink(Policy.fixedDelay(1.second).limited(3), ZoneId.systemDefault())(t =>
         path / fk.fileName(t)))
       .compile
       .drain

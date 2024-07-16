@@ -4,7 +4,7 @@ import cats.effect.IO
 import cats.effect.std.Random
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.chrono.zones.*
-import com.github.chenharryhua.nanjin.common.chrono.{crontabs, policies, tickStream}
+import com.github.chenharryhua.nanjin.common.chrono.{crontabs, tickStream, Policy}
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.Duration as JavaDuration
@@ -13,7 +13,7 @@ import scala.jdk.DurationConverters.JavaDurationOps
 
 class TickStreamTest extends AnyFunSuite {
   test("1.tick") {
-    val policy = policies.crontab(crontabs.secondly).limited(5)
+    val policy = Policy.crontab(crontabs.secondly).limited(5)
     val ticks  = tickStream[IO](policy, londonTime)
 
     val res = ticks.map(_.interval.toScala).compile.toList.unsafeRunSync()
@@ -22,7 +22,7 @@ class TickStreamTest extends AnyFunSuite {
   }
 
   test("2.process longer than 1 second") {
-    val policy = policies.crontab(crontabs.secondly)
+    val policy = Policy.crontab(crontabs.secondly)
     val ticks  = tickStream[IO](policy, berlinTime)
 
     val fds =
@@ -34,7 +34,7 @@ class TickStreamTest extends AnyFunSuite {
   }
 
   test("3.process less than 1 second") {
-    val policy = policies.crontab(crontabs.secondly)
+    val policy = Policy.crontab(crontabs.secondly)
     val ticks  = tickStream[IO](policy, cairoTime)
 
     val fds =
@@ -46,7 +46,7 @@ class TickStreamTest extends AnyFunSuite {
   }
 
   test("4.constant") {
-    val policy = policies.fixedDelay(1.second).limited(5)
+    val policy = Policy.fixedDelay(1.second).limited(5)
     val ticks  = tickStream[IO](policy, saltaTime)
     val sleep: IO[JavaDuration] =
       Random
@@ -57,7 +57,7 @@ class TickStreamTest extends AnyFunSuite {
     ticks.evalTap(_ => sleep).debug().compile.toList.unsafeRunSync()
   }
   test("5.fixed rate") {
-    val policy = policies.fixedRate(2.second).limited(5)
+    val policy = Policy.fixedRate(2.second).limited(5)
     val ticks  = tickStream[IO](policy, darwinTime)
     val sleep: IO[JavaDuration] =
       Random
@@ -69,7 +69,7 @@ class TickStreamTest extends AnyFunSuite {
   }
 
   test("6. giveUp") {
-    val ticks = tickStream[IO](policies.giveUp, saltaTime).compile.toList.unsafeRunSync()
+    val ticks = tickStream[IO](Policy.giveUp, saltaTime).compile.toList.unsafeRunSync()
     assert(ticks.isEmpty)
   }
 

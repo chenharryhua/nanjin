@@ -4,7 +4,7 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.chrono.zones.singaporeTime
-import com.github.chenharryhua.nanjin.common.chrono.{policies, Policy}
+import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.guard.*
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
 import io.circe.syntax.*
@@ -21,9 +21,9 @@ class RetryTest extends AnyFunSuite {
   private val task: TaskGuard[IO] =
     TaskGuard[IO]("retry-guard")
       .updateConfig(_.withZoneId(singaporeTime))
-      .updateConfig(_.withRestartPolicy(policies.fixedDelay(1.seconds)))
+      .updateConfig(_.withRestartPolicy(Policy.fixedDelay(1.seconds)))
 
-  val policy: Policy = policies.fixedDelay(1.seconds).limited(3)
+  val policy: Policy = Policy.fixedDelay(1.seconds).limited(3)
 
   test("1.retry - completed trivial") {
     val Vector(s, c) = task
@@ -70,7 +70,7 @@ class RetryTest extends AnyFunSuite {
   }
 
   test("3.retry - all fail") {
-    val policy = policies.fixedDelay(0.1.seconds).limited(1)
+    val policy = Policy.fixedDelay(0.1.seconds).limited(1)
     val Vector(s, a, b, c, d, e, f, g, h, i, j) = task
       .service("all fail")
       .eventStream { gd =>
@@ -159,9 +159,9 @@ class RetryTest extends AnyFunSuite {
   test("6.retry - should escalate to up level if retry failed") {
     val Vector(s, b, c, d, e, f) = task
       .service("escalate")
-      .updateConfig(_.withRestartPolicy(policies.giveUp))
+      .updateConfig(_.withRestartPolicy(Policy.giveUp))
       .eventStream { gd =>
-        gd.action("t", _.counted.policy(policies.fixedDelay(1.seconds).limited(3)))
+        gd.action("t", _.counted.policy(Policy.fixedDelay(1.seconds).limited(3)))
           .retry((_: Int) => IO.raiseError[Int](new Exception("oops")))
           .buildWith(_.tapInput(_.asJson))
           .use(_.run(1))
@@ -186,7 +186,7 @@ class RetryTest extends AnyFunSuite {
   test("7.retry - Null pointer exception") {
     val List(a, b, c, d, e, f) = task
       .service("null exception")
-      .updateConfig(_.withRestartPolicy(policies.giveUp))
+      .updateConfig(_.withRestartPolicy(Policy.giveUp))
       .eventStream(ag =>
         ag.action("t", _.normal.timed.policy(policy))
           .retry(IO.raiseError[Int](new NullPointerException))
@@ -208,9 +208,9 @@ class RetryTest extends AnyFunSuite {
   test("8.retry - isWorthRetry - should retry") {
     val Vector(s, b, c, d, e, f) = task
       .service("retry")
-      .updateConfig(_.withRestartPolicy(policies.giveUp))
+      .updateConfig(_.withRestartPolicy(Policy.giveUp))
       .eventStream { gd =>
-        gd.action("t", _.policy(policies.fixedDelay(0.1.seconds).limited(3)))
+        gd.action("t", _.policy(Policy.fixedDelay(0.1.seconds).limited(3)))
           .retry(IO.raiseError[Int](MyException()))
           .buildWith(_.worthRetry(_.isInstanceOf[MyException]))
           .use(_.run(()))
@@ -231,10 +231,10 @@ class RetryTest extends AnyFunSuite {
   test("9.retry - isWorthRetry - should not retry") {
     val Vector(s, a, b, c) = task
       .service("no retry")
-      .updateConfig(_.withRestartPolicy(policies.fixedDelay(1.hour)))
+      .updateConfig(_.withRestartPolicy(Policy.fixedDelay(1.hour)))
       .eventStream { gd =>
         gd.zonedNow >>
-          gd.action("t", _.bipartite.policy(policies.fixedDelay(0.1.seconds).limited(3)))
+          gd.action("t", _.bipartite.policy(Policy.fixedDelay(0.1.seconds).limited(3)))
             .retry(IO.raiseError[Int](new Exception))
             .buildWith(_.worthRetry(x => x.isInstanceOf[MyException]))
             .use(_.run(()))
@@ -254,9 +254,9 @@ class RetryTest extends AnyFunSuite {
   test("12.cron policy") {
     val List(a, b, c, d, e, f, g) = task
       .service("cron")
-      .updateConfig(_.withRestartPolicy(policies.giveUp))
+      .updateConfig(_.withRestartPolicy(Policy.giveUp))
       .eventStream(
-        _.action("cron", _.bipartite.policy(policies.crontab(_.secondly).limited(3)))
+        _.action("cron", _.bipartite.policy(Policy.crontab(_.secondly).limited(3)))
           .retry(IO.raiseError[Int](new Exception("oops")))
           .buildWith(identity)
           .use(_.run(())))
@@ -289,39 +289,39 @@ class RetryTest extends AnyFunSuite {
     val err = IO.raiseError[Int](new ControlThrowable("fatal error") {})
     val List(a, b, c, d, e, f, g, h, i) = task
       .service("fatal")
-      .updateConfig(_.withRestartPolicy(policies.giveUp))
+      .updateConfig(_.withRestartPolicy(Policy.giveUp))
       .eventStream { agent =>
         val a =
           agent
-            .action("a", _.policy(policies.fixedDelay(1.seconds)).timed.counted.bipartite)
+            .action("a", _.policy(Policy.fixedDelay(1.seconds)).timed.counted.bipartite)
             .retry(err)
             .buildWith(identity)
             .use(_.run(()))
         val b =
           agent
-            .action("b", _.policy(policies.fixedDelay(1.seconds)).timed.counted.unipartite)
+            .action("b", _.policy(Policy.fixedDelay(1.seconds)).timed.counted.unipartite)
             .retry(err)
             .buildWith(identity)
             .use(_.run(()))
         val c =
           agent
-            .action("c", _.policy(policies.fixedDelay(1.seconds)).timed)
+            .action("c", _.policy(Policy.fixedDelay(1.seconds)).timed)
             .retry(err)
             .buildWith(identity)
             .use(_.run(()))
         val d =
           agent
-            .action("d", _.policy(policies.fixedDelay(1.seconds)).counted)
+            .action("d", _.policy(Policy.fixedDelay(1.seconds)).counted)
             .retry(err)
             .buildWith(identity)
             .use(_.run(()))
         val e = agent
-          .action("e", _.policy(policies.fixedDelay(1.seconds)))
+          .action("e", _.policy(Policy.fixedDelay(1.seconds)))
           .retry(err)
           .buildWith(identity)
           .use(_.run(()))
         val f = agent
-          .action("f", _.policy(policies.fixedDelay(1.seconds)).unipartite)
+          .action("f", _.policy(Policy.fixedDelay(1.seconds)).unipartite)
           .retry(err)
           .buildWith(identity)
           .use(_.run(()))
@@ -371,7 +371,7 @@ class RetryTest extends AnyFunSuite {
       .service("delay")
       .eventStream { agent =>
         agent
-          .action("delay", _.bipartite.insignificant.policy(policies.fixedDelay(1.seconds)))
+          .action("delay", _.bipartite.insignificant.policy(Policy.fixedDelay(1.seconds)))
           .delay(tt)
           .buildWith(identity)
           .use(_.run(()))
@@ -406,7 +406,7 @@ class RetryTest extends AnyFunSuite {
     val List(a, b, c) = TaskGuard[IO]("silent")
       .service("count")
       .eventStream(
-        _.action("exception", _.silent.counted.policy(policies.fixedDelay(1.seconds)))
+        _.action("exception", _.silent.counted.policy(Policy.fixedDelay(1.seconds)))
           .retry((_: Int) => IO.raiseError[Int](new Exception))
           .buildWith(identity)
           .use(_.run(1)))
@@ -424,7 +424,7 @@ class RetryTest extends AnyFunSuite {
     val List(a, b, c) = TaskGuard[IO]("unipartite")
       .service("time")
       .eventStream(
-        _.action("exception", _.unipartite.timed.policy(policies.fixedDelay(1.seconds)))
+        _.action("exception", _.unipartite.timed.policy(Policy.fixedDelay(1.seconds)))
           .retry((_: Int) => IO.raiseError[Int](new Exception))
           .buildWith(identity)
           .use(_.run(1)))

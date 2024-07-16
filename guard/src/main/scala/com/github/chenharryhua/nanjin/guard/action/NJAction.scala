@@ -68,3 +68,7 @@ final class NJAction[F[_]: Async] private[guard] (
   def retryFuture[A, B, C, D, E, Z](f: (A, B, C, D, E) => Future[Z]): BuildWith[F, (A, B, C, D, E), Z] =
     retry((a: A, b: B, c: C, d: D, e: E) => F.fromFuture(F.delay(f(a, b, c, d, e))))
 }
+
+object NJAction {
+  type Builder = ActionConfig
+}

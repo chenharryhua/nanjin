@@ -54,6 +54,7 @@ lazy val commonSettings = List(
   scalacOptions ++= List(
     "-Ymacro-annotations",
     "-Xsource:3",
+    "-Xsource-features:case-apply-copy-access",
     "-Wconf:src=src_managed/.*:silent",
     "-P:acyclic:warn"),
   Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat,
@@ -249,7 +250,7 @@ lazy val guard = (project in file("guard"))
   .settings(name := "nj-guard")
   .settings(
     libraryDependencies ++= List(
-      "commons-codec"                       % "commons-codec"        % "1.17.0",
+      "commons-codec"                       % "commons-codec"        % "1.17.1",
       "org.apache.commons"                  % "commons-collections4" % "4.4",
       "io.dropwizard.metrics"               % "metrics-core"         % metricsV,
       "io.dropwizard.metrics"               % "metrics-jmx"          % metricsV,

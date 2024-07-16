@@ -5,7 +5,7 @@ import cats.effect.std.AtomicCell
 import cats.effect.unsafe.implicits.global
 import cats.implicits.toShow
 import com.github.chenharryhua.nanjin.common.chrono.zones.londonTime
-import com.github.chenharryhua.nanjin.common.chrono.{crontabs, policies, Policy, Tick}
+import com.github.chenharryhua.nanjin.common.chrono.{crontabs, Policy, Tick}
 import com.github.chenharryhua.nanjin.guard.*
 import com.github.chenharryhua.nanjin.guard.event.*
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
@@ -25,17 +25,17 @@ class ServiceTest extends AnyFunSuite {
   val guard: TaskGuard[IO] = TaskGuard[IO]("service-level-guard").updateConfig(
     _.withHomePage("https://abc.com/efg")
       .withZoneId(londonTime)
-      .withRestartPolicy(policies.fixedDelay(1.seconds))
+      .withRestartPolicy(Policy.fixedDelay(1.seconds))
       .addBrief(Json.fromString("test")))
 
-  val policy: Policy = policies.fixedDelay(0.1.seconds).limited(3)
+  val policy: Policy = Policy.fixedDelay(0.1.seconds).limited(3)
 
   test("1.should stopped if the operation normally exits") {
     val Vector(a, d) = guard
       .service("normal")
       .updateConfig(
-        _.withRestartPolicy(policies.fixedDelay(3.seconds))
-          .withMetricReport(policies.crontab(_.hourly))
+        _.withRestartPolicy(Policy.fixedDelay(3.seconds))
+          .withMetricReport(Policy.crontab(_.hourly))
           .withMetricDailyReset
           .withHttpServer(identity))
       .eventStream(gd =>
@@ -60,7 +60,7 @@ class ServiceTest extends AnyFunSuite {
   test("2.escalate to up level if retry failed") {
     val Vector(s, a, b, c, d, e, f) = guard
       .service("escalate")
-      .updateConfig(_.withRestartPolicy(policies.fixedDelay(0.second).jitter(30.minutes, 50.minutes)))
+      .updateConfig(_.withRestartPolicy(Policy.fixedDelay(0.second).jitter(30.minutes, 50.minutes)))
       .eventStream { gd =>
         gd.action("t", _.bipartite.policy(policy))
           .retry(IO.raiseError[Int](new Exception(gd.toZonedDateTime(Instant.now()).toString)))
@@ -88,7 +88,7 @@ class ServiceTest extends AnyFunSuite {
   ignore("3.should stop when fatal error occurs") {
     val List(a, b, c, d) = guard
       .service("stop")
-      .updateConfig(_.withRestartPolicy(policies.crontab(Cron.unsafeParse("0-59 * * ? * *"))))
+      .updateConfig(_.withRestartPolicy(Policy.crontab(Cron.unsafeParse("0-59 * * ? * *"))))
       .eventStream { gd =>
         gd.action("fatal error", _.bipartite.policy(policy))
           .retry(IO.raiseError[Int](new ControlThrowable("fatal error") {}))
@@ -109,7 +109,7 @@ class ServiceTest extends AnyFunSuite {
   test("4.json codec") {
     val a :: b :: c :: d :: e :: f :: g :: _ = guard
       .service("json")
-      .updateConfig(_.withRestartPolicy(policies.giveUp))
+      .updateConfig(_.withRestartPolicy(Policy.giveUp))
       .eventStream { gd =>
         gd.action("t", _.bipartite.policy(policy))
           .delay[Int](throw new Exception("oops"))
@@ -132,7 +132,7 @@ class ServiceTest extends AnyFunSuite {
   test("5.should receive at least 3 report event") {
     val s :: b :: c :: d :: _ = guard
       .service("report")
-      .updateConfig(_.withMetricReport(policies.crontab(_.secondly)))
+      .updateConfig(_.withMetricReport(Policy.crontab(_.secondly)))
       .eventStream(_.action("t", _.silent).retry(IO.never[Int]).buildWith(identity).use(_.run(())))
       .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
       .interruptAfter(5.second)
@@ -152,7 +152,7 @@ class ServiceTest extends AnyFunSuite {
   test("6.force reset") {
     val s :: b :: c :: _ = guard
       .service("reset")
-      .updateConfig(_.withMetricReport(policies.crontab(_.secondly)))
+      .updateConfig(_.withMetricReport(Policy.crontab(_.secondly)))
       .eventStream(ag => ag.metrics.reset >> ag.metrics.reset)
       .map(checkJson)
       .compile
@@ -210,7 +210,7 @@ class ServiceTest extends AnyFunSuite {
 
     val List(a, b, c, d, e, f, g) = guard
       .service("give up")
-      .updateConfig(_.withRestartPolicy(policies.giveUp))
+      .updateConfig(_.withRestartPolicy(Policy.giveUp))
       .eventStream { gd =>
         gd.action("t", _.bipartite.policy(policy))
           .retry(IO.raiseError[Int](new Exception))
@@ -234,7 +234,7 @@ class ServiceTest extends AnyFunSuite {
 
     val List(a, b, c, d, e, f, g, h, i) = guard
       .service("panic")
-      .updateConfig(_.withRestartPolicy(policies.fixedDelay(1.seconds).limited(2)))
+      .updateConfig(_.withRestartPolicy(Policy.fixedDelay(1.seconds).limited(2)))
       .eventStream(_.action("t").retry(IO.raiseError[Int](new Exception)).buildWith(identity).use(_.run(())))
       .map(checkJson)
       .compile
@@ -253,9 +253,9 @@ class ServiceTest extends AnyFunSuite {
 
   test("11.policy start over") {
 
-    val p1     = policies.fixedDelay(1.seconds).limited(1)
-    val p2     = policies.fixedDelay(2.seconds).limited(1)
-    val p3     = policies.fixedDelay(3.seconds).limited(1)
+    val p1     = Policy.fixedDelay(1.seconds).limited(1)
+    val p2     = Policy.fixedDelay(2.seconds).limited(1)
+    val p3     = Policy.fixedDelay(3.seconds).limited(1)
     val policy = p1.followedBy(p2).followedBy(p3).repeat
     println(policy.show)
     val List(a, b, c, d, e, f, g, h) = guard
@@ -300,7 +300,7 @@ class ServiceTest extends AnyFunSuite {
 
   test("12.policy threshold start over") {
 
-    val policy: Policy = policies.fixedDelay(1.seconds, 2.seconds, 3.seconds, 4.seconds, 5.seconds)
+    val policy: Policy = Policy.fixedDelay(1.seconds, 2.seconds, 3.seconds, 4.seconds, 5.seconds)
     println(policy)
     val List(a, b, c) =
       fs2.Stream
@@ -341,9 +341,9 @@ class ServiceTest extends AnyFunSuite {
     TaskGuard[IO]("abc")
       .service("abc")
       .updateConfig(
-        _.withRestartPolicy(policies.fixedDelay(1.second))
-          .withMetricReset(policies.giveUp)
-          .withMetricReport(policies.crontab(crontabs.secondly))
+        _.withRestartPolicy(Policy.fixedDelay(1.second))
+          .withMetricReset(Policy.giveUp)
+          .withMetricReport(Policy.crontab(crontabs.secondly))
           .withMetricDailyReset
           .withRestartThreshold(2.second))
       .eventStream(_ => IO(()))
@@ -356,7 +356,7 @@ class ServiceTest extends AnyFunSuite {
   test("14.throw exception in construction") {
     val List(a, b) = guard
       .service("simple")
-      .updateConfig(_.withRestartPolicy(policies.giveUp))
+      .updateConfig(_.withRestartPolicy(Policy.giveUp))
       .eventStream { _ =>
         val c        = true
         val err: Int = if (c) throw new Exception else 1

@@ -3,7 +3,7 @@ package mtest.guard
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.comcast.ip4s.IpLiteralSyntax
-import com.github.chenharryhua.nanjin.common.chrono.policies
+import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.common.chrono.zones.londonTime
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import io.circe.{jawn, Json}
@@ -16,7 +16,7 @@ class HttpServerTest extends AnyFunSuite {
   val guard: TaskGuard[IO] = TaskGuard[IO]("http").updateConfig(
     _.withHomePage("https://abc.com/efg")
       .withZoneId(londonTime)
-      .withRestartPolicy(policies.fixedDelay(1.seconds)))
+      .withRestartPolicy(Policy.fixedDelay(1.seconds)))
 
   test("1.stop service") {
     val client = EmberClientBuilder
@@ -40,7 +40,7 @@ class HttpServerTest extends AnyFunSuite {
     val res =
       guard
         .service("http stop")
-        .updateConfig(_.withMetricReport(policies.crontab(_.secondly)).withHttpServer(_.withPort(port"9999")))
+        .updateConfig(_.withMetricReport(Policy.crontab(_.secondly)).withHttpServer(_.withPort(port"9999")))
         .eventStream { ag =>
           val m = for {
             _ <- ag.gauge("a").timed
@@ -69,7 +69,7 @@ class HttpServerTest extends AnyFunSuite {
       .delayBy(2.seconds)
     val res = TaskGuard[IO]("panic")
       .service("panic")
-      .updateConfig(_.withRestartPolicy(policies.fixedDelay(1.hour)).withHttpServer(_.withPort(port"9998")))
+      .updateConfig(_.withRestartPolicy(Policy.fixedDelay(1.hour)).withHttpServer(_.withPort(port"9998")))
       .eventStream {
         _.action("panic").retry(IO.raiseError[Int](new Exception)).buildWith(identity).use(_.run(()))
       }
@@ -103,7 +103,7 @@ class HttpServerTest extends AnyFunSuite {
 
     val res = TaskGuard[IO]("panic")
       .service("history")
-      .updateConfig(_.withRestartPolicy(policies.fixedDelay(1.second)).withHttpServer(_.withPort(port"9997")))
+      .updateConfig(_.withRestartPolicy(Policy.fixedDelay(1.second)).withHttpServer(_.withPort(port"9997")))
       .eventStream {
         _.action("panic history").retry(IO.raiseError[Int](new Exception)).buildWith(identity).use(_.run(()))
       }

@@ -34,7 +34,6 @@ private object PolicyF extends all {
   final case class FixedDelay[K](delays: NonEmptyList[Duration]) extends PolicyF[K]
   final case class FixedRate[K](delay: Duration) extends PolicyF[K]
 
-  final case class Accordance[K](policy: K) extends PolicyF[K]
   final case class Limited[K](policy: K, limit: Int) extends PolicyF[K]
   final case class FollowedBy[K](leader: K, follower: K) extends PolicyF[K]
   final case class Repeat[K](policy: K) extends PolicyF[K]
@@ -58,8 +57,6 @@ private object PolicyF extends all {
     Algebra[PolicyF, LazyList[CalcTick]] {
 
       case GiveUp() => LazyList.empty
-
-      case Accordance(policy) => policy
 
       case Crontab(cronExpr) =>
         val calcTick: CalcTick = { case TickRequest(tick, now) =>
@@ -125,7 +122,6 @@ private object PolicyF extends all {
     scheme.cata(algebra).apply(policy)
 
   private val GIVE_UP: String              = "giveUp"
-  private val ACCORDANCE: String           = "accordance"
   private val CRONTAB: String              = "crontab"
   private val JITTER: String               = "jitter"
   private val JITTER_MIN: String           = "min"
@@ -145,9 +141,8 @@ private object PolicyF extends all {
   private val OFFSET: String               = "offset"
 
   val showPolicy: Algebra[PolicyF, String] = Algebra[PolicyF, String] {
-    case GiveUp()           => show"$GIVE_UP"
-    case Accordance(policy) => show"$ACCORDANCE($policy)"
-    case Crontab(cronExpr)  => show"$CRONTAB($cronExpr)"
+    case GiveUp()          => show"$GIVE_UP"
+    case Crontab(cronExpr) => show"$CRONTAB($cronExpr)"
 
     case FixedDelay(delays) => show"$FIXED_DELAY(${delays.toList.mkString(",")})"
     case FixedRate(delay)   => show"$FIXED_RATE($delay)"
@@ -166,8 +161,6 @@ private object PolicyF extends all {
   private val jsonAlgebra: Algebra[PolicyF, Json] = Algebra[PolicyF, Json] {
     case GiveUp() =>
       Json.obj(GIVE_UP -> Json.True)
-    case Accordance(policy) =>
-      Json.obj(ACCORDANCE -> policy)
     case Crontab(cronExpr) =>
       Json.obj(CRONTAB -> cronExpr.asJson)
     case FixedDelay(delays) =>
@@ -197,9 +190,6 @@ private object PolicyF extends all {
   private val jsonCoalgebra: Coalgebra[PolicyF, HCursor] = {
     def giveUp(hc: HCursor): Result[GiveUp[HCursor]] =
       hc.get[Json](GIVE_UP).map(_ => GiveUp[HCursor]())
-
-    def accordance(hc: HCursor): Result[Accordance[HCursor]] =
-      hc.downField(ACCORDANCE).as[HCursor].map(Accordance[HCursor])
 
     def crontab(hc: HCursor): Result[Crontab[HCursor]] =
       hc.get[CronExpr](CRONTAB).map(ce => Crontab[HCursor](ce))
@@ -260,7 +250,6 @@ private object PolicyF extends all {
           .orElse(fixedRate(hc))
           .orElse(limited(hc))
           .orElse(followedBy(hc))
-          .orElse(accordance(hc))
           .orElse(meet(hc))
           .orElse(except(hc))
           .orElse(offset(hc))
@@ -279,10 +268,11 @@ private object PolicyF extends all {
         val reason = Reason.CustomReason(ExceptionUtils.getMessage(ex))
         DecodingFailure(reason, hc)
       }
-
 }
 
-final case class Policy(private[chrono] val policy: Fix[PolicyF]) { // don't extends AnyVal, monocle doesn't like it
+// don't extends AnyVal as monocle doesn't like it
+// use case class for free equal method
+final case class Policy private (private[chrono] val policy: Fix[PolicyF]) {
   import PolicyF.{Except, FollowedBy, Jitter, Limited, Meet, Offset, Repeat}
   override def toString: String = scheme.cata(PolicyF.showPolicy).apply(policy)
 
@@ -323,10 +313,11 @@ final case class Policy(private[chrono] val policy: Fix[PolicyF]) { // don't ext
     */
   def jitter(max: FiniteDuration): Policy =
     jitter(ScalaDuration.Zero, max)
-
 }
 
 object Policy {
+  import PolicyF.{Crontab, FixedDelay, FixedRate, GiveUp}
+
   implicit val showPolicy: Show[Policy] = _.toString
 
   implicit val encoderPolicy: Encoder[Policy] =
@@ -334,13 +325,6 @@ object Policy {
 
   implicit val decoderPolicy: Decoder[Policy] =
     (c: HCursor) => PolicyF.decoderFixPolicyF(c).map(Policy(_))
-
-}
-
-object policies {
-  import PolicyF.{Accordance, Crontab, FixedDelay, FixedRate, GiveUp}
-
-  def accordance(policy: Policy): Policy = Policy(Fix(Accordance(policy.policy)))
 
   def crontab(cronExpr: CronExpr): Policy           = Policy(Fix(Crontab(cronExpr)))
   def crontab(f: crontabs.type => CronExpr): Policy = crontab(f(crontabs))
