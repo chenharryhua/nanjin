@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard.config
 
 import cats.Functor
 import cats.data.Reader
-import com.github.chenharryhua.nanjin.common.chrono.{policies, Policy}
+import com.github.chenharryhua.nanjin.common.chrono.Policy
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
 import io.circe.generic.JsonCodec
@@ -42,7 +42,7 @@ object ActionParams {
       isCounting = false,
       isTiming = false,
       isEnabled = true,
-      retryPolicy = policies.giveUp,
+      retryPolicy = Policy.giveUp,
       serviceParams = serviceParams
     )
 }

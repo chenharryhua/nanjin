@@ -19,15 +19,14 @@ class PolicyCombinatorTest extends AnyFunSuite {
   }
 
   test("accordance") {
-    val policy = Policy.accordance(Policy.fixedDelay(1.second))
+    val policy = Policy.fixedDelay(1.second)
     println(policy.asJson)
     assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
   }
 
   test("follow by") {
-    val policy = Policy
-      .accordance(Policy.fixedDelay(1.second).limited(3))
-      .followedBy(Policy.fixedDelay(2.seconds).limited(2))
+    val policy =
+      Policy.fixedDelay(1.second).limited(3).followedBy(Policy.fixedDelay(2.seconds).limited(2))
 
     println(policy.show)
     println(policy.asJson)
@@ -59,7 +58,10 @@ class PolicyCombinatorTest extends AnyFunSuite {
   test("repeat") {
     val policy =
       Policy
-        .accordance(Policy.fixedDelay(1.second).limited(1).repeat.limited(3))
+        .fixedDelay(1.second)
+        .limited(1)
+        .repeat
+        .limited(3)
         .followedBy(Policy.fixedDelay(2.seconds).limited(2))
         .repeat
 
@@ -152,7 +154,7 @@ class PolicyCombinatorTest extends AnyFunSuite {
 
   test("complex policy") {
     val policy = Policy
-      .accordance(Policy.crontab(crontabs.monthly))
+      .crontab(crontabs.monthly)
       .meet(Policy.crontab(crontabs.daily.oneAM))
       .followedBy(Policy.crontab(crontabs.daily.twoAM))
       .followedBy(Policy.crontab(crontabs.daily.threeAM))

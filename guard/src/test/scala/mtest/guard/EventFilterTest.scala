@@ -2,7 +2,7 @@ package mtest.guard
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.common.chrono.policies
+import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.{MetricReport, ServiceStart, ServiceStop}
 import com.github.chenharryhua.nanjin.guard.event.eventFilters
@@ -42,7 +42,7 @@ class EventFilterTest extends AnyFunSuite {
 
   test("4.sampling - FiniteDuration") {
     val List(a, b, c, d, e) = service
-      .updateConfig(_.withMetricReport(policies.crontab(_.secondly)))
+      .updateConfig(_.withMetricReport(Policy.crontab(_.secondly)))
       .eventStream(agent =>
         agent
           .action("sleep")
@@ -63,7 +63,7 @@ class EventFilterTest extends AnyFunSuite {
 
   test("5.sampling - divisor") {
     val List(a, b, c, d) = service
-      .updateConfig(_.withMetricReport(policies.crontab(_.secondly)))
+      .updateConfig(_.withMetricReport(Policy.crontab(_.secondly)))
       .eventStream(agent =>
         agent
           .action("sleep")
@@ -82,7 +82,7 @@ class EventFilterTest extends AnyFunSuite {
   }
 
   test("6.sampling - cron") {
-    val policy = policies.crontab(_.secondly)
+    val policy = Policy.crontab(_.secondly)
     val lst = service
       .updateConfig(_.withMetricReport(policy))
       .eventStream(agent =>

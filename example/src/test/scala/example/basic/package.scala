@@ -1,6 +1,6 @@
 package example
 import cats.effect.IO
-import com.github.chenharryhua.nanjin.common.chrono.{crontabs, policies, Policy}
+import com.github.chenharryhua.nanjin.common.chrono.{crontabs, Policy}
 import com.github.chenharryhua.nanjin.spark.table.{LoadTable, NJTable}
 import com.github.chenharryhua.nanjin.spark.{AvroTypedEncoder, SparkSessionExt}
 import com.github.chenharryhua.nanjin.terminals.NJPath
@@ -16,7 +16,7 @@ package object basic {
 
   val root: NJPath = NJPath("./data/example/basic")
 
-  val policy: Policy = policies.crontab(crontabs.secondly)
+  val policy: Policy = Policy.crontab(crontabs.secondly)
 
   implicit val te: TypedEncoder[Tiger] = shapeless.cachedImplicit
 

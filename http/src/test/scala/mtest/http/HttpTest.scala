@@ -3,7 +3,7 @@ package mtest.http
 import cats.effect.unsafe.implicits.global
 import cats.effect.{IO, Resource}
 import com.comcast.ip4s.*
-import com.github.chenharryhua.nanjin.common.chrono.policies
+import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.http.client.middleware.{cookieBox, retry, traceClient}
 import com.github.chenharryhua.nanjin.http.server.middleware.traceServer
@@ -52,7 +52,7 @@ class HttpTest extends AnyFunSuite {
     EmberClientBuilder.default[IO].build.map(MLogger(logHeaders = true, logBody = true)(_))
 
   test("timeout") {
-    val client = ember.map(retry(policies.fixedRate(1.seconds).limited(2), sydneyTime))
+    val client = ember.map(retry(Policy.fixedRate(1.seconds).limited(2), sydneyTime))
     server
       .surround(
         client.use(c =>
@@ -66,14 +66,14 @@ class HttpTest extends AnyFunSuite {
   }
 
   test("failure") {
-    val client = ember.map(retry(policies.fixedRate(1.seconds).limited(3), sydneyTime))
+    val client = ember.map(retry(Policy.fixedRate(1.seconds).limited(3), sydneyTime))
     val run =
       server.surround(client.use(_.expect[String]("http://127.0.0.1:8080/failure").flatMap(IO.println)))
     assertThrows[Exception](run.unsafeRunSync())
   }
 
   test("give up") {
-    val client = ember.map(retry(policies.giveUp, sydneyTime))
+    val client = ember.map(retry(Policy.giveUp, sydneyTime))
     val run =
       server.surround(client.use(_.expect[String]("http://127.0.0.1:8080/failure").flatMap(IO.println)))
     assertThrows[Exception](run.unsafeRunSync())
@@ -86,7 +86,7 @@ class HttpTest extends AnyFunSuite {
     ).withEntity(
       Json.obj("a" -> Json.fromString("a"), "b" -> Json.fromInt(1))
     )
-    val client = ember.map(retry(policies.giveUp, sydneyTime))
+    val client = ember.map(retry(Policy.giveUp, sydneyTime))
     server.surround(client.use(_.expect[String](postRequest).flatMap(IO.println))).unsafeRunSync()
   }
 

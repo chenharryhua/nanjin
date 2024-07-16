@@ -4,7 +4,7 @@ import cats.effect.unsafe.implicits.global
 import cats.effect.{IO, Resource}
 import cats.implicits.catsSyntaxApplyOps
 import com.comcast.ip4s.*
-import com.github.chenharryhua.nanjin.common.chrono.policies
+import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.http.client.auth.salesforce.MarketingCloud
 import com.github.chenharryhua.nanjin.http.client.middleware.retry
@@ -51,7 +51,7 @@ class SalesforceMarketingCloudTest extends AnyFunSuite {
     .default[IO]
     .build
     .map(Logger(logHeaders = true, logBody = true, _ => false))
-    .map(retry[IO](policies.fixedDelay(2.second), sydneyTime))
+    .map(retry[IO](Policy.fixedDelay(2.second), sydneyTime))
 
   private val cred: MarketingCloud[IO] = MarketingCloud.rest[IO](authClient)(
     auth_endpoint = uri"http://127.0.0.1:8080",

@@ -21,7 +21,7 @@ class PolicyTest extends AnyFunSuite {
 
   test("policy 2") {
     val policy = Policy
-      .accordance(Policy.crontab(Cron.unsafeParse("0 0 0 * 1-11 ?")))
+      .crontab(Cron.unsafeParse("0 0 0 * 1-11 ?"))
       .meet(Policy.crontab(Cron.unsafeParse("0 0 0 1-25 12 ?")))
 
     val ts: TickStatus = zeroTickStatus.renewPolicy(policy)

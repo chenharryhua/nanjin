@@ -3,7 +3,7 @@ package mtest.terminals
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.toTraverseOps
-import com.github.chenharryhua.nanjin.common.chrono.policies
+import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.terminals.NJCompression.*
 import com.github.chenharryhua.nanjin.terminals.{BinAvroFile, NJFileKind, NJPath}
 import eu.timepit.refined.auto.*
@@ -79,7 +79,7 @@ class NJBinAvroTest extends AnyFunSuite {
       .covary[IO]
       .repeatN(number)
       .chunks
-      .through(binAvro.sink(policies.fixedDelay(1.second), ZoneId.systemDefault())(t =>
+      .through(binAvro.sink(Policy.fixedDelay(1.second), ZoneId.systemDefault())(t =>
         path / file.fileName(t)))
       .fold(0)(_ + _)
       .compile

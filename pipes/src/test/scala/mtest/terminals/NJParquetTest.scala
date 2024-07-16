@@ -4,7 +4,7 @@ import cats.data.NonEmptyList
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.toTraverseOps
-import com.github.chenharryhua.nanjin.common.chrono.policies
+import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.terminals.NJCompression.*
 import com.github.chenharryhua.nanjin.terminals.{HadoopParquet, NJFileKind, NJPath, ParquetFile}
 import eu.timepit.refined.auto.*
@@ -87,7 +87,7 @@ class NJParquetTest extends AnyFunSuite {
       .covary[IO]
       .repeatN(number)
       .chunks
-      .through(parquet.sink(policies.fixedDelay(1.second), ZoneId.systemDefault())(t =>
+      .through(parquet.sink(Policy.fixedDelay(1.second), ZoneId.systemDefault())(t =>
         path / file.ymdFileName(t)))
       .fold(0)(_ + _)
       .compile

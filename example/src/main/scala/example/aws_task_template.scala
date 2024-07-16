@@ -4,7 +4,7 @@ import cats.effect.IO
 import com.comcast.ip4s.IpLiteralSyntax
 import com.github.chenharryhua.nanjin.aws.{ec2, ecs}
 import com.github.chenharryhua.nanjin.common.HostName
-import com.github.chenharryhua.nanjin.common.chrono.policies
+import com.github.chenharryhua.nanjin.common.chrono.Policy.*
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
@@ -20,12 +20,14 @@ object aws_task_template {
     _.withZoneId(sydneyTime)
       .withHomePage("https://github.com/chenharryhua/nanjin")
       .withHostName(ec2.private_ip / HostName.local_host)
-      .withMetricReport(policies.crontab(_.every15Minutes))
-      .withMetricReset(policies.crontab(_.daily.midnight))
-      .withRestartPolicy(policies
-        .accordance(policies.fixedDelay(3.seconds, 2.minutes, 1.hour).limited(3))
-        .followedBy(policies.fixedRate(2.hours).limited(12))
-        .followedBy(policies.crontab(_.daily.tenAM)))
+      .withMetricReport(crontab(_.every15Minutes))
+      .withMetricReset(crontab(_.daily.midnight))
+      .withRestartPolicy(
+        fixedDelay(3.seconds, 2.minutes, 1.hour)
+          .limited(3)
+          .followedBy(fixedRate(2.hours).limited(12))
+          .followedBy(crontab(_.daily.tenAM))
+      )
       .withRestartThreshold(5.hours)
       .addBrief(ecs.container_metadata[IO]))
 

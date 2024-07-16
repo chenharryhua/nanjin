@@ -4,7 +4,7 @@ import cats.effect.IO
 import cats.effect.kernel.Resource
 import cats.effect.std.AtomicCell
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.common.chrono.policies
+import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import com.github.chenharryhua.nanjin.guard.observers.console
@@ -21,7 +21,7 @@ class PostgresTest extends AnyFunSuite {
     fs2.Stream.eval(AtomicCell[IO].of(1)).flatMap { box =>
       TaskGuard[IO]("nanjin")
         .service("observing")
-        .updateConfig(_.withRestartPolicy(policies.fixedRate(1.second)))
+        .updateConfig(_.withRestartPolicy(Policy.fixedRate(1.second)))
         .eventStream { ag =>
           val job =
             box.getAndUpdate(_ + 1).map(_ % 12 == 0).ifM(IO(1), IO.raiseError[Int](new Exception("oops")))
@@ -30,7 +30,7 @@ class PostgresTest extends AnyFunSuite {
             action <- ag
               .action(
                 "nj_error",
-                _.critical.bipartite.timed.counted.policy(policies.fixedRate(1.second).limited(3)))
+                _.critical.bipartite.timed.counted.policy(Policy.fixedRate(1.second).limited(3)))
               .retry(job)
               .buildWith(identity)
             counter <- ag.counter("nj counter", _.asRisk)

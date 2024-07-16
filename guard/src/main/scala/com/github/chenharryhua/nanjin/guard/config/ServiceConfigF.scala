@@ -4,7 +4,7 @@ import cats.syntax.all.*
 import cats.{Applicative, Endo, Functor}
 import com.codahale.metrics.jmx.JmxReporter
 import com.github.chenharryhua.nanjin.common.HostName
-import com.github.chenharryhua.nanjin.common.chrono.{policies, Policy, Tick}
+import com.github.chenharryhua.nanjin.common.chrono.{Policy, Tick}
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
 import io.circe.{Encoder, Json}
@@ -83,10 +83,8 @@ object ServiceParams {
       hostName = HostName.local_host,
       homePage = None,
       serviceName = serviceName,
-      servicePolicies = ServicePolicies(
-        restart = policies.giveUp,
-        metricReport = policies.giveUp,
-        metricReset = policies.giveUp),
+      servicePolicies =
+        ServicePolicies(restart = Policy.giveUp, metricReport = Policy.giveUp, metricReset = Policy.giveUp),
       emberServerParams = emberServerParams,
       threshold = None,
       zerothTick = zerothTick,
@@ -169,7 +167,7 @@ final class ServiceConfig[F[_]: Applicative] private (
     copy(cont = Fix(WithMetricResetPolicy(reset, cont)))
 
   def withMetricDailyReset: ServiceConfig[F] =
-    withMetricReset(policies.crontab(_.daily.midnight))
+    withMetricReset(Policy.crontab(_.daily.midnight))
 
   def withHostName(hostName: HostName): ServiceConfig[F] =
     copy(cont = Fix(WithHostName(hostName, cont)))

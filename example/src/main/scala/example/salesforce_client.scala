@@ -3,7 +3,7 @@ package example
 import cats.effect.{IO, Resource}
 import com.github.chenharryhua.nanjin.aws.ParameterStore
 import com.github.chenharryhua.nanjin.common.aws.ParameterStorePath
-import com.github.chenharryhua.nanjin.common.chrono.policies
+import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.http.client.auth.salesforce.Iot
 import com.github.chenharryhua.nanjin.http.client.middleware.retry
@@ -19,7 +19,7 @@ object salesforce_client {
     .default[IO]
     .build
     .map(Logger(logHeaders = true, logBody = true, _ => false))
-    .map(retry(policies.fixedDelay(0.second).jitter(5.seconds), sydneyTime))
+    .map(retry(Policy.fixedDelay(0.second).jitter(5.seconds), sydneyTime))
 
   private val credential: Resource[IO, Iot[IO]] =
     ParameterStore[IO](identity).evalMap { ps =>

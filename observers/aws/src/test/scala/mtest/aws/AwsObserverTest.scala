@@ -5,7 +5,7 @@ import cats.effect.IO
 import cats.effect.std.AtomicCell
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.aws.{SnsArn, SqsConfig}
-import com.github.chenharryhua.nanjin.common.chrono.policies
+import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
@@ -26,7 +26,7 @@ class AwsObserverTest extends AnyFunSuite {
         .updateConfig(_.withHomePage("http://abc.efg").addBrief(Json.fromString("brief")))
         .service("observing")
         .updateConfig(
-          _.withRestartPolicy(policies.fixedRate(1.second)).withMetricReport(policies.crontab(_.secondly)))
+          _.withRestartPolicy(Policy.fixedRate(1.second)).withMetricReport(Policy.crontab(_.secondly)))
         .eventStream { ag =>
           val job =
             box.getAndUpdate(_ + 1).map(_ % 12 == 0).ifM(IO(1), IO.raiseError[Int](new Exception("oops")))
@@ -35,7 +35,7 @@ class AwsObserverTest extends AnyFunSuite {
             action <- ag
               .action(
                 "nj_error",
-                _.critical.bipartite.timed.counted.policy(policies.fixedRate(1.second).limited(3)))
+                _.critical.bipartite.timed.counted.policy(Policy.fixedRate(1.second).limited(3)))
               .retry(job)
               .buildWith(identity)
             counter <- ag.counter("nj counter", _.asRisk)
@@ -55,7 +55,7 @@ class AwsObserverTest extends AnyFunSuite {
 
   test("2.ses mail") {
     val mail =
-      EmailObserver(ses_client, 100, policies.fixedDelay(5.seconds), sydneyTime).withOldestFirst
+      EmailObserver(ses_client, Policy.fixedDelay(5.seconds), sydneyTime).withCapacity(100).withOldestFirst
 
     service
       .through(mail.observe("abc@google.com", NonEmptyList.one("efg@tek.com"), "title"))
@@ -66,7 +66,7 @@ class AwsObserverTest extends AnyFunSuite {
   }
 
   test("3.syntax") {
-    EmailObserver(ses_client, 100, policies.crontab(_.every2Minutes), sydneyTime).updateTranslator {
+    EmailObserver(ses_client, Policy.crontab(_.every2Minutes), sydneyTime).updateTranslator {
       _.skipMetricReset.skipMetricReport.skipActionStart.skipActionRetry.skipActionFail.skipActionDone.skipServiceAlert.skipServiceStart.skipServicePanic.skipServiceStop.skipAll
     }
   }

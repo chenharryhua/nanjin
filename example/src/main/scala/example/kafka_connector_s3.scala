@@ -4,7 +4,7 @@ import cats.data.Kleisli
 import cats.effect.IO
 import cats.effect.kernel.Resource
 import cats.implicits.catsSyntaxSemigroup
-import com.github.chenharryhua.nanjin.common.chrono.policies
+import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.guard.observers.console
 import com.github.chenharryhua.nanjin.guard.service.Agent
 import com.github.chenharryhua.nanjin.kafka.{KafkaContext, KafkaSettings}
@@ -50,7 +50,7 @@ object kafka_connector_s3 {
     .eventStream { ga =>
       val jackson = JacksonFile(_.Uncompressed)
       val sink: Pipe[IO, Chunk[String], Int] = // rotate files every 5 minutes
-        hadoop.sink(policies.crontab(_.every5Minutes), ga.zoneId)(tick => root / jackson.ymdFileName(tick))
+        hadoop.sink(Policy.crontab(_.every5Minutes), ga.zoneId)(tick => root / jackson.ymdFileName(tick))
       decoder(ga).use { decode =>
         ctx
           .consume("any.kafka.topic")

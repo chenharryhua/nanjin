@@ -21,17 +21,10 @@ import squants.information.{Bytes, Information, Megabytes}
 import java.time.ZoneId
 import java.util.UUID
 
-sealed trait EmailObserver[F[_]] extends UpdateTranslator[F, Text.TypedTag[String], EmailObserver[F]] {
-  def withOldestFirst: EmailObserver[F]
-  def observe(from: EmailAddr, to: NonEmptyList[EmailAddr], subject: String): Pipe[F, NJEvent, NJEvent]
-}
-
 object EmailObserver {
 
   /** @param client
     *   Simple Email Service Client
-    * @param chunkSize
-    *   maximum number of events in an email
     * @param policy
     *   email publish policy
     * @param zoneId
@@ -39,37 +32,38 @@ object EmailObserver {
     */
   def apply[F[_]: UUIDGen: Temporal](
     client: Resource[F, SimpleEmailService[F]],
-    chunkSize: ChunkSize,
     policy: Policy,
     zoneId: ZoneId): EmailObserver[F] =
-    new EmailObserverImpl[F](
+    new EmailObserver[F](
       client = client,
       translator = HtmlTranslator[F],
       isNewestFirst = true,
-      chunkSize = chunkSize,
+      capacity = ChunkSize(100),
       policy = policy,
       zoneId = zoneId
     )
 }
 
-private class EmailObserverImpl[F[_]: UUIDGen](
+final class EmailObserver[F[_]: UUIDGen] private (
   client: Resource[F, SimpleEmailService[F]],
   translator: Translator[F, Text.TypedTag[String]],
   isNewestFirst: Boolean,
-  chunkSize: ChunkSize,
+  capacity: ChunkSize,
   policy: Policy,
   zoneId: ZoneId)(implicit F: Temporal[F])
-    extends EmailObserver[F] {
+    extends UpdateTranslator[F, Text.TypedTag[String], EmailObserver[F]] {
 
   private[this] def copy(
-    isNewestFirst: Boolean = isNewestFirst,
-    translator: Translator[F, Text.TypedTag[String]] = translator): EmailObserver[F] =
-    new EmailObserverImpl[F](client, translator, isNewestFirst, chunkSize, policy, zoneId)
-
-  override def withOldestFirst: EmailObserver[F] = copy(isNewestFirst = false)
+    isNewestFirst: Boolean = this.isNewestFirst,
+    capacity: ChunkSize = this.capacity,
+    translator: Translator[F, Text.TypedTag[String]] = this.translator): EmailObserver[F] =
+    new EmailObserver[F](client, translator, isNewestFirst, capacity, policy, zoneId)
 
   override def updateTranslator(f: Endo[Translator[F, Text.TypedTag[String]]]): EmailObserver[F] =
     copy(translator = f(translator))
+
+  def withOldestFirst: EmailObserver[F]             = copy(isNewestFirst = false)
+  def withCapacity(cs: ChunkSize): EmailObserver[F] = copy(capacity = cs)
 
   private def translate(evt: NJEvent): F[Option[ColoredTag]] =
     translator.translate(evt).map(_.map(tag => ColoredTag(tag, ColorScheme.decorate(evt).eval.value)))
@@ -106,7 +100,7 @@ private class EmailObserverImpl[F[_]: UUIDGen](
 
     val letter = compose_letter(data)
 
-    val content: String = letter.emailBody(chunkSize)
+    val content: String = letter.emailBody(capacity)
 
     val email: EmailContent =
       if (Bytes(content.length) < maximumMessageSize) {
@@ -137,10 +131,7 @@ private class EmailObserverImpl[F[_]: UUIDGen](
       }
     }
 
-  override def observe(
-    from: EmailAddr,
-    to: NonEmptyList[EmailAddr],
-    subject: String): Pipe[F, NJEvent, NJEvent] = {
+  def observe(from: EmailAddr, to: NonEmptyList[EmailAddr], subject: String): Pipe[F, NJEvent, NJEvent] = {
 
     def go(
       ss: Stream[F, Either[NJEvent, Tick]],
@@ -152,12 +143,11 @@ private class EmailObserverImpl[F[_]: UUIDGen](
             case Left(event) =>
               val send_and_update: F[Unit] = translate(event).flatMap {
                 case Some(ct) =>
-                  cache.get.flatMap { tags =>
-                    if (tags.size >= chunkSize.value) {
-                      send_email(tags) *> cache.set(Chunk.singleton(ct))
-                    } else {
-                      cache.update(_ ++ Chunk.singleton(ct))
-                    }
+                  cache.flatModify { tags =>
+                    if (tags.size >= capacity.value)
+                      Chunk.singleton(ct) -> send_email(tags)
+                    else
+                      (tags ++ Chunk.singleton(ct)) -> F.unit
                   }
                 case None => F.unit
               }
@@ -167,7 +157,7 @@ private class EmailObserverImpl[F[_]: UUIDGen](
                 go(tail, send_email, cache)
 
             case Right(_) => // tick
-              Pull.eval(cache.get.flatMap(send_email) *> cache.set(Chunk.empty)) >>
+              Pull.eval(cache.flatModify(tags => Chunk.empty -> send_email(tags))) >>
                 go(tail, send_email, cache)
           }
         case None => Pull.done // leave cache to be handled by finalizer
