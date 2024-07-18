@@ -20,27 +20,21 @@ import squants.information.{Bytes, Information, Megabytes}
 
 import java.time.ZoneId
 import java.util.UUID
+import scala.concurrent.duration.DurationInt
 
 object EmailObserver {
 
   /** @param client
     *   Simple Email Service Client
-    * @param policy
-    *   email publish policy
-    * @param zoneId
-    *   timezone of the service
     */
-  def apply[F[_]: UUIDGen: Temporal](
-    client: Resource[F, SimpleEmailService[F]],
-    policy: Policy,
-    zoneId: ZoneId): EmailObserver[F] =
+  def apply[F[_]: UUIDGen: Temporal](client: Resource[F, SimpleEmailService[F]]): EmailObserver[F] =
     new EmailObserver[F](
       client = client,
       translator = HtmlTranslator[F],
       isNewestFirst = true,
       capacity = ChunkSize(100),
-      policy = policy,
-      zoneId = zoneId
+      policy = Policy.fixedDelay(24.hours),
+      zoneId = ZoneId.systemDefault()
     )
 }
 
@@ -56,14 +50,17 @@ final class EmailObserver[F[_]: UUIDGen] private (
   private[this] def copy(
     isNewestFirst: Boolean = this.isNewestFirst,
     capacity: ChunkSize = this.capacity,
+    policy: Policy = this.policy,
+    zoneId: ZoneId = this.zoneId,
     translator: Translator[F, Text.TypedTag[String]] = this.translator): EmailObserver[F] =
     new EmailObserver[F](client, translator, isNewestFirst, capacity, policy, zoneId)
 
   override def updateTranslator(f: Endo[Translator[F, Text.TypedTag[String]]]): EmailObserver[F] =
     copy(translator = f(translator))
 
-  def withOldestFirst: EmailObserver[F]             = copy(isNewestFirst = false)
-  def withCapacity(cs: ChunkSize): EmailObserver[F] = copy(capacity = cs)
+  def withOldestFirst: EmailObserver[F]                            = copy(isNewestFirst = false)
+  def withCapacity(cs: ChunkSize): EmailObserver[F]                = copy(capacity = cs)
+  def withPolicy(policy: Policy, zoneId: ZoneId): EmailObserver[F] = copy(policy = policy, zoneId = zoneId)
 
   private def translate(evt: NJEvent): F[Option[ColoredTag]] =
     translator.translate(evt).map(_.map(tag => ColoredTag(tag, ColorScheme.decorate(evt).eval.value)))
