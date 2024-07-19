@@ -3,6 +3,7 @@ package com.github.chenharryhua.nanjin.guard.action
 import cats.effect.kernel.{Resource, Sync, Unique}
 import cats.syntax.all.*
 import com.codahale.metrics.{Counter, MetricRegistry}
+import com.github.chenharryhua.nanjin.common.EnableConfig
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.config.CategoryKind.CounterKind
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
@@ -76,7 +77,8 @@ private class NJAlertImpl[F[_]: Sync](
 }
 
 object NJAlert {
-  final class Builder private[guard] (measurement: Measurement, isCounting: Boolean, isEnabled: Boolean) {
+  final class Builder private[guard] (measurement: Measurement, isCounting: Boolean, isEnabled: Boolean)
+      extends EnableConfig[Builder] {
 
     def withMeasurement(measurement: String): Builder =
       new Builder(Measurement(measurement), isCounting, isEnabled)

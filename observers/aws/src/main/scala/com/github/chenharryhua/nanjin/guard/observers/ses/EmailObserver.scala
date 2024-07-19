@@ -141,10 +141,10 @@ final class EmailObserver[F[_]: UUIDGen] private (
               val send_and_update: F[Unit] = translate(event).flatMap {
                 case Some(ct) =>
                   cache.flatModify { tags =>
-                    if (tags.size >= capacity.value)
-                      Chunk.singleton(ct) -> send_email(tags)
-                    else
+                    if (tags.size < capacity.value)
                       (tags ++ Chunk.singleton(ct)) -> F.unit
+                    else
+                      Chunk.singleton(ct) -> send_email(tags)
                   }
                 case None => F.unit
               }

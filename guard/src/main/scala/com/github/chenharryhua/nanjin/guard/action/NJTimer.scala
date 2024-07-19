@@ -5,6 +5,7 @@ import cats.effect.implicits.clockOps
 import cats.effect.kernel.{Resource, Sync, Unique}
 import cats.implicits.{toFlatMapOps, toFunctorOps}
 import com.codahale.metrics.*
+import com.github.chenharryhua.nanjin.common.EnableConfig
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.config.CategoryKind.{CounterKind, TimerKind}
 
@@ -72,7 +73,8 @@ object NJTimer {
     measurement: Measurement,
     isCounting: Boolean,
     reservoir: Option[Reservoir],
-    isEnabled: Boolean) {
+    isEnabled: Boolean)
+      extends EnableConfig[Builder] {
 
     def withMeasurement(measurement: String): Builder =
       new Builder(Measurement(measurement), isCounting, reservoir, isEnabled)

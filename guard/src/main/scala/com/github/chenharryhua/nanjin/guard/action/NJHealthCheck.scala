@@ -5,6 +5,7 @@ import cats.effect.kernel.{Async, Resource}
 import cats.effect.std.Dispatcher
 import cats.syntax.all.*
 import com.codahale.metrics.{Gauge, MetricRegistry}
+import com.github.chenharryhua.nanjin.common.EnableConfig
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy}
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.config.CategoryKind.GaugeKind
@@ -63,7 +64,8 @@ private class NJHealthCheckImpl[F[_]: Async](
 
 object NJHealthCheck {
 
-  final class Builder private[guard] (measurement: Measurement, timeout: FiniteDuration, isEnabled: Boolean) {
+  final class Builder private[guard] (measurement: Measurement, timeout: FiniteDuration, isEnabled: Boolean)
+      extends EnableConfig[Builder] {
 
     def withMeasurement(measurement: String): Builder =
       new Builder(Measurement(measurement), timeout, isEnabled)
