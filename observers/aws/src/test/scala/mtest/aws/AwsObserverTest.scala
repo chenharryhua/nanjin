@@ -55,7 +55,10 @@ class AwsObserverTest extends AnyFunSuite {
 
   test("2.ses mail") {
     val mail =
-      EmailObserver(ses_client, Policy.fixedDelay(5.seconds), sydneyTime).withCapacity(100).withOldestFirst
+      EmailObserver(ses_client)
+        .withPolicy(Policy.fixedDelay(5.seconds), sydneyTime)
+        .withCapacity(200)
+        .withOldestFirst
 
     service
       .through(mail.observe("abc@google.com", NonEmptyList.one("efg@tek.com"), "title"))
@@ -66,7 +69,7 @@ class AwsObserverTest extends AnyFunSuite {
   }
 
   test("3.syntax") {
-    EmailObserver(ses_client, Policy.crontab(_.every2Minutes), sydneyTime).updateTranslator {
+    EmailObserver(ses_client).updateTranslator {
       _.skipMetricReset.skipMetricReport.skipActionStart.skipActionRetry.skipActionFail.skipActionDone.skipServiceAlert.skipServiceStart.skipServicePanic.skipServiceStop.skipAll
     }
   }

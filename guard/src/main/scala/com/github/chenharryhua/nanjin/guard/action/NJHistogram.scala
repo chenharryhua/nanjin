@@ -4,6 +4,7 @@ import cats.data.Kleisli
 import cats.effect.kernel.{Resource, Sync, Unique}
 import cats.implicits.toFunctorOps
 import com.codahale.metrics.*
+import com.github.chenharryhua.nanjin.common.EnableConfig
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.config.CategoryKind.{CounterKind, HistogramKind}
 import com.github.chenharryhua.nanjin.guard.event.{MeasurementUnit, NJUnits}
@@ -62,7 +63,8 @@ object NJHistogram {
     unit: MeasurementUnit,
     isCounting: Boolean,
     reservoir: Option[Reservoir],
-    isEnabled: Boolean) {
+    isEnabled: Boolean)
+      extends EnableConfig[Builder] {
     def withMeasurement(measurement: String): Builder =
       new Builder(Measurement(measurement), unit, isCounting, reservoir, isEnabled)
 

@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.guard.config
 
 import cats.Functor
 import cats.data.Reader
+import com.github.chenharryhua.nanjin.common.EnableConfig
 import com.github.chenharryhua.nanjin.common.chrono.Policy
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
@@ -82,7 +83,8 @@ private object ActionConfigF {
 
 final class ActionConfig private (
   private[guard] val isWorthRetry: Reader[Throwable, Boolean],
-  cont: Fix[ActionConfigF]) {
+  cont: Fix[ActionConfigF])
+    extends EnableConfig[ActionConfig] {
   import ActionConfigF.*
 
   private def strategy(ps: PublishStrategy): ActionConfig =

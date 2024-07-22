@@ -5,3 +5,7 @@ import cats.Endo
 trait UpdateConfig[A, B] {
   def updateConfig(f: Endo[A]): B
 }
+
+trait EnableConfig[A] {
+  def enable(value: Boolean): A
+}

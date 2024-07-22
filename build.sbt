@@ -9,8 +9,8 @@ val awsV        = "2.26.20"
 val catsEffectV = "3.5.4"
 val hadoopV     = "3.4.0"
 val monocleV    = "3.2.0"
-val confluentV  = "7.6.1"
-val kafkaV      = "7.6.1-ce"
+val confluentV  = "7.6.2"
+val kafkaV      = "7.6.2-ce"
 val fs2KafkaV   = "3.5.1"
 val avroV       = "1.11.3"
 val parquetV    = "1.14.1"
@@ -199,7 +199,7 @@ lazy val common = (project in file("common"))
   .settings(name := "nj-common")
   .settings(
     libraryDependencies ++= List(
-      "org.apache.commons"               % "commons-lang3" % "3.14.0",
+      "org.apache.commons"               % "commons-lang3" % "3.15.0",
       "io.dropwizard.metrics"            % "metrics-core"  % metricsV % Provided,
       "org.typelevel" %% "log4cats-core" % log4catsV       % Provided
     ) ++ baseLib ++ testLib

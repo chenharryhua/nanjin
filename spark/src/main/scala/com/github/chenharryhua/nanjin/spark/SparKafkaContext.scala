@@ -67,11 +67,14 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
         .as(rdd.count()))
   }
 
-  def dump(topicName: TopicNameL, path: NJPath)(implicit F: Async[F]): F[Long] =
-    dump(TopicName(topicName), path, NJDateTimeRange(utils.sparkZoneId(sparkSession)))
-
   def dump(topicName: TopicName, path: NJPath)(implicit F: Async[F]): F[Long] =
     dump(topicName, path, NJDateTimeRange(utils.sparkZoneId(sparkSession)))
+
+  def dump(topicName: TopicNameL, path: NJPath, dateRange: NJDateTimeRange)(implicit F: Async[F]): F[Long] =
+    dump(TopicName(topicName), path, dateRange)
+
+  def dump(topicName: TopicNameL, path: NJPath)(implicit F: Async[F]): F[Long] =
+    dump(TopicName(topicName), path, NJDateTimeRange(utils.sparkZoneId(sparkSession)))
 
   /** upload data from given folder to a kafka topic. files read in parallel
     *

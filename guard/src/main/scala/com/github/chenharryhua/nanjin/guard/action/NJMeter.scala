@@ -4,6 +4,7 @@ import cats.data.Kleisli
 import cats.effect.kernel.{Resource, Sync, Unique}
 import cats.implicits.toFunctorOps
 import com.codahale.metrics.{Counter, Meter, MetricRegistry}
+import com.github.chenharryhua.nanjin.common.EnableConfig
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.config.CategoryKind.{CounterKind, MeterKind}
 import com.github.chenharryhua.nanjin.guard.event.{MeasurementUnit, NJUnits}
@@ -56,7 +57,8 @@ object NJMeter {
     measurement: Measurement,
     unit: MeasurementUnit,
     isCounting: Boolean,
-    isEnabled: Boolean) {
+    isEnabled: Boolean)
+      extends EnableConfig[Builder] {
     def withMeasurement(measurement: String): Builder =
       new Builder(Measurement(measurement), unit, isCounting, isEnabled)
 

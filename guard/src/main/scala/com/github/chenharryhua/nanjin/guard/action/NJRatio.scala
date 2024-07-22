@@ -5,6 +5,7 @@ import cats.effect.kernel.{Async, Ref, Resource}
 import cats.effect.std.Dispatcher
 import cats.syntax.all.*
 import com.codahale.metrics.{Gauge, MetricRegistry}
+import com.github.chenharryhua.nanjin.common.EnableConfig
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.config.CategoryKind.GaugeKind
 import io.circe.Json
@@ -67,7 +68,8 @@ object NJRatio {
   final class Builder private[guard] (
     measurement: Measurement,
     translator: Ior[Long, Long] => Json,
-    isEnabled: Boolean) {
+    isEnabled: Boolean)
+      extends EnableConfig[Builder] {
 
     def withMeasurement(measurement: String): Builder =
       new Builder(Measurement(measurement), translator, isEnabled)

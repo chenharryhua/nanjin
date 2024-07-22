@@ -4,6 +4,7 @@ import cats.data.Kleisli
 import cats.effect.kernel.{Resource, Sync, Unique}
 import cats.implicits.toFunctorOps
 import com.codahale.metrics.{Counter, MetricRegistry}
+import com.github.chenharryhua.nanjin.common.EnableConfig
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.config.CategoryKind.CounterKind
 sealed trait NJCounter[F[_]] {
@@ -48,7 +49,8 @@ private class NJCounterImpl[F[_]: Sync](
 
 object NJCounter {
 
-  final class Builder private[guard] (measurement: Measurement, isRisk: Boolean, isEnabled: Boolean) {
+  final class Builder private[guard] (measurement: Measurement, isRisk: Boolean, isEnabled: Boolean)
+      extends EnableConfig[Builder] {
 
     def withMeasurement(measurement: String): Builder =
       new Builder(Measurement(measurement), isRisk, isEnabled)
