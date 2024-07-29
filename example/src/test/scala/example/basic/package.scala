@@ -23,7 +23,7 @@ package object basic {
   import sparkSession.implicits.*
 
   val loader: LoadTable[Tiger] = sparkSession.loadTable(AvroTypedEncoder[Tiger])
-  val table: NJTable[ Tiger]    = loader.data(sparkSession.range(size).map(a => Tiger(a, "b" * 1000)))
+  val table: NJTable[Tiger]    = loader.data(sparkSession.range(size).map(a => Tiger(a, "b" * 1000)))
 
   val encoder: ToRecord[Tiger]   = ToRecord[Tiger]
   val decoder: FromRecord[Tiger] = FromRecord[Tiger]
