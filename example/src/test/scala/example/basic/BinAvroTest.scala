@@ -45,7 +45,8 @@ class BinAvroTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
       table
         .stream[IO](1000)
         .evalTap(_ => meter.update(1))
-        .map(encoder.to).chunks
+        .map(encoder.to)
+        .chunks
         .through(sink)
         .compile
         .drain
@@ -60,7 +61,8 @@ class BinAvroTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
       table
         .stream[IO](1000)
         .evalTap(_ => meter.update(1))
-        .map(encoder.to).chunks
+        .map(encoder.to)
+        .chunks
         .through(sink)
         .compile
         .drain
@@ -81,9 +83,11 @@ class BinAvroTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
     read(path.uri.getPath).use { meter =>
       hadoop
         .filesIn(path)
-        .flatMap(_.traverse(bin_avro.source(_, 100).map(decoder.from).evalTap(_ => meter.update(1)).compile.fold(0L) {
-          case (s, _) => s + 1
-        })).map(_.sum)
+        .flatMap(_.traverse(
+          bin_avro.source(_, 100).map(decoder.from).evalTap(_ => meter.update(1)).compile.fold(0L) {
+            case (s, _) => s + 1
+          }))
+        .map(_.sum)
     }
 
   private def singleRead(path: NJPath): IO[Long] =

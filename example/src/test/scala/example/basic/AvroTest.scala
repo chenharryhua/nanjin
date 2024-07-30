@@ -82,8 +82,8 @@ class AvroTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
     read(path.uri.getPath).use { meter =>
       hadoop
         .filesIn(path)
-        .flatMap(_.traverse(
-          avro.source(_, 1000).map(decoder.from).evalTap(_ => meter.update(1)).compile.fold(0L) {
+        .flatMap(
+          _.traverse(avro.source(_, 1000).map(decoder.from).evalTap(_ => meter.update(1)).compile.fold(0L) {
             case (s, _) => s + 1
           }))
         .map(_.sum)

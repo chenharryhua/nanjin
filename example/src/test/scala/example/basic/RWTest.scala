@@ -24,12 +24,7 @@ class RWTest extends AnyFunSuite {
     task.eventStream(a => new AvroTest(a, root).run).evalTap(console.text[IO]).compile.drain.unsafeRunSync()
   }
   test("circe") {
-    task
-      .eventStream(a => new CirceTest(a, root).run)
-      .evalTap(console.text[IO])
-      .compile
-      .drain
-      .unsafeRunSync()
+    task.eventStream(a => new CirceTest(a, root).run).evalTap(console.text[IO]).compile.drain.unsafeRunSync()
   }
   test("jackson") {
     task

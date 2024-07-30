@@ -51,7 +51,8 @@ class KantanTest(agent: Agent[IO], base: NJPath, rfc: CsvConfiguration) extends 
       table
         .stream[IO](1000)
         .evalTap(_ => meter.update(1))
-        .map(rowEncoder.encode).chunks
+        .map(rowEncoder.encode)
+        .chunks
         .through(sink)
         .compile
         .drain
@@ -72,7 +73,8 @@ class KantanTest(agent: Agent[IO], base: NJPath, rfc: CsvConfiguration) extends 
       table
         .stream[IO](1000)
         .evalTap(_ => meter.update(1))
-        .map(rowEncoder.encode).chunks
+        .map(rowEncoder.encode)
+        .chunks
         .through(sink)
         .compile
         .drain
@@ -87,16 +89,18 @@ class KantanTest(agent: Agent[IO], base: NJPath, rfc: CsvConfiguration) extends 
     read(path.uri.getPath).use { meter =>
       hadoop
         .filesIn(path)
-        .flatMap(_.traverse(
-          kantan
-            .source(_, 1000)
-            .map(rowDecoder.decode)
-            .rethrow
-            .evalTap(_ => meter.update(1))
-            .compile
-            .fold(0L) { case (s, _) =>
-              s + 1
-            })).map(_.sum)
+        .flatMap(
+          _.traverse(
+            kantan
+              .source(_, 1000)
+              .map(rowDecoder.decode)
+              .rethrow
+              .evalTap(_ => meter.update(1))
+              .compile
+              .fold(0L) { case (s, _) =>
+                s + 1
+              }))
+        .map(_.sum)
     }
 
   private def singleRead(path: NJPath): IO[Long] =
