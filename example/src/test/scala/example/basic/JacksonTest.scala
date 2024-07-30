@@ -45,7 +45,8 @@ class JacksonTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
       table
         .stream[IO](1000)
         .evalTap(_ => meter.update(1))
-        .map(encoder.to).chunks
+        .map(encoder.to)
+        .chunks
         .through(sink)
         .compile
         .drain
@@ -66,7 +67,8 @@ class JacksonTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
       table
         .stream[IO](1000)
         .evalTap(_ => meter.update(1))
-        .map(encoder.to).chunks
+        .map(encoder.to)
+        .chunks
         .through(sink)
         .compile
         .drain
