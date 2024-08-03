@@ -23,7 +23,7 @@ val doobieV     = "1.0.0-RC5"
 val natchezV    = "0.3.5"
 val http4sV     = "0.23.27"
 val cron4sV     = "0.7.0"
-val protobufV   = "4.27.2"
+val protobufV   = "4.27.3"
 val sparkV      = "3.5.1"
 val framelessV  = "0.16.0"
 val refinedV    = "0.11.2"
@@ -417,9 +417,9 @@ lazy val pipes = (project in file("pipes"))
   .settings(name := "nj-pipes")
   .settings {
     val libs = List(
-      "io.circe" %% "circe-jackson210" % "0.14.0",
+      "io.circe" %% "circe-jackson210" % "0.14.1",
       "software.amazon.awssdk"         % "bundle"    % awsV,
-      "org.tukaani"                    % "xz"        % "1.9",
+      "org.tukaani"                    % "xz"        % "1.10",
       "org.apache.zookeeper"           % "zookeeper" % "3.9.2", // snyk
       "org.typelevel" %% "jawn-fs2"    % "2.4.0"     % Test
     ) ++ kantanLib ++ serdeLib ++ hadoopLib ++ testLib
@@ -512,3 +512,4 @@ lazy val nanjin =
     instrument_http4s,
     instrument_neo4j
   )
+
