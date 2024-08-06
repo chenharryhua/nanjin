@@ -5,7 +5,7 @@ ThisBuild / versionScheme      := Some("early-semver")
 
 val catsCoreV   = "2.12.0"
 val fs2V        = "3.10.2"
-val awsV        = "2.26.25"
+val awsV        = "2.26.30"
 val catsEffectV = "3.5.4"
 val hadoopV     = "3.4.0"
 val monocleV    = "3.2.0"
@@ -160,7 +160,7 @@ val catsLib = List(
   "org.typelevel" %% "algebra"
 ).map(_ % catsCoreV) ++
   List(
-    "org.typelevel" %% "cats-mtl"              % "1.4.0",
+    "org.typelevel" %% "cats-mtl"              % "1.5.0",
     "org.typelevel" %% "kittens"               % "3.3.0",
     "org.typelevel" %% "cats-collections-core" % "0.9.8"
   )
@@ -417,7 +417,7 @@ lazy val pipes = (project in file("pipes"))
   .settings(name := "nj-pipes")
   .settings {
     val libs = List(
-      "io.circe" %% "circe-jackson210" % "0.14.1",
+      "io.circe" %% "circe-jackson210" % "0.14.0",
       "software.amazon.awssdk"         % "bundle"    % awsV,
       "org.tukaani"                    % "xz"        % "1.10",
       "org.apache.zookeeper"           % "zookeeper" % "3.9.2", // snyk

@@ -1,5 +1,3 @@
-version: '3'
-
 services:
   kafka:
     image: landoop/fast-data-dev:latest
