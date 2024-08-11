@@ -5,7 +5,7 @@ import io.circe.{jawn, Json}
 import monocle.function.Plated
 import org.apache.avro.generic.{GenericData, GenericDatumReader, GenericDatumWriter, GenericRecord}
 import org.apache.avro.io.*
-import org.apache.avro.{Schema, SchemaCompatibility}
+import org.apache.avro.{Schema, SchemaCompatibility, SchemaFormatter}
 
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
 import java.nio.charset.StandardCharsets
@@ -34,7 +34,7 @@ package object codec {
     }
 
     jawn
-      .parse(schema.toString(false))
+      .parse(SchemaFormatter.format("json/pretty", schema))
       .toOption
       .map(remove)
       .map(js => (new Schema.Parser).parse(js.noSpaces))
@@ -57,7 +57,7 @@ package object codec {
     }
 
     jawn
-      .parse(schema.toString(false))
+      .parse(SchemaFormatter.format("json/pretty", schema))
       .toOption
       .map(remove)
       .map(js => (new Schema.Parser).parse(js.noSpaces))
@@ -80,7 +80,7 @@ package object codec {
     }
 
     jawn
-      .parse(schema.toString(false))
+      .parse(SchemaFormatter.format("json/pretty", schema))
       .toOption
       .map(remove)
       .map(js => (new Schema.Parser).parse(js.noSpaces))
@@ -108,7 +108,7 @@ package object codec {
     }
 
     jawn
-      .parse(schema.toString(false))
+      .parse(SchemaFormatter.format("json/pretty", schema))
       .toOption
       .map(replace)
       .map(js => (new Schema.Parser).parse(js.noSpaces))

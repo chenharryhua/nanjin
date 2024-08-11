@@ -5,10 +5,10 @@ ThisBuild / versionScheme      := Some("early-semver")
 
 val catsCoreV   = "2.12.0"
 val fs2V        = "3.10.2"
-val awsV        = "2.26.25"
+val awsV        = "2.27.2"
 val catsEffectV = "3.5.4"
 val hadoopV     = "3.4.0"
-val monocleV    = "3.2.0"
+val monocleV    = "3.3.0"
 val confluentV  = "7.7.0"
 val kafkaV      = "7.7.0-ce"
 val fs2KafkaV   = "3.5.1"
@@ -31,7 +31,7 @@ val nettyV      = "4.1.112.Final"
 val chimneyV    = "1.3.0"
 val enumeratumV = "1.7.4"
 val drosteV     = "0.9.0"
-val slf4jV      = "2.0.13"
+val slf4jV      = "2.0.15"
 val log4catsV   = "2.7.0"
 val logbackV    = "1.5.6"
 val jwtV        = "0.12.6"
@@ -102,7 +102,7 @@ val serdeLib = List(
   "org.apache.parquet"                    % "parquet-hadoop"           % parquetV,
   "org.apache.parquet"                    % "parquet-avro"             % parquetV,
   "io.airlift"                            % "aircompressor"            % "0.27", // snyk by parquet
-  "org.apache.commons"                    % "commons-compress"         % "1.26.2", // snyk by avro
+  "org.apache.commons"                    % "commons-compress"         % "1.27.0", // snyk by avro
   "org.apache.avro"                       % "avro"                     % avroV,
   "io.confluent"                          % "kafka-streams-avro-serde" % confluentV
 ) ++ jacksonLib ++ circeLib ++ pbLib
@@ -160,7 +160,7 @@ val catsLib = List(
   "org.typelevel" %% "algebra"
 ).map(_ % catsCoreV) ++
   List(
-    "org.typelevel" %% "cats-mtl"              % "1.4.0",
+    "org.typelevel" %% "cats-mtl"              % "1.5.0",
     "org.typelevel" %% "kittens"               % "3.3.0",
     "org.typelevel" %% "cats-collections-core" % "0.9.8"
   )
@@ -199,7 +199,7 @@ lazy val common = (project in file("common"))
   .settings(name := "nj-common")
   .settings(
     libraryDependencies ++= List(
-      "org.apache.commons"               % "commons-lang3" % "3.15.0",
+      "org.apache.commons"               % "commons-lang3" % "3.16.0",
       "io.dropwizard.metrics"            % "metrics-core"  % metricsV % Provided,
       "org.typelevel" %% "log4cats-core" % log4catsV       % Provided
     ) ++ baseLib ++ testLib
@@ -417,7 +417,7 @@ lazy val pipes = (project in file("pipes"))
   .settings(name := "nj-pipes")
   .settings {
     val libs = List(
-      "io.circe" %% "circe-jackson210" % "0.14.1",
+      "io.circe" %% "circe-jackson210" % "0.14.0",
       "software.amazon.awssdk"         % "bundle"    % awsV,
       "org.tukaani"                    % "xz"        % "1.10",
       "org.apache.zookeeper"           % "zookeeper" % "3.9.2", // snyk
