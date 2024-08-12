@@ -101,7 +101,6 @@ val serdeLib = List(
   "org.apache.parquet"                    % "parquet-common"           % parquetV,
   "org.apache.parquet"                    % "parquet-hadoop"           % parquetV,
   "org.apache.parquet"                    % "parquet-avro"             % parquetV,
-  "io.airlift"                            % "aircompressor"            % "0.27", // snyk by parquet
   "org.apache.commons"                    % "commons-compress"         % "1.27.0", // snyk by avro
   "org.apache.avro"                       % "avro"                     % avroV,
   "io.confluent"                          % "kafka-streams-avro-serde" % confluentV
@@ -176,10 +175,11 @@ val logLib = List(
 )
 
 val jwtLib = List(
-  "org.bouncycastle" % "bcpkix-jdk18on" % "1.78.1",
-  "io.jsonwebtoken"  % "jjwt-api"       % jwtV,
-  "io.jsonwebtoken"  % "jjwt-impl"      % jwtV,
-  "io.jsonwebtoken"  % "jjwt-jackson"   % jwtV
+  "org.bouncycastle"           % "bcpkix-jdk18on"   % "1.78.1",
+  "io.jsonwebtoken"            % "jjwt-api"         % jwtV,
+  "io.jsonwebtoken"            % "jjwt-impl"        % jwtV,
+  "io.jsonwebtoken"            % "jjwt-jackson"     % jwtV,
+  "com.fasterxml.jackson.core" % "jackson-databind" % jacksonV // snyk
 )
 
 val baseLib = List(
@@ -400,6 +400,7 @@ val hadoopLib = List(
   "org.slf4j"          % "jcl-over-slf4j"               % slf4jV,
   "io.netty"           % "netty-all"                    % nettyV, // snyk
   "com.nimbusds"       % "nimbus-jose-jwt"              % "9.40", // snyk
+  "dnsjava"            % "dnsjava"                      % "3.6.1", // snyk
   "org.apache.commons" % "commons-configuration2"       % "2.11.0" // snyk
 ).map(
   _.exclude("log4j", "log4j")
@@ -512,4 +513,3 @@ lazy val nanjin =
     instrument_http4s,
     instrument_neo4j
   )
-
