@@ -417,7 +417,7 @@ lazy val pipes = (project in file("pipes"))
   .settings(name := "nj-pipes")
   .settings {
     val libs = List(
-      "io.circe" %% "circe-jackson210" % "0.14.0",
+      "io.circe" %% "circe-jackson210" % "0.14.1",
       "software.amazon.awssdk"         % "bundle"    % awsV,
       "org.tukaani"                    % "xz"        % "1.10",
       "org.apache.zookeeper"           % "zookeeper" % "3.9.2", // snyk
