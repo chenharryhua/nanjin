@@ -101,7 +101,7 @@ val serdeLib = List(
   "org.apache.parquet"                    % "parquet-common"           % parquetV,
   "org.apache.parquet"                    % "parquet-hadoop"           % parquetV,
   "org.apache.parquet"                    % "parquet-avro"             % parquetV,
-  "io.airlift"                            % "aircompressor"            % "0.27", // snyk by parquet
+  "io.airlift"                            % "aircompressor"            % "2.0", // snyk by parquet
   "org.apache.commons"                    % "commons-compress"         % "1.27.0", // snyk by avro
   "org.apache.avro"                       % "avro"                     % avroV,
   "io.confluent"                          % "kafka-streams-avro-serde" % confluentV
