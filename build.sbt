@@ -5,7 +5,7 @@ ThisBuild / versionScheme      := Some("early-semver")
 
 val catsCoreV   = "2.12.0"
 val fs2V        = "3.10.2"
-val awsV        = "2.27.6"
+val awsV        = "2.27.9"
 val catsEffectV = "3.5.4"
 val hadoopV     = "3.4.0"
 val monocleV    = "3.3.0"
@@ -101,7 +101,7 @@ val serdeLib = List(
   "org.apache.parquet"                    % "parquet-common"           % parquetV,
   "org.apache.parquet"                    % "parquet-hadoop"           % parquetV,
   "org.apache.parquet"                    % "parquet-avro"             % parquetV,
-  "org.apache.commons"                    % "commons-compress"         % "1.27.0", // snyk by avro
+  "org.apache.commons"                    % "commons-compress"         % "1.27.1", // snyk by avro
   "org.apache.avro"                       % "avro"                     % avroV,
   "io.confluent"                          % "kafka-streams-avro-serde" % confluentV
 ) ++ jacksonLib ++ circeLib ++ pbLib
