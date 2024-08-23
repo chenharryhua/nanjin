@@ -71,6 +71,17 @@ private object mxBeans {
     )
   }
 
+  private val operationSystem: Eval[OperationSystem] = Eval.always {
+    val mxBean: OperatingSystemMXBean = ManagementFactory.getOperatingSystemMXBean
+    OperationSystem(
+      architecture = mxBean.getArch,
+      available_processors = mxBean.getAvailableProcessors,
+      name = mxBean.getName,
+      version = mxBean.getVersion,
+      system_load_average = mxBean.getSystemLoadAverage
+    )
+  }
+
   val allJvmGauge: Eval[AllJvmGauge] =
     for {
       cl <- classloader
@@ -79,12 +90,14 @@ private object mxBeans {
       hp <- heapMemory
       nh <- nonHeapMemory
       ts <- threadState
+      os <- operationSystem
     } yield AllJvmGauge(
       classloader = cl,
       deadlocks = dl,
       garbage_collectors = gc,
       heap_memory = hp,
       non_heap_memory = nh,
-      thread_state = ts
+      thread_state = ts,
+      operation_system = os
     )
 }

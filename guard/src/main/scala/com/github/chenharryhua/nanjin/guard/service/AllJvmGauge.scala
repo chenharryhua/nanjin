@@ -27,11 +27,20 @@ final private[service] case class GarbageCollector(name: String, count: Long, to
 final private[service] case class ThreadState(live: Int, daemon: Int, peak: Int, started: Long)
 
 @JsonCodec
+final private[service] case class OperationSystem(
+  architecture: String,
+  available_processors: Int,
+  name: String,
+  version: String,
+  system_load_average: Double)
+
+@JsonCodec
 final private[service] case class AllJvmGauge(
   classloader: ClassLoadGauge,
   deadlocks: List[ThreadDeadlocks],
   garbage_collectors: List[GarbageCollector],
   heap_memory: HeapMemory,
   non_heap_memory: NonHeapMemory,
-  thread_state: ThreadState
+  thread_state: ThreadState,
+  operation_system: OperationSystem
 )
