@@ -35,7 +35,7 @@ val slf4jV      = "2.0.16"
 val log4catsV   = "2.7.0"
 val logbackV    = "1.5.7"
 val jwtV        = "0.12.6"
-val postgresV   = "42.7.3"
+val postgresV   = "42.7.4"
 val acyclicV    = "0.3.12"
 
 lazy val commonSettings = List(
