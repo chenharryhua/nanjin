@@ -7,7 +7,9 @@ import org.apache.avro.generic.GenericRecord
 import org.apache.kafka.common.serialization.{Deserializer, Serde, Serializer}
 import org.apache.kafka.streams.scala.serialization.Serdes
 
+import java.nio.ByteBuffer
 import java.util
+import java.util.UUID
 import scala.jdk.CollectionConverters.*
 import scala.util.{Failure, Try}
 
@@ -35,7 +37,7 @@ sealed abstract class RegisteredSerde[A](serdeOf: SerdeOf[A]) extends Serializab
 
   val serde: Serde[A] = serdeOf
 
-  final def topic(topicName: TopicName): KafkaSerde[A] =
+  final def withTopic(topicName: TopicName): KafkaSerde[A] =
     new KafkaSerde[A](topicName, this)
 }
 
@@ -110,66 +112,7 @@ object SerdeOf extends LowerPriority {
       override val avroCodec: NJAvroCodec[A] = codec
     }
 
-  implicit object IntPrimitiveSerde extends SerdeOf[Int] {
-
-    override val avroCodec: NJAvroCodec[Int] = NJAvroCodec[Int]
-
-    override val serializer: Serializer[Int] =
-      new Serializer[Int] with Serializable {
-        private val delegate: Serializer[Int] = Serdes.intSerde.serializer()
-        override def close(): Unit            = delegate.close()
-
-        override def configure(configs: util.Map[String, ?], isKey: Boolean): Unit =
-          delegate.configure(configs, isKey)
-
-        override def serialize(topic: String, data: Int): Array[Byte] =
-          delegate.serialize(topic, data)
-      }
-
-    override val deserializer: Deserializer[Int] =
-      new Deserializer[Int] with Serializable {
-        private val delegate: Deserializer[Int] = Serdes.intSerde.deserializer()
-        override def close(): Unit              = delegate.close()
-
-        override def configure(configs: util.Map[String, ?], isKey: Boolean): Unit =
-          delegate.configure(configs, isKey)
-
-        override def deserialize(topic: String, data: Array[Byte]): Int =
-          delegate.deserialize(topic, data)
-      }
-  }
-
-  implicit object LongPrimitiveSerde extends SerdeOf[Long] {
-
-    override val avroCodec: NJAvroCodec[Long] = NJAvroCodec[Long]
-
-    override val serializer: Serializer[Long] =
-      new Serializer[Long] with Serializable {
-        private val delegate: Serializer[Long] = Serdes.longSerde.serializer()
-
-        override def close(): Unit = delegate.close()
-
-        override def configure(configs: util.Map[String, ?], isKey: Boolean): Unit =
-          delegate.configure(configs, isKey)
-
-        override def serialize(topic: String, data: Long): Array[Byte] =
-          delegate.serialize(topic, data)
-      }
-
-    override val deserializer: Deserializer[Long] =
-      new Deserializer[Long] with Serializable {
-        private val delegate: Deserializer[Long] = Serdes.longSerde.deserializer()
-
-        override def close(): Unit = delegate.close()
-
-        override def configure(configs: util.Map[String, ?], isKey: Boolean): Unit =
-          delegate.configure(configs, isKey)
-
-        override def deserialize(topic: String, data: Array[Byte]): Long =
-          delegate.deserialize(topic, data)
-      }
-  }
-
+// 1: String
   implicit object StringPrimitiveSerde extends SerdeOf[String] {
 
     override val avroCodec: NJAvroCodec[String] = NJAvroCodec[String]
@@ -201,37 +144,133 @@ object SerdeOf extends LowerPriority {
       }
   }
 
-  implicit object DoublePrimitiveSerde extends SerdeOf[Double] {
+  // 2: Long
+  implicit object LongPrimitiveSerde extends SerdeOf[Long] {
 
-    override val avroCodec: NJAvroCodec[Double] = NJAvroCodec[Double]
+    override val avroCodec: NJAvroCodec[Long] = NJAvroCodec[Long]
 
-    override val serializer: Serializer[Double] =
-      new Serializer[Double] with Serializable {
-        private val delegate: Serializer[Double] = Serdes.doubleSerde.serializer()
+    override val serializer: Serializer[Long] =
+      new Serializer[Long] with Serializable {
+        private val delegate: Serializer[Long] = Serdes.longSerde.serializer()
 
         override def close(): Unit = delegate.close()
 
         override def configure(configs: util.Map[String, ?], isKey: Boolean): Unit =
           delegate.configure(configs, isKey)
 
-        override def serialize(topic: String, data: Double): Array[Byte] =
+        override def serialize(topic: String, data: Long): Array[Byte] =
           delegate.serialize(topic, data)
       }
 
-    override val deserializer: Deserializer[Double] =
-      new Deserializer[Double] with Serializable {
-        private val delegate: Deserializer[Double] = Serdes.doubleSerde.deserializer()
+    override val deserializer: Deserializer[Long] =
+      new Deserializer[Long] with Serializable {
+        private val delegate: Deserializer[Long] = Serdes.longSerde.deserializer()
 
         override def close(): Unit = delegate.close()
 
         override def configure(configs: util.Map[String, ?], isKey: Boolean): Unit =
           delegate.configure(configs, isKey)
 
-        override def deserialize(topic: String, data: Array[Byte]): Double =
+        override def deserialize(topic: String, data: Array[Byte]): Long =
           delegate.deserialize(topic, data)
       }
   }
 
+// 3: array byte
+  implicit object ByteArrayPrimitiveSerde extends SerdeOf[Array[Byte]] {
+
+    override val avroCodec: NJAvroCodec[Array[Byte]] = NJAvroCodec[Array[Byte]]
+
+    override val serializer: Serializer[Array[Byte]] =
+      new Serializer[Array[Byte]] with Serializable {
+        private val delegate: Serializer[Array[Byte]] = Serdes.byteArraySerde.serializer()
+
+        override def close(): Unit = delegate.close()
+
+        override def configure(configs: util.Map[String, ?], isKey: Boolean): Unit =
+          delegate.configure(configs, isKey)
+
+        override def serialize(topic: String, data: Array[Byte]): Array[Byte] =
+          delegate.serialize(topic, data)
+      }
+
+    override val deserializer: Deserializer[Array[Byte]] =
+      new Deserializer[Array[Byte]] with Serializable {
+        private val delegate: Deserializer[Array[Byte]] = Serdes.byteArraySerde.deserializer()
+
+        override def close(): Unit = delegate.close()
+
+        override def configure(configs: util.Map[String, ?], isKey: Boolean): Unit =
+          delegate.configure(configs, isKey)
+
+        override def deserialize(topic: String, data: Array[Byte]): Array[Byte] =
+          delegate.deserialize(topic, data)
+      }
+  }
+
+  // 4: byte buffer
+  implicit object ByteBufferPrimitiveSerde extends SerdeOf[ByteBuffer] {
+
+    override val avroCodec: NJAvroCodec[ByteBuffer] = NJAvroCodec[ByteBuffer]
+
+    override val serializer: Serializer[ByteBuffer] =
+      new Serializer[ByteBuffer] with Serializable {
+        private val delegate: Serializer[ByteBuffer] = Serdes.byteBufferSerde.serializer()
+
+        override def close(): Unit = delegate.close()
+
+        override def configure(configs: util.Map[String, ?], isKey: Boolean): Unit =
+          delegate.configure(configs, isKey)
+
+        override def serialize(topic: String, data: ByteBuffer): Array[Byte] =
+          delegate.serialize(topic, data)
+      }
+
+    override val deserializer: Deserializer[ByteBuffer] =
+      new Deserializer[ByteBuffer] with Serializable {
+        private val delegate: Deserializer[ByteBuffer] = Serdes.byteBufferSerde.deserializer()
+
+        override def close(): Unit = delegate.close()
+
+        override def configure(configs: util.Map[String, ?], isKey: Boolean): Unit =
+          delegate.configure(configs, isKey)
+
+        override def deserialize(topic: String, data: Array[Byte]): ByteBuffer =
+          delegate.deserialize(topic, data)
+      }
+  }
+
+  // 5: short
+  implicit object ShortPrimitiveSerde extends SerdeOf[Short] {
+
+    override val avroCodec: NJAvroCodec[Short] = NJAvroCodec[Short]
+
+    override val serializer: Serializer[Short] =
+      new Serializer[Short] with Serializable {
+        private val delegate: Serializer[Short] = Serdes.shortSerde.serializer()
+        override def close(): Unit              = delegate.close()
+
+        override def configure(configs: util.Map[String, ?], isKey: Boolean): Unit =
+          delegate.configure(configs, isKey)
+
+        override def serialize(topic: String, data: Short): Array[Byte] =
+          delegate.serialize(topic, data)
+      }
+
+    override val deserializer: Deserializer[Short] =
+      new Deserializer[Short] with Serializable {
+        private val delegate: Deserializer[Short] = Serdes.shortSerde.deserializer()
+        override def close(): Unit                = delegate.close()
+
+        override def configure(configs: util.Map[String, ?], isKey: Boolean): Unit =
+          delegate.configure(configs, isKey)
+
+        override def deserialize(topic: String, data: Array[Byte]): Short =
+          delegate.deserialize(topic, data)
+      }
+  }
+
+  // 6: float
   implicit object FloatPrimitiveSerde extends SerdeOf[Float] {
 
     override val avroCodec: NJAvroCodec[Float] = NJAvroCodec[Float]
@@ -263,33 +302,94 @@ object SerdeOf extends LowerPriority {
       }
   }
 
-  implicit object ByteArrayPrimitiveSerde extends SerdeOf[Array[Byte]] {
+  // 7: double
+  implicit object DoublePrimitiveSerde extends SerdeOf[Double] {
 
-    override val avroCodec: NJAvroCodec[Array[Byte]] = NJAvroCodec[Array[Byte]]
+    override val avroCodec: NJAvroCodec[Double] = NJAvroCodec[Double]
 
-    override val serializer: Serializer[Array[Byte]] =
-      new Serializer[Array[Byte]] with Serializable {
-        private val delegate: Serializer[Array[Byte]] = Serdes.byteArraySerde.serializer()
+    override val serializer: Serializer[Double] =
+      new Serializer[Double] with Serializable {
+        private val delegate: Serializer[Double] = Serdes.doubleSerde.serializer()
 
         override def close(): Unit = delegate.close()
 
         override def configure(configs: util.Map[String, ?], isKey: Boolean): Unit =
           delegate.configure(configs, isKey)
 
-        override def serialize(topic: String, data: Array[Byte]): Array[Byte] =
+        override def serialize(topic: String, data: Double): Array[Byte] =
           delegate.serialize(topic, data)
       }
 
-    override val deserializer: Deserializer[Array[Byte]] =
-      new Deserializer[Array[Byte]] with Serializable {
-        private val delegate: Deserializer[Array[Byte]] = Serdes.byteArraySerde.deserializer()
+    override val deserializer: Deserializer[Double] =
+      new Deserializer[Double] with Serializable {
+        private val delegate: Deserializer[Double] = Serdes.doubleSerde.deserializer()
 
         override def close(): Unit = delegate.close()
 
         override def configure(configs: util.Map[String, ?], isKey: Boolean): Unit =
           delegate.configure(configs, isKey)
 
-        override def deserialize(topic: String, data: Array[Byte]): Array[Byte] =
+        override def deserialize(topic: String, data: Array[Byte]): Double =
+          delegate.deserialize(topic, data)
+      }
+  }
+
+  // 8: int
+  implicit object IntPrimitiveSerde extends SerdeOf[Int] {
+
+    override val avroCodec: NJAvroCodec[Int] = NJAvroCodec[Int]
+
+    override val serializer: Serializer[Int] =
+      new Serializer[Int] with Serializable {
+        private val delegate: Serializer[Int] = Serdes.intSerde.serializer()
+        override def close(): Unit            = delegate.close()
+
+        override def configure(configs: util.Map[String, ?], isKey: Boolean): Unit =
+          delegate.configure(configs, isKey)
+
+        override def serialize(topic: String, data: Int): Array[Byte] =
+          delegate.serialize(topic, data)
+      }
+
+    override val deserializer: Deserializer[Int] =
+      new Deserializer[Int] with Serializable {
+        private val delegate: Deserializer[Int] = Serdes.intSerde.deserializer()
+        override def close(): Unit              = delegate.close()
+
+        override def configure(configs: util.Map[String, ?], isKey: Boolean): Unit =
+          delegate.configure(configs, isKey)
+
+        override def deserialize(topic: String, data: Array[Byte]): Int =
+          delegate.deserialize(topic, data)
+      }
+  }
+
+  // 9: uuid
+  implicit object UUIDPrimitiveSerde extends SerdeOf[UUID] {
+
+    override val avroCodec: NJAvroCodec[UUID] = NJAvroCodec[UUID]
+
+    override val serializer: Serializer[UUID] =
+      new Serializer[UUID] with Serializable {
+        private val delegate: Serializer[UUID] = Serdes.uuidSerde.serializer()
+        override def close(): Unit             = delegate.close()
+
+        override def configure(configs: util.Map[String, ?], isKey: Boolean): Unit =
+          delegate.configure(configs, isKey)
+
+        override def serialize(topic: String, data: UUID): Array[Byte] =
+          delegate.serialize(topic, data)
+      }
+
+    override val deserializer: Deserializer[UUID] =
+      new Deserializer[UUID] with Serializable {
+        private val delegate: Deserializer[UUID] = Serdes.uuidSerde.deserializer()
+        override def close(): Unit               = delegate.close()
+
+        override def configure(configs: util.Map[String, ?], isKey: Boolean): Unit =
+          delegate.configure(configs, isKey)
+
+        override def deserialize(topic: String, data: Array[Byte]): UUID =
           delegate.deserialize(topic, data)
       }
   }

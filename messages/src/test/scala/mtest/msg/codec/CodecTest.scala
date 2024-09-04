@@ -10,8 +10,8 @@ import scala.util.Success
 object CodecTestData {
   final case class Foo(a: String, b: Int)
   final case class Bar(a: Int, b: String)
-  val fooCodec: KafkaSerde[Foo] = SerdeOf[Foo].asValue(sr).topic(TopicName("avro.test"))
-  val barCodec: KafkaSerde[Bar] = SerdeOf[Bar].asKey(sr).topic(TopicName("avro.test"))
+  val fooCodec: KafkaSerde[Foo] = SerdeOf[Foo].asValue(sr).withTopic(TopicName("avro.test"))
+  val barCodec: KafkaSerde[Bar] = SerdeOf[Bar].asKey(sr).withTopic(TopicName("avro.test"))
 }
 
 class CodecTest extends AnyFunSuite {

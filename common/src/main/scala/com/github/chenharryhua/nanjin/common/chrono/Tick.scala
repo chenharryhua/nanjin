@@ -21,10 +21,12 @@ final case class Tick private[chrono] (
   snooze: Duration // sleep duration
 ) {
 
-  val wakeup: Instant              = acquire.plus(snooze)
-  def zonedWakeup: ZonedDateTime   = wakeup.atZone(zoneId)
-  def zonedAcquire: ZonedDateTime  = acquire.atZone(zoneId)
-  def zonedPrevious: ZonedDateTime = previous.atZone(zoneId)
+  val wakeup: Instant = acquire.plus(snooze)
+
+  def zonedLaunchTime: ZonedDateTime = launchTime.atZone(zoneId)
+  def zonedWakeup: ZonedDateTime     = wakeup.atZone(zoneId)
+  def zonedAcquire: ZonedDateTime    = acquire.atZone(zoneId)
+  def zonedPrevious: ZonedDateTime   = previous.atZone(zoneId)
 
   def interval: Duration = Duration.between(previous, wakeup)
 
@@ -42,8 +44,12 @@ final case class Tick private[chrono] (
       snooze = delay
     )
 
-  override def toString: String =
-    f"idx=$index%04d, wak=${zonedWakeup.toLocalDateTime}, acq=${zonedAcquire.toLocalDateTime}, snz=${snooze.show}"
+  override def toString: String = {
+    val wak = zonedWakeup.toLocalDateTime.show
+    val acq = zonedAcquire.toLocalDateTime.show
+    val snz = snooze.show
+    f"idx=$index%04d, acq=$acq, wak=$wak, snz=$snz"
+  }
 }
 
 object Tick {

@@ -12,7 +12,7 @@ import org.apache.avro.{Schema, SchemaCompatibility}
 
 final case class RawKeyValueSerdePair[K, V](key: SerdeOf[K], value: SerdeOf[V]) {
   def register(srs: SchemaRegistrySettings, name: TopicName): KeyValueSerdePair[K, V] =
-    KeyValueSerdePair(key.asKey(srs.config).topic(name), value.asValue(srs.config).topic(name))
+    KeyValueSerdePair(key.asKey(srs.config).withTopic(name), value.asValue(srs.config).withTopic(name))
 }
 
 final case class KeyValueSerdePair[K, V](key: KafkaSerde[K], value: KafkaSerde[V])
