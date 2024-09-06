@@ -115,7 +115,7 @@ final class InfluxdbObserver[F[_]](
       CONSTANT_SERVICE -> sp.serviceName.value,
       CONSTANT_SERVICE_ID -> sp.serviceId.show,
       CONSTANT_HOST -> sp.hostName.value,
-      metricConstants.METRICS_LAUNCH_TIME -> sp.launchTime.toLocalDate.show
+      metricConstants.METRICS_LAUNCH_TIME -> sp.zerothTick.zonedLaunchTime.toLocalDate.show
     )
 
   private def dimension(ms: Snapshot): Map[String, String] =

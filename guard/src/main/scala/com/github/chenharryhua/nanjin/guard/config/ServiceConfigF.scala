@@ -58,13 +58,12 @@ final case class ServiceParams(
   val zoneId: ZoneId  = zerothTick.zoneId
   val serviceId: UUID = zerothTick.sequenceId
 
-  val launchTime: ZonedDateTime = zerothTick.launchTime.atZone(zoneId)
-
   def toZonedDateTime(ts: Instant): ZonedDateTime = ts.atZone(zoneId)
   def toZonedDateTime(fd: FiniteDuration): ZonedDateTime =
     Instant.EPOCH.plusNanos(fd.toNanos).atZone(zoneId)
 
-  def upTime(ts: ZonedDateTime): Duration = Duration.between(launchTime, ts)
+  def upTime(ts: ZonedDateTime): Duration = Duration.between(zerothTick.zonedLaunchTime, ts)
+  def upTime(ts: Instant): Duration       = Duration.between(zerothTick.launchTime, ts)
 
   def zonedNow[F[_]: Clock: Functor]: F[ZonedDateTime] = Clock[F].realTimeInstant.map(toZonedDateTime)
 }

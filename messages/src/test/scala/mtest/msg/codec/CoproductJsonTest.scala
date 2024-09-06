@@ -22,7 +22,7 @@ class CoproductJsonTest extends AnyFunSuite {
   val fb1: FB  = FB(Coproduct[FooBar](foo), 0)
   val fb2: FB  = FB(Coproduct[FooBar](bar), 1)
 
-  test("circe json coproduct is not invertable") {
+  test("circe json coproduct is not invertible") {
     assert(decode[FB](fb1.asJson.noSpaces).toOption.get === fb1)
     assert(decode[FB](fb2.asJson.noSpaces).toOption.get !== fb2)
   }

@@ -247,7 +247,7 @@ final private case class MetricKey(
         Dimension
           .builder()
           .name(metricConstants.METRICS_LAUNCH_TIME)
-          .value(serviceParams.launchTime.toLocalDate.show)
+          .value(serviceParams.zerothTick.zonedLaunchTime.toLocalDate.show)
           .build(),
         Dimension.builder().name(metricConstants.METRICS_DIGEST).value(id.metricName.digest).build(),
         Dimension.builder().name(CONSTANT_MEASUREMENT).value(id.metricName.measurement).build()
