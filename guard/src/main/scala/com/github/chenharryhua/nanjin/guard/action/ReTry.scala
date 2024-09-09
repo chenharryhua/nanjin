@@ -11,10 +11,13 @@ import com.github.chenharryhua.nanjin.guard.event.NJEvent.{ActionDone, ActionFai
 import com.github.chenharryhua.nanjin.guard.event.{ActionID, NJError, NJEvent}
 import fs2.concurrent.Channel
 import io.circe.Json
+import io.circe.syntax.EncoderOps
+import org.apache.commons.lang3.exception.ExceptionUtils
 
 import java.time.ZonedDateTime
 import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.jdk.DurationConverters.JavaDurationOps
+import scala.util.Try
 
 private case object ActionCancelException extends Exception("action was canceled")
 
@@ -37,9 +40,15 @@ final private class ReTry[F[_]: Async, IN, OUT] private (
   private[this] def to_zdt(fd: FiniteDuration): ZonedDateTime =
     actionParams.serviceParams.toZonedDateTime(fd)
 
-  private[this] def output_json(in: IN, out: OUT): Json     = transOutput.run((in, out))
-  private[this] def input_json(in: IN): Json                = transInput.run(in)
-  private[this] def error_json(in: IN, ex: Throwable): Json = transError.run((in, ex))
+  private[this] def bad_json(ex: Throwable): Json =
+    ExceptionUtils.getMessage(ex).asJson
+
+  private[this] def output_json(in: IN, out: OUT): Json =
+    Try(transOutput.run((in, out))).fold(bad_json, identity)
+  private[this] def input_json(in: IN): Json =
+    Try(transInput.run(in)).fold(bad_json, identity)
+  private[this] def error_json(in: IN, ex: Throwable): Json =
+    Try(transError.run((in, ex))).fold(bad_json, identity)
 
   private[this] def measure_fail(): Unit                   = measures.fail()
   private[this] def measure_retry(): Unit                  = measures.count_retry()

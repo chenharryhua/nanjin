@@ -14,7 +14,7 @@ val kafkaV      = "7.7.0-ce"
 val fs2KafkaV   = "3.5.1"
 val avroV       = "1.12.0"
 val parquetV    = "1.14.2"
-val circeV      = "0.14.9"
+val circeV      = "0.14.10"
 val jacksonV    = "2.17.2"
 val kantanV     = "0.7.0"
 val metricsV    = "4.2.27"
@@ -66,10 +66,9 @@ val circeLib = List(
   "io.circe" %% "circe-core",
   "io.circe" %% "circe-generic",
   "io.circe" %% "circe-shapes",
-  "io.circe" %% "circe-jawn",
-  "io.circe" %% "circe-refined"
+  "io.circe" %% "circe-jawn"
 ).map(_ % circeV) ++
-  List("io.circe" %% "circe-optics" % "0.15.0")
+  List("io.circe" %% "circe-optics" % "0.15.0", "io.circe" %% "circe-refined" % "0.14.9")
 
 val jacksonLib = List(
   "com.fasterxml.jackson.core"     % "jackson-annotations",

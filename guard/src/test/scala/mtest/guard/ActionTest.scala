@@ -44,7 +44,7 @@ class ActionTest extends AnyFunSuite {
           .buildWith(_.tapError((_, _) => null.asInstanceOf[String].asJson).tapInput(_ =>
             null.asInstanceOf[String].asJson))
           .use(_.run(())))
-      // .map(checkJson)
+      .map(checkJson)
       .evalTap(console.text[IO])
       .compile
       .toList
