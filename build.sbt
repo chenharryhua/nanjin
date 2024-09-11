@@ -398,7 +398,7 @@ val hadoopLib = List(
   "org.apache.hadoop"  % "hadoop-hdfs-client"           % hadoopV,
   "org.slf4j"          % "jcl-over-slf4j"               % slf4jV,
   "io.netty"           % "netty-all"                    % nettyV, // snyk
-  "com.nimbusds"       % "nimbus-jose-jwt"              % "9.40", // snyk
+  "com.nimbusds"       % "nimbus-jose-jwt"              % "9.41", // snyk
   "dnsjava"            % "dnsjava"                      % "3.6.1", // snyk
   "org.apache.commons" % "commons-configuration2"       % "2.11.0" // snyk
 ).map(
