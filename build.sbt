@@ -68,7 +68,7 @@ val circeLib = List(
   "io.circe" %% "circe-shapes",
   "io.circe" %% "circe-jawn"
 ).map(_ % circeV) ++
-  List("io.circe" %% "circe-optics" % "0.15.0", "io.circe" %% "circe-refined" % "0.14.9")
+  List("io.circe" %% "circe-optics" % "0.15.0", "io.circe" %% "circe-refined" % "0.15.1")
 
 val jacksonLib = List(
   "com.fasterxml.jackson.core"     % "jackson-annotations",
