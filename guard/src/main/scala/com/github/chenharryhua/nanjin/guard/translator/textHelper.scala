@@ -43,9 +43,13 @@ object textHelper extends localtime with localdatetime {
       case NJEvent.ServiceAlert(metricName, _, _, al, _) =>
         s"Alert ${al.productPrefix} ${name(metricName)}"
 
-      case NJEvent.ServiceStart(_, tick) => if (tick.index === 0) "Start Service" else "Restart Service"
-      case _: NJEvent.ServiceStop        => "Service Stopped"
-      case _: NJEvent.ServicePanic       => "Service Panic"
+      case NJEvent.ServiceStart(_, tick) =>
+        if (tick.index === 0)
+          "Start Service"
+        else
+          s"${to_ordinal_words(tick.index)} Restart Service"
+      case _: NJEvent.ServiceStop  => "Service Stopped"
+      case _: NJEvent.ServicePanic => "Service Panic"
 
       case NJEvent.MetricReport(index, _, _, _) =>
         index match {
@@ -87,12 +91,14 @@ object textHelper extends localtime with localdatetime {
 
   def panicText(evt: ServicePanic): String = {
     val (time, dur) = localTime_duration(evt.timestamp, evt.restartTime)
-    s"The service experienced a panic. Restart was scheduled at $time, roughly in $dur."
+    val nth: String = to_ordinal_words(evt.tick.index)
+    s"$nth restart was scheduled at $time, roughly in $dur."
   }
 
   def retryText(evt: ActionRetry): String = {
     val localTs: LocalTime =
       evt.tick.zonedWakeup.toLocalTime.truncatedTo(ChronoUnit.SECONDS)
-    s"${to_ordinal_words(evt.tick.index)} retry was scheduled at $localTs"
+    val nth: String = to_ordinal_words(evt.tick.index)
+    s"$nth retry was scheduled at $localTs"
   }
 }
