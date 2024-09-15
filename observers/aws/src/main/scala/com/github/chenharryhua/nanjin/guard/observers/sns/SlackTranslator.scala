@@ -66,7 +66,7 @@ private object SlackTranslator extends all {
         Attachment(
           color = color,
           blocks = List(
-            MarkdownSection(s":rocket: *${eventTitle(evt)}*"),
+            HeaderSection(s":rocket: ${eventTitle(evt)}"),
             host_service_section(evt.serviceParams),
             uptime_section(evt),
             MarkdownSection(show"""|*$CONSTANT_POLICY:* ${evt.serviceParams.servicePolicies.restart}
@@ -86,10 +86,11 @@ private object SlackTranslator extends all {
         Attachment(
           color = color,
           blocks = List(
-            MarkdownSection(":alarm:" + panicText(evt)),
+            HeaderSection(s":alarm: ${eventTitle(evt)}"),
             host_service_section(evt.serviceParams),
             uptime_section(evt),
-            MarkdownSection(show"""|*$CONSTANT_POLICY:* ${evt.serviceParams.servicePolicies.restart}
+            MarkdownSection(show"""|${panicText(evt)}
+                                   |*$CONSTANT_POLICY:* ${evt.serviceParams.servicePolicies.restart}
                                    |*$CONSTANT_SERVICE_ID:* ${evt.serviceParams.serviceId}""".stripMargin)
           )
         ),
@@ -109,7 +110,7 @@ private object SlackTranslator extends all {
         Attachment(
           color = color,
           blocks = List(
-            MarkdownSection(s":octagonal_sign: *${eventTitle(evt)}*"),
+            HeaderSection(s":octagonal_sign: ${eventTitle(evt)}"),
             host_service_section(evt.serviceParams),
             uptime_section(evt),
             MarkdownSection(show"""|*$CONSTANT_SERVICE_ID:* ${evt.serviceParams.serviceId}
@@ -129,7 +130,7 @@ private object SlackTranslator extends all {
         Attachment(
           color = color,
           blocks = List(
-            MarkdownSection(s"*${eventTitle(evt)}*"),
+            HeaderSection(eventTitle(evt)),
             host_service_section(evt.serviceParams),
             uptime_section(evt),
             MarkdownSection(show"*$CONSTANT_SERVICE_ID:* ${evt.serviceParams.serviceId}"),
@@ -148,7 +149,7 @@ private object SlackTranslator extends all {
         Attachment(
           color = coloring(evt),
           blocks = List(
-            MarkdownSection(s"*${eventTitle(evt)}*"),
+            HeaderSection(eventTitle(evt)),
             host_service_section(evt.serviceParams),
             uptime_section(evt),
             MarkdownSection(s"*$CONSTANT_SERVICE_ID:* ${evt.serviceParams.serviceId.show}"),
@@ -171,7 +172,7 @@ private object SlackTranslator extends all {
         Attachment(
           color = coloring(evt),
           blocks = List(
-            MarkdownSection(symbol + s" *${eventTitle(evt)}*"),
+            HeaderSection(s"$symbol ${eventTitle(evt)}"),
             host_service_section(evt.serviceParams),
             uptime_section(evt),
             MarkdownSection(s"""|${measurement(evt.metricName)}
@@ -197,7 +198,7 @@ private object SlackTranslator extends all {
         Attachment(
           color = coloring(evt),
           blocks = List(
-            MarkdownSection(s"*${eventTitle(evt)}*"),
+            HeaderSection(eventTitle(evt)),
             host_service_section(evt.serviceParams),
             JuxtaposeSection(
               first = TextField(CONSTANT_MEASUREMENT, evt.actionParams.metricName.measurement),
@@ -217,7 +218,7 @@ private object SlackTranslator extends all {
         Attachment(
           color = coloring(evt),
           blocks = List(
-            MarkdownSection(s"*${eventTitle(evt)}*"),
+            HeaderSection(eventTitle(evt)),
             host_service_section(evt.serviceParams),
             JuxtaposeSection(
               first = TextField(CONSTANT_MEASUREMENT, evt.actionParams.metricName.measurement),
@@ -240,7 +241,7 @@ private object SlackTranslator extends all {
         Attachment(
           color = color,
           blocks = List(
-            MarkdownSection(s"*${eventTitle(evt)}*"),
+            HeaderSection(eventTitle(evt)),
             host_service_section(evt.serviceParams),
             JuxtaposeSection(
               first = TextField(CONSTANT_MEASUREMENT, evt.actionParams.metricName.measurement),
@@ -266,7 +267,7 @@ private object SlackTranslator extends all {
         Attachment(
           color = coloring(evt),
           blocks = List(
-            MarkdownSection(s"*${eventTitle(evt)}*"),
+            HeaderSection(eventTitle(evt)),
             host_service_section(evt.serviceParams),
             JuxtaposeSection(
               first = TextField(CONSTANT_MEASUREMENT, evt.actionParams.metricName.measurement),

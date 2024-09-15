@@ -11,7 +11,7 @@ final case class TextField(tag: String, value: String)
 object TextField {
   implicit val encodeTextField: Encoder[TextField] = tf => {
     val str = s"*${tf.tag}*\n${tf.value}"
-    Json.obj("type" -> "mrkdwn".asJson, "text" -> str.asJson)
+    Json.obj("type" -> Json.fromString("mrkdwn"), "text" -> Json.fromString(str))
   }
 }
 // slack format
@@ -19,20 +19,31 @@ sealed trait Section
 object Section {
   implicit val encodeSection: Encoder[Section] = Encoder.instance {
     case JuxtaposeSection(first, second) =>
-      Json.obj("type" -> "section".asJson, "fields" -> List(first, second).asJson)
+      Json.obj("type" -> Json.fromString("section"), "fields" -> List(first, second).asJson)
 
     case MarkdownSection(text) =>
       Json.obj(
-        "type" -> "section".asJson,
-        "text" -> Json.obj("type" -> "mrkdwn".asJson, "text" -> text.asJson))
+        "type" -> Json.fromString("section"),
+        "text" -> Json.obj("type" -> Json.fromString("mrkdwn"), "text" -> Json.fromString(text)))
+
     case KeyValueSection(key, value) =>
-      Json.obj("type" -> "section".asJson, "text" -> TextField(key, value).asJson)
+      Json.obj("type" -> Json.fromString("section"), "text" -> TextField(key, value).asJson)
+
+    case HeaderSection(text) =>
+      Json.obj(
+        "type" -> Json.fromString("header"),
+        "text" -> Json.obj(
+          "type" -> Json.fromString("plain_text"),
+          "text" -> Json.fromString(text),
+          "emoji" -> Json.fromBoolean(true))
+      )
   }
 }
 
 final case class JuxtaposeSection(first: TextField, second: TextField) extends Section
 final case class KeyValueSection(tag: String, value: String) extends Section
 final case class MarkdownSection(text: String) extends Section
+final case class HeaderSection(text: String) extends Section
 
 final case class Attachment(color: String, blocks: List[Section])
 
