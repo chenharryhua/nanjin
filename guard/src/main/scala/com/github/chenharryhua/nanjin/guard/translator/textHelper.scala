@@ -36,7 +36,7 @@ object textHelper extends localtime with localdatetime {
 
     evt match {
       case NJEvent.ActionStart(_, ap, _, _)   => s"Start Action ${name(ap.metricName)}"
-      case NJEvent.ActionRetry(_, ap, _, _)   => s"Action Retrying ${name(ap.metricName)}"
+      case NJEvent.ActionRetry(_, ap, _, _)   => s"Retry Action ${name(ap.metricName)}"
       case NJEvent.ActionFail(_, ap, _, _, _) => s"Action Failed ${name(ap.metricName)}"
       case NJEvent.ActionDone(_, ap, _, _, _) => s"Action Done ${name(ap.metricName)}"
 
