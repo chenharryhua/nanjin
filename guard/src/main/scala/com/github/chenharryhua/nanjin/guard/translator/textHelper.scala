@@ -1,13 +1,13 @@
 package com.github.chenharryhua.nanjin.guard.translator
 
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.guard.config.{MetricName, ServiceParams}
+import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.{ActionRetry, ServicePanic}
 import com.github.chenharryhua.nanjin.guard.event.{MetricIndex, MetricSnapshot, NJEvent, ServiceStopCause}
 import org.typelevel.cats.time.instances.{localdatetime, localtime}
 
 import java.time.temporal.ChronoUnit
-import java.time.{Duration, LocalTime, ZonedDateTime}
+import java.time.{Duration, ZonedDateTime}
 
 object textHelper extends localtime with localdatetime {
   def yamlMetrics(ss: MetricSnapshot): String =
@@ -31,17 +31,14 @@ object textHelper extends localtime with localdatetime {
     case ServiceStopCause.Maintenance        => "Maintenance"
   }
 
-  def eventTitle(evt: NJEvent): String = {
-    def name(mn: MetricName): String = s"[${mn.digest}][${mn.name}]"
-
+  def eventTitle(evt: NJEvent): String =
     evt match {
-      case NJEvent.ActionStart(_, ap, _, _)   => s"Start Action ${name(ap.metricName)}"
-      case NJEvent.ActionRetry(_, ap, _, _)   => s"Retry Action ${name(ap.metricName)}"
-      case NJEvent.ActionFail(_, ap, _, _, _) => s"Action Failed ${name(ap.metricName)}"
-      case NJEvent.ActionDone(_, ap, _, _, _) => s"Action Done ${name(ap.metricName)}"
+      case _: NJEvent.ActionStart => "Start Action"
+      case _: NJEvent.ActionRetry => "Retry Action"
+      case _: NJEvent.ActionFail  => "Action Failed"
+      case _: NJEvent.ActionDone  => "Action Done"
 
-      case NJEvent.ServiceAlert(metricName, _, _, al, _) =>
-        s"Alert ${al.productPrefix} ${name(metricName)}"
+      case NJEvent.ServiceAlert(_, _, _, _, al, _) => s"Alert ${al.productPrefix}"
 
       case NJEvent.ServiceStart(_, tick) =>
         if (tick.index === 0)
@@ -54,15 +51,14 @@ object textHelper extends localtime with localdatetime {
       case NJEvent.MetricReport(index, _, _, _) =>
         index match {
           case MetricIndex.Adhoc(_)       => "Adhoc Metric Report"
-          case MetricIndex.Periodic(tick) => s"Metric Report(index=${tick.index})"
+          case MetricIndex.Periodic(tick) => s"Metric Report (index=${tick.index})"
         }
       case NJEvent.MetricReset(index, _, _, _) =>
         index match {
           case MetricIndex.Adhoc(_)       => "Adhoc Metric Reset"
-          case MetricIndex.Periodic(tick) => s"Metric Reset(index=${tick.index})"
+          case MetricIndex.Periodic(tick) => s"Metric Reset (index=${tick.index})"
         }
     }
-  }
 
   private def to_ordinal_words(n: Long): String = {
     val w =
@@ -92,13 +88,12 @@ object textHelper extends localtime with localdatetime {
   def panicText(evt: ServicePanic): String = {
     val (time, dur) = localTime_duration(evt.timestamp, evt.restartTime)
     val nth: String = to_ordinal_words(evt.tick.index)
-    s"$nth restart was scheduled at $time, roughly in $dur."
+    s"$nth restart was scheduled at $time, in $dur."
   }
 
   def retryText(evt: ActionRetry): String = {
-    val localTs: LocalTime =
-      evt.tick.zonedWakeup.toLocalTime.truncatedTo(ChronoUnit.SECONDS)
+    val (time, dur) = localTime_duration(evt.timestamp, evt.tick.zonedWakeup)
     val nth: String = to_ordinal_words(evt.tick.index)
-    s"$nth retry was scheduled at $localTs"
+    s"$nth retry was scheduled at $time, in $dur"
   }
 }

@@ -68,11 +68,11 @@ object ServiceStopCause {
     ).reduceLeft(_ or _)
 }
 
-final case class ActionID private (uniqueToken: Int)
-object ActionID {
-  implicit val showActionID: Show[ActionID]       = _.uniqueToken.toString
-  implicit val encoderActionID: Encoder[ActionID] = Encoder.encodeInt.contramap(_.uniqueToken)
-  implicit val decoderActionID: Decoder[ActionID] = Decoder.decodeInt.map(ActionID(_))
+final case class UniqueToken private (uniqueToken: Int)
+object UniqueToken {
+  implicit val showActionID: Show[UniqueToken]       = _.uniqueToken.toString
+  implicit val encoderActionID: Encoder[UniqueToken] = Encoder.encodeInt.contramap(_.uniqueToken)
+  implicit val decoderActionID: Decoder[UniqueToken] = Decoder.decodeInt.map(UniqueToken(_))
 
-  def apply(token: Unique.Token): ActionID = ActionID(token.hash)
+  def apply(token: Unique.Token): UniqueToken = UniqueToken(token.hash)
 }

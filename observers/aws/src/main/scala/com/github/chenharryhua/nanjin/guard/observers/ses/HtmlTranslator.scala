@@ -114,88 +114,61 @@ private object HtmlTranslator extends all {
     )
   }
 
-  private def service_alert(evt: ServiceAlert): Text.TypedTag[String] =
-    div(
-      h3(style := htmlColoring(evt))(eventTitle(evt)),
-      table(service_table(evt)),
-      json_text(evt.message)
-    )
-
-  private def action_start(evt: ActionStart): Text.TypedTag[String] = {
-    val start = frag(
-      tr(th(CONSTANT_MEASUREMENT), th(CONSTANT_ACTION_ID), th(CONSTANT_POLICY)),
+  private def service_alert(evt: ServiceAlert): Text.TypedTag[String] = {
+    val alert = frag(
+      tr(th(CONSTANT_MEASUREMENT), th(CONSTANT_ALERT_ID), th(CONSTANT_NAME)),
       tr(
-        td(evt.actionParams.metricName.measurement),
-        td(evt.actionID.uniqueToken),
-        td(evt.actionParams.retryPolicy.show)
+        td(evt.metricName.measurement),
+        td(s"${evt.alertID.show}/${evt.metricName.digest}"),
+        td(evt.metricName.name)
       )
     )
     div(
       h3(style := htmlColoring(evt))(eventTitle(evt)),
-      table(service_table(evt), start),
-      json_text(evt.notes)
+      table(service_table(evt), alert),
+      json_text(evt.message)
     )
   }
 
-  private def action_retrying(evt: ActionRetry): Text.TypedTag[String] = {
-    val retry = frag(
-      tr(th(CONSTANT_MEASUREMENT), th(CONSTANT_ACTION_ID), th(CONSTANT_POLICY)),
+  def action_section(evt: ActionEvent): generic.Frag[Builder, String] =
+    frag(
+      tr(th(CONSTANT_MEASUREMENT), th(CONSTANT_ACTION_ID), th(CONSTANT_NAME)),
       tr(
         td(evt.actionParams.metricName.measurement),
-        td(evt.actionID.uniqueToken),
-        td(evt.actionParams.retryPolicy.show)
+        td(s"${evt.actionID.show}/${evt.actionParams.metricName.digest}"),
+        td(evt.actionParams.metricName.name)
       )
     )
+
+  private def action_start(evt: ActionStart): Text.TypedTag[String] =
     div(
       h3(style := htmlColoring(evt))(eventTitle(evt)),
-      table(service_table(evt), retry),
+      table(service_table(evt), action_section(evt)),
+      json_text(evt.notes)
+    )
+
+  private def action_retrying(evt: ActionRetry): Text.TypedTag[String] =
+    div(
+      h3(style := htmlColoring(evt))(eventTitle(evt)),
+      table(service_table(evt), action_section(evt)),
       p(b(retryText(evt))),
       cause_text(evt.error)
     )
-  }
 
-  private def action_fail(evt: ActionFail): Text.TypedTag[String] = {
-    val result = frag(
-      tr(
-        th(CONSTANT_MEASUREMENT),
-        th(CONSTANT_ACTION_ID),
-        th(CONSTANT_POLICY)
-      ),
-      tr(
-        td(evt.actionParams.metricName.measurement),
-        td(evt.actionID.uniqueToken),
-        td(evt.actionParams.retryPolicy.show)
-      )
-    )
-
+  private def action_fail(evt: ActionFail): Text.TypedTag[String] =
     div(
       h3(style := htmlColoring(evt))(eventTitle(evt)),
-      table(service_table(evt), result),
+      table(service_table(evt), action_section(evt)),
       cause_text(evt.error),
       json_text(evt.notes)
     )
-  }
 
-  private def action_done(evt: ActionDone): Text.TypedTag[String] = {
-    val result = frag(
-      tr(
-        td(b(CONSTANT_MEASUREMENT)),
-        td(b(CONSTANT_ACTION_ID)),
-        td(b(CONSTANT_TOOK))
-      ),
-      tr(
-        td(evt.actionParams.metricName.measurement),
-        td(evt.actionID.uniqueToken),
-        td(tookText(evt.took))
-      )
-    )
-
+  private def action_done(evt: ActionDone): Text.TypedTag[String] =
     div(
       h3(style := htmlColoring(evt))(eventTitle(evt)),
-      table(service_table(evt), result),
+      table(service_table(evt), action_section(evt)),
       json_text(evt.notes)
     )
-  }
 
   def apply[F[_]: Applicative]: Translator[F, Text.TypedTag[String]] =
     Translator

@@ -70,6 +70,7 @@ private object JsonTranslator {
       metricName(evt.metricName),
       metricDigest(evt.metricName),
       metricMeasurement(evt.metricName),
+      alertId(evt),
       serviceId(evt),
       timestamp(evt)
     )

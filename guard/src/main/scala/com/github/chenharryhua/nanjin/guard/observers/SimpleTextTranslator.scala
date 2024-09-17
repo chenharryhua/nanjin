@@ -31,7 +31,7 @@ object SimpleTextTranslator {
 
   private def action_event(ae: ActionEvent): String = {
     val mm  = s"$CONSTANT_MEASUREMENT:${ae.actionParams.metricName.measurement}"
-    val cfg = s"$CONSTANT_ACTION_ID:${ae.actionID.uniqueToken}"
+    val cfg = s"$CONSTANT_ACTION_ID:${ae.actionID.show}/${ae.actionParams.metricName.digest}"
 
     s"""  ${service_event(ae)}
        |  $mm, $cfg""".stripMargin
@@ -79,11 +79,14 @@ object SimpleTextTranslator {
        |""".stripMargin
   }
 
-  private def service_alert(evt: ServiceAlert): String =
+  private def service_alert(evt: ServiceAlert): String = {
+    val id = s"${evt.alertID.show}/${evt.metricName.digest}"
     s"""${eventTitle(evt)}
        |  ${service_event(evt)}
+       |  $CONSTANT_ALERT_ID:$id, Name:${evt.metricName.name}, Level: ${evt.alertLevel.entryName}
        |${evt.message.spaces2}
        |""".stripMargin
+  }
 
   private def action_start(evt: ActionStart): String =
     s"""${eventTitle(evt)}

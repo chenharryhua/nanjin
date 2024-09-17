@@ -6,7 +6,7 @@ import com.codahale.metrics.{Counter, MetricRegistry}
 import com.github.chenharryhua.nanjin.common.EnableConfig
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.config.CategoryKind.CounterKind
-import com.github.chenharryhua.nanjin.guard.event.NJEvent
+import com.github.chenharryhua.nanjin.guard.event.{NJEvent, UniqueToken}
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.ServiceAlert
 import fs2.concurrent.Channel
 import io.circe.syntax.EncoderOps
@@ -47,6 +47,7 @@ private class NJAlertImpl[F[_]: Sync](
       ts <- serviceParams.zonedNow
       _ <- channel.send(
         ServiceAlert(
+          alertID = UniqueToken(token),
           metricName = name,
           timestamp = ts,
           serviceParams = serviceParams,

@@ -6,7 +6,7 @@ import com.github.chenharryhua.nanjin.guard.config.{AlertLevel, MetricName, Serv
 import com.github.chenharryhua.nanjin.guard.event.{MetricSnapshot, NJError, NJEvent}
 import com.github.chenharryhua.nanjin.guard.translator.textConstants.*
 import com.github.chenharryhua.nanjin.guard.translator.textHelper.*
-import com.github.chenharryhua.nanjin.guard.translator.{fmt, ColorScheme, SnapshotPolyglot, Translator}
+import com.github.chenharryhua.nanjin.guard.translator.{ColorScheme, SnapshotPolyglot, Translator}
 import io.circe.Json
 import org.apache.commons.lang3.StringUtils
 import org.typelevel.cats.time.instances.all
@@ -42,6 +42,12 @@ private object SlackTranslator extends all {
     JuxtaposeSection(
       first = TextField(CONSTANT_UPTIME, uptimeText(evt)),
       second = TextField(CONSTANT_TIMEZONE, evt.serviceParams.zoneId.show))
+
+  private def name_section(mn: MetricName): JuxtaposeSection =
+    JuxtaposeSection(
+      first = TextField(CONSTANT_MEASUREMENT, mn.measurement),
+      second = TextField(CONSTANT_NAME, mn.name)
+    )
 
   private def metrics_section(snapshot: MetricSnapshot): KeyValueSection = {
     val yaml = new SnapshotPolyglot(snapshot).counterYaml match {
@@ -158,8 +164,6 @@ private object SlackTranslator extends all {
         ))
     )
 
-  private def measurement(mn: MetricName): String = s"*$CONSTANT_MEASUREMENT:* ${mn.measurement}"
-
   private def service_alert(evt: ServiceAlert): SlackApp = {
     val symbol: String = evt.alertLevel match {
       case AlertLevel.Error => ":warning:"
@@ -174,8 +178,8 @@ private object SlackTranslator extends all {
           blocks = List(
             HeaderSection(s"$symbol ${eventTitle(evt)}"),
             host_service_section(evt.serviceParams),
-            uptime_section(evt),
-            MarkdownSection(s"""|${measurement(evt.metricName)}
+            name_section(evt.metricName),
+            MarkdownSection(s"""|*$CONSTANT_ALERT_ID:* ${evt.alertID.show}/${evt.metricName.digest}
                                 |*$CONSTANT_SERVICE_ID:* ${evt.serviceParams.serviceId.show}""".stripMargin),
             MarkdownSection(s"```${abbreviate(evt.message)}```")
           )
@@ -187,7 +191,7 @@ private object SlackTranslator extends all {
     s"*$CONSTANT_SERVICE_ID:* ${evt.serviceParams.serviceId.show}"
 
   private def action_id(evt: ActionEvent): String =
-    s"*$CONSTANT_ACTION_ID:* ${evt.actionID.uniqueToken}"
+    s"*$CONSTANT_ACTION_ID:* ${evt.actionID.show}/${evt.actionParams.metricName.digest}"
 
   private def policy(evt: ActionEvent): String = s"*$CONSTANT_POLICY:* ${evt.actionParams.retryPolicy}"
 
@@ -200,9 +204,7 @@ private object SlackTranslator extends all {
           blocks = List(
             HeaderSection(eventTitle(evt)),
             host_service_section(evt.serviceParams),
-            JuxtaposeSection(
-              first = TextField(CONSTANT_MEASUREMENT, evt.actionParams.metricName.measurement),
-              second = TextField(CONSTANT_TIMEZONE, evt.serviceParams.zoneId.show)),
+            name_section(evt.actionParams.metricName),
             MarkdownSection(s"""|${policy(evt)}
                                 |${action_id(evt)}
                                 |${service_id(evt)}""".stripMargin),
@@ -220,9 +222,7 @@ private object SlackTranslator extends all {
           blocks = List(
             HeaderSection(eventTitle(evt)),
             host_service_section(evt.serviceParams),
-            JuxtaposeSection(
-              first = TextField(CONSTANT_MEASUREMENT, evt.actionParams.metricName.measurement),
-              second = TextField(CONSTANT_SNOOZE, fmt.format(evt.tick.snooze))),
+            name_section(evt.actionParams.metricName),
             MarkdownSection(s"""|${retryText(evt)}
                                 |${policy(evt)}
                                 |${action_id(evt)}
@@ -243,9 +243,7 @@ private object SlackTranslator extends all {
           blocks = List(
             HeaderSection(eventTitle(evt)),
             host_service_section(evt.serviceParams),
-            JuxtaposeSection(
-              first = TextField(CONSTANT_MEASUREMENT, evt.actionParams.metricName.measurement),
-              second = TextField(CONSTANT_CONFIG, evt.actionParams.configStr)),
+            name_section(evt.actionParams.metricName),
             MarkdownSection(s"""|${policy(evt)}
                                 |${action_id(evt)}
                                 |${service_id(evt)}""".stripMargin),
@@ -269,10 +267,9 @@ private object SlackTranslator extends all {
           blocks = List(
             HeaderSection(eventTitle(evt)),
             host_service_section(evt.serviceParams),
-            JuxtaposeSection(
-              first = TextField(CONSTANT_MEASUREMENT, evt.actionParams.metricName.measurement),
-              second = TextField(CONSTANT_TOOK, tookText(evt.took))),
-            MarkdownSection(s"""|${action_id(evt)}
+            name_section(evt.actionParams.metricName),
+            MarkdownSection(s"""|*$CONSTANT_TOOK:* ${tookText(evt.took)}
+                                |${action_id(evt)}
                                 |${service_id(evt)}""".stripMargin),
             MarkdownSection(s"""```${abbreviate(evt.notes)}```""")
           )
