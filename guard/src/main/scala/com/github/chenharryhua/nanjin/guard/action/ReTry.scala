@@ -8,7 +8,7 @@ import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.common.chrono.TickStatus
 import com.github.chenharryhua.nanjin.guard.config.{ActionParams, PublishStrategy}
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.{ActionDone, ActionFail, ActionRetry, ActionStart}
-import com.github.chenharryhua.nanjin.guard.event.{ActionID, NJError, NJEvent}
+import com.github.chenharryhua.nanjin.guard.event.{NJError, NJEvent, UniqueToken}
 import fs2.concurrent.Channel
 import io.circe.Json
 import io.circe.syntax.EncoderOps
@@ -22,7 +22,7 @@ import scala.util.Try
 private case object ActionCancelException extends Exception("action was canceled")
 
 final private class ReTry[F[_]: Async, IN, OUT] private (
-  private[this] val actionID: ActionID,
+  private[this] val actionID: UniqueToken,
   private[this] val metricRegistry: MetricRegistry,
   private[this] val actionParams: ActionParams,
   private[this] val channel: Channel[F, NJEvent],
@@ -177,7 +177,7 @@ private object ReTry {
     F: Async[F]): Resource[F, Kleisli[F, IN, OUT]] = {
     def action_runner(token: Unique.Token): ReTry[F, IN, OUT] =
       new ReTry[F, IN, OUT](
-        actionID = ActionID(token),
+        actionID = UniqueToken(token),
         metricRegistry = metricRegistry,
         actionParams = actionParams,
         channel = channel,

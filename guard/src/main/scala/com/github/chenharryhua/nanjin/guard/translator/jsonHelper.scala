@@ -15,6 +15,7 @@ object jsonHelper {
   def exitCode(sc: ServiceStopCause): (String, Json)   = "exitCode" -> Json.fromInt(sc.exitCode)
   def exitCause(sc: ServiceStopCause): (String, Json)  = "exitCause" -> sc.asJson
   def actionId(evt: ActionEvent): (String, Json)       = "actionId" -> Json.fromInt(evt.actionID.uniqueToken)
+  def alertId(evt: ServiceAlert): (String, Json)       = "alertId" -> Json.fromInt(evt.alertID.uniqueToken)
 
   def policy(evt: NJEvent): (String, Json) =
     "policy" -> Json.fromString(evt.serviceParams.servicePolicies.restart.show)

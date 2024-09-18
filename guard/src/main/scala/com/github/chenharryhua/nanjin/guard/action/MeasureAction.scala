@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.guard.action
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.config.CategoryKind.{CounterKind, TimerKind}
-import com.github.chenharryhua.nanjin.guard.event.ActionID
+import com.github.chenharryhua.nanjin.guard.event.UniqueToken
 
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.FiniteDuration
@@ -23,7 +23,10 @@ sealed private trait MeasureAction {
 }
 
 private object MeasureAction {
-  def apply(actionParams: ActionParams, metricRegistry: MetricRegistry, actionID: ActionID): MeasureAction = {
+  def apply(
+    actionParams: ActionParams,
+    metricRegistry: MetricRegistry,
+    actionID: UniqueToken): MeasureAction = {
     val metricName: MetricName = actionParams.metricName
 
     val doneID: String =

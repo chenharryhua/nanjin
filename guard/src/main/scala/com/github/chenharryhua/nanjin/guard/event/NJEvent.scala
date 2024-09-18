@@ -22,7 +22,7 @@ object NJEvent {
   }
 
   final case class ServicePanic(serviceParams: ServiceParams, error: NJError, tick: Tick) extends NJEvent {
-    val timestamp: ZonedDateTime   = tick.acquire.atZone(tick.zoneId)
+    val timestamp: ZonedDateTime   = tick.zonedAcquire
     val restartTime: ZonedDateTime = tick.zonedWakeup
   }
 
@@ -33,6 +33,7 @@ object NJEvent {
       extends NJEvent
 
   final case class ServiceAlert(
+    alertID: UniqueToken,
     metricName: MetricName,
     timestamp: ZonedDateTime,
     serviceParams: ServiceParams,
@@ -61,19 +62,19 @@ object NJEvent {
       extends MetricEvent
 
   sealed trait ActionEvent extends NJEvent {
-    def actionID: ActionID
+    def actionID: UniqueToken
     def actionParams: ActionParams
     final override def serviceParams: ServiceParams = actionParams.serviceParams
   }
 
   final case class ActionStart(
-    actionID: ActionID,
+    actionID: UniqueToken,
     actionParams: ActionParams,
     timestamp: ZonedDateTime,
     notes: Json)
       extends ActionEvent
 
-  final case class ActionRetry(actionID: ActionID, actionParams: ActionParams, error: NJError, tick: Tick)
+  final case class ActionRetry(actionID: UniqueToken, actionParams: ActionParams, error: NJError, tick: Tick)
       extends ActionEvent {
     override val timestamp: ZonedDateTime = tick.zonedAcquire
   }
@@ -84,7 +85,7 @@ object NJEvent {
   }
 
   final case class ActionFail(
-    actionID: ActionID,
+    actionID: UniqueToken,
     actionParams: ActionParams,
     timestamp: ZonedDateTime, // land time
     error: NJError,
@@ -94,7 +95,7 @@ object NJEvent {
   }
 
   final case class ActionDone(
-    actionID: ActionID,
+    actionID: UniqueToken,
     actionParams: ActionParams,
     launchTime: ZonedDateTime,
     timestamp: ZonedDateTime, // land time

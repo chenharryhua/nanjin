@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard.config
 
 import cats.effect.kernel.Unique
 import cats.implicits.catsSyntaxHash
-import com.github.chenharryhua.nanjin.guard.event.{ActionID, MeasurementUnit}
+import com.github.chenharryhua.nanjin.guard.event.{MeasurementUnit, UniqueToken}
 import enumeratum.values.{IntCirceEnum, IntEnum, IntEnumEntry}
 import enumeratum.{CirceEnum, Enum, EnumEntry}
 import io.circe.Encoder
@@ -155,6 +155,6 @@ object MetricID {
   def apply(metricName: MetricName, category: Category, token: Unique.Token): MetricID =
     MetricID(metricName, category, token.hash)
 
-  def apply(metricName: MetricName, category: Category, actionID: ActionID): MetricID =
-    MetricID(metricName, category, actionID.uniqueToken)
+  def apply(metricName: MetricName, category: Category, token: UniqueToken): MetricID =
+    MetricID(metricName, category, token.uniqueToken)
 }
