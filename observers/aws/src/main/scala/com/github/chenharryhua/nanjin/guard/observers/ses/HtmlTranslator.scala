@@ -165,7 +165,6 @@ private object HtmlTranslator extends all {
       h3(style := htmlColoring(evt))(eventTitle(evt)),
       table(service_table(evt), action_section(evt), fg),
       p(b(retryText(evt))),
-      p(b(s"$CONSTANT_POLICY: "), evt.actionParams.retryPolicy.show),
       cause_text(evt.error)
     )
   }
