@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.guard.observers
 import cats.Applicative
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.event.{NJError, NJEvent}
-import com.github.chenharryhua.nanjin.guard.translator.{fmt, textConstants, textHelper, Translator}
+import com.github.chenharryhua.nanjin.guard.translator.{Translator, textConstants, textHelper}
 import io.circe.Json
 import io.circe.syntax.EncoderOps
 
@@ -30,90 +30,96 @@ object SimpleTextTranslator {
   private def notes(js: Json): String = Try(js.spaces2).getOrElse("bad json")
 
   private def action_event(ae: ActionEvent): String = {
-    val mm  = s"$CONSTANT_MEASUREMENT:${ae.actionParams.metricName.measurement}"
-    val cfg = s"$CONSTANT_ACTION_ID:${ae.actionID.show}/${ae.actionParams.metricName.digest}"
+    val mm   = s"$CONSTANT_MEASUREMENT:${ae.actionParams.metricName.measurement}"
+    val id   = s"$CONSTANT_ACTION_ID:${ae.actionID.show}/${ae.actionParams.metricName.digest}"
+    val name = s"$CONSTANT_NAME:${ae.actionParams.metricName.name}"
 
-    s"""  ${service_event(ae)}
-       |  $mm, $cfg""".stripMargin
+    val policy = s"$CONSTANT_POLICY:${ae.actionParams.retryPolicy.show}"
+    val cfg    = s"$CONSTANT_CONFIG:${ae.actionParams.configStr}"
+
+    s"""|  ${service_event(ae)}
+        |  $mm, $id, $name
+        |  $policy, $cfg""".stripMargin
   }
 
   private def service_started(evt: ServiceStart): String =
-    s"""${eventTitle(evt)}
-       |  ${service_event(evt)}
-       |${evt.serviceParams.asJson.spaces2}
-       |""".stripMargin
+    s"""|${eventTitle(evt)}
+        |  ${service_event(evt)}
+        |${evt.serviceParams.asJson.spaces2}
+        |""".stripMargin
 
   private def service_panic(evt: ServicePanic): String =
-    s"""${eventTitle(evt)}
-       |  ${service_event(evt)}
-       |  ${panicText(evt)}
-       |  $CONSTANT_POLICY:${evt.serviceParams.servicePolicies.restart}
-       |  ${error_str(evt.error)}
-       |""".stripMargin
+    s"""|${eventTitle(evt)}
+        |  ${service_event(evt)}
+        |  $CONSTANT_POLICY:${evt.serviceParams.servicePolicies.restart}
+        |  ${panicText(evt)}
+        |  ${error_str(evt.error)}
+        |""".stripMargin
 
   private def service_stopped(evt: ServiceStop): String =
-    s"""${eventTitle(evt)}
-       |  ${service_event(evt)}
-       |  $CONSTANT_POLICY:${evt.serviceParams.servicePolicies.restart}
-       |  $CONSTANT_CAUSE:${stopCause(evt.cause)}
-       |""".stripMargin
+    s"""|${eventTitle(evt)}
+        |  ${service_event(evt)}
+        |  $CONSTANT_POLICY:${evt.serviceParams.servicePolicies.restart}
+        |  $CONSTANT_CAUSE:${stopCause(evt.cause)}
+        |""".stripMargin
 
   private def metric_report(evt: MetricReport): String = {
     val policy = evt.serviceParams.servicePolicies.metricReport.show
     val took   = tookText(evt.took)
-    s"""${eventTitle(evt)}
-       |  ${service_event(evt)}
-       |  $CONSTANT_POLICY:$policy, $CONSTANT_TOOK:$took 
-       |${yamlMetrics(evt.snapshot)}
-       |""".stripMargin
+    s"""|${eventTitle(evt)}
+        |  ${service_event(evt)}
+        |  $CONSTANT_POLICY:$policy, $CONSTANT_TOOK:$took 
+        |${yamlMetrics(evt.snapshot)}
+        |""".stripMargin
   }
 
   private def metric_reset(evt: MetricReset): String = {
     val policy = evt.serviceParams.servicePolicies.metricReport.show
     val took   = tookText(evt.took)
 
-    s"""${eventTitle(evt)}
-       |  ${service_event(evt)}
-       |  $CONSTANT_POLICY:$policy, $CONSTANT_TOOK:$took
-       |${yamlMetrics(evt.snapshot)}
-       |""".stripMargin
+    s"""|${eventTitle(evt)}
+        |  ${service_event(evt)}
+        |  $CONSTANT_POLICY:$policy, $CONSTANT_TOOK:$took
+        |${yamlMetrics(evt.snapshot)}
+        |""".stripMargin
   }
 
   private def service_alert(evt: ServiceAlert): String = {
-    val id = s"${evt.alertID.show}/${evt.metricName.digest}"
-    s"""${eventTitle(evt)}
-       |  ${service_event(evt)}
-       |  $CONSTANT_ALERT_ID:$id, Name:${evt.metricName.name}, Level: ${evt.alertLevel.entryName}
-       |${evt.message.spaces2}
-       |""".stripMargin
+    val ms   = s"$CONSTANT_MEASUREMENT:${evt.metricName.measurement}"
+    val id   = s"$CONSTANT_ALERT_ID:${evt.alertID.show}/${evt.metricName.digest}"
+    val name = s"$CONSTANT_NAME:${evt.metricName.name}"
+    s"""|${eventTitle(evt)}
+        |  ${service_event(evt)}
+        |  $ms, $id, $name
+        |${evt.message.spaces2}
+        |""".stripMargin
   }
 
   private def action_start(evt: ActionStart): String =
-    s"""${eventTitle(evt)}
-       |${action_event(evt)}
-       |${notes(evt.notes)}
-       |""".stripMargin
+    s"""|${eventTitle(evt)}
+        |${action_event(evt)}
+        |${notes(evt.notes)}
+        |""".stripMargin
 
   private def action_retrying(evt: ActionRetry): String =
-    s"""${eventTitle(evt)}
-       |${action_event(evt)}
-       |  $CONSTANT_SNOOZE:${fmt.format(evt.tick.snooze)}, $CONSTANT_POLICY:${evt.actionParams.retryPolicy}
-       |  ${error_str(evt.error)}
-       |""".stripMargin
+    s"""|${eventTitle(evt)}
+        |${action_event(evt)}
+        |  ${retryText(evt)}
+        |  ${error_str(evt.error)}
+        |""".stripMargin
 
   private def action_fail(evt: ActionFail): String =
-    s"""${eventTitle(evt)}
-       |${action_event(evt)}
-       |  $CONSTANT_POLICY:${evt.actionParams.retryPolicy}
-       |  ${error_str(evt.error)}
-       |${notes(evt.notes)}
-       |""".stripMargin
+    s"""|${eventTitle(evt)}
+        |${action_event(evt)}
+        |  ${error_str(evt.error)}
+        |${notes(evt.notes)}
+        |""".stripMargin
 
   private def action_done(evt: ActionDone): String =
-    s"""${eventTitle(evt)}
-       |${action_event(evt)}, $CONSTANT_TOOK:${tookText(evt.took)}
-       |${notes(evt.notes)}
-       |""".stripMargin
+    s"""|${eventTitle(evt)}
+        |${action_event(evt)}, $CONSTANT_TOOK:${tookText(evt.took)}
+        |${notes(evt.notes)}
+        |""".stripMargin
 
   def apply[F[_]: Applicative]: Translator[F, String] =
     Translator

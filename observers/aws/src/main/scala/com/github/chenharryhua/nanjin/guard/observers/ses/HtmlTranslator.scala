@@ -130,7 +130,7 @@ private object HtmlTranslator extends all {
     )
   }
 
-  def action_section(evt: ActionEvent): generic.Frag[Builder, String] =
+  private def action_section(evt: ActionEvent): generic.Frag[Builder, String] =
     frag(
       tr(th(CONSTANT_MEASUREMENT), th(CONSTANT_ACTION_ID), th(CONSTANT_NAME)),
       tr(
@@ -140,35 +140,66 @@ private object HtmlTranslator extends all {
       )
     )
 
-  private def action_start(evt: ActionStart): Text.TypedTag[String] =
+  private def action_start(evt: ActionStart): Text.TypedTag[String] = {
+    val fg = frag(
+      tr(th(CONSTANT_CONFIG), th(CONSTANT_POLICY)),
+      tr(
+        td(evt.actionParams.configStr),
+        td(evt.actionParams.retryPolicy.show)
+      ))
     div(
       h3(style := htmlColoring(evt))(eventTitle(evt)),
-      table(service_table(evt), action_section(evt)),
+      table(service_table(evt), action_section(evt), fg),
       json_text(evt.notes)
     )
+  }
 
-  private def action_retrying(evt: ActionRetry): Text.TypedTag[String] =
+  private def action_retrying(evt: ActionRetry): Text.TypedTag[String] = {
+    val fg = frag(
+      tr(th(CONSTANT_CONFIG), th(CONSTANT_POLICY)),
+      tr(
+        td(evt.actionParams.configStr),
+        td(evt.actionParams.retryPolicy.show)
+      ))
     div(
       h3(style := htmlColoring(evt))(eventTitle(evt)),
-      table(service_table(evt), action_section(evt)),
+      table(service_table(evt), action_section(evt), fg),
       p(b(retryText(evt))),
+      p(b(s"$CONSTANT_POLICY: "), evt.actionParams.retryPolicy.show),
       cause_text(evt.error)
     )
+  }
 
-  private def action_fail(evt: ActionFail): Text.TypedTag[String] =
+  private def action_fail(evt: ActionFail): Text.TypedTag[String] = {
+    val fg = frag(
+      tr(th(CONSTANT_CONFIG), th(CONSTANT_POLICY)),
+      tr(
+        td(evt.actionParams.configStr),
+        td(evt.actionParams.retryPolicy.show)
+      ))
     div(
       h3(style := htmlColoring(evt))(eventTitle(evt)),
-      table(service_table(evt), action_section(evt)),
+      table(service_table(evt), action_section(evt), fg),
       cause_text(evt.error),
       json_text(evt.notes)
     )
+  }
 
-  private def action_done(evt: ActionDone): Text.TypedTag[String] =
+  private def action_done(evt: ActionDone): Text.TypedTag[String] = {
+    val fg = frag(
+      tr(th(CONSTANT_CONFIG), th(CONSTANT_POLICY), th(CONSTANT_TOOK)),
+      tr(
+        td(evt.actionParams.configStr),
+        td(evt.actionParams.retryPolicy.show),
+        td(tookText(evt.took))
+      )
+    )
     div(
       h3(style := htmlColoring(evt))(eventTitle(evt)),
-      table(service_table(evt), action_section(evt)),
+      table(service_table(evt), action_section(evt), fg),
       json_text(evt.notes)
     )
+  }
 
   def apply[F[_]: Applicative]: Translator[F, Text.TypedTag[String]] =
     Translator

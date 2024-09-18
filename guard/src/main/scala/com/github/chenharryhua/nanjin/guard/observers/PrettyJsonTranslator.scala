@@ -74,6 +74,7 @@ object PrettyJsonTranslator {
           metricDigest(evt.metricName),
           metricMeasurement(evt.metricName),
           serviceName(evt),
+          alertId(evt),
           serviceId(evt),
           alertMessage(evt)
         ))
