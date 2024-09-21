@@ -51,12 +51,12 @@ object textHelper extends localtime with localdatetime {
       case NJEvent.MetricReport(index, _, _, _) =>
         index match {
           case MetricIndex.Adhoc(_)       => "Adhoc Metric Report"
-          case MetricIndex.Periodic(tick) => s"Metric Report (index=${tick.index})"
+          case MetricIndex.Periodic(tick) => s"${to_ordinal_words(tick.index)} Metric Report"
         }
       case NJEvent.MetricReset(index, _, _, _) =>
         index match {
           case MetricIndex.Adhoc(_)       => "Adhoc Metric Reset"
-          case MetricIndex.Periodic(tick) => s"Metric Reset (index=${tick.index})"
+          case MetricIndex.Periodic(tick) => s"${to_ordinal_words(tick.index)} Metric Reset"
         }
     }
 
