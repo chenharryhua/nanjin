@@ -399,7 +399,7 @@ val hadoopLib = List(
   "org.slf4j"          % "jcl-over-slf4j"               % slf4jV,
   "io.netty"           % "netty-all"                    % nettyV, // snyk
   "com.nimbusds"       % "nimbus-jose-jwt"              % "9.41.1", // snyk
-  "dnsjava"            % "dnsjava"                      % "3.6.1", // snyk
+  "dnsjava"            % "dnsjava"                      % "3.6.2", // snyk
   "org.apache.commons" % "commons-configuration2"       % "2.11.0" // snyk
 ).map(
   _.exclude("log4j", "log4j")
