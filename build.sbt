@@ -36,7 +36,7 @@ val log4catsV   = "2.7.0"
 val logbackV    = "1.5.8"
 val jwtV        = "0.12.6"
 val postgresV   = "42.7.4"
-val acyclicV    = "0.3.14"
+val acyclicV    = "0.3.15"
 
 lazy val commonSettings = List(
   organization := "com.github.chenharryhua",
