@@ -5,7 +5,7 @@ ThisBuild / versionScheme      := Some("early-semver")
 
 val catsCoreV   = "2.12.0"
 val fs2V        = "3.11.0"
-val awsV        = "2.28.5"
+val awsV        = "2.28.6"
 val catsEffectV = "3.5.4"
 val hadoopV     = "3.4.0"
 val monocleV    = "3.3.0"
@@ -399,7 +399,7 @@ val hadoopLib = List(
   "org.slf4j"          % "jcl-over-slf4j"               % slf4jV,
   "io.netty"           % "netty-all"                    % nettyV, // snyk
   "com.nimbusds"       % "nimbus-jose-jwt"              % "9.41.1", // snyk
-  "dnsjava"            % "dnsjava"                      % "3.6.1", // snyk
+  "dnsjava"            % "dnsjava"                      % "3.6.2", // snyk
   "org.apache.commons" % "commons-configuration2"       % "2.11.0" // snyk
 ).map(
   _.exclude("log4j", "log4j")
