@@ -43,8 +43,8 @@ object BatchJob {
     Json.obj(
       show"${a.kind}" -> Json
         .obj(
-          "mode" -> a.mode.asJson,
           "name" -> a.name.asJson,
+          "mode" -> a.mode.asJson,
           "index" -> (a.index + 1).asJson,
           "jobs" -> a.jobs.asJson)
         .dropNullValues)
@@ -57,6 +57,7 @@ object QuasiResult {
     Json.obj(
       "mode" -> a.mode.asJson,
       "spent" -> fmt.format(a.spent).asJson,
+      "jobs" -> a.details.size.asJson,
       "details" -> a.details
         .map(d =>
           Json
