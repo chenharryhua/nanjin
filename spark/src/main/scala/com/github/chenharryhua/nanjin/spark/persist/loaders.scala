@@ -93,7 +93,7 @@ private[spark] object loaders {
           if (str.isEmpty) None
           else
             decode[A](str) match {
-              case Left(value)  => throw value
+              case Left(value)  => throw new Exception(str, value)
               case Right(value) => Some(value)
             }
         })
@@ -136,7 +136,11 @@ private[spark] object loaders {
           if (str.isEmpty) None
           else {
             val jsonDecoder = DecoderFactory.get().jsonDecoder(schema, str)
-            Some(decoder.decode(datumReader.read(null, jsonDecoder)))
+            try
+              Some(decoder.decode(datumReader.read(null, jsonDecoder)))
+            catch {
+              case ex: Throwable => throw new Exception(str, ex)
+            }
           }
         }
       }

@@ -1,4 +1,4 @@
-ThisBuild / scalaVersion       := "2.13.14"
+ThisBuild / scalaVersion       := "2.13.15"
 ThisBuild / version            := "0.18.0-SNAPSHOT"
 ThisBuild / evictionErrorLevel := Level.Info
 ThisBuild / versionScheme      := Some("early-semver")
@@ -36,7 +36,7 @@ val log4catsV   = "2.7.0"
 val logbackV    = "1.5.8"
 val jwtV        = "0.12.6"
 val postgresV   = "42.7.4"
-val acyclicV    = "0.3.13"
+val acyclicV    = "0.3.14"
 
 lazy val commonSettings = List(
   organization := "com.github.chenharryhua",
