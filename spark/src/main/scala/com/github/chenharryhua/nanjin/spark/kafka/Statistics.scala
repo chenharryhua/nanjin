@@ -28,70 +28,70 @@ final class Statistics private[spark] (val dataset: Dataset[CRMetaInfo]) extends
   def union(other: Statistics): Statistics =
     transform(_.union(other.dataset))
 
-  def minutely[F[_]](implicit F: Sync[F]): F[List[MinutelyAggResult]] = {
+  def minutely[F[_]](implicit F: Sync[F]): F[List[MinutelyResult]] = {
     val zoneId: ZoneId = utils.sparkZoneId(dataset.sparkSession)
     F.interruptible {
       import dataset.sparkSession.implicits.*
       dataset
         .map(m => m.localDateTime(zoneId).getMinute)
         .groupByKey(identity)
-        .mapGroups((m, iter) => MinutelyAggResult(m, iter.size))
+        .mapGroups((m, iter) => MinutelyResult(m, iter.size))
         .orderBy("minute")
         .collect()
         .toList
     }
   }
 
-  def hourly[F[_]](implicit F: Sync[F]): F[List[HourlyAggResult]] = {
+  def hourly[F[_]](implicit F: Sync[F]): F[List[HourlyResult]] = {
     val zoneId: ZoneId = utils.sparkZoneId(dataset.sparkSession)
     F.interruptible {
       import dataset.sparkSession.implicits.*
       dataset
         .map(m => m.localDateTime(zoneId).getHour)
         .groupByKey(identity)
-        .mapGroups((m, iter) => HourlyAggResult(m, iter.size))
+        .mapGroups((m, iter) => HourlyResult(m, iter.size))
         .orderBy("hour")
         .collect()
         .toList
     }
   }
 
-  def daily[F[_]](implicit F: Sync[F]): F[List[DailyAggResult]] = {
+  def daily[F[_]](implicit F: Sync[F]): F[List[DailyResult]] = {
     val zoneId: ZoneId = utils.sparkZoneId(dataset.sparkSession)
     F.interruptible {
       import dataset.sparkSession.implicits.*
       dataset
         .map(m => dayResolution(m.localDateTime(zoneId)))
         .groupByKey(identity)
-        .mapGroups((m, iter) => DailyAggResult(m, iter.size))
+        .mapGroups((m, iter) => DailyResult(m, iter.size))
         .orderBy("date")
         .collect()
         .toList
     }
   }
 
-  def dailyHour[F[_]](implicit F: Sync[F]): F[List[DailyHourAggResult]] = {
+  def dailyHour[F[_]](implicit F: Sync[F]): F[List[DailyHourResult]] = {
     val zoneId: ZoneId = utils.sparkZoneId(dataset.sparkSession)
     F.interruptible {
       import dataset.sparkSession.implicits.*
       dataset
         .map(m => hourResolution(m.localDateTime(zoneId)).toString)
         .groupByKey(identity)
-        .mapGroups((m, iter) => DailyHourAggResult(m, iter.size))
+        .mapGroups((m, iter) => DailyHourResult(m, iter.size))
         .orderBy("dateTime")
         .collect()
         .toList
     }
   }
 
-  def dailyMinute[F[_]](implicit F: Sync[F]): F[List[DailyMinuteAggResult]] = {
+  def dailyMinute[F[_]](implicit F: Sync[F]): F[List[DailyMinuteResult]] = {
     val zoneId: ZoneId = utils.sparkZoneId(dataset.sparkSession)
     F.interruptible {
       import dataset.sparkSession.implicits.*
       dataset
         .map(m => minuteResolution(m.localDateTime(zoneId)).toString)
         .groupByKey(identity)
-        .mapGroups((m, iter) => DailyMinuteAggResult(m, iter.size))
+        .mapGroups((m, iter) => DailyMinuteResult(m, iter.size))
         .orderBy("dateTime")
         .collect()
         .toList

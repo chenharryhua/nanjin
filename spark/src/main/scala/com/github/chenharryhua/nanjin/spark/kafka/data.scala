@@ -9,11 +9,11 @@ import org.typelevel.cats.time.instances.{localdatetime, zoneid}
 import java.time.{Instant, LocalDate, LocalDateTime, ZoneId}
 import scala.concurrent.duration.{FiniteDuration, MILLISECONDS}
 
-final case class MinutelyAggResult(minute: Int, count: Int)
-final case class HourlyAggResult(hour: Int, count: Int)
-final case class DailyAggResult(date: LocalDate, count: Int)
-final case class DailyHourAggResult(dateTime: String, count: Int)
-final case class DailyMinuteAggResult(dateTime: String, count: Int)
+final case class MinutelyResult(minute: Int, count: Int)
+final case class HourlyResult(hour: Int, count: Int)
+final case class DailyResult(date: LocalDate, count: Int)
+final case class DailyHourResult(dateTime: String, count: Int)
+final case class DailyMinuteResult(dateTime: String, count: Int)
 
 final private case class KafkaSummaryInternal(
   partition: Int,
