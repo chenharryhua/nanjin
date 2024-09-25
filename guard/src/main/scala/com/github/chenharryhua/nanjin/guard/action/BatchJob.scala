@@ -54,10 +54,12 @@ final case class Detail(job: BatchJob, took: Duration, done: Boolean)
 final case class QuasiResult(spent: Duration, mode: BatchMode, details: List[Detail])
 object QuasiResult {
   implicit val encoderQuasiResult: Encoder[QuasiResult] = { (a: QuasiResult) =>
+    val (done, fail) = a.details.partition(_.done)
     Json.obj(
       "mode" -> a.mode.asJson,
       "spent" -> fmt.format(a.spent).asJson,
-      "jobs" -> a.details.size.asJson,
+      "done" -> done.length.asJson,
+      "fail" -> fail.length.asJson,
       "details" -> a.details
         .map(d =>
           Json
