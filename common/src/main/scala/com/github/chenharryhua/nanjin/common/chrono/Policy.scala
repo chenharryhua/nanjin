@@ -280,7 +280,7 @@ final case class Policy private (private[chrono] val policy: Fix[PolicyF]) {
     *   bigger than zero
     */
   def limited(num: Int): Policy = {
-    require(num > 0, s"$num should be bigger than zero")
+    require(num > 0, show"$num should be bigger than zero")
     Policy(Fix(Limited(policy, num)))
   }
   def followedBy(other: Policy): Policy = Policy(Fix(FollowedBy(policy, other.policy)))
@@ -291,7 +291,7 @@ final case class Policy private (private[chrono] val policy: Fix[PolicyF]) {
   def except(f: localTimes.type => LocalTime): Policy = except(f(localTimes))
 
   def offset(fd: FiniteDuration): Policy = {
-    require(fd > ScalaDuration.Zero, s"$fd should be positive")
+    require(fd > ScalaDuration.Zero, show"$fd should be positive")
     Policy(Fix(Offset(policy, fd.toJava)))
   }
 
@@ -303,8 +303,8 @@ final case class Policy private (private[chrono] val policy: Fix[PolicyF]) {
     * max should be bigger than min
     */
   def jitter(min: FiniteDuration, max: FiniteDuration): Policy = {
-    require(min >= ScalaDuration.Zero, s"$min should not be negative")
-    require(max > min, s"$max should be bigger than $min")
+    require(min >= ScalaDuration.Zero, show"$min should not be negative")
+    require(max > min, show"$max should be bigger than $min")
     Policy(Fix(Jitter(policy, min.toJava, max.toJava)))
   }
 
@@ -343,7 +343,7 @@ object Policy {
     *   should be bigger than zero
     */
   def fixedRate(delay: FiniteDuration): Policy = {
-    require(delay > ScalaDuration.Zero, s"$delay should be bigger than zero")
+    require(delay > ScalaDuration.Zero, show"$delay should be bigger than zero")
     Policy(Fix(FixedRate(delay.toJava)))
   }
 

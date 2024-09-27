@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.guard.observers
 import cats.Applicative
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.event.{NJError, NJEvent}
-import com.github.chenharryhua.nanjin.guard.translator.{Translator, textConstants, textHelper}
+import com.github.chenharryhua.nanjin.guard.translator.{textConstants, textHelper, Translator}
 import io.circe.Json
 import io.circe.syntax.EncoderOps
 
@@ -49,19 +49,19 @@ object SimpleTextTranslator {
         |""".stripMargin
 
   private def service_panic(evt: ServicePanic): String =
-    s"""|${eventTitle(evt)}
-        |  ${service_event(evt)}
-        |  $CONSTANT_POLICY:${evt.serviceParams.servicePolicies.restart}
-        |  ${panicText(evt)}
-        |  ${error_str(evt.error)}
-        |""".stripMargin
+    show"""|${eventTitle(evt)}
+           |  ${service_event(evt)}
+           |  $CONSTANT_POLICY:${evt.serviceParams.servicePolicies.restart}
+           |  ${panicText(evt)}
+           |  ${error_str(evt.error)}
+           |""".stripMargin
 
   private def service_stopped(evt: ServiceStop): String =
-    s"""|${eventTitle(evt)}
-        |  ${service_event(evt)}
-        |  $CONSTANT_POLICY:${evt.serviceParams.servicePolicies.restart}
-        |  $CONSTANT_CAUSE:${stopCause(evt.cause)}
-        |""".stripMargin
+    show"""|${eventTitle(evt)}
+           |  ${service_event(evt)}
+           |  $CONSTANT_POLICY:${evt.serviceParams.servicePolicies.restart}
+           |  $CONSTANT_CAUSE:${stopCause(evt.cause)}
+           |""".stripMargin
 
   private def metric_report(evt: MetricReport): String = {
     val policy = evt.serviceParams.servicePolicies.metricReport.show

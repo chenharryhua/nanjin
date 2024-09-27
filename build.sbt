@@ -56,6 +56,8 @@ lazy val commonSettings = List(
     "-Xsource:3",
     "-Xsource-features:case-apply-copy-access",
     "-Wconf:src=src_managed/.*:silent",
+    "-Wtostring-interpolated",
+    "-Vcyclic",
     "-P:acyclic:warn"),
   Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat,
   Compile / tpolecatExcludeOptions += org.typelevel.scalacoptions.ScalacOptions.warnNonUnitStatement,

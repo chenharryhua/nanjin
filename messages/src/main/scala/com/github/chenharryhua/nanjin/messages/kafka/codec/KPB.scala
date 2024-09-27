@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.messages.kafka.codec
 
 import cats.Show
+import cats.implicits.showInterpolator
 import cats.kernel.Eq
 import com.google.protobuf.{CodedInputStream, CodedOutputStream, Descriptors, DynamicMessage}
 import com.sksamuel.avro4s.{Codec, SchemaFor}
@@ -45,7 +46,7 @@ object KPB {
     Eq[A].eqv(x.value, y.value)
 
   implicit def showKPB[A <: GeneratedMessage: Show]: Show[KPB[A]] =
-    (t: KPB[A]) => s"KPB(value=${Show[A].show(t.value)})"
+    (t: KPB[A]) => show"KPB(value=${t.value})"
 
   implicit def kbpCompanion[A <: GeneratedMessage](implicit
     ev: GeneratedMessageCompanion[A]): GeneratedMessageCompanion[KPB[A]] =
@@ -76,7 +77,7 @@ object KPB {
           override def decode(value: Any): KPB[A] = value match {
             case ab: Array[Byte] => KPB(ev.parseFrom(ab))
             case null            => null
-            case ex              => sys.error(s"${ex.getClass} is not a Array[Byte] ${ex.toString}")
+            case ex              => sys.error(s"${ex.getClass.toString} is not a Array[Byte] ${ex.toString}")
           }
 
           override def encode(value: KPB[A]): Array[Byte] =

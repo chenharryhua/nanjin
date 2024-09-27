@@ -103,8 +103,10 @@ final class EmailObserver[F[_]: UUIDGen] private (
       if (Bytes(content.length) < maximumMessageSize) {
         EmailContent(from, to, subject, content)
       } else {
-        val text = p(b(s"Message body size exceeds $maximumMessageSize, which contains ${data.size} events."))
-        val msg  = html(header, body(letter.notice, text)).render
+        val text =
+          p(b(
+            show"Message body size exceeds ${maximumMessageSize.value}, which contains ${data.size} events."))
+        val msg = html(header, body(letter.notice, text)).render
         EmailContent(from, to, subject, msg)
       }
 

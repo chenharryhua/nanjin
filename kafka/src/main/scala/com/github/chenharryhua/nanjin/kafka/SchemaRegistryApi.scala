@@ -42,9 +42,12 @@ final class SchemaRegistryApi[F[_]](client: CachedSchemaRegistryClient) extends 
             AvroSchemaPair(
               new AvroSchema(mkv.key.getSchema).rawSchema(),
               new AvroSchema(mkv.value.getSchema).rawSchema()))
-        case (false, true)  => F.raiseError(new Exception(s"$topicName key is not AVRO"))
-        case (true, false)  => F.raiseError(new Exception(s"$topicName value is not AVRO"))
-        case (false, false) => F.raiseError(new Exception(s"$topicName both key and value are not AVRO"))
+        case (false, true) =>
+          F.raiseError(new Exception(s"${topicName.value} key is not AVRO"))
+        case (true, false) =>
+          F.raiseError(new Exception(s"${topicName.value} value is not AVRO"))
+        case (false, false) =>
+          F.raiseError(new Exception(s"${topicName.value} both key and value are not AVRO"))
       }
     } yield skv
 

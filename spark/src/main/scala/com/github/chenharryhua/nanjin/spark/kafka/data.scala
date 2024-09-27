@@ -56,22 +56,25 @@ final case class KafkaSummary(
   period: String)
 
 object KafkaSummary extends localdatetime with zoneid {
-  implicit val showKafkaSummary: Show[KafkaSummary] = ks =>
-    s"""
-       |topic:         ${ks.topic}
-       |partition:     ${ks.partition}
-       |first_offset:  ${ks.start_offset}
-       |last_offset:   ${ks.end_offset}
-       |distance:      ${ks.offset_distance}
-       |count:         ${ks.records_count}
-       |gap:           ${ks.count_distance_gap} (${if (ks.count_distance_gap == 0) "perfect"
+  implicit val showKafkaSummary: Show[KafkaSummary] = ks => {
+    val gap: String =
+      if (ks.count_distance_gap == 0) "perfect"
       else if (ks.count_distance_gap < 0) "probably lost data or its a compact topic"
-      else "duplicates in the dataset"})
-       |zone_id:       ${ks.zone_id.show}
-       |start_ts:      ${ks.start_ts.show} (not necessary of the first offset)
-       |end_ts:        ${ks.end_ts.show} (not necessary of the last offset)
-       |period:        ${ks.period}
-       |""".stripMargin
+      else "duplicates in the dataset"
+    show"""
+          |topic:         ${ks.topic}
+          |partition:     ${ks.partition}
+          |first_offset:  ${ks.start_offset}
+          |last_offset:   ${ks.end_offset}
+          |distance:      ${ks.offset_distance}
+          |count:         ${ks.records_count}
+          |gap:           ${ks.count_distance_gap} ($gap)
+          |zone_id:       ${ks.zone_id}
+          |start_ts:      ${ks.start_ts} (not necessary of the first offset)
+          |end_ts:        ${ks.end_ts} (not necessary of the last offset)
+          |period:        ${ks.period}
+          |""".stripMargin
+  }
 }
 
 final case class MissingOffset(partition: Int, offset: Long)

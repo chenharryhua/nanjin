@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.observers.ses
 
+import cats.implicits.showInterpolator
 import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.guard.translator.ColorScheme
 import scalatags.Text
@@ -21,7 +22,7 @@ final private case class Letter(
       """))
 
   def emailBody(chunkSize: ChunkSize): String = {
-    val foot = footer(hr(p(b("Events/Max: "), s"${content.size}/$chunkSize")))
+    val foot = footer(hr(p(b("Events/Max: "), show"${content.size}/${chunkSize.value}")))
     html(emailHeader, body(notice, content, foot)).render
   }
 }

@@ -12,6 +12,8 @@ import org.apache.avro.util.Utf8
 import org.apache.kafka.common.serialization.{Deserializer, Serializer}
 import org.apache.kafka.streams.scala.serialization.Serdes
 
+import scala.util.{Failure, Success, Try}
+
 final class KJson[A] private (val value: A) extends Serializable {
   @SuppressWarnings(Array("IsInstanceOf"))
   def canEqual(a: Any): Boolean = a.isInstanceOf[KJson[?]]
@@ -57,15 +59,19 @@ object KJson {
       case str: String =>
         jawn.decode[KJson[A]](str) match {
           case Right(r) => r
-          case Left(ex) => throw ex
+          case Left(ex) => throw new Exception(str, ex)
         }
       case utf8: Utf8 =>
-        jawn.decode[KJson[A]](utf8.toString) match {
-          case Right(r) => r
-          case Left(ex) => throw ex
+        Try(utf8.toString) match {
+          case Failure(exception) => throw exception
+          case Success(str) =>
+            jawn.decode[A](str) match {
+              case Right(r) => KJson(r)
+              case Left(ex) => throw new Exception(str, ex)
+            }
         }
       case null => null
-      case ex   => sys.error(s"${ex.getClass} is not a string: $ex")
+      case ex   => sys.error(s"${ex.getClass.toString} is not a string: ${ex.toString}")
     }
 
     override def schemaFor: SchemaFor[KJson[A]] = SchemaFor[KJson[A]]
