@@ -128,7 +128,7 @@ object NJCompression {
   implicit final val decoderAvroCompression: Decoder[AvroCompression] =
     decoderNJCompression.emap {
       case compression: AvroCompression => Right(compression)
-      case unknown                      => Left(s"avro does not support: $unknown")
+      case unknown                      => Left(s"avro does not support: ${unknown.productPrefix}")
     }
 
   implicit final val encoderBinaryAvroCompression: Encoder[BinaryAvroCompression] =
@@ -136,7 +136,7 @@ object NJCompression {
   implicit final val decoderBinaryAvroCompression: Decoder[BinaryAvroCompression] =
     decoderNJCompression.emap {
       case compression: BinaryAvroCompression => Right(compression)
-      case unknown                            => Left(s"binary avro does not support: $unknown")
+      case unknown => Left(s"binary avro does not support: ${unknown.productPrefix}")
     }
 
   implicit final val encoderParquetCompression: Encoder[ParquetCompression] =
@@ -144,7 +144,7 @@ object NJCompression {
   implicit final val decoderParquetCompression: Decoder[ParquetCompression] =
     decoderNJCompression.emap {
       case compression: ParquetCompression => Right(compression)
-      case unknown                         => Left(s"parquet does not support: $unknown")
+      case unknown                         => Left(s"parquet does not support: ${unknown.productPrefix}")
     }
 
   implicit final val encoderCirceCompression: Encoder[CirceCompression] =
@@ -152,7 +152,7 @@ object NJCompression {
   implicit final val decoderCirceCompression: Decoder[CirceCompression] =
     decoderNJCompression.emap {
       case compression: CirceCompression => Right(compression)
-      case unknown                       => Left(s"circe json does not support: $unknown")
+      case unknown                       => Left(s"circe json does not support: ${unknown.productPrefix}")
     }
 
   implicit final val encoderJacksonCompression: Encoder[JacksonCompression] =
@@ -160,7 +160,7 @@ object NJCompression {
   implicit final val decoderJacksonCompression: Decoder[JacksonCompression] =
     decoderNJCompression.emap {
       case compression: JacksonCompression => Right(compression)
-      case unknown                         => Left(s"jackson does not support: $unknown")
+      case unknown                         => Left(s"jackson does not support: ${unknown.productPrefix}")
     }
 
   implicit final val encoderKantanCompression: Encoder[KantanCompression] =
@@ -168,7 +168,7 @@ object NJCompression {
   implicit final val decoderKantanCompression: Decoder[KantanCompression] =
     decoderNJCompression.emap {
       case compression: KantanCompression => Right(compression)
-      case unknown                        => Left(s"kantan csv does not support: $unknown")
+      case unknown                        => Left(s"kantan csv does not support: ${unknown.productPrefix}")
     }
 
   implicit final val encoderTextCompression: Encoder[TextCompression] =
@@ -176,7 +176,7 @@ object NJCompression {
   implicit final val decoderTextCompression: Decoder[TextCompression] =
     decoderNJCompression.emap {
       case compression: TextCompression => Right(compression)
-      case unknown                      => Left(s"text does not support: $unknown")
+      case unknown                      => Left(s"text does not support: ${unknown.productPrefix}")
     }
 
   implicit final val encoderProtobufCompression: Encoder[ProtobufCompression] =
@@ -184,7 +184,7 @@ object NJCompression {
   implicit final val decoderProtobufCompression: Decoder[ProtobufCompression] =
     decoderNJCompression.emap {
       case compression: ProtobufCompression => Right(compression)
-      case unknown                          => Left(s"protobuf does not support: $unknown")
+      case unknown                          => Left(s"protobuf does not support: ${unknown.productPrefix}")
     }
 
   case object Uncompressed

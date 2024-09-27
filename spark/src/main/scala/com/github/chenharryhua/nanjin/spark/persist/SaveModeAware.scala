@@ -20,7 +20,7 @@ final private[persist] class SaveModeAware[F[_]](
       case SaveMode.Overwrite => hadoop.delete(outPath) >> job
       case SaveMode.Ignore    => hadoop.isExist(outPath).ifM(F.unit, job)
       case SaveMode.ErrorIfExists =>
-        hadoop.isExist(outPath).ifM(F.raiseError(new Exception(s"$outPath already exist")), job)
+        hadoop.isExist(outPath).ifM(F.raiseError(new Exception(s"${outPath.pathStr} already exist")), job)
     }
   }
 }

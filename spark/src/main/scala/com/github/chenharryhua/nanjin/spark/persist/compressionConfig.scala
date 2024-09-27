@@ -33,7 +33,7 @@ private[persist] object compressionConfig {
         conf.set(FileOutputFormat.COMPRESS, "true")
         conf.set(AvroJob.CONF_OUTPUT_CODEC, DataFileConstants.XZ_CODEC)
         conf.set(AvroOutputFormat.XZ_LEVEL_KEY, v.toString)
-      case c => sys.error(s"not support $c in avro")
+      case c => sys.error(s"not support ${c.productPrefix} in avro")
     }
 
   final def parquet(conf: Configuration, compression: NJCompression): CompressionCodecName =
@@ -47,7 +47,7 @@ private[persist] object compressionConfig {
       case NJCompression.Zstandard(level) =>
         conf.set(ZstandardCodec.PARQUET_COMPRESS_ZSTD_LEVEL, level.toString)
         CompressionCodecName.ZSTD
-      case c => sys.error(s"not support $c in parquet")
+      case c => sys.error(s"not support ${c.productPrefix} in parquet")
     }
 
   final def set(config: Configuration, compression: NJCompression): Unit =

@@ -193,7 +193,8 @@ private object SlackTranslator extends all {
   private def action_id(evt: ActionEvent): String =
     s"*$CONSTANT_ACTION_ID:* ${evt.actionID.show}/${evt.actionParams.metricName.digest}"
 
-  private def policy(evt: ActionEvent): String = s"*$CONSTANT_POLICY:* ${evt.actionParams.retryPolicy}"
+  private def policy(evt: ActionEvent): String =
+    show"*$CONSTANT_POLICY:* ${evt.actionParams.retryPolicy}"
 
   private def action_start(evt: ActionStart): SlackApp =
     SlackApp(

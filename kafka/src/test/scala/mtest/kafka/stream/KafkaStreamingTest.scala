@@ -2,10 +2,11 @@ package mtest.kafka.stream
 
 import cats.Id
 import cats.data.{Kleisli, Reader}
+import cats.derived.auto.show.*
 import cats.effect.IO
 import cats.effect.kernel.Outcome
 import cats.effect.unsafe.implicits.global
-import cats.implicits.catsSyntaxTuple2Semigroupal
+import cats.implicits.{catsSyntaxTuple2Semigroupal, showInterpolator}
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import eu.timepit.refined.auto.*
@@ -17,8 +18,8 @@ import org.apache.kafka.common.serialization.Serde
 import org.apache.kafka.streams.scala.ImplicitConversions.*
 import org.apache.kafka.streams.scala.StreamsBuilder
 import org.apache.kafka.streams.scala.serialization.Serdes.*
-import org.scalatest.{BeforeAndAfter, DoNotDiscover}
 import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.{BeforeAndAfter, DoNotDiscover}
 
 import scala.concurrent.duration.*
 
@@ -49,7 +50,7 @@ object KafkaStreamingData {
       .map(x => tgt.serde.deserialize(x))
       .observe(_.map(_.offset).through(commitBatchWithin[IO](1, 0.1.seconds)).drain)
       .map(_.record.value)
-      .debug(o => s"harvest: $o")
+      .debug(o => show"harvest: $o")
       .onFinalize(IO.sleep(1.seconds))
 
   val expected: Set[StreamTarget] =
@@ -87,7 +88,7 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
       b <- t2Topic.asConsumer.ktable
     } yield a
       .join(b)((s1, t2) => StreamTarget(s1.name, 0, t2.color))
-      .peek((k, v) => println(s"out=($k, $v)"))
+      .peek((k, v) => println(show"out=($k, $v)"))
       .to(tgt.topicName.value)(tgt.asProduced)
 
     val res: Set[StreamTarget] = (IO.println(Console.CYAN + "stream-table join" + Console.RESET) >> ctx
@@ -112,7 +113,7 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
       (s1Topic.serdePair.key.tryDeserialize(k).toOption, s1Topic.serdePair.value.tryDeserialize(v).toOption)
         .mapN((_, _))
     }.join(b)((s1, t2) => StreamTarget(s1.name, 0, t2.color))
-      .peek((k, v) => println(s"out=($k, $v)"))
+      .peek((k, v) => println(show"out=($k, $v)"))
       .to(tgt.topicName.value)(tgt.asProduced)
 
     val sendS1Data = Stream
@@ -153,7 +154,7 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
       b <- t2Topic.asConsumer.ktable
     } yield a
       .join(b)((s1, t2) => StreamTarget(s1.name, 0, t2.color))
-      .peek((k, v) => println(s"out=($k, $v)"))
+      .peek((k, v) => println(show"out=($k, $v)"))
       .to(tgt.topicName.value)(tgt.asProduced)
 
     val sendS1Data = Stream

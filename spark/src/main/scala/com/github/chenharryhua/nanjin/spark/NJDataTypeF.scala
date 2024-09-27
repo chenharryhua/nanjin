@@ -39,11 +39,17 @@ private[spark] object NJDataTypeF {
   final private case class NJStructType[K](className: String, namespace: String, fields: List[NJStructField])
       extends NJDataTypeF[K]
 
-  final case class NJStructField(index: Int, colName: String, dataType: NJDataType, nullable: Boolean) {
-    private val dt: String = dataType.toCaseClass
+  final private case class NJStructField(
+    index: Int,
+    colName: String,
+    dataType: NJDataType,
+    nullable: Boolean) {
 
-    val fieldStr: String =
-      s"""  $colName\t\t\t\t\t\t\t:${if (nullable) s"Option[$dt]" else dt}"""
+    val fieldStr: String = {
+      val dt: String   = dataType.toCaseClass
+      val tipe: String = if (nullable) s"Option[$dt]" else dt
+      s"  $colName\t\t\t\t\t\t\t:$tipe"
+    }
   }
 
   val algebra: Algebra[NJDataTypeF, DataType] = Algebra[NJDataTypeF, DataType] {

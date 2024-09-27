@@ -62,7 +62,7 @@ object Bee {
         case array: Array[Byte]  => array
         case fixed: GenericFixed => fixed.bytes
         case _ =>
-          throw new Avro4sDecodingException(s"Byte array decoder cannot decode '$value'", value, this)
+          throw new Avro4sDecodingException("Byte array decoder cannot decode", value, this)
       }
 
     override def schemaFor: SchemaFor[Array[Byte]] = SchemaFor[Array[Byte]]

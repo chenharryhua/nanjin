@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.database
 
+import cats.implicits.showInterpolator
 import com.github.chenharryhua.nanjin.common.database.*
 import enumeratum.{CatsEnum, Enum, EnumEntry}
 
@@ -10,8 +11,8 @@ sealed abstract private[database] class Protocols(val value: String)
 
   final def url(host: Host, port: Option[Port]): String =
     port match {
-      case None    => s"$value://${host.value}"
-      case Some(p) => s"$value://${host.value}:$p"
+      case None    => show"$value://${host.value}"
+      case Some(p) => show"$value://${host.value}:${p.value}"
     }
 }
 
