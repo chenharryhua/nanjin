@@ -348,7 +348,7 @@ lazy val instrument_neo4j = (project in file("instrument/neo4j"))
   .settings(name := "nj-instrument-neo4j")
   .settings(
     libraryDependencies ++=
-      List("org.neo4j.driver" % "neo4j-java-driver" % "4.4.18") ++
+      List("org.neo4j.driver" % "neo4j-java-driver" % "5.25.0") ++
         testLib)
 
 lazy val messages = (project in file("messages"))
