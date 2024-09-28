@@ -162,7 +162,7 @@ val catsLib = List(
   List(
     "org.typelevel" %% "cats-mtl"              % "1.5.0",
     "org.typelevel" %% "kittens"               % "3.4.0",
-    "org.typelevel" %% "cats-collections-core" % "0.9.8"
+    "org.typelevel" %% "cats-collections-core" % "0.9.9"
   )
 
 val refinedLib = List(
