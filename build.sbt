@@ -58,7 +58,8 @@ lazy val commonSettings = List(
     "-Wconf:src=src_managed/.*:silent",
     "-Wtostring-interpolated",
     "-Vcyclic",
-    "-P:acyclic:warn"),
+    "-P:acyclic:warn"
+  ),
   Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat,
   Compile / tpolecatExcludeOptions += org.typelevel.scalacoptions.ScalacOptions.warnNonUnitStatement,
   Test / parallelExecution := false
@@ -98,13 +99,13 @@ val pbLib = List(
 )
 
 val serdeLib = List(
-  ("com.sksamuel.avro4s" %% "avro4s-core" % "4.1.2").excludeAll(ExclusionRule(organization = "org.json4s")),
-  "org.apache.parquet"                    % "parquet-common"           % parquetV,
-  "org.apache.parquet"                    % "parquet-hadoop"           % parquetV,
-  "org.apache.parquet"                    % "parquet-avro"             % parquetV,
-  "org.apache.commons"                    % "commons-compress"         % "1.27.1", // snyk by avro
-  "org.apache.avro"                       % "avro"                     % avroV,
-  "io.confluent"                          % "kafka-streams-avro-serde" % confluentV
+  "com.sksamuel.avro4s" %% "avro4s-core" % "4.1.2",
+  "org.apache.parquet"                   % "parquet-common"           % parquetV,
+  "org.apache.parquet"                   % "parquet-hadoop"           % parquetV,
+  "org.apache.parquet"                   % "parquet-avro"             % parquetV,
+  "org.apache.commons"                   % "commons-compress"         % "1.27.1", // snyk by avro
+  "org.apache.avro"                      % "avro"                     % avroV,
+  "io.confluent"                         % "kafka-streams-avro-serde" % confluentV
 ) ++ jacksonLib ++ circeLib ++ pbLib
 
 val fs2Lib = List(
@@ -400,7 +401,7 @@ val hadoopLib = List(
   "org.apache.hadoop"  % "hadoop-hdfs-client"           % hadoopV,
   "org.slf4j"          % "jcl-over-slf4j"               % slf4jV,
   "io.netty"           % "netty-all"                    % nettyV, // snyk
-  "com.nimbusds"       % "nimbus-jose-jwt"              % "9.41.1", // snyk
+  "com.nimbusds"       % "nimbus-jose-jwt"              % "9.41.2", // snyk
   "dnsjava"            % "dnsjava"                      % "3.6.2", // snyk
   "org.apache.commons" % "commons-configuration2"       % "2.11.0" // snyk
 ).map(
@@ -462,6 +463,7 @@ lazy val spark = (project in file("spark"))
       "org.postgresql"                         % "postgresql"      % postgresV % Test
     ) ++ sparkLib.map(_.exclude("commons-logging", "commons-logging")) ++ testLib
   )
+  .settings(dependencyOverrides += "org.json4s" %% "json4s-native" % "3.6.12")
 
 lazy val example = (project in file("example"))
   .dependsOn(common)
