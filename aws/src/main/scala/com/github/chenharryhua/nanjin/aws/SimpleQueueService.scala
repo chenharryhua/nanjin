@@ -158,7 +158,7 @@ object SimpleQueueService {
       new AwsSQS[F](buildFrom.andThen(f), policy, zoneId, logger)
 
     override def withDelayPolicy(delayPolicy: Policy, zoneId: ZoneId): SimpleQueueService[F] =
-      new AwsSQS[F](buildFrom, policy, zoneId, logger)
+      new AwsSQS[F](buildFrom, delayPolicy, zoneId, logger)
 
   }
 }
