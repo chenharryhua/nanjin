@@ -106,6 +106,7 @@ object SimpleTextTranslator {
         |${action_event(evt)}
         |  ${retryText(evt)}
         |  ${error_str(evt.error)}
+        |${notes(evt.notes)}  
         |""".stripMargin
 
   private def action_fail(evt: ActionFail): String =

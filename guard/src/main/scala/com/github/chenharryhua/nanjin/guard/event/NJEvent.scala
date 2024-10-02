@@ -74,7 +74,12 @@ object NJEvent {
     notes: Json)
       extends ActionEvent
 
-  final case class ActionRetry(actionID: UniqueToken, actionParams: ActionParams, error: NJError, tick: Tick)
+  final case class ActionRetry(
+    actionID: UniqueToken,
+    actionParams: ActionParams,
+    error: NJError,
+    notes: Json,
+    tick: Tick)
       extends ActionEvent {
     override val timestamp: ZonedDateTime = tick.zonedAcquire
   }

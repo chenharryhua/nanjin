@@ -165,7 +165,8 @@ private object HtmlTranslator extends all {
       h3(style := htmlColoring(evt))(eventTitle(evt)),
       table(service_table(evt), action_section(evt), fg),
       p(b(retryText(evt))),
-      cause_text(evt.error)
+      p(b(s"$CONSTANT_CAUSE: "), small(evt.error.message)),
+      json_text(evt.notes)
     )
   }
 
