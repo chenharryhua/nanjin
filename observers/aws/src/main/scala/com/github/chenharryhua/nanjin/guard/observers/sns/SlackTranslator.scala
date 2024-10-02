@@ -227,8 +227,9 @@ private object SlackTranslator extends all {
             MarkdownSection(s"""|${retryText(evt)}
                                 |${policy(evt)}
                                 |${action_id(evt)}
-                                |${service_id(evt)}""".stripMargin),
-            KeyValueSection(CONSTANT_CAUSE, s"""```${abbreviate(evt.error.message)}```""")
+                                |${service_id(evt)}
+                                |*$CONSTANT_CAUSE:* ${evt.error.message}""".stripMargin),
+            MarkdownSection(s"""```${abbreviate(evt.notes)}```""")
           )
         ))
     )

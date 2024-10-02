@@ -73,7 +73,7 @@ object SimpleQueueService {
 
   def apply[F[_]: Async](f: Endo[SqsClientBuilder]): Resource[F, SimpleQueueService[F]] = {
     val defaultPolicy: Policy =
-      Policy.fixedDelay(10.seconds, 20.second, 40.seconds, 80.seconds, 160.seconds, 320.seconds)
+      Policy.fixedDelay(10.seconds, 20.second, 40.seconds).limited(3).followedBy(Policy.fixedDelay(3.minutes))
     for {
       logger <- Resource.eval(Slf4jLogger.create[F])
       sqs <- Resource.makeCase(
@@ -165,7 +165,7 @@ object SimpleQueueService {
 
 object sqsS3Parser {
   @JsonCodec @Lenses
-  final case class SqsS3File(path: S3Path, size: Long)
+  final case class SqsS3File(path: S3Path, size: Long, messageId: String, queueUrl: String)
 
   /** [[https://docs.aws.amazon.com/AmazonS3/latest/userguide/notification-content-structure.html]]
     *
@@ -183,7 +183,12 @@ object sqsS3Parser {
               val key    = s3.downField("object").get[String]("key")
               val size   = s3.downField("object").get[Long]("size")
               (bucket, key, size)
-                .mapN((b, k, s) => SqsS3File(S3Path(b, URLDecoder.decode(k, "UTF-8")), s))
+                .mapN((b, k, s) =>
+                  SqsS3File(
+                    path = S3Path(b, URLDecoder.decode(k, "UTF-8")),
+                    size = s,
+                    messageId = msg.response.messageId(),
+                    queueUrl = msg.request.queueUrl()))
                 .toOption
             }
           case None => Nil

@@ -105,6 +105,7 @@ object PrettyJsonTranslator {
           serviceName(evt),
           serviceId(evt),
           policy(evt.actionParams),
+          notes(evt.notes),
           errorCause(evt.error)
         ))
 

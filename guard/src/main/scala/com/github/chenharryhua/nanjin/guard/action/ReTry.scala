@@ -81,7 +81,13 @@ final private class ReTry[F[_]: Async, IN, OUT] private (
           case None => F.raiseError(ex) // run out of policy
           case Some(ts) =>
             for {
-              _ <- channel.send(ActionRetry(actionID, actionParams, NJError(ex), ts.tick))
+              _ <- channel.send(
+                ActionRetry(
+                  actionID = actionID,
+                  actionParams = actionParams,
+                  error = NJError(ex),
+                  notes = error_json(in, ex),
+                  tick = ts.tick))
               _ <- F.sleep(ts.tick.snooze.toScala)
             } yield {
               measure_retry()
