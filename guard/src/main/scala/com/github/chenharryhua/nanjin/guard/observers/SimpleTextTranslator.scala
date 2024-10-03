@@ -44,7 +44,7 @@ object SimpleTextTranslator {
 
   private def service_started(evt: ServiceStart): String =
     s"""|${eventTitle(evt)}
-        |  ${service_event(evt)}
+        |  ${service_event(evt)}, $CONSTANT_INDEX:${evt.tick.index}
         |${evt.serviceParams.asJson.spaces2}
         |""".stripMargin
 

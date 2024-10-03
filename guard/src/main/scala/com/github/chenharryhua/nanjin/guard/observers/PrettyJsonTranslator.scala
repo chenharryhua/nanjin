@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.observers
 
 import cats.Applicative
+import com.github.chenharryhua.nanjin.common.chrono.Tick
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
 import com.github.chenharryhua.nanjin.guard.event.{MetricSnapshot, NJEvent}
 import com.github.chenharryhua.nanjin.guard.translator.*
@@ -21,16 +22,18 @@ object PrettyJsonTranslator {
   private def pretty_metrics(ss: MetricSnapshot): (String, Json) =
     "metrics" -> new SnapshotPolyglot(ss).toPrettyJson
 
+  private def index(tick: Tick): (String, Json) =
+    "index" -> Json.fromLong(tick.index)
+
   // events handlers
   private def service_started(evt: ServiceStart): Json =
     Json.obj(
       EventName.ServiceStart.camel ->
-        Json.obj(serviceParams(evt.serviceParams), uptime(evt)))
+        Json.obj(serviceParams(evt.serviceParams), uptime(evt), index(evt.tick)))
 
   private def service_panic(evt: ServicePanic): Json =
-    Json.obj(
-      EventName.ServicePanic.camel ->
-        Json.obj(serviceName(evt), serviceId(evt), uptime(evt), policy(evt), stack(evt.error)))
+    Json.obj(EventName.ServicePanic.camel ->
+      Json.obj(serviceName(evt), serviceId(evt), uptime(evt), index(evt.tick), policy(evt), stack(evt.error)))
 
   private def service_stopped(evt: ServiceStop): Json =
     Json.obj(

@@ -70,7 +70,20 @@ private object SlackTranslator extends all {
 
 // events
   private def service_started(evt: ServiceStart): SlackApp = {
+    val index_section = if (evt.tick.index == 0) {
+      JuxtaposeSection(
+        first = TextField(CONSTANT_TIMEZONE, evt.serviceParams.zoneId.show),
+        second = TextField(CONSTANT_INDEX, evt.tick.index.show)
+      )
+    } else {
+      JuxtaposeSection(
+        first = TextField(CONSTANT_UPTIME, uptimeText(evt)),
+        second = TextField(CONSTANT_INDEX, evt.tick.index.show)
+      )
+    }
+
     val color = coloring(evt)
+
     SlackApp(
       username = evt.serviceParams.taskName.value,
       attachments = List(
@@ -79,7 +92,7 @@ private object SlackTranslator extends all {
           blocks = List(
             HeaderSection(s":rocket: ${eventTitle(evt)}"),
             host_service_section(evt.serviceParams),
-            uptime_section(evt),
+            index_section,
             MarkdownSection(show"""|*$CONSTANT_POLICY:* ${evt.serviceParams.servicePolicies.restart}
                                    |*$CONSTANT_SERVICE_ID:* ${evt.serviceParams.serviceId}""".stripMargin)
           )

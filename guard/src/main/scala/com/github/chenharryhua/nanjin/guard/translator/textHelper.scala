@@ -47,10 +47,7 @@ object textHelper extends localtime with localdatetime {
       case NJEvent.ServiceAlert(_, _, _, _, al, _) => s"Alert ${al.productPrefix}"
 
       case NJEvent.ServiceStart(_, tick) =>
-        if (tick.index === 0)
-          "Start Service"
-        else
-          s"${to_ordinal_words(tick.index)} Restart Service"
+        if (tick.index === 0) "Start Service" else "Restart Service"
       case _: NJEvent.ServiceStop  => "Service Stopped"
       case _: NJEvent.ServicePanic => "Service Panic"
 

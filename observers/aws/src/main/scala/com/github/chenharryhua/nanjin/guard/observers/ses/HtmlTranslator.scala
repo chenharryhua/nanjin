@@ -49,12 +49,25 @@ private object HtmlTranslator extends all {
 
   // events
 
-  private def service_started(evt: ServiceStart): Text.TypedTag[String] =
+  private def service_started(evt: ServiceStart): Text.TypedTag[String] = {
+    val fg = frag(
+      tr(
+        th(CONSTANT_INDEX),
+        th(CONSTANT_POLICY),
+        th(CONSTANT_TIMEZONE)
+      ),
+      tr(
+        td(evt.tick.index),
+        td(evt.serviceParams.servicePolicies.restart.show),
+        td(evt.serviceParams.zoneId.show)
+      )
+    )
     div(
       h3(style := htmlColoring(evt))(eventTitle(evt)),
-      table(service_table(evt)),
+      table(service_table(evt), fg),
       json_text(evt.serviceParams.asJson)
     )
+  }
 
   private def service_panic(evt: ServicePanic): Text.TypedTag[String] =
     div(
@@ -74,7 +87,7 @@ private object HtmlTranslator extends all {
     )
 
   private def metric_report(evt: MetricReport): Text.TypedTag[String] = {
-    val result = frag(
+    val fg = frag(
       tr(
         th(CONSTANT_INDEX),
         th(CONSTANT_POLICY),
@@ -89,13 +102,13 @@ private object HtmlTranslator extends all {
 
     div(
       h3(style := htmlColoring(evt))(eventTitle(evt)),
-      table(service_table(evt), result),
+      table(service_table(evt), fg),
       pre(small(yamlMetrics(evt.snapshot)))
     )
   }
 
   private def metric_reset(evt: MetricReset): Text.TypedTag[String] = {
-    val result = frag(
+    val fg = frag(
       tr(
         th(CONSTANT_INDEX),
         th(CONSTANT_POLICY),
@@ -109,13 +122,13 @@ private object HtmlTranslator extends all {
     )
     div(
       h3(style := htmlColoring(evt))(eventTitle(evt)),
-      table(service_table(evt), result),
+      table(service_table(evt), fg),
       pre(small(yamlMetrics(evt.snapshot)))
     )
   }
 
   private def service_alert(evt: ServiceAlert): Text.TypedTag[String] = {
-    val alert = frag(
+    val fg = frag(
       tr(th(CONSTANT_MEASUREMENT), th(CONSTANT_ALERT_ID), th(CONSTANT_NAME)),
       tr(
         td(evt.metricName.measurement),
@@ -125,7 +138,7 @@ private object HtmlTranslator extends all {
     )
     div(
       h3(style := htmlColoring(evt))(eventTitle(evt)),
-      table(service_table(evt), alert),
+      table(service_table(evt), fg),
       json_text(evt.message)
     )
   }
