@@ -49,6 +49,11 @@ private object SlackTranslator extends all {
       second = TextField(CONSTANT_NAME, mn.name)
     )
 
+  private def metrics_index_section(evt: MetricEvent): JuxtaposeSection =
+    JuxtaposeSection(
+      first = TextField(CONSTANT_UPTIME, uptimeText(evt)),
+      second = TextField(CONSTANT_INDEX, metricIndexText(evt.index)))
+
   private def metrics_section(snapshot: MetricSnapshot): KeyValueSection = {
     val yaml = new SnapshotPolyglot(snapshot).counterYaml match {
       case Some(value) => s"""```${abbreviate(value)}```"""
@@ -138,7 +143,7 @@ private object SlackTranslator extends all {
           blocks = List(
             HeaderSection(eventTitle(evt)),
             host_service_section(evt.serviceParams),
-            uptime_section(evt),
+            metrics_index_section(evt),
             MarkdownSection(show"*$CONSTANT_SERVICE_ID:* ${evt.serviceParams.serviceId}"),
             metrics_section(evt.snapshot)
           )
@@ -157,7 +162,7 @@ private object SlackTranslator extends all {
           blocks = List(
             HeaderSection(eventTitle(evt)),
             host_service_section(evt.serviceParams),
-            uptime_section(evt),
+            metrics_index_section(evt),
             MarkdownSection(s"*$CONSTANT_SERVICE_ID:* ${evt.serviceParams.serviceId.show}"),
             metrics_section(evt.snapshot)
           )

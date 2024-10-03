@@ -76,12 +76,12 @@ private object HtmlTranslator extends all {
   private def metric_report(evt: MetricReport): Text.TypedTag[String] = {
     val result = frag(
       tr(
-        th(CONSTANT_TIMEZONE),
+        th(CONSTANT_INDEX),
         th(CONSTANT_POLICY),
         th(CONSTANT_TOOK)
       ),
       tr(
-        td(evt.serviceParams.zoneId.show),
+        td(metricIndexText(evt.index)),
         td(evt.serviceParams.servicePolicies.metricReport.show),
         td(tookText(evt.took))
       )
@@ -97,12 +97,12 @@ private object HtmlTranslator extends all {
   private def metric_reset(evt: MetricReset): Text.TypedTag[String] = {
     val result = frag(
       tr(
-        th(CONSTANT_TIMEZONE),
+        th(CONSTANT_INDEX),
         th(CONSTANT_POLICY),
         th(CONSTANT_TOOK)
       ),
       tr(
-        td(evt.serviceParams.zoneId.show),
+        td(metricIndexText(evt.index)),
         td(evt.serviceParams.servicePolicies.metricReset.show),
         td(tookText(evt.took))
       )

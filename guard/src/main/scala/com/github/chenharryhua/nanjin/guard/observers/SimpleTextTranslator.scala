@@ -68,7 +68,7 @@ object SimpleTextTranslator {
     val took   = tookText(evt.took)
     s"""|${eventTitle(evt)}
         |  ${service_event(evt)}
-        |  $CONSTANT_POLICY:$policy, $CONSTANT_TOOK:$took 
+        |  $CONSTANT_INDEX:${metricIndexText(evt.index)}, $CONSTANT_POLICY:$policy, $CONSTANT_TOOK:$took
         |${yamlMetrics(evt.snapshot)}
         |""".stripMargin
   }
@@ -79,7 +79,7 @@ object SimpleTextTranslator {
 
     s"""|${eventTitle(evt)}
         |  ${service_event(evt)}
-        |  $CONSTANT_POLICY:$policy, $CONSTANT_TOOK:$took
+        |  $CONSTANT_INDEX:${metricIndexText(evt.index)}, $CONSTANT_POLICY:$policy, $CONSTANT_TOOK:$took
         |${yamlMetrics(evt.snapshot)}
         |""".stripMargin
   }

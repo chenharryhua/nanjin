@@ -24,6 +24,12 @@ object textHelper extends localtime with localdatetime {
       case None      => sp.hostName.value
     }
 
+  def metricIndexText(index: MetricIndex): String =
+    index match {
+      case MetricIndex.Adhoc(_)       => "Adhoc"
+      case MetricIndex.Periodic(tick) => show"${tick.index}"
+    }
+
   def stopCause(ssc: ServiceStopCause): String = ssc match {
     case ServiceStopCause.Normally           => "Normally"
     case ServiceStopCause.ByCancellation     => "ByCancellation"
@@ -48,16 +54,8 @@ object textHelper extends localtime with localdatetime {
       case _: NJEvent.ServiceStop  => "Service Stopped"
       case _: NJEvent.ServicePanic => "Service Panic"
 
-      case NJEvent.MetricReport(index, _, _, _) =>
-        index match {
-          case MetricIndex.Adhoc(_)       => "Adhoc Metric Report"
-          case MetricIndex.Periodic(tick) => s"${to_ordinal_words(tick.index)} Metric Report"
-        }
-      case NJEvent.MetricReset(index, _, _, _) =>
-        index match {
-          case MetricIndex.Adhoc(_)       => "Adhoc Metric Reset"
-          case MetricIndex.Periodic(tick) => s"${to_ordinal_words(tick.index)} Metric Reset"
-        }
+      case _: NJEvent.MetricReport => "Metric Report"
+      case _: NJEvent.MetricReset  => "Metric Reset"
     }
 
   private def to_ordinal_words(n: Long): String = {

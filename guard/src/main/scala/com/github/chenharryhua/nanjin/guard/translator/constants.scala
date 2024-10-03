@@ -37,7 +37,7 @@ object textConstants {
   @inline final val CONSTANT_POLICY: String      = "Policy"
   @inline final val CONSTANT_CAUSE: String       = "Cause"
   @inline final val CONSTANT_TOOK: String        = "Took"
-  @inline final val CONSTANT_NOTES: String       = "Notes"
+  @inline final val CONSTANT_INDEX: String       = "Index"
   @inline final val CONSTANT_UPTIME: String      = "UpTime"
   @inline final val CONSTANT_BRIEF: String       = "Brief"
   @inline final val CONSTANT_METRICS: String     = "Metrics"
