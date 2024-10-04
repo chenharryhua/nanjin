@@ -49,21 +49,46 @@ private object HtmlTranslator extends all {
 
   // events
 
-  private def service_started(evt: ServiceStart): Text.TypedTag[String] =
+  private def service_started(evt: ServiceStart): Text.TypedTag[String] = {
+    val fg = frag(
+      tr(
+        th(CONSTANT_INDEX),
+        th(CONSTANT_ACTIVE),
+        th(CONSTANT_SNOOZED)
+      ),
+      tr(
+        td(evt.tick.index),
+        td(tookText(evt.tick.active)),
+        td(tookText(evt.tick.snooze))
+      )
+    )
     div(
       h3(style := htmlColoring(evt))(eventTitle(evt)),
-      table(service_table(evt)),
+      table(service_table(evt), fg),
       json_text(evt.serviceParams.asJson)
     )
+  }
 
-  private def service_panic(evt: ServicePanic): Text.TypedTag[String] =
+  private def service_panic(evt: ServicePanic): Text.TypedTag[String] = {
+    val fg = frag(
+      tr(
+        th(CONSTANT_INDEX),
+        th(CONSTANT_POLICY),
+        th(CONSTANT_ACTIVE)
+      ),
+      tr(
+        td(evt.tick.index),
+        td(evt.serviceParams.servicePolicies.restart.show),
+        td(tookText(evt.tick.active))
+      )
+    )
     div(
       h3(style := htmlColoring(evt))(eventTitle(evt)),
-      table(service_table(evt)),
+      table(service_table(evt), fg),
       p(b(panicText(evt))),
-      p(b(s"$CONSTANT_POLICY: "), evt.serviceParams.servicePolicies.restart.show),
       cause_text(evt.error)
     )
+  }
 
   private def service_stopped(evt: ServiceStop): Text.TypedTag[String] =
     div(
@@ -74,14 +99,14 @@ private object HtmlTranslator extends all {
     )
 
   private def metric_report(evt: MetricReport): Text.TypedTag[String] = {
-    val result = frag(
+    val fg = frag(
       tr(
-        th(CONSTANT_TIMEZONE),
+        th(CONSTANT_INDEX),
         th(CONSTANT_POLICY),
         th(CONSTANT_TOOK)
       ),
       tr(
-        td(evt.serviceParams.zoneId.show),
+        td(metricIndexText(evt.index)),
         td(evt.serviceParams.servicePolicies.metricReport.show),
         td(tookText(evt.took))
       )
@@ -89,33 +114,33 @@ private object HtmlTranslator extends all {
 
     div(
       h3(style := htmlColoring(evt))(eventTitle(evt)),
-      table(service_table(evt), result),
+      table(service_table(evt), fg),
       pre(small(yamlMetrics(evt.snapshot)))
     )
   }
 
   private def metric_reset(evt: MetricReset): Text.TypedTag[String] = {
-    val result = frag(
+    val fg = frag(
       tr(
-        th(CONSTANT_TIMEZONE),
+        th(CONSTANT_INDEX),
         th(CONSTANT_POLICY),
         th(CONSTANT_TOOK)
       ),
       tr(
-        td(evt.serviceParams.zoneId.show),
+        td(metricIndexText(evt.index)),
         td(evt.serviceParams.servicePolicies.metricReset.show),
         td(tookText(evt.took))
       )
     )
     div(
       h3(style := htmlColoring(evt))(eventTitle(evt)),
-      table(service_table(evt), result),
+      table(service_table(evt), fg),
       pre(small(yamlMetrics(evt.snapshot)))
     )
   }
 
   private def service_alert(evt: ServiceAlert): Text.TypedTag[String] = {
-    val alert = frag(
+    val fg = frag(
       tr(th(CONSTANT_MEASUREMENT), th(CONSTANT_ALERT_ID), th(CONSTANT_NAME)),
       tr(
         td(evt.metricName.measurement),
@@ -125,7 +150,7 @@ private object HtmlTranslator extends all {
     )
     div(
       h3(style := htmlColoring(evt))(eventTitle(evt)),
-      table(service_table(evt), alert),
+      table(service_table(evt), fg),
       json_text(evt.message)
     )
   }

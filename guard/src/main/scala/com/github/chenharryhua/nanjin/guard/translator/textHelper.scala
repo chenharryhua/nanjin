@@ -24,8 +24,14 @@ object textHelper extends localtime with localdatetime {
       case None      => sp.hostName.value
     }
 
+  def metricIndexText(index: MetricIndex): String =
+    index match {
+      case MetricIndex.Adhoc(_)       => "Adhoc"
+      case MetricIndex.Periodic(tick) => show"${tick.index}"
+    }
+
   def stopCause(ssc: ServiceStopCause): String = ssc match {
-    case ServiceStopCause.Normally           => "Normally"
+    case ServiceStopCause.Successfully       => "Successfully"
     case ServiceStopCause.ByCancellation     => "ByCancellation"
     case ServiceStopCause.ByException(error) => error.stack.mkString("\n\t")
     case ServiceStopCause.Maintenance        => "Maintenance"
@@ -41,23 +47,12 @@ object textHelper extends localtime with localdatetime {
       case NJEvent.ServiceAlert(_, _, _, _, al, _) => s"Alert ${al.productPrefix}"
 
       case NJEvent.ServiceStart(_, tick) =>
-        if (tick.index === 0)
-          "Start Service"
-        else
-          s"${to_ordinal_words(tick.index)} Restart Service"
+        if (tick.index === 0) "Start Service" else "Restart Service"
       case _: NJEvent.ServiceStop  => "Service Stopped"
       case _: NJEvent.ServicePanic => "Service Panic"
 
-      case NJEvent.MetricReport(index, _, _, _) =>
-        index match {
-          case MetricIndex.Adhoc(_)       => "Adhoc Metric Report"
-          case MetricIndex.Periodic(tick) => s"${to_ordinal_words(tick.index)} Metric Report"
-        }
-      case NJEvent.MetricReset(index, _, _, _) =>
-        index match {
-          case MetricIndex.Adhoc(_)       => "Adhoc Metric Reset"
-          case MetricIndex.Periodic(tick) => s"${to_ordinal_words(tick.index)} Metric Reset"
-        }
+      case _: NJEvent.MetricReport => "Metric Report"
+      case _: NJEvent.MetricReset  => "Metric Reset"
     }
 
   private def to_ordinal_words(n: Long): String = {
@@ -86,9 +81,8 @@ object textHelper extends localtime with localdatetime {
   }
 
   def panicText(evt: ServicePanic): String = {
-    val (time, dur) = localTime_duration(evt.timestamp, evt.restartTime)
-    val nth: String = to_ordinal_words(evt.tick.index)
-    s"$nth restart was scheduled at $time, in $dur."
+    val (time, dur) = localTime_duration(evt.timestamp, evt.tick.zonedWakeup)
+    s"Restart was scheduled at $time, in $dur."
   }
 
   def retryText(evt: ActionRetry): String = {

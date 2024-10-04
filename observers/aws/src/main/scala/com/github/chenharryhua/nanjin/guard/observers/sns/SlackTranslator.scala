@@ -49,6 +49,11 @@ private object SlackTranslator extends all {
       second = TextField(CONSTANT_NAME, mn.name)
     )
 
+  private def metrics_index_section(evt: MetricEvent): JuxtaposeSection =
+    JuxtaposeSection(
+      first = TextField(CONSTANT_UPTIME, uptimeText(evt)),
+      second = TextField(CONSTANT_INDEX, metricIndexText(evt.index)))
+
   private def metrics_section(snapshot: MetricSnapshot): KeyValueSection = {
     val yaml = new SnapshotPolyglot(snapshot).counterYaml match {
       case Some(value) => s"""```${abbreviate(value)}```"""
@@ -65,7 +70,20 @@ private object SlackTranslator extends all {
 
 // events
   private def service_started(evt: ServiceStart): SlackApp = {
+    val index_section = if (evt.tick.index == 0) {
+      JuxtaposeSection(
+        first = TextField(CONSTANT_TIMEZONE, evt.serviceParams.zoneId.show),
+        second = TextField(CONSTANT_INDEX, evt.tick.index.show)
+      )
+    } else {
+      JuxtaposeSection(
+        first = TextField(CONSTANT_SNOOZED, tookText(evt.tick.snooze)),
+        second = TextField(CONSTANT_INDEX, evt.tick.index.show)
+      )
+    }
+
     val color = coloring(evt)
+
     SlackApp(
       username = evt.serviceParams.taskName.value,
       attachments = List(
@@ -74,7 +92,7 @@ private object SlackTranslator extends all {
           blocks = List(
             HeaderSection(s":rocket: ${eventTitle(evt)}"),
             host_service_section(evt.serviceParams),
-            uptime_section(evt),
+            index_section,
             MarkdownSection(show"""|*$CONSTANT_POLICY:* ${evt.serviceParams.servicePolicies.restart}
                                    |*$CONSTANT_SERVICE_ID:* ${evt.serviceParams.serviceId}""".stripMargin)
           )
@@ -94,8 +112,12 @@ private object SlackTranslator extends all {
           blocks = List(
             HeaderSection(s":alarm: ${eventTitle(evt)}"),
             host_service_section(evt.serviceParams),
-            uptime_section(evt),
+            JuxtaposeSection(
+              first = TextField(CONSTANT_ACTIVE, tookText(evt.tick.active)),
+              second = TextField(CONSTANT_INDEX, evt.tick.index.show)
+            ),
             MarkdownSection(show"""|${panicText(evt)}
+                                   |*$CONSTANT_UPTIME:* ${uptimeText(evt)}
                                    |*$CONSTANT_POLICY:* ${evt.serviceParams.servicePolicies.restart}
                                    |*$CONSTANT_SERVICE_ID:* ${evt.serviceParams.serviceId}""".stripMargin)
           )
@@ -138,7 +160,7 @@ private object SlackTranslator extends all {
           blocks = List(
             HeaderSection(eventTitle(evt)),
             host_service_section(evt.serviceParams),
-            uptime_section(evt),
+            metrics_index_section(evt),
             MarkdownSection(show"*$CONSTANT_SERVICE_ID:* ${evt.serviceParams.serviceId}"),
             metrics_section(evt.snapshot)
           )
@@ -157,7 +179,7 @@ private object SlackTranslator extends all {
           blocks = List(
             HeaderSection(eventTitle(evt)),
             host_service_section(evt.serviceParams),
-            uptime_section(evt),
+            metrics_index_section(evt),
             MarkdownSection(s"*$CONSTANT_SERVICE_ID:* ${evt.serviceParams.serviceId.show}"),
             metrics_section(evt.snapshot)
           )

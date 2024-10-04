@@ -57,7 +57,7 @@ final private class ReStart[F[_], A](
         (publisher.serviceReStart(channel, serviceParams, status.tick) <* theService)
           .redeemWith[Option[(Unit, TickStatus)]](
             err => panic(status, err),
-            _ => publisher.serviceStop(channel, serviceParams, ServiceStopCause.Normally).as(None)
+            _ => publisher.serviceStop(channel, serviceParams, ServiceStopCause.Successfully).as(None)
           )
           .onCancel(publisher.serviceStop(channel, serviceParams, ServiceStopCause.ByCancellation))
       }

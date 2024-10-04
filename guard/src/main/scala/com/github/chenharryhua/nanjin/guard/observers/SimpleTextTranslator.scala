@@ -42,19 +42,27 @@ object SimpleTextTranslator {
         |  $policy, $cfg""".stripMargin
   }
 
-  private def service_started(evt: ServiceStart): String =
+  private def service_started(evt: ServiceStart): String = {
+    val idx = s"$CONSTANT_INDEX:${evt.tick.index}"
+    val snz = s"$CONSTANT_SNOOZED:${tookText(evt.tick.snooze)}"
     s"""|${eventTitle(evt)}
         |  ${service_event(evt)}
+        |  $idx, $snz
         |${evt.serviceParams.asJson.spaces2}
         |""".stripMargin
+  }
 
-  private def service_panic(evt: ServicePanic): String =
+  private def service_panic(evt: ServicePanic): String = {
+    val idx = s"$CONSTANT_INDEX:${evt.tick.index}"
+    val act = s"$CONSTANT_ACTIVE:${tookText(evt.tick.active)}"
     show"""|${eventTitle(evt)}
            |  ${service_event(evt)}
            |  $CONSTANT_POLICY:${evt.serviceParams.servicePolicies.restart}
            |  ${panicText(evt)}
+           |  $idx, $act
            |  ${error_str(evt.error)}
            |""".stripMargin
+  }
 
   private def service_stopped(evt: ServiceStop): String =
     show"""|${eventTitle(evt)}
@@ -68,7 +76,7 @@ object SimpleTextTranslator {
     val took   = tookText(evt.took)
     s"""|${eventTitle(evt)}
         |  ${service_event(evt)}
-        |  $CONSTANT_POLICY:$policy, $CONSTANT_TOOK:$took 
+        |  $CONSTANT_INDEX:${metricIndexText(evt.index)}, $CONSTANT_POLICY:$policy, $CONSTANT_TOOK:$took
         |${yamlMetrics(evt.snapshot)}
         |""".stripMargin
   }
@@ -79,7 +87,7 @@ object SimpleTextTranslator {
 
     s"""|${eventTitle(evt)}
         |  ${service_event(evt)}
-        |  $CONSTANT_POLICY:$policy, $CONSTANT_TOOK:$took
+        |  $CONSTANT_INDEX:${metricIndexText(evt.index)}, $CONSTANT_POLICY:$policy, $CONSTANT_TOOK:$took
         |${yamlMetrics(evt.snapshot)}
         |""".stripMargin
   }

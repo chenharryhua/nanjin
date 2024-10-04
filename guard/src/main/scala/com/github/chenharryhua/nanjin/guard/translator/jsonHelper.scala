@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.translator
 
 import cats.implicits.toShow
+import com.github.chenharryhua.nanjin.common.chrono.Tick
 import com.github.chenharryhua.nanjin.guard.config.{ActionParams, MetricName, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.{ActionEvent, ServiceAlert}
 import com.github.chenharryhua.nanjin.guard.event.{MetricIndex, NJError, NJEvent, ServiceStopCause}
@@ -16,6 +17,8 @@ object jsonHelper {
   def exitCause(sc: ServiceStopCause): (String, Json)  = "exitCause" -> sc.asJson
   def actionId(evt: ActionEvent): (String, Json)       = "actionId" -> Json.fromInt(evt.actionID.uniqueToken)
   def alertId(evt: ServiceAlert): (String, Json)       = "alertId" -> Json.fromInt(evt.alertID.uniqueToken)
+
+  def index(tick: Tick): (String, Json) = "index" -> Json.fromLong(tick.index)
 
   def policy(evt: NJEvent): (String, Json) =
     "policy" -> Json.fromString(evt.serviceParams.servicePolicies.restart.show)

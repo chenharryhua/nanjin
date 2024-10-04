@@ -97,4 +97,20 @@ class AwsObserverTest extends AnyFunSuite {
       .withRateUnit(_.BYTES_SECOND)
     service.through(cloudwatch.observe("cloudwatch")).compile.drain.unsafeRunSync()
   }
+
+  test("6. email observer - limited should terminate") {
+    val mail =
+      EmailObserver(ses_client)
+        .withPolicy(Policy.fixedDelay(2.seconds).limited(3), sydneyTime)
+        .observe("a@b.c", NonEmptyList.one("b@c.d"), "email")
+
+    TaskGuard[IO]("email")
+      .service("email")
+      .updateConfig(_.withMetricReport(Policy.crontab(_.secondly)))
+      .eventStream(_ => IO.never)
+      .through(mail)
+      .compile
+      .drain
+      .unsafeRunSync()
+  }
 }

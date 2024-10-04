@@ -5,7 +5,8 @@ import cats.effect.std.UUIDGen
 import cats.syntax.all.*
 import fs2.Stream
 
-import java.time.ZoneId
+import java.time.{Instant, ZoneId}
+import java.util.UUID
 import scala.concurrent.duration.DurationInt
 import scala.jdk.DurationConverters.{JavaDurationOps, ScalaDurationOps}
 import scala.util.Random
@@ -28,4 +29,7 @@ object tickLazyList {
   def apply(init: TickStatus): LazyList[Tick] =
     LazyList.unfold(init)(ts =>
       ts.next(ts.tick.wakeup.plus(Random.between(1, 5).milliseconds.toJava)).map(s => (s.tick, s)))
+
+  def apply(policy: Policy, zoneId: ZoneId): LazyList[Tick] =
+    apply(TickStatus(Tick.zeroth(UUID.randomUUID(), zoneId, Instant.now())).renewPolicy(policy))
 }

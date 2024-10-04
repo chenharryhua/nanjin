@@ -22,8 +22,7 @@ object NJEvent {
   }
 
   final case class ServicePanic(serviceParams: ServiceParams, error: NJError, tick: Tick) extends NJEvent {
-    val timestamp: ZonedDateTime   = tick.zonedAcquire
-    val restartTime: ZonedDateTime = tick.zonedWakeup
+    val timestamp: ZonedDateTime = tick.zonedAcquire
   }
 
   final case class ServiceStop(
