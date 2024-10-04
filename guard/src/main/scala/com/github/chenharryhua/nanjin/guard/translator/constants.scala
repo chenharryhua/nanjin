@@ -51,4 +51,7 @@ object textConstants {
   @inline final val CONSTANT_ACTION_ID: String   = "ActionID"
   @inline final val CONSTANT_MEASUREMENT: String = "Measurement"
   @inline final val CONSTANT_NAME: String        = "Name"
+  @inline final val CONSTANT_SNOOZED: String     = "Snoozed"
+  @inline final val CONSTANT_ACTIVE: String      = "Active"
+
 }

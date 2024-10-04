@@ -52,7 +52,7 @@ object ColorScheme extends CatsOrderValueEnum[Int, ColorScheme] with IntEnum[Col
       case _: ServicePanic => ErrorColor
       case ServiceStop(_, _, cause) =>
         cause match {
-          case ServiceStopCause.Normally       => GoodColor
+          case ServiceStopCause.Successfully   => GoodColor
           case ServiceStopCause.ByCancellation => WarnColor
           case ServiceStopCause.ByException(_) => ErrorColor
           case ServiceStopCause.Maintenance    => InfoColor

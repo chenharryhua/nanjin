@@ -1,7 +1,8 @@
 package mtest.common
 
 import cats.implicits.toShow
-import com.github.chenharryhua.nanjin.common.chrono.{crontabs, localTimes, tickLazyList, Policy, TickStatus}
+import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
+import com.github.chenharryhua.nanjin.common.chrono.{Policy, TickStatus, crontabs, localTimes, tickLazyList}
 import cron4s.CronExpr
 import io.circe.jawn.decode
 import io.circe.syntax.EncoderOps
@@ -246,6 +247,14 @@ class PolicyCombinatorTest extends AnyFunSuite {
     val ts    = zeroTickStatus.renewPolicy(policy)
     val ticks = tickLazyList(ts).take(10).toList
 
+    ticks.foreach(tk => println(tk))
+  }
+
+  test("100 years") {
+    val policy = Policy.fixedDelay(36500.days)
+    println(policy.show)
+    println(policy.asJson)
+    val ticks = tickLazyList(policy, sydneyTime).take(10).toList
     ticks.foreach(tk => println(tk))
   }
 }

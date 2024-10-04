@@ -31,7 +31,7 @@ object textHelper extends localtime with localdatetime {
     }
 
   def stopCause(ssc: ServiceStopCause): String = ssc match {
-    case ServiceStopCause.Normally           => "Normally"
+    case ServiceStopCause.Successfully       => "Successfully"
     case ServiceStopCause.ByCancellation     => "ByCancellation"
     case ServiceStopCause.ByException(error) => error.stack.mkString("\n\t")
     case ServiceStopCause.Maintenance        => "Maintenance"
@@ -81,9 +81,8 @@ object textHelper extends localtime with localdatetime {
   }
 
   def panicText(evt: ServicePanic): String = {
-    val (time, dur) = localTime_duration(evt.timestamp, evt.restartTime)
-    val nth: String = to_ordinal_words(evt.tick.index)
-    s"$nth restart was scheduled at $time, in $dur."
+    val (time, dur) = localTime_duration(evt.timestamp, evt.tick.zonedWakeup)
+    s"Restart was scheduled at $time, in $dur."
   }
 
   def retryText(evt: ActionRetry): String = {

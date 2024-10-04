@@ -77,7 +77,7 @@ private object SlackTranslator extends all {
       )
     } else {
       JuxtaposeSection(
-        first = TextField(CONSTANT_UPTIME, uptimeText(evt)),
+        first = TextField(CONSTANT_SNOOZED, tookText(evt.tick.snooze)),
         second = TextField(CONSTANT_INDEX, evt.tick.index.show)
       )
     }
@@ -112,8 +112,12 @@ private object SlackTranslator extends all {
           blocks = List(
             HeaderSection(s":alarm: ${eventTitle(evt)}"),
             host_service_section(evt.serviceParams),
-            uptime_section(evt),
+            JuxtaposeSection(
+              first = TextField(CONSTANT_ACTIVE, tookText(evt.tick.active)),
+              second = TextField(CONSTANT_INDEX, evt.tick.index.show)
+            ),
             MarkdownSection(show"""|${panicText(evt)}
+                                   |*$CONSTANT_UPTIME:* ${uptimeText(evt)}
                                    |*$CONSTANT_POLICY:* ${evt.serviceParams.servicePolicies.restart}
                                    |*$CONSTANT_SERVICE_ID:* ${evt.serviceParams.serviceId}""".stripMargin)
           )

@@ -22,18 +22,32 @@ object PrettyJsonTranslator {
   private def pretty_metrics(ss: MetricSnapshot): (String, Json) =
     "metrics" -> new SnapshotPolyglot(ss).toPrettyJson
 
-  private def index(tick: Tick): (String, Json) =
-    "index" -> Json.fromLong(tick.index)
+  private def active(tick: Tick): (String, Json) =
+    "active" -> Json.fromString(fmt.format(tick.active))
 
   // events handlers
   private def service_started(evt: ServiceStart): Json =
     Json.obj(
       EventName.ServiceStart.camel ->
-        Json.obj(serviceParams(evt.serviceParams), uptime(evt), index(evt.tick)))
+        Json.obj(
+          serviceParams(evt.serviceParams),
+          uptime(evt),
+          index(evt.tick),
+          "snoozed" -> Json.fromString(fmt.format(evt.tick.snooze))))
 
   private def service_panic(evt: ServicePanic): Json =
-    Json.obj(EventName.ServicePanic.camel ->
-      Json.obj(serviceName(evt), serviceId(evt), uptime(evt), index(evt.tick), policy(evt), stack(evt.error)))
+    Json.obj(
+      EventName.ServicePanic.camel ->
+        Json.obj(
+          serviceName(evt),
+          serviceId(evt),
+          uptime(evt),
+          index(evt.tick),
+          active(evt.tick),
+          "snooze" -> Json.fromString(fmt.format(evt.tick.snooze)),
+          policy(evt),
+          stack(evt.error)
+        ))
 
   private def service_stopped(evt: ServiceStop): Json =
     Json.obj(

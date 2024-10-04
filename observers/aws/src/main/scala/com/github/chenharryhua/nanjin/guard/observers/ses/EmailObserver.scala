@@ -33,7 +33,7 @@ object EmailObserver {
       translator = HtmlTranslator[F],
       isNewestFirst = true,
       capacity = ChunkSize(100),
-      policy = Policy.fixedDelay(24.hours),
+      policy = Policy.fixedDelay(36500.days), // 100 years
       zoneId = ZoneId.systemDefault()
     )
 }
@@ -172,9 +172,9 @@ final class EmailObserver[F[_]: UUIDGen] private (
           case ss: ServiceStop  => state.update(_.removed(ss.serviceParams.serviceId))
           case _                => F.unit
         }.map(Left(_))
-        ticks      = tickStream(policy, zoneId).map(Right(_))
+        ticks      = tickStream[F](policy, zoneId).map(Right(_))
         send_email = publish_one_email(ses, from, to, subject)(_)
-        event <- go(monitor.mergeHaltL(ticks), send_email, cache).stream
+        event <- go(monitor.mergeHaltBoth(ticks), send_email, cache).stream
           .onFinalize(good_bye(state, cache).flatMap(send_email))
       } yield event
   }

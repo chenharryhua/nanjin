@@ -39,18 +39,18 @@ object MetricIndex {
 sealed abstract class ServiceStopCause(val exitCode: Int) extends Product with Serializable
 
 object ServiceStopCause {
-  case object Normally extends ServiceStopCause(0)
+  case object Successfully extends ServiceStopCause(0)
   case object Maintenance extends ServiceStopCause(1)
   case object ByCancellation extends ServiceStopCause(2)
   final case class ByException(error: NJError) extends ServiceStopCause(3)
 
-  private val NORMALLY: String        = "Normally"
+  private val SUCCESSFULLY: String    = "Successfully"
   private val BY_CANCELLATION: String = "ByCancellation"
   private val MAINTENANCE: String     = "Maintenance"
   private val BY_EXCEPTION: String    = "ByException"
 
   implicit val encoderServiceStopCause: Encoder[ServiceStopCause] = Encoder.instance {
-    case Normally           => Json.fromString(NORMALLY)
+    case Successfully       => Json.fromString(SUCCESSFULLY)
     case ByCancellation     => Json.fromString(BY_CANCELLATION)
     case ByException(error) => Json.obj(BY_EXCEPTION -> error.asJson)
     case Maintenance        => Json.fromString(MAINTENANCE)
@@ -59,7 +59,7 @@ object ServiceStopCause {
   implicit val decoderServiceStopCause: Decoder[ServiceStopCause] =
     List[Decoder[ServiceStopCause]](
       _.as[String].flatMap {
-        case NORMALLY        => Right(Normally)
+        case SUCCESSFULLY    => Right(Successfully)
         case BY_CANCELLATION => Right(ByCancellation)
         case MAINTENANCE     => Right(Maintenance)
         case unknown         => Left(DecodingFailure(s"unrecognized: $unknown", Nil))

@@ -53,13 +53,13 @@ private object HtmlTranslator extends all {
     val fg = frag(
       tr(
         th(CONSTANT_INDEX),
-        th(CONSTANT_POLICY),
-        th(CONSTANT_TIMEZONE)
+        th(CONSTANT_ACTIVE),
+        th(CONSTANT_SNOOZED)
       ),
       tr(
         td(evt.tick.index),
-        td(evt.serviceParams.servicePolicies.restart.show),
-        td(evt.serviceParams.zoneId.show)
+        td(tookText(evt.tick.active)),
+        td(tookText(evt.tick.snooze))
       )
     )
     div(
@@ -69,14 +69,26 @@ private object HtmlTranslator extends all {
     )
   }
 
-  private def service_panic(evt: ServicePanic): Text.TypedTag[String] =
+  private def service_panic(evt: ServicePanic): Text.TypedTag[String] = {
+    val fg = frag(
+      tr(
+        th(CONSTANT_INDEX),
+        th(CONSTANT_POLICY),
+        th(CONSTANT_ACTIVE)
+      ),
+      tr(
+        td(evt.tick.index),
+        td(evt.serviceParams.servicePolicies.restart.show),
+        td(tookText(evt.tick.active))
+      )
+    )
     div(
       h3(style := htmlColoring(evt))(eventTitle(evt)),
-      table(service_table(evt)),
+      table(service_table(evt), fg),
       p(b(panicText(evt))),
-      p(b(s"$CONSTANT_POLICY: "), evt.serviceParams.servicePolicies.restart.show),
       cause_text(evt.error)
     )
+  }
 
   private def service_stopped(evt: ServiceStop): Text.TypedTag[String] =
     div(

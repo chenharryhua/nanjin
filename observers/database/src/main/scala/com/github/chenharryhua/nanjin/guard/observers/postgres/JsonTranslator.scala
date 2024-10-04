@@ -18,11 +18,16 @@ private object JsonTranslator {
     "metrics" -> new SnapshotPolyglot(ss).toVanillaJson
 
   private def service_started(evt: ServiceStart): Json =
-    Json.obj("event" -> EventName.ServiceStart.camelJson, serviceParams(evt.serviceParams), timestamp(evt))
+    Json.obj(
+      "event" -> EventName.ServiceStart.camelJson,
+      index(evt.tick),
+      serviceParams(evt.serviceParams),
+      timestamp(evt))
 
   private def service_panic(evt: ServicePanic): Json =
     Json.obj(
       "event" -> EventName.ServicePanic.camelJson,
+      index(evt.tick),
       serviceName(evt),
       policy(evt),
       stack(evt.error),
