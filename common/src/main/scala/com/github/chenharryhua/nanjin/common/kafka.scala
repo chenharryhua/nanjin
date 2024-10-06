@@ -1,8 +1,7 @@
 package com.github.chenharryhua.nanjin.common
 
-import cats.Show
-import cats.implicits.{catsSyntaxEq, toBifunctorOps}
-import cats.kernel.Eq
+import cats.implicits.toBifunctorOps
+import cats.{Order, Show}
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.refineV
 import eu.timepit.refined.string.MatchesRegex
@@ -30,7 +29,9 @@ object kafka {
     }
 
     implicit val showTopicName: Show[TopicName] = tn => s"TopicName(value=${tn.value})"
-    implicit val eqTopicName: Eq[TopicName]     = Eq.instance((a, b) => a.value === b.value)
+
+    implicit val orderingTopicName: Ordering[TopicName] = Ordering.by(_.value)
+    implicit val orderTopicName: Order[TopicName]       = Order.fromOrdering[TopicName]
 
     implicit val encodeTopicName: Encoder[TopicName] = Encoder.encodeString.contramap(_.value)
     implicit val decodeTopicName: Decoder[TopicName] = Decoder.decodeString.emap(trans)
