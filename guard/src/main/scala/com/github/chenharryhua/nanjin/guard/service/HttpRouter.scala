@@ -185,6 +185,7 @@ private class HttpRouter[F[_]](
                     "index" -> sp.tick.index.asJson,
                     "restart_at" -> sp.tick.zonedWakeup.toLocalDateTime.asJson,
                     "took_place" -> sp.tick.zonedAcquire.toLocalDateTime.asJson,
+                    "active" -> fmt.format(sp.tick.active).asJson,
                     "snooze" -> fmt.format(sp.tick.snooze).asJson,
                     "caused_by" -> sp.error.message.asJson
                   )

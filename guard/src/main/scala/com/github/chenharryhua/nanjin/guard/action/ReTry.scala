@@ -11,7 +11,6 @@ import com.github.chenharryhua.nanjin.guard.event.NJEvent.{ActionDone, ActionFai
 import com.github.chenharryhua.nanjin.guard.event.{NJError, NJEvent, UniqueToken}
 import fs2.concurrent.Channel
 import io.circe.Json
-import io.circe.syntax.EncoderOps
 import org.apache.commons.lang3.exception.ExceptionUtils
 
 import java.time.ZonedDateTime
@@ -41,7 +40,7 @@ final private class ReTry[F[_]: Async, IN, OUT] private (
     actionParams.serviceParams.toZonedDateTime(fd)
 
   private[this] def bad_json(ex: Throwable): Json =
-    ExceptionUtils.getMessage(ex).asJson
+    Json.fromString(ExceptionUtils.getMessage(ex))
 
   private[this] def output_json(in: IN, out: OUT): Json =
     Try(transOutput.run((in, out))).fold(bad_json, identity)

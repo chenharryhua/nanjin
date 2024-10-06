@@ -13,7 +13,7 @@ val confluentV  = "7.7.1"
 val kafkaV      = "7.7.1-ce"
 val fs2KafkaV   = "3.5.1"
 val avroV       = "1.12.0"
-val parquetV    = "1.14.2"
+val parquetV    = "1.14.3"
 val circeV      = "0.14.10"
 val jacksonV    = "2.18.0"
 val kantanV     = "0.7.0"
@@ -190,7 +190,7 @@ val baseLib = List(
   "org.typelevel" %% "squants"                     % "1.8.3",
   "org.typelevel" %% "case-insensitive"            % "1.4.0",
   "io.scalaland" %% "chimney"                      % chimneyV,
-  "io.scalaland" %% "enumz"                        % "1.0.0",
+  "io.scalaland" %% "enumz"                        % "1.1.0",
   "com.chuusai" %% "shapeless"                     % "2.3.12",
   "com.github.alonsodomin.cron4s" %% "cron4s-core" % cron4sV,
   ("com.lihaoyi" %% "acyclic"                      % acyclicV).cross(CrossVersion.full) % "provided"
@@ -343,15 +343,6 @@ lazy val instrument_http4s = (project in file("instrument/http4s"))
       List("org.http4s" %% "http4s-ember-client" % http4sV % Test) ++
         testLib)
 
-lazy val instrument_neo4j = (project in file("instrument/neo4j"))
-  .dependsOn(guard)
-  .settings(commonSettings *)
-  .settings(name := "nj-instrument-neo4j")
-  .settings(
-    libraryDependencies ++=
-      List("org.neo4j.driver" % "neo4j-java-driver" % "4.4.18") ++
-        testLib)
-
 lazy val messages = (project in file("messages"))
   .dependsOn(common)
   .settings(commonSettings *)
@@ -484,7 +475,6 @@ lazy val example = (project in file("example"))
   .dependsOn(instrument_ehcache)
   .dependsOn(instrument_caffeine)
   .dependsOn(instrument_http4s)
-  .dependsOn(instrument_neo4j)
   .settings(commonSettings *)
   .settings(name := "nj-example")
   .settings(libraryDependencies ++= List(
@@ -513,6 +503,5 @@ lazy val nanjin =
     observer_logging,
     instrument_ehcache,
     instrument_caffeine,
-    instrument_http4s,
-    instrument_neo4j
+    instrument_http4s
   )
