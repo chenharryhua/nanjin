@@ -91,11 +91,13 @@ object NJEvent {
   final case class ActionFail(
     actionID: UniqueToken,
     actionParams: ActionParams,
+    launchTime: Option[ZonedDateTime],
     timestamp: ZonedDateTime, // land time
     error: NJError,
     notes: Json)
       extends ActionResultEvent {
-    override val isDone: Boolean = false
+    override val isDone: Boolean    = false
+    lazy val took: Option[Duration] = launchTime.map(Duration.between(_, timestamp))
   }
 
   final case class ActionDone(

@@ -53,13 +53,14 @@ final private class ReTry[F[_]: Async, IN, OUT] private (
   private[this] def measure_retry(): Unit                  = measures.count_retry()
   private[this] def measure_done(fd: FiniteDuration): Unit = measures.done(fd)
 
-  private[this] def send_failure(in: IN, ex: Throwable): F[Unit] =
+  private[this] def send_failure(in: IN, ex: Throwable, launchTime: Option[FiniteDuration]): F[Unit] =
     for {
       now <- F.realTime
       _ <- channel.send(
         ActionFail(
           actionID = actionID,
           actionParams = actionParams,
+          launchTime = launchTime.map(to_zdt),
           timestamp = to_zdt(now),
           error = NJError(ex),
           notes = error_json(in, ex)))
@@ -115,8 +116,8 @@ final private class ReTry[F[_]: Async, IN, OUT] private (
         .flatMap(_ => execute(in))
         .guaranteeCase {
           case Outcome.Succeeded(fa) => fa.flatMap(send_success(launchTime, in, _))
-          case Outcome.Errored(e)    => send_failure(in, e)
-          case Outcome.Canceled()    => send_failure(in, ActionCancelException)
+          case Outcome.Errored(e)    => send_failure(in, e, Some(launchTime))
+          case Outcome.Canceled()    => send_failure(in, ActionCancelException, Some(launchTime))
         }
     }
 
@@ -124,32 +125,32 @@ final private class ReTry[F[_]: Async, IN, OUT] private (
     F.realTime.flatMap { launchTime =>
       execute(in).guaranteeCase {
         case Outcome.Succeeded(fa) => fa.flatMap(send_success(launchTime, in, _))
-        case Outcome.Errored(e)    => send_failure(in, e)
-        case Outcome.Canceled()    => send_failure(in, ActionCancelException)
+        case Outcome.Errored(e)    => send_failure(in, e, Some(launchTime))
+        case Outcome.Canceled()    => send_failure(in, ActionCancelException, Some(launchTime))
       }
     }
 
   private[this] def silent_time(in: IN): F[OUT] =
-    F.monotonic.flatMap { launchTime => // faster than F.timed
+    F.realTime.flatMap { launchTime => // faster than F.timed
       execute(in).guaranteeCase {
-        case Outcome.Succeeded(_) => F.monotonic.map(now => measure_done(now - launchTime))
-        case Outcome.Errored(e)   => send_failure(in, e)
-        case Outcome.Canceled()   => send_failure(in, ActionCancelException)
+        case Outcome.Succeeded(_) => F.realTime.map(now => measure_done(now - launchTime))
+        case Outcome.Errored(e)   => send_failure(in, e, Some(launchTime))
+        case Outcome.Canceled()   => send_failure(in, ActionCancelException, Some(launchTime))
       }
     }
 
   private[this] def silent_count(in: IN): F[OUT] =
     execute(in).guaranteeCase {
       case Outcome.Succeeded(fa) => fa.map(_ => measure_done(Duration.Zero))
-      case Outcome.Errored(e)    => send_failure(in, e)
-      case Outcome.Canceled()    => send_failure(in, ActionCancelException)
+      case Outcome.Errored(e)    => send_failure(in, e, None)
+      case Outcome.Canceled()    => send_failure(in, ActionCancelException, None)
     }
 
   private[this] def silent(in: IN): F[OUT] =
     execute(in).guaranteeCase {
       case Outcome.Succeeded(_) => F.unit
-      case Outcome.Errored(e)   => send_failure(in, e)
-      case Outcome.Canceled()   => send_failure(in, ActionCancelException)
+      case Outcome.Errored(e)   => send_failure(in, e, None)
+      case Outcome.Canceled()   => send_failure(in, ActionCancelException, None)
     }
 
   val kleisli: Kleisli[F, IN, OUT] = {

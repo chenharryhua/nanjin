@@ -15,6 +15,8 @@ object PrettyJsonTranslator {
 
   private def took(dur: Duration): (String, Json) =
     "took" -> Json.fromString(fmt.format(dur))
+  private def took(dur: Option[Duration]): (String, Json) =
+    dur.fold("took" -> Json.Null)(took)
 
   private def uptime(evt: NJEvent): (String, Json) =
     "upTime" -> Json.fromString(fmt.format(evt.upTime))
@@ -137,6 +139,7 @@ object PrettyJsonTranslator {
           config(evt),
           serviceName(evt),
           serviceId(evt),
+          took(evt.took),
           policy(evt.actionParams),
           notes(evt.notes),
           stack(evt.error)

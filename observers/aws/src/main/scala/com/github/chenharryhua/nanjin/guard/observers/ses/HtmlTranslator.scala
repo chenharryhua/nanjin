@@ -197,11 +197,13 @@ private object HtmlTranslator extends all {
 
   private def action_fail(evt: ActionFail): Text.TypedTag[String] = {
     val fg = frag(
-      tr(th(CONSTANT_CONFIG), th(CONSTANT_POLICY)),
+      tr(th(CONSTANT_CONFIG), th(CONSTANT_POLICY), th(CONSTANT_TOOK)),
       tr(
         td(evt.actionParams.configStr),
-        td(evt.actionParams.retryPolicy.show)
-      ))
+        td(evt.actionParams.retryPolicy.show),
+        td(tookText(evt.took))
+      )
+    )
     div(
       h3(style := htmlColoring(evt))(eventTitle(evt)),
       table(service_table(evt), action_section(evt), fg),
