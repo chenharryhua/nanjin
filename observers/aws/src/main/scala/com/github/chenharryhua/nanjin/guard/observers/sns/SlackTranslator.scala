@@ -268,9 +268,10 @@ private object SlackTranslator extends all {
             HeaderSection(eventTitle(evt)),
             host_service_section(evt.serviceParams),
             name_section(evt.actionParams.metricName),
-            MarkdownSection(s"""|${policy(evt)}
-                                |${action_id(evt)}
-                                |${service_id(evt)}""".stripMargin),
+            MarkdownSection(s"""*$CONSTANT_TOOK:* ${tookText(evt.took)}
+                               |${policy(evt)}
+                               |${action_id(evt)}
+                               |${service_id(evt)}""".stripMargin),
             MarkdownSection(s"""```${abbreviate(evt.notes)}```""")
           )
         ),
