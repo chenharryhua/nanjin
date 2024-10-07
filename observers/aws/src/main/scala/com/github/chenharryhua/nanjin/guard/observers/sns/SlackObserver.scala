@@ -67,11 +67,11 @@ final class SlackObserver[F[_]: Clock](
         .evalTap(ofm.monitoring)
         .evalTap(e =>
           translator.filter {
-            case ActionStart(_, ap, _, _)    => ap.importance === Importance.Critical
-            case ActionDone(_, ap, _, _, _)  => ap.importance === Importance.Critical
-            case ActionRetry(_, ap, _, _, _) => ap.importance > Importance.Insignificant
-            case ActionFail(_, ap, _, _, _)  => ap.importance > Importance.Suppressed
-            case _                           => true
+            case ActionStart(_, ap, _, _)      => ap.importance === Importance.Critical
+            case ActionDone(_, ap, _, _, _)    => ap.importance === Importance.Critical
+            case ActionRetry(_, ap, _, _, _)   => ap.importance > Importance.Insignificant
+            case ActionFail(_, ap, _, _, _, _) => ap.importance > Importance.Suppressed
+            case _                             => true
           }.translate(e).flatMap(_.traverse(msg => publish(sns, snsArn, msg.asJson.noSpaces))))
         .onFinalize(ofm.terminated.flatMap(_.traverse(msg => publish(sns, snsArn, msg.asJson.noSpaces))).void)
     } yield event
