@@ -188,7 +188,7 @@ val baseLib = List(
   "org.typelevel" %% "cats-effect"                 % catsEffectV,
   "org.typelevel" %% "cats-time"                   % "0.5.1",
   "org.typelevel" %% "squants"                     % "1.8.3",
-  "org.typelevel" %% "case-insensitive"            % "1.4.0",
+  "org.typelevel" %% "case-insensitive"            % "1.4.2",
   "io.scalaland" %% "chimney"                      % chimneyV,
   "io.scalaland" %% "enumz"                        % "1.1.0",
   "com.chuusai" %% "shapeless"                     % "2.3.12",
