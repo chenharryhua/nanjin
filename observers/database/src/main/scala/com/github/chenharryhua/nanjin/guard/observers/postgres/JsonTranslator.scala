@@ -29,7 +29,7 @@ private object JsonTranslator {
       "event" -> EventName.ServicePanic.camelJson,
       index(evt.tick),
       serviceName(evt),
-      policy(evt),
+      policy(evt.serviceParams.servicePolicies.restart),
       stack(evt.error),
       serviceId(evt),
       timestamp(evt)
@@ -41,7 +41,7 @@ private object JsonTranslator {
       serviceName(evt),
       exitCode(evt.cause),
       exitCause(evt.cause),
-      policy(evt),
+      policy(evt.serviceParams.servicePolicies.restart),
       serviceId(evt),
       timestamp(evt)
     )

@@ -1,8 +1,8 @@
 package com.github.chenharryhua.nanjin.guard.translator
 
 import cats.implicits.toShow
-import com.github.chenharryhua.nanjin.common.chrono.Tick
-import com.github.chenharryhua.nanjin.guard.config.{ActionParams, MetricName, ServiceParams}
+import com.github.chenharryhua.nanjin.common.chrono.{Policy, Tick}
+import com.github.chenharryhua.nanjin.guard.config.{MetricName, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.{ActionEvent, ServiceAlert}
 import com.github.chenharryhua.nanjin.guard.event.{MetricIndex, NJError, NJEvent, ServiceStopCause}
 import io.circe.Json
@@ -20,9 +20,8 @@ object jsonHelper {
 
   def index(tick: Tick): (String, Json) = "index" -> Json.fromLong(tick.index)
 
-  def policy(evt: NJEvent): (String, Json) =
-    "policy" -> Json.fromString(evt.serviceParams.servicePolicies.restart.show)
-  def policy(ap: ActionParams): (String, Json) = "policy" -> Json.fromString(ap.retryPolicy.show)
+  def policy(ap: Policy): (String, Json) = "policy" -> Json.fromString(ap.show)
+
   def errorCause(err: NJError): (String, Json) = "cause" -> Json.fromString(err.message)
   def stack(err: NJError): (String, Json)      = "stack" -> err.stack.asJson
 
