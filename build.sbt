@@ -33,7 +33,7 @@ val enumeratumV = "1.7.5"
 val drosteV     = "0.9.0"
 val slf4jV      = "2.0.16"
 val log4catsV   = "2.7.0"
-val logbackV    = "1.5.8"
+val logbackV    = "1.5.9"
 val jwtV        = "0.12.6"
 val postgresV   = "42.7.4"
 val acyclicV    = "0.3.15"
@@ -188,7 +188,7 @@ val baseLib = List(
   "org.typelevel" %% "cats-effect"                 % catsEffectV,
   "org.typelevel" %% "cats-time"                   % "0.5.1",
   "org.typelevel" %% "squants"                     % "1.8.3",
-  "org.typelevel" %% "case-insensitive"            % "1.4.0",
+  "org.typelevel" %% "case-insensitive"            % "1.4.2",
   "io.scalaland" %% "chimney"                      % chimneyV,
   "io.scalaland" %% "enumz"                        % "1.1.0",
   "com.chuusai" %% "shapeless"                     % "2.3.12",
@@ -449,7 +449,7 @@ lazy val spark = (project in file("spark"))
   .settings(
     libraryDependencies ++= List(
       "org.apache.ivy"                         % "ivy"             % "2.5.2", // snyk
-      "com.julianpeeters" %% "avrohugger-core" % "2.8.3"           % Test,
+      "com.julianpeeters" %% "avrohugger-core" % "2.8.4"           % Test,
       "ch.qos.logback"                         % "logback-classic" % logbackV  % Test,
       "org.postgresql"                         % "postgresql"      % postgresV % Test
     ) ++ sparkLib.map(_.exclude("commons-logging", "commons-logging")) ++ testLib
