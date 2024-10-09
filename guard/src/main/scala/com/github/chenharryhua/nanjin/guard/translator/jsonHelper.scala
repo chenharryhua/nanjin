@@ -15,8 +15,6 @@ object jsonHelper {
   def serviceParams(sp: ServiceParams): (String, Json) = "params" -> sp.asJson
   def exitCode(sc: ServiceStopCause): (String, Json)   = "exitCode" -> Json.fromInt(sc.exitCode)
   def exitCause(sc: ServiceStopCause): (String, Json)  = "exitCause" -> sc.asJson
-  def actionId(evt: ActionEvent): (String, Json)       = "actionId" -> Json.fromInt(evt.actionID.uniqueToken)
-  def alertId(evt: ServiceAlert): (String, Json)       = "alertId" -> Json.fromInt(evt.alertID.uniqueToken)
 
   def index(tick: Tick): (String, Json) = "index" -> Json.fromLong(tick.index)
 

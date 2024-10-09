@@ -2,11 +2,13 @@ package mtest.guard
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.common.chrono.Policy
+import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
+import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy}
 import com.github.chenharryhua.nanjin.guard.TaskGuard
+import com.github.chenharryhua.nanjin.guard.event.MetricIndex.Periodic
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.{MetricReport, ServiceStart, ServiceStop}
 import com.github.chenharryhua.nanjin.guard.event.eventFilters
-import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
+import com.github.chenharryhua.nanjin.guard.service.{Agent, ServiceGuard}
 import eu.timepit.refined.auto.*
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -40,62 +42,52 @@ class EventFilterTest extends AnyFunSuite {
     assert(b.isInstanceOf[ServiceStop])
   }
 
+  private def sleepAction(agent: Agent[IO]): IO[Unit] =
+    agent.action("sleep").retry(IO.sleep(7.seconds)).buildWith(identity).use(_.run(()))
+
   test("4.sampling - FiniteDuration") {
-    val List(a, b, c, d, e) = service
+    val List(a, b, c, d) = service
       .updateConfig(_.withMetricReport(Policy.crontab(_.secondly)))
-      .eventStream(agent =>
-        agent
-          .action("sleep")
-          .retry(IO.sleep(5.seconds))
-          .buildWith(identity)
-          .use(_.run(())) >> agent.metrics.report)
+      .eventStream(sleepAction)
       .map(checkJson)
       .filter(eventFilters.sampling(3.seconds))
       .compile
       .toList
       .unsafeRunSync()
     assert(a.isInstanceOf[ServiceStart])
-    assert(b.isInstanceOf[MetricReport])
-    assert(c.isInstanceOf[MetricReport])
-    assert(d.isInstanceOf[MetricReport])
-    assert(e.isInstanceOf[ServiceStop])
+    assert(b.asInstanceOf[MetricReport].index.asInstanceOf[Periodic].tick.index === 4)
+    assert(c.asInstanceOf[MetricReport].index.asInstanceOf[Periodic].tick.index === 7)
+    assert(d.isInstanceOf[ServiceStop])
   }
 
   test("5.sampling - divisor") {
     val List(a, b, c, d) = service
       .updateConfig(_.withMetricReport(Policy.crontab(_.secondly)))
-      .eventStream(agent =>
-        agent
-          .action("sleep")
-          .retry(IO.sleep(5.seconds))
-          .buildWith(identity)
-          .use(_.run(())) >> agent.metrics.report)
+      .eventStream(sleepAction)
       .map(checkJson)
       .filter(eventFilters.sampling(3))
       .compile
       .toList
       .unsafeRunSync()
     assert(a.isInstanceOf[ServiceStart])
-    assert(b.isInstanceOf[MetricReport])
-    assert(c.isInstanceOf[MetricReport])
+    assert(b.asInstanceOf[MetricReport].index.asInstanceOf[Periodic].tick.index === 3)
+    assert(c.asInstanceOf[MetricReport].index.asInstanceOf[Periodic].tick.index === 6)
     assert(d.isInstanceOf[ServiceStop])
   }
 
   test("6.sampling - cron") {
     val policy = Policy.crontab(_.secondly)
-    val lst = service
+    val align  = tickStream[IO](Policy.crontab(_.every3Seconds).limited(1), sydneyTime)
+    val run = service
       .updateConfig(_.withMetricReport(policy))
-      .eventStream(agent =>
-        agent
-          .action("sleep")
-          .retry(IO.sleep(7.seconds))
-          .buildWith(identity)
-          .use(_.run(())) >> agent.metrics.report)
+      .eventStream(sleepAction)
       .map(checkJson)
       .filter(eventFilters.sampling(_.every3Seconds))
-      .compile
-      .toList
-      .unsafeRunSync()
-    assert(lst.size < 6)
+
+    val List(a, b, c, d) = align.flatMap(_ => run).debug().compile.toList.unsafeRunSync()
+    assert(a.isInstanceOf[ServiceStart])
+    assert(b.asInstanceOf[MetricReport].index.asInstanceOf[Periodic].tick.index === 3)
+    assert(c.asInstanceOf[MetricReport].index.asInstanceOf[Periodic].tick.index === 6)
+    assert(d.isInstanceOf[ServiceStop])
   }
 }

@@ -34,11 +34,11 @@ final case class Tick private[chrono] (
 
   def active: Duration = Duration.between(previous, acquire)
 
-  /** check if an instant is in this tick frame from previous timestamp(inclusive) to current
-    * timestamp(exclusive).
+  /** check if an instant is in this tick frame from previous timestamp(exclusive) to current
+    * timestamp(inclusive).
     */
   def inBetween(now: Instant): Boolean =
-    (now.isAfter(previous) || (now === previous)) && now.isBefore(wakeup)
+    (now.isAfter(previous) && now.isBefore(wakeup)) || (now === wakeup)
 
   def newTick(now: Instant, delay: Duration): Tick =
     copy(

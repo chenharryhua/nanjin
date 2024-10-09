@@ -4,6 +4,7 @@ import cats.syntax.all.*
 import cats.{Applicative, Eval}
 import com.github.chenharryhua.nanjin.guard.config.{AlertLevel, MetricName, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.{MetricSnapshot, NJError, NJEvent}
+import com.github.chenharryhua.nanjin.guard.translator.metricConstants.METRICS_DIGEST
 import com.github.chenharryhua.nanjin.guard.translator.textConstants.*
 import com.github.chenharryhua.nanjin.guard.translator.textHelper.*
 import com.github.chenharryhua.nanjin.guard.translator.{ColorScheme, SnapshotPolyglot, Translator}
@@ -201,7 +202,7 @@ private object SlackTranslator extends all {
             HeaderSection(s"$symbol ${eventTitle(evt)}"),
             host_service_section(evt.serviceParams),
             name_section(evt.metricName),
-            MarkdownSection(s"""|*$CONSTANT_ALERT_ID:* ${evt.alertID.show}/${evt.metricName.digest}
+            MarkdownSection(s"""|*$METRICS_DIGEST:* ${evt.metricName.digest}
                                 |*$CONSTANT_SERVICE_ID:* ${evt.serviceParams.serviceId.show}""".stripMargin),
             MarkdownSection(s"```${abbreviate(evt.message)}```")
           )
@@ -212,8 +213,8 @@ private object SlackTranslator extends all {
   private def service_id(evt: ActionEvent): String =
     s"*$CONSTANT_SERVICE_ID:* ${evt.serviceParams.serviceId.show}"
 
-  private def action_id(evt: ActionEvent): String =
-    s"*$CONSTANT_ACTION_ID:* ${evt.actionID.show}/${evt.actionParams.metricName.digest}"
+  private def action_digest(evt: ActionEvent): String =
+    s"*$METRICS_DIGEST:* ${evt.actionParams.metricName.digest}"
 
   private def policy(evt: ActionEvent): String =
     show"*$CONSTANT_POLICY:* ${evt.actionParams.retryPolicy}"
@@ -229,7 +230,7 @@ private object SlackTranslator extends all {
             host_service_section(evt.serviceParams),
             name_section(evt.actionParams.metricName),
             MarkdownSection(s"""|${policy(evt)}
-                                |${action_id(evt)}
+                                |${action_digest(evt)}
                                 |${service_id(evt)}""".stripMargin),
             MarkdownSection(s"""```${abbreviate(evt.notes)}```""")
           )
@@ -248,7 +249,7 @@ private object SlackTranslator extends all {
             name_section(evt.actionParams.metricName),
             MarkdownSection(s"""|${retryText(evt)}
                                 |${policy(evt)}
-                                |${action_id(evt)}
+                                |${action_digest(evt)}
                                 |${service_id(evt)}
                                 |*$CONSTANT_CAUSE:* ${evt.error.message}""".stripMargin),
             MarkdownSection(s"""```${abbreviate(evt.notes)}```""")
@@ -270,7 +271,7 @@ private object SlackTranslator extends all {
             name_section(evt.actionParams.metricName),
             MarkdownSection(s"""*$CONSTANT_TOOK:* ${tookText(evt.took)}
                                |${policy(evt)}
-                               |${action_id(evt)}
+                               |${action_digest(evt)}
                                |${service_id(evt)}""".stripMargin),
             MarkdownSection(s"""```${abbreviate(evt.notes)}```""")
           )
@@ -294,7 +295,7 @@ private object SlackTranslator extends all {
             host_service_section(evt.serviceParams),
             name_section(evt.actionParams.metricName),
             MarkdownSection(s"""|*$CONSTANT_TOOK:* ${tookText(evt.took)}
-                                |${action_id(evt)}
+                                |${action_digest(evt)}
                                 |${service_id(evt)}""".stripMargin),
             MarkdownSection(s"""```${abbreviate(evt.notes)}```""")
           )
