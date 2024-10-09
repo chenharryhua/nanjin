@@ -47,7 +47,7 @@ object PrettyJsonTranslator {
           index(evt.tick),
           active(evt.tick),
           "snooze" -> Json.fromString(fmt.format(evt.tick.snooze)),
-          policy(evt),
+          policy(evt.serviceParams.servicePolicies.restart),
           stack(evt.error)
         ))
 
@@ -58,7 +58,7 @@ object PrettyJsonTranslator {
           serviceName(evt),
           serviceId(evt),
           uptime(evt),
-          policy(evt),
+          policy(evt.serviceParams.servicePolicies.restart),
           exitCode(evt.cause),
           exitCause(evt.cause)
         ))
@@ -70,9 +70,11 @@ object PrettyJsonTranslator {
           metricIndex(evt.index),
           serviceName(evt),
           serviceId(evt),
+          policy(evt.serviceParams.servicePolicies.metricReport),
           uptime(evt),
           took(evt.took),
-          pretty_metrics(evt.snapshot)))
+          pretty_metrics(evt.snapshot)
+        ))
 
   private def metric_reset(evt: MetricReset): Json =
     Json.obj(
@@ -81,9 +83,11 @@ object PrettyJsonTranslator {
           metricIndex(evt.index),
           serviceName(evt),
           serviceId(evt),
+          policy(evt.serviceParams.servicePolicies.metricReset),
           uptime(evt),
           took(evt.took),
-          pretty_metrics(evt.snapshot)))
+          pretty_metrics(evt.snapshot)
+        ))
 
   private def service_alert(evt: ServiceAlert): Json =
     Json.obj(
@@ -93,7 +97,6 @@ object PrettyJsonTranslator {
           metricDigest(evt.metricName),
           metricMeasurement(evt.metricName),
           serviceName(evt),
-          alertId(evt),
           serviceId(evt),
           alertMessage(evt)
         ))
@@ -105,7 +108,6 @@ object PrettyJsonTranslator {
           metricName(evt.actionParams.metricName),
           metricDigest(evt.actionParams.metricName),
           metricMeasurement(evt.actionParams.metricName),
-          actionId(evt),
           config(evt),
           serviceName(evt),
           serviceId(evt),
@@ -119,11 +121,10 @@ object PrettyJsonTranslator {
           metricName(evt.actionParams.metricName),
           metricDigest(evt.actionParams.metricName),
           metricMeasurement(evt.actionParams.metricName),
-          actionId(evt),
           config(evt),
           serviceName(evt),
           serviceId(evt),
-          policy(evt.actionParams),
+          policy(evt.actionParams.retryPolicy),
           notes(evt.notes),
           errorCause(evt.error)
         ))
@@ -135,12 +136,11 @@ object PrettyJsonTranslator {
           metricName(evt.actionParams.metricName),
           metricDigest(evt.actionParams.metricName),
           metricMeasurement(evt.actionParams.metricName),
-          actionId(evt),
           config(evt),
           serviceName(evt),
           serviceId(evt),
           took(evt.took),
-          policy(evt.actionParams),
+          policy(evt.actionParams.retryPolicy),
           notes(evt.notes),
           stack(evt.error)
         ))
@@ -152,7 +152,6 @@ object PrettyJsonTranslator {
           metricName(evt.actionParams.metricName),
           metricDigest(evt.actionParams.metricName),
           metricMeasurement(evt.actionParams.metricName),
-          actionId(evt),
           config(evt),
           serviceName(evt),
           serviceId(evt),

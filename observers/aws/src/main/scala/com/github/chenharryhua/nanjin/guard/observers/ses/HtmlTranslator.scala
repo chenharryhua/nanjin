@@ -3,13 +3,14 @@ package com.github.chenharryhua.nanjin.guard.observers.ses
 import cats.Applicative
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.event.{NJError, NJEvent}
-import com.github.chenharryhua.nanjin.guard.translator.{htmlHelper, textConstants, textHelper, Translator}
+import com.github.chenharryhua.nanjin.guard.translator.metricConstants.METRICS_DIGEST
+import com.github.chenharryhua.nanjin.guard.translator.{Translator, htmlHelper, textConstants, textHelper}
 import io.circe.Json
 import io.circe.syntax.EncoderOps
 import org.typelevel.cats.time.instances.all
 import scalatags.Text.all.*
 import scalatags.text.Builder
-import scalatags.{generic, Text}
+import scalatags.{Text, generic}
 
 import java.time.temporal.ChronoUnit
 
@@ -141,10 +142,10 @@ private object HtmlTranslator extends all {
 
   private def service_alert(evt: ServiceAlert): Text.TypedTag[String] = {
     val fg = frag(
-      tr(th(CONSTANT_MEASUREMENT), th(CONSTANT_ALERT_ID), th(CONSTANT_NAME)),
+      tr(th(CONSTANT_MEASUREMENT), th(METRICS_DIGEST), th(CONSTANT_NAME)),
       tr(
         td(evt.metricName.measurement),
-        td(s"${evt.alertID.show}/${evt.metricName.digest}"),
+        td(s"${evt.metricName.digest}"),
         td(evt.metricName.name)
       )
     )
@@ -157,10 +158,10 @@ private object HtmlTranslator extends all {
 
   private def action_section(evt: ActionEvent): generic.Frag[Builder, String] =
     frag(
-      tr(th(CONSTANT_MEASUREMENT), th(CONSTANT_ACTION_ID), th(CONSTANT_NAME)),
+      tr(th(CONSTANT_MEASUREMENT), th(METRICS_DIGEST), th(CONSTANT_NAME)),
       tr(
         td(evt.actionParams.metricName.measurement),
-        td(s"${evt.actionID.show}/${evt.actionParams.metricName.digest}"),
+        td(s"${evt.actionParams.metricName.digest}"),
         td(evt.actionParams.metricName.name)
       )
     )

@@ -29,7 +29,7 @@ private object JsonTranslator {
       "event" -> EventName.ServicePanic.camelJson,
       index(evt.tick),
       serviceName(evt),
-      policy(evt),
+      policy(evt.serviceParams.servicePolicies.restart),
       stack(evt.error),
       serviceId(evt),
       timestamp(evt)
@@ -41,7 +41,7 @@ private object JsonTranslator {
       serviceName(evt),
       exitCode(evt.cause),
       exitCause(evt.cause),
-      policy(evt),
+      policy(evt.serviceParams.servicePolicies.restart),
       serviceId(evt),
       timestamp(evt)
     )
@@ -75,7 +75,6 @@ private object JsonTranslator {
       metricName(evt.metricName),
       metricDigest(evt.metricName),
       metricMeasurement(evt.metricName),
-      alertId(evt),
       serviceId(evt),
       timestamp(evt)
     )
@@ -88,7 +87,6 @@ private object JsonTranslator {
       metricMeasurement(evt.actionParams.metricName),
       config(evt),
       notes(evt.notes),
-      actionId(evt),
       serviceId(evt),
       timestamp(evt)
     )
@@ -101,7 +99,6 @@ private object JsonTranslator {
       metricMeasurement(evt.actionParams.metricName),
       config(evt),
       errorCause(evt.error),
-      actionId(evt),
       serviceId(evt),
       timestamp(evt)
     )
@@ -115,7 +112,6 @@ private object JsonTranslator {
       config(evt),
       notes(evt.notes),
       stack(evt.error),
-      actionId(evt),
       serviceId(evt),
       timestamp(evt)
     )
@@ -129,7 +125,6 @@ private object JsonTranslator {
       config(evt),
       took(evt.took),
       notes(evt.notes),
-      actionId(evt),
       serviceId(evt),
       timestamp(evt)
     )

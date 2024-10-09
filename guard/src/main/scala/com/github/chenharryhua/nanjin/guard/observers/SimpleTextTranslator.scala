@@ -3,7 +3,8 @@ package com.github.chenharryhua.nanjin.guard.observers
 import cats.Applicative
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.event.{NJError, NJEvent}
-import com.github.chenharryhua.nanjin.guard.translator.{textConstants, textHelper, Translator}
+import com.github.chenharryhua.nanjin.guard.translator.metricConstants.METRICS_DIGEST
+import com.github.chenharryhua.nanjin.guard.translator.{Translator, textConstants, textHelper}
 import io.circe.Json
 import io.circe.syntax.EncoderOps
 
@@ -31,7 +32,7 @@ object SimpleTextTranslator {
 
   private def action_event(ae: ActionEvent): String = {
     val mm   = s"$CONSTANT_MEASUREMENT:${ae.actionParams.metricName.measurement}"
-    val id   = s"$CONSTANT_ACTION_ID:${ae.actionID.show}/${ae.actionParams.metricName.digest}"
+    val id   = s"$METRICS_DIGEST:${ae.actionParams.metricName.digest}"
     val name = s"$CONSTANT_NAME:${ae.actionParams.metricName.name}"
 
     val policy = s"$CONSTANT_POLICY:${ae.actionParams.retryPolicy.show}"
@@ -94,7 +95,7 @@ object SimpleTextTranslator {
 
   private def service_alert(evt: ServiceAlert): String = {
     val ms   = s"$CONSTANT_MEASUREMENT:${evt.metricName.measurement}"
-    val id   = s"$CONSTANT_ALERT_ID:${evt.alertID.show}/${evt.metricName.digest}"
+    val id   = s"$METRICS_DIGEST:${evt.metricName.digest}"
     val name = s"$CONSTANT_NAME:${evt.metricName.name}"
     s"""|${eventTitle(evt)}
         |  ${service_event(evt)}
