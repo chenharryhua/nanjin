@@ -454,7 +454,7 @@ lazy val spark = (project in file("spark"))
       "org.postgresql"                         % "postgresql"      % postgresV % Test
     ) ++ sparkLib.map(_.exclude("commons-logging", "commons-logging")) ++ testLib
   )
-  .settings(dependencyOverrides += "org.json4s" %% "json4s-native" % "3.6.12")
+  .settings(dependencyOverrides += "org.json4s" %% "json4s-native" % "4.0.7")
 
 lazy val example = (project in file("example"))
   .dependsOn(common)
