@@ -14,8 +14,16 @@ import scala.concurrent.duration.{DurationLong, FiniteDuration}
 import scala.jdk.DurationConverters.JavaDurationOps
 
 object retry {
+  def apply[F[_]: UUIDGen: Temporal](policy: Policy, zoneId: ZoneId)(client: Client[F]): Client[F] =
+    impl[F](policy, zoneId, RetryPolicy.defaultRetriable)(client)
 
-  def apply[F[_]: UUIDGen: Temporal](policy: Policy, zoneId: ZoneId)(client: Client[F]): Client[F] = {
+  def reckless[F[_]: UUIDGen: Temporal](policy: Policy, zoneId: ZoneId)(client: Client[F]): Client[F] =
+    impl[F](policy, zoneId, (_, ex) => RetryPolicy.recklesslyRetriable(ex))(client)
+
+  private def impl[F[_]: UUIDGen: Temporal](
+    policy: Policy,
+    zoneId: ZoneId,
+    retriable: (Request[F], Either[Throwable, Response[F]]) => Boolean)(client: Client[F]): Client[F] = {
     def nextAttempt(
       req: Request[F],
       tickStatus: TickStatus,
@@ -50,7 +58,7 @@ object retry {
                 case None     => ex.raiseError
               })
           case Right(response) =>
-            if (RetryPolicy.defaultRetriable(req, Right(response))) {
+            if (retriable(req, Right(response))) {
               Temporal[F].realTimeInstant.flatMap(now =>
                 tickStatus.next(now) match {
                   case Some(ts) => nextAttempt(req, ts, response.headers.get[`Retry-After`], hotswap)
