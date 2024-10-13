@@ -11,31 +11,56 @@ import java.text.DecimalFormat
 import scala.concurrent.duration.*
 
 /** ---warm-up: 424K/s, 2 micro 355 nano
- * ---baseline: 	14,704,642 /s, 	68 nano
- * ---disabled: 	15,023,452 /s, 	66 nano
- * bipartite.time.count: 	281,530 /s, 	3 micro 552 nano
- * bipartite.time:     	271,775 /s, 	3 micro 679 nano
- * bipartite.count:    	362,640 /s, 	2 micro 757 nano
- * bipartite:        	206,261 /s, 	4 micro 848 nano
- * ---kleisli.bipartite.time: 	234,392 /s, 	4 micro 266 nano
- * unipartite.time.count: 	431,482 /s, 	2 micro 317 nano
- * unipartite.time:      	442,521 /s, 	2 micro 259 nano
- * unipartite.count:    	480,515 /s, 	2 micro 81 nano
- * unipartite:         	500,781 /s, 	1 micro 996 nano
- * ---kleisli.unipartite.time: 	302,935 /s, 	3 micro 301 nano
- * silent.time.count: 	930,833 /s, 	1 micro 74 nano
- * silent.time:      	958,693 /s, 	1 micro 43 nano
- * silent.count:     	1,765,452 /s, 	566 nano
- * silent:           	1,979,837 /s, 	505 nano
- * ---kleisli.silent.time: 	706,092 /s, 	1 micro 416 nano
- * flow-meter:       	3,027,130 /s, 	330 nano
- * meter:            	5,177,620 /s, 	193 nano
- * meter.count:      	4,928,916 /s, 	202 nano
- * histogram:        	3,714,752 /s, 	269 nano
- * histogram.count: 	3,479,467 /s, 	287 nano
- * timer:          	2,991,335 /s, 	334 nano
- * timer.count:    	2,951,528 /s, 	338 nano
- * count:          	7,181,873 /s, 	139 nano
+  *
+  * ---baseline: 14,704,642 /s, 68 nano
+  *
+  * ---disabled: 15,023,452 /s, 66 nano
+  *
+  * bipartite.time.count: 281,530 /s, 3 micro 552 nano
+  *
+  * bipartite.time: 271,775 /s, 3 micro 679 nano
+  *
+  * bipartite.count: 362,640 /s, 2 micro 757 nano
+  *
+  * bipartite: 206,261 /s, 4 micro 848 nano
+  *
+  * ---kleisli.bipartite.time: 234,392 /s, 4 micro 266 nano
+  *
+  * unipartite.time.count: 431,482 /s, 2 micro 317 nano
+  *
+  * unipartite.time: 442,521 /s, 2 micro 259 nano
+  *
+  * unipartite.count: 480,515 /s, 2 micro 81 nano
+  *
+  * unipartite: 500,781 /s, 1 micro 996 nano
+  *
+  * ---kleisli.unipartite.time: 302,935 /s, 3 micro 301 nano
+  *
+  * silent.time.count: 930,833 /s, 1 micro 74 nano
+  *
+  * silent.time: 958,693 /s, 1 micro 43 nano
+  *
+  * silent.count: 1,765,452 /s, 566 nano
+  *
+  * silent: 1,979,837 /s, 505 nano
+  *
+  * ---kleisli.silent.time: 706,092 /s, 1 micro 416 nano
+  *
+  * flow-meter: 3,027,130 /s, 330 nano
+  *
+  * meter: 5,177,620 /s, 193 nano
+  *
+  * meter.count: 4,928,916 /s, 202 nano
+  *
+  * histogram: 3,714,752 /s, 269 nano
+  *
+  * histogram.count: 3,479,467 /s, 287 nano
+  *
+  * timer: 2,991,335 /s, 334 nano
+  *
+  * timer.count: 2,951,528 /s, 338 nano
+  *
+  * count: 7,181,873 /s, 139 nano
   */
 
 class PerformanceTest extends AnyFunSuite {
