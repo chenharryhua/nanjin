@@ -63,6 +63,7 @@ object NJEvent {
   sealed trait ActionEvent extends NJEvent {
     def actionID: UniqueToken
     def actionParams: ActionParams
+    def notes: Json
     final override def serviceParams: ServiceParams = actionParams.serviceParams
   }
 
@@ -76,15 +77,14 @@ object NJEvent {
   final case class ActionRetry(
     actionID: UniqueToken,
     actionParams: ActionParams,
-    error: NJError,
     notes: Json,
+    error: NJError,
     tick: Tick)
       extends ActionEvent {
     override val timestamp: ZonedDateTime = tick.zonedAcquire
   }
 
   sealed trait ActionResultEvent extends ActionEvent {
-    def notes: Json
     def isDone: Boolean
   }
 
@@ -93,8 +93,8 @@ object NJEvent {
     actionParams: ActionParams,
     launchTime: Option[ZonedDateTime],
     timestamp: ZonedDateTime, // land time
-    error: NJError,
-    notes: Json)
+    notes: Json,
+    error: NJError)
       extends ActionResultEvent {
     override val isDone: Boolean = false
     val took: Option[Duration]   = launchTime.map(Duration.between(_, timestamp))
