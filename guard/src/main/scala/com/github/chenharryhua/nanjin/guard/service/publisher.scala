@@ -51,7 +51,7 @@ private object publisher {
     serviceParams: ServiceParams,
     tick: Tick,
     error: NJError)(implicit F: Functor[F]): F[ServicePanic] = {
-    val panic: ServicePanic = ServicePanic(serviceParams, error, tick)
+    val panic: ServicePanic = ServicePanic(serviceParams, tick, error)
     channel.send(panic).as(panic)
   }
 

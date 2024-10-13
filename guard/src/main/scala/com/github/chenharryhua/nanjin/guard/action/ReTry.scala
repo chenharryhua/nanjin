@@ -62,8 +62,9 @@ final private class ReTry[F[_]: Async, IN, OUT] private (
           actionParams = actionParams,
           launchTime = launchTime.map(to_zdt),
           timestamp = to_zdt(now),
-          error = NJError(ex),
-          notes = error_json(in, ex)))
+          notes = error_json(in, ex),
+          error = NJError(ex)
+        ))
     } yield measure_fail()
 
   private[this] def send_success(launchTime: FiniteDuration, in: IN, out: OUT): F[Unit] =
@@ -85,8 +86,8 @@ final private class ReTry[F[_]: Async, IN, OUT] private (
                 ActionRetry(
                   actionID = actionID,
                   actionParams = actionParams,
-                  error = NJError(ex),
                   notes = error_json(in, ex),
+                  error = NJError(ex),
                   tick = ts.tick))
               _ <- F.sleep(ts.tick.snooze.toScala)
             } yield {
@@ -110,7 +111,7 @@ final private class ReTry[F[_]: Async, IN, OUT] private (
   // static functions
 
   private[this] def bipartite(in: IN): F[OUT] =
-    F.realTime.flatMap { launchTime => // start and complete should come in pair
+    F.realTime.flatMap { launchTime =>
       channel
         .send(ActionStart(actionID, actionParams, to_zdt(launchTime), input_json(in)))
         .flatMap(_ => execute(in))

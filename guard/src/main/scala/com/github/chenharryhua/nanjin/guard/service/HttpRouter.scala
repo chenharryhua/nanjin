@@ -183,10 +183,11 @@ private class HttpRouter[F[_]](
                 panics.reverse.map { sp =>
                   Json.obj(
                     "index" -> sp.tick.index.asJson,
-                    "when_panic" -> sp.tick.zonedAcquire.toLocalDateTime.asJson,
-                    "restart_at" -> sp.tick.zonedWakeup.toLocalDateTime.asJson,
+                    "uprouse_at" -> sp.tick.zonedPrevious.toLocalDateTime.asJson,
                     "active" -> fmt.format(sp.tick.active).asJson,
+                    "when_panic" -> sp.tick.zonedAcquire.toLocalDateTime.asJson,
                     "snooze" -> fmt.format(sp.tick.snooze).asJson,
+                    "restart_at" -> sp.tick.zonedWakeup.toLocalDateTime.asJson,
                     "caused_by" -> sp.error.message.asJson
                   )
                 }.asJson
