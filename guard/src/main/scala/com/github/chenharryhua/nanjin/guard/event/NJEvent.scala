@@ -21,7 +21,7 @@ object NJEvent {
     val timestamp: ZonedDateTime = tick.zonedWakeup
   }
 
-  final case class ServicePanic(serviceParams: ServiceParams, error: NJError, tick: Tick) extends NJEvent {
+  final case class ServicePanic(serviceParams: ServiceParams, tick: Tick, error: NJError) extends NJEvent {
     val timestamp: ZonedDateTime = tick.zonedAcquire
   }
 
@@ -47,14 +47,14 @@ object NJEvent {
   }
 
   final case class MetricReport(
-    index: MetricIndex, // launch time
+    index: MetricIndex,
     serviceParams: ServiceParams,
     snapshot: MetricSnapshot,
     timestamp: ZonedDateTime) // land time
       extends MetricEvent
 
   final case class MetricReset(
-    index: MetricIndex, // launch time
+    index: MetricIndex,
     serviceParams: ServiceParams,
     snapshot: MetricSnapshot,
     timestamp: ZonedDateTime) // land time
@@ -96,8 +96,8 @@ object NJEvent {
     error: NJError,
     notes: Json)
       extends ActionResultEvent {
-    override val isDone: Boolean    = false
-    lazy val took: Option[Duration] = launchTime.map(Duration.between(_, timestamp))
+    override val isDone: Boolean = false
+    val took: Option[Duration]   = launchTime.map(Duration.between(_, timestamp))
   }
 
   final case class ActionDone(
@@ -108,7 +108,6 @@ object NJEvent {
     notes: Json)
       extends ActionResultEvent {
     override val isDone: Boolean = true
-
-    lazy val took: Duration = Duration.between(launchTime, timestamp)
+    val took: Duration           = Duration.between(launchTime, timestamp)
   }
 }

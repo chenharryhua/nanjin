@@ -110,7 +110,7 @@ final private class ReTry[F[_]: Async, IN, OUT] private (
   // static functions
 
   private[this] def bipartite(in: IN): F[OUT] =
-    F.realTime.flatMap { launchTime => // start and complete should come in pair
+    F.realTime.flatMap { launchTime =>
       channel
         .send(ActionStart(actionID, actionParams, to_zdt(launchTime), input_json(in)))
         .flatMap(_ => execute(in))
