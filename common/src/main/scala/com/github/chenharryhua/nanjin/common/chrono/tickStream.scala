@@ -32,4 +32,7 @@ object tickLazyList {
 
   def apply(policy: Policy, zoneId: ZoneId): LazyList[Tick] =
     apply(TickStatus(Tick.zeroth(UUID.randomUUID(), zoneId, Instant.now())).renewPolicy(policy))
+
+  def apply(policy: Policy): LazyList[Tick] =
+    apply(policy, ZoneId.systemDefault())
 }
