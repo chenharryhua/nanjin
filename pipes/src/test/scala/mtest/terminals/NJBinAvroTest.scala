@@ -5,11 +5,13 @@ import cats.effect.unsafe.implicits.global
 import cats.implicits.toTraverseOps
 import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.terminals.NJCompression.*
-import com.github.chenharryhua.nanjin.terminals.{BinAvroFile, NJFileKind, NJPath}
+import com.github.chenharryhua.nanjin.terminals.{BinAvroFile, NJFileKind}
 import eu.timepit.refined.auto.*
 import fs2.Stream
 import io.circe.jawn
 import io.circe.syntax.EncoderOps
+import io.lemonlabs.uri.Url
+import io.lemonlabs.uri.typesafe.dsl.*
 import org.apache.avro.generic.GenericRecord
 import org.scalatest.Assertion
 import org.scalatest.funsuite.AnyFunSuite
@@ -22,7 +24,7 @@ class NJBinAvroTest extends AnyFunSuite {
 
   private val binAvro = hdp.binAvro(pandaSchema)
 
-  def fs2(path: NJPath, file: BinAvroFile, data: Set[GenericRecord]): Assertion = {
+  def fs2(path: Url, file: BinAvroFile, data: Set[GenericRecord]): Assertion = {
     val tgt = path / file.fileName
 
     hdp.delete(tgt).unsafeRunSync()
@@ -38,7 +40,7 @@ class NJBinAvroTest extends AnyFunSuite {
     assert(size == data.size)
   }
 
-  val fs2Root: NJPath = NJPath("./data/test/terminals/bin_avro/panda")
+  val fs2Root: Url = "data/test/terminals/bin_avro/panda"
 
   test("uncompressed") {
     fs2(fs2Root, BinAvroFile(_.Uncompressed), pandaSet)
@@ -65,8 +67,8 @@ class NJBinAvroTest extends AnyFunSuite {
   }
 
   test("laziness") {
-    binAvro.source(NJPath("./does/not/exist"), 10)
-    binAvro.sink(NJPath("./does/not/exist"))
+    binAvro.source("./does/not/exist", 10)
+    binAvro.sink("./does/not/exist")
   }
 
   test("rotation") {

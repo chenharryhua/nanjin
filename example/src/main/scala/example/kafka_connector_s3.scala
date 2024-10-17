@@ -10,11 +10,13 @@ import com.github.chenharryhua.nanjin.guard.service.Agent
 import com.github.chenharryhua.nanjin.kafka.{KafkaContext, KafkaSettings}
 import com.github.chenharryhua.nanjin.messages.kafka.CRMetaInfo
 import com.github.chenharryhua.nanjin.messages.kafka.codec.gr2Jackson
-import com.github.chenharryhua.nanjin.terminals.{HadoopText, JacksonFile, NJHadoop, NJPath}
+import com.github.chenharryhua.nanjin.terminals.{HadoopText, JacksonFile, NJHadoop}
 import eu.timepit.refined.auto.*
 import fs2.kafka.{commitBatchWithin, AutoOffsetReset, CommittableConsumerRecord}
 import fs2.{Chunk, Pipe}
 import io.circe.syntax.EncoderOps
+import io.lemonlabs.uri.Url
+import io.lemonlabs.uri.typesafe.dsl.urlToUrlDsl
 import org.apache.avro.generic.GenericData
 import org.apache.hadoop.conf.Configuration
 
@@ -42,7 +44,7 @@ object kafka_connector_s3 {
     }
   }
 
-  private val root: NJPath           = NJPath("s3a://bucket_name") / "folder_name"
+  private val root: Url              = Url.parse("s3a://bucket_name") / "folder_name"
   private val hadoop: HadoopText[IO] = NJHadoop[IO](new Configuration).text
 
   aws_task_template.task

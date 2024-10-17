@@ -1,21 +1,22 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.Functor
-import com.github.chenharryhua.nanjin.terminals.{NJCompression, NJFileFormat, NJPath}
+import com.github.chenharryhua.nanjin.terminals.{NJCompression, NJFileFormat}
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
+import io.lemonlabs.uri.Url
 import monocle.syntax.all.*
 import org.apache.spark.sql.SaveMode
 
 final private[persist] case class HoarderParams(
   format: NJFileFormat,
-  outPath: NJPath,
+  outPath: Url,
   saveMode: SaveMode,
   compression: NJCompression)
 
 private[persist] object HoarderParams {
 
-  def apply(outPath: NJPath): HoarderParams =
+  def apply(outPath: Url): HoarderParams =
     HoarderParams(NJFileFormat.Unknown, outPath, SaveMode.Overwrite, NJCompression.Uncompressed)
 }
 
@@ -24,7 +25,7 @@ sealed private[persist] trait HoarderConfigF[X]
 private object HoarderConfigF {
   implicit val functorHoarderConfigF: Functor[HoarderConfigF] = cats.derived.semiauto.functor[HoarderConfigF]
 
-  final case class InitParams[K](path: NJPath) extends HoarderConfigF[K]
+  final case class InitParams[K](path: Url) extends HoarderConfigF[K]
   final case class WithSaveMode[K](value: SaveMode, cont: K) extends HoarderConfigF[K]
   final case class WithFileFormat[K](value: NJFileFormat, cont: K) extends HoarderConfigF[K]
   final case class WithCompression[K](value: NJCompression, cont: K) extends HoarderConfigF[K]
@@ -57,6 +58,6 @@ final private[spark] case class HoarderConfig(value: Fix[HoarderConfigF]) {
 
 private[spark] object HoarderConfig {
 
-  def apply(outPath: NJPath): HoarderConfig =
+  def apply(outPath: Url): HoarderConfig =
     HoarderConfig(Fix(HoarderConfigF.InitParams[Fix[HoarderConfigF]](outPath)))
 }

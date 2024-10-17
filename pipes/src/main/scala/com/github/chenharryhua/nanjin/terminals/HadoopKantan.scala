@@ -7,6 +7,7 @@ import cats.implicits.toFunctorOps
 import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick, TickStatus}
 import fs2.{Chunk, Pipe, Stream}
+import io.lemonlabs.uri.Url
 import kantan.csv.CsvConfiguration.Header
 import kantan.csv.engine.ReaderEngine
 import kantan.csv.{CsvConfiguration, CsvReader, ReadResult}
@@ -45,8 +46,8 @@ final class HadoopKantan[F[_]] private (
 
   // read
 
-  def source(path: NJPath, chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, Seq[String]] =
-    HadoopReader.inputStreamS[F](configuration, path.hadoopPath).flatMap { is =>
+  def source(path: Url, chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, Seq[String]] =
+    HadoopReader.inputStreamS[F](configuration, toHadoopPath(path)).flatMap { is =>
       val reader: CsvReader[ReadResult[Seq[String]]] = {
         val cr = ReaderEngine.internalCsvReaderEngine.readerFor(new InputStreamReader(is), csvConfiguration)
         if (csvConfiguration.hasHeader) cr.drop(1) else cr
@@ -57,9 +58,9 @@ final class HadoopKantan[F[_]] private (
 
   // write
 
-  def sink(path: NJPath)(implicit F: Sync[F]): Pipe[F, Chunk[Seq[String]], Int] = {
+  def sink(path: Url)(implicit F: Sync[F]): Pipe[F, Chunk[Seq[String]], Int] = {
     (ss: Stream[F, Chunk[Seq[String]]]) =>
-      Stream.resource(HadoopWriter.csvStringR[F](configuration, path.hadoopPath)).flatMap { w =>
+      Stream.resource(HadoopWriter.csvStringR[F](configuration, toHadoopPath(path))).flatMap { w =>
         val process: Stream[F, Int] =
           ss.evalMap(c => w.write(c.map(csvRow(csvConfiguration))).as(c.size))
 
@@ -69,11 +70,11 @@ final class HadoopKantan[F[_]] private (
       }
   }
 
-  def sink(policy: Policy, zoneId: ZoneId)(pathBuilder: Tick => NJPath)(implicit
+  def sink(policy: Policy, zoneId: ZoneId)(pathBuilder: Tick => Url)(implicit
     F: Async[F]): Pipe[F, Chunk[Seq[String]], Int] = {
 
     def get_writer(tick: Tick): Resource[F, HadoopWriter[F, String]] =
-      HadoopWriter.csvStringR[F](configuration, pathBuilder(tick).hadoopPath)
+      HadoopWriter.csvStringR[F](configuration, toHadoopPath(pathBuilder(tick)))
 
     // save
     (ss: Stream[F, Chunk[Seq[String]]]) =>

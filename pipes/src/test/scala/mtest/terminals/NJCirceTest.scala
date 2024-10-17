@@ -13,6 +13,7 @@ import io.circe.generic.auto.*
 import io.circe.jawn.CirceSupportParser.facade
 import io.circe.syntax.EncoderOps
 import io.circe.{jawn, Json}
+import io.lemonlabs.uri.Url
 import mtest.terminals.HadoopTestData.hdp
 import mtest.terminals.TestData.Tiger
 import org.apache.hadoop.conf.Configuration
@@ -22,11 +23,13 @@ import org.typelevel.jawn.fs2.JsonStreamSyntax
 
 import java.time.ZoneId
 import scala.concurrent.duration.DurationInt
+import io.lemonlabs.uri.typesafe.dsl.*
+
 class NJCirceTest extends AnyFunSuite {
 
   val json: HadoopCirce[IO] = hdp.circe
 
-  def fs2(path: NJPath, file: CirceFile, data: Set[Tiger]): Assertion = {
+  def fs2(path: Url, file: CirceFile, data: Set[Tiger]): Assertion = {
     val tgt = path / file.fileName
     hdp.delete(tgt).unsafeRunSync()
     val ts: Stream[IO, Json]             = Stream.emits(data.toList).covary[IO].map(_.asJson)
@@ -42,7 +45,7 @@ class NJCirceTest extends AnyFunSuite {
     assert(size == data.size)
   }
 
-  val fs2Root: NJPath = NJPath("./data/test/terminals/circe/tiger")
+  val fs2Root: Url = Url.parse("./data/test/terminals/circe/tiger")
 
   test("uncompressed") {
     fs2(fs2Root, CirceFile(_.Uncompressed), TestData.tigerSet)
@@ -69,7 +72,7 @@ class NJCirceTest extends AnyFunSuite {
   }
 
   test("ftp") {
-    val path = NJPath("ftp://localhost/data/tiger.json")
+    val path = Url.parse("ftp://localhost/data/tiger.json")
     val conf = new Configuration()
     conf.set("fs.ftp.host", "localhost")
     conf.set("fs.ftp.user.localhost", "chenh")
@@ -89,8 +92,8 @@ class NJCirceTest extends AnyFunSuite {
   }
 
   test("laziness") {
-    json.source(NJPath("./does/not/exist"))
-    json.sink(NJPath("./does/not/exist"))
+    json.source("./does/not/exist")
+    json.sink("./does/not/exist")
   }
 
   test("rotation - data") {
@@ -118,10 +121,10 @@ class NJCirceTest extends AnyFunSuite {
     assert(size == number * TestData.tigerSet.toList.size)
     assert(processedSize == number * TestData.tigerSet.toList.size)
 
-    def tigers1(path: NJPath): Stream[IO, Tiger] =
+    def tigers1(path: Url): Stream[IO, Tiger] =
       hdp.bytes.source(path).through(utf8.decode).through(lines).map(jawn.decode[Tiger]).rethrow
 
-    def tigers2(path: NJPath): Stream[IO, Tiger] =
+    def tigers2(path: Url): Stream[IO, Tiger] =
       hdp.bytes.source(path).chunks.parseJsonStream.map(_.as[Tiger]).rethrow
 
     hdp
@@ -143,6 +146,6 @@ class NJCirceTest extends AnyFunSuite {
       .drain
       .unsafeRunSync()
     import better.files.*
-    hdp.filesIn(path).unsafeRunSync().foreach(np => assert(File(np.uri).lines.isEmpty))
+    hdp.filesIn(path).unsafeRunSync().foreach(np => assert(File(np.toJavaURI).lines.isEmpty))
   }
 }

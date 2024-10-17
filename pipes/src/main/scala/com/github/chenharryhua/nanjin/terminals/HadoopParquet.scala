@@ -8,6 +8,7 @@ import cats.implicits.toFunctorOps
 import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick, TickStatus}
 import fs2.{Chunk, Pipe, Stream}
+import io.lemonlabs.uri.Url
 import org.apache.avro.Schema
 import org.apache.avro.generic.{GenericData, GenericRecord}
 import org.apache.hadoop.conf.Configuration
@@ -34,22 +35,22 @@ final class HadoopParquet[F[_]] private (
 
   // read
 
-  def source(path: NJPath, chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, GenericData.Record] =
-    HadoopReader.parquetS(readBuilder, path.hadoopPath, chunkSize)
+  def source(path: Url, chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, GenericData.Record] =
+    HadoopReader.parquetS(readBuilder, toHadoopPath(path), chunkSize)
 
   // write
 
-  def sink(path: NJPath)(implicit F: Sync[F]): Pipe[F, Chunk[GenericRecord], Int] = {
+  def sink(path: Url)(implicit F: Sync[F]): Pipe[F, Chunk[GenericRecord], Int] = {
     (ss: Stream[F, Chunk[GenericRecord]]) =>
       Stream
-        .resource(HadoopWriter.parquetR[F](writeBuilder, path.hadoopPath))
+        .resource(HadoopWriter.parquetR[F](writeBuilder, toHadoopPath(path)))
         .flatMap(w => ss.evalMap(c => w.write(c).as(c.size)))
   }
 
-  def sink(policy: Policy, zoneId: ZoneId)(pathBuilder: Tick => NJPath)(implicit
+  def sink(policy: Policy, zoneId: ZoneId)(pathBuilder: Tick => Url)(implicit
     F: Async[F]): Pipe[F, Chunk[GenericRecord], Int] = {
     def get_writer(tick: Tick): Resource[F, HadoopWriter[F, GenericRecord]] =
-      HadoopWriter.parquetR[F](writeBuilder, pathBuilder(tick).hadoopPath)
+      HadoopWriter.parquetR[F](writeBuilder, toHadoopPath(pathBuilder(tick)))
 
     // save
     (ss: Stream[F, Chunk[GenericRecord]]) =>

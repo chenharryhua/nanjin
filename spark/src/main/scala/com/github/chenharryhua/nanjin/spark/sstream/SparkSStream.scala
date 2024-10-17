@@ -2,8 +2,8 @@ package com.github.chenharryhua.nanjin.spark.sstream
 
 import cats.Endo
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
-import com.github.chenharryhua.nanjin.terminals.NJPath
 import frameless.{TypedEncoder, TypedExpressionEncoder}
+import io.lemonlabs.uri.Url
 import org.apache.spark.sql.functions.udf
 import org.apache.spark.sql.{Dataset, Row}
 
@@ -13,9 +13,9 @@ final class SparkSStream[F[_], A](val dataset: Dataset[A], cfg: SStreamConfig) e
   private def updateConfig(f: Endo[SStreamConfig]): SparkSStream[F, A] =
     new SparkSStream[F, A](dataset, f(cfg))
 
-  def checkpoint(cp: NJPath): SparkSStream[F, A] = updateConfig(_.checkpoint(cp))
-  def failOnDataLoss: SparkSStream[F, A]         = updateConfig(_.dataLossFailure)
-  def ignoreDataLoss: SparkSStream[F, A]         = updateConfig(_.dataLossIgnore)
+  def checkpoint(cp: Url): SparkSStream[F, A] = updateConfig(_.checkpoint(cp))
+  def failOnDataLoss: SparkSStream[F, A]      = updateConfig(_.dataLossFailure)
+  def ignoreDataLoss: SparkSStream[F, A]      = updateConfig(_.dataLossIgnore)
 
   def progressInterval(ms: Long): SparkSStream[F, A] = updateConfig(_.progressInterval(ms))
 
@@ -39,13 +39,13 @@ final class SparkSStream[F[_], A](val dataset: Dataset[A], cfg: SStreamConfig) e
   def consoleSink: NJConsoleSink[F, A] =
     new NJConsoleSink[F, A](dataset.writeStream, cfg)
 
-  def fileSink(path: NJPath): NJFileSink[F, A] =
+  def fileSink(path: Url): NJFileSink[F, A] =
     new NJFileSink[F, A](dataset.writeStream, cfg, path)
 
   def memorySink(queryName: String): NJMemorySink[F, A] =
     new NJMemorySink[F, A](dataset.writeStream, cfg.queryName(queryName))
 
-  def datePartitionSink(path: NJPath): NJFileSink[F, Row] = {
+  def datePartitionSink(path: Url): NJFileSink[F, Row] = {
     val year  = udf((ts: Long) => NJTimestamp(ts).atZone(params.zoneId).toLocalDate.getYear)
     val month = udf((ts: Long) => NJTimestamp(ts).atZone(params.zoneId).toLocalDate.getMonthValue)
     val day   = udf((ts: Long) => NJTimestamp(ts).atZone(params.zoneId).toLocalDate.getDayOfMonth)

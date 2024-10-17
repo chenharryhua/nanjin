@@ -1,14 +1,15 @@
 package com.github.chenharryhua.nanjin.spark.sstream
 
-import cats.effect.kernel.Async
 import cats.Endo
-import com.github.chenharryhua.nanjin.terminals.NJPath
+import cats.effect.kernel.Async
+import com.github.chenharryhua.nanjin.terminals.toHadoopPath
 import fs2.Stream
+import io.lemonlabs.uri.Url
 import org.apache.spark.sql.streaming.{DataStreamWriter, OutputMode, StreamingQueryProgress, Trigger}
 
 import scala.concurrent.duration.FiniteDuration
 
-final class NJFileSink[F[_], A](dsw: DataStreamWriter[A], cfg: SStreamConfig, path: NJPath)
+final class NJFileSink[F[_], A](dsw: DataStreamWriter[A], cfg: SStreamConfig, path: Url)
     extends NJStreamSink[F] {
 
   override val params: SStreamParams = cfg.evalConfig
@@ -30,16 +31,18 @@ final class NJFileSink[F[_], A](dsw: DataStreamWriter[A], cfg: SStreamConfig, pa
   def partitionBy(colNames: String*): NJFileSink[F, A] =
     new NJFileSink[F, A](dsw.partitionBy(colNames*), cfg, path)
 
-  override def stream(implicit F: Async[F]): Stream[F, StreamingQueryProgress] =
+  override def stream(implicit F: Async[F]): Stream[F, StreamingQueryProgress] = {
+    val ps = toHadoopPath(path).toString
     ss.queryStream(
       dsw
         .trigger(params.trigger)
         .format(params.fileFormat.format)
-        .queryName(params.queryName.getOrElse(path.pathStr))
+        .queryName(params.queryName.getOrElse(ps))
         .outputMode(OutputMode.Append)
-        .option("path", path.pathStr)
-        .option("checkpointLocation", params.checkpoint.pathStr)
+        .option("path", ps)
+        .option("checkpointLocation", toHadoopPath(params.checkpoint).toString)
         .option("failOnDataLoss", params.dataLoss.value),
       params.progressInterval
     )
+  }
 }

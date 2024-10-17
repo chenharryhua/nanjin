@@ -4,11 +4,13 @@ import cats.effect.unsafe.implicits.global
 import cats.implicits.toTraverseOps
 import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.terminals.NJCompression.*
-import com.github.chenharryhua.nanjin.terminals.{HadoopJackson, JacksonFile, NJFileKind, NJHadoop, NJPath}
+import com.github.chenharryhua.nanjin.terminals.{HadoopJackson, JacksonFile, NJFileKind, NJHadoop}
 import eu.timepit.refined.auto.*
 import fs2.Stream
 import io.circe.jawn
 import io.circe.syntax.EncoderOps
+import io.lemonlabs.uri.Url
+import io.lemonlabs.uri.typesafe.dsl.*
 import org.apache.avro.generic.GenericRecord
 import org.apache.hadoop.conf.Configuration
 import org.scalatest.Assertion
@@ -22,7 +24,7 @@ class NJJacksonTest extends AnyFunSuite {
 
   val jackson: HadoopJackson[IO] = hdp.jackson(pandaSchema)
 
-  def fs2(path: NJPath, file: JacksonFile, data: Set[GenericRecord]): Assertion = {
+  def fs2(path: Url, file: JacksonFile, data: Set[GenericRecord]): Assertion = {
     val tgt = path / file.fileName
     hdp.delete(tgt).unsafeRunSync()
     val sink =
@@ -38,7 +40,7 @@ class NJJacksonTest extends AnyFunSuite {
 
   }
 
-  val fs2Root: NJPath = NJPath("./data/test/terminals/jackson/panda")
+  val fs2Root: Url = Url.parse("./data/test/terminals/jackson/panda")
   test("uncompressed") {
     fs2(fs2Root, JacksonFile(_.Uncompressed), pandaSet)
   }
@@ -63,12 +65,12 @@ class NJJacksonTest extends AnyFunSuite {
     fs2(fs2Root, JacksonFile(_.Deflate(5)), pandaSet)
   }
 
-  test("ftp") {
-    val path = NJPath("ftp://localhost/data/tiger.jackson.json")
+  test("ftp - parse username/password") {
+    val path = Url.parse("ftp://chenh:test@localhost/data/tiger.jackson.json")
     val conf = new Configuration()
-    conf.set("fs.ftp.host", "localhost")
-    conf.set("fs.ftp.user.localhost", "chenh")
-    conf.set("fs.ftp.password.localhost", "test")
+    // conf.set("fs.ftp.host", "localhost")
+    // conf.set("fs.ftp.user.localhost", "chenh")
+    // conf.set("fs.ftp.password.localhost", "test")
     conf.set("fs.ftp.data.connection.mode", "PASSIVE_LOCAL_DATA_CONNECTION_MODE")
     conf.set("fs.ftp.impl", "org.apache.hadoop.fs.ftp.FTPFileSystem")
     val conn = NJHadoop[IO](conf).jackson(TestData.Tiger.avroEncoder.schema)
@@ -84,8 +86,8 @@ class NJJacksonTest extends AnyFunSuite {
   }
 
   test("laziness") {
-    jackson.source(NJPath("./does/not/exist"), 10)
-    jackson.sink(NJPath("./does/not/exist"))
+    jackson.source("./does/not/exist", 10)
+    jackson.sink("./does/not/exist")
   }
 
   test("rotation") {
