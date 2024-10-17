@@ -4,8 +4,10 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.toTraverseOps
 import com.github.chenharryhua.nanjin.spark.*
-import com.github.chenharryhua.nanjin.terminals.{HadoopAvro, NJHadoop, NJPath}
+import com.github.chenharryhua.nanjin.terminals.{toHadoopPath, HadoopAvro, NJHadoop}
 import eu.timepit.refined.auto.*
+import io.lemonlabs.uri.Url
+import io.lemonlabs.uri.typesafe.dsl.*
 import mtest.spark.*
 import org.apache.spark.sql.SaveMode
 import org.scalatest.DoNotDiscover
@@ -17,23 +19,26 @@ class AvroTest extends AnyFunSuite {
 
   val avro: HadoopAvro[IO] = hadoop.avro(Rooster.avroCodec.schema)
 
-  def singleAvro(path: NJPath): Set[Rooster] =
+  def singleAvro(path: Url): Set[Rooster] =
     avro.source(path, 10).map(Rooster.avroCodec.decode).compile.toList.unsafeRunSync().toSet
 
   def rooster: RddAvroFileHoarder[Rooster] =
     new RddAvroFileHoarder[Rooster](RoosterData.ds.rdd.repartition(3), Rooster.avroCodec)
 
-  def loadRoosters(path: NJPath): IO[List[Rooster]] =
+  def loadRoosters(path: Url): IO[List[Rooster]] =
     hadoop
       .filesIn(path)
       .flatMap(_.flatTraverse(avro.source(_, 100).map(Rooster.avroCodec.decode).compile.toList))
 
-  val root: NJPath = NJPath("./data/test/spark/persist/avro/")
+  val root: Url = Url.parse("./data/test/spark/persist/avro/")
 
   test("spark agree apache on avro") {
     val path = root / "rooster" / "spark"
     hadoop.delete(path).unsafeRunSync()
-    RoosterData.ds.write.option("avroSchema", Rooster.schema.toString()).format("avro").save(path.pathStr)
+    RoosterData.ds.write
+      .option("avroSchema", Rooster.schema.toString())
+      .format("avro")
+      .save(toHadoopPath(path).toString)
     val r  = loaders.rdd.avro(path, sparkSession, Rooster.avroCodec).collect().toSet
     val r2 = loaders.avro(path, sparkSession, Rooster.ate).collect().toSet
     assert(RoosterData.expected == r)
@@ -91,15 +96,15 @@ class AvroTest extends AnyFunSuite {
   }
 
   test("datetime spark write/nanjin read identity") {
-    val path = NJPath("./data/test/spark/persist/avro/rooster/spark-write.avro")
-    val tds  = Rooster.ate.normalize(RoosterData.rdd, sparkSession)
+    val path: Url = "./data/test/spark/persist/avro/rooster/spark-write.avro"
+    val tds       = Rooster.ate.normalize(RoosterData.rdd, sparkSession)
     tds
       .repartition(1)
       .write
       .mode(SaveMode.Overwrite)
       .option("avroSchema", Rooster.schema.toString)
       .format("avro")
-      .save(path.pathStr)
+      .save(toHadoopPath(path).toString)
     val r = loaders.rdd.avro[Rooster](path, sparkSession, Rooster.avroCodec).collect().toSet
     val t = loaders.avro[Rooster](path, sparkSession, Rooster.ate).collect().toSet
     assert(RoosterData.expected == r)
@@ -108,9 +113,9 @@ class AvroTest extends AnyFunSuite {
   }
 
   test("datetime spark write without schema/nanjin read identity") {
-    val path = NJPath("./data/test/spark/persist/avro/rooster/spark-write-no-schema.avro")
+    val path = "./data/test/spark/persist/avro/rooster/spark-write-no-schema.avro"
     val tds  = Rooster.ate.normalize(RoosterData.rdd, sparkSession)
-    tds.repartition(1).write.mode(SaveMode.Overwrite).format("avro").save(path.pathStr)
+    tds.repartition(1).write.mode(SaveMode.Overwrite).format("avro").save(path)
     val t = loaders.spark.avro[Rooster](path, sparkSession, Rooster.ate).collect().toSet
     assert(RoosterData.expected == t)
   }
@@ -118,7 +123,7 @@ class AvroTest extends AnyFunSuite {
   def bee = new RddAvroFileHoarder[Bee](BeeData.rdd, Bee.avroCodec)
   test("byte-array read/write identity - multi") {
     import cats.implicits.*
-    val path = NJPath("./data/test/spark/persist/avro/bee/multi.raw")
+    val path = "./data/test/spark/persist/avro/bee/multi.raw"
     bee.avro(path).run[IO].unsafeRunSync()
     val t = loaders.rdd.avro[Bee](path, sparkSession, Bee.avroCodec).collect().toList
     val r = loaders.avro[Bee](path, sparkSession, Bee.ate).collect().toList
@@ -137,7 +142,7 @@ class AvroTest extends AnyFunSuite {
 
   test("collection read/write identity multi") {
     import AntData.*
-    val path = NJPath("./data/test/spark/persist/avro/ant/multi.avro")
+    val path = "./data/test/spark/persist/avro/ant/multi.avro"
     ant.avro(path).run[IO].unsafeRunSync()
     val t = loaders.avro[Ant](path, sparkSession, Ant.ate).collect().toSet
     val r = loaders.rdd.avro[Ant](path, sparkSession, Ant.avroCodec).collect().toSet
@@ -148,7 +153,7 @@ class AvroTest extends AnyFunSuite {
 
   test("enum read/write identity multi") {
     import CopData.*
-    val path  = NJPath("./data/test/spark/persist/avro/emcop/raw")
+    val path  = "./data/test/spark/persist/avro/emcop/raw"
     val saver = new RddAvroFileHoarder[EmCop](emRDD, EmCop.avroCodec).avro(path)
     saver.run[IO].unsafeRunSync()
     val t = loaders.avro[EmCop](path, sparkSession, EmCop.ate).collect().toSet
@@ -168,7 +173,7 @@ class AvroTest extends AnyFunSuite {
 
   test("coproduct read/write identity - rdd") {
     import CopData.*
-    val path  = NJPath("./data/test/spark/persist/avro/cpcop/multi.avro")
+    val path  = "./data/test/spark/persist/avro/cpcop/multi.avro"
     val saver = new RddAvroFileHoarder[CpCop](cpRDD, CpCop.avroCodec).avro(path)
     saver.run[IO].unsafeRunSync()
     val t = loaders.rdd.avro[CpCop](path, sparkSession, CpCop.avroCodec).collect().toSet

@@ -4,18 +4,18 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.github.chenharryhua.nanjin.spark.persist.{loaders, saveRDD}
-import com.github.chenharryhua.nanjin.terminals.{NJCompression, NJPath}
-import eu.timepit.refined.auto.*
+import com.github.chenharryhua.nanjin.terminals.{NJCompression, NJHadoop}
+
 import frameless.TypedEncoder
+import io.lemonlabs.uri.typesafe.dsl.*
 import mtest.spark.sparkSession
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.{DataFrame, Dataset, SaveMode}
 import org.apache.spark.sql.types.*
+import org.apache.spark.sql.{DataFrame, Dataset, SaveMode}
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.Instant
 import scala.math.BigDecimal.RoundingMode
-
 object AvroTypedEncoderTestData {
 
   val schemaText: String =
@@ -92,7 +92,7 @@ object AvroTypedEncoderTestData {
 
 class AvroTypedEncoderTest extends AnyFunSuite {
   import AvroTypedEncoderTestData.*
-  val hdp = sparkSession.hadoop[IO]
+  val hdp: NJHadoop[IO] = sparkSession.hadoop[IO]
 
   test("normalize rdd") {
     val n = ate.normalize(rdd, sparkSession)
@@ -114,11 +114,11 @@ class AvroTypedEncoderTest extends AnyFunSuite {
    * data saved in its original form
    * loaders will normalize the data
    */
-  val root = NJPath("./data/test/spark/ate")
+  val root = "./data/test/spark/ate"
 
   test("loaded json should be normalized") {
-    val path: NJPath = root / "json"
-    ds.write.mode(SaveMode.Overwrite).json(path.pathStr)
+    val path = root / "json"
+    ds.write.mode(SaveMode.Overwrite).json(path.toString())
     val r = loaders.spark.json[Lion](path, sparkSession, ate)
     assert(r.collect().toSet == expected.toSet)
     assert(r.schema == expectedSchema)
@@ -134,14 +134,14 @@ class AvroTypedEncoderTest extends AnyFunSuite {
 
   test("loaded avro should be normalized") {
     val path = root / "spark" / "avro"
-    ds.write.format("avro").mode(SaveMode.Overwrite).save(path.pathStr)
+    ds.write.format("avro").mode(SaveMode.Overwrite).save(path.toString())
     val r = loaders.spark.avro[Lion](path, sparkSession, ate)
     assert(r.collect().toSet == expected.toSet)
     assert(r.schema == expectedSchema)
   }
   test("loaded parquet should be normalized") {
     val path = root / "spark" / "parquet"
-    ds.write.mode(SaveMode.Overwrite).parquet(path.pathStr)
+    ds.write.mode(SaveMode.Overwrite).parquet(path.toString())
     val r = loaders.spark.parquet[Lion](path, sparkSession, ate)
     assert(r.collect().toSet == expected.toSet)
     assert(r.schema == expectedSchema)

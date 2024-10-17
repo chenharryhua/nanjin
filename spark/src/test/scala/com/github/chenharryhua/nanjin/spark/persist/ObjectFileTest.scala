@@ -3,8 +3,8 @@ package com.github.chenharryhua.nanjin.spark.persist
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.spark.SparkSessionExt
-import com.github.chenharryhua.nanjin.terminals.NJPath
-import eu.timepit.refined.auto.*
+
+import io.lemonlabs.uri.Url
 import mtest.spark.*
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
@@ -13,7 +13,7 @@ class ObjectFileTest extends AnyFunSuite {
   import TabletData.*
   val hdp = sparkSession.hadoop[IO]
   test("object file identity") {
-    val path  = NJPath("./data/test/spark/persist/object/tablet.obj")
+    val path  = Url.parse("./data/test/spark/persist/object/tablet.obj")
     val saver = new RddFileHoarder[Tablet](rdd).objectFile(path)
     saver.run[IO].unsafeRunSync()
     val t = loaders.rdd.objectFile[Tablet](path, sparkSession).collect().toSet

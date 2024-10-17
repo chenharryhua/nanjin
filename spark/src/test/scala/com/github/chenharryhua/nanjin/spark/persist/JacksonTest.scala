@@ -4,17 +4,18 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.toTraverseOps
 import com.github.chenharryhua.nanjin.spark.SparkSessionExt
-import com.github.chenharryhua.nanjin.terminals.{HadoopJackson, NJHadoop, NJPath}
+import com.github.chenharryhua.nanjin.terminals.{HadoopJackson, NJHadoop}
 import com.sksamuel.avro4s.FromRecord
 import eu.timepit.refined.auto.*
+import io.lemonlabs.uri.Url
 import mtest.spark.*
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
-
+import io.lemonlabs.uri.typesafe.dsl.*
 @DoNotDiscover
 class JacksonTest extends AnyFunSuite {
 
-  def rooster(path: NJPath): SaveJackson[Rooster] =
+  def rooster(path: Url): SaveJackson[Rooster] =
     new RddAvroFileHoarder[Rooster](RoosterData.rdd.repartition(3), Rooster.avroCodec).jackson(path)
 
   val hdp: NJHadoop[IO]          = sparkSession.hadoop[IO]
@@ -22,13 +23,13 @@ class JacksonTest extends AnyFunSuite {
 
   val fromRecord: FromRecord[Rooster] = FromRecord(Rooster.avroCodec)
 
-  def loadRooster(path: NJPath): IO[Set[Rooster]] =
+  def loadRooster(path: Url): IO[Set[Rooster]] =
     hdp
       .filesIn(path)
       .flatMap(_.flatTraverse(jackson.source(_, 100).map(fromRecord.from).compile.toList))
       .map(_.toSet)
 
-  val root = NJPath("./data/test/spark/persist/jackson/")
+  val root = "./data/test/spark/persist/jackson/"
   test("1.datetime read/write identity - uncompressed") {
     val path = root / "rooster" / "uncompressed"
     rooster(path).withCompression(_.Uncompressed).run[IO].unsafeRunSync()
@@ -37,7 +38,7 @@ class JacksonTest extends AnyFunSuite {
     assert(RoosterData.expected == loadRooster(path).unsafeRunSync())
   }
 
-  def bee(path: NJPath) =
+  def bee(path: Url) =
     new RddAvroFileHoarder[Bee](BeeData.rdd.repartition(3), Bee.avroCodec).jackson(path)
 
   test("2.byte-array read/write identity - multi") {
@@ -89,7 +90,7 @@ class JacksonTest extends AnyFunSuite {
   }
 
   test("8.jackson jacket") {
-    val path = NJPath("./data/test/spark/persist/jackson/jacket.json")
+    val path = "./data/test/spark/persist/jackson/jacket.json"
     val saver =
       new RddAvroFileHoarder[Jacket](JacketData.rdd.repartition(3), Jacket.avroCodec).jackson(path)
     saver.run[IO].unsafeRunSync()

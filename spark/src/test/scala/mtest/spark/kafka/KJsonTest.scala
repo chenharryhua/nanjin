@@ -7,9 +7,9 @@ import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.messages.kafka.NJProducerRecord
 import com.github.chenharryhua.nanjin.messages.kafka.codec.KJson
-import com.github.chenharryhua.nanjin.terminals.NJPath
 import eu.timepit.refined.auto.*
 import io.circe.Json
+import io.lemonlabs.uri.typesafe.dsl.*
 import org.scalatest.funsuite.AnyFunSuite
 
 class KJsonTest extends AnyFunSuite {
@@ -20,7 +20,7 @@ class KJsonTest extends AnyFunSuite {
     .map(a =>
       NJProducerRecord(topic.topicName, KJson(Json.fromInt(a)), KJson(Json.fromString("test.string"))))
 
-  val root: NJPath = NJPath("./data/test/spark/kafka/kjson")
+  val root = "./data/test/spark/kafka/kjson"
 
   test("load - unload") {
     sparKafka

@@ -6,17 +6,16 @@ import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, TopicDef}
 import com.github.chenharryhua.nanjin.messages.kafka.NJProducerRecord
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.github.chenharryhua.nanjin.spark.kafka.SparKafkaTopic
-import com.github.chenharryhua.nanjin.terminals.NJPath
 import frameless.TypedEncoder
 import io.circe.Codec
 //import frameless.cats.implicits._
 import cats.effect.unsafe.implicits.global
 import eu.timepit.refined.auto.*
+import io.lemonlabs.uri.typesafe.dsl.*
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.Instant
 import scala.math.BigDecimal.RoundingMode
-
 object DecimalTopicTestCase {
 
   val schemaText: String =
@@ -97,7 +96,7 @@ class DecimalTopicTest extends AnyFunSuite {
     loadData).unsafeRunSync()
 
   test("sparKafka kafka and spark agree on circe") {
-    val path = NJPath("./data/test/spark/kafka/decimal.circe")
+    val path = "./data/test/spark/kafka/decimal.circe"
     stopic.fromKafka.flatMap(_.output.circe(path).run[IO]).unsafeRunSync()
 
     val res = stopic.load.circe(path).rdd.collect().head.value.get
@@ -105,7 +104,7 @@ class DecimalTopicTest extends AnyFunSuite {
   }
 
   test("sparKafka kafka and spark agree on parquet") {
-    val path = NJPath("./data/test/spark/kafka/decimal.parquet")
+    val path = "./data/test/spark/kafka/decimal.parquet"
     stopic.fromKafka.flatMap(_.output.parquet(path).run[IO]).unsafeRunSync()
 
     val res = stopic.load.parquet(path).rdd.collect().head.value.get
@@ -113,7 +112,7 @@ class DecimalTopicTest extends AnyFunSuite {
   }
 
   test("sparKafka kafka and spark agree on jackson") {
-    val path = NJPath("./data/test/spark/kafka/decimal.jackson")
+    val path = "./data/test/spark/kafka/decimal.jackson"
     stopic.fromKafka.flatMap(_.output.jackson(path).run[IO]).unsafeRunSync()
 
     val res = stopic.load.jackson(path).rdd.collect().head.value.get
@@ -121,7 +120,7 @@ class DecimalTopicTest extends AnyFunSuite {
   }
 
   test("sparKafka kafka and spark agree on avro") {
-    val path = NJPath("./data/test/spark/kafka/decimal.avro")
+    val path = "./data/test/spark/kafka/decimal.avro"
     stopic.fromKafka.flatMap(_.output.avro(path).run[IO]).unsafeRunSync()
 
     val res = stopic.load.avro(path).rdd.collect().head.value.get
@@ -129,7 +128,7 @@ class DecimalTopicTest extends AnyFunSuite {
   }
 
   test("sparKafka kafka and spark agree on obj") {
-    val path = NJPath("./data/test/spark/kafka/decimal.obj")
+    val path = "./data/test/spark/kafka/decimal.obj"
     stopic.fromKafka.flatMap(_.output.objectFile(path).run[IO]).unsafeRunSync()
 
     val res = stopic.load.objectFile(path).rdd.collect().head.value.get
@@ -137,7 +136,7 @@ class DecimalTopicTest extends AnyFunSuite {
   }
 
   test("sparKafka kafka and spark agree on binavro") {
-    val path = NJPath("./data/test/spark/kafka/decimal.bin.avro")
+    val path = "./data/test/spark/kafka/decimal.bin.avro"
     stopic.fromKafka.flatMap(_.output.binAvro(path).run[IO]).unsafeRunSync()
 
     val res = stopic.load.binAvro(path).rdd.collect().head.value.get

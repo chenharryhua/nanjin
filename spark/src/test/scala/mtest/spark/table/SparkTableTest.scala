@@ -10,7 +10,7 @@ import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.github.chenharryhua.nanjin.spark.listeners.SparkContextListener
 import com.github.chenharryhua.nanjin.spark.table.LoadTable
 import com.github.chenharryhua.nanjin.spark.{AvroTypedEncoder, SparkSessionExt}
-import com.github.chenharryhua.nanjin.terminals.NJPath
+import io.lemonlabs.uri.typesafe.dsl.*
 import com.zaxxer.hikari.HikariConfig
 import doobie.hikari.HikariTransactor
 import doobie.implicits.*
@@ -65,7 +65,7 @@ object DBTable {
 }
 
 class SparkTableTest extends AnyFunSuite {
-  val root = NJPath("./data/test/spark/database/postgres/")
+  val root = "./data/test/spark/database/postgres/"
 
   implicit val ss: SparkSession = sparkSession
 
@@ -160,12 +160,12 @@ class SparkTableTest extends AnyFunSuite {
     val csv     = root / "spark" / "csv"
     val avro    = root / "spark" / "avro"
 
-    loader.avro(root / "base").dataset.write.mode(SaveMode.Overwrite).parquet(parquet.pathStr)
+    loader.avro(root / "base").dataset.write.mode(SaveMode.Overwrite).parquet(parquet.toString())
 
-    loader.avro(root / "base").dataset.write.mode(SaveMode.Overwrite).json(json.pathStr)
+    loader.avro(root / "base").dataset.write.mode(SaveMode.Overwrite).json(json.toString())
 
-    loader.avro(root / "base").dataset.write.mode(SaveMode.Overwrite).csv(csv.pathStr)
-    loader.avro(root / "base").dataset.write.mode(SaveMode.Overwrite).format("avro").save(avro.pathStr)
+    loader.avro(root / "base").dataset.write.mode(SaveMode.Overwrite).csv(csv.toString())
+    loader.avro(root / "base").dataset.write.mode(SaveMode.Overwrite).format("avro").save(avro.toString())
 
     assert(
       loader.spark.csv(csv, CsvConfiguration.rfc).diff(loader.spark.json(json)).dataset.count()

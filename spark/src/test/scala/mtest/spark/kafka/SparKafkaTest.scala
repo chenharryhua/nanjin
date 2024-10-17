@@ -6,11 +6,11 @@ import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, NJKafkaByteConsume, TopicDef}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{gr2BinAvro, gr2Circe, gr2Jackson, NJAvroCodec}
 import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJProducerRecord}
-import com.github.chenharryhua.nanjin.terminals.NJPath
 import com.sksamuel.avro4s.SchemaFor
 import eu.timepit.refined.auto.*
 import fs2.kafka.{AutoOffsetReset, ProducerRecord, ProducerRecords}
 import io.circe.syntax.*
+import io.lemonlabs.uri.typesafe.dsl.*
 import monocle.syntax.all.*
 import mtest.spark.sparkSession
 import org.apache.spark.sql.{Dataset, SparkSession}
@@ -176,7 +176,7 @@ class SparKafkaTest extends AnyFunSuite {
 
   test("should be able to reproduce") {
     import fs2.Stream
-    val path  = NJPath("./data/test/spark/kafka/reproduce/jackson")
+    val path  = "./data/test/spark/kafka/reproduce/jackson"
     val topic = sparKafka.topic[Int, HasDuck]("duck.test")
     topic.fromKafka.flatMap(_.output.jackson(path).run[IO]).unsafeRunSync()
 
@@ -192,7 +192,7 @@ class SparKafkaTest extends AnyFunSuite {
       .unsafeRunSync()
   }
   test("dump topic") {
-    val path = NJPath("./data/test/spark/kafka/dump/jackson")
+    val path = "./data/test/spark/kafka/dump/jackson"
     sparKafka.dump("duck.test", path).unsafeRunSync()
     sparKafka.upload("duck.test", path).unsafeRunSync()
     sparKafka.uploadInSequence("duck.test", path).unsafeRunSync()
@@ -202,7 +202,7 @@ class SparKafkaTest extends AnyFunSuite {
     ctx.consume("duck.test").updateConfig(_.withAutoOffsetReset(AutoOffsetReset.Earliest).withGroupId("duck"))
 
   test("generic record") {
-    val path = NJPath("./data/test/spark/kafka/consume/duck.avro")
+    val path = "./data/test/spark/kafka/consume/duck.avro"
     val sink = hadoop.avro(topic.topicDef.schemaPair.consumerSchema).sink(path)
     duckConsume.genericRecords
       .take(2)

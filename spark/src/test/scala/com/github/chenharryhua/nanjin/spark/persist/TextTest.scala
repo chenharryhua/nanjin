@@ -2,17 +2,17 @@ package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.terminals.NJPath
 import eu.timepit.refined.auto.*
+import io.lemonlabs.uri.Url
+import io.lemonlabs.uri.typesafe.dsl.*
 import mtest.spark.*
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
-
 @DoNotDiscover
 class TextTest extends AnyFunSuite {
   import TabletData.*
-  def saver(path: NJPath) = new RddFileHoarder[Tablet](rdd).text(path)
-  val root                = NJPath("./data/test/spark/persist/text/tablet")
+  def saver(path: Url) = new RddFileHoarder[Tablet](rdd).text(path)
+  val root             = "./data/test/spark/persist/text/tablet"
   test("tablet") {
     val path = root / "uncompressed"
     saver(path).run[IO].unsafeRunSync()
@@ -50,10 +50,10 @@ class TextTest extends AnyFunSuite {
   test("tablet - append") {
     val path = root / "append"
     val t1 =
-      try sparkSession.read.text(path.pathStr).count()
+      try sparkSession.read.text(path.toString()).count()
       catch { case _: Throwable => 0 }
     saver(path).withSaveMode(_.Append).run[IO].unsafeRunSync()
-    val t2 = sparkSession.read.text(path.pathStr).count()
+    val t2 = sparkSession.read.text(path.toString()).count()
 
     assert(t1 + rdd.count() == t2)
   }
