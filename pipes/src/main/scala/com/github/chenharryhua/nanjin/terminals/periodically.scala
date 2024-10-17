@@ -28,9 +28,7 @@ private object periodically {
       case None => Pull.done
     }
 
-  /** persis csv-like data, which has headers
-    */
-  def persist[F[_]](
+  def persistCsvWithHeader[F[_]](
     getWriter: Tick => Resource[F, HadoopWriter[F, String]],
     hotswap: Hotswap[F, HadoopWriter[F, String]],
     writer: HadoopWriter[F, String],
@@ -43,12 +41,12 @@ private object periodically {
           case Left(data) =>
             Pull.output1(data.size) >>
               Pull.eval(writer.write(data)) >>
-              persist[F](getWriter, hotswap, writer, tail, header)
+              persistCsvWithHeader[F](getWriter, hotswap, writer, tail, header)
 
           case Right(tick) =>
             Pull.eval(hotswap.swap(getWriter(tick))).flatMap { writer =>
               Pull.eval(writer.write(header)) >>
-                persist(getWriter, hotswap, writer, tail, header)
+                persistCsvWithHeader(getWriter, hotswap, writer, tail, header)
             }
         }
       case None => Pull.done

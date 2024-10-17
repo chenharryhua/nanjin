@@ -4,13 +4,13 @@ import cats.Applicative
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.event.{NJError, NJEvent}
 import com.github.chenharryhua.nanjin.guard.translator.metricConstants.METRICS_DIGEST
-import com.github.chenharryhua.nanjin.guard.translator.{Translator, htmlHelper, textConstants, textHelper}
+import com.github.chenharryhua.nanjin.guard.translator.{htmlHelper, textConstants, textHelper, Translator}
 import io.circe.Json
 import io.circe.syntax.EncoderOps
 import org.typelevel.cats.time.instances.all
 import scalatags.Text.all.*
 import scalatags.text.Builder
-import scalatags.{Text, generic}
+import scalatags.{generic, Text}
 
 import java.time.temporal.ChronoUnit
 

@@ -88,7 +88,7 @@ final class HadoopKantan[F[_]] private (
             val header: Chunk[String] = csvHeader(csvConfiguration)
             Stream.eval(writer.write(header)) >>
               periodically
-                .persist[F](
+                .persistCsvWithHeader[F](
                   get_writer,
                   hotswap,
                   writer,

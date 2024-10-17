@@ -76,10 +76,13 @@ final class PushGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName,
       case _ => throw new Exception(s"unsupported value schema: ${pair.value.toString}")
     }
 
-  def fromGenericRecord(gr: GenericRecord): ProducerRecord[Array[Byte], Array[Byte]] = {
-    val key   = gr.get("key")
-    val value = gr.get("value")
-
+  def fromGenericRecord(key: GenericRecord, value: GenericRecord): ProducerRecord[Array[Byte], Array[Byte]] =
     ProducerRecord(topic, key_serialize(key), val_serialize(value))
-  }
+
+  /** @param gr
+    *   a GenericRecord of NJConsumerRecord
+    * @return
+    */
+  def fromGenericRecord(gr: GenericRecord): ProducerRecord[Array[Byte], Array[Byte]] =
+    ProducerRecord(topic, key_serialize(gr.get("key")), val_serialize(gr.get("value")))
 }

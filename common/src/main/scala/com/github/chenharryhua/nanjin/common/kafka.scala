@@ -28,7 +28,7 @@ object kafka {
       case Right(value) => value
     }
 
-    implicit val showTopicName: Show[TopicName] = tn => s"TopicName(value=${tn.value})"
+    implicit val showTopicName: Show[TopicName] = Show.fromToString
 
     implicit val orderingTopicName: Ordering[TopicName] = Ordering.by(_.value)
     implicit val orderTopicName: Order[TopicName]       = Order.fromOrdering[TopicName]

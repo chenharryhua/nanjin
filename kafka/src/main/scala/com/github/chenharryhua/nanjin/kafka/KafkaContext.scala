@@ -120,6 +120,29 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
         .use(_.produce(ProducerRecords.one(builder.fromGenericRecord(gr))).flatten)
     } yield res
 
+  /** upload records which are downloaded from Confluent Kafka Control Center
+    */
+  def confluentProduce(confluent: String)(implicit
+    F: Async[F]): F[List[ProducerResult[Array[Byte], Array[Byte]]]] = {
+    def sendOne(json: Json): F[ProducerResult[Array[Byte], Array[Byte]]] = for {
+      topicName <- F.fromEither(json.hcursor.get[String]("topic").flatMap(TopicName.from))
+      schemaPair <- schemaRegistry.fetchAvroSchema(topicName)
+      key <- F.fromTry(
+        json.hcursor.get[Json]("key").toTry.flatMap(js => jackson2GR(schemaPair.key, js.noSpaces)))
+      value <- F.fromTry(
+        json.hcursor.get[Json]("value").toTry.flatMap(js => jackson2GR(schemaPair.value, js.noSpaces)))
+      builder = new PushGenericRecord(settings.schemaRegistrySettings, topicName, schemaPair)
+      pr <- KafkaProducer
+        .resource(bytesProducerSettings)
+        .use(_.produce(ProducerRecords.one(builder.fromGenericRecord(key, value))).flatten)
+    } yield pr
+
+    for {
+      jsons <- F.fromEither(parse(confluent).flatMap(_.as[List[Json]]))
+      prs <- jsons.traverse(sendOne)
+    } yield prs
+  }
+
   def store[K: SerdeOf, V: SerdeOf](storeName: TopicName): NJStateStore[K, V] =
     NJStateStore[K, V](
       storeName,
