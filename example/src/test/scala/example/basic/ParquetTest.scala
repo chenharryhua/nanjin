@@ -4,11 +4,12 @@ import cats.effect.IO
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.chrono.zones.{beijingTime, sydneyTime}
 import com.github.chenharryhua.nanjin.guard.service.Agent
-import com.github.chenharryhua.nanjin.terminals.{NJCompression, NJPath, ParquetFile}
+import com.github.chenharryhua.nanjin.terminals.{NJCompression, ParquetFile}
 import eu.timepit.refined.auto.*
 import example.hadoop
-
-class ParquetTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
+import io.lemonlabs.uri.Url
+import io.lemonlabs.uri.typesafe.dsl.*
+class ParquetTest(agent: Agent[IO], base: Url) extends WriteRead(agent) {
   private val root = base / "parquet"
 
   private val files: List[ParquetFile] = List(
@@ -22,28 +23,28 @@ class ParquetTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
 
   private val parquet = hadoop.parquet(schema)
 
-  private def writeSingle(file: ParquetFile): IO[NJPath] = {
+  private def writeSingle(file: ParquetFile): IO[Url] = {
     val path = root / "single" / file.fileName
     val sink = parquet.updateWriter(_.withCompressionCodec(file.compression.codecName)).sink(path)
-    write(path.uri.getPath).use { meter =>
+    write(path).use { meter =>
       data.evalTap(_ => meter.update(1)).map(encoder.to).chunks.through(sink).compile.drain.as(path)
     }
   }
 
-  private def writeRotate(file: ParquetFile): IO[NJPath] = {
+  private def writeRotate(file: ParquetFile): IO[Url] = {
     val path = root / "rotate" / file.fileName
     val sink = parquet
       .updateWriter(_.withCompressionCodec(file.compression.codecName))
       .sink(policy, beijingTime)(t => path / file.fileName(t))
-    write(path.uri.getPath).use { meter =>
+    write(path).use { meter =>
       data.evalTap(_ => meter.update(1)).map(encoder.to).chunks.through(sink).compile.drain.as(path)
     }
   }
 
-  private def writeSingleSpark(file: ParquetFile): IO[NJPath] = {
+  private def writeSingleSpark(file: ParquetFile): IO[Url] = {
     val path = root / "spark" / "single" / file.fileName
     val sink = parquet.updateWriter(_.withCompressionCodec(file.compression.codecName)).sink(path)
-    write(path.uri.getPath).use { meter =>
+    write(path).use { meter =>
       table
         .stream[IO](1000)
         .evalTap(_ => meter.update(1))
@@ -56,18 +57,18 @@ class ParquetTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
     }
   }
 
-  private def writeMultiSpark(file: ParquetFile): IO[NJPath] = {
+  private def writeMultiSpark(file: ParquetFile): IO[Url] = {
     val path = root / "spark" / "multi" / file.fileName
-    write(path.uri.getPath).use(_ =>
+    write(path).use(_ =>
       table.output.parquet(path).withCompression(file.compression).run[IO].as(path))
   }
 
-  private def writeRotateSpark(file: ParquetFile): IO[NJPath] = {
+  private def writeRotateSpark(file: ParquetFile): IO[Url] = {
     val path = root / "spark" / "rotate" / file.fileName
     val sink = parquet
       .updateWriter(_.withCompressionCodec(file.compression.codecName))
       .sink(policy, sydneyTime)(t => path / file.fileName(t))
-    write(path.uri.getPath).use { meter =>
+    write(path).use { meter =>
       table
         .stream[IO](1000)
         .evalTap(_ => meter.update(1))
@@ -80,11 +81,11 @@ class ParquetTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
     }
   }
 
-  private def sparkRead(path: NJPath): IO[Long] =
-    read(path.uri.getPath).use(_ => loader.parquet(path).count[IO])
+  private def sparkRead(path: Url): IO[Long] =
+    read(path).use(_ => loader.parquet(path).count[IO])
 
-  private def folderRead(path: NJPath): IO[Long] =
-    read(path.uri.getPath).use { meter =>
+  private def folderRead(path: Url): IO[Long] =
+    read(path).use { meter =>
       hadoop
         .filesIn(path)
         .flatMap(
@@ -94,8 +95,8 @@ class ParquetTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
         .map(_.sum)
     }
 
-  private def singleRead(path: NJPath): IO[Long] =
-    read(path.uri.getPath).use { meter =>
+  private def singleRead(path: Url): IO[Long] =
+    read(path).use { meter =>
       parquet.source(path, 100).map(decoder.from).evalTap(_ => meter.update(1)).compile.fold(0L) {
         case (s, _) =>
           s + 1

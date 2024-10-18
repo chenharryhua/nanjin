@@ -24,10 +24,8 @@ object S3Protocols extends Enum[S3Protocols] with CatsEnum[S3Protocols] with Cir
   override val values: immutable.IndexedSeq[S3Protocols] = findValues
 
   case object S3 extends S3Protocols("s3")
-  case object S3A extends S3Protocols("s3a")
 
-  type S3  = S3.type
-  type S3A = S3A.type
+  type S3 = S3.type
 }
 
 sealed abstract class FtpProtocols(override val entryName: String)

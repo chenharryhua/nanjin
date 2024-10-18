@@ -5,15 +5,16 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.toTraverseOps
 import com.github.chenharryhua.nanjin.spark.*
-import com.github.chenharryhua.nanjin.terminals.{csvHeader, NJHadoop, NJPath}
+import com.github.chenharryhua.nanjin.terminals.{csvHeader, toHadoopPath, NJHadoop}
 import eu.timepit.refined.auto.*
+import io.lemonlabs.uri.Url
+import io.lemonlabs.uri.typesafe.dsl.*
 import kantan.csv.generic.*
 import kantan.csv.java8.*
 import kantan.csv.{CsvConfiguration, RowDecoder, RowEncoder}
 import mtest.spark.*
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
-
 @DoNotDiscover
 class KantanCsvTest extends AnyFunSuite {
   import TabletData.*
@@ -21,12 +22,12 @@ class KantanCsvTest extends AnyFunSuite {
   implicit val encoderTablet: RowEncoder[Tablet] = shapeless.cachedImplicit
   implicit val decoderTablet: RowDecoder[Tablet] = shapeless.cachedImplicit
 
-  def saver(path: NJPath, cfg: CsvConfiguration): SaveKantanCsv[Tablet] =
+  def saver(path: Url, cfg: CsvConfiguration): SaveKantanCsv[Tablet] =
     new RddFileHoarder[Tablet](rdd).kantan(path, cfg)
 
   val hdp: NJHadoop[IO] = sparkSession.hadoop[IO]
 
-  def loadTablet(path: NJPath, cfg: CsvConfiguration): IO[Set[Tablet]] = {
+  def loadTablet(path: Url, cfg: CsvConfiguration): IO[Set[Tablet]] = {
     val kantan = hdp.kantan(cfg)
     hdp
       .filesIn(path)
@@ -34,7 +35,7 @@ class KantanCsvTest extends AnyFunSuite {
       .map(_.toSet)
   }
 
-  val root: NJPath = NJPath("./data/test/spark/persist/csv/tablet")
+  val root = "./data/test/spark/persist/csv/tablet"
   test("1.tablet read/write identity multi.uncompressed") {
     val path = root / "uncompressed"
     val cfg  = CsvConfiguration.rfc
@@ -98,8 +99,8 @@ class KantanCsvTest extends AnyFunSuite {
 //    assert(data.toSet == loadTablet(path, s.csvConfiguration).unsafeRunSync())
 //  }
 
-  def checkHeader(path: NJPath, header: String): Unit =
-    File(path.pathStr)
+  def checkHeader(path: Url, header: String): Unit =
+    File(toHadoopPath(path).toString)
       .list(_.extension.contains(".csv"))
       .map(_.lineIterator.toList.head === header)
       .foreach(assert(_))

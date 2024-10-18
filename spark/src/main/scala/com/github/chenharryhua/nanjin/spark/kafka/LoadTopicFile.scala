@@ -4,9 +4,9 @@ import com.github.chenharryhua.nanjin.kafka.TopicDef
 import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.github.chenharryhua.nanjin.spark.persist.loaders
-import com.github.chenharryhua.nanjin.terminals.NJPath
 import com.sksamuel.avro4s.Decoder
 import io.circe.Decoder as JsonDecoder
+import io.lemonlabs.uri.Url
 import org.apache.spark.sql.SparkSession
 
 final class LoadTopicFile[K, V] private[kafka] (topicDef: TopicDef[K, V], ss: SparkSession)
@@ -17,32 +17,32 @@ final class LoadTopicFile[K, V] private[kafka] (topicDef: TopicDef[K, V], ss: Sp
 
   private val decoder: Decoder[NJConsumerRecord[K, V]] = NJConsumerRecord.avroCodec(ack, acv)
 
-  def avro(path: NJPath): CrRdd[K, V] = {
+  def avro(path: Url): CrRdd[K, V] = {
     val rdd = loaders.rdd.avro[NJConsumerRecord[K, V]](path, ss, decoder)
     new CrRdd[K, V](rdd, ack, acv, ss)
   }
 
-  def parquet(path: NJPath): CrRdd[K, V] = {
+  def parquet(path: Url): CrRdd[K, V] = {
     val rdd = loaders.rdd.parquet[NJConsumerRecord[K, V]](path, ss, decoder)
     new CrRdd[K, V](rdd, ack, acv, ss)
   }
 
-  def jackson(path: NJPath): CrRdd[K, V] = {
+  def jackson(path: Url): CrRdd[K, V] = {
     val rdd = loaders.rdd.jackson[NJConsumerRecord[K, V]](path, ss, decoder)
     new CrRdd[K, V](rdd, ack, acv, ss)
   }
 
-  def binAvro(path: NJPath): CrRdd[K, V] = {
+  def binAvro(path: Url): CrRdd[K, V] = {
     val rdd = loaders.rdd.binAvro[NJConsumerRecord[K, V]](path, ss, decoder)
     new CrRdd[K, V](rdd, ack, acv, ss)
   }
 
-  def circe(path: NJPath)(implicit ev: JsonDecoder[NJConsumerRecord[K, V]]): CrRdd[K, V] = {
+  def circe(path: Url)(implicit ev: JsonDecoder[NJConsumerRecord[K, V]]): CrRdd[K, V] = {
     val rdd = loaders.rdd.circe[NJConsumerRecord[K, V]](path, ss)
     new CrRdd[K, V](rdd, ack, acv, ss)
   }
 
-  def objectFile(path: NJPath): CrRdd[K, V] = {
+  def objectFile(path: Url): CrRdd[K, V] = {
     val rdd = loaders.rdd.objectFile[NJConsumerRecord[K, V]](path, ss)
     new CrRdd[K, V](rdd, ack, acv, ss)
   }

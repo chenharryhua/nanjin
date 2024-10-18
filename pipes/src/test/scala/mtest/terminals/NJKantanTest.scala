@@ -4,11 +4,13 @@ import cats.effect.unsafe.implicits.global
 import cats.implicits.toTraverseOps
 import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.terminals.NJCompression.*
-import com.github.chenharryhua.nanjin.terminals.{CsvHeaderOf, KantanFile, NJFileKind, NJHadoop, NJPath}
+import com.github.chenharryhua.nanjin.terminals.{CsvHeaderOf, KantanFile, NJFileKind, NJHadoop}
 import eu.timepit.refined.auto.*
 import fs2.Stream
 import io.circe.jawn
 import io.circe.syntax.EncoderOps
+import io.lemonlabs.uri.Url
+import io.lemonlabs.uri.typesafe.dsl.*
 import kantan.csv.{CsvConfiguration, RowDecoder, RowEncoder}
 import mtest.terminals.HadoopTestData.hdp
 import mtest.terminals.TestData.*
@@ -24,7 +26,7 @@ class NJKantanTest extends AnyFunSuite {
   val tigerDecoder: RowDecoder[Tiger]          = shapeless.cachedImplicit
   implicit val tigerHeader: CsvHeaderOf[Tiger] = shapeless.cachedImplicit
 
-  def fs2(path: NJPath, file: KantanFile, csvConfiguration: CsvConfiguration, data: Set[Tiger]): Assertion = {
+  def fs2(path: Url, file: KantanFile, csvConfiguration: CsvConfiguration, data: Set[Tiger]): Assertion = {
     val tgt = path / file.fileName
     hdp.delete(tgt).unsafeRunSync()
     val ts     = Stream.emits(data.toList).covary[IO].map(tigerEncoder.encode).chunks
@@ -38,7 +40,7 @@ class NJKantanTest extends AnyFunSuite {
     assert(size == data.size)
   }
 
-  val fs2Root: NJPath = NJPath("./data/test/terminals/csv/tiger")
+  val fs2Root: Url = Url.parse("./data/test/terminals/csv/tiger")
 
   test("uncompressed - with-header") {
     val cfg = CsvConfiguration.rfc.withHeader(tigerHeader.modify(_ + "_tiger"))
@@ -78,7 +80,7 @@ class NJKantanTest extends AnyFunSuite {
   }
 
   test("ftp") {
-    val path = NJPath("ftp://localhost/data/tiger.csv")
+    val path = Url.parse("ftp://localhost/data/tiger.csv")
     val conf = new Configuration()
     conf.set("fs.ftp.host", "localhost")
     conf.set("fs.ftp.user.localhost", "chenh")
@@ -98,8 +100,8 @@ class NJKantanTest extends AnyFunSuite {
   }
 
   test("laziness") {
-    hdp.kantan(CsvConfiguration.rfc).source(NJPath("./does/not/exist"), 100)
-    hdp.kantan(CsvConfiguration.rfc).sink(NJPath("./does/not/exist"))
+    hdp.kantan(CsvConfiguration.rfc).source("./does/not/exist", 100)
+    hdp.kantan(CsvConfiguration.rfc).sink("./does/not/exist")
   }
 
   val policy: Policy = Policy.fixedDelay(1.second)
@@ -138,7 +140,7 @@ class NJKantanTest extends AnyFunSuite {
       .drain
       .unsafeRunSync()
     import better.files.*
-    hdp.filesIn(path).unsafeRunSync().foreach(np => assert(File(np.uri).lines.size == 1))
+    hdp.filesIn(path).unsafeRunSync().foreach(np => assert(File(np.toJavaURI).lines.size == 1))
   }
 
   test("rotation - no header") {
@@ -178,6 +180,6 @@ class NJKantanTest extends AnyFunSuite {
       .drain
       .unsafeRunSync()
     import better.files.*
-    hdp.filesIn(path).unsafeRunSync().foreach(np => assert(File(np.uri).lines.isEmpty))
+    hdp.filesIn(path).unsafeRunSync().foreach(np => assert(File(np.toJavaURI).lines.isEmpty))
   }
 }

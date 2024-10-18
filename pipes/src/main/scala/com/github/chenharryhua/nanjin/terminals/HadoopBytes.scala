@@ -6,6 +6,7 @@ import cats.implicits.toFunctorOps
 import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick, TickStatus}
 import fs2.{Chunk, Pipe, Stream}
+import io.lemonlabs.uri.Url
 import org.apache.hadoop.conf.Configuration
 import squants.information.{Bytes, Information}
 
@@ -17,30 +18,30 @@ final class HadoopBytes[F[_]] private (configuration: Configuration) extends Had
   /** @return
     *   a byte stream which is chunked by ''bufferSize'' except the last chunk.
     */
-  def source(path: NJPath, bufferSize: Information)(implicit F: Sync[F]): Stream[F, Byte] =
-    HadoopReader.byteS(configuration, path.hadoopPath, ChunkSize(bufferSize))
+  def source(path: Url, bufferSize: Information)(implicit F: Sync[F]): Stream[F, Byte] =
+    HadoopReader.byteS(configuration, toHadoopPath(path), ChunkSize(bufferSize))
 
-  def source(path: NJPath)(implicit F: Sync[F]): Stream[F, Byte] =
+  def source(path: Url)(implicit F: Sync[F]): Stream[F, Byte] =
     source(path, Bytes(1024 * 512))
 
-  def inputStream(path: NJPath)(implicit F: Sync[F]): Resource[F, InputStream] =
-    HadoopReader.inputStreamR[F](configuration, path.hadoopPath)
+  def inputStream(path: Url)(implicit F: Sync[F]): Resource[F, InputStream] =
+    HadoopReader.inputStreamR[F](configuration, toHadoopPath(path))
 
-  def outputStream(path: NJPath)(implicit F: Sync[F]): Resource[F, OutputStream] =
-    HadoopWriter.outputStreamR[F](path.hadoopPath, configuration)
+  def outputStream(path: Url)(implicit F: Sync[F]): Resource[F, OutputStream] =
+    HadoopWriter.outputStreamR[F](toHadoopPath(path), configuration)
 
   // write
 
-  def sink(path: NJPath)(implicit F: Sync[F]): Pipe[F, Chunk[Byte], Int] = { (ss: Stream[F, Chunk[Byte]]) =>
+  def sink(path: Url)(implicit F: Sync[F]): Pipe[F, Chunk[Byte], Int] = { (ss: Stream[F, Chunk[Byte]]) =>
     Stream
-      .resource(HadoopWriter.byteR[F](configuration, path.hadoopPath))
+      .resource(HadoopWriter.byteR[F](configuration, toHadoopPath(path)))
       .flatMap(w => ss.evalMap(c => w.write(c).as(c.size)))
   }
 
-  def sink(policy: Policy, zoneId: ZoneId)(pathBuilder: Tick => NJPath)(implicit
+  def sink(policy: Policy, zoneId: ZoneId)(pathBuilder: Tick => Url)(implicit
     F: Async[F]): Pipe[F, Chunk[Byte], Int] = {
     def get_writer(tick: Tick): Resource[F, HadoopWriter[F, Byte]] =
-      HadoopWriter.byteR[F](configuration, pathBuilder(tick).hadoopPath)
+      HadoopWriter.byteR[F](configuration, toHadoopPath(pathBuilder(tick)))
 
     // save
     (ss: Stream[F, Chunk[Byte]]) =>

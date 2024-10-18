@@ -8,20 +8,23 @@ import com.github.chenharryhua.nanjin.terminals.*
 import com.github.chenharryhua.nanjin.terminals.NJCompression.*
 import eu.timepit.refined.auto.*
 import fs2.Stream
+import io.circe.jawn
 import io.circe.syntax.EncoderOps
+import io.lemonlabs.uri.Url
+import io.lemonlabs.uri.typesafe.dsl.*
 import org.apache.avro.generic.GenericRecord
 import org.scalatest.Assertion
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.ZoneId
 import scala.concurrent.duration.DurationInt
-import io.circe.jawn
+
 class NJAvroTest extends AnyFunSuite {
   import HadoopTestData.*
 
   val avro: HadoopAvro[IO] = hdp.avro(pandaSchema)
 
-  def fs2(path: NJPath, file: AvroFile, data: Set[GenericRecord]): Assertion = {
+  def fs2(path: Url, file: AvroFile, data: Set[GenericRecord]): Assertion = {
     val tgt = path / file.fileName
     hdp.delete(tgt).unsafeRunSync()
     val sink     = avro.withCompression(file.compression).sink(tgt)
@@ -35,14 +38,14 @@ class NJAvroTest extends AnyFunSuite {
     assert(size == data.size)
   }
 
-  val fs2Root: NJPath = NJPath("./data/test/terminals/avro/panda")
+  val fs2Root: Url = Url.parse("./data/test/terminals/avro/panda")
 
   test("snappy avro") {
     fs2(fs2Root, AvroFile(_.Snappy), pandaSet)
   }
 
   test("deflate 6 avro") {
-    fs2(fs2Root, AvroFile(_.Deflate(6)), pandaSet)
+    fs2("data/test/terminals/avro/panda", AvroFile(_.Deflate(6)), pandaSet)
   }
 
   test("uncompressed avro") {
@@ -62,8 +65,8 @@ class NJAvroTest extends AnyFunSuite {
   }
 
   test("laziness") {
-    avro.source(NJPath("./does/not/exist"), 100)
-    avro.sink(NJPath("./does/not/exist"))
+    avro.source("./does/not/exist", 100)
+    avro.sink("./does/not/exist")
   }
 
   test("rotation") {

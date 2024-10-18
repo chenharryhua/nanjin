@@ -4,13 +4,14 @@ import cats.effect.IO
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.chrono.zones.{darwinTime, utcTime}
 import com.github.chenharryhua.nanjin.guard.service.Agent
-import com.github.chenharryhua.nanjin.terminals.{KantanFile, NJCompression, NJPath}
+import com.github.chenharryhua.nanjin.terminals.{KantanFile, NJCompression}
 import eu.timepit.refined.auto.*
 import example.hadoop
 import kantan.csv.{CsvConfiguration, RowDecoder, RowEncoder}
 import kantan.csv.generic.*
-
-class KantanTest(agent: Agent[IO], base: NJPath, rfc: CsvConfiguration) extends WriteRead(agent) {
+import io.lemonlabs.uri.Url
+import io.lemonlabs.uri.typesafe.dsl.*
+class KantanTest(agent: Agent[IO], base: Url, rfc: CsvConfiguration) extends WriteRead(agent) {
   private val header = if (rfc.hasHeader) "kantan-with-header" else "kantan-without-header"
   private val root   = base / header
 
@@ -28,26 +29,26 @@ class KantanTest(agent: Agent[IO], base: NJPath, rfc: CsvConfiguration) extends 
   implicit private val rowEncoder: RowEncoder[Tiger] = shapeless.cachedImplicit
   implicit private val rowDecoder: RowDecoder[Tiger] = shapeless.cachedImplicit
 
-  private def writeSingle(file: KantanFile): IO[NJPath] = {
+  private def writeSingle(file: KantanFile): IO[Url] = {
     val path = root / "single" / file.fileName
     val sink = kantan.sink(path)
-    write(path.uri.getPath).use { meter =>
+    write(path).use { meter =>
       data.evalTap(_ => meter.update(1)).map(rowEncoder.encode).chunks.through(sink).compile.drain.as(path)
     }
   }
 
-  private def writeRotate(file: KantanFile): IO[NJPath] = {
+  private def writeRotate(file: KantanFile): IO[Url] = {
     val path = root / "rotate" / file.fileName
     val sink = kantan.sink(policy, darwinTime)(t => path / file.fileName(t))
-    write(path.uri.getPath).use { meter =>
+    write(path).use { meter =>
       data.evalTap(_ => meter.update(1)).map(rowEncoder.encode).chunks.through(sink).compile.drain.as(path)
     }
   }
 
-  private def writeSingleSpark(file: KantanFile): IO[NJPath] = {
+  private def writeSingleSpark(file: KantanFile): IO[Url] = {
     val path = root / "spark" / "single" / file.fileName
     val sink = kantan.sink(path)
-    write(path.uri.getPath).use { meter =>
+    write(path).use { meter =>
       table
         .stream[IO](1000)
         .evalTap(_ => meter.update(1))
@@ -60,16 +61,16 @@ class KantanTest(agent: Agent[IO], base: NJPath, rfc: CsvConfiguration) extends 
     }
   }
 
-  private def writeMultiSpark(file: KantanFile): IO[NJPath] = {
+  private def writeMultiSpark(file: KantanFile): IO[Url] = {
     val path = root / "spark" / "multi" / file.fileName
-    write(path.uri.getPath).use(_ =>
+    write(path).use(_ =>
       table.output.kantan(path, rfc).withCompression(file.compression).run[IO].as(path))
   }
 
-  private def writeRotateSpark(file: KantanFile): IO[NJPath] = {
+  private def writeRotateSpark(file: KantanFile): IO[Url] = {
     val path = root / "spark" / "rotate" / file.fileName
     val sink = kantan.sink(policy, utcTime)(t => path / file.fileName(t))
-    write(path.uri.getPath).use { meter =>
+    write(path).use { meter =>
       table
         .stream[IO](1000)
         .evalTap(_ => meter.update(1))
@@ -82,11 +83,11 @@ class KantanTest(agent: Agent[IO], base: NJPath, rfc: CsvConfiguration) extends 
     }
   }
 
-  private def sparkRead(path: NJPath): IO[Long] =
-    read(path.uri.getPath).use(_ => loader.kantan(path, rfc).count[IO])
+  private def sparkRead(path: Url): IO[Long] =
+    read(path).use(_ => loader.kantan(path, rfc).count[IO])
 
-  private def folderRead(path: NJPath): IO[Long] =
-    read(path.uri.getPath).use { meter =>
+  private def folderRead(path: Url): IO[Long] =
+    read(path).use { meter =>
       hadoop
         .filesIn(path)
         .flatMap(
@@ -103,8 +104,8 @@ class KantanTest(agent: Agent[IO], base: NJPath, rfc: CsvConfiguration) extends 
         .map(_.sum)
     }
 
-  private def singleRead(path: NJPath): IO[Long] =
-    read(path.uri.getPath).use { meter =>
+  private def singleRead(path: Url): IO[Long] =
+    read(path).use { meter =>
       kantan
         .source(path, 1000)
         .mapChunks(_.map(rowDecoder.decode))

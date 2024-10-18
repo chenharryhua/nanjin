@@ -3,13 +3,13 @@ package mtest.terminals
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.chrono.Policy
-import com.github.chenharryhua.nanjin.terminals.NJPath
-import eu.timepit.refined.auto.*
 import fs2.Stream
 import fs2.text.{lines, utf8}
 import io.circe.generic.auto.*
 import io.circe.jawn.decode
 import io.circe.syntax.EncoderOps
+import io.lemonlabs.uri.Url
+import io.lemonlabs.uri.typesafe.dsl.*
 import mtest.terminals.HadoopTestData.hdp
 import mtest.terminals.TestData.Tiger
 import org.scalatest.Assertion
@@ -21,7 +21,7 @@ import scala.concurrent.duration.DurationInt
 
 class NJBytesTest extends AnyFunSuite {
 
-  def fs2(path: NJPath, data: Set[Tiger]): Assertion = {
+  def fs2(path: Url, data: Set[Tiger]): Assertion = {
     hdp.delete(path).unsafeRunSync()
     val ts   = Stream.emits(data.toList).covary[IO]
     val sink = hdp.bytes.sink(path)
@@ -38,7 +38,7 @@ class NJBytesTest extends AnyFunSuite {
     assert(action.unsafeRunSync().toSet == data)
 
   }
-  val fs2Root: NJPath = NJPath("./data/test/terminals/bytes/fs2")
+  val fs2Root: Url = Url.parse("./data/test/terminals/bytes/fs2")
 
   test("uncompressed") {
     fs2(fs2Root / "tiger.json", TestData.tigerSet)
@@ -66,8 +66,8 @@ class NJBytesTest extends AnyFunSuite {
   }
 
   test("laziness") {
-    hdp.bytes.source(NJPath("./does/not/exist"))
-    hdp.bytes.sink(NJPath("./does/not/exist"))
+    hdp.bytes.source("./does/not/exist")
+    hdp.bytes.sink("./does/not/exist")
   }
 
   test("rotation") {

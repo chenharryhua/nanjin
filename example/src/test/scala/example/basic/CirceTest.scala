@@ -4,14 +4,15 @@ import cats.effect.IO
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.chrono.zones.{berlinTime, londonTime}
 import com.github.chenharryhua.nanjin.guard.service.Agent
-import com.github.chenharryhua.nanjin.terminals.{CirceFile, NJCompression, NJPath}
+import com.github.chenharryhua.nanjin.terminals.{CirceFile, NJCompression}
 import eu.timepit.refined.auto.*
 import example.hadoop
 import io.circe.generic.auto.*
 import io.circe.syntax.EncoderOps
+import io.lemonlabs.uri.Url
 import squants.information.InformationConversions.InformationConversions
-
-class CirceTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
+import io.lemonlabs.uri.typesafe.dsl.*
+class CirceTest(agent: Agent[IO], base: Url) extends WriteRead(agent) {
   private val root = base / "circe"
 
   private val files: List[CirceFile] = List(
@@ -25,26 +26,26 @@ class CirceTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
 
   private val circe = hadoop.circe
 
-  private def writeSingle(file: CirceFile): IO[NJPath] = {
+  private def writeSingle(file: CirceFile): IO[Url] = {
     val path = root / "single" / file.fileName
     val sink = circe.sink(path)
-    write(path.uri.getPath).use { meter =>
+    write(path).use { meter =>
       data.evalTap(_ => meter.update(1)).map(_.asJson).chunks.through(sink).compile.drain.as(path)
     }
   }
 
-  private def writeRotate(file: CirceFile): IO[NJPath] = {
+  private def writeRotate(file: CirceFile): IO[Url] = {
     val path = root / "rotate" / file.fileName
     val sink = circe.sink(policy, berlinTime)(t => path / file.fileName(t))
-    write(path.uri.getPath).use { meter =>
+    write(path).use { meter =>
       data.evalTap(_ => meter.update(1)).map(_.asJson).chunks.through(sink).compile.drain.as(path)
     }
   }
 
-  private def writeSingleSpark(file: CirceFile): IO[NJPath] = {
+  private def writeSingleSpark(file: CirceFile): IO[Url] = {
     val path = root / "spark" / "single" / file.fileName
     val sink = circe.sink(path)
-    write(path.uri.getPath).use { meter =>
+    write(path).use { meter =>
       table
         .stream[IO](1000)
         .evalTap(_ => meter.update(1))
@@ -57,16 +58,16 @@ class CirceTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
     }
   }
 
-  private def writeMultiSpark(file: CirceFile): IO[NJPath] = {
+  private def writeMultiSpark(file: CirceFile): IO[Url] = {
     val path = root / "spark" / "multi" / file.fileName
-    write(path.uri.getPath).use(_ =>
+    write(path).use(_ =>
       table.output.circe(path).withCompression(file.compression).run[IO].as(path))
   }
 
-  private def writeRotateSpark(file: CirceFile): IO[NJPath] = {
+  private def writeRotateSpark(file: CirceFile): IO[Url] = {
     val path = root / "spark" / "rotate" / file.fileName
     val sink = circe.sink(policy, londonTime)(t => path / file.fileName(t))
-    write(path.uri.getPath).use { meter =>
+    write(path).use { meter =>
       table
         .stream[IO](1000)
         .evalTap(_ => meter.update(1))
@@ -79,11 +80,11 @@ class CirceTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
     }
   }
 
-  private def sparkRead(path: NJPath): IO[Long] =
-    read(path.uri.getPath).use(_ => loader.circe(path).count[IO])
+  private def sparkRead(path: Url): IO[Long] =
+    read(path).use(_ => loader.circe(path).count[IO])
 
-  private def folderRead(path: NJPath): IO[Long] =
-    read(path.uri.getPath).use { meter =>
+  private def folderRead(path: Url): IO[Long] =
+    read(path).use { meter =>
       hadoop
         .filesIn(path)
         .flatMap(_.traverse(
@@ -93,8 +94,8 @@ class CirceTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
         .map(_.sum)
     }
 
-  private def singleRead(path: NJPath): IO[Long] =
-    read(path.uri.getPath).use { meter =>
+  private def singleRead(path: Url): IO[Long] =
+    read(path).use { meter =>
       circe
         .source(path, 100.bytes)
         .mapChunks(_.map(_.as[Tiger]))

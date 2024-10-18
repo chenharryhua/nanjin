@@ -5,10 +5,10 @@ import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.TopicDef
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{immigrate, NJAvroCodec}
-import com.github.chenharryhua.nanjin.terminals.NJPath
 import com.sksamuel.avro4s.Record
 import eu.timepit.refined.auto.*
 import fs2.Stream
+import io.lemonlabs.uri.typesafe.dsl.*
 import org.scalatest.funsuite.AnyFunSuite
 
 object version1 {
@@ -22,7 +22,7 @@ class PushPullGRTest extends AnyFunSuite {
 
   val topicName: TopicName = TopicName("pull.test")
 
-  val root: NJPath = NJPath("./data/test/spark/kafka/push_pull")
+  val root = "./data/test/spark/kafka/push_pull"
 
   val baseTopic: TopicDef[Int, version1.Tiger] =
     TopicDef[Int, version1.Tiger](topicName, NJAvroCodec[version1.Tiger])

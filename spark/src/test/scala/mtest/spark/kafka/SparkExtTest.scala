@@ -5,11 +5,11 @@ import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
 import com.github.chenharryhua.nanjin.spark.*
-import com.github.chenharryhua.nanjin.terminals.NJPath
 import com.landoop.transportation.nyc.trip.yellow.trip_record
 import eu.timepit.refined.auto.*
 import frameless.TypedEncoder
 import io.circe.generic.auto.*
+import io.lemonlabs.uri.typesafe.dsl.*
 import mtest.spark.sparkSession
 import org.apache.spark.sql.*
 import org.scalatest.funsuite.AnyFunSuite
@@ -36,9 +36,9 @@ class SparkExtTest extends AnyFunSuite {
     import sparkSession.implicits.*
     val ate = AvroTypedEncoder[Foo]
     val rdd = sparkSession.sparkContext.parallelize(list.flatMap(Option(_)))
-    rdd.output(ate.avroCodec).avro(NJPath("./data/test/spark/sytax/rdd/avro")).run[IO].unsafeRunSync()
-    rdd.output.circe(NJPath("./data/test/spark/sytax/rdd/circe")).run[IO].unsafeRunSync()
+    rdd.output(ate.avroCodec).avro("./data/test/spark/sytax/rdd/avro").run[IO].unsafeRunSync()
+    rdd.output.circe("./data/test/spark/sytax/rdd/circe").run[IO].unsafeRunSync()
     val ds = sparkSession.createDataset(rdd)
-    ds.rdd.output(ate.avroCodec).parquet(NJPath("./data/test/spark/sytax/ds/parquet")).run[IO].unsafeRunSync()
+    ds.rdd.output(ate.avroCodec).parquet("./data/test/spark/sytax/ds/parquet").run[IO].unsafeRunSync()
   }
 }

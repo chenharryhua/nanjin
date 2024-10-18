@@ -4,6 +4,7 @@ import cats.Endo
 import cats.data.NonEmptyList
 import cats.effect.kernel.Sync
 import com.github.chenharryhua.nanjin.datetime.codec
+import io.lemonlabs.uri.{Uri, Url}
 import kantan.csv.CsvConfiguration
 import org.apache.avro.Schema
 import org.apache.hadoop.conf.Configuration
@@ -23,22 +24,25 @@ final class NJHadoop[F[_]] private (config: Configuration) {
 
   // disk operations
 
-  def delete(path: NJPath)(implicit F: Sync[F]): F[Boolean] = F.blocking {
-    val fs: FileSystem = path.hadoopPath.getFileSystem(config)
-    fs.delete(path.hadoopPath, true)
+  def delete(path: Url)(implicit F: Sync[F]): F[Boolean] = F.blocking {
+    val hp: Path       = toHadoopPath(path)
+    val fs: FileSystem = hp.getFileSystem(config)
+    fs.delete(hp, true)
   }
 
-  def isExist(path: NJPath)(implicit F: Sync[F]): F[Boolean] = F.blocking {
-    val fs: FileSystem = path.hadoopPath.getFileSystem(config)
-    fs.exists(path.hadoopPath)
+  def isExist(path: Url)(implicit F: Sync[F]): F[Boolean] = F.blocking {
+    val hp: Path       = toHadoopPath(path)
+    val fs: FileSystem = hp.getFileSystem(config)
+    fs.exists(hp)
   }
 
   /** hadoop listFiles
     * @return
     */
-  def locatedFileStatus(path: NJPath)(implicit F: Sync[F]): F[List[LocatedFileStatus]] = F.blocking {
-    val fs: FileSystem                        = path.hadoopPath.getFileSystem(config)
-    val ri: RemoteIterator[LocatedFileStatus] = fs.listFiles(path.hadoopPath, true)
+  def locatedFileStatus(path: Url)(implicit F: Sync[F]): F[List[LocatedFileStatus]] = F.blocking {
+    val hp: Path                              = toHadoopPath(path)
+    val fs: FileSystem                        = hp.getFileSystem(config)
+    val ri: RemoteIterator[LocatedFileStatus] = fs.listFiles(hp, true)
     val lb: ListBuffer[LocatedFileStatus]     = ListBuffer.empty[LocatedFileStatus]
     while (ri.hasNext) lb.addOne(ri.next())
     lb.toList
@@ -49,12 +53,13 @@ final class NJHadoop[F[_]] private (config: Configuration) {
     *   search root
     * @return
     */
-  def dataFolders(path: NJPath)(implicit F: Sync[F]): F[List[NJPath]] = F.blocking {
-    val fs: FileSystem                        = path.hadoopPath.getFileSystem(config)
-    val ri: RemoteIterator[LocatedFileStatus] = fs.listFiles(path.hadoopPath, true)
+  def dataFolders(path: Url)(implicit F: Sync[F]): F[List[Url]] = F.blocking {
+    val hp: Path                              = toHadoopPath(path)
+    val fs: FileSystem                        = hp.getFileSystem(config)
+    val ri: RemoteIterator[LocatedFileStatus] = fs.listFiles(hp, true)
     val lb: mutable.Set[Path]                 = collection.mutable.Set.empty
     while (ri.hasNext) lb.addOne(ri.next().getPath.getParent)
-    lb.toList.map(NJPath(_))
+    lb.toList.map(p => Uri(p.toUri).toUrl)
   }
 
   /** retrieve file name under path folder, sorted by modification time
@@ -62,16 +67,17 @@ final class NJHadoop[F[_]] private (config: Configuration) {
     *   root
     * @return
     */
-  def filesIn(path: NJPath)(implicit F: Sync[F]): F[List[NJPath]] = F.blocking {
-    val fs: FileSystem   = path.hadoopPath.getFileSystem(config)
-    val stat: FileStatus = fs.getFileStatus(path.hadoopPath)
+  def filesIn(path: Url)(implicit F: Sync[F]): F[List[Url]] = F.blocking {
+    val hp: Path         = toHadoopPath(path)
+    val fs: FileSystem   = hp.getFileSystem(config)
+    val stat: FileStatus = fs.getFileStatus(hp)
     if (stat.isFile)
-      List(NJPath(stat.getPath))
+      List(Uri(stat.getPath.toUri).toUrl)
     else
-      fs.listStatus(path.hadoopPath, HiddenFileFilter.INSTANCE)
+      fs.listStatus(hp, HiddenFileFilter.INSTANCE)
         .filter(_.isFile)
         .sortBy(_.getModificationTime)
-        .map(s => NJPath(s.getPath))
+        .map(s => Uri(s.getPath.toUri).toUrl)
         .toList
   }
 
@@ -82,10 +88,11 @@ final class NJHadoop[F[_]] private (config: Configuration) {
     * @return
     *   the best path according to the rules
     */
-  def best[T](path: NJPath, rules: NonEmptyList[String => Option[T]])(implicit
+  def best[T](path: Url, rules: NonEmptyList[String => Option[T]])(implicit
     F: Sync[F],
-    Ord: Ordering[T]): F[Option[NJPath]] = F.blocking {
-    val fs: FileSystem = path.hadoopPath.getFileSystem(config)
+    Ord: Ordering[T]): F[Option[Url]] = F.blocking {
+    val hp: Path       = toHadoopPath(path)
+    val fs: FileSystem = hp.getFileSystem(config)
     @tailrec
     def go(hp: Path, js: List[String => Option[T]]): Option[Path] =
       js match {
@@ -100,7 +107,7 @@ final class NJHadoop[F[_]] private (config: Configuration) {
           }
         case Nil => Some(hp)
       }
-    go(path.hadoopPath, rules.toList).map(NJPath(_))
+    go(hp, rules.toList).map(p => Uri(p.toUri).toUrl)
   }
 
   /** @param path
@@ -108,16 +115,16 @@ final class NJHadoop[F[_]] private (config: Configuration) {
     * @return
     *   the path which has the latest one or None
     */
-  def latestYmd(path: NJPath)(implicit F: Sync[F]): F[Option[NJPath]] =
+  def latestYmd(path: Url)(implicit F: Sync[F]): F[Option[Url]] =
     best[Int](path, NonEmptyList.of(codec.year, codec.month, codec.day))
 
-  def latestYmdh(path: NJPath)(implicit F: Sync[F]): F[Option[NJPath]] =
+  def latestYmdh(path: Url)(implicit F: Sync[F]): F[Option[Url]] =
     best[Int](path, NonEmptyList.of(codec.year, codec.month, codec.day, codec.hour))
 
-  def earliestYmd(path: NJPath)(implicit F: Sync[F]): F[Option[NJPath]] =
+  def earliestYmd(path: Url)(implicit F: Sync[F]): F[Option[Url]] =
     best(path, NonEmptyList.of(codec.year, codec.month, codec.day))(F, Ordering[Int].reverse)
 
-  def earliestYmdh(path: NJPath)(implicit F: Sync[F]): F[Option[NJPath]] =
+  def earliestYmdh(path: Url)(implicit F: Sync[F]): F[Option[Url]] =
     best(path, NonEmptyList.of(codec.year, codec.month, codec.day, codec.hour))(F, Ordering[Int].reverse)
 
   // sources and sinks

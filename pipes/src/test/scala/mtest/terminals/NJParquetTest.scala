@@ -6,11 +6,13 @@ import cats.effect.unsafe.implicits.global
 import cats.implicits.toTraverseOps
 import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.terminals.NJCompression.*
-import com.github.chenharryhua.nanjin.terminals.{HadoopParquet, NJFileKind, NJPath, ParquetFile}
+import com.github.chenharryhua.nanjin.terminals.{HadoopParquet, NJFileKind, ParquetFile}
 import eu.timepit.refined.auto.*
 import fs2.Stream
 import io.circe.jawn
 import io.circe.syntax.EncoderOps
+import io.lemonlabs.uri.Url
+import io.lemonlabs.uri.typesafe.dsl.*
 import org.apache.avro.generic.GenericRecord
 import org.scalatest.Assertion
 import org.scalatest.funsuite.AnyFunSuite
@@ -24,7 +26,7 @@ class NJParquetTest extends AnyFunSuite {
 
   val parquet: HadoopParquet[IO] = hdp.parquet(pandaSchema)
 
-  def fs2(path: NJPath, file: ParquetFile, data: Set[GenericRecord]): Assertion = {
+  def fs2(path: Url, file: ParquetFile, data: Set[GenericRecord]): Assertion = {
     val tgt  = path / file.fileName
     val ts   = Stream.emits(data.toList).covary[IO].chunks
     val sink = parquet.updateWriter(_.withCompressionCodec(file.compression.codecName)).sink(tgt)
@@ -39,7 +41,7 @@ class NJParquetTest extends AnyFunSuite {
     assert(size == data.size)
   }
 
-  val fs2Root: NJPath = NJPath("./data/test/terminals/parquet/panda")
+  val fs2Root: Url = Url("./data/test/terminals/parquet/panda")
 
   test("parquet snappy") {
     fs2(fs2Root, ParquetFile(_.Snappy), pandaSet)
@@ -73,8 +75,8 @@ class NJParquetTest extends AnyFunSuite {
   }
 
   test("laziness") {
-    parquet.source(NJPath("./does/not/exist"), 100)
-    parquet.sink(NJPath("./does/not/exist"))
+    parquet.source("./does/not/exist", 100)
+    parquet.sink("./does/not/exist")
   }
 
   test("rotation") {
@@ -115,6 +117,6 @@ class NJParquetTest extends AnyFunSuite {
     def r2(str: String): Option[Int] = Try(str.takeRight(2).toInt).toOption
 
     val res3 = hdp.best(path, NonEmptyList.of(r1, r2)).unsafeRunSync()
-    assert(res3.exists(_.pathStr.takeRight(8).take(6) === "Month="))
+    assert(res3.exists(_.toString().takeRight(8).take(6) === "Month="))
   }
 }

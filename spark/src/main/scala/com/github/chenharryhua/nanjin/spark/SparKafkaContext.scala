@@ -11,10 +11,11 @@ import com.github.chenharryhua.nanjin.messages.kafka.codec.{gr2Jackson, SerdeOf}
 import com.github.chenharryhua.nanjin.messages.kafka.{CRMetaInfo, NJConsumerRecord}
 import com.github.chenharryhua.nanjin.spark.kafka.{sk, SparKafkaTopic, Statistics}
 import com.github.chenharryhua.nanjin.spark.persist.RddFileHoarder
-import com.github.chenharryhua.nanjin.terminals.{NJHadoop, NJPath}
+import com.github.chenharryhua.nanjin.terminals.{toHadoopPath, NJHadoop}
 import eu.timepit.refined.refineMV
 import fs2.Stream
 import fs2.kafka.*
+import io.lemonlabs.uri.Url
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{Dataset, SparkSession}
 import org.typelevel.cats.time.instances.zoneid
@@ -49,7 +50,7 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
     * @param dateRange
     *   datetime range
     */
-  def dump(topicName: TopicName, path: NJPath, dateRange: NJDateTimeRange)(implicit F: Async[F]): F[Long] = {
+  def dump(topicName: TopicName, path: Url, dateRange: NJDateTimeRange)(implicit F: Async[F]): F[Long] = {
     val grRdd: F[RDD[String]] = for {
       schemaPair <- kafkaContext.schemaRegistry.fetchAvroSchema(topicName)
       builder = new PullGenericRecord(kafkaContext.settings.schemaRegistrySettings, topicName, schemaPair)
@@ -67,13 +68,13 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
         .as(rdd.count()))
   }
 
-  def dump(topicName: TopicName, path: NJPath)(implicit F: Async[F]): F[Long] =
+  def dump(topicName: TopicName, path: Url)(implicit F: Async[F]): F[Long] =
     dump(topicName, path, NJDateTimeRange(utils.sparkZoneId(sparkSession)))
 
-  def dump(topicName: TopicNameL, path: NJPath, dateRange: NJDateTimeRange)(implicit F: Async[F]): F[Long] =
+  def dump(topicName: TopicNameL, path: Url, dateRange: NJDateTimeRange)(implicit F: Async[F]): F[Long] =
     dump(TopicName(topicName), path, dateRange)
 
-  def dump(topicName: TopicNameL, path: NJPath)(implicit F: Async[F]): F[Long] =
+  def dump(topicName: TopicNameL, path: Url)(implicit F: Async[F]): F[Long] =
     dump(TopicName(topicName), path, NJDateTimeRange(utils.sparkZoneId(sparkSession)))
 
   /** upload data from given folder to a kafka topic. files read in parallel
@@ -94,7 +95,7 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
 
   def upload(
     topicName: TopicName,
-    path: NJPath,
+    path: Url,
     chunkSize: ChunkSize,
     config: Endo[ProducerSettings[F, Array[Byte], Array[Byte]]])(implicit F: Async[F]): F[Long] = {
 
@@ -120,11 +121,11 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
 
   def upload(
     topicName: TopicNameL,
-    path: NJPath,
+    path: Url,
     chunkSize: ChunkSize,
     config: Endo[ProducerSettings[F, Array[Byte], Array[Byte]]])(implicit F: Async[F]): F[Long] =
     upload(TopicName(topicName), path, chunkSize, config)
-  def upload(topicName: TopicNameL, path: NJPath)(implicit F: Async[F]): F[Long] =
+  def upload(topicName: TopicNameL, path: Url)(implicit F: Async[F]): F[Long] =
     upload(TopicName(topicName), path, refineMV(1000), identity)
 
   /** sequentially read files in the folder, sorted by modification time, and upload them into kafka
@@ -142,7 +143,7 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
     */
   def uploadInSequence(
     topicName: TopicName,
-    path: NJPath,
+    path: Url,
     chunkSize: ChunkSize,
     config: Endo[ProducerSettings[F, Array[Byte], Array[Byte]]])(implicit F: Async[F]): F[Long] = {
 
@@ -173,12 +174,12 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
 
   def uploadInSequence(
     topicName: TopicNameL,
-    path: NJPath,
+    path: Url,
     chunkSize: ChunkSize,
     config: Endo[ProducerSettings[F, Array[Byte], Array[Byte]]])(implicit F: Async[F]): F[Long] =
     uploadInSequence(TopicName(topicName), path, chunkSize, config)
 
-  def uploadInSequence(topicName: TopicNameL, path: NJPath)(implicit F: Async[F]): F[Long] =
+  def uploadInSequence(topicName: TopicNameL, path: Url)(implicit F: Async[F]): F[Long] =
     uploadInSequence(TopicName(topicName), path, refineMV(1000), identity)
 
   object stats {
@@ -186,27 +187,31 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
 
     private val ate: AvroTypedEncoder[CRMetaInfo] = AvroTypedEncoder[CRMetaInfo]
 
-    def avro(path: NJPath)(implicit F: Sync[F]): F[Statistics] =
+    def avro(path: Url)(implicit F: Sync[F]): F[Statistics] =
       F.blocking {
         new Statistics(
-          sparkSession.read.format("avro").schema(ate.sparkSchema).load(path.pathStr).as[CRMetaInfo]
+          sparkSession.read
+            .format("avro")
+            .schema(ate.sparkSchema)
+            .load(toHadoopPath(path).toString)
+            .as[CRMetaInfo]
         )
       }
 
-    def jackson(path: NJPath)(implicit F: Sync[F]): F[Statistics] =
+    def jackson(path: Url)(implicit F: Sync[F]): F[Statistics] =
       F.blocking {
         new Statistics(
-          sparkSession.read.schema(ate.sparkSchema).json(path.pathStr).as[CRMetaInfo]
+          sparkSession.read.schema(ate.sparkSchema).json(toHadoopPath(path).toString).as[CRMetaInfo]
         )
       }
 
-    def circe(path: NJPath)(implicit F: Sync[F]): F[Statistics] =
+    def circe(path: Url)(implicit F: Sync[F]): F[Statistics] =
       jackson(path)
 
-    def parquet(path: NJPath)(implicit F: Sync[F]): F[Statistics] =
+    def parquet(path: Url)(implicit F: Sync[F]): F[Statistics] =
       F.blocking {
         new Statistics(
-          sparkSession.read.schema(ate.sparkSchema).parquet(path.pathStr).as[CRMetaInfo]
+          sparkSession.read.schema(ate.sparkSchema).parquet(toHadoopPath(path).toString).as[CRMetaInfo]
         )
       }
   }

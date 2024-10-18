@@ -5,6 +5,7 @@ import cats.implicits.toFunctorOps
 import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick, TickStatus}
 import fs2.{Chunk, Pipe, Stream}
+import io.lemonlabs.uri.Url
 import org.apache.avro.Schema
 import org.apache.avro.generic.{GenericData, GenericRecord}
 import org.apache.hadoop.conf.Configuration
@@ -18,23 +19,23 @@ final class HadoopBinAvro[F[_]] private (
 
   // read
 
-  def source(path: NJPath, chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, GenericData.Record] =
-    HadoopReader.binAvroS[F](configuration, schema, path.hadoopPath, chunkSize)
+  def source(path: Url, chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, GenericData.Record] =
+    HadoopReader.binAvroS[F](configuration, schema, toHadoopPath(path), chunkSize)
 
   // write
 
-  def sink(path: NJPath)(implicit F: Sync[F]): Pipe[F, Chunk[GenericRecord], Int] = {
+  def sink(path: Url)(implicit F: Sync[F]): Pipe[F, Chunk[GenericRecord], Int] = {
     (ss: Stream[F, Chunk[GenericRecord]]) =>
       Stream
-        .resource(HadoopWriter.binAvroR[F](configuration, schema, path.hadoopPath))
+        .resource(HadoopWriter.binAvroR[F](configuration, schema, toHadoopPath(path)))
         .flatMap(w => ss.evalMap(c => w.write(c).as(c.size)))
   }
 
-  def sink(policy: Policy, zoneId: ZoneId)(pathBuilder: Tick => NJPath)(implicit
+  def sink(policy: Policy, zoneId: ZoneId)(pathBuilder: Tick => Url)(implicit
     F: Async[F]): Pipe[F, Chunk[GenericRecord], Int] = {
 
     def get_writer(tick: Tick): Resource[F, HadoopWriter[F, GenericRecord]] =
-      HadoopWriter.binAvroR[F](configuration, schema, pathBuilder(tick).hadoopPath)
+      HadoopWriter.binAvroR[F](configuration, schema, toHadoopPath(pathBuilder(tick)))
 
     // save
     (ss: Stream[F, Chunk[GenericRecord]]) =>

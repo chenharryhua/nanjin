@@ -4,11 +4,12 @@ import cats.effect.IO
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.chrono.zones.{cairoTime, saltaTime}
 import com.github.chenharryhua.nanjin.guard.service.Agent
-import com.github.chenharryhua.nanjin.terminals.{JacksonFile, NJCompression, NJPath}
+import com.github.chenharryhua.nanjin.terminals.{JacksonFile, NJCompression}
 import eu.timepit.refined.auto.*
 import example.hadoop
-
-class JacksonTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
+import io.lemonlabs.uri.Url
+import io.lemonlabs.uri.typesafe.dsl.*
+class JacksonTest(agent: Agent[IO], base: Url) extends WriteRead(agent) {
   private val root = base / "jackson"
 
   private val files: List[JacksonFile] = List(
@@ -22,26 +23,26 @@ class JacksonTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
 
   private val jackson = hadoop.jackson(schema)
 
-  private def writeSingle(file: JacksonFile): IO[NJPath] = {
+  private def writeSingle(file: JacksonFile): IO[Url] = {
     val path = root / "single" / file.fileName
     val sink = jackson.sink(path)
-    write(path.uri.getPath).use { meter =>
+    write(path).use { meter =>
       data.evalTap(_ => meter.update(1)).map(encoder.to).chunks.through(sink).compile.drain.as(path)
     }
   }
 
-  private def writeRotate(file: JacksonFile): IO[NJPath] = {
+  private def writeRotate(file: JacksonFile): IO[Url] = {
     val path = root / "rotate" / file.fileName
     val sink = jackson.sink(policy, cairoTime)(t => path / file.fileName(t))
-    write(path.uri.getPath).use { meter =>
+    write(path).use { meter =>
       data.evalTap(_ => meter.update(1)).map(encoder.to).chunks.through(sink).compile.drain.as(path)
     }
   }
 
-  private def writeSingleSpark(file: JacksonFile): IO[NJPath] = {
+  private def writeSingleSpark(file: JacksonFile): IO[Url] = {
     val path = root / "spark" / "single" / file.fileName
     val sink = jackson.sink(path)
-    write(path.uri.getPath).use { meter =>
+    write(path).use { meter =>
       table
         .stream[IO](1000)
         .evalTap(_ => meter.update(1))
@@ -54,16 +55,16 @@ class JacksonTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
     }
   }
 
-  private def writeMultiSpark(file: JacksonFile): IO[NJPath] = {
+  private def writeMultiSpark(file: JacksonFile): IO[Url] = {
     val path = root / "spark" / "multi" / file.fileName
-    write(path.uri.getPath).use(_ =>
+    write(path).use(_ =>
       table.output.jackson(path).withCompression(file.compression).run[IO].as(path))
   }
 
-  private def writeRotateSpark(file: JacksonFile): IO[NJPath] = {
+  private def writeRotateSpark(file: JacksonFile): IO[Url] = {
     val path = root / "spark" / "rotate" / file.fileName
     val sink = jackson.sink(policy, saltaTime)(t => path / file.fileName(t))
-    write(path.uri.getPath).use { meter =>
+    write(path).use { meter =>
       table
         .stream[IO](1000)
         .evalTap(_ => meter.update(1))
@@ -76,11 +77,11 @@ class JacksonTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
     }
   }
 
-  private def sparkRead(path: NJPath): IO[Long] =
-    read(path.uri.getPath).use(_ => loader.jackson(path).count[IO])
+  private def sparkRead(path: Url): IO[Long] =
+    read(path).use(_ => loader.jackson(path).count[IO])
 
-  private def folderRead(path: NJPath): IO[Long] =
-    read(path.uri.getPath).use { meter =>
+  private def folderRead(path: Url): IO[Long] =
+    read(path).use { meter =>
       hadoop
         .filesIn(path)
         .flatMap(
@@ -90,8 +91,8 @@ class JacksonTest(agent: Agent[IO], base: NJPath) extends WriteRead(agent) {
         .map(_.sum)
     }
 
-  private def singleRead(path: NJPath): IO[Long] =
-    read(path.uri.getPath).use { meter =>
+  private def singleRead(path: Url): IO[Long] =
+    read(path).use { meter =>
       jackson.source(path, 100).map(decoder.from).evalTap(_ => meter.update(1)).compile.fold(0L) {
         case (s, _) =>
           s + 1

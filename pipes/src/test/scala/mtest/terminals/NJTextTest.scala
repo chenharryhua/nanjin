@@ -12,6 +12,7 @@ import io.circe.generic.auto.*
 import io.circe.jawn
 import io.circe.jawn.decode
 import io.circe.syntax.EncoderOps
+import io.lemonlabs.uri.Url
 import mtest.terminals.HadoopTestData.hdp
 import mtest.terminals.TestData.Tiger
 import org.apache.hadoop.conf.Configuration
@@ -20,11 +21,13 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.ZoneId
 import scala.concurrent.duration.DurationInt
+import io.lemonlabs.uri.typesafe.dsl.*
+
 class NJTextTest extends AnyFunSuite {
 
   val text: HadoopText[IO] = hdp.text
 
-  def fs2(path: NJPath, file: TextFile, data: Set[Tiger]): Assertion = {
+  def fs2(path: Url, file: TextFile, data: Set[Tiger]): Assertion = {
     val tgt = path / file.fileName
     hdp.delete(tgt).unsafeRunSync()
     val ts                      = Stream.emits(data.toList).covary[IO].map(_.asJson.noSpaces).chunks
@@ -38,7 +41,7 @@ class NJTextTest extends AnyFunSuite {
     assert(size == data.size)
   }
 
-  val fs2Root: NJPath = NJPath("./data/test/terminals/text/tiger")
+  val fs2Root: Url = Url("./data/test/terminals/text/tiger")
 
   test("uncompressed") {
     fs2(fs2Root, TextFile(_.Uncompressed), TestData.tigerSet)
@@ -65,7 +68,7 @@ class NJTextTest extends AnyFunSuite {
   }
 
   test("ftp") {
-    val path = NJPath("ftp://localhost/data/tiger.txt")
+    val path = Url.parse("ftp://localhost/data/tiger.txt")
     val conf = new Configuration()
     conf.set("fs.ftp.host", "localhost")
     conf.set("fs.ftp.user.localhost", "chenh")
@@ -85,8 +88,8 @@ class NJTextTest extends AnyFunSuite {
   }
 
   test("laziness") {
-    text.source(NJPath("./does/not/exist"), 1)
-    text.sink(NJPath("./does/not/exist"))
+    text.source("./does/not/exist", 1)
+    text.sink("./does/not/exist")
   }
 
   test("rotation") {
@@ -129,6 +132,6 @@ class NJTextTest extends AnyFunSuite {
       .drain
       .unsafeRunSync()
     import better.files.*
-    hdp.filesIn(path).unsafeRunSync().foreach(np => assert(File(np.uri).lines.isEmpty))
+    hdp.filesIn(path).unsafeRunSync().foreach(np => assert(File(np.toJavaURI).lines.isEmpty))
   }
 }

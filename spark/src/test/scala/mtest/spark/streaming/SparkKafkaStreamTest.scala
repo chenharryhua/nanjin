@@ -7,7 +7,6 @@ import com.github.chenharryhua.nanjin.kafka.TopicDef
 import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJProducerRecord}
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.spark.persist.{Rooster, RoosterData}
-import com.github.chenharryhua.nanjin.terminals.NJPath
 import eu.timepit.refined.auto.*
 import frameless.TypedEncoder
 import mtest.spark.kafka.{ctx, sparKafka}
@@ -21,7 +20,7 @@ import scala.util.Random
 @DoNotDiscover
 class SparkKafkaStreamTest extends AnyFunSuite {
 
-  val root = NJPath("./data/test/spark/sstream/")
+  val root = "./data/test/spark/sstream/"
 
   val roosterTopic: TopicDef[Int, Rooster] =
     TopicDef[Int, Rooster](TopicName("sstream.rooster"), Rooster.avroCodec)
