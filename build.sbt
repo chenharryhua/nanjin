@@ -193,6 +193,7 @@ val baseLib = List(
   "io.scalaland" %% "enumz"                        % "1.1.0",
   "com.chuusai" %% "shapeless"                     % "2.3.12",
   "com.github.alonsodomin.cron4s" %% "cron4s-core" % cron4sV,
+  "io.lemonlabs" %% "scala-uri"                    % "4.0.3",
   ("com.lihaoyi" %% "acyclic"                      % acyclicV).cross(CrossVersion.full) % "provided"
 ) ++ enumLib ++ drosteLib ++ catsLib ++ refinedLib ++ circeLib ++ monocleLib ++ fs2Lib
 
@@ -412,7 +413,6 @@ lazy val pipes = (project in file("pipes"))
   .settings {
     val libs = List(
       "io.circe" %% "circe-jackson210" % "0.14.2",
-      "io.lemonlabs" %% "scala-uri"    % "4.0.3",
       "software.amazon.awssdk"         % "bundle"    % awsV,
       "org.tukaani"                    % "xz"        % "1.10",
       "org.apache.zookeeper"           % "zookeeper" % "3.9.2", // snyk
@@ -484,6 +484,7 @@ lazy val example = (project in file("example"))
   .settings(Test / PB.targets := Seq(
     scalapb.gen() -> (Test / sourceManaged).value / "scalapb"
   ))
+  .settings(dependencyOverrides += "org.json4s" %% "json4s-native" % "3.6.12")
 
 lazy val nanjin =
   (project in file(".")).aggregate(

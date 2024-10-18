@@ -3,11 +3,11 @@ package example.kafka
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.messages.kafka.NJProducerRecord
-import com.github.chenharryhua.nanjin.terminals.NJPath
 import eu.timepit.refined.auto.*
 import example.*
 import example.topics.fooTopic
 import io.circe.generic.auto.*
+import io.lemonlabs.uri.Url
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -46,7 +46,7 @@ class ExampleKafkaBasic extends AnyFunSuite {
   }
 
   test("persist messages to local disk and then load data back into kafka") {
-    val path = NJPath("./data/example/foo.json")
+    val path = Url.parse("./data/example/foo.json")
     sparKafka.topic(fooTopic).fromKafka.flatMap(_.output.circe(path).run[IO]).unsafeRunSync()
     sparKafka
       .topic(fooTopic)

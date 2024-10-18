@@ -66,4 +66,8 @@ class AwsArnTest extends AnyFunSuite {
     assert(decode[SqsConfig](fifo.asJson.spaces2).toOption.get == fifo)
   }
 
+  test("s3 url") {
+    val s3 = S3Path("bucket", "key")
+    assert(s3.s3Url.toString() == "s3://bucket/key")
+  }
 }

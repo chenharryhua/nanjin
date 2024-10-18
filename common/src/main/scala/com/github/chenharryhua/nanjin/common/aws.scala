@@ -10,6 +10,7 @@ import eu.timepit.refined.predicates.all.{And, Not}
 import eu.timepit.refined.string.{EndsWith, MatchesRegex, Url}
 import io.circe.generic.JsonCodec
 import io.circe.refined.*
+import io.lemonlabs.uri.Url as SUrl
 
 object aws {
   type IamArn = String Refined MatchesRegex["^arn:(aws[a-zA-Z-]*)?:iam::\\d{12}:role/[A-Za-z0-9-]+$"]
@@ -28,8 +29,7 @@ object aws {
 
   @JsonCodec
   final case class S3Path(bucket: String, key: String) {
-    val s3: String  = s"${S3Protocols.S3.entryName}://$bucket/$key"
-    val s3a: String = s"${S3Protocols.S3A.entryName}://$bucket/$key"
+    val s3Url: SUrl = SUrl.parse(s"${S3Protocols.S3.entryName}://$bucket/$key")
   }
 
   // https://docs.aws.amazon.com/systems-manager/latest/userguide/systems-manager-parameter-store.html

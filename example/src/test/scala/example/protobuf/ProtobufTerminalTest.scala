@@ -2,10 +2,12 @@ package example.protobuf
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.terminals.{HadoopBytes, NJCompression, NJPath, ProtobufFile}
+import com.github.chenharryhua.nanjin.terminals.{HadoopBytes, NJCompression, ProtobufFile}
 import eu.timepit.refined.auto.*
 import example.hadoop
 import fs2.Stream
+import io.lemonlabs.uri.Url
+import io.lemonlabs.uri.typesafe.dsl.urlToUrlDsl
 import mtest.pb.test.Lion
 import org.scalatest.Assertion
 import org.scalatest.funsuite.AnyFunSuite
@@ -14,12 +16,12 @@ import scalapb.GeneratedMessageCompanion
 class ProtobufTerminalTest extends AnyFunSuite {
   import ProtobufData.*
 
-  val root: NJPath                         = NJPath("./data/example/protobuf")
+  val root: Url = Url.parse("./data/example/protobuf")
   val data: Stream[IO, Lion]               = Stream.emits(lions)
   val pb: HadoopBytes[IO]                  = hadoop.bytes
   val gmc: GeneratedMessageCompanion[Lion] = implicitly
   def run(file: ProtobufFile): Assertion = {
-    val path: NJPath = root / file.fileName
+    val path: Url = root / file.fileName
 
     val write =
       Stream.resource(pb.outputStream(path)).flatMap(os => data.map(_.writeDelimitedTo(os))).compile.drain

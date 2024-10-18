@@ -56,9 +56,16 @@ class HadoopTest extends AnyFunSuite {
   }
 
   test("delete") {
-    hdp.delete(p1).unsafeRunSync()
-    val res = hdp.isExist(p1).unsafeRunSync()
-    assert(!res)
+    val delAction = for {
+      before <- hdp.isExist(p1)
+      del <- hdp.delete(p1)
+      after <- hdp.isExist(p1)
+    } yield ((before, del, after))
+
+    val (before, del, after) = delAction.unsafeRunSync()
+    assert(before)
+    assert(del)
+    assert(!after)
   }
 
   test("toHadoopPath") {
@@ -73,8 +80,11 @@ class HadoopTest extends AnyFunSuite {
     val p6 = p5 / "abc/efg"
     assert(toHadoopPath(p6).toString == "s3a://bucket/key/abc/efg")
 
-    val p7 = Url.parse("s3a://bucket/key")
+    val p7 = Url.parse("s3a://bucket/key/")
     val p8 = p7 / 1 / 2 / 3
     assert(toHadoopPath(p8).toString == "s3a://bucket/key/1/2/3")
+
+    val p9 = Url.parse("abc/efg/")
+    assert(toHadoopPath(p9).toString == "abc/efg")
   }
 }

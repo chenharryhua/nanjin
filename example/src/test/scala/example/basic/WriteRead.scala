@@ -4,18 +4,19 @@ import cats.effect.IO
 import cats.effect.kernel.Resource
 import com.github.chenharryhua.nanjin.guard.action.NJMeter
 import com.github.chenharryhua.nanjin.guard.service.Agent
+import io.lemonlabs.uri.Url
 
 abstract class WriteRead(agent: Agent[IO]) {
-  final protected def write(job: String): Resource[IO, NJMeter[IO]] = {
-    val name = "(write)" + job
+  final protected def write(job: Url): Resource[IO, NJMeter[IO]] = {
+    val name = "(write)" + job.toString()
     for {
       _ <- agent.gauge(name).timed
       meter <- agent.meter(name, _.withUnit(_.COUNT))
     } yield meter
   }
 
-  final protected def read(job: String): Resource[IO, NJMeter[IO]] = {
-    val name = "(read)" + job
+  final protected def read(job: Url): Resource[IO, NJMeter[IO]] = {
+    val name = "(read)" + job.toString()
     for {
       _ <- agent.gauge(name).timed
       meter <- agent.meter(name, _.withUnit(_.COUNT))
