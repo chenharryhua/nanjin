@@ -1,8 +1,9 @@
-ThisBuild / version := "0.18.0-SNAPSHOT"
+ThisBuild / version      := "0.18.0-SNAPSHOT"
+ThisBuild / scalaVersion := "2.13.15"
 
 val acyclicV    = "0.3.15"
 val avroV       = "1.12.0"
-val awsV        = "2.28.21"
+val awsV        = "2.28.26"
 val catsCoreV   = "2.12.0"
 val catsEffectV = "3.5.4"
 val chimneyV    = "1.5.0"
@@ -15,7 +16,7 @@ val enumeratumV = "1.7.5"
 val fs2KafkaV   = "3.5.1"
 val fs2V        = "3.11.0"
 val framelessV  = "0.16.0"
-val hadoopV     = "3.4.0"
+val hadoopV     = "3.4.1"
 val http4sV     = "0.23.28"
 val jacksonV    = "2.18.0"
 val jwtV        = "0.12.6"
@@ -37,7 +38,6 @@ val sparkV      = "3.5.3"
 
 lazy val commonSettings = List(
   organization       := "com.github.chenharryhua",
-  scalaVersion       := "2.13.15",
   evictionErrorLevel := Level.Info,
   versionScheme      := Some("early-semver"),
   resolvers ++=
