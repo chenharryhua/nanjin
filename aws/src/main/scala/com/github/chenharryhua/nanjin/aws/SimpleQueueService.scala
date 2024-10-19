@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.aws
 import cats.Endo
 import cats.effect.kernel.{Async, Resource}
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.common.aws.{S3Path, SqsConfig}
+import com.github.chenharryhua.nanjin.common.aws.S3Path
 import com.github.chenharryhua.nanjin.common.chrono.{Policy, TickStatus}
 import fs2.{Chunk, Pull, Stream}
 import io.circe.Json
@@ -46,16 +46,6 @@ trait SimpleQueueService[F[_]] {
   def receive(request: ReceiveMessageRequest): Stream[F, SqsMessage]
   final def receive(f: Endo[ReceiveMessageRequest.Builder]): Stream[F, SqsMessage] =
     receive(f(ReceiveMessageRequest.builder()).build())
-
-  final def receive(sqs: SqsConfig): Stream[F, SqsMessage] =
-    receive(
-      ReceiveMessageRequest
-        .builder()
-        .queueUrl(sqs.queueUrl)
-        .waitTimeSeconds(sqs.waitTimeSeconds.value)
-        .maxNumberOfMessages(sqs.maxNumberOfMessages.value)
-        .visibilityTimeout(sqs.visibilityTimeout.value)
-        .build())
 
   def delete(msg: SqsMessage): F[DeleteMessageResponse]
   def resetVisibility(msg: SqsMessage): F[ChangeMessageVisibilityResponse]

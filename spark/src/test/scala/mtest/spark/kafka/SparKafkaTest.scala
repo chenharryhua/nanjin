@@ -193,9 +193,15 @@ class SparKafkaTest extends AnyFunSuite {
   }
   test("dump topic") {
     val path = "./data/test/spark/kafka/dump/jackson"
-    sparKafka.dump("duck.test", path).unsafeRunSync()
-    sparKafka.upload("duck.test", path).unsafeRunSync()
-    sparKafka.uploadInSequence("duck.test", path).unsafeRunSync()
+    val p1   = path / "dump"
+    val p2   = path / "download"
+    sparKafka.dump("duck.test", p1).unsafeRunSync()
+    sparKafka.download[Int, HasDuck]("duck.test", p2).unsafeRunSync()
+    sparKafka.upload("duck.test", p1).unsafeRunSync()
+    sparKafka.uploadInSequence("duck.test", p1).unsafeRunSync()
+    val s1 = sparKafka.topic[Int, HasDuck]("aa").load.jackson(p1)
+    val s2 = sparKafka.topic[Int, HasDuck]("aa").load.jackson(p2)
+    assert(s1.diff(s2).rdd.count() == 0)
   }
 
   val duckConsume: NJKafkaByteConsume[IO] =

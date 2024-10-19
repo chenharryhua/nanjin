@@ -57,8 +57,7 @@ private object KafkaPrimitiveConsumerApi {
       for {
         tps <- partitionsFor
         ret <- kbc.ask.map {
-          _.beginningOffsets(tps.asJava).asScala.toMap.view.mapValues(v =>
-            Option(v).map(x => KafkaOffset(x.toLong)))
+          _.beginningOffsets(tps.asJava).asScala.toMap.view.mapValues(Option(_).map(KafkaOffset(_)))
         }
       } yield KafkaTopicPartition(ret.toMap)
 
@@ -67,8 +66,7 @@ private object KafkaPrimitiveConsumerApi {
       for {
         tps <- partitionsFor
         ret <- kbc.ask.map {
-          _.endOffsets(tps.asJava).asScala.toMap.view.mapValues(v =>
-            Option(v).map(x => KafkaOffset(x.toLong)))
+          _.endOffsets(tps.asJava).asScala.toMap.view.mapValues(Option(_).map(KafkaOffset(_)))
         }
       } yield KafkaTopicPartition(ret.toMap)
 
@@ -76,8 +74,7 @@ private object KafkaPrimitiveConsumerApi {
       for {
         tps <- partitionsFor
         ret <- kbc.ask.map {
-          _.offsetsForTimes(tps.javaTimed(ts)).asScala.toMap.view.mapValues(Option(_).map(x =>
-            KafkaOffset(x.offset())))
+          _.offsetsForTimes(tps.javaTimed(ts)).asScala.toMap.view.mapValues(Option(_).map(KafkaOffset(_)))
         }
       } yield KafkaTopicPartition(ret.toMap)
 
@@ -133,13 +130,22 @@ private object TransientConsumer {
     private[this] def execute[A](r: Kleisli[F, KafkaByteConsumer, A]): F[A] =
       consumer.use(r.run)
 
+    private def offsetRange(
+      start: KafkaTopicPartition[Option[KafkaOffset]],
+      end: KafkaTopicPartition[Option[KafkaOffset]]): KafkaTopicPartition[Option[KafkaOffsetRange]] =
+      start.leftCombine(end)((_, _).flatMapN(KafkaOffsetRange(_, _)))
+
     override def offsetRangeFor(dtr: NJDateTimeRange): F[KafkaTopicPartition[Option[KafkaOffsetRange]]] =
       execute {
         for {
           from <- dtr.startTimestamp.fold(kpc.beginningOffsets)(kpc.offsetsForTimes)
           end <- kpc.endOffsets
           to <- dtr.endTimestamp.traverse(kpc.offsetsForTimes)
-        } yield offsetRange(from, end, to)
+        } yield {
+          val et: KafkaTopicPartition[Option[KafkaOffset]] =
+            to.fold(end)(end.leftCombine(_)((e, t) => t.orElse(e)))
+          offsetRange(from, et)
+        }
       }
 
     override def offsetRangeFor(

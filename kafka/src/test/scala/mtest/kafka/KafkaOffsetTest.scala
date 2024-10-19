@@ -77,4 +77,39 @@ class KafkaOffsetBuildTest extends AnyFunSuite {
     assert(ktp.offsets.value.values.size == 3)
     assert(ktp.offsets.value.values.toList.flatten.map(_.value).toSet == Set(0, 1))
   }
+
+  test("intersect combine") {
+    val k1 = KafkaTopicPartition[Int](
+      Map(
+        new TopicPartition("topic", 0) -> 0,
+        new TopicPartition("topic", 2) -> 2
+      ))
+    val k2 = KafkaTopicPartition[Int](
+      Map(
+        new TopicPartition("topic", 0) -> 0,
+        new TopicPartition("topic", 1) -> 1
+      ))
+
+    val res = k1.intersectCombine(k2)((r, l) => r + l).value
+    assert(res.size == 1)
+    assert(res.get(new TopicPartition("topic", 0)).contains(0))
+  }
+
+  test("left combine") {
+    val k1 = KafkaTopicPartition[Int](
+      Map(
+        new TopicPartition("topic", 0) -> 0,
+        new TopicPartition("topic", 2) -> 2
+      ))
+    val k2 = KafkaTopicPartition[Int](
+      Map(
+        new TopicPartition("topic", 0) -> 0,
+        new TopicPartition("topic", 1) -> 1
+      ))
+
+    val res = k1.leftCombine(k2)((l, r) => Some(l + r)).value
+    assert(res.size == 2)
+    assert(res(new TopicPartition("topic", 0)).contains(0))
+    assert(res(new TopicPartition("topic", 2)).isEmpty)
+  }
 }

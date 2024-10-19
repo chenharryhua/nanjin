@@ -5,7 +5,7 @@ import cats.effect.kernel.{Clock, Concurrent, Resource}
 import cats.effect.std.UUIDGen
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.aws.SimpleQueueService
-import com.github.chenharryhua.nanjin.common.aws.SqsConfig
+import com.github.chenharryhua.nanjin.common.aws.SqsUrl
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.ServiceStart
 import com.github.chenharryhua.nanjin.guard.observers.FinalizeMonitor
@@ -13,7 +13,7 @@ import com.github.chenharryhua.nanjin.guard.translator.{Translator, UpdateTransl
 import fs2.{Pipe, Stream}
 import io.circe.Json
 import io.circe.syntax.EncoderOps
-import software.amazon.awssdk.services.sqs.model.SendMessageRequest
+import software.amazon.awssdk.services.sqs.model.{SendMessageRequest, SendMessageResponse}
 
 import java.util.UUID
 
@@ -30,7 +30,14 @@ final class SqsObserver[F[_]: Clock: UUIDGen](
   private def translate(evt: NJEvent): F[Option[Json]] =
     translator.translate(evt).map(_.map(_.asJson))
 
-  private def internal(builder: F[SendMessageRequest.Builder]): Pipe[F, NJEvent, NJEvent] =
+  private def send(
+    sqs: SimpleQueueService[F],
+    builder: SendMessageRequest.Builder,
+    json: Json): F[Either[Throwable, SendMessageResponse]] =
+    UUIDGen[F].randomUUID.flatMap(uuid =>
+      sqs.sendMessage(builder.messageBody(json.noSpaces).messageDeduplicationId(uuid.show).build()).attempt)
+
+  private def internal(builder: SendMessageRequest.Builder): Pipe[F, NJEvent, NJEvent] =
     (es: Stream[F, NJEvent]) =>
       for {
         sqs <- Stream.resource(client)
@@ -38,23 +45,16 @@ final class SqsObserver[F[_]: Clock: UUIDGen](
         event <- es
           .evalTap(ofm.monitoring)
           .evalTap { e =>
-            translate(e).flatMap(_.traverse(json =>
-              builder.flatMap(b => sqs.sendMessage(b.messageBody(json.noSpaces).build()).attempt)))
+            translate(e).flatMap(_.traverse(json => send(sqs, builder, json)))
           }
-          .onFinalize(ofm.terminated.flatMap(_.traverse(json =>
-            builder.flatMap(b => sqs.sendMessage(b.messageBody(json.noSpaces).build()).attempt)).void))
+          .onFinalize(ofm.terminated.flatMap(_.traverse(json => send(sqs, builder, json))).void)
       } yield event
 
-  def observe(builder: SendMessageRequest.Builder): Pipe[F, NJEvent, NJEvent] = internal(F.pure(builder))
+  def observe(builder: SendMessageRequest.Builder): Pipe[F, NJEvent, NJEvent] = internal(builder)
 
   // events order should be preserved
-  def observe(fifo: SqsConfig.Fifo): Pipe[F, NJEvent, NJEvent] = internal(
-    UUIDGen[F].randomUUID.map(uuid =>
-      SendMessageRequest
-        .builder()
-        .messageDeduplicationId(uuid.show)
-        .queueUrl(fifo.queueUrl)
-        .messageGroupId(fifo.messageGroupId.value)))
+  def observe(url: SqsUrl.Fifo, messageGroupId: String): Pipe[F, NJEvent, NJEvent] =
+    internal(SendMessageRequest.builder().queueUrl(url.value).messageGroupId(messageGroupId))
 
   override def updateTranslator(f: Endo[Translator[F, NJEvent]]): SqsObserver[F] =
     new SqsObserver[F](client, f(translator))

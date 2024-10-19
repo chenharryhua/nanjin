@@ -4,7 +4,7 @@ import cats.data.NonEmptyList
 import cats.effect.IO
 import cats.effect.std.AtomicCell
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.common.aws.{SnsArn, SqsConfig}
+import com.github.chenharryhua.nanjin.common.aws.SnsArn
 import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.guard.TaskGuard
@@ -50,7 +50,7 @@ class AwsObserverTest extends AnyFunSuite {
 
   test("1.sqs") {
     val sqs = SqsObserver(sqs_client(1.seconds, "")).updateTranslator(_.skipActionDone)
-    service.through(sqs.observe(SqsConfig.Fifo("https://google.com/abc.fifo"))).compile.drain.unsafeRunSync()
+    service.through(sqs.observe("https://google.com/abc.fifo", "group.id")).compile.drain.unsafeRunSync()
   }
 
   test("2.ses mail") {

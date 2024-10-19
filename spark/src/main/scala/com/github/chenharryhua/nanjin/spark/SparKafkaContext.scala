@@ -23,6 +23,8 @@ import org.typelevel.cats.time.instances.zoneid
 final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaContext: KafkaContext[F])
     extends Serializable with zoneid {
 
+  val hadoop: NJHadoop[F] = sparkSession.hadoop[F]
+
   def topic[K, V](topicDef: TopicDef[K, V]): SparKafkaTopic[F, K, V] =
     new SparKafkaTopic[F, K, V](sparkSession, kafkaContext.topic(topicDef))
 
@@ -60,12 +62,7 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
       .flatMap(builder.toGenericRecord(_).flatMap(gr2Jackson(_)).toOption)
 
     grRdd.flatMap(rdd =>
-      new RddFileHoarder(rdd)
-        .text(path)
-        .withSaveMode(_.Append)
-        .withSuffix("jackson.json")
-        .run[F]
-        .as(rdd.count()))
+      new RddFileHoarder(rdd).text(path).withSaveMode(_.Overwrite).withSuffix("jackson.json").runWithCount[F])
   }
 
   def dump(topicName: TopicName, path: Url)(implicit F: Async[F]): F[Long] =
@@ -76,6 +73,15 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
 
   def dump(topicName: TopicNameL, path: Url)(implicit F: Async[F]): F[Long] =
     dump(TopicName(topicName), path, NJDateTimeRange(utils.sparkZoneId(sparkSession)))
+
+  def download[K: SerdeOf, V: SerdeOf](topicName: TopicNameL, path: Url, dateRange: NJDateTimeRange)(implicit
+    F: Async[F]): F[Long] =
+    topic[K, V](topicName)
+      .fromKafka(dateRange)
+      .flatMap(_.output.jackson(path).withSaveMode(_.Overwrite).runWithCount[F])
+
+  def download[K: SerdeOf, V: SerdeOf](topicName: TopicNameL, path: Url)(implicit F: Async[F]): F[Long] =
+    download[K, V](topicName, path, NJDateTimeRange(utils.sparkZoneId(sparkSession)))
 
   /** upload data from given folder to a kafka topic. files read in parallel
     *
