@@ -22,6 +22,8 @@ sealed trait KafkaAdminApi[F[_]] extends UpdateConfig[AdminClientSettings, Kafka
   def groups: F[List[KafkaGroupId]]
   def group(groupId: String): F[KafkaTopicPartition[KafkaOffset]]
 
+  def lagBehind(groupId: String): F[KafkaTopicPartition[Option[KafkaOffsetRange]]]
+
   def newTopic(numPartition: Int, numReplica: Short): F[Unit]
   def mirrorTo(other: TopicName, numReplica: Short): F[Unit]
 
@@ -94,9 +96,8 @@ object KafkaAdminApi {
 
     override def group(groupId: String): F[KafkaTopicPartition[KafkaOffset]] =
       adminResource
-        .use(
-          _.listConsumerGroupOffsets(groupId).partitionsToOffsetAndMetadata
-            .map(_.view.mapValues(om => KafkaOffset(om.offset())).toMap))
+        .use(_.listConsumerGroupOffsets(groupId).partitionsToOffsetAndMetadata)
+        .map(_.filter(_._1.topic() === topicName.value).view.mapValues(KafkaOffset(_)).toMap)
         .map(KafkaTopicPartition(_))
 
     // consumer
@@ -109,6 +110,12 @@ object KafkaAdminApi {
 
     private def transientConsumer(cs: PureConsumerSettings): TransientConsumer[F] =
       TransientConsumer(topicName, cs.withAutoOffsetReset(AutoOffsetReset.None).withEnableAutoCommit(false))
+
+    override def lagBehind(groupId: String): F[KafkaTopicPartition[Option[KafkaOffsetRange]]] =
+      for {
+        ends <- transientConsumer(initCS.withGroupId(groupId)).endOffsets
+        curr <- group(groupId)
+      } yield ends.leftCombine(curr)((e, c) => e.flatMap(KafkaOffsetRange(c, _)))
 
     /** remove consumer group from the topic
       * @param groupId

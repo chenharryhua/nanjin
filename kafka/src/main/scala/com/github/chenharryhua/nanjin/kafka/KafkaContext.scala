@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.kafka
 
 import cats.Endo
 import cats.data.Reader
+import cats.effect.Resource
 import cats.effect.kernel.{Async, Sync}
 import cats.effect.std.UUIDGen
 import cats.syntax.all.*
@@ -165,6 +166,9 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
 
   def admin(topicName: TopicNameL)(implicit F: Async[F]): KafkaAdminApi[F] =
     admin(TopicName(topicName))
+
+  def admin(implicit F: Async[F]): Resource[F, KafkaAdminClient[F]] =
+    KafkaAdminClient.resource[F](settings.adminSettings)
 
   def cherryPick(topicName: TopicName, partition: Int, offset: Long)(implicit F: Async[F]): F[String] =
     admin(topicName).retrieveRecord(partition, offset).flatMap {

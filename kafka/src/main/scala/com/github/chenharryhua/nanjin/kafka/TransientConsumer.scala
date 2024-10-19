@@ -57,8 +57,7 @@ private object KafkaPrimitiveConsumerApi {
       for {
         tps <- partitionsFor
         ret <- kbc.ask.map {
-          _.beginningOffsets(tps.asJava).asScala.toMap.view.mapValues(v =>
-            Option(v).map(x => KafkaOffset(x.toLong)))
+          _.beginningOffsets(tps.asJava).asScala.toMap.view.mapValues(Option(_).map(KafkaOffset(_)))
         }
       } yield KafkaTopicPartition(ret.toMap)
 
@@ -67,8 +66,7 @@ private object KafkaPrimitiveConsumerApi {
       for {
         tps <- partitionsFor
         ret <- kbc.ask.map {
-          _.endOffsets(tps.asJava).asScala.toMap.view.mapValues(v =>
-            Option(v).map(x => KafkaOffset(x.toLong)))
+          _.endOffsets(tps.asJava).asScala.toMap.view.mapValues(Option(_).map(KafkaOffset(_)))
         }
       } yield KafkaTopicPartition(ret.toMap)
 
@@ -76,8 +74,7 @@ private object KafkaPrimitiveConsumerApi {
       for {
         tps <- partitionsFor
         ret <- kbc.ask.map {
-          _.offsetsForTimes(tps.javaTimed(ts)).asScala.toMap.view.mapValues(Option(_).map(x =>
-            KafkaOffset(x.offset())))
+          _.offsetsForTimes(tps.javaTimed(ts)).asScala.toMap.view.mapValues(Option(_).map(KafkaOffset(_)))
         }
       } yield KafkaTopicPartition(ret.toMap)
 

@@ -5,7 +5,7 @@ import cats.{Order, PartialOrder}
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import io.circe.*
 import io.circe.Decoder.Result
-import org.apache.kafka.clients.consumer.OffsetAndTimestamp
+import org.apache.kafka.clients.consumer.{OffsetAndMetadata, OffsetAndTimestamp}
 import org.apache.kafka.common.TopicPartition
 
 import java.{lang, util}
@@ -25,6 +25,8 @@ final case class KafkaOffset(value: Long) extends AnyVal {
 }
 
 object KafkaOffset {
+  def apply(oam: OffsetAndMetadata): KafkaOffset  = KafkaOffset(oam.offset())
+  def apply(oat: OffsetAndTimestamp): KafkaOffset = KafkaOffset(oat.offset())
 
   implicit val codecKafkaOffset: Codec[KafkaOffset] = new Codec[KafkaOffset] {
     override def apply(c: HCursor): Result[KafkaOffset] = Decoder.decodeLong(c).map(KafkaOffset(_))
@@ -133,11 +135,20 @@ final case class KafkaTopicPartition[V](value: Map[TopicPartition, V]) extends A
   def map[W](f: (TopicPartition, V) => W): KafkaTopicPartition[W] =
     copy(value = value.map { case (k, v) => k -> f(k, v) })
 
-  def combineWith[W](other: KafkaTopicPartition[V])(fn: (V, V) => W): KafkaTopicPartition[W] = {
-    val res = value.keySet.intersect(other.value.keySet).toList.flatMap { tp =>
+  def intersectCombine[U, W](other: KafkaTopicPartition[U])(fn: (V, U) => W): KafkaTopicPartition[W] = {
+    val res: List[(TopicPartition, W)] = value.keySet.intersect(other.value.keySet).toList.flatMap { tp =>
       (value.get(tp), other.value.get(tp)).mapN((f, s) => tp -> fn(f, s))
     }
     KafkaTopicPartition(res.toMap)
+  }
+
+  def leftCombine[U, W](other: KafkaTopicPartition[U])(
+    fn: (V, U) => Option[W]): KafkaTopicPartition[Option[W]] = {
+    val res: Map[TopicPartition, Option[W]] =
+      value.map { case (tp, v) =>
+        tp -> other.value.get(tp).flatMap(fn(v, _))
+      }
+    KafkaTopicPartition(res)
   }
 
   def topicPartitions: ListOfTopicPartitions = ListOfTopicPartitions(value.keys.toList)
