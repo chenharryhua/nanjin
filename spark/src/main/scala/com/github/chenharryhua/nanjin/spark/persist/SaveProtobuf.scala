@@ -19,4 +19,7 @@ final class SaveProtobuf[A](rdd: RDD[A], cfg: HoarderConfig, evidence: A <:< Gen
   def run[F[_]](implicit F: Sync[F]): F[Unit] =
     new SaveModeAware[F](params.saveMode, params.outPath, rdd.sparkContext.hadoopConfiguration)
       .checkAndRun(F.interruptible(saveRDD.protobuf(rdd, params.outPath, params.compression)(evidence)))
+
+  def runWithCount[F[_]](implicit F: Sync[F]): F[Long] =
+    F.map(run[F])(_ => rdd.count())
 }
