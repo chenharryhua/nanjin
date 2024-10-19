@@ -130,13 +130,22 @@ private object TransientConsumer {
     private[this] def execute[A](r: Kleisli[F, KafkaByteConsumer, A]): F[A] =
       consumer.use(r.run)
 
+    private def offsetRange(
+      start: KafkaTopicPartition[Option[KafkaOffset]],
+      end: KafkaTopicPartition[Option[KafkaOffset]]): KafkaTopicPartition[Option[KafkaOffsetRange]] =
+      start.leftCombine(end)((_, _).flatMapN(KafkaOffsetRange(_, _)))
+
     override def offsetRangeFor(dtr: NJDateTimeRange): F[KafkaTopicPartition[Option[KafkaOffsetRange]]] =
       execute {
         for {
           from <- dtr.startTimestamp.fold(kpc.beginningOffsets)(kpc.offsetsForTimes)
           end <- kpc.endOffsets
           to <- dtr.endTimestamp.traverse(kpc.offsetsForTimes)
-        } yield offsetRange(from, end, to)
+        } yield {
+          val et: KafkaTopicPartition[Option[KafkaOffset]] =
+            to.fold(end)(end.leftCombine(_)((e, t) => t.orElse(e)))
+          offsetRange(from, et)
+        }
       }
 
     override def offsetRangeFor(
