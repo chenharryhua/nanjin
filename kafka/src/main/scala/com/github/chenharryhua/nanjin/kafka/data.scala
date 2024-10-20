@@ -1,10 +1,11 @@
 package com.github.chenharryhua.nanjin.kafka
 
 import cats.syntax.all.*
-import cats.{Order, PartialOrder, Show}
+import cats.{Order, PartialOrder}
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import io.circe.*
 import io.circe.Decoder.Result
+import io.circe.generic.JsonCodec
 import org.apache.kafka.clients.consumer.{OffsetAndMetadata, OffsetAndTimestamp}
 import org.apache.kafka.common.TopicPartition
 
@@ -52,45 +53,34 @@ object KafkaPartition {
     (x: KafkaPartition, y: KafkaPartition) => x.value.compareTo(y.value)
 }
 
-sealed abstract case class KafkaOffsetRange private (from: KafkaOffset, until: KafkaOffset) {
-  val distance: Long = until - from
-
-  override def toString: String =
-    s"KafkaOffsetRange(from=${from.value}, until=${until.value}, distance=$distance)"
-}
+@JsonCodec
+final case class KafkaOffsetRange private (from: KafkaOffset, until: KafkaOffset, distance: Long)
 
 object KafkaOffsetRange {
-  implicit val showKafkaOffsetRange: Show[KafkaOffsetRange] = Show.fromToString[KafkaOffsetRange]
-  implicit val codecKafkaOffsetRange: Codec[KafkaOffsetRange] = new Codec[KafkaOffsetRange] {
-    override def apply(a: KafkaOffsetRange): Json = Json.obj(
-      "from" -> Json.fromLong(a.from.value),
-      "until" -> Json.fromLong(a.until.value),
-      "distance" -> Json.fromLong(a.distance)
-    )
-    override def apply(c: HCursor): Result[KafkaOffsetRange] =
-      for {
-        from <- c.downField("from").as[Long]
-        until <- c.downField("until").as[Long]
-      } yield new KafkaOffsetRange(KafkaOffset(from), KafkaOffset(until)) {}
-  }
-
   def apply(from: KafkaOffset, until: KafkaOffset): Option[KafkaOffsetRange] =
     if (from < until)
-      Some(new KafkaOffsetRange(from, until) {})
+      Some(KafkaOffsetRange(from, until, until - from))
     else
       None
 
   implicit val poKafkaOffsetRange: PartialOrder[KafkaOffsetRange] =
     (x: KafkaOffsetRange, y: KafkaOffsetRange) =>
       (x, y) match {
-        case (KafkaOffsetRange(xf, xu), KafkaOffsetRange(yf, yu)) if xf >= yf && xu < yu =>
+        case (KafkaOffsetRange(xf, xu, _), KafkaOffsetRange(yf, yu, _)) if xf >= yf && xu < yu =>
           -1.0
-        case (KafkaOffsetRange(xf, xu), KafkaOffsetRange(yf, yu)) if xf === yf && xu === yu =>
+        case (KafkaOffsetRange(xf, xu, _), KafkaOffsetRange(yf, yu, _)) if xf === yf && xu === yu =>
           0.0
-        case (KafkaOffsetRange(xf, xu), KafkaOffsetRange(yf, yu)) if xf <= yf && xu > yu =>
+        case (KafkaOffsetRange(xf, xu, _), KafkaOffsetRange(yf, yu, _)) if xf <= yf && xu > yu =>
           1.0
         case _ => Double.NaN
       }
+}
+
+@JsonCodec
+final case class KafkaLagBehind private (current: KafkaOffset, end: KafkaOffset, lag: Long)
+object KafkaLagBehind {
+  def apply(current: KafkaOffset, end: KafkaOffset): KafkaLagBehind =
+    KafkaLagBehind(current, end, end - current)
 }
 
 final case class ListOfTopicPartitions(value: List[TopicPartition]) extends AnyVal {
