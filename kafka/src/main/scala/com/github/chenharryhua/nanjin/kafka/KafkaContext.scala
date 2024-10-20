@@ -161,8 +161,11 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
     F: Async[F]): KafkaStreamsBuilder[F] =
     buildStreams(applicationId, Reader(topology))
 
+  def adminR(implicit F: Async[F]): Resource[F, KafkaAdminClient[F]] =
+    KafkaAdminClient.resource[F](settings.adminSettings)
+
   def admin(topicName: TopicName)(implicit F: Async[F]): KafkaAdminApi[F] =
-    KafkaAdminApi[F](topicName, settings.consumerSettings, settings.adminSettings)
+    KafkaAdminApi[F](adminR, topicName, settings.consumerSettings)
 
   def admin(topicName: TopicNameL)(implicit F: Async[F]): KafkaAdminApi[F] =
     admin(TopicName(topicName))

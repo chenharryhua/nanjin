@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.kafka
 
 import cats.syntax.all.*
-import cats.{Order, PartialOrder}
+import cats.{Order, PartialOrder, Show}
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import io.circe.*
 import io.circe.Decoder.Result
@@ -60,6 +60,7 @@ sealed abstract case class KafkaOffsetRange private (from: KafkaOffset, until: K
 }
 
 object KafkaOffsetRange {
+  implicit val showKafkaOffsetRange: Show[KafkaOffsetRange] = Show.fromToString[KafkaOffsetRange]
   implicit val codecKafkaOffsetRange: Codec[KafkaOffsetRange] = new Codec[KafkaOffsetRange] {
     override def apply(a: KafkaOffsetRange): Json = Json.obj(
       "from" -> Json.fromLong(a.from.value),
@@ -182,7 +183,7 @@ object KafkaTopicPartition {
   implicit final class KafkaTopicPartitionOps2(
     private val self: KafkaTopicPartition[Option[OffsetAndTimestamp]]) {
     def offsets: KafkaTopicPartition[Option[KafkaOffset]] =
-      self.copy(value = self.value.view.mapValues(_.map(x => KafkaOffset(x.offset))).toMap)
+      self.copy(value = self.value.view.mapValues(_.map(KafkaOffset(_))).toMap)
   }
 
   def empty[V]: KafkaTopicPartition[V]              = KafkaTopicPartition(Map.empty[TopicPartition, V])
