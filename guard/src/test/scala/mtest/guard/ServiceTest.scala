@@ -370,4 +370,18 @@ class ServiceTest extends AnyFunSuite {
     assert(a.isInstanceOf[ServiceStart])
     assert(b.asInstanceOf[ServiceStop].cause.asInstanceOf[ServiceStopCause.ByException].error.stack.nonEmpty)
   }
+
+  test("out of memory -- happy failure") {
+    val run = guard
+      .service("out of memory")
+      .eventStream(
+        _.action("oom", _.policy(Policy.fixedDelay(1.seconds).limited(3)))
+          .retry(IO.raiseError[Int](new OutOfMemoryError()))
+          .buildWith(identity)
+          .use(_(())))
+      .map(checkJson)
+      .compile
+      .drain
+    assertThrows[OutOfMemoryError](run.unsafeRunSync())
+  }
 }
