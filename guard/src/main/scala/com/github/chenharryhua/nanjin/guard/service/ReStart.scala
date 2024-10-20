@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.service
 
-import cats.effect.implicits.monadCancelOps_
+import cats.effect.kernel.Resource.ExitCase
 import cats.effect.kernel.Temporal
 import cats.effect.std.AtomicCell
 import cats.syntax.all.*
@@ -57,9 +57,16 @@ final private class ReStart[F[_], A](
         (publisher.serviceReStart(channel, serviceParams, status.tick) <* theService)
           .redeemWith[Option[(Unit, TickStatus)]](
             err => panic(status, err),
-            _ => publisher.serviceStop(channel, serviceParams, ServiceStopCause.Successfully).as(None)
+            _ => F.pure(None)
           )
-          .onCancel(publisher.serviceStop(channel, serviceParams, ServiceStopCause.ByCancellation))
+      }
+      .onFinalizeCase {
+        case ExitCase.Succeeded =>
+          publisher.serviceStop(channel, serviceParams, ServiceStopCause.Successfully)
+        case ExitCase.Errored(e) =>
+          publisher.serviceStop(channel, serviceParams, ServiceStopCause.ByException(NJError(e)))
+        case ExitCase.Canceled =>
+          publisher.serviceStop(channel, serviceParams, ServiceStopCause.ByCancellation)
       }
       .drain
 }

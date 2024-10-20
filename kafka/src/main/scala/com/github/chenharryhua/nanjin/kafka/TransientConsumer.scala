@@ -114,15 +114,15 @@ sealed trait TransientConsumer[F[_]] extends KafkaPrimitiveConsumerApi[F] {
 private object TransientConsumer {
   type PureConsumerSettings = ConsumerSettings[Id, Nothing, Nothing]
 
-  def apply[F[_]: Sync](topicName: TopicName, cs: PureConsumerSettings): TransientConsumer[F] =
+  def apply[F[_]: Sync: MkConsumer](topicName: TopicName, cs: PureConsumerSettings): TransientConsumer[F] =
     new TransientConsumerImpl(topicName, cs)
 
-  final private class TransientConsumerImpl[F[_]: Sync](topicName: TopicName, cs: PureConsumerSettings)
+  final private class TransientConsumerImpl[F[_]: Sync](topicName: TopicName, cs: PureConsumerSettings)(
+    implicit MC: MkConsumer[F])
       extends TransientConsumer[F] {
 
     private[this] val consumer: Resource[F, KafkaByteConsumer] =
-      Resource.make(MkConsumer.mkConsumerForSync[F].apply(cs))(c =>
-        Sync[F].blocking(c.close(cs.closeTimeout.toJava)))
+      Resource.make(MC(cs))(c => Sync[F].blocking(c.close(cs.closeTimeout.toJava)))
 
     private[this] val kpc: KafkaPrimitiveConsumerApi[Kleisli[F, KafkaByteConsumer, *]] =
       KafkaPrimitiveConsumerApi[Kleisli[F, KafkaByteConsumer, *]](topicName)

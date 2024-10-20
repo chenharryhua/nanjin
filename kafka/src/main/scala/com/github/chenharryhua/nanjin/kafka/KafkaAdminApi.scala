@@ -1,21 +1,18 @@
 package com.github.chenharryhua.nanjin.kafka
 
+import cats.Id
 import cats.effect.kernel.{Async, Resource}
 import cats.syntax.all.*
-import cats.{Endo, Id}
-import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.{NJDateTimeRange, NJTimestamp}
-import fs2.kafka.{AdminClientSettings, AutoOffsetReset, ConsumerSettings, KafkaAdminClient}
+import fs2.kafka.{AutoOffsetReset, ConsumerSettings, KafkaAdminClient}
 import org.apache.kafka.clients.admin.{NewTopic, TopicDescription}
 import org.apache.kafka.clients.consumer.{ConsumerRecord, OffsetAndMetadata}
 import org.apache.kafka.common.TopicPartition
 
 // delegate to https://ovotech.github.io/fs2-kafka/
 
-sealed trait KafkaAdminApi[F[_]] extends UpdateConfig[AdminClientSettings, KafkaAdminApi[F]] {
-  def adminResource: Resource[F, KafkaAdminClient[F]]
-
+sealed trait KafkaAdminApi[F[_]] {
   def iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence: F[Unit]
   def describe: F[Map[String, TopicDescription]]
 
@@ -45,19 +42,16 @@ sealed trait KafkaAdminApi[F[_]] extends UpdateConfig[AdminClientSettings, Kafka
 object KafkaAdminApi {
 
   def apply[F[_]: Async](
+    adminResource: Resource[F, KafkaAdminClient[F]],
     topicName: TopicName,
-    consumerSettings: KafkaConsumerSettings,
-    adminSettings: AdminClientSettings): KafkaAdminApi[F] =
-    new KafkaTopicAdminApiImpl(topicName, consumerSettings, adminSettings)
+    consumerSettings: KafkaConsumerSettings): KafkaAdminApi[F] =
+    new KafkaTopicAdminApiImpl(adminResource, topicName, consumerSettings)
 
   final private class KafkaTopicAdminApiImpl[F[_]: Async](
+    adminResource: Resource[F, KafkaAdminClient[F]],
     topicName: TopicName,
-    consumerSettings: KafkaConsumerSettings,
-    adminSettings: AdminClientSettings)
+    consumerSettings: KafkaConsumerSettings)
       extends KafkaAdminApi[F] {
-
-    override val adminResource: Resource[F, KafkaAdminClient[F]] =
-      KafkaAdminClient.resource[F](adminSettings)
 
     override def iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence: F[Unit] =
       adminResource.use(_.deleteTopic(topicName.value))
@@ -148,9 +142,6 @@ object KafkaAdminApi {
 
     override def resetOffsetsForTimes(groupId: String, ts: NJTimestamp): F[Unit] =
       transientConsumer(initCS.withGroupId(groupId)).resetOffsetsForTimes(ts)
-
-    override def updateConfig(f: Endo[AdminClientSettings]): KafkaAdminApi[F] =
-      new KafkaTopicAdminApiImpl[F](topicName, consumerSettings, f(adminSettings))
 
     override def retrieveRecord(
       partition: Int,
