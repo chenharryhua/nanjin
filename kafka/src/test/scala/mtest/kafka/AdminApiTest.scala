@@ -54,7 +54,6 @@ class AdminApiTest extends AnyFunSuite {
         admin.resetOffsetsToBegin(gid) >>
         admin.resetOffsetsForTimes(gid, NJTimestamp(0)) >>
         admin.resetOffsetsToEnd(gid) >>
-        admin.currentOffsets(gid) >>
         admin.lagBehind(gid) >>
         admin.offsetRangeFor(NJDateTimeRange(sydneyTime).withToday) >>
         admin.partitionsFor >>
