@@ -98,6 +98,8 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
     ProducerSettings[F, Array[Byte], Array[Byte]](Serializer[F, Array[Byte]], Serializer[F, Array[Byte]])
       .withProperties(settings.producerSettings.properties)
 
+  // sink
+
   def sink(topicName: TopicName)(implicit F: Sync[F]): NJGenericRecordSinkBuilder[F] =
     new NJGenericRecordSinkBuilder[F](
       topicName,
@@ -108,6 +110,8 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
 
   def sink(topicName: TopicNameL)(implicit F: Sync[F]): NJGenericRecordSinkBuilder[F] =
     sink(TopicName(topicName))
+
+  // producer
 
   def produce(jackson: String)(implicit F: Async[F]): F[ProducerResult[Array[Byte], Array[Byte]]] =
     for {
@@ -144,6 +148,8 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
     } yield prs
   }
 
+  // streams
+
   def store[K: SerdeOf, V: SerdeOf](storeName: TopicName): NJStateStore[K, V] =
     NJStateStore[K, V](
       storeName,
@@ -161,17 +167,18 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
     F: Async[F]): KafkaStreamsBuilder[F] =
     buildStreams(applicationId, Reader(topology))
 
-  def adminR(implicit F: Async[F]): Resource[F, KafkaAdminClient[F]] =
+  // admins
+
+  def admin(implicit F: Async[F]): Resource[F, KafkaAdminClient[F]] =
     KafkaAdminClient.resource[F](settings.adminSettings)
 
   def admin(topicName: TopicName)(implicit F: Async[F]): KafkaAdminApi[F] =
-    KafkaAdminApi[F](adminR, topicName, settings.consumerSettings)
+    KafkaAdminApi[F](admin, topicName, settings.consumerSettings)
 
   def admin(topicName: TopicNameL)(implicit F: Async[F]): KafkaAdminApi[F] =
     admin(TopicName(topicName))
 
-  def admin(implicit F: Async[F]): Resource[F, KafkaAdminClient[F]] =
-    KafkaAdminClient.resource[F](settings.adminSettings)
+  // pick up single record
 
   def cherryPick(topicName: TopicName, partition: Int, offset: Long)(implicit F: Async[F]): F[String] =
     admin(topicName).retrieveRecord(partition, offset).flatMap {

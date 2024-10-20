@@ -27,8 +27,8 @@ object buildConsumer {
   ).asJava
 
   def apply(
-    begin: Map[TopicPartition, Long],
-    end: Map[TopicPartition, Long],
+    begin: Map[TopicPartition, java.lang.Long],
+    end: Map[TopicPartition, java.lang.Long],
     forTime: Map[TopicPartition, OffsetAndTimestamp]): MkConsumer[IO] = new MkConsumer[IO] {
     override def apply[G[_]](settings: ConsumerSettings[G, ?, ?]): IO[KafkaByteConsumer] = IO(
       new KafkaByteConsumer {
@@ -86,18 +86,18 @@ object buildConsumer {
           duration: Duration): util.Map[TopicPartition, OffsetAndTimestamp] = forTime.asJava
         override def beginningOffsets(
           collection: util.Collection[TopicPartition]): util.Map[TopicPartition, lang.Long] =
-          begin.view.mapValues(lang.Long.valueOf).toMap.asJava
+          begin.asJava
         override def beginningOffsets(
           collection: util.Collection[TopicPartition],
           duration: Duration): util.Map[TopicPartition, lang.Long] =
-          begin.view.mapValues(lang.Long.valueOf).toMap.asJava
+          begin.asJava
         override def endOffsets(
           collection: util.Collection[TopicPartition]): util.Map[TopicPartition, lang.Long] =
-          end.view.mapValues(lang.Long.valueOf).toMap.asJava
+          end.asJava
         override def endOffsets(
           collection: util.Collection[TopicPartition],
           duration: Duration): util.Map[TopicPartition, lang.Long] =
-          end.view.mapValues(lang.Long.valueOf).toMap.asJava
+          end.toMap.asJava
         override def currentLag(topicPartition: TopicPartition): OptionalLong = ???
         override def groupMetadata(): ConsumerGroupMetadata                   = ???
         override def enforceRebalance(): Unit                                 = ???

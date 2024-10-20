@@ -48,7 +48,7 @@ class AdminApiTest extends AnyFunSuite {
     val admin = ctx.admin("admin")
     val gp =
       topic.produceOne(0, 0) >>
-        ctx.adminR.use(_.listTopics.listings) >>
+        ctx.admin.use(_.listTopics.listings) >>
         admin.commitSync(gid, tpo) >>
         admin.retrieveRecord(0, 0) >>
         admin.resetOffsetsToBegin(gid) >>
