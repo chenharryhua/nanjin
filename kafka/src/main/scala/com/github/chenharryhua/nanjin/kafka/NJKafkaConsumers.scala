@@ -35,7 +35,7 @@ final class NJKafkaByteConsume[F[_]] private[kafka] (
       .evalTap(_.subscribe(NonEmptyList.of(topicName.value)))
       .flatMap(_.stream)
 
-  def assign(tps: KafkaTopicPartition[KafkaOffset])(implicit
+  def assign(tps: TopicPartitionMap[Offset])(implicit
     F: Async[F]): Stream[F, CommittableConsumerRecord[F, Array[Byte], Array[Byte]]] =
     if (tps.isEmpty)
       Stream.empty.covaryAll[F, CommittableConsumerRecord[F, Array[Byte], Array[Byte]]]
@@ -66,7 +66,7 @@ final class NJKafkaByteConsume[F[_]] private[kafka] (
 
   // assignment
 
-  def assignAvro(tps: KafkaTopicPartition[KafkaOffset])(implicit
+  def assignAvro(tps: TopicPartitionMap[Offset])(implicit
     F: Async[F]): Stream[F, CommittableConsumerRecord[F, Unit, Try[GenericData.Record]]] =
     Stream.eval(getSchema).flatMap { skm =>
       val builder = new PullGenericRecord(srs, topicName, skm)
@@ -93,7 +93,7 @@ final class NJKafkaConsume[F[_], K, V] private[kafka] (
       .evalTap(_.subscribe(NonEmptyList.of(topicName.value)))
       .flatMap(_.stream)
 
-  def assign(tps: KafkaTopicPartition[KafkaOffset])(implicit
+  def assign(tps: TopicPartitionMap[Offset])(implicit
     F: Async[F]): Stream[F, CommittableConsumerRecord[F, K, V]] =
     if (tps.isEmpty)
       Stream.empty.covaryAll[F, CommittableConsumerRecord[F, K, V]]
