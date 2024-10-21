@@ -64,13 +64,13 @@ class AdminApiTest extends AnyFunSuite {
   }
 
   test("KafkaOffset") {
-    val end: KafkaTopicPartition[Option[KafkaOffset]] = KafkaTopicPartition[Option[KafkaOffset]](
+    val end: TopicPartitionMap[Option[Offset]] = TopicPartitionMap[Option[Offset]](
       Map(
-        new TopicPartition("t", 0) -> Some(KafkaOffset(100)),
-        new TopicPartition("t", 1) -> Some(KafkaOffset(100)),
+        new TopicPartition("t", 0) -> Some(Offset(100)),
+        new TopicPartition("t", 1) -> Some(Offset(100)),
         new TopicPartition("t", 2) -> None)
     )
-    assert(end.asJson.as[KafkaTopicPartition[Option[KafkaOffset]]].toOption.get == end)
+    assert(end.asJson.as[TopicPartitionMap[Option[Offset]]].toOption.get == end)
 
   }
 }

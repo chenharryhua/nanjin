@@ -12,7 +12,7 @@ import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.common.serialization.ByteArrayDeserializer
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{Dataset, SparkSession}
-import org.apache.spark.streaming.kafka010.*
+import org.apache.spark.streaming.kafka010.{KafkaUtils, LocationStrategies, OffsetRange as SOffsetRange}
 
 import java.sql.Timestamp
 import java.util
@@ -32,16 +32,15 @@ private[spark] object sk {
         ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG -> classOf[ByteArrayDeserializer].getName
       )).view.mapValues[Object](identity).toMap.asJava
 
-  private def offsetRanges(range: KafkaTopicPartition[Option[KafkaOffsetRange]]): Array[OffsetRange] =
+  private def offsetRanges(range: TopicPartitionMap[Option[OffsetRange]]): Array[SOffsetRange] =
     range.flatten.value.toArray.map { case (tp, r) =>
-      OffsetRange.create(tp, r.from.value, r.until.value)
+      SOffsetRange.create(tp, r.from.value, r.until.value)
     }
 
   def kafkaBatchRDD(
     consumerSettings: KafkaConsumerSettings,
     ss: SparkSession,
-    offsetRange: KafkaTopicPartition[Option[KafkaOffsetRange]])
-    : RDD[ConsumerRecord[Array[Byte], Array[Byte]]] =
+    offsetRange: TopicPartitionMap[Option[OffsetRange]]): RDD[ConsumerRecord[Array[Byte], Array[Byte]]] =
     KafkaUtils.createRDD[Array[Byte], Array[Byte]](
       ss.sparkContext,
       props(consumerSettings.properties),
@@ -51,7 +50,7 @@ private[spark] object sk {
   def kafkaBatch[F[_], K, V](
     topic: KafkaTopic[F, K, V],
     ss: SparkSession,
-    offsetRange: KafkaTopicPartition[Option[KafkaOffsetRange]]): RDD[NJConsumerRecord[K, V]] =
+    offsetRange: TopicPartitionMap[Option[OffsetRange]]): RDD[NJConsumerRecord[K, V]] =
     kafkaBatchRDD(topic.settings.consumerSettings, ss, offsetRange).map(topic.serde.toNJConsumerRecord(_))
 
   def kafkaBatch[F[_]: Async, K, V](

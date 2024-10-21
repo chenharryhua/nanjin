@@ -55,13 +55,11 @@ final class SparKafkaTopic[F[_], K, V](val sparkSession: SparkSession, val topic
       .partitionsFor
       .map { partitions =>
         val topicPartition = partitions.value.map { tp =>
-          val ofs: Option[KafkaOffsetRange] =
-            offsets
-              .get(tp.partition())
-              .flatMap(se => KafkaOffsetRange(KafkaOffset(se._1), KafkaOffset(se._2)))
+          val ofs: Option[OffsetRange] =
+            offsets.get(tp.partition()).flatMap(se => OffsetRange(Offset(se._1), Offset(se._2)))
           tp -> ofs
         }.toMap
-        KafkaTopicPartition(topicPartition)
+        TopicPartitionMap(topicPartition)
       }
       .map(offsetRange => crRdd(sk.kafkaBatch(topic, sparkSession, offsetRange)))
 

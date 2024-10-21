@@ -43,10 +43,10 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
   }
 
   test("start and end are both in range") {
-    val expect: KafkaTopicPartition[Option[KafkaOffsetRange]] =
-      KafkaTopicPartition(
+    val expect: TopicPartitionMap[Option[OffsetRange]] =
+      TopicPartitionMap(
         Map(new TopicPartition("range.test", 0) ->
-          KafkaOffsetRange(KafkaOffset(1), KafkaOffset(2))))
+          OffsetRange(Offset(1), Offset(2))))
 
     val r = NJDateTimeRange(darwinTime).withStartTime(110).withEndTime(250)
 
@@ -54,10 +54,10 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
   }
 
   test("start is equal to beginning and end is equal to ending") {
-    val expect: KafkaTopicPartition[Option[KafkaOffsetRange]] =
-      KafkaTopicPartition(
+    val expect: TopicPartitionMap[Option[OffsetRange]] =
+      TopicPartitionMap(
         Map(new TopicPartition("range.test", 0) ->
-          KafkaOffsetRange(KafkaOffset(0), KafkaOffset(2))))
+          OffsetRange(Offset(0), Offset(2))))
 
     val r = NJDateTimeRange(darwinTime).withStartTime(100).withEndTime(300)
 
@@ -65,10 +65,10 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
   }
 
   test("start is equal to beginning and end is after ending") {
-    val expect: KafkaTopicPartition[Option[KafkaOffsetRange]] =
-      KafkaTopicPartition(
+    val expect: TopicPartitionMap[Option[OffsetRange]] =
+      TopicPartitionMap(
         Map(new TopicPartition("range.test", 0) ->
-          KafkaOffsetRange(KafkaOffset(0), KafkaOffset(3))))
+          OffsetRange(Offset(0), Offset(3))))
 
     val r = NJDateTimeRange(darwinTime).withStartTime(100).withEndTime(310)
 
@@ -77,9 +77,9 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
 
   test("start after beginning and end after ending") {
     val expect =
-      KafkaTopicPartition(
+      TopicPartitionMap(
         Map(new TopicPartition("range.test", 0) ->
-          KafkaOffsetRange(KafkaOffset(1), KafkaOffset(3))))
+          OffsetRange(Offset(1), Offset(3))))
 
     val r = NJDateTimeRange(darwinTime).withStartTime(110).withEndTime(500)
 
@@ -88,9 +88,9 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
 
   test("start before beginning and end before ending") {
     val expect =
-      KafkaTopicPartition(
+      TopicPartitionMap(
         Map(new TopicPartition("range.test", 0) ->
-          KafkaOffsetRange(KafkaOffset(0), KafkaOffset(1))))
+          OffsetRange(Offset(0), Offset(1))))
 
     val r = NJDateTimeRange(darwinTime).withStartTime(10).withEndTime(110)
 
@@ -99,7 +99,7 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
 
   test("both start and end are before beginning") {
     val expect =
-      KafkaTopicPartition(Map(new TopicPartition("range.test", 0) -> None))
+      TopicPartitionMap(Map(new TopicPartition("range.test", 0) -> None))
 
     val r = NJDateTimeRange(darwinTime).withStartTime(10).withEndTime(30)
 
@@ -108,7 +108,7 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
 
   test("both start and end are after ending") {
     val expect =
-      KafkaTopicPartition(Map(new TopicPartition("range.test", 0) -> None))
+      TopicPartitionMap(Map(new TopicPartition("range.test", 0) -> None))
 
     val r = NJDateTimeRange(darwinTime).withStartTime(500).withEndTime(600)
 
@@ -117,7 +117,7 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
 
   test("when there is no data in the range") {
     val expect =
-      KafkaTopicPartition(Map(new TopicPartition("range.test", 0) -> None))
+      TopicPartitionMap(Map(new TopicPartition("range.test", 0) -> None))
 
     val r = NJDateTimeRange(darwinTime).withStartTime(110).withEndTime(120)
 
@@ -125,18 +125,18 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
   }
 
   test("time range is infinite") {
-    val expect: KafkaTopicPartition[Option[KafkaOffsetRange]] =
-      KafkaTopicPartition(
+    val expect: TopicPartitionMap[Option[OffsetRange]] =
+      TopicPartitionMap(
         Map(new TopicPartition("range.test", 0) ->
-          KafkaOffsetRange(KafkaOffset(0), KafkaOffset(3))))
+          OffsetRange(Offset(0), Offset(3))))
 
     val r = NJDateTimeRange(darwinTime)
     transientConsumer.offsetRangeFor(r).map(x => assert(x === expect)).unsafeRunSync()
   }
 
   test("kafka offset range") {
-    assert(KafkaOffsetRange(KafkaOffset(100), KafkaOffset(99)).isEmpty)
-    val r = KafkaOffsetRange(KafkaOffset(1), KafkaOffset(99)).get
+    assert(OffsetRange(Offset(100), Offset(99)).isEmpty)
+    val r = OffsetRange(Offset(1), Offset(99)).get
     assert(r.distance == 98)
   }
 
