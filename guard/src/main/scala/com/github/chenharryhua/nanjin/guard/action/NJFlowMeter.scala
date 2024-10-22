@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.action
 
+import cats.Applicative
 import cats.data.Kleisli
 import cats.effect.kernel.{Resource, Sync, Unique}
 import cats.implicits.toFunctorOps
@@ -68,6 +69,11 @@ private class NJFlowMeterImpl[F[_]: Sync](
 }
 
 object NJFlowMeter {
+  def dummy[F[_]](implicit F: Applicative[F]): NJFlowMeter[F] =
+    new NJFlowMeter[F] {
+      override def unsafeUpdate(num: Long): Unit = ()
+      override def update(num: Long): F[Unit]    = F.unit
+    }
 
   final class Builder private[guard] (
     measurement: Measurement,
@@ -100,9 +106,6 @@ object NJFlowMeter {
           F.unique.map(new NJFlowMeterImpl[F](_, metricName, metricRegistry, unit, isCounting, reservoir)))(
           _.unregister)
       } else
-        Resource.pure(new NJFlowMeter[F] {
-          override def unsafeUpdate(num: Long): Unit = ()
-          override def update(num: Long): F[Unit]    = F.unit
-        })
+        Resource.pure(dummy[F])
   }
 }

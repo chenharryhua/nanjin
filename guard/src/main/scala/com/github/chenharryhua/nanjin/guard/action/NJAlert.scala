@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.action
 
+import cats.Applicative
 import cats.effect.kernel.{Resource, Sync, Unique}
 import cats.syntax.all.*
 import com.codahale.metrics.{Counter, MetricRegistry}
@@ -78,6 +79,16 @@ private class NJAlertImpl[F[_]: Sync](
 }
 
 object NJAlert {
+  def dummy[F[_]](implicit F: Applicative[F]): NJAlert[F] =
+    new NJAlert[F] {
+      override def error[S: Encoder](msg: S): F[Unit]         = F.unit
+      override def error[S: Encoder](msg: Option[S]): F[Unit] = F.unit
+      override def warn[S: Encoder](msg: S): F[Unit]          = F.unit
+      override def warn[S: Encoder](msg: Option[S]): F[Unit]  = F.unit
+      override def info[S: Encoder](msg: S): F[Unit]          = F.unit
+      override def info[S: Encoder](msg: Option[S]): F[Unit]  = F.unit
+    }
+
   final class Builder private[guard] (measurement: Measurement, isCounting: Boolean, isEnabled: Boolean)
       extends EnableConfig[Builder] {
 
@@ -100,14 +111,7 @@ object NJAlert {
             new NJAlertImpl[F](_, metricName, metricRegistry, channel, serviceParams, isCounting)))(
           _.unregister)
       } else {
-        Resource.pure(new NJAlert[F] {
-          override def error[S: Encoder](msg: S): F[Unit]         = F.unit
-          override def error[S: Encoder](msg: Option[S]): F[Unit] = F.unit
-          override def warn[S: Encoder](msg: S): F[Unit]          = F.unit
-          override def warn[S: Encoder](msg: Option[S]): F[Unit]  = F.unit
-          override def info[S: Encoder](msg: S): F[Unit]          = F.unit
-          override def info[S: Encoder](msg: Option[S]): F[Unit]  = F.unit
-        })
+        Resource.pure(dummy[F])
       }
   }
 }

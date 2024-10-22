@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.action
 
+import cats.Applicative
 import cats.data.Kleisli
 import cats.effect.implicits.clockOps
 import cats.effect.kernel.{Resource, Sync, Unique}
@@ -68,6 +69,13 @@ private class NJTimerImpl[F[_]: Sync](
 }
 
 object NJTimer {
+  def dummy[F[_]](implicit F: Applicative[F]): NJTimer[F] =
+    new NJTimer[F] {
+      override def update(fd: FiniteDuration): F[Unit]    = F.unit
+      override def unsafeUpdate(fd: FiniteDuration): Unit = ()
+
+      override def timing[A](fa: F[A]): F[A] = fa
+    }
 
   final class Builder private[guard] (
     measurement: Measurement,
@@ -102,11 +110,6 @@ object NJTimer {
               isCounting = isCounting,
               reservoir = reservoir)))(_.unregister)
       } else
-        Resource.pure(new NJTimer[F] {
-          override def update(fd: FiniteDuration): F[Unit]    = F.unit
-          override def unsafeUpdate(fd: FiniteDuration): Unit = ()
-
-          override def timing[A](fa: F[A]): F[A] = fa
-        })
+        Resource.pure(dummy[F])
   }
 }

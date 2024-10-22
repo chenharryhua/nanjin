@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.action
 
+import cats.Applicative
 import cats.data.Kleisli
 import cats.effect.kernel.{Resource, Sync, Unique}
 import cats.implicits.toFunctorOps
@@ -57,6 +58,11 @@ private class NJHistogramImpl[F[_]: Sync](
 }
 
 object NJHistogram {
+  def dummy[F[_]](implicit F: Applicative[F]): NJHistogram[F] =
+    new NJHistogram[F] {
+      override def unsafeUpdate(num: Long): Unit = ()
+      override def update(num: Long): F[Unit]    = F.unit
+    }
 
   final class Builder private[guard] (
     measurement: Measurement,
@@ -95,9 +101,6 @@ object NJHistogram {
               isCounting = isCounting,
               reservoir = reservoir)))(_.unregister)
       } else
-        Resource.pure(new NJHistogram[F] {
-          override def unsafeUpdate(num: Long): Unit = ()
-          override def update(num: Long): F[Unit]    = F.unit
-        })
+        Resource.pure(dummy[F])
   }
 }
