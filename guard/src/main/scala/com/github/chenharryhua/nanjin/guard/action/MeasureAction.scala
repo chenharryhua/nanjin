@@ -30,11 +30,11 @@ private object MeasureAction {
     val metricName: MetricName = actionParams.metricName
 
     val doneID: String =
-      MetricID(metricName, Category.Counter(CounterKind.ActionDone), actionID).identifier
+      MetricID(metricName, Category.Counter(CounterKind.ActionDone, MetricTag(None)), actionID).identifier
     val failID: String =
-      MetricID(metricName, Category.Counter(CounterKind.ActionFail), actionID).identifier
+      MetricID(metricName, Category.Counter(CounterKind.ActionFail, MetricTag(None)), actionID).identifier
     val retryID: String =
-      MetricID(metricName, Category.Counter(CounterKind.ActionRetry), actionID).identifier
+      MetricID(metricName, Category.Counter(CounterKind.ActionRetry, MetricTag(None)), actionID).identifier
 
     val doneTimerID: String =
       MetricID(metricName, Category.Timer(TimerKind.Action), actionID).identifier

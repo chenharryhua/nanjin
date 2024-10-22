@@ -15,7 +15,7 @@ import scala.jdk.CollectionConverters.*
 
 final case class GroupId(value: String) extends AnyVal
 object GroupId {
-  implicit val codecKafkaGroupId: Codec[GroupId] = new Codec[GroupId] {
+  implicit val codecGroupId: Codec[GroupId] = new Codec[GroupId] {
     override def apply(c: HCursor): Result[GroupId] = Decoder.decodeString(c).map(GroupId(_))
     override def apply(a: GroupId): Json            = Encoder.encodeString(a.value)
   }
@@ -30,13 +30,13 @@ object Offset {
   def apply(oam: OffsetAndMetadata): Offset  = Offset(oam.offset())
   def apply(oat: OffsetAndTimestamp): Offset = Offset(oat.offset())
 
-  implicit val codecKafkaOffset: Codec[Offset] = new Codec[Offset] {
+  implicit val codecOffset: Codec[Offset] = new Codec[Offset] {
     override def apply(c: HCursor): Result[Offset] = Decoder.decodeLong(c).map(Offset(_))
     override def apply(a: Offset): Json            = Encoder.encodeLong(a.value)
   }
 
-  implicit val orderKafkaOffset: Order[Offset] =
-    (x: Offset, y: Offset) => x.value.compareTo(y.value)
+  implicit val orderingOffset: Ordering[Offset] = Ordering.by(_.value)
+  implicit val orderOffset: Order[Offset]       = Order.fromOrdering
 }
 
 final case class Partition(value: Int) extends AnyVal {
@@ -45,13 +45,13 @@ final case class Partition(value: Int) extends AnyVal {
 
 object Partition {
 
-  implicit val codecKafkaPartition: Codec[Partition] = new Codec[Partition] {
+  implicit val codecPartition: Codec[Partition] = new Codec[Partition] {
     override def apply(c: HCursor): Result[Partition] = Decoder.decodeInt(c).map(Partition(_))
     override def apply(a: Partition): Json            = Encoder.encodeInt(a.value)
   }
 
-  implicit val orderKafkaPartition: Order[Partition] =
-    (x: Partition, y: Partition) => x.value.compareTo(y.value)
+  implicit val orderingPartition: Ordering[Partition] = Ordering.by(_.value)
+  implicit val orderPartition: Order[Partition]       = Order.fromOrdering
 }
 
 @JsonCodec
@@ -64,7 +64,7 @@ object OffsetRange {
     else
       None
 
-  implicit val poKafkaOffsetRange: PartialOrder[OffsetRange] =
+  implicit val poOffsetRange: PartialOrder[OffsetRange] =
     (x: OffsetRange, y: OffsetRange) =>
       (x, y) match {
         case (OffsetRange(xf, xu, _), OffsetRange(yf, yu, _)) if xf >= yf && xu < yu =>
@@ -101,6 +101,7 @@ object ListOfTopicPartitions {
   }
 }
 
+// TreeMap because it is ammonite friendly
 final case class TopicPartitionMap[V](value: TreeMap[TopicPartition, V]) extends AnyVal {
   def nonEmpty: Boolean = value.nonEmpty
   def isEmpty: Boolean  = value.isEmpty
@@ -120,7 +121,7 @@ final case class TopicPartitionMap[V](value: TreeMap[TopicPartition, V]) extends
     val res: List[(TopicPartition, W)] = value.keySet.intersect(other.value.keySet).toList.flatMap { tp =>
       (value.get(tp), other.value.get(tp)).mapN((f, s) => tp -> fn(f, s))
     }
-    TopicPartitionMap(res.toMap)
+    TopicPartitionMap(TreeMap.from(res))
   }
 
   def leftCombine[U, W](other: TopicPartitionMap[U])(
@@ -133,12 +134,15 @@ final case class TopicPartitionMap[V](value: TreeMap[TopicPartition, V]) extends
   }
 
   def topicPartitions: ListOfTopicPartitions = ListOfTopicPartitions(value.keys.toList)
+
+  def flatten[W](implicit ev: V <:< Option[W]): TopicPartitionMap[W] =
+    copy(value = value.flatMap { case (k, v) => ev(v).map(k -> _) })
 }
 
 object TopicPartitionMap {
   def apply[V](map: Map[TopicPartition, V]): TopicPartitionMap[V] = TopicPartitionMap(TreeMap.from(map))
 
-  implicit def codecKafkaTopicPartition[V: Encoder: Decoder]: Codec[TopicPartitionMap[V]] =
+  implicit def codecTopicPartitionMap[V: Encoder: Decoder]: Codec[TopicPartitionMap[V]] =
     new Codec[TopicPartitionMap[V]] {
       override def apply(a: TopicPartitionMap[V]): Json =
         Encoder
@@ -167,17 +171,7 @@ object TopicPartitionMap {
           .apply(c)
     }
 
-  implicit final class KafkaTopicPartitionOps1[V](private val self: TopicPartitionMap[Option[V]]) {
-    def flatten: TopicPartitionMap[V] =
-      self.copy(value = TreeMap.from(self.value.flatMap { case (k, v) => v.map((k, _)) }))
-  }
+  def empty[V]: TopicPartitionMap[V] = TopicPartitionMap(Map.empty[TopicPartition, V])
 
-  implicit final class KafkaTopicPartitionOps2(
-    private val self: TopicPartitionMap[Option[OffsetAndTimestamp]]) {
-    def offsets: TopicPartitionMap[Option[Offset]] =
-      self.copy(value = TreeMap.from(self.value.view.mapValues(_.map(Offset(_)))))
-  }
-
-  def empty[V]: TopicPartitionMap[V]         = TopicPartitionMap(Map.empty[TopicPartition, V])
   val emptyOffset: TopicPartitionMap[Offset] = empty[Offset]
 }

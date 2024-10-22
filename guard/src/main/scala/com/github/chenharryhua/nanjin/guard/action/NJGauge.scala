@@ -1,6 +1,5 @@
 package com.github.chenharryhua.nanjin.guard.action
 
-import cats.Eval
 import cats.effect.implicits.genTemporalOps
 import cats.effect.kernel.{Async, Resource}
 import cats.effect.std.Dispatcher
@@ -15,30 +14,23 @@ import io.circe.{Encoder, Json}
 import org.apache.commons.lang3.StringUtils
 import org.apache.commons.lang3.exception.ExceptionUtils
 
-import java.time.{Duration, ZoneId}
+import java.time.ZoneId
 import scala.concurrent.duration.FiniteDuration
-import scala.jdk.DurationConverters.ScalaDurationOps
 import scala.util.Try
 
 sealed trait NJGauge[F[_]] {
   def register[A: Encoder](value: F[A]): Resource[F, Unit]
   def register[A: Encoder](value: F[A], policy: Policy, zoneId: ZoneId): Resource[F, Unit]
-  def timed: Resource[F, Unit]
-
-  def instrument[A: Encoder](value: F[A]): Resource[F, Unit]
-  def instrument[A: Encoder](value: Eval[A]): Resource[F, Unit]
 }
 
 private class NJGaugeImpl[F[_]: Async](
   private[this] val name: MetricName,
   private[this] val metricRegistry: MetricRegistry,
-  private[this] val timeout: FiniteDuration
+  private[this] val timeout: FiniteDuration,
+  private[this] val tag: MetricTag
 ) extends NJGauge[F] {
 
   private[this] val F = Async[F]
-
-  private[this] def elapse(start: FiniteDuration, end: FiniteDuration): Duration =
-    (end - start).toJava
 
   private[this] def trans_error(ex: Throwable): Json =
     Json.fromString(StringUtils.abbreviate(ExceptionUtils.getRootCauseMessage(ex), 80))
@@ -59,26 +51,9 @@ private class NJGaugeImpl[F[_]: Async](
         .void
     }
 
-  override def instrument[A: Encoder](value: F[A]): Resource[F, Unit] =
-    Resource.eval(F.unique).flatMap { token =>
-      val metricID: MetricID = MetricID(name, Category.Gauge(GaugeKind.Instrument), token)
-      json_gauge(metricID, value)
-    }
-
-  override def instrument[A: Encoder](value: Eval[A]): Resource[F, Unit] =
-    instrument(F.catchNonFatalEval(value))
-
-  override val timed: Resource[F, Unit] =
-    Resource.eval(F.unique).flatMap { token =>
-      val metricID: MetricID = MetricID(name, Category.Gauge(GaugeKind.Timed), token)
-      Resource.eval(F.monotonic).flatMap { kickoff =>
-        json_gauge(metricID, F.monotonic.map(elapse(kickoff, _)))
-      }
-    }
-
   override def register[A: Encoder](value: F[A]): Resource[F, Unit] =
     Resource.eval(F.unique).flatMap { token =>
-      val metricID: MetricID = MetricID(name, Category.Gauge(GaugeKind.Gauge), token)
+      val metricID: MetricID = MetricID(name, Category.Gauge(GaugeKind.Gauge, tag), token)
       json_gauge(metricID, value)
     }
 
@@ -95,15 +70,22 @@ private class NJGaugeImpl[F[_]: Async](
 
 object NJGauge {
 
-  final class Builder private[guard] (measurement: Measurement, timeout: FiniteDuration, isEnabled: Boolean)
+  final class Builder private[guard] (
+    measurement: Measurement,
+    timeout: FiniteDuration,
+    isEnabled: Boolean,
+    tag: MetricTag)
       extends EnableConfig[Builder] {
 
     def withMeasurement(measurement: String): Builder =
-      new Builder(Measurement(measurement), timeout, isEnabled)
+      new Builder(Measurement(measurement), timeout, isEnabled, tag)
 
-    def withTimeout(timeout: FiniteDuration): Builder = new Builder(measurement, timeout, isEnabled)
+    def withTimeout(timeout: FiniteDuration): Builder = new Builder(measurement, timeout, isEnabled, tag)
 
-    def enable(value: Boolean): Builder = new Builder(measurement, timeout, value)
+    def enable(value: Boolean): Builder = new Builder(measurement, timeout, value, tag)
+
+    def withTag(tag: String): Builder =
+      new Builder(measurement, timeout, isEnabled, MetricTag(Some(tag)))
 
     private[guard] def build[F[_]: Async](
       name: String,
@@ -111,18 +93,12 @@ object NJGauge {
       serviceParams: ServiceParams): NJGauge[F] =
       if (isEnabled) {
         val metricName = MetricName(serviceParams, measurement, name)
-        new NJGaugeImpl[F](metricName, metricRegistry, timeout)
+        new NJGaugeImpl[F](metricName, metricRegistry, timeout, tag)
       } else
         new NJGauge[F] {
           override def register[A: Encoder](value: F[A]): Resource[F, Unit] =
             Resource.unit[F]
           override def register[A: Encoder](value: F[A], policy: Policy, zoneId: ZoneId): Resource[F, Unit] =
-            Resource.unit[F]
-          override def timed: Resource[F, Unit] =
-            Resource.unit[F]
-          override def instrument[A: Encoder](value: F[A]): Resource[F, Unit] =
-            Resource.unit[F]
-          override def instrument[A: Encoder](value: Eval[A]): Resource[F, Unit] =
             Resource.unit[F]
         }
   }

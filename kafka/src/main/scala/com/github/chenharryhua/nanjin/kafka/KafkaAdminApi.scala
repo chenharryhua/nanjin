@@ -102,7 +102,7 @@ object KafkaAdminApi {
           .use(_.listConsumerGroupOffsets(groupId).partitionsToOffsetAndMetadata)
           .map(_.filter(_._1.topic() === topicName.value).view.mapValues(Offset(_)).toMap)
           .map(TopicPartitionMap(_))
-      } yield ends.leftCombine(curr)((e, c) => e.map(LagBehind(c, _)))
+      } yield calculate.admin_lagBehind(ends, curr)
 
     /** remove consumer group from the topic
       * @param groupId

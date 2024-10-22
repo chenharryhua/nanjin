@@ -44,23 +44,21 @@ class SyntaxTest extends AnyFunSuite {
   test("2.should be in one namespace") {
     def job(agent: Agent[IO]): Resource[IO, Kleisli[IO, Int, Long]] = {
       val name: String = "app"
-      agent
-        .gauge(name)
-        .timed
-        .flatMap(_ =>
-          for {
-            timer <- agent.timer(name, _.counted).map(_.kleisli((in: Int) => in.seconds))
-            runner <- agent.action(name, _.timed.counted).retry(fun1 _).buildWith(identity)
-            histogram <- agent.histogram(name, _.withUnit(_.BYTES).counted)
-            meter <- agent.meter(name, _.withUnit(_.COUNT).counted)
-            counter <- agent.counter(name, _.asRisk)
-          } yield for {
-            _ <- timer
-            out <- runner
-            _ <- histogram.kleisli((_: Int) => out)
-            _ <- meter.kleisli((_: Int) => out)
-            _ <- counter.kleisli((_: Int) => out)
-          } yield out)
+
+      for {
+        timer <- agent.timer(name, _.counted).map(_.kleisli((in: Int) => in.seconds))
+        runner <- agent.action(name, _.timed.counted).retry(fun1 _).buildWith(identity)
+        histogram <- agent.histogram(name, _.withUnit(_.BYTES).counted)
+        meter <- agent.meter(name, _.withUnit(_.COUNT).counted)
+        counter <- agent.counter(name, _.asRisk)
+        _ <- agent.gauge(name).register(IO(0))
+      } yield for {
+        _ <- timer
+        out <- runner
+        _ <- histogram.kleisli((_: Int) => out)
+        _ <- meter.kleisli((_: Int) => out)
+        _ <- counter.kleisli((_: Int) => out)
+      } yield out
     }
     val List(a: MetricReport, b: MetricReport) = service
       .eventStream(ga => job(ga).use(_.run(1) >> ga.metrics.report) >> ga.metrics.report)
@@ -89,14 +87,13 @@ class SyntaxTest extends AnyFunSuite {
     def job(agent: Agent[IO]): Resource[IO, Kleisli[IO, Int, Long]] = {
       val name: String = "app2"
       for {
-        _ <- agent.jvmGauge.garbageCollectors
-        _ <- agent.gauge(name).timed
         action <- agent.action(name, _.timed.counted).retry(fun1 _).buildWith(identity)
         histogram <- agent.histogram(name, _.withUnit(_.BYTES).counted)
         meter <- agent.meter(name, _.withUnit(_.KILOBITS).counted)
         counter <- agent.counter(name, _.asRisk)
         timer <- agent.timer(name, _.counted)
         alert <- agent.alert(name, _.counted)
+        _ <- agent.gauge(name, _.withTag("abc")).register(IO(0))
       } yield for {
         out <- action
         _ <- histogram.kleisli((_: Int) => out)

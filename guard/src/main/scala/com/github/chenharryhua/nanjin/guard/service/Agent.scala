@@ -35,8 +35,6 @@ sealed trait Agent[F[_]] {
   final def healthCheck(hcName: String): NJHealthCheck[F] = healthCheck(hcName, identity)
 
   // metrics
-  def jvmGauge: JvmGauge[F]
-
   def ratio(ratioName: String, f: Endo[NJRatio.Builder]): Resource[F, NJRatio[F]]
   final def ratio(ratioName: String): Resource[F, NJRatio[F]] = ratio(ratioName, identity)
 
@@ -85,10 +83,18 @@ final private class GeneralAgent[F[_]: Async] private[service] (
   private object builders {
 
     lazy val ratio: NJRatio.Builder =
-      new NJRatio.Builder(measurement = measurement, translator = NJRatio.translator, isEnabled = true)
+      new NJRatio.Builder(
+        measurement = measurement,
+        translator = NJRatio.translator,
+        isEnabled = true,
+        tag = MetricTag(Some("ratio")))
 
     lazy val gauge: NJGauge.Builder =
-      new NJGauge.Builder(measurement = measurement, timeout = 5.seconds, isEnabled = true)
+      new NJGauge.Builder(
+        measurement = measurement,
+        timeout = 5.seconds,
+        isEnabled = true,
+        tag = MetricTag(None))
 
     lazy val healthCheck: NJHealthCheck.Builder =
       new NJHealthCheck.Builder(measurement = measurement, timeout = 5.seconds, isEnabled = true)
@@ -120,7 +126,11 @@ final private class GeneralAgent[F[_]: Async] private[service] (
         isEnabled = true)
 
     lazy val counter: NJCounter.Builder =
-      new NJCounter.Builder(measurement = measurement, isRisk = false, isEnabled = true)
+      new NJCounter.Builder(
+        measurement = measurement,
+        isRisk = false,
+        isEnabled = true,
+        tag = MetricTag(None))
 
     lazy val alert: NJAlert.Builder =
       new NJAlert.Builder(measurement = measurement, isCounting = false, isEnabled = true)
@@ -171,8 +181,6 @@ final private class GeneralAgent[F[_]: Async] private[service] (
 
   override def ticks(policy: Policy): Stream[F, Tick] =
     tickStream[F](TickStatus(serviceParams.zerothTick).renewPolicy(policy))
-
-  override object jvmGauge extends JvmGauge[F](metricRegistry, serviceParams)
 
   override object metrics extends NJMetrics[F](channel, serviceParams, metricRegistry)
 }

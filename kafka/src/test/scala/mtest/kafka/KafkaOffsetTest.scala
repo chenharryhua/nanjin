@@ -68,8 +68,8 @@ class KafkaOffsetBuildTest extends AnyFunSuite {
 
     assert(res.value == expected)
     assert(ktp.topicPartitions.value.toSet == expected.keySet)
-    assert(ktp.offsets.value.values.size == 3)
-    assert(ktp.offsets.value.values.toList.flatten.map(_.value).toSet == Set(0, 1))
+    assert(ktp.mapValues(_.map(Offset(_))).value.values.size == 3)
+    assert(ktp.mapValues(_.map(Offset(_))).flatten.value.values.toList.map(_.value).toSet == Set(0, 1))
   }
 
   test("intersect combine") {

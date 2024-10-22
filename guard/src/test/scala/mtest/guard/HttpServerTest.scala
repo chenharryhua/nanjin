@@ -43,7 +43,6 @@ class HttpServerTest extends AnyFunSuite {
         .updateConfig(_.withMetricReport(Policy.crontab(_.secondly)).withHttpServer(_.withPort(port"9999")))
         .eventStream { ag =>
           val m = for {
-            _ <- ag.gauge("a").timed
             _ <- ag.gauge("a").register(IO(1))
             _ <- ag.counter("a").evalMap(_.inc(1))
             _ <- ag.histogram("a", _.withUnit(_.BYTES)).evalMap(_.update(1))

@@ -11,18 +11,13 @@ import org.apache.commons.codec.digest.DigestUtils
 
 sealed abstract class CategoryGroup(override val value: Int)
     extends IntEnumEntry with Product with Serializable
-
+// display order
 object CategoryGroup extends IntEnum[CategoryGroup] with IntCirceEnum[CategoryGroup] {
   override val values: IndexedSeq[CategoryGroup] = findValues
 
   case object HealthCheck extends CategoryGroup(1) // gauge
-  case object Deadlocks extends CategoryGroup(2) // gauge
   case object Alert extends CategoryGroup(3) // counter
   case object Risk extends CategoryGroup(4) // counter
-
-  case object Timed extends CategoryGroup(5) // gauge
-  case object Ratio extends CategoryGroup(6) // gauge
-  case object Instrument extends CategoryGroup(7) // gauge
 
   case object Gauge extends CategoryGroup(8)
   case object Counter extends CategoryGroup(9)
@@ -31,8 +26,8 @@ object CategoryGroup extends IntEnum[CategoryGroup] with IntCirceEnum[CategoryGr
   case object Histogram extends CategoryGroup(11)
   case object Timer extends CategoryGroup(12)
 
-  case object FlowMeter extends CategoryGroup(13)
-  case object Action extends CategoryGroup(14)
+  case object FlowMeter extends CategoryGroup(13) // meter + histogram
+  case object Action extends CategoryGroup(14) // timer
 }
 
 sealed trait CategoryKind extends EnumEntry with Product with Serializable {
@@ -48,10 +43,6 @@ object CategoryKind {
     val values: IndexedSeq[GaugeKind] = findValues
 
     case object HealthCheck extends GaugeKind("healthy", CategoryGroup.HealthCheck)
-    case object Deadlocks extends GaugeKind("deadlocks", CategoryGroup.Deadlocks)
-    case object Timed extends GaugeKind("elapsed", CategoryGroup.Timed)
-    case object Instrument extends GaugeKind("instrument", CategoryGroup.Instrument)
-    case object Ratio extends GaugeKind("ratio", CategoryGroup.Ratio)
 
     case object Gauge extends GaugeKind("gauge", CategoryGroup.Gauge)
   }
@@ -116,11 +107,14 @@ object CategoryKind {
 }
 
 @JsonCodec
+final case class MetricTag(value: Option[String]) extends AnyVal
+
+@JsonCodec
 sealed abstract class Category(val kind: CategoryKind, val order: Int) extends Product with Serializable
 object Category {
   import CategoryKind.*
-  final case class Gauge(override val kind: GaugeKind) extends Category(kind, 1)
-  final case class Counter(override val kind: CounterKind) extends Category(kind, 2)
+  final case class Gauge(override val kind: GaugeKind, tag: MetricTag) extends Category(kind, 1)
+  final case class Counter(override val kind: CounterKind, tag: MetricTag) extends Category(kind, 2)
   final case class Meter(override val kind: MeterKind, unit: MeasurementUnit) extends Category(kind, 3)
   final case class Histogram(override val kind: HistogramKind, unit: MeasurementUnit)
       extends Category(kind, 4)
@@ -149,6 +143,13 @@ object MetricName {
 @JsonCodec
 final case class MetricID private (metricName: MetricName, category: Category, uniqueToken: Int) {
   val identifier: String = Encoder[MetricID].apply(this).noSpaces
+  val tag: String = category match {
+    case Category.Gauge(kind, mt)    => mt.value.getOrElse(kind.entryName)
+    case Category.Counter(kind, mt)  => mt.value.getOrElse(kind.entryName)
+    case Category.Meter(kind, _)     => kind.entryName
+    case Category.Histogram(kind, _) => kind.entryName
+    case Category.Timer(kind)        => kind.entryName
+  }
 }
 
 object MetricID {

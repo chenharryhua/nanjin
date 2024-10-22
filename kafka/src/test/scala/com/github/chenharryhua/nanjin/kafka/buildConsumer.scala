@@ -47,7 +47,7 @@ object buildConsumer {
         override def poll(duration: Duration): ConsumerRecords[Array[Byte], Array[Byte]] = ???
         override def commitSync(): Unit                                                  = ???
         override def commitSync(duration: Duration): Unit                                = ???
-        override def commitSync(map: util.Map[TopicPartition, OffsetAndMetadata]): Unit  = ???
+        override def commitSync(map: util.Map[TopicPartition, OffsetAndMetadata]): Unit  = ()
         override def commitSync(map: util.Map[TopicPartition, OffsetAndMetadata], duration: Duration): Unit =
           ???
         override def commitAsync(): Unit                                           = ???

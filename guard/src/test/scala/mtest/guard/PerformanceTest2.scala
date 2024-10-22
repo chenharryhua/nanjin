@@ -15,13 +15,11 @@ class PerformanceTest2 extends AnyFunSuite {
     val expire = 3.seconds
 
     def config(agent: Agent[IO], name: String, f: ActionConfig => ActionConfig): IO[Unit] =
-      agent.gauge(name).timed.surround {
-        agent
-          .action(name, f)
-          .retry(IO(()))
-          .buildWith(identity)
-          .use(_.run(()).foreverM.timeout(expire).attempt.void)
-      }
+      agent
+        .action(name, f)
+        .retry(IO(()))
+        .buildWith(identity)
+        .use(_.run(()).foreverM.timeout(expire).attempt.void)
 
     TaskGuard[IO]("nanjin")
       .service("performance")

@@ -22,17 +22,18 @@ private class NJCounterImpl[F[_]: Sync](
   private[this] val token: Unique.Token,
   private[this] val name: MetricName,
   private[this] val metricRegistry: MetricRegistry,
-  private[this] val isRisk: Boolean)
+  private[this] val isRisk: Boolean,
+  private[this] val tag: MetricTag)
     extends NJCounter[F] {
 
   private[this] val F = Sync[F]
 
   private[this] lazy val (counter_name: String, counter: Counter) =
     if (isRisk) {
-      val id = MetricID(name, Category.Counter(CounterKind.Risk), token).identifier
+      val id = MetricID(name, Category.Counter(CounterKind.Risk, tag), token).identifier
       (id, metricRegistry.counter(id))
     } else {
-      val id = MetricID(name, Category.Counter(CounterKind.Counter), token).identifier
+      val id = MetricID(name, Category.Counter(CounterKind.Counter, tag), token).identifier
       (id, metricRegistry.counter(id))
     }
 
@@ -49,14 +50,21 @@ private class NJCounterImpl[F[_]: Sync](
 
 object NJCounter {
 
-  final class Builder private[guard] (measurement: Measurement, isRisk: Boolean, isEnabled: Boolean)
+  final class Builder private[guard] (
+    measurement: Measurement,
+    isRisk: Boolean,
+    isEnabled: Boolean,
+    tag: MetricTag)
       extends EnableConfig[Builder] {
 
     def withMeasurement(measurement: String): Builder =
-      new Builder(Measurement(measurement), isRisk, isEnabled)
+      new Builder(Measurement(measurement), isRisk, isEnabled, tag)
 
-    def asRisk: Builder                 = new Builder(measurement, true, isEnabled)
-    def enable(value: Boolean): Builder = new Builder(measurement, isRisk, value)
+    def asRisk: Builder                 = new Builder(measurement, true, isEnabled, tag)
+    def enable(value: Boolean): Builder = new Builder(measurement, isRisk, value, tag)
+
+    def withTag(tag: String): Builder =
+      new Builder(measurement, isRisk, isEnabled, MetricTag(Some(tag)))
 
     private[guard] def build[F[_]](
       name: String,
@@ -64,7 +72,8 @@ object NJCounter {
       serviceParams: ServiceParams)(implicit F: Sync[F]): Resource[F, NJCounter[F]] =
       if (isEnabled) {
         val metricName = MetricName(serviceParams, measurement, name)
-        Resource.make(F.unique.map(new NJCounterImpl[F](_, metricName, metricRegistry, isRisk)))(_.unregister)
+        Resource
+          .make(F.unique.map(new NJCounterImpl[F](_, metricName, metricRegistry, isRisk, tag)))(_.unregister)
       } else
         Resource.pure(new NJCounter[F] {
           override def unsafeInc(num: Long): Unit = ()

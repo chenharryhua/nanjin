@@ -1,6 +1,5 @@
 package com.github.chenharryhua.nanjin.guard.event
 
-import cats.syntax.all.*
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.config.CategoryKind.{
@@ -9,19 +8,14 @@ import com.github.chenharryhua.nanjin.guard.config.CategoryKind.{
   MeterKind,
   TimerKind
 }
-import com.github.chenharryhua.nanjin.guard.service.ThreadDeadlocks
-import io.circe.{Decoder, Json}
-
-import java.time.Duration
+import io.circe.Decoder
 
 object retrieveHealthChecks {
   def apply(gauges: List[Snapshot.Gauge]): Map[MetricID, Boolean] =
     gauges.collect { gg =>
       gg.metricId.category match {
-        case Category.Gauge(GaugeKind.HealthCheck) =>
+        case Category.Gauge(GaugeKind.HealthCheck, _) =>
           gg.value.asBoolean.map(gg.metricId -> _)
-        case Category.Gauge(GaugeKind.Deadlocks) =>
-          gg.value.asArray.map(gg.metricId -> _.isEmpty)
       }
     }.flatten.toMap
 
@@ -29,57 +23,12 @@ object retrieveHealthChecks {
     apply(MetricSnapshot.gauges(metricRegistry))
 }
 
-object retrieveDeadlocks {
-  def apply(gauges: List[Snapshot.Gauge]): List[ThreadDeadlocks] =
-    gauges.collect { gg =>
-      gg.metricId.category match {
-        case Category.Gauge(GaugeKind.Deadlocks) =>
-          gg.value.asArray.map { arr =>
-            arr.flatMap(_.as[ThreadDeadlocks].toOption)
-          }.sequence.flatten
-      }
-    }.flatten
-
-  def apply(metricRegistry: MetricRegistry): List[ThreadDeadlocks] =
-    apply(MetricSnapshot.gauges(metricRegistry))
-}
-
-object retrieveRatioGauge {
-  def apply(gauges: List[Snapshot.Gauge]): Map[MetricID, Json] =
-    gauges.collect { gg =>
-      gg.metricId.category match {
-        case Category.Gauge(GaugeKind.Ratio) =>
-          gg.metricId -> gg.value
-      }
-    }.toMap
-}
-
-object retrieveInstrument {
-  def apply(gauges: List[Snapshot.Gauge]): Map[MetricID, Json] =
-    gauges.collect { gg =>
-      gg.metricId.category match {
-        case Category.Gauge(GaugeKind.Instrument) =>
-          gg.metricId -> gg.value
-      }
-    }.toMap
-}
-
 object retrieveGauge {
   def apply[A: Decoder](gauges: List[Snapshot.Gauge]): Map[MetricID, A] =
     gauges.collect { gg =>
       gg.metricId.category match {
-        case Category.Gauge(GaugeKind.Gauge) =>
+        case Category.Gauge(GaugeKind.Gauge, _) =>
           gg.value.as[A].toOption.map(gg.metricId -> _)
-      }
-    }.flatten.toMap
-}
-
-object retrieveTimedGauge {
-  def apply(gauges: List[Snapshot.Gauge]): Map[MetricID, Duration] =
-    gauges.collect { gg =>
-      gg.metricId.category match {
-        case Category.Gauge(GaugeKind.Timed) =>
-          gg.value.as[Duration].toOption.map(gg.metricId -> _)
       }
     }.flatten.toMap
 }

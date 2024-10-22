@@ -5,6 +5,7 @@ import cats.effect.kernel.{Async, Resource}
 import cats.syntax.all.*
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
+import com.github.chenharryhua.nanjin.guard.translator.fmt
 import io.circe.Json
 import io.circe.syntax.EncoderOps
 
@@ -47,15 +48,18 @@ object BatchRunner {
 
     protected[this] val ratio: Resource[F, NJRatio[F]] =
       for {
+        kickoff <- Resource.eval(F.monotonic)
         _ <- gaugeBuilder
           .enable(action.actionParams.isEnabled)
           .withMeasurement(action.actionParams.measurement.value)
+          .withTag("elapsed")
           .build[F](action.actionParams.actionName.value, metricRegistry, serviceParams)
-          .timed
+          .register(F.monotonic.map(now => Json.fromString(fmt.format(now - kickoff))))
         rat <- ratioBuilder
           .enable(action.actionParams.isEnabled)
           .withMeasurement(action.actionParams.measurement.value)
           .withTranslator(translator)
+          .withTag("ratio")
           .build(action.actionParams.actionName.value, metricRegistry, serviceParams)
       } yield rat
   }

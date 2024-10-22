@@ -40,4 +40,19 @@ class TopicPartitionOrderTest extends AnyFunSuite {
       ))
     assert(decode[TopicPartitionMap[Abc]](abc.asJson.spaces2).toOption.get == abc)
   }
+
+  test("topic partition json") {
+    val tp = new TopicPartition("a", 1)
+    assert(decode[TopicPartition](tp.asJson.spaces2).toOption.get == tp)
+  }
+
+  test("partition") {
+    val partition = Partition(1)
+    assert(decode[Partition](partition.asJson.noSpaces).toOption.get == partition)
+  }
+
+  test("group id") {
+    val gid = GroupId("abc")
+    assert(decode[GroupId](gid.asJson.noSpaces).toOption.get == gid)
+  }
 }
