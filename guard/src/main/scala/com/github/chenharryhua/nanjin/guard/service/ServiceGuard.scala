@@ -123,7 +123,8 @@ final class ServiceGuard[F[_]: Network] private[guard] (serviceName: ServiceName
             serviceParams = serviceParams,
             metricRegistry = metricRegistry,
             channel = channel,
-            measurement = Measurement(serviceParams.serviceName.value)
+            measurement = Measurement(serviceParams.serviceName.value),
+            isEnabled = true
           )
 
         val surveillance: Stream[F, Nothing] =

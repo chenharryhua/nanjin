@@ -33,7 +33,8 @@ object ActionParams {
   def apply(
     actionName: ActionName,
     measurement: Measurement,
-    serviceParams: ServiceParams
+    serviceParams: ServiceParams,
+    isEnabled: Boolean
   ): ActionParams =
     ActionParams(
       actionName = actionName,
@@ -42,7 +43,7 @@ object ActionParams {
       publishStrategy = PublishStrategy.Silent,
       isCounting = false,
       isTiming = false,
-      isEnabled = true,
+      isEnabled = isEnabled,
       retryPolicy = Policy.giveUp,
       serviceParams = serviceParams
     )
@@ -56,7 +57,8 @@ private object ActionConfigF {
   final case class InitParams[K](
     actionName: ActionName,
     measurement: Measurement,
-    serviceParams: ServiceParams)
+    serviceParams: ServiceParams,
+    isEnabled: Boolean)
       extends ActionConfigF[K]
 
   final case class WithPublishStrategy[K](value: PublishStrategy, cont: K) extends ActionConfigF[K]
@@ -69,8 +71,8 @@ private object ActionConfigF {
 
   val algebra: Algebra[ActionConfigF, ActionParams] =
     Algebra[ActionConfigF, ActionParams] {
-      case InitParams(actionName, measurement, serviceParams) =>
-        ActionParams(actionName, measurement, serviceParams)
+      case InitParams(actionName, measurement, serviceParams, isEnabled) =>
+        ActionParams(actionName, measurement, serviceParams, isEnabled)
       case WithPublishStrategy(v, c) => c.focus(_.publishStrategy).replace(v)
       case WithTiming(v, c)          => c.focus(_.isTiming).replace(v)
       case WithCounting(v, c)        => c.focus(_.isCounting).replace(v)
@@ -123,8 +125,12 @@ final class ActionConfig private (
 
 private[guard] object ActionConfig {
 
-  def apply(actionName: ActionName, measurement: Measurement, serviceParams: ServiceParams): ActionConfig =
+  def apply(
+    actionName: ActionName,
+    measurement: Measurement,
+    serviceParams: ServiceParams,
+    isEnabled: Boolean): ActionConfig =
     new ActionConfig(
       Reader(_ => true),
-      Fix(ActionConfigF.InitParams[Fix[ActionConfigF]](actionName, measurement, serviceParams)))
+      Fix(ActionConfigF.InitParams[Fix[ActionConfigF]](actionName, measurement, serviceParams, isEnabled)))
 }

@@ -22,6 +22,7 @@ sealed trait Agent[F[_]] {
   // metrics
   def metrics: NJMetrics[F]
   def withMeasurement(name: String): Agent[F]
+  def enable(value: Boolean): Agent[F]
 
   // actions
   def action(actionName: String, f: Endo[NJAction.Builder]): NJAction[F]
@@ -68,7 +69,8 @@ final private class GeneralAgent[F[_]: Async] private[service] (
   serviceParams: ServiceParams,
   metricRegistry: MetricRegistry,
   channel: Channel[F, NJEvent],
-  measurement: Measurement)
+  measurement: Measurement,
+  isEnabled: Boolean)
     extends Agent[F] {
 
   // date time
@@ -78,7 +80,10 @@ final private class GeneralAgent[F[_]: Async] private[service] (
   override def toZonedDateTime(ts: Instant): ZonedDateTime = serviceParams.toZonedDateTime(ts)
 
   override def withMeasurement(name: String): Agent[F] =
-    new GeneralAgent[F](serviceParams, metricRegistry, channel, Measurement(name))
+    new GeneralAgent[F](serviceParams, metricRegistry, channel, Measurement(name), isEnabled)
+
+  override def enable(value: Boolean): Agent[F] =
+    new GeneralAgent[F](serviceParams, metricRegistry, channel, measurement, value)
 
   private object builders {
 
@@ -86,21 +91,25 @@ final private class GeneralAgent[F[_]: Async] private[service] (
       new NJRatio.Builder(
         measurement = measurement,
         translator = NJRatio.translator,
-        isEnabled = true,
+        isEnabled = isEnabled,
         tag = MetricTag(Some("ratio")))
 
     lazy val gauge: NJGauge.Builder =
       new NJGauge.Builder(
         measurement = measurement,
         timeout = 5.seconds,
-        isEnabled = true,
+        isEnabled = isEnabled,
         tag = MetricTag(None))
 
     lazy val healthCheck: NJHealthCheck.Builder =
-      new NJHealthCheck.Builder(measurement = measurement, timeout = 5.seconds, isEnabled = true)
+      new NJHealthCheck.Builder(measurement = measurement, timeout = 5.seconds, isEnabled = isEnabled)
 
     lazy val timer: NJTimer.Builder =
-      new NJTimer.Builder(measurement = measurement, isCounting = false, reservoir = None, isEnabled = true)
+      new NJTimer.Builder(
+        measurement = measurement,
+        isCounting = false,
+        reservoir = None,
+        isEnabled = isEnabled)
 
     lazy val flowerMeter: NJFlowMeter.Builder =
       new NJFlowMeter.Builder(
@@ -108,7 +117,7 @@ final private class GeneralAgent[F[_]: Async] private[service] (
         unit = NJUnits.COUNT,
         isCounting = false,
         reservoir = None,
-        isEnabled = true)
+        isEnabled = isEnabled)
 
     lazy val histogram: NJHistogram.Builder =
       new NJHistogram.Builder(
@@ -116,29 +125,34 @@ final private class GeneralAgent[F[_]: Async] private[service] (
         unit = NJUnits.COUNT,
         isCounting = false,
         reservoir = None,
-        isEnabled = true)
+        isEnabled = isEnabled)
 
     lazy val meter: NJMeter.Builder =
       new NJMeter.Builder(
         measurement = measurement,
         unit = NJUnits.COUNT,
         isCounting = false,
-        isEnabled = true)
+        isEnabled = isEnabled)
 
     lazy val counter: NJCounter.Builder =
       new NJCounter.Builder(
         measurement = measurement,
         isRisk = false,
-        isEnabled = true,
+        isEnabled = isEnabled,
         tag = MetricTag(None))
 
     lazy val alert: NJAlert.Builder =
-      new NJAlert.Builder(measurement = measurement, isCounting = false, isEnabled = true)
+      new NJAlert.Builder(measurement = measurement, isCounting = false, isEnabled = isEnabled)
   }
 
   override def action(actionName: String, f: Endo[NJAction.Builder]): NJAction[F] =
     new NJAction[F](
-      actionConfig = f(ActionConfig(ActionName(actionName), measurement, serviceParams)),
+      actionConfig = f(
+        ActionConfig(
+          actionName = ActionName(actionName),
+          measurement = measurement,
+          serviceParams = serviceParams,
+          isEnabled = isEnabled)),
       metricRegistry = metricRegistry,
       channel = channel
     )
