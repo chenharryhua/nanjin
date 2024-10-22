@@ -203,25 +203,43 @@ class MetricsTest extends AnyFunSuite {
   }
 
   test("16.dup") {
-    task
+    val List(mr) = task
       .service("dup")
       .eventStream { ga =>
-        val jvm = ga.jvmGauge.classloader >>
-          ga.jvmGauge.classloader >>
-          ga.jvmGauge.heapMemory >>
-          ga.jvmGauge.heapMemory >>
-          ga.jvmGauge.heapMemory
+        val jvm = ga.gauge("a").register(IO(0)) >>
+          ga.gauge("a").register(IO(0)) >>
+          ga.gauge("a").register(IO(0))
+        jvm.surround(ga.metrics.report)
+      }
+      .map(checkJson)
+      .mapFilter(metricReport)
+      .compile
+      .toList
+      .unsafeRunSync()
+
+    assert(mr.snapshot.gauges.size == 3)
+  }
+
+  test("17.gauge dup") {
+    val mr :: _ = task
+      .service("dup")
+      .eventStream { ga =>
+        val jvm = ga.gauge("a", _.withTag("b")).register(IO(0)) >>
+          ga.gauge("a", _.withTag("b")).register(IO(0)) >>
+          ga.gauge("a", _.withTag("b")).register(IO(0))
         jvm.surround(ga.metrics.report)
       }
       .map(checkJson)
       .mapFilter(metricReport)
       .evalTap(console.text[IO])
       .compile
-      .drain
+      .toList
       .unsafeRunSync()
+
+    assert(mr.snapshot.gauges.size == 3)
   }
 
-  test("17.disable") {
+  test("18.disable") {
     val mr = TaskGuard[IO]("nanjin")
       .service("disable")
       .eventStream { ag =>

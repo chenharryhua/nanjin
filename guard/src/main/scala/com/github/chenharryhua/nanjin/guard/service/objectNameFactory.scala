@@ -12,7 +12,7 @@ private object objectNameFactory extends ObjectNameFactory {
     decode[MetricID](name).map { mId =>
       val properties = new util.Hashtable[String, String]()
       properties.put("name", mId.metricName.name)
-      properties.put("type", mId.category.kind.entryName)
+      properties.put("type", mId.tag)
       properties.put("digest", mId.metricName.digest)
       val dm = s"$domain.${mId.metricName.measurement}"
       new ObjectName(dm, properties)

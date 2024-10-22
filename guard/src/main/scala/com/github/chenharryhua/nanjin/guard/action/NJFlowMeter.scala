@@ -35,7 +35,7 @@ private class NJFlowMeterImpl[F[_]: Sync](
     MetricID(name, Category.Meter(MeterKind.FlowMeter, unit), token).identifier
 
   private[this] val counter_name: String =
-    MetricID(name, Category.Counter(CounterKind.FlowMeter), token).identifier
+    MetricID(name, Category.Counter(CounterKind.FlowMeter, MetricTag(None)), token).identifier
 
   private[this] val supplier: MetricRegistry.MetricSupplier[Histogram] = () =>
     reservoir match {

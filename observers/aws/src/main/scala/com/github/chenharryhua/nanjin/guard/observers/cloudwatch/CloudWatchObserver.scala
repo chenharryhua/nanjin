@@ -136,7 +136,7 @@ final class CloudWatchObserver[F[_]: Sync](
       MetricKey(
         serviceParams = report.serviceParams,
         id = timer.metricId,
-        category = s"${timer.metricId.category.kind.entryName}_$category",
+        category = s"${timer.metricId.tag}_$category",
         standardUnit = toStandardUnit(unitNormalization.timeUnit),
         storageResolution = storageResolution
       ).metricDatum(report.timestamp.toInstant, unitNormalization.normalize(dur).value)
@@ -151,7 +151,7 @@ final class CloudWatchObserver[F[_]: Sync](
       MetricKey(
         serviceParams = report.serviceParams,
         id = histo.metricId,
-        category = s"${histo.metricId.category.kind.entryName}_$category",
+        category = s"${histo.metricId.tag}_$category",
         standardUnit = toStandardUnit(unit),
         storageResolution = storageResolution
       ).metricDatum(report.timestamp.toInstant, data)
@@ -161,7 +161,7 @@ final class CloudWatchObserver[F[_]: Sync](
       MetricKey(
         serviceParams = report.serviceParams,
         id = timer.metricId,
-        category = s"${timer.metricId.category.kind.entryName}_calls",
+        category = s"${timer.metricId.tag}_calls",
         standardUnit = StandardUnit.COUNT,
         storageResolution = storageResolution
       ) -> timer.timer.calls
@@ -172,7 +172,7 @@ final class CloudWatchObserver[F[_]: Sync](
       MetricKey(
         serviceParams = report.serviceParams,
         id = meter.metricId,
-        category = s"${meter.metricId.category.kind.entryName}_sum",
+        category = s"${meter.metricId.tag}_sum",
         standardUnit = toStandardUnit(unit),
         storageResolution = storageResolution
       ) -> data.toLong
@@ -182,7 +182,7 @@ final class CloudWatchObserver[F[_]: Sync](
       MetricKey(
         serviceParams = report.serviceParams,
         id = histo.metricId,
-        category = s"${histo.metricId.category.kind.entryName}_updates",
+        category = s"${histo.metricId.tag}_updates",
         standardUnit = StandardUnit.COUNT,
         storageResolution = storageResolution
       ) -> histo.histogram.updates

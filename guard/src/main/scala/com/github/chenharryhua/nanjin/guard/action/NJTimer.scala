@@ -37,7 +37,7 @@ private class NJTimerImpl[F[_]: Sync](
     MetricID(name, Category.Timer(TimerKind.Timer), token).identifier
 
   private[this] val counter_name: String =
-    MetricID(name, Category.Counter(CounterKind.Timer), token).identifier
+    MetricID(name, Category.Counter(CounterKind.Timer, MetricTag(None)), token).identifier
 
   private[this] val supplier: MetricRegistry.MetricSupplier[Timer] = () =>
     reservoir match {

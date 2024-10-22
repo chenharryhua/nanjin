@@ -134,7 +134,7 @@ final class InfluxdbObserver[F[_]](
             Point
               .measurement(timer.metricId.metricName.measurement)
               .time(timestamp.toInstant, writePrecision)
-              .addTag(metricConstants.METRICS_CATEGORY, timer.metricId.category.kind.entryName)
+              .addTag(metricConstants.METRICS_CATEGORY, timer.metricId.tag)
               .addTags(tagToAdd.asJava)
               .addField(metricConstants.METRICS_COUNT, timer.timer.calls) // Long
               // meter
@@ -159,7 +159,7 @@ final class InfluxdbObserver[F[_]](
             Point
               .measurement(meter.metricId.metricName.measurement)
               .time(timestamp.toInstant, writePrecision)
-              .addTag(metricConstants.METRICS_CATEGORY, meter.metricId.category.kind.entryName)
+              .addTag(metricConstants.METRICS_CATEGORY, meter.metricId.tag)
               .addTags(tagToAdd.asJava)
               .addField(metricConstants.METRICS_COUNT, meter.meter.sum) // Long
               // meter
@@ -174,7 +174,7 @@ final class InfluxdbObserver[F[_]](
             Point
               .measurement(counter.metricId.metricName.measurement)
               .time(timestamp.toInstant, writePrecision)
-              .addTag(metricConstants.METRICS_CATEGORY, counter.metricId.category.kind.entryName)
+              .addTag(metricConstants.METRICS_CATEGORY, counter.metricId.tag)
               .addTags(tagToAdd.asJava)
               .addField(metricConstants.METRICS_COUNT, counter.count) // Long
           }
@@ -185,7 +185,7 @@ final class InfluxdbObserver[F[_]](
             Point
               .measurement(histo.metricId.metricName.measurement)
               .time(timestamp.toInstant, writePrecision)
-              .addTag(metricConstants.METRICS_CATEGORY, histo.metricId.category.kind.entryName)
+              .addTag(metricConstants.METRICS_CATEGORY, histo.metricId.tag)
               .addTags(tagToAdd.asJava)
               .addField(metricConstants.METRICS_COUNT, histo.histogram.updates) // Long
               .addField(metricConstants.METRICS_MIN + unitName, histo.histogram.min) // Long

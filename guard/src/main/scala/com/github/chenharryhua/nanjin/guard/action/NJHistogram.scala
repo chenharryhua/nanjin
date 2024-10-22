@@ -30,7 +30,7 @@ private class NJHistogramImpl[F[_]: Sync](
   private[this] val histogram_name: String =
     MetricID(name, Category.Histogram(HistogramKind.Histogram, unit), token).identifier
   private[this] val counter_name: String =
-    MetricID(name, Category.Counter(CounterKind.Histogram), token).identifier
+    MetricID(name, Category.Counter(CounterKind.Histogram, MetricTag(None)), token).identifier
 
   private[this] val supplier: MetricRegistry.MetricSupplier[Histogram] = () =>
     reservoir match {

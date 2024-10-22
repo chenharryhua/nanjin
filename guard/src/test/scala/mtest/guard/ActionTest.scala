@@ -24,7 +24,6 @@ class ActionTest extends AnyFunSuite {
         meter <- ga.meter(name)
         histogram <- ga.histogram(name)
         counter <- ga.counter(name)
-        _ <- ga.gauge(name).timed
       } yield for {
         _ <- meter.kleisli((in: Int) => in.toLong)
         out <- action

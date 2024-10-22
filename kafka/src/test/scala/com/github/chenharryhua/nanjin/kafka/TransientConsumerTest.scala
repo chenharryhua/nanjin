@@ -4,7 +4,7 @@ import cats.Id
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
-import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
+import com.github.chenharryhua.nanjin.datetime.{NJDateTimeRange, NJTimestamp}
 import com.github.chenharryhua.nanjin.kafka.buildConsumer.*
 import fs2.kafka.ConsumerSettings
 import fs2.kafka.consumer.MkConsumer
@@ -87,6 +87,34 @@ class TransientConsumerTest extends AnyFunSuite {
     println(res)
     assert(res.value.size == 3)
     assert(res.value.forall(_._2.exists(_.distance == 5)))
+  }
+
+  test("offset for time") {
+    val begin: Map[TopicPartition, java.lang.Long] = Map(tp0 -> 0L, tp1 -> 0, tp2 -> 0)
+    val end: Map[TopicPartition, java.lang.Long]   = Map(tp0 -> 10L, tp1 -> 10, tp2 -> 10)
+    val forTime: Map[TopicPartition, OffsetAndTimestamp] =
+      Map(
+        tp0 -> new OffsetAndTimestamp(5, 0),
+        tp1 -> new OffsetAndTimestamp(5, 0),
+        tp2 -> new OffsetAndTimestamp(5, 0))
+    implicit val mkConsumer: MkConsumer[IO] = buildConsumer(begin, end, forTime)
+    val consumer: TransientConsumer[IO]     = TransientConsumer[IO](topicName, pcs)
+
+    val res      = consumer.offsetsForTimes(NJTimestamp(1)).unsafeRunSync()
+    val expected = TopicPartitionMap(forTime.map { case (tp, of) => tp -> Option(Offset(of)) })
+
+    assert(res.value.size == 3)
+    assert(res == expected)
+  }
+
+  test("coverage") {
+    val begin: Map[TopicPartition, java.lang.Long]       = Map.empty
+    val end: Map[TopicPartition, java.lang.Long]         = Map.empty
+    val forTime: Map[TopicPartition, OffsetAndTimestamp] = Map.empty
+    implicit val mkConsumer: MkConsumer[IO]              = buildConsumer(begin, end, forTime)
+    val consumer: TransientConsumer[IO]                  = TransientConsumer[IO](topicName, pcs)
+    consumer.commitSync(Map.empty).unsafeRunSync()
+
   }
 
 }

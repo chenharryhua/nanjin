@@ -315,35 +315,6 @@ lazy val observer_influxdb = (project in file("observers/influxdb"))
     ) ++ testLib
   )
 
-lazy val instrument_ehcache = (project in file("instrument/ehcache"))
-  .dependsOn(guard)
-  .settings(commonSettings *)
-  .settings(name := "nj-instrument-ehcache")
-  .settings(
-    libraryDependencies ++= List(
-      "org.ehcache" % "ehcache" % "3.10.8"
-    ) ++ testLib
-  )
-
-lazy val instrument_caffeine = (project in file("instrument/caffeine"))
-  .dependsOn(guard)
-  .settings(commonSettings *)
-  .settings(name := "nj-instrument-caffeine")
-  .settings(
-    libraryDependencies ++= List(
-      "com.github.ben-manes.caffeine" % "caffeine" % "3.1.8"
-    ) ++ testLib
-  )
-
-lazy val instrument_http4s = (project in file("instrument/http4s"))
-  .dependsOn(guard)
-  .settings(commonSettings *)
-  .settings(name := "nj-instrument-http4s")
-  .settings(
-    libraryDependencies ++=
-      List("org.http4s" %% "http4s-ember-client" % http4sV % Test) ++
-        testLib)
-
 lazy val messages = (project in file("messages"))
   .dependsOn(common)
   .settings(commonSettings *)
@@ -474,9 +445,6 @@ lazy val example = (project in file("example"))
   .dependsOn(observer_database)
   .dependsOn(observer_influxdb)
   .dependsOn(observer_kafka)
-  .dependsOn(instrument_ehcache)
-  .dependsOn(instrument_caffeine)
-  .dependsOn(instrument_http4s)
   .settings(commonSettings *)
   .settings(name := "nj-example")
   .settings(libraryDependencies ++= List(
@@ -503,8 +471,5 @@ lazy val nanjin =
     observer_database,
     observer_influxdb,
     observer_kafka,
-    observer_logging,
-    instrument_ehcache,
-    instrument_caffeine,
-    instrument_http4s
+    observer_logging
   )

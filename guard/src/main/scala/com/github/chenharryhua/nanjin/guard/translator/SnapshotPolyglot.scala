@@ -90,7 +90,7 @@ final class SnapshotPolyglot(snapshot: MetricSnapshot) {
             val inner: List[Json] =
               items.groupBy(_._1.category.kind.group.value).toList.sortBy(_._1).flatMap { case (_, items) =>
                 items.sortBy(_._1.category.order).map { case (mId, js) =>
-                  Json.obj(mId.category.kind.entryName -> js)
+                  Json.obj(mId.tag -> js)
                 }
               }
 
@@ -127,8 +127,7 @@ final class SnapshotPolyglot(snapshot: MetricSnapshot) {
   private def counter_str: List[(MetricID, List[String])] =
     snapshot.counters
       .filter(_.count > 0)
-      .map(c =>
-        c.metricId -> List(show"${c.metricId.category.kind.entryName}: ${decimal_fmt.format(c.count)}"))
+      .map(c => c.metricId -> List(show"${c.metricId.tag}: ${decimal_fmt.format(c.count)}"))
 
   private def gauge_str: List[(MetricID, List[String])] =
     snapshot.gauges.map { g =>
@@ -140,7 +139,7 @@ final class SnapshotPolyglot(snapshot: MetricSnapshot) {
         jsonArray = js => show"[${js.map(_.noSpaces).mkString(",")}]",
         jsonObject = js => js.toJson.noSpaces
       )
-      g.metricId -> List(show"${g.metricId.category.kind.entryName}: $str")
+      g.metricId -> List(show"${g.metricId.tag}: $str")
     }
 
   private def meter_str: List[(MetricID, List[String])] =
@@ -212,10 +211,10 @@ final class SnapshotPolyglot(snapshot: MetricSnapshot) {
               case (_, items) =>
                 items.sortBy(_._1.category.order).flatMap { case (id, lst) =>
                   @inline def others: List[String] =
-                    List(id.category.kind.entryName + ":").map(space * 4 + _) ::: lst.map(space * 6 + _)
+                    List(id.tag + ":").map(space * 4 + _) ::: lst.map(space * 6 + _)
                   id.category match {
-                    case Category.Gauge(_)        => lst.map(space * 4 + _)
-                    case Category.Counter(_)      => lst.map(space * 4 + _)
+                    case Category.Gauge(_, _)     => lst.map(space * 4 + _)
+                    case Category.Counter(_, _)   => lst.map(space * 4 + _)
                     case Category.Timer(_)        => others
                     case Category.Meter(_, _)     => others
                     case Category.Histogram(_, _) => others

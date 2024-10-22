@@ -31,7 +31,7 @@ private class NJMeterImpl[F[_]: Sync](
     MetricID(name, Category.Meter(MeterKind.Meter, unit), token).identifier
 
   private[this] val counter_name: String =
-    MetricID(name, Category.Counter(CounterKind.Meter), token).identifier
+    MetricID(name, Category.Counter(CounterKind.Meter, MetricTag(None)), token).identifier
 
   private[this] lazy val meter: Meter     = metricRegistry.meter(meter_name)
   private[this] lazy val counter: Counter = metricRegistry.counter(counter_name)

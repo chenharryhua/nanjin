@@ -5,6 +5,7 @@ import cats.effect.kernel.{Async, Resource}
 import cats.syntax.all.*
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
+import com.github.chenharryhua.nanjin.guard.translator.fmt
 import io.circe.Json
 import io.circe.syntax.EncoderOps
 
@@ -47,15 +48,18 @@ object BatchRunner {
 
     protected[this] val ratio: Resource[F, NJRatio[F]] =
       for {
+        kickoff <- Resource.eval(F.monotonic)
         _ <- gaugeBuilder
           .enable(action.actionParams.isEnabled)
           .withMeasurement(action.actionParams.measurement.value)
+          .withTag("elapsed")
           .build[F](action.actionParams.actionName.value, metricRegistry, serviceParams)
-          .timed
+          .register(F.monotonic.map(now => Json.fromString(fmt.format(now - kickoff))))
         rat <- ratioBuilder
           .enable(action.actionParams.isEnabled)
           .withMeasurement(action.actionParams.measurement.value)
           .withTranslator(translator)
+          .withTag("ratio")
           .build(action.actionParams.actionName.value, metricRegistry, serviceParams)
       } yield rat
   }
@@ -84,7 +88,11 @@ object BatchRunner {
             .flatTap(_ => rat.incNumerator(1))
         })
         .map { case (fd, details) =>
-          QuasiResult(fd.toJava, BatchMode.Parallel(parallelism), details.sortBy(_.job.index))
+          QuasiResult(
+            name = action.actionParams.actionName,
+            spent = fd.toJava,
+            mode = BatchMode.Parallel(parallelism),
+            details = details.sortBy(_.job.index))
         }
 
       exec.use(identity)
@@ -133,9 +141,11 @@ object BatchRunner {
           .flatTap(_ => rat.incNumerator(1))
       }.map(details =>
         QuasiResult(
+          name = action.actionParams.actionName,
           spent = details.map(_.took).foldLeft(Duration.ZERO)(_ plus _),
           mode = BatchMode.Sequential,
-          details = details.sortBy(_.job.index)))
+          details = details.sortBy(_.job.index)
+        ))
 
       exec.use(identity)
     }
