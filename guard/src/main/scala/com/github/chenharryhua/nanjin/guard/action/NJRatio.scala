@@ -6,7 +6,6 @@ import cats.effect.kernel.{Async, Ref, Resource}
 import cats.effect.std.Dispatcher
 import cats.syntax.all.*
 import com.codahale.metrics.{Gauge, MetricRegistry}
-import com.github.chenharryhua.nanjin.common.EnableConfig
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.config.CategoryKind.GaugeKind
 import io.circe.Json
@@ -80,17 +79,19 @@ object NJRatio {
     translator: Ior[Long, Long] => Json,
     isEnabled: Boolean,
     tag: MetricTag)
-      extends EnableConfig[Builder] {
-
-    def withMeasurement(measurement: String): Builder =
-      new Builder(Measurement(measurement), translator, isEnabled, tag)
+      extends MetricBuilder[Builder] {
 
     def withTranslator(translator: Ior[Long, Long] => Json) =
       new Builder(measurement, translator, isEnabled, tag)
 
-    def enable(value: Boolean): Builder = new Builder(measurement, translator, value, tag)
+    override def withMeasurement(measurement: String): Builder =
+      new Builder(Measurement(measurement), translator, isEnabled, tag)
 
-    def withTag(tag: String): Builder = new Builder(measurement, translator, isEnabled, MetricTag(Some(tag)))
+    override def enable(value: Boolean): Builder =
+      new Builder(measurement, translator, value, tag)
+
+    override def withTag(tag: String): Builder =
+      new Builder(measurement, translator, isEnabled, MetricTag(tag))
 
     private[guard] def build[F[_]: Async](
       name: String,

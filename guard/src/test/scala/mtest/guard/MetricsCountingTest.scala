@@ -7,20 +7,10 @@ import com.codahale.metrics.SlidingWindowReservoir
 import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.config.Category.Counter
-import com.github.chenharryhua.nanjin.guard.config.CategoryKind.CounterKind
-import com.github.chenharryhua.nanjin.guard.config.CategoryKind.CounterKind.{
-  ActionDone,
-  ActionFail,
-  ActionRetry,
-  AlertError,
-  AlertInfo,
-  AlertWarn
-}
-import com.github.chenharryhua.nanjin.guard.config.MetricTag
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.MetricReport
 import com.github.chenharryhua.nanjin.guard.event.{
-  retrieveActionTimer,
+  retrieveAction,
+  retrieveAlert,
   retrieveHealthChecks,
   retrieveHistogram,
   retrieveMeter,
@@ -36,31 +26,26 @@ class MetricsCountingTest extends AnyFunSuite {
   private val policy = Policy.fixedDelay(1.seconds).limited(1)
 
   def counterSucc(mr: MetricReport): Long =
-    mr.snapshot.counters.find(_.metricId.category == Counter(ActionDone, MetricTag(None))).get.count
+    retrieveAction.doneCount(mr.snapshot.counters).values.sum
   def counterFail(mr: MetricReport): Long =
-    mr.snapshot.counters.find(_.metricId.category == Counter(ActionFail, MetricTag(None))).get.count
+    retrieveAction.failCount(mr.snapshot.counters).values.sum
   def counterRetry(mr: MetricReport): Long =
-    mr.snapshot.counters.find(_.metricId.category == Counter(ActionRetry, MetricTag(None))).get.count
+    retrieveAction.retryCount(mr.snapshot.counters).values.sum
   def counterAlertInfo(mr: MetricReport): Long =
-    mr.snapshot.counters.find(_.metricId.category == Counter(AlertInfo, MetricTag(None))).get.count
+    retrieveAlert.infoCount(mr.snapshot.counters).values.sum
   def counterAlertWarn(mr: MetricReport): Long =
-    mr.snapshot.counters.find(_.metricId.category == Counter(AlertWarn, MetricTag(None))).get.count
+    retrieveAlert.warnCount(mr.snapshot.counters).values.sum
   def counterAlertError(mr: MetricReport): Long =
-    mr.snapshot.counters.find(_.metricId.category == Counter(AlertError, MetricTag(None))).get.count
-  def counter(mr: MetricReport): Long =
-    mr.snapshot.counters.find(_.metricId.category == Counter(CounterKind.Counter, MetricTag(None))).get.count
+    retrieveAlert.errorCount(mr.snapshot.counters).values.sum
 
   def timerSucc(mr: MetricReport): Long =
-    retrieveActionTimer(mr.snapshot.timers).values.map(_.calls).sum
+    retrieveAction.timer(mr.snapshot.timers).values.map(_.calls).sum
 
   def meter(mr: MetricReport): Long =
     retrieveMeter(mr.snapshot.meters).values.map(_.sum).sum
 
   def histogram(mr: MetricReport): Long =
     retrieveHistogram(mr.snapshot.histograms).values.map(_.updates).sum
-
-  def timer(mr: MetricReport): Long =
-    retrieveTimer(mr.snapshot.timers).values.map(_.calls).sum
 
   test("1.silent") {
     val mr = task
@@ -323,7 +308,6 @@ class MetricsCountingTest extends AnyFunSuite {
       .get
     assert(timerSucc(mr) == 1)
     assert(mr.snapshot.counters.isEmpty)
-
   }
 
   test("12.bipartite.time.count") {
@@ -374,7 +358,7 @@ class MetricsCountingTest extends AnyFunSuite {
   }
 
   test("14.counter") {
-    val mr = task
+    task
       .service("counter")
       .eventStream { ga =>
         ga.counter("counter").use { c =>
@@ -389,7 +373,6 @@ class MetricsCountingTest extends AnyFunSuite {
       .last
       .unsafeRunSync()
       .get
-    assert(counter(mr) == 3)
   }
 
   test("15.meter") {
@@ -482,7 +465,7 @@ class MetricsCountingTest extends AnyFunSuite {
       .unsafeRunSync()
       .get
 
-    assert(timer(mr) == 2)
+    assert(retrieveTimer(mr.snapshot.timers).values.map(_.calls).sum == 2)
   }
 
   test("20.dup action") {
@@ -497,6 +480,6 @@ class MetricsCountingTest extends AnyFunSuite {
       .compile
       .lastOrError
       .unsafeRunSync()
-    assert(retrieveActionTimer(mr.snapshot.timers).values.size == 2)
+    assert(timerSucc(mr) == 2)
   }
 }

@@ -5,9 +5,8 @@ import cats.data.Kleisli
 import cats.effect.kernel.{Resource, Sync, Unique}
 import cats.implicits.toFunctorOps
 import com.codahale.metrics.*
-import com.github.chenharryhua.nanjin.common.EnableConfig
 import com.github.chenharryhua.nanjin.guard.config.*
-import com.github.chenharryhua.nanjin.guard.config.CategoryKind.{CounterKind, HistogramKind}
+import com.github.chenharryhua.nanjin.guard.config.CategoryKind.HistogramKind
 import com.github.chenharryhua.nanjin.guard.event.{MeasurementUnit, NJUnits}
 
 sealed trait NJHistogram[F[_]] {
@@ -22,16 +21,14 @@ private class NJHistogramImpl[F[_]: Sync](
   private[this] val name: MetricName,
   private[this] val metricRegistry: MetricRegistry,
   private[this] val unit: MeasurementUnit,
-  private[this] val isCounting: Boolean,
-  private[this] val reservoir: Option[Reservoir])
+  private[this] val reservoir: Option[Reservoir],
+  private[this] val tag: MetricTag)
     extends NJHistogram[F] {
 
   private[this] val F = Sync[F]
 
   private[this] val histogram_name: String =
-    MetricID(name, Category.Histogram(HistogramKind.Histogram, unit), token).identifier
-  private[this] val counter_name: String =
-    MetricID(name, Category.Counter(CounterKind.Histogram, MetricTag(None)), token).identifier
+    MetricID(name, Category.Histogram(HistogramKind.Histogram, tag, unit), token).identifier
 
   private[this] val supplier: MetricRegistry.MetricSupplier[Histogram] = () =>
     reservoir match {
@@ -39,22 +36,13 @@ private class NJHistogramImpl[F[_]: Sync](
       case None        => new Histogram(new ExponentiallyDecayingReservoir) // default reservoir
     }
 
-  private[this] lazy val histogram: Histogram = metricRegistry.histogram(histogram_name, supplier)
-  private[this] lazy val counter: Counter     = metricRegistry.counter(counter_name)
+  private[this] lazy val histogram: Histogram =
+    metricRegistry.histogram(histogram_name, supplier)
 
-  private[this] val calculate: Long => Unit =
-    if (isCounting) { (num: Long) =>
-      histogram.update(num)
-      counter.inc(1)
-    } else (num: Long) => histogram.update(num)
+  override def unsafeUpdate(num: Long): Unit = histogram.update(num)
+  override def update(num: Long): F[Unit]    = F.delay(histogram.update(num))
 
-  override def unsafeUpdate(num: Long): Unit = calculate(num)
-  override def update(num: Long): F[Unit]    = F.delay(calculate(num))
-
-  val unregister: F[Unit] = F.delay {
-    metricRegistry.remove(histogram_name)
-    metricRegistry.remove(counter_name)
-  }.void
+  val unregister: F[Unit] = F.delay(metricRegistry.remove(histogram_name)).void
 }
 
 object NJHistogram {
@@ -67,23 +55,25 @@ object NJHistogram {
   final class Builder private[guard] (
     measurement: Measurement,
     unit: MeasurementUnit,
-    isCounting: Boolean,
     reservoir: Option[Reservoir],
-    isEnabled: Boolean)
-      extends EnableConfig[Builder] {
-    def withMeasurement(measurement: String): Builder =
-      new Builder(Measurement(measurement), unit, isCounting, reservoir, isEnabled)
-
-    def counted: Builder = new Builder(measurement, unit, true, reservoir, isEnabled)
+    isEnabled: Boolean,
+    tag: MetricTag)
+      extends MetricBuilder[Builder] {
 
     def withUnit(f: NJUnits.type => MeasurementUnit): Builder =
-      new Builder(measurement, f(NJUnits), isCounting, reservoir, isEnabled)
+      new Builder(measurement, f(NJUnits), reservoir, isEnabled, tag)
 
     def withReservoir(reservoir: Reservoir): Builder =
-      new Builder(measurement, unit, isCounting, Some(reservoir), isEnabled)
+      new Builder(measurement, unit, Some(reservoir), isEnabled, tag)
 
-    def enable(value: Boolean): Builder =
-      new Builder(measurement, unit, isCounting, reservoir, value)
+    override def withMeasurement(measurement: String): Builder =
+      new Builder(Measurement(measurement), unit, reservoir, isEnabled, tag)
+
+    override def enable(value: Boolean): Builder =
+      new Builder(measurement, unit, reservoir, value, tag)
+
+    override def withTag(tag: String): Builder =
+      new Builder(measurement, unit, reservoir, isEnabled, MetricTag(tag))
 
     private[guard] def build[F[_]](
       name: String,
@@ -98,8 +88,8 @@ object NJHistogram {
               name = metricName,
               metricRegistry = metricRegistry,
               unit = unit,
-              isCounting = isCounting,
-              reservoir = reservoir)))(_.unregister)
+              reservoir = reservoir,
+              tag = tag)))(_.unregister)
       } else
         Resource.pure(dummy[F])
   }

@@ -5,7 +5,6 @@ import cats.data.Kleisli
 import cats.effect.kernel.{Resource, Sync, Unique}
 import cats.implicits.toFunctorOps
 import com.codahale.metrics.{Counter, MetricRegistry}
-import com.github.chenharryhua.nanjin.common.EnableConfig
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.config.CategoryKind.CounterKind
 
@@ -64,16 +63,18 @@ object NJCounter {
     isRisk: Boolean,
     isEnabled: Boolean,
     tag: MetricTag)
-      extends EnableConfig[Builder] {
+      extends MetricBuilder[Builder] {
 
-    def withMeasurement(measurement: String): Builder =
+    def asRisk: Builder = new Builder(measurement, true, isEnabled, tag)
+
+    override def withMeasurement(measurement: String): Builder =
       new Builder(Measurement(measurement), isRisk, isEnabled, tag)
 
-    def asRisk: Builder                 = new Builder(measurement, true, isEnabled, tag)
-    def enable(value: Boolean): Builder = new Builder(measurement, isRisk, value, tag)
+    override def enable(value: Boolean): Builder =
+      new Builder(measurement, isRisk, value, tag)
 
-    def withTag(tag: String): Builder =
-      new Builder(measurement, isRisk, isEnabled, MetricTag(Some(tag)))
+    override def withTag(tag: String): Builder =
+      new Builder(measurement, isRisk, isEnabled, MetricTag(tag))
 
     private[guard] def build[F[_]](
       name: String,

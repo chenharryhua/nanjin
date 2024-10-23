@@ -6,6 +6,13 @@ import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.common.chrono.*
 import com.github.chenharryhua.nanjin.guard.action.*
 import com.github.chenharryhua.nanjin.guard.config.*
+import com.github.chenharryhua.nanjin.guard.config.CategoryKind.{
+  CounterKind,
+  GaugeKind,
+  HistogramKind,
+  MeterKind,
+  TimerKind
+}
 import com.github.chenharryhua.nanjin.guard.event.*
 import fs2.Stream
 import fs2.concurrent.Channel
@@ -55,9 +62,6 @@ sealed trait Agent[F[_]] {
   final def histogram(histogramName: String): Resource[F, NJHistogram[F]] =
     histogram(histogramName, identity)
 
-  def flowMeter(name: String, f: Endo[NJFlowMeter.Builder]): Resource[F, NJFlowMeter[F]]
-  final def flowMeter(name: String): Resource[F, NJFlowMeter[F]] = flowMeter(name, identity)
-
   def timer(timerName: String, f: Endo[NJTimer.Builder]): Resource[F, NJTimer[F]]
   final def timer(timerName: String): Resource[F, NJTimer[F]] = timer(timerName, identity)
 
@@ -92,54 +96,50 @@ final private class GeneralAgent[F[_]: Async] private[service] (
         measurement = measurement,
         translator = NJRatio.translator,
         isEnabled = isEnabled,
-        tag = MetricTag(Some("ratio")))
+        tag = MetricTag("ratio"))
 
     lazy val gauge: NJGauge.Builder =
       new NJGauge.Builder(
         measurement = measurement,
         timeout = 5.seconds,
         isEnabled = isEnabled,
-        tag = MetricTag(None))
+        tag = MetricTag(GaugeKind.Gauge.entryName))
 
     lazy val healthCheck: NJHealthCheck.Builder =
-      new NJHealthCheck.Builder(measurement = measurement, timeout = 5.seconds, isEnabled = isEnabled)
-
-    lazy val timer: NJTimer.Builder =
-      new NJTimer.Builder(
+      new NJHealthCheck.Builder(
         measurement = measurement,
-        isCounting = false,
-        reservoir = None,
-        isEnabled = isEnabled)
-
-    lazy val flowerMeter: NJFlowMeter.Builder =
-      new NJFlowMeter.Builder(
-        measurement = measurement,
-        unit = NJUnits.COUNT,
-        isCounting = false,
-        reservoir = None,
-        isEnabled = isEnabled)
-
-    lazy val histogram: NJHistogram.Builder =
-      new NJHistogram.Builder(
-        measurement = measurement,
-        unit = NJUnits.COUNT,
-        isCounting = false,
-        reservoir = None,
-        isEnabled = isEnabled)
-
-    lazy val meter: NJMeter.Builder =
-      new NJMeter.Builder(
-        measurement = measurement,
-        unit = NJUnits.COUNT,
-        isCounting = false,
-        isEnabled = isEnabled)
+        timeout = 5.seconds,
+        isEnabled = isEnabled,
+        tag = MetricTag(GaugeKind.HealthCheck.entryName))
 
     lazy val counter: NJCounter.Builder =
       new NJCounter.Builder(
         measurement = measurement,
         isRisk = false,
         isEnabled = isEnabled,
-        tag = MetricTag(None))
+        tag = MetricTag(CounterKind.Counter.entryName))
+
+    lazy val timer: NJTimer.Builder =
+      new NJTimer.Builder(
+        measurement = measurement,
+        reservoir = None,
+        isEnabled = isEnabled,
+        tag = MetricTag(TimerKind.Timer.entryName))
+
+    lazy val histogram: NJHistogram.Builder =
+      new NJHistogram.Builder(
+        measurement = measurement,
+        unit = NJUnits.COUNT,
+        reservoir = None,
+        isEnabled = isEnabled,
+        tag = MetricTag(HistogramKind.Histogram.entryName))
+
+    lazy val meter: NJMeter.Builder =
+      new NJMeter.Builder(
+        measurement = measurement,
+        unit = NJUnits.COUNT,
+        isEnabled = isEnabled,
+        tag = MetricTag(MeterKind.Meter.entryName))
 
     lazy val alert: NJAlert.Builder =
       new NJAlert.Builder(measurement = measurement, isCounting = false, isEnabled = isEnabled)
@@ -177,9 +177,6 @@ final private class GeneralAgent[F[_]: Async] private[service] (
 
   override def histogram(histogramName: String, f: Endo[NJHistogram.Builder]): Resource[F, NJHistogram[F]] =
     f(builders.histogram).build[F](histogramName, metricRegistry, serviceParams)
-
-  override def flowMeter(name: String, f: Endo[NJFlowMeter.Builder]): Resource[F, NJFlowMeter[F]] =
-    f(builders.flowerMeter).build[F](name, metricRegistry, serviceParams)
 
   override def timer(timerName: String, f: Endo[NJTimer.Builder]): Resource[F, NJTimer[F]] =
     f(builders.timer).build[F](timerName, metricRegistry, serviceParams)

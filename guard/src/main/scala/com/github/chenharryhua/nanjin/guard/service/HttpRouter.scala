@@ -81,6 +81,8 @@ private class HttpRouter[F[_]](
           h3(s"Service: ${serviceParams.serviceName.value}"),
           a(href := "/metrics/yaml")("Metrics At Present"),
           br(),
+          a(href := "/metrics/json")("Metrics At Present(Json)"),
+          br(),
           a(href := "/metrics/history")("Metrics History"),
           br(),
           a(href := "/metrics/reset")("Metrics Counters Reset"),

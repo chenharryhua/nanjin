@@ -21,12 +21,11 @@ class ConsoleLogTest extends AnyFunSuite {
         val go = for {
           _ <- ag.gauge("job").register(IO(1000000000))
           _ <- ag.healthCheck("job").register(IO(true))
-          _ <- ag.timer("job", _.counted).evalMap(_.update(10.second).replicateA(100))
-          _ <- ag.meter("job", _.withUnit(_.COUNT).counted).evalMap(_.update(10000).replicateA(100))
+          _ <- ag.timer("job").evalMap(_.update(10.second).replicateA(100))
+          _ <- ag.meter("job", _.withUnit(_.COUNT)).evalMap(_.update(10000).replicateA(100))
           _ <- ag.counter("job", _.asRisk).evalMap(_.inc(1000))
-          _ <- ag.histogram("job", _.withUnit(_.BYTES).counted).evalMap(_.update(10000L).replicateA(100))
+          _ <- ag.histogram("job", _.withUnit(_.BYTES)).evalMap(_.update(10000L).replicateA(100))
           _ <- ag.alert("job", _.counted).evalMap(_.error("alarm"))
-          _ <- ag.flowMeter("job", _.withUnit(_.KILOBITS).counted).evalMap(_.update(200000))
           _ <- ag.action("job", _.timed.counted.bipartite).retry(IO(0)).buildWith(identity).evalMap(_.run(()))
           _ <- ag
             .ratio("job")

@@ -16,18 +16,17 @@ object CategoryGroup extends IntEnum[CategoryGroup] with IntCirceEnum[CategoryGr
   override val values: IndexedSeq[CategoryGroup] = findValues
 
   case object HealthCheck extends CategoryGroup(1) // gauge
-  case object Alert extends CategoryGroup(3) // counter
-  case object Risk extends CategoryGroup(4) // counter
+  case object Alert extends CategoryGroup(2) // counter
+  case object Risk extends CategoryGroup(3) // counter
 
-  case object Gauge extends CategoryGroup(8)
-  case object Counter extends CategoryGroup(9)
+  case object Gauge extends CategoryGroup(4)
+  case object Counter extends CategoryGroup(5)
 
-  case object Meter extends CategoryGroup(10)
-  case object Histogram extends CategoryGroup(11)
-  case object Timer extends CategoryGroup(12)
+  case object Meter extends CategoryGroup(6)
+  case object Histogram extends CategoryGroup(7)
+  case object Timer extends CategoryGroup(8)
 
-  case object FlowMeter extends CategoryGroup(13) // meter + histogram
-  case object Action extends CategoryGroup(14) // timer
+  case object Action extends CategoryGroup(9) // timer
 }
 
 sealed trait CategoryKind extends EnumEntry with Product with Serializable {
@@ -59,15 +58,9 @@ object CategoryKind {
     case object AlertWarn extends CounterKind("alert_warn", CategoryGroup.Alert)
     case object AlertInfo extends CounterKind("alert_info", CategoryGroup.Alert)
 
-    case object Meter extends CounterKind("meter_sum", CategoryGroup.Meter)
-    case object Histogram extends CounterKind("histogram_updates", CategoryGroup.Histogram)
-    case object Timer extends CounterKind("timer_calls", CategoryGroup.Timer)
-
     case object ActionDone extends CounterKind("action_done", CategoryGroup.Action)
     case object ActionFail extends CounterKind("action_fail", CategoryGroup.Action)
     case object ActionRetry extends CounterKind("action_retry", CategoryGroup.Action)
-
-    case object FlowMeter extends CounterKind("flow_updates", CategoryGroup.FlowMeter)
 
     case object Counter extends CounterKind("count", CategoryGroup.Counter)
   }
@@ -78,8 +71,6 @@ object CategoryKind {
   object MeterKind extends Enum[MeterKind] with CirceEnum[MeterKind] {
     val values: IndexedSeq[MeterKind] = findValues
 
-    case object FlowMeter extends MeterKind("flow_meter", CategoryGroup.FlowMeter)
-
     case object Meter extends MeterKind("meter", CategoryGroup.Meter)
   }
 
@@ -88,8 +79,6 @@ object CategoryKind {
 
   object HistogramKind extends Enum[HistogramKind] with CirceEnum[HistogramKind] {
     val values: IndexedSeq[HistogramKind] = findValues
-
-    case object FlowMeter extends HistogramKind("flow_histogram", CategoryGroup.FlowMeter)
 
     case object Histogram extends HistogramKind("histogram", CategoryGroup.Histogram)
   }
@@ -107,18 +96,31 @@ object CategoryKind {
 }
 
 @JsonCodec
-final case class MetricTag(value: Option[String]) extends AnyVal
+final case class MetricTag(value: String) extends AnyVal
 
 @JsonCodec
-sealed abstract class Category(val kind: CategoryKind, val order: Int) extends Product with Serializable
+sealed abstract class Category(val kind: CategoryKind, val order: Int, val tag: MetricTag)
+    extends Product with Serializable
 object Category {
   import CategoryKind.*
-  final case class Gauge(override val kind: GaugeKind, tag: MetricTag) extends Category(kind, 1)
-  final case class Counter(override val kind: CounterKind, tag: MetricTag) extends Category(kind, 2)
-  final case class Meter(override val kind: MeterKind, unit: MeasurementUnit) extends Category(kind, 3)
-  final case class Histogram(override val kind: HistogramKind, unit: MeasurementUnit)
-      extends Category(kind, 4)
-  final case class Timer(override val kind: TimerKind) extends Category(kind, 5)
+
+  final case class Gauge(override val kind: GaugeKind, override val tag: MetricTag)
+      extends Category(kind, 1, tag)
+
+  final case class Counter(override val kind: CounterKind, override val tag: MetricTag)
+      extends Category(kind, 2, tag)
+
+  final case class Meter(override val kind: MeterKind, override val tag: MetricTag, unit: MeasurementUnit)
+      extends Category(kind, 3, tag)
+
+  final case class Histogram(
+    override val kind: HistogramKind,
+    override val tag: MetricTag,
+    unit: MeasurementUnit)
+      extends Category(kind, 4, tag)
+
+  final case class Timer(override val kind: TimerKind, override val tag: MetricTag)
+      extends Category(kind, 5, tag)
 }
 
 @JsonCodec
@@ -143,13 +145,7 @@ object MetricName {
 @JsonCodec
 final case class MetricID private (metricName: MetricName, category: Category, uniqueToken: Int) {
   val identifier: String = Encoder[MetricID].apply(this).noSpaces
-  val tag: String = category match {
-    case Category.Gauge(kind, mt)    => mt.value.getOrElse(kind.entryName)
-    case Category.Counter(kind, mt)  => mt.value.getOrElse(kind.entryName)
-    case Category.Meter(kind, _)     => kind.entryName
-    case Category.Histogram(kind, _) => kind.entryName
-    case Category.Timer(kind)        => kind.entryName
-  }
+  val tag: String        = category.tag.value
 }
 
 object MetricID {

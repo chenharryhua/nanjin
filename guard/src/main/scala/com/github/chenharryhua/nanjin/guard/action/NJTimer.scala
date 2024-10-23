@@ -6,9 +6,8 @@ import cats.effect.implicits.clockOps
 import cats.effect.kernel.{Resource, Sync, Unique}
 import cats.implicits.{toFlatMapOps, toFunctorOps}
 import com.codahale.metrics.*
-import com.github.chenharryhua.nanjin.common.EnableConfig
 import com.github.chenharryhua.nanjin.guard.config.*
-import com.github.chenharryhua.nanjin.guard.config.CategoryKind.{CounterKind, TimerKind}
+import com.github.chenharryhua.nanjin.guard.config.CategoryKind.TimerKind
 
 import java.time.Duration
 import scala.concurrent.duration.FiniteDuration
@@ -28,17 +27,14 @@ private class NJTimerImpl[F[_]: Sync](
   private[this] val token: Unique.Token,
   private[this] val name: MetricName,
   private[this] val metricRegistry: MetricRegistry,
-  private[this] val isCounting: Boolean,
-  private[this] val reservoir: Option[Reservoir]
+  private[this] val reservoir: Option[Reservoir],
+  private[this] val tag: MetricTag
 ) extends NJTimer[F] {
 
   private[this] val F = Sync[F]
 
   private[this] val timer_name: String =
-    MetricID(name, Category.Timer(TimerKind.Timer), token).identifier
-
-  private[this] val counter_name: String =
-    MetricID(name, Category.Counter(CounterKind.Timer, MetricTag(None)), token).identifier
+    MetricID(name, Category.Timer(TimerKind.Timer, tag), token).identifier
 
   private[this] val supplier: MetricRegistry.MetricSupplier[Timer] = () =>
     reservoir match {
@@ -46,25 +42,20 @@ private class NJTimerImpl[F[_]: Sync](
       case None        => new Timer(new ExponentiallyDecayingReservoir) // default reservoir
     }
 
-  private[this] lazy val timer: Timer     = metricRegistry.timer(timer_name, supplier)
-  private[this] lazy val counter: Counter = metricRegistry.counter(counter_name)
+  private[this] lazy val timer: Timer = metricRegistry.timer(timer_name, supplier)
 
   private[this] val calculate: Duration => Unit =
-    if (isCounting) { (duration: Duration) =>
-      timer.update(duration)
-      counter.inc(1)
-    } else (duration: Duration) => timer.update(duration)
-
-  override def update(fd: FiniteDuration): F[Unit] = F.delay(calculate(fd.toJava))
+    (duration: Duration) => timer.update(duration)
 
   override def timing[A](fa: F[A]): F[A] =
     fa.timed.flatMap { case (fd, a) => update(fd).as(a) }
+
+  override def update(fd: FiniteDuration): F[Unit] = F.delay(calculate(fd.toJava))
 
   override def unsafeUpdate(fd: FiniteDuration): Unit = calculate(fd.toJava)
 
   val unregister: F[Unit] = F.delay {
     metricRegistry.remove(timer_name)
-    metricRegistry.remove(counter_name)
   }.void
 }
 
@@ -79,21 +70,22 @@ object NJTimer {
 
   final class Builder private[guard] (
     measurement: Measurement,
-    isCounting: Boolean,
     reservoir: Option[Reservoir],
-    isEnabled: Boolean)
-      extends EnableConfig[Builder] {
-
-    def withMeasurement(measurement: String): Builder =
-      new Builder(Measurement(measurement), isCounting, reservoir, isEnabled)
-
-    def counted: Builder = new Builder(measurement, true, reservoir, isEnabled)
+    isEnabled: Boolean,
+    tag: MetricTag)
+      extends MetricBuilder[Builder] {
 
     def withReservoir(reservoir: Reservoir): Builder =
-      new Builder(measurement, isCounting, Some(reservoir), isEnabled)
+      new Builder(measurement, Some(reservoir), isEnabled, tag)
 
-    def enable(value: Boolean): Builder =
-      new Builder(measurement, isCounting, reservoir, value)
+    override def withMeasurement(measurement: String): Builder =
+      new Builder(Measurement(measurement), reservoir, isEnabled, tag)
+
+    override def enable(value: Boolean): Builder =
+      new Builder(measurement, reservoir, value, tag)
+
+    override def withTag(tag: String): Builder =
+      new Builder(measurement, reservoir, isEnabled, MetricTag(tag))
 
     private[guard] def build[F[_]](
       name: String,
@@ -107,8 +99,8 @@ object NJTimer {
               token = token,
               name = metricName,
               metricRegistry = metricRegistry,
-              isCounting = isCounting,
-              reservoir = reservoir)))(_.unregister)
+              reservoir = reservoir,
+              tag = tag)))(_.unregister)
       } else
         Resource.pure(dummy[F])
   }

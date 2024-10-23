@@ -87,12 +87,17 @@ final class SnapshotPolyglot(snapshot: MetricSnapshot) {
           .toList
           .sortBy(_._1.name)
           .map { case (name, items) =>
-            val inner: List[Json] =
-              items.groupBy(_._1.category.kind.group.value).toList.sortBy(_._1).flatMap { case (_, items) =>
-                items.sortBy(_._1.category.order).map { case (mId, js) =>
-                  Json.obj(mId.tag -> js)
+            val inner: Json =
+              items
+                .groupBy(_._1.category.kind.group.value)
+                .toList
+                .sortBy(_._1)
+                .flatMap { case (_, items) =>
+                  items.sortBy(_._1.category.order).map { case (mId, js) =>
+                    Json.obj(mId.tag -> js)
+                  }
                 }
-              }
+                .reduce((a, b) => b.deepMerge(a))
 
             name -> inner.asJson
           }
@@ -213,11 +218,11 @@ final class SnapshotPolyglot(snapshot: MetricSnapshot) {
                   @inline def others: List[String] =
                     List(id.tag + ":").map(space * 4 + _) ::: lst.map(space * 6 + _)
                   id.category match {
-                    case Category.Gauge(_, _)     => lst.map(space * 4 + _)
-                    case Category.Counter(_, _)   => lst.map(space * 4 + _)
-                    case Category.Timer(_)        => others
-                    case Category.Meter(_, _)     => others
-                    case Category.Histogram(_, _) => others
+                    case _: Category.Gauge     => lst.map(space * 4 + _)
+                    case _: Category.Counter   => lst.map(space * 4 + _)
+                    case _: Category.Timer     => others
+                    case _: Category.Meter     => others
+                    case _: Category.Histogram => others
                   }
                 }
             }

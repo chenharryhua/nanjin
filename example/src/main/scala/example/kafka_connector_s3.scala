@@ -3,7 +3,7 @@ package example
 import cats.data.Kleisli
 import cats.effect.IO
 import cats.effect.kernel.Resource
-import cats.implicits.catsSyntaxSemigroup
+import cats.implicits.toTraverseOps
 import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.guard.observers.console
 import com.github.chenharryhua.nanjin.guard.service.Agent
@@ -28,19 +28,26 @@ object kafka_connector_s3 {
 
   private type CCR = CommittableConsumerRecord[IO, Unit, Try[GenericData.Record]]
 
-  private def decoder(agent: Agent[IO]): Resource[IO, Kleisli[IO, CCR, String]] = {
-    val name: String = "Kafka record"
-    def calcSize(ccr: CCR): Long =
-      (ccr.record.serializedKeySize |+| ccr.record.serializedValueSize).getOrElse(0).toLong
+  private def logMetrics(agent: Agent[IO], name: String): Resource[IO, Kleisli[IO, CCR, Unit]] = for {
+    meter <- agent.meter(name, _.withUnit(_.COUNT).withTag("rate").enable(true))
+    keySize <- agent.histogram(name, _.withUnit(_.BYTES).withTag("key.size").enable(true))
+    valSize <- agent.histogram(name, _.withUnit(_.BITS).withTag("val.size").enable(true))
+  } yield Kleisli { (ccr: CCR) =>
+    ccr.record.serializedKeySize.map(_.toLong).traverse(keySize.update) *>
+      ccr.record.serializedValueSize.map(_.toLong).traverse(valSize.update) *>
+      meter.update(1)
+  }
 
+  private def decoder(agent: Agent[IO]): Resource[IO, Kleisli[IO, CCR, String]] = {
+    val name: String = "kafka.record"
     for {
       action <- agent
         .action(name)
         .retry((ccr: CCR) => IO.fromTry(ccr.record.value.flatMap(gr2Jackson(_))))
         .buildWith(_.tapError((cr, _) => CRMetaInfo(cr).zoned(agent.zoneId).asJson))
-      flow <- agent.flowMeter(name, _.withUnit(_.BYTES))
+      update <- logMetrics(agent, name)
     } yield Kleisli { (ccr: CCR) =>
-      action.run(ccr).flatTap(_ => flow.update(calcSize(ccr)))
+      update(ccr) >> action.run(ccr)
     }
   }
 
