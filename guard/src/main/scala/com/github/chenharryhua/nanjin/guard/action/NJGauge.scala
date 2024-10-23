@@ -5,7 +5,6 @@ import cats.effect.kernel.{Async, Resource}
 import cats.effect.std.Dispatcher
 import cats.syntax.all.*
 import com.codahale.metrics.{Gauge, MetricRegistry}
-import com.github.chenharryhua.nanjin.common.EnableConfig
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy}
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.config.CategoryKind.GaugeKind
@@ -75,17 +74,19 @@ object NJGauge {
     timeout: FiniteDuration,
     isEnabled: Boolean,
     tag: MetricTag)
-      extends EnableConfig[Builder] {
+      extends MetricBuilder[Builder] {
 
-    def withMeasurement(measurement: String): Builder =
+    def withTimeout(timeout: FiniteDuration): Builder =
+      new Builder(measurement, timeout, isEnabled, tag)
+
+    override def withMeasurement(measurement: String): Builder =
       new Builder(Measurement(measurement), timeout, isEnabled, tag)
 
-    def withTimeout(timeout: FiniteDuration): Builder = new Builder(measurement, timeout, isEnabled, tag)
+    override def enable(value: Boolean): Builder =
+      new Builder(measurement, timeout, value, tag)
 
-    def enable(value: Boolean): Builder = new Builder(measurement, timeout, value, tag)
-
-    def withTag(tag: String): Builder =
-      new Builder(measurement, timeout, isEnabled, MetricTag(Some(tag)))
+    override def withTag(tag: String): Builder =
+      new Builder(measurement, timeout, isEnabled, MetricTag(tag))
 
     private[guard] def build[F[_]: Async](
       name: String,

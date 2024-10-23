@@ -20,6 +20,8 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{Dataset, SparkSession}
 import org.typelevel.cats.time.instances.zoneid
 
+import scala.concurrent.duration.DurationInt
+
 final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaContext: KafkaContext[F])
     extends Serializable with zoneid {
 
@@ -131,8 +133,16 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
     chunkSize: ChunkSize,
     config: Endo[ProducerSettings[F, Array[Byte], Array[Byte]]])(implicit F: Async[F]): F[Long] =
     upload(TopicName(topicName), path, chunkSize, config)
+
   def upload(topicName: TopicNameL, path: Url)(implicit F: Async[F]): F[Long] =
     upload(TopicName(topicName), path, refineMV(1000), identity)
+
+  def crazyUpload(topicName: TopicNameL, path: Url)(implicit F: Async[F]): F[Long] =
+    upload(
+      TopicName(topicName),
+      path,
+      refineMV(1000),
+      _.withBatchSize(200000).withLinger(10.milli).withAcks(Acks.One))
 
   /** sequentially read files in the folder, sorted by modification time, and upload them into kafka
     *
@@ -147,7 +157,7 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
     * @return
     *   number of records uploaded
     */
-  def uploadInSequence(
+  def sequentialUpload(
     topicName: TopicName,
     path: Url,
     chunkSize: ChunkSize,
@@ -178,15 +188,15 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
     } yield num
   }
 
-  def uploadInSequence(
+  def sequentialUpload(
     topicName: TopicNameL,
     path: Url,
     chunkSize: ChunkSize,
     config: Endo[ProducerSettings[F, Array[Byte], Array[Byte]]])(implicit F: Async[F]): F[Long] =
-    uploadInSequence(TopicName(topicName), path, chunkSize, config)
+    sequentialUpload(TopicName(topicName), path, chunkSize, config)
 
-  def uploadInSequence(topicName: TopicNameL, path: Url)(implicit F: Async[F]): F[Long] =
-    uploadInSequence(TopicName(topicName), path, refineMV(1000), identity)
+  def sequentialUpload(topicName: TopicNameL, path: Url)(implicit F: Async[F]): F[Long] =
+    sequentialUpload(TopicName(topicName), path, refineMV(1000), identity)
 
   object stats {
     import kafka.{encoderCRMetaInfo, typedEncoderCRMetaInfo}

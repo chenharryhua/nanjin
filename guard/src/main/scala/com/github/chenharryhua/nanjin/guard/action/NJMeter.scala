@@ -1,12 +1,12 @@
 package com.github.chenharryhua.nanjin.guard.action
 
+import cats.Applicative
 import cats.data.Kleisli
 import cats.effect.kernel.{Resource, Sync, Unique}
 import cats.implicits.toFunctorOps
-import com.codahale.metrics.{Counter, Meter, MetricRegistry}
-import com.github.chenharryhua.nanjin.common.EnableConfig
+import com.codahale.metrics.{Meter, MetricRegistry}
 import com.github.chenharryhua.nanjin.guard.config.*
-import com.github.chenharryhua.nanjin.guard.config.CategoryKind.{CounterKind, MeterKind}
+import com.github.chenharryhua.nanjin.guard.config.CategoryKind.MeterKind
 import com.github.chenharryhua.nanjin.guard.event.{MeasurementUnit, NJUnits}
 
 sealed trait NJMeter[F[_]] {
@@ -21,54 +21,48 @@ private class NJMeterImpl[F[_]: Sync](
   private[this] val token: Unique.Token,
   private[this] val name: MetricName,
   private[this] val metricRegistry: MetricRegistry,
-  private[this] val isCounting: Boolean,
-  private[this] val unit: MeasurementUnit)
+  private[this] val unit: MeasurementUnit,
+  private[this] val tag: MetricTag)
     extends NJMeter[F] {
 
   private[this] val F = Sync[F]
 
   private[this] val meter_name: String =
-    MetricID(name, Category.Meter(MeterKind.Meter, unit), token).identifier
+    MetricID(name, Category.Meter(MeterKind.Meter, tag, unit), token).identifier
 
-  private[this] val counter_name: String =
-    MetricID(name, Category.Counter(CounterKind.Meter, MetricTag(None)), token).identifier
+  private[this] lazy val meter: Meter = metricRegistry.meter(meter_name)
 
-  private[this] lazy val meter: Meter     = metricRegistry.meter(meter_name)
-  private[this] lazy val counter: Counter = metricRegistry.counter(counter_name)
+  override def unsafeUpdate(num: Long): Unit = meter.mark(num)
+  override def update(num: Long): F[Unit]    = F.delay(meter.mark(num))
 
-  private[this] val calculate: Long => Unit =
-    if (isCounting) { (num: Long) =>
-      meter.mark(num)
-      counter.inc(num)
-    } else (num: Long) => meter.mark(num)
-
-  override def unsafeUpdate(num: Long): Unit = calculate(num)
-  override def update(num: Long): F[Unit]    = F.delay(calculate(num))
-
-  val unregister: F[Unit] = F.delay {
-    metricRegistry.remove(meter_name)
-    metricRegistry.remove(counter_name)
-  }.void
+  val unregister: F[Unit] = F.delay(metricRegistry.remove(meter_name)).void
 }
 
 object NJMeter {
+  def dummy[F[_]](implicit F: Applicative[F]): NJMeter[F] =
+    new NJMeter[F] {
+      override def unsafeUpdate(num: Long): Unit = ()
+      override def update(num: Long): F[Unit]    = F.unit
+    }
 
   final class Builder private[guard] (
     measurement: Measurement,
     unit: MeasurementUnit,
-    isCounting: Boolean,
-    isEnabled: Boolean)
-      extends EnableConfig[Builder] {
-    def withMeasurement(measurement: String): Builder =
-      new Builder(Measurement(measurement), unit, isCounting, isEnabled)
-
-    def counted: Builder = new Builder(measurement, unit, true, isEnabled)
+    isEnabled: Boolean,
+    tag: MetricTag)
+      extends MetricBuilder[Builder] {
 
     def withUnit(f: NJUnits.type => MeasurementUnit): Builder =
-      new Builder(measurement, f(NJUnits), isCounting, isEnabled)
+      new Builder(measurement, f(NJUnits), isEnabled, tag)
 
-    def enable(value: Boolean): Builder =
-      new Builder(measurement, unit, isCounting, value)
+    override def withMeasurement(measurement: String): Builder =
+      new Builder(Measurement(measurement), unit, isEnabled, tag)
+
+    override def enable(value: Boolean): Builder =
+      new Builder(measurement, unit, value, tag)
+
+    override def withTag(tag: String): Builder =
+      new Builder(measurement, unit, isEnabled, MetricTag(tag))
 
     private[guard] def build[F[_]](
       name: String,
@@ -82,12 +76,9 @@ object NJMeter {
               token = token,
               name = metricName,
               metricRegistry = metricRegistry,
-              isCounting = isCounting,
-              unit = unit)))(_.unregister)
+              unit = unit,
+              tag = tag)))(_.unregister)
       } else
-        Resource.pure(new NJMeter[F] {
-          override def unsafeUpdate(num: Long): Unit = ()
-          override def update(num: Long): F[Unit]    = F.unit
-        })
+        Resource.pure(dummy[F])
   }
 }

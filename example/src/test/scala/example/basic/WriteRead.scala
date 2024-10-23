@@ -10,7 +10,6 @@ abstract class WriteRead(agent: Agent[IO]) {
   final protected def write(job: Url): Resource[IO, NJMeter[IO]] = {
     val name = "(write)" + job.toString()
     for {
-      _ <- agent.gauge(name).timed
       meter <- agent.meter(name, _.withUnit(_.COUNT))
     } yield meter
   }
@@ -18,7 +17,6 @@ abstract class WriteRead(agent: Agent[IO]) {
   final protected def read(job: Url): Resource[IO, NJMeter[IO]] = {
     val name = "(read)" + job.toString()
     for {
-      _ <- agent.gauge(name).timed
       meter <- agent.meter(name, _.withUnit(_.COUNT))
     } yield meter
   }

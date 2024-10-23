@@ -46,10 +46,10 @@ class SyntaxTest extends AnyFunSuite {
       val name: String = "app"
 
       for {
-        timer <- agent.timer(name, _.counted).map(_.kleisli((in: Int) => in.seconds))
+        timer <- agent.timer(name).map(_.kleisli((in: Int) => in.seconds))
         runner <- agent.action(name, _.timed.counted).retry(fun1 _).buildWith(identity)
-        histogram <- agent.histogram(name, _.withUnit(_.BYTES).counted)
-        meter <- agent.meter(name, _.withUnit(_.COUNT).counted)
+        histogram <- agent.histogram(name, _.withUnit(_.BYTES))
+        meter <- agent.meter(name, _.withUnit(_.COUNT))
         counter <- agent.counter(name, _.asRisk)
         _ <- agent.gauge(name).register(IO(0))
       } yield for {
@@ -88,10 +88,10 @@ class SyntaxTest extends AnyFunSuite {
       val name: String = "app2"
       for {
         action <- agent.action(name, _.timed.counted).retry(fun1 _).buildWith(identity)
-        histogram <- agent.histogram(name, _.withUnit(_.BYTES).counted)
-        meter <- agent.meter(name, _.withUnit(_.KILOBITS).counted)
+        histogram <- agent.histogram(name, _.withUnit(_.BYTES))
+        meter <- agent.meter(name, _.withUnit(_.KILOBITS))
         counter <- agent.counter(name, _.asRisk)
-        timer <- agent.timer(name, _.counted)
+        timer <- agent.timer(name)
         alert <- agent.alert(name, _.counted)
         _ <- agent.gauge(name, _.withTag("abc")).register(IO(0))
       } yield for {
@@ -157,9 +157,9 @@ class SyntaxTest extends AnyFunSuite {
     val counter: Endo[NJCounter.Builder]     = _.withMeasurement("counter").asRisk
     val gauge: Endo[NJGauge.Builder]         = _.withMeasurement("gauge").withTimeout(1.second)
     val hc: Endo[NJHealthCheck.Builder]      = _.withMeasurement("health-check").withTimeout(1.second)
-    val histogram: Endo[NJHistogram.Builder] = _.withMeasurement("histogram").counted.withUnit(_.BYTES)
-    val meter: Endo[NJMeter.Builder]         = _.withMeasurement("meter").counted.withUnit(_.KILOBITS)
-    val timer: Endo[NJTimer.Builder]         = _.withMeasurement("timer").counted
+    val histogram: Endo[NJHistogram.Builder] = _.withMeasurement("histogram").withUnit(_.BYTES)
+    val meter: Endo[NJMeter.Builder]         = _.withMeasurement("meter").withUnit(_.KILOBITS)
+    val timer: Endo[NJTimer.Builder]         = _.withMeasurement("timer")
 
     val name = "config"
     service.eventStream { ga =>

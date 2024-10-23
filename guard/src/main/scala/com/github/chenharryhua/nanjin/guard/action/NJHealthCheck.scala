@@ -5,7 +5,6 @@ import cats.effect.kernel.{Async, Resource}
 import cats.effect.std.Dispatcher
 import cats.syntax.all.*
 import com.codahale.metrics.{Gauge, MetricRegistry}
-import com.github.chenharryhua.nanjin.common.EnableConfig
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy}
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.config.CategoryKind.GaugeKind
@@ -27,7 +26,8 @@ sealed trait NJHealthCheck[F[_]] {
 private class NJHealthCheckImpl[F[_]: Async](
   private[this] val name: MetricName,
   private[this] val metricRegistry: MetricRegistry,
-  private[this] val timeout: FiniteDuration)
+  private[this] val timeout: FiniteDuration,
+  private[this] val tag: MetricTag)
     extends NJHealthCheck[F] {
 
   private[this] val F = Async[F]
@@ -35,7 +35,7 @@ private class NJHealthCheckImpl[F[_]: Async](
   override def register(hc: F[Boolean]): Resource[F, Unit] =
     Dispatcher.sequential[F].flatMap { dispatcher =>
       Resource.eval(F.unique).flatMap { token =>
-        val metricID: MetricID = MetricID(name, Category.Gauge(GaugeKind.HealthCheck, MetricTag(None)), token)
+        val metricID: MetricID = MetricID(name, Category.Gauge(GaugeKind.HealthCheck, tag), token)
         Resource
           .make(F.delay {
             metricRegistry.gauge(
@@ -64,15 +64,24 @@ private class NJHealthCheckImpl[F[_]: Async](
 
 object NJHealthCheck {
 
-  final class Builder private[guard] (measurement: Measurement, timeout: FiniteDuration, isEnabled: Boolean)
-      extends EnableConfig[Builder] {
+  final class Builder private[guard] (
+    measurement: Measurement,
+    timeout: FiniteDuration,
+    isEnabled: Boolean,
+    tag: MetricTag)
+      extends MetricBuilder[Builder] {
 
-    def withMeasurement(measurement: String): Builder =
-      new Builder(Measurement(measurement), timeout, isEnabled)
+    def withTimeout(timeout: FiniteDuration): Builder =
+      new Builder(measurement, timeout, isEnabled, tag)
 
-    def withTimeout(timeout: FiniteDuration): Builder = new Builder(measurement, timeout, isEnabled)
+    override def withMeasurement(measurement: String): Builder =
+      new Builder(Measurement(measurement), timeout, isEnabled, tag)
 
-    def enable(value: Boolean): Builder = new Builder(measurement, timeout, value)
+    override def enable(value: Boolean): Builder =
+      new Builder(measurement, timeout, value, tag)
+
+    override def withTag(tag: String): Builder =
+      new Builder(measurement, timeout, isEnabled, MetricTag(tag))
 
     private[guard] def build[F[_]: Async](
       name: String,
@@ -80,7 +89,7 @@ object NJHealthCheck {
       serviceParams: ServiceParams): NJHealthCheck[F] =
       if (isEnabled) {
         val metricName = MetricName(serviceParams, measurement, name)
-        new NJHealthCheckImpl[F](metricName, metricRegistry, timeout)
+        new NJHealthCheckImpl[F](metricName, metricRegistry, timeout, tag)
       } else {
         new NJHealthCheck[F] {
           override def register(hc: F[Boolean]): Resource[F, Unit] =

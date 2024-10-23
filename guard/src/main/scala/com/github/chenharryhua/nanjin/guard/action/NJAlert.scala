@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.action
 
+import cats.Applicative
 import cats.effect.kernel.{Resource, Sync, Unique}
 import cats.syntax.all.*
 import com.codahale.metrics.{Counter, MetricRegistry}
@@ -32,11 +33,20 @@ private class NJAlertImpl[F[_]: Sync](
   private[this] val F = Sync[F]
 
   private[this] val error_counter_name: String =
-    MetricID(name, Category.Counter(CounterKind.AlertError, MetricTag(None)), token).identifier
+    MetricID(
+      name,
+      Category.Counter(CounterKind.AlertError, MetricTag(CounterKind.AlertError.entryName)),
+      token).identifier
   private[this] val warn_counter_name: String =
-    MetricID(name, Category.Counter(CounterKind.AlertWarn, MetricTag(None)), token).identifier
+    MetricID(
+      name,
+      Category.Counter(CounterKind.AlertWarn, MetricTag(CounterKind.AlertWarn.entryName)),
+      token).identifier
   private[this] val info_counter_name: String =
-    MetricID(name, Category.Counter(CounterKind.AlertInfo, MetricTag(None)), token).identifier
+    MetricID(
+      name,
+      Category.Counter(CounterKind.AlertInfo, MetricTag(CounterKind.AlertInfo.entryName)),
+      token).identifier
 
   private[this] lazy val error_counter: Counter = metricRegistry.counter(error_counter_name)
   private[this] lazy val warn_counter: Counter  = metricRegistry.counter(warn_counter_name)
@@ -78,6 +88,16 @@ private class NJAlertImpl[F[_]: Sync](
 }
 
 object NJAlert {
+  def dummy[F[_]](implicit F: Applicative[F]): NJAlert[F] =
+    new NJAlert[F] {
+      override def error[S: Encoder](msg: S): F[Unit]         = F.unit
+      override def error[S: Encoder](msg: Option[S]): F[Unit] = F.unit
+      override def warn[S: Encoder](msg: S): F[Unit]          = F.unit
+      override def warn[S: Encoder](msg: Option[S]): F[Unit]  = F.unit
+      override def info[S: Encoder](msg: S): F[Unit]          = F.unit
+      override def info[S: Encoder](msg: Option[S]): F[Unit]  = F.unit
+    }
+
   final class Builder private[guard] (measurement: Measurement, isCounting: Boolean, isEnabled: Boolean)
       extends EnableConfig[Builder] {
 
@@ -100,14 +120,7 @@ object NJAlert {
             new NJAlertImpl[F](_, metricName, metricRegistry, channel, serviceParams, isCounting)))(
           _.unregister)
       } else {
-        Resource.pure(new NJAlert[F] {
-          override def error[S: Encoder](msg: S): F[Unit]         = F.unit
-          override def error[S: Encoder](msg: Option[S]): F[Unit] = F.unit
-          override def warn[S: Encoder](msg: S): F[Unit]          = F.unit
-          override def warn[S: Encoder](msg: Option[S]): F[Unit]  = F.unit
-          override def info[S: Encoder](msg: S): F[Unit]          = F.unit
-          override def info[S: Encoder](msg: Option[S]): F[Unit]  = F.unit
-        })
+        Resource.pure(dummy[F])
       }
   }
 }

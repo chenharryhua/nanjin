@@ -285,30 +285,11 @@ class PerformanceTest extends AnyFunSuite {
     println(speed(i))
   }
 
-  test("flow-meter") {
-    print("flow-meter:       ")
-    var i: Int = 0
-    service.eventStream { ag =>
-      val name = "flow-meter"
-      ag.flowMeter(name, _.withUnit(_.COUNT)).use(_.update(1).map(_ => i += 1).foreverM.timeout(take).attempt)
-    }.compile.drain.unsafeRunSync()
-    println(speed(i))
-  }
-
   test("meter") {
     var i = 0
     print("meter:            ")
     service.eventStream { ag =>
       ag.meter("meter").use(_.update(1).map(_ => i += 1).foreverM.timeout(take).attempt)
-    }.compile.drain.unsafeRunSync()
-    println(speed(i))
-  }
-
-  test("meter.count") {
-    var i = 0
-    print("meter.count:      ")
-    service.eventStream { ag =>
-      ag.meter("meter", _.counted).use(_.update(1).map(_ => i += 1).foreverM.timeout(take).attempt)
     }.compile.drain.unsafeRunSync()
     println(speed(i))
   }
@@ -322,29 +303,11 @@ class PerformanceTest extends AnyFunSuite {
     println(speed(i))
   }
 
-  test("histogram.count") {
-    var i = 0
-    print("histogram.count: ")
-    service.eventStream { ag =>
-      ag.histogram("histogram", _.counted).use(_.update(1).map(_ => i += 1).foreverM.timeout(take).attempt)
-    }.compile.drain.unsafeRunSync()
-    println(speed(i))
-  }
-
   test("timer") {
     var i = 0
     print("timer:          ")
     service.eventStream { ag =>
       ag.timer("timer").use(_.update(1.seconds).map(_ => i += 1).foreverM.timeout(take).attempt)
-    }.compile.drain.unsafeRunSync()
-    println(speed(i))
-  }
-
-  test("timer.count") {
-    var i = 0
-    print("timer.count:    ")
-    service.eventStream { ag =>
-      ag.timer("timer", _.counted).use(_.update(1.seconds).map(_ => i += 1).foreverM.timeout(take).attempt)
     }.compile.drain.unsafeRunSync()
     println(speed(i))
   }

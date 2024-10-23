@@ -1,12 +1,13 @@
 package com.github.chenharryhua.nanjin.guard.action
 
+import cats.Applicative
 import cats.data.Kleisli
 import cats.effect.kernel.{Resource, Sync, Unique}
 import cats.implicits.toFunctorOps
 import com.codahale.metrics.{Counter, MetricRegistry}
-import com.github.chenharryhua.nanjin.common.EnableConfig
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.config.CategoryKind.CounterKind
+
 sealed trait NJCounter[F[_]] {
   def unsafeInc(num: Long): Unit
   def unsafeDec(num: Long): Unit
@@ -14,7 +15,7 @@ sealed trait NJCounter[F[_]] {
   def inc(num: Long): F[Unit]
   def dec(num: Long): F[Unit]
 
-  def kleisli[A](f: A => Long): Kleisli[F, A, Unit] =
+  final def kleisli[A](f: A => Long): Kleisli[F, A, Unit] =
     Kleisli(inc).local(f)
 }
 
@@ -49,22 +50,31 @@ private class NJCounterImpl[F[_]: Sync](
 }
 
 object NJCounter {
+  def dummy[F[_]](implicit F: Applicative[F]): NJCounter[F] =
+    new NJCounter[F] {
+      override def unsafeInc(num: Long): Unit = ()
+      override def unsafeDec(num: Long): Unit = ()
+      override def inc(num: Long): F[Unit]    = F.unit
+      override def dec(num: Long): F[Unit]    = F.unit
+    }
 
   final class Builder private[guard] (
     measurement: Measurement,
     isRisk: Boolean,
     isEnabled: Boolean,
     tag: MetricTag)
-      extends EnableConfig[Builder] {
+      extends MetricBuilder[Builder] {
 
-    def withMeasurement(measurement: String): Builder =
+    def asRisk: Builder = new Builder(measurement, true, isEnabled, tag)
+
+    override def withMeasurement(measurement: String): Builder =
       new Builder(Measurement(measurement), isRisk, isEnabled, tag)
 
-    def asRisk: Builder                 = new Builder(measurement, true, isEnabled, tag)
-    def enable(value: Boolean): Builder = new Builder(measurement, isRisk, value, tag)
+    override def enable(value: Boolean): Builder =
+      new Builder(measurement, isRisk, value, tag)
 
-    def withTag(tag: String): Builder =
-      new Builder(measurement, isRisk, isEnabled, MetricTag(Some(tag)))
+    override def withTag(tag: String): Builder =
+      new Builder(measurement, isRisk, isEnabled, MetricTag(tag))
 
     private[guard] def build[F[_]](
       name: String,
@@ -75,11 +85,6 @@ object NJCounter {
         Resource
           .make(F.unique.map(new NJCounterImpl[F](_, metricName, metricRegistry, isRisk, tag)))(_.unregister)
       } else
-        Resource.pure(new NJCounter[F] {
-          override def unsafeInc(num: Long): Unit = ()
-          override def unsafeDec(num: Long): Unit = ()
-          override def inc(num: Long): F[Unit]    = F.unit
-          override def dec(num: Long): F[Unit]    = F.unit
-        })
+        Resource.pure(dummy[F])
   }
 }

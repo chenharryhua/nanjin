@@ -93,7 +93,7 @@ object MetricSnapshot extends duration {
     metricRegistry.getMeters().asScala.toList.mapFilter { case (name, meter) =>
       decode[MetricID](name).toOption.collect { id =>
         id.category match {
-          case Category.Meter(_, unit) =>
+          case Category.Meter(_, _, unit) =>
             Snapshot.Meter(
               metricId = id,
               Snapshot.MeterData(
@@ -142,7 +142,7 @@ object MetricSnapshot extends duration {
     metricRegistry.getHistograms().asScala.toList.mapFilter { case (name, histo) =>
       decode[MetricID](name).toOption.collect { id =>
         id.category match {
-          case Category.Histogram(_, unit) =>
+          case Category.Histogram(_, _, unit) =>
             val ss = histo.getSnapshot
             Snapshot.Histogram(
               metricId = id,

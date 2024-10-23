@@ -46,8 +46,8 @@ object BatchJob {
         .obj(
           "name" -> a.name.asJson,
           "mode" -> a.mode.asJson,
-          "index" -> (a.index + 1).asJson,
-          "jobs" -> a.jobs.asJson)
+          "index" -> Json.fromInt(a.index + 1),
+          "jobs" -> Json.fromInt(a.jobs))
         .dropNullValues)
 }
 
@@ -59,17 +59,17 @@ object QuasiResult {
     Json.obj(
       "batch" -> Json.fromString(a.name.value),
       "mode" -> a.mode.asJson,
-      "spent" -> fmt.format(a.spent).asJson,
-      "done" -> done.length.asJson,
-      "fail" -> fail.length.asJson,
+      "spent" -> Json.fromString(fmt.format(a.spent)),
+      "done" -> Json.fromInt(done.length),
+      "fail" -> Json.fromInt(fail.length),
       "details" -> a.details
         .map(d =>
           Json
             .obj(
               "name" -> d.job.name.asJson,
-              "index" -> (d.job.index + 1).asJson,
-              "took" -> fmt.format(d.took).asJson,
-              "done" -> d.done.asJson)
+              "index" -> Json.fromInt(d.job.index + 1),
+              "took" -> Json.fromString(fmt.format(d.took)),
+              "done" -> Json.fromBoolean(d.done))
             .dropNullValues)
         .asJson
     )

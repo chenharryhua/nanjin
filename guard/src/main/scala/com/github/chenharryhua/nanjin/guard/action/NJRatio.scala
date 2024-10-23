@@ -1,11 +1,11 @@
 package com.github.chenharryhua.nanjin.guard.action
 
+import cats.Applicative
 import cats.data.{Ior, Kleisli}
 import cats.effect.kernel.{Async, Ref, Resource}
 import cats.effect.std.Dispatcher
 import cats.syntax.all.*
 import com.codahale.metrics.{Gauge, MetricRegistry}
-import com.github.chenharryhua.nanjin.common.EnableConfig
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.config.CategoryKind.GaugeKind
 import io.circe.Json
@@ -53,6 +53,15 @@ private class NJRatioImpl[F[_]](private[this] val ref: Ref[F, Ior[Long, Long]]) 
 }
 
 object NJRatio {
+  def dummy[F[_]](implicit F: Applicative[F]): NJRatio[F] =
+    new NJRatio[F] {
+      override def incNumerator(numerator: Long): F[Unit]               = F.unit
+      override def incDenominator(denominator: Long): F[Unit]           = F.unit
+      override def incBoth(numerator: Long, denominator: Long): F[Unit] = F.unit
+      override def kleisli[A](f: A => Ior[Long, Long]): Kleisli[F, A, Unit] =
+        Kleisli((_: A) => F.unit)
+    }
+
   val translator: Ior[Long, Long] => Json = {
     case Ior.Left(_)  => Json.fromString("n/a")
     case Ior.Right(_) => Json.fromString("0.0%")
@@ -70,17 +79,19 @@ object NJRatio {
     translator: Ior[Long, Long] => Json,
     isEnabled: Boolean,
     tag: MetricTag)
-      extends EnableConfig[Builder] {
-
-    def withMeasurement(measurement: String): Builder =
-      new Builder(Measurement(measurement), translator, isEnabled, tag)
+      extends MetricBuilder[Builder] {
 
     def withTranslator(translator: Ior[Long, Long] => Json) =
       new Builder(measurement, translator, isEnabled, tag)
 
-    def enable(value: Boolean): Builder = new Builder(measurement, translator, value, tag)
+    override def withMeasurement(measurement: String): Builder =
+      new Builder(Measurement(measurement), translator, isEnabled, tag)
 
-    def withTag(tag: String): Builder = new Builder(measurement, translator, isEnabled, MetricTag(Some(tag)))
+    override def enable(value: Boolean): Builder =
+      new Builder(measurement, translator, value, tag)
+
+    override def withTag(tag: String): Builder =
+      new Builder(measurement, translator, isEnabled, MetricTag(tag))
 
     private[guard] def build[F[_]: Async](
       name: String,
@@ -107,15 +118,7 @@ object NJRatio {
         })(_ => F.delay(metricRegistry.remove(metricID)).void)
       } yield new NJRatioImpl[F](ref)
 
-      val dummy: Resource[F, NJRatio[F]] = Resource.pure(new NJRatio[F] {
-        override def incNumerator(numerator: Long): F[Unit]               = F.unit
-        override def incDenominator(denominator: Long): F[Unit]           = F.unit
-        override def incBoth(numerator: Long, denominator: Long): F[Unit] = F.unit
-        override def kleisli[A](f: A => Ior[Long, Long]): Kleisli[F, A, Unit] =
-          Kleisli((_: A) => F.unit)
-      })
-
-      if (isEnabled) impl else dummy
+      if (isEnabled) impl else Resource.pure(dummy)
     }
   }
 }

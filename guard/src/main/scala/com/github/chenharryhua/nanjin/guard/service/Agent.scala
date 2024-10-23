@@ -6,6 +6,13 @@ import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.common.chrono.*
 import com.github.chenharryhua.nanjin.guard.action.*
 import com.github.chenharryhua.nanjin.guard.config.*
+import com.github.chenharryhua.nanjin.guard.config.CategoryKind.{
+  CounterKind,
+  GaugeKind,
+  HistogramKind,
+  MeterKind,
+  TimerKind
+}
 import com.github.chenharryhua.nanjin.guard.event.*
 import fs2.Stream
 import fs2.concurrent.Channel
@@ -22,6 +29,7 @@ sealed trait Agent[F[_]] {
   // metrics
   def metrics: NJMetrics[F]
   def withMeasurement(name: String): Agent[F]
+  def enable(value: Boolean): Agent[F]
 
   // actions
   def action(actionName: String, f: Endo[NJAction.Builder]): NJAction[F]
@@ -54,9 +62,6 @@ sealed trait Agent[F[_]] {
   final def histogram(histogramName: String): Resource[F, NJHistogram[F]] =
     histogram(histogramName, identity)
 
-  def flowMeter(name: String, f: Endo[NJFlowMeter.Builder]): Resource[F, NJFlowMeter[F]]
-  final def flowMeter(name: String): Resource[F, NJFlowMeter[F]] = flowMeter(name, identity)
-
   def timer(timerName: String, f: Endo[NJTimer.Builder]): Resource[F, NJTimer[F]]
   final def timer(timerName: String): Resource[F, NJTimer[F]] = timer(timerName, identity)
 
@@ -68,7 +73,8 @@ final private class GeneralAgent[F[_]: Async] private[service] (
   serviceParams: ServiceParams,
   metricRegistry: MetricRegistry,
   channel: Channel[F, NJEvent],
-  measurement: Measurement)
+  measurement: Measurement,
+  isEnabled: Boolean)
     extends Agent[F] {
 
   // date time
@@ -78,7 +84,10 @@ final private class GeneralAgent[F[_]: Async] private[service] (
   override def toZonedDateTime(ts: Instant): ZonedDateTime = serviceParams.toZonedDateTime(ts)
 
   override def withMeasurement(name: String): Agent[F] =
-    new GeneralAgent[F](serviceParams, metricRegistry, channel, Measurement(name))
+    new GeneralAgent[F](serviceParams, metricRegistry, channel, Measurement(name), isEnabled)
+
+  override def enable(value: Boolean): Agent[F] =
+    new GeneralAgent[F](serviceParams, metricRegistry, channel, measurement, value)
 
   private object builders {
 
@@ -86,59 +95,64 @@ final private class GeneralAgent[F[_]: Async] private[service] (
       new NJRatio.Builder(
         measurement = measurement,
         translator = NJRatio.translator,
-        isEnabled = true,
-        tag = MetricTag(Some("ratio")))
+        isEnabled = isEnabled,
+        tag = MetricTag("ratio"))
 
     lazy val gauge: NJGauge.Builder =
       new NJGauge.Builder(
         measurement = measurement,
         timeout = 5.seconds,
-        isEnabled = true,
-        tag = MetricTag(None))
+        isEnabled = isEnabled,
+        tag = MetricTag(GaugeKind.Gauge.entryName))
 
     lazy val healthCheck: NJHealthCheck.Builder =
-      new NJHealthCheck.Builder(measurement = measurement, timeout = 5.seconds, isEnabled = true)
-
-    lazy val timer: NJTimer.Builder =
-      new NJTimer.Builder(measurement = measurement, isCounting = false, reservoir = None, isEnabled = true)
-
-    lazy val flowerMeter: NJFlowMeter.Builder =
-      new NJFlowMeter.Builder(
+      new NJHealthCheck.Builder(
         measurement = measurement,
-        unit = NJUnits.COUNT,
-        isCounting = false,
-        reservoir = None,
-        isEnabled = true)
-
-    lazy val histogram: NJHistogram.Builder =
-      new NJHistogram.Builder(
-        measurement = measurement,
-        unit = NJUnits.COUNT,
-        isCounting = false,
-        reservoir = None,
-        isEnabled = true)
-
-    lazy val meter: NJMeter.Builder =
-      new NJMeter.Builder(
-        measurement = measurement,
-        unit = NJUnits.COUNT,
-        isCounting = false,
-        isEnabled = true)
+        timeout = 5.seconds,
+        isEnabled = isEnabled,
+        tag = MetricTag(GaugeKind.HealthCheck.entryName))
 
     lazy val counter: NJCounter.Builder =
       new NJCounter.Builder(
         measurement = measurement,
         isRisk = false,
-        isEnabled = true,
-        tag = MetricTag(None))
+        isEnabled = isEnabled,
+        tag = MetricTag(CounterKind.Counter.entryName))
+
+    lazy val timer: NJTimer.Builder =
+      new NJTimer.Builder(
+        measurement = measurement,
+        reservoir = None,
+        isEnabled = isEnabled,
+        tag = MetricTag(TimerKind.Timer.entryName))
+
+    lazy val histogram: NJHistogram.Builder =
+      new NJHistogram.Builder(
+        measurement = measurement,
+        unit = NJUnits.COUNT,
+        reservoir = None,
+        isEnabled = isEnabled,
+        tag = MetricTag(HistogramKind.Histogram.entryName))
+
+    lazy val meter: NJMeter.Builder =
+      new NJMeter.Builder(
+        measurement = measurement,
+        unit = NJUnits.COUNT,
+        isEnabled = isEnabled,
+        tag = MetricTag(MeterKind.Meter.entryName))
 
     lazy val alert: NJAlert.Builder =
-      new NJAlert.Builder(measurement = measurement, isCounting = false, isEnabled = true)
+      new NJAlert.Builder(measurement = measurement, isCounting = false, isEnabled = isEnabled)
   }
 
   override def action(actionName: String, f: Endo[NJAction.Builder]): NJAction[F] =
     new NJAction[F](
-      actionConfig = f(ActionConfig(ActionName(actionName), measurement, serviceParams)),
+      actionConfig = f(
+        ActionConfig(
+          actionName = ActionName(actionName),
+          measurement = measurement,
+          serviceParams = serviceParams,
+          isEnabled = isEnabled)),
       metricRegistry = metricRegistry,
       channel = channel
     )
@@ -163,9 +177,6 @@ final private class GeneralAgent[F[_]: Async] private[service] (
 
   override def histogram(histogramName: String, f: Endo[NJHistogram.Builder]): Resource[F, NJHistogram[F]] =
     f(builders.histogram).build[F](histogramName, metricRegistry, serviceParams)
-
-  override def flowMeter(name: String, f: Endo[NJFlowMeter.Builder]): Resource[F, NJFlowMeter[F]] =
-    f(builders.flowerMeter).build[F](name, metricRegistry, serviceParams)
 
   override def timer(timerName: String, f: Endo[NJTimer.Builder]): Resource[F, NJTimer[F]] =
     f(builders.timer).build[F](timerName, metricRegistry, serviceParams)

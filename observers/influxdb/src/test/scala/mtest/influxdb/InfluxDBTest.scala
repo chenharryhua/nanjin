@@ -26,7 +26,7 @@ class InfluxDBTest extends AnyFunSuite {
           val job =
             box.getAndUpdate(_ + 1).map(_ % 12 == 0).ifM(IO(1), IO.raiseError[Int](new Exception("oops")))
           val env = for {
-            meter <- ag.meter("meter", _.withUnit(_.COUNT).counted)
+            meter <- ag.meter("meter", _.withUnit(_.COUNT))
             action <- ag
               .action(
                 "nj_error",
@@ -34,7 +34,7 @@ class InfluxDBTest extends AnyFunSuite {
               .retry(job)
               .buildWith(identity)
             counter <- ag.counter("nj counter", _.asRisk)
-            histogram <- ag.histogram("nj histogram", _.withUnit(_.SECONDS).counted)
+            histogram <- ag.histogram("nj histogram", _.withUnit(_.SECONDS))
             alert <- ag.alert("nj alert")
             _ <- ag.gauge("nj gauge").register(box.get)
           } yield meter.update(1) >> action.run(()) >> counter.inc(1) >>
