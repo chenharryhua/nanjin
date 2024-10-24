@@ -3,7 +3,7 @@ ThisBuild / scalaVersion := "2.13.15"
 
 val acyclicV    = "0.3.15"
 val avroV       = "1.12.0"
-val awsV        = "2.28.26"
+val awsV        = "2.28.29"
 val catsCoreV   = "2.12.0"
 val catsEffectV = "3.5.4"
 val chimneyV    = "1.5.0"
