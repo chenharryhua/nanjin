@@ -1,18 +1,15 @@
 package com.github.chenharryhua.nanjin.guard.service
 
 import cats.Endo
+import cats.data.Kleisli
 import cats.effect.kernel.{Async, Resource}
+import cats.syntax.all.*
 import com.codahale.metrics.MetricRegistry
+import com.github.chenharryhua.nanjin.common.DurationFormatter
 import com.github.chenharryhua.nanjin.common.chrono.*
 import com.github.chenharryhua.nanjin.guard.action.*
 import com.github.chenharryhua.nanjin.guard.config.*
-import com.github.chenharryhua.nanjin.guard.config.CategoryKind.{
-  CounterKind,
-  GaugeKind,
-  HistogramKind,
-  MeterKind,
-  TimerKind
-}
+import com.github.chenharryhua.nanjin.guard.config.CategoryKind.*
 import com.github.chenharryhua.nanjin.guard.event.*
 import fs2.Stream
 import fs2.concurrent.Channel
@@ -38,16 +35,9 @@ sealed trait Agent[F[_]] {
   def batch(name: String, f: Endo[NJAction.Builder]): NJBatch[F]
   final def batch(name: String): NJBatch[F] = batch(name, identity)
 
-  // health check
-  def healthCheck(hcName: String, f: Endo[NJHealthCheck.Builder]): NJHealthCheck[F]
-  final def healthCheck(hcName: String): NJHealthCheck[F] = healthCheck(hcName, identity)
-
   // metrics
   def ratio(ratioName: String, f: Endo[NJRatio.Builder]): Resource[F, NJRatio[F]]
   final def ratio(ratioName: String): Resource[F, NJRatio[F]] = ratio(ratioName, identity)
-
-  def gauge(gaugeName: String, f: Endo[NJGauge.Builder]): NJGauge[F]
-  final def gauge(gaugeName: String): NJGauge[F] = gauge(gaugeName, identity)
 
   def alert(alertName: String, f: Endo[NJAlert.Builder]): Resource[F, NJAlert[F]]
   final def alert(alertName: String): Resource[F, NJAlert[F]] = alert(alertName, identity)
@@ -65,6 +55,22 @@ sealed trait Agent[F[_]] {
   def timer(timerName: String, f: Endo[NJTimer.Builder]): Resource[F, NJTimer[F]]
   final def timer(timerName: String): Resource[F, NJTimer[F]] = timer(timerName, identity)
 
+  // gauge
+  def gauge(gaugeName: String, f: Endo[NJGauge.Builder]): NJGauge[F]
+  final def gauge(gaugeName: String): NJGauge[F] = gauge(gaugeName, identity)
+
+  def idleGauge(gaugeName: String, f: Endo[NJGauge.Builder]): Resource[F, Kleisli[F, Unit, Unit]]
+
+  final def idleGauge(gaugeName: String): Resource[F, Kleisli[F, Unit, Unit]] =
+    idleGauge(gaugeName, identity)
+
+  def activeGauge(gaugeName: String, f: Endo[NJGauge.Builder]): Resource[F, Unit]
+  final def activeGauge(gaugeName: String): Resource[F, Unit] = activeGauge(gaugeName, identity)
+
+  // health check
+  def healthCheck(hcName: String, f: Endo[NJHealthCheck.Builder]): NJHealthCheck[F]
+  final def healthCheck(hcName: String): NJHealthCheck[F] = healthCheck(hcName, identity)
+
   // tick stream
   def ticks(policy: Policy): Stream[F, Tick]
 }
@@ -76,6 +82,8 @@ final private class GeneralAgent[F[_]: Async] private[service] (
   measurement: Measurement,
   isEnabled: Boolean)
     extends Agent[F] {
+
+  private val F = Async[F]
 
   // date time
   override val zonedNow: F[ZonedDateTime] = serviceParams.zonedNow[F]
@@ -183,6 +191,24 @@ final private class GeneralAgent[F[_]: Async] private[service] (
 
   override def gauge(gaugeName: String, f: Endo[NJGauge.Builder]): NJGauge[F] =
     f(builders.gauge).build[F](gaugeName, metricRegistry, serviceParams)
+
+  override def idleGauge(gaugeName: String, f: Endo[NJGauge.Builder]): Resource[F, Kleisli[F, Unit, Unit]] =
+    for {
+      lastUpdate <- Resource.eval(F.monotonic.flatMap(F.ref))
+      _ <- gauge(gaugeName, g => f(g.withTag("idle"))).register(
+        for {
+          pre <- lastUpdate.get
+          now <- F.monotonic
+        } yield DurationFormatter.defaultFormatter.format(now - pre)
+      )
+    } yield Kleisli[F, Unit, Unit](_ => F.monotonic.flatMap(lastUpdate.set))
+
+  override def activeGauge(gaugeName: String, f: Endo[NJGauge.Builder]): Resource[F, Unit] =
+    for {
+      kickoff <- Resource.eval(F.monotonic)
+      _ <- gauge(gaugeName, g => f(g.withTag("active"))).register(F.monotonic.map(now =>
+        DurationFormatter.defaultFormatter.format(now - kickoff)))
+    } yield ()
 
   override def healthCheck(hcName: String, f: Endo[NJHealthCheck.Builder]): NJHealthCheck[F] =
     f(builders.healthCheck).build[F](hcName, metricRegistry, serviceParams)

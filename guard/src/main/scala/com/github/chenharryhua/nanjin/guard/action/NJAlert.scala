@@ -63,20 +63,26 @@ private class NJAlertImpl[F[_]: Sync](
           serviceParams = serviceParams,
           alertLevel = alertLevel,
           message = msg))
-    } yield ()
+    } yield
+      if (isCounting) alertLevel match {
+        case AlertLevel.Error => error_counter.inc(1)
+        case AlertLevel.Warn  => warn_counter.inc(1)
+        case AlertLevel.Info  => info_counter.inc(1)
+      }
+      else ()
 
   override def error[S: Encoder](msg: S): F[Unit] =
-    alert(msg.asJson, AlertLevel.Error).map(_ => if (isCounting) error_counter.inc(1))
+    alert(msg.asJson, AlertLevel.Error)
   override def error[S: Encoder](msg: Option[S]): F[Unit] =
     msg.traverse(error(_)).void
 
   override def warn[S: Encoder](msg: S): F[Unit] =
-    alert(msg.asJson, AlertLevel.Warn).map(_ => if (isCounting) warn_counter.inc(1))
+    alert(msg.asJson, AlertLevel.Warn)
   override def warn[S: Encoder](msg: Option[S]): F[Unit] =
     msg.traverse(warn(_)).void
 
   override def info[S: Encoder](msg: S): F[Unit] =
-    alert(msg.asJson, AlertLevel.Info).map(_ => if (isCounting) info_counter.inc(1))
+    alert(msg.asJson, AlertLevel.Info)
   override def info[S: Encoder](msg: Option[S]): F[Unit] =
     msg.traverse(info(_)).void
 

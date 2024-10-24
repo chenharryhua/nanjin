@@ -5,8 +5,8 @@ import cats.implicits.catsSyntaxHash
 import com.github.chenharryhua.nanjin.guard.event.{MeasurementUnit, UniqueToken}
 import enumeratum.values.{IntCirceEnum, IntEnum, IntEnumEntry}
 import enumeratum.{CirceEnum, Enum, EnumEntry}
-import io.circe.Encoder
 import io.circe.generic.JsonCodec
+import io.circe.{Decoder, Encoder}
 import org.apache.commons.codec.digest.DigestUtils
 
 sealed abstract class CategoryGroup(override val value: Int)
@@ -95,8 +95,11 @@ object CategoryKind {
   }
 }
 
-@JsonCodec
 final case class MetricTag(value: String) extends AnyVal
+object MetricTag {
+  implicit val encoderMetricTag: Encoder[MetricTag] = Encoder.encodeString.contramap(_.value)
+  implicit val decoderMetricTag: Decoder[MetricTag] = Decoder.decodeString.map(MetricTag(_))
+}
 
 @JsonCodec
 sealed abstract class Category(val kind: CategoryKind, val order: Int, val tag: MetricTag)

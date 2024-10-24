@@ -22,7 +22,7 @@ class GaugeTest extends AnyFunSuite {
   val service: ServiceGuard[IO] =
     TaskGuard[IO]("gauge").service("gauge").updateConfig(_.withMetricReport(Policy.crontab(_.secondly)))
 
-  test("user gauge") {
+  test("1.user gauge") {
     val res: MetricReport = service.eventStream { ga =>
       ga.gauge("user").register(IO(UserGauge(1, "a"))).surround(IO.sleep(4.seconds))
     }.map(checkJson).evalMapFilter(e => IO(metricReport(e))).compile.lastOrError.unsafeRunSync()
@@ -38,7 +38,9 @@ class GaugeTest extends AnyFunSuite {
       .updateConfig(_.withJmx(identity))
       .eventStream { agent =>
         val gauge: Resource[IO, Ref[IO, Float]] =
-          agent.gauge("free memory").register(IO(Runtime.getRuntime.freeMemory())) >>
+          agent.idleGauge("idle") >>
+            agent.activeGauge("timed") >>
+            agent.gauge("free memory").register(IO(Runtime.getRuntime.freeMemory())) >>
             agent.gauge("cost IO").register(IO(1), policy, agent.zoneId) >>
             agent.gauge("cost ByName").register(IO(2), policy, agent.zoneId) >>
             agent.healthCheck("health check IO").register(IO.raiseError(new Exception)) >>
