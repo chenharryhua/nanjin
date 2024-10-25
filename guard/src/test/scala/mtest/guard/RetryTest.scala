@@ -391,7 +391,7 @@ class RetryTest extends AnyFunSuite {
           .action("resource", _.timed.counted)
           .retry((i: Int) => IO(i.toString))
           .buildWith(identity)
-          .use(_.run(1) >> agent.metrics.report) >> agent.metrics.report)
+          .use(_.run(1) >> agent.adhoc.report) >> agent.adhoc.report)
       .map(checkJson)
       .compile
       .toList

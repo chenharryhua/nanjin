@@ -34,7 +34,7 @@ class PerformanceTest2 extends AnyFunSuite {
         val n2 = config(agent, "notice.time", _.bipartite.timed)
         val n3 = config(agent, "notice.count", _.bipartite.counted)
 
-        s1 >> s2 >> s3 >> a1 >> a2 >> a3 >> n1 >> n2 >> n3 >> agent.metrics.reset
+        s1 >> s2 >> s3 >> a1 >> a2 >> a3 >> n1 >> n2 >> n3 >> agent.adhoc.reset
       }
       .filter(eventFilters.isPivotalEvent)
       .filter(eventFilters.isServiceEvent)

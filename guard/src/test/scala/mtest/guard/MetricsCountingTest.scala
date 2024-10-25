@@ -58,7 +58,7 @@ class MetricsCountingTest extends AnyFunSuite {
             .buildWith(identity)
           a2 <- ga.action("success").retry(IO(0)).buildWith(identity)
         } yield a1.run(()).attempt >> a2.run(())
-        run.use(_ >> ga.metrics.report)
+        run.use(_ >> ga.adhoc.report)
       }
       .map(checkJson)
       .mapFilter(metricReport)
@@ -81,7 +81,7 @@ class MetricsCountingTest extends AnyFunSuite {
             .buildWith(identity)
           a2 <- ga.action("success", _.silent.counted).retry(IO(0)).buildWith(identity)
         } yield a1.run(()).attempt >> a2.run(())
-        run.use(_ >> ga.metrics.report)
+        run.use(_ >> ga.adhoc.report)
       }
       .map(checkJson)
       .mapFilter(metricReport)
@@ -105,7 +105,7 @@ class MetricsCountingTest extends AnyFunSuite {
             .buildWith(identity)
           a2 <- ga.action("success", _.silent.timed).retry(IO(0)).buildWith(identity)
         } yield a1.run(()).attempt >> a2.run(())
-        run.use(_ >> ga.metrics.report)
+        run.use(_ >> ga.adhoc.report)
       }
       .map(checkJson)
       .mapFilter(metricReport)
@@ -129,7 +129,7 @@ class MetricsCountingTest extends AnyFunSuite {
             .buildWith(identity)
           a2 <- ga.action("success", _.silent.timed.counted).retry(IO(0)).buildWith(identity)
         } yield a1.run(()).attempt >> a2.run(())
-        run.use(_ >> ga.metrics.report)
+        run.use(_ >> ga.adhoc.report)
       }
       .map(checkJson)
       .mapFilter(metricReport)
@@ -154,7 +154,7 @@ class MetricsCountingTest extends AnyFunSuite {
             .buildWith(identity)
           a2 <- ga.action("success", _.unipartite).retry(IO(0)).buildWith(identity)
         } yield a1.run(()).attempt >> a2.run(())
-        run.use(_ >> ga.metrics.report)
+        run.use(_ >> ga.adhoc.report)
       }
       .map(checkJson)
       .mapFilter(metricReport)
@@ -177,7 +177,7 @@ class MetricsCountingTest extends AnyFunSuite {
             .buildWith(identity)
           a2 <- ga.action("success", _.unipartite.counted).retry(IO(0)).buildWith(identity)
         } yield a1.run(()).attempt >> a2.run(())
-        run.use(_ >> ga.metrics.report)
+        run.use(_ >> ga.adhoc.report)
       }
       .map(checkJson)
       .mapFilter(metricReport)
@@ -201,7 +201,7 @@ class MetricsCountingTest extends AnyFunSuite {
             .buildWith(identity)
           a2 <- ga.action("success", _.unipartite.timed).retry(IO(0)).buildWith(identity)
         } yield a1.run(()).attempt >> a2.run(())
-        run.use(_ >> ga.metrics.report)
+        run.use(_ >> ga.adhoc.report)
       }
       .map(checkJson)
       .mapFilter(metricReport)
@@ -225,7 +225,7 @@ class MetricsCountingTest extends AnyFunSuite {
             .buildWith(identity)
           a2 <- ga.action("success", _.unipartite.timed.counted).retry(IO(0)).buildWith(identity)
         } yield a1.run(()).attempt >> a2.run(())
-        run.use(_ >> ga.metrics.report)
+        run.use(_ >> ga.adhoc.report)
       }
       .map(checkJson)
       .mapFilter(metricReport)
@@ -250,7 +250,7 @@ class MetricsCountingTest extends AnyFunSuite {
             .buildWith(identity)
           a2 <- ga.action("success", _.bipartite).retry(IO(0)).buildWith(identity)
         } yield a1.run(()).attempt >> a2.run(())
-        run.use(_ >> ga.metrics.report)
+        run.use(_ >> ga.adhoc.report)
       }
       .map(checkJson)
       .mapFilter(metricReport)
@@ -273,7 +273,7 @@ class MetricsCountingTest extends AnyFunSuite {
             .buildWith(identity)
           a2 <- ga.action("success", _.bipartite.counted).retry(IO(0)).buildWith(identity)
         } yield a1.run(()).attempt >> a2.run(())
-        run.use(_ >> ga.metrics.report)
+        run.use(_ >> ga.adhoc.report)
       }
       .map(checkJson)
       .mapFilter(metricReport)
@@ -298,7 +298,7 @@ class MetricsCountingTest extends AnyFunSuite {
             .buildWith(identity)
           a2 <- ga.action("success", _.bipartite.timed).retry(IO(0)).buildWith(identity)
         } yield a1.run(()).attempt >> a2.run(())
-        run.use(_ >> ga.metrics.report)
+        run.use(_ >> ga.adhoc.report)
       }
       .map(checkJson)
       .mapFilter(metricReport)
@@ -321,7 +321,7 @@ class MetricsCountingTest extends AnyFunSuite {
             .buildWith(identity)
           a2 <- ga.action("success", _.bipartite.timed.counted).retry(IO(0)).buildWith(identity)
         } yield a1.run(()).attempt >> a2.run(())
-        run.use(_ >> ga.metrics.report)
+        run.use(_ >> ga.adhoc.report)
       }
       .map(checkJson)
       .mapFilter(metricReport)
@@ -343,7 +343,7 @@ class MetricsCountingTest extends AnyFunSuite {
           alert.warn(Some("m1")) >>
             alert.info(Some("m2")) >>
             alert.error(Some("m3")) >>
-            ag.metrics.report
+            ag.adhoc.report
         }
       }
       .map(checkJson)
@@ -360,11 +360,12 @@ class MetricsCountingTest extends AnyFunSuite {
   test("14.counter") {
     task
       .service("counter")
-      .eventStream { ga =>
+      .eventStream { agent =>
+        val ga = agent.metrics("ga")
         ga.counter("counter").use { c =>
           c.unsafeInc(2)
           c.unsafeDec(1)
-          c.inc(2) >> ga.metrics.report
+          c.inc(2) >> agent.adhoc.report
         }
       }
       .map(checkJson)
@@ -378,10 +379,11 @@ class MetricsCountingTest extends AnyFunSuite {
   test("15.meter") {
     val mr = task
       .service("meter")
-      .eventStream { ga =>
+      .eventStream { agent =>
+        val ga = agent.metrics("ga")
         ga.meter("counter").use { meter =>
           meter.unsafeUpdate(1)
-          meter.update(2) >> ga.metrics.report
+          meter.update(2) >> agent.adhoc.report
         }
       }
       .map(checkJson)
@@ -396,10 +398,11 @@ class MetricsCountingTest extends AnyFunSuite {
   test("16.histogram") {
     val mr = task
       .service("histogram")
-      .eventStream { ga =>
+      .eventStream { agent =>
+        val ga = agent.metrics("ga")
         ga.histogram("histogram", _.withReservoir(new SlidingWindowReservoir(5))).use { histo =>
           histo.unsafeUpdate(100)
-          histo.update(200) >> ga.metrics.report
+          histo.update(200) >> agent.adhoc.report
         }
       }
       .map(checkJson)
@@ -416,9 +419,9 @@ class MetricsCountingTest extends AnyFunSuite {
     task
       .service("gauge")
       .eventStream { agent =>
-        val g2 = agent.gauge("exception").register(IO.raiseError[Int](new Exception))
-        val g3 = agent.gauge("good").register(IO(10))
-        g2.both(g3).surround(IO.sleep(3.seconds) >> agent.metrics.report)
+        val g2 = agent.metrics("a").gauge("exception").register(IO.raiseError[Int](new Exception))
+        val g3 = agent.metrics("a").gauge("good").register(IO(10))
+        g2.both(g3).surround(IO.sleep(3.seconds) >> agent.adhoc.report)
       }
       .map(checkJson)
       .map {
@@ -433,9 +436,10 @@ class MetricsCountingTest extends AnyFunSuite {
   test("18.health-check") {
     val res = task
       .service("heal-check")
-      .eventStream { ga =>
+      .eventStream { agent =>
+        val ga = agent.metrics("ga")
         (ga.healthCheck("c1").register(IO(true)) >> ga.healthCheck("c2").register(IO(true))).use(_ =>
-          ga.metrics.report)
+          agent.adhoc.report)
       }
       .map(checkJson)
       .mapFilter(metricReport)
@@ -452,10 +456,10 @@ class MetricsCountingTest extends AnyFunSuite {
     val mr = task
       .service("timer")
       .eventStream { ga =>
-        ga.timer("timer", _.withReservoir(new SlidingWindowReservoir(10))).use { timer =>
+        ga.metrics("timer").timer("timer", _.withReservoir(new SlidingWindowReservoir(10))).use { timer =>
           timer.unsafeUpdate(2.seconds)
           timer.update(2.minutes) >>
-            ga.metrics.report
+            ga.adhoc.report
         }
       }
       .map(checkJson)
@@ -473,7 +477,7 @@ class MetricsCountingTest extends AnyFunSuite {
       .service("dup")
       .eventStream { ga =>
         val act1 = ga.action("job", _.timed).retry(IO(0)).buildWith(identity)
-        (act1, act1).mapN((a1, a2) => a1.run(()) >> a2.run(())).use(_ >> ga.metrics.report)
+        (act1, act1).mapN((a1, a2) => a1.run(()) >> a2.run(())).use(_ >> ga.adhoc.report)
       }
       .map(checkJson)
       .mapFilter(metricReport)

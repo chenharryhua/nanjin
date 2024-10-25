@@ -141,21 +141,7 @@ class PerformanceTest extends AnyFunSuite {
     println(speed(i))
   }
 
-  test("kleisli.bipartite.time") {
-    print("---kleisli.bipartite.time: ")
-    var i = 0
-    service.eventStream { ga =>
-      val run = for {
-        action <- ga.action("t", _.bipartite).retry(IO(i += 1).timed).buildWith(identity)
-        timer <- ga.timer("t")
-      } yield for {
-        (t, _) <- action
-        _ <- timer.kleisli((_: Unit) => t)
-      } yield ()
-      run.use(_.run(()).foreverM.timeout(take).attempt)
-    }.compile.drain.unsafeRunSync()
-    println(speed(i))
-  }
+
 
   test("unipartite.time.count") {
     print("unipartite.time.count: ")
@@ -205,21 +191,6 @@ class PerformanceTest extends AnyFunSuite {
     println(speed(i))
   }
 
-  test("kleisli.unipartite.time") {
-    print("---kleisli.unipartite.time: ")
-    var i = 0
-    service.eventStream { ga =>
-      val run = for {
-        action <- ga.action("t", _.unipartite).retry(IO(i += 1).timed).buildWith(identity)
-        timer <- ga.timer("t")
-      } yield for {
-        (t, _) <- action
-        _ <- timer.kleisli((_: Unit) => t)
-      } yield ()
-      run.use(_.run(()).foreverM.timeout(take).attempt)
-    }.compile.drain.unsafeRunSync()
-    println(speed(i))
-  }
 
   test("silent.time.count") {
     print("silent.time.count: ")
@@ -269,27 +240,13 @@ class PerformanceTest extends AnyFunSuite {
     println(speed(i))
   }
 
-  test("kleisli.silent.time") {
-    print("---kleisli.silent.time: ")
-    var i = 0
-    service.eventStream { ga =>
-      val run = for {
-        action <- ga.action("t", _.silent).retry(IO(i += 1).timed).buildWith(identity)
-        timer <- ga.timer("t")
-      } yield for {
-        (t, _) <- action
-        _ <- timer.kleisli((_: Unit) => t)
-      } yield ()
-      run.use(_.run(()).foreverM.timeout(take).attempt)
-    }.compile.drain.unsafeRunSync()
-    println(speed(i))
-  }
+
 
   test("meter") {
     var i = 0
     print("meter:            ")
     service.eventStream { ag =>
-      ag.meter("meter").use(_.update(1).map(_ => i += 1).foreverM.timeout(take).attempt)
+      ag.metrics("meter").meter("meter").use(_.update(1).map(_ => i += 1).foreverM.timeout(take).attempt)
     }.compile.drain.unsafeRunSync()
     println(speed(i))
   }
@@ -298,7 +255,7 @@ class PerformanceTest extends AnyFunSuite {
     var i = 0
     print("histogram:        ")
     service.eventStream { ag =>
-      ag.histogram("histogram").use(_.update(1).map(_ => i += 1).foreverM.timeout(take).attempt)
+      ag.metrics("histogram").histogram("histogram").use(_.update(1).map(_ => i += 1).foreverM.timeout(take).attempt)
     }.compile.drain.unsafeRunSync()
     println(speed(i))
   }
@@ -307,7 +264,7 @@ class PerformanceTest extends AnyFunSuite {
     var i = 0
     print("timer:          ")
     service.eventStream { ag =>
-      ag.timer("timer").use(_.update(1.seconds).map(_ => i += 1).foreverM.timeout(take).attempt)
+      ag.metrics("timer").timer("timer").use(_.update(1.seconds).map(_ => i += 1).foreverM.timeout(take).attempt)
     }.compile.drain.unsafeRunSync()
     println(speed(i))
   }
@@ -316,7 +273,7 @@ class PerformanceTest extends AnyFunSuite {
     var i = 0
     print("count:          ")
     service.eventStream { ag =>
-      ag.counter("count").use(_.inc(1).map(_ => i += 1).foreverM.timeout(take).attempt)
+      ag.metrics("counter").counter("count").use(_.inc(1).map(_ => i += 1).foreverM.timeout(take).attempt)
     }.compile.drain.unsafeRunSync()
     println(speed(i))
   }

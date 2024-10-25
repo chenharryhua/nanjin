@@ -1,15 +1,11 @@
 package mtest.guard
 
-import cats.Endo
 import cats.data.Kleisli
 import cats.effect.IO
 import cats.effect.kernel.Resource
 import cats.effect.unsafe.implicits.global
-import cats.implicits.catsSyntaxSemigroup
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.action.*
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.MetricReport
-import com.github.chenharryhua.nanjin.guard.event.retrieveMetricIds
 import com.github.chenharryhua.nanjin.guard.observers.console
 import com.github.chenharryhua.nanjin.guard.service.Agent
 import org.scalatest.funsuite.AnyFunSuite
@@ -37,17 +33,17 @@ class SyntaxTest extends AnyFunSuite {
 
       a0 >> a1 >> a2 >> a3 >> a4 >> a5 >>
         f0 >> f1 >> f2 >> f3 >> f4 >> f5 >>
-        d0 >> agent.metrics.report
+        d0 >> agent.adhoc.report
     }.map(checkJson).compile.drain.unsafeRunSync()
   }
 
   test("2.should be in one namespace") {
-    def job(agent: Agent[IO]): Resource[IO, Kleisli[IO, Int, Long]] = {
+    def job(ag: Agent[IO]): Resource[IO, Kleisli[IO, Int, Long]] = {
       val name: String = "app"
-
+      val agent        = ag.metrics("")
       for {
         timer <- agent.timer(name).map(_.kleisli((in: Int) => in.seconds))
-        runner <- agent.action(name, _.timed.counted).retry(fun1 _).buildWith(identity)
+        runner <- ag.action(name, _.timed.counted).retry(fun1 _).buildWith(identity)
         histogram <- agent.histogram(name, _.withUnit(_.BYTES))
         meter <- agent.meter(name, _.withUnit(_.COUNT))
         counter <- agent.counter(name, _.asRisk)
@@ -61,7 +57,7 @@ class SyntaxTest extends AnyFunSuite {
       } yield out
     }
     val List(a: MetricReport, b: MetricReport) = service
-      .eventStream(ga => job(ga).use(_.run(1) >> ga.metrics.report) >> ga.metrics.report)
+      .eventStream(ga => job(ga).use(_.run(1) >> ga.adhoc.report) >> ga.adhoc.report)
       .map(checkJson)
       .evalTap(console.text[IO])
       .evalMapFilter(e => IO(metricReport(e)))
@@ -84,16 +80,17 @@ class SyntaxTest extends AnyFunSuite {
   }
 
   test("3.resource should be cleaned up") {
-    def job(agent: Agent[IO]): Resource[IO, Kleisli[IO, Int, Long]] = {
+    def job(ag: Agent[IO]): Resource[IO, Kleisli[IO, Int, Long]] = {
       val name: String = "app2"
+      val agent        = ag.metrics(name)
       for {
-        action <- agent.action(name, _.timed.counted).retry(fun1 _).buildWith(identity)
+        action <- ag.action(name, _.timed.counted).retry(fun1 _).buildWith(identity)
         histogram <- agent.histogram(name, _.withUnit(_.BYTES))
         meter <- agent.meter(name, _.withUnit(_.KILOBITS))
         counter <- agent.counter(name, _.asRisk)
         timer <- agent.timer(name)
-        alert <- agent.alert(name, _.counted)
-        _ <- agent.gauge(name, _.withTag("abc")).register(IO(0))
+        alert <- ag.alert(name, _.counted)
+        _ <- agent.gauge(name).register(IO(0))
       } yield for {
         out <- action
         _ <- histogram.kleisli((_: Int) => out)
@@ -105,7 +102,7 @@ class SyntaxTest extends AnyFunSuite {
     }
 
     val List(a: MetricReport, b: MetricReport) = service
-      .eventStream(ga => job(ga).use(_.run(1) >> ga.metrics.report) >> ga.metrics.report)
+      .eventStream(ga => job(ga).use(_.run(1) >> ga.adhoc.report) >> ga.adhoc.report)
       .map(checkJson)
       .evalTap(console.text[IO])
       .evalMapFilter(e => IO(metricReport(e)))
@@ -124,53 +121,5 @@ class SyntaxTest extends AnyFunSuite {
     assert(b.snapshot.meters.isEmpty)
     assert(b.snapshot.histograms.isEmpty)
     assert(b.snapshot.gauges.isEmpty)
-  }
-
-  test("4.measurement") {
-    val measurement  = "measurement"
-    val name: String = "service-1"
-
-    val mr: MetricReport = service.eventStream { ga =>
-      val a = ga.alert(name, _.withMeasurement(measurement)).evalMap(_.info(1))
-      val b = ga.counter(name, _.withMeasurement(measurement)).evalMap(_.inc(1))
-      val c = ga.gauge(name, _.withMeasurement(measurement)).register(IO(1))
-      val d = ga.healthCheck(name, _.withMeasurement(measurement)).register(IO(true))
-      val e = ga.histogram(name, _.withMeasurement(measurement)).evalMap(_.update(1))
-      val f = ga.meter(name, _.withMeasurement(measurement)).evalMap(_.update(1))
-      val g = ga.timer(name, _.withMeasurement(measurement)).evalMap(_.update(1.second))
-      (a |+| b |+| c |+| d |+| e |+| f |+| g).surround(ga.metrics.report)
-    }.map(checkJson)
-      .evalTap(console.text[IO])
-      .evalMapFilter(e => IO(metricReport(e)))
-      .compile
-      .lastOrError
-      .unsafeRunSync()
-
-    val ms = retrieveMetricIds(mr.snapshot)
-    assert(ms.map(_.metricName.measurement).forall(_ == measurement))
-    assert(ms.map(_.metricName.name).forall(_ == name))
-    assert(ms.size == 6)
-  }
-
-  test("5.config builders") {
-    val alert: Endo[NJAlert.Builder]         = _.withMeasurement("alert").counted
-    val counter: Endo[NJCounter.Builder]     = _.withMeasurement("counter").asRisk
-    val gauge: Endo[NJGauge.Builder]         = _.withMeasurement("gauge").withTimeout(1.second)
-    val hc: Endo[NJHealthCheck.Builder]      = _.withMeasurement("health-check").withTimeout(1.second)
-    val histogram: Endo[NJHistogram.Builder] = _.withMeasurement("histogram").withUnit(_.BYTES)
-    val meter: Endo[NJMeter.Builder]         = _.withMeasurement("meter").withUnit(_.KILOBITS)
-    val timer: Endo[NJTimer.Builder]         = _.withMeasurement("timer")
-
-    val name = "config"
-    service.eventStream { ga =>
-      val a = ga.alert(name, alert).evalMap(_.info(1))
-      val b = ga.counter(name, counter).evalMap(_.inc(1))
-      val c = ga.gauge(name, gauge).register(IO(1))
-      val d = ga.healthCheck(name, hc).register(IO(true))
-      val e = ga.histogram(name, histogram).evalMap(_.update(1))
-      val f = ga.meter(name, meter).evalMap(_.update(1))
-      val g = ga.timer(name, timer).evalMap(_.update(1.second))
-      (a |+| b |+| c |+| d |+| e |+| f |+| g).use_ >> ga.metrics.report
-    }.map(checkJson).evalTap(console.text[IO]).compile.drain.unsafeRunSync()
   }
 }

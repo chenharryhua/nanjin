@@ -1,10 +1,11 @@
-package com.github.chenharryhua.nanjin.guard.action
+package com.github.chenharryhua.nanjin.guard.metrics
 
 import cats.Applicative
 import cats.data.Kleisli
 import cats.effect.kernel.{Resource, Sync, Unique}
 import cats.implicits.toFunctorOps
 import com.codahale.metrics.{Counter, MetricRegistry}
+import com.github.chenharryhua.nanjin.common.EnableConfig
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.config.CategoryKind.CounterKind
 
@@ -58,30 +59,17 @@ object NJCounter {
       override def dec(num: Long): F[Unit]    = F.unit
     }
 
-  final class Builder private[guard] (
-    measurement: Measurement,
-    isRisk: Boolean,
-    isEnabled: Boolean,
-    tag: MetricTag)
-      extends MetricBuilder[Builder] {
+  final class Builder private[guard] (isEnabled: Boolean, metricName: MetricName, isRisk: Boolean)
+      extends EnableConfig[Builder] {
 
-    def asRisk: Builder = new Builder(measurement, true, isEnabled, tag)
-
-    override def withMeasurement(measurement: String): Builder =
-      new Builder(Measurement(measurement), isRisk, isEnabled, tag)
+    def asRisk: Builder = new Builder(isEnabled, metricName, true)
 
     override def enable(value: Boolean): Builder =
-      new Builder(measurement, isRisk, value, tag)
+      new Builder(value, metricName, isRisk)
 
-    override def withTag(tag: String): Builder =
-      new Builder(measurement, isRisk, isEnabled, MetricTag(tag))
-
-    private[guard] def build[F[_]](
-      name: String,
-      metricRegistry: MetricRegistry,
-      serviceParams: ServiceParams)(implicit F: Sync[F]): Resource[F, NJCounter[F]] =
+    private[guard] def build[F[_]](tag: MetricTag, metricRegistry: MetricRegistry)(implicit
+      F: Sync[F]): Resource[F, NJCounter[F]] =
       if (isEnabled) {
-        val metricName = MetricName(serviceParams, measurement, name)
         Resource
           .make(F.unique.map(new NJCounterImpl[F](_, metricName, metricRegistry, isRisk, tag)))(_.unregister)
       } else

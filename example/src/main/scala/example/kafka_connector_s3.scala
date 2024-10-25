@@ -5,6 +5,7 @@ import cats.effect.IO
 import cats.effect.kernel.Resource
 import cats.implicits.toTraverseOps
 import com.github.chenharryhua.nanjin.common.chrono.Policy
+import com.github.chenharryhua.nanjin.guard.metrics.NJMetrics
 import com.github.chenharryhua.nanjin.guard.observers.console
 import com.github.chenharryhua.nanjin.guard.service.Agent
 import com.github.chenharryhua.nanjin.kafka.{KafkaContext, KafkaSettings}
@@ -28,15 +29,16 @@ object kafka_connector_s3 {
 
   private type CCR = CommittableConsumerRecord[IO, Unit, Try[GenericData.Record]]
 
-  private def logMetrics(agent: Agent[IO], name: String): Resource[IO, Kleisli[IO, CCR, Unit]] = for {
-    meter <- agent.meter(name, _.withUnit(_.COUNT).withTag("rate").enable(true))
-    keySize <- agent.histogram(name, _.withUnit(_.BYTES).withTag("key.size").enable(true))
-    valSize <- agent.histogram(name, _.withUnit(_.BITS).withTag("val.size").enable(true))
-  } yield Kleisli { (ccr: CCR) =>
-    ccr.record.serializedKeySize.map(_.toLong).traverse(keySize.update) *>
-      ccr.record.serializedValueSize.map(_.toLong).traverse(valSize.update) *>
-      meter.update(1)
-  }
+  private def logMetrics(mtx: NJMetrics[IO]): Resource[IO, Kleisli[IO, CCR, Unit]] =
+    for {
+      meter <- mtx.meter("rate", _.withUnit(_.COUNT).enable(true))
+      keySize <- mtx.histogram("key.size", _.withUnit(_.BYTES).enable(true))
+      valSize <- mtx.histogram("val.size", _.withUnit(_.BITS).enable(true))
+    } yield Kleisli { (ccr: CCR) =>
+      ccr.record.serializedKeySize.map(_.toLong).traverse(keySize.update) *>
+        ccr.record.serializedValueSize.map(_.toLong).traverse(valSize.update) *>
+        meter.update(1)
+    }
 
   private def decoder(agent: Agent[IO]): Resource[IO, Kleisli[IO, CCR, String]] = {
     val name: String = "kafka.record"
@@ -45,7 +47,7 @@ object kafka_connector_s3 {
         .action(name)
         .retry((ccr: CCR) => IO.fromTry(ccr.record.value.flatMap(gr2Jackson(_))))
         .buildWith(_.tapError((cr, _) => CRMetaInfo(cr).zoned(agent.zoneId).asJson))
-      update <- logMetrics(agent, name)
+      update <- logMetrics(agent.metrics("name"))
     } yield Kleisli { (ccr: CCR) =>
       update(ccr) >> action.run(ccr)
     }

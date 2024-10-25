@@ -104,15 +104,15 @@ object NJAlert {
       override def info[S: Encoder](msg: Option[S]): F[Unit]  = F.unit
     }
 
-  final class Builder private[guard] (measurement: Measurement, isCounting: Boolean, isEnabled: Boolean)
+  final class Builder private[guard] (isEnabled: Boolean, measurement: Measurement, isCounting: Boolean)
       extends EnableConfig[Builder] {
 
     def withMeasurement(measurement: String): Builder =
-      new Builder(Measurement(measurement), isCounting, isEnabled)
+      new Builder(isEnabled, Measurement(measurement), isCounting)
 
-    def counted: Builder = new Builder(measurement, true, isEnabled)
+    def counted: Builder = new Builder(isEnabled, measurement, true)
 
-    def enable(value: Boolean): Builder = new Builder(measurement, isCounting, value)
+    def enable(value: Boolean): Builder = new Builder(value, measurement, isCounting)
 
     private[guard] def build[F[_]](
       name: String,

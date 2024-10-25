@@ -8,7 +8,7 @@ import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.event.{MetricIndex, NJEvent}
 import fs2.concurrent.Channel
 
-abstract class NJMetrics[F[_]] private[service] (
+abstract class NJMetricsReport[F[_]] private[service](
   channel: Channel[F, NJEvent],
   serviceParams: ServiceParams,
   metricRegistry: MetricRegistry)(implicit F: Clock[F], M: MonadError[F, Throwable]) {

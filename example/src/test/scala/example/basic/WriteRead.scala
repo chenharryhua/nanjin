@@ -2,7 +2,7 @@ package example.basic
 
 import cats.effect.IO
 import cats.effect.kernel.Resource
-import com.github.chenharryhua.nanjin.guard.action.NJMeter
+import com.github.chenharryhua.nanjin.guard.metrics.NJMeter
 import com.github.chenharryhua.nanjin.guard.service.Agent
 import io.lemonlabs.uri.Url
 
@@ -10,14 +10,14 @@ abstract class WriteRead(agent: Agent[IO]) {
   final protected def write(job: Url): Resource[IO, NJMeter[IO]] = {
     val name = "(write)" + job.toString()
     for {
-      meter <- agent.meter(name, _.withUnit(_.COUNT))
+      meter <- agent.metrics(name).meter(name, _.withUnit(_.COUNT))
     } yield meter
   }
 
   final protected def read(job: Url): Resource[IO, NJMeter[IO]] = {
     val name = "(read)" + job.toString()
     for {
-      meter <- agent.meter(name, _.withUnit(_.COUNT))
+      meter <- agent.metrics(name).meter(name, _.withUnit(_.COUNT))
     } yield meter
   }
   def single: IO[List[Long]]
