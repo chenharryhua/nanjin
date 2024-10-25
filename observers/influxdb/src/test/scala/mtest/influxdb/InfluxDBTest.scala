@@ -22,12 +22,13 @@ class InfluxDBTest extends AnyFunSuite {
       TaskGuard[IO]("nanjin")
         .service("observing")
         .updateConfig(_.withRestartPolicy(Policy.fixedRate(1.second)).addBrief(Json.fromString("brief")))
-        .eventStream { ag =>
+        .eventStream { agent =>
+          val ag = agent.metrics("job")
           val job =
             box.getAndUpdate(_ + 1).map(_ % 12 == 0).ifM(IO(1), IO.raiseError[Int](new Exception("oops")))
           val env = for {
             meter <- ag.meter("meter", _.withUnit(_.COUNT))
-            action <- ag
+            action <- agent
               .action(
                 "nj_error",
                 _.critical.bipartite.timed.counted.policy(Policy.fixedRate(1.second).limited(3)))
@@ -35,10 +36,10 @@ class InfluxDBTest extends AnyFunSuite {
               .buildWith(identity)
             counter <- ag.counter("nj counter", _.asRisk)
             histogram <- ag.histogram("nj histogram", _.withUnit(_.SECONDS))
-            alert <- ag.alert("nj alert")
+            alert <- agent.alert("nj alert")
             _ <- ag.gauge("nj gauge").register(box.get)
           } yield meter.update(1) >> action.run(()) >> counter.inc(1) >>
-            histogram.update(1) >> alert.info(1) >> ag.metrics.report
+            histogram.update(1) >> alert.info(1) >> agent.adhoc.report
           env.use(identity)
         }
     }
