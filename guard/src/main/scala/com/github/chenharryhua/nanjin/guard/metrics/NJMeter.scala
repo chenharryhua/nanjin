@@ -1,10 +1,11 @@
-package com.github.chenharryhua.nanjin.guard.action
+package com.github.chenharryhua.nanjin.guard.metrics
 
 import cats.Applicative
 import cats.data.Kleisli
 import cats.effect.kernel.{Resource, Sync, Unique}
 import cats.implicits.toFunctorOps
 import com.codahale.metrics.{Meter, MetricRegistry}
+import com.github.chenharryhua.nanjin.common.EnableConfig
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.config.CategoryKind.MeterKind
 import com.github.chenharryhua.nanjin.guard.event.{MeasurementUnit, NJUnits}
@@ -45,31 +46,18 @@ object NJMeter {
       override def update(num: Long): F[Unit]    = F.unit
     }
 
-  final class Builder private[guard] (
-    measurement: Measurement,
-    unit: MeasurementUnit,
-    isEnabled: Boolean,
-    tag: MetricTag)
-      extends MetricBuilder[Builder] {
+  final class Builder private[guard] (isEnabled: Boolean, metricName: MetricName, unit: MeasurementUnit)
+      extends EnableConfig[Builder] {
 
     def withUnit(f: NJUnits.type => MeasurementUnit): Builder =
-      new Builder(measurement, f(NJUnits), isEnabled, tag)
-
-    override def withMeasurement(measurement: String): Builder =
-      new Builder(Measurement(measurement), unit, isEnabled, tag)
+      new Builder(isEnabled, metricName, f(NJUnits))
 
     override def enable(value: Boolean): Builder =
-      new Builder(measurement, unit, value, tag)
+      new Builder(value, metricName, unit)
 
-    override def withTag(tag: String): Builder =
-      new Builder(measurement, unit, isEnabled, MetricTag(tag))
-
-    private[guard] def build[F[_]](
-      name: String,
-      metricRegistry: MetricRegistry,
-      serviceParams: ServiceParams)(implicit F: Sync[F]): Resource[F, NJMeter[F]] =
+    private[guard] def build[F[_]](tag: MetricTag, metricRegistry: MetricRegistry)(implicit
+      F: Sync[F]): Resource[F, NJMeter[F]] =
       if (isEnabled) {
-        val metricName = MetricName(serviceParams, measurement, name)
         Resource.make(
           F.unique.map(token =>
             new NJMeterImpl[F](

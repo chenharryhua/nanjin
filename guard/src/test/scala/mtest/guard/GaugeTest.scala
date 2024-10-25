@@ -22,9 +22,9 @@ class GaugeTest extends AnyFunSuite {
   val service: ServiceGuard[IO] =
     TaskGuard[IO]("gauge").service("gauge").updateConfig(_.withMetricReport(Policy.crontab(_.secondly)))
 
-  test("user gauge") {
+  test("1.user gauge") {
     val res: MetricReport = service.eventStream { ga =>
-      ga.gauge("user").register(IO(UserGauge(1, "a"))).surround(IO.sleep(4.seconds))
+      ga.metrics("test").gauge("user").register(IO(UserGauge(1, "a"))).surround(IO.sleep(4.seconds))
     }.map(checkJson).evalMapFilter(e => IO(metricReport(e))).compile.lastOrError.unsafeRunSync()
 
     val ug = retrieveGauge[UserGauge](res.snapshot.gauges).values.head
@@ -36,24 +36,26 @@ class GaugeTest extends AnyFunSuite {
     val policy = Policy.crontab(_.secondly)
     val mr: MetricReport = service
       .updateConfig(_.withJmx(identity))
-      .eventStream { agent =>
+      .eventStream { ag =>
+        val mtx = ag.metrics("agent")
         val gauge: Resource[IO, Ref[IO, Float]] =
-          agent.gauge("free memory").register(IO(Runtime.getRuntime.freeMemory())) >>
-            agent.gauge("cost IO").register(IO(1), policy, agent.zoneId) >>
-            agent.gauge("cost ByName").register(IO(2), policy, agent.zoneId) >>
-            agent.healthCheck("health check IO").register(IO.raiseError(new Exception)) >>
-            agent.healthCheck("health check ByName").register(IO(true)) >>
-            agent.healthCheck("cost check IO").register(IO(true), policy, agent.zoneId) >>
-            agent.healthCheck("cost check ByName").register(hc = IO(true), policy, agent.zoneId) >>
-            Resource.eval(Ref[IO].of(0.1f)).flatMap(ac => agent.gauge("cell").register(ac.get).map(_ => ac))
+          mtx.idleGauge("idle") >>
+            mtx.activeGauge("timed") >>
+            mtx.gauge("free memory").register(IO(Runtime.getRuntime.freeMemory())) >>
+            mtx.gauge("cost IO").register(IO(1), policy, ag.zoneId) >>
+            mtx.gauge("cost ByName").register(IO(2), policy, ag.zoneId) >>
+            mtx.healthCheck("health check IO").register(IO.raiseError(new Exception)) >>
+            mtx.healthCheck("health check ByName").register(IO(true)) >>
+            mtx.healthCheck("cost check IO").register(IO(true), policy, ag.zoneId) >>
+            mtx.healthCheck("cost check ByName").register(hc = IO(true), policy, ag.zoneId) >>
+            Resource.eval(Ref[IO].of(0.1f)).flatMap(ac => mtx.gauge("cell").register(ac.get).map(_ => ac))
 
         gauge.use(box =>
-          agent
-            .ticks(Policy.fixedDelay(1.seconds).limited(3))
+          ag.ticks(Policy.fixedDelay(1.seconds).limited(3))
             .evalTap(_ => box.updateAndGet(_ + 1))
             .compile
             .drain) >>
-          agent.metrics.report
+          ag.adhoc.report
       }
       .map(checkJson)
       .evalTap(console.text[IO])

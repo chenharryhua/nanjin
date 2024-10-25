@@ -119,7 +119,7 @@ final class SnapshotPolyglot(snapshot: MetricSnapshot) {
   // for screen display
   def toPrettyJson: Json = {
     val counters = snapshot.counters.map(c => c.metricId -> Json.fromString(decimal_fmt.format(c.count)))
-    val gauges   = snapshot.gauges.map(g => g.metricId -> prettifyJson(g.value))
+    val gauges   = snapshot.gauges.map(g => g.metricId -> g.value)
 
     val lst: List[(MetricID, Json)] =
       counters ::: gauges ::: json_list(meters ::: histograms ::: timers)
@@ -136,12 +136,12 @@ final class SnapshotPolyglot(snapshot: MetricSnapshot) {
 
   private def gauge_str: List[(MetricID, List[String])] =
     snapshot.gauges.map { g =>
-      val str: String = prettifyJson(g.value).fold(
+      val str: String = g.value.fold(
         jsonNull = "null",
         jsonBoolean = _.toString,
         jsonNumber = n => decimal_fmt.format(n.toDouble),
         jsonString = identity,
-        jsonArray = js => show"[${js.map(_.noSpaces).mkString(",")}]",
+        jsonArray = js => show"[${js.map(_.noSpaces).mkString(", ")}]",
         jsonObject = js => js.toJson.noSpaces
       )
       g.metricId -> List(show"${g.metricId.tag}: $str")

@@ -74,10 +74,9 @@ class MetricsTest extends AnyFunSuite {
     val last = task
       .service("reset")
       .eventStream { ag =>
-        val metric = ag.metrics
         ag.action("one", _.bipartite.timed.counted).retry(IO(0)).buildWith(identity).use(_.run(())) >>
           ag.action("two", _.bipartite.timed.counted).retry(IO(1)).buildWith(identity).use(_.run(())) >>
-          metric.report >> metric.reset >> IO.sleep(10.minutes)
+          ag.adhoc.report >> ag.adhoc.reset >> IO.sleep(10.minutes)
       }
       .map(checkJson)
       .interruptAfter(5.seconds)
@@ -176,7 +175,7 @@ class MetricsTest extends AnyFunSuite {
         ga.action("a0{}[]()!@#$%^&+-_<>", _.bipartite.timed.counted)
           .retry(IO(0))
           .buildWith(identity)
-          .use(_.run(())) >> ga.metrics.report
+          .use(_.run(())) >> ga.adhoc.report
       }
       .map(checkJson)
       .compile
@@ -192,7 +191,7 @@ class MetricsTest extends AnyFunSuite {
         ga.action(name, _.bipartite.timed.counted)
           .retry(IO(0))
           .buildWith(identity)
-          .use(_.run(()) >> ga.metrics.report)
+          .use(_.run(()) >> ga.adhoc.report)
       }
       .map(checkJson)
       .mapFilter(metricReport)
@@ -205,11 +204,12 @@ class MetricsTest extends AnyFunSuite {
   test("16.dup") {
     val List(mr) = task
       .service("dup")
-      .eventStream { ga =>
+      .eventStream { agent =>
+        val ga = agent.metrics("ga")
         val jvm = ga.gauge("a").register(IO(0)) >>
           ga.gauge("a").register(IO(0)) >>
           ga.gauge("a").register(IO(0))
-        jvm.surround(ga.metrics.report)
+        jvm.surround(agent.adhoc.report)
       }
       .map(checkJson)
       .mapFilter(metricReport)
@@ -223,11 +223,12 @@ class MetricsTest extends AnyFunSuite {
   test("17.gauge dup") {
     val mr :: _ = task
       .service("dup")
-      .eventStream { ga =>
-        val jvm = ga.gauge("a", _.withTag("x")).register(IO(0)) >>
-          ga.gauge("a", _.withTag("y")).register(IO(0)) >>
-          ga.gauge("a", _.withTag("z")).register(IO(0))
-        jvm.surround(ga.metrics.report)
+      .eventStream { agent =>
+        val ga = agent.metrics("ga")
+        val jvm = ga.gauge("a").register(IO(0)) >>
+          ga.gauge("a").register(IO(0)) >>
+          ga.gauge("a").register(IO(0))
+        jvm.surround(agent.adhoc.report)
       }
       .map(checkJson)
       .mapFilter(metricReport)
@@ -242,27 +243,28 @@ class MetricsTest extends AnyFunSuite {
   test("18.disable") {
     val mr = TaskGuard[IO]("nanjin")
       .service("disable")
-      .eventStream { ag =>
+      .eventStream { agent =>
+        val ag = agent.metrics("ga")
         val go = for {
-          _ <- ag.gauge("job", _.enable(false)).register(IO(1000000000))
-          _ <- ag.healthCheck("job", _.enable(false)).register(IO(true))
-          _ <- ag.timer("job", _.enable(false)).evalMap(_.update(10.second).replicateA(100))
-          _ <- ag.meter("job", _.withUnit(_.COUNT).enable(false)).evalMap(_.update(10000).replicateA(100))
-          _ <- ag.counter("job", _.asRisk.enable(false)).evalMap(_.inc(1000))
+          _ <- ag.gauge("a", _.enable(false)).register(IO(1000000000))
+          _ <- ag.healthCheck("b", _.enable(false)).register(IO(true))
+          _ <- ag.timer("c", _.enable(false)).evalMap(_.update(10.second).replicateA(100))
+          _ <- ag.meter("d", _.withUnit(_.COUNT).enable(false)).evalMap(_.update(10000).replicateA(100))
+          _ <- ag.counter("e", _.asRisk.enable(false)).evalMap(_.inc(1000))
           _ <- ag
-            .histogram("job", _.withUnit(_.BYTES).enable(false))
+            .histogram("f", _.withUnit(_.BYTES).enable(false))
             .evalMap(_.update(10000L).replicateA(100))
-          _ <- ag.alert("job", _.counted.enable(false)).evalMap(_.error("alarm"))
-          _ <- ag
-            .action("job", _.timed.counted.bipartite.enable(false))
+          _ <- agent.alert("g", _.counted.enable(false)).evalMap(_.error("alarm"))
+          _ <- agent
+            .action("h", _.timed.counted.bipartite.enable(false))
             .retry(IO(0))
             .buildWith(identity)
             .evalMap(_.run(()))
           _ <- ag
-            .ratio("job", _.enable(false))
+            .ratio("i", _.enable(false))
             .evalMap(f => f.incDenominator(50) >> f.incNumerator(79) >> f.incBoth(20, 50))
         } yield ()
-        go.surround(ag.metrics.report)
+        go.surround(agent.adhoc.report)
       }
       .evalTap(console.json[IO])
       .mapFilter(metricReport)

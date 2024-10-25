@@ -20,11 +20,8 @@ final case class ActionParams(
   isEnabled: Boolean,
   retryPolicy: Policy,
   serviceParams: ServiceParams) {
-  val configStr: String = {
-    val cc = if (isCounting) ".counted" else ""
-    val tc = if (isTiming) ".timed" else ""
-    s"${publishStrategy.entryName}.${importance.entryName}$tc$cc"
-  }
+  val configStr: String =
+    s"${publishStrategy.entryName}.${importance.entryName}"
 
   val metricName: MetricName = MetricName(serviceParams, measurement, actionName.value)
 }
@@ -126,10 +123,11 @@ final class ActionConfig private (
 private[guard] object ActionConfig {
 
   def apply(
+    isEnabled: Boolean,
     actionName: ActionName,
     measurement: Measurement,
-    serviceParams: ServiceParams,
-    isEnabled: Boolean): ActionConfig =
+    serviceParams: ServiceParams
+  ): ActionConfig =
     new ActionConfig(
       Reader(_ => true),
       Fix(ActionConfigF.InitParams[Fix[ActionConfigF]](actionName, measurement, serviceParams, isEnabled)))

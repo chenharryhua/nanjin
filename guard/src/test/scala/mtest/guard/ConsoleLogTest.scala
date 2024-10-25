@@ -17,7 +17,8 @@ class ConsoleLogTest extends AnyFunSuite {
     TaskGuard[IO]("nanjin")
       .service("observing")
       .updateConfig(_.addBrief(Json.fromString("brief")))
-      .eventStream { ag =>
+      .eventStream { agent =>
+        val ag = agent.metrics("job")
         val go = for {
           _ <- ag.gauge("job").register(IO(1000000000))
           _ <- ag.healthCheck("job").register(IO(true))
@@ -25,13 +26,17 @@ class ConsoleLogTest extends AnyFunSuite {
           _ <- ag.meter("job", _.withUnit(_.COUNT)).evalMap(_.update(10000).replicateA(100))
           _ <- ag.counter("job", _.asRisk).evalMap(_.inc(1000))
           _ <- ag.histogram("job", _.withUnit(_.BYTES)).evalMap(_.update(10000L).replicateA(100))
-          _ <- ag.alert("job", _.counted).evalMap(_.error("alarm"))
-          _ <- ag.action("job", _.timed.counted.bipartite).retry(IO(0)).buildWith(identity).evalMap(_.run(()))
+          _ <- agent.alert("job", _.counted).evalMap(_.error("alarm"))
+          _ <- agent
+            .action("job", _.timed.counted.bipartite)
+            .retry(IO(0))
+            .buildWith(identity)
+            .evalMap(_.run(()))
           _ <- ag
             .ratio("job")
             .evalMap(f => f.incDenominator(500) >> f.incNumerator(60) >> f.incBoth(299, 500))
         } yield ()
-        go.surround(ag.metrics.report)
+        go.surround(agent.adhoc.report)
       }
 
   test("1.console - verbose json") {

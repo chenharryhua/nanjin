@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.guard.action
+package com.github.chenharryhua.nanjin.guard.metrics
 
 import cats.Applicative
 import cats.data.{Ior, Kleisli}
@@ -6,6 +6,7 @@ import cats.effect.kernel.{Async, Ref, Resource}
 import cats.effect.std.Dispatcher
 import cats.syntax.all.*
 import com.codahale.metrics.{Gauge, MetricRegistry}
+import com.github.chenharryhua.nanjin.common.EnableConfig
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.config.CategoryKind.GaugeKind
 import io.circe.Json
@@ -45,6 +46,7 @@ private class NJRatioImpl[F[_]](private[this] val ref: Ref[F, Ior[Long, Long]]) 
 
   override def incNumerator(numerator: Long): F[Unit]     = update(Ior.Left(numerator))
   override def incDenominator(denominator: Long): F[Unit] = update(Ior.Right(denominator))
+
   override def incBoth(numerator: Long, denominator: Long): F[Unit] =
     update(Ior.Both(numerator, denominator))
 
@@ -75,29 +77,20 @@ object NJRatio {
   }
 
   final class Builder private[guard] (
-    measurement: Measurement,
-    translator: Ior[Long, Long] => Json,
     isEnabled: Boolean,
-    tag: MetricTag)
-      extends MetricBuilder[Builder] {
+    metricName: MetricName,
+    translator: Ior[Long, Long] => Json
+  ) extends EnableConfig[Builder] {
 
     def withTranslator(translator: Ior[Long, Long] => Json) =
-      new Builder(measurement, translator, isEnabled, tag)
-
-    override def withMeasurement(measurement: String): Builder =
-      new Builder(Measurement(measurement), translator, isEnabled, tag)
+      new Builder(isEnabled, metricName, translator)
 
     override def enable(value: Boolean): Builder =
-      new Builder(measurement, translator, value, tag)
-
-    override def withTag(tag: String): Builder =
-      new Builder(measurement, translator, isEnabled, MetricTag(tag))
+      new Builder(value, metricName, translator)
 
     private[guard] def build[F[_]: Async](
-      name: String,
-      metricRegistry: MetricRegistry,
-      serviceParams: ServiceParams): Resource[F, NJRatio[F]] = {
-      val metricName = MetricName(serviceParams, measurement, name)
+      tag: MetricTag,
+      metricRegistry: MetricRegistry): Resource[F, NJRatio[F]] = {
 
       val F = Async[F]
 

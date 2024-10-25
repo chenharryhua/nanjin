@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.guard.action
+package com.github.chenharryhua.nanjin.guard.metrics
 
 import cats.Applicative
 import cats.data.Kleisli
@@ -6,6 +6,7 @@ import cats.effect.implicits.clockOps
 import cats.effect.kernel.{Resource, Sync, Unique}
 import cats.implicits.{toFlatMapOps, toFunctorOps}
 import com.codahale.metrics.*
+import com.github.chenharryhua.nanjin.common.EnableConfig
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.config.CategoryKind.TimerKind
 
@@ -69,30 +70,20 @@ object NJTimer {
     }
 
   final class Builder private[guard] (
-    measurement: Measurement,
-    reservoir: Option[Reservoir],
     isEnabled: Boolean,
-    tag: MetricTag)
-      extends MetricBuilder[Builder] {
+    metricName: MetricName,
+    reservoir: Option[Reservoir]
+  ) extends EnableConfig[Builder] {
 
     def withReservoir(reservoir: Reservoir): Builder =
-      new Builder(measurement, Some(reservoir), isEnabled, tag)
-
-    override def withMeasurement(measurement: String): Builder =
-      new Builder(Measurement(measurement), reservoir, isEnabled, tag)
+      new Builder(isEnabled, metricName, Some(reservoir))
 
     override def enable(value: Boolean): Builder =
-      new Builder(measurement, reservoir, value, tag)
+      new Builder(value, metricName, reservoir)
 
-    override def withTag(tag: String): Builder =
-      new Builder(measurement, reservoir, isEnabled, MetricTag(tag))
-
-    private[guard] def build[F[_]](
-      name: String,
-      metricRegistry: MetricRegistry,
-      serviceParams: ServiceParams)(implicit F: Sync[F]): Resource[F, NJTimer[F]] =
+    private[guard] def build[F[_]](tag: MetricTag, metricRegistry: MetricRegistry)(implicit
+      F: Sync[F]): Resource[F, NJTimer[F]] =
       if (isEnabled) {
-        val metricName = MetricName(serviceParams, measurement, name)
         Resource.make(
           F.unique.map(token =>
             new NJTimerImpl[F](

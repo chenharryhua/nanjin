@@ -1,6 +1,8 @@
 ThisBuild / version      := "0.18.0-SNAPSHOT"
 ThisBuild / scalaVersion := "2.13.15"
 
+Global / parallelExecution := false
+
 val acyclicV    = "0.3.15"
 val avroV       = "1.12.0"
 val awsV        = "2.28.26"
@@ -62,7 +64,8 @@ lazy val commonSettings = List(
   ),
   Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat,
   Compile / tpolecatExcludeOptions += org.typelevel.scalacoptions.ScalacOptions.warnNonUnitStatement,
-  Test / parallelExecution := false
+  Test / parallelExecution := false,
+  Test / logBuffered := false
 )
 
 val circeLib = List(

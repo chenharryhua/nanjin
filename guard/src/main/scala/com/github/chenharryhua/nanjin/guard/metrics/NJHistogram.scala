@@ -1,10 +1,11 @@
-package com.github.chenharryhua.nanjin.guard.action
+package com.github.chenharryhua.nanjin.guard.metrics
 
 import cats.Applicative
 import cats.data.Kleisli
 import cats.effect.kernel.{Resource, Sync, Unique}
 import cats.implicits.toFunctorOps
 import com.codahale.metrics.*
+import com.github.chenharryhua.nanjin.common.EnableConfig
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.config.CategoryKind.HistogramKind
 import com.github.chenharryhua.nanjin.guard.event.{MeasurementUnit, NJUnits}
@@ -53,34 +54,24 @@ object NJHistogram {
     }
 
   final class Builder private[guard] (
-    measurement: Measurement,
-    unit: MeasurementUnit,
-    reservoir: Option[Reservoir],
     isEnabled: Boolean,
-    tag: MetricTag)
-      extends MetricBuilder[Builder] {
+    metricName: MetricName,
+    unit: MeasurementUnit,
+    reservoir: Option[Reservoir])
+      extends EnableConfig[Builder] {
 
     def withUnit(f: NJUnits.type => MeasurementUnit): Builder =
-      new Builder(measurement, f(NJUnits), reservoir, isEnabled, tag)
+      new Builder(isEnabled, metricName, f(NJUnits), reservoir)
 
     def withReservoir(reservoir: Reservoir): Builder =
-      new Builder(measurement, unit, Some(reservoir), isEnabled, tag)
-
-    override def withMeasurement(measurement: String): Builder =
-      new Builder(Measurement(measurement), unit, reservoir, isEnabled, tag)
+      new Builder(isEnabled, metricName, unit, Some(reservoir))
 
     override def enable(value: Boolean): Builder =
-      new Builder(measurement, unit, reservoir, value, tag)
+      new Builder(value, metricName, unit, reservoir)
 
-    override def withTag(tag: String): Builder =
-      new Builder(measurement, unit, reservoir, isEnabled, MetricTag(tag))
-
-    private[guard] def build[F[_]](
-      name: String,
-      metricRegistry: MetricRegistry,
-      serviceParams: ServiceParams)(implicit F: Sync[F]): Resource[F, NJHistogram[F]] =
+    private[guard] def build[F[_]](tag: MetricTag, metricRegistry: MetricRegistry)(implicit
+      F: Sync[F]): Resource[F, NJHistogram[F]] =
       if (isEnabled) {
-        val metricName = MetricName(serviceParams, measurement, name)
         Resource.make(
           F.unique.map(token =>
             new NJHistogramImpl[F](

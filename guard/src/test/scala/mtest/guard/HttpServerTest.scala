@@ -41,7 +41,8 @@ class HttpServerTest extends AnyFunSuite {
       guard
         .service("http stop")
         .updateConfig(_.withMetricReport(Policy.crontab(_.secondly)).withHttpServer(_.withPort(port"9999")))
-        .eventStream { ag =>
+        .eventStream { agent =>
+          val ag = agent.metrics("test")
           val m = for {
             _ <- ag.gauge("a").register(IO(1))
             _ <- ag.counter("a").evalMap(_.inc(1))
@@ -49,7 +50,7 @@ class HttpServerTest extends AnyFunSuite {
             _ <- ag.meter("a", _.withUnit(_.MEGABYTES)).evalMap(_.update(1))
           } yield ()
 
-          m.surround(ag.metrics.report >> IO.sleep(10.hours))
+          m.surround(agent.adhoc.report >> IO.sleep(10.hours))
         }
         .map(checkJson)
         .compile

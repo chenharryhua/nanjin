@@ -1,11 +1,12 @@
-package com.github.chenharryhua.nanjin.guard.action
+package com.github.chenharryhua.nanjin.guard.metrics
 
 import cats.effect.implicits.genTemporalOps
 import cats.effect.kernel.{Async, Resource}
 import cats.effect.std.Dispatcher
 import cats.syntax.all.*
 import com.codahale.metrics.{Gauge, MetricRegistry}
-import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy}
+import com.github.chenharryhua.nanjin.common.EnableConfig
+import com.github.chenharryhua.nanjin.common.chrono.{Policy, tickStream}
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.config.CategoryKind.GaugeKind
 import io.circe.syntax.EncoderOps
@@ -68,39 +69,26 @@ private class NJGaugeImpl[F[_]: Async](
 }
 
 object NJGauge {
+  def dummy[F[_]]: NJGauge[F] =
+    new NJGauge[F] {
+      override def register[A: Encoder](value: F[A]): Resource[F, Unit] =
+        Resource.unit[F]
+      override def register[A: Encoder](value: F[A], policy: Policy, zoneId: ZoneId): Resource[F, Unit] =
+        Resource.unit[F]
+    }
 
-  final class Builder private[guard] (
-    measurement: Measurement,
-    timeout: FiniteDuration,
-    isEnabled: Boolean,
-    tag: MetricTag)
-      extends MetricBuilder[Builder] {
+  final class Builder private[guard] (isEnabled: Boolean, metricName: MetricName, timeout: FiniteDuration)
+      extends EnableConfig[Builder] {
 
     def withTimeout(timeout: FiniteDuration): Builder =
-      new Builder(measurement, timeout, isEnabled, tag)
-
-    override def withMeasurement(measurement: String): Builder =
-      new Builder(Measurement(measurement), timeout, isEnabled, tag)
+      new Builder(isEnabled, metricName, timeout)
 
     override def enable(value: Boolean): Builder =
-      new Builder(measurement, timeout, value, tag)
+      new Builder(value, metricName, timeout)
 
-    override def withTag(tag: String): Builder =
-      new Builder(measurement, timeout, isEnabled, MetricTag(tag))
-
-    private[guard] def build[F[_]: Async](
-      name: String,
-      metricRegistry: MetricRegistry,
-      serviceParams: ServiceParams): NJGauge[F] =
+    private[guard] def build[F[_]: Async](tag: MetricTag, metricRegistry: MetricRegistry): NJGauge[F] =
       if (isEnabled) {
-        val metricName = MetricName(serviceParams, measurement, name)
         new NJGaugeImpl[F](metricName, metricRegistry, timeout, tag)
-      } else
-        new NJGauge[F] {
-          override def register[A: Encoder](value: F[A]): Resource[F, Unit] =
-            Resource.unit[F]
-          override def register[A: Encoder](value: F[A], policy: Policy, zoneId: ZoneId): Resource[F, Unit] =
-            Resource.unit[F]
-        }
+      } else dummy[F]
   }
 }

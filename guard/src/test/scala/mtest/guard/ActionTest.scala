@@ -18,9 +18,10 @@ class ActionTest extends AnyFunSuite {
 
   test("kleisli") {
     val name = "kleisli"
-    service.eventStream { ga =>
+    service.eventStream { agent =>
+      val ga = agent.metrics(name)
       val calc = for {
-        action <- ga.action(name).retry((i: Int) => IO(i.toLong)).buildWith(identity)
+        action <- agent.action(name).retry((i: Int) => IO(i.toLong)).buildWith(identity)
         meter <- ga.meter(name)
         histogram <- ga.histogram(name)
         counter <- ga.counter(name)
@@ -30,7 +31,7 @@ class ActionTest extends AnyFunSuite {
         _ <- histogram.kleisli((_: Int) => out)
         _ <- counter.kleisli((_: Int) => out)
       } yield out
-      calc.use(_.run(10).replicateA(10) >> ga.metrics.report)
+      calc.use(_.run(10).replicateA(10) >> agent.adhoc.report)
     }.map(checkJson).evalTap(console.text[IO]).compile.drain.unsafeRunSync()
   }
 
@@ -70,10 +71,11 @@ class ActionTest extends AnyFunSuite {
         act <- ga.action("timed", _.timed).retry(IO(1).timed).buildWith(identity)
       } yield act
 
+
       val num = 1_000_000
-      r1.use(_.run(()).replicateA_(num) >> ga.metrics.report) &>
-        r2.use(_.run(()).replicateA_(num) >> ga.metrics.report) &>
-        r3.use(_.run(()).replicateA_(num) >> ga.metrics.report)
+      r1.use(_.run(()).replicateA_(num) >> ga.adhoc.report) &>
+        r2.use(_.run(()).replicateA_(num) >> ga.adhoc.report) &>
+        r3.use(_.run(()).replicateA_(num) >> ga.adhoc.report)
     }.map(checkJson).evalTap(console.text[IO]).compile.drain.unsafeRunSync()
   }
 
