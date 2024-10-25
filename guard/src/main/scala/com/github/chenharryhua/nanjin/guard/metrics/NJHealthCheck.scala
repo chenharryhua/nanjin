@@ -6,7 +6,7 @@ import cats.effect.std.Dispatcher
 import cats.syntax.all.*
 import com.codahale.metrics.{Gauge, MetricRegistry}
 import com.github.chenharryhua.nanjin.common.EnableConfig
-import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy}
+import com.github.chenharryhua.nanjin.common.chrono.{Policy, tickStream}
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.config.CategoryKind.GaugeKind
 
@@ -64,6 +64,13 @@ private class NJHealthCheckImpl[F[_]: Async](
 }
 
 object NJHealthCheck {
+  def dummy[F[_]]: NJHealthCheck[F] =
+    new NJHealthCheck[F] {
+      override def register(hc: F[Boolean]): Resource[F, Unit] =
+        Resource.unit[F]
+      override def register(hc: F[Boolean], policy: Policy, zoneId: ZoneId): Resource[F, Unit] =
+        Resource.unit[F]
+    }
 
   final class Builder private[guard] (isEnabled: Boolean, metricName: MetricName, timeout: FiniteDuration)
       extends EnableConfig[Builder] {
@@ -77,13 +84,6 @@ object NJHealthCheck {
     private[guard] def build[F[_]: Async](tag: String, metricRegistry: MetricRegistry): NJHealthCheck[F] =
       if (isEnabled) {
         new NJHealthCheckImpl[F](metricName, metricRegistry, timeout, MetricTag(tag))
-      } else {
-        new NJHealthCheck[F] {
-          override def register(hc: F[Boolean]): Resource[F, Unit] =
-            Resource.unit[F]
-          override def register(hc: F[Boolean], policy: Policy, zoneId: ZoneId): Resource[F, Unit] =
-            Resource.unit[F]
-        }
-      }
+      } else dummy[F]
   }
 }

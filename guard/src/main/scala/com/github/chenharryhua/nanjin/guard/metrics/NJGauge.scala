@@ -6,7 +6,7 @@ import cats.effect.std.Dispatcher
 import cats.syntax.all.*
 import com.codahale.metrics.{Gauge, MetricRegistry}
 import com.github.chenharryhua.nanjin.common.EnableConfig
-import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy}
+import com.github.chenharryhua.nanjin.common.chrono.{Policy, tickStream}
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.config.CategoryKind.GaugeKind
 import io.circe.syntax.EncoderOps
@@ -69,6 +69,13 @@ private class NJGaugeImpl[F[_]: Async](
 }
 
 object NJGauge {
+  def dummy[F[_]]: NJGauge[F] =
+    new NJGauge[F] {
+      override def register[A: Encoder](value: F[A]): Resource[F, Unit] =
+        Resource.unit[F]
+      override def register[A: Encoder](value: F[A], policy: Policy, zoneId: ZoneId): Resource[F, Unit] =
+        Resource.unit[F]
+    }
 
   final class Builder private[guard] (isEnabled: Boolean, metricName: MetricName, timeout: FiniteDuration)
       extends EnableConfig[Builder] {
@@ -82,12 +89,6 @@ object NJGauge {
     private[guard] def build[F[_]: Async](tag: MetricTag, metricRegistry: MetricRegistry): NJGauge[F] =
       if (isEnabled) {
         new NJGaugeImpl[F](metricName, metricRegistry, timeout, tag)
-      } else
-        new NJGauge[F] {
-          override def register[A: Encoder](value: F[A]): Resource[F, Unit] =
-            Resource.unit[F]
-          override def register[A: Encoder](value: F[A], policy: Policy, zoneId: ZoneId): Resource[F, Unit] =
-            Resource.unit[F]
-        }
+      } else dummy[F]
   }
 }
