@@ -7,12 +7,11 @@ import com.github.chenharryhua.nanjin.common.chrono.*
 import com.github.chenharryhua.nanjin.guard.action.*
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.event.*
-import com.github.chenharryhua.nanjin.guard.metrics.{NJGauge, NJMetrics, NJRatio}
+import com.github.chenharryhua.nanjin.guard.metrics.NJMetrics
 import fs2.Stream
 import fs2.concurrent.Channel
 
 import java.time.{Instant, ZoneId, ZonedDateTime}
-import scala.concurrent.duration.DurationInt
 
 sealed trait Agent[F[_]] {
   // date-time
@@ -21,7 +20,7 @@ sealed trait Agent[F[_]] {
   def toZonedDateTime(ts: Instant): ZonedDateTime
 
   def withMeasurement(name: String): Agent[F]
-  def enable(value: Boolean): Agent[F]
+  def enable(isEnabled: Boolean): Agent[F]
 
   // actions
   def action(actionName: String, f: Endo[NJAction.Builder]): NJAction[F]
@@ -59,8 +58,8 @@ final private class GeneralAgent[F[_]: Async] private[service] (
   override def withMeasurement(name: String): Agent[F] =
     new GeneralAgent[F](serviceParams, metricRegistry, channel, Measurement(name), isEnabled)
 
-  override def enable(value: Boolean): Agent[F] =
-    new GeneralAgent[F](serviceParams, metricRegistry, channel, measurement, value)
+  override def enable(isEnabled: Boolean): Agent[F] =
+    new GeneralAgent[F](serviceParams, metricRegistry, channel, measurement, isEnabled)
 
   override def action(actionName: String, f: Endo[NJAction.Builder]): NJAction[F] =
     new NJAction[F](
@@ -76,18 +75,7 @@ final private class GeneralAgent[F[_]: Async] private[service] (
     )
 
   override def batch(name: String, f: Endo[NJAction.Builder]): NJBatch[F] =
-    new NJBatch[F](
-      metricRegistry = metricRegistry,
-      action = action(name, f),
-      ratioBuilder = new NJRatio.Builder(
-        metricName = MetricName(serviceParams, measurement, name),
-        translator = NJRatio.translator,
-        isEnabled = isEnabled),
-      gaugeBuilder = new NJGauge.Builder(
-        metricName = MetricName(serviceParams, measurement, name),
-        timeout = 5.seconds,
-        isEnabled = isEnabled)
-    )
+    new NJBatch[F](action(name, f), metrics(name, identity))
 
   override def alert(alertName: String, f: Endo[NJAlert.Builder]): Resource[F, NJAlert[F]] = {
     val init = new NJAlert.Builder(isEnabled, measurement, false)
@@ -101,6 +89,6 @@ final private class GeneralAgent[F[_]: Async] private[service] (
 
   override def metrics(name: String, f: Endo[NJMetrics.Builder]): NJMetrics[F] = {
     val metricName = MetricName(serviceParams, measurement, name)
-    f(new NJMetrics.Builder(isEnabled, metricName)).build[F](metricRegistry)
+    f(new NJMetrics.Builder(isEnabled)).build[F](metricRegistry, metricName)
   }
 }

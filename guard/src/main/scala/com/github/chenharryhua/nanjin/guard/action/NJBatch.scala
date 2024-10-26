@@ -3,10 +3,7 @@ import cats.Endo
 import cats.data.Ior
 import cats.effect.kernel.{Async, Resource}
 import cats.syntax.all.*
-import com.codahale.metrics.MetricRegistry
-import com.github.chenharryhua.nanjin.guard.config.MetricTag
-import com.github.chenharryhua.nanjin.guard.metrics.{NJGauge, NJRatio}
-import com.github.chenharryhua.nanjin.guard.translator.fmt
+import com.github.chenharryhua.nanjin.guard.metrics.{NJMetrics, NJRatio}
 import io.circe.Json
 import io.circe.syntax.EncoderOps
 
@@ -15,10 +12,8 @@ import scala.jdk.DurationConverters.ScalaDurationOps
 
 object BatchRunner {
   sealed abstract class Runner[F[_]: Async, A](
-    metricRegistry: MetricRegistry,
     action: NJAction[F],
-    ratioBuilder: NJRatio.Builder,
-    gaugeBuilder: NJGauge.Builder
+    metrics: NJMetrics[F]
   ) {
     protected[this] val F: Async[F] = Async[F]
 
@@ -46,35 +41,25 @@ object BatchRunner {
         }
     }
 
-    protected[this] val ratio: Resource[F, NJRatio[F]] =
-      for {
-        kickoff <- Resource.eval(F.monotonic)
-        _ <- gaugeBuilder
-          .enable(action.actionParams.isEnabled)
-          .build[F](MetricTag("elapsed"), metricRegistry)
-          .register(F.monotonic.map(now => Json.fromString(fmt.format(now - kickoff))))
-        rat <- ratioBuilder
-          .enable(action.actionParams.isEnabled)
-          .withTranslator(translator)
-          .build(MetricTag("ratio"), metricRegistry)
-      } yield rat
+    protected[this] val ratioGauge: Resource[F, NJRatio[F]] =
+      metrics.activeGauge("elapsed", _.enable(action.actionParams.isEnabled)) >>
+        metrics.ratio("ratio", _.enable(action.actionParams.isEnabled).withTranslator(translator))
+
   }
 
   final class Parallel[F[_]: Async, A] private[action] (
-    metricRegistry: MetricRegistry,
     action: NJAction[F],
-    ratioBuilder: NJRatio.Builder,
-    gaugeBuilder: NJGauge.Builder,
+    metrics: NJMetrics[F],
     parallelism: Int,
     jobs: List[(Option[BatchJobName], F[A])])
-      extends Runner[F, A](metricRegistry, action, ratioBuilder, gaugeBuilder) {
+      extends Runner[F, A](action, metrics) {
 
     def quasi(f: A => Json): F[QuasiResult] = {
       val batchJobs: List[(BatchJob, F[A])] = jobs.zipWithIndex.map { case ((name, fa), idx) =>
         BatchJob(BatchKind.Quasi, BatchMode.Parallel(parallelism), name, idx, jobs.size) -> fa
       }
       val exec: Resource[F, F[QuasiResult]] = for {
-        rat <- ratio.evalTap(_.incDenominator(batchJobs.size.toLong))
+        rat <- ratioGauge.evalTap(_.incDenominator(batchJobs.size.toLong))
         act <- action.retry((_: BatchJob, fa: F[A]) => fa).buildWith(tap(f))
       } yield F
         .timed(F.parTraverseN(parallelism)(batchJobs) { case (job, fa) =>
@@ -101,7 +86,7 @@ object BatchRunner {
       }
 
       val exec: Resource[F, F[List[A]]] = for {
-        rat <- ratio.evalTap(_.incDenominator(batchJobs.size.toLong))
+        rat <- ratioGauge.evalTap(_.incDenominator(batchJobs.size.toLong))
         act <- action.retry((_: BatchJob, fa: F[A]) => fa).buildWith(tap(f))
       } yield F.parTraverseN(parallelism)(batchJobs) { case (job, fa) =>
         act.run((job, fa)).flatTap(_ => rat.incNumerator(1))
@@ -114,12 +99,10 @@ object BatchRunner {
   }
 
   final class Sequential[F[_]: Async, A] private[action] (
-    metricRegistry: MetricRegistry,
     action: NJAction[F],
-    ratioBuilder: NJRatio.Builder,
-    gaugeBuilder: NJGauge.Builder,
+    metrics: NJMetrics[F],
     jobs: List[(Option[BatchJobName], F[A])])
-      extends Runner[F, A](metricRegistry, action, ratioBuilder, gaugeBuilder) {
+      extends Runner[F, A](action, metrics) {
 
     def quasi(f: A => Json): F[QuasiResult] = {
       val batchJobs: List[(BatchJob, F[A])] = jobs.zipWithIndex.map { case ((name, fa), idx) =>
@@ -127,7 +110,7 @@ object BatchRunner {
       }
 
       val exec: Resource[F, F[QuasiResult]] = for {
-        rat <- ratio.evalTap(_.incDenominator(batchJobs.size.toLong))
+        rat <- ratioGauge.evalTap(_.incDenominator(batchJobs.size.toLong))
         act <- action.retry((_: BatchJob, fa: F[A]) => fa).buildWith(tap(f))
       } yield batchJobs.traverse { case (job, fa) =>
         F.timed(act.run((job, fa)).attempt)
@@ -152,7 +135,7 @@ object BatchRunner {
       }
 
       val exec: Resource[F, F[List[A]]] = for {
-        rat <- ratio.evalTap(_.incDenominator(batchJobs.size.toLong))
+        rat <- ratioGauge.evalTap(_.incDenominator(batchJobs.size.toLong))
         act <- action.retry((_: BatchJob, fa: F[A]) => fa).buildWith(tap(f))
       } yield batchJobs.traverse { case (job, fa) =>
         act.run((job, fa)).flatTap(_ => rat.incNumerator(1))
@@ -166,26 +149,24 @@ object BatchRunner {
 }
 
 final class NJBatch[F[_]: Async] private[guard] (
-  metricRegistry: MetricRegistry,
   action: NJAction[F],
-  ratioBuilder: NJRatio.Builder,
-  gaugeBuilder: NJGauge.Builder
+  metrics: NJMetrics[F]
 ) {
   def sequential[A](fas: F[A]*): BatchRunner.Sequential[F, A] = {
     val jobs: List[(Option[BatchJobName], F[A])] = fas.toList.map(none -> _)
-    new BatchRunner.Sequential[F, A](metricRegistry, action, ratioBuilder, gaugeBuilder, jobs)
+    new BatchRunner.Sequential[F, A](action, metrics, jobs)
   }
 
   def namedSequential[A](fas: (String, F[A])*): BatchRunner.Sequential[F, A] = {
     val jobs: List[(Option[BatchJobName], F[A])] = fas.toList.map { case (name, fa) =>
       BatchJobName(name).some -> fa
     }
-    new BatchRunner.Sequential[F, A](metricRegistry, action, ratioBuilder, gaugeBuilder, jobs)
+    new BatchRunner.Sequential[F, A](action, metrics, jobs)
   }
 
   def parallel[A](parallelism: Int)(fas: F[A]*): BatchRunner.Parallel[F, A] = {
     val jobs: List[(Option[BatchJobName], F[A])] = fas.toList.map(none -> _)
-    new BatchRunner.Parallel[F, A](metricRegistry, action, ratioBuilder, gaugeBuilder, parallelism, jobs)
+    new BatchRunner.Parallel[F, A](action, metrics, parallelism, jobs)
   }
 
   def parallel[A](fas: F[A]*): BatchRunner.Parallel[F, A] =
@@ -195,7 +176,7 @@ final class NJBatch[F[_]: Async] private[guard] (
     val jobs: List[(Option[BatchJobName], F[A])] = fas.toList.map { case (name, fa) =>
       BatchJobName(name).some -> fa
     }
-    new BatchRunner.Parallel[F, A](metricRegistry, action, ratioBuilder, gaugeBuilder, parallelism, jobs)
+    new BatchRunner.Parallel[F, A](action, metrics, parallelism, jobs)
   }
 
   def namedParallel[A](fas: (String, F[A])*): BatchRunner.Parallel[F, A] =

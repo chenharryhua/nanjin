@@ -31,13 +31,14 @@ object kafka_connector_s3 {
 
   private def logMetrics(mtx: NJMetrics[IO]): Resource[IO, Kleisli[IO, CCR, Unit]] =
     for {
-      meter <- mtx.meter("rate", _.withUnit(_.COUNT).enable(true))
+      countRate <- mtx.meter("count.rate", _.withUnit(_.COUNT).enable(true))
+      byteRate <- mtx.meter("byte.rate", _.withUnit(_.BYTES))
       keySize <- mtx.histogram("key.size", _.withUnit(_.BYTES).enable(true))
       valSize <- mtx.histogram("val.size", _.withUnit(_.BITS).enable(true))
     } yield Kleisli { (ccr: CCR) =>
-      ccr.record.serializedKeySize.map(_.toLong).traverse(keySize.update) *>
-        ccr.record.serializedValueSize.map(_.toLong).traverse(valSize.update) *>
-        meter.update(1)
+      val ks = ccr.record.serializedKeySize.map(_.toLong).getOrElse(0)
+      val vs = ccr.record.serializedValueSize.map(_.toLong).getOrElse(0)
+      keySize.update(ks) *> valSize.update(vs) *> byteRate.update(ks + vs) *> countRate.update(1)
     }
 
   private def decoder(agent: Agent[IO]): Resource[IO, Kleisli[IO, CCR, String]] = {

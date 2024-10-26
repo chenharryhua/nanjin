@@ -7,5 +7,5 @@ trait UpdateConfig[A, B] {
 }
 
 trait EnableConfig[A] {
-  def enable(value: Boolean): A
+  def enable(isEnabled: Boolean): A
 }

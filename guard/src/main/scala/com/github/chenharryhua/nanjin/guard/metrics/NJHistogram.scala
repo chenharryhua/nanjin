@@ -11,7 +11,6 @@ import com.github.chenharryhua.nanjin.guard.config.CategoryKind.HistogramKind
 import com.github.chenharryhua.nanjin.guard.event.{MeasurementUnit, NJUnits}
 
 sealed trait NJHistogram[F[_]] {
-  def unsafeUpdate(num: Long): Unit
   def update(num: Long): F[Unit]
   final def kleisli[A](f: A => Long): Kleisli[F, A, Unit] =
     Kleisli(update).local(f)
@@ -29,7 +28,7 @@ private class NJHistogramImpl[F[_]: Sync](
   private[this] val F = Sync[F]
 
   private[this] val histogram_name: String =
-    MetricID(name, Category.Histogram(HistogramKind.Histogram, tag, unit), token).identifier
+    MetricID(name, tag, Category.Histogram(HistogramKind.Histogram, unit), token).identifier
 
   private[this] val supplier: MetricRegistry.MetricSupplier[Histogram] = () =>
     reservoir match {
@@ -40,8 +39,7 @@ private class NJHistogramImpl[F[_]: Sync](
   private[this] lazy val histogram: Histogram =
     metricRegistry.histogram(histogram_name, supplier)
 
-  override def unsafeUpdate(num: Long): Unit = histogram.update(num)
-  override def update(num: Long): F[Unit]    = F.delay(histogram.update(num))
+  override def update(num: Long): F[Unit] = F.delay(histogram.update(num))
 
   val unregister: F[Unit] = F.delay(metricRegistry.remove(histogram_name)).void
 }
@@ -49,28 +47,23 @@ private class NJHistogramImpl[F[_]: Sync](
 object NJHistogram {
   def dummy[F[_]](implicit F: Applicative[F]): NJHistogram[F] =
     new NJHistogram[F] {
-      override def unsafeUpdate(num: Long): Unit = ()
-      override def update(num: Long): F[Unit]    = F.unit
+      override def update(num: Long): F[Unit] = F.unit
     }
 
-  final class Builder private[guard] (
-    isEnabled: Boolean,
-    metricName: MetricName,
-    unit: MeasurementUnit,
-    reservoir: Option[Reservoir])
+  final class Builder private[guard] (isEnabled: Boolean, unit: MeasurementUnit, reservoir: Option[Reservoir])
       extends EnableConfig[Builder] {
 
     def withUnit(f: NJUnits.type => MeasurementUnit): Builder =
-      new Builder(isEnabled, metricName, f(NJUnits), reservoir)
+      new Builder(isEnabled, f(NJUnits), reservoir)
 
     def withReservoir(reservoir: Reservoir): Builder =
-      new Builder(isEnabled, metricName, unit, Some(reservoir))
+      new Builder(isEnabled, unit, Some(reservoir))
 
-    override def enable(value: Boolean): Builder =
-      new Builder(value, metricName, unit, reservoir)
+    override def enable(isEnabled: Boolean): Builder =
+      new Builder(isEnabled, unit, reservoir)
 
-    private[guard] def build[F[_]](tag: MetricTag, metricRegistry: MetricRegistry)(implicit
-      F: Sync[F]): Resource[F, NJHistogram[F]] =
+    private[guard] def build[F[_]](metricName: MetricName, tag: MetricTag, metricRegistry: MetricRegistry)(
+      implicit F: Sync[F]): Resource[F, NJHistogram[F]] =
       if (isEnabled) {
         Resource.make(
           F.unique.map(token =>

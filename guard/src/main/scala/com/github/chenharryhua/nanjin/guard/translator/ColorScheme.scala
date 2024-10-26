@@ -33,7 +33,7 @@ object ColorScheme extends CatsOrderValueEnum[Int, ColorScheme] with IntEnum[Col
     val counter_color: ColorScheme =
       ss.counters
         .filter(_.count > 0)
-        .collect(_.metricId.category match { case Category.Counter(kind, _) => kind })
+        .collect(_.metricId.category match { case Category.Counter(kind) => kind })
         .map {
           case CounterKind.ActionFail => WarnColor
           case CounterKind.AlertError => WarnColor

@@ -78,17 +78,17 @@ object NJRatio {
 
   final class Builder private[guard] (
     isEnabled: Boolean,
-    metricName: MetricName,
     translator: Ior[Long, Long] => Json
   ) extends EnableConfig[Builder] {
 
     def withTranslator(translator: Ior[Long, Long] => Json) =
-      new Builder(isEnabled, metricName, translator)
+      new Builder(isEnabled, translator)
 
-    override def enable(value: Boolean): Builder =
-      new Builder(value, metricName, translator)
+    override def enable(isEnabled: Boolean): Builder =
+      new Builder(isEnabled, translator)
 
     private[guard] def build[F[_]: Async](
+      metricName: MetricName,
       tag: MetricTag,
       metricRegistry: MetricRegistry): Resource[F, NJRatio[F]] = {
 
@@ -96,7 +96,7 @@ object NJRatio {
 
       val impl: Resource[F, NJRatio[F]] = for {
         token <- Resource.eval(F.unique)
-        metricID = MetricID(metricName, Category.Gauge(GaugeKind.Gauge, tag), token).identifier
+        metricID = MetricID(metricName, tag, Category.Gauge(GaugeKind.Ratio), token).identifier
         ref <- Resource.eval(F.ref(Ior.both(0L, 0L)))
         dispatcher <- Dispatcher.sequential[F]
         _ <- Resource.make(F.delay {

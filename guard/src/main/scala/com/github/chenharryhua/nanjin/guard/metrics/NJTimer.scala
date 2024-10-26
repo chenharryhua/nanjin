@@ -16,7 +16,6 @@ import scala.jdk.DurationConverters.ScalaDurationOps
 
 sealed trait NJTimer[F[_]] {
   def update(fd: FiniteDuration): F[Unit]
-  def unsafeUpdate(fd: FiniteDuration): Unit
 
   def timing[A](fa: F[A]): F[A]
 
@@ -35,7 +34,7 @@ private class NJTimerImpl[F[_]: Sync](
   private[this] val F = Sync[F]
 
   private[this] val timer_name: String =
-    MetricID(name, Category.Timer(TimerKind.Timer, tag), token).identifier
+    MetricID(name, tag, Category.Timer(TimerKind.Timer), token).identifier
 
   private[this] val supplier: MetricRegistry.MetricSupplier[Timer] = () =>
     reservoir match {
@@ -53,36 +52,30 @@ private class NJTimerImpl[F[_]: Sync](
 
   override def update(fd: FiniteDuration): F[Unit] = F.delay(calculate(fd.toJava))
 
-  override def unsafeUpdate(fd: FiniteDuration): Unit = calculate(fd.toJava)
-
-  val unregister: F[Unit] = F.delay {
-    metricRegistry.remove(timer_name)
-  }.void
+  val unregister: F[Unit] = F.delay(metricRegistry.remove(timer_name)).void
 }
 
 object NJTimer {
   def dummy[F[_]](implicit F: Applicative[F]): NJTimer[F] =
     new NJTimer[F] {
-      override def update(fd: FiniteDuration): F[Unit]    = F.unit
-      override def unsafeUpdate(fd: FiniteDuration): Unit = ()
+      override def update(fd: FiniteDuration): F[Unit] = F.unit
 
       override def timing[A](fa: F[A]): F[A] = fa
     }
 
   final class Builder private[guard] (
     isEnabled: Boolean,
-    metricName: MetricName,
     reservoir: Option[Reservoir]
   ) extends EnableConfig[Builder] {
 
     def withReservoir(reservoir: Reservoir): Builder =
-      new Builder(isEnabled, metricName, Some(reservoir))
+      new Builder(isEnabled, Some(reservoir))
 
-    override def enable(value: Boolean): Builder =
-      new Builder(value, metricName, reservoir)
+    override def enable(isEnabled: Boolean): Builder =
+      new Builder(isEnabled, reservoir)
 
-    private[guard] def build[F[_]](tag: MetricTag, metricRegistry: MetricRegistry)(implicit
-      F: Sync[F]): Resource[F, NJTimer[F]] =
+    private[guard] def build[F[_]](metricName: MetricName, tag: MetricTag, metricRegistry: MetricRegistry)(
+      implicit F: Sync[F]): Resource[F, NJTimer[F]] =
       if (isEnabled) {
         Resource.make(
           F.unique.map(token =>
