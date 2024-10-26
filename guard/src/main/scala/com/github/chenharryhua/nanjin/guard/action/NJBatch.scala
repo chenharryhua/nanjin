@@ -15,11 +15,11 @@ object BatchRunner {
     action: NJAction[F],
     metrics: NJMetrics[F]
   ) {
-    protected[this] val F: Async[F] = Async[F]
+    protected val F: Async[F] = Async[F]
 
-    protected[this] val nullTransform: A => Json = _ => Json.Null
+    protected val nullTransform: A => Json = _ => Json.Null
 
-    protected[this] def tap(f: A => Json): Endo[BuildWith.Builder[F, (BatchJob, F[A]), A]] =
+    protected def tap(f: A => Json): Endo[BuildWith.Builder[F, (BatchJob, F[A]), A]] =
       _.tapInput { case (job, _) =>
         job.asJson
       }.tapOutput { case ((job, _), out) =>
@@ -28,7 +28,7 @@ object BatchRunner {
         job.asJson
       }
 
-    private[this] val translator: Ior[Long, Long] => Json = {
+    private val translator: Ior[Long, Long] => Json = {
       case Ior.Left(a)  => Json.fromString(s"$a/0")
       case Ior.Right(b) => Json.fromString(s"0/$b")
       case Ior.Both(a, b) =>
@@ -41,7 +41,7 @@ object BatchRunner {
         }
     }
 
-    protected[this] val ratioGauge: Resource[F, NJRatio[F]] =
+    protected val ratioGauge: Resource[F, NJRatio[F]] =
       metrics.activeGauge("elapsed", _.enable(action.actionParams.isEnabled)) >>
         metrics.ratio("completion", _.enable(action.actionParams.isEnabled).withTranslator(translator))
 
