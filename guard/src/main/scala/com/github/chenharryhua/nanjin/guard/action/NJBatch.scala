@@ -43,8 +43,12 @@ object BatchRunner {
 
     protected[this] val ratioGauge: Resource[F, NJRatio[F]] =
       metrics.activeGauge("elapsed", _.enable(action.actionParams.isEnabled)) >>
-        metrics.ratio("ratio", _.enable(action.actionParams.isEnabled).withTranslator(translator))
+        metrics.ratio("completion", _.enable(action.actionParams.isEnabled).withTranslator(translator))
 
+    protected def jobTag(job: BatchJob): String = {
+      val lead = s"job-${job.index + 1}"
+      job.name.fold(lead)(n => s"$lead (${n.value})")
+    }
   }
 
   final class Parallel[F[_]: Async, A] private[action] (
@@ -113,9 +117,12 @@ object BatchRunner {
         rat <- ratioGauge.evalTap(_.incDenominator(batchJobs.size.toLong))
         act <- action.retry((_: BatchJob, fa: F[A]) => fa).buildWith(tap(f))
       } yield batchJobs.traverse { case (job, fa) =>
-        F.timed(act.run((job, fa)).attempt)
-          .map { case (fd, result) => Detail(job, fd.toJava, result.isRight) }
-          .flatTap(_ => rat.incNumerator(1))
+        metrics
+          .activeGauge(jobTag(job))
+          .surround(
+            F.timed(act.run((job, fa)).attempt)
+              .map { case (fd, result) => Detail(job, fd.toJava, result.isRight) }
+              .flatTap(_ => rat.incNumerator(1)))
       }.map(details =>
         QuasiResult(
           name = action.actionParams.actionName,
@@ -138,7 +145,7 @@ object BatchRunner {
         rat <- ratioGauge.evalTap(_.incDenominator(batchJobs.size.toLong))
         act <- action.retry((_: BatchJob, fa: F[A]) => fa).buildWith(tap(f))
       } yield batchJobs.traverse { case (job, fa) =>
-        act.run((job, fa)).flatTap(_ => rat.incNumerator(1))
+        metrics.activeGauge(jobTag(job)).surround(act.run((job, fa)).flatTap(_ => rat.incNumerator(1)))
       }
 
       exec.use(identity)

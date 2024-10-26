@@ -3,7 +3,6 @@ package example
 import cats.data.Kleisli
 import cats.effect.IO
 import cats.effect.kernel.Resource
-import cats.implicits.toTraverseOps
 import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.guard.metrics.NJMetrics
 import com.github.chenharryhua.nanjin.guard.observers.console
@@ -36,8 +35,8 @@ object kafka_connector_s3 {
       keySize <- mtx.histogram("key.size", _.withUnit(_.BYTES).enable(true))
       valSize <- mtx.histogram("val.size", _.withUnit(_.BITS).enable(true))
     } yield Kleisli { (ccr: CCR) =>
-      val ks = ccr.record.serializedKeySize.map(_.toLong).getOrElse(0)
-      val vs = ccr.record.serializedValueSize.map(_.toLong).getOrElse(0)
+      val ks: Long = ccr.record.serializedKeySize.map(_.toLong).getOrElse(0L)
+      val vs: Long = ccr.record.serializedValueSize.map(_.toLong).getOrElse(0L)
       keySize.update(ks) *> valSize.update(vs) *> byteRate.update(ks + vs) *> countRate.update(1)
     }
 

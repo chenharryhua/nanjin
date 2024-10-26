@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.metrics
 
-import cats.Endo
+import cats.{Applicative, Endo}
 import cats.data.Kleisli
 import cats.effect.kernel.{Async, Resource}
 import cats.syntax.all.*
@@ -11,7 +11,7 @@ import com.github.chenharryhua.nanjin.guard.event.NJUnits
 
 import scala.concurrent.duration.DurationInt
 
-trait NJMetrics[F[_]] {
+sealed trait NJMetrics[F[_]] {
   def counter(tag: String, f: Endo[NJCounter.Builder]): Resource[F, NJCounter[F]]
   final def counter(tag: String): Resource[F, NJCounter[F]] = counter(tag, identity)
 
@@ -45,6 +45,35 @@ trait NJMetrics[F[_]] {
 }
 
 object NJMetrics {
+  def dummy[F[_]](implicit F: Applicative[F]): NJMetrics[F] = new NJMetrics[F] {
+    override def counter(tag: String, f: Endo[NJCounter.Builder]): Resource[F, NJCounter[F]] =
+      Resource.pure(NJCounter.dummy[F])
+
+    override def meter(tag: String, f: Endo[NJMeter.Builder]): Resource[F, NJMeter[F]] =
+      Resource.pure(NJMeter.dummy[F])
+
+    override def histogram(tag: String, f: Endo[NJHistogram.Builder]): Resource[F, NJHistogram[F]] =
+      Resource.pure(NJHistogram.dummy[F])
+
+    override def timer(tag: String, f: Endo[NJTimer.Builder]): Resource[F, NJTimer[F]] =
+      Resource.pure(NJTimer.dummy[F])
+
+    override def ratio(tag: String, f: Endo[NJRatio.Builder]): Resource[F, NJRatio[F]] =
+      Resource.pure(NJRatio.dummy[F])
+
+    override def healthCheck(tag: String, f: Endo[NJHealthCheck.Builder]): NJHealthCheck[F] =
+      NJHealthCheck.dummy[F]
+
+    override def gauge(tag: String, f: Endo[NJGauge.Builder]): NJGauge[F] =
+      NJGauge.dummy[F]
+
+    override def idleGauge(tag: String, f: Endo[NJGauge.Builder]): Resource[F, Kleisli[F, Unit, Unit]] =
+      Resource.pure(Kleisli((_: Unit) => F.unit))
+
+    override def activeGauge(tag: String, f: Endo[NJGauge.Builder]): Resource[F, Unit] =
+      Resource.unit
+  }
+
   private class NJMetricsImpl[F[_]](
     metricRegistry: MetricRegistry,
     metricName: MetricName,
