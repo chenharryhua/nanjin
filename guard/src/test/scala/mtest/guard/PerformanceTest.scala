@@ -141,8 +141,6 @@ class PerformanceTest extends AnyFunSuite {
     println(speed(i))
   }
 
-
-
   test("unipartite.time.count") {
     print("unipartite.time.count: ")
     var i: Int = 0
@@ -190,7 +188,6 @@ class PerformanceTest extends AnyFunSuite {
     }.compile.drain.unsafeRunSync()
     println(speed(i))
   }
-
 
   test("silent.time.count") {
     print("silent.time.count: ")
@@ -240,8 +237,6 @@ class PerformanceTest extends AnyFunSuite {
     println(speed(i))
   }
 
-
-
   test("meter") {
     var i = 0
     print("meter:            ")
@@ -255,7 +250,9 @@ class PerformanceTest extends AnyFunSuite {
     var i = 0
     print("histogram:        ")
     service.eventStream { ag =>
-      ag.metrics("histogram").histogram("histogram").use(_.update(1).map(_ => i += 1).foreverM.timeout(take).attempt)
+      ag.metrics("histogram")
+        .histogram("histogram")
+        .use(_.update(1).map(_ => i += 1).foreverM.timeout(take).attempt)
     }.compile.drain.unsafeRunSync()
     println(speed(i))
   }
@@ -264,7 +261,9 @@ class PerformanceTest extends AnyFunSuite {
     var i = 0
     print("timer:          ")
     service.eventStream { ag =>
-      ag.metrics("timer").timer("timer").use(_.update(1.seconds).map(_ => i += 1).foreverM.timeout(take).attempt)
+      ag.metrics("timer")
+        .timer("timer")
+        .use(_.update(1.seconds).map(_ => i += 1).foreverM.timeout(take).attempt)
     }.compile.drain.unsafeRunSync()
     println(speed(i))
   }

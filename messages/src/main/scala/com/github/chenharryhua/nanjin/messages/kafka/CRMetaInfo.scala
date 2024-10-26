@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.messages.kafka
 
+import cats.implicits.catsSyntaxSemigroup
 import fs2.kafka.{CommittableConsumerRecord, ConsumerRecord as Fs2ConsumerRecord}
 import io.circe.generic.JsonCodec
 import io.scalaland.chimney.dsl.*
@@ -13,7 +14,13 @@ final case class CRMetaInfo(
   partition: Int,
   offset: Long,
   timestamp: Long,
-  timestampType: Int) {
+  timestampType: Int,
+  serializedKeySize: Option[Int],
+  serializedValueSize: Option[Int]
+) {
+
+  def size: Option[Int] = serializedKeySize |+| serializedValueSize
+
   def localDateTime(zoneId: ZoneId): LocalDateTime =
     Instant.ofEpochMilli(timestamp).atZone(zoneId).toLocalDateTime
 
@@ -27,7 +34,7 @@ final case class CRMetaInfo(
 object CRMetaInfo {
 
   def apply[K, V](cr: NJConsumerRecord[K, V]): CRMetaInfo =
-    CRMetaInfo(cr.topic, cr.partition, cr.offset, cr.timestamp, cr.timestampType)
+    cr.transformInto[CRMetaInfo]
 
   def apply[K, V](fcr: Fs2ConsumerRecord[K, V]): CRMetaInfo =
     apply(fcr.transformInto[NJConsumerRecord[K, V]])

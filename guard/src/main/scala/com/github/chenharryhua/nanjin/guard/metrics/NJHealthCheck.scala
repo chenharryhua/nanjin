@@ -6,7 +6,7 @@ import cats.effect.std.Dispatcher
 import cats.syntax.all.*
 import com.codahale.metrics.{Gauge, MetricRegistry}
 import com.github.chenharryhua.nanjin.common.EnableConfig
-import com.github.chenharryhua.nanjin.common.chrono.{Policy, tickStream}
+import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy}
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.config.CategoryKind.GaugeKind
 
@@ -36,7 +36,7 @@ private class NJHealthCheckImpl[F[_]: Async](
   override def register(hc: F[Boolean]): Resource[F, Unit] =
     Dispatcher.sequential[F].flatMap { dispatcher =>
       Resource.eval(F.unique).flatMap { token =>
-        val metricID: MetricID = MetricID(name, Category.Gauge(GaugeKind.HealthCheck, tag), token)
+        val metricID: MetricID = MetricID(name, tag, Category.Gauge(GaugeKind.HealthCheck), token)
         Resource
           .make(F.delay {
             metricRegistry.gauge(
@@ -72,16 +72,19 @@ object NJHealthCheck {
         Resource.unit[F]
     }
 
-  final class Builder private[guard] (isEnabled: Boolean, metricName: MetricName, timeout: FiniteDuration)
+  final class Builder private[guard] (isEnabled: Boolean, timeout: FiniteDuration)
       extends EnableConfig[Builder] {
 
     def withTimeout(timeout: FiniteDuration): Builder =
-      new Builder(isEnabled, metricName, timeout)
+      new Builder(isEnabled, timeout)
 
-    override def enable(value: Boolean): Builder =
-      new Builder(value, metricName, timeout)
+    override def enable(isEnabled: Boolean): Builder =
+      new Builder(isEnabled, timeout)
 
-    private[guard] def build[F[_]: Async](tag: String, metricRegistry: MetricRegistry): NJHealthCheck[F] =
+    private[guard] def build[F[_]: Async](
+      metricName: MetricName,
+      tag: String,
+      metricRegistry: MetricRegistry): NJHealthCheck[F] =
       if (isEnabled) {
         new NJHealthCheckImpl[F](metricName, metricRegistry, timeout, MetricTag(tag))
       } else dummy[F]

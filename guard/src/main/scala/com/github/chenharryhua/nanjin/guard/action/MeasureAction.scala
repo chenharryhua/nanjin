@@ -32,24 +32,24 @@ private object MeasureAction {
     val doneID: String =
       MetricID(
         metricName,
-        Category.Counter(CounterKind.ActionDone, MetricTag(CounterKind.ActionDone.entryName)),
+        MetricTag("action_done"),
+        Category.Counter(CounterKind.ActionDone),
         actionID).identifier
     val failID: String =
       MetricID(
         metricName,
-        Category.Counter(CounterKind.ActionFail, MetricTag(CounterKind.ActionFail.entryName)),
+        MetricTag("action_fail"),
+        Category.Counter(CounterKind.ActionFail),
         actionID).identifier
     val retryID: String =
       MetricID(
         metricName,
-        Category.Counter(CounterKind.ActionRetry, MetricTag(CounterKind.ActionRetry.entryName)),
+        MetricTag("action_retry"),
+        Category.Counter(CounterKind.ActionRetry),
         actionID).identifier
 
     val doneTimerID: String =
-      MetricID(
-        metricName,
-        Category.Timer(TimerKind.Action, MetricTag(TimerKind.Action.entryName)),
-        actionID).identifier
+      MetricID(metricName, MetricTag("action_timer"), Category.Timer(TimerKind.Action), actionID).identifier
 
     (actionParams.isCounting, actionParams.isTiming) match {
       case (true, true) =>

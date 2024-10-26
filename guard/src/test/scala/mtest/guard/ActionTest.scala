@@ -71,7 +71,6 @@ class ActionTest extends AnyFunSuite {
         act <- ga.action("timed", _.timed).retry(IO(1).timed).buildWith(identity)
       } yield act
 
-
       val num = 1_000_000
       r1.use(_.run(()).replicateA_(num) >> ga.adhoc.report) &>
         r2.use(_.run(()).replicateA_(num) >> ga.adhoc.report) &>

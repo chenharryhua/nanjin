@@ -363,8 +363,6 @@ class MetricsCountingTest extends AnyFunSuite {
       .eventStream { agent =>
         val ga = agent.metrics("ga")
         ga.counter("counter").use { c =>
-          c.unsafeInc(2)
-          c.unsafeDec(1)
           c.inc(2) >> agent.adhoc.report
         }
       }
@@ -382,8 +380,7 @@ class MetricsCountingTest extends AnyFunSuite {
       .eventStream { agent =>
         val ga = agent.metrics("ga")
         ga.meter("counter").use { meter =>
-          meter.unsafeUpdate(1)
-          meter.update(2) >> agent.adhoc.report
+          meter.update(3) >> agent.adhoc.report
         }
       }
       .map(checkJson)
@@ -401,7 +398,6 @@ class MetricsCountingTest extends AnyFunSuite {
       .eventStream { agent =>
         val ga = agent.metrics("ga")
         ga.histogram("histogram", _.withReservoir(new SlidingWindowReservoir(5))).use { histo =>
-          histo.unsafeUpdate(100)
           histo.update(200) >> agent.adhoc.report
         }
       }
@@ -412,7 +408,7 @@ class MetricsCountingTest extends AnyFunSuite {
       .unsafeRunSync()
       .get
 
-    assert(histogram(mr) == 2)
+    assert(histogram(mr) == 1)
   }
 
   test("17.gauge") {
@@ -457,8 +453,8 @@ class MetricsCountingTest extends AnyFunSuite {
       .service("timer")
       .eventStream { ga =>
         ga.metrics("timer").timer("timer", _.withReservoir(new SlidingWindowReservoir(10))).use { timer =>
-          timer.unsafeUpdate(2.seconds)
           timer.update(2.minutes) >>
+            timer.update(5.minutes) >>
             ga.adhoc.report
         }
       }

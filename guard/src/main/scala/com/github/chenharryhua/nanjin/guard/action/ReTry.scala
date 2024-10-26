@@ -58,7 +58,6 @@ final private class ReTry[F[_]: Async, IN, OUT] private (
       now <- F.realTime
       _ <- channel.send(
         ActionFail(
-          actionID = actionID,
           actionParams = actionParams,
           launchTime = launchTime.map(to_zdt),
           timestamp = to_zdt(now),
@@ -70,7 +69,7 @@ final private class ReTry[F[_]: Async, IN, OUT] private (
   private[this] def send_success(launchTime: FiniteDuration, in: IN, out: OUT): F[Unit] =
     F.realTime.flatMap { now =>
       channel
-        .send(ActionDone(actionID, actionParams, to_zdt(launchTime), to_zdt(now), output_json(in, out)))
+        .send(ActionDone(actionParams, to_zdt(launchTime), to_zdt(now), output_json(in, out)))
         .map(_ => measure_done(now - launchTime))
     }
 
@@ -84,7 +83,6 @@ final private class ReTry[F[_]: Async, IN, OUT] private (
             for {
               _ <- channel.send(
                 ActionRetry(
-                  actionID = actionID,
                   actionParams = actionParams,
                   notes = error_json(in, ex),
                   error = NJError(ex),
@@ -113,7 +111,7 @@ final private class ReTry[F[_]: Async, IN, OUT] private (
   private[this] def bipartite(in: IN): F[OUT] =
     F.realTime.flatMap { launchTime =>
       channel
-        .send(ActionStart(actionID, actionParams, to_zdt(launchTime), input_json(in)))
+        .send(ActionStart(actionParams, to_zdt(launchTime), input_json(in)))
         .flatMap(_ => execute(in))
         .guaranteeCase {
           case Outcome.Succeeded(fa) => fa.flatMap(send_success(launchTime, in, _))

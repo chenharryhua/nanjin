@@ -3,7 +3,6 @@ package example
 import cats.data.Kleisli
 import cats.effect.IO
 import cats.effect.kernel.Resource
-import cats.implicits.toTraverseOps
 import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.guard.metrics.NJMetrics
 import com.github.chenharryhua.nanjin.guard.observers.console
@@ -31,13 +30,14 @@ object kafka_connector_s3 {
 
   private def logMetrics(mtx: NJMetrics[IO]): Resource[IO, Kleisli[IO, CCR, Unit]] =
     for {
-      meter <- mtx.meter("rate", _.withUnit(_.COUNT).enable(true))
+      countRate <- mtx.meter("count.rate", _.withUnit(_.COUNT).enable(true))
+      byteRate <- mtx.meter("byte.rate", _.withUnit(_.BYTES))
       keySize <- mtx.histogram("key.size", _.withUnit(_.BYTES).enable(true))
       valSize <- mtx.histogram("val.size", _.withUnit(_.BITS).enable(true))
     } yield Kleisli { (ccr: CCR) =>
-      ccr.record.serializedKeySize.map(_.toLong).traverse(keySize.update) *>
-        ccr.record.serializedValueSize.map(_.toLong).traverse(valSize.update) *>
-        meter.update(1)
+      val ks: Long = ccr.record.serializedKeySize.map(_.toLong).getOrElse(0L)
+      val vs: Long = ccr.record.serializedValueSize.map(_.toLong).getOrElse(0L)
+      keySize.update(ks) *> valSize.update(vs) *> byteRate.update(ks + vs) *> countRate.update(1)
     }
 
   private def decoder(agent: Agent[IO]): Resource[IO, Kleisli[IO, CCR, String]] = {

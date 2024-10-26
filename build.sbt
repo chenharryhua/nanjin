@@ -5,7 +5,7 @@ Global / parallelExecution := false
 
 val acyclicV    = "0.3.15"
 val avroV       = "1.12.0"
-val awsV        = "2.28.26"
+val awsV        = "2.29.1"
 val catsCoreV   = "2.12.0"
 val catsEffectV = "3.5.4"
 val chimneyV    = "1.5.0"
@@ -25,7 +25,7 @@ val jwtV        = "0.12.6"
 val kafkaV      = "7.7.1-ce"
 val kantanV     = "0.7.0"
 val log4catsV   = "2.7.0"
-val logbackV    = "1.5.11"
+val logbackV    = "1.5.12"
 val metricsV    = "4.2.28"
 val monocleV    = "3.3.0"
 val natchezV    = "0.3.7"
@@ -390,7 +390,7 @@ lazy val pipes = (project in file("pipes"))
       "io.circe" %% "circe-jackson210" % "0.14.2",
       "software.amazon.awssdk"         % "bundle"    % awsV,
       "org.tukaani"                    % "xz"        % "1.10",
-      "org.apache.zookeeper"           % "zookeeper" % "3.9.2", // snyk
+      "org.apache.zookeeper"           % "zookeeper" % "3.9.3", // snyk
       "org.typelevel" %% "jawn-fs2"    % "2.4.0"     % Test
     ) ++ kantanLib ++ serdeLib ++ hadoopLib ++ testLib
     libraryDependencies ++= libs.map(_.exclude("org.codehaus.jackson", "jackson-mapper-asl")) // snyk

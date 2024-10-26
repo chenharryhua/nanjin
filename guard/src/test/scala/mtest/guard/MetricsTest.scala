@@ -240,20 +240,18 @@ class MetricsTest extends AnyFunSuite {
     assert(mr.snapshot.gauges.size == 3)
   }
 
-  test("18.disable") {
+  test("18.disable individually") {
     val mr = TaskGuard[IO]("nanjin")
       .service("disable")
       .eventStream { agent =>
-        val ag = agent.metrics("ga")
+        val ag = agent.enable(true).withMeasurement("measure").metrics("ga", _.enable(true))
         val go = for {
           _ <- ag.gauge("a", _.enable(false)).register(IO(1000000000))
           _ <- ag.healthCheck("b", _.enable(false)).register(IO(true))
           _ <- ag.timer("c", _.enable(false)).evalMap(_.update(10.second).replicateA(100))
           _ <- ag.meter("d", _.withUnit(_.COUNT).enable(false)).evalMap(_.update(10000).replicateA(100))
           _ <- ag.counter("e", _.asRisk.enable(false)).evalMap(_.inc(1000))
-          _ <- ag
-            .histogram("f", _.withUnit(_.BYTES).enable(false))
-            .evalMap(_.update(10000L).replicateA(100))
+          _ <- ag.histogram("f", _.withUnit(_.BYTES).enable(false)).evalMap(_.update(10000L).replicateA(100))
           _ <- agent.alert("g", _.counted.enable(false)).evalMap(_.error("alarm"))
           _ <- agent
             .action("h", _.timed.counted.bipartite.enable(false))
@@ -263,6 +261,8 @@ class MetricsTest extends AnyFunSuite {
           _ <- ag
             .ratio("i", _.enable(false))
             .evalMap(f => f.incDenominator(50) >> f.incNumerator(79) >> f.incBoth(20, 50))
+          _ <- ag.idleGauge("j", _.enable(false))
+          _ <- ag.activeGauge("k", _.enable(false))
         } yield ()
         go.surround(agent.adhoc.report)
       }

@@ -114,8 +114,8 @@ final class ActionConfig private (
   def worthRetry(f: Throwable => Boolean): ActionConfig =
     new ActionConfig(Reader(f), cont)
 
-  def enable(value: Boolean): ActionConfig =
-    new ActionConfig(isWorthRetry, Fix(WithEnabled(value = value, cont)))
+  def enable(isEnabled: Boolean): ActionConfig =
+    new ActionConfig(isWorthRetry, Fix(WithEnabled(value = isEnabled, cont)))
 
   private[guard] def evalConfig: ActionParams = scheme.cata(algebra).apply(cont)
 }

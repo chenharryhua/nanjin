@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.metrics
 
-import cats.Endo
+import cats.{Applicative, Endo}
 import cats.data.Kleisli
 import cats.effect.kernel.{Async, Resource}
 import cats.syntax.all.*
@@ -11,7 +11,7 @@ import com.github.chenharryhua.nanjin.guard.event.NJUnits
 
 import scala.concurrent.duration.DurationInt
 
-trait NJMetrics[F[_]] {
+sealed trait NJMetrics[F[_]] {
   def counter(tag: String, f: Endo[NJCounter.Builder]): Resource[F, NJCounter[F]]
   final def counter(tag: String): Resource[F, NJCounter[F]] = counter(tag, identity)
 
@@ -45,6 +45,35 @@ trait NJMetrics[F[_]] {
 }
 
 object NJMetrics {
+  def dummy[F[_]](implicit F: Applicative[F]): NJMetrics[F] = new NJMetrics[F] {
+    override def counter(tag: String, f: Endo[NJCounter.Builder]): Resource[F, NJCounter[F]] =
+      Resource.pure(NJCounter.dummy[F])
+
+    override def meter(tag: String, f: Endo[NJMeter.Builder]): Resource[F, NJMeter[F]] =
+      Resource.pure(NJMeter.dummy[F])
+
+    override def histogram(tag: String, f: Endo[NJHistogram.Builder]): Resource[F, NJHistogram[F]] =
+      Resource.pure(NJHistogram.dummy[F])
+
+    override def timer(tag: String, f: Endo[NJTimer.Builder]): Resource[F, NJTimer[F]] =
+      Resource.pure(NJTimer.dummy[F])
+
+    override def ratio(tag: String, f: Endo[NJRatio.Builder]): Resource[F, NJRatio[F]] =
+      Resource.pure(NJRatio.dummy[F])
+
+    override def healthCheck(tag: String, f: Endo[NJHealthCheck.Builder]): NJHealthCheck[F] =
+      NJHealthCheck.dummy[F]
+
+    override def gauge(tag: String, f: Endo[NJGauge.Builder]): NJGauge[F] =
+      NJGauge.dummy[F]
+
+    override def idleGauge(tag: String, f: Endo[NJGauge.Builder]): Resource[F, Kleisli[F, Unit, Unit]] =
+      Resource.pure(Kleisli((_: Unit) => F.unit))
+
+    override def activeGauge(tag: String, f: Endo[NJGauge.Builder]): Resource[F, Unit] =
+      Resource.unit
+  }
+
   private class NJMetricsImpl[F[_]](
     metricRegistry: MetricRegistry,
     metricName: MetricName,
@@ -52,38 +81,38 @@ object NJMetrics {
       extends NJMetrics[F] {
 
     override def counter(tag: String, f: Endo[NJCounter.Builder]): Resource[F, NJCounter[F]] = {
-      val init = new NJCounter.Builder(isEnabled, metricName, false)
-      f(init).build[F](MetricTag(tag), metricRegistry)
+      val init = new NJCounter.Builder(isEnabled, false)
+      f(init).build[F](metricName, MetricTag(tag), metricRegistry)
     }
 
     override def meter(tag: String, f: Endo[NJMeter.Builder]): Resource[F, NJMeter[F]] = {
-      val init = new NJMeter.Builder(isEnabled, metricName, NJUnits.COUNT)
-      f(init).build[F](MetricTag(tag), metricRegistry)
+      val init = new NJMeter.Builder(isEnabled, NJUnits.COUNT)
+      f(init).build[F](metricName, MetricTag(tag), metricRegistry)
     }
 
     override def histogram(tag: String, f: Endo[NJHistogram.Builder]): Resource[F, NJHistogram[F]] = {
-      val init = new NJHistogram.Builder(isEnabled, metricName, NJUnits.COUNT, None)
-      f(init).build[F](MetricTag(tag), metricRegistry)
+      val init = new NJHistogram.Builder(isEnabled, NJUnits.COUNT, None)
+      f(init).build[F](metricName, MetricTag(tag), metricRegistry)
     }
 
     override def timer(tag: String, f: Endo[NJTimer.Builder]): Resource[F, NJTimer[F]] = {
-      val init = new NJTimer.Builder(isEnabled, metricName, None)
-      f(init).build[F](MetricTag(tag), metricRegistry)
+      val init = new NJTimer.Builder(isEnabled, None)
+      f(init).build[F](metricName, MetricTag(tag), metricRegistry)
     }
 
     override def healthCheck(tag: String, f: Endo[NJHealthCheck.Builder]): NJHealthCheck[F] = {
-      val init = new NJHealthCheck.Builder(isEnabled, metricName, timeout = 5.seconds)
-      f(init).build[F](tag, metricRegistry)
+      val init = new NJHealthCheck.Builder(isEnabled, timeout = 5.seconds)
+      f(init).build[F](metricName, tag, metricRegistry)
     }
 
     override def ratio(tag: String, f: Endo[NJRatio.Builder]): Resource[F, NJRatio[F]] = {
-      val init = new NJRatio.Builder(isEnabled, metricName, NJRatio.translator)
-      f(init).build[F](MetricTag(tag), metricRegistry)
+      val init = new NJRatio.Builder(isEnabled, NJRatio.translator)
+      f(init).build[F](metricName, MetricTag(tag), metricRegistry)
     }
 
     override def gauge(tag: String, f: Endo[NJGauge.Builder]): NJGauge[F] = {
-      val init = new NJGauge.Builder(isEnabled, metricName, 5.seconds)
-      f(init).build[F](MetricTag(tag), metricRegistry)
+      val init = new NJGauge.Builder(isEnabled, 5.seconds)
+      f(init).build[F](metricName, MetricTag(tag), metricRegistry)
     }
 
     override def idleGauge(tag: String, f: Endo[NJGauge.Builder]): Resource[F, Kleisli[F, Unit, Unit]] =
@@ -106,13 +135,13 @@ object NJMetrics {
 
   }
 
-  final class Builder private[guard] (isEnabled: Boolean, metricName: MetricName)
-      extends EnableConfig[Builder] {
+  final class Builder private[guard] (isEnabled: Boolean) extends EnableConfig[Builder] {
 
-    override def enable(value: Boolean): Builder =
-      new Builder(value, metricName)
+    override def enable(isEnabled: Boolean): Builder =
+      new Builder(isEnabled)
 
-    def build[F[_]](metricRegistry: MetricRegistry)(implicit F: Async[F]): NJMetrics[F] =
+    def build[F[_]](metricRegistry: MetricRegistry, metricName: MetricName)(implicit
+      F: Async[F]): NJMetrics[F] =
       new NJMetricsImpl[F](metricRegistry, metricName, isEnabled)
   }
 }
