@@ -12,6 +12,8 @@ import com.github.chenharryhua.nanjin.guard.event.NJUnits
 import scala.concurrent.duration.DurationInt
 
 sealed trait NJMetrics[F[_]] {
+  def metricName: MetricName
+
   def counter(tag: String, f: Endo[NJCounter.Builder]): Resource[F, NJCounter[F]]
   final def counter(tag: String): Resource[F, NJCounter[F]] = counter(tag, identity)
 
@@ -45,7 +47,7 @@ sealed trait NJMetrics[F[_]] {
 }
 
 object NJMetrics {
-  private class Impl[F[_]](metricName: MetricName, metricRegistry: MetricRegistry, isEnabled: Boolean)(
+  private class Impl[F[_]](val metricName: MetricName, metricRegistry: MetricRegistry, isEnabled: Boolean)(
     implicit F: Async[F])
       extends NJMetrics[F] {
 

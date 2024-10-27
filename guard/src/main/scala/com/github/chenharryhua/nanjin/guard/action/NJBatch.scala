@@ -54,6 +54,7 @@ object BatchRunner {
         })
         .map { case (fd, details) =>
           QuasiResult(
+            metricName = metrics.metricName,
             spent = fd.toJava,
             mode = BatchMode.Parallel(parallelism),
             details = details.sortBy(_.job.index))
@@ -75,7 +76,6 @@ object BatchRunner {
 
       exec.use(identity)
     }
-
   }
 
   final class Sequential[F[_]: Async, A] private[action] (
@@ -99,6 +99,7 @@ object BatchRunner {
               .flatTap(_ => rat.incNumerator(1)))
       }.map(details =>
         QuasiResult(
+          metricName = metrics.metricName,
           spent = details.map(_.took).foldLeft(Duration.ZERO)(_ plus _),
           mode = BatchMode.Sequential,
           details = details.sortBy(_.job.index)

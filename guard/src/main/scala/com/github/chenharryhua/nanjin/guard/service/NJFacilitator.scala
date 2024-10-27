@@ -17,12 +17,12 @@ sealed trait NJFacilitator[F[_]] {
 
 object NJFacilitator {
 
-  final class Builder(policy: Policy) {
+  final class Builder private[service] (policy: Policy) {
 
     def withPolicy(policy: Policy): Builder =
       new Builder(policy)
 
-    def build[F[_]: Async](
+    private[service] def build[F[_]: Async](
       metricName: MetricName,
       serviceParams: ServiceParams,
       metricRegistry: MetricRegistry,
