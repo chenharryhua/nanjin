@@ -3,7 +3,6 @@ package com.github.chenharryhua.nanjin.guard.action
 import cats.Applicative
 import cats.effect.kernel.Sync
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.common.EnableConfig
 import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, MetricName, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.ServiceMessage
@@ -57,15 +56,9 @@ object NJMessenger {
       alarm(Encoder[S].apply(msg), AlarmLevel.Done)
   }
 
-  final class Builder private[guard] (isEnabled: Boolean) extends EnableConfig[Builder] {
-
-    override def enable(isEnabled: Boolean): Builder =
-      new Builder(isEnabled)
-
-    private[guard] def build[F[_]: Sync](
-      metricName: MetricName,
-      channel: Channel[F, NJEvent],
-      serviceParams: ServiceParams): NJMessenger[F] =
-      if (isEnabled) new Impl[F](metricName, channel, serviceParams) else dummy[F]
-  }
+  def apply[F[_]: Sync](
+    metricName: MetricName,
+    serviceParams: ServiceParams,
+    channel: Channel[F, NJEvent]): NJMessenger[F] =
+    new Impl[F](metricName, channel, serviceParams)
 }

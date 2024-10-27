@@ -28,7 +28,7 @@ class AwsObserverTest extends AnyFunSuite {
         .updateConfig(
           _.withRestartPolicy(Policy.fixedRate(1.second)).withMetricReport(Policy.crontab(_.secondly)))
         .eventStream { agent =>
-          val ag = agent.metrics("job")
+          val ag = agent.facilitator("job").metrics
           val job =
             box.getAndUpdate(_ + 1).map(_ % 12 == 0).ifM(IO(1), IO.raiseError[Int](new Exception("oops")))
           val env = for {
@@ -41,10 +41,9 @@ class AwsObserverTest extends AnyFunSuite {
               .buildWith(identity)
             counter <- ag.counter("nj counter", _.asRisk)
             histogram <- ag.histogram("nj histogram", _.withUnit(_.SECONDS))
-            alert <- agent.alert("nj alert")
             _ <- ag.gauge("nj gauge").register(box.get)
           } yield meter.update(1) >> action.run(()) >> counter.inc(1) >>
-            histogram.update(1) >> alert.info(1) >> agent.adhoc.report
+            histogram.update(1) >> agent.facilitator("abc").messenger.info(1) >> agent.adhoc.report
           env.use(identity)
         }
     }

@@ -2,22 +2,21 @@ package com.github.chenharryhua.nanjin.guard.action
 
 import cats.effect.Temporal
 import cats.implicits.{toFlatMapOps, toFunctorOps}
-import com.github.chenharryhua.nanjin.common.EnableConfig
-import com.github.chenharryhua.nanjin.common.chrono.{Policy, TickStatus}
+import com.github.chenharryhua.nanjin.common.chrono.TickStatus
 
 import scala.jdk.DurationConverters.JavaDurationOps
 
-sealed trait NJExecutor[F[_]] {
+sealed trait NJSentry[F[_]] {
   def retry[A](fa: F[A], worth: Throwable => Boolean): F[A]
   final def retry[A](fa: F[A]): F[A] = retry(fa, _ => true)
 }
 
-object NJExecutor {
-  def dummy[F[_]]: NJExecutor[F] = new NJExecutor[F] {
+object NJSentry {
+  def dummy[F[_]]: NJSentry[F] = new NJSentry[F] {
     override def retry[A](fa: F[A], worth: Throwable => Boolean): F[A] = fa
   }
 
-  private class Impl[F[_]](init: TickStatus)(implicit F: Temporal[F]) extends NJExecutor[F] {
+  private class Impl[F[_]](init: TickStatus)(implicit F: Temporal[F]) extends NJSentry[F] {
 
     override def retry[A](fa: F[A], worth: Throwable => Boolean): F[A] =
       F.tailRecM(init) { status =>
@@ -40,15 +39,5 @@ object NJExecutor {
       }
   }
 
-  final class Builder private[guard] (isEnabled: Boolean, policy: Policy) extends EnableConfig[Builder] {
-
-    override def enable(isEnabled: Boolean): Builder =
-      new Builder(isEnabled, policy)
-
-    def withPolicy(policy: Policy) =
-      new Builder(isEnabled, policy)
-
-    def build[F[_]: Temporal](init: TickStatus): NJExecutor[F] =
-      if (isEnabled) new Impl[F](init.renewPolicy(policy)) else dummy[F]
-  }
+  def apply[F[_]: Temporal](init: TickStatus): NJSentry[F] = new Impl[F](init)
 }

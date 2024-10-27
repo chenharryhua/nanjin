@@ -205,7 +205,7 @@ class MetricsTest extends AnyFunSuite {
     val List(mr) = task
       .service("dup")
       .eventStream { agent =>
-        val ga = agent.metrics("ga")
+        val ga = agent.facilitator("ga").metrics
         val jvm = ga.gauge("a").register(IO(0)) >>
           ga.gauge("a").register(IO(0)) >>
           ga.gauge("a").register(IO(0))
@@ -224,7 +224,7 @@ class MetricsTest extends AnyFunSuite {
     val mr :: _ = task
       .service("dup")
       .eventStream { agent =>
-        val ga = agent.metrics("ga")
+        val ga = agent.facilitator("ga").metrics
         val jvm = ga.gauge("a").register(IO(0)) >>
           ga.gauge("a").register(IO(0)) >>
           ga.gauge("a").register(IO(0))
@@ -244,7 +244,7 @@ class MetricsTest extends AnyFunSuite {
     val mr = TaskGuard[IO]("nanjin")
       .service("disable")
       .eventStream { agent =>
-        val ag = agent.enable(true).withMeasurement("measure").metrics("ga", _.enable(true))
+        val ag = agent.withMeasurement("measure").facilitator("ga").metrics
         val go = for {
           _ <- ag.gauge("a", _.enable(false)).register(IO(1000000000))
           _ <- ag.healthCheck("b", _.enable(false)).register(IO(true))
@@ -252,7 +252,6 @@ class MetricsTest extends AnyFunSuite {
           _ <- ag.meter("d", _.withUnit(_.COUNT).enable(false)).evalMap(_.update(10000).replicateA(100))
           _ <- ag.counter("e", _.asRisk.enable(false)).evalMap(_.inc(1000))
           _ <- ag.histogram("f", _.withUnit(_.BYTES).enable(false)).evalMap(_.update(10000L).replicateA(100))
-          _ <- agent.alert("g", _.counted.enable(false)).evalMap(_.error("alarm"))
           _ <- agent
             .action("h", _.timed.counted.bipartite.enable(false))
             .retry(IO(0))

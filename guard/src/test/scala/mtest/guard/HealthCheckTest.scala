@@ -19,7 +19,8 @@ class HealthCheckTest extends AnyFunSuite {
       .service("health-check")
       .eventStream { agent =>
         agent
-          .metrics("never")
+          .facilitator("never")
+          .metrics
           .healthCheck("health-never", _.withTimeout(2.seconds))
           .register(IO.never[Boolean])
           .surround(IO.sleep(5.seconds))
@@ -38,7 +39,8 @@ class HealthCheckTest extends AnyFunSuite {
     val res = guard
       .service("gauge")
       .eventStream(gd =>
-        gd.metrics("never")
+        gd.facilitator("never")
+          .metrics
           .gauge("gauge-never", _.withTimeout(2.seconds))
           .register(IO.never[Boolean])
           .surround(IO.sleep(5.seconds)))
@@ -55,7 +57,8 @@ class HealthCheckTest extends AnyFunSuite {
     val res = guard
       .service("health-check-cost")
       .eventStream(gd =>
-        gd.metrics("cost")
+        gd.facilitator("cost")
+          .metrics
           .healthCheck("health-never", _.withTimeout(2.seconds))
           .register(IO.never[Boolean], Policy.fixedDelay(1.seconds), gd.zoneId)
           .surround(IO.sleep(3.seconds)))
@@ -72,7 +75,8 @@ class HealthCheckTest extends AnyFunSuite {
     val res = guard
       .service("gauge-cost")
       .eventStream(gd =>
-        gd.metrics("cost")
+        gd.facilitator("cost")
+          .metrics
           .gauge("gauge-never-cost", _.withTimeout(2.seconds))
           .register(IO.never[Boolean], Policy.fixedDelay(1.seconds), gd.zoneId)
           .surround(IO.sleep(3.seconds)))

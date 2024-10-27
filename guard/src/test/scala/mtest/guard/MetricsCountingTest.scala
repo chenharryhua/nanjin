@@ -336,15 +336,14 @@ class MetricsCountingTest extends AnyFunSuite {
   }
 
   test("13.alert") {
-    val mr = task
+    task
       .service("alert")
-      .eventStream { ag =>
-        ag.alert("oops", _.counted).use { alert =>
-          alert.warn(Some("m1")) >>
-            alert.info(Some("m2")) >>
-            alert.error(Some("m3")) >>
-            ag.adhoc.report
-        }
+      .eventStream { agent =>
+        val alert = agent.facilitator("msg").messenger
+        alert.warn("m1") >>
+          alert.info("m2") >>
+          alert.error("m3") >>
+          alert.done("m4")
       }
       .map(checkJson)
       .mapFilter(metricReport)
@@ -352,16 +351,13 @@ class MetricsCountingTest extends AnyFunSuite {
       .last
       .unsafeRunSync()
       .get
-    assert(counterAlertInfo(mr) == 1)
-    assert(counterAlertWarn(mr) == 1)
-    assert(counterAlertError(mr) == 1)
   }
 
   test("14.counter") {
     task
       .service("counter")
       .eventStream { agent =>
-        val ga = agent.metrics("ga")
+        val ga = agent.facilitator("ga").metrics
         ga.counter("counter").use { c =>
           c.inc(2) >> agent.adhoc.report
         }
@@ -378,7 +374,7 @@ class MetricsCountingTest extends AnyFunSuite {
     val mr = task
       .service("meter")
       .eventStream { agent =>
-        val ga = agent.metrics("ga")
+        val ga = agent.facilitator("ga").metrics
         ga.meter("counter").use { meter =>
           meter.update(3) >> agent.adhoc.report
         }
@@ -396,7 +392,7 @@ class MetricsCountingTest extends AnyFunSuite {
     val mr = task
       .service("histogram")
       .eventStream { agent =>
-        val ga = agent.metrics("ga")
+        val ga = agent.facilitator("ga").metrics
         ga.histogram("histogram", _.withReservoir(new SlidingWindowReservoir(5))).use { histo =>
           histo.update(200) >> agent.adhoc.report
         }
@@ -415,8 +411,8 @@ class MetricsCountingTest extends AnyFunSuite {
     task
       .service("gauge")
       .eventStream { agent =>
-        val g2 = agent.metrics("a").gauge("exception").register(IO.raiseError[Int](new Exception))
-        val g3 = agent.metrics("a").gauge("good").register(IO(10))
+        val g2 = agent.facilitator("a").metrics.gauge("exception").register(IO.raiseError[Int](new Exception))
+        val g3 = agent.facilitator("a").metrics.gauge("good").register(IO(10))
         g2.both(g3).surround(IO.sleep(3.seconds) >> agent.adhoc.report)
       }
       .map(checkJson)
@@ -433,7 +429,7 @@ class MetricsCountingTest extends AnyFunSuite {
     val res = task
       .service("heal-check")
       .eventStream { agent =>
-        val ga = agent.metrics("ga")
+        val ga = agent.facilitator("ga").metrics
         (ga.healthCheck("c1").register(IO(true)) >> ga.healthCheck("c2").register(IO(true))).use(_ =>
           agent.adhoc.report)
       }
@@ -452,10 +448,11 @@ class MetricsCountingTest extends AnyFunSuite {
     val mr = task
       .service("timer")
       .eventStream { ga =>
-        ga.metrics("timer").timer("timer", _.withReservoir(new SlidingWindowReservoir(10))).use { timer =>
-          timer.update(2.minutes) >>
-            timer.update(5.minutes) >>
-            ga.adhoc.report
+        ga.facilitator("timer").metrics.timer("timer", _.withReservoir(new SlidingWindowReservoir(10))).use {
+          timer =>
+            timer.update(2.minutes) >>
+              timer.update(5.minutes) >>
+              ga.adhoc.report
         }
       }
       .map(checkJson)

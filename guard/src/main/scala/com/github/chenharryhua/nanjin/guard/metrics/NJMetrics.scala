@@ -1,11 +1,11 @@
 package com.github.chenharryhua.nanjin.guard.metrics
 
-import cats.{Applicative, Endo}
+import cats.Endo
 import cats.data.Kleisli
 import cats.effect.kernel.{Async, Resource}
 import cats.syntax.all.*
 import com.codahale.metrics.MetricRegistry
-import com.github.chenharryhua.nanjin.common.{DurationFormatter, EnableConfig}
+import com.github.chenharryhua.nanjin.common.DurationFormatter
 import com.github.chenharryhua.nanjin.guard.config.{MetricName, MetricTag}
 import com.github.chenharryhua.nanjin.guard.event.NJUnits
 
@@ -45,36 +45,7 @@ sealed trait NJMetrics[F[_]] {
 }
 
 object NJMetrics {
-  def dummy[F[_]](implicit F: Applicative[F]): NJMetrics[F] = new NJMetrics[F] {
-    override def counter(tag: String, f: Endo[NJCounter.Builder]): Resource[F, NJCounter[F]] =
-      Resource.pure(NJCounter.dummy[F])
-
-    override def meter(tag: String, f: Endo[NJMeter.Builder]): Resource[F, NJMeter[F]] =
-      Resource.pure(NJMeter.dummy[F])
-
-    override def histogram(tag: String, f: Endo[NJHistogram.Builder]): Resource[F, NJHistogram[F]] =
-      Resource.pure(NJHistogram.dummy[F])
-
-    override def timer(tag: String, f: Endo[NJTimer.Builder]): Resource[F, NJTimer[F]] =
-      Resource.pure(NJTimer.dummy[F])
-
-    override def ratio(tag: String, f: Endo[NJRatio.Builder]): Resource[F, NJRatio[F]] =
-      Resource.pure(NJRatio.dummy[F])
-
-    override def healthCheck(tag: String, f: Endo[NJHealthCheck.Builder]): NJHealthCheck[F] =
-      NJHealthCheck.dummy[F]
-
-    override def gauge(tag: String, f: Endo[NJGauge.Builder]): NJGauge[F] =
-      NJGauge.dummy[F]
-
-    override def idleGauge(tag: String, f: Endo[NJGauge.Builder]): Resource[F, Kleisli[F, Unit, Unit]] =
-      Resource.pure(Kleisli((_: Unit) => F.unit))
-
-    override def activeGauge(tag: String, f: Endo[NJGauge.Builder]): Resource[F, Unit] =
-      Resource.unit
-  }
-
-  private class Impl[F[_]](metricRegistry: MetricRegistry, metricName: MetricName, isEnabled: Boolean)(
+  private class Impl[F[_]](metricName: MetricName, metricRegistry: MetricRegistry, isEnabled: Boolean)(
     implicit F: Async[F])
       extends NJMetrics[F] {
 
@@ -133,13 +104,8 @@ object NJMetrics {
 
   }
 
-  final class Builder private[guard] (isEnabled: Boolean) extends EnableConfig[Builder] {
+  def apply[F[_]](metricName: MetricName, metricRegistry: MetricRegistry)(implicit
+    F: Async[F]): NJMetrics[F] =
+    new Impl[F](metricName, metricRegistry, true)
 
-    override def enable(isEnabled: Boolean): Builder =
-      new Builder(isEnabled)
-
-    def build[F[_]](metricRegistry: MetricRegistry, metricName: MetricName)(implicit
-      F: Async[F]): NJMetrics[F] =
-      new Impl[F](metricRegistry, metricName, isEnabled)
-  }
 }

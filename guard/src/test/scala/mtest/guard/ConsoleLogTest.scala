@@ -18,7 +18,7 @@ class ConsoleLogTest extends AnyFunSuite {
       .service("observing")
       .updateConfig(_.addBrief(Json.fromString("brief")))
       .eventStream { agent =>
-        val ag = agent.metrics("job")
+        val ag = agent.facilitator("job").metrics
         val go = for {
           _ <- ag.gauge("job").register(IO(1000000000))
           _ <- ag.healthCheck("job").register(IO(true))
@@ -26,12 +26,11 @@ class ConsoleLogTest extends AnyFunSuite {
           _ <- ag.meter("job", _.withUnit(_.COUNT)).evalMap(_.update(10000).replicateA(100))
           _ <- ag.counter("job", _.asRisk).evalMap(_.inc(1000))
           _ <- ag.histogram("job", _.withUnit(_.BYTES)).evalMap(_.update(10000L).replicateA(100))
-          _ <- agent.alert("job", _.counted).evalMap(_.error("alarm"))
           _ <- agent
             .action("job", _.timed.counted.bipartite)
             .retry(IO(0))
             .buildWith(identity)
-            .evalMap(_.run(()))
+            .evalMap(_.run(()) >> agent.facilitator("job").messenger.error("ops"))
           _ <- ag
             .ratio("job")
             .evalMap(f => f.incDenominator(500) >> f.incNumerator(60) >> f.incBoth(299, 500))

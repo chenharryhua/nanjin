@@ -24,7 +24,11 @@ class GaugeTest extends AnyFunSuite {
 
   test("1.user gauge") {
     val res: MetricReport = service.eventStream { ga =>
-      ga.metrics("test").gauge("user").register(IO(UserGauge(1, "a"))).surround(IO.sleep(4.seconds))
+      ga.facilitator("test")
+        .metrics
+        .gauge("user")
+        .register(IO(UserGauge(1, "a")))
+        .surround(IO.sleep(4.seconds))
     }.map(checkJson).evalMapFilter(e => IO(metricReport(e))).compile.lastOrError.unsafeRunSync()
 
     val ug = retrieveGauge[UserGauge](res.snapshot.gauges).values.head
@@ -37,7 +41,7 @@ class GaugeTest extends AnyFunSuite {
     val mr: MetricReport = service
       .updateConfig(_.withJmx(identity))
       .eventStream { ag =>
-        val mtx = ag.metrics("agent")
+        val mtx = ag.facilitator("agent").metrics
         val gauge: Resource[IO, Ref[IO, Float]] =
           mtx.idleGauge("idle") >>
             mtx.activeGauge("timed") >>

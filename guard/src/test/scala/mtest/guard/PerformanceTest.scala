@@ -88,9 +88,12 @@ class PerformanceTest extends AnyFunSuite {
     print("---disabled: ")
     var i: Int = 0
     service.eventStream { ag =>
-      ag.action("t", _.bipartite.counted.timed.enable(false)).retry(IO(i += 1)).buildWith(identity).use {
-        _.run(()).foreverM.timeout(take).attempt
-      }
+      ag.facilitator("test", _.withPolicy(Policy.giveUp))
+        .sentry
+        .retry(IO(i += 1))
+        .foreverM
+        .timeout(take)
+        .attempt
     }.compile.drain.unsafeRunSync()
     println(speed(i))
   }
@@ -241,7 +244,10 @@ class PerformanceTest extends AnyFunSuite {
     var i = 0
     print("meter:            ")
     service.eventStream { ag =>
-      ag.metrics("meter").meter("meter").use(_.update(1).map(_ => i += 1).foreverM.timeout(take).attempt)
+      ag.facilitator("meter")
+        .metrics
+        .meter("meter")
+        .use(_.update(1).map(_ => i += 1).foreverM.timeout(take).attempt)
     }.compile.drain.unsafeRunSync()
     println(speed(i))
   }
@@ -250,7 +256,8 @@ class PerformanceTest extends AnyFunSuite {
     var i = 0
     print("histogram:        ")
     service.eventStream { ag =>
-      ag.metrics("histogram")
+      ag.facilitator("histogram")
+        .metrics
         .histogram("histogram")
         .use(_.update(1).map(_ => i += 1).foreverM.timeout(take).attempt)
     }.compile.drain.unsafeRunSync()
@@ -261,7 +268,8 @@ class PerformanceTest extends AnyFunSuite {
     var i = 0
     print("timer:          ")
     service.eventStream { ag =>
-      ag.metrics("timer")
+      ag.facilitator("timer")
+        .metrics
         .timer("timer")
         .use(_.update(1.seconds).map(_ => i += 1).foreverM.timeout(take).attempt)
     }.compile.drain.unsafeRunSync()
@@ -272,7 +280,10 @@ class PerformanceTest extends AnyFunSuite {
     var i = 0
     print("count:          ")
     service.eventStream { ag =>
-      ag.metrics("counter").counter("count").use(_.inc(1).map(_ => i += 1).foreverM.timeout(take).attempt)
+      ag.facilitator("counter")
+        .metrics
+        .counter("count")
+        .use(_.inc(1).map(_ => i += 1).foreverM.timeout(take).attempt)
     }.compile.drain.unsafeRunSync()
     println(speed(i))
   }

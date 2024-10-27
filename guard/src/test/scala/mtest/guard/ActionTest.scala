@@ -19,7 +19,7 @@ class ActionTest extends AnyFunSuite {
   test("kleisli") {
     val name = "kleisli"
     service.eventStream { agent =>
-      val ga = agent.metrics(name)
+      val ga = agent.facilitator(name).metrics
       val calc = for {
         action <- agent.action(name).retry((i: Int) => IO(i.toLong)).buildWith(identity)
         meter <- ga.meter(name)

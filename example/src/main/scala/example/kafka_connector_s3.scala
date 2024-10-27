@@ -42,12 +42,13 @@ object kafka_connector_s3 {
 
   private def decoder(agent: Agent[IO]): Resource[IO, Kleisli[IO, CCR, String]] = {
     val name: String = "kafka.record"
+    val fac = agent.facilitator("name")
     for {
       action <- agent
         .action(name)
         .retry((ccr: CCR) => IO.fromTry(ccr.record.value.flatMap(gr2Jackson(_))))
         .buildWith(_.tapError((cr, _) => CRMetaInfo(cr).zoned(agent.zoneId).asJson))
-      update <- logMetrics(agent.metrics("name"))
+      update <- logMetrics(fac.metrics)
     } yield Kleisli { (ccr: CCR) =>
       update(ccr) >> action.run(ccr)
     }

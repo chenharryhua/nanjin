@@ -48,19 +48,19 @@ object InvestigationTestData {
   )
 
   val mouses5 = List( // missing (1,5)
-    CRMetaInfo("topic", 0, 1, 1, 0, None,None),
-    CRMetaInfo("topic", 0, 2, 2, 0, None,None),
-    CRMetaInfo("topic", 0, 3, 3, 0, None,None),
-    CRMetaInfo("topic", 1, 4, 4, 0, None,None),
-    CRMetaInfo("topic", 1, 6, 6, 0, None,None)
+    CRMetaInfo("topic", 0, 1, 1, 0, None, None),
+    CRMetaInfo("topic", 0, 2, 2, 0, None, None),
+    CRMetaInfo("topic", 0, 3, 3, 0, None, None),
+    CRMetaInfo("topic", 1, 4, 4, 0, None, None),
+    CRMetaInfo("topic", 1, 6, 6, 0, None, None)
   )
 
   val mouses6 = List( // (0,2) duplicate
-    CRMetaInfo("topic", 0, 1, 1, 0, None,None),
-    CRMetaInfo("topic", 0, 2, 2, 0, None,None),
-    CRMetaInfo("topic", 0, 2, 3, 0, None,None),
-    CRMetaInfo("topic", 0, 2, 4, 0, None,None),
-    CRMetaInfo("topic", 1, 5, 6, 0, None,None)
+    CRMetaInfo("topic", 0, 1, 1, 0, None, None),
+    CRMetaInfo("topic", 0, 2, 2, 0, None, None),
+    CRMetaInfo("topic", 0, 2, 3, 0, None, None),
+    CRMetaInfo("topic", 0, 2, 4, 0, None, None),
+    CRMetaInfo("topic", 1, 5, 6, 0, None, None)
   )
 
 }
