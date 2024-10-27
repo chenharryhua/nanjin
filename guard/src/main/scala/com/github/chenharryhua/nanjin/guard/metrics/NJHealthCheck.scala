@@ -24,45 +24,6 @@ sealed trait NJHealthCheck[F[_]] {
   def register(hc: F[Boolean], policy: Policy, zoneId: ZoneId): Resource[F, Unit]
 }
 
-private class NJHealthCheckImpl[F[_]: Async](
-  private[this] val name: MetricName,
-  private[this] val metricRegistry: MetricRegistry,
-  private[this] val timeout: FiniteDuration,
-  private[this] val tag: MetricTag)
-    extends NJHealthCheck[F] {
-
-  private[this] val F = Async[F]
-
-  override def register(hc: F[Boolean]): Resource[F, Unit] =
-    Dispatcher.sequential[F].flatMap { dispatcher =>
-      Resource.eval(F.unique).flatMap { token =>
-        val metricID: MetricID = MetricID(name, tag, Category.Gauge(GaugeKind.HealthCheck), token)
-        Resource
-          .make(F.delay {
-            metricRegistry.gauge(
-              metricID.identifier,
-              () =>
-                new Gauge[Boolean] {
-                  override def getValue: Boolean =
-                    Try(dispatcher.unsafeRunTimed(hc, timeout)).fold(_ => false, identity)
-                }
-            )
-          })(_ => F.delay(metricRegistry.remove(metricID.identifier)).void)
-          .void
-      }
-    }
-
-  override def register(hc: F[Boolean], policy: Policy, zoneId: ZoneId): Resource[F, Unit] = {
-    val check: F[Boolean] = hc.timeout(timeout).attempt.map(_.fold(_ => false, identity))
-    for {
-      init <- Resource.eval(check)
-      ref <- Resource.eval(F.ref(init))
-      _ <- F.background(tickStream[F](policy, zoneId).evalMap(_ => check.flatMap(ref.set)).compile.drain)
-      _ <- register(ref.get)
-    } yield ()
-  }
-}
-
 object NJHealthCheck {
   def dummy[F[_]]: NJHealthCheck[F] =
     new NJHealthCheck[F] {
@@ -71,6 +32,45 @@ object NJHealthCheck {
       override def register(hc: F[Boolean], policy: Policy, zoneId: ZoneId): Resource[F, Unit] =
         Resource.unit[F]
     }
+
+  private class Impl[F[_]: Async](
+    private[this] val name: MetricName,
+    private[this] val metricRegistry: MetricRegistry,
+    private[this] val timeout: FiniteDuration,
+    private[this] val tag: MetricTag)
+      extends NJHealthCheck[F] {
+
+    private[this] val F = Async[F]
+
+    override def register(hc: F[Boolean]): Resource[F, Unit] =
+      Dispatcher.sequential[F].flatMap { dispatcher =>
+        Resource.eval(F.unique).flatMap { token =>
+          val metricID: MetricID = MetricID(name, tag, Category.Gauge(GaugeKind.HealthCheck), token)
+          Resource
+            .make(F.delay {
+              metricRegistry.gauge(
+                metricID.identifier,
+                () =>
+                  new Gauge[Boolean] {
+                    override def getValue: Boolean =
+                      Try(dispatcher.unsafeRunTimed(hc, timeout)).fold(_ => false, identity)
+                  }
+              )
+            })(_ => F.delay(metricRegistry.remove(metricID.identifier)).void)
+            .void
+        }
+      }
+
+    override def register(hc: F[Boolean], policy: Policy, zoneId: ZoneId): Resource[F, Unit] = {
+      val check: F[Boolean] = hc.timeout(timeout).attempt.map(_.fold(_ => false, identity))
+      for {
+        init <- Resource.eval(check)
+        ref <- Resource.eval(F.ref(init))
+        _ <- F.background(tickStream[F](policy, zoneId).evalMap(_ => check.flatMap(ref.set)).compile.drain)
+        _ <- register(ref.get)
+      } yield ()
+    }
+  }
 
   final class Builder private[guard] (isEnabled: Boolean, timeout: FiniteDuration)
       extends EnableConfig[Builder] {
@@ -86,7 +86,7 @@ object NJHealthCheck {
       tag: String,
       metricRegistry: MetricRegistry): NJHealthCheck[F] =
       if (isEnabled) {
-        new NJHealthCheckImpl[F](metricName, metricRegistry, timeout, MetricTag(tag))
+        new Impl[F](metricName, metricRegistry, timeout, MetricTag(tag))
       } else dummy[F]
   }
 }

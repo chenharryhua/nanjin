@@ -17,31 +17,31 @@ sealed trait NJMeter[F[_]] {
     Kleisli(update).local(f)
 }
 
-private class NJMeterImpl[F[_]: Sync](
-  private[this] val token: Unique.Token,
-  private[this] val name: MetricName,
-  private[this] val metricRegistry: MetricRegistry,
-  private[this] val unit: MeasurementUnit,
-  private[this] val tag: MetricTag)
-    extends NJMeter[F] {
-
-  private[this] val F = Sync[F]
-
-  private[this] val meter_name: String =
-    MetricID(name, tag, Category.Meter(MeterKind.Meter, unit), token).identifier
-
-  private[this] lazy val meter: Meter = metricRegistry.meter(meter_name)
-
-  override def update(num: Long): F[Unit] = F.delay(meter.mark(num))
-
-  val unregister: F[Unit] = F.delay(metricRegistry.remove(meter_name)).void
-}
-
 object NJMeter {
   def dummy[F[_]](implicit F: Applicative[F]): NJMeter[F] =
     new NJMeter[F] {
       override def update(num: Long): F[Unit] = F.unit
     }
+
+  private class Impl[F[_]: Sync](
+    private[this] val token: Unique.Token,
+    private[this] val name: MetricName,
+    private[this] val metricRegistry: MetricRegistry,
+    private[this] val unit: MeasurementUnit,
+    private[this] val tag: MetricTag)
+      extends NJMeter[F] {
+
+    private[this] val F = Sync[F]
+
+    private[this] val meter_name: String =
+      MetricID(name, tag, Category.Meter(MeterKind.Meter, unit), token).identifier
+
+    private[this] lazy val meter: Meter = metricRegistry.meter(meter_name)
+
+    override def update(num: Long): F[Unit] = F.delay(meter.mark(num))
+
+    val unregister: F[Unit] = F.delay(metricRegistry.remove(meter_name)).void
+  }
 
   final class Builder private[guard] (isEnabled: Boolean, unit: MeasurementUnit)
       extends EnableConfig[Builder] {
@@ -57,7 +57,7 @@ object NJMeter {
       if (isEnabled) {
         Resource.make(
           F.unique.map(token =>
-            new NJMeterImpl[F](
+            new Impl[F](
               token = token,
               name = metricName,
               metricRegistry = metricRegistry,

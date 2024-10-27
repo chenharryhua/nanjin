@@ -17,31 +17,6 @@ import scala.concurrent.duration.DurationInt
 class EventFilterTest extends AnyFunSuite {
   private val service: ServiceGuard[IO] = TaskGuard[IO]("event.filters").service("filters")
 
-  test("1.isPivotalEvent") {
-    val List(a, b) = service.eventStream { agent =>
-      agent.action("pivotal", _.bipartite).retry(IO(())).buildWith(identity).use(_.run(()))
-    }.map(checkJson).filter(eventFilters.isPivotalEvent).compile.toList.unsafeRunSync()
-    assert(a.isInstanceOf[ServiceStart])
-    assert(b.isInstanceOf[ServiceStop])
-  }
-
-  test("2.isServiceEvent") {
-    val List(a, b) = service.eventStream { agent =>
-      agent.action("service", _.bipartite).retry(IO(())).buildWith(identity).use(_.run(()))
-    }.map(checkJson).filter(eventFilters.isServiceEvent).compile.toList.unsafeRunSync()
-
-    assert(a.isInstanceOf[ServiceStart])
-    assert(b.isInstanceOf[ServiceStop])
-  }
-
-  test("3.nonSuppress") {
-    val List(a, b) = service.eventStream { agent =>
-      agent.action("nonSuppress", _.bipartite.suppressed).retry(IO(())).buildWith(identity).use(_.run(()))
-    }.map(checkJson).filter(eventFilters.nonSuppress).compile.toList.unsafeRunSync()
-    assert(a.isInstanceOf[ServiceStart])
-    assert(b.isInstanceOf[ServiceStop])
-  }
-
   private def sleepAction(agent: Agent[IO]): IO[Unit] =
     agent.action("sleep").retry(IO.sleep(7.seconds)).buildWith(identity).use(_.run(()))
 

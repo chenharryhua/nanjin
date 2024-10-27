@@ -28,17 +28,17 @@ class CancellationTest extends AnyFunSuite {
       .service("failed")
       .updateConfig(_.withRestartPolicy(fixedDelay(1.hour)))
       .eventStream(ag =>
-        ag.action("canceled", _.bipartite.policy(policy))
+        ag.action("canceled")
           .retry(IO(1) <* IO.canceled)
-          .buildWith(identity)
+          .buildWith(_.withPublishStrategy(_.Bipartite).withPolicy(policy))
           .use(_.run(())))
       .map(checkJson)
       .compile
       .toVector
       .unsafeRunSync()
     assert(a.isInstanceOf[ServiceStart])
-    assert(b.isInstanceOf[ActionStart])
-    assert(c.isInstanceOf[ActionFail])
+    assert(b.isInstanceOf[ServiceMessage])
+    assert(c.isInstanceOf[ServiceMessage])
     assert(d.isInstanceOf[ServiceStop])
     assert(d.asInstanceOf[ServiceStop].cause.isInstanceOf[ServiceStopCause.ByCancellation.type])
 
@@ -49,7 +49,7 @@ class CancellationTest extends AnyFunSuite {
       .service("externally")
       .updateConfig(_.withRestartPolicy(fixedDelay(1.hour)))
       .eventStream { ag =>
-        val a1 = ag.action("never", _.silent).retry(never_fun).buildWith(identity).use(_.run(()))
+        val a1 = ag.action("never").retry(never_fun).buildWith(identity).use(_.run(()))
         IO.parSequenceN(2)(List(IO.sleep(2.second) >> IO.canceled, a1))
       }
       .map(checkJson)
@@ -57,7 +57,7 @@ class CancellationTest extends AnyFunSuite {
       .toVector
       .unsafeRunSync()
     assert(s.isInstanceOf[ServiceStart])
-    assert(b.isInstanceOf[ActionFail])
+    assert(b.isInstanceOf[ServiceMessage])
     assert(c.isInstanceOf[ServiceStop])
     assert(c.asInstanceOf[ServiceStop].cause.exitCode == 2)
   }
@@ -75,7 +75,7 @@ class CancellationTest extends AnyFunSuite {
       .toVector
       .unsafeRunSync()
     assert(s.isInstanceOf[ServiceStart])
-    assert(b.isInstanceOf[ActionFail])
+    assert(b.isInstanceOf[ServiceMessage])
     assert(c.isInstanceOf[ServiceStop])
 
   }
@@ -85,8 +85,8 @@ class CancellationTest extends AnyFunSuite {
       .service("order")
       .updateConfig(_.withRestartPolicy(giveUp))
       .eventStream { ag =>
-        val a1 = ag.action("one/two/inner", _.silent).retry(IO.never[Int]).buildWith(identity).use(_.run(()))
-        ag.action("one/two/three/outer", _.silent)
+        val a1 = ag.action("one/two/inner").retry(IO.never[Int]).buildWith(identity).use(_.run(()))
+        ag.action("one/two/three/outer")
           .retry(IO.parSequenceN(2)(List(IO.sleep(2.second) >> IO.canceled, a1)))
           .buildWith(identity)
           .use(_.run(()))
@@ -96,8 +96,8 @@ class CancellationTest extends AnyFunSuite {
       .toVector
       .unsafeRunSync()
     assert(a.isInstanceOf[ServiceStart])
-    assert(b.asInstanceOf[ActionFail].actionParams.metricName.digest == "7ef72bfa")
-    assert(c.asInstanceOf[ActionFail].actionParams.metricName.digest == "17a1104e")
+    assert(b.asInstanceOf[ServiceMessage].metricName.digest == "7ef72bfa")
+    assert(c.asInstanceOf[ServiceMessage].metricName.digest == "17a1104e")
     assert(d.isInstanceOf[ServiceStop])
   }
 
@@ -106,10 +106,10 @@ class CancellationTest extends AnyFunSuite {
       .service("sequentially")
       .updateConfig(_.withRestartPolicy(fixedDelay(1.hour)))
       .eventStream { ag =>
-        ag.action("a1", _.bipartite).retry(IO(1)).buildWith(identity).use(_.run(())) >>
-          ag.action("a2", _.bipartite).retry(IO(1)).buildWith(identity).use(_.run(())) >>
+        ag.action("a1").retry(IO(1)).buildWith(_.withPublishStrategy(_.Bipartite)).use(_.run(())) >>
+          ag.action("a2").retry(IO(1)).buildWith(_.withPublishStrategy(_.Bipartite)).use(_.run(())) >>
           IO.canceled >>
-          ag.action("a3", _.bipartite).retry(IO(1)).buildWith(identity).use(_.run(()))
+          ag.action("a3").retry(IO(1)).buildWith(_.withPublishStrategy(_.Bipartite)).use(_.run(()))
       }
       .map(checkJson)
       .compile
@@ -117,10 +117,10 @@ class CancellationTest extends AnyFunSuite {
       .unsafeRunSync()
 
     assert(s.isInstanceOf[ServiceStart])
-    assert(a.isInstanceOf[ActionStart])
-    assert(b.asInstanceOf[ActionDone].actionParams.metricName.digest == "4a85d410")
-    assert(c.isInstanceOf[ActionStart])
-    assert(d.asInstanceOf[ActionDone].actionParams.metricName.digest == "4e1bf824")
+    assert(a.isInstanceOf[ServiceMessage])
+    assert(b.asInstanceOf[ServiceMessage].metricName.digest == "4a85d410")
+    assert(c.isInstanceOf[ServiceMessage])
+    assert(d.asInstanceOf[ServiceMessage].metricName.digest == "4e1bf824")
     assert(e.isInstanceOf[ServiceStop])
 
   }
@@ -131,13 +131,13 @@ class CancellationTest extends AnyFunSuite {
       .service("no cancel")
       .updateConfig(_.withRestartPolicy(giveUp))
       .eventStream { ag =>
-        ag.action("a1", _.bipartite).retry(IO(1)).buildWith(identity).use(_.run(())) >>
-          ag.action("a2", _.bipartite.policy(policy))
+        ag.action("a1").retry(IO(1)).buildWith(_.withPublishStrategy(_.Bipartite)).use(_.run(())) >>
+          ag.action("a2")
             .retry(IO.raiseError[Int](new Exception))
-            .buildWith(identity)
+            .buildWith(_.withPolicy(policy).withPublishStrategy(_.Bipartite))
             .use(_.run(())) >>
           IO.canceled >> // no chance to cancel since a2 never success
-          ag.action("a3", _.bipartite).retry(IO(1)).buildWith(identity).use(_.run(()))
+          ag.action("a3").retry(IO(1)).buildWith(_.withPublishStrategy(_.Bipartite)).use(_.run(()))
       }
       .map(checkJson)
       .compile
@@ -145,11 +145,11 @@ class CancellationTest extends AnyFunSuite {
       .unsafeRunSync()
 
     assert(s.isInstanceOf[ServiceStart])
-    assert(a.isInstanceOf[ActionStart])
-    assert(b.asInstanceOf[ActionDone].actionParams.metricName.digest == "b40a0d4d")
-    assert(c.isInstanceOf[ActionStart])
-    assert(d.asInstanceOf[ActionRetry].actionParams.metricName.digest == "970e74bc")
-    assert(e.asInstanceOf[ActionFail].actionParams.metricName.digest == "970e74bc")
+    assert(a.isInstanceOf[ServiceMessage])
+    assert(b.asInstanceOf[ServiceMessage].metricName.digest == "b40a0d4d")
+    assert(c.isInstanceOf[ServiceMessage])
+    assert(d.asInstanceOf[ServiceMessage].metricName.digest == "970e74bc")
+    assert(e.asInstanceOf[ServiceMessage].metricName.digest == "970e74bc")
     assert(f.isInstanceOf[ServiceStop])
   }
 
@@ -161,19 +161,23 @@ class CancellationTest extends AnyFunSuite {
         .updateConfig(_.withRestartPolicy(giveUp))
         .eventStream { ag =>
           val a1 =
-            ag.action("complete-1", _.bipartite)
+            ag.action("complete-1")
               .retry(IO.sleep(0.3.second).as(1))
-              .buildWith(identity)
+              .buildWith(_.withPublishStrategy(_.Bipartite))
               .use(_.run(()))
           val a2 =
-            ag.action("fail-2", _.bipartite.policy(policy))
+            ag.action("fail-2")
               .retry(IO.raiseError[Int](new Exception))
-              .buildWith(identity)
+              .buildWith(_.withPublishStrategy(_.Bipartite).withPolicy(policy))
               .use(_.run(()))
-          val a3 = ag.action("cancel-3", _.bipartite).retry(never_fun).buildWith(identity).use(_.run(()))
-          ag.action("supervisor", _.bipartite)
+          val a3 = ag
+            .action("cancel-3")
+            .retry(never_fun)
+            .buildWith(_.withPublishStrategy(_.Bipartite))
+            .use(_.run(()))
+          ag.action("supervisor")
             .retry(IO.parSequenceN(3)(List(a1, a2, a3)))
-            .buildWith(identity)
+            .buildWith(_.withPublishStrategy(_.Bipartite))
             .use(_.run(()))
         }
         .map(checkJson)
@@ -182,18 +186,18 @@ class CancellationTest extends AnyFunSuite {
         .unsafeRunSync()
 
     assert(v(0).isInstanceOf[ServiceStart])
-    assert(v(1).isInstanceOf[ActionStart])
-    assert(v(2).isInstanceOf[ActionStart])
-    assert(v(3).isInstanceOf[ActionStart])
-    assert(v(4).isInstanceOf[ActionStart])
+    assert(v(1).isInstanceOf[ServiceMessage])
+    assert(v(2).isInstanceOf[ServiceMessage])
+    assert(v(3).isInstanceOf[ServiceMessage])
+    assert(v(4).isInstanceOf[ServiceMessage])
 
-    assert(v(5).isInstanceOf[ActionRetry]) // a2
-    assert(v(6).isInstanceOf[ActionDone]) // a1
-    assert(v(7).isInstanceOf[ActionRetry]) // a2
-    assert(v(8).isInstanceOf[ActionRetry]) // a2
-    assert(v(9).isInstanceOf[ActionFail]) // a2 failed
-    assert(v(10).isInstanceOf[ActionFail]) // a3 cancelled
-    assert(v(11).isInstanceOf[ActionFail]) // supervisor
+    assert(v(5).isInstanceOf[ServiceMessage]) // a2
+    assert(v(6).isInstanceOf[ServiceMessage]) // a1
+    assert(v(7).isInstanceOf[ServiceMessage]) // a2
+    assert(v(8).isInstanceOf[ServiceMessage]) // a2
+    assert(v(9).isInstanceOf[ServiceMessage]) // a2 failed
+    assert(v(10).isInstanceOf[ServiceMessage]) // a3 cancelled
+    assert(v(11).isInstanceOf[ServiceMessage]) // supervisor
     assert(v(12).isInstanceOf[ServiceStop])
   }
 
@@ -204,9 +208,9 @@ class CancellationTest extends AnyFunSuite {
       .updateConfig(_.withRestartPolicy(fixedDelay(1.hour)))
       .eventStream { ag =>
         val a1 =
-          ag.action("exception", _.bipartite.policy(policy))
+          ag.action("exception")
             .retry(IO.raiseError[Int](new Exception))
-            .buildWith(identity)
+            .buildWith(_.withPolicy(policy).withPublishStrategy(_.Bipartite))
             .use(_.run(()))
         IO.parSequenceN(2)(List(IO.sleep(3.second) >> IO.canceled, a1))
       }
@@ -215,10 +219,10 @@ class CancellationTest extends AnyFunSuite {
       .toVector
       .unsafeRunSync()
     assert(s.isInstanceOf[ServiceStart])
-    assert(a.isInstanceOf[ActionStart])
-    assert(b.isInstanceOf[ActionRetry])
-    assert(c.isInstanceOf[ActionRetry])
-    assert(d.isInstanceOf[ActionFail])
+    assert(a.isInstanceOf[ServiceMessage])
+    assert(b.isInstanceOf[ServiceMessage])
+    assert(c.isInstanceOf[ServiceMessage])
+    assert(d.isInstanceOf[ServiceMessage])
     assert(e.isInstanceOf[ServiceStop])
 
   }
@@ -229,9 +233,9 @@ class CancellationTest extends AnyFunSuite {
       .updateConfig(_.withRestartPolicy(fixedDelay(1.hour)))
       .eventStream { ag =>
         val a1 = ag
-          .action("exception", _.policy(policy))
+          .action("exception")
           .retry(IO.raiseError[Int](new Exception))
-          .buildWith(identity)
+          .buildWith(_.withPolicy(policy))
           .use(_.run(()))
         IO.parSequenceN(2)(List(IO.sleep(2.second) >> IO.canceled, IO.uncancelable(_ => a1)))
       }
@@ -241,10 +245,10 @@ class CancellationTest extends AnyFunSuite {
       .unsafeRunSync()
 
     assert(s.isInstanceOf[ServiceStart])
-    assert(b.isInstanceOf[ActionRetry])
-    assert(c.isInstanceOf[ActionRetry])
-    assert(d.isInstanceOf[ActionRetry])
-    assert(e.isInstanceOf[ActionFail])
+    assert(b.isInstanceOf[ServiceMessage])
+    assert(c.isInstanceOf[ServiceMessage])
+    assert(d.isInstanceOf[ServiceMessage])
+    assert(e.isInstanceOf[ServiceMessage])
     assert(f.isInstanceOf[ServiceStop])
   }
 
@@ -253,13 +257,14 @@ class CancellationTest extends AnyFunSuite {
       task
         .service("never")
         .updateConfig(_.withRestartPolicy(fixedDelay(1.hour)))
-        .eventStream(_.action("never", _.bipartite).retry(IO.never[Int]).buildWith(identity).use(_.run(())))
+        .eventStream(
+          _.action("never").retry(IO.never[Int]).buildWith(_.withPublishStrategy(_.Bipartite)).use(_.run(())))
         .map(checkJson)
         .interruptAfter(2.seconds)
         .compile
         .toVector
         .unsafeRunSync()
     assert(a.isInstanceOf[ServiceStart])
-    assert(b.isInstanceOf[ActionStart])
+    assert(b.isInstanceOf[ServiceMessage])
   }
 }

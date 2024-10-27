@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.guard.translator
 import cats.data.Cont
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.config.CategoryKind.CounterKind
-import com.github.chenharryhua.nanjin.guard.config.{AlertLevel, Category}
+import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, Category}
 import com.github.chenharryhua.nanjin.guard.event.{
   retrieveHealthChecks,
   MetricSnapshot,
@@ -35,7 +35,6 @@ object ColorScheme extends CatsOrderValueEnum[Int, ColorScheme] with IntEnum[Col
         .filter(_.count > 0)
         .collect(_.metricId.category match { case Category.Counter(kind) => kind })
         .map {
-          case CounterKind.ActionFail => WarnColor
           case CounterKind.AlertError => WarnColor
           case CounterKind.AlertWarn  => WarnColor
           case CounterKind.Risk       => WarnColor
@@ -57,15 +56,12 @@ object ColorScheme extends CatsOrderValueEnum[Int, ColorScheme] with IntEnum[Col
           case ServiceStopCause.ByException(_) => ErrorColor
           case ServiceStopCause.Maintenance    => InfoColor
         }
-      case _: ActionStart => InfoColor
-      case _: ActionRetry => WarnColor
-      case _: ActionFail  => ErrorColor
-      case _: ActionDone  => GoodColor
-      case ServiceAlert(_, _, _, _, alertLevel, _) =>
-        alertLevel match {
-          case AlertLevel.Error => ErrorColor
-          case AlertLevel.Warn  => WarnColor
-          case AlertLevel.Info  => InfoColor
+      case ServiceMessage(_, _, _, level, _) =>
+        level match {
+          case AlarmLevel.Error => ErrorColor
+          case AlarmLevel.Warn  => WarnColor
+          case AlarmLevel.Info  => InfoColor
+          case AlarmLevel.Done  => GoodColor
         }
       case MetricReport(_, _, ss, _) => color_snapshot(ss)
       case MetricReset(_, _, ss, _)  => color_snapshot(ss)

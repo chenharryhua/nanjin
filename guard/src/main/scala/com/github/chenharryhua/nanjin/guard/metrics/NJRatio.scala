@@ -40,20 +40,6 @@ sealed trait NJRatio[F[_]] {
   def kleisli[A](f: A => Ior[Long, Long]): Kleisli[F, A, Unit]
 }
 
-private class NJRatioImpl[F[_]](private[this] val ref: Ref[F, Ior[Long, Long]]) extends NJRatio[F] {
-
-  private[this] def update(ior: Ior[Long, Long]): F[Unit] = ref.update(_ |+| ior)
-
-  override def incNumerator(numerator: Long): F[Unit]     = update(Ior.Left(numerator))
-  override def incDenominator(denominator: Long): F[Unit] = update(Ior.Right(denominator))
-
-  override def incBoth(numerator: Long, denominator: Long): F[Unit] =
-    update(Ior.Both(numerator, denominator))
-
-  override def kleisli[A](f: A => Ior[Long, Long]): Kleisli[F, A, Unit] =
-    Kleisli(update).local(f)
-}
-
 object NJRatio {
   def dummy[F[_]](implicit F: Applicative[F]): NJRatio[F] =
     new NJRatio[F] {
@@ -63,6 +49,20 @@ object NJRatio {
       override def kleisli[A](f: A => Ior[Long, Long]): Kleisli[F, A, Unit] =
         Kleisli((_: A) => F.unit)
     }
+
+  private class Impl[F[_]](private[this] val ref: Ref[F, Ior[Long, Long]]) extends NJRatio[F] {
+
+    private[this] def update(ior: Ior[Long, Long]): F[Unit] = ref.update(_ |+| ior)
+
+    override def incNumerator(numerator: Long): F[Unit]     = update(Ior.Left(numerator))
+    override def incDenominator(denominator: Long): F[Unit] = update(Ior.Right(denominator))
+
+    override def incBoth(numerator: Long, denominator: Long): F[Unit] =
+      update(Ior.Both(numerator, denominator))
+
+    override def kleisli[A](f: A => Ior[Long, Long]): Kleisli[F, A, Unit] =
+      Kleisli(update).local(f)
+  }
 
   val translator: Ior[Long, Long] => Json = {
     case Ior.Left(_)  => Json.fromString("n/a")
@@ -109,7 +109,7 @@ object NJRatio {
               }
           )
         })(_ => F.delay(metricRegistry.remove(metricID)).void)
-      } yield new NJRatioImpl[F](ref)
+      } yield new Impl[F](ref)
 
       if (isEnabled) impl else Resource.pure(dummy)
     }

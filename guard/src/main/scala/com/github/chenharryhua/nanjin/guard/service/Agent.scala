@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.service
 
 import cats.Endo
-import cats.effect.kernel.{Async, Resource}
+import cats.effect.kernel.Async
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.common.chrono.*
 import com.github.chenharryhua.nanjin.guard.action.*
@@ -20,33 +20,27 @@ sealed trait Agent[F[_]] {
   def toZonedDateTime(ts: Instant): ZonedDateTime
 
   def withMeasurement(name: String): Agent[F]
-  def enable(isEnabled: Boolean): Agent[F]
 
   // actions
-  def action(actionName: String, f: Endo[NJAction.Builder]): NJAction[F]
-  final def action(actionName: String): NJAction[F] = action(actionName, identity)
+  def action(name: String): NJAction[F]
 
-  def batch(name: String, f: Endo[NJAction.Builder]): NJBatch[F]
-  final def batch(name: String): NJBatch[F] = batch(name, identity)
-
-  def alert(alertName: String, f: Endo[NJAlert.Builder]): Resource[F, NJAlert[F]]
-  final def alert(alertName: String): Resource[F, NJAlert[F]] = alert(alertName, identity)
+  def batch(name: String): NJBatch[F]
 
   // tick stream
   def ticks(policy: Policy): Stream[F, Tick]
 
   // metrics
   def adhoc: NJMetricsReport[F]
-  def metrics(name: String, f: Endo[NJMetrics.Builder]): NJMetrics[F]
-  final def metrics(name: String): NJMetrics[F] = metrics(name, identity)
+
+  def facilitator(name: String, f: Endo[NJFacilitator.Builder]): NJFacilitator[F]
+  final def facilitator(name: String): NJFacilitator[F] = facilitator(name, identity)
 }
 
 final private class GeneralAgent[F[_]: Async] private[service] (
   serviceParams: ServiceParams,
   metricRegistry: MetricRegistry,
   channel: Channel[F, NJEvent],
-  measurement: Measurement,
-  isEnabled: Boolean)
+  measurement: Measurement)
     extends Agent[F] {
 
   // date time
@@ -56,30 +50,16 @@ final private class GeneralAgent[F[_]: Async] private[service] (
   override def toZonedDateTime(ts: Instant): ZonedDateTime = serviceParams.toZonedDateTime(ts)
 
   override def withMeasurement(name: String): Agent[F] =
-    new GeneralAgent[F](serviceParams, metricRegistry, channel, Measurement(name), isEnabled)
+    new GeneralAgent[F](serviceParams, metricRegistry, channel, Measurement(name))
 
-  override def enable(isEnabled: Boolean): Agent[F] =
-    new GeneralAgent[F](serviceParams, metricRegistry, channel, measurement, isEnabled)
+  override def action(name: String): NJAction[F] = {
+    val metricName = MetricName(serviceParams, measurement, name)
+    new NJAction[F](metricName, serviceParams, channel)
+  }
 
-  override def action(actionName: String, f: Endo[NJAction.Builder]): NJAction[F] =
-    new NJAction[F](
-      actionConfig = f(
-        ActionConfig(
-          isEnabled = isEnabled,
-          actionName = ActionName(actionName),
-          measurement = measurement,
-          serviceParams = serviceParams
-        )),
-      metricRegistry = metricRegistry,
-      channel = channel
-    )
-
-  override def batch(name: String, f: Endo[NJAction.Builder]): NJBatch[F] =
-    new NJBatch[F](action(name, f), metrics(name, identity))
-
-  override def alert(alertName: String, f: Endo[NJAlert.Builder]): Resource[F, NJAlert[F]] = {
-    val init = new NJAlert.Builder(isEnabled, measurement, false)
-    f(init).build[F](alertName, metricRegistry, channel, serviceParams)
+  override def batch(name: String): NJBatch[F] = {
+    val metricName = MetricName(serviceParams, measurement, name)
+    new NJBatch[F](NJMetrics(metricName, metricRegistry))
   }
 
   override def ticks(policy: Policy): Stream[F, Tick] =
@@ -87,8 +67,8 @@ final private class GeneralAgent[F[_]: Async] private[service] (
 
   override object adhoc extends NJMetricsReport[F](channel, serviceParams, metricRegistry)
 
-  override def metrics(name: String, f: Endo[NJMetrics.Builder]): NJMetrics[F] = {
+  override def facilitator(name: String, f: Endo[NJFacilitator.Builder]): NJFacilitator[F] = {
     val metricName = MetricName(serviceParams, measurement, name)
-    f(new NJMetrics.Builder(isEnabled)).build[F](metricRegistry, metricName)
+    f(new NJFacilitator.Builder(Policy.giveUp)).build[F](metricName, serviceParams, metricRegistry, channel)
   }
 }

@@ -40,10 +40,10 @@ class SyntaxTest extends AnyFunSuite {
   test("2.should be in one namespace") {
     def job(ag: Agent[IO]): Resource[IO, Kleisli[IO, Int, Long]] = {
       val name: String = "app"
-      val agent        = ag.metrics("")
+      val agent        = ag.facilitator("test").metrics
       for {
         timer <- agent.timer(name).map(_.kleisli((in: Int) => in.seconds))
-        runner <- ag.action(name, _.timed.counted).retry(fun1 _).buildWith(identity)
+        runner <- ag.action(name).retry(fun1 _).buildWith(identity)
         histogram <- agent.histogram(name, _.withUnit(_.BYTES))
         meter <- agent.meter(name, _.withUnit(_.COUNT))
         counter <- agent.counter(name, _.asRisk)
@@ -82,22 +82,22 @@ class SyntaxTest extends AnyFunSuite {
   test("3.resource should be cleaned up") {
     def job(ag: Agent[IO]): Resource[IO, Kleisli[IO, Int, Long]] = {
       val name: String = "app2"
-      val agent        = ag.metrics(name)
+      val mtx          = ag.facilitator(name).metrics
+      val msg          = ag.facilitator(name).messenger
       for {
-        action <- ag.action(name, _.timed.counted).retry(fun1 _).buildWith(identity)
-        histogram <- agent.histogram(name, _.withUnit(_.BYTES))
-        meter <- agent.meter(name, _.withUnit(_.KILOBITS))
-        counter <- agent.counter(name, _.asRisk)
-        timer <- agent.timer(name)
-        alert <- ag.alert(name, _.counted)
-        _ <- agent.gauge(name).register(IO(0))
+        action <- ag.action(name).retry(fun1 _).buildWith(identity)
+        histogram <- mtx.histogram(name, _.withUnit(_.BYTES))
+        meter <- mtx.meter(name, _.withUnit(_.KILOBITS))
+        counter <- mtx.counter(name, _.asRisk)
+        timer <- mtx.timer(name)
+        _ <- mtx.gauge(name).register(IO(0))
       } yield for {
         out <- action
         _ <- histogram.kleisli((_: Int) => out)
         _ <- meter.kleisli((_: Int) => out)
         _ <- counter.kleisli((_: Int) => out)
         _ <- timer.kleisli((in: Int) => in.milliseconds)
-        _ <- Kleisli((in: Int) => alert.info(in))
+        _ <- Kleisli((in: Int) => msg.info(in))
       } yield out
     }
 

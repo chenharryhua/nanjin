@@ -23,51 +23,6 @@ sealed trait NJGauge[F[_]] {
   def register[A: Encoder](value: F[A], policy: Policy, zoneId: ZoneId): Resource[F, Unit]
 }
 
-private class NJGaugeImpl[F[_]: Async](
-  private[this] val name: MetricName,
-  private[this] val metricRegistry: MetricRegistry,
-  private[this] val timeout: FiniteDuration,
-  private[this] val tag: MetricTag
-) extends NJGauge[F] {
-
-  private[this] val F = Async[F]
-
-  private[this] def trans_error(ex: Throwable): Json =
-    Json.fromString(StringUtils.abbreviate(ExceptionUtils.getRootCauseMessage(ex), 80))
-
-  private[this] def json_gauge[A: Encoder](metricID: MetricID, fa: F[A]): Resource[F, Unit] =
-    Dispatcher.sequential[F].flatMap { dispatcher =>
-      Resource
-        .make(F.delay {
-          metricRegistry.gauge(
-            metricID.identifier,
-            () =>
-              new Gauge[Json] {
-                override def getValue: Json =
-                  Try(dispatcher.unsafeRunTimed(fa, timeout)).fold(trans_error, _.asJson)
-              }
-          )
-        })(_ => F.delay(metricRegistry.remove(metricID.identifier)).void)
-        .void
-    }
-
-  override def register[A: Encoder](value: F[A]): Resource[F, Unit] =
-    Resource.eval(F.unique).flatMap { token =>
-      val metricID: MetricID = MetricID(name, tag, Category.Gauge(GaugeKind.Gauge), token)
-      json_gauge(metricID, value)
-    }
-
-  override def register[A: Encoder](value: F[A], policy: Policy, zoneId: ZoneId): Resource[F, Unit] = {
-    val fetch: F[Json] = value.timeout(timeout).attempt.map(_.fold(trans_error, _.asJson))
-    for {
-      init <- Resource.eval(fetch)
-      ref <- Resource.eval(F.ref(init))
-      _ <- F.background(tickStream[F](policy, zoneId).evalMap(_ => fetch.flatMap(ref.set)).compile.drain)
-      _ <- register(ref.get)
-    } yield ()
-  }
-}
-
 object NJGauge {
   def dummy[F[_]]: NJGauge[F] =
     new NJGauge[F] {
@@ -76,6 +31,51 @@ object NJGauge {
       override def register[A: Encoder](value: F[A], policy: Policy, zoneId: ZoneId): Resource[F, Unit] =
         Resource.unit[F]
     }
+
+  private class Impl[F[_]: Async](
+    private[this] val name: MetricName,
+    private[this] val metricRegistry: MetricRegistry,
+    private[this] val timeout: FiniteDuration,
+    private[this] val tag: MetricTag
+  ) extends NJGauge[F] {
+
+    private[this] val F = Async[F]
+
+    private[this] def trans_error(ex: Throwable): Json =
+      Json.fromString(StringUtils.abbreviate(ExceptionUtils.getRootCauseMessage(ex), 80))
+
+    private[this] def json_gauge[A: Encoder](metricID: MetricID, fa: F[A]): Resource[F, Unit] =
+      Dispatcher.sequential[F].flatMap { dispatcher =>
+        Resource
+          .make(F.delay {
+            metricRegistry.gauge(
+              metricID.identifier,
+              () =>
+                new Gauge[Json] {
+                  override def getValue: Json =
+                    Try(dispatcher.unsafeRunTimed(fa, timeout)).fold(trans_error, _.asJson)
+                }
+            )
+          })(_ => F.delay(metricRegistry.remove(metricID.identifier)).void)
+          .void
+      }
+
+    override def register[A: Encoder](value: F[A]): Resource[F, Unit] =
+      Resource.eval(F.unique).flatMap { token =>
+        val metricID: MetricID = MetricID(name, tag, Category.Gauge(GaugeKind.Gauge), token)
+        json_gauge(metricID, value)
+      }
+
+    override def register[A: Encoder](value: F[A], policy: Policy, zoneId: ZoneId): Resource[F, Unit] = {
+      val fetch: F[Json] = value.timeout(timeout).attempt.map(_.fold(trans_error, _.asJson))
+      for {
+        init <- Resource.eval(fetch)
+        ref <- Resource.eval(F.ref(init))
+        _ <- F.background(tickStream[F](policy, zoneId).evalMap(_ => fetch.flatMap(ref.set)).compile.drain)
+        _ <- register(ref.get)
+      } yield ()
+    }
+  }
 
   final class Builder private[guard] (isEnabled: Boolean, timeout: FiniteDuration)
       extends EnableConfig[Builder] {
@@ -91,7 +91,7 @@ object NJGauge {
       tag: MetricTag,
       metricRegistry: MetricRegistry): NJGauge[F] =
       if (isEnabled) {
-        new NJGaugeImpl[F](metricName, metricRegistry, timeout, tag)
+        new Impl[F](metricName, metricRegistry, timeout, tag)
       } else dummy[F]
   }
 }

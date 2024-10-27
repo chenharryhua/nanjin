@@ -5,15 +5,8 @@ import cats.effect.kernel.{Clock, Concurrent, Resource}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.aws.SimpleNotificationService
 import com.github.chenharryhua.nanjin.common.aws.SnsArn
-import com.github.chenharryhua.nanjin.guard.config.Importance
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
-import com.github.chenharryhua.nanjin.guard.event.NJEvent.{
-  ActionDone,
-  ActionFail,
-  ActionRetry,
-  ActionStart,
-  ServiceStart
-}
+import com.github.chenharryhua.nanjin.guard.event.NJEvent.ServiceStart
 import com.github.chenharryhua.nanjin.guard.observers.FinalizeMonitor
 import com.github.chenharryhua.nanjin.guard.translator.*
 import fs2.{Pipe, Stream}
@@ -66,13 +59,7 @@ final class SlackObserver[F[_]: Clock](
       event <- es
         .evalTap(ofm.monitoring)
         .evalTap(e =>
-          translator.filter {
-            case ActionStart(ap, _, _)      => ap.importance === Importance.Critical
-            case ActionDone(ap, _, _, _)    => ap.importance === Importance.Critical
-            case ActionRetry(ap, _, _, _)   => ap.importance > Importance.Insignificant
-            case ActionFail(ap, _, _, _, _) => ap.importance > Importance.Suppressed
-            case _                          => true
-          }.translate(e).flatMap(_.traverse(msg => publish(sns, snsArn, msg.asJson.noSpaces))))
+          translator.translate(e).flatMap(_.traverse(msg => publish(sns, snsArn, msg.asJson.noSpaces))))
         .onFinalize(ofm.terminated.flatMap(_.traverse(msg => publish(sns, snsArn, msg.asJson.noSpaces))).void)
     } yield event
 }

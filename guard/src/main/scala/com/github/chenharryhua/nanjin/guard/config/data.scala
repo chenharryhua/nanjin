@@ -17,29 +17,17 @@ object PublishStrategy
   case object Silent extends PublishStrategy(0, "silent") // publish nothing
 }
 
-sealed abstract class Importance(override val value: Int, val entryName: String)
+sealed abstract class AlarmLevel(override val value: Int, val entryName: String)
     extends IntEnumEntry with Product
 
-object Importance
-    extends CatsOrderValueEnum[Int, Importance] with IntEnum[Importance] with IntCirceEnum[Importance] {
-  override val values: IndexedSeq[Importance] = findValues
+object AlarmLevel
+    extends CatsOrderValueEnum[Int, AlarmLevel] with IntEnum[AlarmLevel] with IntCirceEnum[AlarmLevel] {
+  override val values: IndexedSeq[AlarmLevel] = findValues
 
-  case object Critical extends Importance(4, "critical")
-  case object Normal extends Importance(3, "normal")
-  case object Insignificant extends Importance(2, "insignificant")
-  case object Suppressed extends Importance(1, "suppressed")
-}
-
-sealed abstract class AlertLevel(override val value: Int, val entryName: String)
-    extends IntEnumEntry with Product
-
-object AlertLevel
-    extends CatsOrderValueEnum[Int, AlertLevel] with IntEnum[AlertLevel] with IntCirceEnum[AlertLevel] {
-  override val values: IndexedSeq[AlertLevel] = findValues
-
-  case object Error extends AlertLevel(3, "error")
-  case object Warn extends AlertLevel(2, "warn")
-  case object Info extends AlertLevel(1, "info")
+  case object Error extends AlarmLevel(3, "error")
+  case object Warn extends AlarmLevel(2, "warn")
+  case object Info extends AlarmLevel(1, "info")
+  case object Done extends AlarmLevel(0, "done")
 }
 
 final case class TaskName(value: String) extends AnyVal
@@ -61,13 +49,6 @@ object HomePage {
   implicit val showHomePage: Show[HomePage]       = _.value
   implicit val encoderHomePage: Encoder[HomePage] = Encoder.encodeString.contramap(_.value)
   implicit val decoderHomePage: Decoder[HomePage] = Decoder.decodeString.map(HomePage(_))
-}
-
-final case class ActionName(value: String) extends AnyVal
-object ActionName {
-  implicit val showActionName: Show[ActionName]       = _.value
-  implicit val encoderActionName: Encoder[ActionName] = Encoder.encodeString.contramap(_.value)
-  implicit val decoderActionName: Decoder[ActionName] = Decoder.decodeString.map(ActionName(_))
 }
 
 final case class Measurement(value: String) extends AnyVal

@@ -13,13 +13,13 @@ class RatioTest extends AnyFunSuite {
 
   test("1. init") {
     service.eventStream { ga =>
-      ga.metrics("").ratio("init", _.withTranslator(_ => Json.Null)).use(_ => ga.adhoc.report)
+      ga.facilitator("test").metrics.ratio("init", _.withTranslator(_ => Json.Null)).use(_ => ga.adhoc.report)
     }.map(checkJson).mapFilter(metricReport).evalTap(console.json[IO]).compile.lastOrError.unsafeRunSync()
   }
 
   test("2. zero denominator") {
     service.eventStream { ga =>
-      ga.metrics("ga").ratio("zero").use(r => r.incDenominator(0) >> ga.adhoc.report)
+      ga.facilitator("ga").metrics.ratio("zero").use(r => r.incDenominator(0) >> ga.adhoc.report)
     }.map(checkJson).mapFilter(metricReport).evalTap(console.text[IO]).compile.lastOrError.unsafeRunSync()
   }
 }

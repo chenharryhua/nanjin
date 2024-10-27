@@ -23,23 +23,23 @@ class InfluxDBTest extends AnyFunSuite {
         .service("observing")
         .updateConfig(_.withRestartPolicy(Policy.fixedRate(1.second)).addBrief(Json.fromString("brief")))
         .eventStream { agent =>
-          val ag = agent.metrics("job")
+          val fac = agent.facilitator("job")
+          val ag  = fac.metrics
           val job =
             box.getAndUpdate(_ + 1).map(_ % 12 == 0).ifM(IO(1), IO.raiseError[Int](new Exception("oops")))
           val env = for {
             meter <- ag.meter("meter", _.withUnit(_.COUNT))
             action <- agent
               .action(
-                "nj_error",
-                _.critical.bipartite.timed.counted.policy(Policy.fixedRate(1.second).limited(3)))
+                "nj_error"
+              )
               .retry(job)
-              .buildWith(identity)
+              .buildWith(_.withPolicy(Policy.fixedRate(1.second).limited(3)))
             counter <- ag.counter("nj counter", _.asRisk)
             histogram <- ag.histogram("nj histogram", _.withUnit(_.SECONDS))
-            alert <- agent.alert("nj alert")
             _ <- ag.gauge("nj gauge").register(box.get)
           } yield meter.update(1) >> action.run(()) >> counter.inc(1) >>
-            histogram.update(1) >> alert.info(1) >> agent.adhoc.report
+            histogram.update(1) >> fac.messenger.info(1) >> agent.adhoc.report
           env.use(identity)
         }
     }
@@ -59,6 +59,5 @@ class InfluxDBTest extends AnyFunSuite {
       .addTag("tag", "customer")
       .addTags(Map("a" -> "b"))
     service.evalTap(console.text[IO]).through(influx.observe).compile.drain.unsafeRunSync()
-    service.evalTap(console.text[IO]).through(influx.observe(10, 10.seconds)).compile.drain.unsafeRunSync()
   }
 }

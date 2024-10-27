@@ -2,8 +2,7 @@ package com.github.chenharryhua.nanjin.guard.event
 
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.chrono.crontabs
-import com.github.chenharryhua.nanjin.guard.config.Importance
-import com.github.chenharryhua.nanjin.guard.event.NJEvent.{ActionDone, ActionEvent, ActionStart, MetricReport}
+import com.github.chenharryhua.nanjin.guard.event.NJEvent.MetricReport
 import cron4s.CronExpr
 import cron4s.lib.javatime.javaTemporalInstance
 import cron4s.syntax.all.*
@@ -15,21 +14,6 @@ import scala.concurrent.duration.*
 import scala.jdk.DurationConverters.{JavaDurationOps, ScalaDurationOps}
 
 object eventFilters {
-  final def isPivotalEvent(evt: NJEvent): Boolean = evt match {
-    case _: ActionDone  => false
-    case _: ActionStart => false
-    case _              => true
-  }
-
-  final def isServiceEvent(evt: NJEvent): Boolean = evt match {
-    case _: ActionEvent => false
-    case _              => true
-  }
-
-  final def nonSuppress(evt: NJEvent): Boolean = evt match {
-    case ae: ActionEvent => ae.actionParams.importance > Importance.Suppressed
-    case _               => true
-  }
 
   /** interval based sampling
     *

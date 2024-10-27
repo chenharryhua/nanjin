@@ -28,29 +28,23 @@ class AwsObserverTest extends AnyFunSuite {
         .updateConfig(
           _.withRestartPolicy(Policy.fixedRate(1.second)).withMetricReport(Policy.crontab(_.secondly)))
         .eventStream { agent =>
-          val ag = agent.metrics("job")
+          val ag = agent.facilitator("job").metrics
           val job =
             box.getAndUpdate(_ + 1).map(_ % 12 == 0).ifM(IO(1), IO.raiseError[Int](new Exception("oops")))
           val env = for {
             meter <- ag.meter("meter", _.withUnit(_.COUNT))
-            action <- agent
-              .action(
-                "nj_error",
-                _.critical.bipartite.timed.counted.policy(Policy.fixedRate(1.second).limited(3)))
-              .retry(job)
-              .buildWith(identity)
+            action <- agent.action("nj_error").retry(job).buildWith(identity)
             counter <- ag.counter("nj counter", _.asRisk)
             histogram <- ag.histogram("nj histogram", _.withUnit(_.SECONDS))
-            alert <- agent.alert("nj alert")
             _ <- ag.gauge("nj gauge").register(box.get)
           } yield meter.update(1) >> action.run(()) >> counter.inc(1) >>
-            histogram.update(1) >> alert.info(1) >> agent.adhoc.report
+            histogram.update(1) >> agent.facilitator("abc").messenger.info(1) >> agent.adhoc.report
           env.use(identity)
         }
     }
 
   test("1.sqs") {
-    val sqs = SqsObserver(sqs_client(1.seconds, "")).updateTranslator(_.skipActionDone)
+    val sqs = SqsObserver(sqs_client(1.seconds, ""))
     service.through(sqs.observe("https://google.com/abc.fifo", "group.id")).compile.drain.unsafeRunSync()
   }
 
@@ -71,7 +65,7 @@ class AwsObserverTest extends AnyFunSuite {
 
   test("3.syntax") {
     EmailObserver(ses_client).updateTranslator {
-      _.skipMetricReset.skipMetricReport.skipActionStart.skipActionRetry.skipActionFail.skipActionDone.skipServiceAlert.skipServiceStart.skipServicePanic.skipServiceStop.skipAll
+      _.skipMetricReset.skipMetricReport.skipServiceMessage.skipServiceStart.skipServicePanic.skipServiceStop.skipAll
     }
   }
 

@@ -42,7 +42,7 @@ class HttpServerTest extends AnyFunSuite {
         .service("http stop")
         .updateConfig(_.withMetricReport(Policy.crontab(_.secondly)).withHttpServer(_.withPort(port"9999")))
         .eventStream { agent =>
-          val ag = agent.metrics("test")
+          val ag = agent.facilitator("test").metrics
           val m = for {
             _ <- ag.gauge("a").register(IO(1))
             _ <- ag.counter("a").evalMap(_.inc(1))
@@ -126,11 +126,7 @@ class HttpServerTest extends AnyFunSuite {
       .service("never")
       .updateConfig(_.withHttpServer(_.withPort(port"9996")))
       .eventStream {
-        _.action("panic", _.timed.counted)
-          .retry(IO.sleep(1.seconds))
-          .buildWith(identity)
-          .use(_.run(()))
-          .foreverM
+        _.action("panic").retry(IO.sleep(1.seconds)).buildWith(identity).use(_.run(())).foreverM
       }
       .map(checkJson)
       .compile

@@ -2,7 +2,6 @@ package com.github.chenharryhua.nanjin.guard.action
 
 import cats.data.Kleisli
 import cats.effect.kernel.Async
-import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import fs2.concurrent.Channel
@@ -10,21 +9,19 @@ import fs2.concurrent.Channel
 import scala.concurrent.Future
 
 final class NJAction[F[_]: Async] private[guard] (
-  actionConfig: ActionConfig,
-  metricRegistry: MetricRegistry,
+  metricName: MetricName,
+  serviceParams: ServiceParams,
   channel: Channel[F, NJEvent]
 ) {
-  val actionParams: ActionParams = actionConfig.evalConfig
 
   private val F = Async[F]
 
   // retries
   def retry[A, Z](kleisli: Kleisli[F, A, Z]): BuildWith[F, A, Z] =
     new BuildWith[F, A, Z](
-      metricRegistry = metricRegistry,
+      metricName = metricName,
       channel = channel,
-      actionParams = actionParams,
-      isWorthRetry = actionConfig.isWorthRetry,
+      serviceParams = serviceParams,
       arrow = kleisli
     )
 
@@ -67,8 +64,4 @@ final class NJAction[F[_]: Async] private[guard] (
 
   def retryFuture[A, B, C, D, E, Z](f: (A, B, C, D, E) => Future[Z]): BuildWith[F, (A, B, C, D, E), Z] =
     retry((a: A, b: B, c: C, d: D, e: E) => F.fromFuture(F.delay(f(a, b, c, d, e))))
-}
-
-object NJAction {
-  type Builder = ActionConfig
 }

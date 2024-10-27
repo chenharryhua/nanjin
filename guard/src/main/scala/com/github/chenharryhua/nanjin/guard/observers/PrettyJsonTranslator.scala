@@ -15,8 +15,6 @@ object PrettyJsonTranslator {
 
   private def took(dur: Duration): (String, Json) =
     "took" -> Json.fromString(fmt.format(dur))
-  private def took(dur: Option[Duration]): (String, Json) =
-    dur.fold("took" -> Json.Null)(took)
 
   private def uptime(evt: NJEvent): (String, Json) =
     "upTime" -> Json.fromString(fmt.format(evt.upTime))
@@ -89,9 +87,9 @@ object PrettyJsonTranslator {
           pretty_metrics(evt.snapshot)
         ))
 
-  private def service_alert(evt: ServiceAlert): Json =
+  private def service_message(evt: ServiceMessage): Json =
     Json.obj(
-      EventName.ServiceAlert.camel ->
+      EventName.ServiceMessage.camel ->
         Json.obj(
           metricName(evt.metricName),
           metricDigest(evt.metricName),
@@ -99,64 +97,6 @@ object PrettyJsonTranslator {
           serviceName(evt),
           serviceId(evt),
           alertMessage(evt)
-        ))
-
-  private def action_start(evt: ActionStart): Json =
-    Json.obj(
-      EventName.ActionStart.camel ->
-        Json.obj(
-          metricName(evt.actionParams.metricName),
-          metricDigest(evt.actionParams.metricName),
-          metricMeasurement(evt.actionParams.metricName),
-          config(evt),
-          serviceName(evt),
-          serviceId(evt),
-          notes(evt.notes)
-        ))
-
-  private def action_retrying(evt: ActionRetry): Json =
-    Json.obj(
-      EventName.ActionRetry.camel ->
-        Json.obj(
-          metricName(evt.actionParams.metricName),
-          metricDigest(evt.actionParams.metricName),
-          metricMeasurement(evt.actionParams.metricName),
-          config(evt),
-          serviceName(evt),
-          serviceId(evt),
-          policy(evt.actionParams.retryPolicy),
-          notes(evt.notes),
-          errorCause(evt.error)
-        ))
-
-  private def action_fail(evt: ActionFail): Json =
-    Json.obj(
-      EventName.ActionFail.camel ->
-        Json.obj(
-          metricName(evt.actionParams.metricName),
-          metricDigest(evt.actionParams.metricName),
-          metricMeasurement(evt.actionParams.metricName),
-          config(evt),
-          serviceName(evt),
-          serviceId(evt),
-          took(evt.took),
-          policy(evt.actionParams.retryPolicy),
-          notes(evt.notes),
-          stack(evt.error)
-        ))
-
-  private def action_done(evt: ActionDone): Json =
-    Json.obj(
-      EventName.ActionDone.camel ->
-        Json.obj(
-          metricName(evt.actionParams.metricName),
-          metricDigest(evt.actionParams.metricName),
-          metricMeasurement(evt.actionParams.metricName),
-          config(evt),
-          serviceName(evt),
-          serviceId(evt),
-          took(evt.took),
-          notes(evt.notes)
         ))
 
   def apply[F[_]: Applicative]: Translator[F, Json] =
@@ -167,9 +107,5 @@ object PrettyJsonTranslator {
       .withServicePanic(service_panic)
       .withMetricReport(metric_report)
       .withMetricReset(metric_reset)
-      .withServiceAlert(service_alert)
-      .withActionStart(action_start)
-      .withActionRetry(action_retrying)
-      .withActionFail(action_fail)
-      .withActionDone(action_done)
+      .withServiceMessage(service_message)
 }

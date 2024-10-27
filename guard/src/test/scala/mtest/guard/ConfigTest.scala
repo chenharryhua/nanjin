@@ -18,76 +18,44 @@ class ConfigTest extends AnyFunSuite {
       .updateConfig(_.withMetricReport(crontab(_.hourly)))
 
   test("1.counting") {
-    val as = task
+    task
       .service("counting")
       .eventStream { agent =>
-        agent.action("cfg", _.bipartite.counted).retry(IO(1)).buildWith(identity).use(_.run(()))
+        agent.action("cfg").retry(IO(1)).buildWith(_.withPublishStrategy(_.Bipartite)).use(_.run(()))
       }
       .map(checkJson)
-      .filter(_.isInstanceOf[ActionStart])
+      .filter(_.isInstanceOf[ServiceMessage])
       .compile
       .last
       .unsafeRunSync()
       .get
-      .asInstanceOf[ActionStart]
-    assert(as.actionParams.isCounting)
+      .asInstanceOf[ServiceMessage]
+
   }
   test("2.without counting") {
-    val as = task
+    task
       .service("no count")
       .eventStream { agent =>
-        agent.action("cfg", _.bipartite).retry(IO(1)).buildWith(identity).use(_.run(()))
+        agent.action("cfg").retry(IO(1)).buildWith(_.withPublishStrategy(_.Bipartite)).use(_.run(()))
       }
       .map(checkJson)
-      .filter(_.isInstanceOf[ActionStart])
+      .filter(_.isInstanceOf[ServiceMessage])
       .compile
       .last
       .unsafeRunSync()
       .get
-      .asInstanceOf[ActionStart]
-    assert(!as.actionParams.isCounting)
-  }
+      .asInstanceOf[ServiceMessage]
 
-  test("3.timing") {
-    val as = task
-      .service("timing")
-      .eventStream { agent =>
-        agent.action("cfg", _.bipartite.timed).retry(IO(1)).buildWith(identity).use(_.run(()))
-      }
-      .map(checkJson)
-      .filter(_.isInstanceOf[ActionStart])
-      .compile
-      .last
-      .unsafeRunSync()
-      .get
-      .asInstanceOf[ActionStart]
-    assert(as.actionParams.isTiming)
-  }
-
-  test("4.without timing") {
-    val as = task
-      .service("no timing")
-      .eventStream { agent =>
-        agent.action("cfg", _.bipartite).retry(IO(1)).buildWith(identity).use(_.run(()))
-      }
-      .map(checkJson)
-      .filter(_.isInstanceOf[ActionStart])
-      .compile
-      .last
-      .unsafeRunSync()
-      .get
-      .asInstanceOf[ActionStart]
-    assert(!as.actionParams.isTiming)
   }
 
   test("5.silent") {
     val as = task
       .service("silent")
       .eventStream { agent =>
-        agent.action("cfg", _.silent).retry(IO(1)).buildWith(identity).use(_.run(()))
+        agent.action("cfg").retry(IO(1)).buildWith(identity).use(_.run(()))
       }
       .map(checkJson)
-      .filter(_.isInstanceOf[ActionStart])
+      .filter(_.isInstanceOf[ServiceMessage])
       .compile
       .last
       .unsafeRunSync()
@@ -99,7 +67,7 @@ class ConfigTest extends AnyFunSuite {
       .service("report")
       .updateConfig(_.withMetricReport(giveUp))
       .eventStream { agent =>
-        agent.action("cfg", _.silent).retry(IO(1)).buildWith(identity).use(_.run(()))
+        agent.action("cfg").retry(IO(1)).buildWith(identity).use(_.run(()))
       }
       .map(checkJson)
       .filter(_.isInstanceOf[ServiceStart])
@@ -112,7 +80,7 @@ class ConfigTest extends AnyFunSuite {
     task
       .service("reset")
       .eventStream { agent =>
-        agent.action("cfg", _.silent).retry(IO(1)).buildWith(identity).use(_.run(()))
+        agent.action("cfg").retry(IO(1)).buildWith(identity).use(_.run(()))
       }
       .map(checkJson)
       .filter(_.isInstanceOf[ServiceStart])
@@ -122,26 +90,26 @@ class ConfigTest extends AnyFunSuite {
   }
 
   test("8.composable action config") {
-    val as = task
+    task
       .service("composable action")
       .eventStream(
-        _.action("abc", _.bipartite.counted.timed)
+        _.action("abc")
           .delay(1)
-          .buildWith(_.tapInput(_ => Json.Null)
-            .tapOutput((_, _) => Json.Null)
-            .tapError((_, _) => Json.Null)
-            .worthRetry(_ => true))
+          .buildWith(
+            _.tapInput(_ => Json.Null)
+              .tapOutput((_, _) => Json.Null)
+              .tapError((_, _) => Json.Null)
+              .worthRetry(_ => true)
+              .withPublishStrategy(_.Unipartite))
           .use(_.run(())))
       .map(checkJson)
-      .filter(_.isInstanceOf[ActionStart])
+      .filter(_.isInstanceOf[ServiceMessage])
       .compile
       .last
       .unsafeRunSync()
       .get
-      .asInstanceOf[ActionStart]
+      .asInstanceOf[ServiceMessage]
 
-    assert(as.actionParams.isCounting)
-    assert(as.actionParams.isTiming)
   }
 
   test("9.case") {

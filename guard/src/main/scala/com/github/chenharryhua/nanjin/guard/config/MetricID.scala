@@ -16,7 +16,7 @@ object CategoryGroup extends IntEnum[CategoryGroup] with IntCirceEnum[CategoryGr
   override val values: IndexedSeq[CategoryGroup] = findValues
 
   case object HealthCheck extends CategoryGroup(1) // gauge
-  case object Alert extends CategoryGroup(2) // counter
+  case object Alarm extends CategoryGroup(2) // counter
   case object Risk extends CategoryGroup(3) // counter
 
   case object Ratio extends CategoryGroup(4) // gauge
@@ -28,7 +28,6 @@ object CategoryGroup extends IntEnum[CategoryGroup] with IntCirceEnum[CategoryGr
   case object Histogram extends CategoryGroup(8)
   case object Timer extends CategoryGroup(9)
 
-  case object Action extends CategoryGroup(10) // timer
 }
 
 sealed trait CategoryKind extends EnumEntry with Product with Serializable {
@@ -54,13 +53,9 @@ object CategoryKind {
 
     case object Risk extends CounterKind(CategoryGroup.Risk)
 
-    case object AlertError extends CounterKind(CategoryGroup.Alert)
-    case object AlertWarn extends CounterKind(CategoryGroup.Alert)
-    case object AlertInfo extends CounterKind(CategoryGroup.Alert)
-
-    case object ActionDone extends CounterKind(CategoryGroup.Action)
-    case object ActionFail extends CounterKind(CategoryGroup.Action)
-    case object ActionRetry extends CounterKind(CategoryGroup.Action)
+    case object AlertError extends CounterKind(CategoryGroup.Alarm)
+    case object AlertWarn extends CounterKind(CategoryGroup.Alarm)
+    case object AlertInfo extends CounterKind(CategoryGroup.Alarm)
 
     case object Counter extends CounterKind(CategoryGroup.Counter)
   }
@@ -85,8 +80,6 @@ object CategoryKind {
 
   object TimerKind extends Enum[TimerKind] with CirceEnum[TimerKind] {
     val values: IndexedSeq[TimerKind] = findValues
-
-    case object Action extends TimerKind(CategoryGroup.Action)
 
     case object Timer extends TimerKind(CategoryGroup.Timer)
   }

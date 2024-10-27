@@ -39,11 +39,7 @@ class ServiceTest extends AnyFunSuite {
           .withMetricDailyReset
           .withHttpServer(identity))
       .eventStream(gd =>
-        gd.action("t", _.silent)
-          .delay(1)
-          .buildWith(_.tapOutput((_, _) => null))
-          .use(_.run(()))
-          .delayBy(1.second))
+        gd.action("t").delay(1).buildWith(_.tapOutput((_, _) => null)).use(_.run(())).delayBy(1.second))
       .map(checkJson)
       .compile
       .toVector
@@ -62,9 +58,9 @@ class ServiceTest extends AnyFunSuite {
       .service("escalate")
       .updateConfig(_.withRestartPolicy(Policy.fixedDelay(0.second).jitter(30.minutes, 50.minutes)))
       .eventStream { gd =>
-        gd.action("t", _.bipartite.policy(policy))
+        gd.action("t")
           .retry(IO.raiseError[Int](new Exception(gd.toZonedDateTime(Instant.now()).toString)))
-          .buildWith(identity)
+          .buildWith(_.withPolicy(policy).withPublishStrategy(_.Bipartite))
           .use(_.run(()))
       }
       .map(checkJson)
@@ -74,11 +70,11 @@ class ServiceTest extends AnyFunSuite {
       .unsafeRunSync()
 
     assert(s.isInstanceOf[ServiceStart])
-    assert(a.isInstanceOf[ActionStart])
-    assert(b.isInstanceOf[ActionRetry])
-    assert(c.isInstanceOf[ActionRetry])
-    assert(d.isInstanceOf[ActionRetry])
-    assert(e.isInstanceOf[ActionFail])
+    assert(a.isInstanceOf[ServiceMessage])
+    assert(b.isInstanceOf[ServiceMessage])
+    assert(c.isInstanceOf[ServiceMessage])
+    assert(d.isInstanceOf[ServiceMessage])
+    assert(e.isInstanceOf[ServiceMessage])
     assert(f.isInstanceOf[ServicePanic])
     val sp = f.asInstanceOf[ServicePanic]
     assert(sp.tick.sequenceId == sp.serviceParams.serviceId)
@@ -90,9 +86,9 @@ class ServiceTest extends AnyFunSuite {
       .service("stop")
       .updateConfig(_.withRestartPolicy(Policy.crontab(Cron.unsafeParse("0-59 * * ? * *"))))
       .eventStream { gd =>
-        gd.action("fatal error", _.bipartite.policy(policy))
+        gd.action("fatal error")
           .retry(IO.raiseError[Int](new ControlThrowable("fatal error") {}))
-          .buildWith(identity)
+          .buildWith(_.withPublishStrategy(_.Bipartite).withPolicy(policy))
           .use(_.run(()))
       }
       .map(checkJson)
@@ -100,8 +96,8 @@ class ServiceTest extends AnyFunSuite {
       .toList
       .unsafeRunSync()
     assert(a.isInstanceOf[ServiceStart])
-    assert(b.isInstanceOf[ActionStart])
-    assert(c.isInstanceOf[ActionFail])
+    assert(b.isInstanceOf[ServiceMessage])
+    assert(c.isInstanceOf[ServiceMessage])
     assert(d.isInstanceOf[ServiceStop])
     assert(d.asInstanceOf[ServiceStop].cause.exitCode == 2)
   }
@@ -111,9 +107,9 @@ class ServiceTest extends AnyFunSuite {
       .service("json")
       .updateConfig(_.withRestartPolicy(Policy.giveUp))
       .eventStream { gd =>
-        gd.action("t", _.bipartite.policy(policy))
+        gd.action("t")
           .delay[Int](throw new Exception("oops"))
-          .buildWith(identity)
+          .buildWith(_.withPolicy(policy).withPublishStrategy(_.Bipartite))
           .use(_.run(()))
       }
       .map(checkJson)
@@ -121,11 +117,11 @@ class ServiceTest extends AnyFunSuite {
       .toList
       .unsafeRunSync()
     assert(a.isInstanceOf[ServiceStart])
-    assert(b.isInstanceOf[ActionStart])
-    assert(c.isInstanceOf[ActionRetry])
-    assert(d.isInstanceOf[ActionRetry])
-    assert(e.isInstanceOf[ActionRetry])
-    assert(f.isInstanceOf[ActionFail])
+    assert(b.isInstanceOf[ServiceMessage])
+    assert(c.isInstanceOf[ServiceMessage])
+    assert(d.isInstanceOf[ServiceMessage])
+    assert(e.isInstanceOf[ServiceMessage])
+    assert(f.isInstanceOf[ServiceMessage])
     assert(g.isInstanceOf[ServiceStop])
   }
 
@@ -133,7 +129,7 @@ class ServiceTest extends AnyFunSuite {
     val s :: b :: c :: d :: _ = guard
       .service("report")
       .updateConfig(_.withMetricReport(Policy.crontab(_.secondly)))
-      .eventStream(_.action("t", _.silent).retry(IO.never[Int]).buildWith(identity).use(_.run(())))
+      .eventStream(_.action("t").retry(IO.never[Int]).buildWith(identity).use(_.run(())))
       .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
       .interruptAfter(5.second)
       .map(checkJson)
@@ -168,18 +164,18 @@ class ServiceTest extends AnyFunSuite {
     val Vector(s, a, b, c, d, e) = guard
       .service("two")
       .eventStream(gd =>
-        gd.action("t", _.bipartite).delay(1).buildWith(identity).use(_.run(())) >>
-          gd.action("t", _.bipartite).retry(IO(2)).buildWith(identity).use(_.run(())))
+        gd.action("t").delay(1).buildWith(_.withPublishStrategy(_.Bipartite)).use(_.run(())) >>
+          gd.action("t").retry(IO(2)).buildWith(_.withPublishStrategy(_.Bipartite)).use(_.run(())))
       .map(checkJson)
       .compile
       .toVector
       .unsafeRunSync()
 
     assert(s.isInstanceOf[ServiceStart])
-    assert(a.isInstanceOf[ActionStart])
-    assert(b.isInstanceOf[ActionDone])
-    assert(c.isInstanceOf[ActionStart])
-    assert(d.isInstanceOf[ActionDone])
+    assert(a.isInstanceOf[ServiceMessage])
+    assert(b.isInstanceOf[ServiceMessage])
+    assert(c.isInstanceOf[ServiceMessage])
+    assert(d.isInstanceOf[ServiceMessage])
     assert(e.isInstanceOf[ServiceStop])
   }
 
@@ -189,20 +185,20 @@ class ServiceTest extends AnyFunSuite {
     val s2    = guard.service("s2")
 
     val ss1 = s1.eventStream(gd =>
-      gd.action("t", _.bipartite).retry(IO(1)).buildWith(identity).use(_.run(())) >> gd
-        .action("t", _.bipartite)
+      gd.action("t").retry(IO(1)).buildWith(_.withPublishStrategy(_.Bipartite)).use(_.run(())) >> gd
+        .action("t")
         .retry(IO(2))
-        .buildWith(identity)
+        .buildWith(_.withPublishStrategy(_.Bipartite))
         .use(_.run(())))
     val ss2 = s2.eventStream(gd =>
-      gd.action("t", _.bipartite).retry(IO(1)).buildWith(identity).use(_.run(())) >> gd
-        .action("t", _.bipartite)
+      gd.action("t").retry(IO(1)).buildWith(_.withPublishStrategy(_.Bipartite)).use(_.run(())) >> gd
+        .action("t")
         .retry(IO(2))
-        .buildWith(identity)
+        .buildWith(_.withPublishStrategy(_.Bipartite))
         .use(_.run(())))
 
     val vector = ss1.merge(ss2).map(checkJson).compile.toVector.unsafeRunSync()
-    assert(vector.count(_.isInstanceOf[ActionDone]) == 4)
+    assert(vector.count(_.isInstanceOf[ServiceMessage]) == 8)
     assert(vector.count(_.isInstanceOf[ServiceStop]) == 2)
   }
 
@@ -212,9 +208,9 @@ class ServiceTest extends AnyFunSuite {
       .service("give up")
       .updateConfig(_.withRestartPolicy(Policy.giveUp))
       .eventStream { gd =>
-        gd.action("t", _.bipartite.policy(policy))
+        gd.action("t")
           .retry(IO.raiseError[Int](new Exception))
-          .buildWith(identity)
+          .buildWith(_.withPolicy(policy).withPublishStrategy(_.Bipartite))
           .use(_.run(()))
       }
       .map(checkJson)
@@ -222,11 +218,11 @@ class ServiceTest extends AnyFunSuite {
       .toList
       .unsafeRunSync()
     assert(a.isInstanceOf[ServiceStart])
-    assert(b.isInstanceOf[ActionStart])
-    assert(c.isInstanceOf[ActionRetry])
-    assert(d.isInstanceOf[ActionRetry])
-    assert(e.isInstanceOf[ActionRetry])
-    assert(f.isInstanceOf[ActionFail])
+    assert(b.isInstanceOf[ServiceMessage])
+    assert(c.isInstanceOf[ServiceMessage])
+    assert(d.isInstanceOf[ServiceMessage])
+    assert(e.isInstanceOf[ServiceMessage])
+    assert(f.isInstanceOf[ServiceMessage])
     assert(g.isInstanceOf[ServiceStop])
   }
 
@@ -241,13 +237,13 @@ class ServiceTest extends AnyFunSuite {
       .toList
       .unsafeRunSync()
     assert(a.isInstanceOf[ServiceStart])
-    assert(b.isInstanceOf[ActionFail])
+    assert(b.isInstanceOf[ServiceMessage])
     assert(c.isInstanceOf[ServicePanic])
     assert(d.isInstanceOf[ServiceStart])
-    assert(e.isInstanceOf[ActionFail])
+    assert(e.isInstanceOf[ServiceMessage])
     assert(f.isInstanceOf[ServicePanic])
     assert(g.isInstanceOf[ServiceStart])
-    assert(h.isInstanceOf[ActionFail])
+    assert(h.isInstanceOf[ServiceMessage])
     assert(i.isInstanceOf[ServiceStop])
   }
 
@@ -375,9 +371,9 @@ class ServiceTest extends AnyFunSuite {
     val run = guard
       .service("out of memory")
       .eventStream(
-        _.action("oom", _.policy(Policy.fixedDelay(1.seconds).limited(3)))
+        _.action("oom")
           .retry(IO.raiseError[Int](new OutOfMemoryError()))
-          .buildWith(identity)
+          .buildWith(_.withPolicy(Policy.fixedDelay(1.seconds).limited(3)))
           .use(_(())))
       .map(checkJson)
       .compile
