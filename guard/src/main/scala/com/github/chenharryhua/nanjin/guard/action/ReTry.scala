@@ -113,7 +113,7 @@ final private class ReTry[F[_]: Async, IN, OUT] private (
             metricName = metricName,
             timestamp = to_zdt(launchTime),
             serviceParams = serviceParams,
-            level = AlarmLevel.Warn,
+            level = AlarmLevel.Info,
             message = input_json(in)
           ))
         .flatMap(_ => execute(in))
