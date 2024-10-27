@@ -7,8 +7,8 @@ import com.codahale.metrics.{Counter, MetricRegistry}
 import com.github.chenharryhua.nanjin.common.EnableConfig
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.config.CategoryKind.CounterKind
-import com.github.chenharryhua.nanjin.guard.event.{NJEvent, UniqueToken}
-import com.github.chenharryhua.nanjin.guard.event.NJEvent.ServiceAlert
+import com.github.chenharryhua.nanjin.guard.event.NJEvent
+import com.github.chenharryhua.nanjin.guard.event.NJEvent.ServiceMessage
 import fs2.concurrent.Channel
 import io.circe.syntax.EncoderOps
 import io.circe.{Encoder, Json}
@@ -43,37 +43,37 @@ private class NJAlertImpl[F[_]: Sync](
   private[this] lazy val warn_counter: Counter  = metricRegistry.counter(warn_counter_name)
   private[this] lazy val info_counter: Counter  = metricRegistry.counter(info_counter_name)
 
-  private[this] def alert(msg: Json, alertLevel: AlertLevel): F[Unit] =
+  private[this] def alert(msg: Json, alertLevel: AlarmLevel): F[Unit] =
     for {
       ts <- serviceParams.zonedNow
       _ <- channel.send(
-        ServiceAlert(
-          alertID = UniqueToken(token),
+        ServiceMessage(
           metricName = name,
           timestamp = ts,
           serviceParams = serviceParams,
-          alertLevel = alertLevel,
+          level = alertLevel,
           message = msg))
     } yield
       if (isCounting) alertLevel match {
-        case AlertLevel.Error => error_counter.inc(1)
-        case AlertLevel.Warn  => warn_counter.inc(1)
-        case AlertLevel.Info  => info_counter.inc(1)
+        case AlarmLevel.Error => error_counter.inc(1)
+        case AlarmLevel.Warn  => warn_counter.inc(1)
+        case AlarmLevel.Info  => info_counter.inc(1)
+        case AlarmLevel.Done  => ()
       }
       else ()
 
   override def error[S: Encoder](msg: S): F[Unit] =
-    alert(msg.asJson, AlertLevel.Error)
+    alert(msg.asJson, AlarmLevel.Error)
   override def error[S: Encoder](msg: Option[S]): F[Unit] =
     msg.traverse(error(_)).void
 
   override def warn[S: Encoder](msg: S): F[Unit] =
-    alert(msg.asJson, AlertLevel.Warn)
+    alert(msg.asJson, AlarmLevel.Warn)
   override def warn[S: Encoder](msg: Option[S]): F[Unit] =
     msg.traverse(warn(_)).void
 
   override def info[S: Encoder](msg: S): F[Unit] =
-    alert(msg.asJson, AlertLevel.Info)
+    alert(msg.asJson, AlarmLevel.Info)
   override def info[S: Encoder](msg: Option[S]): F[Unit] =
     msg.traverse(info(_)).void
 

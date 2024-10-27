@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard.observers.sns
 
 import cats.syntax.all.*
 import cats.{Applicative, Eval}
-import com.github.chenharryhua.nanjin.guard.config.{AlertLevel, MetricName, ServiceParams}
+import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, MetricName, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.{MetricSnapshot, NJError, NJEvent}
 import com.github.chenharryhua.nanjin.guard.translator.metricConstants.METRICS_DIGEST
 import com.github.chenharryhua.nanjin.guard.translator.textConstants.*
@@ -187,11 +187,12 @@ private object SlackTranslator extends all {
         ))
     )
 
-  private def service_alert(evt: ServiceAlert): SlackApp = {
-    val symbol: String = evt.alertLevel match {
-      case AlertLevel.Error => ":warning:"
-      case AlertLevel.Warn  => ":warning:"
-      case AlertLevel.Info  => ":information_source:"
+  private def service_alert(evt: ServiceMessage): SlackApp = {
+    val symbol: String = evt.level match {
+      case AlarmLevel.Error => ":warning:"
+      case AlarmLevel.Warn  => ":warning:"
+      case AlarmLevel.Info  => ""
+      case AlarmLevel.Done  => ""
     }
     SlackApp(
       username = evt.serviceParams.taskName.value,
@@ -311,7 +312,7 @@ private object SlackTranslator extends all {
       .withServiceStop(service_stopped)
       .withMetricReport(metric_report)
       .withMetricReset(metric_reset)
-      .withServiceAlert(service_alert)
+      .withServiceMessage(service_alert)
       .withActionStart(action_start)
       .withActionRetry(action_retrying)
       .withActionFail(action_failed)

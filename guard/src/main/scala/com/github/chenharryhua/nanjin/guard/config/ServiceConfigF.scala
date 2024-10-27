@@ -4,7 +4,7 @@ import cats.syntax.all.*
 import cats.{Applicative, Endo, Functor}
 import com.codahale.metrics.jmx.JmxReporter
 import com.github.chenharryhua.nanjin.common.HostName
-import com.github.chenharryhua.nanjin.common.chrono.{Policy, Tick}
+import com.github.chenharryhua.nanjin.common.chrono.{Policy, Tick, TickStatus}
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
 import io.circe.{Encoder, Json}
@@ -66,6 +66,8 @@ final case class ServiceParams(
   def upTime(ts: Instant): Duration       = Duration.between(zerothTick.launchTime, ts)
 
   def zonedNow[F[_]: Clock: Functor]: F[ZonedDateTime] = Clock[F].realTimeInstant.map(toZonedDateTime)
+
+  val initialStatus: TickStatus = TickStatus(zerothTick)
 }
 
 object ServiceParams {

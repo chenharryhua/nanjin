@@ -89,7 +89,7 @@ object PrettyJsonTranslator {
           pretty_metrics(evt.snapshot)
         ))
 
-  private def service_alert(evt: ServiceAlert): Json =
+  private def service_alert(evt: ServiceMessage): Json =
     Json.obj(
       EventName.ServiceAlert.camel ->
         Json.obj(
@@ -167,7 +167,7 @@ object PrettyJsonTranslator {
       .withServicePanic(service_panic)
       .withMetricReport(metric_report)
       .withMetricReset(metric_reset)
-      .withServiceAlert(service_alert)
+      .withServiceMessage(service_alert)
       .withActionStart(action_start)
       .withActionRetry(action_retrying)
       .withActionFail(action_fail)

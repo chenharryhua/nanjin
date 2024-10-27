@@ -93,7 +93,7 @@ object SimpleTextTranslator {
         |""".stripMargin
   }
 
-  private def service_alert(evt: ServiceAlert): String = {
+  private def service_alert(evt: ServiceMessage): String = {
     val ms   = s"$CONSTANT_MEASUREMENT:${evt.metricName.measurement}"
     val id   = s"$METRICS_DIGEST:${evt.metricName.digest}"
     val name = s"$CONSTANT_NAME:${evt.metricName.name}"
@@ -139,7 +139,7 @@ object SimpleTextTranslator {
       .withServicePanic(service_panic)
       .withMetricReport(metric_report)
       .withMetricReset(metric_reset)
-      .withServiceAlert(service_alert)
+      .withServiceMessage(service_alert)
       .withActionStart(action_start)
       .withActionRetry(action_retrying)
       .withActionFail(action_fail)

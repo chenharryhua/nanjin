@@ -39,6 +39,8 @@ sealed trait Agent[F[_]] {
   def adhoc: NJMetricsReport[F]
   def metrics(name: String, f: Endo[NJMetrics.Builder]): NJMetrics[F]
   final def metrics(name: String): NJMetrics[F] = metrics(name, identity)
+  def runner(name: String, f: Endo[NJRunner.Builder]): NJRunner[F]
+  final def runner(name: String): NJRunner[F] = runner(name, identity)
 }
 
 final private class GeneralAgent[F[_]: Async] private[service] (
@@ -90,5 +92,11 @@ final private class GeneralAgent[F[_]: Async] private[service] (
   override def metrics(name: String, f: Endo[NJMetrics.Builder]): NJMetrics[F] = {
     val metricName = MetricName(serviceParams, measurement, name)
     f(new NJMetrics.Builder(isEnabled)).build[F](metricRegistry, metricName)
+  }
+
+  override def runner(name: String, f: Endo[NJRunner.Builder]): NJRunner[F] = {
+    val metricName = MetricName(serviceParams, measurement, name)
+    f(new NJRunner.Builder(isEnabled, Policy.giveUp))
+      .build[F](metricName, serviceParams, metricRegistry, channel)
   }
 }

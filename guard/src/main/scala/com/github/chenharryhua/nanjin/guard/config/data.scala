@@ -30,16 +30,17 @@ object Importance
   case object Suppressed extends Importance(1, "suppressed")
 }
 
-sealed abstract class AlertLevel(override val value: Int, val entryName: String)
+sealed abstract class AlarmLevel(override val value: Int, val entryName: String)
     extends IntEnumEntry with Product
 
-object AlertLevel
-    extends CatsOrderValueEnum[Int, AlertLevel] with IntEnum[AlertLevel] with IntCirceEnum[AlertLevel] {
-  override val values: IndexedSeq[AlertLevel] = findValues
+object AlarmLevel
+    extends CatsOrderValueEnum[Int, AlarmLevel] with IntEnum[AlarmLevel] with IntCirceEnum[AlarmLevel] {
+  override val values: IndexedSeq[AlarmLevel] = findValues
 
-  case object Error extends AlertLevel(3, "error")
-  case object Warn extends AlertLevel(2, "warn")
-  case object Info extends AlertLevel(1, "info")
+  case object Error extends AlarmLevel(3, "error")
+  case object Warn extends AlarmLevel(2, "warn")
+  case object Info extends AlarmLevel(1, "info")
+  case object Done extends AlarmLevel(0, "done")
 }
 
 final case class TaskName(value: String) extends AnyVal

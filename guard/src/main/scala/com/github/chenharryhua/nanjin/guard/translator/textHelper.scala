@@ -44,7 +44,7 @@ object textHelper extends localtime with localdatetime {
       case _: NJEvent.ActionFail  => "Action Failed"
       case _: NJEvent.ActionDone  => "Action Done"
 
-      case NJEvent.ServiceAlert(_, _, _, _, al, _) => s"Alert ${al.productPrefix}"
+      case NJEvent.ServiceMessage(_, _, _, al, _) => al.productPrefix
 
       case NJEvent.ServiceStart(_, tick) =>
         if (tick.index === 0) "Start Service" else "Restart Service"

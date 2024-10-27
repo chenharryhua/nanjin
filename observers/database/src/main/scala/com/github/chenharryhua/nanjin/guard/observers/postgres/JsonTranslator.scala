@@ -68,7 +68,7 @@ private object JsonTranslator {
       timestamp(evt)
     )
 
-  private def service_alert(evt: ServiceAlert): Json =
+  private def service_alert(evt: ServiceMessage): Json =
     Json.obj(
       "event" -> EventName.ServiceAlert.camelJson,
       alertMessage(evt),
@@ -137,7 +137,7 @@ private object JsonTranslator {
       .withServicePanic(service_panic)
       .withMetricReport(metric_report)
       .withMetricReset(metric_reset)
-      .withServiceAlert(service_alert)
+      .withServiceMessage(service_alert)
       .withActionStart(action_start)
       .withActionRetry(action_retrying)
       .withActionFail(action_fail)

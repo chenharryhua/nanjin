@@ -16,39 +16,39 @@ sealed trait NJHistogram[F[_]] {
     Kleisli(update).local(f)
 }
 
-private class NJHistogramImpl[F[_]: Sync](
-  private[this] val token: Unique.Token,
-  private[this] val name: MetricName,
-  private[this] val metricRegistry: MetricRegistry,
-  private[this] val unit: MeasurementUnit,
-  private[this] val reservoir: Option[Reservoir],
-  private[this] val tag: MetricTag)
-    extends NJHistogram[F] {
-
-  private[this] val F = Sync[F]
-
-  private[this] val histogram_name: String =
-    MetricID(name, tag, Category.Histogram(HistogramKind.Histogram, unit), token).identifier
-
-  private[this] val supplier: MetricRegistry.MetricSupplier[Histogram] = () =>
-    reservoir match {
-      case Some(value) => new Histogram(value)
-      case None        => new Histogram(new ExponentiallyDecayingReservoir) // default reservoir
-    }
-
-  private[this] lazy val histogram: Histogram =
-    metricRegistry.histogram(histogram_name, supplier)
-
-  override def update(num: Long): F[Unit] = F.delay(histogram.update(num))
-
-  val unregister: F[Unit] = F.delay(metricRegistry.remove(histogram_name)).void
-}
-
 object NJHistogram {
   def dummy[F[_]](implicit F: Applicative[F]): NJHistogram[F] =
     new NJHistogram[F] {
       override def update(num: Long): F[Unit] = F.unit
     }
+
+  private class Impl[F[_]: Sync](
+    private[this] val token: Unique.Token,
+    private[this] val name: MetricName,
+    private[this] val metricRegistry: MetricRegistry,
+    private[this] val unit: MeasurementUnit,
+    private[this] val reservoir: Option[Reservoir],
+    private[this] val tag: MetricTag)
+      extends NJHistogram[F] {
+
+    private[this] val F = Sync[F]
+
+    private[this] val histogram_name: String =
+      MetricID(name, tag, Category.Histogram(HistogramKind.Histogram, unit), token).identifier
+
+    private[this] val supplier: MetricRegistry.MetricSupplier[Histogram] = () =>
+      reservoir match {
+        case Some(value) => new Histogram(value)
+        case None        => new Histogram(new ExponentiallyDecayingReservoir) // default reservoir
+      }
+
+    private[this] lazy val histogram: Histogram =
+      metricRegistry.histogram(histogram_name, supplier)
+
+    override def update(num: Long): F[Unit] = F.delay(histogram.update(num))
+
+    val unregister: F[Unit] = F.delay(metricRegistry.remove(histogram_name)).void
+  }
 
   final class Builder private[guard] (isEnabled: Boolean, unit: MeasurementUnit, reservoir: Option[Reservoir])
       extends EnableConfig[Builder] {
@@ -67,7 +67,7 @@ object NJHistogram {
       if (isEnabled) {
         Resource.make(
           F.unique.map(token =>
-            new NJHistogramImpl[F](
+            new Impl[F](
               token = token,
               name = metricName,
               metricRegistry = metricRegistry,

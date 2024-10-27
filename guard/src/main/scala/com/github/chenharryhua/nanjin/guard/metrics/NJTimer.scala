@@ -23,38 +23,6 @@ sealed trait NJTimer[F[_]] {
     Kleisli(update).local(f)
 }
 
-private class NJTimerImpl[F[_]: Sync](
-  private[this] val token: Unique.Token,
-  private[this] val name: MetricName,
-  private[this] val metricRegistry: MetricRegistry,
-  private[this] val reservoir: Option[Reservoir],
-  private[this] val tag: MetricTag
-) extends NJTimer[F] {
-
-  private[this] val F = Sync[F]
-
-  private[this] val timer_name: String =
-    MetricID(name, tag, Category.Timer(TimerKind.Timer), token).identifier
-
-  private[this] val supplier: MetricRegistry.MetricSupplier[Timer] = () =>
-    reservoir match {
-      case Some(value) => new Timer(value)
-      case None        => new Timer(new ExponentiallyDecayingReservoir) // default reservoir
-    }
-
-  private[this] lazy val timer: Timer = metricRegistry.timer(timer_name, supplier)
-
-  private[this] val calculate: Duration => Unit =
-    (duration: Duration) => timer.update(duration)
-
-  override def timing[A](fa: F[A]): F[A] =
-    fa.timed.flatMap { case (fd, a) => update(fd).as(a) }
-
-  override def update(fd: FiniteDuration): F[Unit] = F.delay(calculate(fd.toJava))
-
-  val unregister: F[Unit] = F.delay(metricRegistry.remove(timer_name)).void
-}
-
 object NJTimer {
   def dummy[F[_]](implicit F: Applicative[F]): NJTimer[F] =
     new NJTimer[F] {
@@ -62,6 +30,38 @@ object NJTimer {
 
       override def timing[A](fa: F[A]): F[A] = fa
     }
+
+  private class Impl[F[_]: Sync](
+    private[this] val token: Unique.Token,
+    private[this] val name: MetricName,
+    private[this] val metricRegistry: MetricRegistry,
+    private[this] val reservoir: Option[Reservoir],
+    private[this] val tag: MetricTag
+  ) extends NJTimer[F] {
+
+    private[this] val F = Sync[F]
+
+    private[this] val timer_name: String =
+      MetricID(name, tag, Category.Timer(TimerKind.Timer), token).identifier
+
+    private[this] val supplier: MetricRegistry.MetricSupplier[Timer] = () =>
+      reservoir match {
+        case Some(value) => new Timer(value)
+        case None        => new Timer(new ExponentiallyDecayingReservoir) // default reservoir
+      }
+
+    private[this] lazy val timer: Timer = metricRegistry.timer(timer_name, supplier)
+
+    private[this] val calculate: Duration => Unit =
+      (duration: Duration) => timer.update(duration)
+
+    override def timing[A](fa: F[A]): F[A] =
+      fa.timed.flatMap { case (fd, a) => update(fd).as(a) }
+
+    override def update(fd: FiniteDuration): F[Unit] = F.delay(calculate(fd.toJava))
+
+    val unregister: F[Unit] = F.delay(metricRegistry.remove(timer_name)).void
+  }
 
   final class Builder private[guard] (
     isEnabled: Boolean,
@@ -79,7 +79,7 @@ object NJTimer {
       if (isEnabled) {
         Resource.make(
           F.unique.map(token =>
-            new NJTimerImpl[F](
+            new Impl[F](
               token = token,
               name = metricName,
               metricRegistry = metricRegistry,

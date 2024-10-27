@@ -140,7 +140,7 @@ private object HtmlTranslator extends all {
     )
   }
 
-  private def service_alert(evt: ServiceAlert): Text.TypedTag[String] = {
+  private def service_alert(evt: ServiceMessage): Text.TypedTag[String] = {
     val fg = frag(
       tr(th(CONSTANT_MEASUREMENT), th(METRICS_DIGEST), th(CONSTANT_NAME)),
       tr(
@@ -237,7 +237,7 @@ private object HtmlTranslator extends all {
       .withServiceStop(service_stopped)
       .withMetricReport(metric_report)
       .withMetricReset(metric_reset)
-      .withServiceAlert(service_alert)
+      .withServiceMessage(service_alert)
       .withActionStart(action_start)
       .withActionRetry(action_retrying)
       .withActionFail(action_fail)

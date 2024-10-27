@@ -74,10 +74,8 @@ object NJMetrics {
       Resource.unit
   }
 
-  private class NJMetricsImpl[F[_]](
-    metricRegistry: MetricRegistry,
-    metricName: MetricName,
-    isEnabled: Boolean)(implicit F: Async[F])
+  private class Impl[F[_]](metricRegistry: MetricRegistry, metricName: MetricName, isEnabled: Boolean)(
+    implicit F: Async[F])
       extends NJMetrics[F] {
 
     override def counter(tag: String, f: Endo[NJCounter.Builder]): Resource[F, NJCounter[F]] = {
@@ -142,6 +140,6 @@ object NJMetrics {
 
     def build[F[_]](metricRegistry: MetricRegistry, metricName: MetricName)(implicit
       F: Async[F]): NJMetrics[F] =
-      new NJMetricsImpl[F](metricRegistry, metricName, isEnabled)
+      new Impl[F](metricRegistry, metricName, isEnabled)
   }
 }
