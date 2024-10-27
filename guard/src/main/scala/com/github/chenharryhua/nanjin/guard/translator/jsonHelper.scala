@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.guard.translator
 import cats.implicits.toShow
 import com.github.chenharryhua.nanjin.common.chrono.{Policy, Tick}
 import com.github.chenharryhua.nanjin.guard.config.{MetricName, ServiceParams}
-import com.github.chenharryhua.nanjin.guard.event.NJEvent.{ActionEvent, ServiceMessage}
+import com.github.chenharryhua.nanjin.guard.event.NJEvent.ServiceMessage
 import com.github.chenharryhua.nanjin.guard.event.{MetricIndex, NJError, NJEvent, ServiceStopCause}
 import io.circe.Json
 import io.circe.syntax.EncoderOps
@@ -33,9 +33,6 @@ object jsonHelper {
 
   def serviceName(evt: NJEvent): (String, Json) =
     "serviceName" -> Json.fromString(evt.serviceParams.serviceName.value)
-
-  def config(evt: ActionEvent): (String, Json) =
-    "config" -> Json.fromString(evt.actionParams.configStr)
 
   def metricIndex(index: MetricIndex): (String, Json) = index match {
     case MetricIndex.Adhoc(_)       => "index" -> Json.Null

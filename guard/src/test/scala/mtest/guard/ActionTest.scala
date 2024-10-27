@@ -41,8 +41,9 @@ class ActionTest extends AnyFunSuite {
       .eventStream(
         _.action("exception", _.bipartite.counted)
           .retry(IO.raiseError[Int](new Exception))
-          .buildWith(_.tapError((_, _) => null.asInstanceOf[String].asJson).tapInput(_ =>
-            null.asInstanceOf[String].asJson))
+          .buildWith(_.tapError((_, _) => null.asInstanceOf[String].asJson)
+            .tapInput(_ => null.asInstanceOf[String].asJson)
+            .withPublishStrategy(_.Silent))
           .use(_.run(())))
       .map(checkJson)
       .evalTap(console.text[IO])

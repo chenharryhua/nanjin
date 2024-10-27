@@ -70,7 +70,7 @@ private object JsonTranslator {
 
   private def service_alert(evt: ServiceMessage): Json =
     Json.obj(
-      "event" -> EventName.ServiceAlert.camelJson,
+      "event" -> EventName.ServiceMessage.camelJson,
       alertMessage(evt),
       metricName(evt.metricName),
       metricDigest(evt.metricName),

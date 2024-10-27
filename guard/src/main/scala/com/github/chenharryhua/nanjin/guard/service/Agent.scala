@@ -22,8 +22,7 @@ sealed trait Agent[F[_]] {
   def withMeasurement(name: String): Agent[F]
 
   // actions
-  def action(actionName: String, f: Endo[NJAction.Builder]): NJAction[F]
-  final def action(actionName: String): NJAction[F] = action(actionName, identity)
+  def action(name: String): NJAction[F]
 
   def batch(name: String): NJBatch[F]
 
@@ -53,18 +52,10 @@ final private class GeneralAgent[F[_]: Async] private[service] (
   override def withMeasurement(name: String): Agent[F] =
     new GeneralAgent[F](serviceParams, metricRegistry, channel, Measurement(name))
 
-  override def action(actionName: String, f: Endo[NJAction.Builder]): NJAction[F] =
-    new NJAction[F](
-      actionConfig = f(
-        ActionConfig(
-          isEnabled = true,
-          actionName = ActionName(actionName),
-          measurement = measurement,
-          serviceParams = serviceParams
-        )),
-      metricRegistry = metricRegistry,
-      channel = channel
-    )
+  override def action(name: String): NJAction[F] = {
+    val metricName = MetricName(serviceParams, measurement, name)
+    new NJAction[F](metricName, serviceParams, channel)
+  }
 
   override def batch(name: String): NJBatch[F] = {
     val metricName = MetricName(serviceParams, measurement, name)

@@ -4,11 +4,8 @@ import cats.Applicative
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.event.{NJError, NJEvent}
 import com.github.chenharryhua.nanjin.guard.translator.metricConstants.METRICS_DIGEST
-import com.github.chenharryhua.nanjin.guard.translator.{textConstants, textHelper, Translator}
-import io.circe.Json
+import com.github.chenharryhua.nanjin.guard.translator.{Translator, textConstants, textHelper}
 import io.circe.syntax.EncoderOps
-
-import scala.util.Try
 
 object SimpleTextTranslator {
   import NJEvent.*
@@ -27,21 +24,6 @@ object SimpleTextTranslator {
 
   private def error_str(err: NJError): String =
     s"""Cause:${err.stack.mkString("\n\t")}"""
-
-  private def notes(js: Json): String = Try(js.spaces2).getOrElse("bad json")
-
-  private def action_event(ae: ActionEvent): String = {
-    val mm   = s"$CONSTANT_MEASUREMENT:${ae.actionParams.metricName.measurement}"
-    val id   = s"$METRICS_DIGEST:${ae.actionParams.metricName.digest}"
-    val name = s"$CONSTANT_NAME:${ae.actionParams.metricName.name}"
-
-    val policy = s"$CONSTANT_POLICY:${ae.actionParams.retryPolicy.show}"
-    val cfg    = s"$CONSTANT_CONFIG:${ae.actionParams.configStr}"
-
-    s"""|  ${service_event(ae)}
-        |  $mm, $id, $name
-        |  $policy, $cfg""".stripMargin
-  }
 
   private def service_started(evt: ServiceStart): String = {
     val idx = s"$CONSTANT_INDEX:${evt.tick.index}"
@@ -93,7 +75,7 @@ object SimpleTextTranslator {
         |""".stripMargin
   }
 
-  private def service_alert(evt: ServiceMessage): String = {
+  private def service_message(evt: ServiceMessage): String = {
     val ms   = s"$CONSTANT_MEASUREMENT:${evt.metricName.measurement}"
     val id   = s"$METRICS_DIGEST:${evt.metricName.digest}"
     val name = s"$CONSTANT_NAME:${evt.metricName.name}"
@@ -104,33 +86,6 @@ object SimpleTextTranslator {
         |""".stripMargin
   }
 
-  private def action_start(evt: ActionStart): String =
-    s"""|${eventTitle(evt)}
-        |${action_event(evt)}
-        |${notes(evt.notes)}
-        |""".stripMargin
-
-  private def action_retrying(evt: ActionRetry): String =
-    s"""|${eventTitle(evt)}
-        |${action_event(evt)}
-        |  ${retryText(evt)}
-        |  ${error_str(evt.error)}
-        |${notes(evt.notes)}  
-        |""".stripMargin
-
-  private def action_fail(evt: ActionFail): String =
-    s"""|${eventTitle(evt)}
-        |${action_event(evt)}, $CONSTANT_TOOK:${tookText(evt.took)}
-        |  ${error_str(evt.error)}
-        |${notes(evt.notes)}
-        |""".stripMargin
-
-  private def action_done(evt: ActionDone): String =
-    s"""|${eventTitle(evt)}
-        |${action_event(evt)}, $CONSTANT_TOOK:${tookText(evt.took)}
-        |${notes(evt.notes)}
-        |""".stripMargin
-
   def apply[F[_]: Applicative]: Translator[F, String] =
     Translator
       .empty[F, String]
@@ -139,9 +94,5 @@ object SimpleTextTranslator {
       .withServicePanic(service_panic)
       .withMetricReport(metric_report)
       .withMetricReset(metric_reset)
-      .withServiceMessage(service_alert)
-      .withActionStart(action_start)
-      .withActionRetry(action_retrying)
-      .withActionFail(action_fail)
-      .withActionDone(action_done)
+      .withServiceMessage(service_message)
 }

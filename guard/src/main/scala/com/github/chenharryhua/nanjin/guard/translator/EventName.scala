@@ -19,11 +19,7 @@ object EventName extends CatsEnum[EventName] with Enum[EventName] {
   case object ServiceStart extends EventName("Service Start")
   case object ServicePanic extends EventName("Service Panic")
   case object ServiceStop extends EventName("Service Stop")
-  case object ServiceAlert extends EventName("Alert")
+  case object ServiceMessage extends EventName("Message")
   case object MetricReport extends EventName("Metric Report")
   case object MetricReset extends EventName("Metric Reset")
-  case object ActionStart extends EventName("Action Start")
-  case object ActionRetry extends EventName("Action Retry")
-  case object ActionFail extends EventName("Action Fail")
-  case object ActionDone extends EventName("Action Done")
 }

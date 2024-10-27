@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.event
 
 import com.github.chenharryhua.nanjin.common.chrono.Tick
-import com.github.chenharryhua.nanjin.guard.config.{ActionParams, AlarmLevel, MetricName, ServiceParams}
+import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, MetricName, ServiceParams}
 import io.circe.Json
 import io.circe.generic.JsonCodec
 
@@ -58,43 +58,4 @@ object NJEvent {
     snapshot: MetricSnapshot,
     timestamp: ZonedDateTime) // land time
       extends MetricEvent
-
-  sealed trait ActionEvent extends NJEvent {
-    def actionParams: ActionParams
-    def notes: Json
-    final override def serviceParams: ServiceParams = actionParams.serviceParams
-  }
-
-  final case class ActionStart(actionParams: ActionParams, timestamp: ZonedDateTime, notes: Json)
-      extends ActionEvent
-
-  final case class ActionRetry(actionParams: ActionParams, notes: Json, error: NJError, tick: Tick)
-      extends ActionEvent {
-    override val timestamp: ZonedDateTime = tick.zonedAcquire
-  }
-
-  sealed trait ActionResultEvent extends ActionEvent {
-    def isDone: Boolean
-  }
-
-  final case class ActionFail(
-    actionParams: ActionParams,
-    launchTime: Option[ZonedDateTime],
-    timestamp: ZonedDateTime, // land time
-    notes: Json,
-    error: NJError)
-      extends ActionResultEvent {
-    override val isDone: Boolean = false
-    val took: Option[Duration]   = launchTime.map(Duration.between(_, timestamp))
-  }
-
-  final case class ActionDone(
-    actionParams: ActionParams,
-    launchTime: ZonedDateTime,
-    timestamp: ZonedDateTime, // land time
-    notes: Json)
-      extends ActionResultEvent {
-    override val isDone: Boolean = true
-    val took: Duration           = Duration.between(launchTime, timestamp)
-  }
 }

@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard.translator
 
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
-import com.github.chenharryhua.nanjin.guard.event.NJEvent.{ActionRetry, ServicePanic}
+import com.github.chenharryhua.nanjin.guard.event.NJEvent.ServicePanic
 import com.github.chenharryhua.nanjin.guard.event.{MetricIndex, MetricSnapshot, NJEvent, ServiceStopCause}
 import org.typelevel.cats.time.instances.{localdatetime, localtime}
 
@@ -39,10 +39,6 @@ object textHelper extends localtime with localdatetime {
 
   def eventTitle(evt: NJEvent): String =
     evt match {
-      case _: NJEvent.ActionStart => "Start Action"
-      case _: NJEvent.ActionRetry => "Retry Action"
-      case _: NJEvent.ActionFail  => "Action Failed"
-      case _: NJEvent.ActionDone  => "Action Done"
 
       case NJEvent.ServiceMessage(_, _, _, al, _) => al.productPrefix
 
@@ -54,20 +50,6 @@ object textHelper extends localtime with localdatetime {
       case _: NJEvent.MetricReport => "Metric Report"
       case _: NJEvent.MetricReset  => "Metric Reset"
     }
-
-  private def to_ordinal_words(n: Long): String = {
-    val w =
-      if (n % 100 / 10 == 1) "th"
-      else {
-        n % 10 match {
-          case 1 => "st"
-          case 2 => "nd"
-          case 3 => "rd"
-          case _ => "th"
-        }
-      }
-    s"$n$w"
-  }
 
   private def localTime_duration(start: ZonedDateTime, end: ZonedDateTime): (String, String) = {
     val duration = Duration.between(start, end)
@@ -85,9 +67,4 @@ object textHelper extends localtime with localdatetime {
     s"Restart was scheduled at $time, in $dur."
   }
 
-  def retryText(evt: ActionRetry): String = {
-    val (time, dur) = localTime_duration(evt.timestamp, evt.tick.zonedWakeup)
-    val nth: String = to_ordinal_words(evt.tick.index)
-    s"$nth retry was scheduled at $time, in $dur"
-  }
 }
