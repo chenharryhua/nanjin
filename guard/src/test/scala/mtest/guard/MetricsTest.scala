@@ -37,7 +37,7 @@ class MetricsTest extends AnyFunSuite {
       .service("delta")
       .updateConfig(_.withMetricReport(Policy.crontab(_.secondly)))
       .eventStream(ag =>
-        ag.action("one", _.silent).retry(IO(0)).buildWith(identity).use(_.run(())) >> IO.sleep(10.minutes))
+        ag.action("one").retry(IO(0)).buildWith(identity).use(_.run(())) >> IO.sleep(10.minutes))
       .map(checkJson)
       .interruptAfter(5.seconds)
       .compile
@@ -52,15 +52,9 @@ class MetricsTest extends AnyFunSuite {
       .updateConfig(_.withMetricReport(Policy.crontab(_.secondly)))
       .eventStream { ag =>
         val one =
-          ag.action("one", _.bipartite)
-            .retry(IO(0) <* IO.sleep(10.minutes))
-            .buildWith(identity)
-            .use(_.run(()))
+          ag.action("one").retry(IO(0) <* IO.sleep(10.minutes)).buildWith(identity).use(_.run(()))
         val two =
-          ag.action("two", _.bipartite)
-            .retry(IO(0) <* IO.sleep(10.minutes))
-            .buildWith(identity)
-            .use(_.run(()))
+          ag.action("two").retry(IO(0) <* IO.sleep(10.minutes)).buildWith(identity).use(_.run(()))
         IO.parSequenceN(2)(List(one, two))
       }
       .map(checkJson)
@@ -74,8 +68,8 @@ class MetricsTest extends AnyFunSuite {
     val last = task
       .service("reset")
       .eventStream { ag =>
-        ag.action("one", _.bipartite.timed.counted).retry(IO(0)).buildWith(identity).use(_.run(())) >>
-          ag.action("two", _.bipartite.timed.counted).retry(IO(1)).buildWith(identity).use(_.run(())) >>
+        ag.action("one").retry(IO(0)).buildWith(identity).use(_.run(())) >>
+          ag.action("two").retry(IO(1)).buildWith(identity).use(_.run(())) >>
           ag.adhoc.report >> ag.adhoc.reset >> IO.sleep(10.minutes)
       }
       .map(checkJson)
@@ -172,33 +166,12 @@ class MetricsTest extends AnyFunSuite {
       .service("metric name")
       .updateConfig(_.withJmx(identity))
       .eventStream { ga =>
-        ga.action("a0{}[]()!@#$%^&+-_<>", _.bipartite.timed.counted)
-          .retry(IO(0))
-          .buildWith(identity)
-          .use(_.run(())) >> ga.adhoc.report
+        ga.action("a0{}[]()!@#$%^&+-_<>").retry(IO(0)).buildWith(identity).use(_.run(())) >> ga.adhoc.report
       }
       .map(checkJson)
       .compile
       .drain
       .unsafeRunSync()
-  }
-
-  test("15.valid metric name") {
-    val name = "a0{}[]()!@#$%^&+-_<>*?:;'"
-    val Some(mr) = task
-      .service("metric name")
-      .eventStream { ga =>
-        ga.action(name, _.bipartite.timed.counted)
-          .retry(IO(0))
-          .buildWith(identity)
-          .use(_.run(()) >> ga.adhoc.report)
-      }
-      .map(checkJson)
-      .mapFilter(metricReport)
-      .compile
-      .last
-      .unsafeRunSync()
-    assert(mr.snapshot.timers.map(_.metricId.metricName.name).head == name)
   }
 
   test("16.dup") {
@@ -252,11 +225,7 @@ class MetricsTest extends AnyFunSuite {
           _ <- ag.meter("d", _.withUnit(_.COUNT).enable(false)).evalMap(_.update(10000).replicateA(100))
           _ <- ag.counter("e", _.asRisk.enable(false)).evalMap(_.inc(1000))
           _ <- ag.histogram("f", _.withUnit(_.BYTES).enable(false)).evalMap(_.update(10000L).replicateA(100))
-          _ <- agent
-            .action("h", _.timed.counted.bipartite.enable(false))
-            .retry(IO(0))
-            .buildWith(identity)
-            .evalMap(_.run(()))
+          _ <- agent.action("h").retry(IO(0)).buildWith(identity).evalMap(_.run(()))
           _ <- ag
             .ratio("i", _.enable(false))
             .evalMap(f => f.incDenominator(50) >> f.incNumerator(79) >> f.incBoth(20, 50))

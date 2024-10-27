@@ -4,7 +4,7 @@ import cats.Applicative
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.event.{NJError, NJEvent}
 import com.github.chenharryhua.nanjin.guard.translator.metricConstants.METRICS_DIGEST
-import com.github.chenharryhua.nanjin.guard.translator.{Translator, textConstants, textHelper}
+import com.github.chenharryhua.nanjin.guard.translator.{textConstants, textHelper, Translator}
 import io.circe.syntax.EncoderOps
 
 object SimpleTextTranslator {

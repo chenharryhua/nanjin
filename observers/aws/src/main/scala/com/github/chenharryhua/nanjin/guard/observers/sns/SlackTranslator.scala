@@ -187,7 +187,7 @@ private object SlackTranslator extends all {
         ))
     )
 
-  private def service_alert(evt: ServiceMessage): SlackApp = {
+  private def service_message(evt: ServiceMessage): SlackApp = {
     val symbol: String = evt.level match {
       case AlarmLevel.Error => ":warning:"
       case AlarmLevel.Warn  => ":warning:"
@@ -211,99 +211,6 @@ private object SlackTranslator extends all {
     )
   }
 
-  private def service_id(evt: ActionEvent): String =
-    s"*$CONSTANT_SERVICE_ID:* ${evt.serviceParams.serviceId.show}"
-
-  private def action_digest(evt: ActionEvent): String =
-    s"*$METRICS_DIGEST:* ${evt.actionParams.metricName.digest}"
-
-  private def policy(evt: ActionEvent): String =
-    show"*$CONSTANT_POLICY:* ${evt.actionParams.retryPolicy}"
-
-  private def action_start(evt: ActionStart): SlackApp =
-    SlackApp(
-      username = evt.serviceParams.taskName.value,
-      attachments = List(
-        Attachment(
-          color = coloring(evt),
-          blocks = List(
-            HeaderSection(eventTitle(evt)),
-            host_service_section(evt.serviceParams),
-            name_section(evt.actionParams.metricName),
-            MarkdownSection(s"""|${policy(evt)}
-                                |${action_digest(evt)}
-                                |${service_id(evt)}""".stripMargin),
-            MarkdownSection(s"""```${abbreviate(evt.notes)}```""")
-          )
-        ))
-    )
-
-  private def action_retrying(evt: ActionRetry): SlackApp =
-    SlackApp(
-      username = evt.serviceParams.taskName.value,
-      attachments = List(
-        Attachment(
-          color = coloring(evt),
-          blocks = List(
-            HeaderSection(eventTitle(evt)),
-            host_service_section(evt.serviceParams),
-            name_section(evt.actionParams.metricName),
-            MarkdownSection(s"""|${retryText(evt)}
-                                |${policy(evt)}
-                                |${action_digest(evt)}
-                                |${service_id(evt)}
-                                |*$CONSTANT_CAUSE:* ${evt.error.message}""".stripMargin),
-            MarkdownSection(s"""```${abbreviate(evt.notes)}```""")
-          )
-        ))
-    )
-
-  private def action_failed(evt: ActionFail): SlackApp = {
-    val color: String = coloring(evt)
-
-    SlackApp(
-      username = evt.serviceParams.taskName.value,
-      attachments = List(
-        Attachment(
-          color = color,
-          blocks = List(
-            HeaderSection(eventTitle(evt)),
-            host_service_section(evt.serviceParams),
-            name_section(evt.actionParams.metricName),
-            MarkdownSection(s"""*$CONSTANT_TOOK:* ${tookText(evt.took)}
-                               |${policy(evt)}
-                               |${action_digest(evt)}
-                               |${service_id(evt)}""".stripMargin),
-            MarkdownSection(s"""```${abbreviate(evt.notes)}```""")
-          )
-        ),
-        Attachment(
-          color = color,
-          blocks = List(KeyValueSection(CONSTANT_CAUSE, s"```${stack_trace(evt.error)}```"))),
-        Attachment(color = color, blocks = List(brief(evt.serviceParams.brief)))
-      )
-    )
-  }
-
-  private def action_done(evt: ActionDone): SlackApp =
-    SlackApp(
-      username = evt.serviceParams.taskName.value,
-      attachments = List(
-        Attachment(
-          color = coloring(evt),
-          blocks = List(
-            HeaderSection(eventTitle(evt)),
-            host_service_section(evt.serviceParams),
-            name_section(evt.actionParams.metricName),
-            MarkdownSection(s"""|*$CONSTANT_TOOK:* ${tookText(evt.took)}
-                                |${action_digest(evt)}
-                                |${service_id(evt)}""".stripMargin),
-            MarkdownSection(s"""```${abbreviate(evt.notes)}```""")
-          )
-        )
-      )
-    )
-
   def apply[F[_]: Applicative]: Translator[F, SlackApp] =
     Translator
       .empty[F, SlackApp]
@@ -312,9 +219,5 @@ private object SlackTranslator extends all {
       .withServiceStop(service_stopped)
       .withMetricReport(metric_report)
       .withMetricReset(metric_reset)
-      .withServiceMessage(service_alert)
-      .withActionStart(action_start)
-      .withActionRetry(action_retrying)
-      .withActionFail(action_failed)
-      .withActionDone(action_done)
+      .withServiceMessage(service_message)
 }

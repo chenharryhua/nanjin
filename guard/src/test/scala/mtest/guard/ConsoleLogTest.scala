@@ -27,7 +27,7 @@ class ConsoleLogTest extends AnyFunSuite {
           _ <- ag.counter("job", _.asRisk).evalMap(_.inc(1000))
           _ <- ag.histogram("job", _.withUnit(_.BYTES)).evalMap(_.update(10000L).replicateA(100))
           _ <- agent
-            .action("job", _.timed.counted.bipartite)
+            .action("job")
             .retry(IO(0))
             .buildWith(identity)
             .evalMap(_.run(()) >> agent.facilitator("job").messenger.error("ops"))

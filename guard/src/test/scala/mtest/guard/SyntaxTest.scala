@@ -43,7 +43,7 @@ class SyntaxTest extends AnyFunSuite {
       val agent        = ag.facilitator("test").metrics
       for {
         timer <- agent.timer(name).map(_.kleisli((in: Int) => in.seconds))
-        runner <- ag.action(name, _.timed.counted).retry(fun1 _).buildWith(identity)
+        runner <- ag.action(name).retry(fun1 _).buildWith(identity)
         histogram <- agent.histogram(name, _.withUnit(_.BYTES))
         meter <- agent.meter(name, _.withUnit(_.COUNT))
         counter <- agent.counter(name, _.asRisk)
@@ -85,7 +85,7 @@ class SyntaxTest extends AnyFunSuite {
       val mtx          = ag.facilitator(name).metrics
       val msg          = ag.facilitator(name).messenger
       for {
-        action <- ag.action(name, _.timed.counted).retry(fun1 _).buildWith(identity)
+        action <- ag.action(name).retry(fun1 _).buildWith(identity)
         histogram <- mtx.histogram(name, _.withUnit(_.BYTES))
         meter <- mtx.meter(name, _.withUnit(_.KILOBITS))
         counter <- mtx.counter(name, _.asRisk)

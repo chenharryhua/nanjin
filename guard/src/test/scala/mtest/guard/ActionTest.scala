@@ -6,7 +6,7 @@ import cats.effect.{IO, Resource}
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.chrono.zones.singaporeTime
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.event.NJEvent.{ActionFail, ActionStart, ServiceStart, ServiceStop}
+import com.github.chenharryhua.nanjin.guard.event.NJEvent.{ServiceMessage, ServiceStart, ServiceStop}
 import com.github.chenharryhua.nanjin.guard.observers.console
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import io.circe.syntax.EncoderOps
@@ -39,11 +39,11 @@ class ActionTest extends AnyFunSuite {
     val List(a, b, c, d) = TaskGuard[IO]("logError")
       .service("no exception")
       .eventStream(
-        _.action("exception", _.bipartite.counted)
+        _.action("exception")
           .retry(IO.raiseError[Int](new Exception))
           .buildWith(_.tapError((_, _) => null.asInstanceOf[String].asJson)
             .tapInput(_ => null.asInstanceOf[String].asJson)
-            .withPublishStrategy(_.Silent))
+            .withPublishStrategy(_.Bipartite))
           .use(_.run(())))
       .map(checkJson)
       .evalTap(console.text[IO])
@@ -51,8 +51,8 @@ class ActionTest extends AnyFunSuite {
       .toList
       .unsafeRunSync()
     assert(a.isInstanceOf[ServiceStart])
-    assert(b.isInstanceOf[ActionStart])
-    assert(c.isInstanceOf[ActionFail])
+    assert(b.isInstanceOf[ServiceMessage])
+    assert(c.isInstanceOf[ServiceMessage])
     assert(d.isInstanceOf[ServiceStop])
   }
 
@@ -60,16 +60,16 @@ class ActionTest extends AnyFunSuite {
     service.eventStream { ga =>
       val r1 = for {
         ref <- Resource.eval(IO.ref(0))
-        act <- ga.action("ref", _.timed).retry(ref.update(_ + 1)).buildWith(identity)
+        act <- ga.action("ref").retry(ref.update(_ + 1)).buildWith(identity)
       } yield act
 
       val r2 = for {
         ref <- Resource.eval(AtomicCell[IO].of(0))
-        act <- ga.action("atomic-cell", _.timed).retry(ref.update(_ + 1)).buildWith(identity)
+        act <- ga.action("atomic-cell").retry(ref.update(_ + 1)).buildWith(identity)
       } yield act
 
       val r3 = for {
-        act <- ga.action("timed", _.timed).retry(IO(1).timed).buildWith(identity)
+        act <- ga.action("timed").retry(IO(1).timed).buildWith(identity)
       } yield act
 
       val num = 1_000_000

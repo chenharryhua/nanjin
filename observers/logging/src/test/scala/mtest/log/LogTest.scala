@@ -18,7 +18,7 @@ class LogTest extends AnyFunSuite {
       .updateConfig(_.addBrief(Json.fromString("brief")))
       .eventStream { agent =>
         val fac = agent.facilitator("job")
-        val ag = fac.metrics
+        val ag  = fac.metrics
         val go = for {
           _ <- ag.gauge("a").register(IO(1000000000))
           _ <- ag.healthCheck("b").register(IO(true))
@@ -26,11 +26,7 @@ class LogTest extends AnyFunSuite {
           _ <- ag.meter("d", _.withUnit(_.COUNT)).evalMap(_.update(10000).replicateA(100))
           _ <- ag.counter("e", _.asRisk).evalMap(_.inc(1000))
           _ <- ag.histogram("f", _.withUnit(_.BYTES)).evalMap(_.update(10000L).replicateA(100))
-          _ <- agent
-            .action("h", _.timed.counted)
-            .retry(IO(0))
-            .buildWith(identity)
-            .evalMap(_.run(()).replicateA(100))
+          _ <- agent.action("h").retry(IO(0)).buildWith(identity).evalMap(_.run(()).replicateA(100))
           _ <- ag.ratio("i").evalMap(f => f.incDenominator(50) >> f.incNumerator(79) >> f.incBoth(20, 50))
         } yield ()
         go.surround(agent.adhoc.report)

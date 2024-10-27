@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard.observers.influxdb
 
 import cats.Endo
 import cats.effect.kernel.{Async, Resource}
-import cats.implicits.{showInterpolator, toShow}
+import cats.implicits.toShow
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.event.{NJEvent, Snapshot}
 import com.github.chenharryhua.nanjin.guard.translator.metricConstants
@@ -18,9 +18,7 @@ import com.influxdb.client.{InfluxDBClient, WriteOptions}
 import fs2.{Pipe, Stream}
 import org.typelevel.cats.time.instances.localdate
 
-import java.time.Duration
 import java.util.concurrent.TimeUnit
-import scala.concurrent.duration.FiniteDuration
 import scala.jdk.CollectionConverters.*
 
 object InfluxdbObserver {
@@ -61,47 +59,6 @@ final class InfluxdbObserver[F[_]](
 
   def addTags(tagsToAdd: Map[String, String]): InfluxdbObserver[F] =
     new InfluxdbObserver[F](client, writeOptions, writePrecision, durationUnit, tags ++ tagsToAdd)
-
-  private def defaultTransform(ar: NJEvent.ActionDone): Point =
-    Point
-      .measurement(ar.actionParams.metricName.measurement)
-      .time(ar.timestamp.toInstant, writePrecision)
-      .addTag(CONSTANT_SERVICE_ID, ar.actionParams.serviceParams.serviceId.show)
-      .addTag(metricConstants.METRICS_DIGEST, ar.actionParams.metricName.digest)
-      .addTag("done", show"${ar.isDone}") // for query
-      .addTags(tags.asJava)
-      .addField(
-        ar.actionParams.metricName.name,
-        durationUnit.convert(Duration.between(ar.launchTime, ar.timestamp))
-      ) // Long
-
-  /** @param chunkSize
-    *   is the maximum number of elements to include in a chunk.
-    * @param timeout
-    *   is the maximum duration of time to wait before emitting a chunk, even if it doesn't contain chunkSize
-    *   elements.
-    */
-  def observe(
-    chunkSize: Int,
-    timeout: FiniteDuration,
-    f: NJEvent.ActionDone => Point): Pipe[F, NJEvent, Nothing] = { (events: Stream[F, NJEvent]) =>
-    Stream.resource(client.map(_.makeWriteApi(writeOptions(WriteOptions.builder()).build()))).flatMap {
-      writer =>
-        events
-          .groupWithin(chunkSize, timeout)
-          .evalMap { chunk =>
-            val points: List[Point] = chunk.mapFilter {
-              case ar: NJEvent.ActionDone => Some(f(ar).addTags(tags.asJava))
-              case _                      => None
-            }.toList
-            F.blocking(writer.writePoints(points.asJava))
-          }
-          .drain
-    }
-  }
-
-  def observe(chunkSize: Int, timeout: FiniteDuration): Pipe[F, NJEvent, Nothing] =
-    observe(chunkSize, timeout, defaultTransform)
 
   /** InfluxDB tag key constraints: Tag keys must be strings. Tag keys must be non-empty. Tag keys must not
     * contain any control characters (e.g., '\n', '\r', '\t'). Tag keys must not contain commas or spaces. Tag

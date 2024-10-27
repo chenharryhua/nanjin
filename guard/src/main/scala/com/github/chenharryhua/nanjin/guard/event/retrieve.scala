@@ -28,48 +28,6 @@ object retrieveGauge {
     }.flatten.toMap
 }
 
-object retrieveAction {
-  object timer {
-    def apply(timers: List[Snapshot.Timer]): Map[MetricID, Snapshot.TimerData] =
-      timers.collect { tm =>
-        tm.metricId.category match {
-          case Category.Timer(TimerKind.Action) =>
-            tm.metricId -> tm.timer
-        }
-      }.toMap
-  }
-
-  object doneCount {
-    def apply(counters: List[Snapshot.Counter]): Map[MetricID, Long] =
-      counters.collect { cc =>
-        cc.metricId.category match {
-          case Category.Counter(CounterKind.ActionDone) =>
-            cc.metricId -> cc.count
-        }
-      }.toMap
-  }
-
-  object retryCount {
-    def apply(counters: List[Snapshot.Counter]): Map[MetricID, Long] =
-      counters.collect { cc =>
-        cc.metricId.category match {
-          case Category.Counter(CounterKind.ActionRetry) =>
-            cc.metricId -> cc.count
-        }
-      }.toMap
-  }
-
-  object failCount {
-    def apply(counters: List[Snapshot.Counter]): Map[MetricID, Long] =
-      counters.collect { cc =>
-        cc.metricId.category match {
-          case Category.Counter(CounterKind.ActionFail) =>
-            cc.metricId -> cc.count
-        }
-      }.toMap
-  }
-}
-
 object retrieveTimer {
   def apply(timers: List[Snapshot.Timer]): Map[MetricID, Snapshot.TimerData] =
     timers.collect { tm =>

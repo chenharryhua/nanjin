@@ -3,15 +3,14 @@ package mtest.guard
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.common.chrono.zones.singaporeTime
 import com.github.chenharryhua.nanjin.common.chrono.Policy
+import com.github.chenharryhua.nanjin.common.chrono.zones.singaporeTime
 import com.github.chenharryhua.nanjin.guard.*
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
 import io.circe.syntax.*
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.*
-import scala.jdk.DurationConverters.JavaDurationOps
 import scala.util.control.ControlThrowable
 
 final case class MyException() extends Exception("my exception")
@@ -48,9 +47,9 @@ class RetryTest extends AnyFunSuite {
       .service("notice")
       .eventStream { gd =>
         val ag =
-          gd.action("t", _.bipartite.timed.counted)
+          gd.action("t")
             .retry(fun5 _)
-            .buildWith(_.tapInput(_._3.asJson).worthRetry(_ => true))
+            .buildWith(_.tapInput(_._3.asJson).worthRetry(_ => true).withPublishStrategy(_.Bipartite))
         List(1, 2, 3).traverse(i => ag.use(_.run((i, i, i, i, i))))
       }
       .map(checkJson)
@@ -59,12 +58,12 @@ class RetryTest extends AnyFunSuite {
       .unsafeRunSync()
 
     assert(s.isInstanceOf[ServiceStart])
-    assert(a.isInstanceOf[ActionStart])
-    assert(b.isInstanceOf[ActionDone])
-    assert(c.isInstanceOf[ActionStart])
-    assert(d.isInstanceOf[ActionDone])
-    assert(e.isInstanceOf[ActionStart])
-    assert(f.isInstanceOf[ActionDone])
+    assert(a.isInstanceOf[ServiceMessage])
+    assert(b.isInstanceOf[ServiceMessage])
+    assert(c.isInstanceOf[ServiceMessage])
+    assert(d.isInstanceOf[ServiceMessage])
+    assert(e.isInstanceOf[ServiceMessage])
+    assert(f.isInstanceOf[ServiceMessage])
     assert(g.isInstanceOf[ServiceStop])
 
   }
@@ -75,9 +74,10 @@ class RetryTest extends AnyFunSuite {
       .service("all fail")
       .eventStream { gd =>
         val ag = gd
-          .action("t", _.bipartite.counted.policy(policy))
+          .action("t")
           .retry((_: Int, _: Int, _: Int) => IO.raiseError[Int](new Exception))
-          .buildWith(_.tapOutput((in, out) => (in._3, out).asJson))
+          .buildWith(
+            _.tapOutput((in, out) => (in._3, out).asJson).withPolicy(policy).withPublishStrategy(_.Bipartite))
 
         List(1, 2, 3).traverse(i => ag.use(_.run((i, i, i)).attempt))
       }
@@ -87,20 +87,17 @@ class RetryTest extends AnyFunSuite {
       .unsafeRunSync()
 
     assert(s.isInstanceOf[ServiceStart])
-    assert(a.isInstanceOf[ActionStart])
-    assert(b.isInstanceOf[ActionRetry])
-    assert(c.isInstanceOf[ActionFail])
-    assert(d.isInstanceOf[ActionStart])
-    assert(e.isInstanceOf[ActionRetry])
-    assert(f.isInstanceOf[ActionFail])
-    assert(g.isInstanceOf[ActionStart])
-    assert(h.isInstanceOf[ActionRetry])
-    assert(i.isInstanceOf[ActionFail])
+    assert(a.isInstanceOf[ServiceMessage])
+    assert(b.isInstanceOf[ServiceMessage])
+    assert(c.isInstanceOf[ServiceMessage])
+    assert(d.isInstanceOf[ServiceMessage])
+    assert(e.isInstanceOf[ServiceMessage])
+    assert(f.isInstanceOf[ServiceMessage])
+    assert(g.isInstanceOf[ServiceMessage])
+    assert(h.isInstanceOf[ServiceMessage])
+    assert(i.isInstanceOf[ServiceMessage])
     assert(j.isInstanceOf[ServiceStop])
 
-    val ap = h.asInstanceOf[ActionRetry]
-    assert(ap.tick.sequenceId == ap.actionParams.serviceParams.serviceId)
-    assert(ap.tick.zoneId == ap.serviceParams.zoneId)
   }
 
   test("4.retry - should retry 2 times when operation fail") {
@@ -108,12 +105,15 @@ class RetryTest extends AnyFunSuite {
     val Vector(s, a, b, c, d, e) = task
       .service("2 times")
       .eventStream { gd =>
-        gd.action("t", _.bipartite.timed.policy(policy))
+        gd.action("t")
           .retry((_: Int) =>
             IO(if (i < 2) {
               i += 1; throw new Exception
             } else i))
-          .buildWith(_.tapOutput((a, _) => a.asJson).tapInput(_.asJson))
+          .buildWith(_.tapOutput((a, _) => a.asJson)
+            .tapInput(_.asJson)
+            .withPublishStrategy(_.Bipartite)
+            .withPolicy(policy))
           .use(_.run(1))
       }
       .map(checkJson)
@@ -122,10 +122,10 @@ class RetryTest extends AnyFunSuite {
       .unsafeRunSync()
 
     assert(s.isInstanceOf[ServiceStart])
-    assert(a.isInstanceOf[ActionStart])
-    assert(b.isInstanceOf[ActionRetry])
-    assert(c.isInstanceOf[ActionRetry])
-    assert(d.isInstanceOf[ActionDone])
+    assert(a.isInstanceOf[ServiceMessage])
+    assert(b.isInstanceOf[ServiceMessage])
+    assert(c.isInstanceOf[ServiceMessage])
+    assert(d.isInstanceOf[ServiceMessage])
     assert(e.isInstanceOf[ServiceStop])
   }
 
@@ -134,13 +134,13 @@ class RetryTest extends AnyFunSuite {
     val Vector(s, b, c, d, e, f) = task
       .service("low")
       .eventStream { gd =>
-        gd.action("t", _.critical.bipartite.policy(policy))
+        gd.action("t")
           .retry((_: Int) =>
             IO(if (i < 2) {
               i += 1
               throw new Exception
             } else i))
-          .buildWith(_.tapInput(_.asJson))
+          .buildWith(_.tapInput(_.asJson).withPolicy(policy).withPublishStrategy(_.Bipartite))
           .use(_.run(1))
       }
       .map(checkJson)
@@ -149,10 +149,10 @@ class RetryTest extends AnyFunSuite {
       .unsafeRunSync()
 
     assert(s.isInstanceOf[ServiceStart])
-    assert(b.isInstanceOf[ActionStart])
-    assert(c.isInstanceOf[ActionRetry])
-    assert(d.isInstanceOf[ActionRetry])
-    assert(e.isInstanceOf[ActionDone])
+    assert(b.isInstanceOf[ServiceMessage])
+    assert(c.isInstanceOf[ServiceMessage])
+    assert(d.isInstanceOf[ServiceMessage])
+    assert(e.isInstanceOf[ServiceMessage])
     assert(f.isInstanceOf[ServiceStop])
   }
 
@@ -161,9 +161,9 @@ class RetryTest extends AnyFunSuite {
       .service("escalate")
       .updateConfig(_.withRestartPolicy(Policy.giveUp))
       .eventStream { gd =>
-        gd.action("t", _.counted.policy(Policy.fixedDelay(1.seconds).limited(3)))
+        gd.action("t")
           .retry((_: Int) => IO.raiseError[Int](new Exception("oops")))
-          .buildWith(_.tapInput(_.asJson))
+          .buildWith(_.tapInput(_.asJson).withPolicy(Policy.fixedDelay(1.seconds).limited(3)))
           .use(_.run(1))
       }
       .map(checkJson)
@@ -172,15 +172,12 @@ class RetryTest extends AnyFunSuite {
       .unsafeRunSync()
 
     assert(s.isInstanceOf[ServiceStart])
-    assert(b.isInstanceOf[ActionRetry])
-    assert(c.isInstanceOf[ActionRetry])
-    assert(d.isInstanceOf[ActionRetry])
-    assert(e.isInstanceOf[ActionFail])
+    assert(b.isInstanceOf[ServiceMessage])
+    assert(c.isInstanceOf[ServiceMessage])
+    assert(d.isInstanceOf[ServiceMessage])
+    assert(e.isInstanceOf[ServiceMessage])
     assert(f.isInstanceOf[ServiceStop])
 
-    assert(b.asInstanceOf[ActionRetry].tick.index == 1)
-    assert(c.asInstanceOf[ActionRetry].tick.index == 2)
-    assert(d.asInstanceOf[ActionRetry].tick.index == 3)
   }
 
   test("7.retry - Null pointer exception") {
@@ -188,9 +185,9 @@ class RetryTest extends AnyFunSuite {
       .service("null exception")
       .updateConfig(_.withRestartPolicy(Policy.giveUp))
       .eventStream(ag =>
-        ag.action("t", _.normal.timed.policy(policy))
+        ag.action("t")
           .retry(IO.raiseError[Int](new NullPointerException))
-          .buildWith(_.tapOutput((_, a) => a.asJson))
+          .buildWith(_.tapOutput((_, a) => a.asJson).withPolicy(policy))
           .use(_.run(())))
       .map(checkJson)
       .take(6)
@@ -198,10 +195,10 @@ class RetryTest extends AnyFunSuite {
       .toList
       .unsafeRunSync()
     assert(a.isInstanceOf[ServiceStart])
-    assert(b.isInstanceOf[ActionRetry])
-    assert(c.isInstanceOf[ActionRetry])
-    assert(d.isInstanceOf[ActionRetry])
-    assert(e.isInstanceOf[ActionFail])
+    assert(b.isInstanceOf[ServiceMessage])
+    assert(c.isInstanceOf[ServiceMessage])
+    assert(d.isInstanceOf[ServiceMessage])
+    assert(e.isInstanceOf[ServiceMessage])
     assert(f.isInstanceOf[ServiceStop])
   }
 
@@ -210,9 +207,10 @@ class RetryTest extends AnyFunSuite {
       .service("retry")
       .updateConfig(_.withRestartPolicy(Policy.giveUp))
       .eventStream { gd =>
-        gd.action("t", _.policy(Policy.fixedDelay(0.1.seconds).limited(3)))
+        gd.action("t")
           .retry(IO.raiseError[Int](MyException()))
-          .buildWith(_.worthRetry(_.isInstanceOf[MyException]))
+          .buildWith(
+            _.worthRetry(_.isInstanceOf[MyException]).withPolicy(Policy.fixedDelay(0.1.seconds).limited(3)))
           .use(_.run(()))
       }
       .map(checkJson)
@@ -221,10 +219,10 @@ class RetryTest extends AnyFunSuite {
       .unsafeRunSync()
 
     assert(s.isInstanceOf[ServiceStart])
-    assert(b.isInstanceOf[ActionRetry])
-    assert(c.isInstanceOf[ActionRetry])
-    assert(d.isInstanceOf[ActionRetry])
-    assert(e.isInstanceOf[ActionFail])
+    assert(b.isInstanceOf[ServiceMessage])
+    assert(c.isInstanceOf[ServiceMessage])
+    assert(d.isInstanceOf[ServiceMessage])
+    assert(e.isInstanceOf[ServiceMessage])
     assert(f.isInstanceOf[ServiceStop])
   }
 
@@ -234,9 +232,11 @@ class RetryTest extends AnyFunSuite {
       .updateConfig(_.withRestartPolicy(Policy.fixedDelay(1.hour)))
       .eventStream { gd =>
         gd.zonedNow >>
-          gd.action("t", _.bipartite.policy(Policy.fixedDelay(0.1.seconds).limited(3)))
+          gd.action("t")
             .retry(IO.raiseError[Int](new Exception))
-            .buildWith(_.worthRetry(x => x.isInstanceOf[MyException]))
+            .buildWith(_.worthRetry(x => x.isInstanceOf[MyException])
+              .withPolicy(Policy.fixedDelay(0.1.seconds).limited(3))
+              .withPublishStrategy(_.Bipartite))
             .use(_.run(()))
       }
       // .debug()
@@ -246,8 +246,8 @@ class RetryTest extends AnyFunSuite {
       .toVector
       .unsafeRunSync()
     assert(s.isInstanceOf[ServiceStart])
-    assert(a.isInstanceOf[ActionStart])
-    assert(b.isInstanceOf[ActionFail])
+    assert(a.isInstanceOf[ServiceMessage])
+    assert(b.isInstanceOf[ServiceMessage])
     assert(c.isInstanceOf[ServicePanic])
   }
 
@@ -256,9 +256,9 @@ class RetryTest extends AnyFunSuite {
       .service("cron")
       .updateConfig(_.withRestartPolicy(Policy.giveUp))
       .eventStream(
-        _.action("cron", _.bipartite.policy(Policy.crontab(_.secondly).limited(3)))
+        _.action("cron")
           .retry(IO.raiseError[Int](new Exception("oops")))
-          .buildWith(identity)
+          .buildWith(_.withPolicy(Policy.crontab(_.secondly).limited(3)).withPublishStrategy(_.Bipartite))
           .use(_.run(())))
       .map(checkJson)
       .compile
@@ -266,22 +266,12 @@ class RetryTest extends AnyFunSuite {
       .unsafeRunSync()
 
     assert(a.isInstanceOf[ServiceStart])
-    assert(b.isInstanceOf[ActionStart])
-    assert(c.isInstanceOf[ActionRetry])
-    assert(d.isInstanceOf[ActionRetry])
-    assert(e.isInstanceOf[ActionRetry])
-    assert(f.isInstanceOf[ActionFail])
+    assert(b.isInstanceOf[ServiceMessage])
+    assert(c.isInstanceOf[ServiceMessage])
+    assert(d.isInstanceOf[ServiceMessage])
+    assert(e.isInstanceOf[ServiceMessage])
+    assert(f.isInstanceOf[ServiceMessage])
     assert(g.isInstanceOf[ServiceStop])
-
-    val t1 = c.asInstanceOf[ActionRetry].tick
-    val t2 = d.asInstanceOf[ActionRetry].tick
-    val t3 = e.asInstanceOf[ActionRetry].tick
-
-    assert(t2.previous == t1.wakeup)
-    assert(t3.previous == t2.wakeup)
-    assert(t1.snooze.toScala < 1.seconds)
-    assert(t2.snooze.toScala < 1.seconds)
-    assert(t3.snooze.toScala < 1.seconds)
 
   }
 
@@ -293,37 +283,26 @@ class RetryTest extends AnyFunSuite {
       .eventStream { agent =>
         val a =
           agent
-            .action("a", _.policy(Policy.fixedDelay(1.seconds)).timed.counted.bipartite)
+            .action("a")
             .retry(err)
-            .buildWith(identity)
+            .buildWith(_.withPolicy(Policy.fixedDelay(1.seconds)).withPublishStrategy(_.Bipartite))
             .use(_.run(()))
         val b =
           agent
-            .action("b", _.policy(Policy.fixedDelay(1.seconds)).timed.counted.unipartite)
+            .action("b")
             .retry(err)
-            .buildWith(identity)
+            .buildWith(_.withPolicy(Policy.fixedDelay(1.seconds)).withPublishStrategy(_.Unipartite))
             .use(_.run(()))
         val c =
-          agent
-            .action("c", _.policy(Policy.fixedDelay(1.seconds)).timed)
-            .retry(err)
-            .buildWith(identity)
-            .use(_.run(()))
+          agent.action("c").retry(err).buildWith(_.withPolicy(Policy.fixedDelay(1.seconds))).use(_.run(()))
         val d =
-          agent
-            .action("d", _.policy(Policy.fixedDelay(1.seconds)).counted)
-            .retry(err)
-            .buildWith(identity)
-            .use(_.run(()))
-        val e = agent
-          .action("e", _.policy(Policy.fixedDelay(1.seconds)))
-          .retry(err)
-          .buildWith(identity)
-          .use(_.run(()))
+          agent.action("d").retry(err).buildWith(_.withPolicy(Policy.fixedDelay(1.seconds))).use(_.run(()))
+        val e =
+          agent.action("e").retry(err).buildWith(_.withPolicy(Policy.fixedDelay(1.seconds))).use(_.run(()))
         val f = agent
-          .action("f", _.policy(Policy.fixedDelay(1.seconds)).unipartite)
+          .action("f")
           .retry(err)
-          .buildWith(identity)
+          .buildWith(_.withPolicy(Policy.fixedDelay(1.seconds)).withPublishStrategy(_.Bipartite))
           .use(_.run(()))
         a >> b >> c >> d >> e >> f
       }
@@ -333,13 +312,13 @@ class RetryTest extends AnyFunSuite {
       .unsafeRunSync()
 
     assert(a.isInstanceOf[ServiceStart])
-    assert(b.isInstanceOf[ActionStart])
-    assert(c.isInstanceOf[ActionFail])
-    assert(d.isInstanceOf[ActionFail])
-    assert(e.isInstanceOf[ActionFail])
-    assert(f.isInstanceOf[ActionFail])
-    assert(g.isInstanceOf[ActionFail])
-    assert(h.isInstanceOf[ActionFail])
+    assert(b.isInstanceOf[ServiceMessage])
+    assert(c.isInstanceOf[ServiceMessage])
+    assert(d.isInstanceOf[ServiceMessage])
+    assert(e.isInstanceOf[ServiceMessage])
+    assert(f.isInstanceOf[ServiceMessage])
+    assert(g.isInstanceOf[ServiceMessage])
+    assert(h.isInstanceOf[ServiceMessage])
     assert(i.isInstanceOf[ServiceStop])
   }
 
@@ -348,7 +327,9 @@ class RetryTest extends AnyFunSuite {
       .service("aware")
       .eventStream { gd =>
         val ag =
-          gd.action("t", _.unipartite).retry(fun5 _).buildWith(_.tapInput(_._3.asJson).worthRetry(_ => true))
+          gd.action("t")
+            .retry(fun5 _)
+            .buildWith(_.tapInput(_._3.asJson).worthRetry(_ => true).withPublishStrategy(_.Unipartite))
         List(1, 2, 3).traverse(i => ag.use(_.run((i, i, i, i, i))))
       }
       .map(checkJson)
@@ -357,9 +338,9 @@ class RetryTest extends AnyFunSuite {
       .unsafeRunSync()
 
     assert(s.isInstanceOf[ServiceStart])
-    assert(a.isInstanceOf[ActionDone])
-    assert(b.isInstanceOf[ActionDone])
-    assert(c.isInstanceOf[ActionDone])
+    assert(a.isInstanceOf[ServiceMessage])
+    assert(b.isInstanceOf[ServiceMessage])
+    assert(c.isInstanceOf[ServiceMessage])
     assert(d.isInstanceOf[ServiceStop])
   }
 
@@ -371,9 +352,9 @@ class RetryTest extends AnyFunSuite {
       .service("delay")
       .eventStream { agent =>
         agent
-          .action("delay", _.bipartite.insignificant.policy(Policy.fixedDelay(1.seconds)))
+          .action("delay")
           .delay(tt)
-          .buildWith(identity)
+          .buildWith(_.withPolicy(Policy.fixedDelay(1.seconds)).withPublishStrategy(_.Bipartite))
           .use(_.run(()))
       }
       .map(checkJson)
@@ -388,7 +369,7 @@ class RetryTest extends AnyFunSuite {
       .service("resource")
       .eventStream(agent =>
         agent
-          .action("resource", _.timed.counted)
+          .action("resource")
           .retry((i: Int) => IO(i.toString))
           .buildWith(identity)
           .use(_.run(1) >> agent.adhoc.report) >> agent.adhoc.report)
@@ -397,8 +378,8 @@ class RetryTest extends AnyFunSuite {
       .toList
       .unsafeRunSync()
     assert(a.isInstanceOf[ServiceStart])
-    assert(b.asInstanceOf[MetricReport].snapshot.timers.nonEmpty)
-    assert(c.asInstanceOf[MetricReport].snapshot.timers.isEmpty)
+    assert(b.isInstanceOf[MetricReport])
+    assert(c.isInstanceOf[MetricReport])
     assert(d.isInstanceOf[ServiceStop])
   }
 
@@ -406,9 +387,9 @@ class RetryTest extends AnyFunSuite {
     val List(a, b, c) = TaskGuard[IO]("silent")
       .service("count")
       .eventStream(
-        _.action("exception", _.silent.counted.policy(Policy.fixedDelay(1.seconds)))
+        _.action("exception")
           .retry((_: Int) => IO.raiseError[Int](new Exception))
-          .buildWith(identity)
+          .buildWith(_.withPolicy(Policy.fixedDelay(1.seconds)))
           .use(_.run(1)))
       .map(checkJson)
       .take(3)
@@ -416,17 +397,17 @@ class RetryTest extends AnyFunSuite {
       .toList
       .unsafeRunSync()
     assert(a.isInstanceOf[ServiceStart])
-    assert(b.isInstanceOf[ActionRetry])
-    assert(c.isInstanceOf[ActionRetry])
+    assert(b.isInstanceOf[ServiceMessage])
+    assert(c.isInstanceOf[ServiceMessage])
   }
 
   test("23.unipartite time") {
     val List(a, b, c) = TaskGuard[IO]("unipartite")
       .service("time")
       .eventStream(
-        _.action("exception", _.unipartite.timed.policy(Policy.fixedDelay(1.seconds)))
+        _.action("exception")
           .retry((_: Int) => IO.raiseError[Int](new Exception))
-          .buildWith(identity)
+          .buildWith(_.withPolicy(Policy.fixedDelay(1.seconds)).withPublishStrategy(_.Bipartite))
           .use(_.run(1)))
       .map(checkJson)
       .take(3)
@@ -434,7 +415,7 @@ class RetryTest extends AnyFunSuite {
       .toList
       .unsafeRunSync()
     assert(a.isInstanceOf[ServiceStart])
-    assert(b.isInstanceOf[ActionRetry])
-    assert(c.isInstanceOf[ActionRetry])
+    assert(b.isInstanceOf[ServiceMessage])
+    assert(c.isInstanceOf[ServiceMessage])
   }
 }

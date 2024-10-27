@@ -6,7 +6,7 @@ import cats.effect.unsafe.implicits.global
 import cats.laws.discipline.eq.*
 import cats.laws.discipline.{ExhaustiveCheck, FunctorFilterTests, MonadTests}
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
-import com.github.chenharryhua.nanjin.common.chrono.{Policy, TickStatus}
+import com.github.chenharryhua.nanjin.common.chrono.{Policy, Tick, TickStatus}
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.event.*
@@ -19,7 +19,7 @@ import org.scalacheck.{Arbitrary, Gen}
 
 object gendata {
   val service: ServiceGuard[IO] = TaskGuard[IO]("monad").service("tailrecM")
-  val tick                      = TickStatus.zeroth[IO](Policy.giveUp, sydneyTime).unsafeRunSync().tick
+  val tick: Tick                = TickStatus.zeroth[IO](Policy.giveUp, sydneyTime).unsafeRunSync().tick
   implicit val exhaustiveCheck: ExhaustiveCheck[NJEvent] =
     ExhaustiveCheck.instance(List(ServiceStart(null.asInstanceOf[ServiceParams], tick)))
 
@@ -37,10 +37,7 @@ object gendata {
           .withMetricReport(_ => 4)
           .withMetricReset(_ => 5)
           .withServiceMessage(_ => 6)
-          .withActionStart(_ => 8)
-          .withActionFail(_ => 9)
-          .withActionDone(_ => 10)
-          .withActionRetry(_ => 11)))
+      ))
 
   val add: Int => Int = _ + 1
 
@@ -55,10 +52,7 @@ object gendata {
           .withMetricReport(_ => add)
           .withMetricReset(_ => add)
           .withServiceMessage(_ => add)
-          .withActionStart(_ => add)
-          .withActionFail(_ => add)
-          .withActionDone(_ => add)
-          .withActionRetry(_ => add)))
+      ))
 
   implicit val eqAbc: Eq[Translator[Option, (Int, Int, Int)]] =
     (_: Translator[Option, (Int, Int, Int)], _: Translator[Option, (Int, Int, Int)]) => true
@@ -74,10 +68,7 @@ object gendata {
           .withMetricReport(_ => Option(4))
           .withMetricReset(_ => Option(5))
           .withServiceMessage(_ => Option(6))
-          .withActionStart(_ => Option(8))
-          .withActionFail(_ => Option(9))
-          .withActionDone(_ => Option(10))
-          .withActionRetry(_ => Option(11))))
+      ))
 }
 
 class TranslatorMonadTest extends DisciplineSuite {

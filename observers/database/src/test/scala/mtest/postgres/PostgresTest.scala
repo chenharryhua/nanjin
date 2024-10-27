@@ -24,17 +24,12 @@ class PostgresTest extends AnyFunSuite {
         .updateConfig(_.withRestartPolicy(Policy.fixedRate(1.second)))
         .eventStream { agent =>
           val fac = agent.facilitator("db")
-          val ag = fac.metrics
+          val ag  = fac.metrics
           val job =
             box.getAndUpdate(_ + 1).map(_ % 12 == 0).ifM(IO(1), IO.raiseError[Int](new Exception("oops")))
           val env = for {
             meter <- ag.meter("meter", _.withUnit(_.COUNT))
-            action <- agent
-              .action(
-                "nj_error",
-                _.critical.bipartite.timed.counted.policy(Policy.fixedRate(1.second).limited(3)))
-              .retry(job)
-              .buildWith(identity)
+            action <- agent.action("nj_error").retry(job).buildWith(identity)
             counter <- ag.counter("nj counter", _.asRisk)
             histogram <- ag.histogram("nj histogram", _.withUnit(_.SECONDS))
             _ <- ag.gauge("nj gauge").register(box.get)

@@ -79,56 +79,6 @@ private object JsonTranslator {
       timestamp(evt)
     )
 
-  private def action_start(evt: ActionStart): Json =
-    Json.obj(
-      "event" -> EventName.ActionStart.camelJson,
-      metricName(evt.actionParams.metricName),
-      metricDigest(evt.actionParams.metricName),
-      metricMeasurement(evt.actionParams.metricName),
-      config(evt),
-      notes(evt.notes),
-      serviceId(evt),
-      timestamp(evt)
-    )
-
-  private def action_retrying(evt: ActionRetry): Json =
-    Json.obj(
-      "event" -> EventName.ActionRetry.camelJson,
-      metricName(evt.actionParams.metricName),
-      metricDigest(evt.actionParams.metricName),
-      metricMeasurement(evt.actionParams.metricName),
-      config(evt),
-      errorCause(evt.error),
-      serviceId(evt),
-      timestamp(evt)
-    )
-
-  private def action_fail(evt: ActionFail): Json =
-    Json.obj(
-      "event" -> EventName.ActionFail.camelJson,
-      metricName(evt.actionParams.metricName),
-      metricDigest(evt.actionParams.metricName),
-      metricMeasurement(evt.actionParams.metricName),
-      config(evt),
-      notes(evt.notes),
-      stack(evt.error),
-      serviceId(evt),
-      timestamp(evt)
-    )
-
-  private def action_done(evt: ActionDone): Json =
-    Json.obj(
-      "event" -> EventName.ActionDone.camelJson,
-      metricName(evt.actionParams.metricName),
-      metricDigest(evt.actionParams.metricName),
-      metricMeasurement(evt.actionParams.metricName),
-      config(evt),
-      took(evt.took),
-      notes(evt.notes),
-      serviceId(evt),
-      timestamp(evt)
-    )
-
   def apply[F[_]: Applicative]: Translator[F, Json] =
     Translator
       .empty[F, Json]
@@ -138,9 +88,5 @@ private object JsonTranslator {
       .withMetricReport(metric_report)
       .withMetricReset(metric_reset)
       .withServiceMessage(service_alert)
-      .withActionStart(action_start)
-      .withActionRetry(action_retrying)
-      .withActionFail(action_fail)
-      .withActionDone(action_done)
 
 }

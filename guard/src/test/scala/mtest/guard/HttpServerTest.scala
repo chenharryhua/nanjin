@@ -126,11 +126,7 @@ class HttpServerTest extends AnyFunSuite {
       .service("never")
       .updateConfig(_.withHttpServer(_.withPort(port"9996")))
       .eventStream {
-        _.action("panic", _.timed.counted)
-          .retry(IO.sleep(1.seconds))
-          .buildWith(identity)
-          .use(_.run(()))
-          .foreverM
+        _.action("panic").retry(IO.sleep(1.seconds)).buildWith(identity).use(_.run(())).foreverM
       }
       .map(checkJson)
       .compile
