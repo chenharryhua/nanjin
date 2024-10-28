@@ -9,6 +9,7 @@ import com.github.chenharryhua.nanjin.guard.config.{MetricName, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import fs2.concurrent.Channel
 import io.circe.Json
+import org.apache.commons.lang3.exception.ExceptionUtils
 import org.typelevel.cats.time.instances.localdatetime
 
 import java.time.temporal.ChronoUnit
@@ -58,13 +59,15 @@ final class BuildWith[F[_]: Async, IN, OUT] private[action] (
 
   private val init: BuildWith.Builder[F, IN, OUT] =
     new BuildWith.Builder[F, IN, OUT](
-      transError = Reader[(Tick, IN, Throwable), Json] { case (tick, _, _) =>
+      transError = Reader[(Tick, IN, Throwable), Json] { case (tick, _, ex) =>
         val wakeup = tick.zonedWakeup.truncatedTo(ChronoUnit.SECONDS).toLocalDateTime.show
         val when   = tick.zonedAcquire.truncatedTo(ChronoUnit.SECONDS).toLocalDateTime.show
         Json.obj(
+          "error" -> Json.fromString(ExceptionUtils.getMessage(ex)),
           "index" -> Json.fromLong(tick.index),
           "when" -> Json.fromString(when),
-          "retry" -> Json.fromString(wakeup))
+          "retry" -> Json.fromString(wakeup)
+        )
       },
       isWorthRetry = Reader[(IN, Throwable), Boolean](_ => true)
     )
