@@ -16,17 +16,16 @@ object CategoryGroup extends IntEnum[CategoryGroup] with IntCirceEnum[CategoryGr
   override val values: IndexedSeq[CategoryGroup] = findValues
 
   case object HealthCheck extends CategoryGroup(1) // gauge
-  case object Alarm extends CategoryGroup(2) // counter
-  case object Risk extends CategoryGroup(3) // counter
+  case object Risk extends CategoryGroup(2) // counter
 
-  case object Ratio extends CategoryGroup(4) // gauge
+  case object Ratio extends CategoryGroup(3) // gauge
 
-  case object Gauge extends CategoryGroup(5)
-  case object Counter extends CategoryGroup(6)
+  case object Gauge extends CategoryGroup(4)
+  case object Counter extends CategoryGroup(5)
 
-  case object Meter extends CategoryGroup(7)
-  case object Histogram extends CategoryGroup(8)
-  case object Timer extends CategoryGroup(9)
+  case object Meter extends CategoryGroup(6)
+  case object Histogram extends CategoryGroup(7)
+  case object Timer extends CategoryGroup(8)
 
 }
 
@@ -52,10 +51,6 @@ object CategoryKind {
     val values: IndexedSeq[CounterKind] = findValues
 
     case object Risk extends CounterKind(CategoryGroup.Risk)
-
-    case object AlertError extends CounterKind(CategoryGroup.Alarm)
-    case object AlertWarn extends CounterKind(CategoryGroup.Alarm)
-    case object AlertInfo extends CounterKind(CategoryGroup.Alarm)
 
     case object Counter extends CounterKind(CategoryGroup.Counter)
   }

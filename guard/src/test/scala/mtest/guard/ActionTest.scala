@@ -1,9 +1,8 @@
 package mtest.guard
 
-import cats.data.Ior
-import cats.effect.std.AtomicCell
-import cats.effect.{IO, Resource}
+import cats.effect.IO
 import cats.effect.unsafe.implicits.global
+import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.common.chrono.zones.singaporeTime
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.{ServiceMessage, ServiceStart, ServiceStop}
@@ -12,6 +11,8 @@ import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import io.circe.syntax.EncoderOps
 import org.scalatest.funsuite.AnyFunSuite
 
+import scala.concurrent.duration.DurationInt
+
 class ActionTest extends AnyFunSuite {
   private val service: ServiceGuard[IO] =
     TaskGuard[IO]("action").updateConfig(_.withZoneId(singaporeTime)).service("action")
@@ -19,9 +20,10 @@ class ActionTest extends AnyFunSuite {
   test("kleisli") {
     val name = "kleisli"
     service.eventStream { agent =>
-      val ga = agent.facilitator(name).metrics
+      val fac = agent.facilitator(name)
+      val ga  = fac.metrics
       val calc = for {
-        action <- agent.action(name).retry((i: Int) => IO(i.toLong)).buildWith(identity)
+        action <- fac.action((i: Int) => IO(i.toLong)).buildWith(identity)
         meter <- ga.meter(name)
         histogram <- ga.histogram(name)
         counter <- ga.counter(name)
@@ -39,11 +41,9 @@ class ActionTest extends AnyFunSuite {
     val List(a, b, c, d) = TaskGuard[IO]("logError")
       .service("no exception")
       .eventStream(
-        _.action("exception")
-          .retry(IO.raiseError[Int](new Exception))
-          .buildWith(_.tapError((_, _) => null.asInstanceOf[String].asJson)
-            .tapInput(_ => null.asInstanceOf[String].asJson)
-            .withPublishStrategy(_.Bipartite))
+        _.facilitator("exception", _.withPolicy(Policy.fixedDelay(1.seconds).limited(2)))
+          .action(IO.raiseError[Int](new Exception))
+          .buildWith(_.tapError((_, _, _) => null.asInstanceOf[String].asJson))
           .use(_.run(())))
       .map(checkJson)
       .evalTap(console.text[IO])
@@ -55,34 +55,4 @@ class ActionTest extends AnyFunSuite {
     assert(c.isInstanceOf[ServiceMessage])
     assert(d.isInstanceOf[ServiceStop])
   }
-
-  test("ref vs atomic-cell vs timed") {
-    service.eventStream { ga =>
-      val r1 = for {
-        ref <- Resource.eval(IO.ref(0))
-        act <- ga.action("ref").retry(ref.update(_ + 1)).buildWith(identity)
-      } yield act
-
-      val r2 = for {
-        ref <- Resource.eval(AtomicCell[IO].of(0))
-        act <- ga.action("atomic-cell").retry(ref.update(_ + 1)).buildWith(identity)
-      } yield act
-
-      val r3 = for {
-        act <- ga.action("timed").retry(IO(1).timed).buildWith(identity)
-      } yield act
-
-      val num = 1_000_000
-      r1.use(_.run(()).replicateA_(num) >> ga.adhoc.report) &>
-        r2.use(_.run(()).replicateA_(num) >> ga.adhoc.report) &>
-        r3.use(_.run(()).replicateA_(num) >> ga.adhoc.report)
-    }.map(checkJson).evalTap(console.text[IO]).compile.drain.unsafeRunSync()
-  }
-
-  test("abc") {
-    import io.circe.generic.auto.*
-    val ior: Ior[Long, Long] = Ior.Both(1, 2)
-    ior.asJson
-  }
-
 }

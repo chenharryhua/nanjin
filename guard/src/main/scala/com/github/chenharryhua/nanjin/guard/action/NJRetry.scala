@@ -6,19 +6,16 @@ import com.github.chenharryhua.nanjin.common.chrono.TickStatus
 
 import scala.jdk.DurationConverters.JavaDurationOps
 
-sealed trait NJSentry[F[_]] {
-  def retry[A](fa: F[A], worth: Throwable => Boolean): F[A]
-  final def retry[A](fa: F[A]): F[A] = retry(fa, _ => true)
+sealed trait NJRetry[F[_]] {
+  def apply[A](fa: F[A], worth: Throwable => Boolean): F[A]
+  final def apply[A](fa: F[A]): F[A] = apply(fa, _ => true)
 }
 
-object NJSentry {
-  def dummy[F[_]]: NJSentry[F] = new NJSentry[F] {
-    override def retry[A](fa: F[A], worth: Throwable => Boolean): F[A] = fa
-  }
+object NJRetry {
 
-  private class Impl[F[_]](init: TickStatus)(implicit F: Temporal[F]) extends NJSentry[F] {
+  private[guard] class Impl[F[_]](init: TickStatus)(implicit F: Temporal[F]) extends NJRetry[F] {
 
-    override def retry[A](fa: F[A], worth: Throwable => Boolean): F[A] =
+    override def apply[A](fa: F[A], worth: Throwable => Boolean): F[A] =
       F.tailRecM(init) { status =>
         F.attempt(fa).flatMap[Either[TickStatus, A]] {
           case Right(out) => F.pure(Right(out))
@@ -38,6 +35,4 @@ object NJSentry {
         }
       }
   }
-
-  def apply[F[_]: Temporal](init: TickStatus): NJSentry[F] = new Impl[F](init)
 }

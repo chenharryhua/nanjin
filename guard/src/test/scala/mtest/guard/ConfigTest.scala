@@ -21,30 +21,25 @@ class ConfigTest extends AnyFunSuite {
     task
       .service("counting")
       .eventStream { agent =>
-        agent.action("cfg").retry(IO(1)).buildWith(_.withPublishStrategy(_.Bipartite)).use(_.run(()))
+        agent.facilitator("cfg").action(IO(1)).build.use(_.run(()))
       }
       .map(checkJson)
-      .filter(_.isInstanceOf[ServiceMessage])
       .compile
       .last
       .unsafeRunSync()
       .get
-      .asInstanceOf[ServiceMessage]
-
   }
   test("2.without counting") {
     task
       .service("no count")
       .eventStream { agent =>
-        agent.action("cfg").retry(IO(1)).buildWith(_.withPublishStrategy(_.Bipartite)).use(_.run(()))
+        agent.facilitator("cfg").action(IO(1)).build.use(_.run(()))
       }
       .map(checkJson)
-      .filter(_.isInstanceOf[ServiceMessage])
       .compile
       .last
       .unsafeRunSync()
       .get
-      .asInstanceOf[ServiceMessage]
 
   }
 
@@ -52,7 +47,7 @@ class ConfigTest extends AnyFunSuite {
     val as = task
       .service("silent")
       .eventStream { agent =>
-        agent.action("cfg").retry(IO(1)).buildWith(identity).use(_.run(()))
+        agent.facilitator("cfg").action(IO(1)).build.use(_.run(()))
       }
       .map(checkJson)
       .filter(_.isInstanceOf[ServiceMessage])
@@ -67,7 +62,7 @@ class ConfigTest extends AnyFunSuite {
       .service("report")
       .updateConfig(_.withMetricReport(giveUp))
       .eventStream { agent =>
-        agent.action("cfg").retry(IO(1)).buildWith(identity).use(_.run(()))
+        agent.facilitator("cfg").action(IO(1)).build.use(_.run(()))
       }
       .map(checkJson)
       .filter(_.isInstanceOf[ServiceStart])
@@ -80,36 +75,13 @@ class ConfigTest extends AnyFunSuite {
     task
       .service("reset")
       .eventStream { agent =>
-        agent.action("cfg").retry(IO(1)).buildWith(identity).use(_.run(()))
+        agent.facilitator("cfg").action(IO(1)).build.use(_.run(()))
       }
       .map(checkJson)
       .filter(_.isInstanceOf[ServiceStart])
       .compile
       .last
       .unsafeRunSync()
-  }
-
-  test("8.composable action config") {
-    task
-      .service("composable action")
-      .eventStream(
-        _.action("abc")
-          .delay(1)
-          .buildWith(
-            _.tapInput(_ => Json.Null)
-              .tapOutput((_, _) => Json.Null)
-              .tapError((_, _) => Json.Null)
-              .worthRetry(_ => true)
-              .withPublishStrategy(_.Unipartite))
-          .use(_.run(())))
-      .map(checkJson)
-      .filter(_.isInstanceOf[ServiceMessage])
-      .compile
-      .last
-      .unsafeRunSync()
-      .get
-      .asInstanceOf[ServiceMessage]
-
   }
 
   test("9.case") {
@@ -134,7 +106,7 @@ class ConfigTest extends AnyFunSuite {
       .updateConfig(_.addBrief(B(2, "b")))
       .updateConfig(_.addBrief(Json.Null))
       .updateConfig(_.addBrief(IO(A(1, 3))))
-      .eventStream(_.action("cfg").retry(IO(1)).buildWith(identity).use(_.run(())))
+      .eventStream(_.facilitator("cfg").action(IO(1)).buildWith(identity).use(_.run(())))
       .map(checkJson)
       .filter(_.isInstanceOf[ServiceStart])
       .compile

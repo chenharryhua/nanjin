@@ -35,10 +35,8 @@ object ColorScheme extends CatsOrderValueEnum[Int, ColorScheme] with IntEnum[Col
         .filter(_.count > 0)
         .collect(_.metricId.category match { case Category.Counter(kind) => kind })
         .map {
-          case CounterKind.AlertError => WarnColor
-          case CounterKind.AlertWarn  => WarnColor
-          case CounterKind.Risk       => WarnColor
-          case _                      => InfoColor
+          case CounterKind.Risk => WarnColor
+          case _                => InfoColor
         }
         .foldLeft(InfoColor: ColorScheme) { case (s, i) => s.max(i) }
 

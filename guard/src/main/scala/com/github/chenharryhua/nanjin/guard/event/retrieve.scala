@@ -38,38 +38,6 @@ object retrieveTimer {
     }.toMap
 }
 
-object retrieveAlert {
-  object errorCount {
-    def apply(counters: List[Snapshot.Counter]): Map[MetricID, Long] =
-      counters.collect { cc =>
-        cc.metricId.category match {
-          case Category.Counter(CounterKind.AlertError) =>
-            cc.metricId -> cc.count
-        }
-      }.toMap
-  }
-
-  object warnCount {
-    def apply(counters: List[Snapshot.Counter]): Map[MetricID, Long] =
-      counters.collect { cc =>
-        cc.metricId.category match {
-          case Category.Counter(CounterKind.AlertWarn) =>
-            cc.metricId -> cc.count
-        }
-      }.toMap
-  }
-
-  object infoCount {
-    def apply(counters: List[Snapshot.Counter]): Map[MetricID, Long] =
-      counters.collect { cc =>
-        cc.metricId.category match {
-          case Category.Counter(CounterKind.AlertInfo) =>
-            cc.metricId -> cc.count
-        }
-      }.toMap
-  }
-}
-
 object retrieveMeter {
   def apply(meters: List[Snapshot.Meter]): Map[MetricID, Snapshot.MeterData] =
     meters.collect { tm =>

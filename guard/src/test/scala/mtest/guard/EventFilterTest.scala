@@ -18,7 +18,7 @@ class EventFilterTest extends AnyFunSuite {
   private val service: ServiceGuard[IO] = TaskGuard[IO]("event.filters").service("filters")
 
   private def sleepAction(agent: Agent[IO]): IO[Unit] =
-    agent.action("sleep").retry(IO.sleep(7.seconds)).buildWith(identity).use(_.run(()))
+    agent.facilitator("sleep").action(IO.sleep(7.seconds)).buildWith(identity).use(_.run(()))
 
   test("4.sampling - FiniteDuration") {
     val List(a, b, c, d) = service

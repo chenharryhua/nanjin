@@ -71,7 +71,7 @@ class HttpServerTest extends AnyFunSuite {
       .service("panic")
       .updateConfig(_.withRestartPolicy(Policy.fixedDelay(1.hour)).withHttpServer(_.withPort(port"9998")))
       .eventStream {
-        _.action("panic").retry(IO.raiseError[Int](new Exception)).buildWith(identity).use(_.run(()))
+        _.facilitator("panic").action(IO.raiseError[Int](new Exception)).buildWith(identity).use(_.run(()))
       }
       .map(checkJson)
       .compile
@@ -105,7 +105,10 @@ class HttpServerTest extends AnyFunSuite {
       .service("history")
       .updateConfig(_.withRestartPolicy(Policy.fixedDelay(1.second)).withHttpServer(_.withPort(port"9997")))
       .eventStream {
-        _.action("panic history").retry(IO.raiseError[Int](new Exception)).buildWith(identity).use(_.run(()))
+        _.facilitator("panic history")
+          .action(IO.raiseError[Int](new Exception))
+          .buildWith(identity)
+          .use(_.run(()))
       }
       .map(checkJson)
       .compile
@@ -126,7 +129,7 @@ class HttpServerTest extends AnyFunSuite {
       .service("never")
       .updateConfig(_.withHttpServer(_.withPort(port"9996")))
       .eventStream {
-        _.action("panic").retry(IO.sleep(1.seconds)).buildWith(identity).use(_.run(())).foreverM
+        _.facilitator("panic").action(IO.sleep(1.seconds)).buildWith(identity).use(_.run(())).foreverM
       }
       .map(checkJson)
       .compile

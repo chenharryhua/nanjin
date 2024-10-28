@@ -9,7 +9,6 @@ import com.github.chenharryhua.nanjin.common.chrono.{crontabs, Policy, Tick}
 import com.github.chenharryhua.nanjin.guard.*
 import com.github.chenharryhua.nanjin.guard.event.*
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
-import cron4s.Cron
 import io.circe.Json
 import io.circe.jawn.decode
 import io.circe.syntax.*
@@ -18,7 +17,6 @@ import org.scalatest.funsuite.AnyFunSuite
 import java.time.Instant
 import scala.concurrent.duration.*
 import scala.jdk.DurationConverters.ScalaDurationOps
-import scala.util.control.ControlThrowable
 
 class ServiceTest extends AnyFunSuite {
 
@@ -39,7 +37,7 @@ class ServiceTest extends AnyFunSuite {
           .withMetricDailyReset
           .withHttpServer(identity))
       .eventStream(gd =>
-        gd.action("t").delay(1).buildWith(_.tapOutput((_, _) => null)).use(_.run(())).delayBy(1.second))
+        gd.facilitator("t").action(IO(1)).buildWith(identity).use(_.run(())).delayBy(1.second))
       .map(checkJson)
       .compile
       .toVector
@@ -54,13 +52,13 @@ class ServiceTest extends AnyFunSuite {
   }
 
   test("2.escalate to up level if retry failed") {
-    val Vector(s, a, b, c, d, e, f) = guard
+    val Vector(s, a, b, c, d) = guard
       .service("escalate")
       .updateConfig(_.withRestartPolicy(Policy.fixedDelay(0.second).jitter(30.minutes, 50.minutes)))
       .eventStream { gd =>
-        gd.action("t")
-          .retry(IO.raiseError[Int](new Exception(gd.toZonedDateTime(Instant.now()).toString)))
-          .buildWith(_.withPolicy(policy).withPublishStrategy(_.Bipartite))
+        gd.facilitator("t", _.withPolicy(policy))
+          .action(IO.raiseError[Int](new Exception(gd.toZonedDateTime(Instant.now()).toString)))
+          .build
           .use(_.run(()))
       }
       .map(checkJson)
@@ -73,63 +71,17 @@ class ServiceTest extends AnyFunSuite {
     assert(a.isInstanceOf[ServiceMessage])
     assert(b.isInstanceOf[ServiceMessage])
     assert(c.isInstanceOf[ServiceMessage])
-    assert(d.isInstanceOf[ServiceMessage])
-    assert(e.isInstanceOf[ServiceMessage])
-    assert(f.isInstanceOf[ServicePanic])
-    val sp = f.asInstanceOf[ServicePanic]
+    assert(d.isInstanceOf[ServicePanic])
+    val sp = d.asInstanceOf[ServicePanic]
     assert(sp.tick.sequenceId == sp.serviceParams.serviceId)
     assert(sp.tick.zoneId == sp.serviceParams.zoneId)
   }
 
-  ignore("3.should stop when fatal error occurs") {
-    val List(a, b, c, d) = guard
-      .service("stop")
-      .updateConfig(_.withRestartPolicy(Policy.crontab(Cron.unsafeParse("0-59 * * ? * *"))))
-      .eventStream { gd =>
-        gd.action("fatal error")
-          .retry(IO.raiseError[Int](new ControlThrowable("fatal error") {}))
-          .buildWith(_.withPublishStrategy(_.Bipartite).withPolicy(policy))
-          .use(_.run(()))
-      }
-      .map(checkJson)
-      .compile
-      .toList
-      .unsafeRunSync()
-    assert(a.isInstanceOf[ServiceStart])
-    assert(b.isInstanceOf[ServiceMessage])
-    assert(c.isInstanceOf[ServiceMessage])
-    assert(d.isInstanceOf[ServiceStop])
-    assert(d.asInstanceOf[ServiceStop].cause.exitCode == 2)
-  }
-
-  test("4.json codec") {
-    val a :: b :: c :: d :: e :: f :: g :: _ = guard
-      .service("json")
-      .updateConfig(_.withRestartPolicy(Policy.giveUp))
-      .eventStream { gd =>
-        gd.action("t")
-          .delay[Int](throw new Exception("oops"))
-          .buildWith(_.withPolicy(policy).withPublishStrategy(_.Bipartite))
-          .use(_.run(()))
-      }
-      .map(checkJson)
-      .compile
-      .toList
-      .unsafeRunSync()
-    assert(a.isInstanceOf[ServiceStart])
-    assert(b.isInstanceOf[ServiceMessage])
-    assert(c.isInstanceOf[ServiceMessage])
-    assert(d.isInstanceOf[ServiceMessage])
-    assert(e.isInstanceOf[ServiceMessage])
-    assert(f.isInstanceOf[ServiceMessage])
-    assert(g.isInstanceOf[ServiceStop])
-  }
-
-  test("5.should receive at least 3 report event") {
+  test("3.should receive at least 3 report event") {
     val s :: b :: c :: d :: _ = guard
       .service("report")
       .updateConfig(_.withMetricReport(Policy.crontab(_.secondly)))
-      .eventStream(_.action("t").retry(IO.never[Int]).buildWith(identity).use(_.run(())))
+      .eventStream(_.facilitator("t").action(IO.never[Int]).buildWith(identity).use(_.run(())))
       .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
       .interruptAfter(5.second)
       .map(checkJson)
@@ -145,7 +97,7 @@ class ServiceTest extends AnyFunSuite {
     assert(mr.index.asInstanceOf[MetricIndex.Periodic].tick.sequenceId == mr.serviceParams.serviceId)
   }
 
-  test("6.force reset") {
+  test("4.force reset") {
     val s :: b :: c :: _ = guard
       .service("reset")
       .updateConfig(_.withMetricReport(Policy.crontab(_.secondly)))
@@ -160,12 +112,14 @@ class ServiceTest extends AnyFunSuite {
     assert(c.isInstanceOf[MetricReset])
   }
 
-  test("7.normal service stop after two operations") {
-    val Vector(s, a, b, c, d, e) = guard
+  test("5.normal service stop after two operations") {
+    val Vector(s, a, b, c) = guard
       .service("two")
-      .eventStream(gd =>
-        gd.action("t").delay(1).buildWith(_.withPublishStrategy(_.Bipartite)).use(_.run(())) >>
-          gd.action("t").retry(IO(2)).buildWith(_.withPublishStrategy(_.Bipartite)).use(_.run(())))
+      .eventStream { gd =>
+        val fac = gd.facilitator("t")
+        fac.action(IO(1)).buildWith(identity).use(_.run(())) >> fac.messenger.info("good") >>
+          fac.action(IO(2)).buildWith(identity).use(_.run(())) >> fac.messenger.info("good 2")
+      }
       .map(checkJson)
       .compile
       .toVector
@@ -174,43 +128,40 @@ class ServiceTest extends AnyFunSuite {
     assert(s.isInstanceOf[ServiceStart])
     assert(a.isInstanceOf[ServiceMessage])
     assert(b.isInstanceOf[ServiceMessage])
-    assert(c.isInstanceOf[ServiceMessage])
-    assert(d.isInstanceOf[ServiceMessage])
-    assert(e.isInstanceOf[ServiceStop])
+    assert(c.isInstanceOf[ServiceStop])
   }
 
-  test("8.combine two event streams") {
+  test("6.combine two event streams") {
     val guard = TaskGuard[IO]("two service")
     val s1    = guard.service("s1")
     val s2    = guard.service("s2")
 
     val ss1 = s1.eventStream(gd =>
-      gd.action("t").retry(IO(1)).buildWith(_.withPublishStrategy(_.Bipartite)).use(_.run(())) >> gd
-        .action("t")
-        .retry(IO(2))
-        .buildWith(_.withPublishStrategy(_.Bipartite))
+      gd.facilitator("t").action(IO(1)).buildWith(identity).use(_.run(())) >> gd
+        .facilitator("t")
+        .action(IO(2))
+        .buildWith(identity)
         .use(_.run(())))
     val ss2 = s2.eventStream(gd =>
-      gd.action("t").retry(IO(1)).buildWith(_.withPublishStrategy(_.Bipartite)).use(_.run(())) >> gd
-        .action("t")
-        .retry(IO(2))
-        .buildWith(_.withPublishStrategy(_.Bipartite))
+      gd.facilitator("t").action(IO(1)).buildWith(identity).use(_.run(())) >> gd
+        .facilitator("t")
+        .action(IO(2))
+        .buildWith(identity)
         .use(_.run(())))
 
     val vector = ss1.merge(ss2).map(checkJson).compile.toVector.unsafeRunSync()
-    assert(vector.count(_.isInstanceOf[ServiceMessage]) == 8)
+    assert(vector.count(_.isInstanceOf[ServiceMessage]) == 0)
     assert(vector.count(_.isInstanceOf[ServiceStop]) == 2)
   }
 
-  test("9.should give up") {
-
-    val List(a, b, c, d, e, f, g) = guard
+  test("7.should give up") {
+    val List(a, b, c, d, e) = guard
       .service("give up")
       .updateConfig(_.withRestartPolicy(Policy.giveUp))
       .eventStream { gd =>
-        gd.action("t")
-          .retry(IO.raiseError[Int](new Exception))
-          .buildWith(_.withPolicy(policy).withPublishStrategy(_.Bipartite))
+        gd.facilitator("t", _.withPolicy(policy))
+          .action(IO.raiseError[Int](new Exception))
+          .buildWith(identity)
           .use(_.run(()))
       }
       .map(checkJson)
@@ -221,17 +172,19 @@ class ServiceTest extends AnyFunSuite {
     assert(b.isInstanceOf[ServiceMessage])
     assert(c.isInstanceOf[ServiceMessage])
     assert(d.isInstanceOf[ServiceMessage])
-    assert(e.isInstanceOf[ServiceMessage])
-    assert(f.isInstanceOf[ServiceMessage])
-    assert(g.isInstanceOf[ServiceStop])
+    assert(e.isInstanceOf[ServiceStop])
   }
 
-  test("10.should stop after 2 panic") {
+  test("8.should stop after 2 panic") {
 
     val List(a, b, c, d, e, f, g, h, i) = guard
       .service("panic")
       .updateConfig(_.withRestartPolicy(Policy.fixedDelay(1.seconds).limited(2)))
-      .eventStream(_.action("t").retry(IO.raiseError[Int](new Exception)).buildWith(identity).use(_.run(())))
+      .eventStream(
+        _.facilitator("t", _.withPolicy(Policy.fixedDelay(1.seconds).limited(1)))
+          .action(IO.raiseError[Int](new Exception))
+          .buildWith(identity)
+          .use(_.run(())))
       .map(checkJson)
       .compile
       .toList
@@ -247,7 +200,7 @@ class ServiceTest extends AnyFunSuite {
     assert(i.isInstanceOf[ServiceStop])
   }
 
-  test("11.policy start over") {
+  test("9.policy start over") {
 
     val p1     = Policy.fixedDelay(1.seconds).limited(1)
     val p2     = Policy.fixedDelay(2.seconds).limited(1)
@@ -294,7 +247,7 @@ class ServiceTest extends AnyFunSuite {
     assert(h.snooze == 2.second.toJava)
   }
 
-  test("12.policy threshold start over") {
+  test("10.policy threshold start over") {
 
     val policy: Policy = Policy.fixedDelay(1.seconds, 2.seconds, 3.seconds, 4.seconds, 5.seconds)
     println(policy)
@@ -333,7 +286,7 @@ class ServiceTest extends AnyFunSuite {
     assert(c.snooze == 1.second.toJava)
   }
 
-  test("13.service config") {
+  test("11.service config") {
     TaskGuard[IO]("abc")
       .service("abc")
       .updateConfig(
@@ -349,7 +302,7 @@ class ServiceTest extends AnyFunSuite {
       .unsafeRunSync()
   }
 
-  test("14.throw exception in construction") {
+  test("12.throw exception in construction") {
     val List(a, b) = guard
       .service("simple")
       .updateConfig(_.withRestartPolicy(Policy.giveUp))
@@ -367,13 +320,13 @@ class ServiceTest extends AnyFunSuite {
     assert(b.asInstanceOf[ServiceStop].cause.asInstanceOf[ServiceStopCause.ByException].error.stack.nonEmpty)
   }
 
-  test("out of memory -- happy failure") {
+  test("13.out of memory -- happy failure") {
     val run = guard
       .service("out of memory")
       .eventStream(
-        _.action("oom")
-          .retry(IO.raiseError[Int](new OutOfMemoryError()))
-          .buildWith(_.withPolicy(Policy.fixedDelay(1.seconds).limited(3)))
+        _.facilitator("oom", _.withPolicy(Policy.fixedDelay(1.seconds).limited(3)))
+          .action(IO.raiseError[Int](new OutOfMemoryError()))
+          .build
           .use(_(())))
       .map(checkJson)
       .compile

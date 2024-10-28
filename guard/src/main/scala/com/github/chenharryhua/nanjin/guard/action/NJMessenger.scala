@@ -1,6 +1,5 @@
 package com.github.chenharryhua.nanjin.guard.action
 
-import cats.Applicative
 import cats.effect.kernel.Sync
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, MetricName, ServiceParams}
@@ -17,18 +16,11 @@ sealed trait NJMessenger[F[_]] {
 }
 
 object NJMessenger {
-  def dummy[F[_]](implicit F: Applicative[F]): NJMessenger[F] =
-    new NJMessenger[F] {
-      override def error[S: Encoder](msg: S): F[Unit] = F.unit
-      override def warn[S: Encoder](msg: S): F[Unit]  = F.unit
-      override def info[S: Encoder](msg: S): F[Unit]  = F.unit
-      override def done[S: Encoder](msg: S): F[Unit]  = F.unit
-    }
 
-  private class Impl[F[_]](
+  private[guard] class Impl[F[_]](
     metricName: MetricName,
-    channel: Channel[F, NJEvent],
-    serviceParams: ServiceParams
+    serviceParams: ServiceParams,
+    channel: Channel[F, NJEvent]
   )(implicit F: Sync[F])
       extends NJMessenger[F] {
     private[this] def alarm(msg: Json, level: AlarmLevel): F[Unit] =
@@ -55,10 +47,4 @@ object NJMessenger {
     override def done[S: Encoder](msg: S): F[Unit] =
       alarm(Encoder[S].apply(msg), AlarmLevel.Done)
   }
-
-  def apply[F[_]: Sync](
-    metricName: MetricName,
-    serviceParams: ServiceParams,
-    channel: Channel[F, NJEvent]): NJMessenger[F] =
-    new Impl[F](metricName, channel, serviceParams)
 }

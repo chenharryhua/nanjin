@@ -26,7 +26,7 @@ class LogTest extends AnyFunSuite {
           _ <- ag.meter("d", _.withUnit(_.COUNT)).evalMap(_.update(10000).replicateA(100))
           _ <- ag.counter("e", _.asRisk).evalMap(_.inc(1000))
           _ <- ag.histogram("f", _.withUnit(_.BYTES)).evalMap(_.update(10000L).replicateA(100))
-          _ <- agent.action("h").retry(IO(0)).buildWith(identity).evalMap(_.run(()).replicateA(100))
+          _ <- agent.facilitator("h").action(IO(0)).buildWith(identity).evalMap(_.run(()).replicateA(100))
           _ <- ag.ratio("i").evalMap(f => f.incDenominator(50) >> f.incNumerator(79) >> f.incBoth(20, 50))
         } yield ()
         go.surround(agent.adhoc.report)

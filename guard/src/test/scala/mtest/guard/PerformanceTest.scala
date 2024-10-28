@@ -88,36 +88,7 @@ class PerformanceTest extends AnyFunSuite {
     print("---disabled: ")
     var i: Int = 0
     service.eventStream { ag =>
-      ag.facilitator("test", _.withPolicy(Policy.giveUp))
-        .sentry
-        .retry(IO(i += 1))
-        .foreverM
-        .timeout(take)
-        .attempt
-    }.compile.drain.unsafeRunSync()
-    println(speed(i))
-  }
-
-  test("bipartite") {
-    var i = 0
-    print("bipartite:        ")
-    service.eventStream { ag =>
-      ag.action("t")
-        .retry(IO(i += 1))
-        .buildWith(_.withPublishStrategy(_.Bipartite))
-        .use(_.run(()).foreverM.timeout(take).attempt)
-    }.compile.drain.unsafeRunSync()
-    println(speed(i))
-  }
-
-  test("unipartite") {
-    print("unipartite:         ")
-    var i: Int = 0
-    service.eventStream { ag =>
-      ag.action("t")
-        .retry(IO(i += 1))
-        .buildWith(_.withPublishStrategy(_.Unipartite))
-        .use(_.run(()).foreverM.timeout(take).attempt)
+      ag.facilitator("test", _.withPolicy(Policy.giveUp)).retry(IO(i += 1)).foreverM.timeout(take).attempt
     }.compile.drain.unsafeRunSync()
     println(speed(i))
   }
@@ -126,10 +97,7 @@ class PerformanceTest extends AnyFunSuite {
     print("silent:           ")
     var i: Int = 0
     service.eventStream { ag =>
-      ag.action("t")
-        .retry(IO(i += 1))
-        .buildWith(_.withPublishStrategy(_.Silent))
-        .use(_.run(()).foreverM.timeout(take).attempt)
+      ag.facilitator("t").action(IO(i += 1)).buildWith(identity).use(_.run(()).foreverM.timeout(take).attempt)
     }.compile.drain.unsafeRunSync()
     println(speed(i))
   }
