@@ -8,7 +8,6 @@ import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.MetricReport
 import com.github.chenharryhua.nanjin.guard.event.{
-  retrieveAlert,
   retrieveHealthChecks,
   retrieveHistogram,
   retrieveMeter,
@@ -22,20 +21,13 @@ class MetricsCountingTest extends AnyFunSuite {
   private val task: TaskGuard[IO] =
     TaskGuard[IO]("metrics.counting").updateConfig(_.withZoneId(sydneyTime))
 
-  def counterAlertInfo(mr: MetricReport): Long =
-    retrieveAlert.infoCount(mr.snapshot.counters).values.sum
-  def counterAlertWarn(mr: MetricReport): Long =
-    retrieveAlert.warnCount(mr.snapshot.counters).values.sum
-  def counterAlertError(mr: MetricReport): Long =
-    retrieveAlert.errorCount(mr.snapshot.counters).values.sum
-
   def meter(mr: MetricReport): Long =
     retrieveMeter(mr.snapshot.meters).values.map(_.sum).sum
 
   def histogram(mr: MetricReport): Long =
     retrieveHistogram(mr.snapshot.histograms).values.map(_.updates).sum
 
-  test("13.alert") {
+  test("1.alert") {
     task
       .service("alert")
       .eventStream { agent =>
@@ -52,7 +44,7 @@ class MetricsCountingTest extends AnyFunSuite {
       .get
   }
 
-  test("14.counter") {
+  test("2.counter") {
     task
       .service("counter")
       .eventStream { agent =>
@@ -69,7 +61,7 @@ class MetricsCountingTest extends AnyFunSuite {
       .get
   }
 
-  test("15.meter") {
+  test("3.meter") {
     val mr = task
       .service("meter")
       .eventStream { agent =>
@@ -87,7 +79,7 @@ class MetricsCountingTest extends AnyFunSuite {
     assert(meter(mr) == 3)
   }
 
-  test("16.histogram") {
+  test("4.histogram") {
     val mr = task
       .service("histogram")
       .eventStream { agent =>
@@ -106,7 +98,7 @@ class MetricsCountingTest extends AnyFunSuite {
     assert(histogram(mr) == 1)
   }
 
-  test("17.gauge") {
+  test("5.gauge") {
     task
       .service("gauge")
       .eventStream { agent =>
@@ -124,7 +116,7 @@ class MetricsCountingTest extends AnyFunSuite {
       .unsafeRunSync()
   }
 
-  test("18.health-check") {
+  test("6.health-check") {
     val res = task
       .service("heal-check")
       .eventStream { agent =>
@@ -143,7 +135,7 @@ class MetricsCountingTest extends AnyFunSuite {
     assert(hc.values.forall(identity))
   }
 
-  test("19.timer") {
+  test("7.timer") {
     val mr = task
       .service("timer")
       .eventStream { ga =>
@@ -163,5 +155,4 @@ class MetricsCountingTest extends AnyFunSuite {
 
     assert(retrieveTimer(mr.snapshot.timers).values.map(_.calls).sum == 2)
   }
-
 }

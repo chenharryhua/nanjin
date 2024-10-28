@@ -1,11 +1,13 @@
 package com.github.chenharryhua.nanjin.guard.action
-import cats.data.Ior
+import cats.data.{Ior, Kleisli}
 import cats.effect.kernel.{Async, Resource}
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.guard.metrics.{NJMetrics, NJRatio}
+import com.codahale.metrics.SlidingWindowReservoir
+import com.github.chenharryhua.nanjin.guard.metrics.NJMetrics
 import io.circe.Json
 
 import java.time.Duration
+import scala.concurrent.duration.FiniteDuration
 import scala.jdk.DurationConverters.ScalaDurationOps
 
 object BatchRunner {
@@ -25,8 +27,16 @@ object BatchRunner {
         }
     }
 
-    protected val ratioGauge: Resource[F, NJRatio[F]] =
-      metrics.activeGauge("elapsed") >> metrics.ratio("completion", _.withTranslator(translator))
+    protected def measure(size: Int): Resource[F, Kleisli[F, FiniteDuration, Unit]] =
+      for {
+        _ <- metrics.activeGauge("batch_elapsed")
+        c <- metrics
+          .ratio("batch_completion", _.withTranslator(translator))
+          .evalTap(_.incDenominator(size.toLong))
+        t <- metrics.histogram(
+          "cost_histogram",
+          _.withUnit(_.NANOSECONDS).withReservoir(new SlidingWindowReservoir(size)))
+      } yield Kleisli((fd: FiniteDuration) => t.update(fd.toNanos) *> c.incNumerator(1))
 
     protected def jobTag(job: BatchJob): String = {
       val lead = s"job-${job.index + 1}"
@@ -45,12 +55,12 @@ object BatchRunner {
         BatchJob(BatchKind.Quasi, BatchMode.Parallel(parallelism), name, idx, jobs.size) -> fa
       }
       val exec: Resource[F, F[QuasiResult]] = for {
-        rat <- ratioGauge.evalTap(_.incDenominator(batchJobs.size.toLong))
+        rat <- measure(batchJobs.size)
       } yield F
         .timed(F.parTraverseN(parallelism)(batchJobs) { case (job, fa) =>
-          F.timed(fa.attempt)
-            .map { case (fd, result) => Detail(job, fd.toJava, result.isRight) }
-            .flatTap(_ => rat.incNumerator(1))
+          F.timed(fa.attempt).flatMap { case (fd, result) =>
+            rat.run(fd).as(Detail(job, fd.toJava, result.isRight))
+          }
         })
         .map { case (fd, details) =>
           QuasiResult(
@@ -69,9 +79,9 @@ object BatchRunner {
       }
 
       val exec: Resource[F, F[List[A]]] = for {
-        rat <- ratioGauge.evalTap(_.incDenominator(batchJobs.size.toLong))
+        rat <- measure(batchJobs.size)
       } yield F.parTraverseN(parallelism)(batchJobs) { case (_, fa) =>
-        fa.flatTap(_ => rat.incNumerator(1))
+        F.timed(fa).flatMap { case (fd, a) => rat.run(fd).as(a) }
       }
 
       exec.use(identity)
@@ -89,14 +99,13 @@ object BatchRunner {
       }
 
       val exec: Resource[F, F[QuasiResult]] = for {
-        rat <- ratioGauge.evalTap(_.incDenominator(batchJobs.size.toLong))
+        rat <- measure(batchJobs.size)
       } yield batchJobs.traverse { case (job, fa) =>
         metrics
           .activeGauge(jobTag(job))
-          .surround(
-            F.timed(fa.attempt)
-              .map { case (fd, result) => Detail(job, fd.toJava, result.isRight) }
-              .flatTap(_ => rat.incNumerator(1)))
+          .surround(F.timed(fa.attempt).flatMap { case (fd, result) =>
+            rat.run(fd).as(Detail(job, fd.toJava, result.isRight))
+          })
       }.map(details =>
         QuasiResult(
           metricName = metrics.metricName,
@@ -114,9 +123,9 @@ object BatchRunner {
       }
 
       val exec: Resource[F, F[List[A]]] = for {
-        rat <- ratioGauge.evalTap(_.incDenominator(batchJobs.size.toLong))
+        rat <- measure(batchJobs.size)
       } yield batchJobs.traverse { case (job, fa) =>
-        metrics.activeGauge(jobTag(job)).surround(fa).flatTap(_ => rat.incNumerator(1))
+        metrics.activeGauge(jobTag(job)).surround(F.timed(fa)).flatMap { case (fd, a) => rat.run(fd).as(a) }
       }
 
       exec.use(identity)

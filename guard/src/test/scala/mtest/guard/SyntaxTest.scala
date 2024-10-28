@@ -17,23 +17,15 @@ class SyntaxTest extends AnyFunSuite {
 
   test("1.builder syntax") {
     service.eventStream { agent =>
-      val a0 = agent.action("a0").retry(unit_fun).buildWith(identity).use(_.run(()))
-      val a1 = agent.action("a1").retry(fun1 _).buildWith(identity).use(_.run(1))
-      val a2 = agent.action("a2").retry(fun2 _).buildWith(identity).use(_.run((1, 2)))
-      val a3 = agent.action("a3").retry(fun3 _).buildWith(identity).use(_.run((1, 2, 3)))
-      val a4 = agent.action("a4").retry(fun4 _).buildWith(identity).use(_.run((1, 2, 3, 4)))
-      val a5 = agent.action("a5").retry(fun5 _).buildWith(identity).use(_.run((1, 2, 3, 4, 5)))
-      val f0 = agent.action("f0").retryFuture(fun0fut).buildWith(identity).use(_.run(()))
-      val f1 = agent.action("f1").retryFuture(fun1fut _).buildWith(identity).use(_.run(1))
-      val f2 = agent.action("f2").retryFuture(fun2fut _).buildWith(identity).use(_.run((1, 2)))
-      val f3 = agent.action("f3").retryFuture(fun3fut _).buildWith(identity).use(_.run((1, 2, 3)))
-      val f4 = agent.action("f4").retryFuture(fun4fut _).buildWith(identity).use(_.run((1, 2, 3, 4)))
-      val f5 = agent.action("f5").retryFuture(fun5fut _).buildWith(identity).use(_.run((1, 2, 3, 4, 5)))
-      val d0 = agent.action("d0").delay(3).buildWith(identity).use(_.run(()))
+      val a0 = agent.facilitator("a0").action(unit_fun).buildWith(identity).use(_.run(()))
+      val a1 = agent.facilitator("a1").action(fun1 _).buildWith(identity).use(_.run(1))
+      val a2 = agent.facilitator("a2").action(fun2 _).buildWith(identity).use(_.run((1, 2)))
+      val a3 = agent.facilitator("a3").action(fun3 _).buildWith(identity).use(_.run((1, 2, 3)))
+      val a4 = agent.facilitator("a4").action(fun4 _).buildWith(identity).use(_.run((1, 2, 3, 4)))
+      val a5 = agent.facilitator("a5").action(fun5 _).buildWith(identity).use(_.run((1, 2, 3, 4, 5)))
 
       a0 >> a1 >> a2 >> a3 >> a4 >> a5 >>
-        f0 >> f1 >> f2 >> f3 >> f4 >> f5 >>
-        d0 >> agent.adhoc.report
+        agent.adhoc.report
     }.map(checkJson).compile.drain.unsafeRunSync()
   }
 
@@ -43,7 +35,7 @@ class SyntaxTest extends AnyFunSuite {
       val agent        = ag.facilitator("test").metrics
       for {
         timer <- agent.timer(name).map(_.kleisli((in: Int) => in.seconds))
-        runner <- ag.action(name).retry(fun1 _).buildWith(identity)
+        runner <- ag.facilitator(name).action(fun1 _).build
         histogram <- agent.histogram(name, _.withUnit(_.BYTES))
         meter <- agent.meter(name, _.withUnit(_.COUNT))
         counter <- agent.counter(name, _.asRisk)
@@ -85,7 +77,7 @@ class SyntaxTest extends AnyFunSuite {
       val mtx          = ag.facilitator(name).metrics
       val msg          = ag.facilitator(name).messenger
       for {
-        action <- ag.action(name).retry(fun1 _).buildWith(identity)
+        action <- ag.facilitator(name).action(fun1 _).buildWith(identity)
         histogram <- mtx.histogram(name, _.withUnit(_.BYTES))
         meter <- mtx.meter(name, _.withUnit(_.KILOBITS))
         counter <- mtx.counter(name, _.asRisk)

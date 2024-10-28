@@ -47,8 +47,10 @@ sealed trait NJMetrics[F[_]] {
 }
 
 object NJMetrics {
-  private class Impl[F[_]](val metricName: MetricName, metricRegistry: MetricRegistry, isEnabled: Boolean)(
-    implicit F: Async[F])
+  private[guard] class Impl[F[_]](
+    val metricName: MetricName,
+    metricRegistry: MetricRegistry,
+    isEnabled: Boolean)(implicit F: Async[F])
       extends NJMetrics[F] {
 
     override def counter(tag: String, f: Endo[NJCounter.Builder]): Resource[F, NJCounter[F]] = {
@@ -103,11 +105,5 @@ object NJMetrics {
         _ <- gauge(tag, f).register(F.monotonic.map(now =>
           DurationFormatter.defaultFormatter.format(now - kickoff)))
       } yield ()
-
   }
-
-  def apply[F[_]](metricName: MetricName, metricRegistry: MetricRegistry)(implicit
-    F: Async[F]): NJMetrics[F] =
-    new Impl[F](metricName, metricRegistry, true)
-
 }

@@ -1,7 +1,8 @@
 package com.github.chenharryhua.nanjin.guard.service
 
 import cats.Endo
-import cats.effect.kernel.Async
+import cats.data.Kleisli
+import cats.effect.kernel.{Async, Resource}
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.common.chrono.*
 import com.github.chenharryhua.nanjin.guard.action.*
@@ -21,9 +22,6 @@ sealed trait Agent[F[_]] {
 
   def withMeasurement(name: String): Agent[F]
 
-  // actions
-  def action(name: String): NJAction[F]
-
   def batch(name: String): NJBatch[F]
 
   // tick stream
@@ -34,6 +32,13 @@ sealed trait Agent[F[_]] {
 
   def facilitator(name: String, f: Endo[NJFacilitator.Builder]): NJFacilitator[F]
   final def facilitator(name: String): NJFacilitator[F] = facilitator(name, identity)
+
+  def facilitate[A, B](name: String, f: Endo[NJFacilitator.Builder])(
+    g: NJFacilitator[F] => Resource[F, Kleisli[F, A, B]]): Resource[F, Kleisli[F, A, B]]
+
+  final def facilitate[A, B](name: String)(
+    g: NJFacilitator[F] => Resource[F, Kleisli[F, A, B]]): Resource[F, Kleisli[F, A, B]] =
+    facilitate(name, identity)(g)
 }
 
 final private class GeneralAgent[F[_]: Async] private[service] (
@@ -52,14 +57,9 @@ final private class GeneralAgent[F[_]: Async] private[service] (
   override def withMeasurement(name: String): Agent[F] =
     new GeneralAgent[F](serviceParams, metricRegistry, channel, Measurement(name))
 
-  override def action(name: String): NJAction[F] = {
-    val metricName = MetricName(serviceParams, measurement, name)
-    new NJAction[F](metricName, serviceParams, channel)
-  }
-
   override def batch(name: String): NJBatch[F] = {
     val metricName = MetricName(serviceParams, measurement, name)
-    new NJBatch[F](NJMetrics(metricName, metricRegistry))
+    new NJBatch[F](new NJMetrics.Impl[F](metricName, metricRegistry, isEnabled = true))
   }
 
   override def ticks(policy: Policy): Stream[F, Tick] =
@@ -71,4 +71,8 @@ final private class GeneralAgent[F[_]: Async] private[service] (
     val metricName = MetricName(serviceParams, measurement, name)
     f(new NJFacilitator.Builder(Policy.giveUp)).build[F](metricName, serviceParams, metricRegistry, channel)
   }
+
+  override def facilitate[A, B](name: String, f: Endo[NJFacilitator.Builder])(
+    g: NJFacilitator[F] => Resource[F, Kleisli[F, A, B]]): Resource[F, Kleisli[F, A, B]] =
+    g(facilitator(name, f))
 }

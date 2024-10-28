@@ -4,19 +4,6 @@ import cats.Show
 import enumeratum.values.{CatsOrderValueEnum, IntCirceEnum, IntEnum, IntEnumEntry}
 import io.circe.{Decoder, Encoder, Json}
 
-sealed abstract class PublishStrategy(override val value: Int, val entryName: String)
-    extends IntEnumEntry with Product
-
-object PublishStrategy
-    extends CatsOrderValueEnum[Int, PublishStrategy] with IntCirceEnum[PublishStrategy]
-    with IntEnum[PublishStrategy] {
-  override val values: IndexedSeq[PublishStrategy] = findValues
-
-  case object Bipartite extends PublishStrategy(2, "bipartite") // publish start and done event
-  case object Unipartite extends PublishStrategy(1, "unipartite") // publish done event
-  case object Silent extends PublishStrategy(0, "silent") // publish nothing
-}
-
 sealed abstract class AlarmLevel(override val value: Int, val entryName: String)
     extends IntEnumEntry with Product
 

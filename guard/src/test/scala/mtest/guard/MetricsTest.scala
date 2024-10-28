@@ -37,7 +37,7 @@ class MetricsTest extends AnyFunSuite {
       .service("delta")
       .updateConfig(_.withMetricReport(Policy.crontab(_.secondly)))
       .eventStream(ag =>
-        ag.action("one").retry(IO(0)).buildWith(identity).use(_.run(())) >> IO.sleep(10.minutes))
+        ag.facilitator("one").action(IO(0)).buildWith(identity).use(_.run(())) >> IO.sleep(10.minutes))
       .map(checkJson)
       .interruptAfter(5.seconds)
       .compile
@@ -46,15 +46,15 @@ class MetricsTest extends AnyFunSuite {
     assert(last.forall(_.asInstanceOf[MetricReport].snapshot.counters.isEmpty))
   }
 
-  test("3.ongoing action alignment") {
+  test("2.ongoing action alignment") {
     task
       .service("alignment")
       .updateConfig(_.withMetricReport(Policy.crontab(_.secondly)))
       .eventStream { ag =>
         val one =
-          ag.action("one").retry(IO(0) <* IO.sleep(10.minutes)).buildWith(identity).use(_.run(()))
+          ag.facilitator("one").action(IO(0) <* IO.sleep(10.minutes)).buildWith(identity).use(_.run(()))
         val two =
-          ag.action("two").retry(IO(0) <* IO.sleep(10.minutes)).buildWith(identity).use(_.run(()))
+          ag.facilitator("two").action(IO(0) <* IO.sleep(10.minutes)).buildWith(identity).use(_.run(()))
         IO.parSequenceN(2)(List(one, two))
       }
       .map(checkJson)
@@ -64,12 +64,12 @@ class MetricsTest extends AnyFunSuite {
       .unsafeRunSync()
   }
 
-  test("4.reset") {
+  test("3.reset") {
     val last = task
       .service("reset")
       .eventStream { ag =>
-        ag.action("one").retry(IO(0)).buildWith(identity).use(_.run(())) >>
-          ag.action("two").retry(IO(1)).buildWith(identity).use(_.run(())) >>
+        ag.facilitator("one").action(IO(0)).buildWith(identity).use(_.run(())) >>
+          ag.facilitator("two").action(IO(1)).buildWith(identity).use(_.run(())) >>
           ag.adhoc.report >> ag.adhoc.reset >> IO.sleep(10.minutes)
       }
       .map(checkJson)
@@ -81,7 +81,7 @@ class MetricsTest extends AnyFunSuite {
     assert(last.get.asInstanceOf[MetricReport].snapshot.counters.forall(_.count == 0))
   }
 
-  test("5.show timestamp") {
+  test("4.show timestamp") {
     val s =
       task.updateConfig(_.withMetricReport(Policy.crontab(Cron.unsafeParse("0-59 * * ? * *"))))
 
@@ -101,7 +101,7 @@ class MetricsTest extends AnyFunSuite {
         .drain).unsafeRunSync()
   }
 
-  test("7.distinct symbol") {
+  test("5.distinct symbol") {
     import com.github.chenharryhua.nanjin.guard.event.NJUnits.*
     val symbols = List(
       DAYS,
@@ -138,7 +138,7 @@ class MetricsTest extends AnyFunSuite {
     assert(symbols.distinct.size == symbols.size)
   }
 
-  test("11.normalization") {
+  test("6.normalization") {
     val um = UnitNormalization(
       NJTimeUnit.SECONDS,
       Some(NJInformationUnit.KILOBYTES),
@@ -152,7 +152,7 @@ class MetricsTest extends AnyFunSuite {
     assert(um.normalize(NJDimensionlessUnit.COUNT, 1) == Normalized(1.0, NJDimensionlessUnit.COUNT))
   }
 
-  test("12.normalization - 2") {
+  test("7.normalization - 2") {
     val um = UnitNormalization(NJTimeUnit.SECONDS, None, None)
 
     assert(um.normalize(10.minutes) == Normalized(600.0, NJTimeUnit.SECONDS))
@@ -161,12 +161,15 @@ class MetricsTest extends AnyFunSuite {
     assert(um.normalize(NJDataRateUnit.MEGABITS_SECOND, 1) == Normalized(1.0, NJDataRateUnit.MEGABITS_SECOND))
   }
 
-  test("14.jmx metric name") {
+  test("8.jmx metric name") {
     task
       .service("metric name")
       .updateConfig(_.withJmx(identity))
       .eventStream { ga =>
-        ga.action("a0{}[]()!@#$%^&+-_<>").retry(IO(0)).buildWith(identity).use(_.run(())) >> ga.adhoc.report
+        ga.facilitator("a0{}[]()!@#$%^&+-_<>")
+          .action(IO(0))
+          .buildWith(identity)
+          .use(_.run(())) >> ga.adhoc.report
       }
       .map(checkJson)
       .compile
@@ -174,7 +177,7 @@ class MetricsTest extends AnyFunSuite {
       .unsafeRunSync()
   }
 
-  test("16.dup") {
+  test("9.dup") {
     val List(mr) = task
       .service("dup")
       .eventStream { agent =>
@@ -193,7 +196,7 @@ class MetricsTest extends AnyFunSuite {
     assert(mr.snapshot.gauges.size == 3)
   }
 
-  test("17.gauge dup") {
+  test("10.gauge dup") {
     val mr :: _ = task
       .service("dup")
       .eventStream { agent =>
@@ -213,7 +216,7 @@ class MetricsTest extends AnyFunSuite {
     assert(mr.snapshot.gauges.size == 3)
   }
 
-  test("18.disable individually") {
+  test("11.disable individually") {
     val mr = TaskGuard[IO]("nanjin")
       .service("disable")
       .eventStream { agent =>
@@ -225,7 +228,7 @@ class MetricsTest extends AnyFunSuite {
           _ <- ag.meter("d", _.withUnit(_.COUNT).enable(false)).evalMap(_.update(10000).replicateA(100))
           _ <- ag.counter("e", _.asRisk.enable(false)).evalMap(_.inc(1000))
           _ <- ag.histogram("f", _.withUnit(_.BYTES).enable(false)).evalMap(_.update(10000L).replicateA(100))
-          _ <- agent.action("h").retry(IO(0)).buildWith(identity).evalMap(_.run(()))
+          _ <- agent.facilitator("h").action(IO(0)).buildWith(identity).evalMap(_.run(()))
           _ <- ag
             .ratio("i", _.enable(false))
             .evalMap(f => f.incDenominator(50) >> f.incNumerator(79) >> f.incBoth(20, 50))

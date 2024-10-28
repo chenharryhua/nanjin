@@ -8,13 +8,11 @@ import com.github.chenharryhua.nanjin.guard.metrics.NJMetrics
 import com.github.chenharryhua.nanjin.guard.observers.console
 import com.github.chenharryhua.nanjin.guard.service.Agent
 import com.github.chenharryhua.nanjin.kafka.{KafkaContext, KafkaSettings}
-import com.github.chenharryhua.nanjin.messages.kafka.CRMetaInfo
 import com.github.chenharryhua.nanjin.messages.kafka.codec.gr2Jackson
 import com.github.chenharryhua.nanjin.terminals.{HadoopText, JacksonFile, NJHadoop}
 import eu.timepit.refined.auto.*
 import fs2.kafka.{commitBatchWithin, AutoOffsetReset, CommittableConsumerRecord}
 import fs2.{Chunk, Pipe}
-import io.circe.syntax.EncoderOps
 import io.lemonlabs.uri.Url
 import io.lemonlabs.uri.typesafe.dsl.urlToUrlDsl
 import org.apache.avro.generic.GenericData
@@ -42,12 +40,12 @@ object kafka_connector_s3 {
 
   private def decoder(agent: Agent[IO]): Resource[IO, Kleisli[IO, CCR, String]] = {
     val name: String = "kafka.record"
-    val fac = agent.facilitator("name")
+    val fac          = agent.facilitator("name")
     for {
       action <- agent
         .action(name)
         .retry((ccr: CCR) => IO.fromTry(ccr.record.value.flatMap(gr2Jackson(_))))
-        .buildWith(_.tapError((cr, _) => CRMetaInfo(cr).zoned(agent.zoneId).asJson))
+        .buildWith(identity)
       update <- logMetrics(fac.metrics)
     } yield Kleisli { (ccr: CCR) =>
       update(ccr) >> action.run(ccr)
