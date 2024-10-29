@@ -21,7 +21,7 @@ class ConfigTest extends AnyFunSuite {
     task
       .service("counting")
       .eventStream { agent =>
-        agent.facilitator("cfg").action(IO(1)).build.use(_.run(()))
+        agent.facilitate("cfg")(_.action(IO(1)).build).use(_.run(()))
       }
       .map(checkJson)
       .compile
@@ -33,7 +33,7 @@ class ConfigTest extends AnyFunSuite {
     task
       .service("no count")
       .eventStream { agent =>
-        agent.facilitator("cfg").action(IO(1)).build.use(_.run(()))
+        agent.facilitate("cfg")(_.action(IO(1)).build).use(_.run(()))
       }
       .map(checkJson)
       .compile
@@ -47,7 +47,7 @@ class ConfigTest extends AnyFunSuite {
     val as = task
       .service("silent")
       .eventStream { agent =>
-        agent.facilitator("cfg").action(IO(1)).build.use(_.run(()))
+        agent.facilitate("cfg")(_.action(IO(1)).build).use(_.run(()))
       }
       .map(checkJson)
       .filter(_.isInstanceOf[ServiceMessage])
@@ -62,7 +62,7 @@ class ConfigTest extends AnyFunSuite {
       .service("report")
       .updateConfig(_.withMetricReport(giveUp))
       .eventStream { agent =>
-        agent.facilitator("cfg").action(IO(1)).build.use(_.run(()))
+        agent.facilitate("cfg")(_.action(IO(1)).build).use(_.run(()))
       }
       .map(checkJson)
       .filter(_.isInstanceOf[ServiceStart])
@@ -75,7 +75,7 @@ class ConfigTest extends AnyFunSuite {
     task
       .service("reset")
       .eventStream { agent =>
-        agent.facilitator("cfg").action(IO(1)).build.use(_.run(()))
+        agent.facilitate("cfg")(_.action(IO(1)).build).use(_.run(()))
       }
       .map(checkJson)
       .filter(_.isInstanceOf[ServiceStart])
@@ -106,7 +106,7 @@ class ConfigTest extends AnyFunSuite {
       .updateConfig(_.addBrief(B(2, "b")))
       .updateConfig(_.addBrief(Json.Null))
       .updateConfig(_.addBrief(IO(A(1, 3))))
-      .eventStream(_.facilitator("cfg").action(IO(1)).buildWith(identity).use(_.run(())))
+      .eventStream(_.facilitate("cfg")(_.action(IO(1)).buildWith(identity)).use(_.run(())))
       .map(checkJson)
       .filter(_.isInstanceOf[ServiceStart])
       .compile

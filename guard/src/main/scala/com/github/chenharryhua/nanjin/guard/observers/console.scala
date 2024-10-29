@@ -3,12 +3,11 @@ package com.github.chenharryhua.nanjin.guard.observers
 import cats.effect.std.Console
 import cats.syntax.all.*
 import cats.{Endo, Eval, Monad}
-import com.github.chenharryhua.nanjin.guard.event.NJEvent
+import com.github.chenharryhua.nanjin.guard.event.{textColor, NJEvent}
 import com.github.chenharryhua.nanjin.guard.translator.{ColorScheme, Translator, UpdateTranslator}
 import io.circe.syntax.EncoderOps
 
 import java.time.format.DateTimeFormatter
-import scala.Console as SConsole
 
 object console {
   def apply[F[_]: Console: Monad](translator: Translator[F, String]): TextConsole[F] =
@@ -30,10 +29,10 @@ object console {
       ColorScheme
         .decorate(evt)
         .run {
-          case ColorScheme.GoodColor  => Eval.now(SConsole.GREEN + "SUCCESS" + SConsole.RESET)
-          case ColorScheme.InfoColor  => Eval.now("INFO")
-          case ColorScheme.WarnColor  => Eval.now(SConsole.YELLOW + "WARN" + SConsole.RESET)
-          case ColorScheme.ErrorColor => Eval.now(SConsole.RED + "ERROR" + SConsole.RESET)
+          case ColorScheme.GoodColor  => Eval.now(textColor.goodTerm)
+          case ColorScheme.InfoColor  => Eval.now(textColor.infoTerm)
+          case ColorScheme.WarnColor  => Eval.now(textColor.warnTerm)
+          case ColorScheme.ErrorColor => Eval.now(textColor.errorTerm)
         }
         .value
 

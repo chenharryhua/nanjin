@@ -24,11 +24,9 @@ class GaugeTest extends AnyFunSuite {
 
   test("1.user gauge") {
     val res: MetricReport = service.eventStream { ga =>
-      ga.facilitator("test")
-        .metrics
-        .gauge("user")
-        .register(IO(UserGauge(1, "a")))
-        .surround(IO.sleep(4.seconds))
+      ga.facilitate("test") {
+        _.metrics.gauge("user").register(IO(UserGauge(1, "a")))
+      }.surround(IO.sleep(4.seconds))
     }.map(checkJson).evalMapFilter(e => IO(metricReport(e))).compile.lastOrError.unsafeRunSync()
 
     val ug = retrieveGauge[UserGauge](res.snapshot.gauges).values.head
@@ -41,8 +39,8 @@ class GaugeTest extends AnyFunSuite {
     val mr: MetricReport = service
       .updateConfig(_.withJmx(identity))
       .eventStream { ag =>
-        val mtx = ag.facilitator("agent").metrics
-        val gauge: Resource[IO, Ref[IO, Float]] =
+        ag.facilitate("name") { fac =>
+          val mtx = fac.metrics
           mtx.idleGauge("idle") >>
             mtx.activeGauge("timed") >>
             mtx.gauge("free memory").register(IO(Runtime.getRuntime.freeMemory())) >>
@@ -53,8 +51,7 @@ class GaugeTest extends AnyFunSuite {
             mtx.healthCheck("cost check IO").register(IO(true), policy, ag.zoneId) >>
             mtx.healthCheck("cost check ByName").register(hc = IO(true), policy, ag.zoneId) >>
             Resource.eval(Ref[IO].of(0.1f)).flatMap(ac => mtx.gauge("cell").register(ac.get).map(_ => ac))
-
-        gauge.use(box =>
+        }.use(box =>
           ag.ticks(Policy.fixedDelay(1.seconds).limited(3))
             .evalTap(_ => box.updateAndGet(_ + 1))
             .compile
@@ -69,5 +66,4 @@ class GaugeTest extends AnyFunSuite {
       .unsafeRunSync()
     assert(mr.snapshot.gauges.isEmpty)
   }
-
 }

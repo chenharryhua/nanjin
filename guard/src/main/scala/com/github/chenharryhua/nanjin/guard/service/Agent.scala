@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.service
 
 import cats.Endo
-import cats.data.Kleisli
 import cats.effect.kernel.{Async, Resource}
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.common.chrono.*
@@ -30,14 +29,10 @@ sealed trait Agent[F[_]] {
   // metrics
   def adhoc: NJMetricsReport[F]
 
-  def facilitator(name: String, f: Endo[NJFacilitator.Builder]): NJFacilitator[F]
-  final def facilitator(name: String): NJFacilitator[F] = facilitator(name, identity)
+  def facilitate[A](name: String, f: Endo[NJFacilitator.Builder])(
+    g: NJFacilitator[F] => Resource[F, A]): Resource[F, A]
 
-  def facilitate[A, B](name: String, f: Endo[NJFacilitator.Builder])(
-    g: NJFacilitator[F] => Resource[F, Kleisli[F, A, B]]): Resource[F, Kleisli[F, A, B]]
-
-  final def facilitate[A, B](name: String)(
-    g: NJFacilitator[F] => Resource[F, Kleisli[F, A, B]]): Resource[F, Kleisli[F, A, B]] =
+  final def facilitate[A](name: String)(g: NJFacilitator[F] => Resource[F, A]): Resource[F, A] =
     facilitate(name, identity)(g)
 }
 
@@ -67,12 +62,12 @@ final private class GeneralAgent[F[_]: Async] private[service] (
 
   override object adhoc extends NJMetricsReport[F](channel, serviceParams, metricRegistry)
 
-  override def facilitator(name: String, f: Endo[NJFacilitator.Builder]): NJFacilitator[F] = {
+  private def facilitator(name: String, f: Endo[NJFacilitator.Builder]): NJFacilitator[F] = {
     val metricName = MetricName(serviceParams, measurement, name)
     f(new NJFacilitator.Builder(Policy.giveUp)).build[F](metricName, serviceParams, metricRegistry, channel)
   }
 
-  override def facilitate[A, B](name: String, f: Endo[NJFacilitator.Builder])(
-    g: NJFacilitator[F] => Resource[F, Kleisli[F, A, B]]): Resource[F, Kleisli[F, A, B]] =
+  override def facilitate[A](name: String, f: Endo[NJFacilitator.Builder])(
+    g: NJFacilitator[F] => Resource[F, A]): Resource[F, A] =
     g(facilitator(name, f))
 }

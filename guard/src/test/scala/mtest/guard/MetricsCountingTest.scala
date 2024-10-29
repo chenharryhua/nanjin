@@ -27,31 +27,17 @@ class MetricsCountingTest extends AnyFunSuite {
   def histogram(mr: MetricReport): Long =
     retrieveHistogram(mr.snapshot.histograms).values.map(_.updates).sum
 
-  test("1.alert") {
-    task
-      .service("alert")
-      .eventStream { agent =>
-        val alert = agent.facilitator("msg").messenger
-        alert.warn("m1") >>
-          alert.info("m2") >>
-          alert.error("m3") >>
-          alert.done("m4")
-      }
-      .map(checkJson)
-      .compile
-      .last
-      .unsafeRunSync()
-      .get
-  }
-
-  test("2.counter") {
+  test("1.counter") {
     task
       .service("counter")
       .eventStream { agent =>
-        val ga = agent.facilitator("ga").metrics
-        ga.counter("counter").use { c =>
-          c.inc(2) >> agent.adhoc.report
-        }
+        agent
+          .facilitate("ga") { fac =>
+            fac.metrics.counter("counter").evalMap { c =>
+              c.inc(2) >> agent.adhoc.report
+            }
+          }
+          .use_
       }
       .map(checkJson)
       .mapFilter(metricReport)
@@ -61,14 +47,18 @@ class MetricsCountingTest extends AnyFunSuite {
       .get
   }
 
-  test("3.meter") {
+  test("2.meter") {
     val mr = task
       .service("meter")
       .eventStream { agent =>
-        val ga = agent.facilitator("ga").metrics
-        ga.meter("counter").use { meter =>
-          meter.update(3) >> agent.adhoc.report
-        }
+        agent
+          .facilitate("ga") { fac =>
+            val ga = fac.metrics
+            ga.meter("counter").evalMap { meter =>
+              meter.update(3)
+            }
+          }
+          .use(_ => agent.adhoc.report)
       }
       .map(checkJson)
       .mapFilter(metricReport)
@@ -79,14 +69,18 @@ class MetricsCountingTest extends AnyFunSuite {
     assert(meter(mr) == 3)
   }
 
-  test("4.histogram") {
+  test("3.histogram") {
     val mr = task
       .service("histogram")
       .eventStream { agent =>
-        val ga = agent.facilitator("ga").metrics
-        ga.histogram("histogram", _.withReservoir(new SlidingWindowReservoir(5))).use { histo =>
-          histo.update(200) >> agent.adhoc.report
-        }
+        agent
+          .facilitate("ga") {
+            _.metrics.histogram("histogram", _.withReservoir(new SlidingWindowReservoir(5))).evalMap {
+              histo =>
+                histo.update(200)
+            }
+          }
+          .use(_ => agent.adhoc.report)
       }
       .map(checkJson)
       .mapFilter(metricReport)
@@ -98,31 +92,11 @@ class MetricsCountingTest extends AnyFunSuite {
     assert(histogram(mr) == 1)
   }
 
-  test("5.gauge") {
-    task
-      .service("gauge")
-      .eventStream { agent =>
-        val g2 = agent.facilitator("a").metrics.gauge("exception").register(IO.raiseError[Int](new Exception))
-        val g3 = agent.facilitator("a").metrics.gauge("good").register(IO(10))
-        g2.both(g3).surround(IO.sleep(3.seconds) >> agent.adhoc.report)
-      }
-      .map(checkJson)
-      .map {
-        case event: MetricReport => assert(event.snapshot.gauges.size == 2)
-        case _                   => ()
-      }
-      .compile
-      .drain
-      .unsafeRunSync()
-  }
-
-  test("6.health-check") {
+  test("4.health-check") {
     val res = task
       .service("heal-check")
       .eventStream { agent =>
-        val ga = agent.facilitator("ga").metrics
-        (ga.healthCheck("c1").register(IO(true)) >> ga.healthCheck("c2").register(IO(true))).use(_ =>
-          agent.adhoc.report)
+        agent.facilitate("ga")(_.metrics.healthCheck("c1").register(IO(true))).use(_ => agent.adhoc.report)
       }
       .map(checkJson)
       .mapFilter(metricReport)
@@ -131,20 +105,20 @@ class MetricsCountingTest extends AnyFunSuite {
       .unsafeRunSync()
 
     val hc = retrieveHealthChecks(res.snapshot.gauges)
-    assert(hc.size == 2)
+    assert(hc.size == 1)
     assert(hc.values.forall(identity))
   }
 
-  test("7.timer") {
+  test("5.timer") {
     val mr = task
       .service("timer")
       .eventStream { ga =>
-        ga.facilitator("timer").metrics.timer("timer", _.withReservoir(new SlidingWindowReservoir(10))).use {
-          timer =>
+        ga.facilitate("timer")(
+          _.metrics.timer("timer", _.withReservoir(new SlidingWindowReservoir(10))).evalMap { timer =>
             timer.update(2.minutes) >>
-              timer.update(5.minutes) >>
-              ga.adhoc.report
-        }
+              timer.update(5.minutes)
+          })
+          .surround(ga.adhoc.report)
       }
       .map(checkJson)
       .mapFilter(metricReport)

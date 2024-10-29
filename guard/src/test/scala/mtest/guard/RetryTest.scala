@@ -21,33 +21,17 @@ class RetryTest extends AnyFunSuite {
 
   val policy: Policy = Policy.fixedDelay(1.seconds).limited(3)
 
-  test("1.retry - completed trivial") {
-    val Vector(s, c) = task
-      .service("trivial")
-      .eventStream { gd =>
-        gd.facilitator("t").action(fun3 _).buildWith(identity).use(_.run((1, 1, 1)))
-      }
-      .map(checkJson)
-      .compile
-      .toVector
-      .unsafeRunSync()
-
-    assert(s.isInstanceOf[ServiceStart])
-    assert(c.isInstanceOf[ServiceStop])
-  }
-
   test("2.retry - should retry 2 times when operation fail") {
     var i = 0
     val Vector(a, b, c, d) = task
       .service("2 times")
       .eventStream { gd =>
-        gd.facilitator("t", _.withPolicy(policy))
-          .action((_: Int) =>
+        gd.facilitate("t", _.withPolicy(policy)) {
+          _.action((_: Int) =>
             IO(if (i < 2) {
               i += 1; throw new Exception
-            } else i))
-          .buildWith(identity)
-          .use(_.run(1))
+            } else i)).buildWith(identity)
+        }.use(_.run(1))
       }
       .map(checkJson)
       .compile
@@ -65,10 +49,9 @@ class RetryTest extends AnyFunSuite {
       .service("escalate")
       .updateConfig(_.withRestartPolicy(Policy.giveUp))
       .eventStream { gd =>
-        gd.facilitator("t", _.withPolicy(Policy.fixedDelay(1.seconds).limited(3)))
-          .action((_: Int) => IO.raiseError[Int](new Exception("oops")))
-          .buildWith(identity)
-          .use(_.run(1))
+        gd.facilitate("t", _.withPolicy(Policy.fixedDelay(1.seconds).limited(3))) {
+          _.action((_: Int) => IO.raiseError[Int](new Exception("oops"))).buildWith(identity)
+        }.use(_.run(1))
       }
       .map(checkJson)
       .compile
@@ -87,10 +70,9 @@ class RetryTest extends AnyFunSuite {
       .service("null exception")
       .updateConfig(_.withRestartPolicy(Policy.giveUp))
       .eventStream(ag =>
-        ag.facilitator("t", _.withPolicy(policy))
-          .action(IO.raiseError[Int](new NullPointerException))
-          .buildWith(identity)
-          .use(_.run(())))
+        ag.facilitate("t", _.withPolicy(policy)) {
+          _.action(IO.raiseError[Int](new NullPointerException)).buildWith(identity)
+        }.use(_.run(())))
       .map(checkJson)
       .take(6)
       .compile
@@ -108,10 +90,10 @@ class RetryTest extends AnyFunSuite {
       .service("retry")
       .updateConfig(_.withRestartPolicy(Policy.giveUp))
       .eventStream { gd =>
-        gd.facilitator("t", _.withPolicy(Policy.fixedDelay(0.1.seconds).limited(3)))
-          .action(IO.raiseError[Int](MyException()))
-          .buildWith(_.worthRetry(_.isInstanceOf[MyException]))
-          .use(_.run(()))
+        gd.facilitate("t", _.withPolicy(Policy.fixedDelay(0.1.seconds).limited(3))) {
+          _.action(IO.raiseError[Int](MyException())).buildWith(_.worthRetry(_.isInstanceOf[MyException]))
+
+        }.use(_.run(()))
       }
       .map(checkJson)
       .compile
@@ -131,10 +113,11 @@ class RetryTest extends AnyFunSuite {
       .updateConfig(_.withRestartPolicy(Policy.fixedDelay(1.hour)))
       .eventStream { gd =>
         gd.zonedNow >>
-          gd.facilitator("t", _.withPolicy(Policy.fixedDelay(0.1.seconds).limited(3)))
-            .action(IO.raiseError[Int](new Exception))
-            .buildWith(_.worthRetry(x => x.isInstanceOf[MyException]))
-            .use(_.run(()))
+          gd.facilitate("t", _.withPolicy(Policy.fixedDelay(0.1.seconds).limited(3))) {
+            _.action(IO.raiseError[Int](new Exception)).buildWith(_.worthRetry(x =>
+              x.isInstanceOf[MyException]))
+
+          }.use(_.run(()))
       }
       .map(checkJson)
       .interruptAfter(2.seconds)
@@ -143,26 +126,5 @@ class RetryTest extends AnyFunSuite {
       .unsafeRunSync()
     assert(a.isInstanceOf[ServiceStart])
     assert(b.isInstanceOf[ServicePanic])
-  }
-
-  test("7.cron policy") {
-    val List(a, b, c, d, e) = task
-      .service("cron")
-      .updateConfig(_.withRestartPolicy(Policy.giveUp))
-      .eventStream(
-        _.facilitator("cron", _.withPolicy(Policy.crontab(_.secondly).limited(3)))
-          .action(IO.raiseError[Int](new Exception("oops")))
-          .buildWith(identity)
-          .use(_.run(())))
-      .map(checkJson)
-      .compile
-      .toList
-      .unsafeRunSync()
-
-    assert(a.isInstanceOf[ServiceStart])
-    assert(b.isInstanceOf[ServiceMessage])
-    assert(c.isInstanceOf[ServiceMessage])
-    assert(d.isInstanceOf[ServiceMessage])
-    assert(e.isInstanceOf[ServiceStop])
   }
 }

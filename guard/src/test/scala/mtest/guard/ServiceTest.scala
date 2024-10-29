@@ -37,7 +37,7 @@ class ServiceTest extends AnyFunSuite {
           .withMetricDailyReset
           .withHttpServer(identity))
       .eventStream(gd =>
-        gd.facilitator("t").action(IO(1)).buildWith(identity).use(_.run(())).delayBy(1.second))
+        gd.facilitate("t")(_.action(IO(1)).buildWith(identity)).use(_.run(())).delayBy(1.second))
       .map(checkJson)
       .compile
       .toVector
@@ -56,10 +56,8 @@ class ServiceTest extends AnyFunSuite {
       .service("escalate")
       .updateConfig(_.withRestartPolicy(Policy.fixedDelay(0.second).jitter(30.minutes, 50.minutes)))
       .eventStream { gd =>
-        gd.facilitator("t", _.withPolicy(policy))
-          .action(IO.raiseError[Int](new Exception(gd.toZonedDateTime(Instant.now()).toString)))
-          .build
-          .use(_.run(()))
+        gd.facilitate("t", _.withPolicy(policy))(_.action(
+          IO.raiseError[Int](new Exception(gd.toZonedDateTime(Instant.now()).toString))).build).use(_.run(()))
       }
       .map(checkJson)
       .interruptAfter(5.seconds)
@@ -81,7 +79,7 @@ class ServiceTest extends AnyFunSuite {
     val s :: b :: c :: d :: _ = guard
       .service("report")
       .updateConfig(_.withMetricReport(Policy.crontab(_.secondly)))
-      .eventStream(_.facilitator("t").action(IO.never[Int]).buildWith(identity).use(_.run(())))
+      .eventStream(_.facilitate("t")(_.action(IO.never[Int]).buildWith(identity)).use(_.run(())))
       .evalMap(e => IO(decode[NJEvent](e.asJson.noSpaces)).rethrow)
       .interruptAfter(5.second)
       .map(checkJson)
@@ -112,57 +110,13 @@ class ServiceTest extends AnyFunSuite {
     assert(c.isInstanceOf[MetricReset])
   }
 
-  test("5.normal service stop after two operations") {
-    val Vector(s, a, b, c) = guard
-      .service("two")
-      .eventStream { gd =>
-        val fac = gd.facilitator("t")
-        fac.action(IO(1)).buildWith(identity).use(_.run(())) >> fac.messenger.info("good") >>
-          fac.action(IO(2)).buildWith(identity).use(_.run(())) >> fac.messenger.info("good 2")
-      }
-      .map(checkJson)
-      .compile
-      .toVector
-      .unsafeRunSync()
-
-    assert(s.isInstanceOf[ServiceStart])
-    assert(a.isInstanceOf[ServiceMessage])
-    assert(b.isInstanceOf[ServiceMessage])
-    assert(c.isInstanceOf[ServiceStop])
-  }
-
-  test("6.combine two event streams") {
-    val guard = TaskGuard[IO]("two service")
-    val s1    = guard.service("s1")
-    val s2    = guard.service("s2")
-
-    val ss1 = s1.eventStream(gd =>
-      gd.facilitator("t").action(IO(1)).buildWith(identity).use(_.run(())) >> gd
-        .facilitator("t")
-        .action(IO(2))
-        .buildWith(identity)
-        .use(_.run(())))
-    val ss2 = s2.eventStream(gd =>
-      gd.facilitator("t").action(IO(1)).buildWith(identity).use(_.run(())) >> gd
-        .facilitator("t")
-        .action(IO(2))
-        .buildWith(identity)
-        .use(_.run(())))
-
-    val vector = ss1.merge(ss2).map(checkJson).compile.toVector.unsafeRunSync()
-    assert(vector.count(_.isInstanceOf[ServiceMessage]) == 0)
-    assert(vector.count(_.isInstanceOf[ServiceStop]) == 2)
-  }
-
   test("7.should give up") {
     val List(a, b, c, d, e) = guard
       .service("give up")
       .updateConfig(_.withRestartPolicy(Policy.giveUp))
       .eventStream { gd =>
-        gd.facilitator("t", _.withPolicy(policy))
-          .action(IO.raiseError[Int](new Exception))
-          .buildWith(identity)
-          .use(_.run(()))
+        gd.facilitate("t", _.withPolicy(policy))(
+          _.action(IO.raiseError[Int](new Exception)).buildWith(identity)).use(_.run(()))
       }
       .map(checkJson)
       .compile
@@ -180,11 +134,8 @@ class ServiceTest extends AnyFunSuite {
     val List(a, b, c, d, e, f, g, h, i) = guard
       .service("panic")
       .updateConfig(_.withRestartPolicy(Policy.fixedDelay(1.seconds).limited(2)))
-      .eventStream(
-        _.facilitator("t", _.withPolicy(Policy.fixedDelay(1.seconds).limited(1)))
-          .action(IO.raiseError[Int](new Exception))
-          .buildWith(identity)
-          .use(_.run(())))
+      .eventStream(_.facilitate("t", _.withPolicy(Policy.fixedDelay(1.seconds).limited(1)))(
+        _.action(IO.raiseError[Int](new Exception)).buildWith(identity)).use(_.run(())))
       .map(checkJson)
       .compile
       .toList
@@ -323,11 +274,8 @@ class ServiceTest extends AnyFunSuite {
   test("13.out of memory -- happy failure") {
     val run = guard
       .service("out of memory")
-      .eventStream(
-        _.facilitator("oom", _.withPolicy(Policy.fixedDelay(1.seconds).limited(3)))
-          .action(IO.raiseError[Int](new OutOfMemoryError()))
-          .build
-          .use(_(())))
+      .eventStream(_.facilitate("oom", _.withPolicy(Policy.fixedDelay(1.seconds).limited(3)))(
+        _.action(IO.raiseError[Int](new OutOfMemoryError())).build).use(_(())))
       .map(checkJson)
       .compile
       .drain

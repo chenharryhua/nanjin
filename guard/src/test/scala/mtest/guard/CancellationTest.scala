@@ -28,10 +28,9 @@ class CancellationTest extends AnyFunSuite {
       .service("failed")
       .updateConfig(_.withRestartPolicy(fixedDelay(1.hour)))
       .eventStream(ag =>
-        ag.facilitator("canceled", _.withPolicy(policy))
-          .action(IO(1) <* IO.canceled)
-          .buildWith(identity)
-          .use(_.run(())))
+        ag.facilitate("canceled", _.withPolicy(policy)) {
+          _.action(IO(1) <* IO.canceled).buildWith(identity)
+        }.use(_.run(())))
       .map(checkJson)
       .compile
       .toVector
@@ -47,7 +46,7 @@ class CancellationTest extends AnyFunSuite {
       .service("externally")
       .updateConfig(_.withRestartPolicy(fixedDelay(1.hour)))
       .eventStream { ag =>
-        val a1 = ag.facilitator("never").action(never_fun).buildWith(identity).use(_.run(()))
+        val a1 = ag.facilitate("never")(_.action(never_fun).buildWith(identity)).use(_.run(()))
         IO.parSequenceN(2)(List(IO.sleep(2.second) >> IO.canceled, a1))
       }
       .map(checkJson)
@@ -64,8 +63,8 @@ class CancellationTest extends AnyFunSuite {
       .service("external exception")
       .updateConfig(_.withRestartPolicy(giveUp))
       .eventStream { ag =>
-        val a1 = ag.facilitator("never").action(never_fun).buildWith(identity).use(_.run(()))
-        IO.parSequenceN(2)(List(IO.sleep(1.second) >> err_fun(1), a1))
+        val a1 = ag.facilitate("never")(_.action(never_fun).buildWith(identity))
+        IO.parSequenceN(2)(List(IO.sleep(1.second) >> err_fun(1), a1.use(_.run(()))))
       }
       .map(checkJson)
       .compile
@@ -80,11 +79,9 @@ class CancellationTest extends AnyFunSuite {
       .service("wrap")
       .updateConfig(_.withRestartPolicy(fixedDelay(1.hour)))
       .eventStream { ag =>
-        val a1 = ag
-          .facilitator("exception", _.withPolicy(policy))
-          .action(IO.raiseError[Int](new Exception))
-          .buildWith(identity)
-          .use(_.run(()))
+        val a1 = ag.facilitate("exception", _.withPolicy(policy)) {
+          _.action(IO.raiseError[Int](new Exception)).buildWith(identity)
+        }.use(_.run(()))
         IO.parSequenceN(2)(List(IO.sleep(2.second) >> IO.canceled, IO.uncancelable(_ => a1)))
       }
       .map(checkJson)
@@ -104,7 +101,7 @@ class CancellationTest extends AnyFunSuite {
       task
         .service("never")
         .updateConfig(_.withRestartPolicy(fixedDelay(1.hour)))
-        .eventStream(_.facilitator("never").action(IO.never[Int]).buildWith(identity).use(_.run(())))
+        .eventStream(_.facilitate("never")(_.action(IO.never[Int]).buildWith(identity)).use(_.run(())))
         .map(checkJson)
         .interruptAfter(2.seconds)
         .compile
