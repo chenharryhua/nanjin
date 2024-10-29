@@ -49,13 +49,10 @@ object NJMessenger {
 
     override def error[S: Encoder](msg: S): F[Unit] =
       alarm(Encoder[S].apply(msg), AlarmLevel.Error)
-
     override def warn[S: Encoder](msg: S): F[Unit] =
       alarm(Encoder[S].apply(msg), AlarmLevel.Warn)
-
     override def info[S: Encoder](msg: S): F[Unit] =
       alarm(Encoder[S].apply(msg), AlarmLevel.Info)
-
     override def done[S: Encoder](msg: S): F[Unit] =
       alarm(Encoder[S].apply(msg), AlarmLevel.Done)
 
