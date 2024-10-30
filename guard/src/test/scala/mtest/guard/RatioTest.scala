@@ -13,8 +13,8 @@ class RatioTest extends AnyFunSuite {
 
   test("1. init") {
     service.eventStream { ga =>
-      ga.facilitate("test")(
-        _.metrics.ratio("init", _.withTranslator(_ => Json.Null))).use(_ => ga.adhoc.report)
+      ga.facilitate("test")(_.metrics.ratio("init", _.withTranslator(_ => Json.Null)))
+        .use(_ => ga.adhoc.report)
     }.map(checkJson).mapFilter(metricReport).evalTap(console.json[IO]).compile.lastOrError.unsafeRunSync()
   }
 

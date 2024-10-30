@@ -36,6 +36,10 @@ class ConsoleLogTest extends AnyFunSuite {
               _ <- Resource.eval(fac.messenger.consoleInfo("b"))
               _ <- Resource.eval(fac.messenger.consoleWarn("c"))
               _ <- Resource.eval(fac.messenger.consoleError("d"))
+              _ <- Resource.eval(fac.messenger.done("a"))
+              _ <- Resource.eval(fac.messenger.info("b"))
+              _ <- Resource.eval(fac.messenger.warn("c"))
+              _ <- Resource.eval(fac.messenger.error("d"))
             } yield ()
 
           }

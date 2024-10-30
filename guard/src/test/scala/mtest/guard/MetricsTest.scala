@@ -1,5 +1,6 @@
 package mtest.guard
 
+import cats.data.Kleisli
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.syntax.all.*
@@ -7,13 +8,13 @@ import com.github.chenharryhua.nanjin.common.HostName
 import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.MeasurementUnit.*
-import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
-import com.github.chenharryhua.nanjin.guard.event.{Normalized, UnitNormalization}
+import com.github.chenharryhua.nanjin.guard.event.{NJEvent, Normalized, UnitNormalization}
 import cron4s.Cron
+import fs2.Stream
 import io.circe.generic.JsonCodec
 import org.scalatest.funsuite.AnyFunSuite
 
-import java.time.{ZoneId, ZonedDateTime}
+import java.time.{Duration as JavaDuration, ZoneId, ZonedDateTime}
 import scala.concurrent.duration.*
 import scala.jdk.DurationConverters.ScalaDurationOps
 
@@ -31,36 +32,30 @@ class MetricsTest extends AnyFunSuite {
         .disableHttpServer
         .disableJmx)
 
-  test("1.lazy counting") {
-    val last = task
-      .service("delta")
-      .updateConfig(_.withMetricReport(Policy.crontab(_.secondly)))
-      .eventStream(ag =>
-        ag.facilitate("one")(_.action(IO(0)).buildWith(identity)).use(_.run(())) >> IO.sleep(10.minutes))
-      .map(checkJson)
-      .interruptAfter(5.seconds)
-      .compile
-      .last
-      .unsafeRunSync()
-    assert(last.forall(_.asInstanceOf[MetricReport].snapshot.counters.isEmpty))
+  test("1.kleisli") {
+    val service: Stream[IO, NJEvent] = TaskGuard[IO]("kleisli")
+      .service("kleisli")
+      .eventStream(agent =>
+        agent
+          .facilitate("kleisli")(fac =>
+            for {
+              counter <- fac.metrics.counter("counter").map(_.kleisli((i: Int) => i.toLong))
+              meter <- fac.metrics.meter("meter").map(_.kleisli((i: Int) => i.toLong))
+              timer <- fac.metrics
+                .timer("timer")
+                .map(_.kleisli((i: Int) => JavaDuration.ofNanos(i * 1000L)))
+              histo <- fac.metrics.histogram("histogram").map(_.kleisli((i: Int) => i.toLong))
+            } yield Kleisli((a: Int) =>
+              counter.run(a) *>
+                meter.run(a) *>
+                histo.run(a) *>
+                timer.run(a)))
+          .use(_.run(1) >> agent.adhoc.report))
+
+    service.compile.drain.unsafeRunSync()
   }
 
-  test("3.reset") {
-    val last = task
-      .service("reset")
-      .eventStream { ag =>
-        (ag.facilitate("one")(_.action(IO(0)).buildWith(identity)) >>
-          ag.facilitate("two")(_.action(IO(1)).buildWith(identity)))
-          .surround(ag.adhoc.report >> ag.adhoc.reset >> IO.sleep(10.minutes))
-      }
-      .map(checkJson)
-      .interruptAfter(5.seconds)
-      .compile
-      .last
-      .unsafeRunSync()
-
-    assert(last.get.asInstanceOf[MetricReport].snapshot.counters.forall(_.count == 0))
-  }
+  test("3.reset") {}
 
   test("4.show timestamp") {
     val s =

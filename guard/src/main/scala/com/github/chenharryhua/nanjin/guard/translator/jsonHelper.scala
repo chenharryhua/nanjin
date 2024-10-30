@@ -11,7 +11,7 @@ import io.circe.syntax.EncoderOps
 object jsonHelper {
 
   def timestamp(evt: NJEvent): (String, Json)          = "timestamp" -> evt.timestamp.asJson
-  def serviceId(evt: NJEvent): (String, Json)          = "serviceId" -> evt.serviceParams.serviceId.asJson
+  def serviceId(sp: ServiceParams): (String, Json)     = "serviceId" -> sp.serviceId.asJson
   def serviceParams(sp: ServiceParams): (String, Json) = "params" -> sp.asJson
   def exitCode(sc: ServiceStopCause): (String, Json)   = "exitCode" -> Json.fromInt(sc.exitCode)
   def exitCause(sc: ServiceStopCause): (String, Json)  = "exitCause" -> sc.asJson
@@ -20,19 +20,16 @@ object jsonHelper {
 
   def policy(ap: Policy): (String, Json) = "policy" -> Json.fromString(ap.show)
 
-  def errorCause(err: NJError): (String, Json) = "cause" -> Json.fromString(err.message)
-  def stack(err: NJError): (String, Json)      = "stack" -> err.stack.asJson
-
-  def notes(js: Json): (String, Json) = "notes" -> js
+  def stack(err: NJError): (String, Json) = "stack" -> err.stack.asJson
 
   def metricName(mn: MetricName): (String, Json)        = "name" -> Json.fromString(mn.name)
   def metricDigest(mn: MetricName): (String, Json)      = "digest" -> Json.fromString(mn.digest)
   def metricMeasurement(id: MetricName): (String, Json) = "measurement" -> Json.fromString(id.measurement)
 
-  def alertMessage(sa: ServiceMessage): (String, Json) = sa.level.entryName -> sa.message
+  def alarmMessage(sa: ServiceMessage): (String, Json) = sa.level.entryName -> sa.message
 
-  def serviceName(evt: NJEvent): (String, Json) =
-    "serviceName" -> Json.fromString(evt.serviceParams.serviceName.value)
+  def serviceName(sp: ServiceParams): (String, Json) =
+    "serviceName" -> Json.fromString(sp.serviceName.value)
 
   def metricIndex(index: MetricIndex): (String, Json) = index match {
     case MetricIndex.Adhoc(_)       => "index" -> Json.Null
