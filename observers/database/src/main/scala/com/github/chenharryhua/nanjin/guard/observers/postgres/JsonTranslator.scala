@@ -28,21 +28,21 @@ private object JsonTranslator {
     Json.obj(
       "event" -> EventName.ServicePanic.camelJson,
       index(evt.tick),
-      serviceName(evt),
+      serviceName(evt.serviceParams),
       policy(evt.serviceParams.servicePolicies.restart),
       stack(evt.error),
-      serviceId(evt),
+      serviceId(evt.serviceParams),
       timestamp(evt)
     )
 
   private def service_stopped(evt: ServiceStop): Json =
     Json.obj(
       "event" -> EventName.ServiceStop.camelJson,
-      serviceName(evt),
+      serviceName(evt.serviceParams),
       exitCode(evt.cause),
       exitCause(evt.cause),
       policy(evt.serviceParams.servicePolicies.restart),
-      serviceId(evt),
+      serviceId(evt.serviceParams),
       timestamp(evt)
     )
 
@@ -50,10 +50,10 @@ private object JsonTranslator {
     Json.obj(
       "event" -> EventName.MetricReport.camelJson,
       metricIndex(evt.index),
-      serviceName(evt),
+      serviceName(evt.serviceParams),
       took(evt.took),
       metrics(evt.snapshot),
-      serviceId(evt),
+      serviceId(evt.serviceParams),
       timestamp(evt)
     )
 
@@ -61,21 +61,21 @@ private object JsonTranslator {
     Json.obj(
       "event" -> EventName.MetricReset.camelJson,
       metricIndex(evt.index),
-      serviceName(evt),
+      serviceName(evt.serviceParams),
       took(evt.took),
       metrics(evt.snapshot),
-      serviceId(evt),
+      serviceId(evt.serviceParams),
       timestamp(evt)
     )
 
   private def service_alert(evt: ServiceMessage): Json =
     Json.obj(
       "event" -> EventName.ServiceMessage.camelJson,
-      alertMessage(evt),
+      alarmMessage(evt),
       metricName(evt.metricName),
       metricDigest(evt.metricName),
       metricMeasurement(evt.metricName),
-      serviceId(evt),
+      serviceId(evt.serviceParams),
       timestamp(evt)
     )
 

@@ -4,31 +4,34 @@ import cats.Applicative
 import cats.data.Kleisli
 import cats.effect.implicits.clockOps
 import cats.effect.kernel.{Resource, Sync, Unique}
-import cats.implicits.{toFlatMapOps, toFunctorOps}
+import cats.implicits.toFunctorOps
 import com.codahale.metrics.*
 import com.github.chenharryhua.nanjin.common.EnableConfig
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.config.CategoryKind.TimerKind
 
-import java.time.Duration
+import java.time.Duration as JavaDuration
 import scala.concurrent.duration.FiniteDuration
 import scala.jdk.DurationConverters.ScalaDurationOps
 
 sealed trait NJTimer[F[_]] {
-  def update(fd: FiniteDuration): F[Unit]
+
+  def update(jd: JavaDuration): F[Unit]
 
   def timing[A](fa: F[A]): F[A]
 
-  final def kleisli[A](f: A => FiniteDuration): Kleisli[F, A, Unit] =
-    Kleisli(update).local(f)
+  final def update(fd: FiniteDuration): F[Unit] =
+    update(fd.toJava)
+
+  final def kleisli[A](f: A => JavaDuration): Kleisli[F, A, Unit] =
+    Kleisli[F, JavaDuration, Unit](update).local(f)
 }
 
 object NJTimer {
   def dummy[F[_]](implicit F: Applicative[F]): NJTimer[F] =
     new NJTimer[F] {
-      override def update(fd: FiniteDuration): F[Unit] = F.unit
-
-      override def timing[A](fa: F[A]): F[A] = fa
+      override def timing[A](fa: F[A]): F[A]         = fa
+      override def update(jd: JavaDuration): F[Unit] = F.unit
     }
 
   private class Impl[F[_]: Sync](
@@ -52,13 +55,13 @@ object NJTimer {
 
     private[this] lazy val timer: Timer = metricRegistry.timer(timer_name, supplier)
 
-    private[this] val calculate: Duration => Unit =
-      (duration: Duration) => timer.update(duration)
-
     override def timing[A](fa: F[A]): F[A] =
-      fa.timed.flatMap { case (fd, a) => update(fd).as(a) }
+      fa.timed.map { case (fd, result) =>
+        timer.update(fd.toJava)
+        result
+      }
 
-    override def update(fd: FiniteDuration): F[Unit] = F.delay(calculate(fd.toJava))
+    override def update(jd: JavaDuration): F[Unit] = F.delay(timer.update(jd))
 
     val unregister: F[Unit] = F.delay(metricRegistry.remove(timer_name)).void
   }

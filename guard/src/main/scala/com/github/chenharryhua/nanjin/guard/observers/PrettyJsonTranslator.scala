@@ -39,8 +39,8 @@ object PrettyJsonTranslator {
     Json.obj(
       EventName.ServicePanic.camel ->
         Json.obj(
-          serviceName(evt),
-          serviceId(evt),
+          serviceName(evt.serviceParams),
+          serviceId(evt.serviceParams),
           uptime(evt),
           index(evt.tick),
           active(evt.tick),
@@ -53,8 +53,8 @@ object PrettyJsonTranslator {
     Json.obj(
       EventName.ServiceStop.camel ->
         Json.obj(
-          serviceName(evt),
-          serviceId(evt),
+          serviceName(evt.serviceParams),
+          serviceId(evt.serviceParams),
           uptime(evt),
           policy(evt.serviceParams.servicePolicies.restart),
           exitCode(evt.cause),
@@ -66,8 +66,8 @@ object PrettyJsonTranslator {
       EventName.MetricReport.camel ->
         Json.obj(
           metricIndex(evt.index),
-          serviceName(evt),
-          serviceId(evt),
+          serviceName(evt.serviceParams),
+          serviceId(evt.serviceParams),
           policy(evt.serviceParams.servicePolicies.metricReport),
           uptime(evt),
           took(evt.took),
@@ -79,8 +79,8 @@ object PrettyJsonTranslator {
       EventName.MetricReset.camel ->
         Json.obj(
           metricIndex(evt.index),
-          serviceName(evt),
-          serviceId(evt),
+          serviceName(evt.serviceParams),
+          serviceId(evt.serviceParams),
           policy(evt.serviceParams.servicePolicies.metricReset),
           uptime(evt),
           took(evt.took),
@@ -94,9 +94,9 @@ object PrettyJsonTranslator {
           metricName(evt.metricName),
           metricDigest(evt.metricName),
           metricMeasurement(evt.metricName),
-          serviceName(evt),
-          serviceId(evt),
-          alertMessage(evt)
+          serviceName(evt.serviceParams),
+          serviceId(evt.serviceParams),
+          alarmMessage(evt)
         ))
 
   def apply[F[_]: Applicative]: Translator[F, Json] =

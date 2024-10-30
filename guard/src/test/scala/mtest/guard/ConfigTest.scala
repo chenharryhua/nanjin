@@ -17,73 +17,6 @@ class ConfigTest extends AnyFunSuite {
       .updateConfig(_.withZoneId(berlinTime).withPanicHistoryCapacity(1).withMetricHistoryCapacity(2))
       .updateConfig(_.withMetricReport(crontab(_.hourly)))
 
-  test("1.counting") {
-    task
-      .service("counting")
-      .eventStream { agent =>
-        agent.facilitator("cfg").action(IO(1)).build.use(_.run(()))
-      }
-      .map(checkJson)
-      .compile
-      .last
-      .unsafeRunSync()
-      .get
-  }
-  test("2.without counting") {
-    task
-      .service("no count")
-      .eventStream { agent =>
-        agent.facilitator("cfg").action(IO(1)).build.use(_.run(()))
-      }
-      .map(checkJson)
-      .compile
-      .last
-      .unsafeRunSync()
-      .get
-
-  }
-
-  test("5.silent") {
-    val as = task
-      .service("silent")
-      .eventStream { agent =>
-        agent.facilitator("cfg").action(IO(1)).build.use(_.run(()))
-      }
-      .map(checkJson)
-      .filter(_.isInstanceOf[ServiceMessage])
-      .compile
-      .last
-      .unsafeRunSync()
-    assert(as.isEmpty)
-  }
-
-  test("6.report") {
-    task
-      .service("report")
-      .updateConfig(_.withMetricReport(giveUp))
-      .eventStream { agent =>
-        agent.facilitator("cfg").action(IO(1)).build.use(_.run(()))
-      }
-      .map(checkJson)
-      .filter(_.isInstanceOf[ServiceStart])
-      .compile
-      .last
-      .unsafeRunSync()
-  }
-
-  test("7.reset") {
-    task
-      .service("reset")
-      .eventStream { agent =>
-        agent.facilitator("cfg").action(IO(1)).build.use(_.run(()))
-      }
-      .map(checkJson)
-      .filter(_.isInstanceOf[ServiceStart])
-      .compile
-      .last
-      .unsafeRunSync()
-  }
-
   test("9.case") {
     val en = EventName.ServiceStart
     assert(en.entryName == "Service Start")
@@ -106,7 +39,7 @@ class ConfigTest extends AnyFunSuite {
       .updateConfig(_.addBrief(B(2, "b")))
       .updateConfig(_.addBrief(Json.Null))
       .updateConfig(_.addBrief(IO(A(1, 3))))
-      .eventStream(_.facilitator("cfg").action(IO(1)).buildWith(identity).use(_.run(())))
+      .eventStream(_.facilitate("cfg")(_.metrics.meter("m")).use_)
       .map(checkJson)
       .filter(_.isInstanceOf[ServiceStart])
       .compile

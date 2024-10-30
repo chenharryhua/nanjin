@@ -1,67 +1,30 @@
 package mtest.postgres
 
-import cats.effect.IO
-import cats.effect.kernel.Resource
-import cats.effect.std.AtomicCell
-import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.common.chrono.Policy
-import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.event.NJEvent
-import com.github.chenharryhua.nanjin.guard.observers.console
-import com.github.chenharryhua.nanjin.guard.observers.postgres.PostgresObserver
-import eu.timepit.refined.auto.*
 import org.scalatest.funsuite.AnyFunSuite
-import skunk.{Command, Session}
-
-import scala.concurrent.duration.*
 
 class PostgresTest extends AnyFunSuite {
 
-  val service: fs2.Stream[IO, NJEvent] =
-    fs2.Stream.eval(AtomicCell[IO].of(1)).flatMap { box =>
-      TaskGuard[IO]("nanjin")
-        .service("observing")
-        .updateConfig(_.withRestartPolicy(Policy.fixedRate(1.second)))
-        .eventStream { agent =>
-          val fac = agent.facilitator("db")
-          val ag  = fac.metrics
-          val job =
-            box.getAndUpdate(_ + 1).map(_ % 12 == 0).ifM(IO(1), IO.raiseError[Int](new Exception("oops")))
-          val env = for {
-            meter <- ag.meter("meter", _.withUnit(_.COUNT))
-            action <- agent.facilitator("nj_error").action(job).build
-            counter <- ag.counter("nj counter", _.asRisk)
-            histogram <- ag.histogram("nj histogram", _.withUnit(_.SECONDS))
-            _ <- ag.gauge("nj gauge").register(box.get)
-          } yield meter.update(1) >> action.run(()) >> counter.inc(1) >>
-            histogram.update(1) >> agent.adhoc.report
-          env.use(identity)
-        }
-    }
-
   test("postgres") {
-    import natchez.Trace.Implicits.noop
-    import skunk.implicits.*
 
-    val session: Resource[IO, Session[IO]] =
-      Session.single[IO](
-        host = "localhost",
-        port = 5432,
-        user = "postgres",
-        database = "postgres",
-        password = Some("postgres"),
-        debug = true)
+//    val session: Resource[IO, Session[IO]] =
+//      Session.single[IO](
+//        host = "localhost",
+//        port = 5432,
+//        user = "postgres",
+//        database = "postgres",
+//        password = Some("postgres"),
+//        debug = true)
+//
+//    val cmd: Command[skunk.Void] =
+//      sql"""CREATE TABLE IF NOT EXISTS log (
+//              info json NULL,
+//              id SERIAL,
+//              timestamp timestamptz default current_timestamp)""".command
 
-    val cmd: Command[skunk.Void] =
-      sql"""CREATE TABLE IF NOT EXISTS log (
-              info json NULL,
-              id SERIAL,
-              timestamp timestamptz default current_timestamp)""".command
+    // val run = session.use(_.execute(cmd)) >>
+    //  service.evalTap(console.text[IO]).through(PostgresObserver(session).observe("log")).compile.drain
 
-    val run = session.use(_.execute(cmd)) >>
-      service.evalTap(console.text[IO]).through(PostgresObserver(session).observe("log")).compile.drain
-
-    run.unsafeRunSync()
+    // run.unsafeRunSync()
   }
 
 }

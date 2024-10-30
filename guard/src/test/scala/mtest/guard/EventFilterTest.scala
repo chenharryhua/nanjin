@@ -8,7 +8,7 @@ import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.MetricIndex.Periodic
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.{MetricReport, ServiceStart, ServiceStop}
 import com.github.chenharryhua.nanjin.guard.event.eventFilters
-import com.github.chenharryhua.nanjin.guard.service.{Agent, ServiceGuard}
+import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import eu.timepit.refined.auto.*
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -17,13 +17,10 @@ import scala.concurrent.duration.DurationInt
 class EventFilterTest extends AnyFunSuite {
   private val service: ServiceGuard[IO] = TaskGuard[IO]("event.filters").service("filters")
 
-  private def sleepAction(agent: Agent[IO]): IO[Unit] =
-    agent.facilitator("sleep").action(IO.sleep(7.seconds)).buildWith(identity).use(_.run(()))
-
   test("4.sampling - FiniteDuration") {
     val List(a, b, c, d) = service
       .updateConfig(_.withMetricReport(Policy.crontab(_.secondly)))
-      .eventStream(sleepAction)
+      .eventStream(_ => IO.sleep(7.seconds))
       .map(checkJson)
       .filter(eventFilters.sampling(3.seconds))
       .compile
@@ -38,7 +35,7 @@ class EventFilterTest extends AnyFunSuite {
   test("5.sampling - divisor") {
     val List(a, b, c, d) = service
       .updateConfig(_.withMetricReport(Policy.crontab(_.secondly)))
-      .eventStream(sleepAction)
+      .eventStream(_ => IO.sleep(7.seconds))
       .map(checkJson)
       .filter(eventFilters.sampling(3))
       .compile
@@ -55,7 +52,7 @@ class EventFilterTest extends AnyFunSuite {
     val align  = tickStream[IO](Policy.crontab(_.every3Seconds).limited(1), sydneyTime)
     val run = service
       .updateConfig(_.withMetricReport(policy))
-      .eventStream(sleepAction)
+      .eventStream(_ => IO.sleep(7.seconds))
       .map(checkJson)
       .filter(eventFilters.sampling(_.every3Seconds))
 

@@ -58,6 +58,7 @@ object QuasiResult {
     val (done, fail) = a.details.partition(_.done)
     Json.obj(
       "name" -> Json.fromString(a.metricName.name),
+      "digest" -> Json.fromString(a.metricName.digest),
       "mode" -> a.mode.asJson,
       "spent" -> Json.fromString(fmt.format(a.spent)),
       "done" -> Json.fromInt(done.length),

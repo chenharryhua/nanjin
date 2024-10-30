@@ -19,10 +19,9 @@ class HealthCheckTest extends AnyFunSuite {
       .service("health-check")
       .eventStream { agent =>
         agent
-          .facilitator("never")
-          .metrics
-          .healthCheck("health-never", _.withTimeout(2.seconds))
-          .register(IO.never[Boolean])
+          .facilitate("never")(
+            _.metrics.healthCheck("health-never", _.withTimeout(2.seconds)).register(IO.never[Boolean])
+          )
           .surround(IO.sleep(5.seconds))
       }
       .map(checkJson)
@@ -39,11 +38,9 @@ class HealthCheckTest extends AnyFunSuite {
     val res = guard
       .service("gauge")
       .eventStream(gd =>
-        gd.facilitator("never")
-          .metrics
-          .gauge("gauge-never", _.withTimeout(2.seconds))
-          .register(IO.never[Boolean])
-          .surround(IO.sleep(5.seconds)))
+        gd.facilitate("never")(
+          _.metrics.gauge("gauge-never", _.withTimeout(2.seconds)).register(IO.never[Boolean])
+        ).surround(IO.sleep(5.seconds)))
       .map(checkJson)
       .evalTap(console.text[IO])
       .evalMapFilter(e => IO(metricReport(e)))
@@ -57,11 +54,11 @@ class HealthCheckTest extends AnyFunSuite {
     val res = guard
       .service("health-check-cost")
       .eventStream(gd =>
-        gd.facilitator("cost")
-          .metrics
-          .healthCheck("health-never", _.withTimeout(2.seconds))
-          .register(IO.never[Boolean], Policy.fixedDelay(1.seconds), gd.zoneId)
-          .surround(IO.sleep(3.seconds)))
+        gd.facilitate("cost")(
+          _.metrics
+            .healthCheck("health-never", _.withTimeout(2.seconds))
+            .register(IO.never[Boolean], Policy.fixedDelay(1.seconds), gd.zoneId)
+        ).surround(IO.sleep(3.seconds)))
       .map(checkJson)
       .evalTap(console.text[IO])
       .evalMapFilter(e => IO(metricReport(e)))
@@ -75,11 +72,11 @@ class HealthCheckTest extends AnyFunSuite {
     val res = guard
       .service("gauge-cost")
       .eventStream(gd =>
-        gd.facilitator("cost")
-          .metrics
-          .gauge("gauge-never-cost", _.withTimeout(2.seconds))
-          .register(IO.never[Boolean], Policy.fixedDelay(1.seconds), gd.zoneId)
-          .surround(IO.sleep(3.seconds)))
+        gd.facilitate("cost")(
+          _.metrics
+            .gauge("gauge-never-cost", _.withTimeout(2.seconds))
+            .register(IO.never[Boolean], Policy.fixedDelay(1.seconds), gd.zoneId)
+        ).surround(IO.sleep(3.seconds)))
       .map(checkJson)
       .evalTap(console.text[IO])
       .evalMapFilter(e => IO(metricReport(e)))

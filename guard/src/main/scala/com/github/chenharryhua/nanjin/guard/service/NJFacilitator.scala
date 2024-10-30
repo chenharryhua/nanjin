@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.guard.service
 import cats.effect.kernel.Async
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.common.chrono.Policy
-import com.github.chenharryhua.nanjin.guard.action.{NJAction, NJMessenger, NJRetry}
+import com.github.chenharryhua.nanjin.guard.action.{NJMessenger, NJRetry}
 import com.github.chenharryhua.nanjin.guard.config.{MetricName, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import com.github.chenharryhua.nanjin.guard.metrics.NJMetrics
@@ -13,7 +13,6 @@ sealed trait NJFacilitator[F[_]] {
   def retry: NJRetry[F]
   def messenger: NJMessenger[F]
   def metrics: NJMetrics[F]
-  def action: NJAction[F]
 }
 
 object NJFacilitator {
@@ -35,8 +34,6 @@ object NJFacilitator {
         new NJMessenger.Impl[F](metricName, serviceParams, channel)
       override val metrics: NJMetrics[F] =
         new NJMetrics.Impl[F](metricName, metricRegistry, isEnabled = true)
-      override def action: NJAction[F] =
-        new NJAction[F](metricName, serviceParams, channel, policy)
     }
   }
 }

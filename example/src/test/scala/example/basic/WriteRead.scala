@@ -9,17 +9,14 @@ import io.lemonlabs.uri.Url
 abstract class WriteRead(agent: Agent[IO]) {
   final protected def write(job: Url): Resource[IO, NJMeter[IO]] = {
     val name = "(write)" + job.toString()
-    for {
-      meter <- agent.metrics(name).meter(name, _.withUnit(_.COUNT))
-    } yield meter
+    agent.facilitate(name)(_.metrics.meter(name, _.withUnit(_.COUNT)))
   }
 
   final protected def read(job: Url): Resource[IO, NJMeter[IO]] = {
     val name = "(read)" + job.toString()
-    for {
-      meter <- agent.metrics(name).meter(name, _.withUnit(_.COUNT))
-    } yield meter
+    agent.facilitate(name)(_.metrics.meter(name, _.withUnit(_.COUNT)))
   }
+
   def single: IO[List[Long]]
   def rotate: IO[List[Long]]
   def sparkSingle: IO[List[Long]]

@@ -6,7 +6,6 @@ import cats.effect.kernel.Resource
 import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.guard.metrics.NJMetrics
 import com.github.chenharryhua.nanjin.guard.observers.console
-import com.github.chenharryhua.nanjin.guard.service.Agent
 import com.github.chenharryhua.nanjin.kafka.{KafkaContext, KafkaSettings}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.gr2Jackson
 import com.github.chenharryhua.nanjin.terminals.{HadoopText, JacksonFile, NJHadoop}
@@ -38,19 +37,12 @@ object kafka_connector_s3 {
       keySize.update(ks) *> valSize.update(vs) *> byteRate.update(ks + vs) *> countRate.update(1)
     }
 
-  private def decoder(agent: Agent[IO]): Resource[IO, Kleisli[IO, CCR, String]] = {
-    val name: String = "kafka.record"
-    val fac          = agent.facilitator("name")
+  private def decoder(mtx: NJMetrics[IO]): Resource[IO, Kleisli[IO, CCR, String]] =
     for {
-      action <- agent
-        .action(name)
-        .retry((ccr: CCR) => IO.fromTry(ccr.record.value.flatMap(gr2Jackson(_))))
-        .buildWith(identity)
-      update <- logMetrics(fac.metrics)
+      update <- logMetrics(mtx)
     } yield Kleisli { (ccr: CCR) =>
-      update(ccr) >> action.run(ccr)
+      update(ccr) >> IO.fromTry(ccr.record.value.flatMap(gr2Jackson(_)))
     }
-  }
 
   private val root: Url              = Url.parse("s3a://bucket_name") / "folder_name"
   private val hadoop: HadoopText[IO] = NJHadoop[IO](new Configuration).text
@@ -61,7 +53,7 @@ object kafka_connector_s3 {
       val jackson = JacksonFile(_.Uncompressed)
       val sink: Pipe[IO, Chunk[String], Int] = // rotate files every 5 minutes
         hadoop.sink(Policy.crontab(_.every5Minutes), ga.zoneId)(tick => root / jackson.ymdFileName(tick))
-      decoder(ga).use { decode =>
+      ga.facilitate("abc")(fac => decoder(fac.metrics)).use { decode =>
         ctx
           .consume("any.kafka.topic")
           .updateConfig(
