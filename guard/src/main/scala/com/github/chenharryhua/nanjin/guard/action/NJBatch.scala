@@ -34,7 +34,7 @@ object BatchRunner {
           .ratio("batch_completion", _.withTranslator(translator))
           .evalTap(_.incDenominator(size.toLong))
         t <- metrics.histogram(
-          "cost_histogram",
+          "batch_timer",
           _.withUnit(_.NANOSECONDS).withReservoir(new SlidingWindowReservoir(size)))
       } yield Kleisli((fd: FiniteDuration) => t.update(fd.toNanos) *> c.incNumerator(1))
 
