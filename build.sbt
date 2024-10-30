@@ -180,7 +180,7 @@ val logLib = List(
 )
 
 val jwtLib = List(
-  "org.bouncycastle"           % "bcpkix-jdk18on"   % "1.78.1",
+  "org.bouncycastle"           % "bcpkix-jdk18on"   % "1.79",
   "io.jsonwebtoken"            % "jjwt-api"         % jwtV,
   "io.jsonwebtoken"            % "jjwt-impl"        % jwtV,
   "io.jsonwebtoken"            % "jjwt-jackson"     % jwtV,
