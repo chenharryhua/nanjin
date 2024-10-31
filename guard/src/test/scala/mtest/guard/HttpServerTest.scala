@@ -1,5 +1,6 @@
 package mtest.guard
 
+import cats.data.Kleisli
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.comcast.ip4s.IpLiteralSyntax
@@ -43,16 +44,15 @@ class HttpServerTest extends AnyFunSuite {
         .updateConfig(_.withMetricReport(Policy.crontab(_.secondly)).withHttpServer(_.withPort(port"9999")))
         .eventStream { agent =>
           agent
-            .facilitate("test") { fac =>
-              val ag = fac.metrics
+            .metrics("test") { ag =>
               for {
                 _ <- ag.gauge("a").register(IO(1))
                 _ <- ag.counter("a").evalMap(_.inc(1))
                 _ <- ag.histogram("a", _.withUnit(_.BYTES)).evalMap(_.update(1))
                 _ <- ag.meter("a", _.withUnit(_.MEGABYTES)).evalMap(_.update(1))
-              } yield ()
+              } yield Kleisli((_: Int) => IO.unit)
             }
-            .surround(agent.adhoc.report >> IO.sleep(10.hours))
+            .use(_.run(1) >> agent.adhoc.report >> IO.sleep(10.hours))
         }
         .map(checkJson)
         .compile

@@ -12,8 +12,10 @@ import com.github.chenharryhua.nanjin.guard.event.{MeasurementUnit, NJUnits}
 
 sealed trait NJHistogram[F[_]] {
   def update(num: Long): F[Unit]
+
+  final def update(num: Int): F[Unit] = update(num.toLong)
   final def kleisli[A](f: A => Long): Kleisli[F, A, Unit] =
-    Kleisli(update).local(f)
+    Kleisli[F, Long, Unit](update).local(f)
 }
 
 object NJHistogram {

@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.event
 
 import com.github.chenharryhua.nanjin.common.chrono.Tick
-import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, MetricName, ServiceParams}
+import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, ServiceParams}
 import io.circe.Json
 import io.circe.generic.JsonCodec
 
@@ -32,9 +32,8 @@ object NJEvent {
       extends NJEvent
 
   final case class ServiceMessage(
-    metricName: MetricName,
-    timestamp: ZonedDateTime,
     serviceParams: ServiceParams,
+    timestamp: ZonedDateTime,
     level: AlarmLevel,
     message: Json)
       extends NJEvent

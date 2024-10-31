@@ -3,7 +3,6 @@ package com.github.chenharryhua.nanjin.guard.observers.ses
 import cats.Applicative
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.event.{NJError, NJEvent}
-import com.github.chenharryhua.nanjin.guard.translator.metricConstants.METRICS_DIGEST
 import com.github.chenharryhua.nanjin.guard.translator.{htmlHelper, textConstants, textHelper, Translator}
 import io.circe.Json
 import io.circe.syntax.EncoderOps
@@ -140,21 +139,12 @@ private object HtmlTranslator extends all {
     )
   }
 
-  private def service_message(evt: ServiceMessage): Text.TypedTag[String] = {
-    val fg = frag(
-      tr(th(CONSTANT_MEASUREMENT), th(METRICS_DIGEST), th(CONSTANT_NAME)),
-      tr(
-        td(evt.metricName.measurement),
-        td(s"${evt.metricName.digest}"),
-        td(evt.metricName.name)
-      )
-    )
+  private def service_message(evt: ServiceMessage): Text.TypedTag[String] =
     div(
       h3(style := htmlColoring(evt))(eventTitle(evt)),
-      table(service_table(evt), fg),
+      table(service_table(evt)),
       json_text(evt.message)
     )
-  }
 
   def apply[F[_]: Applicative]: Translator[F, Text.TypedTag[String]] =
     Translator

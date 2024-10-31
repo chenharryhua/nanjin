@@ -72,9 +72,6 @@ private object JsonTranslator {
     Json.obj(
       "event" -> EventName.ServiceMessage.camelJson,
       alarmMessage(evt),
-      metricName(evt.metricName),
-      metricDigest(evt.metricName),
-      metricMeasurement(evt.metricName),
       serviceId(evt.serviceParams),
       timestamp(evt)
     )

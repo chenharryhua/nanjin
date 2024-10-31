@@ -37,13 +37,6 @@ object kafka_connector_s3 {
       keySize.update(ks) *> valSize.update(vs) *> byteRate.update(ks + vs) *> countRate.update(1)
     }
 
-  private def decoder(mtx: NJMetrics[IO]): Resource[IO, Kleisli[IO, CCR, String]] =
-    for {
-      update <- logMetrics(mtx)
-    } yield Kleisli { (ccr: CCR) =>
-      update(ccr) >> IO.fromTry(ccr.record.value.flatMap(gr2Jackson(_)))
-    }
-
   private val root: Url              = Url.parse("s3a://bucket_name") / "folder_name"
   private val hadoop: HadoopText[IO] = NJHadoop[IO](new Configuration).text
 
@@ -53,7 +46,7 @@ object kafka_connector_s3 {
       val jackson = JacksonFile(_.Uncompressed)
       val sink: Pipe[IO, Chunk[String], Int] = // rotate files every 5 minutes
         hadoop.sink(Policy.crontab(_.every5Minutes), ga.zoneId)(tick => root / jackson.ymdFileName(tick))
-      ga.facilitate("abc")(fac => decoder(fac.metrics)).use { decode =>
+      ga.metrics("abc")(logMetrics).use { decode =>
         ctx
           .consume("any.kafka.topic")
           .updateConfig(
@@ -63,7 +56,7 @@ object kafka_connector_s3 {
               .withMaxPollRecords(2000))
           .genericRecords
           .observe(_.map(_.offset).through(commitBatchWithin[IO](1000, 5.seconds)).drain)
-          .evalMap(decode.run)
+          .evalMap(x => decode.run(x) >> IO.fromTry(x.record.value.flatMap(gr2Jackson(_))))
           .chunks
           .through(sink)
           .compile

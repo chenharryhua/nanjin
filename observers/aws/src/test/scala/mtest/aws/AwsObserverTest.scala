@@ -15,19 +15,18 @@ import scala.concurrent.duration.DurationInt
 
 class AwsObserverTest extends AnyFunSuite {
 
-
   test("1.sqs") {
-  //  val sqs =
-      SqsObserver(sqs_client(1.seconds, ""))
-  //  service.through(sqs.observe("https://google.com/abc.fifo", "group.id")).compile.drain.unsafeRunSync()
+    //  val sqs =
+    SqsObserver(sqs_client(1.seconds, ""))
+    //  service.through(sqs.observe("https://google.com/abc.fifo", "group.id")).compile.drain.unsafeRunSync()
   }
 
   test("2.ses mail") {
-  //  val mail =
-      EmailObserver(ses_client)
-        .withPolicy(Policy.fixedDelay(5.seconds), sydneyTime)
-        .withCapacity(200)
-        .withOldestFirst
+    //  val mail =
+    EmailObserver(ses_client)
+      .withPolicy(Policy.fixedDelay(5.seconds), sydneyTime)
+      .withCapacity(200)
+      .withOldestFirst
 
 //    service
 //      .through(mail.observe("abc@google.com", NonEmptyList.one("efg@tek.com"), "title"))
@@ -44,8 +43,8 @@ class AwsObserverTest extends AnyFunSuite {
   }
 
   test("4.slack") {
- //   val snsArn: SnsArn = SnsArn("arn:aws:sns:aaaa:123456789012:bb")
- //   service.through(SlackObserver(sns_client).at("@chenh").observe(snsArn)).compile.drain.unsafeRunSync()
+    //   val snsArn: SnsArn = SnsArn("arn:aws:sns:aaaa:123456789012:bb")
+    //   service.through(SlackObserver(sns_client).at("@chenh").observe(snsArn)).compile.drain.unsafeRunSync()
   }
 
   test("5.cloudwatch") {

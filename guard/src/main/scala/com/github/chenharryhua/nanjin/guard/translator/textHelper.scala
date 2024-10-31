@@ -40,7 +40,7 @@ object textHelper extends localtime with localdatetime {
   def eventTitle(evt: NJEvent): String =
     evt match {
 
-      case NJEvent.ServiceMessage(_, _, _, al, _) => al.productPrefix
+      case NJEvent.ServiceMessage(_, _, al, _) => al.productPrefix
 
       case NJEvent.ServiceStart(_, tick) =>
         if (tick.index === 0) "Start Service" else "Restart Service"
