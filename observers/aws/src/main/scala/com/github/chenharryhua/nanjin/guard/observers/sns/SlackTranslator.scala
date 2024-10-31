@@ -2,9 +2,8 @@ package com.github.chenharryhua.nanjin.guard.observers.sns
 
 import cats.syntax.all.*
 import cats.{Applicative, Eval}
-import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, MetricName, ServiceParams}
+import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.{MetricSnapshot, NJError, NJEvent}
-import com.github.chenharryhua.nanjin.guard.translator.metricConstants.METRICS_DIGEST
 import com.github.chenharryhua.nanjin.guard.translator.textConstants.*
 import com.github.chenharryhua.nanjin.guard.translator.textHelper.*
 import com.github.chenharryhua.nanjin.guard.translator.{ColorScheme, SnapshotPolyglot, Translator}
@@ -43,12 +42,6 @@ private object SlackTranslator extends all {
     JuxtaposeSection(
       first = TextField(CONSTANT_UPTIME, uptimeText(evt)),
       second = TextField(CONSTANT_TIMEZONE, evt.serviceParams.zoneId.show))
-
-  private def name_section(mn: MetricName): JuxtaposeSection =
-    JuxtaposeSection(
-      first = TextField(CONSTANT_MEASUREMENT, mn.measurement),
-      second = TextField(CONSTANT_NAME, mn.name)
-    )
 
   private def metrics_index_section(evt: MetricEvent): JuxtaposeSection =
     JuxtaposeSection(
@@ -192,7 +185,7 @@ private object SlackTranslator extends all {
       case AlarmLevel.Error => ":warning:"
       case AlarmLevel.Warn  => ":warning:"
       case AlarmLevel.Info  => ""
-      case AlarmLevel.Done  => ""
+      case AlarmLevel.Good  => ""
     }
     SlackApp(
       username = evt.serviceParams.taskName.value,
@@ -202,9 +195,7 @@ private object SlackTranslator extends all {
           blocks = List(
             HeaderSection(s"$symbol ${eventTitle(evt)}"),
             host_service_section(evt.serviceParams),
-            name_section(evt.metricName),
-            MarkdownSection(s"""|*$METRICS_DIGEST:* ${evt.metricName.digest}
-                                |*$CONSTANT_SERVICE_ID:* ${evt.serviceParams.serviceId.show}""".stripMargin),
+            MarkdownSection(s"*$CONSTANT_SERVICE_ID:* ${evt.serviceParams.serviceId.show}"),
             MarkdownSection(s"```${abbreviate(evt.message)}```")
           )
         ))

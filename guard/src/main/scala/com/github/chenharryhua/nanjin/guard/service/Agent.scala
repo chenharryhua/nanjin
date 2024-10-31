@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.service
 
-import cats.Endo
+import cats.data.Kleisli
 import cats.effect.kernel.{Async, Resource}
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.common.chrono.*
@@ -11,13 +11,10 @@ import com.github.chenharryhua.nanjin.guard.metrics.NJMetrics
 import fs2.Stream
 import fs2.concurrent.Channel
 
-import java.time.{Instant, ZoneId, ZonedDateTime}
+import java.time.ZoneId
 
 sealed trait Agent[F[_]] {
-  // date-time
   def zoneId: ZoneId
-  def zonedNow: F[ZonedDateTime]
-  def toZonedDateTime(ts: Instant): ZonedDateTime
 
   def withMeasurement(name: String): Agent[F]
 
@@ -29,11 +26,12 @@ sealed trait Agent[F[_]] {
   // metrics
   def adhoc: NJMetricsReport[F]
 
-  def facilitate[A](name: String, f: Endo[NJFacilitator.Builder])(
-    g: NJFacilitator[F] => Resource[F, A]): Resource[F, A]
+  def herald: NJHerald[F]
 
-  final def facilitate[A](name: String)(g: NJFacilitator[F] => Resource[F, A]): Resource[F, A] =
-    facilitate(name, identity)(g)
+  def metrics[A](name: String)(
+    g: NJMetrics[F] => Resource[F, Kleisli[F, A, Unit]]): Resource[F, Kleisli[F, A, Unit]]
+
+  def createRetry(policy: Policy): Resource[F, NJRetry[F]]
 }
 
 final private class GeneralAgent[F[_]: Async] private[service] (
@@ -43,11 +41,7 @@ final private class GeneralAgent[F[_]: Async] private[service] (
   measurement: Measurement)
     extends Agent[F] {
 
-  // date time
-  override val zonedNow: F[ZonedDateTime] = serviceParams.zonedNow[F]
-  override val zoneId: ZoneId             = serviceParams.zoneId
-
-  override def toZonedDateTime(ts: Instant): ZonedDateTime = serviceParams.toZonedDateTime(ts)
+  override val zoneId: ZoneId = serviceParams.zoneId
 
   override def withMeasurement(name: String): Agent[F] =
     new GeneralAgent[F](serviceParams, metricRegistry, channel, Measurement(name))
@@ -62,12 +56,15 @@ final private class GeneralAgent[F[_]: Async] private[service] (
 
   override object adhoc extends NJMetricsReport[F](channel, serviceParams, metricRegistry)
 
-  private def facilitator(name: String, f: Endo[NJFacilitator.Builder]): NJFacilitator[F] = {
+  override def createRetry(policy: Policy): Resource[F, NJRetry[F]] =
+    Resource.pure(new NJRetry.Impl[F](serviceParams.initialStatus.renewPolicy(policy)))
+
+  override def metrics[A](name: String)(
+    f: NJMetrics[F] => Resource[F, Kleisli[F, A, Unit]]): Resource[F, Kleisli[F, A, Unit]] = {
     val metricName = MetricName(serviceParams, measurement, name)
-    f(new NJFacilitator.Builder(Policy.giveUp)).build[F](metricName, serviceParams, metricRegistry, channel)
+    f(new NJMetrics.Impl[F](metricName, metricRegistry, isEnabled = true))
   }
 
-  override def facilitate[A](name: String, f: Endo[NJFacilitator.Builder])(
-    g: NJFacilitator[F] => Resource[F, A]): Resource[F, A] =
-    g(facilitator(name, f))
+  override val herald: NJHerald[F] =
+    new NJHerald.Impl[F](serviceParams, channel)
 }

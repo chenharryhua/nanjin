@@ -54,12 +54,12 @@ object ColorScheme extends CatsOrderValueEnum[Int, ColorScheme] with IntEnum[Col
           case ServiceStopCause.ByException(_) => ErrorColor
           case ServiceStopCause.Maintenance    => InfoColor
         }
-      case ServiceMessage(_, _, _, level, _) =>
+      case ServiceMessage(_, _, level, _) =>
         level match {
           case AlarmLevel.Error => ErrorColor
           case AlarmLevel.Warn  => WarnColor
           case AlarmLevel.Info  => InfoColor
-          case AlarmLevel.Done  => GoodColor
+          case AlarmLevel.Good  => GoodColor
         }
       case MetricReport(_, _, ss, _) => color_snapshot(ss)
       case MetricReset(_, _, ss, _)  => color_snapshot(ss)

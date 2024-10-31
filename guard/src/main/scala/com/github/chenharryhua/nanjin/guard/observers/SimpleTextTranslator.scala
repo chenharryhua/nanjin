@@ -3,7 +3,6 @@ package com.github.chenharryhua.nanjin.guard.observers
 import cats.Applicative
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.event.{NJError, NJEvent}
-import com.github.chenharryhua.nanjin.guard.translator.metricConstants.METRICS_DIGEST
 import com.github.chenharryhua.nanjin.guard.translator.{textConstants, textHelper, Translator}
 import io.circe.syntax.EncoderOps
 
@@ -75,16 +74,11 @@ object SimpleTextTranslator {
         |""".stripMargin
   }
 
-  private def service_message(evt: ServiceMessage): String = {
-    val ms   = s"$CONSTANT_MEASUREMENT:${evt.metricName.measurement}"
-    val id   = s"$METRICS_DIGEST:${evt.metricName.digest}"
-    val name = s"$CONSTANT_NAME:${evt.metricName.name}"
+  private def service_message(evt: ServiceMessage): String =
     s"""|${eventTitle(evt)}
         |  ${service_event(evt)}
-        |  $ms, $id, $name
         |${evt.message.spaces2}
         |""".stripMargin
-  }
 
   def apply[F[_]: Applicative]: Translator[F, String] =
     Translator

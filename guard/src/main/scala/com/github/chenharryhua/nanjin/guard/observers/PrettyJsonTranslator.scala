@@ -91,9 +91,6 @@ object PrettyJsonTranslator {
     Json.obj(
       EventName.ServiceMessage.camel ->
         Json.obj(
-          metricName(evt.metricName),
-          metricDigest(evt.metricName),
-          metricMeasurement(evt.metricName),
           serviceName(evt.serviceParams),
           serviceId(evt.serviceParams),
           alarmMessage(evt)
