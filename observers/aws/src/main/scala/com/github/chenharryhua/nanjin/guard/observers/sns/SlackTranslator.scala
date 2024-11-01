@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.guard.observers.sns
 import cats.syntax.all.*
 import cats.{Applicative, Eval}
 import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, ServiceParams}
-import com.github.chenharryhua.nanjin.guard.event.{MetricSnapshot, NJError, NJEvent}
+import com.github.chenharryhua.nanjin.guard.event.{MetricSnapshot, NJError, NJEvent, ServiceStopCause}
 import com.github.chenharryhua.nanjin.guard.translator.textConstants.*
 import com.github.chenharryhua.nanjin.guard.translator.textHelper.*
 import com.github.chenharryhua.nanjin.guard.translator.{ColorScheme, SnapshotPolyglot, Translator}
@@ -125,6 +125,12 @@ private object SlackTranslator extends all {
   }
 
   private def service_stopped(evt: ServiceStop): SlackApp = {
+    def stopCause(ssc: ServiceStopCause): String = ssc match {
+      case ServiceStopCause.Successfully       => "Successfully"
+      case ServiceStopCause.ByCancellation     => "ByCancellation"
+      case ServiceStopCause.ByException(error) => s"""```${error.stack.mkString("\n\t")}```"""
+      case ServiceStopCause.Maintenance        => "Maintenance"
+    }
     val color = coloring(evt)
     SlackApp(
       username = evt.serviceParams.taskName.value,

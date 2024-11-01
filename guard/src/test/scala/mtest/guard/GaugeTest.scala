@@ -1,0 +1,54 @@
+package mtest.guard
+
+import cats.data.Kleisli
+import cats.effect.IO
+import cats.effect.unsafe.implicits.global
+import cats.implicits.toFunctorFilterOps
+import com.github.chenharryhua.nanjin.guard.TaskGuard
+import com.github.chenharryhua.nanjin.guard.event.{retrieveGauge, retrieveHealthChecks}
+import io.circe.Json
+import org.scalatest.funsuite.AnyFunSuite
+
+class GaugeTest extends AnyFunSuite {
+  private val service = TaskGuard[IO]("gauge").service("gauge")
+
+  test("1.gauge") {
+    val mr = service.eventStream { agent =>
+      agent
+        .metrics("gauge")(_.gauge("gauge").register(IO(1)).map(_ => Kleisli((_: Unit) => IO.unit)))
+        .surround(agent.adhoc.report)
+    }.map(checkJson).mapFilter(metricReport).compile.lastOrError.unsafeRunSync()
+    val gauge = retrieveGauge[Int](mr.snapshot.gauges)
+    assert(gauge.values.head == 1)
+  }
+
+  test("2.health check") {
+    val mr = service.eventStream { agent =>
+      agent
+        .metrics("health")(_.healthCheck("health").register(IO(true)).map(_ => Kleisli((_: Unit) => IO.unit)))
+        .surround(agent.adhoc.report)
+    }.map(checkJson).mapFilter(metricReport).compile.lastOrError.unsafeRunSync()
+    val health = retrieveHealthChecks(mr.snapshot.gauges)
+    assert(health.values.head)
+  }
+
+  test("3.active gauge") {
+    val mr = service.eventStream { agent =>
+      agent
+        .metrics("active")(_.activeGauge("active").map(_ => Kleisli((_: Unit) => IO.unit)))
+        .surround(agent.adhoc.report)
+    }.map(checkJson).mapFilter(metricReport).compile.lastOrError.unsafeRunSync()
+    val active = retrieveGauge[Json](mr.snapshot.gauges)
+    assert(active.values.nonEmpty)
+  }
+
+  test("4.idle gauge") {
+    val mr = service.eventStream { agent =>
+      agent
+        .metrics("idle")(_.idleGauge("idle").map(_ => Kleisli((_: Unit) => IO.unit)))
+        .use(_.run(()) >> agent.adhoc.report)
+    }.map(checkJson).mapFilter(metricReport).compile.lastOrError.unsafeRunSync()
+    val idle = retrieveGauge[Json](mr.snapshot.gauges)
+    assert(idle.values.nonEmpty)
+  }
+}

@@ -28,8 +28,8 @@ sealed trait Agent[F[_]] {
 
   def herald: NJHerald[F]
 
-  def metrics[A](name: String)(
-    g: NJMetrics[F] => Resource[F, Kleisli[F, A, Unit]]): Resource[F, Kleisli[F, A, Unit]]
+  def metrics[A, B](name: String)(
+    g: NJMetrics[F] => Resource[F, Kleisli[F, A, B]]): Resource[F, Kleisli[F, A, B]]
 
   def createRetry(policy: Policy): Resource[F, NJRetry[F]]
 }
@@ -59,8 +59,8 @@ final private class GeneralAgent[F[_]: Async] private[service] (
   override def createRetry(policy: Policy): Resource[F, NJRetry[F]] =
     Resource.pure(new NJRetry.Impl[F](serviceParams.initialStatus.renewPolicy(policy)))
 
-  override def metrics[A](name: String)(
-    f: NJMetrics[F] => Resource[F, Kleisli[F, A, Unit]]): Resource[F, Kleisli[F, A, Unit]] = {
+  override def metrics[A, B](name: String)(
+    f: NJMetrics[F] => Resource[F, Kleisli[F, A, B]]): Resource[F, Kleisli[F, A, B]] = {
     val metricName = MetricName(serviceParams, measurement, name)
     f(new NJMetrics.Impl[F](metricName, metricRegistry, isEnabled = true))
   }

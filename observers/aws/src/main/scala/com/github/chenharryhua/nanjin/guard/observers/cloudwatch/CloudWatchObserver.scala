@@ -3,13 +3,14 @@ import cats.effect.kernel.{Resource, Sync}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.aws.CloudWatch
 import com.github.chenharryhua.nanjin.common.aws.CloudWatchNamespace
-import com.github.chenharryhua.nanjin.guard.config.{MetricID, ServiceParams}
+import com.github.chenharryhua.nanjin.guard.config.{Category, MetricID, MetricName, MetricTag, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.MeasurementUnit.*
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.MetricReport
 import com.github.chenharryhua.nanjin.guard.event.{MeasurementUnit, NJEvent, Normalized, UnitNormalization}
 import com.github.chenharryhua.nanjin.guard.translator.metricConstants
 import com.github.chenharryhua.nanjin.guard.translator.textConstants.*
 import fs2.{Pipe, Pull, Stream}
+import io.scalaland.chimney.dsl.TransformerOps
 import monocle.syntax.all.*
 import org.typelevel.cats.time.instances.localdate.*
 import software.amazon.awssdk.services.cloudwatch.model.{
@@ -135,7 +136,7 @@ final class CloudWatchObserver[F[_]: Sync](
       val (dur, category) = hf.pick(timer)
       MetricKey(
         serviceParams = report.serviceParams,
-        id = timer.metricId,
+        id = StableMetricID(timer.metricId),
         category = s"${timer.metricId.tag}_$category",
         standardUnit = toStandardUnit(unitNormalization.timeUnit),
         storageResolution = storageResolution
@@ -150,7 +151,7 @@ final class CloudWatchObserver[F[_]: Sync](
       val Normalized(data, unit) = unitNormalization.normalize(histo.histogram.unit, value)
       MetricKey(
         serviceParams = report.serviceParams,
-        id = histo.metricId,
+        id = StableMetricID(histo.metricId),
         category = s"${histo.metricId.tag}_$category",
         standardUnit = toStandardUnit(unit),
         storageResolution = storageResolution
@@ -160,7 +161,7 @@ final class CloudWatchObserver[F[_]: Sync](
     val timer_calls: Map[MetricKey, Long] = report.snapshot.timers.map { timer =>
       MetricKey(
         serviceParams = report.serviceParams,
-        id = timer.metricId,
+        id = StableMetricID(timer.metricId),
         category = s"${timer.metricId.tag}_calls",
         standardUnit = StandardUnit.COUNT,
         storageResolution = storageResolution
@@ -171,7 +172,7 @@ final class CloudWatchObserver[F[_]: Sync](
       val Normalized(data, unit) = unitNormalization.normalize(meter.meter.unit, meter.meter.sum)
       MetricKey(
         serviceParams = report.serviceParams,
-        id = meter.metricId,
+        id = StableMetricID(meter.metricId),
         category = s"${meter.metricId.tag}_sum",
         standardUnit = toStandardUnit(unit),
         storageResolution = storageResolution
@@ -181,7 +182,7 @@ final class CloudWatchObserver[F[_]: Sync](
     val histogram_updates: Map[MetricKey, Long] = report.snapshot.histograms.map { histo =>
       MetricKey(
         serviceParams = report.serviceParams,
-        id = histo.metricId,
+        id = StableMetricID(histo.metricId),
         category = s"${histo.metricId.tag}_updates",
         standardUnit = StandardUnit.COUNT,
         storageResolution = storageResolution
@@ -191,14 +192,17 @@ final class CloudWatchObserver[F[_]: Sync](
     val counterKeyMap: Map[MetricKey, Long] = timer_calls ++ meter_sum ++ histogram_updates
 
     val (counters, lastUpdates) = counterKeyMap.foldLeft((List.empty[MetricDatum], last)) {
-      case ((mds, last), (key, count)) =>
-        last.get(key) match {
-          case Some(old) => // counters of timer/meter increase monotonically.
+      case ((mds, newLast), (key, count)) =>
+        newLast.get(key) match {
+          case Some(old) if count >= old =>
+            // counters of timer/meter increase monotonically.
+            // however, service may be crushed and restart
+            // such that counters are reset to zero.
             (
               key.metricDatum(report.timestamp.toInstant, (count - old).toDouble) :: mds,
-              last.updated(key, count))
-          case None =>
-            (key.metricDatum(report.timestamp.toInstant, count.toDouble) :: mds, last.updated(key, count))
+              newLast.updated(key, count))
+          case _ =>
+            (key.metricDatum(report.timestamp.toInstant, count.toDouble) :: mds, newLast.updated(key, count))
         }
     }
     (counters ::: timer_histo ::: histograms, lastUpdates)
@@ -230,9 +234,20 @@ final class CloudWatchObserver[F[_]: Sync](
   }
 }
 
+final private case class StableMetricID(
+  metricName: MetricName,
+  metricTag: MetricTag,
+  category: Category
+)
+
+private object StableMetricID {
+  def apply(id: MetricID): StableMetricID =
+    id.transformInto[StableMetricID]
+}
+
 final private case class MetricKey(
   serviceParams: ServiceParams,
-  id: MetricID,
+  id: StableMetricID,
   category: String,
   standardUnit: StandardUnit,
   storageResolution: Int) {
@@ -241,7 +256,6 @@ final private case class MetricKey(
       .builder()
       .dimensions(
         Dimension.builder().name(CONSTANT_TASK).value(serviceParams.taskName.value).build(),
-        Dimension.builder().name(CONSTANT_SERVICE).value(serviceParams.serviceName.value).build(),
         Dimension.builder().name(CONSTANT_SERVICE_ID).value(serviceParams.serviceId.show).build(),
         Dimension.builder().name(CONSTANT_HOST).value(serviceParams.hostName.value).build(),
         Dimension

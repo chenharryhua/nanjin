@@ -17,6 +17,9 @@ sealed trait NJCounter[F[_]] {
   final def dec(num: Int): F[Unit] = dec(num.toLong)
   final def kleisli[A](f: A => Long): Kleisli[F, A, Unit] =
     Kleisli[F, Long, Unit](inc).local(f)
+
+  final def kleisli: Kleisli[F, Long, Unit] =
+    Kleisli[F, Long, Unit](inc)
 }
 
 object NJCounter {

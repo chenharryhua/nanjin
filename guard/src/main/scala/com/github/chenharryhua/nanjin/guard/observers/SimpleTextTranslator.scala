@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard.observers
 
 import cats.Applicative
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.guard.event.{NJError, NJEvent}
+import com.github.chenharryhua.nanjin.guard.event.{NJError, NJEvent, ServiceStopCause}
 import com.github.chenharryhua.nanjin.guard.translator.{textConstants, textHelper, Translator}
 import io.circe.syntax.EncoderOps
 
@@ -46,12 +46,19 @@ object SimpleTextTranslator {
            |""".stripMargin
   }
 
-  private def service_stopped(evt: ServiceStop): String =
+  private def service_stopped(evt: ServiceStop): String = {
+    def stopCause(ssc: ServiceStopCause): String = ssc match {
+      case ServiceStopCause.Successfully       => "Successfully"
+      case ServiceStopCause.ByCancellation     => "ByCancellation"
+      case ServiceStopCause.ByException(error) => error.stack.mkString("\n\t")
+      case ServiceStopCause.Maintenance        => "Maintenance"
+    }
     show"""|${eventTitle(evt)}
            |  ${service_event(evt)}
            |  $CONSTANT_POLICY:${evt.serviceParams.servicePolicies.restart}
            |  $CONSTANT_CAUSE:${stopCause(evt.cause)}
            |""".stripMargin
+  }
 
   private def metric_report(evt: MetricReport): String = {
     val policy = evt.serviceParams.servicePolicies.metricReport.show

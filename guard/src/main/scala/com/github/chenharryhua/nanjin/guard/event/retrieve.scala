@@ -28,6 +28,26 @@ object retrieveGauge {
     }.flatten.toMap
 }
 
+object retrieveCounter {
+  def apply(counters: List[Snapshot.Counter]): Map[MetricID, Long] =
+    counters.collect { tm =>
+      tm.metricId.category match {
+        case Category.Counter(CounterKind.Counter) =>
+          tm.metricId -> tm.count
+      }
+    }.toMap
+}
+
+object retrieveRiskCounter {
+  def apply(counters: List[Snapshot.Counter]): Map[MetricID, Long] =
+    counters.collect { tm =>
+      tm.metricId.category match {
+        case Category.Counter(CounterKind.Risk) =>
+          tm.metricId -> tm.count
+      }
+    }.toMap
+}
+
 object retrieveTimer {
   def apply(timers: List[Snapshot.Timer]): Map[MetricID, Snapshot.TimerData] =
     timers.collect { tm =>

@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.guard.translator
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.ServicePanic
-import com.github.chenharryhua.nanjin.guard.event.{MetricIndex, MetricSnapshot, NJEvent, ServiceStopCause}
+import com.github.chenharryhua.nanjin.guard.event.{MetricIndex, MetricSnapshot, NJEvent}
 import org.typelevel.cats.time.instances.{localdatetime, localtime}
 
 import java.time.temporal.ChronoUnit
@@ -29,13 +29,6 @@ object textHelper extends localtime with localdatetime {
       case MetricIndex.Adhoc(_)       => "Adhoc"
       case MetricIndex.Periodic(tick) => show"${tick.index}"
     }
-
-  def stopCause(ssc: ServiceStopCause): String = ssc match {
-    case ServiceStopCause.Successfully       => "Successfully"
-    case ServiceStopCause.ByCancellation     => "ByCancellation"
-    case ServiceStopCause.ByException(error) => error.stack.mkString("\n\t")
-    case ServiceStopCause.Maintenance        => "Maintenance"
-  }
 
   def eventTitle(evt: NJEvent): String =
     evt match {

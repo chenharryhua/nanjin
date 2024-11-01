@@ -6,6 +6,7 @@ import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.guard.TaskGuard
+import com.github.chenharryhua.nanjin.guard.observers.cloudwatch.CloudWatchObserver
 import com.github.chenharryhua.nanjin.guard.observers.ses.EmailObserver
 import com.github.chenharryhua.nanjin.guard.observers.sqs.SqsObserver
 import eu.timepit.refined.auto.*
@@ -14,6 +15,14 @@ import org.scalatest.funsuite.AnyFunSuite
 import scala.concurrent.duration.DurationInt
 
 class AwsObserverTest extends AnyFunSuite {
+  val service = TaskGuard[IO]("aws")
+    .service("test")
+    .updateConfig(_.addBrief("brief").withRestartPolicy(Policy.fixedDelay(1.second).limited(1)))
+    .eventStream { agent =>
+      agent
+        .metrics("metrics")(_.meter("meter").map(_.kleisli[Long](identity)))
+        .use(_.run(10) >> agent.herald.good("good") >> agent.adhoc.report) >> IO.raiseError(new Exception)
+    }
 
   test("1.sqs") {
     //  val sqs =
@@ -22,18 +31,18 @@ class AwsObserverTest extends AnyFunSuite {
   }
 
   test("2.ses mail") {
-    //  val mail =
-    EmailObserver(ses_client)
-      .withPolicy(Policy.fixedDelay(5.seconds), sydneyTime)
-      .withCapacity(200)
-      .withOldestFirst
+    val mail =
+      EmailObserver(ses_client)
+        .withPolicy(Policy.fixedDelay(5.seconds), sydneyTime)
+        .withCapacity(200)
+        .withOldestFirst
 
-//    service
-//      .through(mail.observe("abc@google.com", NonEmptyList.one("efg@tek.com"), "title"))
-//      .debug()
-//      .compile
-//      .drain
-//      .unsafeRunSync()
+    service
+      .through(mail.observe("abc@google.com", NonEmptyList.one("efg@tek.com"), "title"))
+      .debug()
+      .compile
+      .drain
+      .unsafeRunSync()
   }
 
   test("3.syntax") {
@@ -48,7 +57,16 @@ class AwsObserverTest extends AnyFunSuite {
   }
 
   test("5.cloudwatch") {
-//    val cloudwatch = CloudWatchObserver(cloudwatch_client)
+    val service = TaskGuard[IO]("aws").service("cloudwatch").eventStream { agent =>
+      agent.metrics("metrics")(_.meter("meter").map(_.kleisli)).use { m =>
+        m.run(1) >> agent.adhoc.report >> IO.sleep(1.second) >>
+          m.run(2) >> agent.adhoc.report >> IO.sleep(1.second) >>
+          m.run(3) >> agent.adhoc.report >> IO.sleep(1.second) >>
+          m.run(4) >> agent.adhoc.report
+      }
+    }
+
+    val cloudwatch = CloudWatchObserver(cloudwatch_client)
 //      .withStorageResolution(10)
 //      .withMax
 //      .withMin
@@ -63,7 +81,7 @@ class AwsObserverTest extends AnyFunSuite {
 //      .withTimeUnit(_.MICROSECONDS)
 //      .withInfoUnit(_.BITS)
 //      .withRateUnit(_.BYTES_SECOND)
-//    service.through(cloudwatch.observe("cloudwatch")).compile.drain.unsafeRunSync()
+    service.through(cloudwatch.observe("cloudwatch")).compile.drain.unsafeRunSync()
   }
 
   test("6. email observer - limited should terminate") {
