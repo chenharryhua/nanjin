@@ -16,6 +16,8 @@ sealed trait NJMeter[F[_]] {
   final def update(num: Int): F[Unit] = update(num.toLong)
   final def kleisli[A](f: A => Long): Kleisli[F, A, Unit] =
     Kleisli[F, Long, Unit](update).local(f)
+  final def kleisli: Kleisli[F, Long, Unit] =
+    Kleisli[F, Long, Unit](update)
 }
 
 object NJMeter {

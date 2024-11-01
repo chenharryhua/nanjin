@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard.observers.ses
 
 import cats.Applicative
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.guard.event.{NJError, NJEvent}
+import com.github.chenharryhua.nanjin.guard.event.{NJError, NJEvent, ServiceStopCause}
 import com.github.chenharryhua.nanjin.guard.translator.{htmlHelper, textConstants, textHelper, Translator}
 import io.circe.Json
 import io.circe.syntax.EncoderOps
@@ -41,9 +41,6 @@ private object HtmlTranslator extends all {
     )
   }
 
-  private def cause_text(c: NJError): Text.TypedTag[String] =
-    p(b(s"$CONSTANT_CAUSE: "), pre(small(c.stack.mkString("\n\t"))))
-
   private def json_text(js: Json): Text.TypedTag[String] =
     pre(small(js.spaces2))
 
@@ -70,6 +67,9 @@ private object HtmlTranslator extends all {
   }
 
   private def service_panic(evt: ServicePanic): Text.TypedTag[String] = {
+    def cause_text(c: NJError): Text.TypedTag[String] =
+      p(b(s"$CONSTANT_CAUSE: "), pre(small(c.stack.mkString("\n\t"))))
+
     val fg = frag(
       tr(
         th(CONSTANT_INDEX),
@@ -90,13 +90,25 @@ private object HtmlTranslator extends all {
     )
   }
 
-  private def service_stopped(evt: ServiceStop): Text.TypedTag[String] =
+  private def service_stopped(evt: ServiceStop): Text.TypedTag[String] = {
+    def stopCause(ssc: ServiceStopCause): Text.TypedTag[String] = ssc match {
+      case ServiceStopCause.Successfully =>
+        p(b(s"$CONSTANT_CAUSE: "), "Successfully")
+      case ServiceStopCause.ByCancellation =>
+        p(b(s"$CONSTANT_CAUSE: "), "ByCancellation")
+      case ServiceStopCause.ByException(error) =>
+        p(b(s"$CONSTANT_CAUSE: "), pre(small(error.stack.mkString("\n\t"))))
+      case ServiceStopCause.Maintenance =>
+        p(b(s"$CONSTANT_CAUSE: "), "Maintenance")
+    }
+
     div(
       h3(style := htmlColoring(evt))(eventTitle(evt)),
       table(service_table(evt)),
-      p(b(s"$CONSTANT_CAUSE: "), stopCause(evt.cause)),
+      stopCause(evt.cause),
       json_text(evt.serviceParams.brief)
     )
+  }
 
   private def metric_report(evt: MetricReport): Text.TypedTag[String] = {
     val fg = frag(

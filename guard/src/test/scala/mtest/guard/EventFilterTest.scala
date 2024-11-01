@@ -17,7 +17,7 @@ import scala.concurrent.duration.DurationInt
 class EventFilterTest extends AnyFunSuite {
   private val service: ServiceGuard[IO] = TaskGuard[IO]("event.filters").service("filters")
 
-  test("4.sampling - FiniteDuration") {
+  test("1.sampling - FiniteDuration") {
     val List(a, b, c, d) = service
       .updateConfig(_.withMetricReport(Policy.crontab(_.secondly)))
       .eventStream(_ => IO.sleep(7.seconds))
@@ -32,7 +32,7 @@ class EventFilterTest extends AnyFunSuite {
     assert(d.isInstanceOf[ServiceStop])
   }
 
-  test("5.sampling - divisor") {
+  test("2.sampling - divisor") {
     val List(a, b, c, d) = service
       .updateConfig(_.withMetricReport(Policy.crontab(_.secondly)))
       .eventStream(_ => IO.sleep(7.seconds))
@@ -47,7 +47,7 @@ class EventFilterTest extends AnyFunSuite {
     assert(d.isInstanceOf[ServiceStop])
   }
 
-  test("6.sampling - cron") {
+  test("3.sampling - cron") {
     val policy = Policy.crontab(_.secondly)
     val align  = tickStream[IO](Policy.crontab(_.every3Seconds).limited(1), sydneyTime)
     val run = service
