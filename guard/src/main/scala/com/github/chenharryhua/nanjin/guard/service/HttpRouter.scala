@@ -87,7 +87,7 @@ private class HttpRouter[F[_]](
           br(),
           a(href := "/metrics/reset")("Metrics Counters Reset"),
           br(),
-          a(href := "/metrics/jvm")("Jvm RunTime"),
+          a(href := "/metrics/jvm")("Jvm"),
           br(),
           a(href := "/service/params")("Service Parameters"),
           br(),

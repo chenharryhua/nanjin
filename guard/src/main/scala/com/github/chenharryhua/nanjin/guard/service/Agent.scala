@@ -22,8 +22,10 @@ sealed trait Agent[F[_]] {
 
   // tick stream
   def ticks(policy: Policy): Stream[F, Tick]
+  final def ticks(f: Policy.type => Policy): Stream[F, Tick] =
+    ticks(f(Policy))
 
-  // metrics
+  // metrics adhoc report
   def adhoc: NJMetricsReport[F]
 
   def herald: NJHerald[F]
@@ -32,6 +34,8 @@ sealed trait Agent[F[_]] {
     g: NJMetrics[F] => Resource[F, Kleisli[F, A, B]]): Resource[F, Kleisli[F, A, B]]
 
   def createRetry(policy: Policy): Resource[F, NJRetry[F]]
+  final def createRetry(f: Policy.type => Policy): Resource[F, NJRetry[F]] =
+    createRetry(f(Policy))
 }
 
 final private class GeneralAgent[F[_]: Async] private[service] (

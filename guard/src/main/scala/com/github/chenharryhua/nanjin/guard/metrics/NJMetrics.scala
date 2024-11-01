@@ -37,9 +37,9 @@ sealed trait NJMetrics[F[_]] {
   def gauge(tag: String, f: Endo[NJGauge.Builder]): NJGauge[F]
   final def gauge(tag: String): NJGauge[F] = gauge(tag, identity)
 
-  def idleGauge(tag: String, f: Endo[NJGauge.Builder]): Resource[F, Kleisli[F, Unit, Unit]]
-  final def idleGauge(tag: String): Resource[F, Kleisli[F, Unit, Unit]] =
-    idleGauge(tag, identity)
+  def idleGauge[A](tag: String, f: Endo[NJGauge.Builder]): Resource[F, Kleisli[F, A, Unit]]
+  final def idleGauge[A](tag: String): Resource[F, Kleisli[F, A, Unit]] =
+    idleGauge[A](tag, identity[NJGauge.Builder])
 
   def activeGauge(tag: String, f: Endo[NJGauge.Builder]): Resource[F, Unit]
   final def activeGauge(tag: String): Resource[F, Unit] = activeGauge(tag, identity)
@@ -84,11 +84,11 @@ object NJMetrics {
     }
 
     override def gauge(tag: String, f: Endo[NJGauge.Builder]): NJGauge[F] = {
-      val init = new NJGauge.Builder(isEnabled, 5.seconds)
+      val init = new NJGauge.Builder(isEnabled, timeout = 5.seconds)
       f(init).build[F](metricName, MetricTag(tag), metricRegistry)
     }
 
-    override def idleGauge(tag: String, f: Endo[NJGauge.Builder]): Resource[F, Kleisli[F, Unit, Unit]] =
+    override def idleGauge[A](tag: String, f: Endo[NJGauge.Builder]): Resource[F, Kleisli[F, A, Unit]] =
       for {
         lastUpdate <- Resource.eval(F.monotonic.flatMap(F.ref))
         _ <- gauge(tag, f).register(
@@ -97,7 +97,7 @@ object NJMetrics {
             now <- F.monotonic
           } yield DurationFormatter.defaultFormatter.format(now - pre)
         )
-      } yield Kleisli[F, Unit, Unit](_ => F.monotonic.flatMap(lastUpdate.set))
+      } yield Kleisli[F, A, Unit](_ => F.monotonic.flatMap(lastUpdate.set))
 
     override def activeGauge(tag: String, f: Endo[NJGauge.Builder]): Resource[F, Unit] =
       for {
