@@ -60,11 +60,11 @@ class AwsObserverTest extends AnyFunSuite {
     val service = TaskGuard[IO]("aws").service("cloudwatch").eventStream { agent =>
       agent.metrics("metrics")(_.meter("meter").map(_.kleisli)).use { m =>
         m.run(1) >> agent.adhoc.report >> IO.sleep(1.second) >>
+          m.run(-100) >> agent.adhoc.report >> IO.sleep(1.second) >>
           m.run(2) >> agent.adhoc.report >> IO.sleep(1.second) >>
-          m.run(3) >> agent.adhoc.report >> IO.sleep(1.second) >>
-          m.run(4) >> agent.adhoc.report
+          m.run(0) >> agent.adhoc.report
       }
-    }
+    }.debug()
 
     val cloudwatch = CloudWatchObserver(cloudwatch_client)
 //      .withStorageResolution(10)
