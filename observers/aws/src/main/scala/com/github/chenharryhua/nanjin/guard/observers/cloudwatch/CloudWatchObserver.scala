@@ -194,7 +194,7 @@ final class CloudWatchObserver[F[_]: Sync](
     val (counters, lastUpdates) = counterKeyMap.foldLeft((List.empty[MetricDatum], last)) {
       case ((mds, newLast), (key, count)) =>
         newLast.get(key) match {
-          case Some(old) if count > old =>
+          case Some(old) if count >= old =>
             // counters of timer/meter increase monotonically.
             // however, service may be crushed and restart
             // such that counters are reset to zero.
