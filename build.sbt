@@ -5,7 +5,7 @@ Global / parallelExecution := false
 
 val acyclicV    = "0.3.15"
 val avroV       = "1.12.0"
-val awsV        = "2.29.1"
+val awsV        = "2.29.5"
 val catsCoreV   = "2.12.0"
 val catsEffectV = "3.5.5"
 val chimneyV    = "1.5.0"
@@ -368,7 +368,7 @@ val hadoopLib = List(
   "org.slf4j"          % "jcl-over-slf4j"               % slf4jV,
   "org.eclipse.jetty"  % "jetty-server"                 % "12.0.14", // snyk
   "io.netty"           % "netty-all"                    % nettyV, // snyk
-  "com.nimbusds"       % "nimbus-jose-jwt"              % "9.42", // snyk
+  "com.nimbusds"       % "nimbus-jose-jwt"              % "9.44", // snyk
   "dnsjava"            % "dnsjava"                      % "3.6.2", // snyk
   "org.apache.commons" % "commons-configuration2"       % "2.11.0" // snyk
 ).map(
