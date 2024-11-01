@@ -11,10 +11,8 @@ import com.github.chenharryhua.nanjin.guard.config.CategoryKind.CounterKind
 
 sealed trait NJCounter[F[_]] {
   def inc(num: Long): F[Unit]
-  def dec(num: Long): F[Unit]
 
   final def inc(num: Int): F[Unit] = inc(num.toLong)
-  final def dec(num: Int): F[Unit] = dec(num.toLong)
   final def kleisli[A](f: A => Long): Kleisli[F, A, Unit] =
     Kleisli[F, Long, Unit](inc).local(f)
 
@@ -26,7 +24,6 @@ object NJCounter {
   def dummy[F[_]](implicit F: Applicative[F]): NJCounter[F] =
     new NJCounter[F] {
       override def inc(num: Long): F[Unit] = F.unit
-      override def dec(num: Long): F[Unit] = F.unit
     }
 
   private class Impl[F[_]: Sync](
@@ -49,7 +46,6 @@ object NJCounter {
       }
 
     override def inc(num: Long): F[Unit] = F.delay(counter.inc(num))
-    override def dec(num: Long): F[Unit] = F.delay(counter.dec(num))
 
     val unregister: F[Unit] = F.delay(metricRegistry.remove(counter_name)).void
   }

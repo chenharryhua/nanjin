@@ -28,7 +28,7 @@ object kafka_connector_s3 {
   private def logMetrics(mtx: NJMetrics[IO]): Resource[IO, Kleisli[IO, CCR, Unit]] =
     for {
       countRate <- mtx.meter("count.rate", _.withUnit(_.COUNT).enable(true))
-      byteRate <- mtx.meter("byte.rate", _.withUnit(_.BYTES))
+      byteRate <- mtx.meter("byte.rate", _.withUnit(_.BYTES).enable(true))
       keySize <- mtx.histogram("key.size", _.withUnit(_.BYTES).enable(true))
       valSize <- mtx.histogram("val.size", _.withUnit(_.BITS).enable(true))
     } yield Kleisli { (ccr: CCR) =>
