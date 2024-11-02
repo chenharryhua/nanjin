@@ -42,9 +42,7 @@ class GaugeTest extends AnyFunSuite {
 
   test("3.active gauge") {
     val mr = service.eventStream { agent =>
-      agent
-        .metrics("active")(_.activeGauge("active", _.enable(true)).map(_ => Kleisli((_: Unit) => IO.unit)))
-        .surround(agent.adhoc.report)
+      agent.facilitate("active")(_.activeGauge("active", _.enable(true))).surround(agent.adhoc.report)
     }.map(checkJson).mapFilter(metricReport).compile.lastOrError.unsafeRunSync()
     val active = retrieveGauge[Json](mr.snapshot.gauges)
     assert(active.values.nonEmpty)
