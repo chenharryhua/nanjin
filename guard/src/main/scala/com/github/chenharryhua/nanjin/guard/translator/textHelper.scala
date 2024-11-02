@@ -32,16 +32,13 @@ object textHelper extends localtime with localdatetime {
 
   def eventTitle(evt: NJEvent): String =
     evt match {
-
-      case NJEvent.ServiceMessage(_, _, al, _) => al.productPrefix
-
-      case NJEvent.ServiceStart(_, tick) =>
-        if (tick.index === 0) "Start Service" else "Restart Service"
-      case _: NJEvent.ServiceStop  => "Service Stopped"
-      case _: NJEvent.ServicePanic => "Service Panic"
-
-      case _: NJEvent.MetricReport => "Metric Report"
-      case _: NJEvent.MetricReset  => "Metric Reset"
+      case ss: NJEvent.ServiceStart =>
+        if (ss.tick.index === 0) "Start Service" else "Restart Service"
+      case _: NJEvent.ServiceStop     => "Service Stopped"
+      case _: NJEvent.ServicePanic    => "Service Panic"
+      case sm: NJEvent.ServiceMessage => sm.level.productPrefix
+      case _: NJEvent.MetricReport    => "Metric Report"
+      case _: NJEvent.MetricReset     => "Metric Reset"
     }
 
   private def localTime_duration(start: ZonedDateTime, end: ZonedDateTime): (String, String) = {
@@ -59,5 +56,4 @@ object textHelper extends localtime with localdatetime {
     val (time, dur) = localTime_duration(evt.timestamp, evt.tick.zonedWakeup)
     s"Restart was scheduled at $time, in $dur."
   }
-
 }

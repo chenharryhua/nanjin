@@ -193,19 +193,23 @@ private object SlackTranslator extends all {
       case AlarmLevel.Info  => ""
       case AlarmLevel.Good  => ""
     }
-    SlackApp(
-      username = evt.serviceParams.taskName.value,
-      attachments = List(
-        Attachment(
-          color = coloring(evt),
-          blocks = List(
-            HeaderSection(s"$symbol ${eventTitle(evt)}"),
-            host_service_section(evt.serviceParams),
-            MarkdownSection(s"*$CONSTANT_SERVICE_ID:* ${evt.serviceParams.serviceId.show}"),
-            MarkdownSection(s"```${abbreviate(evt.message)}```")
-          )
-        ))
+
+    val attachment = Attachment(
+      color = coloring(evt),
+      blocks = List(
+        HeaderSection(s"$symbol ${eventTitle(evt)}"),
+        host_service_section(evt.serviceParams),
+        MarkdownSection(s"*$CONSTANT_SERVICE_ID:* ${evt.serviceParams.serviceId.show}"),
+        MarkdownSection(s"```${abbreviate(evt.message)}```")
+      )
     )
+
+    val error = evt.error.map(err =>
+      Attachment(
+        color = coloring(evt),
+        blocks = List(KeyValueSection(CONSTANT_CAUSE, s"```${stack_trace(err)}```"))))
+
+    SlackApp(username = evt.serviceParams.taskName.value, attachments = List(Some(attachment), error).flatten)
   }
 
   def apply[F[_]: Applicative]: Translator[F, SlackApp] =

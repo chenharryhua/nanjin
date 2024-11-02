@@ -85,6 +85,7 @@ object SimpleTextTranslator {
     s"""|${eventTitle(evt)}
         |  ${service_event(evt)}
         |${evt.message.spaces2}
+        |${evt.error.fold("")(error_str)}
         |""".stripMargin
 
   def apply[F[_]: Applicative]: Translator[F, String] =

@@ -35,7 +35,8 @@ object NJEvent {
     serviceParams: ServiceParams,
     timestamp: ZonedDateTime,
     level: AlarmLevel,
-    message: Json)
+    message: Json,
+    error: Option[NJError])
       extends NJEvent
 
   sealed trait MetricEvent extends NJEvent {
