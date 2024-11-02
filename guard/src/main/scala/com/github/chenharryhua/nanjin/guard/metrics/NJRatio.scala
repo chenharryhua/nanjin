@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.metrics
 
 import cats.Applicative
-import cats.data.{Ior, Kleisli}
+import cats.data.Ior
 import cats.effect.kernel.{Async, Ref, Resource}
 import cats.effect.std.Dispatcher
 import cats.syntax.all.*
@@ -14,7 +14,7 @@ import io.circe.syntax.EncoderOps
 
 import scala.util.Try
 
-sealed trait NJRatio[F[_]] {
+sealed trait NJRatio[F[_]] extends KleisliLike[F, Ior[Long, Long]] {
 
   /** @param numerator
     *   The number above the fraction line, representing the part of the whole. For example, in the fraction
@@ -37,15 +37,11 @@ sealed trait NJRatio[F[_]] {
     */
   def incBoth(numerator: Long, denominator: Long): F[Unit]
 
-  def run(ior: Ior[Long, Long]): F[Unit] = ior match {
+  final def run(ior: Ior[Long, Long]): F[Unit] = ior match {
     case Ior.Left(a)    => incNumerator(a)
     case Ior.Right(b)   => incDenominator(b)
     case Ior.Both(a, b) => incBoth(a, b)
   }
-
-  def kleisli[A](f: A => Ior[Long, Long]): Kleisli[F, A, Unit]
-  final def kleisli: Kleisli[F, Ior[Long, Long], Unit] =
-    Kleisli[F, Ior[Long, Long], Unit](run)
 }
 
 object NJRatio {
@@ -54,8 +50,6 @@ object NJRatio {
       override def incNumerator(numerator: Long): F[Unit]               = F.unit
       override def incDenominator(denominator: Long): F[Unit]           = F.unit
       override def incBoth(numerator: Long, denominator: Long): F[Unit] = F.unit
-      override def kleisli[A](f: A => Ior[Long, Long]): Kleisli[F, A, Unit] =
-        Kleisli((_: A) => F.unit)
     }
 
   private class Impl[F[_]](private[this] val ref: Ref[F, Ior[Long, Long]]) extends NJRatio[F] {
@@ -68,8 +62,6 @@ object NJRatio {
     override def incBoth(numerator: Long, denominator: Long): F[Unit] =
       update(Ior.Both(numerator, denominator))
 
-    override def kleisli[A](f: A => Ior[Long, Long]): Kleisli[F, A, Unit] =
-      Kleisli(update).local(f)
   }
 
   val translator: Ior[Long, Long] => Json = {

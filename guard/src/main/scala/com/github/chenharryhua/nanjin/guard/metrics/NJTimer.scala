@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.metrics
 
 import cats.Applicative
-import cats.data.Kleisli
 import cats.effect.implicits.clockOps
 import cats.effect.kernel.{Resource, Sync, Unique}
 import cats.implicits.toFunctorOps
@@ -15,8 +14,8 @@ import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.FiniteDuration
 import scala.jdk.DurationConverters.ScalaDurationOps
 
-sealed trait NJTimer[F[_]] {
-
+sealed trait NJTimer[F[_]] extends KleisliLike[F, Long] {
+  def run(num: Long): F[Unit]
   def update(jd: JavaDuration): F[Unit]
   def update(num: Long): F[Unit]
 
@@ -25,10 +24,6 @@ sealed trait NJTimer[F[_]] {
   final def update(fd: FiniteDuration): F[Unit] =
     update(fd.toJava)
 
-  final def kleisli[A](f: A => Long): Kleisli[F, A, Unit] =
-    Kleisli[F, Long, Unit](update).local(f)
-  final def kleisli: Kleisli[F, Long, Unit] =
-    Kleisli[F, Long, Unit](update)
 }
 
 object NJTimer {
@@ -37,6 +32,7 @@ object NJTimer {
       override def timing[A](fa: F[A]): F[A]         = fa
       override def update(jd: JavaDuration): F[Unit] = F.unit
       override def update(num: Long): F[Unit]        = F.unit
+      override def run(num: Long): F[Unit]           = F.unit
     }
 
   private class Impl[F[_]: Sync](
@@ -66,8 +62,9 @@ object NJTimer {
         result
       }
 
-    override def update(jd: JavaDuration): F[Unit] = F.delay(timer.update(jd))
+    override def run(num: Long): F[Unit]           = F.delay(timer.update(num, TimeUnit.NANOSECONDS))
     override def update(num: Long): F[Unit]        = F.delay(timer.update(num, TimeUnit.NANOSECONDS))
+    override def update(jd: JavaDuration): F[Unit] = F.delay(timer.update(jd))
 
     val unregister: F[Unit] = F.delay(metricRegistry.remove(timer_name)).void
 

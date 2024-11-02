@@ -83,10 +83,10 @@ object NJHealthCheck {
 
     private[guard] def build[F[_]: Async](
       metricName: MetricName,
-      tag: String,
+      tag: MetricTag,
       metricRegistry: MetricRegistry): NJHealthCheck[F] =
       if (isEnabled) {
-        new Impl[F](metricName, metricRegistry, timeout, MetricTag(tag))
+        new Impl[F](metricName, metricRegistry, timeout, tag)
       } else dummy[F]
   }
 }
