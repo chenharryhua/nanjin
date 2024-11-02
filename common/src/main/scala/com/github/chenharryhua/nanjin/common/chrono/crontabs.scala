@@ -20,14 +20,14 @@ object crontabs {
 
   final val monthly: CronExpr = Cron.unsafeParse("0 0 0 1 * ?")
 
-  object weekly {
-    final val sunday: CronExpr    = Cron.unsafeParse("0 0 0 ? * 0")
-    final val monday: CronExpr    = Cron.unsafeParse("0 0 0 ? * 1")
-    final val tuesday: CronExpr   = Cron.unsafeParse("0 0 0 ? * 2")
-    final val wednesday: CronExpr = Cron.unsafeParse("0 0 0 ? * 3")
-    final val thursday: CronExpr  = Cron.unsafeParse("0 0 0 ? * 4")
-    final val friday: CronExpr    = Cron.unsafeParse("0 0 0 ? * 5")
-    final val saturday: CronExpr  = Cron.unsafeParse("0 0 0 ? * 6")
+  object weekly { // notice the difference in https://crontab.guru, sunday is 0 0 * * 0
+    final val monday: CronExpr    = Cron.unsafeParse("0 0 0 ? * 0")
+    final val tuesday: CronExpr   = Cron.unsafeParse("0 0 0 ? * 1")
+    final val wednesday: CronExpr = Cron.unsafeParse("0 0 0 ? * 2")
+    final val thursday: CronExpr  = Cron.unsafeParse("0 0 0 ? * 3")
+    final val friday: CronExpr    = Cron.unsafeParse("0 0 0 ? * 4")
+    final val saturday: CronExpr  = Cron.unsafeParse("0 0 0 ? * 5")
+    final val sunday: CronExpr    = Cron.unsafeParse("0 0 0 ? * 6")
   }
 
   object daily {
