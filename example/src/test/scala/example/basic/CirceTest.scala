@@ -30,7 +30,7 @@ class CirceTest(agent: Agent[IO], base: Url) extends WriteRead(agent) {
     val path = root / "single" / file.fileName
     val sink = circe.sink(path)
     write(path).use { meter =>
-      data.evalTap(_ => meter.update(1)).map(_.asJson).chunks.through(sink).compile.drain.as(path)
+      data.evalTap(_ => meter.run(1)).map(_.asJson).chunks.through(sink).compile.drain.as(path)
     }
   }
 
@@ -38,7 +38,7 @@ class CirceTest(agent: Agent[IO], base: Url) extends WriteRead(agent) {
     val path = root / "rotate" / file.fileName
     val sink = circe.sink(policy, berlinTime)(t => path / file.fileName(t))
     write(path).use { meter =>
-      data.evalTap(_ => meter.update(1)).map(_.asJson).chunks.through(sink).compile.drain.as(path)
+      data.evalTap(_ => meter.run(1)).map(_.asJson).chunks.through(sink).compile.drain.as(path)
     }
   }
 
@@ -48,7 +48,7 @@ class CirceTest(agent: Agent[IO], base: Url) extends WriteRead(agent) {
     write(path).use { meter =>
       table
         .stream[IO](1000)
-        .evalTap(_ => meter.update(1))
+        .evalTap(_ => meter.run(1))
         .map(_.asJson)
         .chunks
         .through(sink)
@@ -70,7 +70,7 @@ class CirceTest(agent: Agent[IO], base: Url) extends WriteRead(agent) {
     write(path).use { meter =>
       table
         .stream[IO](1000)
-        .evalTap(_ => meter.update(1))
+        .evalTap(_ => meter.run(1))
         .map(_.asJson)
         .chunks
         .through(sink)
@@ -88,7 +88,7 @@ class CirceTest(agent: Agent[IO], base: Url) extends WriteRead(agent) {
       hadoop
         .filesIn(path)
         .flatMap(_.traverse(
-          circe.source(_, 100.bytes).map(_.as[Tiger]).evalTap(_ => meter.update(1)).compile.fold(0L) {
+          circe.source(_, 100.bytes).map(_.as[Tiger]).evalTap(_ => meter.run(1)).compile.fold(0L) {
             case (s, _) => s + 1
           }))
         .map(_.sum)
@@ -99,7 +99,7 @@ class CirceTest(agent: Agent[IO], base: Url) extends WriteRead(agent) {
       circe
         .source(path, 100.bytes)
         .mapChunks(_.map(_.as[Tiger]))
-        .evalTap(_ => meter.update(1))
+        .evalTap(_ => meter.run(1))
         .compile
         .fold(0L) { case (s, _) =>
           s + 1

@@ -160,12 +160,18 @@ final class ServiceConfig[F[_]: Applicative] private (
 
   def withRestartPolicy(restart: Policy): ServiceConfig[F] =
     copy(cont = Fix(WithRestartPolicy(restart, cont)))
+  def withRestartPolicy(f: Policy.type => Policy): ServiceConfig[F] =
+    withRestartPolicy(f(Policy))
 
   def withMetricReport(report: Policy): ServiceConfig[F] =
     copy(cont = Fix(WithMetricReportPolicy(report, cont)))
+  def withMetricReport(f: Policy.type => Policy): ServiceConfig[F] =
+    withMetricReport(f(Policy))
 
   def withMetricReset(reset: Policy): ServiceConfig[F] =
     copy(cont = Fix(WithMetricResetPolicy(reset, cont)))
+  def withMetricReset(f: Policy.type => Policy): ServiceConfig[F] =
+    withMetricReset(f(Policy))
 
   def withMetricDailyReset: ServiceConfig[F] =
     withMetricReset(Policy.crontab(_.daily.midnight))

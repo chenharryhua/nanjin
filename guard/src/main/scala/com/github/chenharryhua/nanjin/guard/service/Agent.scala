@@ -22,16 +22,22 @@ sealed trait Agent[F[_]] {
 
   // tick stream
   def ticks(policy: Policy): Stream[F, Tick]
+  final def ticks(f: Policy.type => Policy): Stream[F, Tick] =
+    ticks(f(Policy))
 
-  // metrics
+  // metrics adhoc report
   def adhoc: NJMetricsReport[F]
 
   def herald: NJHerald[F]
 
   def metrics[A, B](name: String)(
-    g: NJMetrics[F] => Resource[F, Kleisli[F, A, B]]): Resource[F, Kleisli[F, A, B]]
+    f: NJMetrics[F] => Resource[F, Kleisli[F, A, B]]): Resource[F, Kleisli[F, A, B]]
+
+  def facilitate[A](name: String)(g: NJMetrics[F] => A): A
 
   def createRetry(policy: Policy): Resource[F, NJRetry[F]]
+  final def createRetry(f: Policy.type => Policy): Resource[F, NJRetry[F]] =
+    createRetry(f(Policy))
 }
 
 final private class GeneralAgent[F[_]: Async] private[service] (
@@ -61,6 +67,11 @@ final private class GeneralAgent[F[_]: Async] private[service] (
 
   override def metrics[A, B](name: String)(
     f: NJMetrics[F] => Resource[F, Kleisli[F, A, B]]): Resource[F, Kleisli[F, A, B]] = {
+    val metricName = MetricName(serviceParams, measurement, name)
+    f(new NJMetrics.Impl[F](metricName, metricRegistry, isEnabled = true))
+  }
+
+  override def facilitate[A](name: String)(f: NJMetrics[F] => A): A = {
     val metricName = MetricName(serviceParams, measurement, name)
     f(new NJMetrics.Impl[F](metricName, metricRegistry, isEnabled = true))
   }

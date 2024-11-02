@@ -11,6 +11,15 @@ import com.github.chenharryhua.nanjin.guard.event.NJUnits
 
 import scala.concurrent.duration.DurationInt
 
+trait KleisliLike[F[_], A] {
+  def run(a: A): F[Unit]
+
+  final def kleisli[B](f: B => A): Kleisli[F, B, Unit] =
+    Kleisli(run).local(f)
+  final def kleisli: Kleisli[F, A, Unit] =
+    Kleisli(run)
+}
+
 sealed trait NJMetrics[F[_]] {
   def metricName: MetricName
 
@@ -39,11 +48,10 @@ sealed trait NJMetrics[F[_]] {
 
   def idleGauge(tag: String, f: Endo[NJGauge.Builder]): Resource[F, Kleisli[F, Unit, Unit]]
   final def idleGauge(tag: String): Resource[F, Kleisli[F, Unit, Unit]] =
-    idleGauge(tag, identity)
+    idleGauge(tag, identity[NJGauge.Builder])
 
   def activeGauge(tag: String, f: Endo[NJGauge.Builder]): Resource[F, Unit]
   final def activeGauge(tag: String): Resource[F, Unit] = activeGauge(tag, identity)
-
 }
 
 object NJMetrics {
@@ -75,7 +83,7 @@ object NJMetrics {
 
     override def healthCheck(tag: String, f: Endo[NJHealthCheck.Builder]): NJHealthCheck[F] = {
       val init = new NJHealthCheck.Builder(isEnabled, timeout = 5.seconds)
-      f(init).build[F](metricName, tag, metricRegistry)
+      f(init).build[F](metricName, MetricTag(tag), metricRegistry)
     }
 
     override def ratio(tag: String, f: Endo[NJRatio.Builder]): Resource[F, NJRatio[F]] = {
@@ -84,7 +92,7 @@ object NJMetrics {
     }
 
     override def gauge(tag: String, f: Endo[NJGauge.Builder]): NJGauge[F] = {
-      val init = new NJGauge.Builder(isEnabled, 5.seconds)
+      val init = new NJGauge.Builder(isEnabled, timeout = 5.seconds)
       f(init).build[F](metricName, MetricTag(tag), metricRegistry)
     }
 

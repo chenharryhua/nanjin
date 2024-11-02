@@ -34,7 +34,7 @@ class ServiceTest extends AnyFunSuite {
   test("4.force reset") {
     val s :: b :: c :: _ = guard
       .service("reset")
-      .updateConfig(_.withMetricReport(Policy.crontab(_.secondly)))
+      .updateConfig(_.withMetricReport(_.crontab(_.secondly)))
       .eventStream(ag => ag.adhoc.reset >> ag.adhoc.reset)
       .map(checkJson)
       .compile

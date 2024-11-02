@@ -19,18 +19,19 @@ class ConsoleLogTest extends AnyFunSuite {
       .service("observing")
       .updateConfig(_.addBrief(Json.fromString("brief")))
       .eventStream { agent =>
-        val mtx = agent.metrics("job") { ag =>
+        val mtx = agent.metrics("job") { mtx =>
           for {
-            _ <- ag.gauge("job").register(IO(1000000000))
-            _ <- ag.healthCheck("job").register(IO(true))
-            _ <- ag.timer("job").evalMap(_.update(10.second).replicateA(100))
-            _ <- ag.meter("job", _.withUnit(_.COUNT)).evalMap(_.update(10000).replicateA(100))
-            _ <- ag.counter("job", _.asRisk).evalMap(_.inc(1000))
-            _ <- ag.histogram("job", _.withUnit(_.BYTES)).evalMap(_.update(10000L).replicateA(100))
-            _ <- ag
+            retry <- agent.createRetry(_.fixedDelay(1.second))
+            _ <- mtx.gauge("job").register(IO(1000000000))
+            _ <- mtx.healthCheck("job").register(IO(true))
+            _ <- mtx.timer("job").evalMap(_.update(10.second).replicateA(100))
+            _ <- mtx.meter("job", _.withUnit(_.COUNT)).evalMap(_.update(10000).replicateA(100))
+            _ <- mtx.counter("job", _.asRisk).evalMap(_.inc(1000))
+            _ <- mtx.histogram("job", _.withUnit(_.BYTES)).evalMap(_.update(10000L).replicateA(100))
+            _ <- mtx
               .ratio("job")
               .evalMap(f => f.incDenominator(500) >> f.incNumerator(60) >> f.incBoth(299, 500))
-          } yield Kleisli((_: Int) => IO.unit)
+          } yield Kleisli((_: Int) => retry(IO.unit))
         }
 
         mtx.use(_.run(1) >> agent.adhoc.report)

@@ -52,9 +52,7 @@ class MetricsTest extends AnyFunSuite {
 
   test("3.counter disable") {
     val mr = service.eventStream { agent =>
-      agent
-        .metrics("counter")(_.counter("counter", _.enable(false)).map(_.kleisli[Long](identity)))
-        .use(_.run(10) >> agent.adhoc.report)
+      agent.facilitate("counter")(_.counter("counter", _.enable(false))).use(_.run(10) >> agent.adhoc.report)
     }.map(checkJson).mapFilter(metricReport).compile.lastOrError.unsafeRunSync()
     assert(retrieveCounter(mr.snapshot.counters).values.isEmpty)
     assert(retrieveRiskCounter(mr.snapshot.counters).values.isEmpty)

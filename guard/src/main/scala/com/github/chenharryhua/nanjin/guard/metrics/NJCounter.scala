@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.metrics
 
 import cats.Applicative
-import cats.data.Kleisli
 import cats.effect.kernel.{Resource, Sync, Unique}
 import cats.implicits.toFunctorOps
 import com.codahale.metrics.{Counter, MetricRegistry}
@@ -9,24 +8,18 @@ import com.github.chenharryhua.nanjin.common.EnableConfig
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.config.CategoryKind.CounterKind
 
-sealed trait NJCounter[F[_]] {
+sealed trait NJCounter[F[_]] extends KleisliLike[F, Long] {
+  def run(a: Long): F[Unit]
   def inc(num: Long): F[Unit]
-  def dec(num: Long): F[Unit]
 
-  final def inc(num: Int): F[Unit] = inc(num.toLong)
-  final def dec(num: Int): F[Unit] = dec(num.toLong)
-  final def kleisli[A](f: A => Long): Kleisli[F, A, Unit] =
-    Kleisli[F, Long, Unit](inc).local(f)
-
-  final def kleisli: Kleisli[F, Long, Unit] =
-    Kleisli[F, Long, Unit](inc)
+  final def inc(num: Int): F[Unit] = run(num.toLong)
 }
 
 object NJCounter {
   def dummy[F[_]](implicit F: Applicative[F]): NJCounter[F] =
     new NJCounter[F] {
       override def inc(num: Long): F[Unit] = F.unit
-      override def dec(num: Long): F[Unit] = F.unit
+      override def run(a: Long): F[Unit]   = F.unit
     }
 
   private class Impl[F[_]: Sync](
@@ -48,10 +41,11 @@ object NJCounter {
         (id, metricRegistry.counter(id))
       }
 
+    override def run(num: Long): F[Unit] = F.delay(counter.inc(num))
     override def inc(num: Long): F[Unit] = F.delay(counter.inc(num))
-    override def dec(num: Long): F[Unit] = F.delay(counter.dec(num))
 
     val unregister: F[Unit] = F.delay(metricRegistry.remove(counter_name)).void
+
   }
 
   final class Builder private[guard] (isEnabled: Boolean, isRisk: Boolean) extends EnableConfig[Builder] {

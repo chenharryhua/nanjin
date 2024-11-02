@@ -33,7 +33,7 @@ class KantanTest(agent: Agent[IO], base: Url, rfc: CsvConfiguration) extends Wri
     val path = root / "single" / file.fileName
     val sink = kantan.sink(path)
     write(path).use { meter =>
-      data.evalTap(_ => meter.update(1)).map(rowEncoder.encode).chunks.through(sink).compile.drain.as(path)
+      data.evalTap(_ => meter.run(1)).map(rowEncoder.encode).chunks.through(sink).compile.drain.as(path)
     }
   }
 
@@ -41,7 +41,7 @@ class KantanTest(agent: Agent[IO], base: Url, rfc: CsvConfiguration) extends Wri
     val path = root / "rotate" / file.fileName
     val sink = kantan.sink(policy, darwinTime)(t => path / file.fileName(t))
     write(path).use { meter =>
-      data.evalTap(_ => meter.update(1)).map(rowEncoder.encode).chunks.through(sink).compile.drain.as(path)
+      data.evalTap(_ => meter.run(1)).map(rowEncoder.encode).chunks.through(sink).compile.drain.as(path)
     }
   }
 
@@ -51,7 +51,7 @@ class KantanTest(agent: Agent[IO], base: Url, rfc: CsvConfiguration) extends Wri
     write(path).use { meter =>
       table
         .stream[IO](1000)
-        .evalTap(_ => meter.update(1))
+        .evalTap(_ => meter.run(1))
         .map(rowEncoder.encode)
         .chunks
         .through(sink)
@@ -73,7 +73,7 @@ class KantanTest(agent: Agent[IO], base: Url, rfc: CsvConfiguration) extends Wri
     write(path).use { meter =>
       table
         .stream[IO](1000)
-        .evalTap(_ => meter.update(1))
+        .evalTap(_ => meter.run(1))
         .map(rowEncoder.encode)
         .chunks
         .through(sink)
@@ -96,7 +96,7 @@ class KantanTest(agent: Agent[IO], base: Url, rfc: CsvConfiguration) extends Wri
               .source(_, 1000)
               .map(rowDecoder.decode)
               .rethrow
-              .evalTap(_ => meter.update(1))
+              .evalTap(_ => meter.run(1))
               .compile
               .fold(0L) { case (s, _) =>
                 s + 1
@@ -110,7 +110,7 @@ class KantanTest(agent: Agent[IO], base: Url, rfc: CsvConfiguration) extends Wri
         .source(path, 1000)
         .mapChunks(_.map(rowDecoder.decode))
         .rethrow
-        .evalTap(_ => meter.update(1))
+        .evalTap(_ => meter.run(1))
         .compile
         .fold(0L) { case (s, _) =>
           s + 1
