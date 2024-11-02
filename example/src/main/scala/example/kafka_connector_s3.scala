@@ -3,6 +3,7 @@ package example
 import cats.data.Kleisli
 import cats.effect.IO
 import cats.effect.kernel.Resource
+import cats.implicits.{catsSyntaxApplicativeByName, catsSyntaxSemigroup, toTraverseOps}
 import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.guard.metrics.NJMetrics
 import com.github.chenharryhua.nanjin.guard.observers.console
@@ -28,13 +29,21 @@ object kafka_connector_s3 {
   private def logMetrics(mtx: NJMetrics[IO]): Resource[IO, Kleisli[IO, CCR, Unit]] =
     for {
       countRate <- mtx.meter("count.rate", _.withUnit(_.COUNT).enable(true))
-      byteRate <- mtx.meter("byte.rate", _.withUnit(_.BYTES).enable(true))
+      byteRate <- mtx.meter("bytes.rate", _.withUnit(_.BYTES).enable(true))
       keySize <- mtx.histogram("key.size", _.withUnit(_.BYTES).enable(true))
-      valSize <- mtx.histogram("val.size", _.withUnit(_.BITS).enable(true))
+      valSize <- mtx.histogram("val.size", _.withUnit(_.BYTES).enable(true))
+      goodNum <- mtx.counter("good.records", _.enable(true))
+      badNum <- mtx.counter("bad.records", _.asRisk.enable(true))
+      idle <- mtx.idleGauge("idle", _.enable(true))
     } yield Kleisli { (ccr: CCR) =>
-      val ks: Long = ccr.record.serializedKeySize.map(_.toLong).getOrElse(0L)
-      val vs: Long = ccr.record.serializedValueSize.map(_.toLong).getOrElse(0L)
-      keySize.update(ks) *> valSize.update(vs) *> byteRate.update(ks + vs) *> countRate.update(1)
+      val ks: Option[Long] = ccr.record.serializedKeySize.map(_.toLong)
+      val vs: Option[Long] = ccr.record.serializedValueSize.map(_.toLong)
+
+      idle.run(()) *>
+        ks.traverse(keySize.run) *> vs.traverse(valSize.run) *>
+        (ks |+| vs).traverse(byteRate.run) *> countRate.run(1) *>
+        goodNum.run(1).whenA(ccr.record.value.isSuccess) *>
+        badNum.run(1).whenA(ccr.record.value.isFailure)
     }
 
   private val root: Url              = Url.parse("s3a://bucket_name") / "folder_name"

@@ -27,7 +27,7 @@ class ParquetTest(agent: Agent[IO], base: Url) extends WriteRead(agent) {
     val path = root / "single" / file.fileName
     val sink = parquet.updateWriter(_.withCompressionCodec(file.compression.codecName)).sink(path)
     write(path).use { meter =>
-      data.evalTap(_ => meter.update(1)).map(encoder.to).chunks.through(sink).compile.drain.as(path)
+      data.evalTap(_ => meter.run(1)).map(encoder.to).chunks.through(sink).compile.drain.as(path)
     }
   }
 
@@ -37,7 +37,7 @@ class ParquetTest(agent: Agent[IO], base: Url) extends WriteRead(agent) {
       .updateWriter(_.withCompressionCodec(file.compression.codecName))
       .sink(policy, beijingTime)(t => path / file.fileName(t))
     write(path).use { meter =>
-      data.evalTap(_ => meter.update(1)).map(encoder.to).chunks.through(sink).compile.drain.as(path)
+      data.evalTap(_ => meter.run(1)).map(encoder.to).chunks.through(sink).compile.drain.as(path)
     }
   }
 
@@ -47,7 +47,7 @@ class ParquetTest(agent: Agent[IO], base: Url) extends WriteRead(agent) {
     write(path).use { meter =>
       table
         .stream[IO](1000)
-        .evalTap(_ => meter.update(1))
+        .evalTap(_ => meter.run(1))
         .map(encoder.to)
         .chunks
         .through(sink)
@@ -71,7 +71,7 @@ class ParquetTest(agent: Agent[IO], base: Url) extends WriteRead(agent) {
     write(path).use { meter =>
       table
         .stream[IO](1000)
-        .evalTap(_ => meter.update(1))
+        .evalTap(_ => meter.run(1))
         .map(encoder.to)
         .chunks
         .through(sink)
@@ -89,7 +89,7 @@ class ParquetTest(agent: Agent[IO], base: Url) extends WriteRead(agent) {
       hadoop
         .filesIn(path)
         .flatMap(
-          _.traverse(parquet.source(_, 100).map(decoder.from).evalTap(_ => meter.update(1)).compile.fold(0L) {
+          _.traverse(parquet.source(_, 100).map(decoder.from).evalTap(_ => meter.run(1)).compile.fold(0L) {
             case (s, _) => s + 1
           }))
         .map(_.sum)
@@ -97,7 +97,7 @@ class ParquetTest(agent: Agent[IO], base: Url) extends WriteRead(agent) {
 
   private def singleRead(path: Url): IO[Long] =
     read(path).use { meter =>
-      parquet.source(path, 100).map(decoder.from).evalTap(_ => meter.update(1)).compile.fold(0L) {
+      parquet.source(path, 100).map(decoder.from).evalTap(_ => meter.run(1)).compile.fold(0L) {
         case (s, _) =>
           s + 1
       }
