@@ -3,7 +3,7 @@ import cats.data.{Ior, Kleisli}
 import cats.effect.kernel.{Async, Resource}
 import cats.syntax.all.*
 import com.codahale.metrics.SlidingWindowReservoir
-import com.github.chenharryhua.nanjin.guard.metrics.NJMetrics
+import com.github.chenharryhua.nanjin.guard.metrics.Metrics
 import io.circe.Json
 
 import java.time.Duration
@@ -11,7 +11,7 @@ import scala.concurrent.duration.FiniteDuration
 import scala.jdk.DurationConverters.ScalaDurationOps
 
 object BatchRunner {
-  sealed abstract class Runner[F[_]: Async, A](metrics: NJMetrics[F]) {
+  sealed abstract class Runner[F[_]: Async, A](metrics: Metrics[F]) {
     protected val F: Async[F] = Async[F]
 
     private val translator: Ior[Long, Long] => Json = {
@@ -45,7 +45,7 @@ object BatchRunner {
   }
 
   final class Parallel[F[_]: Async, A] private[action] (
-    metrics: NJMetrics[F],
+    metrics: Metrics[F],
     parallelism: Int,
     jobs: List[(Option[BatchJobName], F[A])])
       extends Runner[F, A](metrics) {
@@ -89,7 +89,7 @@ object BatchRunner {
   }
 
   final class Sequential[F[_]: Async, A] private[action] (
-    metrics: NJMetrics[F],
+    metrics: Metrics[F],
     jobs: List[(Option[BatchJobName], F[A])])
       extends Runner[F, A](metrics) {
 
@@ -133,7 +133,7 @@ object BatchRunner {
   }
 }
 
-final class NJBatch[F[_]: Async] private[guard] (metrics: NJMetrics[F]) {
+final class NJBatch[F[_]: Async] private[guard] (metrics: Metrics[F]) {
   def sequential[A](fas: F[A]*): BatchRunner.Sequential[F, A] = {
     val jobs: List[(Option[BatchJobName], F[A])] = fas.toList.map(none -> _)
     new BatchRunner.Sequential[F, A](metrics, jobs)

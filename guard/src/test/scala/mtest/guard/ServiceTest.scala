@@ -60,7 +60,7 @@ class ServiceTest extends AnyFunSuite {
     val List(a, b, c, d, e, f, g, h) = guard
       .service("start over")
       .updateConfig(_.withRestartPolicy(policy))
-      .eventStream(_ => IO.raiseError[Int](new Exception("oops")))
+      .eventStream(_ => IO.raiseError[Int](new Exception("oops")).void)
       .map(checkJson)
       .evalMapFilter[IO, Tick] {
         case sp: ServicePanic => IO(Some(sp.tick))
@@ -110,7 +110,7 @@ class ServiceTest extends AnyFunSuite {
             .updateConfig(_.withRestartPolicy(policy))
             .updateConfig(_.withRestartThreshold(2.seconds))
             .eventStream { _ =>
-              box.getAndUpdate(_ + 1.second).flatMap(IO.sleep) >>
+              box.getAndUpdate(_ + 1.second).flatMap(IO.sleep) <*
                 IO.raiseError[Int](new Exception("oops"))
             }
             .map(checkJson)

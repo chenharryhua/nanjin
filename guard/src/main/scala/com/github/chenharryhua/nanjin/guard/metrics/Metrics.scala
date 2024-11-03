@@ -16,11 +16,11 @@ trait KleisliLike[F[_], A] {
 
   final def kleisli[B](f: B => A): Kleisli[F, B, Unit] =
     Kleisli(run).local(f)
-  final def kleisli: Kleisli[F, A, Unit] =
-    Kleisli(run)
+
+  final val kleisli: Kleisli[F, A, Unit] = Kleisli(run)
 }
 
-sealed trait NJMetrics[F[_]] {
+sealed trait Metrics[F[_]] {
   def metricName: MetricName
 
   def counter(tag: String, f: Endo[NJCounter.Builder]): Resource[F, NJCounter[F]]
@@ -54,12 +54,12 @@ sealed trait NJMetrics[F[_]] {
   final def activeGauge(tag: String): Resource[F, Unit] = activeGauge(tag, identity)
 }
 
-object NJMetrics {
+object Metrics {
   private[guard] class Impl[F[_]](
     val metricName: MetricName,
     metricRegistry: MetricRegistry,
     isEnabled: Boolean)(implicit F: Async[F])
-      extends NJMetrics[F] {
+      extends Metrics[F] {
 
     override def counter(tag: String, f: Endo[NJCounter.Builder]): Resource[F, NJCounter[F]] = {
       val init = new NJCounter.Builder(isEnabled, false)

@@ -5,7 +5,7 @@ import cats.effect.IO
 import cats.effect.kernel.Resource
 import cats.implicits.{catsSyntaxApplicativeByName, catsSyntaxSemigroup, toTraverseOps}
 import com.github.chenharryhua.nanjin.common.chrono.Policy
-import com.github.chenharryhua.nanjin.guard.metrics.NJMetrics
+import com.github.chenharryhua.nanjin.guard.metrics.Metrics
 import com.github.chenharryhua.nanjin.guard.observers.console
 import com.github.chenharryhua.nanjin.kafka.{KafkaContext, KafkaSettings}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.gr2Jackson
@@ -26,7 +26,7 @@ object kafka_connector_s3 {
 
   private type CCR = CommittableConsumerRecord[IO, Unit, Try[GenericData.Record]]
 
-  private def logMetrics(mtx: NJMetrics[IO]): Resource[IO, Kleisli[IO, CCR, Unit]] =
+  private def logMetrics(mtx: Metrics[IO]): Resource[IO, Kleisli[IO, CCR, Unit]] =
     for {
       countRate <- mtx.meter("count.rate", _.withUnit(_.COUNT).enable(true))
       byteRate <- mtx.meter("bytes.rate", _.withUnit(_.BYTES).enable(true))

@@ -7,7 +7,7 @@ import com.github.chenharryhua.nanjin.common.chrono.*
 import com.github.chenharryhua.nanjin.guard.action.*
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.event.*
-import com.github.chenharryhua.nanjin.guard.metrics.NJMetrics
+import com.github.chenharryhua.nanjin.guard.metrics.Metrics
 import fs2.Stream
 import fs2.concurrent.Channel
 
@@ -31,9 +31,9 @@ sealed trait Agent[F[_]] {
   def herald: NJHerald[F]
 
   def metrics[A, B](name: String)(
-    f: NJMetrics[F] => Resource[F, Kleisli[F, A, B]]): Resource[F, Kleisli[F, A, B]]
+    f: Metrics[F] => Resource[F, Kleisli[F, A, B]]): Resource[F, Kleisli[F, A, B]]
 
-  def facilitate[A](name: String)(g: NJMetrics[F] => A): A
+  def facilitate[A](name: String)(g: Metrics[F] => A): A
 
   def createRetry(policy: Policy): Resource[F, NJRetry[F]]
   final def createRetry(f: Policy.type => Policy): Resource[F, NJRetry[F]] =
@@ -54,7 +54,7 @@ final private class GeneralAgent[F[_]: Async] private[service] (
 
   override def batch(name: String): NJBatch[F] = {
     val metricName = MetricName(serviceParams, measurement, name)
-    new NJBatch[F](new NJMetrics.Impl[F](metricName, metricRegistry, isEnabled = true))
+    new NJBatch[F](new Metrics.Impl[F](metricName, metricRegistry, isEnabled = true))
   }
 
   override def ticks(policy: Policy): Stream[F, Tick] =
@@ -66,14 +66,14 @@ final private class GeneralAgent[F[_]: Async] private[service] (
     Resource.pure(new NJRetry.Impl[F](serviceParams.initialStatus.renewPolicy(policy)))
 
   override def metrics[A, B](name: String)(
-    f: NJMetrics[F] => Resource[F, Kleisli[F, A, B]]): Resource[F, Kleisli[F, A, B]] = {
+    f: Metrics[F] => Resource[F, Kleisli[F, A, B]]): Resource[F, Kleisli[F, A, B]] = {
     val metricName = MetricName(serviceParams, measurement, name)
-    f(new NJMetrics.Impl[F](metricName, metricRegistry, isEnabled = true))
+    f(new Metrics.Impl[F](metricName, metricRegistry, isEnabled = true))
   }
 
-  override def facilitate[A](name: String)(f: NJMetrics[F] => A): A = {
+  override def facilitate[A](name: String)(f: Metrics[F] => A): A = {
     val metricName = MetricName(serviceParams, measurement, name)
-    f(new NJMetrics.Impl[F](metricName, metricRegistry, isEnabled = true))
+    f(new Metrics.Impl[F](metricName, metricRegistry, isEnabled = true))
   }
 
   override val herald: NJHerald[F] =
