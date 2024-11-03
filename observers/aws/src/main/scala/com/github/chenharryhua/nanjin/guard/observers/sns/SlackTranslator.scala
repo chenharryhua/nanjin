@@ -49,11 +49,17 @@ private object SlackTranslator extends all {
       second = TextField(CONSTANT_INDEX, metricIndexText(evt.index)))
 
   private def metrics_section(snapshot: MetricSnapshot): KeyValueSection = {
-    val yaml = new SnapshotPolyglot(snapshot).counterYaml match {
-      case Some(value) => s"""```${abbreviate(value)}```"""
-      case None        => "`No updates`"
-    }
-    KeyValueSection(CONSTANT_METRICS, yaml)
+    val polyglot: SnapshotPolyglot = new SnapshotPolyglot(snapshot)
+    val yaml: String               = polyglot.toYaml
+    val msg: String =
+      if (yaml.length < MessageSizeLimits.toBytes.toInt) yaml
+      else {
+        polyglot.counterYaml match {
+          case Some(value) => abbreviate(value)
+          case None        => abbreviate(yaml)
+        }
+      }
+    KeyValueSection(CONSTANT_METRICS, s"""```$msg```""")
   }
 
   private def brief(json: Json): KeyValueSection =
