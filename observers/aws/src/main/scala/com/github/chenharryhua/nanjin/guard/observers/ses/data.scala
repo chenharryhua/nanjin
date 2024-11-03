@@ -13,7 +13,8 @@ final private case class Letter(
   errors: Int,
   notice: Text.TypedTag[String],
   content: List[Text.TypedTag[String]]) {
-  private val emailHeader: Text.TypedTag[String] = head(tag("style")("""
+  private val emailHeader: Text.TypedTag[String] =
+    head(tag("style")("""
         td, th {text-align: left; padding: 2px; border: 1px solid;}
         table {
           border-collapse: collapse;

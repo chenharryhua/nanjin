@@ -201,8 +201,10 @@ private object SlackTranslator extends all {
       case AlarmLevel.Good  => ""
     }
 
+    val color = coloring(evt)
+
     val attachment = Attachment(
-      color = coloring(evt),
+      color = color,
       blocks = List(
         HeaderSection(s"$symbol ${eventTitle(evt)}"),
         host_service_section(evt.serviceParams),
@@ -212,9 +214,7 @@ private object SlackTranslator extends all {
     )
 
     val error = evt.error.map(err =>
-      Attachment(
-        color = coloring(evt),
-        blocks = List(KeyValueSection(CONSTANT_CAUSE, s"```${stack_trace(err)}```"))))
+      Attachment(color = color, blocks = List(KeyValueSection(CONSTANT_CAUSE, s"```${stack_trace(err)}```"))))
 
     SlackApp(username = evt.serviceParams.taskName.value, attachments = List(Some(attachment), error).flatten)
   }
