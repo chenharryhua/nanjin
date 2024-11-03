@@ -3,6 +3,7 @@ package mtest.guard
 import cats.data.Kleisli
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
+import cats.implicits.toFunctorFilterOps
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import com.github.chenharryhua.nanjin.guard.observers.*
@@ -38,7 +39,14 @@ class ConsoleLogTest extends AnyFunSuite {
       }
 
   test("1.console - verbose json") {
-    service.evalTap(console.verbose[IO]).map(checkJson).compile.drain.unsafeRunSync()
+    val mr = service
+      .evalTap(console.verbose[IO])
+      .map(checkJson)
+      .mapFilter(metricReport)
+      .compile
+      .lastOrError
+      .unsafeRunSync()
+    assert(!mr.snapshot.hasDuplication)
   }
 
   test("2.console - pretty json") {

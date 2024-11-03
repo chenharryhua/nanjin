@@ -85,6 +85,18 @@ final case class MetricSnapshot(
     counters.isEmpty && meters.isEmpty && timers.isEmpty && histograms.isEmpty && gauges.isEmpty
 
   def nonEmpty: Boolean = !isEmpty
+
+  private def metricIDs: List[MetricID] =
+    counters.map(_.metricId) :::
+      timers.map(_.metricId) :::
+      gauges.map(_.metricId) :::
+      meters.map(_.metricId) :::
+      histograms.map(_.metricId)
+
+  def hasDuplication: Boolean = {
+    val stable = metricIDs.map(id => (id.metricName, id.metricTag, id.category))
+    stable.distinct.size != stable.size
+  }
 }
 
 object MetricSnapshot extends duration {
