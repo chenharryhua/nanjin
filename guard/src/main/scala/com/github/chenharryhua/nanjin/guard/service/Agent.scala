@@ -26,7 +26,7 @@ sealed trait Agent[F[_]] {
     ticks(f(Policy))
 
   // metrics adhoc report
-  def adhoc: NJMetricsReport[F]
+  def adhoc: MetricsReport[F]
 
   def herald: Herald[F]
 
@@ -60,7 +60,7 @@ final private class GeneralAgent[F[_]: Async] private[service] (
   override def ticks(policy: Policy): Stream[F, Tick] =
     tickStream[F](TickStatus(serviceParams.zerothTick).renewPolicy(policy))
 
-  override object adhoc extends NJMetricsReport[F](channel, serviceParams, metricRegistry)
+  override object adhoc extends MetricsReport[F](channel, serviceParams, metricRegistry)
 
   override def createRetry(policy: Policy): Resource[F, Retry[F]] =
     Resource.pure(new Retry.Impl[F](serviceParams.initialStatus.renewPolicy(policy)))
