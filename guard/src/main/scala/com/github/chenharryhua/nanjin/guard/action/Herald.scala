@@ -12,7 +12,7 @@ import io.circe.Encoder
 
 import java.time.format.DateTimeFormatter
 
-sealed trait NJHerald[F[_]] {
+sealed trait Herald[F[_]] {
   def error[S: Encoder](msg: S): F[Unit]
   def error[S: Encoder](ex: Throwable)(msg: S): F[Unit]
 
@@ -32,13 +32,13 @@ sealed trait NJHerald[F[_]] {
   def consoleGood[S: Encoder](msg: S)(implicit cns: Console[F]): F[Unit]
 }
 
-object NJHerald {
+object Herald {
 
   private[guard] class Impl[F[_]](
     serviceParams: ServiceParams,
     channel: Channel[F, NJEvent]
   )(implicit F: Sync[F])
-      extends NJHerald[F] {
+      extends Herald[F] {
 
     private def toServiceMessage[S: Encoder](
       msg: S,

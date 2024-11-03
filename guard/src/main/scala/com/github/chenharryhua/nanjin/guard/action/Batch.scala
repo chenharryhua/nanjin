@@ -133,7 +133,7 @@ object BatchRunner {
   }
 }
 
-final class NJBatch[F[_]: Async] private[guard] (metrics: Metrics[F]) {
+final class Batch[F[_]: Async] private[guard] (metrics: Metrics[F]) {
   def sequential[A](fas: F[A]*): BatchRunner.Sequential[F, A] = {
     val jobs: List[(Option[BatchJobName], F[A])] = fas.toList.map(none -> _)
     new BatchRunner.Sequential[F, A](metrics, jobs)

@@ -18,7 +18,7 @@ sealed trait Agent[F[_]] {
 
   def withMeasurement(name: String): Agent[F]
 
-  def batch(name: String): NJBatch[F]
+  def batch(name: String): Batch[F]
 
   // tick stream
   def ticks(policy: Policy): Stream[F, Tick]
@@ -28,15 +28,15 @@ sealed trait Agent[F[_]] {
   // metrics adhoc report
   def adhoc: NJMetricsReport[F]
 
-  def herald: NJHerald[F]
+  def herald: Herald[F]
 
   def metrics[A, B](name: String)(
     f: Metrics[F] => Resource[F, Kleisli[F, A, B]]): Resource[F, Kleisli[F, A, B]]
 
   def facilitate[A](name: String)(g: Metrics[F] => A): A
 
-  def createRetry(policy: Policy): Resource[F, NJRetry[F]]
-  final def createRetry(f: Policy.type => Policy): Resource[F, NJRetry[F]] =
+  def createRetry(policy: Policy): Resource[F, Retry[F]]
+  final def createRetry(f: Policy.type => Policy): Resource[F, Retry[F]] =
     createRetry(f(Policy))
 }
 
@@ -52,9 +52,9 @@ final private class GeneralAgent[F[_]: Async] private[service] (
   override def withMeasurement(name: String): Agent[F] =
     new GeneralAgent[F](serviceParams, metricRegistry, channel, Measurement(name))
 
-  override def batch(name: String): NJBatch[F] = {
+  override def batch(name: String): Batch[F] = {
     val metricName = MetricName(serviceParams, measurement, name)
-    new NJBatch[F](new Metrics.Impl[F](metricName, metricRegistry, isEnabled = true))
+    new Batch[F](new Metrics.Impl[F](metricName, metricRegistry, isEnabled = true))
   }
 
   override def ticks(policy: Policy): Stream[F, Tick] =
@@ -62,8 +62,8 @@ final private class GeneralAgent[F[_]: Async] private[service] (
 
   override object adhoc extends NJMetricsReport[F](channel, serviceParams, metricRegistry)
 
-  override def createRetry(policy: Policy): Resource[F, NJRetry[F]] =
-    Resource.pure(new NJRetry.Impl[F](serviceParams.initialStatus.renewPolicy(policy)))
+  override def createRetry(policy: Policy): Resource[F, Retry[F]] =
+    Resource.pure(new Retry.Impl[F](serviceParams.initialStatus.renewPolicy(policy)))
 
   override def metrics[A, B](name: String)(
     f: Metrics[F] => Resource[F, Kleisli[F, A, B]]): Resource[F, Kleisli[F, A, B]] = {
@@ -76,6 +76,6 @@ final private class GeneralAgent[F[_]: Async] private[service] (
     f(new Metrics.Impl[F](metricName, metricRegistry, isEnabled = true))
   }
 
-  override val herald: NJHerald[F] =
-    new NJHerald.Impl[F](serviceParams, channel)
+  override val herald: Herald[F] =
+    new Herald.Impl[F](serviceParams, channel)
 }

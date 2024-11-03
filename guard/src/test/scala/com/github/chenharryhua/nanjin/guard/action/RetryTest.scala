@@ -15,7 +15,7 @@ class RetryTest extends AnyFunSuite {
   private val policy = Policy.fixedDelay(1.second).limited(3)
 
   test("1.apply - F[A]") {
-    val retry = new NJRetry.Impl[IO](state.renewPolicy(policy))
+    val retry = new Retry.Impl[IO](state.renewPolicy(policy))
     var i     = 0
     val res   = retry(IO(i += 1) >> IO.raiseError[Int](new Exception))
 
@@ -24,7 +24,7 @@ class RetryTest extends AnyFunSuite {
   }
 
   test("2.apply - (F[A], Throwable=>Boolean)") {
-    val retry = new NJRetry.Impl[IO](state.renewPolicy(policy))
+    val retry = new Retry.Impl[IO](state.renewPolicy(policy))
     var i     = 0
     val res   = retry(IO(i += 1) >> IO.raiseError[Int](new Exception), (_: Throwable) => true)
 
@@ -33,7 +33,7 @@ class RetryTest extends AnyFunSuite {
   }
 
   test("3.apply - (Tick=>F[A])") {
-    val retry           = new NJRetry.Impl[IO](state.renewPolicy(policy))
+    val retry           = new Retry.Impl[IO](state.renewPolicy(policy))
     var lst: List[Long] = List.empty
 
     val res = retry(t => IO { lst = lst.appended(t.index) } >> IO.raiseError[Int](new Exception))
@@ -43,7 +43,7 @@ class RetryTest extends AnyFunSuite {
   }
 
   test("4.apply - (Tick=>F[A], Throwable=>Boolean)") {
-    val retry           = new NJRetry.Impl[IO](state.renewPolicy(policy))
+    val retry           = new Retry.Impl[IO](state.renewPolicy(policy))
     var lst: List[Long] = List.empty
 
     val res = retry(t => IO { lst = lst.appended(t.index) } >> IO.raiseError[Int](new Exception), _ => true)
@@ -53,7 +53,7 @@ class RetryTest extends AnyFunSuite {
   }
 
   test("5.unworthy") {
-    val retry           = new NJRetry.Impl[IO](state.renewPolicy(policy))
+    val retry           = new Retry.Impl[IO](state.renewPolicy(policy))
     var lst: List[Long] = List.empty
 
     val res = retry(t => IO { lst = lst.appended(t.index) } >> IO.raiseError[Int](new Exception), _ => false)
@@ -64,7 +64,7 @@ class RetryTest extends AnyFunSuite {
 
   test("6.giveUp") {
     var i     = 0
-    val retry = new NJRetry.Impl[IO](state.renewPolicy(Policy.giveUp))
+    val retry = new Retry.Impl[IO](state.renewPolicy(Policy.giveUp))
     val res   = retry(IO(i += 1) >> IO.raiseError[Int](new Exception))
 
     assertThrows[Exception](res.unsafeRunSync())
@@ -72,7 +72,7 @@ class RetryTest extends AnyFunSuite {
   }
 
   test("7.nothing wrong") {
-    val retry           = new NJRetry.Impl[IO](state.renewPolicy(policy))
+    val retry           = new Retry.Impl[IO](state.renewPolicy(policy))
     var lst: List[Long] = List.empty
 
     retry(t => IO { lst = lst.appended(t.index) }).unsafeRunSync()
@@ -82,7 +82,7 @@ class RetryTest extends AnyFunSuite {
 
   test("8.escape retry") {
     object EscapeException extends Exception
-    val retry           = new NJRetry.Impl[IO](state.renewPolicy(policy))
+    val retry           = new Retry.Impl[IO](state.renewPolicy(policy))
     var lst: List[Long] = List.empty
 
     val res = retry(
@@ -102,7 +102,7 @@ class RetryTest extends AnyFunSuite {
   }
 
   test("9. success after retry") {
-    val retry = new NJRetry.Impl[IO](state.renewPolicy(policy))
+    val retry = new Retry.Impl[IO](state.renewPolicy(policy))
     var i     = 0
     retry { tick =>
       val calc = if (tick.index < 2) IO.raiseError[Int](new Exception) else IO(0)
