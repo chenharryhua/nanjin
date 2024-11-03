@@ -112,7 +112,6 @@ class MetricsTest extends AnyFunSuite {
     }.map(checkJson).mapFilter(metricReport).compile.lastOrError.unsafeRunSync()
     val timer = retrieveTimer(mr.snapshot.timers).values.head
     assert(mr.snapshot.nonEmpty)
-    assert(mr.snapshot.nonEmpty)
     assert(timer.calls == 1)
   }
 
@@ -124,5 +123,16 @@ class MetricsTest extends AnyFunSuite {
     }.map(checkJson).mapFilter(metricReport).compile.lastOrError.unsafeRunSync()
     assert(mr.snapshot.isEmpty)
     assert(retrieveTimer(mr.snapshot.timers).isEmpty)
+  }
+
+  test("10. empty") {
+    val mr = service
+      .eventStream(_.adhoc.report)
+      .map(checkJson)
+      .mapFilter(metricReport)
+      .compile
+      .lastOrError
+      .unsafeRunSync()
+    assert(mr.snapshot.isEmpty)
   }
 }

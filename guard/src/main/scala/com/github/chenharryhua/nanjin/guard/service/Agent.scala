@@ -33,7 +33,7 @@ sealed trait Agent[F[_]] {
   def metrics[A, B](name: String)(
     f: Metrics[F] => Resource[F, Kleisli[F, A, B]]): Resource[F, Kleisli[F, A, B]]
 
-  def facilitate[A](name: String)(g: Metrics[F] => A): A
+  def facilitate[A](name: String)(f: Metrics[F] => A): A
 
   def createRetry(policy: Policy): Resource[F, Retry[F]]
   final def createRetry(f: Policy.type => Policy): Resource[F, Retry[F]] =

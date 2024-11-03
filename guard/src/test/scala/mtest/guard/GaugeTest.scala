@@ -5,6 +5,7 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.toFunctorFilterOps
 import com.github.chenharryhua.nanjin.guard.TaskGuard
+import com.github.chenharryhua.nanjin.guard.config.MetricID
 import com.github.chenharryhua.nanjin.guard.event.{retrieveGauge, retrieveHealthChecks}
 import io.circe.Json
 import org.scalatest.funsuite.AnyFunSuite
@@ -31,13 +32,11 @@ class GaugeTest extends AnyFunSuite {
   test("2.health check") {
     val mr = service.eventStream { agent =>
       agent
-        .metrics("health")(
-          _.healthCheck("health", _.withTimeout(1.second).enable(true))
-            .register(IO(true))
-            .map(_ => Kleisli((_: Unit) => IO.unit)))
+        .facilitate("health")(
+          _.healthCheck("health", _.withTimeout(1.second).enable(true)).register(IO(true)))
         .surround(agent.adhoc.report)
     }.map(checkJson).mapFilter(metricReport).compile.lastOrError.unsafeRunSync()
-    val health = retrieveHealthChecks(mr.snapshot.gauges)
+    val health: Map[MetricID, Boolean] = retrieveHealthChecks(mr.snapshot.gauges)
     assert(mr.snapshot.nonEmpty)
     assert(health.values.head)
   }
@@ -65,8 +64,7 @@ class GaugeTest extends AnyFunSuite {
       agent.metrics("permanent")(_.permanentCounter("permanent")).use(_.run(1999) >> agent.adhoc.report)
     }.map(checkJson).mapFilter(metricReport).compile.lastOrError.unsafeRunSync()
     val permanent = retrieveGauge[Json](mr.snapshot.gauges)
-    println(permanent)
     assert(mr.snapshot.nonEmpty)
-    assert(permanent.values.nonEmpty)
+    assert(permanent.values.head.as[String].toOption.get == "1,999")
   }
 }
