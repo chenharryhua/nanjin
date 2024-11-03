@@ -6,9 +6,9 @@ import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.ServiceMessage
 import com.github.chenharryhua.nanjin.guard.event.{textColor, NJError, NJEvent}
+import com.github.chenharryhua.nanjin.guard.translator.jsonHelper
 import fs2.concurrent.Channel
-import io.circe.syntax.EncoderOps
-import io.circe.{Encoder, Json}
+import io.circe.Encoder
 
 import java.time.format.DateTimeFormatter
 
@@ -70,17 +70,7 @@ object NJHerald {
     private val fmt: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
 
     private def toText(sm: ServiceMessage): String = {
-      import com.github.chenharryhua.nanjin.guard.translator.jsonHelper
-      val msg = sm.error
-        .map(err => Json.obj(jsonHelper.stack(err)))
-        .asJson
-        .deepMerge(
-          Json.obj(
-            jsonHelper.serviceName(serviceParams),
-            jsonHelper.serviceId(serviceParams),
-            jsonHelper.alarmMessage(sm)
-          ))
-
+      val msg = jsonHelper.jsonServiceMessage(sm)
       val color = sm.level match {
         case AlarmLevel.Error => textColor.errorTerm
         case AlarmLevel.Warn  => textColor.warnTerm

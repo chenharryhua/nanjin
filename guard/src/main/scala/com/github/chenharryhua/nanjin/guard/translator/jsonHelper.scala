@@ -22,11 +22,18 @@ object jsonHelper {
 
   def stack(err: NJError): (String, Json) = "stack" -> err.stack.asJson
 
-  def metricName(mn: MetricName): (String, Json)        = "name" -> Json.fromString(mn.name)
-  def metricDigest(mn: MetricName): (String, Json)      = "digest" -> Json.fromString(mn.digest)
-  def metricMeasurement(id: MetricName): (String, Json) = "measurement" -> Json.fromString(id.measurement)
+  def metricName(mn: MetricName): (String, Json) = "name" -> Json.fromString(mn.name)
 
-  def alarmMessage(sa: ServiceMessage): (String, Json) = sa.level.entryName -> sa.message
+  def jsonServiceMessage(sm: ServiceMessage): Json =
+    sm.error
+      .map(err => Json.obj(stack(err)))
+      .asJson
+      .deepMerge(
+        Json.obj(
+          serviceName(sm.serviceParams),
+          serviceId(sm.serviceParams),
+          sm.level.entryName -> sm.message
+        ))
 
   def serviceName(sp: ServiceParams): (String, Json) =
     "serviceName" -> Json.fromString(sp.serviceName.value)

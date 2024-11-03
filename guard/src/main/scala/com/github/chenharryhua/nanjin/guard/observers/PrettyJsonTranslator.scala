@@ -11,8 +11,6 @@ import java.time.Duration
 
 object PrettyJsonTranslator {
 
-  import jsonHelper.*
-
   private def took(dur: Duration): (String, Json) =
     "took" -> Json.fromString(fmt.format(dur))
 
@@ -30,45 +28,45 @@ object PrettyJsonTranslator {
     Json.obj(
       EventName.ServiceStart.camel ->
         Json.obj(
-          serviceParams(evt.serviceParams),
+          jsonHelper.serviceParams(evt.serviceParams),
           uptime(evt),
-          index(evt.tick),
+          jsonHelper.index(evt.tick),
           "snoozed" -> Json.fromString(fmt.format(evt.tick.snooze))))
 
   private def service_panic(evt: ServicePanic): Json =
     Json.obj(
       EventName.ServicePanic.camel ->
         Json.obj(
-          serviceName(evt.serviceParams),
-          serviceId(evt.serviceParams),
+          jsonHelper.serviceName(evt.serviceParams),
+          jsonHelper.serviceId(evt.serviceParams),
           uptime(evt),
-          index(evt.tick),
+          jsonHelper.index(evt.tick),
           active(evt.tick),
           "snooze" -> Json.fromString(fmt.format(evt.tick.snooze)),
-          policy(evt.serviceParams.servicePolicies.restart),
-          stack(evt.error)
+          jsonHelper.policy(evt.serviceParams.servicePolicies.restart),
+          jsonHelper.stack(evt.error)
         ))
 
   private def service_stopped(evt: ServiceStop): Json =
     Json.obj(
       EventName.ServiceStop.camel ->
         Json.obj(
-          serviceName(evt.serviceParams),
-          serviceId(evt.serviceParams),
+          jsonHelper.serviceName(evt.serviceParams),
+          jsonHelper.serviceId(evt.serviceParams),
           uptime(evt),
-          policy(evt.serviceParams.servicePolicies.restart),
-          exitCode(evt.cause),
-          exitCause(evt.cause)
+          jsonHelper.policy(evt.serviceParams.servicePolicies.restart),
+          jsonHelper.exitCode(evt.cause),
+          jsonHelper.exitCause(evt.cause)
         ))
 
   private def metric_report(evt: MetricReport): Json =
     Json.obj(
       EventName.MetricReport.camel ->
         Json.obj(
-          metricIndex(evt.index),
-          serviceName(evt.serviceParams),
-          serviceId(evt.serviceParams),
-          policy(evt.serviceParams.servicePolicies.metricReport),
+          jsonHelper.metricIndex(evt.index),
+          jsonHelper.serviceName(evt.serviceParams),
+          jsonHelper.serviceId(evt.serviceParams),
+          jsonHelper.policy(evt.serviceParams.servicePolicies.metricReport),
           uptime(evt),
           took(evt.took),
           pretty_metrics(evt.snapshot)
@@ -78,23 +76,17 @@ object PrettyJsonTranslator {
     Json.obj(
       EventName.MetricReset.camel ->
         Json.obj(
-          metricIndex(evt.index),
-          serviceName(evt.serviceParams),
-          serviceId(evt.serviceParams),
-          policy(evt.serviceParams.servicePolicies.metricReset),
+          jsonHelper.metricIndex(evt.index),
+          jsonHelper.serviceName(evt.serviceParams),
+          jsonHelper.serviceId(evt.serviceParams),
+          jsonHelper.policy(evt.serviceParams.servicePolicies.metricReset),
           uptime(evt),
           took(evt.took),
           pretty_metrics(evt.snapshot)
         ))
 
   private def service_message(evt: ServiceMessage): Json =
-    Json.obj(
-      EventName.ServiceMessage.camel ->
-        Json.obj(
-          serviceName(evt.serviceParams),
-          serviceId(evt.serviceParams),
-          alarmMessage(evt)
-        ))
+    Json.obj(EventName.ServiceMessage.camel -> jsonHelper.jsonServiceMessage(evt))
 
   def apply[F[_]: Applicative]: Translator[F, Json] =
     Translator
