@@ -24,6 +24,7 @@ class GaugeTest extends AnyFunSuite {
         .surround(agent.adhoc.report)
     }.map(checkJson).mapFilter(metricReport).compile.lastOrError.unsafeRunSync()
     val gauge = retrieveGauge[Int](mr.snapshot.gauges)
+    assert(mr.snapshot.nonEmpty)
     assert(gauge.values.head == 1)
   }
 
@@ -37,6 +38,7 @@ class GaugeTest extends AnyFunSuite {
         .surround(agent.adhoc.report)
     }.map(checkJson).mapFilter(metricReport).compile.lastOrError.unsafeRunSync()
     val health = retrieveHealthChecks(mr.snapshot.gauges)
+    assert(mr.snapshot.nonEmpty)
     assert(health.values.head)
   }
 
@@ -45,6 +47,7 @@ class GaugeTest extends AnyFunSuite {
       agent.facilitate("active")(_.activeGauge("active", _.enable(true))).surround(agent.adhoc.report)
     }.map(checkJson).mapFilter(metricReport).compile.lastOrError.unsafeRunSync()
     val active = retrieveGauge[Json](mr.snapshot.gauges)
+    assert(mr.snapshot.nonEmpty)
     assert(active.values.nonEmpty)
   }
 
@@ -53,6 +56,7 @@ class GaugeTest extends AnyFunSuite {
       agent.metrics("idle")(_.idleGauge("idle", _.enable(true))).use(_.run(()) >> agent.adhoc.report)
     }.map(checkJson).mapFilter(metricReport).compile.lastOrError.unsafeRunSync()
     val idle = retrieveGauge[Json](mr.snapshot.gauges)
+    assert(mr.snapshot.nonEmpty)
     assert(idle.values.nonEmpty)
   }
 
@@ -62,6 +66,7 @@ class GaugeTest extends AnyFunSuite {
     }.map(checkJson).mapFilter(metricReport).compile.lastOrError.unsafeRunSync()
     val permanent = retrieveGauge[Json](mr.snapshot.gauges)
     println(permanent)
+    assert(mr.snapshot.nonEmpty)
     assert(permanent.values.nonEmpty)
   }
 }
