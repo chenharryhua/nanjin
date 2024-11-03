@@ -76,10 +76,3 @@ object UniqueToken {
 
   def apply(token: Unique.Token): UniqueToken = UniqueToken(token.hash)
 }
-
-object textColor {
-  val goodTerm: String  = Console.GREEN + "SUCCESS" + Console.RESET
-  val infoTerm: String  = "INFO"
-  val warnTerm: String  = Console.YELLOW + "WARN" + Console.RESET
-  val errorTerm: String = Console.RED + "ERROR" + Console.RESET
-}

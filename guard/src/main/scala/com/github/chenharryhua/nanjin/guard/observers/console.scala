@@ -2,9 +2,9 @@ package com.github.chenharryhua.nanjin.guard.observers
 
 import cats.effect.std.Console
 import cats.syntax.all.*
-import cats.{Endo, Eval, Monad}
-import com.github.chenharryhua.nanjin.guard.event.{textColor, NJEvent}
-import com.github.chenharryhua.nanjin.guard.translator.{ColorScheme, Translator, UpdateTranslator}
+import cats.{Endo, Monad}
+import com.github.chenharryhua.nanjin.guard.event.NJEvent
+import com.github.chenharryhua.nanjin.guard.translator.{textHelper, ColorScheme, Translator, UpdateTranslator}
 import io.circe.syntax.EncoderOps
 
 import java.time.format.DateTimeFormatter
@@ -26,15 +26,7 @@ object console {
       extends (NJEvent => F[Unit]) with UpdateTranslator[F, String, TextConsole[F]] {
     private[this] val C = Console[F]
     private[this] def coloring(evt: NJEvent): String =
-      ColorScheme
-        .decorate(evt)
-        .run {
-          case ColorScheme.GoodColor  => Eval.now(textColor.goodTerm)
-          case ColorScheme.InfoColor  => Eval.now(textColor.infoTerm)
-          case ColorScheme.WarnColor  => Eval.now(textColor.warnTerm)
-          case ColorScheme.ErrorColor => Eval.now(textColor.errorTerm)
-        }
-        .value
+      ColorScheme.decorate(evt).run(textHelper.consoleColor).value
 
     override def updateTranslator(f: Endo[Translator[F, String]]): TextConsole[F] =
       new TextConsole[F](f(translator))

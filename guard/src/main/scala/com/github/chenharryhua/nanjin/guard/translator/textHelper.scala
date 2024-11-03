@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.translator
 
+import cats.Eval
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.ServicePanic
@@ -34,11 +35,11 @@ object textHelper extends localtime with localdatetime {
     evt match {
       case ss: NJEvent.ServiceStart =>
         if (ss.tick.index === 0) "Start Service" else "Restart Service"
-      case _: NJEvent.ServiceStop     => "Service Stopped"
-      case _: NJEvent.ServicePanic    => "Service Panic"
-      case sm: NJEvent.ServiceMessage => sm.level.productPrefix
-      case _: NJEvent.MetricReport    => "Metric Report"
-      case _: NJEvent.MetricReset     => "Metric Reset"
+      case _: NJEvent.ServiceStop    => "Service Stopped"
+      case _: NJEvent.ServicePanic   => "Service Panic"
+      case _: NJEvent.ServiceMessage => "Service Message"
+      case _: NJEvent.MetricReport   => "Metric Report"
+      case _: NJEvent.MetricReset    => "Metric Reset"
     }
 
   private def localTime_duration(start: ZonedDateTime, end: ZonedDateTime): (String, String) = {
@@ -56,4 +57,12 @@ object textHelper extends localtime with localdatetime {
     val (time, dur) = localTime_duration(evt.timestamp, evt.tick.zonedWakeup)
     s"Restart was scheduled at $time, in $dur."
   }
+
+  def consoleColor(colorScheme: ColorScheme): Eval[String] =
+    colorScheme match {
+      case ColorScheme.GoodColor  => Eval.now(Console.GREEN + "SUCCESS" + Console.RESET)
+      case ColorScheme.InfoColor  => Eval.now(Console.CYAN + "INFO" + Console.RESET)
+      case ColorScheme.WarnColor  => Eval.now(Console.YELLOW + "WARN" + Console.RESET)
+      case ColorScheme.ErrorColor => Eval.now(Console.RED + "ERROR" + Console.RESET)
+    }
 }

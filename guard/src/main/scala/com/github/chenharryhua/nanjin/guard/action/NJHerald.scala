@@ -5,8 +5,8 @@ import cats.effect.std.Console
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.ServiceMessage
-import com.github.chenharryhua.nanjin.guard.event.{textColor, NJError, NJEvent}
-import com.github.chenharryhua.nanjin.guard.translator.jsonHelper
+import com.github.chenharryhua.nanjin.guard.event.{NJError, NJEvent}
+import com.github.chenharryhua.nanjin.guard.translator.{jsonHelper, textHelper, ColorScheme}
 import fs2.concurrent.Channel
 import io.circe.Encoder
 
@@ -70,14 +70,9 @@ object NJHerald {
     private val fmt: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
 
     private def toText(sm: ServiceMessage): String = {
-      val msg = jsonHelper.jsonServiceMessage(sm)
-      val color = sm.level match {
-        case AlarmLevel.Error => textColor.errorTerm
-        case AlarmLevel.Warn  => textColor.warnTerm
-        case AlarmLevel.Info  => textColor.infoTerm
-        case AlarmLevel.Good  => textColor.goodTerm
-      }
-      s"${sm.timestamp.format(fmt)} Console $color - ${msg.noSpaces}"
+      val color = ColorScheme.decorate(sm).run(textHelper.consoleColor).value
+      val msg   = jsonHelper.jsonServiceMessage(sm).noSpaces
+      s"${sm.timestamp.format(fmt)} Console $color - $msg"
     }
 
     override def consoleError[S: Encoder](msg: S)(implicit cns: Console[F]): F[Unit] =

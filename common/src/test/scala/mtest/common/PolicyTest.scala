@@ -1,6 +1,6 @@
 package mtest.common
 
-import com.github.chenharryhua.nanjin.common.chrono.{Policy, tickLazyList}
+import com.github.chenharryhua.nanjin.common.chrono.{tickLazyList, Policy}
 import org.scalatest.funsuite.AnyFunSuite
 
 class PolicyTest extends AnyFunSuite {
