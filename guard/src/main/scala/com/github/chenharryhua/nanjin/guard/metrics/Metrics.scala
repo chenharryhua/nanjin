@@ -2,12 +2,13 @@ package com.github.chenharryhua.nanjin.guard.metrics
 
 import cats.Endo
 import cats.data.Kleisli
-import cats.effect.kernel.{Async, Resource}
+import cats.effect.kernel.{Async, Ref, Resource}
 import cats.syntax.all.*
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.common.DurationFormatter
 import com.github.chenharryhua.nanjin.guard.config.{MetricName, MetricTag}
 import com.github.chenharryhua.nanjin.guard.event.NJUnits
+import com.github.chenharryhua.nanjin.guard.translator.decimal_fmt
 
 import scala.concurrent.duration.DurationInt
 
@@ -16,11 +17,11 @@ trait KleisliLike[F[_], A] {
 
   final def kleisli[B](f: B => A): Kleisli[F, B, Unit] =
     Kleisli(run).local(f)
-  final def kleisli: Kleisli[F, A, Unit] =
-    Kleisli(run)
+
+  final val kleisli: Kleisli[F, A, Unit] = Kleisli(run)
 }
 
-sealed trait NJMetrics[F[_]] {
+sealed trait Metrics[F[_]] {
   def metricName: MetricName
 
   def counter(tag: String, f: Endo[NJCounter.Builder]): Resource[F, NJCounter[F]]
@@ -36,15 +37,15 @@ sealed trait NJMetrics[F[_]] {
   def timer(tag: String, f: Endo[NJTimer.Builder]): Resource[F, NJTimer[F]]
   final def timer(tag: String): Resource[F, NJTimer[F]] = timer(tag, identity)
 
+  // gauges
+  def gauge(tag: String, f: Endo[NJGauge.Builder]): NJGauge[F]
+  final def gauge(tag: String): NJGauge[F] = gauge(tag, identity)
+
   def ratio(tag: String, f: Endo[NJRatio.Builder]): Resource[F, NJRatio[F]]
   final def ratio(tag: String): Resource[F, NJRatio[F]] = ratio(tag, identity)
 
   def healthCheck(tag: String, f: Endo[NJHealthCheck.Builder]): NJHealthCheck[F]
   final def healthCheck(tag: String): NJHealthCheck[F] = healthCheck(tag, identity)
-
-  // gauge
-  def gauge(tag: String, f: Endo[NJGauge.Builder]): NJGauge[F]
-  final def gauge(tag: String): NJGauge[F] = gauge(tag, identity)
 
   def idleGauge(tag: String, f: Endo[NJGauge.Builder]): Resource[F, Kleisli[F, Unit, Unit]]
   final def idleGauge(tag: String): Resource[F, Kleisli[F, Unit, Unit]] =
@@ -52,14 +53,18 @@ sealed trait NJMetrics[F[_]] {
 
   def activeGauge(tag: String, f: Endo[NJGauge.Builder]): Resource[F, Unit]
   final def activeGauge(tag: String): Resource[F, Unit] = activeGauge(tag, identity)
+
+  def permanentCounter(tag: String, f: Endo[NJGauge.Builder]): Resource[F, Kleisli[F, Long, Unit]]
+  final def permanentCounter(tag: String): Resource[F, Kleisli[F, Long, Unit]] =
+    permanentCounter(tag, identity)
 }
 
-object NJMetrics {
+object Metrics {
   private[guard] class Impl[F[_]](
     val metricName: MetricName,
     metricRegistry: MetricRegistry,
     isEnabled: Boolean)(implicit F: Async[F])
-      extends NJMetrics[F] {
+      extends Metrics[F] {
 
     override def counter(tag: String, f: Endo[NJCounter.Builder]): Resource[F, NJCounter[F]] = {
       val init = new NJCounter.Builder(isEnabled, false)
@@ -113,5 +118,13 @@ object NJMetrics {
         _ <- gauge(tag, f).register(F.monotonic.map(now =>
           DurationFormatter.defaultFormatter.format(now - kickoff)))
       } yield ()
+
+    override def permanentCounter(
+      tag: String,
+      f: Endo[NJGauge.Builder]): Resource[F, Kleisli[F, Long, Unit]] =
+      for {
+        ref <- Resource.eval(Ref[F].of[Long](0L))
+        _ <- gauge(tag, f).register(ref.get.map(decimal_fmt.format))
+      } yield Kleisli((num: Long) => ref.update(_ + num))
   }
 }

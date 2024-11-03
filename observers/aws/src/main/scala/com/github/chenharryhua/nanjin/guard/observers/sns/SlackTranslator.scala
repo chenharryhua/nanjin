@@ -48,13 +48,20 @@ private object SlackTranslator extends all {
       first = TextField(CONSTANT_UPTIME, uptimeText(evt)),
       second = TextField(CONSTANT_INDEX, metricIndexText(evt.index)))
 
-  private def metrics_section(snapshot: MetricSnapshot): KeyValueSection = {
-    val yaml = new SnapshotPolyglot(snapshot).counterYaml match {
-      case Some(value) => s"""```${abbreviate(value)}```"""
-      case None        => "`No updates`"
-    }
-    KeyValueSection(CONSTANT_METRICS, yaml)
-  }
+  private def metrics_section(snapshot: MetricSnapshot): KeyValueSection =
+    if (snapshot.nonEmpty) {
+      val polyglot: SnapshotPolyglot = new SnapshotPolyglot(snapshot)
+      val yaml: String               = polyglot.toYaml
+      val msg: String =
+        if (yaml.length < MessageSizeLimits.toBytes.toInt) yaml
+        else {
+          polyglot.counterYaml match {
+            case Some(value) => abbreviate(value)
+            case None        => abbreviate(yaml)
+          }
+        }
+      KeyValueSection(CONSTANT_METRICS, s"""```$msg```""")
+    } else KeyValueSection(CONSTANT_METRICS, """`not available`""")
 
   private def brief(json: Json): KeyValueSection =
     KeyValueSection(CONSTANT_BRIEF, s"```${abbreviate(json.spaces2)}```")
@@ -193,19 +200,23 @@ private object SlackTranslator extends all {
       case AlarmLevel.Info  => ""
       case AlarmLevel.Good  => ""
     }
-    SlackApp(
-      username = evt.serviceParams.taskName.value,
-      attachments = List(
-        Attachment(
-          color = coloring(evt),
-          blocks = List(
-            HeaderSection(s"$symbol ${eventTitle(evt)}"),
-            host_service_section(evt.serviceParams),
-            MarkdownSection(s"*$CONSTANT_SERVICE_ID:* ${evt.serviceParams.serviceId.show}"),
-            MarkdownSection(s"```${abbreviate(evt.message)}```")
-          )
-        ))
+
+    val attachment = Attachment(
+      color = coloring(evt),
+      blocks = List(
+        HeaderSection(s"$symbol ${eventTitle(evt)}"),
+        host_service_section(evt.serviceParams),
+        MarkdownSection(s"*$CONSTANT_SERVICE_ID:* ${evt.serviceParams.serviceId.show}"),
+        MarkdownSection(s"```${abbreviate(evt.message)}```")
+      )
     )
+
+    val error = evt.error.map(err =>
+      Attachment(
+        color = coloring(evt),
+        blocks = List(KeyValueSection(CONSTANT_CAUSE, s"```${stack_trace(err)}```"))))
+
+    SlackApp(username = evt.serviceParams.taskName.value, attachments = List(Some(attachment), error).flatten)
   }
 
   def apply[F[_]: Applicative]: Translator[F, SlackApp] =

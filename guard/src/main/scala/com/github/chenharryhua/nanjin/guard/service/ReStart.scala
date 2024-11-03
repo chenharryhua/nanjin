@@ -16,11 +16,11 @@ import org.typelevel.cats.time.instances.duration
 import java.time.Duration
 import scala.jdk.DurationConverters.JavaDurationOps
 
-final private class ReStart[F[_], A](
+final private class ReStart[F[_]](
   channel: Channel[F, NJEvent],
   serviceParams: ServiceParams,
   panicHistory: AtomicCell[F, CircularFifoQueue[ServicePanic]],
-  theService: F[A])(implicit F: Temporal[F])
+  theService: F[Unit])(implicit F: Temporal[F])
     extends duration {
 
   private def panic(status: TickStatus, ex: Throwable): F[Option[(Unit, TickStatus)]] =

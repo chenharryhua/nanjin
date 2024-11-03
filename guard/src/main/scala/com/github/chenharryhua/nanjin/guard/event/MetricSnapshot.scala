@@ -80,7 +80,12 @@ final case class MetricSnapshot(
   meters: List[Snapshot.Meter],
   timers: List[Snapshot.Timer],
   histograms: List[Snapshot.Histogram],
-  gauges: List[Snapshot.Gauge])
+  gauges: List[Snapshot.Gauge]) {
+  def isEmpty: Boolean =
+    counters.isEmpty && meters.isEmpty && timers.isEmpty && histograms.isEmpty && gauges.isEmpty
+
+  def nonEmpty: Boolean = !isEmpty
+}
 
 object MetricSnapshot extends duration {
 

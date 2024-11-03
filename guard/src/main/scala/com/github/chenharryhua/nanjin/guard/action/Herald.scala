@@ -1,0 +1,92 @@
+package com.github.chenharryhua.nanjin.guard.action
+
+import cats.effect.kernel.Sync
+import cats.effect.std.Console
+import cats.syntax.all.*
+import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, ServiceParams}
+import com.github.chenharryhua.nanjin.guard.event.NJEvent.ServiceMessage
+import com.github.chenharryhua.nanjin.guard.event.{NJError, NJEvent}
+import com.github.chenharryhua.nanjin.guard.translator.{jsonHelper, textHelper, ColorScheme}
+import fs2.concurrent.Channel
+import io.circe.Encoder
+
+import java.time.format.DateTimeFormatter
+
+sealed trait Herald[F[_]] {
+  def error[S: Encoder](msg: S): F[Unit]
+  def error[S: Encoder](ex: Throwable)(msg: S): F[Unit]
+
+  def warn[S: Encoder](msg: S): F[Unit]
+  def warn[S: Encoder](ex: Throwable)(msg: S): F[Unit]
+
+  def info[S: Encoder](msg: S): F[Unit]
+  def good[S: Encoder](msg: S): F[Unit]
+
+  def consoleError[S: Encoder](msg: S)(implicit cns: Console[F]): F[Unit]
+  def consoleError[S: Encoder](ex: Throwable)(msg: S)(implicit cns: Console[F]): F[Unit]
+
+  def consoleWarn[S: Encoder](msg: S)(implicit cns: Console[F]): F[Unit]
+  def consoleWarn[S: Encoder](ex: Throwable)(msg: S)(implicit cns: Console[F]): F[Unit]
+
+  def consoleInfo[S: Encoder](msg: S)(implicit cns: Console[F]): F[Unit]
+  def consoleGood[S: Encoder](msg: S)(implicit cns: Console[F]): F[Unit]
+}
+
+object Herald {
+
+  private[guard] class Impl[F[_]](
+    serviceParams: ServiceParams,
+    channel: Channel[F, NJEvent]
+  )(implicit F: Sync[F])
+      extends Herald[F] {
+
+    private def toServiceMessage[S: Encoder](
+      msg: S,
+      level: AlarmLevel,
+      error: Option[NJError]): F[ServiceMessage] =
+      serviceParams.zonedNow.map(ts =>
+        ServiceMessage(
+          serviceParams = serviceParams,
+          timestamp = ts,
+          level = level,
+          message = Encoder[S].apply(msg),
+          error = error))
+
+    private def alarm[S: Encoder](msg: S, level: AlarmLevel, error: Option[NJError]): F[Unit] =
+      toServiceMessage(msg, level, error).flatMap(channel.send).void
+
+    override def error[S: Encoder](msg: S): F[Unit] = alarm(msg, AlarmLevel.Error, None)
+    override def warn[S: Encoder](msg: S): F[Unit]  = alarm(msg, AlarmLevel.Warn, None)
+    override def info[S: Encoder](msg: S): F[Unit]  = alarm(msg, AlarmLevel.Info, None)
+    override def good[S: Encoder](msg: S): F[Unit]  = alarm(msg, AlarmLevel.Good, None)
+
+    override def error[S: Encoder](ex: Throwable)(msg: S): F[Unit] =
+      alarm(msg, AlarmLevel.Error, Some(NJError(ex)))
+    override def warn[S: Encoder](ex: Throwable)(msg: S): F[Unit] =
+      alarm(msg, AlarmLevel.Warn, Some(NJError(ex)))
+
+    // console
+
+    private val fmt: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+
+    private def toText(sm: ServiceMessage): String = {
+      val color = ColorScheme.decorate(sm).run(textHelper.consoleColor).value
+      val msg   = jsonHelper.jsonServiceMessage(sm).noSpaces
+      s"${sm.timestamp.format(fmt)} Console $color - $msg"
+    }
+
+    override def consoleError[S: Encoder](msg: S)(implicit cns: Console[F]): F[Unit] =
+      toServiceMessage(msg, AlarmLevel.Error, None).flatMap(m => cns.println(toText(m)))
+    override def consoleWarn[S: Encoder](msg: S)(implicit cns: Console[F]): F[Unit] =
+      toServiceMessage(msg, AlarmLevel.Warn, None).flatMap(m => cns.println(toText(m)))
+    override def consoleInfo[S: Encoder](msg: S)(implicit cns: Console[F]): F[Unit] =
+      toServiceMessage(msg, AlarmLevel.Info, None).flatMap(m => cns.println(toText(m)))
+    override def consoleGood[S: Encoder](msg: S)(implicit cns: Console[F]): F[Unit] =
+      toServiceMessage(msg, AlarmLevel.Good, None).flatMap(m => cns.println(toText(m)))
+
+    override def consoleError[S: Encoder](ex: Throwable)(msg: S)(implicit cns: Console[F]): F[Unit] =
+      toServiceMessage(msg, AlarmLevel.Error, Some(NJError(ex))).flatMap(m => cns.println(toText(m)))
+    override def consoleWarn[S: Encoder](ex: Throwable)(msg: S)(implicit cns: Console[F]): F[Unit] =
+      toServiceMessage(msg, AlarmLevel.Warn, Some(NJError(ex))).flatMap(m => cns.println(toText(m)))
+  }
+}

@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.service
 
 import cats.Endo
-import cats.effect.kernel.Async
+import cats.effect.kernel.{Async, Resource}
 import cats.effect.std.AtomicCell
 import cats.syntax.all.*
 import com.codahale.metrics.MetricRegistry
@@ -52,7 +52,7 @@ final class ServiceGuard[F[_]: Network] private[guard] (serviceName: ServiceName
     zerothTick = zeroth
   )
 
-  def eventStream[A](runAgent: Agent[F] => F[A]): Stream[F, NJEvent] =
+  def eventStream(runAgent: Agent[F] => F[Unit]): Stream[F, NJEvent] =
     for {
       serviceParams <- Stream.eval(initStatus)
       panicHistory <- Stream.eval(
@@ -127,7 +127,7 @@ final class ServiceGuard[F[_]: Network] private[guard] (serviceName: ServiceName
           )
 
         val surveillance: Stream[F, Nothing] =
-          new ReStart[F, A](
+          new ReStart[F](
             channel = channel,
             serviceParams = serviceParams,
             panicHistory = panicHistory,
@@ -143,4 +143,10 @@ final class ServiceGuard[F[_]: Network] private[guard] (serviceName: ServiceName
           .concurrently(surveillance)
       }
     } yield event
+
+  def eventStreamS[A](runAgent: Agent[F] => Stream[F, A]): Stream[F, NJEvent] =
+    eventStream(agent => runAgent(agent).compile.drain)
+
+  def eventStreamR[A](runAgent: Agent[F] => Resource[F, A]): Stream[F, NJEvent] =
+    eventStream(agent => runAgent(agent).use_)
 }

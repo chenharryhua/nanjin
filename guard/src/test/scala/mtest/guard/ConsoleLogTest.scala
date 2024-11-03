@@ -34,7 +34,7 @@ class ConsoleLogTest extends AnyFunSuite {
           } yield Kleisli((_: Int) => retry(IO.unit))
         }
 
-        mtx.use(_.run(1) >> agent.adhoc.report)
+        mtx.use(_.run(1) >> agent.herald.error(new Exception())("error messages") >> agent.adhoc.report)
       }
 
   test("1.console - verbose json") {

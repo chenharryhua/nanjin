@@ -6,7 +6,7 @@ import com.github.chenharryhua.nanjin.common.chrono.{Tick, TickStatus}
 
 import scala.jdk.DurationConverters.JavaDurationOps
 
-sealed trait NJRetry[F[_]] {
+sealed trait Retry[F[_]] {
   def apply[A](f: Tick => F[A], worth: Throwable => Boolean): F[A]
 
   final def apply[A](f: Tick => F[A]): F[A] =
@@ -19,9 +19,9 @@ sealed trait NJRetry[F[_]] {
     apply((_: Tick) => fa, _ => true)
 }
 
-object NJRetry {
+object Retry {
 
-  private[guard] class Impl[F[_]](init: TickStatus)(implicit F: Temporal[F]) extends NJRetry[F] {
+  private[guard] class Impl[F[_]](init: TickStatus)(implicit F: Temporal[F]) extends Retry[F] {
 
     override def apply[A](f: Tick => F[A], worth: Throwable => Boolean): F[A] =
       F.tailRecM(init) { status =>

@@ -10,7 +10,6 @@ import java.time.Duration
 
 private object JsonTranslator {
   import NJEvent.*
-  import jsonHelper.*
 
   private def took(dur: Duration): (String, Json) = "took" -> dur.asJson
 
@@ -20,60 +19,60 @@ private object JsonTranslator {
   private def service_started(evt: ServiceStart): Json =
     Json.obj(
       "event" -> EventName.ServiceStart.camelJson,
-      index(evt.tick),
-      serviceParams(evt.serviceParams),
-      timestamp(evt))
+      jsonHelper.index(evt.tick),
+      jsonHelper.serviceParams(evt.serviceParams),
+      jsonHelper.timestamp(evt))
 
   private def service_panic(evt: ServicePanic): Json =
     Json.obj(
       "event" -> EventName.ServicePanic.camelJson,
-      index(evt.tick),
-      serviceName(evt.serviceParams),
-      policy(evt.serviceParams.servicePolicies.restart),
-      stack(evt.error),
-      serviceId(evt.serviceParams),
-      timestamp(evt)
+      jsonHelper.index(evt.tick),
+      jsonHelper.serviceName(evt.serviceParams),
+      jsonHelper.policy(evt.serviceParams.servicePolicies.restart),
+      jsonHelper.stack(evt.error),
+      jsonHelper.serviceId(evt.serviceParams),
+      jsonHelper.timestamp(evt)
     )
 
   private def service_stopped(evt: ServiceStop): Json =
     Json.obj(
       "event" -> EventName.ServiceStop.camelJson,
-      serviceName(evt.serviceParams),
-      exitCode(evt.cause),
-      exitCause(evt.cause),
-      policy(evt.serviceParams.servicePolicies.restart),
-      serviceId(evt.serviceParams),
-      timestamp(evt)
+      jsonHelper.serviceName(evt.serviceParams),
+      jsonHelper.exitCode(evt.cause),
+      jsonHelper.exitCause(evt.cause),
+      jsonHelper.policy(evt.serviceParams.servicePolicies.restart),
+      jsonHelper.serviceId(evt.serviceParams),
+      jsonHelper.timestamp(evt)
     )
 
   private def metric_report(evt: MetricReport): Json =
     Json.obj(
       "event" -> EventName.MetricReport.camelJson,
-      metricIndex(evt.index),
-      serviceName(evt.serviceParams),
+      jsonHelper.metricIndex(evt.index),
+      jsonHelper.serviceName(evt.serviceParams),
       took(evt.took),
       metrics(evt.snapshot),
-      serviceId(evt.serviceParams),
-      timestamp(evt)
+      jsonHelper.serviceId(evt.serviceParams),
+      jsonHelper.timestamp(evt)
     )
 
   private def metric_reset(evt: MetricReset): Json =
     Json.obj(
       "event" -> EventName.MetricReset.camelJson,
-      metricIndex(evt.index),
-      serviceName(evt.serviceParams),
+      jsonHelper.metricIndex(evt.index),
+      jsonHelper.serviceName(evt.serviceParams),
       took(evt.took),
       metrics(evt.snapshot),
-      serviceId(evt.serviceParams),
-      timestamp(evt)
+      jsonHelper.serviceId(evt.serviceParams),
+      jsonHelper.timestamp(evt)
     )
 
-  private def service_alert(evt: ServiceMessage): Json =
+  private def service_message(evt: ServiceMessage): Json =
     Json.obj(
       "event" -> EventName.ServiceMessage.camelJson,
-      alarmMessage(evt),
-      serviceId(evt.serviceParams),
-      timestamp(evt)
+      "message" -> jsonHelper.jsonServiceMessage(evt),
+      jsonHelper.serviceId(evt.serviceParams),
+      jsonHelper.timestamp(evt)
     )
 
   def apply[F[_]: Applicative]: Translator[F, Json] =
@@ -84,6 +83,6 @@ private object JsonTranslator {
       .withServicePanic(service_panic)
       .withMetricReport(metric_report)
       .withMetricReset(metric_reset)
-      .withServiceMessage(service_alert)
+      .withServiceMessage(service_message)
 
 }

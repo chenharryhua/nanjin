@@ -44,6 +44,9 @@ private object HtmlTranslator extends all {
   private def json_text(js: Json): Text.TypedTag[String] =
     pre(small(js.spaces2))
 
+  private def error_text(c: NJError): Text.TypedTag[String] =
+    p(b(s"$CONSTANT_CAUSE: "), pre(small(c.stack.mkString("\n\t"))))
+
   // events
 
   private def service_started(evt: ServiceStart): Text.TypedTag[String] = {
@@ -67,9 +70,6 @@ private object HtmlTranslator extends all {
   }
 
   private def service_panic(evt: ServicePanic): Text.TypedTag[String] = {
-    def cause_text(c: NJError): Text.TypedTag[String] =
-      p(b(s"$CONSTANT_CAUSE: "), pre(small(c.stack.mkString("\n\t"))))
-
     val fg = frag(
       tr(
         th(CONSTANT_INDEX),
@@ -86,7 +86,7 @@ private object HtmlTranslator extends all {
       h3(style := htmlColoring(evt))(eventTitle(evt)),
       table(service_table(evt), fg),
       p(b(panicText(evt))),
-      cause_text(evt.error)
+      error_text(evt.error)
     )
   }
 
@@ -155,7 +155,8 @@ private object HtmlTranslator extends all {
     div(
       h3(style := htmlColoring(evt))(eventTitle(evt)),
       table(service_table(evt)),
-      json_text(evt.message)
+      json_text(evt.message),
+      evt.error.map(error_text)
     )
 
   def apply[F[_]: Applicative]: Translator[F, Text.TypedTag[String]] =

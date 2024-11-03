@@ -47,21 +47,21 @@ object ColorScheme extends CatsOrderValueEnum[Int, ColorScheme] with IntEnum[Col
     Cont.pure[A, NJEvent](evt).map {
       case _: ServiceStart => InfoColor
       case _: ServicePanic => ErrorColor
-      case ServiceStop(_, _, cause) =>
-        cause match {
+      case ss: ServiceStop =>
+        ss.cause match {
           case ServiceStopCause.Successfully   => GoodColor
           case ServiceStopCause.ByCancellation => WarnColor
           case ServiceStopCause.ByException(_) => ErrorColor
           case ServiceStopCause.Maintenance    => InfoColor
         }
-      case ServiceMessage(_, _, level, _) =>
-        level match {
+      case sm: ServiceMessage =>
+        sm.level match {
           case AlarmLevel.Error => ErrorColor
           case AlarmLevel.Warn  => WarnColor
           case AlarmLevel.Info  => InfoColor
           case AlarmLevel.Good  => GoodColor
         }
-      case MetricReport(_, _, ss, _) => color_snapshot(ss)
-      case MetricReset(_, _, ss, _)  => color_snapshot(ss)
+      case mr: MetricReport => color_snapshot(mr.snapshot)
+      case mr: MetricReset  => color_snapshot(mr.snapshot)
     }
 }
