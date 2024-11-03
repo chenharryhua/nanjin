@@ -48,19 +48,20 @@ private object SlackTranslator extends all {
       first = TextField(CONSTANT_UPTIME, uptimeText(evt)),
       second = TextField(CONSTANT_INDEX, metricIndexText(evt.index)))
 
-  private def metrics_section(snapshot: MetricSnapshot): KeyValueSection = {
-    val polyglot: SnapshotPolyglot = new SnapshotPolyglot(snapshot)
-    val yaml: String               = polyglot.toYaml
-    val msg: String =
-      if (yaml.length < MessageSizeLimits.toBytes.toInt) yaml
-      else {
-        polyglot.counterYaml match {
-          case Some(value) => abbreviate(value)
-          case None        => abbreviate(yaml)
+  private def metrics_section(snapshot: MetricSnapshot): KeyValueSection =
+    if (snapshot.nonEmpty) {
+      val polyglot: SnapshotPolyglot = new SnapshotPolyglot(snapshot)
+      val yaml: String               = polyglot.toYaml
+      val msg: String =
+        if (yaml.length < MessageSizeLimits.toBytes.toInt) yaml
+        else {
+          polyglot.counterYaml match {
+            case Some(value) => abbreviate(value)
+            case None        => abbreviate(yaml)
+          }
         }
-      }
-    KeyValueSection(CONSTANT_METRICS, s"""```$msg```""")
-  }
+      KeyValueSection(CONSTANT_METRICS, s"""```$msg```""")
+    } else KeyValueSection(CONSTANT_METRICS, """`not available`""")
 
   private def brief(json: Json): KeyValueSection =
     KeyValueSection(CONSTANT_BRIEF, s"```${abbreviate(json.spaces2)}```")
