@@ -45,6 +45,9 @@ package object guard {
   def metricReport: NJEvent => Option[NJEvent.MetricReport] =
     GenPrism[NJEvent, NJEvent.MetricReport].getOption(_)
 
+  def serviceMessage: NJEvent => Option[NJEvent.ServiceMessage] =
+    GenPrism[NJEvent, NJEvent.ServiceMessage].getOption(_)
+
   def checkJson(evt: NJEvent): NJEvent =
     decode[NJEvent](evt.asJson.noSpaces) match {
       case Left(value) => throw value

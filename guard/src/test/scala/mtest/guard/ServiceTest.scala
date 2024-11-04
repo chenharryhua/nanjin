@@ -3,7 +3,7 @@ package mtest.guard
 import cats.effect.IO
 import cats.effect.std.AtomicCell
 import cats.effect.unsafe.implicits.global
-import cats.implicits.toShow
+import cats.implicits.{toFunctorFilterOps, toShow}
 import com.github.chenharryhua.nanjin.common.chrono.zones.londonTime
 import com.github.chenharryhua.nanjin.common.chrono.{crontabs, Policy, Tick}
 import com.github.chenharryhua.nanjin.guard.*
@@ -12,6 +12,7 @@ import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
 import io.circe.Json
 import org.scalatest.funsuite.AnyFunSuite
 
+import java.util.UUID
 import scala.concurrent.duration.*
 import scala.jdk.DurationConverters.ScalaDurationOps
 
@@ -25,16 +26,36 @@ class ServiceTest extends AnyFunSuite {
 
   val policy: Policy = Policy.fixedDelay(0.1.seconds).limited(3)
 
-  test("1.should stopped if the operation normally exits") {}
+  test("1.should stopped if the operation normally exits") {
+    guard.service("exit").eventStream(_ => IO(())).compile.drain.unsafeRunSync()
+  }
 
-  test("2.escalate to up level if retry failed") {}
+  test("2.escalate to up level if retry failed") {
+    val List(a, b, c, d, e, f, g, h) = guard
+      .service("retry")
+      .updateConfig(_.withRestartPolicy(_.fixedDelay(1.seconds).limited(1)))
+      .eventStream(ga =>
+        ga.createRetry(_.fixedDelay(1.seconds).limited(1))
+          .use(_(ga.herald.info("") *> IO.raiseError(new Exception))))
+      .compile
+      .toList
+      .unsafeRunSync()
+    assert(a.isInstanceOf[ServiceStart])
+    assert(b.isInstanceOf[ServiceMessage])
+    assert(c.isInstanceOf[ServiceMessage])
+    assert(d.isInstanceOf[ServicePanic])
+    assert(e.isInstanceOf[ServiceStart])
+    assert(f.isInstanceOf[ServiceMessage])
+    assert(g.isInstanceOf[ServiceMessage])
+    assert(h.isInstanceOf[ServiceStop])
+  }
 
   test("3.should receive at least 3 report event") {}
 
   test("4.force reset") {
     val s :: b :: c :: _ = guard
       .service("reset")
-      .updateConfig(_.withMetricReport(_.crontab(_.secondly)))
+      .updateConfig(_.withMetricReport(_.giveUp))
       .eventStream(ag => ag.adhoc.reset >> ag.adhoc.reset)
       .map(checkJson)
       .compile
@@ -170,5 +191,36 @@ class ServiceTest extends AnyFunSuite {
     assert(b.asInstanceOf[ServiceStop].cause.asInstanceOf[ServiceStopCause.ByException].error.stack.nonEmpty)
   }
 
-  test("13.out of memory -- happy failure") {}
+  test("13. closure - io") {
+    val List(a, b) = guard
+      .service("closure")
+      .updateConfig(_.withRestartPolicy(_.fixedDelay(1.seconds).limited(1)))
+      .eventStream { agent =>
+        val a = UUID.randomUUID()
+        agent.herald.info(a.toString) *> IO.raiseError(new Exception)
+      }
+      .mapFilter(serviceMessage)
+      .debug()
+      .compile
+      .toList
+      .unsafeRunSync()
+    assert(a.message.as[String].toOption.get != b.message.as[String].toOption.get)
+  }
+
+  test("14. closure - stream") {
+    val List(a, b) = guard
+      .service("closure")
+      .updateConfig(_.withRestartPolicy(_.fixedDelay(1.seconds).limited(1)))
+      .eventStreamS { agent =>
+        val a = UUID.randomUUID()
+        fs2.Stream(0).covary[IO].evalMap(_ => agent.herald.info(a.toString) *> IO.raiseError(new Exception))
+      }
+      .mapFilter(serviceMessage)
+      .debug()
+      .compile
+      .toList
+      .unsafeRunSync()
+    assert(a.message.as[String].toOption.get != b.message.as[String].toOption.get)
+
+  }
 }

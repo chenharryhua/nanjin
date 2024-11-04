@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.service
 
 import cats.Endo
-import cats.effect.kernel.{Async, Resource}
+import cats.effect.kernel.Async
 import cats.effect.std.AtomicCell
 import cats.syntax.all.*
 import com.codahale.metrics.MetricRegistry
@@ -147,6 +147,4 @@ final class ServiceGuard[F[_]: Network] private[guard] (serviceName: ServiceName
   def eventStreamS[A](runAgent: Agent[F] => Stream[F, A]): Stream[F, NJEvent] =
     eventStream(agent => runAgent(agent).compile.drain)
 
-  def eventStreamR[A](runAgent: Agent[F] => Resource[F, A]): Stream[F, NJEvent] =
-    eventStream(agent => runAgent(agent).use_)
 }

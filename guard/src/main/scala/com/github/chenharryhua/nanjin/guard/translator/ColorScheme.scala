@@ -59,7 +59,7 @@ object ColorScheme extends CatsOrderValueEnum[Int, ColorScheme] with IntEnum[Col
           case AlarmLevel.Error => ErrorColor
           case AlarmLevel.Warn  => WarnColor
           case AlarmLevel.Info  => InfoColor
-          case AlarmLevel.Good  => GoodColor
+          case AlarmLevel.Done  => GoodColor
         }
       case mr: MetricReport => color_snapshot(mr.snapshot)
       case mr: MetricReset  => color_snapshot(mr.snapshot)
