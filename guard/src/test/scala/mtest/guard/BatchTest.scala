@@ -28,6 +28,7 @@ class BatchTest extends AnyFunSuite {
           "f" -> IO.raiseError(new Exception)
         )
         .quasi
+        .useEval
         .map { qr =>
           assert(!qr.details.head.done)
           assert(qr.details(1).done)
@@ -53,6 +54,7 @@ class BatchTest extends AnyFunSuite {
           "f" -> IO.sleep(4.seconds)
         )
         .quasi
+        .useEval
         .map { qr =>
           assert(qr.details.head.done)
           assert(qr.details(1).done)
@@ -68,7 +70,11 @@ class BatchTest extends AnyFunSuite {
 
   test("3.sequential") {
     service.eventStream { ga =>
-      ga.batch("sequential").sequential(IO.sleep(1.second), IO.sleep(2.seconds), IO.sleep(1.seconds)).run.void
+      ga.batch("sequential")
+        .sequential(IO.sleep(1.second), IO.sleep(2.seconds), IO.sleep(1.seconds))
+        .run
+        .useEval
+        .void
     }.map(checkJson).evalTap(console.text[IO]).compile.drain.unsafeRunSync()
   }
 
@@ -77,6 +83,7 @@ class BatchTest extends AnyFunSuite {
       ga.batch("parallel")
         .parallel(3)(IO.sleep(3.second), IO.sleep(2.seconds), IO.sleep(3.seconds), IO.sleep(4.seconds))
         .run
+        .useEval
         .void
     }.map(checkJson).evalTap(console.text[IO]).compile.drain.unsafeRunSync()
   }
@@ -90,6 +97,7 @@ class BatchTest extends AnyFunSuite {
           IO.raiseError(new Exception),
           IO.sleep(1.seconds))
         .run
+        .useEval
         .void
     }.map(checkJson).evalTap(console.text[IO]).compile.drain.unsafeRunSync()
   }
@@ -103,14 +111,19 @@ class BatchTest extends AnyFunSuite {
       "e" -> IO.sleep(4.seconds)
     )
     service.eventStream { ga =>
-      ga.batch("parallel").namedParallel(3)(jobs*).run.void
+      ga.batch("parallel").namedParallel(3)(jobs*).run.useEval.void
     }.map(checkJson).evalTap(console.text[IO]).compile.drain.unsafeRunSync()
   }
 
   test("7.batch mode") {
     val j1 = service
       .eventStream(
-        _.batch("parallel-1").parallel(IO(0)).quasi.map(r => assert(r.mode == BatchMode.Parallel(1))).void)
+        _.batch("parallel-1")
+          .parallel(IO(0))
+          .quasi
+          .useEval
+          .map(r => assert(r.mode == BatchMode.Parallel(1)))
+          .void)
       .map(checkJson)
       .evalTap(console.text[IO])
       .compile
@@ -118,7 +131,12 @@ class BatchTest extends AnyFunSuite {
 
     val j2 = service
       .eventStream(ga =>
-        ga.batch("sequential").sequential(IO(0)).quasi.map(r => assert(r.mode == BatchMode.Sequential)).void)
+        ga.batch("sequential")
+          .sequential(IO(0))
+          .quasi
+          .useEval
+          .map(r => assert(r.mode == BatchMode.Sequential))
+          .void)
       .map(checkJson)
       .evalTap(console.text[IO])
       .compile

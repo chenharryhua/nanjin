@@ -50,11 +50,11 @@ object BatchRunner {
     jobs: List[(Option[BatchJobName], F[A])])
       extends Runner[F, A](metrics) {
 
-    val quasi: F[QuasiResult] = {
+    val quasi: Resource[F, F[QuasiResult]] = {
       val batchJobs: List[(BatchJob, F[A])] = jobs.zipWithIndex.map { case ((name, fa), idx) =>
         BatchJob(BatchKind.Quasi, BatchMode.Parallel(parallelism), name, idx, jobs.size) -> fa
       }
-      val exec: Resource[F, F[QuasiResult]] = for {
+      for {
         rat <- measure(batchJobs.size)
       } yield F
         .timed(F.parTraverseN(parallelism)(batchJobs) { case (job, fa) =>
@@ -69,22 +69,18 @@ object BatchRunner {
             mode = BatchMode.Parallel(parallelism),
             details = details.sortBy(_.job.index))
         }
-
-      exec.use(identity)
     }
 
-    val run: F[List[A]] = {
+    val run: Resource[F, F[List[A]]] = {
       val batchJobs: List[(BatchJob, F[A])] = jobs.zipWithIndex.map { case ((name, fa), idx) =>
         BatchJob(BatchKind.Batch, BatchMode.Parallel(parallelism), name, idx, jobs.size) -> fa
       }
 
-      val exec: Resource[F, F[List[A]]] = for {
+      for {
         rat <- measure(batchJobs.size)
       } yield F.parTraverseN(parallelism)(batchJobs) { case (_, fa) =>
         F.timed(fa).flatMap { case (fd, a) => rat.run(fd).as(a) }
       }
-
-      exec.use(identity)
     }
   }
 
@@ -93,12 +89,12 @@ object BatchRunner {
     jobs: List[(Option[BatchJobName], F[A])])
       extends Runner[F, A](metrics) {
 
-    val quasi: F[QuasiResult] = {
+    val quasi: Resource[F, F[QuasiResult]] = {
       val batchJobs: List[(BatchJob, F[A])] = jobs.zipWithIndex.map { case ((name, fa), idx) =>
         BatchJob(BatchKind.Quasi, BatchMode.Sequential, name, idx, jobs.size) -> fa
       }
 
-      val exec: Resource[F, F[QuasiResult]] = for {
+      for {
         rat <- measure(batchJobs.size)
       } yield batchJobs.traverse { case (job, fa) =>
         metrics
@@ -113,22 +109,18 @@ object BatchRunner {
           mode = BatchMode.Sequential,
           details = details.sortBy(_.job.index)
         ))
-
-      exec.use(identity)
     }
 
-    val run: F[List[A]] = {
+    val run: Resource[F, F[List[A]]] = {
       val batchJobs: List[(BatchJob, F[A])] = jobs.zipWithIndex.map { case ((name, fa), idx) =>
         BatchJob(BatchKind.Batch, BatchMode.Sequential, name, idx, jobs.size) -> fa
       }
 
-      val exec: Resource[F, F[List[A]]] = for {
+      for {
         rat <- measure(batchJobs.size)
       } yield batchJobs.traverse { case (job, fa) =>
         metrics.activeGauge(jobTag(job)).surround(F.timed(fa)).flatMap { case (fd, a) => rat.run(fd).as(a) }
       }
-
-      exec.use(identity)
     }
   }
 }
