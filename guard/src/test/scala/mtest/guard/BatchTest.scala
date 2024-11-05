@@ -2,6 +2,7 @@ package mtest.guard
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
+import cats.implicits.catsSyntaxTuple2Semigroupal
 import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.action.BatchMode
@@ -29,15 +30,15 @@ class BatchTest extends AnyFunSuite {
         )
         .quasi
         .map { qr =>
-          assert(!qr.details.head.done)
-          assert(qr.details(1).done)
-          assert(qr.details(2).done)
-          assert(!qr.details(3).done)
-          assert(qr.details(4).done)
-          assert(!qr.details(5).done)
+          assert(!qr.head.details.head.done)
+          assert(qr.head.details(1).done)
+          assert(qr.head.details(2).done)
+          assert(!qr.head.details(3).done)
+          assert(qr.head.details(4).done)
+          assert(!qr.head.details(5).done)
           qr
         }
-        .flatMap(qr => IO.println(qr.asJson))
+        .use(qr => IO.println(qr.asJson))
     }.map(checkJson).evalTap(console.text[IO]).compile.drain.unsafeRunSync()
   }
 
@@ -54,21 +55,21 @@ class BatchTest extends AnyFunSuite {
         )
         .quasi
         .map { qr =>
-          assert(qr.details.head.done)
-          assert(qr.details(1).done)
-          assert(!qr.details(2).done)
-          assert(qr.details(3).done)
-          assert(!qr.details(4).done)
-          assert(qr.details(5).done)
+          assert(qr.head.details.head.done)
+          assert(qr.head.details(1).done)
+          assert(!qr.head.details(2).done)
+          assert(qr.head.details(3).done)
+          assert(!qr.head.details(4).done)
+          assert(qr.head.details(5).done)
           qr
         }
-        .flatMap(qr => IO.println(qr.asJson))
+        .use(qr => IO.println(qr.asJson))
     }.map(checkJson).evalTap(console.text[IO]).compile.drain.unsafeRunSync()
   }
 
   test("3.sequential") {
     service.eventStream { ga =>
-      ga.batch("sequential").sequential(IO.sleep(1.second), IO.sleep(2.seconds), IO.sleep(1.seconds)).run.void
+      ga.batch("sequential").sequential(IO.sleep(1.second), IO.sleep(2.seconds), IO.sleep(1.seconds)).run.use_
     }.map(checkJson).evalTap(console.text[IO]).compile.drain.unsafeRunSync()
   }
 
@@ -77,7 +78,7 @@ class BatchTest extends AnyFunSuite {
       ga.batch("parallel")
         .parallel(3)(IO.sleep(3.second), IO.sleep(2.seconds), IO.sleep(3.seconds), IO.sleep(4.seconds))
         .run
-        .void
+        .use_
     }.map(checkJson).evalTap(console.text[IO]).compile.drain.unsafeRunSync()
   }
 
@@ -90,7 +91,7 @@ class BatchTest extends AnyFunSuite {
           IO.raiseError(new Exception),
           IO.sleep(1.seconds))
         .run
-        .void
+        .use_
     }.map(checkJson).evalTap(console.text[IO]).compile.drain.unsafeRunSync()
   }
 
@@ -103,14 +104,18 @@ class BatchTest extends AnyFunSuite {
       "e" -> IO.sleep(4.seconds)
     )
     service.eventStream { ga =>
-      ga.batch("parallel").namedParallel(3)(jobs*).run.void
+      ga.batch("parallel").namedParallel(3)(jobs*).run.use_
     }.map(checkJson).evalTap(console.text[IO]).compile.drain.unsafeRunSync()
   }
 
   test("7.batch mode") {
     val j1 = service
       .eventStream(
-        _.batch("parallel-1").parallel(IO(0)).quasi.map(r => assert(r.mode == BatchMode.Parallel(1))).void)
+        _.batch("parallel-1")
+          .parallel(IO(0))
+          .quasi
+          .map(r => assert(r.head.mode == BatchMode.Parallel(1)))
+          .use_)
       .map(checkJson)
       .evalTap(console.text[IO])
       .compile
@@ -118,11 +123,45 @@ class BatchTest extends AnyFunSuite {
 
     val j2 = service
       .eventStream(ga =>
-        ga.batch("sequential").sequential(IO(0)).quasi.map(r => assert(r.mode == BatchMode.Sequential)).void)
+        ga.batch("sequential")
+          .sequential(IO(0))
+          .quasi
+          .map(r => assert(r.head.mode == BatchMode.Sequential))
+          .use_)
       .map(checkJson)
       .evalTap(console.text[IO])
       .compile
       .drain
     (j1 >> j2).unsafeRunSync()
+  }
+
+  test("8. combine") {
+    service
+      .updateConfig(_.withMetricReport(_.giveUp))
+      .eventStream { agent =>
+        val jobs = List(
+          "a" -> IO.sleep(1.second).flatMap(_ => agent.herald.consoleDone("done-a")),
+          "b" -> IO.sleep(2.seconds).flatMap(_ => agent.herald.consoleDone("done-b")))
+        val j1 = agent.batch("s1").namedSequential(jobs*)
+        val j2 = agent.batch("q1").namedParallel(jobs*)
+        j1.combine(j2).quasi.use(qr => agent.herald.consoleDone(qr) >> agent.adhoc.report)
+      }
+      .evalMap(console.text[IO])
+      .compile
+      .drain
+      .unsafeRunSync()
+  }
+
+  test("9. monotonic") {
+    val diff = (IO.monotonic, IO.monotonic).mapN((a, b) => b - a).unsafeRunSync()
+    assert(diff.toNanos > 0)
+    val res = for {
+      a <- IO.monotonic
+      b <- IO.monotonic
+      c <- IO.monotonic
+    } yield ((b - a), (c - b))
+
+    println(res.unsafeRunSync())
+
   }
 }

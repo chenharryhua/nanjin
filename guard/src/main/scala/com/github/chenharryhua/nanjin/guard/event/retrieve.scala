@@ -77,12 +77,3 @@ object retrieveHistogram {
       }
     }.toMap
 }
-
-object retrieveMetricIds {
-  def apply(mss: MetricSnapshot): List[MetricID] =
-    mss.counters.map(_.metricId) :::
-      mss.timers.map(_.metricId) :::
-      mss.gauges.map(_.metricId) :::
-      mss.meters.map(_.metricId) :::
-      mss.histograms.map(_.metricId)
-}
