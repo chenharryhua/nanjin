@@ -89,13 +89,9 @@ final class SnapshotPolyglot(snapshot: MetricSnapshot) {
           .map { case (name, items) =>
             val inner: Json =
               items
-                .groupBy(_._1.category.kind.group.value)
-                .toList
-                .sortBy(_._1)
-                .flatMap { case (_, items) =>
-                  items.sortBy(_._1.category.order).map { case (mId, js) =>
-                    Json.obj(mId.tag -> js)
-                  }
+                .sortBy(_._1.token)
+                .map { case (mId, js) =>
+                  Json.obj(mId.tag -> js)
                 }
                 .reduce((a, b) => b.deepMerge(a))
 
@@ -211,20 +207,17 @@ final class SnapshotPolyglot(snapshot: MetricSnapshot) {
           .groupBy(_._1.metricName) // metric-name group
           .toList
           .sortBy(_._1.name)
-          .map { case (name, ms) =>
-            name -> ms.groupBy(_._1.category.kind.group.value).toList.sortBy(_._1).flatMap {
-              case (_, items) =>
-                items.sortBy(_._1.category.order).flatMap { case (id, lst) =>
-                  @inline def others: List[String] =
-                    List(id.tag + ":").map(space * 4 + _) ::: lst.map(space * 6 + _)
-                  id.category match {
-                    case _: Category.Gauge     => lst.map(space * 4 + _)
-                    case _: Category.Counter   => lst.map(space * 4 + _)
-                    case _: Category.Timer     => others
-                    case _: Category.Meter     => others
-                    case _: Category.Histogram => others
-                  }
-                }
+          .map { case (name, items) =>
+            name -> items.sortBy(_._1.token).flatMap { case (id, lst) =>
+              @inline def others: List[String] =
+                List(id.tag + ":").map(space * 4 + _) ::: lst.map(space * 6 + _)
+              id.category match {
+                case _: Category.Gauge     => lst.map(space * 4 + _)
+                case _: Category.Counter   => lst.map(space * 4 + _)
+                case _: Category.Timer     => others
+                case _: Category.Meter     => others
+                case _: Category.Histogram => others
+              }
             }
           }
           .flatMap { case (n, items) =>

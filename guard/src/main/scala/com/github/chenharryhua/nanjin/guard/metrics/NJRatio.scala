@@ -95,7 +95,7 @@ object NJRatio {
       val F = Async[F]
 
       val impl: Resource[F, NJRatio[F]] = for {
-        token <- Resource.eval(F.unique)
+        token <- Resource.eval(F.monotonic)
         metricID = MetricID(metricName, tag, Category.Gauge(GaugeKind.Ratio), token).identifier
         ref <- Resource.eval(F.ref(Ior.both(0L, 0L)))
         dispatcher <- Dispatcher.sequential[F]

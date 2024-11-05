@@ -1,13 +1,15 @@
 package com.github.chenharryhua.nanjin.guard.metrics
 
 import cats.Applicative
-import cats.effect.kernel.{Resource, Sync, Unique}
+import cats.effect.kernel.{Resource, Sync}
 import cats.implicits.toFunctorOps
 import com.codahale.metrics.{Meter, MetricRegistry}
 import com.github.chenharryhua.nanjin.common.EnableConfig
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.config.CategoryKind.MeterKind
 import com.github.chenharryhua.nanjin.guard.event.{MeasurementUnit, NJUnits}
+
+import scala.concurrent.duration.FiniteDuration
 
 sealed trait NJMeter[F[_]] extends KleisliLike[F, Long] {
   def run(num: Long): F[Unit]
@@ -24,7 +26,7 @@ object NJMeter {
     }
 
   private class Impl[F[_]: Sync](
-    private[this] val token: Unique.Token,
+    private[this] val token: FiniteDuration,
     private[this] val name: MetricName,
     private[this] val metricRegistry: MetricRegistry,
     private[this] val unit: MeasurementUnit,
@@ -57,7 +59,7 @@ object NJMeter {
       implicit F: Sync[F]): Resource[F, NJMeter[F]] =
       if (isEnabled) {
         Resource.make(
-          F.unique.map(token =>
+          F.monotonic.map(token =>
             new Impl[F](
               token = token,
               name = metricName,

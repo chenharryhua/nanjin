@@ -1,12 +1,14 @@
 package com.github.chenharryhua.nanjin.guard.metrics
 
 import cats.Applicative
-import cats.effect.kernel.{Resource, Sync, Unique}
+import cats.effect.kernel.{Resource, Sync}
 import cats.implicits.toFunctorOps
 import com.codahale.metrics.{Counter, MetricRegistry}
 import com.github.chenharryhua.nanjin.common.EnableConfig
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.config.CategoryKind.CounterKind
+
+import scala.concurrent.duration.FiniteDuration
 
 sealed trait NJCounter[F[_]] extends KleisliLike[F, Long] {
   def run(a: Long): F[Unit]
@@ -23,7 +25,7 @@ object NJCounter {
     }
 
   private class Impl[F[_]: Sync](
-    private[this] val token: Unique.Token,
+    private[this] val token: FiniteDuration,
     private[this] val name: MetricName,
     private[this] val metricRegistry: MetricRegistry,
     private[this] val isRisk: Boolean,
@@ -58,7 +60,7 @@ object NJCounter {
     private[guard] def build[F[_]](metricName: MetricName, tag: MetricTag, metricRegistry: MetricRegistry)(
       implicit F: Sync[F]): Resource[F, NJCounter[F]] =
       if (isEnabled) {
-        Resource.make(F.unique.map(new Impl[F](_, metricName, metricRegistry, isRisk, tag)))(_.unregister)
+        Resource.make(F.monotonic.map(new Impl[F](_, metricName, metricRegistry, isRisk, tag)))(_.unregister)
       } else
         Resource.pure(dummy[F])
   }

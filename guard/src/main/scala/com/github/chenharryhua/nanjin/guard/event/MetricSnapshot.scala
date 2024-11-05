@@ -86,7 +86,7 @@ final case class MetricSnapshot(
 
   def nonEmpty: Boolean = !isEmpty
 
-  private def metricIDs: List[MetricID] =
+  def metricIDs: List[MetricID] =
     counters.map(_.metricId) :::
       timers.map(_.metricId) :::
       gauges.map(_.metricId) :::

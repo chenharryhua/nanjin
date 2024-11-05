@@ -6,7 +6,7 @@ import cats.effect.std.Dispatcher
 import cats.syntax.all.*
 import com.codahale.metrics.{Gauge, MetricRegistry}
 import com.github.chenharryhua.nanjin.common.EnableConfig
-import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy}
+import com.github.chenharryhua.nanjin.common.chrono.{Policy, tickStream}
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.config.CategoryKind.GaugeKind
 import io.circe.syntax.EncoderOps
@@ -61,7 +61,7 @@ object NJGauge {
       }
 
     override def register[A: Encoder](value: F[A]): Resource[F, Unit] =
-      Resource.eval(F.unique).flatMap { token =>
+      Resource.eval(F.monotonic).flatMap { token =>
         val metricID: MetricID = MetricID(name, tag, Category.Gauge(GaugeKind.Gauge), token)
         json_gauge(metricID, value)
       }

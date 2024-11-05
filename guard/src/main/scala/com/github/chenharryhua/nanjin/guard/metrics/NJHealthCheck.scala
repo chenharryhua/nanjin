@@ -44,7 +44,7 @@ object NJHealthCheck {
 
     override def register(hc: F[Boolean]): Resource[F, Unit] =
       Dispatcher.sequential[F].flatMap { dispatcher =>
-        Resource.eval(F.unique).flatMap { token =>
+        Resource.eval(F.monotonic).flatMap { token =>
           val metricID: MetricID = MetricID(name, tag, Category.Gauge(GaugeKind.HealthCheck), token)
           Resource
             .make(F.delay {

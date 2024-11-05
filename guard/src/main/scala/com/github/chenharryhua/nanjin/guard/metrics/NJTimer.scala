@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard.metrics
 
 import cats.Applicative
 import cats.effect.implicits.clockOps
-import cats.effect.kernel.{Resource, Sync, Unique}
+import cats.effect.kernel.{Resource, Sync}
 import cats.implicits.toFunctorOps
 import com.codahale.metrics.*
 import com.github.chenharryhua.nanjin.common.EnableConfig
@@ -36,7 +36,7 @@ object NJTimer {
     }
 
   private class Impl[F[_]: Sync](
-    private[this] val token: Unique.Token,
+    private[this] val token: FiniteDuration,
     private[this] val name: MetricName,
     private[this] val metricRegistry: MetricRegistry,
     private[this] val reservoir: Option[Reservoir],
@@ -85,7 +85,7 @@ object NJTimer {
       implicit F: Sync[F]): Resource[F, NJTimer[F]] =
       if (isEnabled) {
         Resource.make(
-          F.unique.map(token =>
+          F.monotonic.map(token =>
             new Impl[F](
               token = token,
               name = metricName,

@@ -1,8 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.event
 
-import cats.Show
-import cats.effect.kernel.Unique
-import cats.implicits.{catsSyntaxHash, toFunctorOps}
+import cats.implicits.toFunctorOps
 import com.github.chenharryhua.nanjin.common.chrono.Tick
 import io.circe.generic.JsonCodec
 import io.circe.syntax.EncoderOps
@@ -66,13 +64,4 @@ object ServiceStopCause {
       }.widen,
       _.downField(BY_EXCEPTION).as[NJError].map(err => ByException(err)).widen
     ).reduceLeft(_ or _)
-}
-
-final case class UniqueToken private (uniqueToken: Int)
-object UniqueToken {
-  implicit val showActionID: Show[UniqueToken]       = _.uniqueToken.toString
-  implicit val encoderActionID: Encoder[UniqueToken] = Encoder.encodeInt.contramap(_.uniqueToken)
-  implicit val decoderActionID: Decoder[UniqueToken] = Decoder.decodeInt.map(UniqueToken(_))
-
-  def apply(token: Unique.Token): UniqueToken = UniqueToken(token.hash)
 }
