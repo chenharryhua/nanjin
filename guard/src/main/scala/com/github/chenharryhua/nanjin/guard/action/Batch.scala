@@ -46,6 +46,7 @@ object Batch {
     def quasi: Resource[F, List[QuasiResult]]
     def run: Resource[F, List[A]]
 
+    // sequential
     final def combine(that: Runner[F, A]): Runner[F, A] =
       new Runner[F, A](mtx) {
         override val quasi: Resource[F, List[QuasiResult]] =
@@ -59,6 +60,17 @@ object Batch {
             a <- outer.run
             b <- that.run
           } yield a ::: b
+      }
+
+    // parallel
+    final def both(that: Runner[F, A]): Runner[F, A] =
+      new Runner[F, A](mtx) {
+
+        override def quasi: Resource[F, List[QuasiResult]] =
+          outer.quasi.both(that.quasi).map { case (a, b) => a ::: b }
+
+        override def run: Resource[F, List[A]] =
+          outer.run.both(that.run).map { case (a, b) => a ::: b }
       }
   }
 

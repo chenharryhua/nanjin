@@ -152,7 +152,25 @@ class BatchTest extends AnyFunSuite {
       .unsafeRunSync()
   }
 
-  test("9. monotonic") {
+  test("9. both") {
+    service
+      .updateConfig(_.withMetricReport(_.giveUp))
+      .eventStream { agent =>
+        val jobs = List(
+          "a" -> IO.sleep(1.second).flatMap(_ => agent.herald.consoleDone("done-a")),
+          "b" -> IO.sleep(2.seconds).flatMap(_ => agent.herald.consoleDone("done-b")))
+        val j1 = agent.batch("s1").namedSequential(jobs*)
+        val j2 = agent.batch("q1").namedParallel(jobs*)
+        j1.both(j2).quasi.use(qr => agent.herald.consoleDone(qr) >> agent.adhoc.report)
+      }
+      .evalMap(console.text[IO])
+      .compile
+      .drain
+      .unsafeRunSync()
+  }
+
+
+  test("10. monotonic") {
     val diff = (IO.monotonic, IO.monotonic).mapN((a, b) => b - a).unsafeRunSync()
     assert(diff.toNanos > 0)
     val res = for {
