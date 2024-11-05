@@ -8,71 +8,52 @@ import org.apache.commons.codec.digest.DigestUtils
 
 import scala.concurrent.duration.FiniteDuration
 
-sealed trait CategoryGroup extends EnumEntry with Product with Serializable
-
-object CategoryGroup extends Enum[CategoryGroup] with CirceEnum[CategoryGroup] {
-  override val values: IndexedSeq[CategoryGroup] = findValues
-
-  case object HealthCheck extends CategoryGroup // gauge
-  case object Ratio extends CategoryGroup // gauge
-
-  case object Risk extends CategoryGroup // counter
-
-  case object Gauge extends CategoryGroup // dropwizard
-  case object Counter extends CategoryGroup // dropwizard
-  case object Meter extends CategoryGroup // dropwizard
-  case object Histogram extends CategoryGroup // dropwizard
-  case object Timer extends CategoryGroup // dropwizard
-}
-
-sealed trait CategoryKind extends EnumEntry with Product with Serializable {
-  def group: CategoryGroup
-}
+sealed trait CategoryKind extends EnumEntry with Product with Serializable
 
 object CategoryKind {
-  sealed abstract class GaugeKind(val group: CategoryGroup) extends CategoryKind
+  sealed trait GaugeKind extends CategoryKind
 
   object GaugeKind extends Enum[GaugeKind] with CirceEnum[GaugeKind] {
     val values: IndexedSeq[GaugeKind] = findValues
 
-    case object HealthCheck extends GaugeKind(CategoryGroup.HealthCheck)
-    case object Ratio extends GaugeKind(CategoryGroup.Ratio)
+    case object HealthCheck extends GaugeKind
+    case object Ratio extends GaugeKind
 
-    case object Gauge extends GaugeKind(CategoryGroup.Gauge)
+    case object Gauge extends GaugeKind
   }
 
-  sealed abstract class CounterKind(val group: CategoryGroup) extends CategoryKind
+  sealed trait CounterKind extends CategoryKind
 
   object CounterKind extends Enum[CounterKind] with CirceEnum[CounterKind] {
     val values: IndexedSeq[CounterKind] = findValues
 
-    case object Risk extends CounterKind(CategoryGroup.Risk)
+    case object Risk extends CounterKind
 
-    case object Counter extends CounterKind(CategoryGroup.Counter)
+    case object Counter extends CounterKind
   }
 
-  sealed abstract class MeterKind(val group: CategoryGroup) extends CategoryKind
+  sealed trait MeterKind extends CategoryKind
 
   object MeterKind extends Enum[MeterKind] with CirceEnum[MeterKind] {
     val values: IndexedSeq[MeterKind] = findValues
 
-    case object Meter extends MeterKind(CategoryGroup.Meter)
+    case object Meter extends MeterKind
   }
 
-  sealed abstract class HistogramKind(val group: CategoryGroup) extends CategoryKind
+  sealed trait HistogramKind extends CategoryKind
 
   object HistogramKind extends Enum[HistogramKind] with CirceEnum[HistogramKind] {
     val values: IndexedSeq[HistogramKind] = findValues
 
-    case object Histogram extends HistogramKind(CategoryGroup.Histogram)
+    case object Histogram extends HistogramKind
   }
 
-  sealed abstract class TimerKind(val group: CategoryGroup) extends CategoryKind
+  sealed trait TimerKind extends CategoryKind
 
   object TimerKind extends Enum[TimerKind] with CirceEnum[TimerKind] {
     val values: IndexedSeq[TimerKind] = findValues
 
-    case object Timer extends TimerKind(CategoryGroup.Timer)
+    case object Timer extends TimerKind
   }
 }
 
