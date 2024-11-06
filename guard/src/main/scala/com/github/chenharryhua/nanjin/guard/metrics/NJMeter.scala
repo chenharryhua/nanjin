@@ -9,8 +9,6 @@ import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.config.CategoryKind.MeterKind
 import com.github.chenharryhua.nanjin.guard.event.{MeasurementUnit, NJUnits}
 
-import scala.concurrent.duration.FiniteDuration
-
 sealed trait NJMeter[F[_]] extends KleisliLike[F, Long] {
   def run(num: Long): F[Unit]
   def update(num: Long): F[Unit]
@@ -26,7 +24,6 @@ object NJMeter {
     }
 
   private class Impl[F[_]: Sync](
-    private[this] val token: FiniteDuration,
     private[this] val name: MetricName,
     private[this] val metricRegistry: MetricRegistry,
     private[this] val unit: MeasurementUnit,
@@ -36,7 +33,7 @@ object NJMeter {
     private[this] val F = Sync[F]
 
     private[this] val meter_name: String =
-      MetricID(name, tag, Category.Meter(MeterKind.Meter, unit), token).identifier
+      MetricID(name, tag, Category.Meter(MeterKind.Meter, unit)).identifier
 
     private[this] lazy val meter: Meter = metricRegistry.meter(meter_name)
 
@@ -55,17 +52,16 @@ object NJMeter {
     override def enable(isEnabled: Boolean): Builder =
       new Builder(isEnabled, unit)
 
-    private[guard] def build[F[_]](metricName: MetricName, tag: MetricTag, metricRegistry: MetricRegistry)(
+    private[guard] def build[F[_]](metricName: MetricName, tag: String, metricRegistry: MetricRegistry)(
       implicit F: Sync[F]): Resource[F, NJMeter[F]] =
       if (isEnabled) {
         Resource.make(
-          F.monotonic.map(token =>
+          F.monotonic.map(ts =>
             new Impl[F](
-              token = token,
               name = metricName,
               metricRegistry = metricRegistry,
               unit = unit,
-              tag = tag)))(_.unregister)
+              tag = MetricTag(tag, ts))))(_.unregister)
       } else
         Resource.pure(dummy[F])
   }

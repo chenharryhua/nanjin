@@ -6,7 +6,7 @@ import cats.effect.std.Dispatcher
 import cats.syntax.all.*
 import com.codahale.metrics.{Gauge, MetricRegistry}
 import com.github.chenharryhua.nanjin.common.EnableConfig
-import com.github.chenharryhua.nanjin.common.chrono.{Policy, tickStream}
+import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy}
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.config.CategoryKind.GaugeKind
 import io.circe.syntax.EncoderOps
@@ -36,7 +36,7 @@ object NJGauge {
     private[this] val name: MetricName,
     private[this] val metricRegistry: MetricRegistry,
     private[this] val timeout: FiniteDuration,
-    private[this] val tag: MetricTag
+    private[this] val tag: String
   ) extends NJGauge[F] {
 
     private[this] val F = Async[F]
@@ -61,8 +61,8 @@ object NJGauge {
       }
 
     override def register[A: Encoder](value: F[A]): Resource[F, Unit] =
-      Resource.eval(F.monotonic).flatMap { token =>
-        val metricID: MetricID = MetricID(name, tag, Category.Gauge(GaugeKind.Gauge), token)
+      Resource.eval(F.monotonic).flatMap { ts =>
+        val metricID: MetricID = MetricID(name, MetricTag(tag, ts), Category.Gauge(GaugeKind.Gauge))
         json_gauge(metricID, value)
       }
 
@@ -88,7 +88,7 @@ object NJGauge {
 
     private[guard] def build[F[_]: Async](
       metricName: MetricName,
-      tag: MetricTag,
+      tag: String,
       metricRegistry: MetricRegistry): NJGauge[F] =
       if (isEnabled) {
         new Impl[F](metricName, metricRegistry, timeout, tag)

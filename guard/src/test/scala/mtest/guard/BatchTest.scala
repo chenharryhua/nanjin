@@ -169,7 +169,6 @@ class BatchTest extends AnyFunSuite {
       .unsafeRunSync()
   }
 
-
   test("10. monotonic") {
     val diff = (IO.monotonic, IO.monotonic).mapN((a, b) => b - a).unsafeRunSync()
     assert(diff.toNanos > 0)

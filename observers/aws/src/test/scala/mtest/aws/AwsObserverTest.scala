@@ -6,6 +6,7 @@ import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.guard.TaskGuard
+import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import com.github.chenharryhua.nanjin.guard.observers.cloudwatch.CloudWatchObserver
 import com.github.chenharryhua.nanjin.guard.observers.ses.EmailObserver
 import com.github.chenharryhua.nanjin.guard.observers.sqs.SqsObserver
@@ -15,7 +16,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import scala.concurrent.duration.DurationInt
 
 class AwsObserverTest extends AnyFunSuite {
-  val service = TaskGuard[IO]("aws")
+  private val service: fs2.Stream[IO, NJEvent] = TaskGuard[IO]("aws")
     .service("test")
     .updateConfig(_.addBrief("brief").withRestartPolicy(Policy.fixedDelay(1.second).limited(1)))
     .eventStream { agent =>
@@ -60,7 +61,7 @@ class AwsObserverTest extends AnyFunSuite {
     val service = TaskGuard[IO]("aws")
       .service("cloudwatch")
       .eventStream { agent =>
-        agent.metrics("metrics")(_.meter("meter").map(_.kleisli)).use { m =>
+        agent.metrics("metrics")(_.meter("meter-x").map(_.kleisli)).use { m =>
           m.run(1) >> agent.adhoc.report >> IO.sleep(1.second) >>
             m.run(-100) >> agent.adhoc.report >> IO.sleep(1.second) >>
             m.run(2) >> agent.adhoc.report >> IO.sleep(1.second) >>

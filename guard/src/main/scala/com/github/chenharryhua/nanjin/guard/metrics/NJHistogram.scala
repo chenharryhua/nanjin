@@ -9,8 +9,6 @@ import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.config.CategoryKind.HistogramKind
 import com.github.chenharryhua.nanjin.guard.event.{MeasurementUnit, NJUnits}
 
-import scala.concurrent.duration.FiniteDuration
-
 sealed trait NJHistogram[F[_]] extends KleisliLike[F, Long] {
   def run(num: Long): F[Unit]
   def update(num: Long): F[Unit]
@@ -26,7 +24,6 @@ object NJHistogram {
     }
 
   private class Impl[F[_]: Sync](
-    private[this] val token: FiniteDuration,
     private[this] val name: MetricName,
     private[this] val metricRegistry: MetricRegistry,
     private[this] val unit: MeasurementUnit,
@@ -37,7 +34,7 @@ object NJHistogram {
     private[this] val F = Sync[F]
 
     private[this] val histogram_name: String =
-      MetricID(name, tag, Category.Histogram(HistogramKind.Histogram, unit), token).identifier
+      MetricID(name, tag, Category.Histogram(HistogramKind.Histogram, unit)).identifier
 
     private[this] val supplier: MetricRegistry.MetricSupplier[Histogram] = () =>
       reservoir match {
@@ -66,18 +63,17 @@ object NJHistogram {
     override def enable(isEnabled: Boolean): Builder =
       new Builder(isEnabled, unit, reservoir)
 
-    private[guard] def build[F[_]](metricName: MetricName, tag: MetricTag, metricRegistry: MetricRegistry)(
+    private[guard] def build[F[_]](metricName: MetricName, tag: String, metricRegistry: MetricRegistry)(
       implicit F: Sync[F]): Resource[F, NJHistogram[F]] =
       if (isEnabled) {
         Resource.make(
-          F.monotonic.map(token =>
+          F.monotonic.map(ts =>
             new Impl[F](
-              token = token,
               name = metricName,
               metricRegistry = metricRegistry,
               unit = unit,
               reservoir = reservoir,
-              tag = tag)))(_.unregister)
+              tag = MetricTag(tag, ts))))(_.unregister)
       } else
         Resource.pure(dummy[F])
   }

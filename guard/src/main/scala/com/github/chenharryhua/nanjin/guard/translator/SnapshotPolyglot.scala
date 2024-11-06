@@ -89,7 +89,7 @@ final class SnapshotPolyglot(snapshot: MetricSnapshot) {
           .map { case (name, items) =>
             val inner: Json =
               items
-                .sortBy(_._1.token)
+                .sortBy(_._1.metricTag)
                 .map { case (mId, js) =>
                   Json.obj(mId.tag -> js)
                 }
@@ -208,7 +208,7 @@ final class SnapshotPolyglot(snapshot: MetricSnapshot) {
           .toList
           .sortBy(_._1.name)
           .map { case (name, items) =>
-            name -> items.sortBy(_._1.token).flatMap { case (id, lst) =>
+            name -> items.sortBy(_._1.metricTag).flatMap { case (id, lst) =>
               @inline def others: List[String] =
                 List(id.tag + ":").map(space * 4 + _) ::: lst.map(space * 6 + _)
               id.category match {

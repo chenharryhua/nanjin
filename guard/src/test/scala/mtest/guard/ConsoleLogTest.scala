@@ -61,7 +61,7 @@ class ConsoleLogTest extends AnyFunSuite {
       .compile
       .lastOrError
       .unsafeRunSync()
-    val tags = mr.snapshot.metricIDs.sortBy(_.token).map(_.tag.toInt)
+    val tags = mr.snapshot.metricIDs.sortBy(_.metricTag.order).map(_.tag.toInt)
     assert(tags == List(1, 2, 3, 4, 5, 6, 7))
   }
 }

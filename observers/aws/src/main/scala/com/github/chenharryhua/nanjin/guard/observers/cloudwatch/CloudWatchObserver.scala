@@ -3,14 +3,14 @@ import cats.effect.kernel.{Resource, Sync}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.aws.CloudWatch
 import com.github.chenharryhua.nanjin.common.aws.CloudWatchNamespace
-import com.github.chenharryhua.nanjin.guard.config.{Category, MetricID, MetricName, MetricTag, ServiceParams}
+import com.github.chenharryhua.nanjin.guard.config.{MetricID, MetricName, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.MeasurementUnit.*
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.MetricReport
 import com.github.chenharryhua.nanjin.guard.event.{MeasurementUnit, NJEvent, Normalized, UnitNormalization}
 import com.github.chenharryhua.nanjin.guard.translator.metricConstants
 import com.github.chenharryhua.nanjin.guard.translator.textConstants.*
 import fs2.{Pipe, Pull, Stream}
-import io.scalaland.chimney.dsl.TransformerOps
+import io.scalaland.chimney.dsl.*
 import monocle.syntax.all.*
 import org.typelevel.cats.time.instances.localdate.*
 import software.amazon.awssdk.services.cloudwatch.model.{
@@ -235,8 +235,7 @@ final class CloudWatchObserver[F[_]: Sync](
 
 final private case class StableMetricID(
   metricName: MetricName,
-  metricTag: MetricTag,
-  category: Category
+  tag: String
 )
 
 private object StableMetricID {

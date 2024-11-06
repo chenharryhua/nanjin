@@ -89,14 +89,14 @@ object NJRatio {
 
     private[guard] def build[F[_]: Async](
       metricName: MetricName,
-      tag: MetricTag,
+      tag: String,
       metricRegistry: MetricRegistry): Resource[F, NJRatio[F]] = {
 
       val F = Async[F]
 
       val impl: Resource[F, NJRatio[F]] = for {
-        token <- Resource.eval(F.monotonic)
-        metricID = MetricID(metricName, tag, Category.Gauge(GaugeKind.Ratio), token).identifier
+        ts <- Resource.eval(F.monotonic)
+        metricID = MetricID(metricName, MetricTag(tag, ts), Category.Gauge(GaugeKind.Ratio)).identifier
         ref <- Resource.eval(F.ref(Ior.both(0L, 0L)))
         dispatcher <- Dispatcher.sequential[F]
         _ <- Resource.make(F.delay {
