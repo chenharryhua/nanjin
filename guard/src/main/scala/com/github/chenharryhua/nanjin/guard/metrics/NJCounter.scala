@@ -23,20 +23,20 @@ object NJCounter {
     }
 
   private class Impl[F[_]: Sync](
-    private[this] val name: MetricLabel,
+    private[this] val label: MetricLabel,
     private[this] val metricRegistry: MetricRegistry,
     private[this] val isRisk: Boolean,
-    private[this] val tag: MetricName)
+    private[this] val name: MetricName)
       extends NJCounter[F] {
 
     private[this] val F = Sync[F]
 
     private[this] lazy val (counter_name: String, counter: Counter) =
       if (isRisk) {
-        val id = MetricID(name, tag, Category.Counter(CounterKind.Risk)).identifier
+        val id = MetricID(label, name, Category.Counter(CounterKind.Risk)).identifier
         (id, metricRegistry.counter(id))
       } else {
-        val id = MetricID(name, tag, Category.Counter(CounterKind.Counter)).identifier
+        val id = MetricID(label, name, Category.Counter(CounterKind.Counter)).identifier
         (id, metricRegistry.counter(id))
       }
 
@@ -54,11 +54,11 @@ object NJCounter {
     override def enable(isEnabled: Boolean): Builder =
       new Builder(isEnabled, isRisk)
 
-    private[guard] def build[F[_]](metricName: MetricLabel, tag: String, metricRegistry: MetricRegistry)(
-      implicit F: Sync[F]): Resource[F, NJCounter[F]] =
+    private[guard] def build[F[_]](label: MetricLabel, name: String, metricRegistry: MetricRegistry)(implicit
+      F: Sync[F]): Resource[F, NJCounter[F]] =
       if (isEnabled) {
         Resource.make(F.monotonic.map(ts =>
-          new Impl[F](metricName, metricRegistry, isRisk, MetricName(tag, ts))))(_.unregister)
+          new Impl[F](label, metricRegistry, isRisk, MetricName(name, ts))))(_.unregister)
       } else
         Resource.pure(dummy[F])
   }

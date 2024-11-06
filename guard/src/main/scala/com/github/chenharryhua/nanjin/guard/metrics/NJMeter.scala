@@ -24,16 +24,16 @@ object NJMeter {
     }
 
   private class Impl[F[_]: Sync](
-    private[this] val name: MetricLabel,
+    private[this] val label: MetricLabel,
     private[this] val metricRegistry: MetricRegistry,
     private[this] val unit: MeasurementUnit,
-    private[this] val tag: MetricName)
+    private[this] val name: MetricName)
       extends NJMeter[F] {
 
     private[this] val F = Sync[F]
 
     private[this] val meter_name: String =
-      MetricID(name, tag, Category.Meter(MeterKind.Meter, unit)).identifier
+      MetricID(label, name, Category.Meter(MeterKind.Meter, unit)).identifier
 
     private[this] lazy val meter: Meter = metricRegistry.meter(meter_name)
 
@@ -52,16 +52,16 @@ object NJMeter {
     override def enable(isEnabled: Boolean): Builder =
       new Builder(isEnabled, unit)
 
-    private[guard] def build[F[_]](metricName: MetricLabel, tag: String, metricRegistry: MetricRegistry)(
-      implicit F: Sync[F]): Resource[F, NJMeter[F]] =
+    private[guard] def build[F[_]](label: MetricLabel, name: String, metricRegistry: MetricRegistry)(implicit
+      F: Sync[F]): Resource[F, NJMeter[F]] =
       if (isEnabled) {
         Resource.make(
           F.monotonic.map(ts =>
             new Impl[F](
-              name = metricName,
+              label = label,
               metricRegistry = metricRegistry,
               unit = unit,
-              tag = MetricName(tag, ts))))(_.unregister)
+              name = MetricName(name, ts))))(_.unregister)
       } else
         Resource.pure(dummy[F])
   }

@@ -91,7 +91,7 @@ final class SnapshotPolyglot(snapshot: MetricSnapshot) {
               items
                 .sortBy(_._1.metricName)
                 .map { case (mId, js) =>
-                  Json.obj(mId.tag -> js)
+                  Json.obj(mId.metricName.name -> js)
                 }
                 .reduce((a, b) => b.deepMerge(a))
 
@@ -128,7 +128,7 @@ final class SnapshotPolyglot(snapshot: MetricSnapshot) {
   private def counter_str: List[(MetricID, List[String])] =
     snapshot.counters
       .filter(_.count > 0)
-      .map(c => c.metricId -> List(show"${c.metricId.tag}: ${decimal_fmt.format(c.count)}"))
+      .map(c => c.metricId -> List(show"${c.metricId.metricName.name}: ${decimal_fmt.format(c.count)}"))
 
   private def gauge_str: List[(MetricID, List[String])] =
     snapshot.gauges.map { g =>
@@ -140,7 +140,7 @@ final class SnapshotPolyglot(snapshot: MetricSnapshot) {
         jsonArray = js => show"[${js.map(_.noSpaces).mkString(", ")}]",
         jsonObject = js => js.toJson.noSpaces
       )
-      g.metricId -> List(show"${g.metricId.tag}: $str")
+      g.metricId -> List(show"${g.metricId.metricName.name}: $str")
     }
 
   private def meter_str: List[(MetricID, List[String])] =
@@ -210,7 +210,7 @@ final class SnapshotPolyglot(snapshot: MetricSnapshot) {
             val oldest = items.map(_._1.metricName.order).min
             (oldest, name) -> items.sortBy(_._1.metricName).flatMap { case (id, lst) =>
               @inline def others: List[String] =
-                List(id.tag + ":").map(space * 4 + _) ::: lst.map(space * 6 + _)
+                List(id.metricName.name + ":").map(space * 4 + _) ::: lst.map(space * 6 + _)
               id.category match {
                 case _: Category.Gauge     => lst.map(space * 4 + _)
                 case _: Category.Counter   => lst.map(space * 4 + _)

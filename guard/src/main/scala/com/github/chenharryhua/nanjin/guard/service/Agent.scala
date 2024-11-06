@@ -18,7 +18,7 @@ sealed trait Agent[F[_]] {
 
   def withMeasurement(name: String): Agent[F]
 
-  def batch(name: String): Batch[F]
+  def batch(label: String): Batch[F]
 
   // tick stream
   def ticks(policy: Policy): Stream[F, Tick]
@@ -30,10 +30,10 @@ sealed trait Agent[F[_]] {
 
   def herald: Herald[F]
 
-  def metrics[A, B](name: String)(
+  def metrics[A, B](label: String)(
     f: Metrics[F] => Resource[F, Kleisli[F, A, B]]): Resource[F, Kleisli[F, A, B]]
 
-  def facilitate[A](name: String)(f: Metrics[F] => A): A
+  def facilitate[A](label: String)(f: Metrics[F] => A): A
 
   def createRetry(policy: Policy): Resource[F, Retry[F]]
   final def createRetry(f: Policy.type => Policy): Resource[F, Retry[F]] =
@@ -52,9 +52,9 @@ final private class GeneralAgent[F[_]: Async] private[service] (
   override def withMeasurement(name: String): Agent[F] =
     new GeneralAgent[F](serviceParams, metricRegistry, channel, Measurement(name))
 
-  override def batch(name: String): Batch[F] = {
-    val metricName = MetricLabel(serviceParams, measurement, name)
-    new Batch[F](new Metrics.Impl[F](metricName, metricRegistry, isEnabled = true))
+  override def batch(label: String): Batch[F] = {
+    val metricLabel = MetricLabel(serviceParams, measurement, label)
+    new Batch[F](new Metrics.Impl[F](metricLabel, metricRegistry, isEnabled = true))
   }
 
   override def ticks(policy: Policy): Stream[F, Tick] =
@@ -65,15 +65,15 @@ final private class GeneralAgent[F[_]: Async] private[service] (
   override def createRetry(policy: Policy): Resource[F, Retry[F]] =
     Resource.pure(new Retry.Impl[F](serviceParams.initialStatus.renewPolicy(policy)))
 
-  override def metrics[A, B](name: String)(
+  override def metrics[A, B](label: String)(
     f: Metrics[F] => Resource[F, Kleisli[F, A, B]]): Resource[F, Kleisli[F, A, B]] = {
-    val metricName = MetricLabel(serviceParams, measurement, name)
-    f(new Metrics.Impl[F](metricName, metricRegistry, isEnabled = true))
+    val metricLabel = MetricLabel(serviceParams, measurement, label)
+    f(new Metrics.Impl[F](metricLabel, metricRegistry, isEnabled = true))
   }
 
-  override def facilitate[A](name: String)(f: Metrics[F] => A): A = {
-    val metricName = MetricLabel(serviceParams, measurement, name)
-    f(new Metrics.Impl[F](metricName, metricRegistry, isEnabled = true))
+  override def facilitate[A](label: String)(f: Metrics[F] => A): A = {
+    val metricLabel = MetricLabel(serviceParams, measurement, label)
+    f(new Metrics.Impl[F](metricLabel, metricRegistry, isEnabled = true))
   }
 
   override val herald: Herald[F] =

@@ -97,7 +97,7 @@ object Batch {
         case (fd, details) <- Resource.eval(exec(meas))
       } yield List(
         QuasiResult(
-          metricName = metrics.metricName,
+          metricName = metrics.metricLabel,
           spent = fd.toJava,
           mode = BatchMode.Parallel(parallelism),
           details = details.sortBy(_.job.index)))
@@ -141,7 +141,7 @@ object Batch {
         details <- Resource.eval(exec(meas))
       } yield List(
         QuasiResult(
-          metricName = metrics.metricName,
+          metricName = metrics.metricLabel,
           spent = details.map(_.took).foldLeft(Duration.ZERO)(_ plus _),
           mode = BatchMode.Sequential,
           details = details.sortBy(_.job.index)

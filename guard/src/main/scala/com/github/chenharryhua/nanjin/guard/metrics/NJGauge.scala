@@ -33,10 +33,10 @@ object NJGauge {
     }
 
   private class Impl[F[_]: Async](
-    private[this] val name: MetricLabel,
+    private[this] val label: MetricLabel,
     private[this] val metricRegistry: MetricRegistry,
     private[this] val timeout: FiniteDuration,
-    private[this] val tag: String
+    private[this] val name: String
   ) extends NJGauge[F] {
 
     private[this] val F = Async[F]
@@ -62,7 +62,7 @@ object NJGauge {
 
     override def register[A: Encoder](value: F[A]): Resource[F, Unit] =
       Resource.eval(F.monotonic).flatMap { ts =>
-        val metricID: MetricID = MetricID(name, MetricName(tag, ts), Category.Gauge(GaugeKind.Gauge))
+        val metricID: MetricID = MetricID(label, MetricName(name, ts), Category.Gauge(GaugeKind.Gauge))
         json_gauge(metricID, value)
       }
 
@@ -87,11 +87,11 @@ object NJGauge {
       new Builder(isEnabled, timeout)
 
     private[guard] def build[F[_]: Async](
-      metricName: MetricLabel,
-      tag: String,
+      label: MetricLabel,
+      name: String,
       metricRegistry: MetricRegistry): NJGauge[F] =
       if (isEnabled) {
-        new Impl[F](metricName, metricRegistry, timeout, tag)
+        new Impl[F](label, metricRegistry, timeout, name)
       } else dummy[F]
   }
 }

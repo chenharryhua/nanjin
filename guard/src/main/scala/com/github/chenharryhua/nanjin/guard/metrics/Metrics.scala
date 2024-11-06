@@ -22,89 +22,89 @@ trait KleisliLike[F[_], A] {
 }
 
 sealed trait Metrics[F[_]] {
-  def metricName: MetricLabel
+  def metricLabel: MetricLabel
 
-  def counter(tag: String, f: Endo[NJCounter.Builder]): Resource[F, NJCounter[F]]
-  final def counter(tag: String): Resource[F, NJCounter[F]] = counter(tag, identity)
+  def counter(name: String, f: Endo[NJCounter.Builder]): Resource[F, NJCounter[F]]
+  final def counter(name: String): Resource[F, NJCounter[F]] = counter(name, identity)
 
-  def meter(tag: String, f: Endo[NJMeter.Builder]): Resource[F, NJMeter[F]]
-  final def meter(tag: String): Resource[F, NJMeter[F]] = meter(tag, identity)
+  def meter(name: String, f: Endo[NJMeter.Builder]): Resource[F, NJMeter[F]]
+  final def meter(name: String): Resource[F, NJMeter[F]] = meter(name, identity)
 
-  def histogram(tag: String, f: Endo[NJHistogram.Builder]): Resource[F, NJHistogram[F]]
-  final def histogram(tag: String): Resource[F, NJHistogram[F]] =
-    histogram(tag, identity)
+  def histogram(name: String, f: Endo[NJHistogram.Builder]): Resource[F, NJHistogram[F]]
+  final def histogram(name: String): Resource[F, NJHistogram[F]] =
+    histogram(name, identity)
 
-  def timer(tag: String, f: Endo[NJTimer.Builder]): Resource[F, NJTimer[F]]
-  final def timer(tag: String): Resource[F, NJTimer[F]] = timer(tag, identity)
+  def timer(name: String, f: Endo[NJTimer.Builder]): Resource[F, NJTimer[F]]
+  final def timer(name: String): Resource[F, NJTimer[F]] = timer(name, identity)
 
   // gauges
-  def gauge(tag: String, f: Endo[NJGauge.Builder]): NJGauge[F]
-  final def gauge(tag: String): NJGauge[F] = gauge(tag, identity)
+  def gauge(name: String, f: Endo[NJGauge.Builder]): NJGauge[F]
+  final def gauge(name: String): NJGauge[F] = gauge(name, identity)
 
-  def ratio(tag: String, f: Endo[NJRatio.Builder]): Resource[F, NJRatio[F]]
-  final def ratio(tag: String): Resource[F, NJRatio[F]] = ratio(tag, identity)
+  def ratio(name: String, f: Endo[NJRatio.Builder]): Resource[F, NJRatio[F]]
+  final def ratio(name: String): Resource[F, NJRatio[F]] = ratio(name, identity)
 
-  def healthCheck(tag: String, f: Endo[NJHealthCheck.Builder]): NJHealthCheck[F]
-  final def healthCheck(tag: String): NJHealthCheck[F] = healthCheck(tag, identity)
+  def healthCheck(name: String, f: Endo[NJHealthCheck.Builder]): NJHealthCheck[F]
+  final def healthCheck(name: String): NJHealthCheck[F] = healthCheck(name, identity)
 
-  def idleGauge(tag: String, f: Endo[NJGauge.Builder]): Resource[F, Kleisli[F, Unit, Unit]]
-  final def idleGauge(tag: String): Resource[F, Kleisli[F, Unit, Unit]] =
-    idleGauge(tag, identity[NJGauge.Builder])
+  def idleGauge(name: String, f: Endo[NJGauge.Builder]): Resource[F, Kleisli[F, Unit, Unit]]
+  final def idleGauge(name: String): Resource[F, Kleisli[F, Unit, Unit]] =
+    idleGauge(name, identity[NJGauge.Builder])
 
-  def activeGauge(tag: String, f: Endo[NJGauge.Builder]): Resource[F, Unit]
-  final def activeGauge(tag: String): Resource[F, Unit] = activeGauge(tag, identity)
+  def activeGauge(name: String, f: Endo[NJGauge.Builder]): Resource[F, Unit]
+  final def activeGauge(name: String): Resource[F, Unit] = activeGauge(name, identity)
 
-  def permanentCounter(tag: String, f: Endo[NJGauge.Builder]): Resource[F, Kleisli[F, Long, Unit]]
-  final def permanentCounter(tag: String): Resource[F, Kleisli[F, Long, Unit]] =
-    permanentCounter(tag, identity)
+  def permanentCounter(name: String, f: Endo[NJGauge.Builder]): Resource[F, Kleisli[F, Long, Unit]]
+  final def permanentCounter(name: String): Resource[F, Kleisli[F, Long, Unit]] =
+    permanentCounter(name, identity)
 }
 
 object Metrics {
   private[guard] class Impl[F[_]](
-    val metricName: MetricLabel,
+    val metricLabel: MetricLabel,
     metricRegistry: MetricRegistry,
     isEnabled: Boolean)(implicit F: Async[F])
       extends Metrics[F] {
 
-    override def counter(tag: String, f: Endo[NJCounter.Builder]): Resource[F, NJCounter[F]] = {
+    override def counter(name: String, f: Endo[NJCounter.Builder]): Resource[F, NJCounter[F]] = {
       val init = new NJCounter.Builder(isEnabled, false)
-      f(init).build[F](metricName, tag, metricRegistry)
+      f(init).build[F](metricLabel, name, metricRegistry)
     }
 
-    override def meter(tag: String, f: Endo[NJMeter.Builder]): Resource[F, NJMeter[F]] = {
+    override def meter(name: String, f: Endo[NJMeter.Builder]): Resource[F, NJMeter[F]] = {
       val init = new NJMeter.Builder(isEnabled, NJUnits.COUNT)
-      f(init).build[F](metricName, tag, metricRegistry)
+      f(init).build[F](metricLabel, name, metricRegistry)
     }
 
-    override def histogram(tag: String, f: Endo[NJHistogram.Builder]): Resource[F, NJHistogram[F]] = {
+    override def histogram(name: String, f: Endo[NJHistogram.Builder]): Resource[F, NJHistogram[F]] = {
       val init = new NJHistogram.Builder(isEnabled, NJUnits.COUNT, None)
-      f(init).build[F](metricName, tag, metricRegistry)
+      f(init).build[F](metricLabel, name, metricRegistry)
     }
 
-    override def timer(tag: String, f: Endo[NJTimer.Builder]): Resource[F, NJTimer[F]] = {
+    override def timer(name: String, f: Endo[NJTimer.Builder]): Resource[F, NJTimer[F]] = {
       val init = new NJTimer.Builder(isEnabled, None)
-      f(init).build[F](metricName, tag, metricRegistry)
+      f(init).build[F](metricLabel, name, metricRegistry)
     }
 
-    override def healthCheck(tag: String, f: Endo[NJHealthCheck.Builder]): NJHealthCheck[F] = {
+    override def healthCheck(name: String, f: Endo[NJHealthCheck.Builder]): NJHealthCheck[F] = {
       val init = new NJHealthCheck.Builder(isEnabled, timeout = 5.seconds)
-      f(init).build[F](metricName, tag, metricRegistry)
+      f(init).build[F](metricLabel, name, metricRegistry)
     }
 
-    override def ratio(tag: String, f: Endo[NJRatio.Builder]): Resource[F, NJRatio[F]] = {
+    override def ratio(name: String, f: Endo[NJRatio.Builder]): Resource[F, NJRatio[F]] = {
       val init = new NJRatio.Builder(isEnabled, NJRatio.translator)
-      f(init).build[F](metricName, tag, metricRegistry)
+      f(init).build[F](metricLabel, name, metricRegistry)
     }
 
-    override def gauge(tag: String, f: Endo[NJGauge.Builder]): NJGauge[F] = {
+    override def gauge(name: String, f: Endo[NJGauge.Builder]): NJGauge[F] = {
       val init = new NJGauge.Builder(isEnabled, timeout = 5.seconds)
-      f(init).build[F](metricName, tag, metricRegistry)
+      f(init).build[F](metricLabel, name, metricRegistry)
     }
 
-    override def idleGauge(tag: String, f: Endo[NJGauge.Builder]): Resource[F, Kleisli[F, Unit, Unit]] =
+    override def idleGauge(name: String, f: Endo[NJGauge.Builder]): Resource[F, Kleisli[F, Unit, Unit]] =
       for {
         lastUpdate <- Resource.eval(F.monotonic.flatMap(F.ref))
-        _ <- gauge(tag, f).register(
+        _ <- gauge(name, f).register(
           for {
             pre <- lastUpdate.get
             now <- F.monotonic
@@ -112,19 +112,19 @@ object Metrics {
         )
       } yield Kleisli[F, Unit, Unit](_ => F.monotonic.flatMap(lastUpdate.set))
 
-    override def activeGauge(tag: String, f: Endo[NJGauge.Builder]): Resource[F, Unit] =
+    override def activeGauge(name: String, f: Endo[NJGauge.Builder]): Resource[F, Unit] =
       for {
         kickoff <- Resource.eval(F.monotonic)
-        _ <- gauge(tag, f).register(F.monotonic.map(now =>
+        _ <- gauge(name, f).register(F.monotonic.map(now =>
           DurationFormatter.defaultFormatter.format(now - kickoff)))
       } yield ()
 
     override def permanentCounter(
-      tag: String,
+      name: String,
       f: Endo[NJGauge.Builder]): Resource[F, Kleisli[F, Long, Unit]] =
       for {
         ref <- Resource.eval(Ref[F].of[Long](0L))
-        _ <- gauge(tag, f).register(ref.get.map(decimal_fmt.format))
+        _ <- gauge(name, f).register(ref.get.map(decimal_fmt.format))
       } yield Kleisli((num: Long) => ref.update(_ + num))
   }
 }

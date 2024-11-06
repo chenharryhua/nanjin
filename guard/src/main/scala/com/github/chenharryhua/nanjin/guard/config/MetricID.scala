@@ -59,15 +59,17 @@ object CategoryKind {
 }
 
 @JsonCodec
-sealed abstract class Category(val kind: CategoryKind) extends Product with Serializable
+sealed trait Category extends Product with Serializable {
+  def kind: CategoryKind
+}
 object Category {
   import CategoryKind.*
 
-  final case class Gauge(override val kind: GaugeKind) extends Category(kind)
-  final case class Counter(override val kind: CounterKind) extends Category(kind)
-  final case class Meter(override val kind: MeterKind, unit: MeasurementUnit) extends Category(kind)
-  final case class Histogram(override val kind: HistogramKind, unit: MeasurementUnit) extends Category(kind)
-  final case class Timer(override val kind: TimerKind) extends Category(kind)
+  final case class Gauge(kind: GaugeKind) extends Category
+  final case class Counter(kind: CounterKind) extends Category
+  final case class Meter(kind: MeterKind, unit: MeasurementUnit) extends Category
+  final case class Histogram(kind: HistogramKind, unit: MeasurementUnit) extends Category
+  final case class Timer(kind: TimerKind) extends Category
 }
 
 @JsonCodec
@@ -100,5 +102,4 @@ object MetricLabel {
 @JsonCodec
 final case class MetricID(metricLabel: MetricLabel, metricName: MetricName, category: Category) {
   val identifier: String = Encoder[MetricID].apply(this).noSpaces
-  val tag: String        = metricName.name
 }

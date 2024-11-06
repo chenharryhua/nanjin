@@ -34,10 +34,10 @@ object NJHealthCheck {
     }
 
   private class Impl[F[_]: Async](
-    private[this] val name: MetricLabel,
+    private[this] val label: MetricLabel,
     private[this] val metricRegistry: MetricRegistry,
     private[this] val timeout: FiniteDuration,
-    private[this] val tag: String)
+    private[this] val name: String)
       extends NJHealthCheck[F] {
 
     private[this] val F = Async[F]
@@ -45,7 +45,8 @@ object NJHealthCheck {
     override def register(hc: F[Boolean]): Resource[F, Unit] =
       Dispatcher.sequential[F].flatMap { dispatcher =>
         Resource.eval(F.monotonic).flatMap { ts =>
-          val metricID: MetricID = MetricID(name, MetricName(tag, ts), Category.Gauge(GaugeKind.HealthCheck))
+          val metricID: MetricID =
+            MetricID(label, MetricName(name, ts), Category.Gauge(GaugeKind.HealthCheck))
           Resource
             .make(F.delay {
               metricRegistry.gauge(
@@ -82,11 +83,11 @@ object NJHealthCheck {
       new Builder(isEnabled, timeout)
 
     private[guard] def build[F[_]: Async](
-      metricName: MetricLabel,
-      tag: String,
+      label: MetricLabel,
+      name: String,
       metricRegistry: MetricRegistry): NJHealthCheck[F] =
       if (isEnabled) {
-        new Impl[F](metricName, metricRegistry, timeout, tag)
+        new Impl[F](label, metricRegistry, timeout, name)
       } else dummy[F]
   }
 }

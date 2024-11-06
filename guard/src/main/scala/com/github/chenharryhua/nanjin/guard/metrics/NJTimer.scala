@@ -36,16 +36,16 @@ object NJTimer {
     }
 
   private class Impl[F[_]: Sync](
-    private[this] val name: MetricLabel,
+    private[this] val label: MetricLabel,
     private[this] val metricRegistry: MetricRegistry,
     private[this] val reservoir: Option[Reservoir],
-    private[this] val tag: MetricName
+    private[this] val name: MetricName
   ) extends NJTimer[F] {
 
     private[this] val F = Sync[F]
 
     private[this] val timer_name: String =
-      MetricID(name, tag, Category.Timer(TimerKind.Timer)).identifier
+      MetricID(label, name, Category.Timer(TimerKind.Timer)).identifier
 
     private[this] val supplier: MetricRegistry.MetricSupplier[Timer] = () =>
       reservoir match {
@@ -80,16 +80,16 @@ object NJTimer {
     override def enable(isEnabled: Boolean): Builder =
       new Builder(isEnabled, reservoir)
 
-    private[guard] def build[F[_]](metricName: MetricLabel, tag: String, metricRegistry: MetricRegistry)(
-      implicit F: Sync[F]): Resource[F, NJTimer[F]] =
+    private[guard] def build[F[_]](label: MetricLabel, name: String, metricRegistry: MetricRegistry)(implicit
+      F: Sync[F]): Resource[F, NJTimer[F]] =
       if (isEnabled) {
         Resource.make(
           F.monotonic.map(ts =>
             new Impl[F](
-              name = metricName,
+              label = label,
               metricRegistry = metricRegistry,
               reservoir = reservoir,
-              tag = MetricName(tag, ts))))(_.unregister)
+              name = MetricName(name, ts))))(_.unregister)
       } else
         Resource.pure(dummy[F])
   }
