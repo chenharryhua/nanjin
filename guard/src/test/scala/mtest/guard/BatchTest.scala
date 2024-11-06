@@ -144,7 +144,7 @@ class BatchTest extends AnyFunSuite {
           "b" -> IO.sleep(2.seconds).flatMap(_ => agent.herald.consoleDone("done-b")))
         val j1 = agent.batch("s1").namedSequential(jobs*)
         val j2 = agent.batch("q1").namedParallel(jobs*)
-        j1.combine(j2).quasi.use(qr => agent.herald.consoleDone(qr) >> agent.adhoc.report)
+        j1.seqCombine(j2).quasi.use(qr => agent.herald.consoleDone(qr) >> agent.adhoc.report)
       }
       .evalMap(console.text[IO])
       .compile
@@ -161,7 +161,7 @@ class BatchTest extends AnyFunSuite {
           "b" -> IO.sleep(2.seconds).flatMap(_ => agent.herald.consoleDone("done-b")))
         val j1 = agent.batch("s1").namedSequential(jobs*)
         val j2 = agent.batch("q1").namedParallel(jobs*)
-        j1.both(j2).quasi.use(qr => agent.herald.consoleDone(qr) >> agent.adhoc.report)
+        j1.parCombine(j2).quasi.use(qr => agent.herald.consoleDone(qr) >> agent.adhoc.report)
       }
       .evalMap(console.text[IO])
       .compile

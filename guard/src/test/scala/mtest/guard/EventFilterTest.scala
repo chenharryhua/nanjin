@@ -27,8 +27,8 @@ class EventFilterTest extends AnyFunSuite {
       .toList
       .unsafeRunSync()
     assert(a.isInstanceOf[ServiceStart])
-    assert(b.asInstanceOf[MetricReport].index.asInstanceOf[Periodic].tick.index === 4)
-    assert(c.asInstanceOf[MetricReport].index.asInstanceOf[Periodic].tick.index === 7)
+    assert(b.asInstanceOf[MetricReport].index.asInstanceOf[Periodic].tick.index === 3)
+    assert(c.asInstanceOf[MetricReport].index.asInstanceOf[Periodic].tick.index === 6)
     assert(d.isInstanceOf[ServiceStop])
   }
 

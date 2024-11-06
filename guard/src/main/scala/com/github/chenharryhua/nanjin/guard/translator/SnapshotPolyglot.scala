@@ -206,9 +206,9 @@ final class SnapshotPolyglot(snapshot: MetricSnapshot) {
         val arr: List[String] = measurements
           .groupBy(_._1.metricName) // metric-name group
           .toList
-          .sortBy(_._1.name)
           .map { case (name, items) =>
-            name -> items.sortBy(_._1.metricTag).flatMap { case (id, lst) =>
+            val oldest = items.map(_._1.metricTag.order).min
+            (oldest, name) -> items.sortBy(_._1.metricTag).flatMap { case (id, lst) =>
               @inline def others: List[String] =
                 List(id.tag + ":").map(space * 4 + _) ::: lst.map(space * 6 + _)
               id.category match {
@@ -220,7 +220,8 @@ final class SnapshotPolyglot(snapshot: MetricSnapshot) {
               }
             }
           }
-          .flatMap { case (n, items) =>
+          .sortBy(_._1._1)
+          .flatMap { case ((_, n), items) =>
             s"${space * 2}[${n.digest}][${n.name}]:" :: items
           }
         show"- $measurement:" :: arr

@@ -27,12 +27,12 @@ object Batch {
         }
     }
 
-    protected def measure(size: Int): Resource[F, Kleisli[F, FiniteDuration, Unit]] =
+    protected def measure(size: Int, mode: String): Resource[F, Kleisli[F, FiniteDuration, Unit]] =
       for {
-        _ <- mtx.activeGauge("batch_elapsed")
         c <- mtx
-          .ratio("batch_completion", _.withTranslator(translator))
+          .ratio(s"${mode}_completion", _.withTranslator(translator))
           .evalTap(_.incDenominator(size.toLong))
+        _ <- mtx.activeGauge("batch_elapsed")
         t <- mtx.histogram(
           "batch_timer",
           _.withUnit(_.NANOSECONDS).withReservoir(new SlidingWindowReservoir(size)))
@@ -47,7 +47,7 @@ object Batch {
     def run: Resource[F, List[A]]
 
     // sequential
-    final def combine(that: Runner[F, A]): Runner[F, A] =
+    final def seqCombine(that: Runner[F, A]): Runner[F, A] =
       new Runner[F, A](mtx) {
         override val quasi: Resource[F, List[QuasiResult]] =
           for {
@@ -63,7 +63,7 @@ object Batch {
       }
 
     // parallel
-    final def both(that: Runner[F, A]): Runner[F, A] =
+    final def parCombine(that: Runner[F, A]): Runner[F, A] =
       new Runner[F, A](mtx) {
 
         override def quasi: Resource[F, List[QuasiResult]] =
@@ -93,7 +93,7 @@ object Batch {
         })
 
       for {
-        meas <- measure(batchJobs.size)
+        meas <- measure(batchJobs.size, "par_quasi")
         case (fd, details) <- Resource.eval(exec(meas))
       } yield List(
         QuasiResult(
@@ -113,7 +113,7 @@ object Batch {
           F.timed(fa).flatMap { case (fd, a) => meas.run(fd).as(a) }
         }
 
-      measure(batchJobs.size).evalMap(exec)
+      measure(batchJobs.size, "par_run").evalMap(exec)
     }
   }
 
@@ -137,7 +137,7 @@ object Batch {
         }
 
       for {
-        meas <- measure(batchJobs.size)
+        meas <- measure(batchJobs.size, "seq_quasi")
         details <- Resource.eval(exec(meas))
       } yield List(
         QuasiResult(
@@ -160,7 +160,7 @@ object Batch {
           }
         }
 
-      measure(batchJobs.size).evalMap(exec)
+      measure(batchJobs.size, "seq_run").evalMap(exec)
     }
   }
 }
