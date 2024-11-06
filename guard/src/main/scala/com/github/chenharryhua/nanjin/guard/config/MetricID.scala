@@ -71,26 +71,26 @@ object Category {
 }
 
 @JsonCodec
-final case class MetricTag private (value: String, order: Long)
-object MetricTag {
-  implicit val orderingMetricTag: Ordering[MetricTag] = Ordering.by(_.order)
-  implicit val orderMetricTag: Order[MetricTag]       = Order.fromOrdering
+final case class MetricName private (name: String, order: Long)
+object MetricName {
+  implicit val orderingMetricName: Ordering[MetricName] = Ordering.by(_.order)
+  implicit val orderMetricName: Order[MetricName]       = Order.fromOrdering
 
-  def apply(name: String, fd: FiniteDuration): MetricTag =
-    MetricTag(name, fd.toNanos)
+  def apply(name: String, fd: FiniteDuration): MetricName =
+    MetricName(name, fd.toNanos)
 
 }
 
 @JsonCodec
-final case class MetricName private (name: String, digest: String, measurement: String)
-object MetricName {
-  def apply(serviceParams: ServiceParams, measurement: Measurement, name: String): MetricName = {
+final case class MetricLabel private (label: String, digest: String, measurement: String)
+object MetricLabel {
+  def apply(serviceParams: ServiceParams, measurement: Measurement, label: String): MetricLabel = {
     val full_name: List[String] =
-      serviceParams.taskName.value :: serviceParams.serviceName.value :: measurement.value :: name :: Nil
+      serviceParams.taskName.value :: serviceParams.serviceName.value :: measurement.value :: label :: Nil
     val digest = DigestUtils.sha256Hex(full_name.mkString("/")).take(8)
 
-    MetricName(
-      name = name,
+    MetricLabel(
+      label = label,
       digest = digest,
       measurement = measurement.value
     )
@@ -98,7 +98,7 @@ object MetricName {
 }
 
 @JsonCodec
-final case class MetricID(metricName: MetricName, metricTag: MetricTag, category: Category) {
+final case class MetricID(metricLabel: MetricLabel, metricName: MetricName, category: Category) {
   val identifier: String = Encoder[MetricID].apply(this).noSpaces
-  val tag: String        = metricTag.value
+  val tag: String        = metricName.name
 }

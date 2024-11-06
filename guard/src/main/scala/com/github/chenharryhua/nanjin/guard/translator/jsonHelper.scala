@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard.translator
 
 import cats.implicits.toShow
 import com.github.chenharryhua.nanjin.common.chrono.{Policy, Tick}
-import com.github.chenharryhua.nanjin.guard.config.{MetricName, ServiceParams}
+import com.github.chenharryhua.nanjin.guard.config.{MetricLabel, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.ServiceMessage
 import com.github.chenharryhua.nanjin.guard.event.{MetricIndex, NJError, NJEvent, ServiceStopCause}
 import io.circe.Json
@@ -22,7 +22,7 @@ object jsonHelper {
 
   def stack(err: NJError): (String, Json) = "stack" -> err.stack.asJson
 
-  def metricName(mn: MetricName): (String, Json) = "name" -> Json.fromString(mn.name)
+  def metricName(mn: MetricLabel): (String, Json) = "name" -> Json.fromString(mn.label)
 
   def jsonServiceMessage(sm: ServiceMessage): Json =
     sm.error

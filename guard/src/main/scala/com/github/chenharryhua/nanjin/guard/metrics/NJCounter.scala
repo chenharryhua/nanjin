@@ -23,10 +23,10 @@ object NJCounter {
     }
 
   private class Impl[F[_]: Sync](
-    private[this] val name: MetricName,
+    private[this] val name: MetricLabel,
     private[this] val metricRegistry: MetricRegistry,
     private[this] val isRisk: Boolean,
-    private[this] val tag: MetricTag)
+    private[this] val tag: MetricName)
       extends NJCounter[F] {
 
     private[this] val F = Sync[F]
@@ -54,11 +54,11 @@ object NJCounter {
     override def enable(isEnabled: Boolean): Builder =
       new Builder(isEnabled, isRisk)
 
-    private[guard] def build[F[_]](metricName: MetricName, tag: String, metricRegistry: MetricRegistry)(
+    private[guard] def build[F[_]](metricName: MetricLabel, tag: String, metricRegistry: MetricRegistry)(
       implicit F: Sync[F]): Resource[F, NJCounter[F]] =
       if (isEnabled) {
         Resource.make(F.monotonic.map(ts =>
-          new Impl[F](metricName, metricRegistry, isRisk, MetricTag(tag, ts))))(_.unregister)
+          new Impl[F](metricName, metricRegistry, isRisk, MetricName(tag, ts))))(_.unregister)
       } else
         Resource.pure(dummy[F])
   }

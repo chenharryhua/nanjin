@@ -53,7 +53,7 @@ final private class GeneralAgent[F[_]: Async] private[service] (
     new GeneralAgent[F](serviceParams, metricRegistry, channel, Measurement(name))
 
   override def batch(name: String): Batch[F] = {
-    val metricName = MetricName(serviceParams, measurement, name)
+    val metricName = MetricLabel(serviceParams, measurement, name)
     new Batch[F](new Metrics.Impl[F](metricName, metricRegistry, isEnabled = true))
   }
 
@@ -67,12 +67,12 @@ final private class GeneralAgent[F[_]: Async] private[service] (
 
   override def metrics[A, B](name: String)(
     f: Metrics[F] => Resource[F, Kleisli[F, A, B]]): Resource[F, Kleisli[F, A, B]] = {
-    val metricName = MetricName(serviceParams, measurement, name)
+    val metricName = MetricLabel(serviceParams, measurement, name)
     f(new Metrics.Impl[F](metricName, metricRegistry, isEnabled = true))
   }
 
   override def facilitate[A](name: String)(f: Metrics[F] => A): A = {
-    val metricName = MetricName(serviceParams, measurement, name)
+    val metricName = MetricLabel(serviceParams, measurement, name)
     f(new Metrics.Impl[F](metricName, metricRegistry, isEnabled = true))
   }
 

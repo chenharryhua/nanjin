@@ -6,7 +6,7 @@ import cats.effect.kernel.{Async, Ref, Resource}
 import cats.syntax.all.*
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.common.DurationFormatter
-import com.github.chenharryhua.nanjin.guard.config.MetricName
+import com.github.chenharryhua.nanjin.guard.config.MetricLabel
 import com.github.chenharryhua.nanjin.guard.event.NJUnits
 import com.github.chenharryhua.nanjin.guard.translator.decimal_fmt
 
@@ -22,7 +22,7 @@ trait KleisliLike[F[_], A] {
 }
 
 sealed trait Metrics[F[_]] {
-  def metricName: MetricName
+  def metricName: MetricLabel
 
   def counter(tag: String, f: Endo[NJCounter.Builder]): Resource[F, NJCounter[F]]
   final def counter(tag: String): Resource[F, NJCounter[F]] = counter(tag, identity)
@@ -61,7 +61,7 @@ sealed trait Metrics[F[_]] {
 
 object Metrics {
   private[guard] class Impl[F[_]](
-    val metricName: MetricName,
+    val metricName: MetricLabel,
     metricRegistry: MetricRegistry,
     isEnabled: Boolean)(implicit F: Async[F])
       extends Metrics[F] {

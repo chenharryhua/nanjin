@@ -11,10 +11,10 @@ private object objectNameFactory extends ObjectNameFactory {
   override def createName(tipe: String, domain: String, name: String): ObjectName =
     decode[MetricID](name).map { mId =>
       val properties = new util.Hashtable[String, String]()
-      properties.put("name", mId.metricName.name)
+      properties.put("name", mId.metricLabel.label)
       properties.put("type", mId.tag)
-      properties.put("digest", mId.metricName.digest)
-      val dm = s"$domain.${mId.metricName.measurement}"
+      properties.put("digest", mId.metricLabel.digest)
+      val dm = s"$domain.${mId.metricLabel.measurement}"
       new ObjectName(dm, properties)
     }.toOption.orNull
 }

@@ -24,11 +24,11 @@ object NJHistogram {
     }
 
   private class Impl[F[_]: Sync](
-    private[this] val name: MetricName,
+    private[this] val name: MetricLabel,
     private[this] val metricRegistry: MetricRegistry,
     private[this] val unit: MeasurementUnit,
     private[this] val reservoir: Option[Reservoir],
-    private[this] val tag: MetricTag)
+    private[this] val tag: MetricName)
       extends NJHistogram[F] {
 
     private[this] val F = Sync[F]
@@ -63,7 +63,7 @@ object NJHistogram {
     override def enable(isEnabled: Boolean): Builder =
       new Builder(isEnabled, unit, reservoir)
 
-    private[guard] def build[F[_]](metricName: MetricName, tag: String, metricRegistry: MetricRegistry)(
+    private[guard] def build[F[_]](metricName: MetricLabel, tag: String, metricRegistry: MetricRegistry)(
       implicit F: Sync[F]): Resource[F, NJHistogram[F]] =
       if (isEnabled) {
         Resource.make(
@@ -73,7 +73,7 @@ object NJHistogram {
               metricRegistry = metricRegistry,
               unit = unit,
               reservoir = reservoir,
-              tag = MetricTag(tag, ts))))(_.unregister)
+              tag = MetricName(tag, ts))))(_.unregister)
       } else
         Resource.pure(dummy[F])
   }

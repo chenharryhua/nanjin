@@ -78,18 +78,18 @@ final class SnapshotPolyglot(snapshot: MetricSnapshot) {
 
   private def group_json(pairs: List[(MetricID, Json)]): Json =
     pairs
-      .groupBy(_._1.metricName.measurement) // measurement group
+      .groupBy(_._1.metricLabel.measurement) // measurement group
       .toList
       .sortBy(_._1)
       .map { case (measurement, lst) =>
         val arr: List[Json] = lst
-          .groupBy(_._1.metricName) // metric-name group
+          .groupBy(_._1.metricLabel) // metric-name group
           .toList
-          .sortBy(_._1.name)
+          .sortBy(_._1.label)
           .map { case (name, items) =>
             val inner: Json =
               items
-                .sortBy(_._1.metricTag)
+                .sortBy(_._1.metricName)
                 .map { case (mId, js) =>
                   Json.obj(mId.tag -> js)
                 }
@@ -97,7 +97,7 @@ final class SnapshotPolyglot(snapshot: MetricSnapshot) {
 
             name -> inner.asJson
           }
-          .map { case (n, js) => Json.obj("digest" -> Json.fromString(n.digest), n.name -> js) }
+          .map { case (n, js) => Json.obj("digest" -> Json.fromString(n.digest), n.label -> js) }
         Json.obj(measurement -> Json.arr(arr*))
       }
       .asJson
@@ -199,16 +199,16 @@ final class SnapshotPolyglot(snapshot: MetricSnapshot) {
 
   private def group_yaml(pairs: List[(MetricID, List[String])]): List[String] =
     pairs
-      .groupBy(_._1.metricName.measurement) // measurement group
+      .groupBy(_._1.metricLabel.measurement) // measurement group
       .toList
       .sortBy(_._1)
       .flatMap { case (measurement, measurements) =>
         val arr: List[String] = measurements
-          .groupBy(_._1.metricName) // metric-name group
+          .groupBy(_._1.metricLabel) // metric-name group
           .toList
           .map { case (name, items) =>
-            val oldest = items.map(_._1.metricTag.order).min
-            (oldest, name) -> items.sortBy(_._1.metricTag).flatMap { case (id, lst) =>
+            val oldest = items.map(_._1.metricName.order).min
+            (oldest, name) -> items.sortBy(_._1.metricName).flatMap { case (id, lst) =>
               @inline def others: List[String] =
                 List(id.tag + ":").map(space * 4 + _) ::: lst.map(space * 6 + _)
               id.category match {
@@ -222,7 +222,7 @@ final class SnapshotPolyglot(snapshot: MetricSnapshot) {
           }
           .sortBy(_._1._1)
           .flatMap { case ((_, n), items) =>
-            s"${space * 2}[${n.digest}][${n.name}]:" :: items
+            s"${space * 2}[${n.digest}][${n.label}]:" :: items
           }
         show"- $measurement:" :: arr
       }

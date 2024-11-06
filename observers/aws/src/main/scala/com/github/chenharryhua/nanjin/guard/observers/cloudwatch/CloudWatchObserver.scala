@@ -3,7 +3,7 @@ import cats.effect.kernel.{Resource, Sync}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.aws.CloudWatch
 import com.github.chenharryhua.nanjin.common.aws.CloudWatchNamespace
-import com.github.chenharryhua.nanjin.guard.config.{MetricID, MetricName, ServiceParams}
+import com.github.chenharryhua.nanjin.guard.config.{MetricID, MetricLabel, MetricName, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.MeasurementUnit.*
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.MetricReport
 import com.github.chenharryhua.nanjin.guard.event.{MeasurementUnit, NJEvent, Normalized, UnitNormalization}
@@ -234,8 +234,8 @@ final class CloudWatchObserver[F[_]: Sync](
 }
 
 final private case class StableMetricID(
-  metricName: MetricName,
-  tag: String
+  metricLabel: MetricLabel,
+  metricName: MetricName
 )
 
 private object StableMetricID {
@@ -261,10 +261,10 @@ final private case class MetricKey(
           .name(metricConstants.METRICS_LAUNCH_TIME)
           .value(serviceParams.zerothTick.zonedLaunchTime.toLocalDate.show)
           .build(),
-        Dimension.builder().name(metricConstants.METRICS_DIGEST).value(id.metricName.digest).build(),
-        Dimension.builder().name(CONSTANT_MEASUREMENT).value(id.metricName.measurement).build()
+        Dimension.builder().name(metricConstants.METRICS_DIGEST).value(id.metricLabel.digest).build(),
+        Dimension.builder().name(CONSTANT_MEASUREMENT).value(id.metricLabel.measurement).build()
       )
-      .metricName(s"${id.metricName.name}($category)")
+      .metricName(s"${id.metricLabel.label}($category)")
       .unit(standardUnit)
       .timestamp(ts)
       .value(value)
