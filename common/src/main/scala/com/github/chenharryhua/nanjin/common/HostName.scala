@@ -17,11 +17,13 @@ final class HostName(val value: String) extends AnyVal with Serializable {
       case (true, false)  => other
       case (false, false) => new HostName(s"$value/${other.value}")
     }
+
+  override def toString: String = value
 }
 
 object HostName {
 
-  implicit final val showHostName: Show[HostName] = hn => s"HostName(value=${hn.value})"
+  implicit final val showHostName: Show[HostName] = Show.fromToString
   implicit final val monoidHostName: Monoid[HostName] = new Monoid[HostName] {
     override val empty: HostName = new HostName("")
 
