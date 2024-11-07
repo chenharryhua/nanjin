@@ -37,18 +37,7 @@ object BatchJobName {
   implicit val encoderBatchJobName: Encoder[BatchJobName] = Encoder.encodeString.contramap(_.value)
 }
 
-final case class BatchJob(
-  kind: BatchKind,
-  mode: BatchMode,
-  name: Option[BatchJobName],
-  index: Int,
-  jobs: Int) {
-  def displayCompletion: String = name.fold(s"job-${index + 1}")(_.value)
-  def showActive: String = {
-    val lead = s"running job-${index + 1}"
-    name.fold(lead)(n => s"$lead (${n.value})")
-  }
-}
+final case class BatchJob(kind: BatchKind, mode: BatchMode, name: Option[BatchJobName], index: Int, jobs: Int)
 object BatchJob {
   implicit val encoderBatchJob: Encoder[BatchJob] = (a: BatchJob) =>
     Json.obj(

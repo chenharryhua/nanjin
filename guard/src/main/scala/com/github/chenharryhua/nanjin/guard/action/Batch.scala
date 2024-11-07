@@ -31,17 +31,20 @@ object Batch {
 
     protected def measure(size: Int, mode: String): Resource[F, DoMeasurement] =
       for {
-        c <- mtx
+        ratio <- mtx
           .ratio(s"completion($mode)", _.withTranslator(translator))
           .evalTap(_.incDenominator(size.toLong))
         _ <- mtx.activeGauge("elapsed")
         progress <- Resource.eval(F.ref[List[String]](Nil))
         _ <- mtx.gauge("completed").register(progress.get.map(p => s"[${p.mkString(", ")}]"))
-        t <- mtx.histogram("timer", _.withUnit(_.NANOSECONDS).withReservoir(new SlidingWindowReservoir(size)))
+        timer <- mtx.histogram(
+          "timer",
+          _.withUnit(_.NANOSECONDS).withReservoir(new SlidingWindowReservoir(size)))
       } yield Kleisli { case (job: BatchJob, fd: FiniteDuration) =>
-        t.update(fd.toNanos) *>
-          c.incNumerator(1) *>
-          progress.update(_.appended(job.displayCompletion))
+        val jobName = job.name.fold(s"job-${job.index + 1}")(_.value)
+        timer.update(fd.toNanos) *>
+          ratio.incNumerator(1) *>
+          progress.update(_.appended(jobName))
       }
 
     def quasi: Resource[F, List[QuasiResult]]
@@ -122,6 +125,11 @@ object Batch {
     jobs: List[(Option[BatchJobName], F[A])])
       extends Runner[F, A](metrics) {
 
+    private def getName(job: BatchJob): String = {
+      val lead = s"running job-${job.index + 1}"
+      job.name.fold(lead)(n => s"$lead (${n.value})")
+    }
+
     override val quasi: Resource[F, List[QuasiResult]] = {
       val batchJobs: List[(BatchJob, F[A])] = jobs.zipWithIndex.map { case ((name, fa), idx) =>
         BatchJob(BatchKind.Quasi, BatchMode.Sequential, name, idx, jobs.size) -> fa
@@ -129,7 +137,7 @@ object Batch {
 
       def exec(meas: DoMeasurement): F[List[Detail]] =
         batchJobs.traverse { case (job, fa) =>
-          F.timed(metrics.activeGauge(job.showActive).surround(fa.attempt)).flatMap { case (fd, result) =>
+          F.timed(metrics.activeGauge(getName(job)).surround(fa.attempt)).flatMap { case (fd, result) =>
             meas.run((job, fd)).as(Detail(job, fd.toJava, result.isRight))
           }
         }
@@ -152,7 +160,7 @@ object Batch {
 
       def exec(meas: DoMeasurement): F[List[A]] =
         batchJobs.traverse { case (job, fa) =>
-          F.timed(metrics.activeGauge(job.showActive).surround(fa)).flatMap { case (fd, a) =>
+          F.timed(metrics.activeGauge(getName(job)).surround(fa)).flatMap { case (fd, a) =>
             meas.run((job, fd)).as(a)
           }
         }
