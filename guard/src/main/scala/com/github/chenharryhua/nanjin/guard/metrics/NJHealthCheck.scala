@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard.metrics
 
 import cats.effect.implicits.genTemporalOps
 import cats.effect.kernel.{Async, Resource}
-import cats.effect.std.Dispatcher
+import cats.effect.std.{Dispatcher, UUIDGen}
 import cats.syntax.all.*
 import com.codahale.metrics.{Gauge, MetricRegistry}
 import com.github.chenharryhua.nanjin.common.EnableConfig
@@ -43,24 +43,22 @@ object NJHealthCheck {
     private[this] val F = Async[F]
 
     override def register(hc: F[Boolean]): Resource[F, Unit] =
-      Dispatcher.sequential[F].flatMap { dispatcher =>
-        Resource.eval(F.monotonic).flatMap { ts =>
-          val metricID: MetricID =
-            MetricID(label, MetricName(name, ts), Category.Gauge(GaugeKind.HealthCheck))
-          Resource
-            .make(F.delay {
-              metricRegistry.gauge(
-                metricID.identifier,
-                () =>
-                  new Gauge[Boolean] {
-                    override def getValue: Boolean =
-                      Try(dispatcher.unsafeRunTimed(hc, timeout)).fold(_ => false, identity)
-                  }
-              )
-            })(_ => F.delay(metricRegistry.remove(metricID.identifier)).void)
-            .void
-        }
-      }
+      for {
+        dispatcher <- Dispatcher.sequential[F]
+        metricID <- Resource.eval((F.monotonic, UUIDGen[F].randomUUID).mapN { case (ts, unique) =>
+          MetricID(label, MetricName(name, ts, unique), Category.Gauge(GaugeKind.HealthCheck)).identifier
+        })
+        _ <- Resource.make(
+          F.delay(
+            metricRegistry.gauge(
+              metricID,
+              () =>
+                new Gauge[Boolean] {
+                  override def getValue: Boolean =
+                    Try(dispatcher.unsafeRunTimed(hc, timeout)).fold(_ => false, identity)
+                }
+            )))(_ => F.delay(metricRegistry.remove(metricID)).void)
+      } yield ()
 
     override def register(hc: F[Boolean], policy: Policy, zoneId: ZoneId): Resource[F, Unit] = {
       val check: F[Boolean] = hc.timeout(timeout).attempt.map(_.fold(_ => false, identity))

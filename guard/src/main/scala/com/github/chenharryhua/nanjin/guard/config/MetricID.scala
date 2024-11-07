@@ -7,6 +7,7 @@ import io.circe.Encoder
 import io.circe.generic.JsonCodec
 import org.apache.commons.codec.digest.DigestUtils
 
+import java.util.UUID
 import scala.concurrent.duration.FiniteDuration
 
 sealed trait CategoryKind extends EnumEntry with Product with Serializable
@@ -73,13 +74,13 @@ object Category {
 }
 
 @JsonCodec
-final case class MetricName private (name: String, order: Long)
+final case class MetricName private (name: String, order: Long, uuid: UUID)
 object MetricName {
   implicit val orderingMetricName: Ordering[MetricName] = Ordering.by(_.order)
   implicit val orderMetricName: Order[MetricName]       = Order.fromOrdering
 
-  def apply(name: String, fd: FiniteDuration): MetricName =
-    MetricName(name, fd.toNanos)
+  def apply(name: String, fd: FiniteDuration, uuid: UUID): MetricName =
+    MetricName(name, fd.toNanos, uuid)
 
 }
 

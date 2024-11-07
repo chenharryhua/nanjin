@@ -22,7 +22,6 @@ trait KleisliLike[F[_], A] {
 }
 
 sealed trait Metrics[F[_]] {
-  def metricLabel: MetricLabel
 
   def counter(name: String, f: Endo[NJCounter.Builder]): Resource[F, NJCounter[F]]
   final def counter(name: String): Resource[F, NJCounter[F]] = counter(name, identity)
@@ -61,7 +60,7 @@ sealed trait Metrics[F[_]] {
 
 object Metrics {
   private[guard] class Impl[F[_]](
-    val metricLabel: MetricLabel,
+    metricLabel: MetricLabel,
     metricRegistry: MetricRegistry,
     isEnabled: Boolean)(implicit F: Async[F])
       extends Metrics[F] {

@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.action
 import cats.Show
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.guard.config.MetricLabel
 import com.github.chenharryhua.nanjin.guard.translator.fmt
 import io.circe.syntax.EncoderOps
 import io.circe.{Encoder, Json}
@@ -38,7 +37,18 @@ object BatchJobName {
   implicit val encoderBatchJobName: Encoder[BatchJobName] = Encoder.encodeString.contramap(_.value)
 }
 
-final case class BatchJob(kind: BatchKind, mode: BatchMode, name: Option[BatchJobName], index: Int, jobs: Int)
+final case class BatchJob(
+  kind: BatchKind,
+  mode: BatchMode,
+  name: Option[BatchJobName],
+  index: Int,
+  jobs: Int) {
+  def displayCompletion: String = name.fold(s"job-${index + 1}")(_.value)
+  def showActive: String = {
+    val lead = s"running job-${index + 1}"
+    name.fold(lead)(n => s"$lead (${n.value})")
+  }
+}
 object BatchJob {
   implicit val encoderBatchJob: Encoder[BatchJob] = (a: BatchJob) =>
     Json.obj(
@@ -52,13 +62,11 @@ object BatchJob {
 }
 
 final case class Detail(job: BatchJob, took: Duration, done: Boolean)
-final case class QuasiResult(metricName: MetricLabel, spent: Duration, mode: BatchMode, details: List[Detail])
+final case class QuasiResult(spent: Duration, mode: BatchMode, details: List[Detail])
 object QuasiResult {
   implicit val encoderQuasiResult: Encoder[QuasiResult] = { (a: QuasiResult) =>
     val (done, fail) = a.details.partition(_.done)
     Json.obj(
-      "name" -> Json.fromString(a.metricName.label),
-      "digest" -> Json.fromString(a.metricName.digest),
       "mode" -> a.mode.asJson,
       "spent" -> Json.fromString(fmt.format(a.spent)),
       "done" -> Json.fromInt(done.length),

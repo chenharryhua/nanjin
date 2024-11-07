@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.guard.metrics
 import cats.Applicative
 import cats.data.Ior
 import cats.effect.kernel.{Async, Ref, Resource}
-import cats.effect.std.Dispatcher
+import cats.effect.std.{Dispatcher, UUIDGen}
 import cats.syntax.all.*
 import com.codahale.metrics.{Gauge, MetricRegistry}
 import com.github.chenharryhua.nanjin.common.EnableConfig
@@ -95,8 +95,8 @@ object NJRatio {
       val F = Async[F]
 
       val impl: Resource[F, NJRatio[F]] = for {
-        ts <- Resource.eval(F.monotonic)
-        metricID = MetricID(label, MetricName(name, ts), Category.Gauge(GaugeKind.Ratio)).identifier
+        case (ts, unique) <- Resource.eval((F.monotonic, UUIDGen[F].randomUUID).mapN((_, _)))
+        metricID = MetricID(label, MetricName(name, ts, unique), Category.Gauge(GaugeKind.Ratio)).identifier
         ref <- Resource.eval(F.ref(Ior.both(0L, 0L)))
         dispatcher <- Dispatcher.sequential[F]
         _ <- Resource.make(F.delay {

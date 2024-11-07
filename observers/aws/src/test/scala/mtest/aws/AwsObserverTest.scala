@@ -71,20 +71,7 @@ class AwsObserverTest extends AnyFunSuite {
       .debug()
 
     val cloudwatch = CloudWatchObserver(cloudwatch_client)
-//      .withStorageResolution(10)
-//      .withMax
-//      .withMin
-//      .withMean
-//      .withStdDev
-//      .withP50
-//      .withP75
-//      .withP95
-//      .withP98
-//      .withP99
-//      .withP999
-//      .withTimeUnit(_.MICROSECONDS)
-//      .withInfoUnit(_.BITS)
-//      .withRateUnit(_.BYTES_SECOND)
+
     service.through(cloudwatch.observe("cloudwatch")).compile.drain.unsafeRunSync()
   }
 

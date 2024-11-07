@@ -2,7 +2,8 @@ package com.github.chenharryhua.nanjin.guard.metrics
 
 import cats.Applicative
 import cats.effect.kernel.{Resource, Sync}
-import cats.implicits.toFunctorOps
+import cats.effect.std.UUIDGen
+import cats.implicits.{catsSyntaxTuple2Semigroupal, toFunctorOps}
 import com.codahale.metrics.*
 import com.github.chenharryhua.nanjin.common.EnableConfig
 import com.github.chenharryhua.nanjin.guard.config.*
@@ -66,14 +67,14 @@ object NJHistogram {
     private[guard] def build[F[_]](label: MetricLabel, name: String, metricRegistry: MetricRegistry)(implicit
       F: Sync[F]): Resource[F, NJHistogram[F]] =
       if (isEnabled) {
-        Resource.make(
-          F.monotonic.map(ts =>
-            new Impl[F](
-              label = label,
-              metricRegistry = metricRegistry,
-              unit = unit,
-              reservoir = reservoir,
-              name = MetricName(name, ts))))(_.unregister)
+        Resource.make((F.monotonic, UUIDGen[F].randomUUID).mapN { case (ts, unique) =>
+          new Impl[F](
+            label = label,
+            metricRegistry = metricRegistry,
+            unit = unit,
+            reservoir = reservoir,
+            name = MetricName(name, ts, unique))
+        })(_.unregister)
       } else
         Resource.pure(dummy[F])
   }

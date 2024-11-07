@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard.metrics
 
 import cats.effect.implicits.genTemporalOps
 import cats.effect.kernel.{Async, Resource}
-import cats.effect.std.Dispatcher
+import cats.effect.std.{Dispatcher, UUIDGen}
 import cats.syntax.all.*
 import com.codahale.metrics.{Gauge, MetricRegistry}
 import com.github.chenharryhua.nanjin.common.EnableConfig
@@ -61,10 +61,11 @@ object NJGauge {
       }
 
     override def register[A: Encoder](value: F[A]): Resource[F, Unit] =
-      Resource.eval(F.monotonic).flatMap { ts =>
-        val metricID: MetricID = MetricID(label, MetricName(name, ts), Category.Gauge(GaugeKind.Gauge))
-        json_gauge(metricID, value)
-      }
+      Resource
+        .eval((F.monotonic, UUIDGen[F].randomUUID).mapN { case (ts, unique) =>
+          MetricID(label, MetricName(name, ts, unique), Category.Gauge(GaugeKind.Gauge))
+        })
+        .flatMap(json_gauge(_, value))
 
     override def register[A: Encoder](value: F[A], policy: Policy, zoneId: ZoneId): Resource[F, Unit] = {
       val fetch: F[Json] = value.timeout(timeout).attempt.map(_.fold(trans_error, _.asJson))
