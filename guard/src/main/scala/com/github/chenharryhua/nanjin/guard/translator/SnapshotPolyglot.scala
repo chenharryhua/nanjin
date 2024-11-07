@@ -78,30 +78,26 @@ final class SnapshotPolyglot(snapshot: MetricSnapshot) {
 
   private def group_json(pairs: List[(MetricID, Json)]): Json =
     pairs
-      .groupBy(_._1.metricName.measurement) // measurement group
+      .groupBy(_._1.metricLabel.measurement) // measurement group
       .toList
       .sortBy(_._1)
       .map { case (measurement, lst) =>
         val arr: List[Json] = lst
-          .groupBy(_._1.metricName) // metric-name group
+          .groupBy(_._1.metricLabel) // metric-name group
           .toList
-          .sortBy(_._1.name)
+          .sortBy(_._1.label)
           .map { case (name, items) =>
             val inner: Json =
               items
-                .groupBy(_._1.category.kind.group.value)
-                .toList
-                .sortBy(_._1)
-                .flatMap { case (_, items) =>
-                  items.sortBy(_._1.category.order).map { case (mId, js) =>
-                    Json.obj(mId.tag -> js)
-                  }
+                .sortBy(_._1.metricName)
+                .map { case (mId, js) =>
+                  Json.obj(mId.metricName.name -> js)
                 }
                 .reduce((a, b) => b.deepMerge(a))
 
             name -> inner.asJson
           }
-          .map { case (n, js) => Json.obj("digest" -> Json.fromString(n.digest), n.name -> js) }
+          .map { case (n, js) => Json.obj("digest" -> Json.fromString(n.digest), n.label -> js) }
         Json.obj(measurement -> Json.arr(arr*))
       }
       .asJson
@@ -132,7 +128,7 @@ final class SnapshotPolyglot(snapshot: MetricSnapshot) {
   private def counter_str: List[(MetricID, List[String])] =
     snapshot.counters
       .filter(_.count > 0)
-      .map(c => c.metricId -> List(show"${c.metricId.tag}: ${decimal_fmt.format(c.count)}"))
+      .map(c => c.metricId -> List(show"${c.metricId.metricName.name}: ${decimal_fmt.format(c.count)}"))
 
   private def gauge_str: List[(MetricID, List[String])] =
     snapshot.gauges.map { g =>
@@ -144,7 +140,7 @@ final class SnapshotPolyglot(snapshot: MetricSnapshot) {
         jsonArray = js => show"[${js.map(_.noSpaces).mkString(", ")}]",
         jsonObject = js => js.toJson.noSpaces
       )
-      g.metricId -> List(show"${g.metricId.tag}: $str")
+      g.metricId -> List(show"${g.metricId.metricName.name}: $str")
     }
 
   private def meter_str: List[(MetricID, List[String])] =
@@ -203,32 +199,30 @@ final class SnapshotPolyglot(snapshot: MetricSnapshot) {
 
   private def group_yaml(pairs: List[(MetricID, List[String])]): List[String] =
     pairs
-      .groupBy(_._1.metricName.measurement) // measurement group
+      .groupBy(_._1.metricLabel.measurement) // measurement group
       .toList
       .sortBy(_._1)
       .flatMap { case (measurement, measurements) =>
         val arr: List[String] = measurements
-          .groupBy(_._1.metricName) // metric-name group
+          .groupBy(_._1.metricLabel) // metric-name group
           .toList
-          .sortBy(_._1.name)
-          .map { case (name, ms) =>
-            name -> ms.groupBy(_._1.category.kind.group.value).toList.sortBy(_._1).flatMap {
-              case (_, items) =>
-                items.sortBy(_._1.category.order).flatMap { case (id, lst) =>
-                  @inline def others: List[String] =
-                    List(id.tag + ":").map(space * 4 + _) ::: lst.map(space * 6 + _)
-                  id.category match {
-                    case _: Category.Gauge     => lst.map(space * 4 + _)
-                    case _: Category.Counter   => lst.map(space * 4 + _)
-                    case _: Category.Timer     => others
-                    case _: Category.Meter     => others
-                    case _: Category.Histogram => others
-                  }
-                }
+          .map { case (name, items) =>
+            val oldest = items.map(_._1.metricName.order).min
+            (oldest, name) -> items.sortBy(_._1.metricName).flatMap { case (id, lst) =>
+              @inline def others: List[String] =
+                List(id.metricName.name + ":").map(space * 4 + _) ::: lst.map(space * 6 + _)
+              id.category match {
+                case _: Category.Gauge     => lst.map(space * 4 + _)
+                case _: Category.Counter   => lst.map(space * 4 + _)
+                case _: Category.Timer     => others
+                case _: Category.Meter     => others
+                case _: Category.Histogram => others
+              }
             }
           }
-          .flatMap { case (n, items) =>
-            s"${space * 2}[${n.digest}][${n.name}]:" :: items
+          .sortBy(_._1._1)
+          .flatMap { case ((_, n), items) =>
+            s"${space * 2}[${n.digest}][${n.label}]:" :: items
           }
         show"- $measurement:" :: arr
       }

@@ -23,14 +23,14 @@ class ConsoleLogTest extends AnyFunSuite {
         val mtx = agent.metrics("job") { mtx =>
           for {
             retry <- agent.createRetry(_.fixedDelay(1.second))
-            _ <- mtx.gauge("job").register(IO(1000000000))
-            _ <- mtx.healthCheck("job").register(IO(true))
-            _ <- mtx.timer("job").evalMap(_.update(10.second).replicateA(100))
-            _ <- mtx.meter("job", _.withUnit(_.COUNT)).evalMap(_.update(10000).replicateA(100))
-            _ <- mtx.counter("job", _.asRisk).evalMap(_.inc(1000))
-            _ <- mtx.histogram("job", _.withUnit(_.BYTES)).evalMap(_.update(10000L).replicateA(100))
+            _ <- mtx.gauge("1").register(IO(1000000000))
+            _ <- mtx.healthCheck("2").register(IO(true))
+            _ <- mtx.timer("3").evalMap(_.update(10.second).replicateA(100))
+            _ <- mtx.meter("4", _.withUnit(_.COUNT)).evalMap(_.update(10000).replicateA(100))
+            _ <- mtx.counter("5", _.asRisk).evalMap(_.inc(1000))
+            _ <- mtx.histogram("6", _.withUnit(_.BYTES)).evalMap(_.update(10000L).replicateA(100))
             _ <- mtx
-              .ratio("job")
+              .ratio("7")
               .evalMap(f => f.incDenominator(500) >> f.incNumerator(60) >> f.incBoth(299, 500))
           } yield Kleisli((_: Int) => retry(IO.unit))
         }
@@ -54,6 +54,14 @@ class ConsoleLogTest extends AnyFunSuite {
   }
 
   test("3.console - simple text") {
-    service.evalTap(console.text[IO]).map(checkJson).compile.drain.unsafeRunSync()
+    val mr = service
+      .evalTap(console.text[IO])
+      .map(checkJson)
+      .mapFilter(metricReport)
+      .compile
+      .lastOrError
+      .unsafeRunSync()
+    val tags = mr.snapshot.metricIDs.sortBy(_.metricName.order).map(_.metricName.name.toInt)
+    assert(tags == List(1, 2, 3, 4, 5, 6, 7))
   }
 }

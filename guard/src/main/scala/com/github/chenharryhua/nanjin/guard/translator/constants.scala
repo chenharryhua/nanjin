@@ -24,12 +24,6 @@ object metricConstants {
   @inline final val METRICS_P98: String  = MetricAttribute.P98.getCode
   @inline final val METRICS_P99: String  = MetricAttribute.P99.getCode
   @inline final val METRICS_P999: String = MetricAttribute.P999.getCode
-
-  // dimensions
-  @inline final val METRICS_LAUNCH_TIME: String = "LaunchTime"
-  @inline final val METRICS_CATEGORY: String    = "Category"
-  @inline final val METRICS_DIGEST: String      = "Digest"
-  @inline final val METRICS_NAME: String        = "MetricName"
 }
 
 object textConstants {
@@ -47,8 +41,11 @@ object textConstants {
   @inline final val CONSTANT_HOST: String        = "Host"
   @inline final val CONSTANT_TASK: String        = "Task"
   @inline final val CONSTANT_MEASUREMENT: String = "Measurement"
-  @inline final val CONSTANT_NAME: String        = "Name"
   @inline final val CONSTANT_SNOOZED: String     = "Snoozed"
   @inline final val CONSTANT_ACTIVE: String      = "Active"
+
+  @inline final val CONSTANT_DIGEST: String      = "Digest"
+  @inline final val CONSTANT_LABEL: String       = "Label"
+  @inline final val CONSTANT_LAUNCH_TIME: String = "LaunchTime"
 
 }

@@ -27,26 +27,28 @@ object Batch {
         }
     }
 
-    protected def measure(size: Int): Resource[F, Kleisli[F, FiniteDuration, Unit]] =
-      for {
-        _ <- mtx.activeGauge("batch_elapsed")
-        c <- mtx
-          .ratio("batch_completion", _.withTranslator(translator))
-          .evalTap(_.incDenominator(size.toLong))
-        t <- mtx.histogram(
-          "batch_timer",
-          _.withUnit(_.NANOSECONDS).withReservoir(new SlidingWindowReservoir(size)))
-      } yield Kleisli((fd: FiniteDuration) => t.update(fd.toNanos) *> c.incNumerator(1))
+    protected type DoMeasurement = Kleisli[F, (BatchJob, FiniteDuration), Unit]
 
-    protected def jobTag(job: BatchJob): String = {
-      val lead = s"job-${job.index + 1}"
-      job.name.fold(lead)(n => s"$lead (${n.value})")
-    }
+    protected def measure(size: Int, mode: String): Resource[F, DoMeasurement] =
+      for {
+        c <- mtx
+          .ratio(s"completion($mode)", _.withTranslator(translator))
+          .evalTap(_.incDenominator(size.toLong))
+        _ <- mtx.activeGauge("elapsed")
+        progress <- Resource.eval(F.ref[List[String]](Nil))
+        _ <- mtx.gauge("completed").register(progress.get.map(p => s"[${p.mkString(", ")}]"))
+        t <- mtx.histogram("timer", _.withUnit(_.NANOSECONDS).withReservoir(new SlidingWindowReservoir(size)))
+      } yield Kleisli { case (job: BatchJob, fd: FiniteDuration) =>
+        t.update(fd.toNanos) *>
+          c.incNumerator(1) *>
+          progress.update(_.appended(job.displayCompletion))
+      }
 
     def quasi: Resource[F, List[QuasiResult]]
     def run: Resource[F, List[A]]
 
-    final def combine(that: Runner[F, A]): Runner[F, A] =
+    // sequential
+    final def seqCombine(that: Runner[F, A]): Runner[F, A] =
       new Runner[F, A](mtx) {
         override val quasi: Resource[F, List[QuasiResult]] =
           for {
@@ -59,6 +61,17 @@ object Batch {
             a <- outer.run
             b <- that.run
           } yield a ::: b
+      }
+
+    // parallel
+    final def parCombine(that: Runner[F, A]): Runner[F, A] =
+      new Runner[F, A](mtx) {
+
+        override def quasi: Resource[F, List[QuasiResult]] =
+          outer.quasi.both(that.quasi).map { case (a, b) => a ::: b }
+
+        override def run: Resource[F, List[A]] =
+          outer.run.both(that.run).map { case (a, b) => a ::: b }
       }
   }
 
@@ -73,19 +86,18 @@ object Batch {
         BatchJob(BatchKind.Quasi, BatchMode.Parallel(parallelism), name, idx, jobs.size) -> fa
       }
 
-      def exec(meas: Kleisli[F, FiniteDuration, Unit]): F[(FiniteDuration, List[Detail])] =
+      def exec(meas: DoMeasurement): F[(FiniteDuration, List[Detail])] =
         F.timed(F.parTraverseN(parallelism)(batchJobs) { case (job, fa) =>
           F.timed(fa.attempt).flatMap { case (fd, result) =>
-            meas.run(fd).as(Detail(job, fd.toJava, result.isRight))
+            meas.run((job, fd)).as(Detail(job, fd.toJava, result.isRight))
           }
         })
 
       for {
-        meas <- measure(batchJobs.size)
+        meas <- measure(batchJobs.size, "parallel quasi")
         case (fd, details) <- Resource.eval(exec(meas))
       } yield List(
         QuasiResult(
-          metricName = metrics.metricName,
           spent = fd.toJava,
           mode = BatchMode.Parallel(parallelism),
           details = details.sortBy(_.job.index)))
@@ -96,12 +108,12 @@ object Batch {
         BatchJob(BatchKind.Batch, BatchMode.Parallel(parallelism), name, idx, jobs.size) -> fa
       }
 
-      def exec(meas: Kleisli[F, FiniteDuration, Unit]): F[List[A]] =
-        F.parTraverseN(parallelism)(batchJobs) { case (_, fa) =>
-          F.timed(fa).flatMap { case (fd, a) => meas.run(fd).as(a) }
+      def exec(meas: DoMeasurement): F[List[A]] =
+        F.parTraverseN(parallelism)(batchJobs) { case (job, fa) =>
+          F.timed(fa).flatMap { case (fd, a) => meas.run((job, fd)).as(a) }
         }
 
-      measure(batchJobs.size).evalMap(exec)
+      measure(batchJobs.size, "parallel run").evalMap(exec)
     }
   }
 
@@ -115,21 +127,18 @@ object Batch {
         BatchJob(BatchKind.Quasi, BatchMode.Sequential, name, idx, jobs.size) -> fa
       }
 
-      def exec(meas: Kleisli[F, FiniteDuration, Unit]): F[List[Detail]] =
+      def exec(meas: DoMeasurement): F[List[Detail]] =
         batchJobs.traverse { case (job, fa) =>
-          metrics
-            .activeGauge(jobTag(job))
-            .surround(F.timed(fa.attempt).flatMap { case (fd, result) =>
-              meas.run(fd).as(Detail(job, fd.toJava, result.isRight))
-            })
+          F.timed(metrics.activeGauge(job.showActive).surround(fa.attempt)).flatMap { case (fd, result) =>
+            meas.run((job, fd)).as(Detail(job, fd.toJava, result.isRight))
+          }
         }
 
       for {
-        meas <- measure(batchJobs.size)
+        meas <- measure(batchJobs.size, "sequential quasi")
         details <- Resource.eval(exec(meas))
       } yield List(
         QuasiResult(
-          metricName = metrics.metricName,
           spent = details.map(_.took).foldLeft(Duration.ZERO)(_ plus _),
           mode = BatchMode.Sequential,
           details = details.sortBy(_.job.index)
@@ -141,14 +150,14 @@ object Batch {
         BatchJob(BatchKind.Batch, BatchMode.Sequential, name, idx, jobs.size) -> fa
       }
 
-      def exec(meas: Kleisli[F, FiniteDuration, Unit]): F[List[A]] =
+      def exec(meas: DoMeasurement): F[List[A]] =
         batchJobs.traverse { case (job, fa) =>
-          metrics.activeGauge(jobTag(job)).surround(F.timed(fa)).flatMap { case (fd, a) =>
-            meas.run(fd).as(a)
+          F.timed(metrics.activeGauge(job.showActive).surround(fa)).flatMap { case (fd, a) =>
+            meas.run((job, fd)).as(a)
           }
         }
 
-      measure(batchJobs.size).evalMap(exec)
+      measure(batchJobs.size, "sequential run").evalMap(exec)
     }
   }
 }

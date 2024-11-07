@@ -1,8 +1,9 @@
 package com.github.chenharryhua.nanjin.guard.metrics
 
 import cats.Applicative
-import cats.effect.kernel.{Resource, Sync, Unique}
-import cats.implicits.toFunctorOps
+import cats.effect.kernel.{Resource, Sync}
+import cats.effect.std.UUIDGen
+import cats.implicits.{catsSyntaxTuple2Semigroupal, toFunctorOps}
 import com.codahale.metrics.{Counter, MetricRegistry}
 import com.github.chenharryhua.nanjin.common.EnableConfig
 import com.github.chenharryhua.nanjin.guard.config.*
@@ -23,21 +24,20 @@ object NJCounter {
     }
 
   private class Impl[F[_]: Sync](
-    private[this] val token: Unique.Token,
-    private[this] val name: MetricName,
+    private[this] val label: MetricLabel,
     private[this] val metricRegistry: MetricRegistry,
     private[this] val isRisk: Boolean,
-    private[this] val tag: MetricTag)
+    private[this] val name: MetricName)
       extends NJCounter[F] {
 
     private[this] val F = Sync[F]
 
     private[this] lazy val (counter_name: String, counter: Counter) =
       if (isRisk) {
-        val id = MetricID(name, tag, Category.Counter(CounterKind.Risk), token).identifier
+        val id = MetricID(label, name, Category.Counter(CounterKind.Risk)).identifier
         (id, metricRegistry.counter(id))
       } else {
-        val id = MetricID(name, tag, Category.Counter(CounterKind.Counter), token).identifier
+        val id = MetricID(label, name, Category.Counter(CounterKind.Counter)).identifier
         (id, metricRegistry.counter(id))
       }
 
@@ -55,10 +55,12 @@ object NJCounter {
     override def enable(isEnabled: Boolean): Builder =
       new Builder(isEnabled, isRisk)
 
-    private[guard] def build[F[_]](metricName: MetricName, tag: MetricTag, metricRegistry: MetricRegistry)(
-      implicit F: Sync[F]): Resource[F, NJCounter[F]] =
+    private[guard] def build[F[_]](label: MetricLabel, name: String, metricRegistry: MetricRegistry)(implicit
+      F: Sync[F]): Resource[F, NJCounter[F]] =
       if (isEnabled) {
-        Resource.make(F.unique.map(new Impl[F](_, metricName, metricRegistry, isRisk, tag)))(_.unregister)
+        Resource.make((F.monotonic, UUIDGen[F].randomUUID).mapN { case (ts, unique) =>
+          new Impl[F](label, metricRegistry, isRisk, MetricName(name, ts, unique))
+        })(_.unregister)
       } else
         Resource.pure(dummy[F])
   }
