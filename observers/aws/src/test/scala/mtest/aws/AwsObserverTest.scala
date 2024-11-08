@@ -21,7 +21,7 @@ class AwsObserverTest extends AnyFunSuite {
     .updateConfig(_.addBrief("brief").withRestartPolicy(Policy.fixedDelay(1.second).limited(1)))
     .eventStream { agent =>
       agent
-        .metrics("metrics")(_.meter("meter").map(_.kleisli[Long](identity)))
+        .facilitate("metrics")(_.meter("meter").map(_.kleisli[Long](identity)))
         .use(_.run(10) >> agent.herald.done("good") >> agent.adhoc.report) >> IO.raiseError(new Exception)
     }
 
@@ -61,7 +61,7 @@ class AwsObserverTest extends AnyFunSuite {
     val service = TaskGuard[IO]("aws")
       .service("cloudwatch")
       .eventStream { agent =>
-        agent.metrics("metrics")(_.meter("meter-x").map(_.kleisli)).use { m =>
+        agent.facilitate("metrics")(_.meter("meter-x").map(_.kleisli)).use { m =>
           m.run(1) >> agent.adhoc.report >> IO.sleep(1.second) >>
             m.run(-100) >> agent.adhoc.report >> IO.sleep(1.second) >>
             m.run(2) >> agent.adhoc.report >> IO.sleep(1.second) >>

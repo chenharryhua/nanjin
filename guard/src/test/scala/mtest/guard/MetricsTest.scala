@@ -36,7 +36,7 @@ class MetricsTest extends AnyFunSuite {
   test("1.counter") {
     val mr = service.eventStream { agent =>
       agent
-        .metrics("counter")(_.counter("counter").map(_.kleisli[Long](identity)))
+        .facilitate("counter")(_.counter("counter").map(_.kleisli[Long](identity)))
         .use(_.run(10) >> agent.adhoc.report)
     }.map(checkJson).mapFilter(metricReport).compile.lastOrError.unsafeRunSync()
     assert(mr.snapshot.nonEmpty)
@@ -47,7 +47,7 @@ class MetricsTest extends AnyFunSuite {
   test("2.counter risk") {
     val mr = service.eventStream { agent =>
       agent
-        .metrics("counter")(_.counter("counter", _.asRisk).map(_.kleisli))
+        .facilitate("counter")(_.counter("counter", _.asRisk).map(_.kleisli))
         .use(_.run(10) >> agent.adhoc.report)
     }.map(checkJson).mapFilter(metricReport).compile.lastOrError.unsafeRunSync()
     assert(retrieveRiskCounter(mr.snapshot.counters).values.head == 10)
@@ -66,7 +66,7 @@ class MetricsTest extends AnyFunSuite {
   test("4.meter") {
     val mr = service.eventStream { agent =>
       agent
-        .metrics("meter")(_.meter("meter", _.withUnit(_.BYTES)).map(_.kleisli[Long](identity)))
+        .facilitate("meter")(_.meter("meter", _.withUnit(_.BYTES)).map(_.kleisli[Long](identity)))
         .use(_.run(10) >> agent.adhoc.report)
     }.map(checkJson).mapFilter(metricReport).compile.lastOrError.unsafeRunSync()
     val meter = retrieveMeter(mr.snapshot.meters).values.head
@@ -78,7 +78,7 @@ class MetricsTest extends AnyFunSuite {
   test("5.meter disable") {
     val mr = service.eventStream { agent =>
       agent
-        .metrics("meter")(_.meter("meter", _.enable(false)).map(_.kleisli))
+        .facilitate("meter")(_.meter("meter", _.enable(false)).map(_.kleisli))
         .use(_.run(10) >> agent.adhoc.report)
     }.map(checkJson).mapFilter(metricReport).compile.lastOrError.unsafeRunSync()
     assert(mr.snapshot.isEmpty)
@@ -88,7 +88,7 @@ class MetricsTest extends AnyFunSuite {
   test("6.histogram") {
     val mr = service.eventStream { agent =>
       agent
-        .metrics("histogram")(_.histogram("histogram", _.withUnit(_.BYTES)).map(_.kleisli[Long](identity)))
+        .facilitate("histogram")(_.histogram("histogram", _.withUnit(_.BYTES)).map(_.kleisli[Long](identity)))
         .use(_.run(10) >> agent.adhoc.report)
     }.map(checkJson).mapFilter(metricReport).compile.lastOrError.unsafeRunSync()
     val histo = retrieveHistogram(mr.snapshot.histograms).values.head
@@ -101,7 +101,7 @@ class MetricsTest extends AnyFunSuite {
   test("7.histogram disable") {
     val mr = service.eventStream { agent =>
       agent
-        .metrics("histogram")(_.histogram("histogram", _.enable(false)).map(_.kleisli))
+        .facilitate("histogram")(_.histogram("histogram", _.enable(false)).map(_.kleisli))
         .use(_.run(10) >> agent.adhoc.report)
     }.map(checkJson).mapFilter(metricReport).compile.lastOrError.unsafeRunSync()
     assert(mr.snapshot.isEmpty)
@@ -111,7 +111,7 @@ class MetricsTest extends AnyFunSuite {
   test("8.timer") {
     val mr = service.eventStream { agent =>
       agent
-        .metrics("timer")(_.timer("timer").map(_.kleisli[Long](identity)))
+        .facilitate("timer")(_.timer("timer").map(_.kleisli[Long](identity)))
         .use(_.run(30.seconds.toNanos) >> agent.adhoc.report)
     }.map(checkJson).mapFilter(metricReport).compile.lastOrError.unsafeRunSync()
     val timer = retrieveTimer(mr.snapshot.timers).values.head
@@ -123,7 +123,7 @@ class MetricsTest extends AnyFunSuite {
   test("9.timer disable") {
     val mr = service.eventStream { agent =>
       agent
-        .metrics("timer")(_.timer("timer", _.enable(false)).map(_.kleisli))
+        .facilitate("timer")(_.timer("timer", _.enable(false)).map(_.kleisli))
         .use(_.run(10) >> agent.adhoc.report)
     }.map(checkJson).mapFilter(metricReport).compile.lastOrError.unsafeRunSync()
     assert(mr.snapshot.isEmpty)

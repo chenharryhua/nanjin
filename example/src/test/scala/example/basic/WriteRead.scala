@@ -9,12 +9,12 @@ import io.lemonlabs.uri.Url
 abstract class WriteRead(agent: Agent[IO]) {
   final protected def write(job: Url): Resource[IO, Kleisli[IO, Long, Unit]] = {
     val name = "(write)" + job.toString()
-    agent.metrics(name)(_.meter(name, _.withUnit(_.COUNT)).map(_.kleisli))
+    agent.facilitate(name)(_.meter(name, _.withUnit(_.COUNT)).map(_.kleisli))
   }
 
   final protected def read(job: Url): Resource[IO, Kleisli[IO, Long, Unit]] = {
     val name = "(read)" + job.toString()
-    agent.metrics(name)(_.meter(name, _.withUnit(_.COUNT)).map(_.kleisli))
+    agent.facilitate(name)(_.meter(name, _.withUnit(_.COUNT)).map(_.kleisli))
   }
 
   def single: IO[List[Long]]

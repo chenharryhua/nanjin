@@ -44,7 +44,7 @@ class HttpServerTest extends AnyFunSuite {
         .updateConfig(_.withMetricReport(Policy.crontab(_.secondly)).withHttpServer(_.withPort(port"9999")))
         .eventStream { agent =>
           agent
-            .metrics("test") { ag =>
+            .facilitate("test") { ag =>
               for {
                 _ <- ag.gauge("a").register(IO(1))
                 _ <- ag.counter("a").evalMap(_.inc(1))

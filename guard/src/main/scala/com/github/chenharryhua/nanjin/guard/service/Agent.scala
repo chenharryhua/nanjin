@@ -1,6 +1,5 @@
 package com.github.chenharryhua.nanjin.guard.service
 
-import cats.data.Kleisli
 import cats.effect.kernel.{Async, Resource}
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.common.chrono.*
@@ -29,9 +28,6 @@ sealed trait Agent[F[_]] {
   def adhoc: MetricsReport[F]
 
   def herald: Herald[F]
-
-  def metrics[A, B](label: String)(
-    f: Metrics[F] => Resource[F, Kleisli[F, A, B]]): Resource[F, Kleisli[F, A, B]]
 
   def facilitate[A](label: String)(f: Metrics[F] => A): A
 
@@ -64,12 +60,6 @@ final private class GeneralAgent[F[_]: Async] private[service] (
 
   override def createRetry(policy: Policy): Resource[F, Retry[F]] =
     Resource.pure(new Retry.Impl[F](serviceParams.initialStatus.renewPolicy(policy)))
-
-  override def metrics[A, B](label: String)(
-    f: Metrics[F] => Resource[F, Kleisli[F, A, B]]): Resource[F, Kleisli[F, A, B]] = {
-    val metricLabel = MetricLabel(serviceParams, measurement, label)
-    f(new Metrics.Impl[F](metricLabel, metricRegistry, isEnabled = true))
-  }
 
   override def facilitate[A](label: String)(f: Metrics[F] => A): A = {
     val metricLabel = MetricLabel(serviceParams, measurement, label)

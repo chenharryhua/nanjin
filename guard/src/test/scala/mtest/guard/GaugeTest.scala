@@ -18,7 +18,7 @@ class GaugeTest extends AnyFunSuite {
   test("1.gauge") {
     val mr = service.eventStream { agent =>
       agent
-        .metrics("gauge")(
+        .facilitate("gauge")(
           _.gauge("gauge", _.withTimeout(1.second).enable(true))
             .register(IO(1))
             .map(_ => Kleisli((_: Unit) => IO.unit)))
@@ -52,7 +52,7 @@ class GaugeTest extends AnyFunSuite {
 
   test("4.idle gauge") {
     val mr = service.eventStream { agent =>
-      agent.metrics("idle")(_.idleGauge("idle", _.enable(true))).use(_.run(()) >> agent.adhoc.report)
+      agent.facilitate("idle")(_.idleGauge("idle", _.enable(true))).use(_.run(()) >> agent.adhoc.report)
     }.map(checkJson).mapFilter(metricReport).compile.lastOrError.unsafeRunSync()
     val idle = retrieveGauge[Json](mr.snapshot.gauges)
     assert(mr.snapshot.nonEmpty)
@@ -61,7 +61,7 @@ class GaugeTest extends AnyFunSuite {
 
   test("5.permanent counter") {
     val mr = service.eventStream { agent =>
-      agent.metrics("permanent")(_.permanentCounter("permanent")).use(_.run(1999) >> agent.adhoc.report)
+      agent.facilitate("permanent")(_.permanentCounter("permanent")).use(_.run(1999) >> agent.adhoc.report)
     }.map(checkJson).mapFilter(metricReport).compile.lastOrError.unsafeRunSync()
     val permanent = retrieveGauge[Json](mr.snapshot.gauges)
     assert(mr.snapshot.nonEmpty)

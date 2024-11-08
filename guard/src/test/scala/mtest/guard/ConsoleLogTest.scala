@@ -20,7 +20,7 @@ class ConsoleLogTest extends AnyFunSuite {
       .service("observing")
       .updateConfig(_.addBrief(Json.fromString("brief")))
       .eventStream { agent =>
-        val mtx = agent.metrics("job") { mtx =>
+        val mtx = agent.facilitate("job") { mtx =>
           for {
             retry <- agent.createRetry(_.fixedDelay(1.second))
             _ <- mtx.gauge("1").register(IO(1000000000))

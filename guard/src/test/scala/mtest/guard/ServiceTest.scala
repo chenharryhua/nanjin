@@ -166,7 +166,7 @@ class ServiceTest extends AnyFunSuite {
           .withMetricReport(Policy.crontab(crontabs.secondly))
           .withMetricDailyReset
           .withRestartThreshold(2.second))
-      .eventStream(_ => IO(()))
+      .eventStreamR(_.facilitate("nothing")(_.counter("counter")))
       .map(checkJson)
       .compile
       .drain
