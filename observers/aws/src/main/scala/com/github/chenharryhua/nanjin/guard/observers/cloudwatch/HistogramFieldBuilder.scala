@@ -1,8 +1,10 @@
 package com.github.chenharryhua.nanjin.guard.observers.cloudwatch
 
-final class HistogramFieldBuilder private[cloudwatch] (fields: List[HistogramField]) {
+final class HistogramFieldBuilder private[cloudwatch] (
+  val includeUpdate: Boolean,
+  fields: List[HistogramField]) {
   private def add(hf: HistogramField): HistogramFieldBuilder =
-    new HistogramFieldBuilder(hf :: fields)
+    new HistogramFieldBuilder(includeUpdate, hf :: fields)
   def withMin: HistogramFieldBuilder    = add(HistogramField.Min)
   def withMax: HistogramFieldBuilder    = add(HistogramField.Max)
   def withMean: HistogramFieldBuilder   = add(HistogramField.Mean)
@@ -14,6 +16,7 @@ final class HistogramFieldBuilder private[cloudwatch] (fields: List[HistogramFie
   def withP99: HistogramFieldBuilder    = add(HistogramField.P99)
   def withP999: HistogramFieldBuilder   = add(HistogramField.P999)
 
-  private[cloudwatch] def build: List[HistogramField] = fields.distinct
+  def withUpdate: HistogramFieldBuilder = new HistogramFieldBuilder(true, fields)
 
+  private[cloudwatch] lazy val build: List[HistogramField] = fields.distinct
 }

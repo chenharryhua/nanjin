@@ -14,11 +14,11 @@ import scala.concurrent.duration.{DurationLong, FiniteDuration}
 import scala.jdk.DurationConverters.JavaDurationOps
 
 object retry {
-  def apply[F[_]: UUIDGen: Temporal](policy: Policy, zoneId: ZoneId)(client: Client[F]): Client[F] =
-    impl[F](policy, zoneId, RetryPolicy.defaultRetriable)(client)
+  def apply[F[_]: UUIDGen: Temporal](policy: Policy, zoneId: ZoneId): Client[F] => Client[F] =
+    client => impl[F](policy, zoneId, RetryPolicy.defaultRetriable)(client)
 
-  def reckless[F[_]: UUIDGen: Temporal](policy: Policy, zoneId: ZoneId)(client: Client[F]): Client[F] =
-    impl[F](policy, zoneId, (_, ex) => RetryPolicy.recklesslyRetriable(ex))(client)
+  def reckless[F[_]: UUIDGen: Temporal](policy: Policy, zoneId: ZoneId): Client[F] => Client[F] =
+    client => impl[F](policy, zoneId, (_, ex) => RetryPolicy.recklesslyRetriable(ex))(client)
 
   private def impl[F[_]: UUIDGen: Temporal](
     policy: Policy,

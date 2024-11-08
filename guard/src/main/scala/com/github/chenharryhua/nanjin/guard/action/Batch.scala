@@ -32,7 +32,7 @@ object Batch {
     protected def measure(size: Int, mode: String): Resource[F, DoMeasurement] =
       for {
         ratio <- mtx
-          .ratio(s"completion($mode)", _.withTranslator(translator))
+          .ratio(s"($mode) completion", _.withTranslator(translator))
           .evalTap(_.incDenominator(size.toLong))
         _ <- mtx.activeGauge("elapsed")
         progress <- Resource.eval(F.ref[List[String]](Nil))
@@ -97,7 +97,7 @@ object Batch {
         })
 
       for {
-        meas <- measure(batchJobs.size, "parallel quasi")
+        meas <- measure(batchJobs.size, s"parallel-$parallelism quasi")
         case (fd, details) <- Resource.eval(exec(meas))
       } yield List(
         QuasiResult(
@@ -116,7 +116,7 @@ object Batch {
           F.timed(fa).flatMap { case (fd, a) => meas.run((job, fd)).as(a) }
         }
 
-      measure(batchJobs.size, "parallel run").evalMap(exec)
+      measure(batchJobs.size, s"parallel-$parallelism run").evalMap(exec)
     }
   }
 
