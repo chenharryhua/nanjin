@@ -13,6 +13,7 @@ import io.circe.Json
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.util.UUID
+import scala.concurrent.Future
 import scala.concurrent.duration.*
 import scala.jdk.DurationConverters.ScalaDurationOps
 
@@ -239,6 +240,25 @@ class ServiceTest extends AnyFunSuite {
     assert(res.head.isInstanceOf[ServiceStart])
     assert(res(1).isInstanceOf[ServicePanic])
     assert(res(2).isInstanceOf[ServiceStart])
-    assert(res(3).isInstanceOf[ServiceStop])
+    assert(res(3).asInstanceOf[ServiceStop].cause.isInstanceOf[ServiceStopCause.ByException])
+  }
+
+  test("16. exception thrown elsewhere") {
+    val res = guard
+      .service("ex")
+      .updateConfig(_.withRestartPolicy(_.fixedRate(1.seconds).limited(1)))
+      .eventStream { _ =>
+        Future[Int] {
+          Thread.sleep(2_000)
+          println("throw exception")
+          throw new Exception("oops")
+        }(scala.concurrent.ExecutionContext.Implicits.global)
+        IO.sleep(5.seconds)
+      }
+      .compile
+      .toList
+      .unsafeRunSync()
+    assert(res.head.isInstanceOf[ServiceStart])
+    assert(res(1).asInstanceOf[ServiceStop].cause == ServiceStopCause.Successfully)
   }
 }
