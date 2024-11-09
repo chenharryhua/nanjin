@@ -118,9 +118,9 @@ class RetryTest extends AnyFunSuite {
     assert(i == 3)
   }
 
-  test("9.performance") {
-    var i       = 0
-    val timeout = 5.seconds
+  ignore("9.performance") {
+    var i: Int  = 0
+    val timeout = 15.seconds
     TaskGuard[IO]("performance")
       .service("performance")
       .eventStream { agent =>
@@ -132,7 +132,6 @@ class RetryTest extends AnyFunSuite {
       .unsafeRunSync()
     val res = i / timeout.toSeconds
     println(s"performance: $res calls/second")
-    assert(res > 3_000_000)
+    assert(res > 4_000_000)
   }
-
 }

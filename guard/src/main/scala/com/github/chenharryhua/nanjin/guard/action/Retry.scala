@@ -9,9 +9,7 @@ import scala.jdk.DurationConverters.JavaDurationOps
 
 sealed trait Retry[F[_]] {
   def apply[A](arrow: (Tick, Option[Throwable]) => F[Either[Throwable, A]]): F[A]
-
   def apply[A](tfa: Tick => F[A]): F[A]
-
   def apply[A](fa: F[A]): F[A]
 }
 
