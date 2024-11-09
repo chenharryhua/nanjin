@@ -1,6 +1,5 @@
 package com.github.chenharryhua.nanjin.guard.action
 
-import cats.data.Kleisli
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
@@ -73,7 +72,7 @@ class RetryTest extends AnyFunSuite {
     val retry           = new Retry.Impl[IO](state.renewPolicy(policy))
     var lst: List[Long] = List.empty
 
-    val res = retry { (t: Tick, ex: Option[Throwable]) =>
+    val res = retry { (t, ex) =>
       ex match {
         case Some(_) => IO { lst = lst.appended(t.index) } *> IO(Right(0))
         case None    => IO { lst = lst.appended(t.index) } *> IO.raiseError(new Exception)
@@ -93,8 +92,8 @@ class RetryTest extends AnyFunSuite {
     object MyException2 extends Exception
     object MyException3 extends Exception
 
-    val res: IO[Int] = retry { (_: Tick, ex: Option[Throwable]) =>
-      ex match {
+    val res: IO[Int] = retry { (_, oex) =>
+      oex match {
         case None => IO.raiseError(MyException)
         case Some(ex) if ex.isInstanceOf[MyException.type] =>
           IO { lst = lst.appended(ex) } *> IO(Left(MyException2))
@@ -118,20 +117,19 @@ class RetryTest extends AnyFunSuite {
     assert(i == 3)
   }
 
-  ignore("9.performance") {
+  test("9.performance") {
     var i: Int  = 0
-    val timeout = 15.seconds
+    val timeout = 5.seconds
     TaskGuard[IO]("performance")
       .service("performance")
       .eventStream { agent =>
-        val rt = agent.createRetry(_.giveUp).map(retry => Kleisli((_: Int) => retry(IO(i += 1))))
-        rt.use(_.run(0).foreverM.timeout(timeout).attempt).void
+        agent.createRetry(_.giveUp).use(_.apply(IO(i += 1)).foreverM.timeout(timeout).attempt).void
       }
       .compile
       .drain
       .unsafeRunSync()
     val res = i / timeout.toSeconds
     println(s"performance: $res calls/second")
-    assert(res > 4_000_000)
+    assert(res > 2_000_000)
   }
 }

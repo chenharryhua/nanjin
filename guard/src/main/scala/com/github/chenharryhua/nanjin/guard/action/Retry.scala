@@ -1,6 +1,5 @@
 package com.github.chenharryhua.nanjin.guard.action
 
-import cats.data.Kleisli
 import cats.effect.Temporal
 import cats.implicits.{toFlatMapOps, toFunctorOps}
 import com.github.chenharryhua.nanjin.common.chrono.{Tick, TickStatus}
@@ -17,10 +16,9 @@ object Retry {
 
   private[guard] class Impl[F[_]](initTS: TickStatus)(implicit F: Temporal[F]) extends Retry[F] {
 
-    private[this] def comprehensive[A](
-      arrow: Kleisli[F, (Tick, Option[Throwable]), Either[Throwable, A]]): F[A] =
+    private[this] def comprehensive[A](arrow: (Tick, Option[Throwable]) => F[Either[Throwable, A]]): F[A] =
       F.tailRecM[(TickStatus, Option[Throwable]), A](initTS -> None) { case (status, lastError) =>
-        F.attempt(arrow.run((status.tick, lastError))).flatMap[Either[(TickStatus, Option[Throwable]), A]] {
+        F.attempt(arrow(status.tick, lastError)).flatMap[Either[(TickStatus, Option[Throwable]), A]] {
           case Right(errorOrValue) => // stop retry
             errorOrValue match {
               case Left(userError) => F.raiseError(userError) // quit with user provided error
@@ -39,12 +37,12 @@ object Retry {
       }
 
     override def apply[A](fa: F[A]): F[A] =
-      comprehensive(Kleisli(_ => fa.map(Right(_))))
+      comprehensive((_: Tick, _: Option[Throwable]) => fa.map(Right(_)))
 
     override def apply[A](tfa: Tick => F[A]): F[A] =
-      comprehensive(Kleisli { case (tick: Tick, _: Option[Throwable]) => tfa(tick).map(Right(_)) })
+      comprehensive((tick: Tick, _: Option[Throwable]) => tfa(tick).map(Right(_)))
 
     override def apply[A](arrow: (Tick, Option[Throwable]) => F[Either[Throwable, A]]): F[A] =
-      comprehensive(Kleisli(arrow.tupled))
+      comprehensive(arrow)
   }
 }

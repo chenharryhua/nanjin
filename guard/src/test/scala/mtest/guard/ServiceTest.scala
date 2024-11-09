@@ -223,4 +223,22 @@ class ServiceTest extends AnyFunSuite {
     assert(a.message.as[String].toOption.get != b.message.as[String].toOption.get)
 
   }
+
+  test("15.exception throw by java") {
+    val res = guard
+      .service("ex")
+      .updateConfig(_.withRestartPolicy(_.fixedRate(1.seconds).limited(1)))
+      .eventStream { _ =>
+        assert(1 == 2)
+        IO.unit
+      }
+      .compile
+      .toList
+      .unsafeRunSync()
+    assert(res.size == 4)
+    assert(res.head.isInstanceOf[ServiceStart])
+    assert(res(1).isInstanceOf[ServicePanic])
+    assert(res(2).isInstanceOf[ServiceStart])
+    assert(res(3).isInstanceOf[ServiceStop])
+  }
 }
