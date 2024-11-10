@@ -22,10 +22,10 @@ class BatchTest extends AnyFunSuite {
       ga.batch("quasi.sequential")
         .namedSequential(
           "a" -> IO.raiseError(new Exception()),
-          "b" -> IO.sleep(1.second),
-          "c" -> IO.sleep(2.seconds),
-          "d" -> IO.raiseError(new Exception()),
-          "e" -> IO.sleep(1.seconds),
+          "bbb" -> IO.sleep(1.second),
+          "cccc" -> IO.sleep(2.seconds),
+          "ddd" -> IO.raiseError(new Exception()),
+          "ee" -> IO.sleep(1.seconds),
           "f" -> IO.raiseError(new Exception)
         )
         .quasi
@@ -47,10 +47,10 @@ class BatchTest extends AnyFunSuite {
       ga.batch("quasi.parallel")
         .namedParallel(3)(
           "a" -> IO.sleep(3.second),
-          "b" -> IO.sleep(2.seconds),
-          "c" -> IO.raiseError(new Exception),
-          "d" -> IO.sleep(3.seconds),
-          "e" -> IO.raiseError(new Exception),
+          "bb" -> IO.sleep(2.seconds),
+          "cccc" -> IO.raiseError(new Exception),
+          "ddd" -> IO.sleep(3.seconds),
+          "ee" -> IO.raiseError(new Exception),
           "f" -> IO.sleep(4.seconds)
         )
         .quasi

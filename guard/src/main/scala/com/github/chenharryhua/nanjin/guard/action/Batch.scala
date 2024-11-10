@@ -2,9 +2,11 @@ package com.github.chenharryhua.nanjin.guard.action
 import cats.data.{Ior, Kleisli}
 import cats.effect.kernel.{Async, Resource}
 import cats.syntax.all.*
-import com.codahale.metrics.SlidingWindowReservoir
 import com.github.chenharryhua.nanjin.guard.metrics.Metrics
+import com.github.chenharryhua.nanjin.guard.translator.fmt
 import io.circe.Json
+import io.circe.syntax.EncoderOps
+import org.apache.commons.lang3.StringUtils
 
 import java.time.Duration
 import scala.concurrent.duration.FiniteDuration
@@ -27,25 +29,36 @@ object Batch {
         }
     }
 
-    protected type DoMeasurement = Kleisli[F, (BatchJob, FiniteDuration), Unit]
+    protected type DoMeasurement = Kleisli[F, Detail, Unit]
 
-    protected def measure(size: Int, mode: String): Resource[F, DoMeasurement] =
+    protected def getJobName(job: BatchJob): String = {
+      val lead = s"job-${job.index + 1}"
+      job.name.fold(lead)(n => s"$lead (${n.value})")
+    }
+
+    private val spaces: String = StringUtils.SPACE * 6
+    protected def measure(size: Int, mode: String): Resource[F, DoMeasurement] = {
+      def toJson(details: List[Detail]): Json =
+        if (details.isEmpty) Json.Null
+        else {
+          val maxLength = details.map(d => getJobName(d.job).length).max
+          details.map { detail =>
+            val padded = StringUtils.rightPad(getJobName(detail.job), maxLength)
+            val isDone = if (detail.done) "done" else "fail"
+            val took   = fmt.format(detail.took)
+            s"\n$spaces$padded: $isDone, $took"
+          }.mkString.asJson
+        }
+
       for {
-        ratio <- mtx
-          .ratio(s"($mode) completion", _.withTranslator(translator))
-          .evalTap(_.incDenominator(size.toLong))
-        _ <- mtx.activeGauge("elapsed")
-        progress <- Resource.eval(F.ref[List[String]](Nil))
-        _ <- mtx.gauge("completed").register(progress.get.map(p => s"[${p.mkString(", ")}]"))
-        timer <- mtx.histogram(
-          "timer",
-          _.withUnit(_.NANOSECONDS).withReservoir(new SlidingWindowReservoir(size)))
-      } yield Kleisli { case (job: BatchJob, fd: FiniteDuration) =>
-        val jobName = job.name.fold(s"job-${job.index + 1}")(_.value)
-        timer.update(fd.toNanos) *>
-          ratio.incNumerator(1) *>
-          progress.update(_.appended(jobName))
+        _ <- mtx.activeGauge(s"$mode elapsed")
+        ratio <- mtx.ratio("completion", _.withTranslator(translator)).evalTap(_.incDenominator(size.toLong))
+        progress <- Resource.eval(F.ref[List[Detail]](Nil))
+        _ <- mtx.gauge("completed").register(progress.get.map(toJson))
+      } yield Kleisli { (detail: Detail) =>
+        ratio.incNumerator(1) *> progress.update(_.appended(detail))
       }
+    }
 
     def quasi: Resource[F, List[QuasiResult]]
     def run: Resource[F, List[A]]
@@ -92,7 +105,8 @@ object Batch {
       def exec(meas: DoMeasurement): F[(FiniteDuration, List[Detail])] =
         F.timed(F.parTraverseN(parallelism)(batchJobs) { case (job, fa) =>
           F.timed(fa.attempt).flatMap { case (fd, result) =>
-            meas.run((job, fd)).as(Detail(job, fd.toJava, result.isRight))
+            val detail = Detail(job, fd.toJava, result.isRight)
+            meas.run(detail).as(detail)
           }
         })
 
@@ -113,7 +127,10 @@ object Batch {
 
       def exec(meas: DoMeasurement): F[List[A]] =
         F.parTraverseN(parallelism)(batchJobs) { case (job, fa) =>
-          F.timed(fa).flatMap { case (fd, a) => meas.run((job, fd)).as(a) }
+          F.timed(fa).flatMap { case (fd, a) =>
+            val detail = Detail(job, fd.toJava, done = true)
+            meas.run(detail).as(a)
+          }
         }
 
       measure(batchJobs.size, s"parallel-$parallelism run").evalMap(exec)
@@ -125,11 +142,6 @@ object Batch {
     jobs: List[(Option[BatchJobName], F[A])])
       extends Runner[F, A](metrics) {
 
-    private def getName(job: BatchJob): String = {
-      val lead = s"running job-${job.index + 1}"
-      job.name.fold(lead)(n => s"$lead (${n.value})")
-    }
-
     override val quasi: Resource[F, List[QuasiResult]] = {
       val batchJobs: List[(BatchJob, F[A])] = jobs.zipWithIndex.map { case ((name, fa), idx) =>
         BatchJob(BatchKind.Quasi, BatchMode.Sequential, name, idx, jobs.size) -> fa
@@ -137,8 +149,10 @@ object Batch {
 
       def exec(meas: DoMeasurement): F[List[Detail]] =
         batchJobs.traverse { case (job, fa) =>
-          F.timed(metrics.activeGauge(getName(job)).surround(fa.attempt)).flatMap { case (fd, result) =>
-            meas.run((job, fd)).as(Detail(job, fd.toJava, result.isRight))
+          F.timed(metrics.activeGauge(s"running ${getJobName(job)}").surround(fa.attempt)).flatMap {
+            case (fd, result) =>
+              val detail = Detail(job, fd.toJava, result.isRight)
+              meas.run(detail).as(detail)
           }
         }
 
@@ -160,8 +174,9 @@ object Batch {
 
       def exec(meas: DoMeasurement): F[List[A]] =
         batchJobs.traverse { case (job, fa) =>
-          F.timed(metrics.activeGauge(getName(job)).surround(fa)).flatMap { case (fd, a) =>
-            meas.run((job, fd)).as(a)
+          F.timed(metrics.activeGauge(s"running ${getJobName(job)}").surround(fa)).flatMap { case (fd, a) =>
+            val detail = Detail(job, fd.toJava, done = true)
+            meas.run(detail).as(a)
           }
         }
 
