@@ -4,10 +4,9 @@ import cats.effect.kernel.{Resource, Sync}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.aws.CloudWatch
 import com.github.chenharryhua.nanjin.common.aws.CloudWatchNamespace
-import com.github.chenharryhua.nanjin.guard.config.MetricLabel
-import com.github.chenharryhua.nanjin.guard.event.MeasurementUnit.*
+import com.github.chenharryhua.nanjin.guard.config.{MetricLabel, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.MetricReport
-import com.github.chenharryhua.nanjin.guard.event.{MeasurementUnit, NJEvent, Normalized, UnitNormalization}
+import com.github.chenharryhua.nanjin.guard.event.{NJEvent, Normalized, UnitNormalization}
 import com.github.chenharryhua.nanjin.guard.translator.textConstants
 import fs2.{Pipe, Pull, Stream}
 import software.amazon.awssdk.services.cloudwatch.model.{
@@ -19,7 +18,6 @@ import software.amazon.awssdk.services.cloudwatch.model.{
 
 import java.time.Instant
 import java.util
-import java.util.UUID
 import scala.jdk.CollectionConverters.*
 
 object CloudWatchObserver {
@@ -33,13 +31,7 @@ object CloudWatchObserver {
     )
 }
 
-object CloudWatchTimeUnit {
-  val MICROSECONDS: NJTimeUnit.MICROSECONDS.type = NJTimeUnit.MICROSECONDS
-  val MILLISECONDS: NJTimeUnit.MILLISECONDS.type = NJTimeUnit.MILLISECONDS
-  val SECONDS: NJTimeUnit.SECONDS.type           = NJTimeUnit.SECONDS
-}
-
-final class CloudWatchObserver[F[_]: Sync](
+final class CloudWatchObserver[F[_]: Sync] private (
   client: Resource[F, CloudWatch[F]],
   storageResolution: Int,
   histogramBuilder: Endo[HistogramFieldBuilder],
@@ -58,36 +50,6 @@ final class CloudWatchObserver[F[_]: Sync](
   def unifyMeasurementUnit(f: Endo[UnitBuilder]): CloudWatchObserver[F] =
     new CloudWatchObserver[F](client, storageResolution, histogramBuilder, f, dimensionBuilder)
 
-  private def toStandardUnit(mu: MeasurementUnit): StandardUnit =
-    mu match {
-      case NJTimeUnit.SECONDS              => StandardUnit.SECONDS
-      case NJTimeUnit.MILLISECONDS         => StandardUnit.MILLISECONDS
-      case NJTimeUnit.MICROSECONDS         => StandardUnit.MICROSECONDS
-      case NJInformationUnit.BYTES         => StandardUnit.BYTES
-      case NJInformationUnit.KILOBYTES     => StandardUnit.KILOBYTES
-      case NJInformationUnit.MEGABYTES     => StandardUnit.MEGABYTES
-      case NJInformationUnit.GIGABYTES     => StandardUnit.GIGABYTES
-      case NJInformationUnit.TERABYTES     => StandardUnit.TERABYTES
-      case NJInformationUnit.BITS          => StandardUnit.BITS
-      case NJInformationUnit.KILOBITS      => StandardUnit.KILOBITS
-      case NJInformationUnit.MEGABITS      => StandardUnit.MEGABITS
-      case NJInformationUnit.GIGABITS      => StandardUnit.GIGABITS
-      case NJInformationUnit.TERABITS      => StandardUnit.TERABITS
-      case NJDimensionlessUnit.COUNT       => StandardUnit.COUNT
-      case NJDataRateUnit.BYTES_SECOND     => StandardUnit.BYTES_SECOND
-      case NJDataRateUnit.KILOBYTES_SECOND => StandardUnit.KILOBYTES_SECOND
-      case NJDataRateUnit.MEGABYTES_SECOND => StandardUnit.MEGABYTES_SECOND
-      case NJDataRateUnit.GIGABYTES_SECOND => StandardUnit.GIGABYTES_SECOND
-      case NJDataRateUnit.TERABYTES_SECOND => StandardUnit.TERABYTES_SECOND
-      case NJDataRateUnit.BITS_SECOND      => StandardUnit.BITS_SECOND
-      case NJDataRateUnit.KILOBITS_SECOND  => StandardUnit.KILOBITS_SECOND
-      case NJDataRateUnit.MEGABITS_SECOND  => StandardUnit.MEGABITS_SECOND
-      case NJDataRateUnit.GIGABITS_SECOND  => StandardUnit.GIGABITS_SECOND
-      case NJDataRateUnit.TERABITS_SECOND  => StandardUnit.TERABITS_SECOND
-
-      case _ => StandardUnit.NONE
-    }
-
   private val histogramB: HistogramFieldBuilder = histogramBuilder(new HistogramFieldBuilder(false, Nil))
 
   private val unitNormalization: UnitNormalization =
@@ -97,8 +59,6 @@ final class CloudWatchObserver[F[_]: Sync](
   private def computeDatum(
     report: MetricReport,
     last: Map[MetricKey, Long]): (List[MetricDatum], Map[MetricKey, Long]) = {
-    val dimensions: util.List[Dimension] =
-      dimensionBuilder(new DimensionBuilder(report.serviceParams, Map.empty)).build
 
     val timer_histo: List[MetricDatum] = for {
       hf <- histogramB.build
@@ -106,12 +66,12 @@ final class CloudWatchObserver[F[_]: Sync](
     } yield {
       val (dur, category) = hf.pick(timer)
       MetricKey(
-        serviceId = report.serviceParams.serviceId,
+        serviceParams = report.serviceParams,
         metricLabel = timer.metricId.metricLabel,
         metricName = s"${timer.metricId.metricName.name}_$category",
-        standardUnit = toStandardUnit(unitNormalization.timeUnit),
+        standardUnit = CloudWatchTimeUnit.toStandardUnit(unitNormalization.timeUnit),
         storageResolution = storageResolution
-      ).metricDatum(dimensions)(report.timestamp.toInstant, unitNormalization.normalize(dur).value)
+      ).metricDatum(report.timestamp.toInstant, unitNormalization.normalize(dur).value)
     }
 
     val histograms: List[MetricDatum] = for {
@@ -121,18 +81,18 @@ final class CloudWatchObserver[F[_]: Sync](
       val (value, category)      = hf.pick(histo)
       val Normalized(data, unit) = unitNormalization.normalize(histo.histogram.unit, value)
       MetricKey(
-        serviceId = report.serviceParams.serviceId,
+        serviceParams = report.serviceParams,
         metricLabel = histo.metricId.metricLabel,
         metricName = s"${histo.metricId.metricName.name}_$category",
-        standardUnit = toStandardUnit(unit),
+        standardUnit = CloudWatchTimeUnit.toStandardUnit(unit),
         storageResolution = storageResolution
-      ).metricDatum(dimensions)(report.timestamp.toInstant, data)
+      ).metricDatum(report.timestamp.toInstant, data)
     }
 
     val timer_calls: Map[MetricKey, Long] =
       report.snapshot.timers.map { timer =>
         MetricKey(
-          serviceId = report.serviceParams.serviceId,
+          serviceParams = report.serviceParams,
           metricLabel = timer.metricId.metricLabel,
           metricName = timer.metricId.metricName.name,
           standardUnit = StandardUnit.COUNT,
@@ -144,10 +104,10 @@ final class CloudWatchObserver[F[_]: Sync](
       report.snapshot.meters.map { meter =>
         val Normalized(data, unit) = unitNormalization.normalize(meter.meter.unit, meter.meter.sum)
         MetricKey(
-          serviceId = report.serviceParams.serviceId,
+          serviceParams = report.serviceParams,
           metricLabel = meter.metricId.metricLabel,
           metricName = meter.metricId.metricName.name,
-          standardUnit = toStandardUnit(unit),
+          standardUnit = CloudWatchTimeUnit.toStandardUnit(unit),
           storageResolution = storageResolution
         ) -> data.toLong
       }.toMap
@@ -156,7 +116,7 @@ final class CloudWatchObserver[F[_]: Sync](
       if (histogramB.includeUpdate)
         report.snapshot.histograms.map { histo =>
           MetricKey(
-            serviceId = report.serviceParams.serviceId,
+            serviceParams = report.serviceParams,
             metricLabel = histo.metricId.metricLabel,
             metricName = histo.metricId.metricName.name,
             standardUnit = StandardUnit.COUNT,
@@ -175,13 +135,9 @@ final class CloudWatchObserver[F[_]: Sync](
           // such that counters are reset to zero.
           case Some(old) =>
             val nc = if (count > old) count - old else 0
-            (
-              key.metricDatum(dimensions)(report.timestamp.toInstant, nc.toDouble) :: mds,
-              newLast.updated(key, count))
+            (key.metricDatum(report.timestamp.toInstant, nc.toDouble) :: mds, newLast.updated(key, count))
           case None =>
-            (
-              key.metricDatum(dimensions)(report.timestamp.toInstant, count.toDouble) :: mds,
-              newLast.updated(key, count))
+            (key.metricDatum(report.timestamp.toInstant, count.toDouble) :: mds, newLast.updated(key, count))
         }
     }
     (counters ::: timer_histo ::: histograms, lastUpdates)
@@ -211,27 +167,32 @@ final class CloudWatchObserver[F[_]: Sync](
 
     Stream.resource(client).flatMap(cw => go(cw, es, Map.empty).stream)
   }
-}
 
-final private case class MetricKey(
-  serviceId: UUID,
-  metricLabel: MetricLabel,
-  metricName: String,
-  standardUnit: StandardUnit,
-  storageResolution: Int) {
-  def metricDatum(dimensions: util.List[Dimension])(ts: Instant, value: Double): MetricDatum =
-    MetricDatum
-      .builder()
-      .dimensions(dimensions)
-      .dimensions(
-        Dimension.builder().name(textConstants.CONSTANT_MEASUREMENT).value(metricLabel.measurement).build(),
-        Dimension.builder().name(textConstants.CONSTANT_DIGEST).value(metricLabel.digest).build(),
-        Dimension.builder().name(textConstants.CONSTANT_LABEL).value(metricLabel.label).build()
-      )
-      .metricName(metricName)
-      .unit(standardUnit)
-      .timestamp(ts)
-      .value(value)
-      .storageResolution(storageResolution)
-      .build()
+  private case class MetricKey(
+    serviceParams: ServiceParams,
+    metricLabel: MetricLabel,
+    metricName: String,
+    standardUnit: StandardUnit,
+    storageResolution: Int) {
+
+    private val dimensions: util.List[Dimension] =
+      dimensionBuilder(
+        new DimensionBuilder(
+          serviceParams,
+          metricLabel,
+          Map(
+            textConstants.CONSTANT_LABEL -> metricLabel.label,
+            textConstants.CONSTANT_MEASUREMENT -> metricLabel.measurement))).build
+
+    def metricDatum(ts: Instant, value: Double): MetricDatum =
+      MetricDatum
+        .builder()
+        .dimensions(dimensions)
+        .metricName(metricName)
+        .unit(standardUnit)
+        .timestamp(ts)
+        .value(value)
+        .storageResolution(storageResolution)
+        .build()
+  }
 }

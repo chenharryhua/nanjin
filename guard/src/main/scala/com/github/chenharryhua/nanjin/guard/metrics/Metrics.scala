@@ -5,10 +5,9 @@ import cats.data.Kleisli
 import cats.effect.kernel.{Async, Ref, Resource}
 import cats.syntax.all.*
 import com.codahale.metrics.MetricRegistry
-import com.github.chenharryhua.nanjin.common.DurationFormatter
 import com.github.chenharryhua.nanjin.guard.config.MetricLabel
 import com.github.chenharryhua.nanjin.guard.event.NJUnits
-import com.github.chenharryhua.nanjin.guard.translator.decimal_fmt
+import com.github.chenharryhua.nanjin.guard.translator.{decimal_fmt, fmt}
 
 import scala.concurrent.duration.DurationInt
 
@@ -107,15 +106,14 @@ object Metrics {
           for {
             pre <- lastUpdate.get
             now <- F.monotonic
-          } yield DurationFormatter.defaultFormatter.format(now - pre)
+          } yield fmt.format(now - pre)
         )
       } yield Kleisli[F, Unit, Unit](_ => F.monotonic.flatMap(lastUpdate.set))
 
     override def activeGauge(name: String, f: Endo[NJGauge.Builder]): Resource[F, Unit] =
       for {
         kickoff <- Resource.eval(F.monotonic)
-        _ <- gauge(name, f).register(F.monotonic.map(now =>
-          DurationFormatter.defaultFormatter.format(now - kickoff)))
+        _ <- gauge(name, f).register(F.monotonic.map(now => fmt.format(now - kickoff)))
       } yield ()
 
     override def permanentCounter(
