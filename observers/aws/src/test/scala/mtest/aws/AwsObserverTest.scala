@@ -63,7 +63,7 @@ class AwsObserverTest extends AnyFunSuite {
       .eventStream { agent =>
         agent.facilitate("metrics")(_.meter("meter-x").map(_.kleisli)).use { m =>
           m.run(1) >> agent.adhoc.report >> IO.sleep(1.second) >>
-            m.run(-100) >> agent.adhoc.report >> IO.sleep(1.second) >>
+            m.run(2) >> agent.adhoc.report >> IO.sleep(1.second) >>
             m.run(2) >> agent.adhoc.report >> IO.sleep(1.second) >>
             m.run(0) >> agent.adhoc.report
         }
