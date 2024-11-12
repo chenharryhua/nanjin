@@ -45,15 +45,15 @@ sealed trait Metrics[F[_]] {
   def healthCheck(name: String, f: Endo[NJHealthCheck.Builder]): NJHealthCheck[F]
   final def healthCheck(name: String): NJHealthCheck[F] = healthCheck(name, identity)
 
-  def idleGauge(name: String, f: Endo[NJGauge.Builder]): Resource[F, Kleisli[F, Unit, Unit]]
-  final def idleGauge(name: String): Resource[F, Kleisli[F, Unit, Unit]] =
+  def idleGauge(name: String, f: Endo[NJGauge.Builder]): Resource[F, NJIdleGauge[F]]
+  final def idleGauge(name: String): Resource[F, NJIdleGauge[F]] =
     idleGauge(name, identity[NJGauge.Builder])
 
   def activeGauge(name: String, f: Endo[NJGauge.Builder]): Resource[F, Unit]
   final def activeGauge(name: String): Resource[F, Unit] = activeGauge(name, identity)
 
-  def permanentCounter(name: String, f: Endo[NJGauge.Builder]): Resource[F, Kleisli[F, Long, Unit]]
-  final def permanentCounter(name: String): Resource[F, Kleisli[F, Long, Unit]] =
+  def permanentCounter(name: String, f: Endo[NJGauge.Builder]): Resource[F, NJCounter[F]]
+  final def permanentCounter(name: String): Resource[F, NJCounter[F]] =
     permanentCounter(name, identity)
 }
 
@@ -99,7 +99,7 @@ object Metrics {
       f(init).build[F](metricLabel, name, metricRegistry)
     }
 
-    override def idleGauge(name: String, f: Endo[NJGauge.Builder]): Resource[F, Kleisli[F, Unit, Unit]] =
+    override def idleGauge(name: String, f: Endo[NJGauge.Builder]): Resource[F, NJIdleGauge[F]] =
       for {
         lastUpdate <- Resource.eval(F.monotonic.flatMap(F.ref))
         _ <- gauge(name, f).register(
@@ -108,7 +108,9 @@ object Metrics {
             now <- F.monotonic
           } yield fmt.format(now - pre)
         )
-      } yield Kleisli[F, Unit, Unit](_ => F.monotonic.flatMap(lastUpdate.set))
+      } yield new NJIdleGauge[F] {
+        override val mark: F[Unit] = F.monotonic.flatMap(lastUpdate.set)
+      }
 
     override def activeGauge(name: String, f: Endo[NJGauge.Builder]): Resource[F, Unit] =
       for {
@@ -116,12 +118,12 @@ object Metrics {
         _ <- gauge(name, f).register(F.monotonic.map(now => fmt.format(now - kickoff)))
       } yield ()
 
-    override def permanentCounter(
-      name: String,
-      f: Endo[NJGauge.Builder]): Resource[F, Kleisli[F, Long, Unit]] =
+    override def permanentCounter(name: String, f: Endo[NJGauge.Builder]): Resource[F, NJCounter[F]] =
       for {
         ref <- Resource.eval(Ref[F].of[Long](0L))
         _ <- gauge(name, f).register(ref.get.map(decimal_fmt.format))
-      } yield Kleisli((num: Long) => ref.update(_ + num))
+      } yield new NJCounter[F] {
+        override def inc(num: Long): F[Unit] = ref.update(_ + num)
+      }
   }
 }

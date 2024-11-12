@@ -10,10 +10,10 @@ import java.time.Duration
 sealed trait BatchKind
 object BatchKind {
   case object Quasi extends BatchKind
-  case object Batch extends BatchKind
+  case object Fully extends BatchKind
   implicit val showBatchKind: Show[BatchKind] = {
     case Quasi => "quasi"
-    case Batch => "batch"
+    case Fully => "fully"
   }
 }
 
@@ -31,24 +31,7 @@ object BatchMode {
     (a: BatchMode) => Json.fromString(a.show)
 }
 
-final case class BatchJobName(value: String) extends AnyVal
-object BatchJobName {
-  implicit val showBatchJobName: Show[BatchJobName]       = _.value
-  implicit val encoderBatchJobName: Encoder[BatchJobName] = Encoder.encodeString.contramap(_.value)
-}
-
-final case class BatchJob(kind: BatchKind, mode: BatchMode, name: Option[BatchJobName], index: Int, jobs: Int)
-object BatchJob {
-  implicit val encoderBatchJob: Encoder[BatchJob] = (a: BatchJob) =>
-    Json.obj(
-      show"${a.kind}" -> Json
-        .obj(
-          "name" -> a.name.asJson,
-          "mode" -> a.mode.asJson,
-          "index" -> Json.fromInt(a.index + 1),
-          "jobs" -> Json.fromInt(a.jobs))
-        .dropNullValues)
-}
+final case class BatchJob(name: Option[String], index: Int)
 
 final case class Detail(job: BatchJob, took: Duration, done: Boolean)
 final case class QuasiResult(spent: Duration, mode: BatchMode, details: List[Detail])

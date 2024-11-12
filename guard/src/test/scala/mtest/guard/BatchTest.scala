@@ -21,11 +21,11 @@ class BatchTest extends AnyFunSuite {
     service.eventStream { ga =>
       ga.batch("quasi.sequential")
         .namedSequential(
-          "a" -> IO.raiseError(new Exception()),
-          "bbb" -> IO.sleep(1.second),
-          "cccc" -> IO.sleep(2.seconds),
+          "a" -> IO.raiseError[Boolean](new Exception()),
+          "bbb" -> IO.sleep(1.second).map(_ => true),
+          "cccc" -> IO.sleep(2.seconds).map(_ => true),
           "ddd" -> IO.raiseError(new Exception()),
-          "ee" -> IO.sleep(1.seconds),
+          "ee" -> IO.sleep(1.seconds).map(_ => true),
           "f" -> IO.raiseError(new Exception)
         )
         .quasi
@@ -46,12 +46,12 @@ class BatchTest extends AnyFunSuite {
     service.eventStream { ga =>
       ga.batch("quasi.parallel")
         .namedParallel(3)(
-          "a" -> IO.sleep(3.second),
-          "bb" -> IO.sleep(2.seconds),
+          "a" -> IO.sleep(3.second).map(_ => true),
+          "bb" -> IO.sleep(2.seconds).map(_ => true),
           "cccc" -> IO.raiseError(new Exception),
-          "ddd" -> IO.sleep(3.seconds),
+          "ddd" -> IO.sleep(3.seconds).map(_ => true),
           "ee" -> IO.raiseError(new Exception),
-          "f" -> IO.sleep(4.seconds)
+          "f" -> IO.sleep(4.seconds).map(_ => true)
         )
         .quasi
         .map { qr =>
@@ -69,7 +69,10 @@ class BatchTest extends AnyFunSuite {
 
   test("3.sequential") {
     service.eventStream { ga =>
-      ga.batch("sequential").sequential(IO.sleep(1.second), IO.sleep(2.seconds), IO.sleep(1.seconds)).run.use_
+      ga.batch("sequential")
+        .sequential(IO.sleep(1.second), IO.sleep(2.seconds), IO.sleep(1.seconds))
+        .fully
+        .use_
     }.map(checkJson).evalTap(console.text[IO]).compile.drain.unsafeRunSync()
   }
 
@@ -77,7 +80,7 @@ class BatchTest extends AnyFunSuite {
     service.eventStream { ga =>
       ga.batch("parallel")
         .parallel(3)(IO.sleep(3.second), IO.sleep(2.seconds), IO.sleep(3.seconds), IO.sleep(4.seconds))
-        .run
+        .fully
         .use_
     }.map(checkJson).evalTap(console.text[IO]).compile.drain.unsafeRunSync()
   }
@@ -90,7 +93,7 @@ class BatchTest extends AnyFunSuite {
           IO.sleep(2.seconds),
           IO.raiseError(new Exception),
           IO.sleep(1.seconds))
-        .run
+        .fully
         .use_
     }.map(checkJson).evalTap(console.text[IO]).compile.drain.unsafeRunSync()
   }
@@ -104,7 +107,7 @@ class BatchTest extends AnyFunSuite {
       "e" -> IO.sleep(4.seconds)
     )
     service.eventStream { ga =>
-      ga.batch("parallel").namedParallel(3)(jobs*).run.use_
+      ga.batch("parallel").namedParallel(3)(jobs*).fully.use_
     }.map(checkJson).evalTap(console.text[IO]).compile.drain.unsafeRunSync()
   }
 
@@ -112,7 +115,7 @@ class BatchTest extends AnyFunSuite {
     val j1 = service
       .eventStream(
         _.batch("parallel-1")
-          .parallel(IO(0))
+          .parallel(IO(true))
           .quasi
           .map(r => assert(r.head.mode == BatchMode.Parallel(1)))
           .use_)
@@ -124,7 +127,7 @@ class BatchTest extends AnyFunSuite {
     val j2 = service
       .eventStream(ga =>
         ga.batch("sequential")
-          .sequential(IO(0))
+          .sequential(IO(true))
           .quasi
           .map(r => assert(r.head.mode == BatchMode.Sequential))
           .use_)
@@ -140,8 +143,9 @@ class BatchTest extends AnyFunSuite {
       .updateConfig(_.withMetricReport(_.giveUp))
       .eventStream { agent =>
         val jobs = List(
-          "a" -> IO.sleep(1.second).flatMap(_ => agent.herald.consoleDone("done-a")),
-          "b" -> IO.sleep(2.seconds).flatMap(_ => agent.herald.consoleDone("done-b")))
+          "a" -> IO.sleep(1.second).flatMap(_ => agent.herald.consoleDone("done-a")).as(true),
+          "b" -> IO.sleep(2.seconds).flatMap(_ => agent.herald.consoleDone("done-b")).as(true)
+        )
         val j1 = agent.batch("s1").namedSequential(jobs*)
         val j2 = agent.batch("q1").namedParallel(jobs*)
         j1.seqCombine(j2).quasi.use(qr => agent.herald.consoleDone(qr) >> agent.adhoc.report)
@@ -157,8 +161,9 @@ class BatchTest extends AnyFunSuite {
       .updateConfig(_.withMetricReport(_.giveUp))
       .eventStream { agent =>
         val jobs = List(
-          "a" -> IO.sleep(1.second).flatMap(_ => agent.herald.consoleDone("done-a")),
-          "b" -> IO.sleep(2.seconds).flatMap(_ => agent.herald.consoleDone("done-b")))
+          "a" -> IO.sleep(1.second).flatMap(_ => agent.herald.consoleDone("done-a").as(true)),
+          "b" -> IO.sleep(2.seconds).flatMap(_ => agent.herald.consoleDone("done-b")).as(true)
+        )
         val j1 = agent.batch("s1").namedSequential(jobs*)
         val j2 = agent.batch("q1").namedParallel(jobs*)
         j1.parCombine(j2).quasi.use(qr => agent.herald.consoleDone(qr) >> agent.adhoc.report)

@@ -16,7 +16,7 @@ import scala.concurrent.duration.FiniteDuration
 import scala.jdk.DurationConverters.ScalaDurationOps
 
 sealed trait NJTimer[F[_]] extends KleisliLike[F, Long] {
-  def run(num: Long): F[Unit]
+
   def update(jd: JavaDuration): F[Unit]
   def update(num: Long): F[Unit]
 
@@ -24,6 +24,8 @@ sealed trait NJTimer[F[_]] extends KleisliLike[F, Long] {
 
   final def update(fd: FiniteDuration): F[Unit] =
     update(fd.toJava)
+
+  final override def run(num: Long): F[Unit] = update(num)
 
 }
 
@@ -33,7 +35,6 @@ object NJTimer {
       override def timing[A](fa: F[A]): F[A]         = fa
       override def update(jd: JavaDuration): F[Unit] = F.unit
       override def update(num: Long): F[Unit]        = F.unit
-      override def run(num: Long): F[Unit]           = F.unit
     }
 
   private class Impl[F[_]: Sync](
@@ -62,7 +63,6 @@ object NJTimer {
         result
       }
 
-    override def run(num: Long): F[Unit]           = F.delay(timer.update(num, TimeUnit.NANOSECONDS))
     override def update(num: Long): F[Unit]        = F.delay(timer.update(num, TimeUnit.NANOSECONDS))
     override def update(jd: JavaDuration): F[Unit] = F.delay(timer.update(jd))
 
