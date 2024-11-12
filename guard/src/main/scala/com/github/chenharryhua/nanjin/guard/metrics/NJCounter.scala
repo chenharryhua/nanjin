@@ -9,19 +9,17 @@ import com.github.chenharryhua.nanjin.common.EnableConfig
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.config.CategoryKind.CounterKind
 
-sealed trait NJCounter[F[_]] extends KleisliLike[F, Long] {
-  def run(a: Long): F[Unit]
+trait NJCounter[F[_]] extends KleisliLike[F, Long] {
   def inc(num: Long): F[Unit]
 
   final def inc(num: Int): F[Unit] = run(num.toLong)
+
+  final override def run(num: Long): F[Unit] = inc(num)
 }
 
 object NJCounter {
   def dummy[F[_]](implicit F: Applicative[F]): NJCounter[F] =
-    new NJCounter[F] {
-      override def inc(num: Long): F[Unit] = F.unit
-      override def run(a: Long): F[Unit]   = F.unit
-    }
+    (_: Long) => F.unit
 
   private class Impl[F[_]: Sync](
     private[this] val label: MetricLabel,
@@ -41,7 +39,6 @@ object NJCounter {
         (id, metricRegistry.counter(id))
       }
 
-    override def run(num: Long): F[Unit] = F.delay(counter.inc(num))
     override def inc(num: Long): F[Unit] = F.delay(counter.inc(num))
 
     val unregister: F[Unit] = F.delay(metricRegistry.remove(counter_name)).void

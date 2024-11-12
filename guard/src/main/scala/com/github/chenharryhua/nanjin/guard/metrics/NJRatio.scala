@@ -37,7 +37,7 @@ sealed trait NJRatio[F[_]] extends KleisliLike[F, Ior[Long, Long]] {
     */
   def incBoth(numerator: Long, denominator: Long): F[Unit]
 
-  final def run(ior: Ior[Long, Long]): F[Unit] = ior match {
+  final override def run(ior: Ior[Long, Long]): F[Unit] = ior match {
     case Ior.Left(a)    => incNumerator(a)
     case Ior.Right(b)   => incDenominator(b)
     case Ior.Both(a, b) => incBoth(a, b)

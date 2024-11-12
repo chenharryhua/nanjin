@@ -36,20 +36,20 @@ object Batch {
       job.name.fold(lead)(n => s"$lead ($n)")
     }
 
-    private val spaces: String = StringUtils.SPACE * 6
-    protected def measure(size: Int, kind: BatchKind, mode: BatchMode): Resource[F, DoMeasurement] = {
-      def toJson(details: List[Detail]): Json =
-        if (details.isEmpty) Json.Null
-        else {
-          val maxLength = details.map(d => getJobName(d.job).length).max
-          details.map { detail =>
-            val padded = StringUtils.rightPad(getJobName(detail.job), maxLength)
-            val isDone = if (detail.done) "done" else "fail"
-            val took   = fmt.format(detail.took)
-            s"\n$spaces$padded: $isDone, $took"
-          }.mkString.asJson
-        }
+    private[this] val spaces: String = StringUtils.SPACE * 6
+    private def toJson(details: List[Detail]): Json =
+      if (details.isEmpty) Json.Null
+      else {
+        val maxLength = details.map(d => getJobName(d.job).length).max
+        details.map { detail =>
+          val padded = StringUtils.rightPad(getJobName(detail.job), maxLength)
+          val isDone = if (detail.done) "done" else "fail"
+          val took   = fmt.format(detail.took)
+          s"\n$spaces$padded: $isDone, $took"
+        }.mkString.asJson
+      }
 
+    protected def measure(size: Int, kind: BatchKind, mode: BatchMode): Resource[F, DoMeasurement] =
       for {
         _ <- mtx.activeGauge(show"$kind $mode elapsed")
         ratio <- mtx.ratio("completion", _.withTranslator(translator)).evalTap(_.incDenominator(size.toLong))
@@ -58,7 +58,6 @@ object Batch {
       } yield Kleisli { (detail: Detail) =>
         ratio.incNumerator(1) *> progress.update(_.appended(detail))
       }
-    }
 
     /** batch always success but jobs may fail
       * @return
@@ -93,7 +92,7 @@ object Batch {
         override def quasi(implicit ev: A =:= Boolean): Resource[F, List[QuasiResult]] =
           outer.quasi.both(that.quasi).map { case (a, b) => a ::: b }
 
-        override def fully: Resource[F, List[A]] =
+        override val fully: Resource[F, List[A]] =
           outer.fully.both(that.fully).map { case (a, b) => a ::: b }
       }
   }

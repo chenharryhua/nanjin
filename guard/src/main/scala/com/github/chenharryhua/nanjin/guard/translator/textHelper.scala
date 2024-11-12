@@ -16,8 +16,7 @@ object textHelper extends localtime with localdatetime {
 
   def uptimeText(evt: NJEvent): String = fmt.format(evt.upTime)
 
-  def tookText(dur: Duration): String         = fmt.format(dur)
-  def tookText(dur: Option[Duration]): String = dur.map(fmt.format).getOrElse("Unknown")
+  def tookText(dur: Duration): String = fmt.format(dur)
 
   def hostText(sp: ServiceParams): String =
     sp.emberServerParams match {
