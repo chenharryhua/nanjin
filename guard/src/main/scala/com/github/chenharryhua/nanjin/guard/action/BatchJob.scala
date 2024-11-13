@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.action
 import cats.Show
 import cats.syntax.all.*
+import com.github.chenharryhua.nanjin.guard.config.MetricLabel
 import com.github.chenharryhua.nanjin.guard.translator.fmt
 import io.circe.syntax.EncoderOps
 import io.circe.{Encoder, Json}
@@ -34,11 +35,12 @@ object BatchMode {
 final case class BatchJob(name: Option[String], index: Int)
 
 final case class Detail(job: BatchJob, took: Duration, done: Boolean)
-final case class QuasiResult(spent: Duration, mode: BatchMode, details: List[Detail])
+final case class QuasiResult(label: MetricLabel, spent: Duration, mode: BatchMode, details: List[Detail])
 object QuasiResult {
   implicit val encoderQuasiResult: Encoder[QuasiResult] = { (a: QuasiResult) =>
     val (done, fail) = a.details.partition(_.done)
     Json.obj(
+      "batch" -> Json.fromString(a.label.label),
       "mode" -> a.mode.asJson,
       "spent" -> Json.fromString(fmt.format(a.spent)),
       "done" -> Json.fromInt(done.length),

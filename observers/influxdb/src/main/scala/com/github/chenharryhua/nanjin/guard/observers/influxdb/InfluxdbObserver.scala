@@ -6,15 +6,7 @@ import cats.implicits.toShow
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.event.{NJEvent, Snapshot}
 import com.github.chenharryhua.nanjin.guard.translator.metricConstants
-import com.github.chenharryhua.nanjin.guard.translator.textConstants.{
-  CONSTANT_DIGEST,
-  CONSTANT_HOST,
-  CONSTANT_LABEL,
-  CONSTANT_LAUNCH_TIME,
-  CONSTANT_SERVICE,
-  CONSTANT_SERVICE_ID,
-  CONSTANT_TASK
-}
+import com.github.chenharryhua.nanjin.guard.translator.textConstants.*
 import com.influxdb.client.domain.WritePrecision
 import com.influxdb.client.write.Point
 import com.influxdb.client.{InfluxDBClient, WriteOptions}
@@ -79,7 +71,7 @@ final class InfluxdbObserver[F[_]](
     )
 
   private def dimension(ms: Snapshot): Map[String, String] =
-    Map(CONSTANT_DIGEST -> ms.metricId.metricLabel.digest, CONSTANT_LABEL -> ms.metricId.metricLabel.label)
+    Map(CONSTANT_LABEL -> ms.metricId.metricLabel.label)
 
   val observe: Pipe[F, NJEvent, NJEvent] = (events: Stream[F, NJEvent]) =>
     for {
@@ -90,7 +82,7 @@ final class InfluxdbObserver[F[_]](
           val timers: List[Point] = snapshot.timers.map { timer =>
             val tagToAdd = dimension(timer) ++ spDimensions ++ tags
             Point
-              .measurement(timer.metricId.metricLabel.measurement)
+              .measurement(timer.metricId.metricLabel.measurement.value)
               .time(timestamp.toInstant, writePrecision)
               .addTag("label", timer.metricId.metricLabel.label)
               .addTag("name", timer.metricId.metricName.name)
@@ -116,7 +108,7 @@ final class InfluxdbObserver[F[_]](
           val meters: List[Point] = snapshot.meters.map { meter =>
             val tagToAdd = dimension(meter) ++ spDimensions ++ tags
             Point
-              .measurement(meter.metricId.metricLabel.measurement)
+              .measurement(meter.metricId.metricLabel.measurement.value)
               .time(timestamp.toInstant, writePrecision)
               .addTag("label", meter.metricId.metricLabel.label)
               .addTag("name", meter.metricId.metricName.name)
@@ -132,7 +124,7 @@ final class InfluxdbObserver[F[_]](
           val counters: List[Point] = snapshot.counters.map { counter =>
             val tagToAdd = dimension(counter) ++ spDimensions ++ tags
             Point
-              .measurement(counter.metricId.metricLabel.measurement)
+              .measurement(counter.metricId.metricLabel.measurement.value)
               .time(timestamp.toInstant, writePrecision)
               .addTag("label", counter.metricId.metricLabel.label)
               .addTag("name", counter.metricId.metricName.name)
@@ -144,7 +136,7 @@ final class InfluxdbObserver[F[_]](
             val tagToAdd = dimension(histo) ++ spDimensions ++ tags
             val unitName = s"(${histo.histogram.unit.symbol})"
             Point
-              .measurement(histo.metricId.metricLabel.measurement)
+              .measurement(histo.metricId.metricLabel.measurement.value)
               .time(timestamp.toInstant, writePrecision)
               .addTag("label", histo.metricId.metricLabel.label)
               .addTag("name", histo.metricId.metricName.name)

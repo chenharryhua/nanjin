@@ -49,7 +49,7 @@ final private class GeneralAgent[F[_]: Async] private[service] (
     new GeneralAgent[F](serviceParams, metricRegistry, channel, Measurement(name))
 
   override def batch(label: String): Batch[F] = {
-    val metricLabel = MetricLabel(serviceParams, measurement, label)
+    val metricLabel = MetricLabel(label, measurement)
     new Batch[F](new Metrics.Impl[F](metricLabel, metricRegistry, isEnabled = true))
   }
 
@@ -62,7 +62,7 @@ final private class GeneralAgent[F[_]: Async] private[service] (
     Resource.pure(new Retry.Impl[F](serviceParams.initialStatus.renewPolicy(policy)))
 
   override def facilitate[A](label: String)(f: Metrics[F] => A): A = {
-    val metricLabel = MetricLabel(serviceParams, measurement, label)
+    val metricLabel = MetricLabel(label, measurement)
     f(new Metrics.Impl[F](metricLabel, metricRegistry, isEnabled = true))
   }
 

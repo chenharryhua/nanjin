@@ -80,25 +80,21 @@ final class SnapshotPolyglot(snapshot: MetricSnapshot) {
     pairs
       .groupBy(_._1.metricLabel.measurement) // measurement group
       .toList
-      .sortBy(_._1)
+      .sortBy(_._1.value) // sort by measurement name.
       .map { case (measurement, lst) =>
         val arr: List[Json] = lst
           .groupBy(_._1.metricLabel) // metric-name group
           .toList
-          .sortBy(_._1.label)
-          .map { case (name, items) =>
+          .map { case (label, items) =>
             val inner: Json =
               items
                 .sortBy(_._1.metricName)
-                .map { case (mId, js) =>
-                  Json.obj(mId.metricName.name -> js)
-                }
+                .map { case (mId, js) => Json.obj(mId.metricName.name -> js) }
                 .reduce((a, b) => b.deepMerge(a))
 
-            name -> inner.asJson
+            Json.obj(label.label -> inner.asJson)
           }
-          .map { case (n, js) => Json.obj("digest" -> Json.fromString(n.digest), n.label -> js) }
-        Json.obj(measurement -> Json.arr(arr*))
+        Json.obj(measurement.value -> Json.arr(arr*))
       }
       .asJson
 
@@ -117,7 +113,7 @@ final class SnapshotPolyglot(snapshot: MetricSnapshot) {
     val counters: List[(MetricID, Json)] =
       snapshot.counters.map(c => c.metricId -> Json.fromString(decimal_fmt.format(c.count)))
     val gauges: List[(MetricID, Json)] =
-      snapshot.gauges.mapFilter(g => if (g.value === Json.Null) Some(g.metricId -> g.value) else None)
+      snapshot.gauges.mapFilter(g => if (g.value === Json.Null) None else Some(g.metricId -> g.value))
 
     val lst: List[(MetricID, Json)] =
       counters ::: gauges ::: json_list(meters ::: histograms ::: timers)
@@ -203,7 +199,7 @@ final class SnapshotPolyglot(snapshot: MetricSnapshot) {
     pairs
       .groupBy(_._1.metricLabel.measurement) // measurement group
       .toList
-      .sortBy(_._1)
+      .sortBy(_._2.map(_._1.metricName.order).min)
       .flatMap { case (measurement, measurements) =>
         val arr: List[String] = measurements
           .groupBy(_._1.metricLabel) // metric-name group
@@ -224,9 +220,9 @@ final class SnapshotPolyglot(snapshot: MetricSnapshot) {
           }
           .sortBy(_._1._1)
           .flatMap { case ((_, n), items) =>
-            s"${space * 2}[${n.digest}][${n.label}]:" :: items
+            s"${space * 2}- ${n.label}:" :: items
           }
-        show"- $measurement:" :: arr
+        show"[$measurement]:" :: arr
       }
 
   // for screen display

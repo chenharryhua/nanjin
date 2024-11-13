@@ -44,7 +44,6 @@ object textConstants {
   @inline final val CONSTANT_SNOOZED: String     = "Snoozed"
   @inline final val CONSTANT_ACTIVE: String      = "Active"
 
-  @inline final val CONSTANT_DIGEST: String      = "Digest"
   @inline final val CONSTANT_LABEL: String       = "Label"
   @inline final val CONSTANT_LAUNCH_TIME: String = "LaunchTime"
 

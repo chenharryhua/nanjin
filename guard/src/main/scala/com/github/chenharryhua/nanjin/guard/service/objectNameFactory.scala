@@ -14,8 +14,7 @@ private object objectNameFactory extends ObjectNameFactory {
       properties.put("label", mId.metricLabel.label)
       properties.put("name", mId.metricName.name)
       properties.put("type", mId.category.productPrefix)
-      properties.put("digest", mId.metricLabel.digest)
-      val dm = s"$domain.${mId.metricLabel.measurement}"
+      val dm = s"$domain.${mId.metricLabel.measurement.value}"
       new ObjectName(dm, properties)
     }.toOption.orNull
 }

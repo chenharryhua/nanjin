@@ -175,14 +175,12 @@ final class CloudWatchObserver[F[_]: Sync] private (
     standardUnit: StandardUnit,
     storageResolution: Int) {
 
+    private val permanent: Map[String, String] = Map(
+      textConstants.CONSTANT_LABEL -> metricLabel.label,
+      textConstants.CONSTANT_MEASUREMENT -> metricLabel.measurement.value)
+
     private val dimensions: util.List[Dimension] =
-      dimensionBuilder(
-        new DimensionBuilder(
-          serviceParams,
-          metricLabel,
-          Map(
-            textConstants.CONSTANT_LABEL -> metricLabel.label,
-            textConstants.CONSTANT_MEASUREMENT -> metricLabel.measurement))).build
+      dimensionBuilder(new DimensionBuilder(serviceParams, permanent)).build
 
     def metricDatum(ts: Instant, value: Double): MetricDatum =
       MetricDatum

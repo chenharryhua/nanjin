@@ -5,7 +5,6 @@ import com.github.chenharryhua.nanjin.guard.event.MeasurementUnit
 import enumeratum.{CirceEnum, Enum, EnumEntry}
 import io.circe.Encoder
 import io.circe.generic.JsonCodec
-import org.apache.commons.codec.digest.DigestUtils
 
 import java.util.UUID
 import scala.concurrent.duration.FiniteDuration
@@ -85,20 +84,7 @@ object MetricName {
 }
 
 @JsonCodec
-final case class MetricLabel private (label: String, digest: String, measurement: String)
-object MetricLabel {
-  def apply(serviceParams: ServiceParams, measurement: Measurement, label: String): MetricLabel = {
-    val full_name: List[String] =
-      serviceParams.taskName.value :: serviceParams.serviceName.value :: measurement.value :: label :: Nil
-    val digest = DigestUtils.sha256Hex(full_name.mkString("/")).take(8)
-
-    MetricLabel(
-      label = label,
-      digest = digest,
-      measurement = measurement.value
-    )
-  }
-}
+final case class MetricLabel(label: String, measurement: Measurement)
 
 @JsonCodec
 final case class MetricID(metricLabel: MetricLabel, metricName: MetricName, category: Category) {

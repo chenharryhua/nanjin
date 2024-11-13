@@ -71,7 +71,7 @@ object Herald {
 
     private def toText(sm: ServiceMessage): String = {
       val color = ColorScheme.decorate(sm).run(textHelper.consoleColor).value
-      val msg   = jsonHelper.jsonServiceMessage(sm).noSpaces
+      val msg   = jsonHelper.json_service_message(sm).noSpaces
       s"${sm.timestamp.format(fmt)} Console $color - $msg"
     }
 

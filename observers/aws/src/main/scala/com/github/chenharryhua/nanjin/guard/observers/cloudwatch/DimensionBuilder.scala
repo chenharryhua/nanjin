@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.observers.cloudwatch
 
 import cats.implicits.toShow
-import com.github.chenharryhua.nanjin.guard.config.{MetricLabel, ServiceParams}
+import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.translator.textConstants
 import org.typelevel.cats.time.instances.localdate
 import software.amazon.awssdk.services.cloudwatch.model.Dimension
@@ -9,14 +9,11 @@ import software.amazon.awssdk.services.cloudwatch.model.Dimension
 import java.util
 import scala.jdk.CollectionConverters.SeqHasAsJava
 
-final class DimensionBuilder private[cloudwatch] (
-  serviceParams: ServiceParams,
-  metricLabel: MetricLabel,
-  map: Map[String, String])
+final class DimensionBuilder private[cloudwatch] (serviceParams: ServiceParams, map: Map[String, String])
     extends localdate {
 
   private def add(key: String, value: String): DimensionBuilder =
-    new DimensionBuilder(serviceParams, metricLabel, map.updated(key, value))
+    new DimensionBuilder(serviceParams, map.updated(key, value))
 
   def withTaskName: DimensionBuilder =
     add(textConstants.CONSTANT_TASK, serviceParams.taskName.value)
@@ -32,9 +29,6 @@ final class DimensionBuilder private[cloudwatch] (
 
   def withServiceID: DimensionBuilder =
     add(textConstants.CONSTANT_SERVICE_ID, serviceParams.serviceId.show)
-
-  def withDigest: DimensionBuilder =
-    add(textConstants.CONSTANT_DIGEST, metricLabel.digest)
 
   private[cloudwatch] def build: util.List[Dimension] =
     map.map { case (k, v) =>
