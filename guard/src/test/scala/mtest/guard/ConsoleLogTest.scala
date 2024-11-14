@@ -23,14 +23,14 @@ class ConsoleLogTest extends AnyFunSuite {
         val mtx = agent.facilitate("job") { mtx =>
           for {
             retry <- agent.createRetry(_.fixedDelay(1.second))
-            _ <- mtx.gauge("1").register(IO(1000000000))
-            _ <- mtx.healthCheck("2").register(IO(true))
-            _ <- mtx.timer("3").evalMap(_.update(10.second).replicateA(100))
+            _ <- mtx.gauge("7").register(IO(1000000000))
+            _ <- mtx.healthCheck("6").register(IO(true))
+            _ <- mtx.timer("5").evalMap(_.update(10.second).replicateA(100))
             _ <- mtx.meter("4", _.withUnit(_.COUNT)).evalMap(_.update(10000).replicateA(100))
-            _ <- mtx.counter("5", _.asRisk).evalMap(_.inc(1000))
-            _ <- mtx.histogram("6", _.withUnit(_.BYTES)).evalMap(_.update(10000L).replicateA(100))
+            _ <- mtx.counter("3", _.asRisk).evalMap(_.inc(1000))
+            _ <- mtx.histogram("2", _.withUnit(_.BYTES)).evalMap(_.update(10000L).replicateA(100))
             _ <- mtx
-              .ratio("7")
+              .ratio("1")
               .evalMap(f => f.incDenominator(500) >> f.incNumerator(60) >> f.incBoth(299, 500))
           } yield Kleisli((_: Int) => retry(IO.unit))
         }
@@ -62,6 +62,6 @@ class ConsoleLogTest extends AnyFunSuite {
       .lastOrError
       .unsafeRunSync()
     val tags = mr.snapshot.metricIDs.sortBy(_.metricName.order).map(_.metricName.name.toInt)
-    assert(tags == List(1, 2, 3, 4, 5, 6, 7))
+    assert(tags == List(7, 6, 5, 4, 3, 2, 1))
   }
 }

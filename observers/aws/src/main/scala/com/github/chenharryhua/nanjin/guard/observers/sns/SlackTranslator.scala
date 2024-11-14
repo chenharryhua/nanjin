@@ -168,7 +168,8 @@ private object SlackTranslator extends all {
             HeaderSection(eventTitle(evt)),
             host_service_section(evt.serviceParams),
             metrics_index_section(evt),
-            MarkdownSection(show"*$CONSTANT_SERVICE_ID:* ${evt.serviceParams.serviceId}"),
+            MarkdownSection(show"""|*$CONSTANT_POLICY:* ${evt.serviceParams.servicePolicies.metricReport}
+                                   |*$CONSTANT_SERVICE_ID:* ${evt.serviceParams.serviceId}""".stripMargin),
             metrics_section(evt.snapshot)
           )
         ),
@@ -187,7 +188,8 @@ private object SlackTranslator extends all {
             HeaderSection(eventTitle(evt)),
             host_service_section(evt.serviceParams),
             metrics_index_section(evt),
-            MarkdownSection(s"*$CONSTANT_SERVICE_ID:* ${evt.serviceParams.serviceId.show}"),
+            MarkdownSection(show"""|*$CONSTANT_POLICY:* ${evt.serviceParams.servicePolicies.metricReset}
+                                   |*$CONSTANT_SERVICE_ID:* ${evt.serviceParams.serviceId}""".stripMargin),
             metrics_section(evt.snapshot)
           )
         ))

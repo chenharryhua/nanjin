@@ -50,7 +50,7 @@ final private class GeneralAgent[F[_]: Async] private[service] (
 
   override def batch(label: String): Batch[F] = {
     val metricLabel = MetricLabel(label, measurement)
-    new Batch[F](new Metrics.Impl[F](metricLabel, metricRegistry, isEnabled = true))
+    new Batch[F](new Metrics.Impl[F](metricLabel, metricRegistry))
   }
 
   override def ticks(policy: Policy): Stream[F, Tick] =
@@ -63,7 +63,7 @@ final private class GeneralAgent[F[_]: Async] private[service] (
 
   override def facilitate[A](label: String)(f: Metrics[F] => A): A = {
     val metricLabel = MetricLabel(label, measurement)
-    f(new Metrics.Impl[F](metricLabel, metricRegistry, isEnabled = true))
+    f(new Metrics.Impl[F](metricLabel, metricRegistry))
   }
 
   override val herald: Herald[F] =

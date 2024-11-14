@@ -51,6 +51,8 @@ object NJHistogram {
     val unregister: F[Unit] = F.delay(metricRegistry.remove(histogram_name)).void
   }
 
+  val initial: Builder = new Builder(isEnabled = true, unit = NJUnits.COUNT, reservoir = None)
+
   final class Builder private[guard] (isEnabled: Boolean, unit: MeasurementUnit, reservoir: Option[Reservoir])
       extends EnableConfig[Builder] {
 

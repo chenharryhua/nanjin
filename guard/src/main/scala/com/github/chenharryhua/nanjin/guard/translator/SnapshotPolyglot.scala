@@ -10,6 +10,9 @@ import io.circe.syntax.EncoderOps
 import squants.time.TimeConversions
 
 final class SnapshotPolyglot(snapshot: MetricSnapshot) {
+  private[this] val AGGREGATE: String = "aggregate"
+  private[this] val EXECUTION: String = "execution"
+  private[this] val UPDATES: String   = "updates"
 
   private def normalize[A: Numeric](mu: MeasurementUnit, data: A): String =
     mu match {
@@ -22,7 +25,7 @@ final class SnapshotPolyglot(snapshot: MetricSnapshot) {
   private def meters: List[(MetricID, NonEmptyList[(String, Json)])] =
     snapshot.meters.map { m =>
       m.metricId -> NonEmptyList.of(
-        "sum" -> Json.fromString(normalize(m.meter.unit, m.meter.sum)),
+        AGGREGATE -> Json.fromString(normalize(m.meter.unit, m.meter.sum)),
         "mean_rate" -> Json.fromString(s"${normalize(m.meter.unit, m.meter.mean_rate.toHertz)}/s"),
         "m1_rate" -> Json.fromString(s"${normalize(m.meter.unit, m.meter.m1_rate.toHertz)}/s"),
         "m5_rate" -> Json.fromString(s"${normalize(m.meter.unit, m.meter.m5_rate.toHertz)}/s"),
@@ -34,7 +37,7 @@ final class SnapshotPolyglot(snapshot: MetricSnapshot) {
     snapshot.timers.map { t =>
       val unit = s"calls/${NJTimeUnit.SECONDS.symbol}"
       t.metricId -> NonEmptyList.of(
-        "calls" -> Json.fromString(decimal_fmt.format(t.timer.calls)),
+        EXECUTION -> Json.fromString(decimal_fmt.format(t.timer.calls)),
         "mean_rate" -> Json.fromString(s"${decimal_fmt.format(t.timer.mean_rate.toHertz)} $unit"),
         "m1_rate" -> Json.fromString(s"${decimal_fmt.format(t.timer.m1_rate.toHertz)} $unit"),
         "m5_rate" -> Json.fromString(s"${decimal_fmt.format(t.timer.m5_rate.toHertz)} $unit"),
@@ -57,7 +60,7 @@ final class SnapshotPolyglot(snapshot: MetricSnapshot) {
       val unit  = h.histogram.unit
       val histo = h.histogram
       h.metricId -> NonEmptyList.of(
-        "updates" -> Json.fromString(decimal_fmt.format(histo.updates)),
+        UPDATES -> Json.fromString(decimal_fmt.format(histo.updates)),
         "min" -> Json.fromString(normalize(unit, histo.min)),
         "max" -> Json.fromString(normalize(unit, histo.max)),
         "mean" -> Json.fromString(normalize(unit, histo.mean)),
@@ -144,7 +147,7 @@ final class SnapshotPolyglot(snapshot: MetricSnapshot) {
   private def meter_str: List[(MetricID, List[String])] =
     snapshot.meters.map { m =>
       m.metricId -> List(
-        show"sum: ${normalize(m.meter.unit, m.meter.sum)}",
+        show"$AGGREGATE: ${normalize(m.meter.unit, m.meter.sum)}",
         show"mean_rate: ${normalize(m.meter.unit, m.meter.mean_rate.toHertz)}/s",
         show"  m1_rate: ${normalize(m.meter.unit, m.meter.m1_rate.toHertz)}/s",
         show"  m5_rate: ${normalize(m.meter.unit, m.meter.m5_rate.toHertz)}/s",
@@ -156,7 +159,7 @@ final class SnapshotPolyglot(snapshot: MetricSnapshot) {
     snapshot.timers.map { t =>
       val unit = s"calls/${NJTimeUnit.SECONDS.symbol}"
       t.metricId -> List(
-        show"calls: ${decimal_fmt.format(t.timer.calls)}",
+        show"$EXECUTION: ${decimal_fmt.format(t.timer.calls)}",
         show"mean_rate: ${decimal_fmt.format(t.timer.mean_rate.toHertz)} $unit",
         show"  m1_rate: ${decimal_fmt.format(t.timer.m1_rate.toHertz)} $unit",
         show"  m5_rate: ${decimal_fmt.format(t.timer.m5_rate.toHertz)} $unit",
@@ -179,17 +182,17 @@ final class SnapshotPolyglot(snapshot: MetricSnapshot) {
       val unit  = h.histogram.unit
       val histo = h.histogram
       h.metricId -> List(
-        show"updates: ${decimal_fmt.format(histo.updates)}",
-        show"    min: ${normalize(unit, histo.min)}",
-        show"    max: ${normalize(unit, histo.max)}",
-        show"   mean: ${normalize(unit, histo.mean)}",
-        show" stddev: ${normalize(unit, histo.stddev)}",
-        show"    p50: ${normalize(unit, histo.p50)}",
-        show"    p75: ${normalize(unit, histo.p75)}",
-        show"    p95: ${normalize(unit, histo.p95)}",
-        show"    p98: ${normalize(unit, histo.p98)}",
-        show"    p99: ${normalize(unit, histo.p99)}",
-        show"   p999: ${normalize(unit, histo.p999)}"
+        show"  $UPDATES: ${decimal_fmt.format(histo.updates)}",
+        show"      min: ${normalize(unit, histo.min)}",
+        show"      max: ${normalize(unit, histo.max)}",
+        show"     mean: ${normalize(unit, histo.mean)}",
+        show"   stddev: ${normalize(unit, histo.stddev)}",
+        show"      p50: ${normalize(unit, histo.p50)}",
+        show"      p75: ${normalize(unit, histo.p75)}",
+        show"      p95: ${normalize(unit, histo.p95)}",
+        show"      p98: ${normalize(unit, histo.p98)}",
+        show"      p99: ${normalize(unit, histo.p99)}",
+        show"     p999: ${normalize(unit, histo.p999)}"
       )
     }
 
@@ -199,7 +202,7 @@ final class SnapshotPolyglot(snapshot: MetricSnapshot) {
     pairs
       .groupBy(_._1.metricLabel.measurement) // measurement group
       .toList
-      .sortBy(_._2.map(_._1.metricName.order).min)
+      .sortBy(_._1.value)
       .flatMap { case (measurement, measurements) =>
         val arr: List[String] = measurements
           .groupBy(_._1.metricLabel) // metric-name group
