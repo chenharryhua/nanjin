@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.action
 
+import cats.data.{EitherT, Kleisli}
 import cats.effect.Temporal
 import cats.implicits.{toFlatMapOps, toFunctorOps}
 import com.github.chenharryhua.nanjin.common.chrono.{Tick, TickStatus}
@@ -10,6 +11,8 @@ sealed trait Retry[F[_]] {
   def apply[A](arrow: (Tick, Option[Throwable]) => F[Either[Throwable, A]]): F[A]
   def apply[A](tfa: Tick => F[A]): F[A]
   def apply[A](fa: F[A]): F[A]
+
+  def apply[A](mt: Kleisli[EitherT[F, Throwable, *], (Tick, Option[Throwable]), A]): F[A]
 }
 
 object Retry {
@@ -44,5 +47,8 @@ object Retry {
 
     override def apply[A](arrow: (Tick, Option[Throwable]) => F[Either[Throwable, A]]): F[A] =
       comprehensive(arrow)
+
+    override def apply[A](mt: Kleisli[EitherT[F, Throwable, *], (Tick, Option[Throwable]), A]): F[A] =
+      comprehensive((t: Tick, o: Option[Throwable]) => mt.run((t, o)).value)
   }
 }
