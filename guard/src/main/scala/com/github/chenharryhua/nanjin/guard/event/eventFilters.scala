@@ -21,7 +21,7 @@ object eventFilters {
     */
   def sampling(interval: FiniteDuration)(evt: NJEvent): Boolean =
     evt match {
-      case MetricReport(mrt, sp, _, _) =>
+      case MetricReport(mrt, sp, _, _, _) =>
         mrt match {
           case MetricIndex.Adhoc(_) => true
           case MetricIndex.Periodic(tick) =>
@@ -42,7 +42,7 @@ object eventFilters {
     */
   def sampling(divisor: Refined[Int, Positive])(evt: NJEvent): Boolean =
     evt match {
-      case MetricReport(mrt, _, _, _) =>
+      case MetricReport(mrt, _, _, _, _) =>
         mrt match {
           case MetricIndex.Adhoc(_)       => true
           case MetricIndex.Periodic(tick) => (tick.index % divisor.value) === 0
@@ -54,7 +54,7 @@ object eventFilters {
     */
   def sampling(cronExpr: CronExpr)(evt: NJEvent): Boolean =
     evt match {
-      case MetricReport(mrt, _, _, _) =>
+      case MetricReport(mrt, _, _, _, _) =>
         mrt match {
           case MetricIndex.Adhoc(_) => true
           case MetricIndex.Periodic(tick) =>

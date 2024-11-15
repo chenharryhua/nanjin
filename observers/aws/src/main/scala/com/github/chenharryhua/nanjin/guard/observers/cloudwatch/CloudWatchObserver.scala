@@ -18,6 +18,7 @@ import software.amazon.awssdk.services.cloudwatch.model.{
 
 import java.time.Instant
 import java.util
+import java.util.UUID
 import scala.jdk.CollectionConverters.*
 
 object CloudWatchObserver {
@@ -56,9 +57,7 @@ final class CloudWatchObserver[F[_]: Sync] private (
     unitBuilder(new UnitBuilder(
       UnitNormalization(timeUnit = CloudWatchTimeUnit.MILLISECONDS, infoUnit = None, rateUnit = None))).build
 
-  private def computeDatum(
-    report: MetricReport,
-    last: Map[MetricKey, Long]): (List[MetricDatum], Map[MetricKey, Long]) = {
+  private def computeDatum(report: MetricReport): List[MetricDatum] = {
 
     val timer_histo: List[MetricDatum] = for {
       hf <- histogramB.build
@@ -69,8 +68,7 @@ final class CloudWatchObserver[F[_]: Sync] private (
         serviceParams = report.serviceParams,
         metricLabel = timer.metricId.metricLabel,
         metricName = s"${timer.metricId.metricName.name}_$category",
-        standardUnit = CloudWatchTimeUnit.toStandardUnit(unitNormalization.timeUnit),
-        storageResolution = storageResolution
+        standardUnit = CloudWatchTimeUnit.toStandardUnit(unitNormalization.timeUnit)
       ).metricDatum(report.timestamp.toInstant, unitNormalization.normalize(dur).value)
     }
 
@@ -84,75 +82,61 @@ final class CloudWatchObserver[F[_]: Sync] private (
         serviceParams = report.serviceParams,
         metricLabel = histo.metricId.metricLabel,
         metricName = s"${histo.metricId.metricName.name}_$category",
-        standardUnit = CloudWatchTimeUnit.toStandardUnit(unit),
-        storageResolution = storageResolution
+        standardUnit = CloudWatchTimeUnit.toStandardUnit(unit)
       ).metricDatum(report.timestamp.toInstant, data)
     }
 
-    val timer_calls: Map[MetricKey, Long] =
+    val lookup: Map[UUID, Long] = report.previous.lookupCount
+
+    val timer_count: List[MetricDatum] =
       report.snapshot.timers.map { timer =>
+        val calls: Long = timer.timer.calls
+        val delta: Long = lookup.get(timer.metricId.metricName.uuid).fold(calls)(calls - _)
         MetricKey(
           serviceParams = report.serviceParams,
           metricLabel = timer.metricId.metricLabel,
           metricName = timer.metricId.metricName.name,
-          standardUnit = StandardUnit.COUNT,
-          storageResolution = storageResolution
-        ) -> timer.timer.calls
-      }.toMap
+          standardUnit = StandardUnit.COUNT
+        ).metricDatum(report.timestamp.toInstant, delta.toDouble)
+      }
 
-    val meter_sum: Map[MetricKey, Long] =
+    val meter_count: List[MetricDatum] =
       report.snapshot.meters.map { meter =>
-        val Normalized(data, unit) = unitNormalization.normalize(meter.meter.unit, meter.meter.sum)
+        val sum: Long               = meter.meter.sum
+        val value: Long             = lookup.get(meter.metricId.metricName.uuid).fold(sum)(sum - _)
+        val Normalized(delta, unit) = unitNormalization.normalize(meter.meter.unit, value)
         MetricKey(
           serviceParams = report.serviceParams,
           metricLabel = meter.metricId.metricLabel,
           metricName = meter.metricId.metricName.name,
-          standardUnit = CloudWatchTimeUnit.toStandardUnit(unit),
-          storageResolution = storageResolution
-        ) -> data.toLong
-      }.toMap
+          standardUnit = CloudWatchTimeUnit.toStandardUnit(unit)
+        ).metricDatum(report.timestamp.toInstant, delta)
+      }
 
-    val histogram_updates: Map[MetricKey, Long] =
+    val histogram_count: List[MetricDatum] =
       if (histogramB.includeUpdate)
         report.snapshot.histograms.map { histo =>
+          val updates: Long = histo.histogram.updates
+          val delta: Long   = lookup.get(histo.metricId.metricName.uuid).fold(updates)(updates - _)
           MetricKey(
             serviceParams = report.serviceParams,
             metricLabel = histo.metricId.metricLabel,
             metricName = histo.metricId.metricName.name,
-            standardUnit = StandardUnit.COUNT,
-            storageResolution = storageResolution
-          ) -> histo.histogram.updates
-        }.toMap
-      else Map.empty
-
-    val counterKeyMap: Map[MetricKey, Long] = timer_calls ++ meter_sum ++ histogram_updates
-
-    val (counters, lastUpdates) = counterKeyMap.foldLeft((List.empty[MetricDatum], last)) {
-      case ((mds, newLast), (key, count)) =>
-        newLast.get(key) match {
-          // counters of timer/meter increase monotonically.
-          // however, service may be crushed and restart
-          // such that counters are reset to zero.
-          case Some(old) =>
-            val nc = if (count > old) count - old else 0
-            (key.metricDatum(report.timestamp.toInstant, nc.toDouble) :: mds, newLast.updated(key, count))
-          case None =>
-            (key.metricDatum(report.timestamp.toInstant, count.toDouble) :: mds, newLast.updated(key, count))
+            standardUnit = StandardUnit.COUNT
+          ).metricDatum(report.timestamp.toInstant, delta.toDouble)
         }
-    }
-    (counters ::: timer_histo ::: histograms, lastUpdates)
+      else Nil
+
+    timer_count ::: meter_count ::: histogram_count ::: timer_histo ::: histograms
   }
 
   def observe(namespace: CloudWatchNamespace): Pipe[F, NJEvent, NJEvent] = (es: Stream[F, NJEvent]) => {
-    def go(cwc: CloudWatch[F], ss: Stream[F, NJEvent], last: Map[MetricKey, Long]): Pull[F, NJEvent, Unit] =
+    def go(cwc: CloudWatch[F], ss: Stream[F, NJEvent]): Pull[F, NJEvent, Unit] =
       ss.pull.uncons.flatMap {
         case Some((events, tail)) =>
-          val (mds, next) =
-            events.collect { case mr: MetricReport => mr }.foldLeft((List.empty[MetricDatum], last)) {
-              case ((lmd, last), mr) =>
-                val (mds, newLast) = computeDatum(mr, last)
-                (mds ::: lmd, newLast)
-            }
+          val mds: List[MetricDatum] = events.toList.collect { case mr: MetricReport =>
+            computeDatum(mr)
+          }.flatten
 
           val publish: F[List[Either[Throwable, PutMetricDataResponse]]] =
             mds // https://docs.aws.amazon.com/AmazonCloudWatch/latest/APIReference/API_PutMetricData.html
@@ -160,20 +144,19 @@ final class CloudWatchObserver[F[_]: Sync] private (
               .toList
               .traverse(ds => cwc.putMetricData(_.namespace(namespace.value).metricData(ds.asJava)).attempt)
 
-          Pull.eval(publish) >> Pull.output(events) >> go(cwc, tail, next)
+          Pull.eval(publish) >> Pull.output(events) >> go(cwc, tail)
 
         case None => Pull.done
       }
 
-    Stream.resource(client).flatMap(cw => go(cw, es, Map.empty).stream)
+    Stream.resource(client).flatMap(cw => go(cw, es).stream)
   }
 
   private case class MetricKey(
     serviceParams: ServiceParams,
     metricLabel: MetricLabel,
     metricName: String,
-    standardUnit: StandardUnit,
-    storageResolution: Int) {
+    standardUnit: StandardUnit) {
 
     private val permanent: Map[String, String] = Map(
       textConstants.CONSTANT_LABEL -> metricLabel.label,

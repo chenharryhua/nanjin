@@ -48,6 +48,7 @@ object NJEvent {
   final case class MetricReport(
     index: MetricIndex,
     serviceParams: ServiceParams,
+    previous: MetricSnapshot,
     snapshot: MetricSnapshot,
     timestamp: ZonedDateTime) // land time
       extends MetricEvent

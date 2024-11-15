@@ -5,7 +5,7 @@ import cats.effect.kernel.Clock
 import cats.implicits.{toFlatMapOps, toFunctorOps}
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
-import com.github.chenharryhua.nanjin.guard.event.{MetricIndex, NJEvent}
+import com.github.chenharryhua.nanjin.guard.event.{MetricIndex, MetricSnapshot, NJEvent}
 import fs2.concurrent.Channel
 
 abstract class MetricsReport[F[_]] private[service] (
@@ -27,7 +27,9 @@ abstract class MetricsReport[F[_]] private[service] (
         .metricReport(
           channel = channel,
           serviceParams = serviceParams,
-          metricRegistry = metricRegistry,
-          index = MetricIndex.Adhoc(serviceParams.toZonedDateTime(ts)))
+          previous = MetricSnapshot.empty,
+          snapshot = MetricSnapshot(metricRegistry),
+          index = MetricIndex.Adhoc(serviceParams.toZonedDateTime(ts))
+        )
         .void)
 }
