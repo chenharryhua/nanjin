@@ -1,20 +1,21 @@
 package com.github.chenharryhua.nanjin.guard.observers.cloudwatch
 import cats.Endo
-import cats.effect.kernel.{Resource, Sync}
+import cats.effect.kernel.{Concurrent, Resource}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.aws.CloudWatch
 import com.github.chenharryhua.nanjin.common.aws.CloudWatchNamespace
 import com.github.chenharryhua.nanjin.guard.config.{MetricLabel, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.NJEvent.MetricReport
-import com.github.chenharryhua.nanjin.guard.event.{NJEvent, Normalized, UnitNormalization}
-import com.github.chenharryhua.nanjin.guard.translator.textConstants
-import fs2.{Pipe, Pull, Stream}
-import software.amazon.awssdk.services.cloudwatch.model.{
-  Dimension,
-  MetricDatum,
-  PutMetricDataResponse,
-  StandardUnit
+import com.github.chenharryhua.nanjin.guard.event.{
+  MetricIndex,
+  MetricSnapshot,
+  NJEvent,
+  Normalized,
+  UnitNormalization
 }
+import com.github.chenharryhua.nanjin.guard.translator.textConstants
+import fs2.{Pipe, Stream}
+import software.amazon.awssdk.services.cloudwatch.model.{Dimension, MetricDatum, StandardUnit}
 
 import java.time.Instant
 import java.util
@@ -22,7 +23,7 @@ import java.util.UUID
 import scala.jdk.CollectionConverters.*
 
 object CloudWatchObserver {
-  def apply[F[_]: Sync](client: Resource[F, CloudWatch[F]]): CloudWatchObserver[F] =
+  def apply[F[_]: Concurrent](client: Resource[F, CloudWatch[F]]): CloudWatchObserver[F] =
     new CloudWatchObserver[F](
       client = client,
       storageResolution = 60,
@@ -32,12 +33,13 @@ object CloudWatchObserver {
     )
 }
 
-final class CloudWatchObserver[F[_]: Sync] private (
+final class CloudWatchObserver[F[_]: Concurrent] private (
   client: Resource[F, CloudWatch[F]],
   storageResolution: Int,
   histogramBuilder: Endo[HistogramFieldBuilder],
   unitBuilder: Endo[UnitBuilder],
   dimensionBuilder: Endo[DimensionBuilder]) {
+  private val F = Concurrent[F]
 
   def withHighStorageResolution: CloudWatchObserver[F] =
     new CloudWatchObserver[F](client, 1, histogramBuilder, unitBuilder, dimensionBuilder)
@@ -57,7 +59,7 @@ final class CloudWatchObserver[F[_]: Sync] private (
     unitBuilder(new UnitBuilder(
       UnitNormalization(timeUnit = CloudWatchTimeUnit.MILLISECONDS, infoUnit = None, rateUnit = None))).build
 
-  private def computeDatum(report: MetricReport): List[MetricDatum] = {
+  private def computeDatum(report: MetricReport, lookup: Map[UUID, Long]): List[MetricDatum] = {
 
     val timer_histo: List[MetricDatum] = for {
       hf <- histogramB.build
@@ -85,8 +87,6 @@ final class CloudWatchObserver[F[_]: Sync] private (
         standardUnit = CloudWatchTimeUnit.toStandardUnit(unit)
       ).metricDatum(report.timestamp.toInstant, data)
     }
-
-    val lookup: Map[UUID, Long] = report.previous.lookupCount
 
     val timer_count: List[MetricDatum] =
       report.snapshot.timers.map { timer =>
@@ -130,26 +130,29 @@ final class CloudWatchObserver[F[_]: Sync] private (
     timer_count ::: meter_count ::: histogram_count ::: timer_histo ::: histograms
   }
 
-  def observe(namespace: CloudWatchNamespace): Pipe[F, NJEvent, NJEvent] = (es: Stream[F, NJEvent]) => {
-    def go(cwc: CloudWatch[F], ss: Stream[F, NJEvent]): Pull[F, NJEvent, Unit] =
-      ss.pull.uncons.flatMap {
-        case Some((events, tail)) =>
-          val mds: List[MetricDatum] = events.toList.collect { case mr: MetricReport =>
-            computeDatum(mr)
-          }.flatten
+  def observe(namespace: CloudWatchNamespace): Pipe[F, NJEvent, NJEvent] = (events: Stream[F, NJEvent]) => {
+    def publish(cwc: CloudWatch[F], mds: List[MetricDatum]): F[Unit] =
+      mds // https://docs.aws.amazon.com/AmazonCloudWatch/latest/APIReference/API_PutMetricData.html
+        .grouped(20)
+        .toList
+        .traverse(md => cwc.putMetricData(_.namespace(namespace.value).metricData(md.asJava)).attempt)
+        .void
 
-          val publish: F[List[Either[Throwable, PutMetricDataResponse]]] =
-            mds // https://docs.aws.amazon.com/AmazonCloudWatch/latest/APIReference/API_PutMetricData.html
-              .grouped(20)
-              .toList
-              .traverse(ds => cwc.putMetricData(_.namespace(namespace.value).metricData(ds.asJava)).attempt)
-
-          Pull.eval(publish) >> Pull.output(events) >> go(cwc, tail)
-
-        case None => Pull.done
+    for {
+      cwc <- Stream.resource(client)
+      // indexed by ServiceID and MetricName's uuid
+      lookup <- Stream.eval(F.ref(Map.empty[UUID, Map[UUID, Long]]))
+      event <- events.evalTap {
+        case mr @ MetricReport(MetricIndex.Periodic(_), sp, snapshot, _) =>
+          lookup.getAndUpdate(_.updated(sp.serviceId, snapshot.lookupCount)).flatMap { last =>
+            val data = computeDatum(mr, last.getOrElse(sp.serviceId, MetricSnapshot.empty.lookupCount))
+            publish(cwc, data)
+          }
+        case NJEvent.ServiceStop(serviceParams, _, _) =>
+          lookup.update(_.removed(serviceParams.serviceId))
+        case _ => F.unit
       }
-
-    Stream.resource(client).flatMap(cw => go(cw, es).stream)
+    } yield event
   }
 
   private case class MetricKey(

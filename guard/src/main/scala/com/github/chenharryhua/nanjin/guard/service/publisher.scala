@@ -23,16 +23,10 @@ private object publisher {
     channel: Channel[F, NJEvent],
     serviceParams: ServiceParams,
     index: MetricIndex,
-    previous: MetricSnapshot,
     snapshot: MetricSnapshot)(implicit F: Monad[F]): F[MetricReport] =
     for {
       now <- serviceParams.zonedNow[F]
-      mr = MetricReport(
-        index = index,
-        serviceParams = serviceParams,
-        previous = previous,
-        snapshot = snapshot,
-        timestamp = now)
+      mr = MetricReport(index = index, serviceParams = serviceParams, snapshot = snapshot, timestamp = now)
       _ <- channel.send(mr)
     } yield mr
 

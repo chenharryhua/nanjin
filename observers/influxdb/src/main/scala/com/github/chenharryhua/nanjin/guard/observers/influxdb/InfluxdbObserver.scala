@@ -77,7 +77,7 @@ final class InfluxdbObserver[F[_]](
     for {
       writer <- Stream.resource(client.map(_.makeWriteApi(writeOptions(WriteOptions.builder()).build())))
       event <- events.evalTap {
-        case NJEvent.MetricReport(_, sp, _, snapshot, timestamp) =>
+        case NJEvent.MetricReport(_, sp, snapshot, timestamp) =>
           val spDimensions: Map[String, String] = dimension(sp)
           val timers: List[Point] = snapshot.timers.map { timer =>
             val tagToAdd = dimension(timer) ++ spDimensions ++ tags

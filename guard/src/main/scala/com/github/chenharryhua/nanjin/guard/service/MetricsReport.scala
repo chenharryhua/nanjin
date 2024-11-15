@@ -27,7 +27,6 @@ abstract class MetricsReport[F[_]] private[service] (
         .metricReport(
           channel = channel,
           serviceParams = serviceParams,
-          previous = MetricSnapshot.empty,
           snapshot = MetricSnapshot(metricRegistry),
           index = MetricIndex.Adhoc(serviceParams.toZonedDateTime(ts))
         )
