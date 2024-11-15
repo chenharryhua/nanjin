@@ -117,6 +117,10 @@ private class HttpRouter[F[_]](
       val json = new SnapshotPolyglot(MetricSnapshot(metricRegistry)).toPrettyJson
       Ok(json)
 
+    case GET -> Root / "metrics" / "raw" =>
+      val json = MetricSnapshot(metricRegistry).asJson
+      Ok(json)
+
     case GET -> Root / "metrics" / "reset" =>
       for {
         ts <- serviceParams.zonedNow

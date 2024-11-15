@@ -7,6 +7,7 @@ import cats.implicits.toFunctorFilterOps
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.config.MetricID
 import com.github.chenharryhua.nanjin.guard.event.{retrieveGauge, retrieveHealthChecks}
+import com.github.chenharryhua.nanjin.guard.observers.console
 import io.circe.Json
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -18,10 +19,7 @@ class GaugeTest extends AnyFunSuite {
   test("1.gauge") {
     val mr = service.eventStream { agent =>
       agent
-        .facilitate("gauge")(
-          _.gauge("gauge", _.withTimeout(1.second).enable(true))
-            .register(IO(1))
-            .map(_ => Kleisli((_: Unit) => IO.unit)))
+        .facilitate("gauge")(_.gauge("gauge").register(IO(1)).map(_ => Kleisli((_: Unit) => IO.unit)))
         .surround(agent.adhoc.report)
     }.map(checkJson).mapFilter(metricReport).compile.lastOrError.unsafeRunSync()
     val gauge = retrieveGauge[Int](mr.snapshot.gauges)
@@ -66,5 +64,29 @@ class GaugeTest extends AnyFunSuite {
     val permanent = retrieveGauge[Json](mr.snapshot.gauges)
     assert(mr.snapshot.nonEmpty)
     assert(permanent.values.head.as[String].toOption.get == "1,999")
+  }
+
+  test("6.gauge timeout") {
+    val mr = service.eventStream { agent =>
+      agent.facilitate("timeout.gauge")(
+        _.gauge("gauge", _.withTimeout(1.second).enable(true))
+          .register(IO.never[Int])
+          .surround(agent.adhoc.report))
+    }.map(checkJson).evalTap(console.text[IO]).mapFilter(metricReport).compile.lastOrError.unsafeRunSync()
+    val gauge = retrieveGauge[Int](mr.snapshot.gauges)
+    assert(mr.snapshot.nonEmpty)
+    assert(gauge.isEmpty)
+  }
+
+  test("7.gauge exception") {
+    val mr = service.eventStream { agent =>
+      agent.facilitate("timeout.gauge")(
+        _.gauge("gauge", _.withTimeout(1.second).enable(true))
+          .register(IO.raiseError[Int](new Exception("oops")))
+          .surround(agent.adhoc.report))
+    }.map(checkJson).evalTap(console.text[IO]).mapFilter(metricReport).compile.lastOrError.unsafeRunSync()
+    val gauge = retrieveGauge[Int](mr.snapshot.gauges)
+    assert(mr.snapshot.nonEmpty)
+    assert(gauge.isEmpty)
   }
 }

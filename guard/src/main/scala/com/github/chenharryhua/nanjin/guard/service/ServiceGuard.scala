@@ -62,18 +62,32 @@ final class ServiceGuard[F[_]: Network] private[guard] (serviceName: ServiceName
       event <- Stream.eval(Channel.unbounded[F, NJEvent]).flatMap { channel =>
         val metricRegistry: MetricRegistry = new MetricRegistry()
 
-        val metrics_report: Stream[F, Nothing] =
-          tickStream[F](
-            TickStatus(serviceParams.zerothTick).renewPolicy(serviceParams.servicePolicies.metricReport))
-            .evalMap(tick =>
-              publisher
-                .metricReport(
-                  channel = channel,
-                  serviceParams = serviceParams,
-                  metricRegistry = metricRegistry,
-                  index = MetricIndex.Periodic(tick))
-                .flatMap(mr => metricsHistory.modify(queue => (queue, queue.add(mr)))))
+        val metrics_report: Stream[F, Nothing] = {
+          val head_snapshot: Stream[F, (Tick, MetricSnapshot)] =
+            Stream((serviceParams.zerothTick, MetricSnapshot.empty)).covary[F]
+
+          val tail_snapshots: Stream[F, (Tick, MetricSnapshot)] =
+            tickStream[F](
+              TickStatus(serviceParams.zerothTick).renewPolicy(serviceParams.servicePolicies.metricReport))
+              .map((_, MetricSnapshot(metricRegistry))) // capture current snapshot
+
+          (head_snapshot ++ tail_snapshots)
+            .sliding(2) // previous snapshot and current snapshot, respectively
+            .evalMap(_.toList match {
+              case previous :: current :: Nil =>
+                publisher
+                  .metricReport(
+                    channel = channel,
+                    serviceParams = serviceParams,
+                    index = MetricIndex.Periodic(current._1),
+                    previous = previous._2,
+                    snapshot = current._2)
+                  .flatMap(mr => metricsHistory.modify(queue => (queue, queue.add(mr))))
+                  .void
+              case _ => F.unit
+            })
             .drain
+        }
 
         val metrics_reset: Stream[F, Nothing] =
           tickStream[F](

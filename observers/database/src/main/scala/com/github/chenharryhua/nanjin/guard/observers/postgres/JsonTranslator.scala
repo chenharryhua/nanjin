@@ -18,60 +18,60 @@ private object JsonTranslator {
 
   private def service_started(evt: ServiceStart): Json =
     Json.obj(
-      "event" -> EventName.ServiceStart.camelJson,
+      "event" -> EventName.ServiceStart.snakeJson,
       jsonHelper.index(evt.tick),
-      jsonHelper.serviceParams(evt.serviceParams),
+      jsonHelper.service_params(evt.serviceParams),
       jsonHelper.timestamp(evt))
 
   private def service_panic(evt: ServicePanic): Json =
     Json.obj(
-      "event" -> EventName.ServicePanic.camelJson,
+      "event" -> EventName.ServicePanic.snakeJson,
       jsonHelper.index(evt.tick),
-      jsonHelper.serviceName(evt.serviceParams),
+      jsonHelper.service_name(evt.serviceParams),
       jsonHelper.policy(evt.serviceParams.servicePolicies.restart),
       jsonHelper.stack(evt.error),
-      jsonHelper.serviceId(evt.serviceParams),
+      jsonHelper.service_id(evt.serviceParams),
       jsonHelper.timestamp(evt)
     )
 
   private def service_stopped(evt: ServiceStop): Json =
     Json.obj(
-      "event" -> EventName.ServiceStop.camelJson,
-      jsonHelper.serviceName(evt.serviceParams),
-      jsonHelper.exitCode(evt.cause),
-      jsonHelper.exitCause(evt.cause),
+      "event" -> EventName.ServiceStop.snakeJson,
+      jsonHelper.service_name(evt.serviceParams),
+      jsonHelper.exit_code(evt.cause),
+      jsonHelper.exit_cause(evt.cause),
       jsonHelper.policy(evt.serviceParams.servicePolicies.restart),
-      jsonHelper.serviceId(evt.serviceParams),
+      jsonHelper.service_id(evt.serviceParams),
       jsonHelper.timestamp(evt)
     )
 
   private def metric_report(evt: MetricReport): Json =
     Json.obj(
-      "event" -> EventName.MetricReport.camelJson,
-      jsonHelper.metricIndex(evt.index),
-      jsonHelper.serviceName(evt.serviceParams),
+      "event" -> EventName.MetricReport.snakeJson,
+      jsonHelper.metric_index(evt.index),
+      jsonHelper.service_name(evt.serviceParams),
       took(evt.took),
       metrics(evt.snapshot),
-      jsonHelper.serviceId(evt.serviceParams),
+      jsonHelper.service_id(evt.serviceParams),
       jsonHelper.timestamp(evt)
     )
 
   private def metric_reset(evt: MetricReset): Json =
     Json.obj(
-      "event" -> EventName.MetricReset.camelJson,
-      jsonHelper.metricIndex(evt.index),
-      jsonHelper.serviceName(evt.serviceParams),
+      "event" -> EventName.MetricReset.snakeJson,
+      jsonHelper.metric_index(evt.index),
+      jsonHelper.service_name(evt.serviceParams),
       took(evt.took),
       metrics(evt.snapshot),
-      jsonHelper.serviceId(evt.serviceParams),
+      jsonHelper.service_id(evt.serviceParams),
       jsonHelper.timestamp(evt)
     )
 
   private def service_message(evt: ServiceMessage): Json =
     Json.obj(
-      "event" -> EventName.ServiceMessage.camelJson,
-      "message" -> jsonHelper.jsonServiceMessage(evt),
-      jsonHelper.serviceId(evt.serviceParams),
+      "event" -> EventName.ServiceMessage.snakeJson,
+      "message" -> jsonHelper.json_service_message(evt),
+      jsonHelper.service_id(evt.serviceParams),
       jsonHelper.timestamp(evt)
     )
 

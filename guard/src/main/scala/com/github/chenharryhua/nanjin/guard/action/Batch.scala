@@ -118,7 +118,7 @@ object Batch {
       for {
         meas <- measure(jobs.size, BatchKind.Quasi, mode)
         case (fd, details) <- Resource.eval(exec(meas))
-      } yield List(QuasiResult(fd.toJava, mode, details.sortBy(_.job.index)))
+      } yield List(QuasiResult(metrics.metricLabel, fd.toJava, mode, details.sortBy(_.job.index)))
     }
 
     override val fully: Resource[F, List[A]] = {
@@ -156,6 +156,7 @@ object Batch {
         details <- Resource.eval(exec(meas))
       } yield List(
         QuasiResult(
+          label = metrics.metricLabel,
           spent = details.map(_.took).foldLeft(Duration.ZERO)(_ plus _),
           mode = mode,
           details = details.sortBy(_.job.index)

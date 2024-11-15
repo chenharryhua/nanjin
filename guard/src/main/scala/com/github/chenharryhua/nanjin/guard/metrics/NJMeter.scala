@@ -42,6 +42,8 @@ object NJMeter {
     val unregister: F[Unit] = F.delay(metricRegistry.remove(meter_name)).void
   }
 
+  val initial: Builder = new Builder(isEnabled = true, unit = NJUnits.COUNT)
+
   final class Builder private[guard] (isEnabled: Boolean, unit: MeasurementUnit)
       extends EnableConfig[Builder] {
 

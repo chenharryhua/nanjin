@@ -15,7 +15,7 @@ import org.apache.commons.lang3.StringUtils
 import org.apache.commons.lang3.exception.ExceptionUtils
 
 import java.time.ZoneId
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.util.Try
 
 sealed trait NJGauge[F[_]] {
@@ -77,6 +77,8 @@ object NJGauge {
       } yield ()
     }
   }
+
+  val initial: Builder = new Builder(isEnabled = true, timeout = 5.seconds)
 
   final class Builder private[guard] (isEnabled: Boolean, timeout: FiniteDuration)
       extends EnableConfig[Builder] {

@@ -10,6 +10,7 @@ import org.typelevel.cats.time.instances.duration
 import squants.time.{Frequency, Hertz}
 
 import java.time.Duration
+import java.util.UUID
 import scala.jdk.CollectionConverters.*
 
 sealed trait Snapshot extends Product with Serializable { def metricId: MetricID }
@@ -94,12 +95,19 @@ final case class MetricSnapshot(
       histograms.map(_.metricId)
 
   def hasDuplication: Boolean = {
-    val stable = metricIDs.map(id => (id.metricLabel, id.metricName.name, id.category))
+    val stable = metricIDs.map(id => (id.metricLabel, id.metricName.name))
     stable.distinct.size != stable.size
   }
+
+  def lookupCount: Map[UUID, Long] = {
+    meters.map(m => m.metricId.metricName.uuid -> m.meter.sum) :::
+      timers.map(t => t.metricId.metricName.uuid -> t.timer.calls) :::
+      histograms.map(h => h.metricId.metricName.uuid -> h.histogram.updates)
+  }.toMap
 }
 
 object MetricSnapshot extends duration {
+  val empty: MetricSnapshot = MetricSnapshot(Nil, Nil, Nil, Nil, Nil)
 
   def counters(metricRegistry: MetricRegistry): List[Snapshot.Counter] =
     metricRegistry.getCounters().asScala.toList.mapFilter { case (name, counter) =>
