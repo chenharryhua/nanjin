@@ -2,17 +2,15 @@ package com.github.chenharryhua.nanjin.guard.translator
 
 import cats.data.NonEmptyList
 import cats.implicits.{catsSyntaxEq, catsSyntaxOptionId, none, showInterpolator, toFunctorFilterOps}
-import com.github.chenharryhua.nanjin.guard.config.{Category, MetricID}
+import com.github.chenharryhua.nanjin.guard.config.MetricID
 import com.github.chenharryhua.nanjin.guard.event.MeasurementUnit.*
 import com.github.chenharryhua.nanjin.guard.event.{MeasurementUnit, MetricSnapshot}
 import io.circe.Json
 import io.circe.syntax.EncoderOps
+import org.apache.commons.lang3.StringUtils
 import squants.time.TimeConversions
 
 final class SnapshotPolyglot(snapshot: MetricSnapshot) {
-  private[this] val AGGREGATE: String = "aggregate"
-  private[this] val EXECUTION: String = "execution"
-  private[this] val UPDATES: String   = "updates"
 
   private def normalize[A: Numeric](mu: MeasurementUnit, data: A): String =
     mu match {
@@ -22,61 +20,62 @@ final class SnapshotPolyglot(snapshot: MetricSnapshot) {
       case unit: NJDimensionlessUnit => s"${decimal_fmt.format(unit.mUnit(data).value.toLong)} ${unit.symbol}"
     }
 
-  private def meters: List[(MetricID, NonEmptyList[(String, Json)])] =
+  private def meters: List[(MetricID, NonEmptyList[(String, String)])] =
     snapshot.meters.map { m =>
       m.metricId -> NonEmptyList.of(
-        AGGREGATE -> Json.fromString(normalize(m.meter.unit, m.meter.sum)),
-        "mean_rate" -> Json.fromString(s"${normalize(m.meter.unit, m.meter.mean_rate.toHertz)}/s"),
-        "m1_rate" -> Json.fromString(s"${normalize(m.meter.unit, m.meter.m1_rate.toHertz)}/s"),
-        "m5_rate" -> Json.fromString(s"${normalize(m.meter.unit, m.meter.m5_rate.toHertz)}/s"),
-        "m15_rate" -> Json.fromString(s"${normalize(m.meter.unit, m.meter.m15_rate.toHertz)}/s")
+        "aggregate" -> normalize(m.meter.unit, m.meter.sum),
+        "mean_rate" -> s"${normalize(m.meter.unit, m.meter.mean_rate.toHertz)}/s",
+        "m1_rate" -> s"${normalize(m.meter.unit, m.meter.m1_rate.toHertz)}/s",
+        "m5_rate" -> s"${normalize(m.meter.unit, m.meter.m5_rate.toHertz)}/s",
+        "m15_rate" -> s"${normalize(m.meter.unit, m.meter.m15_rate.toHertz)}/s"
       )
     }
 
-  private def timers: List[(MetricID, NonEmptyList[(String, Json)])] =
+  private def timers: List[(MetricID, NonEmptyList[(String, String)])] =
     snapshot.timers.map { t =>
       val unit = s"calls/${NJTimeUnit.SECONDS.symbol}"
       t.metricId -> NonEmptyList.of(
-        EXECUTION -> Json.fromString(decimal_fmt.format(t.timer.calls)),
-        "mean_rate" -> Json.fromString(s"${decimal_fmt.format(t.timer.mean_rate.toHertz)} $unit"),
-        "m1_rate" -> Json.fromString(s"${decimal_fmt.format(t.timer.m1_rate.toHertz)} $unit"),
-        "m5_rate" -> Json.fromString(s"${decimal_fmt.format(t.timer.m5_rate.toHertz)} $unit"),
-        "m15_rate" -> Json.fromString(s"${decimal_fmt.format(t.timer.m15_rate.toHertz)} $unit"),
-        "min" -> Json.fromString(fmt.format(t.timer.min)),
-        "max" -> Json.fromString(fmt.format(t.timer.max)),
-        "mean" -> Json.fromString(fmt.format(t.timer.mean)),
-        "stddev" -> Json.fromString(fmt.format(t.timer.stddev)),
-        "p50" -> Json.fromString(fmt.format(t.timer.p50)),
-        "p75" -> Json.fromString(fmt.format(t.timer.p75)),
-        "p95" -> Json.fromString(fmt.format(t.timer.p95)),
-        "p98" -> Json.fromString(fmt.format(t.timer.p98)),
-        "p99" -> Json.fromString(fmt.format(t.timer.p99)),
-        "p999" -> Json.fromString(fmt.format(t.timer.p999))
+        "invocations" -> decimal_fmt.format(t.timer.calls),
+        "mean_rate" -> s"${decimal_fmt.format(t.timer.mean_rate.toHertz)} $unit",
+        "m1_rate" -> s"${decimal_fmt.format(t.timer.m1_rate.toHertz)} $unit",
+        "m5_rate" -> s"${decimal_fmt.format(t.timer.m5_rate.toHertz)} $unit",
+        "m15_rate" -> s"${decimal_fmt.format(t.timer.m15_rate.toHertz)} $unit",
+        "min" -> fmt.format(t.timer.min),
+        "max" -> fmt.format(t.timer.max),
+        "mean" -> fmt.format(t.timer.mean),
+        "stddev" -> fmt.format(t.timer.stddev),
+        "p50" -> fmt.format(t.timer.p50),
+        "p75" -> fmt.format(t.timer.p75),
+        "p95" -> fmt.format(t.timer.p95),
+        "p98" -> fmt.format(t.timer.p98),
+        "p99" -> fmt.format(t.timer.p99),
+        "p999" -> fmt.format(t.timer.p999)
       )
     }
 
-  private def histograms: List[(MetricID, NonEmptyList[(String, Json)])] =
+  private def histograms: List[(MetricID, NonEmptyList[(String, String)])] =
     snapshot.histograms.map { h =>
       val unit  = h.histogram.unit
       val histo = h.histogram
       h.metricId -> NonEmptyList.of(
-        UPDATES -> Json.fromString(decimal_fmt.format(histo.updates)),
-        "min" -> Json.fromString(normalize(unit, histo.min)),
-        "max" -> Json.fromString(normalize(unit, histo.max)),
-        "mean" -> Json.fromString(normalize(unit, histo.mean)),
-        "stddev" -> Json.fromString(normalize(unit, histo.stddev)),
-        "p50" -> Json.fromString(normalize(unit, histo.p50)),
-        "p75" -> Json.fromString(normalize(unit, histo.p75)),
-        "p95" -> Json.fromString(normalize(unit, histo.p95)),
-        "p98" -> Json.fromString(normalize(unit, histo.p98)),
-        "p99" -> Json.fromString(normalize(unit, histo.p99)),
-        "p999" -> Json.fromString(normalize(unit, histo.p999))
+        "updates" -> decimal_fmt.format(histo.updates),
+        "min" -> normalize(unit, histo.min),
+        "max" -> normalize(unit, histo.max),
+        "mean" -> normalize(unit, histo.mean),
+        "stddev" -> normalize(unit, histo.stddev),
+        "p50" -> normalize(unit, histo.p50),
+        "p75" -> normalize(unit, histo.p75),
+        "p95" -> normalize(unit, histo.p95),
+        "p98" -> normalize(unit, histo.p98),
+        "p99" -> normalize(unit, histo.p99),
+        "p999" -> normalize(unit, histo.p999)
       )
     }
 
-  private def json_list(lst: List[(MetricID, NonEmptyList[(String, Json)])]): List[(MetricID, Json)] =
+  private def json_list(lst: List[(MetricID, NonEmptyList[(String, String)])]): List[(MetricID, Json)] =
     lst.map { case (id, items) =>
-      id -> items.map { case (key, js) => Json.obj(key -> js) }.reduce[Json]((a, b) => b.deepMerge(a))
+      id -> items.map { case (key, js) => Json.obj(key -> Json.fromString(js)) }.reduce[Json]((a, b) =>
+        b.deepMerge(a))
     }
 
   private def group_json(pairs: List[(MetricID, Json)]): Json =
@@ -144,59 +143,22 @@ final class SnapshotPolyglot(snapshot: MetricSnapshot) {
       content.map(str => g.metricId -> List(show"${g.metricId.metricName.name}: $str"))
     }
 
+  private val space: String = StringUtils.SPACE
+
+  private def padded(kv: (String, String)): String =
+    s"${space * 2}${StringUtils.leftPad(kv._1, 11)}: ${kv._2}"
+
+  private def named(id: MetricID, data: NonEmptyList[String]): List[String] =
+    s"${id.metricName.name}:" :: data.toList
+
   private def meter_str: List[(MetricID, List[String])] =
-    snapshot.meters.map { m =>
-      m.metricId -> List(
-        show"$AGGREGATE: ${normalize(m.meter.unit, m.meter.sum)}",
-        show"mean_rate: ${normalize(m.meter.unit, m.meter.mean_rate.toHertz)}/s",
-        show"  m1_rate: ${normalize(m.meter.unit, m.meter.m1_rate.toHertz)}/s",
-        show"  m5_rate: ${normalize(m.meter.unit, m.meter.m5_rate.toHertz)}/s",
-        show" m15_rate: ${normalize(m.meter.unit, m.meter.m15_rate.toHertz)}/s"
-      )
-    }
+    meters.map { case (id, data) => id -> named(id, data.map(padded)) }
 
   private def timer_str: List[(MetricID, List[String])] =
-    snapshot.timers.map { t =>
-      val unit = s"calls/${NJTimeUnit.SECONDS.symbol}"
-      t.metricId -> List(
-        show"$EXECUTION: ${decimal_fmt.format(t.timer.calls)}",
-        show"mean_rate: ${decimal_fmt.format(t.timer.mean_rate.toHertz)} $unit",
-        show"  m1_rate: ${decimal_fmt.format(t.timer.m1_rate.toHertz)} $unit",
-        show"  m5_rate: ${decimal_fmt.format(t.timer.m5_rate.toHertz)} $unit",
-        show" m15_rate: ${decimal_fmt.format(t.timer.m15_rate.toHertz)} $unit",
-        show"      min: ${fmt.format(t.timer.min)}",
-        show"      max: ${fmt.format(t.timer.max)}",
-        show"     mean: ${fmt.format(t.timer.mean)}",
-        show"   stddev: ${fmt.format(t.timer.stddev)}",
-        show"      p50: ${fmt.format(t.timer.p50)}",
-        show"      p75: ${fmt.format(t.timer.p75)}",
-        show"      p95: ${fmt.format(t.timer.p95)}",
-        show"      p98: ${fmt.format(t.timer.p98)}",
-        show"      p99: ${fmt.format(t.timer.p99)}",
-        show"     p999: ${fmt.format(t.timer.p999)}"
-      )
-    }
+    timers.map { case (id, data) => id -> named(id, data.map(padded)) }
 
   private def histogram_str: List[(MetricID, List[String])] =
-    snapshot.histograms.map { h =>
-      val unit  = h.histogram.unit
-      val histo = h.histogram
-      h.metricId -> List(
-        show"  $UPDATES: ${decimal_fmt.format(histo.updates)}",
-        show"      min: ${normalize(unit, histo.min)}",
-        show"      max: ${normalize(unit, histo.max)}",
-        show"     mean: ${normalize(unit, histo.mean)}",
-        show"   stddev: ${normalize(unit, histo.stddev)}",
-        show"      p50: ${normalize(unit, histo.p50)}",
-        show"      p75: ${normalize(unit, histo.p75)}",
-        show"      p95: ${normalize(unit, histo.p95)}",
-        show"      p98: ${normalize(unit, histo.p98)}",
-        show"      p99: ${normalize(unit, histo.p99)}",
-        show"     p999: ${normalize(unit, histo.p999)}"
-      )
-    }
-
-  private val space: String = " "
+    histograms.map { case (id, data) => id -> named(id, data.map(padded)) }
 
   private def group_yaml(pairs: List[(MetricID, List[String])]): List[String] =
     pairs
@@ -209,17 +171,7 @@ final class SnapshotPolyglot(snapshot: MetricSnapshot) {
           .toList
           .map { case (name, items) =>
             val oldest = items.map(_._1.metricName.order).min
-            (oldest, name) -> items.sortBy(_._1.metricName).flatMap { case (id, lst) =>
-              @inline def others: List[String] =
-                List(id.metricName.name + ":").map(space * 4 + _) ::: lst.map(space * 6 + _)
-              id.category match {
-                case _: Category.Gauge     => lst.map(space * 4 + _)
-                case _: Category.Counter   => lst.map(space * 4 + _)
-                case _: Category.Timer     => others
-                case _: Category.Meter     => others
-                case _: Category.Histogram => others
-              }
-            }
+            (oldest, name) -> items.sortBy(_._1.metricName).flatMap(_._2.map(space * 4 + _))
           }
           .sortBy(_._1._1)
           .flatMap { case ((_, n), items) =>
