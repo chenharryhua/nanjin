@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.service
 
-import cats.effect.kernel.Clock
+import cats.effect.kernel.{Clock, Sync}
 import cats.syntax.all.*
 import cats.{Functor, Monad}
 import com.codahale.metrics.MetricRegistry
@@ -19,26 +19,26 @@ import fs2.concurrent.Channel
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 
 private object publisher {
-  def metricReport[F[_]: Clock](
-    channel: Channel[F, NJEvent],
-    serviceParams: ServiceParams,
-    index: MetricIndex,
-    snapshot: MetricSnapshot)(implicit F: Monad[F]): F[MetricReport] =
-    for {
-      now <- serviceParams.zonedNow[F]
-      mr = MetricReport(index = index, serviceParams = serviceParams, snapshot = snapshot, timestamp = now)
-      _ <- channel.send(mr)
-    } yield mr
-
-  def metricReset[F[_]: Clock](
+  def metricReport[F[_]: Sync](
     channel: Channel[F, NJEvent],
     serviceParams: ServiceParams,
     metricRegistry: MetricRegistry,
-    index: MetricIndex)(implicit F: Monad[F]): F[Unit] =
+    index: MetricIndex): F[MetricReport] =
     for {
-      ss <- F.pure(MetricSnapshot(metricRegistry))
-      now <- serviceParams.zonedNow[F]
-      _ <- channel.send(MetricReset(index, serviceParams, ss, now))
+      (took, ss) <- MetricSnapshot.timed(metricRegistry)
+      mr = MetricReport(index = index, serviceParams = serviceParams, snapshot = ss, took = took)
+      _ <- channel.send(mr)
+    } yield mr
+
+  def metricReset[F[_]: Sync](
+    channel: Channel[F, NJEvent],
+    serviceParams: ServiceParams,
+    metricRegistry: MetricRegistry,
+    index: MetricIndex): F[Unit] =
+    for {
+      (took, ss) <- MetricSnapshot.timed(metricRegistry)
+      mr = MetricReset(index = index, serviceParams = serviceParams, snapshot = ss, took = took)
+      _ <- channel.send(mr)
     } yield metricRegistry.getCounters().values().asScala.foreach(c => c.dec(c.getCount))
 
   def serviceReStart[F[_]](channel: Channel[F, NJEvent], serviceParams: ServiceParams, tick: Tick)(implicit

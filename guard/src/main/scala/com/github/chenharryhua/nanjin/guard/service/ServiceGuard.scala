@@ -64,18 +64,16 @@ final class ServiceGuard[F[_]: Network] private[guard] (serviceName: ServiceName
 
         val metrics_report: Stream[F, Nothing] =
           tickStream[F](
-            TickStatus(serviceParams.zerothTick).renewPolicy(serviceParams.servicePolicies.metricReport))
-            .map((_, MetricSnapshot(metricRegistry))) // capture current snapshot
-            .evalMap { case (tick, snapshot) =>
-              publisher
-                .metricReport(
-                  channel = channel,
-                  serviceParams = serviceParams,
-                  index = MetricIndex.Periodic(tick),
-                  snapshot = snapshot)
-                .flatMap(mr => metricsHistory.modify(queue => (queue, queue.add(mr))))
-            }
-            .drain
+            TickStatus(serviceParams.zerothTick).renewPolicy(
+              serviceParams.servicePolicies.metricReport)).evalMap { tick =>
+            publisher
+              .metricReport(
+                channel = channel,
+                serviceParams = serviceParams,
+                metricRegistry = metricRegistry,
+                index = MetricIndex.Periodic(tick))
+              .flatMap(mr => metricsHistory.modify(queue => (queue, queue.add(mr))))
+          }.drain
 
         val metrics_reset: Stream[F, Nothing] =
           tickStream[F](

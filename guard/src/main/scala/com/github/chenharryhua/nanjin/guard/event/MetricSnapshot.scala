@@ -1,5 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.event
 
+import cats.effect.implicits.clockOps
+import cats.effect.kernel.Sync
 import cats.syntax.all.*
 import com.codahale.metrics.*
 import com.github.chenharryhua.nanjin.guard.config.{Category, MetricID}
@@ -12,6 +14,7 @@ import squants.time.{Frequency, Hertz}
 import java.time.Duration
 import java.util.UUID
 import scala.jdk.CollectionConverters.*
+import scala.jdk.DurationConverters.ScalaDurationOps
 
 sealed trait Snapshot extends Product with Serializable { def metricId: MetricID }
 
@@ -205,4 +208,7 @@ object MetricSnapshot extends duration {
       histograms = histograms(metricRegistry),
       gauges = gauges(metricRegistry)
     )
+
+  def timed[F[_]](metricRegistry: MetricRegistry)(implicit F: Sync[F]): F[(Duration, MetricSnapshot)] =
+    F.delay(apply(metricRegistry)).timed.map { case (fd, ss) => (fd.toJava, ss) }
 }

@@ -42,20 +42,24 @@ object NJEvent {
   sealed trait MetricEvent extends NJEvent {
     def index: MetricIndex
     def snapshot: MetricSnapshot
-    final def took: Duration = Duration.between(index.launchTime, timestamp)
+    def took: Duration // time took to retrieve snapshot
   }
 
   final case class MetricReport(
     index: MetricIndex,
     serviceParams: ServiceParams,
     snapshot: MetricSnapshot,
-    timestamp: ZonedDateTime) // land time
-      extends MetricEvent
+    took: Duration)
+      extends MetricEvent {
+    override val timestamp: ZonedDateTime = index.launchTime
+  }
 
   final case class MetricReset(
     index: MetricIndex,
     serviceParams: ServiceParams,
     snapshot: MetricSnapshot,
-    timestamp: ZonedDateTime) // land time
-      extends MetricEvent
+    took: Duration)
+      extends MetricEvent {
+    override val timestamp: ZonedDateTime = index.launchTime
+  }
 }

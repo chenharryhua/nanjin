@@ -1,17 +1,16 @@
 package com.github.chenharryhua.nanjin.guard.service
 
-import cats.MonadError
-import cats.effect.kernel.Clock
+import cats.effect.kernel.Sync
 import cats.implicits.{toFlatMapOps, toFunctorOps}
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
-import com.github.chenharryhua.nanjin.guard.event.{MetricIndex, MetricSnapshot, NJEvent}
+import com.github.chenharryhua.nanjin.guard.event.{MetricIndex, NJEvent}
 import fs2.concurrent.Channel
 
 abstract class MetricsReport[F[_]] private[service] (
   channel: Channel[F, NJEvent],
   serviceParams: ServiceParams,
-  metricRegistry: MetricRegistry)(implicit F: Clock[F], M: MonadError[F, Throwable]) {
+  metricRegistry: MetricRegistry)(implicit F: Sync[F]) {
 
   def reset: F[Unit] =
     F.realTimeInstant.flatMap(ts =>
@@ -27,7 +26,7 @@ abstract class MetricsReport[F[_]] private[service] (
         .metricReport(
           channel = channel,
           serviceParams = serviceParams,
-          snapshot = MetricSnapshot(metricRegistry),
+          metricRegistry = metricRegistry,
           index = MetricIndex.Adhoc(serviceParams.toZonedDateTime(ts))
         )
         .void)
