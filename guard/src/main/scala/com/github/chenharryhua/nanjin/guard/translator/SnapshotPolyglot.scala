@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.translator
 
 import cats.data.NonEmptyList
-import cats.implicits.{catsSyntaxEq, catsSyntaxOptionId, none, showInterpolator, toFunctorFilterOps}
+import cats.implicits.{catsSyntaxEq, showInterpolator, toFunctorFilterOps}
 import com.github.chenharryhua.nanjin.guard.config.MetricID
 import com.github.chenharryhua.nanjin.guard.event.MeasurementUnit.*
 import com.github.chenharryhua.nanjin.guard.event.{MeasurementUnit, MetricSnapshot}
@@ -88,14 +88,17 @@ final class SnapshotPolyglot(snapshot: MetricSnapshot) {
           .groupBy(_._1.metricLabel) // metric-name group
           .toList
           .map { case (label, items) =>
+            val age = items.map(_._1.metricName.age).min
             val inner: Json =
               items
                 .sortBy(_._1.metricName)
                 .map { case (mId, js) => Json.obj(mId.metricName.name -> js) }
                 .reduce((a, b) => b.deepMerge(a))
 
-            Json.obj(label.label -> inner.asJson)
+            age -> Json.obj(label.label -> inner.asJson)
           }
+          .sortBy(_._1)
+          .map(_._2)
         Json.obj(measurement.value -> Json.arr(arr*))
       }
       .asJson
@@ -130,20 +133,19 @@ final class SnapshotPolyglot(snapshot: MetricSnapshot) {
       .filter(_.count > 0)
       .map(c => c.metricId -> List(show"${c.metricId.metricName.name}: ${decimal_fmt.format(c.count)}"))
 
-  private def gauge_str: List[(MetricID, List[String])] =
-    snapshot.gauges.mapFilter { g =>
-      val content: Option[String] = g.value.fold(
-        jsonNull = none,
-        jsonBoolean = _.toString.some,
-        jsonNumber = n => decimal_fmt.format(n.toDouble).some,
-        jsonString = _.some,
-        jsonArray = js => show"[${js.map(_.noSpaces).mkString(", ")}]".some,
-        jsonObject = js => js.toJson.noSpaces.some
-      )
-      content.map(str => g.metricId -> List(show"${g.metricId.metricName.name}: $str"))
-    }
-
   private val space: String = StringUtils.SPACE
+
+  private def gauge_str: List[(MetricID, List[String])] =
+    snapshot.gauges.map { g =>
+      val lst  = prettifyJson.ymlShow(g.value)
+      val name = s"${g.metricId.metricName.name}:"
+      val content = lst match {
+        case Nil        => Nil
+        case one :: Nil => List(s"$name $one")
+        case other      => name :: other.map(space * 2 + _)
+      }
+      g.metricId -> content
+    }.filter(_._2.nonEmpty)
 
   private def padded(kv: (String, String)): String =
     s"${space * 2}${StringUtils.leftPad(kv._1, 11)}: ${kv._2}"
@@ -170,8 +172,8 @@ final class SnapshotPolyglot(snapshot: MetricSnapshot) {
           .groupBy(_._1.metricLabel) // metric-name group
           .toList
           .map { case (name, items) =>
-            val oldest = items.map(_._1.metricName.order).min
-            (oldest, name) -> items.sortBy(_._1.metricName).flatMap(_._2.map(space * 4 + _))
+            val age = items.map(_._1.metricName.age).min
+            (age, name) -> items.sortBy(_._1.metricName).flatMap(_._2.map(space * 4 + _))
           }
           .sortBy(_._1._1)
           .flatMap { case ((_, n), items) =>

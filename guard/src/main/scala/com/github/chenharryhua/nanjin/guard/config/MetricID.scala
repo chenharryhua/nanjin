@@ -73,9 +73,9 @@ object Category {
 }
 
 @JsonCodec
-final case class MetricName private (name: String, order: Long, uuid: UUID)
+final case class MetricName private (name: String, age: Long, uuid: UUID)
 object MetricName {
-  implicit val orderingMetricName: Ordering[MetricName] = Ordering.by(_.order)
+  implicit val orderingMetricName: Ordering[MetricName] = Ordering.by(_.age)
   implicit val orderMetricName: Order[MetricName]       = Order.fromOrdering
 
   def apply(name: String, fd: FiniteDuration, uuid: UUID): MetricName =

@@ -77,13 +77,13 @@ final class InfluxdbObserver[F[_]](
     for {
       writer <- Stream.resource(client.map(_.makeWriteApi(writeOptions(WriteOptions.builder()).build())))
       event <- events.evalTap {
-        case NJEvent.MetricReport(_, sp, _, snapshot, timestamp) =>
+        case mr @ NJEvent.MetricReport(_, sp, snapshot, _) =>
           val spDimensions: Map[String, String] = dimension(sp)
           val timers: List[Point] = snapshot.timers.map { timer =>
             val tagToAdd = dimension(timer) ++ spDimensions ++ tags
             Point
               .measurement(timer.metricId.metricLabel.measurement.value)
-              .time(timestamp.toInstant, writePrecision)
+              .time(mr.timestamp.toInstant, writePrecision)
               .addTag("label", timer.metricId.metricLabel.label)
               .addTag("name", timer.metricId.metricName.name)
               .addTags(tagToAdd.asJava)
@@ -109,7 +109,7 @@ final class InfluxdbObserver[F[_]](
             val tagToAdd = dimension(meter) ++ spDimensions ++ tags
             Point
               .measurement(meter.metricId.metricLabel.measurement.value)
-              .time(timestamp.toInstant, writePrecision)
+              .time(mr.timestamp.toInstant, writePrecision)
               .addTag("label", meter.metricId.metricLabel.label)
               .addTag("name", meter.metricId.metricName.name)
               .addTags(tagToAdd.asJava)
@@ -125,7 +125,7 @@ final class InfluxdbObserver[F[_]](
             val tagToAdd = dimension(counter) ++ spDimensions ++ tags
             Point
               .measurement(counter.metricId.metricLabel.measurement.value)
-              .time(timestamp.toInstant, writePrecision)
+              .time(mr.timestamp.toInstant, writePrecision)
               .addTag("label", counter.metricId.metricLabel.label)
               .addTag("name", counter.metricId.metricName.name)
               .addTags(tagToAdd.asJava)
@@ -137,7 +137,7 @@ final class InfluxdbObserver[F[_]](
             val unitName = s"(${histo.histogram.unit.symbol})"
             Point
               .measurement(histo.metricId.metricLabel.measurement.value)
-              .time(timestamp.toInstant, writePrecision)
+              .time(mr.timestamp.toInstant, writePrecision)
               .addTag("label", histo.metricId.metricLabel.label)
               .addTag("name", histo.metricId.metricName.name)
               .addTags(tagToAdd.asJava)

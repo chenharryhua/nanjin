@@ -6,7 +6,6 @@ import com.github.chenharryhua.nanjin.guard.metrics.Metrics
 import com.github.chenharryhua.nanjin.guard.translator.fmt
 import io.circe.Json
 import io.circe.syntax.EncoderOps
-import org.apache.commons.lang3.StringUtils
 
 import java.time.Duration
 import scala.concurrent.duration.FiniteDuration
@@ -36,17 +35,15 @@ object Batch {
       job.name.fold(lead)(n => s"$lead ($n)")
     }
 
-    private[this] val spaces: String = StringUtils.SPACE * 6
     private def toJson(details: List[Detail]): Json =
       if (details.isEmpty) Json.Null
       else {
-        val maxLength = details.map(d => getJobName(d.job).length).max
-        details.map { detail =>
-          val padded = StringUtils.rightPad(getJobName(detail.job), maxLength)
+        val pairs = details.map { detail =>
           val isDone = if (detail.done) "done" else "fail"
           val took   = fmt.format(detail.took)
-          s"\n$spaces$padded: $isDone, $took"
-        }.mkString.asJson
+          s"$isDone ${getJobName(detail.job)}" -> took.asJson
+        }
+        Json.obj(pairs*)
       }
 
     protected def measure(size: Int, kind: BatchKind, mode: BatchMode): Resource[F, DoMeasurement] =
