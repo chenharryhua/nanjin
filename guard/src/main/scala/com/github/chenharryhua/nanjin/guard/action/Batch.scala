@@ -41,7 +41,7 @@ object Batch {
         val pairs = details.map { detail =>
           val isDone = if (detail.done) "done" else "fail"
           val took   = fmt.format(detail.took)
-          s"${getJobName(detail.job)} $isDone" -> took.asJson
+          s"$isDone ${getJobName(detail.job)}" -> took.asJson
         }
         Json.obj(pairs*)
       }
