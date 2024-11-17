@@ -81,7 +81,7 @@ final class CrRdd[K, V] private[kafka] (
 
   // IO
 
-  def count[F[_]](implicit F: Sync[F]): F[Long] = F.blocking(rdd.count())
+  def count[F[_]](implicit F: Sync[F]): F[Long] = F.interruptible(rdd.count())
 
   def cherryPick[F[_]](partition: Int, offset: Long)(implicit F: Sync[F]): F[Option[NJConsumerRecord[K, V]]] =
     F.blocking(partitionOf(partition).offsetRange(offset, offset).rdd.collect().headOption)

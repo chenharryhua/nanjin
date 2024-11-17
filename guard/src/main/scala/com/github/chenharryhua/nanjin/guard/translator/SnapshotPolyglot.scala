@@ -136,16 +136,12 @@ final class SnapshotPolyglot(snapshot: MetricSnapshot) {
   private val space: String = StringUtils.SPACE
 
   private def gauge_str: List[(MetricID, List[String])] =
-    snapshot.gauges.map { g =>
-      val lst  = prettifyJson.ymlShow(g.value)
-      val name = s"${g.metricId.metricName.name}:"
-      val content = lst match {
-        case Nil        => Nil
-        case one :: Nil => List(s"$name $one")
-        case other      => name :: other.map(space * 2 + _)
-      }
-      g.metricId -> content
-    }.filter(_._2.nonEmpty)
+    snapshot.gauges.mapFilter { g =>
+      val content = JsonF.yml(g.metricId.metricName.name, g.value)
+      if (content.isEmpty) None
+      else
+        Some(g.metricId -> content)
+    }
 
   private def padded(kv: (String, String)): String =
     s"${space * 2}${StringUtils.leftPad(kv._1, 11)}: ${kv._2}"

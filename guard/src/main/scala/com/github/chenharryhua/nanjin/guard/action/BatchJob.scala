@@ -32,6 +32,11 @@ object BatchMode {
     (a: BatchMode) => Json.fromString(a.show)
 }
 
+/** @param name
+  *   optional job name
+  * @param index
+  *   one based index
+  */
 final case class BatchJob(name: Option[String], index: Int)
 
 final case class Detail(job: BatchJob, took: Duration, done: Boolean)
@@ -50,7 +55,7 @@ object QuasiResult {
           Json
             .obj(
               "name" -> d.job.name.asJson,
-              "index" -> Json.fromInt(d.job.index + 1),
+              "index" -> Json.fromInt(d.job.index),
               "took" -> Json.fromString(fmt.format(d.took)),
               "done" -> Json.fromBoolean(d.done))
             .dropNullValues)

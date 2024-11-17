@@ -43,7 +43,7 @@ final class NJTable[A] private[spark] (val dataset: Dataset[A], ate: AvroTypedEn
   def stream[F[_]: Sync](chunkSize: ChunkSize): Stream[F, A] =
     Stream.fromBlockingIterator[F](dataset.toLocalIterator().asScala, chunkSize.value)
 
-  def count[F[_]](implicit F: Sync[F]): F[Long] = F.blocking(dataset.count())
+  def count[F[_]](implicit F: Sync[F]): F[Long] = F.interruptible(dataset.count())
 
   def upload[F[_]](hikariConfig: HikariConfig, tableName: TableName, saveMode: SaveMode)(implicit
     F: Sync[F]): F[Unit] =
