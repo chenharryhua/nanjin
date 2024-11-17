@@ -39,9 +39,8 @@ object Batch {
       if (details.isEmpty) Json.Null
       else {
         val pairs = details.map { detail =>
-          val isDone = if (detail.done) "done" else "fail"
-          val took   = fmt.format(detail.took)
-          s"$isDone ${getJobName(detail.job)}" -> took.asJson
+          val status = if (detail.done) Json.fromString("done") else Json.fromString("fail")
+          getJobName(detail.job) -> Json.obj("status" -> status, "took" -> fmt.format(detail.took).asJson)
         }
         Json.obj(pairs*)
       }
