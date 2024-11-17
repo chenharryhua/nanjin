@@ -7,10 +7,13 @@ import com.github.chenharryhua.nanjin.common.chrono.{Tick, TickStatus}
 
 import scala.jdk.DurationConverters.JavaDurationOps
 
-sealed trait Retry[F[_]] {
+trait SimpleRetry[F[_]] {
+  def apply[A](fa: F[A]): F[A]
+}
+
+sealed trait Retry[F[_]] extends SimpleRetry[F] {
   def apply[A](arrow: (Tick, Option[Throwable]) => F[Either[Throwable, A]]): F[A]
   def apply[A](tfa: Tick => F[A]): F[A]
-  def apply[A](fa: F[A]): F[A]
 
   def apply[A](mt: Kleisli[EitherT[F, Throwable, *], (Tick, Option[Throwable]), A]): F[A]
 }
