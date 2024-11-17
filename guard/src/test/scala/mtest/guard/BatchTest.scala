@@ -38,7 +38,7 @@ class BatchTest extends AnyFunSuite {
           assert(!qr.head.details(5).done)
           qr
         }
-        .use(qr => IO.println(qr.asJson))
+        .use(qr => IO.println(qr.asJson) *> ga.adhoc.report)
     }.map(checkJson).evalTap(console.text[IO]).compile.drain.unsafeRunSync()
   }
 
@@ -63,7 +63,7 @@ class BatchTest extends AnyFunSuite {
           assert(qr.head.details(5).done)
           qr
         }
-        .use(qr => IO.println(qr.asJson))
+        .use(qr => IO.println(qr.asJson) *> ga.adhoc.report)
     }.map(checkJson).evalTap(console.text[IO]).compile.drain.unsafeRunSync()
   }
 

@@ -31,7 +31,7 @@ object Batch {
     protected type DoMeasurement = Kleisli[F, Detail, Unit]
 
     protected def getJobName(job: BatchJob): String = {
-      val lead = s"job-${job.index + 1}"
+      val lead = s"job-${job.index}"
       job.name.fold(lead)(n => s"$lead ($n)")
     }
 
@@ -39,8 +39,10 @@ object Batch {
       if (details.isEmpty) Json.Null
       else {
         val pairs = details.map { detail =>
-          val status = if (detail.done) Json.fromString("done") else Json.fromString("fail")
-          getJobName(detail.job) -> Json.obj("status" -> status, "took" -> fmt.format(detail.took).asJson)
+          if (detail.done)
+            getJobName(detail.job) -> fmt.format(detail.took).asJson
+          else
+            getJobName(detail.job) -> s"${fmt.format(detail.took)} (failed)".asJson
         }
         Json.obj(pairs*)
       }
@@ -176,17 +178,17 @@ object Batch {
 
 final class Batch[F[_]: Async] private[guard] (metrics: Metrics[F]) {
   def sequential[A](fas: F[A]*): Batch.Sequential[F, A] = {
-    val jobs = fas.toList.zipWithIndex.map { case (fa, idx) => BatchJob(none, idx) -> fa }
+    val jobs = fas.toList.zipWithIndex.map { case (fa, idx) => BatchJob(none, idx + 1) -> fa }
     new Batch.Sequential[F, A](metrics, jobs)
   }
 
   def namedSequential[A](fas: (String, F[A])*): Batch.Sequential[F, A] = {
-    val jobs = fas.toList.zipWithIndex.map { case ((name, fa), idx) => BatchJob(name.some, idx) -> fa }
+    val jobs = fas.toList.zipWithIndex.map { case ((name, fa), idx) => BatchJob(name.some, idx + 1) -> fa }
     new Batch.Sequential[F, A](metrics, jobs)
   }
 
   def parallel[A](parallelism: Int)(fas: F[A]*): Batch.Parallel[F, A] = {
-    val jobs = fas.toList.zipWithIndex.map { case (fa, idx) => BatchJob(none, idx) -> fa }
+    val jobs = fas.toList.zipWithIndex.map { case (fa, idx) => BatchJob(none, idx + 1) -> fa }
     new Batch.Parallel[F, A](metrics, parallelism, jobs)
   }
 
@@ -194,7 +196,7 @@ final class Batch[F[_]: Async] private[guard] (metrics: Metrics[F]) {
     parallel[A](fas.size)(fas*)
 
   def namedParallel[A](parallelism: Int)(fas: (String, F[A])*): Batch.Parallel[F, A] = {
-    val jobs = fas.toList.zipWithIndex.map { case ((name, fa), idx) => BatchJob(name.some, idx) -> fa }
+    val jobs = fas.toList.zipWithIndex.map { case ((name, fa), idx) => BatchJob(name.some, idx + 1) -> fa }
     new Batch.Parallel[F, A](metrics, parallelism, jobs)
   }
 
