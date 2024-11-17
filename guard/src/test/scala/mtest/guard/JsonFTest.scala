@@ -40,4 +40,8 @@ class JsonFTest extends AnyFunSuite {
     assert(JsonF.yml("name", json).head == "name: [true, true, false]")
   }
 
+  test("array - json") {
+    val json = List(true.asJson, Json.Null, false.asJson).asJson
+    assert(JsonF.yml("name", json).head == "name: [true, null, false]")
+  }
 }
