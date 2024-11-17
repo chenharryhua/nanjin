@@ -67,11 +67,12 @@ final class CloudWatchObserver[F[_]: Concurrent] private (
     } yield {
       val (dur, category) = hf.pick(timer)
       MetricKey(
+        timestamp = report.timestamp.toInstant,
         serviceParams = report.serviceParams,
         metricLabel = timer.metricId.metricLabel,
         metricName = s"${timer.metricId.metricName.name}_$category",
         standardUnit = CloudWatchTimeUnit.toStandardUnit(unitNormalization.timeUnit)
-      ).metricDatum(report.timestamp.toInstant, unitNormalization.normalize(dur).value)
+      ).metricDatum(unitNormalization.normalize(dur).value)
     }
 
     val histograms: List[MetricDatum] = for {
@@ -81,11 +82,12 @@ final class CloudWatchObserver[F[_]: Concurrent] private (
       val (value, category)      = hf.pick(histo)
       val Normalized(data, unit) = unitNormalization.normalize(histo.histogram.unit, value)
       MetricKey(
+        timestamp = report.timestamp.toInstant,
         serviceParams = report.serviceParams,
         metricLabel = histo.metricId.metricLabel,
         metricName = s"${histo.metricId.metricName.name}_$category",
         standardUnit = CloudWatchTimeUnit.toStandardUnit(unit)
-      ).metricDatum(report.timestamp.toInstant, data)
+      ).metricDatum(data)
     }
 
     val timer_count: List[MetricDatum] =
@@ -93,12 +95,13 @@ final class CloudWatchObserver[F[_]: Concurrent] private (
         val calls: Long = timer.timer.calls
         val delta: Long = lookup.get(timer.metricId.metricName.uuid).fold(calls)(calls - _)
         MetricKey(
+          timestamp = report.timestamp.toInstant,
           serviceParams = report.serviceParams,
           metricLabel = timer.metricId.metricLabel,
           metricName = timer.metricId.metricName.name,
           standardUnit = StandardUnit.COUNT
-        ).metricDatum(report.timestamp.toInstant, delta.toDouble)
-      }
+        ) -> delta.toDouble
+      }.groupBy(_._1).toList.map { case (key, lst) => key.metricDatum(lst.map(_._2).sum) }
 
     val meter_count: List[MetricDatum] =
       report.snapshot.meters.map { meter =>
@@ -106,12 +109,13 @@ final class CloudWatchObserver[F[_]: Concurrent] private (
         val value: Long             = lookup.get(meter.metricId.metricName.uuid).fold(sum)(sum - _)
         val Normalized(delta, unit) = unitNormalization.normalize(meter.meter.unit, value)
         MetricKey(
+          timestamp = report.timestamp.toInstant,
           serviceParams = report.serviceParams,
           metricLabel = meter.metricId.metricLabel,
           metricName = meter.metricId.metricName.name,
           standardUnit = CloudWatchTimeUnit.toStandardUnit(unit)
-        ).metricDatum(report.timestamp.toInstant, delta)
-      }
+        ) -> delta
+      }.groupBy(_._1).toList.map { case (key, lst) => key.metricDatum(lst.map(_._2).sum) }
 
     val histogram_count: List[MetricDatum] =
       if (histogramB.includeUpdate)
@@ -119,12 +123,13 @@ final class CloudWatchObserver[F[_]: Concurrent] private (
           val updates: Long = histo.histogram.updates
           val delta: Long   = lookup.get(histo.metricId.metricName.uuid).fold(updates)(updates - _)
           MetricKey(
+            timestamp = report.timestamp.toInstant,
             serviceParams = report.serviceParams,
             metricLabel = histo.metricId.metricLabel,
             metricName = histo.metricId.metricName.name,
             standardUnit = StandardUnit.COUNT
-          ).metricDatum(report.timestamp.toInstant, delta.toDouble)
-        }
+          ) -> delta.toDouble
+        }.groupBy(_._1).toList.map { case (key, lst) => key.metricDatum(lst.map(_._2).sum) }
       else Nil
 
     timer_count ::: meter_count ::: histogram_count ::: timer_histo ::: histograms
@@ -156,6 +161,7 @@ final class CloudWatchObserver[F[_]: Concurrent] private (
   }
 
   private case class MetricKey(
+    timestamp: Instant,
     serviceParams: ServiceParams,
     metricLabel: MetricLabel,
     metricName: String,
@@ -168,13 +174,13 @@ final class CloudWatchObserver[F[_]: Concurrent] private (
     private val dimensions: util.List[Dimension] =
       dimensionBuilder(new DimensionBuilder(serviceParams, permanent)).build
 
-    def metricDatum(ts: Instant, value: Double): MetricDatum =
+    def metricDatum(value: Double): MetricDatum =
       MetricDatum
         .builder()
         .dimensions(dimensions)
         .metricName(metricName)
         .unit(standardUnit)
-        .timestamp(ts)
+        .timestamp(timestamp)
         .value(value)
         .storageResolution(storageResolution)
         .build()

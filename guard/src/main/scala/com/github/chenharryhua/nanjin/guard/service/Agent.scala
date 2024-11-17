@@ -42,7 +42,7 @@ sealed trait Agent[F[_]] {
 
   // convenience
   def simpleRetry(label: String, policy: Policy)(implicit C: Console[F]): Resource[F, SimpleRetry[F]]
-  def simpleRetry(label: String, f: Policy.type => Policy)(implicit
+  final def simpleRetry(label: String, f: Policy.type => Policy)(implicit
     C: Console[F]): Resource[F, SimpleRetry[F]] =
     simpleRetry(label, f(Policy))
 }
@@ -91,8 +91,8 @@ final private class GeneralAgent[F[_]: Async] private[service] (
         retry <- createRetry(policy)
       } yield new SimpleRetry[F] {
         override def apply[A](fa: F[A]): F[A] =
-          F.guaranteeCase[A](retry { (tick: Tick, oe: Option[Throwable]) =>
-            oe match {
+          F.guaranteeCase[A](retry { (tick: Tick, ot: Option[Throwable]) =>
+            ot match {
               case Some(ex) =>
                 val json = Json.obj(
                   "retries" -> tick.index.asJson,
