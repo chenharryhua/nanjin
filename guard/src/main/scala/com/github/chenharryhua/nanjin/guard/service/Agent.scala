@@ -13,7 +13,6 @@ import com.github.chenharryhua.nanjin.guard.translator.fmt
 import fs2.Stream
 import fs2.concurrent.Channel
 import io.circe.Json
-import io.circe.syntax.EncoderOps
 
 import java.time.ZoneId
 
@@ -107,12 +106,12 @@ final private class GeneralAgent[F[_]: Async] private[service] (
           F.guaranteeCase[A](retry { (tick: Tick, ot: Option[Throwable]) =>
             ot match {
               case Some(ex) =>
-                val json = Json.obj(
-                  "retries" -> tick.index.asJson,
-                  "snoozed" -> fmt.format(tick.snooze).asJson,
-                  "measurement" -> fac.metricLabel.measurement.value.asJson,
-                  "label" -> fac.metricLabel.label.asJson,
-                  "policy" -> policy.show.asJson
+                val json: Json = Json.obj(
+                  "description" -> Json.fromString(s"retry $label"),
+                  "retries" -> Json.fromLong(tick.index),
+                  "snoozed" -> Json.fromString(fmt.format(tick.snooze)),
+                  "measurement" -> Json.fromString(fac.metricLabel.measurement.value),
+                  "retry_policy" -> Json.fromString(policy.show)
                 )
                 retryCounter.inc(1) *>
                   herald.consoleWarn(ex)(json) *>
@@ -123,10 +122,15 @@ final private class GeneralAgent[F[_]: Async] private[service] (
             case Outcome.Succeeded(_) => recentlyCounter.inc(1)
             case Outcome.Errored(e) =>
               failCounter.inc(1) *>
-                herald.error(e)(s"${fac.metricLabel.label} was failed")
+                herald.error(e)(
+                  Json.obj(
+                    "description" -> Json.fromString(s"$label was failed"),
+                    "measurement" -> Json.fromString(fac.metricLabel.measurement.value),
+                    "retry_policy" -> Json.fromString(policy.show)
+                  ))
             case Outcome.Canceled() =>
               cancelCounter.inc(1) *>
-                herald.consoleWarn(s"${fac.metricLabel.label} was canceled")
+                herald.consoleWarn(s"$label was canceled")
           }
       }
     }
