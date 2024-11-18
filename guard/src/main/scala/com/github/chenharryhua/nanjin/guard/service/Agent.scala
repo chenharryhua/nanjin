@@ -24,16 +24,14 @@ sealed trait Agent[F[_]] {
 
   def batch(label: String): Batch[F]
 
-  /**
-   * start from first tick
-   */
+  /** start from first tick
+    */
   def ticks(policy: Policy): Stream[F, Tick]
   final def ticks(f: Policy.type => Policy): Stream[F, Tick] =
     ticks(f(Policy))
 
-  /**
-   * start from zeroth tick immediately
-   */
+  /** start from zeroth tick immediately
+    */
   def tickImmediately(policy: Policy): Stream[F, Tick]
   final def tickImmediately(f: Policy.type => Policy): Stream[F, Tick] =
     tickImmediately(f(Policy))
@@ -101,6 +99,7 @@ final private class GeneralAgent[F[_]: Async] private[service] (
         failCounter <- fac.permanentCounter("failed")
         cancelCounter <- fac.permanentCounter("canceled")
         retryCounter <- fac.counter("retries")
+        recentlyCounter <- fac.counter("recently")
         timer <- fac.timer("timer")
         retry <- createRetry(policy)
       } yield new SimpleRetry[F] {
@@ -121,7 +120,7 @@ final private class GeneralAgent[F[_]: Async] private[service] (
               case None => timer.timing(fa).map(Right(_))
             }
           }) {
-            case Outcome.Succeeded(_) => F.unit
+            case Outcome.Succeeded(_) => recentlyCounter.inc(1)
             case Outcome.Errored(e) =>
               failCounter.inc(1) *>
                 herald.error(e)(s"${fac.metricLabel.label} was failed")
