@@ -1,6 +1,11 @@
 ThisBuild / version      := "0.18.0-SNAPSHOT"
 ThisBuild / scalaVersion := "2.13.15"
 
+ThisBuild / versionScheme := Some("early-semver")
+
+ThisBuild / Test / parallelExecution := false
+ThisBuild / Test / logBuffered       := false
+
 Global / parallelExecution := false
 
 val acyclicV    = "0.3.15"
@@ -41,7 +46,6 @@ val sparkV      = "3.5.3"
 lazy val commonSettings = List(
   organization       := "com.github.chenharryhua",
   evictionErrorLevel := Level.Info,
-  versionScheme      := Some("early-semver"),
   resolvers ++=
     Resolver.sonatypeOssRepos("public") ++
       Resolver.sonatypeOssRepos("releases") :+
@@ -62,10 +66,8 @@ lazy val commonSettings = List(
     "-Vcyclic",
     "-P:acyclic:warn"
   ),
-  Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat,
   Compile / tpolecatExcludeOptions += org.typelevel.scalacoptions.ScalacOptions.warnNonUnitStatement,
-  Test / parallelExecution := false,
-  Test / logBuffered := false
+  Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat
 )
 
 val circeLib = List(
