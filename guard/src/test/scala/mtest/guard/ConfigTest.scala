@@ -1,12 +1,16 @@
 package mtest.guard
 
 import cats.effect.IO
+import cats.effect.unsafe.implicits.global
+import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.common.chrono.Policy.*
 import com.github.chenharryhua.nanjin.common.chrono.zones.berlinTime
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.translator.*
 import io.circe.Json
 import org.scalatest.funsuite.AnyFunSuite
+
+import scala.concurrent.duration.DurationInt
 
 class ConfigTest extends AnyFunSuite {
   val task: TaskGuard[IO] =
@@ -23,6 +27,15 @@ class ConfigTest extends AnyFunSuite {
     assert(en.camelJson == Json.fromString("serviceStart"))
     assert(en.snakeJson == Json.fromString("service_start"))
     assert(en.compactJson == Json.fromString("ServiceStart"))
+  }
+
+  test("tick") {
+    TaskGuard[IO]("tick")
+      .service("tick")
+      .eventStreamS(_.tickImmediately(Policy.fixedDelay(1.seconds).limited(5)).debug())
+      .compile
+      .drain
+      .unsafeRunSync()
   }
 
 }

@@ -24,10 +24,19 @@ sealed trait Agent[F[_]] {
 
   def batch(label: String): Batch[F]
 
-  // tick stream
+  /**
+   * start from first tick
+   */
   def ticks(policy: Policy): Stream[F, Tick]
   final def ticks(f: Policy.type => Policy): Stream[F, Tick] =
     ticks(f(Policy))
+
+  /**
+   * start from zeroth tick immediately
+   */
+  def tickImmediately(policy: Policy): Stream[F, Tick]
+  final def tickImmediately(f: Policy.type => Policy): Stream[F, Tick] =
+    tickImmediately(f(Policy))
 
   // metrics adhoc report
   def adhoc: MetricsReport[F]
@@ -66,6 +75,11 @@ final private class GeneralAgent[F[_]: Async] private[service] (
 
   override def ticks(policy: Policy): Stream[F, Tick] =
     tickStream[F](TickStatus(serviceParams.zerothTick).renewPolicy(policy))
+
+  override def tickImmediately(policy: Policy): Stream[F, Tick] = {
+    val zero: F[TickStatus] = TickStatus.zeroth(policy, zoneId)
+    Stream.eval(zero).flatMap(ts => Stream(ts.tick) ++ tickStream(ts))
+  }
 
   override object adhoc extends MetricsReport[F](channel, serviceParams, metricRegistry)
 
