@@ -34,7 +34,8 @@ final class HadoopText[F[_]] private (configuration: Configuration) extends Hado
     // save
     (ss: Stream[F, Chunk[String]]) =>
       Stream.eval(TickStatus.zeroth[F](policy, zoneId)).flatMap { zero =>
-        val ticks: Stream[F, Either[Chunk[String], Tick]] = tickStream[F](zero).map(Right(_))
+        val ticks: Stream[F, Either[Chunk[String], Tick]] =
+          tickStream.fromTickStatus[F](zero).map(Right(_))
 
         Stream.resource(Hotswap(get_writer(zero.tick))).flatMap { case (hotswap, writer) =>
           periodically

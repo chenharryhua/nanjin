@@ -38,7 +38,8 @@ final class HadoopJackson[F[_]] private (configuration: Configuration, schema: S
     // save
     (ss: Stream[F, Chunk[GenericRecord]]) =>
       Stream.eval(TickStatus.zeroth[F](policy, zoneId)).flatMap { zero =>
-        val ticks: Stream[F, Either[Chunk[GenericRecord], Tick]] = tickStream[F](zero).map(Right(_))
+        val ticks: Stream[F, Either[Chunk[GenericRecord], Tick]] =
+          tickStream.fromTickStatus[F](zero).map(Right(_))
 
         Stream.resource(Hotswap(get_writer(zero.tick))).flatMap { case (hotswap, writer) =>
           periodically

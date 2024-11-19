@@ -72,7 +72,7 @@ class PolicyCombinatorTest extends AnyFunSuite {
 
     val ts: TickStatus = zeroTickStatus.renewPolicy(policy)
 
-    val List(a1, a2, a3, a4, a5, a6) = tickLazyList(ts).take(6).toList
+    val List(a1, a2, a3, a4, a5, a6) = tickLazyList.fromTickStatus(ts).take(6).toList
 
     assert(a1.index == 1)
     assert(a2.index == 2)
@@ -99,7 +99,7 @@ class PolicyCombinatorTest extends AnyFunSuite {
 
     val ts: TickStatus = zeroTickStatus.renewPolicy(policy)
 
-    val List(a1, a2, a3, a4, a5, a6) = tickLazyList(ts).take(6).toList
+    val List(a1, a2, a3, a4, a5, a6) = tickLazyList.fromTickStatus(ts).take(6).toList
 
     assert(a1.index == 1)
     assert(a2.index == 2)
@@ -125,7 +125,7 @@ class PolicyCombinatorTest extends AnyFunSuite {
 
     val ts: TickStatus = zeroTickStatus.renewPolicy(policy)
 
-    val List(a1, a2, a3, a4, a5, a6) = tickLazyList(ts).take(6).toList
+    val List(a1, a2, a3, a4, a5, a6) = tickLazyList.fromTickStatus(ts).take(6).toList
 
     assert(a1.index == 1)
     assert(a2.index == 2)
@@ -149,7 +149,7 @@ class PolicyCombinatorTest extends AnyFunSuite {
 
     val loop: Long     = 1000000
     val ts: TickStatus = zeroTickStatus.renewPolicy(policy)
-    val tick           = tickLazyList(ts).dropWhile(_.index < loop).take(1).head
+    val tick           = tickLazyList.fromTickStatus(ts).dropWhile(_.index < loop).take(1).head
     assert(tick.index == loop)
   }
 
@@ -215,7 +215,7 @@ class PolicyCombinatorTest extends AnyFunSuite {
     println(policy.asJson)
     assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
 
-    val ticks  = tickLazyList(zeroTickStatus.renewPolicy(policy)).take(8).toList
+    val ticks  = tickLazyList.fromTickStatus(zeroTickStatus.renewPolicy(policy)).take(8).toList
     val wakeup = ticks.map(_.zonedWakeup.toLocalTime)
     assert(wakeup.size == 8)
     assert(wakeup.head == localTimes.threeAM)
@@ -233,7 +233,7 @@ class PolicyCombinatorTest extends AnyFunSuite {
     println(policy.show)
     println(policy.asJson)
     assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
-    val ticks  = tickLazyList(zeroTickStatus.renewPolicy(policy)).take(32).toList
+    val ticks  = tickLazyList.fromTickStatus(zeroTickStatus.renewPolicy(policy)).take(32).toList
     val wakeup = ticks.map(_.zonedWakeup.toLocalTime.getSecond)
     wakeup.forall(_ == 3)
   }
@@ -245,7 +245,7 @@ class PolicyCombinatorTest extends AnyFunSuite {
     assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
 
     val ts    = zeroTickStatus.renewPolicy(policy)
-    val ticks = tickLazyList(ts).take(10).toList
+    val ticks = tickLazyList.fromTickStatus(ts).take(10).toList
 
     ticks.foreach(tk => println(tk))
   }
@@ -254,7 +254,7 @@ class PolicyCombinatorTest extends AnyFunSuite {
     val policy = Policy.fixedDelay(36500.days)
     println(policy.show)
     println(policy.asJson)
-    val ticks = tickLazyList(policy, sydneyTime).take(10).toList
+    val ticks = tickLazyList.fromOne(policy, sydneyTime).take(10).toList
     ticks.foreach(tk => println(tk))
   }
 }

@@ -47,13 +47,17 @@ sealed trait Agent[F[_]] {
     createRetry(f(Policy))
 
   // convenience
-  def simpleRetry(label: String, policy: Policy)(implicit C: Console[F]): Resource[F, SimpleRetry[F]]
-  final def simpleRetry(label: String, f: Policy.type => Policy)(implicit
+  def measuredRetry(label: String, policy: Policy): Resource[F, SimpleRetry[F]]
+  final def measuredRetry(label: String, f: Policy.type => Policy): Resource[F, SimpleRetry[F]] =
+    measuredRetry(label, f(Policy))
+
+  def heavyRetry(label: String, policy: Policy)(implicit C: Console[F]): Resource[F, SimpleRetry[F]]
+  final def heavyRetry(label: String, f: Policy.type => Policy)(implicit
     C: Console[F]): Resource[F, SimpleRetry[F]] =
-    simpleRetry(label, f(Policy))
+    heavyRetry(label, f(Policy))
 }
 
-final private class GeneralAgent[F[_]: Async] private[service] (
+final private class GeneralAgent[F[_]: Async](
   serviceParams: ServiceParams,
   metricRegistry: MetricRegistry,
   channel: Channel[F, NJEvent],
@@ -71,14 +75,10 @@ final private class GeneralAgent[F[_]: Async] private[service] (
   }
 
   override def ticks(policy: Policy): Stream[F, Tick] =
-    tickStream[F](TickStatus(serviceParams.zerothTick).renewPolicy(policy))
+    tickStream.fromTickStatus[F](TickStatus(serviceParams.zerothTick).renewPolicy(policy))
 
-  override def tickImmediately(policy: Policy): Stream[F, Tick] = {
-    val zero: F[TickStatus] = TickStatus.zeroth(policy, zoneId)
-    Stream.eval(zero).flatMap(ts => Stream(ts.tick) ++ tickStream(ts))
-  }
-
-  override object adhoc extends MetricsReport[F](channel, serviceParams, metricRegistry)
+  override def tickImmediately(policy: Policy): Stream[F, Tick] =
+    tickStream.fromZero(policy, zoneId)
 
   override def createRetry(policy: Policy): Resource[F, Retry[F]] =
     Resource.pure(new Retry.Impl[F](serviceParams.initialStatus.renewPolicy(policy)))
@@ -88,17 +88,43 @@ final private class GeneralAgent[F[_]: Async] private[service] (
     f(new Metrics.Impl[F](metricLabel, metricRegistry))
   }
 
-  override val herald: Herald[F] =
-    new Herald.Impl[F](serviceParams, channel)
+  override object adhoc extends MetricsReport[F](channel, serviceParams, metricRegistry)
+  override object herald extends Herald.Impl[F](serviceParams, channel)
 
-  def simpleRetry(label: String, policy: Policy)(implicit C: Console[F]): Resource[F, SimpleRetry[F]] =
+  private val F = Async[F]
+
+  override def measuredRetry(label: String, policy: Policy): Resource[F, SimpleRetry[F]] =
     facilitate(label) { fac =>
-      val F = Async[F]
       for {
         failCounter <- fac.permanentCounter("failed")
         cancelCounter <- fac.permanentCounter("canceled")
         retryCounter <- fac.counter("retries")
-        recentlyCounter <- fac.counter("recently")
+        recentCounter <- fac.counter("recent")
+        timer <- fac.timer("timer")
+        retry <- createRetry(policy)
+      } yield new SimpleRetry[F] {
+        override def apply[A](fa: F[A]): F[A] =
+          F.guaranteeCase[A](retry { (_: Tick, ot: Option[Throwable]) =>
+            ot match {
+              case Some(_) => retryCounter.inc(1) *> timer.timing(fa).map(Right(_))
+              case None    => timer.timing(fa).map(Right(_))
+            }
+          }) {
+            case Outcome.Succeeded(_) => recentCounter.inc(1)
+            case Outcome.Errored(_)   => failCounter.inc(1)
+            case Outcome.Canceled()   => cancelCounter.inc(1)
+          }
+      }
+    }
+
+  override def heavyRetry(label: String, policy: Policy)(implicit
+    C: Console[F]): Resource[F, SimpleRetry[F]] =
+    facilitate(label) { fac =>
+      for {
+        failCounter <- fac.permanentCounter("failed")
+        cancelCounter <- fac.permanentCounter("canceled")
+        retryCounter <- fac.counter("retries")
+        recentCounter <- fac.counter("recent")
         timer <- fac.timer("timer")
         retry <- createRetry(policy)
       } yield new SimpleRetry[F] {
@@ -106,31 +132,28 @@ final private class GeneralAgent[F[_]: Async] private[service] (
           F.guaranteeCase[A](retry { (tick: Tick, ot: Option[Throwable]) =>
             ot match {
               case Some(ex) =>
-                val json: Json = Json.obj(
+                val json = Json.obj(
                   "description" -> Json.fromString(s"retry $label"),
-                  "retries" -> Json.fromLong(tick.index),
+                  "nth_retry" -> Json.fromLong(tick.index),
                   "snoozed" -> Json.fromString(fmt.format(tick.snooze)),
                   "measurement" -> Json.fromString(fac.metricLabel.measurement.value),
                   "retry_policy" -> Json.fromString(policy.show)
                 )
-                retryCounter.inc(1) *>
-                  herald.consoleWarn(ex)(json) *>
-                  timer.timing(fa).map(Right(_))
+                herald.consoleWarn(ex)(json) *>
+                  retryCounter.inc(1) *> timer.timing(fa).map(Right(_))
               case None => timer.timing(fa).map(Right(_))
             }
           }) {
-            case Outcome.Succeeded(_) => recentlyCounter.inc(1)
+            case Outcome.Succeeded(_) => recentCounter.inc(1)
             case Outcome.Errored(e) =>
-              failCounter.inc(1) *>
-                herald.error(e)(
-                  Json.obj(
-                    "description" -> Json.fromString(s"$label was failed"),
-                    "measurement" -> Json.fromString(fac.metricLabel.measurement.value),
-                    "retry_policy" -> Json.fromString(policy.show)
-                  ))
+              val json = Json.obj(
+                "description" -> Json.fromString(s"$label was failed"),
+                "measurement" -> Json.fromString(fac.metricLabel.measurement.value),
+                "retry_policy" -> Json.fromString(policy.show)
+              )
+              herald.error(e)(json) *> failCounter.inc(1)
             case Outcome.Canceled() =>
-              cancelCounter.inc(1) *>
-                herald.consoleWarn(s"$label was canceled")
+              herald.error(s"$label was canceled") *> cancelCounter.inc(1)
           }
       }
     }

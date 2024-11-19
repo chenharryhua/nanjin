@@ -9,7 +9,7 @@ class PolicyTest extends AnyFunSuite {
     val policy =
       Policy.crontab(_.monthly)
 
-    tickLazyList(policy).take(50).foreach(println)
+    tickLazyList.fromOne(policy).take(50).foreach(println)
   }
 
 }
