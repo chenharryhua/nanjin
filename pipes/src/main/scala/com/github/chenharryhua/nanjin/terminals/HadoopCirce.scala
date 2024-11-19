@@ -1,10 +1,9 @@
 package com.github.chenharryhua.nanjin.terminals
 
 import cats.effect.kernel.{Async, Resource, Sync}
-import cats.effect.std.Hotswap
 import cats.implicits.toFunctorOps
 import com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
-import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick, TickStatus}
+import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick}
 import fs2.{Chunk, Pipe, Stream}
 import io.circe.Json
 import io.circe.jackson.circeToJackson
@@ -30,31 +29,18 @@ final class HadoopCirce[F[_]] private (configuration: Configuration) extends Had
       }
   }
 
-  def sink(policy: Policy, zoneId: ZoneId)(pathBuilder: Tick => Url)(implicit
-    F: Async[F]): Pipe[F, Chunk[Json], Int] = {
+  def sink(paths: Stream[F, Url])(implicit F: Async[F]): Pipe[F, Chunk[Json], Int] = {
     val mapper: ObjectMapper = new ObjectMapper() // create ObjectMapper is expensive
 
-    def get_writer(tick: Tick): Resource[F, HadoopWriter[F, JsonNode]] =
-      HadoopWriter.jsonNodeR[F](configuration, toHadoopPath(pathBuilder(tick)), mapper)
+    def get_writer(url: Url): Resource[F, HadoopWriter[F, JsonNode]] =
+      HadoopWriter.jsonNodeR[F](configuration, toHadoopPath(url), mapper)
 
-    // save
-    (ss: Stream[F, Chunk[Json]]) =>
-      Stream.eval(TickStatus.zeroth[F](policy, zoneId)).flatMap { zero =>
-        val ticks: Stream[F, Either[Chunk[JsonNode], Tick]] =
-          tickStream.fromTickStatus[F](zero).map(Right(_))
-
-        Stream.resource(Hotswap(get_writer(zero.tick))).flatMap { case (hotswap, writer) =>
-          periodically
-            .persist[F, JsonNode](
-              get_writer,
-              hotswap,
-              writer,
-              ss.map(c => Left(c.map(circeToJackson))).mergeHaltBoth(ticks)
-            )
-            .stream
-        }
-      }
+    (ss: Stream[F, Chunk[Json]]) => periodically.persist(ss.map(_.map(circeToJackson)), paths, get_writer)
   }
+
+  def sink(policy: Policy, zoneId: ZoneId)(pathBuilder: Tick => Url)(implicit
+    F: Async[F]): Pipe[F, Chunk[Json], Int] =
+    sink(tickStream.fromZero(policy, zoneId).map(pathBuilder))
 }
 
 object HadoopCirce {
