@@ -15,6 +15,7 @@ import fs2.concurrent.Channel
 import io.circe.Json
 
 import java.time.ZoneId
+import scala.concurrent.duration.FiniteDuration
 
 sealed trait Agent[F[_]] {
   def zoneId: ZoneId
@@ -46,7 +47,7 @@ sealed trait Agent[F[_]] {
   final def createRetry(f: Policy.type => Policy): Resource[F, Retry[F]] =
     createRetry(f(Policy))
 
-  // convenience
+  // for convenience
   def measuredRetry(label: String, policy: Policy): Resource[F, SimpleRetry[F]]
   final def measuredRetry(label: String, f: Policy.type => Policy): Resource[F, SimpleRetry[F]] =
     measuredRetry(label, f(Policy))
@@ -57,11 +58,11 @@ sealed trait Agent[F[_]] {
     heavyRetry(label, f(Policy))
 }
 
-final private class GeneralAgent[F[_]: Async](
+final private class GeneralAgent[F[_]](
   serviceParams: ServiceParams,
   metricRegistry: MetricRegistry,
   channel: Channel[F, NJEvent],
-  measurement: Measurement)
+  measurement: Measurement)(implicit F: Async[F])
     extends Agent[F] {
 
   override val zoneId: ZoneId = serviceParams.zoneId
@@ -91,8 +92,6 @@ final private class GeneralAgent[F[_]: Async](
   override object adhoc extends MetricsReport[F](channel, serviceParams, metricRegistry)
   override object herald extends Herald.Impl[F](serviceParams, channel)
 
-  private val F = Async[F]
-
   override def measuredRetry(label: String, policy: Policy): Resource[F, SimpleRetry[F]] =
     facilitate(label) { fac =>
       for {
@@ -104,16 +103,16 @@ final private class GeneralAgent[F[_]: Async](
         retry <- createRetry(policy)
       } yield new SimpleRetry[F] {
         override def apply[A](fa: F[A]): F[A] =
-          F.guaranteeCase[A](retry { (_: Tick, ot: Option[Throwable]) =>
+          F.guaranteeCase[(FiniteDuration, A)](retry { (_: Tick, ot: Option[Throwable]) =>
             ot match {
-              case Some(_) => retryCounter.inc(1) *> timer.timing(fa).map(Right(_))
-              case None    => timer.timing(fa).map(Right(_))
+              case Some(_) => retryCounter.inc(1) *> F.timed(fa).map(Right(_))
+              case None    => F.timed(fa).map(Right(_))
             }
           }) {
-            case Outcome.Succeeded(_) => recentCounter.inc(1)
-            case Outcome.Errored(_)   => failCounter.inc(1)
-            case Outcome.Canceled()   => cancelCounter.inc(1)
-          }
+            case Outcome.Succeeded(ra) => F.flatMap(ra)(a => timer.update(a._1)) *> recentCounter.inc(1)
+            case Outcome.Errored(_)    => failCounter.inc(1)
+            case Outcome.Canceled()    => cancelCounter.inc(1)
+          }.map(_._2)
       }
     }
 
@@ -129,7 +128,7 @@ final private class GeneralAgent[F[_]: Async](
         retry <- createRetry(policy)
       } yield new SimpleRetry[F] {
         override def apply[A](fa: F[A]): F[A] =
-          F.guaranteeCase[A](retry { (tick: Tick, ot: Option[Throwable]) =>
+          F.guaranteeCase[(FiniteDuration, A)](retry { (tick: Tick, ot: Option[Throwable]) =>
             ot match {
               case Some(ex) =>
                 val json = Json.obj(
@@ -140,11 +139,14 @@ final private class GeneralAgent[F[_]: Async](
                   "retry_policy" -> Json.fromString(policy.show)
                 )
                 herald.consoleWarn(ex)(json) *>
-                  retryCounter.inc(1) *> timer.timing(fa).map(Right(_))
-              case None => timer.timing(fa).map(Right(_))
+                  retryCounter.inc(1) *>
+                  F.timed(fa).map(Right(_))
+              case None => F.timed(fa).map(Right(_))
             }
           }) {
-            case Outcome.Succeeded(_) => recentCounter.inc(1)
+            case Outcome.Succeeded(ra) =>
+              F.flatMap(ra)(a => timer.update(a._1)) *>
+                recentCounter.inc(1)
             case Outcome.Errored(e) =>
               val json = Json.obj(
                 "description" -> Json.fromString(s"$label was failed"),
@@ -154,7 +156,7 @@ final private class GeneralAgent[F[_]: Async](
               herald.error(e)(json) *> failCounter.inc(1)
             case Outcome.Canceled() =>
               herald.error(s"$label was canceled") *> cancelCounter.inc(1)
-          }
+          }.map(_._2)
       }
     }
 }
