@@ -5,7 +5,7 @@ import cats.effect.kernel.{Async, Resource, Sync}
 import cats.effect.std.Hotswap
 import cats.implicits.toFunctorOps
 import com.github.chenharryhua.nanjin.common.ChunkSize
-import com.github.chenharryhua.nanjin.common.chrono.{Policy, Tick, tickStream}
+import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick}
 import fs2.{Chunk, Pipe, Pull, Stream}
 import io.lemonlabs.uri.Url
 import kantan.csv.CsvConfiguration.Header
@@ -75,6 +75,7 @@ final class HadoopKantan[F[_]] private (
       HadoopWriter.csvStringR[F](configuration, toHadoopPath(url))
 
     (ss: Stream[F, Chunk[Seq[String]]]) =>
+      val encodedSrc: Stream[F, Chunk[String]] = ss.map(_.map(csvRow(csvConfiguration)))
       if (csvConfiguration.hasHeader) {
         val header: Chunk[String] = csvHeader(csvConfiguration)
         paths.pull.uncons1.flatMap {
@@ -88,7 +89,7 @@ final class HadoopKantan[F[_]] private (
                       get_writer,
                       hotswap,
                       writer,
-                      ss.map(_.map(csvRow(csvConfiguration))).map(Left(_)).mergeHaltBoth(tail.map(Right(_))),
+                      encodedSrc.map(Left(_)).mergeHaltBoth(tail.map(Right(_))),
                       header
                     )
                     .stream
@@ -97,8 +98,7 @@ final class HadoopKantan[F[_]] private (
               .echo
           case None => Pull.done
         }.stream
-
-      } else periodically.persist(ss.map(_.map(csvRow(csvConfiguration))), paths, get_writer)
+      } else periodically.persist(encodedSrc, paths, get_writer)
   }
 
   def sink(policy: Policy, zoneId: ZoneId)(pathBuilder: Tick => Url)(implicit
