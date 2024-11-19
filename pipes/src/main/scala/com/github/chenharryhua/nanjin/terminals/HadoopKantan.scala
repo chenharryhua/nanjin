@@ -5,8 +5,8 @@ import cats.effect.kernel.{Async, Resource, Sync}
 import cats.effect.std.Hotswap
 import cats.implicits.toFunctorOps
 import com.github.chenharryhua.nanjin.common.ChunkSize
-import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick, TickStatus}
-import fs2.{Chunk, Pipe, Stream}
+import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick}
+import fs2.{Chunk, Pipe, Pull, Stream}
 import io.lemonlabs.uri.Url
 import kantan.csv.CsvConfiguration.Header
 import kantan.csv.engine.ReaderEngine
@@ -70,46 +70,40 @@ final class HadoopKantan[F[_]] private (
       }
   }
 
-  def sink(policy: Policy, zoneId: ZoneId)(pathBuilder: Tick => Url)(implicit
-    F: Async[F]): Pipe[F, Chunk[Seq[String]], Int] = {
+  def sink(paths: Stream[F, Url])(implicit F: Async[F]): Pipe[F, Chunk[Seq[String]], Int] = {
+    def get_writer(url: Url): Resource[F, HadoopWriter[F, String]] =
+      HadoopWriter.csvStringR[F](configuration, toHadoopPath(url))
 
-    def get_writer(tick: Tick): Resource[F, HadoopWriter[F, String]] =
-      HadoopWriter.csvStringR[F](configuration, toHadoopPath(pathBuilder(tick)))
-
-    // save
     (ss: Stream[F, Chunk[Seq[String]]]) =>
-      Stream.eval(TickStatus.zeroth[F](policy, zoneId)).flatMap { zero =>
-        val ticks: Stream[F, Either[Chunk[String], Tick]] = tickStream[F](zero).map(Right(_))
-
-        Stream.resource(Hotswap(get_writer(zero.tick))).flatMap { case (hotswap, writer) =>
-          val src: Stream[F, Either[Chunk[String], Tick]] =
-            ss.map(_.map(csvRow(csvConfiguration))).map(Left(_))
-
-          if (csvConfiguration.hasHeader) {
-            val header: Chunk[String] = csvHeader(csvConfiguration)
-            Stream.eval(writer.write(header)) >>
-              periodically
-                .persistCsvWithHeader[F](
-                  get_writer,
-                  hotswap,
-                  writer,
-                  src.mergeHaltBoth(ticks),
-                  header
-                )
-                .stream
-          } else {
-            periodically
-              .persist[F, String](
-                get_writer,
-                hotswap,
-                writer,
-                src.mergeHaltBoth(ticks)
-              )
-              .stream
-          }
-        }
-      }
+      val encodedSrc: Stream[F, Chunk[String]] = ss.map(_.map(csvRow(csvConfiguration)))
+      if (csvConfiguration.hasHeader) {
+        val header: Chunk[String] = csvHeader(csvConfiguration)
+        paths.pull.uncons1.flatMap {
+          case Some((head, tail)) =>
+            Stream
+              .resource(Hotswap(get_writer(head)))
+              .flatMap { case (hotswap, writer) =>
+                Stream.eval(writer.write(header)) >>
+                  periodically
+                    .persistCsvWithHeader[F](
+                      get_writer,
+                      hotswap,
+                      writer,
+                      encodedSrc.map(Left(_)).mergeHaltBoth(tail.map(Right(_))),
+                      header
+                    )
+                    .stream
+              }
+              .pull
+              .echo
+          case None => Pull.done
+        }.stream
+      } else periodically.persist(encodedSrc, paths, get_writer)
   }
+
+  def sink(policy: Policy, zoneId: ZoneId)(pathBuilder: Tick => Url)(implicit
+    F: Async[F]): Pipe[F, Chunk[Seq[String]], Int] =
+    sink(tickStream.fromZero(policy, zoneId).map(pathBuilder))
 }
 
 object HadoopKantan {

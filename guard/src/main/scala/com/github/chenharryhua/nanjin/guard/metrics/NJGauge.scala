@@ -72,7 +72,8 @@ object NJGauge {
       for {
         init <- Resource.eval(fetch)
         ref <- Resource.eval(F.ref(init))
-        _ <- F.background(tickStream[F](policy, zoneId).evalMap(_ => fetch.flatMap(ref.set)).compile.drain)
+        _ <- F.background(
+          tickStream.fromOne[F](policy, zoneId).evalMap(_ => fetch.flatMap(ref.set)).compile.drain)
         _ <- register(ref.get)
       } yield ()
     }

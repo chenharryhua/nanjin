@@ -52,7 +52,8 @@ final case class Tick private[chrono] (
     val wak = zonedWakeup.toLocalDateTime.show
     val acq = zonedAcquire.toLocalDateTime.show
     val snz = snooze.show
-    f"idx=$index%04d, acq=$acq, wak=$wak, snz=$snz"
+    val id  = show"$sequenceId".take(5)
+    f"id=$id, idx=$index%04d, acq=$acq, wak=$wak, snz=$snz"
   }
 }
 
