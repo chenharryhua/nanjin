@@ -54,7 +54,7 @@ object kafka_connector_s3 {
     .eventStream { ga =>
       val jackson = JacksonFile(_.Uncompressed)
       val sink: Pipe[IO, Chunk[String], TickedValue[Int]] = // rotate files every 5 minutes
-        hadoop.sink(Policy.crontab(_.every5Minutes), ga.zoneId)(tick => root / jackson.ymdFileName(tick))
+        hadoop.rotateSink(Policy.crontab(_.every5Minutes), ga.zoneId)(tick => root / jackson.ymdFileName(tick))
       ga.facilitate("abc")(logMetrics).use { decode =>
         ctx
           .consume("any.kafka.topic")

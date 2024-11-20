@@ -39,7 +39,7 @@ class KantanTest(agent: Agent[IO], base: Url, rfc: CsvConfiguration) extends Wri
 
   private def writeRotate(file: KantanFile): IO[Url] = {
     val path = root / "rotate" / file.fileName
-    val sink = kantan.sink(policy, darwinTime)(t => path / file.fileName(t))
+    val sink = kantan.rotateSink(policy, darwinTime)(t => path / file.fileName(t))
     write(path).use { meter =>
       data.evalTap(_ => meter.run(1)).map(rowEncoder.encode).chunks.through(sink).compile.drain.as(path)
     }
@@ -69,7 +69,7 @@ class KantanTest(agent: Agent[IO], base: Url, rfc: CsvConfiguration) extends Wri
 
   private def writeRotateSpark(file: KantanFile): IO[Url] = {
     val path = root / "spark" / "rotate" / file.fileName
-    val sink = kantan.sink(policy, utcTime)(t => path / file.fileName(t))
+    val sink = kantan.rotateSink(policy, utcTime)(t => path / file.fileName(t))
     write(path).use { meter =>
       table
         .stream[IO](1000)

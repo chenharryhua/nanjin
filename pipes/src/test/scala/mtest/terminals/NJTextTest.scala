@@ -103,7 +103,8 @@ class NJTextTest extends AnyFunSuite {
       .repeatN(number)
       .map(_.toString)
       .chunks
-      .through(text.sink(Policy.fixedDelay(1.second), ZoneId.systemDefault())(t => path / fk.fileName(t)))
+      .through(text.rotateSink(Policy.fixedDelay(1.second), ZoneId.systemDefault())(t =>
+        path / fk.fileName(t)))
       .fold(0L)((sum, v) => sum + v.value)
       .compile
       .lastOrError
@@ -126,7 +127,7 @@ class NJTextTest extends AnyFunSuite {
     val fk = TextFile(Uncompressed)
     (Stream.sleep[IO](10.hours) >>
       Stream.empty.covaryAll[IO, String]).chunks
-      .through(text.sink(Policy.fixedDelay(1.second).limited(3), ZoneId.systemDefault())(t =>
+      .through(text.rotateSink(Policy.fixedDelay(1.second).limited(3), ZoneId.systemDefault())(t =>
         path / fk.fileName(t)))
       .compile
       .drain

@@ -23,12 +23,10 @@ final class HadoopCirce[F[_]] private (configuration: Configuration) extends Had
     (ss: Stream[F, Chunk[Json]]) =>
       Stream
         .resource(HadoopWriter.jsonNodeR[F](configuration, toHadoopPath(path), new ObjectMapper()))
-        .flatMap { w =>
-          ss.evalMap(c => w.write(c.map(circeToJackson)).as(c.size))
-        }
+        .flatMap(w => ss.evalMap(c => w.write(c.map(circeToJackson)).as(c.size)))
   }
 
-  override def sink(paths: Stream[F, TickedValue[Url]])(implicit
+  override def rotateSink(paths: Stream[F, TickedValue[Url]])(implicit
     F: Async[F]): Pipe[F, Chunk[Json], TickedValue[Int]] = {
     val mapper: ObjectMapper = new ObjectMapper() // create ObjectMapper is expensive
 

@@ -37,7 +37,7 @@ final class HadoopBytes[F[_]] private (configuration: Configuration) extends Had
         .flatMap(w => ss.evalMap(c => w.write(c).as(c.size)))
   }
 
-  override def sink(paths: Stream[F, TickedValue[Url]])(implicit
+  override def rotateSink(paths: Stream[F, TickedValue[Url]])(implicit
     F: Async[F]): Pipe[F, Chunk[Byte], TickedValue[Int]] = {
     def get_writer(url: Url): Resource[F, HadoopWriter[F, Byte]] =
       HadoopWriter.byteR[F](configuration, toHadoopPath(url))
