@@ -5,7 +5,7 @@ import cats.effect.kernel.{Async, Resource, Sync}
 import cats.effect.std.Hotswap
 import cats.implicits.toFunctorOps
 import com.github.chenharryhua.nanjin.common.ChunkSize
-import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick}
+import com.github.chenharryhua.nanjin.common.chrono.TickedValue
 import fs2.{Chunk, Pipe, Pull, Stream}
 import io.lemonlabs.uri.Url
 import kantan.csv.CsvConfiguration.Header
@@ -18,7 +18,6 @@ import shapeless.ops.record.Keys
 import shapeless.{HList, LabelledGeneric}
 
 import java.io.InputStreamReader
-import java.time.ZoneId
 import scala.annotation.nowarn
 
 sealed trait CsvHeaderOf[A] {
@@ -58,7 +57,7 @@ final class HadoopKantan[F[_]] private (
 
   // write
 
-  def sink(path: Url)(implicit F: Sync[F]): Pipe[F, Chunk[Seq[String]], Int] = {
+  override def sink(path: Url)(implicit F: Sync[F]): Pipe[F, Chunk[Seq[String]], Int] = {
     (ss: Stream[F, Chunk[Seq[String]]]) =>
       Stream.resource(HadoopWriter.csvStringR[F](configuration, toHadoopPath(path))).flatMap { w =>
         val process: Stream[F, Int] =
@@ -70,7 +69,8 @@ final class HadoopKantan[F[_]] private (
       }
   }
 
-  def sink(paths: Stream[F, Url])(implicit F: Async[F]): Pipe[F, Chunk[Seq[String]], Int] = {
+  override def sink(paths: Stream[F, TickedValue[Url]])(implicit
+    F: Async[F]): Pipe[F, Chunk[Seq[String]], TickedValue[Int]] = {
     def get_writer(url: Url): Resource[F, HadoopWriter[F, String]] =
       HadoopWriter.csvStringR[F](configuration, toHadoopPath(url))
 
@@ -81,11 +81,12 @@ final class HadoopKantan[F[_]] private (
         paths.pull.uncons1.flatMap {
           case Some((head, tail)) =>
             Stream
-              .resource(Hotswap(get_writer(head)))
+              .resource(Hotswap(get_writer(head.value)))
               .flatMap { case (hotswap, writer) =>
                 Stream.eval(writer.write(header)) >>
                   periodically
                     .persistCsvWithHeader[F](
+                      head.tick,
                       get_writer,
                       hotswap,
                       writer,
@@ -100,10 +101,6 @@ final class HadoopKantan[F[_]] private (
         }.stream
       } else periodically.persist(encodedSrc, paths, get_writer)
   }
-
-  def sink(policy: Policy, zoneId: ZoneId)(pathBuilder: Tick => Url)(implicit
-    F: Async[F]): Pipe[F, Chunk[Seq[String]], Int] =
-    sink(tickStream.fromZero(policy, zoneId).map(pathBuilder))
 }
 
 object HadoopKantan {

@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.terminals
 
 import cats.effect.kernel.{Concurrent, Resource}
 import cats.effect.std.Hotswap
+import com.github.chenharryhua.nanjin.common.chrono.{Tick, TickedValue}
 import fs2.{Chunk, Pull, Stream}
 import io.lemonlabs.uri.Url
 private object periodically {
@@ -15,21 +16,22 @@ private object periodically {
     * @return
     */
   private def doWork[F[_], A, R](
+    currentTick: Tick,
     getWriter: R => Resource[F, HadoopWriter[F, A]],
     hotswap: Hotswap[F, HadoopWriter[F, A]],
     writer: HadoopWriter[F, A],
-    merged: Stream[F, Either[Chunk[A], R]]
-  ): Pull[F, Int, Unit] =
+    merged: Stream[F, Either[Chunk[A], TickedValue[R]]]
+  ): Pull[F, TickedValue[Int], Unit] =
     merged.pull.uncons1.flatMap {
       case Some((head, tail)) =>
         head match {
           case Left(data) =>
-            Pull.output1(data.size) >>
+            Pull.output1(TickedValue(currentTick, data.size)) >>
               Pull.eval(writer.write(data)) >>
-              doWork(getWriter, hotswap, writer, tail)
-          case Right(tick) =>
-            Pull.eval(hotswap.swap(getWriter(tick))).flatMap { writer =>
-              doWork(getWriter, hotswap, writer, tail)
+              doWork(currentTick, getWriter, hotswap, writer, tail)
+          case Right(ticked) =>
+            Pull.eval(hotswap.swap(getWriter(ticked.value))).flatMap { writer =>
+              doWork(ticked.tick, getWriter, hotswap, writer, tail)
             }
         }
       case None => Pull.done
@@ -37,14 +39,15 @@ private object periodically {
 
   def persist[F[_]: Concurrent, A, R](
     data: Stream[F, Chunk[A]],
-    ticks: Stream[F, R],
-    getWriter: R => Resource[F, HadoopWriter[F, A]]): Stream[F, Int] =
+    ticks: Stream[F, TickedValue[R]],
+    getWriter: R => Resource[F, HadoopWriter[F, A]]): Stream[F, TickedValue[Int]] =
     ticks.pull.uncons1.flatMap {
       case Some((head, tail)) => // use the very first tick to build writer and hotswap
         Stream
-          .resource(Hotswap(getWriter(head)))
+          .resource(Hotswap(getWriter(head.value)))
           .flatMap { case (hotswap, writer) =>
             doWork[F, A, R](
+              head.tick,
               getWriter,
               hotswap,
               writer,
@@ -57,24 +60,25 @@ private object periodically {
     }.stream
 
   def persistCsvWithHeader[F[_]](
+    currentTick: Tick,
     getWriter: Url => Resource[F, HadoopWriter[F, String]],
     hotswap: Hotswap[F, HadoopWriter[F, String]],
     writer: HadoopWriter[F, String],
-    ss: Stream[F, Either[Chunk[String], Url]],
+    ss: Stream[F, Either[Chunk[String], TickedValue[Url]]],
     header: Chunk[String]
-  ): Pull[F, Int, Unit] =
+  ): Pull[F, TickedValue[Int], Unit] =
     ss.pull.uncons1.flatMap {
       case Some((head, tail)) =>
         head match {
           case Left(data) =>
-            Pull.output1(data.size) >>
+            Pull.output1(TickedValue(currentTick, data.size)) >>
               Pull.eval(writer.write(data)) >>
-              persistCsvWithHeader[F](getWriter, hotswap, writer, tail, header)
+              persistCsvWithHeader[F](currentTick, getWriter, hotswap, writer, tail, header)
 
-          case Right(tick) =>
-            Pull.eval(hotswap.swap(getWriter(tick))).flatMap { writer =>
+          case Right(ticked) =>
+            Pull.eval(hotswap.swap(getWriter(ticked.value))).flatMap { writer =>
               Pull.eval(writer.write(header)) >>
-                persistCsvWithHeader(getWriter, hotswap, writer, tail, header)
+                persistCsvWithHeader(ticked.tick, getWriter, hotswap, writer, tail, header)
             }
         }
       case None => Pull.done

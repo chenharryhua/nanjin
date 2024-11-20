@@ -91,7 +91,7 @@ class NJParquetTest extends AnyFunSuite {
       .chunks
       .through(parquet.sink(Policy.fixedDelay(1.second), ZoneId.systemDefault())(t =>
         path / file.ymdFileName(t)))
-      .fold(0)(_ + _)
+      .fold(0L)((sum, v) => sum + v.value)
       .compile
       .lastOrError
       .unsafeRunSync()

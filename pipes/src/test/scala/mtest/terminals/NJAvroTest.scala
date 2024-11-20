@@ -80,7 +80,7 @@ class NJAvroTest extends AnyFunSuite {
       .repeatN(number)
       .chunks
       .through(avro.sink(Policy.fixedDelay(1.second), ZoneId.systemDefault())(t => path / file.fileName(t)))
-      .fold(0L)(_ + _)
+      .fold(0L)((sum, v) => sum + v.value)
       .compile
       .lastOrError
       .unsafeRunSync()

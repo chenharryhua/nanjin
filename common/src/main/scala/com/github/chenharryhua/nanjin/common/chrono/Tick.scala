@@ -4,6 +4,7 @@ import cats.Monad
 import cats.effect.kernel.Clock
 import cats.effect.std.UUIDGen
 import cats.syntax.all.*
+import io.circe.{Decoder, Encoder}
 import io.circe.generic.JsonCodec
 import org.typelevel.cats.time.instances.all.*
 
@@ -74,4 +75,13 @@ object Tick {
       uuid <- UUIDGen[F].randomUUID
       now <- Clock[F].realTimeInstant
     } yield zeroth(uuid, zoneId, now)
+}
+
+final case class TickedValue[A](tick: Tick, value: A)
+object TickedValue {
+  implicit def encoderTickedValue[A: Encoder]: Encoder[TickedValue[A]] =
+    io.circe.generic.semiauto.deriveEncoder[TickedValue[A]]
+
+  implicit def decoderTickedValue[A: Decoder]: Decoder[TickedValue[A]] =
+    io.circe.generic.semiauto.deriveDecoder[TickedValue[A]]
 }
