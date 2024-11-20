@@ -4,14 +4,14 @@ import cats.data.Kleisli
 import cats.effect.IO
 import cats.effect.kernel.Resource
 import cats.implicits.{catsSyntaxApplicativeByName, catsSyntaxSemigroup, toTraverseOps}
-import com.github.chenharryhua.nanjin.common.chrono.Policy
+import com.github.chenharryhua.nanjin.common.chrono.{Policy, TickedValue}
 import com.github.chenharryhua.nanjin.guard.metrics.Metrics
 import com.github.chenharryhua.nanjin.guard.observers.console
 import com.github.chenharryhua.nanjin.kafka.{KafkaContext, KafkaSettings}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.gr2Jackson
 import com.github.chenharryhua.nanjin.terminals.{HadoopText, JacksonFile, NJHadoop}
 import eu.timepit.refined.auto.*
-import fs2.kafka.{commitBatchWithin, AutoOffsetReset, CommittableConsumerRecord}
+import fs2.kafka.{AutoOffsetReset, CommittableConsumerRecord, commitBatchWithin}
 import fs2.{Chunk, Pipe}
 import io.lemonlabs.uri.Url
 import io.lemonlabs.uri.typesafe.dsl.urlToUrlDsl
@@ -53,7 +53,7 @@ object kafka_connector_s3 {
     .service("dump kafka topic to s3")
     .eventStream { ga =>
       val jackson = JacksonFile(_.Uncompressed)
-      val sink: Pipe[IO, Chunk[String], Int] = // rotate files every 5 minutes
+      val sink: Pipe[IO, Chunk[String], TickedValue[Int]] = // rotate files every 5 minutes
         hadoop.sink(Policy.crontab(_.every5Minutes), ga.zoneId)(tick => root / jackson.ymdFileName(tick))
       ga.facilitate("abc")(logMetrics).use { decode =>
         ctx

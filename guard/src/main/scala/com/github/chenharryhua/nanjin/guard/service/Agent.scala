@@ -76,7 +76,7 @@ final private class GeneralAgent[F[_]](
   }
 
   override def ticks(policy: Policy): Stream[F, Tick] =
-    tickStream.fromTickStatus[F](TickStatus(serviceParams.zerothTick).renewPolicy(policy))
+    tickStream.fromOne[F](policy, zoneId)
 
   override def tickImmediately(policy: Policy): Stream[F, Tick] =
     tickStream.fromZero(policy, zoneId)
