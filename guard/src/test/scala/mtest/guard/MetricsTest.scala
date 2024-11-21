@@ -161,4 +161,22 @@ class MetricsTest extends AnyFunSuite {
     assert(counts.values.toList.contains(1L))
     assert(counts.values.toList.contains(2L))
   }
+
+  test("12.measured.retry - give up") {
+    val sm = service.eventStream { agent =>
+      agent.facilitate("measured.retry")(_.measuredRetry(_.giveUp, (t, e) => agent.herald.warn(e)(t).as(true))
+        .use(_.apply(IO.raiseError[Int](new Exception)) *> agent.adhoc.report))
+    }.map(checkJson).mapFilter(serviceMessage).compile.toList.unsafeRunSync()
+    assert(sm.size == 1)
+  }
+
+  test("13.measured.retry - unworthy retry") {
+    val sm = service.eventStream { agent =>
+      agent.facilitate("measured.retry")(
+        _.measuredRetry(_.fixedDelay(1000.second).limited(2), (t, e) => agent.herald.warn(e)(t).as(false))
+          .use(_.apply(IO.raiseError[Int](new Exception)) *> agent.adhoc.report))
+    }.map(checkJson).mapFilter(serviceMessage).compile.toList.unsafeRunSync()
+
+    assert(sm.size == 1)
+  }
 }

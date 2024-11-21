@@ -2,11 +2,16 @@ package com.github.chenharryhua.nanjin.guard.metrics
 
 import cats.Endo
 import cats.data.Kleisli
-import cats.effect.kernel.{Async, Ref, Resource}
+import cats.effect.kernel.{Async, Outcome, Ref, Resource}
 import cats.syntax.all.*
 import com.codahale.metrics.MetricRegistry
+import com.github.chenharryhua.nanjin.common.chrono.{Policy, Tick, TickStatus}
+import com.github.chenharryhua.nanjin.guard.action.{Retry, SimpleRetry}
 import com.github.chenharryhua.nanjin.guard.config.MetricLabel
 import com.github.chenharryhua.nanjin.guard.translator.{decimal_fmt, fmt}
+
+import java.time.ZoneId
+import scala.concurrent.duration.FiniteDuration
 
 trait KleisliLike[F[_], A] {
   def run(a: A): F[Unit]
@@ -53,11 +58,19 @@ sealed trait Metrics[F[_]] {
   def permanentCounter(name: String, f: Endo[NJGauge.Builder]): Resource[F, NJCounter[F]]
   final def permanentCounter(name: String): Resource[F, NJCounter[F]] =
     permanentCounter(name, identity)
+
+  type WorthRetry = (Tick, Throwable) => F[Boolean]
+  def measuredRetry(policy: Policy, worthy: WorthRetry): Resource[F, SimpleRetry[F]]
+  final def measuredRetry(f: Policy.type => Policy, worthy: WorthRetry): Resource[F, SimpleRetry[F]] =
+    measuredRetry(f(Policy), worthy)
+  def measuredRetry(f: Policy.type => Policy): Resource[F, SimpleRetry[F]]
 }
 
 object Metrics {
-  private[guard] class Impl[F[_]](val metricLabel: MetricLabel, metricRegistry: MetricRegistry)(implicit
-    F: Async[F])
+  private[guard] class Impl[F[_]](
+    val metricLabel: MetricLabel,
+    metricRegistry: MetricRegistry,
+    zoneId: ZoneId)(implicit F: Async[F])
       extends Metrics[F] {
 
     override def counter(name: String, f: Endo[NJCounter.Builder]): Resource[F, NJCounter[F]] =
@@ -107,5 +120,24 @@ object Metrics {
       } yield new NJCounter[F] {
         override def inc(num: Long): F[Unit] = ref.update(_ + num)
       }
+
+    override def measuredRetry(policy: Policy, worthy: WorthRetry): Resource[F, SimpleRetry[F]] =
+      for {
+        failCounter <- permanentCounter("failed")
+        cancelCounter <- permanentCounter("canceled")
+        recentCounter <- counter("recent")
+        timer <- timer("succeeded")
+        retry <- Resource.eval(TickStatus.zeroth[F](policy, zoneId)).map(ts => new Retry.Impl[F](ts))
+      } yield new SimpleRetry[F] {
+        override def apply[A](fa: F[A]): F[A] =
+          F.guaranteeCase[(FiniteDuration, A)](retry(F.timed(fa), worthy)) {
+            case Outcome.Succeeded(ra) => F.flatMap(ra)(a => timer.update(a._1) *> recentCounter.inc(1))
+            case Outcome.Errored(_)    => failCounter.inc(1)
+            case Outcome.Canceled()    => cancelCounter.inc(1)
+          }.map(_._2)
+      }
+
+    override def measuredRetry(f: Policy.type => Policy): Resource[F, SimpleRetry[F]] =
+      measuredRetry(f(Policy), (_, _) => F.pure(true))
   }
 }

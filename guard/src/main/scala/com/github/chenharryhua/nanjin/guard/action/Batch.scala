@@ -38,11 +38,10 @@ object Batch {
     private def toJson(details: List[Detail]): Json =
       if (details.isEmpty) Json.Null
       else {
-        val pairs = details.map { detail =>
-          if (detail.done)
-            getJobName(detail.job) -> fmt.format(detail.took).asJson
-          else
-            getJobName(detail.job) -> s"${fmt.format(detail.took)} (failed)".asJson
+        val pairs: List[(String, Json)] = details.map { detail =>
+          val took   = fmt.format(detail.took)
+          val result = if (detail.done) took else s"$took (failed)"
+          getJobName(detail.job) -> result.asJson
         }
         Json.obj(pairs*)
       }
