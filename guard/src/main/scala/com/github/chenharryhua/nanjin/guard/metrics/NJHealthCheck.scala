@@ -14,7 +14,7 @@ import java.time.ZoneId
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.util.Try
 
-sealed trait NJHealthCheck[F[_]] {
+trait NJHealthCheck[F[_]] {
   def register(hc: F[Boolean]): Resource[F, Unit]
 
   /** heath check sometimes is expensive.

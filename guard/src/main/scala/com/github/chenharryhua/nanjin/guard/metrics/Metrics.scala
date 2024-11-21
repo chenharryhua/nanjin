@@ -22,7 +22,7 @@ trait KleisliLike[F[_], A] {
   final val kleisli: Kleisli[F, A, Unit] = Kleisli(run)
 }
 
-sealed trait Metrics[F[_]] {
+trait Metrics[F[_]] {
   def metricLabel: MetricLabel
 
   def counter(name: String, f: Endo[NJCounter.Builder]): Resource[F, NJCounter[F]]

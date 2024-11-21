@@ -18,7 +18,7 @@ import java.time.ZoneId
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.util.Try
 
-sealed trait NJGauge[F[_]] {
+trait NJGauge[F[_]] {
   def register[A: Encoder](value: F[A]): Resource[F, Unit]
   def register[A: Encoder](value: F[A], policy: Policy, zoneId: ZoneId): Resource[F, Unit]
 }
