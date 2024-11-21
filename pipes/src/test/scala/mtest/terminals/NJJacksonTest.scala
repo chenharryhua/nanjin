@@ -100,7 +100,8 @@ class NJJacksonTest extends AnyFunSuite {
       .covary[IO]
       .repeatN(number)
       .chunks
-      .through(jackson.sink(Policy.fixedDelay(1.second), ZoneId.systemDefault())(t => path / fk.fileName(t)))
+      .through(jackson.rotateSink(Policy.fixedDelay(1.second), ZoneId.systemDefault())(t =>
+        path / fk.fileName(t)))
       .fold(0L)((sum, v) => sum + v.value)
       .compile
       .lastOrError

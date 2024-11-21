@@ -34,7 +34,7 @@ class BinAvroTest(agent: Agent[IO], base: Url) extends WriteRead(agent) {
 
   private def writeRotate(file: BinAvroFile): IO[Url] = {
     val path = root / "rotate" / file.fileName
-    val sink = bin_avro.sink(policy, mumbaiTime)(t => path / file.fileName(t))
+    val sink = bin_avro.rotateSink(policy, mumbaiTime)(t => path / file.fileName(t))
     write(path).use { meter =>
       data.evalTap(_ => meter.run(1)).map(encoder.to).chunks.through(sink).compile.drain.as(path)
     }
@@ -58,7 +58,7 @@ class BinAvroTest(agent: Agent[IO], base: Url) extends WriteRead(agent) {
 
   private def writeRotateSpark(file: BinAvroFile): IO[Url] = {
     val path = root / "spark" / "rotate" / file.fileName
-    val sink = bin_avro.sink(policy, singaporeTime)(t => path / file.fileName(t))
+    val sink = bin_avro.rotateSink(policy, singaporeTime)(t => path / file.fileName(t))
     write(path).use { meter =>
       table
         .stream[IO](1000)

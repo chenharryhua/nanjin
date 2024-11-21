@@ -113,7 +113,7 @@ class NJKantanTest extends AnyFunSuite {
     herd
       .map(tigerEncoder.encode)
       .chunks
-      .through(csv.sink(policy, ZoneId.systemDefault())(t => path / file.fileName(t)))
+      .through(csv.rotateSink(policy, ZoneId.systemDefault())(t => path / file.fileName(t)))
       .compile
       .drain
       .unsafeRunSync()
@@ -134,7 +134,7 @@ class NJKantanTest extends AnyFunSuite {
     val fk = KantanFile(Uncompressed)
     (Stream.sleep[IO](10.hours) >>
       Stream.empty.covaryAll[IO, Seq[String]]).chunks
-      .through(csv.sink(Policy.fixedDelay(1.second).limited(3), ZoneId.systemDefault())(t =>
+      .through(csv.rotateSink(Policy.fixedDelay(1.second).limited(3), ZoneId.systemDefault())(t =>
         path / fk.fileName(t)))
       .compile
       .drain
@@ -152,7 +152,7 @@ class NJKantanTest extends AnyFunSuite {
     herd
       .map(tigerEncoder.encode)
       .chunks
-      .through(csv.sink(policy, ZoneId.systemDefault())(t => path / file.fileName(t)).andThen(_.drain))
+      .through(csv.rotateSink(policy, ZoneId.systemDefault())(t => path / file.fileName(t)).andThen(_.drain))
       .map(tigerDecoder.decode)
       .rethrow
       .compile
@@ -174,7 +174,7 @@ class NJKantanTest extends AnyFunSuite {
     val fk = KantanFile(Uncompressed)
     (Stream.sleep[IO](10.hours) >>
       Stream.empty.covaryAll[IO, Seq[String]]).chunks
-      .through(csv.sink(Policy.fixedDelay(1.second).limited(3), ZoneId.systemDefault())(t =>
+      .through(csv.rotateSink(Policy.fixedDelay(1.second).limited(3), ZoneId.systemDefault())(t =>
         path / fk.fileName(t)))
       .compile
       .drain

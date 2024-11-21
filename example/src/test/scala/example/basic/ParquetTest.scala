@@ -35,7 +35,7 @@ class ParquetTest(agent: Agent[IO], base: Url) extends WriteRead(agent) {
     val path = root / "rotate" / file.fileName
     val sink = parquet
       .updateWriter(_.withCompressionCodec(file.compression.codecName))
-      .sink(policy, beijingTime)(t => path / file.fileName(t))
+      .rotateSink(policy, beijingTime)(t => path / file.fileName(t))
     write(path).use { meter =>
       data.evalTap(_ => meter.run(1)).map(encoder.to).chunks.through(sink).compile.drain.as(path)
     }
@@ -67,7 +67,7 @@ class ParquetTest(agent: Agent[IO], base: Url) extends WriteRead(agent) {
     val path = root / "spark" / "rotate" / file.fileName
     val sink = parquet
       .updateWriter(_.withCompressionCodec(file.compression.codecName))
-      .sink(policy, sydneyTime)(t => path / file.fileName(t))
+      .rotateSink(policy, sydneyTime)(t => path / file.fileName(t))
     write(path).use { meter =>
       table
         .stream[IO](1000)

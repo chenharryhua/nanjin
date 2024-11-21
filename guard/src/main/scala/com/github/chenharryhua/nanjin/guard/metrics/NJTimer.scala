@@ -13,7 +13,7 @@ import java.time.Duration as JavaDuration
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.FiniteDuration
 
-sealed trait NJTimer[F[_]] extends KleisliLike[F, Long] {
+trait NJTimer[F[_]] extends KleisliLike[F, Long] {
 
   def update(jd: JavaDuration): F[Unit]
   def update(num: Long): F[Unit]

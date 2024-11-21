@@ -10,7 +10,7 @@ import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.config.CategoryKind.MeterKind
 import com.github.chenharryhua.nanjin.guard.event.{MeasurementUnit, NJUnits}
 
-sealed trait NJMeter[F[_]] extends KleisliLike[F, Long] {
+trait NJMeter[F[_]] extends KleisliLike[F, Long] {
   def update(num: Long): F[Unit]
 
   final def update(num: Int): F[Unit]        = update(num.toLong)

@@ -36,7 +36,7 @@ class CirceTest(agent: Agent[IO], base: Url) extends WriteRead(agent) {
 
   private def writeRotate(file: CirceFile): IO[Url] = {
     val path = root / "rotate" / file.fileName
-    val sink = circe.sink(policy, berlinTime)(t => path / file.fileName(t))
+    val sink = circe.rotateSink(policy, berlinTime)(t => path / file.fileName(t))
     write(path).use { meter =>
       data.evalTap(_ => meter.run(1)).map(_.asJson).chunks.through(sink).compile.drain.as(path)
     }
@@ -66,7 +66,7 @@ class CirceTest(agent: Agent[IO], base: Url) extends WriteRead(agent) {
 
   private def writeRotateSpark(file: CirceFile): IO[Url] = {
     val path = root / "spark" / "rotate" / file.fileName
-    val sink = circe.sink(policy, londonTime)(t => path / file.fileName(t))
+    val sink = circe.rotateSink(policy, londonTime)(t => path / file.fileName(t))
     write(path).use { meter =>
       table
         .stream[IO](1000)

@@ -107,7 +107,8 @@ class NJCirceTest extends AnyFunSuite {
       .repeatN(number)
       .map(_.asJson)
       .chunks
-      .through(json.sink(Policy.fixedDelay(1.second), ZoneId.systemDefault())(t => path / fk.fileName(t)))
+      .through(json.rotateSink(Policy.fixedDelay(1.second), ZoneId.systemDefault())(t =>
+        path / fk.fileName(t)))
       .fold(0L)((sum, v) => sum + v.value)
       .compile
       .lastOrError
@@ -140,7 +141,7 @@ class NJCirceTest extends AnyFunSuite {
     val fk = CirceFile(Uncompressed)
     (Stream.sleep[IO](10.hours) >>
       Stream.empty.covaryAll[IO, Json]).chunks
-      .through(json.sink(Policy.fixedDelay(1.second).limited(3), ZoneId.systemDefault())(t =>
+      .through(json.rotateSink(Policy.fixedDelay(1.second).limited(3), ZoneId.systemDefault())(t =>
         path / fk.fileName(t)))
       .compile
       .drain

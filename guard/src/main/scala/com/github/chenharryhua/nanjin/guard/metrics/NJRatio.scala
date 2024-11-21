@@ -14,7 +14,7 @@ import io.circe.syntax.EncoderOps
 
 import scala.util.Try
 
-sealed trait NJRatio[F[_]] extends KleisliLike[F, Ior[Long, Long]] {
+trait NJRatio[F[_]] extends KleisliLike[F, Ior[Long, Long]] {
 
   /** @param numerator
     *   The number above the fraction line, representing the part of the whole. For example, in the fraction

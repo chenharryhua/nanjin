@@ -24,33 +24,7 @@ class RetryTest extends AnyFunSuite {
     assert(i == 4)
   }
 
-  test("2.apply - (Tick=>F[A])") {
-    val retry           = new Retry.Impl[IO](state.renewPolicy(policy))
-    var lst: List[Long] = List.empty
-
-    val res = retry(t => IO { lst = lst.appended(t.index) } >> IO.raiseError[Int](new Exception))
-
-    assertThrows[Exception](res.unsafeRunSync())
-    assert(lst == List(0, 1, 2, 3))
-  }
-
-  test("3.apply - full") {
-    val retry           = new Retry.Impl[IO](state.renewPolicy(policy))
-    var lst: List[Long] = List.empty
-    object MyException extends Exception
-
-    val res = retry { (t: Tick, ex: Option[Throwable]) =>
-      ex match {
-        case Some(_) => IO { lst = lst.appended(t.index) } *> IO(Left(MyException))
-        case None    => IO { lst = lst.appended(t.index) } *> IO.raiseError(new Exception)
-      }
-    }
-
-    assertThrows[MyException.type](res.unsafeRunSync())
-    assert(lst == List(0, 1))
-  }
-
-  test("4.giveUp") {
+  test("2.giveUp") {
     var i     = 0
     val retry = new Retry.Impl[IO](state.renewPolicy(Policy.giveUp))
     val res   = retry(IO(i += 1) >> IO.raiseError[Int](new Exception))
@@ -59,65 +33,39 @@ class RetryTest extends AnyFunSuite {
     assert(i == 1)
   }
 
-  test("5.nothing wrong") {
-    val retry           = new Retry.Impl[IO](state.renewPolicy(policy))
-    var lst: List[Long] = List.empty
-
-    retry(t => IO { lst = lst.appended(t.index) }).unsafeRunSync()
-
-    assert(lst == List(0))
-  }
-
-  test("6.escape retry") {
-    val retry           = new Retry.Impl[IO](state.renewPolicy(policy))
-    var lst: List[Long] = List.empty
-
-    val res = retry { (t, ex) =>
-      ex match {
-        case Some(_) => IO { lst = lst.appended(t.index) } *> IO(Right(0))
-        case None    => IO { lst = lst.appended(t.index) } *> IO.raiseError(new Exception)
-      }
-    }
-
-    assert(res.unsafeRunSync() == 0)
-    assert(lst == List(0, 1))
-
-  }
-
-  test("7.conditional retry") {
+  test("3.conditional retry") {
     val retry                = new Retry.Impl[IO](state.renewPolicy(policy))
     var lst: List[Throwable] = List.empty
-
     object MyException extends Exception
     object MyException2 extends Exception
     object MyException3 extends Exception
+    var i = 0
+    val action: IO[Int] = IO(if (i == 0) {
+      i += 1
+      IO.raiseError(MyException)
+    } else if (i == 1) {
+      i += 1
+      IO.raiseError(MyException2)
+    } else if (i == 2) {
+      i += 1
+      IO.raiseError(MyException3)
+    } else {
+      IO(0)
+    }).flatten
 
-    val res: IO[Int] = retry { (_, oex) =>
-      oex match {
-        case None => IO.raiseError(MyException)
-        case Some(ex) if ex.isInstanceOf[MyException.type] =>
-          IO { lst = lst.appended(ex) } *> IO(Left(MyException2))
-        case Some(ex) => IO { lst = lst.appended(ex) } *> IO.raiseError(MyException3)
-      }
-    }
+    val res: IO[Int] = retry(
+      action,
+      (_, ex) => {
+        lst = ex :: lst
+        if (i < 2) IO(true) else IO(false)
+      })
 
     assertThrows[MyException2.type](res.unsafeRunSync())
-    assert(lst == List(MyException))
+    assert(lst == List(MyException2, MyException))
 
   }
 
-  test("8.success after retry") {
-    val retry = new Retry.Impl[IO](state.renewPolicy(policy))
-    var i     = 0
-    retry { tick =>
-      val calc = if (tick.index < 2) IO.raiseError[Int](new Exception) else IO(0)
-      IO(i += 1) >> calc
-    }.unsafeRunSync()
-
-    assert(i == 3)
-  }
-
-  test("9.performance") {
+  test("4.performance") {
     var i: Int  = 0
     val timeout = 5.seconds
     TaskGuard[IO]("performance")

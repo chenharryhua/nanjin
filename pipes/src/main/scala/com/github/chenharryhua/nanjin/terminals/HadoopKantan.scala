@@ -69,7 +69,7 @@ final class HadoopKantan[F[_]] private (
       }
   }
 
-  override def sink(paths: Stream[F, TickedValue[Url]])(implicit
+  override def rotateSink(paths: Stream[F, TickedValue[Url]])(implicit
     F: Async[F]): Pipe[F, Chunk[Seq[String]], TickedValue[Int]] = {
     def get_writer(url: Url): Resource[F, HadoopWriter[F, String]] =
       HadoopWriter.csvStringR[F](configuration, toHadoopPath(url))

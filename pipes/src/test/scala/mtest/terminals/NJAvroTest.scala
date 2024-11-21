@@ -79,7 +79,8 @@ class NJAvroTest extends AnyFunSuite {
       .covary[IO]
       .repeatN(number)
       .chunks
-      .through(avro.sink(Policy.fixedDelay(1.second), ZoneId.systemDefault())(t => path / file.fileName(t)))
+      .through(avro.rotateSink(Policy.fixedDelay(1.second), ZoneId.systemDefault())(t =>
+        path / file.fileName(t)))
       .fold(0L)((sum, v) => sum + v.value)
       .compile
       .lastOrError

@@ -89,7 +89,7 @@ class NJParquetTest extends AnyFunSuite {
       .covary[IO]
       .repeatN(number)
       .chunks
-      .through(parquet.sink(Policy.fixedDelay(1.second), ZoneId.systemDefault())(t =>
+      .through(parquet.rotateSink(Policy.fixedDelay(1.second), ZoneId.systemDefault())(t =>
         path / file.ymdFileName(t)))
       .fold(0L)((sum, v) => sum + v.value)
       .compile

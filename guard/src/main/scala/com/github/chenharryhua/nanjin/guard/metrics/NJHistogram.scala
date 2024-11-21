@@ -10,7 +10,7 @@ import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.config.CategoryKind.HistogramKind
 import com.github.chenharryhua.nanjin.guard.event.{MeasurementUnit, NJUnits}
 
-sealed trait NJHistogram[F[_]] extends KleisliLike[F, Long] {
+trait NJHistogram[F[_]] extends KleisliLike[F, Long] {
   def update(num: Long): F[Unit]
 
   final def update(num: Int): F[Unit] = update(num.toLong)
