@@ -3,6 +3,7 @@ package mtest.guard
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.toFunctorFilterOps
+import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.{eventFilters, retrieveTimer}
 import org.scalatest.funsuite.AnyFunSuite
@@ -14,7 +15,7 @@ class RetryTest extends AnyFunSuite {
 
   test("1.retry - simplest") {
     service
-      .eventStream(_.facilitate("retry")(_.measuredRetry(_.giveUp).use(_(IO(())))))
+      .eventStream(_.facilitate("retry")(_.measuredRetry(_.withPolicy(_.giveUp))).use(_(IO(()))))
       .compile
       .drain
       .unsafeRunSync()
@@ -23,7 +24,7 @@ class RetryTest extends AnyFunSuite {
   test("2.retry - enable") {
     val mr = service.eventStream { agent =>
       agent
-        .facilitate("retry")(_.measuredRetry(_.giveUp, _.enable(true)))
+        .facilitate("retry")(_.measuredRetry(_.withPolicy(_.giveUp).enable(true)))
         .use(_(IO(()) *> agent.adhoc.report))
     }.map(checkJson).mapFilter(eventFilters.metricReport).compile.toList.unsafeRunSync()
     assert(mr.head.snapshot.nonEmpty)
@@ -32,7 +33,7 @@ class RetryTest extends AnyFunSuite {
   test("3.retry - disable") {
     val mr = service.eventStream { agent =>
       agent
-        .facilitate("retry")(_.measuredRetry(_.giveUp, _.enable(false)))
+        .facilitate("retry")(_.measuredRetry(_.withPolicy(_.giveUp).enable(false)))
         .use(_(IO(()) *> agent.adhoc.report))
     }.map(checkJson).mapFilter(eventFilters.metricReport).compile.toList.unsafeRunSync()
     assert(mr.head.snapshot.isEmpty)
@@ -43,8 +44,9 @@ class RetryTest extends AnyFunSuite {
     var i      = 0
     service.eventStream { agent =>
       agent
-        .facilitate("retry")(
-          _.measuredRetry(_.fixedDelay(1.second).limited(2), _.worthRetry { _ => i += 1; IO(true) }))
+        .facilitate("retry")(_.measuredRetry(_.withPolicy(_.fixedDelay(1.second).limited(2)).worthRetry { _ =>
+          i += 1; IO(true)
+        }))
         .use(_(action) *> agent.adhoc.report)
     }.map(checkJson).compile.toList.unsafeRunSync()
     assert(i == 3)
@@ -58,9 +60,11 @@ class RetryTest extends AnyFunSuite {
       else IO(0)
     }
 
+    val policy = Policy.fixedDelay(1.second, 100.seconds).limited(20)
+
     val mr = service.eventStream { agent =>
       agent
-        .facilitate("retry")(_.measuredRetry(_.fixedDelay(1.second, 100.seconds).limited(20)))
+        .facilitate("retry")(_.measuredRetry(_.withPolicy(policy)))
         .use(_(action) <* agent.adhoc.report)
         .map(x => assert(x == 0))
         .void
@@ -72,8 +76,8 @@ class RetryTest extends AnyFunSuite {
   test("6.retry - unworthy") {
     val action = IO.raiseError[Int](new Exception())
     service
-      .eventStream(_.facilitate("retry")(
-        _.measuredRetry(_.fixedDelay(100.seconds), _.worthRetry(_ => IO(false)))).use(_(action)).void)
+      .eventStream(_.facilitate("retry")(_.measuredRetry(
+        _.withPolicy(_.fixedDelay(100.seconds)).enable(true).worthRetry(_ => IO(false)))).use(_(action)).void)
       .compile
       .drain
       .unsafeRunSync()

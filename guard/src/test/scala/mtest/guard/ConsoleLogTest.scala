@@ -22,7 +22,6 @@ class ConsoleLogTest extends AnyFunSuite {
       .eventStream { agent =>
         val mtx = agent.facilitate("job") { mtx =>
           for {
-            retry <- mtx.measuredRetry(_.fixedDelay(1.second))
             _ <- mtx.gauge("7").register(IO(1000000000))
             _ <- mtx.healthCheck("6").register(IO(true))
             _ <- mtx.timer("5").evalMap(_.update(10.second).replicateA(100))
@@ -32,7 +31,7 @@ class ConsoleLogTest extends AnyFunSuite {
             _ <- mtx
               .ratio("1")
               .evalMap(f => f.incDenominator(500) >> f.incNumerator(60) >> f.incBoth(299, 500))
-          } yield Kleisli((_: Int) => retry(IO.unit))
+          } yield Kleisli((_: Int) => IO.unit)
         }
 
         mtx.use(_.run(1) >> agent.herald.error(new Exception())("error messages") >> agent.adhoc.report)

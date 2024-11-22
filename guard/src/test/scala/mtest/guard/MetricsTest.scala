@@ -166,7 +166,7 @@ class MetricsTest extends AnyFunSuite {
   test("12.measured.retry - give up") {
     val sm = service.eventStream { agent =>
       agent.facilitate("measured.retry")(
-        _.measuredRetry(_.giveUp, _.worthRetry(tv => agent.herald.warn(tv.value)(tv.tick).as(true)))
+        _.measuredRetry(_.worthRetry(tv => agent.herald.warn(tv.value)(tv.tick).as(true)))
           .use(_.apply(IO.raiseError[Int](new Exception)) *> agent.adhoc.report))
     }.map(checkJson).mapFilter(eventFilters.serviceMessage).compile.toList.unsafeRunSync()
     assert(sm.size == 1)
@@ -175,9 +175,9 @@ class MetricsTest extends AnyFunSuite {
   test("13.measured.retry - unworthy retry") {
     val sm = service.eventStream { agent =>
       agent.facilitate("measured.retry")(
-        _.measuredRetry(
-          _.fixedDelay(1000.second).limited(2),
-          _.enable(true).worthRetry(tv => agent.herald.warn(tv.value)(tv.tick).as(false)))
+        _.measuredRetry(_.withPolicy(_.fixedDelay(1000.second).limited(2))
+          .enable(true)
+          .worthRetry(tv => agent.herald.warn(tv.value)(tv.tick).as(false)))
           .use(_.apply(IO.raiseError[Int](new Exception)) *> agent.adhoc.report))
     }.map(checkJson).mapFilter(eventFilters.serviceMessage).compile.toList.unsafeRunSync()
 

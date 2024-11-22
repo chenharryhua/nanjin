@@ -57,11 +57,7 @@ trait Metrics[F[_]] {
   final def permanentCounter(name: String): Resource[F, NJCounter[F]] =
     permanentCounter(name, identity)
 
-  def measuredRetry(policy: Policy, f: Endo[Retry.Builder[F]]): Resource[F, Retry[F]]
-  final def measuredRetry(f: Policy.type => Policy, g: Endo[Retry.Builder[F]]): Resource[F, Retry[F]] =
-    measuredRetry(f(Policy), g)
-  final def measuredRetry(f: Policy.type => Policy): Resource[F, Retry[F]] =
-    measuredRetry(f(Policy), identity[Retry.Builder[F]])
+  def measuredRetry(f: Endo[Retry.Builder[F]]): Resource[F, Retry[F]]
 }
 
 object Metrics {
@@ -89,8 +85,8 @@ object Metrics {
     override def ratio(name: String, f: Endo[NJRatio.Builder]): Resource[F, NJRatio[F]] =
       f(NJRatio.initial).build[F](metricLabel, name, metricRegistry)
 
-    override def measuredRetry(policy: Policy, f: Endo[Retry.Builder[F]]): Resource[F, Retry[F]] =
-      f(new Retry.Builder[F](true, _ => F.pure(true))).build(this, policy, zoneId)
+    override def measuredRetry(f: Endo[Retry.Builder[F]]): Resource[F, Retry[F]] =
+      f(new Retry.Builder[F](true, Policy.giveUp, _ => F.pure(true))).build(this, zoneId)
 
     override def gauge(name: String, f: Endo[NJGauge.Builder]): NJGauge[F] =
       f(NJGauge.initial).build[F](metricLabel, name, metricRegistry)

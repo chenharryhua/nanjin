@@ -41,17 +41,23 @@ object Retry {
 
   final class Builder[F[_]] private[guard] (
     isEnabled: Boolean,
+    policy: Policy,
     callback: TickedValue[Throwable] => F[Boolean])
       extends EnableConfig[Builder[F]] {
 
     override def enable(isEnabled: Boolean): Builder[F] =
-      new Builder[F](isEnabled, callback)
+      new Builder[F](isEnabled, policy, callback)
 
     def worthRetry(f: TickedValue[Throwable] => F[Boolean]): Builder[F] =
-      new Builder[F](isEnabled, f)
+      new Builder[F](isEnabled, policy, f)
 
-    private[guard] def build(mtx: Metrics[F], policy: Policy, zoneId: ZoneId)(implicit
-      F: Async[F]): Resource[F, Retry[F]] =
+    def withPolicy(policy: Policy): Builder[F] =
+      new Builder[F](isEnabled, policy, callback)
+
+    def withPolicy(f: Policy.type => Policy): Builder[F] =
+      new Builder[F](isEnabled, f(Policy), callback)
+
+    private[guard] def build(mtx: Metrics[F], zoneId: ZoneId)(implicit F: Async[F]): Resource[F, Retry[F]] =
       for {
         failCounter <- mtx.permanentCounter("failed", _.enable(isEnabled))
         cancelCounter <- mtx.permanentCounter("canceled", _.enable(isEnabled))
