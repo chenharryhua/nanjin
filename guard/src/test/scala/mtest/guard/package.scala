@@ -6,7 +6,6 @@ import com.github.chenharryhua.nanjin.common.DurationFormatter
 import com.github.chenharryhua.nanjin.guard.event.NJEvent
 import io.circe.jawn.decode
 import io.circe.syntax.EncoderOps
-import monocle.macros.GenPrism
 
 import java.time.ZoneId
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -41,12 +40,6 @@ package object guard {
   def fun5fut(a: Int, b: Int, c: Int, d: Int, e: Int): Future[Int] = Future(a + b + c + d + e)
 
   val fmt: DurationFormatter = DurationFormatter.defaultFormatter
-
-  def metricReport: NJEvent => Option[NJEvent.MetricReport] =
-    GenPrism[NJEvent, NJEvent.MetricReport].getOption(_)
-
-  def serviceMessage: NJEvent => Option[NJEvent.ServiceMessage] =
-    GenPrism[NJEvent, NJEvent.ServiceMessage].getOption(_)
 
   def checkJson(evt: NJEvent): NJEvent =
     decode[NJEvent](evt.asJson.noSpaces) match {

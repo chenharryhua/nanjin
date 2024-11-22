@@ -8,6 +8,7 @@ import cron4s.lib.javatime.javaTemporalInstance
 import cron4s.syntax.all.*
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.numeric.Positive
+import monocle.macros.GenPrism
 
 import java.time.{Duration, Instant}
 import scala.concurrent.duration.*
@@ -65,5 +66,25 @@ object eventFilters {
 
   def sampling(f: crontabs.type => CronExpr)(evt: NJEvent): Boolean =
     sampling(f(crontabs))(evt)
+
+  // mapFilter friendly
+
+  def metricReport: NJEvent => Option[NJEvent.MetricReport] =
+    GenPrism[NJEvent, NJEvent.MetricReport].getOption(_)
+
+  def metricReset: NJEvent => Option[NJEvent.MetricReset] =
+    GenPrism[NJEvent, NJEvent.MetricReset].getOption(_)
+
+  def serviceMessage: NJEvent => Option[NJEvent.ServiceMessage] =
+    GenPrism[NJEvent, NJEvent.ServiceMessage].getOption(_)
+
+  def serviceStart: NJEvent => Option[NJEvent.ServiceStart] =
+    GenPrism[NJEvent, NJEvent.ServiceStart].getOption(_)
+
+  def serviceStop: NJEvent => Option[NJEvent.ServiceStop] =
+    GenPrism[NJEvent, NJEvent.ServiceStop].getOption(_)
+
+  def servicePanic: NJEvent => Option[NJEvent.ServicePanic] =
+    GenPrism[NJEvent, NJEvent.ServicePanic].getOption(_)
 
 }
