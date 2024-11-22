@@ -1,11 +1,10 @@
-package com.github.chenharryhua.nanjin.guard.action
+package com.github.chenharryhua.nanjin.guard.metrics
 
 import cats.effect.Temporal
 import cats.effect.kernel.{Async, Outcome, Resource}
 import cats.implicits.{catsSyntaxApplyOps, toFlatMapOps, toFunctorOps}
 import com.github.chenharryhua.nanjin.common.EnableConfig
 import com.github.chenharryhua.nanjin.common.chrono.{Policy, TickStatus, TickedValue}
-import com.github.chenharryhua.nanjin.guard.metrics.Metrics
 
 import java.time.ZoneId
 import scala.concurrent.duration.FiniteDuration
