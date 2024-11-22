@@ -60,11 +60,23 @@ class RetryTest extends AnyFunSuite {
 
     val mr = service.eventStream { agent =>
       agent
-        .facilitate("retry")(_.measuredRetry(_.fixedDelay(1.second).limited(2)))
-        .use(_(action) *> agent.adhoc.report)
+        .facilitate("retry")(_.measuredRetry(_.fixedDelay(1.second, 100.seconds).limited(20)))
+        .use(_(action) <* agent.adhoc.report)
+        .map(x => assert(x == 0))
+        .void
     }.map(checkJson).mapFilter(eventFilters.metricReport).compile.toList.unsafeRunSync()
 
     assert(retrieveTimer(mr.head.snapshot.timers).head._2.calls == 1)
+  }
+
+  test("6.retry - unworthy") {
+    val action = IO.raiseError[Int](new Exception())
+    service
+      .eventStream(_.facilitate("retry")(
+        _.measuredRetry(_.fixedDelay(100.seconds), _.worthRetry(_ => IO(false)))).use(_(action)).void)
+      .compile
+      .drain
+      .unsafeRunSync()
   }
 
 }
