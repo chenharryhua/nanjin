@@ -33,7 +33,7 @@ object MeasuredRetry {
       for {
         failCounter <- mtx.permanentCounter("action_failed", _.enable(isEnabled))
         cancelCounter <- mtx.permanentCounter("action_canceled", _.enable(isEnabled))
-        recentCounter <- mtx.counter("action_recently", _.enable(isEnabled))
+        recentCounter <- mtx.counter("action_succeeded_recently", _.enable(isEnabled))
         succeedTimer <- mtx.timer("action_succeeded", _.enable(isEnabled))
         retry <- Resource.eval(TickStatus.zeroth[F](policy, zoneId)).map(ts => new Retry.Impl[F](ts))
       } yield new Retry[F] {

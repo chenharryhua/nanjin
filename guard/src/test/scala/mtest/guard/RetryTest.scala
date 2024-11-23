@@ -6,6 +6,8 @@ import cats.implicits.toFunctorFilterOps
 import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.{eventFilters, retrieveTimer}
+import com.github.chenharryhua.nanjin.guard.metrics.Metrics
+import com.github.chenharryhua.nanjin.guard.observers.console
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.DurationInt
@@ -83,7 +85,79 @@ class RetryTest extends AnyFunSuite {
       .unsafeRunSync()
   }
 
-  test("7.performance - measured") {
+  test("7.retry - simple cancellation") {
+    service
+      .eventStream(agent =>
+        agent.facilitate("cancel")(_.measuredRetry(_.withPolicy(Policy.giveUp))).use { retry =>
+          (retry(IO.println(1)) >>
+            retry(IO.println(2) <* IO.canceled *> IO.println(3)) >>
+            retry(IO.println(4))).guarantee(agent.adhoc.report)
+        })
+      .mapFilter(eventFilters.metricReport)
+      .evalTap(console.text[IO])
+      .compile
+      .drain
+      .unsafeRunSync()
+  }
+
+  test("8.retry - uncancelable") {
+    def action(mtx: Metrics[IO]) = for {
+      counter <- mtx.counter("counter")
+      retry <- mtx.measuredRetry(_.withPolicy(_.giveUp))
+      histo <- mtx.histogram("histogram")
+    } yield (in: IO[Int]) =>
+      IO.uncancelable(poll =>
+        in.flatMap(i => IO.println(s"before: $i")) *>
+          counter.inc(1) *>
+          IO.sleep(1.seconds) *>
+          retry(poll(in)) *> // lost cancellation count if poll(retry(in))
+          IO.sleep(1.seconds) *>
+          in.flatMap(histo.update) *>
+          in.flatMap(i => IO.println(s"after: $i")))
+
+    service
+      .eventStream(agent =>
+        agent
+          .facilitate("retry.cancellation")(action)
+          .use(retry =>
+            (retry(IO(10)) >> retry(IO(9) <* IO.canceled <* IO.println("after cancel")) >> retry(IO(1)))
+              .guarantee(agent.adhoc.report)))
+      .mapFilter(eventFilters.metricReport)
+      .evalTap(console.text[IO])
+      .compile
+      .drain
+      .unsafeRunSync()
+  }
+
+  test("9.retry - cancellation") {
+    def action(mtx: Metrics[IO]) = for {
+      counter <- mtx.counter("counter")
+      retry <- mtx.measuredRetry(_.withPolicy(_.giveUp))
+      histo <- mtx.histogram("histogram")
+    } yield (in: IO[Int]) =>
+      in.flatMap(i => IO.println(s"before: $i")) *>
+        counter.inc(1) *>
+        IO.sleep(1.seconds) *>
+        retry(in) *>
+        IO.sleep(1.seconds) *>
+        in.flatMap(histo.update) *>
+        in.flatMap(i => IO.println(s"after: $i"))
+
+    service
+      .eventStream(agent =>
+        agent
+          .facilitate("retry.cancellation")(action)
+          .use(retry =>
+            (retry(IO(10)) >> retry(IO(9) <* IO.canceled <* IO.println("after cancel")) >> retry(IO(1)))
+              .guarantee(agent.adhoc.report)))
+      .mapFilter(eventFilters.metricReport)
+      .evalTap(console.text[IO])
+      .compile
+      .drain
+      .unsafeRunSync()
+  }
+
+  test("10.performance - measured") {
     var i: Int  = 0
     val timeout = 5.seconds
     service
@@ -97,7 +171,7 @@ class RetryTest extends AnyFunSuite {
     println(s"speed: ${i / timeout.toMillis} calls/milli")
   }
 
-  test("8.performance - pure") {
+  test("11.performance - pure") {
     var i: Int  = 0
     val timeout = 5.seconds
     service
@@ -111,7 +185,7 @@ class RetryTest extends AnyFunSuite {
     println(s"speed: ${i / timeout.toMillis} calls/milli")
   }
 
-  test("9.performance - wrong") {
+  test("12.performance - wrong") {
     var i: Int  = 0
     val timeout = 5.seconds
     service
