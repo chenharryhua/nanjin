@@ -15,7 +15,7 @@ class RetryTest extends AnyFunSuite {
 
   test("1.retry - simplest") {
     service
-      .eventStream(_.facilitate("retry")(_.measuredRetry(_.withPolicy(_.giveUp))).use(_(IO(()))))
+      .eventStream(_.facilitate("retry")(_.measuredRetry(identity)).use(_(IO(()))))
       .compile
       .drain
       .unsafeRunSync()
@@ -83,4 +83,29 @@ class RetryTest extends AnyFunSuite {
       .unsafeRunSync()
   }
 
+  test("7.performance - measured") {
+    var i: Int  = 0
+    val timeout = 5.seconds
+    service
+      .eventStream(
+        _.facilitate("performance")(_.measuredRetry(_.enable(false))).use(r => r(IO(i += 1)).foreverM))
+      .timeoutOnPullTo(timeout, fs2.Stream.empty)
+      .compile
+      .drain
+      .unsafeRunSync()
+
+    println(i / timeout.toSeconds)
+  }
+
+  test("8.performance - pure") {
+    var i: Int  = 0
+    val timeout = 5.seconds
+    service
+      .eventStream(_.createRetry(Policy.giveUp).use(r => r(IO(i += 1)).foreverM))
+      .timeoutOnPullTo(timeout, fs2.Stream.empty)
+      .compile
+      .drain
+      .unsafeRunSync()
+    println(i / timeout.toSeconds)
+  }
 }

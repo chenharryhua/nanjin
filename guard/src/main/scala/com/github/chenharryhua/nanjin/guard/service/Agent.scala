@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.service
 
-import cats.effect.kernel.Async
+import cats.effect.kernel.{Async, Resource}
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.common.chrono.*
 import com.github.chenharryhua.nanjin.guard.action.*
@@ -37,6 +37,10 @@ sealed trait Agent[F[_]] {
   def herald: Herald[F]
 
   def facilitate[A](label: String)(f: Metrics[F] => A): A
+
+  def createRetry(policy: Policy): Resource[F, Retry[F]]
+  def createRetry(policy: Policy, worthy: TickedValue[Throwable] => F[Boolean]): Resource[F, Retry[F]]
+
 }
 
 final private class GeneralAgent[F[_]](
@@ -69,4 +73,17 @@ final private class GeneralAgent[F[_]](
 
   override object adhoc extends MetricsReport[F](channel, serviceParams, metricRegistry)
   override object herald extends Herald.Impl[F](serviceParams, channel)
+
+  override def createRetry(
+    policy: Policy,
+    worthy: TickedValue[Throwable] => F[Boolean]): Resource[F, Retry[F]] =
+    Resource.eval(TickStatus.zeroth[F](policy, zoneId)).map { ts =>
+      val impl = new Retry.Impl[F](ts)
+      new Retry[F] {
+        override def apply[A](fa: F[A]): F[A] = impl.comprehensive(fa, worthy)
+      }
+    }
+
+  override def createRetry(policy: Policy): Resource[F, Retry[F]] =
+    createRetry(policy, _ => F.pure(true))
 }
