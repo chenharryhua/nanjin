@@ -45,7 +45,7 @@ trait NJRatio[F[_]] extends KleisliLike[F, Ior[Long, Long]] {
 }
 
 object NJRatio {
-  def dummy[F[_]](implicit F: Applicative[F]): NJRatio[F] =
+  def noop[F[_]](implicit F: Applicative[F]): NJRatio[F] =
     new NJRatio[F] {
       override def incNumerator(numerator: Long): F[Unit]               = F.unit
       override def incDenominator(denominator: Long): F[Unit]           = F.unit
@@ -113,7 +113,7 @@ object NJRatio {
         })(_ => F.delay(metricRegistry.remove(metricID)).void)
       } yield new Impl[F](ref)
 
-      if (isEnabled) impl else Resource.pure(dummy)
+      if (isEnabled) impl else Resource.pure(noop)
     }
   }
 }

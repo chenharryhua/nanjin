@@ -19,7 +19,7 @@ trait NJHistogram[F[_]] extends KleisliLike[F, Long] {
 }
 
 object NJHistogram {
-  def dummy[F[_]](implicit F: Applicative[F]): NJHistogram[F] =
+  def noop[F[_]](implicit F: Applicative[F]): NJHistogram[F] =
     new NJHistogram[F] {
       override def update(num: Long): F[Unit] = F.unit
     }
@@ -77,6 +77,6 @@ object NJHistogram {
             name = MetricName(name, ts, unique))
         })(_.unregister)
       } else
-        Resource.pure(dummy[F])
+        Resource.pure(noop[F])
   }
 }

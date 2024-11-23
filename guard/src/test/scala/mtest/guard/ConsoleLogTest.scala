@@ -5,7 +5,7 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.toFunctorFilterOps
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.event.NJEvent
+import com.github.chenharryhua.nanjin.guard.event.{eventFilters, NJEvent}
 import com.github.chenharryhua.nanjin.guard.observers.*
 import io.circe.Json
 import org.scalatest.funsuite.AnyFunSuite
@@ -22,7 +22,6 @@ class ConsoleLogTest extends AnyFunSuite {
       .eventStream { agent =>
         val mtx = agent.facilitate("job") { mtx =>
           for {
-            retry <- agent.createRetry(_.fixedDelay(1.second))
             _ <- mtx.gauge("7").register(IO(1000000000))
             _ <- mtx.healthCheck("6").register(IO(true))
             _ <- mtx.timer("5").evalMap(_.update(10.second).replicateA(100))
@@ -32,7 +31,7 @@ class ConsoleLogTest extends AnyFunSuite {
             _ <- mtx
               .ratio("1")
               .evalMap(f => f.incDenominator(500) >> f.incNumerator(60) >> f.incBoth(299, 500))
-          } yield Kleisli((_: Int) => retry(IO.unit))
+          } yield Kleisli((_: Int) => IO.unit)
         }
 
         mtx.use(_.run(1) >> agent.herald.error(new Exception())("error messages") >> agent.adhoc.report)
@@ -42,7 +41,7 @@ class ConsoleLogTest extends AnyFunSuite {
     val mr = service
       .evalTap(console.verbose[IO])
       .map(checkJson)
-      .mapFilter(metricReport)
+      .mapFilter(eventFilters.metricReport)
       .compile
       .lastOrError
       .unsafeRunSync()
@@ -57,7 +56,7 @@ class ConsoleLogTest extends AnyFunSuite {
     val mr = service
       .evalTap(console.text[IO])
       .map(checkJson)
-      .mapFilter(metricReport)
+      .mapFilter(eventFilters.metricReport)
       .compile
       .lastOrError
       .unsafeRunSync()

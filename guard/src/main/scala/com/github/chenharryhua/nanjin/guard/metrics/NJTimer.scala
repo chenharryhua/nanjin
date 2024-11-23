@@ -26,7 +26,7 @@ trait NJTimer[F[_]] extends KleisliLike[F, Long] {
 }
 
 object NJTimer {
-  def dummy[F[_]](implicit F: Applicative[F]): NJTimer[F] =
+  def noop[F[_]](implicit F: Applicative[F]): NJTimer[F] =
     new NJTimer[F] {
       override def update(jd: JavaDuration): F[Unit] = F.unit
       override def update(num: Long): F[Unit]        = F.unit
@@ -83,6 +83,6 @@ object NJTimer {
             name = MetricName(name, ts, unique))
         })(_.unregister)
       } else
-        Resource.pure(dummy[F])
+        Resource.pure(noop[F])
   }
 }

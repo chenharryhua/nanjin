@@ -12,7 +12,7 @@ import io.circe.Encoder
 
 import java.time.format.DateTimeFormatter
 
-sealed trait Herald[F[_]] {
+trait Herald[F[_]] {
   def error[S: Encoder](msg: S): F[Unit]
   def error[S: Encoder](ex: Throwable)(msg: S): F[Unit]
 

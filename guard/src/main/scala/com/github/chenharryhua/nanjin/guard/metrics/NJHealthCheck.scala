@@ -25,7 +25,7 @@ trait NJHealthCheck[F[_]] {
 }
 
 object NJHealthCheck {
-  def dummy[F[_]]: NJHealthCheck[F] =
+  def noop[F[_]]: NJHealthCheck[F] =
     new NJHealthCheck[F] {
       override def register(hc: F[Boolean]): Resource[F, Unit] =
         Resource.unit[F]
@@ -89,6 +89,6 @@ object NJHealthCheck {
       metricRegistry: MetricRegistry): NJHealthCheck[F] =
       if (isEnabled) {
         new Impl[F](label, metricRegistry, timeout, name)
-      } else dummy[F]
+      } else noop[F]
   }
 }

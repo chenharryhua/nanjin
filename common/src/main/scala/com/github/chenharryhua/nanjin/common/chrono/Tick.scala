@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.common.chrono
 
-import cats.Monad
+import cats.{Monad, Show}
 import cats.effect.kernel.Clock
 import cats.effect.std.UUIDGen
 import cats.syntax.all.*
@@ -84,4 +84,7 @@ object TickedValue {
 
   implicit def decoderTickedValue[A: Decoder]: Decoder[TickedValue[A]] =
     io.circe.generic.semiauto.deriveDecoder[TickedValue[A]]
+
+  implicit def showTickedValue[A: Show]: Show[TickedValue[A]] =
+    cats.derived.semiauto.show[TickedValue[A]]
 }

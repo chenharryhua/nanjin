@@ -39,8 +39,8 @@ sealed trait Agent[F[_]] {
   def facilitate[A](label: String)(f: Metrics[F] => A): A
 
   def createRetry(policy: Policy): Resource[F, Retry[F]]
-  final def createRetry(f: Policy.type => Policy): Resource[F, Retry[F]] =
-    createRetry(f(Policy))
+  def createRetry(policy: Policy, worthy: TickedValue[Throwable] => F[Boolean]): Resource[F, Retry[F]]
+
 }
 
 final private class GeneralAgent[F[_]](
@@ -66,9 +66,6 @@ final private class GeneralAgent[F[_]](
   override def tickImmediately(policy: Policy): Stream[F, Tick] =
     tickStream.fromZero(policy, zoneId)
 
-  override def createRetry(policy: Policy): Resource[F, Retry[F]] =
-    Resource.eval(TickStatus.zeroth[F](policy, zoneId)).map(ts => new Retry.Impl[F](ts))
-
   override def facilitate[A](label: String)(f: Metrics[F] => A): A = {
     val metricLabel = MetricLabel(label, measurement)
     f(new Metrics.Impl[F](metricLabel, metricRegistry, zoneId))
@@ -76,4 +73,17 @@ final private class GeneralAgent[F[_]](
 
   override object adhoc extends MetricsReport[F](channel, serviceParams, metricRegistry)
   override object herald extends Herald.Impl[F](serviceParams, channel)
+
+  override def createRetry(
+    policy: Policy,
+    worthy: TickedValue[Throwable] => F[Boolean]): Resource[F, Retry[F]] =
+    Resource.eval(TickStatus.zeroth[F](policy, zoneId)).map { ts =>
+      val impl = new Retry.Impl[F](ts)
+      new Retry[F] {
+        override def apply[A](fa: F[A]): F[A] = impl.comprehensive(fa, worthy)
+      }
+    }
+
+  override def createRetry(policy: Policy): Resource[F, Retry[F]] =
+    createRetry(policy, _ => F.pure(true))
 }

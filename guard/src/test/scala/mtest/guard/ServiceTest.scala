@@ -36,7 +36,7 @@ class ServiceTest extends AnyFunSuite {
       .service("retry")
       .updateConfig(_.withRestartPolicy(_.fixedDelay(1.seconds).limited(1)))
       .eventStream(ga =>
-        ga.createRetry(_.fixedDelay(1.seconds).limited(1))
+        ga.facilitate("retry")(_.measuredRetry(_.withPolicy(_.fixedDelay(1.seconds).limited(1))))
           .use(_(ga.herald.info("") *> IO.raiseError(new Exception))))
       .compile
       .toList
@@ -194,7 +194,7 @@ class ServiceTest extends AnyFunSuite {
         val a = UUID.randomUUID()
         agent.herald.info(a.toString) *> IO.raiseError(new Exception)
       }
-      .mapFilter(serviceMessage)
+      .mapFilter(eventFilters.serviceMessage)
       .debug()
       .compile
       .toList
@@ -210,7 +210,7 @@ class ServiceTest extends AnyFunSuite {
         val a = UUID.randomUUID()
         fs2.Stream(0).covary[IO].evalMap(_ => agent.herald.info(a.toString) *> IO.raiseError(new Exception))
       }
-      .mapFilter(serviceMessage)
+      .mapFilter(eventFilters.serviceMessage)
       .debug()
       .compile
       .toList
