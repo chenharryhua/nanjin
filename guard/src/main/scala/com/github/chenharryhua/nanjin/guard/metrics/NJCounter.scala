@@ -18,7 +18,7 @@ trait NJCounter[F[_]] extends KleisliLike[F, Long] {
 }
 
 object NJCounter {
-  def dummy[F[_]](implicit F: Applicative[F]): NJCounter[F] =
+  def noop[F[_]](implicit F: Applicative[F]): NJCounter[F] =
     (_: Long) => F.unit
 
   private class Impl[F[_]: Sync](
@@ -61,6 +61,6 @@ object NJCounter {
           new Impl[F](label, metricRegistry, isRisk, MetricName(name, ts, unique))
         })(_.unregister)
       } else
-        Resource.pure(dummy[F])
+        Resource.pure(noop[F])
   }
 }

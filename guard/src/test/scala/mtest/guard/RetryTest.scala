@@ -87,25 +87,41 @@ class RetryTest extends AnyFunSuite {
     var i: Int  = 0
     val timeout = 5.seconds
     service
-      .eventStream(
-        _.facilitate("performance")(_.measuredRetry(_.enable(false))).use(r => r(IO(i += 1)).foreverM))
+      .eventStream(_.facilitate("performance")(_.measuredRetry(_.enable(true))).use(_(IO(i += 1)).foreverM))
       .timeoutOnPullTo(timeout, fs2.Stream.empty)
       .compile
       .drain
       .unsafeRunSync()
 
-    println(i / timeout.toSeconds)
+    println(s"cost: ${timeout.toNanos / i} nano")
+    println(s"speed: ${i / timeout.toMillis} calls/milli")
   }
 
   test("8.performance - pure") {
     var i: Int  = 0
     val timeout = 5.seconds
     service
-      .eventStream(_.createRetry(Policy.giveUp).use(r => r(IO(i += 1)).foreverM))
+      .eventStream(_.createRetry(Policy.giveUp).use(_(IO(i += 1)).foreverM))
       .timeoutOnPullTo(timeout, fs2.Stream.empty)
       .compile
       .drain
       .unsafeRunSync()
-    println(i / timeout.toSeconds)
+
+    println(s"cost: ${timeout.toNanos / i} nano")
+    println(s"speed: ${i / timeout.toMillis} calls/milli")
+  }
+
+  test("9.performance - wrong") {
+    var i: Int  = 0
+    val timeout = 5.seconds
+    service
+      .eventStream(_.facilitate("performance")(_.measuredRetry(_.enable(true))).use(_(IO(i += 1))).foreverM)
+      .timeoutOnPullTo(timeout, fs2.Stream.empty)
+      .compile
+      .drain
+      .unsafeRunSync()
+
+    println(s"cost: ${timeout.toNanos / i} nano")
+    println(s"speed: ${i / timeout.toMillis} calls/milli")
   }
 }

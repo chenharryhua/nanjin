@@ -24,7 +24,7 @@ trait NJGauge[F[_]] {
 }
 
 object NJGauge {
-  def dummy[F[_]]: NJGauge[F] =
+  def noop[F[_]]: NJGauge[F] =
     new NJGauge[F] {
       override def register[A: Encoder](value: F[A]): Resource[F, Unit] =
         Resource.unit[F]
@@ -96,6 +96,6 @@ object NJGauge {
       metricRegistry: MetricRegistry): NJGauge[F] =
       if (isEnabled) {
         new Impl[F](label, metricRegistry, timeout, name)
-      } else dummy[F]
+      } else noop[F]
   }
 }

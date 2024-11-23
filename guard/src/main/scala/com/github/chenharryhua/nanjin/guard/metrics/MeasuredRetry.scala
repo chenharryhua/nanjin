@@ -31,10 +31,10 @@ object MeasuredRetry {
 
     private[guard] def build(mtx: Metrics[F], zoneId: ZoneId)(implicit F: Async[F]): Resource[F, Retry[F]] =
       for {
-        failCounter <- mtx.permanentCounter("failed", _.enable(isEnabled))
-        cancelCounter <- mtx.permanentCounter("canceled", _.enable(isEnabled))
-        recentCounter <- mtx.counter("recent", _.enable(isEnabled))
-        succeedTimer <- mtx.timer("succeeded", _.enable(isEnabled))
+        failCounter <- mtx.permanentCounter("action_failed", _.enable(isEnabled))
+        cancelCounter <- mtx.permanentCounter("action_canceled", _.enable(isEnabled))
+        recentCounter <- mtx.counter("action_recently", _.enable(isEnabled))
+        succeedTimer <- mtx.timer("action_succeeded", _.enable(isEnabled))
         retry <- Resource.eval(TickStatus.zeroth[F](policy, zoneId)).map(ts => new Retry.Impl[F](ts))
       } yield new Retry[F] {
         override def apply[A](fa: F[A]): F[A] =

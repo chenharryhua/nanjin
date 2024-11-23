@@ -18,7 +18,7 @@ trait NJMeter[F[_]] extends KleisliLike[F, Long] {
 }
 
 object NJMeter {
-  def dummy[F[_]](implicit F: Applicative[F]): NJMeter[F] =
+  def noop[F[_]](implicit F: Applicative[F]): NJMeter[F] =
     new NJMeter[F] {
       override def update(num: Long): F[Unit] = F.unit
     }
@@ -64,6 +64,6 @@ object NJMeter {
             name = MetricName(name, ts, unique))
         })(_.unregister)
       } else
-        Resource.pure(dummy[F])
+        Resource.pure(noop[F])
   }
 }
