@@ -100,28 +100,27 @@ class RetryTest extends AnyFunSuite {
       .unsafeRunSync()
   }
 
-  test("8.retry - uncancelable") {
+  test("8.retry - cancellation internal") {
     def action(mtx: Metrics[IO]) = for {
-      counter <- mtx.counter("counter")
+      counter <- mtx.counter("total.calls")
       retry <- mtx.measuredRetry(_.withPolicy(_.giveUp))
-      histo <- mtx.histogram("histogram")
-    } yield (in: IO[Int]) =>
+    } yield (in: IO[Unit]) =>
       IO.uncancelable(poll =>
-        in.flatMap(i => IO.println(s"before: $i")) *>
+        in *>
+          IO.println("before retry") *>
           counter.inc(1) *>
-          IO.sleep(1.seconds) *>
-          retry(poll(in)) *> // lost cancellation count if poll(retry(in))
-          IO.sleep(1.seconds) *>
-          in.flatMap(histo.update) *>
-          in.flatMap(i => IO.println(s"after: $i")))
+          retry(poll(in)) *>
+          IO.println("after retry"))
 
     service
       .eventStream(agent =>
         agent
-          .facilitate("retry.cancellation")(action)
+          .facilitate("retry.internal.cancellation")(action)
           .use(retry =>
-            (retry(IO(10)) >> retry(IO(9) <* IO.canceled <* IO.println("after cancel")) >> retry(IO(1)))
-              .guarantee(agent.adhoc.report)))
+            (retry(IO.println("first")) >>
+              IO.println("----") >>
+              retry(IO.println("before cancel") >> IO.canceled >> IO.println("after cancel")) >>
+              retry(IO.println("third"))).guarantee(agent.adhoc.report)))
       .mapFilter(eventFilters.metricReport)
       .evalTap(console.text[IO])
       .compile
@@ -129,27 +128,24 @@ class RetryTest extends AnyFunSuite {
       .unsafeRunSync()
   }
 
-  test("9.retry - cancellation") {
+  test("9.retry - cancellation external") {
     def action(mtx: Metrics[IO]) = for {
-      counter <- mtx.counter("counter")
-      retry <- mtx.measuredRetry(_.withPolicy(_.giveUp))
-      histo <- mtx.histogram("histogram")
-    } yield (in: IO[Int]) =>
-      in.flatMap(i => IO.println(s"before: $i")) *>
-        counter.inc(1) *>
-        IO.sleep(1.seconds) *>
-        retry(in) *>
-        IO.sleep(1.seconds) *>
-        in.flatMap(histo.update) *>
-        in.flatMap(i => IO.println(s"after: $i"))
+      counter <- mtx.counter("total.calls")
+      retry <- mtx.measuredRetry(_.withPolicy(_.fixedDelay(10.hours)))
+    } yield (in: IO[Unit]) =>
+      IO.uncancelable(poll =>
+        IO.println("before retry") *>
+          counter.inc(1) *>
+          poll(retry(in)) *> // retry(poll(in)) will wait 10 hours
+          IO.println("after retry"))
 
     service
       .eventStream(agent =>
-        agent
-          .facilitate("retry.cancellation")(action)
-          .use(retry =>
-            (retry(IO(10)) >> retry(IO(9) <* IO.canceled <* IO.println("after cancel")) >> retry(IO(1)))
-              .guarantee(agent.adhoc.report)))
+        agent.facilitate("retry.external.cancellation")(action).use { retry =>
+          IO.race(retry(IO.println("before exception") >> IO.raiseError(new Exception)), IO.sleep(3.seconds))
+            .void
+            .guarantee(agent.adhoc.report)
+        })
       .mapFilter(eventFilters.metricReport)
       .evalTap(console.text[IO])
       .compile

@@ -11,7 +11,7 @@ import com.github.chenharryhua.nanjin.kafka.{KafkaContext, KafkaSettings}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.gr2Jackson
 import com.github.chenharryhua.nanjin.terminals.{HadoopText, JacksonFile, NJHadoop}
 import eu.timepit.refined.auto.*
-import fs2.kafka.{AutoOffsetReset, CommittableConsumerRecord, commitBatchWithin}
+import fs2.kafka.{commitBatchWithin, AutoOffsetReset, CommittableConsumerRecord}
 import fs2.{Chunk, Pipe}
 import io.lemonlabs.uri.Url
 import io.lemonlabs.uri.typesafe.dsl.urlToUrlDsl
@@ -39,11 +39,12 @@ object kafka_connector_s3 {
       val ks: Option[Long] = ccr.record.serializedKeySize.map(_.toLong)
       val vs: Option[Long] = ccr.record.serializedValueSize.map(_.toLong)
 
-      idle.mark *>
-        ks.traverse(keySize.update) *> vs.traverse(valSize.update) *>
-        (ks |+| vs).traverse(byteRate.update) *> countRate.update(1) *>
-        goodNum.inc(1).whenA(ccr.record.value.isSuccess) *>
-        badNum.inc(1).whenA(ccr.record.value.isFailure)
+      IO.uncancelable(_ =>
+        idle.mark *>
+          ks.traverse(keySize.update) *> vs.traverse(valSize.update) *>
+          (ks |+| vs).traverse(byteRate.update) *> countRate.update(1) *>
+          goodNum.inc(1).whenA(ccr.record.value.isSuccess) *>
+          badNum.inc(1).whenA(ccr.record.value.isFailure))
     }
 
   private val root: Url              = Url.parse("s3a://bucket_name") / "folder_name"
@@ -54,7 +55,8 @@ object kafka_connector_s3 {
     .eventStream { ga =>
       val jackson = JacksonFile(_.Uncompressed)
       val sink: Pipe[IO, Chunk[String], TickedValue[Int]] = // rotate files every 5 minutes
-        hadoop.rotateSink(Policy.crontab(_.every5Minutes), ga.zoneId)(tick => root / jackson.ymdFileName(tick))
+        hadoop.rotateSink(Policy.crontab(_.every5Minutes), ga.zoneId)(tick =>
+          root / jackson.ymdFileName(tick))
       ga.facilitate("abc")(logMetrics).use { decode =>
         ctx
           .consume("any.kafka.topic")

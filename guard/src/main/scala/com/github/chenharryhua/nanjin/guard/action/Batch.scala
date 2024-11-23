@@ -53,7 +53,7 @@ object Batch {
         progress <- Resource.eval(F.ref[List[Detail]](Nil))
         _ <- mtx.gauge("completed").register(progress.get.map(toJson))
       } yield Kleisli { (detail: Detail) =>
-        ratio.incNumerator(1) *> progress.update(_.appended(detail))
+        F.uncancelable(_ => ratio.incNumerator(1) *> progress.update(_.appended(detail)))
       }
 
     /** batch always success but jobs may fail
