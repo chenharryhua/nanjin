@@ -39,12 +39,11 @@ object kafka_connector_s3 {
       val ks: Option[Long] = ccr.record.serializedKeySize.map(_.toLong)
       val vs: Option[Long] = ccr.record.serializedValueSize.map(_.toLong)
 
-      IO.uncancelable(_ =>
-        idle.mark *>
-          ks.traverse(keySize.update) *> vs.traverse(valSize.update) *>
-          (ks |+| vs).traverse(byteRate.update) *> countRate.update(1) *>
-          goodNum.inc(1).whenA(ccr.record.value.isSuccess) *>
-          badNum.inc(1).whenA(ccr.record.value.isFailure))
+      idle.mark *>
+        ks.traverse(keySize.update) *> vs.traverse(valSize.update) *>
+        (ks |+| vs).traverse(byteRate.update) *> countRate.update(1) *>
+        goodNum.inc(1).whenA(ccr.record.value.isSuccess) *>
+        badNum.inc(1).whenA(ccr.record.value.isFailure)
     }
 
   private val root: Url              = Url.parse("s3a://bucket_name") / "folder_name"
@@ -57,7 +56,7 @@ object kafka_connector_s3 {
       val sink: Pipe[IO, Chunk[String], TickedValue[Int]] = // rotate files every 5 minutes
         hadoop.rotateSink(Policy.crontab(_.every5Minutes), ga.zoneId)(tick =>
           root / jackson.ymdFileName(tick))
-      ga.facilitate("abc")(logMetrics).use { decode =>
+      ga.facilitate("abc")(logMetrics).use { log =>
         ctx
           .consume("any.kafka.topic")
           .updateConfig(
@@ -67,7 +66,7 @@ object kafka_connector_s3 {
               .withMaxPollRecords(2000))
           .genericRecords
           .observe(_.map(_.offset).through(commitBatchWithin[IO](1000, 5.seconds)).drain)
-          .evalMap(x => decode.run(x) >> IO.fromTry(x.record.value.flatMap(gr2Jackson(_))))
+          .evalMap(x => IO.fromTry(x.record.value.flatMap(gr2Jackson(_))).guarantee(log.run(x)))
           .chunks
           .through(sink)
           .compile

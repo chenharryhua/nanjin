@@ -114,13 +114,12 @@ class RetryTest extends AnyFunSuite {
 
     service
       .eventStream(agent =>
-        agent
-          .facilitate("retry.internal.cancellation")(action)
-          .use(retry =>
-            (retry(IO.println("first")) >>
-              IO.println("----") >>
-              retry(IO.println("before cancel") >> IO.canceled >> IO.println("after cancel")) >>
-              retry(IO.println("third"))).guarantee(agent.adhoc.report)))
+        agent.facilitate("retry.internal.cancellation")(action).use { retry =>
+          (retry(IO.println("first")) >>
+            IO.println("----") >>
+            retry(IO.println("before cancel") >> IO.canceled >> IO.println("after cancel")) >>
+            retry(IO.println("third"))).guarantee(agent.adhoc.report)
+        })
       .mapFilter(eventFilters.metricReport)
       .evalTap(console.text[IO])
       .compile
