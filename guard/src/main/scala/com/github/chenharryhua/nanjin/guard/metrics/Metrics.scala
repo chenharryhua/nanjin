@@ -103,7 +103,7 @@ object Metrics {
           } yield fmt.format(now - pre)
         )
       } yield new NJIdleGauge[F] {
-        override val mark: F[Unit] = F.monotonic.flatMap(lastUpdate.set)
+        override val wakeUp: F[Unit] = F.monotonic.flatMap(lastUpdate.set)
       }
 
     override def activeGauge(name: String, f: Endo[NJGauge.Builder]): Resource[F, Unit] =

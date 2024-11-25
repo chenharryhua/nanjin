@@ -81,7 +81,7 @@ class Performance extends AnyFunSuite {
   test("6.performance meter") {
     var i: Int = 0
     service
-      .eventStream(_.facilitate("meter")(_.meter("meter").use(_.update(1).map(_ => i += 1).foreverM)))
+      .eventStream(_.facilitate("meter")(_.meter("meter").use(_.mark(1).map(_ => i += 1).foreverM)))
       .timeoutOnPullTo(timeout, fs2.Stream.empty)
       .compile
       .drain

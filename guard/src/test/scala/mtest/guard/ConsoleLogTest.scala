@@ -25,7 +25,7 @@ class ConsoleLogTest extends AnyFunSuite {
             _ <- mtx.gauge("7").register(IO(1000000000))
             _ <- mtx.healthCheck("6").register(IO(true))
             _ <- mtx.timer("5").evalMap(_.update(10.second).replicateA(100))
-            _ <- mtx.meter("4", _.withUnit(_.COUNT)).evalMap(_.update(10000).replicateA(100))
+            _ <- mtx.meter("4", _.withUnit(_.COUNT)).evalMap(_.mark(10000).replicateA(100))
             _ <- mtx.counter("3", _.asRisk).evalMap(_.inc(1000))
             _ <- mtx.histogram("2", _.withUnit(_.BYTES)).evalMap(_.update(10000L).replicateA(100))
             _ <- mtx
