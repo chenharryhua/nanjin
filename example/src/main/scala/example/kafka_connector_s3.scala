@@ -11,7 +11,7 @@ import com.github.chenharryhua.nanjin.kafka.{KafkaContext, KafkaSettings}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.gr2Jackson
 import com.github.chenharryhua.nanjin.terminals.{HadoopText, JacksonFile, NJHadoop}
 import eu.timepit.refined.auto.*
-import fs2.kafka.{AutoOffsetReset, CommittableConsumerRecord, commitBatchWithin}
+import fs2.kafka.{commitBatchWithin, AutoOffsetReset, CommittableConsumerRecord}
 import fs2.{Chunk, Pipe}
 import io.lemonlabs.uri.Url
 import io.lemonlabs.uri.typesafe.dsl.urlToUrlDsl
@@ -54,8 +54,9 @@ object kafka_connector_s3 {
     .eventStream { ga =>
       val jackson = JacksonFile(_.Uncompressed)
       val sink: Pipe[IO, Chunk[String], TickedValue[Int]] = // rotate files every 5 minutes
-        hadoop.rotateSink(Policy.crontab(_.every5Minutes), ga.zoneId)(tick => root / jackson.ymdFileName(tick))
-      ga.facilitate("abc")(logMetrics).use { decode =>
+        hadoop.rotateSink(Policy.crontab(_.every5Minutes), ga.zoneId)(tick =>
+          root / jackson.ymdFileName(tick))
+      ga.facilitate("abc")(logMetrics).use { log =>
         ctx
           .consume("any.kafka.topic")
           .updateConfig(
@@ -65,7 +66,7 @@ object kafka_connector_s3 {
               .withMaxPollRecords(2000))
           .genericRecords
           .observe(_.map(_.offset).through(commitBatchWithin[IO](1000, 5.seconds)).drain)
-          .evalMap(x => decode.run(x) >> IO.fromTry(x.record.value.flatMap(gr2Jackson(_))))
+          .evalMap(x => IO.fromTry(x.record.value.flatMap(gr2Jackson(_))).guarantee(log.run(x)))
           .chunks
           .through(sink)
           .compile
