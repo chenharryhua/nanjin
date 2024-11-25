@@ -13,7 +13,8 @@ import com.github.chenharryhua.nanjin.guard.event.{MeasurementUnit, NJUnits}
 trait NJMeter[F[_]] extends KleisliLike[F, Long] {
   def mark(num: Long): F[Unit]
 
-  final def mark(num: Int): F[Unit]    = mark(num.toLong)
+  final def mark(num: Int): F[Unit] = mark(num.toLong)
+
   final override def run(num: Long): F[Unit] = mark(num)
 }
 

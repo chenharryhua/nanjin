@@ -69,7 +69,7 @@ object Retry {
           override def apply[A](fa: => F[A]): F[A] =
             F.guaranteeCase[(FiniteDuration, A)](retry.comprehensive(F.timed(F.defer(fa)), worthy)) {
               case Outcome.Succeeded(ra) =>
-                F.flatMap(ra)(a => succeedTimer.update(a._1) *> recentCounter.inc(1))
+                F.flatMap(ra)(a => succeedTimer.elapsed(a._1) *> recentCounter.inc(1))
               case Outcome.Errored(_) => failCounter.inc(1)
               case Outcome.Canceled() => cancelCounter.inc(1)
             }.map(_._2)
