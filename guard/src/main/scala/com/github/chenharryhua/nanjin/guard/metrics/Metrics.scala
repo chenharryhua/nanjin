@@ -6,7 +6,6 @@ import cats.effect.kernel.{Async, Ref, Resource}
 import cats.syntax.all.*
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.common.chrono.Policy
-import com.github.chenharryhua.nanjin.guard.action.Retry
 import com.github.chenharryhua.nanjin.guard.config.MetricLabel
 import com.github.chenharryhua.nanjin.guard.translator.{decimal_fmt, fmt}
 
@@ -58,7 +57,7 @@ trait Metrics[F[_]] {
   final def permanentCounter(name: String): Resource[F, NJCounter[F]] =
     permanentCounter(name, identity)
 
-  def measuredRetry(f: Endo[MeasuredRetry.Builder[F]]): Resource[F, Retry[F]]
+  def measuredRetry(f: Endo[Retry.Builder[F]]): Resource[F, Retry[F]]
 }
 
 object Metrics {
@@ -86,8 +85,8 @@ object Metrics {
     override def ratio(name: String, f: Endo[NJRatio.Builder]): Resource[F, NJRatio[F]] =
       f(NJRatio.initial).build[F](metricLabel, name, metricRegistry)
 
-    override def measuredRetry(f: Endo[MeasuredRetry.Builder[F]]): Resource[F, Retry[F]] =
-      f(new MeasuredRetry.Builder[F](true, Policy.giveUp, _ => F.pure(true))).build(this, zoneId)
+    override def measuredRetry(f: Endo[Retry.Builder[F]]): Resource[F, Retry[F]] =
+      f(new Retry.Builder[F](true, Policy.giveUp, _ => F.pure(true))).build(this, zoneId)
 
     override def gauge(name: String, f: Endo[NJGauge.Builder]): NJGauge[F] =
       f(NJGauge.initial).build[F](metricLabel, name, metricRegistry)
