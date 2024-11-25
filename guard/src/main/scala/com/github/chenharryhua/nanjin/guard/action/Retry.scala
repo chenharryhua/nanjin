@@ -7,7 +7,7 @@ import com.github.chenharryhua.nanjin.common.chrono.{TickStatus, TickedValue}
 import scala.jdk.DurationConverters.JavaDurationOps
 
 trait Retry[F[_]] {
-  def apply[A](fa: F[A]): F[A]
+  def apply[A](fa: => F[A]): F[A]
 }
 
 object Retry {

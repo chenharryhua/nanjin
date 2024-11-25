@@ -55,12 +55,8 @@ class RetryTest extends AnyFunSuite {
   }
 
   test("5.retry - success after retry") {
-    var i = 0
-    val action = IO(i += 1) >> IO.defer {
-      if (i < 2)
-        IO.raiseError[Int](new Exception())
-      else IO(0)
-    }
+    var i      = 0
+    val action = IO(i += 1) >> { if (i < 2) throw new Exception else IO(0) }
 
     val policy = Policy.fixedDelay(1.second, 100.seconds).limited(20)
 
@@ -152,45 +148,16 @@ class RetryTest extends AnyFunSuite {
       .unsafeRunSync()
   }
 
-  test("10.performance - measured") {
-    var i: Int  = 0
-    val timeout = 5.seconds
-    service
-      .eventStream(_.facilitate("performance")(_.measuredRetry(_.enable(true))).use(_(IO(i += 1)).foreverM))
-      .timeoutOnPullTo(timeout, fs2.Stream.empty)
+  test("10.retry lazy") {
+    def action: IO[Unit] = if (true) throw new Exception else IO.unit
+    val mr = service
+      .eventStream(agent =>
+        agent.facilitate("lazy")(_.measuredRetry(identity)).use(_(action).guarantee(agent.adhoc.report)))
+      .evalTap(console.text[IO])
+      .mapFilter(eventFilters.metricReport)
       .compile
-      .drain
+      .lastOrError
       .unsafeRunSync()
-
-    println(s"cost: ${timeout.toNanos / i} nano")
-    println(s"speed: ${i / timeout.toMillis} calls/milli")
-  }
-
-  test("11.performance - pure") {
-    var i: Int  = 0
-    val timeout = 5.seconds
-    service
-      .eventStream(_.createRetry(Policy.giveUp).use(_(IO(i += 1)).foreverM))
-      .timeoutOnPullTo(timeout, fs2.Stream.empty)
-      .compile
-      .drain
-      .unsafeRunSync()
-
-    println(s"cost: ${timeout.toNanos / i} nano")
-    println(s"speed: ${i / timeout.toMillis} calls/milli")
-  }
-
-  test("12.performance - wrong") {
-    var i: Int  = 0
-    val timeout = 5.seconds
-    service
-      .eventStream(_.facilitate("performance")(_.measuredRetry(_.enable(true))).use(_(IO(i += 1))).foreverM)
-      .timeoutOnPullTo(timeout, fs2.Stream.empty)
-      .compile
-      .drain
-      .unsafeRunSync()
-
-    println(s"cost: ${timeout.toNanos / i} nano")
-    println(s"speed: ${i / timeout.toMillis} calls/milli")
+    assert(mr.snapshot.nonEmpty)
   }
 }
