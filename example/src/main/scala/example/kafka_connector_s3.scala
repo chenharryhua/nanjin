@@ -39,9 +39,9 @@ object kafka_connector_s3 {
       val ks: Option[Long] = ccr.record.serializedKeySize.map(_.toLong)
       val vs: Option[Long] = ccr.record.serializedValueSize.map(_.toLong)
 
-      idle.mark *>
+      idle.wakeUp *>
         ks.traverse(keySize.update) *> vs.traverse(valSize.update) *>
-        (ks |+| vs).traverse(byteRate.update) *> countRate.update(1) *>
+        (ks |+| vs).traverse(byteRate.mark) *> countRate.mark(1) *>
         goodNum.inc(1).whenA(ccr.record.value.isSuccess) *>
         badNum.inc(1).whenA(ccr.record.value.isFailure)
     }

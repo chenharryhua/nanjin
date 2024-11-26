@@ -12,7 +12,7 @@ class SyntaxTest extends AnyFunSuite {
   test("measured") {
     service.eventStreamR(_.facilitate("label")(_.measuredRetry(_.enable(true))))
     service.eventStreamR(_.facilitate("label")(_.measuredRetry(identity)))
-    service.eventStreamR(_.facilitate("label")(_.measuredRetry(_.worthRetry(_ => IO(true)))))
+    service.eventStreamR(_.facilitate("label")(_.measuredRetry(_.isWorthRetry(_ => IO(true)))))
   }
 
   test("facilitate") {

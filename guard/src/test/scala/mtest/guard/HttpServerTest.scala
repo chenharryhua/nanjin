@@ -49,7 +49,7 @@ class HttpServerTest extends AnyFunSuite {
                 _ <- ag.gauge("a").register(IO(1))
                 _ <- ag.counter("a").evalMap(_.inc(1))
                 _ <- ag.histogram("a", _.withUnit(_.BYTES)).evalMap(_.update(1))
-                _ <- ag.meter("a", _.withUnit(_.MEGABYTES)).evalMap(_.update(1))
+                _ <- ag.meter("a", _.withUnit(_.MEGABYTES)).evalMap(_.mark(1))
               } yield Kleisli((_: Int) => IO.unit)
             }
             .use(_.run(1) >> agent.adhoc.report >> IO.sleep(10.hours))

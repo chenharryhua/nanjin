@@ -37,7 +37,7 @@ class ServiceTest extends AnyFunSuite {
       .updateConfig(_.withRestartPolicy(_.fixedDelay(1.seconds).limited(1)))
       .eventStream(ga =>
         ga.facilitate("retry")(_.measuredRetry(_.withPolicy(_.fixedDelay(1.seconds).limited(1))))
-          .use(_(ga.herald.info("") *> IO.raiseError(new Exception))))
+          .use(_(ga.herald.info("info") *> IO.raiseError(new Exception))))
       .compile
       .toList
       .unsafeRunSync()

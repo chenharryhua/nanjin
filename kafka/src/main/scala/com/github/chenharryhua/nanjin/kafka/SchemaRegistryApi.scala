@@ -22,14 +22,10 @@ final class SchemaRegistryApi[F[_]](client: CachedSchemaRegistryClient) extends 
     for {
       key <- F
         .blocking(client.getLatestSchemaMetadata(loc.keyLoc))
-        .attempt
-        .map(_.leftMap(err => new Exception(topicName.value, err)))
-        .rethrow
+        .adaptError(ex => new Exception(topicName.value, ex))
       value <- F
         .blocking(client.getLatestSchemaMetadata(loc.valLoc))
-        .attempt
-        .map(_.leftMap(err => new Exception(topicName.value, err)))
-        .rethrow
+        .adaptError(ex => new Exception(topicName.value, ex))
     } yield KvSchemaMetadata(key, value)
   }
 
@@ -59,14 +55,10 @@ final class SchemaRegistryApi[F[_]](client: CachedSchemaRegistryClient) extends 
     for {
       k <- F
         .blocking(client.register(loc.keyLoc, new AvroSchema(pair.key)))
-        .attempt
-        .map(_.leftMap(err => new Exception(topicName.value, err)))
-        .rethrow
+        .adaptError(ex => new Exception(topicName.value, ex))
       v <- F
         .blocking(client.register(loc.valLoc, new AvroSchema(pair.value)))
-        .attempt
-        .map(_.leftMap(err => new Exception(topicName.value, err)))
-        .rethrow
+        .adaptError(ex => new Exception(topicName.value, ex))
     } yield (k, v)
   }
 
@@ -78,14 +70,10 @@ final class SchemaRegistryApi[F[_]](client: CachedSchemaRegistryClient) extends 
     for {
       k <- F
         .blocking(client.deleteSubject(loc.keyLoc).asScala.toList)
-        .attempt
-        .map(_.leftMap(err => new Exception(topicName.value, err)))
-        .rethrow
+        .adaptError(ex => new Exception(topicName.value, ex))
       v <- F
         .blocking(client.deleteSubject(loc.valLoc).asScala.toList)
-        .attempt
-        .map(_.leftMap(err => new Exception(topicName.value, err)))
-        .rethrow
+        .adaptError(ex => new Exception(topicName.value, ex))
     } yield (k, v)
   }
 }

@@ -61,7 +61,7 @@ object NJHealthCheck {
       } yield ()
 
     override def register(hc: F[Boolean], policy: Policy, zoneId: ZoneId): Resource[F, Unit] = {
-      val check: F[Boolean] = hc.timeout(timeout).attempt.map(_.fold(_ => false, identity))
+      val check: F[Boolean] = F.handleError(hc.timeout(timeout))(_ => false)
       for {
         init <- Resource.eval(check)
         ref <- Resource.eval(F.ref(init))

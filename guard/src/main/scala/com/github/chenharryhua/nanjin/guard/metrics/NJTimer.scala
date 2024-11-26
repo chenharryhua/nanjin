@@ -15,21 +15,21 @@ import scala.concurrent.duration.FiniteDuration
 
 trait NJTimer[F[_]] extends KleisliLike[F, Long] {
 
-  def update(jd: JavaDuration): F[Unit]
-  def update(num: Long): F[Unit]
+  def elapsed(jd: JavaDuration): F[Unit]
+  def elapsed(num: Long): F[Unit]
 
-  final def update(fd: FiniteDuration): F[Unit] =
-    update(fd.toNanos)
+  final def elapsed(fd: FiniteDuration): F[Unit] =
+    elapsed(fd.toNanos)
 
-  final override def run(num: Long): F[Unit] = update(num)
+  final override def run(num: Long): F[Unit] = elapsed(num)
 
 }
 
 object NJTimer {
   def noop[F[_]](implicit F: Applicative[F]): NJTimer[F] =
     new NJTimer[F] {
-      override def update(jd: JavaDuration): F[Unit] = F.unit
-      override def update(num: Long): F[Unit]        = F.unit
+      override def elapsed(jd: JavaDuration): F[Unit] = F.unit
+      override def elapsed(num: Long): F[Unit]        = F.unit
     }
 
   private class Impl[F[_]: Sync](
@@ -52,8 +52,8 @@ object NJTimer {
 
     private[this] lazy val timer: Timer = metricRegistry.timer(timer_name, supplier)
 
-    override def update(num: Long): F[Unit]        = F.delay(timer.update(num, TimeUnit.NANOSECONDS))
-    override def update(jd: JavaDuration): F[Unit] = F.delay(timer.update(jd))
+    override def elapsed(num: Long): F[Unit]        = F.delay(timer.update(num, TimeUnit.NANOSECONDS))
+    override def elapsed(jd: JavaDuration): F[Unit] = F.delay(timer.update(jd))
 
     val unregister: F[Unit] = F.delay(metricRegistry.remove(timer_name)).void
 
