@@ -20,21 +20,19 @@ object Retry {
 
     def comprehensive[A](fa: F[A], worthy: TickedValue[Throwable] => F[Boolean]): F[A] =
       F.tailRecM[TickStatus, A](initTS) { status =>
-        F.flatMap(F.attempt(fa)) {
-          case Right(value) => F.pure(Right(value))
-          case Left(ex) =>
-            F.flatMap[Boolean, Either[TickStatus, A]](worthy(TickedValue(status.tick, ex))) {
-              case false => F.raiseError(ex)
-              case true =>
-                for {
-                  next <- F.realTimeInstant.map(status.next)
-                  ns <- next match {
-                    case None => F.raiseError(ex) // run out of policy
-                    case Some(ts) => // sleep and continue
-                      F.sleep(ts.tick.snooze.toScala).as(Left(ts))
-                  }
-                } yield ns
-            }
+        F.handleErrorWith(fa.map[Either[TickStatus, A]](Right(_))) { ex =>
+          F.flatMap[Boolean, Either[TickStatus, A]](worthy(TickedValue(status.tick, ex))) {
+            case false => F.raiseError(ex)
+            case true =>
+              for {
+                next <- F.realTimeInstant.map(status.next)
+                ns <- next match {
+                  case None => F.raiseError(ex) // run out of policy
+                  case Some(ts) => // sleep and continue
+                    F.sleep(ts.tick.snooze.toScala).as(Left(ts))
+                }
+              } yield ns
+          }
         }
       }
   }
@@ -48,7 +46,7 @@ object Retry {
     override def enable(isEnabled: Boolean): Builder[F] =
       new Builder[F](isEnabled, policy, worthy)
 
-    def worthRetry(worthy: TickedValue[Throwable] => F[Boolean]): Builder[F] =
+    def isWorthRetry(worthy: TickedValue[Throwable] => F[Boolean]): Builder[F] =
       new Builder[F](isEnabled, policy, worthy)
 
     def withPolicy(policy: Policy): Builder[F] =

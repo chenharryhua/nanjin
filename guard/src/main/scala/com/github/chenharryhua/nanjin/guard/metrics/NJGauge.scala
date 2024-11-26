@@ -68,7 +68,7 @@ object NJGauge {
         .flatMap(json_gauge(_, value))
 
     override def register[A: Encoder](value: F[A], policy: Policy, zoneId: ZoneId): Resource[F, Unit] = {
-      val fetch: F[Json] = value.timeout(timeout).attempt.map(_.fold(trans_error, _.asJson))
+      val fetch: F[Json] = F.handleError(value.map(_.asJson).timeout(timeout))(trans_error)
       for {
         init <- Resource.eval(fetch)
         ref <- Resource.eval(F.ref(init))
