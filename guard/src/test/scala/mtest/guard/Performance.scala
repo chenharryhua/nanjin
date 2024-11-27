@@ -21,8 +21,8 @@ class Performance extends AnyFunSuite {
       .drain
       .unsafeRunSync()
 
-    println(s"cost: ${timeout.toNanos / i} nano")
-    println(s"speed: ${i / timeout.toMillis} calls/milli")
+    println(s"cost:  ${timeout.toNanos / i} nano")
+    println(s"speed: ${i / timeout.toMillis} k/s")
   }
 
   test("2.performance - measured disabled") {
@@ -34,8 +34,8 @@ class Performance extends AnyFunSuite {
       .drain
       .unsafeRunSync()
 
-    println(s"cost: ${timeout.toNanos / i} nano")
-    println(s"speed: ${i / timeout.toMillis} calls/milli")
+    println(s"cost:  ${timeout.toNanos / i} nano")
+    println(s"speed: ${i / timeout.toMillis} k/s")
   }
 
   test("3.performance - wrong") {
@@ -47,8 +47,8 @@ class Performance extends AnyFunSuite {
       .drain
       .unsafeRunSync()
 
-    println(s"cost: ${timeout.toNanos / i} nano")
-    println(s"speed: ${i / timeout.toMillis} calls/milli")
+    println(s"cost:  ${timeout.toNanos / i} nano")
+    println(s"speed: ${i / timeout.toMillis} k/s")
   }
 
   test("4.performance counter") {
@@ -60,8 +60,8 @@ class Performance extends AnyFunSuite {
       .drain
       .unsafeRunSync()
 
-    println(s"cost: ${timeout.toNanos / i} nano")
-    println(s"speed: ${i / timeout.toMillis} calls/milli")
+    println(s"cost:  ${timeout.toNanos / i} nano")
+    println(s"speed: ${i / timeout.toMillis} k/s")
   }
 
   test("5.performance permanent counter") {
@@ -74,8 +74,8 @@ class Performance extends AnyFunSuite {
       .drain
       .unsafeRunSync()
 
-    println(s"cost: ${timeout.toNanos / i} nano")
-    println(s"speed: ${i / timeout.toMillis} calls/milli")
+    println(s"cost:  ${timeout.toNanos / i} nano")
+    println(s"speed: ${i / timeout.toMillis} k/s")
   }
 
   test("6.performance meter") {
@@ -87,8 +87,8 @@ class Performance extends AnyFunSuite {
       .drain
       .unsafeRunSync()
 
-    println(s"cost: ${timeout.toNanos / i} nano")
-    println(s"speed: ${i / timeout.toMillis} calls/milli")
+    println(s"cost:  ${timeout.toNanos / i} nano")
+    println(s"speed: ${i / timeout.toMillis} k/s")
   }
 
   test("7.performance histogram") {
@@ -101,8 +101,8 @@ class Performance extends AnyFunSuite {
       .drain
       .unsafeRunSync()
 
-    println(s"cost: ${timeout.toNanos / i} nano")
-    println(s"speed: ${i / timeout.toMillis} calls/milli")
+    println(s"cost:  ${timeout.toNanos / i} nano")
+    println(s"speed: ${i / timeout.toMillis} k/s")
   }
 
   test("8.performance timer") {
@@ -114,15 +114,15 @@ class Performance extends AnyFunSuite {
       .drain
       .unsafeRunSync()
 
-    println(s"cost: ${timeout.toNanos / i} nano")
-    println(s"speed: ${i / timeout.toMillis} calls/milli")
+    println(s"cost:  ${timeout.toNanos / i} nano")
+    println(s"speed: ${i / timeout.toMillis} k/s")
   }
 
   test("9.performance circuit breaker") {
     var i: Int = 0
     service
       .eventStream(
-        _.circuitBreaker(_.withMaxConcurrent(50)).use { cb =>
+        _.circuitBreaker(_.withMaxConcurrent(5)).use { cb =>
           IO.parReplicateAN(10)(10, cb(IO(i += 1))).foreverM
         }
       )
@@ -131,7 +131,7 @@ class Performance extends AnyFunSuite {
       .drain
       .unsafeRunSync()
 
-    println(s"cost: ${timeout.toNanos / i} nano")
-    println(s"speed: ${i / timeout.toMillis} calls/milli")
+    println(s"cost:  ${timeout.toNanos / i} nano")
+    println(s"speed: ${i / timeout.toMillis} k/s")
   }
 }
