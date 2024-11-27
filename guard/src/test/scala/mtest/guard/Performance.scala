@@ -117,4 +117,21 @@ class Performance extends AnyFunSuite {
     println(s"cost: ${timeout.toNanos / i} nano")
     println(s"speed: ${i / timeout.toMillis} calls/milli")
   }
+
+  test("9.performance circuit breaker") {
+    var i: Int = 0
+    service
+      .eventStream(
+        _.circuitBreaker(_.withMaxConcurrent(50)).use { cb =>
+          IO.parReplicateAN(10)(10, cb(IO(i += 1))).foreverM
+        }
+      )
+      .timeoutOnPullTo(timeout, fs2.Stream.empty)
+      .compile
+      .drain
+      .unsafeRunSync()
+
+    println(s"cost: ${timeout.toNanos / i} nano")
+    println(s"speed: ${i / timeout.toMillis} calls/milli")
+  }
 }
