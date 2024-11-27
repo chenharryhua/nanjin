@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.service
 
-import cats.effect.kernel.Async
+import cats.Endo
+import cats.effect.kernel.{Async, Resource}
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.common.chrono.*
 import com.github.chenharryhua.nanjin.guard.action.*
@@ -38,6 +39,8 @@ sealed trait Agent[F[_]] {
 
   def facilitate[A](label: String)(f: Metrics[F] => A): A
 
+  def circuitBreaker(f: Endo[CircuitBreaker.Builder]): Resource[F, CircuitBreaker[F]]
+
 }
 
 final private class GeneralAgent[F[_]](
@@ -68,6 +71,10 @@ final private class GeneralAgent[F[_]](
     f(new Metrics.Impl[F](metricLabel, metricRegistry, zoneId))
   }
 
+  override def circuitBreaker(f: Endo[CircuitBreaker.Builder]): Resource[F, CircuitBreaker[F]] =
+    f(new CircuitBreaker.Builder(maxFailures = 5, maxConcurrent = 3, policy = Policy.giveUp)).build[F](zoneId)
+
   override object adhoc extends MetricsReport[F](channel, serviceParams, metricRegistry)
   override object herald extends Herald.Impl[F](serviceParams, channel)
+
 }
