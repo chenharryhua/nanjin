@@ -122,8 +122,8 @@ class Performance extends AnyFunSuite {
     var i: Int = 0
     service
       .eventStream(
-        _.circuitBreaker(_.withMaxConcurrent(5)).use { cb =>
-          IO.parReplicateAN(10)(10, cb(IO(i += 1))).foreverM
+        _.circuitBreaker(identity).use { cb =>
+          cb(IO(i += 1)).foreverM
         }
       )
       .timeoutOnPullTo(timeout, fs2.Stream.empty)

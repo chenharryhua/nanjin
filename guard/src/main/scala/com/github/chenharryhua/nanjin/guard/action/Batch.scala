@@ -48,10 +48,10 @@ object Batch {
 
     protected def measure(size: Int, kind: BatchKind, mode: BatchMode): Resource[F, DoMeasurement] =
       for {
-        _ <- mtx.activeGauge(show"$kind $mode elapsed")
+        _ <- mtx.activeGauge("elapsed")
         ratio <- mtx.ratio("completion", _.withTranslator(translator)).evalTap(_.incDenominator(size.toLong))
         progress <- Resource.eval(F.ref[List[Detail]](Nil))
-        _ <- mtx.gauge("completed").register(progress.get.map(toJson))
+        _ <- mtx.gauge(show"$mode $kind completed").register(progress.get.map(toJson))
       } yield Kleisli { (detail: Detail) =>
         F.uncancelable(_ => ratio.incNumerator(1) *> progress.update(_.appended(detail)))
       }
