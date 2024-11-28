@@ -72,7 +72,7 @@ final private class GeneralAgent[F[_]](
   }
 
   override def circuitBreaker(f: Endo[CircuitBreaker.Builder]): Resource[F, CircuitBreaker[F]] =
-    f(new CircuitBreaker.Builder(maxFailures = 5, maxConcurrent = 3, policy = Policy.giveUp)).build[F](zoneId)
+    f(new CircuitBreaker.Builder(maxFailures = 5, policy = Policy.giveUp)).build[F](zoneId)
 
   override object adhoc extends MetricsReport[F](channel, serviceParams, metricRegistry)
   override object herald extends Herald.Impl[F](serviceParams, channel)

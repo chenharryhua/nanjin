@@ -69,22 +69,22 @@ object eventFilters {
 
   // mapFilter friendly
 
-  def metricReport: NJEvent => Option[NJEvent.MetricReport] =
+  val metricReport: NJEvent => Option[NJEvent.MetricReport] =
     GenPrism[NJEvent, NJEvent.MetricReport].getOption(_)
 
-  def metricReset: NJEvent => Option[NJEvent.MetricReset] =
+  val metricReset: NJEvent => Option[NJEvent.MetricReset] =
     GenPrism[NJEvent, NJEvent.MetricReset].getOption(_)
 
-  def serviceMessage: NJEvent => Option[NJEvent.ServiceMessage] =
+  val serviceMessage: NJEvent => Option[NJEvent.ServiceMessage] =
     GenPrism[NJEvent, NJEvent.ServiceMessage].getOption(_)
 
-  def serviceStart: NJEvent => Option[NJEvent.ServiceStart] =
+  val serviceStart: NJEvent => Option[NJEvent.ServiceStart] =
     GenPrism[NJEvent, NJEvent.ServiceStart].getOption(_)
 
-  def serviceStop: NJEvent => Option[NJEvent.ServiceStop] =
+  val serviceStop: NJEvent => Option[NJEvent.ServiceStop] =
     GenPrism[NJEvent, NJEvent.ServiceStop].getOption(_)
 
-  def servicePanic: NJEvent => Option[NJEvent.ServicePanic] =
+  val servicePanic: NJEvent => Option[NJEvent.ServicePanic] =
     GenPrism[NJEvent, NJEvent.ServicePanic].getOption(_)
 
 }
