@@ -49,8 +49,8 @@ object Herald {
           serviceParams = serviceParams,
           timestamp = ts,
           level = level,
-          message = Encoder[S].apply(msg),
-          error = error))
+          error = error,
+          message = Encoder[S].apply(msg)))
 
     private def alarm[S: Encoder](msg: S, level: AlarmLevel, error: Option[NJError]): F[Unit] =
       toServiceMessage(msg, level, error).flatMap(channel.send).void

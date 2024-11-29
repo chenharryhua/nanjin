@@ -1,13 +1,15 @@
 package com.github.chenharryhua.nanjin.guard.action
 
+import cats.Endo
 import cats.effect.kernel.{Async, Resource, Sync}
 import cats.effect.std.{Dispatcher, Queue}
 import cats.implicits.{toFlatMapOps, toFunctorOps}
-import com.github.benmanes.caffeine.cache.{Cache, Caffeine, RemovalCause, RemovalListener}
 import com.github.benmanes.caffeine.cache.stats.CacheStats
+import com.github.benmanes.caffeine.cache.{Cache, Caffeine, RemovalCause, RemovalListener}
 import com.github.chenharryhua.nanjin.guard.translator.fmt
-import io.circe.generic.JsonCodec
 import fs2.Stream
+import io.circe.generic.JsonCodec
+
 import scala.concurrent.duration.DurationLong
 
 trait CaffeineCache[F[_], K, V] {
@@ -94,17 +96,17 @@ object CaffeineCache {
     F: Sync[F]): Resource[F, CaffeineCache[F, K, V]] =
     Resource.make(F.pure(new Impl(cache)))(_.cleanUp)
 
-  private[guard] def buildRemovalCache[F[_], K, V](caffeine: Caffeine[K, V])(implicit
+  private[guard] def buildRemovalCache[F[_], K, V](f: Endo[Caffeine[K, V]])(implicit
     F: Async[F]): Resource[F, RemovalCache[F, K, V]] = {
     def removeListener(dispatcher: Dispatcher[F], queue: Queue[F, V]): RemovalListener[K, V] =
       (_: K, value: V, _: RemovalCause) => dispatcher.unsafeRunSync(queue.offer(value))
 
-    val pair = for {
+    for {
       queue <- Resource.eval(Queue.unbounded[F, V])
       dispatcher <- Dispatcher.sequential[F]
-      cache <- buildCache(caffeine.removalListener(removeListener(dispatcher, queue)).build[K, V]())
-    } yield (cache, queue)
+      ncaf: Caffeine[K, V] = Caffeine.newBuilder().removalListener(removeListener(dispatcher, queue))
+      cache <- buildCache(f(ncaf).build[K, V]())
+    } yield RemovalCache(cache, Stream.fromQueueUnterminated(queue))
 
-    pair.map { case (cache, queue) => RemovalCache(cache, Stream.fromQueueUnterminated(queue)) }
   }
 }
