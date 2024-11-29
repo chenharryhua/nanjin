@@ -123,7 +123,7 @@ class Performance extends AnyFunSuite {
     service
       .eventStream(
         _.circuitBreaker(identity).use { cb =>
-          cb(IO(i += 1)).foreverM
+          cb.protect(IO(i += 1)).foreverM
         }
       )
       .timeoutOnPullTo(timeout, fs2.Stream.empty)
