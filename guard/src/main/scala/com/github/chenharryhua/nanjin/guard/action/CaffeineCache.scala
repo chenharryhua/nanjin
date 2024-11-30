@@ -5,7 +5,7 @@ import cats.implicits.{toFlatMapOps, toFunctorOps}
 import com.github.benmanes.caffeine.cache.Cache
 import com.github.benmanes.caffeine.cache.stats.CacheStats
 import com.github.chenharryhua.nanjin.guard.translator.fmt
-import io.circe.generic.JsonCodec
+import io.circe.{Encoder, Json}
 
 import scala.concurrent.duration.DurationLong
 
@@ -23,7 +23,6 @@ trait CaffeineCache[F[_], K, V] {
 }
 
 object CaffeineCache {
-  @JsonCodec
   final case class Stats(
     hitCount: Long,
     missCount: Long,
@@ -32,6 +31,9 @@ object CaffeineCache {
     totalLoadTime: String,
     evictionCount: Long,
     evictionWeight: Long)
+
+  implicit val encoderStats: Encoder[Stats] = (a: Stats) =>
+    Json.fromString(s"[hit: ${a.hitCount}, miss: ${a.missCount}, evict: ${a.evictionCount}]")
 
   private object Stats {
 
@@ -44,7 +46,6 @@ object CaffeineCache {
       evictionCount = cs.evictionCount(),
       evictionWeight = cs.evictionWeight()
     )
-
   }
 
   final private class Impl[F[_], K, V](cache: Cache[K, V])(implicit F: Sync[F])
@@ -63,7 +64,7 @@ object CaffeineCache {
       F.delay(cache.put(key, value))
 
     override def updateWith(key: K)(f: Option[V] => V): F[V] =
-      getIfPresent(key).map(f).flatTap(put(key, _))
+      getIfPresent(key).map(f).flatTap(v => put(key, v))
 
     override def invalidate(key: K): F[Unit] =
       F.delay(cache.invalidate(key))
