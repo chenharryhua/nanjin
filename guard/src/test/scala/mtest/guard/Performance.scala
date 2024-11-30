@@ -2,6 +2,7 @@ package mtest.guard
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
+import com.github.benmanes.caffeine.cache.Caffeine
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -123,7 +124,7 @@ class Performance extends AnyFunSuite {
     service
       .eventStream(
         _.circuitBreaker(identity).use { cb =>
-          cb(IO(i += 1)).foreverM
+          cb.protect(IO(i += 1)).foreverM
         }
       )
       .timeoutOnPullTo(timeout, fs2.Stream.empty)
@@ -134,4 +135,20 @@ class Performance extends AnyFunSuite {
     println(s"cost:  ${timeout.toNanos / i} nano")
     println(s"speed: ${i / timeout.toMillis} k/s")
   }
+
+  test("10.performance cache") {
+    service
+      .eventStream(_.caffeineCache(Caffeine.newBuilder().build[Int, Int]()).use { cache =>
+        cache.put(1, 0) >>
+          cache.updateWith(1)(_.fold(0)(_ + 1)).foreverM.timeout(timeout).attempt >>
+          cache.get(1, IO(0)).flatMap { i =>
+            IO.println(s"cost:  ${timeout.toNanos / i} nano") >>
+            IO.println(s"speed: ${i / timeout.toMillis} k/s")
+          }
+      })
+      .compile
+      .drain
+      .unsafeRunSync()
+  }
+
 }
