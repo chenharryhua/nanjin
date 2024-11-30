@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.guard.service
 import cats.Endo
 import cats.effect.kernel.{Async, Resource}
 import com.codahale.metrics.MetricRegistry
-import com.github.benmanes.caffeine.cache.{Cache, Caffeine}
+import com.github.benmanes.caffeine.cache.Cache
 import com.github.chenharryhua.nanjin.common.chrono.*
 import com.github.chenharryhua.nanjin.guard.action.*
 import com.github.chenharryhua.nanjin.guard.config.*
@@ -43,8 +43,6 @@ sealed trait Agent[F[_]] {
   def circuitBreaker(f: Endo[CircuitBreaker.Builder]): Resource[F, CircuitBreaker[F]]
 
   def caffeineCache[K, V](cache: Cache[K, V]): Resource[F, CaffeineCache[F, K, V]]
-  def removalCache[K, V](caffeine: Endo[Caffeine[K, V]]): Resource[F, RemovalCache[F, K, V]]
-
 }
 
 final private class GeneralAgent[F[_]](
@@ -80,9 +78,6 @@ final private class GeneralAgent[F[_]](
 
   override def caffeineCache[K, V](cache: Cache[K, V]): Resource[F, CaffeineCache[F, K, V]] =
     CaffeineCache.buildCache[F, K, V](cache)
-
-  override def removalCache[K, V](caffeine: Endo[Caffeine[K, V]]): Resource[F, RemovalCache[F, K, V]] =
-    CaffeineCache.buildRemovalCache[F, K, V](caffeine)
 
   override object adhoc extends MetricsReport[F](channel, serviceParams, metricRegistry)
   override object herald extends Herald.Impl[F](serviceParams, channel)
