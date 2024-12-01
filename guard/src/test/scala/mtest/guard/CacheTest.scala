@@ -84,7 +84,7 @@ class CacheTest extends AnyFunSuite {
       .updateConfig(_.withMetricReport(_.crontab(_.every3Seconds)))
       .eventStream { agent =>
         val pair = for {
-          dispatcher <- Dispatcher.sequential[IO]
+          dispatcher <- Dispatcher.parallel[IO]
           queue <- Resource.eval(Queue.unbounded[IO, Option[Int]])
           cache <- agent.caffeineCache(
             Caffeine
