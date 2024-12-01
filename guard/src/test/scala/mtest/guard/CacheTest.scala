@@ -44,14 +44,15 @@ class CacheTest extends AnyFunSuite {
       .updateConfig(_.withMetricReport(_.crontab(_.every3Seconds)))
       .eventStream { agent =>
         val cache = for {
+          dispatcher <- Dispatcher.sequential[IO]
           cache <- agent.caffeineCache(
             Caffeine
               .newBuilder()
-              .maximumSize(10)
-              .expireAfterAccess(3.seconds.toJava)
+              .maximumSize(2)
+              .expireAfterWrite(3.seconds.toJava)
               .removalListener(new RemovalListener[Int, Int] {
                 override def onRemoval(key: Int, value: Int, cause: RemovalCause): Unit =
-                  println((key, value, cause))
+                  dispatcher.unsafeRunSync(IO.println((key, value, cause)))
               })
               .recordStats()
               .build[Int, Int]())
@@ -59,14 +60,15 @@ class CacheTest extends AnyFunSuite {
         } yield cache
         cache.use { c =>
           Stream
-            .range(0, 20)
+            .range(0, 8)
             .covary[IO]
             .metered(1.second)
             .evalMap(i =>
-              IO.println(i) >>
-                c.get(i, IO.sleep(1000.milli) *> IO(i)) >>
+              IO.println(s"send: $i") >>
+                c.get(i, IO(i)) >>
                 c.updateWith(i)(_.fold(0)(_ + 100)) >>
                 c.getIfPresent(i).map(_.exists(_ == i + 100).ensuring(b => b)))
+            .onFinalize(c.invalidateAll)
             .compile
             .drain >> agent.adhoc.report
         }
@@ -87,11 +89,11 @@ class CacheTest extends AnyFunSuite {
           cache <- agent.caffeineCache(
             Caffeine
               .newBuilder()
-              .maximumSize(2)
+              .maximumSize(5)
               .expireAfterAccess(3.seconds.toJava)
               .removalListener(new RemovalListener[Int, Int] {
                 override def onRemoval(key: Int, value: Int, cause: RemovalCause): Unit =
-                  dispatcher.unsafeRunSync(cause match {
+                  dispatcher.unsafeRunAndForget(cause match {
                     case RemovalCause.EXPLICIT =>
                       IO.println(s"EXPLICIT: $key, $value") >> queue.offer(value.some)
                     case RemovalCause.REPLACED =>
