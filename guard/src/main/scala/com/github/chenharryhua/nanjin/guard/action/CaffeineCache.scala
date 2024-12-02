@@ -21,17 +21,17 @@ trait CaffeineCache[F[_], K, V] {
 }
 
 object CaffeineCache {
-  final case class Stats(hitCount: Long, missCount: Long, evictionCount: Long)
+  final case class Stats(hitCount: Long, missCount: Long, estimatedSize: Long)
 
   implicit val encoderStats: Encoder[Stats] = (a: Stats) =>
-    Json.fromString(s"[hit: ${a.hitCount}, miss: ${a.missCount}, evict: ${a.evictionCount}]")
+    Json.fromString(s"[hit: ${a.hitCount}, miss: ${a.missCount}, cached: ${a.estimatedSize}]")
 
   private object Stats {
 
-    def apply(cs: CacheStats): Stats = Stats(
+    def apply(cs: CacheStats, estimatedSize: Long): Stats = Stats(
       hitCount = cs.hitCount(),
       missCount = cs.missCount(),
-      evictionCount = cs.evictionCount()
+      estimatedSize = estimatedSize
     )
   }
 
@@ -60,7 +60,7 @@ object CaffeineCache {
       F.delay(cache.invalidateAll())
 
     override val getStats: F[Stats] =
-      F.delay(Stats(cache.stats()))
+      F.delay(Stats(cache.stats(), cache.estimatedSize()))
 
     val cleanUp: F[Unit] = F.delay(cache.cleanUp())
   }

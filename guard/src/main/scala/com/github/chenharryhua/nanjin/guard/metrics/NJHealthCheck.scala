@@ -15,21 +15,21 @@ import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.util.Try
 
 trait NJHealthCheck[F[_]] {
-  def register(hc: F[Boolean]): Resource[F, Unit]
+  def register(hc: => F[Boolean]): Resource[F, Unit]
 
   /** heath check sometimes is expensive.
     * @param hc
     *   health check method.
     */
-  def register(hc: F[Boolean], policy: Policy, zoneId: ZoneId): Resource[F, Unit]
+  def register(hc: => F[Boolean], policy: Policy, zoneId: ZoneId): Resource[F, Unit]
 }
 
 object NJHealthCheck {
   def noop[F[_]]: NJHealthCheck[F] =
     new NJHealthCheck[F] {
-      override def register(hc: F[Boolean]): Resource[F, Unit] =
+      override def register(hc: => F[Boolean]): Resource[F, Unit] =
         Resource.unit[F]
-      override def register(hc: F[Boolean], policy: Policy, zoneId: ZoneId): Resource[F, Unit] =
+      override def register(hc: => F[Boolean], policy: Policy, zoneId: ZoneId): Resource[F, Unit] =
         Resource.unit[F]
     }
 
@@ -42,7 +42,7 @@ object NJHealthCheck {
 
     private[this] val F = Async[F]
 
-    override def register(hc: F[Boolean]): Resource[F, Unit] =
+    override def register(hc: => F[Boolean]): Resource[F, Unit] =
       for {
         dispatcher <- Dispatcher.sequential[F]
         metricID <- Resource.eval((F.monotonic, UUIDGen[F].randomUUID).mapN { case (ts, unique) =>
@@ -55,13 +55,13 @@ object NJHealthCheck {
               () =>
                 new Gauge[Boolean] {
                   override def getValue: Boolean =
-                    Try(dispatcher.unsafeRunTimed(hc, timeout)).fold(_ => false, identity)
+                    Try(dispatcher.unsafeRunTimed(F.defer(hc), timeout)).fold(_ => false, identity)
                 }
             )))(_ => F.delay(metricRegistry.remove(metricID)).void)
       } yield ()
 
-    override def register(hc: F[Boolean], policy: Policy, zoneId: ZoneId): Resource[F, Unit] = {
-      val check: F[Boolean] = F.handleError(hc.timeout(timeout))(_ => false)
+    override def register(hc: => F[Boolean], policy: Policy, zoneId: ZoneId): Resource[F, Unit] = {
+      val check: F[Boolean] = F.handleError(F.defer(hc).timeout(timeout))(_ => false)
       for {
         init <- Resource.eval(check)
         ref <- Resource.eval(F.ref(init))
