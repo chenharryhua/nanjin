@@ -110,8 +110,8 @@ class NJTextTest extends AnyFunSuite {
       .repeatN(number)
       .map(_.toString)
       .chunks
-      .through(hdp.rotate(Policy.fixedDelay(1.second), ZoneId.systemDefault())(t =>
-        path / fk.fileName(t)).text)
+      .through(
+        hdp.rotate(Policy.fixedDelay(1.second), ZoneId.systemDefault())(t => path / fk.fileName(t)).text)
       .fold(0L)((sum, v) => sum + v.value)
       .compile
       .lastOrError
