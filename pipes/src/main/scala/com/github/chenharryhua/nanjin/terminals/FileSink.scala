@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.terminals
 
+import cats.Endo
 import cats.effect.kernel.Sync
 import cats.implicits.toFunctorOps
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -34,6 +35,12 @@ final class FileSink[F[_]: Sync] private (configuration: Configuration, path: Ur
         if (csvConfiguration.hasHeader) header >> process else process
       }
   }
+
+  def kantan(f: Endo[CsvConfiguration]): Pipe[F, Chunk[Seq[String]], Int] =
+    kantan(f(CsvConfiguration.rfc))
+
+  val kantan: Pipe[F, Chunk[Seq[String]], Int] =
+    kantan(CsvConfiguration.rfc)
 
   val text: Pipe[F, Chunk[String], Int] = { (ss: Stream[F, Chunk[String]]) =>
     Stream
