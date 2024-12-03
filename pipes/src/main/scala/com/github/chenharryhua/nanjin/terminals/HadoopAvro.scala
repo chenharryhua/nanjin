@@ -25,7 +25,7 @@ final class HadoopAvro[F[_]] private (
   // read
 
   def source(path: Url, chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, GenericData.Record] =
-    HadoopReader.avroS(configuration, schema, toHadoopPath(path), chunkSize)
+    HadoopReader.avroS(configuration, toHadoopPath(path), chunkSize)
 
   // write
 

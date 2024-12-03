@@ -8,11 +8,11 @@ import fs2.{Chunk, Pull, Stream}
 import io.circe.Json
 import io.circe.jawn.CirceSupportParser.facade
 import org.apache.avro.Schema
-import org.apache.avro.file.{DataFileReader, DataFileStream}
+import org.apache.avro.file.DataFileStream
 import org.apache.avro.generic.{GenericData, GenericDatumReader}
 import org.apache.avro.io.{Decoder, DecoderFactory}
 import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.fs.{AvroFSInput, FileContext, Path}
+import org.apache.hadoop.fs.Path
 import org.apache.hadoop.io.compress.{CodecPool, CompressionCodecFactory, Decompressor}
 import org.apache.parquet.hadoop.ParquetReader
 import org.apache.parquet.hadoop.util.HadoopInputFile
@@ -26,26 +26,16 @@ import scala.jdk.CollectionConverters.IteratorHasAsScala
 
 private object HadoopReader {
 
-  def avroS[F[_]](configuration: Configuration, schema: Schema, path: Path, chunkSize: ChunkSize)(implicit
+  def avroS[F[_]](configuration: Configuration, path: Path, chunkSize: ChunkSize)(implicit
     F: Sync[F]): Stream[F, GenericData.Record] =
     for {
       is <- Stream.bracket(F.blocking(HadoopInputFile.fromPath(path, configuration).newStream()))(r =>
         F.blocking(r.close()))
       dfs <- Stream.bracket {
-        F.blocking[DataFileStream[GenericData.Record]](new DataFileStream(is, new GenericDatumReader(schema)))
+        F.blocking[DataFileStream[GenericData.Record]](new DataFileStream(is, new GenericDatumReader()))
       }(r => F.blocking(r.close()))
       gr <- Stream.fromBlockingIterator[F](dfs.iterator().asScala, chunkSize.value)
     } yield gr
-
-  def schemalessAvro[F[_]](configuration: Configuration, path: Path, chunkSize: ChunkSize)(implicit
-    F: Sync[F]): Stream[F, GenericData.Record] =
-    Stream
-      .eval(F.delay {
-        val reader  = new GenericDatumReader[GenericData.Record]
-        val fsInput = new AvroFSInput(FileContext.getFileContext(configuration), path)
-        new DataFileReader(fsInput, reader).getSchema
-      })
-      .flatMap(avroS[F](configuration, _, path, chunkSize))
 
   def parquetS[F[_]](
     readBuilder: Reader[Path, ParquetReader.Builder[GenericData.Record]],

@@ -22,7 +22,7 @@ import java.io.InputStreamReader
 
 final class FileSource[F[_]: Sync] private (configuration: Configuration, path: Url) {
   def avro(chunkSize: ChunkSize): Stream[F, GenericData.Record] =
-    HadoopReader.schemalessAvro(configuration, toHadoopPath(path), chunkSize)
+    HadoopReader.avroS(configuration, toHadoopPath(path), chunkSize)
 
   def binAvro(chunkSize: ChunkSize, schema: Schema): Stream[F, GenericData.Record] =
     HadoopReader.binAvroS[F](configuration, schema, toHadoopPath(path), chunkSize)
