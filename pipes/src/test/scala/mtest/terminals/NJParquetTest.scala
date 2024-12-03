@@ -39,6 +39,7 @@ class NJParquetTest extends AnyFunSuite {
     assert(jawn.decode[NJFileKind](fileName).toOption.get == file)
     val size = ts.through(sink).fold(0)(_ + _).compile.lastOrError.unsafeRunSync()
     assert(size == data.size)
+    assert(hdp.source(tgt).parquet(100).compile.toList.unsafeRunSync().toSet == data)
   }
 
   val fs2Root: Url = Url("./data/test/terminals/parquet/panda")

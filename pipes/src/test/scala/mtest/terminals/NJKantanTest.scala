@@ -30,14 +30,24 @@ class NJKantanTest extends AnyFunSuite {
     val tgt = path / file.fileName
     hdp.delete(tgt).unsafeRunSync()
     val ts     = Stream.emits(data.toList).covary[IO].map(tigerEncoder.encode).chunks
-    val sink   = hdp.kantan(csvConfiguration).sink(tgt)
-    val src    = hdp.kantan(csvConfiguration).source(tgt, 100).map(tigerDecoder.decode).rethrow
+    val sink   = hdp.sink(tgt).kantan(csvConfiguration)
+    val src    = hdp.source(tgt).kantan(100, csvConfiguration).map(tigerDecoder.decode).rethrow
     val action = ts.through(sink).compile.drain >> src.compile.toList
     assert(action.unsafeRunSync().toSet == data)
     val fileName = (file: NJFileKind).asJson.noSpaces
     assert(jawn.decode[NJFileKind](fileName).toOption.get == file)
     val size = ts.through(sink).fold(0)(_ + _).compile.lastOrError.unsafeRunSync()
     assert(size == data.size)
+    assert(
+      hdp
+        .source(tgt)
+        .kantan(100, csvConfiguration)
+        .map(tigerDecoder.decode)
+        .rethrow
+        .compile
+        .toList
+        .unsafeRunSync()
+        .toSet == data)
   }
 
   val fs2Root: Url = Url.parse("./data/test/terminals/csv/tiger")

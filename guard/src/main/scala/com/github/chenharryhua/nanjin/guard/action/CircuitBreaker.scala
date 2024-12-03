@@ -48,7 +48,7 @@ object CircuitBreaker {
           .drain)
     } yield new CircuitBreaker[F] {
 
-      override def getState: F[State] = state.get
+      override val getState: F[State] = state.get
 
       override def attempt[A](fa: => F[A]): F[Either[Throwable, A]] = {
         def updateState(result: Either[Throwable, A]): F[Unit] =
@@ -70,12 +70,12 @@ object CircuitBreaker {
               }
           }
 
-        val rejected: Left[RejectedException.type, A] = Left(RejectedException)
-
         F.uncancelable(poll =>
           state.get.flatMap {
-            case State.Open(_) => updateState(rejected) *> F.pure(rejected)
-            case _             => poll(F.defer(fa)).attempt.flatTap(updateState)
+            case State.Open(_) =>
+              val rejected: Left[RejectedException.type, A] = Left(RejectedException)
+              updateState(rejected) *> F.pure(rejected)
+            case _ => poll(F.defer(fa)).attempt.flatTap(updateState)
           })
       }
 

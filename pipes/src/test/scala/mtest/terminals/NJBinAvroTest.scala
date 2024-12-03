@@ -28,16 +28,16 @@ class NJBinAvroTest extends AnyFunSuite {
     val tgt = path / file.fileName
 
     hdp.delete(tgt).unsafeRunSync()
-    val sink =
-      binAvro.sink(tgt)
+    val sink     = binAvro.sink(tgt)
     val src      = binAvro.source(tgt, 100)
     val ts       = Stream.emits(data.toList).covary[IO].chunks
-    val action   = ts.through(sink).compile.drain >> src.compile.toList.map(_.toList)
+    val action   = ts.through(sink).compile.drain >> src.compile.toList
     val fileName = (file: NJFileKind).asJson.noSpaces
     assert(jawn.decode[NJFileKind](fileName).toOption.get == file)
     assert(action.unsafeRunSync().toSet == data)
     val size = ts.through(sink).fold(0)(_ + _).compile.lastOrError.unsafeRunSync()
     assert(size == data.size)
+    assert(hdp.source(tgt).binAvro(100, pandaSchema).compile.toList.unsafeRunSync().toSet == data)
   }
 
   val fs2Root: Url = "data/test/terminals/bin_avro/panda"

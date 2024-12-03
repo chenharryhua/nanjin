@@ -25,20 +25,27 @@ import io.lemonlabs.uri.typesafe.dsl.*
 
 class NJTextTest extends AnyFunSuite {
 
-  val text: HadoopText[IO] = hdp.text
-
   def fs2(path: Url, file: TextFile, data: Set[Tiger]): Assertion = {
     val tgt = path / file.fileName
     hdp.delete(tgt).unsafeRunSync()
     val ts                      = Stream.emits(data.toList).covary[IO].map(_.asJson.noSpaces).chunks
-    val sink                    = text.sink(tgt)
-    val src: Stream[IO, Tiger]  = text.source(tgt, 2).mapFilter(decode[Tiger](_).toOption)
+    val sink                    = hdp.sink(tgt).text
+    val src: Stream[IO, Tiger]  = hdp.source(tgt).text(2).mapFilter(decode[Tiger](_).toOption)
     val action: IO[List[Tiger]] = ts.through(sink).compile.drain >> src.compile.toList
     assert(action.unsafeRunSync().toSet == data)
     val fileName = (file: NJFileKind).asJson.noSpaces
     assert(jawn.decode[NJFileKind](fileName).toOption.get == file)
     val size = ts.through(sink).fold(0)(_ + _).compile.lastOrError.unsafeRunSync()
     assert(size == data.size)
+    assert(
+      hdp
+        .source(tgt)
+        .text(100)
+        .mapFilter(decode[Tiger](_).toOption)
+        .compile
+        .toList
+        .unsafeRunSync()
+        .toSet == data)
   }
 
   val fs2Root: Url = Url("./data/test/terminals/text/tiger")
@@ -88,8 +95,8 @@ class NJTextTest extends AnyFunSuite {
   }
 
   test("laziness") {
-    text.source("./does/not/exist", 1)
-    text.sink("./does/not/exist")
+    hdp.source("./does/not/exist").text(2)
+    hdp.sink("./does/not/exist").text
   }
 
   test("rotation") {
@@ -103,8 +110,8 @@ class NJTextTest extends AnyFunSuite {
       .repeatN(number)
       .map(_.toString)
       .chunks
-      .through(text.rotateSink(Policy.fixedDelay(1.second), ZoneId.systemDefault())(t =>
-        path / fk.fileName(t)))
+      .through(hdp.rotate(Policy.fixedDelay(1.second), ZoneId.systemDefault())(t =>
+        path / fk.fileName(t)).text)
       .fold(0L)((sum, v) => sum + v.value)
       .compile
       .lastOrError
@@ -112,7 +119,7 @@ class NJTextTest extends AnyFunSuite {
     val size =
       hdp
         .filesIn(path)
-        .flatMap(_.traverse(text.source(_, 2).compile.toList.map(_.size)))
+        .flatMap(_.traverse(hdp.source(_).text(2).compile.toList.map(_.size)))
         .map(_.sum)
         .unsafeRunSync()
     assert(size == number * 10)

@@ -2,7 +2,8 @@ package com.github.chenharryhua.nanjin.terminals
 
 import cats.Endo
 import cats.data.NonEmptyList
-import cats.effect.kernel.Sync
+import cats.effect.kernel.{Async, Sync}
+import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick, TickedValue}
 import com.github.chenharryhua.nanjin.datetime.codec
 import io.lemonlabs.uri.{Uri, Url}
 import kantan.csv.CsvConfiguration
@@ -14,7 +15,9 @@ import org.apache.parquet.hadoop.util.HiddenFileFilter
 import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
+import fs2.Stream
 
+import java.time.ZoneId
 object NJHadoop {
 
   def apply[F[_]](config: Configuration): NJHadoop[F] = new NJHadoop[F](config)
@@ -141,4 +144,14 @@ final class NJHadoop[F[_]] private (config: Configuration) {
   def circe: HadoopCirce[F] = HadoopCirce[F](config)
   def text: HadoopText[F]   = HadoopText[F](config)
   def bytes: HadoopBytes[F] = HadoopBytes[F](config)
+
+  def source(path: Url)(implicit F: Sync[F]): FileSource[F] = FileSource[F](config, path)
+  def sink(path: Url)(implicit F: Sync[F]): FileSink[F]     = FileSink[F](config, path)
+  def rotate(paths: Stream[F, TickedValue[Url]])(implicit F: Async[F]): FileRotateSink[F] =
+    FileRotateSink[F](config, paths)
+  def rotate(policy: Policy, zoneId: ZoneId)(pathBuilder: Tick => Url)(implicit
+    F: Async[F]): FileRotateSink[F] =
+    FileRotateSink[F](
+      config,
+      tickStream.fromZero[F](policy, zoneId).map(tick => TickedValue(tick, pathBuilder(tick))))
 }

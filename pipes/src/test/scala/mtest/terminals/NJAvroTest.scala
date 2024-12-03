@@ -36,6 +36,7 @@ class NJAvroTest extends AnyFunSuite {
     assert(action.unsafeRunSync().toSet == data)
     val size = ts.through(sink).fold(0)(_ + _).compile.lastOrError.unsafeRunSync()
     assert(size == data.size)
+    assert(hdp.source(tgt).avro(100).compile.toList.unsafeRunSync().toSet == data)
   }
 
   val fs2Root: Url = Url.parse("./data/test/terminals/avro/panda")
