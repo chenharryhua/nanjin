@@ -13,6 +13,7 @@ import io.circe.jawn
 import io.circe.jawn.decode
 import io.circe.syntax.EncoderOps
 import io.lemonlabs.uri.Url
+import io.lemonlabs.uri.typesafe.dsl.*
 import mtest.terminals.HadoopTestData.hdp
 import mtest.terminals.TestData.Tiger
 import org.apache.hadoop.conf.Configuration
@@ -21,7 +22,6 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.ZoneId
 import scala.concurrent.duration.DurationInt
-import io.lemonlabs.uri.typesafe.dsl.*
 
 class NJTextTest extends AnyFunSuite {
 
@@ -82,13 +82,12 @@ class NJTextTest extends AnyFunSuite {
     conf.set("fs.ftp.password.localhost", "test")
     conf.set("fs.ftp.data.connection.mode", "PASSIVE_LOCAL_DATA_CONNECTION_MODE")
     conf.set("fs.ftp.impl", "org.apache.hadoop.fs.ftp.FTPFileSystem")
-    val conn = NJHadoop[IO](conf).text
     Stream
       .emits(TestData.tigerSet.toList)
       .covary[IO]
       .map(_.toString)
       .chunks
-      .through(conn.sink(path))
+      .through(hdp.sink(path).text)
       .compile
       .drain
       .unsafeRunSync()
@@ -111,7 +110,7 @@ class NJTextTest extends AnyFunSuite {
       .map(_.toString)
       .chunks
       .through(
-        hdp.rotate(Policy.fixedDelay(1.second), ZoneId.systemDefault())(t => path / fk.fileName(t)).text)
+        hdp.rotateSink(Policy.fixedDelay(1.second), ZoneId.systemDefault())(t => path / fk.fileName(t)).text)
       .fold(0L)((sum, v) => sum + v.value)
       .compile
       .lastOrError
@@ -128,14 +127,16 @@ class NJTextTest extends AnyFunSuite {
   }
 
   test("rotation - empty") {
-    val text = hdp.text
     val path = fs2Root / "rotation" / "empty"
     hdp.delete(path).unsafeRunSync()
     val fk = TextFile(Uncompressed)
     (Stream.sleep[IO](10.hours) >>
       Stream.empty.covaryAll[IO, String]).chunks
-      .through(text.rotateSink(Policy.fixedDelay(1.second).limited(3), ZoneId.systemDefault())(t =>
-        path / fk.fileName(t)))
+      .through(
+        hdp
+          .rotateSink(Policy.fixedDelay(1.second).limited(3), ZoneId.systemDefault())(t =>
+            path / fk.fileName(t))
+          .text)
       .compile
       .drain
       .unsafeRunSync()

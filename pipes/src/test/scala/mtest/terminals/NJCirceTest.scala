@@ -35,7 +35,7 @@ class NJCirceTest extends AnyFunSuite {
     val src: Stream[IO, Tiger]           = hdp.source(tgt).circe.mapFilter(_.as[Tiger].toOption)
     val action: IO[List[Tiger]]          = ts.chunks.through(sink).compile.drain >> src.compile.toList
     assert(action.unsafeRunSync().toSet == data)
-    val lines = hdp.text.source(tgt, 32).compile.fold(0) { case (s, _) => s + 1 }
+    val lines = hdp.source(tgt).text(32).compile.fold(0) { case (s, _) => s + 1 }
     assert(lines.unsafeRunSync() === data.size)
     val fileName = (file: NJFileKind).asJson.noSpaces
     assert(jawn.decode[NJFileKind](fileName).toOption.get == file)
@@ -78,13 +78,12 @@ class NJCirceTest extends AnyFunSuite {
     conf.set("fs.ftp.password.localhost", "test")
     conf.set("fs.ftp.data.connection.mode", "PASSIVE_LOCAL_DATA_CONNECTION_MODE")
     conf.set("fs.ftp.impl", "org.apache.hadoop.fs.ftp.FTPFileSystem")
-    val conn = NJHadoop[IO](conf).circe
     Stream
       .emits(TestData.tigerSet.toList)
       .covary[IO]
       .map(_.asJson)
       .chunks
-      .through(conn.sink(path))
+      .through(hdp.sink(path).circe)
       .compile
       .drain
       .unsafeRunSync()
@@ -107,7 +106,7 @@ class NJCirceTest extends AnyFunSuite {
       .map(_.asJson)
       .chunks
       .through(
-        hdp.rotate(Policy.fixedDelay(1.second), ZoneId.systemDefault())(t => path / fk.fileName(t)).circe)
+        hdp.rotateSink(Policy.fixedDelay(1.second), ZoneId.systemDefault())(t => path / fk.fileName(t)).circe)
       .fold(0L)((sum, v) => sum + v.value)
       .compile
       .lastOrError
@@ -122,10 +121,10 @@ class NJCirceTest extends AnyFunSuite {
     assert(processedSize == number * TestData.tigerSet.toList.size)
 
     def tigers1(path: Url): Stream[IO, Tiger] =
-      hdp.bytes.source(path).through(utf8.decode).through(lines).map(jawn.decode[Tiger]).rethrow
+      hdp.source(path).bytes.through(utf8.decode).through(lines).map(jawn.decode[Tiger]).rethrow
 
     def tigers2(path: Url): Stream[IO, Tiger] =
-      hdp.bytes.source(path).chunks.parseJsonStream.map(_.as[Tiger]).rethrow
+      hdp.source(path).bytes.chunks.parseJsonStream.map(_.as[Tiger]).rethrow
 
     hdp
       .filesIn(path)
@@ -142,7 +141,8 @@ class NJCirceTest extends AnyFunSuite {
       Stream.empty.covaryAll[IO, Json]).chunks
       .through(
         hdp
-          .rotate(Policy.fixedDelay(1.second).limited(3), ZoneId.systemDefault())(t => path / fk.fileName(t))
+          .rotateSink(Policy.fixedDelay(1.second).limited(3), ZoneId.systemDefault())(t =>
+            path / fk.fileName(t))
           .circe)
       .compile
       .drain

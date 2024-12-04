@@ -4,7 +4,6 @@ import cats.effect.kernel.{Concurrent, Resource}
 import cats.effect.std.Hotswap
 import com.github.chenharryhua.nanjin.common.chrono.{Tick, TickedValue}
 import fs2.{Chunk, Pull, Stream}
-import io.lemonlabs.uri.Url
 private object periodically {
 
   /** @tparam F
@@ -59,12 +58,12 @@ private object periodically {
       case None => Pull.done
     }.stream
 
-  def persistCsvWithHeader[F[_]](
+  def persistCsvWithHeader[F[_], R](
     currentTick: Tick,
-    getWriter: Url => Resource[F, HadoopWriter[F, String]],
+    getWriter: R => Resource[F, HadoopWriter[F, String]],
     hotswap: Hotswap[F, HadoopWriter[F, String]],
     writer: HadoopWriter[F, String],
-    ss: Stream[F, Either[Chunk[String], TickedValue[Url]]],
+    ss: Stream[F, Either[Chunk[String], TickedValue[R]]],
     header: Chunk[String]
   ): Pull[F, TickedValue[Int], Unit] =
     ss.pull.uncons1.flatMap {
@@ -73,7 +72,7 @@ private object periodically {
           case Left(data) =>
             Pull.output1(TickedValue(currentTick, data.size)) >>
               Pull.eval(writer.write(data)) >>
-              persistCsvWithHeader[F](currentTick, getWriter, hotswap, writer, tail, header)
+              persistCsvWithHeader[F, R](currentTick, getWriter, hotswap, writer, tail, header)
 
           case Right(ticked) =>
             Pull.eval(hotswap.swap(getWriter(ticked.value))).flatMap { writer =>

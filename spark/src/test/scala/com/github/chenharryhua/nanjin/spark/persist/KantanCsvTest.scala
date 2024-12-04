@@ -27,13 +27,12 @@ class KantanCsvTest extends AnyFunSuite {
 
   val hdp: NJHadoop[IO] = sparkSession.hadoop[IO]
 
-  def loadTablet(path: Url, cfg: CsvConfiguration): IO[Set[Tablet]] = {
-    val kantan = hdp.kantan(cfg)
+  def loadTablet(path: Url, cfg: CsvConfiguration): IO[Set[Tablet]] =
     hdp
       .filesIn(path)
-      .flatMap(_.flatTraverse(kantan.source(_, 100).map(decoderTablet.decode).rethrow.compile.toList))
+      .flatMap(
+        _.flatTraverse(hdp.source(_).kantan(100, cfg).map(decoderTablet.decode).rethrow.compile.toList))
       .map(_.toSet)
-  }
 
   val root = "./data/test/spark/persist/csv/tablet"
   test("1.tablet read/write identity multi.uncompressed") {

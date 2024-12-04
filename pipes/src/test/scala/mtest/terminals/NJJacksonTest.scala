@@ -4,7 +4,7 @@ import cats.effect.unsafe.implicits.global
 import cats.implicits.toTraverseOps
 import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.terminals.NJCompression.*
-import com.github.chenharryhua.nanjin.terminals.{HadoopJackson, JacksonFile, NJFileKind, NJHadoop}
+import com.github.chenharryhua.nanjin.terminals.{JacksonFile, NJFileKind}
 import eu.timepit.refined.auto.*
 import fs2.Stream
 import io.circe.jawn
@@ -22,14 +22,12 @@ import scala.concurrent.duration.DurationInt
 class NJJacksonTest extends AnyFunSuite {
   import HadoopTestData.*
 
-  val jackson: HadoopJackson[IO] = hdp.jackson(pandaSchema)
-
   def fs2(path: Url, file: JacksonFile, data: Set[GenericRecord]): Assertion = {
     val tgt = path / file.fileName
     hdp.delete(tgt).unsafeRunSync()
     val sink =
-      jackson.sink(tgt)
-    val src    = jackson.source(tgt, 10)
+      hdp.sink(tgt).jackson
+    val src    = hdp.source(tgt).jackson(10, pandaSchema)
     val ts     = Stream.emits(data.toList).covary[IO].chunks
     val action = ts.through(sink).compile.drain >> src.compile.toList.map(_.toList)
     assert(action.unsafeRunSync().toSet == data)
@@ -74,21 +72,21 @@ class NJJacksonTest extends AnyFunSuite {
     // conf.set("fs.ftp.password.localhost", "test")
     conf.set("fs.ftp.data.connection.mode", "PASSIVE_LOCAL_DATA_CONNECTION_MODE")
     conf.set("fs.ftp.impl", "org.apache.hadoop.fs.ftp.FTPFileSystem")
-    val conn = NJHadoop[IO](conf).jackson(TestData.Tiger.avroEncoder.schema)
+
     Stream
       .emits(TestData.tigerSet.toList)
       .covary[IO]
       .map(TestData.Tiger.to.to)
       .chunks
-      .through(conn.sink(path))
+      .through(hdp.sink(path).jackson)
       .compile
       .drain
       .unsafeRunSync()
   }
 
   test("laziness") {
-    jackson.source("./does/not/exist", 10)
-    jackson.sink("./does/not/exist")
+    hdp.source("./does/not/exist").jackson(10, pandaSchema)
+    hdp.sink("./does/not/exist").jackson
   }
 
   test("rotation") {
@@ -101,8 +99,9 @@ class NJJacksonTest extends AnyFunSuite {
       .covary[IO]
       .repeatN(number)
       .chunks
-      .through(jackson.rotateSink(Policy.fixedDelay(1.second), ZoneId.systemDefault())(t =>
-        path / fk.fileName(t)))
+      .through(hdp
+        .rotateSink(Policy.fixedDelay(1.second), ZoneId.systemDefault())(t => path / fk.fileName(t))
+        .jackson)
       .fold(0L)((sum, v) => sum + v.value)
       .compile
       .lastOrError
@@ -110,7 +109,7 @@ class NJJacksonTest extends AnyFunSuite {
     val size =
       hdp
         .filesIn(path)
-        .flatMap(_.traverse(jackson.source(_, 10).compile.toList.map(_.size)))
+        .flatMap(_.traverse(hdp.source(_).jackson(10, pandaSchema).compile.toList.map(_.size)))
         .map(_.sum)
         .unsafeRunSync()
     assert(size == number * 2)

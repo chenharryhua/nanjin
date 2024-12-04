@@ -183,7 +183,7 @@ class SparKafkaTest extends AnyFunSuite {
     Stream
       .eval(hadoop.filesIn(path))
       .flatMap(
-        _.map(hadoop.jackson(topic.topic.topicDef.schemaPair.consumerSchema).source(_, 10))
+        _.map(hadoop.source(_).jackson(10, topic.topic.topicDef.schemaPair.consumerSchema))
           .reduce(_ ++ _)
           .chunks
           .through(ctx.sink(topic.topicName).updateConfig(_.withClientId("a")).build))
@@ -210,7 +210,7 @@ class SparKafkaTest extends AnyFunSuite {
 
   test("generic record") {
     val path = "./data/test/spark/kafka/consume/duck.avro"
-    val sink = hadoop.avro(topic.topicDef.schemaPair.consumerSchema).sink(path)
+    val sink = hadoop.sink(path).avro
     duckConsume.genericRecords
       .take(2)
       .map(_.record.value)

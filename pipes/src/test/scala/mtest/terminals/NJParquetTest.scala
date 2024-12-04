@@ -6,7 +6,7 @@ import cats.effect.unsafe.implicits.global
 import cats.implicits.toTraverseOps
 import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.terminals.NJCompression.*
-import com.github.chenharryhua.nanjin.terminals.{HadoopParquet, NJFileKind, ParquetFile}
+import com.github.chenharryhua.nanjin.terminals.{NJFileKind, ParquetFile}
 import eu.timepit.refined.auto.*
 import fs2.Stream
 import io.circe.jawn
@@ -24,16 +24,14 @@ import scala.util.Try
 class NJParquetTest extends AnyFunSuite {
   import HadoopTestData.*
 
-  val parquet: HadoopParquet[IO] = hdp.parquet(pandaSchema)
-
   def fs2(path: Url, file: ParquetFile, data: Set[GenericRecord]): Assertion = {
     val tgt  = path / file.fileName
     val ts   = Stream.emits(data.toList).covary[IO].chunks
-    val sink = parquet.updateWriter(_.withCompressionCodec(file.compression.codecName)).sink(tgt)
+    val sink = hdp.sink(tgt).parquet(_.withCompressionCodec(file.compression.codecName))
     hdp.delete(tgt).unsafeRunSync()
     val action =
       ts.through(sink).compile.drain >>
-        parquet.source(tgt, 100).compile.toList.map(_.toList)
+        hdp.source(tgt).parquet(100, _.useBloomFilter()).compile.toList.map(_.toList)
     assert(action.unsafeRunSync().toSet == data)
     val fileName = (file: NJFileKind).asJson.noSpaces
     assert(jawn.decode[NJFileKind](fileName).toOption.get == file)
@@ -76,8 +74,8 @@ class NJParquetTest extends AnyFunSuite {
   }
 
   test("laziness") {
-    parquet.source("./does/not/exist", 100)
-    parquet.sink("./does/not/exist")
+    hdp.source("./does/not/exist").parquet(100)
+    hdp.sink("./does/not/exist").parquet
   }
 
   test("rotation") {
@@ -90,8 +88,9 @@ class NJParquetTest extends AnyFunSuite {
       .covary[IO]
       .repeatN(number)
       .chunks
-      .through(parquet.rotateSink(Policy.fixedDelay(1.second), ZoneId.systemDefault())(t =>
-        path / file.ymdFileName(t)))
+      .through(hdp
+        .rotateSink(Policy.fixedDelay(1.second), ZoneId.systemDefault())(t => path / file.ymdFileName(t))
+        .parquet)
       .fold(0L)((sum, v) => sum + v.value)
       .compile
       .lastOrError
@@ -100,7 +99,7 @@ class NJParquetTest extends AnyFunSuite {
       hdp
         .dataFolders(path)
         .flatMap(_.flatTraverse(hdp.filesIn))
-        .flatMap(_.traverse(parquet.updateReader(identity).source(_, 10).compile.toList.map(_.size)))
+        .flatMap(_.traverse(hdp.source(_).parquet(10).compile.toList.map(_.size)))
         .map(_.sum)
         .unsafeRunSync()
     assert(size == number * 2)

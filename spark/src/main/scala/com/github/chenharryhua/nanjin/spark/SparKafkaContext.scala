@@ -115,12 +115,16 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
     for {
       schemaPair <- kafkaContext.schemaRegistry.fetchAvroSchema(topicName)
       hadoop  = NJHadoop[F](sparkSession.sparkContext.hadoopConfiguration)
-      jackson = hadoop.jackson(schemaPair.consumerSchema)
       builder = new PushGenericRecord(kafkaContext.settings.schemaRegistrySettings, topicName, schemaPair)
       num <- hadoop.filesIn(path).flatMap { fs =>
         val ss: Stream[F, ProducerRecords[Array[Byte], Array[Byte]]] =
           fs.foldLeft(Stream.empty.covaryAll[F, ProducerRecords[Array[Byte], Array[Byte]]]) { case (s, p) =>
-            s.merge(jackson.source(p, chunkSize).chunks.map(_.map(builder.fromGenericRecord)))
+            s.merge(
+              hadoop
+                .source(p)
+                .jackson(chunkSize, schemaPair.consumerSchema)
+                .chunks
+                .map(_.map(builder.fromGenericRecord)))
           }
         KafkaProducer.pipe(producerSettings).apply(ss).compile.fold(0L) { case (sum, prs) => sum + prs.size }
       }
@@ -171,14 +175,14 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
     for {
       schemaPair <- kafkaContext.schemaRegistry.fetchAvroSchema(topicName)
       hadoop  = NJHadoop[F](sparkSession.sparkContext.hadoopConfiguration)
-      jackson = hadoop.jackson(schemaPair.consumerSchema)
       builder = new PushGenericRecord(kafkaContext.settings.schemaRegistrySettings, topicName, schemaPair)
       num <- hadoop
         .filesIn(path)
         .flatMap(
           _.traverse(
-            jackson
-              .source(_, chunkSize)
+            hadoop
+              .source(_)
+              .jackson(chunkSize, schemaPair.consumerSchema)
               .chunks
               .map(_.map(builder.fromGenericRecord))
               .through(KafkaProducer.pipe(producerSettings))

@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.terminals
 
 import cats.Endo
 import cats.data.Reader
+import cats.effect.Resource
 import cats.effect.kernel.{Async, Sync}
 import com.github.chenharryhua.nanjin.common.ChunkSize
 import fs2.Stream
@@ -18,30 +19,31 @@ import org.apache.parquet.hadoop.ParquetReader
 import org.apache.parquet.hadoop.util.HadoopInputFile
 import squants.information.{Bytes, Information}
 
-import java.io.InputStreamReader
+import java.io.{InputStream, InputStreamReader}
 
-final class FileSource[F[_]: Sync] private (configuration: Configuration, path: Url) {
+final class FileSource[F[_]: Sync] private (configuration: Configuration, path: Path) {
+
   def avro(chunkSize: ChunkSize): Stream[F, GenericData.Record] =
-    HadoopReader.avroS(configuration, toHadoopPath(path), chunkSize)
+    HadoopReader.avroS(configuration, path, chunkSize)
 
   def binAvro(chunkSize: ChunkSize, schema: Schema): Stream[F, GenericData.Record] =
-    HadoopReader.binAvroS[F](configuration, schema, toHadoopPath(path), chunkSize)
+    HadoopReader.binAvroS[F](configuration, schema, path, chunkSize)
 
   def bytes(bufferSize: Information): Stream[F, Byte] =
-    HadoopReader.byteS(configuration, toHadoopPath(path), ChunkSize(bufferSize))
+    HadoopReader.byteS(configuration, path, ChunkSize(bufferSize))
 
   val bytes: Stream[F, Byte] = bytes(Bytes(1024 * 512))
 
   def circe(bufferSize: Information): Stream[F, Json] =
-    HadoopReader.jawnS[F](configuration, toHadoopPath(path), bufferSize)
+    HadoopReader.jawnS[F](configuration, path, bufferSize)
 
   val circe: Stream[F, Json] = circe(Bytes(1024 * 512))
 
   def jackson(chunkSize: ChunkSize, schema: Schema)(implicit F: Async[F]): Stream[F, GenericData.Record] =
-    HadoopReader.jacksonS[F](configuration, schema, toHadoopPath(path), chunkSize)
+    HadoopReader.jacksonS[F](configuration, schema, path, chunkSize)
 
   def kantan(chunkSize: ChunkSize, csvConfiguration: CsvConfiguration): Stream[F, Seq[String]] =
-    HadoopReader.inputStreamS[F](configuration, toHadoopPath(path)).flatMap { is =>
+    HadoopReader.inputStreamS[F](configuration, path).flatMap { is =>
       val reader: CsvReader[ReadResult[Seq[String]]] = {
         val cr = ReaderEngine.internalCsvReaderEngine.readerFor(new InputStreamReader(is), csvConfiguration)
         if (csvConfiguration.hasHeader) cr.drop(1) else cr
@@ -65,16 +67,23 @@ final class FileSource[F[_]: Sync] private (configuration: Configuration, path: 
           .builder[GenericData.Record](HadoopInputFile.fromPath(path, configuration))
           .withDataModel(GenericData.get())
           .withConf(configuration)).map(f),
-      toHadoopPath(path),
+      path,
       chunkSize
     )
 
+  def parquet(chunkSize: ChunkSize): Stream[F, GenericData.Record] =
+    parquet(chunkSize, identity)
+
   def text(chunkSize: ChunkSize): Stream[F, String] =
-    HadoopReader.stringS[F](configuration, toHadoopPath(path), chunkSize)
+    HadoopReader.stringS[F](configuration, path, chunkSize)
+
+  // java InputStream
+  val inputStream: Resource[F, InputStream] =
+    HadoopReader.inputStreamR[F](configuration, path)
 
 }
 
 object FileSource {
   def apply[F[_]: Sync](configuration: Configuration, path: Url): FileSource[F] =
-    new FileSource[F](configuration, path)
+    new FileSource[F](configuration, toHadoopPath(path))
 }

@@ -4,7 +4,7 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.toTraverseOps
 import com.github.chenharryhua.nanjin.spark.*
-import com.github.chenharryhua.nanjin.terminals.{toHadoopPath, HadoopAvro, NJHadoop}
+import com.github.chenharryhua.nanjin.terminals.{toHadoopPath, NJHadoop}
 import eu.timepit.refined.auto.*
 import io.lemonlabs.uri.Url
 import io.lemonlabs.uri.typesafe.dsl.*
@@ -17,10 +17,8 @@ import org.scalatest.funsuite.AnyFunSuite
 class AvroTest extends AnyFunSuite {
   val hadoop: NJHadoop[IO] = sparkSession.hadoop[IO]
 
-  val avro: HadoopAvro[IO] = hadoop.avro(Rooster.avroCodec.schema)
-
   def singleAvro(path: Url): Set[Rooster] =
-    avro.source(path, 10).map(Rooster.avroCodec.decode).compile.toList.unsafeRunSync().toSet
+    hadoop.source(path).avro(10).map(Rooster.avroCodec.decode).compile.toList.unsafeRunSync().toSet
 
   def rooster: RddAvroFileHoarder[Rooster] =
     new RddAvroFileHoarder[Rooster](RoosterData.ds.rdd.repartition(3), Rooster.avroCodec)
@@ -28,7 +26,7 @@ class AvroTest extends AnyFunSuite {
   def loadRoosters(path: Url): IO[List[Rooster]] =
     hadoop
       .filesIn(path)
-      .flatMap(_.flatTraverse(avro.source(_, 100).map(Rooster.avroCodec.decode).compile.toList))
+      .flatMap(_.flatTraverse(hadoop.source(_).avro(100).map(Rooster.avroCodec.decode).compile.toList))
 
   val root: Url = Url.parse("./data/test/spark/persist/avro/")
 

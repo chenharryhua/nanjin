@@ -22,13 +22,11 @@ import scala.concurrent.duration.DurationInt
 class NJAvroTest extends AnyFunSuite {
   import HadoopTestData.*
 
-  val avro: HadoopAvro[IO] = hdp.avro(pandaSchema)
-
   def fs2(path: Url, file: AvroFile, data: Set[GenericRecord]): Assertion = {
     val tgt = path / file.fileName
     hdp.delete(tgt).unsafeRunSync()
-    val sink     = avro.withCompression(file.compression).sink(tgt)
-    val src      = avro.source(tgt, 100)
+    val sink     = hdp.sink(tgt).avro(file.compression)
+    val src      = hdp.source(tgt).avro(100)
     val ts       = Stream.emits(data.toList).covary[IO].chunks
     val action   = ts.through(sink).compile.drain >> src.compile.toList.map(_.toList)
     val fileName = (file: NJFileKind).asJson.noSpaces
@@ -66,8 +64,8 @@ class NJAvroTest extends AnyFunSuite {
   }
 
   test("laziness") {
-    avro.source("./does/not/exist", 100)
-    avro.sink("./does/not/exist")
+    hdp.source("./does/not/exist").avro(100)
+    hdp.sink("./does/not/exist").avro(_.Uncompressed)
   }
 
   test("rotation") {
@@ -80,8 +78,9 @@ class NJAvroTest extends AnyFunSuite {
       .covary[IO]
       .repeatN(number)
       .chunks
-      .through(avro.rotateSink(Policy.fixedDelay(1.second), ZoneId.systemDefault())(t =>
-        path / file.fileName(t)))
+      .through(hdp
+        .rotateSink(Policy.fixedDelay(1.second), ZoneId.systemDefault())(t => path / file.fileName(t))
+        .avro(_.Uncompressed))
       .fold(0L)((sum, v) => sum + v.value)
       .compile
       .lastOrError
@@ -89,7 +88,7 @@ class NJAvroTest extends AnyFunSuite {
     val size =
       hdp
         .filesIn(path)
-        .flatMap(_.traverse(avro.source(_, 100).compile.toList.map(_.size)))
+        .flatMap(_.traverse(hdp.source(_).avro(100).compile.toList.map(_.size)))
         .map(_.sum)
         .unsafeRunSync()
     assert(size == number * 2)

@@ -78,8 +78,8 @@ class NJBytesTest extends AnyFunSuite {
   }
 
   test("laziness") {
-    hdp.bytes.source("./does/not/exist")
-    hdp.bytes.sink("./does/not/exist")
+    hdp.source("./does/not/exist").bytes
+    hdp.sink("./does/not/exist").bytes
   }
 
   test("rotation") {
@@ -87,8 +87,9 @@ class NJBytesTest extends AnyFunSuite {
     val number = 10000L
     hdp.delete(path).unsafeRunSync()
     val sink =
-      hdp.bytes.rotateSink(Policy.fixedDelay(1.second), ZoneId.systemDefault())(t =>
-        path / s"${t.index}.byte")
+      hdp
+        .rotateSink(Policy.fixedDelay(1.second), ZoneId.systemDefault())(t => path / s"${t.index}.byte")
+        .bytes
     Stream
       .emits(TestData.tigerSet.toList)
       .covary[IO]
