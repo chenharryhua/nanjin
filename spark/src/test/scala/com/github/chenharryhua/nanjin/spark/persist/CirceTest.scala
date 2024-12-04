@@ -19,7 +19,7 @@ class CirceTest extends AnyFunSuite {
 
   def rooster(path: Url): SaveCirce[Rooster] = new RddFileHoarder[Rooster](RoosterData.ds.rdd).circe(path)
 
-  val hdp: NJHadoop[IO]      = sparkSession.hadoop[IO]
+  val hdp: NJHadoop[IO] = sparkSession.hadoop[IO]
 
   def loadRoosters(path: Url): IO[List[Rooster]] =
     hdp.filesIn(path).flatMap(_.flatTraverse(hdp.source(_).circe.map(_.as[Rooster]).rethrow.compile.toList))

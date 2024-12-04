@@ -5,7 +5,7 @@ import cats.data.Reader
 import cats.effect.kernel.{Resource, Sync}
 import cats.implicits.toFunctorOps
 import com.fasterxml.jackson.databind.ObjectMapper
-import fs2.{Chunk, Pipe, Stream}
+import fs2.{Chunk, Pipe, Pull, Stream}
 import io.circe.Json
 import io.circe.jackson.circeToJackson
 import io.lemonlabs.uri.Url
@@ -25,11 +25,15 @@ final class FileSink[F[_]: Sync] private (configuration: Configuration, path: Pa
   // avro
   def avro(compression: AvroCompression): Pipe[F, Chunk[GenericRecord], Int] = {
     (ss: Stream[F, Chunk[GenericRecord]]) =>
-      getSchema(ss).stream.flatMap { schema =>
-        Stream
-          .resource(HadoopWriter.avroR[F](compression.codecFactory, schema, configuration, path))
-          .flatMap(w => ss.evalMap(c => w.write(c).as(c.size)))
-      }
+      ss.pull.peek1.flatMap {
+        case Some((grs, stream)) =>
+          Stream
+            .resource(HadoopWriter.avroR[F](compression.codecFactory, grs(0).getSchema, configuration, path))
+            .flatMap(w => stream.evalMap(c => w.write(c).as(c.size)))
+            .pull
+            .echo
+        case None => Pull.done
+      }.stream
   }
 
   def avro(f: AvroCompression.type => AvroCompression): Pipe[F, Chunk[GenericRecord], Int] =
@@ -40,39 +44,52 @@ final class FileSink[F[_]: Sync] private (configuration: Configuration, path: Pa
 
   // binary avro
   val binAvro: Pipe[F, Chunk[GenericRecord], Int] = { (ss: Stream[F, Chunk[GenericRecord]]) =>
-    getSchema(ss).stream.flatMap { schema =>
-      Stream
-        .resource(HadoopWriter.binAvroR[F](configuration, schema, path))
-        .flatMap(w => ss.evalMap(c => w.write(c).as(c.size)))
-    }
+    ss.pull.peek1.flatMap {
+      case Some((grs, stream)) =>
+        Stream
+          .resource(HadoopWriter.binAvroR[F](configuration, grs(0).getSchema, path))
+          .flatMap(w => stream.evalMap(c => w.write(c).as(c.size)))
+          .pull
+          .echo
+      case None => Pull.done
+    }.stream
   }
 
   // jackson json
   val jackson: Pipe[F, Chunk[GenericRecord], Int] = { (ss: Stream[F, Chunk[GenericRecord]]) =>
-    getSchema(ss).stream.flatMap { schema =>
-      Stream
-        .resource(HadoopWriter.jacksonR[F](configuration, schema, path))
-        .flatMap(w => ss.evalMap(c => w.write(c).as(c.size)))
-    }
+    ss.pull.peek1.flatMap {
+      case Some((grs, stream)) =>
+        Stream
+          .resource(HadoopWriter.jacksonR[F](configuration, grs(0).getSchema, path))
+          .flatMap(w => stream.evalMap(c => w.write(c).as(c.size)))
+          .pull
+          .echo
+      case None => Pull.done
+    }.stream
   }
 
   // parquet
   def parquet(f: Endo[AvroParquetWriter.Builder[GenericRecord]]): Pipe[F, Chunk[GenericRecord], Int] = {
     (ss: Stream[F, Chunk[GenericRecord]]) =>
-      getSchema(ss).stream.flatMap { schema =>
-        val writeBuilder = Reader((path: Path) =>
-          AvroParquetWriter
-            .builder[GenericRecord](HadoopOutputFile.fromPath(path, configuration))
-            .withDataModel(GenericData.get())
-            .withConf(configuration)
-            .withSchema(schema)
-            .withCompressionCodec(CompressionCodecName.UNCOMPRESSED)
-            .withWriteMode(ParquetFileWriter.Mode.OVERWRITE)).map(f)
+      ss.pull.peek1.flatMap {
+        case Some((grs, stream)) =>
+          val writeBuilder = Reader((path: Path) =>
+            AvroParquetWriter
+              .builder[GenericRecord](HadoopOutputFile.fromPath(path, configuration))
+              .withDataModel(GenericData.get())
+              .withConf(configuration)
+              .withSchema(grs(0).getSchema)
+              .withCompressionCodec(CompressionCodecName.UNCOMPRESSED)
+              .withWriteMode(ParquetFileWriter.Mode.OVERWRITE)).map(f)
 
-        Stream
-          .resource(HadoopWriter.parquetR[F](writeBuilder, path))
-          .flatMap(w => ss.evalMap(c => w.write(c).as(c.size)))
-      }
+          Stream
+            .resource(HadoopWriter.parquetR[F](writeBuilder, path))
+            .flatMap(w => stream.evalMap(c => w.write(c).as(c.size)))
+            .pull
+            .echo
+
+        case None => Pull.done
+      }.stream
   }
 
   val parquet: Pipe[F, Chunk[GenericRecord], Int] =

@@ -27,12 +27,13 @@ final class FileRotateSink[F[_]: Async] private (
   def avro(compression: AvroCompression): Pipe[F, Chunk[GenericRecord], TickedValue[Int]] = {
 
     (ss: Stream[F, Chunk[GenericRecord]]) =>
-      getSchema(ss).stream.flatMap { schema =>
-        def get_writer(url: Path): Resource[F, HadoopWriter[F, GenericRecord]] =
-          HadoopWriter.avroR[F](compression.codecFactory, schema, configuration, url)
-
-        periodically.persist(ss, paths, get_writer)
-      }
+      ss.pull.peek1.flatMap {
+        case Some((grs, stream)) =>
+          def get_writer(url: Path): Resource[F, HadoopWriter[F, GenericRecord]] =
+            HadoopWriter.avroR[F](compression.codecFactory, grs(0).getSchema, configuration, url)
+          periodically.persist(stream, paths, get_writer)
+        case None => Pull.done
+      }.stream
   }
 
   def avro(f: AvroCompression.type => AvroCompression): Pipe[F, Chunk[GenericRecord], TickedValue[Int]] =
@@ -43,40 +44,46 @@ final class FileRotateSink[F[_]: Async] private (
 
   // binary avro
   val binAvro: Pipe[F, Chunk[GenericRecord], TickedValue[Int]] = { (ss: Stream[F, Chunk[GenericRecord]]) =>
-    getSchema(ss).stream.flatMap { schema =>
-      def get_writer(url: Path): Resource[F, HadoopWriter[F, GenericRecord]] =
-        HadoopWriter.binAvroR[F](configuration, schema, url)
-      periodically.persist(ss, paths, get_writer)
-    }
+    ss.pull.peek1.flatMap {
+      case Some((grs, stream)) =>
+        def get_writer(url: Path): Resource[F, HadoopWriter[F, GenericRecord]] =
+          HadoopWriter.binAvroR[F](configuration, grs(0).getSchema, url)
+        periodically.persist(stream, paths, get_writer)
+      case None => Pull.done
+    }.stream
   }
 
   // jackson json
   val jackson: Pipe[F, Chunk[GenericRecord], TickedValue[Int]] = { (ss: Stream[F, Chunk[GenericRecord]]) =>
-    getSchema(ss).stream.flatMap { schema =>
-      def get_writer(url: Path): Resource[F, HadoopWriter[F, GenericRecord]] =
-        HadoopWriter.jacksonR[F](configuration, schema, url)
-      periodically.persist(ss, paths, get_writer)
-    }
+    ss.pull.peek1.flatMap {
+      case Some((grs, stream)) =>
+        def get_writer(url: Path): Resource[F, HadoopWriter[F, GenericRecord]] =
+          HadoopWriter.jacksonR[F](configuration, grs(0).getSchema, url)
+        periodically.persist(stream, paths, get_writer)
+      case None => Pull.done
+    }.stream
   }
 
   // parquet
   def parquet(f: Endo[Builder[GenericRecord]]): Pipe[F, Chunk[GenericRecord], TickedValue[Int]] = {
     (ss: Stream[F, Chunk[GenericRecord]]) =>
-      getSchema(ss).stream.flatMap { schema =>
-        val writeBuilder = Reader((path: Path) =>
-          AvroParquetWriter
-            .builder[GenericRecord](HadoopOutputFile.fromPath(path, configuration))
-            .withDataModel(GenericData.get())
-            .withConf(configuration)
-            .withSchema(schema)
-            .withCompressionCodec(CompressionCodecName.UNCOMPRESSED)
-            .withWriteMode(ParquetFileWriter.Mode.OVERWRITE)).map(f)
+      ss.pull.peek1.flatMap {
+        case Some((grs, stream)) =>
+          val writeBuilder = Reader((path: Path) =>
+            AvroParquetWriter
+              .builder[GenericRecord](HadoopOutputFile.fromPath(path, configuration))
+              .withDataModel(GenericData.get())
+              .withConf(configuration)
+              .withSchema(grs(0).getSchema)
+              .withCompressionCodec(CompressionCodecName.UNCOMPRESSED)
+              .withWriteMode(ParquetFileWriter.Mode.OVERWRITE)).map(f)
 
-        def get_writer(url: Path): Resource[F, HadoopWriter[F, GenericRecord]] =
-          HadoopWriter.parquetR[F](writeBuilder, url)
+          def get_writer(url: Path): Resource[F, HadoopWriter[F, GenericRecord]] =
+            HadoopWriter.parquetR[F](writeBuilder, url)
 
-        periodically.persist(ss, paths, get_writer)
-      }
+          periodically.persist(stream, paths, get_writer)
+        case None => Pull.done
+      }.stream
   }
 
   val parquet: Pipe[F, Chunk[GenericRecord], TickedValue[Int]] =
@@ -87,7 +94,7 @@ final class FileRotateSink[F[_]: Async] private (
     def get_writer(url: Path): Resource[F, HadoopWriter[F, Byte]] =
       HadoopWriter.byteR[F](configuration, url)
 
-    (ss: Stream[F, Chunk[Byte]]) => periodically.persist(ss, paths, get_writer)
+    (ss: Stream[F, Chunk[Byte]]) => periodically.persist(ss, paths, get_writer).stream
   }
 
   // circe json
@@ -97,7 +104,8 @@ final class FileRotateSink[F[_]: Async] private (
     def get_writer(url: Path): Resource[F, HadoopWriter[F, JsonNode]] =
       HadoopWriter.jsonNodeR[F](configuration, url, mapper)
 
-    (ss: Stream[F, Chunk[Json]]) => periodically.persist(ss.map(_.map(circeToJackson)), paths, get_writer)
+    (ss: Stream[F, Chunk[Json]]) =>
+      periodically.persist(ss.map(_.map(circeToJackson)), paths, get_writer).stream
   }
 
   // kantan csv
@@ -130,7 +138,7 @@ final class FileRotateSink[F[_]: Async] private (
               .echo
           case None => Pull.done
         }.stream
-      } else periodically.persist(encodedSrc, paths, get_writer)
+      } else periodically.persist(encodedSrc, paths, get_writer).stream
   }
 
   def kantan(f: Endo[CsvConfiguration]): Pipe[F, Chunk[Seq[String]], TickedValue[Int]] =
@@ -144,7 +152,7 @@ final class FileRotateSink[F[_]: Async] private (
     def get_writer(url: Path): Resource[F, HadoopWriter[F, String]] =
       HadoopWriter.stringR(configuration, url)
 
-    (ss: Stream[F, Chunk[String]]) => periodically.persist(ss, paths, get_writer)
+    (ss: Stream[F, Chunk[String]]) => periodically.persist(ss, paths, get_writer).stream
   }
 }
 

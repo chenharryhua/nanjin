@@ -39,7 +39,7 @@ private object periodically {
   def persist[F[_]: Concurrent, A, R](
     data: Stream[F, Chunk[A]],
     ticks: Stream[F, TickedValue[R]],
-    getWriter: R => Resource[F, HadoopWriter[F, A]]): Stream[F, TickedValue[Int]] =
+    getWriter: R => Resource[F, HadoopWriter[F, A]]): Pull[F, TickedValue[Int], Unit] =
     ticks.pull.uncons1.flatMap {
       case Some((head, tail)) => // use the very first tick to build writer and hotswap
         Stream
@@ -56,7 +56,7 @@ private object periodically {
           .pull
           .echo
       case None => Pull.done
-    }.stream
+    }
 
   def persistCsvWithHeader[F[_], R](
     currentTick: Tick,
