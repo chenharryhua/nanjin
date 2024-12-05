@@ -25,11 +25,12 @@ final class FileSink[F[_]: Sync] private (configuration: Configuration, path: Pa
   // avro
   def avro(compression: AvroCompression): Pipe[F, Chunk[GenericRecord], Int] = {
     (ss: Stream[F, Chunk[GenericRecord]]) =>
-      ss.pull.peek1.flatMap {
-        case Some((grs, stream)) =>
+      ss.pull.stepLeg.flatMap {
+        case Some(leg) =>
+          val schema = leg.head.flatMap(identity)(0).getSchema
           Stream
-            .resource(HadoopWriter.avroR[F](compression.codecFactory, grs(0).getSchema, configuration, path))
-            .flatMap(w => stream.evalMap(c => w.write(c).as(c.size)))
+            .resource(HadoopWriter.avroR[F](compression.codecFactory, schema, configuration, path))
+            .flatMap(w => leg.stream.evalMap(c => w.write(c).as(c.size)))
             .pull
             .echo
         case None => Pull.done
@@ -44,11 +45,12 @@ final class FileSink[F[_]: Sync] private (configuration: Configuration, path: Pa
 
   // binary avro
   val binAvro: Pipe[F, Chunk[GenericRecord], Int] = { (ss: Stream[F, Chunk[GenericRecord]]) =>
-    ss.pull.peek1.flatMap {
-      case Some((grs, stream)) =>
+    ss.pull.stepLeg.flatMap {
+      case Some(leg) =>
+        val schema = leg.head.flatMap(identity)(0).getSchema
         Stream
-          .resource(HadoopWriter.binAvroR[F](configuration, grs(0).getSchema, path))
-          .flatMap(w => stream.evalMap(c => w.write(c).as(c.size)))
+          .resource(HadoopWriter.binAvroR[F](configuration, schema, path))
+          .flatMap(w => leg.stream.evalMap(c => w.write(c).as(c.size)))
           .pull
           .echo
       case None => Pull.done
@@ -57,11 +59,12 @@ final class FileSink[F[_]: Sync] private (configuration: Configuration, path: Pa
 
   // jackson json
   val jackson: Pipe[F, Chunk[GenericRecord], Int] = { (ss: Stream[F, Chunk[GenericRecord]]) =>
-    ss.pull.peek1.flatMap {
-      case Some((grs, stream)) =>
+    ss.pull.stepLeg.flatMap {
+      case Some(leg) =>
+        val schema = leg.head.flatMap(identity)(0).getSchema
         Stream
-          .resource(HadoopWriter.jacksonR[F](configuration, grs(0).getSchema, path))
-          .flatMap(w => stream.evalMap(c => w.write(c).as(c.size)))
+          .resource(HadoopWriter.jacksonR[F](configuration, schema, path))
+          .flatMap(w => leg.stream.evalMap(c => w.write(c).as(c.size)))
           .pull
           .echo
       case None => Pull.done
@@ -71,23 +74,23 @@ final class FileSink[F[_]: Sync] private (configuration: Configuration, path: Pa
   // parquet
   def parquet(f: Endo[AvroParquetWriter.Builder[GenericRecord]]): Pipe[F, Chunk[GenericRecord], Int] = {
     (ss: Stream[F, Chunk[GenericRecord]]) =>
-      ss.pull.peek1.flatMap {
-        case Some((grs, stream)) =>
+      ss.pull.stepLeg.flatMap {
+        case Some(leg) =>
+          val schema = leg.head.flatMap(identity)(0).getSchema
           val writeBuilder = Reader((path: Path) =>
             AvroParquetWriter
               .builder[GenericRecord](HadoopOutputFile.fromPath(path, configuration))
               .withDataModel(GenericData.get())
               .withConf(configuration)
-              .withSchema(grs(0).getSchema)
+              .withSchema(schema)
               .withCompressionCodec(CompressionCodecName.UNCOMPRESSED)
               .withWriteMode(ParquetFileWriter.Mode.OVERWRITE)).map(f)
 
           Stream
             .resource(HadoopWriter.parquetR[F](writeBuilder, path))
-            .flatMap(w => stream.evalMap(c => w.write(c).as(c.size)))
+            .flatMap(w => leg.stream.evalMap(c => w.write(c).as(c.size)))
             .pull
             .echo
-
         case None => Pull.done
       }.stream
   }

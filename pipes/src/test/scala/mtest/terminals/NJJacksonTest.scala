@@ -17,7 +17,7 @@ import org.scalatest.Assertion
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.ZoneId
-import scala.concurrent.duration.DurationInt
+import scala.concurrent.duration.DurationDouble
 
 class NJJacksonTest extends AnyFunSuite {
   import HadoopTestData.*
@@ -100,7 +100,7 @@ class NJJacksonTest extends AnyFunSuite {
       .repeatN(number)
       .chunks
       .through(hdp
-        .rotateSink(Policy.fixedDelay(1.second), ZoneId.systemDefault())(t => path / fk.fileName(t))
+        .rotateSink(Policy.fixedDelay(0.2.second), ZoneId.systemDefault())(t => path / fk.fileName(t))
         .jackson)
       .fold(0L)((sum, v) => sum + v.value)
       .compile
@@ -114,5 +114,14 @@ class NJJacksonTest extends AnyFunSuite {
         .unsafeRunSync()
     assert(size == number * 2)
     assert(processedSize == number * 2)
+  }
+
+  test("stream concat") {
+    val s         = Stream.emits(pandaSet.toList).covary[IO].repeatN(10000).chunks
+    val path: Url = "data/conflict/jackson.json"
+
+    (hdp.delete(path) >>
+      (s ++ s ++ s).through(hdp.sink(path).jackson).compile.drain).unsafeRunSync()
+
   }
 }
