@@ -143,7 +143,7 @@ class Performance extends AnyFunSuite {
           cache.updateWith(1)(_.fold(0)(_ + 1)).foreverM.timeout(timeout).attempt >>
           cache.get(1, IO(0)).flatMap { i =>
             IO.println(s"cost:  ${timeout.toNanos / i} nano") >>
-            IO.println(s"speed: ${i / timeout.toMillis} k/s")
+              IO.println(s"speed: ${i / timeout.toMillis} k/s")
           }
       })
       .compile

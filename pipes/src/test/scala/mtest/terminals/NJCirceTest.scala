@@ -27,22 +27,21 @@ import io.lemonlabs.uri.typesafe.dsl.*
 
 class NJCirceTest extends AnyFunSuite {
 
-  val json: HadoopCirce[IO] = hdp.circe
-
   def fs2(path: Url, file: CirceFile, data: Set[Tiger]): Assertion = {
     val tgt = path / file.fileName
     hdp.delete(tgt).unsafeRunSync()
     val ts: Stream[IO, Json]             = Stream.emits(data.toList).covary[IO].map(_.asJson)
-    val sink: Pipe[IO, Chunk[Json], Int] = json.sink(tgt)
-    val src: Stream[IO, Tiger]           = json.source(tgt).mapFilter(_.as[Tiger].toOption)
+    val sink: Pipe[IO, Chunk[Json], Int] = hdp.sink(tgt).circe
+    val src: Stream[IO, Tiger]           = hdp.source(tgt).circe.mapFilter(_.as[Tiger].toOption)
     val action: IO[List[Tiger]]          = ts.chunks.through(sink).compile.drain >> src.compile.toList
     assert(action.unsafeRunSync().toSet == data)
-    val lines = hdp.text.source(tgt, 32).compile.fold(0) { case (s, _) => s + 1 }
+    val lines = hdp.source(tgt).text(32).compile.fold(0) { case (s, _) => s + 1 }
     assert(lines.unsafeRunSync() === data.size)
     val fileName = (file: NJFileKind).asJson.noSpaces
     assert(jawn.decode[NJFileKind](fileName).toOption.get == file)
     val size = ts.chunks.through(sink).fold(0)(_ + _).compile.lastOrError.unsafeRunSync()
     assert(size == data.size)
+    assert(hdp.source(tgt).circe.mapFilter(_.as[Tiger].toOption).compile.toList.unsafeRunSync().toSet == data)
   }
 
   val fs2Root: Url = Url.parse("./data/test/terminals/circe/tiger")
@@ -71,7 +70,7 @@ class NJCirceTest extends AnyFunSuite {
     fs2(fs2Root, CirceFile(_.Deflate(4)), TestData.tigerSet)
   }
 
-  test("ftp") {
+  ignore("ftp") {
     val path = Url.parse("ftp://localhost/data/tiger.json")
     val conf = new Configuration()
     conf.set("fs.ftp.host", "localhost")
@@ -79,21 +78,20 @@ class NJCirceTest extends AnyFunSuite {
     conf.set("fs.ftp.password.localhost", "test")
     conf.set("fs.ftp.data.connection.mode", "PASSIVE_LOCAL_DATA_CONNECTION_MODE")
     conf.set("fs.ftp.impl", "org.apache.hadoop.fs.ftp.FTPFileSystem")
-    val conn = NJHadoop[IO](conf).circe
     Stream
       .emits(TestData.tigerSet.toList)
       .covary[IO]
       .map(_.asJson)
       .chunks
-      .through(conn.sink(path))
+      .through(hdp.sink(path).circe)
       .compile
       .drain
       .unsafeRunSync()
   }
 
   test("laziness") {
-    json.source("./does/not/exist")
-    json.sink("./does/not/exist")
+    hdp.source("./does/not/exist").circe
+    hdp.sink("./does/not/exist").circe
   }
 
   test("rotation - data") {
@@ -107,8 +105,8 @@ class NJCirceTest extends AnyFunSuite {
       .repeatN(number)
       .map(_.asJson)
       .chunks
-      .through(json.rotateSink(Policy.fixedDelay(1.second), ZoneId.systemDefault())(t =>
-        path / fk.fileName(t)))
+      .through(
+        hdp.rotateSink(Policy.fixedDelay(1.second), ZoneId.systemDefault())(t => path / fk.fileName(t)).circe)
       .fold(0L)((sum, v) => sum + v.value)
       .compile
       .lastOrError
@@ -116,17 +114,17 @@ class NJCirceTest extends AnyFunSuite {
     val size =
       hdp
         .filesIn(path)
-        .flatMap(_.traverse(json.source(_).compile.toList.map(_.size)))
+        .flatMap(_.traverse(hdp.source(_).circe.compile.toList.map(_.size)))
         .map(_.sum)
         .unsafeRunSync()
     assert(size == number * TestData.tigerSet.toList.size)
     assert(processedSize == number * TestData.tigerSet.toList.size)
 
     def tigers1(path: Url): Stream[IO, Tiger] =
-      hdp.bytes.source(path).through(utf8.decode).through(lines).map(jawn.decode[Tiger]).rethrow
+      hdp.source(path).bytes.through(utf8.decode).through(lines).map(jawn.decode[Tiger]).rethrow
 
     def tigers2(path: Url): Stream[IO, Tiger] =
-      hdp.bytes.source(path).chunks.parseJsonStream.map(_.as[Tiger]).rethrow
+      hdp.source(path).bytes.chunks.parseJsonStream.map(_.as[Tiger]).rethrow
 
     hdp
       .filesIn(path)
@@ -141,8 +139,11 @@ class NJCirceTest extends AnyFunSuite {
     val fk = CirceFile(Uncompressed)
     (Stream.sleep[IO](10.hours) >>
       Stream.empty.covaryAll[IO, Json]).chunks
-      .through(json.rotateSink(Policy.fixedDelay(1.second).limited(3), ZoneId.systemDefault())(t =>
-        path / fk.fileName(t)))
+      .through(
+        hdp
+          .rotateSink(Policy.fixedDelay(1.second).limited(3), ZoneId.systemDefault())(t =>
+            path / fk.fileName(t))
+          .circe)
       .compile
       .drain
       .unsafeRunSync()

@@ -2,7 +2,7 @@ package example.protobuf
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.terminals.{HadoopBytes, NJCompression, ProtobufFile}
+import com.github.chenharryhua.nanjin.terminals.{NJCompression, ProtobufFile}
 import eu.timepit.refined.auto.*
 import example.hadoop
 import fs2.Stream
@@ -16,19 +16,22 @@ import scalapb.GeneratedMessageCompanion
 class ProtobufTerminalTest extends AnyFunSuite {
   import ProtobufData.*
 
-  val root: Url = Url.parse("./data/example/protobuf")
+  val root: Url                            = Url.parse("./data/example/protobuf")
   val data: Stream[IO, Lion]               = Stream.emits(lions)
-  val pb: HadoopBytes[IO]                  = hadoop.bytes
   val gmc: GeneratedMessageCompanion[Lion] = implicitly
   def run(file: ProtobufFile): Assertion = {
     val path: Url = root / file.fileName
 
     val write =
-      Stream.resource(pb.outputStream(path)).flatMap(os => data.map(_.writeDelimitedTo(os))).compile.drain
+      Stream
+        .resource(hadoop.sink(path).outputStream)
+        .flatMap(os => data.map(_.writeDelimitedTo(os)))
+        .compile
+        .drain
 
     val read = Stream
-      .resource(pb.inputStream(path))
-      .flatMap(is => Stream.fromIterator[IO](gmc.streamFromDelimitedInput(is).iterator, 1))
+      .resource(hadoop.source(path).inputStream)
+      .flatMap(is => Stream.fromIterator[IO].apply(gmc.streamFromDelimitedInput(is).iterator, 1))
       .compile
       .toList
 

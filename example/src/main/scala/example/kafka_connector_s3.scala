@@ -8,14 +8,13 @@ import com.github.chenharryhua.nanjin.common.chrono.{Policy, TickedValue}
 import com.github.chenharryhua.nanjin.guard.metrics.Metrics
 import com.github.chenharryhua.nanjin.guard.observers.console
 import com.github.chenharryhua.nanjin.kafka.{KafkaContext, KafkaSettings}
-import com.github.chenharryhua.nanjin.messages.kafka.codec.gr2Jackson
-import com.github.chenharryhua.nanjin.terminals.{HadoopText, JacksonFile, NJHadoop}
+import com.github.chenharryhua.nanjin.terminals.{JacksonFile, NJHadoop}
 import eu.timepit.refined.auto.*
 import fs2.kafka.{commitBatchWithin, AutoOffsetReset, CommittableConsumerRecord}
 import fs2.{Chunk, Pipe}
 import io.lemonlabs.uri.Url
 import io.lemonlabs.uri.typesafe.dsl.urlToUrlDsl
-import org.apache.avro.generic.GenericData
+import org.apache.avro.generic.{GenericData, GenericRecord}
 import org.apache.hadoop.conf.Configuration
 
 import scala.concurrent.duration.DurationInt
@@ -46,16 +45,17 @@ object kafka_connector_s3 {
         badNum.inc(1).whenA(ccr.record.value.isFailure)
     }
 
-  private val root: Url              = Url.parse("s3a://bucket_name") / "folder_name"
-  private val hadoop: HadoopText[IO] = NJHadoop[IO](new Configuration).text
+  private val root: Url = Url.parse("s3a://bucket_name") / "folder_name"
+  private val hadoop    = NJHadoop[IO](new Configuration)
 
   aws_task_template.task
     .service("dump kafka topic to s3")
     .eventStream { ga =>
       val jackson = JacksonFile(_.Uncompressed)
-      val sink: Pipe[IO, Chunk[String], TickedValue[Int]] = // rotate files every 5 minutes
-        hadoop.rotateSink(Policy.crontab(_.every5Minutes), ga.zoneId)(tick =>
-          root / jackson.ymdFileName(tick))
+      val sink: Pipe[IO, Chunk[GenericRecord], TickedValue[Int]] = // rotate files every 5 minutes
+        hadoop
+          .rotateSink(Policy.crontab(_.every5Minutes), ga.zoneId)(tick => root / jackson.ymdFileName(tick))
+          .jackson
       ga.facilitate("abc")(logMetrics).use { log =>
         ctx
           .consume("any.kafka.topic")
@@ -66,7 +66,7 @@ object kafka_connector_s3 {
               .withMaxPollRecords(2000))
           .genericRecords
           .observe(_.map(_.offset).through(commitBatchWithin[IO](1000, 5.seconds)).drain)
-          .evalMap(x => IO.fromTry(x.record.value.flatMap(gr2Jackson(_))).guarantee(log.run(x)))
+          .evalMap(x => IO.fromTry(x.record.value).guarantee(log.run(x)))
           .chunks
           .through(sink)
           .compile

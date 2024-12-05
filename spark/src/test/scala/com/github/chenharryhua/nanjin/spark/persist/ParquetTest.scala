@@ -4,26 +4,25 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.toTraverseOps
 import com.github.chenharryhua.nanjin.spark.SparkSessionExt
-import com.github.chenharryhua.nanjin.terminals.{toHadoopPath, HadoopParquet, NJCompression, NJHadoop}
+import com.github.chenharryhua.nanjin.terminals.{toHadoopPath, NJCompression, NJHadoop}
 import com.sksamuel.avro4s.FromRecord
 import eu.timepit.refined.auto.*
 import io.lemonlabs.uri.Url
+import io.lemonlabs.uri.typesafe.dsl.*
 import mtest.spark.*
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
-import io.lemonlabs.uri.typesafe.dsl.*
 
 @DoNotDiscover
 class ParquetTest extends AnyFunSuite {
   import RoosterData.*
   val hdp: NJHadoop[IO] = sparkSession.hadoop[IO]
 
-  val parquet: HadoopParquet[IO] = hdp.parquet(Rooster.avroCodec.schema)
-
   def loadRooster(path: Url): IO[Set[Rooster]] =
     hdp
       .filesIn(path)
-      .flatMap(_.flatTraverse(parquet.source(_, 100).map(FromRecord(Rooster.avroCodec).from).compile.toList))
+      .flatMap(
+        _.flatTraverse(hdp.source(_).parquet(100).map(FromRecord(Rooster.avroCodec).from).compile.toList))
       .map(_.toSet)
 
   def roosterSaver(path: Url): SaveParquet[Rooster] =

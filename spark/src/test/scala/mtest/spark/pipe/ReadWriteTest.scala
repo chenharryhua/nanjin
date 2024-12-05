@@ -48,7 +48,7 @@ class ReadWriteTest extends AnyFunSuite {
     val path = "./data/test/spark/pipe/circe.json"
     hdp.delete(path).unsafeRunSync()
     val policy = Policy.fixedDelay(0.3.second)
-    val writer = hdp.circe.rotateSink(policy, ZoneId.systemDefault())(t => path / t.index)
+    val writer = hdp.rotateSink(policy, ZoneId.systemDefault())(t => path / t.index).circe
     data.map(_.asJson).chunks.through(writer).compile.drain.unsafeRunSync()
     val count = loader.circe(path).count[IO].unsafeRunSync()
     assert(count == number)
@@ -57,7 +57,7 @@ class ReadWriteTest extends AnyFunSuite {
     val path = "./data/test/spark/pipe/jackson.json"
     hdp.delete(path).unsafeRunSync()
     val policy = Policy.fixedDelay(0.3.second)
-    val writer = hdp.jackson(codec.schema).rotateSink(policy, ZoneId.systemDefault())(t => path / t.index)
+    val writer = hdp.rotateSink(policy, ZoneId.systemDefault())(t => path / t.index).jackson
     data.map(toRecord.to).chunks.through(writer).compile.drain.unsafeRunSync()
     val count = loader.jackson(path).count[IO].unsafeRunSync()
     assert(count == number)
@@ -67,7 +67,7 @@ class ReadWriteTest extends AnyFunSuite {
     hdp.delete(path).unsafeRunSync()
     val policy = Policy.fixedDelay(0.3.second)
     val writer =
-      hdp.kantan(CsvConfiguration.rfc).rotateSink(policy, ZoneId.systemDefault())(t => path / t.index)
+      hdp.rotateSink(policy, ZoneId.systemDefault())(t => path / t.index).kantan(CsvConfiguration.rfc)
     data.map(hd.encode).chunks.through(writer).compile.drain.unsafeRunSync()
     val count = sparkSession
       .loadTable(AvroTypedEncoder[TestData])
@@ -80,7 +80,7 @@ class ReadWriteTest extends AnyFunSuite {
     val path = "./data/test/spark/pipe/apache.avro"
     hdp.delete(path).unsafeRunSync()
     val policy = Policy.fixedDelay(0.3.second)
-    val writer = hdp.avro(codec.schema).rotateSink(policy, ZoneId.systemDefault())(t => path / t.index)
+    val writer = hdp.rotateSink(policy, ZoneId.systemDefault())(t => path / t.index).avro
     data.map(toRecord.to).chunks.through(writer).compile.drain.unsafeRunSync()
     val count = loader.avro(path).count[IO].unsafeRunSync()
     assert(count == number)
@@ -89,7 +89,7 @@ class ReadWriteTest extends AnyFunSuite {
     val path = "./data/test/spark/pipe/bin.avro"
     hdp.delete(path).unsafeRunSync()
     val policy = Policy.fixedDelay(0.3.second)
-    val writer = hdp.binAvro(codec.schema).rotateSink(policy, ZoneId.systemDefault())(t => path / t.index)
+    val writer = hdp.rotateSink(policy, ZoneId.systemDefault())(t => path / t.index).binAvro
     data.map(toRecord.to).chunks.through(writer).compile.drain.unsafeRunSync()
     val count = loader.binAvro(path).count[IO].unsafeRunSync()
     assert(count == number)
@@ -99,7 +99,7 @@ class ReadWriteTest extends AnyFunSuite {
     val path = "./data/test/spark/pipe/apache.parquet"
     hdp.delete(path).unsafeRunSync()
     val policy = Policy.fixedDelay(0.3.second)
-    val writer = hdp.parquet(codec.schema).rotateSink(policy, ZoneId.systemDefault())(t => path / t.index)
+    val writer = hdp.rotateSink(policy, ZoneId.systemDefault())(t => path / t.index).parquet
     data.map(toRecord.to).chunks.through(writer).compile.drain.unsafeRunSync()
     val count = loader.parquet(path).count[IO].unsafeRunSync()
     assert(count == number)

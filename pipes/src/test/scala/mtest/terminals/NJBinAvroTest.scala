@@ -22,22 +22,20 @@ import scala.concurrent.duration.DurationInt
 class NJBinAvroTest extends AnyFunSuite {
   import HadoopTestData.*
 
-  private val binAvro = hdp.binAvro(pandaSchema)
-
   def fs2(path: Url, file: BinAvroFile, data: Set[GenericRecord]): Assertion = {
     val tgt = path / file.fileName
 
     hdp.delete(tgt).unsafeRunSync()
-    val sink =
-      binAvro.sink(tgt)
-    val src      = binAvro.source(tgt, 100)
+    val sink     = hdp.sink(tgt).binAvro
+    val src      = hdp.source(tgt).binAvro(100, pandaSchema)
     val ts       = Stream.emits(data.toList).covary[IO].chunks
-    val action   = ts.through(sink).compile.drain >> src.compile.toList.map(_.toList)
+    val action   = ts.through(sink).compile.drain >> src.compile.toList
     val fileName = (file: NJFileKind).asJson.noSpaces
     assert(jawn.decode[NJFileKind](fileName).toOption.get == file)
     assert(action.unsafeRunSync().toSet == data)
     val size = ts.through(sink).fold(0)(_ + _).compile.lastOrError.unsafeRunSync()
     assert(size == data.size)
+    assert(hdp.source(tgt).binAvro(100, pandaSchema).compile.toList.unsafeRunSync().toSet == data)
   }
 
   val fs2Root: Url = "data/test/terminals/bin_avro/panda"
@@ -67,8 +65,8 @@ class NJBinAvroTest extends AnyFunSuite {
   }
 
   test("laziness") {
-    binAvro.source("./does/not/exist", 10)
-    binAvro.sink("./does/not/exist")
+    hdp.source("./does/not/exist").binAvro(10, pandaSchema)
+    hdp.sink("./does/not/exist").binAvro
   }
 
   test("rotation") {
@@ -81,8 +79,9 @@ class NJBinAvroTest extends AnyFunSuite {
       .covary[IO]
       .repeatN(number)
       .chunks
-      .through(binAvro.rotateSink(Policy.fixedDelay(1.second), ZoneId.systemDefault())(t =>
-        path / file.fileName(t)))
+      .through(hdp
+        .rotateSink(Policy.fixedDelay(1.second), ZoneId.systemDefault())(t => path / file.fileName(t))
+        .binAvro)
       .fold(0L)((sum, v) => sum + v.value)
       .compile
       .lastOrError
@@ -90,7 +89,7 @@ class NJBinAvroTest extends AnyFunSuite {
     val size =
       hdp
         .filesIn(path)
-        .flatMap(_.traverse(binAvro.source(_, 10).compile.toList.map(_.size)))
+        .flatMap(_.traverse(hdp.source(_).binAvro(10, pandaSchema).compile.toList.map(_.size)))
         .map(_.sum)
         .unsafeRunSync()
     assert(size == number * 2)

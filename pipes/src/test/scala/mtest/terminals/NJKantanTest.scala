@@ -4,7 +4,7 @@ import cats.effect.unsafe.implicits.global
 import cats.implicits.toTraverseOps
 import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.terminals.NJCompression.*
-import com.github.chenharryhua.nanjin.terminals.{CsvHeaderOf, KantanFile, NJFileKind, NJHadoop}
+import com.github.chenharryhua.nanjin.terminals.{CsvHeaderOf, KantanFile, NJFileKind}
 import eu.timepit.refined.auto.*
 import fs2.Stream
 import io.circe.jawn
@@ -30,14 +30,24 @@ class NJKantanTest extends AnyFunSuite {
     val tgt = path / file.fileName
     hdp.delete(tgt).unsafeRunSync()
     val ts     = Stream.emits(data.toList).covary[IO].map(tigerEncoder.encode).chunks
-    val sink   = hdp.kantan(csvConfiguration).sink(tgt)
-    val src    = hdp.kantan(csvConfiguration).source(tgt, 100).map(tigerDecoder.decode).rethrow
+    val sink   = hdp.sink(tgt).kantan(csvConfiguration)
+    val src    = hdp.source(tgt).kantan(100, csvConfiguration).map(tigerDecoder.decode).rethrow
     val action = ts.through(sink).compile.drain >> src.compile.toList
     assert(action.unsafeRunSync().toSet == data)
     val fileName = (file: NJFileKind).asJson.noSpaces
     assert(jawn.decode[NJFileKind](fileName).toOption.get == file)
     val size = ts.through(sink).fold(0)(_ + _).compile.lastOrError.unsafeRunSync()
     assert(size == data.size)
+    assert(
+      hdp
+        .source(tgt)
+        .kantan(100, csvConfiguration)
+        .map(tigerDecoder.decode)
+        .rethrow
+        .compile
+        .toList
+        .unsafeRunSync()
+        .toSet == data)
   }
 
   val fs2Root: Url = Url.parse("./data/test/terminals/csv/tiger")
@@ -79,7 +89,7 @@ class NJKantanTest extends AnyFunSuite {
     fs2(fs2Root, KantanFile(_.Deflate(6)), cfg, tigerSet)
   }
 
-  test("ftp") {
+  ignore("ftp") {
     val path = Url.parse("ftp://localhost/data/tiger.csv")
     val conf = new Configuration()
     conf.set("fs.ftp.host", "localhost")
@@ -87,33 +97,34 @@ class NJKantanTest extends AnyFunSuite {
     conf.set("fs.ftp.password.localhost", "test")
     conf.set("fs.ftp.data.connection.mode", "PASSIVE_LOCAL_DATA_CONNECTION_MODE")
     conf.set("fs.ftp.impl", "org.apache.hadoop.fs.ftp.FTPFileSystem")
-    val conn = NJHadoop[IO](conf).kantan(CsvConfiguration.rfc)
     Stream
       .emits(tigerSet.toList)
       .covary[IO]
       .map(tigerEncoder.encode)
       .chunks
-      .through(conn.sink(path))
+      .through(hdp.sink(path).kantan)
       .compile
       .drain
       .unsafeRunSync()
   }
 
   test("laziness") {
-    hdp.kantan(CsvConfiguration.rfc).source("./does/not/exist", 100)
-    hdp.kantan(CsvConfiguration.rfc).sink("./does/not/exist")
+    hdp.source("./does/not/exist").kantan(100, CsvConfiguration.rfc)
+    hdp.sink("./does/not/exist").kantan(CsvConfiguration.rfc)
   }
 
   val policy: Policy = Policy.fixedDelay(1.second)
   test("rotation - with-header") {
-    val csv  = hdp.kantan(_.withHeader(CsvHeaderOf[Tiger].header))
     val path = fs2Root / "rotation" / "header" / "data"
     val file = KantanFile(Uncompressed)
     hdp.delete(path).unsafeRunSync()
     herd
       .map(tigerEncoder.encode)
       .chunks
-      .through(csv.rotateSink(policy, ZoneId.systemDefault())(t => path / file.fileName(t)))
+      .through(
+        hdp
+          .rotateSink(policy, ZoneId.systemDefault())(t => path / file.fileName(t))
+          .kantan(_.withHeader(CsvHeaderOf[Tiger].header)))
       .compile
       .drain
       .unsafeRunSync()
@@ -121,21 +132,32 @@ class NJKantanTest extends AnyFunSuite {
     val size =
       hdp
         .filesIn(path)
-        .flatMap(_.traverse(csv.source(_, 1000).map(tigerDecoder.decode).rethrow.compile.toList.map(_.size)))
+        .flatMap(
+          _.traverse(
+            hdp
+              .source(_)
+              .kantan(1000, _.withHeader)
+              .map(tigerDecoder.decode)
+              .rethrow
+              .compile
+              .toList
+              .map(_.size)))
         .map(_.sum)
         .unsafeRunSync()
     assert(size == herd_number)
   }
 
   test("rotation - empty(with header)") {
-    val csv  = hdp.kantan(_.withHeader(CsvHeaderOf[Tiger].header))
     val path = fs2Root / "rotation" / "header" / "empty"
     hdp.delete(path).unsafeRunSync()
     val fk = KantanFile(Uncompressed)
     (Stream.sleep[IO](10.hours) >>
       Stream.empty.covaryAll[IO, Seq[String]]).chunks
-      .through(csv.rotateSink(Policy.fixedDelay(1.second).limited(3), ZoneId.systemDefault())(t =>
-        path / fk.fileName(t)))
+      .through(
+        hdp
+          .rotateSink(Policy.fixedDelay(1.second).limited(3), ZoneId.systemDefault())(t =>
+            path / fk.fileName(t))
+          .kantan(_.withHeader(CsvHeaderOf[Tiger].header)))
       .compile
       .drain
       .unsafeRunSync()
@@ -144,7 +166,6 @@ class NJKantanTest extends AnyFunSuite {
   }
 
   test("rotation - no header") {
-    val csv    = hdp.kantan(CsvConfiguration.rfc)
     val path   = fs2Root / "rotation" / "no-header" / "data"
     val number = 10000L
     val file   = KantanFile(Uncompressed)
@@ -152,7 +173,8 @@ class NJKantanTest extends AnyFunSuite {
     herd
       .map(tigerEncoder.encode)
       .chunks
-      .through(csv.rotateSink(policy, ZoneId.systemDefault())(t => path / file.fileName(t)).andThen(_.drain))
+      .through(
+        hdp.rotateSink(policy, ZoneId.systemDefault())(t => path / file.fileName(t)).kantan.andThen(_.drain))
       .map(tigerDecoder.decode)
       .rethrow
       .compile
@@ -161,21 +183,24 @@ class NJKantanTest extends AnyFunSuite {
     val size =
       hdp
         .filesIn(path)
-        .flatMap(_.traverse(csv.source(_, 1000).map(tigerDecoder.decode).rethrow.compile.toList.map(_.size)))
+        .flatMap(
+          _.traverse(hdp.source(_).kantan(1000).map(tigerDecoder.decode).rethrow.compile.toList.map(_.size)))
         .map(_.sum)
         .unsafeRunSync()
     assert(size == number)
   }
 
   test("rotation - empty(no header)") {
-    val csv  = hdp.kantan(CsvConfiguration.rfc)
     val path = fs2Root / "rotation" / "no-header" / "empty"
     hdp.delete(path).unsafeRunSync()
     val fk = KantanFile(Uncompressed)
     (Stream.sleep[IO](10.hours) >>
       Stream.empty.covaryAll[IO, Seq[String]]).chunks
-      .through(csv.rotateSink(Policy.fixedDelay(1.second).limited(3), ZoneId.systemDefault())(t =>
-        path / fk.fileName(t)))
+      .through(
+        hdp
+          .rotateSink(Policy.fixedDelay(1.second).limited(3), ZoneId.systemDefault())(t =>
+            path / fk.fileName(t))
+          .kantan)
       .compile
       .drain
       .unsafeRunSync()

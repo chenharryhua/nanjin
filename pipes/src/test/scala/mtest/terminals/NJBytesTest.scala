@@ -24,8 +24,8 @@ class NJBytesTest extends AnyFunSuite {
   def fs2(path: Url, data: Set[Tiger]): Assertion = {
     hdp.delete(path).unsafeRunSync()
     val ts   = Stream.emits(data.toList).covary[IO]
-    val sink = hdp.bytes.sink(path)
-    val src  = hdp.bytes.source(path, 64.bytes)
+    val sink = hdp.sink(path).bytes
+    val src  = hdp.source(path).bytes(64.bytes)
     val action = ts
       .map(_.asJson.noSpaces)
       .intersperse(System.lineSeparator())
@@ -36,6 +36,18 @@ class NJBytesTest extends AnyFunSuite {
       .drain >>
       src.through(utf8.decode).through(lines).map(decode[Tiger](_)).rethrow.compile.toList
     assert(action.unsafeRunSync().toSet == data)
+    assert(
+      hdp
+        .source(path)
+        .bytes
+        .through(utf8.decode)
+        .through(lines)
+        .map(decode[Tiger](_))
+        .rethrow
+        .compile
+        .toList
+        .unsafeRunSync()
+        .toSet == data)
 
   }
   val fs2Root: Url = Url.parse("./data/test/terminals/bytes/fs2")
@@ -66,8 +78,8 @@ class NJBytesTest extends AnyFunSuite {
   }
 
   test("laziness") {
-    hdp.bytes.source("./does/not/exist")
-    hdp.bytes.sink("./does/not/exist")
+    hdp.source("./does/not/exist").bytes
+    hdp.sink("./does/not/exist").bytes
   }
 
   test("rotation") {
@@ -75,8 +87,9 @@ class NJBytesTest extends AnyFunSuite {
     val number = 10000L
     hdp.delete(path).unsafeRunSync()
     val sink =
-      hdp.bytes.rotateSink(Policy.fixedDelay(1.second), ZoneId.systemDefault())(t =>
-        path / s"${t.index}.byte")
+      hdp
+        .rotateSink(Policy.fixedDelay(1.second), ZoneId.systemDefault())(t => path / s"${t.index}.byte")
+        .bytes
     Stream
       .emits(TestData.tigerSet.toList)
       .covary[IO]

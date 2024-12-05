@@ -26,13 +26,13 @@ import scala.jdk.CollectionConverters.IteratorHasAsScala
 
 private object HadoopReader {
 
-  def avroS[F[_]](configuration: Configuration, schema: Schema, path: Path, chunkSize: ChunkSize)(implicit
+  def avroS[F[_]](configuration: Configuration, path: Path, chunkSize: ChunkSize)(implicit
     F: Sync[F]): Stream[F, GenericData.Record] =
     for {
       is <- Stream.bracket(F.blocking(HadoopInputFile.fromPath(path, configuration).newStream()))(r =>
         F.blocking(r.close()))
       dfs <- Stream.bracket {
-        F.blocking[DataFileStream[GenericData.Record]](new DataFileStream(is, new GenericDatumReader(schema)))
+        F.blocking[DataFileStream[GenericData.Record]](new DataFileStream(is, new GenericDatumReader()))
       }(r => F.blocking(r.close()))
       gr <- Stream.fromBlockingIterator[F](dfs.iterator().asScala, chunkSize.value)
     } yield gr
