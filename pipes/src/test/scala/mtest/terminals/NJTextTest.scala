@@ -74,7 +74,7 @@ class NJTextTest extends AnyFunSuite {
     fs2(fs2Root, TextFile(_.Deflate(8)), TestData.tigerSet)
   }
 
-  test("ftp") {
+  ignore("ftp") {
     val path = Url.parse("ftp://localhost/data/tiger.txt")
     val conf = new Configuration()
     conf.set("fs.ftp.host", "localhost")

@@ -89,7 +89,7 @@ class NJKantanTest extends AnyFunSuite {
     fs2(fs2Root, KantanFile(_.Deflate(6)), cfg, tigerSet)
   }
 
-  test("ftp") {
+  ignore("ftp") {
     val path = Url.parse("ftp://localhost/data/tiger.csv")
     val conf = new Configuration()
     conf.set("fs.ftp.host", "localhost")

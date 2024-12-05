@@ -64,7 +64,7 @@ class NJJacksonTest extends AnyFunSuite {
     fs2(fs2Root, JacksonFile(_.Deflate(5)), pandaSet)
   }
 
-  test("ftp - parse username/password") {
+  ignore("ftp - parse username/password") {
     val path = Url.parse("ftp://chenh:test@localhost/data/tiger.jackson.json")
     val conf = new Configuration()
     // conf.set("fs.ftp.host", "localhost")

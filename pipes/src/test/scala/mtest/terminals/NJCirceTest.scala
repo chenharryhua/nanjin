@@ -70,7 +70,7 @@ class NJCirceTest extends AnyFunSuite {
     fs2(fs2Root, CirceFile(_.Deflate(4)), TestData.tigerSet)
   }
 
-  test("ftp") {
+  ignore("ftp") {
     val path = Url.parse("ftp://localhost/data/tiger.json")
     val conf = new Configuration()
     conf.set("fs.ftp.host", "localhost")
