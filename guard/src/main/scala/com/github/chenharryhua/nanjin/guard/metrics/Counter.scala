@@ -4,12 +4,12 @@ import cats.Applicative
 import cats.effect.kernel.{Resource, Sync}
 import cats.effect.std.UUIDGen
 import cats.implicits.{catsSyntaxTuple2Semigroupal, toFunctorOps}
-import com.codahale.metrics.{Counter, MetricRegistry}
+import com.codahale.metrics
 import com.github.chenharryhua.nanjin.common.EnableConfig
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.config.CategoryKind.CounterKind
 
-trait NJCounter[F[_]] extends KleisliLike[F, Long] {
+trait Counter[F[_]] extends KleisliLike[F, Long] {
   def inc(num: Long): F[Unit]
 
   final def inc(num: Int): F[Unit] = run(num.toLong)
@@ -17,20 +17,20 @@ trait NJCounter[F[_]] extends KleisliLike[F, Long] {
   final override def run(num: Long): F[Unit] = inc(num)
 }
 
-object NJCounter {
-  def noop[F[_]](implicit F: Applicative[F]): NJCounter[F] =
+object Counter {
+  def noop[F[_]](implicit F: Applicative[F]): Counter[F] =
     (_: Long) => F.unit
 
   private class Impl[F[_]: Sync](
     private[this] val label: MetricLabel,
-    private[this] val metricRegistry: MetricRegistry,
+    private[this] val metricRegistry: metrics.MetricRegistry,
     private[this] val isRisk: Boolean,
     private[this] val name: MetricName)
-      extends NJCounter[F] {
+      extends Counter[F] {
 
     private[this] val F = Sync[F]
 
-    private[this] lazy val (counter_name: String, counter: Counter) =
+    private[this] lazy val (counter_name: String, counter: metrics.Counter) =
       if (isRisk) {
         val id = MetricID(label, name, Category.Counter(CounterKind.Risk)).identifier
         (id, metricRegistry.counter(id))
@@ -54,8 +54,8 @@ object NJCounter {
     override def enable(isEnabled: Boolean): Builder =
       new Builder(isEnabled, isRisk)
 
-    private[guard] def build[F[_]](label: MetricLabel, name: String, metricRegistry: MetricRegistry)(implicit
-      F: Sync[F]): Resource[F, NJCounter[F]] =
+    private[guard] def build[F[_]](label: MetricLabel, name: String, metricRegistry: metrics.MetricRegistry)(
+      implicit F: Sync[F]): Resource[F, Counter[F]] =
       if (isEnabled) {
         Resource.make((F.monotonic, UUIDGen[F].randomUUID).mapN { case (ts, unique) =>
           new Impl[F](label, metricRegistry, isRisk, MetricName(name, ts, unique))

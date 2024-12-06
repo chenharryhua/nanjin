@@ -5,7 +5,7 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.toTraverseOps
 import com.github.chenharryhua.nanjin.spark.*
-import com.github.chenharryhua.nanjin.terminals.{csvHeader, toHadoopPath, NJHadoop}
+import com.github.chenharryhua.nanjin.terminals.{csvHeader, toHadoopPath, Hadoop}
 import eu.timepit.refined.auto.*
 import io.lemonlabs.uri.Url
 import io.lemonlabs.uri.typesafe.dsl.*
@@ -25,7 +25,7 @@ class KantanCsvTest extends AnyFunSuite {
   def saver(path: Url, cfg: CsvConfiguration): SaveKantanCsv[Tablet] =
     new RddFileHoarder[Tablet](rdd).kantan(path, cfg)
 
-  val hdp: NJHadoop[IO] = sparkSession.hadoop[IO]
+  val hdp: Hadoop[IO] = sparkSession.hadoop[IO]
 
   def loadTablet(path: Url, cfg: CsvConfiguration): IO[Set[Tablet]] =
     hdp

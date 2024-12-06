@@ -11,7 +11,7 @@ import com.github.chenharryhua.nanjin.messages.kafka.codec.{gr2Jackson, SerdeOf}
 import com.github.chenharryhua.nanjin.messages.kafka.{CRMetaInfo, NJConsumerRecord}
 import com.github.chenharryhua.nanjin.spark.kafka.{sk, SparKafkaTopic, Statistics}
 import com.github.chenharryhua.nanjin.spark.persist.RddFileHoarder
-import com.github.chenharryhua.nanjin.terminals.{toHadoopPath, NJHadoop}
+import com.github.chenharryhua.nanjin.terminals.{toHadoopPath, Hadoop}
 import eu.timepit.refined.refineMV
 import fs2.Stream
 import fs2.kafka.*
@@ -25,7 +25,7 @@ import scala.concurrent.duration.DurationInt
 final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaContext: KafkaContext[F])
     extends Serializable with zoneid {
 
-  val hadoop: NJHadoop[F] = sparkSession.hadoop[F]
+  val hadoop: Hadoop[F] = sparkSession.hadoop[F]
 
   def topic[K, V](topicDef: TopicDef[K, V]): SparKafkaTopic[F, K, V] =
     new SparKafkaTopic[F, K, V](sparkSession, kafkaContext.topic(topicDef))
@@ -114,7 +114,7 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
 
     for {
       schemaPair <- kafkaContext.schemaRegistry.fetchAvroSchema(topicName)
-      hadoop  = NJHadoop[F](sparkSession.sparkContext.hadoopConfiguration)
+      hadoop  = Hadoop[F](sparkSession.sparkContext.hadoopConfiguration)
       builder = new PushGenericRecord(kafkaContext.settings.schemaRegistrySettings, topicName, schemaPair)
       num <- hadoop.filesIn(path).flatMap { fs =>
         val ss: Stream[F, ProducerRecords[Array[Byte], Array[Byte]]] =
@@ -174,7 +174,7 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
 
     for {
       schemaPair <- kafkaContext.schemaRegistry.fetchAvroSchema(topicName)
-      hadoop  = NJHadoop[F](sparkSession.sparkContext.hadoopConfiguration)
+      hadoop  = Hadoop[F](sparkSession.sparkContext.hadoopConfiguration)
       builder = new PushGenericRecord(kafkaContext.settings.schemaRegistrySettings, topicName, schemaPair)
       num <- hadoop
         .filesIn(path)

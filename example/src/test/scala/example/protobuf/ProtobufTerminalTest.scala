@@ -2,7 +2,7 @@ package example.protobuf
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.terminals.{NJCompression, ProtobufFile}
+import com.github.chenharryhua.nanjin.terminals.{Compression, ProtobufFile}
 import eu.timepit.refined.auto.*
 import example.hadoop
 import fs2.Stream
@@ -40,34 +40,34 @@ class ProtobufTerminalTest extends AnyFunSuite {
   }
 
   test("1.uncompressed") {
-    run(ProtobufFile(NJCompression.Uncompressed))
+    run(ProtobufFile(Compression.Uncompressed))
   }
   test("2.snappy") {
-    run(ProtobufFile(NJCompression.Snappy))
+    run(ProtobufFile(Compression.Snappy))
   }
   test("3.bzip2") {
-    run(ProtobufFile(NJCompression.Bzip2))
+    run(ProtobufFile(Compression.Bzip2))
   }
   test("4.gzip") {
-    run(ProtobufFile(NJCompression.Gzip))
+    run(ProtobufFile(Compression.Gzip))
   }
   test("5.lzo") {
-    run(ProtobufFile(NJCompression.Lzo))
+    run(ProtobufFile(Compression.Lzo))
   }
   test("6.lz4") {
-    run(ProtobufFile(NJCompression.Lz4))
+    run(ProtobufFile(Compression.Lz4))
   }
   test("7.lz4_raw") {
-    run(ProtobufFile(NJCompression.Lz4_Raw))
+    run(ProtobufFile(Compression.Lz4_Raw))
   }
   test("8.brotli") {
-    run(ProtobufFile(NJCompression.Brotli))
+    run(ProtobufFile(Compression.Brotli))
   }
   test("9.deflate-3") {
-    run(ProtobufFile(NJCompression.Deflate(3)))
+    run(ProtobufFile(Compression.Deflate(3)))
   }
   test("10.xz") {
-    run(ProtobufFile(NJCompression.Xz(3)))
+    run(ProtobufFile(Compression.Xz(3)))
   }
 
 }

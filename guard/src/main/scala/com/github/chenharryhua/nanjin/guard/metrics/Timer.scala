@@ -4,7 +4,7 @@ import cats.Applicative
 import cats.effect.kernel.{Resource, Sync}
 import cats.effect.std.UUIDGen
 import cats.implicits.{catsSyntaxTuple2Semigroupal, toFunctorOps}
-import com.codahale.metrics.*
+import com.codahale.metrics
 import com.github.chenharryhua.nanjin.common.EnableConfig
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.config.CategoryKind.TimerKind
@@ -13,7 +13,7 @@ import java.time.Duration as JavaDuration
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.FiniteDuration
 
-trait NJTimer[F[_]] extends KleisliLike[F, Long] {
+trait Timer[F[_]] extends KleisliLike[F, Long] {
 
   def elapsed(jd: JavaDuration): F[Unit]
   def elapsed(num: Long): F[Unit]
@@ -25,32 +25,32 @@ trait NJTimer[F[_]] extends KleisliLike[F, Long] {
 
 }
 
-object NJTimer {
-  def noop[F[_]](implicit F: Applicative[F]): NJTimer[F] =
-    new NJTimer[F] {
+object Timer {
+  def noop[F[_]](implicit F: Applicative[F]): Timer[F] =
+    new Timer[F] {
       override def elapsed(jd: JavaDuration): F[Unit] = F.unit
       override def elapsed(num: Long): F[Unit]        = F.unit
     }
 
   private class Impl[F[_]: Sync](
     private[this] val label: MetricLabel,
-    private[this] val metricRegistry: MetricRegistry,
-    private[this] val reservoir: Option[Reservoir],
+    private[this] val metricRegistry: metrics.MetricRegistry,
+    private[this] val reservoir: Option[metrics.Reservoir],
     private[this] val name: MetricName
-  ) extends NJTimer[F] {
+  ) extends Timer[F] {
 
     private[this] val F = Sync[F]
 
     private[this] val timer_name: String =
       MetricID(label, name, Category.Timer(TimerKind.Timer)).identifier
 
-    private[this] val supplier: MetricRegistry.MetricSupplier[Timer] = () =>
+    private[this] val supplier: metrics.MetricRegistry.MetricSupplier[metrics.Timer] = () =>
       reservoir match {
-        case Some(value) => new Timer(value)
-        case None        => new Timer(new ExponentiallyDecayingReservoir) // default reservoir
+        case Some(value) => new metrics.Timer(value)
+        case None        => new metrics.Timer(new metrics.ExponentiallyDecayingReservoir) // default reservoir
       }
 
-    private[this] lazy val timer: Timer = metricRegistry.timer(timer_name, supplier)
+    private[this] lazy val timer: metrics.Timer = metricRegistry.timer(timer_name, supplier)
 
     override def elapsed(num: Long): F[Unit]        = F.delay(timer.update(num, TimeUnit.NANOSECONDS))
     override def elapsed(jd: JavaDuration): F[Unit] = F.delay(timer.update(jd))
@@ -63,17 +63,17 @@ object NJTimer {
 
   final class Builder private[guard] (
     isEnabled: Boolean,
-    reservoir: Option[Reservoir]
+    reservoir: Option[metrics.Reservoir]
   ) extends EnableConfig[Builder] {
 
-    def withReservoir(reservoir: Reservoir): Builder =
+    def withReservoir(reservoir: metrics.Reservoir): Builder =
       new Builder(isEnabled, Some(reservoir))
 
     override def enable(isEnabled: Boolean): Builder =
       new Builder(isEnabled, reservoir)
 
-    private[guard] def build[F[_]](label: MetricLabel, name: String, metricRegistry: MetricRegistry)(implicit
-      F: Sync[F]): Resource[F, NJTimer[F]] =
+    private[guard] def build[F[_]](label: MetricLabel, name: String, metricRegistry: metrics.MetricRegistry)(
+      implicit F: Sync[F]): Resource[F, Timer[F]] =
       if (isEnabled) {
         Resource.make((F.monotonic, UUIDGen[F].randomUUID).mapN { case (ts, unique) =>
           new Impl[F](

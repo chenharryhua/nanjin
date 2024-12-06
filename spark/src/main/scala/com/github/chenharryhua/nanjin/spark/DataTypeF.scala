@@ -9,35 +9,35 @@ import org.apache.spark.sql.types.*
 
 private object KeyMustBeStringException extends Exception("key must be String")
 
-sealed private[spark] trait NJDataTypeF[A]
+sealed private[spark] trait DataTypeF[A]
 
-private[spark] object NJDataTypeF {
+private[spark] object DataTypeF {
 
   // numeric types
-  final private case class NJByteType[K]() extends NJDataTypeF[K]
-  final private case class NJShortType[K]() extends NJDataTypeF[K]
-  final private case class NJIntegerType[K]() extends NJDataTypeF[K]
-  final private case class NJLongType[K]() extends NJDataTypeF[K]
-  final private case class NJFloatType[K]() extends NJDataTypeF[K]
-  final private case class NJDoubleType[K]() extends NJDataTypeF[K]
-  final private case class NJDecimalType[K](precision: Int, scale: Int) extends NJDataTypeF[K]
+  final private case class NJByteType[K]() extends DataTypeF[K]
+  final private case class NJShortType[K]() extends DataTypeF[K]
+  final private case class NJIntegerType[K]() extends DataTypeF[K]
+  final private case class NJLongType[K]() extends DataTypeF[K]
+  final private case class NJFloatType[K]() extends DataTypeF[K]
+  final private case class NJDoubleType[K]() extends DataTypeF[K]
+  final private case class NJDecimalType[K](precision: Int, scale: Int) extends DataTypeF[K]
 
-  final private case class NJStringType[K]() extends NJDataTypeF[K]
-  final private case class NJBinaryType[K]() extends NJDataTypeF[K]
-  final private case class NJBooleanType[K]() extends NJDataTypeF[K]
+  final private case class NJStringType[K]() extends DataTypeF[K]
+  final private case class NJBinaryType[K]() extends DataTypeF[K]
+  final private case class NJBooleanType[K]() extends DataTypeF[K]
 
-  final private case class NJTimestampType[K]() extends NJDataTypeF[K]
-  final private case class NJDateType[K]() extends NJDataTypeF[K]
+  final private case class NJTimestampType[K]() extends DataTypeF[K]
+  final private case class NJDateType[K]() extends DataTypeF[K]
 
-  final private case class NJArrayType[K](containsNull: Boolean, cont: K) extends NJDataTypeF[K]
+  final private case class NJArrayType[K](containsNull: Boolean, cont: K) extends DataTypeF[K]
 
   final private case class NJMapType[K](key: NJDataType, value: NJDataType, containsNull: Boolean)
-      extends NJDataTypeF[K]
+      extends DataTypeF[K]
 
-  final private case class NJNullType[K]() extends NJDataTypeF[K]
+  final private case class NJNullType[K]() extends DataTypeF[K]
 
   final private case class NJStructType[K](className: String, namespace: String, fields: List[NJStructField])
-      extends NJDataTypeF[K]
+      extends DataTypeF[K]
 
   final private case class NJStructField(
     index: Int,
@@ -52,7 +52,7 @@ private[spark] object NJDataTypeF {
     }
   }
 
-  val algebra: Algebra[NJDataTypeF, DataType] = Algebra[NJDataTypeF, DataType] {
+  val algebra: Algebra[DataTypeF, DataType] = Algebra[DataTypeF, DataType] {
     case NJByteType()      => ByteType
     case NJShortType()     => ShortType
     case NJIntegerType()   => IntegerType
@@ -76,7 +76,7 @@ private[spark] object NJDataTypeF {
 
   }
 
-  val stringAlgebra: Algebra[NJDataTypeF, String] = Algebra[NJDataTypeF, String] {
+  val stringAlgebra: Algebra[DataTypeF, String] = Algebra[DataTypeF, String] {
     case NJByteType()        => "Byte"
     case NJShortType()       => "Short"
     case NJIntegerType()     => "Int"
@@ -112,8 +112,8 @@ private[spark] object NJDataTypeF {
   /** [[org.apache.spark.sql.avro.SchemaConverters]] translate decimal to avro fixed type which was not
     * supported by avro-hugger yet
     */
-  def schemaAlgebra(builder: SchemaBuilder.TypeBuilder[Schema]): Algebra[NJDataTypeF, Schema] =
-    Algebra[NJDataTypeF, Schema] {
+  def schemaAlgebra(builder: SchemaBuilder.TypeBuilder[Schema]): Algebra[DataTypeF, Schema] =
+    Algebra[DataTypeF, Schema] {
       case NJByteType()    => builder.intType()
       case NJShortType()   => builder.intType()
       case NJIntegerType() => builder.intType()
@@ -147,8 +147,8 @@ private[spark] object NJDataTypeF {
     }
 
   @SuppressWarnings(Array("SuspiciousMatchOnClassObject"))
-  val coalgebra: Coalgebra[NJDataTypeF, DataType] =
-    Coalgebra[NJDataTypeF, DataType] {
+  val coalgebra: Coalgebra[DataTypeF, DataType] =
+    Coalgebra[DataTypeF, DataType] {
 
       case ByteType    => NJByteType()
       case ShortType   => NJShortType()
@@ -182,23 +182,23 @@ private[spark] object NJDataTypeF {
       case unknown  => sys.error(s"unknown type ${unknown.toString}")
     }
 
-  implicit val functorNJDataTypeF: Functor[NJDataTypeF] =
-    cats.derived.semiauto.functor[NJDataTypeF]
+  implicit val functorNJDataTypeF: Functor[DataTypeF] =
+    cats.derived.semiauto.functor[DataTypeF]
 }
 
-final case class NJDataType(value: Fix[NJDataTypeF]) extends AnyVal {
-  def toSpark: DataType = scheme.cata(NJDataTypeF.algebra).apply(value)
+final case class NJDataType(value: Fix[DataTypeF]) extends AnyVal {
+  def toSpark: DataType = scheme.cata(DataTypeF.algebra).apply(value)
 
   def toSchema(builder: SchemaBuilder.TypeBuilder[Schema]): Schema =
-    scheme.cata(NJDataTypeF.schemaAlgebra(builder)).apply(value)
+    scheme.cata(DataTypeF.schemaAlgebra(builder)).apply(value)
 
   def toSchema: Schema = toSchema(SchemaBuilder.builder())
 
-  def toCaseClass: String = scheme.cata(NJDataTypeF.stringAlgebra).apply(value)
+  def toCaseClass: String = scheme.cata(DataTypeF.stringAlgebra).apply(value)
 }
 
 object NJDataType {
 
   def apply(spark: DataType): NJDataType =
-    NJDataType(scheme.ana(NJDataTypeF.coalgebra).apply(spark))
+    NJDataType(scheme.ana(DataTypeF.coalgebra).apply(spark))
 }

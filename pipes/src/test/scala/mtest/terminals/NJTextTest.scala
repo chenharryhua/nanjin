@@ -5,7 +5,6 @@ import cats.effect.unsafe.implicits.global
 import cats.implicits.{toFunctorFilterOps, toTraverseOps}
 import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.terminals.*
-import com.github.chenharryhua.nanjin.terminals.NJCompression.*
 import eu.timepit.refined.auto.*
 import fs2.Stream
 import io.circe.generic.auto.*
@@ -33,8 +32,8 @@ class NJTextTest extends AnyFunSuite {
     val src: Stream[IO, Tiger]  = hdp.source(tgt).text(2).mapFilter(decode[Tiger](_).toOption)
     val action: IO[List[Tiger]] = ts.through(sink).compile.drain >> src.compile.toList
     assert(action.unsafeRunSync().toSet == data)
-    val fileName = (file: NJFileKind).asJson.noSpaces
-    assert(jawn.decode[NJFileKind](fileName).toOption.get == file)
+    val fileName = (file: FileKind).asJson.noSpaces
+    assert(jawn.decode[FileKind](fileName).toOption.get == file)
     val size = ts.through(sink).fold(0)(_ + _).compile.lastOrError.unsafeRunSync()
     assert(size == data.size)
     assert(
@@ -102,7 +101,7 @@ class NJTextTest extends AnyFunSuite {
     val path   = fs2Root / "rotation" / "data"
     val number = 10000L
     hdp.delete(path).unsafeRunSync()
-    val fk = TextFile(Uncompressed)
+    val fk = TextFile(_.Uncompressed)
     val processedSize = Stream
       .emits(TestData.tigerSet.toList)
       .covary[IO]
@@ -129,7 +128,7 @@ class NJTextTest extends AnyFunSuite {
   test("rotation - empty") {
     val path = fs2Root / "rotation" / "empty"
     hdp.delete(path).unsafeRunSync()
-    val fk = TextFile(Uncompressed)
+    val fk = TextFile(_.Uncompressed)
     (Stream.sleep[IO](10.hours) >>
       Stream.empty.covaryAll[IO, String]).chunks
       .through(
@@ -142,5 +141,15 @@ class NJTextTest extends AnyFunSuite {
       .unsafeRunSync()
     import better.files.*
     hdp.filesIn(path).unsafeRunSync().foreach(np => assert(File(np.toJavaURI).lines.isEmpty))
+  }
+
+  test("stream concat") {
+    val s         = Stream.emits(TestData.tigerSet.toList).covary[IO].repeatN(500).map(_.toString).chunks
+    val path: Url = fs2Root / "concat" / "kantan.csv"
+
+    (hdp.delete(path) >>
+      (s ++ s ++ s).through(hdp.sink(path).text).compile.drain).unsafeRunSync()
+    val size = hdp.source(path).text(100).compile.fold(0) { case (s, _) => s + 1 }.unsafeRunSync()
+    assert(size == 15000)
   }
 }

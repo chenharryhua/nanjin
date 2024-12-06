@@ -12,27 +12,27 @@ import org.apache.spark.sql.{Dataset, SaveMode, SparkSession}
 
 import scala.jdk.CollectionConverters.IteratorHasAsScala
 
-final class NJTable[A] private[spark] (val dataset: Dataset[A], ate: AvroTypedEncoder[A]) {
+final class Table[A] private[spark] (val dataset: Dataset[A], ate: AvroTypedEncoder[A]) {
 
   // transform
 
-  def map[B](bate: AvroTypedEncoder[B])(f: A => B): NJTable[B] =
-    new NJTable[B](dataset.map(f)(bate.sparkEncoder), bate)
+  def map[B](bate: AvroTypedEncoder[B])(f: A => B): Table[B] =
+    new Table[B](dataset.map(f)(bate.sparkEncoder), bate)
 
-  def flatMap[B](bate: AvroTypedEncoder[B])(f: A => IterableOnce[B]): NJTable[B] =
-    new NJTable[B](dataset.flatMap(f)(bate.sparkEncoder), bate)
+  def flatMap[B](bate: AvroTypedEncoder[B])(f: A => IterableOnce[B]): Table[B] =
+    new Table[B](dataset.flatMap(f)(bate.sparkEncoder), bate)
 
-  def transform(f: Endo[Dataset[A]]): NJTable[A] = new NJTable[A](f(dataset), ate)
+  def transform(f: Endo[Dataset[A]]): Table[A] = new Table[A](f(dataset), ate)
 
-  def repartition(numPartitions: Int): NJTable[A] = transform(_.repartition(numPartitions))
+  def repartition(numPartitions: Int): Table[A] = transform(_.repartition(numPartitions))
 
-  def normalize: NJTable[A] = transform(ate.normalize)
+  def normalize: Table[A] = transform(ate.normalize)
 
-  def diff(other: Dataset[A]): NJTable[A] = transform(_.except(other))
-  def diff(other: NJTable[A]): NJTable[A] = diff(other.dataset)
+  def diff(other: Dataset[A]): Table[A] = transform(_.except(other))
+  def diff(other: Table[A]): Table[A]   = diff(other.dataset)
 
-  def union(other: Dataset[A]): NJTable[A] = transform(_.union(other))
-  def union(other: NJTable[A]): NJTable[A] = union(other.dataset)
+  def union(other: Dataset[A]): Table[A] = transform(_.union(other))
+  def union(other: Table[A]): Table[A]   = union(other.dataset)
 
   // transition
 
@@ -59,7 +59,7 @@ final class NJTable[A] private[spark] (val dataset: Dataset[A], ate: AvroTypedEn
         .save())
 }
 
-object NJTable {
-  def empty[A](ate: AvroTypedEncoder[A], ss: SparkSession): NJTable[A] =
-    new NJTable[A](ate.emptyDataset(ss), ate)
+object Table {
+  def empty[A](ate: AvroTypedEncoder[A], ss: SparkSession): Table[A] =
+    new Table[A](ate.emptyDataset(ss), ate)
 }

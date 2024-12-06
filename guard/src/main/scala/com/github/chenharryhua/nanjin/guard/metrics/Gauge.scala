@@ -4,7 +4,7 @@ import cats.effect.implicits.genTemporalOps
 import cats.effect.kernel.{Async, Resource}
 import cats.effect.std.{Dispatcher, UUIDGen}
 import cats.syntax.all.*
-import com.codahale.metrics.{Gauge, MetricRegistry}
+import com.codahale.metrics
 import com.github.chenharryhua.nanjin.common.EnableConfig
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy}
 import com.github.chenharryhua.nanjin.guard.config.*
@@ -18,14 +18,14 @@ import java.time.ZoneId
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.util.Try
 
-trait NJGauge[F[_]] {
+trait Gauge[F[_]] {
   def register[A: Encoder](value: => F[A]): Resource[F, Unit]
   def register[A: Encoder](value: => F[A], policy: Policy, zoneId: ZoneId): Resource[F, Unit]
 }
 
-object NJGauge {
-  def noop[F[_]]: NJGauge[F] =
-    new NJGauge[F] {
+object Gauge {
+  def noop[F[_]]: Gauge[F] =
+    new Gauge[F] {
       override def register[A: Encoder](value: => F[A]): Resource[F, Unit] =
         Resource.unit[F]
       override def register[A: Encoder](value: => F[A], policy: Policy, zoneId: ZoneId): Resource[F, Unit] =
@@ -34,10 +34,10 @@ object NJGauge {
 
   private class Impl[F[_]: Async](
     private[this] val label: MetricLabel,
-    private[this] val metricRegistry: MetricRegistry,
+    private[this] val metricRegistry: metrics.MetricRegistry,
     private[this] val timeout: FiniteDuration,
     private[this] val name: String
-  ) extends NJGauge[F] {
+  ) extends Gauge[F] {
 
     private[this] val F = Async[F]
 
@@ -51,7 +51,7 @@ object NJGauge {
             metricRegistry.gauge(
               metricID.identifier,
               () =>
-                new Gauge[Json] {
+                new metrics.Gauge[Json] {
                   override def getValue: Json =
                     Try(dispatcher.unsafeRunTimed(fa, timeout)).fold(trans_error, _.asJson)
                 }
@@ -93,7 +93,7 @@ object NJGauge {
     private[guard] def build[F[_]: Async](
       label: MetricLabel,
       name: String,
-      metricRegistry: MetricRegistry): NJGauge[F] =
+      metricRegistry: metrics.MetricRegistry): Gauge[F] =
       if (isEnabled) {
         new Impl[F](label, metricRegistry, timeout, name)
       } else noop[F]

@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.sstream
 
 import cats.Functor
-import com.github.chenharryhua.nanjin.terminals.NJFileFormat
+import com.github.chenharryhua.nanjin.terminals.FileFormat
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
 import io.lemonlabs.uri.Url
@@ -17,8 +17,8 @@ final private[spark] case class NJFailOnDataLoss(value: Boolean) extends AnyVal
 
 final private[sstream] case class SStreamParams(
   zoneId: ZoneId,
-  fileFormat: NJFileFormat,
-  checkpointBuilder: NJFileFormat => Url,
+  fileFormat: FileFormat,
+  checkpointBuilder: FileFormat => Url,
   dataLoss: NJFailOnDataLoss,
   outputMode: OutputMode,
   trigger: Trigger,
@@ -32,8 +32,8 @@ private[sstream] object SStreamParams {
   def apply(zoneId: ZoneId): SStreamParams =
     SStreamParams(
       zoneId = zoneId,
-      fileFormat = NJFileFormat.Jackson,
-      checkpointBuilder = (fmt: NJFileFormat) => Url.parse("data/checkpoint/sstream") / fmt.format,
+      fileFormat = FileFormat.Jackson,
+      checkpointBuilder = (fmt: FileFormat) => Url.parse("data/checkpoint/sstream") / fmt.format,
       dataLoss = NJFailOnDataLoss(true),
       outputMode = OutputMode.Append,
       trigger = Trigger.ProcessingTime(1, TimeUnit.MINUTES),
@@ -49,13 +49,13 @@ private object SStreamConfigF {
 
   final case class InitParams[K](zoneId: ZoneId) extends SStreamConfigF[K]
 
-  final case class WithCheckpointBuilder[K](f: NJFileFormat => Url, cont: K) extends SStreamConfigF[K]
+  final case class WithCheckpointBuilder[K](f: FileFormat => Url, cont: K) extends SStreamConfigF[K]
 
   final case class WithFailOnDataLoss[K](isFail: Boolean, cont: K) extends SStreamConfigF[K]
   final case class WithOutputMode[K](value: OutputMode, cont: K) extends SStreamConfigF[K]
   final case class WithTrigger[K](value: Trigger, cont: K) extends SStreamConfigF[K]
 
-  final case class WithFormat[K](value: NJFileFormat, cont: K) extends SStreamConfigF[K]
+  final case class WithFormat[K](value: FileFormat, cont: K) extends SStreamConfigF[K]
   final case class WithProgressInterval[K](value: FiniteDuration, cont: K) extends SStreamConfigF[K]
 
   final case class WithQueryName[K](value: String, cont: K) extends SStreamConfigF[K]
@@ -79,7 +79,7 @@ private object SStreamConfigF {
 final private[sstream] case class SStreamConfig(value: Fix[SStreamConfigF]) extends AnyVal {
   import SStreamConfigF.*
 
-  def checkpointBuilder(f: NJFileFormat => Url): SStreamConfig =
+  def checkpointBuilder(f: FileFormat => Url): SStreamConfig =
     SStreamConfig(Fix(WithCheckpointBuilder(f, value)))
   def checkpoint(cp: Url): SStreamConfig = checkpointBuilder(_ => cp)
 
@@ -93,8 +93,8 @@ final private[sstream] case class SStreamConfig(value: Fix[SStreamConfigF]) exte
 
   def triggerMode(trigger: Trigger): SStreamConfig = SStreamConfig(Fix(WithTrigger(trigger, value)))
 
-  def parquetFormat: SStreamConfig = SStreamConfig(Fix(WithFormat(NJFileFormat.Parquet, value)))
-  def avroFormat: SStreamConfig    = SStreamConfig(Fix(WithFormat(NJFileFormat.Avro, value)))
+  def parquetFormat: SStreamConfig = SStreamConfig(Fix(WithFormat(FileFormat.Parquet, value)))
+  def avroFormat: SStreamConfig    = SStreamConfig(Fix(WithFormat(FileFormat.Avro, value)))
 
   def progressInterval(fd: FiniteDuration): SStreamConfig = SStreamConfig(
     Fix(WithProgressInterval(fd, value)))

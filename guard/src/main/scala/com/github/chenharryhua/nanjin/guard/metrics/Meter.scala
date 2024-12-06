@@ -4,13 +4,13 @@ import cats.Applicative
 import cats.effect.kernel.{Resource, Sync}
 import cats.effect.std.UUIDGen
 import cats.implicits.{catsSyntaxTuple2Semigroupal, toFunctorOps}
-import com.codahale.metrics.{Meter, MetricRegistry}
+import com.codahale.metrics
 import com.github.chenharryhua.nanjin.common.EnableConfig
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.config.CategoryKind.MeterKind
 import com.github.chenharryhua.nanjin.guard.event.{MeasurementUnit, NJUnits}
 
-trait NJMeter[F[_]] extends KleisliLike[F, Long] {
+trait Meter[F[_]] extends KleisliLike[F, Long] {
   def mark(num: Long): F[Unit]
 
   final def mark(num: Int): F[Unit] = mark(num.toLong)
@@ -18,25 +18,25 @@ trait NJMeter[F[_]] extends KleisliLike[F, Long] {
   final override def run(num: Long): F[Unit] = mark(num)
 }
 
-object NJMeter {
-  def noop[F[_]](implicit F: Applicative[F]): NJMeter[F] =
-    new NJMeter[F] {
+object Meter {
+  def noop[F[_]](implicit F: Applicative[F]): Meter[F] =
+    new Meter[F] {
       override def mark(num: Long): F[Unit] = F.unit
     }
 
   private class Impl[F[_]: Sync](
     private[this] val label: MetricLabel,
-    private[this] val metricRegistry: MetricRegistry,
+    private[this] val metricRegistry: metrics.MetricRegistry,
     private[this] val unit: MeasurementUnit,
     private[this] val name: MetricName)
-      extends NJMeter[F] {
+      extends Meter[F] {
 
     private[this] val F = Sync[F]
 
     private[this] val meter_name: String =
       MetricID(label, name, Category.Meter(MeterKind.Meter, unit)).identifier
 
-    private[this] lazy val meter: Meter = metricRegistry.meter(meter_name)
+    private[this] lazy val meter: metrics.Meter = metricRegistry.meter(meter_name)
 
     override def mark(num: Long): F[Unit] = F.delay(meter.mark(num))
 
@@ -54,8 +54,8 @@ object NJMeter {
     override def enable(isEnabled: Boolean): Builder =
       new Builder(isEnabled, unit)
 
-    private[guard] def build[F[_]](label: MetricLabel, name: String, metricRegistry: MetricRegistry)(implicit
-      F: Sync[F]): Resource[F, NJMeter[F]] =
+    private[guard] def build[F[_]](label: MetricLabel, name: String, metricRegistry: metrics.MetricRegistry)(
+      implicit F: Sync[F]): Resource[F, Meter[F]] =
       if (isEnabled) {
         Resource.make((F.monotonic, UUIDGen[F].randomUUID).mapN { case (ts, unique) =>
           new Impl[F](

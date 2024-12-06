@@ -5,7 +5,7 @@ import cats.effect.unsafe.implicits.global
 import cats.implicits.{toFunctorFilterOps, toTraverseOps}
 import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.terminals.*
-import com.github.chenharryhua.nanjin.terminals.NJCompression.*
+import com.github.chenharryhua.nanjin.terminals.Compression.*
 import eu.timepit.refined.auto.*
 import fs2.{Chunk, Pipe, Stream}
 import fs2.text.{lines, utf8}
@@ -22,7 +22,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import org.typelevel.jawn.fs2.JsonStreamSyntax
 
 import java.time.ZoneId
-import scala.concurrent.duration.DurationInt
+import scala.concurrent.duration.{DurationDouble, DurationInt}
 import io.lemonlabs.uri.typesafe.dsl.*
 
 class NJCirceTest extends AnyFunSuite {
@@ -37,8 +37,8 @@ class NJCirceTest extends AnyFunSuite {
     assert(action.unsafeRunSync().toSet == data)
     val lines = hdp.source(tgt).text(32).compile.fold(0) { case (s, _) => s + 1 }
     assert(lines.unsafeRunSync() === data.size)
-    val fileName = (file: NJFileKind).asJson.noSpaces
-    assert(jawn.decode[NJFileKind](fileName).toOption.get == file)
+    val fileName = (file: FileKind).asJson.noSpaces
+    assert(jawn.decode[FileKind](fileName).toOption.get == file)
     val size = ts.chunks.through(sink).fold(0)(_ + _).compile.lastOrError.unsafeRunSync()
     assert(size == data.size)
     assert(hdp.source(tgt).circe.mapFilter(_.as[Tiger].toOption).compile.toList.unsafeRunSync().toSet == data)
@@ -149,5 +149,25 @@ class NJCirceTest extends AnyFunSuite {
       .unsafeRunSync()
     import better.files.*
     hdp.filesIn(path).unsafeRunSync().foreach(np => assert(File(np.toJavaURI).lines.isEmpty))
+  }
+
+  test("stream concat") {
+    val s         = Stream.emits(TestData.tigerSet.toList).covary[IO].repeatN(500).map(_.asJson).chunks
+    val path: Url = fs2Root / "concat" / "circe.json"
+
+    (hdp.delete(path) >>
+      (s ++ s ++ s).through(hdp.sink(path).circe).compile.drain).unsafeRunSync()
+    val size = hdp.source(path).circe.compile.fold(0) { case (s, _) => s + 1 }.unsafeRunSync()
+    assert(size == 15000)
+  }
+
+  test("stream concat - 2") {
+    val s         = Stream.emits(TestData.tigerSet.toList).covary[IO].map(_.asJson).repeatN(500).chunks
+    val path: Url = fs2Root / "concat" / "rotate"
+    val sink = hdp.rotateSink(Policy.fixedDelay(0.1.second), ZoneId.systemDefault())(t =>
+      path / ParquetFile(_.Uncompressed).fileName(t))
+
+    (hdp.delete(path) >>
+      (s ++ s ++ s).through(sink.circe).compile.drain).unsafeRunSync()
   }
 }

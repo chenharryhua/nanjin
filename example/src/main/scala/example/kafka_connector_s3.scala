@@ -8,7 +8,7 @@ import com.github.chenharryhua.nanjin.common.chrono.{Policy, TickedValue}
 import com.github.chenharryhua.nanjin.guard.metrics.Metrics
 import com.github.chenharryhua.nanjin.guard.observers.console
 import com.github.chenharryhua.nanjin.kafka.{KafkaContext, KafkaSettings}
-import com.github.chenharryhua.nanjin.terminals.{JacksonFile, NJHadoop}
+import com.github.chenharryhua.nanjin.terminals.{JacksonFile, Hadoop}
 import eu.timepit.refined.auto.*
 import fs2.kafka.{commitBatchWithin, AutoOffsetReset, CommittableConsumerRecord}
 import fs2.{Chunk, Pipe}
@@ -46,7 +46,7 @@ object kafka_connector_s3 {
     }
 
   private val root: Url = Url.parse("s3a://bucket_name") / "folder_name"
-  private val hadoop    = NJHadoop[IO](new Configuration)
+  private val hadoop    = Hadoop[IO](new Configuration)
 
   aws_task_template.task
     .service("dump kafka topic to s3")

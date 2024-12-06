@@ -4,7 +4,7 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.toTraverseOps
 import com.github.chenharryhua.nanjin.spark.SparkSessionExt
-import com.github.chenharryhua.nanjin.terminals.NJHadoop
+import com.github.chenharryhua.nanjin.terminals.Hadoop
 import com.sksamuel.avro4s.ToRecord
 import eu.timepit.refined.auto.*
 import fs2.Stream
@@ -16,7 +16,7 @@ import org.scalatest.funsuite.AnyFunSuite
 
 @DoNotDiscover
 class BinAvroTest extends AnyFunSuite {
-  val hdp: NJHadoop[IO] = sparkSession.hadoop[IO]
+  val hdp: Hadoop[IO] = sparkSession.hadoop[IO]
 
   def saver(path: Url): SaveBinaryAvro[Rooster] =
     new RddAvroFileHoarder[Rooster](RoosterData.rdd.repartition(2), Rooster.avroCodec)
@@ -141,22 +141,6 @@ class BinAvroTest extends AnyFunSuite {
 
   test("reverse read/write uncompress") {
     val path = reverseRoot / "rooster.binary.avro"
-    Stream
-      .fromBlockingIterator[IO]
-      .apply(RoosterData.rdd.toLocalIterator, 100)
-      .map(toRecord.to)
-      .chunks
-      .through(hdp.sink(path).binAvro)
-      .compile
-      .drain
-      .unsafeRunSync()
-
-    val t1 = loaders.rdd.binAvro[Rooster](path, sparkSession, Rooster.avroCodec).collect().toSet
-    assert(RoosterData.expected == t1)
-  }
-
-  test("ftp") {
-    val path = "ftp://localhost/data2/bin_avro.avro"
     Stream
       .fromBlockingIterator[IO]
       .apply(RoosterData.rdd.toLocalIterator, 100)
