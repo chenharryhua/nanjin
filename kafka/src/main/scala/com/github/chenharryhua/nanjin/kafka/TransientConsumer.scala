@@ -6,7 +6,7 @@ import cats.mtl.Ask
 import cats.syntax.all.*
 import cats.{Id, Monad}
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
-import com.github.chenharryhua.nanjin.datetime.{NJDateTimeRange, NJTimestamp}
+import com.github.chenharryhua.nanjin.datetime.{DateTimeRange, NJTimestamp}
 import fs2.kafka.consumer.MkConsumer
 import fs2.kafka.{ConsumerSettings, KafkaByteConsumer}
 import org.apache.kafka.clients.consumer.{ConsumerRecord, OffsetAndMetadata}
@@ -89,7 +89,7 @@ private object KafkaPrimitiveConsumerApi {
 }
 
 sealed trait TransientConsumer[F[_]] extends KafkaPrimitiveConsumerApi[F] {
-  def offsetRangeFor(dtr: NJDateTimeRange): F[TopicPartitionMap[Option[OffsetRange]]]
+  def offsetRangeFor(dtr: DateTimeRange): F[TopicPartitionMap[Option[OffsetRange]]]
   def offsetRangeFor(start: NJTimestamp, end: NJTimestamp): F[TopicPartitionMap[Option[OffsetRange]]]
   def offsetRangeForAll: F[TopicPartitionMap[Option[OffsetRange]]]
 
@@ -122,7 +122,7 @@ private object TransientConsumer {
     private[this] def execute[A](r: Kleisli[F, KafkaByteConsumer, A]): F[A] =
       consumer.use(r.run)
 
-    override def offsetRangeFor(dtr: NJDateTimeRange): F[TopicPartitionMap[Option[OffsetRange]]] =
+    override def offsetRangeFor(dtr: DateTimeRange): F[TopicPartitionMap[Option[OffsetRange]]] =
       execute {
         for {
           from <- dtr.startTimestamp.fold(kpc.beginningOffsets)(kpc.offsetsForTimes)

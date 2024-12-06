@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.spark.kafka
 
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
-import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
+import com.github.chenharryhua.nanjin.datetime.DateTimeRange
 import com.github.chenharryhua.nanjin.kafka.TopicDef
 import com.github.chenharryhua.nanjin.messages.kafka.{CRMetaInfo, NJConsumerRecord}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
@@ -86,7 +86,7 @@ class CrPrTest extends AnyFunSuite {
 
   test("time range") {
     val dr =
-      NJDateTimeRange(sydneyTime)
+      DateTimeRange(sydneyTime)
         .withStartTime(Instant.now.minusSeconds(50))
         .withEndTime(Instant.now().plusSeconds(10))
     assert(crRdd.timeRange(dr).rdd.collect().length == 4)

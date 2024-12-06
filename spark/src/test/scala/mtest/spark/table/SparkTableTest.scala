@@ -5,7 +5,7 @@ import cats.effect.kernel.Resource
 import cats.effect.unsafe.implicits.global
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
-import com.github.chenharryhua.nanjin.database.NJHikari
+import com.github.chenharryhua.nanjin.database.DBConfig
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.github.chenharryhua.nanjin.spark.listeners.SparkContextListener
 import com.github.chenharryhua.nanjin.spark.table.LoadTable
@@ -90,11 +90,11 @@ class SparkTableTest extends AnyFunSuite {
   val dbData: DBTable = sample.toDB
 
   val pg: Resource[IO, HikariTransactor[IO]] =
-    HikariTransactor.fromHikariConfig[IO](NJHikari(postgres).set(_.setMaximumPoolSize(4)).hikariConfig)
+    HikariTransactor.fromHikariConfig[IO](DBConfig(postgres).set(_.setMaximumPoolSize(4)).hikariConfig)
 
   pg.use(txn => (DBTable.drop *> DBTable.create).transact(txn)).unsafeRunSync()
 
-  val hikari: HikariConfig       = NJHikari(postgres).hikariConfig
+  val hikari: HikariConfig       = DBConfig(postgres).hikariConfig
   val loader: LoadTable[DBTable] = ss.loadTable(ate)
 
   test("load data") {

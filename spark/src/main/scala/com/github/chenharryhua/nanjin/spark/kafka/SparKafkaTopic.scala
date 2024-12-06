@@ -4,7 +4,7 @@ import cats.Foldable
 import cats.effect.kernel.Async
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
-import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
+import com.github.chenharryhua.nanjin.datetime.DateTimeRange
 import com.github.chenharryhua.nanjin.kafka.*
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJProducerRecord}
@@ -25,7 +25,7 @@ final class SparKafkaTopic[F[_], K, V](val sparkSession: SparkSession, val topic
   private val avroKeyCodec: NJAvroCodec[K] = topic.topicDef.rawSerdes.key.avroCodec
   private val avroValCodec: NJAvroCodec[V] = topic.topicDef.rawSerdes.value.avroCodec
 
-  private def downloadKafka(dateTimeRange: NJDateTimeRange)(implicit F: Async[F]): F[CrRdd[K, V]] =
+  private def downloadKafka(dateTimeRange: DateTimeRange)(implicit F: Async[F]): F[CrRdd[K, V]] =
     sk.kafkaBatch(topic, sparkSession, dateTimeRange).map(crRdd)
 
   /** download topic according to datetime
@@ -33,13 +33,13 @@ final class SparKafkaTopic[F[_], K, V](val sparkSession: SparkSession, val topic
     * @param dtr
     *   : datetime
     */
-  def fromKafka(dtr: NJDateTimeRange)(implicit F: Async[F]): F[CrRdd[K, V]] =
+  def fromKafka(dtr: DateTimeRange)(implicit F: Async[F]): F[CrRdd[K, V]] =
     downloadKafka(dtr)
 
   /** download all topic data, up to now
     */
   def fromKafka(implicit F: Async[F]): F[CrRdd[K, V]] =
-    fromKafka(NJDateTimeRange(utils.sparkZoneId(sparkSession)))
+    fromKafka(DateTimeRange(utils.sparkZoneId(sparkSession)))
 
   /** download topic according to offset range
     * @param offsets

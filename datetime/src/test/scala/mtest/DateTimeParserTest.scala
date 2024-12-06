@@ -2,15 +2,15 @@ package mtest
 
 import cats.Alternative
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
-import com.github.chenharryhua.nanjin.datetime.{DateTimeParser, NJDateTimeRange, NJTimestamp}
+import com.github.chenharryhua.nanjin.datetime.{DateTimeParser, DateTimeRange, NJTimestamp}
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.{LocalDate, LocalTime, ZoneId, ZonedDateTime}
 
 class DateTimeParserTest extends AnyFunSuite {
 
-  val zoneId: ZoneId         = sydneyTime
-  val range: NJDateTimeRange = NJDateTimeRange(sydneyTime)
+  val zoneId: ZoneId       = sydneyTime
+  val range: DateTimeRange = DateTimeRange(sydneyTime)
   test("Local Date") {
     assert(
       range.withStartTime("2020-01-01").startTimestamp.get === NJTimestamp(

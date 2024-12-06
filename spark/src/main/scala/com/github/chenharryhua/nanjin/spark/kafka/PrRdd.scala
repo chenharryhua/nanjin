@@ -5,7 +5,7 @@ import cats.effect.kernel.Sync
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameL}
-import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
+import com.github.chenharryhua.nanjin.datetime.DateTimeRange
 import com.github.chenharryhua.nanjin.messages.kafka.NJProducerRecord
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.github.chenharryhua.nanjin.spark.persist.RddAvroFileHoarder
@@ -26,7 +26,7 @@ final class PrRdd[K, V] private[kafka] (
   def partitionOf(num: Int): PrRdd[K, V]                        = filter(_.partition.exists(_ === num))
 
   def offsetRange(start: Long, end: Long): PrRdd[K, V] = transform(range.pr.offset(start, end))
-  def timeRange(dr: NJDateTimeRange): PrRdd[K, V]      = transform(range.pr.timestamp(dr))
+  def timeRange(dr: DateTimeRange): PrRdd[K, V]        = transform(range.pr.timestamp(dr))
 
   def ascendTimestamp: PrRdd[K, V]  = transform(sort.ascend.pr.timestamp)
   def descendTimestamp: PrRdd[K, V] = transform(sort.descend.pr.timestamp)

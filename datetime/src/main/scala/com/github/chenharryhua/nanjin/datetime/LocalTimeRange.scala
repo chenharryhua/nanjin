@@ -1,21 +1,10 @@
 package com.github.chenharryhua.nanjin.datetime
 
-import java.time.{Duration as JavaDuration, Instant, LocalTime, ZoneId, ZonedDateTime}
+import java.time.{Instant, LocalTime, ZoneId, ZonedDateTime}
 import scala.concurrent.duration.{Duration, FiniteDuration}
-import scala.jdk.DurationConverters.{JavaDurationOps, ScalaDurationOps}
+import scala.jdk.DurationConverters.ScalaDurationOps
 
-final case class NJLocalTime(value: LocalTime) {
-
-  def distance(other: LocalTime): FiniteDuration = {
-    val dur = JavaDuration.between(value, other)
-    val res = if (dur.isNegative) {
-      dur.plusHours(24)
-    } else dur
-    res.toScala
-  }
-}
-
-final case class NJLocalTimeRange(start: LocalTime, duration: FiniteDuration, zoneId: ZoneId) {
+final case class LocalTimeRange(start: LocalTime, duration: FiniteDuration, zoneId: ZoneId) {
 
   // start time inclusive, end time exclusive
   def inBetween(instant: Instant): Boolean =

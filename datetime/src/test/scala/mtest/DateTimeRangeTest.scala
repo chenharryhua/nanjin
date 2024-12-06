@@ -26,14 +26,14 @@ import scala.util.Random
 
 class DateTimeRangeTest extends AnyFunSuite with FunSuiteDiscipline with Configuration {
 
-  implicit val arbiNJDateTimeRange: Arbitrary[NJDateTimeRange] =
+  implicit val arbiNJDateTimeRange: Arbitrary[DateTimeRange] =
     Arbitrary(for {
       date <- genZonedDateTimeWithZone(None)
       inc <- Gen.choose[Long](1, 50 * 365 * 24 * 3600) // 50 years
       d = date.toLocalDateTime
-    } yield NJDateTimeRange(darwinTime).withStartTime(d).withEndTime(d.plusSeconds(inc)))
+    } yield DateTimeRange(darwinTime).withStartTime(d).withEndTime(d.plusSeconds(inc)))
 
-  implicit val cogen: Cogen[NJDateTimeRange] =
+  implicit val cogen: Cogen[DateTimeRange] =
     Cogen(m => m.startTimestamp.map(_.milliseconds).getOrElse(0))
 
   implicit val arbParser: Arbitrary[DateTimeParser[Instant]] = Arbitrary(
@@ -58,8 +58,8 @@ class DateTimeRangeTest extends AnyFunSuite with FunSuiteDiscipline with Configu
       .function1[Instant, Instant](genZonedDateTime.map(_.toInstant))
       .map(f => DateTimeParser.alternativeDateTimeParser.pure(f)))
 
-  checkAll("NJDateTimeRange-UpperBounded", PartialOrderTests[NJDateTimeRange].partialOrder)
-  checkAll("NJDateTimeRange-PartialOrder", PartialOrderTests[NJDateTimeRange].partialOrder)
+  checkAll("NJDateTimeRange-UpperBounded", PartialOrderTests[DateTimeRange].partialOrder)
+  checkAll("NJDateTimeRange-PartialOrder", PartialOrderTests[DateTimeRange].partialOrder)
   checkAll("NJTimestamp", AlternativeTests[DateTimeParser].alternative[Instant, Instant, Instant])
 
   test("order of applying time data does not matter") {
@@ -67,7 +67,7 @@ class DateTimeRangeTest extends AnyFunSuite with FunSuiteDiscipline with Configu
     val startTime = LocalDateTime.of(2012, 10, 26, 18, 0, 0)
     val endTime   = LocalDateTime.of(2012, 10, 26, 23, 0, 0)
 
-    val param = NJDateTimeRange(sydneyTime)
+    val param = DateTimeRange(sydneyTime)
 
     val a = param.withEndTime(endTime).withZoneId(zoneId).withStartTime(startTime)
     val b = param.withStartTime(startTime).withZoneId(zoneId).withEndTime(endTime)
@@ -87,7 +87,7 @@ class DateTimeRangeTest extends AnyFunSuite with FunSuiteDiscipline with Configu
     val d2 = LocalDate.of(2012, 10, 27)
     val d3 = LocalDate.of(2012, 10, 28)
 
-    val dtr = NJDateTimeRange(beijingTime).withStartTime(d1).withEndTime("2012-10-28")
+    val dtr = DateTimeRange(beijingTime).withStartTime(d1).withEndTime("2012-10-28")
 
     assert(dtr.days.eqv(List(d1, d2)))
 
@@ -95,7 +95,7 @@ class DateTimeRangeTest extends AnyFunSuite with FunSuiteDiscipline with Configu
   }
 
   test("infinite range should return empty list") {
-    assert(NJDateTimeRange(cairoTime).days.isEmpty)
+    assert(DateTimeRange(cairoTime).days.isEmpty)
   }
 
   test("days of same day should return empty list") {
@@ -103,13 +103,13 @@ class DateTimeRangeTest extends AnyFunSuite with FunSuiteDiscipline with Configu
     val dt4 = LocalDateTime.of(d3, LocalTime.of(10, 1, 1))
     val dt5 = LocalDateTime.of(d3, LocalTime.of(10, 1, 2))
 
-    val sameDay = NJDateTimeRange(newyorkTime).withStartTime(dt4).withEndTime(dt5)
+    val sameDay = DateTimeRange(newyorkTime).withStartTime(dt4).withEndTime(dt5)
     assert(sameDay.days.isEmpty)
   }
 
   test("days") {
     val dr =
-      NJDateTimeRange(sydneyTime)
+      DateTimeRange(sydneyTime)
         .withStartTime("2020-12-20T23:00:00+11:00")
         .withEndTime("2020-12-29T01:00:00+11:00")
 
@@ -130,7 +130,7 @@ class DateTimeRangeTest extends AnyFunSuite with FunSuiteDiscipline with Configu
   }
 
   test("fluent api") {
-    val dr = NJDateTimeRange(sydneyTime)
+    val dr = DateTimeRange(sydneyTime)
       .withOneDay(LocalDate.now())
       .withOneDay(LocalDate.now().toString)
       .withToday
@@ -186,7 +186,7 @@ class DateTimeRangeTest extends AnyFunSuite with FunSuiteDiscipline with Configu
   }
 
   test("subranges") {
-    val dr = NJDateTimeRange(sydneyTime).withStartTime("2021-01-01").withEndTime("2021-02-01")
+    val dr = DateTimeRange(sydneyTime).withStartTime("2021-01-01").withEndTime("2021-02-01")
     val sr = dr.subranges(24.hours)
     assert(sr.size == 31)
     assert(sr == dr.subranges(1.day))
@@ -194,7 +194,7 @@ class DateTimeRangeTest extends AnyFunSuite with FunSuiteDiscipline with Configu
     assert(sr(rd).endTimestamp == sr(rd + 1).startTimestamp)
   }
   test("subranges - irregular") {
-    val dr = NJDateTimeRange(sydneyTime).withStartTime("2021-01-01").withEndTime("2021-02-01T08:00")
+    val dr = DateTimeRange(sydneyTime).withStartTime("2021-01-01").withEndTime("2021-02-01T08:00")
     val sr = dr.subranges(12.hours)
     assert(sr.size == 63)
     sr.sliding(2).toList.map {

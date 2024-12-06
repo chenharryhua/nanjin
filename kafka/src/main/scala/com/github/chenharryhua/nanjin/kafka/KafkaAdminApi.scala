@@ -4,7 +4,7 @@ import cats.Id
 import cats.effect.kernel.{Async, Resource}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
-import com.github.chenharryhua.nanjin.datetime.{NJDateTimeRange, NJTimestamp}
+import com.github.chenharryhua.nanjin.datetime.{DateTimeRange, NJTimestamp}
 import fs2.kafka.{AutoOffsetReset, ConsumerSettings, KafkaAdminClient}
 import org.apache.kafka.clients.admin.{NewTopic, TopicDescription}
 import org.apache.kafka.clients.consumer.{ConsumerRecord, OffsetAndMetadata}
@@ -26,7 +26,7 @@ sealed trait KafkaAdminApi[F[_]] {
   def deleteConsumerGroupOffsets(groupId: String): F[Unit]
 
   def partitionsFor: F[ListOfTopicPartitions]
-  def offsetRangeFor(dtr: NJDateTimeRange): F[TopicPartitionMap[Option[OffsetRange]]]
+  def offsetRangeFor(dtr: DateTimeRange): F[TopicPartitionMap[Option[OffsetRange]]]
 
   def commitSync(groupId: String, offsets: Map[TopicPartition, OffsetAndMetadata]): F[Unit]
   def commitSync(groupId: String, partition: Int, offset: Long): F[Unit]
@@ -115,7 +115,7 @@ object KafkaAdminApi {
         _ <- adminResource.use(_.deleteConsumerGroupOffsets(groupId, tps.value.toSet))
       } yield ()
 
-    override def offsetRangeFor(dtr: NJDateTimeRange): F[TopicPartitionMap[Option[OffsetRange]]] =
+    override def offsetRangeFor(dtr: DateTimeRange): F[TopicPartitionMap[Option[OffsetRange]]] =
       transientConsumer(initCS).offsetRangeFor(dtr)
 
     override def partitionsFor: F[ListOfTopicPartitions] =
