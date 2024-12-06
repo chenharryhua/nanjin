@@ -15,50 +15,50 @@ import org.apache.spark.sql.{Dataset, SparkSession}
 
 final class LoadTable[A] private[spark] (ate: AvroTypedEncoder[A], ss: SparkSession) {
 
-  def data(ds: Dataset[A]): NJTable[A] =
-    new NJTable[A](ds, ate)
-  def data(tds: TypedDataset[A]): NJTable[A] =
-    new NJTable[A](tds.dataset, ate)
-  def data(rdd: RDD[A]): NJTable[A] =
-    new NJTable[A](ss.createDataset(rdd)(ate.sparkEncoder), ate)
-  def data[G[_]: Foldable](ga: G[A]): NJTable[A] =
-    new NJTable[A](ss.createDataset(ga.toList)(ate.sparkEncoder), ate)
+  def data(ds: Dataset[A]): Table[A] =
+    new Table[A](ds, ate)
+  def data(tds: TypedDataset[A]): Table[A] =
+    new Table[A](tds.dataset, ate)
+  def data(rdd: RDD[A]): Table[A] =
+    new Table[A](ss.createDataset(rdd)(ate.sparkEncoder), ate)
+  def data[G[_]: Foldable](ga: G[A]): Table[A] =
+    new Table[A](ss.createDataset(ga.toList)(ate.sparkEncoder), ate)
 
-  def empty: NJTable[A] = new NJTable[A](ate.emptyDataset(ss), ate)
+  def empty: Table[A] = new Table[A](ate.emptyDataset(ss), ate)
 
-  def parquet(path: Url): NJTable[A] =
-    new NJTable[A](loaders.parquet[A](path, ss, ate), ate)
+  def parquet(path: Url): Table[A] =
+    new Table[A](loaders.parquet[A](path, ss, ate), ate)
 
-  def avro(path: Url): NJTable[A] =
-    new NJTable[A](loaders.avro[A](path, ss, ate), ate)
+  def avro(path: Url): Table[A] =
+    new Table[A](loaders.avro[A](path, ss, ate), ate)
 
-  def circe(path: Url)(implicit ev: JsonDecoder[A]): NJTable[A] =
-    new NJTable[A](loaders.circe[A](path, ss, ate), ate)
+  def circe(path: Url)(implicit ev: JsonDecoder[A]): Table[A] =
+    new Table[A](loaders.circe[A](path, ss, ate), ate)
 
-  def kantan(path: Url, cfg: CsvConfiguration)(implicit dec: RowDecoder[A]): NJTable[A] =
-    new NJTable[A](loaders.kantan[A](path, ss, ate, cfg), ate)
+  def kantan(path: Url, cfg: CsvConfiguration)(implicit dec: RowDecoder[A]): Table[A] =
+    new Table[A](loaders.kantan[A](path, ss, ate, cfg), ate)
 
-  def jackson(path: Url): NJTable[A] =
-    new NJTable[A](loaders.jackson[A](path, ss, ate), ate)
+  def jackson(path: Url): Table[A] =
+    new Table[A](loaders.jackson[A](path, ss, ate), ate)
 
-  def binAvro(path: Url): NJTable[A] =
-    new NJTable[A](loaders.binAvro[A](path, ss, ate), ate)
+  def binAvro(path: Url): Table[A] =
+    new Table[A](loaders.binAvro[A](path, ss, ate), ate)
 
-  def objectFile(path: Url): NJTable[A] =
-    new NJTable[A](loaders.objectFile(path, ss, ate), ate)
+  def objectFile(path: Url): Table[A] =
+    new Table[A](loaders.objectFile(path, ss, ate), ate)
 
   object spark {
-    def json(path: Url): NJTable[A] =
-      new NJTable[A](loaders.spark.json[A](path, ss, ate), ate)
+    def json(path: Url): Table[A] =
+      new Table[A](loaders.spark.json[A](path, ss, ate), ate)
 
-    def parquet(path: Url): NJTable[A] =
-      new NJTable[A](loaders.spark.parquet[A](path, ss, ate), ate)
+    def parquet(path: Url): Table[A] =
+      new Table[A](loaders.spark.parquet[A](path, ss, ate), ate)
 
-    def avro(path: Url): NJTable[A] =
-      new NJTable[A](loaders.spark.avro[A](path, ss, ate), ate)
+    def avro(path: Url): Table[A] =
+      new Table[A](loaders.spark.avro[A](path, ss, ate), ate)
 
-    def csv(path: Url, cfg: CsvConfiguration): NJTable[A] =
-      new NJTable[A](loaders.spark.csv[A](path, ss, ate, cfg), ate)
+    def csv(path: Url, cfg: CsvConfiguration): Table[A] =
+      new Table[A](loaders.spark.csv[A](path, ss, ate, cfg), ate)
 
   }
 
@@ -69,13 +69,13 @@ final class LoadTable[A] private[spark] (ate: AvroTypedEncoder[A], ss: SparkSess
       "user" -> hikari.getUsername,
       "password" -> hikari.getPassword)
 
-  def jdbc(hikari: HikariConfig, query: TableQuery): NJTable[A] = {
+  def jdbc(hikari: HikariConfig, query: TableQuery): Table[A] = {
     val sparkOptions: Map[String, String] = toMap(hikari) + ("query" -> query.value)
-    new NJTable[A](ate.normalizeDF(ss.read.format("jdbc").options(sparkOptions).load()), ate)
+    new Table[A](ate.normalizeDF(ss.read.format("jdbc").options(sparkOptions).load()), ate)
   }
 
-  def jdbc(hikari: HikariConfig, tableName: TableName): NJTable[A] = {
+  def jdbc(hikari: HikariConfig, tableName: TableName): Table[A] = {
     val sparkOptions: Map[String, String] = toMap(hikari) + ("dbtable" -> tableName.value)
-    new NJTable[A](ate.normalizeDF(ss.read.format("jdbc").options(sparkOptions).load()), ate)
+    new Table[A](ate.normalizeDF(ss.read.format("jdbc").options(sparkOptions).load()), ate)
   }
 }

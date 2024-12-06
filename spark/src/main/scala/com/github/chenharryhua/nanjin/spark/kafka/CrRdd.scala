@@ -9,7 +9,7 @@ import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.github.chenharryhua.nanjin.messages.kafka.{CRMetaInfo, NJConsumerRecord, NJProducerRecord}
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.spark.persist.RddAvroFileHoarder
-import com.github.chenharryhua.nanjin.spark.table.NJTable
+import com.github.chenharryhua.nanjin.spark.table.Table
 import frameless.TypedEncoder
 import fs2.Stream
 import org.apache.spark.rdd.RDD
@@ -65,9 +65,9 @@ final class CrRdd[K, V] private[kafka] (
 
   // transition
 
-  def toTable(implicit tek: TypedEncoder[K], tev: TypedEncoder[V]): NJTable[NJConsumerRecord[K, V]] = {
+  def toTable(implicit tek: TypedEncoder[K], tev: TypedEncoder[V]): Table[NJConsumerRecord[K, V]] = {
     val ate: AvroTypedEncoder[NJConsumerRecord[K, V]] = AvroTypedEncoder(ack, acv)
-    new NJTable[NJConsumerRecord[K, V]](ss.createDataset(rdd)(ate.sparkEncoder), ate)
+    new Table[NJConsumerRecord[K, V]](ss.createDataset(rdd)(ate.sparkEncoder), ate)
   }
 
   def prRdd: PrRdd[K, V] =
