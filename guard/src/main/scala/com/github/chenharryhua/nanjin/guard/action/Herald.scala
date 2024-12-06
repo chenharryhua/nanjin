@@ -4,8 +4,8 @@ import cats.effect.kernel.Sync
 import cats.effect.std.Console
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, ServiceParams}
-import com.github.chenharryhua.nanjin.guard.event.NJEvent.ServiceMessage
-import com.github.chenharryhua.nanjin.guard.event.{NJError, NJEvent}
+import com.github.chenharryhua.nanjin.guard.event.Event.ServiceMessage
+import com.github.chenharryhua.nanjin.guard.event.{Event, NJError}
 import com.github.chenharryhua.nanjin.guard.translator.{jsonHelper, textHelper, ColorScheme}
 import fs2.concurrent.Channel
 import io.circe.Encoder
@@ -36,7 +36,7 @@ object Herald {
 
   private[guard] class Impl[F[_]](
     serviceParams: ServiceParams,
-    channel: Channel[F, NJEvent]
+    channel: Channel[F, Event]
   )(implicit F: Sync[F])
       extends Herald[F] {
 

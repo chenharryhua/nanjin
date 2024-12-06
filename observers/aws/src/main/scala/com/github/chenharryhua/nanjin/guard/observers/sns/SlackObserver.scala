@@ -5,8 +5,8 @@ import cats.effect.kernel.{Clock, Concurrent, Resource}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.aws.SimpleNotificationService
 import com.github.chenharryhua.nanjin.common.aws.SnsArn
-import com.github.chenharryhua.nanjin.guard.event.NJEvent
-import com.github.chenharryhua.nanjin.guard.event.NJEvent.ServiceStart
+import com.github.chenharryhua.nanjin.guard.event.Event
+import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStart
 import com.github.chenharryhua.nanjin.guard.observers.FinalizeMonitor
 import com.github.chenharryhua.nanjin.guard.translator.*
 import fs2.{Pipe, Stream}
@@ -51,7 +51,7 @@ final class SlackObserver[F[_]: Clock](
     client.publish(req.build()).attempt
   }
 
-  def observe(snsArn: SnsArn): Pipe[F, NJEvent, NJEvent] = (es: Stream[F, NJEvent]) =>
+  def observe(snsArn: SnsArn): Pipe[F, Event, Event] = (es: Stream[F, Event]) =>
     for {
       sns <- Stream.resource(client)
       ofm <- Stream.eval(

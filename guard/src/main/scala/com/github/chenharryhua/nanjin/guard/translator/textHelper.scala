@@ -3,8 +3,8 @@ package com.github.chenharryhua.nanjin.guard.translator
 import cats.Eval
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
-import com.github.chenharryhua.nanjin.guard.event.NJEvent.ServicePanic
-import com.github.chenharryhua.nanjin.guard.event.{MetricIndex, MetricSnapshot, NJEvent}
+import com.github.chenharryhua.nanjin.guard.event.Event.ServicePanic
+import com.github.chenharryhua.nanjin.guard.event.{Event, MetricIndex, MetricSnapshot}
 import org.typelevel.cats.time.instances.{localdatetime, localtime}
 
 import java.time.temporal.ChronoUnit
@@ -14,7 +14,7 @@ object textHelper extends localtime with localdatetime {
   def yamlMetrics(ss: MetricSnapshot): String =
     new SnapshotPolyglot(ss).toYaml
 
-  def uptimeText(evt: NJEvent): String = fmt.format(evt.upTime)
+  def uptimeText(evt: Event): String = fmt.format(evt.upTime)
 
   def tookText(dur: Duration): String = fmt.format(dur)
 
@@ -30,15 +30,15 @@ object textHelper extends localtime with localdatetime {
       case MetricIndex.Periodic(tick) => show"${tick.index}"
     }
 
-  def eventTitle(evt: NJEvent): String =
+  def eventTitle(evt: Event): String =
     evt match {
-      case ss: NJEvent.ServiceStart =>
+      case ss: Event.ServiceStart =>
         if (ss.tick.index === 0) "Start Service" else "Restart Service"
-      case _: NJEvent.ServiceStop    => "Service Stopped"
-      case _: NJEvent.ServicePanic   => "Service Panic"
-      case _: NJEvent.ServiceMessage => "Service Message"
-      case _: NJEvent.MetricReport   => "Metric Report"
-      case _: NJEvent.MetricReset    => "Metric Reset"
+      case _: Event.ServiceStop    => "Service Stopped"
+      case _: Event.ServicePanic   => "Service Panic"
+      case _: Event.ServiceMessage => "Service Message"
+      case _: Event.MetricReport   => "Metric Report"
+      case _: Event.MetricReset    => "Metric Reset"
     }
 
   private def localTime_duration(start: ZonedDateTime, end: ZonedDateTime): (String, String) = {

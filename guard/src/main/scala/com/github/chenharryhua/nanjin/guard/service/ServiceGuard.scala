@@ -11,7 +11,7 @@ import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.common.chrono.*
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.event.*
-import com.github.chenharryhua.nanjin.guard.event.NJEvent.{MetricReport, ServicePanic}
+import com.github.chenharryhua.nanjin.guard.event.Event.{MetricReport, ServicePanic}
 import fs2.Stream
 import fs2.concurrent.Channel
 import fs2.io.net.Network
@@ -52,14 +52,14 @@ final class ServiceGuard[F[_]: Network] private[guard] (serviceName: ServiceName
     zerothTick = zeroth
   )
 
-  def eventStream(runAgent: Agent[F] => F[Unit]): Stream[F, NJEvent] =
+  def eventStream(runAgent: Agent[F] => F[Unit]): Stream[F, Event] =
     for {
       serviceParams <- Stream.eval(initStatus)
       panicHistory <- Stream.eval(
         AtomicCell[F].of(new CircularFifoQueue[ServicePanic](serviceParams.historyCapacity.panic)))
       metricsHistory <- Stream.eval(
         AtomicCell[F].of(new CircularFifoQueue[MetricReport](serviceParams.historyCapacity.metric)))
-      event <- Stream.eval(Channel.unbounded[F, NJEvent]).flatMap { channel =>
+      event <- Stream.eval(Channel.unbounded[F, Event]).flatMap { channel =>
         val metricRegistry: MetricRegistry = new MetricRegistry()
 
         val metrics_report: Stream[F, Nothing] =
@@ -147,10 +147,10 @@ final class ServiceGuard[F[_]: Network] private[guard] (serviceName: ServiceName
       }
     } yield event
 
-  def eventStreamS[A](runAgent: Agent[F] => Stream[F, A]): Stream[F, NJEvent] =
+  def eventStreamS[A](runAgent: Agent[F] => Stream[F, A]): Stream[F, Event] =
     eventStream(agent => runAgent(agent).compile.drain)
 
-  def eventStreamR[A](runAgent: Agent[F] => Resource[F, A]): Stream[F, NJEvent] =
+  def eventStreamR[A](runAgent: Agent[F] => Resource[F, A]): Stream[F, Event] =
     eventStream(agent => runAgent(agent).use_)
 
 }

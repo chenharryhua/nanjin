@@ -5,7 +5,7 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.toFunctorFilterOps
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.event.{eventFilters, NJEvent}
+import com.github.chenharryhua.nanjin.guard.event.{eventFilters, Event}
 import com.github.chenharryhua.nanjin.guard.observers.*
 import io.circe.Json
 import org.scalatest.funsuite.AnyFunSuite
@@ -15,7 +15,7 @@ import scala.concurrent.duration.*
 // sbt "guard/testOnly mtest.guard.ConsoleLogTest"
 class ConsoleLogTest extends AnyFunSuite {
 
-  val service: fs2.Stream[IO, NJEvent] =
+  val service: fs2.Stream[IO, Event] =
     TaskGuard[IO]("nanjin")
       .service("observing")
       .updateConfig(_.addBrief(Json.fromString("brief")))

@@ -4,7 +4,7 @@ import cats.Endo
 import cats.effect.kernel.{Async, Resource}
 import cats.implicits.toShow
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
-import com.github.chenharryhua.nanjin.guard.event.{NJEvent, Snapshot}
+import com.github.chenharryhua.nanjin.guard.event.{Event, Snapshot}
 import com.github.chenharryhua.nanjin.guard.translator.metricConstants
 import com.github.chenharryhua.nanjin.guard.translator.textConstants.*
 import com.influxdb.client.domain.WritePrecision
@@ -73,11 +73,11 @@ final class InfluxdbObserver[F[_]](
   private def dimension(ms: Snapshot): Map[String, String] =
     Map(CONSTANT_LABEL -> ms.metricId.metricLabel.label)
 
-  val observe: Pipe[F, NJEvent, NJEvent] = (events: Stream[F, NJEvent]) =>
+  val observe: Pipe[F, Event, Event] = (events: Stream[F, Event]) =>
     for {
       writer <- Stream.resource(client.map(_.makeWriteApi(writeOptions(WriteOptions.builder()).build())))
       event <- events.evalTap {
-        case mr @ NJEvent.MetricReport(_, sp, snapshot, _) =>
+        case mr @ Event.MetricReport(_, sp, snapshot, _) =>
           val spDimensions: Map[String, String] = dimension(sp)
           val timers: List[Point] = snapshot.timers.map { timer =>
             val tagToAdd = dimension(timer) ++ spDimensions ++ tags

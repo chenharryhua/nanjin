@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.observers.postgres
 
 import cats.Applicative
-import com.github.chenharryhua.nanjin.guard.event.{MetricSnapshot, NJEvent}
+import com.github.chenharryhua.nanjin.guard.event.{Event, MetricSnapshot}
 import com.github.chenharryhua.nanjin.guard.translator.{jsonHelper, EventName, SnapshotPolyglot, Translator}
 import io.circe.Json
 import io.circe.syntax.EncoderOps
@@ -9,7 +9,7 @@ import io.circe.syntax.EncoderOps
 import java.time.Duration
 
 private object JsonTranslator {
-  import NJEvent.*
+  import Event.*
 
   private def took(dur: Duration): (String, Json) = "took" -> dur.asJson
 

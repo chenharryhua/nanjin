@@ -10,7 +10,7 @@ import com.github.chenharryhua.nanjin.common.chrono.{Policy, Tick, TickStatus}
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.event.*
-import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
+import com.github.chenharryhua.nanjin.guard.event.Event.*
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import com.github.chenharryhua.nanjin.guard.translator.Translator
 import munit.DisciplineSuite
@@ -20,11 +20,11 @@ import org.scalacheck.{Arbitrary, Gen}
 object gendata {
   val service: ServiceGuard[IO] = TaskGuard[IO]("monad").service("tailrecM")
   val tick: Tick                = TickStatus.zeroth[IO](Policy.giveUp, sydneyTime).unsafeRunSync().tick
-  implicit val exhaustiveCheck: ExhaustiveCheck[NJEvent] =
+  implicit val exhaustiveCheck: ExhaustiveCheck[Event] =
     ExhaustiveCheck.instance(List(ServiceStart(null.asInstanceOf[ServiceParams], tick)))
 
   implicit def translatorEq: Eq[Translator[Option, Int]] =
-    Eq.by[Translator[Option, Int], NJEvent => Option[Option[Int]]](_.translate)
+    Eq.by[Translator[Option, Int], Event => Option[Option[Int]]](_.translate)
 
   implicit val arbiTranslator: Arbitrary[Translator[Option, Int]] =
     Arbitrary(

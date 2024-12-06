@@ -10,8 +10,8 @@ import com.github.chenharryhua.nanjin.aws.*
 import com.github.chenharryhua.nanjin.common.aws.EmailContent
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick}
 import com.github.chenharryhua.nanjin.common.{ChunkSize, EmailAddr}
-import com.github.chenharryhua.nanjin.guard.event.NJEvent.{ServiceStart, ServiceStop}
-import com.github.chenharryhua.nanjin.guard.event.{NJEvent, ServiceStopCause}
+import com.github.chenharryhua.nanjin.guard.event.Event.{ServiceStart, ServiceStop}
+import com.github.chenharryhua.nanjin.guard.event.{Event, ServiceStopCause}
 import com.github.chenharryhua.nanjin.guard.translator.{ColorScheme, Translator, UpdateTranslator}
 import fs2.{Chunk, Pipe, Pull, Stream}
 import scalatags.Text
@@ -62,7 +62,7 @@ final class EmailObserver[F[_]: UUIDGen] private (
   def withCapacity(cs: ChunkSize): EmailObserver[F]                = copy(capacity = cs)
   def withPolicy(policy: Policy, zoneId: ZoneId): EmailObserver[F] = copy(policy = policy, zoneId = zoneId)
 
-  private def translate(evt: NJEvent): F[Option[ColoredTag]] =
+  private def translate(evt: Event): F[Option[ColoredTag]] =
     translator.translate(evt).map(_.map(tag => ColoredTag(tag, ColorScheme.decorate(evt).eval.value)))
 
   private def compose_letter(tags: Chunk[ColoredTag]): Letter = {
@@ -130,12 +130,12 @@ final class EmailObserver[F[_]: UUIDGen] private (
       }
     }
 
-  def observe(from: EmailAddr, to: NonEmptyList[EmailAddr], subject: String): Pipe[F, NJEvent, NJEvent] = {
+  def observe(from: EmailAddr, to: NonEmptyList[EmailAddr], subject: String): Pipe[F, Event, Event] = {
 
     def go(
-      ss: Stream[F, Either[NJEvent, Tick]],
+      ss: Stream[F, Either[Event, Tick]],
       send_email: Chunk[ColoredTag] => F[Unit],
-      cache: Ref[F, Chunk[ColoredTag]]): Pull[F, NJEvent, Unit] =
+      cache: Ref[F, Chunk[ColoredTag]]): Pull[F, Event, Unit] =
       ss.pull.uncons1.flatMap {
         case Some((head, tail)) =>
           head match {
@@ -162,7 +162,7 @@ final class EmailObserver[F[_]: UUIDGen] private (
         case None => Pull.done // leave cache to be handled by finalizer
       }
 
-    (events: Stream[F, NJEvent]) =>
+    (events: Stream[F, Event]) =>
       for {
         ses <- Stream.resource(client)
         state <- Stream.eval(F.ref(Map.empty[UUID, ServiceStart]))

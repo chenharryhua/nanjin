@@ -4,8 +4,8 @@ import alleycats.Pure
 import cats.data.{Kleisli, OptionT}
 import cats.syntax.all.*
 import cats.{Applicative, Endo, Functor, FunctorFilter, Monad, Traverse}
-import com.github.chenharryhua.nanjin.guard.event.NJEvent
-import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
+import com.github.chenharryhua.nanjin.guard.event.Event
+import com.github.chenharryhua.nanjin.guard.event.Event.*
 import monocle.macros.Lenses
 
 trait UpdateTranslator[F[_], A, B] {
@@ -21,7 +21,7 @@ trait UpdateTranslator[F[_], A, B] {
   metricReset: Kleisli[OptionT[F, *], MetricReset, A]
 ) {
 
-  def translate(event: NJEvent): F[Option[A]] = event match {
+  def translate(event: Event): F[Option[A]] = event match {
     case e: ServiceStart   => serviceStart.run(e).value
     case e: ServicePanic   => servicePanic.run(e).value
     case e: ServiceStop    => serviceStop.run(e).value
@@ -30,7 +30,7 @@ trait UpdateTranslator[F[_], A, B] {
     case e: ServiceMessage => serviceMessage.run(e).value
   }
 
-  def filter(f: NJEvent => Boolean)(implicit F: Applicative[F]): Translator[F, A] =
+  def filter(f: Event => Boolean)(implicit F: Applicative[F]): Translator[F, A] =
     Translator[F, A](
       Kleisli(ss => if (f(ss)) serviceStart.run(ss) else OptionT(F.pure(None))),
       Kleisli(ss => if (f(ss)) servicePanic.run(ss) else OptionT(F.pure(None))),
@@ -41,7 +41,7 @@ trait UpdateTranslator[F[_], A, B] {
     )
 
   // for convenience
-  def traverse[G[_]](ge: G[NJEvent])(implicit F: Applicative[F], G: Traverse[G]): F[G[Option[A]]] =
+  def traverse[G[_]](ge: G[Event])(implicit F: Applicative[F], G: Traverse[G]): F[G[Option[A]]] =
     G.traverse(ge)(translate)
 
   def skipServiceStart(implicit F: Applicative[F]): Translator[F, A] =
@@ -133,7 +133,7 @@ trait UpdateTranslator[F[_], A, B] {
     copy(serviceMessage = Kleisli(a => OptionT(F.pure(Some(f(a))))))
 
   def flatMap[B](f: A => Translator[F, B])(implicit F: Monad[F]): Translator[F, B] = {
-    val go: NJEvent => F[Option[Translator[F, B]]] = { (evt: NJEvent) => translate(evt).map(_.map(f)) }
+    val go: Event => F[Option[Translator[F, B]]] = { (evt: Event) => translate(evt).map(_.map(f)) }
     Translator
       .empty[F, B]
       .withServiceStart(evt => go(evt).flatMap(_.flatTraverse(_.serviceStart.run(evt).value)))
@@ -207,7 +207,7 @@ object Translator {
       override val functor: Functor[Translator[F, *]] = this
 
       override def mapFilter[A, B](fa: Translator[F, A])(f: A => Option[B]): Translator[F, B] = {
-        def go(e: NJEvent): F[Option[B]] = fa.translate(e).map(_.flatMap(f))
+        def go(e: Event): F[Option[B]] = fa.translate(e).map(_.flatMap(f))
         Translator
           .empty[F, B]
           .withServiceStart(go)
@@ -219,7 +219,7 @@ object Translator {
       }
     }
 
-  def noop[F[_], A](implicit F: Applicative[F]): Kleisli[OptionT[F, *], NJEvent, A] =
+  def noop[F[_], A](implicit F: Applicative[F]): Kleisli[OptionT[F, *], Event, A] =
     Kleisli(_ => OptionT(F.pure(None)))
 
   def empty[F[_]: Applicative, A]: Translator[F, A] =
@@ -232,8 +232,8 @@ object Translator {
       noop[F, A]
     )
 
-  def idTranslator[F[_]](implicit F: Applicative[F]): Translator[F, NJEvent] =
-    Translator[F, NJEvent](
+  def idTranslator[F[_]](implicit F: Applicative[F]): Translator[F, Event] =
+    Translator[F, Event](
       Kleisli(x => OptionT(F.pure(Some(x)))),
       Kleisli(x => OptionT(F.pure(Some(x)))),
       Kleisli(x => OptionT(F.pure(Some(x)))),

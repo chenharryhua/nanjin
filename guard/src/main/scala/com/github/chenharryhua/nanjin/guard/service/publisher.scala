@@ -7,7 +7,7 @@ import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.common.chrono.Tick
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.event.*
-import com.github.chenharryhua.nanjin.guard.event.NJEvent.{
+import com.github.chenharryhua.nanjin.guard.event.Event.{
   MetricReport,
   MetricReset,
   ServicePanic,
@@ -20,7 +20,7 @@ import scala.jdk.CollectionConverters.CollectionHasAsScala
 
 private object publisher {
   def metricReport[F[_]: Sync](
-    channel: Channel[F, NJEvent],
+    channel: Channel[F, Event],
     serviceParams: ServiceParams,
     metricRegistry: MetricRegistry,
     index: MetricIndex): F[MetricReport] =
@@ -31,7 +31,7 @@ private object publisher {
     } yield mr
 
   def metricReset[F[_]: Sync](
-    channel: Channel[F, NJEvent],
+    channel: Channel[F, Event],
     serviceParams: ServiceParams,
     metricRegistry: MetricRegistry,
     index: MetricIndex): F[Unit] =
@@ -41,12 +41,12 @@ private object publisher {
       _ <- channel.send(mr)
     } yield metricRegistry.getCounters().values().asScala.foreach(c => c.dec(c.getCount))
 
-  def serviceReStart[F[_]](channel: Channel[F, NJEvent], serviceParams: ServiceParams, tick: Tick)(implicit
+  def serviceReStart[F[_]](channel: Channel[F, Event], serviceParams: ServiceParams, tick: Tick)(implicit
     F: Functor[F]): F[Unit] =
     channel.send(ServiceStart(serviceParams, tick)).void
 
   def servicePanic[F[_]](
-    channel: Channel[F, NJEvent],
+    channel: Channel[F, Event],
     serviceParams: ServiceParams,
     tick: Tick,
     error: NJError)(implicit F: Functor[F]): F[ServicePanic] = {
@@ -55,7 +55,7 @@ private object publisher {
   }
 
   def serviceStop[F[_]: Clock](
-    channel: Channel[F, NJEvent],
+    channel: Channel[F, Event],
     serviceParams: ServiceParams,
     cause: ServiceStopCause)(implicit F: Monad[F]): F[Unit] =
     serviceParams.zonedNow.flatMap { now =>

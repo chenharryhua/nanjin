@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.guard.observers.sns
 import cats.syntax.all.*
 import cats.{Applicative, Eval}
 import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, ServiceParams}
-import com.github.chenharryhua.nanjin.guard.event.{MetricSnapshot, NJError, NJEvent, ServiceStopCause}
+import com.github.chenharryhua.nanjin.guard.event.{Event, MetricSnapshot, NJError, ServiceStopCause}
 import com.github.chenharryhua.nanjin.guard.translator.textConstants.*
 import com.github.chenharryhua.nanjin.guard.translator.textHelper.*
 import com.github.chenharryhua.nanjin.guard.translator.{ColorScheme, SnapshotPolyglot, Translator}
@@ -13,9 +13,9 @@ import org.typelevel.cats.time.instances.all
 import squants.information.{Bytes, Information}
 
 private object SlackTranslator extends all {
-  import NJEvent.*
+  import Event.*
 
-  private def coloring(evt: NJEvent): String = ColorScheme
+  private def coloring(evt: Event): String = ColorScheme
     .decorate(evt)
     .run {
       case ColorScheme.GoodColor  => Eval.now("#36a64f")
@@ -38,7 +38,7 @@ private object SlackTranslator extends all {
     JuxtaposeSection(TextField(CONSTANT_SERVICE, sn), TextField(CONSTANT_HOST, hostText(sp)))
   }
 
-  private def uptime_section(evt: NJEvent): JuxtaposeSection =
+  private def uptime_section(evt: Event): JuxtaposeSection =
     JuxtaposeSection(
       first = TextField(CONSTANT_UPTIME, uptimeText(evt)),
       second = TextField(CONSTANT_TIMEZONE, evt.serviceParams.zoneId.show))

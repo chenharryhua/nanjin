@@ -8,20 +8,20 @@ import io.circe.generic.JsonCodec
 import java.time.{Duration, ZonedDateTime}
 
 @JsonCodec
-sealed trait NJEvent extends Product with Serializable {
+sealed trait Event extends Product with Serializable {
   def timestamp: ZonedDateTime // event timestamp - when the event occurs
   def serviceParams: ServiceParams
 
   final def upTime: Duration = serviceParams.upTime(timestamp)
 }
 
-object NJEvent {
+object Event {
 
-  final case class ServiceStart(serviceParams: ServiceParams, tick: Tick) extends NJEvent {
+  final case class ServiceStart(serviceParams: ServiceParams, tick: Tick) extends Event {
     val timestamp: ZonedDateTime = tick.zonedWakeup
   }
 
-  final case class ServicePanic(serviceParams: ServiceParams, tick: Tick, error: NJError) extends NJEvent {
+  final case class ServicePanic(serviceParams: ServiceParams, tick: Tick, error: NJError) extends Event {
     val timestamp: ZonedDateTime = tick.zonedAcquire
   }
 
@@ -29,7 +29,7 @@ object NJEvent {
     serviceParams: ServiceParams,
     timestamp: ZonedDateTime,
     cause: ServiceStopCause)
-      extends NJEvent
+      extends Event
 
   final case class ServiceMessage(
     serviceParams: ServiceParams,
@@ -37,9 +37,9 @@ object NJEvent {
     level: AlarmLevel,
     error: Option[NJError],
     message: Json
-  ) extends NJEvent
+  ) extends Event
 
-  sealed trait MetricEvent extends NJEvent {
+  sealed trait MetricEvent extends Event {
     def index: MetricIndex
     def snapshot: MetricSnapshot
     def took: Duration // time took to retrieve snapshot

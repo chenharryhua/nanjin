@@ -3,7 +3,7 @@ package mtest
 import cats.effect.IO
 import cats.effect.std.Random
 import com.github.chenharryhua.nanjin.common.DurationFormatter
-import com.github.chenharryhua.nanjin.guard.event.NJEvent
+import com.github.chenharryhua.nanjin.guard.event.Event
 import io.circe.jawn.decode
 import io.circe.syntax.EncoderOps
 
@@ -41,8 +41,8 @@ package object guard {
 
   val fmt: DurationFormatter = DurationFormatter.defaultFormatter
 
-  def checkJson(evt: NJEvent): NJEvent =
-    decode[NJEvent](evt.asJson.noSpaces) match {
+  def checkJson(evt: Event): Event =
+    decode[Event](evt.asJson.noSpaces) match {
       case Left(value) => throw value
       case Right(value) =>
         assert(value == evt, s"${evt.toString} \n-------- ${value.toString}")
