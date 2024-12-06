@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.Functor
-import com.github.chenharryhua.nanjin.terminals.{NJCompression, NJFileFormat}
+import com.github.chenharryhua.nanjin.terminals.{Compression, FileFormat}
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
 import io.lemonlabs.uri.Url
@@ -9,15 +9,15 @@ import monocle.syntax.all.*
 import org.apache.spark.sql.SaveMode
 
 final private[persist] case class HoarderParams(
-  format: NJFileFormat,
+  format: FileFormat,
   outPath: Url,
   saveMode: SaveMode,
-  compression: NJCompression)
+  compression: Compression)
 
 private[persist] object HoarderParams {
 
   def apply(outPath: Url): HoarderParams =
-    HoarderParams(NJFileFormat.Unknown, outPath, SaveMode.Overwrite, NJCompression.Uncompressed)
+    HoarderParams(FileFormat.Unknown, outPath, SaveMode.Overwrite, Compression.Uncompressed)
 }
 
 sealed private[persist] trait HoarderConfigF[X]
@@ -27,8 +27,8 @@ private object HoarderConfigF {
 
   final case class InitParams[K](path: Url) extends HoarderConfigF[K]
   final case class WithSaveMode[K](value: SaveMode, cont: K) extends HoarderConfigF[K]
-  final case class WithFileFormat[K](value: NJFileFormat, cont: K) extends HoarderConfigF[K]
-  final case class WithCompression[K](value: NJCompression, cont: K) extends HoarderConfigF[K]
+  final case class WithFileFormat[K](value: FileFormat, cont: K) extends HoarderConfigF[K]
+  final case class WithCompression[K](value: Compression, cont: K) extends HoarderConfigF[K]
 
   private val algebra: Algebra[HoarderConfigF, HoarderParams] =
     Algebra[HoarderConfigF, HoarderParams] {
@@ -48,10 +48,10 @@ final private[spark] case class HoarderConfig(value: Fix[HoarderConfigF]) {
   def saveMode(sm: SaveMode): HoarderConfig =
     HoarderConfig(Fix(WithSaveMode(sm, value)))
 
-  def outputFormat(fmt: NJFileFormat): HoarderConfig =
+  def outputFormat(fmt: FileFormat): HoarderConfig =
     HoarderConfig(Fix(WithFileFormat(fmt, value)))
 
-  def outputCompression(compression: NJCompression): HoarderConfig =
+  def outputCompression(compression: Compression): HoarderConfig =
     HoarderConfig(Fix(WithCompression(compression, value)))
 
 }

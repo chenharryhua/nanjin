@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.{Endo, Show}
-import com.github.chenharryhua.nanjin.terminals.NJFileFormat.*
+import com.github.chenharryhua.nanjin.terminals.FileFormat.*
 import com.sksamuel.avro4s.Encoder as AvroEncoder
 import io.circe.Encoder as JsonEncoder
 import io.lemonlabs.uri.Url

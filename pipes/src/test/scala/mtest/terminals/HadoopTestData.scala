@@ -1,7 +1,7 @@
 package mtest.terminals
 
 import cats.effect.IO
-import com.github.chenharryhua.nanjin.terminals.NJHadoop
+import com.github.chenharryhua.nanjin.terminals.Hadoop
 import org.apache.avro.Schema
 import org.apache.avro.generic.{GenericData, GenericRecord}
 import org.apache.hadoop.conf.Configuration
@@ -45,6 +45,6 @@ object HadoopTestData {
 
   val pandaSet: Set[GenericRecord] = pandas.toSet
 
-  val cfg               = new Configuration
-  val hdp: NJHadoop[IO] = NJHadoop[IO](cfg)
+  val cfg             = new Configuration
+  val hdp: Hadoop[IO] = Hadoop[IO](cfg)
 }

@@ -4,9 +4,9 @@ import cats.effect.implicits.genTemporalOps
 import cats.effect.kernel.{Async, Resource}
 import cats.effect.std.{Dispatcher, UUIDGen}
 import cats.syntax.all.*
-import com.codahale.metrics.{Gauge, MetricRegistry}
+import com.codahale.metrics
 import com.github.chenharryhua.nanjin.common.EnableConfig
-import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy}
+import com.github.chenharryhua.nanjin.common.chrono.{Policy, tickStream}
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.config.CategoryKind.GaugeKind
 
@@ -14,7 +14,7 @@ import java.time.ZoneId
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.util.Try
 
-trait NJHealthCheck[F[_]] {
+trait HealthCheck[F[_]] {
   def register(hc: => F[Boolean]): Resource[F, Unit]
 
   /** heath check sometimes is expensive.
@@ -24,9 +24,9 @@ trait NJHealthCheck[F[_]] {
   def register(hc: => F[Boolean], policy: Policy, zoneId: ZoneId): Resource[F, Unit]
 }
 
-object NJHealthCheck {
-  def noop[F[_]]: NJHealthCheck[F] =
-    new NJHealthCheck[F] {
+object HealthCheck {
+  def noop[F[_]]: HealthCheck[F] =
+    new HealthCheck[F] {
       override def register(hc: => F[Boolean]): Resource[F, Unit] =
         Resource.unit[F]
       override def register(hc: => F[Boolean], policy: Policy, zoneId: ZoneId): Resource[F, Unit] =
@@ -35,10 +35,10 @@ object NJHealthCheck {
 
   private class Impl[F[_]: Async](
     private[this] val label: MetricLabel,
-    private[this] val metricRegistry: MetricRegistry,
+    private[this] val metricRegistry: metrics.MetricRegistry,
     private[this] val timeout: FiniteDuration,
     private[this] val name: String)
-      extends NJHealthCheck[F] {
+      extends HealthCheck[F] {
 
     private[this] val F = Async[F]
 
@@ -53,7 +53,7 @@ object NJHealthCheck {
             metricRegistry.gauge(
               metricID,
               () =>
-                new Gauge[Boolean] {
+                new metrics.Gauge[Boolean] {
                   override def getValue: Boolean =
                     Try(dispatcher.unsafeRunTimed(F.defer(hc), timeout)).fold(_ => false, identity)
                 }
@@ -86,7 +86,7 @@ object NJHealthCheck {
     private[guard] def build[F[_]: Async](
       label: MetricLabel,
       name: String,
-      metricRegistry: MetricRegistry): NJHealthCheck[F] =
+      metricRegistry: metrics.MetricRegistry): HealthCheck[F] =
       if (isEnabled) {
         new Impl[F](label, metricRegistry, timeout, name)
       } else noop[F]

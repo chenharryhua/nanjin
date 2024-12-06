@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.Show
 import cats.syntax.show.*
-import com.github.chenharryhua.nanjin.terminals.{csvHeader, csvRow, toHadoopPath, NJCompression, NJFileFormat}
+import com.github.chenharryhua.nanjin.terminals.{csvHeader, csvRow, toHadoopPath, Compression, FileFormat}
 import com.sksamuel.avro4s.{AvroOutputStream, Encoder as AvroEncoder, ToRecord}
 import io.circe.{Encoder as JsonEncoder, Json}
 import io.lemonlabs.uri.Url
@@ -22,7 +22,7 @@ import java.io.ByteArrayOutputStream
 
 private[spark] object saveRDD {
 
-  def avro[A](rdd: RDD[A], path: Url, encoder: AvroEncoder[A], compression: NJCompression): Unit = {
+  def avro[A](rdd: RDD[A], path: Url, encoder: AvroEncoder[A], compression: Compression): Unit = {
     // config
     val config: Configuration = new Configuration(rdd.sparkContext.hadoopConfiguration)
     compressionConfig.avro(config, compression)
@@ -40,7 +40,7 @@ private[spark] object saveRDD {
       job.getConfiguration)
   }
 
-  def binAvro[A](rdd: RDD[A], path: Url, encoder: AvroEncoder[A], compression: NJCompression): Unit = {
+  def binAvro[A](rdd: RDD[A], path: Url, encoder: AvroEncoder[A], compression: Compression): Unit = {
     def bytesWritable(a: A): BytesWritable = {
       val os  = new ByteArrayOutputStream
       val aos = AvroOutputStream.binary(encoder).to(os).build()
@@ -52,7 +52,7 @@ private[spark] object saveRDD {
     // config
     val config: Configuration = new Configuration(rdd.sparkContext.hadoopConfiguration)
     compressionConfig.set(config, compression)
-    config.set(NJBinaryOutputFormat.suffix, NJFileFormat.BinaryAvro.suffix)
+    config.set(NJBinaryOutputFormat.suffix, FileFormat.BinaryAvro.suffix)
     // run
     rdd
       .map(x => (NullWritable.get(), bytesWritable(x)))
@@ -64,7 +64,7 @@ private[spark] object saveRDD {
         config)
   }
 
-  def parquet[A](rdd: RDD[A], path: Url, encoder: AvroEncoder[A], compression: NJCompression): Unit = {
+  def parquet[A](rdd: RDD[A], path: Url, encoder: AvroEncoder[A], compression: Compression): Unit = {
     val config: Configuration = new Configuration(rdd.sparkContext.hadoopConfiguration)
     val job: Job              = Job.getInstance(config)
     AvroParquetOutputFormat.setSchema(job, encoder.schema)
@@ -81,12 +81,12 @@ private[spark] object saveRDD {
       job.getConfiguration)
   }
 
-  def circe[A: JsonEncoder](rdd: RDD[A], path: Url, compression: NJCompression, isKeepNull: Boolean): Unit = {
+  def circe[A: JsonEncoder](rdd: RDD[A], path: Url, compression: Compression, isKeepNull: Boolean): Unit = {
     val encode: A => Json = a =>
       if (isKeepNull) JsonEncoder[A].apply(a) else JsonEncoder[A].apply(a).deepDropNullValues
     // config
     val config: Configuration = new Configuration(rdd.sparkContext.hadoopConfiguration)
-    config.set(NJTextOutputFormat.suffix, NJFileFormat.Circe.suffix)
+    config.set(NJTextOutputFormat.suffix, FileFormat.Circe.suffix)
     compressionConfig.set(config, compression)
     // run
     rdd
@@ -99,7 +99,7 @@ private[spark] object saveRDD {
         config)
   }
 
-  def jackson[A](rdd: RDD[A], path: Url, encoder: AvroEncoder[A], compression: NJCompression): Unit = {
+  def jackson[A](rdd: RDD[A], path: Url, encoder: AvroEncoder[A], compression: Compression): Unit = {
     // config
     val config: Configuration = new Configuration(rdd.sparkContext.hadoopConfiguration)
     compressionConfig.set(config, compression)
@@ -117,7 +117,7 @@ private[spark] object saveRDD {
       job.getConfiguration)
   }
 
-  def protobuf[A](rdd: RDD[A], path: Url, compression: NJCompression)(implicit
+  def protobuf[A](rdd: RDD[A], path: Url, compression: Compression)(implicit
     enc: A <:< GeneratedMessage): Unit = {
     def bytesWritable(a: A): BytesWritable = {
       val os: ByteArrayOutputStream = new ByteArrayOutputStream
@@ -128,7 +128,7 @@ private[spark] object saveRDD {
     // config
     val config: Configuration = new Configuration(rdd.sparkContext.hadoopConfiguration)
     compressionConfig.set(config, compression)
-    config.set(NJBinaryOutputFormat.suffix, NJFileFormat.ProtoBuf.suffix)
+    config.set(NJBinaryOutputFormat.suffix, FileFormat.ProtoBuf.suffix)
     // run
     rdd
       .map(x => (NullWritable.get(), bytesWritable(x)))
@@ -140,7 +140,7 @@ private[spark] object saveRDD {
         config)
   }
 
-  def text[A: Show](rdd: RDD[A], path: Url, compression: NJCompression, suffix: String): Unit = {
+  def text[A: Show](rdd: RDD[A], path: Url, compression: Compression, suffix: String): Unit = {
     // config
     val config: Configuration = new Configuration(rdd.sparkContext.hadoopConfiguration)
     config.set(NJTextOutputFormat.suffix, suffix)
@@ -159,12 +159,12 @@ private[spark] object saveRDD {
   def kantan[A](
     rdd: RDD[A],
     path: Url,
-    compression: NJCompression,
+    compression: Compression,
     csvCfg: CsvConfiguration,
     encoder: RowEncoder[A]): Unit = {
     // config
     val config: Configuration = new Configuration(rdd.sparkContext.hadoopConfiguration)
-    config.set(NJTextOutputFormat.suffix, NJFileFormat.Kantan.suffix)
+    config.set(NJTextOutputFormat.suffix, FileFormat.Kantan.suffix)
     compressionConfig.set(config, compression)
 
     val header_crlf = csvHeader(csvCfg).toList.mkString

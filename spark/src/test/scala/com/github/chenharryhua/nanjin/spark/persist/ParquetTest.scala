@@ -4,7 +4,7 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.toTraverseOps
 import com.github.chenharryhua.nanjin.spark.SparkSessionExt
-import com.github.chenharryhua.nanjin.terminals.{toHadoopPath, NJCompression, NJHadoop}
+import com.github.chenharryhua.nanjin.terminals.{toHadoopPath, Compression, Hadoop}
 import com.sksamuel.avro4s.FromRecord
 import eu.timepit.refined.auto.*
 import io.lemonlabs.uri.Url
@@ -16,7 +16,7 @@ import org.scalatest.funsuite.AnyFunSuite
 @DoNotDiscover
 class ParquetTest extends AnyFunSuite {
   import RoosterData.*
-  val hdp: NJHadoop[IO] = sparkSession.hadoop[IO]
+  val hdp: Hadoop[IO] = sparkSession.hadoop[IO]
 
   def loadRooster(path: Url): IO[Set[Rooster]] =
     hdp
@@ -83,7 +83,7 @@ class ParquetTest extends AnyFunSuite {
 
   test("7.datetime read/write identity multi.zstd") {
     val path        = root / "rooster" / "zstd"
-    val compression = NJCompression.Zstandard(1)
+    val compression = Compression.Zstandard(1)
     roosterSaver(path).withCompression(compression).run[IO].unsafeRunSync()
     val r = loaders.rdd.parquet(path, sparkSession, Rooster.avroCodec).collect().toSet
     val t = loadRooster(path)
@@ -104,7 +104,7 @@ class ParquetTest extends AnyFunSuite {
   test("9.datetime read/write identity multi.gzip") {
     val path = root / "rooster" / "gzip"
     hdp.delete(path).unsafeRunSync()
-    saveRDD.parquet(RoosterData.rdd, path, Rooster.avroCodec, NJCompression.Gzip)
+    saveRDD.parquet(RoosterData.rdd, path, Rooster.avroCodec, Compression.Gzip)
     val r = loaders.rdd.parquet(path, sparkSession, Rooster.avroCodec).collect().toSet
     val t = loadRooster(path)
     assert(expected == r)

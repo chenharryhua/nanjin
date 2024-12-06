@@ -4,7 +4,7 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.toTraverseOps
 import com.github.chenharryhua.nanjin.spark.SparkSessionExt
-import com.github.chenharryhua.nanjin.terminals.NJHadoop
+import com.github.chenharryhua.nanjin.terminals.Hadoop
 import com.sksamuel.avro4s.FromRecord
 import eu.timepit.refined.auto.*
 import io.lemonlabs.uri.Url
@@ -18,7 +18,7 @@ class JacksonTest extends AnyFunSuite {
   def rooster(path: Url): SaveJackson[Rooster] =
     new RddAvroFileHoarder[Rooster](RoosterData.rdd.repartition(3), Rooster.avroCodec).jackson(path)
 
-  val hdp: NJHadoop[IO] = sparkSession.hadoop[IO]
+  val hdp: Hadoop[IO] = sparkSession.hadoop[IO]
 
   val fromRecord: FromRecord[Rooster] = FromRecord(Rooster.avroCodec)
 

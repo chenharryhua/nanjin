@@ -5,7 +5,6 @@ import cats.effect.unsafe.implicits.global
 import cats.implicits.toTraverseOps
 import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.terminals.*
-import com.github.chenharryhua.nanjin.terminals.NJCompression.*
 import eu.timepit.refined.auto.*
 import fs2.Stream
 import io.circe.jawn
@@ -17,7 +16,7 @@ import org.scalatest.Assertion
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.ZoneId
-import scala.concurrent.duration.DurationInt
+import scala.concurrent.duration.{DurationDouble, DurationInt}
 
 class NJAvroTest extends AnyFunSuite {
   import HadoopTestData.*
@@ -29,8 +28,8 @@ class NJAvroTest extends AnyFunSuite {
     val src      = hdp.source(tgt).avro(100)
     val ts       = Stream.emits(data.toList).covary[IO].chunks
     val action   = ts.through(sink).compile.drain >> src.compile.toList.map(_.toList)
-    val fileName = (file: NJFileKind).asJson.noSpaces
-    assert(jawn.decode[NJFileKind](fileName).toOption.get == file)
+    val fileName = (file: FileKind).asJson.noSpaces
+    assert(jawn.decode[FileKind](fileName).toOption.get == file)
     assert(action.unsafeRunSync().toSet == data)
     val size = ts.through(sink).fold(0)(_ + _).compile.lastOrError.unsafeRunSync()
     assert(size == data.size)
@@ -72,7 +71,7 @@ class NJAvroTest extends AnyFunSuite {
     val path   = fs2Root / "rotation"
     val number = 10000L
     hdp.delete(path).unsafeRunSync()
-    val file = AvroFile(Uncompressed)
+    val file = AvroFile(_.Uncompressed)
     val processedSize = Stream
       .emits(pandaSet.toList)
       .covary[IO]
@@ -93,5 +92,25 @@ class NJAvroTest extends AnyFunSuite {
         .unsafeRunSync()
     assert(size == number * 2)
     assert(processedSize == number * 2)
+  }
+
+  test("stream concat") {
+    val s         = Stream.emits(pandaSet.toList).covary[IO].repeatN(500).chunks
+    val path: Url = fs2Root / "concat" / "data.avro"
+
+    (hdp.delete(path) >>
+      (s ++ s ++ s).through(hdp.sink(path).avro).compile.drain).unsafeRunSync()
+    val size = hdp.source(path).avro(100).compile.fold(0) { case (s, _) => s + 1 }.unsafeRunSync()
+    assert(size == 3000)
+  }
+
+  test("stream concat - 2") {
+    val s         = Stream.emits(pandaSet.toList).covary[IO].repeatN(500).chunks
+    val path: Url = fs2Root / "concat" / "rotate"
+    val sink = hdp.rotateSink(Policy.fixedDelay(0.1.second), ZoneId.systemDefault())(t =>
+      path / AvroFile(_.Uncompressed).fileName(t))
+
+    (hdp.delete(path) >>
+      (s ++ s ++ s).through(sink.avro).compile.drain).unsafeRunSync()
   }
 }

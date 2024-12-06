@@ -7,7 +7,7 @@ import io.circe.generic.JsonCodec
 import java.time.format.DateTimeFormatter
 
 @JsonCodec
-sealed abstract class NJFileKind(val fileFormat: NJFileFormat, val compression: NJCompression) {
+sealed abstract class FileKind(val fileFormat: FileFormat, val compression: Compression) {
   private val fmt: DateTimeFormatter = DateTimeFormatter.ofPattern("HHmmss")
 
   final val fileName: String = compression.fileName(fileFormat)
@@ -24,7 +24,7 @@ sealed abstract class NJFileKind(val fileFormat: NJFileFormat, val compression: 
 }
 
 final case class AvroFile(override val compression: AvroCompression)
-    extends NJFileKind(NJFileFormat.Avro, compression)
+    extends FileKind(FileFormat.Avro, compression)
 
 object AvroFile {
   def apply(f: AvroCompression.type => AvroCompression): AvroFile =
@@ -32,7 +32,7 @@ object AvroFile {
 }
 
 final case class CirceFile(override val compression: CirceCompression)
-    extends NJFileKind(NJFileFormat.Circe, compression)
+    extends FileKind(FileFormat.Circe, compression)
 
 object CirceFile {
   def apply(f: CirceCompression.type => CirceCompression): CirceFile =
@@ -40,7 +40,7 @@ object CirceFile {
 }
 
 final case class BinAvroFile(override val compression: BinaryAvroCompression)
-    extends NJFileKind(NJFileFormat.BinaryAvro, compression)
+    extends FileKind(FileFormat.BinaryAvro, compression)
 
 object BinAvroFile {
   def apply(f: BinaryAvroCompression.type => BinaryAvroCompression): BinAvroFile =
@@ -48,7 +48,7 @@ object BinAvroFile {
 }
 
 final case class JacksonFile(override val compression: JacksonCompression)
-    extends NJFileKind(NJFileFormat.Jackson, compression)
+    extends FileKind(FileFormat.Jackson, compression)
 
 object JacksonFile {
   def apply(f: JacksonCompression.type => JacksonCompression): JacksonFile =
@@ -56,7 +56,7 @@ object JacksonFile {
 }
 
 final case class KantanFile(override val compression: KantanCompression)
-    extends NJFileKind(NJFileFormat.Kantan, compression)
+    extends FileKind(FileFormat.Kantan, compression)
 
 object KantanFile {
   def apply(f: KantanCompression.type => KantanCompression): KantanFile =
@@ -64,7 +64,7 @@ object KantanFile {
 }
 
 final case class ParquetFile(override val compression: ParquetCompression)
-    extends NJFileKind(NJFileFormat.Parquet, compression)
+    extends FileKind(FileFormat.Parquet, compression)
 
 object ParquetFile {
   def apply(f: ParquetCompression.type => ParquetCompression): ParquetFile =
@@ -72,7 +72,7 @@ object ParquetFile {
 }
 
 final case class ProtobufFile(override val compression: ProtobufCompression)
-    extends NJFileKind(NJFileFormat.ProtoBuf, compression)
+    extends FileKind(FileFormat.ProtoBuf, compression)
 
 object ProtobufFile {
   def apply(f: ProtobufCompression.type => ProtobufCompression): ProtobufFile =
@@ -80,7 +80,7 @@ object ProtobufFile {
 }
 
 final case class TextFile(override val compression: TextCompression)
-    extends NJFileKind(NJFileFormat.Text, compression)
+    extends FileKind(FileFormat.Text, compression)
 
 object TextFile {
   def apply(f: TextCompression.type => TextCompression): TextFile =

@@ -5,8 +5,7 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.toTraverseOps
 import com.github.chenharryhua.nanjin.common.chrono.Policy
-import com.github.chenharryhua.nanjin.terminals.NJCompression.*
-import com.github.chenharryhua.nanjin.terminals.{NJFileKind, ParquetFile}
+import com.github.chenharryhua.nanjin.terminals.{FileKind, ParquetFile}
 import eu.timepit.refined.auto.*
 import fs2.Stream
 import io.circe.jawn
@@ -18,7 +17,7 @@ import org.scalatest.Assertion
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.ZoneId
-import scala.concurrent.duration.DurationInt
+import scala.concurrent.duration.{DurationDouble, DurationInt}
 import scala.util.Try
 
 class NJParquetTest extends AnyFunSuite {
@@ -33,8 +32,8 @@ class NJParquetTest extends AnyFunSuite {
       ts.through(sink).compile.drain >>
         hdp.source(tgt).parquet(100, _.useBloomFilter()).compile.toList.map(_.toList)
     assert(action.unsafeRunSync().toSet == data)
-    val fileName = (file: NJFileKind).asJson.noSpaces
-    assert(jawn.decode[NJFileKind](fileName).toOption.get == file)
+    val fileName = (file: FileKind).asJson.noSpaces
+    assert(jawn.decode[FileKind](fileName).toOption.get == file)
     val size = ts.through(sink).fold(0)(_ + _).compile.lastOrError.unsafeRunSync()
     assert(size == data.size)
     assert(hdp.source(tgt).parquet(100).compile.toList.unsafeRunSync().toSet == data)
@@ -82,7 +81,7 @@ class NJParquetTest extends AnyFunSuite {
     val path   = fs2Root / "rotation"
     val number = 10000L
     hdp.delete(path).unsafeRunSync()
-    val file = ParquetFile(Snappy)
+    val file = ParquetFile(_.Snappy)
     val processedSize = Stream
       .emits(pandaSet.toList)
       .covary[IO]
@@ -118,5 +117,25 @@ class NJParquetTest extends AnyFunSuite {
 
     val res3 = hdp.best(path, NonEmptyList.of(r1, r2)).unsafeRunSync()
     assert(res3.exists(_.toString().takeRight(8).take(6) === "Month="))
+  }
+
+  test("stream concat") {
+    val s         = Stream.emits(pandaSet.toList).covary[IO].repeatN(500).chunks
+    val path: Url = fs2Root / "concat" / "data.parquet"
+
+    (hdp.delete(path) >>
+      (s ++ s ++ s).through(hdp.sink(path).parquet).compile.drain).unsafeRunSync()
+    val size = hdp.source(path).parquet(100).compile.fold(0) { case (s, _) => s + 1 }.unsafeRunSync()
+    assert(size == 3000)
+  }
+
+  test("stream concat - 2") {
+    val s         = Stream.emits(pandaSet.toList).covary[IO].repeatN(500).chunks
+    val path: Url = fs2Root / "concat" / "rotate"
+    val sink = hdp.rotateSink(Policy.fixedDelay(0.1.second), ZoneId.systemDefault())(t =>
+      path / ParquetFile(_.Uncompressed).fileName(t))
+
+    (hdp.delete(path) >>
+      (s ++ s ++ s).through(sink.parquet).compile.drain).unsafeRunSync()
   }
 }

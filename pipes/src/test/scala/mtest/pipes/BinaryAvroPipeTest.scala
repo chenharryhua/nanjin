@@ -3,7 +3,7 @@ package mtest.pipes
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.pipes.binaryAvro
-import com.github.chenharryhua.nanjin.terminals.NJHadoop
+import com.github.chenharryhua.nanjin.terminals.Hadoop
 import com.sksamuel.avro4s.{AvroSchema, ToRecord}
 import fs2.Stream
 import io.lemonlabs.uri.Url
@@ -15,7 +15,7 @@ class BinaryAvroPipeTest extends AnyFunSuite {
   import mtest.terminals.TestData.*
   val encoder: ToRecord[Tiger] = ToRecord[Tiger](Tiger.avroEncoder)
   val data: Stream[IO, Tiger]  = Stream.emits(tigers)
-  val hdp: NJHadoop[IO]        = NJHadoop[IO](new Configuration)
+  val hdp: Hadoop[IO]          = Hadoop[IO](new Configuration)
   val root: Url                = Url("./data/test/pipes/bin_avro/")
   test("binary-json identity") {
 

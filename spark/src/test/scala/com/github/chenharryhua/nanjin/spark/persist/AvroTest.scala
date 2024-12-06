@@ -4,7 +4,7 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.toTraverseOps
 import com.github.chenharryhua.nanjin.spark.*
-import com.github.chenharryhua.nanjin.terminals.{toHadoopPath, NJHadoop}
+import com.github.chenharryhua.nanjin.terminals.{toHadoopPath, Hadoop}
 import eu.timepit.refined.auto.*
 import io.lemonlabs.uri.Url
 import io.lemonlabs.uri.typesafe.dsl.*
@@ -15,7 +15,7 @@ import org.scalatest.funsuite.AnyFunSuite
 
 @DoNotDiscover
 class AvroTest extends AnyFunSuite {
-  val hadoop: NJHadoop[IO] = sparkSession.hadoop[IO]
+  val hadoop: Hadoop[IO] = sparkSession.hadoop[IO]
 
   def singleAvro(path: Url): Set[Rooster] =
     hadoop.source(path).avro(10).map(Rooster.avroCodec.decode).compile.toList.unsafeRunSync().toSet

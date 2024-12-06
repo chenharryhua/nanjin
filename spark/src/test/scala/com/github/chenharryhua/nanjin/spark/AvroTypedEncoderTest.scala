@@ -4,7 +4,7 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.github.chenharryhua.nanjin.spark.persist.{loaders, saveRDD}
-import com.github.chenharryhua.nanjin.terminals.{NJCompression, NJHadoop}
+import com.github.chenharryhua.nanjin.terminals.{Compression, Hadoop}
 
 import frameless.TypedEncoder
 import io.lemonlabs.uri.typesafe.dsl.*
@@ -92,7 +92,7 @@ object AvroTypedEncoderTestData {
 
 class AvroTypedEncoderTest extends AnyFunSuite {
   import AvroTypedEncoderTestData.*
-  val hdp: NJHadoop[IO] = sparkSession.hadoop[IO]
+  val hdp: Hadoop[IO] = sparkSession.hadoop[IO]
 
   test("normalize rdd") {
     val n = ate.normalize(rdd, sparkSession)
@@ -150,7 +150,7 @@ class AvroTypedEncoderTest extends AnyFunSuite {
   test("loaded avro should be normalized - apache") {
     val path = root / "apache" / "avro"
     hdp.delete(path).unsafeRunSync()
-    saveRDD.avro(rdd, path, ate.avroCodec, NJCompression.Uncompressed)
+    saveRDD.avro(rdd, path, ate.avroCodec, Compression.Uncompressed)
     val r = loaders.avro[Lion](path, sparkSession, ate)
     assert(r.collect().toSet == expected.toSet)
     assert(r.schema == expectedSchema)
@@ -158,7 +158,7 @@ class AvroTypedEncoderTest extends AnyFunSuite {
   test("loaded parquet should be normalized - apache") {
     val path = root / "apache" / "parquet"
     hdp.delete(path).unsafeRunSync()
-    saveRDD.parquet(rdd, path, ate.avroCodec, NJCompression.Uncompressed)
+    saveRDD.parquet(rdd, path, ate.avroCodec, Compression.Uncompressed)
     val r = loaders.parquet[Lion](path, sparkSession, ate)
     assert(r.collect().toSet == expected.toSet)
     assert(r.schema == expectedSchema)

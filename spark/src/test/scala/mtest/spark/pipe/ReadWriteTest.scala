@@ -6,7 +6,7 @@ import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
 import com.github.chenharryhua.nanjin.spark.table.LoadTable
 import com.github.chenharryhua.nanjin.spark.{AvroTypedEncoder, SparkSessionExt}
-import com.github.chenharryhua.nanjin.terminals.NJHadoop
+import com.github.chenharryhua.nanjin.terminals.Hadoop
 import com.sksamuel.avro4s.ToRecord
 import frameless.TypedEncoder
 import fs2.Stream
@@ -43,7 +43,7 @@ object ReadWriteTestData {
 
 class ReadWriteTest extends AnyFunSuite {
   import ReadWriteTestData.*
-  val hdp: NJHadoop[IO] = sparkSession.hadoop[IO]
+  val hdp: Hadoop[IO] = sparkSession.hadoop[IO]
   test("circe write - read") {
     val path = "./data/test/spark/pipe/circe.json"
     hdp.delete(path).unsafeRunSync()

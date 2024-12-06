@@ -4,7 +4,7 @@ import com.github.chenharryhua.nanjin.kafka.{KafkaContext, KafkaTopic}
 import com.github.chenharryhua.nanjin.spark.kafka.SparKafkaTopic
 import com.github.chenharryhua.nanjin.spark.persist.*
 import com.github.chenharryhua.nanjin.spark.table.LoadTable
-import com.github.chenharryhua.nanjin.terminals.NJHadoop
+import com.github.chenharryhua.nanjin.terminals.Hadoop
 import com.sksamuel.avro4s.Encoder as AvroEncoder
 import com.zaxxer.hikari.HikariConfig
 import org.apache.avro.Schema
@@ -55,7 +55,7 @@ package object spark {
     def topic[F[_], K, V](topic: KafkaTopic[F, K, V]): SparKafkaTopic[F, K, V] =
       new SparKafkaContext[F](ss, KafkaContext[F](topic.settings)).topic(topic.topicDef)
 
-    def hadoop[F[_]]: NJHadoop[F] = NJHadoop[F](ss.sparkContext.hadoopConfiguration)
+    def hadoop[F[_]]: Hadoop[F] = Hadoop[F](ss.sparkContext.hadoopConfiguration)
 
   }
 }

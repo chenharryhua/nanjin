@@ -14,12 +14,12 @@ import java.time.ZoneId
 import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
-object NJHadoop {
+object Hadoop {
 
-  def apply[F[_]](config: Configuration): NJHadoop[F] = new NJHadoop[F](config)
+  def apply[F[_]](config: Configuration): Hadoop[F] = new Hadoop[F](config)
 }
 
-final class NJHadoop[F[_]] private (config: Configuration) {
+final class Hadoop[F[_]] private (config: Configuration) {
 
   // disk operations
 

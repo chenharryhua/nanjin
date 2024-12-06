@@ -3,8 +3,7 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.toTraverseOps
 import com.github.chenharryhua.nanjin.common.chrono.Policy
-import com.github.chenharryhua.nanjin.terminals.NJCompression.*
-import com.github.chenharryhua.nanjin.terminals.{CsvHeaderOf, KantanFile, NJFileKind}
+import com.github.chenharryhua.nanjin.terminals.{CsvHeaderOf, FileKind, KantanFile}
 import eu.timepit.refined.auto.*
 import fs2.Stream
 import io.circe.jawn
@@ -34,8 +33,8 @@ class NJKantanTest extends AnyFunSuite {
     val src    = hdp.source(tgt).kantan(100, csvConfiguration).map(tigerDecoder.decode).rethrow
     val action = ts.through(sink).compile.drain >> src.compile.toList
     assert(action.unsafeRunSync().toSet == data)
-    val fileName = (file: NJFileKind).asJson.noSpaces
-    assert(jawn.decode[NJFileKind](fileName).toOption.get == file)
+    val fileName = (file: FileKind).asJson.noSpaces
+    assert(jawn.decode[FileKind](fileName).toOption.get == file)
     val size = ts.through(sink).fold(0)(_ + _).compile.lastOrError.unsafeRunSync()
     assert(size == data.size)
     assert(
@@ -116,7 +115,7 @@ class NJKantanTest extends AnyFunSuite {
   val policy: Policy = Policy.fixedDelay(1.second)
   test("rotation - with-header") {
     val path = fs2Root / "rotation" / "header" / "data"
-    val file = KantanFile(Uncompressed)
+    val file = KantanFile(_.Uncompressed)
     hdp.delete(path).unsafeRunSync()
     herd
       .map(tigerEncoder.encode)
@@ -150,7 +149,7 @@ class NJKantanTest extends AnyFunSuite {
   test("rotation - empty(with header)") {
     val path = fs2Root / "rotation" / "header" / "empty"
     hdp.delete(path).unsafeRunSync()
-    val fk = KantanFile(Uncompressed)
+    val fk = KantanFile(_.Uncompressed)
     (Stream.sleep[IO](10.hours) >>
       Stream.empty.covaryAll[IO, Seq[String]]).chunks
       .through(
@@ -168,7 +167,7 @@ class NJKantanTest extends AnyFunSuite {
   test("rotation - no header") {
     val path   = fs2Root / "rotation" / "no-header" / "data"
     val number = 10000L
-    val file   = KantanFile(Uncompressed)
+    val file   = KantanFile(_.Uncompressed)
     hdp.delete(path).unsafeRunSync()
     herd
       .map(tigerEncoder.encode)
@@ -193,7 +192,7 @@ class NJKantanTest extends AnyFunSuite {
   test("rotation - empty(no header)") {
     val path = fs2Root / "rotation" / "no-header" / "empty"
     hdp.delete(path).unsafeRunSync()
-    val fk = KantanFile(Uncompressed)
+    val fk = KantanFile(_.Uncompressed)
     (Stream.sleep[IO](10.hours) >>
       Stream.empty.covaryAll[IO, Seq[String]]).chunks
       .through(
@@ -206,5 +205,15 @@ class NJKantanTest extends AnyFunSuite {
       .unsafeRunSync()
     import better.files.*
     hdp.filesIn(path).unsafeRunSync().foreach(np => assert(File(np.toJavaURI).lines.isEmpty))
+  }
+
+  test("stream concat") {
+    val s = Stream.emits(TestData.tigerSet.toList).covary[IO].repeatN(500).map(tigerEncoder.encode).chunks
+    val path: Url = fs2Root / "concat" / "kantan.csv"
+
+    (hdp.delete(path) >>
+      (s ++ s ++ s).through(hdp.sink(path).kantan).compile.drain).unsafeRunSync()
+    val size = hdp.source(path).kantan(100).compile.fold(0) { case (s, _) => s + 1 }.unsafeRunSync()
+    assert(size == 15000)
   }
 }
