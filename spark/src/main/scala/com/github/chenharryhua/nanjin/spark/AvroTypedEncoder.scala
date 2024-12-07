@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.spark
 
 import com.github.chenharryhua.nanjin.kafka.TopicDef
 import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
-import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
+import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.sksamuel.avro4s.{Decoder as AvroDecoder, Encoder as AvroEncoder, SchemaFor}
 import frameless.{TypedEncoder, TypedExpressionEncoder}
 import org.apache.spark.rdd.RDD
@@ -12,7 +12,7 @@ import org.apache.spark.sql.types.*
 
 import scala.reflect.ClassTag
 
-final class AvroTypedEncoder[A] private (val avroCodec: NJAvroCodec[A], val typedEncoder: TypedEncoder[A])
+final class AvroTypedEncoder[A] private (val avroCodec: AvroCodec[A], val typedEncoder: TypedEncoder[A])
     extends Serializable {
 
   private val avroSchema: StructType =
@@ -38,10 +38,10 @@ final class AvroTypedEncoder[A] private (val avroCodec: NJAvroCodec[A], val type
 
 object AvroTypedEncoder {
 
-  def apply[A](te: TypedEncoder[A], ac: NJAvroCodec[A]): AvroTypedEncoder[A] =
+  def apply[A](te: TypedEncoder[A], ac: AvroCodec[A]): AvroTypedEncoder[A] =
     new AvroTypedEncoder[A](ac, te)
 
-  def apply[A](ac: NJAvroCodec[A])(implicit te: TypedEncoder[A]): AvroTypedEncoder[A] =
+  def apply[A](ac: AvroCodec[A])(implicit te: TypedEncoder[A]): AvroTypedEncoder[A] =
     new AvroTypedEncoder[A](ac, te)
 
   def apply[A](implicit
@@ -49,9 +49,9 @@ object AvroTypedEncoder {
     dec: AvroDecoder[A],
     enc: AvroEncoder[A],
     te: TypedEncoder[A]): AvroTypedEncoder[A] =
-    new AvroTypedEncoder[A](NJAvroCodec[A](sf, dec, enc), te)
+    new AvroTypedEncoder[A](AvroCodec[A](sf, dec, enc), te)
 
-  def apply[K, V](keyCodec: NJAvroCodec[K], valCodec: NJAvroCodec[V])(implicit
+  def apply[K, V](keyCodec: AvroCodec[K], valCodec: AvroCodec[V])(implicit
     tek: TypedEncoder[K],
     tev: TypedEncoder[V]): AvroTypedEncoder[NJConsumerRecord[K, V]] = {
     val ote: TypedEncoder[NJConsumerRecord[K, V]] = shapeless.cachedImplicit

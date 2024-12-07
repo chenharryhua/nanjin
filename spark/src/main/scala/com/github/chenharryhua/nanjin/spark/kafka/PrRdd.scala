@@ -7,7 +7,7 @@ import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameL}
 import com.github.chenharryhua.nanjin.datetime.DateTimeRange
 import com.github.chenharryhua.nanjin.messages.kafka.NJProducerRecord
-import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
+import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark.persist.RddAvroFileHoarder
 import fs2.Stream
 import fs2.kafka.ProducerRecords
@@ -15,7 +15,7 @@ import org.apache.spark.rdd.RDD
 
 final class PrRdd[K, V] private[kafka] (
   val rdd: RDD[NJProducerRecord[K, V]],
-  codec: NJAvroCodec[NJProducerRecord[K, V]]
+  codec: AvroCodec[NJProducerRecord[K, V]]
 ) extends Serializable {
 
   // transform

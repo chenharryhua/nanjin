@@ -1,6 +1,6 @@
 package mtest.msg.codec
 
-import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
+import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import org.scalatest.funsuite.AnyFunSuite
 
 object ManualAvroSchemaTestData {
@@ -151,25 +151,25 @@ class ManualAvroSchemaTest extends AnyFunSuite {
   import ManualAvroSchemaTestData.*
 
   test("add doc field") {
-    NJAvroCodec[UnderTest](UnderTest.schema1)
+    AvroCodec[UnderTest](UnderTest.schema1)
   }
 
   test("became optional a") {
-    assertThrows[Exception](NJAvroCodec[UnderTest](UnderTest.schema2))
+    assertThrows[Exception](AvroCodec[UnderTest](UnderTest.schema2))
   }
 
   test("add optional c without default") {
-    assertThrows[Exception](NJAvroCodec[UnderTest](UnderTest.schema3))
+    assertThrows[Exception](AvroCodec[UnderTest](UnderTest.schema3))
   }
 
   test("add optional c with default") {
-    assertThrows[Exception](NJAvroCodec[UnderTest](UnderTest.schema5))
+    assertThrows[Exception](AvroCodec[UnderTest](UnderTest.schema5))
   }
 
   test("only namespace is different") {
-    NJAvroCodec[UnderTest](UnderTest.schema4)
+    AvroCodec[UnderTest](UnderTest.schema4)
   }
   test("remove b") {
-    assertThrows[Exception](NJAvroCodec[UnderTest](UnderTest.schema6))
+    assertThrows[Exception](AvroCodec[UnderTest](UnderTest.schema6))
   }
 }

@@ -80,7 +80,7 @@ object KJson {
   implicit def jsonSerde[A: JsonEncoder: JsonDecoder]: SerdeOf[KJson[A]] =
     new SerdeOf[KJson[A]] {
 
-      override val avroCodec: NJAvroCodec[KJson[A]] = NJAvroCodec[KJson[A]]
+      override val avroCodec: AvroCodec[KJson[A]] = AvroCodec[KJson[A]]
 
       override val serializer: Serializer[KJson[A]] =
         new Serializer[KJson[A]] with Serializable {

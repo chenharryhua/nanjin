@@ -4,7 +4,7 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.TopicDef
-import com.github.chenharryhua.nanjin.messages.kafka.codec.{immigrate, NJAvroCodec}
+import com.github.chenharryhua.nanjin.messages.kafka.codec.{immigrate, AvroCodec}
 import com.sksamuel.avro4s.Record
 import eu.timepit.refined.auto.*
 import fs2.Stream
@@ -25,9 +25,9 @@ class PushPullGRTest extends AnyFunSuite {
   val root = "./data/test/spark/kafka/push_pull"
 
   val baseTopic: TopicDef[Int, version1.Tiger] =
-    TopicDef[Int, version1.Tiger](topicName, NJAvroCodec[version1.Tiger])
+    TopicDef[Int, version1.Tiger](topicName, AvroCodec[version1.Tiger])
   val evolveTopic: TopicDef[Int, version2.Tiger] =
-    TopicDef[Int, version2.Tiger](topicName, NJAvroCodec[version2.Tiger])
+    TopicDef[Int, version2.Tiger](topicName, AvroCodec[version2.Tiger])
 
   val baseData: Stream[IO, Record] =
     Stream.range(0, 10).map(a => baseTopic.producerFormat.toRecord(a, version1.Tiger(a))).covary[IO]

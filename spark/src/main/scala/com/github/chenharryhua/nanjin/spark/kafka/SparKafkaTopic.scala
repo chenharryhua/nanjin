@@ -6,7 +6,7 @@ import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.DateTimeRange
 import com.github.chenharryhua.nanjin.kafka.*
-import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
+import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJProducerRecord}
 import com.github.chenharryhua.nanjin.spark.{utils, AvroTypedEncoder}
 import frameless.TypedEncoder
@@ -22,8 +22,8 @@ final class SparKafkaTopic[F[_], K, V](val sparkSession: SparkSession, val topic
   def ate(implicit tek: TypedEncoder[K], tev: TypedEncoder[V]): AvroTypedEncoder[NJConsumerRecord[K, V]] =
     AvroTypedEncoder(topic.topicDef)
 
-  private val avroKeyCodec: NJAvroCodec[K] = topic.topicDef.rawSerdes.key.avroCodec
-  private val avroValCodec: NJAvroCodec[V] = topic.topicDef.rawSerdes.value.avroCodec
+  private val avroKeyCodec: AvroCodec[K] = topic.topicDef.rawSerdes.key.avroCodec
+  private val avroValCodec: AvroCodec[V] = topic.topicDef.rawSerdes.value.avroCodec
 
   private def downloadKafka(dateTimeRange: DateTimeRange)(implicit F: Async[F]): F[CrRdd[K, V]] =
     sk.kafkaBatch(topic, sparkSession, dateTimeRange).map(crRdd)

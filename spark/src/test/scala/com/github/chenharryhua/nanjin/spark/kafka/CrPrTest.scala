@@ -5,7 +5,7 @@ import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.DateTimeRange
 import com.github.chenharryhua.nanjin.kafka.TopicDef
 import com.github.chenharryhua.nanjin.messages.kafka.{CRMetaInfo, NJConsumerRecord}
-import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
+import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.spark.persist.RoosterData.{instant, timestamp}
 import com.github.chenharryhua.nanjin.spark.persist.{Rooster, RoosterData}
@@ -40,10 +40,10 @@ class CrPrTest extends AnyFunSuite {
   val roosterATE = AvroTypedEncoder(rooster)
 
   val roosterLike =
-    TopicDef[Long, RoosterLike](TopicName("roosterLike"), NJAvroCodec[RoosterLike])
+    TopicDef[Long, RoosterLike](TopicName("roosterLike"), AvroCodec[RoosterLike])
 
   val roosterLike2 =
-    TopicDef[Long, RoosterLike2](TopicName("roosterLike2"), NJAvroCodec[RoosterLike2])
+    TopicDef[Long, RoosterLike2](TopicName("roosterLike2"), AvroCodec[RoosterLike2])
 
   val crRdd: CrRdd[Long, Rooster] = sparKafka
     .topic(rooster)

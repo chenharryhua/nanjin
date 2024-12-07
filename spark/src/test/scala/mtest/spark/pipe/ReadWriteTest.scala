@@ -3,7 +3,7 @@ package mtest.spark.pipe
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.chrono.Policy
-import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
+import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark.table.LoadTable
 import com.github.chenharryhua.nanjin.spark.{AvroTypedEncoder, SparkSessionExt}
 import com.github.chenharryhua.nanjin.terminals.Hadoop
@@ -34,7 +34,7 @@ object ReadWriteTestData {
   implicit val hd: RowEncoder[TestData]   = shapeless.cachedImplicit
   implicit val ri: RowDecoder[TestData]   = shapeless.cachedImplicit
 
-  val codec: NJAvroCodec[TestData] = NJAvroCodec[TestData]
+  val codec: AvroCodec[TestData]   = AvroCodec[TestData]
   val toRecord: ToRecord[TestData] = ToRecord(codec)
 
   val loader: LoadTable[TestData] = sparkSession.loadTable(AvroTypedEncoder[TestData](codec))

@@ -4,7 +4,7 @@ import cats.Show
 import cats.kernel.Eq
 import cats.syntax.eq.*
 import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameL}
-import com.github.chenharryhua.nanjin.messages.kafka.codec.{NJAvroCodec, SerdeOf}
+import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroCodec, SerdeOf}
 import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJProducerRecord}
 import com.sksamuel.avro4s.{Record, RecordFormat}
 import fs2.kafka.{ConsumerRecord, ProducerRecord}
@@ -42,10 +42,10 @@ final class TopicDef[K, V] private (val topicName: TopicName, val rawSerdes: Raw
     def fromRecord(gr: IndexedRecord): NJProducerRecord[K, V] = rf.from(gr)
   }
 
-  lazy val consumerCodec: NJAvroCodec[NJConsumerRecord[K, V]] =
+  lazy val consumerCodec: AvroCodec[NJConsumerRecord[K, V]] =
     NJConsumerRecord.avroCodec(rawSerdes.key.avroCodec, rawSerdes.value.avroCodec)
 
-  lazy val producerCodec: NJAvroCodec[NJProducerRecord[K, V]] =
+  lazy val producerCodec: AvroCodec[NJProducerRecord[K, V]] =
     NJProducerRecord.avroCodec(rawSerdes.key.avroCodec, rawSerdes.value.avroCodec)
 
   lazy val consumerFormat: ConsumerFormat = new ConsumerFormat(RecordFormat(consumerCodec, consumerCodec))
@@ -63,10 +63,7 @@ object TopicDef {
         x.rawSerdes.key.avroCodec.schema == y.rawSerdes.key.avroCodec.schema &&
         x.rawSerdes.value.avroCodec.schema == y.rawSerdes.value.avroCodec.schema
 
-  def apply[K, V](
-    topicName: TopicName,
-    keySchema: NJAvroCodec[K],
-    valSchema: NJAvroCodec[V]): TopicDef[K, V] = {
+  def apply[K, V](topicName: TopicName, keySchema: AvroCodec[K], valSchema: AvroCodec[V]): TopicDef[K, V] = {
     val sk = SerdeOf(keySchema)
     val sv = SerdeOf(valSchema)
     new TopicDef(topicName, RawKeyValueSerdePair(sk, sv))
@@ -78,7 +75,7 @@ object TopicDef {
     new TopicDef(topicName, RawKeyValueSerdePair(sk, sv))
   }
 
-  def apply[K: SerdeOf, V](topicName: TopicName, valSchema: NJAvroCodec[V]): TopicDef[K, V] = {
+  def apply[K: SerdeOf, V](topicName: TopicName, valSchema: AvroCodec[V]): TopicDef[K, V] = {
     val sk = SerdeOf[K]
     val sv = SerdeOf(valSchema)
     new TopicDef(topicName, RawKeyValueSerdePair(sk, sv))

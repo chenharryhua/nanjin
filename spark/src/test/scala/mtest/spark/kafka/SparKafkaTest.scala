@@ -4,7 +4,7 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, NJKafkaByteConsume, TopicDef}
-import com.github.chenharryhua.nanjin.messages.kafka.codec.{gr2BinAvro, gr2Circe, gr2Jackson, NJAvroCodec}
+import com.github.chenharryhua.nanjin.messages.kafka.codec.{gr2BinAvro, gr2Circe, gr2Jackson, AvroCodec}
 import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJProducerRecord}
 import com.sksamuel.avro4s.SchemaFor
 import eu.timepit.refined.auto.*
@@ -87,7 +87,7 @@ class SparKafkaTest extends AnyFunSuite {
       sparKafka
         .topic(src.topicDef)
         .crRdd(ds.rdd)
-        .bimap(_.toString, _ + 1)(NJAvroCodec[String], NJAvroCodec[Int])
+        .bimap(_.toString, _ + 1)(AvroCodec[String], AvroCodec[Int])
         .rdd
         .collect()
         .toSet
@@ -110,9 +110,7 @@ class SparKafkaTest extends AnyFunSuite {
       sparKafka
         .topic(src.topicDef)
         .crRdd(ds.rdd)
-        .flatMap(m => m.value.map(x => m.focus(_.value).replace(Some(x - 1))))(
-          NJAvroCodec[Int],
-          NJAvroCodec[Int])
+        .flatMap(m => m.value.map(x => m.focus(_.value).replace(Some(x - 1))))(AvroCodec[Int], AvroCodec[Int])
         .rdd
         .collect()
         .toSet

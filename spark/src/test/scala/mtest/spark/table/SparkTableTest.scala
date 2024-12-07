@@ -6,7 +6,7 @@ import cats.effect.unsafe.implicits.global
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.database.DBConfig
-import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
+import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark.listeners.SparkContextListener
 import com.github.chenharryhua.nanjin.spark.table.LoadTable
 import com.github.chenharryhua.nanjin.spark.{AvroTypedEncoder, SparkSessionExt}
@@ -69,7 +69,7 @@ class SparkTableTest extends AnyFunSuite {
 
   implicit val ss: SparkSession = sparkSession
 
-  val codec: NJAvroCodec[DBTable]                = NJAvroCodec[DBTable]
+  val codec: AvroCodec[DBTable]                  = AvroCodec[DBTable]
   implicit val te: TypedEncoder[DBTable]         = shapeless.cachedImplicit
   implicit val te2: TypedEncoder[PartialDBTable] = shapeless.cachedImplicit
   implicit val re: RowEncoder[DBTable]           = shapeless.cachedImplicit
