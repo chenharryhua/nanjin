@@ -4,7 +4,7 @@ import cats.implicits.toShow
 import com.github.chenharryhua.nanjin.common.chrono.{Policy, Tick}
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceMessage
-import com.github.chenharryhua.nanjin.guard.event.{Event, MetricIndex, NJError, ServiceStopCause}
+import com.github.chenharryhua.nanjin.guard.event.{Error, Event, MetricIndex, ServiceStopCause}
 import io.circe.Json
 import io.circe.syntax.EncoderOps
 
@@ -20,7 +20,7 @@ object jsonHelper {
 
   def policy(ap: Policy): (String, Json) = "policy" -> Json.fromString(ap.show)
 
-  def stack(err: NJError): (String, Json) = "stack" -> err.stack.asJson
+  def stack(err: Error): (String, Json) = "stack" -> err.stack.asJson
 
   def json_service_message(sm: ServiceMessage): Json =
     sm.error

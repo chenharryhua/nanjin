@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.guard.observers.sns
 import cats.syntax.all.*
 import cats.{Applicative, Eval}
 import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, ServiceParams}
-import com.github.chenharryhua.nanjin.guard.event.{Event, MetricSnapshot, NJError, ServiceStopCause}
+import com.github.chenharryhua.nanjin.guard.event.{Error, Event, MetricSnapshot, ServiceStopCause}
 import com.github.chenharryhua.nanjin.guard.translator.textConstants.*
 import com.github.chenharryhua.nanjin.guard.translator.textHelper.*
 import com.github.chenharryhua.nanjin.guard.translator.{ColorScheme, SnapshotPolyglot, Translator}
@@ -66,7 +66,7 @@ private object SlackTranslator extends all {
   private def brief(json: Json): KeyValueSection =
     KeyValueSection(CONSTANT_BRIEF, s"```${abbreviate(json.spaces2)}```")
 
-  private def stack_trace(err: NJError): String =
+  private def stack_trace(err: Error): String =
     abbreviate(err.stack.mkString("\n\t"))
 
 // events

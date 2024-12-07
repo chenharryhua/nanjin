@@ -7,7 +7,7 @@ import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.chrono.TickStatus
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.event.Event.ServicePanic
-import com.github.chenharryhua.nanjin.guard.event.{Event, NJError, ServiceStopCause}
+import com.github.chenharryhua.nanjin.guard.event.{Error, Event, ServiceStopCause}
 import fs2.Stream
 import fs2.concurrent.Channel
 import org.apache.commons.collections4.queue.CircularFifoQueue
@@ -35,7 +35,7 @@ final private class ReStart[F[_]](
         case None => status
       }
 
-      val error = NJError(ex)
+      val error = Error(ex)
 
       tickStatus.next(now) match {
         case None =>
@@ -64,7 +64,7 @@ final private class ReStart[F[_]](
         case ExitCase.Succeeded =>
           publisher.serviceStop(channel, serviceParams, ServiceStopCause.Successfully)
         case ExitCase.Errored(e) =>
-          publisher.serviceStop(channel, serviceParams, ServiceStopCause.ByException(NJError(e)))
+          publisher.serviceStop(channel, serviceParams, ServiceStopCause.ByException(Error(e)))
         case ExitCase.Canceled =>
           publisher.serviceStop(channel, serviceParams, ServiceStopCause.ByCancellation)
       }

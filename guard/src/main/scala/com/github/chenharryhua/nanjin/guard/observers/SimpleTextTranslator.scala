@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard.observers
 
 import cats.Applicative
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.guard.event.{Event, NJError, ServiceStopCause}
+import com.github.chenharryhua.nanjin.guard.event.{Error, Event, ServiceStopCause}
 import com.github.chenharryhua.nanjin.guard.translator.{textConstants, textHelper, Translator}
 import io.circe.syntax.EncoderOps
 
@@ -20,7 +20,7 @@ object SimpleTextTranslator {
         |  $host, $uptime""".stripMargin
   }
 
-  private def error_str(err: NJError): String =
+  private def error_str(err: Error): String =
     s"""Cause:${err.stack.mkString("\n\t")}"""
 
   private def service_started(evt: ServiceStart): String = {

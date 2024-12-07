@@ -45,11 +45,8 @@ private object publisher {
     F: Functor[F]): F[Unit] =
     channel.send(ServiceStart(serviceParams, tick)).void
 
-  def servicePanic[F[_]](
-    channel: Channel[F, Event],
-    serviceParams: ServiceParams,
-    tick: Tick,
-    error: NJError)(implicit F: Functor[F]): F[ServicePanic] = {
+  def servicePanic[F[_]](channel: Channel[F, Event], serviceParams: ServiceParams, tick: Tick, error: Error)(
+    implicit F: Functor[F]): F[ServicePanic] = {
     val panic: ServicePanic = ServicePanic(serviceParams, tick, error)
     channel.send(panic).as(panic)
   }

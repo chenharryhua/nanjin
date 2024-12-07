@@ -21,7 +21,7 @@ object Event {
     val timestamp: ZonedDateTime = tick.zonedWakeup
   }
 
-  final case class ServicePanic(serviceParams: ServiceParams, tick: Tick, error: NJError) extends Event {
+  final case class ServicePanic(serviceParams: ServiceParams, tick: Tick, error: Error) extends Event {
     val timestamp: ZonedDateTime = tick.zonedAcquire
   }
 
@@ -35,7 +35,7 @@ object Event {
     serviceParams: ServiceParams,
     timestamp: ZonedDateTime,
     level: AlarmLevel,
-    error: Option[NJError],
+    error: Option[Error],
     message: Json
   ) extends Event
 
