@@ -6,8 +6,8 @@ import com.github.chenharryhua.nanjin.guard.config.CategoryKind.CounterKind
 import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, Category}
 import com.github.chenharryhua.nanjin.guard.event.{
   retrieveHealthChecks,
+  Event,
   MetricSnapshot,
-  NJEvent,
   ServiceStopCause
 }
 import enumeratum.values.{CatsOrderValueEnum, IntEnum, IntEnumEntry}
@@ -15,7 +15,7 @@ import enumeratum.values.{CatsOrderValueEnum, IntEnum, IntEnumEntry}
 sealed abstract class ColorScheme(override val value: Int) extends IntEnumEntry
 
 object ColorScheme extends CatsOrderValueEnum[Int, ColorScheme] with IntEnum[ColorScheme] {
-  import NJEvent.*
+  import Event.*
   case object GoodColor extends ColorScheme(0) // successful-ish
   case object InfoColor extends ColorScheme(1) // fyi
   case object WarnColor extends ColorScheme(2) // well, not so wrong
@@ -43,8 +43,8 @@ object ColorScheme extends CatsOrderValueEnum[Int, ColorScheme] with IntEnum[Col
     counter_color.max(gauge_color)
   }
 
-  def decorate[A](evt: NJEvent): Cont[A, ColorScheme] =
-    Cont.pure[A, NJEvent](evt).map {
+  def decorate[A](evt: Event): Cont[A, ColorScheme] =
+    Cont.pure[A, Event](evt).map {
       case _: ServiceStart => InfoColor
       case _: ServicePanic => ErrorColor
       case ss: ServiceStop =>

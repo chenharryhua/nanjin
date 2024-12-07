@@ -2,15 +2,15 @@ package com.github.chenharryhua.nanjin.guard.observers
 
 import cats.Applicative
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.guard.event.{NJError, NJEvent, ServiceStopCause}
+import com.github.chenharryhua.nanjin.guard.event.{Error, Event, ServiceStopCause}
 import com.github.chenharryhua.nanjin.guard.translator.{textConstants, textHelper, Translator}
 import io.circe.syntax.EncoderOps
 
 object SimpleTextTranslator {
-  import NJEvent.*
+  import Event.*
   import textConstants.*
 
-  private def service_event(se: NJEvent): String = {
+  private def service_event(se: Event): String = {
     val host: String      = s"$CONSTANT_HOST:${textHelper.hostText(se.serviceParams)}"
     val sn: String        = s"$CONSTANT_SERVICE:${se.serviceParams.serviceName.value}"
     val tn: String        = s"$CONSTANT_TASK:${se.serviceParams.taskName.value}"
@@ -20,7 +20,7 @@ object SimpleTextTranslator {
         |  $host, $uptime""".stripMargin
   }
 
-  private def error_str(err: NJError): String =
+  private def error_str(err: Error): String =
     s"""Cause:${err.stack.mkString("\n\t")}"""
 
   private def service_started(evt: ServiceStart): String = {

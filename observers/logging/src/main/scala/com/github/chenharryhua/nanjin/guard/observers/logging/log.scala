@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard.observers.logging
 
 import cats.{Endo, Eval}
 import cats.effect.kernel.Sync
-import com.github.chenharryhua.nanjin.guard.event.NJEvent
+import com.github.chenharryhua.nanjin.guard.event.Event
 import com.github.chenharryhua.nanjin.guard.observers.{PrettyJsonTranslator, SimpleTextTranslator}
 import com.github.chenharryhua.nanjin.guard.translator.{ColorScheme, Translator, UpdateTranslator}
 import org.typelevel.log4cats.SelfAwareStructuredLogger
@@ -17,14 +17,14 @@ object log {
   def json[F[_]: Sync]: TextLogging[F] = apply(PrettyJsonTranslator[F].map(_.noSpaces))
 
   final class TextLogging[F[_]: Sync](translator: Translator[F, String])
-      extends (NJEvent => F[Unit]) with UpdateTranslator[F, String, TextLogging[F]] {
+      extends (Event => F[Unit]) with UpdateTranslator[F, String, TextLogging[F]] {
 
     private[this] lazy val logger: SelfAwareStructuredLogger[F] = Slf4jLogger.getLogger[F]
 
     override def updateTranslator(f: Endo[Translator[F, String]]): TextLogging[F] =
       new TextLogging[F](f(translator))
 
-    override def apply(event: NJEvent): F[Unit] =
+    override def apply(event: Event): F[Unit] =
       translator.translate(event).flatMap {
         case Some(message) =>
           ColorScheme.decorate(event).run(Eval.now).value match {

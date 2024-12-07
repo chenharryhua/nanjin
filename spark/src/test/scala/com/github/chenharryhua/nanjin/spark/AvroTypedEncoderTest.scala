@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.spark
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
+import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark.persist.{loaders, saveRDD}
 import com.github.chenharryhua.nanjin.terminals.{Compression, Hadoop}
 
@@ -54,7 +54,7 @@ object AvroTypedEncoderTestData {
 
   implicit val roundingMode: BigDecimal.RoundingMode.Value = RoundingMode.HALF_UP
 
-  val codec: NJAvroCodec[Lion]             = NJAvroCodec[Lion](schemaText)
+  val codec: AvroCodec[Lion]               = AvroCodec[Lion](schemaText)
   implicit val encoder: TypedEncoder[Lion] = shapeless.cachedImplicit
   val ate: AvroTypedEncoder[Lion]          = AvroTypedEncoder[Lion](codec)
 

@@ -1,10 +1,10 @@
 package com.github.chenharryhua.nanjin.guard.translator
 
 import cats.Eval
-import com.github.chenharryhua.nanjin.guard.event.NJEvent
+import com.github.chenharryhua.nanjin.guard.event.Event
 
 object htmlHelper {
-  def htmlColoring(evt: NJEvent): String = ColorScheme
+  def htmlColoring(evt: Event): String = ColorScheme
     .decorate(evt)
     .run {
       case ColorScheme.GoodColor  => Eval.now("color:darkgreen")

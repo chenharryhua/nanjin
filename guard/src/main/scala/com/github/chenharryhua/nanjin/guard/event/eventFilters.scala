@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard.event
 
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.chrono.crontabs
-import com.github.chenharryhua.nanjin.guard.event.NJEvent.MetricReport
+import com.github.chenharryhua.nanjin.guard.event.Event.MetricReport
 import cron4s.CronExpr
 import cron4s.lib.javatime.javaTemporalInstance
 import cron4s.syntax.all.*
@@ -20,7 +20,7 @@ object eventFilters {
     *
     * in every interval, only one MetricReport is allowed to pass
     */
-  def sampling(interval: FiniteDuration)(evt: NJEvent): Boolean =
+  def sampling(interval: FiniteDuration)(evt: Event): Boolean =
     evt match {
       case MetricReport(mrt, sp, _, _) =>
         mrt match {
@@ -41,7 +41,7 @@ object eventFilters {
     *
     * report index mod divisor === 0
     */
-  def sampling(divisor: Refined[Int, Positive])(evt: NJEvent): Boolean =
+  def sampling(divisor: Refined[Int, Positive])(evt: Event): Boolean =
     evt match {
       case MetricReport(mrt, _, _, _) =>
         mrt match {
@@ -53,7 +53,7 @@ object eventFilters {
 
   /** cron based sampling
     */
-  def sampling(cronExpr: CronExpr)(evt: NJEvent): Boolean =
+  def sampling(cronExpr: CronExpr)(evt: Event): Boolean =
     evt match {
       case MetricReport(mrt, _, _, _) =>
         mrt match {
@@ -64,27 +64,27 @@ object eventFilters {
       case _ => true
     }
 
-  def sampling(f: crontabs.type => CronExpr)(evt: NJEvent): Boolean =
+  def sampling(f: crontabs.type => CronExpr)(evt: Event): Boolean =
     sampling(f(crontabs))(evt)
 
   // mapFilter friendly
 
-  val metricReport: NJEvent => Option[NJEvent.MetricReport] =
-    GenPrism[NJEvent, NJEvent.MetricReport].getOption(_)
+  val metricReport: Event => Option[Event.MetricReport] =
+    GenPrism[Event, Event.MetricReport].getOption(_)
 
-  val metricReset: NJEvent => Option[NJEvent.MetricReset] =
-    GenPrism[NJEvent, NJEvent.MetricReset].getOption(_)
+  val metricReset: Event => Option[Event.MetricReset] =
+    GenPrism[Event, Event.MetricReset].getOption(_)
 
-  val serviceMessage: NJEvent => Option[NJEvent.ServiceMessage] =
-    GenPrism[NJEvent, NJEvent.ServiceMessage].getOption(_)
+  val serviceMessage: Event => Option[Event.ServiceMessage] =
+    GenPrism[Event, Event.ServiceMessage].getOption(_)
 
-  val serviceStart: NJEvent => Option[NJEvent.ServiceStart] =
-    GenPrism[NJEvent, NJEvent.ServiceStart].getOption(_)
+  val serviceStart: Event => Option[Event.ServiceStart] =
+    GenPrism[Event, Event.ServiceStart].getOption(_)
 
-  val serviceStop: NJEvent => Option[NJEvent.ServiceStop] =
-    GenPrism[NJEvent, NJEvent.ServiceStop].getOption(_)
+  val serviceStop: Event => Option[Event.ServiceStop] =
+    GenPrism[Event, Event.ServiceStop].getOption(_)
 
-  val servicePanic: NJEvent => Option[NJEvent.ServicePanic] =
-    GenPrism[NJEvent, NJEvent.ServicePanic].getOption(_)
+  val servicePanic: Event => Option[Event.ServicePanic] =
+    GenPrism[Event, Event.ServicePanic].getOption(_)
 
 }

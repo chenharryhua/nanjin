@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.spark.kafka
 import cats.effect.kernel.Async
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
-import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
+import com.github.chenharryhua.nanjin.datetime.DateTimeRange
 import com.github.chenharryhua.nanjin.kafka.*
 import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJHeader}
 import monocle.function.At.{atMap, remove}
@@ -56,7 +56,7 @@ private[spark] object sk {
   def kafkaBatch[F[_]: Async, K, V](
     topic: KafkaTopic[F, K, V],
     ss: SparkSession,
-    dateRange: NJDateTimeRange): F[RDD[NJConsumerRecord[K, V]]] =
+    dateRange: DateTimeRange): F[RDD[NJConsumerRecord[K, V]]] =
     KafkaContext[F](topic.settings)
       .admin(topic.topicName)
       .offsetRangeFor(dateRange)

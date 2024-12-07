@@ -3,7 +3,7 @@ package mtest.spark.kafka
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
-import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
+import com.github.chenharryhua.nanjin.datetime.DateTimeRange
 import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import com.github.chenharryhua.nanjin.messages.kafka.NJProducerRecord
 import com.github.chenharryhua.nanjin.messages.kafka.codec.KJson
@@ -35,6 +35,6 @@ class KJsonTest extends AnyFunSuite {
       .unsafeRunSync()
     ctx.schemaRegistry.register(topic.topicDef).unsafeRunSync()
     sparKafka.topic(topic).fromKafka.flatMap(_.output.circe(root / "circe").run[IO]).unsafeRunSync()
-    sparKafka.dump(topic.topicName, root / "jackson", NJDateTimeRange(sydneyTime)).unsafeRunSync()
+    sparKafka.dump(topic.topicName, root / "jackson", DateTimeRange(sydneyTime)).unsafeRunSync()
   }
 }

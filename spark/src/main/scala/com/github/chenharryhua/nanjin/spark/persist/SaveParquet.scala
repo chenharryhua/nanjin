@@ -13,8 +13,8 @@ final class SaveParquet[A](rdd: RDD[A], encoder: AvroEncoder[A], cfg: HoarderCon
   private def updateConfig(cfg: HoarderConfig): SaveParquet[A] =
     new SaveParquet[A](rdd, encoder, cfg)
 
-  def withSaveMode(sm: SaveMode): SaveParquet[A]                   = updateConfig(cfg.saveMode(sm))
-  def withSaveMode(f: NJSaveMode.type => SaveMode): SaveParquet[A] = withSaveMode(f(NJSaveMode))
+  def withSaveMode(sm: SaveMode): SaveParquet[A]                      = updateConfig(cfg.saveMode(sm))
+  def withSaveMode(f: SparkSaveMode.type => SaveMode): SaveParquet[A] = withSaveMode(f(SparkSaveMode))
 
   def withCompression(pc: ParquetCompression): SaveParquet[A] = updateConfig(cfg.outputCompression(pc))
   def withCompression(f: ParquetCompression.type => ParquetCompression): SaveParquet[A] =

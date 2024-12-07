@@ -20,7 +20,7 @@ import org.apache.hadoop.mapreduce.{JobContext, RecordWriter, TaskAttemptContext
 import java.io.{DataOutputStream, OutputStream}
 
 // avro build-in(AvroKeyOutputFormat) does not support s3, yet
-final class NJAvroKeyOutputFormat extends AvroOutputFormatBase[AvroKey[GenericRecord], NullWritable] {
+final private class NJAvroKeyOutputFormat extends AvroOutputFormatBase[AvroKey[GenericRecord], NullWritable] {
 
   @SuppressWarnings(Array("NullParameter"))
   override def checkOutputSpecs(job: JobContext): Unit = {

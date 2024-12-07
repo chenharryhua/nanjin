@@ -11,11 +11,11 @@ import java.time.ZonedDateTime
 import scala.jdk.CollectionConverters.ListHasAsScala
 
 @JsonCodec
-final case class NJError private (message: String, stack: List[String])
+final case class Error private (message: String, stack: List[String])
 
-object NJError {
-  def apply(ex: Throwable): NJError =
-    NJError(
+object Error {
+  def apply(ex: Throwable): Error =
+    Error(
       ExceptionUtils.getRootCauseMessage(ex),
       ExceptionUtils.getRootCauseStackTraceList(ex).asScala.toList.map(_.replace("\t", "")))
 }
@@ -40,7 +40,7 @@ object ServiceStopCause {
   case object Successfully extends ServiceStopCause(0)
   case object Maintenance extends ServiceStopCause(1)
   case object ByCancellation extends ServiceStopCause(2)
-  final case class ByException(error: NJError) extends ServiceStopCause(3)
+  final case class ByException(error: Error) extends ServiceStopCause(3)
 
   private val SUCCESSFULLY: String    = "Successfully"
   private val BY_CANCELLATION: String = "ByCancellation"
@@ -62,6 +62,6 @@ object ServiceStopCause {
         case MAINTENANCE     => Right(Maintenance)
         case unknown         => Left(DecodingFailure(s"unrecognized: $unknown", Nil))
       }.widen,
-      _.downField(BY_EXCEPTION).as[NJError].map(err => ByException(err)).widen
+      _.downField(BY_EXCEPTION).as[Error].map(err => ByException(err)).widen
     ).reduceLeft(_ or _)
 }

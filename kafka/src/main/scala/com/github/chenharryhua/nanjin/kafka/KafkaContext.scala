@@ -8,7 +8,7 @@ import cats.effect.std.UUIDGen
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameL}
-import com.github.chenharryhua.nanjin.kafka.streaming.{KafkaStreamsBuilder, NJStateStore}
+import com.github.chenharryhua.nanjin.kafka.streaming.{KafkaStreamsBuilder, StateStores}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.*
 import fs2.Stream
 import fs2.kafka.*
@@ -30,9 +30,9 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
   def asKey[K: SerdeOf]: Serde[K]   = SerdeOf[K].asKey(settings.schemaRegistrySettings.config).serde
   def asValue[V: SerdeOf]: Serde[V] = SerdeOf[V].asValue(settings.schemaRegistrySettings.config).serde
 
-  def asKey[K](avro: NJAvroCodec[K]): Serde[K] =
+  def asKey[K](avro: AvroCodec[K]): Serde[K] =
     SerdeOf[K](avro).asKey(settings.schemaRegistrySettings.config).serde
-  def asValue[V](avro: NJAvroCodec[V]): Serde[V] =
+  def asValue[V](avro: AvroCodec[V]): Serde[V] =
     SerdeOf[V](avro).asValue(settings.schemaRegistrySettings.config).serde
 
   def topic[K, V](topicDef: TopicDef[K, V]): KafkaTopic[F, K, V] =
@@ -150,13 +150,13 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
 
   // streams
 
-  def store[K: SerdeOf, V: SerdeOf](storeName: TopicName): NJStateStore[K, V] =
-    NJStateStore[K, V](
+  def store[K: SerdeOf, V: SerdeOf](storeName: TopicName): StateStores[K, V] =
+    StateStores[K, V](
       storeName,
       settings.schemaRegistrySettings,
       RawKeyValueSerdePair[K, V](SerdeOf[K], SerdeOf[V]))
 
-  def store[K: SerdeOf, V: SerdeOf](storeName: TopicNameL): NJStateStore[K, V] =
+  def store[K: SerdeOf, V: SerdeOf](storeName: TopicNameL): StateStores[K, V] =
     store(TopicName(storeName))
 
   def buildStreams(applicationId: String, topology: Reader[StreamsBuilder, Unit])(implicit

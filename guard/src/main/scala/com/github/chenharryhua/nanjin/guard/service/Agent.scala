@@ -48,7 +48,7 @@ sealed trait Agent[F[_]] {
 final private class GeneralAgent[F[_]](
   serviceParams: ServiceParams,
   metricRegistry: MetricRegistry,
-  channel: Channel[F, NJEvent],
+  channel: Channel[F, Event],
   measurement: Measurement)(implicit F: Async[F])
     extends Agent[F] {
 

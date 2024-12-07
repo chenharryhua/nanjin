@@ -72,7 +72,7 @@ object KPB {
 
   implicit def kpbSerde[A <: GeneratedMessage](implicit ev: GeneratedMessageCompanion[A]): SerdeOf[KPB[A]] =
     new SerdeOf[KPB[A]] {
-      override val avroCodec: NJAvroCodec[KPB[A]] = {
+      override val avroCodec: AvroCodec[KPB[A]] = {
         val kpbCodec: Codec[KPB[A]] = new Codec[KPB[A]] {
           override def decode(value: Any): KPB[A] = value match {
             case ab: Array[Byte] => KPB(ev.parseFrom(ab))
@@ -85,7 +85,7 @@ object KPB {
 
           override def schemaFor: SchemaFor[KPB[A]] = SchemaFor[Array[Byte]].forType[KPB[A]]
         }
-        NJAvroCodec[KPB[A]](kpbCodec.schemaFor, kpbCodec, kpbCodec)
+        AvroCodec[KPB[A]](kpbCodec.schemaFor, kpbCodec, kpbCodec)
       }
 
       override val serializer: Serializer[KPB[A]] =

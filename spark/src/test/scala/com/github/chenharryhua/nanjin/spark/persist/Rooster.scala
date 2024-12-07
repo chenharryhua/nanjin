@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.Show
 import com.github.chenharryhua.nanjin.datetime.instances.*
-import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
+import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import frameless.TypedEncoder
 import io.circe.Codec
@@ -76,7 +76,7 @@ object Rooster {
 
   implicit val typedEncoder: TypedEncoder[Rooster] = shapeless.cachedImplicit
 
-  val avroCodec: NJAvroCodec[Rooster] = NJAvroCodec[Rooster](schema)
+  val avroCodec: AvroCodec[Rooster] = AvroCodec[Rooster](schema)
 
   val ate: AvroTypedEncoder[Rooster] =
     AvroTypedEncoder[Rooster](TypedEncoder[Rooster], avroCodec)

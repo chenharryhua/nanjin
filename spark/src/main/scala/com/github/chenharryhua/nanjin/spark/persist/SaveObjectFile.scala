@@ -12,8 +12,8 @@ final class SaveObjectFile[A](rdd: RDD[A], cfg: HoarderConfig) extends Serializa
   private def updateConfig(cfg: HoarderConfig): SaveObjectFile[A] =
     new SaveObjectFile[A](rdd, cfg)
 
-  def withSaveMode(sm: SaveMode): SaveObjectFile[A]                   = updateConfig(cfg.saveMode(sm))
-  def withSaveMode(f: NJSaveMode.type => SaveMode): SaveObjectFile[A] = withSaveMode(f(NJSaveMode))
+  def withSaveMode(sm: SaveMode): SaveObjectFile[A]                      = updateConfig(cfg.saveMode(sm))
+  def withSaveMode(f: SparkSaveMode.type => SaveMode): SaveObjectFile[A] = withSaveMode(f(SparkSaveMode))
 
   def run[F[_]](implicit F: Sync[F]): F[Unit] =
     new SaveModeAware[F](params.saveMode, params.outPath, rdd.sparkContext.hadoopConfiguration)

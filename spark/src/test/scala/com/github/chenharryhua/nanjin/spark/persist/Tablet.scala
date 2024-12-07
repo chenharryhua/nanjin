@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.Show
-import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
+import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.spark.injection.*
 import frameless.TypedEncoder
@@ -18,7 +18,7 @@ import scala.util.Random
 final case class Tablet(a: Int, b: Long, c: Float, d: LocalDate, e: Instant, f: String)
 
 object Tablet {
-  val avroCodec: NJAvroCodec[Tablet]    = NJAvroCodec[Tablet]
+  val avroCodec: AvroCodec[Tablet]      = AvroCodec[Tablet]
   implicit val te: TypedEncoder[Tablet] = shapeless.cachedImplicit
   val ate: AvroTypedEncoder[Tablet]     = AvroTypedEncoder(avroCodec)
   implicit val re: RowEncoder[Tablet]   = shapeless.cachedImplicit

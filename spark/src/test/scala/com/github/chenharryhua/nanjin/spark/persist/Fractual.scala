@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.Applicative
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
+import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import io.circe.Codec
 import io.circe.shapes.*
 import monocle.Traversal
@@ -16,7 +16,7 @@ final case class Fractual(value: Option[Fractual.FType])
 object Fractual {
   type FType = Int :+: String :+: List[Fractual] :+: Map[String, Fractual] :+: CNil
 
-  val avroCodec: NJAvroCodec[Fractual] = NJAvroCodec[Fractual]
+  val avroCodec: AvroCodec[Fractual] = AvroCodec[Fractual]
 
   implicit val json: Codec[Fractual] = io.circe.generic.semiauto.deriveCodec[Fractual]
 

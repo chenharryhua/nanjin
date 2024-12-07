@@ -3,7 +3,7 @@ package mtest.kafka
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
-import com.github.chenharryhua.nanjin.datetime.{NJDateTimeRange, NJTimestamp}
+import com.github.chenharryhua.nanjin.datetime.{DateTimeRange, NJTimestamp}
 import com.github.chenharryhua.nanjin.kafka.*
 import eu.timepit.refined.auto.*
 import io.circe.syntax.EncoderOps
@@ -55,7 +55,7 @@ class AdminApiTest extends AnyFunSuite {
         admin.resetOffsetsForTimes(gid, NJTimestamp(0)) >>
         admin.resetOffsetsToEnd(gid) >>
         admin.lagBehind(gid) >>
-        admin.offsetRangeFor(NJDateTimeRange(sydneyTime).withToday) >>
+        admin.offsetRangeFor(DateTimeRange(sydneyTime).withToday) >>
         admin.partitionsFor >>
         admin.groups
     assert(gp.unsafeRunSync().map(_.value).contains(gid))

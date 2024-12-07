@@ -5,11 +5,11 @@ import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.aws.CloudWatch
 import com.github.chenharryhua.nanjin.common.aws.CloudWatchNamespace
 import com.github.chenharryhua.nanjin.guard.config.{MetricLabel, ServiceParams}
-import com.github.chenharryhua.nanjin.guard.event.NJEvent.MetricReport
+import com.github.chenharryhua.nanjin.guard.event.Event.MetricReport
 import com.github.chenharryhua.nanjin.guard.event.{
+  Event,
   MetricIndex,
   MetricSnapshot,
-  NJEvent,
   Normalized,
   UnitNormalization
 }
@@ -135,7 +135,7 @@ final class CloudWatchObserver[F[_]: Concurrent] private (
     timer_count ::: meter_count ::: histogram_count ::: timer_histo ::: histograms
   }
 
-  def observe(namespace: CloudWatchNamespace): Pipe[F, NJEvent, NJEvent] = (events: Stream[F, NJEvent]) => {
+  def observe(namespace: CloudWatchNamespace): Pipe[F, Event, Event] = (events: Stream[F, Event]) => {
     def publish(cwc: CloudWatch[F], mds: List[MetricDatum]): F[Unit] =
       mds // https://docs.aws.amazon.com/AmazonCloudWatch/latest/APIReference/API_PutMetricData.html
         .grouped(20)
@@ -153,7 +153,7 @@ final class CloudWatchObserver[F[_]: Concurrent] private (
             val data = computeDatum(mr, last.getOrElse(sp.serviceId, MetricSnapshot.empty.lookupCount))
             publish(cwc, data)
           }
-        case NJEvent.ServiceStop(serviceParams, _, _) =>
+        case Event.ServiceStop(serviceParams, _, _) =>
           lookup.update(_.removed(serviceParams.serviceId))
         case _ => F.unit
       }

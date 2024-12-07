@@ -4,8 +4,8 @@ import cats.Endo
 import cats.effect.kernel.Sync
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.ChunkSize
-import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
-import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
+import com.github.chenharryhua.nanjin.datetime.DateTimeRange
+import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.messages.kafka.{CRMetaInfo, NJConsumerRecord, NJProducerRecord}
 import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
 import com.github.chenharryhua.nanjin.spark.persist.RddAvroFileHoarder
@@ -17,12 +17,12 @@ import org.apache.spark.sql.SparkSession
 
 final class CrRdd[K, V] private[kafka] (
   val rdd: RDD[NJConsumerRecord[K, V]],
-  ack: NJAvroCodec[K],
-  acv: NJAvroCodec[V],
+  ack: AvroCodec[K],
+  acv: AvroCodec[V],
   ss: SparkSession)
     extends Serializable {
 
-  protected val codec: NJAvroCodec[NJConsumerRecord[K, V]] = NJConsumerRecord.avroCodec(ack, acv)
+  protected val codec: AvroCodec[NJConsumerRecord[K, V]] = NJConsumerRecord.avroCodec(ack, acv)
 
   // transforms
 
@@ -33,7 +33,7 @@ final class CrRdd[K, V] private[kafka] (
   def partitionOf(num: Int): CrRdd[K, V]                        = filter(_.partition === num)
 
   def offsetRange(start: Long, end: Long): CrRdd[K, V] = transform(range.cr.offset(start, end))
-  def timeRange(dr: NJDateTimeRange): CrRdd[K, V]      = transform(range.cr.timestamp(dr))
+  def timeRange(dr: DateTimeRange): CrRdd[K, V]        = transform(range.cr.timestamp(dr))
 
   def ascendTimestamp: CrRdd[K, V]  = transform(sort.ascend.cr.timestamp)
   def descendTimestamp: CrRdd[K, V] = transform(sort.descend.cr.timestamp)
@@ -44,17 +44,17 @@ final class CrRdd[K, V] private[kafka] (
 
   def normalize: CrRdd[K, V] = transform(_.map(codec.idConversion))
 
-  def bimap[K2, V2](k: K => K2, v: V => V2)(ack2: NJAvroCodec[K2], acv2: NJAvroCodec[V2]): CrRdd[K2, V2] =
+  def bimap[K2, V2](k: K => K2, v: V => V2)(ack2: AvroCodec[K2], acv2: AvroCodec[V2]): CrRdd[K2, V2] =
     new CrRdd[K2, V2](rdd.map(_.bimap(k, v)), ack2, acv2, ss).normalize
 
   def map[K2, V2](f: NJConsumerRecord[K, V] => NJConsumerRecord[K2, V2])(
-    ack2: NJAvroCodec[K2],
-    acv2: NJAvroCodec[V2]): CrRdd[K2, V2] =
+    ack2: AvroCodec[K2],
+    acv2: AvroCodec[V2]): CrRdd[K2, V2] =
     new CrRdd[K2, V2](rdd.map(f), ack2, acv2, ss).normalize
 
   def flatMap[K2, V2](f: NJConsumerRecord[K, V] => IterableOnce[NJConsumerRecord[K2, V2]])(
-    ack2: NJAvroCodec[K2],
-    acv2: NJAvroCodec[V2]): CrRdd[K2, V2] =
+    ack2: AvroCodec[K2],
+    acv2: AvroCodec[V2]): CrRdd[K2, V2] =
     new CrRdd[K2, V2](rdd.flatMap(f), ack2, acv2, ss).normalize
 
   def diff(other: RDD[NJConsumerRecord[K, V]]): CrRdd[K, V] = transform(_.subtract(other))

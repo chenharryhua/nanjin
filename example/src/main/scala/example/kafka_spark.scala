@@ -3,7 +3,7 @@ package example
 import cats.effect.IO
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
-import com.github.chenharryhua.nanjin.datetime.NJDateTimeRange
+import com.github.chenharryhua.nanjin.datetime.DateTimeRange
 import com.github.chenharryhua.nanjin.spark.{SparKafkaContext, SparkSessionExt, SparkSettings}
 import eu.timepit.refined.auto.*
 import fs2.kafka.Acks
@@ -21,7 +21,7 @@ object kafka_spark {
   sparKafka.dump(topic, path)
 
   // batch dump a kafka topic with date range
-  private val dateRange = NJDateTimeRange(sydneyTime).withYesterday
+  private val dateRange = DateTimeRange(sydneyTime).withYesterday
   sparKafka.dump(topic, path, dateRange)
 
   // load saved data into kafka

@@ -14,7 +14,7 @@ import org.apache.hadoop.util.ReflectionUtils
 
 import java.io.DataOutputStream
 
-final class NJBinaryOutputFormat extends FileOutputFormat[NullWritable, BytesWritable] {
+final private class NJBinaryOutputFormat extends FileOutputFormat[NullWritable, BytesWritable] {
 
   @SuppressWarnings(Array("NullParameter"))
   override def checkOutputSpecs(job: JobContext): Unit = {

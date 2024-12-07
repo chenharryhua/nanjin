@@ -7,7 +7,7 @@ import com.github.chenharryhua.nanjin.common.HostName
 import com.github.chenharryhua.nanjin.common.chrono.Policy.*
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.event.NJEvent
+import com.github.chenharryhua.nanjin.guard.event.Event
 import com.github.chenharryhua.nanjin.guard.observers.console
 import fs2.Stream
 import io.circe.Json
@@ -31,13 +31,13 @@ object aws_task_template {
       .withRestartThreshold(5.hours)
       .addBrief(ecs.container_metadata[IO]))
 
-  private val service1: Stream[IO, NJEvent] = task
+  private val service1: Stream[IO, Event] = task
     .service("s1")
     .updateConfig(_.addBrief(Json.obj("a" -> 1.asJson)))
     .updateConfig(_.withHttpServer(_.withPort(port"1026")))
     .eventStream(_ => IO.never)
 
-  private val service2: Stream[IO, NJEvent] = task
+  private val service2: Stream[IO, Event] = task
     .service("s2")
     .updateConfig(_.addBrief(Json.obj("b" -> 2.asJson)))
     .updateConfig(_.withHttpServer(_.withPort(port"1027")))

@@ -1,6 +1,6 @@
 package mtest.msg.codec
 
-import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
+import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.sksamuel.avro4s.{AvroDoc, AvroNamespace}
 import eu.timepit.refined.auto.*
 import org.apache.avro.Schema
@@ -21,8 +21,8 @@ object SchemaChangeTestData {
     """
 {"type":"record","name":"UnderTest","namespace":"schema.test.top","doc":"top level case class","fields":[{"name":"a","type":"int"},{"name":"b","type":[{"type":"record","name":"Nest","namespace":"schema.test.nest","fields":[{"name":"a","type":"int"}]},{"type":"record","name":"Nest2","namespace":"schema.test.nest2","doc":"nest-2","fields":[{"name":"b","type":"string"}]}]},{"name":"c","type":["null","int"],"default":null}]}    """
 
-  val oldSchema: Schema             = (new Schema.Parser).parse(schema)
-  val codec: NJAvroCodec[UnderTest] = NJAvroCodec[UnderTest](schema)
+  val oldSchema: Schema           = (new Schema.Parser).parse(schema)
+  val codec: AvroCodec[UnderTest] = AvroCodec[UnderTest](schema)
 
 }
 
@@ -30,7 +30,7 @@ class SchemaChangeTest extends AnyFunSuite {
   import SchemaChangeTestData.*
 
   test("remove default field") {
-    val newCodec: NJAvroCodec[UnderTest] = codec.withoutDefaultField
+    val newCodec: AvroCodec[UnderTest] = codec.withoutDefaultField
 
     val s =
       """
@@ -44,7 +44,7 @@ class SchemaChangeTest extends AnyFunSuite {
   }
 
   test("change namespace") {
-    val newCodec: NJAvroCodec[UnderTest] = codec.withNamespace("new.namespace")
+    val newCodec: AvroCodec[UnderTest] = codec.withNamespace("new.namespace")
     val s =
       """
     {"type":"record","name":"UnderTest","namespace":"new.namespace","doc":"top level case class","fields":[{"name":"a","type":"int"},{"name":"b","type":[{"type":"record","name":"Nest","fields":[{"name":"a","type":"int"}]},{"type":"record","name":"Nest2","doc":"nest-2","fields":[{"name":"b","type":"string"}]}]},{"name":"c","type":["null","int"],"default":null}]}"""
@@ -56,7 +56,7 @@ class SchemaChangeTest extends AnyFunSuite {
   }
 
   test("remove namespace") {
-    val newCodec: NJAvroCodec[UnderTest] = codec.withoutNamespace
+    val newCodec: AvroCodec[UnderTest] = codec.withoutNamespace
     val s =
       """
 {"type":"record","name":"UnderTest","doc":"top level case class","fields":[{"name":"a","type":"int"},{"name":"b","type":[{"type":"record","name":"Nest","fields":[{"name":"a","type":"int"}]},{"type":"record","name":"Nest2","doc":"nest-2","fields":[{"name":"b","type":"string"}]}]},{"name":"c","type":["null","int"],"default":null}]}      """
@@ -69,14 +69,14 @@ class SchemaChangeTest extends AnyFunSuite {
   }
 
   test("remove namespace - 1") {
-    val newCodec: NJAvroCodec[UnderTest] = codec.withoutNamespace
+    val newCodec: AvroCodec[UnderTest] = codec.withoutNamespace
 
     val data = UnderTest(1, Coproduct(Nest(1)), Some(1))
     val en   = newCodec.encode(data)
     assertThrows[Exception](codec.decode(en))
   }
   test("remove namespace - 2") {
-    val newCodec: NJAvroCodec[UnderTest] = codec.withoutNamespace
+    val newCodec: AvroCodec[UnderTest] = codec.withoutNamespace
 
     val data = UnderTest(1, Coproduct(Nest(1)), Some(1))
     val en   = codec.encode(data)
@@ -84,7 +84,7 @@ class SchemaChangeTest extends AnyFunSuite {
   }
 
   test("remove doc") {
-    val newCodec: NJAvroCodec[UnderTest] = codec.withoutDoc
+    val newCodec: AvroCodec[UnderTest] = codec.withoutDoc
     val s =
       """
 {"type":"record","name":"UnderTest","namespace":"schema.test.top","fields":[{"name":"a","type":"int"},{"name":"b","type":[{"type":"record","name":"Nest","namespace":"schema.test.nest","fields":[{"name":"a","type":"int"}]},{"type":"record","name":"Nest2","namespace":"schema.test.nest2","fields":[{"name":"b","type":"string"}]}]},{"name":"c","type":["null","int"],"default":null}]}"""

@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard.observers.ses
 
 import cats.Applicative
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.guard.event.{NJError, NJEvent, ServiceStopCause}
+import com.github.chenharryhua.nanjin.guard.event.{Error, Event, ServiceStopCause}
 import com.github.chenharryhua.nanjin.guard.translator.{htmlHelper, textConstants, textHelper, Translator}
 import io.circe.Json
 import io.circe.syntax.EncoderOps
@@ -16,12 +16,12 @@ import java.time.temporal.ChronoUnit
 /** https://com-lihaoyi.github.io/scalatags/
   */
 private object HtmlTranslator extends all {
-  import NJEvent.*
+  import Event.*
   import htmlHelper.*
   import textConstants.*
   import textHelper.*
 
-  private def service_table(evt: NJEvent): generic.Frag[Builder, String] = {
+  private def service_table(evt: Event): generic.Frag[Builder, String] = {
     val serviceName: Text.TypedTag[String] =
       evt.serviceParams.homePage.fold(td(evt.serviceParams.serviceName.value))(hp =>
         td(a(href := hp.value)(evt.serviceParams.serviceName.value)))
@@ -44,7 +44,7 @@ private object HtmlTranslator extends all {
   private def json_text(js: Json): Text.TypedTag[String] =
     pre(small(js.spaces2))
 
-  private def error_text(c: NJError): Text.TypedTag[String] =
+  private def error_text(c: Error): Text.TypedTag[String] =
     p(b(s"$CONSTANT_CAUSE: "), pre(small(c.stack.mkString("\n\t"))))
 
   // events

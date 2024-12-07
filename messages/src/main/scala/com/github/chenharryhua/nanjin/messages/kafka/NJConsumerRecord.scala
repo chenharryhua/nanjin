@@ -5,7 +5,7 @@ import cats.data.Cont
 import cats.syntax.eq.catsSyntaxEq
 import cats.syntax.semigroup.catsSyntaxSemigroup
 import cats.kernel.Eq
-import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
+import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.sksamuel.avro4s.*
 import fs2.kafka.*
 import io.circe.{Decoder as JsonDecoder, Encoder as JsonEncoder}
@@ -59,9 +59,7 @@ object NJConsumerRecord {
   def apply[K, V](cr: ConsumerRecord[K, V]): NJConsumerRecord[K, V] =
     cr.transformInto[NJConsumerRecord[K, V]]
 
-  def avroCodec[K, V](
-    keyCodec: NJAvroCodec[K],
-    valCodec: NJAvroCodec[V]): NJAvroCodec[NJConsumerRecord[K, V]] = {
+  def avroCodec[K, V](keyCodec: AvroCodec[K], valCodec: AvroCodec[V]): AvroCodec[NJConsumerRecord[K, V]] = {
     implicit val schemaForKey: SchemaFor[K]  = keyCodec.schemaFor
     implicit val schemaForVal: SchemaFor[V]  = valCodec.schemaFor
     implicit val keyDecoder: Decoder[K]      = keyCodec
@@ -71,7 +69,7 @@ object NJConsumerRecord {
     val s: SchemaFor[NJConsumerRecord[K, V]] = implicitly
     val d: Decoder[NJConsumerRecord[K, V]]   = implicitly
     val e: Encoder[NJConsumerRecord[K, V]]   = implicitly
-    NJAvroCodec[NJConsumerRecord[K, V]](s, d.withSchema(s), e.withSchema(s))
+    AvroCodec[NJConsumerRecord[K, V]](s, d.withSchema(s), e.withSchema(s))
   }
 
   def schema(keySchema: Schema, valSchema: Schema): Schema = {

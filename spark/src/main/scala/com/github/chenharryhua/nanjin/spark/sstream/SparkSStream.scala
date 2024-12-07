@@ -36,16 +36,16 @@ final class SparkSStream[F[_], A](val dataset: Dataset[A], cfg: SStreamConfig) e
 
   // sinks
 
-  def consoleSink: NJConsoleSink[F, A] =
-    new NJConsoleSink[F, A](dataset.writeStream, cfg)
+  def consoleSink: SparkConsoleSink[F, A] =
+    new SparkConsoleSink[F, A](dataset.writeStream, cfg)
 
-  def fileSink(path: Url): NJFileSink[F, A] =
-    new NJFileSink[F, A](dataset.writeStream, cfg, path)
+  def fileSink(path: Url): SparkFileSink[F, A] =
+    new SparkFileSink[F, A](dataset.writeStream, cfg, path)
 
-  def memorySink(queryName: String): NJMemorySink[F, A] =
-    new NJMemorySink[F, A](dataset.writeStream, cfg.queryName(queryName))
+  def memorySink(queryName: String): SparkMemorySink[F, A] =
+    new SparkMemorySink[F, A](dataset.writeStream, cfg.queryName(queryName))
 
-  def datePartitionSink(path: Url): NJFileSink[F, Row] = {
+  def datePartitionSink(path: Url): SparkFileSink[F, Row] = {
     val year  = udf((ts: Long) => NJTimestamp(ts).atZone(params.zoneId).toLocalDate.getYear)
     val month = udf((ts: Long) => NJTimestamp(ts).atZone(params.zoneId).toLocalDate.getMonthValue)
     val day   = udf((ts: Long) => NJTimestamp(ts).atZone(params.zoneId).toLocalDate.getDayOfMonth)
@@ -55,6 +55,6 @@ final class SparkSStream[F[_], A](val dataset: Dataset[A], cfg: SStreamConfig) e
       .withColumn("Month", month(dataset("timestamp")))
       .withColumn("Day", day(dataset("timestamp")))
       .writeStream
-    new NJFileSink[F, Row](ws, cfg, path).partitionBy("Year", "Month", "Day")
+    new SparkFileSink[F, Row](ws, cfg, path).partitionBy("Year", "Month", "Day")
   }
 }

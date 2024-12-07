@@ -6,12 +6,12 @@ import cats.effect.std.AtomicCell
 import cats.syntax.all.*
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
-import com.github.chenharryhua.nanjin.guard.event.NJEvent.{MetricReport, ServicePanic}
+import com.github.chenharryhua.nanjin.guard.event.Event.{MetricReport, ServicePanic}
 import com.github.chenharryhua.nanjin.guard.event.{
   retrieveHealthChecks,
+  Event,
   MetricIndex,
   MetricSnapshot,
-  NJEvent,
   ServiceStopCause
 }
 import com.github.chenharryhua.nanjin.guard.translator.htmlHelper.htmlColoring
@@ -40,7 +40,7 @@ private class HttpRouter[F[_]](
   serviceParams: ServiceParams,
   panicHistory: AtomicCell[F, CircularFifoQueue[ServicePanic]],
   metricsHistory: AtomicCell[F, CircularFifoQueue[MetricReport]],
-  channel: Channel[F, NJEvent])(implicit F: Async[F])
+  channel: Channel[F, Event])(implicit F: Async[F])
     extends Http4sDsl[F] with all {
 
   private val html_header: Text.TypedTag[String] =

@@ -4,8 +4,8 @@ import cats.effect.kernel.Sync
 import cats.effect.std.Console
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, ServiceParams}
-import com.github.chenharryhua.nanjin.guard.event.NJEvent.ServiceMessage
-import com.github.chenharryhua.nanjin.guard.event.{NJError, NJEvent}
+import com.github.chenharryhua.nanjin.guard.event.Event.ServiceMessage
+import com.github.chenharryhua.nanjin.guard.event.{Error, Event}
 import com.github.chenharryhua.nanjin.guard.translator.{jsonHelper, textHelper, ColorScheme}
 import fs2.concurrent.Channel
 import io.circe.Encoder
@@ -36,14 +36,14 @@ object Herald {
 
   private[guard] class Impl[F[_]](
     serviceParams: ServiceParams,
-    channel: Channel[F, NJEvent]
+    channel: Channel[F, Event]
   )(implicit F: Sync[F])
       extends Herald[F] {
 
     private def toServiceMessage[S: Encoder](
       msg: S,
       level: AlarmLevel,
-      error: Option[NJError]): F[ServiceMessage] =
+      error: Option[Error]): F[ServiceMessage] =
       serviceParams.zonedNow.map(ts =>
         ServiceMessage(
           serviceParams = serviceParams,
@@ -52,7 +52,7 @@ object Herald {
           error = error,
           message = Encoder[S].apply(msg)))
 
-    private def alarm[S: Encoder](msg: S, level: AlarmLevel, error: Option[NJError]): F[Unit] =
+    private def alarm[S: Encoder](msg: S, level: AlarmLevel, error: Option[Error]): F[Unit] =
       toServiceMessage(msg, level, error).flatMap(channel.send).void
 
     override def error[S: Encoder](msg: S): F[Unit] = alarm(msg, AlarmLevel.Error, None)
@@ -61,9 +61,9 @@ object Herald {
     override def done[S: Encoder](msg: S): F[Unit]  = alarm(msg, AlarmLevel.Done, None)
 
     override def error[S: Encoder](ex: Throwable)(msg: S): F[Unit] =
-      alarm(msg, AlarmLevel.Error, Some(NJError(ex)))
+      alarm(msg, AlarmLevel.Error, Some(Error(ex)))
     override def warn[S: Encoder](ex: Throwable)(msg: S): F[Unit] =
-      alarm(msg, AlarmLevel.Warn, Some(NJError(ex)))
+      alarm(msg, AlarmLevel.Warn, Some(Error(ex)))
 
     // console
 
@@ -85,8 +85,8 @@ object Herald {
       toServiceMessage(msg, AlarmLevel.Done, None).flatMap(m => cns.println(toText(m)))
 
     override def consoleError[S: Encoder](ex: Throwable)(msg: S)(implicit cns: Console[F]): F[Unit] =
-      toServiceMessage(msg, AlarmLevel.Error, Some(NJError(ex))).flatMap(m => cns.println(toText(m)))
+      toServiceMessage(msg, AlarmLevel.Error, Some(Error(ex))).flatMap(m => cns.println(toText(m)))
     override def consoleWarn[S: Encoder](ex: Throwable)(msg: S)(implicit cns: Console[F]): F[Unit] =
-      toServiceMessage(msg, AlarmLevel.Warn, Some(NJError(ex))).flatMap(m => cns.println(toText(m)))
+      toServiceMessage(msg, AlarmLevel.Warn, Some(Error(ex))).flatMap(m => cns.println(toText(m)))
   }
 }

@@ -2,8 +2,8 @@ package com.github.chenharryhua.nanjin.guard.observers
 
 import cats.Applicative
 import com.github.chenharryhua.nanjin.common.chrono.Tick
-import com.github.chenharryhua.nanjin.guard.event.NJEvent.*
-import com.github.chenharryhua.nanjin.guard.event.{MetricSnapshot, NJEvent}
+import com.github.chenharryhua.nanjin.guard.event.Event.*
+import com.github.chenharryhua.nanjin.guard.event.{Event, MetricSnapshot}
 import com.github.chenharryhua.nanjin.guard.translator.*
 import io.circe.Json
 
@@ -14,7 +14,7 @@ object PrettyJsonTranslator {
   private def took(dur: Duration): (String, Json) =
     "took" -> Json.fromString(fmt.format(dur))
 
-  private def uptime(evt: NJEvent): (String, Json) =
+  private def uptime(evt: Event): (String, Json) =
     "up_time" -> Json.fromString(fmt.format(evt.upTime))
 
   private def pretty_metrics(ss: MetricSnapshot): (String, Json) =

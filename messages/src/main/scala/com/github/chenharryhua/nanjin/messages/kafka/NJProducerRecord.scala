@@ -5,7 +5,7 @@ import cats.data.Cont
 import cats.implicits.catsSyntaxEq
 import cats.kernel.Eq
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
-import com.github.chenharryhua.nanjin.messages.kafka.codec.NJAvroCodec
+import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.sksamuel.avro4s.*
 import fs2.kafka.{Header, Headers, ProducerRecord}
 import io.circe.{Decoder as JsonDecoder, Encoder as JsonEncoder}
@@ -58,9 +58,7 @@ object NJProducerRecord {
   def apply[K, V](topicName: TopicName, k: K, v: V): NJProducerRecord[K, V] =
     NJProducerRecord(topicName.value, None, None, None, Option(k), Option(v), Nil)
 
-  def avroCodec[K, V](
-    keyCodec: NJAvroCodec[K],
-    valCodec: NJAvroCodec[V]): NJAvroCodec[NJProducerRecord[K, V]] = {
+  def avroCodec[K, V](keyCodec: AvroCodec[K], valCodec: AvroCodec[V]): AvroCodec[NJProducerRecord[K, V]] = {
     implicit val schemaForKey: SchemaFor[K]  = keyCodec.schemaFor
     implicit val schemaForVal: SchemaFor[V]  = valCodec.schemaFor
     implicit val keyDecoder: Decoder[K]      = keyCodec
@@ -70,7 +68,7 @@ object NJProducerRecord {
     val s: SchemaFor[NJProducerRecord[K, V]] = cachedImplicit
     val d: Decoder[NJProducerRecord[K, V]]   = cachedImplicit
     val e: Encoder[NJProducerRecord[K, V]]   = cachedImplicit
-    NJAvroCodec[NJProducerRecord[K, V]](s, d.withSchema(s), e.withSchema(s))
+    AvroCodec[NJProducerRecord[K, V]](s, d.withSchema(s), e.withSchema(s))
   }
 
   def schema(keySchema: Schema, valSchema: Schema): Schema = {

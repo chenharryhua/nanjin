@@ -3,16 +3,16 @@ package com.github.chenharryhua.nanjin.guard.observers
 import cats.Monad
 import cats.effect.kernel.{Clock, Ref}
 import cats.implicits.{toFlatMapOps, toFunctorOps}
-import com.github.chenharryhua.nanjin.guard.event.NJEvent.{ServiceStart, ServiceStop}
-import com.github.chenharryhua.nanjin.guard.event.{NJEvent, ServiceStopCause}
+import com.github.chenharryhua.nanjin.guard.event.Event.{ServiceStart, ServiceStop}
+import com.github.chenharryhua.nanjin.guard.event.{Event, ServiceStopCause}
 import fs2.Chunk
 
 import java.util.UUID
 
 final private class FinalizeMonitor[F[_]: Clock: Monad, A](
-  translate: NJEvent => F[Option[A]],
+  translate: Event => F[Option[A]],
   ref: Ref[F, Map[UUID, ServiceStart]]) {
-  def monitoring(event: NJEvent): F[Unit] = event match {
+  def monitoring(event: Event): F[Unit] = event match {
     case ss: ServiceStart => ref.update(_.updated(ss.serviceParams.serviceId, ss))
     case ss: ServiceStop  => ref.update(_.removed(ss.serviceParams.serviceId))
     case _                => Monad[F].unit

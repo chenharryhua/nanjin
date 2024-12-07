@@ -3,14 +3,14 @@ package com.github.chenharryhua.nanjin.guard.translator
 import cats.implicits.toShow
 import com.github.chenharryhua.nanjin.common.chrono.{Policy, Tick}
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
-import com.github.chenharryhua.nanjin.guard.event.NJEvent.ServiceMessage
-import com.github.chenharryhua.nanjin.guard.event.{MetricIndex, NJError, NJEvent, ServiceStopCause}
+import com.github.chenharryhua.nanjin.guard.event.Event.ServiceMessage
+import com.github.chenharryhua.nanjin.guard.event.{Error, Event, MetricIndex, ServiceStopCause}
 import io.circe.Json
 import io.circe.syntax.EncoderOps
 
 object jsonHelper {
 
-  def timestamp(evt: NJEvent): (String, Json)           = "timestamp" -> evt.timestamp.asJson
+  def timestamp(evt: Event): (String, Json)             = "timestamp" -> evt.timestamp.asJson
   def service_id(sp: ServiceParams): (String, Json)     = "service_id" -> sp.serviceId.asJson
   def service_params(sp: ServiceParams): (String, Json) = "params" -> sp.asJson
   def exit_code(sc: ServiceStopCause): (String, Json)   = "exit_code" -> Json.fromInt(sc.exitCode)
@@ -20,7 +20,7 @@ object jsonHelper {
 
   def policy(ap: Policy): (String, Json) = "policy" -> Json.fromString(ap.show)
 
-  def stack(err: NJError): (String, Json) = "stack" -> err.stack.asJson
+  def stack(err: Error): (String, Json) = "stack" -> err.stack.asJson
 
   def json_service_message(sm: ServiceMessage): Json =
     sm.error

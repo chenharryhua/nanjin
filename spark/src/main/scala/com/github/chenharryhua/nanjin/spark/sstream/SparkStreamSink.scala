@@ -5,7 +5,7 @@ import cats.syntax.all.*
 import fs2.Stream
 import org.apache.spark.sql.streaming.StreamingQueryProgress
 
-trait NJStreamSink[F[_]] extends Serializable {
+trait SparkStreamSink[F[_]] extends Serializable {
   def params: SStreamParams
 
   def stream(implicit F: Async[F]): Stream[F, StreamingQueryProgress]

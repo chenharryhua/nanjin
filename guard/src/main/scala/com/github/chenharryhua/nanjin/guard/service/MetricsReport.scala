@@ -4,11 +4,11 @@ import cats.effect.kernel.Sync
 import cats.implicits.{toFlatMapOps, toFunctorOps}
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
-import com.github.chenharryhua.nanjin.guard.event.{MetricIndex, NJEvent}
+import com.github.chenharryhua.nanjin.guard.event.{Event, MetricIndex}
 import fs2.concurrent.Channel
 
 abstract class MetricsReport[F[_]] private[service] (
-  channel: Channel[F, NJEvent],
+  channel: Channel[F, Event],
   serviceParams: ServiceParams,
   metricRegistry: MetricRegistry)(implicit F: Sync[F]) {
 
