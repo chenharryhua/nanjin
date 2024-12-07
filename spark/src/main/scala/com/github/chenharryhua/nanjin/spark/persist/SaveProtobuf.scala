@@ -13,8 +13,8 @@ final class SaveProtobuf[A](rdd: RDD[A], cfg: HoarderConfig, evidence: A <:< Gen
   private def updateConfig(cfg: HoarderConfig): SaveProtobuf[A] =
     new SaveProtobuf[A](rdd, cfg, evidence)
 
-  def withSaveMode(sm: SaveMode): SaveProtobuf[A]                   = updateConfig(cfg.saveMode(sm))
-  def withSaveMode(f: NJSaveMode.type => SaveMode): SaveProtobuf[A] = withSaveMode(f(NJSaveMode))
+  def withSaveMode(sm: SaveMode): SaveProtobuf[A]                      = updateConfig(cfg.saveMode(sm))
+  def withSaveMode(f: SparkSaveMode.type => SaveMode): SaveProtobuf[A] = withSaveMode(f(SparkSaveMode))
 
   def run[F[_]](implicit F: Sync[F]): F[Unit] =
     new SaveModeAware[F](params.saveMode, params.outPath, rdd.sparkContext.hadoopConfiguration)

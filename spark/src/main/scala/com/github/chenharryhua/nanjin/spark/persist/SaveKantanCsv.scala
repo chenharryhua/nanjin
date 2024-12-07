@@ -18,8 +18,8 @@ final class SaveKantanCsv[A](
   private def updateConfig(cfg: HoarderConfig): SaveKantanCsv[A] =
     new SaveKantanCsv[A](rdd, csvConfiguration, cfg, encoder)
 
-  def withSaveMode(sm: SaveMode): SaveKantanCsv[A]                   = updateConfig(cfg.saveMode(sm))
-  def withSaveMode(f: NJSaveMode.type => SaveMode): SaveKantanCsv[A] = withSaveMode(f(NJSaveMode))
+  def withSaveMode(sm: SaveMode): SaveKantanCsv[A]                      = updateConfig(cfg.saveMode(sm))
+  def withSaveMode(f: SparkSaveMode.type => SaveMode): SaveKantanCsv[A] = withSaveMode(f(SparkSaveMode))
 
   def withCompression(kc: KantanCompression): SaveKantanCsv[A] = updateConfig(cfg.outputCompression(kc))
   def withCompression(f: KantanCompression.type => KantanCompression): SaveKantanCsv[A] =
