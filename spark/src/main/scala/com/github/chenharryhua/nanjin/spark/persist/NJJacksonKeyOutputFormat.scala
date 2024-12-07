@@ -20,7 +20,8 @@ import org.apache.hadoop.util.ReflectionUtils
 
 import java.io.{DataOutputStream, OutputStream}
 
-final class NJJacksonKeyOutputFormat extends AvroOutputFormatBase[AvroKey[GenericRecord], NullWritable] {
+final private class NJJacksonKeyOutputFormat
+    extends AvroOutputFormatBase[AvroKey[GenericRecord], NullWritable] {
 
   @SuppressWarnings(Array("NullParameter"))
   override def checkOutputSpecs(job: JobContext): Unit = {

@@ -13,7 +13,7 @@ import org.apache.hadoop.util.ReflectionUtils
 
 import java.io.DataOutputStream
 
-final class NJTextOutputFormat extends FileOutputFormat[NullWritable, Text] {
+final private class NJTextOutputFormat extends FileOutputFormat[NullWritable, Text] {
 
   @SuppressWarnings(Array("NullParameter"))
   override def checkOutputSpecs(job: JobContext): Unit = {
