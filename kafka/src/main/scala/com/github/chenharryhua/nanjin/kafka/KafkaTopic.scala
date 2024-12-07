@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.kafka
 import cats.effect.kernel.{Async, Resource, Sync}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameL}
-import com.github.chenharryhua.nanjin.kafka.streaming.{KafkaStreamingConsumer, NJStateStore}
+import com.github.chenharryhua.nanjin.kafka.streaming.{KafkaStreamingConsumer, StateStores}
 import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
 import com.sksamuel.avro4s.AvroInputStream
 import fs2.Chunk
@@ -59,11 +59,11 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
   def asProduced: Produced[K, V] =
     Produced.`with`[K, V](serdePair.key.serde, serdePair.value.serde)
 
-  def asStateStore(storeName: TopicName): NJStateStore[K, V] = {
+  def asStateStore(storeName: TopicName): StateStores[K, V] = {
     require(storeName.value =!= topicName.value, "should provide a name other than the topic name")
-    NJStateStore[K, V](storeName, KeyValueSerdePair(serdePair.key, serdePair.value))
+    StateStores[K, V](storeName, KeyValueSerdePair(serdePair.key, serdePair.value))
   }
-  def asStateStore(storeName: TopicNameL): NJStateStore[K, V] =
+  def asStateStore(storeName: TopicNameL): StateStores[K, V] =
     asStateStore(TopicName(storeName))
 
   // for testing

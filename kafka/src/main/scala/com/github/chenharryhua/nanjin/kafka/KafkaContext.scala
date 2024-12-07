@@ -8,7 +8,7 @@ import cats.effect.std.UUIDGen
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameL}
-import com.github.chenharryhua.nanjin.kafka.streaming.{KafkaStreamsBuilder, NJStateStore}
+import com.github.chenharryhua.nanjin.kafka.streaming.{KafkaStreamsBuilder, StateStores}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.*
 import fs2.Stream
 import fs2.kafka.*
@@ -150,13 +150,13 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
 
   // streams
 
-  def store[K: SerdeOf, V: SerdeOf](storeName: TopicName): NJStateStore[K, V] =
-    NJStateStore[K, V](
+  def store[K: SerdeOf, V: SerdeOf](storeName: TopicName): StateStores[K, V] =
+    StateStores[K, V](
       storeName,
       settings.schemaRegistrySettings,
       RawKeyValueSerdePair[K, V](SerdeOf[K], SerdeOf[V]))
 
-  def store[K: SerdeOf, V: SerdeOf](storeName: TopicNameL): NJStateStore[K, V] =
+  def store[K: SerdeOf, V: SerdeOf](storeName: TopicNameL): StateStores[K, V] =
     store(TopicName(storeName))
 
   def buildStreams(applicationId: String, topology: Reader[StreamsBuilder, Unit])(implicit

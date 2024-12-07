@@ -36,7 +36,7 @@ final class SessionBytesStoreSupplierHelper[K, V] private[streaming] (
     Stores.sessionStoreBuilder(supplier, registered.key.serde, registered.value.serde)
 }
 
-final class NJStateStore[K, V] private (storeName: TopicName, registered: KeyValueSerdePair[K, V])
+final class StateStores[K, V] private(storeName: TopicName, registered: KeyValueSerdePair[K, V])
     extends Serializable {
 
   def name: String = storeName.value
@@ -130,13 +130,13 @@ final class NJStateStore[K, V] private (storeName: TopicName, registered: KeyVal
   }
 }
 
-private[kafka] object NJStateStore {
-  def apply[K, V](storeName: TopicName, registered: KeyValueSerdePair[K, V]): NJStateStore[K, V] =
-    new NJStateStore[K, V](storeName, registered)
+private[kafka] object StateStores {
+  def apply[K, V](storeName: TopicName, registered: KeyValueSerdePair[K, V]): StateStores[K, V] =
+    new StateStores[K, V](storeName, registered)
 
   def apply[K, V](
     storeName: TopicName,
     srs: SchemaRegistrySettings,
-    rawSerdes: RawKeyValueSerdePair[K, V]): NJStateStore[K, V] =
-    apply[K, V](storeName, rawSerdes.register(srs, storeName))
+    rawSerde: RawKeyValueSerdePair[K, V]): StateStores[K, V] =
+    apply[K, V](storeName, rawSerde.register(srs, storeName))
 }
