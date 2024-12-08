@@ -13,8 +13,8 @@ import com.github.chenharryhua.nanjin.spark.kafka.{sk, SparKafkaTopic, Statistic
 import com.github.chenharryhua.nanjin.spark.persist.RddFileHoarder
 import com.github.chenharryhua.nanjin.terminals.{toHadoopPath, Hadoop}
 import eu.timepit.refined.refineMV
-import fs2.{Chunk, Stream}
 import fs2.kafka.*
+import fs2.{Chunk, Stream}
 import io.lemonlabs.uri.Url
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{Dataset, SparkSession}
@@ -118,18 +118,21 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
       hadoop  = Hadoop[F](sparkSession.sparkContext.hadoopConfiguration)
       builder = new PushGenericRecord(kafkaContext.settings.schemaRegistrySettings, topicName, schemaPair)
       num <- hadoop.filesIn(path).flatMap { fs =>
-        val step = Math.ceil(fs.size / (partitions * 1.0)).toInt
-        val downloads: Iterator[F[Long]] = fs.sliding(step, step).map { urls =>
-          val ss: Stream[F, Chunk[ProducerRecord[Array[Byte], Array[Byte]]]] = urls
-            .map(hadoop.source(_).jackson(chunkSize, schemaPair.consumerSchema))
-            .reduce(_ ++ _)
-            .chunks
-            .map(_.map(builder.fromGenericRecord))
-          KafkaProducer.pipe(producerSettings).apply(ss).compile.fold(0L) { case (sum, prs) =>
-            sum + prs.size
+        val step: Int = Math.ceil(fs.size.toDouble / partitions.toDouble).toInt
+        val uploads: List[F[Long]] = fs
+          .sliding(step, step)
+          .map { urls =>
+            val ss: Stream[F, Chunk[ProducerRecord[Array[Byte], Array[Byte]]]] = urls
+              .map(hadoop.source(_).jackson(chunkSize, schemaPair.consumerSchema))
+              .reduce(_ ++ _)
+              .chunks
+              .map(_.map(builder.fromGenericRecord))
+            KafkaProducer.pipe(producerSettings).apply(ss).compile.fold(0L) { case (sum, prs) =>
+              sum + prs.size
+            }
           }
-        }
-        F.parSequenceN(partitions)(downloads.toList).map(_.sum)
+          .toList
+        F.parSequenceN(uploads.size)(uploads).map(_.sum)
       }
     } yield num
   }
