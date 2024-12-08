@@ -13,7 +13,7 @@ import com.github.chenharryhua.nanjin.spark.kafka.{sk, SparKafkaTopic, Statistic
 import com.github.chenharryhua.nanjin.spark.persist.RddFileHoarder
 import com.github.chenharryhua.nanjin.terminals.{toHadoopPath, Hadoop}
 import eu.timepit.refined.refineMV
-import fs2.Stream
+import fs2.{Chunk, Stream}
 import fs2.kafka.*
 import io.lemonlabs.uri.Url
 import org.apache.spark.rdd.RDD
@@ -114,19 +114,22 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
 
     for {
       schemaPair <- kafkaContext.schemaRegistry.fetchAvroSchema(topicName)
+      partitions <- kafkaContext.admin(topicName).partitionsFor.map(_.value.size)
       hadoop  = Hadoop[F](sparkSession.sparkContext.hadoopConfiguration)
       builder = new PushGenericRecord(kafkaContext.settings.schemaRegistrySettings, topicName, schemaPair)
       num <- hadoop.filesIn(path).flatMap { fs =>
-        val ss: Stream[F, ProducerRecords[Array[Byte], Array[Byte]]] =
-          fs.foldLeft(Stream.empty.covaryAll[F, ProducerRecords[Array[Byte], Array[Byte]]]) { case (s, p) =>
-            s.merge(
-              hadoop
-                .source(p)
-                .jackson(chunkSize, schemaPair.consumerSchema)
-                .chunks
-                .map(_.map(builder.fromGenericRecord)))
+        val step = Math.ceil(fs.size / (partitions * 1.0)).toInt
+        val downloads: Iterator[F[Long]] = fs.sliding(step, step).map { urls =>
+          val ss: Stream[F, Chunk[ProducerRecord[Array[Byte], Array[Byte]]]] = urls
+            .map(hadoop.source(_).jackson(chunkSize, schemaPair.consumerSchema))
+            .reduce(_ ++ _)
+            .chunks
+            .map(_.map(builder.fromGenericRecord))
+          KafkaProducer.pipe(producerSettings).apply(ss).compile.fold(0L) { case (sum, prs) =>
+            sum + prs.size
           }
-        KafkaProducer.pipe(producerSettings).apply(ss).compile.fold(0L) { case (sum, prs) => sum + prs.size }
+        }
+        F.parSequenceN(partitions)(downloads.toList).map(_.sum)
       }
     } yield num
   }
