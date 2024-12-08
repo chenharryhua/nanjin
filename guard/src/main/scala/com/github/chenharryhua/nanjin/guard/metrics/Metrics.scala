@@ -5,11 +5,8 @@ import cats.data.Kleisli
 import cats.effect.kernel.{Async, Ref, Resource}
 import cats.syntax.all.*
 import com.codahale.metrics.MetricRegistry
-import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.guard.config.MetricLabel
 import com.github.chenharryhua.nanjin.guard.translator.{decimal_fmt, fmt}
-
-import java.time.ZoneId
 
 trait KleisliLike[F[_], A] {
   def run(a: A): F[Unit]
@@ -56,15 +53,11 @@ trait Metrics[F[_]] {
   def permanentCounter(name: String, f: Endo[Gauge.Builder]): Resource[F, Counter[F]]
   final def permanentCounter(name: String): Resource[F, Counter[F]] =
     permanentCounter(name, identity)
-
-  def measuredRetry(f: Endo[Retry.Builder[F]]): Resource[F, Retry[F]]
 }
 
 object Metrics {
-  private[guard] class Impl[F[_]](
-    val metricLabel: MetricLabel,
-    metricRegistry: MetricRegistry,
-    zoneId: ZoneId)(implicit F: Async[F])
+  private[guard] class Impl[F[_]](val metricLabel: MetricLabel, metricRegistry: MetricRegistry)(implicit
+    F: Async[F])
       extends Metrics[F] {
 
     override def counter(name: String, f: Endo[Counter.Builder]): Resource[F, Counter[F]] =
@@ -84,9 +77,6 @@ object Metrics {
 
     override def ratio(name: String, f: Endo[Ratio.Builder]): Resource[F, Ratio[F]] =
       f(Ratio.initial).build[F](metricLabel, name, metricRegistry)
-
-    override def measuredRetry(f: Endo[Retry.Builder[F]]): Resource[F, Retry[F]] =
-      f(new Retry.Builder[F](true, Policy.giveUp, _ => F.pure(true))).build(this, zoneId)
 
     override def gauge(name: String, f: Endo[Gauge.Builder]): Gauge[F] =
       f(Gauge.initial).build[F](metricLabel, name, metricRegistry)

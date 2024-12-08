@@ -9,12 +9,6 @@ class SyntaxTest extends AnyFunSuite {
 
   private val service: ServiceGuard[IO] = TaskGuard[IO]("syntax").service("syntax")
 
-  test("measured") {
-    service.eventStreamR(_.facilitate("label")(_.measuredRetry(_.enable(true))))
-    service.eventStreamR(_.facilitate("label")(_.measuredRetry(identity)))
-    service.eventStreamR(_.facilitate("label")(_.measuredRetry(_.isWorthRetry(_ => IO(true)))))
-  }
-
   test("facilitate") {
     service.eventStreamR(_.facilitate("syntax")(_.activeGauge("active")))
   }

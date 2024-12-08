@@ -43,6 +43,9 @@ sealed trait Agent[F[_]] {
   def circuitBreaker(f: Endo[CircuitBreaker.Builder]): Resource[F, CircuitBreaker[F]]
 
   def caffeineCache[K, V](cache: Cache[K, V]): Resource[F, CaffeineCache[F, K, V]]
+
+  def retry(f: Endo[Retry.Builder[F]]): Resource[F, Retry[F]]
+
 }
 
 final private class GeneralAgent[F[_]](
@@ -59,7 +62,7 @@ final private class GeneralAgent[F[_]](
 
   override def batch(label: String): Batch[F] = {
     val metricLabel = MetricLabel(label, measurement)
-    new Batch[F](new Metrics.Impl[F](metricLabel, metricRegistry, zoneId))
+    new Batch[F](new Metrics.Impl[F](metricLabel, metricRegistry))
   }
 
   override def ticks(policy: Policy): Stream[F, Tick] =
@@ -70,7 +73,7 @@ final private class GeneralAgent[F[_]](
 
   override def facilitate[A](label: String)(f: Metrics[F] => A): A = {
     val metricLabel = MetricLabel(label, measurement)
-    f(new Metrics.Impl[F](metricLabel, metricRegistry, zoneId))
+    f(new Metrics.Impl[F](metricLabel, metricRegistry))
   }
 
   override def circuitBreaker(f: Endo[CircuitBreaker.Builder]): Resource[F, CircuitBreaker[F]] =
@@ -79,7 +82,9 @@ final private class GeneralAgent[F[_]](
   override def caffeineCache[K, V](cache: Cache[K, V]): Resource[F, CaffeineCache[F, K, V]] =
     CaffeineCache.buildCache[F, K, V](cache)
 
+  override def retry(f: Endo[Retry.Builder[F]]): Resource[F, Retry[F]] =
+    f(new Retry.Builder[F](Policy.giveUp, _ => F.pure(true))).build(zoneId)
+
   override object adhoc extends MetricsReport[F](channel, serviceParams, metricRegistry)
   override object herald extends Herald.Impl[F](serviceParams, channel)
-
 }
