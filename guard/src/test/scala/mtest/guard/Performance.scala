@@ -16,33 +16,7 @@ class Performance extends AnyFunSuite {
   test("1.performance - measured enabled") {
     var i: Int = 0
     service
-      .eventStream(_.facilitate("retry.true")(_.measuredRetry(_.enable(true))).use(_(IO(i += 1)).foreverM))
-      .timeoutOnPullTo(timeout, fs2.Stream.empty)
-      .compile
-      .drain
-      .unsafeRunSync()
-
-    println(s"cost:  ${timeout.toNanos / i} nano")
-    println(s"speed: ${i / timeout.toMillis} k/s")
-  }
-
-  test("2.performance - measured disabled") {
-    var i: Int = 0
-    service
-      .eventStream(_.facilitate("retry.false")(_.measuredRetry(_.enable(false))).use(_(IO(i += 1)).foreverM))
-      .timeoutOnPullTo(timeout, fs2.Stream.empty)
-      .compile
-      .drain
-      .unsafeRunSync()
-
-    println(s"cost:  ${timeout.toNanos / i} nano")
-    println(s"speed: ${i / timeout.toMillis} k/s")
-  }
-
-  test("3.performance - wrong") {
-    var i: Int = 0
-    service
-      .eventStream(_.facilitate("wrong")(_.measuredRetry(_.enable(true))).use(_(IO(i += 1))).foreverM)
+      .eventStream(_.retry(identity).use(_(IO(i += 1)).foreverM))
       .timeoutOnPullTo(timeout, fs2.Stream.empty)
       .compile
       .drain

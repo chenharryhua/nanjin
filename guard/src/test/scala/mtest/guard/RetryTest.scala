@@ -5,9 +5,10 @@ import cats.effect.unsafe.implicits.global
 import cats.implicits.toFunctorFilterOps
 import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.event.{eventFilters, retrieveTimer}
-import com.github.chenharryhua.nanjin.guard.metrics.Metrics
+import com.github.chenharryhua.nanjin.guard.event.ServiceStopCause.Successfully
+import com.github.chenharryhua.nanjin.guard.event.eventFilters
 import com.github.chenharryhua.nanjin.guard.observers.console
+import com.github.chenharryhua.nanjin.guard.service.Agent
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.DurationInt
@@ -16,79 +17,55 @@ class RetryTest extends AnyFunSuite {
   private val service = TaskGuard[IO]("retry").service("retry")
 
   test("1.retry - simplest") {
-    service
-      .eventStream(_.facilitate("retry")(_.measuredRetry(identity)).use(_(IO(()))))
-      .compile
-      .drain
-      .unsafeRunSync()
+    service.eventStream(_.retry(identity).use(_(IO(())))).compile.drain.unsafeRunSync()
   }
 
-  test("2.retry - enable") {
+  test("2.retry - give up") {
     val mr = service.eventStream { agent =>
-      agent
-        .facilitate("retry")(_.measuredRetry(_.withPolicy(_.giveUp).enable(true)))
-        .use(_(IO(()) *> agent.adhoc.report))
-    }.map(checkJson).mapFilter(eventFilters.metricReport).compile.toList.unsafeRunSync()
-    assert(mr.head.snapshot.nonEmpty)
-  }
-
-  test("3.retry - disable") {
-    val mr = service.eventStream { agent =>
-      agent
-        .facilitate("retry")(_.measuredRetry(_.withPolicy(_.giveUp).enable(false)))
-        .use(_(IO(()) *> agent.adhoc.report))
+      agent.retry(_.withPolicy(_.giveUp)).use(_(IO(()) *> agent.adhoc.report))
     }.map(checkJson).mapFilter(eventFilters.metricReport).compile.toList.unsafeRunSync()
     assert(mr.head.snapshot.isEmpty)
   }
 
-  test("4.retry - fail") {
+  test("3.retry - fail") {
     val action = IO.raiseError[Int](new Exception())
     var i      = 0
     service.eventStream { agent =>
       agent
-        .facilitate("retry")(_.measuredRetry(_.withPolicy(_.fixedDelay(1.second).limited(2)).isWorthRetry {
-          _ =>
-            i += 1; IO(true)
-        }))
+        .retry(_.withPolicy(_.fixedDelay(1.second).limited(2)).isWorthRetry { _ =>
+          i += 1; IO(true)
+        })
         .use(_(action) *> agent.adhoc.report)
     }.map(checkJson).compile.toList.unsafeRunSync()
     assert(i == 3)
   }
 
-  test("5.retry - success after retry") {
+  test("4.retry - success after retry") {
     var i      = 0
     val action = IO(i += 1) >> { if (i < 2) throw new Exception(i.toString) else IO(0) }
 
     val policy = Policy.fixedDelay(1.second, 100.seconds).limited(20)
 
-    val mr = service.eventStream { agent =>
-      agent
-        .facilitate("retry")(_.measuredRetry(_.withPolicy(policy)))
-        .use(_(action) <* agent.adhoc.report)
-        .map(x => assert(x == 0))
-        .void
-    }.map(checkJson).mapFilter(eventFilters.metricReport).compile.toList.unsafeRunSync()
-
-    assert(retrieveTimer(mr.head.snapshot.timers).head._2.calls == 1)
+    val ss = service.eventStream { agent =>
+      agent.retry(_.withPolicy(policy)).use(_(action) <* agent.adhoc.report).map(x => assert(x == 0)).void
+    }.map(checkJson).mapFilter(eventFilters.serviceStop).compile.lastOrError.unsafeRunSync()
+    assert(ss.cause == Successfully)
   }
 
-  test("6.retry - unworthy") {
+  test("5.retry - unworthy") {
     val action = IO.raiseError[Int](new Exception())
     service
       .eventStream(
-        _.facilitate("retry")(
-          _.measuredRetry(_.withPolicy(_.fixedDelay(100.seconds)).enable(true).isWorthRetry(_ => IO(false))))
-          .use(_(action))
-          .void)
+        _.retry(_.withPolicy(_.fixedDelay(100.seconds)).isWorthRetry(_ => IO(false))).use(_(action)).void)
       .compile
       .drain
       .unsafeRunSync()
   }
 
-  test("7.retry - simple cancellation") {
+  test("6.retry - simple cancellation") {
     service
       .eventStream(agent =>
-        agent.facilitate("cancel")(_.measuredRetry(_.withPolicy(Policy.giveUp))).use { retry =>
+        agent.retry(_.withPolicy(Policy.giveUp)).use { retry =>
           (retry(IO.println(1)) >>
             retry(IO.println(2) <* IO.canceled *> IO.println(3)) >>
             retry(IO.println(4))).guarantee(agent.adhoc.report)
@@ -100,10 +77,10 @@ class RetryTest extends AnyFunSuite {
       .unsafeRunSync()
   }
 
-  test("8.retry - cancellation internal") {
-    def action(mtx: Metrics[IO]) = for {
-      counter <- mtx.counter("total.calls")
-      retry <- mtx.measuredRetry(_.withPolicy(_.giveUp))
+  test("7.retry - cancellation internal") {
+    def action(agent: Agent[IO]) = for {
+      counter <- agent.facilitate("retry")(_.counter("total.calls"))
+      retry <- agent.retry(_.withPolicy(_.giveUp))
     } yield (in: IO[Unit]) =>
       IO.uncancelable(poll =>
         in *>
@@ -114,7 +91,7 @@ class RetryTest extends AnyFunSuite {
 
     service
       .eventStream(agent =>
-        agent.facilitate("retry.internal.cancellation")(action).use { retry =>
+        agent.facilitate("retry.internal.cancellation")(_ => action(agent)).use { retry =>
           (retry(IO.println("first")) >>
             IO.println("----") >>
             retry(IO.println("before cancel") >> IO.canceled >> IO.println("after cancel")) >>
@@ -127,10 +104,10 @@ class RetryTest extends AnyFunSuite {
       .unsafeRunSync()
   }
 
-  test("9.retry - cancellation external") {
-    def action(mtx: Metrics[IO]) = for {
-      counter <- mtx.counter("total.calls")
-      retry <- mtx.measuredRetry(_.withPolicy(_.fixedDelay(10.hours)))
+  test("8.retry - cancellation external") {
+    def action(agent: Agent[IO]) = for {
+      counter <- agent.facilitate("retry")(_.counter("total.calls"))
+      retry <- agent.retry(_.withPolicy(_.fixedDelay(10.hours)))
     } yield (in: IO[Unit]) =>
       IO.uncancelable(poll =>
         IO.println("before retry") *>
@@ -140,7 +117,7 @@ class RetryTest extends AnyFunSuite {
 
     service
       .eventStream(agent =>
-        agent.facilitate("retry.external.cancellation")(action).use { retry =>
+        agent.facilitate("retry.external.cancellation")(_ => action(agent)).use { retry =>
           IO.race(retry(IO.println("before exception") >> IO.raiseError(new Exception)), IO.sleep(3.seconds))
             .void
             .guarantee(agent.adhoc.report)
@@ -150,18 +127,5 @@ class RetryTest extends AnyFunSuite {
       .compile
       .drain
       .unsafeRunSync()
-  }
-
-  test("10.retry lazy") {
-    def action: IO[Unit] = if (true) throw new Exception else IO.unit
-    val mr = service
-      .eventStream(agent =>
-        agent.facilitate("lazy")(_.measuredRetry(identity)).use(_(action).guarantee(agent.adhoc.report)))
-      .evalTap(console.text[IO])
-      .mapFilter(eventFilters.metricReport)
-      .compile
-      .lastOrError
-      .unsafeRunSync()
-    assert(mr.snapshot.nonEmpty)
   }
 }

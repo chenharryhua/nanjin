@@ -45,7 +45,7 @@ object Gauge {
       Json.fromString(StringUtils.abbreviate(ExceptionUtils.getRootCauseMessage(ex), 80))
 
     private[this] def json_gauge[A: Encoder](metricID: MetricID, fa: F[A]): Resource[F, Unit] =
-      Dispatcher.sequential[F].flatMap { dispatcher =>
+      Dispatcher.parallel[F].flatMap { dispatcher =>
         Resource
           .make(F.delay {
             metricRegistry.gauge(
