@@ -119,20 +119,22 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
       builder = new PushGenericRecord(kafkaContext.settings.schemaRegistrySettings, topicName, schemaPair)
       num <- hadoop.filesIn(path).flatMap { fs =>
         val step: Int = Math.ceil(fs.size.toDouble / partitions.toDouble).toInt
-        val uploads: List[F[Long]] = fs
-          .sliding(step, step)
-          .map { urls =>
-            val ss: Stream[F, Chunk[ProducerRecord[Array[Byte], Array[Byte]]]] = urls
-              .map(hadoop.source(_).jackson(chunkSize, schemaPair.consumerSchema))
-              .reduce(_ ++ _)
-              .chunks
-              .map(_.map(builder.fromGenericRecord))
-            KafkaProducer.pipe(producerSettings).apply(ss).compile.fold(0L) { case (sum, prs) =>
-              sum + prs.size
+        if (step > 0) {
+          val uploads: List[F[Long]] = fs
+            .sliding(step, step)
+            .map { urls =>
+              val ss: Stream[F, Chunk[ProducerRecord[Array[Byte], Array[Byte]]]] = urls
+                .map(hadoop.source(_).jackson(chunkSize, schemaPair.consumerSchema))
+                .reduce(_ ++ _)
+                .chunks
+                .map(_.map(builder.fromGenericRecord))
+              KafkaProducer.pipe(producerSettings).apply(ss).compile.fold(0L) { case (sum, prs) =>
+                sum + prs.size
+              }
             }
-          }
-          .toList
-        F.parSequenceN(uploads.size)(uploads).map(_.sum)
+            .toList
+          F.parSequenceN(uploads.size)(uploads).map(_.sum)
+        } else F.pure(0L)
       }
     } yield num
   }

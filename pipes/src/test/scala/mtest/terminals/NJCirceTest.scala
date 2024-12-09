@@ -70,25 +70,6 @@ class NJCirceTest extends AnyFunSuite {
     fs2(fs2Root, CirceFile(_.Deflate(4)), TestData.tigerSet)
   }
 
-  ignore("ftp") {
-    val path = Url.parse("ftp://localhost/data/tiger.json")
-    val conf = new Configuration()
-    conf.set("fs.ftp.host", "localhost")
-    conf.set("fs.ftp.user.localhost", "chenh")
-    conf.set("fs.ftp.password.localhost", "test")
-    conf.set("fs.ftp.data.connection.mode", "PASSIVE_LOCAL_DATA_CONNECTION_MODE")
-    conf.set("fs.ftp.impl", "org.apache.hadoop.fs.ftp.FTPFileSystem")
-    Stream
-      .emits(TestData.tigerSet.toList)
-      .covary[IO]
-      .map(_.asJson)
-      .chunks
-      .through(hdp.sink(path).circe)
-      .compile
-      .drain
-      .unsafeRunSync()
-  }
-
   test("laziness") {
     hdp.source("./does/not/exist").circe
     hdp.sink("./does/not/exist").circe

@@ -88,25 +88,6 @@ class NJKantanTest extends AnyFunSuite {
     fs2(fs2Root, KantanFile(_.Deflate(6)), cfg, tigerSet)
   }
 
-  ignore("ftp") {
-    val path = Url.parse("ftp://localhost/data/tiger.csv")
-    val conf = new Configuration()
-    conf.set("fs.ftp.host", "localhost")
-    conf.set("fs.ftp.user.localhost", "chenh")
-    conf.set("fs.ftp.password.localhost", "test")
-    conf.set("fs.ftp.data.connection.mode", "PASSIVE_LOCAL_DATA_CONNECTION_MODE")
-    conf.set("fs.ftp.impl", "org.apache.hadoop.fs.ftp.FTPFileSystem")
-    Stream
-      .emits(tigerSet.toList)
-      .covary[IO]
-      .map(tigerEncoder.encode)
-      .chunks
-      .through(hdp.sink(path).kantan)
-      .compile
-      .drain
-      .unsafeRunSync()
-  }
-
   test("laziness") {
     hdp.source("./does/not/exist").kantan(100, CsvConfiguration.rfc)
     hdp.sink("./does/not/exist").kantan(CsvConfiguration.rfc)
