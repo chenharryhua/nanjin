@@ -13,7 +13,6 @@ import io.lemonlabs.uri.typesafe.dsl.*
 import kantan.csv.{CsvConfiguration, RowDecoder, RowEncoder}
 import mtest.terminals.HadoopTestData.hdp
 import mtest.terminals.TestData.*
-import org.apache.hadoop.conf.Configuration
 import org.scalatest.Assertion
 import org.scalatest.funsuite.AnyFunSuite
 

@@ -15,7 +15,6 @@ import io.lemonlabs.uri.Url
 import io.lemonlabs.uri.typesafe.dsl.*
 import mtest.terminals.HadoopTestData.hdp
 import mtest.terminals.TestData.Tiger
-import org.apache.hadoop.conf.Configuration
 import org.scalatest.Assertion
 import org.scalatest.funsuite.AnyFunSuite
 

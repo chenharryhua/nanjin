@@ -7,23 +7,22 @@ import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.terminals.*
 import com.github.chenharryhua.nanjin.terminals.Compression.*
 import eu.timepit.refined.auto.*
-import fs2.{Chunk, Pipe, Stream}
 import fs2.text.{lines, utf8}
+import fs2.{Chunk, Pipe, Stream}
 import io.circe.generic.auto.*
 import io.circe.jawn.CirceSupportParser.facade
 import io.circe.syntax.EncoderOps
 import io.circe.{jawn, Json}
 import io.lemonlabs.uri.Url
+import io.lemonlabs.uri.typesafe.dsl.*
 import mtest.terminals.HadoopTestData.hdp
 import mtest.terminals.TestData.Tiger
-import org.apache.hadoop.conf.Configuration
 import org.scalatest.Assertion
 import org.scalatest.funsuite.AnyFunSuite
 import org.typelevel.jawn.fs2.JsonStreamSyntax
 
 import java.time.ZoneId
 import scala.concurrent.duration.{DurationDouble, DurationInt}
-import io.lemonlabs.uri.typesafe.dsl.*
 
 class NJCirceTest extends AnyFunSuite {
 

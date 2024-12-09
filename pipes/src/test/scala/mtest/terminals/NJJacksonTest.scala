@@ -11,7 +11,6 @@ import io.circe.syntax.EncoderOps
 import io.lemonlabs.uri.Url
 import io.lemonlabs.uri.typesafe.dsl.*
 import org.apache.avro.generic.GenericRecord
-import org.apache.hadoop.conf.Configuration
 import org.scalatest.Assertion
 import org.scalatest.funsuite.AnyFunSuite
 
