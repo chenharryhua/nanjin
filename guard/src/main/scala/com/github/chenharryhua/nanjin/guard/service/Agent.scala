@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.guard.service
 
 import cats.Endo
 import cats.effect.kernel.{Async, Resource}
+import cats.implicits.catsSyntaxApplicativeId
 import com.codahale.metrics.MetricRegistry
 import com.github.benmanes.caffeine.cache.Cache
 import com.github.chenharryhua.nanjin.common.chrono.*
@@ -48,11 +49,11 @@ sealed trait Agent[F[_]] {
 
 }
 
-final private class GeneralAgent[F[_]](
+final private class GeneralAgent[F[_]: Async](
   serviceParams: ServiceParams,
   metricRegistry: MetricRegistry,
   channel: Channel[F, Event],
-  measurement: Measurement)(implicit F: Async[F])
+  measurement: Measurement)
     extends Agent[F] {
 
   override val zoneId: ZoneId = serviceParams.zoneId
@@ -83,7 +84,7 @@ final private class GeneralAgent[F[_]](
     CaffeineCache.buildCache[F, K, V](cache)
 
   override def retry(f: Endo[Retry.Builder[F]]): Resource[F, Retry[F]] =
-    f(new Retry.Builder[F](Policy.giveUp, _ => F.pure(true))).build(zoneId)
+    f(new Retry.Builder[F](Policy.giveUp, _ => true.pure[F])).build(zoneId)
 
   override object adhoc extends MetricsReport[F](channel, serviceParams, metricRegistry)
   override object herald extends Herald.Impl[F](serviceParams, channel)

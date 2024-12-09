@@ -7,23 +7,22 @@ import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.terminals.*
 import com.github.chenharryhua.nanjin.terminals.Compression.*
 import eu.timepit.refined.auto.*
-import fs2.{Chunk, Pipe, Stream}
 import fs2.text.{lines, utf8}
+import fs2.{Chunk, Pipe, Stream}
 import io.circe.generic.auto.*
 import io.circe.jawn.CirceSupportParser.facade
 import io.circe.syntax.EncoderOps
 import io.circe.{jawn, Json}
 import io.lemonlabs.uri.Url
+import io.lemonlabs.uri.typesafe.dsl.*
 import mtest.terminals.HadoopTestData.hdp
 import mtest.terminals.TestData.Tiger
-import org.apache.hadoop.conf.Configuration
 import org.scalatest.Assertion
 import org.scalatest.funsuite.AnyFunSuite
 import org.typelevel.jawn.fs2.JsonStreamSyntax
 
 import java.time.ZoneId
 import scala.concurrent.duration.{DurationDouble, DurationInt}
-import io.lemonlabs.uri.typesafe.dsl.*
 
 class NJCirceTest extends AnyFunSuite {
 
@@ -68,25 +67,6 @@ class NJCirceTest extends AnyFunSuite {
 
   test("deflate - 1") {
     fs2(fs2Root, CirceFile(_.Deflate(4)), TestData.tigerSet)
-  }
-
-  ignore("ftp") {
-    val path = Url.parse("ftp://localhost/data/tiger.json")
-    val conf = new Configuration()
-    conf.set("fs.ftp.host", "localhost")
-    conf.set("fs.ftp.user.localhost", "chenh")
-    conf.set("fs.ftp.password.localhost", "test")
-    conf.set("fs.ftp.data.connection.mode", "PASSIVE_LOCAL_DATA_CONNECTION_MODE")
-    conf.set("fs.ftp.impl", "org.apache.hadoop.fs.ftp.FTPFileSystem")
-    Stream
-      .emits(TestData.tigerSet.toList)
-      .covary[IO]
-      .map(_.asJson)
-      .chunks
-      .through(hdp.sink(path).circe)
-      .compile
-      .drain
-      .unsafeRunSync()
   }
 
   test("laziness") {
