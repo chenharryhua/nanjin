@@ -44,7 +44,7 @@ object HealthCheck {
 
     override def register(hc: => F[Boolean]): Resource[F, Unit] =
       for {
-        dispatcher <- Dispatcher.sequential[F]
+        dispatcher <- Dispatcher.parallel[F]
         metricID <- Resource.eval((F.monotonic, UUIDGen[F].randomUUID).mapN { case (ts, unique) =>
           MetricID(label, MetricName(name, ts, unique), Category.Gauge(GaugeKind.HealthCheck)).identifier
         })
