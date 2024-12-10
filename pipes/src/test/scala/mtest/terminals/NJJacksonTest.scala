@@ -11,7 +11,6 @@ import io.circe.syntax.EncoderOps
 import io.lemonlabs.uri.Url
 import io.lemonlabs.uri.typesafe.dsl.*
 import org.apache.avro.generic.GenericRecord
-import org.apache.hadoop.conf.Configuration
 import org.scalatest.Assertion
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -60,26 +59,6 @@ class NJJacksonTest extends AnyFunSuite {
 
   test("deflate - 1") {
     fs2(fs2Root, JacksonFile(_.Deflate(5)), pandaSet)
-  }
-
-  ignore("ftp - parse username/password") {
-    val path = Url.parse("ftp://chenh:test@localhost/data/tiger.jackson.json")
-    val conf = new Configuration()
-    // conf.set("fs.ftp.host", "localhost")
-    // conf.set("fs.ftp.user.localhost", "chenh")
-    // conf.set("fs.ftp.password.localhost", "test")
-    conf.set("fs.ftp.data.connection.mode", "PASSIVE_LOCAL_DATA_CONNECTION_MODE")
-    conf.set("fs.ftp.impl", "org.apache.hadoop.fs.ftp.FTPFileSystem")
-
-    Stream
-      .emits(TestData.tigerSet.toList)
-      .covary[IO]
-      .map(TestData.Tiger.to.to)
-      .chunks
-      .through(hdp.sink(path).jackson)
-      .compile
-      .drain
-      .unsafeRunSync()
   }
 
   test("laziness") {
