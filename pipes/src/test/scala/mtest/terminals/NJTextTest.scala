@@ -15,7 +15,6 @@ import io.lemonlabs.uri.Url
 import io.lemonlabs.uri.typesafe.dsl.*
 import mtest.terminals.HadoopTestData.hdp
 import mtest.terminals.TestData.Tiger
-import org.apache.hadoop.conf.Configuration
 import org.scalatest.Assertion
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -71,25 +70,6 @@ class NJTextTest extends AnyFunSuite {
 
   test("deflate - 1") {
     fs2(fs2Root, TextFile(_.Deflate(8)), TestData.tigerSet)
-  }
-
-  ignore("ftp") {
-    val path = Url.parse("ftp://localhost/data/tiger.txt")
-    val conf = new Configuration()
-    conf.set("fs.ftp.host", "localhost")
-    conf.set("fs.ftp.user.localhost", "chenh")
-    conf.set("fs.ftp.password.localhost", "test")
-    conf.set("fs.ftp.data.connection.mode", "PASSIVE_LOCAL_DATA_CONNECTION_MODE")
-    conf.set("fs.ftp.impl", "org.apache.hadoop.fs.ftp.FTPFileSystem")
-    Stream
-      .emits(TestData.tigerSet.toList)
-      .covary[IO]
-      .map(_.toString)
-      .chunks
-      .through(hdp.sink(path).text)
-      .compile
-      .drain
-      .unsafeRunSync()
   }
 
   test("laziness") {

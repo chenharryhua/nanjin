@@ -20,20 +20,6 @@ services:
     ports:
       - 5432:5432                 # Postgres port
 
-  ftpd-server:
-    container_name: ftpd-server
-    image: stilliard/pure-ftpd:hardened
-    ports:
-      - "21:21"
-      - "20:20"
-      - "30000-30009:30000-30009"
-    environment:
-      PUBLICHOST: "localhost"
-      FTP_USER_NAME: "chenh"
-      FTP_USER_PASS: "test"
-      FTP_USER_HOME: "/home/test"
-    restart: on-failure
-
   jaeger:
     image: jaegertracing/all-in-one:latest
     ports:

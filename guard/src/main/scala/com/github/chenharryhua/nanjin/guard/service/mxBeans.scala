@@ -9,7 +9,7 @@ import scala.jdk.CollectionConverters.CollectionHasAsScala
 import scala.jdk.DurationConverters.ScalaDurationOps
 
 private object mxBeans {
-  val classloader: Eval[ClassLoadGauge] =
+  private val classloader: Eval[ClassLoadGauge] =
     Eval.always {
       val mxBean: ClassLoadingMXBean = ManagementFactory.getClassLoadingMXBean
       ClassLoadGauge(
@@ -18,7 +18,7 @@ private object mxBeans {
         total = mxBean.getTotalLoadedClassCount)
     }
 
-  val deadlocks: Eval[List[ThreadDeadlocks]] =
+  private val deadlocks: Eval[List[ThreadDeadlocks]] =
     Eval.always {
       val mxBean: ThreadMXBean = ManagementFactory.getThreadMXBean
       Option(mxBean.findDeadlockedThreads()).traverse {
@@ -34,7 +34,7 @@ private object mxBeans {
       }.flatten
     }
 
-  val heapMemory: Eval[HeapMemory] = Eval.always {
+  private val heapMemory: Eval[HeapMemory] = Eval.always {
     val mxBean: MemoryMXBean = ManagementFactory.getMemoryMXBean
     HeapMemory(
       init = mxBean.getHeapMemoryUsage.getInit,
@@ -44,7 +44,7 @@ private object mxBeans {
     )
   }
 
-  val nonHeapMemory: Eval[NonHeapMemory] = Eval.always {
+  private val nonHeapMemory: Eval[NonHeapMemory] = Eval.always {
     val mxBean: MemoryMXBean = ManagementFactory.getMemoryMXBean
     NonHeapMemory(
       init = mxBean.getNonHeapMemoryUsage.getInit,
@@ -54,14 +54,14 @@ private object mxBeans {
     )
   }
 
-  val garbageCollectors: Eval[List[GarbageCollector]] = Eval.always(
+  private val garbageCollectors: Eval[List[GarbageCollector]] = Eval.always(
     ManagementFactory.getGarbageCollectorMXBeans.asScala.toList.map(gc =>
       GarbageCollector(
         name = gc.getName,
         count = gc.getCollectionCount,
         took = gc.getCollectionTime.milliseconds.toJava)))
 
-  val threadState: Eval[ThreadState] = Eval.always {
+  private val threadState: Eval[ThreadState] = Eval.always {
     val mxBean: ThreadMXBean = ManagementFactory.getThreadMXBean
     ThreadState(
       live = mxBean.getThreadCount,
@@ -74,16 +74,23 @@ private object mxBeans {
   private val operatingSystem: Eval[OperatingSystem] = Eval.always {
     val mxBean: OperatingSystemMXBean = ManagementFactory.getOperatingSystemMXBean
     OperatingSystem(
-      architecture = mxBean.getArch,
-      available_processors = mxBean.getAvailableProcessors,
-      name = mxBean.getName,
-      version = mxBean.getVersion,
-      system_load_average = mxBean.getSystemLoadAverage
+      architecture = s"${mxBean.getArch} ${mxBean.getName} ${mxBean.getVersion}",
+      available_processors = mxBean.getAvailableProcessors
+    )
+  }
+
+  private val runtime = Eval.always {
+    val mxBean = ManagementFactory.getRuntimeMXBean
+    RuntimeMX(
+      pid = mxBean.getPid,
+      virtual_machine = s"${mxBean.getVmVendor} ${mxBean.getVmName} ${mxBean.getVmVersion}",
+      input_arguments = mxBean.getInputArguments.asScala.toList
     )
   }
 
   val allJvmGauge: Eval[AllJvmGauge] =
     for {
+      rt <- runtime
       cl <- classloader
       dl <- deadlocks
       gc <- garbageCollectors
@@ -92,12 +99,13 @@ private object mxBeans {
       ts <- threadState
       os <- operatingSystem
     } yield AllJvmGauge(
+      operating_system = os,
+      runtime = rt,
       classloader = cl,
       deadlocks = dl,
       garbage_collectors = gc,
       heap_memory = hp,
       non_heap_memory = nh,
-      thread_state = ts,
-      operating_system = os
+      thread_state = ts
     )
 }
