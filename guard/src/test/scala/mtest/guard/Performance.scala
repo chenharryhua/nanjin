@@ -13,7 +13,7 @@ class Performance extends AnyFunSuite {
 
   private val timeout: FiniteDuration = 5.seconds
 
-  test("1.performance - measured enabled") {
+  test("1.performance - retry") {
     var i: Int = 0
     service
       .eventStream(_.retry(identity).use(_(IO(i += 1)).foreverM))

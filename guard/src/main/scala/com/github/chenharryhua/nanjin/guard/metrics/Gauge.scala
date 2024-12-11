@@ -36,7 +36,8 @@ object Gauge {
     private[this] val label: MetricLabel,
     private[this] val metricRegistry: metrics.MetricRegistry,
     private[this] val timeout: FiniteDuration,
-    private[this] val name: String
+    private[this] val name: String,
+    private[this] val dispatcher: Dispatcher[F]
   ) extends Gauge[F] {
 
     private[this] val F = Async[F]
@@ -45,20 +46,18 @@ object Gauge {
       Json.fromString(StringUtils.abbreviate(ExceptionUtils.getRootCauseMessage(ex), 80))
 
     private[this] def json_gauge[A: Encoder](metricID: MetricID, fa: F[A]): Resource[F, Unit] =
-      Dispatcher.parallel[F].flatMap { dispatcher =>
-        Resource
-          .make(F.delay {
-            metricRegistry.gauge(
-              metricID.identifier,
-              () =>
-                new metrics.Gauge[Json] {
-                  override def getValue: Json =
-                    Try(dispatcher.unsafeRunTimed(fa, timeout)).fold(trans_error, _.asJson)
-                }
-            )
-          })(_ => F.delay(metricRegistry.remove(metricID.identifier)).void)
-          .void
-      }
+      Resource
+        .make(F.delay {
+          metricRegistry.gauge(
+            metricID.identifier,
+            () =>
+              new metrics.Gauge[Json] {
+                override def getValue: Json =
+                  Try(dispatcher.unsafeRunTimed(fa, timeout)).fold(trans_error, _.asJson)
+              }
+          )
+        })(_ => F.delay(metricRegistry.remove(metricID.identifier)).void)
+        .void
 
     override def register[A: Encoder](value: => F[A]): Resource[F, Unit] =
       Resource
@@ -93,9 +92,10 @@ object Gauge {
     private[guard] def build[F[_]: Async](
       label: MetricLabel,
       name: String,
-      metricRegistry: metrics.MetricRegistry): Gauge[F] =
+      metricRegistry: metrics.MetricRegistry,
+      dispatcher: Dispatcher[F]): Gauge[F] =
       if (isEnabled) {
-        new Impl[F](label, metricRegistry, timeout, name)
+        new Impl[F](label, metricRegistry, timeout, name, dispatcher)
       } else noop[F]
   }
 }

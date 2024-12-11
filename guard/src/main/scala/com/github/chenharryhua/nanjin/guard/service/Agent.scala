@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.guard.service
 
 import cats.Endo
 import cats.effect.kernel.{Async, Resource}
+import cats.effect.std.Dispatcher
 import cats.implicits.catsSyntaxApplicativeId
 import com.codahale.metrics.MetricRegistry
 import com.github.benmanes.caffeine.cache.Cache
@@ -53,17 +54,18 @@ final private class GeneralAgent[F[_]: Async](
   serviceParams: ServiceParams,
   metricRegistry: MetricRegistry,
   channel: Channel[F, Event],
-  measurement: Measurement)
+  measurement: Measurement,
+  dispatcher: Dispatcher[F])
     extends Agent[F] {
 
   override val zoneId: ZoneId = serviceParams.zoneId
 
   override def withMeasurement(name: String): Agent[F] =
-    new GeneralAgent[F](serviceParams, metricRegistry, channel, Measurement(name))
+    new GeneralAgent[F](serviceParams, metricRegistry, channel, Measurement(name), dispatcher)
 
   override def batch(label: String): Batch[F] = {
     val metricLabel = MetricLabel(label, measurement)
-    new Batch[F](new Metrics.Impl[F](metricLabel, metricRegistry))
+    new Batch[F](new Metrics.Impl[F](metricLabel, metricRegistry, dispatcher))
   }
 
   override def ticks(policy: Policy): Stream[F, Tick] =
@@ -74,7 +76,7 @@ final private class GeneralAgent[F[_]: Async](
 
   override def facilitate[A](label: String)(f: Metrics[F] => A): A = {
     val metricLabel = MetricLabel(label, measurement)
-    f(new Metrics.Impl[F](metricLabel, metricRegistry))
+    f(new Metrics.Impl[F](metricLabel, metricRegistry, dispatcher))
   }
 
   override def circuitBreaker(f: Endo[CircuitBreaker.Builder]): Resource[F, CircuitBreaker[F]] =

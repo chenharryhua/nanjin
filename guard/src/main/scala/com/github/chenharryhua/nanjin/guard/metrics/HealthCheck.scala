@@ -37,14 +37,14 @@ object HealthCheck {
     private[this] val label: MetricLabel,
     private[this] val metricRegistry: metrics.MetricRegistry,
     private[this] val timeout: FiniteDuration,
-    private[this] val name: String)
+    private[this] val name: String,
+    private[this] val dispatcher: Dispatcher[F])
       extends HealthCheck[F] {
 
     private[this] val F = Async[F]
 
     override def register(hc: => F[Boolean]): Resource[F, Unit] =
       for {
-        dispatcher <- Dispatcher.parallel[F]
         metricID <- Resource.eval((F.monotonic, UUIDGen[F].randomUUID).mapN { case (ts, unique) =>
           MetricID(label, MetricName(name, ts, unique), Category.Gauge(GaugeKind.HealthCheck)).identifier
         })
@@ -86,9 +86,10 @@ object HealthCheck {
     private[guard] def build[F[_]: Async](
       label: MetricLabel,
       name: String,
-      metricRegistry: metrics.MetricRegistry): HealthCheck[F] =
+      metricRegistry: metrics.MetricRegistry,
+      dispatcher: Dispatcher[F]): HealthCheck[F] =
       if (isEnabled) {
-        new Impl[F](label, metricRegistry, timeout, name)
+        new Impl[F](label, metricRegistry, timeout, name, dispatcher)
       } else noop[F]
   }
 }

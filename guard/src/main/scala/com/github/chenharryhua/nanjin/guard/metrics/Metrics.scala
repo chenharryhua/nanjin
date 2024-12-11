@@ -3,6 +3,7 @@ package com.github.chenharryhua.nanjin.guard.metrics
 import cats.Endo
 import cats.data.Kleisli
 import cats.effect.kernel.{Async, Ref, Resource}
+import cats.effect.std.Dispatcher
 import cats.syntax.all.*
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.guard.config.MetricLabel
@@ -56,8 +57,10 @@ trait Metrics[F[_]] {
 }
 
 object Metrics {
-  private[guard] class Impl[F[_]](val metricLabel: MetricLabel, metricRegistry: MetricRegistry)(implicit
-    F: Async[F])
+  private[guard] class Impl[F[_]](
+    val metricLabel: MetricLabel,
+    metricRegistry: MetricRegistry,
+    dispatcher: Dispatcher[F])(implicit F: Async[F])
       extends Metrics[F] {
 
     override def counter(name: String, f: Endo[Counter.Builder]): Resource[F, Counter[F]] =
@@ -73,13 +76,13 @@ object Metrics {
       f(Timer.initial).build[F](metricLabel, name, metricRegistry)
 
     override def healthCheck(name: String, f: Endo[HealthCheck.Builder]): HealthCheck[F] =
-      f(HealthCheck.initial).build[F](metricLabel, name, metricRegistry)
+      f(HealthCheck.initial).build[F](metricLabel, name, metricRegistry, dispatcher)
 
     override def ratio(name: String, f: Endo[Ratio.Builder]): Resource[F, Ratio[F]] =
       f(Ratio.initial).build[F](metricLabel, name, metricRegistry)
 
     override def gauge(name: String, f: Endo[Gauge.Builder]): Gauge[F] =
-      f(Gauge.initial).build[F](metricLabel, name, metricRegistry)
+      f(Gauge.initial).build[F](metricLabel, name, metricRegistry, dispatcher)
 
     // derived
 
