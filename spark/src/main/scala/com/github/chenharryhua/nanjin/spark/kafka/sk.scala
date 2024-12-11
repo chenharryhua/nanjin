@@ -59,7 +59,7 @@ private[spark] object sk {
     dateRange: DateTimeRange): F[RDD[NJConsumerRecord[K, V]]] =
     KafkaContext[F](topic.settings)
       .admin(topic.topicName)
-      .offsetRangeFor(dateRange)
+      .use(_.offsetRangeFor(dateRange))
       .map(kafkaBatch(topic, ss, _))
 
   /** streaming

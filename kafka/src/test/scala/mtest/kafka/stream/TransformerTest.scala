@@ -66,7 +66,7 @@ class TransformerTest extends AnyFunSuite {
         List(
           ProducerRecord(topic2.topicName.value, 2, "t0"),
           ProducerRecord(topic2.topicName.value, 4, "t1"),
-          ProducerRecord(topic2.topicName.value, 6, "t2")))).covary[IO].through(topic2.produce.pipe)
+          ProducerRecord(topic2.topicName.value, 6, "t2")))).covary[IO].through(topic2.produce.sink)
 
     val s1Data =
       Stream
@@ -75,7 +75,7 @@ class TransformerTest extends AnyFunSuite {
         .map { case (_, index) =>
           ProducerRecords.one(ProducerRecord(topic1.topicName.value, index.toInt, s"stream$index"))
         }
-        .through(topic1.produce.pipe)
+        .through(topic1.produce.sink)
     val havest = ctx
       .consume(tgt.topicName)
       .stream

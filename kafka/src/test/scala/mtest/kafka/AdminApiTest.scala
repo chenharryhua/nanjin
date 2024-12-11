@@ -18,26 +18,27 @@ class AdminApiTest extends AnyFunSuite {
   val mirror: KafkaTopic[IO, Int, Int] = ctx.topic[Int, Int]("admin.mirror")
 
   test("newTopic") {
-    val admin: KafkaAdminApi[IO] = ctx.admin(topic.topicName)
-    val run = for {
-      _ <- admin.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt
-      _ <- IO.sleep(1.seconds)
-      _ <- admin.newTopic(3, 1)
-      _ <- IO.sleep(1.seconds)
-      info <- admin.describe
-    } yield println(info)
+    val run = ctx.admin(topic.topicName).use { admin =>
+      for {
+        _ <- admin.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt
+        _ <- IO.sleep(1.seconds)
+        _ <- admin.newTopic(3, 1)
+        _ <- IO.sleep(1.seconds)
+        info <- admin.describe
+      } yield println(info)
+    }
     run.unsafeRunSync()
   }
 
   test("mirrorTo") {
-    val admin: KafkaAdminApi[IO]  = ctx.admin(topic.topicName)
-    val madmin: KafkaAdminApi[IO] = ctx.admin(mirror.topicName)
+    val admin  = ctx.admin(topic.topicName)
+    val madmin = ctx.admin(mirror.topicName)
     val run = for {
-      _ <- madmin.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt
+      _ <- madmin.use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt)
       _ <- IO.sleep(1.seconds)
-      _ <- admin.mirrorTo(mirror.topicName, 1)
+      _ <- admin.use(_.mirrorTo(mirror.topicName, 1))
       _ <- IO.sleep(1.seconds)
-      info <- admin.describe
+      info <- admin.use(_.describe)
     } yield println(info)
     run.unsafeRunSync()
   }
@@ -47,19 +48,20 @@ class AdminApiTest extends AnyFunSuite {
     val tpo   = Map(new TopicPartition(topic.topicName.value, 0) -> new OffsetAndMetadata(0))
     val admin = ctx.admin("admin")
     val gp =
-      topic.produceOne(0, 0) >>
+      topic.produceOne(0, 0) >> ctx.admin("admin").use { admin =>
         ctx.admin.use(_.listTopics.listings) >>
-        admin.commitSync(gid, tpo) >>
-        admin.retrieveRecord(0, 0) >>
-        admin.resetOffsetsToBegin(gid) >>
-        admin.resetOffsetsForTimes(gid, NJTimestamp(0)) >>
-        admin.resetOffsetsToEnd(gid) >>
-        admin.lagBehind(gid) >>
-        admin.offsetRangeFor(DateTimeRange(sydneyTime).withToday) >>
-        admin.partitionsFor >>
-        admin.groups
+          admin.commitSync(gid, tpo) >>
+          admin.retrieveRecord(0, 0) >>
+          admin.resetOffsetsToBegin(gid) >>
+          admin.resetOffsetsForTimes(gid, NJTimestamp(0)) >>
+          admin.resetOffsetsToEnd(gid) >>
+          admin.lagBehind(gid) >>
+          admin.offsetRangeFor(DateTimeRange(sydneyTime).withToday) >>
+          admin.partitionsFor >>
+          admin.groups
+      }
     assert(gp.unsafeRunSync().map(_.value).contains(gid))
-    val gp2 = admin.deleteConsumerGroupOffsets(gid) >> admin.groups
+    val gp2 = admin.use(am => am.deleteConsumerGroupOffsets(gid) >> am.groups)
     assert(!gp2.unsafeRunSync().map(_.value).contains(gid))
   }
 

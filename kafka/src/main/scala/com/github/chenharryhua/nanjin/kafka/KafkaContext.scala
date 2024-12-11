@@ -10,12 +10,13 @@ import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameL}
 import com.github.chenharryhua.nanjin.kafka.streaming.{KafkaStreamsBuilder, StateStores}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.*
-import fs2.Stream
 import fs2.kafka.*
+import fs2.{Chunk, Pipe, Stream}
 import io.circe.Json
 import io.circe.jawn.parse
 import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient
 import io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig
+import org.apache.avro.generic.GenericRecord
 import org.apache.kafka.common.serialization.Serde
 import org.apache.kafka.streams.scala.StreamsBuilder
 
@@ -63,8 +64,8 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
     new SchemaRegistryApi[F](new CachedSchemaRegistryClient(url, cacheCapacity))
   }
 
-  def consume(topicName: TopicName)(implicit F: Sync[F]): NJKafkaByteConsume[F] =
-    new NJKafkaByteConsume[F](
+  def consume(topicName: TopicName)(implicit F: Sync[F]): KafkaByteConsume[F] =
+    new KafkaByteConsume[F](
       topicName,
       ConsumerSettings[F, Array[Byte], Array[Byte]](
         Deserializer[F, Array[Byte]],
@@ -73,7 +74,7 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
       settings.schemaRegistrySettings
     )
 
-  def consume(topicName: TopicNameL)(implicit F: Sync[F]): NJKafkaByteConsume[F] =
+  def consume(topicName: TopicNameL)(implicit F: Sync[F]): KafkaByteConsume[F] =
     consume(TopicName(topicName))
 
   def monitor(topicName: TopicNameL, f: AutoOffsetReset.type => AutoOffsetReset = _.Latest)(implicit
@@ -100,16 +101,20 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
 
   // sink
 
-  def sink(topicName: TopicName)(implicit F: Sync[F]): NJGenericRecordSinkBuilder[F] =
-    new NJGenericRecordSinkBuilder[F](
-      topicName,
-      bytesProducerSettings,
-      schemaRegistry.fetchAvroSchema(topicName),
-      settings.schemaRegistrySettings
-    )
+  def sink(topicName: TopicName, f: Endo[ProducerSettings[F, Array[Byte], Array[Byte]]])(implicit
+    F: Async[F]): Pipe[F, Chunk[GenericRecord], ProducerResult[Array[Byte], Array[Byte]]] = {
+    (ss: Stream[F, Chunk[GenericRecord]]) =>
+      Stream.eval(schemaRegistry.fetchAvroSchema(topicName)).flatMap { skm =>
+        val builder = new PushGenericRecord(settings.schemaRegistrySettings, topicName, skm)
+        val prStream: Stream[F, ProducerRecords[Array[Byte], Array[Byte]]] =
+          ss.map(_.map(builder.fromGenericRecord))
+        KafkaProducer.pipe(f(bytesProducerSettings)).apply(prStream)
+      }
+  }
 
-  def sink(topicName: TopicNameL)(implicit F: Sync[F]): NJGenericRecordSinkBuilder[F] =
-    sink(TopicName(topicName))
+  def sink(topicName: TopicNameL, f: Endo[ProducerSettings[F, Array[Byte], Array[Byte]]])(implicit
+    F: Async[F]): Pipe[F, Chunk[GenericRecord], ProducerResult[Array[Byte], Array[Byte]]] =
+    sink(TopicName(topicName), f)
 
   // producer
 
@@ -172,23 +177,23 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
   def admin(implicit F: Async[F]): Resource[F, KafkaAdminClient[F]] =
     KafkaAdminClient.resource[F](settings.adminSettings)
 
-  def admin(topicName: TopicName)(implicit F: Async[F]): KafkaAdminApi[F] =
+  def admin(topicName: TopicName)(implicit F: Async[F]): Resource[F, KafkaAdminApi[F]] =
     KafkaAdminApi[F](admin, topicName, settings.consumerSettings)
 
-  def admin(topicName: TopicNameL)(implicit F: Async[F]): KafkaAdminApi[F] =
+  def admin(topicName: TopicNameL)(implicit F: Async[F]): Resource[F, KafkaAdminApi[F]] =
     admin(TopicName(topicName))
 
   // pick up single record
 
   def cherryPick(topicName: TopicName, partition: Int, offset: Long)(implicit F: Async[F]): F[String] =
-    admin(topicName).retrieveRecord(partition, offset).flatMap {
+    admin(topicName).use(_.retrieveRecord(partition, offset).flatMap {
       case None => F.raiseError(new Exception("no record"))
       case Some(value) =>
         schemaRegistry.fetchAvroSchema(topicName).flatMap { schemaPair =>
           val pgr = new PullGenericRecord(settings.schemaRegistrySettings, topicName, schemaPair)
           F.fromTry(pgr.toGenericRecord(value).flatMap(gr2Jackson(_)))
         }
-    }
+    })
 
   def cherryPick(topicName: TopicNameL, partition: Int, offset: Long)(implicit F: Async[F]): F[String] =
     cherryPick(TopicName(topicName), partition, offset)

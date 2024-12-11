@@ -64,12 +64,12 @@ class KafkaAvroTest extends AnyFunSuite {
             ProducerRecord(topicCO.topicName.value, 0, co1),
             ProducerRecord(topicCO.topicName.value, 1, co2))))
       .covary[IO]
-      .through(topicCO.produce.updateConfig(_.withClientId("kafka.avro.test1")).pipe)
+      .through(topicCO.produce.updateConfig(_.withClientId("kafka.avro.test1")).sink)
     val path = "./data/test/spark/kafka/coproduct/caseobject.avro"
     val sk   = sparKafka.topic(topicCO.topicDef)
 
     val run =
-      ctx.admin(topicCO.topicName).iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt >>
+      ctx.admin(topicCO.topicName).use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt) >>
         ctx.schemaRegistry.register(topicCO.topicDef) >>
         data.compile.drain >>
         sk.fromKafka.flatMap(_.output.avro(path).run[IO]) >>
@@ -85,7 +85,7 @@ class KafkaAvroTest extends AnyFunSuite {
             ProducerRecord(topicEnum.topicName.value, 0, en1),
             ProducerRecord(topicEnum.topicName.value, 1, en2))))
       .covary[IO]
-      .through(topicEnum.produce.updateConfig(_.withClientId("kafka.avro.test2")).pipe)
+      .through(topicEnum.produce.updateConfig(_.withClientId("kafka.avro.test2")).sink)
     val avroPath    = "./data/test/spark/kafka/coproduct/scalaenum.avro"
     val jacksonPath = "./data/test/spark/kafka/coproduct/scalaenum.jackson.json"
     val circePath   = "./data/test/spark/kafka/coproduct/scalaenum.circe.json"
@@ -94,7 +94,7 @@ class KafkaAvroTest extends AnyFunSuite {
     val sk = sparKafka.topic(topicEnum.topicDef)
 
     val run =
-      ctx.admin(topicEnum.topicName).iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt >>
+      ctx.admin(topicEnum.topicName).use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt) >>
         ctx.schemaRegistry.register(topicEnum.topicDef) >>
         data.compile.drain >>
         sk.fromKafka.flatMap(_.output.avro(avroPath).run[IO]) >>
@@ -117,13 +117,13 @@ class KafkaAvroTest extends AnyFunSuite {
             ProducerRecord(topicEnum.topicName.value, 0, en1),
             ProducerRecord(topicEnum.topicName.value, 1, en2))))
       .covary[IO]
-      .through(topicEnum.produce.updateConfig(_.withClientId("kafka.avro.test3")).pipe)
+      .through(topicEnum.produce.updateConfig(_.withClientId("kafka.avro.test3")).sink)
 
     val path = "./data/test/spark/kafka/coproduct/multi-scalaenum.avro"
     val sk   = sparKafka.topic(topicEnum.topicDef)
 
     val run =
-      ctx.admin(topicEnum.topicName).iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt >>
+      ctx.admin(topicEnum.topicName).use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt) >>
         ctx.schemaRegistry.register(topicEnum.topicDef) >>
         data.compile.drain >>
         sk.fromKafka.flatMap(_.output.avro(path).run[IO]) >>
@@ -139,13 +139,13 @@ class KafkaAvroTest extends AnyFunSuite {
             ProducerRecord(topicEnum.topicName.value, 0, en1),
             ProducerRecord(topicEnum.topicName.value, 1, en2))))
       .covary[IO]
-      .through(topicEnum.produce.updateConfig(_.withClientId("kafka.avro.test4")).pipe)
+      .through(topicEnum.produce.updateConfig(_.withClientId("kafka.avro.test4")).sink)
 
     val path = "./data/test/spark/kafka/coproduct/multi-scalaenum.snappy.avro"
     val sk   = sparKafka.topic(topicEnum.topicDef)
 
     val run =
-      ctx.admin(topicEnum.topicName).iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt >>
+      ctx.admin(topicEnum.topicName).use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt) >>
         ctx.schemaRegistry.register(topicEnum.topicDef) >>
         data.compile.drain >>
         sk.fromKafka.flatMap(_.output.avro(path).withCompression(_.Snappy).run[IO]) >>
@@ -160,12 +160,12 @@ class KafkaAvroTest extends AnyFunSuite {
             ProducerRecord(topicEnum.topicName.value, 0, en1),
             ProducerRecord(topicEnum.topicName.value, 1, en2))))
       .covary[IO]
-      .through(topicEnum.produce.updateConfig(_.withClientId("kafka.avro.test5")).pipe)
+      .through(topicEnum.produce.updateConfig(_.withClientId("kafka.avro.test5")).sink)
     val path = "./data/test/spark/kafka/coproduct/scalaenum.avro.bzip2"
     val sk   = sparKafka.topic(topicEnum.topicDef)
 
     val run =
-      ctx.admin(topicEnum.topicName).iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt >>
+      ctx.admin(topicEnum.topicName).use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt) >>
         ctx.schemaRegistry.register(topicEnum.topicDef) >>
         data.compile.drain >>
         sk.fromKafka.flatMap(_.output.binAvro(path).withCompression(_.Bzip2).run[IO]) >>
