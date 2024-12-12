@@ -43,46 +43,44 @@ object KafkaAdminApi {
   def apply[F[_]: Async](
     adminResource: Resource[F, KafkaAdminClient[F]],
     topicName: TopicName,
-    consumerSettings: KafkaConsumerSettings): KafkaAdminApi[F] =
-    new KafkaTopicAdminApiImpl(adminResource, topicName, consumerSettings)
+    consumerSettings: KafkaConsumerSettings): Resource[F, KafkaAdminApi[F]] =
+    adminResource.map { client =>
+      new KafkaTopicAdminApiImpl(client, topicName, consumerSettings)
+    }
 
   final private class KafkaTopicAdminApiImpl[F[_]: Async](
-    adminResource: Resource[F, KafkaAdminClient[F]],
+    client: KafkaAdminClient[F],
     topicName: TopicName,
     consumerSettings: KafkaConsumerSettings)
       extends KafkaAdminApi[F] {
 
     override def iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence: F[Unit] =
-      adminResource.use(_.deleteTopic(topicName.value))
+      client.deleteTopic(topicName.value)
 
     override def newTopic(numPartition: Int, numReplica: Short): F[Unit] =
-      adminResource.use(_.createTopic(new NewTopic(topicName.value, numPartition, numReplica)))
+      client.createTopic(new NewTopic(topicName.value, numPartition, numReplica))
 
     override def mirrorTo(other: TopicName, numReplica: Short): F[Unit] =
-      adminResource.use { c =>
-        for {
-          desc <- c.describeTopics(List(topicName.value)).map(_(topicName.value))
-          _ <- c.createTopic(new NewTopic(other.value, desc.partitions().size(), numReplica))
-        } yield ()
-      }
+      for {
+        desc <- client.describeTopics(List(topicName.value)).map(_(topicName.value))
+        _ <- client.createTopic(new NewTopic(other.value, desc.partitions().size(), numReplica))
+      } yield ()
 
     override def describe: F[Map[String, TopicDescription]] =
-      adminResource.use(_.describeTopics(List(topicName.value)))
+      client.describeTopics(List(topicName.value))
 
     /** list of all consumer-groups which consume the topic
       * @return
       */
     override def groups: F[List[GroupId]] =
-      adminResource.use { client =>
-        for {
-          gIds <- client.listConsumerGroups.groupIds
-          ids <- gIds.traverseFilter(gid =>
-            client
-              .listConsumerGroupOffsets(gid)
-              .partitionsToOffsetAndMetadata
-              .map(m => if (m.keySet.map(_.topic()).contains(topicName.value)) Some(gid) else None))
-        } yield ids.distinct.map(GroupId(_))
-      }
+      for {
+        gIds <- client.listConsumerGroups.groupIds
+        ids <- gIds.traverseFilter(gid =>
+          client
+            .listConsumerGroupOffsets(gid)
+            .partitionsToOffsetAndMetadata
+            .map(m => if (m.keySet.map(_.topic()).contains(topicName.value)) Some(gid) else None))
+      } yield ids.distinct.map(GroupId(_))
 
     // consumer
     import TransientConsumer.PureConsumerSettings
@@ -98,8 +96,9 @@ object KafkaAdminApi {
     override def lagBehind(groupId: String): F[TopicPartitionMap[Option[LagBehind]]] =
       for {
         ends <- transientConsumer(initCS.withGroupId(groupId)).endOffsets
-        curr <- adminResource
-          .use(_.listConsumerGroupOffsets(groupId).partitionsToOffsetAndMetadata)
+        curr <- client
+          .listConsumerGroupOffsets(groupId)
+          .partitionsToOffsetAndMetadata
           .map(_.filter(_._1.topic() === topicName.value).view.mapValues(Offset(_)).toMap)
           .map(TopicPartitionMap(_))
       } yield calculate.admin_lagBehind(ends, curr)
@@ -112,7 +111,7 @@ object KafkaAdminApi {
     override def deleteConsumerGroupOffsets(groupId: String): F[Unit] =
       for {
         tps <- transientConsumer(initCS.withGroupId(groupId)).partitionsFor
-        _ <- adminResource.use(_.deleteConsumerGroupOffsets(groupId, tps.value.toSet))
+        _ <- client.deleteConsumerGroupOffsets(groupId, tps.value.toSet)
       } yield ()
 
     override def offsetRangeFor(dtr: DateTimeRange): F[TopicPartitionMap[Option[OffsetRange]]] =

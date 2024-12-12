@@ -22,13 +22,13 @@ class CopyDataTest extends AnyFunSuite {
   val d5 = ProducerRecord(src.topicName.value, 4, null.asInstanceOf[MyTestData]).withTimestamp(50)
 
   val loadData =
-    fs2.Stream(ProducerRecords(List(d1, d2, d3, d4, d5))).covary[IO].through(src.produce.pipe).compile.drain
+    fs2.Stream(ProducerRecords(List(d1, d2, d3, d4, d5))).covary[IO].through(src.produce.sink).compile.drain
 
   val prepareData =
-    ctx.admin(src.topicName).iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt >>
+    ctx.admin(src.topicName).use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt) >>
       ctx.schemaRegistry.delete(src.topicName).attempt >>
       ctx.schemaRegistry.register(src.topicDef).attempt >>
-      ctx.admin(tgt.topicName).iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt >>
+      ctx.admin(tgt.topicName).use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt) >>
       ctx.schemaRegistry.delete(tgt.topicName).attempt >>
       ctx.schemaRegistry.register(tgt.topicDef).attempt >>
       loadData
@@ -43,7 +43,7 @@ class CopyDataTest extends AnyFunSuite {
           _.prRdd.noPartition.noTimestamp.noMeta
             .withTopicName(tgt.topicName)
             .producerRecords[IO](100)
-            .through(tgt.produce.pipe)
+            .through(tgt.produce.sink)
             .compile
             .drain)
       srcData = sparKafka.topic(src.topicDef).fromKafka.map(_.rdd.collect()).unsafeRunSync()

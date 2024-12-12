@@ -135,7 +135,7 @@ private object SlackTranslator extends all {
     def stopCause(ssc: ServiceStopCause): String = ssc match {
       case ServiceStopCause.Successfully       => "Successfully"
       case ServiceStopCause.ByCancellation     => "ByCancellation"
-      case ServiceStopCause.ByException(error) => s"""```${error.stack.mkString("\n\t")}```"""
+      case ServiceStopCause.ByException(error) => s"""```${abbreviate(error.stack.mkString("\n\t"))}```"""
       case ServiceStopCause.Maintenance        => "Maintenance"
     }
     val color = coloring(evt)
@@ -149,7 +149,7 @@ private object SlackTranslator extends all {
             host_service_section(evt.serviceParams),
             uptime_section(evt),
             MarkdownSection(show"""|*$CONSTANT_SERVICE_ID:* ${evt.serviceParams.serviceId}
-                                   |*$CONSTANT_CAUSE:* ${abbreviate(stopCause(evt.cause))}""".stripMargin)
+                                   |*$CONSTANT_CAUSE:* ${stopCause(evt.cause)}""".stripMargin)
           )
         ),
         Attachment(color = color, blocks = List(brief(evt.serviceParams.brief)))

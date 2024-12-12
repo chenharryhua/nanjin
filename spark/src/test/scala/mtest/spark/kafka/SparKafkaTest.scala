@@ -3,7 +3,7 @@ package mtest.spark.kafka
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
-import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, NJKafkaByteConsume, TopicDef}
+import com.github.chenharryhua.nanjin.kafka.{KafkaByteConsume, KafkaTopic, TopicDef}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{gr2BinAvro, gr2Circe, gr2Jackson, AvroCodec}
 import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJProducerRecord}
 import com.sksamuel.avro4s.SchemaFor
@@ -40,11 +40,11 @@ class SparKafkaTest extends AnyFunSuite {
       .Stream(ProducerRecords(
         List(ProducerRecord(topic.topicName.value, 1, data), ProducerRecord(topic.topicName.value, 2, data))))
       .covary[IO]
-      .through(topic.produce.updateConfig(_.withClientId("spark.kafka.test")).pipe)
+      .through(topic.produce.updateConfig(_.withClientId("spark.kafka.test")).sink)
       .compile
       .drain
 
-  (ctx.admin(topic.topicName).iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt >>
+  (ctx.admin(topic.topicName).use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt) >>
     ctx.schemaRegistry.register(topic.topicDef) >> loadData).unsafeRunSync()
 
   test("sparKafka read topic from kafka") {
@@ -184,7 +184,7 @@ class SparKafkaTest extends AnyFunSuite {
         _.map(hadoop.source(_).jackson(10, topic.topic.topicDef.schemaPair.consumerSchema))
           .reduce(_ ++ _)
           .chunks
-          .through(ctx.sink(topic.topicName).updateConfig(_.withClientId("a")).build))
+          .through(ctx.sink(topic.topicName, _.withClientId("a"))))
       .compile
       .drain
       .unsafeRunSync()
@@ -203,7 +203,7 @@ class SparKafkaTest extends AnyFunSuite {
     assert(s1.diff(s2).rdd.count() == 0)
   }
 
-  val duckConsume: NJKafkaByteConsume[IO] =
+  val duckConsume: KafkaByteConsume[IO] =
     ctx.consume("duck.test").updateConfig(_.withAutoOffsetReset(AutoOffsetReset.Earliest).withGroupId("duck"))
 
   test("generic record") {

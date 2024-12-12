@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard.service
 
 import cats.Endo
 import cats.effect.kernel.{Async, Resource}
-import cats.effect.std.AtomicCell
+import cats.effect.std.{AtomicCell, Dispatcher}
 import cats.syntax.all.*
 import com.codahale.metrics.MetricRegistry
 import com.codahale.metrics.jmx.JmxReporter
@@ -55,6 +55,7 @@ final class ServiceGuard[F[_]: Network] private[guard] (serviceName: ServiceName
   def eventStream(runAgent: Agent[F] => F[Unit]): Stream[F, Event] =
     for {
       serviceParams <- Stream.eval(initStatus)
+      dispatcher <- Stream.resource(Dispatcher.parallel[F])
       panicHistory <- Stream.eval(
         AtomicCell[F].of(new CircularFifoQueue[ServicePanic](serviceParams.historyCapacity.panic)))
       metricsHistory <- Stream.eval(
@@ -126,7 +127,8 @@ final class ServiceGuard[F[_]: Network] private[guard] (serviceName: ServiceName
             serviceParams = serviceParams,
             metricRegistry = metricRegistry,
             channel = channel,
-            measurement = Measurement(serviceParams.serviceName.value)
+            measurement = Measurement(serviceParams.serviceName.value),
+            dispatcher = dispatcher
           )
 
         val surveillance: Stream[F, Nothing] =

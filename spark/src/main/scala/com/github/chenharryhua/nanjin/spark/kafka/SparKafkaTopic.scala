@@ -52,15 +52,14 @@ final class SparKafkaTopic[F[_], K, V](val sparkSession: SparkSession, val topic
   def fromKafka(offsets: Map[Int, (Long, Long)])(implicit F: Async[F]): F[CrRdd[K, V]] =
     KafkaContext[F](topic.settings)
       .admin(topicName)
-      .partitionsFor
-      .map { partitions =>
+      .use(_.partitionsFor.map { partitions =>
         val topicPartition = partitions.value.map { tp =>
           val ofs: Option[OffsetRange] =
             offsets.get(tp.partition()).flatMap(se => OffsetRange(Offset(se._1), Offset(se._2)))
           tp -> ofs
         }.toMap
         TopicPartitionMap(topicPartition)
-      }
+      })
       .map(offsetRange => crRdd(sk.kafkaBatch(topic, sparkSession, offsetRange)))
 
   /** load topic data from disk

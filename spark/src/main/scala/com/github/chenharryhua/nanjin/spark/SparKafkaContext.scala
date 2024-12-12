@@ -58,7 +58,7 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
     val grRdd: F[RDD[String]] = for {
       schemaPair <- kafkaContext.schemaRegistry.fetchAvroSchema(topicName)
       builder = new PullGenericRecord(kafkaContext.settings.schemaRegistrySettings, topicName, schemaPair)
-      range <- kafkaContext.admin(topicName).offsetRangeFor(dateRange)
+      range <- kafkaContext.admin(topicName).use(_.offsetRangeFor(dateRange))
     } yield sk
       .kafkaBatchRDD(kafkaContext.settings.consumerSettings, sparkSession, range)
       .flatMap(builder.toGenericRecord(_).flatMap(gr2Jackson(_)).toOption)
@@ -114,7 +114,7 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
 
     for {
       schemaPair <- kafkaContext.schemaRegistry.fetchAvroSchema(topicName)
-      partitions <- kafkaContext.admin(topicName).partitionsFor.map(_.value.size)
+      partitions <- kafkaContext.admin(topicName).use(_.partitionsFor.map(_.value.size))
       hadoop  = Hadoop[F](sparkSession.sparkContext.hadoopConfiguration)
       builder = new PushGenericRecord(kafkaContext.settings.schemaRegistrySettings, topicName, schemaPair)
       num <- hadoop.filesIn(path).flatMap { fs =>

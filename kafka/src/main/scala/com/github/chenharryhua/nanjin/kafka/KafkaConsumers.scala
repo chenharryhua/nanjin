@@ -12,17 +12,17 @@ import org.apache.avro.generic.GenericData
 
 import scala.util.Try
 
-final class NJKafkaByteConsume[F[_]] private[kafka] (
+final class KafkaByteConsume[F[_]] private[kafka] (
   topicName: TopicName,
   consumerSettings: ConsumerSettings[F, Array[Byte], Array[Byte]],
   getSchema: F[AvroSchemaPair],
   srs: SchemaRegistrySettings
-) extends UpdateConfig[ConsumerSettings[F, Array[Byte], Array[Byte]], NJKafkaByteConsume[F]] {
+) extends UpdateConfig[ConsumerSettings[F, Array[Byte], Array[Byte]], KafkaByteConsume[F]] {
 
-  override def updateConfig(f: Endo[ConsumerSettings[F, Array[Byte], Array[Byte]]]): NJKafkaByteConsume[F] =
-    new NJKafkaByteConsume[F](topicName, f(consumerSettings), getSchema, srs)
+  override def updateConfig(f: Endo[ConsumerSettings[F, Array[Byte], Array[Byte]]]): KafkaByteConsume[F] =
+    new KafkaByteConsume[F](topicName, f(consumerSettings), getSchema, srs)
 
-  def resource(implicit F: Async[F]): Resource[F, KafkaConsumer[F, Array[Byte], Array[Byte]]] =
+  def consumer(implicit F: Async[F]): Resource[F, KafkaConsumer[F, Array[Byte], Array[Byte]]] =
     KafkaConsumer.resource(consumerSettings)
 
   /** raw bytes from kafka, un-deserialized
@@ -66,7 +66,7 @@ final class NJKafkaByteConsume[F[_]] private[kafka] (
 
   // assignment
 
-  def assignAvro(tps: TopicPartitionMap[Offset])(implicit
+  def genericRecords(tps: TopicPartitionMap[Offset])(implicit
     F: Async[F]): Stream[F, CommittableConsumerRecord[F, Unit, Try[GenericData.Record]]] =
     Stream.eval(getSchema).flatMap { skm =>
       val builder = new PullGenericRecord(srs, topicName, skm)
@@ -76,15 +76,15 @@ final class NJKafkaByteConsume[F[_]] private[kafka] (
     }
 }
 
-final class NJKafkaConsume[F[_], K, V] private[kafka] (
+final class KafkaConsume[F[_], K, V] private[kafka] (
   topicName: TopicName,
   consumerSettings: ConsumerSettings[F, K, V]
-) extends UpdateConfig[ConsumerSettings[F, K, V], NJKafkaConsume[F, K, V]] {
+) extends UpdateConfig[ConsumerSettings[F, K, V], KafkaConsume[F, K, V]] {
 
-  override def updateConfig(f: Endo[ConsumerSettings[F, K, V]]): NJKafkaConsume[F, K, V] =
-    new NJKafkaConsume[F, K, V](topicName, f(consumerSettings))
+  override def updateConfig(f: Endo[ConsumerSettings[F, K, V]]): KafkaConsume[F, K, V] =
+    new KafkaConsume[F, K, V](topicName, f(consumerSettings))
 
-  def resource(implicit F: Async[F]): Resource[F, KafkaConsumer[F, K, V]] =
+  def consumer(implicit F: Async[F]): Resource[F, KafkaConsumer[F, K, V]] =
     KafkaConsumer.resource(consumerSettings)
 
   def stream(implicit F: Async[F]): Stream[F, CommittableConsumerRecord[F, K, V]] =

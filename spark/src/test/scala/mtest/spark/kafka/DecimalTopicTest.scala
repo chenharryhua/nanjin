@@ -87,11 +87,11 @@ class DecimalTopicTest extends AnyFunSuite {
     stopic
       .prRdd(List(NJProducerRecord(stopic.topicName, 1, data), NJProducerRecord(stopic.topicName, 2, data)))
       .producerRecords[IO](100)
-      .through(stopic.topic.produce.pipe)
+      .through(stopic.topic.produce.sink)
       .compile
       .drain
 
-  (ctx.admin(topic.topicName).iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt >>
+  (ctx.admin(topic.topicName).use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt) >>
     ctx.schemaRegistry.register(topic.topicDef) >>
     loadData).unsafeRunSync()
 
