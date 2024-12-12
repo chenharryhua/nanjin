@@ -15,8 +15,7 @@ import com.github.chenharryhua.nanjin.guard.event.{
   ServiceStopCause
 }
 import com.github.chenharryhua.nanjin.guard.translator.htmlHelper.htmlColoring
-import com.github.chenharryhua.nanjin.guard.translator.textConstants.CONSTANT_LAUNCH_TIME
-import com.github.chenharryhua.nanjin.guard.translator.textConstants.CONSTANT_TOOK
+import com.github.chenharryhua.nanjin.guard.translator.textConstants.{CONSTANT_LAUNCH_TIME, CONSTANT_TOOK}
 import com.github.chenharryhua.nanjin.guard.translator.{fmt, prettifyJson, SnapshotPolyglot}
 import fs2.concurrent.Channel
 import io.circe.Json
@@ -66,11 +65,12 @@ private class HttpRouter[F[_]](
 
   private val deps_health_check: F[Json] =
     serviceParams.zonedNow[F].flatMap { now =>
-      F.timed(F.delay(retrieveHealthChecks(metricRegistry).values.forall(identity))).map { case (fd, b) =>
+      MetricSnapshot.timed(metricRegistry).map { case (fd, ss) =>
         Json.obj(
-          "healthy" -> b.asJson,
+          "healthy" -> retrieveHealthChecks(ss.gauges).values.forall(identity).asJson,
           "took" -> fmt.format(fd).asJson,
-          "when" -> now.toLocalTime.truncatedTo(ChronoUnit.SECONDS).asJson)
+          "when" -> now.toLocalTime.truncatedTo(ChronoUnit.SECONDS).asJson
+        )
       }
     }
 

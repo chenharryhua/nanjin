@@ -11,7 +11,7 @@ import com.github.chenharryhua.nanjin.guard.observers.console
 import io.circe.Json
 import org.scalatest.funsuite.AnyFunSuite
 
-import scala.concurrent.duration.DurationInt
+import scala.concurrent.duration.{DurationInt, FiniteDuration}
 
 class GaugeTest extends AnyFunSuite {
   private val service = TaskGuard[IO]("gauge").service("gauge")
@@ -98,5 +98,26 @@ class GaugeTest extends AnyFunSuite {
     val gauge = retrieveGauge[Int](mr.snapshot.gauges)
     assert(mr.snapshot.nonEmpty)
     assert(gauge.isEmpty)
+  }
+
+  test("expensive") {
+    def compute(fd: FiniteDuration) =
+      for {
+        s <- IO.realTimeInstant.flatTap(IO.println)
+        _ <- IO.sleep(fd)
+        e <- IO.realTimeInstant.flatTap(IO.println)
+        _ <- IO.println(s"--${fd.toSeconds}--")
+      } yield (fd.toSeconds, s, e)
+
+    service.eventStream { agent =>
+      agent.facilitate("expensive") { fac =>
+        val mtx = for {
+          _ <- fac.gauge("3").register(compute(3.second))
+          _ <- fac.gauge("2").register(compute(2.second))
+          _ <- fac.gauge("1").register(compute(1.second))
+        } yield ()
+        mtx.surround(agent.adhoc.report)
+      }
+    }.evalTap(console.text[IO]).compile.drain.unsafeRunSync()
   }
 }

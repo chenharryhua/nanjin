@@ -1,6 +1,5 @@
 package com.github.chenharryhua.nanjin.guard.event
 
-import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.config.CategoryKind.*
 import io.circe.Decoder
@@ -13,9 +12,6 @@ object retrieveHealthChecks {
           gg.value.asBoolean.map(gg.metricId -> _)
       }
     }.flatten.toMap
-
-  def apply(metricRegistry: MetricRegistry): Map[MetricID, Boolean] =
-    apply(MetricSnapshot.gauges(metricRegistry))
 }
 
 object retrieveGauge {
