@@ -247,7 +247,7 @@ lazy val datetime = (project in file("datetime"))
   .settings(commonSettings *)
   .settings(name := "nj-datetime")
   .settings(
-    libraryDependencies ++= List("org.typelevel" %% "cats-parse" % "1.0.0") ++
+    libraryDependencies ++= List("org.typelevel" %% "cats-parse" % "1.1.0") ++
       testLib
   )
 
@@ -368,7 +368,7 @@ val hadoopLib = List(
   "org.apache.hadoop"  % "hadoop-hdfs"                  % hadoopV,
   "org.apache.hadoop"  % "hadoop-hdfs-client"           % hadoopV,
   "org.slf4j"          % "jcl-over-slf4j"               % slf4jV,
-  "org.eclipse.jetty"  % "jetty-server"                 % "12.0.15", // snyk
+  "org.eclipse.jetty"  % "jetty-server"                 % "12.0.16", // snyk
   "io.netty"           % "netty-all"                    % nettyV, // snyk
   "com.nimbusds"       % "nimbus-jose-jwt"              % "9.47", // snyk
   "dnsjava"            % "dnsjava"                      % "3.6.2", // snyk
