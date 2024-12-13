@@ -55,7 +55,7 @@ final class ServiceGuard[F[_]: Network] private[guard] (serviceName: ServiceName
   def eventStream(runAgent: Agent[F] => F[Unit]): Stream[F, Event] =
     for {
       serviceParams <- Stream.eval(initStatus)
-      dispatcher <- Stream.resource(Dispatcher.parallel[F])
+      dispatcher <- Stream.resource(Dispatcher.sequential[F])
       panicHistory <- Stream.eval(
         AtomicCell[F].of(new CircularFifoQueue[ServicePanic](serviceParams.historyCapacity.panic)))
       metricsHistory <- Stream.eval(
