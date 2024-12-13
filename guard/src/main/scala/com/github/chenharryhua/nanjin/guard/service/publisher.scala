@@ -41,20 +41,25 @@ private object publisher {
       _ <- channel.send(mr)
     } yield metricRegistry.getCounters().values().asScala.foreach(c => c.dec(c.getCount))
 
-  def serviceReStart[F[_]](channel: Channel[F, Event], serviceParams: ServiceParams, tick: Tick)(implicit
-    F: Functor[F]): F[Unit] =
+  def serviceReStart[F[_]: Functor](
+    channel: Channel[F, Event],
+    serviceParams: ServiceParams,
+    tick: Tick): F[Unit] =
     channel.send(ServiceStart(serviceParams, tick)).void
 
-  def servicePanic[F[_]](channel: Channel[F, Event], serviceParams: ServiceParams, tick: Tick, error: Error)(
-    implicit F: Functor[F]): F[ServicePanic] = {
+  def servicePanic[F[_]: Functor](
+    channel: Channel[F, Event],
+    serviceParams: ServiceParams,
+    tick: Tick,
+    error: Error): F[ServicePanic] = {
     val panic: ServicePanic = ServicePanic(serviceParams, tick, error)
     channel.send(panic).as(panic)
   }
 
-  def serviceStop[F[_]: Clock](
+  def serviceStop[F[_]: Clock: Monad](
     channel: Channel[F, Event],
     serviceParams: ServiceParams,
-    cause: ServiceStopCause)(implicit F: Monad[F]): F[Unit] =
+    cause: ServiceStopCause): F[Unit] =
     serviceParams.zonedNow.flatMap { now =>
       channel.closeWithElement(ServiceStop(serviceParams, now, cause)).void
     }

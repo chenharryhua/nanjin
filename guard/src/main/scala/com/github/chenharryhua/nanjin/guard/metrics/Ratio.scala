@@ -92,7 +92,8 @@ object Ratio {
     private[guard] def build[F[_]: Async](
       label: MetricLabel,
       name: String,
-      metricRegistry: MetricRegistry): Resource[F, Ratio[F]] = {
+      metricRegistry: MetricRegistry,
+      dispatcher: Dispatcher[F]): Resource[F, Ratio[F]] = {
 
       val F = Async[F]
 
@@ -100,7 +101,6 @@ object Ratio {
         case (ts, unique) <- Resource.eval((F.monotonic, UUIDGen[F].randomUUID).mapN((_, _)))
         metricID = MetricID(label, MetricName(name, ts, unique), Category.Gauge(GaugeKind.Ratio)).identifier
         ref <- Resource.eval(F.ref(Ior.both(0L, 0L)))
-        dispatcher <- Dispatcher.sequential[F]
         _ <- Resource.make(F.delay {
           metricRegistry.gauge(
             metricID,

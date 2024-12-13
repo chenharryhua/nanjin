@@ -83,7 +83,7 @@ final private class GeneralAgent[F[_]: Async](
     f(new CircuitBreaker.Builder(maxFailures = 5, policy = Policy.giveUp)).build[F](zoneId)
 
   override def caffeineCache[K, V](cache: Cache[K, V]): Resource[F, CaffeineCache[F, K, V]] =
-    CaffeineCache.buildCache[F, K, V](cache)
+    CaffeineCache.build[F, K, V](cache)
 
   override def retry(f: Endo[Retry.Builder[F]]): Resource[F, Retry[F]] =
     f(new Retry.Builder[F](Policy.giveUp, _ => true.pure[F])).build(zoneId)
