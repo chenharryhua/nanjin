@@ -38,8 +38,8 @@ trait Metrics[F[_]] {
   def gauge(name: String, f: Endo[Gauge.Builder]): Gauge[F]
   final def gauge(name: String): Gauge[F] = gauge(name, identity)
 
-  def ratio(name: String, f: Endo[Ratio.Builder]): Resource[F, Ratio[F]]
-  final def ratio(name: String): Resource[F, Ratio[F]] = ratio(name, identity)
+  def percentile(name: String, f: Endo[Percentile.Builder]): Resource[F, Percentile[F]]
+  final def percentile(name: String): Resource[F, Percentile[F]] = percentile(name, identity)
 
   def healthCheck(name: String, f: Endo[HealthCheck.Builder]): HealthCheck[F]
   final def healthCheck(name: String): HealthCheck[F] = healthCheck(name, identity)
@@ -81,8 +81,8 @@ object Metrics {
     override def healthCheck(name: String, f: Endo[HealthCheck.Builder]): HealthCheck[F] =
       f(HealthCheck.initial).build[F](metricLabel, name, metricRegistry, dispatcher)
 
-    override def ratio(name: String, f: Endo[Ratio.Builder]): Resource[F, Ratio[F]] =
-      f(Ratio.initial).build[F](metricLabel, name, metricRegistry, dispatcher)
+    override def percentile(name: String, f: Endo[Percentile.Builder]): Resource[F, Percentile[F]] =
+      f(Percentile.initial).build[F](metricLabel, name, metricRegistry, dispatcher)
 
     override def gauge(name: String, f: Endo[Gauge.Builder]): Gauge[F] =
       f(Gauge.initial).build[F](metricLabel, name, metricRegistry, dispatcher)

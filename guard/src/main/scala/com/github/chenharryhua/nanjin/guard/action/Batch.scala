@@ -49,11 +49,13 @@ object Batch {
     protected def measure(size: Int, kind: BatchKind, mode: BatchMode): Resource[F, DoMeasurement] =
       for {
         _ <- mtx.activeGauge("elapsed")
-        ratio <- mtx.ratio("completion", _.withTranslator(translator)).evalTap(_.incDenominator(size.toLong))
+        percentile <- mtx
+          .percentile("completion", _.withTranslator(translator))
+          .evalTap(_.incDenominator(size.toLong))
         progress <- Resource.eval(F.ref[List[Detail]](Nil))
         _ <- mtx.gauge(show"$mode $kind completed").register(progress.get.map(toJson))
       } yield Kleisli { (detail: Detail) =>
-        F.uncancelable(_ => ratio.incNumerator(1) *> progress.update(_.appended(detail)))
+        F.uncancelable(_ => percentile.incNumerator(1) *> progress.update(_.appended(detail)))
       }
 
     /** batch always success but jobs may fail

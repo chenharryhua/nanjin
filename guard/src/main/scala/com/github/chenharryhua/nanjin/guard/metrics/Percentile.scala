@@ -14,7 +14,7 @@ import io.circe.syntax.EncoderOps
 
 import scala.util.Try
 
-trait Ratio[F[_]] extends KleisliLike[F, Ior[Long, Long]] {
+trait Percentile[F[_]] extends KleisliLike[F, Ior[Long, Long]] {
 
   /** @param numerator
     *   The number above the fraction line, representing the part of the whole. For example, in the fraction
@@ -44,15 +44,15 @@ trait Ratio[F[_]] extends KleisliLike[F, Ior[Long, Long]] {
   }
 }
 
-object Ratio {
-  def noop[F[_]](implicit F: Applicative[F]): Ratio[F] =
-    new Ratio[F] {
+object Percentile {
+  def noop[F[_]](implicit F: Applicative[F]): Percentile[F] =
+    new Percentile[F] {
       override def incNumerator(numerator: Long): F[Unit]               = F.unit
       override def incDenominator(denominator: Long): F[Unit]           = F.unit
       override def incBoth(numerator: Long, denominator: Long): F[Unit] = F.unit
     }
 
-  private class Impl[F[_]](private[this] val ref: Ref[F, Ior[Long, Long]]) extends Ratio[F] {
+  private class Impl[F[_]](private[this] val ref: Ref[F, Ior[Long, Long]]) extends Percentile[F] {
 
     private[this] def update(ior: Ior[Long, Long]): F[Unit] = ref.update(_ |+| ior)
 
@@ -93,11 +93,11 @@ object Ratio {
       label: MetricLabel,
       name: String,
       metricRegistry: MetricRegistry,
-      dispatcher: Dispatcher[F]): Resource[F, Ratio[F]] = {
+      dispatcher: Dispatcher[F]): Resource[F, Percentile[F]] = {
 
       val F = Async[F]
 
-      val impl: Resource[F, Ratio[F]] = for {
+      val impl: Resource[F, Percentile[F]] = for {
         case (ts, unique) <- Resource.eval((F.monotonic, UUIDGen[F].randomUUID).mapN((_, _)))
         metricID = MetricID(label, MetricName(name, ts, unique), Category.Gauge(GaugeKind.Ratio)).identifier
         ref <- Resource.eval(F.ref(Ior.both(0L, 0L)))
