@@ -156,7 +156,11 @@ final class FileRotateSink[F[_]: Async] private (
     (ss: Stream[F, Chunk[String]]) => periodically.persist(ss, paths, get_writer).stream
   }
 
-  // protobuf
+  /** Any proto in serialized form must be <2GiB, as that is the maximum size supported by all
+    * implementations. It’s recommended to bound request and response sizes.
+    *
+    * https://protobuf.dev/programming-guides/proto-limits/#total
+    */
   val protobuf: Pipe[F, Chunk[GeneratedMessage], TickedValue[Int]] = {
     def get_writer(url: Path): Resource[F, HadoopWriter[F, GeneratedMessage]] =
       HadoopWriter.protobufR(configuration, url)

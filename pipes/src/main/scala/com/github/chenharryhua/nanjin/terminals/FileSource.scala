@@ -78,6 +78,11 @@ final class FileSource[F[_]: Sync] private (configuration: Configuration, path: 
   def text(chunkSize: ChunkSize): Stream[F, String] =
     HadoopReader.stringS[F](configuration, path, chunkSize)
 
+  /** Any proto in serialized form must be <2GiB, as that is the maximum size supported by all
+    * implementations. It’s recommended to bound request and response sizes.
+    *
+    * https://protobuf.dev/programming-guides/proto-limits/#total
+    */
   def protobuf[A <: GeneratedMessage](chunkSize: ChunkSize)(implicit
     gmc: GeneratedMessageCompanion[A]): Stream[F, A] =
     HadoopReader.inputStreamS(configuration, path).flatMap { is =>
