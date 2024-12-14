@@ -14,6 +14,7 @@ import java.time.ZoneId
 import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
+import scala.concurrent.duration.DurationInt
 object Hadoop {
 
   def apply[F[_]](config: Configuration): Hadoop[F] = new Hadoop[F](config)
@@ -138,4 +139,10 @@ final class Hadoop[F[_]] private (config: Configuration) {
   def rotateSink(policy: Policy, zoneId: ZoneId)(pathBuilder: Tick => Url)(implicit
     F: Async[F]): FileRotateSink[F] =
     rotateSink(tickStream.fromZero[F](policy, zoneId).map(tick => TickedValue(tick, pathBuilder(tick))))
+
+  def rotateSink(pathBuilder: Long => Url)(implicit F: Async[F]): FileRotateSink[F] =
+    rotateSink(
+      tickStream
+        .fromZero[F](Policy.fixedDelay(0.seconds), ZoneId.systemDefault())
+        .map(tick => TickedValue(tick, pathBuilder(tick.index))))
 }

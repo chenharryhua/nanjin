@@ -113,6 +113,43 @@ class NJCirceTest extends AnyFunSuite {
       .unsafeRunSync()
   }
 
+  test("rotation - index") {
+    val path   = fs2Root / "rotation" / "index"
+    val number = 10000L
+    hdp.delete(path).unsafeRunSync()
+    val processedSize = Stream
+      .emits(TestData.tigerSet.toList)
+      .covary[IO]
+      .repeatN(number)
+      .map(_.asJson)
+      .chunkN(1000)
+      .through(hdp.rotateSink(t => path / s"$t.json").circe)
+      .fold(0L)((sum, v) => sum + v.value)
+      .compile
+      .lastOrError
+      .unsafeRunSync()
+    val size =
+      hdp
+        .filesIn(path)
+        .flatMap(_.traverse(hdp.source(_).circe.compile.toList.map(_.size)))
+        .map(_.sum)
+        .unsafeRunSync()
+    assert(size == number * TestData.tigerSet.toList.size)
+    assert(processedSize == number * TestData.tigerSet.toList.size)
+
+    def tigers1(path: Url): Stream[IO, Tiger] =
+      hdp.source(path).bytes.through(utf8.decode).through(lines).map(jawn.decode[Tiger]).rethrow
+
+    def tigers2(path: Url): Stream[IO, Tiger] =
+      hdp.source(path).bytes.chunks.parseJsonStream.map(_.as[Tiger]).rethrow
+
+    hdp
+      .filesIn(path)
+      .flatMap(_.traverse(p =>
+        tigers1(p).interleave(tigers2(p)).chunkN(2).map(c => assert(c(0) == c(1))).compile.drain))
+      .unsafeRunSync()
+  }
+
   test("rotation - empty") {
     val path = fs2Root / "rotation" / "empty"
     hdp.delete(path).unsafeRunSync()
