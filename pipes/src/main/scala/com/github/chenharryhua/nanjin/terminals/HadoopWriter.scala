@@ -15,6 +15,7 @@ import org.apache.hadoop.fs.Path
 import org.apache.hadoop.io.compress.CompressionCodecFactory
 import org.apache.parquet.avro.AvroParquetWriter
 import org.apache.parquet.hadoop.util.HadoopOutputFile
+import scalapb.GeneratedMessage
 
 import java.io.OutputStream
 import java.nio.charset.{Charset, StandardCharsets}
@@ -156,4 +157,13 @@ private object HadoopWriter {
       configuration,
       schema,
       path)
+
+  def protobufR[F[_]](configuration: Configuration, path: Path)(implicit
+    F: Sync[F]): Resource[F, HadoopWriter[F, GeneratedMessage]] =
+    outputStreamR(path, configuration).map { os =>
+      new HadoopWriter[F, GeneratedMessage] {
+        override def write(ck: Chunk[GeneratedMessage]): F[Unit] =
+          F.delay(ck.foreach(_.writeDelimitedTo(os)))
+      }
+    }
 }

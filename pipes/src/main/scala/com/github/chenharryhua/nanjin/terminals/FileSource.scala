@@ -17,6 +17,7 @@ import org.apache.hadoop.fs.Path
 import org.apache.parquet.avro.AvroParquetReader
 import org.apache.parquet.hadoop.ParquetReader
 import org.apache.parquet.hadoop.util.HadoopInputFile
+import scalapb.{GeneratedMessage, GeneratedMessageCompanion}
 import squants.information.{Bytes, Information}
 
 import java.io.{InputStream, InputStreamReader}
@@ -76,6 +77,12 @@ final class FileSource[F[_]: Sync] private (configuration: Configuration, path: 
 
   def text(chunkSize: ChunkSize): Stream[F, String] =
     HadoopReader.stringS[F](configuration, path, chunkSize)
+
+  def protobuf[A <: GeneratedMessage](chunkSize: ChunkSize)(implicit
+    gmc: GeneratedMessageCompanion[A]): Stream[F, A] =
+    HadoopReader.inputStreamS(configuration, path).flatMap { is =>
+      Stream.fromIterator(gmc.streamFromDelimitedInput(is).iterator, chunkSize.value)
+    }
 
   // java InputStream
   val inputStream: Resource[F, InputStream] =

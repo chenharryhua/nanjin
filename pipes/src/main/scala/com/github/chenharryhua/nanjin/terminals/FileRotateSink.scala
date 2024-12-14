@@ -19,6 +19,7 @@ import org.apache.parquet.avro.AvroParquetWriter.Builder
 import org.apache.parquet.hadoop.ParquetFileWriter
 import org.apache.parquet.hadoop.metadata.CompressionCodecName
 import org.apache.parquet.hadoop.util.HadoopOutputFile
+import scalapb.GeneratedMessage
 
 final class FileRotateSink[F[_]: Async] private (
   configuration: Configuration,
@@ -153,6 +154,14 @@ final class FileRotateSink[F[_]: Async] private (
       HadoopWriter.stringR(configuration, url)
 
     (ss: Stream[F, Chunk[String]]) => periodically.persist(ss, paths, get_writer).stream
+  }
+
+  // protobuf
+  val protobuf: Pipe[F, Chunk[GeneratedMessage], TickedValue[Int]] = {
+    def get_writer(url: Path): Resource[F, HadoopWriter[F, GeneratedMessage]] =
+      HadoopWriter.protobufR(configuration, url)
+
+    (ss: Stream[F, Chunk[GeneratedMessage]]) => periodically.persist(ss, paths, get_writer).stream
   }
 }
 

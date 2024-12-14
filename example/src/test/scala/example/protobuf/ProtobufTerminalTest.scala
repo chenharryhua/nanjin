@@ -22,18 +22,9 @@ class ProtobufTerminalTest extends AnyFunSuite {
   def run(file: ProtobufFile): Assertion = {
     val path: Url = root / file.fileName
 
-    val write =
-      Stream
-        .resource(hadoop.sink(path).outputStream)
-        .flatMap(os => data.map(_.writeDelimitedTo(os)))
-        .compile
-        .drain
+    val write = data.chunks.through(hadoop.sink(path).protobuf).compile.drain
 
-    val read = Stream
-      .resource(hadoop.source(path).inputStream)
-      .flatMap(is => Stream.fromIterator[IO].apply(gmc.streamFromDelimitedInput(is).iterator, 1))
-      .compile
-      .toList
+    val read = hadoop.source(path).protobuf[Lion](100).compile.toList
 
     val res = (hadoop.delete(path) >> write >> read).unsafeRunSync()
     assert(lions === res)
