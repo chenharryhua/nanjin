@@ -226,17 +226,17 @@ object Compression {
 
   case object Lz4_Raw
       extends Compression with ParquetCompression with BinaryAvroCompression with CirceCompression
-      with JacksonCompression with KantanCompression with TextCompression with ProtobufCompression {
+      with JacksonCompression with KantanCompression with TextCompression {
     override val shortName: String     = "lz4raw"
     override val fileExtension: String = ".lz4raw"
   }
 
-  case object Brotli extends Compression with ParquetCompression with ProtobufCompression {
+  case object Brotli extends Compression with ParquetCompression {
     override val shortName: String     = "brotli"
     override val fileExtension: String = ".brotli"
   }
 
-  case object Lzo extends Compression with ParquetCompression with ProtobufCompression {
+  case object Lzo extends Compression with ParquetCompression {
     override val shortName: String     = "lzo"
     override val fileExtension: String = ".lzo"
   }
@@ -248,8 +248,7 @@ object Compression {
     override val fileExtension: String = ".deflate"
   }
 
-  final case class Xz(level: NJCompressionLevel)
-      extends Compression with AvroCompression with ProtobufCompression {
+  final case class Xz(level: NJCompressionLevel) extends Compression with AvroCompression {
     override val shortName: String     = "xz"
     override val fileExtension: String = ".xz"
   }
@@ -337,9 +336,5 @@ object ProtobufCompression {
   val Bzip2: ProtobufCompression                              = Compression.Bzip2
   val Gzip: ProtobufCompression                               = Compression.Gzip
   val Lz4: ProtobufCompression                                = Compression.Lz4
-  val Lz4_Raw: ProtobufCompression                            = Compression.Lz4_Raw
-  val Brotli: ProtobufCompression                             = Compression.Brotli
-  val Lzo: ProtobufCompression                                = Compression.Lzo
   def Deflate(level: NJCompressionLevel): ProtobufCompression = Compression.Deflate(level)
-  def Xz(level: NJCompressionLevel): ProtobufCompression      = Compression.Xz(level)
 }

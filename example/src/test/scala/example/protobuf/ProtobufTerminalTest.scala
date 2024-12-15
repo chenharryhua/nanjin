@@ -45,23 +45,11 @@ class ProtobufTerminalTest extends AnyFunSuite {
   test("4.gzip") {
     run(ProtobufFile(Compression.Gzip))
   }
-  test("5.lzo") {
-    run(ProtobufFile(Compression.Lzo))
-  }
   test("6.lz4") {
     run(ProtobufFile(Compression.Lz4))
   }
-  test("7.lz4_raw") {
-    run(ProtobufFile(Compression.Lz4_Raw))
-  }
-  test("8.brotli") {
-    run(ProtobufFile(Compression.Brotli))
-  }
   test("9.deflate-3") {
     run(ProtobufFile(Compression.Deflate(3)))
-  }
-  test("10.xz") {
-    run(ProtobufFile(Compression.Xz(3)))
   }
 
 }
