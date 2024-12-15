@@ -98,13 +98,14 @@ class NJBinAvroTest extends AnyFunSuite {
   test("rotation - index") {
     val path   = fs2Root / "rotation" / "index"
     val number = 10000L
+    val file = BinAvroFile(_.Uncompressed)
     hdp.delete(path).unsafeRunSync()
     val processedSize = Stream
       .emits(pandaSet.toList)
       .covary[IO]
       .repeatN(number)
       .chunkN(1000)
-      .through(hdp.rotateSink(t => path / s"$t.avro").binAvro)
+      .through(hdp.rotateSink(t => path / file.fileName(t)).binAvro)
       .fold(0L)((sum, v) => sum + v.value)
       .compile
       .lastOrError

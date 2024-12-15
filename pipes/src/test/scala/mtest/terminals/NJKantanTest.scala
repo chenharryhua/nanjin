@@ -129,10 +129,11 @@ class NJKantanTest extends AnyFunSuite {
   test("rotation - with-header - index") {
     val path = fs2Root / "rotation" / "header" / "index"
     hdp.delete(path).unsafeRunSync()
+    val file = KantanFile(_.Uncompressed)
     herd
       .map(tigerEncoder.encode)
       .chunkN(1000)
-      .through(hdp.rotateSink(t => path / s"$t.csv").kantan(_.withHeader(CsvHeaderOf[Tiger].header)))
+      .through(hdp.rotateSink(t => path / file.fileName(t)).kantan(_.withHeader(CsvHeaderOf[Tiger].header)))
       .compile
       .drain
       .unsafeRunSync()
@@ -201,11 +202,12 @@ class NJKantanTest extends AnyFunSuite {
   test("rotation - no header - index") {
     val path   = fs2Root / "rotation" / "no-header" / "index"
     val number = 10000L
+    val file = KantanFile(_.Uncompressed)
     hdp.delete(path).unsafeRunSync()
     herd
       .map(tigerEncoder.encode)
       .chunkN(1000)
-      .through(hdp.rotateSink(t => path / s"$t.csv").kantan.andThen(_.drain))
+      .through(hdp.rotateSink(t => path / file.fileName(t)).kantan.andThen(_.drain))
       .map(tigerDecoder.decode)
       .rethrow
       .compile
