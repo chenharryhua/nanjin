@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.action
 
 import cats.effect.kernel.{Resource, Sync}
-import cats.implicits.{toFlatMapOps, toFunctorOps}
+import cats.implicits.{catsSyntaxApplicativeId, toFlatMapOps, toFunctorOps}
 import com.github.benmanes.caffeine.cache.Cache
 import com.github.benmanes.caffeine.cache.stats.CacheStats
 import io.circe.{Encoder, Json}
@@ -65,7 +65,6 @@ object CaffeineCache {
     val cleanUp: F[Unit] = F.delay(cache.cleanUp())
   }
 
-  private[guard] def buildCache[F[_], K, V](cache: Cache[K, V])(implicit
-    F: Sync[F]): Resource[F, CaffeineCache[F, K, V]] =
-    Resource.make(F.pure(new Impl(cache)))(_.cleanUp)
+  private[guard] def build[F[_]: Sync, K, V](cache: Cache[K, V]): Resource[F, CaffeineCache[F, K, V]] =
+    Resource.make(new Impl(cache).pure[F])(_.cleanUp)
 }

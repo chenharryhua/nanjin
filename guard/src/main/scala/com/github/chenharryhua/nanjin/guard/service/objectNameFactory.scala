@@ -9,12 +9,12 @@ import javax.management.ObjectName
 
 private object objectNameFactory extends ObjectNameFactory {
   override def createName(tipe: String, domain: String, name: String): ObjectName =
-    decode[MetricID](name).map { mId =>
+    decode[MetricID](name).map { mid =>
       val properties = new util.Hashtable[String, String]()
-      properties.put("label", mId.metricLabel.label)
-      properties.put("name", mId.metricName.name)
-      properties.put("type", mId.category.productPrefix)
-      val dm = s"$domain.${mId.metricLabel.measurement.value}"
+      properties.put("label", mid.metricLabel.label)
+      properties.put("name", mid.metricName.name)
+      properties.put("type", mid.category.productPrefix)
+      val dm = s"$domain.${mid.metricLabel.measurement.value}"
       new ObjectName(dm, properties)
     }.toOption.orNull
 }

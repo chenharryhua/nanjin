@@ -17,6 +17,7 @@ import org.apache.parquet.avro.AvroParquetWriter
 import org.apache.parquet.hadoop.ParquetFileWriter
 import org.apache.parquet.hadoop.metadata.CompressionCodecName
 import org.apache.parquet.hadoop.util.HadoopOutputFile
+import scalapb.GeneratedMessage
 
 import java.io.OutputStream
 
@@ -138,13 +139,24 @@ final class FileSink[F[_]: Sync] private (configuration: Configuration, path: Pa
       .flatMap(w => ss.evalMap(c => w.write(c).as(c.size)))
   }
 
+  /** Any proto in serialized form must be <2GiB, as that is the maximum size supported by all
+    * implementations. It’s recommended to bound request and response sizes.
+    *
+    * https://protobuf.dev/programming-guides/proto-limits/#total
+    */
+  val protobuf: Pipe[F, Chunk[GeneratedMessage], Int] = { (ss: Stream[F, Chunk[GeneratedMessage]]) =>
+    Stream.resource(HadoopWriter.protobufR(configuration, path)).flatMap { w =>
+      ss.evalMap(c => w.write(c).as(c.size))
+    }
+  }
+
   // java OutputStream
   val outputStream: Resource[F, OutputStream] =
     HadoopWriter.outputStreamR[F](path, configuration)
 
 }
 
-object FileSink {
+private object FileSink {
   def apply[F[_]: Sync](configuration: Configuration, path: Url): FileSink[F] =
     new FileSink[F](configuration, toHadoopPath(path))
 }

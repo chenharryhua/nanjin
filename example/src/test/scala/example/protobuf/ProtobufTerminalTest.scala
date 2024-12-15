@@ -2,9 +2,10 @@ package example.protobuf
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
+import com.github.chenharryhua.nanjin.spark.SparkSessionExt
 import com.github.chenharryhua.nanjin.terminals.{Compression, ProtobufFile}
 import eu.timepit.refined.auto.*
-import example.hadoop
+import example.{hadoop, sparkSession}
 import fs2.Stream
 import io.lemonlabs.uri.Url
 import io.lemonlabs.uri.typesafe.dsl.urlToUrlDsl
@@ -22,21 +23,14 @@ class ProtobufTerminalTest extends AnyFunSuite {
   def run(file: ProtobufFile): Assertion = {
     val path: Url = root / file.fileName
 
-    val write =
-      Stream
-        .resource(hadoop.sink(path).outputStream)
-        .flatMap(os => data.map(_.writeDelimitedTo(os)))
-        .compile
-        .drain
+    val write = data.chunks.through(hadoop.sink(path).protobuf).compile.drain
 
-    val read = Stream
-      .resource(hadoop.source(path).inputStream)
-      .flatMap(is => Stream.fromIterator[IO].apply(gmc.streamFromDelimitedInput(is).iterator, 1))
-      .compile
-      .toList
+    val read = hadoop.source(path).protobuf[Lion](100).compile.toList
 
     val res = (hadoop.delete(path) >> write >> read).unsafeRunSync()
     assert(lions === res)
+    assert(sparkSession.loadProtobuf[Lion](path).collect().toSet == lions.toSet)
+
   }
 
   test("1.uncompressed") {

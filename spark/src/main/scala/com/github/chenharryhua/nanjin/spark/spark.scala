@@ -5,12 +5,16 @@ import com.github.chenharryhua.nanjin.spark.kafka.SparKafkaTopic
 import com.github.chenharryhua.nanjin.spark.persist.*
 import com.github.chenharryhua.nanjin.spark.table.LoadTable
 import com.github.chenharryhua.nanjin.terminals.Hadoop
-import com.sksamuel.avro4s.Encoder as AvroEncoder
+import com.sksamuel.avro4s.{Decoder, Encoder as AvroEncoder}
 import com.zaxxer.hikari.HikariConfig
+import io.lemonlabs.uri.Url
 import org.apache.avro.Schema
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.types.DataType
 import org.apache.spark.sql.{DataFrame, SparkSession}
+import scalapb.{GeneratedMessage, GeneratedMessageCompanion}
+
+import scala.reflect.ClassTag
 
 package object spark {
   object injection extends InjectionInstances
@@ -48,6 +52,11 @@ package object spark {
     }
 
     def loadTable[A](ate: AvroTypedEncoder[A]): LoadTable[A] = new LoadTable[A](ate, ss)
+    def loadRDD[A: ClassTag](path: Url): LoadRDD[A]          = new LoadRDD[A](ss, path)
+    def loadAvro[A: ClassTag: Decoder](path: Url): LoadAvroRDD[A] =
+      new LoadAvroRDD[A](ss, path, Decoder[A])
+    def loadProtobuf[A <: GeneratedMessage: ClassTag: GeneratedMessageCompanion](path: Url): RDD[A] =
+      loaders.rdd.protobuf[A](path, ss)
 
     def alongWith[F[_]](ctx: KafkaContext[F]): SparKafkaContext[F] =
       new SparKafkaContext[F](ss, ctx)

@@ -29,7 +29,7 @@ class ConsoleLogTest extends AnyFunSuite {
             _ <- mtx.counter("3", _.asRisk).evalMap(_.inc(1000))
             _ <- mtx.histogram("2", _.withUnit(_.BYTES)).evalMap(_.update(10000L).replicateA(100))
             _ <- mtx
-              .ratio("1")
+              .percentile("1")
               .evalMap(f => f.incDenominator(500) >> f.incNumerator(60) >> f.incBoth(299, 500))
           } yield Kleisli((_: Int) => IO.unit)
         }

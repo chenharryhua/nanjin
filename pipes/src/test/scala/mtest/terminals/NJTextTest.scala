@@ -78,7 +78,7 @@ class NJTextTest extends AnyFunSuite {
   }
 
   test("rotation") {
-    val path   = fs2Root / "rotation" / "data"
+    val path   = fs2Root / "rotation" / "tick"
     val number = 10000L
     hdp.delete(path).unsafeRunSync()
     val fk = TextFile(_.Uncompressed)
@@ -90,6 +90,32 @@ class NJTextTest extends AnyFunSuite {
       .chunks
       .through(
         hdp.rotateSink(Policy.fixedDelay(1.second), ZoneId.systemDefault())(t => path / fk.fileName(t)).text)
+      .fold(0L)((sum, v) => sum + v.value)
+      .compile
+      .lastOrError
+      .unsafeRunSync()
+    val size =
+      hdp
+        .filesIn(path)
+        .flatMap(_.traverse(hdp.source(_).text(2).compile.toList.map(_.size)))
+        .map(_.sum)
+        .unsafeRunSync()
+    assert(size == number * 10)
+    assert(processedSize == number * 10)
+
+  }
+
+  test("rotation - index") {
+    val path   = fs2Root / "rotation" / "index"
+    val number = 10000L
+    hdp.delete(path).unsafeRunSync()
+    val processedSize = Stream
+      .emits(TestData.tigerSet.toList)
+      .covary[IO]
+      .repeatN(number)
+      .map(_.toString)
+      .chunkN(1000)
+      .through(hdp.rotateSink(t => path / s"$t.txt").text)
       .fold(0L)((sum, v) => sum + v.value)
       .compile
       .lastOrError

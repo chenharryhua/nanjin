@@ -38,8 +38,8 @@ trait Metrics[F[_]] {
   def gauge(name: String, f: Endo[Gauge.Builder]): Gauge[F]
   final def gauge(name: String): Gauge[F] = gauge(name, identity)
 
-  def ratio(name: String, f: Endo[Ratio.Builder]): Resource[F, Ratio[F]]
-  final def ratio(name: String): Resource[F, Ratio[F]] = ratio(name, identity)
+  def percentile(name: String, f: Endo[Percentile.Builder]): Resource[F, Percentile[F]]
+  final def percentile(name: String): Resource[F, Percentile[F]] = percentile(name, identity)
 
   def healthCheck(name: String, f: Endo[HealthCheck.Builder]): HealthCheck[F]
   final def healthCheck(name: String): HealthCheck[F] = healthCheck(name, identity)
@@ -57,11 +57,12 @@ trait Metrics[F[_]] {
 }
 
 object Metrics {
-  private[guard] class Impl[F[_]](
+  private[guard] class Impl[F[_]: Async](
     val metricLabel: MetricLabel,
     metricRegistry: MetricRegistry,
-    dispatcher: Dispatcher[F])(implicit F: Async[F])
+    dispatcher: Dispatcher[F])
       extends Metrics[F] {
+    private[this] val F = Async[F]
 
     override def counter(name: String, f: Endo[Counter.Builder]): Resource[F, Counter[F]] =
       f(Counter.initial).build[F](metricLabel, name, metricRegistry)
@@ -75,11 +76,13 @@ object Metrics {
     override def timer(name: String, f: Endo[Timer.Builder]): Resource[F, Timer[F]] =
       f(Timer.initial).build[F](metricLabel, name, metricRegistry)
 
+    // gauges
+
     override def healthCheck(name: String, f: Endo[HealthCheck.Builder]): HealthCheck[F] =
       f(HealthCheck.initial).build[F](metricLabel, name, metricRegistry, dispatcher)
 
-    override def ratio(name: String, f: Endo[Ratio.Builder]): Resource[F, Ratio[F]] =
-      f(Ratio.initial).build[F](metricLabel, name, metricRegistry)
+    override def percentile(name: String, f: Endo[Percentile.Builder]): Resource[F, Percentile[F]] =
+      f(Percentile.initial).build[F](metricLabel, name, metricRegistry, dispatcher)
 
     override def gauge(name: String, f: Endo[Gauge.Builder]): Gauge[F] =
       f(Gauge.initial).build[F](metricLabel, name, metricRegistry, dispatcher)

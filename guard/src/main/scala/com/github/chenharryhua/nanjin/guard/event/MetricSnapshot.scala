@@ -126,7 +126,7 @@ object MetricSnapshot extends duration {
     GenLens[MetricSnapshot](_.timers)
 
   def apply(metricRegistry: metrics.MetricRegistry): MetricSnapshot =
-    metricRegistry.getMetrics.asScala.foldLeft(empty) { case (snapshot, (name, metric)) =>
+    metricRegistry.getMetrics.asScala.toList.foldLeft(empty) { case (snapshot, (name, metric)) =>
       decode[MetricID](name) match {
         case Left(_) => snapshot
         case Right(mid) =>
