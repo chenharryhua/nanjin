@@ -93,8 +93,8 @@ class NJKantanTest extends AnyFunSuite {
   }
 
   val policy: Policy = Policy.fixedDelay(1.second)
-  test("rotation - with-header") {
-    val path = fs2Root / "rotation" / "header" / "data"
+  test("rotation - with-header - tick") {
+    val path = fs2Root / "rotation" / "header" / "tick"
     val file = KantanFile(_.Uncompressed)
     hdp.delete(path).unsafeRunSync()
     herd
@@ -104,6 +104,35 @@ class NJKantanTest extends AnyFunSuite {
         hdp
           .rotateSink(policy, ZoneId.systemDefault())(t => path / file.fileName(t))
           .kantan(_.withHeader(CsvHeaderOf[Tiger].header)))
+      .compile
+      .drain
+      .unsafeRunSync()
+
+    val size =
+      hdp
+        .filesIn(path)
+        .flatMap(
+          _.traverse(
+            hdp
+              .source(_)
+              .kantan(1000, _.withHeader)
+              .map(tigerDecoder.decode)
+              .rethrow
+              .compile
+              .toList
+              .map(_.size)))
+        .map(_.sum)
+        .unsafeRunSync()
+    assert(size == herd_number)
+  }
+
+  test("rotation - with-header - index") {
+    val path = fs2Root / "rotation" / "header" / "index"
+    hdp.delete(path).unsafeRunSync()
+    herd
+      .map(tigerEncoder.encode)
+      .chunkN(1000)
+      .through(hdp.rotateSink(t => path / s"$t.csv").kantan(_.withHeader(CsvHeaderOf[Tiger].header)))
       .compile
       .drain
       .unsafeRunSync()
@@ -145,7 +174,7 @@ class NJKantanTest extends AnyFunSuite {
   }
 
   test("rotation - no header") {
-    val path   = fs2Root / "rotation" / "no-header" / "data"
+    val path   = fs2Root / "rotation" / "no-header" / "tick"
     val number = 10000L
     val file   = KantanFile(_.Uncompressed)
     hdp.delete(path).unsafeRunSync()
@@ -154,6 +183,29 @@ class NJKantanTest extends AnyFunSuite {
       .chunks
       .through(
         hdp.rotateSink(policy, ZoneId.systemDefault())(t => path / file.fileName(t)).kantan.andThen(_.drain))
+      .map(tigerDecoder.decode)
+      .rethrow
+      .compile
+      .drain
+      .unsafeRunSync()
+    val size =
+      hdp
+        .filesIn(path)
+        .flatMap(
+          _.traverse(hdp.source(_).kantan(1000).map(tigerDecoder.decode).rethrow.compile.toList.map(_.size)))
+        .map(_.sum)
+        .unsafeRunSync()
+    assert(size == number)
+  }
+
+  test("rotation - no header - index") {
+    val path   = fs2Root / "rotation" / "no-header" / "index"
+    val number = 10000L
+    hdp.delete(path).unsafeRunSync()
+    herd
+      .map(tigerEncoder.encode)
+      .chunkN(1000)
+      .through(hdp.rotateSink(t => path / s"$t.csv").kantan.andThen(_.drain))
       .map(tigerDecoder.decode)
       .rethrow
       .compile

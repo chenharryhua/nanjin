@@ -4,7 +4,6 @@ import cats.data.NonEmptyList
 import cats.effect.kernel.{Async, Sync}
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick, TickedValue}
 import com.github.chenharryhua.nanjin.datetime.codec
-import fs2.Stream
 import io.lemonlabs.uri.{Uri, Url}
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.*
@@ -133,16 +132,19 @@ final class Hadoop[F[_]] private (config: Configuration) {
 
   def sink(path: Url)(implicit F: Sync[F]): FileSink[F] = FileSink[F](config, path)
 
-  def rotateSink(paths: Stream[F, TickedValue[Url]])(implicit F: Async[F]): FileRotateSink[F] =
-    FileRotateSink[F](config, paths)
-
   def rotateSink(policy: Policy, zoneId: ZoneId)(pathBuilder: Tick => Url)(implicit
     F: Async[F]): FileRotateSink[F] =
-    rotateSink(tickStream.fromZero[F](policy, zoneId).map(tick => TickedValue(tick, pathBuilder(tick))))
+    FileRotateSink(
+      MergeOrZip.Merge,
+      config,
+      tickStream.fromZero[F](policy, zoneId).map(tick => TickedValue(tick, pathBuilder(tick))))
 
   def rotateSink(pathBuilder: Long => Url)(implicit F: Async[F]): FileRotateSink[F] =
-    rotateSink(
+    FileRotateSink(
+      MergeOrZip.Zip,
+      config,
       tickStream
         .fromZero[F](Policy.fixedDelay(0.seconds), ZoneId.systemDefault())
-        .map(tick => TickedValue(tick, pathBuilder(tick.index))))
+        .map(tick => TickedValue(tick, pathBuilder(tick.index)))
+    )
 }

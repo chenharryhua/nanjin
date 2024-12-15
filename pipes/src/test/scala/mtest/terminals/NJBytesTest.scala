@@ -83,12 +83,12 @@ class NJBytesTest extends AnyFunSuite {
   }
 
   test("rotation") {
-    val path   = fs2Root / "rotation"
+    val path   = fs2Root / "rotation" / "tick"
     val number = 10000L
     hdp.delete(path).unsafeRunSync()
     val sink =
       hdp
-        .rotateSink(Policy.fixedDelay(1.second), ZoneId.systemDefault())(t => path / s"${t.index}.byte")
+        .rotateSink(Policy.fixedDelay(1.second), ZoneId.systemDefault())(t => path / s"${t.index}.json")
         .bytes
     Stream
       .emits(TestData.tigerSet.toList)
@@ -98,6 +98,25 @@ class NJBytesTest extends AnyFunSuite {
       .intersperse(System.lineSeparator())
       .through(utf8.encode)
       .chunks
+      .through(sink)
+      .compile
+      .drain
+      .unsafeRunSync()
+  }
+
+  test("rotation - index") {
+    val path   = fs2Root / "rotation" / "index"
+    val number = 10000L
+    hdp.delete(path).unsafeRunSync()
+    val sink = hdp.rotateSink(t => path / s"$t.json").bytes
+    Stream
+      .emits(TestData.tigerSet.toList)
+      .covary[IO]
+      .repeatN(number)
+      .map(_.asJson.noSpaces)
+      .intersperse(System.lineSeparator())
+      .through(utf8.encode)
+      .chunkN(1000000)
       .through(sink)
       .compile
       .drain

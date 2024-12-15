@@ -95,7 +95,7 @@ final class FileSource[F[_]: Sync] private (configuration: Configuration, path: 
 
 }
 
-object FileSource {
+private object FileSource {
   def apply[F[_]: Sync](configuration: Configuration, path: Url): FileSource[F] =
     new FileSource[F](configuration, toHadoopPath(path))
 }

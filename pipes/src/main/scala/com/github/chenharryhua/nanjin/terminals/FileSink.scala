@@ -156,7 +156,7 @@ final class FileSink[F[_]: Sync] private (configuration: Configuration, path: Pa
 
 }
 
-object FileSink {
+private object FileSink {
   def apply[F[_]: Sync](configuration: Configuration, path: Url): FileSink[F] =
     new FileSink[F](configuration, toHadoopPath(path))
 }
