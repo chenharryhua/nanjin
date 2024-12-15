@@ -77,7 +77,7 @@ class NJTextTest extends AnyFunSuite {
     hdp.sink("./does/not/exist").text
   }
 
-  test("rotation") {
+  test("rotation - tick") {
     val path   = fs2Root / "rotation" / "tick"
     val number = 10000L
     hdp.delete(path).unsafeRunSync()

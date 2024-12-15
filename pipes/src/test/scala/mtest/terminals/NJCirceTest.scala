@@ -74,7 +74,7 @@ class NJCirceTest extends AnyFunSuite {
     hdp.sink("./does/not/exist").circe
   }
 
-  test("rotation - data") {
+  test("rotation - tick") {
     val path   = fs2Root / "rotation" / "tick"
     val number = 10000L
     hdp.delete(path).unsafeRunSync()

@@ -173,7 +173,7 @@ class NJKantanTest extends AnyFunSuite {
     hdp.filesIn(path).unsafeRunSync().foreach(np => assert(File(np.toJavaURI).lines.size == 1))
   }
 
-  test("rotation - no header") {
+  test("rotation - no header - tick") {
     val path   = fs2Root / "rotation" / "no-header" / "tick"
     val number = 10000L
     val file   = KantanFile(_.Uncompressed)

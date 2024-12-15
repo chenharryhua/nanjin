@@ -131,7 +131,7 @@ class NJParquetTest extends AnyFunSuite {
   }
 
   test("best") {
-    val path = fs2Root / "rotation"
+    val path = fs2Root / "rotation" / "tick"
     val res1 = hdp.latestYmd(path).unsafeRunSync()
     val res2 = hdp.latestYmdh(path).unsafeRunSync()
     assert(res1.nonEmpty)
