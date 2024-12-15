@@ -108,13 +108,14 @@ class NJParquetTest extends AnyFunSuite {
   test("rotation - index") {
     val path   = fs2Root / "rotation" / "index"
     val number = 10000L
+    val file = ParquetFile(_.Snappy)
     hdp.delete(path).unsafeRunSync()
     val processedSize = Stream
       .emits(pandaSet.toList)
       .covary[IO]
       .repeatN(number)
       .chunkN(1000)
-      .through(hdp.rotateSink(t => path / s"$t.parquet").parquet)
+      .through(hdp.rotateSink(t => path / file.fileName(t)).parquet)
       .fold(0L)((sum, v) => sum + v.value)
       .compile
       .lastOrError
@@ -131,7 +132,7 @@ class NJParquetTest extends AnyFunSuite {
   }
 
   test("best") {
-    val path = fs2Root / "rotation"
+    val path = fs2Root / "rotation" / "tick"
     val res1 = hdp.latestYmd(path).unsafeRunSync()
     val res2 = hdp.latestYmdh(path).unsafeRunSync()
     assert(res1.nonEmpty)

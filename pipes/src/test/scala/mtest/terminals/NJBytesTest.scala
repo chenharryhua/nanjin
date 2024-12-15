@@ -82,7 +82,7 @@ class NJBytesTest extends AnyFunSuite {
     hdp.sink("./does/not/exist").bytes
   }
 
-  test("rotation") {
+  test("rotation - tick") {
     val path   = fs2Root / "rotation" / "tick"
     val number = 10000L
     hdp.delete(path).unsafeRunSync()
@@ -108,7 +108,7 @@ class NJBytesTest extends AnyFunSuite {
     val path   = fs2Root / "rotation" / "index"
     val number = 10000L
     hdp.delete(path).unsafeRunSync()
-    val sink = hdp.rotateSink(t => path / s"$t.json").bytes
+    val sink = hdp.rotateSink(t => path / s"${t.index}.json").bytes
     Stream
       .emits(TestData.tigerSet.toList)
       .covary[IO]

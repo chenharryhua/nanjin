@@ -74,7 +74,7 @@ class NJCirceTest extends AnyFunSuite {
     hdp.sink("./does/not/exist").circe
   }
 
-  test("rotation - data") {
+  test("rotation - tick") {
     val path   = fs2Root / "rotation" / "tick"
     val number = 10000L
     hdp.delete(path).unsafeRunSync()
@@ -116,6 +116,7 @@ class NJCirceTest extends AnyFunSuite {
   test("rotation - index") {
     val path   = fs2Root / "rotation" / "index"
     val number = 10000L
+    val file = CirceFile(Uncompressed)
     hdp.delete(path).unsafeRunSync()
     val processedSize = Stream
       .emits(TestData.tigerSet.toList)
@@ -123,7 +124,7 @@ class NJCirceTest extends AnyFunSuite {
       .repeatN(number)
       .map(_.asJson)
       .chunkN(1000)
-      .through(hdp.rotateSink(t => path / s"$t.json").circe)
+      .through(hdp.rotateSink(t => path / file.fileName(t)).circe)
       .fold(0L)((sum, v) => sum + v.value)
       .compile
       .lastOrError

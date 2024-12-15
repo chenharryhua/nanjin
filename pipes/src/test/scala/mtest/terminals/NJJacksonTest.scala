@@ -66,18 +66,18 @@ class NJJacksonTest extends AnyFunSuite {
     hdp.sink("./does/not/exist").jackson
   }
 
-  test("rotation") {
+  test("rotation - tick") {
     val path   = fs2Root / "rotation" / "tick"
     val number = 10000L
     hdp.delete(path).unsafeRunSync()
-    val fk = JacksonFile(_.Uncompressed)
+    val file = JacksonFile(_.Uncompressed)
     val processedSize = Stream
       .emits(pandaSet.toList)
       .covary[IO]
       .repeatN(number)
       .chunks
       .through(hdp
-        .rotateSink(Policy.fixedDelay(0.2.second), ZoneId.systemDefault())(t => path / fk.fileName(t))
+        .rotateSink(Policy.fixedDelay(0.2.second), ZoneId.systemDefault())(t => path / file.fileName(t))
         .jackson)
       .fold(0L)((sum, v) => sum + v.value)
       .compile
@@ -96,13 +96,14 @@ class NJJacksonTest extends AnyFunSuite {
   test("rotation - index") {
     val path   = fs2Root / "rotation" / "index"
     val number = 10000L
+    val file = JacksonFile(_.Uncompressed)
     hdp.delete(path).unsafeRunSync()
     val processedSize = Stream
       .emits(pandaSet.toList)
       .covary[IO]
       .repeatN(number)
       .chunkN(1000)
-      .through(hdp.rotateSink(t => path / s"$t.jackson.json").jackson)
+      .through(hdp.rotateSink(t => path / file.fileName(t)).jackson)
       .fold(0L)((sum, v) => sum + v.value)
       .compile
       .lastOrError

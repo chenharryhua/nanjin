@@ -67,7 +67,7 @@ class NJAvroTest extends AnyFunSuite {
     hdp.sink("./does/not/exist").avro(_.Uncompressed)
   }
 
-  test("rotation") {
+  test("rotation - tick") {
     val path   = fs2Root / "rotation" / "tick"
     val number = 10000L
     hdp.delete(path).unsafeRunSync()
@@ -97,13 +97,14 @@ class NJAvroTest extends AnyFunSuite {
   test("rotation - index") {
     val path   = fs2Root / "rotation" / "index"
     val number = 10000L
+    val file   = AvroFile(_.Uncompressed)
     hdp.delete(path).unsafeRunSync()
     val processedSize = Stream
       .emits(pandaSet.toList)
       .covary[IO]
       .repeatN(number)
       .chunkN(1000)
-      .through(hdp.rotateSink(t => path / s"$t.avro").avro(_.Uncompressed))
+      .through(hdp.rotateSink(t => path / file.fileName(t)).avro(_.Uncompressed))
       .fold(0L)((sum, v) => sum + v.value)
       .compile
       .lastOrError

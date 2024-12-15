@@ -77,7 +77,7 @@ class NJTextTest extends AnyFunSuite {
     hdp.sink("./does/not/exist").text
   }
 
-  test("rotation") {
+  test("rotation - tick") {
     val path   = fs2Root / "rotation" / "tick"
     val number = 10000L
     hdp.delete(path).unsafeRunSync()
@@ -109,13 +109,14 @@ class NJTextTest extends AnyFunSuite {
     val path   = fs2Root / "rotation" / "index"
     val number = 10000L
     hdp.delete(path).unsafeRunSync()
+    val fk = TextFile(_.Uncompressed)
     val processedSize = Stream
       .emits(TestData.tigerSet.toList)
       .covary[IO]
       .repeatN(number)
       .map(_.toString)
       .chunkN(1000)
-      .through(hdp.rotateSink(t => path / s"$t.txt").text)
+      .through(hdp.rotateSink(t => path / fk.fileName(t)).text)
       .fold(0L)((sum, v) => sum + v.value)
       .compile
       .lastOrError
