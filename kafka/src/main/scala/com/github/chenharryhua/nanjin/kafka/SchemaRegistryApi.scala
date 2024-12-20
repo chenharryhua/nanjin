@@ -17,7 +17,7 @@ final case class KvSchemaMetadata(key: SchemaMetadata, value: SchemaMetadata)
 
 final class SchemaRegistryApi[F[_]](client: CachedSchemaRegistryClient) extends Serializable {
 
-  private def metaData(topicName: TopicName)(implicit F: Sync[F]): F[KvSchemaMetadata] = {
+  def metaData(topicName: TopicName)(implicit F: Sync[F]): F[KvSchemaMetadata] = {
     val loc = SchemaLocation(topicName)
     for {
       key <- F
