@@ -41,7 +41,7 @@ val protobufV   = "4.29.2"
 val refinedV    = "0.11.2"
 val skunkV      = "0.6.4"
 val slf4jV      = "2.0.16"
-val sparkV      = "3.5.3"
+val sparkV      = "3.5.4"
 
 lazy val commonSettings = List(
   organization       := "com.github.chenharryhua",
