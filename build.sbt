@@ -310,16 +310,6 @@ lazy val observer_database = (project in file("observers/database"))
     ) ++ testLib
   )
 
-lazy val observer_influxdb = (project in file("observers/influxdb"))
-  .dependsOn(guard)
-  .settings(commonSettings *)
-  .settings(name := "nj-observer-influxdb")
-  .settings(
-    libraryDependencies ++= List(
-      "com.influxdb" % "influxdb-client-java" % "6.12.0"
-    ) ++ testLib
-  )
-
 lazy val messages = (project in file("messages"))
   .dependsOn(common)
   .settings(commonSettings *)
@@ -448,7 +438,6 @@ lazy val example = (project in file("example"))
   .dependsOn(observer_logging)
   .dependsOn(observer_aws)
   .dependsOn(observer_database)
-  .dependsOn(observer_influxdb)
   .dependsOn(observer_kafka)
   .settings(commonSettings *)
   .settings(name := "nj-example")
@@ -474,7 +463,6 @@ lazy val nanjin =
     guard,
     observer_aws,
     observer_database,
-    observer_influxdb,
     observer_kafka,
     observer_logging
   )

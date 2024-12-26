@@ -33,14 +33,3 @@ services:
     environment:
       COLLECTOR_ZIPKIN_HOST_PORT: 9411
 
-  influxdb:
-    image: influxdb:latest
-    ports:
-      - "8086:8086"
-    environment:
-      INFLUXDB_DB: nanjin
-      INFLUXDB_ORG: nanjin
-      INFLUXDB_USER: chenh
-      INFLUXDB_USER_PASSWORD: chenhchenh
-      INFLUXDB_ADMIN_USER: admin
-      INFLUXDB_ADMIN_PASSWORD: admin
