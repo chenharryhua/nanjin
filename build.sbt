@@ -195,7 +195,7 @@ val baseLib = List(
   "org.typelevel" %% "squants"                     % "1.8.3",
   "org.typelevel" %% "case-insensitive"            % "1.4.2",
   "io.scalaland" %% "chimney"                      % chimneyV,
-  "io.scalaland" %% "enumz"                        % "1.1.0",
+  "io.scalaland" %% "enumz"                        % "1.2.0",
   "com.chuusai" %% "shapeless"                     % "2.3.12",
   "com.github.alonsodomin.cron4s" %% "cron4s-core" % cron4sV,
   "io.lemonlabs" %% "scala-uri"                    % "4.0.3",
