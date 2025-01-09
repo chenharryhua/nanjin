@@ -168,4 +168,59 @@ object adobe {
         authClient = authClient
       )
   }
+
+  final class OAuth[F[_]] private (
+    auth_endpoint: Uri,
+    client_id: String,
+    client_secret: String,
+    authClient: Resource[F, Client[F]])
+      extends Http4sClientDsl[F] with Login[F, OAuth[F]] {
+
+    private case class Token(
+      token_type: String,
+      expires_in: Long, // in milliseconds
+      access_token: String)
+
+    override def loginR(client: Client[F])(implicit F: Async[F]): Resource[F, Client[F]] =
+      authClient.flatMap { authenticationClient =>
+        val get_token: F[Token] =
+          UUIDGen[F].randomUUID.flatMap { uuid =>
+            authenticationClient.expect[Token](
+              POST(
+                UrlForm(
+                  "grant_type" -> "client_credentials",
+                  "client_id" -> client_id,
+                  "client_secret" -> client_secret,
+                  "scope" -> "openid,session,AdobeID,read_organizations,additional_info.projectedProductContext"
+                ),
+                auth_endpoint.withPath(path"/ims/token/v3")
+              ).putHeaders(`Idempotency-Key`(show"$uuid")))
+          }
+
+        def update_token(ref: Ref[F, Token]): F[Unit] =
+          for {
+            oldToken <- ref.get
+            newToken <- get_token.delayBy(oldToken.expires_in.millisecond)
+            _ <- ref.set(newToken)
+          } yield ()
+
+        def with_token(token: Token, req: Request[F]): Request[F] =
+          req.putHeaders(Authorization(Credentials.Token(CIString(token.token_type), token.access_token)))
+
+        loginInternal(client, get_token, update_token, with_token)
+      }
+  }
+
+  object OAuth {
+    def apply[F[_]](authClient: Resource[F, Client[F]])(
+      auth_endpoint: Uri,
+      client_id: String,
+      client_secret: String): OAuth[F] =
+      new OAuth[F](
+        auth_endpoint = auth_endpoint,
+        client_id = client_id,
+        client_secret = client_secret,
+        authClient = authClient
+      )
+  }
 }
