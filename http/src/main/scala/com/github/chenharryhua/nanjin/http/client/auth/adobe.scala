@@ -178,7 +178,7 @@ object adobe {
 
     private case class Token(
       token_type: String,
-      expires_in: Long, // in milliseconds
+      expires_in: Long, // in second
       access_token: String)
 
     override def loginR(client: Client[F])(implicit F: Async[F]): Resource[F, Client[F]] =
@@ -200,7 +200,7 @@ object adobe {
         def update_token(ref: Ref[F, Token]): F[Unit] =
           for {
             oldToken <- ref.get
-            newToken <- get_token.delayBy(oldToken.expires_in.millisecond)
+            newToken <- get_token.delayBy(oldToken.expires_in.seconds)
             _ <- ref.set(newToken)
           } yield ()
 
