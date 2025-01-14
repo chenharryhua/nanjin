@@ -124,8 +124,8 @@ final case class TopicPartitionMap[V](value: TreeMap[TopicPartition, V]) extends
     TopicPartitionMap(TreeMap.from(res))
   }
 
-  def leftCombine[U, W](other: TopicPartitionMap[U])(
-    fn: (V, U) => Option[W]): TopicPartitionMap[Option[W]] = {
+  def leftCombine[U, W](
+    other: TopicPartitionMap[U])(fn: (V, U) => Option[W]): TopicPartitionMap[Option[W]] = {
     val res: Map[TopicPartition, Option[W]] =
       value.map { case (tp, v) =>
         tp -> other.value.get(tp).flatMap(fn(v, _))

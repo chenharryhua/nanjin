@@ -116,7 +116,7 @@ class NJCirceTest extends AnyFunSuite {
   test("rotation - index") {
     val path   = fs2Root / "rotation" / "index"
     val number = 10000L
-    val file = CirceFile(Uncompressed)
+    val file   = CirceFile(Uncompressed)
     hdp.delete(path).unsafeRunSync()
     val processedSize = Stream
       .emits(TestData.tigerSet.toList)

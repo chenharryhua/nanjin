@@ -4,8 +4,7 @@ import org.scalatest.Sequential
 
 //  sbt "spark/testOnly com.github.chenharryhua.nanjin.spark.persist.PersistTests"
 
-class PersistTests
-    extends Sequential(
+class PersistTests extends Sequential(
       new ConcurrencyTest,
       new AvroTest,
       new BinAvroTest,

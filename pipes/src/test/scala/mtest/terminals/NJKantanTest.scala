@@ -202,7 +202,7 @@ class NJKantanTest extends AnyFunSuite {
   test("rotation - no header - index") {
     val path   = fs2Root / "rotation" / "no-header" / "index"
     val number = 10000L
-    val file = KantanFile(_.Uncompressed)
+    val file   = KantanFile(_.Uncompressed)
     hdp.delete(path).unsafeRunSync()
     herd
       .map(tigerEncoder.encode)
