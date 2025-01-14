@@ -97,13 +97,11 @@ private object PolicyF extends all {
 
       case Except(policy, except) =>
         policy.map { (f: CalcTick) => (req: TickRequest) =>
-          {
-            val tick = f(req)
-            if (tick.zonedWakeup.toLocalTime === except) {
-              val nt = f(TickRequest(tick, tick.wakeup))
-              tick.focus(_.snooze).modify(_.plus(nt.snooze))
-            } else tick
-          }
+          val tick = f(req)
+          if (tick.zonedWakeup.toLocalTime === except) {
+            val nt = f(TickRequest(tick, tick.wakeup))
+            tick.focus(_.snooze).modify(_.plus(nt.snooze))
+          } else tick
         }
 
       case Offset(policy, offset) =>

@@ -20,8 +20,8 @@ trait FixPointTrait {
 
   implicit final def platedAttr[G[_]: Traverse, A]: Plated[Attr[G, A]] =
     Plated[Attr[G, A]](new Traversal[Attr[G, A], Attr[G, A]] {
-      override def modifyA[F[_]: Applicative](f: Attr[G, A] => F[Attr[G, A]])(
-        s: Attr[G, A]): F[Attr[G, A]] = {
+      override def modifyA[F[_]: Applicative](
+        f: Attr[G, A] => F[Attr[G, A]])(s: Attr[G, A]): F[Attr[G, A]] = {
         val (a, ga) = Attr.un(s)
         ga.traverse(f).map(Attr(a, _))
       }

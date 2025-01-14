@@ -69,7 +69,9 @@ class KafkaAvroTest extends AnyFunSuite {
     val sk   = sparKafka.topic(topicCO.topicDef)
 
     val run =
-      ctx.admin(topicCO.topicName).use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt) >>
+      ctx
+        .admin(topicCO.topicName)
+        .use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt) >>
         ctx.schemaRegistry.register(topicCO.topicDef) >>
         data.compile.drain >>
         sk.fromKafka.flatMap(_.output.avro(path).run[IO]) >>
@@ -94,7 +96,9 @@ class KafkaAvroTest extends AnyFunSuite {
     val sk = sparKafka.topic(topicEnum.topicDef)
 
     val run =
-      ctx.admin(topicEnum.topicName).use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt) >>
+      ctx
+        .admin(topicEnum.topicName)
+        .use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt) >>
         ctx.schemaRegistry.register(topicEnum.topicDef) >>
         data.compile.drain >>
         sk.fromKafka.flatMap(_.output.avro(avroPath).run[IO]) >>
@@ -123,7 +127,9 @@ class KafkaAvroTest extends AnyFunSuite {
     val sk   = sparKafka.topic(topicEnum.topicDef)
 
     val run =
-      ctx.admin(topicEnum.topicName).use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt) >>
+      ctx
+        .admin(topicEnum.topicName)
+        .use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt) >>
         ctx.schemaRegistry.register(topicEnum.topicDef) >>
         data.compile.drain >>
         sk.fromKafka.flatMap(_.output.avro(path).run[IO]) >>
@@ -145,7 +151,9 @@ class KafkaAvroTest extends AnyFunSuite {
     val sk   = sparKafka.topic(topicEnum.topicDef)
 
     val run =
-      ctx.admin(topicEnum.topicName).use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt) >>
+      ctx
+        .admin(topicEnum.topicName)
+        .use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt) >>
         ctx.schemaRegistry.register(topicEnum.topicDef) >>
         data.compile.drain >>
         sk.fromKafka.flatMap(_.output.avro(path).withCompression(_.Snappy).run[IO]) >>
@@ -165,7 +173,9 @@ class KafkaAvroTest extends AnyFunSuite {
     val sk   = sparKafka.topic(topicEnum.topicDef)
 
     val run =
-      ctx.admin(topicEnum.topicName).use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt) >>
+      ctx
+        .admin(topicEnum.topicName)
+        .use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt) >>
         ctx.schemaRegistry.register(topicEnum.topicDef) >>
         data.compile.drain >>
         sk.fromKafka.flatMap(_.output.binAvro(path).withCompression(_.Bzip2).run[IO]) >>

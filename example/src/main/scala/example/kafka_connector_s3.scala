@@ -8,7 +8,7 @@ import com.github.chenharryhua.nanjin.common.chrono.{Policy, TickedValue}
 import com.github.chenharryhua.nanjin.guard.metrics.Metrics
 import com.github.chenharryhua.nanjin.guard.observers.console
 import com.github.chenharryhua.nanjin.kafka.{KafkaContext, KafkaSettings}
-import com.github.chenharryhua.nanjin.terminals.{JacksonFile, Hadoop}
+import com.github.chenharryhua.nanjin.terminals.{Hadoop, JacksonFile}
 import eu.timepit.refined.auto.*
 import fs2.kafka.{commitBatchWithin, AutoOffsetReset, CommittableConsumerRecord}
 import fs2.{Chunk, Pipe}

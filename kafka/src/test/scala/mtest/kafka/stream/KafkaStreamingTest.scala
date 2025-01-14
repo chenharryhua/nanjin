@@ -69,16 +69,17 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
 
   test("stream-table join") {
     val sendS1Data = Stream
-      .emits(List(
-        s1Topic.topicDef.producerRecord(101, StreamOne("na", -1)),
-        s1Topic.topicDef.producerRecord(102, StreamOne("na", -1)),
-        s1Topic.topicDef.producerRecord(103, StreamOne("na", -1)),
-        s1Topic.topicDef.producerRecord(1, StreamOne("a", 0)),
-        s1Topic.topicDef.producerRecord(2, StreamOne("b", 1)),
-        s1Topic.topicDef.producerRecord(3, StreamOne("c", 2)),
-        s1Topic.topicDef.producerRecord(201, StreamOne("d", 3)),
-        s1Topic.topicDef.producerRecord(202, StreamOne("e", 4))
-      ).map(ProducerRecords.one))
+      .emits(
+        List(
+          s1Topic.topicDef.producerRecord(101, StreamOne("na", -1)),
+          s1Topic.topicDef.producerRecord(102, StreamOne("na", -1)),
+          s1Topic.topicDef.producerRecord(103, StreamOne("na", -1)),
+          s1Topic.topicDef.producerRecord(1, StreamOne("a", 0)),
+          s1Topic.topicDef.producerRecord(2, StreamOne("b", 1)),
+          s1Topic.topicDef.producerRecord(3, StreamOne("c", 2)),
+          s1Topic.topicDef.producerRecord(201, StreamOne("d", 3)),
+          s1Topic.topicDef.producerRecord(202, StreamOne("e", 4))
+        ).map(ProducerRecords.one))
       .covary[IO]
       .metered(1.seconds)
       .through(s1Topic.produce.sink)
@@ -117,18 +118,19 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
       .to(tgt.topicName.value)(tgt.asProduced)
 
     val sendS1Data = Stream
-      .emits(List(
-        s1TopicBin.topicDef
-          .producerRecord(s1Topic.serde.serializeKey(1), s1Topic.serde.serializeVal(StreamOne("a", 1))),
-        s1TopicBin.topicDef.producerRecord(s1Topic.serde.serializeKey(2), "exception1".getBytes),
-        s1TopicBin.topicDef
-          .producerRecord(s1Topic.serde.serializeKey(3), s1Topic.serde.serializeVal(StreamOne("c", 3))),
-        s1TopicBin.topicDef
-          .producerRecord(s1Topic.serde.serializeKey(4), s1Topic.serde.serializeVal(StreamOne("d", 4))),
-        s1TopicBin.topicDef.producerRecord(s1Topic.serde.serializeKey(5), "exception2".getBytes),
-        s1TopicBin.topicDef
-          .producerRecord(s1Topic.serde.serializeKey(6), s1Topic.serde.serializeVal(StreamOne("f", 6)))
-      ).map(ProducerRecords.one))
+      .emits(
+        List(
+          s1TopicBin.topicDef
+            .producerRecord(s1Topic.serde.serializeKey(1), s1Topic.serde.serializeVal(StreamOne("a", 1))),
+          s1TopicBin.topicDef.producerRecord(s1Topic.serde.serializeKey(2), "exception1".getBytes),
+          s1TopicBin.topicDef
+            .producerRecord(s1Topic.serde.serializeKey(3), s1Topic.serde.serializeVal(StreamOne("c", 3))),
+          s1TopicBin.topicDef
+            .producerRecord(s1Topic.serde.serializeKey(4), s1Topic.serde.serializeVal(StreamOne("d", 4))),
+          s1TopicBin.topicDef.producerRecord(s1Topic.serde.serializeKey(5), "exception2".getBytes),
+          s1TopicBin.topicDef
+            .producerRecord(s1Topic.serde.serializeKey(6), s1Topic.serde.serializeVal(StreamOne("f", 6)))
+        ).map(ProducerRecords.one))
       .covary[IO]
       .metered(1.seconds)
       .through(s1TopicBin.produce.sink)

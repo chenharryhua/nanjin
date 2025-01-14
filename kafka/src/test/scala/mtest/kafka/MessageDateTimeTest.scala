@@ -59,7 +59,9 @@ class MessageDateTimeTest extends AnyFunSuite {
     val data =
       fs2.Stream(ProducerRecords.one(ProducerRecord(topic.topicName.value, 0, m))).through(topic.produce.sink)
     val rst = for {
-      _ <- ctx.admin(topic.topicName).use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt)
+      _ <- ctx
+        .admin(topic.topicName)
+        .use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt)
       _ <- data.compile.drain
     } yield ()
     rst.unsafeRunSync()
