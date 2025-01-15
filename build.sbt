@@ -8,7 +8,7 @@ ThisBuild / Test / logBuffered       := false
 
 Global / parallelExecution := false
 
-val acyclicV    = "0.3.15"
+val acyclicV    = "0.3.16"
 val avroV       = "1.12.0"
 val awsV        = "2.29.50"
 val catsCoreV   = "2.12.0"
