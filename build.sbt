@@ -37,6 +37,7 @@ val natchezV    = "0.3.7"
 val nettyV      = "4.1.117.Final"
 val parquetV    = "1.15.0"
 val postgresV   = "42.7.5"
+val protobufV   = "3.25.5"
 val refinedV    = "0.11.3"
 val skunkV      = "0.6.4"
 val slf4jV      = "2.0.16"
@@ -97,6 +98,8 @@ val kantanLib = List(
 
 val pbLib = List(
   "com.thesamet.scalapb" %% "scalapb-runtime" % "0.11.17",
+  "com.google.protobuf"                       % "protobuf-java"             % protobufV,
+  "com.google.protobuf"                       % "protobuf-java-util"        % protobufV,
   "io.confluent"                              % "kafka-protobuf-serializer" % confluentV
 )
 
@@ -213,16 +216,17 @@ lazy val http = (project in file("http"))
   .dependsOn(common)
   .settings(commonSettings *)
   .settings(name := "nj-http")
-  .settings(libraryDependencies ++= List(
-    "org.http4s" %% "http4s-circe"        % http4sV,
-    "org.http4s" %% "http4s-client"       % http4sV,
-    "org.http4s" %% "http4s-dsl"          % http4sV,
-    "org.tpolecat" %% "natchez-core"      % natchezV,
-    "org.http4s" %% "http4s-ember-server" % http4sV          % Test,
-    "org.http4s" %% "http4s-ember-client" % http4sV          % Test,
-    "org.tpolecat" %% "natchez-log"       % natchezV         % Test,
-    "org.slf4j"                           % "slf4j-reload4j" % slf4jV % Test
-  ) ++ jwtLib ++ testLib)
+  .settings(
+    libraryDependencies ++= List(
+      "org.http4s" %% "http4s-circe"        % http4sV,
+      "org.http4s" %% "http4s-client"       % http4sV,
+      "org.http4s" %% "http4s-dsl"          % http4sV,
+      "org.tpolecat" %% "natchez-core"      % natchezV,
+      "org.http4s" %% "http4s-ember-server" % http4sV          % Test,
+      "org.http4s" %% "http4s-ember-client" % http4sV          % Test,
+      "org.tpolecat" %% "natchez-log"       % natchezV         % Test,
+      "org.slf4j"                           % "slf4j-reload4j" % slf4jV % Test
+    ) ++ jwtLib ++ testLib)
 
 lazy val aws = (project in file("aws"))
   .dependsOn(common)
