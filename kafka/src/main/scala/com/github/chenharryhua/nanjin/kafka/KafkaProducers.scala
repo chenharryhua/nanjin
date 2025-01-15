@@ -11,7 +11,7 @@ import fs2.{Pipe, Stream}
   * [[https://redpanda.com/guides/kafka-performance/kafka-performance-tuning]]
   */
 
-final class KafkaProduce[F[_], K, V] private[kafka](producerSettings: ProducerSettings[F, K, V])
+final class KafkaProduce[F[_], K, V] private[kafka] (producerSettings: ProducerSettings[F, K, V])
     extends UpdateConfig[ProducerSettings[F, K, V], KafkaProduce[F, K, V]] {
   def transactional(transactionalId: String): KafkaTransactional[F, K, V] =
     new KafkaTransactional[F, K, V](TransactionalProducerSettings(transactionalId, producerSettings))
@@ -29,7 +29,7 @@ final class KafkaProduce[F[_], K, V] private[kafka](producerSettings: ProducerSe
     new KafkaProduce[F, K, V](f(producerSettings))
 }
 
-final class KafkaTransactional[F[_], K, V] private[kafka](
+final class KafkaTransactional[F[_], K, V] private[kafka] (
   txnSettings: TransactionalProducerSettings[F, K, V])
     extends UpdateConfig[TransactionalProducerSettings[F, K, V], KafkaTransactional[F, K, V]] {
   def producer(implicit F: Async[F]): Stream[F, TransactionalKafkaProducer[F, K, V]] =

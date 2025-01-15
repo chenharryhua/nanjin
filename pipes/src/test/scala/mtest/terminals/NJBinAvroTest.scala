@@ -98,7 +98,7 @@ class NJBinAvroTest extends AnyFunSuite {
   test("rotation - index") {
     val path   = fs2Root / "rotation" / "index"
     val number = 10000L
-    val file = BinAvroFile(_.Uncompressed)
+    val file   = BinAvroFile(_.Uncompressed)
     hdp.delete(path).unsafeRunSync()
     val processedSize = Stream
       .emits(pandaSet.toList)

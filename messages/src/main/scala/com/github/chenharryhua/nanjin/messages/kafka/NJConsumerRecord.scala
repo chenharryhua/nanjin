@@ -183,22 +183,20 @@ object NJConsumerRecord {
   implicit def transformCRNJFs2[K, V]: Transformer[NJConsumerRecord[K, V], ConsumerRecord[K, V]] =
     (src: NJConsumerRecord[K, V]) =>
       Cont
-        .pure(
-          ConsumerRecord[K, V](
-            topic = src.topic,
-            partition = src.partition,
-            offset = src.offset,
-            key = src.key.getOrElse(null.asInstanceOf[K]),
-            value = src.value.getOrElse(null.asInstanceOf[V]))
-            .withTimestamp(src.timestampType match {
-              case JavaTimestampType.CREATE_TIME.id =>
-                Timestamp.createTime(src.timestamp)
-              case JavaTimestampType.LOG_APPEND_TIME.id =>
-                Timestamp.logAppendTime(src.timestamp)
-              case _ =>
-                Timestamp.unknownTime(src.timestamp)
-            })
-            .withHeaders(Headers.fromSeq(src.headers.map(_.transformInto[Header]))))
+        .pure(ConsumerRecord[K, V](
+          topic = src.topic,
+          partition = src.partition,
+          offset = src.offset,
+          key = src.key.getOrElse(null.asInstanceOf[K]),
+          value = src.value.getOrElse(null.asInstanceOf[V])
+        ).withTimestamp(src.timestampType match {
+          case JavaTimestampType.CREATE_TIME.id =>
+            Timestamp.createTime(src.timestamp)
+          case JavaTimestampType.LOG_APPEND_TIME.id =>
+            Timestamp.logAppendTime(src.timestamp)
+          case _ =>
+            Timestamp.unknownTime(src.timestamp)
+        }).withHeaders(Headers.fromSeq(src.headers.map(_.transformInto[Header]))))
         .map(cr => src.serializedKeySize.fold(cr)(cr.withSerializedKeySize))
         .map(cr => src.serializedValueSize.fold(cr)(cr.withSerializedValueSize))
         .map(cr => src.leaderEpoch.fold(cr)(cr.withLeaderEpoch))

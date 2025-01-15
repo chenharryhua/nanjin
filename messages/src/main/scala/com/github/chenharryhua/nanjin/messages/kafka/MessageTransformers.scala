@@ -90,15 +90,14 @@ private trait MessageTransformers {
         src.headers.transformInto[JavaHeaders]
       )
 
-  implicit def transformPRJavaFs2[K, V]: Transformer[JavaProducerRecord[K, V], ProducerRecord[K, V]] = {
-    (src: JavaProducerRecord[K, V]) =>
-      Cont
-        .pure(
-          ProducerRecord(src.topic(), src.key(), src.value()).withHeaders(
-            src.headers().transformInto[Headers]))
-        .map(pr => Option(src.partition()).fold(pr)(pr.withPartition(_)))
-        .map(pr => Option(src.timestamp()).fold(pr)(pr.withTimestamp(_)))
-        .eval
-        .value
+  implicit def transformPRJavaFs2[K, V]
+    : Transformer[JavaProducerRecord[K, V], ProducerRecord[K, V]] = { (src: JavaProducerRecord[K, V]) =>
+    Cont
+      .pure(
+        ProducerRecord(src.topic(), src.key(), src.value()).withHeaders(src.headers().transformInto[Headers]))
+      .map(pr => Option(src.partition()).fold(pr)(pr.withPartition(_)))
+      .map(pr => Option(src.timestamp()).fold(pr)(pr.withTimestamp(_)))
+      .eval
+      .value
   }
 }
