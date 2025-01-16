@@ -1,5 +1,5 @@
 ThisBuild / version      := "0.19.1-SNAPSHOT"
-ThisBuild / scalaVersion := "2.13.15"
+ThisBuild / scalaVersion := "2.13.16"
 
 ThisBuild / versionScheme := Some("early-semver")
 
@@ -10,7 +10,7 @@ Global / parallelExecution := false
 
 val acyclicV    = "0.3.16"
 val avroV       = "1.12.0"
-val awsV        = "2.29.50"
+val awsV        = "2.30.0"
 val catsCoreV   = "2.12.0"
 val catsEffectV = "3.5.7"
 val chimneyV    = "1.6.0"
@@ -31,13 +31,12 @@ val kafkaV      = "7.8.0-ce"
 val kantanV     = "0.7.0"
 val log4catsV   = "2.7.0"
 val logbackV    = "1.5.16"
-val metricsV    = "4.2.29"
+val metricsV    = "4.2.30"
 val monocleV    = "3.3.0"
 val natchezV    = "0.3.7"
 val nettyV      = "4.1.117.Final"
 val parquetV    = "1.15.0"
 val postgresV   = "42.7.5"
-val protobufV   = "4.29.3"
 val refinedV    = "0.11.3"
 val skunkV      = "0.6.4"
 val slf4jV      = "2.0.16"
@@ -97,10 +96,8 @@ val kantanLib = List(
 ).map(_ % kantanV)
 
 val pbLib = List(
-  "com.thesamet.scalapb" %% "scalapb-runtime" % "0.11.17",
-  "com.google.protobuf"                       % "protobuf-java"             % protobufV,
-  "com.google.protobuf"                       % "protobuf-java-util"        % protobufV,
-  "io.confluent"                              % "kafka-protobuf-serializer" % confluentV
+  ("com.thesamet.scalapb" %% "scalapb-runtime" % "0.11.17").exclude("com.google.protobuf", "protobuf-java"),
+  "io.confluent"                               % "kafka-protobuf-serializer" % confluentV
 )
 
 val serdeLib = List(
@@ -182,7 +179,7 @@ val logLib = List(
 )
 
 val jwtLib = List(
-  "org.bouncycastle"           % "bcpkix-jdk18on"   % "1.79",
+  "org.bouncycastle"           % "bcpkix-jdk18on"   % "1.80",
   "io.jsonwebtoken"            % "jjwt-api"         % jwtV,
   "io.jsonwebtoken"            % "jjwt-impl"        % jwtV,
   "io.jsonwebtoken"            % "jjwt-jackson"     % jwtV,
@@ -216,16 +213,17 @@ lazy val http = (project in file("http"))
   .dependsOn(common)
   .settings(commonSettings *)
   .settings(name := "nj-http")
-  .settings(libraryDependencies ++= List(
-    "org.http4s" %% "http4s-circe"        % http4sV,
-    "org.http4s" %% "http4s-client"       % http4sV,
-    "org.http4s" %% "http4s-dsl"          % http4sV,
-    "org.tpolecat" %% "natchez-core"      % natchezV,
-    "org.http4s" %% "http4s-ember-server" % http4sV          % Test,
-    "org.http4s" %% "http4s-ember-client" % http4sV          % Test,
-    "org.tpolecat" %% "natchez-log"       % natchezV         % Test,
-    "org.slf4j"                           % "slf4j-reload4j" % slf4jV % Test
-  ) ++ jwtLib ++ testLib)
+  .settings(
+    libraryDependencies ++= List(
+      "org.http4s" %% "http4s-circe"        % http4sV,
+      "org.http4s" %% "http4s-client"       % http4sV,
+      "org.http4s" %% "http4s-dsl"          % http4sV,
+      "org.tpolecat" %% "natchez-core"      % natchezV,
+      "org.http4s" %% "http4s-ember-server" % http4sV          % Test,
+      "org.http4s" %% "http4s-ember-client" % http4sV          % Test,
+      "org.tpolecat" %% "natchez-log"       % natchezV         % Test,
+      "org.slf4j"                           % "slf4j-reload4j" % slf4jV % Test
+    ) ++ jwtLib ++ testLib)
 
 lazy val aws = (project in file("aws"))
   .dependsOn(common)
@@ -362,6 +360,7 @@ val hadoopLib = List(
   "io.netty"           % "netty-all"                    % nettyV, // snyk
   "com.nimbusds"       % "nimbus-jose-jwt"              % "10.0.1", // snyk
   "dnsjava"            % "dnsjava"                      % "3.6.2", // snyk
+  "com.google.guava"   % "guava"                        % "33.4.0-jre", // snyk
   "org.apache.commons" % "commons-configuration2"       % "2.11.0" // snyk
 ).map(
   _.exclude("log4j", "log4j")
