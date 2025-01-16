@@ -96,8 +96,8 @@ val kantanLib = List(
 ).map(_ % kantanV)
 
 val pbLib = List(
-  "com.thesamet.scalapb" %% "scalapb-runtime" % "0.11.17",
-  "io.confluent"                              % "kafka-protobuf-serializer" % confluentV
+  ("com.thesamet.scalapb" %% "scalapb-runtime" % "0.11.17").exclude("com.google.protobuf", "protobuf-java"),
+  "io.confluent"                               % "kafka-protobuf-serializer" % confluentV
 )
 
 val serdeLib = List(
