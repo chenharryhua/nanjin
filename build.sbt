@@ -416,7 +416,7 @@ lazy val spark = (project in file("spark"))
   .settings(
     libraryDependencies ++= List(
       "org.apache.ivy"                         % "ivy"             % "2.5.3", // snyk
-      "com.julianpeeters" %% "avrohugger-core" % "2.11.0"          % Test,
+      "com.julianpeeters" %% "avrohugger-core" % "2.11.2"          % Test,
       "ch.qos.logback"                         % "logback-classic" % logbackV  % Test,
       "org.postgresql"                         % "postgresql"      % postgresV % Test
     ) ++ sparkLib.map(_.exclude("commons-logging", "commons-logging")) ++ testLib
