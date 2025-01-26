@@ -359,7 +359,7 @@ val hadoopLib = List(
   "org.eclipse.jetty"  % "jetty-server"                 % "12.0.16", // snyk
   "io.netty"           % "netty-all"                    % nettyV, // snyk
   "com.nimbusds"       % "nimbus-jose-jwt"              % "10.0.1", // snyk
-  "dnsjava"            % "dnsjava"                      % "3.6.2", // snyk
+  "dnsjava"            % "dnsjava"                      % "3.6.3", // snyk
   "com.google.guava"   % "guava"                        % "33.4.0-jre", // snyk
   "org.apache.commons" % "commons-configuration2"       % "2.11.0" // snyk
 ).map(
