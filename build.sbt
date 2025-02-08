@@ -10,13 +10,13 @@ Global / parallelExecution := false
 
 val acyclicV    = "0.3.16"
 val avroV       = "1.12.0"
-val awsV        = "2.30.0"
-val catsCoreV   = "2.12.0"
+val awsV        = "2.30.16"
+val catsCoreV   = "2.13.0"
 val catsEffectV = "3.5.7"
-val chimneyV    = "1.6.0"
+val chimneyV    = "1.7.2"
 val circeV      = "0.14.10"
 val confluentV  = "7.8.0"
-val cron4sV     = "0.7.0"
+val cron4sV     = "0.8.2"
 val doobieV     = "1.0.0-RC6"
 val drosteV     = "0.9.0"
 val enumeratumV = "1.7.5"
@@ -28,7 +28,7 @@ val http4sV     = "0.23.30"
 val jacksonV    = "2.18.2"
 val jwtV        = "0.12.6"
 val kafkaV      = "7.8.0-ce"
-val kantanV     = "0.7.0"
+val kantanV     = "0.8.0"
 val log4catsV   = "2.7.0"
 val logbackV    = "1.5.16"
 val metricsV    = "4.2.30"
@@ -255,11 +255,11 @@ lazy val guard = (project in file("guard"))
   .settings(name := "nj-guard")
   .settings(
     libraryDependencies ++= List(
-      "commons-codec"                       % "commons-codec"        % "1.17.2",
+      "commons-codec"                       % "commons-codec"        % "1.18.0",
       "org.apache.commons"                  % "commons-collections4" % "4.4",
       "io.dropwizard.metrics"               % "metrics-core"         % metricsV,
       "io.dropwizard.metrics"               % "metrics-jmx"          % metricsV,
-      "com.github.ben-manes.caffeine"       % "caffeine"             % "3.1.8",
+      "com.github.ben-manes.caffeine"       % "caffeine"             % "3.2.0",
       "com.lihaoyi" %% "scalatags"          % "0.13.1",
       "org.http4s" %% "http4s-core"         % http4sV,
       "org.http4s" %% "http4s-dsl"          % http4sV,
@@ -359,7 +359,7 @@ val hadoopLib = List(
   "org.eclipse.jetty"  % "jetty-server"                 % "12.0.16", // snyk
   "io.netty"           % "netty-all"                    % nettyV, // snyk
   "com.nimbusds"       % "nimbus-jose-jwt"              % "10.0.1", // snyk
-  "dnsjava"            % "dnsjava"                      % "3.6.2", // snyk
+  "dnsjava"            % "dnsjava"                      % "3.6.3", // snyk
   "com.google.guava"   % "guava"                        % "33.4.0-jre", // snyk
   "org.apache.commons" % "commons-configuration2"       % "2.11.0" // snyk
 ).map(
@@ -416,7 +416,7 @@ lazy val spark = (project in file("spark"))
   .settings(
     libraryDependencies ++= List(
       "org.apache.ivy"                         % "ivy"             % "2.5.3", // snyk
-      "com.julianpeeters" %% "avrohugger-core" % "2.11.0"          % Test,
+      "com.julianpeeters" %% "avrohugger-core" % "2.11.2"          % Test,
       "ch.qos.logback"                         % "logback-classic" % logbackV  % Test,
       "org.postgresql"                         % "postgresql"      % postgresV % Test
     ) ++ sparkLib.map(_.exclude("commons-logging", "commons-logging")) ++ testLib
