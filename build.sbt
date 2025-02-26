@@ -10,14 +10,14 @@ Global / parallelExecution := false
 
 val acyclicV    = "0.3.16"
 val avroV       = "1.12.0"
-val awsV        = "2.30.25"
+val awsV        = "2.30.28"
 val catsCoreV   = "2.13.0"
 val catsEffectV = "3.5.7"
 val chimneyV    = "1.7.3"
 val circeV      = "0.14.10"
-val confluentV  = "7.8.0"
+val confluentV  = "7.9.0"
 val cron4sV     = "0.8.2"
-val doobieV     = "1.0.0-RC7"
+val doobieV     = "1.0.0-RC8"
 val drosteV     = "0.10.0"
 val enumeratumV = "1.7.5"
 val fs2KafkaV   = "3.6.0"
@@ -27,10 +27,10 @@ val hadoopV     = "3.4.1"
 val http4sV     = "0.23.30"
 val jacksonV    = "2.18.2"
 val jwtV        = "0.12.6"
-val kafkaV      = "7.8.0-ce"
+val kafkaV      = "7.9.0-ce"
 val kantanV     = "0.8.0"
 val log4catsV   = "2.7.0"
-val logbackV    = "1.5.16"
+val logbackV    = "1.5.17"
 val metricsV    = "4.2.30"
 val monocleV    = "3.3.0"
 val natchezV    = "0.3.7"
@@ -39,7 +39,7 @@ val parquetV    = "1.15.0"
 val postgresV   = "42.7.5"
 val refinedV    = "0.11.3"
 val skunkV      = "0.6.4"
-val slf4jV      = "2.0.16"
+val slf4jV      = "2.0.17"
 val sparkV      = "3.5.4"
 
 lazy val commonSettings = List(
@@ -259,7 +259,7 @@ lazy val guard = (project in file("guard"))
       "org.apache.commons"                  % "commons-collections4" % "4.4",
       "io.dropwizard.metrics"               % "metrics-core"         % metricsV,
       "io.dropwizard.metrics"               % "metrics-jmx"          % metricsV,
-      "com.github.ben-manes.caffeine"       % "caffeine"             % "3.2.0",
+      "com.github.ben-manes.caffeine"       % "caffeine"             % "3.1.8",
       "com.lihaoyi" %% "scalatags"          % "0.13.1",
       "org.http4s" %% "http4s-core"         % http4sV,
       "org.http4s" %% "http4s-dsl"          % http4sV,
@@ -358,7 +358,7 @@ val hadoopLib = List(
   "org.slf4j"          % "jcl-over-slf4j"               % slf4jV,
   "org.eclipse.jetty"  % "jetty-server"                 % "12.0.16", // snyk
   "io.netty"           % "netty-all"                    % nettyV, // snyk
-  "com.nimbusds"       % "nimbus-jose-jwt"              % "10.0.1", // snyk
+  "com.nimbusds"       % "nimbus-jose-jwt"              % "10.0.2", // snyk
   "dnsjava"            % "dnsjava"                      % "3.6.3", // snyk
   "com.google.guava"   % "guava"                        % "33.4.0-jre", // snyk
   "org.apache.commons" % "commons-configuration2"       % "2.11.0" // snyk
