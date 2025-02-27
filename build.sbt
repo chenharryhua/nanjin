@@ -40,7 +40,7 @@ val postgresV   = "42.7.5"
 val refinedV    = "0.11.3"
 val skunkV      = "0.6.4"
 val slf4jV      = "2.0.17"
-val sparkV      = "3.5.4"
+val sparkV      = "3.5.5"
 
 lazy val commonSettings = List(
   organization       := "com.github.chenharryhua",
