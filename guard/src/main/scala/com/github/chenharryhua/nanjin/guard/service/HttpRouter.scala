@@ -74,32 +74,33 @@ private class HttpRouter[F[_]](
       }
     }
 
+  private val indexHtml: Text.TypedTag[String] = html(
+    body(
+      h3(s"Service: ${serviceParams.serviceName.value}"),
+      a(href := "/metrics/yaml")("Metrics At Present"),
+      br(),
+      a(href := "/metrics/json")("Metrics At Present(Json)"),
+      br(),
+      a(href := "/metrics/history")("Metrics History"),
+      br(),
+      a(href := "/metrics/reset")("Metrics Counters Reset"),
+      br(),
+      a(href := "/metrics/jvm")("Jvm"),
+      br(),
+      a(href := "/service/params")("Service Parameters"),
+      br(),
+      a(href := "/service/history")("Service Panic History"),
+      br(),
+      a(href := "/service/health_check")("Service Health Check"),
+      br(),
+      br(),
+      form(action := "/service/stop")(
+        input(`type` := "submit", onclick := "return confirm('Are you sure?')", value := "Stop Service"))
+    ))
+
   private val metrics = HttpRoutes.of[F] {
-    case GET -> Root / "index.html" =>
-      val text: Text.TypedTag[String] = html(
-        body(
-          h3(s"Service: ${serviceParams.serviceName.value}"),
-          a(href := "/metrics/yaml")("Metrics At Present"),
-          br(),
-          a(href := "/metrics/json")("Metrics At Present(Json)"),
-          br(),
-          a(href := "/metrics/history")("Metrics History"),
-          br(),
-          a(href := "/metrics/reset")("Metrics Counters Reset"),
-          br(),
-          a(href := "/metrics/jvm")("Jvm"),
-          br(),
-          a(href := "/service/params")("Service Parameters"),
-          br(),
-          a(href := "/service/history")("Service Panic History"),
-          br(),
-          a(href := "/service/health_check")("Service Health Check"),
-          br(),
-          br(),
-          form(action := "/service/stop")(
-            input(`type` := "submit", onclick := "return confirm('Are you sure?')", value := "Stop Service"))
-        ))
-      Ok(text)
+    case GET -> Root                => Ok(indexHtml)
+    case GET -> Root / "index.html" => Ok(indexHtml)
 
     case GET -> Root / "metrics" / "yaml" =>
       val text: F[Text.TypedTag[String]] =
