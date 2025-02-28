@@ -11,10 +11,10 @@ object AlarmLevel
     extends CatsOrderValueEnum[Int, AlarmLevel] with IntEnum[AlarmLevel] with IntCirceEnum[AlarmLevel] {
   override val values: IndexedSeq[AlarmLevel] = findValues
 
-  case object Error extends AlarmLevel(3, "error")
-  case object Warn extends AlarmLevel(2, "warn")
+  case object Error extends AlarmLevel(4, "error")
+  case object Warn extends AlarmLevel(3, "warn")
+  case object Done extends AlarmLevel(2, "done")
   case object Info extends AlarmLevel(1, "info")
-  case object Done extends AlarmLevel(0, "done")
 }
 
 final case class TaskName(value: String) extends AnyVal
