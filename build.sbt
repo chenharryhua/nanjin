@@ -193,7 +193,7 @@ val baseLib = List(
   "org.typelevel" %% "case-insensitive"            % "1.4.2",
   "io.scalaland" %% "chimney"                      % chimneyV,
   "io.scalaland" %% "enumz"                        % "1.2.0",
-  "com.chuusai" %% "shapeless"                     % "2.3.12",
+  "com.chuusai" %% "shapeless"                     % "2.3.13",
   "com.github.alonsodomin.cron4s" %% "cron4s-core" % cron4sV,
   "io.lemonlabs" %% "scala-uri"                    % "4.0.3",
   ("com.lihaoyi" %% "acyclic"                      % acyclicV).cross(CrossVersion.full) % "provided"
