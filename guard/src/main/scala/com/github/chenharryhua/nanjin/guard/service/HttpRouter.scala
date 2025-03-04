@@ -1,11 +1,11 @@
 package com.github.chenharryhua.nanjin.guard.service
 
 import cats.data.Kleisli
-import cats.effect.kernel.{Async, Clock}
+import cats.effect.kernel.{Async, Clock, Ref}
 import cats.effect.std.AtomicCell
 import cats.syntax.all.*
 import com.codahale.metrics.MetricRegistry
-import com.github.chenharryhua.nanjin.guard.config.ServiceParams
+import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.Event.{MetricReport, ServicePanic}
 import com.github.chenharryhua.nanjin.guard.event.{
   retrieveHealthChecks,
@@ -39,6 +39,7 @@ private class HttpRouter[F[_]](
   serviceParams: ServiceParams,
   panicHistory: AtomicCell[F, CircularFifoQueue[ServicePanic]],
   metricsHistory: AtomicCell[F, CircularFifoQueue[MetricReport]],
+  alarmLevel: Ref[F, AlarmLevel],
   channel: Channel[F, Event])(implicit F: Async[F])
     extends Http4sDsl[F] with all {
 
@@ -190,7 +191,7 @@ private class HttpRouter[F[_]](
                 panics.reverse.map { sp =>
                   Json.obj(
                     "index" -> sp.tick.index.asJson,
-                    "uprouse_at" -> sp.tick.zonedPrevious.toLocalDateTime.asJson,
+                    "up_rouse_at" -> sp.tick.zonedPrevious.toLocalDateTime.asJson,
                     "active" -> fmt.format(sp.tick.active).asJson,
                     "when_panic" -> sp.tick.zonedAcquire.toLocalDateTime.asJson,
                     "snooze" -> fmt.format(sp.tick.snooze).asJson,
@@ -202,7 +203,16 @@ private class HttpRouter[F[_]](
           Ok(json)
         }
       }
+
+    case GET -> Root / "alarm_level" / "debug" => setAlarmLevel(AlarmLevel.Debug)
+    case GET -> Root / "alarm_level" / "done"  => setAlarmLevel(AlarmLevel.Done)
+    case GET -> Root / "alarm_level" / "info"  => setAlarmLevel(AlarmLevel.Info)
+    case GET -> Root / "alarm_level" / "warn"  => setAlarmLevel(AlarmLevel.Warn)
+    case GET -> Root / "alarm_level" / "error" => setAlarmLevel(AlarmLevel.Error)
   }
+
+  private def setAlarmLevel(level: AlarmLevel): F[Response[F]] =
+    Accepted(alarmLevel.set(level).as(level.entryName))
 
   val router: Kleisli[F, Request[F], Response[F]] =
     Router("/" -> metrics).orNotFound

@@ -15,6 +15,7 @@ object AlarmLevel
   case object Warn extends AlarmLevel(3, "warn")
   case object Done extends AlarmLevel(2, "done")
   case object Info extends AlarmLevel(1, "info")
+  case object Debug extends AlarmLevel(0, "debug")
 }
 
 final case class TaskName(value: String) extends AnyVal

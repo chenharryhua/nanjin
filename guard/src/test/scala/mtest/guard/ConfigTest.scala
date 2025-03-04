@@ -17,6 +17,7 @@ class ConfigTest extends AnyFunSuite {
     TaskGuard[IO]("config")
       .updateConfig(_.withZoneId(berlinTime).withPanicHistoryCapacity(1).withMetricHistoryCapacity(2))
       .updateConfig(_.withMetricReport(crontab(_.hourly)))
+      .updateConfig(_.withJmx(identity))
 
   test("9.case") {
     val en = EventName.ServiceStart

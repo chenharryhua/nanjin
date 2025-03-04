@@ -1,16 +1,12 @@
 package com.github.chenharryhua.nanjin.guard.action
 
 import cats.effect.kernel.Sync
-import cats.effect.std.Console
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceMessage
 import com.github.chenharryhua.nanjin.guard.event.{Error, Event}
-import com.github.chenharryhua.nanjin.guard.translator.{jsonHelper, textHelper, ColorScheme}
 import fs2.concurrent.Channel
 import io.circe.Encoder
-
-import java.time.format.DateTimeFormatter
 
 trait Herald[F[_]] {
   def error[S: Encoder](msg: S): F[Unit]
@@ -22,14 +18,6 @@ trait Herald[F[_]] {
   def info[S: Encoder](msg: S): F[Unit]
   def done[S: Encoder](msg: S): F[Unit]
 
-  def consoleError[S: Encoder](msg: S)(implicit cns: Console[F]): F[Unit]
-  def consoleError[S: Encoder](ex: Throwable)(msg: S)(implicit cns: Console[F]): F[Unit]
-
-  def consoleWarn[S: Encoder](msg: S)(implicit cns: Console[F]): F[Unit]
-  def consoleWarn[S: Encoder](ex: Throwable)(msg: S)(implicit cns: Console[F]): F[Unit]
-
-  def consoleInfo[S: Encoder](msg: S)(implicit cns: Console[F]): F[Unit]
-  def consoleDone[S: Encoder](msg: S)(implicit cns: Console[F]): F[Unit]
 }
 
 object Herald {
@@ -65,28 +53,5 @@ object Herald {
     override def warn[S: Encoder](ex: Throwable)(msg: S): F[Unit] =
       alarm(msg, AlarmLevel.Warn, Some(Error(ex)))
 
-    // console
-
-    private val fmt: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
-
-    private def toText(sm: ServiceMessage): String = {
-      val color = ColorScheme.decorate(sm).run(textHelper.consoleColor).value
-      val msg   = jsonHelper.json_service_message(sm).noSpaces
-      s"${sm.timestamp.format(fmt)} Console $color - $msg"
-    }
-
-    override def consoleError[S: Encoder](msg: S)(implicit cns: Console[F]): F[Unit] =
-      toServiceMessage(msg, AlarmLevel.Error, None).flatMap(m => cns.println(toText(m)))
-    override def consoleWarn[S: Encoder](msg: S)(implicit cns: Console[F]): F[Unit] =
-      toServiceMessage(msg, AlarmLevel.Warn, None).flatMap(m => cns.println(toText(m)))
-    override def consoleInfo[S: Encoder](msg: S)(implicit cns: Console[F]): F[Unit] =
-      toServiceMessage(msg, AlarmLevel.Info, None).flatMap(m => cns.println(toText(m)))
-    override def consoleDone[S: Encoder](msg: S)(implicit cns: Console[F]): F[Unit] =
-      toServiceMessage(msg, AlarmLevel.Done, None).flatMap(m => cns.println(toText(m)))
-
-    override def consoleError[S: Encoder](ex: Throwable)(msg: S)(implicit cns: Console[F]): F[Unit] =
-      toServiceMessage(msg, AlarmLevel.Error, Some(Error(ex))).flatMap(m => cns.println(toText(m)))
-    override def consoleWarn[S: Encoder](ex: Throwable)(msg: S)(implicit cns: Console[F]): F[Unit] =
-      toServiceMessage(msg, AlarmLevel.Warn, Some(Error(ex))).flatMap(m => cns.println(toText(m)))
   }
 }
