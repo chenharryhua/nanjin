@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.service
 
 import cats.Endo
-import cats.effect.kernel.{Async, Resource}
+import cats.effect.kernel.{Async, Ref, Resource}
 import cats.effect.std.Dispatcher
 import cats.implicits.catsSyntaxApplicativeId
 import com.codahale.metrics.MetricRegistry
@@ -39,6 +39,7 @@ sealed trait Agent[F[_]] {
   def adhoc: MetricsReport[F]
 
   def herald: Herald[F]
+  def console: ConsoleHerald[F]
 
   def facilitate[A](label: String)(f: Metrics[F] => A): A
 
@@ -55,13 +56,14 @@ final private class GeneralAgent[F[_]: Async](
   metricRegistry: MetricRegistry,
   channel: Channel[F, Event],
   measurement: Measurement,
+  alarmLevel: Ref[F, AlarmLevel],
   dispatcher: Dispatcher[F])
     extends Agent[F] {
 
   override val zoneId: ZoneId = serviceParams.zoneId
 
   override def withMeasurement(name: String): Agent[F] =
-    new GeneralAgent[F](serviceParams, metricRegistry, channel, Measurement(name), dispatcher)
+    new GeneralAgent[F](serviceParams, metricRegistry, channel, Measurement(name), alarmLevel, dispatcher)
 
   override def batch(label: String): Batch[F] = {
     val metricLabel = MetricLabel(label, measurement)
@@ -89,5 +91,7 @@ final private class GeneralAgent[F[_]: Async](
     f(new Retry.Builder[F](Policy.giveUp, _ => true.pure[F])).build(zoneId)
 
   override object adhoc extends MetricsReport[F](channel, serviceParams, metricRegistry)
+
   override object herald extends Herald.Impl[F](serviceParams, channel)
+  override object console extends ConsoleHerald.Impl[F](serviceParams, alarmLevel)
 }

@@ -4,12 +4,12 @@ import cats.syntax.all.*
 import cats.{Applicative, Endo, Functor}
 import com.codahale.metrics.jmx.JmxReporter
 import com.github.chenharryhua.nanjin.common.HostName
-import com.github.chenharryhua.nanjin.common.chrono.{Policy, Tick, TickStatus}
+import com.github.chenharryhua.nanjin.common.chrono.{Policy, Tick}
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
-import io.circe.{Encoder, Json}
 import io.circe.generic.JsonCodec
 import io.circe.syntax.EncoderOps
+import io.circe.{Encoder, Json}
 import monocle.syntax.all.*
 import org.http4s.ember.server.EmberServerBuilder
 
@@ -66,8 +66,6 @@ final case class ServiceParams(
   def upTime(ts: Instant): Duration       = Duration.between(zerothTick.launchTime, ts)
 
   def zonedNow[F[_]: Clock: Functor]: F[ZonedDateTime] = Clock[F].realTimeInstant.map(toZonedDateTime)
-
-  val initialStatus: TickStatus = TickStatus(zerothTick)
 }
 
 object ServiceParams {

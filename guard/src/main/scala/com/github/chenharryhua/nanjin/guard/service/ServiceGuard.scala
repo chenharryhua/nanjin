@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.service
 
 import cats.Endo
-import cats.effect.kernel.{Async, Resource}
+import cats.effect.kernel.{Async, Ref, Resource}
 import cats.effect.std.{AtomicCell, Dispatcher}
 import cats.syntax.all.*
 import com.codahale.metrics.MetricRegistry
@@ -59,6 +59,7 @@ final class ServiceGuard[F[_]: Network: Async] private[guard] (
     for {
       serviceParams <- Stream.eval(initStatus)
       dispatcher <- Stream.resource(Dispatcher.sequential[F])
+      alarmLevel <- Stream.eval(Ref.of[F, AlarmLevel](AlarmLevel.Info))
       panicHistory <- Stream.eval(
         AtomicCell[F].of(new CircularFifoQueue[ServicePanic](serviceParams.historyCapacity.panic)))
       metricsHistory <- Stream.eval(
@@ -114,13 +115,14 @@ final class ServiceGuard[F[_]: Network: Async] private[guard] (
             case Some(builder) =>
               Stream.resource(
                 builder
-                  .withHttpApp(
-                    new HttpRouter[F](
-                      metricRegistry = metricRegistry,
-                      serviceParams = serviceParams,
-                      panicHistory = panicHistory,
-                      metricsHistory = metricsHistory,
-                      channel = channel).router)
+                  .withHttpApp(new HttpRouter[F](
+                    metricRegistry = metricRegistry,
+                    serviceParams = serviceParams,
+                    panicHistory = panicHistory,
+                    metricsHistory = metricsHistory,
+                    alarmLevel = alarmLevel,
+                    channel = channel
+                  ).router)
                   .build) >>
                 Stream.never[F]
           }
@@ -131,6 +133,7 @@ final class ServiceGuard[F[_]: Network: Async] private[guard] (
             metricRegistry = metricRegistry,
             channel = channel,
             measurement = Measurement(serviceParams.serviceName.value),
+            alarmLevel = alarmLevel,
             dispatcher = dispatcher
           )
 

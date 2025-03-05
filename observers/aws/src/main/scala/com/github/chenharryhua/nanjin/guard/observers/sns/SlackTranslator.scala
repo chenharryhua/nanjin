@@ -201,6 +201,7 @@ private object SlackTranslator extends all {
       case AlarmLevel.Warn  => ":warning:"
       case AlarmLevel.Info  => ""
       case AlarmLevel.Done  => ""
+      case AlarmLevel.Debug => ""
     }
 
     val color = coloring(evt)
