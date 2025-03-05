@@ -7,7 +7,7 @@ import cats.effect.std.Dispatcher
 import cats.syntax.all.*
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.guard.config.MetricLabel
-import com.github.chenharryhua.nanjin.guard.translator.{decimal_fmt, fmt}
+import com.github.chenharryhua.nanjin.guard.translator.fmt
 
 trait KleisliLike[F[_], A] {
   def run(a: A): F[Unit]
@@ -111,7 +111,7 @@ object Metrics {
     override def permanentCounter(name: String, f: Endo[Gauge.Builder]): Resource[F, Counter[F]] =
       for {
         ref <- Resource.eval(Ref[F].of[Long](0L))
-        _ <- gauge(name, f).register(ref.get.map(decimal_fmt.format))
+        _ <- gauge(name, f).register(ref.get)
       } yield new Counter[F] {
         override def inc(num: Long): F[Unit] = ref.update(_ + num)
       }

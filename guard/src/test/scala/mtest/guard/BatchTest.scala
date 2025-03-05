@@ -143,12 +143,12 @@ class BatchTest extends AnyFunSuite {
       .updateConfig(_.withMetricReport(_.giveUp))
       .eventStream { agent =>
         val jobs = List(
-          "a" -> IO.sleep(1.second).flatMap(_ => agent.herald.consoleDone("done-a")).as(true),
-          "b" -> IO.sleep(2.seconds).flatMap(_ => agent.herald.consoleDone("done-b")).as(true)
+          "a" -> IO.sleep(1.second).flatMap(_ => agent.console.done("done-a")).as(true),
+          "b" -> IO.sleep(2.seconds).flatMap(_ => agent.console.done("done-b")).as(true)
         )
         val j1 = agent.batch("s1").namedSequential(jobs*)
         val j2 = agent.batch("q1").namedParallel(jobs*)
-        j1.seqCombine(j2).quasi.use(qr => agent.herald.consoleDone(qr) >> agent.adhoc.report)
+        j1.seqCombine(j2).quasi.use(qr => agent.console.debug(qr) >> agent.adhoc.report)
       }
       .evalMap(console.text[IO])
       .compile
@@ -161,12 +161,12 @@ class BatchTest extends AnyFunSuite {
       .updateConfig(_.withMetricReport(_.giveUp))
       .eventStream { agent =>
         val jobs = List(
-          "a" -> IO.sleep(1.second).flatMap(_ => agent.herald.consoleDone("done-a").as(true)),
-          "b" -> IO.sleep(2.seconds).flatMap(_ => agent.herald.consoleDone("done-b")).as(true)
+          "a" -> IO.sleep(1.second).flatMap(_ => agent.console.done("done-a").as(true)),
+          "b" -> IO.sleep(2.seconds).flatMap(_ => agent.console.done("done-b")).as(true)
         )
         val j1 = agent.batch("s1").namedSequential(jobs*)
         val j2 = agent.batch("q1").namedParallel(jobs*)
-        j1.parCombine(j2).quasi.use(qr => agent.herald.consoleDone(qr) >> agent.adhoc.report)
+        j1.parCombine(j2).quasi.use(qr => agent.console.done(qr) >> agent.adhoc.report)
       }
       .evalMap(console.text[IO])
       .compile

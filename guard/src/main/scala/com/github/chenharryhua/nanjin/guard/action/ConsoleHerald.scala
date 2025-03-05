@@ -6,10 +6,11 @@ import cats.implicits.{catsSyntaxIfM, catsSyntaxPartialOrder, toFlatMapOps, toFu
 import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.Error
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceMessage
-import com.github.chenharryhua.nanjin.guard.translator.{jsonHelper, textHelper, ColorScheme}
+import com.github.chenharryhua.nanjin.guard.translator.jsonHelper
 import io.circe.Encoder
 
 import java.time.format.DateTimeFormatter
+import scala.Console as SConsole
 
 trait ConsoleHerald[F[_]] {
   def error[S: Encoder](msg: S)(implicit cns: Console[F]): F[Unit]
@@ -44,9 +45,15 @@ object ConsoleHerald {
     private val fmt: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
 
     private def toText(sm: ServiceMessage): String = {
-      val color = ColorScheme.decorate(sm).run(textHelper.consoleColor).value
-      val msg   = jsonHelper.json_service_message(sm).noSpaces
-      s"${sm.timestamp.format(fmt)} Console $color - $msg"
+      val color = sm.level match {
+        case AlarmLevel.Error => SConsole.RED + "Console ERROR" + SConsole.RESET
+        case AlarmLevel.Warn  => SConsole.YELLOW + "Console Warn" + SConsole.RESET
+        case AlarmLevel.Done  => SConsole.GREEN + "Console Done" + SConsole.RESET
+        case AlarmLevel.Info  => SConsole.CYAN + "Console Info" + SConsole.RESET
+        case AlarmLevel.Debug => SConsole.BLUE + "Console Debug" + SConsole.RESET
+      }
+      val msg = jsonHelper.json_service_message(sm).noSpaces
+      s"${sm.timestamp.format(fmt)} $color - $msg"
     }
 
     private def logMessage[S: Encoder](msg: S, level: AlarmLevel, error: Option[Error])(implicit
