@@ -63,7 +63,7 @@ class GaugeTest extends AnyFunSuite {
     }.map(checkJson).mapFilter(eventFilters.metricReport).compile.lastOrError.unsafeRunSync()
     val permanent = retrieveGauge[Json](mr.snapshot.gauges)
     assert(mr.snapshot.nonEmpty)
-    assert(permanent.values.head.as[String].toOption.get == "1,999")
+    assert(permanent.values.head.as[Int].toOption.get == 1999)
   }
 
   test("6.gauge timeout") {
