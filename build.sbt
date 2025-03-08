@@ -10,7 +10,7 @@ Global / parallelExecution := false
 
 val acyclicV    = "0.3.16"
 val avroV       = "1.12.0"
-val awsV        = "2.30.30"
+val awsV        = "2.30.35"
 val catsCoreV   = "2.13.0"
 val catsEffectV = "3.5.7"
 val chimneyV    = "1.7.3"
@@ -195,7 +195,7 @@ val baseLib = List(
   "io.scalaland" %% "enumz"                        % "1.2.0",
   "com.chuusai" %% "shapeless"                     % "2.3.13",
   "com.github.alonsodomin.cron4s" %% "cron4s-core" % cron4sV,
-  "io.lemonlabs" %% "scala-uri"                    % "4.0.3",
+  "com.indoorvivants" %% "scala-uri"               % "4.2.0",
   ("com.lihaoyi" %% "acyclic"                      % acyclicV).cross(CrossVersion.full) % "provided"
 ) ++ enumLib ++ drosteLib ++ catsLib ++ refinedLib ++ circeLib ++ monocleLib ++ fs2Lib
 
@@ -356,7 +356,7 @@ val hadoopLib = List(
   "org.apache.hadoop"  % "hadoop-hdfs"                  % hadoopV,
   "org.apache.hadoop"  % "hadoop-hdfs-client"           % hadoopV,
   "org.slf4j"          % "jcl-over-slf4j"               % slf4jV,
-  "org.eclipse.jetty"  % "jetty-server"                 % "12.0.16", // snyk
+  "org.eclipse.jetty"  % "jetty-server"                 % "12.0.17", // snyk
   "io.netty"           % "netty-all"                    % nettyV, // snyk
   "com.nimbusds"       % "nimbus-jose-jwt"              % "10.0.2", // snyk
   "dnsjava"            % "dnsjava"                      % "3.6.3", // snyk

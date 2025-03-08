@@ -26,7 +26,7 @@ class Performance extends AnyFunSuite {
     println(s"speed: ${i / timeout.toMillis} k/s")
   }
 
-  test("4.performance counter") {
+  test("2.performance counter") {
     var i: Int = 0
     service
       .eventStream(_.facilitate("counter")(_.counter("counter").use(_.inc(1).map(_ => i += 1).foreverM)))
@@ -39,7 +39,7 @@ class Performance extends AnyFunSuite {
     println(s"speed: ${i / timeout.toMillis} k/s")
   }
 
-  test("5.performance permanent counter") {
+  test("3.performance permanent counter") {
     var i: Int = 0
     service
       .eventStream(
@@ -53,7 +53,7 @@ class Performance extends AnyFunSuite {
     println(s"speed: ${i / timeout.toMillis} k/s")
   }
 
-  test("6.performance meter") {
+  test("4.performance meter") {
     var i: Int = 0
     service
       .eventStream(_.facilitate("meter")(_.meter("meter").use(_.mark(1).map(_ => i += 1).foreverM)))
@@ -66,7 +66,7 @@ class Performance extends AnyFunSuite {
     println(s"speed: ${i / timeout.toMillis} k/s")
   }
 
-  test("7.performance histogram") {
+  test("5.performance histogram") {
     var i: Int = 0
     service
       .eventStream(
@@ -80,7 +80,7 @@ class Performance extends AnyFunSuite {
     println(s"speed: ${i / timeout.toMillis} k/s")
   }
 
-  test("8.performance timer") {
+  test("6.performance timer") {
     var i: Int = 0
     service
       .eventStream(_.facilitate("timer")(_.timer("timer").use(_.elapsed(1000).map(_ => i += 1).foreverM)))
@@ -93,7 +93,7 @@ class Performance extends AnyFunSuite {
     println(s"speed: ${i / timeout.toMillis} k/s")
   }
 
-  test("9.performance circuit breaker") {
+  test("7.performance circuit breaker") {
     var i: Int = 0
     service
       .eventStream(
@@ -110,7 +110,7 @@ class Performance extends AnyFunSuite {
     println(s"speed: ${i / timeout.toMillis} k/s")
   }
 
-  test("10.performance cache") {
+  test("8.performance cache") {
     service
       .eventStream(_.caffeineCache(Caffeine.newBuilder().build[Int, Int]()).use { cache =>
         cache.put(1, 0) >>
@@ -124,5 +124,4 @@ class Performance extends AnyFunSuite {
       .drain
       .unsafeRunSync()
   }
-
 }
