@@ -10,7 +10,7 @@ Global / parallelExecution := false
 
 val acyclicV    = "0.3.18"
 val avroV       = "1.12.0"
-val awsV        = "2.30.35"
+val awsV        = "2.31.0"
 val catsCoreV   = "2.13.0"
 val catsEffectV = "3.5.7"
 val chimneyV    = "1.7.3"
@@ -105,7 +105,6 @@ val serdeLib = List(
   "org.apache.parquet"                   % "parquet-common"           % parquetV,
   "org.apache.parquet"                   % "parquet-hadoop"           % parquetV,
   "org.apache.parquet"                   % "parquet-avro"             % parquetV,
-  "org.apache.commons"                   % "commons-compress"         % "1.27.1", // snyk by avro
   "org.apache.avro"                      % "avro"                     % avroV,
   "io.confluent"                         % "kafka-streams-avro-serde" % confluentV
 ) ++ jacksonLib ++ circeLib ++ pbLib
