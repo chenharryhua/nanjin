@@ -212,7 +212,13 @@ private class HttpRouter[F[_]](
   }
 
   private def setAlarmLevel(level: AlarmLevel): F[Response[F]] =
-    Accepted(alarmLevel.set(level).as(level.entryName))
+    Accepted(
+      alarmLevel
+        .getAndSet(level)
+        .map(pre =>
+          Json.obj(
+            "previous" -> Json.fromString(pre.entryName),
+            "current" -> Json.fromString(level.entryName))))
 
   val router: Kleisli[F, Request[F], Response[F]] =
     Router("/" -> metrics).orNotFound
