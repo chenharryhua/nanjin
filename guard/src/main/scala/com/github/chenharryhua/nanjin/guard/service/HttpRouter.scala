@@ -94,6 +94,8 @@ private class HttpRouter[F[_]](
       br(),
       a(href := "/service/health_check")("Service Health Check"),
       br(),
+      a(href := "/alarm_level")("Alarm Level"),
+      br(),
       br(),
       form(action := "/service/stop")(
         input(`type` := "submit", onclick := "return confirm('Are you sure?')", value := "Stop Service"))
@@ -204,6 +206,7 @@ private class HttpRouter[F[_]](
         }
       }
 
+    case GET -> Root / "alarm_level"           => Ok(alarmLevel.get.map(_.entryName))
     case GET -> Root / "alarm_level" / "debug" => setAlarmLevel(AlarmLevel.Debug)
     case GET -> Root / "alarm_level" / "done"  => setAlarmLevel(AlarmLevel.Done)
     case GET -> Root / "alarm_level" / "info"  => setAlarmLevel(AlarmLevel.Info)
