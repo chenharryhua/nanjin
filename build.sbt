@@ -10,7 +10,7 @@ Global / parallelExecution := false
 
 val acyclicV    = "0.3.18"
 val avroV       = "1.12.0"
-val awsV        = "2.31.5"
+val awsV        = "2.31.6"
 val catsCoreV   = "2.13.0"
 val catsEffectV = "3.5.7"
 val chimneyV    = "1.7.3"
