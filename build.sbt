@@ -12,7 +12,7 @@ val acyclicV    = "0.3.18"
 val avroV       = "1.12.0"
 val awsV        = "2.31.5"
 val catsCoreV   = "2.13.0"
-val catsEffectV = "3.5.7"
+val catsEffectV = "3.6.0"
 val chimneyV    = "1.7.3"
 val circeV      = "0.14.12"
 val confluentV  = "7.9.0"
@@ -21,7 +21,7 @@ val doobieV     = "1.0.0-RC8"
 val drosteV     = "0.10.0"
 val enumeratumV = "1.7.5"
 val fs2KafkaV   = "3.6.0"
-val fs2V        = "3.11.0"
+val fs2V        = "3.12.0"
 val framelessV  = "0.16.0"
 val hadoopV     = "3.4.1"
 val http4sV     = "0.23.30"
@@ -326,7 +326,7 @@ lazy val database = (project in file("database"))
       "org.tpolecat" %% "doobie-hikari" % doobieV,
       "org.tpolecat" %% "doobie-free"   % doobieV,
       "org.tpolecat" %% "skunk-core"    % skunkV,
-      ("com.zaxxer"                     % "HikariCP"   % "6.2.1").exclude("org.slf4j", "slf4j-api"),
+      ("com.zaxxer"                     % "HikariCP"   % "6.3.0").exclude("org.slf4j", "slf4j-api"),
       "org.postgresql"                  % "postgresql" % postgresV % Test
     ) ++ testLib
   )
@@ -464,3 +464,4 @@ lazy val nanjin =
     observer_kafka,
     observer_logging
   )
+

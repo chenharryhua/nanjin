@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin.common.chrono
 
-import cats.effect.kernel.Temporal
-import cats.effect.std.UUIDGen
+import cats.effect.kernel.{Async, Temporal}
 import cats.syntax.all.*
 import fs2.Stream
 
@@ -21,12 +20,12 @@ object tickStream {
 
   /** One based tick stream - tick index start from one
     */
-  def fromOne[F[_]: UUIDGen: Temporal](policy: Policy, zoneId: ZoneId): Stream[F, Tick] =
+  def fromOne[F[_]: Async](policy: Policy, zoneId: ZoneId): Stream[F, Tick] =
     Stream.eval[F, TickStatus](TickStatus.zeroth[F](policy, zoneId)).flatMap(fromTickStatus[F])
 
   /** Zero based tick stream - tick index start from zero
     */
-  def fromZero[F[_]: UUIDGen: Temporal](policy: Policy, zoneId: ZoneId): Stream[F, Tick] =
+  def fromZero[F[_]: Async](policy: Policy, zoneId: ZoneId): Stream[F, Tick] =
     Stream.eval(TickStatus.zeroth(policy, zoneId)).flatMap(ts => Stream(ts.tick) ++ fromTickStatus(ts))
 }
 

@@ -1,9 +1,9 @@
 package com.github.chenharryhua.nanjin.http.client.auth
 
 import cats.effect.kernel.{Async, Ref, Resource}
-import cats.effect.std.UUIDGen
 import cats.effect.syntax.all.*
 import cats.syntax.all.*
+import com.github.chenharryhua.nanjin.common.utils
 import io.circe.generic.auto.*
 import org.http4s.Method.POST
 import org.http4s.circe.CirceEntityCodec.circeEntityDecoder
@@ -34,7 +34,7 @@ final class RefreshableToken[F[_]] private (
       val auth_uri: Uri = auth_endpoint.withPath(path"oauth/token")
 
       val get_token: F[Token] =
-        UUIDGen[F].randomUUID.flatMap { uuid =>
+        utils.randomUUID[F].flatMap { uuid =>
           authenticationClient.expect[Token](
             POST(
               UrlForm(
@@ -45,7 +45,7 @@ final class RefreshableToken[F[_]] private (
         }
 
       def refresh_token(pre: Token): F[Token] =
-        UUIDGen[F].randomUUID.flatMap { uuid =>
+        utils.randomUUID[F].flatMap { uuid =>
           authClient.use(
             _.expect[Token](
               POST(

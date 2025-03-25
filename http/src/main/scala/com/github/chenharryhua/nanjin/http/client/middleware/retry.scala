@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.http.client.middleware
 
-import cats.effect.kernel.{Resource, Temporal}
-import cats.effect.std.{Hotswap, UUIDGen}
+import cats.effect.kernel.{Async, Resource, Temporal}
+import cats.effect.std.Hotswap
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.chrono.{Policy, TickStatus}
 import org.http4s.client.Client
@@ -14,13 +14,13 @@ import scala.concurrent.duration.{DurationLong, FiniteDuration}
 import scala.jdk.DurationConverters.JavaDurationOps
 
 object retry {
-  def apply[F[_]: UUIDGen: Temporal](policy: Policy, zoneId: ZoneId): Client[F] => Client[F] =
+  def apply[F[_]: Async](policy: Policy, zoneId: ZoneId): Client[F] => Client[F] =
     client => impl[F](policy, zoneId, RetryPolicy.defaultRetriable)(client)
 
-  def reckless[F[_]: UUIDGen: Temporal](policy: Policy, zoneId: ZoneId): Client[F] => Client[F] =
+  def reckless[F[_]: Async](policy: Policy, zoneId: ZoneId): Client[F] => Client[F] =
     client => impl[F](policy, zoneId, (_, ex) => RetryPolicy.recklesslyRetriable(ex))(client)
 
-  private def impl[F[_]: UUIDGen: Temporal](
+  private def impl[F[_]: Async](
     policy: Policy,
     zoneId: ZoneId,
     retriable: (Request[F], Either[Throwable, Response[F]]) => Boolean)(client: Client[F]): Client[F] = {
@@ -33,7 +33,7 @@ object retry {
       val header_duration: F[Option[FiniteDuration]] =
         retryHeader.traverse { h =>
           h.retry match {
-            case Left(date)  => Temporal[F].realTime.map(date.toDuration - _)
+            case Left(date)  => Async[F].realTime.map(date.toDuration - _)
             case Right(secs) => secs.seconds.pure[F]
           }
         }

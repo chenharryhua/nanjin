@@ -2,8 +2,8 @@ package com.github.chenharryhua.nanjin.http.client.auth
 
 import cats.effect.implicits.genTemporalOps_
 import cats.effect.kernel.{Async, Ref, Resource}
-import cats.effect.std.UUIDGen
 import cats.syntax.all.*
+import com.github.chenharryhua.nanjin.common.utils
 import io.circe.generic.auto.*
 import org.http4s.*
 import org.http4s.Method.POST
@@ -45,7 +45,7 @@ object salesforce {
     override def loginR(client: Client[F])(implicit F: Async[F]): Resource[F, Client[F]] =
       authClient.flatMap { authenticationClient =>
         val get_token: F[Token] =
-          UUIDGen[F].randomUUID.flatMap { uuid =>
+          utils.randomUUID[F].flatMap { uuid =>
             authenticationClient.expect[Token](
               POST(
                 UrlForm(
@@ -126,18 +126,17 @@ object salesforce {
     override def loginR(client: Client[F])(implicit F: Async[F]): Resource[F, Client[F]] =
       authClient.flatMap { authenticationClient =>
         val get_token: F[Token] =
-          UUIDGen[F].randomUUID.flatMap { uuid =>
-            authenticationClient.expect[Token](
-              POST(
-                UrlForm(
-                  "grant_type" -> "password",
-                  "client_id" -> client_id,
-                  "client_secret" -> client_secret,
-                  "username" -> username,
-                  "password" -> password
-                ),
-                auth_endpoint.withPath(path"/services/oauth2/token")
-              ).putHeaders(`Idempotency-Key`(show"$uuid")))
+          utils.randomUUID[F].flatMap { uuid =>
+            authenticationClient.expect[Token](POST(
+              UrlForm(
+                "grant_type" -> "password",
+                "client_id" -> client_id,
+                "client_secret" -> client_secret,
+                "username" -> username,
+                "password" -> password
+              ),
+              auth_endpoint.withPath(path"/services/oauth2/token")
+            ).putHeaders(`Idempotency-Key`(show"$uuid")))
           }
 
         def update_token(ref: Ref[F, Token]): F[Unit] =

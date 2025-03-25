@@ -4,10 +4,9 @@ import cats.Endo
 import cats.data.Reader
 import cats.effect.Resource
 import cats.effect.kernel.{Async, Sync}
-import cats.effect.std.UUIDGen
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameL}
+import com.github.chenharryhua.nanjin.common.{utils, UpdateConfig}
 import com.github.chenharryhua.nanjin.kafka.streaming.{KafkaStreamsBuilder, StateStores}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.*
 import fs2.kafka.*
@@ -79,7 +78,7 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
 
   def monitor(topicName: TopicNameL, f: AutoOffsetReset.type => AutoOffsetReset = _.Latest)(implicit
     F: Async[F]): Stream[F, String] =
-    Stream.eval(UUIDGen[F].randomUUID).flatMap { uuid =>
+    Stream.eval(utils.randomUUID[F]).flatMap { uuid =>
       consume(TopicName(topicName))
         .updateConfig( // avoid accidentally join an existing consumer-group
           _.withGroupId(uuid.show).withEnableAutoCommit(false).withAutoOffsetReset(f(AutoOffsetReset)))

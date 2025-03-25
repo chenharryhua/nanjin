@@ -1,11 +1,11 @@
 package com.github.chenharryhua.nanjin.common.chrono
 
-import cats.{Monad, Show}
-import cats.effect.kernel.Clock
-import cats.effect.std.UUIDGen
+import cats.Show
+import cats.effect.kernel.Sync
 import cats.syntax.all.*
-import io.circe.{Decoder, Encoder}
+import com.github.chenharryhua.nanjin.common.utils
 import io.circe.generic.JsonCodec
+import io.circe.{Decoder, Encoder}
 import org.typelevel.cats.time.instances.all.*
 
 import java.time.{Duration, Instant, ZoneId, ZonedDateTime}
@@ -70,10 +70,10 @@ object Tick {
       snooze = Duration.ZERO
     )
 
-  def zeroth[F[_]: Clock: UUIDGen: Monad](zoneId: ZoneId): F[Tick] =
+  def zeroth[F[_]: Sync](zoneId: ZoneId): F[Tick] =
     for {
-      uuid <- UUIDGen[F].randomUUID
-      now <- Clock[F].realTimeInstant
+      uuid <- utils.randomUUID[F]
+      now <- Sync[F].realTimeInstant
     } yield zeroth(uuid, zoneId, now)
 }
 
