@@ -2,10 +2,9 @@ package com.github.chenharryhua.nanjin.guard.metrics
 
 import cats.Applicative
 import cats.effect.kernel.{Resource, Sync}
-import cats.effect.std.UUIDGen
 import cats.implicits.{catsSyntaxTuple2Semigroupal, toFunctorOps}
 import com.codahale.metrics
-import com.github.chenharryhua.nanjin.common.EnableConfig
+import com.github.chenharryhua.nanjin.common.{utils, EnableConfig}
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.config.CategoryKind.MeterKind
 import com.github.chenharryhua.nanjin.guard.event.{MeasurementUnit, NJUnits}
@@ -57,7 +56,7 @@ object Meter {
     private[guard] def build[F[_]](label: MetricLabel, name: String, metricRegistry: metrics.MetricRegistry)(
       implicit F: Sync[F]): Resource[F, Meter[F]] =
       if (isEnabled) {
-        Resource.make((F.monotonic, UUIDGen[F].randomUUID).mapN { case (ts, unique) =>
+        Resource.make((F.monotonic, utils.randomUUID[F]).mapN { case (ts, unique) =>
           new Impl[F](
             label = label,
             metricRegistry = metricRegistry,

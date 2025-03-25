@@ -2,9 +2,7 @@ package com.github.chenharryhua.nanjin.guard.observers.ses
 
 import cats.Endo
 import cats.data.NonEmptyList
-import cats.effect.Temporal
-import cats.effect.kernel.{Ref, Resource}
-import cats.effect.std.UUIDGen
+import cats.effect.kernel.{Async, Ref, Resource}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.aws.*
 import com.github.chenharryhua.nanjin.common.aws.EmailContent
@@ -27,7 +25,7 @@ object EmailObserver {
   /** @param client
     *   Simple Email Service Client
     */
-  def apply[F[_]: UUIDGen: Temporal](client: Resource[F, SimpleEmailService[F]]): EmailObserver[F] =
+  def apply[F[_]: Async](client: Resource[F, SimpleEmailService[F]]): EmailObserver[F] =
     new EmailObserver[F](
       client = client,
       translator = HtmlTranslator[F],
@@ -38,13 +36,13 @@ object EmailObserver {
     )
 }
 
-final class EmailObserver[F[_]: UUIDGen] private (
+final class EmailObserver[F[_]] private (
   client: Resource[F, SimpleEmailService[F]],
   translator: Translator[F, Text.TypedTag[String]],
   isNewestFirst: Boolean,
   capacity: ChunkSize,
   policy: Policy,
-  zoneId: ZoneId)(implicit F: Temporal[F])
+  zoneId: ZoneId)(implicit F: Async[F])
     extends UpdateTranslator[F, Text.TypedTag[String], EmailObserver[F]] {
 
   private[this] def copy(

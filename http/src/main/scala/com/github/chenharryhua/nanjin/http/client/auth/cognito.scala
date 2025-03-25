@@ -2,9 +2,9 @@ package com.github.chenharryhua.nanjin.http.client.auth
 
 import cats.data.NonEmptyList
 import cats.effect.kernel.{Async, Ref, Resource}
-import cats.effect.std.UUIDGen
 import cats.effect.syntax.all.*
 import cats.syntax.all.*
+import com.github.chenharryhua.nanjin.common.utils
 import io.circe.generic.auto.*
 import org.http4s.Method.POST
 import org.http4s.circe.CirceEntityCodec.circeEntityDecoder
@@ -45,23 +45,22 @@ object cognito {
         val authURI = auth_endpoint.withPath(path"/oauth2/token")
 
         val get_token: F[Token] =
-          UUIDGen[F].randomUUID.flatMap { uuid =>
-            authenticationClient.expect[Token](
-              POST(
-                UrlForm(
-                  "grant_type" -> "authorization_code",
-                  "client_id" -> client_id,
-                  "code" -> code,
-                  "redirect_uri" -> redirect_uri,
-                  "code_verifier" -> code_verifier
-                ),
-                authURI,
-                Authorization(BasicCredentials(client_id, client_secret))
-              ).putHeaders(`Idempotency-Key`(show"$uuid")))
+          utils.randomUUID[F].flatMap { uuid =>
+            authenticationClient.expect[Token](POST(
+              UrlForm(
+                "grant_type" -> "authorization_code",
+                "client_id" -> client_id,
+                "code" -> code,
+                "redirect_uri" -> redirect_uri,
+                "code_verifier" -> code_verifier
+              ),
+              authURI,
+              Authorization(BasicCredentials(client_id, client_secret))
+            ).putHeaders(`Idempotency-Key`(show"$uuid")))
           }
 
         def refresh_token(pre: Token): F[Token] =
-          UUIDGen[F].randomUUID.flatMap { uuid =>
+          utils.randomUUID[F].flatMap { uuid =>
             authClient.use(
               _.expect[Token](POST(
                 UrlForm(
@@ -123,16 +122,15 @@ object cognito {
     override def loginR(client: Client[F])(implicit F: Async[F]): Resource[F, Client[F]] =
       authClient.flatMap { authenticationClient =>
         val getToken: F[Token] =
-          UUIDGen[F].randomUUID.flatMap { uuid =>
-            authenticationClient.expect[Token](
-              POST(
-                UrlForm(
-                  "grant_type" -> "client_credentials",
-                  "scope" -> scopes.toList.mkString(" ")
-                ),
-                auth_endpoint.withPath(path"/oauth2/token"),
-                Authorization(BasicCredentials(client_id, client_secret))
-              ).putHeaders(`Idempotency-Key`(show"$uuid")))
+          utils.randomUUID[F].flatMap { uuid =>
+            authenticationClient.expect[Token](POST(
+              UrlForm(
+                "grant_type" -> "client_credentials",
+                "scope" -> scopes.toList.mkString(" ")
+              ),
+              auth_endpoint.withPath(path"/oauth2/token"),
+              Authorization(BasicCredentials(client_id, client_secret))
+            ).putHeaders(`Idempotency-Key`(show"$uuid")))
           }
 
         def updateToken(ref: Ref[F, Token]): F[Unit] =

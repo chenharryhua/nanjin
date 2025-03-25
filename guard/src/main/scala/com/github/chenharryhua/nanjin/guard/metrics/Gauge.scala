@@ -2,11 +2,11 @@ package com.github.chenharryhua.nanjin.guard.metrics
 
 import cats.effect.implicits.genTemporalOps
 import cats.effect.kernel.{Async, Resource}
-import cats.effect.std.{Dispatcher, UUIDGen}
+import cats.effect.std.Dispatcher
 import cats.syntax.all.*
 import com.codahale.metrics
-import com.github.chenharryhua.nanjin.common.EnableConfig
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy}
+import com.github.chenharryhua.nanjin.common.{utils, EnableConfig}
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.config.CategoryKind.GaugeKind
 import io.circe.syntax.EncoderOps
@@ -61,7 +61,7 @@ object Gauge {
 
     override def register[A: Encoder](value: => F[A]): Resource[F, Unit] =
       Resource
-        .eval((F.monotonic, UUIDGen[F].randomUUID).mapN { case (ts, unique) =>
+        .eval((F.monotonic, utils.randomUUID[F]).mapN { case (ts, unique) =>
           MetricID(label, MetricName(name, ts, unique), Category.Gauge(GaugeKind.Gauge))
         })
         .flatMap(json_gauge(_, F.defer(value)))

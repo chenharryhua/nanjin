@@ -1,9 +1,7 @@
 package com.github.chenharryhua.nanjin.common.chrono
 
-import cats.Monad
-import cats.effect.kernel.Clock
-import cats.effect.std.UUIDGen
-import cats.syntax.all.*
+import cats.effect.kernel.Sync
+import cats.implicits.toFunctorOps
 
 import java.time.{Instant, ZoneId}
 
@@ -21,6 +19,6 @@ final class TickStatus private (val tick: Tick, decisions: LazyList[PolicyF.Calc
 
 object TickStatus {
   def apply(tick: Tick): TickStatus = new TickStatus(tick, LazyList.empty)
-  def zeroth[F[_]: Clock: UUIDGen: Monad](policy: Policy, zoneId: ZoneId): F[TickStatus] =
+  def zeroth[F[_]: Sync](policy: Policy, zoneId: ZoneId): F[TickStatus] =
     Tick.zeroth[F](zoneId).map(new TickStatus(_, PolicyF.decisions(policy.policy)))
 }
