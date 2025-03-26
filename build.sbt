@@ -11,6 +11,7 @@ Global / parallelExecution := false
 val acyclicV    = "0.3.18"
 val avroV       = "1.12.0"
 val awsV        = "2.31.5"
+val caffeineV   = "3.2.0"
 val catsCoreV   = "2.13.0"
 val catsEffectV = "3.6.0"
 val chimneyV    = "1.7.3"
@@ -258,7 +259,7 @@ lazy val guard = (project in file("guard"))
       "org.apache.commons"                  % "commons-collections4" % "4.4",
       "io.dropwizard.metrics"               % "metrics-core"         % metricsV,
       "io.dropwizard.metrics"               % "metrics-jmx"          % metricsV,
-      "com.github.ben-manes.caffeine"       % "caffeine"             % "3.1.8",
+      "com.github.ben-manes.caffeine"       % "caffeine"             % caffeineV,
       "com.lihaoyi" %% "scalatags"          % "0.13.1",
       "org.http4s" %% "http4s-core"         % http4sV,
       "org.http4s" %% "http4s-dsl"          % http4sV,
@@ -359,7 +360,7 @@ val hadoopLib = List(
   "io.netty"           % "netty-all"                    % nettyV, // snyk
   "com.nimbusds"       % "nimbus-jose-jwt"              % "10.0.2", // snyk
   "dnsjava"            % "dnsjava"                      % "3.6.3", // snyk
-  "com.google.guava"   % "guava"                        % "33.4.5-jre", // snyk
+  "com.google.guava"   % "guava"                        % "33.4.6-jre", // snyk
   "org.apache.commons" % "commons-configuration2"       % "2.11.0" // snyk
 ).map(
   _.exclude("log4j", "log4j")
@@ -464,4 +465,3 @@ lazy val nanjin =
     observer_kafka,
     observer_logging
   )
-
