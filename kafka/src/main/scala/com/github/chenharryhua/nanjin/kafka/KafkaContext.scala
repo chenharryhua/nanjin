@@ -86,7 +86,7 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
         .map { ccr =>
           val rcd = ccr.record
           rcd.value
-            .flatMap(gr2Jackson(_))
+            .flatMap(gr2Jackson)
             .toEither
             .leftMap(e =>
               new Exception(s"topic=${rcd.topic}, partition=${rcd.partition}, offset=${rcd.offset}", e))
@@ -190,7 +190,7 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
       case Some(value) =>
         schemaRegistry.fetchAvroSchema(topicName).flatMap { schemaPair =>
           val pgr = new PullGenericRecord(settings.schemaRegistrySettings, topicName, schemaPair)
-          F.fromTry(pgr.toGenericRecord(value).flatMap(gr2Jackson(_)))
+          F.fromTry(pgr.toGenericRecord(value).flatMap(gr2Jackson))
         }
     })
 
