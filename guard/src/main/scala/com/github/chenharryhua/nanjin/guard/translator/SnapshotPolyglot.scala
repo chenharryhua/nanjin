@@ -23,7 +23,7 @@ final class SnapshotPolyglot(snapshot: MetricSnapshot) {
   private def meters: List[(MetricID, NonEmptyList[(String, String)])] =
     snapshot.meters.map { m =>
       m.metricId -> NonEmptyList.of(
-        "aggregate" -> normalize(m.meter.unit, m.meter.sum),
+        "aggregate" -> normalize(m.meter.unit, m.meter.aggregate),
         "mean_rate" -> s"${normalize(m.meter.unit, m.meter.mean_rate.toHertz)}/s",
         "m1_rate" -> s"${normalize(m.meter.unit, m.meter.m1_rate.toHertz)}/s",
         "m5_rate" -> s"${normalize(m.meter.unit, m.meter.m5_rate.toHertz)}/s",
@@ -116,7 +116,7 @@ final class SnapshotPolyglot(snapshot: MetricSnapshot) {
   // for screen display
   def toPrettyJson: Json = {
     val counters: List[(MetricID, Json)] =
-      snapshot.counters.map(c => c.metricId -> Json.fromString(decimal_fmt.format(c.count)))
+      snapshot.counters.map(c => c.metricId -> Json.fromLong(c.count))
     val gauges: List[(MetricID, Json)] =
       snapshot.gauges.mapFilter(g => if (g.value === Json.Null) None else Some(g.metricId -> g.value))
 

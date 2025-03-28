@@ -138,23 +138,21 @@ package object codec {
       }
     }(_.close())
 
-  def gr2Jackson(getGenericRecord: => GenericRecord): Try[String] =
+  def gr2Jackson(genericRecord: GenericRecord): Try[String] =
     Using(new ByteArrayOutputStream()) { baos =>
-      val gr: GenericRecord    = getGenericRecord
-      val encoder: JsonEncoder = EncoderFactory.get().jsonEncoder(gr.getSchema, baos)
-      new GenericDatumWriter[GenericRecord](gr.getSchema).write(gr, encoder)
+      val encoder: JsonEncoder = EncoderFactory.get().jsonEncoder(genericRecord.getSchema, baos)
+      new GenericDatumWriter[GenericRecord](genericRecord.getSchema).write(genericRecord, encoder)
       encoder.flush()
       baos.toString(StandardCharsets.UTF_8)
     }(_.close())
 
-  def gr2Circe(getGenericRecord: => GenericRecord): Try[Json] =
-    gr2Jackson(getGenericRecord).flatMap(jawn.parse(_).toTry)
+  def gr2Circe(genericRecord: GenericRecord): Try[Json] =
+    gr2Jackson(genericRecord).flatMap(jawn.parse(_).toTry)
 
-  def gr2BinAvro(getGenericRecord: => GenericRecord): Try[Array[Byte]] =
+  def gr2BinAvro(genericRecord: GenericRecord): Try[Array[Byte]] =
     Using(new ByteArrayOutputStream) { baos =>
-      val gr: GenericRecord      = getGenericRecord
       val encoder: BinaryEncoder = EncoderFactory.get().binaryEncoder(baos, null)
-      new GenericDatumWriter[GenericRecord](gr.getSchema).write(gr, encoder)
+      new GenericDatumWriter[GenericRecord](genericRecord.getSchema).write(genericRecord, encoder)
       encoder.flush()
       baos.toByteArray
     }(_.close())

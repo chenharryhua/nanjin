@@ -76,4 +76,8 @@ class ImmigrateTest extends AnyFunSuite {
     assert(immigrate(v7s, v6d).isSuccess)
 
   }
+
+  test("immigrate null") {
+    assert(immigrate(v2s, null).get == null)
+  }
 }

@@ -29,7 +29,7 @@ object Snapshot {
   @JsonCodec
   final case class MeterData(
     unit: MeasurementUnit,
-    sum: Long,
+    aggregate: Long,
     mean_rate: Frequency,
     m1_rate: Frequency,
     m5_rate: Frequency,
@@ -105,7 +105,7 @@ final case class MetricSnapshot(
   }
 
   def lookupCount: Map[UUID, Long] = {
-    meters.map(m => m.metricId.metricName.uuid -> m.meter.sum) :::
+    meters.map(m => m.metricId.metricName.uuid -> m.meter.aggregate) :::
       timers.map(t => t.metricId.metricName.uuid -> t.timer.calls) :::
       histograms.map(h => h.metricId.metricName.uuid -> h.histogram.updates)
   }.toMap
@@ -161,7 +161,7 @@ object MetricSnapshot extends duration {
                     metricId = mid,
                     Snapshot.MeterData(
                       unit = unit,
-                      sum = meter.getCount,
+                      aggregate = meter.getCount,
                       mean_rate = Hertz(meter.getMeanRate),
                       m1_rate = Hertz(meter.getOneMinuteRate),
                       m5_rate = Hertz(meter.getFiveMinuteRate),

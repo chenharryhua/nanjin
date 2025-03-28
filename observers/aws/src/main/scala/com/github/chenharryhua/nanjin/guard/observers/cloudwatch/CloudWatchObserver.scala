@@ -105,8 +105,8 @@ final class CloudWatchObserver[F[_]: Concurrent] private (
 
     val meter_count: List[MetricDatum] =
       report.snapshot.meters.map { meter =>
-        val sum: Long               = meter.meter.sum
-        val value: Long             = lookup.get(meter.metricId.metricName.uuid).fold(sum)(sum - _)
+        val aggregate: Long = meter.meter.aggregate
+        val value: Long     = lookup.get(meter.metricId.metricName.uuid).fold(aggregate)(aggregate - _)
         val Normalized(delta, unit) = unitNormalization.normalize(meter.meter.unit, value)
         MetricKey(
           timestamp = report.timestamp.toInstant,

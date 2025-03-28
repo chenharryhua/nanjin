@@ -72,7 +72,7 @@ class MetricsTest extends AnyFunSuite {
     }.map(checkJson).mapFilter(eventFilters.metricReport).compile.lastOrError.unsafeRunSync()
     val meter = retrieveMeter(mr.snapshot.meters).values.head
     assert(mr.snapshot.nonEmpty)
-    assert(meter.sum == 10)
+    assert(meter.aggregate == 10)
     assert(meter.unit == MeasurementUnit.NJInformationUnit.BYTES)
   }
 
