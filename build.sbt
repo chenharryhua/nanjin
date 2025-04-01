@@ -144,10 +144,10 @@ val kafkaLib = List(
 )
 
 val enumLib = List(
-  "com.beachape" %% "enumeratum-cats",
-  "com.beachape" %% "enumeratum",
-  "com.beachape" %% "enumeratum-circe"
-).map(_ % enumeratumV)
+  "com.beachape" %% "enumeratum"       % enumeratumV,
+  "com.beachape" %% "enumeratum-cats"  % "1.7.5",
+  "com.beachape" %% "enumeratum-circe" % "1.7.5"
+)
 
 val drosteLib = List(
   "io.higherkindness" %% "droste-core",

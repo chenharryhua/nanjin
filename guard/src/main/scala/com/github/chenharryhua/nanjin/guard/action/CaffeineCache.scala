@@ -4,7 +4,7 @@ import cats.effect.kernel.{Resource, Sync}
 import cats.implicits.{catsSyntaxApplicativeId, toFlatMapOps, toFunctorOps}
 import com.github.benmanes.caffeine.cache.Cache
 import com.github.benmanes.caffeine.cache.stats.CacheStats
-import io.circe.{Encoder, Json}
+import io.circe.generic.JsonCodec
 
 trait CaffeineCache[F[_], K, V] {
   def getIfPresent(key: K): F[Option[V]]
@@ -21,17 +21,15 @@ trait CaffeineCache[F[_], K, V] {
 }
 
 object CaffeineCache {
-  final case class Stats(hitCount: Long, missCount: Long, estimatedSize: Long)
-
-  implicit val encoderStats: Encoder[Stats] = (a: Stats) =>
-    Json.fromString(s"[hit: ${a.hitCount}, miss: ${a.missCount}, cached: ${a.estimatedSize}]")
+  @JsonCodec
+  final case class Stats(hits: Long, missed: Long, cached: Long)
 
   private object Stats {
 
     def apply(cs: CacheStats, estimatedSize: Long): Stats = Stats(
-      hitCount = cs.hitCount(),
-      missCount = cs.missCount(),
-      estimatedSize = estimatedSize
+      hits = cs.hitCount(),
+      missed = cs.missCount(),
+      cached = estimatedSize
     )
   }
 
