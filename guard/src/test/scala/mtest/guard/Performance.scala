@@ -9,6 +9,8 @@ import org.scalatest.funsuite.AnyFunSuite
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 
 class Performance extends AnyFunSuite {
+  // sbt "guard/testOnly mtest.guard.Performance"
+
   private val service = TaskGuard[IO]("performance").service("performance")
 
   private val timeout: FiniteDuration = 5.seconds
