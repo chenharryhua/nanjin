@@ -255,12 +255,10 @@ lazy val guard = (project in file("guard"))
   .settings(name := "nj-guard")
   .settings(
     libraryDependencies ++= List(
-      "commons-codec"                       % "commons-codec"        % "1.18.0",
       "org.apache.commons"                  % "commons-collections4" % "4.4",
       "io.dropwizard.metrics"               % "metrics-core"         % metricsV,
       "io.dropwizard.metrics"               % "metrics-jmx"          % metricsV,
       "com.github.ben-manes.caffeine"       % "caffeine"             % caffeineV,
-      "com.lihaoyi" %% "scalatags"          % "0.13.1",
       "org.http4s" %% "http4s-core"         % http4sV,
       "org.http4s" %% "http4s-dsl"          % http4sV,
       "org.http4s" %% "http4s-ember-server" % http4sV,
@@ -465,3 +463,4 @@ lazy val nanjin =
     observer_kafka,
     observer_logging
   )
+

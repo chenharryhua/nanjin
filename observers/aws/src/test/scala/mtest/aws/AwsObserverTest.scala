@@ -34,7 +34,8 @@ class AwsObserverTest extends AnyFunSuite {
   test("2.ses mail") {
     val mail =
       EmailObserver(ses_client)
-        .withPolicy(Policy.fixedDelay(5.seconds), sydneyTime)
+        .withPolicy(Policy.fixedDelay(5.seconds))
+        .withZoneId(sydneyTime)
         .withCapacity(200)
         .withOldestFirst
 
@@ -78,7 +79,8 @@ class AwsObserverTest extends AnyFunSuite {
   test("6. email observer - limited should terminate") {
     val mail =
       EmailObserver(ses_client)
-        .withPolicy(Policy.fixedDelay(2.seconds).limited(3), sydneyTime)
+        .withPolicy(_.fixedDelay(2.seconds).limited(3))
+        .withZoneId(sydneyTime)
         .observe("a@b.c", NonEmptyList.one("b@c.d"), "email")
 
     TaskGuard[IO]("email")

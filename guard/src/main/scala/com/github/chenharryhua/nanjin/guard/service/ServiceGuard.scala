@@ -59,7 +59,7 @@ final class ServiceGuard[F[_]: Network: Async] private[guard] (
     for {
       serviceParams <- Stream.eval(initStatus)
       dispatcher <- Stream.resource(Dispatcher.sequential[F])
-      alarmLevel <- Stream.eval(Ref.of[F, AlarmLevel](AlarmLevel.Info))
+      alarmLevel <- Stream.eval(Ref.of[F, AlarmLevel](config.alarmLevel))
       panicHistory <- Stream.eval(
         AtomicCell[F].of(new CircularFifoQueue[ServicePanic](serviceParams.historyCapacity.panic)))
       metricsHistory <- Stream.eval(
