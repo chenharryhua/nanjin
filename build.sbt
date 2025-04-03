@@ -321,13 +321,14 @@ lazy val pipes = (project in file("pipes"))
       "co.fs2" %% "fs2-io"                        % fs2V,
       "io.circe" %% "circe-jackson210"            % "0.14.2",
       "com.nrinaudo" %% "kantan.csv"              % kantanV,
+      "com.thesamet.scalapb" %% "scalapb-runtime" % "0.11.17",
       "software.amazon.awssdk"                    % "bundle"                 % awsV,
       "org.apache.parquet"                        % "parquet-common"         % parquetV,
       "org.apache.parquet"                        % "parquet-hadoop"         % parquetV,
       "org.apache.parquet"                        % "parquet-avro"           % parquetV,
       "org.apache.avro"                           % "avro"                   % avroV,
-      "com.thesamet.scalapb" %% "scalapb-runtime" % "0.11.17",
       "org.tukaani"                               % "xz"                     % "1.10",
+      "com.google.protobuf"                       % "protobuf-java"          % "4.30.2", // snyk
       "org.eclipse.jetty"                         % "jetty-server"           % "12.0.18", // snyk
       "io.netty"                                  % "netty-all"              % nettyV, // snyk
       "com.nimbusds"                              % "nimbus-jose-jwt"        % "10.0.2", // snyk
