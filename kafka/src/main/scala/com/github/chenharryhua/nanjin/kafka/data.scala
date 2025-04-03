@@ -162,8 +162,8 @@ object TopicPartitionMap {
               jsons.traverse { json =>
                 val hc = json.hcursor
                 for {
-                  t <- hc.downField("topic").as[String]
-                  p <- hc.downField("partition").as[Int]
+                  t <- hc.downField(TOPIC).as[String]
+                  p <- hc.downField(PARTITION).as[Int]
                   v <- hc.downField("value").as[V]
                 } yield new TopicPartition(t, p) -> v
               }.map(lst => TopicPartitionMap(TreeMap.from(lst))))

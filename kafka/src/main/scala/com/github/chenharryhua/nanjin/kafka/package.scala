@@ -5,6 +5,9 @@ import io.circe.{Decoder, Encoder, HCursor, Json}
 import org.apache.kafka.common.TopicPartition
 
 package object kafka {
+  final val TOPIC: String     = "topic"
+  final val PARTITION: String = "partition"
+
   implicit val orderingTopicPartition: Ordering[TopicPartition] =
     Ordering.by(tp => (tp.topic(), tp.partition()))
 
@@ -16,12 +19,12 @@ package object kafka {
 
   implicit val encoderTopicPartition: Encoder[TopicPartition] =
     (a: TopicPartition) =>
-      Json.obj("topic" -> Json.fromString(a.topic()), "partition" -> Json.fromInt(a.partition()))
+      Json.obj(TOPIC -> Json.fromString(a.topic()), PARTITION -> Json.fromInt(a.partition()))
 
   implicit val decoderTopicPartition: Decoder[TopicPartition] =
     (c: HCursor) =>
       for {
-        topic <- c.downField("topic").as[String]
-        partition <- c.downField("partition").as[Int]
+        topic <- c.downField(TOPIC).as[String]
+        partition <- c.downField(PARTITION).as[Int]
       } yield new TopicPartition(topic, partition)
 }

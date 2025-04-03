@@ -90,8 +90,8 @@ final class PullGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName,
         header.put("value", ByteBuffer.wrap(h.value()))
         header
       }
-      record.put("topic", ccr.topic)
-      record.put("partition", ccr.partition)
+      record.put(TOPIC, ccr.topic)
+      record.put(PARTITION, ccr.partition)
       record.put("offset", ccr.offset)
       record.put("timestamp", ccr.timestamp())
       record.put("timestampType", ccr.timestampType().id)

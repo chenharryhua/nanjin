@@ -140,6 +140,7 @@ private object ServiceConfigF {
 final class ServiceConfig[F[_]: Applicative] private (
   cont: Fix[ServiceConfigF],
   private[guard] val zoneId: ZoneId,
+  private[guard] val alarmLevel: AlarmLevel,
   private[guard] val jmxBuilder: Option[Endo[JmxReporter.Builder]],
   private[guard] val httpBuilder: Option[Endo[EmberServerBuilder[F]]],
   private[guard] val briefs: F[List[Json]]) {
@@ -148,10 +149,11 @@ final class ServiceConfig[F[_]: Applicative] private (
   private def copy(
     cont: Fix[ServiceConfigF] = this.cont,
     zoneId: ZoneId = this.zoneId,
+    alarmLevel: AlarmLevel = this.alarmLevel,
     jmxBuilder: Option[Endo[JmxReporter.Builder]] = this.jmxBuilder,
     httpBuilder: Option[Endo[EmberServerBuilder[F]]] = this.httpBuilder,
     briefs: F[List[Json]] = this.briefs): ServiceConfig[F] =
-    new ServiceConfig[F](cont, zoneId, jmxBuilder, httpBuilder, briefs)
+    new ServiceConfig[F](cont, zoneId, alarmLevel, jmxBuilder, httpBuilder, briefs)
 
   def withRestartThreshold(fd: FiniteDuration): ServiceConfig[F] =
     copy(cont = Fix(WithRestartThreshold(Some(fd.toJava), cont)))
@@ -198,6 +200,11 @@ final class ServiceConfig[F[_]: Applicative] private (
   def withMetricHistoryCapacity(value: Int): ServiceConfig[F] =
     copy(cont = Fix(WithMetricCapacity(value, cont)))
 
+  def withAlarmLevel(level: AlarmLevel): ServiceConfig[F] =
+    copy(alarmLevel = level)
+  def withAlarmLevel(f: AlarmLevel.type => AlarmLevel): ServiceConfig[F] =
+    withAlarmLevel(f(AlarmLevel))
+
   def addBrief[A: Encoder](fa: F[A]): ServiceConfig[F] = copy(briefs = (fa, briefs).mapN(_.asJson :: _))
   def addBrief[A: Encoder](a: => A): ServiceConfig[F]  = addBrief(a.pure[F])
 
@@ -223,6 +230,7 @@ private[guard] object ServiceConfig {
     new ServiceConfig[F](
       cont = Fix(ServiceConfigF.InitParams[Fix[ServiceConfigF]](taskName)),
       zoneId = ZoneId.systemDefault(),
+      alarmLevel = AlarmLevel.Info,
       jmxBuilder = None,
       httpBuilder = None,
       briefs = List.empty[Json].pure[F]

@@ -56,9 +56,11 @@ final class EmailObserver[F[_]] private (
   override def updateTranslator(f: Endo[Translator[F, Text.TypedTag[String]]]): EmailObserver[F] =
     copy(translator = f(translator))
 
-  def withOldestFirst: EmailObserver[F]                            = copy(isNewestFirst = false)
-  def withCapacity(cs: ChunkSize): EmailObserver[F]                = copy(capacity = cs)
-  def withPolicy(policy: Policy, zoneId: ZoneId): EmailObserver[F] = copy(policy = policy, zoneId = zoneId)
+  def withOldestFirst: EmailObserver[F]                      = copy(isNewestFirst = false)
+  def withCapacity(cs: ChunkSize): EmailObserver[F]          = copy(capacity = cs)
+  def withPolicy(policy: Policy): EmailObserver[F]           = copy(policy = policy)
+  def withPolicy(f: Policy.type => Policy): EmailObserver[F] = withPolicy(f(Policy))
+  def withZoneId(zoneId: ZoneId): EmailObserver[F]           = copy(zoneId = zoneId)
 
   private def translate(evt: Event): F[Option[ColoredTag]] =
     translator.translate(evt).map(_.map(tag => ColoredTag(tag, ColorScheme.decorate(evt).eval.value)))
