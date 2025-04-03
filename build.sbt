@@ -11,7 +11,7 @@ Global / parallelExecution := false
 val acyclicV    = "0.3.18"
 val avroV       = "1.12.0"
 val avro4sV     = "4.1.2"
-val awsV        = "2.31.10"
+val awsV        = "2.31.15"
 val caffeineV   = "3.2.0"
 val catsCoreV   = "2.13.0"
 val catsEffectV = "3.6.0"
@@ -36,7 +36,7 @@ val logbackV    = "1.5.18"
 val metricsV    = "4.2.30"
 val monocleV    = "3.3.0"
 val natchezV    = "0.3.7"
-val nettyV      = "4.1.119.Final"
+val nettyV      = "4.2.0.Final"
 val parquetV    = "1.15.1"
 val postgresV   = "42.7.5"
 val refinedV    = "0.11.3"
@@ -181,7 +181,6 @@ lazy val guard = (project in file("guard"))
       "io.dropwizard.metrics"               % "metrics-jmx"          % metricsV,
       "com.github.ben-manes.caffeine"       % "caffeine"             % caffeineV,
       "io.circe" %% "circe-optics"          % "0.15.0",
-      "co.fs2" %% "fs2-core"                % fs2V,
       "org.http4s" %% "http4s-core"         % http4sV,
       "org.http4s" %% "http4s-dsl"          % http4sV,
       "org.http4s" %% "http4s-ember-server" % http4sV,
@@ -241,7 +240,6 @@ lazy val database = (project in file("database"))
       "org.tpolecat" %% "doobie-hikari" % doobieV,
       "org.tpolecat" %% "doobie-free"   % doobieV,
       "org.tpolecat" %% "skunk-core"    % skunkV,
-      "co.fs2" %% "fs2-core"            % fs2V,
       "com.zaxxer"                      % "HikariCP"        % "6.3.0",
       "org.postgresql"                  % "postgresql"      % postgresV % Test,
       "ch.qos.logback"                  % "logback-classic" % logbackV  % Test
@@ -266,17 +264,10 @@ lazy val messages =
           "com.thesamet.scalapb" %% "scalapb-runtime" % "0.11.17",
           "io.confluent"                              % "kafka-protobuf-serializer" % confluentV,
           "io.confluent"                              % "kafka-streams-avro-serde"  % confluentV,
+          "com.google.protobuf"                       % "protobuf-java"             % "4.30.2", // snyk
           "org.jetbrains.kotlin"                      % "kotlin-stdlib"             % "2.1.20", // snyk
           "io.circe" %% "circe-shapes"                % circeV                      % Test
         ) ++ testLib)
-
-val kafkaLib = List(
-  "io.confluent"                              % "kafka-schema-registry-client" % confluentV,
-  "io.confluent"                              % "kafka-schema-serializer"      % confluentV,
-  "org.apache.kafka"                          % "kafka-streams"                % kafkaV,
-  "org.apache.kafka" %% "kafka-streams-scala" % kafkaV,
-  ("com.github.fd4s" %% "fs2-kafka"           % fs2KafkaV).exclude("org.apache.kafka", "kafka-clients")
-)
 
 lazy val kafka = (project in file("kafka"))
   .dependsOn(common)
@@ -284,9 +275,15 @@ lazy val kafka = (project in file("kafka"))
   .dependsOn(datetime)
   .settings(commonSettings *)
   .settings(name := "nj-kafka")
-  .settings(libraryDependencies ++= List(
-    "ch.qos.logback" % "logback-classic" % logbackV % Test
-  ) ++ kafkaLib ++ testLib)
+  .settings(
+    libraryDependencies ++= List(
+      "io.confluent"                              % "kafka-schema-registry-client" % confluentV,
+      "io.confluent"                              % "kafka-schema-serializer"      % confluentV,
+      "org.apache.kafka"                          % "kafka-streams"                % kafkaV,
+      "org.apache.kafka" %% "kafka-streams-scala" % kafkaV,
+      ("com.github.fd4s" %% "fs2-kafka"           % fs2KafkaV).exclude("org.apache.kafka", "kafka-clients"),
+      "ch.qos.logback"                            % "logback-classic"              % logbackV % Test
+    ) ++ testLib)
 
 /** hadoop based
   */
@@ -318,26 +315,24 @@ lazy val pipes = (project in file("pipes"))
   .settings(name := "nj-pipes")
   .settings {
     val libs = List(
-      "co.fs2" %% "fs2-io"                        % fs2V,
-      "io.circe" %% "circe-jackson210"            % "0.14.2",
-      "com.nrinaudo" %% "kantan.csv"              % kantanV,
-      "com.thesamet.scalapb" %% "scalapb-runtime" % "0.11.17",
-      "software.amazon.awssdk"                    % "bundle"                 % awsV,
-      "org.apache.parquet"                        % "parquet-common"         % parquetV,
-      "org.apache.parquet"                        % "parquet-hadoop"         % parquetV,
-      "org.apache.parquet"                        % "parquet-avro"           % parquetV,
-      "org.apache.avro"                           % "avro"                   % avroV,
-      "org.tukaani"                               % "xz"                     % "1.10",
-      "com.google.protobuf"                       % "protobuf-java"          % "4.30.2", // snyk
-      "org.eclipse.jetty"                         % "jetty-server"           % "12.0.18", // snyk
-      "io.netty"                                  % "netty-all"              % nettyV, // snyk
-      "com.nimbusds"                              % "nimbus-jose-jwt"        % "10.0.2", // snyk
-      "dnsjava"                                   % "dnsjava"                % "3.6.3", // snyk
-      "com.google.guava"                          % "guava"                  % "33.4.6-jre", // snyk
-      "org.apache.commons"                        % "commons-configuration2" % "2.11.0", // snyk
-      "org.jetbrains.kotlin"                      % "kotlin-stdlib"          % "2.1.20", // snyk
-      "org.apache.zookeeper"                      % "zookeeper"              % "3.9.3", // snyk
-      "org.typelevel" %% "jawn-fs2"               % "2.4.0"                  % Test
+      "co.fs2" %% "fs2-io"             % fs2V,
+      "io.circe" %% "circe-jackson210" % "0.14.2",
+      "com.nrinaudo" %% "kantan.csv"   % kantanV,
+      "software.amazon.awssdk"         % "bundle"                 % awsV,
+      "org.apache.parquet"             % "parquet-common"         % parquetV,
+      "org.apache.parquet"             % "parquet-hadoop"         % parquetV,
+      "org.apache.parquet"             % "parquet-avro"           % parquetV,
+      "org.apache.avro"                % "avro"                   % avroV,
+      "org.tukaani"                    % "xz"                     % "1.10",
+      "org.eclipse.jetty"              % "jetty-server"           % "12.0.19", // snyk
+      "io.netty"                       % "netty-all"              % nettyV, // snyk
+      "com.nimbusds"                   % "nimbus-jose-jwt"        % "10.1", // snyk
+      "dnsjava"                        % "dnsjava"                % "3.6.3", // snyk
+      "com.google.guava"               % "guava"                  % "33.4.6-jre", // snyk
+      "org.apache.commons"             % "commons-configuration2" % "2.11.0", // snyk
+      "org.jetbrains.kotlin"           % "kotlin-stdlib"          % "2.1.20", // snyk
+      "org.apache.zookeeper"           % "zookeeper"              % "3.9.3", // snyk
+      "org.typelevel" %% "jawn-fs2"    % "2.4.0"                  % Test
     ) ++ hadoopLib ++ kantanLib
     libraryDependencies ++= libs ++ testLib
   }
