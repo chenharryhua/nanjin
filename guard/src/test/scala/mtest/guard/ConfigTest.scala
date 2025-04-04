@@ -21,6 +21,7 @@ class ConfigTest extends AnyFunSuite {
       .updateConfig(_.withJmx(identity))
       .updateConfig(_.withAlarmLevel(_.Info))
       .updateConfig(_.withAlarmLevel(AlarmLevel.Info))
+      .updateConfig(_.withTaskName("conf"))
 
   test("9.case") {
     val en = EventName.ServiceStart
