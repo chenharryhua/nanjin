@@ -110,6 +110,8 @@ private object ServiceConfigF {
   final case class WithMetricCapacity[K](value: Int, cont: K) extends ServiceConfigF[K]
   final case class WithPanicCapacity[K](value: Int, cont: K) extends ServiceConfigF[K]
 
+  final case class WithTaskName[K](value: TaskName, cont: K) extends ServiceConfigF[K]
+
   def algebra(
     serviceName: ServiceName,
     emberServerParams: Option[EmberServerParams],
@@ -134,6 +136,8 @@ private object ServiceConfigF {
 
       case WithMetricCapacity(v, c) => c.focus(_.historyCapacity.metric).replace(v)
       case WithPanicCapacity(v, c)  => c.focus(_.historyCapacity.panic).replace(v)
+
+      case WithTaskName(v, c) => c.focus(_.taskName).replace(v)
     }
 }
 
@@ -181,6 +185,9 @@ final class ServiceConfig[F[_]: Applicative] private (
 
   def withHomePage(hp: String): ServiceConfig[F] =
     copy(cont = Fix(WithHomePage(Some(HomePage(hp)), cont)))
+
+  def withTaskName(tn: String): ServiceConfig[F] =
+    copy(cont = Fix(WithTaskName(TaskName(tn), cont)))
 
   def withZoneId(zoneId: ZoneId): ServiceConfig[F] =
     copy(zoneId = zoneId)
