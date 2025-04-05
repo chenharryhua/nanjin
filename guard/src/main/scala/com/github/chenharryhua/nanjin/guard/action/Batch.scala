@@ -50,10 +50,10 @@ object Batch {
       for {
         _ <- mtx.activeGauge("elapsed")
         percentile <- mtx
-          .percentile("completion", _.withTranslator(translator))
+          .percentile(show"$mode completion", _.withTranslator(translator))
           .evalTap(_.incDenominator(size.toLong))
         progress <- Resource.eval(F.ref[List[Detail]](Nil))
-        _ <- mtx.gauge(show"$mode $kind completed").register(progress.get.map(toJson))
+        _ <- mtx.gauge(show"$kind completed").register(progress.get.map(toJson))
       } yield Kleisli { (detail: Detail) =>
         F.uncancelable(_ => percentile.incNumerator(1) *> progress.update(_.appended(detail)))
       }
