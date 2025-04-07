@@ -6,6 +6,7 @@ import com.github.chenharryhua.nanjin.guard.event.{Error, Event, ServiceStopCaus
 import com.github.chenharryhua.nanjin.guard.translator.{htmlHelper, textConstants, textHelper, Translator}
 import io.circe.Json
 import io.circe.syntax.EncoderOps
+import org.apache.commons.lang3.StringUtils
 import org.typelevel.cats.time.instances.all
 import scalatags.Text.all.*
 import scalatags.text.Builder
@@ -151,13 +152,32 @@ private object HtmlTranslator extends all {
     )
   }
 
-  private def service_message(evt: ServiceMessage): Text.TypedTag[String] =
+  private def service_message(evt: ServiceMessage): Text.TypedTag[String] = {
+    val fg = evt.error match {
+      case Some(value) =>
+        frag(
+          tr(
+            th(CONSTANT_ALARM),
+            th("Exception")
+          ),
+          tr(
+            td(evt.level.entryName),
+            th(StringUtils.abbreviate(value.message, 37)) // length is same as uuid
+          )
+        )
+      case None =>
+        frag(
+          tr(th(CONSTANT_ALARM)),
+          tr(td(evt.level.entryName))
+        )
+    }
     div(
       h3(style := htmlColoring(evt))(eventTitle(evt)),
-      table(service_table(evt)),
+      table(service_table(evt), fg),
       json_text(evt.message),
       evt.error.map(error_text)
     )
+  }
 
   def apply[F[_]: Applicative]: Translator[F, Text.TypedTag[String]] =
     Translator

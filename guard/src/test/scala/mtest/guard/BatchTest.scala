@@ -186,4 +186,24 @@ class BatchTest extends AnyFunSuite {
     println(res.unsafeRunSync())
 
   }
+
+  test("11. single") {
+    service.eventStream { agent =>
+      agent
+        .batch("single")
+        .single(IO.println("single"))
+        .nextJob(_ => IO.println("a"))
+        .nextJob(_ => IO.println("b"))
+        .nextJob("report")(_ => agent.adhoc.report)
+        .nextJob("c")(_ => IO.println("c"))
+        .fully
+        .use(_ => agent.adhoc.report)
+    }.evalTap(console.text[IO]).compile.drain.unsafeRunSync()
+  }
+
+  test("12. single - no action") {
+    service.eventStream { agent =>
+      agent.batch("single").single(IO.println("single")).fully.use(_ => agent.adhoc.report)
+    }.evalTap(console.text[IO]).compile.drain.unsafeRunSync()
+  }
 }
