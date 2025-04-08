@@ -71,7 +71,6 @@ private object JsonTranslator {
     Json.obj(
       "event" -> EventName.ServiceMessage.snakeJson,
       "message" -> jsonHelper.json_service_message(evt),
-      jsonHelper.service_id(evt.serviceParams),
       jsonHelper.timestamp(evt)
     )
 

@@ -47,15 +47,14 @@ object ConsoleHerald {
     }
 
     private def toServiceMessage[S: Encoder](msg: S, level: AlarmLevel, error: Option[Error]): F[String] =
-      serviceParams.zonedNow
-        .map(ts =>
+      serviceParams.zonedNow.map(ts =>
+        toText(
           ServiceMessage(
             serviceParams = serviceParams,
             timestamp = ts,
             level = level,
             error = error,
-            message = Encoder[S].apply(msg)))
-        .map(toText)
+            message = Encoder[S].apply(msg))))
 
     private def logMessage[S: Encoder](msg: S, level: AlarmLevel, error: Option[Error])(implicit
       cns: Console[F]): F[Unit] =
@@ -88,7 +87,7 @@ object ConsoleHerald {
         .ifM(
           F.attempt(msg).flatMap {
             case Left(ex) =>
-              toServiceMessage("Debug Error", AlarmLevel.Debug, Some(Error(ex))).flatMap(cns.println)
+              toServiceMessage("Error", AlarmLevel.Debug, Some(Error(ex))).flatMap(cns.println)
             case Right(value) =>
               toServiceMessage(value, AlarmLevel.Debug, None).flatMap(cns.println)
           },

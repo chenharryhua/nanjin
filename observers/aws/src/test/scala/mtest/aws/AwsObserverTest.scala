@@ -22,7 +22,11 @@ class AwsObserverTest extends AnyFunSuite {
     .eventStream { agent =>
       agent
         .facilitate("metrics")(_.meter("meter").map(_.kleisli[Long](identity)))
-        .use(_.run(10) >> agent.herald.done("good") >> agent.adhoc.report) >> IO.raiseError(new Exception)
+        .use(
+          _.run(10) >>
+            agent.herald.done("good") >>
+            agent.herald.error(new Exception("oops oops oops oops oops oops oops oops"))("my error") >>
+            agent.adhoc.report) >> IO.raiseError(new Exception)
     }
 
   test("1.sqs") {
