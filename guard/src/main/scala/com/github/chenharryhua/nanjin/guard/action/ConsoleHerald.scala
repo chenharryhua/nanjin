@@ -87,7 +87,7 @@ object ConsoleHerald {
         .ifM(
           F.attempt(msg).flatMap {
             case Left(ex) =>
-              toServiceMessage("Debug Error", AlarmLevel.Debug, Some(Error(ex))).flatMap(cns.println)
+              toServiceMessage("Error", AlarmLevel.Debug, Some(Error(ex))).flatMap(cns.println)
             case Right(value) =>
               toServiceMessage(value, AlarmLevel.Debug, None).flatMap(cns.println)
           },
