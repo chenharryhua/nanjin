@@ -137,7 +137,7 @@ final class Hadoop[F[_]] private (config: Configuration) {
   def rotateSink(policy: Policy, zoneId: ZoneId)(pathBuilder: Tick => Url)(implicit
     F: Async[F]): FileRotateSink[F] =
     FileRotateSink(
-      MergeOrZip.Merge,
+      RotateType.PolicyBased,
       config,
       tickStream.fromZero[F](policy, zoneId).map(tick => TickedValue(tick, pathBuilder(tick))))
 
@@ -145,7 +145,7 @@ final class Hadoop[F[_]] private (config: Configuration) {
     */
   def rotateSink(pathBuilder: Tick => Url)(implicit F: Async[F]): FileRotateSink[F] =
     FileRotateSink(
-      MergeOrZip.Zip,
+      RotateType.ChunkBased,
       config,
       tickStream
         .fromZero[F](Policy.fixedDelay(0.seconds), ZoneId.systemDefault())

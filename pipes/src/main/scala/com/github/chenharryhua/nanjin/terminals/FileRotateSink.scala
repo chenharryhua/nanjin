@@ -22,34 +22,34 @@ import org.apache.parquet.hadoop.metadata.CompressionCodecName
 import org.apache.parquet.hadoop.util.HadoopOutputFile
 import scalapb.GeneratedMessage
 
-sealed private trait MergeOrZip
-private object MergeOrZip {
-  case object Merge extends MergeOrZip
-  case object Zip extends MergeOrZip
+sealed private trait RotateType
+private object RotateType {
+  case object PolicyBased extends RotateType
+  case object ChunkBased extends RotateType
 }
 
 final class FileRotateSink[F[_]: Async] private (
-  mergeOrZip: MergeOrZip,
+  rotateType: RotateType,
   configuration: Configuration,
-  paths: Stream[F, TickedValue[Path]]) {
+  ticks: Stream[F, TickedValue[Path]]) {
   // avro
   def avro(compression: AvroCompression): Pipe[F, Chunk[GenericRecord], TickedValue[Int]] = {
     def get_writer(schema: Schema)(url: Path): Resource[F, HadoopWriter[F, GenericRecord]] =
       HadoopWriter.avroR[F](compression.codecFactory, schema, configuration, url)
 
-    mergeOrZip match {
-      case MergeOrZip.Merge =>
+    rotateType match {
+      case RotateType.PolicyBased =>
         (ss: Stream[F, Chunk[GenericRecord]]) =>
           ss.pull.peek1.flatMap {
             case Some((grs, stream)) =>
-              periodically.merge.persist(stream, paths, get_writer(grs(0).getSchema))
+              periodically.merge.persist(stream, ticks, get_writer(grs(0).getSchema))
             case None => Pull.done
           }.stream
-      case MergeOrZip.Zip =>
+      case RotateType.ChunkBased =>
         (ss: Stream[F, Chunk[GenericRecord]]) =>
           ss.pull.peek1.flatMap {
             case Some((grs, stream)) =>
-              periodically.zip.persist(get_writer(grs(0).getSchema), stream.zip(paths))
+              periodically.zip.persist(get_writer(grs(0).getSchema), stream.zip(ticks))
             case None => Pull.done
           }.stream
     }
@@ -66,19 +66,19 @@ final class FileRotateSink[F[_]: Async] private (
     def get_writer(schema: Schema)(url: Path): Resource[F, HadoopWriter[F, GenericRecord]] =
       HadoopWriter.binAvroR[F](configuration, schema, url)
 
-    mergeOrZip match {
-      case MergeOrZip.Merge =>
+    rotateType match {
+      case RotateType.PolicyBased =>
         (ss: Stream[F, Chunk[GenericRecord]]) =>
           ss.pull.peek1.flatMap {
             case Some((grs, stream)) =>
-              periodically.merge.persist(stream, paths, get_writer(grs(0).getSchema))
+              periodically.merge.persist(stream, ticks, get_writer(grs(0).getSchema))
             case None => Pull.done
           }.stream
-      case MergeOrZip.Zip =>
+      case RotateType.ChunkBased =>
         (ss: Stream[F, Chunk[GenericRecord]]) =>
           ss.pull.peek1.flatMap {
             case Some((grs, stream)) =>
-              periodically.zip.persist(get_writer(grs(0).getSchema), stream.zip(paths))
+              periodically.zip.persist(get_writer(grs(0).getSchema), stream.zip(ticks))
             case None => Pull.done
           }.stream
     }
@@ -89,19 +89,19 @@ final class FileRotateSink[F[_]: Async] private (
     def get_writer(schema: Schema)(url: Path): Resource[F, HadoopWriter[F, GenericRecord]] =
       HadoopWriter.jacksonR[F](configuration, schema, url)
 
-    mergeOrZip match {
-      case MergeOrZip.Merge =>
+    rotateType match {
+      case RotateType.PolicyBased =>
         (ss: Stream[F, Chunk[GenericRecord]]) =>
           ss.pull.peek1.flatMap {
             case Some((grs, stream)) =>
-              periodically.merge.persist(stream, paths, get_writer(grs(0).getSchema))
+              periodically.merge.persist(stream, ticks, get_writer(grs(0).getSchema))
             case None => Pull.done
           }.stream
-      case MergeOrZip.Zip =>
+      case RotateType.ChunkBased =>
         (ss: Stream[F, Chunk[GenericRecord]]) =>
           ss.pull.peek1.flatMap {
             case Some((grs, stream)) =>
-              periodically.zip.persist(get_writer(grs(0).getSchema), stream.zip(paths))
+              periodically.zip.persist(get_writer(grs(0).getSchema), stream.zip(ticks))
             case None => Pull.done
           }.stream
     }
@@ -123,19 +123,19 @@ final class FileRotateSink[F[_]: Async] private (
       HadoopWriter.parquetR[F](writeBuilder, url)
     }
 
-    mergeOrZip match {
-      case MergeOrZip.Merge =>
+    rotateType match {
+      case RotateType.PolicyBased =>
         (ss: Stream[F, Chunk[GenericRecord]]) =>
           ss.pull.peek1.flatMap {
             case Some((grs, stream)) =>
-              periodically.merge.persist(stream, paths, get_writer(grs(0).getSchema))
+              periodically.merge.persist(stream, ticks, get_writer(grs(0).getSchema))
             case None => Pull.done
           }.stream
-      case MergeOrZip.Zip =>
+      case RotateType.ChunkBased =>
         (ss: Stream[F, Chunk[GenericRecord]]) =>
           ss.pull.peek1.flatMap {
             case Some((grs, stream)) =>
-              periodically.zip.persist(get_writer(grs(0).getSchema), stream.zip(paths))
+              periodically.zip.persist(get_writer(grs(0).getSchema), stream.zip(ticks))
             case None => Pull.done
           }.stream
     }
@@ -149,11 +149,11 @@ final class FileRotateSink[F[_]: Async] private (
     def get_writer(url: Path): Resource[F, HadoopWriter[F, Byte]] =
       HadoopWriter.byteR[F](configuration, url)
 
-    mergeOrZip match {
-      case MergeOrZip.Merge =>
-        (ss: Stream[F, Chunk[Byte]]) => periodically.merge.persist(ss, paths, get_writer).stream
-      case MergeOrZip.Zip =>
-        (ss: Stream[F, Chunk[Byte]]) => periodically.zip.persist(get_writer, ss.zip(paths)).stream
+    rotateType match {
+      case RotateType.PolicyBased =>
+        (ss: Stream[F, Chunk[Byte]]) => periodically.merge.persist(ss, ticks, get_writer).stream
+      case RotateType.ChunkBased =>
+        (ss: Stream[F, Chunk[Byte]]) => periodically.zip.persist(get_writer, ss.zip(ticks)).stream
     }
   }
 
@@ -164,13 +164,13 @@ final class FileRotateSink[F[_]: Async] private (
     def get_writer(url: Path): Resource[F, HadoopWriter[F, JsonNode]] =
       HadoopWriter.jsonNodeR[F](configuration, url, mapper)
 
-    mergeOrZip match {
-      case MergeOrZip.Merge =>
+    rotateType match {
+      case RotateType.PolicyBased =>
         (ss: Stream[F, Chunk[Json]]) =>
-          periodically.merge.persist(ss.map(_.map(circeToJackson)), paths, get_writer).stream
-      case MergeOrZip.Zip =>
+          periodically.merge.persist(ss.map(_.map(circeToJackson)), ticks, get_writer).stream
+      case RotateType.ChunkBased =>
         (ss: Stream[F, Chunk[Json]]) =>
-          periodically.zip.persist(get_writer, ss.map(_.map(circeToJackson)).zip(paths)).stream
+          periodically.zip.persist(get_writer, ss.map(_.map(circeToJackson)).zip(ticks)).stream
     }
   }
 
@@ -179,13 +179,13 @@ final class FileRotateSink[F[_]: Async] private (
     def get_writer(url: Path): Resource[F, HadoopWriter[F, String]] =
       HadoopWriter.csvStringR[F](configuration, url)
 
-    mergeOrZip match {
-      case MergeOrZip.Merge =>
+    rotateType match {
+      case RotateType.PolicyBased =>
         (ss: Stream[F, Chunk[Seq[String]]]) =>
           val encodedSrc: Stream[F, Chunk[String]] = ss.map(_.map(csvRow(csvConfiguration)))
           if (csvConfiguration.hasHeader) {
             val header: Chunk[String] = csvHeader(csvConfiguration)
-            paths.pull.uncons1.flatMap {
+            ticks.pull.uncons1.flatMap {
               case Some((head, tail)) =>
                 Stream
                   .resource(Hotswap(get_writer(head.value)))
@@ -206,9 +206,9 @@ final class FileRotateSink[F[_]: Async] private (
                   .echo
               case None => Pull.done
             }.stream
-          } else periodically.merge.persist(encodedSrc, paths, get_writer).stream
+          } else periodically.merge.persist(encodedSrc, ticks, get_writer).stream
 
-      case MergeOrZip.Zip =>
+      case RotateType.ChunkBased =>
         val header: Chunk[String] = csvHeader(csvConfiguration)
         (ss: Stream[F, Chunk[Seq[String]]]) =>
           val encodedSrc: Stream[F, Chunk[String]] = if (csvConfiguration.hasHeader) {
@@ -216,7 +216,7 @@ final class FileRotateSink[F[_]: Async] private (
           } else {
             ss.map(ck => ck.map(csvRow(csvConfiguration)))
           }
-          periodically.zip.persist(get_writer, encodedSrc.zip(paths)).stream
+          periodically.zip.persist(get_writer, encodedSrc.zip(ticks)).stream
     }
   }
 
@@ -231,11 +231,11 @@ final class FileRotateSink[F[_]: Async] private (
     def get_writer(url: Path): Resource[F, HadoopWriter[F, String]] =
       HadoopWriter.stringR(configuration, url)
 
-    mergeOrZip match {
-      case MergeOrZip.Merge =>
-        (ss: Stream[F, Chunk[String]]) => periodically.merge.persist(ss, paths, get_writer).stream
-      case MergeOrZip.Zip =>
-        (ss: Stream[F, Chunk[String]]) => periodically.zip.persist(get_writer, ss.zip(paths)).stream
+    rotateType match {
+      case RotateType.PolicyBased =>
+        (ss: Stream[F, Chunk[String]]) => periodically.merge.persist(ss, ticks, get_writer).stream
+      case RotateType.ChunkBased =>
+        (ss: Stream[F, Chunk[String]]) => periodically.zip.persist(get_writer, ss.zip(ticks)).stream
     }
   }
 
@@ -248,22 +248,22 @@ final class FileRotateSink[F[_]: Async] private (
     def get_writer(url: Path): Resource[F, HadoopWriter[F, GeneratedMessage]] =
       HadoopWriter.protobufR(configuration, url)
 
-    mergeOrZip match {
-      case MergeOrZip.Merge =>
-        (ss: Stream[F, Chunk[GeneratedMessage]]) => periodically.merge.persist(ss, paths, get_writer).stream
-      case MergeOrZip.Zip =>
-        (ss: Stream[F, Chunk[GeneratedMessage]]) => periodically.zip.persist(get_writer, ss.zip(paths)).stream
+    rotateType match {
+      case RotateType.PolicyBased =>
+        (ss: Stream[F, Chunk[GeneratedMessage]]) => periodically.merge.persist(ss, ticks, get_writer).stream
+      case RotateType.ChunkBased =>
+        (ss: Stream[F, Chunk[GeneratedMessage]]) => periodically.zip.persist(get_writer, ss.zip(ticks)).stream
     }
   }
 }
 
 private object FileRotateSink {
   def apply[F[_]: Async](
-    mergeOrZip: MergeOrZip,
+    rotateType: RotateType,
     configuration: Configuration,
     paths: Stream[F, TickedValue[Url]]): FileRotateSink[F] =
     new FileRotateSink(
-      mergeOrZip,
+      rotateType,
       configuration,
       paths.map(tv => TickedValue(tv.tick, toHadoopPath(tv.value))))
 }
