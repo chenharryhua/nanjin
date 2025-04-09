@@ -159,7 +159,7 @@ object Batch {
     private def build[B](name: Option[String])(f: A => F[B]): Single[F, B] = {
       val runB: Kleisli[F, Kleisli[F, Detail, Unit], (Either[Throwable, B], List[Detail])] =
         rfa.tapWithF[(Either[Throwable, B], List[Detail]), Kleisli[F, Detail, Unit]] {
-          case (m, (ea, details)) => // ea: Either[Throwable, A]
+          case (m, (ea: Either[Throwable, A], details: List[Detail])) =>
             val job = BatchJob(name, index)
             ea match {
               case Left(ex) => // escape the rest when job failed
@@ -167,7 +167,7 @@ object Batch {
                 m.run(detail).as((ex.asLeft[B], details.appended(detail)))
               case Right(a) => // previous job run smoothly
                 F.timed(metrics.activeGauge(s"running ${getJobName(job)}").surround(f(a).attempt)).flatMap {
-                  case (fd, eb) => // eb: Either[Throwable, B]
+                  case (fd: FiniteDuration, eb: Either[Throwable, B]) =>
                     eb match {
                       case ex @ Left(_) => // fail current job
                         val detail = Detail(job, fd.toJava, done = false)
