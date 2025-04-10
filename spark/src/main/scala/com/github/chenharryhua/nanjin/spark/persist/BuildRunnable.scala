@@ -4,5 +4,4 @@ import cats.effect.kernel.Sync
 
 trait BuildRunnable {
   def run[F[_]](implicit F: Sync[F]): F[Unit]
-  def runWithCount[F[_]](implicit F: Sync[F]): F[Long]
 }

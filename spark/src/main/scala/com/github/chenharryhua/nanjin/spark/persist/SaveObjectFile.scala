@@ -19,6 +19,4 @@ final class SaveObjectFile[A](rdd: RDD[A], cfg: HoarderConfig) extends Serializa
     new SaveModeAware[F](params.saveMode, params.outPath, rdd.sparkContext.hadoopConfiguration)
       .checkAndRun(F.interruptible(rdd.saveAsObjectFile(toHadoopPath(params.outPath).toString)))
 
-  def runWithCount[F[_]](implicit F: Sync[F]): F[Long] =
-    F.map(run[F])(_ => rdd.count())
 }

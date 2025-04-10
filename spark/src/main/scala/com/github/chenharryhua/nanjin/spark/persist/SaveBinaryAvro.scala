@@ -26,6 +26,4 @@ final class SaveBinaryAvro[A](rdd: RDD[A], encoder: AvroEncoder[A], cfg: Hoarder
     new SaveModeAware[F](params.saveMode, params.outPath, rdd.sparkContext.hadoopConfiguration)
       .checkAndRun(F.interruptible(saveRDD.binAvro(rdd, params.outPath, encoder, params.compression)))
 
-  def runWithCount[F[_]](implicit F: Sync[F]): F[Long] =
-    F.map(run[F])(_ => rdd.count())
 }
