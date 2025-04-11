@@ -24,7 +24,7 @@ class ExampleKafkaBasic extends AnyFunSuite {
         NJProducerRecord(fooTopic.topicName, 4, Foo(40, "d"))
       )
     sparKafka
-      .topic(fooTopic)
+      .topic(fooTopic.topicDef)
       .prRdd(producerRecords)
       .producerRecords[IO](100)
       .through(fooTopic.produce.sink)
@@ -47,9 +47,9 @@ class ExampleKafkaBasic extends AnyFunSuite {
 
   test("persist messages to local disk and then load data back into kafka") {
     val path = Url.parse("./data/example/foo.json")
-    sparKafka.topic(fooTopic).fromKafka.flatMap(_.output.circe(path).run[IO]).unsafeRunSync()
+    sparKafka.topic(fooTopic.topicDef).fromKafka.flatMap(_.output.circe(path).run[IO]).unsafeRunSync()
     sparKafka
-      .topic(fooTopic)
+      .topic(fooTopic.topicDef)
       .load
       .circe(path)
       .prRdd
