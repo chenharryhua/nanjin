@@ -223,19 +223,19 @@ object Batch {
 
   final class JobBuilder[F[_]] private[action] (metrics: Metrics[F])(implicit F: Async[F]) {
     private[this] var index: Int = 0
-    private def build[A](name: Option[String], fa: => F[A]): Monadic[F, A] = {
-      index += 1
-      val job = BatchJob(name, index)
+    private def build[A](name: Option[String], fa: => F[A]): Monadic[F, A] =
       new Monadic[F, A](
-        Kleisli(m =>
+        Kleisli { m =>
+          index += 1
+          val job = BatchJob(name, index)
           metrics.activeGauge(s"running ${getJobName(job)}").surround(F.defer(fa).attempt.timed).flatMap {
             case (fd, ea) =>
               val detail = Detail(job, fd.toJava, ea.isRight)
               m.run(detail).as(JobResult(ea, List(detail)))
-          }),
+          }
+        },
         metrics
       )
-    }
 
     def apply[A](fa: => F[A]): Monadic[F, A]               = build[A](None, fa)
     def apply[A](name: String, fa: => F[A]): Monadic[F, A] = build[A](Some(name), fa)
@@ -266,9 +266,10 @@ object Batch {
     def map[B](f: A => B): Monadic[F, B] =
       new Monadic[F, B](kleisli.map(r => r.copy(result = r.result.map(f))), metrics)
 
-    def fully: Resource[F, A] = createMeasure(metrics, BatchKind.Fully).evalMap { meas =>
-      kleisli.run(meas).map(_.result).rethrow
-    }
+    def fully: Resource[F, A] =
+      createMeasure(metrics, BatchKind.Fully).evalMap { meas =>
+        kleisli.run(meas).map(_.result).rethrow
+      }
 
     def quasi: Resource[F, QuasiResult] =
       createMeasure(metrics, BatchKind.Quasi).evalMap(kleisli.run(_).map { res =>
