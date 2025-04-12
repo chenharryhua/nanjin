@@ -191,4 +191,60 @@ class BatchTest extends AnyFunSuite {
     assertThrows[Exception](
       IO.bracketFull(_ => IO(1))(IO.println)((_, _) => IO.raiseError(new Exception())).unsafeRunSync())
   }
+
+  test("13. monadic") {
+    service.eventStream { agent =>
+      agent.batch("monadic").monadic { job =>
+        job("a", IO.println(1))
+          .flatMap(_ => job("b", IO.println(2)))
+          .flatMap(_ => job("c", agent.adhoc.report >> IO.sleep(1.seconds)))
+          .flatMap(_ => job("d", IO.println(4)))
+          .flatMap(_ => job("e", agent.adhoc.report))
+          .flatMap(_ => job("f", IO.println(6)))
+          .quasi
+          .use(agent.herald.done(_) >> agent.adhoc.report)
+      }
+    }.evalTap(console.text[IO]).compile.drain.unsafeRunSync()
+  }
+
+  test("14. monadic for comprehension") {
+    service.eventStream { agent =>
+      agent
+        .batch("monadic")
+        .monadic { job =>
+          for {
+            a <- job("a", IO.println("a").as(10))
+            b <- job("b", IO.sleep(1.seconds) >> IO.println("b").as(20))
+            _ <- job(agent.adhoc.report)
+            _ <- job(IO.println("aaaa"))
+            _ <- job(IO.sleep(1.seconds) >> IO.println("bbbb"))
+            _ <- job(agent.adhoc.report)
+            c <- job("c", IO.println("c").as(30))
+          } yield a + b + c
+        }
+        .quasi
+        .use(qr => agent.adhoc.report >> agent.herald.done(qr))
+    }.evalTap(console.text[IO]).compile.drain.unsafeRunSync()
+  }
+
+  test("14. monadic error") {
+    service.eventStream { agent =>
+      agent
+        .batch("monadic")
+        .monadic { job =>
+          for {
+            a <- job("a", IO.println("a").as(10))
+            b <- job("b", IO.sleep(1.seconds) >> IO.println("b").as(20))
+            _ <- job(agent.adhoc.report)
+            _ <- job("exception", IO.raiseError[Unit](new Exception("aaaa")))
+            _ <- job(IO.sleep(1000.seconds) >> IO.println("bbbb"))
+            _ <- job(agent.adhoc.report)
+            c <- job("c", IO.println("c").as(30))
+          } yield a + b + c
+        }
+        .quasi
+        .use(qr => agent.adhoc.report >> agent.herald.info(qr))
+    }.evalTap(console.text[IO]).compile.drain.unsafeRunSync()
+  }
+
 }
