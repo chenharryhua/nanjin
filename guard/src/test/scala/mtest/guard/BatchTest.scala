@@ -6,6 +6,7 @@ import cats.implicits.catsSyntaxTuple2Semigroupal
 import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.action.BatchMode
+import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStop
 import com.github.chenharryhua.nanjin.guard.observers.console
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import io.circe.syntax.EncoderOps
@@ -228,7 +229,7 @@ class BatchTest extends AnyFunSuite {
   }
 
   test("14. monadic error") {
-    service.eventStream { agent =>
+    val se = service.eventStream { agent =>
       agent
         .batch("monadic")
         .monadic { job =>
@@ -243,8 +244,15 @@ class BatchTest extends AnyFunSuite {
           } yield a + b + c
         }
         .quasi
-        .use(qr => agent.adhoc.report >> agent.herald.info(qr))
-    }.evalTap(console.text[IO]).compile.drain.unsafeRunSync()
+        .use { qr =>
+          assert(qr.details.head.done)
+          assert(qr.details(1).done)
+          assert(qr.details(2).done)
+          assert(!qr.details(3).done)
+          agent.adhoc.report >> agent.herald.info(qr)
+        }
+    }.evalTap(console.text[IO]).compile.lastOrError.unsafeRunSync()
+    assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
   }
 
   test("15. monadic one") {
@@ -253,4 +261,47 @@ class BatchTest extends AnyFunSuite {
     }.evalTap(console.text[IO]).compile.drain.unsafeRunSync()
   }
 
+  test("16. monadic many") {
+    val se = service.eventStream { agent =>
+      agent
+        .batch("monadic")
+        .monadic { job =>
+          val p1 = for {
+            a <- job("1", IO(1))
+            b <- job("2", IO(2))
+            c <- job("3", IO(3))
+          } yield a + b + c
+          val p2 = for {
+            x <- job("10", IO(10))
+            y <- job("20", IO(20))
+            z <- job("30", IO(30))
+          } yield x + y + z
+
+          for {
+            a <- p1
+            b <- p2
+          } yield a + b
+        }
+        .quasi
+        .use { qr =>
+          val details = qr.details
+          assert(details.head.job.name.get === "1")
+          assert(details.head.job.index === 1)
+          assert(details(1).job.name.get === "2")
+          assert(details(1).job.index === 2)
+          assert(details(2).job.name.get === "3")
+          assert(details(2).job.index === 3)
+          assert(details(3).job.name.get === "10")
+          assert(details(3).job.index === 4)
+          assert(details(4).job.name.get === "20")
+          assert(details(4).job.index === 5)
+          assert(details(5).job.name.get === "30")
+          assert(details(5).job.index === 6)
+
+          agent.adhoc.report >> agent.herald.info(qr)
+        }
+    }.evalTap(console.text[IO]).compile.lastOrError.unsafeRunSync()
+
+    assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
+  }
 }
