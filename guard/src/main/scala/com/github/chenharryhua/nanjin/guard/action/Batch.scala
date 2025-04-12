@@ -161,19 +161,15 @@ object Batch {
     }
   }
 
-  final case class JobResult[A](result: Either[Throwable, A], details: List[Detail]) {
-    def update[B](ex: Throwable, detail: Detail): JobResult[B] =
-      JobResult[B](Left(ex), details.appended(detail))
-    def update[B](b: B, detail: Detail): JobResult[B] =
-      JobResult(Right(b), details.appended(detail))
+  final case class JobResult[A] private[action] (result: Either[Throwable, A], details: List[Detail]) {
 
     def update[B](ex: Throwable, ds: List[Detail]): JobResult[B] =
       JobResult[B](Left(ex), details ::: ds)
     def update[B](b: B, ds: List[Detail]): JobResult[B] =
-      JobResult(Right(b), details ::: ds)
+      JobResult[B](Right(b), details ::: ds)
   }
 
-  final class Single[F[_]: Async, A](
+  final class Single[F[_]: Async, A] private[action] (
     metrics: Metrics[F],
     rfa: Kleisli[F, DoMeasurement[F], JobResult[A]],
     index: Int) {
@@ -185,17 +181,17 @@ object Batch {
           resultA.result match {
             case Left(ex) => // escape when previous job failed
               val detail = Detail(job, Duration.ZERO, done = false)
-              m.run(detail).as(resultA.update[B](ex, detail))
+              m.run(detail).as(resultA.update[B](ex, List(detail)))
             case Right(a) => // previous job run smoothly
               metrics.activeGauge(s"running ${getJobName(job)}").surround(f(a).attempt.timed).flatMap {
                 case (fd: FiniteDuration, eb: Either[Throwable, B]) =>
                   eb match {
                     case Left(ex) => // fail current job
                       val detail = Detail(job, fd.toJava, done = false)
-                      m.run(detail).as(resultA.update[B](ex, detail))
+                      m.run(detail).as(resultA.update[B](ex, List(detail)))
                     case Right(b) => // all good
                       val detail = Detail(job, fd.toJava, done = true)
-                      m.run(detail).as(resultA.update[B](b, detail))
+                      m.run(detail).as(resultA.update[B](b, List(detail)))
                   }
               }
           }
@@ -205,8 +201,8 @@ object Batch {
 
     def nextJob[B](f: A => F[B]): Single[F, B]               = build[B](None)(f)
     def nextJob[B](name: String, f: A => F[B]): Single[F, B] = build[B](Some(name))(f)
-    def nextJob[B](fb: F[B]): Single[F, B]                   = build[B](None)(_ => fb)
-    def nextJob[B](name: String, fb: F[B]): Single[F, B]     = build[B](Some(name))(_ => fb)
+    def nextJob[B](fb: => F[B]): Single[F, B]                = build[B](None)(_ => fb)
+    def nextJob[B](name: String, fb: => F[B]): Single[F, B]  = build[B](Some(name))(_ => fb)
     def nextJob[B](tup: (String, F[B])): Single[F, B]        = build[B](Some(tup._1))(_ => tup._2)
 
     def fully: Resource[F, A] =
@@ -225,14 +221,14 @@ object Batch {
       })
   }
 
-  final class JobBuilder[F[_]: Async](metrics: Metrics[F]) {
+  final class JobBuilder[F[_]] private[action] (metrics: Metrics[F])(implicit F: Async[F]) {
     private[this] var index: Int = 0
-    private def build[A](name: Option[String], fa: F[A]): Monadic[F, A] = {
+    private def build[A](name: Option[String], fa: => F[A]): Monadic[F, A] = {
       index += 1
       val job = BatchJob(name, index)
       new Monadic[F, A](
         Kleisli(m =>
-          metrics.activeGauge(s"running ${getJobName(job)}").surround(fa.attempt.timed).flatMap {
+          metrics.activeGauge(s"running ${getJobName(job)}").surround(F.defer(fa).attempt.timed).flatMap {
             case (fd, ea) =>
               val detail = Detail(job, fd.toJava, ea.isRight)
               m.run(detail).as(JobResult(ea, List(detail)))
@@ -241,11 +237,12 @@ object Batch {
       )
     }
 
-    def apply[A](fa: F[A]): Monadic[F, A]               = build[A](None, fa)
-    def apply[A](name: String, fa: F[A]): Monadic[F, A] = build[A](Some(name), fa)
+    def apply[A](fa: => F[A]): Monadic[F, A]               = build[A](None, fa)
+    def apply[A](name: String, fa: => F[A]): Monadic[F, A] = build[A](Some(name), fa)
+    def apply[A](tup: (String, F[A])): Monadic[F, A]       = build[A](Some(tup._1), tup._2)
   }
 
-  final class Monadic[F[_]: Async, A](
+  final class Monadic[F[_]: Async, A] private[action] (
     val kleisli: Kleisli[F, DoMeasurement[F], JobResult[A]],
     metrics: Metrics[F]
   ) {

@@ -235,15 +235,21 @@ class BatchTest extends AnyFunSuite {
           for {
             a <- job("a", IO.println("a").as(10))
             b <- job("b", IO.sleep(1.seconds) >> IO.println("b").as(20))
-            _ <- job(agent.adhoc.report)
+            _ <- job("report-1" -> agent.adhoc.report)
             _ <- job("exception", IO.raiseError[Unit](new Exception("aaaa")))
             _ <- job(IO.sleep(1000.seconds) >> IO.println("bbbb"))
-            _ <- job(agent.adhoc.report)
+            _ <- job("report-2" -> agent.adhoc.report)
             c <- job("c", IO.println("c").as(30))
           } yield a + b + c
         }
         .quasi
         .use(qr => agent.adhoc.report >> agent.herald.info(qr))
+    }.evalTap(console.text[IO]).compile.drain.unsafeRunSync()
+  }
+
+  test("15. monadic one") {
+    service.eventStream { agent =>
+      agent.batch("monadic").monadic(_(IO(0))).fully.use(qr => agent.adhoc.report >> agent.herald.info(qr))
     }.evalTap(console.text[IO]).compile.drain.unsafeRunSync()
   }
 
