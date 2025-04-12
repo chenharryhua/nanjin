@@ -57,6 +57,16 @@ object Batch {
       F.uncancelable(_ => percentile.incNumerator(1) *> progress.update(_.appended(detail)))
     }
 
+//  private def createMeasure[F[_]](mtx: Metrics[F], kind: BatchKind)(implicit
+//    F: Async[F]): Resource[F, DoMeasurement[F]] =
+//    for {
+//      _ <- mtx.activeGauge("elapsed")
+//      progress <- Resource.eval(F.ref[List[Detail]](Nil))
+//      _ <- mtx.gauge(show"${BatchMode.Sequential} $kind completed").register(progress.get.map(toJson))
+//    } yield Kleisli { (detail: Detail) =>
+//      F.uncancelable(_ => progress.update(_.appended(detail)))
+//    }
+
   sealed abstract class Runner[F[_]: Async, A] { outer =>
     protected val F: Async[F] = Async[F]
 
@@ -151,33 +161,39 @@ object Batch {
     }
   }
 
+  final private case class JobResult[A](result: Either[Throwable, A], details: List[Detail]) {
+    def update[B](ex: Throwable, detail: Detail): JobResult[B] =
+      JobResult[B](Left(ex), details.appended(detail))
+    def update[B](b: B, detail: Detail): JobResult[B] =
+      JobResult(Right(b), details.appended(detail))
+  }
+
   final class Single[F[_]: Async, A](
     metrics: Metrics[F],
-    rfa: Kleisli[F, DoMeasurement[F], (Either[Throwable, A], List[Detail])],
+    rfa: Kleisli[F, DoMeasurement[F], JobResult[A]],
     index: Int) {
 
     private def build[B](name: Option[String])(f: A => F[B]): Single[F, B] = {
-      val runB: Kleisli[F, DoMeasurement[F], (Either[Throwable, B], List[Detail])] =
-        rfa.tapWithF[(Either[Throwable, B], List[Detail]), Kleisli[F, Detail, Unit]] {
-          case (m, (ea: Either[Throwable, A], details: List[Detail])) =>
-            val job = BatchJob(name, index)
-            ea match {
-              case Left(ex) => // escape when previous job failed
-                val detail = Detail(job, Duration.ZERO, done = false)
-                m.run(detail).as((ex.asLeft[B], details.appended(detail)))
-              case Right(a) => // previous job run smoothly
-                metrics.activeGauge(s"running ${getJobName(job)}").surround(f(a).attempt.timed).flatMap {
-                  case (fd: FiniteDuration, eb: Either[Throwable, B]) =>
-                    eb match {
-                      case ex @ Left(_) => // fail current job
-                        val detail = Detail(job, fd.toJava, done = false)
-                        m.run(detail).as((ex, details.appended(detail)))
-                      case b @ Right(_) => // all good
-                        val detail = Detail(job, fd.toJava, done = true)
-                        m.run(detail).as((b, details.appended(detail)))
-                    }
-                }
-            }
+      val runB: Kleisli[F, DoMeasurement[F], JobResult[B]] =
+        rfa.tapWithF[JobResult[B], DoMeasurement[F]] { case (m, previous) =>
+          val job = BatchJob(name, index)
+          previous.result match {
+            case Left(ex) => // escape when previous job failed
+              val detail = Detail(job, Duration.ZERO, done = false)
+              m.run(detail).as(previous.update[B](ex, detail))
+            case Right(a) => // previous job run smoothly
+              metrics.activeGauge(s"running ${getJobName(job)}").surround(f(a).attempt.timed).flatMap {
+                case (fd: FiniteDuration, eb: Either[Throwable, B]) =>
+                  eb match {
+                    case Left(ex) => // fail current job
+                      val detail = Detail(job, fd.toJava, done = false)
+                      m.run(detail).as(previous.update[B](ex, detail))
+                    case Right(b) => // all good
+                      val detail = Detail(job, fd.toJava, done = true)
+                      m.run(detail).as(previous.update[B](b, detail))
+                  }
+              }
+          }
         }
       new Single[F, B](metrics, runB, index + 1)
     }
@@ -190,11 +206,11 @@ object Batch {
 
     def fully: Resource[F, A] =
       createMeasure(metrics, index - 1, BatchKind.Fully, BatchMode.Sequential)
-        .evalMap(rfa.run(_).map(_._1).rethrow)
+        .evalMap(rfa.run(_).map(_.result).rethrow)
 
     def quasi: Resource[F, QuasiResult] =
       createMeasure(metrics, index - 1, BatchKind.Quasi, BatchMode.Sequential).evalMap(rfa.run(_).map { res =>
-        val details: List[Detail] = res._2
+        val details: List[Detail] = res.details
         QuasiResult(
           label = metrics.metricLabel,
           spent = details.map(_.took).foldLeft(Duration.ZERO)(_ plus _),
@@ -238,6 +254,9 @@ final class Batch[F[_]: Async] private[guard] (metrics: Metrics[F]) {
     * measured with the closest nextJob
     */
   def single[A](initial: F[A]): Batch.Single[F, A] =
-    new Batch.Single[F, A](metrics, Kleisli(_ => initial.map(fa => (Right(fa), List.empty))), 1)
+    new Batch.Single[F, A](
+      metrics,
+      Kleisli(_ => initial.map(fa => Batch.JobResult(Right(fa), List.empty))),
+      1)
   val single: Batch.Single[F, Unit] = single[Unit](Async[F].unit)
 }
