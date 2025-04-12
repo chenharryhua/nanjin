@@ -13,12 +13,12 @@ import io.lemonlabs.uri.Url
 class ExampleKafkaDump extends AnyFunSuite {
   test("dump kafka data in json") {
     val path = Url.parse("./data/example/foo/batch/circe.json")
-    sparKafka.topic(fooTopic).fromKafka.flatMap(_.output.circe(path).run[IO]).unsafeRunSync()
+    sparKafka.topic(fooTopic.topicDef).fromKafka.flatMap(_.output.circe(path).run[IO]).unsafeRunSync()
   }
   test("dump kafka data in avro compressed by snappy") {
     val path = Url.parse("./data/example/foo/batch/avro")
     sparKafka
-      .topic(fooTopic)
+      .topic(fooTopic.topicDef)
       .fromKafka
       .flatMap(_.output.avro(path).withCompression(_.Snappy).run[IO])
       .unsafeRunSync()

@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.action
 import cats.data.{Ior, Kleisli}
+import cats.effect.implicits.clockOps
 import cats.effect.kernel.{Async, Resource}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.metrics.Metrics
@@ -41,8 +42,10 @@ object Batch {
       Json.obj(pairs*)
     }
 
+  private type DoMeasurement[F[_]] = Kleisli[F, Detail, Unit]
+
   private def createMeasure[F[_]](mtx: Metrics[F], size: Int, kind: BatchKind, mode: BatchMode)(implicit
-    F: Async[F]): Resource[F, Kleisli[F, Detail, Unit]] =
+    F: Async[F]): Resource[F, DoMeasurement[F]] =
     for {
       _ <- mtx.activeGauge("elapsed")
       percentile <- mtx
@@ -57,12 +60,10 @@ object Batch {
   sealed abstract class Runner[F[_]: Async, A] { outer =>
     protected val F: Async[F] = Async[F]
 
-    protected type DoMeasurement = Kleisli[F, Detail, Unit]
-
     /** batch always success but jobs may fail
       * @return
       */
-    def quasi: Resource[F, QuasiResult]
+    def quasi(implicit ev: A =:= Boolean): Resource[F, QuasiResult]
 
     /** any job's failure will cause whole batch's failure
       * @return
@@ -79,12 +80,12 @@ object Batch {
 
     private val mode: BatchMode = BatchMode.Parallel(parallelism)
 
-    override def quasi: Resource[F, QuasiResult] = {
+    override def quasi(implicit ev: A =:= Boolean): Resource[F, QuasiResult] = {
 
-      def exec(meas: DoMeasurement): F[(FiniteDuration, List[Detail])] =
+      def exec(meas: DoMeasurement[F]): F[(FiniteDuration, List[Detail])] =
         F.timed(F.parTraverseN(parallelism)(jobs) { case (job, fa) =>
           F.timed(fa.attempt).flatMap { case (fd, result) =>
-            val detail = Detail(job, fd.toJava, result.isRight)
+            val detail = Detail(job, fd.toJava, result.fold(_ => false, ev(_)))
             meas.run(detail).as(detail)
           }
         })
@@ -97,7 +98,7 @@ object Batch {
 
     override def fully: Resource[F, List[A]] = {
 
-      def exec(meas: DoMeasurement): F[List[A]] =
+      def exec(meas: DoMeasurement[F]): F[List[A]] =
         F.parTraverseN(parallelism)(jobs) { case (job, fa) =>
           F.timed(fa).flatMap { case (fd, a) =>
             val detail = Detail(job, fd.toJava, done = true)
@@ -114,13 +115,13 @@ object Batch {
 
     private val mode: BatchMode = BatchMode.Sequential
 
-    override def quasi: Resource[F, QuasiResult] = {
+    override def quasi(implicit ev: A =:= Boolean): Resource[F, QuasiResult] = {
 
-      def exec(meas: DoMeasurement): F[List[Detail]] =
+      def exec(meas: DoMeasurement[F]): F[List[Detail]] =
         jobs.traverse { case (job, fa) =>
           F.timed(metrics.activeGauge(s"running ${getJobName(job)}").surround(fa.attempt)).flatMap {
             case (fd, result) =>
-              val detail = Detail(job, fd.toJava, result.isRight)
+              val detail = Detail(job, fd.toJava, result.fold(_ => false, ev(_)))
               meas.run(detail).as(detail)
           }
         }
@@ -138,7 +139,7 @@ object Batch {
 
     override def fully: Resource[F, List[A]] = {
 
-      def exec(meas: DoMeasurement): F[List[A]] =
+      def exec(meas: DoMeasurement[F]): F[List[A]] =
         jobs.traverse { case (job, fa) =>
           F.timed(metrics.activeGauge(s"running ${getJobName(job)}").surround(fa)).flatMap { case (fd, a) =>
             val detail = Detail(job, fd.toJava, done = true)
@@ -152,22 +153,21 @@ object Batch {
 
   final class Single[F[_]: Async, A](
     metrics: Metrics[F],
-    rfa: Kleisli[F, Kleisli[F, Detail, Unit], (Either[Throwable, A], List[Detail])],
+    rfa: Kleisli[F, DoMeasurement[F], (Either[Throwable, A], List[Detail])],
     index: Int) {
-    private val F = Async[F]
 
     private def build[B](name: Option[String])(f: A => F[B]): Single[F, B] = {
-      val runB: Kleisli[F, Kleisli[F, Detail, Unit], (Either[Throwable, B], List[Detail])] =
+      val runB: Kleisli[F, DoMeasurement[F], (Either[Throwable, B], List[Detail])] =
         rfa.tapWithF[(Either[Throwable, B], List[Detail]), Kleisli[F, Detail, Unit]] {
-          case (m, (ea, details)) => // ea: Either[Throwable, A]
+          case (m, (ea: Either[Throwable, A], details: List[Detail])) =>
             val job = BatchJob(name, index)
             ea match {
-              case Left(ex) => // escape the rest when job failed
+              case Left(ex) => // escape when previous job failed
                 val detail = Detail(job, Duration.ZERO, done = false)
                 m.run(detail).as((ex.asLeft[B], details.appended(detail)))
               case Right(a) => // previous job run smoothly
-                F.timed(metrics.activeGauge(s"running ${getJobName(job)}").surround(f(a).attempt)).flatMap {
-                  case (fd, eb) => // eb: Either[Throwable, B]
+                metrics.activeGauge(s"running ${getJobName(job)}").surround(f(a).attempt.timed).flatMap {
+                  case (fd: FiniteDuration, eb: Either[Throwable, B]) =>
                     eb match {
                       case ex @ Left(_) => // fail current job
                         val detail = Detail(job, fd.toJava, done = false)

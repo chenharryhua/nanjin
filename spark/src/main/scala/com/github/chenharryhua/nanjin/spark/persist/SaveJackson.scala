@@ -24,7 +24,4 @@ final class SaveJackson[A](rdd: RDD[A], encoder: AvroEncoder[A], cfg: HoarderCon
   def run[F[_]](implicit F: Sync[F]): F[Unit] =
     new SaveModeAware[F](params.saveMode, params.outPath, rdd.sparkContext.hadoopConfiguration)
       .checkAndRun(F.interruptible(saveRDD.jackson(rdd, params.outPath, encoder, params.compression)))
-
-  def runWithCount[F[_]](implicit F: Sync[F]): F[Long] =
-    F.map(run[F])(_ => rdd.count())
 }

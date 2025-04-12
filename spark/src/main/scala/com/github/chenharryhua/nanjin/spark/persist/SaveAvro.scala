@@ -25,6 +25,4 @@ final class SaveAvro[A](rdd: RDD[A], encoder: AvroEncoder[A], cfg: HoarderConfig
     new SaveModeAware[F](params.saveMode, params.outPath, rdd.sparkContext.hadoopConfiguration)
       .checkAndRun(F.interruptible(saveRDD.avro(rdd, params.outPath, encoder, params.compression)))
 
-  def runWithCount[F[_]](implicit F: Sync[F]): F[Long] =
-    F.map(run[F])(_ => rdd.count())
 }

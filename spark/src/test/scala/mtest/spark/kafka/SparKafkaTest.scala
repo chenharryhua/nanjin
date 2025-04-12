@@ -194,7 +194,7 @@ class SparKafkaTest extends AnyFunSuite {
     val p1   = path / "dump"
     val p2   = path / "download"
     sparKafka.dump("duck.test", p1).unsafeRunSync()
-    sparKafka.download[Int, HasDuck]("duck.test", p2).unsafeRunSync()
+    sparKafka.download[Int, HasDuck](topic.topicDef, p2).unsafeRunSync()
     sparKafka.upload("duck.test", p1).unsafeRunSync()
     sparKafka.sequentialUpload("duck.test", p1).unsafeRunSync()
     sparKafka.crazyUpload("duck.test", p1).unsafeRunSync()
@@ -218,7 +218,7 @@ class SparKafkaTest extends AnyFunSuite {
       .compile
       .drain
       .unsafeRunSync()
-    assert(2 == sparKafka.topic(topic).load.avro(path).count[IO].unsafeRunSync())
+    assert(2 == sparKafka.topic(topic.topicDef).load.avro(path).count[IO].unsafeRunSync())
   }
 
   test("format") {

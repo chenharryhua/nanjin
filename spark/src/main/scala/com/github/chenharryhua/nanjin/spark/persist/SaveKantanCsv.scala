@@ -29,6 +29,4 @@ final class SaveKantanCsv[A](
     new SaveModeAware[F](params.saveMode, params.outPath, rdd.sparkContext.hadoopConfiguration).checkAndRun(
       F.interruptible(saveRDD.kantan[A](rdd, params.outPath, params.compression, csvConfiguration, encoder)))
 
-  def runWithCount[F[_]](implicit F: Sync[F]): F[Long] =
-    F.map(run[F])(_ => rdd.count())
 }

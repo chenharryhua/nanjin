@@ -79,7 +79,7 @@ class SparkKafkaStreamTest extends AnyFunSuite {
       .start()
 
     val upload = sparKafka
-      .topic(rooster)
+      .topic(rooster.topicDef)
       .prRdd(data)
       .withTopicName(rooster.topicName)
       .replicate(100)

@@ -30,9 +30,6 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
   def topic[K, V](topicDef: TopicDef[K, V]): SparKafkaTopic[F, K, V] =
     new SparKafkaTopic[F, K, V](sparkSession, kafkaContext.topic(topicDef))
 
-  def topic[K, V](kt: KafkaTopic[F, K, V]): SparKafkaTopic[F, K, V] =
-    topic[K, V](kt.topicDef)
-
   def topic[K: SerdeOf, V: SerdeOf](topicName: TopicName): SparKafkaTopic[F, K, V] =
     topic[K, V](TopicDef[K, V](topicName))
 
@@ -54,7 +51,7 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
     * @param dateRange
     *   datetime range
     */
-  def dump(topicName: TopicName, path: Url, dateRange: DateTimeRange)(implicit F: Async[F]): F[Long] = {
+  def dump(topicName: TopicName, path: Url, dateRange: DateTimeRange)(implicit F: Async[F]): F[Unit] = {
     val grRdd: F[RDD[String]] = for {
       schemaPair <- kafkaContext.schemaRegistry.fetchAvroSchema(topicName)
       builder = new PullGenericRecord(kafkaContext.settings.schemaRegistrySettings, topicName, schemaPair)
@@ -63,27 +60,28 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
       .kafkaBatchRDD(kafkaContext.settings.consumerSettings, sparkSession, range)
       .flatMap(builder.toGenericRecord(_).flatMap(gr2Jackson).toOption)
 
-    grRdd.flatMap(rdd =>
-      new RddFileHoarder(rdd).text(path).withSaveMode(_.Overwrite).withSuffix("jackson.json").runWithCount[F])
+    grRdd.flatMap { rdd =>
+      new RddFileHoarder(rdd).text(path).withSaveMode(_.Overwrite).withSuffix("jackson.json").run[F]
+    }
   }
 
-  def dump(topicName: TopicName, path: Url)(implicit F: Async[F]): F[Long] =
+  def dump(topicName: TopicName, path: Url)(implicit F: Async[F]): F[Unit] =
     dump(topicName, path, DateTimeRange(utils.sparkZoneId(sparkSession)))
 
-  def dump(topicName: TopicNameL, path: Url, dateRange: DateTimeRange)(implicit F: Async[F]): F[Long] =
+  def dump(topicName: TopicNameL, path: Url, dateRange: DateTimeRange)(implicit F: Async[F]): F[Unit] =
     dump(TopicName(topicName), path, dateRange)
 
-  def dump(topicName: TopicNameL, path: Url)(implicit F: Async[F]): F[Long] =
+  def dump(topicName: TopicNameL, path: Url)(implicit F: Async[F]): F[Unit] =
     dump(TopicName(topicName), path, DateTimeRange(utils.sparkZoneId(sparkSession)))
 
-  def download[K: SerdeOf, V: SerdeOf](topicName: TopicNameL, path: Url, dateRange: DateTimeRange)(implicit
-    F: Async[F]): F[Long] =
-    topic[K, V](topicName)
-      .fromKafka(dateRange)
-      .flatMap(_.output.jackson(path).withSaveMode(_.Overwrite).runWithCount[F])
+  def download[K, V](topicDef: TopicDef[K, V], path: Url, dateRange: DateTimeRange)(implicit
+    F: Async[F]): F[Unit] =
+    topic[K, V](topicDef).fromKafka(dateRange).flatMap {
+      _.output.jackson(path).withSaveMode(_.Overwrite).run[F]
+    }
 
-  def download[K: SerdeOf, V: SerdeOf](topicName: TopicNameL, path: Url)(implicit F: Async[F]): F[Long] =
-    download[K, V](topicName, path, DateTimeRange(utils.sparkZoneId(sparkSession)))
+  def download[K, V](topicDef: TopicDef[K, V], path: Url)(implicit F: Async[F]): F[Unit] =
+    download(topicDef, path, DateTimeRange(utils.sparkZoneId(sparkSession)))
 
   /** upload data from given folder to a kafka topic. files read in parallel
     *

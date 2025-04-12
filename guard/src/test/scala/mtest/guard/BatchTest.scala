@@ -134,20 +134,7 @@ class BatchTest extends AnyFunSuite {
     (j1 >> j2).unsafeRunSync()
   }
 
-  test("8. monotonic") {
-    val diff = (IO.monotonic, IO.monotonic).mapN((a, b) => b - a).unsafeRunSync()
-    assert(diff.toNanos > 0)
-    val res = for {
-      a <- IO.monotonic
-      b <- IO.monotonic
-      c <- IO.monotonic
-    } yield (b - a, c - b)
-
-    println(res.unsafeRunSync())
-
-  }
-
-  test("9. single") {
+  test("8. single") {
     service.eventStream { agent =>
       agent
         .batch("single")
@@ -161,7 +148,7 @@ class BatchTest extends AnyFunSuite {
     }.evalTap(console.text[IO]).compile.drain.unsafeRunSync()
   }
 
-  test("10. single quasi") {
+  test("9. single quasi") {
     service.eventStream { agent =>
       agent
         .batch("single")
@@ -182,5 +169,26 @@ class BatchTest extends AnyFunSuite {
               ()
             })
     }.evalTap(console.text[IO]).compile.drain.unsafeRunSync()
+  }
+
+  test("10. monotonic") {
+    val diff = (IO.monotonic, IO.monotonic).mapN((a, b) => b - a).unsafeRunSync()
+    assert(diff.toNanos > 0)
+    val res = for {
+      a <- IO.monotonic
+      b <- IO.monotonic
+      c <- IO.monotonic
+    } yield (b - a, c - b)
+
+    println(res.unsafeRunSync())
+  }
+
+  test("11. guarantee") {
+    assertThrows[Exception](IO(1).guarantee(IO.raiseError(new Exception())).unsafeRunSync())
+  }
+
+  test("12. bracket") {
+    assertThrows[Exception](
+      IO.bracketFull(_ => IO(1))(IO.println)((_, _) => IO.raiseError(new Exception())).unsafeRunSync())
   }
 }
