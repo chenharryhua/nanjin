@@ -1,5 +1,5 @@
 package com.github.chenharryhua.nanjin.guard.action
-import cats.data.{Ior, Kleisli}
+import cats.data.{Ior, Kleisli, NonEmptyList, StateT}
 import cats.effect.implicits.clockOps
 import cats.effect.kernel.{Async, Resource}
 import cats.syntax.all.*
@@ -163,10 +163,10 @@ object Batch {
 
   final case class JobResult[A] private[action] (result: Either[Throwable, A], details: List[Detail]) {
 
-    def update[B](ex: Throwable, ds: List[Detail]): JobResult[B] =
-      JobResult[B](Left(ex), details ::: ds)
-    def update[B](b: B, ds: List[Detail]): JobResult[B] =
-      JobResult[B](Right(b), details ::: ds)
+    def update[B](ex: Throwable, detail: Detail): JobResult[B] =
+      JobResult[B](Left(ex), details.appended(detail))
+    def update[B](b: B, detail: Detail): JobResult[B] =
+      JobResult[B](Right(b), details.appended(detail))
   }
 
   final class Single[F[_]: Async, A] private[action] (
@@ -181,17 +181,17 @@ object Batch {
           resultA.result match {
             case Left(ex) => // escape when previous job failed
               val detail = Detail(job, Duration.ZERO, done = false)
-              m.run(detail).as(resultA.update[B](ex, List(detail)))
+              m.run(detail).as(resultA.update[B](ex, detail))
             case Right(a) => // previous job run smoothly
               metrics.activeGauge(s"running ${getJobName(job)}").surround(f(a).attempt.timed).flatMap {
                 case (fd: FiniteDuration, eb: Either[Throwable, B]) =>
                   eb match {
                     case Left(ex) => // fail current job
                       val detail = Detail(job, fd.toJava, done = false)
-                      m.run(detail).as(resultA.update[B](ex, List(detail)))
+                      m.run(detail).as(resultA.update[B](ex, detail))
                     case Right(b) => // all good
                       val detail = Detail(job, fd.toJava, done = true)
-                      m.run(detail).as(resultA.update[B](b, List(detail)))
+                      m.run(detail).as(resultA.update[B](b, detail))
                   }
               }
           }
@@ -221,17 +221,28 @@ object Batch {
       })
   }
 
+  final case class JobState[A] private[action] (result: Either[Throwable, A], details: NonEmptyList[Detail]) {
+
+    def update[B](ex: Throwable): JobState[B] = copy(result = Left(ex))
+
+    def update[B](rb: JobState[B]): JobState[B] =
+      JobState[B](rb.result, details ::: rb.details)
+  }
+
   final class JobBuilder[F[_]] private[action] (metrics: Metrics[F])(implicit F: Async[F]) {
-    private[this] var index: Int = 0
     private def build[A](name: Option[String], fa: => F[A]): Monadic[F, A] =
       new Monadic[F, A](
-        Kleisli { m =>
-          index += 1
-          val job = BatchJob(name, index)
-          metrics.activeGauge(s"running ${getJobName(job)}").surround(F.defer(fa).attempt.timed).flatMap {
-            case (fd, ea) =>
-              val detail = Detail(job, fd.toJava, ea.isRight)
-              m.run(detail).as(JobResult(ea, List(detail)))
+        Kleisli { (measure: DoMeasurement[F]) =>
+          StateT { (index: Int) =>
+            val job = BatchJob(name, index)
+            metrics
+              .activeGauge(s"running ${getJobName(job)}")
+              .surround(F.defer(fa).attempt.timed)
+              .flatMap { case (fd: FiniteDuration, ea: Either[Throwable, A]) =>
+                val detail = Detail(job, fd.toJava, ea.isRight)
+                measure.run(detail).as(JobState(ea, NonEmptyList.one(detail)))
+              }
+              .map((index + 1, _))
           }
         },
         metrics
@@ -243,21 +254,15 @@ object Batch {
   }
 
   final class Monadic[F[_]: Async, A] private[action] (
-    val kleisli: Kleisli[F, DoMeasurement[F], JobResult[A]],
+    val kleisli: Kleisli[StateT[F, Int, *], DoMeasurement[F], JobState[A]],
     metrics: Metrics[F]
   ) {
     def flatMap[B](f: A => Monadic[F, B]): Monadic[F, B] = {
-      val runB: Kleisli[F, DoMeasurement[F], JobResult[B]] =
-        kleisli.tapWithF[JobResult[B], DoMeasurement[F]] { case (m, ra) =>
+      val runB: Kleisli[StateT[F, Int, *], DoMeasurement[F], JobState[B]] =
+        kleisli.tapWithF { case (measure: DoMeasurement[F], ra: JobState[A]) =>
           ra.result match {
-            case Left(ex) => ra.update[B](ex, Nil).pure
-            case Right(a) =>
-              f(a).kleisli.run(m).map { rb =>
-                rb.result match {
-                  case Left(ex) => ra.update[B](ex, rb.details)
-                  case Right(b) => ra.update[B](b, rb.details)
-                }
-              }
+            case Left(ex) => StateT(idx => ra.update[B](ex).pure.map((idx, _)))
+            case Right(a) => f(a).kleisli.run(measure).map(ra.update[B])
           }
         }
       new Monadic[F, B](runB, metrics)
@@ -268,19 +273,19 @@ object Batch {
 
     def fully: Resource[F, A] =
       createMeasure(metrics, BatchKind.Fully).evalMap { meas =>
-        kleisli.run(meas).map(_.result).rethrow
+        kleisli.run(meas).run(1).map(_._2.result).rethrow
       }
 
     def quasi: Resource[F, QuasiResult] =
-      createMeasure(metrics, BatchKind.Quasi).evalMap(kleisli.run(_).map { res =>
-        val details: List[Detail] = res.details
+      createMeasure(metrics, BatchKind.Quasi).evalMap(meas => kleisli.run(meas).run(1)).map { res =>
+        val details: List[Detail] = res._2.details.toList
         QuasiResult(
           label = metrics.metricLabel,
           spent = details.map(_.took).foldLeft(Duration.ZERO)(_ plus _),
           mode = BatchMode.Sequential,
           details = details
         )
-      })
+      }
   }
 }
 
