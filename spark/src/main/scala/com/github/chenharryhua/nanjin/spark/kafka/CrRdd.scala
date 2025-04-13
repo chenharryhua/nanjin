@@ -14,6 +14,7 @@ import frameless.TypedEncoder
 import fs2.Stream
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.storage.StorageLevel
 
 final class CrRdd[K, V] private[kafka] (
   val rdd: RDD[NJConsumerRecord[K, V]],
@@ -41,6 +42,8 @@ final class CrRdd[K, V] private[kafka] (
   def descendOffset: CrRdd[K, V]    = transform(sort.descend.cr.offset)
 
   def repartition(num: Int): CrRdd[K, V] = transform(_.repartition(num))
+  def persist(f: StorageLevel.type => StorageLevel): CrRdd[K, V] =
+    transform(_.persist(f(StorageLevel)))
 
   def normalize: CrRdd[K, V] = transform(_.map(codec.idConversion))
 

@@ -9,6 +9,7 @@ import com.github.chenharryhua.nanjin.spark.persist.RddAvroFileHoarder
 import com.zaxxer.hikari.HikariConfig
 import fs2.Stream
 import org.apache.spark.sql.{Dataset, SaveMode, SparkSession}
+import org.apache.spark.storage.StorageLevel
 
 import scala.jdk.CollectionConverters.IteratorHasAsScala
 
@@ -25,6 +26,8 @@ final class Table[A] private[spark] (val dataset: Dataset[A], ate: AvroTypedEnco
   def transform(f: Endo[Dataset[A]]): Table[A] = new Table[A](f(dataset), ate)
 
   def repartition(numPartitions: Int): Table[A] = transform(_.repartition(numPartitions))
+  def persist(f: StorageLevel.type => StorageLevel): Table[A] =
+    transform(_.persist(f(StorageLevel)))
 
   def normalize: Table[A] = transform(ate.normalize)
 
