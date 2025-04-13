@@ -5,7 +5,7 @@ import cats.effect.unsafe.implicits.global
 import cats.implicits.catsSyntaxTuple2Semigroupal
 import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.action.BatchMode
+import com.github.chenharryhua.nanjin.guard.action.{Batch, BatchMode}
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStop
 import com.github.chenharryhua.nanjin.guard.observers.console
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
@@ -266,7 +266,7 @@ class BatchTest extends AnyFunSuite {
     val se = service.eventStream { agent =>
       agent
         .batch("monadic")
-        .monadic { job =>
+        .monadic { (job: Batch.JobBuilder[IO]) =>
           val p1 = for {
             a <- job("1", IO(1))
             b <- job("2", IO(2))

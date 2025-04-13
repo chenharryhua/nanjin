@@ -161,7 +161,7 @@ object Batch {
     }
   }
 
-  final case class JobResult[A] private[action] (result: Either[Throwable, A], details: List[Detail]) {
+  final private case class JobResult[A](result: Either[Throwable, A], details: List[Detail]) {
 
     def update[B](ex: Throwable, detail: Detail): JobResult[B] =
       JobResult[B](Left(ex), details.appended(detail))
@@ -221,23 +221,21 @@ object Batch {
       })
   }
 
-  final case class JobState[A] private[action] (result: Either[Throwable, A], details: NonEmptyList[Detail]) {
-
+  final private case class JobState[A](result: Either[Throwable, A], details: NonEmptyList[Detail]) {
     def update[B](ex: Throwable): JobState[B] = copy(result = Left(ex))
-
     def update[B](rb: JobState[B]): JobState[B] =
       JobState[B](rb.result, details ::: rb.details)
   }
 
   final class JobBuilder[F[_]] private[action] (metrics: Metrics[F])(implicit F: Async[F]) {
-    private def build[A](name: Option[String], fa: => F[A]): Monadic[F, A] =
+    private def build[A](name: Option[String], fa: F[A]): Monadic[F, A] =
       new Monadic[F, A](
         Kleisli { (measure: DoMeasurement[F]) =>
           StateT { (index: Int) =>
             val job = BatchJob(name, index)
             metrics
               .activeGauge(s"running ${getJobName(job)}")
-              .surround(F.defer(fa).attempt.timed)
+              .surround(fa.attempt.timed)
               .flatMap { case (fd: FiniteDuration, ea: Either[Throwable, A]) =>
                 val detail = Detail(job, fd.toJava, ea.isRight)
                 measure.run(detail).as(JobState(ea, NonEmptyList.one(detail)))
@@ -248,13 +246,13 @@ object Batch {
         metrics
       )
 
-    def apply[A](fa: => F[A]): Monadic[F, A]               = build[A](None, fa)
-    def apply[A](name: String, fa: => F[A]): Monadic[F, A] = build[A](Some(name), fa)
-    def apply[A](tup: (String, F[A])): Monadic[F, A]       = build[A](Some(tup._1), tup._2)
+    def apply[A](fa: => F[A]): Monadic[F, A]               = build[A](None, F.defer(fa))
+    def apply[A](name: String, fa: => F[A]): Monadic[F, A] = build[A](Some(name), F.defer(fa))
+    def apply[A](tup: (String, F[A])): Monadic[F, A]       = apply(tup._1, tup._2)
   }
 
   final class Monadic[F[_]: Async, A] private[action] (
-    val kleisli: Kleisli[StateT[F, Int, *], DoMeasurement[F], JobState[A]],
+    private[Batch] val kleisli: Kleisli[StateT[F, Int, *], DoMeasurement[F], JobState[A]],
     metrics: Metrics[F]
   ) {
     def flatMap[B](f: A => Monadic[F, B]): Monadic[F, B] = {
