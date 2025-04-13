@@ -19,16 +19,16 @@ import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.util.Try
 
 trait Gauge[F[_]] {
-  def register[A: Encoder](value: => F[A]): Resource[F, Unit]
-  def register[A: Encoder](value: => F[A], policy: Policy, zoneId: ZoneId): Resource[F, Unit]
+  def register[A: Encoder](value: F[A]): Resource[F, Unit]
+  def register[A: Encoder](value: F[A], policy: Policy, zoneId: ZoneId): Resource[F, Unit]
 }
 
 object Gauge {
   def noop[F[_]]: Gauge[F] =
     new Gauge[F] {
-      override def register[A: Encoder](value: => F[A]): Resource[F, Unit] =
+      override def register[A: Encoder](value: F[A]): Resource[F, Unit] =
         Resource.unit[F]
-      override def register[A: Encoder](value: => F[A], policy: Policy, zoneId: ZoneId): Resource[F, Unit] =
+      override def register[A: Encoder](value: F[A], policy: Policy, zoneId: ZoneId): Resource[F, Unit] =
         Resource.unit[F]
     }
 
@@ -59,15 +59,15 @@ object Gauge {
         })(_ => F.delay(metricRegistry.remove(metricID.identifier)).void)
         .void
 
-    override def register[A: Encoder](value: => F[A]): Resource[F, Unit] =
+    override def register[A: Encoder](value: F[A]): Resource[F, Unit] =
       Resource
         .eval((F.monotonic, utils.randomUUID[F]).mapN { case (ts, unique) =>
           MetricID(label, MetricName(name, ts, unique), Category.Gauge(GaugeKind.Gauge))
         })
-        .flatMap(json_gauge(_, F.defer(value)))
+        .flatMap(json_gauge(_, value))
 
-    override def register[A: Encoder](value: => F[A], policy: Policy, zoneId: ZoneId): Resource[F, Unit] = {
-      val fetch: F[Json] = F.handleError(F.defer(value).map(_.asJson).timeout(timeout))(trans_error)
+    override def register[A: Encoder](value: F[A], policy: Policy, zoneId: ZoneId): Resource[F, Unit] = {
+      val fetch: F[Json] = F.handleError(value.map(_.asJson).timeout(timeout))(trans_error)
       for {
         init <- Resource.eval(fetch)
         ref <- Resource.eval(F.ref(init))

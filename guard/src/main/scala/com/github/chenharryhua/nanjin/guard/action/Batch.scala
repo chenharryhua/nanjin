@@ -201,8 +201,8 @@ object Batch {
 
     def nextJob[B](f: A => F[B]): Single[F, B]               = build[B](None)(f)
     def nextJob[B](name: String, f: A => F[B]): Single[F, B] = build[B](Some(name))(f)
-    def nextJob[B](fb: => F[B]): Single[F, B]                = build[B](None)(_ => fb)
-    def nextJob[B](name: String, fb: => F[B]): Single[F, B]  = build[B](Some(name))(_ => fb)
+    def nextJob[B](fb: F[B]): Single[F, B]                   = build[B](None)(_ => fb)
+    def nextJob[B](name: String, fb: F[B]): Single[F, B]     = build[B](Some(name))(_ => fb)
     def nextJob[B](tup: (String, F[B])): Single[F, B]        = build[B](Some(tup._1))(_ => tup._2)
 
     def fully: Resource[F, A] =
@@ -246,9 +246,9 @@ object Batch {
         metrics
       )
 
-    def apply[A](fa: => F[A]): Monadic[F, A]               = build[A](None, F.defer(fa))
-    def apply[A](name: String, fa: => F[A]): Monadic[F, A] = build[A](Some(name), F.defer(fa))
-    def apply[A](tup: (String, F[A])): Monadic[F, A]       = apply(tup._1, tup._2)
+    def apply[A](fa: F[A]): Monadic[F, A]               = build[A](None, fa)
+    def apply[A](name: String, fa: F[A]): Monadic[F, A] = build[A](Some(name), fa)
+    def apply[A](tup: (String, F[A])): Monadic[F, A]    = build(Some(tup._1), tup._2)
   }
 
   final class Monadic[F[_]: Async, A] private[action] (

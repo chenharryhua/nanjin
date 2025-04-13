@@ -9,7 +9,7 @@ import java.time.ZoneId
 import scala.jdk.DurationConverters.JavaDurationOps
 
 trait Retry[F[_]] {
-  def apply[A](fa: => F[A]): F[A]
+  def apply[A](fa: F[A]): F[A]
 }
 
 object Retry {
@@ -50,7 +50,7 @@ object Retry {
       Resource.eval(TickStatus.zeroth[F](policy, zoneId)).map { ts =>
         val impl = new Impl[F](ts)
         new Retry[F] {
-          override def apply[A](fa: => F[A]): F[A] = impl.comprehensive(F.defer(fa), worthy)
+          override def apply[A](fa: F[A]): F[A] = impl.comprehensive(fa, worthy)
         }
       }
   }

@@ -8,7 +8,7 @@ import io.circe.generic.JsonCodec
 
 trait CaffeineCache[F[_], K, V] {
   def getIfPresent(key: K): F[Option[V]]
-  def get(key: K, fv: => F[V]): F[V]
+  def get(key: K, fv: F[V]): F[V]
 
   def put(key: K, value: V): F[Unit]
 
@@ -42,10 +42,10 @@ object CaffeineCache {
     override def put(key: K, value: V): F[Unit] =
       F.delay(cache.put(key, value))
 
-    override def get(key: K, fv: => F[V]): F[V] =
+    override def get(key: K, fv: F[V]): F[V] =
       getIfPresent(key).flatMap {
         case Some(value) => F.pure(value)
-        case None        => F.defer(fv).flatTap(v => put(key, v))
+        case None        => fv.flatTap(v => put(key, v))
       }
 
     override def updateWith(key: K)(f: Option[V] => V): F[V] =
