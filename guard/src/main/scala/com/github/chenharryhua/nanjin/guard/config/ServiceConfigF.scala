@@ -17,6 +17,7 @@ import java.time.*
 import java.util.UUID
 import scala.concurrent.duration.FiniteDuration
 import scala.jdk.DurationConverters.ScalaDurationOps
+import io.circe.jawn.parse
 
 @JsonCodec
 final case class ServicePolicies(restart: Policy, metricReport: Policy, metricReset: Policy)
@@ -53,6 +54,7 @@ final case class ServiceParams(
   threshold: Option[Duration],
   zerothTick: Tick,
   historyCapacity: HistoryCapacity,
+  nanjin: Option[Json],
   brief: Json
 ) {
   val zoneId: ZoneId  = zerothTick.zoneId
@@ -88,6 +90,7 @@ object ServiceParams {
       threshold = None,
       zerothTick = zerothTick,
       historyCapacity = HistoryCapacity(32, 32),
+      nanjin = parse(BuildInfo.toJson).toOption,
       brief = brief.value
     )
 }

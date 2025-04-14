@@ -9,6 +9,8 @@ addSbtPlugin("org.typelevel"     % "sbt-tpolecat"              % "0.5.2")
 addSbtPlugin("org.scalameta"     % "sbt-scalafmt"              % "2.5.4")
 addSbtPlugin("com.timushev.sbt"  % "sbt-updates"               % "0.6.4")
 addSbtPlugin("com.orrsella"      % "sbt-stats"                 % "1.0.7")
+addSbtPlugin("com.eed3si9n"      % "sbt-buildinfo"             % "0.13.1")
+addSbtPlugin("com.typesafe.sbt"  % "sbt-git"                   % "1.0.2")
 
 addSbtPlugin("com.thesamet" % "sbt-protoc" % "1.0.7")
 
