@@ -19,7 +19,7 @@ import java.time.ZoneId
 sealed trait Agent[F[_]] {
   def zoneId: ZoneId
 
-  def withMeasurement(name: String): Agent[F]
+  def withDomain(name: String): Agent[F]
 
   def batch(label: String): Batch[F]
 
@@ -35,7 +35,8 @@ sealed trait Agent[F[_]] {
   final def tickImmediately(f: Policy.type => Policy): Stream[F, Tick] =
     tickImmediately(f(Policy))
 
-  // metrics adhoc report
+  /** metrics adhoc report
+    */
   def adhoc: MetricsReport[F]
 
   def herald: Herald[F]
@@ -55,18 +56,18 @@ final private class GeneralAgent[F[_]: Async](
   serviceParams: ServiceParams,
   metricRegistry: MetricRegistry,
   channel: Channel[F, Event],
-  measurement: Measurement,
+  domain: Domain,
   alarmLevel: Ref[F, AlarmLevel],
   dispatcher: Dispatcher[F])
     extends Agent[F] {
 
   override val zoneId: ZoneId = serviceParams.zoneId
 
-  override def withMeasurement(name: String): Agent[F] =
-    new GeneralAgent[F](serviceParams, metricRegistry, channel, Measurement(name), alarmLevel, dispatcher)
+  override def withDomain(name: String): Agent[F] =
+    new GeneralAgent[F](serviceParams, metricRegistry, channel, Domain(name), alarmLevel, dispatcher)
 
   override def batch(label: String): Batch[F] = {
-    val metricLabel = MetricLabel(label, measurement)
+    val metricLabel = MetricLabel(label, domain)
     new Batch[F](new Metrics.Impl[F](metricLabel, metricRegistry, dispatcher))
   }
 
@@ -77,7 +78,7 @@ final private class GeneralAgent[F[_]: Async](
     tickStream.fromZero(policy, zoneId)
 
   override def facilitate[A](label: String)(f: Metrics[F] => A): A = {
-    val metricLabel = MetricLabel(label, measurement)
+    val metricLabel = MetricLabel(label, domain)
     f(new Metrics.Impl[F](metricLabel, metricRegistry, dispatcher))
   }
 

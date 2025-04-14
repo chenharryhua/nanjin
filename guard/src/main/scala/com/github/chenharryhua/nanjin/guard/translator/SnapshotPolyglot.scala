@@ -80,10 +80,10 @@ final class SnapshotPolyglot(snapshot: MetricSnapshot) {
 
   private def group_json(pairs: List[(MetricID, Json)]): Json =
     pairs
-      .groupBy(_._1.metricLabel.measurement) // measurement group
+      .groupBy(_._1.metricLabel.domain) // domain group
       .toList
-      .sortBy(_._1.value) // sort by measurement name.
-      .map { case (measurement, lst) =>
+      .sortBy(_._1.value) // sort by domain name.
+      .map { case (domain, lst) =>
         val arr: List[Json] = lst
           .groupBy(_._1.metricLabel) // metric-name group
           .toList
@@ -99,7 +99,7 @@ final class SnapshotPolyglot(snapshot: MetricSnapshot) {
           }
           .sortBy(_._1)
           .map(_._2)
-        Json.obj(measurement.value -> Json.arr(arr*))
+        Json.obj(domain.value -> Json.arr(arr*))
       }
       .asJson
 
@@ -160,11 +160,11 @@ final class SnapshotPolyglot(snapshot: MetricSnapshot) {
 
   private def group_yaml(pairs: List[(MetricID, List[String])]): List[String] =
     pairs
-      .groupBy(_._1.metricLabel.measurement) // measurement group
+      .groupBy(_._1.metricLabel.domain) // domain group
       .toList
       .sortBy(_._1.value)
-      .flatMap { case (measurement, measurements) =>
-        val arr: List[String] = measurements
+      .flatMap { case (domain, domains) =>
+        val arr: List[String] = domains
           .groupBy(_._1.metricLabel) // metric-name group
           .toList
           .map { case (name, items) =>
@@ -175,7 +175,7 @@ final class SnapshotPolyglot(snapshot: MetricSnapshot) {
           .flatMap { case ((_, n), items) =>
             s"${space * 2}- ${n.label}:" :: items
           }
-        show"[$measurement]:" :: arr
+        show"[$domain]:" :: arr
       }
 
   // for screen display

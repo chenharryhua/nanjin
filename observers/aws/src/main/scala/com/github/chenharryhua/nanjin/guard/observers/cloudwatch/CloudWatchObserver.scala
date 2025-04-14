@@ -169,7 +169,7 @@ final class CloudWatchObserver[F[_]: Concurrent] private (
 
     private val permanent: Map[String, String] = Map(
       textConstants.CONSTANT_LABEL -> metricLabel.label,
-      textConstants.CONSTANT_MEASUREMENT -> metricLabel.measurement.value)
+      textConstants.CONSTANT_DOMAIN -> metricLabel.domain.value)
 
     private val dimensions: util.List[Dimension] =
       dimensionBuilder(new DimensionBuilder(serviceParams, permanent)).build

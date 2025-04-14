@@ -84,7 +84,7 @@ object MetricName {
 }
 
 @JsonCodec
-final case class MetricLabel(label: String, measurement: Measurement)
+final case class MetricLabel(label: String, domain: Domain)
 
 @JsonCodec
 final case class MetricID(metricLabel: MetricLabel, metricName: MetricName, category: Category) {
