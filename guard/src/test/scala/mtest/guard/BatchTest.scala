@@ -5,7 +5,7 @@ import cats.effect.unsafe.implicits.global
 import cats.implicits.catsSyntaxTuple2Semigroupal
 import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.action.BatchMode
+import com.github.chenharryhua.nanjin.guard.action.{Batch, BatchMode}
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStop
 import com.github.chenharryhua.nanjin.guard.observers.console
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
@@ -209,7 +209,7 @@ class BatchTest extends AnyFunSuite {
   }
 
   test("14. monadic for comprehension") {
-    service.eventStream { agent =>
+    val se = service.eventStream { agent =>
       agent
         .batch("monadic")
         .monadic { job =>
@@ -223,9 +223,14 @@ class BatchTest extends AnyFunSuite {
             c <- job("c", IO.println("c").as(30))
           } yield a + b + c
         }
-        .quasi
-        .use(qr => agent.adhoc.report >> agent.herald.done(qr))
-    }.evalTap(console.text[IO]).compile.drain.unsafeRunSync()
+        .fully
+        .use { qr =>
+          assert(qr == 60)
+          agent.adhoc.report
+        }
+    }.evalTap(console.text[IO]).compile.lastOrError.unsafeRunSync()
+    assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
+
   }
 
   test("14. monadic error") {
@@ -266,7 +271,7 @@ class BatchTest extends AnyFunSuite {
     val se = service.eventStream { agent =>
       agent
         .batch("monadic")
-        .monadic { job =>
+        .monadic { (job: Batch.JobBuilder[IO]) =>
           val p1 = for {
             a <- job("1", IO(1))
             b <- job("2", IO(2))
@@ -343,5 +348,4 @@ class BatchTest extends AnyFunSuite {
 
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
   }
-
 }

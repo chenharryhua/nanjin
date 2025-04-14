@@ -74,6 +74,7 @@ lazy val commonSettings = List(
 )
 
 val testLib = List(
+  "org.typelevel" %% "cats-effect-testing-scalatest"          % "1.6.0",
   "org.typelevel" %% "cats-effect-testkit"                    % catsEffectV,
   "org.typelevel" %% "cats-testkit-scalatest"                 % "2.1.5",
   "org.typelevel" %% "discipline-scalatest"                   % "2.3.0",
@@ -188,6 +189,12 @@ lazy val guard = (project in file("guard"))
       "org.http4s" %% "http4s-scalatags"    % "0.25.2",
       "org.http4s" %% "http4s-ember-client" % http4sV                % Test
     ) ++ testLib
+  )
+  .enablePlugins(BuildInfoPlugin, GitVersioning)
+  .settings(
+    buildInfoKeys    := Seq[BuildInfoKey](version, git.gitHeadCommit, git.gitCurrentBranch),
+    buildInfoPackage := "com.github.chenharryhua.nanjin.guard.config",
+    buildInfoOptions += BuildInfoOption.ToJson
   )
 
 lazy val observer_logging = (project in file("observers/logging"))

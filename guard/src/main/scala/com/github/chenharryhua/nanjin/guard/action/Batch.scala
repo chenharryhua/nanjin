@@ -7,6 +7,7 @@ import com.github.chenharryhua.nanjin.guard.metrics.Metrics
 import com.github.chenharryhua.nanjin.guard.translator.fmt
 import io.circe.Json
 import io.circe.syntax.EncoderOps
+import monocle.Monocle.toAppliedFocusOps
 
 import java.time.Duration
 import scala.concurrent.duration.FiniteDuration
@@ -161,7 +162,7 @@ object Batch {
     }
   }
 
-  final case class JobResult[A] private[action] (result: Either[Throwable, A], details: List[Detail]) {
+  final private case class JobResult[A](result: Either[Throwable, A], details: List[Detail]) {
 
     def update[B](ex: Throwable, detail: Detail): JobResult[B] =
       JobResult[B](Left(ex), details.appended(detail))
@@ -201,8 +202,8 @@ object Batch {
 
     def nextJob[B](f: A => F[B]): Single[F, B]               = build[B](None)(f)
     def nextJob[B](name: String, f: A => F[B]): Single[F, B] = build[B](Some(name))(f)
-    def nextJob[B](fb: => F[B]): Single[F, B]                = build[B](None)(_ => fb)
-    def nextJob[B](name: String, fb: => F[B]): Single[F, B]  = build[B](Some(name))(_ => fb)
+    def nextJob[B](fb: F[B]): Single[F, B]                   = build[B](None)(_ => fb)
+    def nextJob[B](name: String, fb: F[B]): Single[F, B]     = build[B](Some(name))(_ => fb)
     def nextJob[B](tup: (String, F[B])): Single[F, B]        = build[B](Some(tup._1))(_ => tup._2)
 
     def fully: Resource[F, A] =
@@ -221,23 +222,22 @@ object Batch {
       })
   }
 
-  final case class JobState[A] private[action] (result: Either[Throwable, A], details: NonEmptyList[Detail]) {
-
+  final private case class JobState[A](result: Either[Throwable, A], details: NonEmptyList[Detail]) {
     def update[B](ex: Throwable): JobState[B] = copy(result = Left(ex))
-
+    // reversed order
     def update[B](rb: JobState[B]): JobState[B] =
-      JobState[B](rb.result, details ::: rb.details)
+      JobState[B](rb.result, rb.details ::: details)
   }
 
   final class JobBuilder[F[_]] private[action] (metrics: Metrics[F])(implicit F: Async[F]) {
-    private def build[A](name: Option[String], fa: => F[A]): Monadic[F, A] =
+    private def build[A](name: Option[String], fa: F[A]): Monadic[F, A] =
       new Monadic[F, A](
         Kleisli { (measure: DoMeasurement[F]) =>
           StateT { (index: Int) =>
             val job = BatchJob(name, index)
             metrics
               .activeGauge(s"running ${getJobName(job)}")
-              .surround(F.defer(fa).attempt.timed)
+              .surround(fa.attempt.timed)
               .flatMap { case (fd: FiniteDuration, ea: Either[Throwable, A]) =>
                 val detail = Detail(job, fd.toJava, ea.isRight)
                 measure.run(detail).as(JobState(ea, NonEmptyList.one(detail)))
@@ -248,20 +248,20 @@ object Batch {
         metrics
       )
 
-    def apply[A](fa: => F[A]): Monadic[F, A]               = build[A](None, fa)
-    def apply[A](name: String, fa: => F[A]): Monadic[F, A] = build[A](Some(name), fa)
-    def apply[A](tup: (String, F[A])): Monadic[F, A]       = build[A](Some(tup._1), tup._2)
+    def apply[A](fa: F[A]): Monadic[F, A]               = build[A](None, fa)
+    def apply[A](name: String, fa: F[A]): Monadic[F, A] = build[A](Some(name), fa)
+    def apply[A](tup: (String, F[A])): Monadic[F, A]    = build(Some(tup._1), tup._2)
   }
 
   final class Monadic[F[_]: Async, A] private[action] (
-    val kleisli: Kleisli[StateT[F, Int, *], DoMeasurement[F], JobState[A]],
+    private[Batch] val kleisli: Kleisli[StateT[F, Int, *], DoMeasurement[F], JobState[A]],
     metrics: Metrics[F]
   ) {
     def flatMap[B](f: A => Monadic[F, B]): Monadic[F, B] = {
       val runB: Kleisli[StateT[F, Int, *], DoMeasurement[F], JobState[B]] =
         kleisli.tapWithF { case (measure: DoMeasurement[F], ra: JobState[A]) =>
           ra.result match {
-            case Left(ex) => StateT(idx => ra.update[B](ex).pure.map((idx, _)))
+            case Left(ex) => StateT(idx => ra.update[B](ex).pure[F].map((idx, _)))
             case Right(a) => f(a).kleisli.run(measure).map(ra.update[B])
           }
         }
@@ -269,23 +269,44 @@ object Batch {
     }
 
     def map[B](f: A => B): Monadic[F, B] =
-      new Monadic[F, B](kleisli.map(r => r.copy(result = r.result.map(f))), metrics)
+      new Monadic[F, B](kleisli.map(js => js.copy(result = js.result.map(f))), metrics)
+
+    def withFilter(f: A => Boolean): Monadic[F, A] =
+      new Monadic[F, A](
+        kleisli.map { (js: JobState[A]) =>
+          js.result match {
+            case Left(_) => js
+            case Right(value) =>
+              if (f(value)) js
+              else {
+                val head = js.details.head.focus(_.done).replace(false)
+                JobState[A](
+                  Left(new Exception(s"Post-Condition Unsatisfied: ${getJobName(head.job)}")),
+                  NonEmptyList.of(head, js.details.tail*)
+                )
+              }
+          }
+        },
+        metrics
+      )
 
     def fully: Resource[F, A] =
-      createMeasure(metrics, BatchKind.Fully).evalMap { meas =>
-        kleisli.run(meas).run(1).map(_._2.result).rethrow
+      createMeasure(metrics, BatchKind.Fully).evalMap {
+        kleisli.run(_).run(1).map(_._2.result).rethrow
       }
 
     def quasi: Resource[F, QuasiResult] =
-      createMeasure(metrics, BatchKind.Quasi).evalMap(meas => kleisli.run(meas).run(1)).map { res =>
-        val details: List[Detail] = res._2.details.toList
-        QuasiResult(
-          label = metrics.metricLabel,
-          spent = details.map(_.took).foldLeft(Duration.ZERO)(_ plus _),
-          mode = BatchMode.Sequential,
-          details = details
-        )
-      }
+      createMeasure(metrics, BatchKind.Quasi)
+        .evalMap(kleisli.run(_).run(1))
+        .map(_._2.details.toList.reverse)
+        .map { details =>
+          QuasiResult(
+            label = metrics.metricLabel,
+            spent = details.map(_.took).foldLeft(Duration.ZERO)(_ plus _),
+            mode = BatchMode.Sequential,
+            details = details
+          )
+        }
   }
 }
 

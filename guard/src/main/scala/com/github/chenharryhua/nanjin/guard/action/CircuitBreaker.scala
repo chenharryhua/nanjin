@@ -9,8 +9,8 @@ import io.circe.{Encoder, Json}
 import java.time.ZoneId
 
 trait CircuitBreaker[F[_]] {
-  def attempt[A](fa: => F[A]): F[Either[Throwable, A]]
-  def protect[A](fa: => F[A]): F[A]
+  def attempt[A](fa: F[A]): F[Either[Throwable, A]]
+  def protect[A](fa: F[A]): F[A]
   def getState: F[CircuitBreaker.State]
 }
 
@@ -50,7 +50,7 @@ object CircuitBreaker {
 
       override val getState: F[State] = state.get
 
-      override def attempt[A](fa: => F[A]): F[Either[Throwable, A]] = {
+      override def attempt[A](fa: F[A]): F[Either[Throwable, A]] = {
         def updateState(result: Either[Throwable, A]): F[Unit] =
           state.update {
             case keep @ State.Closed(failures) =>
@@ -75,11 +75,11 @@ object CircuitBreaker {
             case State.Open(_) =>
               val rejected: Left[RejectedException.type, A] = Left(RejectedException)
               updateState(rejected) *> F.pure(rejected)
-            case _ => poll(F.defer(fa)).attempt.flatTap(updateState)
+            case _ => poll(fa).attempt.flatTap(updateState)
           })
       }
 
-      override def protect[A](fa: => F[A]): F[A] = F.rethrow(attempt(fa))
+      override def protect[A](fa: F[A]): F[A] = F.rethrow(attempt(fa))
     }
   }
 
