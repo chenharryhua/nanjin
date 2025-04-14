@@ -39,11 +39,11 @@ object HomePage {
   implicit val decoderHomePage: Decoder[HomePage] = Decoder.decodeString.map(HomePage(_))
 }
 
-final case class Measurement(value: String) extends AnyVal
-object Measurement {
-  implicit val showMeasurement: Show[Measurement]       = _.value
-  implicit val encoderMeasurement: Encoder[Measurement] = Encoder.encodeString.contramap(_.value)
-  implicit val decoderMeasurement: Decoder[Measurement] = Decoder.decodeString.map(Measurement(_))
+final case class Domain(value: String) extends AnyVal
+object Domain {
+  implicit val showDomain: Show[Domain]       = _.value
+  implicit val encoderDomain: Encoder[Domain] = Encoder.encodeString.contramap(_.value)
+  implicit val decoderDomain: Decoder[Domain] = Decoder.decodeString.map(Domain(_))
 }
 
 final private[guard] case class ServiceBrief(value: Json) extends AnyVal

@@ -83,7 +83,7 @@ object Batch {
 
   }
 
-  final class Parallel[F[_]: Async, A] private[action] (
+  final class Parallel[F[_]: Async, A] private[Batch] (
     metrics: Metrics[F],
     parallelism: Int,
     jobs: List[(BatchJob, F[A])])
@@ -121,7 +121,7 @@ object Batch {
     }
   }
 
-  final class Sequential[F[_]: Async, A] private[action] (metrics: Metrics[F], jobs: List[(BatchJob, F[A])])
+  final class Sequential[F[_]: Async, A] private[Batch] (metrics: Metrics[F], jobs: List[(BatchJob, F[A])])
       extends Runner[F, A] {
 
     private val mode: BatchMode = BatchMode.Sequential
@@ -170,7 +170,7 @@ object Batch {
       JobResult[B](Right(b), details.appended(detail))
   }
 
-  final class Single[F[_]: Async, A] private[action] (
+  final class Single[F[_]: Async, A] private[Batch] (
     metrics: Metrics[F],
     rfa: Kleisli[F, DoMeasurement[F], JobResult[A]],
     index: Int) {
@@ -229,7 +229,7 @@ object Batch {
       JobState[B](rb.result, rb.details ::: details)
   }
 
-  final class JobBuilder[F[_]] private[action] (metrics: Metrics[F])(implicit F: Async[F]) {
+  final class JobBuilder[F[_]] private[Batch] (metrics: Metrics[F])(implicit F: Async[F]) {
     private def build[A](name: Option[String], fa: F[A]): Monadic[F, A] =
       new Monadic[F, A](
         Kleisli { (measure: DoMeasurement[F]) =>
@@ -248,12 +248,28 @@ object Batch {
         metrics
       )
 
-    def apply[A](fa: F[A]): Monadic[F, A]               = build[A](None, fa)
+    /** build a job
+      * @param fa
+      *   the job
+      */
+    def apply[A](fa: F[A]): Monadic[F, A] = build[A](None, fa)
+
+    /** build a job
+      * @param name
+      *   name of the job
+      * @param fa
+      *   the job
+      */
     def apply[A](name: String, fa: F[A]): Monadic[F, A] = build[A](Some(name), fa)
-    def apply[A](tup: (String, F[A])): Monadic[F, A]    = build(Some(tup._1), tup._2)
+
+    /** build a job
+      * @param tup
+      *   a tuple with the first being the name, second the job
+      */
+    def apply[A](tup: (String, F[A])): Monadic[F, A] = build(Some(tup._1), tup._2)
   }
 
-  final class Monadic[F[_]: Async, A] private[action] (
+  final class Monadic[F[_]: Async, A] private[Batch] (
     private[Batch] val kleisli: Kleisli[StateT[F, Int, *], DoMeasurement[F], JobState[A]],
     metrics: Metrics[F]
   ) {

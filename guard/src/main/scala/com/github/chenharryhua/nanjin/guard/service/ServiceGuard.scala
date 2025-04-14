@@ -19,19 +19,6 @@ import io.circe.syntax.*
 import org.apache.commons.collections4.queue.CircularFifoQueue
 import org.http4s.ember.server.EmberServerBuilder
 
-
-// format: off
-/** @example
-  *   {{{ val guard = TaskGuard[IO]("appName").service("service-name")
-  *       val es: Stream[IO,NJEvent] = guard.eventStream {
-  *           gd => gd.action("action-1").retry(IO(1)).run >>
-  *                  IO("other computation") >>
-  *                  gd.action("action-2").retry(IO(2)).run
-  *            }
-  * }}}
-  */
-// format: on
-
 final class ServiceGuard[F[_]: Network: Async] private[guard] (
   serviceName: ServiceName,
   config: ServiceConfig[F])
@@ -132,7 +119,7 @@ final class ServiceGuard[F[_]: Network: Async] private[guard] (
             serviceParams = serviceParams,
             metricRegistry = metricRegistry,
             channel = channel,
-            measurement = Measurement(serviceParams.serviceName.value),
+            domain = Domain(serviceParams.serviceName.value),
             alarmLevel = alarmLevel,
             dispatcher = dispatcher
           )
