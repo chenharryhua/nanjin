@@ -63,6 +63,11 @@ final class CrRdd[K, V] private[kafka] (
   def diff(other: RDD[NJConsumerRecord[K, V]]): CrRdd[K, V] = transform(_.subtract(other))
   def diff(other: CrRdd[K, V]): CrRdd[K, V]                 = diff(other.rdd)
 
+  def diff(other: RDD[NJConsumerRecord[K, V]], numPartitions: Int): CrRdd[K, V] = transform(
+    _.subtract(other, numPartitions))
+  def diff(other: CrRdd[K, V], numPartitions: Int): CrRdd[K, V] =
+    diff(other.rdd, numPartitions)
+
   def union(other: RDD[NJConsumerRecord[K, V]]): CrRdd[K, V] = transform(_.union(other))
   def union(other: CrRdd[K, V]): CrRdd[K, V]                 = union(other.rdd)
 

@@ -32,7 +32,7 @@ final class FileRotateSink[F[_]: Async] private (
   rotateType: RotateType,
   configuration: Configuration,
   ticks: Stream[F, TickedValue[Path]]) {
-  // avro
+  // avro - schema-less
   def avro(compression: AvroCompression): Pipe[F, Chunk[GenericRecord], TickedValue[Int]] = {
     def get_writer(schema: Schema)(url: Path): Resource[F, HadoopWriter[F, GenericRecord]] =
       HadoopWriter.avroR[F](compression.codecFactory, schema, configuration, url)
@@ -60,6 +60,27 @@ final class FileRotateSink[F[_]: Async] private (
 
   val avro: Pipe[F, Chunk[GenericRecord], TickedValue[Int]] =
     avro(AvroCompression.Uncompressed)
+
+  // avro schema
+  def avro(schema: Schema, compression: AvroCompression): Pipe[F, Chunk[GenericRecord], TickedValue[Int]] = {
+    def get_writer(url: Path): Resource[F, HadoopWriter[F, GenericRecord]] =
+      HadoopWriter.avroR[F](compression.codecFactory, schema, configuration, url)
+
+    rotateType match {
+      case RotateType.PolicyBased =>
+        (ss: Stream[F, Chunk[GenericRecord]]) => periodically.merge.persist(ss, ticks, get_writer).stream
+      case RotateType.ChunkBased =>
+        (ss: Stream[F, Chunk[GenericRecord]]) => periodically.zip.persist(get_writer, ss.zip(ticks)).stream
+    }
+  }
+
+  def avro(
+    schema: Schema,
+    f: AvroCompression.type => AvroCompression): Pipe[F, Chunk[GenericRecord], TickedValue[Int]] =
+    avro(schema, f(AvroCompression))
+
+  def avro(schema: Schema): Pipe[F, Chunk[GenericRecord], TickedValue[Int]] =
+    avro(schema, AvroCompression.Uncompressed)
 
   // binary avro
   val binAvro: Pipe[F, Chunk[GenericRecord], TickedValue[Int]] = {
@@ -104,6 +125,18 @@ final class FileRotateSink[F[_]: Async] private (
               periodically.zip.persist(get_writer(grs(0).getSchema), stream.zip(ticks))
             case None => Pull.done
           }.stream
+    }
+  }
+
+  def jackson(schema: Schema): Pipe[F, Chunk[GenericRecord], TickedValue[Int]] = {
+    def get_writer(url: Path): Resource[F, HadoopWriter[F, GenericRecord]] =
+      HadoopWriter.jacksonR[F](configuration, schema, url)
+
+    rotateType match {
+      case RotateType.PolicyBased =>
+        (ss: Stream[F, Chunk[GenericRecord]]) => periodically.merge.persist(ss, ticks, get_writer).stream
+      case RotateType.ChunkBased =>
+        (ss: Stream[F, Chunk[GenericRecord]]) => periodically.zip.persist(get_writer, ss.zip(ticks)).stream
     }
   }
 
