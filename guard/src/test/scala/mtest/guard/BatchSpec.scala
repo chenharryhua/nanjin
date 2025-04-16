@@ -28,7 +28,7 @@ class BatchSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
               c <- job("c", IO(3))
             } yield a + b + c
           }
-          .quasi
+          .runQuasi
           .memoizedAcquire
           .use(identity)
         result.asserting { qr =>
@@ -54,7 +54,7 @@ class BatchSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
             c <- job("c", IO(3))
           } yield a + b + c
         }
-        .fully
+        .runFully
         .memoizedAcquire
         .use(identity)
       result.assertThrowsError[Exception](_.getMessage.contains("Post-Condition").shouldBe(true)).void
@@ -62,5 +62,4 @@ class BatchSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
 
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
   }
-
 }

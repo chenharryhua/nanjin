@@ -74,12 +74,12 @@ object Batch {
     /** batch always success but jobs may fail
       * @return
       */
-    def quasi(implicit ev: A =:= Boolean): Resource[F, QuasiResult]
+    def runQuasi(implicit ev: A =:= Boolean): Resource[F, QuasiResult]
 
     /** any job's failure will cause whole batch's failure
       * @return
       */
-    def fully: Resource[F, List[A]]
+    def runFully: Resource[F, List[A]]
 
   }
 
@@ -91,7 +91,7 @@ object Batch {
 
     private val mode: BatchMode = BatchMode.Parallel(parallelism)
 
-    override def quasi(implicit ev: A =:= Boolean): Resource[F, QuasiResult] = {
+    override def runQuasi(implicit ev: A =:= Boolean): Resource[F, QuasiResult] = {
 
       def exec(meas: DoMeasurement[F]): F[(FiniteDuration, List[Detail])] =
         F.timed(F.parTraverseN(parallelism)(jobs) { case (job, fa) =>
@@ -107,7 +107,7 @@ object Batch {
       } yield QuasiResult(metrics.metricLabel, fd.toJava, mode, details.sortBy(_.job.index))
     }
 
-    override def fully: Resource[F, List[A]] = {
+    override def runFully: Resource[F, List[A]] = {
 
       def exec(meas: DoMeasurement[F]): F[List[A]] =
         F.parTraverseN(parallelism)(jobs) { case (job, fa) =>
@@ -126,7 +126,7 @@ object Batch {
 
     private val mode: BatchMode = BatchMode.Sequential
 
-    override def quasi(implicit ev: A =:= Boolean): Resource[F, QuasiResult] = {
+    override def runQuasi(implicit ev: A =:= Boolean): Resource[F, QuasiResult] = {
 
       def exec(meas: DoMeasurement[F]): F[List[Detail]] =
         jobs.traverse { case (job, fa) =>
@@ -148,7 +148,7 @@ object Batch {
       )
     }
 
-    override def fully: Resource[F, List[A]] = {
+    override def runFully: Resource[F, List[A]] = {
 
       def exec(meas: DoMeasurement[F]): F[List[A]] =
         jobs.traverse { case (job, fa) =>
@@ -206,11 +206,11 @@ object Batch {
     def nextJob[B](name: String, fb: F[B]): Single[F, B]     = build[B](Some(name))(_ => fb)
     def nextJob[B](tup: (String, F[B])): Single[F, B]        = build[B](Some(tup._1))(_ => tup._2)
 
-    def fully: Resource[F, A] =
+    def runFully: Resource[F, A] =
       createMeasure(metrics, index - 1, BatchKind.Fully, BatchMode.Sequential)
         .evalMap(rfa.run(_).map(_.result).rethrow)
 
-    def quasi: Resource[F, QuasiResult] =
+    def runQuasi: Resource[F, QuasiResult] =
       createMeasure(metrics, index - 1, BatchKind.Quasi, BatchMode.Sequential).evalMap(rfa.run(_).map { res =>
         val details: List[Detail] = res.details
         QuasiResult(
@@ -248,13 +248,13 @@ object Batch {
         metrics
       )
 
-    /** build a job
+    /** build a nameless job
       * @param fa
       *   the job
       */
     def apply[A](fa: F[A]): Monadic[F, A] = build[A](None, fa)
 
-    /** build a job
+    /** build a named job
       * @param name
       *   name of the job
       * @param fa
@@ -262,7 +262,7 @@ object Batch {
       */
     def apply[A](name: String, fa: F[A]): Monadic[F, A] = build[A](Some(name), fa)
 
-    /** build a job
+    /** build a named job
       * @param tup
       *   a tuple with the first being the name, second the job
       */
@@ -306,12 +306,12 @@ object Batch {
         metrics
       )
 
-    def fully: Resource[F, A] =
+    def runFully: Resource[F, A] =
       createMeasure(metrics, BatchKind.Fully).evalMap {
         kleisli.run(_).run(1).map(_._2.result).rethrow
       }
 
-    def quasi: Resource[F, QuasiResult] =
+    def runQuasi: Resource[F, QuasiResult] =
       createMeasure(metrics, BatchKind.Quasi)
         .evalMap(kleisli.run(_).run(1))
         .map(_._2.details.toList.reverse)
