@@ -281,9 +281,14 @@ final case class Policy private (private[chrono] val policy: Fix[PolicyF]) {
     require(num > 0, show"$num should be bigger than zero")
     Policy(Fix(Limited(policy, num)))
   }
-  def followedBy(other: Policy): Policy = Policy(Fix(FollowedBy(policy, other.policy)))
-  def repeat: Policy                    = Policy(Fix(Repeat(policy)))
-  def meet(other: Policy): Policy       = Policy(Fix(Meet(policy, other.policy)))
+
+  def followedBy(other: Policy): Policy            = Policy(Fix(FollowedBy(policy, other.policy)))
+  def followedBy(f: Policy.type => Policy): Policy = followedBy(f(Policy))
+
+  def repeat: Policy = Policy(Fix(Repeat(policy)))
+
+  def meet(other: Policy): Policy            = Policy(Fix(Meet(policy, other.policy)))
+  def meet(f: Policy.type => Policy): Policy = meet(f(Policy))
 
   def except(localTime: LocalTime): Policy            = Policy(Fix(Except(policy, localTime)))
   def except(f: localTimes.type => LocalTime): Policy = except(f(localTimes))
