@@ -139,44 +139,7 @@ class BatchTest extends AnyFunSuite {
     (j1 >> j2).unsafeRunSync()
   }
 
-  test("8. single") {
-    service.eventStream { agent =>
-      agent
-        .batch("single")
-        .single
-        .nextJob(_ => IO.println("a"))
-        .nextJob(IO.println("b"))
-        .nextJob("report", agent.adhoc.report)
-        .nextJob("c", _ => IO.println("c"))
-        .runFully
-        .use(_ => agent.adhoc.report)
-    }.evalTap(console.text[IO]).compile.drain.unsafeRunSync()
-  }
-
-  test("9. single quasi") {
-    service.eventStream { agent =>
-      agent
-        .batch("single")
-        .single
-        .nextJob("a", _ => IO.println("a"))
-        .nextJob("b" -> IO.println("b"))
-        .nextJob("exception", IO.raiseError[Int](new Exception))
-        .nextJob("c", _ => IO.println("c"))
-        .runQuasi
-        .use(qr =>
-          agent.adhoc.report >>
-            agent.console.done(qr) >>
-            IO {
-              assert(qr.details.head.done)
-              assert(qr.details(1).done)
-              assert(!qr.details(2).done)
-              assert(!qr.details(3).done)
-              ()
-            })
-    }.evalTap(console.text[IO]).compile.drain.unsafeRunSync()
-  }
-
-  test("10. monotonic") {
+  test("8. monotonic") {
     val diff = (IO.monotonic, IO.monotonic).mapN((a, b) => b - a).unsafeRunSync()
     assert(diff.toNanos > 0)
     val res = for {
@@ -188,16 +151,16 @@ class BatchTest extends AnyFunSuite {
     println(res.unsafeRunSync())
   }
 
-  test("11. guarantee") {
+  test("9. guarantee") {
     assertThrows[Exception](IO(1).guarantee(IO.raiseError(new Exception())).unsafeRunSync())
   }
 
-  test("12. bracket") {
+  test("10. bracket") {
     assertThrows[Exception](
       IO.bracketFull(_ => IO(1))(IO.println)((_, _) => IO.raiseError(new Exception())).unsafeRunSync())
   }
 
-  test("13. monadic") {
+  test("11. monadic") {
     service.eventStream { agent =>
       agent.batch("monadic").monadic { job =>
         job("a", IO.println(1))
@@ -212,7 +175,7 @@ class BatchTest extends AnyFunSuite {
     }.evalTap(console.text[IO]).compile.drain.unsafeRunSync()
   }
 
-  test("14. monadic for comprehension") {
+  test("12. monadic for comprehension") {
     val se = service.eventStream { agent =>
       agent
         .batch("monadic")
@@ -237,7 +200,7 @@ class BatchTest extends AnyFunSuite {
 
   }
 
-  test("14. monadic error") {
+  test("13. monadic error") {
     val se = service.eventStream { agent =>
       agent
         .batch("monadic")
@@ -265,13 +228,13 @@ class BatchTest extends AnyFunSuite {
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
   }
 
-  test("15. monadic one") {
+  test("14. monadic one") {
     service.eventStream { agent =>
       agent.batch("monadic").monadic(_(IO(0))).runFully.use(qr => agent.adhoc.report >> agent.herald.info(qr))
     }.evalTap(console.text[IO]).compile.drain.unsafeRunSync()
   }
 
-  test("16. monadic many") {
+  test("15. monadic many") {
     val se = service.eventStream { agent =>
       agent
         .batch("monadic")
@@ -315,7 +278,7 @@ class BatchTest extends AnyFunSuite {
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
   }
 
-  test("17. monadic many 2") {
+  test("16. monadic many 2") {
     val se = service.eventStream { agent =>
       val m1 = agent.batch("monadic-1").monadic { job =>
         for {

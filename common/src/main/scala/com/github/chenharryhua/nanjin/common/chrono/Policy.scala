@@ -268,7 +268,7 @@ private object PolicyF extends all {
       }
 }
 
-// don't extends AnyVal as monocle doesn't like it
+// don't extend AnyVal as monocle doesn't like it
 // use case class for free equal method
 final case class Policy private (private[chrono] val policy: Fix[PolicyF]) {
   import PolicyF.{Except, FollowedBy, Jitter, Limited, Meet, Offset, Repeat}
