@@ -1,4 +1,4 @@
-ThisBuild / version      := "0.19.1-SNAPSHOT"
+ThisBuild / version      := "0.19.3-SNAPSHOT"
 ThisBuild / scalaVersion := "2.13.16"
 
 ThisBuild / versionScheme := Some("early-semver")
@@ -190,9 +190,14 @@ lazy val guard = (project in file("guard"))
       "org.http4s" %% "http4s-ember-client" % http4sV                % Test
     ) ++ testLib
   )
-  .enablePlugins(BuildInfoPlugin, GitVersioning)
+  .enablePlugins(BuildInfoPlugin)
   .settings(
-    buildInfoKeys    := Seq[BuildInfoKey](version, git.gitHeadCommit, git.gitCurrentBranch),
+    buildInfoKeys := Seq[BuildInfoKey](
+      ThisBuild / version,
+      scalaVersion,
+      git.gitHeadCommit,
+      git.gitCurrentBranch
+    ),
     buildInfoPackage := "com.github.chenharryhua.nanjin.guard.config",
     buildInfoOptions += BuildInfoOption.ToJson
   )

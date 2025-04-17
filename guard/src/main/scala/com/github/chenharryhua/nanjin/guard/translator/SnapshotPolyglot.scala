@@ -99,8 +99,11 @@ final class SnapshotPolyglot(snapshot: MetricSnapshot) {
           }
           .sortBy(_._1)
           .map(_._2)
-        Json.obj(domain.value -> Json.arr(arr*))
+        val age = lst.map(_._1.metricName.age).min
+        age -> Json.obj(domain.value -> Json.arr(arr*))
       }
+      .sortBy(_._1)
+      .map(_._2)
       .asJson
 
   // for database etc
@@ -163,7 +166,7 @@ final class SnapshotPolyglot(snapshot: MetricSnapshot) {
       .groupBy(_._1.metricLabel.domain) // domain group
       .toList
       .sortBy(_._1.value)
-      .flatMap { case (domain, domains) =>
+      .map { case (domain, domains) =>
         val arr: List[String] = domains
           .groupBy(_._1.metricLabel) // metric-name group
           .toList
@@ -175,8 +178,11 @@ final class SnapshotPolyglot(snapshot: MetricSnapshot) {
           .flatMap { case ((_, n), items) =>
             s"${space * 2}- ${n.label}:" :: items
           }
-        show"[$domain]:" :: arr
+        val age = domains.map(_._1.metricName.age).min
+        (age, show"[$domain]:" :: arr)
       }
+      .sortBy(_._1)
+      .flatMap(_._2)
 
   // for screen display
   def toYaml: String = {
