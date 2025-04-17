@@ -4,6 +4,7 @@ import cats.Endo
 import cats.data.Reader
 import cats.effect.kernel.{Async, Resource}
 import cats.effect.std.Hotswap
+import cats.implicits.catsSyntaxFlatten
 import com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
 import com.github.chenharryhua.nanjin.common.chrono.TickedValue
 import fs2.{Chunk, Pipe, Pull, Stream}
@@ -47,9 +48,12 @@ final class FileRotateSink[F[_]: Async] private (
           }.stream
       case RotateType.ChunkBased =>
         (ss: Stream[F, Chunk[GenericRecord]]) =>
-          ss.pull.peek1.flatMap {
-            case Some((grs, stream)) =>
-              periodically.zip.persist(get_writer(grs(0).getSchema), stream.zip(ticks))
+          ss.pull.stepLeg.flatMap {
+            case Some(leg) =>
+              val record = leg.head.flatten.head.get
+              periodically.zip.persist(
+                get_writer(record.getSchema),
+                (Stream.chunk(leg.head) ++ leg.stream).zip(ticks))
             case None => Pull.done
           }.stream
     }
@@ -97,11 +101,27 @@ final class FileRotateSink[F[_]: Async] private (
           }.stream
       case RotateType.ChunkBased =>
         (ss: Stream[F, Chunk[GenericRecord]]) =>
-          ss.pull.peek1.flatMap {
-            case Some((grs, stream)) =>
-              periodically.zip.persist(get_writer(grs(0).getSchema), stream.zip(ticks))
+          ss.pull.stepLeg.flatMap {
+            case Some(leg) =>
+              val record = leg.head.flatten.head.get
+              periodically.zip.persist(
+                get_writer(record.getSchema),
+                (Stream.chunk(leg.head) ++ leg.stream).zip(ticks))
             case None => Pull.done
           }.stream
+
+    }
+  }
+
+  def binAvro(schema: Schema): Pipe[F, Chunk[GenericRecord], TickedValue[Int]] = {
+    def get_writer(url: Path): Resource[F, HadoopWriter[F, GenericRecord]] =
+      HadoopWriter.binAvroR[F](configuration, schema, url)
+
+    rotateType match {
+      case RotateType.PolicyBased =>
+        (ss: Stream[F, Chunk[GenericRecord]]) => periodically.merge.persist(ss, ticks, get_writer).stream
+      case RotateType.ChunkBased =>
+        (ss: Stream[F, Chunk[GenericRecord]]) => periodically.zip.persist(get_writer, ss.zip(ticks)).stream
     }
   }
 
@@ -120,9 +140,12 @@ final class FileRotateSink[F[_]: Async] private (
           }.stream
       case RotateType.ChunkBased =>
         (ss: Stream[F, Chunk[GenericRecord]]) =>
-          ss.pull.peek1.flatMap {
-            case Some((grs, stream)) =>
-              periodically.zip.persist(get_writer(grs(0).getSchema), stream.zip(ticks))
+          ss.pull.stepLeg.flatMap {
+            case Some(leg) =>
+              val record = leg.head.flatten.head.get
+              periodically.zip.persist(
+                get_writer(record.getSchema),
+                (Stream.chunk(leg.head) ++ leg.stream).zip(ticks))
             case None => Pull.done
           }.stream
     }
@@ -166,16 +189,47 @@ final class FileRotateSink[F[_]: Async] private (
           }.stream
       case RotateType.ChunkBased =>
         (ss: Stream[F, Chunk[GenericRecord]]) =>
-          ss.pull.peek1.flatMap {
-            case Some((grs, stream)) =>
-              periodically.zip.persist(get_writer(grs(0).getSchema), stream.zip(ticks))
+          ss.pull.stepLeg.flatMap {
+            case Some(leg) =>
+              val record = leg.head.flatten.head.get
+              periodically.zip.persist(
+                get_writer(record.getSchema),
+                (Stream.chunk(leg.head) ++ leg.stream).zip(ticks))
             case None => Pull.done
           }.stream
     }
   }
 
   val parquet: Pipe[F, Chunk[GenericRecord], TickedValue[Int]] =
-    parquet(identity)
+    parquet(a => a)
+
+  def parquet(
+    schema: Schema,
+    f: Endo[Builder[GenericRecord]]): Pipe[F, Chunk[GenericRecord], TickedValue[Int]] = {
+
+    def get_writer(url: Path): Resource[F, HadoopWriter[F, GenericRecord]] = {
+      val writeBuilder: Reader[Path, Builder[GenericRecord]] = Reader((path: Path) =>
+        AvroParquetWriter
+          .builder[GenericRecord](HadoopOutputFile.fromPath(path, configuration))
+          .withDataModel(GenericData.get())
+          .withConf(configuration)
+          .withSchema(schema)
+          .withCompressionCodec(CompressionCodecName.UNCOMPRESSED)
+          .withWriteMode(ParquetFileWriter.Mode.OVERWRITE)).map(f)
+
+      HadoopWriter.parquetR[F](writeBuilder, url)
+    }
+
+    rotateType match {
+      case RotateType.PolicyBased =>
+        (ss: Stream[F, Chunk[GenericRecord]]) => periodically.merge.persist(ss, ticks, get_writer).stream
+      case RotateType.ChunkBased =>
+        (ss: Stream[F, Chunk[GenericRecord]]) => periodically.zip.persist(get_writer, ss.zip(ticks)).stream
+    }
+  }
+
+  def parquet(schema: Schema): Pipe[F, Chunk[GenericRecord], TickedValue[Int]] =
+    parquet(schema, identity)
 
   // bytes
   val bytes: Pipe[F, Chunk[Byte], TickedValue[Int]] = {
