@@ -211,6 +211,9 @@ object Batch {
     def apply[A](tup: (String, F[A])): Monadic[F, A] = build(Some(tup._1), tup._2)
   }
 
+  final case class PostConditionUnsatisfied(job: BatchJob)
+      extends Exception(s"${getJobName(job)} run successfully but failed post-condition check")
+
   final class Monadic[F[_]: Async, A] private[Batch] (
     private[Batch] val kleisli: Kleisli[StateT[F, Int, *], (DoMeasurement[F], Metrics[F]), JobState[A]],
     metrics: Metrics[F]
@@ -239,7 +242,7 @@ object Batch {
               else {
                 val head = js.details.head.focus(_.done).replace(false)
                 JobState[A](
-                  Left(new Exception(s"Post-Condition Unsatisfied: ${getJobName(head.job)}")),
+                  Left(PostConditionUnsatisfied(head.job)),
                   NonEmptyList.of(head, js.details.tail*)
                 )
               }

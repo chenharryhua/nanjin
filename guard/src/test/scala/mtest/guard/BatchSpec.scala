@@ -4,7 +4,7 @@ import cats.effect.IO
 import cats.effect.testing.scalatest.AsyncIOSpec
 import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.action.QuasiResult
+import com.github.chenharryhua.nanjin.guard.action.{Batch, QuasiResult}
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStop
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import org.scalatest.freespec.AsyncFreeSpec
@@ -57,7 +57,7 @@ class BatchSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
         .runFully
         .memoizedAcquire
         .use(identity)
-      result.assertThrowsError[Exception](_.getMessage.contains("Post-Condition").shouldBe(true)).void
+      result.assertThrowsError[Batch.PostConditionUnsatisfied](_.job.name.get.shouldBe("b")).void
     }.compile.lastOrError.unsafeRunSync()
 
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
