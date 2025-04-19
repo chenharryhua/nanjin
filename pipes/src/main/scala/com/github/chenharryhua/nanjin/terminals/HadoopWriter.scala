@@ -108,11 +108,11 @@ private object HadoopWriter {
       })
 
   def jsonNodeR[F[_]](configuration: Configuration, path: Path, mapper: ObjectMapper)(implicit
-    F: Sync[F]): Resource[F, HadoopWriter[F, JsonNode]] =
-    outputStreamR(path, configuration).map { os =>
-      val mpp: MinimalPrettyPrinter = new MinimalPrettyPrinter()
-      mpp.setRootValueSeparator(System.lineSeparator())
+    F: Sync[F]): Resource[F, HadoopWriter[F, JsonNode]] = {
+    val mpp: MinimalPrettyPrinter = new MinimalPrettyPrinter()
+    mpp.setRootValueSeparator(System.lineSeparator())
 
+    outputStreamR(path, configuration).map { os =>
       val generator: JsonGenerator =
         new JsonFactory(mapper).createGenerator(os).setPrettyPrinter(mpp)
 
@@ -124,6 +124,7 @@ private object HadoopWriter {
           }
       }
     }
+  }
 
   private def genericRecordWriterR[F[_]](
     getEncoder: OutputStream => Encoder,
