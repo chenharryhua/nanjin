@@ -40,7 +40,7 @@ class KantanCsvTest extends AnyFunSuite {
     val cfg  = CsvConfiguration.rfc
     val s    = saver(path, cfg).withCompression(_.Uncompressed)
     s.run[IO].unsafeRunSync()
-    val t = loaders.rdd.kantan[Tablet](path, sparkSession, cfg)
+    val t = sparkSession.loadRdd[Tablet](path).kantan(cfg)
     assert(data.toSet == t.collect().toSet)
     assert(data.toSet == loadTablet(path, cfg).unsafeRunSync())
     //  val t3 = loaders.spark.csv(path, Tablet.ate, sparkSession).collect().toSet

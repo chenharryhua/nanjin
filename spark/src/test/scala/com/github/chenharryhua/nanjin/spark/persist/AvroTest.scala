@@ -37,7 +37,7 @@ class AvroTest extends AnyFunSuite {
       .option("avroSchema", Rooster.schema.toString())
       .format("avro")
       .save(toHadoopPath(path).toString)
-    val r  = loaders.rdd.avro(path, sparkSession, Rooster.avroCodec).collect().toSet
+    val r  = sparkSession.loadRdd[Rooster](path).avro(Rooster.avroCodec).collect().toSet
     val r2 = loaders.avro(path, sparkSession, Rooster.ate).collect().toSet
     assert(RoosterData.expected == r)
     assert(RoosterData.expected == r2)

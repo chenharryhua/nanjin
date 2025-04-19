@@ -32,7 +32,7 @@ class JacksonTest extends AnyFunSuite {
   test("1.datetime read/write identity - uncompressed") {
     val path = root / "rooster" / "uncompressed"
     rooster(path).withCompression(_.Uncompressed).run[IO].unsafeRunSync()
-    val r = loaders.rdd.jackson[Rooster](path, sparkSession, Rooster.avroCodec)
+    val r = sparkSession.loadRdd[Rooster](path).jackson(Rooster.avroCodec)
     assert(RoosterData.expected == r.collect().toSet)
     assert(RoosterData.expected == loadRooster(path).unsafeRunSync())
   }

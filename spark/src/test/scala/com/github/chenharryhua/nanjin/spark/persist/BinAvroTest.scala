@@ -45,7 +45,7 @@ class BinAvroTest extends AnyFunSuite {
   test("binary avro - gzip") {
     val path = root / "gzip"
     saver(path).withCompression(_.Gzip).run[IO].unsafeRunSync()
-    val t1 = loaders.rdd.binAvro[Rooster](path, sparkSession, Rooster.avroCodec).collect().toSet
+    val t1 = sparkSession.loadRdd[Rooster](path).binAvro(Rooster.avroCodec).collect().toSet
     val t2 = loaders.binAvro[Rooster](path, sparkSession, Rooster.ate).collect().toSet
     assert(RoosterData.expected == t1)
     assert(RoosterData.expected == t2)
