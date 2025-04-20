@@ -48,7 +48,7 @@ class ParquetTest extends AnyFunSuite {
   test("3.datetime read/write identity multi.uncompressed") {
     val path = root / "rooster" / "uncompressed"
     roosterSaver(path).withCompression(_.Uncompressed).run[IO].unsafeRunSync()
-    val r = loaders.rdd.parquet(path, sparkSession, Rooster.avroCodec).collect().toSet
+    val r = sparkSession.loadRdd[Rooster](path).parquet(Rooster.avroCodec).collect().toSet
     val t = loadRooster(path)
     assert(expected == r)
     assert(expected == t.unsafeRunSync())

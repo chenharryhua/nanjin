@@ -5,7 +5,7 @@ import com.github.chenharryhua.nanjin.spark.kafka.SparKafkaTopic
 import com.github.chenharryhua.nanjin.spark.persist.*
 import com.github.chenharryhua.nanjin.spark.table.LoadTable
 import com.github.chenharryhua.nanjin.terminals.Hadoop
-import com.sksamuel.avro4s.{Decoder, Encoder as AvroEncoder}
+import com.sksamuel.avro4s.Encoder as AvroEncoder
 import com.zaxxer.hikari.HikariConfig
 import io.lemonlabs.uri.Url
 import org.apache.avro.Schema
@@ -52,9 +52,7 @@ package object spark {
     }
 
     def loadTable[A](ate: AvroTypedEncoder[A]): LoadTable[A] = new LoadTable[A](ate, ss)
-    def loadRDD[A: ClassTag](path: Url): LoadRDD[A]          = new LoadRDD[A](ss, path)
-    def loadAvro[A: ClassTag: Decoder](path: Url): LoadAvroRDD[A] =
-      new LoadAvroRDD[A](ss, path, Decoder[A])
+    def loadRdd[A: ClassTag](path: Url): LoadRdd[A]          = new LoadRdd[A](ss, path)
     def loadProtobuf[A <: GeneratedMessage: ClassTag: GeneratedMessageCompanion](path: Url): RDD[A] =
       loaders.rdd.protobuf[A](path, ss)
 

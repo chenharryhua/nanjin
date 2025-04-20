@@ -16,7 +16,7 @@ class ObjectFileTest extends AnyFunSuite {
     val path  = Url.parse("./data/test/spark/persist/object/tablet.obj")
     val saver = new RddFileHoarder[Tablet](rdd).objectFile(path)
     saver.run[IO].unsafeRunSync()
-    val t = loaders.rdd.objectFile[Tablet](path, sparkSession).collect().toSet
+    val t = sparkSession.loadRdd[Tablet](path).objectFile.collect().toSet
     assert(data.toSet == t)
 //    val t2 = Stream
 //      .force(hdp.filesByName(path).map {
