@@ -6,7 +6,7 @@ import java.text.DecimalFormat
 
 package object translator {
 
-  final private[guard] val fmt: DurationFormatter     = DurationFormatter.defaultFormatter
-  final private[guard] val decimal_fmt: DecimalFormat = new DecimalFormat("#,###.##")
+  final val durationFormatter: DurationFormatter = DurationFormatter.defaultFormatter
+  final val decimalFormatter: DecimalFormat      = new DecimalFormat("#,###.##")
 
 }

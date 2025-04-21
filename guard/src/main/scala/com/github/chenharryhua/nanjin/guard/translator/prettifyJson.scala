@@ -12,11 +12,11 @@ object prettifyJson {
   private val pretty_json: Json => Json =
     Plated.transform[Json] { js =>
       js.asNumber match {
-        case Some(value) => Json.fromString(decimal_fmt.format(value.toDouble))
+        case Some(value) => Json.fromString(decimalFormatter.format(value.toDouble))
         case None =>
           js.as[Duration] match {
             case Left(_)      => js
-            case Right(value) => Json.fromString(fmt.format(value))
+            case Right(value) => Json.fromString(durationFormatter.format(value))
           }
       }
     }

@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard.action
 import cats.Show
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.config.MetricLabel
-import com.github.chenharryhua.nanjin.guard.translator.fmt
+import com.github.chenharryhua.nanjin.guard.translator.durationFormatter
 import io.circe.syntax.EncoderOps
 import io.circe.{Encoder, Json}
 
@@ -47,7 +47,7 @@ object QuasiResult {
     Json.obj(
       "batch" -> Json.fromString(a.label.label),
       "mode" -> a.mode.asJson,
-      "spent" -> Json.fromString(fmt.format(a.spent)),
+      "spent" -> Json.fromString(durationFormatter.format(a.spent)),
       "done" -> Json.fromInt(done.length),
       "fail" -> Json.fromInt(fail.length),
       "details" -> a.details
@@ -56,8 +56,9 @@ object QuasiResult {
             .obj(
               "name" -> d.job.name.asJson,
               "index" -> Json.fromInt(d.job.index),
-              "took" -> Json.fromString(fmt.format(d.took)),
-              "done" -> Json.fromBoolean(d.done))
+              "took" -> Json.fromString(durationFormatter.format(d.took)),
+              "done" -> Json.fromBoolean(d.done)
+            )
             .dropNullValues)
         .asJson
     )

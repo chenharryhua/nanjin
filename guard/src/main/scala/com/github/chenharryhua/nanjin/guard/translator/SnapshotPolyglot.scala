@@ -14,10 +14,12 @@ final class SnapshotPolyglot(snapshot: MetricSnapshot) {
 
   private def normalize[A: Numeric](mu: MeasurementUnit, data: A): String =
     mu match {
-      case unit: NJTimeUnit          => fmt.format(TimeConversions.timeToScalaDuration(unit.mUnit(data)))
-      case unit: NJInformationUnit   => s"${decimal_fmt.format(unit.mUnit(data).value.toLong)} ${unit.symbol}"
-      case unit: NJDataRateUnit      => s"${decimal_fmt.format(unit.mUnit(data).value.toLong)} ${unit.symbol}"
-      case unit: NJDimensionlessUnit => s"${decimal_fmt.format(unit.mUnit(data).value.toLong)} ${unit.symbol}"
+      case unit: NJTimeUnit => durationFormatter.format(TimeConversions.timeToScalaDuration(unit.mUnit(data)))
+      case unit: NJInformationUnit =>
+        s"${decimalFormatter.format(unit.mUnit(data).value.toLong)} ${unit.symbol}"
+      case unit: NJDataRateUnit => s"${decimalFormatter.format(unit.mUnit(data).value.toLong)} ${unit.symbol}"
+      case unit: NJDimensionlessUnit =>
+        s"${decimalFormatter.format(unit.mUnit(data).value.toLong)} ${unit.symbol}"
     }
 
   private def meters: List[(MetricID, NonEmptyList[(String, String)])] =
@@ -35,21 +37,21 @@ final class SnapshotPolyglot(snapshot: MetricSnapshot) {
     snapshot.timers.map { t =>
       val unit = s"calls/${NJTimeUnit.SECONDS.symbol}"
       t.metricId -> NonEmptyList.of(
-        "invocations" -> decimal_fmt.format(t.timer.calls),
-        "mean_rate" -> s"${decimal_fmt.format(t.timer.mean_rate.toHertz)} $unit",
-        "m1_rate" -> s"${decimal_fmt.format(t.timer.m1_rate.toHertz)} $unit",
-        "m5_rate" -> s"${decimal_fmt.format(t.timer.m5_rate.toHertz)} $unit",
-        "m15_rate" -> s"${decimal_fmt.format(t.timer.m15_rate.toHertz)} $unit",
-        "min" -> fmt.format(t.timer.min),
-        "max" -> fmt.format(t.timer.max),
-        "mean" -> fmt.format(t.timer.mean),
-        "stddev" -> fmt.format(t.timer.stddev),
-        "p50" -> fmt.format(t.timer.p50),
-        "p75" -> fmt.format(t.timer.p75),
-        "p95" -> fmt.format(t.timer.p95),
-        "p98" -> fmt.format(t.timer.p98),
-        "p99" -> fmt.format(t.timer.p99),
-        "p999" -> fmt.format(t.timer.p999)
+        "invocations" -> decimalFormatter.format(t.timer.calls),
+        "mean_rate" -> s"${decimalFormatter.format(t.timer.mean_rate.toHertz)} $unit",
+        "m1_rate" -> s"${decimalFormatter.format(t.timer.m1_rate.toHertz)} $unit",
+        "m5_rate" -> s"${decimalFormatter.format(t.timer.m5_rate.toHertz)} $unit",
+        "m15_rate" -> s"${decimalFormatter.format(t.timer.m15_rate.toHertz)} $unit",
+        "min" -> durationFormatter.format(t.timer.min),
+        "max" -> durationFormatter.format(t.timer.max),
+        "mean" -> durationFormatter.format(t.timer.mean),
+        "stddev" -> durationFormatter.format(t.timer.stddev),
+        "p50" -> durationFormatter.format(t.timer.p50),
+        "p75" -> durationFormatter.format(t.timer.p75),
+        "p95" -> durationFormatter.format(t.timer.p95),
+        "p98" -> durationFormatter.format(t.timer.p98),
+        "p99" -> durationFormatter.format(t.timer.p99),
+        "p999" -> durationFormatter.format(t.timer.p999)
       )
     }
 
@@ -58,7 +60,7 @@ final class SnapshotPolyglot(snapshot: MetricSnapshot) {
       val unit  = h.histogram.unit
       val histo = h.histogram
       h.metricId -> NonEmptyList.of(
-        "updates" -> decimal_fmt.format(histo.updates),
+        "updates" -> decimalFormatter.format(histo.updates),
         "min" -> normalize(unit, histo.min),
         "max" -> normalize(unit, histo.max),
         "mean" -> normalize(unit, histo.mean),
@@ -134,7 +136,7 @@ final class SnapshotPolyglot(snapshot: MetricSnapshot) {
   private def counter_str: List[(MetricID, List[String])] =
     snapshot.counters
       .filter(_.count > 0)
-      .map(c => c.metricId -> List(show"${c.metricId.metricName.name}: ${decimal_fmt.format(c.count)}"))
+      .map(c => c.metricId -> List(show"${c.metricId.metricName.name}: ${decimalFormatter.format(c.count)}"))
 
   private val space: String = StringUtils.SPACE
 
