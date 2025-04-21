@@ -12,16 +12,16 @@ import java.time.Duration
 object PrettyJsonTranslator {
 
   private def took(dur: Duration): (String, Json) =
-    "took" -> Json.fromString(fmt.format(dur))
+    "took" -> Json.fromString(durationFormatter.format(dur))
 
   private def uptime(evt: Event): (String, Json) =
-    "up_time" -> Json.fromString(fmt.format(evt.upTime))
+    "up_time" -> Json.fromString(durationFormatter.format(evt.upTime))
 
   private def pretty_metrics(ss: MetricSnapshot): (String, Json) =
     "metrics" -> new SnapshotPolyglot(ss).toPrettyJson
 
   private def active(tick: Tick): (String, Json) =
-    "active" -> Json.fromString(fmt.format(tick.active))
+    "active" -> Json.fromString(durationFormatter.format(tick.active))
 
   // events handlers
   private def service_started(evt: ServiceStart): Json =
@@ -31,7 +31,8 @@ object PrettyJsonTranslator {
           jsonHelper.service_params(evt.serviceParams),
           uptime(evt),
           jsonHelper.index(evt.tick),
-          "snoozed" -> Json.fromString(fmt.format(evt.tick.snooze))))
+          "snoozed" -> Json.fromString(durationFormatter.format(evt.tick.snooze))
+        ))
 
   private def service_panic(evt: ServicePanic): Json =
     Json.obj(
@@ -42,7 +43,7 @@ object PrettyJsonTranslator {
           uptime(evt),
           jsonHelper.index(evt.tick),
           active(evt.tick),
-          "snooze" -> Json.fromString(fmt.format(evt.tick.snooze)),
+          "snooze" -> Json.fromString(durationFormatter.format(evt.tick.snooze)),
           jsonHelper.policy(evt.serviceParams.servicePolicies.restart),
           jsonHelper.stack(evt.error)
         ))

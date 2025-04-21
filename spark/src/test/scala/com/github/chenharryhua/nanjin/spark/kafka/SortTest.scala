@@ -5,7 +5,7 @@ import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.TopicDef
 import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
-import com.github.chenharryhua.nanjin.spark.{AvroTypedEncoder, SparkSessionExt}
+import com.github.chenharryhua.nanjin.spark.{SchematizedEncoder, SparkSessionExt}
 import eu.timepit.refined.auto.*
 import mtest.spark.kafka.sparKafka
 import org.scalatest.funsuite.AnyFunSuite
@@ -14,7 +14,7 @@ import scala.util.Random
 
 class SortTest extends AnyFunSuite {
   val topic = TopicDef[Int, Int](TopicName("topic"))
-  val ate   = AvroTypedEncoder(topic)
+  val ate   = SchematizedEncoder(topic)
 
   val data = List(
     NJConsumerRecord[Int, Int]("topic", 0, 0, 40, 0, None, None, Some(0), Some(Random.nextInt()), Nil, None),

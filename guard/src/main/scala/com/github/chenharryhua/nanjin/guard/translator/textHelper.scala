@@ -14,9 +14,9 @@ object textHelper extends localtime with localdatetime {
   def yamlMetrics(ss: MetricSnapshot): String =
     new SnapshotPolyglot(ss).toYaml
 
-  def uptimeText(evt: Event): String = fmt.format(evt.upTime)
+  def uptimeText(evt: Event): String = durationFormatter.format(evt.upTime)
 
-  def tookText(dur: Duration): String = fmt.format(dur)
+  def tookText(dur: Duration): String = durationFormatter.format(dur)
 
   def hostText(sp: ServiceParams): String =
     sp.emberServerParams match {
@@ -49,7 +49,7 @@ object textHelper extends localtime with localdatetime {
       else
         end.truncatedTo(ChronoUnit.SECONDS).toLocalDateTime.show
 
-    (localTime, fmt.format(duration))
+    (localTime, durationFormatter.format(duration))
   }
 
   def panicText(evt: ServicePanic): String = {

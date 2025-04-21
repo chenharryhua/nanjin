@@ -16,7 +16,7 @@ import com.github.chenharryhua.nanjin.guard.event.{
 }
 import com.github.chenharryhua.nanjin.guard.translator.htmlHelper.htmlColoring
 import com.github.chenharryhua.nanjin.guard.translator.textConstants.{CONSTANT_LAUNCH_TIME, CONSTANT_TOOK}
-import com.github.chenharryhua.nanjin.guard.translator.{fmt, prettifyJson, SnapshotPolyglot}
+import com.github.chenharryhua.nanjin.guard.translator.{durationFormatter, prettifyJson, SnapshotPolyglot}
 import fs2.concurrent.Channel
 import io.circe.Json
 import io.circe.syntax.EncoderOps
@@ -59,7 +59,7 @@ private class HttpRouter[F[_]](
         td(serviceParams.serviceName.value),
         td(serviceParams.servicePolicies.metricReport.show),
         td(serviceParams.zoneId.show),
-        td(fmt.format(serviceParams.upTime(now))),
+        td(durationFormatter.format(serviceParams.upTime(now))),
         td(now.toLocalTime.truncatedTo(ChronoUnit.SECONDS).show)
       )
     )
@@ -69,7 +69,7 @@ private class HttpRouter[F[_]](
       MetricSnapshot.timed(metricRegistry).map { case (fd, ss) =>
         Json.obj(
           "healthy" -> retrieveHealthChecks(ss.gauges).values.forall(identity).asJson,
-          "took" -> fmt.format(fd).asJson,
+          "took" -> durationFormatter.format(fd).asJson,
           "when" -> now.toLocalTime.truncatedTo(ChronoUnit.SECONDS).asJson
         )
       }
@@ -149,7 +149,7 @@ private class HttpRouter[F[_]](
                       h3(style := htmlColoring(mr))("Report Index: ", tick.index),
                       table(
                         tr(th(CONSTANT_LAUNCH_TIME), th(CONSTANT_TOOK)),
-                        tr(td(tick.zonedWakeup.toLocalDateTime.show), td(fmt.format(mr.took)))
+                        tr(td(tick.zonedWakeup.toLocalDateTime.show), td(durationFormatter.format(mr.took)))
                       ),
                       pre(new SnapshotPolyglot(mr.snapshot).toYaml)
                     ))
@@ -174,7 +174,7 @@ private class HttpRouter[F[_]](
           Clock[F].realTimeInstant.flatMap { now =>
             if (evt.tick.wakeup.isAfter(now)) {
               val recover = Duration.between(now, evt.tick.wakeup)
-              ServiceUnavailable(s"Service panic! Restart will be in ${fmt.format(recover)}")
+              ServiceUnavailable(s"Service panic! Restart will be in ${durationFormatter.format(recover)}")
             } else {
               deps_health_check.flatMap(Ok(_))
             }
@@ -188,15 +188,15 @@ private class HttpRouter[F[_]](
             Json.obj(
               "restart_policy" -> serviceParams.servicePolicies.restart.show.asJson,
               "zone_id" -> serviceParams.zoneId.asJson,
-              "up_time" -> fmt.format(serviceParams.upTime(now)).asJson,
+              "up_time" -> durationFormatter.format(serviceParams.upTime(now)).asJson,
               "history" ->
                 panics.reverse.map { sp =>
                   Json.obj(
                     "index" -> sp.tick.index.asJson,
                     "up_rouse_at" -> sp.tick.zonedPrevious.toLocalDateTime.asJson,
-                    "active" -> fmt.format(sp.tick.active).asJson,
+                    "active" -> durationFormatter.format(sp.tick.active).asJson,
                     "when_panic" -> sp.tick.zonedAcquire.toLocalDateTime.asJson,
-                    "snooze" -> fmt.format(sp.tick.snooze).asJson,
+                    "snooze" -> durationFormatter.format(sp.tick.snooze).asJson,
                     "restart_at" -> sp.tick.zonedWakeup.toLocalDateTime.asJson,
                     "caused_by" -> sp.error.message.asJson
                   )

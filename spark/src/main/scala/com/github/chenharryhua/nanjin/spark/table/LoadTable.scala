@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.spark.table
 import cats.Foldable
 import cats.syntax.foldable.*
 import com.github.chenharryhua.nanjin.common.database.{TableName, TableQuery}
-import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
+import com.github.chenharryhua.nanjin.spark.SchematizedEncoder
 import com.github.chenharryhua.nanjin.spark.persist.loaders
 import com.zaxxer.hikari.HikariConfig
 import frameless.TypedDataset
@@ -13,7 +13,7 @@ import kantan.csv.{CsvConfiguration, RowDecoder}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{Dataset, SparkSession}
 
-final class LoadTable[A] private[spark] (ate: AvroTypedEncoder[A], ss: SparkSession) {
+final class LoadTable[A] private[spark] (ate: SchematizedEncoder[A], ss: SparkSession) {
 
   def data(ds: Dataset[A]): Table[A] =
     new Table[A](ds, ate)

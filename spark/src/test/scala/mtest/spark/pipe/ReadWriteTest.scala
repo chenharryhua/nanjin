@@ -5,7 +5,7 @@ import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark.table.LoadTable
-import com.github.chenharryhua.nanjin.spark.{AvroTypedEncoder, SparkSessionExt}
+import com.github.chenharryhua.nanjin.spark.{SchematizedEncoder, SparkSessionExt}
 import com.github.chenharryhua.nanjin.terminals.Hadoop
 import com.sksamuel.avro4s.ToRecord
 import frameless.TypedEncoder
@@ -37,7 +37,7 @@ object ReadWriteTestData {
   val codec: AvroCodec[TestData]   = AvroCodec[TestData]
   val toRecord: ToRecord[TestData] = ToRecord(codec)
 
-  val loader: LoadTable[TestData] = sparkSession.loadTable(AvroTypedEncoder[TestData](codec))
+  val loader: LoadTable[TestData] = sparkSession.loadTable(SchematizedEncoder[TestData](codec))
 
 }
 
@@ -70,7 +70,7 @@ class ReadWriteTest extends AnyFunSuite {
       hdp.rotateSink(policy, ZoneId.systemDefault())(t => path / t.index).kantan(CsvConfiguration.rfc)
     data.map(hd.encode).chunks.through(writer).compile.drain.unsafeRunSync()
     val count = sparkSession
-      .loadTable(AvroTypedEncoder[TestData])
+      .loadTable(SchematizedEncoder[TestData])
       .kantan(path, CsvConfiguration.rfc)
       .count[IO]
       .unsafeRunSync()

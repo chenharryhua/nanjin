@@ -7,7 +7,7 @@ import cats.effect.std.Dispatcher
 import cats.syntax.all.*
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.guard.config.MetricLabel
-import com.github.chenharryhua.nanjin.guard.translator.fmt
+import com.github.chenharryhua.nanjin.guard.translator.durationFormatter
 
 trait KleisliLike[F[_], A] {
   def run(a: A): F[Unit]
@@ -96,7 +96,7 @@ object Metrics {
           for {
             pre <- lastUpdate.get
             now <- F.monotonic
-          } yield fmt.format(now - pre)
+          } yield durationFormatter.format(now - pre)
         )
       } yield new IdleGauge[F] {
         override val wakeUp: F[Unit] = F.monotonic.flatMap(lastUpdate.set)
@@ -105,7 +105,7 @@ object Metrics {
     override def activeGauge(name: String, f: Endo[Gauge.Builder]): Resource[F, Unit] =
       for {
         kickoff <- Resource.eval(F.monotonic)
-        _ <- gauge(name, f).register(F.monotonic.map(now => fmt.format(now - kickoff)))
+        _ <- gauge(name, f).register(F.monotonic.map(now => durationFormatter.format(now - kickoff)))
       } yield ()
 
     override def permanentCounter(name: String, f: Endo[Gauge.Builder]): Resource[F, Counter[F]] =

@@ -4,7 +4,7 @@ import cats.effect.implicits.clockOps
 import cats.effect.kernel.{Async, Resource}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.metrics.Metrics
-import com.github.chenharryhua.nanjin.guard.translator.fmt
+import com.github.chenharryhua.nanjin.guard.translator.durationFormatter
 import io.circe.Json
 import io.circe.syntax.EncoderOps
 import monocle.Monocle.toAppliedFocusOps
@@ -36,7 +36,7 @@ object Batch {
     if (details.isEmpty) Json.Null
     else {
       val pairs: List[(String, Json)] = details.map { detail =>
-        val took   = fmt.format(detail.took)
+        val took   = durationFormatter.format(detail.took)
         val result = if (detail.done) took else s"$took (failed)"
         getJobName(detail.job) -> result.asJson
       }

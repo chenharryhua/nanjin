@@ -4,7 +4,6 @@ import cats.Endo
 import cats.data.Reader
 import cats.effect.kernel.{Async, Resource}
 import cats.effect.std.Hotswap
-import cats.implicits.catsSyntaxFlatten
 import com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
 import com.github.chenharryhua.nanjin.common.chrono.TickedValue
 import fs2.{Chunk, Pipe, Pull, Stream}
@@ -50,9 +49,9 @@ final class FileRotateSink[F[_]: Async] private (
         (ss: Stream[F, Chunk[GenericRecord]]) =>
           ss.pull.stepLeg.flatMap {
             case Some(leg) =>
-              val record = leg.head.flatten.head.get
+              val record = leg.head.flatMap(identity)
               periodically.zip.persist(
-                get_writer(record.getSchema),
+                get_writer(record(0).getSchema),
                 (Stream.chunk(leg.head) ++ leg.stream).zip(ticks))
             case None => Pull.done
           }.stream
@@ -103,9 +102,9 @@ final class FileRotateSink[F[_]: Async] private (
         (ss: Stream[F, Chunk[GenericRecord]]) =>
           ss.pull.stepLeg.flatMap {
             case Some(leg) =>
-              val record = leg.head.flatten.head.get
+              val record = leg.head.flatMap(identity)
               periodically.zip.persist(
-                get_writer(record.getSchema),
+                get_writer(record(0).getSchema),
                 (Stream.chunk(leg.head) ++ leg.stream).zip(ticks))
             case None => Pull.done
           }.stream
@@ -142,9 +141,9 @@ final class FileRotateSink[F[_]: Async] private (
         (ss: Stream[F, Chunk[GenericRecord]]) =>
           ss.pull.stepLeg.flatMap {
             case Some(leg) =>
-              val record = leg.head.flatten.head.get
+              val record = leg.head.flatMap(identity)
               periodically.zip.persist(
-                get_writer(record.getSchema),
+                get_writer(record(0).getSchema),
                 (Stream.chunk(leg.head) ++ leg.stream).zip(ticks))
             case None => Pull.done
           }.stream
@@ -191,9 +190,9 @@ final class FileRotateSink[F[_]: Async] private (
         (ss: Stream[F, Chunk[GenericRecord]]) =>
           ss.pull.stepLeg.flatMap {
             case Some(leg) =>
-              val record = leg.head.flatten.head.get
+              val record = leg.head.flatMap(identity)
               periodically.zip.persist(
-                get_writer(record.getSchema),
+                get_writer(record(0).getSchema),
                 (Stream.chunk(leg.head) ++ leg.stream).zip(ticks))
             case None => Pull.done
           }.stream

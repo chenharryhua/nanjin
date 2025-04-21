@@ -4,7 +4,7 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.messages.kafka.{CRMetaInfo, NJConsumerRecord}
 import com.github.chenharryhua.nanjin.spark.table.LoadTable
-import com.github.chenharryhua.nanjin.spark.{AvroTypedEncoder, SparkSessionExt}
+import com.github.chenharryhua.nanjin.spark.{SchematizedEncoder, SparkSessionExt}
 import mtest.spark.sparkSession
 import org.apache.spark.sql.SparkSession
 import org.scalatest.funsuite.AnyFunSuite
@@ -69,7 +69,7 @@ class InvestigationTest extends AnyFunSuite {
   import InvestigationTestData.*
   implicit val ss: SparkSession = sparkSession
   val table: LoadTable[NJConsumerRecord[String, Mouse]] =
-    ss.loadTable(AvroTypedEncoder[NJConsumerRecord[String, Mouse]])
+    ss.loadTable(SchematizedEncoder[NJConsumerRecord[String, Mouse]])
 
   test("sparKafka identical") {
     val m1 = table.data(mouses1)

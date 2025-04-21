@@ -8,7 +8,7 @@ import com.github.chenharryhua.nanjin.datetime.DateTimeRange
 import com.github.chenharryhua.nanjin.kafka.*
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJProducerRecord}
-import com.github.chenharryhua.nanjin.spark.{utils, AvroTypedEncoder}
+import com.github.chenharryhua.nanjin.spark.{utils, SchematizedEncoder}
 import frameless.TypedEncoder
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
@@ -19,8 +19,8 @@ final class SparKafkaTopic[F[_], K, V](val sparkSession: SparkSession, val topic
 
   val topicName: TopicName = topic.topicDef.topicName
 
-  def ate(implicit tek: TypedEncoder[K], tev: TypedEncoder[V]): AvroTypedEncoder[NJConsumerRecord[K, V]] =
-    AvroTypedEncoder(topic.topicDef)
+  def ate(implicit tek: TypedEncoder[K], tev: TypedEncoder[V]): SchematizedEncoder[NJConsumerRecord[K, V]] =
+    SchematizedEncoder(topic.topicDef)
 
   private val avroKeyCodec: AvroCodec[K] = topic.topicDef.rawSerdes.key.avroCodec
   private val avroValCodec: AvroCodec[V] = topic.topicDef.rawSerdes.value.avroCodec
