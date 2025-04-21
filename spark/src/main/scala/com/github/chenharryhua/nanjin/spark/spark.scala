@@ -51,8 +51,8 @@ package object spark {
       ss.read.format("jdbc").options(options).load()
     }
 
-    def loadTable[A](ate: AvroTypedEncoder[A]): LoadTable[A] = new LoadTable[A](ate, ss)
-    def loadRdd[A: ClassTag](path: Url): LoadRdd[A]          = new LoadRdd[A](ss, path)
+    def loadTable[A](ate: SchematizedEncoder[A]): LoadTable[A] = new LoadTable[A](ate, ss)
+    def loadRdd[A: ClassTag](path: Url): LoadRdd[A]            = new LoadRdd[A](ss, path)
     def loadProtobuf[A <: GeneratedMessage: ClassTag: GeneratedMessageCompanion](path: Url): RDD[A] =
       loaders.rdd.protobuf[A](path, ss)
 

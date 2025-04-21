@@ -56,7 +56,7 @@ object AvroTypedEncoderTestData {
 
   val codec: AvroCodec[Lion]               = AvroCodec[Lion](schemaText)
   implicit val encoder: TypedEncoder[Lion] = shapeless.cachedImplicit
-  val ate: AvroTypedEncoder[Lion]          = AvroTypedEncoder[Lion](codec)
+  val ate: SchematizedEncoder[Lion]        = SchematizedEncoder[Lion](codec)
 
   val now: Instant = Instant.ofEpochMilli(Instant.now.toEpochMilli)
 
@@ -171,36 +171,36 @@ class AvroTypedEncoderTest extends AnyFunSuite {
   }
 
   test("primitive type string") {
-    val ate  = AvroTypedEncoder[String]
+    val ate  = SchematizedEncoder[String]
     val data = List("a", "b", "c", "d")
     val rdd  = sparkSession.sparkContext.parallelize(data)
     assert(ate.normalize(rdd, sparkSession).collect().toList == data)
   }
 
   test("primitive type int") {
-    val ate           = AvroTypedEncoder[Int]
+    val ate           = SchematizedEncoder[Int]
     val data          = List(1, 2, 3, 4)
     val rdd: RDD[Int] = sparkSession.sparkContext.parallelize(data)
     assert(ate.normalize(rdd, sparkSession).collect().toList == data)
   }
 
   test("primitive type array byte") {
-    val ate                     = AvroTypedEncoder[Array[Byte]]
+    val ate                     = SchematizedEncoder[Array[Byte]]
     val data: List[Array[Byte]] = List(Array(1), Array(2, 3), Array(4, 5, 6), Array(7, 8, 9, 10))
     val rdd                     = sparkSession.sparkContext.parallelize(data)
     assert(ate.normalize(rdd, sparkSession).collect().toList.flatten == data.flatten)
   }
 
   test("primitive type") {
-    assert(AvroTypedEncoder[List[Int]].sparkSchema.head.name == "value")
+    assert(SchematizedEncoder[List[Int]].sparkSchema.head.name == "value")
   }
 
   test("other primitive types") {
-    AvroTypedEncoder[Byte]
-    AvroTypedEncoder[BigDecimal]
-    AvroTypedEncoder[Float]
-    AvroTypedEncoder[Double]
-    AvroTypedEncoder[Long]
-    AvroTypedEncoder[Boolean]
+    SchematizedEncoder[Byte]
+    SchematizedEncoder[BigDecimal]
+    SchematizedEncoder[Float]
+    SchematizedEncoder[Double]
+    SchematizedEncoder[Long]
+    SchematizedEncoder[Boolean]
   }
 }

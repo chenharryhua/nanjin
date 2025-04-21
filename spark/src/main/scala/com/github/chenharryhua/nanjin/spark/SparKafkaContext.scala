@@ -211,7 +211,7 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
   object stats {
     import kafka.{encoderCRMetaInfo, typedEncoderCRMetaInfo}
 
-    private val ate: AvroTypedEncoder[CRMetaInfo] = AvroTypedEncoder[CRMetaInfo]
+    private val ate: SchematizedEncoder[CRMetaInfo] = SchematizedEncoder[CRMetaInfo]
 
     def avro(path: Url)(implicit F: Sync[F]): F[Statistics] =
       F.blocking {

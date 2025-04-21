@@ -4,7 +4,7 @@ import cats.Endo
 import cats.effect.kernel.Sync
 import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.common.database.TableName
-import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
+import com.github.chenharryhua.nanjin.spark.SchematizedEncoder
 import com.github.chenharryhua.nanjin.spark.persist.RddAvroFileHoarder
 import com.zaxxer.hikari.HikariConfig
 import fs2.Stream
@@ -13,14 +13,14 @@ import org.apache.spark.storage.StorageLevel
 
 import scala.jdk.CollectionConverters.IteratorHasAsScala
 
-final class Table[A] private[spark] (val dataset: Dataset[A], ate: AvroTypedEncoder[A]) {
+final class Table[A] private[spark] (val dataset: Dataset[A], ate: SchematizedEncoder[A]) {
 
   // transform
 
-  def map[B](bate: AvroTypedEncoder[B])(f: A => B): Table[B] =
+  def map[B](bate: SchematizedEncoder[B])(f: A => B): Table[B] =
     new Table[B](dataset.map(f)(bate.sparkEncoder), bate)
 
-  def flatMap[B](bate: AvroTypedEncoder[B])(f: A => IterableOnce[B]): Table[B] =
+  def flatMap[B](bate: SchematizedEncoder[B])(f: A => IterableOnce[B]): Table[B] =
     new Table[B](dataset.flatMap(f)(bate.sparkEncoder), bate)
 
   def transform(f: Endo[Dataset[A]]): Table[A] = new Table[A](f(dataset), ate)
@@ -63,6 +63,6 @@ final class Table[A] private[spark] (val dataset: Dataset[A], ate: AvroTypedEnco
 }
 
 object Table {
-  def empty[A](ate: AvroTypedEncoder[A], ss: SparkSession): Table[A] =
+  def empty[A](ate: SchematizedEncoder[A], ss: SparkSession): Table[A] =
     new Table[A](ate.emptyDataset(ss), ate)
 }

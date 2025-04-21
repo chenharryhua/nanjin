@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.spark.persist
 import cats.Show
 import com.github.chenharryhua.nanjin.datetime.instances.*
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
-import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
+import com.github.chenharryhua.nanjin.spark.SchematizedEncoder
 import frameless.TypedEncoder
 import io.circe.Codec
 import kantan.csv.RowEncoder
@@ -78,8 +78,8 @@ object Rooster {
 
   val avroCodec: AvroCodec[Rooster] = AvroCodec[Rooster](schema)
 
-  val ate: AvroTypedEncoder[Rooster] =
-    AvroTypedEncoder[Rooster](TypedEncoder[Rooster], avroCodec)
+  val ate: SchematizedEncoder[Rooster] =
+    SchematizedEncoder[Rooster](TypedEncoder[Rooster], avroCodec)
 
   implicit val showRooster: Show[Rooster] = _.toString
 

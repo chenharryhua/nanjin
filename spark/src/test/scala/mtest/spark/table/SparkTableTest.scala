@@ -9,7 +9,7 @@ import com.github.chenharryhua.nanjin.database.DBConfig
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark.listeners.SparkContextListener
 import com.github.chenharryhua.nanjin.spark.table.LoadTable
-import com.github.chenharryhua.nanjin.spark.{AvroTypedEncoder, SparkSessionExt}
+import com.github.chenharryhua.nanjin.spark.{SchematizedEncoder, SparkSessionExt}
 import io.lemonlabs.uri.typesafe.dsl.*
 import com.zaxxer.hikari.HikariConfig
 import doobie.hikari.HikariTransactor
@@ -74,7 +74,7 @@ class SparkTableTest extends AnyFunSuite {
   implicit val te2: TypedEncoder[PartialDBTable] = shapeless.cachedImplicit
   implicit val re: RowEncoder[DBTable]           = shapeless.cachedImplicit
   implicit val rd: RowDecoder[DBTable]           = shapeless.cachedImplicit
-  val ate: AvroTypedEncoder[DBTable]             = AvroTypedEncoder[DBTable](te, codec)
+  val ate: SchematizedEncoder[DBTable]           = SchematizedEncoder[DBTable](te, codec)
 
   val listener = SparkContextListener[IO](ss.sparkContext).debug()
 

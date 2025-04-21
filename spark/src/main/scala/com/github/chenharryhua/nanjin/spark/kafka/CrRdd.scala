@@ -7,7 +7,7 @@ import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.datetime.DateTimeRange
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.messages.kafka.{CRMetaInfo, NJConsumerRecord, NJProducerRecord}
-import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
+import com.github.chenharryhua.nanjin.spark.SchematizedEncoder
 import com.github.chenharryhua.nanjin.spark.persist.RddAvroFileHoarder
 import com.github.chenharryhua.nanjin.spark.table.Table
 import frameless.TypedEncoder
@@ -74,7 +74,7 @@ final class CrRdd[K, V] private[kafka] (
   // transition
 
   def toTable(implicit tek: TypedEncoder[K], tev: TypedEncoder[V]): Table[NJConsumerRecord[K, V]] = {
-    val ate: AvroTypedEncoder[NJConsumerRecord[K, V]] = AvroTypedEncoder(ack, acv)
+    val ate: SchematizedEncoder[NJConsumerRecord[K, V]] = SchematizedEncoder(ack, acv)
     new Table[NJConsumerRecord[K, V]](ss.createDataset(rdd)(ate.sparkEncoder), ate)
   }
 

@@ -12,7 +12,7 @@ import org.apache.spark.sql.types.*
 
 import scala.reflect.ClassTag
 
-final class AvroTypedEncoder[A] private (val avroCodec: AvroCodec[A], val typedEncoder: TypedEncoder[A])
+final class SchematizedEncoder[A] private (val avroCodec: AvroCodec[A], val typedEncoder: TypedEncoder[A])
     extends Serializable {
 
   private val avroSchema: StructType =
@@ -36,30 +36,30 @@ final class AvroTypedEncoder[A] private (val avroCodec: AvroCodec[A], val typedE
   def emptyDataset(ss: SparkSession): Dataset[A] = normalize(ss.emptyDataset[A](sparkEncoder))
 }
 
-object AvroTypedEncoder {
+object SchematizedEncoder {
 
-  def apply[A](te: TypedEncoder[A], ac: AvroCodec[A]): AvroTypedEncoder[A] =
-    new AvroTypedEncoder[A](ac, te)
+  def apply[A](te: TypedEncoder[A], ac: AvroCodec[A]): SchematizedEncoder[A] =
+    new SchematizedEncoder[A](ac, te)
 
-  def apply[A](ac: AvroCodec[A])(implicit te: TypedEncoder[A]): AvroTypedEncoder[A] =
-    new AvroTypedEncoder[A](ac, te)
+  def apply[A](ac: AvroCodec[A])(implicit te: TypedEncoder[A]): SchematizedEncoder[A] =
+    new SchematizedEncoder[A](ac, te)
 
   def apply[A](implicit
     sf: SchemaFor[A],
     dec: AvroDecoder[A],
     enc: AvroEncoder[A],
-    te: TypedEncoder[A]): AvroTypedEncoder[A] =
-    new AvroTypedEncoder[A](AvroCodec[A](sf, dec, enc), te)
+    te: TypedEncoder[A]): SchematizedEncoder[A] =
+    new SchematizedEncoder[A](AvroCodec[A](sf, dec, enc), te)
 
   def apply[K, V](keyCodec: AvroCodec[K], valCodec: AvroCodec[V])(implicit
     tek: TypedEncoder[K],
-    tev: TypedEncoder[V]): AvroTypedEncoder[NJConsumerRecord[K, V]] = {
+    tev: TypedEncoder[V]): SchematizedEncoder[NJConsumerRecord[K, V]] = {
     val ote: TypedEncoder[NJConsumerRecord[K, V]] = shapeless.cachedImplicit
-    AvroTypedEncoder[NJConsumerRecord[K, V]](ote, NJConsumerRecord.avroCodec(keyCodec, valCodec))
+    SchematizedEncoder[NJConsumerRecord[K, V]](ote, NJConsumerRecord.avroCodec(keyCodec, valCodec))
   }
 
   def apply[K, V](topicDef: TopicDef[K, V])(implicit
     tek: TypedEncoder[K],
-    tev: TypedEncoder[V]): AvroTypedEncoder[NJConsumerRecord[K, V]] =
+    tev: TypedEncoder[V]): SchematizedEncoder[NJConsumerRecord[K, V]] =
     apply(topicDef.rawSerdes.key.avroCodec, topicDef.rawSerdes.value.avroCodec)
 }

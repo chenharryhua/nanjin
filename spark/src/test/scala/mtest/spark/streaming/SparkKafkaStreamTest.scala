@@ -5,7 +5,7 @@ import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.TopicDef
 import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJProducerRecord}
-import com.github.chenharryhua.nanjin.spark.AvroTypedEncoder
+import com.github.chenharryhua.nanjin.spark.SchematizedEncoder
 import com.github.chenharryhua.nanjin.spark.persist.{Rooster, RoosterData}
 import eu.timepit.refined.auto.*
 import frameless.TypedEncoder
@@ -25,7 +25,7 @@ class SparkKafkaStreamTest extends AnyFunSuite {
   val roosterTopic: TopicDef[Int, Rooster] =
     TopicDef[Int, Rooster](TopicName("sstream.rooster"), Rooster.avroCodec)
 
-  val ate = AvroTypedEncoder(roosterTopic)
+  val ate = SchematizedEncoder(roosterTopic)
 
   val data: List[NJProducerRecord[Int, Rooster]] =
     RoosterData.data.map(x =>
