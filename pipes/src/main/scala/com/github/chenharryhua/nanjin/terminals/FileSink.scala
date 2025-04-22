@@ -4,10 +4,8 @@ import cats.Endo
 import cats.data.Reader
 import cats.effect.kernel.{Resource, Sync}
 import cats.implicits.toFunctorOps
-import com.fasterxml.jackson.databind.ObjectMapper
 import fs2.{Chunk, Pipe, Pull, Stream}
 import io.circe.Json
-import io.circe.jackson.circeToJackson
 import io.lemonlabs.uri.Url
 import kantan.csv.CsvConfiguration
 import org.apache.avro.generic.{GenericData, GenericRecord}
@@ -109,8 +107,8 @@ final class FileSink[F[_]: Sync] private (configuration: Configuration, path: Pa
   // circe json
   val circe: Pipe[F, Chunk[Json], Int] = { (ss: Stream[F, Chunk[Json]]) =>
     Stream
-      .resource(HadoopWriter.jsonNodeR[F](configuration, path, new ObjectMapper()))
-      .flatMap(w => ss.evalMap(c => w.write(c.map(circeToJackson)).as(c.size)))
+      .resource(HadoopWriter.stringR[F](configuration, path))
+      .flatMap(w => ss.evalMap(c => w.write(c.map(_.noSpaces)).as(c.size)))
   }
 
   // kantan csv

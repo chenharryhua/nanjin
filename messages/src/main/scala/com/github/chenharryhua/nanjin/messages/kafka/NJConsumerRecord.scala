@@ -2,13 +2,13 @@ package com.github.chenharryhua.nanjin.messages.kafka
 
 import cats.Bifunctor
 import cats.data.Cont
+import cats.kernel.Eq
 import cats.syntax.eq.catsSyntaxEq
 import cats.syntax.semigroup.catsSyntaxSemigroup
-import cats.kernel.Eq
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.sksamuel.avro4s.*
 import fs2.kafka.*
-import io.circe.{Decoder as JsonDecoder, Encoder as JsonEncoder}
+import io.circe.{Codec as JsonCodec, Decoder as JsonDecoder, Encoder as JsonEncoder}
 import io.scalaland.chimney.Transformer
 import io.scalaland.chimney.dsl.*
 import org.apache.avro.Schema
@@ -92,6 +92,9 @@ object NJConsumerRecord {
 
   implicit def decoderNJConsumerRecord[K: JsonDecoder, V: JsonDecoder]: JsonDecoder[NJConsumerRecord[K, V]] =
     io.circe.generic.semiauto.deriveDecoder[NJConsumerRecord[K, V]]
+
+  def jsonCodec[K: JsonEncoder: JsonDecoder, V: JsonEncoder: JsonDecoder]: JsonCodec[NJConsumerRecord[K, V]] =
+    JsonCodec.implied[NJConsumerRecord[K, V]]
 
   implicit val bifunctorNJConsumerRecord: Bifunctor[NJConsumerRecord] =
     new Bifunctor[NJConsumerRecord] {

@@ -138,4 +138,21 @@ class NJAvroTest extends AnyFunSuite {
     (hdp.delete(path) >>
       (s ++ s ++ s).through(sink.avro).compile.drain).unsafeRunSync()
   }
+
+  ignore("large number (10000) of files - passed but too cost to run it") {
+    val path   = fs2Root / "rotation" / "many"
+    val number = 5000L
+    val file   = AvroFile(_.Uncompressed)
+    hdp.delete(path).unsafeRunSync()
+    Stream
+      .emits(pandaSet.toList)
+      .covary[IO]
+      .repeatN(number)
+      .chunkN(1)
+      .through(hdp.rotateSink(t => path / file.fileName(t)).avro(_.Uncompressed))
+      .fold(0L)((sum, v) => sum + v.value)
+      .compile
+      .lastOrError
+      .unsafeRunSync()
+  }
 }

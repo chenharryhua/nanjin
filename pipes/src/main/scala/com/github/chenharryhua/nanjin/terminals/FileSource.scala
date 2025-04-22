@@ -31,14 +31,11 @@ final class FileSource[F[_]: Sync] private (configuration: Configuration, path: 
     HadoopReader.binAvroS[F](configuration, schema, path, chunkSize)
 
   def bytes(bufferSize: Information): Stream[F, Byte] =
-    HadoopReader.byteS(configuration, path, ChunkSize(bufferSize))
+    HadoopReader.byteS(configuration, path, bufferSize)
 
   val bytes: Stream[F, Byte] = bytes(Bytes(1024 * 512))
 
-  def circe(bufferSize: Information): Stream[F, Json] =
-    HadoopReader.jawnS[F](configuration, path, bufferSize)
-
-  val circe: Stream[F, Json] = circe(Bytes(1024 * 512))
+  val circe: Stream[F, Json] = HadoopReader.jawnS[F](configuration, path)
 
   def jackson(chunkSize: ChunkSize, schema: Schema)(implicit F: Async[F]): Stream[F, GenericData.Record] =
     HadoopReader.jacksonS[F](configuration, schema, path, chunkSize)

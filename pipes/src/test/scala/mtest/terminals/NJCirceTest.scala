@@ -101,7 +101,14 @@ class NJCirceTest extends AnyFunSuite {
     assert(processedSize == number * TestData.tigerSet.toList.size)
 
     def tigers1(path: Url): Stream[IO, Tiger] =
-      hdp.source(path).bytes.through(utf8.decode).through(lines).map(jawn.decode[Tiger]).rethrow
+      hdp
+        .source(path)
+        .bytes
+        .through(utf8.decode)
+        .through(lines)
+        .takeWhile(_.nonEmpty)
+        .map(jawn.decode[Tiger])
+        .rethrow
 
     def tigers2(path: Url): Stream[IO, Tiger] =
       hdp.source(path).bytes.chunks.parseJsonStream.map(_.as[Tiger]).rethrow
@@ -139,7 +146,14 @@ class NJCirceTest extends AnyFunSuite {
     assert(processedSize == number * TestData.tigerSet.toList.size)
 
     def tigers1(path: Url): Stream[IO, Tiger] =
-      hdp.source(path).bytes.through(utf8.decode).through(lines).map(jawn.decode[Tiger]).rethrow
+      hdp
+        .source(path)
+        .bytes
+        .through(utf8.decode)
+        .through(lines)
+        .takeWhile(_.nonEmpty)
+        .map(jawn.decode[Tiger])
+        .rethrow
 
     def tigers2(path: Url): Stream[IO, Tiger] =
       hdp.source(path).bytes.chunks.parseJsonStream.map(_.as[Tiger]).rethrow
@@ -187,5 +201,23 @@ class NJCirceTest extends AnyFunSuite {
 
     (hdp.delete(path) >>
       (s ++ s ++ s).through(sink.circe).compile.drain).unsafeRunSync()
+  }
+
+  ignore("large number (10000) of files - passed but too cost to run it") {
+    val path   = fs2Root / "rotation" / "many"
+    val number = 1000L
+    val file   = CirceFile(_.Uncompressed)
+    hdp.delete(path).unsafeRunSync()
+    Stream
+      .emits(TestData.tigerSet.toList)
+      .covary[IO]
+      .repeatN(number)
+      .map(_.asJson)
+      .chunkN(1)
+      .through(hdp.rotateSink(t => path / file.fileName(t)).circe)
+      .fold(0L)((sum, v) => sum + v.value)
+      .compile
+      .lastOrError
+      .unsafeRunSync()
   }
 }
