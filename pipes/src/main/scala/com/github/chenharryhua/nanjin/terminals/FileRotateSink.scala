@@ -4,11 +4,9 @@ import cats.Endo
 import cats.data.Reader
 import cats.effect.kernel.{Async, Resource}
 import cats.effect.std.Hotswap
-import com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
 import com.github.chenharryhua.nanjin.common.chrono.TickedValue
 import fs2.{Chunk, Pipe, Pull, Stream}
 import io.circe.Json
-import io.circe.jackson.circeToJackson
 import io.lemonlabs.uri.Url
 import kantan.csv.CsvConfiguration
 import org.apache.avro.Schema
@@ -245,18 +243,17 @@ final class FileRotateSink[F[_]: Async] private (
 
   // circe json
   val circe: Pipe[F, Chunk[Json], TickedValue[Int]] = {
-    val mapper: ObjectMapper = new ObjectMapper() // create ObjectMapper is expensive
 
-    def get_writer(url: Path): Resource[F, HadoopWriter[F, JsonNode]] =
-      HadoopWriter.jsonNodeR[F](configuration, url, mapper)
+    def get_writer(url: Path): Resource[F, HadoopWriter[F, String]] =
+      HadoopWriter.stringR[F](configuration, url)
 
     rotateType match {
       case RotateType.PolicyBased =>
         (ss: Stream[F, Chunk[Json]]) =>
-          periodically.merge.persist(ss.map(_.map(circeToJackson)), ticks, get_writer).stream
+          periodically.merge.persist(ss.map(_.map(_.noSpaces)), ticks, get_writer).stream
       case RotateType.ChunkBased =>
         (ss: Stream[F, Chunk[Json]]) =>
-          periodically.zip.persist(get_writer, ss.map(_.map(circeToJackson)).zip(ticks)).stream
+          periodically.zip.persist(get_writer, ss.map(_.map(_.noSpaces)).zip(ticks)).stream
     }
   }
 

@@ -16,7 +16,7 @@ val caffeineV   = "3.2.0"
 val catsCoreV   = "2.13.0"
 val catsEffectV = "3.6.1"
 val chimneyV    = "1.7.3"
-val circeV      = "0.14.12"
+val circeV      = "0.14.13"
 val confluentV  = "7.9.0"
 val cron4sV     = "0.8.2"
 val doobieV     = "1.0.0-RC9"
@@ -327,24 +327,23 @@ lazy val pipes = (project in file("pipes"))
   .settings(name := "nj-pipes")
   .settings {
     val libs = List(
-      "co.fs2" %% "fs2-io"             % fs2V,
-      "io.circe" %% "circe-jackson210" % "0.14.2",
-      "com.nrinaudo" %% "kantan.csv"   % kantanV,
-      "software.amazon.awssdk"         % "bundle"                 % awsV,
-      "org.apache.parquet"             % "parquet-common"         % parquetV,
-      "org.apache.parquet"             % "parquet-hadoop"         % parquetV,
-      "org.apache.parquet"             % "parquet-avro"           % parquetV,
-      "org.apache.avro"                % "avro"                   % avroV,
-      "org.tukaani"                    % "xz"                     % "1.10",
-      "org.eclipse.jetty"              % "jetty-server"           % "12.0.19", // snyk
-      "io.netty"                       % "netty-all"              % nettyV, // snyk
-      "com.nimbusds"                   % "nimbus-jose-jwt"        % "10.2", // snyk
-      "dnsjava"                        % "dnsjava"                % "3.6.3", // snyk
-      "com.google.guava"               % "guava"                  % "33.4.8-jre", // snyk
-      "org.apache.commons"             % "commons-configuration2" % "2.11.0", // snyk
-      "org.jetbrains.kotlin"           % "kotlin-stdlib"          % "2.1.20", // snyk
-      "org.apache.zookeeper"           % "zookeeper"              % "3.9.3", // snyk
-      "org.typelevel" %% "jawn-fs2"    % "2.4.0"                  % Test
+      "co.fs2" %% "fs2-io"           % fs2V,
+      "com.nrinaudo" %% "kantan.csv" % kantanV,
+      "software.amazon.awssdk"       % "bundle"                 % awsV,
+      "org.apache.parquet"           % "parquet-common"         % parquetV,
+      "org.apache.parquet"           % "parquet-hadoop"         % parquetV,
+      "org.apache.parquet"           % "parquet-avro"           % parquetV,
+      "org.apache.avro"              % "avro"                   % avroV,
+      "org.tukaani"                  % "xz"                     % "1.10",
+      "org.eclipse.jetty"            % "jetty-server"           % "12.0.19", // snyk
+      "io.netty"                     % "netty-all"              % nettyV, // snyk
+      "com.nimbusds"                 % "nimbus-jose-jwt"        % "10.2", // snyk
+      "dnsjava"                      % "dnsjava"                % "3.6.3", // snyk
+      "com.google.guava"             % "guava"                  % "33.4.8-jre", // snyk
+      "org.apache.commons"           % "commons-configuration2" % "2.11.0", // snyk
+      "org.jetbrains.kotlin"         % "kotlin-stdlib"          % "2.1.20", // snyk
+      "org.apache.zookeeper"         % "zookeeper"              % "3.9.3", // snyk
+      "org.typelevel" %% "jawn-fs2"  % "2.4.0"                  % Test
     ) ++ hadoopLib ++ kantanLib
     libraryDependencies ++= libs ++ testLib
   }

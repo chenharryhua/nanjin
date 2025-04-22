@@ -250,4 +250,22 @@ class NJKantanTest extends AnyFunSuite {
     val size = hdp.source(path).kantan(100).compile.fold(0) { case (s, _) => s + 1 }.unsafeRunSync()
     assert(size == 15000)
   }
+
+  ignore("large number (10000) of files - passed but too cost to run it") {
+    val path   = fs2Root / "rotation" / "many"
+    val number = 1000L
+    val file   = KantanFile(_.Uncompressed)
+    hdp.delete(path).unsafeRunSync()
+    Stream
+      .emits(TestData.tigerSet.toList)
+      .covary[IO]
+      .repeatN(number)
+      .map(tigerEncoder.encode)
+      .chunkN(1)
+      .through(hdp.rotateSink(t => path / file.fileName(t)).kantan)
+      .fold(0L)((sum, v) => sum + v.value)
+      .compile
+      .lastOrError
+      .unsafeRunSync()
+  }
 }

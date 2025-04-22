@@ -3,6 +3,7 @@ package com.github.chenharryhua.nanjin.terminals
 import cats.data.Reader
 import cats.effect.Resource
 import cats.effect.kernel.Sync
+import cats.implicits.toTraverseOps
 import com.github.chenharryhua.nanjin.common.ChunkSize
 import fs2.{Chunk, Pull, Stream}
 import io.circe.Json
@@ -18,7 +19,7 @@ import org.apache.parquet.hadoop.ParquetReader
 import org.apache.parquet.hadoop.util.HadoopInputFile
 import org.apache.parquet.io.SeekableInputStream
 import org.typelevel.jawn.AsyncParser
-import squants.information.Information
+import squants.information.{Bytes, Information}
 
 import java.io.{BufferedReader, InputStream, InputStreamReader}
 import java.nio.charset.StandardCharsets
@@ -67,10 +68,10 @@ private object HadoopReader {
     F: Sync[F]): Stream[F, InputStream] = Stream.resource(inputStreamR(configuration, path))
 
   // respect chunk size
-  def byteS[F[_]](configuration: Configuration, path: Path, chunkSize: ChunkSize)(implicit
+  def byteS[F[_]](configuration: Configuration, path: Path, bs: Information)(implicit
     F: Sync[F]): Stream[F, Byte] =
     inputStreamS[F](configuration, path).flatMap { is =>
-      val bufferSize: Int     = chunkSize.value
+      val bufferSize: Int     = bs.toBytes.toInt
       val buffer: Array[Byte] = Array.ofDim[Byte](bufferSize)
       def go(offset: Int): Pull[F, Byte, Unit] =
         Pull.eval(F.blocking(is.read(buffer, offset, bufferSize - offset))).flatMap { numBytes =>
@@ -81,14 +82,13 @@ private object HadoopReader {
       go(0).stream
     }
 
-  def jawnS[F[_]](configuration: Configuration, path: Path, bs: Information)(implicit
-    F: Sync[F]): Stream[F, Json] =
+  def jawnS[F[_]](configuration: Configuration, path: Path)(implicit F: Sync[F]): Stream[F, Json] =
     Stream
       .emit(AsyncParser[Json](AsyncParser.ValueStream))
       .flatMap(parser =>
-        byteS[F](configuration, path, ChunkSize(bs)).chunks
-          .evalMap(bs => F.fromEither(parser.absorb(bs.toByteBuffer)))
-          .flatMap(Stream.emits))
+        byteS[F](configuration, path, Bytes(131072))
+          .mapChunks(bs => parser.absorb(bs.toByteBuffer).traverse(Chunk.from))
+          .rethrow)
 
   def stringS[F[_]](configuration: Configuration, path: Path, chunkSize: ChunkSize)(implicit
     F: Sync[F]): Stream[F, String] =
