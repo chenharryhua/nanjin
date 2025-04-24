@@ -30,7 +30,6 @@ class NJBytesTest extends AnyFunSuite {
       .map(_.asJson.noSpaces)
       .intersperse(System.lineSeparator())
       .through(utf8.encode)
-      .chunks
       .through(sink)
       .compile
       .drain >>

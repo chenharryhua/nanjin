@@ -26,7 +26,7 @@ class NJTextTest extends AnyFunSuite {
   def fs2(path: Url, file: TextFile, data: Set[Tiger]): Assertion = {
     val tgt = path / file.fileName
     hdp.delete(tgt).unsafeRunSync()
-    val ts                      = Stream.emits(data.toList).covary[IO].map(_.asJson.noSpaces).chunks
+    val ts                      = Stream.emits(data.toList).covary[IO].map(_.asJson.noSpaces)
     val sink                    = hdp.sink(tgt).text
     val src: Stream[IO, Tiger]  = hdp.source(tgt).text(2).mapFilter(decode[Tiger](_).toOption)
     val action: IO[List[Tiger]] = ts.through(sink).compile.drain >> src.compile.toList
@@ -151,7 +151,7 @@ class NJTextTest extends AnyFunSuite {
   }
 
   test("stream concat") {
-    val s         = Stream.emits(TestData.tigerSet.toList).covary[IO].repeatN(500).map(_.toString).chunks
+    val s         = Stream.emits(TestData.tigerSet.toList).covary[IO].repeatN(500).map(_.toString)
     val path: Url = fs2Root / "concat" / "kantan.csv"
 
     (hdp.delete(path) >>

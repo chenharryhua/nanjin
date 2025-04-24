@@ -27,7 +27,7 @@ class NJBinAvroTest extends AnyFunSuite {
     hdp.delete(tgt).unsafeRunSync()
     val sink     = hdp.sink(tgt).binAvro
     val src      = hdp.source(tgt).binAvro(100, pandaSchema)
-    val ts       = Stream.emits(data.toList).covary[IO].chunks
+    val ts       = Stream.emits(data.toList).covary[IO]
     val action   = ts.through(sink).compile.drain >> src.compile.toList
     val fileName = (file: FileKind).asJson.noSpaces
     assert(jawn.decode[FileKind](fileName).toOption.get == file)
@@ -121,7 +121,7 @@ class NJBinAvroTest extends AnyFunSuite {
   }
 
   test("stream concat") {
-    val s         = Stream.emits(pandaSet.toList).covary[IO].repeatN(500).chunks
+    val s         = Stream.emits(pandaSet.toList).covary[IO].repeatN(500)
     val path: Url = fs2Root / "concat" / "bin.avro"
 
     (hdp.delete(path) >>

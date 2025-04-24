@@ -27,7 +27,7 @@ class NJKantanTest extends AnyFunSuite {
   def fs2(path: Url, file: KantanFile, csvConfiguration: CsvConfiguration, data: Set[Tiger]): Assertion = {
     val tgt = path / file.fileName
     hdp.delete(tgt).unsafeRunSync()
-    val ts     = Stream.emits(data.toList).covary[IO].map(tigerEncoder.encode).chunks
+    val ts     = Stream.emits(data.toList).covary[IO].map(tigerEncoder.encode)
     val sink   = hdp.sink(tgt).kantan(csvConfiguration)
     val src    = hdp.source(tgt).kantan(100, csvConfiguration).map(tigerDecoder.decode).rethrow
     val action = ts.through(sink).compile.drain >> src.compile.toList
@@ -242,7 +242,7 @@ class NJKantanTest extends AnyFunSuite {
   }
 
   test("stream concat") {
-    val s = Stream.emits(TestData.tigerSet.toList).covary[IO].repeatN(500).map(tigerEncoder.encode).chunks
+    val s         = Stream.emits(TestData.tigerSet.toList).covary[IO].repeatN(500).map(tigerEncoder.encode)
     val path: Url = fs2Root / "concat" / "kantan.csv"
 
     (hdp.delete(path) >>

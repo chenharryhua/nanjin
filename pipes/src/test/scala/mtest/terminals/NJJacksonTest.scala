@@ -25,7 +25,7 @@ class NJJacksonTest extends AnyFunSuite {
     hdp.delete(tgt).unsafeRunSync()
     val sink   = hdp.sink(tgt).jackson
     val src    = hdp.source(tgt).jackson(10, pandaSchema)
-    val ts     = Stream.emits(data.toList).covary[IO].chunks
+    val ts     = Stream.emits(data.toList).covary[IO]
     val action = ts.through(sink).compile.drain >> src.compile.toList.map(_.toList)
     assert(action.unsafeRunSync().toSet == data)
     val fileName = (file: FileKind).asJson.noSpaces
@@ -119,7 +119,7 @@ class NJJacksonTest extends AnyFunSuite {
   }
 
   test("stream concat") {
-    val s         = Stream.emits(pandaSet.toList).covary[IO].repeatN(500).chunks
+    val s         = Stream.emits(pandaSet.toList).covary[IO].repeatN(500)
     val path: Url = fs2Root / "concat" / "jackson.json"
 
     (hdp.delete(path) >>

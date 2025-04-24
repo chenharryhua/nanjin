@@ -26,7 +26,7 @@ class NJAvroTest extends AnyFunSuite {
     hdp.delete(tgt).unsafeRunSync()
     val sink     = hdp.sink(tgt).avro(file.compression)
     val src      = hdp.source(tgt).avro(100)
-    val ts       = Stream.emits(data.toList).covary[IO].chunks
+    val ts       = Stream.emits(data.toList).covary[IO]
     val action   = ts.through(sink).compile.drain >> src.compile.toList.map(_.toList)
     val fileName = (file: FileKind).asJson.noSpaces
     assert(jawn.decode[FileKind](fileName).toOption.get == file)
@@ -120,7 +120,7 @@ class NJAvroTest extends AnyFunSuite {
   }
 
   test("stream concat") {
-    val s         = Stream.emits(pandaSet.toList).covary[IO].repeatN(500).chunks
+    val s         = Stream.emits(pandaSet.toList).covary[IO].repeatN(500)
     val path: Url = fs2Root / "concat" / "data.avro"
 
     (hdp.delete(path) >>
