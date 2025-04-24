@@ -87,7 +87,6 @@ class NJTextTest extends AnyFunSuite {
       .covary[IO]
       .repeatN(number)
       .map(_.toString)
-      .chunks
       .through(
         hdp.rotateSink(Policy.fixedDelay(1.second), ZoneId.systemDefault())(t => path / fk.fileName(t)).text)
       .fold(0L)((sum, v) => sum + v.value)
@@ -114,8 +113,9 @@ class NJTextTest extends AnyFunSuite {
       .emits(TestData.tigerSet.toList)
       .covary[IO]
       .repeatN(number)
-      .map(_.toString)
       .chunkN(1000)
+      .unchunks
+      .map(_.toString)
       .through(hdp.rotateSink(t => path / fk.fileName(t)).text)
       .fold(0L)((sum, v) => sum + v.value)
       .compile
@@ -137,7 +137,7 @@ class NJTextTest extends AnyFunSuite {
     hdp.delete(path).unsafeRunSync()
     val fk = TextFile(_.Uncompressed)
     (Stream.sleep[IO](10.hours) >>
-      Stream.empty.covaryAll[IO, String]).chunks
+      Stream.empty.covaryAll[IO, String])
       .through(
         hdp
           .rotateSink(Policy.fixedDelay(1.second).limited(3), ZoneId.systemDefault())(t =>
@@ -170,7 +170,6 @@ class NJTextTest extends AnyFunSuite {
       .covary[IO]
       .repeatN(number)
       .map(_.toString)
-      .chunkN(1)
       .through(hdp.rotateSink(t => path / file.fileName(t)).text)
       .fold(0L)((sum, v) => sum + v.value)
       .compile

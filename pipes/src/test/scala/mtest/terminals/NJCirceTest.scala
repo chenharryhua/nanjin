@@ -85,7 +85,6 @@ class NJCirceTest extends AnyFunSuite {
       .covary[IO]
       .repeatN(number)
       .map(_.asJson)
-      .chunks
       .through(
         hdp.rotateSink(Policy.fixedDelay(1.second), ZoneId.systemDefault())(t => path / fk.fileName(t)).circe)
       .fold(0L)((sum, v) => sum + v.value)
@@ -130,8 +129,9 @@ class NJCirceTest extends AnyFunSuite {
       .emits(TestData.tigerSet.toList)
       .covary[IO]
       .repeatN(number)
-      .map(_.asJson)
       .chunkN(1000)
+      .unchunks
+      .map(_.asJson)
       .through(hdp.rotateSink(t => path / file.fileName(t)).circe)
       .fold(0L)((sum, v) => sum + v.value)
       .compile
@@ -171,7 +171,7 @@ class NJCirceTest extends AnyFunSuite {
     hdp.delete(path).unsafeRunSync()
     val fk = CirceFile(Uncompressed)
     (Stream.sleep[IO](10.hours) >>
-      Stream.empty.covaryAll[IO, Json]).chunks
+      Stream.empty.covaryAll[IO, Json])
       .through(
         hdp
           .rotateSink(Policy.fixedDelay(1.second).limited(3), ZoneId.systemDefault())(t =>
@@ -195,7 +195,7 @@ class NJCirceTest extends AnyFunSuite {
   }
 
   test("stream concat - 2") {
-    val s         = Stream.emits(TestData.tigerSet.toList).covary[IO].map(_.asJson).repeatN(500).chunks
+    val s         = Stream.emits(TestData.tigerSet.toList).covary[IO].map(_.asJson).repeatN(500)
     val path: Url = fs2Root / "concat" / "rotate"
     val sink = hdp.rotateSink(Policy.fixedDelay(0.1.second), ZoneId.systemDefault())(t =>
       path / ParquetFile(_.Uncompressed).fileName(t))
@@ -214,7 +214,6 @@ class NJCirceTest extends AnyFunSuite {
       .covary[IO]
       .repeatN(number)
       .map(_.asJson)
-      .chunkN(1)
       .through(hdp.rotateSink(t => path / file.fileName(t)).circe)
       .fold(0L)((sum, v) => sum + v.value)
       .compile

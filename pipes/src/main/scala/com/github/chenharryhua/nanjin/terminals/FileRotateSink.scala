@@ -31,137 +31,137 @@ final class FileRotateSink[F[_]: Async] private (
   configuration: Configuration,
   ticks: Stream[F, TickedValue[Path]]) {
   // avro - schema-less
-  def avro(compression: AvroCompression): Pipe[F, Chunk[GenericRecord], TickedValue[Int]] = {
+  def avro(compression: AvroCompression): Pipe[F, GenericRecord, TickedValue[Int]] = {
     def get_writer(schema: Schema)(url: Path): Resource[F, HadoopWriter[F, GenericRecord]] =
       HadoopWriter.avroR[F](compression.codecFactory, schema, configuration, url)
 
     rotateType match {
       case RotateType.PolicyBased =>
-        (ss: Stream[F, Chunk[GenericRecord]]) =>
+        (ss: Stream[F, GenericRecord]) =>
           ss.pull.peek1.flatMap {
             case Some((grs, stream)) =>
-              periodically.merge.persist(stream, ticks, get_writer(grs(0).getSchema))
+              periodically.merge.persist(stream.chunks, ticks, get_writer(grs.getSchema))
             case None => Pull.done
           }.stream
       case RotateType.ChunkBased =>
-        (ss: Stream[F, Chunk[GenericRecord]]) =>
+        (ss: Stream[F, GenericRecord]) =>
           ss.pull.stepLeg.flatMap {
             case Some(leg) =>
-              val record = leg.head.flatMap(identity)
+              val schema = leg.head(0).getSchema
               periodically.zip.persist(
-                get_writer(record(0).getSchema),
-                (Stream.chunk(leg.head) ++ leg.stream).zip(ticks))
+                get_writer(schema),
+                (Stream.chunk(leg.head) ++ leg.stream).chunks.zip(ticks))
             case None => Pull.done
           }.stream
     }
   }
 
-  def avro(f: AvroCompression.type => AvroCompression): Pipe[F, Chunk[GenericRecord], TickedValue[Int]] =
+  def avro(f: AvroCompression.type => AvroCompression): Pipe[F, GenericRecord, TickedValue[Int]] =
     avro(f(AvroCompression))
 
-  val avro: Pipe[F, Chunk[GenericRecord], TickedValue[Int]] =
+  val avro: Pipe[F, GenericRecord, TickedValue[Int]] =
     avro(AvroCompression.Uncompressed)
 
   // avro schema
-  def avro(schema: Schema, compression: AvroCompression): Pipe[F, Chunk[GenericRecord], TickedValue[Int]] = {
+  def avro(schema: Schema, compression: AvroCompression): Pipe[F, GenericRecord, TickedValue[Int]] = {
     def get_writer(url: Path): Resource[F, HadoopWriter[F, GenericRecord]] =
       HadoopWriter.avroR[F](compression.codecFactory, schema, configuration, url)
 
     rotateType match {
       case RotateType.PolicyBased =>
-        (ss: Stream[F, Chunk[GenericRecord]]) => periodically.merge.persist(ss, ticks, get_writer).stream
+        (ss: Stream[F, GenericRecord]) => periodically.merge.persist(ss.chunks, ticks, get_writer).stream
       case RotateType.ChunkBased =>
-        (ss: Stream[F, Chunk[GenericRecord]]) => periodically.zip.persist(get_writer, ss.zip(ticks)).stream
+        (ss: Stream[F, GenericRecord]) => periodically.zip.persist(get_writer, ss.chunks.zip(ticks)).stream
     }
   }
 
   def avro(
     schema: Schema,
-    f: AvroCompression.type => AvroCompression): Pipe[F, Chunk[GenericRecord], TickedValue[Int]] =
+    f: AvroCompression.type => AvroCompression): Pipe[F, GenericRecord, TickedValue[Int]] =
     avro(schema, f(AvroCompression))
 
-  def avro(schema: Schema): Pipe[F, Chunk[GenericRecord], TickedValue[Int]] =
+  def avro(schema: Schema): Pipe[F, GenericRecord, TickedValue[Int]] =
     avro(schema, AvroCompression.Uncompressed)
 
   // binary avro
-  val binAvro: Pipe[F, Chunk[GenericRecord], TickedValue[Int]] = {
+  val binAvro: Pipe[F, GenericRecord, TickedValue[Int]] = {
     def get_writer(schema: Schema)(url: Path): Resource[F, HadoopWriter[F, GenericRecord]] =
       HadoopWriter.binAvroR[F](configuration, schema, url)
 
     rotateType match {
       case RotateType.PolicyBased =>
-        (ss: Stream[F, Chunk[GenericRecord]]) =>
+        (ss: Stream[F, GenericRecord]) =>
           ss.pull.peek1.flatMap {
             case Some((grs, stream)) =>
-              periodically.merge.persist(stream, ticks, get_writer(grs(0).getSchema))
+              periodically.merge.persist(stream.chunks, ticks, get_writer(grs.getSchema))
             case None => Pull.done
           }.stream
       case RotateType.ChunkBased =>
-        (ss: Stream[F, Chunk[GenericRecord]]) =>
+        (ss: Stream[F, GenericRecord]) =>
           ss.pull.stepLeg.flatMap {
             case Some(leg) =>
-              val record = leg.head.flatMap(identity)
+              val schema: Schema = leg.head(0).getSchema
               periodically.zip.persist(
-                get_writer(record(0).getSchema),
-                (Stream.chunk(leg.head) ++ leg.stream).zip(ticks))
+                get_writer(schema),
+                (Stream.chunk(leg.head) ++ leg.stream).chunks.zip(ticks))
             case None => Pull.done
           }.stream
 
     }
   }
 
-  def binAvro(schema: Schema): Pipe[F, Chunk[GenericRecord], TickedValue[Int]] = {
+  def binAvro(schema: Schema): Pipe[F, GenericRecord, TickedValue[Int]] = {
     def get_writer(url: Path): Resource[F, HadoopWriter[F, GenericRecord]] =
       HadoopWriter.binAvroR[F](configuration, schema, url)
 
     rotateType match {
       case RotateType.PolicyBased =>
-        (ss: Stream[F, Chunk[GenericRecord]]) => periodically.merge.persist(ss, ticks, get_writer).stream
+        (ss: Stream[F, GenericRecord]) => periodically.merge.persist(ss.chunks, ticks, get_writer).stream
       case RotateType.ChunkBased =>
-        (ss: Stream[F, Chunk[GenericRecord]]) => periodically.zip.persist(get_writer, ss.zip(ticks)).stream
+        (ss: Stream[F, GenericRecord]) => periodically.zip.persist(get_writer, ss.chunks.zip(ticks)).stream
     }
   }
 
   // jackson json
-  val jackson: Pipe[F, Chunk[GenericRecord], TickedValue[Int]] = {
+  val jackson: Pipe[F, GenericRecord, TickedValue[Int]] = {
     def get_writer(schema: Schema)(url: Path): Resource[F, HadoopWriter[F, GenericRecord]] =
       HadoopWriter.jacksonR[F](configuration, schema, url)
 
     rotateType match {
       case RotateType.PolicyBased =>
-        (ss: Stream[F, Chunk[GenericRecord]]) =>
+        (ss: Stream[F, GenericRecord]) =>
           ss.pull.peek1.flatMap {
             case Some((grs, stream)) =>
-              periodically.merge.persist(stream, ticks, get_writer(grs(0).getSchema))
+              periodically.merge.persist(stream.chunks, ticks, get_writer(grs.getSchema))
             case None => Pull.done
           }.stream
       case RotateType.ChunkBased =>
-        (ss: Stream[F, Chunk[GenericRecord]]) =>
+        (ss: Stream[F, GenericRecord]) =>
           ss.pull.stepLeg.flatMap {
             case Some(leg) =>
-              val record = leg.head.flatMap(identity)
+              val schema: Schema = leg.head(0).getSchema
               periodically.zip.persist(
-                get_writer(record(0).getSchema),
-                (Stream.chunk(leg.head) ++ leg.stream).zip(ticks))
+                get_writer(schema),
+                (Stream.chunk(leg.head) ++ leg.stream).chunks.zip(ticks))
             case None => Pull.done
           }.stream
     }
   }
 
-  def jackson(schema: Schema): Pipe[F, Chunk[GenericRecord], TickedValue[Int]] = {
+  def jackson(schema: Schema): Pipe[F, GenericRecord, TickedValue[Int]] = {
     def get_writer(url: Path): Resource[F, HadoopWriter[F, GenericRecord]] =
       HadoopWriter.jacksonR[F](configuration, schema, url)
 
     rotateType match {
       case RotateType.PolicyBased =>
-        (ss: Stream[F, Chunk[GenericRecord]]) => periodically.merge.persist(ss, ticks, get_writer).stream
+        (ss: Stream[F, GenericRecord]) => periodically.merge.persist(ss.chunks, ticks, get_writer).stream
       case RotateType.ChunkBased =>
-        (ss: Stream[F, Chunk[GenericRecord]]) => periodically.zip.persist(get_writer, ss.zip(ticks)).stream
+        (ss: Stream[F, GenericRecord]) => periodically.zip.persist(get_writer, ss.chunks.zip(ticks)).stream
     }
   }
 
   // parquet
-  def parquet(f: Endo[Builder[GenericRecord]]): Pipe[F, Chunk[GenericRecord], TickedValue[Int]] = {
+  def parquet(f: Endo[Builder[GenericRecord]]): Pipe[F, GenericRecord, TickedValue[Int]] = {
 
     def get_writer(schema: Schema)(url: Path): Resource[F, HadoopWriter[F, GenericRecord]] = {
       val writeBuilder: Reader[Path, Builder[GenericRecord]] = Reader((path: Path) =>
@@ -178,31 +178,29 @@ final class FileRotateSink[F[_]: Async] private (
 
     rotateType match {
       case RotateType.PolicyBased =>
-        (ss: Stream[F, Chunk[GenericRecord]]) =>
+        (ss: Stream[F, GenericRecord]) =>
           ss.pull.peek1.flatMap {
             case Some((grs, stream)) =>
-              periodically.merge.persist(stream, ticks, get_writer(grs(0).getSchema))
+              periodically.merge.persist(stream.chunks, ticks, get_writer(grs.getSchema))
             case None => Pull.done
           }.stream
       case RotateType.ChunkBased =>
-        (ss: Stream[F, Chunk[GenericRecord]]) =>
+        (ss: Stream[F, GenericRecord]) =>
           ss.pull.stepLeg.flatMap {
             case Some(leg) =>
-              val record = leg.head.flatMap(identity)
+              val schema: Schema = leg.head(0).getSchema
               periodically.zip.persist(
-                get_writer(record(0).getSchema),
-                (Stream.chunk(leg.head) ++ leg.stream).zip(ticks))
+                get_writer(schema),
+                (Stream.chunk(leg.head) ++ leg.stream).chunks.zip(ticks))
             case None => Pull.done
           }.stream
     }
   }
 
-  val parquet: Pipe[F, Chunk[GenericRecord], TickedValue[Int]] =
+  val parquet: Pipe[F, GenericRecord, TickedValue[Int]] =
     parquet(a => a)
 
-  def parquet(
-    schema: Schema,
-    f: Endo[Builder[GenericRecord]]): Pipe[F, Chunk[GenericRecord], TickedValue[Int]] = {
+  def parquet(schema: Schema, f: Endo[Builder[GenericRecord]]): Pipe[F, GenericRecord, TickedValue[Int]] = {
 
     def get_writer(url: Path): Resource[F, HadoopWriter[F, GenericRecord]] = {
       val writeBuilder: Reader[Path, Builder[GenericRecord]] = Reader((path: Path) =>
@@ -219,53 +217,53 @@ final class FileRotateSink[F[_]: Async] private (
 
     rotateType match {
       case RotateType.PolicyBased =>
-        (ss: Stream[F, Chunk[GenericRecord]]) => periodically.merge.persist(ss, ticks, get_writer).stream
+        (ss: Stream[F, GenericRecord]) => periodically.merge.persist(ss.chunks, ticks, get_writer).stream
       case RotateType.ChunkBased =>
-        (ss: Stream[F, Chunk[GenericRecord]]) => periodically.zip.persist(get_writer, ss.zip(ticks)).stream
+        (ss: Stream[F, GenericRecord]) => periodically.zip.persist(get_writer, ss.chunks.zip(ticks)).stream
     }
   }
 
-  def parquet(schema: Schema): Pipe[F, Chunk[GenericRecord], TickedValue[Int]] =
+  def parquet(schema: Schema): Pipe[F, GenericRecord, TickedValue[Int]] =
     parquet(schema, identity)
 
   // bytes
-  val bytes: Pipe[F, Chunk[Byte], TickedValue[Int]] = {
+  val bytes: Pipe[F, Byte, TickedValue[Int]] = {
     def get_writer(url: Path): Resource[F, HadoopWriter[F, Byte]] =
       HadoopWriter.byteR[F](configuration, url)
 
     rotateType match {
       case RotateType.PolicyBased =>
-        (ss: Stream[F, Chunk[Byte]]) => periodically.merge.persist(ss, ticks, get_writer).stream
+        (ss: Stream[F, Byte]) => periodically.merge.persist(ss.chunks, ticks, get_writer).stream
       case RotateType.ChunkBased =>
-        (ss: Stream[F, Chunk[Byte]]) => periodically.zip.persist(get_writer, ss.zip(ticks)).stream
+        (ss: Stream[F, Byte]) => periodically.zip.persist(get_writer, ss.chunks.zip(ticks)).stream
     }
   }
 
   // circe json
-  val circe: Pipe[F, Chunk[Json], TickedValue[Int]] = {
+  val circe: Pipe[F, Json, TickedValue[Int]] = {
 
     def get_writer(url: Path): Resource[F, HadoopWriter[F, String]] =
       HadoopWriter.stringR[F](configuration, url)
 
     rotateType match {
       case RotateType.PolicyBased =>
-        (ss: Stream[F, Chunk[Json]]) =>
-          periodically.merge.persist(ss.map(_.map(_.noSpaces)), ticks, get_writer).stream
+        (ss: Stream[F, Json]) =>
+          periodically.merge.persist(ss.chunks.map(_.map(_.noSpaces)), ticks, get_writer).stream
       case RotateType.ChunkBased =>
-        (ss: Stream[F, Chunk[Json]]) =>
-          periodically.zip.persist(get_writer, ss.map(_.map(_.noSpaces)).zip(ticks)).stream
+        (ss: Stream[F, Json]) =>
+          periodically.zip.persist(get_writer, ss.chunks.map(_.map(_.noSpaces)).zip(ticks)).stream
     }
   }
 
   // kantan csv
-  def kantan(csvConfiguration: CsvConfiguration): Pipe[F, Chunk[Seq[String]], TickedValue[Int]] = {
+  def kantan(csvConfiguration: CsvConfiguration): Pipe[F, Seq[String], TickedValue[Int]] = {
     def get_writer(url: Path): Resource[F, HadoopWriter[F, String]] =
       HadoopWriter.csvStringR[F](configuration, url)
 
     rotateType match {
       case RotateType.PolicyBased =>
-        (ss: Stream[F, Chunk[Seq[String]]]) =>
-          val encodedSrc: Stream[F, Chunk[String]] = ss.map(_.map(csvRow(csvConfiguration)))
+        (ss: Stream[F, Seq[String]]) =>
+          val encodedSrc: Stream[F, Chunk[String]] = ss.chunks.map(_.map(csvRow(csvConfiguration)))
           if (csvConfiguration.hasHeader) {
             val header: Chunk[String] = csvHeader(csvConfiguration)
             ticks.pull.uncons1.flatMap {
@@ -293,32 +291,32 @@ final class FileRotateSink[F[_]: Async] private (
 
       case RotateType.ChunkBased =>
         val header: Chunk[String] = csvHeader(csvConfiguration)
-        (ss: Stream[F, Chunk[Seq[String]]]) =>
+        (ss: Stream[F, Seq[String]]) =>
           val encodedSrc: Stream[F, Chunk[String]] = if (csvConfiguration.hasHeader) {
-            ss.map(ck => header ++ ck.map(csvRow(csvConfiguration)))
+            ss.chunks.map(ck => header ++ ck.map(csvRow(csvConfiguration)))
           } else {
-            ss.map(ck => ck.map(csvRow(csvConfiguration)))
+            ss.chunks.map(ck => ck.map(csvRow(csvConfiguration)))
           }
           periodically.zip.persist(get_writer, encodedSrc.zip(ticks)).stream
     }
   }
 
-  def kantan(f: Endo[CsvConfiguration]): Pipe[F, Chunk[Seq[String]], TickedValue[Int]] =
+  def kantan(f: Endo[CsvConfiguration]): Pipe[F, Seq[String], TickedValue[Int]] =
     kantan(f(CsvConfiguration.rfc))
 
-  val kantan: Pipe[F, Chunk[Seq[String]], TickedValue[Int]] =
+  val kantan: Pipe[F, Seq[String], TickedValue[Int]] =
     kantan(CsvConfiguration.rfc)
 
   // text
-  val text: Pipe[F, Chunk[String], TickedValue[Int]] = {
+  val text: Pipe[F, String, TickedValue[Int]] = {
     def get_writer(url: Path): Resource[F, HadoopWriter[F, String]] =
       HadoopWriter.stringR(configuration, url)
 
     rotateType match {
       case RotateType.PolicyBased =>
-        (ss: Stream[F, Chunk[String]]) => periodically.merge.persist(ss, ticks, get_writer).stream
+        (ss: Stream[F, String]) => periodically.merge.persist(ss.chunks, ticks, get_writer).stream
       case RotateType.ChunkBased =>
-        (ss: Stream[F, Chunk[String]]) => periodically.zip.persist(get_writer, ss.zip(ticks)).stream
+        (ss: Stream[F, String]) => periodically.zip.persist(get_writer, ss.chunks.zip(ticks)).stream
     }
   }
 
@@ -327,15 +325,15 @@ final class FileRotateSink[F[_]: Async] private (
     *
     * https://protobuf.dev/programming-guides/proto-limits/#total
     */
-  val protobuf: Pipe[F, Chunk[GeneratedMessage], TickedValue[Int]] = {
+  val protobuf: Pipe[F, GeneratedMessage, TickedValue[Int]] = {
     def get_writer(url: Path): Resource[F, HadoopWriter[F, GeneratedMessage]] =
       HadoopWriter.protobufR(configuration, url)
 
     rotateType match {
       case RotateType.PolicyBased =>
-        (ss: Stream[F, Chunk[GeneratedMessage]]) => periodically.merge.persist(ss, ticks, get_writer).stream
+        (ss: Stream[F, GeneratedMessage]) => periodically.merge.persist(ss.chunks, ticks, get_writer).stream
       case RotateType.ChunkBased =>
-        (ss: Stream[F, Chunk[GeneratedMessage]]) => periodically.zip.persist(get_writer, ss.zip(ticks)).stream
+        (ss: Stream[F, GeneratedMessage]) => periodically.zip.persist(get_writer, ss.chunks.zip(ticks)).stream
     }
   }
 }

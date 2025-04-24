@@ -99,7 +99,6 @@ class NJKantanTest extends AnyFunSuite {
     hdp.delete(path).unsafeRunSync()
     herd
       .map(tigerEncoder.encode)
-      .chunks
       .through(
         hdp
           .rotateSink(policy, ZoneId.systemDefault())(t => path / file.fileName(t))
@@ -133,6 +132,7 @@ class NJKantanTest extends AnyFunSuite {
     herd
       .map(tigerEncoder.encode)
       .chunkN(1000)
+      .unchunks
       .through(hdp.rotateSink(t => path / file.fileName(t)).kantan(_.withHeader(CsvHeaderOf[Tiger].header)))
       .compile
       .drain
@@ -161,7 +161,7 @@ class NJKantanTest extends AnyFunSuite {
     hdp.delete(path).unsafeRunSync()
     val fk = KantanFile(_.Uncompressed)
     (Stream.sleep[IO](10.hours) >>
-      Stream.empty.covaryAll[IO, Seq[String]]).chunks
+      Stream.empty.covaryAll[IO, Seq[String]])
       .through(
         hdp
           .rotateSink(Policy.fixedDelay(1.second).limited(3), ZoneId.systemDefault())(t =>
@@ -181,7 +181,6 @@ class NJKantanTest extends AnyFunSuite {
     hdp.delete(path).unsafeRunSync()
     herd
       .map(tigerEncoder.encode)
-      .chunks
       .through(
         hdp.rotateSink(policy, ZoneId.systemDefault())(t => path / file.fileName(t)).kantan.andThen(_.drain))
       .map(tigerDecoder.decode)
@@ -207,6 +206,7 @@ class NJKantanTest extends AnyFunSuite {
     herd
       .map(tigerEncoder.encode)
       .chunkN(1000)
+      .unchunks
       .through(hdp.rotateSink(t => path / file.fileName(t)).kantan.andThen(_.drain))
       .map(tigerDecoder.decode)
       .rethrow
@@ -228,7 +228,7 @@ class NJKantanTest extends AnyFunSuite {
     hdp.delete(path).unsafeRunSync()
     val fk = KantanFile(_.Uncompressed)
     (Stream.sleep[IO](10.hours) >>
-      Stream.empty.covaryAll[IO, Seq[String]]).chunks
+      Stream.empty.covaryAll[IO, Seq[String]])
       .through(
         hdp
           .rotateSink(Policy.fixedDelay(1.second).limited(3), ZoneId.systemDefault())(t =>
@@ -261,7 +261,6 @@ class NJKantanTest extends AnyFunSuite {
       .covary[IO]
       .repeatN(number)
       .map(tigerEncoder.encode)
-      .chunkN(1)
       .through(hdp.rotateSink(t => path / file.fileName(t)).kantan)
       .fold(0L)((sum, v) => sum + v.value)
       .compile

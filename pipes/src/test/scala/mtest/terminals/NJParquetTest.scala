@@ -86,7 +86,6 @@ class NJParquetTest extends AnyFunSuite {
       .emits(pandaSet.toList)
       .covary[IO]
       .repeatN(number)
-      .chunks
       .through(hdp
         .rotateSink(Policy.fixedDelay(1.second), ZoneId.systemDefault())(t => path / file.ymdFileName(t))
         .parquet)
@@ -115,6 +114,7 @@ class NJParquetTest extends AnyFunSuite {
       .covary[IO]
       .repeatN(number)
       .chunkN(1000)
+      .unchunks
       .through(hdp.rotateSink(t => path / file.fileName(t)).parquet)
       .fold(0L)((sum, v) => sum + v.value)
       .compile
@@ -156,7 +156,7 @@ class NJParquetTest extends AnyFunSuite {
   }
 
   test("stream concat - 2") {
-    val s         = Stream.emits(pandaSet.toList).covary[IO].repeatN(500).chunks
+    val s         = Stream.emits(pandaSet.toList).covary[IO].repeatN(500)
     val path: Url = fs2Root / "concat" / "rotate"
     val sink = hdp.rotateSink(Policy.fixedDelay(0.1.second), ZoneId.systemDefault())(t =>
       path / ParquetFile(_.Uncompressed).fileName(t))
@@ -174,7 +174,6 @@ class NJParquetTest extends AnyFunSuite {
       .emits(pandaSet.toList)
       .covary[IO]
       .repeatN(number)
-      .chunkN(1)
       .through(hdp.rotateSink(t => path / file.fileName(t)).parquet)
       .fold(0L)((sum, v) => sum + v.value)
       .compile

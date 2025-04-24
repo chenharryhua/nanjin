@@ -23,7 +23,7 @@ class ProtobufTerminalTest extends AnyFunSuite {
   def run(file: ProtobufFile): Assertion = {
     val path: Url = root / file.fileName
 
-    val write = data.chunks.through(hadoop.sink(path).protobuf).compile.drain
+    val write = data.through(hadoop.sink(path).protobuf).compile.drain
 
     val read = hadoop.source(path).protobuf[Lion](100).compile.toList
 

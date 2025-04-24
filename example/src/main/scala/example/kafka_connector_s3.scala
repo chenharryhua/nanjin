@@ -10,8 +10,8 @@ import com.github.chenharryhua.nanjin.guard.observers.console
 import com.github.chenharryhua.nanjin.kafka.{KafkaContext, KafkaSettings}
 import com.github.chenharryhua.nanjin.terminals.{Hadoop, JacksonFile}
 import eu.timepit.refined.auto.*
+import fs2.Pipe
 import fs2.kafka.{commitBatchWithin, AutoOffsetReset, CommittableConsumerRecord}
-import fs2.{Chunk, Pipe}
 import io.lemonlabs.uri.Url
 import io.lemonlabs.uri.typesafe.dsl.urlToUrlDsl
 import org.apache.avro.generic.{GenericData, GenericRecord}
@@ -52,7 +52,7 @@ object kafka_connector_s3 {
     .service("dump kafka topic to s3")
     .eventStream { ga =>
       val jackson = JacksonFile(_.Uncompressed)
-      val sink: Pipe[IO, Chunk[GenericRecord], TickedValue[Int]] = // rotate files every 5 minutes
+      val sink: Pipe[IO, GenericRecord, TickedValue[Int]] = // rotate files every 5 minutes
         hadoop
           .rotateSink(Policy.crontab(_.every5Minutes), ga.zoneId)(tick => root / jackson.ymdFileName(tick))
           .jackson
@@ -67,7 +67,6 @@ object kafka_connector_s3 {
           .genericRecords
           .observe(_.map(_.offset).through(commitBatchWithin[IO](1000, 5.seconds)).drain)
           .evalMap(x => IO.fromTry(x.record.value).guarantee(log.run(x)))
-          .chunks
           .through(sink)
           .compile
           .drain

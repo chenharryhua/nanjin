@@ -96,7 +96,6 @@ class NJBytesTest extends AnyFunSuite {
       .map(_.asJson.noSpaces)
       .intersperse(System.lineSeparator())
       .through(utf8.encode)
-      .chunks
       .through(sink)
       .compile
       .drain
@@ -112,10 +111,11 @@ class NJBytesTest extends AnyFunSuite {
       .emits(TestData.tigerSet.toList)
       .covary[IO]
       .repeatN(number)
+      .chunkN(10000)
+      .unchunks
       .map(_.asJson.noSpaces)
       .intersperse(System.lineSeparator())
       .through(utf8.encode)
-      .chunkN(1000000)
       .through(sink)
       .compile
       .drain
