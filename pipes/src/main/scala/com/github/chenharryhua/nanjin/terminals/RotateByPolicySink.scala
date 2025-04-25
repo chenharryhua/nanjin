@@ -3,9 +3,8 @@ package com.github.chenharryhua.nanjin.terminals
 import cats.Endo
 import cats.data.Reader
 import cats.effect.kernel.{Async, Resource}
-import cats.effect.std.Hotswap
 import com.github.chenharryhua.nanjin.common.chrono.TickedValue
-import fs2.{Chunk, Pipe, Pull, Stream}
+import fs2.{Pipe, Pull, Stream}
 import io.circe.Json
 import io.lemonlabs.uri.Url
 import kantan.csv.CsvConfiguration
@@ -31,7 +30,7 @@ final class RotateByPolicySink[F[_]: Async] private (
     (ss: Stream[F, GenericRecord]) =>
       ss.pull.peek1.flatMap {
         case Some((grs, stream)) =>
-          periodically.merge.persist(stream.chunks, ticks, get_writer(grs.getSchema))
+          periodically.persist(stream.chunks, ticks, get_writer(grs.getSchema))
         case None => Pull.done
       }.stream
   }
@@ -47,7 +46,7 @@ final class RotateByPolicySink[F[_]: Async] private (
     def get_writer(url: Path): Resource[F, HadoopWriter[F, GenericRecord]] =
       HadoopWriter.avroR[F](compression.codecFactory, schema, configuration, url)
 
-    (ss: Stream[F, GenericRecord]) => periodically.merge.persist(ss.chunks, ticks, get_writer).stream
+    (ss: Stream[F, GenericRecord]) => periodically.persist(ss.chunks, ticks, get_writer).stream
 
   }
 
@@ -67,7 +66,7 @@ final class RotateByPolicySink[F[_]: Async] private (
     (ss: Stream[F, GenericRecord]) =>
       ss.pull.peek1.flatMap {
         case Some((grs, stream)) =>
-          periodically.merge.persist(stream.chunks, ticks, get_writer(grs.getSchema))
+          periodically.persist(stream.chunks, ticks, get_writer(grs.getSchema))
         case None => Pull.done
       }.stream
 
@@ -77,7 +76,7 @@ final class RotateByPolicySink[F[_]: Async] private (
     def get_writer(url: Path): Resource[F, HadoopWriter[F, GenericRecord]] =
       HadoopWriter.binAvroR[F](configuration, schema, url)
 
-    (ss: Stream[F, GenericRecord]) => periodically.merge.persist(ss.chunks, ticks, get_writer).stream
+    (ss: Stream[F, GenericRecord]) => periodically.persist(ss.chunks, ticks, get_writer).stream
 
   }
 
@@ -89,7 +88,7 @@ final class RotateByPolicySink[F[_]: Async] private (
     (ss: Stream[F, GenericRecord]) =>
       ss.pull.peek1.flatMap {
         case Some((grs, stream)) =>
-          periodically.merge.persist(stream.chunks, ticks, get_writer(grs.getSchema))
+          periodically.persist(stream.chunks, ticks, get_writer(grs.getSchema))
         case None => Pull.done
       }.stream
 
@@ -99,7 +98,7 @@ final class RotateByPolicySink[F[_]: Async] private (
     def get_writer(url: Path): Resource[F, HadoopWriter[F, GenericRecord]] =
       HadoopWriter.jacksonR[F](configuration, schema, url)
 
-    (ss: Stream[F, GenericRecord]) => periodically.merge.persist(ss.chunks, ticks, get_writer).stream
+    (ss: Stream[F, GenericRecord]) => periodically.persist(ss.chunks, ticks, get_writer).stream
 
   }
 
@@ -122,7 +121,7 @@ final class RotateByPolicySink[F[_]: Async] private (
     (ss: Stream[F, GenericRecord]) =>
       ss.pull.peek1.flatMap {
         case Some((grs, stream)) =>
-          periodically.merge.persist(stream.chunks, ticks, get_writer(grs.getSchema))
+          periodically.persist(stream.chunks, ticks, get_writer(grs.getSchema))
         case None => Pull.done
       }.stream
 
@@ -146,7 +145,7 @@ final class RotateByPolicySink[F[_]: Async] private (
       HadoopWriter.parquetR[F](writeBuilder, url)
     }
 
-    (ss: Stream[F, GenericRecord]) => periodically.merge.persist(ss.chunks, ticks, get_writer).stream
+    (ss: Stream[F, GenericRecord]) => periodically.persist(ss.chunks, ticks, get_writer).stream
 
   }
 
@@ -158,7 +157,7 @@ final class RotateByPolicySink[F[_]: Async] private (
     def get_writer(url: Path): Resource[F, HadoopWriter[F, Byte]] =
       HadoopWriter.byteR[F](configuration, url)
 
-    (ss: Stream[F, Byte]) => periodically.merge.persist(ss.chunks, ticks, get_writer).stream
+    (ss: Stream[F, Byte]) => periodically.persist(ss.chunks, ticks, get_writer).stream
 
   }
 
@@ -168,43 +167,17 @@ final class RotateByPolicySink[F[_]: Async] private (
     def get_writer(url: Path): Resource[F, HadoopWriter[F, String]] =
       HadoopWriter.stringR[F](configuration, url)
 
-    (ss: Stream[F, Json]) =>
-      periodically.merge.persist(ss.chunks.map(_.map(_.noSpaces)), ticks, get_writer).stream
+    (ss: Stream[F, Json]) => periodically.persist(ss.chunks.map(_.map(_.noSpaces)), ticks, get_writer).stream
 
   }
 
   // kantan csv
   def kantan(csvConfiguration: CsvConfiguration): Pipe[F, Seq[String], TickedValue[Int]] = {
     def get_writer(url: Path): Resource[F, HadoopWriter[F, String]] =
-      HadoopWriter.csvStringR[F](configuration, url)
+      HadoopWriter.csvStringR[F](configuration, url).evalTap(_.write(csvHeader(csvConfiguration)))
 
     (ss: Stream[F, Seq[String]]) =>
-      val encodedSrc: Stream[F, Chunk[String]] = ss.chunks.map(_.map(csvRow(csvConfiguration)))
-      if (csvConfiguration.hasHeader) {
-        val header: Chunk[String] = csvHeader(csvConfiguration)
-        ticks.pull.uncons1.flatMap {
-          case Some((head, tail)) =>
-            Stream
-              .resource(Hotswap(get_writer(head.value)))
-              .flatMap { case (hotswap, writer) =>
-                Stream.eval(writer.write(header)) >>
-                  periodically
-                    .persistCsvWithHeader[F, Path](
-                      head.tick,
-                      get_writer,
-                      hotswap,
-                      writer,
-                      encodedSrc.map(Left(_)).mergeHaltBoth(tail.map(Right(_))),
-                      header
-                    )
-                    .stream
-              }
-              .pull
-              .echo
-          case None => Pull.done
-        }.stream
-      } else periodically.merge.persist(encodedSrc, ticks, get_writer).stream
-
+      periodically.persist(ss.chunks.map(_.map(csvRow(csvConfiguration))), ticks, get_writer).stream
   }
 
   def kantan(f: Endo[CsvConfiguration]): Pipe[F, Seq[String], TickedValue[Int]] =
@@ -218,8 +191,7 @@ final class RotateByPolicySink[F[_]: Async] private (
     def get_writer(url: Path): Resource[F, HadoopWriter[F, String]] =
       HadoopWriter.stringR(configuration, url)
 
-    (ss: Stream[F, String]) => periodically.merge.persist(ss.chunks, ticks, get_writer).stream
-
+    (ss: Stream[F, String]) => periodically.persist(ss.chunks, ticks, get_writer).stream
   }
 
   /** Any proto in serialized form must be <2GiB, as that is the maximum size supported by all
@@ -231,8 +203,7 @@ final class RotateByPolicySink[F[_]: Async] private (
     def get_writer(url: Path): Resource[F, HadoopWriter[F, GeneratedMessage]] =
       HadoopWriter.protobufR(configuration, url)
 
-    (ss: Stream[F, GeneratedMessage]) => periodically.merge.persist(ss.chunks, ticks, get_writer).stream
-
+    (ss: Stream[F, GeneratedMessage]) => periodically.persist(ss.chunks, ticks, get_writer).stream
   }
 }
 

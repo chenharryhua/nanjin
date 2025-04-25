@@ -6,7 +6,7 @@ import cats.effect.kernel.{Async, Resource}
 import cats.effect.std.Hotswap
 import cats.implicits.toFunctorOps
 import com.github.chenharryhua.nanjin.common.chrono.{Policy, Tick, TickStatus, TickedValue}
-import fs2.{Chunk, Pipe, Pull, Stream}
+import fs2.{Pipe, Pull, Stream}
 import io.circe.Json
 import io.lemonlabs.uri.Url
 import kantan.csv.CsvConfiguration
@@ -221,16 +221,11 @@ final class RotateBySizeSink[F[_]] private (
   // kantan csv
   def kantan(csvConfiguration: CsvConfiguration): Pipe[F, Seq[String], TickedValue[Int]] = {
     def get_writer(tick: Tick): Resource[F, HadoopWriter[F, String]] =
-      HadoopWriter.csvStringR[F](configuration, pathBuilder(tick))
+      HadoopWriter
+        .csvStringR[F](configuration, pathBuilder(tick))
+        .evalTap(_.write(csvHeader(csvConfiguration)))
 
-    val header: Chunk[String] = csvHeader(csvConfiguration)
-    (ss: Stream[F, Seq[String]]) =>
-      val encodedSrc: Stream[F, String] = if (csvConfiguration.hasHeader) {
-        Stream.chunk(header) ++ ss.map(csvRow(csvConfiguration))
-      } else {
-        ss.map(csvRow(csvConfiguration))
-      }
-      persist(encodedSrc, get_writer).stream
+    (ss: Stream[F, Seq[String]]) => persist(ss.map(csvRow(csvConfiguration)), get_writer).stream
   }
 
   def kantan(f: Endo[CsvConfiguration]): Pipe[F, Seq[String], TickedValue[Int]] =

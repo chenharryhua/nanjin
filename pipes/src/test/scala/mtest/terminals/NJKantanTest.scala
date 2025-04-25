@@ -131,7 +131,8 @@ class NJKantanTest extends AnyFunSuite {
     val file = KantanFile(_.Uncompressed)
     herd
       .map(tigerEncoder.encode)
-      .through(hdp.rotateSink(1000)(t => path / file.fileName(t)).kantan(_.withHeader(CsvHeaderOf[Tiger].header)))
+      .through(
+        hdp.rotateSink(1000)(t => path / file.fileName(t)).kantan(_.withHeader(CsvHeaderOf[Tiger].header)))
       .compile
       .drain
       .unsafeRunSync()
@@ -247,20 +248,20 @@ class NJKantanTest extends AnyFunSuite {
     assert(size == 15000)
   }
 
-//  ignore("large number (10000) of files - passed but too cost to run it") {
-//    val path   = fs2Root / "rotation" / "many"
-//    val number = 1000L
-//    val file   = KantanFile(_.Uncompressed)
-//    hdp.delete(path).unsafeRunSync()
-//    Stream
-//      .emits(TestData.tigerSet.toList)
-//      .covary[IO]
-//      .repeatN(number)
-//      .map(tigerEncoder.encode)
-//      .through(hdp.rotateSink(1)(t => path / file.fileName(t)).kantan)
-//      .fold(0L)((sum, v) => sum + v.value)
-//      .compile
-//      .lastOrError
-//      .unsafeRunSync()
-//  }
+  ignore("large number (10000) of files - passed but too cost to run it") {
+    val path   = fs2Root / "rotation" / "many"
+    val number = 1000L
+    val file   = KantanFile(_.Uncompressed)
+    hdp.delete(path).unsafeRunSync()
+    Stream
+      .emits(TestData.tigerSet.toList)
+      .covary[IO]
+      .repeatN(number)
+      .map(tigerEncoder.encode)
+      .through(hdp.rotateSink(1)(t => path / file.fileName(t)).kantan)
+      .fold(0L)((sum, v) => sum + v.value)
+      .compile
+      .lastOrError
+      .unsafeRunSync()
+  }
 }
