@@ -113,9 +113,7 @@ class NJParquetTest extends AnyFunSuite {
       .emits(pandaSet.toList)
       .covary[IO]
       .repeatN(number)
-      .chunkN(1000)
-      .unchunks
-      .through(hdp.rotateSink(t => path / file.fileName(t)).parquet)
+      .through(hdp.rotateSink(1000)(t => path / file.fileName(t)).parquet)
       .fold(0L)((sum, v) => sum + v.value)
       .compile
       .lastOrError
@@ -174,7 +172,7 @@ class NJParquetTest extends AnyFunSuite {
       .emits(pandaSet.toList)
       .covary[IO]
       .repeatN(number)
-      .through(hdp.rotateSink(t => path / file.fileName(t)).parquet)
+      .through(hdp.rotateSink(1)(t => path / file.fileName(t)).parquet)
       .fold(0L)((sum, v) => sum + v.value)
       .compile
       .lastOrError

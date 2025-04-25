@@ -129,10 +129,8 @@ class NJCirceTest extends AnyFunSuite {
       .emits(TestData.tigerSet.toList)
       .covary[IO]
       .repeatN(number)
-      .chunkN(1000)
-      .unchunks
       .map(_.asJson)
-      .through(hdp.rotateSink(t => path / file.fileName(t)).circe)
+      .through(hdp.rotateSink(1000)(t => path / file.fileName(t)).circe)
       .fold(0L)((sum, v) => sum + v.value)
       .compile
       .lastOrError
@@ -214,7 +212,7 @@ class NJCirceTest extends AnyFunSuite {
       .covary[IO]
       .repeatN(number)
       .map(_.asJson)
-      .through(hdp.rotateSink(t => path / file.fileName(t)).circe)
+      .through(hdp.rotateSink(1)(t => path / file.fileName(t)).circe)
       .fold(0L)((sum, v) => sum + v.value)
       .compile
       .lastOrError

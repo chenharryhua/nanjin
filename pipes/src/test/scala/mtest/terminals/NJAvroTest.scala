@@ -102,9 +102,7 @@ class NJAvroTest extends AnyFunSuite {
       .emits(pandaSet.toList)
       .covary[IO]
       .repeatN(number)
-      .chunkN(1000)
-      .unchunks
-      .through(hdp.rotateSink(t => path / file.fileName(t)).avro(_.Uncompressed))
+      .through(hdp.rotateSink(1000)(t => path / file.fileName(t)).avro(_.Uncompressed))
       .fold(0L)((sum, v) => sum + v.value)
       .compile
       .lastOrError
@@ -148,7 +146,7 @@ class NJAvroTest extends AnyFunSuite {
       .emits(pandaSet.toList)
       .covary[IO]
       .repeatN(number)
-      .through(hdp.rotateSink(t => path / file.fileName(t)).avro(_.Uncompressed))
+      .through(hdp.rotateSink(1000)(t => path / file.fileName(t)).avro(_.Uncompressed))
       .fold(0L)((sum, v) => sum + v.value)
       .compile
       .lastOrError

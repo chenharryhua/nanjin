@@ -97,16 +97,15 @@ class NJJacksonTest extends AnyFunSuite {
     val number = 10000L
     val file   = JacksonFile(_.Uncompressed)
     hdp.delete(path).unsafeRunSync()
-    val processedSize = Stream
+    val tickedValues = Stream
       .emits(pandaSet.toList)
       .covary[IO]
       .repeatN(number)
-      .chunkN(1000)
+      .chunkN(300)
       .unchunks
-      .through(hdp.rotateSink(t => path / file.fileName(t)).jackson)
-      .fold(0L)((sum, v) => sum + v.value)
+      .through(hdp.rotateSink(1000)(t => path / file.fileName(t)).jackson)
       .compile
-      .lastOrError
+      .toList
       .unsafeRunSync()
     val size =
       hdp
@@ -115,7 +114,31 @@ class NJJacksonTest extends AnyFunSuite {
         .map(_.sum)
         .unsafeRunSync()
     assert(size == number * 2)
-    assert(processedSize == number * 2)
+    assert(tickedValues.map(_.value).sum == number * 2)
+
+    assert(tickedValues.head.value == 300)
+    assert(tickedValues.head.tick.index == 0)
+    assert(tickedValues(1).value == 300)
+    assert(tickedValues(1).tick.index == 0)
+    assert(tickedValues(2).value == 300)
+    assert(tickedValues(2).tick.index == 0)
+    assert(tickedValues(3).value == 100)
+    assert(tickedValues(3).tick.index == 0)
+
+    assert(tickedValues(4).value == 200)
+    assert(tickedValues(4).tick.index == 1)
+    assert(tickedValues(5).value == 300)
+    assert(tickedValues(5).tick.index == 1)
+    assert(tickedValues(6).value == 300)
+    assert(tickedValues(6).tick.index == 1)
+    assert(tickedValues(7).value == 200)
+    assert(tickedValues(7).tick.index == 1)
+
+    assert(tickedValues(8).value == 100)
+    assert(tickedValues(8).tick.index == 2)
+    assert(tickedValues(9).value == 300)
+    assert(tickedValues(9).tick.index == 2)
+
   }
 
   test("stream concat") {
@@ -148,7 +171,7 @@ class NJJacksonTest extends AnyFunSuite {
       .emits(pandaSet.toList)
       .covary[IO]
       .repeatN(number)
-      .through(hdp.rotateSink(t => path / file.fileName(t)).jackson)
+      .through(hdp.rotateSink(1)(t => path / file.fileName(t)).jackson)
       .fold(0L)((sum, v) => sum + v.value)
       .compile
       .lastOrError

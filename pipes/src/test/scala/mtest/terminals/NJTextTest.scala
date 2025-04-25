@@ -113,10 +113,8 @@ class NJTextTest extends AnyFunSuite {
       .emits(TestData.tigerSet.toList)
       .covary[IO]
       .repeatN(number)
-      .chunkN(1000)
-      .unchunks
       .map(_.toString)
-      .through(hdp.rotateSink(t => path / fk.fileName(t)).text)
+      .through(hdp.rotateSink(1000)(t => path / fk.fileName(t)).text)
       .fold(0L)((sum, v) => sum + v.value)
       .compile
       .lastOrError
@@ -170,7 +168,7 @@ class NJTextTest extends AnyFunSuite {
       .covary[IO]
       .repeatN(number)
       .map(_.toString)
-      .through(hdp.rotateSink(t => path / file.fileName(t)).text)
+      .through(hdp.rotateSink(1)(t => path / file.fileName(t)).text)
       .fold(0L)((sum, v) => sum + v.value)
       .compile
       .lastOrError
