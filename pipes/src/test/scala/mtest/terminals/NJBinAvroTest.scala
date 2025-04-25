@@ -27,7 +27,7 @@ class NJBinAvroTest extends AnyFunSuite {
     hdp.delete(tgt).unsafeRunSync()
     val sink     = hdp.sink(tgt).binAvro
     val src      = hdp.source(tgt).binAvro(100, pandaSchema)
-    val ts       = Stream.emits(data.toList).covary[IO].chunks
+    val ts       = Stream.emits(data.toList).covary[IO]
     val action   = ts.through(sink).compile.drain >> src.compile.toList
     val fileName = (file: FileKind).asJson.noSpaces
     assert(jawn.decode[FileKind](fileName).toOption.get == file)
@@ -77,7 +77,6 @@ class NJBinAvroTest extends AnyFunSuite {
       .emits(pandaSet.toList)
       .covary[IO]
       .repeatN(number)
-      .chunks
       .through(hdp
         .rotateSink(Policy.fixedDelay(1.second), ZoneId.systemDefault())(t => path / file.fileName(t))
         .binAvro)
@@ -105,7 +104,8 @@ class NJBinAvroTest extends AnyFunSuite {
       .covary[IO]
       .repeatN(number)
       .chunkN(1000)
-      .through(hdp.rotateSink(t => path / file.fileName(t)).binAvro)
+      .unchunks
+      .through(hdp.rotateSink(1000)(t => path / file.fileName(t)).binAvro)
       .fold(0L)((sum, v) => sum + v.value)
       .compile
       .lastOrError
@@ -121,7 +121,7 @@ class NJBinAvroTest extends AnyFunSuite {
   }
 
   test("stream concat") {
-    val s         = Stream.emits(pandaSet.toList).covary[IO].repeatN(500).chunks
+    val s         = Stream.emits(pandaSet.toList).covary[IO].repeatN(500)
     val path: Url = fs2Root / "concat" / "bin.avro"
 
     (hdp.delete(path) >>
@@ -132,7 +132,7 @@ class NJBinAvroTest extends AnyFunSuite {
   }
 
   test("stream concat - 2") {
-    val s         = Stream.emits(pandaSet.toList).covary[IO].repeatN(500).chunks
+    val s         = Stream.emits(pandaSet.toList).covary[IO].repeatN(500)
     val path: Url = fs2Root / "concat" / "rotate"
     val sink = hdp.rotateSink(Policy.fixedDelay(0.1.second), ZoneId.systemDefault())(t =>
       path / BinAvroFile(_.Uncompressed).fileName(t))
@@ -150,8 +150,7 @@ class NJBinAvroTest extends AnyFunSuite {
       .emits(pandaSet.toList)
       .covary[IO]
       .repeatN(number)
-      .chunkN(1)
-      .through(hdp.rotateSink(t => path / file.fileName(t)).binAvro)
+      .through(hdp.rotateSink(1000)(t => path / file.fileName(t)).binAvro)
       .fold(0L)((sum, v) => sum + v.value)
       .compile
       .lastOrError

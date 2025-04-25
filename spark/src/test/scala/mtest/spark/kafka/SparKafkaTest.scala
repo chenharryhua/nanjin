@@ -213,7 +213,6 @@ class SparKafkaTest extends AnyFunSuite {
       .take(2)
       .map(_.record.value)
       .evalMap(IO.fromTry)
-      .chunks
       .through(sink)
       .compile
       .drain

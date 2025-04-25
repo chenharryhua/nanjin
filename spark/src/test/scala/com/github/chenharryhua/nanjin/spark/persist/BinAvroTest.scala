@@ -114,7 +114,6 @@ class BinAvroTest extends AnyFunSuite {
       .fromBlockingIterator[IO]
       .apply(RoosterData.rdd.toLocalIterator, 100)
       .map(toRecord.to)
-      .chunks
       .through(hdp.sink(path).binAvro)
       .compile
       .drain
@@ -129,7 +128,6 @@ class BinAvroTest extends AnyFunSuite {
       .fromBlockingIterator[IO]
       .apply(RoosterData.rdd.toLocalIterator, 100)
       .map(toRecord.to)
-      .chunks
       .through(hdp.sink(path).binAvro)
       .compile
       .drain
@@ -145,7 +143,6 @@ class BinAvroTest extends AnyFunSuite {
       .fromBlockingIterator[IO]
       .apply(RoosterData.rdd.toLocalIterator, 100)
       .map(toRecord.to)
-      .chunks
       .through(hdp.sink(path).binAvro)
       .compile
       .drain

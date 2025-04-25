@@ -8,7 +8,7 @@ import com.github.chenharryhua.nanjin.terminals.*
 import com.github.chenharryhua.nanjin.terminals.Compression.*
 import eu.timepit.refined.auto.*
 import fs2.text.{lines, utf8}
-import fs2.{Chunk, Pipe, Stream}
+import fs2.{Pipe, Stream}
 import io.circe.generic.auto.*
 import io.circe.jawn.CirceSupportParser.facade
 import io.circe.syntax.EncoderOps
@@ -29,18 +29,19 @@ class NJCirceTest extends AnyFunSuite {
   def fs2(path: Url, file: CirceFile, data: Set[Tiger]): Assertion = {
     val tgt = path / file.fileName
     hdp.delete(tgt).unsafeRunSync()
-    val ts: Stream[IO, Json]             = Stream.emits(data.toList).covary[IO].map(_.asJson)
-    val sink: Pipe[IO, Chunk[Json], Int] = hdp.sink(tgt).circe
-    val src: Stream[IO, Tiger]           = hdp.source(tgt).circe.mapFilter(_.as[Tiger].toOption)
-    val action: IO[List[Tiger]]          = ts.chunks.through(sink).compile.drain >> src.compile.toList
+    val ts: Stream[IO, Json]      = Stream.emits(data.toList).covary[IO].map(_.asJson)
+    val sink: Pipe[IO, Json, Int] = hdp.sink(tgt).circe
+    val src: Stream[IO, Tiger]    = hdp.source(tgt).circe(10).mapFilter(_.as[Tiger].toOption)
+    val action: IO[List[Tiger]]   = ts.through(sink).compile.drain >> src.compile.toList
     assert(action.unsafeRunSync().toSet == data)
     val lines = hdp.source(tgt).text(32).compile.fold(0) { case (s, _) => s + 1 }
     assert(lines.unsafeRunSync() === data.size)
     val fileName = (file: FileKind).asJson.noSpaces
     assert(jawn.decode[FileKind](fileName).toOption.get == file)
-    val size = ts.chunks.through(sink).fold(0)(_ + _).compile.lastOrError.unsafeRunSync()
+    val size = ts.through(sink).fold(0)(_ + _).compile.lastOrError.unsafeRunSync()
     assert(size == data.size)
-    assert(hdp.source(tgt).circe.mapFilter(_.as[Tiger].toOption).compile.toList.unsafeRunSync().toSet == data)
+    assert(
+      hdp.source(tgt).circe(10).mapFilter(_.as[Tiger].toOption).compile.toList.unsafeRunSync().toSet == data)
   }
 
   val fs2Root: Url = Url.parse("./data/test/terminals/circe/tiger")
@@ -70,7 +71,7 @@ class NJCirceTest extends AnyFunSuite {
   }
 
   test("laziness") {
-    hdp.source("./does/not/exist").circe
+    hdp.source("./does/not/exist").circe(10)
     hdp.sink("./does/not/exist").circe
   }
 
@@ -84,7 +85,6 @@ class NJCirceTest extends AnyFunSuite {
       .covary[IO]
       .repeatN(number)
       .map(_.asJson)
-      .chunks
       .through(
         hdp.rotateSink(Policy.fixedDelay(1.second), ZoneId.systemDefault())(t => path / fk.fileName(t)).circe)
       .fold(0L)((sum, v) => sum + v.value)
@@ -94,7 +94,7 @@ class NJCirceTest extends AnyFunSuite {
     val size =
       hdp
         .filesIn(path)
-        .flatMap(_.traverse(hdp.source(_).circe.compile.toList.map(_.size)))
+        .flatMap(_.traverse(hdp.source(_).circe(10).compile.toList.map(_.size)))
         .map(_.sum)
         .unsafeRunSync()
     assert(size == number * TestData.tigerSet.toList.size)
@@ -130,8 +130,7 @@ class NJCirceTest extends AnyFunSuite {
       .covary[IO]
       .repeatN(number)
       .map(_.asJson)
-      .chunkN(1000)
-      .through(hdp.rotateSink(t => path / file.fileName(t)).circe)
+      .through(hdp.rotateSink(1000)(t => path / file.fileName(t)).circe)
       .fold(0L)((sum, v) => sum + v.value)
       .compile
       .lastOrError
@@ -139,7 +138,7 @@ class NJCirceTest extends AnyFunSuite {
     val size =
       hdp
         .filesIn(path)
-        .flatMap(_.traverse(hdp.source(_).circe.compile.toList.map(_.size)))
+        .flatMap(_.traverse(hdp.source(_).circe(10).compile.toList.map(_.size)))
         .map(_.sum)
         .unsafeRunSync()
     assert(size == number * TestData.tigerSet.toList.size)
@@ -170,7 +169,7 @@ class NJCirceTest extends AnyFunSuite {
     hdp.delete(path).unsafeRunSync()
     val fk = CirceFile(Uncompressed)
     (Stream.sleep[IO](10.hours) >>
-      Stream.empty.covaryAll[IO, Json]).chunks
+      Stream.empty.covaryAll[IO, Json])
       .through(
         hdp
           .rotateSink(Policy.fixedDelay(1.second).limited(3), ZoneId.systemDefault())(t =>
@@ -184,17 +183,17 @@ class NJCirceTest extends AnyFunSuite {
   }
 
   test("stream concat") {
-    val s         = Stream.emits(TestData.tigerSet.toList).covary[IO].repeatN(500).map(_.asJson).chunks
+    val s         = Stream.emits(TestData.tigerSet.toList).covary[IO].repeatN(500).map(_.asJson)
     val path: Url = fs2Root / "concat" / "circe.json"
 
     (hdp.delete(path) >>
       (s ++ s ++ s).through(hdp.sink(path).circe).compile.drain).unsafeRunSync()
-    val size = hdp.source(path).circe.compile.fold(0) { case (s, _) => s + 1 }.unsafeRunSync()
+    val size = hdp.source(path).circe(10).compile.fold(0) { case (s, _) => s + 1 }.unsafeRunSync()
     assert(size == 15000)
   }
 
   test("stream concat - 2") {
-    val s         = Stream.emits(TestData.tigerSet.toList).covary[IO].map(_.asJson).repeatN(500).chunks
+    val s         = Stream.emits(TestData.tigerSet.toList).covary[IO].map(_.asJson).repeatN(500)
     val path: Url = fs2Root / "concat" / "rotate"
     val sink = hdp.rotateSink(Policy.fixedDelay(0.1.second), ZoneId.systemDefault())(t =>
       path / ParquetFile(_.Uncompressed).fileName(t))
@@ -213,8 +212,7 @@ class NJCirceTest extends AnyFunSuite {
       .covary[IO]
       .repeatN(number)
       .map(_.asJson)
-      .chunkN(1)
-      .through(hdp.rotateSink(t => path / file.fileName(t)).circe)
+      .through(hdp.rotateSink(1)(t => path / file.fileName(t)).circe)
       .fold(0L)((sum, v) => sum + v.value)
       .compile
       .lastOrError

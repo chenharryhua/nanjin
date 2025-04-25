@@ -13,7 +13,6 @@ import java.time.ZoneId
 import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
-import scala.concurrent.duration.DurationInt
 object Hadoop {
 
   def apply[F[_]](config: Configuration): Hadoop[F] = new Hadoop[F](config)
@@ -132,23 +131,19 @@ final class Hadoop[F[_]] private (config: Configuration) {
 
   def sink(path: Url)(implicit F: Sync[F]): FileSink[F] = FileSink[F](config, path)
 
-  /** Policy based rotation
+  /** Policy based rotation sink
     */
   def rotateSink(policy: Policy, zoneId: ZoneId)(pathBuilder: Tick => Url)(implicit
-    F: Async[F]): FileRotateSink[F] =
-    FileRotateSink(
-      RotateType.PolicyBased,
+    F: Async[F]): RotateByPolicySink[F] =
+    RotateByPolicySink(
       config,
       tickStream.fromZero[F](policy, zoneId).map(tick => TickedValue(tick, pathBuilder(tick))))
 
-  /** Chunk based rotation
+  /** Size based rotation sink
     */
-  def rotateSink(pathBuilder: Tick => Url)(implicit F: Async[F]): FileRotateSink[F] =
-    FileRotateSink(
-      RotateType.ChunkBased,
-      config,
-      tickStream
-        .fromZero[F](Policy.fixedDelay(0.seconds), ZoneId.systemDefault())
-        .map(tick => TickedValue(tick, pathBuilder(tick)))
-    )
+  def rotateSink(size: Int)(pathBuilder: Tick => Url)(implicit F: Async[F]): RotateBySizeSink[F] = {
+    require(size > 0, "size should be bigger than zero")
+    RotateBySizeSink[F](config, pathBuilder, size)
+  }
+
 }

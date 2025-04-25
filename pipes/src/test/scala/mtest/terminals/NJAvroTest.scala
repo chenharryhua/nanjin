@@ -26,7 +26,7 @@ class NJAvroTest extends AnyFunSuite {
     hdp.delete(tgt).unsafeRunSync()
     val sink     = hdp.sink(tgt).avro(file.compression)
     val src      = hdp.source(tgt).avro(100)
-    val ts       = Stream.emits(data.toList).covary[IO].chunks
+    val ts       = Stream.emits(data.toList).covary[IO]
     val action   = ts.through(sink).compile.drain >> src.compile.toList.map(_.toList)
     val fileName = (file: FileKind).asJson.noSpaces
     assert(jawn.decode[FileKind](fileName).toOption.get == file)
@@ -76,7 +76,6 @@ class NJAvroTest extends AnyFunSuite {
       .emits(pandaSet.toList)
       .covary[IO]
       .repeatN(number)
-      .chunks
       .through(hdp
         .rotateSink(Policy.fixedDelay(1.second), ZoneId.systemDefault())(t => path / file.fileName(t))
         .avro(_.Uncompressed))
@@ -103,8 +102,7 @@ class NJAvroTest extends AnyFunSuite {
       .emits(pandaSet.toList)
       .covary[IO]
       .repeatN(number)
-      .chunkN(1000)
-      .through(hdp.rotateSink(t => path / file.fileName(t)).avro(_.Uncompressed))
+      .through(hdp.rotateSink(1000)(t => path / file.fileName(t)).avro(_.Uncompressed))
       .fold(0L)((sum, v) => sum + v.value)
       .compile
       .lastOrError
@@ -120,7 +118,7 @@ class NJAvroTest extends AnyFunSuite {
   }
 
   test("stream concat") {
-    val s         = Stream.emits(pandaSet.toList).covary[IO].repeatN(500).chunks
+    val s         = Stream.emits(pandaSet.toList).covary[IO].repeatN(500)
     val path: Url = fs2Root / "concat" / "data.avro"
 
     (hdp.delete(path) >>
@@ -130,7 +128,7 @@ class NJAvroTest extends AnyFunSuite {
   }
 
   test("stream concat - 2") {
-    val s         = Stream.emits(pandaSet.toList).covary[IO].repeatN(500).chunks
+    val s         = Stream.emits(pandaSet.toList).covary[IO].repeatN(500)
     val path: Url = fs2Root / "concat" / "rotate"
     val sink = hdp.rotateSink(Policy.fixedDelay(0.1.second), ZoneId.systemDefault())(t =>
       path / AvroFile(_.Uncompressed).fileName(t))
@@ -148,8 +146,7 @@ class NJAvroTest extends AnyFunSuite {
       .emits(pandaSet.toList)
       .covary[IO]
       .repeatN(number)
-      .chunkN(1)
-      .through(hdp.rotateSink(t => path / file.fileName(t)).avro(_.Uncompressed))
+      .through(hdp.rotateSink(1000)(t => path / file.fileName(t)).avro(_.Uncompressed))
       .fold(0L)((sum, v) => sum + v.value)
       .compile
       .lastOrError

@@ -25,7 +25,7 @@ class NJParquetTest extends AnyFunSuite {
 
   def fs2(path: Url, file: ParquetFile, data: Set[GenericRecord]): Assertion = {
     val tgt  = path / file.fileName
-    val ts   = Stream.emits(data.toList).covary[IO].chunks
+    val ts   = Stream.emits(data.toList).covary[IO]
     val sink = hdp.sink(tgt).parquet(_.withCompressionCodec(file.compression.codecName))
     hdp.delete(tgt).unsafeRunSync()
     val action =
@@ -86,7 +86,6 @@ class NJParquetTest extends AnyFunSuite {
       .emits(pandaSet.toList)
       .covary[IO]
       .repeatN(number)
-      .chunks
       .through(hdp
         .rotateSink(Policy.fixedDelay(1.second), ZoneId.systemDefault())(t => path / file.ymdFileName(t))
         .parquet)
@@ -114,8 +113,7 @@ class NJParquetTest extends AnyFunSuite {
       .emits(pandaSet.toList)
       .covary[IO]
       .repeatN(number)
-      .chunkN(1000)
-      .through(hdp.rotateSink(t => path / file.fileName(t)).parquet)
+      .through(hdp.rotateSink(1000)(t => path / file.fileName(t)).parquet)
       .fold(0L)((sum, v) => sum + v.value)
       .compile
       .lastOrError
@@ -146,7 +144,7 @@ class NJParquetTest extends AnyFunSuite {
   }
 
   test("stream concat") {
-    val s         = Stream.emits(pandaSet.toList).covary[IO].repeatN(500).chunks
+    val s         = Stream.emits(pandaSet.toList).covary[IO].repeatN(500)
     val path: Url = fs2Root / "concat" / "data.parquet"
 
     (hdp.delete(path) >>
@@ -156,7 +154,7 @@ class NJParquetTest extends AnyFunSuite {
   }
 
   test("stream concat - 2") {
-    val s         = Stream.emits(pandaSet.toList).covary[IO].repeatN(500).chunks
+    val s         = Stream.emits(pandaSet.toList).covary[IO].repeatN(500)
     val path: Url = fs2Root / "concat" / "rotate"
     val sink = hdp.rotateSink(Policy.fixedDelay(0.1.second), ZoneId.systemDefault())(t =>
       path / ParquetFile(_.Uncompressed).fileName(t))
@@ -174,8 +172,7 @@ class NJParquetTest extends AnyFunSuite {
       .emits(pandaSet.toList)
       .covary[IO]
       .repeatN(number)
-      .chunkN(1)
-      .through(hdp.rotateSink(t => path / file.fileName(t)).parquet)
+      .through(hdp.rotateSink(1)(t => path / file.fileName(t)).parquet)
       .fold(0L)((sum, v) => sum + v.value)
       .compile
       .lastOrError
