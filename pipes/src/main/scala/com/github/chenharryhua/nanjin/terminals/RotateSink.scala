@@ -20,11 +20,11 @@ trait RotateSink[F[_]] {
     avro(AvroCompression.Uncompressed)
 
   def avro(schema: Schema, compression: AvroCompression): Pipe[F, GenericRecord, TickedValue[Int]]
-  def avro(
+  final def avro(
     schema: Schema,
     f: AvroCompression.type => AvroCompression): Pipe[F, GenericRecord, TickedValue[Int]] =
     avro(schema, f(AvroCompression))
-  def avro(schema: Schema): Pipe[F, GenericRecord, TickedValue[Int]] =
+  final def avro(schema: Schema): Pipe[F, GenericRecord, TickedValue[Int]] =
     avro(schema, AvroCompression.Uncompressed)
 
   def binAvro: Pipe[F, GenericRecord, TickedValue[Int]]
@@ -35,10 +35,10 @@ trait RotateSink[F[_]] {
 
   def parquet(f: Endo[Builder[GenericRecord]]): Pipe[F, GenericRecord, TickedValue[Int]]
   final def parquet: Pipe[F, GenericRecord, TickedValue[Int]] =
-    parquet(a => a)
+    parquet(identity[Builder[GenericRecord]])
   def parquet(schema: Schema, f: Endo[Builder[GenericRecord]]): Pipe[F, GenericRecord, TickedValue[Int]]
   final def parquet(schema: Schema): Pipe[F, GenericRecord, TickedValue[Int]] =
-    parquet(schema, identity)
+    parquet(schema, identity[Builder[GenericRecord]])
 
   def kantan(csvConfiguration: CsvConfiguration): Pipe[F, Seq[String], TickedValue[Int]]
   final def kantan(f: Endo[CsvConfiguration]): Pipe[F, Seq[String], TickedValue[Int]] =
@@ -52,5 +52,10 @@ trait RotateSink[F[_]] {
 
   def text: Pipe[F, String, TickedValue[Int]]
 
+  /** Any proto in serialized form must be <2GiB, as that is the maximum size supported by all
+    * implementations. It’s recommended to bound request and response sizes.
+    *
+    * https://protobuf.dev/programming-guides/proto-limits/#total
+    */
   def protobuf: Pipe[F, GeneratedMessage, TickedValue[Int]]
 }
