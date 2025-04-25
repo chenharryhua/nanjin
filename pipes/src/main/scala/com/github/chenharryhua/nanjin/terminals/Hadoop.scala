@@ -134,16 +134,17 @@ final class Hadoop[F[_]] private (config: Configuration) {
   /** Policy based rotation sink
     */
   def rotateSink(policy: Policy, zoneId: ZoneId)(pathBuilder: Tick => Url)(implicit
-    F: Async[F]): RotateByPolicySink[F] =
-    RotateByPolicySink(
+    F: Async[F]): RotateSink[F] =
+    new RotateByPolicySink[F](
       config,
-      tickStream.fromZero[F](policy, zoneId).map(tick => TickedValue(tick, pathBuilder(tick))))
+      tickStream.fromZero[F](policy, zoneId).map { tick =>
+        TickedValue(tick, toHadoopPath(pathBuilder(tick)))
+      })
 
   /** Size based rotation sink
     */
-  def rotateSink(size: Int)(pathBuilder: Tick => Url)(implicit F: Async[F]): RotateBySizeSink[F] = {
+  def rotateSink(size: Int)(pathBuilder: Tick => Url)(implicit F: Async[F]): RotateSink[F] = {
     require(size > 0, "size should be bigger than zero")
-    RotateBySizeSink[F](config, pathBuilder, size)
+    new RotateBySizeSink[F](config, pathBuilder.andThen(toHadoopPath), size)
   }
-
 }
