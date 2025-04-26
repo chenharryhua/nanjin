@@ -10,9 +10,9 @@ import shapeless.Witness
 import java.sql.Timestamp
 import java.time.Instant
 
-object transformers extends TransformersTrait
+object transformers extends TransformersTrait with ReverseTransformers
 
-trait TransformersTrait extends ReverseTransformers {
+trait TransformersTrait {
   implicit def enumCirceEncoder[E <: Enumeration](implicit w: Witness.Aux[E]): Encoder[E#Value] =
     Encoder.encodeEnumeration(w.value)
 

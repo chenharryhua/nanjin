@@ -31,9 +31,4 @@ class AwsArnTest extends AnyFunSuite {
     shapeless.test.illTyped(""" SqsUrl.Standard("https://github.com/abc.fifo") """)
 
   }
-
-  test("s3 url") {
-    val s3 = S3Path("bucket", "key")
-    assert(s3.s3Url.toString() == "s3://bucket/key")
-  }
 }

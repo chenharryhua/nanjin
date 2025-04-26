@@ -59,6 +59,7 @@ class SqsS3EventParserTest extends AnyFunSuite {
         0)).head
     assert(s3.path.bucket == "mybucket")
     assert(s3.path.key == "HappyFace2021-05-18T11:10:20.jpg")
+    assert(s3.path.url == "s3://mybucket/HappyFace2021-05-18T11:10:20.jpg")
     assert(s3.size == 1024)
   }
 
