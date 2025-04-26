@@ -16,7 +16,7 @@ object SimpleTextTranslator {
     val tn: String        = s"$CONSTANT_TASK:${se.serviceParams.taskName.value}"
     val serviceId: String = s"$CONSTANT_SERVICE_ID:${se.serviceParams.serviceId.show}"
     val uptime: String    = s"$CONSTANT_UPTIME:${textHelper.uptimeText(se)}"
-    s"""|$sn, $tn, $serviceId,
+    s"""|$sn, $tn, $serviceId
         |  $host, $uptime""".stripMargin
   }
 

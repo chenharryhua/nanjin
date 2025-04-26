@@ -159,11 +159,6 @@ final private class RotateByPolicySink[F[_]: Async](
     (ss: Stream[F, String]) => periodically.persist(ss.chunks, ticks, get_writer).stream
   }
 
-  /** Any proto in serialized form must be <2GiB, as that is the maximum size supported by all
-    * implementations. It’s recommended to bound request and response sizes.
-    *
-    * https://protobuf.dev/programming-guides/proto-limits/#total
-    */
   override val protobuf: Sink[GeneratedMessage] = {
     def get_writer(url: Path): Resource[F, HadoopWriter[F, GeneratedMessage]] =
       HadoopWriter.protobufR(configuration, url)
