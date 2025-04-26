@@ -39,7 +39,7 @@ class NJParquetTest extends AnyFunSuite {
     assert(hdp.source(tgt).parquet(100).compile.toList.unsafeRunSync().toSet == data)
   }
 
-  val fs2Root: Url = Url("./data/test/terminals/parquet/panda")
+  val fs2Root: Url = Url.parse("./data/test/terminals/parquet/panda")
 
   test("parquet snappy") {
     fs2(fs2Root, ParquetFile(_.Snappy), pandaSet)

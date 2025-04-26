@@ -21,7 +21,8 @@ import java.io.OutputStream
 
 final class FileSink[F[_]: Sync] private (configuration: Configuration, path: Path) {
 
-  // avro
+  /** [[https://avro.apache.org]]
+    */
   def avro(compression: AvroCompression): Pipe[F, GenericRecord, Int] = { (ss: Stream[F, GenericRecord]) =>
     ss.pull.stepLeg.flatMap {
       case Some(leg) =>
@@ -35,13 +36,18 @@ final class FileSink[F[_]: Sync] private (configuration: Configuration, path: Pa
     }.stream
   }
 
+  /** [[https://avro.apache.org]]
+    */
   def avro(f: AvroCompression.type => AvroCompression): Pipe[F, GenericRecord, Int] =
     avro(f(AvroCompression))
 
+  /** [[https://avro.apache.org]]
+    */
   val avro: Pipe[F, GenericRecord, Int] =
     avro(AvroCompression.Uncompressed)
 
-  // binary avro
+  /** [[https://avro.apache.org]]
+    */
   val binAvro: Pipe[F, GenericRecord, Int] = { (ss: Stream[F, GenericRecord]) =>
     ss.pull.stepLeg.flatMap {
       case Some(leg) =>
@@ -55,7 +61,8 @@ final class FileSink[F[_]: Sync] private (configuration: Configuration, path: Pa
     }.stream
   }
 
-  // jackson json
+  /** [[https://github.com/FasterXML/jackson]]
+    */
   val jackson: Pipe[F, GenericRecord, Int] = { (ss: Stream[F, GenericRecord]) =>
     ss.pull.stepLeg.flatMap {
       case Some(leg) =>
@@ -69,7 +76,8 @@ final class FileSink[F[_]: Sync] private (configuration: Configuration, path: Pa
     }.stream
   }
 
-  // parquet
+  /** [[https://parquet.apache.org]]
+    */
   def parquet(f: Endo[AvroParquetWriter.Builder[GenericRecord]]): Pipe[F, GenericRecord, Int] = {
     (ss: Stream[F, GenericRecord]) =>
       ss.pull.stepLeg.flatMap {
@@ -93,6 +101,8 @@ final class FileSink[F[_]: Sync] private (configuration: Configuration, path: Pa
       }.stream
   }
 
+  /** [[https://parquet.apache.org]]
+    */
   val parquet: Pipe[F, GenericRecord, Int] =
     parquet(identity)
 
@@ -103,14 +113,16 @@ final class FileSink[F[_]: Sync] private (configuration: Configuration, path: Pa
       .flatMap(w => ss.chunks.evalMap(c => w.write(c).as(c.size)))
   }
 
-  // circe json
+  /** [[https://github.com/circe/circe]]
+    */
   val circe: Pipe[F, Json, Int] = { (ss: Stream[F, Json]) =>
     Stream
       .resource(HadoopWriter.stringR[F](configuration, path))
       .flatMap(w => ss.chunks.evalMap(c => w.write(c.map(_.noSpaces)).as(c.size)))
   }
 
-  // kantan csv
+  /** [[https://nrinaudo.github.io/kantan.csv]]
+    */
   def kantan(csvConfiguration: CsvConfiguration): Pipe[F, Seq[String], Int] = {
     (ss: Stream[F, Seq[String]]) =>
       Stream.resource(HadoopWriter.csvStringR[F](configuration, path)).flatMap { w =>
@@ -123,9 +135,13 @@ final class FileSink[F[_]: Sync] private (configuration: Configuration, path: Pa
       }
   }
 
+  /** [[https://nrinaudo.github.io/kantan.csv]]
+    */
   def kantan(f: Endo[CsvConfiguration]): Pipe[F, Seq[String], Int] =
     kantan(f(CsvConfiguration.rfc))
 
+  /** [[https://nrinaudo.github.io/kantan.csv]]
+    */
   val kantan: Pipe[F, Seq[String], Int] =
     kantan(CsvConfiguration.rfc)
 
@@ -150,7 +166,6 @@ final class FileSink[F[_]: Sync] private (configuration: Configuration, path: Pa
   // java OutputStream
   val outputStream: Resource[F, OutputStream] =
     HadoopWriter.outputStreamR[F](path, configuration)
-
 }
 
 private object FileSink {
