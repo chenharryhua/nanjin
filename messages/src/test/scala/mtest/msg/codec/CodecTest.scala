@@ -30,12 +30,8 @@ class CodecTest extends AnyFunSuite {
     assertThrows[Exception](barCodec.deserialize(fooCodec.serialize(Foo("a", 0))))
   }
 
-  test("record of - 1") {
+  test("record of") {
     val codec = AvroCodec[Foo]
-    assert(codec.decode(codec.recordOf(Foo("a", 0))).isInstanceOf[Foo])
-  }
-
-  test("record of - exception") {
-    assertThrows[Exception](AvroCodec[Int].recordOf(1))
+    assert(codec.decode(codec.recordOf(Foo("a", 0)).get).isInstanceOf[Foo])
   }
 }

@@ -28,11 +28,9 @@ final class AvroCodec[A] private (
   override def encode(value: A): AnyRef                          = avroEncoder.encode(value)
   override def decode(value: Any): A                             = avroDecoder.decode(value)
 
-  @throws[Exception]
-  def recordOf(value: A): GenericRecord = encode(value) match {
-    case gr: GenericRecord => gr
-    case others =>
-      throw new Exception(s"${others.toString} is not a Generic Record")
+  def recordOf(value: A): Option[GenericRecord] = encode(value) match {
+    case gr: GenericRecord => Some(gr)
+    case _                 => None
   }
 
   /** https://avro.apache.org/docs/current/spec.html the grammar for a namespace is:
