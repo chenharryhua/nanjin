@@ -1,7 +1,7 @@
 package mtest.msg.codec
 
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
-import com.github.chenharryhua.nanjin.messages.kafka.codec.{KafkaSerde, SerdeOf}
+import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroCodec, KafkaSerde, SerdeOf}
 import eu.timepit.refined.auto.*
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -28,5 +28,14 @@ class CodecTest extends AnyFunSuite {
 
   test("should throw InvalidObjectException when codec does not match") {
     assertThrows[Exception](barCodec.deserialize(fooCodec.serialize(Foo("a", 0))))
+  }
+
+  test("record of - 1") {
+    val codec = AvroCodec[Foo]
+    assert(codec.decode(codec.recordOf(Foo("a", 0))).isInstanceOf[Foo])
+  }
+
+  test("record of - exception") {
+    assertThrows[Exception](AvroCodec[Int].recordOf(1))
   }
 }

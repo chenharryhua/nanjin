@@ -11,6 +11,7 @@ import com.sksamuel.avro4s.{
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.string.MatchesRegex
 import org.apache.avro.Schema
+import org.apache.avro.generic.GenericRecord
 
 final class AvroCodec[A] private (
   override val schemaFor: SchemaFor[A],
@@ -26,6 +27,13 @@ final class AvroCodec[A] private (
   override def withSchema(schemaFor: SchemaFor[A]): AvroCodec[A] = withSchema(schemaFor.schema)
   override def encode(value: A): AnyRef                          = avroEncoder.encode(value)
   override def decode(value: Any): A                             = avroDecoder.decode(value)
+
+  @throws[Exception]
+  def recordOf(value: A): GenericRecord = encode(value) match {
+    case gr: GenericRecord => gr
+    case others =>
+      throw new Exception(s"${others.toString} is not a Generic Record")
+  }
 
   /** https://avro.apache.org/docs/current/spec.html the grammar for a namespace is:
     *

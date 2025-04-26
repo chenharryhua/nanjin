@@ -215,7 +215,6 @@ final private class RotateBySizeSink[F[_]](
     (ss: Stream[F, String]) => persist(ss, get_writer).stream
   }
 
-
   override val protobuf: Sink[GeneratedMessage] = {
     def get_writer(tick: Tick): Resource[F, HadoopWriter[F, GeneratedMessage]] =
       HadoopWriter.protobufR(configuration, pathBuilder(tick))
