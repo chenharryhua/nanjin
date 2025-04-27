@@ -24,9 +24,13 @@ import java.io.{InputStream, InputStreamReader}
 
 final class FileSource[F[_]: Sync] private (configuration: Configuration, path: Path) {
 
+  /** [[https://avro.apache.org]]
+    */
   def avro(chunkSize: ChunkSize): Stream[F, GenericData.Record] =
     HadoopReader.avroS(configuration, path, chunkSize)
 
+  /** [[https://avro.apache.org]]
+    */
   def binAvro(chunkSize: ChunkSize, schema: Schema): Stream[F, GenericData.Record] =
     HadoopReader.binAvroS[F](configuration, schema, path, chunkSize)
 
@@ -35,12 +39,18 @@ final class FileSource[F[_]: Sync] private (configuration: Configuration, path: 
 
   val bytes: Stream[F, Byte] = bytes(Bytes(1024 * 512))
 
+  /** [[https://github.com/circe/circe]]
+    */
   def circe(chunkSize: ChunkSize): Stream[F, Json] =
     HadoopReader.jawnS[F](configuration, path, chunkSize)
 
+  /** [[https://github.com/FasterXML/jackson]]
+    */
   def jackson(chunkSize: ChunkSize, schema: Schema)(implicit F: Async[F]): Stream[F, GenericData.Record] =
     HadoopReader.jacksonS[F](configuration, schema, path, chunkSize)
 
+  /** [[https://nrinaudo.github.io/kantan.csv]]
+    */
   def kantan(chunkSize: ChunkSize, csvConfiguration: CsvConfiguration): Stream[F, Seq[String]] =
     HadoopReader.inputStreamS[F](configuration, path).flatMap { is =>
       val reader: CsvReader[ReadResult[Seq[String]]] = {
@@ -51,12 +61,18 @@ final class FileSource[F[_]: Sync] private (configuration: Configuration, path: 
       Stream.fromBlockingIterator[F](reader.iterator, chunkSize.value).rethrow
     }
 
+  /** [[https://nrinaudo.github.io/kantan.csv]]
+    */
   def kantan(chunkSize: ChunkSize, f: Endo[CsvConfiguration]): Stream[F, Seq[String]] =
     kantan(chunkSize, f(CsvConfiguration.rfc))
 
+  /** [[https://nrinaudo.github.io/kantan.csv]]
+    */
   def kantan(chunkSize: ChunkSize): Stream[F, Seq[String]] =
     kantan(chunkSize, CsvConfiguration.rfc)
 
+  /** [[https://parquet.apache.org]]
+    */
   def parquet(
     chunkSize: ChunkSize,
     f: Endo[ParquetReader.Builder[GenericData.Record]] = identity): Stream[F, GenericData.Record] =
@@ -70,6 +86,8 @@ final class FileSource[F[_]: Sync] private (configuration: Configuration, path: 
       chunkSize
     )
 
+  /** [[https://parquet.apache.org]]
+    */
   def parquet(chunkSize: ChunkSize): Stream[F, GenericData.Record] =
     parquet(chunkSize, identity)
 
@@ -79,7 +97,7 @@ final class FileSource[F[_]: Sync] private (configuration: Configuration, path: 
   /** Any proto in serialized form must be <2GiB, as that is the maximum size supported by all
     * implementations. It’s recommended to bound request and response sizes.
     *
-    * https://protobuf.dev/programming-guides/proto-limits/#total
+    * [[https://protobuf.dev/programming-guides/proto-limits/#total]]
     */
   def protobuf[A <: GeneratedMessage](chunkSize: ChunkSize)(implicit
     gmc: GeneratedMessageCompanion[A]): Stream[F, A] =

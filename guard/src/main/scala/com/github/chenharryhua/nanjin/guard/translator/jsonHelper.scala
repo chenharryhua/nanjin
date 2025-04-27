@@ -30,6 +30,7 @@ object jsonHelper {
         Json.obj(
           service_name(sm.serviceParams),
           service_id(sm.serviceParams),
+          "id" -> sm.id.asJson,
           sm.level.entryName -> sm.message
         ))
 

@@ -46,7 +46,7 @@ class NJTextTest extends AnyFunSuite {
         .toSet == data)
   }
 
-  val fs2Root: Url = Url("./data/test/terminals/text/tiger")
+  val fs2Root: Url = Url.parse("./data/test/terminals/text/tiger")
 
   test("uncompressed") {
     fs2(fs2Root, TextFile(_.Uncompressed), TestData.tigerSet)

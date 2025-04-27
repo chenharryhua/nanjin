@@ -3,7 +3,6 @@ package com.github.chenharryhua.nanjin.aws
 import cats.Endo
 import cats.effect.kernel.{Async, Resource}
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.common.aws.S3Path
 import com.github.chenharryhua.nanjin.common.chrono.{Policy, TickStatus}
 import fs2.{Chunk, Pull, Stream}
 import io.circe.Json
@@ -161,6 +160,11 @@ object SimpleQueueService {
 }
 
 object sqsS3Parser {
+  @JsonCodec
+  final case class S3Path(bucket: String, key: String) {
+    val url: String = s"s3://$bucket/$key"
+  }
+
   @JsonCodec @Lenses
   final case class SqsS3File(path: S3Path, size: Long, messageId: String, queueUrl: String)
 
