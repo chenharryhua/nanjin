@@ -7,7 +7,7 @@ import cats.implicits.catsSyntaxApplicativeId
 import com.codahale.metrics.MetricRegistry
 import com.github.benmanes.caffeine.cache.Cache
 import com.github.chenharryhua.nanjin.common.chrono.*
-import com.github.chenharryhua.nanjin.guard.action.*
+import com.github.chenharryhua.nanjin.guard.action.{Batch, CaffeineCache, CircuitBreaker, Retry}
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.event.*
 import com.github.chenharryhua.nanjin.guard.metrics.Metrics
@@ -37,7 +37,7 @@ sealed trait Agent[F[_]] {
 
   /** metrics adhoc report
     */
-  def adhoc: MetricsReport[F]
+  def adhoc: AdhocReport[F]
 
   def herald: Herald[F]
   def console: ConsoleHerald[F]
@@ -91,8 +91,8 @@ final private class GeneralAgent[F[_]: Async](
   override def retry(f: Endo[Retry.Builder[F]]): Resource[F, Retry[F]] =
     f(new Retry.Builder[F](Policy.giveUp, _ => true.pure[F])).build(zoneId)
 
-  override object adhoc extends MetricsReport[F](channel, serviceParams, metricRegistry)
+  override object adhoc extends AdhocReportImpl[F](channel, serviceParams, metricRegistry)
 
-  override object herald extends Herald.Impl[F](serviceParams, channel)
-  override object console extends ConsoleHerald.Impl[F](serviceParams, alarmLevel)
+  override object herald extends HeraldImpl[F](serviceParams, channel)
+  override object console extends ConsoleHeraldImpl[F](serviceParams, alarmLevel)
 }

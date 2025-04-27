@@ -41,10 +41,10 @@ final private class ReStart[F[_]: Temporal](
       tickStatus.next(now) match {
         case None =>
           val cause = ServiceStopCause.ByException(error)
-          publisher.serviceStop(channel, serviceParams, cause).as(None)
+          serviceStop(channel, serviceParams, cause).as(None)
         case Some(nts) =>
           for {
-            evt <- publisher.servicePanic(channel, serviceParams, nts.tick, error)
+            evt <- servicePanic(channel, serviceParams, nts.tick, error)
             _ <- panicHistory.modify(queue => (queue, queue.add(evt))) // mutable queue
             _ <- F.sleep(nts.tick.snooze.toScala)
           } yield Some(((), nts))
@@ -55,7 +55,7 @@ final private class ReStart[F[_]: Temporal](
     Stream
       .unfoldEval[F, TickStatus, Unit](
         TickStatus(serviceParams.zerothTick).renewPolicy(serviceParams.servicePolicies.restart)) { status =>
-        (publisher.serviceReStart(channel, serviceParams, status.tick) <* theService)
+        (serviceReStart(channel, serviceParams, status.tick) <* theService)
           .redeemWith[Option[(Unit, TickStatus)]](
             err => panic(status, err),
             _ => F.pure(None)
@@ -63,11 +63,11 @@ final private class ReStart[F[_]: Temporal](
       }
       .onFinalizeCase {
         case ExitCase.Succeeded =>
-          publisher.serviceStop(channel, serviceParams, ServiceStopCause.Successfully)
+          serviceStop(channel, serviceParams, ServiceStopCause.Successfully)
         case ExitCase.Errored(e) =>
-          publisher.serviceStop(channel, serviceParams, ServiceStopCause.ByException(Error(e)))
+          serviceStop(channel, serviceParams, ServiceStopCause.ByException(Error(e)))
         case ExitCase.Canceled =>
-          publisher.serviceStop(channel, serviceParams, ServiceStopCause.ByCancellation)
+          serviceStop(channel, serviceParams, ServiceStopCause.ByCancellation)
       }
       .drain
 }

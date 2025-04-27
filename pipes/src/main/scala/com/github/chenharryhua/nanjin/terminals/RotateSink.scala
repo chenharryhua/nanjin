@@ -10,7 +10,7 @@ import org.apache.avro.generic.GenericRecord
 import org.apache.parquet.avro.AvroParquetWriter.Builder
 import scalapb.GeneratedMessage
 
-trait RotateSink[F[_]] {
+abstract class RotateSink[F[_]] {
   protected type Sink[A] = Pipe[F, A, TickedValue[Int]]
 
   /** [[https://avro.apache.org]]
