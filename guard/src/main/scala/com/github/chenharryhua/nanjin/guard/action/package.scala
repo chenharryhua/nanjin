@@ -14,11 +14,11 @@ package object action {
     msg: S,
     level: AlarmLevel,
     error: Option[Error])(implicit F: Sync[F]): F[ServiceMessage] =
-    (F.unique, serviceParams.zonedNow).mapN { case (id, ts) =>
+    (F.unique, serviceParams.zonedNow).mapN { case (token, ts) =>
       ServiceMessage(
         serviceParams = serviceParams,
         timestamp = ts,
-        id = id.hashCode(),
+        token = token.hashCode(),
         level = level,
         error = error,
         message = Encoder[S].apply(msg))

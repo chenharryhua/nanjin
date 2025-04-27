@@ -34,7 +34,7 @@ object Event {
   final case class ServiceMessage(
     serviceParams: ServiceParams,
     timestamp: ZonedDateTime,
-    id: Int,
+    token: Int,
     level: AlarmLevel,
     error: Option[Error],
     message: Json
