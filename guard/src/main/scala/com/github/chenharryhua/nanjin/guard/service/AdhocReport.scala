@@ -7,27 +7,31 @@ import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.event.{Event, MetricIndex}
 import fs2.concurrent.Channel
 
-abstract class MetricsReport[F[_]] private[service] (
+sealed trait AdhocReport[F[_]] {
+  def reset: F[Unit]
+  def report: F[Unit]
+}
+
+abstract private class AdhocReportImpl[F[_]](
   channel: Channel[F, Event],
   serviceParams: ServiceParams,
-  metricRegistry: MetricRegistry)(implicit F: Sync[F]) {
+  metricRegistry: MetricRegistry)(implicit F: Sync[F])
+    extends AdhocReport[F] {
 
-  def reset: F[Unit] =
+  override def reset: F[Unit] =
     F.realTimeInstant.flatMap(ts =>
-      publisher.metricReset(
+      metricReset(
         channel = channel,
         serviceParams = serviceParams,
         metricRegistry = metricRegistry,
         index = MetricIndex.Adhoc(serviceParams.toZonedDateTime(ts))))
 
-  def report: F[Unit] =
+  override def report: F[Unit] =
     F.realTimeInstant.flatMap(ts =>
-      publisher
-        .metricReport(
-          channel = channel,
-          serviceParams = serviceParams,
-          metricRegistry = metricRegistry,
-          index = MetricIndex.Adhoc(serviceParams.toZonedDateTime(ts))
-        )
-        .void)
+      metricReport(
+        channel = channel,
+        serviceParams = serviceParams,
+        metricRegistry = metricRegistry,
+        index = MetricIndex.Adhoc(serviceParams.toZonedDateTime(ts))
+      ).void)
 }

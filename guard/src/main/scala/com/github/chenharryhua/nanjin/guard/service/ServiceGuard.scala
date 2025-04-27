@@ -59,13 +59,12 @@ final class ServiceGuard[F[_]: Network: Async] private[guard] (
             .fromTickStatus[F](
               TickStatus(serviceParams.zerothTick).renewPolicy(serviceParams.servicePolicies.metricReport))
             .evalMap { tick =>
-              publisher
-                .metricReport(
-                  channel = channel,
-                  serviceParams = serviceParams,
-                  metricRegistry = metricRegistry,
-                  index = MetricIndex.Periodic(tick))
-                .flatMap(mr => metricsHistory.modify(queue => (queue, queue.add(mr))))
+              metricReport(
+                channel = channel,
+                serviceParams = serviceParams,
+                metricRegistry = metricRegistry,
+                index = MetricIndex.Periodic(tick)).flatMap(mr =>
+                metricsHistory.modify(queue => (queue, queue.add(mr))))
             }
             .drain
 
@@ -74,7 +73,7 @@ final class ServiceGuard[F[_]: Network: Async] private[guard] (
             .fromTickStatus[F](
               TickStatus(serviceParams.zerothTick).renewPolicy(serviceParams.servicePolicies.metricReset))
             .evalMap(tick =>
-              publisher.metricReset(
+              metricReset(
                 channel = channel,
                 serviceParams = serviceParams,
                 metricRegistry = metricRegistry,

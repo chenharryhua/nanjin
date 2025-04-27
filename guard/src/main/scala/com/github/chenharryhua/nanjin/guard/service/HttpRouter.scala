@@ -34,7 +34,7 @@ import java.time.temporal.ChronoUnit
 import java.time.{Duration, ZonedDateTime}
 import scala.jdk.CollectionConverters.IteratorHasAsScala
 
-private class HttpRouter[F[_]](
+final private class HttpRouter[F[_]](
   metricRegistry: MetricRegistry,
   serviceParams: ServiceParams,
   panicHistory: AtomicCell[F, CircularFifoQueue[ServicePanic]],
@@ -128,7 +128,7 @@ private class HttpRouter[F[_]](
     case GET -> Root / "metrics" / "reset" =>
       for {
         ts <- serviceParams.zonedNow
-        _ <- publisher.metricReset[F](channel, serviceParams, metricRegistry, MetricIndex.Adhoc(ts))
+        _ <- metricReset[F](channel, serviceParams, metricRegistry, MetricIndex.Adhoc(ts))
         yaml = new SnapshotPolyglot(MetricSnapshot(metricRegistry)).toYaml
         response <- Ok(html(html_header, body(div(html_table_title(ts), pre(yaml)))))
       } yield response
@@ -165,7 +165,7 @@ private class HttpRouter[F[_]](
     case GET -> Root / "service" / "params" => Ok(serviceParams.asJson)
 
     case GET -> Root / "service" / "stop" =>
-      Ok("stopping service") <* publisher.serviceStop[F](channel, serviceParams, ServiceStopCause.Maintenance)
+      Ok("stopping service") <* serviceStop[F](channel, serviceParams, ServiceStopCause.Maintenance)
 
     case GET -> Root / "service" / "health_check" =>
       panicHistory.get.map(_.iterator().asScala.toList.lastOption).flatMap {
