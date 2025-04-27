@@ -65,19 +65,21 @@ final class Hadoop[F[_]] private (config: Configuration) {
     *   root
     * @return
     */
-  def filesIn(path: Url)(implicit F: Sync[F]): F[List[Url]] = F.blocking {
+  def filesIn(path: Url, filter: PathFilter)(implicit F: Sync[F]): F[List[Url]] = F.blocking {
     val hp: Path         = toHadoopPath(path)
     val fs: FileSystem   = hp.getFileSystem(config)
     val stat: FileStatus = fs.getFileStatus(hp)
     if (stat.isFile)
       List(Uri(stat.getPath.toUri).toUrl)
     else
-      fs.listStatus(hp, HiddenFileFilter.INSTANCE)
+      fs.listStatus(hp, filter)
         .filter(_.isFile)
         .sortBy(_.getModificationTime)
         .map(s => Uri(s.getPath.toUri).toUrl)
         .toList
   }
+  def filesIn(path: Url)(implicit F: Sync[F]): F[List[Url]] =
+    filesIn(path, HiddenFileFilter.INSTANCE)
 
   /** @param path
     *   the root path where search starts
