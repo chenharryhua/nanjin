@@ -18,6 +18,7 @@ object SimpleTextTranslator {
     val uptime: String    = s"$CONSTANT_UPTIME:${textHelper.uptimeText(se)}"
     s"""|$sn, $tn, $serviceId
         |  $host, $uptime""".stripMargin
+
   }
 
   private def error_str(err: Error): String =
@@ -60,35 +61,39 @@ object SimpleTextTranslator {
   }
 
   private def metric_report(evt: MetricReport): String = {
-    val policy = evt.serviceParams.servicePolicies.metricReport.show
+    val policy = s"$CONSTANT_POLICY:${evt.serviceParams.servicePolicies.metricReport.show}"
     val took   = s"$CONSTANT_TOOK:${textHelper.tookText(evt.took)}"
     val index  = s"$CONSTANT_INDEX:${textHelper.metricIndexText(evt.index)}"
 
     s"""|${textHelper.eventTitle(evt)}
         |  ${service_event(evt)}
-        |  $index, $CONSTANT_POLICY:$policy, $took
+        |  $index, $policy, $took
         |${textHelper.yamlMetrics(evt.snapshot)}
         |""".stripMargin
   }
 
   private def metric_reset(evt: MetricReset): String = {
-    val policy = evt.serviceParams.servicePolicies.metricReport.show
+    val policy = s"$CONSTANT_POLICY:${evt.serviceParams.servicePolicies.metricReset.show}"
     val took   = s"$CONSTANT_TOOK:${textHelper.tookText(evt.took)}"
     val index  = s"$CONSTANT_INDEX:${textHelper.metricIndexText(evt.index)}"
 
     s"""|${textHelper.eventTitle(evt)}
         |  ${service_event(evt)}
-        |  $index, $CONSTANT_POLICY:$policy, $took
+        |  $index, $policy, $took
         |${textHelper.yamlMetrics(evt.snapshot)}
         |""".stripMargin
   }
 
-  private def service_message(evt: ServiceMessage): String =
+  private def service_message(evt: ServiceMessage): String = {
+    val level = s"$CONSTANT_ALARM_LEVEL:${evt.level.entryName}"
+    val id    = s"$CONSTANT_MESSAGE_ID:${evt.id}"
     s"""|${textHelper.eventTitle(evt)}
         |  ${service_event(evt)}
+        |  $level, $id
         |${evt.message.spaces2}
         |${evt.error.fold("")(error_str)}
         |""".stripMargin
+  }
 
   def apply[F[_]: Applicative]: Translator[F, String] =
     Translator

@@ -211,6 +211,9 @@ private object SlackTranslator extends all {
       blocks = List(
         HeaderSection(s"$symbol ${eventTitle(evt)}"),
         host_service_section(evt.serviceParams),
+        JuxtaposeSection(
+          TextField(CONSTANT_ALARM_LEVEL, evt.level.entryName),
+          TextField(CONSTANT_MESSAGE_ID, evt.id.toString)),
         MarkdownSection(s"*$CONSTANT_SERVICE_ID:* ${evt.serviceParams.serviceId.show}"),
         MarkdownSection(s"```${abbreviate(evt.message)}```")
       )

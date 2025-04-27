@@ -151,13 +151,25 @@ private object HtmlTranslator extends all {
     )
   }
 
-  private def service_message(evt: ServiceMessage): Text.TypedTag[String] =
+  private def service_message(evt: ServiceMessage): Text.TypedTag[String] = {
+    val fg = frag(
+      tr(
+        th(CONSTANT_ALARM_LEVEL),
+        th(CONSTANT_MESSAGE_ID)
+      ),
+      tr(
+        td(evt.level.entryName),
+        td(evt.id)
+      )
+    )
+
     div(
       h3(style := htmlColoring(evt))(eventTitle(evt)),
-      table(service_table(evt)),
+      table(service_table(evt), fg),
       json_text(evt.message),
       evt.error.map(error_text)
     )
+  }
 
   def apply[F[_]: Applicative]: Translator[F, Text.TypedTag[String]] =
     Translator

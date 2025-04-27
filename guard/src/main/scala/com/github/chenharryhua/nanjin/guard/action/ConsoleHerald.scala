@@ -46,40 +46,32 @@ object ConsoleHerald {
       s"${sm.timestamp.format(fmt)} $color - $msg"
     }
 
-    private def toServiceMessage[S: Encoder](msg: S, level: AlarmLevel, error: Option[Error]): F[String] =
-      serviceParams.zonedNow.map(ts =>
-        toText(
-          ServiceMessage(
-            serviceParams = serviceParams,
-            timestamp = ts,
-            level = level,
-            error = error,
-            message = Encoder[S].apply(msg))))
-
-    private def logMessage[S: Encoder](msg: S, level: AlarmLevel, error: Option[Error])(implicit
+    private def alarm[S: Encoder](msg: S, level: AlarmLevel, error: Option[Error])(implicit
       cns: Console[F]): F[Unit] =
-      alarmLevel.get.map(level >= _).ifM(toServiceMessage(msg, level, error).flatMap(cns.println), F.unit)
+      alarmLevel.get
+        .map(level >= _)
+        .ifM(toServiceMessage(serviceParams, msg, level, error).map(toText).flatMap(cns.println), F.unit)
 
     override def error[S: Encoder](msg: S)(implicit cns: Console[F]): F[Unit] =
-      logMessage(msg, AlarmLevel.Error, None)
+      alarm(msg, AlarmLevel.Error, None)
 
     override def warn[S: Encoder](msg: S)(implicit cns: Console[F]): F[Unit] =
-      logMessage(msg, AlarmLevel.Warn, None)
+      alarm(msg, AlarmLevel.Warn, None)
 
     override def info[S: Encoder](msg: S)(implicit cns: Console[F]): F[Unit] =
-      logMessage(msg, AlarmLevel.Info, None)
+      alarm(msg, AlarmLevel.Info, None)
 
     override def done[S: Encoder](msg: S)(implicit cns: Console[F]): F[Unit] =
-      logMessage(msg, AlarmLevel.Done, None)
+      alarm(msg, AlarmLevel.Done, None)
 
     override def debug[S: Encoder](msg: S)(implicit cns: Console[F]): F[Unit] =
-      logMessage(msg, AlarmLevel.Debug, None)
+      alarm(msg, AlarmLevel.Debug, None)
 
     override def error[S: Encoder](ex: Throwable)(msg: S)(implicit cns: Console[F]): F[Unit] =
-      logMessage(msg, AlarmLevel.Error, Some(Error(ex)))
+      alarm(msg, AlarmLevel.Error, Some(Error(ex)))
 
     override def warn[S: Encoder](ex: Throwable)(msg: S)(implicit cns: Console[F]): F[Unit] =
-      logMessage(msg, AlarmLevel.Warn, Some(Error(ex)))
+      alarm(msg, AlarmLevel.Warn, Some(Error(ex)))
 
     override def debug[S: Encoder](msg: => F[S])(implicit cns: Console[F]): F[Unit] =
       alarmLevel.get
@@ -87,9 +79,11 @@ object ConsoleHerald {
         .ifM(
           F.attempt(msg).flatMap {
             case Left(ex) =>
-              toServiceMessage("Error", AlarmLevel.Debug, Some(Error(ex))).flatMap(cns.println)
+              toServiceMessage(serviceParams, "Error", AlarmLevel.Debug, Some(Error(ex)))
+                .map(toText)
+                .flatMap(cns.println)
             case Right(value) =>
-              toServiceMessage(value, AlarmLevel.Debug, None).flatMap(cns.println)
+              toServiceMessage(serviceParams, value, AlarmLevel.Debug, None).map(toText).flatMap(cns.println)
           },
           F.unit
         )
