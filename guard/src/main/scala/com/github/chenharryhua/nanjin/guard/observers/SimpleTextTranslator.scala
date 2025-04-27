@@ -86,7 +86,7 @@ object SimpleTextTranslator {
 
   private def service_message(evt: ServiceMessage): String = {
     val level = s"$CONSTANT_ALARM_LEVEL:${evt.level.entryName}"
-    val token = s"$CONSTANT_MESSAGE_Token:${evt.token}"
+    val token = s"$CONSTANT_MESSAGE_TOKEN:${evt.token}"
     s"""|${textHelper.eventTitle(evt)}
         |  ${service_event(evt)}
         |  $level, $token
