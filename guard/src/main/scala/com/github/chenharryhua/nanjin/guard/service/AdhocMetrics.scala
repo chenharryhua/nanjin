@@ -7,16 +7,24 @@ import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.event.{Event, MetricIndex}
 import fs2.concurrent.Channel
 
-sealed trait AdhocReport[F[_]] {
+/** adhoc metrics report and reset
+  */
+sealed trait AdhocMetrics[F[_]] {
+
+  /** reset all counters to zero
+    */
   def reset: F[Unit]
+
+  /** report current metrics
+    */
   def report: F[Unit]
 }
 
-abstract private class AdhocReportImpl[F[_]](
+abstract private class AdhocMetricsImpl[F[_]](
   channel: Channel[F, Event],
   serviceParams: ServiceParams,
   metricRegistry: MetricRegistry)(implicit F: Sync[F])
-    extends AdhocReport[F] {
+    extends AdhocMetrics[F] {
 
   override def reset: F[Unit] =
     F.realTimeInstant.flatMap(ts =>

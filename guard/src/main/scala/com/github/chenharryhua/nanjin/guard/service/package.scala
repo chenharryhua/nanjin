@@ -49,8 +49,8 @@ package object service {
     metricRegistry: MetricRegistry,
     index: MetricIndex): F[MetricReport] =
     for {
-      (took, ss) <- MetricSnapshot.timed(metricRegistry)
-      mr = MetricReport(index = index, serviceParams = serviceParams, snapshot = ss, took = took)
+      (took, snapshot) <- MetricSnapshot.timed(metricRegistry)
+      mr = MetricReport(index, serviceParams, snapshot, took)
       _ <- channel.send(mr)
     } yield mr
 
@@ -60,8 +60,8 @@ package object service {
     metricRegistry: MetricRegistry,
     index: MetricIndex): F[Unit] =
     for {
-      (took, ss) <- MetricSnapshot.timed(metricRegistry)
-      mr = MetricReset(index = index, serviceParams = serviceParams, snapshot = ss, took = took)
+      (took, snapshot) <- MetricSnapshot.timed(metricRegistry)
+      mr = MetricReset(index, serviceParams, snapshot, took)
       _ <- channel.send(mr)
     } yield metricRegistry.getCounters().values().asScala.foreach(c => c.dec(c.getCount))
 

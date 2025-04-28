@@ -6,13 +6,14 @@ import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.utils
 import io.circe.generic.JsonCodec
 import io.circe.{Decoder, Encoder}
+import monocle.macros.{Lenses, PLenses}
 import org.typelevel.cats.time.instances.all.*
 
 import java.time.{Duration, Instant, ZoneId, ZonedDateTime}
 import java.util.UUID
 
-@JsonCodec
-final case class Tick private[chrono] (
+@JsonCodec @Lenses
+final case class Tick(
   sequenceId: UUID, // immutable
   launchTime: Instant, // immutable
   zoneId: ZoneId, // immutable
@@ -77,6 +78,7 @@ object Tick {
     } yield zeroth(uuid, zoneId, now)
 }
 
+@PLenses
 final case class TickedValue[A](tick: Tick, value: A)
 object TickedValue {
   implicit def encoderTickedValue[A: Encoder]: Encoder[TickedValue[A]] =
