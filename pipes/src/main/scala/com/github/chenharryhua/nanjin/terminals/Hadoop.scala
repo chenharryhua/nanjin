@@ -13,6 +13,8 @@ import java.time.ZoneId
 import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
+import fs2.Stream
+
 object Hadoop {
 
   def apply[F[_]](config: Configuration): Hadoop[F] = new Hadoop[F](config)
@@ -133,15 +135,16 @@ final class Hadoop[F[_]] private (config: Configuration) {
 
   def sink(path: Url)(implicit F: Sync[F]): FileSink[F] = FileSink[F](config, path)
 
+  def rotateSink(ticks: Stream[F, TickedValue[Url]])(implicit F: Async[F]): RotateSink[F] = {
+    val lens = TickedValue.value[Url, Path].modify(toHadoopPath)
+    new RotateByPolicySink[F](config, ticks.map(lens))
+  }
+
   /** Policy based rotation sink
     */
   def rotateSink(policy: Policy, zoneId: ZoneId)(pathBuilder: Tick => Url)(implicit
     F: Async[F]): RotateSink[F] =
-    new RotateByPolicySink[F](
-      config,
-      tickStream.fromZero[F](policy, zoneId).map { tick =>
-        TickedValue(tick, toHadoopPath(pathBuilder(tick)))
-      })
+    rotateSink(tickStream.fromZero[F](policy, zoneId).map(tick => TickedValue(tick, pathBuilder(tick))))
 
   /** Size based rotation sink
     */

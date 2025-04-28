@@ -35,9 +35,9 @@ sealed trait Agent[F[_]] {
   final def tickImmediately(f: Policy.type => Policy): Stream[F, Tick] =
     tickImmediately(f(Policy))
 
-  /** metrics adhoc report
+  /** metrics adhoc report/reset
     */
-  def adhoc: AdhocReport[F]
+  def adhoc: AdhocMetrics[F]
 
   def herald: Herald[F]
   def console: ConsoleHerald[F]
@@ -91,7 +91,7 @@ final private class GeneralAgent[F[_]: Async](
   override def retry(f: Endo[Retry.Builder[F]]): Resource[F, Retry[F]] =
     f(new Retry.Builder[F](Policy.giveUp, _ => true.pure[F])).build(zoneId)
 
-  override object adhoc extends AdhocReportImpl[F](channel, serviceParams, metricRegistry)
+  override object adhoc extends AdhocMetricsImpl[F](channel, serviceParams, metricRegistry)
 
   override object herald extends HeraldImpl[F](serviceParams, channel)
   override object console extends ConsoleHeraldImpl[F](serviceParams, alarmLevel)
