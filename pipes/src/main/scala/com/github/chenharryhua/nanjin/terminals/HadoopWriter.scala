@@ -12,7 +12,9 @@ import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.io.compress.CompressionCodecFactory
 import org.apache.parquet.avro.AvroParquetWriter
+import org.apache.parquet.hadoop.ParquetWriter
 import org.apache.parquet.hadoop.util.HadoopOutputFile
+import org.apache.parquet.io.PositionOutputStream
 import scalapb.GeneratedMessage
 
 import java.io.OutputStream
@@ -27,25 +29,26 @@ private object HadoopWriter {
 
   def avroR[F[_]](codecFactory: CodecFactory, schema: Schema, configuration: Configuration, path: Path)(
     implicit F: Sync[F]): Resource[F, HadoopWriter[F, GenericRecord]] =
-    for {
-      dfw <- Resource.make[F, DataFileWriter[GenericRecord]](
-        F.blocking(new DataFileWriter(new GenericDatumWriter(schema)).setCodec(codecFactory)))(r =>
-        F.blocking(r.close()))
-      os <-
-        Resource.make(
-          F.blocking(HadoopOutputFile.fromPath(path, configuration).createOrOverwrite(BLOCK_SIZE_HINT)))(r =>
-          F.blocking(r.close()))
-      writer <- Resource.make(F.blocking(dfw.create(schema, os)))(r => F.blocking(r.close()))
-    } yield new HadoopWriter[F, GenericRecord] {
-      override def write(cgr: Chunk[GenericRecord]): F[Unit] =
-        F.blocking(cgr.foreach(writer.append)) *> F.blocking(writer.flush())
-    }
+    Resource
+      .make[F, DataFileWriter[GenericRecord]](F.blocking {
+        val dfw: DataFileWriter[GenericRecord] =
+          new DataFileWriter(new GenericDatumWriter[GenericRecord](schema)).setCodec(codecFactory)
+        val pos: PositionOutputStream =
+          HadoopOutputFile.fromPath(path, configuration).createOrOverwrite(BLOCK_SIZE_HINT)
+        dfw.create(schema, pos)
+      })(r => F.blocking(r.close()))
+      .map { (dfw: DataFileWriter[GenericRecord]) =>
+        new HadoopWriter[F, GenericRecord] {
+          override def write(cgr: Chunk[GenericRecord]): F[Unit] =
+            F.blocking(cgr.foreach(dfw.append)) *> F.blocking(dfw.flush())
+        }
+      }
 
   def parquetR[F[_]](writeBuilder: Reader[Path, AvroParquetWriter.Builder[GenericRecord]], path: Path)(
     implicit F: Sync[F]): Resource[F, HadoopWriter[F, GenericRecord]] =
     Resource
       .make(F.blocking(writeBuilder.run(path).build()))(r => F.blocking(r.close()))
-      .map(pw =>
+      .map((pw: ParquetWriter[GenericRecord]) =>
         new HadoopWriter[F, GenericRecord] {
           override def write(cgr: Chunk[GenericRecord]): F[Unit] =
             F.blocking(cgr.foreach(pw.write))
