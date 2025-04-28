@@ -340,7 +340,7 @@ lazy val pipes = (project in file("pipes"))
       "com.nimbusds"                     % "nimbus-jose-jwt"        % "10.2", // snyk
       "dnsjava"                          % "dnsjava"                % "3.6.3", // snyk
       "com.google.guava"                 % "guava"                  % "33.4.8-jre", // snyk
-      "org.apache.commons"               % "commons-configuration2" % "2.11.0", // snyk
+      "org.apache.commons"               % "commons-configuration2" % "2.12.0", // snyk
       "org.jetbrains.kotlin"             % "kotlin-stdlib"          % "2.1.20", // snyk
       "org.apache.zookeeper"             % "zookeeper"              % "3.9.3", // snyk
       "org.typelevel" %% "jawn-fs2"      % "2.4.0"                  % Test
