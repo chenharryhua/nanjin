@@ -26,7 +26,7 @@ abstract private class AdhocMetricsImpl[F[_]](
   metricRegistry: MetricRegistry)(implicit F: Sync[F])
     extends AdhocMetrics[F] {
 
-  override def reset: F[Unit] =
+  override val reset: F[Unit] =
     F.realTimeInstant.flatMap(ts =>
       metricReset(
         channel = channel,
@@ -34,7 +34,7 @@ abstract private class AdhocMetricsImpl[F[_]](
         metricRegistry = metricRegistry,
         index = MetricIndex.Adhoc(serviceParams.toZonedDateTime(ts))))
 
-  override def report: F[Unit] =
+  override val report: F[Unit] =
     F.realTimeInstant.flatMap(ts =>
       metricReport(
         channel = channel,

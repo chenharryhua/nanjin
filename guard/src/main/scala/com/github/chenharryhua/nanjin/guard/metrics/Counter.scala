@@ -44,8 +44,6 @@ object Counter {
 
   }
 
-  val initial: Builder = new Builder(isEnabled = true, isRisk = false)
-
   final class Builder private[guard] (isEnabled: Boolean, isRisk: Boolean) extends EnableConfig[Builder] {
 
     def asRisk: Builder = new Builder(isEnabled, true)

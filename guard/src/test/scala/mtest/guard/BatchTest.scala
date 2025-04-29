@@ -5,7 +5,7 @@ import cats.effect.unsafe.implicits.global
 import cats.implicits.catsSyntaxTuple2Semigroupal
 import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.action.{Batch, BatchMode}
+import com.github.chenharryhua.nanjin.guard.action.{Batch, BatchMode, HandleOutcome}
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStop
 import com.github.chenharryhua.nanjin.guard.observers.console
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
@@ -29,7 +29,7 @@ class BatchTest extends AnyFunSuite {
           "ee" -> IO.sleep(1.seconds).map(_ => true),
           "f" -> IO.raiseError(new Exception)
         )
-        .runQuasi
+        .traceQuasi(HandleOutcome.noop)(identity)
         .map { qr =>
           assert(!qr.details.head.done)
           assert(qr.details(1).done)
@@ -47,14 +47,14 @@ class BatchTest extends AnyFunSuite {
     service.eventStream { ga =>
       ga.batch("quasi.parallel")
         .namedParallel(3)(
-          "a" -> IO.sleep(3.second).map(_ => true),
-          "bb" -> IO.sleep(2.seconds).map(_ => true),
+          "a" -> IO.sleep(3.second),
+          "bb" -> IO.sleep(2.seconds),
           "cccc" -> IO.raiseError(new Exception),
-          "ddd" -> IO.sleep(3.seconds).map(_ => true),
+          "ddd" -> IO.sleep(3.seconds),
           "ee" -> IO.raiseError(new Exception),
-          "f" -> IO.sleep(4.seconds).map(_ => true)
+          "f" -> IO.sleep(4.seconds)
         )
-        .runQuasi
+        .runQuasi(_ => true)
         .map { qr =>
           assert(qr.details.head.done)
           assert(qr.details(1).done)
@@ -117,7 +117,7 @@ class BatchTest extends AnyFunSuite {
       .eventStream(
         _.batch("parallel-1")
           .parallel(IO(true))
-          .runQuasi
+          .runQuasi(a => a)
           .map(r => assert(r.mode == BatchMode.Parallel(1)))
           .use_)
       .map(checkJson)
@@ -129,7 +129,7 @@ class BatchTest extends AnyFunSuite {
       .eventStream(ga =>
         ga.batch("sequential")
           .sequential(IO(true))
-          .runQuasi
+          .runQuasi(a => a)
           .map(r => assert(r.mode == BatchMode.Sequential))
           .use_)
       .map(checkJson)

@@ -11,7 +11,7 @@ import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.config.CategoryKind.GaugeKind
 
 import java.time.ZoneId
-import scala.concurrent.duration.{DurationInt, FiniteDuration}
+import scala.concurrent.duration.FiniteDuration
 import scala.util.Try
 
 trait HealthCheck[F[_]] {
@@ -71,8 +71,6 @@ object HealthCheck {
       } yield ()
     }
   }
-
-  val initial: Builder = new Builder(isEnabled = true, timeout = 5.seconds)
 
   final class Builder private[guard] (isEnabled: Boolean, timeout: FiniteDuration)
       extends EnableConfig[Builder] {

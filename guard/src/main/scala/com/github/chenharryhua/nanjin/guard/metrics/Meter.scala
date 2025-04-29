@@ -19,9 +19,7 @@ trait Meter[F[_]] extends KleisliLike[F, Long] {
 
 object Meter {
   def noop[F[_]](implicit F: Applicative[F]): Meter[F] =
-    new Meter[F] {
-      override def mark(num: Long): F[Unit] = F.unit
-    }
+    (_: Long) => F.unit
 
   private class Impl[F[_]: Sync](
     private[this] val label: MetricLabel,
@@ -41,8 +39,6 @@ object Meter {
 
     val unregister: F[Unit] = F.delay(metricRegistry.remove(meter_name)).void
   }
-
-  val initial: Builder = new Builder(isEnabled = true, unit = NJUnits.COUNT)
 
   final class Builder private[guard] (isEnabled: Boolean, unit: MeasurementUnit)
       extends EnableConfig[Builder] {

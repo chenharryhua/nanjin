@@ -58,8 +58,6 @@ object Timer {
 
   }
 
-  val initial: Builder = new Builder(isEnabled = true, reservoir = None)
-
   final class Builder private[guard] (
     isEnabled: Boolean,
     reservoir: Option[metrics.Reservoir]
