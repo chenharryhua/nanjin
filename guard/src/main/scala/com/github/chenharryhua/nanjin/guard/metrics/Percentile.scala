@@ -76,8 +76,6 @@ object Percentile {
       }
   }
 
-  val initial: Builder = new Builder(isEnabled = true, translator = translator)
-
   final class Builder private[guard] (
     isEnabled: Boolean,
     translator: Ior[Long, Long] => Json

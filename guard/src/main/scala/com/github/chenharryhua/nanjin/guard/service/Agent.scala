@@ -61,7 +61,7 @@ final private class GeneralAgent[F[_]: Async](
   dispatcher: Dispatcher[F])
     extends Agent[F] {
 
-  override val zoneId: ZoneId = serviceParams.zoneId
+  override lazy val zoneId: ZoneId = serviceParams.zoneId
 
   override def withDomain(name: String): Agent[F] =
     new GeneralAgent[F](serviceParams, metricRegistry, channel, Domain(name), alarmLevel, dispatcher)

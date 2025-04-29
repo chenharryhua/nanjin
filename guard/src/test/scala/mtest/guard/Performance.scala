@@ -126,4 +126,14 @@ class Performance extends AnyFunSuite {
       .drain
       .unsafeRunSync()
   }
+
+  test("9.performance herald") {
+    val i = service
+      .eventStream(_.herald.info("hi").foreverM.timeout(timeout).attempt.void)
+      .compile
+      .fold(0L)((sum, _) => sum + 1)
+      .unsafeRunSync()
+    println(s"cost:  ${timeout.toNanos / i} nano")
+    println(s"speed: ${i / timeout.toMillis} k/s")
+  }
 }

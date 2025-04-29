@@ -1,8 +1,9 @@
 package com.github.chenharryhua.nanjin.guard.action
-import cats.Show
 import cats.syntax.all.*
+import cats.{Applicative, Show}
 import com.github.chenharryhua.nanjin.guard.config.MetricLabel
 import com.github.chenharryhua.nanjin.guard.translator.durationFormatter
+import io.circe.generic.JsonCodec
 import io.circe.syntax.EncoderOps
 import io.circe.{Encoder, Json}
 
@@ -37,9 +38,11 @@ object BatchMode {
   * @param index
   *   one based index
   */
+@JsonCodec
 final case class BatchJob(name: Option[String], index: Int)
-
+@JsonCodec
 final case class Detail(job: BatchJob, took: Duration, done: Boolean)
+
 final case class QuasiResult(label: MetricLabel, spent: Duration, mode: BatchMode, details: List[Detail])
 object QuasiResult {
   implicit val encoderQuasiResult: Encoder[QuasiResult] = { (a: QuasiResult) =>
@@ -63,4 +66,15 @@ object QuasiResult {
         .asJson
     )
   }
+}
+
+final case class HandleOutcome[F[_], A](
+  succeeded: (BatchJob, Duration, A) => F[Unit],
+  errored: (BatchJob, Duration, Throwable) => F[Unit],
+  canceled: BatchJob => F[Unit]
+)
+
+object HandleOutcome {
+  def noop[F[_], A](implicit F: Applicative[F]): HandleOutcome[F, A] =
+    HandleOutcome((_, _, _) => F.unit, (_, _, _) => F.unit, _ => F.unit)
 }

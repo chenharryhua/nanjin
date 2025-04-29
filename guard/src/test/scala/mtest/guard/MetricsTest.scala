@@ -3,6 +3,7 @@ package mtest.guard
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.syntax.all.*
+import com.codahale.metrics.SlidingWindowReservoir
 import com.github.chenharryhua.nanjin.common.HostName
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.config.MetricID
@@ -124,7 +125,8 @@ class MetricsTest extends AnyFunSuite {
   test("9.timer disable") {
     val mr = service.eventStream { agent =>
       agent
-        .facilitate("timer")(_.timer("timer", _.enable(false)).map(_.kleisli))
+        .facilitate("timer")(
+          _.timer("timer", _.enable(false).withReservoir(new SlidingWindowReservoir(10))).map(_.kleisli))
         .use(_.run(10) >> agent.adhoc.report)
     }.map(checkJson).mapFilter(eventFilters.metricReport).compile.lastOrError.unsafeRunSync()
     assert(mr.snapshot.isEmpty)

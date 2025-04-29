@@ -7,7 +7,10 @@ import cats.effect.std.Dispatcher
 import cats.syntax.all.*
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.guard.config.MetricLabel
+import com.github.chenharryhua.nanjin.guard.event.NJUnits
 import com.github.chenharryhua.nanjin.guard.translator.durationFormatter
+
+import scala.concurrent.duration.DurationInt
 
 trait KleisliLike[F[_], A] {
   def run(a: A): F[Unit]
@@ -64,28 +67,46 @@ object Metrics {
       extends Metrics[F] {
     private[this] val F = Async[F]
 
-    override def counter(name: String, f: Endo[Counter.Builder]): Resource[F, Counter[F]] =
-      f(Counter.initial).build[F](metricLabel, name, metricRegistry)
+    override def counter(name: String, f: Endo[Counter.Builder]): Resource[F, Counter[F]] = {
+      val initial: Counter.Builder = new Counter.Builder(isEnabled = true, isRisk = false)
 
-    override def meter(name: String, f: Endo[Meter.Builder]): Resource[F, Meter[F]] =
-      f(Meter.initial).build[F](metricLabel, name, metricRegistry)
+      f(initial).build[F](metricLabel, name, metricRegistry)
+    }
 
-    override def histogram(name: String, f: Endo[Histogram.Builder]): Resource[F, Histogram[F]] =
-      f(Histogram.initial).build[F](metricLabel, name, metricRegistry)
+    override def meter(name: String, f: Endo[Meter.Builder]): Resource[F, Meter[F]] = {
+      val initial: Meter.Builder = new Meter.Builder(isEnabled = true, unit = NJUnits.COUNT)
+      f(initial).build[F](metricLabel, name, metricRegistry)
+    }
 
-    override def timer(name: String, f: Endo[Timer.Builder]): Resource[F, Timer[F]] =
-      f(Timer.initial).build[F](metricLabel, name, metricRegistry)
+    override def histogram(name: String, f: Endo[Histogram.Builder]): Resource[F, Histogram[F]] = {
+      val initial: Histogram.Builder =
+        new Histogram.Builder(isEnabled = true, unit = NJUnits.COUNT, reservoir = None)
+
+      f(initial).build[F](metricLabel, name, metricRegistry)
+    }
+
+    override def timer(name: String, f: Endo[Timer.Builder]): Resource[F, Timer[F]] = {
+      val initial: Timer.Builder = new Timer.Builder(isEnabled = true, reservoir = None)
+      f(initial).build[F](metricLabel, name, metricRegistry)
+    }
 
     // gauges
 
-    override def healthCheck(name: String, f: Endo[HealthCheck.Builder]): HealthCheck[F] =
-      f(HealthCheck.initial).build[F](metricLabel, name, metricRegistry, dispatcher)
+    override def healthCheck(name: String, f: Endo[HealthCheck.Builder]): HealthCheck[F] = {
+      val initial: HealthCheck.Builder = new HealthCheck.Builder(isEnabled = true, timeout = 5.seconds)
+      f(initial).build[F](metricLabel, name, metricRegistry, dispatcher)
+    }
 
-    override def percentile(name: String, f: Endo[Percentile.Builder]): Resource[F, Percentile[F]] =
-      f(Percentile.initial).build[F](metricLabel, name, metricRegistry, dispatcher)
+    override def percentile(name: String, f: Endo[Percentile.Builder]): Resource[F, Percentile[F]] = {
+      val initial: Percentile.Builder =
+        new Percentile.Builder(isEnabled = true, translator = Percentile.translator)
+      f(initial).build[F](metricLabel, name, metricRegistry, dispatcher)
+    }
 
-    override def gauge(name: String, f: Endo[Gauge.Builder]): Gauge[F] =
-      f(Gauge.initial).build[F](metricLabel, name, metricRegistry, dispatcher)
+    override def gauge(name: String, f: Endo[Gauge.Builder]): Gauge[F] = {
+      val initial: Gauge.Builder = new Gauge.Builder(isEnabled = true, timeout = 5.seconds)
+      f(initial).build[F](metricLabel, name, metricRegistry, dispatcher)
+    }
 
     // derived
 
