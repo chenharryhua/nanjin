@@ -26,7 +26,8 @@ object observers {
 
   def emailObserver: EmailObserver[IO] =
     EmailObserver(SimpleEmailService[IO](_.region(Region.AP_SOUTHEAST_2)))
-      .withPolicy(Policy.crontab(_.every12Hours).offset(8.hours)).withZoneId(sydneyTime)
+      .withPolicy(Policy.crontab(_.every12Hours).offset(8.hours))
+      .withZoneId(sydneyTime)
       .withCapacity(200)
 
   val cloudwatch: CloudWatchObserver[IO] =
