@@ -4,7 +4,7 @@ import cats.effect.IO
 import cats.effect.testing.scalatest.AsyncIOSpec
 import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.action.{Batch, QuasiResult}
+import com.github.chenharryhua.nanjin.guard.action.{Batch, BatchResult}
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStop
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import org.scalatest.freespec.AsyncFreeSpec
@@ -17,7 +17,7 @@ class BatchSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
   "monadic" -
     "filter - quasi".in {
       val se = service.eventStream { agent =>
-        val result: IO[QuasiResult] = agent
+        val result: IO[BatchResult] = agent
           .batch("monadic")
           .monadic { job =>
             for {
@@ -55,6 +55,7 @@ class BatchSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
           } yield a + b + c
         }
         .runFully
+        .map(_._2)
         .memoizedAcquire
         .use(identity)
       result.assertThrowsError[Batch.PostConditionUnsatisfied](_.job.name.get.shouldBe("b")).void

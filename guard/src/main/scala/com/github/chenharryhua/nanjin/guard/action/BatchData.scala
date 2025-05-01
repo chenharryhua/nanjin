@@ -43,17 +43,17 @@ final case class BatchJob(name: Option[String], index: Int)
 @JsonCodec
 final case class Detail(job: BatchJob, took: Duration, done: Boolean)
 
-final case class QuasiResult(label: MetricLabel, spent: Duration, mode: BatchMode, details: List[Detail])
-object QuasiResult {
-  implicit val encoderQuasiResult: Encoder[QuasiResult] = { (a: QuasiResult) =>
-    val (done, fail) = a.details.partition(_.done)
+final case class BatchResult(label: MetricLabel, spent: Duration, mode: BatchMode, details: List[Detail])
+object BatchResult {
+  implicit val encoderBatchResult: Encoder[BatchResult] = { (br: BatchResult) =>
+    val (done, fail) = br.details.partition(_.done)
     Json.obj(
-      "batch" -> Json.fromString(a.label.label),
-      "mode" -> a.mode.asJson,
-      "spent" -> Json.fromString(durationFormatter.format(a.spent)),
+      "batch" -> Json.fromString(br.label.label),
+      "mode" -> br.mode.asJson,
+      "spent" -> Json.fromString(durationFormatter.format(br.spent)),
       DONE -> Json.fromInt(done.length),
       FAIL -> Json.fromInt(fail.length),
-      "details" -> a.details
+      "details" -> br.details
         .map(d =>
           Json
             .obj(

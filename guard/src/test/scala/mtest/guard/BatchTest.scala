@@ -78,12 +78,16 @@ class BatchTest extends AnyFunSuite {
   }
 
   test("4.parallel") {
-    service.eventStream { ga =>
+    val se = service.eventStream { ga =>
       ga.batch("parallel")
         .parallel(3)(IO.sleep(3.second), IO.sleep(2.seconds), IO.sleep(3.seconds), IO.sleep(4.seconds))
         .runFully
-        .use_
-    }.map(checkJson).evalTap(console.text[IO]).compile.drain.unsafeRunSync()
+        .memoizedAcquire
+        .use(_.map(_._1.details.forall(_.done)))
+        .map(assert(_))
+        .void
+    }.map(checkJson).evalTap(console.text[IO]).compile.lastOrError.unsafeRunSync()
+    assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
   }
 
   test("5.sequential.exception") {
@@ -192,7 +196,7 @@ class BatchTest extends AnyFunSuite {
         }
         .runFully
         .use { qr =>
-          assert(qr == 60)
+          assert(qr._2 == 60)
           agent.adhoc.report
         }
     }.evalTap(console.text[IO]).compile.lastOrError.unsafeRunSync()
@@ -313,6 +317,44 @@ class BatchTest extends AnyFunSuite {
       }
     }.evalTap(console.text[IO]).compile.lastOrError.unsafeRunSync()
 
+    assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
+  }
+
+  private val jobs: List[(String, IO[Int])] = List(
+    "1" -> IO(1).delayBy(3.second),
+    "2" -> IO(2).delayBy(2.second),
+    "3" -> IO(3).delayBy(2.second),
+    "4" -> IO(4).delayBy(1.second),
+    "5" -> IO(5)
+  )
+
+  test("17. sorted parallel") {
+    val se = service.eventStream { agent =>
+      agent.batch("sorted.parallel").namedParallel(jobs*).runFully.use { case (_, rst) =>
+        IO {
+          assert(rst.head == 1)
+          assert(rst(1) == 2)
+          assert(rst(2) == 3)
+          assert(rst(3) == 4)
+          assert(rst(4) == 5)
+        }.void
+      }
+    }.evalTap(console.text[IO]).compile.lastOrError.unsafeRunSync()
+    assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
+  }
+
+  test("18. sorted parallel") {
+    val se = service.eventStream { agent =>
+      agent.batch("sorted.sequential").namedSequential(jobs*).runFully.use { case (_, rst) =>
+        IO {
+          assert(rst.head == 1)
+          assert(rst(1) == 2)
+          assert(rst(2) == 3)
+          assert(rst(3) == 4)
+          assert(rst(4) == 5)
+        }.void
+      }
+    }.evalTap(console.text[IO]).compile.lastOrError.unsafeRunSync()
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
   }
 }
