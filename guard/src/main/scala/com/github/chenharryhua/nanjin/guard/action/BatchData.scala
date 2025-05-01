@@ -51,16 +51,16 @@ object QuasiResult {
       "batch" -> Json.fromString(a.label.label),
       "mode" -> a.mode.asJson,
       "spent" -> Json.fromString(durationFormatter.format(a.spent)),
-      "done" -> Json.fromInt(done.length),
-      "fail" -> Json.fromInt(fail.length),
+      DONE -> Json.fromInt(done.length),
+      FAIL -> Json.fromInt(fail.length),
       "details" -> a.details
         .map(d =>
           Json
             .obj(
-              "name" -> d.job.name.asJson,
-              "index" -> Json.fromInt(d.job.index),
-              "took" -> Json.fromString(durationFormatter.format(d.took)),
-              "done" -> Json.fromBoolean(d.done)
+              NAME -> d.job.name.asJson,
+              INDEX -> Json.fromInt(d.job.index),
+              TOOK -> Json.fromString(durationFormatter.format(d.took)),
+              DONE -> Json.fromBoolean(d.done)
             )
             .dropNullValues)
         .asJson
@@ -68,13 +68,23 @@ object QuasiResult {
   }
 }
 
-final case class HandleOutcome[F[_], A](
-  succeeded: (BatchJob, Duration, A) => F[Unit],
-  errored: (BatchJob, Duration, Throwable) => F[Unit],
+final case class JobTenure(job: BatchJob, took: Duration)
+object JobTenure {
+  implicit val encoderJobTenure: Encoder[JobTenure] = { (jt: JobTenure) =>
+    Json.obj(
+      NAME -> jt.job.name.asJson,
+      INDEX -> Json.fromInt(jt.job.index),
+      TOOK -> Json.fromString(durationFormatter.format(jt.took)))
+  }
+}
+
+final case class HandleJobOutcome[F[_], A](
+  succeeded: (JobTenure, A) => F[Unit],
+  errored: (JobTenure, Throwable) => F[Unit],
   canceled: BatchJob => F[Unit]
 )
 
-object HandleOutcome {
-  def noop[F[_], A](implicit F: Applicative[F]): HandleOutcome[F, A] =
-    HandleOutcome((_, _, _) => F.unit, (_, _, _) => F.unit, _ => F.unit)
+object HandleJobOutcome {
+  def noop[F[_], A](implicit F: Applicative[F]): HandleJobOutcome[F, A] =
+    HandleJobOutcome((_, _) => F.unit, (_, _) => F.unit, _ => F.unit)
 }

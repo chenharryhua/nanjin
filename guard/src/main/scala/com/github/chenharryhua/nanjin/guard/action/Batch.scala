@@ -73,15 +73,15 @@ object Batch {
   sealed abstract class Runner[F[_]: Async, A] { outer =>
     protected val F: Async[F] = Async[F]
 
-    protected def handleOutcome(job: BatchJob, handler: HandleOutcome[F, A])(
+    protected def handleOutcome(job: BatchJob, handler: HandleJobOutcome[F, A])(
       oc: Outcome[F, Throwable, (FiniteDuration, Either[Throwable, A])]): F[Unit] =
       oc.fold(
         canceled = handler.canceled(job),
         errored = e => F.raiseError(new Exception("Should never happen!!!", e)),
         completed = _.flatMap { case (fd, eoa) =>
           eoa match {
-            case Left(ex) => handler.errored(job, fd.toJava, ex)
-            case Right(a) => handler.succeeded(job, fd.toJava, a)
+            case Left(ex) => handler.errored(JobTenure(job, fd.toJava), ex)
+            case Right(a) => handler.succeeded(JobTenure(job, fd.toJava), a)
           }
         }
       )
@@ -89,15 +89,15 @@ object Batch {
     /** batch always success but jobs may fail
       * @return
       */
-    def traceQuasi(handler: HandleOutcome[F, A])(f: A => Boolean): Resource[F, QuasiResult]
+    def traceQuasi(handler: HandleJobOutcome[F, A])(f: A => Boolean): Resource[F, QuasiResult]
     final def runQuasi(f: A => Boolean): Resource[F, QuasiResult] =
-      traceQuasi(HandleOutcome.noop[F, A])(f)
+      traceQuasi(HandleJobOutcome.noop[F, A])(f)
 
     /** any job's failure will cause whole batch's failure
       * @return
       */
-    def traceFully(handler: HandleOutcome[F, A]): Resource[F, List[A]]
-    final def runFully: Resource[F, List[A]] = traceFully(HandleOutcome.noop[F, A])
+    def traceFully(handler: HandleJobOutcome[F, A]): Resource[F, List[A]]
+    final def runFully: Resource[F, List[A]] = traceFully(HandleJobOutcome.noop[F, A])
   }
 
   final class Parallel[F[_], A] private[Batch] (
@@ -108,7 +108,7 @@ object Batch {
 
     private val mode: BatchMode = BatchMode.Parallel(parallelism)
 
-    override def traceQuasi(handler: HandleOutcome[F, A])(f: A => Boolean): Resource[F, QuasiResult] = {
+    override def traceQuasi(handler: HandleJobOutcome[F, A])(f: A => Boolean): Resource[F, QuasiResult] = {
 
       def exec(meas: DoMeasurement[F]): F[(FiniteDuration, List[Detail])] =
         F.timed(F.parTraverseN(parallelism)(jobs) { case (job, fa) =>
@@ -124,7 +124,7 @@ object Batch {
       } yield QuasiResult(metrics.metricLabel, fd.toJava, mode, details.sortBy(_.job.index))
     }
 
-    override def traceFully(handler: HandleOutcome[F, A]): Resource[F, List[A]] = {
+    override def traceFully(handler: HandleJobOutcome[F, A]): Resource[F, List[A]] = {
 
       def exec(meas: DoMeasurement[F]): F[List[A]] =
         F.parTraverseN(parallelism)(jobs) { case (job, fa) =>
@@ -147,7 +147,7 @@ object Batch {
 
     private val mode: BatchMode = BatchMode.Sequential
 
-    override def traceQuasi(handler: HandleOutcome[F, A])(f: A => Boolean): Resource[F, QuasiResult] = {
+    override def traceQuasi(handler: HandleJobOutcome[F, A])(f: A => Boolean): Resource[F, QuasiResult] = {
 
       def exec(meas: DoMeasurement[F]): F[List[Detail]] =
         jobs.traverse { case (job, fa) =>
@@ -170,7 +170,7 @@ object Batch {
       )
     }
 
-    override def traceFully(handler: HandleOutcome[F, A]): Resource[F, List[A]] = {
+    override def traceFully(handler: HandleJobOutcome[F, A]): Resource[F, List[A]] = {
 
       def exec(meas: DoMeasurement[F]): F[List[A]] =
         jobs.traverse { case (job, fa) =>
@@ -225,13 +225,13 @@ object Batch {
       * @param fa
       *   the job
       */
-    def apply[A](name: String, fa: F[A]): Monadic[F, A] = build[A](Some(name), fa)
+    def apply[A](name: String, fa: F[A]): Monadic[F, A] = build[A](name.some, fa)
 
     /** build a named job
       * @param tup
       *   a tuple with the first being the name, second the job
       */
-    def apply[A](tup: (String, F[A])): Monadic[F, A] = build(Some(tup._1), tup._2)
+    def apply[A](tup: (String, F[A])): Monadic[F, A] = build(tup._1.some, tup._2)
   }
 
   final case class PostConditionUnsatisfied(job: BatchJob)

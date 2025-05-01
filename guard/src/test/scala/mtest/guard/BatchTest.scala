@@ -5,7 +5,7 @@ import cats.effect.unsafe.implicits.global
 import cats.implicits.catsSyntaxTuple2Semigroupal
 import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.action.{Batch, BatchMode, HandleOutcome}
+import com.github.chenharryhua.nanjin.guard.action.{Batch, BatchMode, HandleJobOutcome}
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStop
 import com.github.chenharryhua.nanjin.guard.observers.console
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
@@ -29,7 +29,7 @@ class BatchTest extends AnyFunSuite {
           "ee" -> IO.sleep(1.seconds).map(_ => true),
           "f" -> IO.raiseError(new Exception)
         )
-        .traceQuasi(HandleOutcome.noop)(identity)
+        .traceQuasi(HandleJobOutcome.noop)(identity)
         .map { qr =>
           assert(!qr.details.head.done)
           assert(qr.details(1).done)
