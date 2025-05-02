@@ -330,28 +330,50 @@ class BatchTest extends AnyFunSuite {
 
   test("17. sorted parallel") {
     val se = service.eventStream { agent =>
-      agent.batch("sorted.parallel").namedParallel(jobs*).runFully.use { case (_, rst) =>
+      agent.batch("sorted.parallel").namedParallel(jobs*).runFully.use { case (br, rst) =>
         IO {
           assert(rst.head == 1)
           assert(rst(1) == 2)
           assert(rst(2) == 3)
           assert(rst(3) == 4)
           assert(rst(4) == 5)
+          assert(br.details.forall(_.done))
+          assert(br.details.head.job.name.get == "1")
+          assert(br.details.head.job.index == 1)
+          assert(br.details(1).job.name.get == "2")
+          assert(br.details(1).job.index == 2)
+          assert(br.details(2).job.name.get == "3")
+          assert(br.details(2).job.index == 3)
+          assert(br.details(3).job.name.get == "4")
+          assert(br.details(3).job.index == 4)
+          assert(br.details(4).job.name.get == "5")
+          assert(br.details(4).job.index == 5)
         }.void
       }
     }.evalTap(console.text[IO]).compile.lastOrError.unsafeRunSync()
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
   }
 
-  test("18. sorted parallel") {
+  test("18. sorted sequential") {
     val se = service.eventStream { agent =>
-      agent.batch("sorted.sequential").namedSequential(jobs*).runFully.use { case (_, rst) =>
+      agent.batch("sorted.sequential").namedSequential(jobs*).runFully.use { case (br, rst) =>
         IO {
           assert(rst.head == 1)
           assert(rst(1) == 2)
           assert(rst(2) == 3)
           assert(rst(3) == 4)
           assert(rst(4) == 5)
+          assert(br.details.forall(_.done))
+          assert(br.details.head.job.name.get == "1")
+          assert(br.details.head.job.index == 1)
+          assert(br.details(1).job.name.get == "2")
+          assert(br.details(1).job.index == 2)
+          assert(br.details(2).job.name.get == "3")
+          assert(br.details(2).job.index == 3)
+          assert(br.details(3).job.name.get == "4")
+          assert(br.details(3).job.index == 4)
+          assert(br.details(4).job.name.get == "5")
+          assert(br.details(4).job.index == 5)
         }.void
       }
     }.evalTap(console.text[IO]).compile.lastOrError.unsafeRunSync()

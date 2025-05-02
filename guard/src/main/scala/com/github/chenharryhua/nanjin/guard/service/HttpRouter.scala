@@ -52,15 +52,16 @@ final private class HttpRouter[F[_]](
         }
       """))
 
-  private def html_table_title(now: ZonedDateTime): Text.TypedTag[String] =
+  private def html_table_title(now: ZonedDateTime, took: Duration): Text.TypedTag[String] =
     table(
-      tr(th("Service"), th("Report Policy"), th("Time Zone"), th("Up Time"), th("Present")),
+      tr(th("Service"), th("Report Policy"), th("Time Zone"), th("Up Time"), th("Present"), th("Took")),
       tr(
         td(serviceParams.serviceName.value),
         td(serviceParams.servicePolicies.metricReport.show),
         td(serviceParams.zoneId.show),
         td(durationFormatter.format(serviceParams.upTime(now))),
-        td(now.toLocalTime.truncatedTo(ChronoUnit.SECONDS).show)
+        td(now.toLocalTime.truncatedTo(ChronoUnit.SECONDS).show),
+        td(durationFormatter.format(took))
       )
     )
 
@@ -107,30 +108,51 @@ final private class HttpRouter[F[_]](
 
     case GET -> Root / "metrics" / "yaml" =>
       val text: F[Text.TypedTag[String]] =
-        serviceParams.zonedNow.map { now =>
-          val yaml = new SnapshotPolyglot(MetricSnapshot(metricRegistry)).toYaml
-          html(html_header, body(div(html_table_title(now), pre(yaml))))
+        serviceParams.zonedNow.flatMap { now =>
+          MetricSnapshot.timed(metricRegistry).map { case (fd, ms) =>
+            val yaml = new SnapshotPolyglot(ms).toYaml
+            html(html_header, body(div(html_table_title(now, fd), pre(yaml))))
+          }
         }
       Ok(text)
 
     case GET -> Root / "metrics" / "vanilla" =>
-      val vanilla = new SnapshotPolyglot(MetricSnapshot(metricRegistry)).toVanillaJson
+      val vanilla = MetricSnapshot.timed(metricRegistry).map { case (fd, ms) =>
+        Json.obj(
+          "service" -> Json.fromString(serviceParams.serviceName.value),
+          "took" -> Json.fromString(durationFormatter.format(fd)),
+          "snapshot" -> new SnapshotPolyglot(ms).toVanillaJson
+        )
+      }
       Ok(vanilla)
 
     case GET -> Root / "metrics" / "json" =>
-      val json = new SnapshotPolyglot(MetricSnapshot(metricRegistry)).toPrettyJson
+      val json = MetricSnapshot.timed(metricRegistry).map { case (fd, ms) =>
+        Json.obj(
+          "service" -> Json.fromString(serviceParams.serviceName.value),
+          "took" -> Json.fromString(durationFormatter.format(fd)),
+          "snapshot" -> new SnapshotPolyglot(ms).toPrettyJson
+        )
+      }
       Ok(json)
 
     case GET -> Root / "metrics" / "raw" =>
-      val json = MetricSnapshot(metricRegistry).asJson
+      val json = MetricSnapshot.timed(metricRegistry).map { case (fd, ms) =>
+        Json.obj(
+          "service" -> Json.fromString(serviceParams.serviceName.value),
+          "took" -> Json.fromString(durationFormatter.format(fd)),
+          "snapshot" -> ms.asJson)
+      }
       Ok(json)
 
     case GET -> Root / "metrics" / "reset" =>
       for {
         ts <- serviceParams.zonedNow
         _ <- metricReset[F](channel, serviceParams, metricRegistry, MetricIndex.Adhoc(ts))
-        yaml = new SnapshotPolyglot(MetricSnapshot(metricRegistry)).toYaml
-        response <- Ok(html(html_header, body(div(html_table_title(ts), pre(yaml)))))
+        (fd, yaml) <- MetricSnapshot.timed(metricRegistry).map { case (fd, ms) =>
+          (fd, new SnapshotPolyglot(ms).toYaml)
+        }
+        response <- Ok(html(html_header, body(div(html_table_title(ts, fd), pre(yaml)))))
       } yield response
 
     case GET -> Root / "metrics" / "jvm" =>
@@ -155,7 +177,7 @@ final private class HttpRouter[F[_]](
                     ))
               }
             })
-          history.map(hist => div(html_table_title(now), hist))
+          history.map(hist => div(html_table_title(now, Duration.ZERO), hist))
         }
 
       Ok(text.map(t => html(html_header, body(t))))

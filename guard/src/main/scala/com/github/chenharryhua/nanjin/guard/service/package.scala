@@ -1,8 +1,9 @@
 package com.github.chenharryhua.nanjin.guard
 
+import cats.effect.kernel.Unique.Token
 import cats.effect.kernel.{Clock, Sync}
 import cats.implicits.{catsSyntaxTuple2Semigroupal, toFlatMapOps, toFunctorOps}
-import cats.{Functor, Monad}
+import cats.{Functor, Hash, Monad}
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.common.chrono.Tick
 import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, ServiceParams}
@@ -37,7 +38,7 @@ package object service {
       ServiceMessage(
         serviceParams = serviceParams,
         timestamp = ts,
-        token = token.hashCode(),
+        token = Hash[Token].hash(token),
         level = level,
         error = error,
         message = Encoder[S].apply(msg))
