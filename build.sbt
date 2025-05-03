@@ -35,9 +35,9 @@ val log4catsV   = "2.7.0"
 val logbackV    = "1.5.18"
 val metricsV    = "4.2.30"
 val monocleV    = "3.3.0"
-val natchezV    = "0.3.7"
+val natchezV    = "0.3.8"
 val nettyV      = "4.2.0.Final"
-val parquetV    = "1.15.1"
+val parquetV    = "1.15.2"
 val postgresV   = "42.7.5"
 val refinedV    = "0.11.3"
 val shapelessV  = "2.3.13"
@@ -335,7 +335,7 @@ lazy val pipes = (project in file("pipes"))
       "org.apache.parquet"               % "parquet-avro"           % parquetV,
       "org.apache.avro"                  % "avro"                   % avroV,
       "org.tukaani"                      % "xz"                     % "1.10",
-      "org.eclipse.jetty"                % "jetty-server"           % "12.0.19", // snyk
+      "org.eclipse.jetty"                % "jetty-server"           % "12.0.20", // snyk
       "io.netty"                         % "netty-all"              % nettyV, // snyk
       "com.nimbusds"                     % "nimbus-jose-jwt"        % "10.2", // snyk
       "dnsjava"                          % "dnsjava"                % "3.6.3", // snyk
