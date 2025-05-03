@@ -3,13 +3,12 @@ package com.github.chenharryhua.nanjin.terminals
 import cats.Endo
 import cats.data.Reader
 import cats.effect.Resource
-import cats.effect.kernel.{Async, Sync}
+import cats.effect.kernel.Sync
 import com.github.chenharryhua.nanjin.common.ChunkSize
 import fs2.Stream
 import io.circe.Json
 import io.lemonlabs.uri.Url
-import kantan.csv.engine.ReaderEngine
-import kantan.csv.{CsvConfiguration, CsvReader, ReadResult}
+import kantan.csv.CsvConfiguration
 import org.apache.avro.Schema
 import org.apache.avro.generic.GenericData
 import org.apache.hadoop.conf.Configuration
@@ -20,7 +19,7 @@ import org.apache.parquet.hadoop.util.HadoopInputFile
 import scalapb.{GeneratedMessage, GeneratedMessageCompanion}
 import squants.information.{Bytes, Information}
 
-import java.io.{InputStream, InputStreamReader}
+import java.io.InputStream
 
 final class FileSource[F[_]: Sync] private (configuration: Configuration, path: Path) {
 
@@ -46,20 +45,13 @@ final class FileSource[F[_]: Sync] private (configuration: Configuration, path: 
 
   /** [[https://github.com/FasterXML/jackson]]
     */
-  def jackson(chunkSize: ChunkSize, schema: Schema)(implicit F: Async[F]): Stream[F, GenericData.Record] =
+  def jackson(chunkSize: ChunkSize, schema: Schema): Stream[F, GenericData.Record] =
     HadoopReader.jacksonS[F](configuration, schema, path, chunkSize)
 
   /** [[https://nrinaudo.github.io/kantan.csv]]
     */
   def kantan(chunkSize: ChunkSize, csvConfiguration: CsvConfiguration): Stream[F, Seq[String]] =
-    HadoopReader.inputStreamS[F](configuration, path).flatMap { is =>
-      val reader: CsvReader[ReadResult[Seq[String]]] = {
-        val cr = ReaderEngine.internalCsvReaderEngine.readerFor(new InputStreamReader(is), csvConfiguration)
-        if (csvConfiguration.hasHeader) cr.drop(1) else cr
-      }
-
-      Stream.fromBlockingIterator[F](reader.iterator, chunkSize.value).rethrow
-    }
+    HadoopReader.kantanS[F](configuration, path, chunkSize, csvConfiguration)
 
   /** [[https://nrinaudo.github.io/kantan.csv]]
     */
