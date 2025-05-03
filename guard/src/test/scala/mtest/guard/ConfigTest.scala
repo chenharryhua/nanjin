@@ -16,7 +16,11 @@ import scala.concurrent.duration.DurationInt
 class ConfigTest extends AnyFunSuite {
   val task: TaskGuard[IO] =
     TaskGuard[IO]("config")
-      .updateConfig(_.withZoneId(berlinTime).withPanicHistoryCapacity(1).withMetricHistoryCapacity(2))
+      .updateConfig(
+        _.withZoneId(berlinTime)
+          .withPanicHistoryCapacity(1)
+          .withMetricHistoryCapacity(2)
+          .withErrorHistoryCapacity(3))
       .updateConfig(_.withMetricReport(crontab(_.hourly)))
       .updateConfig(_.withJmx(identity))
       .updateConfig(_.withAlarmLevel(_.Info))

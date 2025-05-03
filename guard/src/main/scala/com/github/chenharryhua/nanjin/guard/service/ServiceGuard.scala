@@ -11,7 +11,7 @@ import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.common.chrono.*
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.event.*
-import com.github.chenharryhua.nanjin.guard.event.Event.{MetricReport, ServicePanic}
+import com.github.chenharryhua.nanjin.guard.event.Event.{MetricReport, ServiceMessage, ServicePanic}
 import fs2.Stream
 import fs2.concurrent.Channel
 import fs2.io.net.Network
@@ -51,6 +51,8 @@ final class ServiceGuard[F[_]: Network: Async] private[guard] (
         AtomicCell[F].of(new CircularFifoQueue[ServicePanic](serviceParams.historyCapacity.panic)))
       metricsHistory <- Stream.eval(
         AtomicCell[F].of(new CircularFifoQueue[MetricReport](serviceParams.historyCapacity.metric)))
+      errorHistory <- Stream.eval(
+        AtomicCell[F].of(new CircularFifoQueue[ServiceMessage](serviceParams.historyCapacity.error)))
       event <- Stream.eval(Channel.unbounded[F, Event]).flatMap { channel =>
         val metricRegistry: MetricRegistry = new MetricRegistry()
 
@@ -106,6 +108,7 @@ final class ServiceGuard[F[_]: Network: Async] private[guard] (
                     serviceParams = serviceParams,
                     panicHistory = panicHistory,
                     metricsHistory = metricsHistory,
+                    errorHistory = errorHistory,
                     alarmLevel = alarmLevel,
                     channel = channel
                   ).router)
@@ -120,6 +123,7 @@ final class ServiceGuard[F[_]: Network: Async] private[guard] (
             channel = channel,
             domain = Domain(serviceParams.serviceName.value),
             alarmLevel = alarmLevel,
+            errorHistory = errorHistory,
             dispatcher = dispatcher
           )
 

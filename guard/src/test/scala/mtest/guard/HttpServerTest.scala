@@ -7,7 +7,7 @@ import com.comcast.ip4s.IpLiteralSyntax
 import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.common.chrono.zones.londonTime
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import io.circe.{jawn, Json}
+import io.circe.{Json, jawn}
 import org.http4s.ember.client.EmberClientBuilder
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -33,7 +33,8 @@ class HttpServerTest extends AnyFunSuite {
           c.expect[String]("http://localhost:9999/metrics/history") >>
           c.expect[String]("http://localhost:9999/service/params") >>
           c.expect[String]("http://localhost:9999/service/health_check") >>
-          c.expect[String]("http://localhost:9999/service/history") >>
+          c.expect[String]("http://localhost:9999/service/panic/history") >>
+          c.expect[String]("http://localhost:9999/service/error/history") >>
           c.expect[String]("http://localhost:9999/service/stop")
       }
       .delayBy(5.seconds)
@@ -67,7 +68,7 @@ class HttpServerTest extends AnyFunSuite {
       .default[IO]
       .build
       .use { c =>
-        c.expect[String]("http://localhost:9997/service/history")
+        c.expect[String]("http://localhost:9997/service/panic/history")
           .map(j =>
             assert(
               jawn

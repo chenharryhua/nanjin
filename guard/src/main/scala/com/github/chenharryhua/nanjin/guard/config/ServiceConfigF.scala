@@ -22,7 +22,7 @@ import io.circe.jawn.parse
 @JsonCodec
 final case class ServicePolicies(restart: Policy, metricReport: Policy, metricReset: Policy)
 @JsonCodec
-final case class HistoryCapacity(metric: Int, panic: Int)
+final case class HistoryCapacity(metric: Int, panic: Int, error: Int)
 
 @JsonCodec
 final case class EmberServerParams(
@@ -89,7 +89,7 @@ object ServiceParams {
       emberServerParams = emberServerParams,
       threshold = None,
       zerothTick = zerothTick,
-      historyCapacity = HistoryCapacity(32, 32),
+      historyCapacity = HistoryCapacity(32, 32, 32),
       nanjin = parse(BuildInfo.toJson).toOption,
       brief = brief.value
     )
@@ -112,6 +112,7 @@ private object ServiceConfigF {
 
   final case class WithMetricCapacity[K](value: Int, cont: K) extends ServiceConfigF[K]
   final case class WithPanicCapacity[K](value: Int, cont: K) extends ServiceConfigF[K]
+  final case class WithErrorCapacity[K](value: Int, cont: K) extends ServiceConfigF[K]
 
   final case class WithTaskName[K](value: TaskName, cont: K) extends ServiceConfigF[K]
 
@@ -139,6 +140,7 @@ private object ServiceConfigF {
 
       case WithMetricCapacity(v, c) => c.focus(_.historyCapacity.metric).replace(v)
       case WithPanicCapacity(v, c)  => c.focus(_.historyCapacity.panic).replace(v)
+      case WithErrorCapacity(v, c)  => c.focus(_.historyCapacity.error).replace(v)
 
       case WithTaskName(v, c) => c.focus(_.taskName).replace(v)
     }
@@ -209,6 +211,8 @@ final class ServiceConfig[F[_]: Applicative] private (
     copy(cont = Fix(WithPanicCapacity(value, cont)))
   def withMetricHistoryCapacity(value: Int): ServiceConfig[F] =
     copy(cont = Fix(WithMetricCapacity(value, cont)))
+  def withErrorHistoryCapacity(value: Int): ServiceConfig[F] =
+    copy(cont = Fix(WithErrorCapacity(value, cont)))
 
   def withAlarmLevel(level: AlarmLevel): ServiceConfig[F] =
     copy(alarmLevel = level)
