@@ -2,7 +2,6 @@ package com.github.chenharryhua.nanjin.terminals
 
 import cats.data.Reader
 import cats.effect.kernel.{Resource, Sync}
-import cats.implicits.catsSyntaxApplyOps
 import fs2.Chunk
 import org.apache.avro.Schema
 import org.apache.avro.file.{CodecFactory, DataFileWriter}
@@ -17,8 +16,8 @@ import org.apache.parquet.hadoop.util.HadoopOutputFile
 import org.apache.parquet.io.PositionOutputStream
 import scalapb.GeneratedMessage
 
-import java.io.OutputStream
-import java.nio.charset.{Charset, StandardCharsets}
+import java.io.{BufferedWriter, OutputStream, OutputStreamWriter}
+import java.nio.charset.StandardCharsets
 
 sealed private trait HadoopWriter[F[_], A] {
   def write(ck: Chunk[A]): F[Unit]
@@ -40,7 +39,10 @@ private object HadoopWriter {
       .map { (dfw: DataFileWriter[GenericRecord]) =>
         new HadoopWriter[F, GenericRecord] {
           override def write(cgr: Chunk[GenericRecord]): F[Unit] =
-            F.blocking(cgr.foreach(dfw.append)) *> F.blocking(dfw.flush())
+            F.blocking {
+              cgr.foreach(dfw.append)
+              dfw.flush()
+            }
         }
       }
 
@@ -71,33 +73,42 @@ private object HadoopWriter {
     outputStreamR(path, configuration).map(os =>
       new HadoopWriter[F, Byte] {
         override def write(cb: Chunk[Byte]): F[Unit] =
-          F.blocking(os.write(cb.toArray)) *> F.blocking(os.flush())
+          F.blocking {
+            os.write(cb.toArray)
+            os.flush()
+          }
       })
 
-  final private[this] val CHARSET: Charset     = StandardCharsets.UTF_8
-  final private[this] val NEWLINE: Array[Byte] = System.lineSeparator().getBytes(CHARSET)
+  private def bufferedWriterR[F[_]](path: Path, configuration: Configuration)(implicit
+    F: Sync[F]): Resource[F, BufferedWriter] =
+    Resource.make(
+      F.blocking(new BufferedWriter(
+        new OutputStreamWriter(fileOutputStream(path, configuration), StandardCharsets.UTF_8))))(r =>
+      F.blocking(r.close()))
 
   def stringR[F[_]](configuration: Configuration, path: Path)(implicit
     F: Sync[F]): Resource[F, HadoopWriter[F, String]] =
-    outputStreamR(path, configuration).map(os =>
+    bufferedWriterR(path, configuration).map(writer =>
       new HadoopWriter[F, String] {
         override def write(cs: Chunk[String]): F[Unit] =
           F.blocking {
             cs.foreach { s =>
-              os.write(s.getBytes(CHARSET))
-              os.write(NEWLINE)
+              writer.write(s)
+              writer.newLine()
             }
-          } *> F.blocking(os.flush())
+            writer.flush()
+          }
       })
 
   def csvStringR[F[_]](configuration: Configuration, path: Path)(implicit
     F: Sync[F]): Resource[F, HadoopWriter[F, String]] =
-    outputStreamR(path, configuration).map(os =>
+    bufferedWriterR(path, configuration).map(writer =>
       new HadoopWriter[F, String] {
         override def write(cs: Chunk[String]): F[Unit] =
           F.blocking {
-            cs.foreach(s => os.write(s.getBytes(CHARSET))) // already has new line separator
-          } *> F.blocking(os.flush())
+            cs.foreach(s => writer.write(s)) // already has new line separator
+            writer.flush()
+          }
       })
 
   private def genericRecordWriterR[F[_]](
@@ -105,12 +116,14 @@ private object HadoopWriter {
     configuration: Configuration,
     schema: Schema,
     path: Path)(implicit F: Sync[F]): Resource[F, HadoopWriter[F, GenericRecord]] =
-    outputStreamR(path, configuration).map { os =>
-      val encoder: Encoder = getEncoder(os)
-      val datumWriter      = new GenericDatumWriter[GenericRecord](schema)
+    outputStreamR(path, configuration).evalMap(os => F.blocking(getEncoder(os))).map { encoder =>
+      val datumWriter = new GenericDatumWriter[GenericRecord](schema)
       new HadoopWriter[F, GenericRecord] {
         override def write(cgr: Chunk[GenericRecord]): F[Unit] =
-          F.blocking(cgr.foreach(gr => datumWriter.write(gr, encoder))) *> F.blocking(encoder.flush())
+          F.blocking {
+            cgr.foreach(gr => datumWriter.write(gr, encoder))
+            encoder.flush()
+          }
       }
     }
 
@@ -135,7 +148,10 @@ private object HadoopWriter {
     outputStreamR(path, configuration).map { os =>
       new HadoopWriter[F, GeneratedMessage] {
         override def write(ck: Chunk[GeneratedMessage]): F[Unit] =
-          F.delay(ck.foreach(_.writeDelimitedTo(os))) *> F.blocking(os.flush())
+          F.delay {
+            ck.foreach(_.writeDelimitedTo(os))
+            os.flush()
+          }
       }
     }
 }

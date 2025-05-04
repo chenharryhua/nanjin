@@ -49,8 +49,23 @@ private object HadoopReader {
       .bracket(F.blocking[ParquetReader[GenericData.Record]](readBuilder.run(path).build()))(r =>
         F.blocking(r.close()))
       .flatMap { reader =>
-        val iterator = Iterator.continually(Option(reader.read())).takeWhile(_.nonEmpty).map(_.get)
-        Stream.fromBlockingIterator[F](iterator, chunkSize.value)
+        def go(): (Chunk[GenericData.Record], Option[Unit]) = {
+          var counter: Int       = 0
+          var keepGoing: Boolean = true
+          val builder: mutable.ReusableBuilder[GenericData.Record, Vector[GenericData.Record]] =
+            Vector.newBuilder[GenericData.Record]
+          while (keepGoing && (counter < chunkSize.value))
+            reader.read() match {
+              case null => keepGoing = false
+              case data =>
+                builder += data
+                counter += 1
+            }
+
+          (Chunk.from(builder.result()), if (keepGoing) Some(()) else None)
+        }
+
+        Stream.unfoldChunkLoopEval[F, Unit, GenericData.Record](())(_ => F.blocking(go()))
       }
 
   private def fileInputStream(path: Path, configuration: Configuration): InputStream = {
@@ -138,7 +153,8 @@ private object HadoopReader {
           .readerFor(new InputStreamReader(fileInputStream(path, configuration)), csvConfiguration)
         if (csvConfiguration.hasHeader) cr.drop(1) else cr
       })(r => F.blocking(r.close()))
-      .flatMap(reader => Stream.fromBlockingIterator[F](reader.iterator, chunkSize.value).rethrow)
+      .evalMap(reader => F.blocking(reader.iterator))
+      .flatMap(iterator => Stream.fromBlockingIterator[F](iterator, chunkSize.value).rethrow)
 
   private def genericRecordReaderS[F[_]](
     getDecoder: InputStream => Decoder,
