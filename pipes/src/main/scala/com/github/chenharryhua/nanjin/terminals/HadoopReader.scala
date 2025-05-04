@@ -3,11 +3,13 @@ package com.github.chenharryhua.nanjin.terminals
 import cats.data.Reader
 import cats.effect.Resource
 import cats.effect.kernel.Sync
-import cats.implicits.toTraverseOps
+import cats.implicits.{catsSyntaxEq, catsSyntaxOptionId}
 import com.github.chenharryhua.nanjin.common.ChunkSize
-import fs2.{Chunk, Pull, Stream}
+import fs2.{Chunk, Stream}
 import io.circe.Json
 import io.circe.jawn.CirceSupportParser.facade
+import kantan.csv.engine.ReaderEngine
+import kantan.csv.{CsvConfiguration, CsvReader, ReadResult}
 import org.apache.avro.Schema
 import org.apache.avro.file.DataFileStream
 import org.apache.avro.generic.{GenericData, GenericDatumReader}
@@ -19,24 +21,25 @@ import org.apache.parquet.hadoop.ParquetReader
 import org.apache.parquet.hadoop.util.HadoopInputFile
 import org.apache.parquet.io.SeekableInputStream
 import org.typelevel.jawn.AsyncParser
-import squants.information.{Bytes, Information}
+import squants.information.Information
 
 import java.io.{BufferedReader, InputStream, InputStreamReader}
+import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
+import scala.annotation.tailrec
+import scala.collection.mutable
 import scala.jdk.CollectionConverters.IteratorHasAsScala
 
 private object HadoopReader {
 
   def avroS[F[_]](configuration: Configuration, path: Path, chunkSize: ChunkSize)(implicit
     F: Sync[F]): Stream[F, GenericData.Record] =
-    for {
-      is <- Stream.bracket(F.blocking(HadoopInputFile.fromPath(path, configuration).newStream()))(r =>
-        F.blocking(r.close()))
-      dfs <- Stream.bracket {
-        F.blocking[DataFileStream[GenericData.Record]](new DataFileStream(is, new GenericDatumReader()))
-      }(r => F.blocking(r.close()))
-      gr <- Stream.fromBlockingIterator[F](dfs.iterator().asScala, chunkSize.value)
-    } yield gr
+    Stream
+      .bracket(F.blocking {
+        val is = HadoopInputFile.fromPath(path, configuration).newStream()
+        new DataFileStream[GenericData.Record](is, new GenericDatumReader())
+      })(r => F.blocking(r.close()))
+      .flatMap(dfs => Stream.fromBlockingIterator[F](dfs.iterator().asScala, chunkSize.value))
 
   def parquetS[F[_]](
     readBuilder: Reader[Path, ParquetReader.Builder[GenericData.Record]],
@@ -46,8 +49,24 @@ private object HadoopReader {
       .bracket(F.blocking[ParquetReader[GenericData.Record]](readBuilder.run(path).build()))(r =>
         F.blocking(r.close()))
       .flatMap { reader =>
-        val iterator = Iterator.continually(Option(reader.read())).takeWhile(_.nonEmpty).map(_.get)
-        Stream.fromBlockingIterator[F](iterator, chunkSize.value)
+        def go(): (Chunk[GenericData.Record], Option[Unit]) = {
+          var counter: Int       = 0
+          var keepGoing: Boolean = true
+          val builder: mutable.ReusableBuilder[GenericData.Record, Vector[GenericData.Record]] =
+            Vector.newBuilder[GenericData.Record]
+          while (keepGoing && (counter < chunkSize.value))
+            reader.read() match {
+              case null =>
+                keepGoing = false
+              case data =>
+                builder += data
+                counter += 1
+            }
+
+          (Chunk.from(builder.result()), if (keepGoing) Some(()) else None)
+        }
+
+        Stream.unfoldChunkLoopEval[F, Unit, GenericData.Record](())(_ => F.blocking(go()))
       }
 
   private def fileInputStream(path: Path, configuration: Configuration): InputStream = {
@@ -70,28 +89,47 @@ private object HadoopReader {
   // respect chunk size
   def byteS[F[_]](configuration: Configuration, path: Path, bs: Information)(implicit
     F: Sync[F]): Stream[F, Byte] =
-    inputStreamS[F](configuration, path).flatMap { is =>
+    inputStreamS[F](configuration, path).flatMap { (is: InputStream) =>
       val bufferSize: Int     = bs.toBytes.toInt
       val buffer: Array[Byte] = Array.ofDim[Byte](bufferSize)
-      def go(offset: Int): Pull[F, Byte, Unit] =
-        Pull.eval(F.blocking(is.read(buffer, offset, bufferSize - offset))).flatMap { numBytes =>
-          if (numBytes == -1) Pull.output(Chunk.array(buffer, 0, offset)) >> Pull.done
-          else if (numBytes + offset == bufferSize) Pull.output(Chunk.array(buffer)) >> go(0)
-          else go(offset + numBytes)
-        }
-      go(0).stream
+      @tailrec
+      def go(offset: Int): (Chunk[Byte], Option[Int]) = {
+        val numBytes = is.read(buffer, offset, bufferSize - offset)
+        if (numBytes == -1) (Chunk.array(buffer, 0, offset), None)
+        else if ((numBytes + offset) === bufferSize) (Chunk.array(buffer), 0.some)
+        else go(offset + numBytes)
+      }
+
+      Stream.unfoldChunkLoopEval[F, Int, Byte](0)(os => F.blocking(go(os)))
     }
 
   def jawnS[F[_]](configuration: Configuration, path: Path, chunkSize: ChunkSize)(implicit
     F: Sync[F]): Stream[F, Json] =
-    Stream
-      .emit(AsyncParser[Json](AsyncParser.ValueStream))
-      .flatMap(parser =>
-        byteS[F](configuration, path, Bytes(131072))
-          .mapChunks(bs => parser.absorb(bs.toByteBuffer).traverse(Chunk.from))
-          .rethrow)
-      .chunkN(chunkSize.value)
-      .unchunks
+    inputStreamS[F](configuration, path).flatMap { (is: InputStream) =>
+      val bufferSize: Int           = 32768
+      val buffer: Array[Byte]       = Array.ofDim[Byte](bufferSize)
+      val parser: AsyncParser[Json] = AsyncParser[Json](AsyncParser.ValueStream)
+      @tailrec
+      def go(existing: Chunk[Json], existCount: Int): (Chunk[Json], Option[Chunk[Json]]) = {
+        val numBytes = is.read(buffer, 0, bufferSize)
+        if (numBytes == -1) { (existing, None) }
+        else {
+          parser.absorb(ByteBuffer.wrap(buffer, 0, numBytes)) match {
+            case Left(ex) => throw ex
+            case Right(value) =>
+              val size  = value.size
+              val jsons = Chunk.from(value)
+              if ((existCount + size) < chunkSize.value) go(existing ++ jsons, existCount + size)
+              else {
+                val (first, second) = jsons.splitAt(chunkSize.value - existCount)
+                (existing ++ first, second.some)
+              }
+          }
+        }
+      }
+
+      Stream.unfoldChunkLoopEval[F, Chunk[Json], Json](Chunk.empty)(ck => F.blocking(go(ck, ck.size)))
+    }
 
   def stringS[F[_]](configuration: Configuration, path: Path, chunkSize: ChunkSize)(implicit
     F: Sync[F]): Stream[F, String] =
@@ -101,15 +139,31 @@ private object HadoopReader {
       Stream.fromBlockingIterator[F](iterator, chunkSize.value)
     }
 
+  def kantanS[F[_]](
+    configuration: Configuration,
+    path: Path,
+    chunkSize: ChunkSize,
+    csvConfiguration: CsvConfiguration)(implicit F: Sync[F]): Stream[F, Seq[String]] =
+    Stream
+      .bracket(F.blocking {
+        val cr: CsvReader[ReadResult[Seq[String]]] = ReaderEngine.internalCsvReaderEngine
+          .readerFor(new InputStreamReader(fileInputStream(path, configuration)), csvConfiguration)
+        if (csvConfiguration.hasHeader) cr.drop(1) else cr
+      })(r => F.blocking(r.close()))
+      .evalMap(reader => F.blocking(reader.iterator))
+      .flatMap(iterator => Stream.fromBlockingIterator[F](iterator, chunkSize.value).rethrow)
+
   private def genericRecordReaderS[F[_]](
     getDecoder: InputStream => Decoder,
     configuration: Configuration,
     schema: Schema,
     path: Path,
     chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, GenericData.Record] =
-    inputStreamS[F](configuration, path).flatMap { is =>
-      val decoder: Decoder = getDecoder(is)
-      def go(datumReader: GenericDatumReader[GenericData.Record]): Pull[F, GenericData.Record, Unit] = {
+    inputStreamS[F](configuration, path).evalMap(is => F.blocking(getDecoder(is))).flatMap { decoder =>
+      val datumReader: GenericDatumReader[GenericData.Record] =
+        new GenericDatumReader[GenericData.Record](schema)
+
+      def go(): (Chunk[GenericData.Record], Option[Unit]) = {
         val builder      = Vector.newBuilder[GenericData.Record]
         var counter: Int = 0
         try {
@@ -117,13 +171,14 @@ private object HadoopReader {
             builder += datumReader.read(null, decoder)
             counter += 1
           }
-          Pull.output(Chunk.from(builder.result())) >> go(datumReader)
+          (Chunk.from(builder.result()), ().some)
         } catch {
           case _: java.io.EOFException =>
-            Pull.output(Chunk.from(builder.result())) >> Pull.done
+            (Chunk.from(builder.result()), None)
         }
       }
-      go(new GenericDatumReader[GenericData.Record](schema)).stream
+
+      Stream.unfoldChunkLoopEval[F, Unit, GenericData.Record](())(_ => F.blocking(go()))
     }
 
   def jacksonS[F[_]](configuration: Configuration, schema: Schema, path: Path, chunkSize: ChunkSize)(implicit

@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard.service
 
 import cats.Endo
 import cats.effect.kernel.{Async, Ref, Resource}
-import cats.effect.std.Dispatcher
+import cats.effect.std.{AtomicCell, Dispatcher}
 import cats.implicits.catsSyntaxApplicativeId
 import com.codahale.metrics.MetricRegistry
 import com.github.benmanes.caffeine.cache.Cache
@@ -10,9 +10,11 @@ import com.github.chenharryhua.nanjin.common.chrono.*
 import com.github.chenharryhua.nanjin.guard.action.{Batch, CaffeineCache, CircuitBreaker, Retry}
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.event.*
+import com.github.chenharryhua.nanjin.guard.event.Event.ServiceMessage
 import com.github.chenharryhua.nanjin.guard.metrics.Metrics
 import fs2.Stream
 import fs2.concurrent.Channel
+import org.apache.commons.collections4.queue.CircularFifoQueue
 
 import java.time.ZoneId
 
@@ -58,13 +60,21 @@ final private class GeneralAgent[F[_]: Async](
   channel: Channel[F, Event],
   domain: Domain,
   alarmLevel: Ref[F, AlarmLevel],
+  errorHistory: AtomicCell[F, CircularFifoQueue[ServiceMessage]],
   dispatcher: Dispatcher[F])
     extends Agent[F] {
 
   override lazy val zoneId: ZoneId = serviceParams.zoneId
 
   override def withDomain(name: String): Agent[F] =
-    new GeneralAgent[F](serviceParams, metricRegistry, channel, Domain(name), alarmLevel, dispatcher)
+    new GeneralAgent[F](
+      serviceParams,
+      metricRegistry,
+      channel,
+      Domain(name),
+      alarmLevel,
+      errorHistory,
+      dispatcher)
 
   override def batch(label: String): Batch[F] = {
     val metricLabel = MetricLabel(label, domain)
@@ -93,6 +103,6 @@ final private class GeneralAgent[F[_]: Async](
 
   override object adhoc extends AdhocMetricsImpl[F](channel, serviceParams, metricRegistry)
 
-  override object herald extends HeraldImpl[F](serviceParams, channel)
-  override object console extends ConsoleHeraldImpl[F](serviceParams, alarmLevel)
+  override object herald extends HeraldImpl[F](serviceParams, channel, errorHistory)
+  override object console extends ConsoleHeraldImpl[F](serviceParams, alarmLevel, errorHistory)
 }

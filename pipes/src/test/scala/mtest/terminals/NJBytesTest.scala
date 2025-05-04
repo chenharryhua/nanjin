@@ -39,6 +39,12 @@ class NJBytesTest extends AnyFunSuite {
       hdp
         .source(path)
         .bytes
+        .chunks
+        .map { c =>
+          assert(c.nonEmpty)
+          c
+        }
+        .unchunks
         .through(utf8.decode)
         .through(lines)
         .map(decode[Tiger](_))

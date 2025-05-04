@@ -194,7 +194,7 @@ final private class RotateBySizeSink[F[_]](
     def get_writer(tick: Tick): Resource[F, HadoopWriter[F, String]] =
       HadoopWriter.stringR[F](configuration, pathBuilder(tick))
 
-    (ss: Stream[F, Json]) => persist(ss.mapChunks(_.map(_.noSpaces)), get_writer).stream
+    (ss: Stream[F, Json]) => persist(ss.map(_.noSpaces), get_writer).stream
   }
 
   // kantan csv

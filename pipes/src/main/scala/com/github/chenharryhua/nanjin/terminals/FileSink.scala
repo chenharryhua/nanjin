@@ -118,21 +118,19 @@ final class FileSink[F[_]: Sync] private (configuration: Configuration, path: Pa
   val circe: Pipe[F, Json, Int] = { (ss: Stream[F, Json]) =>
     Stream
       .resource(HadoopWriter.stringR[F](configuration, path))
-      .flatMap(w => ss.chunks.evalMap(c => w.write(c.map(_.noSpaces)).as(c.size)))
+      .flatMap(w => ss.map(_.noSpaces).chunks.evalMap(c => w.write(c).as(c.size)))
   }
 
   /** [[https://nrinaudo.github.io/kantan.csv]]
     */
   def kantan(csvConfiguration: CsvConfiguration): Pipe[F, Seq[String], Int] = {
     (ss: Stream[F, Seq[String]]) =>
-      Stream.resource(HadoopWriter.csvStringR[F](configuration, path)).flatMap { w =>
-        val process: Stream[F, Int] =
-          ss.chunks.evalMap(c => w.write(c.map(csvRow(csvConfiguration))).as(c.size))
-
-        val header: Stream[F, Unit] = Stream.eval(w.write(csvHeader(csvConfiguration)))
-
-        if (csvConfiguration.hasHeader) header >> process else process
-      }
+      Stream
+        .resource(
+          HadoopWriter.csvStringR[F](configuration, path).evalTap(_.write(csvHeader(csvConfiguration))))
+        .flatMap { w =>
+          ss.map(csvRow(csvConfiguration)).chunks.evalMap(c => w.write(c).as(c.size))
+        }
   }
 
   /** [[https://nrinaudo.github.io/kantan.csv]]

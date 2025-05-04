@@ -125,7 +125,7 @@ object MetricSnapshot extends duration {
   private val timerLens: Lens[MetricSnapshot, List[Snapshot.Timer]] =
     GenLens[MetricSnapshot](_.timers)
 
-  def apply(metricRegistry: metrics.MetricRegistry): MetricSnapshot =
+  private def buildFrom(metricRegistry: metrics.MetricRegistry): MetricSnapshot =
     metricRegistry.getMetrics.asScala.toList.foldLeft(empty) { case (snapshot, (name, metric)) =>
       decode[MetricID](name) match {
         case Left(_) => snapshot
@@ -234,5 +234,5 @@ object MetricSnapshot extends duration {
 
   def timed[F[_]](metricRegistry: metrics.MetricRegistry)(implicit
     F: Sync[F]): F[(Duration, MetricSnapshot)] =
-    F.delay(apply(metricRegistry)).timed.map { case (fd, ss) => (fd.toJava, ss) }
+    F.blocking(buildFrom(metricRegistry)).timed.map { case (fd, ss) => (fd.toJava, ss) }
 }

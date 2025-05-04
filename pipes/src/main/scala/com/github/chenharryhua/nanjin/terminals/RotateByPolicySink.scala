@@ -139,7 +139,7 @@ final private class RotateByPolicySink[F[_]: Async](
     def get_writer(url: Path): Resource[F, HadoopWriter[F, String]] =
       HadoopWriter.stringR[F](configuration, url)
 
-    (ss: Stream[F, Json]) => periodically.persist(ss.chunks.map(_.map(_.noSpaces)), ticks, get_writer).stream
+    (ss: Stream[F, Json]) => periodically.persist(ss.map(_.noSpaces).chunks, ticks, get_writer).stream
   }
 
   // kantan csv
@@ -148,7 +148,7 @@ final private class RotateByPolicySink[F[_]: Async](
       HadoopWriter.csvStringR[F](configuration, url).evalTap(_.write(csvHeader(csvConfiguration)))
 
     (ss: Stream[F, Seq[String]]) =>
-      periodically.persist(ss.chunks.map(_.map(csvRow(csvConfiguration))), ticks, get_writer).stream
+      periodically.persist(ss.map(csvRow(csvConfiguration)).chunks, ticks, get_writer).stream
   }
 
   // text
