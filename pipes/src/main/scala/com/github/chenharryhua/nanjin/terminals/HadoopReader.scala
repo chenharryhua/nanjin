@@ -56,7 +56,8 @@ private object HadoopReader {
             Vector.newBuilder[GenericData.Record]
           while (keepGoing && (counter < chunkSize.value))
             reader.read() match {
-              case null => keepGoing = false
+              case null =>
+                keepGoing = false
               case data =>
                 builder += data
                 counter += 1
@@ -91,24 +92,21 @@ private object HadoopReader {
     inputStreamS[F](configuration, path).flatMap { (is: InputStream) =>
       val bufferSize: Int     = bs.toBytes.toInt
       val buffer: Array[Byte] = Array.ofDim[Byte](bufferSize)
-      def iterate(offset: Option[Int]): F[Option[(Chunk[Byte], Option[Int])]] =
-        offset match {
-          case None => F.pure(None)
-          case Some(value) =>
-            F.blocking {
-              val numBytes = is.read(buffer, value, bufferSize - value)
-              if (numBytes == -1) (Chunk.array(buffer, 0, value), None).some
-              else if ((numBytes + value) === bufferSize) (Chunk.array(buffer), 0.some).some
-              else (Chunk.empty, (value + numBytes).some).some
-            }
-        }
-      Stream.unfoldChunkEval[F, Option[Int], Byte](0.some)(iterate)
+      @tailrec
+      def go(offset: Int): (Chunk[Byte], Option[Int]) = {
+        val numBytes = is.read(buffer, offset, bufferSize - offset)
+        if (numBytes == -1) (Chunk.array(buffer, 0, offset), None)
+        else if ((numBytes + offset) === bufferSize) (Chunk.array(buffer), 0.some)
+        else go(offset + numBytes)
+      }
+
+      Stream.unfoldChunkLoopEval[F, Int, Byte](0)(os => F.blocking(go(os)))
     }
 
   def jawnS[F[_]](configuration: Configuration, path: Path, chunkSize: ChunkSize)(implicit
     F: Sync[F]): Stream[F, Json] =
     inputStreamS[F](configuration, path).flatMap { (is: InputStream) =>
-      val bufferSize: Int           = 131072
+      val bufferSize: Int           = 32768
       val buffer: Array[Byte]       = Array.ofDim[Byte](bufferSize)
       val parser: AsyncParser[Json] = AsyncParser[Json](AsyncParser.ValueStream)
       @tailrec
@@ -116,13 +114,12 @@ private object HadoopReader {
         val numBytes = is.read(buffer, 0, bufferSize)
         if (numBytes == -1) { (existing, None) }
         else {
-          val byteBuffer = ByteBuffer.wrap(buffer, 0, numBytes)
-          parser.absorb(byteBuffer) match {
+          parser.absorb(ByteBuffer.wrap(buffer, 0, numBytes)) match {
             case Left(ex) => throw ex
             case Right(value) =>
               val size  = value.size
               val jsons = Chunk.from(value)
-              if ((size + existCount) < chunkSize.value) go(existing ++ jsons, size + existCount)
+              if ((existCount + size) < chunkSize.value) go(existing ++ jsons, existCount + size)
               else {
                 val (first, second) = jsons.splitAt(chunkSize.value - existCount)
                 (existing ++ first, second.some)
@@ -163,28 +160,25 @@ private object HadoopReader {
     path: Path,
     chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, GenericData.Record] =
     inputStreamS[F](configuration, path).evalMap(is => F.blocking(getDecoder(is))).flatMap { decoder =>
-      def iterate(datumReader: Option[GenericDatumReader[GenericData.Record]])
-        : Option[(Chunk[GenericData.Record], Option[GenericDatumReader[GenericData.Record]])] =
-        datumReader match {
-          case None => None
-          case Some(reader) =>
-            val builder: mutable.ReusableBuilder[GenericData.Record, Vector[GenericData.Record]] =
-              Vector.newBuilder[GenericData.Record]
-            var counter: Int = 0
-            try {
-              while (counter < chunkSize.value) {
-                builder += reader.read(null, decoder)
-                counter += 1
-              }
-              (Chunk.from(builder.result()), datumReader).some
-            } catch {
-              case _: java.io.EOFException =>
-                (Chunk.from(builder.result()), None).some
-            }
-        }
+      val datumReader: GenericDatumReader[GenericData.Record] =
+        new GenericDatumReader[GenericData.Record](schema)
 
-      Stream.unfoldChunkEval[F, Option[GenericDatumReader[GenericData.Record]], GenericData.Record](
-        new GenericDatumReader[GenericData.Record](schema).some)(dr => F.blocking(iterate(dr)))
+      def go(): (Chunk[GenericData.Record], Option[Unit]) = {
+        val builder      = Vector.newBuilder[GenericData.Record]
+        var counter: Int = 0
+        try {
+          while (counter < chunkSize.value) {
+            builder += datumReader.read(null, decoder)
+            counter += 1
+          }
+          (Chunk.from(builder.result()), ().some)
+        } catch {
+          case _: java.io.EOFException =>
+            (Chunk.from(builder.result()), None)
+        }
+      }
+
+      Stream.unfoldChunkLoopEval[F, Unit, GenericData.Record](())(_ => F.blocking(go()))
     }
 
   def jacksonS[F[_]](configuration: Configuration, schema: Schema, path: Path, chunkSize: ChunkSize)(implicit

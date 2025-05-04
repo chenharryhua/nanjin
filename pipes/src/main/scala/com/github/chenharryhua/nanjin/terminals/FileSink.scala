@@ -118,7 +118,7 @@ final class FileSink[F[_]: Sync] private (configuration: Configuration, path: Pa
   val circe: Pipe[F, Json, Int] = { (ss: Stream[F, Json]) =>
     Stream
       .resource(HadoopWriter.stringR[F](configuration, path))
-      .flatMap(w => ss.chunks.map(_.map(_.noSpaces)).evalMap(c => w.write(c).as(c.size)))
+      .flatMap(w => ss.map(_.noSpaces).chunks.evalMap(c => w.write(c).as(c.size)))
   }
 
   /** [[https://nrinaudo.github.io/kantan.csv]]
@@ -129,7 +129,7 @@ final class FileSink[F[_]: Sync] private (configuration: Configuration, path: Pa
         .resource(
           HadoopWriter.csvStringR[F](configuration, path).evalTap(_.write(csvHeader(csvConfiguration))))
         .flatMap { w =>
-          ss.chunks.map(_.map(csvRow(csvConfiguration))).evalMap(c => w.write(c).as(c.size))
+          ss.map(csvRow(csvConfiguration)).chunks.evalMap(c => w.write(c).as(c.size))
         }
   }
 

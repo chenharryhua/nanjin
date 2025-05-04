@@ -16,7 +16,7 @@ import org.apache.parquet.hadoop.util.HadoopOutputFile
 import org.apache.parquet.io.PositionOutputStream
 import scalapb.GeneratedMessage
 
-import java.io.{BufferedWriter, OutputStream, OutputStreamWriter}
+import java.io.{OutputStream, OutputStreamWriter}
 import java.nio.charset.StandardCharsets
 
 sealed private trait HadoopWriter[F[_], A] {
@@ -79,22 +79,21 @@ private object HadoopWriter {
           }
       })
 
-  private def bufferedWriterR[F[_]](path: Path, configuration: Configuration)(implicit
-    F: Sync[F]): Resource[F, BufferedWriter] =
+  private def outputStreamWriterR[F[_]](path: Path, configuration: Configuration)(implicit
+    F: Sync[F]): Resource[F, OutputStreamWriter] =
     Resource.make(
-      F.blocking(new BufferedWriter(
-        new OutputStreamWriter(fileOutputStream(path, configuration), StandardCharsets.UTF_8))))(r =>
+      F.blocking(new OutputStreamWriter(fileOutputStream(path, configuration), StandardCharsets.UTF_8)))(r =>
       F.blocking(r.close()))
 
   def stringR[F[_]](configuration: Configuration, path: Path)(implicit
     F: Sync[F]): Resource[F, HadoopWriter[F, String]] =
-    bufferedWriterR(path, configuration).map(writer =>
+    outputStreamWriterR(path, configuration).map(writer =>
       new HadoopWriter[F, String] {
         override def write(cs: Chunk[String]): F[Unit] =
           F.blocking {
             cs.foreach { s =>
               writer.write(s)
-              writer.newLine()
+              writer.write(System.lineSeparator())
             }
             writer.flush()
           }
@@ -102,7 +101,7 @@ private object HadoopWriter {
 
   def csvStringR[F[_]](configuration: Configuration, path: Path)(implicit
     F: Sync[F]): Resource[F, HadoopWriter[F, String]] =
-    bufferedWriterR(path, configuration).map(writer =>
+    outputStreamWriterR(path, configuration).map(writer =>
       new HadoopWriter[F, String] {
         override def write(cs: Chunk[String]): F[Unit] =
           F.blocking {
