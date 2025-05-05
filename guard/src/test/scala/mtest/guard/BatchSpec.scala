@@ -15,7 +15,7 @@ class BatchSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
     TaskGuard[IO]("batch").service("batch").updateConfig(_.withMetricReport(Policy.crontab(_.secondly)))
 
   private val handler = HandleJobOutcome[IO, Unit](
-    succeeded = (job, _) => IO.println(job),
+    completed = (job, _) => IO.println(job),
     errored = (job, _) => IO.println(job),
     canceled = IO.println)
 

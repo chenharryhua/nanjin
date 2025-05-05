@@ -81,7 +81,7 @@ object JobTenure {
 }
 
 final case class HandleJobOutcome[F[_], A](
-  succeeded: (JobTenure, A) => F[Unit],
+  completed: (JobTenure, A) => F[Unit],
   errored: (JobTenure, Throwable) => F[Unit],
   canceled: BatchJob => F[Unit]
 )

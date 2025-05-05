@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.action
 import cats.MonadError
-import cats.data.{Ior, Kleisli, NonEmptyList, StateT}
+import cats.data.*
 import cats.effect.implicits.{clockOps, monadCancelOps}
 import cats.effect.kernel.{Async, Outcome, Resource}
 import cats.syntax.all.*
@@ -79,15 +79,17 @@ object Batch {
   private def handleOutcome[F[_], A](
     job: BatchJob,
     handler: HandleJobOutcome[F, A],
-    postcondition: A => Boolean)(oc: Outcome[F, Throwable, (FiniteDuration, Either[Throwable, A])])(implicit
+    postcondition: Option[Reader[A, Boolean]])(
+    outcome: Outcome[F, Throwable, (FiniteDuration, Either[Throwable, A])])(implicit
     F: MonadError[F, Throwable]): F[Unit] =
-    oc.fold(
+    outcome.fold(
       canceled = handler.canceled(job),
       errored = e => F.raiseError(new Exception("Should never happen!!!", e)),
       completed = _.flatMap { case (fd, eoa) =>
         eoa match {
           case Left(ex) => handler.errored(JobTenure(job, fd.toJava, done = false), ex)
-          case Right(a) => handler.succeeded(JobTenure(job, fd.toJava, done = postcondition(a)), a)
+          case Right(a) =>
+            handler.completed(JobTenure(job, fd.toJava, postcondition.forall(_.run(a))), a)
         }
       }
     )
@@ -128,7 +130,7 @@ object Batch {
 
       def exec(meas: DoMeasurement[F]): F[(FiniteDuration, List[Detail])] =
         F.timed(F.parTraverseN(parallelism)(jobs) { case (job, fa) =>
-          F.timed(fa.attempt).guaranteeCase(handleOutcome(job, handler, postcondition = f)).flatMap {
+          F.timed(fa.attempt).guaranteeCase(handleOutcome(job, handler, Some(Reader(f)))).flatMap {
             case (fd, eoa) =>
               val detail = Detail(job, fd.toJava, eoa.fold(_ => false, f(_)))
               meas.run(detail).as(detail)
@@ -145,7 +147,7 @@ object Batch {
       def exec(meas: DoMeasurement[F]): F[(FiniteDuration, List[(Detail, A)])] =
         F.parTraverseN(parallelism)(jobs) { case (job, fa) =>
           F.timed(fa.attempt)
-            .guaranteeCase(handleOutcome(job, handler, postcondition = _ => true))
+            .guaranteeCase(handleOutcome(job, handler, None))
             .flatMap { case (fd, eoa) =>
               val detail = Detail(job, fd.toJava, done = eoa.isRight)
               meas.run(detail).as(eoa.map((detail, _)))
@@ -183,7 +185,7 @@ object Batch {
       def exec(meas: DoMeasurement[F]): F[List[Detail]] =
         jobs.traverse { case (job, fa) =>
           F.timed(metrics.activeGauge(s"running ${getJobName(job)}").surround(fa.attempt))
-            .guaranteeCase(handleOutcome(job, handler, postcondition = f))
+            .guaranteeCase(handleOutcome(job, handler, Some(Reader(f))))
             .flatMap { case (fd, eoa) =>
               val detail = Detail(job, fd.toJava, eoa.fold(_ => false, f(_)))
               meas.run(detail).as(detail)
@@ -198,7 +200,7 @@ object Batch {
       def exec(meas: DoMeasurement[F]): F[List[(Detail, A)]] =
         jobs.traverse { case (job, fa) =>
           F.timed(metrics.activeGauge(s"running ${getJobName(job)}").surround(fa.attempt))
-            .guaranteeCase(handleOutcome(job, handler, postcondition = _ => true))
+            .guaranteeCase(handleOutcome(job, handler, None))
             .flatMap { case (fd, eoa) =>
               val detail = Detail(job, fd.toJava, done = eoa.isRight)
               meas.run(detail).as(eoa.map((detail, _)))
@@ -235,7 +237,7 @@ object Batch {
               .activeGauge(s"running ${getJobName(job)}")
               .surround(fa.attempt.timed)
               .guaranteeCase { (oc: Outcome[F, Throwable, (FiniteDuration, Either[Throwable, A])]) =>
-                handleOutcome[F, Unit](job, handler, postcondition = _ => true)(oc.fold(
+                handleOutcome[F, Unit](job, handler, None)(oc.fold(
                   canceled = Outcome.Canceled(),
                   errored = Outcome.Errored(_),
                   completed = (ffe: F[(FiniteDuration, Either[Throwable, A])]) =>
