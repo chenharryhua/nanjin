@@ -76,26 +76,28 @@ object Batch {
       },
       mtx)
 
+  private def handleOutcome[F[_], A](
+    job: BatchJob,
+    handler: HandleJobOutcome[F, A],
+    postcondition: A => Boolean)(oc: Outcome[F, Throwable, (FiniteDuration, Either[Throwable, A])])(implicit
+    F: MonadError[F, Throwable]): F[Unit] =
+    oc.fold(
+      canceled = handler.canceled(job),
+      errored = e => F.raiseError(new Exception("Should never happen!!!", e)),
+      completed = _.flatMap { case (fd, eoa) =>
+        eoa match {
+          case Left(ex) => handler.errored(JobTenure(job, fd.toJava, done = false), ex)
+          case Right(a) => handler.succeeded(JobTenure(job, fd.toJava, done = postcondition(a)), a)
+        }
+      }
+    )
+
   /*
    * Runners
    */
 
   sealed abstract class Runner[F[_]: Async, A] { outer =>
     protected val F: Async[F] = Async[F]
-
-    protected def handleOutcome(job: BatchJob, handler: HandleJobOutcome[F, A], postcondition: A => Boolean)(
-      oc: Outcome[F, Throwable, (FiniteDuration, Either[Throwable, A])])(implicit
-      F: MonadError[F, Throwable]): F[Unit] =
-      oc.fold(
-        canceled = handler.canceled(job),
-        errored = e => F.raiseError(new Exception("Should never happen!!!", e)),
-        completed = _.flatMap { case (fd, eoa) =>
-          eoa match {
-            case Left(ex) => handler.errored(JobTenure(job, fd.toJava, done = false), ex)
-            case Right(a) => handler.succeeded(JobTenure(job, fd.toJava, done = postcondition(a)), a)
-          }
-        }
-      )
 
     /** batch always success but jobs may fail
       * @return
@@ -232,16 +234,15 @@ object Batch {
             mtx
               .activeGauge(s"running ${getJobName(job)}")
               .surround(fa.attempt.timed)
-              .guaranteeCase {
-                case Outcome.Succeeded(fa) =>
-                  fa.flatMap { case (fd, eoa) =>
-                    eoa match {
-                      case Left(ex) => handler.errored(JobTenure(job, fd.toJava, done = false), ex)
-                      case Right(_) => handler.succeeded(JobTenure(job, fd.toJava, done = true), ())
-                    }
-                  }
-                case Outcome.Errored(e) => F.raiseError(new Exception("Should never happen!!!", e))
-                case Outcome.Canceled() => handler.canceled(job)
+              .guaranteeCase { (oc: Outcome[F, Throwable, (FiniteDuration, Either[Throwable, A])]) =>
+                handleOutcome[F, Unit](job, handler, postcondition = _ => true)(oc.fold(
+                  canceled = Outcome.Canceled(),
+                  errored = Outcome.Errored(_),
+                  completed = (ffe: F[(FiniteDuration, Either[Throwable, A])]) =>
+                    Outcome.Succeeded(ffe.map { case (fd, eoa) =>
+                      (fd, eoa.map(_ => ()))
+                    })
+                ))
               }
               .flatMap { case (fd: FiniteDuration, ea: Either[Throwable, A]) =>
                 val detail = Detail(job, fd.toJava, ea.isRight)
