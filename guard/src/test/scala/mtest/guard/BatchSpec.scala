@@ -4,7 +4,7 @@ import cats.effect.IO
 import cats.effect.testing.scalatest.AsyncIOSpec
 import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.action.{Batch, BatchResult}
+import com.github.chenharryhua.nanjin.guard.action.{Batch, BatchResult, HandleJobOutcome}
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStop
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import org.scalatest.freespec.AsyncFreeSpec
@@ -13,6 +13,11 @@ import org.scalatest.matchers.should.Matchers
 class BatchSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
   private val service: ServiceGuard[IO] =
     TaskGuard[IO]("batch").service("batch").updateConfig(_.withMetricReport(Policy.crontab(_.secondly)))
+
+  private val handler = HandleJobOutcome[IO, Unit](
+    succeeded = (job, _) => IO.println(job),
+    errored = (job, _) => IO.println(job),
+    canceled = IO.println)
 
   "monadic" -
     "filter - quasi".in {
@@ -28,7 +33,7 @@ class BatchSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
               c <- job("c", IO(3))
             } yield a + b + c
           }
-          .runQuasi
+          .traceQuasi(handler)
           .memoizedAcquire
           .use(identity)
         result.asserting { qr =>
@@ -54,7 +59,7 @@ class BatchSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
             c <- job("c", IO(3))
           } yield a + b + c
         }
-        .runFully
+        .traceFully(handler)
         .map(_._2)
         .memoizedAcquire
         .use(identity)

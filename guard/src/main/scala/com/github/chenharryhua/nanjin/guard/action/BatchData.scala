@@ -54,13 +54,13 @@ object BatchResult {
       DONE -> Json.fromInt(done.length),
       FAIL -> Json.fromInt(fail.length),
       "details" -> br.details
-        .map(d =>
+        .map(detail =>
           Json
             .obj(
-              NAME -> d.job.name.asJson,
-              INDEX -> Json.fromInt(d.job.index),
-              TOOK -> Json.fromString(durationFormatter.format(d.took)),
-              DONE -> Json.fromBoolean(d.done)
+              NAME -> detail.job.name.asJson,
+              INDEX -> Json.fromInt(detail.job.index),
+              TOOK -> Json.fromString(durationFormatter.format(detail.took)),
+              DONE -> Json.fromBoolean(detail.done)
             )
             .dropNullValues)
         .asJson
@@ -68,13 +68,15 @@ object BatchResult {
   }
 }
 
-final case class JobTenure(job: BatchJob, took: Duration)
+final case class JobTenure(job: BatchJob, took: Duration, done: Boolean)
 object JobTenure {
   implicit val encoderJobTenure: Encoder[JobTenure] = { (jt: JobTenure) =>
     Json.obj(
       NAME -> jt.job.name.asJson,
       INDEX -> Json.fromInt(jt.job.index),
-      TOOK -> Json.fromString(durationFormatter.format(jt.took)))
+      TOOK -> Json.fromString(durationFormatter.format(jt.took)),
+      DONE -> Json.fromBoolean(jt.done)
+    )
   }
 }
 

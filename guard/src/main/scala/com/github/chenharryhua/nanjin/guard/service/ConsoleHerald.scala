@@ -94,7 +94,6 @@ abstract private class ConsoleHeraldImpl[F[_]](
       _ <- cns.println(toText(msg))
     } yield ()
 
-
   override def debug[S: Encoder](msg: => F[S])(implicit cns: Console[F]): F[Unit] =
     alarmLevel.get
       .map(_ === AlarmLevel.Debug)

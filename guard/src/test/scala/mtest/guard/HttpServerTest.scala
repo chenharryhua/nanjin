@@ -7,7 +7,7 @@ import com.comcast.ip4s.IpLiteralSyntax
 import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.common.chrono.zones.londonTime
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import io.circe.{Json, jawn}
+import io.circe.{jawn, Json}
 import org.http4s.ember.client.EmberClientBuilder
 import org.scalatest.funsuite.AnyFunSuite
 

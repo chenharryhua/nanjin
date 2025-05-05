@@ -106,7 +106,7 @@ private object HadoopReader {
   def jawnS[F[_]](configuration: Configuration, path: Path, chunkSize: ChunkSize)(implicit
     F: Sync[F]): Stream[F, Json] =
     inputStreamS[F](configuration, path).flatMap { (is: InputStream) =>
-      val bufferSize: Int           = 32768
+      val bufferSize: Int           = 131072
       val buffer: Array[Byte]       = Array.ofDim[Byte](bufferSize)
       val parser: AsyncParser[Json] = AsyncParser[Json](AsyncParser.ValueStream)
       @tailrec
