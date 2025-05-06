@@ -78,7 +78,7 @@ object Batch {
 
   final private case class SingleJobResult[A](detail: JobDetail, eoa: Either[Throwable, A]) {
     def embed: Either[Throwable, (JobDetail, A)] = eoa.map((detail, _))
-    def map[B](f: A => B): SingleJobResult[B] = copy(eoa = eoa.map(f))
+    def map[B](f: A => B): SingleJobResult[B]    = copy(eoa = eoa.map(f))
   }
 
   private def handleOutcome[F[_], A](job: BatchJob, handler: HandleJobOutcome[F, A])(
@@ -95,7 +95,7 @@ object Batch {
    * Runners
    */
 
-  sealed abstract class Runner[F[_]: Async, A] { outer =>
+  sealed abstract protected class Runner[F[_]: Async, A] { outer =>
     protected val F: Async[F] = Async[F]
 
     def map[B](f: A => B): Runner[F, B]
@@ -104,14 +104,24 @@ object Batch {
       */
     def renameJobs(f: Endo[String]): Runner[F, A]
 
-    /** batch always success but jobs may fail
+    /** exceptions raised by jobs in the batch are swallowed.
+      *
+      * a job is either
+      *
+      * done: when the job returns a value of A and isSucc(a) returns true
+      *
+      * otherwise fail
+      *
+      * @param isSucc:
+      *   evaluate job's return value
       * @return
       */
-    def traceQuasi(handler: HandleJobOutcome[F, A])(f: A => Boolean): Resource[F, BatchResult]
+    def traceQuasi(handler: HandleJobOutcome[F, A])(isSucc: A => Boolean): Resource[F, BatchResult]
     final def runQuasi(f: A => Boolean): Resource[F, BatchResult] =
       traceQuasi(HandleJobOutcome.noop[F, A])(f)
 
-    /** any job's failure will cause whole batch's failure
+    /** @param handler:
+      *   final action on job's return state
       * @return
       */
     def traceFully(handler: HandleJobOutcome[F, A]): Resource[F, (BatchResult, List[A])]
@@ -129,13 +139,14 @@ object Batch {
 
     private val mode: BatchMode = BatchMode.Parallel(parallelism)
 
-    override def traceQuasi(handler: HandleJobOutcome[F, A])(f: A => Boolean): Resource[F, BatchResult] = {
+    override def traceQuasi(
+      handler: HandleJobOutcome[F, A])(isSucc: A => Boolean): Resource[F, BatchResult] = {
 
       def exec(meas: DoMeasurement[F]): F[(FiniteDuration, List[JobDetail])] =
         F.timed(F.parTraverseN(parallelism)(jobs) { case (job, fa) =>
           F.timed(fa.attempt)
             .flatMap { case (fd, eoa) =>
-              val detail = JobDetail(job, fd.toJava, eoa.fold(_ => false, f(_)))
+              val detail = JobDetail(job, fd.toJava, eoa.fold(_ => false, isSucc(_)))
               meas.run(detail).as(SingleJobResult(detail, eoa))
             }
             .guaranteeCase(handleOutcome(job, handler))
@@ -192,13 +203,14 @@ object Batch {
         details = details
       )
 
-    override def traceQuasi(handler: HandleJobOutcome[F, A])(f: A => Boolean): Resource[F, BatchResult] = {
+    override def traceQuasi(
+      handler: HandleJobOutcome[F, A])(isSucc: A => Boolean): Resource[F, BatchResult] = {
 
       def exec(meas: DoMeasurement[F]): F[List[JobDetail]] =
         jobs.traverse { case (job, fa) =>
           F.timed(metrics.activeGauge(s"running ${getJobName(job)}").surround(fa.attempt))
             .flatMap { case (fd, eoa) =>
-              val detail = JobDetail(job, fd.toJava, eoa.fold(_ => false, f(_)))
+              val detail = JobDetail(job, fd.toJava, eoa.fold(_ => false, isSucc(_)))
               meas.run(detail).as(SingleJobResult(detail, eoa))
             }
             .guaranteeCase(handleOutcome(job, handler))
