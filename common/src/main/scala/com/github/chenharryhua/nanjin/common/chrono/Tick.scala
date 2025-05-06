@@ -1,8 +1,8 @@
 package com.github.chenharryhua.nanjin.common.chrono
 
-import cats.Show
 import cats.effect.kernel.Sync
 import cats.syntax.all.*
+import cats.{Functor, Show}
 import com.github.chenharryhua.nanjin.common.utils
 import io.circe.generic.JsonCodec
 import io.circe.{Decoder, Encoder}
@@ -79,7 +79,9 @@ object Tick {
 }
 
 @PLenses
-final case class TickedValue[A](tick: Tick, value: A)
+final case class TickedValue[A](tick: Tick, value: A) {
+  def map[B](f: A => B): TickedValue[B] = copy(value = f(value))
+}
 object TickedValue {
   implicit def encoderTickedValue[A: Encoder]: Encoder[TickedValue[A]] =
     io.circe.generic.semiauto.deriveEncoder[TickedValue[A]]
@@ -89,4 +91,8 @@ object TickedValue {
 
   implicit def showTickedValue[A: Show]: Show[TickedValue[A]] =
     cats.derived.semiauto.show[TickedValue[A]]
+
+  implicit val functorTickedValue: Functor[TickedValue] = new Functor[TickedValue] {
+    override def map[A, B](fa: TickedValue[A])(f: A => B): TickedValue[B] = fa.map(f)
+  }
 }

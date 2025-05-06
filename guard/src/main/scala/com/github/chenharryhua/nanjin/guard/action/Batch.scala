@@ -1,9 +1,9 @@
 package com.github.chenharryhua.nanjin.guard.action
-import cats.MonadError
 import cats.data.*
 import cats.effect.implicits.{clockOps, monadCancelOps}
 import cats.effect.kernel.{Async, Outcome, Resource}
 import cats.syntax.all.*
+import cats.{Endo, MonadError}
 import com.github.chenharryhua.nanjin.guard.metrics.Metrics
 import com.github.chenharryhua.nanjin.guard.translator.durationFormatter
 import io.circe.Json
@@ -38,7 +38,7 @@ object Batch {
       }
   }
 
-  private def toJson(details: List[Detail]): Json =
+  private def toJson(details: List[JobDetail]): Json =
     if (details.isEmpty) Json.Null
     else {
       val pairs: List[(String, Json)] = details.map { detail =>
@@ -49,7 +49,7 @@ object Batch {
       Json.obj(pairs*)
     }
 
-  private type DoMeasurement[F[_]] = Kleisli[F, Detail, Unit]
+  private type DoMeasurement[F[_]] = Kleisli[F, JobDetail, Unit]
 
   private def createMeasure[F[_]](mtx: Metrics[F], size: Int, kind: BatchKind, mode: BatchMode)(implicit
     F: Async[F]): Resource[F, DoMeasurement[F]] =
@@ -58,9 +58,9 @@ object Batch {
       percentile <- mtx
         .percentile(show"$mode completion", _.withTranslator(translator))
         .evalTap(_.incDenominator(size.toLong))
-      progress <- Resource.eval(F.ref[List[Detail]](Nil))
+      progress <- Resource.eval(F.ref[List[JobDetail]](Nil))
       _ <- mtx.gauge(show"$kind completed").register(progress.get.map(toJson))
-    } yield Kleisli { (detail: Detail) =>
+    } yield Kleisli { (detail: JobDetail) =>
       F.uncancelable(_ => percentile.incNumerator(1) *> progress.update(_.appended(detail)))
     }
 
@@ -68,29 +68,26 @@ object Batch {
     F: Async[F]): Resource[F, (DoMeasurement[F], Metrics[F])] =
     for {
       _ <- mtx.activeGauge("elapsed")
-      progress <- Resource.eval(F.ref[List[Detail]](Nil))
+      progress <- Resource.eval(F.ref[List[JobDetail]](Nil))
       _ <- mtx.gauge(show"${BatchMode.Sequential} $kind completed").register(progress.get.map(toJson))
     } yield (
-      Kleisli { (detail: Detail) =>
+      Kleisli { (detail: JobDetail) =>
         F.uncancelable(_ => progress.update(_.appended(detail)))
       },
       mtx)
 
-  private def handleOutcome[F[_], A](
-    job: BatchJob,
-    handler: HandleJobOutcome[F, A],
-    postcondition: Option[Reader[A, Boolean]])(
-    outcome: Outcome[F, Throwable, (FiniteDuration, Either[Throwable, A])])(implicit
-    F: MonadError[F, Throwable]): F[Unit] =
+  final private case class SingleJobResult[A](detail: JobDetail, eoa: Either[Throwable, A]) {
+    def embed: Either[Throwable, (JobDetail, A)] = eoa.map((detail, _))
+    def map[B](f: A => B): SingleJobResult[B] = copy(eoa = eoa.map(f))
+  }
+
+  private def handleOutcome[F[_], A](job: BatchJob, handler: HandleJobOutcome[F, A])(
+    outcome: Outcome[F, Throwable, SingleJobResult[A]])(implicit F: MonadError[F, Throwable]): F[Unit] =
     outcome.fold(
       canceled = handler.canceled(job),
       errored = e => F.raiseError(new Exception("Should never happen!!!", e)),
-      completed = _.flatMap { case (fd, eoa) =>
-        eoa match {
-          case Left(ex) => handler.errored(JobTenure(job, fd.toJava, done = false), ex)
-          case Right(a) =>
-            handler.completed(JobTenure(job, fd.toJava, postcondition.forall(_.run(a))), a)
-        }
+      completed = _.flatMap { case SingleJobResult(detail, eoa) =>
+        eoa.fold(handler.errored(detail, _), handler.completed(detail, _))
       }
     )
 
@@ -100,6 +97,12 @@ object Batch {
 
   sealed abstract class Runner[F[_]: Async, A] { outer =>
     protected val F: Async[F] = Async[F]
+
+    def map[B](f: A => B): Runner[F, B]
+
+    /** rename the job names by apply f
+      */
+    def renameJobs(f: Endo[String]): Runner[F, A]
 
     /** batch always success but jobs may fail
       * @return
@@ -128,13 +131,15 @@ object Batch {
 
     override def traceQuasi(handler: HandleJobOutcome[F, A])(f: A => Boolean): Resource[F, BatchResult] = {
 
-      def exec(meas: DoMeasurement[F]): F[(FiniteDuration, List[Detail])] =
+      def exec(meas: DoMeasurement[F]): F[(FiniteDuration, List[JobDetail])] =
         F.timed(F.parTraverseN(parallelism)(jobs) { case (job, fa) =>
-          F.timed(fa.attempt).guaranteeCase(handleOutcome(job, handler, Some(Reader(f)))).flatMap {
-            case (fd, eoa) =>
-              val detail = Detail(job, fd.toJava, eoa.fold(_ => false, f(_)))
-              meas.run(detail).as(detail)
-          }
+          F.timed(fa.attempt)
+            .flatMap { case (fd, eoa) =>
+              val detail = JobDetail(job, fd.toJava, eoa.fold(_ => false, f(_)))
+              meas.run(detail).as(SingleJobResult(detail, eoa))
+            }
+            .guaranteeCase(handleOutcome(job, handler))
+            .map(_.detail)
         })
 
       createMeasure(metrics, jobs.size, BatchKind.Quasi, mode).evalMap(exec).map { case (fd, details) =>
@@ -144,14 +149,15 @@ object Batch {
 
     override def traceFully(handler: HandleJobOutcome[F, A]): Resource[F, (BatchResult, List[A])] = {
 
-      def exec(meas: DoMeasurement[F]): F[(FiniteDuration, List[(Detail, A)])] =
+      def exec(meas: DoMeasurement[F]): F[(FiniteDuration, List[(JobDetail, A)])] =
         F.parTraverseN(parallelism)(jobs) { case (job, fa) =>
           F.timed(fa.attempt)
-            .guaranteeCase(handleOutcome(job, handler, None))
             .flatMap { case (fd, eoa) =>
-              val detail = Detail(job, fd.toJava, done = eoa.isRight)
-              meas.run(detail).as(eoa.map((detail, _)))
+              val detail = JobDetail(job, fd.toJava, done = eoa.isRight)
+              meas.run(detail).as(SingleJobResult(detail, eoa))
             }
+            .guaranteeCase(handleOutcome(job, handler))
+            .map(_.embed)
             .rethrow
         }.timed
 
@@ -161,6 +167,12 @@ object Batch {
         (br, sorted.map(_._2))
       }
     }
+
+    override def map[B](f: A => B): Parallel[F, B] =
+      new Parallel[F, B](metrics, parallelism, jobs.map { case (job, fa) => (job, fa.map(f)) })
+
+    override def renameJobs(f: String => String): Parallel[F, A] =
+      new Parallel[F, A](metrics, parallelism, jobs.map(_.focus(_._1.name).modify(_.map(f))))
   }
 
   /*
@@ -172,7 +184,7 @@ object Batch {
 
     private val mode: BatchMode = BatchMode.Sequential
 
-    private def batchResult(details: List[Detail]): BatchResult =
+    private def batchResult(details: List[JobDetail]): BatchResult =
       BatchResult(
         label = metrics.metricLabel,
         spent = details.map(_.took).foldLeft(Duration.ZERO)(_ plus _),
@@ -182,14 +194,15 @@ object Batch {
 
     override def traceQuasi(handler: HandleJobOutcome[F, A])(f: A => Boolean): Resource[F, BatchResult] = {
 
-      def exec(meas: DoMeasurement[F]): F[List[Detail]] =
+      def exec(meas: DoMeasurement[F]): F[List[JobDetail]] =
         jobs.traverse { case (job, fa) =>
           F.timed(metrics.activeGauge(s"running ${getJobName(job)}").surround(fa.attempt))
-            .guaranteeCase(handleOutcome(job, handler, Some(Reader(f))))
             .flatMap { case (fd, eoa) =>
-              val detail = Detail(job, fd.toJava, eoa.fold(_ => false, f(_)))
-              meas.run(detail).as(detail)
+              val detail = JobDetail(job, fd.toJava, eoa.fold(_ => false, f(_)))
+              meas.run(detail).as(SingleJobResult(detail, eoa))
             }
+            .guaranteeCase(handleOutcome(job, handler))
+            .map(_.detail)
         }
 
       createMeasure(metrics, jobs.size, BatchKind.Quasi, mode).evalMap(exec).map(batchResult)
@@ -197,14 +210,15 @@ object Batch {
 
     override def traceFully(handler: HandleJobOutcome[F, A]): Resource[F, (BatchResult, List[A])] = {
 
-      def exec(meas: DoMeasurement[F]): F[List[(Detail, A)]] =
+      def exec(meas: DoMeasurement[F]): F[List[(JobDetail, A)]] =
         jobs.traverse { case (job, fa) =>
           F.timed(metrics.activeGauge(s"running ${getJobName(job)}").surround(fa.attempt))
-            .guaranteeCase(handleOutcome(job, handler, None))
             .flatMap { case (fd, eoa) =>
-              val detail = Detail(job, fd.toJava, done = eoa.isRight)
-              meas.run(detail).as(eoa.map((detail, _)))
+              val detail = JobDetail(job, fd.toJava, done = eoa.isRight)
+              meas.run(detail).as(SingleJobResult(detail, eoa))
             }
+            .guaranteeCase(handleOutcome(job, handler))
+            .map(_.embed)
             .rethrow
         }
 
@@ -214,46 +228,59 @@ object Batch {
         (br, a)
       }
     }
+
+    override def map[B](f: A => B): Sequential[F, B] =
+      new Sequential[F, B](metrics, jobs.map { case (job, fa) => (job, fa.map(f)) })
+
+    override def renameJobs(f: String => String): Sequential[F, A] =
+      new Sequential[F, A](metrics, jobs.map(_.focus(_._1.name).modify(_.map(f))))
   }
 
   /*
    * Monadic
    */
 
-  final private case class JobState[A](result: Either[Throwable, A], details: NonEmptyList[Detail]) {
+  final private case class JobState[A](result: Either[Throwable, A], details: NonEmptyList[JobDetail]) {
     def update[B](ex: Throwable): JobState[B] = copy(result = Left(ex))
     // reversed order
     def update[B](rb: JobState[B]): JobState[B] =
       JobState[B](rb.result, rb.details ::: details)
   }
 
+  final private case class Callbacks[F[_]](
+    doMeasure: DoMeasurement[F],
+    handler: HandleJobOutcome[F, Unit],
+    rename: Endo[String],
+    mtx: Metrics[F])
+
   final class JobBuilder[F[_]] private[Batch] (passby: Metrics[F])(implicit F: Async[F]) {
     private def build[A](name: Option[String], fa: F[A]): Monadic[F, A] =
       new Monadic[F, A](
-        Kleisli { case (measure: DoMeasurement[F], handler: HandleJobOutcome[F, Unit], mtx: Metrics[F]) =>
+        Kleisli { (callbacks: Callbacks[F]) =>
           StateT { (index: Int) =>
-            val job = BatchJob(name, index)
-            mtx
+            val job = BatchJob(name.map(callbacks.rename), index)
+            callbacks.mtx
               .activeGauge(s"running ${getJobName(job)}")
               .surround(fa.attempt.timed)
-              .guaranteeCase { (oc: Outcome[F, Throwable, (FiniteDuration, Either[Throwable, A])]) =>
-                handleOutcome[F, Unit](job, handler, None)(oc.fold(
-                  canceled = Outcome.Canceled(),
-                  errored = Outcome.Errored(_),
-                  completed = (ffe: F[(FiniteDuration, Either[Throwable, A])]) =>
-                    Outcome.Succeeded(ffe.map { case (fd, eoa) =>
-                      (fd, eoa.map(_ => ()))
-                    })
-                ))
+              .flatMap { case (fd: FiniteDuration, eoa: Either[Throwable, A]) =>
+                val detail = JobDetail(job, fd.toJava, eoa.isRight)
+                callbacks.doMeasure(detail).as(SingleJobResult(detail, eoa))
               }
-              .flatMap { case (fd: FiniteDuration, ea: Either[Throwable, A]) =>
-                val detail = Detail(job, fd.toJava, ea.isRight)
-                measure.run(detail).as(JobState(ea, NonEmptyList.one(detail)))
+              .guaranteeCase { oc =>
+                handleOutcome[F, Unit](job, callbacks.handler)(
+                  oc.fold(
+                    canceled = Outcome.Canceled(),
+                    errored = Outcome.Errored(_),
+                    completed = fde => Outcome.Succeeded(fde.map(_.map(_ => ())))
+                  ))
               }
-              .map((index + 1, _))
+              .map { case SingleJobResult(detail, eoa) =>
+                (index + 1, JobState(eoa, NonEmptyList.one(detail)))
+              }
           }
         },
-        passby
+        passby,
+        identity
       )
 
     /** build a nameless job
@@ -281,27 +308,26 @@ object Batch {
       extends Exception(s"${getJobName(job)} run successfully but failed post-condition check")
 
   final class Monadic[F[_]: Async, A] private[Batch] (
-    private[Batch] val kleisli: Kleisli[
-      StateT[F, Int, *],
-      (DoMeasurement[F], HandleJobOutcome[F, Unit], Metrics[F]),
-      JobState[A]],
-    metrics: Metrics[F]
+    private[Batch] val kleisli: Kleisli[StateT[F, Int, *], Callbacks[F], JobState[A]],
+    metrics: Metrics[F],
+    rename: Endo[String]
   ) {
+    def renameJobs(f: String => String): Monadic[F, A] =
+      new Monadic[F, A](kleisli, metrics, rename = f)
+
     def flatMap[B](f: A => Monadic[F, B]): Monadic[F, B] = {
-      val runB
-        : Kleisli[StateT[F, Int, *], (DoMeasurement[F], HandleJobOutcome[F, Unit], Metrics[F]), JobState[B]] =
-        kleisli.tapWithF {
-          case (measure: (DoMeasurement[F], HandleJobOutcome[F, Unit], Metrics[F]), ra: JobState[A]) =>
-            ra.result match {
-              case Left(ex) => StateT(idx => ra.update[B](ex).pure[F].map((idx, _)))
-              case Right(a) => f(a).kleisli.run(measure).map(ra.update[B])
-            }
+      val runB: Kleisli[StateT[F, Int, *], Callbacks[F], JobState[B]] =
+        kleisli.tapWithF { (callbacks, ra) =>
+          ra.result match {
+            case Left(ex) => StateT(idx => ra.update[B](ex).pure[F].map((idx, _)))
+            case Right(a) => f(a).kleisli.run(callbacks).map(ra.update[B])
+          }
         }
-      new Monadic[F, B](runB, metrics)
+      new Monadic[F, B](kleisli = runB, metrics, rename)
     }
 
     def map[B](f: A => B): Monadic[F, B] =
-      new Monadic[F, B](kleisli.map(js => js.copy(result = js.result.map(f))), metrics)
+      new Monadic[F, B](kleisli.map(js => js.copy(result = js.result.map(f))), metrics, rename)
 
     def withFilter(f: A => Boolean): Monadic[F, A] =
       new Monadic[F, A](
@@ -319,10 +345,11 @@ object Batch {
               }
           }
         },
-        metrics
+        metrics,
+        rename
       )
 
-    private def batchResult(nel: NonEmptyList[Detail]) = {
+    private def batchResult(nel: NonEmptyList[JobDetail]) = {
       val details = nel.toList.reverse
       BatchResult(
         label = metrics.metricLabel,
@@ -334,7 +361,7 @@ object Batch {
 
     def traceFully(handler: HandleJobOutcome[F, Unit]): Resource[F, (BatchResult, A)] =
       createMeasure(metrics, BatchKind.Fully).evalMap { case (meas, mtx) =>
-        kleisli.run((meas, handler, mtx)).run(1)
+        kleisli.run(Callbacks(meas, handler, rename, mtx)).run(1)
       }.map { case (_, js) =>
         js.result.map(a => (batchResult(js.details), a))
       }.rethrow
@@ -344,7 +371,7 @@ object Batch {
 
     def traceQuasi(handler: HandleJobOutcome[F, Unit]): Resource[F, BatchResult] =
       createMeasure(metrics, BatchKind.Quasi).evalMap { case (meas, mtx) =>
-        kleisli.run((meas, handler, mtx)).run(1)
+        kleisli.run(Callbacks(meas, handler, rename, mtx)).run(1)
       }.map { case (_, js) =>
         batchResult(js.details)
       }

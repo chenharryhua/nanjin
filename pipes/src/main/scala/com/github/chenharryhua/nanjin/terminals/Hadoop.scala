@@ -4,6 +4,7 @@ import cats.data.NonEmptyList
 import cats.effect.kernel.{Async, Sync}
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick, TickedValue}
 import com.github.chenharryhua.nanjin.datetime.codec
+import fs2.Stream
 import io.lemonlabs.uri.{Uri, Url}
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.*
@@ -13,7 +14,6 @@ import java.time.ZoneId
 import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
-import fs2.Stream
 
 object Hadoop {
 
@@ -135,10 +135,8 @@ final class Hadoop[F[_]] private (config: Configuration) {
 
   def sink(path: Url)(implicit F: Sync[F]): FileSink[F] = FileSink[F](config, path)
 
-  def rotateSink(ticks: Stream[F, TickedValue[Url]])(implicit F: Async[F]): RotateSink[F] = {
-    val lens = TickedValue.value[Url, Path].modify(toHadoopPath)
-    new RotateByPolicySink[F](config, ticks.map(lens))
-  }
+  def rotateSink(ticks: Stream[F, TickedValue[Url]])(implicit F: Async[F]): RotateSink[F] =
+    new RotateByPolicySink[F](config, ticks.map(_.map(toHadoopPath)))
 
   /** Policy based rotation sink
     */

@@ -217,6 +217,7 @@ final private class HttpRouter[F[_]](
               "restart_policy" -> serviceParams.servicePolicies.restart.show.asJson,
               "zone_id" -> serviceParams.zoneId.asJson,
               "up_time" -> durationFormatter.format(serviceParams.upTime(now)).asJson,
+              "panics" -> panics.size.asJson,
               "history" ->
                 panics.reverse.map { sp =>
                   Json.obj(
@@ -244,6 +245,7 @@ final private class HttpRouter[F[_]](
             "present" -> now.toLocalTime.truncatedTo(ChronoUnit.SECONDS).asJson,
             "zone_id" -> serviceParams.zoneId.asJson,
             "up_time" -> durationFormatter.format(serviceParams.upTime(now)).asJson,
+            "errors" -> serviceMessages.size.asJson,
             "history" -> serviceMessages.reverse.map { sm =>
               sm.error
                 .map(err => Json.obj("stack" -> err.stack.asJson))

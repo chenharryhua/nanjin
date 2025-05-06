@@ -3,7 +3,6 @@ import cats.syntax.all.*
 import cats.{Applicative, Show}
 import com.github.chenharryhua.nanjin.guard.config.MetricLabel
 import com.github.chenharryhua.nanjin.guard.translator.durationFormatter
-import io.circe.generic.JsonCodec
 import io.circe.syntax.EncoderOps
 import io.circe.{Encoder, Json}
 
@@ -38,12 +37,27 @@ object BatchMode {
   * @param index
   *   one based index
   */
-@JsonCodec
 final case class BatchJob(name: Option[String], index: Int)
-@JsonCodec
-final case class Detail(job: BatchJob, took: Duration, done: Boolean)
+object BatchJob {
+  implicit val encoderBatchJob: Encoder[BatchJob] =
+    (bj: BatchJob) =>
+      bj.name.fold(Json.obj("index" -> Json.fromInt(bj.index)))(name =>
+        Json.obj("job_name" -> Json.fromString(name), "index" -> Json.fromInt(bj.index)))
+}
 
-final case class BatchResult(label: MetricLabel, spent: Duration, mode: BatchMode, details: List[Detail])
+final case class JobDetail(job: BatchJob, took: Duration, done: Boolean)
+object JobDetail {
+  implicit val encoderJobDetail: Encoder[JobDetail] =
+    (detail: JobDetail) =>
+      Json
+        .obj(
+          "took" -> Json.fromString(durationFormatter.format(detail.took)),
+          "done" -> Json.fromBoolean(detail.done)
+        )
+        .deepMerge(detail.job.asJson)
+}
+
+final case class BatchResult(label: MetricLabel, spent: Duration, mode: BatchMode, details: List[JobDetail])
 object BatchResult {
   implicit val encoderBatchResult: Encoder[BatchResult] = { (br: BatchResult) =>
     val (done, fail) = br.details.partition(_.done)
@@ -51,38 +65,16 @@ object BatchResult {
       "batch" -> Json.fromString(br.label.label),
       "mode" -> br.mode.asJson,
       "spent" -> Json.fromString(durationFormatter.format(br.spent)),
-      DONE -> Json.fromInt(done.length),
-      FAIL -> Json.fromInt(fail.length),
-      "details" -> br.details
-        .map(detail =>
-          Json
-            .obj(
-              NAME -> detail.job.name.asJson,
-              INDEX -> Json.fromInt(detail.job.index),
-              TOOK -> Json.fromString(durationFormatter.format(detail.took)),
-              DONE -> Json.fromBoolean(detail.done)
-            )
-            .dropNullValues)
-        .asJson
-    )
-  }
-}
-
-final case class JobTenure(job: BatchJob, took: Duration, done: Boolean)
-object JobTenure {
-  implicit val encoderJobTenure: Encoder[JobTenure] = { (jt: JobTenure) =>
-    Json.obj(
-      NAME -> jt.job.name.asJson,
-      INDEX -> Json.fromInt(jt.job.index),
-      TOOK -> Json.fromString(durationFormatter.format(jt.took)),
-      DONE -> Json.fromBoolean(jt.done)
+      "done" -> Json.fromInt(done.length),
+      "fail" -> Json.fromInt(fail.length),
+      "details" -> br.details.asJson
     )
   }
 }
 
 final case class HandleJobOutcome[F[_], A](
-  completed: (JobTenure, A) => F[Unit],
-  errored: (JobTenure, Throwable) => F[Unit],
+  completed: (JobDetail, A) => F[Unit],
+  errored: (JobDetail, Throwable) => F[Unit],
   canceled: BatchJob => F[Unit]
 )
 

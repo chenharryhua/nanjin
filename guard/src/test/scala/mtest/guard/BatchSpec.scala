@@ -33,6 +33,7 @@ class BatchSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
               c <- job("c", IO(3))
             } yield a + b + c
           }
+          .renameJobs("monadic:" + _)
           .traceQuasi(handler)
           .memoizedAcquire
           .use(identity)
@@ -41,7 +42,7 @@ class BatchSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
           qr.details(1).done.shouldBe(false)
           qr.details.head.done.shouldBe(true)
         }.void
-      }.compile.lastOrError.unsafeRunSync()
+      }.debug().compile.lastOrError.unsafeRunSync()
 
       assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
     }
