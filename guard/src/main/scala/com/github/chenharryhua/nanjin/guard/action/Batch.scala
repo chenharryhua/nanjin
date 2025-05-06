@@ -78,7 +78,7 @@ object Batch {
 
   final private case class SingleJobResult[A](detail: JobDetail, eoa: Either[Throwable, A]) {
     def embed: Either[Throwable, (JobDetail, A)] = eoa.map((detail, _))
-    def map[B](f: A => B): SingleJobResult[B] = copy(eoa = eoa.map(f))
+    def map[B](f: A => B): SingleJobResult[B]    = copy(eoa = eoa.map(f))
   }
 
   private def handleOutcome[F[_], A](job: BatchJob, handler: HandleJobOutcome[F, A])(
