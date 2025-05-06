@@ -72,9 +72,6 @@ abstract private class ConsoleHeraldImpl[F[_]](
   override def done[S: Encoder](msg: S)(implicit cns: Console[F]): F[Unit] =
     alarm(msg, AlarmLevel.Done, None)
 
-  override def debug[S: Encoder](msg: S)(implicit cns: Console[F]): F[Unit] =
-    alarm(msg, AlarmLevel.Debug, None)
-
   override def error[S: Encoder](msg: S)(implicit cns: Console[F]): F[Unit] =
     for {
       msg <- toServiceMessage(serviceParams, msg, AlarmLevel.Error, None)
@@ -94,7 +91,6 @@ abstract private class ConsoleHeraldImpl[F[_]](
       _ <- cns.println(toText(msg))
     } yield ()
 
-
   override def debug[S: Encoder](msg: => F[S])(implicit cns: Console[F]): F[Unit] =
     alarmLevel.get
       .map(_ === AlarmLevel.Debug)
@@ -109,4 +105,7 @@ abstract private class ConsoleHeraldImpl[F[_]](
         },
         F.unit
       )
+
+  override def debug[S: Encoder](msg: S)(implicit cns: Console[F]): F[Unit] =
+    debug[S](F.pure(msg))
 }

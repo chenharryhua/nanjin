@@ -100,13 +100,13 @@ private object HadoopReader {
         else go(offset + numBytes)
       }
 
-      Stream.unfoldChunkLoopEval[F, Int, Byte](0)(os => F.blocking(go(os)))
+      Stream.unfoldChunkLoopEval[F, Int, Byte](0)(offset => F.blocking(go(offset)))
     }
 
   def jawnS[F[_]](configuration: Configuration, path: Path, chunkSize: ChunkSize)(implicit
     F: Sync[F]): Stream[F, Json] =
     inputStreamS[F](configuration, path).flatMap { (is: InputStream) =>
-      val bufferSize: Int           = 32768
+      val bufferSize: Int           = 131072
       val buffer: Array[Byte]       = Array.ofDim[Byte](bufferSize)
       val parser: AsyncParser[Json] = AsyncParser[Json](AsyncParser.ValueStream)
       @tailrec
@@ -133,11 +133,14 @@ private object HadoopReader {
 
   def stringS[F[_]](configuration: Configuration, path: Path, chunkSize: ChunkSize)(implicit
     F: Sync[F]): Stream[F, String] =
-    inputStreamS[F](configuration, path).flatMap { is =>
-      val iterator: Iterator[String] =
-        new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8)).lines().iterator().asScala
-      Stream.fromBlockingIterator[F](iterator, chunkSize.value)
-    }
+    inputStreamS[F](configuration, path)
+      .evalMap(is =>
+        F.blocking {
+          val reader   = new InputStreamReader(is, StandardCharsets.UTF_8)
+          val buffered = new BufferedReader(reader)
+          buffered.lines().iterator().asScala
+        })
+      .flatMap(Stream.fromBlockingIterator[F](_, chunkSize.value))
 
   def kantanS[F[_]](
     configuration: Configuration,

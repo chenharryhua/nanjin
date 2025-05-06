@@ -21,14 +21,16 @@ class BatchTest extends AnyFunSuite {
   test("1.quasi.sequential") {
     service.eventStream { ga =>
       ga.batch("quasi.sequential")
-        .namedSequential(
-          "a" -> IO.raiseError[Boolean](new Exception()),
-          "bbb" -> IO.sleep(1.second).map(_ => true),
-          "cccc" -> IO.sleep(2.seconds).map(_ => true),
+        .namedSequential[Unit](
+          "a" -> IO.raiseError(new Exception()),
+          "bbb" -> IO.sleep(1.second),
+          "cccc" -> IO.sleep(2.seconds),
           "ddd" -> IO.raiseError(new Exception()),
-          "ee" -> IO.sleep(1.seconds).map(_ => true),
+          "ee" -> IO.sleep(1.seconds),
           "f" -> IO.raiseError(new Exception)
         )
+        .map(_ => true)
+        .renameJobs(_ + ":test")
         .traceQuasi(HandleJobOutcome.noop)(identity)
         .map { qr =>
           assert(!qr.details.head.done)
@@ -54,6 +56,7 @@ class BatchTest extends AnyFunSuite {
           "ee" -> IO.raiseError(new Exception),
           "f" -> IO.sleep(4.seconds)
         )
+        .renameJobs(_ + ":test")
         .runQuasi(_ => true)
         .map { qr =>
           assert(qr.details.head.done)
@@ -81,6 +84,7 @@ class BatchTest extends AnyFunSuite {
     val se = service.eventStream { ga =>
       ga.batch("parallel")
         .parallel(3)(IO.sleep(3.second), IO.sleep(2.seconds), IO.sleep(3.seconds), IO.sleep(4.seconds))
+        .map(_ => true)
         .runFully
         .memoizedAcquire
         .use(_.map(_._1.details.forall(_.done)))
