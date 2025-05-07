@@ -197,11 +197,12 @@ private object SlackTranslator extends all {
 
   private def service_message(evt: ServiceMessage): SlackApp = {
     val symbol: String = evt.level match {
-      case AlarmLevel.Error => ":warning:"
-      case AlarmLevel.Warn  => ":warning:"
-      case AlarmLevel.Info  => ""
-      case AlarmLevel.Done  => ""
-      case AlarmLevel.Debug => ""
+      case AlarmLevel.Disable => ""
+      case AlarmLevel.Error   => ":warning:"
+      case AlarmLevel.Warn    => ":warning:"
+      case AlarmLevel.Info    => ""
+      case AlarmLevel.Done    => ""
+      case AlarmLevel.Debug   => ""
     }
 
     val color = coloring(evt)

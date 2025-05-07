@@ -209,10 +209,13 @@ final private class HttpRouter[F[_]](
     case GET -> Root / "service" / "panic" / "history" =>
       serviceParams.zonedNow.flatMap { now =>
         panicHistory.get.map(_.iterator().asScala.toList).flatMap { panics =>
+          val isActive = panics.lastOption.map(_.tick.wakeup).forall(_.isBefore(now.toInstant))
+
           val json: Json =
             Json.obj(
               "service" -> Json.fromString(serviceParams.serviceName.value),
               "service_id" -> Json.fromString(serviceParams.serviceId.show),
+              "is_active" -> Json.fromBoolean(isActive),
               "present" -> now.toLocalTime.truncatedTo(ChronoUnit.SECONDS).asJson,
               "restart_policy" -> serviceParams.servicePolicies.restart.show.asJson,
               "zone_id" -> serviceParams.zoneId.asJson,
@@ -262,12 +265,14 @@ final private class HttpRouter[F[_]](
         }
       }
 
-    case GET -> Root / "alarm_level"           => Ok(alarmLevel.get.map(_.entryName))
-    case GET -> Root / "alarm_level" / "debug" => setAlarmLevel(AlarmLevel.Debug)
-    case GET -> Root / "alarm_level" / "done"  => setAlarmLevel(AlarmLevel.Done)
-    case GET -> Root / "alarm_level" / "info"  => setAlarmLevel(AlarmLevel.Info)
-    case GET -> Root / "alarm_level" / "warn"  => setAlarmLevel(AlarmLevel.Warn)
-    case GET -> Root / "alarm_level" / "error" => setAlarmLevel(AlarmLevel.Error)
+    case GET -> Root / "alarm_level"             => Ok(alarmLevel.get.map(_.entryName))
+    case GET -> Root / "alarm_level" / "debug"   => setAlarmLevel(AlarmLevel.Debug)
+    case GET -> Root / "alarm_level" / "done"    => setAlarmLevel(AlarmLevel.Done)
+    case GET -> Root / "alarm_level" / "info"    => setAlarmLevel(AlarmLevel.Info)
+    case GET -> Root / "alarm_level" / "warn"    => setAlarmLevel(AlarmLevel.Warn)
+    case GET -> Root / "alarm_level" / "error"   => setAlarmLevel(AlarmLevel.Error)
+    case GET -> Root / "alarm_level" / "disable" => setAlarmLevel(AlarmLevel.Disable)
+
   }
 
   private def setAlarmLevel(level: AlarmLevel): F[Response[F]] =

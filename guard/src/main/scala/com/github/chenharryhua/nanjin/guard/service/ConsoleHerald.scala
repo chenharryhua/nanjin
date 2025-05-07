@@ -44,11 +44,12 @@ abstract private class ConsoleHeraldImpl[F[_]](
 
   private def toText(sm: ServiceMessage): String = {
     val color = sm.level match {
-      case AlarmLevel.Error => SConsole.RED + "Console ERROR" + SConsole.RESET
-      case AlarmLevel.Warn  => SConsole.YELLOW + "Console Warn" + SConsole.RESET
-      case AlarmLevel.Done  => SConsole.GREEN + "Console Done" + SConsole.RESET
-      case AlarmLevel.Info  => SConsole.CYAN + "Console Info" + SConsole.RESET
-      case AlarmLevel.Debug => SConsole.BLUE + "Console Debug" + SConsole.RESET
+      case AlarmLevel.Disable => ""
+      case AlarmLevel.Error   => SConsole.RED + "Console ERROR" + SConsole.RESET
+      case AlarmLevel.Warn    => SConsole.YELLOW + "Console Warn" + SConsole.RESET
+      case AlarmLevel.Done    => SConsole.GREEN + "Console Done" + SConsole.RESET
+      case AlarmLevel.Info    => SConsole.CYAN + "Console Info" + SConsole.RESET
+      case AlarmLevel.Debug   => SConsole.BLUE + "Console Debug" + SConsole.RESET
     }
     val msg = jsonHelper.json_service_message(sm).noSpaces
     s"${sm.timestamp.format(fmt)} $color - $msg"
