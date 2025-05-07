@@ -34,7 +34,6 @@ class BatchSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
               c <- job("c", IO(3))
             } yield a + b + c
           }
-          .renameJobs("monadic:" + _)
           .traceQuasi(handler)
           .memoizedAcquire
           .use(identity)
