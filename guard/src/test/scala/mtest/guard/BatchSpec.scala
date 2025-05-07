@@ -4,7 +4,7 @@ import cats.effect.IO
 import cats.effect.testing.scalatest.AsyncIOSpec
 import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.action.{Batch, BatchResult, HandleJobOutcome}
+import com.github.chenharryhua.nanjin.guard.action.{Batch, BatchResult, HandleJobLifecycle}
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStop
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import org.scalatest.freespec.AsyncFreeSpec
@@ -14,10 +14,11 @@ class BatchSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
   private val service: ServiceGuard[IO] =
     TaskGuard[IO]("batch").service("batch").updateConfig(_.withMetricReport(Policy.crontab(_.secondly)))
 
-  private val handler = HandleJobOutcome[IO, Unit](
-    completed = (job, _) => IO.println(job),
-    errored = (job, _) => IO.println(job),
-    canceled = IO.println)
+  private val handler = HandleJobLifecycle[IO, Unit]
+    .onError((job, _) => IO.println(job))
+    .onCancel(IO.println)
+    .onComplete((job, _) => IO.println(job))
+    .onKickoff(IO.println)
 
   "monadic" -
     "filter - quasi".in {
@@ -38,9 +39,9 @@ class BatchSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
           .memoizedAcquire
           .use(identity)
         result.asserting { qr =>
-          qr.details.size.shouldBe(2)
-          qr.details(1).done.shouldBe(false)
-          qr.details.head.done.shouldBe(true)
+          qr.results.size.shouldBe(2)
+          qr.results(1).done.shouldBe(false)
+          qr.results.head.done.shouldBe(true)
         }.void
       }.debug().compile.lastOrError.unsafeRunSync()
 
@@ -64,7 +65,7 @@ class BatchSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
         .map(_._2)
         .memoizedAcquire
         .use(identity)
-      result.assertThrowsError[Batch.PostConditionUnsatisfied](_.job.name.get.shouldBe("b")).void
+      result.assertThrowsError[Batch.PostConditionUnsatisfied](_.job.name.shouldBe("b")).void
     }.compile.lastOrError.unsafeRunSync()
 
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)

@@ -3,10 +3,14 @@ import cats.syntax.all.*
 import cats.{Applicative, Show}
 import com.github.chenharryhua.nanjin.guard.config.MetricLabel
 import com.github.chenharryhua.nanjin.guard.translator.durationFormatter
+import io.circe.generic.JsonCodec
 import io.circe.syntax.EncoderOps
-import io.circe.{Encoder, Json}
+import io.circe.{Decoder, Encoder, Json}
+import org.apache.commons.lang3.exception.ExceptionUtils
 
 import java.time.Duration
+import scala.util.Try
+import scala.util.matching.Regex
 
 sealed trait BatchKind
 object BatchKind {
@@ -30,55 +34,90 @@ object BatchMode {
 
   implicit val encoderBatchMode: Encoder[BatchMode] =
     (a: BatchMode) => Json.fromString(a.show)
+
+  private val Pattern: Regex = raw"parallel-(\d+)".r
+
+  implicit val decodeBatchMode: Decoder[BatchMode] = Decoder[String].emap {
+    case "sequential" => Right(Sequential)
+    case Pattern(par) => Try(Parallel(par.toInt)).toEither.leftMap(ExceptionUtils.getMessage)
+    case oops         => Left(s"$oops is unable to be decoded to batch mode")
+  }
 }
 
 /** @param name
-  *   optional job name
+  *   job name
   * @param index
   *   one based index
   */
-final case class BatchJob(name: Option[String], index: Int)
-object BatchJob {
-  implicit val encoderBatchJob: Encoder[BatchJob] =
-    (bj: BatchJob) =>
-      bj.name.fold(Json.obj("index" -> Json.fromInt(bj.index)))(name =>
-        Json.obj("job_name" -> Json.fromString(name), "index" -> Json.fromInt(bj.index)))
-}
+final case class BatchJob(name: String, index: Int)
+final case class JobResult(job: BatchJob, took: Duration, done: Boolean)
 
-final case class JobDetail(job: BatchJob, took: Duration, done: Boolean)
-object JobDetail {
-  implicit val encoderJobDetail: Encoder[JobDetail] =
-    (detail: JobDetail) =>
-      Json
-        .obj(
-          "took" -> Json.fromString(durationFormatter.format(detail.took)),
-          "done" -> Json.fromBoolean(detail.done)
-        )
-        .deepMerge(detail.job.asJson)
-}
-
-final case class BatchResult(label: MetricLabel, spent: Duration, mode: BatchMode, details: List[JobDetail])
+final case class BatchResult(label: MetricLabel, spent: Duration, mode: BatchMode, results: List[JobResult])
 object BatchResult {
   implicit val encoderBatchResult: Encoder[BatchResult] = { (br: BatchResult) =>
-    val (done, fail) = br.details.partition(_.done)
+    val (done, fail) = br.results.partition(_.done)
     Json.obj(
+      "domain" -> Json.fromString(br.label.domain.value),
       "batch" -> Json.fromString(br.label.label),
       "mode" -> br.mode.asJson,
       "spent" -> Json.fromString(durationFormatter.format(br.spent)),
       "done" -> Json.fromInt(done.length),
       "fail" -> Json.fromInt(fail.length),
-      "details" -> br.details.asJson
+      "results" -> br.results
+        .map(jr =>
+          Json.obj(
+            "job" -> Json.fromString(jr.job.name),
+            "index" -> Json.fromInt(jr.job.index),
+            "took" -> Json.fromString(durationFormatter.format(jr.took)),
+            "done" -> Json.fromBoolean(jr.done)
+          ))
+        .asJson
     )
   }
 }
 
-final case class HandleJobOutcome[F[_], A](
-  completed: (JobDetail, A) => F[Unit],
-  errored: (JobDetail, Throwable) => F[Unit],
-  canceled: BatchJob => F[Unit]
-)
+/*
+ * for Job life-cycle handler
+ */
 
-object HandleJobOutcome {
-  def noop[F[_], A](implicit F: Applicative[F]): HandleJobOutcome[F, A] =
-    HandleJobOutcome((_, _) => F.unit, (_, _) => F.unit, _ => F.unit)
+@JsonCodec
+final case class BatchJobID private (name: String, index: Int, batch: String, mode: BatchMode, domain: String)
+object BatchJobID {
+  def apply(job: BatchJob, label: MetricLabel, mode: BatchMode): BatchJobID =
+    BatchJobID(
+      name = job.name,
+      index = job.index,
+      batch = label.label,
+      mode = mode,
+      domain = label.domain.value)
+}
+@JsonCodec
+final case class JobOutcome(job: BatchJobID, took: String, done: Boolean)
+
+final class HandleJobLifecycle[F[_], A] private (
+  private[action] val completed: (JobOutcome, A) => F[Unit],
+  private[action] val errored: (JobOutcome, Throwable) => F[Unit],
+  private[action] val canceled: BatchJobID => F[Unit],
+  private[action] val kickoff: BatchJobID => F[Unit]
+) {
+  private def copy(
+    completed: (JobOutcome, A) => F[Unit] = this.completed,
+    errored: (JobOutcome, Throwable) => F[Unit] = this.errored,
+    canceled: BatchJobID => F[Unit] = this.canceled,
+    kickoff: BatchJobID => F[Unit] = this.kickoff): HandleJobLifecycle[F, A] =
+    new HandleJobLifecycle[F, A](completed, errored, canceled, kickoff)
+
+  def onComplete(f: (JobOutcome, A) => F[Unit]): HandleJobLifecycle[F, A]      = copy(completed = f)
+  def onError(f: (JobOutcome, Throwable) => F[Unit]): HandleJobLifecycle[F, A] = copy(errored = f)
+  def onCancel(f: BatchJobID => F[Unit]): HandleJobLifecycle[F, A]             = copy(canceled = f)
+  def onKickoff(f: BatchJobID => F[Unit]): HandleJobLifecycle[F, A]            = copy(kickoff = f)
+}
+
+object HandleJobLifecycle {
+  def apply[F[_], A](implicit F: Applicative[F]): HandleJobLifecycle[F, A] =
+    new HandleJobLifecycle(
+      completed = (_, _) => F.unit,
+      errored = (_, _) => F.unit,
+      canceled = _ => F.unit,
+      kickoff = _ => F.unit)
 }
