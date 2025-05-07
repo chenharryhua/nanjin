@@ -5,10 +5,11 @@ import cats.effect.unsafe.implicits.global
 import cats.implicits.catsSyntaxTuple2Semigroupal
 import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.action.{Batch, BatchMode, HandleJobOutcome}
+import com.github.chenharryhua.nanjin.guard.action.{Batch, BatchMode}
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStop
 import com.github.chenharryhua.nanjin.guard.observers.console
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
+import io.circe.jawn.decode
 import io.circe.syntax.EncoderOps
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -21,7 +22,7 @@ class BatchTest extends AnyFunSuite {
   test("1.quasi.sequential") {
     service.eventStream { ga =>
       ga.batch("quasi.sequential")
-        .namedSequential[Unit](
+        .sequential[Unit](
           "a" -> IO.raiseError(new Exception()),
           "bbb" -> IO.sleep(1.second),
           "cccc" -> IO.sleep(2.seconds),
@@ -31,14 +32,14 @@ class BatchTest extends AnyFunSuite {
         )
         .map(_ => true)
         .renameJobs(_ + ":test")
-        .traceQuasi(HandleJobOutcome.noop)(identity)
+        .runQuasi(identity)
         .map { qr =>
-          assert(!qr.details.head.done)
-          assert(qr.details(1).done)
-          assert(qr.details(2).done)
-          assert(!qr.details(3).done)
-          assert(qr.details(4).done)
-          assert(!qr.details(5).done)
+          assert(!qr.results.head.done)
+          assert(qr.results(1).done)
+          assert(qr.results(2).done)
+          assert(!qr.results(3).done)
+          assert(qr.results(4).done)
+          assert(!qr.results(5).done)
           qr
         }
         .use(qr => IO.println(qr.asJson) *> ga.adhoc.report)
@@ -48,7 +49,7 @@ class BatchTest extends AnyFunSuite {
   test("2.quasi.parallel") {
     service.eventStream { ga =>
       ga.batch("quasi.parallel")
-        .namedParallel(3)(
+        .parallel(3)(
           "a" -> IO.sleep(3.second),
           "bb" -> IO.sleep(2.seconds),
           "cccc" -> IO.raiseError(new Exception),
@@ -59,12 +60,12 @@ class BatchTest extends AnyFunSuite {
         .renameJobs(_ + ":test")
         .runQuasi(_ => true)
         .map { qr =>
-          assert(qr.details.head.done)
-          assert(qr.details(1).done)
-          assert(!qr.details(2).done)
-          assert(qr.details(3).done)
-          assert(!qr.details(4).done)
-          assert(qr.details(5).done)
+          assert(qr.results.head.done)
+          assert(qr.results(1).done)
+          assert(!qr.results(2).done)
+          assert(qr.results(3).done)
+          assert(!qr.results(4).done)
+          assert(qr.results(5).done)
           qr
         }
         .use(qr => IO.println(qr.asJson) *> ga.adhoc.report)
@@ -74,7 +75,7 @@ class BatchTest extends AnyFunSuite {
   test("3.sequential") {
     service.eventStream { ga =>
       ga.batch("sequential")
-        .sequential(IO.sleep(1.second), IO.sleep(2.seconds), IO.sleep(1.seconds))
+        .sequential("a" -> IO.sleep(1.second), "b" -> IO.sleep(2.seconds), "c" -> IO.sleep(1.seconds))
         .runFully
         .use_
     }.map(checkJson).evalTap(console.text[IO]).compile.drain.unsafeRunSync()
@@ -83,11 +84,15 @@ class BatchTest extends AnyFunSuite {
   test("4.parallel") {
     val se = service.eventStream { ga =>
       ga.batch("parallel")
-        .parallel(3)(IO.sleep(3.second), IO.sleep(2.seconds), IO.sleep(3.seconds), IO.sleep(4.seconds))
+        .parallel(3)(
+          "a" -> IO.sleep(3.second),
+          "b" -> IO.sleep(2.seconds),
+          "c" -> IO.sleep(3.seconds),
+          "d" -> IO.sleep(4.seconds))
         .map(_ => true)
         .runFully
         .memoizedAcquire
-        .use(_.map(_._1.details.forall(_.done)))
+        .use(_.map(_._1.results.forall(_.done)))
         .map(assert(_))
         .void
     }.map(checkJson).evalTap(console.text[IO]).compile.lastOrError.unsafeRunSync()
@@ -98,10 +103,10 @@ class BatchTest extends AnyFunSuite {
     service.eventStream { ga =>
       ga.batch("sequential")
         .sequential(
-          IO.sleep(1.second),
-          IO.sleep(2.seconds),
-          IO.raiseError(new Exception),
-          IO.sleep(1.seconds))
+          "a" -> IO.sleep(1.second),
+          "b" -> IO.sleep(2.seconds),
+          "c" -> IO.raiseError(new Exception),
+          "d" -> IO.sleep(1.seconds))
         .runFully
         .use_
     }.map(checkJson).evalTap(console.text[IO]).compile.drain.unsafeRunSync()
@@ -116,7 +121,7 @@ class BatchTest extends AnyFunSuite {
       "e" -> IO.sleep(4.seconds)
     )
     service.eventStream { ga =>
-      ga.batch("parallel").namedParallel(3)(jobs*).runFully.use_
+      ga.batch("parallel").parallel(3)(jobs*).runFully.use_
     }.map(checkJson).evalTap(console.text[IO]).compile.drain.unsafeRunSync()
   }
 
@@ -124,7 +129,7 @@ class BatchTest extends AnyFunSuite {
     val j1 = service
       .eventStream(
         _.batch("parallel-1")
-          .parallel(IO(true))
+          .parallel("a" -> IO(true))
           .runQuasi(a => a)
           .map(r => assert(r.mode == BatchMode.Parallel(1)))
           .use_)
@@ -136,7 +141,7 @@ class BatchTest extends AnyFunSuite {
     val j2 = service
       .eventStream(ga =>
         ga.batch("sequential")
-          .sequential(IO(true))
+          .sequential("a" -> IO(true))
           .runQuasi(a => a)
           .map(r => assert(r.mode == BatchMode.Sequential))
           .use_)
@@ -191,11 +196,11 @@ class BatchTest extends AnyFunSuite {
           for {
             a <- job("a", IO.println("a").as(10))
             b <- job("b", IO.sleep(1.seconds) >> IO.println("b").as(20))
-            _ <- job(agent.adhoc.report)
-            _ <- job(IO.println("aaaa"))
-            _ <- job(IO.sleep(1.seconds) >> IO.println("bbbb"))
-            _ <- job(agent.adhoc.report)
-            c <- job("c", IO.println("c").as(30))
+            _ <- job("c", agent.adhoc.report)
+            _ <- job("d" -> IO.println("aaaa"))
+            _ <- job("e" -> IO.sleep(1.seconds).flatMap(_ => IO.println("bbbb")))
+            _ <- job("f" -> agent.adhoc.report)
+            c <- job("g", IO.println("c").as(30))
           } yield a + b + c
         }
         .runFully
@@ -218,18 +223,18 @@ class BatchTest extends AnyFunSuite {
             b <- job("b", IO.sleep(1.seconds) >> IO.println("b").as(20))
             _ <- job("report-1" -> agent.adhoc.report)
             _ <- job("exception", IO.raiseError[Unit](new Exception("aaaa")))
-            _ <- job(IO.sleep(1000.seconds) >> IO.println("bbbb"))
+            _ <- job("f" -> (IO.sleep(1000.seconds) >> IO.println("bbbb")))
             _ <- job("report-2" -> agent.adhoc.report)
             c <- job("c", IO.println("c").as(30))
           } yield a + b + c
         }
         .runQuasi
         .use { qr =>
-          assert(qr.details.head.done)
-          assert(qr.details(1).done)
-          assert(qr.details(2).done)
-          assert(!qr.details(3).done)
-          assert(qr.details.size == 4)
+          assert(qr.results.head.done)
+          assert(qr.results(1).done)
+          assert(qr.results(2).done)
+          assert(!qr.results(3).done)
+          assert(qr.results.size == 4)
           agent.adhoc.report >> agent.herald.info(qr)
         }
     }.evalTap(console.text[IO]).compile.lastOrError.unsafeRunSync()
@@ -238,7 +243,11 @@ class BatchTest extends AnyFunSuite {
 
   test("14. monadic one") {
     service.eventStream { agent =>
-      agent.batch("monadic").monadic(_(IO(0))).runFully.use(qr => agent.adhoc.report >> agent.herald.info(qr))
+      agent
+        .batch("monadic")
+        .monadic(job => job("a" -> IO(0)))
+        .runFully
+        .use(qr => agent.adhoc.report >> agent.herald.info(qr))
     }.evalTap(console.text[IO]).compile.drain.unsafeRunSync()
   }
 
@@ -248,9 +257,9 @@ class BatchTest extends AnyFunSuite {
         .batch("monadic")
         .monadic { (job: Batch.JobBuilder[IO]) =>
           val p1 = for {
-            a <- job("1", IO(1))
-            b <- job("2", IO(2))
-            c <- job("3", IO(3))
+            a <- job("1" -> IO(1))
+            b <- job("2" -> IO(2))
+            c <- job("3" -> IO(3))
           } yield a + b + c
           val p2 = for {
             x <- job("10", IO(10))
@@ -265,18 +274,18 @@ class BatchTest extends AnyFunSuite {
         }
         .runQuasi
         .use { qr =>
-          val details = qr.details
-          assert(details.head.job.name.get === "1")
+          val details = qr.results
+          assert(details.head.job.name === "1")
           assert(details.head.job.index === 1)
-          assert(details(1).job.name.get === "2")
+          assert(details(1).job.name === "2")
           assert(details(1).job.index === 2)
-          assert(details(2).job.name.get === "3")
+          assert(details(2).job.name === "3")
           assert(details(2).job.index === 3)
-          assert(details(3).job.name.get === "10")
+          assert(details(3).job.name === "10")
           assert(details(3).job.index === 4)
-          assert(details(4).job.name.get === "20")
+          assert(details(4).job.name === "20")
           assert(details(4).job.index === 5)
-          assert(details(5).job.name.get === "30")
+          assert(details(5).job.name === "30")
           assert(details(5).job.index === 6)
           assert(details.size == 6)
           agent.adhoc.report >> agent.herald.info(qr)
@@ -303,18 +312,18 @@ class BatchTest extends AnyFunSuite {
         } yield x + y + z
       }
       m1.flatMap(_ => m2).runQuasi.use { qr =>
-        val details = qr.details
-        assert(details.head.job.name.get === "1")
+        val details = qr.results
+        assert(details.head.job.name === "1")
         assert(details.head.job.index === 1)
-        assert(details(1).job.name.get === "2")
+        assert(details(1).job.name === "2")
         assert(details(1).job.index === 2)
-        assert(details(2).job.name.get === "3")
+        assert(details(2).job.name === "3")
         assert(details(2).job.index === 3)
-        assert(details(3).job.name.get === "10")
+        assert(details(3).job.name === "10")
         assert(details(3).job.index === 4)
-        assert(details(4).job.name.get === "20")
+        assert(details(4).job.name === "20")
         assert(details(4).job.index === 5)
-        assert(details(5).job.name.get === "30")
+        assert(details(5).job.name === "30")
         assert(details(5).job.index === 6)
         assert(details.size == 6)
         agent.adhoc.report
@@ -334,24 +343,24 @@ class BatchTest extends AnyFunSuite {
 
   test("17. sorted parallel") {
     val se = service.eventStream { agent =>
-      agent.batch("sorted.parallel").namedParallel(jobs*).runFully.use { case (br, rst) =>
+      agent.batch("sorted.parallel").parallel(jobs*).runFully.use { case (br, rst) =>
         IO {
           assert(rst.head == 1)
           assert(rst(1) == 2)
           assert(rst(2) == 3)
           assert(rst(3) == 4)
           assert(rst(4) == 5)
-          assert(br.details.forall(_.done))
-          assert(br.details.head.job.name.get == "1")
-          assert(br.details.head.job.index == 1)
-          assert(br.details(1).job.name.get == "2")
-          assert(br.details(1).job.index == 2)
-          assert(br.details(2).job.name.get == "3")
-          assert(br.details(2).job.index == 3)
-          assert(br.details(3).job.name.get == "4")
-          assert(br.details(3).job.index == 4)
-          assert(br.details(4).job.name.get == "5")
-          assert(br.details(4).job.index == 5)
+          assert(br.results.forall(_.done))
+          assert(br.results.head.job.name == "1")
+          assert(br.results.head.job.index == 1)
+          assert(br.results(1).job.name == "2")
+          assert(br.results(1).job.index == 2)
+          assert(br.results(2).job.name == "3")
+          assert(br.results(2).job.index == 3)
+          assert(br.results(3).job.name == "4")
+          assert(br.results(3).job.index == 4)
+          assert(br.results(4).job.name == "5")
+          assert(br.results(4).job.index == 5)
         }.void
       }
     }.evalTap(console.text[IO]).compile.lastOrError.unsafeRunSync()
@@ -360,27 +369,34 @@ class BatchTest extends AnyFunSuite {
 
   test("18. sorted sequential") {
     val se = service.eventStream { agent =>
-      agent.batch("sorted.sequential").namedSequential(jobs*).runFully.use { case (br, rst) =>
+      agent.batch("sorted.sequential").sequential(jobs*).runFully.use { case (br, rst) =>
         IO {
           assert(rst.head == 1)
           assert(rst(1) == 2)
           assert(rst(2) == 3)
           assert(rst(3) == 4)
           assert(rst(4) == 5)
-          assert(br.details.forall(_.done))
-          assert(br.details.head.job.name.get == "1")
-          assert(br.details.head.job.index == 1)
-          assert(br.details(1).job.name.get == "2")
-          assert(br.details(1).job.index == 2)
-          assert(br.details(2).job.name.get == "3")
-          assert(br.details(2).job.index == 3)
-          assert(br.details(3).job.name.get == "4")
-          assert(br.details(3).job.index == 4)
-          assert(br.details(4).job.name.get == "5")
-          assert(br.details(4).job.index == 5)
+          assert(br.results.forall(_.done))
+          assert(br.results.head.job.name == "1")
+          assert(br.results.head.job.index == 1)
+          assert(br.results(1).job.name == "2")
+          assert(br.results(1).job.index == 2)
+          assert(br.results(2).job.name == "3")
+          assert(br.results(2).job.index == 3)
+          assert(br.results(3).job.name == "4")
+          assert(br.results(3).job.index == 4)
+          assert(br.results(4).job.name == "5")
+          assert(br.results(4).job.index == 5)
         }.void
       }
     }.evalTap(console.text[IO]).compile.lastOrError.unsafeRunSync()
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
+  }
+
+  test("19. mode codec") {
+    val seq = """ "sequential" """
+    val par = """ "parallel-03" """
+    assert(decode[BatchMode](seq).isRight)
+    assert(decode[BatchMode](par).isRight)
   }
 }
