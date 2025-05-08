@@ -3,7 +3,6 @@ import cats.syntax.all.*
 import cats.{Applicative, Show}
 import com.github.chenharryhua.nanjin.guard.config.MetricLabel
 import com.github.chenharryhua.nanjin.guard.translator.durationFormatter
-import io.circe.generic.JsonCodec
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, Json}
 import org.apache.commons.lang3.exception.ExceptionUtils
@@ -52,14 +51,20 @@ object BatchMode {
 final case class BatchJob(name: String, index: Int)
 final case class JobResult(job: BatchJob, took: Duration, done: Boolean)
 
-final case class BatchResult(label: MetricLabel, spent: Duration, mode: BatchMode, results: List[JobResult])
+final case class BatchResult(
+  label: MetricLabel,
+  spent: Duration,
+  mode: BatchMode,
+  kind: BatchKind,
+  results: List[JobResult])
 object BatchResult {
   implicit val encoderBatchResult: Encoder[BatchResult] = { (br: BatchResult) =>
     val (done, fail) = br.results.partition(_.done)
     Json.obj(
       "domain" -> Json.fromString(br.label.domain.value),
       "batch" -> Json.fromString(br.label.label),
-      "mode" -> br.mode.asJson,
+      "mode" -> Json.fromString(br.mode.show),
+      "kind" -> Json.fromString(br.kind.show),
       "spent" -> Json.fromString(durationFormatter.format(br.spent)),
       "done" -> Json.fromInt(done.length),
       "fail" -> Json.fromInt(fail.length),
@@ -80,19 +85,28 @@ object BatchResult {
  * for Job life-cycle handler
  */
 
-@JsonCodec
-final case class BatchJobID private (name: String, index: Int, batch: String, mode: BatchMode, domain: String)
+final case class BatchJobID(job: BatchJob, label: MetricLabel, mode: BatchMode, kind: BatchKind)
 object BatchJobID {
-  def apply(job: BatchJob, label: MetricLabel, mode: BatchMode): BatchJobID =
-    BatchJobID(
-      name = job.name,
-      index = job.index,
-      batch = label.label,
-      mode = mode,
-      domain = label.domain.value)
+  implicit val encoderBatchJobID: Encoder[BatchJobID] =
+    (a: BatchJobID) =>
+      Json.obj(
+        "job" -> Json.fromString(a.job.name),
+        "index" -> Json.fromInt(a.job.index),
+        "batch" -> Json.fromString(a.label.label),
+        "domain" -> Json.fromString(a.label.domain.value),
+        "mode" -> Json.fromString(a.mode.show),
+        "kind" -> Json.fromString(a.kind.show)
+      )
 }
-@JsonCodec
-final case class JobOutcome(job: BatchJobID, took: String, done: Boolean)
+
+final case class JobOutcome(job: BatchJobID, took: Duration, done: Boolean)
+object JobOutcome {
+  implicit val encoderJobOutcome: Encoder[JobOutcome] =
+    (a: JobOutcome) =>
+      Json
+        .obj("took" -> Json.fromString(durationFormatter.format(a.took)), "done" -> Json.fromBoolean(a.done))
+        .deepMerge(a.job.asJson)
+}
 
 final class HandleJobLifecycle[F[_], A] private (
   private[action] val completed: (JobOutcome, A) => F[Unit],

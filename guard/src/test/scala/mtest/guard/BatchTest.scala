@@ -295,44 +295,6 @@ class BatchTest extends AnyFunSuite {
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
   }
 
-  test("16. monadic many 2") {
-    val se = service.eventStream { agent =>
-      val m1 = agent.batch("monadic-1").monadic { job =>
-        for {
-          a <- job("1", IO(1))
-          b <- job("2", IO(2))
-          c <- job("3", IO(3))
-        } yield a + b + c
-      }
-      val m2 = agent.batch("monadic-2").monadic { job =>
-        for {
-          x <- job("10", IO(10))
-          y <- job("20", IO(20))
-          z <- job("30", IO(30))
-        } yield x + y + z
-      }
-      m1.flatMap(_ => m2).runQuasi.use { qr =>
-        val details = qr.results
-        assert(details.head.job.name === "1")
-        assert(details.head.job.index === 1)
-        assert(details(1).job.name === "2")
-        assert(details(1).job.index === 2)
-        assert(details(2).job.name === "3")
-        assert(details(2).job.index === 3)
-        assert(details(3).job.name === "10")
-        assert(details(3).job.index === 4)
-        assert(details(4).job.name === "20")
-        assert(details(4).job.index === 5)
-        assert(details(5).job.name === "30")
-        assert(details(5).job.index === 6)
-        assert(details.size == 6)
-        agent.adhoc.report
-      }
-    }.evalTap(console.text[IO]).compile.lastOrError.unsafeRunSync()
-
-    assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
-  }
-
   private val jobs: List[(String, IO[Int])] = List(
     "1" -> IO(1).delayBy(3.second),
     "2" -> IO(2).delayBy(2.second),

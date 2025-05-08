@@ -49,7 +49,7 @@ final private class HttpRouter[F[_]](
         td, th {text-align: left; padding: 2px; border: 1px solid;}
         table {
           border-collapse: collapse;
-          width: 60%;
+          width: 70%;
         }
       """))
 
