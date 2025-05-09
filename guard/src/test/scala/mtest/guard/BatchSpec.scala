@@ -34,7 +34,7 @@ class BatchSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
               c <- job("c", IO(3))
             } yield a + b + c
           }
-          .traceQuasi(handler)
+          .quasiTrace(handler)
           .memoizedAcquire
           .use(identity)
         result.asserting { qr =>
@@ -60,7 +60,7 @@ class BatchSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
             c <- job("c", IO(3))
           } yield a + b + c
         }
-        .traceFully(handler)
+        .fullyTrace(handler)
         .map(_._2)
         .memoizedAcquire
         .use(identity)

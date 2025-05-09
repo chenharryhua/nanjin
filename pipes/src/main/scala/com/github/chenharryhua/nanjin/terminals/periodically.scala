@@ -24,8 +24,8 @@ private object periodically {
       case Some((head, tail)) =>
         head match {
           case Left(data) =>
-            Pull.output1(TickedValue(currentTick, data.size)) >>
-              Pull.eval(writer.write(data)) >>
+            Pull.eval(writer.write(data)) >>
+              Pull.output1(TickedValue(currentTick, data.size)) >>
               doWork(currentTick, getWriter, hotswap, writer, tail)
           case Right(ticked) =>
             Pull.eval(hotswap.swap(getWriter(ticked.value))).flatMap { writer =>
@@ -56,5 +56,4 @@ private object periodically {
           .echo
       case None => Pull.done
     }
-
 }

@@ -39,19 +39,20 @@ final private class RotateBySizeSink[F[_]](
   ): Pull[F, TickedValue[Int], Unit] =
     data.pull.uncons.flatMap {
       case Some((as, stream)) =>
-        val chunkSize = as.size
-        if ((chunkSize + count) < sizeLimit) {
-          Pull.output1(TickedValue(status.tick, chunkSize)) >>
-            Pull.eval(writer.write(as)) >>
-            doWork(getWriter, hotswap, writer, stream, status, chunkSize + count)
+        val dataSize = as.size
+        if ((dataSize + count) < sizeLimit) {
+          Pull.eval(writer.write(as)) >>
+            Pull.output1(TickedValue(status.tick, dataSize)) >>
+            doWork(getWriter, hotswap, writer, stream, status, dataSize + count)
         } else {
           val (first, second) = as.splitAt(sizeLimit - count)
-          Pull.output1(TickedValue(status.tick, first.size)) >>
-            Pull.eval(writer.write(first)) >>
+
+          Pull.eval(writer.write(first)) >>
+            Pull.output1(TickedValue(status.tick, first.size)) >>
             Pull.eval(F.realTimeInstant.map(status.next)).flatMap {
               case Some(ts) =>
                 Pull.eval(hotswap.swap(getWriter(ts.tick))).flatMap { writer =>
-                  doWork(getWriter, hotswap, writer, Stream.chunk(second) ++ stream, ts, 0)
+                  doWork(getWriter, hotswap, writer, stream.cons(second), ts, 0)
                 }
               case None => Pull.done // never happen
             }
@@ -82,7 +83,7 @@ final private class RotateBySizeSink[F[_]](
       ss.pull.stepLeg.flatMap {
         case Some(leg) =>
           val schema = leg.head(0).getSchema
-          persist(Stream.chunk(leg.head) ++ leg.stream, get_writer(schema))
+          persist(leg.stream.cons(leg.head), get_writer(schema))
         case None => Pull.done
       }.stream
   }
@@ -104,7 +105,7 @@ final private class RotateBySizeSink[F[_]](
       ss.pull.stepLeg.flatMap {
         case Some(leg) =>
           val schema: Schema = leg.head(0).getSchema
-          persist(Stream.chunk(leg.head) ++ leg.stream, get_writer(schema))
+          persist(leg.stream.cons(leg.head), get_writer(schema))
         case None => Pull.done
       }.stream
   }
@@ -125,7 +126,7 @@ final private class RotateBySizeSink[F[_]](
       ss.pull.stepLeg.flatMap {
         case Some(leg) =>
           val schema: Schema = leg.head(0).getSchema
-          persist(ss, get_writer(schema))
+          persist(leg.stream.cons(leg.head), get_writer(schema))
         case None => Pull.done
       }.stream
   }
@@ -157,7 +158,7 @@ final private class RotateBySizeSink[F[_]](
       ss.pull.stepLeg.flatMap {
         case Some(leg) =>
           val schema: Schema = leg.head(0).getSchema
-          persist(Stream.chunk(leg.head) ++ leg.stream, get_writer(schema))
+          persist(leg.stream.cons(leg.head), get_writer(schema))
         case None => Pull.done
       }.stream
   }

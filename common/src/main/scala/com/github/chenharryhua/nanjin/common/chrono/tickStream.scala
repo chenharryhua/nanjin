@@ -26,7 +26,7 @@ object tickStream {
   /** Zero based tick stream - tick index start from zero
     */
   def fromZero[F[_]: Async](policy: Policy, zoneId: ZoneId): Stream[F, Tick] =
-    Stream.eval(TickStatus.zeroth(policy, zoneId)).flatMap(ts => Stream(ts.tick) ++ fromTickStatus(ts))
+    Stream.eval(TickStatus.zeroth(policy, zoneId)).flatMap(ts => fromTickStatus(ts).cons1(ts.tick))
 }
 
 /** for testing

@@ -92,6 +92,7 @@ private object HadoopReader {
     inputStreamS[F](configuration, path).flatMap { (is: InputStream) =>
       val bufferSize: Int     = bs.toBytes.toInt
       val buffer: Array[Byte] = Array.ofDim[Byte](bufferSize)
+
       @tailrec
       def go(offset: Int): (Chunk[Byte], Option[Int]) = {
         val numBytes = is.read(buffer, offset, bufferSize - offset)
@@ -133,14 +134,12 @@ private object HadoopReader {
 
   def stringS[F[_]](configuration: Configuration, path: Path, chunkSize: ChunkSize)(implicit
     F: Sync[F]): Stream[F, String] =
-    inputStreamS[F](configuration, path)
-      .evalMap(is =>
-        F.blocking {
-          val reader   = new InputStreamReader(is, StandardCharsets.UTF_8)
-          val buffered = new BufferedReader(reader)
-          buffered.lines().iterator().asScala
-        })
-      .flatMap(Stream.fromBlockingIterator[F](_, chunkSize.value))
+    inputStreamS[F](configuration, path).flatMap { is =>
+      val reader   = new InputStreamReader(is, StandardCharsets.UTF_8)
+      val buffered = new BufferedReader(reader)
+      val iterator = buffered.lines().iterator().asScala
+      Stream.fromBlockingIterator[F](iterator, chunkSize.value)
+    }
 
   def kantanS[F[_]](
     configuration: Configuration,
@@ -153,8 +152,7 @@ private object HadoopReader {
           .readerFor(new InputStreamReader(fileInputStream(path, configuration)), csvConfiguration)
         if (csvConfiguration.hasHeader) cr.drop(1) else cr
       })(r => F.blocking(r.close()))
-      .evalMap(reader => F.blocking(reader.iterator))
-      .flatMap(iterator => Stream.fromBlockingIterator[F](iterator, chunkSize.value).rethrow)
+      .flatMap(reader => Stream.fromBlockingIterator[F](reader.iterator, chunkSize.value).rethrow)
 
   private def genericRecordReaderS[F[_]](
     getDecoder: InputStream => Decoder,
@@ -162,9 +160,10 @@ private object HadoopReader {
     schema: Schema,
     path: Path,
     chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, GenericData.Record] =
-    inputStreamS[F](configuration, path).evalMap(is => F.blocking(getDecoder(is))).flatMap { decoder =>
+    inputStreamS[F](configuration, path).flatMap { is =>
       val datumReader: GenericDatumReader[GenericData.Record] =
         new GenericDatumReader[GenericData.Record](schema)
+      val decoder: Decoder = getDecoder(is)
 
       def go(): (Chunk[GenericData.Record], Option[Unit]) = {
         val builder      = Vector.newBuilder[GenericData.Record]

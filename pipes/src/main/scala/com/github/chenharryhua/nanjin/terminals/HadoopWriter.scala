@@ -115,8 +115,9 @@ private object HadoopWriter {
     configuration: Configuration,
     schema: Schema,
     path: Path)(implicit F: Sync[F]): Resource[F, HadoopWriter[F, GenericRecord]] =
-    outputStreamR(path, configuration).evalMap(os => F.blocking(getEncoder(os))).map { encoder =>
+    outputStreamR(path, configuration).map { os =>
       val datumWriter = new GenericDatumWriter[GenericRecord](schema)
+      val encoder     = getEncoder(os)
       new HadoopWriter[F, GenericRecord] {
         override def write(cgr: Chunk[GenericRecord]): F[Unit] =
           F.blocking {
