@@ -120,17 +120,17 @@ object Batch {
       *   evaluate job's return value
       * @return
       */
-    def traceQuasi(handler: HandleJobLifecycle[F, A])(isSucc: A => Boolean): Resource[F, BatchResult]
+    def quasiTrace(handler: HandleJobLifecycle[F, A])(isSucc: A => Boolean): Resource[F, BatchResult]
 
-    final def runQuasi(f: A => Boolean): Resource[F, BatchResult] =
-      traceQuasi(HandleJobLifecycle[F, A])(f)
+    final def quasiRun(f: A => Boolean): Resource[F, BatchResult] =
+      quasiTrace(HandleJobLifecycle[F, A])(f)
 
     /** @param handler:
       *   final action on job's return state
       * @return
       */
-    def traceFully(handler: HandleJobLifecycle[F, A]): Resource[F, (BatchResult, List[A])]
-    final def runFully: Resource[F, (BatchResult, List[A])] = traceFully(HandleJobLifecycle[F, A])
+    def fullyTrace(handler: HandleJobLifecycle[F, A]): Resource[F, (BatchResult, List[A])]
+    final def fullyRun: Resource[F, (BatchResult, List[A])] = fullyTrace(HandleJobLifecycle[F, A])
   }
 
   /*
@@ -144,7 +144,7 @@ object Batch {
 
     private val mode: BatchMode = BatchMode.Parallel(parallelism)
 
-    override def traceQuasi(handler: HandleJobLifecycle[F, A])(
+    override def quasiTrace(handler: HandleJobLifecycle[F, A])(
       isSucc: A => Boolean): Resource[F, BatchResult] = {
 
       def exec(meas: DoMeasurement[F]): F[(FiniteDuration, List[JobResult])] =
@@ -165,7 +165,7 @@ object Batch {
       }
     }
 
-    override def traceFully(handler: HandleJobLifecycle[F, A]): Resource[F, (BatchResult, List[A])] = {
+    override def fullyTrace(handler: HandleJobLifecycle[F, A]): Resource[F, (BatchResult, List[A])] = {
 
       def exec(meas: DoMeasurement[F]): F[(FiniteDuration, List[(JobResult, A)])] =
         F.timed(F.parTraverseN(parallelism)(jobs) { case (job, fa) =>
@@ -213,7 +213,7 @@ object Batch {
         results = results
       )
 
-    override def traceQuasi(handler: HandleJobLifecycle[F, A])(
+    override def quasiTrace(handler: HandleJobLifecycle[F, A])(
       isSucc: A => Boolean): Resource[F, BatchResult] = {
 
       def exec(meas: DoMeasurement[F]): F[List[JobResult]] =
@@ -234,7 +234,7 @@ object Batch {
       createMeasure(metrics, jobs.size, BatchKind.Quasi, mode).evalMap(exec).map(batchResult(BatchKind.Quasi))
     }
 
-    override def traceFully(handler: HandleJobLifecycle[F, A]): Resource[F, (BatchResult, List[A])] = {
+    override def fullyTrace(handler: HandleJobLifecycle[F, A]): Resource[F, (BatchResult, List[A])] = {
 
       def exec(meas: DoMeasurement[F]): F[List[(JobResult, A)]] =
         jobs.traverse { case (job, fa) =>
@@ -385,23 +385,23 @@ object Batch {
         )
       }
 
-      def traceFully(handler: HandleJobLifecycle[F, Unit]): Resource[F, (BatchResult, T)] =
+      def fullyTrace(handler: HandleJobLifecycle[F, Unit]): Resource[F, (BatchResult, T)] =
         createMeasure[F](metrics, BatchKind.Fully).evalMap { meas =>
           kleisli.run(Callbacks[F](meas, handler, BatchKind.Fully)).run(1)
         }.map { case (_, JobState(eoa, results)) =>
           eoa.map(a => (batchResult(BatchKind.Fully, results), a))
         }.rethrow
 
-      def runFully: Resource[F, (BatchResult, T)] =
-        traceFully(HandleJobLifecycle[F, Unit])
+      def fullyRun: Resource[F, (BatchResult, T)] =
+        fullyTrace(HandleJobLifecycle[F, Unit])
 
-      def traceQuasi(handler: HandleJobLifecycle[F, Unit]): Resource[F, BatchResult] =
+      def quasiTrace(handler: HandleJobLifecycle[F, Unit]): Resource[F, BatchResult] =
         createMeasure[F](metrics, BatchKind.Quasi).evalMap { meas =>
           kleisli.run(Callbacks[F](meas, handler, BatchKind.Quasi)).run(1)
         }.map { case (_, JobState(_, results)) => batchResult(BatchKind.Quasi, results) }
 
-      def runQuasi: Resource[F, BatchResult] =
-        traceQuasi(HandleJobLifecycle[F, Unit])
+      def quasiRun: Resource[F, BatchResult] =
+        quasiTrace(HandleJobLifecycle[F, Unit])
     }
   }
 }

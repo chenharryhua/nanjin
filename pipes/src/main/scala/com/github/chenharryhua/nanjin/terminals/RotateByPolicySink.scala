@@ -29,8 +29,8 @@ final private class RotateByPolicySink[F[_]: Async](
 
     (ss: Stream[F, GenericRecord]) =>
       ss.pull.peek1.flatMap {
-        case Some((grs, stream)) =>
-          periodically.persist(stream.chunks, ticks, get_writer(grs.getSchema))
+        case Some((gr, stream)) =>
+          periodically.persist(stream.chunks, ticks, get_writer(gr.getSchema))
         case None => Pull.done
       }.stream
   }
@@ -50,8 +50,8 @@ final private class RotateByPolicySink[F[_]: Async](
 
     (ss: Stream[F, GenericRecord]) =>
       ss.pull.peek1.flatMap {
-        case Some((grs, stream)) =>
-          periodically.persist(stream.chunks, ticks, get_writer(grs.getSchema))
+        case Some((gr, stream)) =>
+          periodically.persist(stream.chunks, ticks, get_writer(gr.getSchema))
         case None => Pull.done
       }.stream
   }
@@ -70,8 +70,8 @@ final private class RotateByPolicySink[F[_]: Async](
 
     (ss: Stream[F, GenericRecord]) =>
       ss.pull.peek1.flatMap {
-        case Some((grs, stream)) =>
-          periodically.persist(stream.chunks, ticks, get_writer(grs.getSchema))
+        case Some((gr, stream)) =>
+          periodically.persist(stream.chunks, ticks, get_writer(gr.getSchema))
         case None => Pull.done
       }.stream
   }
@@ -101,8 +101,8 @@ final private class RotateByPolicySink[F[_]: Async](
 
     (ss: Stream[F, GenericRecord]) =>
       ss.pull.peek1.flatMap {
-        case Some((grs, stream)) =>
-          periodically.persist(stream.chunks, ticks, get_writer(grs.getSchema))
+        case Some((gr, stream)) =>
+          periodically.persist(stream.chunks, ticks, get_writer(gr.getSchema))
         case None => Pull.done
       }.stream
   }

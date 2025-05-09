@@ -29,7 +29,7 @@ final class FileSink[F[_]: Sync] private (configuration: Configuration, path: Pa
         val schema = leg.head(0).getSchema
         Stream
           .resource(HadoopWriter.avroR[F](compression.codecFactory, schema, configuration, path))
-          .flatMap(w => (Stream.chunk(leg.head) ++ leg.stream).chunks.evalMap(c => w.write(c).as(c.size)))
+          .flatMap(w => leg.stream.cons(leg.head).chunks.evalMap(c => w.write(c).as(c.size)))
           .pull
           .echo
       case None => Pull.done
@@ -54,7 +54,7 @@ final class FileSink[F[_]: Sync] private (configuration: Configuration, path: Pa
         val schema = leg.head(0).getSchema
         Stream
           .resource(HadoopWriter.binAvroR[F](configuration, schema, path))
-          .flatMap(w => (Stream.chunk(leg.head) ++ leg.stream).chunks.evalMap(c => w.write(c).as(c.size)))
+          .flatMap(w => leg.stream.cons(leg.head).chunks.evalMap(c => w.write(c).as(c.size)))
           .pull
           .echo
       case None => Pull.done
@@ -69,7 +69,7 @@ final class FileSink[F[_]: Sync] private (configuration: Configuration, path: Pa
         val schema = leg.head(0).getSchema
         Stream
           .resource(HadoopWriter.jacksonR[F](configuration, schema, path))
-          .flatMap(w => (Stream.chunk(leg.head) ++ leg.stream).chunks.evalMap(c => w.write(c).as(c.size)))
+          .flatMap(w => leg.stream.cons(leg.head).chunks.evalMap(c => w.write(c).as(c.size)))
           .pull
           .echo
       case None => Pull.done
@@ -94,7 +94,7 @@ final class FileSink[F[_]: Sync] private (configuration: Configuration, path: Pa
 
           Stream
             .resource(HadoopWriter.parquetR[F](writeBuilder, path))
-            .flatMap(w => (Stream.chunk(leg.head) ++ leg.stream).chunks.evalMap(c => w.write(c).as(c.size)))
+            .flatMap(w => leg.stream.cons(leg.head).chunks.evalMap(c => w.write(c).as(c.size)))
             .pull
             .echo
         case None => Pull.done
