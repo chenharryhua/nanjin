@@ -1,42 +1,31 @@
 package com.github.chenharryhua.nanjin.guard.service
 
 import cats.effect.kernel.{Ref, Sync}
-import cats.effect.std.{AtomicCell, Console}
-import cats.implicits.{
-  catsSyntaxEq,
-  catsSyntaxIfM,
-  catsSyntaxOptionId,
-  catsSyntaxPartialOrder,
-  toFlatMapOps,
-  toFunctorOps
-}
+import cats.effect.std.Console
+import cats.implicits.{catsSyntaxEq, catsSyntaxIfM, catsSyntaxPartialOrder, toFlatMapOps, toFunctorOps}
 import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.Error
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceMessage
 import com.github.chenharryhua.nanjin.guard.translator.jsonHelper
 import io.circe.Encoder
-import org.apache.commons.collections4.queue.CircularFifoQueue
 
 import java.time.format.DateTimeFormatter
 import scala.Console as SConsole
 
 sealed trait ConsoleHerald[F[_]] {
-  def error[S: Encoder](msg: S)(implicit cns: Console[F]): F[Unit]
-  def error[S: Encoder](ex: Throwable)(msg: S)(implicit cns: Console[F]): F[Unit]
-
   def warn[S: Encoder](msg: S)(implicit cns: Console[F]): F[Unit]
   def warn[S: Encoder](ex: Throwable)(msg: S)(implicit cns: Console[F]): F[Unit]
 
   def info[S: Encoder](msg: S)(implicit cns: Console[F]): F[Unit]
   def done[S: Encoder](msg: S)(implicit cns: Console[F]): F[Unit]
+
   def debug[S: Encoder](msg: S)(implicit cns: Console[F]): F[Unit]
   def debug[S: Encoder](msg: => F[S])(implicit cns: Console[F]): F[Unit]
 }
 
 abstract private class ConsoleHeraldImpl[F[_]](
   serviceParams: ServiceParams,
-  alarmLevel: Ref[F, AlarmLevel],
-  errorHistory: AtomicCell[F, CircularFifoQueue[ServiceMessage]]
+  alarmLevel: Ref[F, AlarmLevel]
 )(implicit F: Sync[F])
     extends ConsoleHerald[F] {
 
@@ -72,25 +61,6 @@ abstract private class ConsoleHeraldImpl[F[_]](
 
   override def done[S: Encoder](msg: S)(implicit cns: Console[F]): F[Unit] =
     alarm(msg, AlarmLevel.Done, None)
-
-  override def error[S: Encoder](msg: S)(implicit cns: Console[F]): F[Unit] =
-    for {
-      msg <- toServiceMessage(serviceParams, msg, AlarmLevel.Error, None)
-      _ <- errorHistory.modify(queue => (queue, queue.add(msg)))
-      _ <- cns.println(toText(msg))
-    } yield ()
-
-  override def error[S: Encoder](ex: Throwable)(msg: S)(implicit cns: Console[F]): F[Unit] =
-    for {
-      msg <- toServiceMessage(
-        serviceParams,
-        msg,
-        AlarmLevel.Error,
-        Error(ex).some
-      )
-      _ <- errorHistory.modify(queue => (queue, queue.add(msg)))
-      _ <- cns.println(toText(msg))
-    } yield ()
 
   override def debug[S: Encoder](msg: => F[S])(implicit cns: Console[F]): F[Unit] =
     alarmLevel.get
