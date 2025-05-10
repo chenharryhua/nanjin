@@ -104,5 +104,5 @@ final private class GeneralAgent[F[_]: Async](
   override object adhoc extends AdhocMetricsImpl[F](channel, serviceParams, metricRegistry)
 
   override object herald extends HeraldImpl[F](serviceParams, channel, errorHistory)
-  override object console extends ConsoleHeraldImpl[F](serviceParams, alarmLevel, errorHistory)
+  override object console extends ConsoleHeraldImpl[F](serviceParams, alarmLevel)
 }

@@ -113,8 +113,12 @@ private object HadoopReader {
       @tailrec
       def go(existing: Chunk[Json], existCount: Int): (Chunk[Json], Option[Chunk[Json]]) = {
         val numBytes = is.read(buffer, 0, bufferSize)
-        if (numBytes == -1) { (existing, None) }
-        else {
+        if (numBytes == -1) {
+          parser.finish() match {
+            case Left(ex)     => throw ex
+            case Right(value) => (existing ++ Chunk.from(value), None)
+          }
+        } else {
           parser.absorb(ByteBuffer.wrap(buffer, 0, numBytes)) match {
             case Left(ex) => throw ex
             case Right(value) =>
