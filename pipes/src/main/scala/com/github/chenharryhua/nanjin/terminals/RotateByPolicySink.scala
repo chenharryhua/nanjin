@@ -39,8 +39,8 @@ final private class RotateByPolicySink[F[_]: Async](
               Pull.output1(TickedValue(currentTick, data.size)) >>
               doWork(currentTick, getWriter, hotswap, writer, tail)
           case Right(ticked) =>
-            Pull.eval(hotswap.swap(getWriter(ticked.value))).flatMap { writer =>
-              doWork(ticked.tick, getWriter, hotswap, writer, tail)
+            Pull.eval(hotswap.swap(getWriter(ticked.value))).flatMap { newWriter =>
+              doWork(ticked.tick, getWriter, hotswap, newWriter, tail)
             }
         }
       case None => Pull.done
