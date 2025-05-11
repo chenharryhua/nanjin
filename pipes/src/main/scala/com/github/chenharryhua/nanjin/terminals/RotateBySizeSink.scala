@@ -66,7 +66,7 @@ final private class RotateBySizeSink[F[_]](
     Stream
       .eval(TickStatus.zeroth(Policy.fixedDelay(0.seconds), ZoneId.systemDefault()))
       .flatMap { tickStatus =>
-        Stream.resource(Hotswap(getWriter(tickStatus.tick))).flatMap { case (hotswap, writer) =>
+        Stream.resourceWeak(Hotswap(getWriter(tickStatus.tick))).flatMap { case (hotswap, writer) =>
           doWork(getWriter, hotswap, writer, data, tickStatus, 0).stream
         }
       }
@@ -80,10 +80,9 @@ final private class RotateBySizeSink[F[_]](
       HadoopWriter.avroR[F](compression.codecFactory, schema, configuration, pathBuilder(tick))
 
     (ss: Stream[F, GenericRecord]) =>
-      ss.pull.stepLeg.flatMap {
-        case Some(leg) =>
-          val schema = leg.head(0).getSchema
-          persist(leg.stream.cons(leg.head), get_writer(schema))
+      ss.pull.peek1.flatMap {
+        case Some((gr, stream)) =>
+          persist(stream, get_writer(gr.getSchema))
         case None => Pull.done
       }.stream
   }
@@ -102,10 +101,9 @@ final private class RotateBySizeSink[F[_]](
       HadoopWriter.binAvroR[F](configuration, schema, pathBuilder(tick))
 
     (ss: Stream[F, GenericRecord]) =>
-      ss.pull.stepLeg.flatMap {
-        case Some(leg) =>
-          val schema: Schema = leg.head(0).getSchema
-          persist(leg.stream.cons(leg.head), get_writer(schema))
+      ss.pull.peek1.flatMap {
+        case Some((gr, stream)) =>
+          persist(stream, get_writer(gr.getSchema))
         case None => Pull.done
       }.stream
   }
@@ -123,10 +121,9 @@ final private class RotateBySizeSink[F[_]](
       HadoopWriter.jacksonR[F](configuration, schema, pathBuilder(tick))
 
     (ss: Stream[F, GenericRecord]) =>
-      ss.pull.stepLeg.flatMap {
-        case Some(leg) =>
-          val schema: Schema = leg.head(0).getSchema
-          persist(leg.stream.cons(leg.head), get_writer(schema))
+      ss.pull.peek1.flatMap {
+        case Some((gr, stream)) =>
+          persist(stream, get_writer(gr.getSchema))
         case None => Pull.done
       }.stream
   }
@@ -155,10 +152,9 @@ final private class RotateBySizeSink[F[_]](
     }
 
     (ss: Stream[F, GenericRecord]) =>
-      ss.pull.stepLeg.flatMap {
-        case Some(leg) =>
-          val schema: Schema = leg.head(0).getSchema
-          persist(leg.stream.cons(leg.head), get_writer(schema))
+      ss.pull.peek1.flatMap {
+        case Some((gr, stream)) =>
+          persist(stream, get_writer(gr.getSchema))
         case None => Pull.done
       }.stream
   }
