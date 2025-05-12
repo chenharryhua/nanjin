@@ -27,7 +27,7 @@ final private class RotateBySizeSink[F[_]](
   configuration: Configuration,
   pathBuilder: Tick => Path,
   sizeLimit: Int)(implicit F: Async[F])
-    extends RotateSink[F] {
+    extends RotateBySize[F] {
 
   private def doWork[A](
     getWriter: Tick => Resource[F, HadoopWriter[F, A]],
@@ -38,6 +38,7 @@ final private class RotateBySizeSink[F[_]](
     count: Int
   ): Pull[F, TickedValue[Int], Unit] =
     data.pull.uncons.flatMap {
+      case None => Pull.done
       case Some((as, stream)) =>
         val dataSize = as.size
         if ((dataSize + count) < sizeLimit) {
@@ -57,21 +58,30 @@ final private class RotateBySizeSink[F[_]](
               case None => Pull.done // never happen
             }
         }
-      case None => Pull.done
     }
+
+  private case class Allocated[A](
+    hotswap: Hotswap[F, HadoopWriter[F, A]],
+    writer: HadoopWriter[F, A],
+    release: Resource.ExitCase => F[Unit]
+  )
 
   private def persist[A](
     data: Stream[F, A],
     getWriter: Tick => Resource[F, HadoopWriter[F, A]]): Pull[F, TickedValue[Int], Unit] =
-    Stream
-      .eval(TickStatus.zeroth(Policy.fixedDelay(0.seconds), ZoneId.systemDefault()))
-      .flatMap { tickStatus =>
-        Stream.resource(Hotswap(getWriter(tickStatus.tick))).flatMap { case (hotswap, writer) =>
-          doWork(getWriter, hotswap, writer, data, tickStatus, 0).stream
+
+    Pull.eval(TickStatus.zeroth(Policy.fixedDelay(0.seconds), ZoneId.systemDefault())).flatMap { tickStatus =>
+      val allocated: F[Allocated[A]] =
+        Hotswap(getWriter(tickStatus.tick)).allocatedCase.map { case ((hotswap, writer), release) =>
+          Allocated(hotswap, writer, release)
         }
-      }
-      .pull
-      .echo
+
+      Pull.bracketCase[F, TickedValue[Int], Allocated[A], Unit](
+        Pull.eval(allocated),
+        allocated => doWork(getWriter, allocated.hotswap, allocated.writer, data, tickStatus, 0),
+        (allocated, cause) => Pull.eval(allocated.release(cause))
+      )
+    }
 
   // avro schema-less
 
@@ -80,20 +90,11 @@ final private class RotateBySizeSink[F[_]](
       HadoopWriter.avroR[F](compression.codecFactory, schema, configuration, pathBuilder(tick))
 
     (ss: Stream[F, GenericRecord]) =>
-      ss.pull.stepLeg.flatMap {
-        case Some(leg) =>
-          val schema = leg.head(0).getSchema
-          persist(leg.stream.cons(leg.head), get_writer(schema))
+      ss.pull.peek1.flatMap {
+        case Some((gr, stream)) =>
+          persist(stream, get_writer(gr.getSchema))
         case None => Pull.done
       }.stream
-  }
-
-  // avro schema
-  override def avro(schema: Schema, compression: AvroCompression): Sink[GenericRecord] = {
-    def get_writer(tick: Tick): Resource[F, HadoopWriter[F, GenericRecord]] =
-      HadoopWriter.avroR[F](compression.codecFactory, schema, configuration, pathBuilder(tick))
-
-    (ss: Stream[F, GenericRecord]) => persist(ss, get_writer).stream
   }
 
   // binary avro
@@ -102,19 +103,11 @@ final private class RotateBySizeSink[F[_]](
       HadoopWriter.binAvroR[F](configuration, schema, pathBuilder(tick))
 
     (ss: Stream[F, GenericRecord]) =>
-      ss.pull.stepLeg.flatMap {
-        case Some(leg) =>
-          val schema = leg.head(0).getSchema
-          persist(leg.stream.cons(leg.head), get_writer(schema))
+      ss.pull.peek1.flatMap {
+        case Some((gr, stream)) =>
+          persist(stream, get_writer(gr.getSchema))
         case None => Pull.done
       }.stream
-  }
-
-  override def binAvro(schema: Schema): Sink[GenericRecord] = {
-    def get_writer(tick: Tick): Resource[F, HadoopWriter[F, GenericRecord]] =
-      HadoopWriter.binAvroR[F](configuration, schema, pathBuilder(tick))
-
-    (ss: Stream[F, GenericRecord]) => persist(ss, get_writer).stream
   }
 
   // jackson
@@ -123,19 +116,11 @@ final private class RotateBySizeSink[F[_]](
       HadoopWriter.jacksonR[F](configuration, schema, pathBuilder(tick))
 
     (ss: Stream[F, GenericRecord]) =>
-      ss.pull.stepLeg.flatMap {
-        case Some(leg) =>
-          val schema = leg.head(0).getSchema
-          persist(leg.stream.cons(leg.head), get_writer(schema))
+      ss.pull.peek1.flatMap {
+        case Some((gr, stream)) =>
+          persist(stream, get_writer(gr.getSchema))
         case None => Pull.done
       }.stream
-  }
-
-  override def jackson(schema: Schema): Sink[GenericRecord] = {
-    def get_writer(tick: Tick): Resource[F, HadoopWriter[F, GenericRecord]] =
-      HadoopWriter.jacksonR[F](configuration, schema, pathBuilder(tick))
-
-    (ss: Stream[F, GenericRecord]) => persist(ss, get_writer).stream
   }
 
   // parquet
@@ -155,30 +140,11 @@ final private class RotateBySizeSink[F[_]](
     }
 
     (ss: Stream[F, GenericRecord]) =>
-      ss.pull.stepLeg.flatMap {
-        case Some(leg) =>
-          val schema = leg.head(0).getSchema
-          persist(leg.stream.cons(leg.head), get_writer(schema))
+      ss.pull.peek1.flatMap {
+        case Some((gr, stream)) =>
+          persist(stream, get_writer(gr.getSchema))
         case None => Pull.done
       }.stream
-  }
-
-  override def parquet(schema: Schema, f: Endo[Builder[GenericRecord]]): Sink[GenericRecord] = {
-
-    def get_writer(tick: Tick): Resource[F, HadoopWriter[F, GenericRecord]] = {
-      val writeBuilder: Reader[Path, Builder[GenericRecord]] = Reader((path: Path) =>
-        AvroParquetWriter
-          .builder[GenericRecord](HadoopOutputFile.fromPath(path, configuration))
-          .withDataModel(GenericData.get())
-          .withConf(configuration)
-          .withSchema(schema)
-          .withCompressionCodec(CompressionCodecName.UNCOMPRESSED)
-          .withWriteMode(ParquetFileWriter.Mode.OVERWRITE)).map(f)
-
-      HadoopWriter.parquetR[F](writeBuilder, pathBuilder(tick))
-    }
-
-    (ss: Stream[F, GenericRecord]) => persist(ss, get_writer).stream
   }
 
   // bytes
