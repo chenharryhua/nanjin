@@ -10,7 +10,7 @@ import org.apache.avro.generic.GenericRecord
 import org.apache.parquet.avro.AvroParquetWriter.Builder
 import scalapb.GeneratedMessage
 
-abstract class RotateSink[F[_]] {
+sealed trait RotateSink[F[_]] {
   protected type Sink[A] = Pipe[F, A, TickedValue[Int]]
 
   /** [[https://avro.apache.org]]
@@ -29,35 +29,11 @@ abstract class RotateSink[F[_]] {
 
   /** [[https://avro.apache.org]]
     */
-  def avro(schema: Schema, compression: AvroCompression): Pipe[F, GenericRecord, TickedValue[Int]]
-
-  /** [[https://avro.apache.org]]
-    */
-  final def avro(
-    schema: Schema,
-    f: AvroCompression.type => AvroCompression): Pipe[F, GenericRecord, TickedValue[Int]] =
-    avro(schema, f(AvroCompression))
-
-  /** [[https://avro.apache.org]]
-    */
-  final def avro(schema: Schema): Pipe[F, GenericRecord, TickedValue[Int]] =
-    avro(schema, AvroCompression.Uncompressed)
-
-  /** [[https://avro.apache.org]]
-    */
   def binAvro: Pipe[F, GenericRecord, TickedValue[Int]]
-
-  /** [[https://avro.apache.org]]
-    */
-  def binAvro(schema: Schema): Pipe[F, GenericRecord, TickedValue[Int]]
 
   /** [[https://github.com/FasterXML/jackson]]
     */
   def jackson: Pipe[F, GenericRecord, TickedValue[Int]]
-
-  /** [[https://github.com/FasterXML/jackson]]
-    */
-  def jackson(schema: Schema): Pipe[F, GenericRecord, TickedValue[Int]]
 
   /** [[https://parquet.apache.org]]
     */
@@ -67,15 +43,6 @@ abstract class RotateSink[F[_]] {
     */
   final def parquet: Pipe[F, GenericRecord, TickedValue[Int]] =
     parquet(identity[Builder[GenericRecord]])
-
-  /** [[https://parquet.apache.org]]
-    */
-  def parquet(schema: Schema, f: Endo[Builder[GenericRecord]]): Pipe[F, GenericRecord, TickedValue[Int]]
-
-  /** [[https://parquet.apache.org]]
-    */
-  final def parquet(schema: Schema): Pipe[F, GenericRecord, TickedValue[Int]] =
-    parquet(schema, identity[Builder[GenericRecord]])
 
   /** [[https://nrinaudo.github.io/kantan.csv]]
     */
@@ -107,4 +74,42 @@ abstract class RotateSink[F[_]] {
     * [[https://protobuf.dev/programming-guides/proto-limits/#total]]
     */
   def protobuf: Pipe[F, GeneratedMessage, TickedValue[Int]]
+}
+
+abstract class RotateBySize[F[_]] extends RotateSink[F] {}
+
+abstract class RotateByPolicy[F[_]] extends RotateSink[F] {
+
+  /** [[https://avro.apache.org]]
+    */
+  def avro(schema: Schema, compression: AvroCompression): Pipe[F, GenericRecord, TickedValue[Int]]
+
+  /** [[https://avro.apache.org]]
+    */
+  final def avro(
+    schema: Schema,
+    f: AvroCompression.type => AvroCompression): Pipe[F, GenericRecord, TickedValue[Int]] =
+    avro(schema, f(AvroCompression))
+
+  /** [[https://avro.apache.org]]
+    */
+  final def avro(schema: Schema): Pipe[F, GenericRecord, TickedValue[Int]] =
+    avro(schema, AvroCompression.Uncompressed)
+
+  /** [[https://avro.apache.org]]
+    */
+  def binAvro(schema: Schema): Pipe[F, GenericRecord, TickedValue[Int]]
+
+  /** [[https://github.com/FasterXML/jackson]]
+    */
+  def jackson(schema: Schema): Pipe[F, GenericRecord, TickedValue[Int]]
+
+  /** [[https://parquet.apache.org]]
+    */
+  def parquet(schema: Schema, f: Endo[Builder[GenericRecord]]): Pipe[F, GenericRecord, TickedValue[Int]]
+
+  /** [[https://parquet.apache.org]]
+    */
+  final def parquet(schema: Schema): Pipe[F, GenericRecord, TickedValue[Int]] =
+    parquet(schema, identity[Builder[GenericRecord]])
 }

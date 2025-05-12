@@ -71,8 +71,7 @@ object BatchResult {
       "results" -> br.results
         .map(jr =>
           Json.obj(
-            "job" -> Json.fromString(jr.job.name),
-            "index" -> Json.fromInt(jr.job.index),
+            show"job-${jr.job.index}" -> Json.fromString(jr.job.name),
             "took" -> Json.fromString(durationFormatter.format(jr.took)),
             "done" -> Json.fromBoolean(jr.done)
           ))
@@ -90,8 +89,7 @@ object BatchJobID {
   implicit val encoderBatchJobID: Encoder[BatchJobID] =
     (a: BatchJobID) =>
       Json.obj(
-        "job" -> Json.fromString(a.job.name),
-        "index" -> Json.fromInt(a.job.index),
+        show"job-${a.job.index}" -> Json.fromString(a.job.name),
         "batch" -> Json.fromString(a.label.label),
         "domain" -> Json.fromString(a.label.domain.value),
         "mode" -> Json.fromString(a.mode.show),

@@ -4,6 +4,7 @@ import cats.Endo
 import cats.data.Reader
 import cats.effect.kernel.{Async, Resource}
 import cats.effect.std.Hotswap
+import cats.implicits.toFunctorOps
 import com.github.chenharryhua.nanjin.common.chrono.{Tick, TickedValue}
 import fs2.{Chunk, Pull, Stream}
 import io.circe.Json
@@ -22,7 +23,7 @@ import scalapb.GeneratedMessage
 final private class RotateByPolicySink[F[_]: Async](
   configuration: Configuration,
   ticks: Stream[F, TickedValue[Path]])
-    extends RotateSink[F] {
+    extends RotateByPolicy[F] {
 
   private def doWork[A](
     currentTick: Tick,
@@ -32,6 +33,7 @@ final private class RotateByPolicySink[F[_]: Async](
     merged: Stream[F, Either[Chunk[A], TickedValue[Path]]]
   ): Pull[F, TickedValue[Int], Unit] =
     merged.pull.uncons1.flatMap {
+      case None => Pull.done
       case Some((head, tail)) =>
         head match {
           case Left(data) =>
@@ -43,29 +45,37 @@ final private class RotateByPolicySink[F[_]: Async](
               doWork(ticked.tick, getWriter, hotswap, newWriter, tail)
             }
         }
-      case None => Pull.done
     }
+
+  private case class Allocated[A](
+    hotswap: Hotswap[F, HadoopWriter[F, A]],
+    writer: HadoopWriter[F, A],
+    release: Resource.ExitCase => F[Unit]
+  )
 
   private def persist[A](
     data: Stream[F, Chunk[A]],
     ticks: Stream[F, TickedValue[Path]],
     getWriter: Path => Resource[F, HadoopWriter[F, A]]): Pull[F, TickedValue[Int], Unit] =
     ticks.pull.uncons1.flatMap {
+      case None => Pull.done
       case Some((head, tail)) => // use the very first tick to build writer and hotswap
-        Stream
-          .resource(Hotswap(getWriter(head.value)))
-          .flatMap { case (hotswap, writer) =>
-            doWork[A](
+        val allocated: F[Allocated[A]] =
+          Hotswap(getWriter(head.value)).allocatedCase.map { case ((hotswap, writer), release) =>
+            Allocated(hotswap, writer, release)
+          }
+
+        Pull.bracketCase[F, TickedValue[Int], Allocated[A], Unit](
+          Pull.eval(allocated),
+          allocated =>
+            doWork(
               head.tick,
               getWriter,
-              hotswap,
-              writer,
-              data.map(Left(_)).mergeHaltBoth(tail.map(Right(_)))
-            ).stream
-          }
-          .pull
-          .echo
-      case None => Pull.done
+              allocated.hotswap,
+              allocated.writer,
+              data.map(Left(_)).mergeHaltBoth(tail.map(Right(_)))),
+          (allocated, cause) => Pull.eval(allocated.release(cause))
+        )
     }
 
   /*
