@@ -27,7 +27,6 @@ import java.io.{BufferedReader, InputStream, InputStreamReader}
 import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
 import scala.annotation.tailrec
-import scala.collection.mutable
 import scala.jdk.CollectionConverters.IteratorHasAsScala
 
 private object HadoopReader {
@@ -52,16 +51,16 @@ private object HadoopReader {
         def go(): (Chunk[GenericData.Record], Option[Unit]) = {
           var counter: Int       = 0
           var keepGoing: Boolean = true
-          val builder: mutable.ReusableBuilder[GenericData.Record, Vector[GenericData.Record]] =
-            Vector.newBuilder[GenericData.Record]
-          while (keepGoing && (counter < chunkSize.value))
-            reader.read() match {
-              case null =>
-                keepGoing = false
-              case data =>
-                builder += data
-                counter += 1
+          val builder            = Vector.newBuilder[GenericData.Record]
+          while (keepGoing && (counter < chunkSize.value)) {
+            val gr: GenericData.Record = reader.read()
+            if (null == gr) {
+              keepGoing = false
+            } else {
+              builder += gr
+              counter += 1
             }
+          }
 
           (Chunk.from(builder.result()), if (keepGoing) Some(()) else None)
         }
@@ -124,7 +123,8 @@ private object HadoopReader {
             case Right(value) =>
               val size  = value.size
               val jsons = Chunk.from(value)
-              if ((existCount + size) < chunkSize.value) go(existing ++ jsons, existCount + size)
+              if ((existCount + size) < chunkSize.value)
+                go(existing ++ jsons, existCount + size)
               else {
                 val (first, second) = jsons.splitAt(chunkSize.value - existCount)
                 (existing ++ first, second.some)

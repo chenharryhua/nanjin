@@ -123,6 +123,12 @@ import scala.concurrent.duration.FiniteDuration
   def withToday: DateTimeRange     = withOneDay(LocalDate.now)
   def withYesterday: DateTimeRange = withOneDay(LocalDate.now.minusDays(1))
 
+  /**
+   * The day before yesterday
+   * @return
+   */
+  def withEreyesterday:DateTimeRange = withOneDay(LocalDate.now.minusDays(2))
+
   def isInBetween(ts: Long): Boolean =
     (startTimestamp, endTimestamp) match {
       case (Some(s), Some(e)) => ts >= s.milliseconds && ts < e.milliseconds
