@@ -361,4 +361,24 @@ class BatchTest extends AnyFunSuite {
     assert(decode[BatchMode](seq).isRight)
     assert(decode[BatchMode](par).isRight)
   }
+
+  test("20. empty sequential") {
+    val se = service
+      .eventStream(_.batch("b").sequential[Int]().fullyRun.use_)
+      .evalTap(console.text[IO])
+      .compile
+      .lastOrError
+      .unsafeRunSync()
+    assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
+  }
+
+  test("21. empty parallel") {
+    val se = service
+      .eventStream(_.batch("b").parallel[Int](1)().fullyRun.use_)
+      .evalTap(console.text[IO])
+      .compile
+      .lastOrError
+      .unsafeRunSync()
+    assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
+  }
 }
