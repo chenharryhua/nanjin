@@ -4,7 +4,7 @@ import cats.effect.kernel.Sync
 import cats.implicits.{toFlatMapOps, toFunctorOps}
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
-import com.github.chenharryhua.nanjin.guard.event.{Event, MetricIndex}
+import com.github.chenharryhua.nanjin.guard.event.{Event, MetricIndex, MetricSnapshot}
 import fs2.concurrent.Channel
 
 /** adhoc metrics report and reset
@@ -18,6 +18,7 @@ sealed trait AdhocMetrics[F[_]] {
   /** report current metrics
     */
   def report: F[Unit]
+  def getSnapshot: F[MetricSnapshot]
 }
 
 abstract private class AdhocMetricsImpl[F[_]](
@@ -42,4 +43,7 @@ abstract private class AdhocMetricsImpl[F[_]](
         metricRegistry = metricRegistry,
         index = MetricIndex.Adhoc(serviceParams.toZonedDateTime(ts))
       ).void)
+
+  override val getSnapshot: F[MetricSnapshot] =
+    MetricSnapshot.timed(metricRegistry).map(_._2)
 }

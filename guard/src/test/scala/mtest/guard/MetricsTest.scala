@@ -104,7 +104,9 @@ class MetricsTest extends AnyFunSuite {
     val mr = service.eventStream { agent =>
       agent
         .facilitate("histogram")(_.histogram("histogram", _.enable(false)).map(_.kleisli))
-        .use(_.run(10) >> agent.adhoc.report)
+        .use(_.run(10) >>
+          agent.adhoc.getSnapshot.map(ss => assert(ss.isEmpty)) >>
+          agent.adhoc.report)
     }.map(checkJson).mapFilter(eventFilters.metricReport).compile.lastOrError.unsafeRunSync()
     assert(mr.snapshot.isEmpty)
     assert(retrieveHistogram(mr.snapshot.histograms).isEmpty)
