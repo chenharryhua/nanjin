@@ -16,8 +16,8 @@ sealed trait ConsoleHerald[F[_]] {
   def warn[S: Encoder](msg: S)(implicit cns: Console[F]): F[Unit]
   def warn[S: Encoder](ex: Throwable)(msg: S)(implicit cns: Console[F]): F[Unit]
 
-  def info[S: Encoder](msg: S)(implicit cns: Console[F]): F[Unit]
   def done[S: Encoder](msg: S)(implicit cns: Console[F]): F[Unit]
+  def info[S: Encoder](msg: S)(implicit cns: Console[F]): F[Unit]
 
   def debug[S: Encoder](msg: S)(implicit cns: Console[F]): F[Unit]
   def debug[S: Encoder](msg: => F[S])(implicit cns: Console[F]): F[Unit]
@@ -34,9 +34,9 @@ abstract private class ConsoleHeraldImpl[F[_]](
   private def toText(sm: ServiceMessage): String = {
     val color = sm.level match {
       case AlarmLevel.Disable => ""
-      case AlarmLevel.Error   => SConsole.RED + "Console ERROR" + SConsole.RESET
+      case AlarmLevel.Error   => SConsole.RED + "Console Error" + SConsole.RESET
       case AlarmLevel.Warn    => SConsole.YELLOW + "Console Warn" + SConsole.RESET
-      case AlarmLevel.Done    => SConsole.GREEN + "Console Done" + SConsole.RESET
+      case AlarmLevel.Done    => SConsole.GREEN + "Console Success" + SConsole.RESET
       case AlarmLevel.Info    => SConsole.CYAN + "Console Info" + SConsole.RESET
       case AlarmLevel.Debug   => SConsole.BLUE + "Console Debug" + SConsole.RESET
     }

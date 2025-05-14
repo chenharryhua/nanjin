@@ -17,8 +17,8 @@ sealed trait Herald[F[_]] {
   def warn[S: Encoder](msg: S): F[Unit]
   def warn[S: Encoder](ex: Throwable)(msg: S): F[Unit]
 
-  def info[S: Encoder](msg: S): F[Unit]
   def done[S: Encoder](msg: S): F[Unit]
+  def info[S: Encoder](msg: S): F[Unit]
 }
 
 abstract private class HeraldImpl[F[_]: Sync](

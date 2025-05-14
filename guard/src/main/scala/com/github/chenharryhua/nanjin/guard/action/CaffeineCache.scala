@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.action
 
 import cats.effect.kernel.{Resource, Sync}
-import cats.implicits.{catsSyntaxApplicativeId, toFlatMapOps, toFunctorOps}
+import cats.implicits.{toFlatMapOps, toFunctorOps}
 import com.github.benmanes.caffeine.cache.Cache
 import com.github.benmanes.caffeine.cache.stats.CacheStats
 import io.circe.generic.JsonCodec
@@ -51,18 +51,19 @@ object CaffeineCache {
     override def updateWith(key: K)(f: Option[V] => V): F[V] =
       getIfPresent(key).map(f).flatTap(v => put(key, v))
 
+    override val getStats: F[Stats] =
+      F.delay(Stats(cache.stats(), cache.estimatedSize()))
+
     override def invalidate(key: K): F[Unit] =
       F.delay(cache.invalidate(key))
 
     override val invalidateAll: F[Unit] =
-      F.delay(cache.invalidateAll())
+      F.blocking(cache.invalidateAll())
 
-    override val getStats: F[Stats] =
-      F.delay(Stats(cache.stats(), cache.estimatedSize()))
-
-    val cleanUp: F[Unit] = F.delay(cache.cleanUp())
+    val cleanUp: F[Unit] = F.blocking(cache.cleanUp())
   }
 
-  private[guard] def build[F[_]: Sync, K, V](cache: Cache[K, V]): Resource[F, CaffeineCache[F, K, V]] =
-    Resource.make(new Impl(cache).pure[F])(_.cleanUp)
+  private[guard] def build[F[_], K, V](cache: Cache[K, V])(implicit
+    F: Sync[F]): Resource[F, CaffeineCache[F, K, V]] =
+    Resource.make[F, Impl[F, K, V]](F.pure(new Impl(cache)))(_.cleanUp)
 }
