@@ -20,6 +20,7 @@ import mtest.terminals.TestData.Tiger
 import org.scalatest.Assertion
 import org.scalatest.funsuite.AnyFunSuite
 import org.typelevel.jawn.fs2.JsonStreamSyntax
+import squants.information.InformationConversions.InformationConversions
 
 import java.time.ZoneId
 import scala.concurrent.duration.{DurationDouble, DurationInt}
@@ -103,7 +104,7 @@ class NJCirceTest extends AnyFunSuite {
     def tigers1(path: Url): Stream[IO, Tiger] =
       hdp
         .source(path)
-        .bytes
+        .bytes(1.kb)
         .through(utf8.decode)
         .through(lines)
         .takeWhile(_.nonEmpty)
@@ -111,7 +112,7 @@ class NJCirceTest extends AnyFunSuite {
         .rethrow
 
     def tigers2(path: Url): Stream[IO, Tiger] =
-      hdp.source(path).bytes.chunks.parseJsonStream.map(_.as[Tiger]).rethrow
+      hdp.source(path).bytes(1.kb).chunks.parseJsonStream.map(_.as[Tiger]).rethrow
 
     hdp
       .filesIn(path)
@@ -147,7 +148,7 @@ class NJCirceTest extends AnyFunSuite {
     def tigers1(path: Url): Stream[IO, Tiger] =
       hdp
         .source(path)
-        .bytes
+        .bytes(1.kb)
         .through(utf8.decode)
         .through(lines)
         .takeWhile(_.nonEmpty)
@@ -155,7 +156,7 @@ class NJCirceTest extends AnyFunSuite {
         .rethrow
 
     def tigers2(path: Url): Stream[IO, Tiger] =
-      hdp.source(path).bytes.chunks.parseJsonStream.map(_.as[Tiger]).rethrow
+      hdp.source(path).bytes(1.kb).chunks.parseJsonStream.map(_.as[Tiger]).rethrow
 
     hdp
       .filesIn(path)

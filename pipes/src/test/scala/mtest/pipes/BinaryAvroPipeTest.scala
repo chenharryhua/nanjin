@@ -10,6 +10,7 @@ import io.lemonlabs.uri.Url
 import io.lemonlabs.uri.typesafe.dsl.*
 import org.apache.hadoop.conf.Configuration
 import org.scalatest.funsuite.AnyFunSuite
+import squants.information.InformationConversions.InformationConversions
 
 class BinaryAvroPipeTest extends AnyFunSuite {
   import mtest.terminals.TestData.*
@@ -55,7 +56,7 @@ class BinaryAvroPipeTest extends AnyFunSuite {
     val read =
       hdp
         .source(path)
-        .bytes
+        .bytes(1.kb)
         .through(binaryAvro.fromBytes[IO](AvroSchema[Tiger]))
         .map(Tiger.avroDecoder.decode)
     val run = write.compile.drain >> read.compile.toList
