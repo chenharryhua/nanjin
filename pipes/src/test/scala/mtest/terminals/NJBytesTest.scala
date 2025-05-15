@@ -38,7 +38,7 @@ class NJBytesTest extends AnyFunSuite {
     assert(
       hdp
         .source(path)
-        .bytes
+        .bytes(1.kb)
         .chunks
         .map { c =>
           assert(c.nonEmpty)
@@ -83,7 +83,7 @@ class NJBytesTest extends AnyFunSuite {
   }
 
   test("laziness") {
-    hdp.source("./does/not/exist").bytes
+    hdp.source("./does/not/exist").bytes(1.mb)
     hdp.sink("./does/not/exist").bytes
   }
 
