@@ -32,6 +32,9 @@ object Batch {
   private def getJobName(job: BatchJob): String =
     s"job-${job.index} (${job.name})"
 
+  private def activeJob[F[_]](mtx: Metrics[F], job: BatchJob): Resource[F, Unit] =
+    mtx.activeGauge(s"running ${getJobName(job)}")
+
   private val translator: Ior[Long, Long] => Json = {
     case Ior.Left(a)  => Json.fromString(s"$a/0")
     case Ior.Right(b) => Json.fromString(s"0/$b")
@@ -108,28 +111,34 @@ object Batch {
       */
     def renameJobs(f: Endo[String]): Runner[F, A]
 
-    /** exceptions raised by jobs in the batch are swallowed.
-      *
-      * a job is either
-      *
-      * done: when the job returns a value of A and isSucc(a) returns true
-      *
-      * otherwise fail
+    /** Exceptions thrown by individual jobs in the batch are suppressed, allowing the overall execution to
+      * continue.
       *
       * @param isSucc:
       *   evaluate job's return value
       * @return
+      *   BatchResult a job is
+      *
+      * done: when the job returns a value of A and isSucc(a) returns true
+      *
+      * otherwise fail
       */
     def quasiTrace(handler: HandleJobLifecycle[F, A])(isSucc: A => Boolean): Resource[F, BatchResult]
 
+    /** Exceptions thrown by individual jobs in the batch are suppressed, allowing the overall execution to
+      * continue.
+      */
     final def quasiRun(f: A => Boolean): Resource[F, BatchResult] =
       quasiTrace(HandleJobLifecycle[F, A])(f)
 
-    /** @param handler:
-      *   final action on job's return state
-      * @return
+    /** Exceptions thrown by individual jobs in the batch are propagated, causing the process to halt at the
+      * point of failure
       */
     def fullyTrace(handler: HandleJobLifecycle[F, A]): Resource[F, (BatchResult, List[A])]
+
+    /** Exceptions thrown by individual jobs in the batch are propagated, causing the process to halt at the
+      * point of failure
+      */
     final def fullyRun: Resource[F, (BatchResult, List[A])] = fullyTrace(HandleJobLifecycle[F, A])
   }
 
@@ -220,8 +229,7 @@ object Batch {
         jobs.traverse { case (job, fa) =>
           val jobId = BatchJobID(job, metrics.metricLabel, mode, BatchKind.Quasi)
           handler.kickoff(jobId) *>
-            metrics
-              .activeGauge(s"running ${getJobName(job)}")
+            activeJob(metrics, job)
               .surround(F.timed(F.attempt(fa)))
               .flatMap { case (fd: FiniteDuration, eoa: Either[Throwable, A]) =>
                 val result = JobResult(job, fd.toJava, eoa.fold(_ => false, isSucc(_)))
@@ -241,8 +249,7 @@ object Batch {
           val jobId = BatchJobID(job, metrics.metricLabel, mode, BatchKind.Fully)
 
           handler.kickoff(jobId) *>
-            metrics
-              .activeGauge(s"running ${getJobName(job)}")
+            activeJob(metrics, job)
               .surround(F.timed(F.attempt(fa)))
               .flatMap { case (fd: FiniteDuration, eoa: Either[Throwable, A]) =>
                 val result = JobResult(job, fd.toJava, done = eoa.isRight)
@@ -289,7 +296,17 @@ object Batch {
     kind: BatchKind)
 
   final class JobBuilder[F[_]] private[Batch] (metrics: Metrics[F])(implicit F: Async[F]) {
-    private def build[A](name: String, fa: F[A]): Monadic[A] =
+
+    /** Exceptions thrown by individual jobs in the batch are propagated, causing the process to halt at the
+      * point of failure
+      *
+      * build a named job
+      * @param name
+      *   name of the job
+      * @param fa
+      *   the job
+      */
+    def apply[A](name: String, fa: F[A]): Monadic[A] =
       new Monadic[A](
         Kleisli { case Callbacks(doMeasure, handler, kind) =>
           StateT { (index: Int) =>
@@ -297,8 +314,7 @@ object Batch {
             val jobId = BatchJobID(job, metrics.metricLabel, BatchMode.Sequential, kind)
 
             handler.kickoff(jobId) *>
-              metrics
-                .activeGauge(s"running ${getJobName(job)}")
+              activeJob(metrics, job)
                 .surround(F.timed(F.attempt(fa)))
                 .flatMap { case (fd: FiniteDuration, eoa: Either[Throwable, A]) =>
                   val result = JobResult(job, fd.toJava, eoa.isRight)
@@ -319,19 +335,59 @@ object Batch {
         }
       )
 
-    /** build a named job
+    /** Exceptions thrown by individual jobs in the batch are propagated, causing the process to halt at the
+      * point of failure
+      *
+      * build a named job
+      * @param tup
+      *   tuple with the first being the name, second the job
+      */
+    def apply[A](tup: (String, F[A])): Monadic[A] = apply(tup._1, tup._2)
+
+    /** Exceptions thrown during the job are suppressed, and execution proceeds without interruption.
       * @param name
-      *   name of the job
+      *   the name of the job
       * @param fa
       *   the job
+      * @return
+      *   true if no exception occurs and fa is evaluated to be true, otherwise false
       */
-    def apply[A](name: String, fa: F[A]): Monadic[A] = build[A](name, fa)
+    def invincible(name: String, fa: F[Boolean]): Monadic[Boolean] =
+      new Monadic[Boolean](
+        Kleisli { case Callbacks(doMeasure, handler, kind) =>
+          StateT { (index: Int) =>
+            val job   = BatchJob(name, index)
+            val jobId = BatchJobID(job, metrics.metricLabel, BatchMode.Sequential, kind)
 
-    /** build a named job
+            handler.kickoff(jobId) *>
+              activeJob(metrics, job)
+                .surround(F.timed(F.attempt(fa)))
+                .flatMap { case (fd: FiniteDuration, eoa: Either[Throwable, Boolean]) =>
+                  val result = JobResult(job, fd.toJava, eoa.fold(_ => false, identity))
+                  doMeasure.run(result).as(SingleJobOutcome(result, eoa))
+                }
+                .guaranteeCase { (oc: Outcome[F, Throwable, SingleJobOutcome[Boolean]]) =>
+                  handleOutcome[F, Unit](jobId, handler)(
+                    oc.fold(
+                      canceled = Outcome.Canceled(),
+                      errored = Outcome.Errored(_),
+                      completed = sjr => Outcome.Succeeded(sjr.map(_.map(_ => ())))
+                    ))
+                }
+                .map { case SingleJobOutcome(result, eoa) =>
+                  (index + 1, JobState(Right(eoa.fold(_ => false, identity)), NonEmptyList.one(result)))
+                }
+          }
+        }
+      )
+
+    /** Exceptions thrown during the job are suppressed, and execution proceeds without interruption.
       * @param tup
-      *   a tuple with the first being the name, second the job
+      *   tuple with the first being the name, second the job
+      * @return
+      *   true if no exception occurs and fa is evaluated to be true, otherwise false
       */
-    def apply[A](tup: (String, F[A])): Monadic[A] = build(tup._1, tup._2)
+    def invincible(tup: (String, F[Boolean])): Monadic[Boolean] = invincible(tup._1, tup._2)
 
     /*
      * dependent type
