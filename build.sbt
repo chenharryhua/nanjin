@@ -275,7 +275,7 @@ lazy val messages =
           "com.thesamet.scalapb" %% "scalapb-runtime" % "0.11.17",
           "io.confluent"                              % "kafka-protobuf-serializer" % confluentV,
           "io.confluent"                              % "kafka-streams-avro-serde"  % confluentV,
-          "com.google.protobuf"                       % "protobuf-java"             % "4.30.2", // snyk
+          "com.google.protobuf"                       % "protobuf-java"             % "4.31.0", // snyk
           "org.jetbrains.kotlin"                      % "kotlin-stdlib"             % "2.1.21", // snyk
           "io.circe" %% "circe-shapes"                % circeV                      % Test
         ) ++ testLib)
