@@ -25,10 +25,12 @@ sealed trait BatchMode
 object BatchMode {
   final case class Parallel(parallelism: Int) extends BatchMode
   case object Sequential extends BatchMode
+  case object Monadic extends BatchMode
 
   implicit val showBatchMode: Show[BatchMode] = {
     case Parallel(parallelism) => s"parallel-$parallelism"
     case Sequential            => "sequential"
+    case Monadic               => "monadic"
   }
 
   implicit val encoderBatchMode: Encoder[BatchMode] =
@@ -38,6 +40,7 @@ object BatchMode {
 
   implicit val decodeBatchMode: Decoder[BatchMode] = Decoder[String].emap {
     case "sequential" => Right(Sequential)
+    case "monadic"    => Right(Monadic)
     case Pattern(par) => Try(Parallel(par.toInt)).toEither.leftMap(ExceptionUtils.getMessage)
     case oops         => Left(s"$oops is unable to be decoded to batch mode")
   }

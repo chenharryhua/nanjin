@@ -51,8 +51,8 @@ trait Metrics[F[_]] {
   final def idleGauge(name: String): Resource[F, IdleGauge[F]] =
     idleGauge(name, identity[Gauge.Builder])
 
-  def activeGauge(name: String, f: Endo[Gauge.Builder]): Resource[F, Unit]
-  final def activeGauge(name: String): Resource[F, Unit] = activeGauge(name, identity)
+  def activeGauge(name: String, f: Endo[Gauge.Builder]): Resource[F, ActiveGauge[F]]
+  final def activeGauge(name: String): Resource[F, ActiveGauge[F]] = activeGauge(name, identity)
 
   def permanentCounter(name: String, f: Endo[Gauge.Builder]): Resource[F, Counter[F]]
   final def permanentCounter(name: String): Resource[F, Counter[F]] =
@@ -123,11 +123,16 @@ object Metrics {
         override val wakeUp: F[Unit] = F.monotonic.flatMap(lastUpdate.set)
       }
 
-    override def activeGauge(name: String, f: Endo[Gauge.Builder]): Resource[F, Unit] =
+    override def activeGauge(name: String, f: Endo[Gauge.Builder]): Resource[F, ActiveGauge[F]] =
       for {
+        active <- Resource.eval(F.ref(true))
         kickoff <- Resource.eval(F.monotonic)
-        _ <- gauge(name, f).register(F.monotonic.map(now => durationFormatter.format(now - kickoff)))
-      } yield ()
+        _ <- gauge(name, f).register(
+          active.get
+            .ifM(F.monotonic.map(now => durationFormatter.format(now - kickoff).some), F.pure(none[String])))
+      } yield new ActiveGauge[F] {
+        override val deactivate: F[Unit] = active.set(false)
+      }
 
     override def permanentCounter(name: String, f: Endo[Gauge.Builder]): Resource[F, Counter[F]] =
       for {
