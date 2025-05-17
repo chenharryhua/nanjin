@@ -15,8 +15,8 @@ import cats.{Endo, MonadError}
 import com.github.chenharryhua.nanjin.guard.config.Domain
 import com.github.chenharryhua.nanjin.guard.metrics.{ActiveGauge, Metrics}
 import com.github.chenharryhua.nanjin.guard.translator.durationFormatter
-import io.circe.{Encoder, Json}
 import io.circe.syntax.EncoderOps
+import io.circe.{Encoder, Json}
 import monocle.Monocle.toAppliedFocusOps
 
 import java.time.Duration
@@ -365,10 +365,12 @@ object Batch {
       *   the name of the job
       * @param rfa
       *   the job
+      * @param isSucc
+      *   A is evaluated to determine whether the job has completed successfully
       * @return
-      *   true if no exception occurs and fa is evaluated to be true, otherwise false
+      *   true if no exception occurs and isSucc is evaluated to be true, otherwise false
       */
-    def invincible(name: String, rfa: Resource[F, Boolean]): Monadic[Boolean] =
+    def invincible[A: Encoder](name: String, rfa: Resource[F, A])(isSucc: A => Boolean): Monadic[Boolean] =
       new Monadic[Boolean](
         Kleisli { case Callbacks(doMeasure, handler, kind) =>
           StateT { (index: Int) =>
@@ -379,22 +381,22 @@ object Batch {
               .preAllocate(handler.kickoff(jobId))
               .attempt
               .timed
-              .evalMap { case (fd: FiniteDuration, eoa: Either[Throwable, Boolean]) =>
-                val result = JobResult(job, fd.toJava, eoa.fold(_ => false, identity))
+              .evalMap { case (fd: FiniteDuration, eoa: Either[Throwable, A]) =>
+                val result = JobResult(job, fd.toJava, eoa.fold(_ => false, isSucc))
                 doMeasure.run(result).as(SingleJobOutcome(result, eoa))
               }
               .guaranteeCase {
                 case Outcome.Succeeded(fa) =>
                   fa.evalMap { case SingleJobOutcome(result, eoa) =>
                     val joc = JobOutcome(jobId, result.took, result.done)
-                    eoa.fold(handler.errored(joc, _), b => handler.completed(joc, Json.fromBoolean(b)))
+                    eoa.fold(handler.errored(joc, _), a => handler.completed(joc, a.asJson))
                   }
                 case Outcome.Errored(e) =>
                   Resource.raiseError[F, Unit, Throwable](shouldNeverHappenException(e))
                 case Outcome.Canceled() => Resource.eval(handler.canceled(jobId))
               }
               .map { case SingleJobOutcome(result, eoa) =>
-                (index + 1, JobState(Right(eoa.fold(_ => false, identity)), NonEmptyList.one(result)))
+                (index + 1, JobState(Right(eoa.fold(_ => false, isSucc)), NonEmptyList.one(result)))
               }
           }
         }
@@ -405,18 +407,16 @@ object Batch {
       *   the name of the job
       * @param fa
       *   the job
+      * @param isSucc
+      *   A is evaluated to determine whether the job has completed successfully
       * @return
-      *   true if no exception occurs and fa is evaluated to be true, otherwise false
+      *   true if no exception occurs and isSucc is evaluated to be true, otherwise false
       */
-    def invincible(name: String, fa: F[Boolean]): Monadic[Boolean] = invincible(name, Resource.eval(fa))
+    def invincible[A: Encoder](name: String, fa: F[A])(isSucc: A => Boolean): Monadic[Boolean] =
+      invincible[A](name, Resource.eval(fa))(isSucc)
 
-    /** Exceptions thrown during the job are suppressed, and execution proceeds without interruption.
-      * @param tup
-      *   tuple with the first being the name, second the job
-      * @return
-      *   true if no exception occurs and fa is evaluated to be true, otherwise false
-      */
-    def invincible(tup: (String, F[Boolean])): Monadic[Boolean] = invincible(tup._1, tup._2)
+    def invincible(tuple: (String, F[Boolean])): Monadic[Boolean] =
+      invincible(tuple._1, Resource.eval(tuple._2))(identity)
 
     /*
      * dependent type
