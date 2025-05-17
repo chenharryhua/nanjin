@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.action
 import cats.data.*
-import cats.effect.implicits.{clockOps, monadCancelOps}
+import cats.effect.implicits.{clockOps, monadCancelOps, monadCancelOps_}
 import cats.effect.kernel.{Async, Outcome, Resource}
 import cats.implicits.{
   catsSyntaxApplyOps,
@@ -13,7 +13,7 @@ import cats.implicits.{
 }
 import cats.{Endo, MonadError}
 import com.github.chenharryhua.nanjin.guard.config.Domain
-import com.github.chenharryhua.nanjin.guard.metrics.Metrics
+import com.github.chenharryhua.nanjin.guard.metrics.{ActiveGauge, Metrics}
 import com.github.chenharryhua.nanjin.guard.translator.durationFormatter
 import io.circe.Json
 import io.circe.syntax.EncoderOps
@@ -62,25 +62,27 @@ object Batch {
   private type DoMeasurement[F[_]] = Kleisli[F, JobResult, Unit]
 
   private def createMeasure[F[_]](mtx: Metrics[F], size: Int, kind: BatchKind, mode: BatchMode)(implicit
-    F: Async[F]): Resource[F, DoMeasurement[F]] =
+    F: Async[F]): Resource[F, (DoMeasurement[F], ActiveGauge[F])] =
     for {
-      _ <- mtx.activeGauge("elapsed")
+      active <- mtx.activeGauge("active")
       percentile <- mtx
         .percentile(show"$mode completion", _.withTranslator(translator))
         .evalTap(_.incDenominator(size.toLong))
       progress <- Resource.eval(F.ref[List[JobResult]](Nil))
       _ <- mtx.gauge(show"$kind completed").register(progress.get.map(toJson))
-    } yield Kleisli { (detail: JobResult) =>
-      F.uncancelable(_ => percentile.incNumerator(1) *> progress.update(_.appended(detail)))
-    }
+    } yield (
+      Kleisli { (detail: JobResult) =>
+        F.uncancelable(_ => percentile.incNumerator(1) *> progress.update(_.appended(detail)))
+      },
+      active)
 
   private def createMeasure[F[_]](mtx: Metrics[F], kind: BatchKind)(implicit
-    F: Async[F]): Resource[F, DoMeasurement[F]] =
+    F: Async[F]): Resource[F, (DoMeasurement[F], ActiveGauge[F])] =
     for {
-      _ <- mtx.activeGauge("elapsed")
+      active <- mtx.activeGauge("active")
       progress <- Resource.eval(F.ref[List[JobResult]](Nil))
       _ <- mtx.gauge(show"${BatchMode.Sequential} $kind completed").register(progress.get.map(toJson))
-    } yield Kleisli((jr: JobResult) => F.uncancelable(_ => progress.update(_.appended(jr))))
+    } yield (Kleisli((jr: JobResult) => F.uncancelable(_ => progress.update(_.appended(jr)))), active)
 
   final private case class SingleJobOutcome[A](result: JobResult, eoa: Either[Throwable, A]) {
     def embed: Either[Throwable, (JobResult, A)] = eoa.map((result, _))
@@ -156,7 +158,7 @@ object Batch {
     override def quasiTrace(handler: HandleJobLifecycle[F, A])(
       isSucc: A => Boolean): Resource[F, BatchResult] = {
 
-      def exec(meas: DoMeasurement[F]): F[(FiniteDuration, List[JobResult])] =
+      def exec(meas: DoMeasurement[F], activeGauge: ActiveGauge[F]): F[(FiniteDuration, List[JobResult])] =
         F.timed(F.parTraverseN(parallelism)(jobs) { case (job, fa) =>
           val jobId = BatchJobID(job, metrics.metricLabel, mode, BatchKind.Quasi)
           handler.kickoff(jobId) *>
@@ -167,16 +169,19 @@ object Batch {
               }
               .guaranteeCase(handleOutcome(jobId, handler))
               .map(_.result)
-        })
+        }).guarantee(activeGauge.deactivate)
 
-      createMeasure(metrics, jobs.size, BatchKind.Quasi, mode).evalMap(exec).map { case (fd, results) =>
-        BatchResult(metrics.metricLabel, fd.toJava, mode, BatchKind.Quasi, results.sortBy(_.job.index))
+      createMeasure(metrics, jobs.size, BatchKind.Quasi, mode).evalMap(exec.tupled).map {
+        case (fd, results) =>
+          BatchResult(metrics.metricLabel, fd.toJava, mode, BatchKind.Quasi, results.sortBy(_.job.index))
       }
     }
 
     override def fullyTrace(handler: HandleJobLifecycle[F, A]): Resource[F, (BatchResult, List[A])] = {
 
-      def exec(meas: DoMeasurement[F]): F[(FiniteDuration, List[(JobResult, A)])] =
+      def exec(
+        meas: DoMeasurement[F],
+        activeGauge: ActiveGauge[F]): F[(FiniteDuration, List[(JobResult, A)])] =
         F.timed(F.parTraverseN(parallelism)(jobs) { case (job, fa) =>
           val jobId = BatchJobID(job, metrics.metricLabel, mode, BatchKind.Fully)
           handler.kickoff(jobId) *>
@@ -188,12 +193,13 @@ object Batch {
               .guaranteeCase(handleOutcome(jobId, handler))
               .map(_.embed)
               .rethrow
-        })
+        }).guarantee(activeGauge.deactivate)
 
-      createMeasure(metrics, jobs.size, BatchKind.Fully, mode).evalMap(exec).map { case (fd, results) =>
-        val sorted = results.sortBy(_._1.job.index)
-        val br     = BatchResult(metrics.metricLabel, fd.toJava, mode, BatchKind.Fully, sorted.map(_._1))
-        (br, sorted.map(_._2))
+      createMeasure(metrics, jobs.size, BatchKind.Fully, mode).evalMap(exec.tupled).map {
+        case (fd, results) =>
+          val sorted = results.sortBy(_._1.job.index)
+          val br     = BatchResult(metrics.metricLabel, fd.toJava, mode, BatchKind.Fully, sorted.map(_._1))
+          (br, sorted.map(_._2))
       }
     }
 
@@ -225,7 +231,7 @@ object Batch {
     override def quasiTrace(handler: HandleJobLifecycle[F, A])(
       isSucc: A => Boolean): Resource[F, BatchResult] = {
 
-      def exec(meas: DoMeasurement[F]): F[List[JobResult]] =
+      def exec(meas: DoMeasurement[F], activeGauge: ActiveGauge[F]): F[List[JobResult]] =
         jobs.traverse { case (job, fa) =>
           val jobId = BatchJobID(job, metrics.metricLabel, mode, BatchKind.Quasi)
           handler.kickoff(jobId) *>
@@ -236,14 +242,16 @@ object Batch {
               }
               .guaranteeCase(handleOutcome(jobId, handler))
               .map(_.result)
-        }
+        }.guarantee(activeGauge.deactivate)
 
-      createMeasure(metrics, jobs.size, BatchKind.Quasi, mode).evalMap(exec).map(batchResult(BatchKind.Quasi))
+      createMeasure(metrics, jobs.size, BatchKind.Quasi, mode)
+        .evalMap(exec.tupled)
+        .map(batchResult(BatchKind.Quasi))
     }
 
     override def fullyTrace(handler: HandleJobLifecycle[F, A]): Resource[F, (BatchResult, List[A])] = {
 
-      def exec(meas: DoMeasurement[F]): F[List[(JobResult, A)]] =
+      def exec(meas: DoMeasurement[F], activeGauge: ActiveGauge[F]): F[List[(JobResult, A)]] =
         jobs.traverse { case (job, fa) =>
           val jobId = BatchJobID(job, metrics.metricLabel, mode, BatchKind.Fully)
 
@@ -256,9 +264,9 @@ object Batch {
               .guaranteeCase(handleOutcome(jobId, handler))
               .map(_.embed)
               .rethrow
-        }
+        }.guarantee(activeGauge.deactivate)
 
-      createMeasure(metrics, jobs.size, BatchKind.Fully, mode).evalMap(exec).map { results =>
+      createMeasure(metrics, jobs.size, BatchKind.Fully, mode).evalMap(exec.tupled).map { results =>
         val br = batchResult(BatchKind.Fully)(results.map(_._1))
         val as = results.map(_._2)
         (br, as)
@@ -465,8 +473,11 @@ object Batch {
       }
 
       def fullyTrace(handler: HandleJobLifecycle[F, Unit]): Resource[F, (BatchResult, T)] =
-        createMeasure[F](metrics, BatchKind.Fully).flatMap { meas =>
-          kleisli.run(Callbacks[F](meas, handler, BatchKind.Fully)).run(1)
+        createMeasure[F](metrics, BatchKind.Fully).flatMap { case (meas, activeGauge) =>
+          kleisli
+            .run(Callbacks[F](meas, handler, BatchKind.Fully))
+            .run(1)
+            .guarantee(Resource.eval(activeGauge.deactivate))
         }.map { case (_, JobState(eoa, results)) =>
           eoa.map(a => (batchResult(BatchKind.Fully, results), a))
         }.rethrow
@@ -475,8 +486,11 @@ object Batch {
         fullyTrace(HandleJobLifecycle[F, Unit])
 
       def quasiTrace(handler: HandleJobLifecycle[F, Unit]): Resource[F, BatchResult] =
-        createMeasure[F](metrics, BatchKind.Quasi).flatMap { meas =>
-          kleisli.run(Callbacks[F](meas, handler, BatchKind.Quasi)).run(1)
+        createMeasure[F](metrics, BatchKind.Quasi).flatMap { case (meas, activeGauge) =>
+          kleisli
+            .run(Callbacks[F](meas, handler, BatchKind.Quasi))
+            .run(1)
+            .guarantee(Resource.eval(activeGauge.deactivate))
         }.map { case (_, JobState(_, results)) => batchResult(BatchKind.Quasi, results) }
 
       def quasiRun: Resource[F, BatchResult] =
