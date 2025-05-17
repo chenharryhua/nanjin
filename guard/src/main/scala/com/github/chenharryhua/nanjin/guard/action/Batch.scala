@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.action
 import cats.data.*
-import cats.effect.implicits.monadCancelOps
+import cats.effect.implicits.{clockOps, monadCancelOps}
 import cats.effect.kernel.{Async, Outcome, Resource}
 import cats.implicits.{
   catsSyntaxApplyOps,
@@ -32,8 +32,8 @@ object Batch {
   private def getJobName(job: BatchJob): String =
     s"job-${job.index} (${job.name})"
 
-  private def activeJob[F[_]](mtx: Metrics[F], job: BatchJob): Resource[F, Unit] =
-    mtx.activeGauge(s"running ${getJobName(job)}")
+  private def shouldNeverHappenException(e: Throwable): Exception =
+    new Exception("Should never happen", e)
 
   private val translator: Ior[Long, Long] => Json = {
     case Ior.Left(a)  => Json.fromString(s"$a/0")
@@ -87,17 +87,6 @@ object Batch {
     def map[B](f: A => B): SingleJobOutcome[B]   = copy(eoa = eoa.map(f))
   }
 
-  private def handleOutcome[F[_], A](jobId: BatchJobID, handler: HandleJobLifecycle[F, A])(
-    outcome: Outcome[F, Throwable, SingleJobOutcome[A]])(implicit F: MonadError[F, Throwable]): F[Unit] =
-    outcome.fold(
-      canceled = handler.canceled(jobId),
-      errored = e => F.raiseError(new Exception("Should never happen!!!", e)),
-      completed = _.flatMap { case SingleJobOutcome(result, eoa) =>
-        val joc = JobOutcome(jobId, result.took, result.done)
-        eoa.fold(handler.errored(joc, _), handler.completed(joc, _))
-      }
-    )
-
   /*
    * Runners
    */
@@ -110,6 +99,17 @@ object Batch {
     /** rename the job names by apply f
       */
     def renameJobs(f: Endo[String]): Runner[F, A]
+
+    protected def handleOutcome(jobId: BatchJobID, handler: HandleJobLifecycle[F, A])(
+      outcome: Outcome[F, Throwable, SingleJobOutcome[A]])(implicit F: MonadError[F, Throwable]): F[Unit] =
+      outcome.fold(
+        canceled = handler.canceled(jobId),
+        errored = e => F.raiseError(shouldNeverHappenException(e)),
+        completed = _.flatMap { case SingleJobOutcome(result, eoa) =>
+          val joc = JobOutcome(jobId, result.took, result.done)
+          eoa.fold(handler.errored(joc, _), handler.completed(joc, _))
+        }
+      )
 
     /** Exceptions thrown by individual jobs in the batch are suppressed, allowing the overall execution to
       * continue.
@@ -229,8 +229,7 @@ object Batch {
         jobs.traverse { case (job, fa) =>
           val jobId = BatchJobID(job, metrics.metricLabel, mode, BatchKind.Quasi)
           handler.kickoff(jobId) *>
-            activeJob(metrics, job)
-              .surround(F.timed(F.attempt(fa)))
+            F.timed(F.attempt(fa))
               .flatMap { case (fd: FiniteDuration, eoa: Either[Throwable, A]) =>
                 val result = JobResult(job, fd.toJava, eoa.fold(_ => false, isSucc(_)))
                 meas.run(result).as(SingleJobOutcome(result, eoa))
@@ -249,8 +248,7 @@ object Batch {
           val jobId = BatchJobID(job, metrics.metricLabel, mode, BatchKind.Fully)
 
           handler.kickoff(jobId) *>
-            activeJob(metrics, job)
-              .surround(F.timed(F.attempt(fa)))
+            F.timed(F.attempt(fa))
               .flatMap { case (fd: FiniteDuration, eoa: Either[Throwable, A]) =>
                 val result = JobResult(job, fd.toJava, done = eoa.isRight)
                 meas.run(result).as(SingleJobOutcome(result, eoa))
@@ -300,40 +298,52 @@ object Batch {
     /** Exceptions thrown by individual jobs in the batch are propagated, causing the process to halt at the
       * point of failure
       *
-      * build a named job
       * @param name
       *   name of the job
-      * @param fa
+      * @param rfa
       *   the job
       */
-    def apply[A](name: String, fa: F[A]): Monadic[A] =
+    def apply[A](name: String, rfa: Resource[F, A]): Monadic[A] =
       new Monadic[A](
         Kleisli { case Callbacks(doMeasure, handler, kind) =>
           StateT { (index: Int) =>
             val job   = BatchJob(name, index)
             val jobId = BatchJobID(job, metrics.metricLabel, BatchMode.Sequential, kind)
 
-            handler.kickoff(jobId) *>
-              activeJob(metrics, job)
-                .surround(F.timed(F.attempt(fa)))
-                .flatMap { case (fd: FiniteDuration, eoa: Either[Throwable, A]) =>
-                  val result = JobResult(job, fd.toJava, eoa.isRight)
-                  doMeasure.run(result).as(SingleJobOutcome(result, eoa))
-                }
-                .guaranteeCase { (oc: Outcome[F, Throwable, SingleJobOutcome[A]]) =>
-                  handleOutcome[F, Unit](jobId, handler)(
-                    oc.fold(
-                      canceled = Outcome.Canceled(),
-                      errored = Outcome.Errored(_),
-                      completed = sjr => Outcome.Succeeded(sjr.map(_.map(_ => ())))
-                    ))
-                }
-                .map { case SingleJobOutcome(result, eoa) =>
-                  (index + 1, JobState(eoa, NonEmptyList.one(result)))
-                }
+            rfa
+              .preAllocate(handler.kickoff(jobId))
+              .attempt
+              .timed
+              .evalMap { case (fd: FiniteDuration, eoa: Either[Throwable, A]) =>
+                val result = JobResult(job, fd.toJava, eoa.isRight)
+                doMeasure.run(result).as(SingleJobOutcome(result, eoa))
+              }
+              .guaranteeCase {
+                case Outcome.Succeeded(fa) =>
+                  fa.evalMap { case SingleJobOutcome(result, eoa) =>
+                    val joc = JobOutcome(jobId, result.took, result.done)
+                    eoa.fold(handler.errored(joc, _), _ => handler.completed(joc, ()))
+                  }
+                case Outcome.Errored(e) =>
+                  Resource.raiseError[F, Unit, Throwable](shouldNeverHappenException(e))
+                case Outcome.Canceled() => Resource.eval(handler.canceled(jobId))
+              }
+              .map { case SingleJobOutcome(result, eoa) =>
+                (index + 1, JobState(eoa, NonEmptyList.one(result)))
+              }
           }
         }
       )
+
+    /** Exceptions thrown by individual jobs in the batch are propagated, causing the process to halt at the
+      * point of failure
+      *
+      * @param name
+      *   name of the job
+      * @param fa
+      *   the job
+      */
+    def apply[A](name: String, fa: F[A]): Monadic[A] = apply[A](name, Resource.eval(fa))
 
     /** Exceptions thrown by individual jobs in the batch are propagated, causing the process to halt at the
       * point of failure
@@ -347,39 +357,52 @@ object Batch {
     /** Exceptions thrown during the job are suppressed, and execution proceeds without interruption.
       * @param name
       *   the name of the job
-      * @param fa
+      * @param rfa
       *   the job
       * @return
       *   true if no exception occurs and fa is evaluated to be true, otherwise false
       */
-    def invincible(name: String, fa: F[Boolean]): Monadic[Boolean] =
+    def invincible(name: String, rfa: Resource[F, Boolean]): Monadic[Boolean] =
       new Monadic[Boolean](
         Kleisli { case Callbacks(doMeasure, handler, kind) =>
           StateT { (index: Int) =>
             val job   = BatchJob(name, index)
             val jobId = BatchJobID(job, metrics.metricLabel, BatchMode.Sequential, kind)
 
-            handler.kickoff(jobId) *>
-              activeJob(metrics, job)
-                .surround(F.timed(F.attempt(fa)))
-                .flatMap { case (fd: FiniteDuration, eoa: Either[Throwable, Boolean]) =>
-                  val result = JobResult(job, fd.toJava, eoa.fold(_ => false, identity))
-                  doMeasure.run(result).as(SingleJobOutcome(result, eoa))
-                }
-                .guaranteeCase { (oc: Outcome[F, Throwable, SingleJobOutcome[Boolean]]) =>
-                  handleOutcome[F, Unit](jobId, handler)(
-                    oc.fold(
-                      canceled = Outcome.Canceled(),
-                      errored = Outcome.Errored(_),
-                      completed = sjr => Outcome.Succeeded(sjr.map(_.map(_ => ())))
-                    ))
-                }
-                .map { case SingleJobOutcome(result, eoa) =>
-                  (index + 1, JobState(Right(eoa.fold(_ => false, identity)), NonEmptyList.one(result)))
-                }
+            rfa
+              .preAllocate(handler.kickoff(jobId))
+              .attempt
+              .timed
+              .evalMap { case (fd: FiniteDuration, eoa: Either[Throwable, Boolean]) =>
+                val result = JobResult(job, fd.toJava, eoa.fold(_ => false, identity))
+                doMeasure.run(result).as(SingleJobOutcome(result, eoa))
+              }
+              .guaranteeCase {
+                case Outcome.Succeeded(fa) =>
+                  fa.evalMap { case SingleJobOutcome(result, eoa) =>
+                    val joc = JobOutcome(jobId, result.took, result.done)
+                    eoa.fold(handler.errored(joc, _), _ => handler.completed(joc, ()))
+                  }
+                case Outcome.Errored(e) =>
+                  Resource.raiseError[F, Unit, Throwable](shouldNeverHappenException(e))
+                case Outcome.Canceled() => Resource.eval(handler.canceled(jobId))
+              }
+              .map { case SingleJobOutcome(result, eoa) =>
+                (index + 1, JobState(Right(eoa.fold(_ => false, identity)), NonEmptyList.one(result)))
+              }
           }
         }
       )
+
+    /** Exceptions thrown during the job are suppressed, and execution proceeds without interruption.
+      * @param name
+      *   the name of the job
+      * @param fa
+      *   the job
+      * @return
+      *   true if no exception occurs and fa is evaluated to be true, otherwise false
+      */
+    def invincible(name: String, fa: F[Boolean]): Monadic[Boolean] = invincible(name, Resource.eval(fa))
 
     /** Exceptions thrown during the job are suppressed, and execution proceeds without interruption.
       * @param tup
@@ -393,13 +416,13 @@ object Batch {
      * dependent type
      */
     final class Monadic[T](
-      private val kleisli: Kleisli[StateT[F, Int, *], Callbacks[F], JobState[T]]
+      private val kleisli: Kleisli[StateT[Resource[F, *], Int, *], Callbacks[F], JobState[T]]
     ) {
       def flatMap[B](f: T => Monadic[B]): Monadic[B] = {
-        val runB: Kleisli[StateT[F, Int, *], Callbacks[F], JobState[B]] =
+        val runB: Kleisli[StateT[Resource[F, *], Int, *], Callbacks[F], JobState[B]] =
           kleisli.tapWithF { (callbacks, ra) =>
             ra.eoa match {
-              case Left(ex) => StateT(idx => F.pure(ra.update[B](ex)).map((idx, _)))
+              case Left(ex) => StateT(idx => Resource.pure(ra.update[B](ex)).map((idx, _)))
               case Right(a) => f(a).kleisli.run(callbacks).map(ra.update[B])
             }
           }
@@ -442,7 +465,7 @@ object Batch {
       }
 
       def fullyTrace(handler: HandleJobLifecycle[F, Unit]): Resource[F, (BatchResult, T)] =
-        createMeasure[F](metrics, BatchKind.Fully).evalMap { meas =>
+        createMeasure[F](metrics, BatchKind.Fully).flatMap { meas =>
           kleisli.run(Callbacks[F](meas, handler, BatchKind.Fully)).run(1)
         }.map { case (_, JobState(eoa, results)) =>
           eoa.map(a => (batchResult(BatchKind.Fully, results), a))
@@ -452,7 +475,7 @@ object Batch {
         fullyTrace(HandleJobLifecycle[F, Unit])
 
       def quasiTrace(handler: HandleJobLifecycle[F, Unit]): Resource[F, BatchResult] =
-        createMeasure[F](metrics, BatchKind.Quasi).evalMap { meas =>
+        createMeasure[F](metrics, BatchKind.Quasi).flatMap { meas =>
           kleisli.run(Callbacks[F](meas, handler, BatchKind.Quasi)).run(1)
         }.map { case (_, JobState(_, results)) => batchResult(BatchKind.Quasi, results) }
 
