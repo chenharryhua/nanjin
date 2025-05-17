@@ -8,6 +8,7 @@ import com.github.chenharryhua.nanjin.guard.action.{Batch, BatchResult, HandleJo
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStop
 import com.github.chenharryhua.nanjin.guard.observers.console
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
+import io.circe.Json
 import org.scalatest.freespec.AsyncFreeSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -15,7 +16,7 @@ class BatchSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
   private val service: ServiceGuard[IO] =
     TaskGuard[IO]("batch").service("batch").updateConfig(_.withMetricReport(Policy.crontab(_.secondly)))
 
-  private val handler = HandleJobLifecycle[IO, Unit]
+  private val handler = HandleJobLifecycle[IO, Json]
     .onError((job, _) => IO.println(job))
     .onCancel(IO.println)
     .onComplete((job, _) => IO.println(job))

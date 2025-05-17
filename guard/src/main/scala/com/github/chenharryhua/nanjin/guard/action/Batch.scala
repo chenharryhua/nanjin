@@ -15,7 +15,7 @@ import cats.{Endo, MonadError}
 import com.github.chenharryhua.nanjin.guard.config.Domain
 import com.github.chenharryhua.nanjin.guard.metrics.{ActiveGauge, Metrics}
 import com.github.chenharryhua.nanjin.guard.translator.durationFormatter
-import io.circe.Json
+import io.circe.{Encoder, Json}
 import io.circe.syntax.EncoderOps
 import monocle.Monocle.toAppliedFocusOps
 
@@ -296,7 +296,7 @@ object Batch {
 
   final private case class Callbacks[F[_]](
     doMeasure: DoMeasurement[F],
-    handler: HandleJobLifecycle[F, Unit],
+    handler: HandleJobLifecycle[F, Json],
     kind: BatchKind)
 
   final class JobBuilder[F[_]] private[Batch] (metrics: Metrics[F])(implicit F: Async[F]) {
@@ -309,7 +309,7 @@ object Batch {
       * @param rfa
       *   the job
       */
-    def apply[A](name: String, rfa: Resource[F, A]): Monadic[A] =
+    def apply[A: Encoder](name: String, rfa: Resource[F, A]): Monadic[A] =
       new Monadic[A](
         Kleisli { case Callbacks(doMeasure, handler, kind) =>
           StateT { (index: Int) =>
@@ -328,7 +328,7 @@ object Batch {
                 case Outcome.Succeeded(fa) =>
                   fa.evalMap { case SingleJobOutcome(result, eoa) =>
                     val joc = JobOutcome(jobId, result.took, result.done)
-                    eoa.fold(handler.errored(joc, _), _ => handler.completed(joc, ()))
+                    eoa.fold(handler.errored(joc, _), a => handler.completed(joc, a.asJson))
                   }
                 case Outcome.Errored(e) =>
                   Resource.raiseError[F, Unit, Throwable](shouldNeverHappenException(e))
@@ -349,7 +349,7 @@ object Batch {
       * @param fa
       *   the job
       */
-    def apply[A](name: String, fa: F[A]): Monadic[A] = apply[A](name, Resource.eval(fa))
+    def apply[A: Encoder](name: String, fa: F[A]): Monadic[A] = apply[A](name, Resource.eval(fa))
 
     /** Exceptions thrown by individual jobs in the batch are propagated, causing the process to halt at the
       * point of failure
@@ -358,7 +358,7 @@ object Batch {
       * @param tup
       *   tuple with the first being the name, second the job
       */
-    def apply[A](tup: (String, F[A])): Monadic[A] = apply(tup._1, tup._2)
+    def apply[A: Encoder](tup: (String, F[A])): Monadic[A] = apply(tup._1, tup._2)
 
     /** Exceptions thrown during the job are suppressed, and execution proceeds without interruption.
       * @param name
@@ -387,7 +387,7 @@ object Batch {
                 case Outcome.Succeeded(fa) =>
                   fa.evalMap { case SingleJobOutcome(result, eoa) =>
                     val joc = JobOutcome(jobId, result.took, result.done)
-                    eoa.fold(handler.errored(joc, _), _ => handler.completed(joc, ()))
+                    eoa.fold(handler.errored(joc, _), b => handler.completed(joc, Json.fromBoolean(b)))
                   }
                 case Outcome.Errored(e) =>
                   Resource.raiseError[F, Unit, Throwable](shouldNeverHappenException(e))
@@ -470,7 +470,7 @@ object Batch {
         )
       }
 
-      def fullyTrace(handler: HandleJobLifecycle[F, Unit]): Resource[F, (BatchResult, T)] =
+      def fullyTrace(handler: HandleJobLifecycle[F, Json]): Resource[F, (BatchResult, T)] =
         createMeasure[F](metrics, BatchKind.Fully).flatMap { case MeasureJob(measure, activeGauge) =>
           kleisli
             .run(Callbacks[F](measure, handler, BatchKind.Fully))
@@ -481,9 +481,9 @@ object Batch {
         }.rethrow
 
       def fullyRun: Resource[F, (BatchResult, T)] =
-        fullyTrace(HandleJobLifecycle[F, Unit])
+        fullyTrace(HandleJobLifecycle[F, Json])
 
-      def quasiTrace(handler: HandleJobLifecycle[F, Unit]): Resource[F, BatchResult] =
+      def quasiTrace(handler: HandleJobLifecycle[F, Json]): Resource[F, BatchResult] =
         createMeasure[F](metrics, BatchKind.Quasi).flatMap { case MeasureJob(measure, activeGauge) =>
           kleisli
             .run(Callbacks[F](measure, handler, BatchKind.Quasi))
@@ -492,7 +492,7 @@ object Batch {
         }.map { case (_, JobState(_, results)) => batchResult(BatchKind.Quasi, results) }
 
       def quasiRun: Resource[F, BatchResult] =
-        quasiTrace(HandleJobLifecycle[F, Unit])
+        quasiTrace(HandleJobLifecycle[F, Json])
     }
   }
 }
