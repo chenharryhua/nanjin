@@ -301,12 +301,12 @@ object Batch {
 
   final class InvincibleJob[A](
     private[Batch] val translator: A => Json,
-    private[Batch] val validator: A => Boolean
+    private[Batch] val predicator: A => Boolean
   ) {
-    def translate(f: A => Json): InvincibleJob[A] =
-      new InvincibleJob[A](translator = f, validator = validator)
-    def validate(f: A => Boolean): InvincibleJob[A] =
-      new InvincibleJob[A](translator = translator, validator = f)
+    def withTranslate(f: A => Json): InvincibleJob[A] =
+      new InvincibleJob[A](translator = f, predicator = predicator)
+    def withPredicate(f: A => Boolean): InvincibleJob[A] =
+      new InvincibleJob[A](translator = translator, predicator = f)
   }
 
   final class JobBuilder[F[_]] private[Batch] (metrics: Metrics[F])(implicit F: Async[F]) {
@@ -429,12 +429,12 @@ object Batch {
 
     def invincible[A](name: String, rfa: Resource[F, A])(f: Endo[InvincibleJob[A]]): Monadic[Boolean] = {
       val prop = f(new InvincibleJob[A]((_: A) => Json.Null, (_: A) => true))
-      invincible_[A](name, rfa, prop.translator, prop.validator)
+      invincible_[A](name, rfa, prop.translator, prop.predicator)
     }
 
     def invincible[A](name: String, fa: F[A])(f: Endo[InvincibleJob[A]]): Monadic[Boolean] = {
       val prop = f(new InvincibleJob[A]((_: A) => Json.Null, (_: A) => true))
-      invincible_[A](name, Resource.eval(fa), prop.translator, prop.validator)
+      invincible_[A](name, Resource.eval(fa), prop.translator, prop.predicator)
     }
 
     def invincible(tuple: (String, F[Boolean])): Monadic[Boolean] =

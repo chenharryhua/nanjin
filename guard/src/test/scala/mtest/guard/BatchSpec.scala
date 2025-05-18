@@ -80,7 +80,7 @@ class BatchSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
           for {
             a <- job("a", IO(1))
             _ <- job.invincible("b", IO.raiseError[Boolean](new Exception()))(
-              _.translate(Json.fromBoolean).validate(identity))
+              _.withTranslate(Json.fromBoolean).withPredicate(identity))
             c <- job("c", IO(2))
           } yield a + c
         }
