@@ -1,7 +1,7 @@
 package mtest.guard
 
-import cats.effect.IO
 import cats.effect.unsafe.implicits.global
+import cats.effect.{IO, Resource}
 import cats.implicits.toFunctorFilterOps
 import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.guard.TaskGuard
@@ -127,5 +127,19 @@ class RetryTest extends AnyFunSuite {
       .compile
       .drain
       .unsafeRunSync()
+  }
+
+  test("9.retry resource") {
+    var i = 0
+    val resource =
+      Resource
+        .make(IO(1))(_ => IO(i += 1) >> IO.println("released"))
+        .evalTap(_ => IO.raiseError(new Exception()))
+    service.eventStreamR { agent =>
+      agent.retry(_.withPolicy(_.fixedDelay(1.second).limited(2))).flatMap { retry =>
+        retry(resource)
+      }
+    }.compile.drain.unsafeRunSync()
+    assert(i == 3)
   }
 }

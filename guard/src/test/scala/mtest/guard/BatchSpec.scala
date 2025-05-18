@@ -4,7 +4,7 @@ import cats.effect.IO
 import cats.effect.testing.scalatest.AsyncIOSpec
 import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.action.{Batch, BatchResult, HandleJobLifecycle}
+import com.github.chenharryhua.nanjin.guard.action.{Batch, HandleJobLifecycle, MeasuredBatch}
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStop
 import com.github.chenharryhua.nanjin.guard.observers.console
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
@@ -25,7 +25,7 @@ class BatchSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
   "monadic" -
     "filter - quasi".in {
       val se = service.eventStream { agent =>
-        val result: IO[BatchResult] = agent
+        val result: IO[MeasuredBatch] = agent
           .batch("monadic")
           .monadic { job =>
             for {
@@ -40,9 +40,9 @@ class BatchSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
           .memoizedAcquire
           .use(identity)
         result.asserting { qr =>
-          qr.results.size.shouldBe(2)
-          qr.results(1).done.shouldBe(false)
-          qr.results.head.done.shouldBe(true)
+          qr.jobs.size.shouldBe(2)
+          qr.jobs(1).done.shouldBe(false)
+          qr.jobs.head.done.shouldBe(true)
         }.void
       }.debug().compile.lastOrError.unsafeRunSync()
 
@@ -62,8 +62,8 @@ class BatchSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
             c <- job("c", IO(3))
           } yield a + b + c
         }
-        .fullyTrace(handler)
-        .map(_._2)
+        .valueTrace(handler)
+        .map(_.value)
         .memoizedAcquire
         .use(identity)
       result.assertThrowsError[Batch.PostConditionUnsatisfied](_.job.name.shouldBe("b")).void
@@ -74,22 +74,23 @@ class BatchSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
 
   "invincible".in {
     val se = service.eventStream { agent =>
-      val result: IO[(BatchResult, Int)] = agent
+      val result = agent
         .batch("monadic")
         .monadic { job =>
           for {
             a <- job("a", IO(1))
-            _ <- job.invincible("b", IO.raiseError[Boolean](new Exception()))(identity)
+            _ <- job.invincible("b", IO.raiseError[Boolean](new Exception()))(
+              _.withTranslate(Json.fromBoolean).withPredicate(identity))
             c <- job("c", IO(2))
           } yield a + c
         }
-        .fullyTrace(handler)
+        .valueTrace(handler)
         .use(qr => agent.adhoc.report.as(qr))
 
-      result.asserting(_._2.shouldBe(3)) >>
-        result.asserting(_._1.results.head.done.shouldBe(true)) >>
-        result.asserting(_._1.results(1).done.shouldBe(false)) >>
-        result.asserting(_._1.results(2).done.shouldBe(true)) >>
+      result.asserting(_.value.shouldBe(3)) >>
+        result.asserting(_.batch.jobs.head.done.shouldBe(true)) >>
+        result.asserting(_.batch.jobs(1).done.shouldBe(false)) >>
+        result.asserting(_.batch.jobs(2).done.shouldBe(true)) >>
         IO.unit
     }.evalTap(console.text[IO]).compile.lastOrError.unsafeRunSync()
 
