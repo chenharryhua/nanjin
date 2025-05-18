@@ -68,10 +68,10 @@ object Batch {
     for {
       active <- mtx.activeGauge("active")
       percentile <- mtx
-        .percentile(show"$mode completion", _.withTranslator(translator))
+        .percentile(show"$mode $kind completion", _.withTranslator(translator))
         .evalTap(_.incDenominator(size.toLong))
       progress <- Resource.eval(F.ref[List[MeasuredJob]](Nil))
-      _ <- mtx.gauge(show"$kind completed").register(progress.get.map(toJson))
+      _ <- mtx.gauge("completed jobs").register(progress.get.map(toJson))
     } yield MeasureJob(
       Kleisli { (detail: MeasuredJob) =>
         F.uncancelable(_ => percentile.incNumerator(1) *> progress.update(_.appended(detail)))
@@ -90,7 +90,7 @@ object Batch {
 
   final private case class SingleJobOutcome[A](result: MeasuredJob, eoa: Either[Throwable, A]) {
     def embed: Either[Throwable, (MeasuredJob, A)] = eoa.map((result, _))
-    def map[B](f: A => B): SingleJobOutcome[B]        = copy(eoa = eoa.map(f))
+    def map[B](f: A => B): SingleJobOutcome[B]     = copy(eoa = eoa.map(f))
   }
 
   /*
@@ -140,12 +140,12 @@ object Batch {
     /** Exceptions thrown by individual jobs in the batch are propagated, causing the process to halt at the
       * point of failure
       */
-    def fullyTrace(handler: HandleJobLifecycle[F, A]): Resource[F, MeasuredValue[List[A]]]
+    def valueTrace(handler: HandleJobLifecycle[F, A]): Resource[F, MeasuredValue[List[A]]]
 
     /** Exceptions thrown by individual jobs in the batch are propagated, causing the process to halt at the
       * point of failure
       */
-    final def fullyRun: Resource[F, MeasuredValue[List[A]]] = fullyTrace(HandleJobLifecycle[F, A])
+    final def valueRun: Resource[F, MeasuredValue[List[A]]] = valueTrace(HandleJobLifecycle[F, A])
   }
 
   /*
@@ -180,11 +180,11 @@ object Batch {
       }
     }
 
-    override def fullyTrace(handler: HandleJobLifecycle[F, A]): Resource[F, MeasuredValue[List[A]]] = {
+    override def valueTrace(handler: HandleJobLifecycle[F, A]): Resource[F, MeasuredValue[List[A]]] = {
 
       def exec(mj: MeasureJob[F]): F[(FiniteDuration, List[(MeasuredJob, A)])] =
         F.timed(F.parTraverseN(parallelism)(jobs) { case (job, fa) =>
-          val jobId = BatchJobID(job, metrics.metricLabel, mode, BatchKind.Fully)
+          val jobId = BatchJobID(job, metrics.metricLabel, mode, BatchKind.Value)
           handler.kickoff(jobId) *>
             F.timed(F.attempt(fa))
               .flatMap { case (fd: FiniteDuration, eoa: Either[Throwable, A]) =>
@@ -196,9 +196,9 @@ object Batch {
               .rethrow
         }).guarantee(mj.activeGauge.deactivate)
 
-      createMeasure(metrics, jobs.size, BatchKind.Fully, mode).evalMap(exec).map { case (fd, results) =>
+      createMeasure(metrics, jobs.size, BatchKind.Value, mode).evalMap(exec).map { case (fd, results) =>
         val sorted = results.sortBy(_._1.job.index)
-        val br     = MeasuredBatch(metrics.metricLabel, fd.toJava, mode, BatchKind.Fully, sorted.map(_._1))
+        val br     = MeasuredBatch(metrics.metricLabel, fd.toJava, mode, BatchKind.Value, sorted.map(_._1))
         MeasuredValue(br, sorted.map(_._2))
       }
     }
@@ -247,11 +247,11 @@ object Batch {
       createMeasure(metrics, jobs.size, BatchKind.Quasi, mode).evalMap(exec).map(batchResult(BatchKind.Quasi))
     }
 
-    override def fullyTrace(handler: HandleJobLifecycle[F, A]): Resource[F, MeasuredValue[List[A]]] = {
+    override def valueTrace(handler: HandleJobLifecycle[F, A]): Resource[F, MeasuredValue[List[A]]] = {
 
       def exec(mj: MeasureJob[F]): F[List[(MeasuredJob, A)]] =
         jobs.traverse { case (job, fa) =>
-          val jobId = BatchJobID(job, metrics.metricLabel, mode, BatchKind.Fully)
+          val jobId = BatchJobID(job, metrics.metricLabel, mode, BatchKind.Value)
 
           handler.kickoff(jobId) *>
             F.timed(F.attempt(fa))
@@ -264,8 +264,8 @@ object Batch {
               .rethrow
         }.guarantee(mj.activeGauge.deactivate)
 
-      createMeasure(metrics, jobs.size, BatchKind.Fully, mode).evalMap(exec).map { results =>
-        val br = batchResult(BatchKind.Fully)(results.map(_._1))
+      createMeasure(metrics, jobs.size, BatchKind.Value, mode).evalMap(exec).map { results =>
+        val br = batchResult(BatchKind.Value)(results.map(_._1))
         val as = results.map(_._2)
         MeasuredValue(br, as)
       }
@@ -299,6 +299,16 @@ object Batch {
     handler: HandleJobLifecycle[F, Json],
     kind: BatchKind)
 
+  final class InvincibleJob[A](
+    private[Batch] val translator: A => Json,
+    private[Batch] val validator: A => Boolean
+  ) {
+    def translate(f: A => Json): InvincibleJob[A] =
+      new InvincibleJob[A](translator = f, validator = validator)
+    def validate(f: A => Boolean): InvincibleJob[A] =
+      new InvincibleJob[A](translator = translator, validator = f)
+  }
+
   final class JobBuilder[F[_]] private[Batch] (metrics: Metrics[F])(implicit F: Async[F]) {
 
     /** Exceptions thrown by individual jobs in the batch are propagated, causing the process to halt at the
@@ -308,8 +318,10 @@ object Batch {
       *   name of the job
       * @param rfa
       *   the job
+      * @param translate
+      *   translate A to json for handler
       */
-    def apply[A: Encoder](name: String, rfa: Resource[F, A]): Monadic[A] =
+    private def vincible_[A](name: String, rfa: Resource[F, A], translate: A => Json): Monadic[A] =
       new Monadic[A](
         Kleisli { case Callbacks(doMeasure, handler, kind) =>
           StateT { (index: Int) =>
@@ -328,7 +340,7 @@ object Batch {
                 case Outcome.Succeeded(fa) =>
                   fa.evalMap { case SingleJobOutcome(result, eoa) =>
                     val joc = JobOutcome(jobId, result.took, result.done)
-                    eoa.fold(handler.errored(joc, _), a => handler.completed(joc, a.asJson))
+                    eoa.fold(handler.errored(joc, _), a => handler.completed(joc, translate(a)))
                   }
                 case Outcome.Errored(e) =>
                   Resource.raiseError[F, Unit, Throwable](shouldNeverHappenException(e))
@@ -341,36 +353,23 @@ object Batch {
         }
       )
 
-    /** Exceptions thrown by individual jobs in the batch are propagated, causing the process to halt at the
-      * point of failure
-      *
-      * @param name
-      *   name of the job
-      * @param fa
-      *   the job
-      */
-    def apply[A: Encoder](name: String, fa: F[A]): Monadic[A] = apply[A](name, Resource.eval(fa))
-
-    /** Exceptions thrown by individual jobs in the batch are propagated, causing the process to halt at the
-      * point of failure
-      *
-      * build a named job
-      * @param tup
-      *   tuple with the first being the name, second the job
-      */
-    def apply[A: Encoder](tup: (String, F[A])): Monadic[A] = apply(tup._1, tup._2)
-
     /** Exceptions thrown during the job are suppressed, and execution proceeds without interruption.
       * @param name
       *   the name of the job
       * @param rfa
       *   the job
+      * @param translate
+      *   translate A to json for handler
       * @param isSucc
       *   A is evaluated to determine whether the job has completed successfully
       * @return
       *   true if no exception occurs and isSucc is evaluated to be true, otherwise false
       */
-    def invincible[A: Encoder](name: String, rfa: Resource[F, A])(isSucc: A => Boolean): Monadic[Boolean] =
+    private def invincible_[A](
+      name: String,
+      rfa: Resource[F, A],
+      translate: A => Json,
+      isSucc: A => Boolean): Monadic[Boolean] =
       new Monadic[Boolean](
         Kleisli { case Callbacks(doMeasure, handler, kind) =>
           StateT { (index: Int) =>
@@ -389,7 +388,7 @@ object Batch {
                 case Outcome.Succeeded(fa) =>
                   fa.evalMap { case SingleJobOutcome(result, eoa) =>
                     val joc = JobOutcome(jobId, result.took, result.done)
-                    eoa.fold(handler.errored(joc, _), a => handler.completed(joc, a.asJson))
+                    eoa.fold(handler.errored(joc, _), a => handler.completed(joc, translate(a)))
                   }
                 case Outcome.Errored(e) =>
                   Resource.raiseError[F, Unit, Throwable](shouldNeverHappenException(e))
@@ -402,21 +401,44 @@ object Batch {
         }
       )
 
+    /** Exceptions thrown by individual jobs in the batch are propagated, causing the process to halt at the
+      * point of failure
+      *
+      * @param name
+      *   name of the job
+      * @param rfa
+      *   the job
+      */
+    def apply[A: Encoder](name: String, rfa: Resource[F, A]): Monadic[A] =
+      vincible_[A](name, rfa, Encoder[A].apply)
+
+    def apply[A: Encoder](name: String, fa: F[A]): Monadic[A] =
+      vincible_[A](name, Resource.eval(fa), Encoder[A].apply)
+
+    def apply[A: Encoder](tup: (String, F[A])): Monadic[A] =
+      vincible_[A](tup._1, Resource.eval(tup._2), Encoder[A].apply)
+
     /** Exceptions thrown during the job are suppressed, and execution proceeds without interruption.
       * @param name
       *   the name of the job
-      * @param fa
+      * @param rfa
       *   the job
-      * @param isSucc
-      *   A is evaluated to determine whether the job has completed successfully
       * @return
       *   true if no exception occurs and isSucc is evaluated to be true, otherwise false
       */
-    def invincible[A: Encoder](name: String, fa: F[A])(isSucc: A => Boolean): Monadic[Boolean] =
-      invincible[A](name, Resource.eval(fa))(isSucc)
+
+    def invincible[A](name: String, rfa: Resource[F, A])(f: Endo[InvincibleJob[A]]): Monadic[Boolean] = {
+      val prop = f(new InvincibleJob[A]((_: A) => Json.Null, (_: A) => true))
+      invincible_[A](name, rfa, prop.translator, prop.validator)
+    }
+
+    def invincible[A](name: String, fa: F[A])(f: Endo[InvincibleJob[A]]): Monadic[Boolean] = {
+      val prop = f(new InvincibleJob[A]((_: A) => Json.Null, (_: A) => true))
+      invincible_[A](name, Resource.eval(fa), prop.translator, prop.validator)
+    }
 
     def invincible(tuple: (String, F[Boolean])): Monadic[Boolean] =
-      invincible(tuple._1, Resource.eval(tuple._2))(identity)
+      invincible_[Boolean](tuple._1, Resource.eval(tuple._2), Json.fromBoolean, identity)
 
     /*
      * dependent type
@@ -470,18 +492,18 @@ object Batch {
         )
       }
 
-      def fullyTrace(handler: HandleJobLifecycle[F, Json]): Resource[F, MeasuredValue[T]] =
-        createMeasure[F](metrics, BatchKind.Fully).flatMap { case MeasureJob(measure, activeGauge) =>
+      def valueTrace(handler: HandleJobLifecycle[F, Json]): Resource[F, MeasuredValue[T]] =
+        createMeasure[F](metrics, BatchKind.Value).flatMap { case MeasureJob(measure, activeGauge) =>
           kleisli
-            .run(Callbacks[F](measure, handler, BatchKind.Fully))
+            .run(Callbacks[F](measure, handler, BatchKind.Value))
             .run(1)
             .guarantee(Resource.eval(activeGauge.deactivate))
         }.map { case (_, JobState(eoa, results)) =>
-          eoa.map(a => MeasuredValue(batchResult(BatchKind.Fully, results), a))
+          eoa.map(a => MeasuredValue(batchResult(BatchKind.Value, results), a))
         }.rethrow
 
-      def fullyRun: Resource[F, MeasuredValue[T]] =
-        fullyTrace(HandleJobLifecycle[F, Json])
+      def valueRun: Resource[F, MeasuredValue[T]] =
+        valueTrace(HandleJobLifecycle[F, Json])
 
       def quasiTrace(handler: HandleJobLifecycle[F, Json]): Resource[F, MeasuredBatch] =
         createMeasure[F](metrics, BatchKind.Quasi).flatMap { case MeasureJob(measure, activeGauge) =>

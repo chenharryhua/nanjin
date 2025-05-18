@@ -76,7 +76,7 @@ class BatchTest extends AnyFunSuite {
     service.eventStream { ga =>
       ga.batch("sequential")
         .sequential("a" -> IO.sleep(1.second), "b" -> IO.sleep(2.seconds), "c" -> IO.sleep(1.seconds))
-        .fullyRun
+        .valueRun
         .use_
     }.map(checkJson).evalTap(console.text[IO]).compile.drain.unsafeRunSync()
   }
@@ -90,7 +90,7 @@ class BatchTest extends AnyFunSuite {
           "c" -> IO.sleep(3.seconds),
           "d" -> IO.sleep(4.seconds))
         .map(_ => true)
-        .fullyRun
+        .valueRun
         .memoizedAcquire
         .use(_.map(_.batch.jobs.forall(_.done)))
         .map(assert(_))
@@ -107,7 +107,7 @@ class BatchTest extends AnyFunSuite {
           "b" -> IO.sleep(2.seconds),
           "c" -> IO.raiseError(new Exception),
           "d" -> IO.sleep(1.seconds))
-        .fullyRun
+        .valueRun
         .use_
     }.map(checkJson).evalTap(console.text[IO]).compile.drain.unsafeRunSync()
   }
@@ -121,7 +121,7 @@ class BatchTest extends AnyFunSuite {
       "e" -> IO.sleep(4.seconds)
     )
     service.eventStream { ga =>
-      ga.batch("parallel").parallel(3)(jobs*).fullyRun.use_
+      ga.batch("parallel").parallel(3)(jobs*).valueRun.use_
     }.map(checkJson).evalTap(console.text[IO]).compile.drain.unsafeRunSync()
   }
 
@@ -203,7 +203,7 @@ class BatchTest extends AnyFunSuite {
             c <- job("g", IO.println("c").as(30))
           } yield a + b + c
         }
-        .fullyRun
+        .valueRun
         .use { qr =>
           assert(qr.value == 60)
           agent.adhoc.report
@@ -246,7 +246,7 @@ class BatchTest extends AnyFunSuite {
       agent
         .batch("monadic")
         .monadic(job => job("a" -> IO(0)))
-        .fullyRun
+        .valueRun
         .use(qr => agent.adhoc.report >> agent.herald.info(qr.batch))
     }.evalTap(console.text[IO]).compile.drain.unsafeRunSync()
   }
@@ -305,7 +305,7 @@ class BatchTest extends AnyFunSuite {
 
   test("17. sorted parallel") {
     val se = service.eventStream { agent =>
-      agent.batch("sorted.parallel").parallel(jobs*).fullyRun.use { case MeasuredValue(br, rst) =>
+      agent.batch("sorted.parallel").parallel(jobs*).valueRun.use { case MeasuredValue(br, rst) =>
         IO {
           assert(rst.head == 1)
           assert(rst(1) == 2)
@@ -331,7 +331,7 @@ class BatchTest extends AnyFunSuite {
 
   test("18. sorted sequential") {
     val se = service.eventStream { agent =>
-      agent.batch("sorted.sequential").sequential(jobs*).fullyRun.use { case MeasuredValue(br, rst) =>
+      agent.batch("sorted.sequential").sequential(jobs*).valueRun.use { case MeasuredValue(br, rst) =>
         IO {
           assert(rst.head == 1)
           assert(rst(1) == 2)
@@ -364,7 +364,7 @@ class BatchTest extends AnyFunSuite {
 
   test("20. empty sequential") {
     val se = service
-      .eventStream(_.batch("b").sequential[Int]().fullyRun.use_)
+      .eventStream(_.batch("b").sequential[Int]().valueRun.use_)
       .evalTap(console.text[IO])
       .compile
       .lastOrError
@@ -374,7 +374,7 @@ class BatchTest extends AnyFunSuite {
 
   test("21. empty parallel") {
     val se = service
-      .eventStream(_.batch("b").parallel[Int](1)().fullyRun.use_)
+      .eventStream(_.batch("b").parallel[Int](1)().valueRun.use_)
       .evalTap(console.text[IO])
       .compile
       .lastOrError

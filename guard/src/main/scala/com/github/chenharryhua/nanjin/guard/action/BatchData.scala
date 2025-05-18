@@ -14,10 +14,10 @@ import scala.util.matching.Regex
 sealed trait BatchKind
 object BatchKind {
   case object Quasi extends BatchKind
-  case object Fully extends BatchKind
+  case object Value extends BatchKind
   implicit val showBatchKind: Show[BatchKind] = {
     case Quasi => "quasi"
-    case Fully => "fully"
+    case Value => "value"
   }
 }
 
@@ -138,3 +138,7 @@ object HandleJobLifecycle {
 }
 
 final case class MeasuredValue[A](batch: MeasuredBatch, value: A)
+object MeasuredValue {
+  implicit def encoderMeasuredValue[A: Encoder]: Encoder[MeasuredValue[A]] =
+    (a: MeasuredValue[A]) => Json.obj("batch" -> a.batch.asJson, "value" -> a.value.asJson)
+}

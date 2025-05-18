@@ -4,7 +4,7 @@ import cats.effect.IO
 import cats.effect.testing.scalatest.AsyncIOSpec
 import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.action.{Batch, MeasuredBatch, HandleJobLifecycle}
+import com.github.chenharryhua.nanjin.guard.action.{Batch, HandleJobLifecycle, MeasuredBatch}
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStop
 import com.github.chenharryhua.nanjin.guard.observers.console
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
@@ -62,7 +62,7 @@ class BatchSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
             c <- job("c", IO(3))
           } yield a + b + c
         }
-        .fullyTrace(handler)
+        .valueTrace(handler)
         .map(_.value)
         .memoizedAcquire
         .use(identity)
@@ -74,16 +74,17 @@ class BatchSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
 
   "invincible".in {
     val se = service.eventStream { agent =>
-      val result  = agent
+      val result = agent
         .batch("monadic")
         .monadic { job =>
           for {
             a <- job("a", IO(1))
-            _ <- job.invincible("b", IO.raiseError[Boolean](new Exception()))(identity)
+            _ <- job.invincible("b", IO.raiseError[Boolean](new Exception()))(
+              _.translate(Json.fromBoolean).validate(identity))
             c <- job("c", IO(2))
           } yield a + c
         }
-        .fullyTrace(handler)
+        .valueTrace(handler)
         .use(qr => agent.adhoc.report.as(qr))
 
       result.asserting(_.value.shouldBe(3)) >>
