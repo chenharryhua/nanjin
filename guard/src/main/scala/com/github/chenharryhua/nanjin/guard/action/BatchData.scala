@@ -52,17 +52,17 @@ object BatchMode {
   *   one based index
   */
 final case class BatchJob(name: String, index: Int)
-final case class JobResult(job: BatchJob, took: Duration, done: Boolean)
+final case class MeasuredJob(job: BatchJob, took: Duration, done: Boolean)
 
-final case class BatchResult(
+final case class MeasuredBatch(
   label: MetricLabel,
   spent: Duration,
   mode: BatchMode,
   kind: BatchKind,
-  results: List[JobResult])
-object BatchResult {
-  implicit val encoderBatchResult: Encoder[BatchResult] = { (br: BatchResult) =>
-    val (done, fail) = br.results.partition(_.done)
+  jobs: List[MeasuredJob])
+object MeasuredBatch {
+  implicit val encoderBatchMeasurement: Encoder[MeasuredBatch] = { (br: MeasuredBatch) =>
+    val (done, fail) = br.jobs.partition(_.done)
     Json.obj(
       "domain" -> Json.fromString(br.label.domain.value),
       "batch" -> Json.fromString(br.label.label),
@@ -71,7 +71,7 @@ object BatchResult {
       "spent" -> Json.fromString(durationFormatter.format(br.spent)),
       "done" -> Json.fromInt(done.length),
       "fail" -> Json.fromInt(fail.length),
-      "results" -> br.results
+      "measurements" -> br.jobs
         .map(jr =>
           Json.obj(
             show"job-${jr.job.index}" -> Json.fromString(jr.job.name),
@@ -136,3 +136,5 @@ object HandleJobLifecycle {
       canceled = _ => F.unit,
       kickoff = _ => F.unit)
 }
+
+final case class MeasuredValue[A](batch: MeasuredBatch, value: A)

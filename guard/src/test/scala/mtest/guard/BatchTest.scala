@@ -5,7 +5,7 @@ import cats.effect.unsafe.implicits.global
 import cats.implicits.catsSyntaxTuple2Semigroupal
 import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.action.{Batch, BatchMode}
+import com.github.chenharryhua.nanjin.guard.action.{Batch, BatchMode, MeasuredValue}
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStop
 import com.github.chenharryhua.nanjin.guard.observers.console
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
@@ -34,12 +34,12 @@ class BatchTest extends AnyFunSuite {
         .renameJobs(_ + ":test")
         .quasiRun(identity)
         .map { qr =>
-          assert(!qr.results.head.done)
-          assert(qr.results(1).done)
-          assert(qr.results(2).done)
-          assert(!qr.results(3).done)
-          assert(qr.results(4).done)
-          assert(!qr.results(5).done)
+          assert(!qr.jobs.head.done)
+          assert(qr.jobs(1).done)
+          assert(qr.jobs(2).done)
+          assert(!qr.jobs(3).done)
+          assert(qr.jobs(4).done)
+          assert(!qr.jobs(5).done)
           qr
         }
         .use(qr => IO.println(qr.asJson) *> ga.adhoc.report)
@@ -60,12 +60,12 @@ class BatchTest extends AnyFunSuite {
         .renameJobs(_ + ":test")
         .quasiRun(_ => true)
         .map { qr =>
-          assert(qr.results.head.done)
-          assert(qr.results(1).done)
-          assert(!qr.results(2).done)
-          assert(qr.results(3).done)
-          assert(!qr.results(4).done)
-          assert(qr.results(5).done)
+          assert(qr.jobs.head.done)
+          assert(qr.jobs(1).done)
+          assert(!qr.jobs(2).done)
+          assert(qr.jobs(3).done)
+          assert(!qr.jobs(4).done)
+          assert(qr.jobs(5).done)
           qr
         }
         .use(qr => IO.println(qr.asJson) *> ga.adhoc.report)
@@ -92,7 +92,7 @@ class BatchTest extends AnyFunSuite {
         .map(_ => true)
         .fullyRun
         .memoizedAcquire
-        .use(_.map(_._1.results.forall(_.done)))
+        .use(_.map(_.batch.jobs.forall(_.done)))
         .map(assert(_))
         .void
     }.map(checkJson).evalTap(console.text[IO]).compile.lastOrError.unsafeRunSync()
@@ -205,7 +205,7 @@ class BatchTest extends AnyFunSuite {
         }
         .fullyRun
         .use { qr =>
-          assert(qr._2 == 60)
+          assert(qr.value == 60)
           agent.adhoc.report
         }
     }.evalTap(console.text[IO]).compile.lastOrError.unsafeRunSync()
@@ -230,11 +230,11 @@ class BatchTest extends AnyFunSuite {
         }
         .quasiRun
         .use { qr =>
-          assert(qr.results.head.done)
-          assert(qr.results(1).done)
-          assert(qr.results(2).done)
-          assert(!qr.results(3).done)
-          assert(qr.results.size == 4)
+          assert(qr.jobs.head.done)
+          assert(qr.jobs(1).done)
+          assert(qr.jobs(2).done)
+          assert(!qr.jobs(3).done)
+          assert(qr.jobs.size == 4)
           agent.adhoc.report >> agent.herald.info(qr)
         }
     }.evalTap(console.text[IO]).compile.lastOrError.unsafeRunSync()
@@ -247,7 +247,7 @@ class BatchTest extends AnyFunSuite {
         .batch("monadic")
         .monadic(job => job("a" -> IO(0)))
         .fullyRun
-        .use(qr => agent.adhoc.report >> agent.herald.info(qr))
+        .use(qr => agent.adhoc.report >> agent.herald.info(qr.batch))
     }.evalTap(console.text[IO]).compile.drain.unsafeRunSync()
   }
 
@@ -274,7 +274,7 @@ class BatchTest extends AnyFunSuite {
         }
         .quasiRun
         .use { qr =>
-          val details = qr.results
+          val details = qr.jobs
           assert(details.head.job.name === "1")
           assert(details.head.job.index === 1)
           assert(details(1).job.name === "2")
@@ -305,24 +305,24 @@ class BatchTest extends AnyFunSuite {
 
   test("17. sorted parallel") {
     val se = service.eventStream { agent =>
-      agent.batch("sorted.parallel").parallel(jobs*).fullyRun.use { case (br, rst) =>
+      agent.batch("sorted.parallel").parallel(jobs*).fullyRun.use { case MeasuredValue(br, rst) =>
         IO {
           assert(rst.head == 1)
           assert(rst(1) == 2)
           assert(rst(2) == 3)
           assert(rst(3) == 4)
           assert(rst(4) == 5)
-          assert(br.results.forall(_.done))
-          assert(br.results.head.job.name == "1")
-          assert(br.results.head.job.index == 1)
-          assert(br.results(1).job.name == "2")
-          assert(br.results(1).job.index == 2)
-          assert(br.results(2).job.name == "3")
-          assert(br.results(2).job.index == 3)
-          assert(br.results(3).job.name == "4")
-          assert(br.results(3).job.index == 4)
-          assert(br.results(4).job.name == "5")
-          assert(br.results(4).job.index == 5)
+          assert(br.jobs.forall(_.done))
+          assert(br.jobs.head.job.name == "1")
+          assert(br.jobs.head.job.index == 1)
+          assert(br.jobs(1).job.name == "2")
+          assert(br.jobs(1).job.index == 2)
+          assert(br.jobs(2).job.name == "3")
+          assert(br.jobs(2).job.index == 3)
+          assert(br.jobs(3).job.name == "4")
+          assert(br.jobs(3).job.index == 4)
+          assert(br.jobs(4).job.name == "5")
+          assert(br.jobs(4).job.index == 5)
         }.void
       }
     }.evalTap(console.text[IO]).compile.lastOrError.unsafeRunSync()
@@ -331,24 +331,24 @@ class BatchTest extends AnyFunSuite {
 
   test("18. sorted sequential") {
     val se = service.eventStream { agent =>
-      agent.batch("sorted.sequential").sequential(jobs*).fullyRun.use { case (br, rst) =>
+      agent.batch("sorted.sequential").sequential(jobs*).fullyRun.use { case MeasuredValue(br, rst) =>
         IO {
           assert(rst.head == 1)
           assert(rst(1) == 2)
           assert(rst(2) == 3)
           assert(rst(3) == 4)
           assert(rst(4) == 5)
-          assert(br.results.forall(_.done))
-          assert(br.results.head.job.name == "1")
-          assert(br.results.head.job.index == 1)
-          assert(br.results(1).job.name == "2")
-          assert(br.results(1).job.index == 2)
-          assert(br.results(2).job.name == "3")
-          assert(br.results(2).job.index == 3)
-          assert(br.results(3).job.name == "4")
-          assert(br.results(3).job.index == 4)
-          assert(br.results(4).job.name == "5")
-          assert(br.results(4).job.index == 5)
+          assert(br.jobs.forall(_.done))
+          assert(br.jobs.head.job.name == "1")
+          assert(br.jobs.head.job.index == 1)
+          assert(br.jobs(1).job.name == "2")
+          assert(br.jobs(1).job.index == 2)
+          assert(br.jobs(2).job.name == "3")
+          assert(br.jobs(2).job.index == 3)
+          assert(br.jobs(3).job.name == "4")
+          assert(br.jobs(3).job.index == 4)
+          assert(br.jobs(4).job.name == "5")
+          assert(br.jobs(4).job.index == 5)
         }.void
       }
     }.evalTap(console.text[IO]).compile.lastOrError.unsafeRunSync()
