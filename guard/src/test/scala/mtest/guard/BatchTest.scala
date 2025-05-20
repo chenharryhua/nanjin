@@ -19,7 +19,9 @@ import scala.concurrent.duration.{DurationDouble, DurationInt}
 
 class BatchTest extends AnyFunSuite {
   private val service: ServiceGuard[IO] =
-    TaskGuard[IO]("quasi").service("quasi").updateConfig(_.withMetricReport(Policy.crontab(_.secondly)))
+    TaskGuard[IO]("quasi")
+      .service("quasi")
+      .updateConfig(_.withMetricReport(Policy.crontab(_.secondly)).withAlarmLevel(_.Debug))
 
   test("1.quasi.sequential") {
     service.eventStream { ga =>
@@ -60,7 +62,9 @@ class BatchTest extends AnyFunSuite {
           "f" -> IO.sleep(4.seconds)
         )
         .renameJobs(_ + ":test")
-        .quasiBatch(TraceJob.noop)(_ => true)
+        .quasiBatch(
+          TraceJob.generic(ga, _.sendSuccessTo(_.void).sendKickoffTo(_.void).sendFailureTo(_.void)))(_ =>
+          true)
         .map { qr =>
           assert(qr.jobs.head.done)
           assert(qr.jobs(1).done)
@@ -70,7 +74,7 @@ class BatchTest extends AnyFunSuite {
           assert(qr.jobs(5).done)
           qr
         }
-        .use(qr => IO.println(qr.asJson) *> ga.adhoc.report)
+        .use(_ => ga.adhoc.report)
     }.map(checkJson).evalTap(console.text[IO]).compile.drain.unsafeRunSync()
   }
 
@@ -234,7 +238,9 @@ class BatchTest extends AnyFunSuite {
             c <- job("c", IO.println("c").as(30))
           } yield a + b + c
         }
-        .quasiBatch(TraceJob.json(agent).onCancel(IO.println))
+        .quasiBatch(TraceJob.json(
+          agent,
+          _.sendKickoffTo(_.herald.info).sendSuccessTo(_.console.done).sendFailureTo(_.console.warn)))
         .use { qr =>
           assert(qr.jobs.head.done)
           assert(qr.jobs(1).done)
@@ -252,7 +258,7 @@ class BatchTest extends AnyFunSuite {
       agent
         .batch("monadic")
         .monadic(job => job("a" -> IO(0)))
-        .measuredValue(TraceJob.json(agent).onKickoff(IO.println))
+        .measuredValue(TraceJob.json(agent))
         .use(qr => agent.adhoc.report >> agent.herald.info(qr.batch))
     }.evalTap(console.text[IO]).compile.drain.unsafeRunSync()
   }
@@ -278,7 +284,7 @@ class BatchTest extends AnyFunSuite {
             b <- p2
           } yield a + b
         }
-        .quasiBatch(TraceJob.json(agent).onError((job, ex) => IO.println((job, ex))))
+        .quasiBatch(TraceJob.json(agent, _.sendKickoffTo(_.herald.info).sendSuccessTo(_.console.info)))
         .use { qr =>
           val details = qr.jobs
           assert(details.head.job.name === "1")

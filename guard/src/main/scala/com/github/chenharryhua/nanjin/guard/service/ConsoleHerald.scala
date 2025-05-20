@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.service
 
 import cats.effect.kernel.{Ref, Sync}
-import cats.effect.std.Console
 import cats.implicits.{catsSyntaxEq, catsSyntaxIfM, catsSyntaxPartialOrder, toFlatMapOps, toFunctorOps}
 import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.Error
@@ -13,14 +12,16 @@ import java.time.format.DateTimeFormatter
 import scala.Console as SConsole
 
 sealed trait ConsoleHerald[F[_]] {
-  def warn[S: Encoder](msg: S)(implicit cns: Console[F]): F[Unit]
-  def warn[S: Encoder](ex: Throwable)(msg: S)(implicit cns: Console[F]): F[Unit]
+  def warn[S: Encoder](msg: S): F[Unit]
+  def warn[S: Encoder](ex: Throwable)(msg: S): F[Unit]
 
-  def done[S: Encoder](msg: S)(implicit cns: Console[F]): F[Unit]
-  def info[S: Encoder](msg: S)(implicit cns: Console[F]): F[Unit]
+  def done[S: Encoder](msg: S): F[Unit]
+  def info[S: Encoder](msg: S): F[Unit]
 
-  def debug[S: Encoder](msg: S)(implicit cns: Console[F]): F[Unit]
-  def debug[S: Encoder](msg: => F[S])(implicit cns: Console[F]): F[Unit]
+  def debug[S: Encoder](msg: S): F[Unit]
+  def debug[S: Encoder](msg: => F[S]): F[Unit]
+
+  def void[S](msg: S): F[Unit]
 }
 
 abstract private class ConsoleHeraldImpl[F[_]](
@@ -44,25 +45,26 @@ abstract private class ConsoleHeraldImpl[F[_]](
     s"${sm.timestamp.format(fmt)} $color - $msg"
   }
 
-  private def alarm[S: Encoder](msg: S, level: AlarmLevel, error: Option[Error])(implicit
-    cns: Console[F]): F[Unit] =
+  private def screenPrintln(str: String): F[Unit] = Sync[F].blocking(println(str))
+
+  private def alarm[S: Encoder](msg: S, level: AlarmLevel, error: Option[Error]): F[Unit] =
     alarmLevel.get
       .map(level >= _)
-      .ifM(toServiceMessage(serviceParams, msg, level, error).map(toText).flatMap(cns.println), F.unit)
+      .ifM(toServiceMessage(serviceParams, msg, level, error).map(toText).flatMap(screenPrintln), F.unit)
 
-  override def warn[S: Encoder](msg: S)(implicit cns: Console[F]): F[Unit] =
+  override def warn[S: Encoder](msg: S): F[Unit] =
     alarm(msg, AlarmLevel.Warn, None)
 
-  override def warn[S: Encoder](ex: Throwable)(msg: S)(implicit cns: Console[F]): F[Unit] =
+  override def warn[S: Encoder](ex: Throwable)(msg: S): F[Unit] =
     alarm(msg, AlarmLevel.Warn, Some(Error(ex)))
 
-  override def info[S: Encoder](msg: S)(implicit cns: Console[F]): F[Unit] =
+  override def info[S: Encoder](msg: S): F[Unit] =
     alarm(msg, AlarmLevel.Info, None)
 
-  override def done[S: Encoder](msg: S)(implicit cns: Console[F]): F[Unit] =
+  override def done[S: Encoder](msg: S): F[Unit] =
     alarm(msg, AlarmLevel.Done, None)
 
-  override def debug[S: Encoder](msg: => F[S])(implicit cns: Console[F]): F[Unit] =
+  override def debug[S: Encoder](msg: => F[S]): F[Unit] =
     alarmLevel.get
       .map(_ === AlarmLevel.Debug)
       .ifM(
@@ -70,13 +72,15 @@ abstract private class ConsoleHeraldImpl[F[_]](
           case Left(ex) =>
             toServiceMessage(serviceParams, "Error", AlarmLevel.Debug, Some(Error(ex)))
               .map(toText)
-              .flatMap(cns.println)
+              .flatMap(screenPrintln)
           case Right(value) =>
-            toServiceMessage(serviceParams, value, AlarmLevel.Debug, None).map(toText).flatMap(cns.println)
+            toServiceMessage(serviceParams, value, AlarmLevel.Debug, None).map(toText).flatMap(screenPrintln)
         },
         F.unit
       )
 
-  override def debug[S: Encoder](msg: S)(implicit cns: Console[F]): F[Unit] =
+  override def debug[S: Encoder](msg: S): F[Unit] =
     debug[S](F.pure(msg))
+
+  override def void[S](msg: S): F[Unit] = F.unit
 }

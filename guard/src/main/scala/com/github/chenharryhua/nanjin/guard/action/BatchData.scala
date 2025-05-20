@@ -1,16 +1,11 @@
 package com.github.chenharryhua.nanjin.guard.action
-import cats.effect.std.Console
+import cats.Show
 import cats.syntax.all.*
-import cats.{Applicative, Show}
 import com.github.chenharryhua.nanjin.guard.config.MetricLabel
-import com.github.chenharryhua.nanjin.guard.service.Agent
-import com.github.chenharryhua.nanjin.guard.translator.{decimalFormatter, durationFormatter}
+import com.github.chenharryhua.nanjin.guard.translator.durationFormatter
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, Json}
 import org.apache.commons.lang3.exception.ExceptionUtils
-import squants.Dimensionless
-import squants.information.{DataRate, Information}
-import squants.time.{Frequency, Nanoseconds}
 
 import java.time.Duration
 import scala.util.Try
@@ -112,108 +107,6 @@ object JobOutcome {
       Json
         .obj("took" -> Json.fromString(durationFormatter.format(a.took)), "done" -> Json.fromBoolean(a.done))
         .deepMerge(a.job.asJson)
-}
-
-final class TraceJob[F[_], A] private (
-  private[action] val completed: (JobOutcome, A) => F[Unit],
-  private[action] val errored: (JobOutcome, Throwable) => F[Unit],
-  private[action] val canceled: BatchJobID => F[Unit],
-  private[action] val kickoff: BatchJobID => F[Unit]
-) {
-  private def copy(
-    completed: (JobOutcome, A) => F[Unit] = this.completed,
-    errored: (JobOutcome, Throwable) => F[Unit] = this.errored,
-    canceled: BatchJobID => F[Unit] = this.canceled,
-    kickoff: BatchJobID => F[Unit] = this.kickoff): TraceJob[F, A] =
-    new TraceJob[F, A](completed, errored, canceled, kickoff)
-
-  def contramap[B](f: B => A): TraceJob[F, B] =
-    new TraceJob[F, B](
-      completed = (job, b) => completed(job, f(b)),
-      errored,
-      canceled,
-      kickoff
-    )
-
-  def onComplete(f: (JobOutcome, A) => F[Unit]): TraceJob[F, A]      = copy(completed = f)
-  def onError(f: (JobOutcome, Throwable) => F[Unit]): TraceJob[F, A] = copy(errored = f)
-  def onCancel(f: BatchJobID => F[Unit]): TraceJob[F, A]             = copy(canceled = f)
-  def onKickoff(f: BatchJobID => F[Unit]): TraceJob[F, A]            = copy(kickoff = f)
-}
-
-object TraceJob {
-  private val OUTCOME: String = "outcome"
-  private val COUNT: String   = "count"
-
-  def noop[F[_], A](implicit F: Applicative[F]): TraceJob[F, A] =
-    new TraceJob(
-      completed = (_, _) => F.unit,
-      errored = (_, _) => F.unit,
-      canceled = _ => F.unit,
-      kickoff = _ => F.unit)
-
-  def generic[F[_]: Console, A](agent: Agent[F]): TraceJob[F, A] =
-    new TraceJob[F, A](
-      completed = { (job, _) =>
-        if (job.done)
-          agent.herald.done(job)
-        else
-          agent.herald.error(job)
-      },
-      errored = (job, ex) => agent.herald.error(ex)(job),
-      canceled = job => agent.console.warn(Json.obj("canceled" -> job.asJson)),
-      kickoff = job => agent.console.debug(Json.obj("kickoff" -> job.asJson))
-    )
-
-  def json[F[_]: Console](agent: Agent[F]): TraceJob[F, Json] =
-    generic[F, Json](agent).onComplete { case (job, json) =>
-      val jo = Json.obj(OUTCOME -> json).deepMerge(job.asJson)
-      if (job.done)
-        agent.herald.done(jo)
-      else
-        agent.herald.error(jo)
-    }
-
-  def dataRate[F[_]: Console](agent: Agent[F]): TraceJob[F, Information] =
-    generic[F, Information](agent).onComplete { case (job, number) =>
-      val count: String = s"${decimalFormatter.format(number.value.toLong)} ${number.unit.symbol}"
-
-      val speed: DataRate   = number / Nanoseconds(job.took.toNanos)
-      val formatted: String = s"${decimalFormatter.format(speed.value.toLong)} ${speed.unit.symbol}"
-
-      val jo: Json =
-        Json
-          .obj(
-            "data-rate" ->
-              Json.obj(COUNT -> Json.fromString(count), "speed" -> Json.fromString(formatted)))
-          .deepMerge(job.asJson)
-
-      if (job.done)
-        agent.herald.done(jo)
-      else
-        agent.herald.error(jo)
-    }
-
-  def scalarRate[F[_]: Console](agent: Agent[F]): TraceJob[F, Dimensionless] =
-    generic[F, Dimensionless](agent).onComplete { case (job, number) =>
-      val count: String   = s"${decimalFormatter.format(number.value.toLong)} ${number.unit.symbol}"
-      val rate: Frequency = number / Nanoseconds(job.took.toNanos)
-      val ratio: Double   = number.value / number.toEach
-      val formatted: String =
-        s"${decimalFormatter.format((rate.toHertz * ratio).toLong)} ${number.unit.symbol}/s"
-
-      val jo: Json =
-        Json
-          .obj(
-            "scalar-rate" ->
-              Json.obj(COUNT -> Json.fromString(count), "rate" -> Json.fromString(formatted)))
-          .deepMerge(job.asJson)
-
-      if (job.done)
-        agent.herald.done(jo)
-      else
-        agent.herald.error(jo)
-    }
 }
 
 final case class MeasuredValue[A](batch: MeasuredBatch, value: A)
