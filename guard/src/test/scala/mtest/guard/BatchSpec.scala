@@ -4,7 +4,7 @@ import cats.effect.IO
 import cats.effect.testing.scalatest.AsyncIOSpec
 import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.action.{Batch, HandleJobLifecycle, MeasuredBatch}
+import com.github.chenharryhua.nanjin.guard.action.{Batch, MeasuredBatch, TraceJob}
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStop
 import com.github.chenharryhua.nanjin.guard.observers.console
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
@@ -15,12 +15,6 @@ import org.scalatest.matchers.should.Matchers
 class BatchSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
   private val service: ServiceGuard[IO] =
     TaskGuard[IO]("batch").service("batch").updateConfig(_.withMetricReport(Policy.crontab(_.secondly)))
-
-  private val handler = HandleJobLifecycle[IO, Json]
-    .onError((job, _) => IO.println(job))
-    .onCancel(IO.println)
-    .onComplete((job, _) => IO.println(job))
-    .onKickoff(IO.println)
 
   "monadic" -
     "filter - quasi".in {
@@ -36,7 +30,7 @@ class BatchSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
               c <- job("c", IO(3))
             } yield a + b + c
           }
-          .quasiTrace(handler)
+          .quasiBatch(TraceJob.json(agent))
           .memoizedAcquire
           .use(identity)
         result.asserting { qr =>
@@ -62,7 +56,7 @@ class BatchSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
             c <- job("c", IO(3))
           } yield a + b + c
         }
-        .valueTrace(handler)
+        .measuredValue(TraceJob.json(agent))
         .map(_.value)
         .memoizedAcquire
         .use(identity)
@@ -84,7 +78,7 @@ class BatchSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
             c <- job("c", IO(2))
           } yield a + c
         }
-        .valueTrace(handler)
+        .measuredValue(TraceJob.json(agent))
         .use(qr => agent.adhoc.report.as(qr))
 
       result.asserting(_.value.shouldBe(3)) >>

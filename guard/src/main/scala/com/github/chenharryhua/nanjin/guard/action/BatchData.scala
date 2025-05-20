@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.action
+import cats.Show
 import cats.syntax.all.*
-import cats.{Applicative, Show}
 import com.github.chenharryhua.nanjin.guard.config.MetricLabel
 import com.github.chenharryhua.nanjin.guard.translator.durationFormatter
 import io.circe.syntax.EncoderOps
@@ -64,8 +64,8 @@ object MeasuredBatch {
   implicit val encoderBatchMeasurement: Encoder[MeasuredBatch] = { (br: MeasuredBatch) =>
     val (done, fail) = br.jobs.partition(_.done)
     Json.obj(
-      "domain" -> Json.fromString(br.label.domain.value),
       "batch" -> Json.fromString(br.label.label),
+      "domain" -> Json.fromString(br.label.domain.value),
       "mode" -> Json.fromString(br.mode.show),
       "kind" -> Json.fromString(br.kind.show),
       "spent" -> Json.fromString(durationFormatter.format(br.spent)),
@@ -107,34 +107,6 @@ object JobOutcome {
       Json
         .obj("took" -> Json.fromString(durationFormatter.format(a.took)), "done" -> Json.fromBoolean(a.done))
         .deepMerge(a.job.asJson)
-}
-
-final class HandleJobLifecycle[F[_], A] private (
-  private[action] val completed: (JobOutcome, A) => F[Unit],
-  private[action] val errored: (JobOutcome, Throwable) => F[Unit],
-  private[action] val canceled: BatchJobID => F[Unit],
-  private[action] val kickoff: BatchJobID => F[Unit]
-) {
-  private def copy(
-    completed: (JobOutcome, A) => F[Unit] = this.completed,
-    errored: (JobOutcome, Throwable) => F[Unit] = this.errored,
-    canceled: BatchJobID => F[Unit] = this.canceled,
-    kickoff: BatchJobID => F[Unit] = this.kickoff): HandleJobLifecycle[F, A] =
-    new HandleJobLifecycle[F, A](completed, errored, canceled, kickoff)
-
-  def onComplete(f: (JobOutcome, A) => F[Unit]): HandleJobLifecycle[F, A]      = copy(completed = f)
-  def onError(f: (JobOutcome, Throwable) => F[Unit]): HandleJobLifecycle[F, A] = copy(errored = f)
-  def onCancel(f: BatchJobID => F[Unit]): HandleJobLifecycle[F, A]             = copy(canceled = f)
-  def onKickoff(f: BatchJobID => F[Unit]): HandleJobLifecycle[F, A]            = copy(kickoff = f)
-}
-
-object HandleJobLifecycle {
-  def apply[F[_], A](implicit F: Applicative[F]): HandleJobLifecycle[F, A] =
-    new HandleJobLifecycle(
-      completed = (_, _) => F.unit,
-      errored = (_, _) => F.unit,
-      canceled = _ => F.unit,
-      kickoff = _ => F.unit)
 }
 
 final case class MeasuredValue[A](batch: MeasuredBatch, value: A)
