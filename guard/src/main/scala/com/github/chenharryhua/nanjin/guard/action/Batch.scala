@@ -93,6 +93,14 @@ object Batch {
     def map[B](f: A => B): SingleJobOutcome[B]     = copy(eoa = eoa.map(f))
   }
 
+  final case class PostConditionUnsatisfied(job: BatchJob, batch: String, domain: Domain) extends Exception(
+        s"${getJobName(job)} of batch($batch) in domain(${domain.value}) run to the end without exception but failed post-condition check")
+
+  object PostConditionUnsatisfied {
+    def apply(jobId: BatchJobID): PostConditionUnsatisfied =
+      PostConditionUnsatisfied(jobId.job, jobId.label.label, jobId.label.domain)
+  }
+
   /*
    * Runners
    */
@@ -120,8 +128,6 @@ object Batch {
     /** Exceptions thrown by individual jobs in the batch are suppressed, allowing the overall execution to
       * continue.
       *
-      * @param isSucc:
-      *   evaluate job's return value
       * @return
       *   BatchResult a job is
       *
@@ -129,13 +135,12 @@ object Batch {
       *
       * otherwise fail
       */
-    def quasiBatch(tracer: TraceJob[F, A])(isSucc: A => Boolean): Resource[F, MeasuredBatch]
+    def quasiBatch(tracer: TraceJob[F, A]): Resource[F, MeasuredBatch]
 
     /** Exceptions thrown by individual jobs in the batch are propagated, causing the process to halt at the
-      * point of failure
+      * point of failure, and fail prediction will cause [[PostConditionUnsatisfied]] exception
       */
     def measuredValue(tracer: TraceJob[F, A]): Resource[F, MeasuredValue[List[A]]]
-
   }
 
   /*
@@ -149,7 +154,7 @@ object Batch {
 
     private val mode: BatchMode = BatchMode.Parallel(parallelism)
 
-    override def quasiBatch(tracer: TraceJob[F, A])(isSucc: A => Boolean): Resource[F, MeasuredBatch] = {
+    override def quasiBatch(tracer: TraceJob[F, A]): Resource[F, MeasuredBatch] = {
 
       def exec(mj: MeasureJob[F]): F[(FiniteDuration, List[MeasuredJob])] =
         F.timed(F.parTraverseN(parallelism)(jobs) { case (job, fa) =>
@@ -157,7 +162,7 @@ object Batch {
           tracer.kickoff(jobId) *>
             F.timed(F.attempt(fa))
               .flatMap { case (fd: FiniteDuration, eoa: Either[Throwable, A]) =>
-                val result = MeasuredJob(job, fd.toJava, eoa.fold(_ => false, isSucc(_)))
+                val result = MeasuredJob(job, fd.toJava, eoa.fold(_ => false, tracer.predicate))
                 mj.measure.run(result).as(SingleJobOutcome(result, eoa))
               }
               .guaranteeCase(handleOutcome(jobId, tracer))
@@ -177,8 +182,16 @@ object Batch {
           tracer.kickoff(jobId) *>
             F.timed(F.attempt(fa))
               .flatMap { case (fd: FiniteDuration, eoa: Either[Throwable, A]) =>
-                val result = MeasuredJob(job, fd.toJava, done = eoa.isRight)
-                mj.measure.run(result).as(SingleJobOutcome(result, eoa))
+
+                val newEoa: Either[Throwable, A] = eoa.flatMap { a =>
+                  if (tracer.predicate(a))
+                    Right(a)
+                  else
+                    Left(PostConditionUnsatisfied(jobId))
+                }
+
+                val result = MeasuredJob(job, fd.toJava, done = newEoa.isRight)
+                mj.measure.run(result).as(SingleJobOutcome(result, newEoa))
               }
               .guaranteeCase(handleOutcome(jobId, tracer))
               .map(_.embed)
@@ -217,7 +230,7 @@ object Batch {
         jobs = results
       )
 
-    override def quasiBatch(tracer: TraceJob[F, A])(isSucc: A => Boolean): Resource[F, MeasuredBatch] = {
+    override def quasiBatch(tracer: TraceJob[F, A]): Resource[F, MeasuredBatch] = {
 
       def exec(mj: MeasureJob[F]): F[List[MeasuredJob]] =
         jobs.traverse { case (job, fa) =>
@@ -225,7 +238,7 @@ object Batch {
           tracer.kickoff(jobId) *>
             F.timed(F.attempt(fa))
               .flatMap { case (fd: FiniteDuration, eoa: Either[Throwable, A]) =>
-                val result = MeasuredJob(job, fd.toJava, eoa.fold(_ => false, isSucc(_)))
+                val result = MeasuredJob(job, fd.toJava, eoa.fold(_ => false, tracer.predicate))
                 mj.measure.run(result).as(SingleJobOutcome(result, eoa))
               }
               .guaranteeCase(handleOutcome(jobId, tracer))
@@ -244,8 +257,16 @@ object Batch {
           tracer.kickoff(jobId) *>
             F.timed(F.attempt(fa))
               .flatMap { case (fd: FiniteDuration, eoa: Either[Throwable, A]) =>
-                val result = MeasuredJob(job, fd.toJava, done = eoa.isRight)
-                mj.measure.run(result).as(SingleJobOutcome(result, eoa))
+
+                val newEoa: Either[Throwable, A] = eoa.flatMap { a =>
+                  if (tracer.predicate(a))
+                    Right(a)
+                  else
+                    Left(PostConditionUnsatisfied(jobId))
+                }
+
+                val result = MeasuredJob(job, fd.toJava, done = newEoa.isRight)
+                mj.measure.run(result).as(SingleJobOutcome(result, newEoa))
               }
               .guaranteeCase(handleOutcome(jobId, tracer))
               .map(_.embed)
@@ -279,9 +300,6 @@ object Batch {
     def map[B](f: A => B): JobState[B] = copy(eoa = eoa.map(f))
   }
 
-  final case class PostConditionUnsatisfied(job: BatchJob, batch: String, domain: Domain) extends Exception(
-        s"${getJobName(job)} of batch($batch) in domain(${domain.value}) run successfully but failed post-condition check")
-
   final private case class Callbacks[F[_]](
     doMeasure: DoMeasurement[F],
     tracer: TraceJob[F, Json],
@@ -311,28 +329,36 @@ object Batch {
       */
     private def vincible_[A](name: String, rfa: Resource[F, A], translate: A => Json): Monadic[A] =
       new Monadic[A](
-        Kleisli { case Callbacks(doMeasure, handler, kind) =>
+        Kleisli { case Callbacks(doMeasure, tracer, kind) =>
           StateT { (index: Int) =>
             val job   = BatchJob(name, index)
             val jobId = BatchJobID(job, metrics.metricLabel, BatchMode.Monadic, kind)
 
             rfa
-              .preAllocate(handler.kickoff(jobId))
+              .preAllocate(tracer.kickoff(jobId))
               .attempt
               .timed
               .evalMap { case (fd: FiniteDuration, eoa: Either[Throwable, A]) =>
-                val result = MeasuredJob(job, fd.toJava, eoa.isRight)
-                doMeasure.run(result).as(SingleJobOutcome(result, eoa))
+
+                val newEoa: Either[Throwable, A] = eoa.flatMap { a =>
+                  if (tracer.predicate(translate(a)))
+                    Right(a)
+                  else
+                    Left(PostConditionUnsatisfied(jobId))
+                }
+
+                val result = MeasuredJob(job, fd.toJava, newEoa.isRight)
+                doMeasure.run(result).as(SingleJobOutcome(result, newEoa))
               }
               .guaranteeCase {
                 case Outcome.Succeeded(fa) =>
                   fa.evalMap { case SingleJobOutcome(result, eoa) =>
                     val joc = JobOutcome(jobId, result.took, result.done)
-                    eoa.fold(handler.errored(joc, _), a => handler.completed(joc, translate(a)))
+                    eoa.fold(tracer.errored(joc, _), a => tracer.completed(joc, translate(a)))
                   }
                 case Outcome.Errored(e) =>
                   Resource.raiseError[F, Unit, Throwable](shouldNeverHappenException(e))
-                case Outcome.Canceled() => Resource.eval(handler.canceled(jobId))
+                case Outcome.Canceled() => Resource.eval(tracer.canceled(jobId))
               }
               .map { case SingleJobOutcome(result, eoa) =>
                 (index + 1, JobState(eoa, NonEmptyList.one(result)))
@@ -359,31 +385,35 @@ object Batch {
       translate: A => Json,
       isSucc: A => Boolean): Monadic[Boolean] =
       new Monadic[Boolean](
-        Kleisli { case Callbacks(doMeasure, handler, kind) =>
+        Kleisli { case Callbacks(doMeasure, tracer, kind) =>
           StateT { (index: Int) =>
             val job   = BatchJob(name, index)
             val jobId = BatchJobID(job, metrics.metricLabel, BatchMode.Monadic, kind)
 
             rfa
-              .preAllocate(handler.kickoff(jobId))
+              .preAllocate(tracer.kickoff(jobId))
               .attempt
               .timed
               .evalMap { case (fd: FiniteDuration, eoa: Either[Throwable, A]) =>
-                val result = MeasuredJob(job, fd.toJava, eoa.fold(_ => false, isSucc))
+                val result = MeasuredJob(
+                  job,
+                  fd.toJava,
+                  eoa.fold(_ => false, a => tracer.predicate(translate(a)) && isSucc(a))
+                )
                 doMeasure.run(result).as(SingleJobOutcome(result, eoa))
               }
               .guaranteeCase {
                 case Outcome.Succeeded(fa) =>
                   fa.evalMap { case SingleJobOutcome(result, eoa) =>
                     val joc = JobOutcome(jobId, result.took, result.done)
-                    eoa.fold(handler.errored(joc, _), a => handler.completed(joc, translate(a)))
+                    eoa.fold(tracer.errored(joc, _), a => tracer.completed(joc, translate(a)))
                   }
                 case Outcome.Errored(e) =>
                   Resource.raiseError[F, Unit, Throwable](shouldNeverHappenException(e))
-                case Outcome.Canceled() => Resource.eval(handler.canceled(jobId))
+                case Outcome.Canceled() => Resource.eval(tracer.canceled(jobId))
               }
-              .map { case SingleJobOutcome(result, eoa) =>
-                (index + 1, JobState(Right(eoa.fold(_ => false, isSucc)), NonEmptyList.one(result)))
+              .map { case SingleJobOutcome(result, _) =>
+                (index + 1, JobState(Right(result.done), NonEmptyList.one(result)))
               }
           }
         }
