@@ -9,6 +9,7 @@ import com.github.chenharryhua.nanjin.guard.action.{Batch, BatchMode, MeasuredVa
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStop
 import com.github.chenharryhua.nanjin.guard.observers.console
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
+import io.circe.Json
 import io.circe.jawn.decode
 import io.circe.syntax.EncoderOps
 import org.scalatest.funsuite.AnyFunSuite
@@ -36,7 +37,15 @@ class BatchTest extends AnyFunSuite {
         )
         .map(_ => true)
         .renameJobs(_ + ":test")
-        .quasiBatch(TraceJob.noop)(identity)
+        .quasiBatch(
+          TraceJob
+            .generic[IO, Boolean]
+            .contramap(identity[Boolean])
+            .onError((job, _) => IO.println(job))
+            .onCancel(IO.println)
+            .onKickoff(IO.println)
+            .onComplete((job, _) => IO.println(job))
+            .withPredicate(identity))
         .map { qr =>
           assert(!qr.jobs.head.done)
           assert(qr.jobs(1).done)
@@ -62,9 +71,9 @@ class BatchTest extends AnyFunSuite {
           "f" -> IO.sleep(4.seconds)
         )
         .renameJobs(_ + ":test")
-        .quasiBatch(
-          TraceJob.generic(ga, _.sendSuccessTo(_.void).sendKickoffTo(_.void).sendFailureTo(_.void)))(_ =>
-          true)
+        .quasiBatch(TraceJob
+          .json[IO, Json](ga, _.sendSuccessTo(_.void).sendKickoffTo(_.void).sendFailureTo(_.void))
+          .contramap(_ => Json.Null))
         .map { qr =>
           assert(qr.jobs.head.done)
           assert(qr.jobs(1).done)
@@ -100,7 +109,7 @@ class BatchTest extends AnyFunSuite {
           "c" -> IO.sleep(3.seconds),
           "d" -> IO.sleep(4.seconds))
         .map(_ => true)
-        .measuredValue(TraceJob.json(ga).contramap(_.asJson))
+        .measuredValue(TraceJob.json[IO, Json](ga).contramap(_.asJson))
         .memoizedAcquire
         .use(_.map(_.batch.jobs.forall(_.done)))
         .map(assert(_))
@@ -117,7 +126,7 @@ class BatchTest extends AnyFunSuite {
           "b" -> IO.sleep(2.seconds),
           "c" -> IO.raiseError(new Exception),
           "d" -> IO.sleep(1.seconds))
-        .measuredValue(TraceJob.noop)
+        .measuredValue(TraceJob.json(ga, _.sendSuccessTo(_.herald.done)))
         .use_
     }.map(checkJson).evalTap(console.text[IO]).compile.drain.unsafeRunSync()
   }
@@ -140,7 +149,7 @@ class BatchTest extends AnyFunSuite {
       .eventStream(
         _.batch("parallel-1")
           .parallel("a" -> IO(true))
-          .quasiBatch(TraceJob.noop)(a => a)
+          .quasiBatch(TraceJob.noop)
           .map(r => assert(r.mode == BatchMode.Parallel(1)))
           .use_)
       .map(checkJson)
@@ -152,7 +161,7 @@ class BatchTest extends AnyFunSuite {
       .eventStream(ga =>
         ga.batch("sequential")
           .sequential("a" -> IO(true))
-          .quasiBatch(TraceJob.noop)(a => a)
+          .quasiBatch(TraceJob.noop)
           .map(r => assert(r.mode == BatchMode.Sequential))
           .use_)
       .map(checkJson)
@@ -240,7 +249,7 @@ class BatchTest extends AnyFunSuite {
         }
         .quasiBatch(TraceJob.json(
           agent,
-          _.sendKickoffTo(_.herald.info).sendSuccessTo(_.console.done).sendFailureTo(_.console.warn)))
+          _.sendKickoffTo(_.herald.info).sendSuccessTo(_.herald.done).sendFailureTo(_.herald.warn)))
         .use { qr =>
           assert(qr.jobs.head.done)
           assert(qr.jobs(1).done)
@@ -350,7 +359,8 @@ class BatchTest extends AnyFunSuite {
       agent
         .batch("sorted.sequential")
         .sequential(jobs*)
-        .measuredValue(TraceJob.scalarRate(agent).contramap(x => (x * 10.0d).each))
+        .measuredValue(
+          TraceJob.scalarRate[IO](agent, _.sendFailureTo(_.error)).contramap(x => (x * 10.0d).each))
         .use { case MeasuredValue(br, rst) =>
           IO {
             assert(rst.head == 1)
