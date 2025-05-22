@@ -30,7 +30,7 @@ class BatchSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
               c <- job("c", IO(3))
             } yield a + b + c
           }
-          .quasiBatch(TraceJob.json(agent))
+          .quasiBatch(TraceJob.standard(agent))
           .memoizedAcquire
           .use(identity)
         result.asserting { qr =>
@@ -56,7 +56,7 @@ class BatchSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
             c <- job("c", IO(3))
           } yield a + b + c
         }
-        .measuredValue(TraceJob.json(agent))
+        .measuredValue(TraceJob.standard(agent))
         .map(_.value)
         .memoizedAcquire
         .use(identity)
@@ -78,7 +78,7 @@ class BatchSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
             c <- job("c", IO(2))
           } yield a + c
         }
-        .measuredValue(TraceJob.json(agent))
+        .measuredValue(TraceJob.standard(agent))
         .use(qr => agent.adhoc.report.as(qr))
 
       result.asserting(_.value.shouldBe(3)) >>

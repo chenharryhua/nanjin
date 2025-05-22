@@ -89,8 +89,7 @@ object Batch {
       active)
 
   final private case class SingleJobOutcome[A](result: MeasuredJob, eoa: Either[Throwable, A]) {
-    def embed: Either[Throwable, (MeasuredJob, A)] = eoa.map((result, _))
-    def map[B](f: A => B): SingleJobOutcome[B]     = copy(eoa = eoa.map(f))
+    def map[B](f: A => B): SingleJobOutcome[B] = copy(eoa = eoa.map(f))
   }
 
   final case class PostConditionUnsatisfied(job: BatchJob, batch: String, domain: Domain) extends Exception(
@@ -108,11 +107,11 @@ object Batch {
   sealed abstract protected class Runner[F[_]: Async, A] { outer =>
     protected val F: Async[F] = Async[F]
 
-    def map[B](f: A => B): Runner[F, B]
-
     /** rename the job names by apply f
       */
     def renameJobs(f: Endo[String]): Runner[F, A]
+
+    def withPredicate(f: A => Boolean): Runner[F, A]
 
     protected def handleOutcome(jobId: BatchJobID, tracer: TraceJob[F, A])(
       outcome: Outcome[F, Throwable, SingleJobOutcome[A]])(implicit F: MonadError[F, Throwable]): F[Unit] =
@@ -147,6 +146,7 @@ object Batch {
    * Parallel
    */
   final class Parallel[F[_], A] private[Batch] (
+    predicate: Reader[A, Boolean],
     metrics: Metrics[F],
     parallelism: Int,
     jobs: List[(BatchJob, F[A])])(implicit F: Async[F])
@@ -162,7 +162,7 @@ object Batch {
           tracer.kickoff(jobId) *>
             F.timed(F.attempt(fa))
               .flatMap { case (fd: FiniteDuration, eoa: Either[Throwable, A]) =>
-                val result = MeasuredJob(job, fd.toJava, eoa.fold(_ => false, tracer.predicate))
+                val result = MeasuredJob(job, fd.toJava, eoa.fold(_ => false, predicate.run))
                 mj.measure.run(result).as(SingleJobOutcome(result, eoa))
               }
               .guaranteeCase(handleOutcome(jobId, tracer))
@@ -182,19 +182,18 @@ object Batch {
           tracer.kickoff(jobId) *>
             F.timed(F.attempt(fa))
               .flatMap { case (fd: FiniteDuration, eoa: Either[Throwable, A]) =>
-
-                val newEoa: Either[Throwable, A] = eoa.flatMap { a =>
-                  if (tracer.predicate(a))
-                    Right(a)
+                val result = MeasuredJob(job, fd.toJava, done = eoa.fold(_ => false, predicate.run))
+                mj.measure.run(result).as(SingleJobOutcome(result, eoa))
+              }
+              .guaranteeCase(handleOutcome(jobId, tracer))
+              .map { case SingleJobOutcome(result, eoa) =>
+                eoa.flatMap { a =>
+                  if (predicate.run(a))
+                    Right((result, a))
                   else
                     Left(PostConditionUnsatisfied(jobId))
                 }
-
-                val result = MeasuredJob(job, fd.toJava, done = newEoa.isRight)
-                mj.measure.run(result).as(SingleJobOutcome(result, newEoa))
               }
-              .guaranteeCase(handleOutcome(jobId, tracer))
-              .map(_.embed)
               .rethrow
         }).guarantee(mj.activeGauge.deactivate)
 
@@ -205,18 +204,21 @@ object Batch {
       }
     }
 
-    override def map[B](f: A => B): Parallel[F, B] =
-      new Parallel[F, B](metrics, parallelism, jobs.map { case (job, fa) => (job, fa.map(f)) })
-
     override def renameJobs(f: String => String): Parallel[F, A] =
-      new Parallel[F, A](metrics, parallelism, jobs.map(_.focus(_._1.name).modify(f)))
+      new Parallel[F, A](predicate, metrics, parallelism, jobs.map(_.focus(_._1.name).modify(f)))
+
+    override def withPredicate(f: A => Boolean): Parallel[F, A] =
+      new Parallel[F, A](predicate = Reader(f), metrics, parallelism, jobs)
   }
 
   /*
    * Sequential
    */
 
-  final class Sequential[F[_]: Async, A] private[Batch] (metrics: Metrics[F], jobs: List[(BatchJob, F[A])])
+  final class Sequential[F[_]: Async, A] private[Batch] (
+    predicate: Reader[A, Boolean],
+    metrics: Metrics[F],
+    jobs: List[(BatchJob, F[A])])
       extends Runner[F, A] {
 
     private val mode: BatchMode = BatchMode.Sequential
@@ -238,7 +240,7 @@ object Batch {
           tracer.kickoff(jobId) *>
             F.timed(F.attempt(fa))
               .flatMap { case (fd: FiniteDuration, eoa: Either[Throwable, A]) =>
-                val result = MeasuredJob(job, fd.toJava, eoa.fold(_ => false, tracer.predicate))
+                val result = MeasuredJob(job, fd.toJava, eoa.fold(_ => false, predicate.run))
                 mj.measure.run(result).as(SingleJobOutcome(result, eoa))
               }
               .guaranteeCase(handleOutcome(jobId, tracer))
@@ -257,19 +259,18 @@ object Batch {
           tracer.kickoff(jobId) *>
             F.timed(F.attempt(fa))
               .flatMap { case (fd: FiniteDuration, eoa: Either[Throwable, A]) =>
-
-                val newEoa: Either[Throwable, A] = eoa.flatMap { a =>
-                  if (tracer.predicate(a))
-                    Right(a)
+                val result = MeasuredJob(job, fd.toJava, done = eoa.fold(_ => false, predicate.run))
+                mj.measure.run(result).as(SingleJobOutcome(result, eoa))
+              }
+              .guaranteeCase(handleOutcome(jobId, tracer))
+              .map { case SingleJobOutcome(result, eoa) =>
+                eoa.flatMap { a =>
+                  if (predicate.run(a))
+                    Right((result, a))
                   else
                     Left(PostConditionUnsatisfied(jobId))
                 }
-
-                val result = MeasuredJob(job, fd.toJava, done = newEoa.isRight)
-                mj.measure.run(result).as(SingleJobOutcome(result, newEoa))
               }
-              .guaranteeCase(handleOutcome(jobId, tracer))
-              .map(_.embed)
               .rethrow
         }.guarantee(mj.activeGauge.deactivate)
 
@@ -280,11 +281,11 @@ object Batch {
       }
     }
 
-    override def map[B](f: A => B): Sequential[F, B] =
-      new Sequential[F, B](metrics, jobs.map { case (job, fa) => (job, fa.map(f)) })
-
     override def renameJobs(f: String => String): Sequential[F, A] =
-      new Sequential[F, A](metrics, jobs.map(_.focus(_._1.name).modify(f)))
+      new Sequential[F, A](predicate, metrics, jobs.map(_.focus(_._1.name).modify(f)))
+
+    override def withPredicate(f: A => Boolean): Sequential[F, A] =
+      new Sequential[F, A](predicate = Reader(f), metrics, jobs)
   }
 
   /*
@@ -305,14 +306,14 @@ object Batch {
     tracer: TraceJob[F, Json],
     kind: BatchKind)
 
-  final class InvincibleJob[A](
+  final class InvincibleProps[A] private[Batch] (
     private[Batch] val translator: A => Json,
     private[Batch] val predicator: A => Boolean
   ) {
-    def withTranslate(f: A => Json): InvincibleJob[A] =
-      new InvincibleJob[A](translator = f, predicator = predicator)
-    def withPredicate(f: A => Boolean): InvincibleJob[A] =
-      new InvincibleJob[A](translator = translator, predicator = f)
+    def withTranslate(f: A => Json): InvincibleProps[A] =
+      new InvincibleProps[A](translator = f, predicator = predicator)
+    def withPredicate(f: A => Boolean): InvincibleProps[A] =
+      new InvincibleProps[A](translator = translator, predicator = f)
   }
 
   final class JobBuilder[F[_]] private[Batch] (metrics: Metrics[F])(implicit F: Async[F]) {
@@ -339,16 +340,8 @@ object Batch {
               .attempt
               .timed
               .evalMap { case (fd: FiniteDuration, eoa: Either[Throwable, A]) =>
-
-                val newEoa: Either[Throwable, A] = eoa.flatMap { a =>
-                  if (tracer.predicate(translate(a)))
-                    Right(a)
-                  else
-                    Left(PostConditionUnsatisfied(jobId))
-                }
-
-                val result = MeasuredJob(job, fd.toJava, newEoa.isRight)
-                doMeasure.run(result).as(SingleJobOutcome(result, newEoa))
+                val result = MeasuredJob(job, fd.toJava, eoa.isRight)
+                doMeasure.run(result).as(SingleJobOutcome(result, eoa))
               }
               .guaranteeCase {
                 case Outcome.Succeeded(fa) =>
@@ -395,11 +388,7 @@ object Batch {
               .attempt
               .timed
               .evalMap { case (fd: FiniteDuration, eoa: Either[Throwable, A]) =>
-                val result = MeasuredJob(
-                  job,
-                  fd.toJava,
-                  eoa.fold(_ => false, a => tracer.predicate(translate(a)) && isSucc(a))
-                )
+                val result = MeasuredJob(job, fd.toJava, eoa.fold(_ => false, isSucc))
                 doMeasure.run(result).as(SingleJobOutcome(result, eoa))
               }
               .guaranteeCase {
@@ -445,13 +434,13 @@ object Batch {
       *   true if no exception occurs and isSucc is evaluated to be true, otherwise false
       */
 
-    def invincible[A](name: String, rfa: Resource[F, A])(f: Endo[InvincibleJob[A]]): Monadic[Boolean] = {
-      val prop = f(new InvincibleJob[A]((_: A) => Json.Null, (_: A) => true))
+    def invincible[A](name: String, rfa: Resource[F, A])(f: Endo[InvincibleProps[A]]): Monadic[Boolean] = {
+      val prop = f(new InvincibleProps[A]((_: A) => Json.Null, (_: A) => true))
       invincible_[A](name, rfa, prop.translator, prop.predicator)
     }
 
-    def invincible[A](name: String, fa: F[A])(f: Endo[InvincibleJob[A]]): Monadic[Boolean] = {
-      val prop = f(new InvincibleJob[A]((_: A) => Json.Null, (_: A) => true))
+    def invincible[A](name: String, fa: F[A])(f: Endo[InvincibleProps[A]]): Monadic[Boolean] = {
+      val prop = f(new InvincibleProps[A]((_: A) => Json.Null, (_: A) => true))
       invincible_[A](name, Resource.eval(fa), prop.translator, prop.predicator)
     }
 
@@ -536,12 +525,12 @@ final class Batch[F[_]: Async] private[guard] (metrics: Metrics[F]) {
 
   def sequential[A](fas: (String, F[A])*): Batch.Sequential[F, A] = {
     val jobs = fas.toList.zipWithIndex.map { case ((name, fa), idx) => BatchJob(name, idx + 1) -> fa }
-    new Batch.Sequential[F, A](metrics, jobs)
+    new Batch.Sequential[F, A](Reader(_ => true), metrics, jobs)
   }
 
   def parallel[A](parallelism: Int)(fas: (String, F[A])*): Batch.Parallel[F, A] = {
     val jobs = fas.toList.zipWithIndex.map { case ((name, fa), idx) => BatchJob(name, idx + 1) -> fa }
-    new Batch.Parallel[F, A](metrics, parallelism, jobs)
+    new Batch.Parallel[F, A](Reader(_ => true), metrics, parallelism, jobs)
   }
 
   def parallel[A](fas: (String, F[A])*): Batch.Parallel[F, A] =
