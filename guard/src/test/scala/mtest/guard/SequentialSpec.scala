@@ -1,0 +1,120 @@
+package mtest.guard
+
+import cats.effect.IO
+import cats.effect.testing.scalatest.AsyncIOSpec
+import com.github.chenharryhua.nanjin.guard.TaskGuard
+import com.github.chenharryhua.nanjin.guard.action.{Batch, TraceJob}
+import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStop
+import com.github.chenharryhua.nanjin.guard.observers.console
+import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
+import org.scalatest.freespec.AsyncFreeSpec
+import org.scalatest.matchers.should.Matchers
+
+class SequentialSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
+  private val service: ServiceGuard[IO] =
+    TaskGuard[IO]("batch").service("batch")
+
+  private val tracer = TraceJob.generic[IO, Int]
+
+  "quasi" - {
+    "good job".in {
+      val jobs = List("a" -> IO(1), "b" -> IO(2), "c" -> IO(3), "d" -> IO(4), "e" -> IO(5))
+      val se = service.eventStreamR { agent =>
+        agent.batch("good job").sequential(jobs*).quasiBatch(TraceJob.standard(agent))
+      }.evalTap(console.text[IO]).compile.lastOrError
+      se.asserting(_.asInstanceOf[ServiceStop].cause.exitCode.shouldBe(0))
+    }
+
+    "exception".in {
+      val jobs =
+        List("a" -> IO(1), "b" -> IO.raiseError(new Exception()), "c" -> IO(3), "d" -> IO(4), "e" -> IO(5))
+      val se = service.eventStreamR { agent =>
+        val result = agent.batch("exception").sequential(jobs*).quasiBatch(TraceJob.standard(agent))
+        result.asserting { mb =>
+          mb.jobs.head.done.shouldBe(true)
+          mb.jobs(1).done.shouldBe(false)
+          mb.jobs(2).done.shouldBe(true)
+          mb.jobs(3).done.shouldBe(true)
+          mb.jobs(4).done.shouldBe(true)
+        }
+      }.evalTap(console.text[IO]).compile.lastOrError
+      se.asserting(_.asInstanceOf[ServiceStop].cause.exitCode.shouldBe(0))
+    }
+
+    "predicate".in {
+      val jobs =
+        List("a" -> IO(1), "b" -> IO(2), "c" -> IO(3), "d" -> IO(4), "e" -> IO(5))
+      val se = service.eventStreamR { agent =>
+        val result =
+          agent
+            .batch("predicate")
+            .sequential(jobs*)
+            .withPredicate(_ > 3)
+            .quasiBatch(TraceJob.standard[IO, Int](agent).sendKickoffTo(_.void).sendSuccessTo(_.herald.done))
+        result.asserting { mb =>
+          mb.jobs.head.done.shouldBe(false)
+          mb.jobs(1).done.shouldBe(false)
+          mb.jobs(2).done.shouldBe(false)
+          mb.jobs(3).done.shouldBe(true)
+          mb.jobs(4).done.shouldBe(true)
+        }
+      }.evalTap(console.text[IO]).compile.lastOrError
+      se.asserting(_.asInstanceOf[ServiceStop].cause.exitCode.shouldBe(0))
+    }
+  }
+
+  "value" - {
+    "good job".in {
+      val jobs = List("a" -> IO(1), "b" -> IO(2), "c" -> IO(3), "d" -> IO(4), "e" -> IO(5))
+      val se = service.eventStreamR { agent =>
+        agent.batch("good job").sequential(jobs*).measuredValue(TraceJob.standard(agent))
+      }.evalTap(console.text[IO]).compile.lastOrError
+      se.asserting(_.asInstanceOf[ServiceStop].cause.exitCode.shouldBe(0))
+    }
+
+    "exception".in {
+      val jobs =
+        List(
+          "a" -> IO(1),
+          "b" -> IO.raiseError(new Exception("abc")),
+          "c" -> IO(3),
+          "d" -> IO(4),
+          "e" -> IO(5))
+      val se = service.eventStreamR { agent =>
+        val result = agent
+          .batch("exception")
+          .sequential(jobs*)
+          .measuredValue(tracer.onError { (jo, oc) =>
+            IO {
+              assert(!jo.done)
+              assert(jo.job.job.index == 2)
+              assert(oc.getMessage == "abc")
+            }.void
+          })
+        result.assertThrowsError[Exception](_.getMessage.shouldBe("abc"))
+      }.evalTap(console.text[IO]).compile.lastOrError
+      se.asserting(_.asInstanceOf[ServiceStop].cause.exitCode.shouldBe(0))
+    }
+
+    "predicate".in {
+      val jobs =
+        List("a" -> IO(1), "b" -> IO(2), "c" -> IO(3), "d" -> IO(4), "e" -> IO(5))
+      val se = service.eventStreamR { agent =>
+        val result =
+          agent
+            .batch("predicate")
+            .sequential(jobs*)
+            .withPredicate(_ > 3)
+            .measuredValue(tracer.onComplete { (jo, oc) =>
+              IO {
+                assert(!jo.done)
+                assert(jo.job.job.index == 1)
+                assert(oc == 1)
+              }.void
+            })
+        result.assertThrowsError[Batch.PostConditionUnsatisfied](_.job.index.shouldBe(1))
+      }.evalTap(console.text[IO]).compile.lastOrError
+      se.asserting(_.asInstanceOf[ServiceStop].cause.exitCode.shouldBe(0))
+    }
+  }
+}

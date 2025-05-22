@@ -35,7 +35,6 @@ class BatchTest extends AnyFunSuite {
           "ee" -> IO.sleep(1.seconds),
           "f" -> IO.raiseError(new Exception)
         )
-        .map(_ => true)
         .renameJobs(_ + ":test")
         .quasiBatch(
           TraceJob
@@ -45,7 +44,8 @@ class BatchTest extends AnyFunSuite {
             .onCancel(IO.println)
             .onKickoff(IO.println)
             .onComplete((job, _) => IO.println(job))
-            .withPredicate(identity))
+            .contramap(_ => true)
+        )
         .map { qr =>
           assert(!qr.jobs.head.done)
           assert(qr.jobs(1).done)
@@ -71,9 +71,13 @@ class BatchTest extends AnyFunSuite {
           "f" -> IO.sleep(4.seconds)
         )
         .renameJobs(_ + ":test")
-        .quasiBatch(TraceJob
-          .json[IO, Json](ga, _.sendSuccessTo(_.void).sendKickoffTo(_.void).sendFailureTo(_.void))
-          .contramap(_ => Json.Null))
+        .quasiBatch(
+          TraceJob
+            .json(ga)
+            .sendSuccessTo(_.void)
+            .sendKickoffTo(_.void)
+            .sendFailureTo(_.void)
+            .contramap(_ => Json.Null))
         .map { qr =>
           assert(qr.jobs.head.done)
           assert(qr.jobs(1).done)
@@ -108,8 +112,8 @@ class BatchTest extends AnyFunSuite {
           "b" -> IO.sleep(2.seconds),
           "c" -> IO.sleep(3.seconds),
           "d" -> IO.sleep(4.seconds))
-        .map(_ => true)
-        .measuredValue(TraceJob.json[IO, Json](ga).contramap(_.asJson))
+        .withPredicate(_ => true)
+        .measuredValue(TraceJob.standard[IO, Json](ga).contramap(_.asJson))
         .memoizedAcquire
         .use(_.map(_.batch.jobs.forall(_.done)))
         .map(assert(_))
@@ -126,7 +130,7 @@ class BatchTest extends AnyFunSuite {
           "b" -> IO.sleep(2.seconds),
           "c" -> IO.raiseError(new Exception),
           "d" -> IO.sleep(1.seconds))
-        .measuredValue(TraceJob.json(ga, _.sendSuccessTo(_.herald.done)))
+        .measuredValue(TraceJob.standard(ga))
         .use_
     }.map(checkJson).evalTap(console.text[IO]).compile.drain.unsafeRunSync()
   }
@@ -201,7 +205,7 @@ class BatchTest extends AnyFunSuite {
           .flatMap(_ => job("d", IO.println(4)))
           .flatMap(_ => job("e", agent.adhoc.report))
           .flatMap(_ => job("f", IO.println(6)))
-          .quasiBatch(TraceJob.json(agent))
+          .quasiBatch(TraceJob.standard(agent))
           .use(agent.herald.done(_) >> agent.adhoc.report)
       }
     }.evalTap(console.text[IO]).compile.drain.unsafeRunSync()
@@ -222,7 +226,7 @@ class BatchTest extends AnyFunSuite {
             c <- job("g", IO.println("c").as(30))
           } yield a + b + c
         }
-        .measuredValue(TraceJob.json(agent))
+        .measuredValue(TraceJob.standard(agent))
         .use { qr =>
           assert(qr.value == 60)
           agent.adhoc.report
@@ -247,9 +251,7 @@ class BatchTest extends AnyFunSuite {
             c <- job("c", IO.println("c").as(30))
           } yield a + b + c
         }
-        .quasiBatch(TraceJob.json(
-          agent,
-          _.sendKickoffTo(_.herald.info).sendSuccessTo(_.herald.done).sendFailureTo(_.herald.warn)))
+        .quasiBatch(TraceJob.standard(agent))
         .use { qr =>
           assert(qr.jobs.head.done)
           assert(qr.jobs(1).done)
@@ -267,7 +269,7 @@ class BatchTest extends AnyFunSuite {
       agent
         .batch("monadic")
         .monadic(job => job("a" -> IO(0)))
-        .measuredValue(TraceJob.json(agent))
+        .measuredValue(TraceJob.standard(agent))
         .use(qr => agent.adhoc.report >> agent.herald.info(qr.batch))
     }.evalTap(console.text[IO]).compile.drain.unsafeRunSync()
   }
@@ -293,7 +295,7 @@ class BatchTest extends AnyFunSuite {
             b <- p2
           } yield a + b
         }
-        .quasiBatch(TraceJob.json(agent, _.sendKickoffTo(_.herald.info).sendSuccessTo(_.console.info)))
+        .quasiBatch(TraceJob.standard(agent))
         .use { qr =>
           val details = qr.jobs
           assert(details.head.job.name === "1")
@@ -359,8 +361,7 @@ class BatchTest extends AnyFunSuite {
       agent
         .batch("sorted.sequential")
         .sequential(jobs*)
-        .measuredValue(
-          TraceJob.scalarRate[IO](agent, _.sendFailureTo(_.error)).contramap(x => (x * 10.0d).each))
+        .measuredValue(TraceJob.scalarRate[IO](agent).contramap(x => (x * 10.0d).each))
         .use { case MeasuredValue(br, rst) =>
           IO {
             assert(rst.head == 1)
