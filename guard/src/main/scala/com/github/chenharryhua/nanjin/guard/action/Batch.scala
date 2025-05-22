@@ -61,10 +61,10 @@ object Batch {
 
   private type DoMeasurement[F[_]] = Kleisli[F, MeasuredJob, Unit]
 
-  final private case class MeasureJob[F[_]](measure: DoMeasurement[F], activeGauge: ActiveGauge[F])
+  final private case class JobGauges[F[_]](measure: DoMeasurement[F], activeGauge: ActiveGauge[F])
 
   private def createMeasure[F[_]](mtx: Metrics[F], size: Int, kind: BatchKind, mode: BatchMode)(implicit
-    F: Async[F]): Resource[F, MeasureJob[F]] =
+    F: Async[F]): Resource[F, JobGauges[F]] =
     for {
       active <- mtx.activeGauge("active")
       percentile <- mtx
@@ -72,19 +72,19 @@ object Batch {
         .evalTap(_.incDenominator(size.toLong))
       progress <- Resource.eval(F.ref[List[MeasuredJob]](Nil))
       _ <- mtx.gauge("completed jobs").register(progress.get.map(toJson))
-    } yield MeasureJob(
+    } yield JobGauges(
       Kleisli { (detail: MeasuredJob) =>
         F.uncancelable(_ => percentile.incNumerator(1) *> progress.update(_.appended(detail)))
       },
       active)
 
   private def createMeasure[F[_]](mtx: Metrics[F], kind: BatchKind)(implicit
-    F: Async[F]): Resource[F, MeasureJob[F]] =
+    F: Async[F]): Resource[F, JobGauges[F]] =
     for {
       active <- mtx.activeGauge("active")
       progress <- Resource.eval(F.ref[List[MeasuredJob]](Nil))
       _ <- mtx.gauge(show"${BatchMode.Monadic} $kind completed").register(progress.get.map(toJson))
-    } yield MeasureJob(
+    } yield JobGauges(
       Kleisli((jr: MeasuredJob) => F.uncancelable(_ => progress.update(_.appended(jr)))),
       active)
 
@@ -156,7 +156,7 @@ object Batch {
 
     override def quasiBatch(tracer: TraceJob[F, A]): Resource[F, MeasuredBatch] = {
 
-      def exec(mj: MeasureJob[F]): F[(FiniteDuration, List[MeasuredJob])] =
+      def exec(mj: JobGauges[F]): F[(FiniteDuration, List[MeasuredJob])] =
         F.timed(F.parTraverseN(parallelism)(jobs) { case (job, fa) =>
           val jobId = BatchJobID(job, metrics.metricLabel, mode, BatchKind.Quasi)
           tracer.kickoff(jobId) *>
@@ -176,7 +176,7 @@ object Batch {
 
     override def measuredValue(tracer: TraceJob[F, A]): Resource[F, MeasuredValue[List[A]]] = {
 
-      def exec(mj: MeasureJob[F]): F[(FiniteDuration, List[(MeasuredJob, A)])] =
+      def exec(mj: JobGauges[F]): F[(FiniteDuration, List[(MeasuredJob, A)])] =
         F.timed(F.parTraverseN(parallelism)(jobs) { case (job, fa) =>
           val jobId = BatchJobID(job, metrics.metricLabel, mode, BatchKind.Value)
           tracer.kickoff(jobId) *>
@@ -234,7 +234,7 @@ object Batch {
 
     override def quasiBatch(tracer: TraceJob[F, A]): Resource[F, MeasuredBatch] = {
 
-      def exec(mj: MeasureJob[F]): F[List[MeasuredJob]] =
+      def exec(mj: JobGauges[F]): F[List[MeasuredJob]] =
         jobs.traverse { case (job, fa) =>
           val jobId = BatchJobID(job, metrics.metricLabel, mode, BatchKind.Quasi)
           tracer.kickoff(jobId) *>
@@ -252,7 +252,7 @@ object Batch {
 
     override def measuredValue(tracer: TraceJob[F, A]): Resource[F, MeasuredValue[List[A]]] = {
 
-      def exec(mj: MeasureJob[F]): F[List[(MeasuredJob, A)]] =
+      def exec(mj: JobGauges[F]): F[List[(MeasuredJob, A)]] =
         jobs.traverse { case (job, fa) =>
           val jobId = BatchJobID(job, metrics.metricLabel, mode, BatchKind.Value)
 
@@ -500,7 +500,7 @@ object Batch {
       }
 
       def measuredValue(tracer: TraceJob[F, Json]): Resource[F, MeasuredValue[T]] =
-        createMeasure[F](metrics, BatchKind.Value).flatMap { case MeasureJob(measure, activeGauge) =>
+        createMeasure[F](metrics, BatchKind.Value).flatMap { case JobGauges(measure, activeGauge) =>
           kleisli
             .run(Callbacks[F](measure, tracer, BatchKind.Value))
             .run(1)
@@ -510,7 +510,7 @@ object Batch {
         }.rethrow
 
       def quasiBatch(tracer: TraceJob[F, Json]): Resource[F, MeasuredBatch] =
-        createMeasure[F](metrics, BatchKind.Quasi).flatMap { case MeasureJob(measure, activeGauge) =>
+        createMeasure[F](metrics, BatchKind.Quasi).flatMap { case JobGauges(measure, activeGauge) =>
           kleisli
             .run(Callbacks[F](measure, tracer, BatchKind.Quasi))
             .run(1)
