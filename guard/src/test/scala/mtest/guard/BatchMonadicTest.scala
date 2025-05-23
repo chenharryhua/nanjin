@@ -26,7 +26,7 @@ class BatchMonadicTest extends AnyFunSuite {
             c <- job("c" -> IO(3))
           } yield a + b + c
         }
-        .batchValue(TraceJob.universal(agent))
+        .batchValue(TraceJob(agent).standard)
     }.compile.lastOrError.unsafeRunSync()
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
   }
@@ -78,7 +78,7 @@ class BatchMonadicTest extends AnyFunSuite {
             c <- job("c" -> IO(3))
           } yield a + c
         }
-        .batchValue(tracer |+| TraceJob.json(agent))
+        .batchValue(tracer |+| TraceJob(agent).standard)
     }.evalTap(console.text[IO]).compile.lastOrError.unsafeRunSync()
 
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
@@ -109,7 +109,7 @@ class BatchMonadicTest extends AnyFunSuite {
             c <- job("c" -> IO(3))
           } yield a + c
         }
-        .batchValue(tracer |+| TraceJob.json(agent))
+        .batchValue(tracer |+| TraceJob(agent).standard)
     }.evalTap(console.text[IO]).compile.lastOrError.unsafeRunSync()
 
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)

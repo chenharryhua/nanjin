@@ -3,8 +3,8 @@ package com.github.chenharryhua.nanjin.guard.action
 import cats.implicits.catsSyntaxFlatMapOps
 import cats.{Applicative, Monad, Monoid}
 import com.github.chenharryhua.nanjin.guard.service.Agent
-import io.circe.Json
 import io.circe.syntax.EncoderOps
+import io.circe.{Encoder, Json}
 import squants.Dimensionless
 import squants.information.Information
 
@@ -46,9 +46,9 @@ object TraceJob {
     def contramap[B](f: B => A): GenericTracer[F, B] =
       new GenericTracer[F, B](
         _completed = (b, job) => _completed(f(b), job),
-        _errored,
-        _canceled,
-        _kickoff
+        _errored = this._errored,
+        _canceled = this._canceled,
+        _kickoff = this._kickoff
       )
 
     def onComplete(f: (A, JobResultState) => F[Unit]): GenericTracer[F, A]      = copy(_completed = f)
@@ -70,13 +70,12 @@ object TraceJob {
    */
 
   final class JsonTracer[F[_], A] private (
-    private val _agent: Agent[F],
-    private val _translate: (A, JobResultState) => Json,
-    private val _kickoff: Json => F[Unit],
-    private val _failure: Json => F[Unit],
-    private val _success: Json => F[Unit],
-    private val _canceled: Json => F[Unit],
-    private val _errored: (Throwable, Json) => F[Unit]
+    _translate: (A, JobResultState) => Json,
+    _kickoff: Json => F[Unit],
+    _failure: Json => F[Unit],
+    _success: Json => F[Unit],
+    _canceled: Json => F[Unit],
+    _errored: (Throwable, Json) => F[Unit]
   ) extends TraceJob[F, A] {
     override private[action] def kickoff(bj: BatchJob): F[Unit] =
       _kickoff(Json.obj("kickoff" -> bj.asJson))
@@ -94,7 +93,6 @@ object TraceJob {
 
     def contramap[B](f: B => A): JsonTracer[F, B] =
       new JsonTracer[F, B](
-        _agent = this._agent,
         _translate = (b, jo) => this._translate(f(b), jo),
         _kickoff = this._kickoff,
         _failure = this._failure,
@@ -102,6 +100,39 @@ object TraceJob {
         _canceled = this._canceled,
         _errored = this._errored
       )
+  }
+
+  private object JsonTracer {
+    def apply[F[_], A](translate: (A, JobResultState) => Json)(redirect: Redirect[F]): JsonTracer[F, A] =
+      new JsonTracer[F, A](
+        _translate = translate,
+        _kickoff = redirect._kickoff,
+        _failure = redirect._failure,
+        _success = redirect._success,
+        _canceled = redirect._canceled,
+        _errored = redirect._errored
+      )
+  }
+
+  final class Redirect[F[_]] private[TraceJob] (
+    private[TraceJob] val _agent: Agent[F],
+    private[TraceJob] val _kickoff: Json => F[Unit],
+    private[TraceJob] val _failure: Json => F[Unit],
+    private[TraceJob] val _success: Json => F[Unit],
+    private[TraceJob] val _canceled: Json => F[Unit],
+    private[TraceJob] val _errored: (Throwable, Json) => F[Unit]) {
+    private def copy(
+      _kickoff: Json => F[Unit] = this._kickoff,
+      _failure: Json => F[Unit] = this._failure,
+      _success: Json => F[Unit] = this._success
+    ): Redirect[F] = new Redirect[F](
+      _agent = this._agent,
+      _kickoff = _kickoff,
+      _failure = _failure,
+      _success = _success,
+      _canceled = this._canceled,
+      _errored = this._errored
+    )
 
     object anchor {
       object herald {
@@ -119,66 +150,47 @@ object TraceJob {
       val void: Json => F[Unit]  = _agent.console.void(_)
     }
 
-    private def copy(
-      _translate: (A, JobResultState) => Json = this._translate,
-      _kickoff: Json => F[Unit] = this._kickoff,
-      _failure: Json => F[Unit] = this._failure,
-      _success: Json => F[Unit] = this._success
-    ): JsonTracer[F, A] = new JsonTracer[F, A](
-      _agent = this._agent,
-      _translate = _translate,
-      _kickoff = _kickoff,
-      _failure = _failure,
-      _success = _success,
-      _canceled = this._canceled,
-      _errored = this._errored
-    )
-
-    def sendKickoffTo(f: anchor.type => Json => F[Unit]): JsonTracer[F, A] =
+    def sendKickoffTo(f: anchor.type => Json => F[Unit]): Redirect[F] =
       copy(_kickoff = f(anchor))
 
-    def sendSuccessTo(f: anchor.type => Json => F[Unit]): JsonTracer[F, A] =
+    def sendSuccessTo(f: anchor.type => Json => F[Unit]): Redirect[F] =
       copy(_success = f(anchor))
 
-    def sendFailureTo(f: anchor.type => Json => F[Unit]): JsonTracer[F, A] =
+    def sendFailureTo(f: anchor.type => Json => F[Unit]): Redirect[F] =
       copy(_failure = f(anchor))
 
-    def withTranslate(f: (A, JobResultState) => Json): JsonTracer[F, A] =
-      copy(_translate = f)
+    def universal[A](f: (A, JobResultState) => Json): JsonTracer[F, A] =
+      JsonTracer[F, A](f)(this)
+
+    def standard[A: Encoder]: JsonTracer[F, A] =
+      universal[A]((a, jrs) => Json.obj("outcome" -> a.asJson).deepMerge(jrs.asJson))
+
+    def json: JsonTracer[F, Json] = standard[Json]
+
+    def dataRate: JsonTracer[F, Information] = {
+      def translate(number: Information, jrs: JobResultState): Json =
+        Json.obj("outcome" -> jsonDataRate(jrs.took, number)).deepMerge(jrs.asJson)
+
+      universal[Information](translate)
+    }
+
+    def scalarRate: JsonTracer[F, Dimensionless] = {
+      def translate(number: Dimensionless, jrs: JobResultState): Json =
+        Json.obj("outcome" -> jsonScalarRate(jrs.took, number)).deepMerge(jrs.asJson)
+
+      universal[Dimensionless](translate)
+    }
   }
 
-  private object JsonTracer {
-    def apply[F[_], A](agent: Agent[F], translate: (A, JobResultState) => Json): JsonTracer[F, A] =
-      new JsonTracer[F, A](
-        _agent = agent,
-        _translate = translate,
-        _kickoff = agent.console.info(_),
-        _failure = agent.herald.warn(_),
-        _success = agent.console.done(_),
-        _canceled = agent.console.warn(_),
-        _errored = (ex, js) => agent.herald.error(ex)(js)
-      )
-  }
-
-  def universal[F[_], A](agent: Agent[F]): JsonTracer[F, A] =
-    JsonTracer[F, A](agent, (_, jrs) => jrs.asJson)
-
-  def json[F[_]](agent: Agent[F]): JsonTracer[F, Json] =
-    JsonTracer[F, Json](agent, (a, jrs) => Json.obj("outcome" -> a).deepMerge(jrs.asJson))
-
-  def dataRate[F[_]](agent: Agent[F]): JsonTracer[F, Information] = {
-    def translate(number: Information, jrs: JobResultState): Json =
-      Json.obj("outcome" -> jsonDataRate(jrs.took, number)).deepMerge(jrs.asJson)
-
-    JsonTracer[F, Information](agent, translate)
-  }
-
-  def scalarRate[F[_]](agent: Agent[F]): JsonTracer[F, Dimensionless] = {
-    def translate(number: Dimensionless, jrs: JobResultState): Json =
-      Json.obj("outcome" -> jsonScalarRate(jrs.took, number)).deepMerge(jrs.asJson)
-
-    JsonTracer[F, Dimensionless](agent, translate)
-  }
+  def apply[F[_]](agent: Agent[F]): Redirect[F] =
+    new Redirect[F](
+      _agent = agent,
+      _kickoff = agent.console.info(_),
+      _failure = agent.herald.warn(_),
+      _success = agent.console.done(_),
+      _canceled = agent.console.warn(_),
+      _errored = (ex, js) => agent.herald.error(ex)(js)
+    )
 
   implicit def monoidTraceJob[F[_]: Monad, A]: Monoid[TraceJob[F, A]] =
     new Monoid[TraceJob[F, A]] {

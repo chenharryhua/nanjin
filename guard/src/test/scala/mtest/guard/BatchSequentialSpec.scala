@@ -21,7 +21,7 @@ class BatchSequentialSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
     "good job".in {
       val jobs = List("a" -> IO(1), "b" -> IO(2), "c" -> IO(3), "d" -> IO(4), "e" -> IO(5))
       val se = service.eventStreamR { agent =>
-        agent.batch("good job").sequential(jobs*).quasiBatch(TraceJob.universal(agent))
+        agent.batch("good job").sequential(jobs*).quasiBatch(TraceJob(agent).standard)
       }.evalTap(console.text[IO]).compile.lastOrError
       se.asserting(_.asInstanceOf[ServiceStop].cause.exitCode.shouldBe(0))
     }
@@ -30,7 +30,7 @@ class BatchSequentialSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
       val jobs =
         List("a" -> IO(1), "b" -> IO.raiseError(new Exception()), "c" -> IO(3), "d" -> IO(4), "e" -> IO(5))
       val se = service.eventStreamR { agent =>
-        val result = agent.batch("exception").sequential(jobs*).quasiBatch(TraceJob.universal(agent))
+        val result = agent.batch("exception").sequential(jobs*).quasiBatch(TraceJob(agent).standard)
         result.asserting { mb =>
           mb.jobs.head.done.shouldBe(true)
           mb.jobs(1).done.shouldBe(false)
@@ -51,7 +51,7 @@ class BatchSequentialSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
             .batch("predicate")
             .sequential(jobs*)
             .withPredicate(_ > 3)
-            .quasiBatch(TraceJob.universal[IO, Int](agent).sendKickoffTo(_.void).sendSuccessTo(_.herald.done))
+            .quasiBatch(TraceJob(agent).sendKickoffTo(_.void).sendSuccessTo(_.herald.done).standard)
         result.asserting { mb =>
           mb.jobs.head.done.shouldBe(false)
           mb.jobs(1).done.shouldBe(false)
@@ -68,7 +68,7 @@ class BatchSequentialSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
     "good job".in {
       val jobs = List("a" -> IO(1), "b" -> IO(2), "c" -> IO(3), "d" -> IO(4), "e" -> IO(5))
       val se = service.eventStreamR { agent =>
-        agent.batch("good job").sequential(jobs*).batchValue(TraceJob.universal(agent))
+        agent.batch("good job").sequential(jobs*).batchValue(TraceJob(agent).standard)
       }.evalTap(console.text[IO]).compile.lastOrError
       se.asserting(_.asInstanceOf[ServiceStop].cause.exitCode.shouldBe(0))
     }
