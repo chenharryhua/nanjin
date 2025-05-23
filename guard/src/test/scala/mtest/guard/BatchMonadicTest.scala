@@ -26,7 +26,7 @@ class BatchMonadicTest extends AnyFunSuite {
             c <- job("c" -> IO(3))
           } yield a + b + c
         }
-        .batchValue(TraceJob.standard(agent))
+        .batchValue(TraceJob.universal(agent))
     }.compile.lastOrError.unsafeRunSync()
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
   }
@@ -36,8 +36,8 @@ class BatchMonadicTest extends AnyFunSuite {
     var errorJob: JobResultState     = null
     val tracer = TraceJob
       .generic[IO, Json]
-      .onComplete((jo, _) => IO { completedJob = jo })
-      .onError((jo, _) => IO { errorJob = jo })
+      .onComplete((_, jo) => IO { completedJob = jo })
+      .onError((_, jo) => IO { errorJob = jo })
     val se = service.eventStreamR { agent =>
       val res = agent
         .batch("exception")
@@ -66,8 +66,8 @@ class BatchMonadicTest extends AnyFunSuite {
     var errorJob: JobResultState           = null
     val tracer: TraceJob[IO, Json] = TraceJob
       .generic[IO, Json]
-      .onComplete((jo, _) => IO { completedJob = jo :: completedJob })
-      .onError((jo, _) => IO { errorJob = jo })
+      .onComplete((_, jo) => IO { completedJob = jo :: completedJob })
+      .onError((_, jo) => IO { errorJob = jo })
     val se = service.eventStreamR { agent =>
       agent
         .batch("invincible")
@@ -98,7 +98,7 @@ class BatchMonadicTest extends AnyFunSuite {
   test("4.invincible - false") {
     var completedJob: List[JobResultState] = Nil
     val tracer: TraceJob[IO, Json] =
-      TraceJob.generic[IO, Json].onComplete((jo, _) => IO { completedJob = jo :: completedJob })
+      TraceJob.generic[IO, Json].onComplete((_, jo) => IO { completedJob = jo :: completedJob })
     val se = service.eventStreamR { agent =>
       agent
         .batch("invincible")

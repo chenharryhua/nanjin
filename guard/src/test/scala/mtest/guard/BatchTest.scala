@@ -77,7 +77,8 @@ class BatchTest extends AnyFunSuite {
             .sendSuccessTo(_.void)
             .sendKickoffTo(_.void)
             .sendFailureTo(_.void)
-            .contramap(_ => Json.Null))
+            .contramap[Unit](_ => Json.Null)
+            .withTranslate((_, _) => Json.Null))
         .map { qr =>
           assert(qr.jobs.head.done)
           assert(qr.jobs(1).done)
@@ -114,7 +115,7 @@ class BatchTest extends AnyFunSuite {
           "c" -> IO.sleep(3.seconds),
           "d" -> IO.sleep(4.seconds))
         .withPredicate(_ => true)
-        .batchValue(TraceJob.standard[IO, Json](ga).contramap(_.asJson))
+        .batchValue(TraceJob.universal[IO, Json](ga).contramap(_.asJson))
         .memoizedAcquire
         .use(_.map(_.batch.jobs.forall(_.done)))
         .map(assert(_))
@@ -131,7 +132,7 @@ class BatchTest extends AnyFunSuite {
           "b" -> IO.sleep(2.seconds),
           "c" -> IO.raiseError(new Exception),
           "d" -> IO.sleep(1.seconds))
-        .batchValue(TraceJob.standard(ga))
+        .batchValue(TraceJob.universal(ga))
         .use_
     }.map(checkJson).evalTap(console.text[IO]).compile.drain.unsafeRunSync()
   }
@@ -206,7 +207,7 @@ class BatchTest extends AnyFunSuite {
           .flatMap(_ => job("d", IO.println(4)))
           .flatMap(_ => job("e", agent.adhoc.report))
           .flatMap(_ => job("f", IO.println(6)))
-          .quasiBatch(TraceJob.standard(agent))
+          .quasiBatch(TraceJob.universal(agent))
           .use(agent.herald.done(_) >> agent.adhoc.report)
       }
     }.evalTap(console.text[IO]).compile.drain.unsafeRunSync()
@@ -228,7 +229,7 @@ class BatchTest extends AnyFunSuite {
           } yield a + b + c
         }
         .withJobRename("monadic job rename:" + _)
-        .batchValue(TraceJob.standard(agent))
+        .batchValue(TraceJob.universal(agent))
         .use { qr =>
           assert(qr.value == 60)
           assert(qr.batch.jobs.forall(_.job.name.startsWith("monadic")))
@@ -254,7 +255,7 @@ class BatchTest extends AnyFunSuite {
             c <- job("c", IO.println("c").as(30))
           } yield a + b + c
         }
-        .quasiBatch(TraceJob.standard(agent))
+        .quasiBatch(TraceJob.universal(agent))
         .use { qr =>
           assert(qr.jobs.head.done)
           assert(qr.jobs(1).done)
@@ -272,7 +273,7 @@ class BatchTest extends AnyFunSuite {
       agent
         .batch("monadic")
         .monadic(job => job("a" -> IO(0)))
-        .batchValue(TraceJob.standard(agent))
+        .batchValue(TraceJob.universal(agent))
         .use(qr => agent.adhoc.report >> agent.herald.info(qr.batch))
     }.evalTap(console.text[IO]).compile.drain.unsafeRunSync()
   }
@@ -298,7 +299,7 @@ class BatchTest extends AnyFunSuite {
             b <- p2
           } yield a + b
         }
-        .quasiBatch(TraceJob.standard(agent))
+        .quasiBatch(TraceJob.universal(agent))
         .use { qr =>
           val details = qr.jobs
           assert(details.head.job.name === "1")

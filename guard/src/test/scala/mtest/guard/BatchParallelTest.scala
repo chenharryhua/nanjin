@@ -19,7 +19,7 @@ class BatchParallelTest extends AnyFunSuite {
   test("1.good") {
     val jobs = List("a" -> IO(1), "b" -> IO(2))
     val se = service.eventStreamR { agent =>
-      agent.batch("good job").parallel(jobs*).quasiBatch(TraceJob.standard(agent))
+      agent.batch("good job").parallel(jobs*).quasiBatch(TraceJob.universal(agent))
     }.compile.lastOrError.unsafeRunSync()
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
   }
@@ -30,7 +30,7 @@ class BatchParallelTest extends AnyFunSuite {
       "b" -> IO(2).delayBy(3.seconds),
       "c" -> IO.raiseError(new Exception()).delayBy(2.seconds))
     val se = service.eventStream { agent =>
-      agent.batch("exception.quasi").parallel(jobs*).quasiBatch(TraceJob.standard(agent)).use { mb =>
+      agent.batch("exception.quasi").parallel(jobs*).quasiBatch(TraceJob.universal(agent)).use { mb =>
         IO {
           assert(mb.jobs.head.done)
           assert(mb.jobs(1).done)
@@ -45,11 +45,11 @@ class BatchParallelTest extends AnyFunSuite {
     var errorJob: BatchJob    = null
     var canceledJob: BatchJob = null
     var succJob: BatchJob     = null
-    val tracer = TraceJob
+    val tracer: TraceJob.GenericTracer[IO, Int] = TraceJob
       .generic[IO, Int]
-      .onError((jo, _) => IO { errorJob = jo.job })
+      .onError((_, jo) => IO { errorJob = jo.job })
       .onCancel(jo => IO { canceledJob = jo })
-      .onComplete((jo, _) => IO { succJob = jo.job })
+      .onComplete((_, jo) => IO { succJob = jo.job })
     val jobs = List(
       "a" -> IO(1).delayBy(1.second),
       "b" -> IO(2).delayBy(3.seconds),
@@ -78,7 +78,7 @@ class BatchParallelTest extends AnyFunSuite {
         .batch("predicate.quasi")
         .parallel(jobs*)
         .withPredicate(_ > 2)
-        .quasiBatch(TraceJob.standard(agent))
+        .quasiBatch(TraceJob.universal(agent))
         .use { mb =>
           IO {
             assert(!mb.jobs.head.done)
@@ -96,7 +96,7 @@ class BatchParallelTest extends AnyFunSuite {
     val tracer = TraceJob
       .generic[IO, Int]
       .onCancel(jo => IO { canceledJob = jo })
-      .onComplete((jo, _) => IO { completedJob = jo :: completedJob })
+      .onComplete((_, jo) => IO { completedJob = jo :: completedJob })
     val jobs =
       List("a" -> IO(1).delayBy(1.second), "b" -> IO(2).delayBy(2.seconds), "c" -> IO(3).delayBy(3.seconds))
     val se = service.eventStream { agent =>
