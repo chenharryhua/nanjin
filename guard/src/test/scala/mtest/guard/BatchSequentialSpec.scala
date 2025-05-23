@@ -3,16 +3,17 @@ package mtest.guard
 import cats.effect.IO
 import cats.effect.testing.scalatest.AsyncIOSpec
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.action.{Batch, TraceJob}
+import com.github.chenharryhua.nanjin.guard.action.TraceJob
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStop
 import com.github.chenharryhua.nanjin.guard.observers.console
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import org.scalatest.freespec.AsyncFreeSpec
 import org.scalatest.matchers.should.Matchers
+import com.github.chenharryhua.nanjin.guard.action.PostConditionUnsatisfied
 
-class SequentialSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
+class BatchSequentialSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
   private val service: ServiceGuard[IO] =
-    TaskGuard[IO]("batch").service("batch")
+    TaskGuard[IO]("batch").service("sequential")
 
   private val tracer = TraceJob.generic[IO, Int]
 
@@ -67,7 +68,7 @@ class SequentialSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
     "good job".in {
       val jobs = List("a" -> IO(1), "b" -> IO(2), "c" -> IO(3), "d" -> IO(4), "e" -> IO(5))
       val se = service.eventStreamR { agent =>
-        agent.batch("good job").sequential(jobs*).measuredValue(TraceJob.standard(agent))
+        agent.batch("good job").sequential(jobs*).batchValue(TraceJob.standard(agent))
       }.evalTap(console.text[IO]).compile.lastOrError
       se.asserting(_.asInstanceOf[ServiceStop].cause.exitCode.shouldBe(0))
     }
@@ -84,10 +85,10 @@ class SequentialSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
         val result = agent
           .batch("exception")
           .sequential(jobs*)
-          .measuredValue(tracer.onError { (jo, oc) =>
+          .batchValue(tracer.onError { (jo, oc) =>
             IO {
               assert(!jo.done)
-              assert(jo.job.job.index == 2)
+              assert(jo.job.index == 2)
               assert(oc.getMessage == "abc")
             }.void
           })
@@ -105,14 +106,14 @@ class SequentialSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
             .batch("predicate")
             .sequential(jobs*)
             .withPredicate(_ > 3)
-            .measuredValue(tracer.onComplete { (jo, oc) =>
+            .batchValue(tracer.onComplete { (jo, oc) =>
               IO {
                 assert(!jo.done)
-                assert(jo.job.job.index == 1)
+                assert(jo.job.index == 1)
                 assert(oc == 1)
               }.void
             })
-        result.assertThrowsError[Batch.PostConditionUnsatisfied](_.job.index.shouldBe(1))
+        result.assertThrowsError[PostConditionUnsatisfied](_.job.index.shouldBe(1))
       }.evalTap(console.text[IO]).compile.lastOrError
       se.asserting(_.asInstanceOf[ServiceStop].cause.exitCode.shouldBe(0))
     }

@@ -4,13 +4,13 @@ import cats.effect.IO
 import cats.effect.testing.scalatest.AsyncIOSpec
 import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.action.{Batch, MeasuredBatch, TraceJob}
+import com.github.chenharryhua.nanjin.guard.action.{BatchResultState, TraceJob}
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStop
 import com.github.chenharryhua.nanjin.guard.observers.console
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
-import io.circe.Json
 import org.scalatest.freespec.AsyncFreeSpec
 import org.scalatest.matchers.should.Matchers
+import com.github.chenharryhua.nanjin.guard.action.PostConditionUnsatisfied
 
 class BatchSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
   private val service: ServiceGuard[IO] =
@@ -19,7 +19,7 @@ class BatchSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
   "monadic" -
     "filter - quasi".in {
       val se = service.eventStream { agent =>
-        val result: IO[MeasuredBatch] = agent
+        val result: IO[BatchResultState] = agent
           .batch("monadic")
           .monadic { job =>
             for {
@@ -56,11 +56,11 @@ class BatchSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
             c <- job("c", IO(3))
           } yield a + b + c
         }
-        .measuredValue(TraceJob.standard(agent))
+        .batchValue(TraceJob.standard(agent))
         .map(_.value)
         .memoizedAcquire
         .use(identity)
-      result.assertThrowsError[Batch.PostConditionUnsatisfied](_.job.name.shouldBe("b")).void
+      result.assertThrowsError[PostConditionUnsatisfied](_.job.name.shouldBe("b")).void
     }.compile.lastOrError.unsafeRunSync()
 
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
@@ -73,12 +73,11 @@ class BatchSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
         .monadic { job =>
           for {
             a <- job("a", IO(1))
-            _ <- job.invincible("b", IO.raiseError[Boolean](new Exception()))(
-              _.withTranslate(Json.fromBoolean).withPredicate(identity))
+            _ <- job.invincible("b", IO.raiseError[Boolean](new Exception()))
             c <- job("c", IO(2))
           } yield a + c
         }
-        .measuredValue(TraceJob.standard(agent))
+        .batchValue(TraceJob.standard(agent))
         .use(qr => agent.adhoc.report.as(qr))
 
       result.asserting(_.value.shouldBe(3)) >>

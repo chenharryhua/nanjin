@@ -46,22 +46,40 @@ object BatchMode {
   }
 }
 
-/** @param name
-  *   job name
-  * @param index
-  *   one based index
-  */
-final case class BatchJob(name: String, index: Int)
-final case class MeasuredJob(job: BatchJob, took: Duration, done: Boolean)
+final case class BatchJob(name: String, index: Int, label: MetricLabel, mode: BatchMode, kind: BatchKind) {
+  val batch: String       = label.label
+  val domain: String      = label.domain.value
+  val indexedName: String = s"job-$index ($name)"
+}
+object BatchJob {
+  implicit val encoderBatchJob: Encoder[BatchJob] =
+    (a: BatchJob) =>
+      Json.obj(
+        show"job-${a.index}" -> Json.fromString(a.name),
+        "batch" -> Json.fromString(a.batch),
+        "domain" -> Json.fromString(a.domain),
+        "mode" -> Json.fromString(a.mode.show),
+        "kind" -> Json.fromString(a.kind.show)
+      )
+}
 
-final case class MeasuredBatch(
+final case class JobResultState(job: BatchJob, took: Duration, done: Boolean)
+object JobResultState {
+  implicit val encoderJobResultState: Encoder[JobResultState] =
+    (a: JobResultState) =>
+      Json
+        .obj("took" -> Json.fromString(durationFormatter.format(a.took)), "done" -> Json.fromBoolean(a.done))
+        .deepMerge(a.job.asJson)
+}
+
+final case class BatchResultState(
   label: MetricLabel,
   spent: Duration,
   mode: BatchMode,
   kind: BatchKind,
-  jobs: List[MeasuredJob])
-object MeasuredBatch {
-  implicit val encoderBatchMeasurement: Encoder[MeasuredBatch] = { (br: MeasuredBatch) =>
+  jobs: List[JobResultState])
+object BatchResultState {
+  implicit val encoderBatchResultState: Encoder[BatchResultState] = { (br: BatchResultState) =>
     val (done, fail) = br.jobs.partition(_.done)
     Json.obj(
       "batch" -> Json.fromString(br.label.label),
@@ -71,7 +89,7 @@ object MeasuredBatch {
       "spent" -> Json.fromString(durationFormatter.format(br.spent)),
       "done" -> Json.fromInt(done.length),
       "fail" -> Json.fromInt(fail.length),
-      "measurements" -> br.jobs
+      "results" -> br.jobs
         .map(jr =>
           Json.obj(
             show"job-${jr.job.index}" -> Json.fromString(jr.job.name),
@@ -83,34 +101,11 @@ object MeasuredBatch {
   }
 }
 
-/*
- * for Job life-cycle handler
- */
-
-final case class BatchJobID(job: BatchJob, label: MetricLabel, mode: BatchMode, kind: BatchKind)
-object BatchJobID {
-  implicit val encoderBatchJobID: Encoder[BatchJobID] =
-    (a: BatchJobID) =>
-      Json.obj(
-        show"job-${a.job.index}" -> Json.fromString(a.job.name),
-        "batch" -> Json.fromString(a.label.label),
-        "domain" -> Json.fromString(a.label.domain.value),
-        "mode" -> Json.fromString(a.mode.show),
-        "kind" -> Json.fromString(a.kind.show)
-      )
+final case class BatchResultValue[A](batch: BatchResultState, value: A)
+object BatchResultValue {
+  implicit def encoderBatchResultValue[A: Encoder]: Encoder[BatchResultValue[A]] =
+    (a: BatchResultValue[A]) => Json.obj("batch" -> a.batch.asJson, "value" -> a.value.asJson)
 }
 
-final case class JobOutcome(job: BatchJobID, took: Duration, done: Boolean)
-object JobOutcome {
-  implicit val encoderJobOutcome: Encoder[JobOutcome] =
-    (a: JobOutcome) =>
-      Json
-        .obj("took" -> Json.fromString(durationFormatter.format(a.took)), "done" -> Json.fromBoolean(a.done))
-        .deepMerge(a.job.asJson)
-}
-
-final case class MeasuredValue[A](batch: MeasuredBatch, value: A)
-object MeasuredValue {
-  implicit def encoderMeasuredValue[A: Encoder]: Encoder[MeasuredValue[A]] =
-    (a: MeasuredValue[A]) => Json.obj("batch" -> a.batch.asJson, "value" -> a.value.asJson)
-}
+final case class PostConditionUnsatisfied(job: BatchJob) extends Exception(
+      s"${job.indexedName} of batch(${job.batch}) in domain(${job.domain}) run to the end without exception but failed post-condition check")
