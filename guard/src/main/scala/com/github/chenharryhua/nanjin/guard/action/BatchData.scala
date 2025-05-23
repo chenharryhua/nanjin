@@ -72,6 +72,10 @@ object JobResultState {
         .deepMerge(a.job.asJson)
 }
 
+final case class JobResultValue[A](job: JobResultState, value: A) {
+  def map[B](f: A => B): JobResultValue[B] = copy(value = f(value))
+}
+
 final case class BatchResultState(
   label: MetricLabel,
   spent: Duration,

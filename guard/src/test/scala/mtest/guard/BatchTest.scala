@@ -100,7 +100,7 @@ class BatchTest extends AnyFunSuite {
           "a" -> IO.sleep(1.second).as(1.mb),
           "b" -> IO.sleep(2.seconds).as(2.tb),
           "c" -> IO.sleep(1.seconds).as(3.bytes))
-        .batchValue(TraceJob(agent).dataRate)
+        .batchValue(TraceJob(agent).informationRate)
         .use_
     }.map(checkJson).evalTap(console.text[IO]).compile.drain.unsafeRunSync()
   }
@@ -334,7 +334,7 @@ class BatchTest extends AnyFunSuite {
       agent
         .batch("sorted.parallel")
         .parallel(jobs*)
-        .batchValue(TraceJob(agent).dataRate.contramap(_.kb))
+        .batchValue(TraceJob(agent).informationRate.contramap(_.kb))
         .use { case BatchResultValue(br, rst) =>
           IO {
             assert(rst.head == 1)
@@ -364,7 +364,7 @@ class BatchTest extends AnyFunSuite {
       agent
         .batch("sorted.sequential")
         .sequential(jobs*)
-        .batchValue(TraceJob(agent).scalarRate.contramap(x => (x * 10.0d).each))
+        .batchValue(TraceJob(agent).dimensionlessRate.contramap(x => (x * 10.0d).each))
         .use { case BatchResultValue(br, rst) =>
           IO {
             assert(rst.head == 1)

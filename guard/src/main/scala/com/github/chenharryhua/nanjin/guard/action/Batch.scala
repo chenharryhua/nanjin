@@ -109,8 +109,8 @@ object Batch {
         canceled = tracer.canceled(job),
         errored = e => F.raiseError(shouldNeverHappenException(e)),
         completed = _.flatMap { case SingleJobOutcome(result, eoa) =>
-          val joc = JobResultState(job, result.took, result.done)
-          eoa.fold(tracer.errored(_, joc), tracer.completed(_, joc))
+          val jrs = JobResultState(job, result.took, result.done)
+          eoa.fold(tracer.errored(jrs, _), v => tracer.completed(JobResultValue(jrs, v)))
         }
       )
 
@@ -326,8 +326,8 @@ object Batch {
               .guaranteeCase {
                 case Outcome.Succeeded(fa) =>
                   fa.evalMap { case SingleJobOutcome(result, eoa) =>
-                    val joc = JobResultState(job, result.took, result.done)
-                    eoa.fold(tracer.errored(_, joc), a => tracer.completed(translate(a), joc))
+                    val jrs = JobResultState(job, result.took, result.done)
+                    eoa.fold(tracer.errored(jrs, _), a => tracer.completed(JobResultValue(jrs, translate(a))))
                   }
                 case Outcome.Errored(e) =>
                   Resource.raiseError[F, Unit, Throwable](shouldNeverHappenException(e))
@@ -366,8 +366,10 @@ object Batch {
               .guaranteeCase {
                 case Outcome.Succeeded(fa) =>
                   fa.evalMap { case SingleJobOutcome(result, eoa) =>
-                    val joc = JobResultState(job, result.took, result.done)
-                    eoa.fold(tracer.errored(_, joc), a => tracer.completed(Json.fromBoolean(a), joc))
+                    val jrs = JobResultState(job, result.took, result.done)
+                    eoa.fold(
+                      tracer.errored(jrs, _),
+                      a => tracer.completed(JobResultValue(jrs, Json.fromBoolean(a))))
                   }
                 case Outcome.Errored(e) =>
                   Resource.raiseError[F, Unit, Throwable](shouldNeverHappenException(e))
