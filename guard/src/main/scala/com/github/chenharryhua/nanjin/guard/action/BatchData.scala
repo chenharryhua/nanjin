@@ -11,13 +11,13 @@ import java.time.Duration
 import scala.util.Try
 import scala.util.matching.Regex
 
-sealed trait BatchKind
-object BatchKind {
-  case object Quasi extends BatchKind
-  case object Value extends BatchKind
-  implicit val showBatchKind: Show[BatchKind] = {
-    case Quasi => "quasi"
-    case Value => "value"
+sealed trait JobKind
+object JobKind {
+  case object Quasi extends JobKind
+  case object Value extends JobKind
+  implicit val showBatchKind: Show[JobKind] = {
+    case Quasi => "quasi" // tolerable - exception will be ignored
+    case Value => "value" // intolerable - exception will be propagated
   }
 }
 
@@ -46,7 +46,7 @@ object BatchMode {
   }
 }
 
-final case class BatchJob(name: String, index: Int, label: MetricLabel, mode: BatchMode, kind: BatchKind) {
+final case class BatchJob(name: String, index: Int, label: MetricLabel, mode: BatchMode, kind: JobKind) {
   val batch: String       = label.label
   val domain: String      = label.domain.value
   val indexedName: String = s"job-$index ($name)"
@@ -82,7 +82,6 @@ final case class BatchResultState(
   label: MetricLabel,
   spent: Duration,
   mode: BatchMode,
-  kind: BatchKind,
   jobs: List[JobResultState])
 object BatchResultState {
   implicit val encoderBatchResultState: Encoder[BatchResultState] = { (br: BatchResultState) =>
@@ -91,7 +90,6 @@ object BatchResultState {
       "batch" -> Json.fromString(br.label.label),
       "domain" -> Json.fromString(br.label.domain.value),
       "mode" -> Json.fromString(br.mode.show),
-      "kind" -> Json.fromString(br.kind.show),
       "spent" -> Json.fromString(durationFormatter.format(br.spent)),
       "done" -> Json.fromInt(done.length),
       "fail" -> Json.fromInt(fail.length),
@@ -99,6 +97,7 @@ object BatchResultState {
         .map(jr =>
           Json.obj(
             show"job-${jr.job.index}" -> Json.fromString(jr.job.name),
+            "kind" -> Json.fromString(jr.job.kind.show),
             "took" -> Json.fromString(durationFormatter.format(jr.took)),
             "done" -> Json.fromBoolean(jr.done)
           ))
