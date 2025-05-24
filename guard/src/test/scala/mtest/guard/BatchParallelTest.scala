@@ -47,9 +47,9 @@ class BatchParallelTest extends AnyFunSuite {
     var succJob: BatchJob     = null
     val tracer: TraceJob.GenericTracer[IO, Int] = TraceJob
       .generic[IO, Int]
-      .onError((_, jo) => IO { errorJob = jo.job })
+      .onError(jo => IO { errorJob = jo.resultState.job })
       .onCancel(jo => IO { canceledJob = jo })
-      .onComplete((_, jo) => IO { succJob = jo.job })
+      .onComplete(jo => IO { succJob = jo.resultState.job })
     val jobs = List(
       "a" -> IO(1).delayBy(1.second),
       "b" -> IO(2).delayBy(3.seconds),
@@ -96,7 +96,7 @@ class BatchParallelTest extends AnyFunSuite {
     val tracer = TraceJob
       .generic[IO, Int]
       .onCancel(jo => IO { canceledJob = jo })
-      .onComplete((_, jo) => IO { completedJob = jo :: completedJob })
+      .onComplete(jo => IO { completedJob = jo.resultState :: completedJob })
     val jobs =
       List("a" -> IO(1).delayBy(1.second), "b" -> IO(2).delayBy(2.seconds), "c" -> IO(3).delayBy(3.seconds))
     val se = service.eventStream { agent =>

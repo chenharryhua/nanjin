@@ -10,6 +10,7 @@ import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import org.scalatest.freespec.AsyncFreeSpec
 import org.scalatest.matchers.should.Matchers
 import com.github.chenharryhua.nanjin.guard.action.PostConditionUnsatisfied
+import com.github.chenharryhua.nanjin.guard.action.JobResultError
 
 class BatchSequentialSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
   private val service: ServiceGuard[IO] =
@@ -85,7 +86,7 @@ class BatchSequentialSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
         val result = agent
           .batch("exception")
           .sequential(jobs*)
-          .batchValue(tracer.onError { (oc, jo) =>
+          .batchValue(tracer.onError { case JobResultError(jo, oc) =>
             IO {
               assert(!jo.done)
               assert(jo.job.index == 2)
@@ -106,11 +107,11 @@ class BatchSequentialSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
             .batch("predicate")
             .sequential(jobs*)
             .withPredicate(_ > 3)
-            .batchValue(tracer.onComplete { (oc, jo) =>
+            .batchValue(tracer.onComplete { jo =>
               IO {
-                assert(!jo.done)
-                assert(jo.job.index == 1)
-                assert(oc == 1)
+                assert(!jo.resultState.done)
+                assert(jo.resultState.job.index == 1)
+                assert(jo.value == 1)
               }.void
             })
         result.assertThrowsError[PostConditionUnsatisfied](_.job.index.shouldBe(1))

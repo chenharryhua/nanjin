@@ -40,10 +40,10 @@ class BatchTest extends AnyFunSuite {
           TraceJob
             .generic[IO, Boolean]
             .contramap(identity[Boolean])
-            .onError((job, _) => IO.println(job))
+            .onError(IO.println)
             .onCancel(IO.println)
             .onKickoff(IO.println)
-            .onComplete((job, _) => IO.println(job))
+            .onComplete(IO.println)
             .contramap(_ => true)
         )
         .map { qr =>
@@ -116,7 +116,7 @@ class BatchTest extends AnyFunSuite {
         .withPredicate(_ => true)
         .batchValue(TraceJob(ga).json.contramap(_.asJson))
         .memoizedAcquire
-        .use(_.map(_.batch.jobs.forall(_.done)))
+        .use(_.map(_.resultState.jobs.forall(_.done)))
         .map(assert(_))
         .void
     }.map(checkJson).evalTap(console.text[IO]).compile.lastOrError.unsafeRunSync()
@@ -231,7 +231,7 @@ class BatchTest extends AnyFunSuite {
         .batchValue(TraceJob(agent).standard)
         .use { qr =>
           assert(qr.value == 60)
-          assert(qr.batch.jobs.forall(_.job.name.startsWith("monadic")))
+          assert(qr.resultState.jobs.forall(_.job.name.startsWith("monadic")))
           agent.adhoc.report
         }
     }.evalTap(console.text[IO]).compile.lastOrError.unsafeRunSync()
@@ -273,7 +273,7 @@ class BatchTest extends AnyFunSuite {
         .batch("monadic")
         .monadic(job => job("a" -> IO(0)))
         .batchValue(TraceJob(agent).standard)
-        .use(qr => agent.adhoc.report >> agent.herald.info(qr.batch))
+        .use(qr => agent.adhoc.report >> agent.herald.info(qr.resultState))
     }.evalTap(console.text[IO]).compile.drain.unsafeRunSync()
   }
 

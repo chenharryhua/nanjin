@@ -12,33 +12,33 @@ sealed trait TraceJob[F[_], A] {
   private[action] def kickoff(bj: BatchJob): F[Unit]
   private[action] def canceled(bj: BatchJob): F[Unit]
   private[action] def completed(jrv: JobResultValue[A]): F[Unit]
-  private[action] def errored(jrs: JobResultState, ex: Throwable): F[Unit]
+  private[action] def errored(jre: JobResultError): F[Unit]
 }
 
 object TraceJob {
 
   def noop[F[_], A](implicit F: Applicative[F]): TraceJob[F, A] =
     new TraceJob[F, A] {
-      override private[action] def errored(jrs: JobResultState, ex: Throwable): F[Unit] = F.unit
-      override private[action] def completed(jrv: JobResultValue[A]): F[Unit]           = F.unit
-      override private[action] def canceled(bj: BatchJob): F[Unit]                      = F.unit
-      override private[action] def kickoff(bj: BatchJob): F[Unit]                       = F.unit
+      override private[action] def errored(jre: JobResultError): F[Unit]      = F.unit
+      override private[action] def completed(jrv: JobResultValue[A]): F[Unit] = F.unit
+      override private[action] def canceled(bj: BatchJob): F[Unit]            = F.unit
+      override private[action] def kickoff(bj: BatchJob): F[Unit]             = F.unit
     }
 
   final class GenericTracer[F[_], A] private[TraceJob] (
     private val _completed: JobResultValue[A] => F[Unit],
-    private val _errored: (JobResultState, Throwable) => F[Unit],
+    private val _errored: JobResultError => F[Unit],
     private val _canceled: BatchJob => F[Unit],
     private val _kickoff: BatchJob => F[Unit]
   ) extends TraceJob[F, A] {
-    override private[action] def kickoff(bj: BatchJob): F[Unit]                       = _kickoff(bj)
-    override private[action] def canceled(bj: BatchJob): F[Unit]                      = _canceled(bj)
-    override private[action] def completed(jrv: JobResultValue[A]): F[Unit]           = _completed(jrv)
-    override private[action] def errored(jrs: JobResultState, ex: Throwable): F[Unit] = _errored(jrs, ex)
+    override private[action] def kickoff(bj: BatchJob): F[Unit]             = _kickoff(bj)
+    override private[action] def canceled(bj: BatchJob): F[Unit]            = _canceled(bj)
+    override private[action] def completed(jrv: JobResultValue[A]): F[Unit] = _completed(jrv)
+    override private[action] def errored(jre: JobResultError): F[Unit]      = _errored(jre)
 
     private def copy(
       _completed: JobResultValue[A] => F[Unit] = this._completed,
-      _errored: (JobResultState, Throwable) => F[Unit] = this._errored,
+      _errored: JobResultError => F[Unit] = this._errored,
       _canceled: BatchJob => F[Unit] = this._canceled,
       _kickoff: BatchJob => F[Unit] = this._kickoff): GenericTracer[F, A] =
       new GenericTracer[F, A](_completed, _errored, _canceled, _kickoff)
@@ -51,16 +51,16 @@ object TraceJob {
         _kickoff = this._kickoff
       )
 
-    def onComplete(f: JobResultValue[A] => F[Unit]): GenericTracer[F, A]        = copy(_completed = f)
-    def onError(f: (JobResultState, Throwable) => F[Unit]): GenericTracer[F, A] = copy(_errored = f)
-    def onCancel(f: BatchJob => F[Unit]): GenericTracer[F, A]                   = copy(_canceled = f)
-    def onKickoff(f: BatchJob => F[Unit]): GenericTracer[F, A]                  = copy(_kickoff = f)
+    def onComplete(f: JobResultValue[A] => F[Unit]): GenericTracer[F, A] = copy(_completed = f)
+    def onError(f: JobResultError => F[Unit]): GenericTracer[F, A]       = copy(_errored = f)
+    def onCancel(f: BatchJob => F[Unit]): GenericTracer[F, A]            = copy(_canceled = f)
+    def onKickoff(f: BatchJob => F[Unit]): GenericTracer[F, A]           = copy(_kickoff = f)
   }
 
   def generic[F[_], A](implicit F: Applicative[F]): GenericTracer[F, A] =
     new GenericTracer[F, A](
       _completed = _ => F.unit,
-      _errored = (_, _) => F.unit,
+      _errored = _ => F.unit,
       _canceled = _ => F.unit,
       _kickoff = _ => F.unit
     )
@@ -75,7 +75,7 @@ object TraceJob {
     _failure: Json => F[Unit],
     _success: Json => F[Unit],
     _canceled: Json => F[Unit],
-    _errored: (Json, Throwable) => F[Unit]
+    _errored: JobResultError => F[Unit]
   ) extends TraceJob[F, A] {
     override private[action] def kickoff(bj: BatchJob): F[Unit] =
       _kickoff(Json.obj("kickoff" -> bj.asJson))
@@ -85,11 +85,11 @@ object TraceJob {
 
     override private[action] def completed(jrv: JobResultValue[A]): F[Unit] = {
       val json = _translate(jrv)
-      if (jrv.job.done) _success(json) else _failure(json)
+      if (jrv.resultState.done) _success(json) else _failure(json)
     }
 
-    override private[action] def errored(jrs: JobResultState, ex: Throwable): F[Unit] =
-      _errored(jrs.asJson, ex)
+    override private[action] def errored(jre: JobResultError): F[Unit] =
+      _errored(jre)
 
     def contramap[B](f: B => A): JsonTracer[F, B] =
       new JsonTracer[F, B](
@@ -120,7 +120,7 @@ object TraceJob {
     private[TraceJob] val _failure: Json => F[Unit],
     private[TraceJob] val _success: Json => F[Unit],
     private[TraceJob] val _canceled: Json => F[Unit],
-    private[TraceJob] val _errored: (Json, Throwable) => F[Unit]) {
+    private[TraceJob] val _errored: JobResultError => F[Unit]) {
     private def copy(
       _kickoff: Json => F[Unit] = this._kickoff,
       _failure: Json => F[Unit] = this._failure,
@@ -160,7 +160,7 @@ object TraceJob {
       copy(_failure = f(anchor))
 
     def universal[A](f: (A, JobResultState) => Json): JsonTracer[F, A] =
-      JsonTracer[F, A](jrv => f(jrv.value, jrv.job))(this)
+      JsonTracer[F, A](jrv => f(jrv.value, jrv.resultState))(this)
 
     def standard[A: Encoder]: JsonTracer[F, A] =
       universal[A]((a, jrs) => Json.obj("outcome" -> a.asJson).deepMerge(jrs.asJson))
@@ -189,7 +189,7 @@ object TraceJob {
       _failure = agent.herald.warn(_),
       _success = agent.console.done(_),
       _canceled = agent.console.warn(_),
-      _errored = (js, ex) => agent.herald.error(ex)(js)
+      _errored = jre => agent.herald.error(jre.error)(jre.resultState)
     )
 
   implicit def monoidTraceJob[F[_]: Monad, A]: Monoid[TraceJob[F, A]] =
@@ -208,8 +208,8 @@ object TraceJob {
           override private[action] def completed(jrv: JobResultValue[A]): F[Unit] =
             x.completed(jrv) >> y.completed(jrv)
 
-          override private[action] def errored(jrs: JobResultState, ex: Throwable): F[Unit] =
-            x.errored(jrs, ex) >> y.errored(jrs, ex)
+          override private[action] def errored(jre: JobResultError): F[Unit] =
+            x.errored(jre) >> y.errored(jre)
         }
     }
 }
