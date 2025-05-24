@@ -1,7 +1,8 @@
 package com.github.chenharryhua.nanjin.guard.action
 
+import cats.effect.kernel.MonadCancel
 import cats.implicits.catsSyntaxFlatMapOps
-import cats.{Applicative, Monad, Monoid}
+import cats.{Applicative, Monoid}
 import com.github.chenharryhua.nanjin.guard.service.Agent
 import io.circe.syntax.EncoderOps
 import io.circe.{Encoder, Json}
@@ -103,7 +104,7 @@ object TraceJob {
   }
 
   private object JsonTracer {
-    def apply[F[_], A](translate: JobResultValue[A] => Json)(redirect: Redirect[F]): JsonTracer[F, A] =
+    def apply[F[_], A](translate: JobResultValue[A] => Json, redirect: Redirect[F]): JsonTracer[F, A] =
       new JsonTracer[F, A](
         _translate = translate,
         _kickoff = redirect._kickoff,
@@ -160,7 +161,7 @@ object TraceJob {
       copy(_failure = f(anchor))
 
     def universal[A](f: (A, JobResultState) => Json): JsonTracer[F, A] =
-      JsonTracer[F, A](jrv => f(jrv.value, jrv.resultState))(this)
+      JsonTracer[F, A](jrv => f(jrv.value, jrv.resultState), this)
 
     def standard[A: Encoder]: JsonTracer[F, A] =
       universal[A]((a, jrs) => Json.obj("outcome" -> a.asJson).deepMerge(jrs.asJson))
@@ -192,7 +193,7 @@ object TraceJob {
       _errored = jre => agent.herald.error(jre.error)(jre.resultState)
     )
 
-  implicit def monoidTraceJob[F[_]: Monad, A]: Monoid[TraceJob[F, A]] =
+  implicit def monoidTraceJob[F[_], A](implicit ev: MonadCancel[F, Throwable]): Monoid[TraceJob[F, A]] =
     new Monoid[TraceJob[F, A]] {
 
       override val empty: TraceJob[F, A] = noop[F, A]
@@ -200,16 +201,16 @@ object TraceJob {
       override def combine(x: TraceJob[F, A], y: TraceJob[F, A]): TraceJob[F, A] =
         new TraceJob[F, A] {
           override private[action] def kickoff(bj: BatchJob): F[Unit] =
-            x.kickoff(bj) >> y.kickoff(bj)
+            ev.uncancelable(_ => x.kickoff(bj) >> y.kickoff(bj))
 
           override private[action] def canceled(bj: BatchJob): F[Unit] =
-            x.canceled(bj) >> y.canceled(bj)
+            ev.uncancelable(_ => x.canceled(bj) >> y.canceled(bj))
 
           override private[action] def completed(jrv: JobResultValue[A]): F[Unit] =
-            x.completed(jrv) >> y.completed(jrv)
+            ev.uncancelable(_ => x.completed(jrv) >> y.completed(jrv))
 
           override private[action] def errored(jre: JobResultError): F[Unit] =
-            x.errored(jre) >> y.errored(jre)
+            ev.uncancelable(_ => x.errored(jre) >> y.errored(jre))
         }
     }
 }
