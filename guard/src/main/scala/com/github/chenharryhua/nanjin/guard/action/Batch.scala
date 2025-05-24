@@ -61,7 +61,7 @@ object Batch {
 
   final private case class JobGauges[F[_]](measure: DoMeasurement[F], activeGauge: ActiveGauge[F])
 
-  private def createMeasure[F[_]](mtx: Metrics[F], size: Int, kind: BatchKind, mode: BatchMode)(implicit
+  private def createJobGauges[F[_]](mtx: Metrics[F], size: Int, kind: BatchKind, mode: BatchMode)(implicit
     F: Async[F]): Resource[F, JobGauges[F]] =
     for {
       active <- mtx.activeGauge("active")
@@ -76,7 +76,7 @@ object Batch {
       },
       active)
 
-  private def createMeasure[F[_]](mtx: Metrics[F], kind: BatchKind)(implicit
+  private def createJobGauges[F[_]](mtx: Metrics[F], kind: BatchKind)(implicit
     F: Async[F]): Resource[F, JobGauges[F]] =
     for {
       active <- mtx.activeGauge("active")
@@ -109,8 +109,10 @@ object Batch {
         canceled = tracer.canceled(job),
         errored = e => F.raiseError(shouldNeverHappenException(e)),
         completed = _.flatMap { case SingleJobOutcome(result, eoa) =>
-          val joc = JobResultState(job, result.took, result.done)
-          eoa.fold(tracer.errored(_, joc), tracer.completed(_, joc))
+          val jrs = JobResultState(job, result.took, result.done)
+          eoa.fold(
+            ex => tracer.errored(JobResultError(jrs, ex)),
+            v => tracer.completed(JobResultValue(jrs, v)))
         }
       )
 
@@ -146,34 +148,34 @@ object Batch {
 
     override def quasiBatch(tracer: TraceJob[F, A]): Resource[F, BatchResultState] = {
 
-      def exec(mj: JobGauges[F]): F[(FiniteDuration, List[JobResultState])] =
+      def exec(jg: JobGauges[F]): F[(FiniteDuration, List[JobResultState])] =
         F.timed(F.parTraverseN(parallelism)(jobs) { case JobNameIndex(name, idx, fa) =>
           val job = BatchJob(name, idx, metrics.metricLabel, mode, BatchKind.Quasi)
           tracer.kickoff(job) *>
             F.timed(F.attempt(fa))
               .flatMap { case (fd: FiniteDuration, eoa: Either[Throwable, A]) =>
                 val result = JobResultState(job, fd.toJava, eoa.fold(_ => false, predicate.run))
-                mj.measure.run(result).as(SingleJobOutcome(result, eoa))
+                jg.measure.run(result).as(SingleJobOutcome(result, eoa))
               }
               .guaranteeCase(handleOutcome(job, tracer))
               .map(_.result)
-        }).guarantee(mj.activeGauge.deactivate)
+        }).guarantee(jg.activeGauge.deactivate)
 
-      createMeasure(metrics, jobs.size, BatchKind.Quasi, mode).evalMap(exec).map { case (fd, results) =>
+      createJobGauges(metrics, jobs.size, BatchKind.Quasi, mode).evalMap(exec).map { case (fd, results) =>
         BatchResultState(metrics.metricLabel, fd.toJava, mode, BatchKind.Quasi, results.sortBy(_.job.index))
       }
     }
 
     override def batchValue(tracer: TraceJob[F, A]): Resource[F, BatchResultValue[List[A]]] = {
 
-      def exec(mj: JobGauges[F]): F[(FiniteDuration, List[(JobResultState, A)])] =
+      def exec(jg: JobGauges[F]): F[(FiniteDuration, List[(JobResultState, A)])] =
         F.timed(F.parTraverseN(parallelism)(jobs) { case JobNameIndex(name, idx, fa) =>
           val job = BatchJob(name, idx, metrics.metricLabel, mode, BatchKind.Value)
           tracer.kickoff(job) *>
             F.timed(F.attempt(fa))
               .flatMap { case (fd: FiniteDuration, eoa: Either[Throwable, A]) =>
                 val result = JobResultState(job, fd.toJava, done = eoa.fold(_ => false, predicate.run))
-                mj.measure.run(result).as(SingleJobOutcome(result, eoa))
+                jg.measure.run(result).as(SingleJobOutcome(result, eoa))
               }
               .guaranteeCase(handleOutcome(job, tracer))
               .map { case SingleJobOutcome(result, eoa) =>
@@ -185,12 +187,12 @@ object Batch {
                 }
               }
               .rethrow
-        }).guarantee(mj.activeGauge.deactivate)
+        }).guarantee(jg.activeGauge.deactivate)
 
-      createMeasure(metrics, jobs.size, BatchKind.Value, mode).evalMap(exec).map { case (fd, results) =>
+      createJobGauges(metrics, jobs.size, BatchKind.Value, mode).evalMap(exec).map { case (fd, results) =>
         val sorted = results.sortBy(_._1.job.index)
-        val br     = BatchResultState(metrics.metricLabel, fd.toJava, mode, BatchKind.Value, sorted.map(_._1))
-        BatchResultValue(br, sorted.map(_._2))
+        val brs    = BatchResultState(metrics.metricLabel, fd.toJava, mode, BatchKind.Value, sorted.map(_._1))
+        BatchResultValue(brs, sorted.map(_._2))
       }
     }
 
@@ -224,20 +226,22 @@ object Batch {
 
     override def quasiBatch(tracer: TraceJob[F, A]): Resource[F, BatchResultState] = {
 
-      def exec(mj: JobGauges[F]): F[List[JobResultState]] =
+      def exec(jg: JobGauges[F]): F[List[JobResultState]] =
         jobs.traverse { case JobNameIndex(name, idx, fa) =>
           val job = BatchJob(name, idx, metrics.metricLabel, mode, BatchKind.Quasi)
           tracer.kickoff(job) *>
             F.timed(F.attempt(fa))
               .flatMap { case (fd: FiniteDuration, eoa: Either[Throwable, A]) =>
                 val result = JobResultState(job, fd.toJava, eoa.fold(_ => false, predicate.run))
-                mj.measure.run(result).as(SingleJobOutcome(result, eoa))
+                jg.measure.run(result).as(SingleJobOutcome(result, eoa))
               }
               .guaranteeCase(handleOutcome(job, tracer))
               .map(_.result)
-        }.guarantee(mj.activeGauge.deactivate)
+        }.guarantee(jg.activeGauge.deactivate)
 
-      createMeasure(metrics, jobs.size, BatchKind.Quasi, mode).evalMap(exec).map(batchResult(BatchKind.Quasi))
+      createJobGauges(metrics, jobs.size, BatchKind.Quasi, mode)
+        .evalMap(exec)
+        .map(batchResult(BatchKind.Quasi))
     }
 
     override def batchValue(tracer: TraceJob[F, A]): Resource[F, BatchResultValue[List[A]]] = {
@@ -264,7 +268,7 @@ object Batch {
               .rethrow
         }.guarantee(mj.activeGauge.deactivate)
 
-      createMeasure(metrics, jobs.size, BatchKind.Value, mode).evalMap(exec).map { results =>
+      createJobGauges(metrics, jobs.size, BatchKind.Value, mode).evalMap(exec).map { results =>
         val br = batchResult(BatchKind.Value)(results.map(_._1))
         val as = results.map(_._2)
         BatchResultValue(br, as)
@@ -295,7 +299,7 @@ object Batch {
     doMeasure: DoMeasurement[F],
     tracer: TraceJob[F, Json],
     kind: BatchKind,
-    renameJob: Endo[String])
+    renameJob: Option[Endo[String]])
 
   final class JobBuilder[F[_]] private[Batch] (metrics: Metrics[F])(implicit F: Async[F]) {
 
@@ -313,7 +317,13 @@ object Batch {
       new Monadic[A](
         kleisli = Kleisli { case Callbacks(doMeasure, tracer, kind, renameJob) =>
           StateT { (index: Int) =>
-            val job = BatchJob(renameJob(name), index, metrics.metricLabel, BatchMode.Monadic, kind)
+            val job: BatchJob =
+              BatchJob(
+                name = renameJob.fold(name)(_.apply(name)),
+                index = index,
+                label = metrics.metricLabel,
+                mode = BatchMode.Monadic,
+                kind = kind)
 
             rfa
               .preAllocate(tracer.kickoff(job))
@@ -326,8 +336,10 @@ object Batch {
               .guaranteeCase {
                 case Outcome.Succeeded(fa) =>
                   fa.evalMap { case SingleJobOutcome(result, eoa) =>
-                    val joc = JobResultState(job, result.took, result.done)
-                    eoa.fold(tracer.errored(_, joc), a => tracer.completed(translate(a), joc))
+                    val jrs = JobResultState(job, result.took, result.done)
+                    eoa.fold(
+                      ex => tracer.errored(JobResultError(jrs, ex)),
+                      a => tracer.completed(JobResultValue(jrs, translate(a))))
                   }
                 case Outcome.Errored(e) =>
                   Resource.raiseError[F, Unit, Throwable](shouldNeverHappenException(e))
@@ -338,7 +350,7 @@ object Batch {
               }
           }
         },
-        renameJob = identity
+        renameJob = None
       )
 
     /** Exceptions thrown during the job are suppressed, and execution proceeds without interruption.
@@ -353,7 +365,13 @@ object Batch {
       new Monadic[Boolean](
         kleisli = Kleisli { case Callbacks(doMeasure, tracer, kind, renameJob) =>
           StateT { (index: Int) =>
-            val job = BatchJob(renameJob(name), index, metrics.metricLabel, BatchMode.Monadic, kind)
+            val job: BatchJob =
+              BatchJob(
+                name = renameJob.fold(name)(_.apply(name)),
+                index = index,
+                label = metrics.metricLabel,
+                mode = BatchMode.Monadic,
+                kind = kind)
 
             rfa
               .preAllocate(tracer.kickoff(job))
@@ -366,8 +384,10 @@ object Batch {
               .guaranteeCase {
                 case Outcome.Succeeded(fa) =>
                   fa.evalMap { case SingleJobOutcome(result, eoa) =>
-                    val joc = JobResultState(job, result.took, result.done)
-                    eoa.fold(tracer.errored(_, joc), a => tracer.completed(Json.fromBoolean(a), joc))
+                    val jrs = JobResultState(job, result.took, result.done)
+                    eoa.fold(
+                      ex => tracer.errored(JobResultError(jrs, ex)),
+                      a => tracer.completed(JobResultValue(jrs, Json.fromBoolean(a))))
                   }
                 case Outcome.Errored(e) =>
                   Resource.raiseError[F, Unit, Throwable](shouldNeverHappenException(e))
@@ -378,7 +398,7 @@ object Batch {
               }
           }
         },
-        renameJob = identity
+        renameJob = None
       )
 
     /** Exceptions thrown by individual jobs in the batch are propagated, causing the process to halt at the
@@ -421,10 +441,10 @@ object Batch {
      */
     final class Monadic[T] private[Batch] (
       private val kleisli: Kleisli[StateT[Resource[F, *], Int, *], Callbacks[F], JobState[T]],
-      private val renameJob: Endo[String]
+      private val renameJob: Option[Endo[String]]
     ) {
       def withJobRename(f: String => String): Monadic[T] =
-        new Monadic[T](kleisli, renameJob = f)
+        new Monadic[T](kleisli, renameJob = Some(f))
 
       def flatMap[B](f: T => Monadic[B]): Monadic[B] = {
         val runB: Kleisli[StateT[Resource[F, *], Int, *], Callbacks[F], JobState[B]] =
@@ -470,7 +490,7 @@ object Batch {
       }
 
       def batchValue(tracer: TraceJob[F, Json]): Resource[F, BatchResultValue[T]] =
-        createMeasure[F](metrics, BatchKind.Value).flatMap { case JobGauges(measure, activeGauge) =>
+        createJobGauges[F](metrics, BatchKind.Value).flatMap { case JobGauges(measure, activeGauge) =>
           kleisli
             .run(Callbacks[F](measure, tracer, BatchKind.Value, renameJob))
             .run(1)
@@ -480,7 +500,7 @@ object Batch {
         }.rethrow
 
       def quasiBatch(tracer: TraceJob[F, Json]): Resource[F, BatchResultState] =
-        createMeasure[F](metrics, BatchKind.Quasi).flatMap { case JobGauges(measure, activeGauge) =>
+        createJobGauges[F](metrics, BatchKind.Quasi).flatMap { case JobGauges(measure, activeGauge) =>
           kleisli
             .run(Callbacks[F](measure, tracer, BatchKind.Quasi, renameJob))
             .run(1)

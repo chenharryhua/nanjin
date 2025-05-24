@@ -10,6 +10,7 @@ import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import org.scalatest.freespec.AsyncFreeSpec
 import org.scalatest.matchers.should.Matchers
 import com.github.chenharryhua.nanjin.guard.action.PostConditionUnsatisfied
+import com.github.chenharryhua.nanjin.guard.action.JobResultError
 
 class BatchSequentialSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
   private val service: ServiceGuard[IO] =
@@ -21,7 +22,7 @@ class BatchSequentialSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
     "good job".in {
       val jobs = List("a" -> IO(1), "b" -> IO(2), "c" -> IO(3), "d" -> IO(4), "e" -> IO(5))
       val se = service.eventStreamR { agent =>
-        agent.batch("good job").sequential(jobs*).quasiBatch(TraceJob.universal(agent))
+        agent.batch("good job").sequential(jobs*).quasiBatch(TraceJob(agent).standard)
       }.evalTap(console.text[IO]).compile.lastOrError
       se.asserting(_.asInstanceOf[ServiceStop].cause.exitCode.shouldBe(0))
     }
@@ -30,7 +31,7 @@ class BatchSequentialSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
       val jobs =
         List("a" -> IO(1), "b" -> IO.raiseError(new Exception()), "c" -> IO(3), "d" -> IO(4), "e" -> IO(5))
       val se = service.eventStreamR { agent =>
-        val result = agent.batch("exception").sequential(jobs*).quasiBatch(TraceJob.universal(agent))
+        val result = agent.batch("exception").sequential(jobs*).quasiBatch(TraceJob(agent).standard)
         result.asserting { mb =>
           mb.jobs.head.done.shouldBe(true)
           mb.jobs(1).done.shouldBe(false)
@@ -51,7 +52,7 @@ class BatchSequentialSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
             .batch("predicate")
             .sequential(jobs*)
             .withPredicate(_ > 3)
-            .quasiBatch(TraceJob.universal[IO, Int](agent).sendKickoffTo(_.void).sendSuccessTo(_.herald.done))
+            .quasiBatch(TraceJob(agent).sendKickoffTo(_.void).sendSuccessTo(_.herald.done).standard)
         result.asserting { mb =>
           mb.jobs.head.done.shouldBe(false)
           mb.jobs(1).done.shouldBe(false)
@@ -68,7 +69,7 @@ class BatchSequentialSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
     "good job".in {
       val jobs = List("a" -> IO(1), "b" -> IO(2), "c" -> IO(3), "d" -> IO(4), "e" -> IO(5))
       val se = service.eventStreamR { agent =>
-        agent.batch("good job").sequential(jobs*).batchValue(TraceJob.universal(agent))
+        agent.batch("good job").sequential(jobs*).batchValue(TraceJob(agent).standard)
       }.evalTap(console.text[IO]).compile.lastOrError
       se.asserting(_.asInstanceOf[ServiceStop].cause.exitCode.shouldBe(0))
     }
@@ -85,7 +86,7 @@ class BatchSequentialSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
         val result = agent
           .batch("exception")
           .sequential(jobs*)
-          .batchValue(tracer.onError { (oc, jo) =>
+          .batchValue(tracer.onError { case JobResultError(jo, oc) =>
             IO {
               assert(!jo.done)
               assert(jo.job.index == 2)
@@ -106,11 +107,11 @@ class BatchSequentialSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
             .batch("predicate")
             .sequential(jobs*)
             .withPredicate(_ > 3)
-            .batchValue(tracer.onComplete { (oc, jo) =>
+            .batchValue(tracer.onComplete { jo =>
               IO {
-                assert(!jo.done)
-                assert(jo.job.index == 1)
-                assert(oc == 1)
+                assert(!jo.resultState.done)
+                assert(jo.resultState.job.index == 1)
+                assert(jo.value == 1)
               }.void
             })
         result.assertThrowsError[PostConditionUnsatisfied](_.job.index.shouldBe(1))

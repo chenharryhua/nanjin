@@ -72,6 +72,12 @@ object JobResultState {
         .deepMerge(a.job.asJson)
 }
 
+final case class JobResultValue[A](resultState: JobResultState, value: A) {
+  def map[B](f: A => B): JobResultValue[B] = copy(value = f(value))
+}
+
+final case class JobResultError(resultState: JobResultState, error: Throwable)
+
 final case class BatchResultState(
   label: MetricLabel,
   spent: Duration,
@@ -101,10 +107,12 @@ object BatchResultState {
   }
 }
 
-final case class BatchResultValue[A](batch: BatchResultState, value: A)
+final case class BatchResultValue[A](resultState: BatchResultState, value: A) {
+  def map[B](f: A => B): BatchResultValue[B] = copy(value = f(value))
+}
 object BatchResultValue {
   implicit def encoderBatchResultValue[A: Encoder]: Encoder[BatchResultValue[A]] =
-    (a: BatchResultValue[A]) => Json.obj("batch" -> a.batch.asJson, "value" -> a.value.asJson)
+    (a: BatchResultValue[A]) => Json.obj("batch" -> a.resultState.asJson, "value" -> a.value.asJson)
 }
 
 final case class PostConditionUnsatisfied(job: BatchJob) extends Exception(
