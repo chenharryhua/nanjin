@@ -206,7 +206,7 @@ class BatchTest extends AnyFunSuite {
           .flatMap(_ => job("d", IO.println(4)))
           .flatMap(_ => job("e", agent.adhoc.report))
           .flatMap(_ => job("f", IO.println(6)))
-          .quasiBatch(TraceJob(agent).standard)
+          .batchValue(TraceJob(agent).standard)
           .use(agent.herald.done(_) >> agent.adhoc.report)
       }
     }.evalTap(console.text[IO]).compile.drain.unsafeRunSync()
@@ -239,7 +239,7 @@ class BatchTest extends AnyFunSuite {
 
   }
 
-  test("13. monadic error") {
+  test("13.invincible monadic error ") {
     val se = service.eventStream { agent =>
       agent
         .batch("monadic")
@@ -248,19 +248,22 @@ class BatchTest extends AnyFunSuite {
             a <- job("a", IO.println("a").as(10))
             b <- job("b", IO.sleep(1.seconds) >> IO.println("b").as(20))
             _ <- job("report-1" -> agent.adhoc.report)
-            _ <- job("exception", IO.raiseError[Unit](new Exception("aaaa")))
-            _ <- job("f" -> (IO.sleep(1000.seconds) >> IO.println("bbbb")))
+            _ <- job.invincible("exception", IO.raiseError[Boolean](new Exception("aaaa")))
+            _ <- job("f" -> IO.println("bbbb"))
             _ <- job("report-2" -> agent.adhoc.report)
             c <- job("c", IO.println("c").as(30))
           } yield a + b + c
         }
-        .quasiBatch(TraceJob(agent).standard)
+        .batchValue(TraceJob(agent).standard)
         .use { qr =>
-          assert(qr.jobs.head.done)
-          assert(qr.jobs(1).done)
-          assert(qr.jobs(2).done)
-          assert(!qr.jobs(3).done)
-          assert(qr.jobs.size == 4)
+          assert(qr.resultState.jobs.head.done)
+          assert(qr.resultState.jobs(1).done)
+          assert(qr.resultState.jobs(2).done)
+          assert(!qr.resultState.jobs(3).done)
+          assert(qr.resultState.jobs(4).done)
+          assert(qr.resultState.jobs(5).done)
+          assert(qr.resultState.jobs(6).done)
+          assert(qr.resultState.jobs.size == 7)
           agent.adhoc.report >> agent.herald.info(qr)
         }
     }.evalTap(console.text[IO]).compile.lastOrError.unsafeRunSync()
@@ -298,9 +301,9 @@ class BatchTest extends AnyFunSuite {
             b <- p2
           } yield a + b
         }
-        .quasiBatch(TraceJob(agent).standard)
+        .batchValue(TraceJob(agent).standard)
         .use { qr =>
-          val details = qr.jobs
+          val details = qr.resultState.jobs
           assert(details.head.job.name === "1")
           assert(details.head.job.index === 1)
           assert(details(1).job.name === "2")

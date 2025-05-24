@@ -76,12 +76,11 @@ object Batch {
       },
       active)
 
-  private def createJobGauges[F[_]](mtx: Metrics[F], kind: BatchKind)(implicit
-    F: Async[F]): Resource[F, JobGauges[F]] =
+  private def createJobGauges[F[_]](mtx: Metrics[F])(implicit F: Async[F]): Resource[F, JobGauges[F]] =
     for {
       active <- mtx.activeGauge("active")
       progress <- Resource.eval(F.ref[List[JobResultState]](Nil))
-      _ <- mtx.gauge(show"${BatchMode.Monadic} $kind completed").register(progress.get.map(toJson))
+      _ <- mtx.gauge(show"${BatchMode.Monadic} jobs completed").register(progress.get.map(toJson))
     } yield JobGauges(
       Kleisli((jr: JobResultState) => F.uncancelable(_ => progress.update(_.appended(jr)))),
       active)
@@ -299,7 +298,6 @@ object Batch {
   final private case class Callbacks[F[_]](
     doMeasure: DoMeasurement[F],
     tracer: TraceJob[F, Json],
-    kind: BatchKind,
     renameJob: Option[Endo[String]])
 
   final class JobBuilder[F[_]] private[Batch] (metrics: Metrics[F])(implicit F: Async[F]) {
@@ -316,7 +314,7 @@ object Batch {
       */
     private def vincible_[A](name: String, rfa: Resource[F, A], translate: A => Json): Monadic[A] =
       new Monadic[A](
-        kleisli = Kleisli { case Callbacks(doMeasure, tracer, kind, renameJob) =>
+        kleisli = Kleisli { case Callbacks(doMeasure, tracer, renameJob) =>
           StateT { (index: Int) =>
             val job: BatchJob =
               BatchJob(
@@ -324,7 +322,7 @@ object Batch {
                 index = index,
                 label = metrics.metricLabel,
                 mode = BatchMode.Monadic,
-                kind = kind)
+                kind = BatchKind.Value)
 
             rfa
               .preAllocate(tracer.kickoff(job))
@@ -364,7 +362,7 @@ object Batch {
       */
     private def invincible_(name: String, rfa: Resource[F, Boolean]): Monadic[Boolean] =
       new Monadic[Boolean](
-        kleisli = Kleisli { case Callbacks(doMeasure, tracer, kind, renameJob) =>
+        kleisli = Kleisli { case Callbacks(doMeasure, tracer, renameJob) =>
           StateT { (index: Int) =>
             val job: BatchJob =
               BatchJob(
@@ -372,7 +370,7 @@ object Batch {
                 index = index,
                 label = metrics.metricLabel,
                 mode = BatchMode.Monadic,
-                kind = kind)
+                kind = BatchKind.Quasi)
 
             rfa
               .preAllocate(tracer.kickoff(job))
@@ -491,23 +489,14 @@ object Batch {
       }
 
       def batchValue(tracer: TraceJob[F, Json]): Resource[F, BatchResultValue[T]] =
-        createJobGauges[F](metrics, BatchKind.Value).flatMap { case JobGauges(measure, activeGauge) =>
+        createJobGauges[F](metrics).flatMap { case JobGauges(measure, activeGauge) =>
           kleisli
-            .run(Callbacks[F](measure, tracer, BatchKind.Value, renameJob))
+            .run(Callbacks[F](measure, tracer, renameJob))
             .run(1)
             .guarantee(Resource.eval(activeGauge.deactivate))
         }.map { case (_, JobState(eoa, results)) =>
           eoa.map(a => BatchResultValue(batchResult(BatchKind.Value, results), a))
         }.rethrow
-
-      def quasiBatch(tracer: TraceJob[F, Json]): Resource[F, BatchResultState] =
-        createJobGauges[F](metrics, BatchKind.Quasi).flatMap { case JobGauges(measure, activeGauge) =>
-          kleisli
-            .run(Callbacks[F](measure, tracer, BatchKind.Quasi, renameJob))
-            .run(1)
-            .guarantee(Resource.eval(activeGauge.deactivate))
-        }.map { case (_, JobState(_, results)) => batchResult(BatchKind.Quasi, results) }
-
     }
   }
 }
