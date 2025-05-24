@@ -297,7 +297,7 @@ object Batch {
     doMeasure: DoMeasurement[F],
     tracer: TraceJob[F, Json],
     kind: BatchKind,
-    renameJob: Endo[String])
+    renameJob: Option[Endo[String]])
 
   final class JobBuilder[F[_]] private[Batch] (metrics: Metrics[F])(implicit F: Async[F]) {
 
@@ -315,7 +315,13 @@ object Batch {
       new Monadic[A](
         kleisli = Kleisli { case Callbacks(doMeasure, tracer, kind, renameJob) =>
           StateT { (index: Int) =>
-            val job = BatchJob(renameJob(name), index, metrics.metricLabel, BatchMode.Monadic, kind)
+            val job: BatchJob =
+              BatchJob(
+                name = renameJob.fold(name)(_.apply(name)),
+                index = index,
+                label = metrics.metricLabel,
+                mode = BatchMode.Monadic,
+                kind = kind)
 
             rfa
               .preAllocate(tracer.kickoff(job))
@@ -342,7 +348,7 @@ object Batch {
               }
           }
         },
-        renameJob = identity
+        renameJob = None
       )
 
     /** Exceptions thrown during the job are suppressed, and execution proceeds without interruption.
@@ -357,7 +363,13 @@ object Batch {
       new Monadic[Boolean](
         kleisli = Kleisli { case Callbacks(doMeasure, tracer, kind, renameJob) =>
           StateT { (index: Int) =>
-            val job = BatchJob(renameJob(name), index, metrics.metricLabel, BatchMode.Monadic, kind)
+            val job: BatchJob =
+              BatchJob(
+                name = renameJob.fold(name)(_.apply(name)),
+                index = index,
+                label = metrics.metricLabel,
+                mode = BatchMode.Monadic,
+                kind = kind)
 
             rfa
               .preAllocate(tracer.kickoff(job))
@@ -384,7 +396,7 @@ object Batch {
               }
           }
         },
-        renameJob = identity
+        renameJob = None
       )
 
     /** Exceptions thrown by individual jobs in the batch are propagated, causing the process to halt at the
@@ -427,10 +439,10 @@ object Batch {
      */
     final class Monadic[T] private[Batch] (
       private val kleisli: Kleisli[StateT[Resource[F, *], Int, *], Callbacks[F], JobState[T]],
-      private val renameJob: Endo[String]
+      private val renameJob: Option[Endo[String]]
     ) {
       def withJobRename(f: String => String): Monadic[T] =
-        new Monadic[T](kleisli, renameJob = f)
+        new Monadic[T](kleisli, renameJob = Some(f))
 
       def flatMap[B](f: T => Monadic[B]): Monadic[B] = {
         val runB: Kleisli[StateT[Resource[F, *], Int, *], Callbacks[F], JobState[B]] =
