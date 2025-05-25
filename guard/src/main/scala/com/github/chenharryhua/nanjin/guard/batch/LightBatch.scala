@@ -12,7 +12,7 @@ import scala.jdk.DurationConverters.ScalaDurationOps
 
 object LightBatch {
 
-  sealed protected trait Runner[F[_], A] { outer =>
+  sealed protected trait Runner[F[_], A] {
     def withJobRename(f: Endo[String]): Runner[F, A]
     def withPredicate(f: A => Boolean): Runner[F, A]
     def quasiBatch: F[BatchResultState]

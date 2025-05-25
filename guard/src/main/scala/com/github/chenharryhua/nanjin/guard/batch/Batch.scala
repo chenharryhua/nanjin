@@ -436,7 +436,7 @@ object Batch {
 
       def flatMap[B](f: T => Monadic[B]): Monadic[B] = {
         val runB: Kleisli[StateT[Resource[F, *], Int, *], Callbacks[F], JobState[B]] =
-          kleisli.tapWithF { (callbacks, ra) =>
+          kleisli.tapWithF { (callbacks: Callbacks[F], ra: JobState[T]) =>
             ra.eoa match {
               case Left(ex) => StateT(idx => Resource.pure(ra.update[B](ex)).map((idx, _)))
               case Right(a) => f(a).kleisli.run(callbacks).map(ra.update[B])
@@ -473,7 +473,10 @@ object Batch {
             .run(1)
             .guarantee(Resource.eval(activeGauge.deactivate))
         }.map { case (_, JobState(eoa, results)) =>
-          eoa.map(a => BatchResultValue(sequentialBatchResultState(metrics, mode)(results.reverse.toList), a))
+          eoa.map { a =>
+            val state = sequentialBatchResultState(metrics, mode)(results.reverse.toList)
+            BatchResultValue(state, a)
+          }
         }.rethrow
     }
   }
