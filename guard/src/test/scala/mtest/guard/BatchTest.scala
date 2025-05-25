@@ -5,7 +5,7 @@ import cats.effect.unsafe.implicits.global
 import cats.implicits.catsSyntaxTuple2Semigroupal
 import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.action.{Batch, BatchMode, BatchResultValue, TraceJob}
+import com.github.chenharryhua.nanjin.guard.batch.{Batch, BatchMode, BatchResultValue, TraceJob}
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStop
 import com.github.chenharryhua.nanjin.guard.observers.console
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
@@ -25,7 +25,7 @@ class BatchTest extends AnyFunSuite {
       .updateConfig(_.withMetricReport(Policy.crontab(_.secondly)).withAlarmLevel(_.Debug))
 
   test("1.quasi.sequential") {
-    service.eventStream { ga =>
+    val se = service.eventStream { ga =>
       ga.batch("quasi.sequential")
         .sequential[Unit](
           "a" -> IO.raiseError(new Exception()),
@@ -56,11 +56,12 @@ class BatchTest extends AnyFunSuite {
           qr
         }
         .use(qr => IO.println(qr.asJson) *> ga.adhoc.report)
-    }.map(checkJson).evalTap(console.text[IO]).compile.drain.unsafeRunSync()
+    }.map(checkJson).evalTap(console.text[IO]).compile.lastOrError.unsafeRunSync()
+    assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
   }
 
   test("2.quasi.parallel") {
-    service.eventStream { ga =>
+    val se = service.eventStream { ga =>
       ga.batch("quasi.parallel")
         .parallel(3)(
           "a" -> IO.sleep(3.second),
@@ -89,11 +90,13 @@ class BatchTest extends AnyFunSuite {
           qr
         }
         .use(_ => ga.adhoc.report)
-    }.map(checkJson).evalTap(console.text[IO]).compile.drain.unsafeRunSync()
+    }.map(checkJson).evalTap(console.text[IO]).compile.lastOrError.unsafeRunSync()
+    assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
+
   }
 
   test("3.sequential") {
-    service.eventStream { agent =>
+    val se = service.eventStream { agent =>
       agent
         .batch("sequential")
         .sequential(
@@ -102,7 +105,9 @@ class BatchTest extends AnyFunSuite {
           "c" -> IO.sleep(1.seconds).as(3.bytes))
         .batchValue(TraceJob(agent).informationRate)
         .use_
-    }.map(checkJson).evalTap(console.text[IO]).compile.drain.unsafeRunSync()
+    }.map(checkJson).evalTap(console.text[IO]).compile.lastOrError.unsafeRunSync()
+    assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
+
   }
 
   test("4.parallel") {
@@ -124,7 +129,7 @@ class BatchTest extends AnyFunSuite {
   }
 
   test("5.sequential.exception") {
-    service.eventStream { ga =>
+    val se = service.eventStream { ga =>
       ga.batch("sequential")
         .sequential(
           "a" -> IO.sleep(1.second),
@@ -133,7 +138,9 @@ class BatchTest extends AnyFunSuite {
           "d" -> IO.sleep(1.seconds))
         .batchValue(TraceJob(ga).standard)
         .use_
-    }.map(checkJson).evalTap(console.text[IO]).compile.drain.unsafeRunSync()
+    }.map(checkJson).evalTap(console.text[IO]).compile.lastOrError.unsafeRunSync()
+    assert(se.asInstanceOf[ServiceStop].cause.exitCode == 3)
+
   }
 
   test("6.parallel.exception") {
@@ -144,9 +151,12 @@ class BatchTest extends AnyFunSuite {
       "d" -> (IO.sleep(3.seconds) >> IO.raiseError(new Exception)),
       "e" -> IO.sleep(4.seconds)
     )
-    service.eventStream { ga =>
+    val se = service.eventStream { ga =>
       ga.batch("parallel").parallel(3)(jobs*).batchValue(TraceJob.noop).use_
-    }.map(checkJson).evalTap(console.text[IO]).compile.drain.unsafeRunSync()
+    }.map(checkJson).evalTap(console.text[IO]).compile.lastOrError.unsafeRunSync()
+
+    assert(se.asInstanceOf[ServiceStop].cause.exitCode == 3)
+
   }
 
   test("7.batch mode") {

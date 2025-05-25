@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.guard.action
+package com.github.chenharryhua.nanjin.guard.batch
 
 import cats.effect.kernel.MonadCancel
 import cats.implicits.catsSyntaxFlatMapOps
@@ -10,20 +10,20 @@ import squants.Dimensionless
 import squants.information.Information
 
 sealed trait TraceJob[F[_], A] {
-  private[action] def kickoff(bj: BatchJob): F[Unit]
-  private[action] def canceled(bj: BatchJob): F[Unit]
-  private[action] def completed(jrv: JobResultValue[A]): F[Unit]
-  private[action] def errored(jre: JobResultError): F[Unit]
+  private[batch] def kickoff(bj: BatchJob): F[Unit]
+  private[batch] def canceled(bj: BatchJob): F[Unit]
+  private[batch] def completed(jrv: JobResultValue[A]): F[Unit]
+  private[batch] def errored(jre: JobResultError): F[Unit]
 }
 
 object TraceJob {
 
   def noop[F[_], A](implicit F: Applicative[F]): TraceJob[F, A] =
     new TraceJob[F, A] {
-      override private[action] def errored(jre: JobResultError): F[Unit]      = F.unit
-      override private[action] def completed(jrv: JobResultValue[A]): F[Unit] = F.unit
-      override private[action] def canceled(bj: BatchJob): F[Unit]            = F.unit
-      override private[action] def kickoff(bj: BatchJob): F[Unit]             = F.unit
+      override private[batch] def errored(jre: JobResultError): F[Unit]      = F.unit
+      override private[batch] def completed(jrv: JobResultValue[A]): F[Unit] = F.unit
+      override private[batch] def canceled(bj: BatchJob): F[Unit]            = F.unit
+      override private[batch] def kickoff(bj: BatchJob): F[Unit]             = F.unit
     }
 
   final class GenericTracer[F[_], A] private[TraceJob] (
@@ -32,10 +32,10 @@ object TraceJob {
     private val _canceled: BatchJob => F[Unit],
     private val _kickoff: BatchJob => F[Unit]
   ) extends TraceJob[F, A] {
-    override private[action] def kickoff(bj: BatchJob): F[Unit]             = _kickoff(bj)
-    override private[action] def canceled(bj: BatchJob): F[Unit]            = _canceled(bj)
-    override private[action] def completed(jrv: JobResultValue[A]): F[Unit] = _completed(jrv)
-    override private[action] def errored(jre: JobResultError): F[Unit]      = _errored(jre)
+    override private[batch] def kickoff(bj: BatchJob): F[Unit]             = _kickoff(bj)
+    override private[batch] def canceled(bj: BatchJob): F[Unit]            = _canceled(bj)
+    override private[batch] def completed(jrv: JobResultValue[A]): F[Unit] = _completed(jrv)
+    override private[batch] def errored(jre: JobResultError): F[Unit]      = _errored(jre)
 
     private def copy(
       _completed: JobResultValue[A] => F[Unit] = this._completed,
@@ -78,18 +78,18 @@ object TraceJob {
     _canceled: Json => F[Unit],
     _errored: JobResultError => F[Unit]
   ) extends TraceJob[F, A] {
-    override private[action] def kickoff(bj: BatchJob): F[Unit] =
+    override private[batch] def kickoff(bj: BatchJob): F[Unit] =
       _kickoff(Json.obj("kickoff" -> bj.asJson))
 
-    override private[action] def canceled(bj: BatchJob): F[Unit] =
+    override private[batch] def canceled(bj: BatchJob): F[Unit] =
       _canceled(Json.obj("canceled" -> bj.asJson))
 
-    override private[action] def completed(jrv: JobResultValue[A]): F[Unit] = {
+    override private[batch] def completed(jrv: JobResultValue[A]): F[Unit] = {
       val json = _translate(jrv)
       if (jrv.resultState.done) _success(json) else _failure(json)
     }
 
-    override private[action] def errored(jre: JobResultError): F[Unit] =
+    override private[batch] def errored(jre: JobResultError): F[Unit] =
       _errored(jre)
 
     def contramap[B](f: B => A): JsonTracer[F, B] =
@@ -200,16 +200,16 @@ object TraceJob {
 
       override def combine(x: TraceJob[F, A], y: TraceJob[F, A]): TraceJob[F, A] =
         new TraceJob[F, A] {
-          override private[action] def kickoff(bj: BatchJob): F[Unit] =
+          override private[batch] def kickoff(bj: BatchJob): F[Unit] =
             ev.uncancelable(_ => x.kickoff(bj) >> y.kickoff(bj))
 
-          override private[action] def canceled(bj: BatchJob): F[Unit] =
+          override private[batch] def canceled(bj: BatchJob): F[Unit] =
             ev.uncancelable(_ => x.canceled(bj) >> y.canceled(bj))
 
-          override private[action] def completed(jrv: JobResultValue[A]): F[Unit] =
+          override private[batch] def completed(jrv: JobResultValue[A]): F[Unit] =
             ev.uncancelable(_ => x.completed(jrv) >> y.completed(jrv))
 
-          override private[action] def errored(jre: JobResultError): F[Unit] =
+          override private[batch] def errored(jre: JobResultError): F[Unit] =
             ev.uncancelable(_ => x.errored(jre) >> y.errored(jre))
         }
     }

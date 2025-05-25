@@ -3,14 +3,12 @@ package mtest.guard
 import cats.effect.IO
 import cats.effect.testing.scalatest.AsyncIOSpec
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.action.TraceJob
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStop
 import com.github.chenharryhua.nanjin.guard.observers.console
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import org.scalatest.freespec.AsyncFreeSpec
 import org.scalatest.matchers.should.Matchers
-import com.github.chenharryhua.nanjin.guard.action.PostConditionUnsatisfied
-import com.github.chenharryhua.nanjin.guard.action.JobResultError
+import com.github.chenharryhua.nanjin.guard.batch.{JobResultError, PostConditionUnsatisfied, TraceJob}
 
 class BatchSequentialSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
   private val service: ServiceGuard[IO] =

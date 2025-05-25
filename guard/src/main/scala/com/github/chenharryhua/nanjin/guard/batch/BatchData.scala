@@ -1,4 +1,5 @@
-package com.github.chenharryhua.nanjin.guard.action
+package com.github.chenharryhua.nanjin.guard.batch
+
 import cats.Show
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.config.MetricLabel
@@ -116,3 +117,5 @@ object BatchResultValue {
 
 final case class PostConditionUnsatisfied(job: BatchJob) extends Exception(
       s"${job.indexedName} of batch(${job.batch}) in domain(${job.domain}) run to the end without exception but failed post-condition check")
+
+final private[batch] case class JobNameIndex[F[_], A](name: String, index: Int, fa: F[A])
