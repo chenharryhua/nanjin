@@ -19,7 +19,6 @@ import io.circe.syntax.EncoderOps
 import io.circe.{Encoder, Json}
 import monocle.Monocle.toAppliedFocusOps
 
-import java.time.Duration
 import scala.concurrent.duration.FiniteDuration
 import scala.jdk.DurationConverters.ScalaDurationOps
 
@@ -57,8 +56,6 @@ object Batch {
     }
 
   private type DoMeasurement[F[_]] = Kleisli[F, JobResultState, Unit]
-
-  final private case class JobNameIndex[F[_], A](name: String, index: Int, fa: F[A])
 
   final private case class JobGauges[F[_]](measure: DoMeasurement[F], activeGauge: ActiveGauge[F])
 
@@ -216,14 +213,6 @@ object Batch {
 
     private val mode: BatchMode = BatchMode.Sequential
 
-    private def batchResult(results: List[JobResultState]): BatchResultState =
-      BatchResultState(
-        label = metrics.metricLabel,
-        spent = results.map(_.took).foldLeft(Duration.ZERO)(_ plus _),
-        mode = mode,
-        jobs = results
-      )
-
     override def quasiBatch(tracer: TraceJob[F, A]): Resource[F, BatchResultState] = {
 
       def exec(jg: JobGauges[F]): F[List[JobResultState]] =
@@ -239,7 +228,9 @@ object Batch {
               .map(_.result)
         }.guarantee(jg.activeGauge.deactivate)
 
-      createJobGauges(metrics, jobs.size, JobKind.Quasi, mode).evalMap(exec).map(batchResult)
+      createJobGauges(metrics, jobs.size, JobKind.Quasi, mode)
+        .evalMap(exec)
+        .map(sequentialBatchResultState(metrics, mode))
     }
 
     override def batchValue(tracer: TraceJob[F, A]): Resource[F, BatchResultValue[List[A]]] = {
@@ -266,10 +257,8 @@ object Batch {
               .rethrow
         }.guarantee(mj.activeGauge.deactivate)
 
-      createJobGauges(metrics, jobs.size, JobKind.Value, mode).evalMap(exec).map { results =>
-        val brs = batchResult(results.map(_.resultState))
-        val as  = results.map(_.value)
-        BatchResultValue(brs, as)
+      createJobGauges(metrics, jobs.size, JobKind.Value, mode).evalMap(exec).map {
+        sequentialBatchResultValue(metrics, mode)
       }
     }
 
@@ -477,16 +466,6 @@ object Batch {
           renameJob = renameJob
         )
 
-      private def batchResult(nel: NonEmptyList[JobResultState]): BatchResultState = {
-        val results = nel.toList.reverse
-        BatchResultState(
-          label = metrics.metricLabel,
-          spent = results.map(_.took).foldLeft(Duration.ZERO)(_ plus _),
-          mode = mode,
-          jobs = results
-        )
-      }
-
       def batchValue(tracer: TraceJob[F, Json]): Resource[F, BatchResultValue[T]] =
         createJobGauges[F](metrics).flatMap { case JobGauges(measure, activeGauge) =>
           kleisli
@@ -494,7 +473,7 @@ object Batch {
             .run(1)
             .guarantee(Resource.eval(activeGauge.deactivate))
         }.map { case (_, JobState(eoa, results)) =>
-          eoa.map(a => BatchResultValue(batchResult(results), a))
+          eoa.map(a => BatchResultValue(sequentialBatchResultState(metrics, mode)(results.reverse.toList), a))
         }.rethrow
     }
   }
@@ -504,14 +483,14 @@ final class Batch[F[_]: Async] private[guard] (metrics: Metrics[F]) {
 
   def sequential[A](fas: (String, F[A])*): Batch.Sequential[F, A] = {
     val jobs = fas.toList.zipWithIndex.map { case ((name, fa), idx) =>
-      Batch.JobNameIndex[F, A](name, idx + 1, fa)
+      JobNameIndex[F, A](name, idx + 1, fa)
     }
     new Batch.Sequential[F, A](Reader(_ => true), metrics, jobs)
   }
 
   def parallel[A](parallelism: Int)(fas: (String, F[A])*): Batch.Parallel[F, A] = {
     val jobs = fas.toList.zipWithIndex.map { case ((name, fa), idx) =>
-      Batch.JobNameIndex[F, A](name, idx + 1, fa)
+      JobNameIndex[F, A](name, idx + 1, fa)
     }
     new Batch.Parallel[F, A](Reader(_ => true), metrics, parallelism, jobs)
   }

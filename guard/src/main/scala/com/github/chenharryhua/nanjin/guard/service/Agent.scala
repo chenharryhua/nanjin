@@ -8,7 +8,7 @@ import com.codahale.metrics.MetricRegistry
 import com.github.benmanes.caffeine.cache.Cache
 import com.github.chenharryhua.nanjin.common.chrono.*
 import com.github.chenharryhua.nanjin.guard.action.{CaffeineCache, CircuitBreaker, Retry}
-import com.github.chenharryhua.nanjin.guard.batch.Batch
+import com.github.chenharryhua.nanjin.guard.batch.{Batch, LightBatch}
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.event.*
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceMessage
@@ -25,6 +25,7 @@ sealed trait Agent[F[_]] {
   def withDomain(name: String): Agent[F]
 
   def batch(label: String): Batch[F]
+  def lightBatch(label: String): LightBatch[F]
 
   /** start from first tick
     */
@@ -80,6 +81,10 @@ final private class GeneralAgent[F[_]: Async](
   override def batch(label: String): Batch[F] = {
     val metricLabel = MetricLabel(label, domain)
     new Batch[F](new Metrics.Impl[F](metricLabel, metricRegistry, dispatcher))
+  }
+  override def lightBatch(label: String): LightBatch[F] = {
+    val metricLabel = MetricLabel(label, domain)
+    new LightBatch[F](new Metrics.Impl[F](metricLabel, metricRegistry, dispatcher))
   }
 
   override def ticks(policy: Policy): Stream[F, Tick] =
