@@ -1,4 +1,5 @@
-package com.github.chenharryhua.nanjin.guard.action
+package com.github.chenharryhua.nanjin.guard.batch
+
 import cats.Show
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.config.MetricLabel

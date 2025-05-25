@@ -7,7 +7,8 @@ import cats.implicits.catsSyntaxApplicativeId
 import com.codahale.metrics.MetricRegistry
 import com.github.benmanes.caffeine.cache.Cache
 import com.github.chenharryhua.nanjin.common.chrono.*
-import com.github.chenharryhua.nanjin.guard.action.{Batch, CaffeineCache, CircuitBreaker, Retry}
+import com.github.chenharryhua.nanjin.guard.action.{CaffeineCache, CircuitBreaker, Retry}
+import com.github.chenharryhua.nanjin.guard.batch.Batch
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.event.*
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceMessage

@@ -8,7 +8,7 @@ import squants.time.{Frequency, Nanoseconds}
 
 import java.time.Duration
 
-package object action {
+package object batch {
   def jsonDataRate(took: Duration, number: Information): Json = {
     val count: String = s"${decimalFormatter.format(number.value.toLong)} ${number.unit.symbol}"
 

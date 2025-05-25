@@ -1,4 +1,5 @@
-package com.github.chenharryhua.nanjin.guard.action
+package com.github.chenharryhua.nanjin.guard.batch
+
 import cats.data.*
 import cats.effect.implicits.{clockOps, monadCancelOps, monadCancelOps_}
 import cats.effect.kernel.{Async, Outcome, Resource}
