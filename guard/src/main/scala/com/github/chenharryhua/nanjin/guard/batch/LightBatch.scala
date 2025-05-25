@@ -12,14 +12,14 @@ import scala.jdk.DurationConverters.ScalaDurationOps
 
 object LightBatch {
 
-  sealed protected trait Runner[F[_], A] { outer =>
+  sealed protected trait Runner[F[_], A] {
     def withJobRename(f: Endo[String]): Runner[F, A]
     def withPredicate(f: A => Boolean): Runner[F, A]
     def quasiBatch: F[BatchResultState]
     def batchValue: F[BatchResultValue[List[A]]]
   }
 
-  final class Parallel[F[_], A] private[LightBatch](
+  final class Parallel[F[_], A] private[LightBatch] (
     predicate: Reader[A, Boolean],
     metrics: Metrics[F],
     parallelism: Int,
@@ -30,30 +30,30 @@ object LightBatch {
 
     override def quasiBatch: F[BatchResultState] =
       F.timed(F.parTraverseN(parallelism)(jobs) { case JobNameIndex(name, idx, fa) =>
-        val job = BatchJob(name, idx, metrics.metricLabel, mode, JobKind.Quasi)
+        val job = BatchJob(name, idx, metrics.metricLabel, mode, JobKind.Tolerable)
         F.timed(F.attempt(fa)).map { case (fd: FiniteDuration, eoa: Either[Throwable, A]) =>
           JobResultState(job, fd.toJava, eoa.fold(_ => false, predicate.run))
         }
-      }).map { case (fd, results) =>
-        BatchResultState(metrics.metricLabel, fd.toJava, mode, results.sortBy(_.job.index))
+      }).map { case (fd: FiniteDuration, jrs: List[JobResultState]) =>
+        BatchResultState(metrics.metricLabel, fd.toJava, mode, jrs.sortBy(_.job.index))
       }
 
     override def batchValue: F[BatchResultValue[List[A]]] =
       F.timed(F.parTraverseN(parallelism)(jobs) { case JobNameIndex(name, idx, fa) =>
-        val job = BatchJob(name, idx, metrics.metricLabel, mode, JobKind.Value)
+        val job = BatchJob(name, idx, metrics.metricLabel, mode, JobKind.Intolerable)
         F.timed(F.attempt(fa))
           .map { case (fd: FiniteDuration, eoa: Either[Throwable, A]) =>
             eoa.flatMap { a =>
               if (predicate.run(a)) {
-                val result = JobResultState(job, fd.toJava, done = true)
-                Right(JobResultValue(result, a))
+                val jrs = JobResultState(job, fd.toJava, done = true)
+                Right(JobResultValue(jrs, a))
               } else
                 Left(PostConditionUnsatisfied(job))
             }
           }
           .rethrow
-      }).map { case (fd, results) =>
-        val sorted = results.sortBy(_.resultState.job.index)
+      }).map { case (fd: FiniteDuration, jrv: List[JobResultValue[A]]) =>
+        val sorted = jrv.sortBy(_.resultState.job.index)
         val brs: BatchResultState =
           BatchResultState(metrics.metricLabel, fd.toJava, mode, sorted.map(_.resultState))
         BatchResultValue(brs, sorted.map(_.value))
@@ -66,7 +66,7 @@ object LightBatch {
       new Parallel[F, A](predicate = Reader(f), metrics, parallelism, jobs)
   }
 
-  final class Sequential[F[_], A] private[LightBatch](
+  final class Sequential[F[_], A] private[LightBatch] (
     predicate: Reader[A, Boolean],
     metrics: Metrics[F],
     jobs: List[JobNameIndex[F, A]])(implicit F: Sync[F])
@@ -76,7 +76,7 @@ object LightBatch {
 
     override def quasiBatch: F[BatchResultState] =
       jobs.traverse { case JobNameIndex(name, idx, fa) =>
-        val job = BatchJob(name, idx, metrics.metricLabel, mode, JobKind.Quasi)
+        val job = BatchJob(name, idx, metrics.metricLabel, mode, JobKind.Tolerable)
         F.timed(F.attempt(fa)).map { case (fd: FiniteDuration, eoa: Either[Throwable, A]) =>
           JobResultState(job, fd.toJava, eoa.fold(_ => false, predicate.run))
         }
@@ -84,13 +84,13 @@ object LightBatch {
 
     override def batchValue: F[BatchResultValue[List[A]]] =
       jobs.traverse { case JobNameIndex(name, idx, fa) =>
-        val job = BatchJob(name, idx, metrics.metricLabel, mode, JobKind.Value)
+        val job = BatchJob(name, idx, metrics.metricLabel, mode, JobKind.Intolerable)
         F.timed(F.attempt(fa))
           .map { case (fd: FiniteDuration, eoa: Either[Throwable, A]) =>
             eoa.flatMap { a =>
               if (predicate.run(a)) {
-                val result = JobResultState(job, fd.toJava, done = true)
-                Right(JobResultValue(result, a))
+                val jrs = JobResultState(job, fd.toJava, done = true)
+                Right(JobResultValue(jrs, a))
               } else
                 Left(PostConditionUnsatisfied(job))
             }
@@ -107,7 +107,7 @@ object LightBatch {
   }
 }
 
-final class LightBatch[F[_]: Async] private[guard](metrics: Metrics[F]) {
+final class LightBatch[F[_]: Async] private[guard] (metrics: Metrics[F]) {
 
   def sequential[A](fas: (String, F[A])*): LightBatch.Sequential[F, A] = {
     val jobs = fas.toList.zipWithIndex.map { case ((name, fa), idx) =>
