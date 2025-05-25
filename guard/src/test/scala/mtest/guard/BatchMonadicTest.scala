@@ -4,7 +4,7 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.catsSyntaxSemigroup
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.batch.{JobResultState, TraceJob}
+import com.github.chenharryhua.nanjin.guard.batch.{JobResultState, PostConditionUnsatisfied, TraceJob}
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStop
 import com.github.chenharryhua.nanjin.guard.observers.console
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
@@ -34,7 +34,7 @@ class BatchMonadicTest extends AnyFunSuite {
   test("2.exception") {
     var completedJob: JobResultState = null
     var errorJob: JobResultState     = null
-    val tracer = TraceJob
+    val tracer: TraceJob[IO, Json] = TraceJob
       .generic[IO, Json]
       .onComplete(jo => IO { completedJob = jo.resultState })
       .onError(jo => IO { errorJob = jo.resultState })
@@ -48,7 +48,7 @@ class BatchMonadicTest extends AnyFunSuite {
             c <- job("c" -> IO(3))
           } yield a + b + c
         }
-        .batchValue(tracer)
+        .batchValue(tracer |+| TraceJob(agent).json)
         .attempt
       res.map(r => assert(r.fold(_.isInstanceOf[Exception], _ => false)))
 
@@ -78,7 +78,8 @@ class BatchMonadicTest extends AnyFunSuite {
             c <- job("c" -> IO(3))
           } yield a + c
         }
-        .batchValue(tracer |+| TraceJob(agent).standard)
+        .batchValue(
+          tracer |+| TraceJob(agent).sendSuccessTo(_.herald.done).sendKickoffTo(_.herald.info).standard)
     }.evalTap(console.text[IO]).compile.lastOrError.unsafeRunSync()
 
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
@@ -124,6 +125,39 @@ class BatchMonadicTest extends AnyFunSuite {
 
     assert(sorted(2).done)
     assert(sorted(2).job.index == 3)
+  }
+
+  test("5. filter") {
+    var completedJob: List[JobResultState] = Nil
+    val tracer: TraceJob[IO, Json] = TraceJob
+      .generic[IO, Json]
+      .onComplete(jo => IO { completedJob = jo.resultState :: completedJob })
+    val se = service.eventStreamR { agent =>
+      val res = agent
+        .batch("exception")
+        .monadic { job =>
+          for {
+            a <- job("a" -> IO(1))
+            b <- job("b" -> IO(false))
+            if b
+            c <- job("c" -> IO(3))
+          } yield a + c
+        }
+        .batchValue(tracer |+| TraceJob(agent).json)
+        .attempt
+      res.map(r => assert(r.fold(_.isInstanceOf[PostConditionUnsatisfied], _ => false)))
+
+    }.evalTap(console.text[IO]).compile.lastOrError.unsafeRunSync()
+
+    assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
+    assert(completedJob.size == 2)
+    val sorted = completedJob.sortBy(_.job.index)
+
+    assert(sorted.head.done)
+    assert(sorted.head.job.index == 1)
+    assert(sorted(1).done)
+    assert(sorted(1).job.index == 2)
+
   }
 
 }

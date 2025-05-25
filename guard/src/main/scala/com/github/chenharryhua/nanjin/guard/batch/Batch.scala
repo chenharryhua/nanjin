@@ -452,14 +452,10 @@ object Batch {
             eoa match {
               case Left(_) => unchange
               case Right(value) =>
-                if (f(value)) unchange
-                else {
-                  val head = jrs.head.focus(_.done).replace(false)
-                  JobState[T](
-                    Left(PostConditionUnsatisfied(head.job)),
-                    NonEmptyList.of(head, jrs.tail*)
-                  )
-                }
+                if (f(value))
+                  unchange
+                else
+                  JobState[T](Left(PostConditionUnsatisfied(jrs.head.job)), jrs)
             }
           },
           renameJob = renameJob

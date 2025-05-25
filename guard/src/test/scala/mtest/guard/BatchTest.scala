@@ -428,4 +428,16 @@ class BatchTest extends AnyFunSuite {
       .unsafeRunSync()
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
   }
+
+  test("22. monadic flatMap limits") {
+    val se = service.eventStreamR { agent =>
+      agent.batch("many flatmap").monadic { job =>
+        List
+          .fill(10_000)(job("a" -> IO(1)))
+          .reduce((a, b) => a.flatMap(_ => b))
+          .batchValue(TraceJob.noop)
+      }
+    }.compile.lastOrError.unsafeRunSync()
+    assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
+  }
 }
