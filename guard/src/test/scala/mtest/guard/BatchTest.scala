@@ -38,7 +38,7 @@ class BatchTest extends AnyFunSuite {
         .withJobRename(_ + ":test")
         .quasiBatch(
           TraceJob
-            .generic[IO, Boolean]
+            .noop[IO, Boolean]
             .contramap(identity[Boolean])
             .onError(IO.println)
             .onCancel(IO.println)

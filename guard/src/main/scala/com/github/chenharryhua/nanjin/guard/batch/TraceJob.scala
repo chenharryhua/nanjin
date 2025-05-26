@@ -17,21 +17,19 @@ sealed trait TraceJob[F[_], A] {
 }
 
 object TraceJob {
+  sealed trait EventHandle[F[_], A] extends TraceJob[F, A] {
+    def onComplete(f: JobResultValue[A] => F[Unit]): EventHandle[F, A]
+    def onError(f: JobResultError => F[Unit]): EventHandle[F, A]
+    def onCancel(f: BatchJob => F[Unit]): EventHandle[F, A]
+    def onKickoff(f: BatchJob => F[Unit]): EventHandle[F, A]
+  }
 
-  def noop[F[_], A](implicit F: Applicative[F]): TraceJob[F, A] =
-    new TraceJob[F, A] {
-      override private[batch] def errored(jre: JobResultError): F[Unit]      = F.unit
-      override private[batch] def completed(jrv: JobResultValue[A]): F[Unit] = F.unit
-      override private[batch] def canceled(bj: BatchJob): F[Unit]            = F.unit
-      override private[batch] def kickoff(bj: BatchJob): F[Unit]             = F.unit
-    }
-
-  final class GenericTracer[F[_], A] private[TraceJob] (
+  final class JobTracer[F[_], A] private[TraceJob] (
     private val _completed: JobResultValue[A] => F[Unit],
     private val _errored: JobResultError => F[Unit],
     private val _canceled: BatchJob => F[Unit],
     private val _kickoff: BatchJob => F[Unit]
-  ) extends TraceJob[F, A] {
+  ) extends EventHandle[F, A] {
     override private[batch] def kickoff(bj: BatchJob): F[Unit]             = _kickoff(bj)
     override private[batch] def canceled(bj: BatchJob): F[Unit]            = _canceled(bj)
     override private[batch] def completed(jrv: JobResultValue[A]): F[Unit] = _completed(jrv)
@@ -41,81 +39,32 @@ object TraceJob {
       _completed: JobResultValue[A] => F[Unit] = this._completed,
       _errored: JobResultError => F[Unit] = this._errored,
       _canceled: BatchJob => F[Unit] = this._canceled,
-      _kickoff: BatchJob => F[Unit] = this._kickoff): GenericTracer[F, A] =
-      new GenericTracer[F, A](_completed, _errored, _canceled, _kickoff)
+      _kickoff: BatchJob => F[Unit] = this._kickoff): JobTracer[F, A] =
+      new JobTracer[F, A](_completed, _errored, _canceled, _kickoff)
 
-    def contramap[B](f: B => A): GenericTracer[F, B] =
-      new GenericTracer[F, B](
+    override def onComplete(f: JobResultValue[A] => F[Unit]): JobTracer[F, A] = copy(_completed = f)
+    override def onError(f: JobResultError => F[Unit]): JobTracer[F, A]       = copy(_errored = f)
+    override def onCancel(f: BatchJob => F[Unit]): JobTracer[F, A]            = copy(_canceled = f)
+    override def onKickoff(f: BatchJob => F[Unit]): JobTracer[F, A]           = copy(_kickoff = f)
+
+    def contramap[B](f: B => A): JobTracer[F, B] =
+      new JobTracer[F, B](
         _completed = jrv => _completed(jrv.map(f)),
         _errored = this._errored,
         _canceled = this._canceled,
         _kickoff = this._kickoff
       )
-
-    def onComplete(f: JobResultValue[A] => F[Unit]): GenericTracer[F, A] = copy(_completed = f)
-    def onError(f: JobResultError => F[Unit]): GenericTracer[F, A]       = copy(_errored = f)
-    def onCancel(f: BatchJob => F[Unit]): GenericTracer[F, A]            = copy(_canceled = f)
-    def onKickoff(f: BatchJob => F[Unit]): GenericTracer[F, A]           = copy(_kickoff = f)
   }
 
-  def generic[F[_], A](implicit F: Applicative[F]): GenericTracer[F, A] =
-    new GenericTracer[F, A](
+  def noop[F[_], A](implicit F: Applicative[F]): JobTracer[F, A] =
+    new JobTracer[F, A](
       _completed = _ => F.unit,
       _errored = _ => F.unit,
       _canceled = _ => F.unit,
       _kickoff = _ => F.unit
     )
 
-  /*
-   * Trace job using json format
-   */
-
-  final class JsonTracer[F[_], A] private (
-    _translate: JobResultValue[A] => Json,
-    _kickoff: Json => F[Unit],
-    _failure: Json => F[Unit],
-    _success: Json => F[Unit],
-    _canceled: Json => F[Unit],
-    _errored: JobResultError => F[Unit]
-  ) extends TraceJob[F, A] {
-    override private[batch] def kickoff(bj: BatchJob): F[Unit] =
-      _kickoff(Json.obj("kickoff" -> bj.asJson))
-
-    override private[batch] def canceled(bj: BatchJob): F[Unit] =
-      _canceled(Json.obj("canceled" -> bj.asJson))
-
-    override private[batch] def completed(jrv: JobResultValue[A]): F[Unit] = {
-      val json = _translate(jrv)
-      if (jrv.resultState.done) _success(json) else _failure(json)
-    }
-
-    override private[batch] def errored(jre: JobResultError): F[Unit] =
-      _errored(jre)
-
-    def contramap[B](f: B => A): JsonTracer[F, B] =
-      new JsonTracer[F, B](
-        _translate = jrv => this._translate(jrv.map(f)),
-        _kickoff = this._kickoff,
-        _failure = this._failure,
-        _success = this._success,
-        _canceled = this._canceled,
-        _errored = this._errored
-      )
-  }
-
-  private object JsonTracer {
-    def apply[F[_], A](translate: JobResultValue[A] => Json, redirect: Redirect[F]): JsonTracer[F, A] =
-      new JsonTracer[F, A](
-        _translate = translate,
-        _kickoff = redirect._kickoff,
-        _failure = redirect._failure,
-        _success = redirect._success,
-        _canceled = redirect._canceled,
-        _errored = redirect._errored
-      )
-  }
-
-  final class Redirect[F[_]] private[TraceJob] (
+  final class ByAgent[F[_]] private[TraceJob] (
     private[TraceJob] val _agent: Agent[F],
     private[TraceJob] val _kickoff: Json => F[Unit],
     private[TraceJob] val _failure: Json => F[Unit],
@@ -126,7 +75,7 @@ object TraceJob {
       _kickoff: Json => F[Unit] = this._kickoff,
       _failure: Json => F[Unit] = this._failure,
       _success: Json => F[Unit] = this._success
-    ): Redirect[F] = new Redirect[F](
+    ): ByAgent[F] = new ByAgent[F](
       _agent = this._agent,
       _kickoff = _kickoff,
       _failure = _failure,
@@ -151,31 +100,39 @@ object TraceJob {
       val void: Json => F[Unit]  = _agent.console.void(_)
     }
 
-    def sendKickoffTo(f: anchor.type => Json => F[Unit]): Redirect[F] =
+    def sendKickoffTo(f: anchor.type => Json => F[Unit]): ByAgent[F] =
       copy(_kickoff = f(anchor))
 
-    def sendSuccessTo(f: anchor.type => Json => F[Unit]): Redirect[F] =
+    def sendSuccessTo(f: anchor.type => Json => F[Unit]): ByAgent[F] =
       copy(_success = f(anchor))
 
-    def sendFailureTo(f: anchor.type => Json => F[Unit]): Redirect[F] =
+    def sendFailureTo(f: anchor.type => Json => F[Unit]): ByAgent[F] =
       copy(_failure = f(anchor))
 
-    def universal[A](f: (A, JobResultState) => Json): JsonTracer[F, A] =
-      JsonTracer[F, A](jrv => f(jrv.value, jrv.resultState), this)
+    def universal[A](f: (A, JobResultState) => Json): JobTracer[F, A] =
+      new JobTracer[F, A](
+        _completed = { jrv =>
+          val json = f(jrv.value, jrv.resultState)
+          if (jrv.resultState.done) _success(json) else _failure(json)
+        },
+        _errored = jre => _errored(jre),
+        _canceled = bj => _canceled(Json.obj("canceled" -> bj.asJson)),
+        _kickoff = bj => _kickoff(Json.obj("kickoff" -> bj.asJson))
+      )
 
-    def standard[A: Encoder]: JsonTracer[F, A] =
+    def standard[A: Encoder]: JobTracer[F, A] =
       universal[A]((a, jrs) => Json.obj("outcome" -> a.asJson).deepMerge(jrs.asJson))
 
-    def json: JsonTracer[F, Json] = standard[Json]
+    def json: JobTracer[F, Json] = standard[Json]
 
-    def informationRate: JsonTracer[F, Information] = {
+    def informationRate: JobTracer[F, Information] = {
       def translate(number: Information, jrs: JobResultState): Json =
         Json.obj("information" -> jsonDataRate(jrs.took, number)).deepMerge(jrs.asJson)
 
       universal[Information](translate)
     }
 
-    def dimensionlessRate: JsonTracer[F, Dimensionless] = {
+    def dimensionlessRate: JobTracer[F, Dimensionless] = {
       def translate(number: Dimensionless, jrs: JobResultState): Json =
         Json.obj("dimensionless" -> jsonScalarRate(jrs.took, number)).deepMerge(jrs.asJson)
 
@@ -183,12 +140,12 @@ object TraceJob {
     }
   }
 
-  def apply[F[_]](agent: Agent[F]): Redirect[F] =
-    new Redirect[F](
+  def apply[F[_]](agent: Agent[F]): ByAgent[F] =
+    new ByAgent[F](
       _agent = agent,
-      _kickoff = agent.console.info(_),
+      _kickoff = agent.herald.info(_),
       _failure = agent.herald.warn(_),
-      _success = agent.console.done(_),
+      _success = agent.herald.done(_),
       _canceled = agent.console.warn(_),
       _errored = jre => agent.herald.error(jre.error)(jre.resultState)
     )

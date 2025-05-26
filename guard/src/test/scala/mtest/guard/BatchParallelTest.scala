@@ -49,8 +49,8 @@ class BatchParallelTest extends AnyFunSuite {
     var errorJob: BatchJob    = null
     var canceledJob: BatchJob = null
     var succJob: BatchJob     = null
-    val tracer: TraceJob.GenericTracer[IO, Int] = TraceJob
-      .generic[IO, Int]
+    val tracer: TraceJob.JobTracer[IO, Int] = TraceJob
+      .noop[IO, Int]
       .onError(jo => IO { errorJob = jo.resultState.job })
       .onCancel(jo => IO { canceledJob = jo })
       .onComplete(jo => IO { succJob = jo.resultState.job })
@@ -98,7 +98,7 @@ class BatchParallelTest extends AnyFunSuite {
     var canceledJob: BatchJob              = null
     var completedJob: List[JobResultState] = Nil
     val tracer = TraceJob
-      .generic[IO, Int]
+      .noop[IO, Int]
       .onCancel(jo => IO { canceledJob = jo })
       .onComplete(jo => IO { completedJob = jo.resultState :: completedJob })
     val jobs =

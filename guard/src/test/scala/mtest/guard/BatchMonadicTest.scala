@@ -43,7 +43,7 @@ class BatchMonadicTest extends AnyFunSuite {
     var completedJob: JobResultState = null
     var errorJob: JobResultState     = null
     val tracer: TraceJob[IO, Json] = TraceJob
-      .generic[IO, Json]
+      .noop[IO, Json]
       .onComplete(jo => IO { completedJob = jo.resultState })
       .onError(jo => IO { errorJob = jo.resultState })
     val se = service.eventStreamR { agent =>
@@ -73,7 +73,7 @@ class BatchMonadicTest extends AnyFunSuite {
     var completedJob: List[JobResultState] = Nil
     var errorJob: JobResultState           = null
     val tracer: TraceJob[IO, Json] = TraceJob
-      .generic[IO, Json]
+      .noop[IO, Json]
       .onComplete(jo => IO { completedJob = jo.resultState :: completedJob })
       .onError(jo => IO { errorJob = jo.resultState })
     val se = service.eventStreamR { agent =>
@@ -87,7 +87,7 @@ class BatchMonadicTest extends AnyFunSuite {
           } yield a + c
         }
         .batchValue(
-          tracer |+| TraceJob(agent).sendSuccessTo(_.herald.done).sendKickoffTo(_.herald.info).standard)
+          tracer |+| TraceJob(agent).standard)
     }.evalTap(console.text[IO]).compile.lastOrError.unsafeRunSync()
 
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
@@ -107,7 +107,7 @@ class BatchMonadicTest extends AnyFunSuite {
   test("4.invincible - false") {
     var completedJob: List[JobResultState] = Nil
     val tracer: TraceJob[IO, Json] =
-      TraceJob.generic[IO, Json].onComplete(jo => IO { completedJob = jo.resultState :: completedJob })
+      TraceJob.noop[IO, Json].onComplete(jo => IO { completedJob = jo.resultState :: completedJob })
     val se = service.eventStreamR { agent =>
       agent
         .batch("invincible")
@@ -138,7 +138,7 @@ class BatchMonadicTest extends AnyFunSuite {
   test("5. filter") {
     var completedJob: List[JobResultState] = Nil
     val tracer: TraceJob[IO, Json] =
-      TraceJob.generic[IO, Json].onComplete(jo => IO { completedJob = jo.resultState :: completedJob })
+      TraceJob.noop[IO, Json].onComplete(jo => IO { completedJob = jo.resultState :: completedJob })
     val se = service.eventStreamR { agent =>
       val res = agent
         .batch("exception")
@@ -170,7 +170,7 @@ class BatchMonadicTest extends AnyFunSuite {
     var completedJob: List[JobResultValue[Json]] = Nil
     var canceledJob: BatchJob                    = null
     val tracer = TraceJob
-      .generic[IO, Json]
+      .noop[IO, Json]
       .onCancel(bj => IO { canceledJob = bj })
       .onComplete(jrv => IO { completedJob = jrv :: completedJob })
 
