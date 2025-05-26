@@ -38,7 +38,7 @@ class BatchTest extends AnyFunSuite {
         .withJobRename(_ + ":test")
         .quasiBatch(
           TraceJob
-            .generic[IO, Boolean]
+            .noop[IO, Boolean]
             .contramap(identity[Boolean])
             .onError(IO.println)
             .onCancel(IO.println)
@@ -426,6 +426,15 @@ class BatchTest extends AnyFunSuite {
       .compile
       .lastOrError
       .unsafeRunSync()
+    assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
+  }
+
+  test("22. monadic flatMap limits") {
+    val se = service.eventStreamR { agent =>
+      agent.batch("many flatmap").monadic { job =>
+        List.fill(10_000)(job("a" -> IO(1))).reduce((a, b) => a.flatMap(_ => b)).batchValue(TraceJob.noop)
+      }
+    }.compile.lastOrError.unsafeRunSync()
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
   }
 }

@@ -14,11 +14,11 @@ import scala.util.matching.Regex
 
 sealed trait JobKind
 object JobKind {
-  case object Tolerable extends JobKind
-  case object Intolerable extends JobKind
+  case object Quasi extends JobKind
+  case object Value extends JobKind
   implicit val showBatchKind: Show[JobKind] = {
-    case Tolerable   => "tolerable" // tolerable - exception will be ignored
-    case Intolerable => "intolerable" // intolerable - exception will be propagated
+    case Quasi => "quasi" // tolerable - exception will be ignored
+    case Value => "value" // intolerable - exception will be propagated
   }
 }
 

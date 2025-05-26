@@ -14,7 +14,7 @@ class BatchSequentialSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
   private val service: ServiceGuard[IO] =
     TaskGuard[IO]("batch").service("sequential")
 
-  private val tracer = TraceJob.generic[IO, Int]
+  private val tracer = TraceJob.noop[IO, Int]
 
   "quasi" - {
     "good job".in {
@@ -50,7 +50,7 @@ class BatchSequentialSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
             .batch("predicate")
             .sequential(jobs*)
             .withPredicate(_ > 3)
-            .quasiBatch(TraceJob(agent).sendKickoffTo(_.void).sendSuccessTo(_.herald.done).standard)
+            .quasiBatch(TraceJob(agent).standard)
         result.asserting { mb =>
           mb.jobs.head.done.shouldBe(false)
           mb.jobs(1).done.shouldBe(false)

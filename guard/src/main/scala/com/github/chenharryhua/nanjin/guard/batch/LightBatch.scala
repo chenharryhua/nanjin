@@ -30,7 +30,7 @@ object LightBatch {
 
     override def quasiBatch: F[BatchResultState] =
       F.timed(F.parTraverseN(parallelism)(jobs) { case JobNameIndex(name, idx, fa) =>
-        val job = BatchJob(name, idx, metrics.metricLabel, mode, JobKind.Tolerable)
+        val job = BatchJob(name, idx, metrics.metricLabel, mode, JobKind.Quasi)
         F.timed(F.attempt(fa)).map { case (fd: FiniteDuration, eoa: Either[Throwable, A]) =>
           JobResultState(job, fd.toJava, eoa.fold(_ => false, predicate.run))
         }
@@ -40,7 +40,7 @@ object LightBatch {
 
     override def batchValue: F[BatchResultValue[List[A]]] =
       F.timed(F.parTraverseN(parallelism)(jobs) { case JobNameIndex(name, idx, fa) =>
-        val job = BatchJob(name, idx, metrics.metricLabel, mode, JobKind.Intolerable)
+        val job = BatchJob(name, idx, metrics.metricLabel, mode, JobKind.Value)
         F.timed(F.attempt(fa))
           .map { case (fd: FiniteDuration, eoa: Either[Throwable, A]) =>
             eoa.flatMap { a =>
@@ -76,7 +76,7 @@ object LightBatch {
 
     override def quasiBatch: F[BatchResultState] =
       jobs.traverse { case JobNameIndex(name, idx, fa) =>
-        val job = BatchJob(name, idx, metrics.metricLabel, mode, JobKind.Tolerable)
+        val job = BatchJob(name, idx, metrics.metricLabel, mode, JobKind.Quasi)
         F.timed(F.attempt(fa)).map { case (fd: FiniteDuration, eoa: Either[Throwable, A]) =>
           JobResultState(job, fd.toJava, eoa.fold(_ => false, predicate.run))
         }
@@ -84,7 +84,7 @@ object LightBatch {
 
     override def batchValue: F[BatchResultValue[List[A]]] =
       jobs.traverse { case JobNameIndex(name, idx, fa) =>
-        val job = BatchJob(name, idx, metrics.metricLabel, mode, JobKind.Intolerable)
+        val job = BatchJob(name, idx, metrics.metricLabel, mode, JobKind.Value)
         F.timed(F.attempt(fa))
           .map { case (fd: FiniteDuration, eoa: Either[Throwable, A]) =>
             eoa.flatMap { a =>
