@@ -4,12 +4,20 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.catsSyntaxSemigroup
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.batch.{JobResultState, PostConditionUnsatisfied, TraceJob}
+import com.github.chenharryhua.nanjin.guard.batch.{
+  BatchJob,
+  JobResultState,
+  JobResultValue,
+  PostConditionUnsatisfied,
+  TraceJob
+}
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStop
 import com.github.chenharryhua.nanjin.guard.observers.console
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import io.circe.Json
 import org.scalatest.funsuite.AnyFunSuite
+
+import scala.concurrent.duration.DurationInt
 
 class BatchMonadicTest extends AnyFunSuite {
   private val service: ServiceGuard[IO] =
@@ -129,9 +137,8 @@ class BatchMonadicTest extends AnyFunSuite {
 
   test("5. filter") {
     var completedJob: List[JobResultState] = Nil
-    val tracer: TraceJob[IO, Json] = TraceJob
-      .generic[IO, Json]
-      .onComplete(jo => IO { completedJob = jo.resultState :: completedJob })
+    val tracer: TraceJob[IO, Json] =
+      TraceJob.generic[IO, Json].onComplete(jo => IO { completedJob = jo.resultState :: completedJob })
     val se = service.eventStreamR { agent =>
       val res = agent
         .batch("exception")
@@ -147,7 +154,7 @@ class BatchMonadicTest extends AnyFunSuite {
         .attempt
       res.map(r => assert(r.fold(_.isInstanceOf[PostConditionUnsatisfied], _ => false)))
 
-    }.evalTap(console.text[IO]).compile.lastOrError.unsafeRunSync()
+    }.compile.lastOrError.unsafeRunSync()
 
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
     assert(completedJob.size == 2)
@@ -157,7 +164,36 @@ class BatchMonadicTest extends AnyFunSuite {
     assert(sorted.head.job.index == 1)
     assert(sorted(1).done)
     assert(sorted(1).job.index == 2)
+  }
 
+  test("6.cancel") {
+    var completedJob: List[JobResultValue[Json]] = Nil
+    var canceledJob: BatchJob                    = null
+    val tracer = TraceJob
+      .generic[IO, Json]
+      .onCancel(bj => IO { canceledJob = bj })
+      .onComplete(jrv => IO { completedJob = jrv :: completedJob })
+
+    val se = service.eventStream { agent =>
+      agent
+        .batch("good")
+        .monadic { job =>
+          for {
+            a <- job("a" -> IO(1).delayBy(1.second))
+            b <- job("b" -> IO(2).delayBy(1.seconds))
+            c <- job("c" -> IO(3).delayBy(2.second))
+            d <- job("d" -> IO(4).delayBy(1.second))
+          } yield a + b + c + d
+        }
+        .batchValue(tracer)
+        .memoizedAcquire
+        .use(_.timeout(3.second))
+        .attempt
+        .void
+    }.compile.lastOrError.unsafeRunSync()
+    assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
+    assert(completedJob.size == 2)
+    assert(canceledJob.index == 3)
   }
 
 }
