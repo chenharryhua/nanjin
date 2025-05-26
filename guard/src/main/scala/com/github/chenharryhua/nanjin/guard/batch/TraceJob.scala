@@ -17,7 +17,7 @@ sealed trait TraceJob[F[_], A] {
 }
 
 object TraceJob {
-  sealed trait EventHandle[F[_], A] extends TraceJob[F, A] {
+  sealed trait EventHandle[F[_], A] {
     def onComplete(f: JobResultValue[A] => F[Unit]): EventHandle[F, A]
     def onError(f: JobResultError => F[Unit]): EventHandle[F, A]
     def onCancel(f: BatchJob => F[Unit]): EventHandle[F, A]
@@ -29,7 +29,7 @@ object TraceJob {
     private val _errored: JobResultError => F[Unit],
     private val _canceled: BatchJob => F[Unit],
     private val _kickoff: BatchJob => F[Unit]
-  ) extends EventHandle[F, A] {
+  ) extends TraceJob[F, A] with EventHandle[F, A] {
     override private[batch] def kickoff(bj: BatchJob): F[Unit]             = _kickoff(bj)
     override private[batch] def canceled(bj: BatchJob): F[Unit]            = _canceled(bj)
     override private[batch] def completed(jrv: JobResultValue[A]): F[Unit] = _completed(jrv)
