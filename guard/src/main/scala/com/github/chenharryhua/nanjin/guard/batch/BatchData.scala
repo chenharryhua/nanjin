@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.batch
 
 import cats.Show
+import cats.effect.kernel.Unique
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.config.MetricLabel
 import com.github.chenharryhua.nanjin.guard.translator.durationFormatter
@@ -47,7 +48,13 @@ object BatchMode {
   }
 }
 
-final case class BatchJob(name: String, index: Int, label: MetricLabel, mode: BatchMode, kind: JobKind) {
+final case class BatchJob(
+  name: String,
+  index: Int,
+  label: MetricLabel,
+  mode: BatchMode,
+  kind: JobKind,
+  correlationId: Unique.Token) {
   val batch: String       = label.label
   val domain: String      = label.domain.value
   val indexedName: String = s"job-$index ($name)"
@@ -60,7 +67,8 @@ object BatchJob {
         "batch" -> Json.fromString(a.batch),
         "domain" -> Json.fromString(a.domain),
         "mode" -> Json.fromString(a.mode.show),
-        "kind" -> Json.fromString(a.kind.show)
+        "kind" -> Json.fromString(a.kind.show),
+        "correlation_id" -> Json.fromInt(a.correlationId.hash)
       )
 }
 
