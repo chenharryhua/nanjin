@@ -82,7 +82,7 @@ class BatchMonadicTest extends AnyFunSuite {
         .monadic { job =>
           for {
             a <- job("a" -> IO(1))
-            _ <- job.invincible("b" -> IO.raiseError[Boolean](new Exception()))
+            _ <- job.failSoft("b" -> IO.raiseError[Boolean](new Exception()))
             c <- job("c" -> IO(3))
           } yield a + c
         }
@@ -114,7 +114,7 @@ class BatchMonadicTest extends AnyFunSuite {
         .monadic { job =>
           for {
             a <- job("a" -> IO(1))
-            _ <- job.invincible("b" -> IO(false))
+            _ <- job.failSoft("b" -> IO(false))
             c <- job("c" -> IO(3))
           } yield a + c
         }
