@@ -74,9 +74,9 @@ class BatchTest extends AnyFunSuite {
         .withJobRename(_ + ":test")
         .quasiBatch(
           TraceJob(ga)
-            .sendSuccessTo(_.void)
-            .sendKickoffTo(_.void)
-            .sendFailureTo(_.void)
+            .routeSuccess(_.void)
+            .routeKickoff(_.void)
+            .routeFailure(_.void)
             .universal[Unit]((_, _) => Json.Null)
         )
         .map { qr =>

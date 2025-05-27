@@ -17,7 +17,7 @@ sealed trait TraceJob[F[_], A] {
 }
 
 object TraceJob {
-  sealed trait EventHandle[F[_], A] {
+  sealed protected trait EventHandle[F[_], A] {
     def onComplete(f: JobResultValue[A] => F[Unit]): EventHandle[F, A]
     def onError(f: JobResultError => F[Unit]): EventHandle[F, A]
     def onCancel(f: BatchJob => F[Unit]): EventHandle[F, A]
@@ -25,10 +25,10 @@ object TraceJob {
   }
 
   final class JobTracer[F[_], A] private[TraceJob] (
-    private val _completed: JobResultValue[A] => F[Unit],
-    private val _errored: JobResultError => F[Unit],
-    private val _canceled: BatchJob => F[Unit],
-    private val _kickoff: BatchJob => F[Unit]
+    _completed: JobResultValue[A] => F[Unit],
+    _errored: JobResultError => F[Unit],
+    _canceled: BatchJob => F[Unit],
+    _kickoff: BatchJob => F[Unit]
   ) extends TraceJob[F, A] with EventHandle[F, A] {
     override private[batch] def kickoff(bj: BatchJob): F[Unit]             = _kickoff(bj)
     override private[batch] def canceled(bj: BatchJob): F[Unit]            = _canceled(bj)
@@ -49,7 +49,7 @@ object TraceJob {
 
     def contramap[B](f: B => A): JobTracer[F, B] =
       new JobTracer[F, B](
-        _completed = jrv => _completed(jrv.map(f)),
+        _completed = (jrv: JobResultValue[B]) => _completed(jrv.map(f)),
         _errored = this._errored,
         _canceled = this._canceled,
         _kickoff = this._kickoff
@@ -85,39 +85,31 @@ object TraceJob {
     )
 
     object anchor {
-      object herald {
-        val warn: Json => F[Unit] = _agent.herald.warn(_)
-        val done: Json => F[Unit] = _agent.herald.done(_)
-        val info: Json => F[Unit] = _agent.herald.info(_)
-      }
-      object console {
-        val warn: Json => F[Unit] = _agent.console.warn(_)
-        val done: Json => F[Unit] = _agent.console.done(_)
-        val info: Json => F[Unit] = _agent.console.info(_)
-      }
-      val error: Json => F[Unit] = _agent.herald.error(_)
+      val warn: Json => F[Unit]  = _agent.console.warn(_)
+      val done: Json => F[Unit]  = _agent.console.done(_)
+      val info: Json => F[Unit]  = _agent.console.info(_)
       val debug: Json => F[Unit] = _agent.console.debug(_)
       val void: Json => F[Unit]  = _agent.console.void(_)
     }
 
-    def sendKickoffTo(f: anchor.type => Json => F[Unit]): ByAgent[F] =
+    def routeKickoff(f: anchor.type => Json => F[Unit]): ByAgent[F] =
       copy(_kickoff = f(anchor))
 
-    def sendSuccessTo(f: anchor.type => Json => F[Unit]): ByAgent[F] =
+    def routeSuccess(f: anchor.type => Json => F[Unit]): ByAgent[F] =
       copy(_success = f(anchor))
 
-    def sendFailureTo(f: anchor.type => Json => F[Unit]): ByAgent[F] =
+    def routeFailure(f: anchor.type => Json => F[Unit]): ByAgent[F] =
       copy(_failure = f(anchor))
 
     def universal[A](f: (A, JobResultState) => Json): JobTracer[F, A] =
       new JobTracer[F, A](
-        _completed = { jrv =>
+        _completed = { (jrv: JobResultValue[A]) =>
           val json = f(jrv.value, jrv.resultState)
           if (jrv.resultState.done) _success(json) else _failure(json)
         },
-        _errored = jre => _errored(jre),
-        _canceled = bj => _canceled(Json.obj("canceled" -> bj.asJson)),
-        _kickoff = bj => _kickoff(Json.obj("kickoff" -> bj.asJson))
+        _errored = (jre: JobResultError) => _errored(jre),
+        _canceled = (bj: BatchJob) => _canceled(Json.obj("canceled" -> bj.asJson)),
+        _kickoff = (bj: BatchJob) => _kickoff(Json.obj("kickoff" -> bj.asJson))
       )
 
     def standard[A: Encoder]: JobTracer[F, A] =
@@ -147,7 +139,7 @@ object TraceJob {
       _failure = agent.herald.warn(_),
       _success = agent.herald.done(_),
       _canceled = agent.console.warn(_),
-      _errored = jre => agent.herald.error(jre.error)(jre.resultState)
+      _errored = (jre: JobResultError) => agent.herald.error(jre.error)(jre.resultState)
     )
 
   implicit def monoidTraceJob[F[_], A](implicit ev: MonadCancel[F, Throwable]): Monoid[TraceJob[F, A]] =
