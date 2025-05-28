@@ -17,6 +17,8 @@ trait Timer[F[_]] extends KleisliLike[F, Long] {
   def elapsed(jd: JavaDuration): F[Unit]
   def elapsed(num: Long): F[Unit]
 
+  def timing[A](fa: F[A]): F[A]
+
   final def elapsed(fd: FiniteDuration): F[Unit] =
     elapsed(fd.toNanos)
 
@@ -29,6 +31,8 @@ object Timer {
     new Timer[F] {
       override def elapsed(jd: JavaDuration): F[Unit] = F.unit
       override def elapsed(num: Long): F[Unit]        = F.unit
+
+      override def timing[A](fa: F[A]): F[A] = fa
     }
 
   private class Impl[F[_]: Sync](
@@ -53,6 +57,11 @@ object Timer {
 
     override def elapsed(num: Long): F[Unit]        = F.delay(timer.update(num, TimeUnit.NANOSECONDS))
     override def elapsed(jd: JavaDuration): F[Unit] = F.delay(timer.update(jd))
+
+    override def timing[A](fa: F[A]): F[A] = F.map(F.timed(fa)) { case (fd, result) =>
+      timer.update(fd.toNanos, TimeUnit.NANOSECONDS)
+      result
+    }
 
     val unregister: F[Unit] = F.delay(metricRegistry.remove(timer_name)).void
 
