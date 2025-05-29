@@ -48,7 +48,7 @@ class AdminApiTest extends AnyFunSuite {
     val tpo   = Map(new TopicPartition(topic.topicName.value, 0) -> new OffsetAndMetadata(0))
     val admin = ctx.admin("admin")
     val gp =
-      topic.produceOne(0, 0) >> ctx.admin("admin").use { admin =>
+      ctx.producer[Int, Int].produceOne(topic.topicName.value, 0, 0) >> ctx.admin("admin").use { admin =>
         ctx.admin.use(_.listTopics.listings) >>
           admin.commitSync(gid, tpo) >>
           admin.retrieveRecord(0, 0) >>

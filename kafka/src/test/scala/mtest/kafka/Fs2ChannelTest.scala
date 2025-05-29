@@ -66,7 +66,7 @@ class Fs2ChannelTest extends AnyFunSuite {
 
     val ret =
       ctx.schemaRegistry.register(topicDef).attempt >>
-        topic.produceOne(1, Fs2Kafka(1, "a", 1.0)) >>
+        ctx.producer[Int, Fs2Kafka].produceOne(topic.topicName.value, 1, Fs2Kafka(1, "a", 1.0)) >>
         topic.consume
           .updateConfig(_.withGroupId("g1"))
           .stream
@@ -115,13 +115,6 @@ class Fs2ChannelTest extends AnyFunSuite {
       .unsafeRunSync()
   }
 
-  test("circe") {
-    topic.produceCirce(json).unsafeRunSync()
-  }
-
-  test("jackson") {
-    topic.produceJackson(jackson).unsafeRunSync()
-  }
 
   test("produce") {
     val jackson =
@@ -149,6 +142,6 @@ class Fs2ChannelTest extends AnyFunSuite {
       "leaderEpoch":null
     }
      """
-    ctx.produce(jackson).flatMap(IO.println).unsafeRunSync()
+    ctx.jacksonProduce(jackson).flatMap(IO.println).unsafeRunSync()
   }
 }

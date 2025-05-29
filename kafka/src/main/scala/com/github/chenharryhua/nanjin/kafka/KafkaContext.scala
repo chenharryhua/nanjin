@@ -63,6 +63,10 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
     new SchemaRegistryApi[F](new CachedSchemaRegistryClient(url, cacheCapacity))
   }
 
+  /*
+   * consumer
+   */
+
   def consume(topicName: TopicName)(implicit F: Sync[F]): KafkaByteConsume[F] =
     new KafkaByteConsume[F](
       topicName,
@@ -98,7 +102,9 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
     ProducerSettings[F, Array[Byte], Array[Byte]](Serializer[F, Array[Byte]], Serializer[F, Array[Byte]])
       .withProperties(settings.producerSettings.properties)
 
-  // sink
+  /*
+   * sinks
+   */
 
   def sink(topicName: TopicName, f: Endo[ProducerSettings[F, Array[Byte], Array[Byte]]])(implicit
     F: Async[F]): Pipe[F, Chunk[GenericRecord], ProducerResult[Array[Byte], Array[Byte]]] = {
@@ -115,9 +121,18 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
     F: Async[F]): Pipe[F, Chunk[GenericRecord], ProducerResult[Array[Byte], Array[Byte]]] =
     sink(TopicName(topicName), f)
 
-  // producer
+  /*
+   * producer
+   */
 
-  def produce(jackson: String)(implicit F: Async[F]): F[ProducerResult[Array[Byte], Array[Byte]]] =
+  def producer[K: SerdeOf, V: SerdeOf](implicit F: Sync[F]): KafkaProduce[F, K, V] =
+    new KafkaProduce[F, K, V](
+      ProducerSettings[F, K, V](
+        Serializer.delegate(asKey[K].serializer()),
+        Serializer.delegate(asValue[V].serializer())).withProperties(settings.producerSettings.properties)
+    )
+
+  def jacksonProduce(jackson: String)(implicit F: Async[F]): F[ProducerResult[Array[Byte], Array[Byte]]] =
     for {
       tn <- F.fromEither(parse(jackson).flatMap(_.hcursor.get[String]("topic")))
       topicName <- F.fromEither(TopicName.from(tn))
@@ -152,7 +167,9 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
     } yield prs
   }
 
-  // streams
+  /*
+   * kafka streaming
+   */
 
   def store[K: SerdeOf, V: SerdeOf](storeName: TopicName): StateStores[K, V] =
     StateStores[K, V](
@@ -171,7 +188,9 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
     F: Async[F]): KafkaStreamsBuilder[F] =
     buildStreams(applicationId, Reader(topology))
 
-  // admins
+  /*
+   * admin topic
+   */
 
   def admin(implicit F: Async[F]): Resource[F, KafkaAdminClient[F]] =
     KafkaAdminClient.resource[F](settings.adminSettings)

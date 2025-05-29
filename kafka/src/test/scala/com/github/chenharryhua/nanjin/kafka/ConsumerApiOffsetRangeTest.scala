@@ -30,7 +30,7 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
   val pr3: ProducerRecord[Int, Int] = ProducerRecord(topic.topicName.value, 3, 3).withTimestamp(300)
 
   val topicData: Stream[IO, ProducerResult[Int, Int]] =
-    Stream(ProducerRecords(List(pr1, pr2, pr3))).covary[IO].through(topic.produce.sink)
+    Stream(ProducerRecords(List(pr1, pr2, pr3))).covary[IO].through(ctx.producer[Int, Int].sink)
 
   (ctx.admin(topic.topicName).use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt) >>
     topicData.compile.drain).unsafeRunSync()

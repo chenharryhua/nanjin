@@ -4,9 +4,10 @@ import cats.Id
 import cats.data.Kleisli
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
+import com.github.chenharryhua.nanjin.kafka.streaming.KafkaStreamsBuilder
 import eu.timepit.refined.auto.*
 import fs2.Stream
-import fs2.kafka.{commitBatchWithin, ProducerRecord, ProducerRecords}
+import fs2.kafka.{commitBatchWithin, ProducerRecord, ProducerRecords, ProducerResult}
 import mtest.kafka.*
 import org.apache.kafka.streams.processor.api
 import org.apache.kafka.streams.processor.api.{Processor, ProcessorSupplier, Record}
@@ -57,7 +58,7 @@ class TransformerTest extends AnyFunSuite {
       t2 <- topic2.asConsumer.ktable
     } yield s1.process(processor, store.name).join(t2)(_ + _).to(tgt.topicName.value)(tgt.asProduced)
 
-    val kafkaStreamService =
+    val kafkaStreamService: KafkaStreamsBuilder[IO] =
       ctx.buildStreams(appid, top).addStateStore(store.inMemoryKeyValueStore.keyValueStoreBuilder)
     println(kafkaStreamService.topology.describe())
 
@@ -66,16 +67,18 @@ class TransformerTest extends AnyFunSuite {
         List(
           ProducerRecord(topic2.topicName.value, 2, "t0"),
           ProducerRecord(topic2.topicName.value, 4, "t1"),
-          ProducerRecord(topic2.topicName.value, 6, "t2")))).covary[IO].through(topic2.produce.sink)
+          ProducerRecord(topic2.topicName.value, 6, "t2"))))
+      .covary[IO]
+      .through(ctx.producer[Int, String].sink)
 
-    val s1Data =
+    val s1Data: Stream[IO, ProducerResult[Int, String]] =
       Stream
         .awakeEvery[IO](1.seconds)
         .zipWithIndex
         .map { case (_, index) =>
           ProducerRecords.one(ProducerRecord(topic1.topicName.value, index.toInt, s"stream$index"))
         }
-        .through(topic1.produce.sink)
+        .through(ctx.producer[Int, String].sink)
     val havest = ctx
       .consume(tgt.topicName)
       .stream
