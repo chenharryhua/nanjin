@@ -430,13 +430,13 @@ object Batch {
       *   true if no exception occurs and is evaluated to true, otherwise false
       */
 
-    def invincible(name: String, rfa: Resource[F, Boolean]): Monadic[Boolean] =
+    def failSoft(name: String, rfa: Resource[F, Boolean]): Monadic[Boolean] =
       invincible_(name, rfa)
 
-    def invincible(name: String, fa: F[Boolean]): Monadic[Boolean] =
+    def failSoft(name: String, fa: F[Boolean]): Monadic[Boolean] =
       invincible_(name, Resource.eval(fa))
 
-    def invincible(tuple: (String, F[Boolean])): Monadic[Boolean] =
+    def failSoft(tuple: (String, F[Boolean])): Monadic[Boolean] =
       invincible_(tuple._1, Resource.eval(tuple._2))
 
     /*

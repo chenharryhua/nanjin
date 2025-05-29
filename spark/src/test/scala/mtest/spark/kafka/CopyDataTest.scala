@@ -2,6 +2,8 @@ package mtest.spark.kafka
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
+import com.github.chenharryhua.nanjin.common.kafka.TopicName
+import com.github.chenharryhua.nanjin.kafka.TopicDef
 import eu.timepit.refined.auto.*
 import fs2.kafka.{ProducerRecord, ProducerRecords}
 import org.scalatest.funsuite.AnyFunSuite
@@ -12,8 +14,9 @@ object CopyData {
 
 class CopyDataTest extends AnyFunSuite {
   import CopyData.*
-  val src = ctx.topic[Int, MyTestData]("copy.src")
-  val tgt = ctx.topic[Int, MyTestData]("copy.target")
+  val td = TopicDef[Int,MyTestData](TopicName("tn"))
+  val src = ctx.topic[Int, MyTestData](td.withTopicName("copy.src"))
+  val tgt = ctx.topic[Int, MyTestData](td.withTopicName("copy.target"))
 
   val d1 = ProducerRecord(src.topicName.value, 0, MyTestData(1, "a")).withTimestamp(10)
   val d2 = ProducerRecord(src.topicName.value, 1, MyTestData(2, "b")).withTimestamp(20)
@@ -21,8 +24,13 @@ class CopyDataTest extends AnyFunSuite {
   val d4 = ProducerRecord(src.topicName.value, null.asInstanceOf[Int], MyTestData(4, "d")).withTimestamp(40)
   val d5 = ProducerRecord(src.topicName.value, 4, null.asInstanceOf[MyTestData]).withTimestamp(50)
 
-  val loadData =
-    fs2.Stream(ProducerRecords(List(d1, d2, d3, d4, d5))).covary[IO].through(src.produce.sink).compile.drain
+  val loadData: IO[Unit] =
+    fs2
+      .Stream(ProducerRecords(List(d1, d2, d3, d4, d5)))
+      .covary[IO]
+      .through(ctx.producer[Int, MyTestData].sink)
+      .compile
+      .drain
 
   val prepareData =
     ctx.admin(src.topicName).use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt) >>
@@ -43,7 +51,7 @@ class CopyDataTest extends AnyFunSuite {
           _.prRdd.noPartition.noTimestamp.noMeta
             .withTopicName(tgt.topicName)
             .producerRecords[IO](100)
-            .through(tgt.produce.sink)
+            .through(ctx.producer[Int, MyTestData].sink)
             .compile
             .drain)
       srcData = sparKafka.topic(src.topicDef).fromKafka.map(_.rdd.collect()).unsafeRunSync()

@@ -258,7 +258,7 @@ class BatchTest extends AnyFunSuite {
             a <- job("a", IO.println("a").as(10))
             b <- job("b", IO.sleep(1.seconds) >> IO.println("b").as(20))
             _ <- job("report-1" -> agent.adhoc.report)
-            _ <- job.invincible("exception", IO.raiseError[Boolean](new Exception("aaaa")))
+            _ <- job.failSoft("exception", IO.raiseError[Boolean](new Exception("aaaa")))
             _ <- job("f" -> IO.println("bbbb"))
             _ <- job("report-2" -> agent.adhoc.report)
             c <- job("c", IO.println("c").as(30))

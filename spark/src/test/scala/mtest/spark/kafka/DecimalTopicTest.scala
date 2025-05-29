@@ -69,12 +69,12 @@ object DecimalTopicTestCase {
   val topicDef: TopicDef[Int, HasDecimal] =
     TopicDef[Int, HasDecimal](TopicName("kafka.decimal.test"), codec)
 
-  val now = Instant.ofEpochMilli(Instant.now.toEpochMilli)
+  val now: Instant = Instant.ofEpochMilli(Instant.now.toEpochMilli)
 
   val data: HasDecimal =
     HasDecimal(BigDecimal(123456.001), BigDecimal(1234.5678), now)
 
-  val expected = HasDecimal(BigDecimal(123456), BigDecimal(1234.568), now)
+  val expected: HasDecimal = HasDecimal(BigDecimal(123456), BigDecimal(1234.568), now)
 }
 
 class DecimalTopicTest extends AnyFunSuite {
@@ -83,11 +83,11 @@ class DecimalTopicTest extends AnyFunSuite {
   val topic: KafkaTopic[IO, Int, HasDecimal]      = ctx.topic(topicDef)
   val stopic: SparKafkaTopic[IO, Int, HasDecimal] = sparKafka.topic(topicDef)
 
-  val loadData =
+  val loadData: IO[Unit] =
     stopic
       .prRdd(List(NJProducerRecord(stopic.topicName, 1, data), NJProducerRecord(stopic.topicName, 2, data)))
       .producerRecords[IO](100)
-      .through(stopic.topic.produce.sink)
+      .through(ctx.producer(topicDef.rawSerdes).sink)
       .compile
       .drain
 

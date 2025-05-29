@@ -17,10 +17,15 @@ final class KafkaByteConsume[F[_]] private[kafka] (
   consumerSettings: ConsumerSettings[F, Array[Byte], Array[Byte]],
   getSchema: F[AvroSchemaPair],
   srs: SchemaRegistrySettings
-) extends UpdateConfig[ConsumerSettings[F, Array[Byte], Array[Byte]], KafkaByteConsume[F]] {
+) extends UpdateConfig[PureConsumerSettings, KafkaByteConsume[F]] {
+  def properties: Map[String, String] = consumerSettings.properties
 
-  override def updateConfig(f: Endo[ConsumerSettings[F, Array[Byte], Array[Byte]]]): KafkaByteConsume[F] =
-    new KafkaByteConsume[F](topicName, f(consumerSettings), getSchema, srs)
+  override def updateConfig(f: Endo[PureConsumerSettings]): KafkaByteConsume[F] =
+    new KafkaByteConsume[F](
+      topicName,
+      consumerSettings.withProperties(f(pureConsumerSettings).properties),
+      getSchema,
+      srs)
 
   def consumer(implicit F: Async[F]): Resource[F, KafkaConsumer[F, Array[Byte], Array[Byte]]] =
     KafkaConsumer.resource(consumerSettings)
@@ -79,10 +84,11 @@ final class KafkaByteConsume[F[_]] private[kafka] (
 final class KafkaConsume[F[_], K, V] private[kafka] (
   topicName: TopicName,
   consumerSettings: ConsumerSettings[F, K, V]
-) extends UpdateConfig[ConsumerSettings[F, K, V], KafkaConsume[F, K, V]] {
+) extends UpdateConfig[PureConsumerSettings, KafkaConsume[F, K, V]] {
+  def properties: Map[String, String] = consumerSettings.properties
 
-  override def updateConfig(f: Endo[ConsumerSettings[F, K, V]]): KafkaConsume[F, K, V] =
-    new KafkaConsume[F, K, V](topicName, f(consumerSettings))
+  override def updateConfig(f: Endo[PureConsumerSettings]): KafkaConsume[F, K, V] =
+    new KafkaConsume[F, K, V](topicName, consumerSettings.withProperties(f(pureConsumerSettings).properties))
 
   def consumer(implicit F: Async[F]): Resource[F, KafkaConsumer[F, K, V]] =
     KafkaConsumer.resource(consumerSettings)

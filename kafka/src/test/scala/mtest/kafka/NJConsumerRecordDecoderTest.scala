@@ -1,14 +1,16 @@
 package mtest.kafka
 
 import cats.effect.IO
-import com.github.chenharryhua.nanjin.kafka.KafkaTopic
+import com.github.chenharryhua.nanjin.common.kafka.TopicName
+import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, TopicDef}
 import eu.timepit.refined.auto.*
 import fs2.kafka.ConsumerRecord
 import org.scalatest.funsuite.AnyFunSuite
 
 class NJConsumerRecordDecoderTest extends AnyFunSuite {
 
-  val topic: KafkaTopic[IO, Int, Int] = ctx.topic[Int, Int]("decode.test")
+
+  val topic: KafkaTopic[IO, Int, Int] = ctx.topic(TopicDef[Int, Int](TopicName("decode.test")))
   val goodData: ConsumerRecord[Array[Byte], Array[Byte]] =
     ConsumerRecord("test", 0, 0, Array[Byte](0, 0, 0, 1), Array[Byte](0, 0, 0, 2))
 

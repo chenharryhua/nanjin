@@ -4,7 +4,8 @@ import cats.data.Reader
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.kafka.{KafkaContext, KafkaSettings}
+import com.github.chenharryhua.nanjin.common.kafka.TopicName
+import com.github.chenharryhua.nanjin.kafka.{KafkaContext, KafkaSettings, TopicDef}
 import eu.timepit.refined.auto.*
 import fs2.Stream
 import fs2.kafka.{ProducerRecord, ProducerRecords, ProducerResult}
@@ -28,7 +29,7 @@ class InteractiveTest extends AnyFunSuite {
         .withConsumerProperty(ConsumerConfig.GROUP_ID_CONFIG, "nj-kafka-interactive-unit-test-group")
         .withStreamingProperty("state.dir", "./data/kafka_states"))
 
-  val topic       = ctx.topic[Int, String]("stream.test.interactive.5")
+  val topic       = ctx.topic(TopicDef[Int, String](TopicName("stream.test.interactive.5")))
   val localStore  = topic.asStateStore("stream.test.interactive.local.store.5")
   val globalStore = topic.asStateStore("stream.test.interactive.store.global.5")
 
@@ -41,7 +42,7 @@ class InteractiveTest extends AnyFunSuite {
     val pr: ProducerRecords[Int, String] = ProducerRecords.one(
       ProducerRecord(topic.topicName.value, Random.nextInt(3), s"a${Random.nextInt(1000)}"))
     val feedData: Stream[IO, ProducerResult[Int, String]] =
-      topic.produce.producer.evalMap(_.produce(pr).flatten)
+      ctx.producer[Int, String].stream.evalMap(_.produce(pr).flatten)
 
     val res: Stream[IO, List[KeyValue[Int, String]]] =
       for {

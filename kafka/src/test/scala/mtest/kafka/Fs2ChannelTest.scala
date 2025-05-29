@@ -1,5 +1,6 @@
 package mtest.kafka
 
+import cats.Endo
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.toBifunctorOps
@@ -10,6 +11,7 @@ import com.github.chenharryhua.nanjin.messages.kafka.codec.gr2Jackson
 import eu.timepit.refined.auto.*
 import io.circe.generic.auto.*
 import io.circe.syntax.EncoderOps
+import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.*
@@ -66,8 +68,9 @@ class Fs2ChannelTest extends AnyFunSuite {
 
     val ret =
       ctx.schemaRegistry.register(topicDef).attempt >>
-        topic.produceOne(1, Fs2Kafka(1, "a", 1.0)) >>
-        topic.consume
+        ctx.producer[Int, Fs2Kafka].produceOne(topic.topicName.value, 1, Fs2Kafka(1, "a", 1.0)) >>
+        ctx
+          .consumer(topicDef)
           .updateConfig(_.withGroupId("g1"))
           .stream
           .take(1)
@@ -80,7 +83,9 @@ class Fs2ChannelTest extends AnyFunSuite {
 
   test("record format") {
     val ret =
-      topic.consume.stream
+      ctx
+        .consumer(topicDef)
+        .stream
         .take(1)
         .map(_.record)
         .map(r => gr2Jackson(topic.topicDef.consumerFormat.toRecord(r)).get)
@@ -93,7 +98,7 @@ class Fs2ChannelTest extends AnyFunSuite {
 
   test("serde") {
     ctx
-      .consume(topic.topicName)
+      .consumer(topic.topicName)
       .stream
       .take(1)
       .map { ccr =>
@@ -104,6 +109,7 @@ class Fs2ChannelTest extends AnyFunSuite {
         topic.serde.tryDeserializeKey(ccr.record)
         topic.serde.tryDeserializeValue(ccr.record)
         topic.serde.tryDeserializeKeyValue(ccr.record)
+        topic.serde.optionalDeserialize(ccr.record)
         topic.serde.nullableDeserialize(ccr.record)
         topic.serde.nullableDeserialize(ccr.record.bimap[Array[Byte], Array[Byte]](_ => null, _ => null))
         val nj = topic.serde.toNJConsumerRecord(ccr).toNJProducerRecord.toProducerRecord
@@ -113,14 +119,6 @@ class Fs2ChannelTest extends AnyFunSuite {
       .compile
       .toList
       .unsafeRunSync()
-  }
-
-  test("circe") {
-    topic.produceCirce(json).unsafeRunSync()
-  }
-
-  test("jackson") {
-    topic.produceJackson(jackson).unsafeRunSync()
   }
 
   test("produce") {
@@ -149,6 +147,44 @@ class Fs2ChannelTest extends AnyFunSuite {
       "leaderEpoch":null
     }
      """
-    ctx.produce(jackson).flatMap(IO.println).unsafeRunSync()
+    ctx.jacksonProduce(jackson).flatMap(IO.println).unsafeRunSync()
+  }
+
+  private val cs: Endo[PureConsumerSettings] = _.withGroupId("nanjin")
+    .withEnableAutoCommit(true)
+    .withBootstrapServers("http://abc.com")
+    .withProperty("abc", "efg")
+
+  test("consumer config") {
+    val consumer = ctx.consumer(topicDef).updateConfig(cs).properties
+    assert(consumer.get(ConsumerConfig.GROUP_ID_CONFIG).contains("nanjin"))
+    assert(consumer.get(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG).contains("true"))
+    assert(consumer.get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG).contains("http://abc.com"))
+    assert(consumer.get("abc").contains("efg"))
+  }
+
+  test("byte consumer config") {
+    val consumer = ctx.consumer("bytes").updateConfig(cs).properties
+    assert(consumer.get(ConsumerConfig.GROUP_ID_CONFIG).contains("nanjin"))
+    assert(consumer.get(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG).contains("true"))
+    assert(consumer.get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG).contains("http://abc.com"))
+    assert(consumer.get("abc").contains("efg"))
+  }
+
+  private val ps: Endo[PureProducerSettings] =
+    _.withClientId("nanjin").withBootstrapServers("http://abc.com").withProperty("abc", "efg")
+
+  test("producer setting") {
+    val producer = ctx.producer(topicDef.rawSerdes).updateConfig(ps).properties
+    assert(producer.get(ConsumerConfig.CLIENT_ID_CONFIG).contains("nanjin"))
+    assert(producer.get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG).contains("http://abc.com"))
+    assert(producer.get("abc").contains("efg"))
+  }
+
+  test("transactional producer setting") {
+    val producer = ctx.producer(topicDef.rawSerdes).updateConfig(ps).transactional("trans").properties
+    assert(producer.get(ConsumerConfig.CLIENT_ID_CONFIG).contains("nanjin"))
+    assert(producer.get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG).contains("http://abc.com"))
+    assert(producer.get("abc").contains("efg"))
   }
 }

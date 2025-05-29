@@ -11,9 +11,12 @@ import eu.timepit.refined.auto.*
 import io.circe.Json
 import io.lemonlabs.uri.typesafe.dsl.*
 import org.scalatest.funsuite.AnyFunSuite
+import com.github.chenharryhua.nanjin.kafka.TopicDef
+import com.github.chenharryhua.nanjin.common.kafka.TopicName
 
 class KJsonTest extends AnyFunSuite {
-  val topic: KafkaTopic[IO, KJson[Json], KJson[Json]] = ctx.jsonTopic("kjson.test")
+  val topicDef: TopicDef[KJson[Json], KJson[Json]] = TopicDef[KJson[Json], KJson[Json]](TopicName("kjson.text"))
+  val topic: KafkaTopic[IO, KJson[Json], KJson[Json]] = ctx.topic[KJson[Json], KJson[Json]](topicDef)
 
   val data: List[NJProducerRecord[KJson[Json], KJson[Json]]] = List
     .range(0, 10)
@@ -29,7 +32,7 @@ class KJsonTest extends AnyFunSuite {
       .stream[IO](1)
       .map(_.toProducerRecord)
       .chunks
-      .through(topic.produce.sink)
+      .through(ctx.producer[KJson[Json], KJson[Json]].sink)
       .compile
       .drain
       .unsafeRunSync()

@@ -95,7 +95,20 @@ class Performance extends AnyFunSuite {
     println(s"speed: ${i / timeout.toMillis} k/s")
   }
 
-  test("7.performance circuit breaker") {
+  test("7.performance timer - timing") {
+    var i: Int = 0
+    service
+      .eventStream(_.facilitate("timer")(_.timer("timer").use(_.timing(IO(1000)).map(_ => i += 1).foreverM)))
+      .timeoutOnPullTo(timeout, fs2.Stream.empty)
+      .compile
+      .drain
+      .unsafeRunSync()
+
+    println(s"cost:  ${timeout.toNanos / i} nano")
+    println(s"speed: ${i / timeout.toMillis} k/s")
+  }
+
+  test("8.performance circuit breaker") {
     var i: Int = 0
     service
       .eventStream(
@@ -112,7 +125,7 @@ class Performance extends AnyFunSuite {
     println(s"speed: ${i / timeout.toMillis} k/s")
   }
 
-  test("8.performance cache") {
+  test("9.performance cache") {
     service
       .eventStream(_.caffeineCache(Caffeine.newBuilder().build[Int, Int]()).use { cache =>
         cache.put(1, 0) >>
@@ -127,7 +140,7 @@ class Performance extends AnyFunSuite {
       .unsafeRunSync()
   }
 
-  test("9.performance herald") {
+  test("10.performance herald") {
     val i = service
       .eventStream(_.herald.info("hi").foreverM.timeout(timeout).attempt.void)
       .compile

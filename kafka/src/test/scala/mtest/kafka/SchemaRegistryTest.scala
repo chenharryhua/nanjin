@@ -23,7 +23,7 @@ class SchemaRegistryTest extends AnyFunSuite {
   }
 
   test("incompatible") {
-    val other = ctx.topic[String, String](topicName)
+    val other = ctx.topic(TopicDef[String, String](topicName))
     val res   = ctx.schemaRegistry.fetchAvroSchema(topicName).unsafeRunSync()
     assert(res.backward(other.topicDef.schemaPair).nonEmpty)
     assert(res.forward(other.topicDef.schemaPair).nonEmpty)

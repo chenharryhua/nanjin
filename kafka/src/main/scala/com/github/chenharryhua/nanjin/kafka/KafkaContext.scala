@@ -38,18 +38,6 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
   def topic[K, V](topicDef: TopicDef[K, V]): KafkaTopic[F, K, V] =
     new KafkaTopic[F, K, V](topicDef, settings)
 
-  def topic[K: SerdeOf, V: SerdeOf](topicName: TopicName): KafkaTopic[F, K, V] =
-    topic[K, V](TopicDef[K, V](topicName))
-
-  def topic[K: SerdeOf, V: SerdeOf](topicName: TopicNameL): KafkaTopic[F, K, V] =
-    topic[K, V](TopicName(topicName))
-
-  def jsonTopic(topicName: TopicName): KafkaTopic[F, KJson[Json], KJson[Json]] =
-    topic[KJson[Json], KJson[Json]](topicName)
-
-  def jsonTopic(topicName: TopicNameL): KafkaTopic[F, KJson[Json], KJson[Json]] =
-    jsonTopic(TopicName(topicName))
-
   @transient lazy val schemaRegistry: SchemaRegistryApi[F] = {
     val url_config = AbstractKafkaSchemaSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG
     val url = settings.schemaRegistrySettings.config.get(url_config) match {
@@ -63,7 +51,23 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
     new SchemaRegistryApi[F](new CachedSchemaRegistryClient(url, cacheCapacity))
   }
 
-  def consume(topicName: TopicName)(implicit F: Sync[F]): KafkaByteConsume[F] =
+  /*
+   * consumer
+   */
+
+  def consumer[K, V](topicDef: TopicDef[K, V])(implicit F: Sync[F]): KafkaConsume[F, K, V] = {
+    val serdePair: KeyValueSerdePair[K, V] =
+      topicDef.rawSerdes.register(settings.schemaRegistrySettings, topicDef.topicName)
+    new KafkaConsume[F, K, V](
+      topicDef.topicName,
+      ConsumerSettings[F, K, V](
+        Deserializer.delegate[F, K](serdePair.key.serde.deserializer()),
+        Deserializer.delegate[F, V](serdePair.value.serde.deserializer()))
+        .withProperties(settings.consumerSettings.properties)
+    )
+  }
+
+  def consumer(topicName: TopicName)(implicit F: Sync[F]): KafkaByteConsume[F] =
     new KafkaByteConsume[F](
       topicName,
       ConsumerSettings[F, Array[Byte], Array[Byte]](
@@ -73,13 +77,13 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
       settings.schemaRegistrySettings
     )
 
-  def consume(topicName: TopicNameL)(implicit F: Sync[F]): KafkaByteConsume[F] =
-    consume(TopicName(topicName))
+  def consumer(topicName: TopicNameL)(implicit F: Sync[F]): KafkaByteConsume[F] =
+    consumer(TopicName(topicName))
 
   def monitor(topicName: TopicNameL, f: AutoOffsetReset.type => AutoOffsetReset = _.Latest)(implicit
     F: Async[F]): Stream[F, String] =
     Stream.eval(utils.randomUUID[F]).flatMap { uuid =>
-      consume(TopicName(topicName))
+      consumer(TopicName(topicName))
         .updateConfig( // avoid accidentally join an existing consumer-group
           _.withGroupId(uuid.show).withEnableAutoCommit(false).withAutoOffsetReset(f(AutoOffsetReset)))
         .genericRecords
@@ -94,30 +98,42 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
         .rethrow
     }
 
+  /*
+   * producer
+   */
+
+  def producer[K: SerdeOf, V: SerdeOf](implicit F: Sync[F]): KafkaProduce[F, K, V] =
+    new KafkaProduce[F, K, V](
+      ProducerSettings[F, K, V](
+        Serializer.delegate(asKey[K].serializer()),
+        Serializer.delegate(asValue[V].serializer())).withProperties(settings.producerSettings.properties)
+    )
+  def producer[K, V](raw: RawKeyValueSerdePair[K, V])(implicit F: Sync[F]): KafkaProduce[F, K, V] =
+    producer[K, V](raw.key, raw.value, Sync[F])
+
   private def bytesProducerSettings(implicit F: Sync[F]): ProducerSettings[F, Array[Byte], Array[Byte]] =
     ProducerSettings[F, Array[Byte], Array[Byte]](Serializer[F, Array[Byte]], Serializer[F, Array[Byte]])
       .withProperties(settings.producerSettings.properties)
 
-  // sink
-
-  def sink(topicName: TopicName, f: Endo[ProducerSettings[F, Array[Byte], Array[Byte]]])(implicit
+  def sink(topicName: TopicName, f: Endo[PureProducerSettings])(implicit
     F: Async[F]): Pipe[F, Chunk[GenericRecord], ProducerResult[Array[Byte], Array[Byte]]] = {
     (ss: Stream[F, Chunk[GenericRecord]]) =>
       Stream.eval(schemaRegistry.fetchAvroSchema(topicName)).flatMap { skm =>
         val builder = new PushGenericRecord(settings.schemaRegistrySettings, topicName, skm)
         val prStream: Stream[F, ProducerRecords[Array[Byte], Array[Byte]]] =
           ss.map(_.map(builder.fromGenericRecord))
-        KafkaProducer.pipe(f(bytesProducerSettings)).apply(prStream)
+
+        KafkaProducer
+          .pipe(bytesProducerSettings.withProperties(f(pureProducerSetting).properties))
+          .apply(prStream)
       }
   }
 
-  def sink(topicName: TopicNameL, f: Endo[ProducerSettings[F, Array[Byte], Array[Byte]]])(implicit
+  def sink(topicName: TopicNameL, f: Endo[PureProducerSettings])(implicit
     F: Async[F]): Pipe[F, Chunk[GenericRecord], ProducerResult[Array[Byte], Array[Byte]]] =
     sink(TopicName(topicName), f)
 
-  // producer
-
-  def produce(jackson: String)(implicit F: Async[F]): F[ProducerResult[Array[Byte], Array[Byte]]] =
+  def jacksonProduce(jackson: String)(implicit F: Async[F]): F[ProducerResult[Array[Byte], Array[Byte]]] =
     for {
       tn <- F.fromEither(parse(jackson).flatMap(_.hcursor.get[String]("topic")))
       topicName <- F.fromEither(TopicName.from(tn))
@@ -152,7 +168,9 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
     } yield prs
   }
 
-  // streams
+  /*
+   * kafka streaming
+   */
 
   def store[K: SerdeOf, V: SerdeOf](storeName: TopicName): StateStores[K, V] =
     StateStores[K, V](
@@ -171,7 +189,9 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
     F: Async[F]): KafkaStreamsBuilder[F] =
     buildStreams(applicationId, Reader(topology))
 
-  // admins
+  /*
+   * admin topic
+   */
 
   def admin(implicit F: Async[F]): Resource[F, KafkaAdminClient[F]] =
     KafkaAdminClient.resource[F](settings.adminSettings)

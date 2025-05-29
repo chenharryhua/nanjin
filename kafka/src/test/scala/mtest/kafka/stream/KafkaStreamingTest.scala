@@ -8,7 +8,7 @@ import cats.effect.kernel.Outcome
 import cats.effect.unsafe.implicits.global
 import cats.implicits.{catsSyntaxTuple2Semigroupal, showInterpolator}
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
-import com.github.chenharryhua.nanjin.kafka.KafkaTopic
+import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, TopicDef}
 import eu.timepit.refined.auto.*
 import fs2.Stream
 import fs2.kafka.{commitBatchWithin, ProducerRecord, ProducerRecords}
@@ -30,10 +30,14 @@ object KafkaStreamingData {
 
   case class StreamTarget(name: String, weight: Int, color: Int)
 
-  val s1Topic: KafkaTopic[IO, Int, StreamOne] = ctx.topic[Int, StreamOne]("stream.test.join.stream.one")
-  val t2Topic: KafkaTopic[IO, Int, TableTwo]  = ctx.topic[Int, TableTwo]("stream.test.join.table.two")
+  val s1Def = TopicDef[Int, StreamOne](TopicName("stream.test.join.stream.one"))
 
-  val tgt: KafkaTopic[IO, Int, StreamTarget] = ctx.topic[Int, StreamTarget]("stream.test.join.target")
+  val s1Topic: KafkaTopic[IO, Int, StreamOne] = ctx.topic(s1Def)
+  val t2Topic: KafkaTopic[IO, Int, TableTwo] =
+    ctx.topic(TopicDef[Int, TableTwo](TopicName("stream.test.join.table.two")))
+
+  val tgt: KafkaTopic[IO, Int, StreamTarget] =
+    ctx.topic(TopicDef[Int, StreamTarget](TopicName("stream.test.join.target")))
 
   val sendT2Data =
     Stream(
@@ -41,11 +45,11 @@ object KafkaStreamingData {
         ProducerRecord(t2Topic.topicName.value, 1, TableTwo("x", 0)),
         ProducerRecord(t2Topic.topicName.value, 2, TableTwo("y", 1)),
         ProducerRecord(t2Topic.topicName.value, 3, TableTwo("z", 2))
-      ))).covary[IO].through(t2Topic.produce.sink)
+      ))).covary[IO].through(ctx.producer[Int, TableTwo].sink)
 
   val harvest: Stream[IO, StreamTarget] =
     ctx
-      .consume(tgt.topicName)
+      .consumer(tgt.topicName)
       .stream
       .map(x => tgt.serde.deserialize(x))
       .observe(_.map(_.offset).through(commitBatchWithin[IO](1, 0.1.seconds)).drain)
@@ -82,7 +86,7 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
         ).map(ProducerRecords.one))
       .covary[IO]
       .metered(1.seconds)
-      .through(s1Topic.produce.sink)
+      .through(ctx.producer[Int, StreamOne].sink)
 
     val top: Kleisli[Id, StreamsBuilder, Unit] = for {
       a <- s1Topic.asConsumer.kstream
@@ -104,8 +108,8 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
 
   test("kafka stream has bad records") {
     val tn         = TopicName("stream.test.stream.badrecords.one")
-    val s1Topic    = ctx.topic[Int, StreamOne](tn)
-    val s1TopicBin = ctx.topic[Array[Byte], Array[Byte]](tn)
+    val s1Topic    = ctx.topic[Int, StreamOne](s1Def.withTopicName(tn))
+    val s1TopicBin = ctx.topic(TopicDef[Array[Byte], Array[Byte]](tn))
 
     val top: Kleisli[Id, StreamsBuilder, Unit] = for {
       a <- s1TopicBin.asConsumer.kstream
@@ -133,7 +137,7 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
         ).map(ProducerRecords.one))
       .covary[IO]
       .metered(1.seconds)
-      .through(s1TopicBin.produce.sink)
+      .through(ctx.producer[Array[Byte], Array[Byte]].sink)
       .debug()
 
     val res = (IO.println(Console.CYAN + "kafka stream has bad records" + Console.RESET) >> ctx
@@ -148,8 +152,8 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
 
   test("kafka stream exception") {
     val tn         = TopicName("stream.test.stream.exception.one")
-    val s1Topic    = ctx.topic[Int, StreamOne](tn)
-    val s1TopicBin = ctx.topic[Int, Array[Byte]](tn)
+    val s1Topic    = ctx.topic[Int, StreamOne](s1Def.withTopicName(tn))
+    val s1TopicBin = ctx.topic(TopicDef[Int, Array[Byte]](tn))
 
     val top: Reader[StreamsBuilder, Unit] = for {
       a <- s1Topic.asConsumer.kstream
@@ -167,7 +171,7 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
       ).map(ProducerRecords.one))
       .covary[IO]
       .metered(1.seconds)
-      .through(s1TopicBin.produce.sink)
+      .through(ctx.producer[Int, Array[Byte]].sink)
       .debug()
 
     assertThrows[Exception](
@@ -184,7 +188,7 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
   }
 
   test("kafka stream should be able to be closed") {
-    val s1Topic = ctx.topic[Int, StreamOne]("stream.test.join.stream.one")
+    val s1Topic = ctx.topic[Int, StreamOne](s1Def.withTopicName("stream.test.join.stream.one"))
 
     val top: Reader[StreamsBuilder, Unit] = for {
       a <- s1Topic.asConsumer.kstream
@@ -209,7 +213,7 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
   }
 
   test("should raise an error when kafka topic does not exist") {
-    val s1Topic = ctx.topic[Int, StreamOne]("consumer.topic.does.not.exist")
+    val s1Topic = ctx.topic[Int, StreamOne](s1Def.withTopicName("consumer.topic.does.not.exist"))
 
     val top: Reader[StreamsBuilder, Unit] = for {
       a <- s1Topic.asConsumer.kstream

@@ -46,7 +46,7 @@ class BatchSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
         .monadic { job =>
           for {
             a <- job("a", IO(1))
-            _ <- job.invincible("b", IO.raiseError[Boolean](new Exception()))
+            _ <- job.failSoft("b", IO.raiseError[Boolean](new Exception()))
             c <- job("c", IO(2))
           } yield a + c
         }

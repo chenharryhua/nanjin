@@ -40,7 +40,7 @@ class SparKafkaTest extends AnyFunSuite {
       .Stream(ProducerRecords(
         List(ProducerRecord(topic.topicName.value, 1, data), ProducerRecord(topic.topicName.value, 2, data))))
       .covary[IO]
-      .through(topic.produce.updateConfig(_.withClientId("spark.kafka.test")).sink)
+      .through(ctx.producer[Int,HasDuck].updateConfig(_.withClientId("spark.kafka.test")).sink)
       .compile
       .drain
 
@@ -73,7 +73,7 @@ class SparKafkaTest extends AnyFunSuite {
   import sparkSession.implicits.*
   test("sparKafka should be able to bimap to other topic") {
 
-    val src: KafkaTopic[IO, Int, Int] = ctx.topic[Int, Int]("src.topic")
+    val src: KafkaTopic[IO, Int, Int] = ctx.topic(TopicDef[Int, Int](TopicName("src.topic")))
     val d1: NJConsumerRecord[Int, Int] =
       NJConsumerRecord("t", 0, 1, 0, 0, None, None, None, Some(1), Nil, None)
     val d2: NJConsumerRecord[Int, Int] =
@@ -96,7 +96,7 @@ class SparKafkaTest extends AnyFunSuite {
   }
 
   test("sparKafka should be able to flatmap to other topic") {
-    val src: KafkaTopic[IO, Int, Int] = ctx.topic[Int, Int]("src.topic")
+    val src: KafkaTopic[IO, Int, Int] = ctx.topic(TopicDef[Int, Int](TopicName("src.topic")))
     val d1: NJConsumerRecord[Int, Int] =
       NJConsumerRecord("t", 0, 1, 0, 0, None, None, None, Some(1), Nil, None)
     val d2: NJConsumerRecord[Int, Int] =
@@ -204,7 +204,7 @@ class SparKafkaTest extends AnyFunSuite {
   }
 
   val duckConsume: KafkaByteConsume[IO] =
-    ctx.consume("duck.test").updateConfig(_.withAutoOffsetReset(AutoOffsetReset.Earliest).withGroupId("duck"))
+    ctx.consumer("duck.test").updateConfig(_.withAutoOffsetReset(AutoOffsetReset.Earliest).withGroupId("duck"))
 
   test("generic record") {
     val path = "./data/test/spark/kafka/consume/duck.avro"
