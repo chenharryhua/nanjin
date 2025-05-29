@@ -4,6 +4,8 @@ import cats.Id
 import cats.data.Kleisli
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
+import com.github.chenharryhua.nanjin.common.kafka.TopicName
+import com.github.chenharryhua.nanjin.kafka.TopicDef
 import com.github.chenharryhua.nanjin.kafka.streaming.KafkaStreamsBuilder
 import eu.timepit.refined.auto.*
 import fs2.Stream
@@ -26,9 +28,11 @@ class TransformerTest extends AnyFunSuite {
   test("stream transformer") {
     val store = ctx.store[Int, String]("stream.builder.test.store")
 
-    val topic1 = ctx.topic[Int, String]("stream.builder.test.stream1")
-    val topic2 = ctx.topic[Int, String]("stream.builder.test.table2")
-    val tgt    = ctx.topic[Int, String]("stream.builder.test.target")
+    def td = TopicDef[Int, String](TopicName("stream"))
+
+    val topic1 = ctx.topic[Int, String](td.withTopicName("stream.builder.test.stream1"))
+    val topic2 = ctx.topic[Int, String](td.withTopicName("stream.builder.test.table2"))
+    val tgt    = ctx.topic[Int, String](td.withTopicName("stream.builder.test.target"))
 
     val processor: ProcessorSupplier[Int, String, Int, String] =
       new ProcessorSupplier[Int, String, Int, String] {
@@ -69,7 +73,7 @@ class TransformerTest extends AnyFunSuite {
           ProducerRecord(topic2.topicName.value, 4, "t1"),
           ProducerRecord(topic2.topicName.value, 6, "t2"))))
       .covary[IO]
-      .through(ctx.producer[Int, String].sink)
+      .through(ctx.producer(td.rawSerdes).sink)
 
     val s1Data: Stream[IO, ProducerResult[Int, String]] =
       Stream
@@ -80,7 +84,7 @@ class TransformerTest extends AnyFunSuite {
         }
         .through(ctx.producer[Int, String].sink)
     val havest = ctx
-      .consume(tgt.topicName)
+      .consumer(tgt.topicName)
       .stream
       .map(tgt.serde.deserialize(_))
       .debug()

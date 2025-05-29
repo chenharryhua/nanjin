@@ -3,6 +3,7 @@ package mtest.kafka
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
+import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.{DateTimeRange, NJTimestamp}
 import com.github.chenharryhua.nanjin.kafka.*
 import eu.timepit.refined.auto.*
@@ -14,8 +15,9 @@ import org.scalatest.funsuite.AnyFunSuite
 import scala.concurrent.duration.DurationInt
 
 class AdminApiTest extends AnyFunSuite {
-  val topic: KafkaTopic[IO, Int, Int]  = ctx.topic[Int, Int]("admin")
-  val mirror: KafkaTopic[IO, Int, Int] = ctx.topic[Int, Int]("admin.mirror")
+  private val topicDef: TopicDef[Int, Int]     = TopicDef[Int, Int](TopicName("admin"))
+  private val topic: KafkaTopic[IO, Int, Int]  = ctx.topic(topicDef)
+  private val mirror: KafkaTopic[IO, Int, Int] = ctx.topic(topicDef.withTopicName("admin.mirror"))
 
   test("newTopic") {
     val run = ctx.admin(topic.topicName).use { admin =>

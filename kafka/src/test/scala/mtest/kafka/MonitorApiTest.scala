@@ -3,8 +3,9 @@ package mtest.kafka
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
+import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.DateTimeRange
-import com.github.chenharryhua.nanjin.kafka.KafkaTopic
+import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, TopicDef}
 import eu.timepit.refined.auto.*
 import fs2.Stream
 import fs2.kafka.*
@@ -14,15 +15,17 @@ import org.scalatest.funsuite.AnyFunSuite
 import scala.concurrent.duration.*
 
 class MonitorApiTest extends AnyFunSuite {
-  val topic: KafkaTopic[IO, Int, Int] = ctx.topic[Int, Int]("monitor.test")
-  val tgt: KafkaTopic[IO, Int, Int]   = ctx.topic[Int, Int]("monitor.carbon.copy.test")
+  private val topicDef: TopicDef[Int, Int]    = TopicDef[Int, Int](TopicName("monitor.test"))
+  private val topic: KafkaTopic[IO, Int, Int] = ctx.topic[Int, Int](topicDef)
 
-  val st: KafkaTopic[IO, Int, Array[Byte]] = ctx.topic[Int, Array[Byte]]("monitor.test")
+  private val st: KafkaTopic[IO, Int, Array[Byte]] =
+    ctx.topic(TopicDef[Int, Array[Byte]](TopicName("monitor.test")))
 
-  val headers1: Headers = Headers.fromSeq(List(Header("a", "aaaaa")))
-  val headers2: Headers = Headers.fromSeq(List(Header("b", ""), Header("warn", "value is null as expected")))
+  private val headers1: Headers = Headers.fromSeq(List(Header("a", "aaaaa")))
+  val headers2: Headers =
+    Headers.fromSeq(List(Header("b", ""), Header("warn", "value is null as expected")))
 
-  val sender: Stream[IO, ProducerResult[Int, Array[Byte]]] = Stream
+  private val sender: Stream[IO, ProducerResult[Int, Array[Byte]]] = Stream
     .emits(
       List(
         ProducerRecord[Int, Array[Byte]](st.topicName.value, 0, Array(0, 0, 0, 1)).withHeaders(headers1),

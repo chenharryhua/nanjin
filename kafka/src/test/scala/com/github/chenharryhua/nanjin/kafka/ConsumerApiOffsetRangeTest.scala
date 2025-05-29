@@ -4,6 +4,7 @@ import cats.Id
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.chrono.zones.darwinTime
+import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.{DateTimeRange, NJTimestamp}
 import eu.timepit.refined.auto.*
 import fs2.Stream
@@ -23,14 +24,15 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
     * ^ ^ \| | start end
     */
 
-  val topic: KafkaTopic[IO, Int, Int] = ctx.topic[Int, Int]("range.test")
+  val topicDef: TopicDef[Int, Int]    = TopicDef[Int, Int](TopicName("range.test"))
+  val topic: KafkaTopic[IO, Int, Int] = ctx.topic[Int, Int](topicDef)
 
   val pr1: ProducerRecord[Int, Int] = ProducerRecord(topic.topicName.value, 1, 1).withTimestamp(100)
   val pr2: ProducerRecord[Int, Int] = ProducerRecord(topic.topicName.value, 2, 2).withTimestamp(200)
   val pr3: ProducerRecord[Int, Int] = ProducerRecord(topic.topicName.value, 3, 3).withTimestamp(300)
 
   val topicData: Stream[IO, ProducerResult[Int, Int]] =
-    Stream(ProducerRecords(List(pr1, pr2, pr3))).covary[IO].through(ctx.producer[Int, Int].sink)
+    Stream(ProducerRecords(List(pr1, pr2, pr3))).covary[IO].through(ctx.producer(topicDef.rawSerdes).sink)
 
   (ctx.admin(topic.topicName).use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt) >>
     topicData.compile.drain).unsafeRunSync()

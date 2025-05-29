@@ -99,16 +99,13 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
     * [[https://www.conduktor.io/kafka/kafka-producer-batching/]]
     */
 
-  def upload(
-    topicName: TopicName,
-    path: Url,
-    chunkSize: ChunkSize,
-    config: Endo[ProducerSettings[F, Array[Byte], Array[Byte]]])(implicit F: Async[F]): F[Long] = {
+  def upload(topicName: TopicName, path: Url, chunkSize: ChunkSize, config: Endo[PureProducerSettings])(
+    implicit F: Async[F]): F[Long] = {
 
     val producerSettings: ProducerSettings[F, Array[Byte], Array[Byte]] =
-      config(
-        ProducerSettings[F, Array[Byte], Array[Byte]](Serializer[F, Array[Byte]], Serializer[F, Array[Byte]])
-          .withProperties(kafkaContext.settings.producerSettings.properties))
+      ProducerSettings[F, Array[Byte], Array[Byte]](Serializer[F, Array[Byte]], Serializer[F, Array[Byte]])
+        .withProperties(kafkaContext.settings.producerSettings.properties)
+        .withProperties(config(pureProducerSetting).properties)
 
     for {
       schemaPair <- kafkaContext.schemaRegistry.fetchAvroSchema(topicName)
@@ -137,11 +134,8 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
     } yield num
   }
 
-  def upload(
-    topicName: TopicNameL,
-    path: Url,
-    chunkSize: ChunkSize,
-    config: Endo[ProducerSettings[F, Array[Byte], Array[Byte]]])(implicit F: Async[F]): F[Long] =
+  def upload(topicName: TopicNameL, path: Url, chunkSize: ChunkSize, config: Endo[PureProducerSettings])(
+    implicit F: Async[F]): F[Long] =
     upload(TopicName(topicName), path, chunkSize, config)
 
   def upload(topicName: TopicNameL, path: Url)(implicit F: Async[F]): F[Long] =

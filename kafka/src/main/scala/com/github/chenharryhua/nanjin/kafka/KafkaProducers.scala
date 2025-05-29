@@ -14,7 +14,9 @@ import org.apache.kafka.clients.producer.RecordMetadata
   */
 
 final class KafkaProduce[F[_], K, V] private[kafka] (producerSettings: ProducerSettings[F, K, V])
-    extends UpdateConfig[ProducerSettings[F, K, V], KafkaProduce[F, K, V]] {
+    extends UpdateConfig[PureProducerSettings, KafkaProduce[F, K, V]] {
+
+  def properties: Map[String, String] = producerSettings.properties
 
   def transactional(transactionalId: String): KafkaTransactional[F, K, V] =
     new KafkaTransactional[F, K, V](TransactionalProducerSettings(transactionalId, producerSettings))
@@ -28,8 +30,8 @@ final class KafkaProduce[F[_], K, V] private[kafka] (producerSettings: ProducerS
   def stream(implicit F: Async[F]): Stream[F, KafkaProducer.Metrics[F, K, V]] =
     KafkaProducer.stream(producerSettings)
 
-  override def updateConfig(f: Endo[ProducerSettings[F, K, V]]): KafkaProduce[F, K, V] =
-    new KafkaProduce[F, K, V](f(producerSettings))
+  override def updateConfig(f: Endo[PureProducerSettings]): KafkaProduce[F, K, V] =
+    new KafkaProduce[F, K, V](producerSettings.withProperties(f(pureProducerSetting).properties))
 
   /** for testing and repl
     */
@@ -44,11 +46,9 @@ final class KafkaProduce[F[_], K, V] private[kafka] (producerSettings: ProducerS
 }
 
 final class KafkaTransactional[F[_], K, V] private[kafka] (
-  txnSettings: TransactionalProducerSettings[F, K, V])
-    extends UpdateConfig[TransactionalProducerSettings[F, K, V], KafkaTransactional[F, K, V]] {
+  txnSettings: TransactionalProducerSettings[F, K, V]) {
+  def properties: Map[String, String] = txnSettings.producerSettings.properties
+
   def stream(implicit F: Async[F]): Stream[F, TransactionalKafkaProducer[F, K, V]] =
     TransactionalKafkaProducer.stream(txnSettings)
-
-  override def updateConfig(f: Endo[TransactionalProducerSettings[F, K, V]]): KafkaTransactional[F, K, V] =
-    new KafkaTransactional[F, K, V](f(txnSettings))
 }

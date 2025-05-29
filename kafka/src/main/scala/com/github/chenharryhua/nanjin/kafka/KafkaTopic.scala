@@ -1,10 +1,8 @@
 package com.github.chenharryhua.nanjin.kafka
 
-import cats.effect.kernel.Sync
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameL}
 import com.github.chenharryhua.nanjin.kafka.streaming.{KafkaStreamingConsumer, StateStores}
-import fs2.kafka.*
 import org.apache.kafka.streams.scala.kstream.Produced
 
 final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V], val settings: KafkaSettings)
@@ -25,17 +23,6 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
     topicDef.rawSerdes.register(settings.schemaRegistrySettings, topicName)
 
   object serde extends KafkaGenericSerde[K, V](serdePair.key, serdePair.value)
-
-  // consumer and producer
-
-  def consume(implicit F: Sync[F]): KafkaConsume[F, K, V] =
-    new KafkaConsume[F, K, V](
-      topicName,
-      ConsumerSettings[F, K, V](
-        Deserializer.delegate[F, K](serdePair.key.serde.deserializer()),
-        Deserializer.delegate[F, V](serdePair.value.serde.deserializer()))
-        .withProperties(settings.consumerSettings.properties)
-    )
 
   // Streaming
 

@@ -11,8 +11,6 @@ import scala.util.Random
 
 object utils {
 
-  final val zzffEpoch: LocalDateTime = LocalDateTime.of(2012, 10, 26, 18, 0, 0)
-
   final val epoch: LocalDateTime = LocalDateTime.of(2019, 7, 21, 0, 0, 0)
 
   // kafka was graduated from apache incubator
