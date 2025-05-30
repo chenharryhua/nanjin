@@ -60,27 +60,24 @@ final private class RotateBySizeSink[F[_]](
         }
     }
 
-  private case class Allocated[A](
-    hotswap: Hotswap[F, HadoopWriter[F, A]],
-    writer: HadoopWriter[F, A],
-    release: Resource.ExitCase => F[Unit]
-  )
-
   private def persist[A](
     data: Stream[F, A],
     getWriter: Tick => Resource[F, HadoopWriter[F, A]]): Pull[F, TickedValue[Int], Unit] =
 
     Pull.eval(TickStatus.zeroth(Policy.fixedDelay(0.seconds), ZoneId.systemDefault())).flatMap { tickStatus =>
-      val allocated: F[Allocated[A]] =
-        Hotswap(getWriter(tickStatus.tick)).allocatedCase.map { case ((hotswap, writer), release) =>
-          Allocated(hotswap, writer, release)
+      Stream
+        .resource(Hotswap(getWriter(tickStatus.tick)))
+        .flatMap { case (hotswap, writer) =>
+          doWork(
+            getWriter = getWriter,
+            hotswap = hotswap,
+            writer = writer,
+            data = data,
+            status = tickStatus,
+            count = 0).stream
         }
-
-      Pull.bracketCase[F, TickedValue[Int], Allocated[A], Unit](
-        Pull.eval(allocated),
-        allocated => doWork(getWriter, allocated.hotswap, allocated.writer, data, tickStatus, 0),
-        (allocated, cause) => Pull.eval(allocated.release(cause))
-      )
+        .pull
+        .echo
     }
 
   // avro schema-less
