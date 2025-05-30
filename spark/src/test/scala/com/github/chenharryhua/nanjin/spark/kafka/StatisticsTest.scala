@@ -56,8 +56,8 @@ class StatisticsTest extends AnyFunSuite {
   }
 
   test("missingOffsets") {
-    val res = stats.missingOffsets[IO].map(_.collect().toSet).unsafeRunSync()
+    val res = stats.lostOffsets[IO].map(_.collect().toSet).unsafeRunSync()
     assert(res == Set(MissingOffset(0, 1)))
-    assert(emptyStats.missingOffsets[IO].map(_.count()).unsafeRunSync() == 0)
+    assert(emptyStats.lostOffsets[IO].map(_.count()).unsafeRunSync() == 0)
   }
 }
