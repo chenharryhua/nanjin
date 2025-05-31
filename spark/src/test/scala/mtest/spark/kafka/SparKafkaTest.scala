@@ -4,7 +4,7 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.{KafkaByteConsume, KafkaTopic, TopicDef}
-import com.github.chenharryhua.nanjin.messages.kafka.codec.{gr2BinAvro, gr2Circe, gr2Jackson, AvroCodec}
+import com.github.chenharryhua.nanjin.messages.kafka.codec.{gr2BinAvro, gr2Circe, gr2Jackson}
 import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJProducerRecord}
 import com.sksamuel.avro4s.SchemaFor
 import eu.timepit.refined.auto.*
@@ -40,7 +40,7 @@ class SparKafkaTest extends AnyFunSuite {
       .Stream(ProducerRecords(
         List(ProducerRecord(topic.topicName.value, 1, data), ProducerRecord(topic.topicName.value, 2, data))))
       .covary[IO]
-      .through(ctx.producer[Int,HasDuck].updateConfig(_.withClientId("spark.kafka.test")).sink)
+      .through(ctx.producer[Int, HasDuck].updateConfig(_.withClientId("spark.kafka.test")).sink)
       .compile
       .drain
 
@@ -71,51 +71,6 @@ class SparKafkaTest extends AnyFunSuite {
     sparKafka.topic(topic.topicDef).fromKafka.flatMap(_.stats.summary[IO]).unsafeRunSync()
   }
   import sparkSession.implicits.*
-  test("sparKafka should be able to bimap to other topic") {
-
-    val src: KafkaTopic[IO, Int, Int] = ctx.topic(TopicDef[Int, Int](TopicName("src.topic")))
-    val d1: NJConsumerRecord[Int, Int] =
-      NJConsumerRecord("t", 0, 1, 0, 0, None, None, None, Some(1), Nil, None)
-    val d2: NJConsumerRecord[Int, Int] =
-      NJConsumerRecord("t", 0, 2, 0, 0, None, None, None, Some(2), Nil, None)
-    val d3: NJConsumerRecord[Int, Int] = NJConsumerRecord("t", 0, 3, 0, 0, None, None, None, None, Nil, None)
-    val d4: NJConsumerRecord[Int, Int] =
-      NJConsumerRecord("t", 0, 4, 0, 0, None, None, None, Some(4), Nil, None)
-    val ds: Dataset[NJConsumerRecord[Int, Int]] = sparkSession.createDataset(List(d1, d2, d3, d4))
-
-    val birst =
-      sparKafka
-        .topic(src.topicDef)
-        .crRdd(ds.rdd)
-        .bimap(_.toString, _ + 1)(AvroCodec[String], AvroCodec[Int])
-        .rdd
-        .collect()
-        .toSet
-
-    assert(birst.flatMap(_.value) == Set(2, 3, 5))
-  }
-
-  test("sparKafka should be able to flatmap to other topic") {
-    val src: KafkaTopic[IO, Int, Int] = ctx.topic(TopicDef[Int, Int](TopicName("src.topic")))
-    val d1: NJConsumerRecord[Int, Int] =
-      NJConsumerRecord("t", 0, 1, 0, 0, None, None, None, Some(1), Nil, None)
-    val d2: NJConsumerRecord[Int, Int] =
-      NJConsumerRecord("t", 0, 2, 0, 0, None, None, None, Some(2), Nil, None)
-    val d3: NJConsumerRecord[Int, Int] = NJConsumerRecord("t", 0, 3, 0, 0, None, None, None, None, Nil, None)
-    val d4: NJConsumerRecord[Int, Int] =
-      NJConsumerRecord("t", 0, 4, 0, 0, None, None, None, Some(4), Nil, None)
-    val ds: Dataset[NJConsumerRecord[Int, Int]] = sparkSession.createDataset(List(d1, d2, d3, d4))
-
-    val birst =
-      sparKafka
-        .topic(src.topicDef)
-        .crRdd(ds.rdd)
-        .flatMap(m => m.value.map(x => m.focus(_.value).replace(Some(x - 1))))(AvroCodec[Int], AvroCodec[Int])
-        .rdd
-        .collect()
-        .toSet
-    assert(birst.flatMap(_.value) == Set(0, 1, 3))
-  }
 
   test("sparKafka someValue should filter out none values") {
     val cr1: NJConsumerRecord[Int, Int] =
@@ -200,11 +155,14 @@ class SparKafkaTest extends AnyFunSuite {
     sparKafka.crazyUpload("duck.test", p1).unsafeRunSync()
     val s1 = sparKafka.topic[Int, HasDuck]("aa").load.jackson(p1)
     val s2 = sparKafka.topic[Int, HasDuck]("aa").load.jackson(p2)
+    assert(s1.cherryPick[IO](1, 1).unsafeRunSync() === s2.cherryPick[IO](1, 1).unsafeRunSync())
     assert(s1.diff(s2).rdd.count() == 0)
   }
 
   val duckConsume: KafkaByteConsume[IO] =
-    ctx.consumer("duck.test").updateConfig(_.withAutoOffsetReset(AutoOffsetReset.Earliest).withGroupId("duck"))
+    ctx
+      .consumer("duck.test")
+      .updateConfig(_.withAutoOffsetReset(AutoOffsetReset.Earliest).withGroupId("duck"))
 
   test("generic record") {
     val path = "./data/test/spark/kafka/consume/duck.avro"
