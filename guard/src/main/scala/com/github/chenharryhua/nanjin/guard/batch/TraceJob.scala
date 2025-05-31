@@ -101,7 +101,7 @@ object TraceJob {
     def routeFailure(f: anchor.type => Json => F[Unit]): ByAgent[F] =
       copy(_failure = f(anchor))
 
-    def universal[A](f: (A, JobResultState) => Json): JobTracer[F, A] =
+    def customise[A](f: (A, JobResultState) => Json): JobTracer[F, A] =
       new JobTracer[F, A](
         _completed = { (jrv: JobResultValue[A]) =>
           val json = f(jrv.value, jrv.resultState)
@@ -113,7 +113,7 @@ object TraceJob {
       )
 
     def standard[A: Encoder]: JobTracer[F, A] =
-      universal[A]((a, jrs) => Json.obj("outcome" -> a.asJson).deepMerge(jrs.asJson))
+      customise[A]((a, jrs) => Json.obj("outcome" -> a.asJson).deepMerge(jrs.asJson))
 
     def json: JobTracer[F, Json] = standard[Json]
 
@@ -121,14 +121,14 @@ object TraceJob {
       def translate(number: Information, jrs: JobResultState): Json =
         Json.obj("information" -> jsonDataRate(jrs.took, number)).deepMerge(jrs.asJson)
 
-      universal[Information](translate)
+      customise[Information](translate)
     }
 
     def dimensionlessRate: JobTracer[F, Dimensionless] = {
       def translate(number: Dimensionless, jrs: JobResultState): Json =
         Json.obj("dimensionless" -> jsonScalarRate(jrs.took, number)).deepMerge(jrs.asJson)
 
-      universal[Dimensionless](translate)
+      customise[Dimensionless](translate)
     }
   }
 

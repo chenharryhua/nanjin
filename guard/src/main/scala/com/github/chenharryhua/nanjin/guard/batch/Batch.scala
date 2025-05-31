@@ -307,7 +307,7 @@ object Batch {
       job: BatchJob,
       tracer: TraceJob[F, Json],
       updatePanel: UpdatePanel[F],
-      translate: A => Json)(
+      translate: (A, JobResultState) => Json)(
       outcome: Outcome[Resource[F, *], Throwable, SingleJobOutcome[A]]): Resource[F, Unit] =
       outcome match {
         case Outcome.Succeeded(rfa) =>
@@ -315,7 +315,7 @@ object Batch {
             updatePanel.run(jrs) *>
               eoa.fold(
                 ex => tracer.errored(JobResultError(jrs, ex)),
-                a => tracer.completed(JobResultValue(jrs, translate(a))))
+                a => tracer.completed(JobResultValue(jrs, translate(a, jrs))))
           }
         case Outcome.Errored(ex) =>
           Resource.raiseError[F, Unit, Throwable](shouldNeverHappenException(ex))
@@ -332,7 +332,10 @@ object Batch {
       * @param translate
       *   translate A to json for handler
       */
-    private def vincible_[A](name: String, rfa: Resource[F, A], translate: A => Json): Monadic[A] =
+    private def vincible_[A](
+      name: String,
+      rfa: Resource[F, A],
+      translate: (A, JobResultState) => Json): Monadic[A] =
       new Monadic[A](
         kleisli = Kleisli { case Callbacks(updatePanel, tracer, renameJob) =>
           StateT { (index: Int) =>
@@ -394,7 +397,7 @@ object Batch {
                   val jrs = JobResultState(job, fd.toJava, eoa.fold(_ => false, identity))
                   SingleJobOutcome(jrs, eoa)
                 }
-                .guaranteeCase(handleOutcome(job, tracer, updatePanel, Json.fromBoolean))
+                .guaranteeCase(handleOutcome(job, tracer, updatePanel, (a, _) => Json.fromBoolean(a)))
                 .map { case SingleJobOutcome(jrs, _) =>
                   (index + 1, JobState(eoa = Right(jrs.done), history = NonEmptyList.one(jrs)))
                 }
@@ -406,20 +409,25 @@ object Batch {
 
     /** Exceptions thrown by individual jobs in the batch are propagated, causing the process to halt at the
       * point of failure
-      *
-      * @param name
-      *   name of the job
-      * @param rfa
-      *   the job
       */
+
+    def customise[A](name: String, rfa: Resource[F, A])(f: (A, JobResultState) => Json): Monadic[A] =
+      vincible_[A](name, rfa, f)
+
+    def customise[A](name: String, fa: F[A])(f: (A, JobResultState) => Json): Monadic[A] =
+      customise[A](name, Resource.eval(fa))(f)
+
+    def customise[A](tuple: (String, F[A]))(f: (A, JobResultState) => Json): Monadic[A] =
+      customise[A](tuple._1, Resource.eval(tuple._2))(f)
+
     def apply[A: Encoder](name: String, rfa: Resource[F, A]): Monadic[A] =
-      vincible_[A](name, rfa, Encoder[A].apply)
+      customise[A](name, rfa)((a, _) => a.asJson)
 
     def apply[A: Encoder](name: String, fa: F[A]): Monadic[A] =
-      vincible_[A](name, Resource.eval(fa), Encoder[A].apply)
+      apply[A](name, Resource.eval(fa))
 
     def apply[A: Encoder](tuple: (String, F[A])): Monadic[A] =
-      vincible_[A](tuple._1, Resource.eval(tuple._2), Encoder[A].apply)
+      apply[A](tuple._1, Resource.eval(tuple._2))
 
     /** Exceptions thrown during the job are suppressed, and execution proceeds without interruption.
       * @param name
@@ -434,10 +442,10 @@ object Batch {
       invincible_(name, rfa)
 
     def failSoft(name: String, fa: F[Boolean]): Monadic[Boolean] =
-      invincible_(name, Resource.eval(fa))
+      failSoft(name, Resource.eval(fa))
 
     def failSoft(tuple: (String, F[Boolean])): Monadic[Boolean] =
-      invincible_(tuple._1, Resource.eval(tuple._2))
+      failSoft(tuple._1, Resource.eval(tuple._2))
 
     /*
      * dependent type
