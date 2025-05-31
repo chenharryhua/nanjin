@@ -77,7 +77,7 @@ class BatchTest extends AnyFunSuite {
             .routeSuccess(_.void)
             .routeKickoff(_.void)
             .routeFailure(_.void)
-            .universal[Unit]((_, _) => Json.Null)
+            .customise[Unit]((_, _) => Json.Null)
         )
         .map { qr =>
           assert(qr.jobs.head.done)

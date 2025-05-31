@@ -15,6 +15,7 @@ import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStop
 import com.github.chenharryhua.nanjin.guard.observers.console
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import io.circe.Json
+import io.circe.syntax.EncoderOps
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.DurationInt
@@ -31,10 +32,10 @@ class BatchMonadicTest extends AnyFunSuite {
           for {
             a <- job("a" -> IO(1))
             b <- job("b" -> IO(2))
-            c <- job("c" -> IO(3))
+            c <- job.customise("c" -> IO(3))((a, _) => a.asJson)
           } yield a + b + c
         }
-        .batchValue(TraceJob(agent).standard)
+        .batchValue(TraceJob(agent).routeSuccess(_.done).routeKickoff(_.info).json)
     }.compile.lastOrError.unsafeRunSync()
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
   }
@@ -86,7 +87,7 @@ class BatchMonadicTest extends AnyFunSuite {
             c <- job("c" -> IO(3))
           } yield a + c
         }
-        .batchValue(tracer |+| TraceJob(agent).standard)
+        .batchValue(tracer |+| TraceJob(agent).json)
     }.evalTap(console.text[IO]).compile.lastOrError.unsafeRunSync()
 
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
@@ -117,7 +118,7 @@ class BatchMonadicTest extends AnyFunSuite {
             c <- job("c" -> IO(3))
           } yield a + c
         }
-        .batchValue(tracer |+| TraceJob(agent).standard)
+        .batchValue(tracer |+| TraceJob(agent).json)
     }.evalTap(console.text[IO]).compile.lastOrError.unsafeRunSync()
 
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
