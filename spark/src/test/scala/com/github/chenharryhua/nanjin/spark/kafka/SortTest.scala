@@ -83,7 +83,15 @@ class SortTest extends AnyFunSuite {
   }
   test("missing offsets") {
 
-    assert(crRdd.stats.missingOffsets[IO].map(_.count()).unsafeRunSync() == 1)
+    assert(crRdd.stats.lostOffsets[IO].map(_.count()).unsafeRunSync() == 1)
+  }
+
+  test("earliest") {
+    assert(crRdd.stats.lostEarliest[IO].unsafeRunSync().size == 1)
+  }
+
+  test("latest") {
+    assert(crRdd.stats.lostLatest[IO].unsafeRunSync().size == 1)
   }
 
   test("misorder keys") {

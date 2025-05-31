@@ -4,7 +4,6 @@ import cats.Endo
 import cats.data.Reader
 import cats.effect.kernel.{Async, Resource}
 import cats.effect.std.Hotswap
-import cats.implicits.toFunctorOps
 import com.github.chenharryhua.nanjin.common.chrono.{Tick, TickedValue}
 import fs2.{Chunk, Pull, Stream}
 import io.circe.Json
@@ -47,12 +46,6 @@ final private class RotateByPolicySink[F[_]: Async](
         }
     }
 
-  private case class Allocated[A](
-    hotswap: Hotswap[F, HadoopWriter[F, A]],
-    writer: HadoopWriter[F, A],
-    release: Resource.ExitCase => F[Unit]
-  )
-
   private def persist[A](
     data: Stream[F, Chunk[A]],
     ticks: Stream[F, TickedValue[Path]],
@@ -60,22 +53,18 @@ final private class RotateByPolicySink[F[_]: Async](
     ticks.pull.uncons1.flatMap {
       case None => Pull.done
       case Some((head, tail)) => // use the very first tick to build writer and hotswap
-        val allocated: F[Allocated[A]] =
-          Hotswap(getWriter(head.value)).allocatedCase.map { case ((hotswap, writer), release) =>
-            Allocated(hotswap, writer, release)
-          }
-
-        Pull.bracketCase[F, TickedValue[Int], Allocated[A], Unit](
-          Pull.eval(allocated),
-          allocated =>
+        Stream
+          .resource(Hotswap(getWriter(head.value)))
+          .flatMap { case (hotswap, writer) =>
             doWork(
-              head.tick,
-              getWriter,
-              allocated.hotswap,
-              allocated.writer,
-              data.map(Left(_)).mergeHaltBoth(tail.map(Right(_)))),
-          (allocated, cause) => Pull.eval(allocated.release(cause))
-        )
+              currentTick = head.tick,
+              getWriter = getWriter,
+              hotswap = hotswap,
+              writer = writer,
+              merged = data.map(Left(_)).mergeHaltBoth(tail.map(Right(_)))).stream
+          }
+          .pull
+          .echo
     }
 
   /*

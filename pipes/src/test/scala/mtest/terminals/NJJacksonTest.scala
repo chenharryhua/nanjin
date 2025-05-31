@@ -162,6 +162,26 @@ class NJJacksonTest extends AnyFunSuite {
       (s ++ s ++ s).through(sink.jackson).compile.drain).unsafeRunSync()
   }
 
+  test("timeout") {
+    val path   = fs2Root / "rotation" / "timeout"
+    val number = 500000000L
+    val file   = JacksonFile(_.Uncompressed)
+    hdp.delete(path).unsafeRunSync()
+    val res = Stream
+      .emits(pandaSet.toList)
+      .covary[IO]
+      .repeatN(number)
+      .through(hdp
+        .rotateSink(Policy.fixedDelay(3.seconds), ZoneId.systemDefault())(t => path / file.fileName(t))
+        .jackson)
+      .fold(0L)((sum, v) => sum + v.value)
+      .timeout(4.seconds)
+      .compile
+      .lastOrError
+    assertThrows[Throwable](res.unsafeRunSync())
+    assert(better.files.File(path.toString()).list(_.extension.contains(".json")).size == 2)
+  }
+
   ignore("large number (10000) of files - passed but too cost to run it") {
     val path   = fs2Root / "rotation" / "many"
     val number = 5000L

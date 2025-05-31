@@ -9,6 +9,7 @@ import com.github.chenharryhua.nanjin.kafka.*
 import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
 import com.github.chenharryhua.nanjin.messages.kafka.codec.gr2Jackson
 import eu.timepit.refined.auto.*
+import fs2.kafka.AutoOffsetReset
 import io.circe.generic.auto.*
 import io.circe.syntax.EncoderOps
 import org.apache.kafka.clients.consumer.ConsumerConfig
@@ -71,7 +72,7 @@ class Fs2ChannelTest extends AnyFunSuite {
         ctx.producer[Int, Fs2Kafka].produceOne(topic.topicName.value, 1, Fs2Kafka(1, "a", 1.0)) >>
         ctx
           .consumer(topicDef)
-          .updateConfig(_.withGroupId("g1"))
+          .updateConfig(_.withGroupId("g1").withAutoOffsetReset(AutoOffsetReset.Earliest))
           .stream
           .take(1)
           .map(ccr => NJConsumerRecord(ccr.record).asJson)
