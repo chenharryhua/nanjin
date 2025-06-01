@@ -62,23 +62,26 @@ final private class RotateBySizeSink[F[_]](
 
   private def persist[A](
     data: Stream[F, A],
-    getWriter: Tick => Resource[F, HadoopWriter[F, A]]): Pull[F, TickedValue[Int], Unit] =
+    getWriter: Tick => Resource[F, HadoopWriter[F, A]]): Pull[F, TickedValue[Int], Unit] = {
+    val resources: Resource[F, ((Hotswap[F, HadoopWriter[F, A]], HadoopWriter[F, A]), TickStatus)] =
+      Resource
+        .eval(TickStatus.zeroth(Policy.fixedDelay(0.seconds), ZoneId.systemDefault()))
+        .flatMap(ts => Hotswap(getWriter(ts.tick)).map((_, ts)))
 
-    Pull.eval(TickStatus.zeroth(Policy.fixedDelay(0.seconds), ZoneId.systemDefault())).flatMap { tickStatus =>
-      Stream
-        .resource(Hotswap(getWriter(tickStatus.tick)))
-        .flatMap { case (hotswap, writer) =>
-          doWork(
-            getWriter = getWriter,
-            hotswap = hotswap,
-            writer = writer,
-            data = data,
-            status = tickStatus,
-            count = 0).stream
-        }
-        .pull
-        .echo
-    }
+    Stream
+      .resource(resources)
+      .flatMap { case ((hotswap, writer), tickStatus) =>
+        doWork(
+          getWriter = getWriter,
+          hotswap = hotswap,
+          writer = writer,
+          data = data,
+          status = tickStatus,
+          count = 0).stream
+      }
+      .pull
+      .echo
+  }
 
   // avro schema-less
 
@@ -87,9 +90,9 @@ final private class RotateBySizeSink[F[_]](
       HadoopWriter.avroR[F](compression.codecFactory, schema, configuration, pathBuilder(tick))
 
     (ss: Stream[F, GenericRecord]) =>
-      ss.pull.peek1.flatMap {
-        case Some((gr, stream)) =>
-          persist(stream, get_writer(gr.getSchema))
+      ss.pull.stepLeg.flatMap {
+        case Some(leg) =>
+          persist(leg.stream.cons(leg.head), get_writer(leg.head(0).getSchema))
         case None => Pull.done
       }.stream
   }
@@ -100,9 +103,9 @@ final private class RotateBySizeSink[F[_]](
       HadoopWriter.binAvroR[F](configuration, schema, pathBuilder(tick))
 
     (ss: Stream[F, GenericRecord]) =>
-      ss.pull.peek1.flatMap {
-        case Some((gr, stream)) =>
-          persist(stream, get_writer(gr.getSchema))
+      ss.pull.stepLeg.flatMap {
+        case Some(leg) =>
+          persist(leg.stream.cons(leg.head), get_writer(leg.head(0).getSchema))
         case None => Pull.done
       }.stream
   }
@@ -113,9 +116,9 @@ final private class RotateBySizeSink[F[_]](
       HadoopWriter.jacksonR[F](configuration, schema, pathBuilder(tick))
 
     (ss: Stream[F, GenericRecord]) =>
-      ss.pull.peek1.flatMap {
-        case Some((gr, stream)) =>
-          persist(stream, get_writer(gr.getSchema))
+      ss.pull.stepLeg.flatMap {
+        case Some(leg) =>
+          persist(leg.stream.cons(leg.head), get_writer(leg.head(0).getSchema))
         case None => Pull.done
       }.stream
   }
@@ -137,9 +140,9 @@ final private class RotateBySizeSink[F[_]](
     }
 
     (ss: Stream[F, GenericRecord]) =>
-      ss.pull.peek1.flatMap {
-        case Some((gr, stream)) =>
-          persist(stream, get_writer(gr.getSchema))
+      ss.pull.stepLeg.flatMap {
+        case Some(leg) =>
+          persist(leg.stream.cons(leg.head), get_writer(leg.head(0).getSchema))
         case None => Pull.done
       }.stream
   }

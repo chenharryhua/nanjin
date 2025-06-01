@@ -169,7 +169,7 @@ class KafkaAvroTest extends AnyFunSuite {
             ProducerRecord(topicEnum.topicName.value, 0, en1),
             ProducerRecord(topicEnum.topicName.value, 1, en2))))
       .covary[IO]
-      .through(ctx.producer[ Int, PersonEnum].updateConfig(_.withClientId("kafka.avro.test5")).sink)
+      .through(ctx.producer[Int, PersonEnum].updateConfig(_.withClientId("kafka.avro.test5")).sink)
     val path = "./data/test/spark/kafka/coproduct/scalaenum.avro.bzip2"
     val sk   = sparKafka.topic(topicEnum.topicDef)
 
