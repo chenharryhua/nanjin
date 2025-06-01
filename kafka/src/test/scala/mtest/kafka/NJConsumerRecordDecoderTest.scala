@@ -9,7 +9,6 @@ import org.scalatest.funsuite.AnyFunSuite
 
 class NJConsumerRecordDecoderTest extends AnyFunSuite {
 
-
   val topic: KafkaTopic[IO, Int, Int] = ctx.topic(TopicDef[Int, Int](TopicName("decode.test")))
   val goodData: ConsumerRecord[Array[Byte], Array[Byte]] =
     ConsumerRecord("test", 0, 0, Array[Byte](0, 0, 0, 1), Array[Byte](0, 0, 0, 2))

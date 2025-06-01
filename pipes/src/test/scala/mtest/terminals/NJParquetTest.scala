@@ -77,7 +77,7 @@ class NJParquetTest extends AnyFunSuite {
     hdp.sink("./does/not/exist").parquet
   }
 
-  test("rotation") {
+  test("rotation - policy") {
     val path   = fs2Root / "rotation" / "tick"
     val number = 10000L
     hdp.delete(path).unsafeRunSync()
@@ -104,7 +104,7 @@ class NJParquetTest extends AnyFunSuite {
     assert(processedSize == number * 2)
   }
 
-  test("rotation - index") {
+  test("rotation - size") {
     val path   = fs2Root / "rotation" / "index"
     val number = 10000L
     val file   = ParquetFile(_.Snappy)

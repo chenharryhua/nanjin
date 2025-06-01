@@ -15,7 +15,8 @@ import com.github.chenharryhua.nanjin.kafka.TopicDef
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 
 class KJsonTest extends AnyFunSuite {
-  val topicDef: TopicDef[KJson[Json], KJson[Json]] = TopicDef[KJson[Json], KJson[Json]](TopicName("kjson.text"))
+  val topicDef: TopicDef[KJson[Json], KJson[Json]] =
+    TopicDef[KJson[Json], KJson[Json]](TopicName("kjson.text"))
   val topic: KafkaTopic[IO, KJson[Json], KJson[Json]] = ctx.topic[KJson[Json], KJson[Json]](topicDef)
 
   val data: List[NJProducerRecord[KJson[Json], KJson[Json]]] = List

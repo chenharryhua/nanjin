@@ -66,7 +66,7 @@ class NJJacksonTest extends AnyFunSuite {
     hdp.sink("./does/not/exist").jackson
   }
 
-  test("rotation - tick") {
+  test("rotation - policy") {
     val path   = fs2Root / "rotation" / "tick"
     val number = 10000L
     hdp.delete(path).unsafeRunSync()
@@ -92,7 +92,7 @@ class NJJacksonTest extends AnyFunSuite {
     assert(processedSize == number * 2)
   }
 
-  test("rotation - index") {
+  test("rotation - size") {
     val path   = fs2Root / "rotation" / "index"
     val number = 10000L
     val file   = JacksonFile(_.Uncompressed)

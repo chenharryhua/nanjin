@@ -76,7 +76,7 @@ class NJCirceTest extends AnyFunSuite {
     hdp.sink("./does/not/exist").circe
   }
 
-  test("rotation - tick") {
+  test("rotation - policy") {
     val path   = fs2Root / "rotation" / "tick"
     val number = 10000L
     hdp.delete(path).unsafeRunSync()
@@ -121,7 +121,7 @@ class NJCirceTest extends AnyFunSuite {
       .unsafeRunSync()
   }
 
-  test("rotation - index") {
+  test("rotation - size") {
     val path   = fs2Root / "rotation" / "index"
     val number = 10000L
     val file   = CirceFile(Uncompressed)

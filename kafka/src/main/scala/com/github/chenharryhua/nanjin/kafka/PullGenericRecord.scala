@@ -47,7 +47,7 @@ final class PullGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName,
         val deser = Serdes.byteArraySerde.deserializer()
         (data: Array[Byte]) => Try(deser.deserialize(topic, data))
 
-      case _ => throw new Exception(s"unsupported key schema: ${pair.key.toString}")
+      case _ => throw new RuntimeException(s"unsupported key schema: ${pair.key.toString}")
     }
 
   @transient private lazy val val_decode: Array[Byte] => Try[Any] =
@@ -75,7 +75,7 @@ final class PullGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName,
         val deser = Serdes.byteArraySerde.deserializer()
         (data: Array[Byte]) => Try(deser.deserialize(topic, data))
 
-      case _ => throw new Exception(s"unsupported value schema: ${pair.value.toString}")
+      case _ => throw new RuntimeException(s"unsupported value schema: ${pair.value.toString}")
     }
 
   def toGenericRecord(ccr: KafkaByteConsumerRecord): Try[GenericData.Record] =
