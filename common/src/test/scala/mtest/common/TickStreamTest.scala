@@ -46,8 +46,8 @@ class TickStreamTest extends AnyFunSuite {
   }
 
   test("4.constant") {
-    val policy = Policy.fixedDelay(1.second).limited(5)
-    val ticks  = tickStream.fromOne[IO](policy, saltaTime)
+    val policy                  = Policy.fixedDelay(1.second).limited(5)
+    val ticks                   = tickStream.fromOne[IO](policy, saltaTime)
     val sleep: IO[JavaDuration] =
       Random
         .scalaUtilRandom[IO]
@@ -57,8 +57,8 @@ class TickStreamTest extends AnyFunSuite {
     ticks.evalTap(_ => sleep).debug().compile.toList.unsafeRunSync()
   }
   test("5.fixed rate") {
-    val policy = Policy.fixedRate(2.second).limited(5)
-    val ticks  = tickStream.fromOne[IO](policy, darwinTime)
+    val policy                  = Policy.fixedRate(2.second).limited(5)
+    val ticks                   = tickStream.fromOne[IO](policy, darwinTime)
     val sleep: IO[JavaDuration] =
       Random
         .scalaUtilRandom[IO]

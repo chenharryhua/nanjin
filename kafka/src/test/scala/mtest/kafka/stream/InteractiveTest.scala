@@ -21,7 +21,7 @@ import scala.jdk.CollectionConverters.*
 import scala.util.Random
 @DoNotDiscover
 class InteractiveTest extends AnyFunSuite {
-  val appid = "interactive_test"
+  val appid                 = "interactive_test"
   val ctx: KafkaContext[IO] =
     KafkaContext[IO](
       KafkaSettings.local

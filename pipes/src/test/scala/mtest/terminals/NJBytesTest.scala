@@ -23,9 +23,9 @@ class NJBytesTest extends AnyFunSuite {
 
   def fs2(path: Url, data: Set[Tiger]): Assertion = {
     hdp.delete(path).unsafeRunSync()
-    val ts   = Stream.emits(data.toList).covary[IO]
-    val sink = hdp.sink(path).bytes
-    val src  = hdp.source(path).bytes(64.bytes)
+    val ts     = Stream.emits(data.toList).covary[IO]
+    val sink   = hdp.sink(path).bytes
+    val src    = hdp.source(path).bytes(64.bytes)
     val action = ts
       .map(_.asJson.noSpaces)
       .intersperse(System.lineSeparator())

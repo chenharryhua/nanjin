@@ -25,7 +25,7 @@ final class Table[A] private[spark] (val dataset: Dataset[A], ate: SchematizedEn
 
   def transform(f: Endo[Dataset[A]]): Table[A] = new Table[A](f(dataset), ate)
 
-  def repartition(numPartitions: Int): Table[A] = transform(_.repartition(numPartitions))
+  def repartition(numPartitions: Int): Table[A]               = transform(_.repartition(numPartitions))
   def persist(f: StorageLevel.type => StorageLevel): Table[A] =
     transform(_.persist(f(StorageLevel)))
 

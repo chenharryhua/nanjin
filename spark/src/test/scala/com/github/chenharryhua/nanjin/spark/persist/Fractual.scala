@@ -26,7 +26,7 @@ object Fractual {
       override def modifyA[F[_]](f: Fractual => F[Fractual])(s: Fractual)(implicit
         ev: Applicative[F]): F[Fractual] =
         s.value match {
-          case None => ev.pure(Fractual(None))
+          case None     => ev.pure(Fractual(None))
           case Some(pl) =>
             val list: Option[F[Fractual]] =
               pl.select[List[Fractual]].map(_.traverse(f).map(x => Fractual(Some(Coproduct[FType](x)))))

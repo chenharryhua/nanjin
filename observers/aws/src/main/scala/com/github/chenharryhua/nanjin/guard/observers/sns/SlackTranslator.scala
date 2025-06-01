@@ -52,7 +52,7 @@ private object SlackTranslator extends all {
     if (snapshot.nonEmpty) {
       val polyglot: SnapshotPolyglot = new SnapshotPolyglot(snapshot)
       val yaml: String               = polyglot.toYaml
-      val msg: String =
+      val msg: String                =
         if (yaml.length < MessageSizeLimits.toBytes.toInt) yaml
         else {
           polyglot.counterYaml match {

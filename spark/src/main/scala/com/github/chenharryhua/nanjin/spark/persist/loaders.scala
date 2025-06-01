@@ -198,7 +198,7 @@ private[spark] object loaders {
       ss.sparkContext
         .binaryFiles(toHadoopPath(path).toString)
         .mapPartitions(_.flatMap { case (_, pds) =>
-          val is: InputStream = decompressedInputStream(pds)
+          val is: InputStream   = decompressedInputStream(pds)
           val itor: Iterator[A] = is.asCsvReader[A](cfg).iterator.map {
             case Left(ex)     => throw ex
             case Right(value) => value

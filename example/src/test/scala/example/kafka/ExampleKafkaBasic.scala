@@ -27,7 +27,7 @@ class ExampleKafkaBasic extends AnyFunSuite {
       .topic(fooTopic.topicDef)
       .prRdd(producerRecords)
       .producerRecords[IO](100)
-      .through(ctx.producer[Int,Foo].sink)
+      .through(ctx.producer[Int, Foo].sink)
       .compile
       .drain
       .unsafeRunSync()
@@ -54,7 +54,7 @@ class ExampleKafkaBasic extends AnyFunSuite {
       .circe(path)
       .prRdd
       .producerRecords[IO](2)
-      .through(ctx.producer[Int,Foo].sink)
+      .through(ctx.producer[Int, Foo].sink)
       .compile
       .drain
       .unsafeRunSync()

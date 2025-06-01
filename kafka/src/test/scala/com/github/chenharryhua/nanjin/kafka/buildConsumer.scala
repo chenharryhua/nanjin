@@ -68,9 +68,9 @@ object buildConsumer {
         override def committed(
           set: util.Set[TopicPartition],
           duration: Duration): util.Map[TopicPartition, OffsetAndMetadata] = ???
-        override def clientInstanceId(duration: Duration): Uuid         = ???
-        override def metrics(): util.Map[MetricName, ? <: Metric]       = ???
-        override def partitionsFor(s: String): util.List[PartitionInfo] = partitionInfos
+        override def clientInstanceId(duration: Duration): Uuid                             = ???
+        override def metrics(): util.Map[MetricName, ? <: Metric]                           = ???
+        override def partitionsFor(s: String): util.List[PartitionInfo]                     = partitionInfos
         override def partitionsFor(s: String, duration: Duration): util.List[PartitionInfo] =
           partitionInfos
         override def listTopics(): util.Map[String, util.List[PartitionInfo]]                   = ???

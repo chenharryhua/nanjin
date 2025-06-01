@@ -103,7 +103,7 @@ object KPB {
           @SuppressWarnings(Array("AsInstanceOf"))
           override def serialize(topic: String, data: KPB[A]): Array[Byte] =
             Option(data).flatMap(v => Option(v.value)) match {
-              case None => null.asInstanceOf[Array[Byte]]
+              case None    => null.asInstanceOf[Array[Byte]]
               case Some(a) =>
                 val dm = DynamicMessage.parseFrom(a.companion.javaDescriptor, a.toByteArray)
                 ser.serialize(topic, dm)

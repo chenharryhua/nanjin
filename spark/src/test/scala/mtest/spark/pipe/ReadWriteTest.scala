@@ -24,8 +24,8 @@ import scala.concurrent.duration.*
 
 object ReadWriteTestData {
   final case class TestData(index: Long, name: String)
-  val number       = 10000
-  val cr: TestData = TestData(0, "abc")
+  val number                     = 10000
+  val cr: TestData               = TestData(0, "abc")
   val data: Stream[IO, TestData] =
     Stream.emits(List.fill(number)(cr)).covary[IO].chunkLimit(2).unchunks.zipWithIndex.map { case (cr, idx) =>
       cr.focus(_.index).replace(idx)

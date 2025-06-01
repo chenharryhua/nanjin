@@ -62,7 +62,7 @@ private object PolicyF extends all {
         val calcTick: CalcTick = { case TickRequest(tick, now) =>
           cronExpr.next(now.atZone(tick.zoneId)) match {
             case Some(value) => tick.newTick(now, Duration.between(now, value))
-            case None => // should not happen but in case
+            case None        => // should not happen but in case
               sys.error(show"$cronExpr return None at $now. idx=${tick.index}")
           }
         }

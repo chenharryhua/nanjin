@@ -137,7 +137,7 @@ import scala.concurrent.duration.FiniteDuration
     }
 
   def duration: Option[FiniteDuration] = (startTimestamp, endTimestamp).mapN((s, e) => e.minus(s))
-  override def toString: String =
+  override def toString: String        =
     duration.map(DurationFormatter.defaultFormatter.format).getOrElse("infinite")
 }
 

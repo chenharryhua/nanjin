@@ -17,9 +17,9 @@ final private[persist] class SaveModeAware[F[_]](
     val hadoop: Hadoop[F] = Hadoop[F](hadoopConfiguration)
 
     saveMode match {
-      case SaveMode.Append    => job
-      case SaveMode.Overwrite => hadoop.delete(outPath) >> job
-      case SaveMode.Ignore    => hadoop.isExist(outPath).ifM(F.unit, job)
+      case SaveMode.Append        => job
+      case SaveMode.Overwrite     => hadoop.delete(outPath) >> job
+      case SaveMode.Ignore        => hadoop.isExist(outPath).ifM(F.unit, job)
       case SaveMode.ErrorIfExists =>
         hadoop.isExist(outPath).ifM(F.raiseError(new Exception(show"$outPath already exist")), job)
     }

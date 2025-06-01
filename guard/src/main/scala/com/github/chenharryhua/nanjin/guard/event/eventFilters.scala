@@ -24,7 +24,7 @@ object eventFilters {
     evt match {
       case MetricReport(mrt, sp, _, _) =>
         mrt match {
-          case MetricIndex.Adhoc(_) => true
+          case MetricIndex.Adhoc(_)       => true
           case MetricIndex.Periodic(tick) =>
             val expect: Instant =
               sp.zerothTick.launchTime.plus(
@@ -57,7 +57,7 @@ object eventFilters {
     evt match {
       case MetricReport(mrt, _, _, _) =>
         mrt match {
-          case MetricIndex.Adhoc(_) => true
+          case MetricIndex.Adhoc(_)       => true
           case MetricIndex.Periodic(tick) =>
             cronExpr.next(tick.zonedPrevious).exists(zdt => tick.inBetween(zdt.toInstant))
         }

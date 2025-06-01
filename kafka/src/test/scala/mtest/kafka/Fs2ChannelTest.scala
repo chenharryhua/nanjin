@@ -21,7 +21,7 @@ object Fs2ChannelTestData {
   final case class Fs2Kafka(a: Int, b: String, c: Double)
   val topicDef: TopicDef[Int, Fs2Kafka]    = TopicDef[Int, Fs2Kafka](TopicName("fs2.kafka.test"))
   val topic: KafkaTopic[IO, Int, Fs2Kafka] = ctx.topic(topicDef)
-  val jackson =
+  val jackson                              =
     """
       {
       "partition" : 0,

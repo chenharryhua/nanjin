@@ -113,7 +113,7 @@ object SimpleQueueService {
               Pull
                 .eval(F.realTimeInstant.map { now =>
                   status.next(now) match {
-                    case None => Pull.done
+                    case None     => Pull.done
                     case Some(ts) =>
                       Pull.sleep(ts.tick.snooze.toScala) >> receiving(ts, batchIndex)
                   }

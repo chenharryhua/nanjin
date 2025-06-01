@@ -23,7 +23,7 @@ final class HostName(val value: String) extends AnyVal with Serializable {
 
 object HostName {
 
-  implicit final val showHostName: Show[HostName] = Show.fromToString
+  implicit final val showHostName: Show[HostName]     = Show.fromToString
   implicit final val monoidHostName: Monoid[HostName] = new Monoid[HostName] {
     override val empty: HostName = new HostName("")
 

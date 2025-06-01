@@ -24,7 +24,7 @@ class MessageEqualityTest extends AnyFunSuite with FunSuiteDiscipline with Confi
 
   implicit val arbitraryHeader: Arbitrary[Header] = Arbitrary(genHeader)
 
-  implicit val arbitraryNJHeader: Arbitrary[NJHeader] = Arbitrary(genNJHeader)
+  implicit val arbitraryNJHeader: Arbitrary[NJHeader]              = Arbitrary(genNJHeader)
   implicit val arbitraryNJHeaderF: Arbitrary[NJHeader => NJHeader] =
     Arbitrary((a: NJHeader) => a)
 

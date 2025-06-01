@@ -64,7 +64,7 @@ object KJson {
       case utf8: Utf8 =>
         Try(utf8.toString) match {
           case Failure(exception) => throw exception
-          case Success(str) =>
+          case Success(str)       =>
             jawn.decode[A](str) match {
               case Right(r) => KJson(r)
               case Left(ex) => throw new Exception(str, ex)

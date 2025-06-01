@@ -36,8 +36,8 @@ class TransformerTest extends AnyFunSuite {
 
     val processor: ProcessorSupplier[Int, String, Int, String] =
       new ProcessorSupplier[Int, String, Int, String] {
-        var kvStore: KeyValueStore[Int, String]    = _
-        var ctx: api.ProcessorContext[Int, String] = _
+        var kvStore: KeyValueStore[Int, String]                 = _
+        var ctx: api.ProcessorContext[Int, String]              = _
         override def get(): Processor[Int, String, Int, String] = new Processor[Int, String, Int, String] {
           override def init(context: api.ProcessorContext[Int, String]): Unit = {
             kvStore = context.getStateStore[KeyValueStore[Int, String]](store.name)

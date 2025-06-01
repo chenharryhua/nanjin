@@ -130,7 +130,7 @@ class RetryTest extends AnyFunSuite {
   }
 
   test("9.retry resource") {
-    var i = 0
+    var i        = 0
     val resource =
       Resource
         .make(IO(1))(_ => IO(i += 1) >> IO.println("released"))

@@ -128,7 +128,7 @@ object MetricSnapshot extends duration {
   private def buildFrom(metricRegistry: metrics.MetricRegistry): MetricSnapshot =
     metricRegistry.getMetrics.asScala.toList.foldLeft(empty) { case (snapshot, (name, metric)) =>
       decode[MetricID](name) match {
-        case Left(_) => snapshot
+        case Left(_)    => snapshot
         case Right(mid) =>
           mid.category match {
             // gauge
@@ -176,7 +176,7 @@ object MetricSnapshot extends duration {
             case Category.Histogram(_, unit) =>
               metric match {
                 case histogram: metrics.Histogram =>
-                  val ss = histogram.getSnapshot
+                  val ss                    = histogram.getSnapshot
                   val h: Snapshot.Histogram = Snapshot.Histogram(
                     metricId = mid,
                     Snapshot.HistogramData(
@@ -202,7 +202,7 @@ object MetricSnapshot extends duration {
             case Category.Timer(_) =>
               metric match {
                 case timer: metrics.Timer =>
-                  val ss = timer.getSnapshot
+                  val ss                = timer.getSnapshot
                   val t: Snapshot.Timer = Snapshot.Timer(
                     metricId = mid,
                     Snapshot.TimerData(

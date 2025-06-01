@@ -83,7 +83,7 @@ final class PullGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName,
       key <- key_decode(ccr.key)
       value <- val_decode(ccr.value)
     } yield {
-      val record: GenericData.Record = new GenericData.Record(schema)
+      val record: GenericData.Record         = new GenericData.Record(schema)
       val headers: Array[GenericData.Record] = ccr.headers().toArray.map { h =>
         val header = new GenericData.Record(SchemaFor[NJHeader].schema)
         header.put("key", h.key())

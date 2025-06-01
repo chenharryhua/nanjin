@@ -60,7 +60,7 @@ final case class ServiceParams(
   val zoneId: ZoneId  = zerothTick.zoneId
   val serviceId: UUID = zerothTick.sequenceId
 
-  def toZonedDateTime(ts: Instant): ZonedDateTime = ts.atZone(zoneId)
+  def toZonedDateTime(ts: Instant): ZonedDateTime        = ts.atZone(zoneId)
   def toZonedDateTime(fd: FiniteDuration): ZonedDateTime =
     Instant.EPOCH.plusNanos(fd.toNanos).atZone(zoneId)
 

@@ -141,7 +141,7 @@ class CirceTest extends AnyFunSuite {
     val data  = JacketData.expected.map(_.neck.value.j)
     val rdd   = sparkSession.sparkContext.parallelize(data)
     val saver = new RddFileHoarder[Json](rdd.repartition(1)).circe(path)
-    val t1 =
+    val t1    =
       try loaders.rdd.circe[Json](path, sparkSession).count()
       catch { case _: Throwable => 0 }
     saver.withSaveMode(_.Append).run[IO].unsafeRunSync()

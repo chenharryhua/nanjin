@@ -61,7 +61,7 @@ object Bee {
           bytes
         case array: Array[Byte]  => array
         case fixed: GenericFixed => fixed.bytes
-        case _ =>
+        case _                   =>
           throw new Avro4sDecodingException("Byte array decoder cannot decode", value, this)
       }
 

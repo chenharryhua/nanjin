@@ -13,7 +13,7 @@ object prettifyJson {
     Plated.transform[Json] { js =>
       js.asNumber match {
         case Some(value) => Json.fromString(decimalFormatter.format(value.toDouble))
-        case None =>
+        case None        =>
           js.as[Duration] match {
             case Left(_)      => js
             case Right(value) => Json.fromString(durationFormatter.format(value))

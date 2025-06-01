@@ -22,7 +22,7 @@ class MonitorApiTest extends AnyFunSuite {
     ctx.topic(TopicDef[Int, Array[Byte]](TopicName("monitor.test")))
 
   private val headers1: Headers = Headers.fromSeq(List(Header("a", "aaaaa")))
-  val headers2: Headers =
+  val headers2: Headers         =
     Headers.fromSeq(List(Header("b", ""), Header("warn", "value is null as expected")))
 
   private val sender: Stream[IO, ProducerResult[Int, Array[Byte]]] = Stream

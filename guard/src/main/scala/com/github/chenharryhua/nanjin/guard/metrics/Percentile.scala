@@ -65,8 +65,8 @@ object Percentile {
   }
 
   val translator: Ior[Long, Long] => Json = {
-    case Ior.Left(_)  => Json.fromString("n/a")
-    case Ior.Right(_) => Json.fromString("0.0%")
+    case Ior.Left(_)    => Json.fromString("n/a")
+    case Ior.Right(_)   => Json.fromString("0.0%")
     case Ior.Both(a, b) =>
       if (b === 0) { Json.fromString("n/a") }
       else {

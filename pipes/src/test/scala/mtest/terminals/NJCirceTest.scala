@@ -80,7 +80,7 @@ class NJCirceTest extends AnyFunSuite {
     val path   = fs2Root / "rotation" / "tick"
     val number = 10000L
     hdp.delete(path).unsafeRunSync()
-    val fk = CirceFile(Uncompressed)
+    val fk            = CirceFile(Uncompressed)
     val processedSize = Stream
       .emits(TestData.tigerSet.toList)
       .covary[IO]
@@ -196,7 +196,7 @@ class NJCirceTest extends AnyFunSuite {
   test("stream concat - 2") {
     val s         = Stream.emits(TestData.tigerSet.toList).covary[IO].map(_.asJson).repeatN(500)
     val path: Url = fs2Root / "concat" / "rotate"
-    val sink = hdp.rotateSink(Policy.fixedDelay(0.1.second), ZoneId.systemDefault())(t =>
+    val sink      = hdp.rotateSink(Policy.fixedDelay(0.1.second), ZoneId.systemDefault())(t =>
       path / ParquetFile(_.Uncompressed).fileName(t))
 
     (hdp.delete(path) >>

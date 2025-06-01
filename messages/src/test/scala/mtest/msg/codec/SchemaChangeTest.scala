@@ -45,7 +45,7 @@ class SchemaChangeTest extends AnyFunSuite {
 
   test("change namespace") {
     val newCodec: AvroCodec[UnderTest] = codec.withNamespace("new.namespace")
-    val s =
+    val s                              =
       """
     {"type":"record","name":"UnderTest","namespace":"new.namespace","doc":"top level case class","fields":[{"name":"a","type":"int"},{"name":"b","type":[{"type":"record","name":"Nest","fields":[{"name":"a","type":"int"}]},{"type":"record","name":"Nest2","doc":"nest-2","fields":[{"name":"b","type":"string"}]}]},{"name":"c","type":["null","int"],"default":null}]}"""
     assert(newCodec.schema.toString() == s.trim)
@@ -57,7 +57,7 @@ class SchemaChangeTest extends AnyFunSuite {
 
   test("remove namespace") {
     val newCodec: AvroCodec[UnderTest] = codec.withoutNamespace
-    val s =
+    val s                              =
       """
 {"type":"record","name":"UnderTest","doc":"top level case class","fields":[{"name":"a","type":"int"},{"name":"b","type":[{"type":"record","name":"Nest","fields":[{"name":"a","type":"int"}]},{"type":"record","name":"Nest2","doc":"nest-2","fields":[{"name":"b","type":"string"}]}]},{"name":"c","type":["null","int"],"default":null}]}      """
     assert(newCodec.schema.toString() == s.trim)
@@ -85,7 +85,7 @@ class SchemaChangeTest extends AnyFunSuite {
 
   test("remove doc") {
     val newCodec: AvroCodec[UnderTest] = codec.withoutDoc
-    val s =
+    val s                              =
       """
 {"type":"record","name":"UnderTest","namespace":"schema.test.top","fields":[{"name":"a","type":"int"},{"name":"b","type":[{"type":"record","name":"Nest","namespace":"schema.test.nest","fields":[{"name":"a","type":"int"}]},{"type":"record","name":"Nest2","namespace":"schema.test.nest2","fields":[{"name":"b","type":"string"}]}]},{"name":"c","type":["null","int"],"default":null}]}"""
     assert(newCodec.schema.toString() == s.trim)

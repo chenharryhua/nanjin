@@ -40,7 +40,7 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
 
   @transient lazy val schemaRegistry: SchemaRegistryApi[F] = {
     val url_config = AbstractKafkaSchemaSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG
-    val url = settings.schemaRegistrySettings.config.get(url_config) match {
+    val url        = settings.schemaRegistrySettings.config.get(url_config) match {
       case Some(value) => value
       case None        => throw new Exception(s"$url_config is absent")
     }
@@ -206,7 +206,7 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
 
   def cherryPick(topicName: TopicName, partition: Int, offset: Long)(implicit F: Async[F]): F[String] =
     admin(topicName).use(_.retrieveRecord(partition, offset).flatMap {
-      case None => F.raiseError(new Exception("no record"))
+      case None        => F.raiseError(new Exception("no record"))
       case Some(value) =>
         schemaRegistry.fetchAvroSchema(topicName).flatMap { schemaPair =>
           val pgr = new PullGenericRecord(settings.schemaRegistrySettings, topicName, schemaPair)

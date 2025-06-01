@@ -81,7 +81,7 @@ object SerdeOf extends LowerPriority {
           @SuppressWarnings(Array("AsInstanceOf"))
           override def serialize(topic: String, data: A): Array[Byte] =
             Option(data) match {
-              case None => null.asInstanceOf[Array[Byte]]
+              case None        => null.asInstanceOf[Array[Byte]]
               case Some(value) =>
                 avroCodec.encode(value) match {
                   case gr: GenericRecord => ser.serialize(topic, gr)

@@ -10,7 +10,7 @@ import java.time.format.DateTimeFormatter
 sealed abstract class FileKind(val fileFormat: FileFormat, val compression: Compression) {
   private val fmt: DateTimeFormatter = DateTimeFormatter.ofPattern("HHmmss")
 
-  final val fileName: String = compression.fileName(fileFormat)
+  final val fileName: String             = compression.fileName(fileFormat)
   final def fileName(tick: Tick): String = {
     val seqId: String = tick.sequenceId.toString.take(5)
     val time: String  = fmt.format(tick.zonedWakeup.toLocalTime)

@@ -33,9 +33,9 @@ class HttpTest extends AnyFunSuite {
   private val entryPoint: EntryPoint[IO] = Log.entryPoint[IO]("http-test")
 
   private def service(span: Span[IO]): HttpRoutes[IO] = HttpRoutes.of[IO] {
-    case GET -> Root / "trace" / name => span.log("trace") >> Ok(s"Hello, $name.")
-    case GET -> Root / "cookie"       => Ok("cookie")
-    case POST -> Root / "post"        => Ok("posted")
+    case GET -> Root / "trace" / name     => span.log("trace") >> Ok(s"Hello, $name.")
+    case GET -> Root / "cookie"           => Ok("cookie")
+    case POST -> Root / "post"            => Ok("posted")
     case GET -> Root / "timeout" / reason =>
       if (Random.nextInt(5) === 0) Ok(reason) else RequestTimeout(reason)
     case GET -> Root / "failure" => InternalServerError()
@@ -67,14 +67,14 @@ class HttpTest extends AnyFunSuite {
 
   test("failure") {
     val client = ember.map(retry(Policy.fixedRate(1.seconds).limited(3), sydneyTime))
-    val run =
+    val run    =
       server.surround(client.use(_.expect[String]("http://127.0.0.1:8080/failure").flatMap(IO.println)))
     assertThrows[Exception](run.unsafeRunSync())
   }
 
   test("give up") {
     val client = ember.map(retry(Policy.giveUp, sydneyTime))
-    val run =
+    val run    =
       server.surround(client.use(_.expect[String]("http://127.0.0.1:8080/failure").flatMap(IO.println)))
     assertThrows[Exception](run.unsafeRunSync())
   }

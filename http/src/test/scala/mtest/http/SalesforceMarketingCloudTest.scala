@@ -33,7 +33,7 @@ class SalesforceMarketingCloudTest extends AnyFunSuite {
     "rest_instance_url" -> "http://127.0.0.1:8080".asJson
   )
 
-  private val bools = BooleanList(LazyList(false, false, true, false, true))
+  private val bools                   = BooleanList(LazyList(false, false, true, false, true))
   private def service: HttpRoutes[IO] = HttpRoutes.of[IO] {
     case POST -> Root / "v2" / "token" =>
       if (bools.get) Ok(token) else GatewayTimeout()

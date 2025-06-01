@@ -119,7 +119,7 @@ private object HadoopReader {
           }
         } else {
           parser.absorb(ByteBuffer.wrap(buffer, 0, numBytes)) match {
-            case Left(ex) => throw ex
+            case Left(ex)     => throw ex
             case Right(value) =>
               val size  = value.size
               val jsons = Chunk.from(value)

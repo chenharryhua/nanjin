@@ -90,7 +90,7 @@ final class SnapshotPolyglot(snapshot: MetricSnapshot) {
           .groupBy(_._1.metricLabel) // metric-name group
           .toList
           .map { case (label, items) =>
-            val age = items.map(_._1.metricName.age).min
+            val age         = items.map(_._1.metricName.age).min
             val inner: Json =
               items
                 .sortBy(_._1.metricName)

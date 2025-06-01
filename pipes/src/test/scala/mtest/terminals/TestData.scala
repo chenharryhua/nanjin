@@ -25,7 +25,7 @@ object TestData {
 
   val tigerSet: Set[Tiger] = tigers.toSet
 
-  val herd_number: Long = 10000L
+  val herd_number: Long       = 10000L
   val herd: Stream[IO, Tiger] =
     Stream.range(0, herd_number).map(idx => TestData.Tiger(idx.toInt, Some("zoo"))).covary[IO]
 

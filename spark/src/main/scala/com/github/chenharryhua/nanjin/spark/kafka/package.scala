@@ -6,6 +6,6 @@ import org.apache.spark.sql.Encoder
 
 package object kafka {
   implicit private[spark] val typedEncoderCRMetaInfo: TypedEncoder[CRMetaInfo] = shapeless.cachedImplicit
-  implicit private[spark] val encoderCRMetaInfo: Encoder[CRMetaInfo] =
+  implicit private[spark] val encoderCRMetaInfo: Encoder[CRMetaInfo]           =
     TypedExpressionEncoder(typedEncoderCRMetaInfo)
 }

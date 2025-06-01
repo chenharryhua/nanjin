@@ -32,8 +32,8 @@ object Batch {
     new RuntimeException("Should never happen", e)
 
   private val translator: Ior[Long, Long] => Json = {
-    case Ior.Left(a)  => Json.fromString(s"$a/0")
-    case Ior.Right(b) => Json.fromString(s"0/$b")
+    case Ior.Left(a)    => Json.fromString(s"$a/0")
+    case Ior.Right(b)   => Json.fromString(s"0/$b")
     case Ior.Both(a, b) =>
       val expression = s"$a/$b"
       if (b === 0) { Json.fromString(expression) }
@@ -196,7 +196,7 @@ object Batch {
       createPanel(metrics, jobs.size, JobKind.Value, mode).evalMap(exec).map {
         case (fd: FiniteDuration, jrv: List[JobResultValue[A]]) =>
           val sorted: List[JobResultValue[A]] = jrv.sortBy(_.resultState.job.index)
-          val brs: BatchResultState =
+          val brs: BatchResultState           =
             BatchResultState(metrics.metricLabel, fd.toJava, mode, sorted.map(_.resultState))
           BatchResultValue(brs, sorted.map(_.value))
       }
@@ -474,7 +474,7 @@ object Batch {
         new Monadic[T](
           kleisli = kleisli.map { case unchange @ JobState(eoa, history) =>
             eoa match {
-              case Left(_) => unchange
+              case Left(_)      => unchange
               case Right(value) =>
                 if (f(value))
                   unchange

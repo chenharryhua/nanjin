@@ -42,7 +42,7 @@ object textHelper extends localtime with localdatetime {
     }
 
   private def localTime_duration(start: ZonedDateTime, end: ZonedDateTime): (String, String) = {
-    val duration = Duration.between(start, end)
+    val duration          = Duration.between(start, end)
     val localTime: String =
       if (duration.minus(Duration.ofHours(24)).isNegative)
         end.truncatedTo(ChronoUnit.SECONDS).toLocalTime.show

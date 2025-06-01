@@ -31,10 +31,10 @@ object JsonF {
       case BooleanF(bool)  => List(show"$name: $bool")
       case NumberF(number) => List(show"$name: ${number.toString}")
       case StringF(str)    => List(show"$name: $str")
-      case ArrayF(values) =>
+      case ArrayF(values)  =>
         List(show"$name: ${values.map(_.noSpaces).mkString("[", ", ", "]")}")
       case ObjectF(fields) =>
-        val maxKeyLength = fields.map(_._1.length).max
+        val maxKeyLength          = fields.map(_._1.length).max
         val content: List[String] = fields.map { case (key, js) =>
           val jsStr: String = js.foldWith(unfolded) match {
             case NullF           => "null"

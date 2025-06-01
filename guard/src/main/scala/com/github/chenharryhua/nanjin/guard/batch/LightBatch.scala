@@ -57,7 +57,7 @@ object LightBatch {
             .rethrow
         }
       }).map { case (fd: FiniteDuration, jrv: List[JobResultValue[A]]) =>
-        val sorted = jrv.sortBy(_.resultState.job.index)
+        val sorted                = jrv.sortBy(_.resultState.job.index)
         val brs: BatchResultState =
           BatchResultState(metrics.metricLabel, fd.toJava, mode, sorted.map(_.resultState))
         BatchResultValue(brs, sorted.map(_.value))

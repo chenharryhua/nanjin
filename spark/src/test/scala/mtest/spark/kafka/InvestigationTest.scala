@@ -67,7 +67,7 @@ object InvestigationTestData {
 
 class InvestigationTest extends AnyFunSuite {
   import InvestigationTestData.*
-  implicit val ss: SparkSession = sparkSession
+  implicit val ss: SparkSession                         = sparkSession
   val table: LoadTable[NJConsumerRecord[String, Mouse]] =
     ss.loadTable(SchematizedEncoder[NJConsumerRecord[String, Mouse]])
 

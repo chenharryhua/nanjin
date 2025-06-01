@@ -49,7 +49,7 @@ class TextTest extends AnyFunSuite {
 
   test("tablet - append") {
     val path = root / "append"
-    val t1 =
+    val t1   =
       try sparkSession.read.text(path.toString()).count()
       catch { case _: Throwable => 0 }
     saver(path).withSaveMode(_.Append).run[IO].unsafeRunSync()

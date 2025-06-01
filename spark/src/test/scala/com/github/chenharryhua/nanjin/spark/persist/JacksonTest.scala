@@ -89,7 +89,7 @@ class JacksonTest extends AnyFunSuite {
   }
 
   test("8.jackson jacket") {
-    val path = "./data/test/spark/persist/jackson/jacket.json"
+    val path  = "./data/test/spark/persist/jackson/jacket.json"
     val saver =
       new RddAvroFileHoarder[Jacket](JacketData.rdd.repartition(3), Jacket.avroCodec).jackson(path)
     saver.run[IO].unsafeRunSync()

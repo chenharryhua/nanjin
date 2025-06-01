@@ -33,7 +33,7 @@ class SalesforceIotTest extends AnyFunSuite {
     "signature" -> "signature".asJson
   )
 
-  private val bools = BooleanList(LazyList(false, false, true))
+  private val bools                   = BooleanList(LazyList(false, false, true))
   private def service: HttpRoutes[IO] = HttpRoutes.of[IO] {
     case POST -> Root / "services" / "oauth2" / "token" =>
       if (bools.get) Ok(token) else GatewayTimeout()

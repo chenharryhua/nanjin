@@ -20,7 +20,7 @@ class ProtobufTerminalTest extends AnyFunSuite {
   val root: Url                            = Url.parse("./data/example/protobuf")
   val data: Stream[IO, Lion]               = Stream.emits(lions)
   val gmc: GeneratedMessageCompanion[Lion] = implicitly
-  def run(file: ProtobufFile): Assertion = {
+  def run(file: ProtobufFile): Assertion   = {
     val path: Url = root / file.fileName
 
     val write = data.through(hadoop.sink(path).protobuf).compile.drain

@@ -20,9 +20,9 @@ package object batch {
   }
 
   def jsonScalarRate(took: Duration, number: Dimensionless): Json = {
-    val count: String   = s"${decimalFormatter.format(number.value.toLong)} ${number.unit.symbol}"
-    val rate: Frequency = number / Nanoseconds(took.toNanos)
-    val ratio: Double   = number.value / number.toEach
+    val count: String     = s"${decimalFormatter.format(number.value.toLong)} ${number.unit.symbol}"
+    val rate: Frequency   = number / Nanoseconds(took.toNanos)
+    val ratio: Double     = number.value / number.toEach
     val formatted: String =
       s"${decimalFormatter.format((rate.toHertz * ratio).toLong)} ${number.unit.symbol}/s"
 

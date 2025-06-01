@@ -33,7 +33,7 @@ object KafkaStreamingData {
   val s1Def = TopicDef[Int, StreamOne](TopicName("stream.test.join.stream.one"))
 
   val s1Topic: KafkaTopic[IO, Int, StreamOne] = ctx.topic(s1Def)
-  val t2Topic: KafkaTopic[IO, Int, TableTwo] =
+  val t2Topic: KafkaTopic[IO, Int, TableTwo]  =
     ctx.topic(TopicDef[Int, TableTwo](TopicName("stream.test.join.table.two")))
 
   val tgt: KafkaTopic[IO, Int, StreamTarget] =

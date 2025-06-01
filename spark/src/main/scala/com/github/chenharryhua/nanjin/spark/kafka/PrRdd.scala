@@ -38,7 +38,7 @@ final class PrRdd[K, V] private[kafka] (
   def noMeta: PrRdd[K, V]                               = transform(_.map(_.noMeta))
   def withTopicName(topicName: TopicName): PrRdd[K, V]  = transform(_.map(_.withTopicName(topicName)))
   def withTopicName(topicName: TopicNameL): PrRdd[K, V] = withTopicName(TopicName(topicName))
-  def replicate(num: Int): PrRdd[K, V] =
+  def replicate(num: Int): PrRdd[K, V]                  =
     transform(rdd => (1 until num).foldLeft(rdd) { case (r, _) => r.union(rdd) })
 
   def normalize: PrRdd[K, V] = transform(_.map(codec.idConversion))

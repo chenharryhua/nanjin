@@ -41,7 +41,7 @@ final class CrRdd[K, V] private[kafka] (
   def ascendOffset: CrRdd[K, V]     = transform(sort.ascend.cr.offset)
   def descendOffset: CrRdd[K, V]    = transform(sort.descend.cr.offset)
 
-  def repartition(num: Int): CrRdd[K, V] = transform(_.repartition(num))
+  def repartition(num: Int): CrRdd[K, V]                         = transform(_.repartition(num))
   def persist(f: StorageLevel.type => StorageLevel): CrRdd[K, V] =
     transform(_.persist(f(StorageLevel)))
 

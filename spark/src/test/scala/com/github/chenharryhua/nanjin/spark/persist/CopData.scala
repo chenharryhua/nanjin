@@ -9,7 +9,7 @@ import shapeless.Coproduct
 object CopData {
 
   implicit private val ss: SparkSession = sparkSession
-  val emCops: List[EmCop] = List(
+  val emCops: List[EmCop]               = List(
     EmCop(1, EnumCoproduct.Domestic),
     EmCop(2, EnumCoproduct.International)
   )

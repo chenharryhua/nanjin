@@ -82,7 +82,7 @@ final class FileSink[F[_]: Sync] private (configuration: Configuration, path: Pa
     (ss: Stream[F, GenericRecord]) =>
       ss.pull.stepLeg.flatMap {
         case Some(leg) =>
-          val schema = leg.head(0).getSchema
+          val schema       = leg.head(0).getSchema
           val writeBuilder = Reader((path: Path) =>
             AvroParquetWriter
               .builder[GenericRecord](HadoopOutputFile.fromPath(path, configuration))

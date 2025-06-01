@@ -43,7 +43,7 @@ package object guard {
 
   def checkJson(evt: Event): Event =
     decode[Event](evt.asJson.noSpaces) match {
-      case Left(value) => throw value
+      case Left(value)  => throw value
       case Right(value) =>
         assert(value == evt, s"${evt.toString} \n-------- ${value.toString}")
         value

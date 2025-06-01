@@ -19,7 +19,7 @@ class BatchSequentialSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
   "quasi" - {
     "good job".in {
       val jobs = List("a" -> IO(1), "b" -> IO(2), "c" -> IO(3), "d" -> IO(4), "e" -> IO(5))
-      val se = service.eventStreamR { agent =>
+      val se   = service.eventStreamR { agent =>
         agent.batch("good job").sequential(jobs*).quasiBatch(TraceJob(agent).standard)
       }.evalTap(console.text[IO]).compile.lastOrError
       se.asserting(_.asInstanceOf[ServiceStop].cause.exitCode.shouldBe(0))
@@ -62,7 +62,7 @@ class BatchSequentialSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
   "value" - {
     "good job".in {
       val jobs = List("a" -> IO(1), "b" -> IO(2), "c" -> IO(3), "d" -> IO(4), "e" -> IO(5))
-      val se = service.eventStreamR { agent =>
+      val se   = service.eventStreamR { agent =>
         agent.batch("good job").sequential(jobs*).batchValue(TraceJob(agent).standard)
       }.evalTap(console.text[IO]).compile.lastOrError
       se.asserting(_.asInstanceOf[ServiceStop].cause.exitCode.shouldBe(0))

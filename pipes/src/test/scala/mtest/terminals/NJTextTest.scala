@@ -81,7 +81,7 @@ class NJTextTest extends AnyFunSuite {
     val path   = fs2Root / "rotation" / "tick"
     val number = 10000L
     hdp.delete(path).unsafeRunSync()
-    val fk = TextFile(_.Uncompressed)
+    val fk            = TextFile(_.Uncompressed)
     val processedSize = Stream
       .emits(TestData.tigerSet.toList)
       .covary[IO]
@@ -108,7 +108,7 @@ class NJTextTest extends AnyFunSuite {
     val path   = fs2Root / "rotation" / "index"
     val number = 10000L
     hdp.delete(path).unsafeRunSync()
-    val fk = TextFile(_.Uncompressed)
+    val fk            = TextFile(_.Uncompressed)
     val processedSize = Stream
       .emits(TestData.tigerSet.toList)
       .covary[IO]

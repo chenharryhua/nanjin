@@ -24,7 +24,7 @@ object console {
 
   final class TextConsole[F[_]: Console: Monad](translator: Translator[F, String])
       extends (Event => F[Unit]) with UpdateTranslator[F, String, TextConsole[F]] {
-    private[this] val C = Console[F]
+    private[this] val C                            = Console[F]
     private[this] def coloring(evt: Event): String =
       ColorScheme.decorate(evt).run(textHelper.consoleColor).value
 

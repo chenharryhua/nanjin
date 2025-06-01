@@ -24,7 +24,7 @@ class DoobieMetaTest extends AnyFunSuite with FunSuiteDiscipline with Configurat
   test("setter") {
     val username = Username("postgres")
     val password = Password("postgres")
-    val nj = DBConfig(postgres)
+    val nj       = DBConfig(postgres)
       .set(_.setUsername("superceded by last update"))
       .set(_.setUsername(username.value))
       .set(_.setPassword(password.value))

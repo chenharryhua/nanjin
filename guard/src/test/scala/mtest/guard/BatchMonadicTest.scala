@@ -43,7 +43,7 @@ class BatchMonadicTest extends AnyFunSuite {
   test("2.exception") {
     var completedJob: JobResultState = null
     var errorJob: JobResultState     = null
-    val tracer: TraceJob[IO, Json] = TraceJob
+    val tracer: TraceJob[IO, Json]   = TraceJob
       .noop[IO, Json]
       .onComplete(jo => IO { completedJob = jo.resultState })
       .onError(jo => IO { errorJob = jo.resultState })
@@ -73,7 +73,7 @@ class BatchMonadicTest extends AnyFunSuite {
   test("3.invincible - exception") {
     var completedJob: List[JobResultState] = Nil
     var errorJob: JobResultState           = null
-    val tracer: TraceJob[IO, Json] = TraceJob
+    val tracer: TraceJob[IO, Json]         = TraceJob
       .noop[IO, Json]
       .onComplete(jo => IO { completedJob = jo.resultState :: completedJob })
       .onError(jo => IO { errorJob = jo.resultState })
@@ -106,7 +106,7 @@ class BatchMonadicTest extends AnyFunSuite {
 
   test("4.invincible - false") {
     var completedJob: List[JobResultState] = Nil
-    val tracer: TraceJob[IO, Json] =
+    val tracer: TraceJob[IO, Json]         =
       TraceJob.noop[IO, Json].onComplete(jo => IO { completedJob = jo.resultState :: completedJob })
     val se = service.eventStreamR { agent =>
       agent
@@ -137,7 +137,7 @@ class BatchMonadicTest extends AnyFunSuite {
 
   test("5. filter") {
     var completedJob: List[JobResultState] = Nil
-    val tracer: TraceJob[IO, Json] =
+    val tracer: TraceJob[IO, Json]         =
       TraceJob.noop[IO, Json].onComplete(jo => IO { completedJob = jo.resultState :: completedJob })
     val se = service.eventStreamR { agent =>
       val res = agent
@@ -169,7 +169,7 @@ class BatchMonadicTest extends AnyFunSuite {
   test("6.cancel") {
     var completedJob: List[JobResultValue[Json]] = Nil
     var canceledJob: BatchJob                    = null
-    val tracer = TraceJob
+    val tracer                                   = TraceJob
       .noop[IO, Json]
       .onCancel(bj => IO { canceledJob = bj })
       .onComplete(jrv => IO { completedJob = jrv :: completedJob })

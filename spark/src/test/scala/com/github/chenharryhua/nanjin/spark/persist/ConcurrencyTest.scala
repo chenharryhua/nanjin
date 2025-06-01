@@ -16,7 +16,7 @@ class ConcurrencyTest extends AnyFunSuite {
     new RddAvroFileHoarder[Rooster](RoosterData.bigset.repartition(2).persist().rdd, Rooster.avroCodec)
   test("avro") {
     val root = "./data/test/spark/persist/interlope/avro/rooster/"
-    val run = for {
+    val run  = for {
       a <- rooster.avro(root / "bzip2").withCompression(_.Bzip2).run[IO].start
       b <- rooster.avro(root / "deflate").withCompression(_.Deflate(1)).run[IO].start
       c <- rooster.avro(root / "snappy").withCompression(_.Snappy).run[IO].start
@@ -59,7 +59,7 @@ class ConcurrencyTest extends AnyFunSuite {
 
   test("circe") {
     val root = "./data/test/spark/persist/interlope/circe/rooster/"
-    val run = for {
+    val run  = for {
       d <- rooster.circe(root / "bzip2").withCompression(_.Bzip2).run[IO].start
       b <- rooster.circe(root / "deflate").withCompression(_.Deflate(1)).run[IO].start
       c <- rooster.circe(root / "gzip").withCompression(_.Gzip).run[IO].start
@@ -79,7 +79,7 @@ class ConcurrencyTest extends AnyFunSuite {
 
   test("jackson") {
     val root = "./data/test/spark/persist/interlope/jackson/rooster/"
-    val run = for {
+    val run  = for {
       d <- rooster.jackson(root / "bzip2").withCompression(_.Bzip2).run[IO].start
       b <- rooster.jackson(root / "deflate").withCompression(_.Deflate(1)).run[IO].start
       c <- rooster.jackson(root / "gzip").withCompression(_.Gzip).run[IO].start
@@ -100,7 +100,7 @@ class ConcurrencyTest extends AnyFunSuite {
   test("csv") {
     val root = "./data/test/spark/persist/interlope/csv/rooster/"
     val cfg  = CsvConfiguration.rfc
-    val run = for {
+    val run  = for {
       d <- rooster.kantan(root / "bzip2", cfg).withCompression(_.Bzip2).run[IO].start
       b <- rooster.kantan(root / "deflate", cfg).withCompression(_.Deflate(1)).run[IO].start
       c <- rooster.kantan(root / "gzip", cfg).withCompression(_.Gzip).run[IO].start
@@ -120,7 +120,7 @@ class ConcurrencyTest extends AnyFunSuite {
 
   test("text") {
     val root = "./data/test/spark/persist/interlope/text/rooster/"
-    val run = for {
+    val run  = for {
       d <- rooster.text(root / "bzip2").withCompression(_.Bzip2).run[IO].start
       b <- rooster.text(root / "deflate").withCompression(_.Deflate(1)).run[IO].start
       c <- rooster.text(root / "gzip").withCompression(_.Gzip).run[IO].start
@@ -140,7 +140,7 @@ class ConcurrencyTest extends AnyFunSuite {
 
   test("parquet") {
     val root = "./data/test/spark/persist/interlope/parquet/rooster/"
-    val run = for {
+    val run  = for {
       d <- rooster.parquet(root / "snappy").withCompression(_.Snappy).run[IO].start
       c <- rooster.parquet(root / "gzip").withCompression(_.Gzip).run[IO].start
       a <- rooster.parquet(root / "uncompress").run[IO].start
@@ -167,7 +167,7 @@ class ConcurrencyTest extends AnyFunSuite {
   test("mix multi") {
     val root = "./data/test/spark/persist/interlope/mix-multi/"
     val cfg  = CsvConfiguration.rfc
-    val run = for {
+    val run  = for {
       a <- rooster.avro(root / "avro1").withCompression(_.Bzip2).run[IO].start
       b <- rooster.avro(root / "avro2").withCompression(_.Deflate(1)).run[IO].start
       c <- rooster.avro(root / "avro3").withCompression(_.Snappy).run[IO].attempt.start
