@@ -43,7 +43,7 @@ final class PushGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName,
         val ser = Serdes.byteArraySerde.serializer()
         (data: AnyRef) => ser.serialize(topic, Decoder[Array[Byte]].decode(data))
 
-      case _ => throw new Exception(s"unsupported key schema: ${pair.key.toString}")
+      case _ => throw new RuntimeException(s"unsupported key schema: ${pair.key.toString}")
     }
 
   @transient private lazy val val_serialize: AnyRef => Array[Byte] =
@@ -73,7 +73,7 @@ final class PushGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName,
         val ser = Serdes.byteArraySerde.serializer()
         (data: AnyRef) => ser.serialize(topic, Decoder[Array[Byte]].decode(data))
 
-      case _ => throw new Exception(s"unsupported value schema: ${pair.value.toString}")
+      case _ => throw new RuntimeException(s"unsupported value schema: ${pair.value.toString}")
     }
 
   def fromGenericRecord(key: GenericRecord, value: GenericRecord): ProducerRecord[Array[Byte], Array[Byte]] =

@@ -29,7 +29,7 @@ object Batch {
    */
 
   private def shouldNeverHappenException(e: Throwable): Exception =
-    new Exception("Should never happen", e)
+    new RuntimeException("Should never happen", e)
 
   private val translator: Ior[Long, Long] => Json = {
     case Ior.Left(a)  => Json.fromString(s"$a/0")

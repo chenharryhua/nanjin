@@ -125,7 +125,7 @@ class NJKantanTest extends AnyFunSuite {
     assert(size == herd_number)
   }
 
-  test("rotation - with-header - index") {
+  test("rotation - with-header - size") {
     val path = fs2Root / "rotation" / "header" / "index"
     hdp.delete(path).unsafeRunSync()
     val file = KantanFile(_.Uncompressed)
@@ -173,7 +173,7 @@ class NJKantanTest extends AnyFunSuite {
     hdp.filesIn(path).unsafeRunSync().foreach(np => assert(File(np.toJavaURI).lines.size == 1))
   }
 
-  test("rotation - no header - tick") {
+  test("rotation - no header - policy") {
     val path   = fs2Root / "rotation" / "no-header" / "tick"
     val number = 10000L
     val file   = KantanFile(_.Uncompressed)
@@ -197,7 +197,7 @@ class NJKantanTest extends AnyFunSuite {
     assert(size == number)
   }
 
-  test("rotation - no header - index") {
+  test("rotation - no header - size") {
     val path   = fs2Root / "rotation" / "no-header" / "index"
     val number = 10000L
     val file   = KantanFile(_.Uncompressed)
