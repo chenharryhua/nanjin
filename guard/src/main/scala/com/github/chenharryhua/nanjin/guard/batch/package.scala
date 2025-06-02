@@ -11,20 +11,20 @@ import java.time.Duration
 
 package object batch {
   def jsonDataRate(took: Duration, number: Information): Json = {
-    val count: String = s"${decimalFormatter.format(number.value.toLong)} ${number.unit.symbol}"
+    val count: String = s"${decimalFormatter.format(number.value)} ${number.unit.symbol}"
 
     val speed: DataRate   = number / Nanoseconds(took.toNanos)
-    val formatted: String = s"${decimalFormatter.format(speed.value.toLong)} ${speed.unit.symbol}"
+    val formatted: String = s"${decimalFormatter.format(speed.value)} ${speed.unit.symbol}"
 
     Json.obj("volume" -> Json.fromString(count), "speed" -> Json.fromString(formatted))
   }
 
   def jsonScalarRate(took: Duration, number: Dimensionless): Json = {
-    val count: String   = s"${decimalFormatter.format(number.value.toLong)} ${number.unit.symbol}"
+    val count: String   = s"${decimalFormatter.format(number.value)} ${number.unit.symbol}"
     val rate: Frequency = number / Nanoseconds(took.toNanos)
     val ratio: Double   = number.value / number.toEach
     val formatted: String =
-      s"${decimalFormatter.format((rate.toHertz * ratio).toLong)} ${number.unit.symbol}/s"
+      s"${decimalFormatter.format(rate.toHertz * ratio)} ${number.unit.symbol}/s"
 
     Json.obj("count" -> Json.fromString(count), "rate" -> Json.fromString(formatted))
   }
