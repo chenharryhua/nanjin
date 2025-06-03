@@ -20,16 +20,16 @@ import java.time.ZoneId
 import scala.concurrent.duration.DurationInt
 
 class NJKantanTest extends AnyFunSuite {
-  val tigerEncoder: RowEncoder[Tiger]          = shapeless.cachedImplicit
-  val tigerDecoder: RowDecoder[Tiger]          = shapeless.cachedImplicit
+  val tigerEncoder: RowEncoder[Tiger] = shapeless.cachedImplicit
+  val tigerDecoder: RowDecoder[Tiger] = shapeless.cachedImplicit
   implicit val tigerHeader: CsvHeaderOf[Tiger] = shapeless.cachedImplicit
 
   def fs2(path: Url, file: KantanFile, csvConfiguration: CsvConfiguration, data: Set[Tiger]): Assertion = {
     val tgt = path / file.fileName
     hdp.delete(tgt).unsafeRunSync()
-    val ts     = Stream.emits(data.toList).covary[IO].map(tigerEncoder.encode)
-    val sink   = hdp.sink(tgt).kantan(csvConfiguration)
-    val src    = hdp.source(tgt).kantan(100, csvConfiguration).map(tigerDecoder.decode).rethrow
+    val ts = Stream.emits(data.toList).covary[IO].map(tigerEncoder.encode)
+    val sink = hdp.sink(tgt).kantan(csvConfiguration)
+    val src = hdp.source(tgt).kantan(100, csvConfiguration).map(tigerDecoder.decode).rethrow
     val action = ts.through(sink).compile.drain >> src.compile.toList
     assert(action.unsafeRunSync().toSet == data)
     val fileName = (file: FileKind).asJson.noSpaces
@@ -174,9 +174,9 @@ class NJKantanTest extends AnyFunSuite {
   }
 
   test("rotation - no header - policy") {
-    val path   = fs2Root / "rotation" / "no-header" / "tick"
+    val path = fs2Root / "rotation" / "no-header" / "tick"
     val number = 10000L
-    val file   = KantanFile(_.Uncompressed)
+    val file = KantanFile(_.Uncompressed)
     hdp.delete(path).unsafeRunSync()
     herd
       .map(tigerEncoder.encode)
@@ -198,9 +198,9 @@ class NJKantanTest extends AnyFunSuite {
   }
 
   test("rotation - no header - size") {
-    val path   = fs2Root / "rotation" / "no-header" / "index"
+    val path = fs2Root / "rotation" / "no-header" / "index"
     val number = 10000L
-    val file   = KantanFile(_.Uncompressed)
+    val file = KantanFile(_.Uncompressed)
     hdp.delete(path).unsafeRunSync()
     herd
       .map(tigerEncoder.encode)
@@ -239,7 +239,7 @@ class NJKantanTest extends AnyFunSuite {
   }
 
   test("stream concat") {
-    val s         = Stream.emits(TestData.tigerSet.toList).covary[IO].repeatN(500).map(tigerEncoder.encode)
+    val s = Stream.emits(TestData.tigerSet.toList).covary[IO].repeatN(500).map(tigerEncoder.encode)
     val path: Url = fs2Root / "concat" / "kantan.csv"
 
     (hdp.delete(path) >>
@@ -249,9 +249,9 @@ class NJKantanTest extends AnyFunSuite {
   }
 
   ignore("large number (10000) of files - passed but too cost to run it") {
-    val path   = fs2Root / "rotation" / "many"
+    val path = fs2Root / "rotation" / "many"
     val number = 1000L
-    val file   = KantanFile(_.Uncompressed)
+    val file = KantanFile(_.Uncompressed)
     hdp.delete(path).unsafeRunSync()
     Stream
       .emits(TestData.tigerSet.toList)

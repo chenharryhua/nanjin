@@ -25,10 +25,10 @@ class NJBinAvroTest extends AnyFunSuite {
     val tgt = path / file.fileName
 
     hdp.delete(tgt).unsafeRunSync()
-    val sink     = hdp.sink(tgt).binAvro
-    val src      = hdp.source(tgt).binAvro(100, pandaSchema)
-    val ts       = Stream.emits(data.toList).covary[IO]
-    val action   = ts.through(sink).compile.drain >> src.compile.toList
+    val sink = hdp.sink(tgt).binAvro
+    val src = hdp.source(tgt).binAvro(100, pandaSchema)
+    val ts = Stream.emits(data.toList).covary[IO]
+    val action = ts.through(sink).compile.drain >> src.compile.toList
     val fileName = (file: FileKind).asJson.noSpaces
     assert(jawn.decode[FileKind](fileName).toOption.get == file)
     assert(action.unsafeRunSync().toSet == data)
@@ -69,7 +69,7 @@ class NJBinAvroTest extends AnyFunSuite {
   }
 
   test("rotation - policy") {
-    val path   = fs2Root / "rotation" / "tick"
+    val path = fs2Root / "rotation" / "tick"
     val number = 10000L
     hdp.delete(path).unsafeRunSync()
     val file = BinAvroFile(_.Uncompressed)
@@ -95,9 +95,9 @@ class NJBinAvroTest extends AnyFunSuite {
   }
 
   test("rotation - size") {
-    val path   = fs2Root / "rotation" / "index"
+    val path = fs2Root / "rotation" / "index"
     val number = 10000L
-    val file   = BinAvroFile(_.Uncompressed)
+    val file = BinAvroFile(_.Uncompressed)
     hdp.delete(path).unsafeRunSync()
     val processedSize = Stream
       .emits(pandaSet.toList)
@@ -121,7 +121,7 @@ class NJBinAvroTest extends AnyFunSuite {
   }
 
   test("stream concat") {
-    val s         = Stream.emits(pandaSet.toList).covary[IO].repeatN(500)
+    val s = Stream.emits(pandaSet.toList).covary[IO].repeatN(500)
     val path: Url = fs2Root / "concat" / "bin.avro"
 
     (hdp.delete(path) >>
@@ -132,7 +132,7 @@ class NJBinAvroTest extends AnyFunSuite {
   }
 
   test("stream concat - 2") {
-    val s         = Stream.emits(pandaSet.toList).covary[IO].repeatN(500)
+    val s = Stream.emits(pandaSet.toList).covary[IO].repeatN(500)
     val path: Url = fs2Root / "concat" / "rotate"
     val sink = hdp.rotateSink(Policy.fixedDelay(0.1.second), ZoneId.systemDefault())(t =>
       path / BinAvroFile(_.Uncompressed).fileName(t))
@@ -142,9 +142,9 @@ class NJBinAvroTest extends AnyFunSuite {
   }
 
   ignore("large number (10000) of files - passed but too cost to run it") {
-    val path   = fs2Root / "rotation" / "many"
+    val path = fs2Root / "rotation" / "many"
     val number = 5000L
-    val file   = BinAvroFile(_.Uncompressed)
+    val file = BinAvroFile(_.Uncompressed)
     hdp.delete(path).unsafeRunSync()
     Stream
       .emits(pandaSet.toList)

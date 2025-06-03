@@ -120,7 +120,7 @@ object KafkaAdminApi {
       transientConsumer(initCS.withGroupId(groupId)).commitSync(offsets)
 
     override def commitSync(groupId: String, partition: Int, offset: Long): F[Unit] = {
-      val tp  = new TopicPartition(topicName.value, partition)
+      val tp = new TopicPartition(topicName.value, partition)
       val oam = new OffsetAndMetadata(offset)
       commitSync(groupId, Map(tp -> oam))
     }

@@ -40,7 +40,7 @@ object KJsonTestData {
 class KJsonTest extends Properties("kjson") {
   import KJsonTestData.*
 
-  val genKJsons: Gen[List[KJson[CompositionType]]]                = Gen.listOfN(20, genKJson)
+  val genKJsons: Gen[List[KJson[CompositionType]]] = Gen.listOfN(20, genKJson)
   implicit val arbKJsons: Arbitrary[List[KJson[CompositionType]]] = Arbitrary(genKJsons)
 
   property("encode/decode identity") = forAll { (ct: KJson[CompositionType]) =>

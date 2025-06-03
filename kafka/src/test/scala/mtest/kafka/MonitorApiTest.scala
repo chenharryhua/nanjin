@@ -15,7 +15,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import scala.concurrent.duration.*
 
 class MonitorApiTest extends AnyFunSuite {
-  private val topicDef: TopicDef[Int, Int]    = TopicDef[Int, Int](TopicName("monitor.test"))
+  private val topicDef: TopicDef[Int, Int] = TopicDef[Int, Int](TopicName("monitor.test"))
   private val topic: KafkaTopic[IO, Int, Int] = ctx.topic[Int, Int](topicDef)
 
   private val st: KafkaTopic[IO, Int, Array[Byte]] =
@@ -39,7 +39,7 @@ class MonitorApiTest extends AnyFunSuite {
     .chunkN(1)
     .unchunks
     .metered(1.seconds)
-    .through(ctx.producer[Int, Array[Byte]].sink)
+    .through(ctx.produce[Int, Array[Byte]].sink)
 
   test("monitor") {
     ctx.schemaRegistry.register(topic.topicDef).attempt.unsafeRunSync()

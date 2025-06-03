@@ -17,7 +17,7 @@ final class TopicDef[K, V] private (val topicName: TopicName, val rawSerdes: Raw
 
   override def toString: String = topicName.value
 
-  def withTopicName(tn: TopicName): TopicDef[K, V]  = new TopicDef[K, V](tn, rawSerdes)
+  def withTopicName(tn: TopicName): TopicDef[K, V] = new TopicDef[K, V](tn, rawSerdes)
   def withTopicName(tn: TopicNameL): TopicDef[K, V] = withTopicName(TopicName(tn))
 
   def producerRecord(k: K, v: V): ProducerRecord[K, V] = ProducerRecord(topicName.value, k, v)
@@ -26,17 +26,17 @@ final class TopicDef[K, V] private (val topicName: TopicName, val rawSerdes: Raw
     AvroSchemaPair(rawSerdes.key.avroCodec.schema, rawSerdes.value.avroCodec.schema)
 
   final class ConsumerFormat(rf: RecordFormat[NJConsumerRecord[K, V]]) extends Serializable {
-    def toRecord(nj: NJConsumerRecord[K, V]): Record    = rf.to(nj)
-    def toRecord(cr: ConsumerRecord[K, V]): Record      = toRecord(NJConsumerRecord(cr))
+    def toRecord(nj: NJConsumerRecord[K, V]): Record = rf.to(nj)
+    def toRecord(cr: ConsumerRecord[K, V]): Record = toRecord(NJConsumerRecord(cr))
     def toRecord(jcr: JavaConsumerRecord[K, V]): Record = toRecord(NJConsumerRecord(jcr))
 
     def fromRecord(gr: IndexedRecord): NJConsumerRecord[K, V] = rf.from(gr)
   }
 
   final class ProducerFormat(rf: RecordFormat[NJProducerRecord[K, V]]) extends Serializable {
-    def toRecord(nj: NJProducerRecord[K, V]): Record    = rf.to(nj)
-    def toRecord(k: K, v: V): Record                    = toRecord(NJProducerRecord(topicName, k, v))
-    def toRecord(pr: ProducerRecord[K, V]): Record      = toRecord(NJProducerRecord(pr))
+    def toRecord(nj: NJProducerRecord[K, V]): Record = rf.to(nj)
+    def toRecord(k: K, v: V): Record = toRecord(NJProducerRecord(topicName, k, v))
+    def toRecord(pr: ProducerRecord[K, V]): Record = toRecord(NJProducerRecord(pr))
     def toRecord(jpr: JavaProducerRecord[K, V]): Record = toRecord(NJProducerRecord(jpr))
 
     def fromRecord(gr: IndexedRecord): NJProducerRecord[K, V] = rf.from(gr)

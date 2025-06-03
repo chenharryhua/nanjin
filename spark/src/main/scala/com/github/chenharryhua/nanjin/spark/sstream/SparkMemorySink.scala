@@ -15,7 +15,7 @@ final class SparkMemorySink[F[_], A](dsw: DataStreamWriter[A], cfg: SStreamConfi
     new SparkMemorySink[F, A](dsw, f(cfg))
 
   // https://spark.apache.org/docs/latest/structured-streaming-programming-guide.html#output-sinks
-  def append: SparkMemorySink[F, A]   = updateCfg(_.appendMode)
+  def append: SparkMemorySink[F, A] = updateCfg(_.appendMode)
   def complete: SparkMemorySink[F, A] = updateCfg(_.completeMode)
 
   def trigger(trigger: Trigger): SparkMemorySink[F, A] = updateCfg(_.triggerMode(trigger))

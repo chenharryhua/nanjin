@@ -18,7 +18,7 @@ object traceClient {
             "client_http_uri" -> req.uri.toString(),
             "client_http_method" -> req.method.toString
           )
-          hs   = Headers(knl.toHeaders.map { case (k, v) => Header.Raw(k, v) }.toList)
+          hs = Headers(knl.toHeaders.map { case (k, v) => Header.Raw(k, v) }.toList)
           nReq = req.withHeaders(hs ++ req.headers)
           rsrc <- client.run(nReq).allocated
           _ <- span.put("client_http_status_code" -> rsrc._1.status.code.toString())

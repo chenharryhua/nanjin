@@ -18,7 +18,7 @@ final class SparkFileSink[F[_], A](dsw: DataStreamWriter[A], cfg: SStreamConfig,
     new SparkFileSink[F, A](dsw, f(cfg), path)
 
   def parquet: SparkFileSink[F, A] = updateCfg(_.parquetFormat)
-  def avro: SparkFileSink[F, A]    = updateCfg(_.avroFormat)
+  def avro: SparkFileSink[F, A] = updateCfg(_.avroFormat)
 
   def triggerEvery(duration: FiniteDuration): SparkFileSink[F, A] =
     updateCfg(_.triggerMode(Trigger.ProcessingTime(duration)))

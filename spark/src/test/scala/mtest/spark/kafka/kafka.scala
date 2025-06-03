@@ -10,8 +10,8 @@ package object kafka {
 
   val range: DateTimeRange = DateTimeRange(beijingTime)
 
-  val ctx: KafkaContext[IO]           = KafkaContext[IO](KafkaSettings.local)
+  val ctx: KafkaContext[IO] = KafkaContext[IO](KafkaSettings.local)
   val sparKafka: SparKafkaContext[IO] = sparkSession.alongWith(ctx)
-  val hadoop: Hadoop[IO]              = sparkSession.hadoop[IO]
+  val hadoop: Hadoop[IO] = sparkSession.hadoop[IO]
 
 }

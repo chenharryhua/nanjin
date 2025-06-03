@@ -12,7 +12,7 @@ object functions {
   implicit final class NJConsumerRecordDatasetExt[K, V](dataset: Dataset[NJConsumerRecord[K, V]]) {
 
     def misorderedKey(implicit @unused tek: TypedEncoder[K]): Dataset[DisorderedKey[K]] = {
-      val teok: TypedEncoder[Option[K]]        = shapeless.cachedImplicit
+      val teok: TypedEncoder[Option[K]] = shapeless.cachedImplicit
       val temk: TypedEncoder[DisorderedKey[K]] = shapeless.cachedImplicit
 
       dataset

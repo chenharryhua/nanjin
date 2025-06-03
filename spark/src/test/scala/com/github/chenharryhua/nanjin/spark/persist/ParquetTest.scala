@@ -82,7 +82,7 @@ class ParquetTest extends AnyFunSuite {
   }
 
   test("7.datetime read/write identity multi.zstd") {
-    val path        = root / "rooster" / "zstd"
+    val path = root / "rooster" / "zstd"
     val compression = Compression.Zstandard(1)
     roosterSaver(path).withCompression(compression).run[IO].unsafeRunSync()
     val r = loaders.rdd.parquet(path, sparkSession, Rooster.avroCodec).collect().toSet
@@ -133,7 +133,7 @@ class ParquetTest extends AnyFunSuite {
 
   test("11.collection read/write identity multi uncompress") {
     import AntData.*
-    val path  = "./data/test/spark/persist/parquet/ant/multi.parquet"
+    val path = "./data/test/spark/persist/parquet/ant/multi.parquet"
     val saver = new RddAvroFileHoarder[Ant](rdd, Ant.avroEncoder).parquet(path)
     saver.withCompression(_.Uncompressed).run[IO].unsafeRunSync()
     val t = loaders.parquet[Ant](path, sparkSession, Ant.ate).collect().toSet
@@ -142,7 +142,7 @@ class ParquetTest extends AnyFunSuite {
 
   test("12.enum cop read/write identity") {
     import CopData.*
-    val path  = "./data/test/spark/persist/parquet/emcop/multi.parquet"
+    val path = "./data/test/spark/persist/parquet/emcop/multi.parquet"
     val saver = new RddAvroFileHoarder[EmCop](emRDD, EmCop.avroCodec).parquet(path)
     saver.withCompression(_.Uncompressed).run[IO].unsafeRunSync()
     val t = loaders.parquet[EmCop](path, sparkSession, EmCop.ate).collect().toSet

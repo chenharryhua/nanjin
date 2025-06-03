@@ -10,11 +10,11 @@ import io.circe.syntax.EncoderOps
 
 object jsonHelper {
 
-  def timestamp(evt: Event): (String, Json)             = "timestamp" -> evt.timestamp.asJson
-  def service_id(sp: ServiceParams): (String, Json)     = "service_id" -> sp.serviceId.asJson
+  def timestamp(evt: Event): (String, Json) = "timestamp" -> evt.timestamp.asJson
+  def service_id(sp: ServiceParams): (String, Json) = "service_id" -> sp.serviceId.asJson
   def service_params(sp: ServiceParams): (String, Json) = "params" -> sp.asJson
-  def exit_code(sc: ServiceStopCause): (String, Json)   = "exit_code" -> Json.fromInt(sc.exitCode)
-  def exit_cause(sc: ServiceStopCause): (String, Json)  = "exit_cause" -> sc.asJson
+  def exit_code(sc: ServiceStopCause): (String, Json) = "exit_code" -> Json.fromInt(sc.exitCode)
+  def exit_cause(sc: ServiceStopCause): (String, Json) = "exit_cause" -> sc.asJson
 
   def index(tick: Tick): (String, Json) = "index" -> Json.fromLong(tick.index)
 

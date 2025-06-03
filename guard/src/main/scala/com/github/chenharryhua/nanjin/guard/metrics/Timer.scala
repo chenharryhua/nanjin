@@ -30,7 +30,7 @@ object Timer {
   def noop[F[_]](implicit F: Applicative[F]): Timer[F] =
     new Timer[F] {
       override def elapsed(jd: JavaDuration): F[Unit] = F.unit
-      override def elapsed(num: Long): F[Unit]        = F.unit
+      override def elapsed(num: Long): F[Unit] = F.unit
 
       override def timing[A](fa: F[A]): F[A] = fa
     }
@@ -55,7 +55,7 @@ object Timer {
 
     private[this] lazy val timer: metrics.Timer = metricRegistry.timer(timer_name, supplier)
 
-    override def elapsed(num: Long): F[Unit]        = F.delay(timer.update(num, TimeUnit.NANOSECONDS))
+    override def elapsed(num: Long): F[Unit] = F.delay(timer.update(num, TimeUnit.NANOSECONDS))
     override def elapsed(jd: JavaDuration): F[Unit] = F.delay(timer.update(jd))
 
     override def timing[A](fa: F[A]): F[A] = F.map(F.timed(fa)) { case (fd, result) =>

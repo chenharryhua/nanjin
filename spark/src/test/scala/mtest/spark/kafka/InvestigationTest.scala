@@ -78,8 +78,8 @@ class InvestigationTest extends AnyFunSuite {
   }
 
   test("sparKafka one mismatch") {
-    val m1  = table.data(mouses1)
-    val m3  = table.data(mouses3)
+    val m1 = table.data(mouses1)
+    val m3 = table.data(mouses3)
     val rst = m1.diff(m3).dataset.collect().toSet
     assert(
       rst === Set(

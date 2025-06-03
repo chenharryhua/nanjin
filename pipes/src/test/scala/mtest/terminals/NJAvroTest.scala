@@ -24,10 +24,10 @@ class NJAvroTest extends AnyFunSuite {
   def fs2(path: Url, file: AvroFile, data: Set[GenericRecord]): Assertion = {
     val tgt = path / file.fileName
     hdp.delete(tgt).unsafeRunSync()
-    val sink     = hdp.sink(tgt).avro(file.compression)
-    val src      = hdp.source(tgt).avro(100)
-    val ts       = Stream.emits(data.toList).covary[IO]
-    val action   = ts.through(sink).compile.drain >> src.compile.toList.map(_.toList)
+    val sink = hdp.sink(tgt).avro(file.compression)
+    val src = hdp.source(tgt).avro(100)
+    val ts = Stream.emits(data.toList).covary[IO]
+    val action = ts.through(sink).compile.drain >> src.compile.toList.map(_.toList)
     val fileName = (file: FileKind).asJson.noSpaces
     assert(jawn.decode[FileKind](fileName).toOption.get == file)
     assert(action.unsafeRunSync().toSet == data)
@@ -68,7 +68,7 @@ class NJAvroTest extends AnyFunSuite {
   }
 
   test("rotation - policy") {
-    val path   = fs2Root / "rotation" / "tick"
+    val path = fs2Root / "rotation" / "tick"
     val number = 10000L
     hdp.delete(path).unsafeRunSync()
     val file = AvroFile(_.Uncompressed)
@@ -94,9 +94,9 @@ class NJAvroTest extends AnyFunSuite {
   }
 
   test("rotation - size") {
-    val path   = fs2Root / "rotation" / "index"
+    val path = fs2Root / "rotation" / "index"
     val number = 10000L
-    val file   = AvroFile(_.Uncompressed)
+    val file = AvroFile(_.Uncompressed)
     hdp.delete(path).unsafeRunSync()
     val processedSize = Stream
       .emits(pandaSet.toList)
@@ -118,7 +118,7 @@ class NJAvroTest extends AnyFunSuite {
   }
 
   test("stream concat") {
-    val s         = Stream.emits(pandaSet.toList).covary[IO].repeatN(500)
+    val s = Stream.emits(pandaSet.toList).covary[IO].repeatN(500)
     val path: Url = fs2Root / "concat" / "data.avro"
 
     (hdp.delete(path) >>
@@ -128,7 +128,7 @@ class NJAvroTest extends AnyFunSuite {
   }
 
   test("stream concat - 2") {
-    val s         = Stream.emits(pandaSet.toList).covary[IO].repeatN(500)
+    val s = Stream.emits(pandaSet.toList).covary[IO].repeatN(500)
     val path: Url = fs2Root / "concat" / "rotate"
     val sink = hdp.rotateSink(Policy.fixedDelay(0.1.second), ZoneId.systemDefault())(t =>
       path / AvroFile(_.Uncompressed).fileName(t))
@@ -138,9 +138,9 @@ class NJAvroTest extends AnyFunSuite {
   }
 
   ignore("large number (10000) of files - passed but too cost to run it") {
-    val path   = fs2Root / "rotation" / "many"
+    val path = fs2Root / "rotation" / "many"
     val number = 5000L
-    val file   = AvroFile(_.Uncompressed)
+    val file = AvroFile(_.Uncompressed)
     hdp.delete(path).unsafeRunSync()
     Stream
       .emits(pandaSet.toList)

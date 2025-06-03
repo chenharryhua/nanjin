@@ -62,7 +62,7 @@ private object PolicyF extends all {
         val calcTick: CalcTick = { case TickRequest(tick, now) =>
           cronExpr.next(now.atZone(tick.zoneId)) match {
             case Some(value) => tick.newTick(now, Duration.between(now, value))
-            case None => // should not happen but in case
+            case None        => // should not happen but in case
               sys.error(show"$cronExpr return None at $now. idx=${tick.index}")
           }
         }
@@ -119,24 +119,24 @@ private object PolicyF extends all {
   def decisions(policy: Fix[PolicyF]): LazyList[CalcTick] =
     scheme.cata(algebra).apply(policy)
 
-  private val GIVE_UP: String              = "giveUp"
-  private val CRONTAB: String              = "crontab"
-  private val JITTER: String               = "jitter"
-  private val JITTER_MIN: String           = "min"
-  private val JITTER_MAX: String           = "max"
-  private val FIXED_DELAY: String          = "fixedDelay"
-  private val FIXED_RATE: String           = "fixedRate"
-  private val LIMITED: String              = "limited"
-  private val POLICY: String               = "policy"
-  private val FOLLOWED_BY: String          = "followedBy"
-  private val FOLLOWED_BY_LEADER: String   = "leader"
+  private val GIVE_UP: String = "giveUp"
+  private val CRONTAB: String = "crontab"
+  private val JITTER: String = "jitter"
+  private val JITTER_MIN: String = "min"
+  private val JITTER_MAX: String = "max"
+  private val FIXED_DELAY: String = "fixedDelay"
+  private val FIXED_RATE: String = "fixedRate"
+  private val LIMITED: String = "limited"
+  private val POLICY: String = "policy"
+  private val FOLLOWED_BY: String = "followedBy"
+  private val FOLLOWED_BY_LEADER: String = "leader"
   private val FOLLOWED_BY_FOLLOWER: String = "follower"
-  private val MEET: String                 = "meet"
-  private val MEET_FIRST: String           = "first"
-  private val MEET_SECOND: String          = "second"
-  private val REPEAT: String               = "repeat"
-  private val EXCEPT: String               = "except"
-  private val OFFSET: String               = "offset"
+  private val MEET: String = "meet"
+  private val MEET_FIRST: String = "first"
+  private val MEET_SECOND: String = "second"
+  private val REPEAT: String = "repeat"
+  private val EXCEPT: String = "except"
+  private val OFFSET: String = "offset"
 
   val showPolicy: Algebra[PolicyF, String] = Algebra[PolicyF, String] {
     case GiveUp()          => show"$GIVE_UP"
@@ -213,13 +213,13 @@ private object PolicyF extends all {
     }
 
     def followedBy(hc: HCursor): Result[FollowedBy[HCursor]] = {
-      val leader   = hc.downField(FOLLOWED_BY).downField(FOLLOWED_BY_LEADER).as[HCursor]
+      val leader = hc.downField(FOLLOWED_BY).downField(FOLLOWED_BY_LEADER).as[HCursor]
       val follower = hc.downField(FOLLOWED_BY).downField(FOLLOWED_BY_FOLLOWER).as[HCursor]
       (leader, follower).mapN(FollowedBy[HCursor])
     }
 
     def meet(hc: HCursor): Result[Meet[HCursor]] = {
-      val first  = hc.downField(MEET).downField(MEET_FIRST).as[HCursor]
+      val first = hc.downField(MEET).downField(MEET_FIRST).as[HCursor]
       val second = hc.downField(MEET).downField(MEET_SECOND).as[HCursor]
       (first, second).mapN(Meet[HCursor])
     }
@@ -282,15 +282,15 @@ final case class Policy private (private[chrono] val policy: Fix[PolicyF]) {
     Policy(Fix(Limited(policy, num)))
   }
 
-  def followedBy(other: Policy): Policy            = Policy(Fix(FollowedBy(policy, other.policy)))
+  def followedBy(other: Policy): Policy = Policy(Fix(FollowedBy(policy, other.policy)))
   def followedBy(f: Policy.type => Policy): Policy = followedBy(f(Policy))
 
   def repeat: Policy = Policy(Fix(Repeat(policy)))
 
-  def meet(other: Policy): Policy            = Policy(Fix(Meet(policy, other.policy)))
+  def meet(other: Policy): Policy = Policy(Fix(Meet(policy, other.policy)))
   def meet(f: Policy.type => Policy): Policy = meet(f(Policy))
 
-  def except(localTime: LocalTime): Policy            = Policy(Fix(Except(policy, localTime)))
+  def except(localTime: LocalTime): Policy = Policy(Fix(Except(policy, localTime)))
   def except(f: localTimes.type => LocalTime): Policy = except(f(localTimes))
 
   def offset(fd: FiniteDuration): Policy = {
@@ -329,7 +329,7 @@ object Policy {
   implicit val decoderPolicy: Decoder[Policy] =
     (c: HCursor) => PolicyF.decoderFixPolicyF(c).map(Policy(_))
 
-  def crontab(cronExpr: CronExpr): Policy           = Policy(Fix(Crontab(cronExpr)))
+  def crontab(cronExpr: CronExpr): Policy = Policy(Fix(Crontab(cronExpr)))
   def crontab(f: crontabs.type => CronExpr): Policy = crontab(f(crontabs))
 
   def fixedDelay(delays: NonEmptyList[Duration]): Policy = {

@@ -13,7 +13,7 @@ class ObjectFileTest extends AnyFunSuite {
   import TabletData.*
   val hdp = sparkSession.hadoop[IO]
   test("object file identity") {
-    val path  = Url.parse("./data/test/spark/persist/object/tablet.obj")
+    val path = Url.parse("./data/test/spark/persist/object/tablet.obj")
     val saver = new RddFileHoarder[Tablet](rdd).objectFile(path)
     saver.run[IO].unsafeRunSync()
     val t = sparkSession.loadRdd[Tablet](path).objectFile.collect().toSet

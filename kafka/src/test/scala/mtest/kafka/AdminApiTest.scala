@@ -15,8 +15,8 @@ import org.scalatest.funsuite.AnyFunSuite
 import scala.concurrent.duration.DurationInt
 
 class AdminApiTest extends AnyFunSuite {
-  private val topicDef: TopicDef[Int, Int]     = TopicDef[Int, Int](TopicName("admin"))
-  private val topic: KafkaTopic[IO, Int, Int]  = ctx.topic(topicDef)
+  private val topicDef: TopicDef[Int, Int] = TopicDef[Int, Int](TopicName("admin"))
+  private val topic: KafkaTopic[IO, Int, Int] = ctx.topic(topicDef)
   private val mirror: KafkaTopic[IO, Int, Int] = ctx.topic(topicDef.withTopicName("admin.mirror"))
 
   test("newTopic") {
@@ -33,7 +33,7 @@ class AdminApiTest extends AnyFunSuite {
   }
 
   test("mirrorTo") {
-    val admin  = ctx.admin(topic.topicName)
+    val admin = ctx.admin(topic.topicName)
     val madmin = ctx.admin(mirror.topicName)
     val run = for {
       _ <- madmin.use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt)
@@ -46,11 +46,11 @@ class AdminApiTest extends AnyFunSuite {
   }
 
   test("groups") {
-    val gid   = "g1"
-    val tpo   = Map(new TopicPartition(topic.topicName.value, 0) -> new OffsetAndMetadata(0))
+    val gid = "g1"
+    val tpo = Map(new TopicPartition(topic.topicName.value, 0) -> new OffsetAndMetadata(0))
     val admin = ctx.admin("admin")
     val gp =
-      ctx.producer[Int, Int].produceOne(topic.topicName.value, 0, 0) >> ctx.admin("admin").use { admin =>
+      ctx.produce[Int, Int].produceOne(topic.topicName.value, 0, 0) >> ctx.admin("admin").use { admin =>
         ctx.admin.use(_.listTopics.listings) >>
           admin.commitSync(gid, tpo) >>
           admin.retrieveRecord(0, 0) >>

@@ -47,8 +47,8 @@ trait Percentile[F[_]] extends KleisliLike[F, Ior[Long, Long]] {
 object Percentile {
   def noop[F[_]](implicit F: Applicative[F]): Percentile[F] =
     new Percentile[F] {
-      override def incNumerator(numerator: Long): F[Unit]               = F.unit
-      override def incDenominator(denominator: Long): F[Unit]           = F.unit
+      override def incNumerator(numerator: Long): F[Unit] = F.unit
+      override def incDenominator(denominator: Long): F[Unit] = F.unit
       override def incBoth(numerator: Long, denominator: Long): F[Unit] = F.unit
     }
 
@@ -56,7 +56,7 @@ object Percentile {
 
     private[this] def update(ior: Ior[Long, Long]): F[Unit] = ref.update(_ |+| ior)
 
-    override def incNumerator(numerator: Long): F[Unit]     = update(Ior.Left(numerator))
+    override def incNumerator(numerator: Long): F[Unit] = update(Ior.Left(numerator))
     override def incDenominator(denominator: Long): F[Unit] = update(Ior.Right(denominator))
 
     override def incBoth(numerator: Long, denominator: Long): F[Unit] =
@@ -65,8 +65,8 @@ object Percentile {
   }
 
   val translator: Ior[Long, Long] => Json = {
-    case Ior.Left(_)  => Json.fromString("n/a")
-    case Ior.Right(_) => Json.fromString("0.0%")
+    case Ior.Left(_)    => Json.fromString("n/a")
+    case Ior.Right(_)   => Json.fromString("0.0%")
     case Ior.Both(a, b) =>
       if (b === 0) { Json.fromString("n/a") }
       else {

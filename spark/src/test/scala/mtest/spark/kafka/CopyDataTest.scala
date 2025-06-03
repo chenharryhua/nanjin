@@ -14,7 +14,7 @@ object CopyData {
 
 class CopyDataTest extends AnyFunSuite {
   import CopyData.*
-  val td  = TopicDef[Int, MyTestData](TopicName("tn"))
+  val td = TopicDef[Int, MyTestData](TopicName("tn"))
   val src = ctx.topic[Int, MyTestData](td.withTopicName("copy.src"))
   val tgt = ctx.topic[Int, MyTestData](td.withTopicName("copy.target"))
 
@@ -28,7 +28,7 @@ class CopyDataTest extends AnyFunSuite {
     fs2
       .Stream(ProducerRecords(List(d1, d2, d3, d4, d5)))
       .covary[IO]
-      .through(ctx.producer[Int, MyTestData].sink)
+      .through(ctx.produce[Int, MyTestData].sink)
       .compile
       .drain
 
@@ -51,7 +51,7 @@ class CopyDataTest extends AnyFunSuite {
           _.prRdd.noPartition.noTimestamp.noMeta
             .withTopicName(tgt.topicName)
             .producerRecords[IO](100)
-            .through(ctx.producer[Int, MyTestData].sink)
+            .through(ctx.produce[Int, MyTestData].sink)
             .compile
             .drain)
       srcData = sparKafka.topic(src.topicDef).fromKafka.map(_.rdd.collect()).unsafeRunSync()

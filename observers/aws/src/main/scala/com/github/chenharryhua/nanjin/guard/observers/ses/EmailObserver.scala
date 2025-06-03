@@ -56,11 +56,11 @@ final class EmailObserver[F[_]] private (
   override def updateTranslator(f: Endo[Translator[F, Text.TypedTag[String]]]): EmailObserver[F] =
     copy(translator = f(translator))
 
-  def withOldestFirst: EmailObserver[F]                      = copy(isNewestFirst = false)
-  def withCapacity(cs: ChunkSize): EmailObserver[F]          = copy(capacity = cs)
-  def withPolicy(policy: Policy): EmailObserver[F]           = copy(policy = policy)
+  def withOldestFirst: EmailObserver[F] = copy(isNewestFirst = false)
+  def withCapacity(cs: ChunkSize): EmailObserver[F] = copy(capacity = cs)
+  def withPolicy(policy: Policy): EmailObserver[F] = copy(policy = policy)
   def withPolicy(f: Policy.type => Policy): EmailObserver[F] = withPolicy(f(Policy))
-  def withZoneId(zoneId: ZoneId): EmailObserver[F]           = copy(zoneId = zoneId)
+  def withZoneId(zoneId: ZoneId): EmailObserver[F] = copy(zoneId = zoneId)
 
   private def translate(evt: Event): F[Option[ColoredTag]] =
     translator.translate(evt).map(_.map(tag => ColoredTag(tag, ColorScheme.decorate(evt).eval.value)))
@@ -172,7 +172,7 @@ final class EmailObserver[F[_]] private (
           case ss: ServiceStop  => state.update(_.removed(ss.serviceParams.serviceId))
           case _                => F.unit
         }.map(Left(_))
-        ticks      = tickStream.fromOne[F](policy, zoneId).map(Right(_))
+        ticks = tickStream.fromOne[F](policy, zoneId).map(Right(_))
         send_email = publish_one_email(ses, from, to, subject)(_)
         event <- go(monitor.mergeHaltBoth(ticks), send_email, cache).stream
           .onFinalize(good_bye(state, cache).flatMap(send_email))

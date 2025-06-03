@@ -42,7 +42,7 @@ class BatchMonadicTest extends AnyFunSuite {
 
   test("2.exception") {
     var completedJob: JobResultState = null
-    var errorJob: JobResultState     = null
+    var errorJob: JobResultState = null
     val tracer: TraceJob[IO, Json] = TraceJob
       .noop[IO, Json]
       .onComplete(jo => IO { completedJob = jo.resultState })
@@ -72,7 +72,7 @@ class BatchMonadicTest extends AnyFunSuite {
 
   test("3.invincible - exception") {
     var completedJob: List[JobResultState] = Nil
-    var errorJob: JobResultState           = null
+    var errorJob: JobResultState = null
     val tracer: TraceJob[IO, Json] = TraceJob
       .noop[IO, Json]
       .onComplete(jo => IO { completedJob = jo.resultState :: completedJob })
@@ -83,7 +83,7 @@ class BatchMonadicTest extends AnyFunSuite {
         .monadic { job =>
           for {
             a <- job("a" -> IO(1))
-            _ <- job.failSoft("b" -> IO.raiseError[Boolean](new Exception()))
+            _ <- job.failSoft("b" -> IO.raiseError[(Boolean, Json)](new Exception()))
             c <- job("c" -> IO(3))
           } yield a + c
         }
@@ -114,7 +114,7 @@ class BatchMonadicTest extends AnyFunSuite {
         .monadic { job =>
           for {
             a <- job("a" -> IO(1))
-            _ <- job.failSoft("b" -> IO(false))
+            _ <- job.failSoft("b" -> IO((false, Json.Null)))
             c <- job("c" -> IO(3))
           } yield a + c
         }
@@ -168,7 +168,7 @@ class BatchMonadicTest extends AnyFunSuite {
 
   test("6.cancel") {
     var completedJob: List[JobResultValue[Json]] = Nil
-    var canceledJob: BatchJob                    = null
+    var canceledJob: BatchJob = null
     val tracer = TraceJob
       .noop[IO, Json]
       .onCancel(bj => IO { canceledJob = bj })

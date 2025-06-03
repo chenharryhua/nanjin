@@ -106,7 +106,7 @@ class BinAvroTest extends AnyFunSuite {
     assert(RoosterData.expected == t3)
   }
 
-  val reverseRoot                 = root / "reverse"
+  val reverseRoot = root / "reverse"
   val toRecord: ToRecord[Rooster] = ToRecord(Rooster.avroCodec)
   test("reverse read/write gzip") {
     val path = reverseRoot / "rooster.binary.avro.gz"

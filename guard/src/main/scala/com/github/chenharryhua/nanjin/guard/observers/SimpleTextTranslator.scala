@@ -11,11 +11,11 @@ object SimpleTextTranslator {
   import textConstants.*
 
   private def service_event(se: Event): String = {
-    val host: String      = s"$CONSTANT_HOST:${textHelper.hostText(se.serviceParams)}"
-    val sn: String        = s"$CONSTANT_SERVICE:${se.serviceParams.serviceName.value}"
-    val tn: String        = s"$CONSTANT_TASK:${se.serviceParams.taskName.value}"
+    val host: String = s"$CONSTANT_HOST:${textHelper.hostText(se.serviceParams)}"
+    val sn: String = s"$CONSTANT_SERVICE:${se.serviceParams.serviceName.value}"
+    val tn: String = s"$CONSTANT_TASK:${se.serviceParams.taskName.value}"
     val serviceId: String = s"$CONSTANT_SERVICE_ID:${se.serviceParams.serviceId.show}"
-    val uptime: String    = s"$CONSTANT_UPTIME:${textHelper.uptimeText(se)}"
+    val uptime: String = s"$CONSTANT_UPTIME:${textHelper.uptimeText(se)}"
     s"""|$sn, $tn, $serviceId
         |  $host, $uptime""".stripMargin
 
@@ -62,8 +62,8 @@ object SimpleTextTranslator {
 
   private def metric_report(evt: MetricReport): String = {
     val policy = s"$CONSTANT_POLICY:${evt.serviceParams.servicePolicies.metricReport.show}"
-    val took   = s"$CONSTANT_TOOK:${textHelper.tookText(evt.took)}"
-    val index  = s"$CONSTANT_INDEX:${textHelper.metricIndexText(evt.index)}"
+    val took = s"$CONSTANT_TOOK:${textHelper.tookText(evt.took)}"
+    val index = s"$CONSTANT_INDEX:${textHelper.metricIndexText(evt.index)}"
 
     s"""|${textHelper.eventTitle(evt)}
         |  ${service_event(evt)}
@@ -74,8 +74,8 @@ object SimpleTextTranslator {
 
   private def metric_reset(evt: MetricReset): String = {
     val policy = s"$CONSTANT_POLICY:${evt.serviceParams.servicePolicies.metricReset.show}"
-    val took   = s"$CONSTANT_TOOK:${textHelper.tookText(evt.took)}"
-    val index  = s"$CONSTANT_INDEX:${textHelper.metricIndexText(evt.index)}"
+    val took = s"$CONSTANT_TOOK:${textHelper.tookText(evt.took)}"
+    val index = s"$CONSTANT_INDEX:${textHelper.metricIndexText(evt.index)}"
 
     s"""|${textHelper.eventTitle(evt)}
         |  ${service_event(evt)}

@@ -24,17 +24,17 @@ import scala.concurrent.duration.*
 
 object ReadWriteTestData {
   final case class TestData(index: Long, name: String)
-  val number       = 10000
+  val number = 10000
   val cr: TestData = TestData(0, "abc")
   val data: Stream[IO, TestData] =
     Stream.emits(List.fill(number)(cr)).covary[IO].chunkLimit(2).unchunks.zipWithIndex.map { case (cr, idx) =>
       cr.focus(_.index).replace(idx)
     }
   implicit val te: TypedEncoder[TestData] = shapeless.cachedImplicit
-  implicit val hd: RowEncoder[TestData]   = shapeless.cachedImplicit
-  implicit val ri: RowDecoder[TestData]   = shapeless.cachedImplicit
+  implicit val hd: RowEncoder[TestData] = shapeless.cachedImplicit
+  implicit val ri: RowDecoder[TestData] = shapeless.cachedImplicit
 
-  val codec: AvroCodec[TestData]   = AvroCodec[TestData]
+  val codec: AvroCodec[TestData] = AvroCodec[TestData]
   val toRecord: ToRecord[TestData] = ToRecord(codec)
 
   val loader: LoadTable[TestData] = sparkSession.loadTable(SchematizedEncoder[TestData](codec))

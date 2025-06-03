@@ -84,7 +84,7 @@ final class ServiceGuard[F[_]: Network: Async] private[guard] (
 
         val jmx_report: Stream[F, Nothing] =
           config.jmxBuilder match {
-            case None => Stream.empty
+            case None        => Stream.empty
             case Some(build) =>
               Stream.bracket(F.blocking {
                 val reporter =
@@ -99,7 +99,7 @@ final class ServiceGuard[F[_]: Network: Async] private[guard] (
 
         val http_server: Stream[F, Nothing] =
           emberServerBuilder match {
-            case None => Stream.empty
+            case None          => Stream.empty
             case Some(builder) =>
               Stream.resource(
                 builder

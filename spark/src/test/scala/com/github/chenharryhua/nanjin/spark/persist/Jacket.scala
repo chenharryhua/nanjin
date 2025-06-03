@@ -25,7 +25,7 @@ final case class Jacket(a: Int, p: Pocket.Value, neck: KJson[Neck])
 
 object Jacket {
   val avroCodec: AvroCodec[Jacket] = AvroCodec[Jacket]
-  val circe: Codec[Jacket]         = io.circe.generic.semiauto.deriveCodec[Jacket]
+  val circe: Codec[Jacket] = io.circe.generic.semiauto.deriveCodec[Jacket]
 }
 
 object JacketData {

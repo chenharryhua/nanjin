@@ -79,7 +79,7 @@ final class CloudWatchObserver[F[_]: Concurrent] private (
       hf <- histogramB.build
       histo <- report.snapshot.histograms
     } yield {
-      val (value, category)      = hf.pick(histo)
+      val (value, category) = hf.pick(histo)
       val Normalized(data, unit) = unitNormalization.normalize(histo.histogram.unit, value)
       MetricKey(
         timestamp = report.timestamp.toInstant,
@@ -106,7 +106,7 @@ final class CloudWatchObserver[F[_]: Concurrent] private (
     val meter_count: List[MetricDatum] =
       report.snapshot.meters.map { meter =>
         val aggregate: Long = meter.meter.aggregate
-        val value: Long     = lookup.get(meter.metricId.metricName.uuid).fold(aggregate)(aggregate - _)
+        val value: Long = lookup.get(meter.metricId.metricName.uuid).fold(aggregate)(aggregate - _)
         val Normalized(delta, unit) = unitNormalization.normalize(meter.meter.unit, value)
         MetricKey(
           timestamp = report.timestamp.toInstant,
@@ -121,7 +121,7 @@ final class CloudWatchObserver[F[_]: Concurrent] private (
       if (histogramB.includeUpdate)
         report.snapshot.histograms.map { histo =>
           val updates: Long = histo.histogram.updates
-          val delta: Long   = lookup.get(histo.metricId.metricName.uuid).fold(updates)(updates - _)
+          val delta: Long = lookup.get(histo.metricId.metricName.uuid).fold(updates)(updates - _)
           MetricKey(
             timestamp = report.timestamp.toInstant,
             serviceParams = report.serviceParams,

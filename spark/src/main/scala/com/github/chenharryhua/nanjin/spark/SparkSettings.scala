@@ -14,8 +14,8 @@ final class SparkSettings private (sparkConf: SparkConf) extends UpdateConfig[Sp
   def updateConfig(f: Endo[SparkConf]): SparkSettings = new SparkSettings(sparkConf = f(sparkConf))
 
   def withAppName(appName: String): SparkSettings = updateConfig(_.setAppName(appName))
-  def withMaster(master: String): SparkSettings   = updateConfig(_.setMaster(master))
-  def withHome(home: String): SparkSettings       = updateConfig(_.setSparkHome(home))
+  def withMaster(master: String): SparkSettings = updateConfig(_.setMaster(master))
+  def withHome(home: String): SparkSettings = updateConfig(_.setSparkHome(home))
 
   def withKms(kmsKey: String): SparkSettings = {
     val kms = if (kmsKey.startsWith("alias/")) kmsKey else s"alias/$kmsKey"
@@ -24,7 +24,7 @@ final class SparkSettings private (sparkConf: SparkConf) extends UpdateConfig[Sp
         .set("spark.hadoop.fs.s3a.server-side-encryption.key", kms))
   }
 
-  def withUI: SparkSettings    = updateConfig(_.set("spark.ui.enabled", "true"))
+  def withUI: SparkSettings = updateConfig(_.set("spark.ui.enabled", "true"))
   def withoutUI: SparkSettings = updateConfig(_.set("spark.ui.enabled", "false"))
 
   def withZoneId(zoneId: ZoneId): SparkSettings =

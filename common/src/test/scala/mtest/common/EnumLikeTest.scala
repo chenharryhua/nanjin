@@ -40,21 +40,21 @@ object SumTypeTest {
 class EnumLikeTest extends AnyFunSuite {
   test("enum string transformation") {
     import ScalaEnumStringTest.*
-    val add  = Address("stream", Phone.Mobile)
+    val add = Address("stream", Phone.Mobile)
     val add2 = add.transformInto[Address2]
     assert(add2 == Address2("stream", "Mobile"))
   }
   test("enum Int transformation") {
     import ScalaEnumIntTest.*
 
-    val add  = Address("stream", Phone.Mobile)
+    val add = Address("stream", Phone.Mobile)
     val add2 = add.transformInto[Address2]
     assert(add2 == Address2("stream", 0))
   }
   test("enum sum transformation") {
     import SumTypeTest.*
 
-    val add  = Address("stream", Mobile)
+    val add = Address("stream", Mobile)
     val add2 = add.transformInto[Address2]
     assert(add2 == Address2("stream", "Mobile"))
   }

@@ -21,7 +21,7 @@ object utils {
   def toProperties(props: Map[String, String]): Properties =
     props.foldLeft(new Properties) { case (a, (k, v)) => a.put(k, v); a }
 
-  final val random4d: Eval[Int]          = Eval.always(1000 + Random.nextInt(9000))
+  final val random4d: Eval[Int] = Eval.always(1000 + Random.nextInt(9000))
   final val defaultLocalParallelism: Int = Runtime.getRuntime.availableProcessors()
 
   final def randomUUID[F[_]: Sync]: F[UUID] =

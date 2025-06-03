@@ -25,9 +25,9 @@ private[database] object Protocols extends Enum[Protocols] with CatsEnum[Protoco
   case object SqlServer extends Protocols("jdbc:sqlserver")
   case object Neo4j extends Protocols("bolt")
 
-  type MongoDB   = MongoDB.type
-  type Postgres  = Postgres.type
-  type Redshift  = Redshift.type
+  type MongoDB = MongoDB.type
+  type Postgres = Postgres.type
+  type Redshift = Redshift.type
   type SqlServer = SqlServer.type
-  type Neo4j     = Neo4j.type
+  type Neo4j = Neo4j.type
 }

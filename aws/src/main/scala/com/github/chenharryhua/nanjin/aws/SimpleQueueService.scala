@@ -97,7 +97,7 @@ object SimpleQueueService {
         Pull.eval(F.blocking(client.receiveMessage(request)).onError(ex => logger.error(ex)(name))).flatMap {
           rmr =>
             val messages: mutable.Buffer[Message] = rmr.messages.asScala
-            val size: Int                         = messages.size
+            val size: Int = messages.size
             if (size > 0) {
               val chunk: Chunk[SqsMessage] = Chunk.from(messages).zipWithIndex.map { case (msg, idx) =>
                 SqsMessage(
@@ -113,7 +113,7 @@ object SimpleQueueService {
               Pull
                 .eval(F.realTimeInstant.map { now =>
                   status.next(now) match {
-                    case None => Pull.done
+                    case None     => Pull.done
                     case Some(ts) =>
                       Pull.sleep(ts.tick.snooze.toScala) >> receiving(ts, batchIndex)
                   }
@@ -179,10 +179,10 @@ object sqsS3Parser {
         json.hcursor.downField("Records").values match {
           case Some(ls) =>
             ls.toList.flatMap { js =>
-              val s3     = js.hcursor.downField("s3")
+              val s3 = js.hcursor.downField("s3")
               val bucket = s3.downField("bucket").get[String]("name")
-              val key    = s3.downField("object").get[String]("key")
-              val size   = s3.downField("object").get[Long]("size")
+              val key = s3.downField("object").get[String]("key")
+              val size = s3.downField("object").get[Long]("size")
               (bucket, key, size)
                 .mapN((b, k, s) =>
                   SqsS3File(

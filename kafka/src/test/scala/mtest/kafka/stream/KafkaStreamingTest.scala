@@ -45,11 +45,11 @@ object KafkaStreamingData {
         ProducerRecord(t2Topic.topicName.value, 1, TableTwo("x", 0)),
         ProducerRecord(t2Topic.topicName.value, 2, TableTwo("y", 1)),
         ProducerRecord(t2Topic.topicName.value, 3, TableTwo("z", 2))
-      ))).covary[IO].through(ctx.producer[Int, TableTwo].sink)
+      ))).covary[IO].through(ctx.produce[Int, TableTwo].sink)
 
   val harvest: Stream[IO, StreamTarget] =
     ctx
-      .consumer(tgt.topicName)
+      .consume(tgt.topicName)
       .stream
       .map(x => tgt.serde.deserialize(x))
       .observe(_.map(_.offset).through(commitBatchWithin[IO](1, 0.1.seconds)).drain)
@@ -65,7 +65,7 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
   import KafkaStreamingData.*
 
   implicit val oneValue: Serde[StreamOne] = s1Topic.serdePair.value.serde
-  implicit val twoValue: Serde[TableTwo]  = t2Topic.serdePair.value.serde
+  implicit val twoValue: Serde[TableTwo] = t2Topic.serdePair.value.serde
 
   val appId = "kafka_stream_test"
 
@@ -86,7 +86,7 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
         ).map(ProducerRecords.one))
       .covary[IO]
       .metered(1.seconds)
-      .through(ctx.producer[Int, StreamOne].sink)
+      .through(ctx.produce[Int, StreamOne].sink)
 
     val top: Kleisli[Id, StreamsBuilder, Unit] = for {
       a <- s1Topic.asConsumer.kstream
@@ -107,8 +107,8 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
   }
 
   test("kafka stream has bad records") {
-    val tn         = TopicName("stream.test.stream.badrecords.one")
-    val s1Topic    = ctx.topic[Int, StreamOne](s1Def.withTopicName(tn))
+    val tn = TopicName("stream.test.stream.badrecords.one")
+    val s1Topic = ctx.topic[Int, StreamOne](s1Def.withTopicName(tn))
     val s1TopicBin = ctx.topic(TopicDef[Array[Byte], Array[Byte]](tn))
 
     val top: Kleisli[Id, StreamsBuilder, Unit] = for {
@@ -137,7 +137,7 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
         ).map(ProducerRecords.one))
       .covary[IO]
       .metered(1.seconds)
-      .through(ctx.producer[Array[Byte], Array[Byte]].sink)
+      .through(ctx.produce[Array[Byte], Array[Byte]].sink)
       .debug()
 
     val res = (IO.println(Console.CYAN + "kafka stream has bad records" + Console.RESET) >> ctx
@@ -151,8 +151,8 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
   }
 
   test("kafka stream exception") {
-    val tn         = TopicName("stream.test.stream.exception.one")
-    val s1Topic    = ctx.topic[Int, StreamOne](s1Def.withTopicName(tn))
+    val tn = TopicName("stream.test.stream.exception.one")
+    val s1Topic = ctx.topic[Int, StreamOne](s1Def.withTopicName(tn))
     val s1TopicBin = ctx.topic(TopicDef[Int, Array[Byte]](tn))
 
     val top: Reader[StreamsBuilder, Unit] = for {
@@ -171,7 +171,7 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
       ).map(ProducerRecords.one))
       .covary[IO]
       .metered(1.seconds)
-      .through(ctx.producer[Int, Array[Byte]].sink)
+      .through(ctx.produce[Int, Array[Byte]].sink)
       .debug()
 
     assertThrows[Exception](

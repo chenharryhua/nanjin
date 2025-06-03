@@ -24,15 +24,15 @@ final class SchematizedEncoder[A] private (val avroCodec: AvroCodec[A], val type
   val classTag: ClassTag[A] = typedEncoder.classTag
 
   val sparkEncoder: Encoder[A] = TypedExpressionEncoder[A](typedEncoder)
-  val sparkSchema: StructType  = sparkEncoder.schema
+  val sparkSchema: StructType = sparkEncoder.schema
 
   def normalize(rdd: RDD[A], ss: SparkSession): Dataset[A] = {
     val ds: Dataset[A] = ss.createDataset(rdd.map(avroCodec.idConversion)(classTag))(sparkEncoder)
     ss.createDataFrame(ds.toDF().rdd, avroSchema).as[A](sparkEncoder)
   }
 
-  def normalize(ds: Dataset[A]): Dataset[A]      = normalize(ds.rdd, ds.sparkSession)
-  def normalizeDF(df: DataFrame): Dataset[A]     = normalize(df.as[A](sparkEncoder))
+  def normalize(ds: Dataset[A]): Dataset[A] = normalize(ds.rdd, ds.sparkSession)
+  def normalizeDF(df: DataFrame): Dataset[A] = normalize(df.as[A](sparkEncoder))
   def emptyDataset(ss: SparkSession): Dataset[A] = normalize(ss.emptyDataset[A](sparkEncoder))
 }
 

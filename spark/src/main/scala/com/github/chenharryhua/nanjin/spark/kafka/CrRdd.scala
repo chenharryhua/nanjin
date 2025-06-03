@@ -31,15 +31,15 @@ final class CrRdd[K, V] private[kafka] (
     new CrRdd[K, V](f(rdd), ack, acv, ss)
 
   def filter(f: NJConsumerRecord[K, V] => Boolean): CrRdd[K, V] = transform(_.filter(f))
-  def partitionOf(num: Int): CrRdd[K, V]                        = filter(_.partition === num)
+  def partitionOf(num: Int): CrRdd[K, V] = filter(_.partition === num)
 
   def offsetRange(start: Long, end: Long): CrRdd[K, V] = transform(range.cr.offset(start, end))
-  def timeRange(dr: DateTimeRange): CrRdd[K, V]        = transform(range.cr.timestamp(dr))
+  def timeRange(dr: DateTimeRange): CrRdd[K, V] = transform(range.cr.timestamp(dr))
 
-  def ascendTimestamp: CrRdd[K, V]  = transform(sort.ascend.cr.timestamp)
+  def ascendTimestamp: CrRdd[K, V] = transform(sort.ascend.cr.timestamp)
   def descendTimestamp: CrRdd[K, V] = transform(sort.descend.cr.timestamp)
-  def ascendOffset: CrRdd[K, V]     = transform(sort.ascend.cr.offset)
-  def descendOffset: CrRdd[K, V]    = transform(sort.descend.cr.offset)
+  def ascendOffset: CrRdd[K, V] = transform(sort.ascend.cr.offset)
+  def descendOffset: CrRdd[K, V] = transform(sort.descend.cr.offset)
 
   def repartition(num: Int): CrRdd[K, V] = transform(_.repartition(num))
   def persist(f: StorageLevel.type => StorageLevel): CrRdd[K, V] =
@@ -48,7 +48,7 @@ final class CrRdd[K, V] private[kafka] (
   def normalize: CrRdd[K, V] = transform(_.map(codec.idConversion))
 
   def diff(other: RDD[NJConsumerRecord[K, V]]): CrRdd[K, V] = transform(_.subtract(other))
-  def diff(other: CrRdd[K, V]): CrRdd[K, V]                 = diff(other.rdd)
+  def diff(other: CrRdd[K, V]): CrRdd[K, V] = diff(other.rdd)
 
   def diff(other: RDD[NJConsumerRecord[K, V]], numPartitions: Int): CrRdd[K, V] = transform(
     _.subtract(other, numPartitions))
@@ -56,7 +56,7 @@ final class CrRdd[K, V] private[kafka] (
     diff(other.rdd, numPartitions)
 
   def union(other: RDD[NJConsumerRecord[K, V]]): CrRdd[K, V] = transform(_.union(other))
-  def union(other: CrRdd[K, V]): CrRdd[K, V]                 = union(other.rdd)
+  def union(other: CrRdd[K, V]): CrRdd[K, V] = union(other.rdd)
 
   // transition
 

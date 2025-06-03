@@ -55,8 +55,8 @@ final case class BatchJob(
   mode: BatchMode,
   kind: JobKind,
   correlationId: Unique.Token) {
-  val batch: String       = label.label
-  val domain: String      = label.domain.value
+  val batch: String = label.label
+  val domain: String = label.domain.value
   val indexedName: String = s"job-$index ($name)"
 }
 object BatchJob {

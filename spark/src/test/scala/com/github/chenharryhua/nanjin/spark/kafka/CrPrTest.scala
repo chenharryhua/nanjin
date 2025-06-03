@@ -32,11 +32,11 @@ object RoosterLike2 {
 
 class CrPrTest extends AnyFunSuite {
   implicit val roundingMode: BigDecimal.RoundingMode.Value = RoundingMode.HALF_UP
-  implicit val te1: TypedEncoder[Rooster]                  = shapeless.cachedImplicit
-  implicit val te2: TypedEncoder[RoosterLike]              = shapeless.cachedImplicit
-  implicit val te3: TypedEncoder[RoosterLike2]             = shapeless.cachedImplicit
+  implicit val te1: TypedEncoder[Rooster] = shapeless.cachedImplicit
+  implicit val te2: TypedEncoder[RoosterLike] = shapeless.cachedImplicit
+  implicit val te3: TypedEncoder[RoosterLike2] = shapeless.cachedImplicit
 
-  val rooster    = TopicDef[Long, Rooster](TopicName("rooster"), Rooster.avroCodec)
+  val rooster = TopicDef[Long, Rooster](TopicName("rooster"), Rooster.avroCodec)
   val roosterATE = SchematizedEncoder(rooster)
 
   val roosterLike =
@@ -80,9 +80,9 @@ class CrPrTest extends AnyFunSuite {
     ))
 
   val prRdd: PrRdd[Long, Rooster] = crRdd.prRdd.partitionOf(0)
-  val topic                       = ctx.topic(roosterLike)
-  val ack                         = topic.topicDef.rawSerdes.key.avroCodec
-  val acv                         = topic.topicDef.rawSerdes.key.avroCodec
+  val topic = ctx.topic(roosterLike)
+  val ack = topic.topicDef.rawSerdes.key.avroCodec
+  val acv = topic.topicDef.rawSerdes.key.avroCodec
 
   test("time range") {
     val dr =

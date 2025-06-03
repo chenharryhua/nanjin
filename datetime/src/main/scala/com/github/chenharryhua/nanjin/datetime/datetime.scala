@@ -12,10 +12,10 @@ package object datetime {
   def toLocalDateTime(ts: LocalDate): LocalDateTime = ts.atTime(LocalTime.MIDNIGHT)
 
   final val oneMillisecond: FiniteDuration = Duration(1, TimeUnit.MILLISECONDS)
-  final val oneSecond: FiniteDuration      = Duration(1, TimeUnit.SECONDS)
-  final val oneMinute: FiniteDuration      = Duration(1, TimeUnit.MINUTES)
-  final val oneHour: FiniteDuration        = Duration(1, TimeUnit.HOURS)
-  final val oneDay: FiniteDuration         = Duration(1, TimeUnit.DAYS)
+  final val oneSecond: FiniteDuration = Duration(1, TimeUnit.SECONDS)
+  final val oneMinute: FiniteDuration = Duration(1, TimeUnit.MINUTES)
+  final val oneHour: FiniteDuration = Duration(1, TimeUnit.HOURS)
+  final val oneDay: FiniteDuration = Duration(1, TimeUnit.DAYS)
 
   def dayResolution(localDateTime: LocalDateTime): LocalDate = localDateTime.toLocalDate
 

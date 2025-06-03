@@ -29,8 +29,8 @@ class InteractiveTest extends AnyFunSuite {
         .withConsumerProperty(ConsumerConfig.GROUP_ID_CONFIG, "nj-kafka-interactive-unit-test-group")
         .withStreamingProperty("state.dir", "./data/kafka_states"))
 
-  val topic       = ctx.topic(TopicDef[Int, String](TopicName("stream.test.interactive.5")))
-  val localStore  = topic.asStateStore("stream.test.interactive.local.store.5")
+  val topic = ctx.topic(TopicDef[Int, String](TopicName("stream.test.interactive.5")))
+  val localStore = topic.asStateStore("stream.test.interactive.local.store.5")
   val globalStore = topic.asStateStore("stream.test.interactive.store.global.5")
 
   val top: Reader[StreamsBuilder, Unit] =
@@ -42,7 +42,7 @@ class InteractiveTest extends AnyFunSuite {
     val pr: ProducerRecords[Int, String] = ProducerRecords.one(
       ProducerRecord(topic.topicName.value, Random.nextInt(3), s"a${Random.nextInt(1000)}"))
     val feedData: Stream[IO, ProducerResult[Int, String]] =
-      ctx.producer[Int, String].stream.evalMap(_.produce(pr).flatten)
+      ctx.produce[Int, String].stream.evalMap(_.produce(pr).flatten)
 
     val res: Stream[IO, List[KeyValue[Int, String]]] =
       for {

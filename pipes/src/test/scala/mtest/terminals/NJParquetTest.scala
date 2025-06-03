@@ -24,8 +24,8 @@ class NJParquetTest extends AnyFunSuite {
   import HadoopTestData.*
 
   def fs2(path: Url, file: ParquetFile, data: Set[GenericRecord]): Assertion = {
-    val tgt  = path / file.fileName
-    val ts   = Stream.emits(data.toList).covary[IO]
+    val tgt = path / file.fileName
+    val ts = Stream.emits(data.toList).covary[IO]
     val sink = hdp.sink(tgt).parquet(_.withCompressionCodec(file.compression.codecName))
     hdp.delete(tgt).unsafeRunSync()
     val action =
@@ -78,7 +78,7 @@ class NJParquetTest extends AnyFunSuite {
   }
 
   test("rotation - policy") {
-    val path   = fs2Root / "rotation" / "tick"
+    val path = fs2Root / "rotation" / "tick"
     val number = 10000L
     hdp.delete(path).unsafeRunSync()
     val file = ParquetFile(_.Snappy)
@@ -105,9 +105,9 @@ class NJParquetTest extends AnyFunSuite {
   }
 
   test("rotation - size") {
-    val path   = fs2Root / "rotation" / "index"
+    val path = fs2Root / "rotation" / "index"
     val number = 10000L
-    val file   = ParquetFile(_.Snappy)
+    val file = ParquetFile(_.Snappy)
     hdp.delete(path).unsafeRunSync()
     val processedSize = Stream
       .emits(pandaSet.toList)
@@ -144,7 +144,7 @@ class NJParquetTest extends AnyFunSuite {
   }
 
   test("stream concat") {
-    val s         = Stream.emits(pandaSet.toList).covary[IO].repeatN(500)
+    val s = Stream.emits(pandaSet.toList).covary[IO].repeatN(500)
     val path: Url = fs2Root / "concat" / "data.parquet"
 
     (hdp.delete(path) >>
@@ -154,7 +154,7 @@ class NJParquetTest extends AnyFunSuite {
   }
 
   test("stream concat - 2") {
-    val s         = Stream.emits(pandaSet.toList).covary[IO].repeatN(500)
+    val s = Stream.emits(pandaSet.toList).covary[IO].repeatN(500)
     val path: Url = fs2Root / "concat" / "rotate"
     val sink = hdp.rotateSink(Policy.fixedDelay(0.1.second), ZoneId.systemDefault())(t =>
       path / ParquetFile(_.Uncompressed).fileName(t))
@@ -164,9 +164,9 @@ class NJParquetTest extends AnyFunSuite {
   }
 
   ignore("large number (10000) of files - passed but too cost to run it") {
-    val path   = fs2Root / "rotation" / "many"
+    val path = fs2Root / "rotation" / "many"
     val number = 5000L
-    val file   = ParquetFile(_.Uncompressed)
+    val file = ParquetFile(_.Uncompressed)
     hdp.delete(path).unsafeRunSync()
     Stream
       .emits(pandaSet.toList)

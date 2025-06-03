@@ -32,11 +32,11 @@ class TransformerTest extends AnyFunSuite {
 
     val topic1 = ctx.topic[Int, String](td.withTopicName("stream.builder.test.stream1"))
     val topic2 = ctx.topic[Int, String](td.withTopicName("stream.builder.test.table2"))
-    val tgt    = ctx.topic[Int, String](td.withTopicName("stream.builder.test.target"))
+    val tgt = ctx.topic[Int, String](td.withTopicName("stream.builder.test.target"))
 
     val processor: ProcessorSupplier[Int, String, Int, String] =
       new ProcessorSupplier[Int, String, Int, String] {
-        var kvStore: KeyValueStore[Int, String]    = _
+        var kvStore: KeyValueStore[Int, String] = _
         var ctx: api.ProcessorContext[Int, String] = _
         override def get(): Processor[Int, String, Int, String] = new Processor[Int, String, Int, String] {
           override def init(context: api.ProcessorContext[Int, String]): Unit = {
@@ -73,7 +73,7 @@ class TransformerTest extends AnyFunSuite {
           ProducerRecord(topic2.topicName.value, 4, "t1"),
           ProducerRecord(topic2.topicName.value, 6, "t2"))))
       .covary[IO]
-      .through(ctx.producer(td.rawSerdes).sink)
+      .through(ctx.produce(td.rawSerdes).sink)
 
     val s1Data: Stream[IO, ProducerResult[Int, String]] =
       Stream
@@ -82,9 +82,9 @@ class TransformerTest extends AnyFunSuite {
         .map { case (_, index) =>
           ProducerRecords.one(ProducerRecord(topic1.topicName.value, index.toInt, s"stream$index"))
         }
-        .through(ctx.producer[Int, String].sink)
+        .through(ctx.produce[Int, String].sink)
     val havest = ctx
-      .consumer(tgt.topicName)
+      .consume(tgt.topicName)
       .stream
       .map(tgt.serde.deserialize(_))
       .debug()

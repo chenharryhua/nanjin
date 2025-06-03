@@ -46,7 +46,7 @@ private[spark] object DataTypeF {
     nullable: Boolean) {
 
     val fieldStr: String = {
-      val dt: String   = dataType.toCaseClass
+      val dt: String = dataType.toCaseClass
       val tipe: String = if (nullable) s"Option[$dt]" else dt
       s"  $colName\t\t\t\t\t\t\t:$tipe"
     }
@@ -67,8 +67,8 @@ private[spark] object DataTypeF {
 
     case NJDecimalType(p, s) => DecimalType(p, s)
 
-    case NJArrayType(c, dt) => ArrayType(dt, c)
-    case NJMapType(k, v, n) => MapType(k.toSpark, v.toSpark, n)
+    case NJArrayType(c, dt)         => ArrayType(dt, c)
+    case NJMapType(k, v, n)         => MapType(k.toSpark, v.toSpark, n)
     case NJStructType(_, _, fields) =>
       StructType(fields.map(a => StructField(a.colName, a.dataType.toSpark, a.nullable)))
 
@@ -137,7 +137,7 @@ private[spark] object DataTypeF {
       case NJStructType(cn, ns, fields) =>
         val fieldsAssembler = SchemaBuilder.builder(ns).record(cn).fields()
         fields.foreach { fs =>
-          val dts    = fs.dataType.toSchema(SchemaBuilder.builder())
+          val dts = fs.dataType.toSchema(SchemaBuilder.builder())
           val schema = unionNull(fs.nullable, dts)
           fieldsAssembler.name(fs.colName).`type`(schema).noDefault()
         }

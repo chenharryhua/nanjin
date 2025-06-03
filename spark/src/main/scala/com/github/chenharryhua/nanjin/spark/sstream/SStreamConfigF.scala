@@ -84,17 +84,17 @@ final private[sstream] case class SStreamConfig(value: Fix[SStreamConfigF]) exte
   def checkpoint(cp: Url): SStreamConfig = checkpointBuilder(_ => cp)
 
   def dataLossFailure: SStreamConfig = SStreamConfig(Fix(WithFailOnDataLoss(isFail = true, value)))
-  def dataLossIgnore: SStreamConfig  = SStreamConfig(Fix(WithFailOnDataLoss(isFail = false, value)))
+  def dataLossIgnore: SStreamConfig = SStreamConfig(Fix(WithFailOnDataLoss(isFail = false, value)))
 
   private def withOutputMode(f: OutputMode): SStreamConfig = SStreamConfig(Fix(WithOutputMode(f, value)))
-  def appendMode: SStreamConfig                            = withOutputMode(OutputMode.Append())
-  def completeMode: SStreamConfig                          = withOutputMode(OutputMode.Complete())
-  def updateMode: SStreamConfig                            = withOutputMode(OutputMode.Update())
+  def appendMode: SStreamConfig = withOutputMode(OutputMode.Append())
+  def completeMode: SStreamConfig = withOutputMode(OutputMode.Complete())
+  def updateMode: SStreamConfig = withOutputMode(OutputMode.Update())
 
   def triggerMode(trigger: Trigger): SStreamConfig = SStreamConfig(Fix(WithTrigger(trigger, value)))
 
   def parquetFormat: SStreamConfig = SStreamConfig(Fix(WithFormat(FileFormat.Parquet, value)))
-  def avroFormat: SStreamConfig    = SStreamConfig(Fix(WithFormat(FileFormat.Avro, value)))
+  def avroFormat: SStreamConfig = SStreamConfig(Fix(WithFormat(FileFormat.Avro, value)))
 
   def progressInterval(fd: FiniteDuration): SStreamConfig = SStreamConfig(
     Fix(WithProgressInterval(fd, value)))

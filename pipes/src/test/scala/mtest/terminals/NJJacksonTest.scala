@@ -23,9 +23,9 @@ class NJJacksonTest extends AnyFunSuite {
   def fs2(path: Url, file: JacksonFile, data: Set[GenericRecord]): Assertion = {
     val tgt = path / file.fileName
     hdp.delete(tgt).unsafeRunSync()
-    val sink   = hdp.sink(tgt).jackson
-    val src    = hdp.source(tgt).jackson(10, pandaSchema)
-    val ts     = Stream.emits(data.toList).covary[IO]
+    val sink = hdp.sink(tgt).jackson
+    val src = hdp.source(tgt).jackson(10, pandaSchema)
+    val ts = Stream.emits(data.toList).covary[IO]
     val action = ts.through(sink).compile.drain >> src.compile.toList.map(_.toList)
     assert(action.unsafeRunSync().toSet == data)
     val fileName = (file: FileKind).asJson.noSpaces
@@ -67,7 +67,7 @@ class NJJacksonTest extends AnyFunSuite {
   }
 
   test("rotation - policy") {
-    val path   = fs2Root / "rotation" / "tick"
+    val path = fs2Root / "rotation" / "tick"
     val number = 10000L
     hdp.delete(path).unsafeRunSync()
     val file = JacksonFile(_.Uncompressed)
@@ -93,9 +93,9 @@ class NJJacksonTest extends AnyFunSuite {
   }
 
   test("rotation - size") {
-    val path   = fs2Root / "rotation" / "index"
+    val path = fs2Root / "rotation" / "index"
     val number = 10000L
-    val file   = JacksonFile(_.Uncompressed)
+    val file = JacksonFile(_.Uncompressed)
     hdp.delete(path).unsafeRunSync()
     val tickedValues = Stream
       .emits(pandaSet.toList)
@@ -142,7 +142,7 @@ class NJJacksonTest extends AnyFunSuite {
   }
 
   test("stream concat") {
-    val s         = Stream.emits(pandaSet.toList).covary[IO].repeatN(500)
+    val s = Stream.emits(pandaSet.toList).covary[IO].repeatN(500)
     val path: Url = fs2Root / "concat" / "jackson.json"
 
     (hdp.delete(path) >>
@@ -153,7 +153,7 @@ class NJJacksonTest extends AnyFunSuite {
   }
 
   test("stream concat - 2") {
-    val s         = Stream.emits(pandaSet.toList).covary[IO].repeatN(500)
+    val s = Stream.emits(pandaSet.toList).covary[IO].repeatN(500)
     val path: Url = fs2Root / "concat" / "rotate"
     val sink = hdp.rotateSink(Policy.fixedDelay(0.1.second), ZoneId.systemDefault())(t =>
       path / JacksonFile(_.Uncompressed).fileName(t))
@@ -163,9 +163,9 @@ class NJJacksonTest extends AnyFunSuite {
   }
 
   test("timeout") {
-    val path   = fs2Root / "rotation" / "timeout"
+    val path = fs2Root / "rotation" / "timeout"
     val number = 500000000L
-    val file   = JacksonFile(_.Uncompressed)
+    val file = JacksonFile(_.Uncompressed)
     hdp.delete(path).unsafeRunSync()
     val res = Stream
       .emits(pandaSet.toList)
@@ -183,9 +183,9 @@ class NJJacksonTest extends AnyFunSuite {
   }
 
   ignore("large number (10000) of files - passed but too cost to run it") {
-    val path   = fs2Root / "rotation" / "many"
+    val path = fs2Root / "rotation" / "many"
     val number = 5000L
-    val file   = JacksonFile(_.Uncompressed)
+    val file = JacksonFile(_.Uncompressed)
     hdp.delete(path).unsafeRunSync()
     Stream
       .emits(pandaSet.toList)

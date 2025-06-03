@@ -12,7 +12,7 @@ import software.amazon.awssdk.services.cloudwatch.model.StandardUnit
 object CloudWatchTimeUnit {
   val MICROSECONDS: NJTimeUnit.MICROSECONDS.type = NJTimeUnit.MICROSECONDS
   val MILLISECONDS: NJTimeUnit.MILLISECONDS.type = NJTimeUnit.MILLISECONDS
-  val SECONDS: NJTimeUnit.SECONDS.type           = NJTimeUnit.SECONDS
+  val SECONDS: NJTimeUnit.SECONDS.type = NJTimeUnit.SECONDS
 
   def toStandardUnit(mu: MeasurementUnit): StandardUnit =
     mu match {

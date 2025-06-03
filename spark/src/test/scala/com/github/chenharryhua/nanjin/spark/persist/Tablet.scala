@@ -18,10 +18,10 @@ import scala.util.Random
 final case class Tablet(a: Int, b: Long, c: Float, d: LocalDate, e: Instant, f: String)
 
 object Tablet {
-  val avroCodec: AvroCodec[Tablet]      = AvroCodec[Tablet]
+  val avroCodec: AvroCodec[Tablet] = AvroCodec[Tablet]
   implicit val te: TypedEncoder[Tablet] = shapeless.cachedImplicit
-  val ate: SchematizedEncoder[Tablet]   = SchematizedEncoder(avroCodec)
-  implicit val re: RowEncoder[Tablet]   = shapeless.cachedImplicit
+  val ate: SchematizedEncoder[Tablet] = SchematizedEncoder(avroCodec)
+  implicit val re: RowEncoder[Tablet] = shapeless.cachedImplicit
   implicit val showTablet: Show[Tablet] = _.toString
 }
 

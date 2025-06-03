@@ -26,9 +26,9 @@ class NJTextTest extends AnyFunSuite {
   def fs2(path: Url, file: TextFile, data: Set[Tiger]): Assertion = {
     val tgt = path / file.fileName
     hdp.delete(tgt).unsafeRunSync()
-    val ts                      = Stream.emits(data.toList).covary[IO].map(_.asJson.noSpaces)
-    val sink                    = hdp.sink(tgt).text
-    val src: Stream[IO, Tiger]  = hdp.source(tgt).text(2).mapFilter(decode[Tiger](_).toOption)
+    val ts = Stream.emits(data.toList).covary[IO].map(_.asJson.noSpaces)
+    val sink = hdp.sink(tgt).text
+    val src: Stream[IO, Tiger] = hdp.source(tgt).text(2).mapFilter(decode[Tiger](_).toOption)
     val action: IO[List[Tiger]] = ts.through(sink).compile.drain >> src.compile.toList
     assert(action.unsafeRunSync().toSet == data)
     val fileName = (file: FileKind).asJson.noSpaces
@@ -78,7 +78,7 @@ class NJTextTest extends AnyFunSuite {
   }
 
   test("rotation - policy") {
-    val path   = fs2Root / "rotation" / "tick"
+    val path = fs2Root / "rotation" / "tick"
     val number = 10000L
     hdp.delete(path).unsafeRunSync()
     val fk = TextFile(_.Uncompressed)
@@ -105,7 +105,7 @@ class NJTextTest extends AnyFunSuite {
   }
 
   test("rotation - size") {
-    val path   = fs2Root / "rotation" / "index"
+    val path = fs2Root / "rotation" / "index"
     val number = 10000L
     hdp.delete(path).unsafeRunSync()
     val fk = TextFile(_.Uncompressed)
@@ -149,7 +149,7 @@ class NJTextTest extends AnyFunSuite {
   }
 
   test("stream concat") {
-    val s         = Stream.emits(TestData.tigerSet.toList).covary[IO].repeatN(500).map(_.toString)
+    val s = Stream.emits(TestData.tigerSet.toList).covary[IO].repeatN(500).map(_.toString)
     val path: Url = fs2Root / "concat" / "kantan.csv"
 
     (hdp.delete(path) >>
@@ -159,9 +159,9 @@ class NJTextTest extends AnyFunSuite {
   }
 
   ignore("large number (10000) of files - passed but too cost to run it") {
-    val path   = fs2Root / "rotation" / "many"
+    val path = fs2Root / "rotation" / "many"
     val number = 1000L
-    val file   = TextFile(_.Uncompressed)
+    val file = TextFile(_.Uncompressed)
     hdp.delete(path).unsafeRunSync()
     Stream
       .emits(TestData.tigerSet.toList)

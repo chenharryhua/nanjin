@@ -177,7 +177,7 @@ private[spark] object loaders {
       ss.sparkContext
         .binaryFiles(toHadoopPath(path).toString)
         .mapPartitions(_.flatMap { case (_, pds) =>
-          val is: InputStream   = decompressedInputStream(pds)
+          val is: InputStream = decompressedInputStream(pds)
           val itor: Iterator[A] = decoder.streamFromDelimitedInput(is).iterator
           new ClosableIterator[A](is, itor)
         })
@@ -187,7 +187,7 @@ private[spark] object loaders {
         .binaryFiles(toHadoopPath(path).toString)
         .mapPartitions(
           _.flatMap { case (_, pds) =>
-            val is: InputStream   = decompressedInputStream(pds)
+            val is: InputStream = decompressedInputStream(pds)
             val itor: Iterator[A] = AvroInputStream.binary[A](decoder).from(is).build(decoder.schema).iterator
             new ClosableIterator[A](is, itor)
           }

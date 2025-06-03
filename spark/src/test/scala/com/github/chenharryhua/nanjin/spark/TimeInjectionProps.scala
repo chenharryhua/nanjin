@@ -11,10 +11,10 @@ import java.time.*
 
 class TimeInjectionProps extends Properties("date time") {
   // must compile
-  val date      = TypedEncoder[Date]
+  val date = TypedEncoder[Date]
   val timestamp = TypedEncoder[Timestamp]
   val localdate = TypedEncoder[LocalDate]
-  val instant   = TypedEncoder[Instant]
+  val instant = TypedEncoder[Instant]
 
   property("spark timezone has no effect on epoch-second") = forAll { (ins: Instant) =>
     val tz1: ZoneId = ZoneId.of("Australia/Sydney")

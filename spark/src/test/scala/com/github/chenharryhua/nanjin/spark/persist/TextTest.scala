@@ -12,7 +12,7 @@ import org.scalatest.funsuite.AnyFunSuite
 class TextTest extends AnyFunSuite {
   import TabletData.*
   def saver(path: Url) = new RddFileHoarder[Tablet](rdd).text(path)
-  val root             = "./data/test/spark/persist/text/tablet"
+  val root = "./data/test/spark/persist/text/tablet"
   test("tablet") {
     val path = root / "uncompressed"
     saver(path).run[IO].unsafeRunSync()

@@ -80,8 +80,8 @@ package object aws {
         }
 
       override def updateBuilder(f: Endo[SqsClientBuilder]): SimpleQueueService[IO] = this
-      override def withDelayPolicy(delayPolicy: Policy): SimpleQueueService[IO]     = this
-      override def withZoneId(zoneId: ZoneId): SimpleQueueService[IO]               = this
+      override def withDelayPolicy(delayPolicy: Policy): SimpleQueueService[IO] = this
+      override def withZoneId(zoneId: ZoneId): SimpleQueueService[IO] = this
       override def delete(msg: SqsMessage): IO[DeleteMessageResponse] =
         IO.pure(DeleteMessageResponse.builder().build())
       override def sendMessage(msg: SendMessageRequest): IO[SendMessageResponse] =

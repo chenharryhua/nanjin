@@ -31,7 +31,7 @@ object kafka {
     implicit val showTopicName: Show[TopicName] = Show.fromToString
 
     implicit val orderingTopicName: Ordering[TopicName] = Ordering.by(_.value)
-    implicit val orderTopicName: Order[TopicName]       = Order.fromOrdering[TopicName]
+    implicit val orderTopicName: Order[TopicName] = Order.fromOrdering[TopicName]
 
     implicit val encodeTopicName: Encoder[TopicName] = Encoder.encodeString.contramap(_.value)
     implicit val decodeTopicName: Decoder[TopicName] = Decoder.decodeString.emap(trans)

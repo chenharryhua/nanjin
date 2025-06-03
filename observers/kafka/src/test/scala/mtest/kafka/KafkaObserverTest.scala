@@ -11,7 +11,7 @@ import eu.timepit.refined.auto.*
 
 class KafkaObserverTest extends AnyFunSuite {
   private val topic = TopicName("observer")
-  private val ctx   = KafkaContext[IO](KafkaSettings.local)
+  private val ctx = KafkaContext[IO](KafkaSettings.local)
   test("observer") {
     TaskGuard[IO]("observer")
       .service("observer")

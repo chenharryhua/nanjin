@@ -13,7 +13,7 @@ object HttpProtocols extends Enum[HttpProtocols] with CatsEnum[HttpProtocols] wi
   case object HTTP extends HttpProtocols("http")
   case object HTTPS extends HttpProtocols("https")
 
-  type HTTP  = HTTP.type
+  type HTTP = HTTP.type
   type HTTPS = HTTPS.type
 }
 
@@ -37,7 +37,7 @@ object FtpProtocols extends Enum[FtpProtocols] with CatsEnum[FtpProtocols] with 
   case object Sftp extends FtpProtocols("sftp")
   case object Ftps extends FtpProtocols("ftps")
 
-  type Ftp  = Ftp.type
+  type Ftp = Ftp.type
   type Sftp = Sftp.type
   type Ftps = Ftps.type
 }

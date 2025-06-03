@@ -17,26 +17,26 @@ final case class GroupId(value: String) extends AnyVal
 object GroupId {
   implicit val codecGroupId: Codec[GroupId] = new Codec[GroupId] {
     override def apply(c: HCursor): Result[GroupId] = Decoder.decodeString(c).map(GroupId(_))
-    override def apply(a: GroupId): Json            = Encoder.encodeString(a.value)
+    override def apply(a: GroupId): Json = Encoder.encodeString(a.value)
   }
 }
 
 final case class Offset(value: Long) extends AnyVal {
-  def asLast: Offset         = Offset(value - 1) // represent last message
+  def asLast: Offset = Offset(value - 1) // represent last message
   def -(other: Offset): Long = value - other.value
 }
 
 object Offset {
-  def apply(oam: OffsetAndMetadata): Offset  = Offset(oam.offset())
+  def apply(oam: OffsetAndMetadata): Offset = Offset(oam.offset())
   def apply(oat: OffsetAndTimestamp): Offset = Offset(oat.offset())
 
   implicit val codecOffset: Codec[Offset] = new Codec[Offset] {
     override def apply(c: HCursor): Result[Offset] = Decoder.decodeLong(c).map(Offset(_))
-    override def apply(a: Offset): Json            = Encoder.encodeLong(a.value)
+    override def apply(a: Offset): Json = Encoder.encodeLong(a.value)
   }
 
   implicit val orderingOffset: Ordering[Offset] = Ordering.by(_.value)
-  implicit val orderOffset: Order[Offset]       = Order.fromOrdering
+  implicit val orderOffset: Order[Offset] = Order.fromOrdering
 }
 
 final case class Partition(value: Int) extends AnyVal {
@@ -47,11 +47,11 @@ object Partition {
 
   implicit val codecPartition: Codec[Partition] = new Codec[Partition] {
     override def apply(c: HCursor): Result[Partition] = Decoder.decodeInt(c).map(Partition(_))
-    override def apply(a: Partition): Json            = Encoder.encodeInt(a.value)
+    override def apply(a: Partition): Json = Encoder.encodeInt(a.value)
   }
 
   implicit val orderingPartition: Ordering[Partition] = Ordering.by(_.value)
-  implicit val orderPartition: Order[Partition]       = Order.fromOrdering
+  implicit val orderPartition: Order[Partition] = Order.fromOrdering
 }
 
 @JsonCodec
@@ -104,7 +104,7 @@ object ListOfTopicPartitions {
 // TreeMap because it is ammonite friendly
 final case class TopicPartitionMap[V](value: TreeMap[TopicPartition, V]) extends AnyVal {
   def nonEmpty: Boolean = value.nonEmpty
-  def isEmpty: Boolean  = value.isEmpty
+  def isEmpty: Boolean = value.isEmpty
 
   def get(tp: TopicPartition): Option[V] = value.get(tp)
 

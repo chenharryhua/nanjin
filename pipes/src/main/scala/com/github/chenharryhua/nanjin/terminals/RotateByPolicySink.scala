@@ -32,7 +32,7 @@ final private class RotateByPolicySink[F[_]: Async](
     merged: Stream[F, Either[Chunk[A], TickedValue[Path]]]
   ): Pull[F, TickedValue[Int], Unit] =
     merged.pull.uncons1.flatMap {
-      case None => Pull.done
+      case None               => Pull.done
       case Some((head, tail)) =>
         head match {
           case Left(data) =>
@@ -51,7 +51,7 @@ final private class RotateByPolicySink[F[_]: Async](
     ticks: Stream[F, TickedValue[Path]],
     getWriter: Path => Resource[F, HadoopWriter[F, A]]): Pull[F, TickedValue[Int], Unit] =
     ticks.pull.uncons1.flatMap {
-      case None => Pull.done
+      case None               => Pull.done
       case Some((head, tail)) => // use the very first tick to build writer and hotswap
         Stream
           .resource(Hotswap(getWriter(head.value)))

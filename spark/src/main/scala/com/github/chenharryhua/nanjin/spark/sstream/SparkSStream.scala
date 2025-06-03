@@ -14,8 +14,8 @@ final class SparkSStream[F[_], A](val dataset: Dataset[A], cfg: SStreamConfig) e
     new SparkSStream[F, A](dataset, f(cfg))
 
   def checkpoint(cp: Url): SparkSStream[F, A] = updateConfig(_.checkpoint(cp))
-  def failOnDataLoss: SparkSStream[F, A]      = updateConfig(_.dataLossFailure)
-  def ignoreDataLoss: SparkSStream[F, A]      = updateConfig(_.dataLossIgnore)
+  def failOnDataLoss: SparkSStream[F, A] = updateConfig(_.dataLossFailure)
+  def ignoreDataLoss: SparkSStream[F, A] = updateConfig(_.dataLossIgnore)
 
   def progressInterval(ms: Long): SparkSStream[F, A] = updateConfig(_.progressInterval(ms))
 
@@ -46,9 +46,9 @@ final class SparkSStream[F[_], A](val dataset: Dataset[A], cfg: SStreamConfig) e
     new SparkMemorySink[F, A](dataset.writeStream, cfg.queryName(queryName))
 
   def datePartitionSink(path: Url): SparkFileSink[F, Row] = {
-    val year  = udf((ts: Long) => NJTimestamp(ts).atZone(params.zoneId).toLocalDate.getYear)
+    val year = udf((ts: Long) => NJTimestamp(ts).atZone(params.zoneId).toLocalDate.getYear)
     val month = udf((ts: Long) => NJTimestamp(ts).atZone(params.zoneId).toLocalDate.getMonthValue)
-    val day   = udf((ts: Long) => NJTimestamp(ts).atZone(params.zoneId).toLocalDate.getDayOfMonth)
+    val day = udf((ts: Long) => NJTimestamp(ts).atZone(params.zoneId).toLocalDate.getDayOfMonth)
 
     val ws = dataset
       .withColumn("Year", year(dataset("timestamp")))

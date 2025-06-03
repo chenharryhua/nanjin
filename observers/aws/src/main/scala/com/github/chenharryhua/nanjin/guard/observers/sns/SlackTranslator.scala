@@ -30,7 +30,7 @@ private object SlackTranslator extends all {
   private val MessageSizeLimits: Information = Bytes(2500)
 
   private def abbreviate(msg: String): String = StringUtils.abbreviate(msg, MessageSizeLimits.toBytes.toInt)
-  private def abbreviate(msg: Json): String   = abbreviate(msg.spaces2)
+  private def abbreviate(msg: Json): String = abbreviate(msg.spaces2)
 
   private def host_service_section(sp: ServiceParams): JuxtaposeSection = {
     val sn: String =
@@ -51,7 +51,7 @@ private object SlackTranslator extends all {
   private def metrics_section(snapshot: MetricSnapshot): KeyValueSection =
     if (snapshot.nonEmpty) {
       val polyglot: SnapshotPolyglot = new SnapshotPolyglot(snapshot)
-      val yaml: String               = polyglot.toYaml
+      val yaml: String = polyglot.toYaml
       val msg: String =
         if (yaml.length < MessageSizeLimits.toBytes.toInt) yaml
         else {

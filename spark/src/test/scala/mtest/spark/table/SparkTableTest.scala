@@ -69,12 +69,12 @@ class SparkTableTest extends AnyFunSuite {
 
   implicit val ss: SparkSession = sparkSession
 
-  val codec: AvroCodec[DBTable]                  = AvroCodec[DBTable]
-  implicit val te: TypedEncoder[DBTable]         = shapeless.cachedImplicit
+  val codec: AvroCodec[DBTable] = AvroCodec[DBTable]
+  implicit val te: TypedEncoder[DBTable] = shapeless.cachedImplicit
   implicit val te2: TypedEncoder[PartialDBTable] = shapeless.cachedImplicit
-  implicit val re: RowEncoder[DBTable]           = shapeless.cachedImplicit
-  implicit val rd: RowDecoder[DBTable]           = shapeless.cachedImplicit
-  val ate: SchematizedEncoder[DBTable]           = SchematizedEncoder[DBTable](te, codec)
+  implicit val re: RowEncoder[DBTable] = shapeless.cachedImplicit
+  implicit val rd: RowDecoder[DBTable] = shapeless.cachedImplicit
+  val ate: SchematizedEncoder[DBTable] = SchematizedEncoder[DBTable](te, codec)
 
   val listener = SparkContextListener[IO](ss.sparkContext).debug()
 
@@ -94,15 +94,15 @@ class SparkTableTest extends AnyFunSuite {
 
   pg.use(txn => (DBTable.drop *> DBTable.create).transact(txn)).unsafeRunSync()
 
-  val hikari: HikariConfig       = DBConfig(postgres).hikariConfig
+  val hikari: HikariConfig = DBConfig(postgres).hikariConfig
   val loader: LoadTable[DBTable] = ss.loadTable(ate)
 
   test("load data") {
     val tds = TypedDataset.create(List(dbData))
-    val d1  = loader.data(List(dbData))
-    val d2  = loader.data(tds)
-    val d3  = loader.data(tds.dataset)
-    val d4  = loader.data(tds.dataset.rdd)
+    val d1 = loader.data(List(dbData))
+    val d2 = loader.data(tds)
+    val d3 = loader.data(tds.dataset)
+    val d4 = loader.data(tds.dataset.rdd)
     assert(d1.diff(d2).dataset.count() == 0)
     assert(d3.diff(d4).dataset.count() == 0)
     fs2.Stream
@@ -140,13 +140,13 @@ class SparkTableTest extends AnyFunSuite {
     loader.avro(root / "base").output.parquet(root / "parquet" / 1).run[IO].unsafeRunSync()
     loader.avro(root / "base").output.objectFile(root / "obj" / 1).run[IO].unsafeRunSync()
 
-    val avro    = loader.avro(root / "avro" / 1)
+    val avro = loader.avro(root / "avro" / 1)
     val binAvro = loader.binAvro(root / "bin.avro" / 1)
     val jackson = loader.jackson(root / "jackson" / 1)
-    val circe   = loader.circe(root / "circe" / 1)
-    val kantan  = loader.kantan(root / "kantan" / 1, CsvConfiguration.rfc)
+    val circe = loader.circe(root / "circe" / 1)
+    val kantan = loader.kantan(root / "kantan" / 1, CsvConfiguration.rfc)
     val parquet = loader.parquet(root / "parquet" / 1)
-    val obj     = loader.objectFile(root / "obj" / 1)
+    val obj = loader.objectFile(root / "obj" / 1)
 
     assert(avro.diff(binAvro).dataset.count() == 0)
     assert(jackson.diff(circe).dataset.count() == 0)
@@ -156,9 +156,9 @@ class SparkTableTest extends AnyFunSuite {
 
   test("spark") {
     val parquet = root / "spark" / "parquet"
-    val json    = root / "spark" / "json"
-    val csv     = root / "spark" / "csv"
-    val avro    = root / "spark" / "avro"
+    val json = root / "spark" / "json"
+    val csv = root / "spark" / "csv"
+    val avro = root / "spark" / "avro"
 
     loader.avro(root / "base").dataset.write.mode(SaveMode.Overwrite).parquet(parquet.toString())
 

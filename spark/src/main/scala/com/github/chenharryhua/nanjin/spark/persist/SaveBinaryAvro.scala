@@ -14,7 +14,7 @@ final class SaveBinaryAvro[A](rdd: RDD[A], encoder: AvroEncoder[A], cfg: Hoarder
   private def updateConfig(cfg: HoarderConfig): SaveBinaryAvro[A] =
     new SaveBinaryAvro[A](rdd, encoder, cfg)
 
-  def withSaveMode(sm: SaveMode): SaveBinaryAvro[A]                      = updateConfig(cfg.saveMode(sm))
+  def withSaveMode(sm: SaveMode): SaveBinaryAvro[A] = updateConfig(cfg.saveMode(sm))
   def withSaveMode(f: SparkSaveMode.type => SaveMode): SaveBinaryAvro[A] = withSaveMode(f(SparkSaveMode))
 
   def withCompression(bc: BinaryAvroCompression): SaveBinaryAvro[A] =

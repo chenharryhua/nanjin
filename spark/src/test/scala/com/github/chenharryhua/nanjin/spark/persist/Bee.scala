@@ -61,7 +61,7 @@ object Bee {
           bytes
         case array: Array[Byte]  => array
         case fixed: GenericFixed => fixed.bytes
-        case _ =>
+        case _                   =>
           throw new Avro4sDecodingException("Byte array decoder cannot decode", value, this)
       }
 
@@ -71,9 +71,9 @@ object Bee {
   val avroEncoder: Encoder[Bee] = shapeless.cachedImplicit
   val avroDecoder: Decoder[Bee] = shapeless.cachedImplicit
 
-  val avroCodec: AvroCodec[Bee]                = AvroCodec[Bee](schemaText)
+  val avroCodec: AvroCodec[Bee] = AvroCodec[Bee](schemaText)
   implicit val typedEncoder: TypedEncoder[Bee] = shapeless.cachedImplicit
-  implicit val jsonCodec: Codec[Bee]           = io.circe.generic.semiauto.deriveCodec[Bee]
-  val ate: SchematizedEncoder[Bee]             = SchematizedEncoder[Bee](avroCodec)
+  implicit val jsonCodec: Codec[Bee] = io.circe.generic.semiauto.deriveCodec[Bee]
+  val ate: SchematizedEncoder[Bee] = SchematizedEncoder[Bee](avroCodec)
 
 }

@@ -20,7 +20,7 @@ import scala.util.Try
 final class PullGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName, pair: AvroSchemaPair)
     extends Serializable {
   private val schema: Schema = pair.consumerSchema
-  private val topic: String  = topicName.value
+  private val topic: String = topicName.value
 
   @transient private lazy val key_decode: Array[Byte] => Try[Any] =
     pair.key.getType match {

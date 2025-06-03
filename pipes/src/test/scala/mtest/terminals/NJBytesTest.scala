@@ -23,9 +23,9 @@ class NJBytesTest extends AnyFunSuite {
 
   def fs2(path: Url, data: Set[Tiger]): Assertion = {
     hdp.delete(path).unsafeRunSync()
-    val ts   = Stream.emits(data.toList).covary[IO]
+    val ts = Stream.emits(data.toList).covary[IO]
     val sink = hdp.sink(path).bytes
-    val src  = hdp.source(path).bytes(64.bytes)
+    val src = hdp.source(path).bytes(64.bytes)
     val action = ts
       .map(_.asJson.noSpaces)
       .intersperse(System.lineSeparator())
@@ -88,7 +88,7 @@ class NJBytesTest extends AnyFunSuite {
   }
 
   test("rotation - policy") {
-    val path   = fs2Root / "rotation" / "tick"
+    val path = fs2Root / "rotation" / "tick"
     val number = 10000L
     hdp.delete(path).unsafeRunSync()
     val sink =
@@ -109,7 +109,7 @@ class NJBytesTest extends AnyFunSuite {
   }
 
   test("rotation - size") {
-    val path   = fs2Root / "rotation" / "index"
+    val path = fs2Root / "rotation" / "index"
     val number = 10000L
     hdp.delete(path).unsafeRunSync()
     val sink = hdp.rotateSink(10000)(t => path / s"${t.index}.json").bytes

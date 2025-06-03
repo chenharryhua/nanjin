@@ -13,14 +13,14 @@ object CopData {
     EmCop(1, EnumCoproduct.Domestic),
     EmCop(2, EnumCoproduct.International)
   )
-  val emRDD: RDD[EmCop]    = sparkSession.sparkContext.parallelize(emCops)
+  val emRDD: RDD[EmCop] = sparkSession.sparkContext.parallelize(emCops)
   val emDS: Dataset[EmCop] = TypedDataset.create(emRDD).dataset
 
   val coCops: List[CoCop] = List(
     CoCop(1, CaseObjectCop.Domestic),
     CoCop(2, CaseObjectCop.International)
   )
-  val coRDD: RDD[CoCop]    = sparkSession.sparkContext.parallelize(coCops)
+  val coRDD: RDD[CoCop] = sparkSession.sparkContext.parallelize(coCops)
   val coDS: Dataset[CoCop] = TypedDataset.create(coRDD).dataset
 
   val cpCops = List(
@@ -28,7 +28,7 @@ object CopData {
     CpCop(2, Coproduct[CoproductCop.Cop](CoproductCop.International()))
   )
 
-  val cpRDD: RDD[CpCop]    = sparkSession.sparkContext.parallelize(cpCops)
+  val cpRDD: RDD[CpCop] = sparkSession.sparkContext.parallelize(cpCops)
   val cpDS: Dataset[CpCop] = TypedDataset.create(cpRDD).dataset
 
 }

@@ -117,9 +117,9 @@ class CirceTest extends AnyFunSuite {
   }
 
   test("circe jacket neck multi") {
-    val path  = "./data/test/spark/persist/circe/jacket-neck-multi.json"
-    val data  = JacketData.expected.map(_.neck)
-    val rdd   = sparkSession.sparkContext.parallelize(data)
+    val path = "./data/test/spark/persist/circe/jacket-neck-multi.json"
+    val data = JacketData.expected.map(_.neck)
+    val rdd = sparkSession.sparkContext.parallelize(data)
     val saver = new RddFileHoarder[KJson[Neck]](rdd.repartition(1)).circe(path)
     saver.run[IO].unsafeRunSync()
     val t = loaders.rdd.circe[KJson[Neck]](path, sparkSession).collect().toSet
@@ -127,9 +127,9 @@ class CirceTest extends AnyFunSuite {
   }
 
   test("circe jacket neck json multi") {
-    val path  = "./data/test/spark/persist/circe/jacket-neck-multi.json"
-    val data  = JacketData.expected.map(_.neck.value.j)
-    val rdd   = sparkSession.sparkContext.parallelize(data)
+    val path = "./data/test/spark/persist/circe/jacket-neck-multi.json"
+    val data = JacketData.expected.map(_.neck.value.j)
+    val rdd = sparkSession.sparkContext.parallelize(data)
     val saver = new RddFileHoarder[Json](rdd.repartition(1)).circe(path)
     saver.run[IO].unsafeRunSync()
     val t = loaders.rdd.circe[Json](path, sparkSession).collect().toSet
@@ -137,9 +137,9 @@ class CirceTest extends AnyFunSuite {
   }
 
   test("circe append") {
-    val path  = "./data/test/spark/persist/circe/jacket-append.json"
-    val data  = JacketData.expected.map(_.neck.value.j)
-    val rdd   = sparkSession.sparkContext.parallelize(data)
+    val path = "./data/test/spark/persist/circe/jacket-append.json"
+    val data = JacketData.expected.map(_.neck.value.j)
+    val rdd = sparkSession.sparkContext.parallelize(data)
     val saver = new RddFileHoarder[Json](rdd.repartition(1)).circe(path)
     val t1 =
       try loaders.rdd.circe[Json](path, sparkSession).count()
@@ -150,9 +150,9 @@ class CirceTest extends AnyFunSuite {
   }
 
   test("kjson") {
-    val path  = "./data/test/spark/persist/circe/kjson.json"
-    val data  = JacketData.expected.map(_.neck.value.j)
-    val rdd   = sparkSession.sparkContext.parallelize(data).map(KJson(_))
+    val path = "./data/test/spark/persist/circe/kjson.json"
+    val data = JacketData.expected.map(_.neck.value.j)
+    val rdd = sparkSession.sparkContext.parallelize(data).map(KJson(_))
     val saver = new RddFileHoarder[KJson[Json]](rdd.repartition(1)).circe(path)
     saver.run[IO].unsafeRunSync()
     val t = loaders.rdd.circe[Json](path, sparkSession).collect().toSet

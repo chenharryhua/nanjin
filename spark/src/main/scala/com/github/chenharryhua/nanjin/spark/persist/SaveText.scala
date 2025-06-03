@@ -20,7 +20,7 @@ final class SaveText[A](rdd: RDD[A], cfg: HoarderConfig, show: Show[A], suffix: 
   private def updateConfig(cfg: HoarderConfig): SaveText[A] =
     new SaveText[A](rdd, cfg, show, suffix)
 
-  def withSaveMode(sm: SaveMode): SaveText[A]                      = updateConfig(cfg.saveMode(sm))
+  def withSaveMode(sm: SaveMode): SaveText[A] = updateConfig(cfg.saveMode(sm))
   def withSaveMode(f: SparkSaveMode.type => SaveMode): SaveText[A] = withSaveMode(f(SparkSaveMode))
 
   def withCompression(tc: TextCompression): SaveText[A] = updateConfig(cfg.outputCompression(tc))

@@ -31,10 +31,10 @@ import scala.concurrent.duration.FiniteDuration
 
   }
 
-  val startTimestamp: Option[NJTimestamp]   = start.map(_.fold(calcDateTime))
-  val endTimestamp: Option[NJTimestamp]     = end.map(_.fold(calcDateTime))
+  val startTimestamp: Option[NJTimestamp] = start.map(_.fold(calcDateTime))
+  val endTimestamp: Option[NJTimestamp] = end.map(_.fold(calcDateTime))
   val zonedStartTime: Option[ZonedDateTime] = startTimestamp.map(_.atZone(zoneId))
-  val zonedEndTime: Option[ZonedDateTime]   = endTimestamp.map(_.atZone(zoneId))
+  val zonedEndTime: Option[ZonedDateTime] = endTimestamp.map(_.atZone(zoneId))
 
   /** @return
     *   list of local-date from start date(inclusive) to end date(exclusive)
@@ -82,26 +82,26 @@ import scala.concurrent.duration.FiniteDuration
     DateTimeRange.end.replace(Some(prism.reverseGet(a)))(this)
 
   // start
-  def withStartTime(ts: LocalTime): DateTimeRange      = setStart(toLocalDateTime(ts))
-  def withStartTime(ts: LocalDate): DateTimeRange      = setStart(toLocalDateTime(ts))
-  def withStartTime(ts: LocalDateTime): DateTimeRange  = setStart(ts)
+  def withStartTime(ts: LocalTime): DateTimeRange = setStart(toLocalDateTime(ts))
+  def withStartTime(ts: LocalDate): DateTimeRange = setStart(toLocalDateTime(ts))
+  def withStartTime(ts: LocalDateTime): DateTimeRange = setStart(ts)
   def withStartTime(ts: OffsetDateTime): DateTimeRange = setStart(NJTimestamp(ts))
-  def withStartTime(ts: ZonedDateTime): DateTimeRange  = setStart(NJTimestamp(ts))
-  def withStartTime(ts: Instant): DateTimeRange        = setStart(NJTimestamp(ts))
-  def withStartTime(ts: Long): DateTimeRange           = setStart(NJTimestamp(ts))
-  def withStartTime(ts: Timestamp): DateTimeRange      = setStart(NJTimestamp(ts))
-  def withStartTime(ts: String): DateTimeRange         = setStart(ts)
+  def withStartTime(ts: ZonedDateTime): DateTimeRange = setStart(NJTimestamp(ts))
+  def withStartTime(ts: Instant): DateTimeRange = setStart(NJTimestamp(ts))
+  def withStartTime(ts: Long): DateTimeRange = setStart(NJTimestamp(ts))
+  def withStartTime(ts: Timestamp): DateTimeRange = setStart(NJTimestamp(ts))
+  def withStartTime(ts: String): DateTimeRange = setStart(ts)
 
   // end
-  def withEndTime(ts: LocalTime): DateTimeRange      = setEnd(toLocalDateTime(ts))
-  def withEndTime(ts: LocalDate): DateTimeRange      = setEnd(toLocalDateTime(ts))
-  def withEndTime(ts: LocalDateTime): DateTimeRange  = setEnd(ts)
+  def withEndTime(ts: LocalTime): DateTimeRange = setEnd(toLocalDateTime(ts))
+  def withEndTime(ts: LocalDate): DateTimeRange = setEnd(toLocalDateTime(ts))
+  def withEndTime(ts: LocalDateTime): DateTimeRange = setEnd(ts)
   def withEndTime(ts: OffsetDateTime): DateTimeRange = setEnd(NJTimestamp(ts))
-  def withEndTime(ts: ZonedDateTime): DateTimeRange  = setEnd(NJTimestamp(ts))
-  def withEndTime(ts: Instant): DateTimeRange        = setEnd(NJTimestamp(ts))
-  def withEndTime(ts: Long): DateTimeRange           = setEnd(NJTimestamp(ts))
-  def withEndTime(ts: Timestamp): DateTimeRange      = setEnd(NJTimestamp(ts))
-  def withEndTime(ts: String): DateTimeRange         = setEnd(ts)
+  def withEndTime(ts: ZonedDateTime): DateTimeRange = setEnd(NJTimestamp(ts))
+  def withEndTime(ts: Instant): DateTimeRange = setEnd(NJTimestamp(ts))
+  def withEndTime(ts: Long): DateTimeRange = setEnd(NJTimestamp(ts))
+  def withEndTime(ts: Timestamp): DateTimeRange = setEnd(NJTimestamp(ts))
+  def withEndTime(ts: String): DateTimeRange = setEnd(ts)
 
   def withNSeconds(seconds: Long): DateTimeRange = {
     val now = LocalDateTime.now
@@ -120,7 +120,7 @@ import scala.concurrent.duration.FiniteDuration
       case Right(day) => day
     }
 
-  def withToday: DateTimeRange     = withOneDay(LocalDate.now)
+  def withToday: DateTimeRange = withOneDay(LocalDate.now)
   def withYesterday: DateTimeRange = withOneDay(LocalDate.now.minusDays(1))
 
   /** The day before yesterday

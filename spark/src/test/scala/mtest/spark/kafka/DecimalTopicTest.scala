@@ -60,7 +60,7 @@ object DecimalTopicTestCase {
   object HasDecimal {
 
     implicit val teHasDecimal: TypedEncoder[HasDecimal] = shapeless.cachedImplicit
-    implicit val json: Codec[HasDecimal]                = io.circe.generic.semiauto.deriveCodec
+    implicit val json: Codec[HasDecimal] = io.circe.generic.semiauto.deriveCodec
   }
   implicit val roundingMode: BigDecimal.RoundingMode.Value = RoundingMode.HALF_UP
 
@@ -80,14 +80,14 @@ object DecimalTopicTestCase {
 class DecimalTopicTest extends AnyFunSuite {
   import DecimalTopicTestCase.*
 
-  val topic: KafkaTopic[IO, Int, HasDecimal]      = ctx.topic(topicDef)
+  val topic: KafkaTopic[IO, Int, HasDecimal] = ctx.topic(topicDef)
   val stopic: SparKafkaTopic[IO, Int, HasDecimal] = sparKafka.topic(topicDef)
 
   val loadData: IO[Unit] =
     stopic
       .prRdd(List(NJProducerRecord(stopic.topicName, 1, data), NJProducerRecord(stopic.topicName, 2, data)))
       .producerRecords[IO](100)
-      .through(ctx.producer(topicDef.rawSerdes).sink)
+      .through(ctx.produce(topicDef.rawSerdes).sink)
       .compile
       .drain
 

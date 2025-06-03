@@ -45,6 +45,6 @@ object HadoopTestData {
 
   val pandaSet: Set[GenericRecord] = pandas.toSet
 
-  val cfg             = new Configuration
+  val cfg = new Configuration
   val hdp: Hadoop[IO] = Hadoop[IO](cfg)
 }

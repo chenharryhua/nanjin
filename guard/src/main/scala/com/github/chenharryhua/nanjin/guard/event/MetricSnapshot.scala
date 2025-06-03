@@ -128,7 +128,7 @@ object MetricSnapshot extends duration {
   private def buildFrom(metricRegistry: metrics.MetricRegistry): MetricSnapshot =
     metricRegistry.getMetrics.asScala.toList.foldLeft(empty) { case (snapshot, (name, metric)) =>
       decode[MetricID](name) match {
-        case Left(_) => snapshot
+        case Left(_)    => snapshot
         case Right(mid) =>
           mid.category match {
             // gauge

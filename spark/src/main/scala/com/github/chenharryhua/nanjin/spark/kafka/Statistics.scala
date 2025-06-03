@@ -161,7 +161,7 @@ final class Statistics private[spark] (val dataset: Dataset[CRMetaInfo]) extends
       val all: Array[Dataset[Disorder]] =
         dataset.map(_.partition).distinct().collect().map { pt =>
           val curr: Dataset[(Long, CRMetaInfo)] = dataset.filter(_.partition === pt).map(x => (x.offset, x))
-          val pre: Dataset[(Long, CRMetaInfo)]  = curr.map { case (index, crm) => (index + 1, crm) }
+          val pre: Dataset[(Long, CRMetaInfo)] = curr.map { case (index, crm) => (index + 1, crm) }
 
           curr.joinWith(pre, curr("_1") === pre("_1"), "inner").flatMap { case ((_, c), (_, p)) =>
             if (c.timestamp >= p.timestamp) None

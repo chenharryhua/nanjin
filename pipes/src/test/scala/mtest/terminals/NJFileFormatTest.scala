@@ -13,13 +13,13 @@ class NJFileFormatTest extends AnyFunSuite {
   }
 
   test("json") {
-    val f1: FileFormat  = FileFormat.Unknown
-    val f2: FileFormat  = FileFormat.Jackson
-    val f3: FileFormat  = FileFormat.Circe
-    val f4: FileFormat  = FileFormat.Text
-    val f5: FileFormat  = FileFormat.Kantan
-    val f8: FileFormat  = FileFormat.Parquet
-    val f9: FileFormat  = FileFormat.Avro
+    val f1: FileFormat = FileFormat.Unknown
+    val f2: FileFormat = FileFormat.Jackson
+    val f3: FileFormat = FileFormat.Circe
+    val f4: FileFormat = FileFormat.Text
+    val f5: FileFormat = FileFormat.Kantan
+    val f8: FileFormat = FileFormat.Parquet
+    val f9: FileFormat = FileFormat.Avro
     val f10: FileFormat = FileFormat.BinaryAvro
     val f11: FileFormat = FileFormat.JavaObject
     val f12: FileFormat = FileFormat.ProtoBuf

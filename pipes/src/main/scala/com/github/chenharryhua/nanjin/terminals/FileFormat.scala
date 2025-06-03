@@ -32,15 +32,15 @@ object FileFormat extends Enum[FileFormat] with CatsEnum[FileFormat] with CirceE
   case object ProtoBuf extends FileFormat(15, "pb", "google")
 
   // types
-  type Jackson    = Jackson.type
-  type Circe      = Circe.type
-  type Text       = Text.type
-  type Kantan     = Kantan.type
-  type Parquet    = Parquet.type
-  type Avro       = Avro.type
+  type Jackson = Jackson.type
+  type Circe = Circe.type
+  type Text = Text.type
+  type Kantan = Kantan.type
+  type Parquet = Parquet.type
+  type Avro = Avro.type
   type BinaryAvro = BinaryAvro.type
   type JavaObject = JavaObject.type
-  type ProtoBuf   = ProtoBuf.type
+  type ProtoBuf = ProtoBuf.type
 
   type JsonFamily = Jackson :+: Circe :+: CNil
 

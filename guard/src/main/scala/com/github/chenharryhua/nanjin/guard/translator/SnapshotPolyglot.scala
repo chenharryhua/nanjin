@@ -8,18 +8,20 @@ import com.github.chenharryhua.nanjin.guard.event.{MeasurementUnit, MetricSnapsh
 import io.circe.Json
 import io.circe.syntax.EncoderOps
 import org.apache.commons.lang3.StringUtils
-import squants.time.TimeConversions
+import squants.time.{Frequency, TimeConversions}
 
 final class SnapshotPolyglot(snapshot: MetricSnapshot) {
 
   private def normalize[A: Numeric](mu: MeasurementUnit, data: A): String =
     mu match {
-      case unit: NJTimeUnit => durationFormatter.format(TimeConversions.timeToScalaDuration(unit.mUnit(data)))
+      case unit: NJTimeUnit =>
+        durationFormatter.format(TimeConversions.timeToScalaDuration(unit.mUnit(data)))
       case unit: NJInformationUnit =>
-        s"${decimalFormatter.format(unit.mUnit(data).value.toLong)} ${unit.symbol}"
-      case unit: NJDataRateUnit => s"${decimalFormatter.format(unit.mUnit(data).value.toLong)} ${unit.symbol}"
+        s"${decimalFormatter.format(unit.mUnit(data).value)} ${unit.symbol}"
+      case unit: NJDataRateUnit =>
+        s"${decimalFormatter.format(unit.mUnit(data).value)} ${unit.symbol}"
       case unit: NJDimensionlessUnit =>
-        s"${decimalFormatter.format(unit.mUnit(data).value.toLong)} ${unit.symbol}"
+        s"${decimalFormatter.format(unit.mUnit(data).value)} ${unit.symbol}"
     }
 
   private def meters: List[(MetricID, NonEmptyList[(String, String)])] =
@@ -33,15 +35,26 @@ final class SnapshotPolyglot(snapshot: MetricSnapshot) {
       )
     }
 
+  private def call_rate(rate: Frequency): String = {
+    val hertz = rate.toHertz
+    if (hertz > 1)
+      s"${decimalFormatter.format(hertz)} calls/${NJTimeUnit.SECONDS.symbol}"
+    else if (hertz * 60 > 1)
+      s"${decimalFormatter.format(hertz * 60)} calls/${NJTimeUnit.MINUTES.symbol}"
+    else if (hertz * 3600 > 1)
+      s"${decimalFormatter.format(hertz * 3600)} calls/${NJTimeUnit.HOURS.symbol}"
+    else
+      s"${decimalFormatter.format(hertz * 864000)} calls/${NJTimeUnit.DAYS.symbol}"
+  }
+
   private def timers: List[(MetricID, NonEmptyList[(String, String)])] =
     snapshot.timers.map { t =>
-      val unit = s"calls/${NJTimeUnit.SECONDS.symbol}"
       t.metricId -> NonEmptyList.of(
         "invocations" -> decimalFormatter.format(t.timer.calls),
-        "mean_rate" -> s"${decimalFormatter.format(t.timer.mean_rate.toHertz)} $unit",
-        "m1_rate" -> s"${decimalFormatter.format(t.timer.m1_rate.toHertz)} $unit",
-        "m5_rate" -> s"${decimalFormatter.format(t.timer.m5_rate.toHertz)} $unit",
-        "m15_rate" -> s"${decimalFormatter.format(t.timer.m15_rate.toHertz)} $unit",
+        "mean_rate" -> call_rate(t.timer.mean_rate),
+        "m1_rate" -> call_rate(t.timer.m1_rate),
+        "m5_rate" -> call_rate(t.timer.m5_rate),
+        "m15_rate" -> call_rate(t.timer.m15_rate),
         "min" -> durationFormatter.format(t.timer.min),
         "max" -> durationFormatter.format(t.timer.max),
         "mean" -> durationFormatter.format(t.timer.mean),
@@ -57,7 +70,7 @@ final class SnapshotPolyglot(snapshot: MetricSnapshot) {
 
   private def histograms: List[(MetricID, NonEmptyList[(String, String)])] =
     snapshot.histograms.map { h =>
-      val unit  = h.histogram.unit
+      val unit = h.histogram.unit
       val histo = h.histogram
       h.metricId -> NonEmptyList.of(
         "updates" -> decimalFormatter.format(histo.updates),
@@ -110,11 +123,11 @@ final class SnapshotPolyglot(snapshot: MetricSnapshot) {
 
   // for database etc
   def toVanillaJson: Json = {
-    val counters   = snapshot.counters.map(c => c.metricId -> Json.fromLong(c.count))
-    val gauges     = snapshot.gauges.map(g => g.metricId -> g.value)
-    val meters     = snapshot.meters.map(m => m.metricId -> m.meter.asJson)
+    val counters = snapshot.counters.map(c => c.metricId -> Json.fromLong(c.count))
+    val gauges = snapshot.gauges.map(g => g.metricId -> g.value)
+    val meters = snapshot.meters.map(m => m.metricId -> m.meter.asJson)
     val histograms = snapshot.histograms.map(h => h.metricId -> h.histogram.asJson)
-    val timers     = snapshot.timers.map(t => t.metricId -> t.timer.asJson)
+    val timers = snapshot.timers.map(t => t.metricId -> t.timer.asJson)
     group_json(counters ::: gauges ::: meters ::: histograms ::: timers)
   }
 

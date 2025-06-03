@@ -29,13 +29,13 @@ import scala.concurrent.duration.DurationInt
 import scala.util.Random
 
 class HttpTest extends AnyFunSuite {
-  implicit val log: Logger[IO]           = Slf4jLogger.getLoggerFromName("logger")
+  implicit val log: Logger[IO] = Slf4jLogger.getLoggerFromName("logger")
   private val entryPoint: EntryPoint[IO] = Log.entryPoint[IO]("http-test")
 
   private def service(span: Span[IO]): HttpRoutes[IO] = HttpRoutes.of[IO] {
-    case GET -> Root / "trace" / name => span.log("trace") >> Ok(s"Hello, $name.")
-    case GET -> Root / "cookie"       => Ok("cookie")
-    case POST -> Root / "post"        => Ok("posted")
+    case GET -> Root / "trace" / name     => span.log("trace") >> Ok(s"Hello, $name.")
+    case GET -> Root / "cookie"           => Ok("cookie")
+    case POST -> Root / "post"            => Ok("posted")
     case GET -> Root / "timeout" / reason =>
       if (Random.nextInt(5) === 0) Ok(reason) else RequestTimeout(reason)
     case GET -> Root / "failure" => InternalServerError()

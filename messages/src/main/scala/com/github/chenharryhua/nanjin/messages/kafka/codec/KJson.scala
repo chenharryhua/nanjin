@@ -39,12 +39,12 @@ object KJson {
 
   implicit def kjsonJsonCodec[A: JsonEncoder: JsonDecoder]: JsonCodec[KJson[A]] =
     new JsonCodec[KJson[A]] {
-      override def apply(a: KJson[A]): Json            = JsonEncoder[A].apply(a.value)
+      override def apply(a: KJson[A]): Json = JsonEncoder[A].apply(a.value)
       override def apply(c: HCursor): Result[KJson[A]] = JsonDecoder[A].apply(c).map(KJson[A])
     }
 
   implicit def avroKJsonSchemaFor[A]: SchemaFor[KJson[A]] = new SchemaFor[KJson[A]] {
-    override def schema: Schema           = SchemaFor[String].schema
+    override def schema: Schema = SchemaFor[String].schema
     override def fieldMapper: FieldMapper = SchemaFor[String].fieldMapper
   }
 
@@ -64,7 +64,7 @@ object KJson {
       case utf8: Utf8 =>
         Try(utf8.toString) match {
           case Failure(exception) => throw exception
-          case Success(str) =>
+          case Success(str)       =>
             jawn.decode[A](str) match {
               case Right(r) => KJson(r)
               case Left(ex) => throw new Exception(str, ex)
@@ -116,7 +116,7 @@ object KJson {
   implicit def isoKJson[A]: Iso[KJson[A], A] = Iso[KJson[A], A](_.value)(KJson(_))
 
   implicit def injectionKJson[A]: Injection[KJson[A], A] = new Injection[KJson[A], A] {
-    override def apply(a: KJson[A]): A  = a.value
+    override def apply(a: KJson[A]): A = a.value
     override def invert(b: A): KJson[A] = KJson(b)
   }
 }

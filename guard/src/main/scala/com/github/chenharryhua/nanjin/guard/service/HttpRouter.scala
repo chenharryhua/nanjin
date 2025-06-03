@@ -167,7 +167,7 @@ final private class HttpRouter[F[_]](
           val history: F[List[Text.TypedTag[String]]] =
             metricsHistory.get.map(_.iterator().asScala.toList.reverse.flatMap { mr =>
               mr.index match {
-                case _: MetricIndex.Adhoc => None
+                case _: MetricIndex.Adhoc       => None
                 case MetricIndex.Periodic(tick) =>
                   Some(
                     div(
@@ -194,7 +194,7 @@ final private class HttpRouter[F[_]](
 
     case GET -> Root / "service" / "health_check" =>
       panicHistory.get.map(_.iterator().asScala.toList.lastOption).flatMap {
-        case None => deps_health_check.flatMap(Ok(_))
+        case None      => deps_health_check.flatMap(Ok(_))
         case Some(evt) =>
           Clock[F].realTimeInstant.flatMap { now =>
             if (evt.tick.wakeup.isAfter(now)) {

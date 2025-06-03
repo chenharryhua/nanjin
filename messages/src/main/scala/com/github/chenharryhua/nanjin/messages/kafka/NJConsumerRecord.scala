@@ -49,7 +49,7 @@ final case class NJConsumerRecord[K, V](
     NJProducerRecord[K, V](topic, Some(partition), Some(offset), Some(timestamp), key, value, headers)
 
   def toJavaConsumerRecord: JavaConsumerRecord[K, V] = this.transformInto[JavaConsumerRecord[K, V]]
-  def toConsumerRecord: ConsumerRecord[K, V]         = this.transformInto[ConsumerRecord[K, V]]
+  def toConsumerRecord: ConsumerRecord[K, V] = this.transformInto[ConsumerRecord[K, V]]
 
 }
 
@@ -62,15 +62,15 @@ object NJConsumerRecord {
     cr.transformInto[NJConsumerRecord[K, V]]
 
   def avroCodec[K, V](keyCodec: AvroCodec[K], valCodec: AvroCodec[V]): AvroCodec[NJConsumerRecord[K, V]] = {
-    implicit val schemaForKey: SchemaFor[K]  = keyCodec.schemaFor
-    implicit val schemaForVal: SchemaFor[V]  = valCodec.schemaFor
-    implicit val keyDecoder: Decoder[K]      = keyCodec
-    implicit val valDecoder: Decoder[V]      = valCodec
-    implicit val keyEncoder: Encoder[K]      = keyCodec
-    implicit val valEncoder: Encoder[V]      = valCodec
+    implicit val schemaForKey: SchemaFor[K] = keyCodec.schemaFor
+    implicit val schemaForVal: SchemaFor[V] = valCodec.schemaFor
+    implicit val keyDecoder: Decoder[K] = keyCodec
+    implicit val valDecoder: Decoder[V] = valCodec
+    implicit val keyEncoder: Encoder[K] = keyCodec
+    implicit val valEncoder: Encoder[V] = valCodec
     val s: SchemaFor[NJConsumerRecord[K, V]] = implicitly
-    val d: Decoder[NJConsumerRecord[K, V]]   = implicitly
-    val e: Encoder[NJConsumerRecord[K, V]]   = implicitly
+    val d: Decoder[NJConsumerRecord[K, V]] = implicitly
+    val e: Encoder[NJConsumerRecord[K, V]] = implicitly
     AvroCodec[NJConsumerRecord[K, V]](s, d.withSchema(s), e.withSchema(s))
   }
 
@@ -78,12 +78,12 @@ object NJConsumerRecord {
     class KEY
     class VAL
     implicit val schemaForKey: SchemaFor[KEY] = new SchemaFor[KEY] {
-      override def schema: Schema           = keySchema
+      override def schema: Schema = keySchema
       override def fieldMapper: FieldMapper = DefaultFieldMapper
     }
 
     implicit val schemaForVal: SchemaFor[VAL] = new SchemaFor[VAL] {
-      override def schema: Schema           = valSchema
+      override def schema: Schema = valSchema
       override def fieldMapper: FieldMapper = DefaultFieldMapper
     }
     SchemaFor[NJConsumerRecord[KEY, VAL]].schema

@@ -46,9 +46,9 @@ class BatchParallelTest extends AnyFunSuite {
   }
 
   test("3.exception - value") {
-    var errorJob: BatchJob    = null
+    var errorJob: BatchJob = null
     var canceledJob: BatchJob = null
-    var succJob: BatchJob     = null
+    var succJob: BatchJob = null
     val tracer: TraceJob.JobTracer[IO, Int] = TraceJob
       .noop[IO, Int]
       .onError(jo => IO { errorJob = jo.resultState.job })
@@ -95,7 +95,7 @@ class BatchParallelTest extends AnyFunSuite {
   }
 
   test("5.predicate - value") {
-    var canceledJob: BatchJob              = null
+    var canceledJob: BatchJob = null
     var completedJob: List[JobResultState] = Nil
     val tracer = TraceJob
       .noop[IO, Int]

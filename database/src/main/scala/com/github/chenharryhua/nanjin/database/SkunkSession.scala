@@ -26,21 +26,21 @@ final case class SkunkSession[F[_]](
   readTimeout: Duration,
   trace: Option[Trace[F]]) {
 
-  def withMaxSessions(size: Int): SkunkSession[F]       = copy(max = size)
+  def withMaxSessions(size: Int): SkunkSession[F] = copy(max = size)
   def withStrategy(ts: Typer.Strategy): SkunkSession[F] = copy(strategy = ts)
-  def withSSL(ssl: SSL): SkunkSession[F]                = copy(ssl = ssl)
+  def withSSL(ssl: SSL): SkunkSession[F] = copy(ssl = ssl)
 
   def withCommandCache(size: Int): SkunkSession[F] = copy(commandCache = size)
-  def withQueryCache(size: Int): SkunkSession[F]   = copy(queryCache = size)
-  def withParseCache(size: Int): SkunkSession[F]   = copy(parseCache = size)
+  def withQueryCache(size: Int): SkunkSession[F] = copy(queryCache = size)
+  def withParseCache(size: Int): SkunkSession[F] = copy(parseCache = size)
 
   def withDebug: SkunkSession[F] = copy(debug = true)
 
-  def withReadTimeout(duration: Duration): SkunkSession[F]       = copy(readTimeout = duration)
+  def withReadTimeout(duration: Duration): SkunkSession[F] = copy(readTimeout = duration)
   def withSocketOptions(so: List[SocketOption]): SkunkSession[F] = copy(socketOptions = so)
 
   def withParameters(ps: Map[String, String]): SkunkSession[F] = copy(parameters = ps)
-  def addParameter(k: String, v: String): SkunkSession[F]      = copy(parameters = parameters + (k -> v))
+  def addParameter(k: String, v: String): SkunkSession[F] = copy(parameters = parameters + (k -> v))
 
   def withTrace(trace: Trace[F]): SkunkSession[F] = copy(trace = Some(trace))
 
