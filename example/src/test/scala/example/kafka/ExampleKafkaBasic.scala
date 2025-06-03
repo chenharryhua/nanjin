@@ -27,7 +27,7 @@ class ExampleKafkaBasic extends AnyFunSuite {
       .topic(fooTopic.topicDef)
       .prRdd(producerRecords)
       .producerRecords[IO](100)
-      .through(ctx.producer[Int,Foo].sink)
+      .through(ctx.produce[Int,Foo].sink)
       .compile
       .drain
       .unsafeRunSync()
@@ -35,7 +35,7 @@ class ExampleKafkaBasic extends AnyFunSuite {
 
   test("consume messages from kafka using https://fd4s.github.io/fs2-kafka/") {
     ctx
-      .consumer(fooTopic.topicName)
+      .consume(fooTopic.topicName)
       .stream
       .map(fooTopic.serde.deserializeValue(_))
       .debug()
@@ -54,7 +54,7 @@ class ExampleKafkaBasic extends AnyFunSuite {
       .circe(path)
       .prRdd
       .producerRecords[IO](2)
-      .through(ctx.producer[Int,Foo].sink)
+      .through(ctx.produce[Int,Foo].sink)
       .compile
       .drain
       .unsafeRunSync()

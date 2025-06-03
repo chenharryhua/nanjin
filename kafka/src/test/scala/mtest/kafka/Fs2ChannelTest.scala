@@ -69,9 +69,9 @@ class Fs2ChannelTest extends AnyFunSuite {
 
     val ret =
       ctx.schemaRegistry.register(topicDef).attempt >>
-        ctx.producer[Int, Fs2Kafka].produceOne(topic.topicName.value, 1, Fs2Kafka(1, "a", 1.0)) >>
+        ctx.produce[Int, Fs2Kafka].produceOne(topic.topicName.value, 1, Fs2Kafka(1, "a", 1.0)) >>
         ctx
-          .consumer(topicDef)
+          .consume(topicDef)
           .updateConfig(_.withGroupId("g1").withAutoOffsetReset(AutoOffsetReset.Earliest))
           .stream
           .take(1)
@@ -85,7 +85,7 @@ class Fs2ChannelTest extends AnyFunSuite {
   test("record format") {
     val ret =
       ctx
-        .consumer(topicDef)
+        .consume(topicDef)
         .stream
         .take(1)
         .map(_.record)
@@ -99,7 +99,7 @@ class Fs2ChannelTest extends AnyFunSuite {
 
   test("serde") {
     ctx
-      .consumer(topic.topicName)
+      .consume(topic.topicName)
       .stream
       .take(1)
       .map { ccr =>
@@ -148,7 +148,7 @@ class Fs2ChannelTest extends AnyFunSuite {
       "leaderEpoch":null
     }
      """
-    ctx.jacksonProduce(jackson).flatMap(IO.println).unsafeRunSync()
+    ctx.publishJackson(jackson).flatMap(IO.println).unsafeRunSync()
   }
 
   private val cs: Endo[PureConsumerSettings] = _.withGroupId("nanjin")
@@ -157,7 +157,7 @@ class Fs2ChannelTest extends AnyFunSuite {
     .withProperty("abc", "efg")
 
   test("consumer config") {
-    val consumer = ctx.consumer(topicDef).updateConfig(cs).properties
+    val consumer = ctx.consume(topicDef).updateConfig(cs).properties
     assert(consumer.get(ConsumerConfig.GROUP_ID_CONFIG).contains("nanjin"))
     assert(consumer.get(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG).contains("true"))
     assert(consumer.get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG).contains("http://abc.com"))
@@ -165,7 +165,7 @@ class Fs2ChannelTest extends AnyFunSuite {
   }
 
   test("byte consumer config") {
-    val consumer = ctx.consumer("bytes").updateConfig(cs).properties
+    val consumer = ctx.consume("bytes").updateConfig(cs).properties
     assert(consumer.get(ConsumerConfig.GROUP_ID_CONFIG).contains("nanjin"))
     assert(consumer.get(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG).contains("true"))
     assert(consumer.get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG).contains("http://abc.com"))
@@ -176,14 +176,14 @@ class Fs2ChannelTest extends AnyFunSuite {
     _.withClientId("nanjin").withBootstrapServers("http://abc.com").withProperty("abc", "efg")
 
   test("producer setting") {
-    val producer = ctx.producer(topicDef.rawSerdes).updateConfig(ps).properties
+    val producer = ctx.produce(topicDef.rawSerdes).updateConfig(ps).properties
     assert(producer.get(ConsumerConfig.CLIENT_ID_CONFIG).contains("nanjin"))
     assert(producer.get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG).contains("http://abc.com"))
     assert(producer.get("abc").contains("efg"))
   }
 
   test("transactional producer setting") {
-    val producer = ctx.producer(topicDef.rawSerdes).updateConfig(ps).transactional("trans").properties
+    val producer = ctx.produce(topicDef.rawSerdes).updateConfig(ps).transactional("trans").properties
     assert(producer.get(ConsumerConfig.CLIENT_ID_CONFIG).contains("nanjin"))
     assert(producer.get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG).contains("http://abc.com"))
     assert(producer.get("abc").contains("efg"))

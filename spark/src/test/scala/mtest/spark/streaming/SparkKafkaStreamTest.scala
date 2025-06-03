@@ -85,7 +85,7 @@ class SparkKafkaStreamTest extends AnyFunSuite {
       .replicate(100)
       .producerRecords[IO](1)
       .metered(1.seconds)
-      .through(ctx.producer(rooster.topicDef.rawSerdes).sink)
+      .through(ctx.produce(rooster.topicDef.rawSerdes).sink)
 
     upload.interruptAfter(10.seconds).compile.drain.unsafeRunSync()
   }

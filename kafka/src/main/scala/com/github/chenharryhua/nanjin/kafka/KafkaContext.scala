@@ -27,7 +27,7 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
   override def updateConfig(f: Endo[KafkaSettings]): KafkaContext[F] =
     new KafkaContext[F](f(settings))
 
-  def asKey[K: SerdeOf]: Serde[K]   = SerdeOf[K].asKey(settings.schemaRegistrySettings.config).serde
+  def asKey[K: SerdeOf]: Serde[K] = SerdeOf[K].asKey(settings.schemaRegistrySettings.config).serde
   def asValue[V: SerdeOf]: Serde[V] = SerdeOf[V].asValue(settings.schemaRegistrySettings.config).serde
 
   def asKey[K](avro: AvroCodec[K]): Serde[K] =
@@ -55,7 +55,7 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
    * consumer
    */
 
-  def consumer[K, V](topicDef: TopicDef[K, V])(implicit F: Sync[F]): KafkaConsume[F, K, V] = {
+  def consume[K, V](topicDef: TopicDef[K, V])(implicit F: Sync[F]): KafkaConsume[F, K, V] = {
     val serdePair: KeyValueSerdePair[K, V] =
       topicDef.rawSerdes.register(settings.schemaRegistrySettings, topicDef.topicName)
     new KafkaConsume[F, K, V](
@@ -67,7 +67,7 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
     )
   }
 
-  def consumer(topicName: TopicName)(implicit F: Sync[F]): KafkaByteConsume[F] =
+  def consume(topicName: TopicName)(implicit F: Sync[F]): KafkaByteConsume[F] =
     new KafkaByteConsume[F](
       topicName,
       ConsumerSettings[F, Array[Byte], Array[Byte]](
@@ -77,13 +77,13 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
       settings.schemaRegistrySettings
     )
 
-  def consumer(topicName: TopicNameL)(implicit F: Sync[F]): KafkaByteConsume[F] =
-    consumer(TopicName(topicName))
+  def consume(topicName: TopicNameL)(implicit F: Sync[F]): KafkaByteConsume[F] =
+    consume(TopicName(topicName))
 
   def monitor(topicName: TopicNameL, f: AutoOffsetReset.type => AutoOffsetReset = _.Latest)(implicit
     F: Async[F]): Stream[F, String] =
     Stream.eval(utils.randomUUID[F]).flatMap { uuid =>
-      consumer(TopicName(topicName))
+      consume(TopicName(topicName))
         .updateConfig( // avoid accidentally join an existing consumer-group
           _.withGroupId(uuid.show).withEnableAutoCommit(false).withAutoOffsetReset(f(AutoOffsetReset)))
         .genericRecords
@@ -102,14 +102,14 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
    * producer
    */
 
-  def producer[K: SerdeOf, V: SerdeOf](implicit F: Sync[F]): KafkaProduce[F, K, V] =
+  def produce[K: SerdeOf, V: SerdeOf](implicit F: Sync[F]): KafkaProduce[F, K, V] =
     new KafkaProduce[F, K, V](
       ProducerSettings[F, K, V](
         Serializer.delegate(asKey[K].serializer()),
         Serializer.delegate(asValue[V].serializer())).withProperties(settings.producerSettings.properties)
     )
-  def producer[K, V](raw: RawKeyValueSerdePair[K, V])(implicit F: Sync[F]): KafkaProduce[F, K, V] =
-    producer[K, V](raw.key, raw.value, Sync[F])
+  def produce[K, V](raw: RawKeyValueSerdePair[K, V])(implicit F: Sync[F]): KafkaProduce[F, K, V] =
+    produce[K, V](raw.key, raw.value, Sync[F])
 
   private def bytesProducerSettings(implicit F: Sync[F]): ProducerSettings[F, Array[Byte], Array[Byte]] =
     ProducerSettings[F, Array[Byte], Array[Byte]](Serializer[F, Array[Byte]], Serializer[F, Array[Byte]])
@@ -133,7 +133,7 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
     F: Async[F]): Pipe[F, Chunk[GenericRecord], ProducerResult[Array[Byte], Array[Byte]]] =
     sink(TopicName(topicName), f)
 
-  def jacksonProduce(jackson: String)(implicit F: Async[F]): F[ProducerResult[Array[Byte], Array[Byte]]] =
+  def publishJackson(jackson: String)(implicit F: Async[F]): F[ProducerResult[Array[Byte], Array[Byte]]] =
     for {
       tn <- F.fromEither(parse(jackson).flatMap(_.hcursor.get[String]("topic")))
       topicName <- F.fromEither(TopicName.from(tn))
@@ -147,7 +147,7 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
 
   /** upload records which are downloaded from Confluent Kafka Control Center
     */
-  def confluentProduce(confluent: String)(implicit
+  def publishConfluent(confluent: String)(implicit
     F: Async[F]): F[List[ProducerResult[Array[Byte], Array[Byte]]]] = {
     def sendOne(json: Json): F[ProducerResult[Array[Byte], Array[Byte]]] = for {
       topicName <- F.fromEither(json.hcursor.get[String]("topic").flatMap(TopicName.from))
@@ -206,7 +206,7 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
 
   def cherryPick(topicName: TopicName, partition: Int, offset: Long)(implicit F: Async[F]): F[String] =
     admin(topicName).use(_.retrieveRecord(partition, offset).flatMap {
-      case None => F.raiseError(new Exception("no record"))
+      case None        => F.raiseError(new Exception("no record"))
       case Some(value) =>
         schemaRegistry.fetchAvroSchema(topicName).flatMap { schemaPair =>
           val pgr = new PullGenericRecord(settings.schemaRegistrySettings, topicName, schemaPair)

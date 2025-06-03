@@ -58,7 +58,7 @@ object kafka_connector_s3 {
           .jackson
       ga.facilitate("abc")(logMetrics).use { log =>
         ctx
-          .consumer("any.kafka.topic")
+          .consume("any.kafka.topic")
           .updateConfig(
             _.withGroupId("group.id")
               .withAutoOffsetReset(AutoOffsetReset.Latest)

@@ -40,7 +40,7 @@ class SparKafkaTest extends AnyFunSuite {
       .Stream(ProducerRecords(
         List(ProducerRecord(topic.topicName.value, 1, data), ProducerRecord(topic.topicName.value, 2, data))))
       .covary[IO]
-      .through(ctx.producer[Int, HasDuck].updateConfig(_.withClientId("spark.kafka.test")).sink)
+      .through(ctx.produce[Int, HasDuck].updateConfig(_.withClientId("spark.kafka.test")).sink)
       .compile
       .drain
 
@@ -161,7 +161,7 @@ class SparKafkaTest extends AnyFunSuite {
 
   val duckConsume: KafkaByteConsume[IO] =
     ctx
-      .consumer("duck.test")
+      .consume("duck.test")
       .updateConfig(_.withAutoOffsetReset(AutoOffsetReset.Earliest).withGroupId("duck"))
 
   test("generic record") {

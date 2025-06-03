@@ -65,7 +65,7 @@ class KafkaAvroTest extends AnyFunSuite {
             ProducerRecord(topicCO.topicName.value, 0, co1),
             ProducerRecord(topicCO.topicName.value, 1, co2))))
       .covary[IO]
-      .through(ctx.producer[Int, PersonCaseObject].updateConfig(_.withClientId("kafka.avro.test1")).sink)
+      .through(ctx.produce[Int, PersonCaseObject].updateConfig(_.withClientId("kafka.avro.test1")).sink)
     val path = "./data/test/spark/kafka/coproduct/caseobject.avro"
     val sk   = sparKafka.topic(topicCO.topicDef)
 
@@ -88,7 +88,7 @@ class KafkaAvroTest extends AnyFunSuite {
             ProducerRecord(topicEnum.topicName.value, 0, en1),
             ProducerRecord(topicEnum.topicName.value, 1, en2))))
       .covary[IO]
-      .through(ctx.producer[Int, PersonEnum].updateConfig(_.withClientId("kafka.avro.test2")).sink)
+      .through(ctx.produce[Int, PersonEnum].updateConfig(_.withClientId("kafka.avro.test2")).sink)
     val avroPath    = "./data/test/spark/kafka/coproduct/scalaenum.avro"
     val jacksonPath = "./data/test/spark/kafka/coproduct/scalaenum.jackson.json"
     val circePath   = "./data/test/spark/kafka/coproduct/scalaenum.circe.json"
@@ -122,7 +122,7 @@ class KafkaAvroTest extends AnyFunSuite {
             ProducerRecord(topicEnum.topicName.value, 0, en1),
             ProducerRecord(topicEnum.topicName.value, 1, en2))))
       .covary[IO]
-      .through(ctx.producer[Int, PersonEnum].updateConfig(_.withClientId("kafka.avro.test3")).sink)
+      .through(ctx.produce[Int, PersonEnum].updateConfig(_.withClientId("kafka.avro.test3")).sink)
 
     val path = "./data/test/spark/kafka/coproduct/multi-scalaenum.avro"
     val sk   = sparKafka.topic(topicEnum.topicDef)
@@ -146,7 +146,7 @@ class KafkaAvroTest extends AnyFunSuite {
             ProducerRecord(topicEnum.topicName.value, 0, en1),
             ProducerRecord(topicEnum.topicName.value, 1, en2))))
       .covary[IO]
-      .through(ctx.producer[Int, PersonEnum].updateConfig(_.withClientId("kafka.avro.test4")).sink)
+      .through(ctx.produce[Int, PersonEnum].updateConfig(_.withClientId("kafka.avro.test4")).sink)
 
     val path = "./data/test/spark/kafka/coproduct/multi-scalaenum.snappy.avro"
     val sk   = sparKafka.topic(topicEnum.topicDef)
@@ -169,7 +169,7 @@ class KafkaAvroTest extends AnyFunSuite {
             ProducerRecord(topicEnum.topicName.value, 0, en1),
             ProducerRecord(topicEnum.topicName.value, 1, en2))))
       .covary[IO]
-      .through(ctx.producer[Int, PersonEnum].updateConfig(_.withClientId("kafka.avro.test5")).sink)
+      .through(ctx.produce[Int, PersonEnum].updateConfig(_.withClientId("kafka.avro.test5")).sink)
     val path = "./data/test/spark/kafka/coproduct/scalaenum.avro.bzip2"
     val sk   = sparKafka.topic(topicEnum.topicDef)
 

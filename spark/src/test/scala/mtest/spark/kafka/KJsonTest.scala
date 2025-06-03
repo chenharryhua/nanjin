@@ -33,7 +33,7 @@ class KJsonTest extends AnyFunSuite {
       .stream[IO](1)
       .map(_.toProducerRecord)
       .chunks
-      .through(ctx.producer[KJson[Json], KJson[Json]].sink)
+      .through(ctx.produce[KJson[Json], KJson[Json]].sink)
       .compile
       .drain
       .unsafeRunSync()

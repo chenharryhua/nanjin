@@ -42,7 +42,7 @@ class InteractiveTest extends AnyFunSuite {
     val pr: ProducerRecords[Int, String] = ProducerRecords.one(
       ProducerRecord(topic.topicName.value, Random.nextInt(3), s"a${Random.nextInt(1000)}"))
     val feedData: Stream[IO, ProducerResult[Int, String]] =
-      ctx.producer[Int, String].stream.evalMap(_.produce(pr).flatten)
+      ctx.produce[Int, String].stream.evalMap(_.produce(pr).flatten)
 
     val res: Stream[IO, List[KeyValue[Int, String]]] =
       for {
