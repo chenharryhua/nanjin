@@ -12,7 +12,7 @@ import org.scalatest.funsuite.AnyFunSuite
 object StatisticsTestData {
 
   val dt: NJTimestamp = NJTimestamp("2012-10-26T18:00:00Z")
-  val unit: Long      = 1000 * 3600 * 24 // a day
+  val unit: Long = 1000 * 3600 * 24 // a day
 
   val list = List(
     CRMetaInfo("topic", 0, 0, dt.plus(unit * 1).milliseconds, 0, None, None),

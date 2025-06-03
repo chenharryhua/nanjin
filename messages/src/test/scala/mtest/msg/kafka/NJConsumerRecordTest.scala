@@ -29,7 +29,7 @@ object NJConsumerRecordTestData {
   } yield NJProducerRecord("topic", partition, None, timestamp, k, v, Nil)
 
   implicit val arbPR: Arbitrary[NJProducerRecord[Int, Int]] = Arbitrary(genPR)
-  implicit val arbO: Arbitrary[NJConsumerRecord[Int, Int]]  = Arbitrary(okv)
+  implicit val arbO: Arbitrary[NJConsumerRecord[Int, Int]] = Arbitrary(okv)
 }
 
 class NJConsumerRecordTest extends CatsSuite with FunSuiteDiscipline {

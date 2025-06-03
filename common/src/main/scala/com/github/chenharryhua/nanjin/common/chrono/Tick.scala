@@ -26,9 +26,9 @@ final case class Tick(
   val wakeup: Instant = acquire.plus(snooze)
 
   def zonedLaunchTime: ZonedDateTime = launchTime.atZone(zoneId)
-  def zonedWakeup: ZonedDateTime     = wakeup.atZone(zoneId)
-  def zonedAcquire: ZonedDateTime    = acquire.atZone(zoneId)
-  def zonedPrevious: ZonedDateTime   = previous.atZone(zoneId)
+  def zonedWakeup: ZonedDateTime = wakeup.atZone(zoneId)
+  def zonedAcquire: ZonedDateTime = acquire.atZone(zoneId)
+  def zonedPrevious: ZonedDateTime = previous.atZone(zoneId)
 
   // interval = active  +  snooze
 
@@ -54,7 +54,7 @@ final case class Tick(
     val wak = zonedWakeup.toLocalDateTime.show
     val acq = zonedAcquire.toLocalDateTime.show
     val snz = snooze.show
-    val id  = show"$sequenceId".take(5)
+    val id = show"$sequenceId".take(5)
     f"id=$id, idx=$index%04d, acq=$acq, wak=$wak, snz=$snz"
   }
 }

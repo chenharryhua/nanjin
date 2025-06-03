@@ -19,8 +19,8 @@ class CoproductJsonTest extends AnyFunSuite {
   import CoproductJsons.*
   val foo: Foo = Foo(1, "foo-1")
   val bar: Bar = Bar(2, "bar-2")
-  val fb1: FB  = FB(Coproduct[FooBar](foo), 0)
-  val fb2: FB  = FB(Coproduct[FooBar](bar), 1)
+  val fb1: FB = FB(Coproduct[FooBar](foo), 0)
+  val fb2: FB = FB(Coproduct[FooBar](bar), 1)
 
   test("circe json coproduct is not invertible") {
     assert(decode[FB](fb1.asJson.noSpaces).toOption.get === fb1)

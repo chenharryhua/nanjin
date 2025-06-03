@@ -25,13 +25,13 @@ final class Hadoop[F[_]] private (config: Configuration) {
   // disk operations
 
   def delete(path: Url)(implicit F: Sync[F]): F[Boolean] = F.blocking {
-    val hp: Path       = toHadoopPath(path)
+    val hp: Path = toHadoopPath(path)
     val fs: FileSystem = hp.getFileSystem(config)
     fs.delete(hp, true)
   }
 
   def isExist(path: Url)(implicit F: Sync[F]): F[Boolean] = F.blocking {
-    val hp: Path       = toHadoopPath(path)
+    val hp: Path = toHadoopPath(path)
     val fs: FileSystem = hp.getFileSystem(config)
     fs.exists(hp)
   }
@@ -40,10 +40,10 @@ final class Hadoop[F[_]] private (config: Configuration) {
     * @return
     */
   def locatedFileStatus(path: Url)(implicit F: Sync[F]): F[List[LocatedFileStatus]] = F.blocking {
-    val hp: Path                              = toHadoopPath(path)
-    val fs: FileSystem                        = hp.getFileSystem(config)
+    val hp: Path = toHadoopPath(path)
+    val fs: FileSystem = hp.getFileSystem(config)
     val ri: RemoteIterator[LocatedFileStatus] = fs.listFiles(hp, true)
-    val lb: ListBuffer[LocatedFileStatus]     = ListBuffer.empty[LocatedFileStatus]
+    val lb: ListBuffer[LocatedFileStatus] = ListBuffer.empty[LocatedFileStatus]
     while (ri.hasNext) lb.addOne(ri.next())
     lb.toList
   }
@@ -54,10 +54,10 @@ final class Hadoop[F[_]] private (config: Configuration) {
     * @return
     */
   def dataFolders(path: Url)(implicit F: Sync[F]): F[List[Url]] = F.blocking {
-    val hp: Path                              = toHadoopPath(path)
-    val fs: FileSystem                        = hp.getFileSystem(config)
+    val hp: Path = toHadoopPath(path)
+    val fs: FileSystem = hp.getFileSystem(config)
     val ri: RemoteIterator[LocatedFileStatus] = fs.listFiles(hp, true)
-    val lb: mutable.Set[Path]                 = collection.mutable.Set.empty
+    val lb: mutable.Set[Path] = collection.mutable.Set.empty
     while (ri.hasNext) lb.addOne(ri.next().getPath.getParent)
     lb.toList.map(p => Uri(p.toUri).toUrl)
   }
@@ -68,8 +68,8 @@ final class Hadoop[F[_]] private (config: Configuration) {
     * @return
     */
   def filesIn(path: Url, filter: PathFilter)(implicit F: Sync[F]): F[List[Url]] = F.blocking {
-    val hp: Path         = toHadoopPath(path)
-    val fs: FileSystem   = hp.getFileSystem(config)
+    val hp: Path = toHadoopPath(path)
+    val fs: FileSystem = hp.getFileSystem(config)
     val stat: FileStatus = fs.getFileStatus(hp)
     if (stat.isFile)
       List(Uri(stat.getPath.toUri).toUrl)
@@ -93,7 +93,7 @@ final class Hadoop[F[_]] private (config: Configuration) {
   def best[T](path: Url, rules: NonEmptyList[String => Option[T]])(implicit
     F: Sync[F],
     Ord: Ordering[T]): F[Option[Url]] = F.blocking {
-    val hp: Path       = toHadoopPath(path)
+    val hp: Path = toHadoopPath(path)
     val fs: FileSystem = hp.getFileSystem(config)
     @tailrec
     def go(hp: Path, js: List[String => Option[T]]): Option[Path] =

@@ -99,7 +99,7 @@ class ConcurrencyTest extends AnyFunSuite {
 
   test("csv") {
     val root = "./data/test/spark/persist/interlope/csv/rooster/"
-    val cfg  = CsvConfiguration.rfc
+    val cfg = CsvConfiguration.rfc
     val run = for {
       d <- rooster.kantan(root / "bzip2", cfg).withCompression(_.Bzip2).run[IO].start
       b <- rooster.kantan(root / "deflate", cfg).withCompression(_.Deflate(1)).run[IO].start
@@ -166,7 +166,7 @@ class ConcurrencyTest extends AnyFunSuite {
 
   test("mix multi") {
     val root = "./data/test/spark/persist/interlope/mix-multi/"
-    val cfg  = CsvConfiguration.rfc
+    val cfg = CsvConfiguration.rfc
     val run = for {
       a <- rooster.avro(root / "avro1").withCompression(_.Bzip2).run[IO].start
       b <- rooster.avro(root / "avro2").withCompression(_.Deflate(1)).run[IO].start

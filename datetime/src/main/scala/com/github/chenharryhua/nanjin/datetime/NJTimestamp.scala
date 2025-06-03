@@ -11,9 +11,9 @@ import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.{Duration, FiniteDuration}
 
 final case class NJTimestamp(milliseconds: Long) extends AnyVal {
-  def timeUnit: TimeUnit      = TimeUnit.MILLISECONDS
-  def instant: Instant        = Instant.ofEpochMilli(milliseconds)
-  def utc: ZonedDateTime      = instant.atZone(utcTime)
+  def timeUnit: TimeUnit = TimeUnit.MILLISECONDS
+  def instant: Instant = Instant.ofEpochMilli(milliseconds)
+  def utc: ZonedDateTime = instant.atZone(utcTime)
   def sqlTimestamp: Timestamp = new Timestamp(milliseconds)
 
   def atZone(zoneId: ZoneId): ZonedDateTime = instant.atZone(zoneId)
@@ -41,7 +41,7 @@ final case class NJTimestamp(milliseconds: Long) extends AnyVal {
     NJTimestamp(instant.plus(amount, unit))
 
   def minus(amount: Long): NJTimestamp = minus(amount, ChronoUnit.MILLIS)
-  def plus(amount: Long): NJTimestamp  = plus(amount, ChronoUnit.MILLIS)
+  def plus(amount: Long): NJTimestamp = plus(amount, ChronoUnit.MILLIS)
 
   def minus(other: NJTimestamp): FiniteDuration =
     Duration(this.milliseconds - other.milliseconds, timeUnit)
@@ -52,9 +52,9 @@ final case class NJTimestamp(milliseconds: Long) extends AnyVal {
 }
 
 object NJTimestamp {
-  def apply(ts: Timestamp): NJTimestamp       = NJTimestamp(ts.getTime)
-  def apply(ins: Instant): NJTimestamp        = NJTimestamp(ins.toEpochMilli)
-  def apply(zdt: ZonedDateTime): NJTimestamp  = apply(zdt.toInstant)
+  def apply(ts: Timestamp): NJTimestamp = NJTimestamp(ts.getTime)
+  def apply(ins: Instant): NJTimestamp = NJTimestamp(ins.toEpochMilli)
+  def apply(zdt: ZonedDateTime): NJTimestamp = apply(zdt.toInstant)
   def apply(odt: OffsetDateTime): NJTimestamp = apply(odt.toInstant)
 
   def apply(ldt: LocalDateTime, zoneId: ZoneId): NJTimestamp =
@@ -93,7 +93,7 @@ object NJTimestamp {
   }
 
   def now(clock: Clock): NJTimestamp = NJTimestamp(Instant.now(clock))
-  def now(): NJTimestamp             = NJTimestamp(Instant.now)
+  def now(): NJTimestamp = NJTimestamp(Instant.now)
 
   implicit final val njTimestampInstance: Hash[NJTimestamp] & Order[NJTimestamp] & Show[NJTimestamp] =
     new Hash[NJTimestamp] with Order[NJTimestamp] with Show[NJTimestamp] {

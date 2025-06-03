@@ -14,10 +14,10 @@ object TestData {
   object Tiger {
     implicit val re: RowEncoder[Tiger] = shapeless.cachedImplicit
     implicit val rd: RowDecoder[Tiger] = shapeless.cachedImplicit
-    val avroEncoder: Encoder[Tiger]    = Encoder[Tiger]
-    val avroDecoder: Decoder[Tiger]    = Decoder[Tiger]
-    val from: FromRecord[Tiger]        = FromRecord[Tiger]
-    val to: ToRecord[Tiger]            = ToRecord[Tiger]
+    val avroEncoder: Encoder[Tiger] = Encoder[Tiger]
+    val avroDecoder: Decoder[Tiger] = Decoder[Tiger]
+    val from: FromRecord[Tiger] = FromRecord[Tiger]
+    val to: ToRecord[Tiger] = ToRecord[Tiger]
   }
 
   val tigers: List[Tiger] =

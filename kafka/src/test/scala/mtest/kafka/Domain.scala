@@ -64,7 +64,7 @@ case class trip_record(
 
 object Materials extends Enumeration {
   type Materials = Value
-  val Wood, Steel, Stone         = Value
+  val Wood, Steel, Stone = Value
   implicit val show: Show[Value] = _.toString
 }
 

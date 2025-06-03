@@ -42,7 +42,7 @@ object traceServer {
       }.toMap
 
       val kernel = Kernel(kernelHeaders)
-      val spanR  = entryPoint.flatMap(_.continueOrElseRoot(req.uri.path.toString, kernel))
+      val spanR = entryPoint.flatMap(_.continueOrElseRoot(req.uri.path.toString, kernel))
 
       val response: F[Option[Response[F]]] = spanR.use { span =>
         val addRequestFields: F[Unit] =

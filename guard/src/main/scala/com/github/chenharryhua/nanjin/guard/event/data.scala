@@ -42,10 +42,10 @@ object ServiceStopCause {
   case object ByCancellation extends ServiceStopCause(2)
   final case class ByException(error: Error) extends ServiceStopCause(3)
 
-  private val SUCCESSFULLY: String    = "Successfully"
+  private val SUCCESSFULLY: String = "Successfully"
   private val BY_CANCELLATION: String = "ByCancellation"
-  private val MAINTENANCE: String     = "Maintenance"
-  private val BY_EXCEPTION: String    = "ByException"
+  private val MAINTENANCE: String = "Maintenance"
+  private val BY_EXCEPTION: String = "ByException"
 
   implicit val encoderServiceStopCause: Encoder[ServiceStopCause] = Encoder.instance {
     case Successfully       => Json.fromString(SUCCESSFULLY)

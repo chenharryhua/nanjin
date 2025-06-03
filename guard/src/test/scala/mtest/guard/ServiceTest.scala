@@ -68,9 +68,9 @@ class ServiceTest extends AnyFunSuite {
 
   test("4.policy start over") {
 
-    val p1     = Policy.fixedDelay(1.seconds).limited(1)
-    val p2     = Policy.fixedDelay(2.seconds).limited(1)
-    val p3     = Policy.fixedDelay(3.seconds).limited(1)
+    val p1 = Policy.fixedDelay(1.seconds).limited(1)
+    val p2 = Policy.fixedDelay(2.seconds).limited(1)
+    val p3 = Policy.fixedDelay(3.seconds).limited(1)
     val policy = p1.followedBy(p2).followedBy(p3).repeat
     println(policy.show)
     val List(a, b, c, d, e, f, g, h) = guard
@@ -173,7 +173,7 @@ class ServiceTest extends AnyFunSuite {
       .service("simple")
       .updateConfig(_.withRestartPolicy(Policy.giveUp))
       .eventStream { _ =>
-        val c        = true
+        val c = true
         val err: Int = if (c) throw new Exception else 1
         IO.println(err)
       }

@@ -8,9 +8,9 @@ import org.scalatest.funsuite.AnyFunSuite
 import java.time.{LocalDate, Period}
 
 class PeriodParserTest extends AnyFunSuite {
-  val p7y: Validated[NonEmptyList[String], Period]     = Valid(Period.parse("P7Y"))
-  val p7y3d: Validated[NonEmptyList[String], Period]   = Valid(Period.parse("P7Y3D"))
-  val p5m: Validated[NonEmptyList[String], Period]     = Valid(Period.parse("P5M"))
+  val p7y: Validated[NonEmptyList[String], Period] = Valid(Period.parse("P7Y"))
+  val p7y3d: Validated[NonEmptyList[String], Period] = Valid(Period.parse("P7Y3D"))
+  val p5m: Validated[NonEmptyList[String], Period] = Valid(Period.parse("P5M"))
   val p7y5m3d: Validated[NonEmptyList[String], Period] = Valid(Period.parse("P7Y5M3D"))
 
   test("should return valid period") {

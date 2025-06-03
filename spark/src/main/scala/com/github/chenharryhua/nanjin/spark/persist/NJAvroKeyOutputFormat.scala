@@ -33,22 +33,22 @@ final private class NJAvroKeyOutputFormat extends AvroOutputFormatBase[AvroKey[G
 
   override def getRecordWriter(
     job: TaskAttemptContext): RecordWriter[AvroKey[GenericRecord], NullWritable] = {
-    val schema: Schema        = AvroJob.getOutputKeySchema(job.getConfiguration)
-    val conf: Configuration   = job.getConfiguration
+    val schema: Schema = AvroJob.getOutputKeySchema(job.getConfiguration)
+    val conf: Configuration = job.getConfiguration
     val isCompressed: Boolean = getCompressOutput(job)
-    val syncInterval: Int     = getSyncInterval(job)
+    val syncInterval: Int = getSyncInterval(job)
     if (isCompressed) {
       val cf: CodecFactory = getCompressionCodec(job)
-      val suffix: String   = s"-${utils.uuidStr(job)}.${cf.toString.toLowerCase}.${FileFormat.Avro.suffix}"
-      val file: Path       = getDefaultWorkFile(job, suffix)
-      val fs: FileSystem   = file.getFileSystem(conf)
+      val suffix: String = s"-${utils.uuidStr(job)}.${cf.toString.toLowerCase}.${FileFormat.Avro.suffix}"
+      val file: Path = getDefaultWorkFile(job, suffix)
+      val fs: FileSystem = file.getFileSystem(conf)
       val fileOut: FSDataOutputStream = fs.create(file, false)
-      val out: DataOutputStream       = new DataOutputStream(fileOut)
+      val out: DataOutputStream = new DataOutputStream(fileOut)
       new AvroKeyRecordWriter(schema, out, cf, syncInterval)
     } else {
-      val suffix: String          = s"-${utils.uuidStr(job)}.${FileFormat.Avro.suffix}"
-      val file: Path              = getDefaultWorkFile(job, suffix)
-      val fs: FileSystem          = file.getFileSystem(conf)
+      val suffix: String = s"-${utils.uuidStr(job)}.${FileFormat.Avro.suffix}"
+      val file: Path = getDefaultWorkFile(job, suffix)
+      val fs: FileSystem = file.getFileSystem(conf)
       val out: FSDataOutputStream = fs.create(file, false)
       new AvroKeyRecordWriter(schema, out, CodecFactory.nullCodec(), syncInterval)
     }

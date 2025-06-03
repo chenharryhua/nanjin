@@ -24,8 +24,8 @@ import scala.util.{Failure, Try}
   *   schema related type
   */
 final class KafkaSerde[A](val topicName: TopicName, registered: RegisteredSerde[A]) extends Serializable {
-  val serde: Serde[A]                 = registered.serde
-  def serialize(a: A): Array[Byte]    = serde.serializer.serialize(topicName.value, a)
+  val serde: Serde[A] = registered.serde
+  def serialize(a: A): Array[Byte] = serde.serializer.serialize(topicName.value, a)
   def deserialize(ab: Array[Byte]): A = serde.deserializer.deserialize(topicName.value, ab)
 
   def tryDeserialize(ab: Array[Byte]): Try[A] =
@@ -81,7 +81,7 @@ object SerdeOf extends LowerPriority {
           @SuppressWarnings(Array("AsInstanceOf"))
           override def serialize(topic: String, data: A): Array[Byte] =
             Option(data) match {
-              case None => null.asInstanceOf[Array[Byte]]
+              case None        => null.asInstanceOf[Array[Byte]]
               case Some(value) =>
                 avroCodec.encode(value) match {
                   case gr: GenericRecord => ser.serialize(topic, gr)
@@ -248,7 +248,7 @@ object SerdeOf extends LowerPriority {
     override val serializer: Serializer[Short] =
       new Serializer[Short] with Serializable {
         private val delegate: Serializer[Short] = Serdes.shortSerde.serializer()
-        override def close(): Unit              = delegate.close()
+        override def close(): Unit = delegate.close()
 
         override def configure(configs: util.Map[String, ?], isKey: Boolean): Unit =
           delegate.configure(configs, isKey)
@@ -260,7 +260,7 @@ object SerdeOf extends LowerPriority {
     override val deserializer: Deserializer[Short] =
       new Deserializer[Short] with Serializable {
         private val delegate: Deserializer[Short] = Serdes.shortSerde.deserializer()
-        override def close(): Unit                = delegate.close()
+        override def close(): Unit = delegate.close()
 
         override def configure(configs: util.Map[String, ?], isKey: Boolean): Unit =
           delegate.configure(configs, isKey)
@@ -342,7 +342,7 @@ object SerdeOf extends LowerPriority {
     override val serializer: Serializer[Int] =
       new Serializer[Int] with Serializable {
         private val delegate: Serializer[Int] = Serdes.intSerde.serializer()
-        override def close(): Unit            = delegate.close()
+        override def close(): Unit = delegate.close()
 
         override def configure(configs: util.Map[String, ?], isKey: Boolean): Unit =
           delegate.configure(configs, isKey)
@@ -354,7 +354,7 @@ object SerdeOf extends LowerPriority {
     override val deserializer: Deserializer[Int] =
       new Deserializer[Int] with Serializable {
         private val delegate: Deserializer[Int] = Serdes.intSerde.deserializer()
-        override def close(): Unit              = delegate.close()
+        override def close(): Unit = delegate.close()
 
         override def configure(configs: util.Map[String, ?], isKey: Boolean): Unit =
           delegate.configure(configs, isKey)
@@ -372,7 +372,7 @@ object SerdeOf extends LowerPriority {
     override val serializer: Serializer[UUID] =
       new Serializer[UUID] with Serializable {
         private val delegate: Serializer[UUID] = Serdes.uuidSerde.serializer()
-        override def close(): Unit             = delegate.close()
+        override def close(): Unit = delegate.close()
 
         override def configure(configs: util.Map[String, ?], isKey: Boolean): Unit =
           delegate.configure(configs, isKey)
@@ -384,7 +384,7 @@ object SerdeOf extends LowerPriority {
     override val deserializer: Deserializer[UUID] =
       new Deserializer[UUID] with Serializable {
         private val delegate: Deserializer[UUID] = Serdes.uuidSerde.deserializer()
-        override def close(): Unit               = delegate.close()
+        override def close(): Unit = delegate.close()
 
         override def configure(configs: util.Map[String, ?], isKey: Boolean): Unit =
           delegate.configure(configs, isKey)

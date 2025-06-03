@@ -14,7 +14,7 @@ final class SaveAvro[A](rdd: RDD[A], encoder: AvroEncoder[A], cfg: HoarderConfig
 
   val params: HoarderParams = cfg.evalConfig
 
-  def withSaveMode(sm: SaveMode): SaveAvro[A]                      = updateConfig(cfg.saveMode(sm))
+  def withSaveMode(sm: SaveMode): SaveAvro[A] = updateConfig(cfg.saveMode(sm))
   def withSaveMode(f: SparkSaveMode.type => SaveMode): SaveAvro[A] = withSaveMode(f(SparkSaveMode))
 
   def withCompression(ac: AvroCompression): SaveAvro[A] = updateConfig(cfg.outputCompression(ac))

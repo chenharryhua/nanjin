@@ -10,7 +10,7 @@ import scala.concurrent.duration.*
 
 class NJLocalTimeTest extends AnyFunSuite {
   test("local time distance") {
-    val base       = LocalTime.of(18, 0)
+    val base = LocalTime.of(18, 0)
     val localTime1 = LocalTime.of(19, 0)
     val localTime2 = LocalTime.of(17, 0)
     val localTime3 = LocalTime.of(18, 0)
@@ -22,8 +22,8 @@ class NJLocalTimeTest extends AnyFunSuite {
   }
   test("local time range - do not cross midnight") {
     val ltr = LocalTimeRange(LocalTime.of(8, 0), FiniteDuration(8, TimeUnit.HOURS), sydneyTime)
-    val d1  = LocalDateTime.of(2012, 10, 22, 8, 0, 0).atZone(sydneyTime).toInstant
-    val d2  = LocalDateTime.of(2015, 7, 25, 16, 0, 0).atZone(sydneyTime).toInstant
+    val d1 = LocalDateTime.of(2012, 10, 22, 8, 0, 0).atZone(sydneyTime).toInstant
+    val d2 = LocalDateTime.of(2015, 7, 25, 16, 0, 0).atZone(sydneyTime).toInstant
     assert(ltr.inBetween(d1))
     assert(!ltr.inBetween(d2))
 
@@ -36,8 +36,8 @@ class NJLocalTimeTest extends AnyFunSuite {
   }
   test("local time range - cross midnight") {
     val ltr = LocalTimeRange(LocalTime.of(22, 0), FiniteDuration(8, TimeUnit.HOURS), sydneyTime)
-    val d1  = LocalDateTime.of(2012, 1, 1, 22, 0, 0).atZone(sydneyTime).toInstant
-    val d2  = LocalDateTime.of(2013, 2, 2, 6, 0, 0).atZone(sydneyTime).toInstant
+    val d1 = LocalDateTime.of(2012, 1, 1, 22, 0, 0).atZone(sydneyTime).toInstant
+    val d2 = LocalDateTime.of(2013, 2, 2, 6, 0, 0).atZone(sydneyTime).toInstant
     assert(ltr.inBetween(d1))
     assert(!ltr.inBetween(d2))
 
@@ -52,8 +52,8 @@ class NJLocalTimeTest extends AnyFunSuite {
   }
   test("local time range - start time match") {
     val ltr = LocalTimeRange(LocalTime.of(22, 0), FiniteDuration(2, TimeUnit.HOURS), sydneyTime)
-    val d1  = LocalDateTime.of(2012, 1, 1, 22, 0, 0).atZone(sydneyTime).toInstant
-    val d2  = LocalDateTime.of(2013, 2, 2, 0, 0, 0).atZone(sydneyTime).toInstant
+    val d1 = LocalDateTime.of(2012, 1, 1, 22, 0, 0).atZone(sydneyTime).toInstant
+    val d2 = LocalDateTime.of(2013, 2, 2, 0, 0, 0).atZone(sydneyTime).toInstant
     assert(ltr.inBetween(d1))
     assert(!ltr.inBetween(d2))
 
@@ -65,13 +65,13 @@ class NJLocalTimeTest extends AnyFunSuite {
 
   test("duration <= 0") {
     val ltr = LocalTimeRange(LocalTime.of(22, 0), FiniteDuration(-2, TimeUnit.HOURS), sydneyTime)
-    val d1  = LocalDateTime.of(2012, 1, 1, 21, 0, 0).atZone(sydneyTime).toInstant
+    val d1 = LocalDateTime.of(2012, 1, 1, 21, 0, 0).atZone(sydneyTime).toInstant
     assert(!ltr.inBetween(d1))
   }
 
   test("duration >= 24 hours") {
     val ltr = LocalTimeRange(LocalTime.of(22, 0), FiniteDuration(24, TimeUnit.HOURS), sydneyTime)
-    val d1  = LocalDateTime.of(2012, 1, 1, 22, 0, 0).atZone(sydneyTime).toInstant
+    val d1 = LocalDateTime.of(2012, 1, 1, 22, 0, 0).atZone(sydneyTime).toInstant
     assert(ltr.inBetween(d1))
   }
 }

@@ -30,20 +30,20 @@ final case class NJProducerRecord[K, V](
   value: Option[V],
   headers: List[NJHeader]) {
 
-  def withTopicName(name: TopicName): NJProducerRecord[K, V]       = copy(topic = name.value)
-  def withPartition(pt: Int): NJProducerRecord[K, V]               = copy(partition = Some(pt))
-  def withTimestamp(ts: Long): NJProducerRecord[K, V]              = copy(timestamp = Some(ts))
-  def withKey(k: K): NJProducerRecord[K, V]                        = copy(key = Some(k))
-  def withValue(v: V): NJProducerRecord[K, V]                      = copy(value = Some(v))
+  def withTopicName(name: TopicName): NJProducerRecord[K, V] = copy(topic = name.value)
+  def withPartition(pt: Int): NJProducerRecord[K, V] = copy(partition = Some(pt))
+  def withTimestamp(ts: Long): NJProducerRecord[K, V] = copy(timestamp = Some(ts))
+  def withKey(k: K): NJProducerRecord[K, V] = copy(key = Some(k))
+  def withValue(v: V): NJProducerRecord[K, V] = copy(value = Some(v))
   def withHeaders(headers: List[NJHeader]): NJProducerRecord[K, V] = copy(headers = headers)
 
   def noPartition: NJProducerRecord[K, V] = copy(partition = None)
   def noTimestamp: NJProducerRecord[K, V] = copy(timestamp = None)
-  def noHeaders: NJProducerRecord[K, V]   = copy(headers = Nil)
+  def noHeaders: NJProducerRecord[K, V] = copy(headers = Nil)
 
   def noMeta: NJProducerRecord[K, V] = copy(partition = None, timestamp = None, headers = Nil)
 
-  def toProducerRecord: ProducerRecord[K, V]         = this.transformInto[ProducerRecord[K, V]]
+  def toProducerRecord: ProducerRecord[K, V] = this.transformInto[ProducerRecord[K, V]]
   def toJavaProducerRecord: JavaProducerRecord[K, V] = this.transformInto[JavaProducerRecord[K, V]]
 }
 
@@ -59,15 +59,15 @@ object NJProducerRecord {
     NJProducerRecord(topicName.value, None, None, None, Option(k), Option(v), Nil)
 
   def avroCodec[K, V](keyCodec: AvroCodec[K], valCodec: AvroCodec[V]): AvroCodec[NJProducerRecord[K, V]] = {
-    implicit val schemaForKey: SchemaFor[K]  = keyCodec.schemaFor
-    implicit val schemaForVal: SchemaFor[V]  = valCodec.schemaFor
-    implicit val keyDecoder: Decoder[K]      = keyCodec
-    implicit val valDecoder: Decoder[V]      = valCodec
-    implicit val keyEncoder: Encoder[K]      = keyCodec
-    implicit val valEncoder: Encoder[V]      = valCodec
+    implicit val schemaForKey: SchemaFor[K] = keyCodec.schemaFor
+    implicit val schemaForVal: SchemaFor[V] = valCodec.schemaFor
+    implicit val keyDecoder: Decoder[K] = keyCodec
+    implicit val valDecoder: Decoder[V] = valCodec
+    implicit val keyEncoder: Encoder[K] = keyCodec
+    implicit val valEncoder: Encoder[V] = valCodec
     val s: SchemaFor[NJProducerRecord[K, V]] = cachedImplicit
-    val d: Decoder[NJProducerRecord[K, V]]   = cachedImplicit
-    val e: Encoder[NJProducerRecord[K, V]]   = cachedImplicit
+    val d: Decoder[NJProducerRecord[K, V]] = cachedImplicit
+    val e: Encoder[NJProducerRecord[K, V]] = cachedImplicit
     AvroCodec[NJProducerRecord[K, V]](s, d.withSchema(s), e.withSchema(s))
   }
 
@@ -75,12 +75,12 @@ object NJProducerRecord {
     class KEY
     class VAL
     implicit val schemaForKey: SchemaFor[KEY] = new SchemaFor[KEY] {
-      override def schema: Schema           = keySchema
+      override def schema: Schema = keySchema
       override def fieldMapper: FieldMapper = DefaultFieldMapper
     }
 
     implicit val schemaForVal: SchemaFor[VAL] = new SchemaFor[VAL] {
-      override def schema: Schema           = valSchema
+      override def schema: Schema = valSchema
       override def fieldMapper: FieldMapper = DefaultFieldMapper
     }
     SchemaFor[NJProducerRecord[KEY, VAL]].schema

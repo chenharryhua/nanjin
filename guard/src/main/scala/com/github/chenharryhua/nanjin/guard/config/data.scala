@@ -21,28 +21,28 @@ object AlarmLevel
 
 final case class TaskName(value: String) extends AnyVal
 object TaskName {
-  implicit val showTaskName: Show[TaskName]       = _.value
+  implicit val showTaskName: Show[TaskName] = _.value
   implicit val encoderTaskName: Encoder[TaskName] = Encoder.encodeString.contramap(_.value)
   implicit val decoderTaskName: Decoder[TaskName] = Decoder.decodeString.map(TaskName(_))
 }
 
 final case class ServiceName(value: String) extends AnyVal
 object ServiceName {
-  implicit val showServiceName: Show[ServiceName]       = _.value
+  implicit val showServiceName: Show[ServiceName] = _.value
   implicit val encoderServiceName: Encoder[ServiceName] = Encoder.encodeString.contramap(_.value)
   implicit val decoderServiceName: Decoder[ServiceName] = Decoder.decodeString.map(ServiceName(_))
 }
 
 final case class HomePage(value: String) extends AnyVal
 object HomePage {
-  implicit val showHomePage: Show[HomePage]       = _.value
+  implicit val showHomePage: Show[HomePage] = _.value
   implicit val encoderHomePage: Encoder[HomePage] = Encoder.encodeString.contramap(_.value)
   implicit val decoderHomePage: Decoder[HomePage] = Decoder.decodeString.map(HomePage(_))
 }
 
 final case class Domain(value: String) extends AnyVal
 object Domain {
-  implicit val showDomain: Show[Domain]       = _.value
+  implicit val showDomain: Show[Domain] = _.value
   implicit val encoderDomain: Encoder[Domain] = Encoder.encodeString.contramap(_.value)
   implicit val decoderDomain: Decoder[Domain] = Decoder.decodeString.map(Domain(_))
 }

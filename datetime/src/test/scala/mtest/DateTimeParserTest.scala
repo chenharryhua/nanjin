@@ -9,7 +9,7 @@ import java.time.{LocalDate, LocalTime, ZoneId, ZonedDateTime}
 
 class DateTimeParserTest extends AnyFunSuite {
 
-  val zoneId: ZoneId       = sydneyTime
+  val zoneId: ZoneId = sydneyTime
   val range: DateTimeRange = DateTimeRange(sydneyTime)
   test("Local Date") {
     assert(

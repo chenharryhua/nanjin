@@ -39,7 +39,7 @@ class KafkaRecordProp extends Properties("KafkaRecordProp") {
   }
 
   property("nj.consumer.record.conversion") = forAll { (op: NJConsumerRecord[Int, Int]) =>
-    val cr  = op.toConsumerRecord
+    val cr = op.toConsumerRecord
     val jcr = op.toJavaConsumerRecord
     NJConsumerRecord(cr) === op && NJConsumerRecord(jcr) === op
   }

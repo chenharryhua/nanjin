@@ -23,11 +23,11 @@ object Retry {
         F.handleErrorWith(fa.map[Either[TickStatus, A]](Right(_))) { ex =>
           F.flatMap[Boolean, Either[TickStatus, A]](worthy(TickedValue(status.tick, ex))) {
             case false => F.raiseError(ex)
-            case true =>
+            case true  =>
               for {
                 next <- F.realTimeInstant.map(status.next)
                 ns <- next match {
-                  case None => F.raiseError(ex) // run out of policy
+                  case None     => F.raiseError(ex) // run out of policy
                   case Some(ts) => // sleep and continue
                     F.sleep(ts.tick.snooze.toScala).as(Left(ts))
                 }

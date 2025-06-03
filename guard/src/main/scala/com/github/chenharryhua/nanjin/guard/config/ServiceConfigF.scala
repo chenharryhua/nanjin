@@ -57,7 +57,7 @@ final case class ServiceParams(
   nanjin: Option[Json],
   brief: Json
 ) {
-  val zoneId: ZoneId  = zerothTick.zoneId
+  val zoneId: ZoneId = zerothTick.zoneId
   val serviceId: UUID = zerothTick.sequenceId
 
   def toZonedDateTime(ts: Instant): ZonedDateTime = ts.atZone(zoneId)
@@ -65,7 +65,7 @@ final case class ServiceParams(
     Instant.EPOCH.plusNanos(fd.toNanos).atZone(zoneId)
 
   def upTime(ts: ZonedDateTime): Duration = Duration.between(zerothTick.zonedLaunchTime, ts)
-  def upTime(ts: Instant): Duration       = Duration.between(zerothTick.launchTime, ts)
+  def upTime(ts: Instant): Duration = Duration.between(zerothTick.launchTime, ts)
 
   def zonedNow[F[_]: Clock: Functor]: F[ZonedDateTime] = Clock[F].realTimeInstant.map(toZonedDateTime)
 }
@@ -220,7 +220,7 @@ final class ServiceConfig[F[_]: Applicative] private (
     withAlarmLevel(f(AlarmLevel))
 
   def addBrief[A: Encoder](fa: F[A]): ServiceConfig[F] = copy(briefs = (fa, briefs).mapN(_.asJson :: _))
-  def addBrief[A: Encoder](a: => A): ServiceConfig[F]  = addBrief(a.pure[F])
+  def addBrief[A: Encoder](a: => A): ServiceConfig[F] = addBrief(a.pure[F])
 
   private[guard] def evalConfig(
     serviceName: ServiceName,

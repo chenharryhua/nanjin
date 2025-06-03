@@ -17,7 +17,7 @@ object jackson {
     (sfgr: Stream[F, GenericRecord]) =>
       sfgr.chunks.map { grs =>
         val baos: ByteArrayOutputStream = new ByteArrayOutputStream
-        val encoder: JsonEncoder        = EncoderFactory.get().jsonEncoder(schema, baos)
+        val encoder: JsonEncoder = EncoderFactory.get().jsonEncoder(schema, baos)
         grs.foreach(gr => datumWriter.write(gr, encoder))
         encoder.flush()
         baos.close()

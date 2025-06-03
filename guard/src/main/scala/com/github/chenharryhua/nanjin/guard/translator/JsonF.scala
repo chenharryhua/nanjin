@@ -17,12 +17,12 @@ object JsonF {
 
   private val unfolded: Json.Folder[JsonF[Json]] =
     new Json.Folder[JsonF[Json]] {
-      def onNull: JsonF[Json]                       = NullF
-      def onBoolean(value: Boolean): JsonF[Json]    = BooleanF(value)
-      def onNumber(value: JsonNumber): JsonF[Json]  = NumberF(value)
-      def onString(value: String): JsonF[Json]      = StringF(value)
+      def onNull: JsonF[Json] = NullF
+      def onBoolean(value: Boolean): JsonF[Json] = BooleanF(value)
+      def onNumber(value: JsonNumber): JsonF[Json] = NumberF(value)
+      def onString(value: String): JsonF[Json] = StringF(value)
       def onArray(value: Vector[Json]): JsonF[Json] = ArrayF(value.toList)
-      def onObject(value: JsonObject): JsonF[Json]  = ObjectF(value.toList)
+      def onObject(value: JsonObject): JsonF[Json] = ObjectF(value.toList)
     }
 
   def yml(name: String, json: Json): List[String] =
@@ -31,7 +31,7 @@ object JsonF {
       case BooleanF(bool)  => List(show"$name: $bool")
       case NumberF(number) => List(show"$name: ${number.toString}")
       case StringF(str)    => List(show"$name: $str")
-      case ArrayF(values) =>
+      case ArrayF(values)  =>
         List(show"$name: ${values.map(_.noSpaces).mkString("[", ", ", "]")}")
       case ObjectF(fields) =>
         val maxKeyLength = fields.map(_._1.length).max

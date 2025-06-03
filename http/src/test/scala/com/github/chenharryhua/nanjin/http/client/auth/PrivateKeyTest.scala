@@ -17,7 +17,7 @@ class PrivateKeyTest extends AnyFunSuite {
    */
   test("equality") {
     val pkcs8 = Paths.get(Resource.getUrl("private-pkcs8.key").getPath)
-    val pem   = Paths.get(Resource.getUrl("private-key.pem").getPath)
+    val pem = Paths.get(Resource.getUrl("private-key.pem").getPath)
     assert(privateKeys.pem(pem).get.equals(privateKeys.pkcs8(pkcs8).get))
   }
 

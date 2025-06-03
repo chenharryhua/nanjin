@@ -29,7 +29,7 @@ class RetryTest extends AnyFunSuite {
 
   test("3.retry - fail") {
     val action = IO.raiseError[Int](new Exception())
-    var i      = 0
+    var i = 0
     service.eventStream { agent =>
       agent
         .retry(_.withPolicy(_.fixedDelay(1.second).limited(2)).isWorthRetry { _ =>
@@ -41,7 +41,7 @@ class RetryTest extends AnyFunSuite {
   }
 
   test("4.retry - success after retry") {
-    var i      = 0
+    var i = 0
     val action = IO(i += 1) >> { if (i < 2) throw new Exception(i.toString) else IO(0) }
 
     val policy = Policy.fixedDelay(1.second, 100.seconds).limited(20)

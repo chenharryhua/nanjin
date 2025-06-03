@@ -14,7 +14,7 @@ trait DurationFormatter {
     */
   def format(duration: ScalaDuration): String
 
-  final def format(duration: JavaDuration): String       = format(duration.toScala)
+  final def format(duration: JavaDuration): String = format(duration.toScala)
   final def format(start: Instant, end: Instant): String = format(JavaDuration.between(start, end))
   final def format(start: ZonedDateTime, end: ZonedDateTime): String =
     format(JavaDuration.between(start, end))
@@ -23,10 +23,10 @@ trait DurationFormatter {
 object DurationFormatter {
   final private val microsecond: FiniteDuration = ScalaDuration(1, TimeUnit.MICROSECONDS)
   final private val millisecond: FiniteDuration = ScalaDuration(1, TimeUnit.MILLISECONDS)
-  final private val second: FiniteDuration      = ScalaDuration(1, TimeUnit.SECONDS)
-  final private val minute: FiniteDuration      = ScalaDuration(1, TimeUnit.MINUTES)
-  final private val hour: FiniteDuration        = ScalaDuration(1, TimeUnit.HOURS)
-  final private val day: FiniteDuration         = ScalaDuration(1, TimeUnit.DAYS)
+  final private val second: FiniteDuration = ScalaDuration(1, TimeUnit.SECONDS)
+  final private val minute: FiniteDuration = ScalaDuration(1, TimeUnit.MINUTES)
+  final private val hour: FiniteDuration = ScalaDuration(1, TimeUnit.HOURS)
+  final private val day: FiniteDuration = ScalaDuration(1, TimeUnit.DAYS)
 
   final val defaultFormatter: DurationFormatter = (duration: ScalaDuration) => {
     val dur: ScalaDuration = if (duration < ScalaDuration.Zero) duration.neg() else duration
@@ -34,7 +34,7 @@ object DurationFormatter {
       s"${dur.toNanos} nano"
     } else if (dur < millisecond) {
       val micro = dur.toMicros
-      val nano  = dur.toNanos % 1000
+      val nano = dur.toNanos % 1000
       if (nano === 0) s"$micro micro" else s"$micro micro $nano nano"
     } else if (dur < second) {
       val milli = dur.toMillis
@@ -42,8 +42,8 @@ object DurationFormatter {
       if (micro === 0) s"$milli milli" else s"$milli milli $micro micro"
     } else if (dur < minute) {
       val millis = dur.toMillis
-      val sec    = DurationFormatUtils.formatDurationWords(millis, true, true)
-      val milli  = millis % 1000
+      val sec = DurationFormatUtils.formatDurationWords(millis, true, true)
+      val milli = millis % 1000
       if (milli === 0) sec else s"$sec $milli milli"
     } else if (dur < hour)
       DurationFormatUtils.formatDurationWords(dur.toSeconds * 1000, true, true)

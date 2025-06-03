@@ -84,38 +84,38 @@ object MeasurementUnit extends Enum[MeasurementUnit] with CirceEnum[MeasurementU
 
 object NJUnits {
   import MeasurementUnit.*
-  val DAYS: NJTimeUnit         = NJTimeUnit.DAYS
-  val HOURS: NJTimeUnit        = NJTimeUnit.HOURS
-  val MINUTES: NJTimeUnit      = NJTimeUnit.MINUTES
-  val SECONDS: NJTimeUnit      = NJTimeUnit.SECONDS
+  val DAYS: NJTimeUnit = NJTimeUnit.DAYS
+  val HOURS: NJTimeUnit = NJTimeUnit.HOURS
+  val MINUTES: NJTimeUnit = NJTimeUnit.MINUTES
+  val SECONDS: NJTimeUnit = NJTimeUnit.SECONDS
   val MILLISECONDS: NJTimeUnit = NJTimeUnit.MILLISECONDS
   val MICROSECONDS: NJTimeUnit = NJTimeUnit.MICROSECONDS
-  val NANOSECONDS: NJTimeUnit  = NJTimeUnit.NANOSECONDS
+  val NANOSECONDS: NJTimeUnit = NJTimeUnit.NANOSECONDS
 
-  val BYTES: NJInformationUnit     = NJInformationUnit.BYTES
+  val BYTES: NJInformationUnit = NJInformationUnit.BYTES
   val KILOBYTES: NJInformationUnit = NJInformationUnit.KILOBYTES
   val MEGABYTES: NJInformationUnit = NJInformationUnit.MEGABYTES
   val GIGABYTES: NJInformationUnit = NJInformationUnit.GIGABYTES
   val TERABYTES: NJInformationUnit = NJInformationUnit.TERABYTES
 
-  val BITS: NJInformationUnit     = NJInformationUnit.BITS
+  val BITS: NJInformationUnit = NJInformationUnit.BITS
   val KILOBITS: NJInformationUnit = NJInformationUnit.KILOBITS
   val MEGABITS: NJInformationUnit = NJInformationUnit.MEGABITS
   val GIGABITS: NJInformationUnit = NJInformationUnit.GIGABITS
   val TERABITS: NJInformationUnit = NJInformationUnit.TERABITS
 
-  val BYTES_SECOND: NJDataRateUnit     = NJDataRateUnit.BYTES_SECOND
+  val BYTES_SECOND: NJDataRateUnit = NJDataRateUnit.BYTES_SECOND
   val KILOBYTES_SECOND: NJDataRateUnit = NJDataRateUnit.KILOBYTES_SECOND
   val MEGABYTES_SECOND: NJDataRateUnit = NJDataRateUnit.MEGABYTES_SECOND
   val GIGABYTES_SECOND: NJDataRateUnit = NJDataRateUnit.GIGABYTES_SECOND
   val TERABYTES_SECOND: NJDataRateUnit = NJDataRateUnit.TERABYTES_SECOND
 
-  val BITS_SECOND: NJDataRateUnit     = NJDataRateUnit.BITS_SECOND
+  val BITS_SECOND: NJDataRateUnit = NJDataRateUnit.BITS_SECOND
   val KILOBITS_SECOND: NJDataRateUnit = NJDataRateUnit.KILOBITS_SECOND
   val MEGABITS_SECOND: NJDataRateUnit = NJDataRateUnit.MEGABITS_SECOND
   val GIGABITS_SECOND: NJDataRateUnit = NJDataRateUnit.GIGABITS_SECOND
   val TERABITS_SECOND: NJDataRateUnit = NJDataRateUnit.TERABITS_SECOND
 
-  val COUNT: NJDimensionlessUnit   = NJDimensionlessUnit.COUNT
+  val COUNT: NJDimensionlessUnit = NJDimensionlessUnit.COUNT
   val PERCENT: NJDimensionlessUnit = NJDimensionlessUnit.PERCENT
 }

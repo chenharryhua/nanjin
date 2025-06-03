@@ -37,17 +37,17 @@ object CoCop {
   implicit val circe: Codec[CoCop] = deriveCodec[CoCop]
   import frameless.TypedEncoder.injections.*
   implicit val te: TypedEncoder[CoCop] = shapeless.cachedImplicit
-  val ate: SchematizedEncoder[CoCop]   = SchematizedEncoder(te, avroCodec)
+  val ate: SchematizedEncoder[CoCop] = SchematizedEncoder(te, avroCodec)
   // won't compile
   // implicit val row   = RowEncoder[CoCop]
 }
 final case class EmCop(index: Int, cop: EnumCoproduct.Value)
 
 object EmCop {
-  val avroCodec: AvroCodec[EmCop]      = AvroCodec[EmCop]
+  val avroCodec: AvroCodec[EmCop] = AvroCodec[EmCop]
   implicit val te: TypedEncoder[EmCop] = shapeless.cachedImplicit
-  val ate: SchematizedEncoder[EmCop]   = SchematizedEncoder(te, avroCodec)
-  implicit val circe: Codec[EmCop]     = deriveCodec[EmCop]
+  val ate: SchematizedEncoder[EmCop] = SchematizedEncoder(te, avroCodec)
+  implicit val circe: Codec[EmCop] = deriveCodec[EmCop]
 
   // won't compile
   // implicit val row = RowEncoder[EmCop]
@@ -56,11 +56,11 @@ object EmCop {
 final case class CpCop(index: Int, cop: CoproductCop.Cop)
 
 object CpCop {
-  val avroCodec: AvroCodec[CpCop]  = AvroCodec[CpCop]
+  val avroCodec: AvroCodec[CpCop] = AvroCodec[CpCop]
   implicit val circe: Codec[CpCop] = deriveCodec[CpCop]
   import frameless.TypedEncoder.injections.*
   implicit val te: TypedEncoder[CpCop] = shapeless.cachedImplicit
-  val ate: SchematizedEncoder[CpCop]   = SchematizedEncoder(te, avroCodec)
+  val ate: SchematizedEncoder[CpCop] = SchematizedEncoder(te, avroCodec)
   // won't compile
   // implicit val row = RowEncoder[CpCop]
 }

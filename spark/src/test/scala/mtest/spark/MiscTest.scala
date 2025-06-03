@@ -11,7 +11,7 @@ object JoinTestData {
   final case class Brother(id: Int, rel: String)
   final case class Sister(id: Int, sibling: String)
 
-  implicit val se: TypedEncoder[Sister]  = shapeless.cachedImplicit
+  implicit val se: TypedEncoder[Sister] = shapeless.cachedImplicit
   implicit val be: TypedEncoder[Brother] = shapeless.cachedImplicit
 
   val brothers = List(
@@ -70,7 +70,7 @@ class MiscTest extends AnyFunSuite {
 
   test("gen schema") {
     import sparkSession.implicits.*
-    val s             = TypedExpressionEncoder.targetStructType(se)
+    val s = TypedExpressionEncoder.targetStructType(se)
     val df: DataFrame = sparkSession.createDataFrame(rdd.toDF().rdd, s)
     println(s)
 

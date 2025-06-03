@@ -17,10 +17,10 @@ object codec {
     s"${year(ld)}/${month(ld)}/${day(ld)}/${hour(ldt)}/${minute(ldt)}"
   }
 
-  private def year(ld: LocalDate): String        = f"Year=${ld.getYear}"
-  private def month(ld: LocalDate): String       = f"Month=${ld.getMonthValue}%02d"
-  private def day(ld: LocalDate): String         = f"Day=${ld.getDayOfMonth}%02d"
-  private def hour(ldt: LocalDateTime): String   = f"Hour=${ldt.getHour}%02d"
+  private def year(ld: LocalDate): String = f"Year=${ld.getYear}"
+  private def month(ld: LocalDate): String = f"Month=${ld.getMonthValue}%02d"
+  private def day(ld: LocalDate): String = f"Day=${ld.getDayOfMonth}%02d"
+  private def hour(ldt: LocalDateTime): String = f"Hour=${ldt.getHour}%02d"
   private def minute(ldt: LocalDateTime): String = f"Minute=${ldt.getMinute}%02d"
 
   def year(str: String): Option[Int] = {

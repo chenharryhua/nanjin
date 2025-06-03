@@ -79,7 +79,7 @@ class SparKafkaTest extends AnyFunSuite {
       NJConsumerRecord("t", 0, 2, 0, 0, None, None, Some(2), None, Nil, None)
     val cr3: NJConsumerRecord[Int, Int] =
       NJConsumerRecord("t", 0, 3, 0, 0, None, None, Some(3), None, Nil, None)
-    val crs: List[NJConsumerRecord[Int, Int]]   = List(cr1, cr2, cr3)
+    val crs: List[NJConsumerRecord[Int, Int]] = List(cr1, cr2, cr3)
     val ds: Dataset[NJConsumerRecord[Int, Int]] = sparkSession.createDataset(crs)
 
     println(
@@ -129,7 +129,7 @@ class SparKafkaTest extends AnyFunSuite {
 
   test("should be able to reproduce") {
     import fs2.Stream
-    val path  = "./data/test/spark/kafka/reproduce/jackson"
+    val path = "./data/test/spark/kafka/reproduce/jackson"
     val topic = sparKafka.topic[Int, HasDuck]("duck.test")
     topic.fromKafka.flatMap(_.output.jackson(path).run[IO]).unsafeRunSync()
 
@@ -146,8 +146,8 @@ class SparKafkaTest extends AnyFunSuite {
   }
   test("dump topic") {
     val path = "./data/test/spark/kafka/dump/jackson"
-    val p1   = path / "dump"
-    val p2   = path / "download"
+    val p1 = path / "dump"
+    val p2 = path / "download"
     sparKafka.dump("duck.test", p1).unsafeRunSync()
     sparKafka.download[Int, HasDuck](topic.topicDef, p2).unsafeRunSync()
     sparKafka.upload("duck.test", p1).unsafeRunSync()
@@ -160,9 +160,7 @@ class SparKafkaTest extends AnyFunSuite {
   }
 
   val duckConsume: KafkaByteConsume[IO] =
-    ctx
-      .consume("duck.test")
-      .updateConfig(_.withAutoOffsetReset(AutoOffsetReset.Earliest).withGroupId("duck"))
+    ctx.consume("duck.test").updateConfig(_.withAutoOffsetReset(AutoOffsetReset.Earliest).withGroupId("duck"))
 
   test("generic record") {
     val path = "./data/test/spark/kafka/consume/duck.avro"

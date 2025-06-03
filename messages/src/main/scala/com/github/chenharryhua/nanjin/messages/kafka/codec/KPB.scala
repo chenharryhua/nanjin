@@ -30,13 +30,13 @@ final class KPB[A <: GeneratedMessage] private (val value: A) extends GeneratedM
   // override GeneratedMessage
   override def writeTo(output: CodedOutputStream): Unit = value.writeTo(output)
   @nowarn
-  override def getFieldByNumber(fieldNumber: Int): Any  = value.getFieldByNumber(fieldNumber)
+  override def getFieldByNumber(fieldNumber: Int): Any = value.getFieldByNumber(fieldNumber)
   override def getField(field: FieldDescriptor): PValue = value.getField(field)
-  override def companion: GeneratedMessageCompanion[?]  = value.companion
-  override def serializedSize: Int                      = value.serializedSize
-  override def toProtoString: String                    = value.toProtoString
-  override def productElement(n: Int): Any              = value.productElement(n)
-  override def productArity: Int                        = value.productArity
+  override def companion: GeneratedMessageCompanion[?] = value.companion
+  override def serializedSize: Int = value.serializedSize
+  override def toProtoString: String = value.toProtoString
+  override def productElement(n: Int): Any = value.productElement(n)
+  override def productArity: Int = value.productArity
 }
 
 object KPB {
@@ -53,8 +53,8 @@ object KPB {
     new GeneratedMessageCompanion[KPB[A]] with Serializable {
 
       override def merge(a: KPB[A], input: CodedInputStream): KPB[A] = KPB(ev.merge(a.value, input))
-      override def javaDescriptor: Descriptors.Descriptor            = ev.javaDescriptor
-      override def scalaDescriptor: Descriptor                       = ev.scalaDescriptor
+      override def javaDescriptor: Descriptors.Descriptor = ev.javaDescriptor
+      override def scalaDescriptor: Descriptor = ev.scalaDescriptor
 
       override def nestedMessagesCompanions: Seq[GeneratedMessageCompanion[? <: GeneratedMessage]] =
         ev.nestedMessagesCompanions
@@ -103,7 +103,7 @@ object KPB {
           @SuppressWarnings(Array("AsInstanceOf"))
           override def serialize(topic: String, data: KPB[A]): Array[Byte] =
             Option(data).flatMap(v => Option(v.value)) match {
-              case None => null.asInstanceOf[Array[Byte]]
+              case None    => null.asInstanceOf[Array[Byte]]
               case Some(a) =>
                 val dm = DynamicMessage.parseFrom(a.companion.javaDescriptor, a.toByteArray)
                 ser.serialize(topic, dm)
@@ -132,7 +132,7 @@ object KPB {
     }
 
   implicit def injectionKPB[A <: GeneratedMessage]: Injection[KPB[A], A] = new Injection[KPB[A], A] {
-    override def apply(a: KPB[A]): A  = a.value
+    override def apply(a: KPB[A]): A = a.value
     override def invert(b: A): KPB[A] = KPB(b)
   }
 }

@@ -26,7 +26,7 @@ object Fractual {
       override def modifyA[F[_]](f: Fractual => F[Fractual])(s: Fractual)(implicit
         ev: Applicative[F]): F[Fractual] =
         s.value match {
-          case None => ev.pure(Fractual(None))
+          case None     => ev.pure(Fractual(None))
           case Some(pl) =>
             val list: Option[F[Fractual]] =
               pl.select[List[Fractual]].map(_.traverse(f).map(x => Fractual(Some(Coproduct[FType](x)))))
@@ -45,10 +45,10 @@ object Fractual {
 }
 
 object FractualData {
-  val int     = Fractual(Some(Coproduct[Fractual.FType](1)))
-  val string  = Fractual(Some(Coproduct[Fractual.FType]("hello world")))
-  val list    = Fractual(Some(Coproduct[Fractual.FType](List(int, string))))
-  val map     = Fractual(Some(Coproduct[Fractual.FType](Map("a" -> int, "b" -> string, "c" -> list))))
+  val int = Fractual(Some(Coproduct[Fractual.FType](1)))
+  val string = Fractual(Some(Coproduct[Fractual.FType]("hello world")))
+  val list = Fractual(Some(Coproduct[Fractual.FType](List(int, string))))
+  val map = Fractual(Some(Coproduct[Fractual.FType](Map("a" -> int, "b" -> string, "c" -> list))))
   val complex = Fractual(Some(Coproduct[Fractual.FType](Map("int" -> int, "map" -> map))))
 
   val data: List[Fractual] = List(int, string, list, map, complex)

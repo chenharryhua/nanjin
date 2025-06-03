@@ -65,7 +65,7 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
   import KafkaStreamingData.*
 
   implicit val oneValue: Serde[StreamOne] = s1Topic.serdePair.value.serde
-  implicit val twoValue: Serde[TableTwo]  = t2Topic.serdePair.value.serde
+  implicit val twoValue: Serde[TableTwo] = t2Topic.serdePair.value.serde
 
   val appId = "kafka_stream_test"
 
@@ -107,8 +107,8 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
   }
 
   test("kafka stream has bad records") {
-    val tn         = TopicName("stream.test.stream.badrecords.one")
-    val s1Topic    = ctx.topic[Int, StreamOne](s1Def.withTopicName(tn))
+    val tn = TopicName("stream.test.stream.badrecords.one")
+    val s1Topic = ctx.topic[Int, StreamOne](s1Def.withTopicName(tn))
     val s1TopicBin = ctx.topic(TopicDef[Array[Byte], Array[Byte]](tn))
 
     val top: Kleisli[Id, StreamsBuilder, Unit] = for {
@@ -151,8 +151,8 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
   }
 
   test("kafka stream exception") {
-    val tn         = TopicName("stream.test.stream.exception.one")
-    val s1Topic    = ctx.topic[Int, StreamOne](s1Def.withTopicName(tn))
+    val tn = TopicName("stream.test.stream.exception.one")
+    val s1Topic = ctx.topic[Int, StreamOne](s1Def.withTopicName(tn))
     val s1TopicBin = ctx.topic(TopicDef[Int, Array[Byte]](tn))
 
     val top: Reader[StreamsBuilder, Unit] = for {

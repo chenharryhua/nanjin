@@ -17,17 +17,17 @@ final class SparkConsoleSink[F[_], A](
   override val params: SStreamParams = cfg.evalConfig
 
   def rows(num: Int): SparkConsoleSink[F, A] = new SparkConsoleSink[F, A](dsw, cfg, num, isTruncate)
-  def truncate: SparkConsoleSink[F, A]       = new SparkConsoleSink[F, A](dsw, cfg, numRows, true)
-  def untruncate: SparkConsoleSink[F, A]     = new SparkConsoleSink[F, A](dsw, cfg, numRows, false)
+  def truncate: SparkConsoleSink[F, A] = new SparkConsoleSink[F, A](dsw, cfg, numRows, true)
+  def untruncate: SparkConsoleSink[F, A] = new SparkConsoleSink[F, A](dsw, cfg, numRows, false)
 
   override def updateConfig(f: Endo[SStreamConfig]): SparkConsoleSink[F, A] =
     new SparkConsoleSink[F, A](dsw, f(cfg), numRows, isTruncate)
 
   def trigger(trigger: Trigger): SparkConsoleSink[F, A] = updateConfig(_.triggerMode(trigger))
   // https://spark.apache.org/docs/latest/structured-streaming-programming-guide.html#output-sinks
-  def append: SparkConsoleSink[F, A]                  = updateConfig(_.appendMode)
-  def update: SparkConsoleSink[F, A]                  = updateConfig(_.updateMode)
-  def complete: SparkConsoleSink[F, A]                = updateConfig(_.completeMode)
+  def append: SparkConsoleSink[F, A] = updateConfig(_.appendMode)
+  def update: SparkConsoleSink[F, A] = updateConfig(_.updateMode)
+  def complete: SparkConsoleSink[F, A] = updateConfig(_.completeMode)
   def queryName(name: String): SparkConsoleSink[F, A] = updateConfig(_.queryName(name))
 
   override def stream(implicit F: Async[F]): Stream[F, StreamingQueryProgress] =

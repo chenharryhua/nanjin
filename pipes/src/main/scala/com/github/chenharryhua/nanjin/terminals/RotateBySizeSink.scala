@@ -38,7 +38,7 @@ final private class RotateBySizeSink[F[_]](
     count: Int
   ): Pull[F, TickedValue[Int], Unit] =
     data.pull.uncons.flatMap {
-      case None => Pull.done
+      case None               => Pull.done
       case Some((as, stream)) =>
         val dataSize = as.size
         if ((dataSize + count) < sizeLimit) {

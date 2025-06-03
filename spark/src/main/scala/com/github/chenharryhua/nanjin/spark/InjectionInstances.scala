@@ -10,7 +10,7 @@ private[spark] trait InjectionInstances extends Serializable {
 
   implicit val localDateInjection: Injection[LocalDate, Date] =
     new Injection[LocalDate, Date] {
-      override def apply(a: LocalDate): Date  = Date.valueOf(a)
+      override def apply(a: LocalDate): Date = Date.valueOf(a)
       override def invert(b: Date): LocalDate = b.toLocalDate
     }
 

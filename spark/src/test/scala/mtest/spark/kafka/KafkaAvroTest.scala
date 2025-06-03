@@ -67,7 +67,7 @@ class KafkaAvroTest extends AnyFunSuite {
       .covary[IO]
       .through(ctx.produce[Int, PersonCaseObject].updateConfig(_.withClientId("kafka.avro.test1")).sink)
     val path = "./data/test/spark/kafka/coproduct/caseobject.avro"
-    val sk   = sparKafka.topic(topicCO.topicDef)
+    val sk = sparKafka.topic(topicCO.topicDef)
 
     val run =
       ctx
@@ -89,9 +89,9 @@ class KafkaAvroTest extends AnyFunSuite {
             ProducerRecord(topicEnum.topicName.value, 1, en2))))
       .covary[IO]
       .through(ctx.produce[Int, PersonEnum].updateConfig(_.withClientId("kafka.avro.test2")).sink)
-    val avroPath    = "./data/test/spark/kafka/coproduct/scalaenum.avro"
+    val avroPath = "./data/test/spark/kafka/coproduct/scalaenum.avro"
     val jacksonPath = "./data/test/spark/kafka/coproduct/scalaenum.jackson.json"
-    val circePath   = "./data/test/spark/kafka/coproduct/scalaenum.circe.json"
+    val circePath = "./data/test/spark/kafka/coproduct/scalaenum.circe.json"
     val parquetPath = "./data/test/spark/kafka/coproduct/scalaenum.parquet"
 
     val sk = sparKafka.topic(topicEnum.topicDef)
@@ -125,7 +125,7 @@ class KafkaAvroTest extends AnyFunSuite {
       .through(ctx.produce[Int, PersonEnum].updateConfig(_.withClientId("kafka.avro.test3")).sink)
 
     val path = "./data/test/spark/kafka/coproduct/multi-scalaenum.avro"
-    val sk   = sparKafka.topic(topicEnum.topicDef)
+    val sk = sparKafka.topic(topicEnum.topicDef)
 
     val run =
       ctx
@@ -149,7 +149,7 @@ class KafkaAvroTest extends AnyFunSuite {
       .through(ctx.produce[Int, PersonEnum].updateConfig(_.withClientId("kafka.avro.test4")).sink)
 
     val path = "./data/test/spark/kafka/coproduct/multi-scalaenum.snappy.avro"
-    val sk   = sparKafka.topic(topicEnum.topicDef)
+    val sk = sparKafka.topic(topicEnum.topicDef)
 
     val run =
       ctx
@@ -171,7 +171,7 @@ class KafkaAvroTest extends AnyFunSuite {
       .covary[IO]
       .through(ctx.produce[Int, PersonEnum].updateConfig(_.withClientId("kafka.avro.test5")).sink)
     val path = "./data/test/spark/kafka/coproduct/scalaenum.avro.bzip2"
-    val sk   = sparKafka.topic(topicEnum.topicDef)
+    val sk = sparKafka.topic(topicEnum.topicDef)
 
     val run =
       ctx

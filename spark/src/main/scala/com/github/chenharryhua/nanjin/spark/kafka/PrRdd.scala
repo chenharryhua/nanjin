@@ -23,20 +23,20 @@ final class PrRdd[K, V] private[kafka] (
     new PrRdd[K, V](f(rdd), codec)
 
   def filter(f: NJProducerRecord[K, V] => Boolean): PrRdd[K, V] = transform(_.filter(f))
-  def partitionOf(num: Int): PrRdd[K, V]                        = filter(_.partition.exists(_ === num))
+  def partitionOf(num: Int): PrRdd[K, V] = filter(_.partition.exists(_ === num))
 
   def offsetRange(start: Long, end: Long): PrRdd[K, V] = transform(range.pr.offset(start, end))
-  def timeRange(dr: DateTimeRange): PrRdd[K, V]        = transform(range.pr.timestamp(dr))
+  def timeRange(dr: DateTimeRange): PrRdd[K, V] = transform(range.pr.timestamp(dr))
 
-  def ascendTimestamp: PrRdd[K, V]  = transform(sort.ascend.pr.timestamp)
+  def ascendTimestamp: PrRdd[K, V] = transform(sort.ascend.pr.timestamp)
   def descendTimestamp: PrRdd[K, V] = transform(sort.descend.pr.timestamp)
-  def ascendOffset: PrRdd[K, V]     = transform(sort.ascend.pr.offset)
-  def descendOffset: PrRdd[K, V]    = transform(sort.descend.pr.offset)
+  def ascendOffset: PrRdd[K, V] = transform(sort.ascend.pr.offset)
+  def descendOffset: PrRdd[K, V] = transform(sort.descend.pr.offset)
 
-  def noTimestamp: PrRdd[K, V]                          = transform(_.map(_.noTimestamp))
-  def noPartition: PrRdd[K, V]                          = transform(_.map(_.noPartition))
-  def noMeta: PrRdd[K, V]                               = transform(_.map(_.noMeta))
-  def withTopicName(topicName: TopicName): PrRdd[K, V]  = transform(_.map(_.withTopicName(topicName)))
+  def noTimestamp: PrRdd[K, V] = transform(_.map(_.noTimestamp))
+  def noPartition: PrRdd[K, V] = transform(_.map(_.noPartition))
+  def noMeta: PrRdd[K, V] = transform(_.map(_.noMeta))
+  def withTopicName(topicName: TopicName): PrRdd[K, V] = transform(_.map(_.withTopicName(topicName)))
   def withTopicName(topicName: TopicNameL): PrRdd[K, V] = withTopicName(TopicName(topicName))
   def replicate(num: Int): PrRdd[K, V] =
     transform(rdd => (1 until num).foldLeft(rdd) { case (r, _) => r.union(rdd) })

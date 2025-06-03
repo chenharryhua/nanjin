@@ -15,7 +15,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import scala.concurrent.duration.*
 
 class MonitorApiTest extends AnyFunSuite {
-  private val topicDef: TopicDef[Int, Int]    = TopicDef[Int, Int](TopicName("monitor.test"))
+  private val topicDef: TopicDef[Int, Int] = TopicDef[Int, Int](TopicName("monitor.test"))
   private val topic: KafkaTopic[IO, Int, Int] = ctx.topic[Int, Int](topicDef)
 
   private val st: KafkaTopic[IO, Int, Array[Byte]] =

@@ -6,7 +6,7 @@ import io.circe.{Decoder, Encoder, HCursor, Json}
 import org.apache.kafka.common.TopicPartition
 
 package object kafka {
-  final val TOPIC: String     = "topic"
+  final val TOPIC: String = "topic"
   final val PARTITION: String = "partition"
 
   implicit val orderingTopicPartition: Ordering[TopicPartition] =

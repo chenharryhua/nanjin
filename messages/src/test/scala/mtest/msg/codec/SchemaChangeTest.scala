@@ -21,7 +21,7 @@ object SchemaChangeTestData {
     """
 {"type":"record","name":"UnderTest","namespace":"schema.test.top","doc":"top level case class","fields":[{"name":"a","type":"int"},{"name":"b","type":[{"type":"record","name":"Nest","namespace":"schema.test.nest","fields":[{"name":"a","type":"int"}]},{"type":"record","name":"Nest2","namespace":"schema.test.nest2","doc":"nest-2","fields":[{"name":"b","type":"string"}]}]},{"name":"c","type":["null","int"],"default":null}]}    """
 
-  val oldSchema: Schema           = (new Schema.Parser).parse(schema)
+  val oldSchema: Schema = (new Schema.Parser).parse(schema)
   val codec: AvroCodec[UnderTest] = AvroCodec[UnderTest](schema)
 
 }
@@ -37,8 +37,8 @@ class SchemaChangeTest extends AnyFunSuite {
 {"type":"record","name":"UnderTest","namespace":"schema.test.top","doc":"top level case class","fields":[{"name":"a","type":"int"},{"name":"b","type":[{"type":"record","name":"Nest","namespace":"schema.test.nest","fields":[{"name":"a","type":"int"}]},{"type":"record","name":"Nest2","namespace":"schema.test.nest2","doc":"nest-2","fields":[{"name":"b","type":"string"}]}]},{"name":"c","type":["null","int"]}]}        """
     assert(newCodec.schema.toString == s.trim)
     val data = UnderTest(1, Coproduct(Nest(1)))
-    val en   = codec.encode(data)
-    val res  = newCodec.decode(en)
+    val en = codec.encode(data)
+    val res = newCodec.decode(en)
 
     assert(res == data)
   }
@@ -50,8 +50,8 @@ class SchemaChangeTest extends AnyFunSuite {
     {"type":"record","name":"UnderTest","namespace":"new.namespace","doc":"top level case class","fields":[{"name":"a","type":"int"},{"name":"b","type":[{"type":"record","name":"Nest","fields":[{"name":"a","type":"int"}]},{"type":"record","name":"Nest2","doc":"nest-2","fields":[{"name":"b","type":"string"}]}]},{"name":"c","type":["null","int"],"default":null}]}"""
     assert(newCodec.schema.toString() == s.trim)
     val data = UnderTest(1, Coproduct(Nest(1)), Some(1))
-    val en   = newCodec.encode(data)
-    val res  = newCodec.decode(en)
+    val en = newCodec.encode(data)
+    val res = newCodec.decode(en)
     assert(res == data)
   }
 
@@ -62,8 +62,8 @@ class SchemaChangeTest extends AnyFunSuite {
 {"type":"record","name":"UnderTest","doc":"top level case class","fields":[{"name":"a","type":"int"},{"name":"b","type":[{"type":"record","name":"Nest","fields":[{"name":"a","type":"int"}]},{"type":"record","name":"Nest2","doc":"nest-2","fields":[{"name":"b","type":"string"}]}]},{"name":"c","type":["null","int"],"default":null}]}      """
     assert(newCodec.schema.toString() == s.trim)
     val data = UnderTest(1, Coproduct(Nest(1)), Some(1))
-    val en   = newCodec.encode(data)
-    val res  = newCodec.decode(en)
+    val en = newCodec.encode(data)
+    val res = newCodec.decode(en)
 
     assert(res == data)
   }
@@ -72,14 +72,14 @@ class SchemaChangeTest extends AnyFunSuite {
     val newCodec: AvroCodec[UnderTest] = codec.withoutNamespace
 
     val data = UnderTest(1, Coproduct(Nest(1)), Some(1))
-    val en   = newCodec.encode(data)
+    val en = newCodec.encode(data)
     assertThrows[Exception](codec.decode(en))
   }
   test("remove namespace - 2") {
     val newCodec: AvroCodec[UnderTest] = codec.withoutNamespace
 
     val data = UnderTest(1, Coproduct(Nest(1)), Some(1))
-    val en   = codec.encode(data)
+    val en = codec.encode(data)
     assertThrows[Exception](newCodec.decode(en))
   }
 
@@ -90,8 +90,8 @@ class SchemaChangeTest extends AnyFunSuite {
 {"type":"record","name":"UnderTest","namespace":"schema.test.top","fields":[{"name":"a","type":"int"},{"name":"b","type":[{"type":"record","name":"Nest","namespace":"schema.test.nest","fields":[{"name":"a","type":"int"}]},{"type":"record","name":"Nest2","namespace":"schema.test.nest2","fields":[{"name":"b","type":"string"}]}]},{"name":"c","type":["null","int"],"default":null}]}"""
     assert(newCodec.schema.toString() == s.trim)
     val data = UnderTest(1, Coproduct(Nest(1)), Some(1))
-    val en   = newCodec.encode(data)
-    val res  = newCodec.decode(en)
+    val en = newCodec.encode(data)
+    val res = newCodec.decode(en)
 
     assert(res == data)
   }

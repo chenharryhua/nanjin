@@ -34,22 +34,22 @@ final private class NJJacksonKeyOutputFormat
 
   override def getRecordWriter(
     job: TaskAttemptContext): RecordWriter[AvroKey[GenericRecord], NullWritable] = {
-    val suffix: String        = s"-${utils.uuidStr(job)}.${FileFormat.Jackson.suffix}"
-    val schema: Schema        = AvroJob.getOutputKeySchema(job.getConfiguration)
-    val conf: Configuration   = job.getConfiguration
+    val suffix: String = s"-${utils.uuidStr(job)}.${FileFormat.Jackson.suffix}"
+    val schema: Schema = AvroJob.getOutputKeySchema(job.getConfiguration)
+    val conf: Configuration = job.getConfiguration
     val isCompressed: Boolean = getCompressOutput(job)
     if (isCompressed) {
       val codecClass: Class[? <: CompressionCodec] =
         getOutputCompressorClass(job, classOf[GzipCodec])
-      val codec: CompressionCodec     = ReflectionUtils.newInstance(codecClass, conf)
-      val file: Path                  = getDefaultWorkFile(job, suffix + codec.getDefaultExtension)
-      val fs: FileSystem              = file.getFileSystem(conf)
+      val codec: CompressionCodec = ReflectionUtils.newInstance(codecClass, conf)
+      val file: Path = getDefaultWorkFile(job, suffix + codec.getDefaultExtension)
+      val fs: FileSystem = file.getFileSystem(conf)
       val fileOut: FSDataOutputStream = fs.create(file, false)
-      val out: DataOutputStream       = new DataOutputStream(codec.createOutputStream(fileOut))
+      val out: DataOutputStream = new DataOutputStream(codec.createOutputStream(fileOut))
       new JacksonKeyRecordWriter(schema, out)
     } else {
-      val file: Path              = getDefaultWorkFile(job, suffix)
-      val fs: FileSystem          = file.getFileSystem(conf)
+      val file: Path = getDefaultWorkFile(job, suffix)
+      val fs: FileSystem = file.getFileSystem(conf)
       val out: FSDataOutputStream = fs.create(file, false)
       new JacksonKeyRecordWriter(schema, out)
     }

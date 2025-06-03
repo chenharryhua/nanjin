@@ -14,7 +14,7 @@ final class SaveJackson[A](rdd: RDD[A], encoder: AvroEncoder[A], cfg: HoarderCon
   private def updateConfig(cfg: HoarderConfig): SaveJackson[A] =
     new SaveJackson[A](rdd, encoder, cfg)
 
-  def withSaveMode(sm: SaveMode): SaveJackson[A]                      = updateConfig(cfg.saveMode(sm))
+  def withSaveMode(sm: SaveMode): SaveJackson[A] = updateConfig(cfg.saveMode(sm))
   def withSaveMode(f: SparkSaveMode.type => SaveMode): SaveJackson[A] = withSaveMode(f(SparkSaveMode))
 
   def withCompression(jc: JacksonCompression): SaveJackson[A] = updateConfig(cfg.outputCompression(jc))

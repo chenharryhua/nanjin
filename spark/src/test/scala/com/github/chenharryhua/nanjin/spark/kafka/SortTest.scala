@@ -14,7 +14,7 @@ import scala.util.Random
 
 class SortTest extends AnyFunSuite {
   val topic = TopicDef[Int, Int](TopicName("topic"))
-  val ate   = SchematizedEncoder(topic)
+  val ate = SchematizedEncoder(topic)
 
   val data = List(
     NJConsumerRecord[Int, Int]("topic", 0, 0, 40, 0, None, None, Some(0), Some(Random.nextInt()), Nil, None),
@@ -50,7 +50,7 @@ class SortTest extends AnyFunSuite {
       Nil,
       None)
   )
-  val rdd   = sparKafka.sparkSession.sparkContext.parallelize(data)
+  val rdd = sparKafka.sparkSession.sparkContext.parallelize(data)
   val crRdd = sparKafka.topic(topic).crRdd(rdd)
   val prRdd = crRdd.prRdd
 

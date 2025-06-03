@@ -24,7 +24,7 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
     * ^ ^ \| | start end
     */
 
-  val topicDef: TopicDef[Int, Int]    = TopicDef[Int, Int](TopicName("range.test"))
+  val topicDef: TopicDef[Int, Int] = TopicDef[Int, Int](TopicName("range.test"))
   val topic: KafkaTopic[IO, Int, Int] = ctx.topic[Int, Int](topicDef)
 
   val pr1: ProducerRecord[Int, Int] = ProducerRecord(topic.topicName.value, 1, 1).withTimestamp(100)

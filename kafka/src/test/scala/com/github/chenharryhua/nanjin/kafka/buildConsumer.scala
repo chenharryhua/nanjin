@@ -32,8 +32,8 @@ object buildConsumer {
     forTime: Map[TopicPartition, OffsetAndTimestamp]): MkConsumer[IO] = new MkConsumer[IO] {
     override def apply[G[_]](settings: ConsumerSettings[G, ?, ?]): IO[KafkaByteConsumer] = IO(
       new KafkaByteConsumer {
-        override def assignment(): util.Set[TopicPartition]               = ???
-        override def subscription(): util.Set[String]                     = ???
+        override def assignment(): util.Set[TopicPartition] = ???
+        override def subscription(): util.Set[String] = ???
         override def subscribe(collection: util.Collection[String]): Unit = ???
         override def subscribe(
           collection: util.Collection[String],
@@ -41,43 +41,43 @@ object buildConsumer {
         override def assign(collection: util.Collection[TopicPartition]): Unit = ???
         override def subscribe(pattern: Pattern, consumerRebalanceListener: ConsumerRebalanceListener): Unit =
           ???
-        override def subscribe(pattern: Pattern): Unit                                   = ???
-        override def unsubscribe(): Unit                                                 = ???
-        override def poll(l: Long): ConsumerRecords[Array[Byte], Array[Byte]]            = ???
+        override def subscribe(pattern: Pattern): Unit = ???
+        override def unsubscribe(): Unit = ???
+        override def poll(l: Long): ConsumerRecords[Array[Byte], Array[Byte]] = ???
         override def poll(duration: Duration): ConsumerRecords[Array[Byte], Array[Byte]] = ???
-        override def commitSync(): Unit                                                  = ???
-        override def commitSync(duration: Duration): Unit                                = ???
-        override def commitSync(map: util.Map[TopicPartition, OffsetAndMetadata]): Unit  = ()
+        override def commitSync(): Unit = ???
+        override def commitSync(duration: Duration): Unit = ???
+        override def commitSync(map: util.Map[TopicPartition, OffsetAndMetadata]): Unit = ()
         override def commitSync(map: util.Map[TopicPartition, OffsetAndMetadata], duration: Duration): Unit =
           ???
-        override def commitAsync(): Unit                                           = ???
+        override def commitAsync(): Unit = ???
         override def commitAsync(offsetCommitCallback: OffsetCommitCallback): Unit = ???
         override def commitAsync(
           map: util.Map[TopicPartition, OffsetAndMetadata],
           offsetCommitCallback: OffsetCommitCallback): Unit = ???
-        override def seek(topicPartition: TopicPartition, l: Long): Unit                              = ???
+        override def seek(topicPartition: TopicPartition, l: Long): Unit = ???
         override def seek(topicPartition: TopicPartition, offsetAndMetadata: OffsetAndMetadata): Unit = ???
-        override def seekToBeginning(collection: util.Collection[TopicPartition]): Unit               = ???
-        override def seekToEnd(collection: util.Collection[TopicPartition]): Unit                     = ???
-        override def position(topicPartition: TopicPartition): Long                                   = ???
-        override def position(topicPartition: TopicPartition, duration: Duration): Long               = ???
-        override def committed(topicPartition: TopicPartition): OffsetAndMetadata                     = ???
+        override def seekToBeginning(collection: util.Collection[TopicPartition]): Unit = ???
+        override def seekToEnd(collection: util.Collection[TopicPartition]): Unit = ???
+        override def position(topicPartition: TopicPartition): Long = ???
+        override def position(topicPartition: TopicPartition, duration: Duration): Long = ???
+        override def committed(topicPartition: TopicPartition): OffsetAndMetadata = ???
         override def committed(topicPartition: TopicPartition, duration: Duration): OffsetAndMetadata = ???
         override def committed(set: util.Set[TopicPartition]): util.Map[TopicPartition, OffsetAndMetadata] =
           ???
         override def committed(
           set: util.Set[TopicPartition],
           duration: Duration): util.Map[TopicPartition, OffsetAndMetadata] = ???
-        override def clientInstanceId(duration: Duration): Uuid         = ???
-        override def metrics(): util.Map[MetricName, ? <: Metric]       = ???
+        override def clientInstanceId(duration: Duration): Uuid = ???
+        override def metrics(): util.Map[MetricName, ? <: Metric] = ???
         override def partitionsFor(s: String): util.List[PartitionInfo] = partitionInfos
         override def partitionsFor(s: String, duration: Duration): util.List[PartitionInfo] =
           partitionInfos
-        override def listTopics(): util.Map[String, util.List[PartitionInfo]]                   = ???
+        override def listTopics(): util.Map[String, util.List[PartitionInfo]] = ???
         override def listTopics(duration: Duration): util.Map[String, util.List[PartitionInfo]] = ???
-        override def paused(): util.Set[TopicPartition]                                         = ???
-        override def pause(collection: util.Collection[TopicPartition]): Unit                   = ???
-        override def resume(collection: util.Collection[TopicPartition]): Unit                  = ???
+        override def paused(): util.Set[TopicPartition] = ???
+        override def pause(collection: util.Collection[TopicPartition]): Unit = ???
+        override def resume(collection: util.Collection[TopicPartition]): Unit = ???
         override def offsetsForTimes(
           map: util.Map[TopicPartition, lang.Long]): util.Map[TopicPartition, OffsetAndTimestamp] =
           forTime.asJava
@@ -99,12 +99,12 @@ object buildConsumer {
           duration: Duration): util.Map[TopicPartition, lang.Long] =
           end.toMap.asJava
         override def currentLag(topicPartition: TopicPartition): OptionalLong = ???
-        override def groupMetadata(): ConsumerGroupMetadata                   = ???
-        override def enforceRebalance(): Unit                                 = ???
-        override def enforceRebalance(s: String): Unit                        = ???
-        override def close(): Unit                                            = ()
-        override def close(duration: Duration): Unit                          = ()
-        override def wakeup(): Unit                                           = ???
+        override def groupMetadata(): ConsumerGroupMetadata = ???
+        override def enforceRebalance(): Unit = ???
+        override def enforceRebalance(s: String): Unit = ???
+        override def close(): Unit = ()
+        override def close(duration: Duration): Unit = ()
+        override def wakeup(): Unit = ???
       })
   }
 }

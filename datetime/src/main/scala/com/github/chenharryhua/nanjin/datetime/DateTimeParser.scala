@@ -86,7 +86,7 @@ object DateTimeParser {
           override def parse(str: String): Either[FailedParsers, A] =
             x.parse(str) match {
               case r @ Right(_) => r
-              case Left(ex) =>
+              case Left(ex)     =>
                 y.parse(str) match {
                   case r @ Right(_) => r
                   case Left(ex2)    => Left(ex.concat(ex2))

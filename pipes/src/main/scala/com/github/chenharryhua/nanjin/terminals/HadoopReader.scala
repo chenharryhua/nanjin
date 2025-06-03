@@ -49,9 +49,9 @@ private object HadoopReader {
         F.blocking(r.close()))
       .flatMap { reader =>
         def go(): (Chunk[GenericData.Record], Option[Unit]) = {
-          var counter: Int       = 0
+          var counter: Int = 0
           var keepGoing: Boolean = true
-          val builder            = Vector.newBuilder[GenericData.Record]
+          val builder = Vector.newBuilder[GenericData.Record]
           while (keepGoing && (counter < chunkSize.value)) {
             val gr: GenericData.Record = reader.read()
             if (null == gr) {
@@ -89,7 +89,7 @@ private object HadoopReader {
   def byteS[F[_]](configuration: Configuration, path: Path, bs: Information)(implicit
     F: Sync[F]): Stream[F, Byte] =
     inputStreamS[F](configuration, path).flatMap { (is: InputStream) =>
-      val bufferSize: Int     = bs.toBytes.toInt
+      val bufferSize: Int = bs.toBytes.toInt
       val buffer: Array[Byte] = Array.ofDim[Byte](bufferSize)
 
       @tailrec
@@ -106,8 +106,8 @@ private object HadoopReader {
   def jawnS[F[_]](configuration: Configuration, path: Path, chunkSize: ChunkSize)(implicit
     F: Sync[F]): Stream[F, Json] =
     inputStreamS[F](configuration, path).flatMap { (is: InputStream) =>
-      val bufferSize: Int           = 131072
-      val buffer: Array[Byte]       = Array.ofDim[Byte](bufferSize)
+      val bufferSize: Int = 131072
+      val buffer: Array[Byte] = Array.ofDim[Byte](bufferSize)
       val parser: AsyncParser[Json] = AsyncParser[Json](AsyncParser.ValueStream)
       @tailrec
       def go(existing: Chunk[Json], existCount: Int): (Chunk[Json], Option[Chunk[Json]]) = {
@@ -119,9 +119,9 @@ private object HadoopReader {
           }
         } else {
           parser.absorb(ByteBuffer.wrap(buffer, 0, numBytes)) match {
-            case Left(ex) => throw ex
+            case Left(ex)     => throw ex
             case Right(value) =>
-              val size  = value.size
+              val size = value.size
               val jsons = Chunk.from(value)
               if ((existCount + size) < chunkSize.value)
                 go(existing ++ jsons, existCount + size)
@@ -139,7 +139,7 @@ private object HadoopReader {
   def stringS[F[_]](configuration: Configuration, path: Path, chunkSize: ChunkSize)(implicit
     F: Sync[F]): Stream[F, String] =
     inputStreamS[F](configuration, path).flatMap { is =>
-      val reader   = new InputStreamReader(is, StandardCharsets.UTF_8)
+      val reader = new InputStreamReader(is, StandardCharsets.UTF_8)
       val buffered = new BufferedReader(reader)
       val iterator = buffered.lines().iterator().asScala
       Stream.fromBlockingIterator[F](iterator, chunkSize.value)
@@ -170,7 +170,7 @@ private object HadoopReader {
       val decoder: Decoder = getDecoder(is)
 
       def go(): (Chunk[GenericData.Record], Option[Unit]) = {
-        val builder      = Vector.newBuilder[GenericData.Record]
+        val builder = Vector.newBuilder[GenericData.Record]
         var counter: Int = 0
         try {
           while (counter < chunkSize.value) {

@@ -32,10 +32,10 @@ final class Table[A] private[spark] (val dataset: Dataset[A], ate: SchematizedEn
   def normalize: Table[A] = transform(ate.normalize)
 
   def diff(other: Dataset[A]): Table[A] = transform(_.except(other))
-  def diff(other: Table[A]): Table[A]   = diff(other.dataset)
+  def diff(other: Table[A]): Table[A] = diff(other.dataset)
 
   def union(other: Dataset[A]): Table[A] = transform(_.union(other))
-  def union(other: Table[A]): Table[A]   = union(other.dataset)
+  def union(other: Table[A]): Table[A] = union(other.dataset)
 
   // transition
 

@@ -17,7 +17,7 @@ class CircuitBreakerTest extends AnyFunSuite {
 
   test("1.max failures") {
     val good = IO(1)
-    val bad  = IO.raiseError[Int](new Exception("bad"))
+    val bad = IO.raiseError[Int](new Exception("bad"))
     val ss = service.eventStream { agent =>
       val circuitBreaker = for {
         cb <- agent.circuitBreaker(_.withMaxFailures(3))
@@ -35,7 +35,7 @@ class CircuitBreakerTest extends AnyFunSuite {
 
   test("2.max failures - exceeds") {
     val good = IO(1)
-    val bad  = IO.raiseError[Int](new Exception("bad"))
+    val bad = IO.raiseError[Int](new Exception("bad"))
     val ss = service.eventStream { agent =>
       val circuitBreaker = for {
         cb <- agent.circuitBreaker(_.withMaxFailures(3))
@@ -58,8 +58,8 @@ class CircuitBreakerTest extends AnyFunSuite {
   }
 
   test("3.race") {
-    var i   = 0
-    var j   = 0
+    var i = 0
+    var j = 0
     val io1 = IO.println("start io-1") *> IO.sleep(3.seconds) *> IO { i = 1 } *> IO.println("end io-1")
     val io2 = IO.println("start io-2") *> IO.sleep(1.seconds) *> IO { j = 1 } *> IO.println("end io-2")
 

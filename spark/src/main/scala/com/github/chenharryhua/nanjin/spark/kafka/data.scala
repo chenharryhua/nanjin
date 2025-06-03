@@ -23,7 +23,7 @@ final private case class KafkaSummaryInternal(
   startTs: Long,
   endTs: Long,
   topic: String) {
-  private val distance: Long               = endOffset - startOffset + 1L
+  private val distance: Long = endOffset - startOffset + 1L
   private val timeDistance: FiniteDuration = FiniteDuration(endTs - startTs, MILLISECONDS)
 
   def toKafkaSummary(zoneId: ZoneId): KafkaSummary = KafkaSummary(

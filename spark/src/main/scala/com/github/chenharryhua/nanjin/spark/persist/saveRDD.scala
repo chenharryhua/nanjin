@@ -42,7 +42,7 @@ private[spark] object saveRDD {
 
   def binAvro[A](rdd: RDD[A], path: Url, encoder: AvroEncoder[A], compression: Compression): Unit = {
     def bytesWritable(a: A): BytesWritable = {
-      val os  = new ByteArrayOutputStream
+      val os = new ByteArrayOutputStream
       val aos = AvroOutputStream.binary(encoder).to(os).build()
       aos.write(a)
       aos.flush()
@@ -66,7 +66,7 @@ private[spark] object saveRDD {
 
   def parquet[A](rdd: RDD[A], path: Url, encoder: AvroEncoder[A], compression: Compression): Unit = {
     val config: Configuration = new Configuration(rdd.sparkContext.hadoopConfiguration)
-    val job: Job              = Job.getInstance(config)
+    val job: Job = Job.getInstance(config)
     AvroParquetOutputFormat.setSchema(job, encoder.schema)
     ParquetOutputFormat.setCompression(job, compressionConfig.parquet(config, compression))
     // run

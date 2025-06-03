@@ -14,7 +14,7 @@ object CopyData {
 
 class CopyDataTest extends AnyFunSuite {
   import CopyData.*
-  val td  = TopicDef[Int, MyTestData](TopicName("tn"))
+  val td = TopicDef[Int, MyTestData](TopicName("tn"))
   val src = ctx.topic[Int, MyTestData](td.withTopicName("copy.src"))
   val tgt = ctx.topic[Int, MyTestData](td.withTopicName("copy.target"))
 

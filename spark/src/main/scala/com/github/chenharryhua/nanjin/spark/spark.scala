@@ -29,8 +29,8 @@ package object spark {
 
   implicit final class DataframeExt(df: DataFrame) extends Serializable {
 
-    def genCaseClass: String  = NJDataType(df.schema).toCaseClass
-    def genSchema: Schema     = NJDataType(df.schema).toSchema
+    def genCaseClass: String = NJDataType(df.schema).toCaseClass
+    def genSchema: Schema = NJDataType(df.schema).toSchema
     def genDataType: DataType = NJDataType(df.schema).toSpark
 
   }
@@ -52,7 +52,7 @@ package object spark {
     }
 
     def loadTable[A](ate: SchematizedEncoder[A]): LoadTable[A] = new LoadTable[A](ate, ss)
-    def loadRdd[A: ClassTag](path: Url): LoadRdd[A]            = new LoadRdd[A](ss, path)
+    def loadRdd[A: ClassTag](path: Url): LoadRdd[A] = new LoadRdd[A](ss, path)
     def loadProtobuf[A <: GeneratedMessage: ClassTag: GeneratedMessageCompanion](path: Url): RDD[A] =
       loaders.rdd.protobuf[A](path, ss)
 

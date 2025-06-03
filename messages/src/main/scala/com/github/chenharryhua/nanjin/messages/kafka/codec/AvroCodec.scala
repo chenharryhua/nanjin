@@ -25,8 +25,8 @@ final class AvroCodec[A] private (
     AvroCodec(schema)(avroDecoder, avroEncoder, schemaFor)
 
   override def withSchema(schemaFor: SchemaFor[A]): AvroCodec[A] = withSchema(schemaFor.schema)
-  override def encode(value: A): AnyRef                          = avroEncoder.encode(value)
-  override def decode(value: Any): A                             = avroDecoder.decode(value)
+  override def encode(value: A): AnyRef = avroEncoder.encode(value)
+  override def decode(value: Any): A = avroDecoder.decode(value)
 
   def recordOf(value: A): Option[GenericRecord] = encode(value) match {
     case gr: GenericRecord => Some(gr)
@@ -43,9 +43,9 @@ final class AvroCodec[A] private (
   def withNamespace(namespace: String Refined Namespace): AvroCodec[A] =
     withSchema(replaceNamespace(schema, namespace.value))
 
-  def withoutNamespace: AvroCodec[A]    = withSchema(removeNamespace(schema))
+  def withoutNamespace: AvroCodec[A] = withSchema(removeNamespace(schema))
   def withoutDefaultField: AvroCodec[A] = withSchema(removeDefaultField(schema))
-  def withoutDoc: AvroCodec[A]          = withSchema(removeDocField(schema))
+  def withoutDoc: AvroCodec[A] = withSchema(removeDocField(schema))
 }
 
 object AvroCodec {

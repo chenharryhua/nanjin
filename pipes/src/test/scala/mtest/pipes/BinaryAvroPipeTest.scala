@@ -15,9 +15,9 @@ import squants.information.InformationConversions.InformationConversions
 class BinaryAvroPipeTest extends AnyFunSuite {
   import mtest.terminals.TestData.*
   val encoder: ToRecord[Tiger] = ToRecord[Tiger](Tiger.avroEncoder)
-  val data: Stream[IO, Tiger]  = Stream.emits(tigers)
-  val hdp: Hadoop[IO]          = Hadoop[IO](new Configuration)
-  val root: Url                = Url("./data/test/pipes/bin_avro/")
+  val data: Stream[IO, Tiger] = Stream.emits(tigers)
+  val hdp: Hadoop[IO] = Hadoop[IO](new Configuration)
+  val root: Url = Url("./data/test/pipes/bin_avro/")
   test("binary-json identity") {
 
     assert(

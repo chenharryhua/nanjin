@@ -11,8 +11,8 @@ final case class LocalTimeRange(start: LocalTime, duration: FiniteDuration, zone
     if (duration >= oneDay) true
     else if (duration <= Duration.Zero) false
     else {
-      val st  = LocalTime.MAX.minus(duration.toJava)
-      val ld  = instant.atZone(zoneId).toLocalTime
+      val st = LocalTime.MAX.minus(duration.toJava)
+      val ld = instant.atZone(zoneId).toLocalTime
       val end = start.plus(duration.toJava)
       if (st.isAfter(start)) {
         ld.compareTo(start) >= 0 && ld.isBefore(end)

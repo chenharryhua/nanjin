@@ -10,8 +10,8 @@ import org.scalatest.funsuite.AnyFunSuite
 class JacksonAvroPipeTest extends AnyFunSuite {
   import mtest.terminals.TestData.*
   val encoder: ToRecord[Tiger] = ToRecord[Tiger](Tiger.avroEncoder)
-  val schema: Schema           = AvroSchema[Tiger]
-  val data: Stream[IO, Tiger]  = Stream.emits(tigers)
+  val schema: Schema = AvroSchema[Tiger]
+  val data: Stream[IO, Tiger] = Stream.emits(tigers)
 
   test("json-avro identity") {
     assert(

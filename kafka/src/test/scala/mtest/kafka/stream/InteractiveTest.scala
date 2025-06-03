@@ -29,8 +29,8 @@ class InteractiveTest extends AnyFunSuite {
         .withConsumerProperty(ConsumerConfig.GROUP_ID_CONFIG, "nj-kafka-interactive-unit-test-group")
         .withStreamingProperty("state.dir", "./data/kafka_states"))
 
-  val topic       = ctx.topic(TopicDef[Int, String](TopicName("stream.test.interactive.5")))
-  val localStore  = topic.asStateStore("stream.test.interactive.local.store.5")
+  val topic = ctx.topic(TopicDef[Int, String](TopicName("stream.test.interactive.5")))
+  val localStore = topic.asStateStore("stream.test.interactive.local.store.5")
   val globalStore = topic.asStateStore("stream.test.interactive.store.global.5")
 
   val top: Reader[StreamsBuilder, Unit] =

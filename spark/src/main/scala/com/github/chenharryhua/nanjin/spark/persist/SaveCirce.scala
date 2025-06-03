@@ -16,7 +16,7 @@ final class SaveCirce[A](rdd: RDD[A], cfg: HoarderConfig, isKeepNull: Boolean, e
   private def updateConfig(cfg: HoarderConfig): SaveCirce[A] =
     new SaveCirce[A](rdd, cfg, isKeepNull, encoder)
 
-  def withSaveMode(sm: SaveMode): SaveCirce[A]                      = updateConfig(cfg.saveMode(sm))
+  def withSaveMode(sm: SaveMode): SaveCirce[A] = updateConfig(cfg.saveMode(sm))
   def withSaveMode(f: SparkSaveMode.type => SaveMode): SaveCirce[A] = withSaveMode(f(SparkSaveMode))
 
   def withCompression(cc: CirceCompression): SaveCirce[A] =

@@ -32,7 +32,7 @@ object CircuitBreaker {
   final private class Impl[F[_]](maxFailures: Int, ticks: Stream[F, Tick])(implicit F: Async[F]) {
 
     private val initClosed: State = State.Closed(0)
-    private val initOpen: State   = State.Open(0)
+    private val initOpen: State = State.Open(0)
 
     val stateMachine: Resource[F, CircuitBreaker[F]] = for {
       state <- Resource.eval(F.ref[State](initClosed))

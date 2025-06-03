@@ -38,12 +38,12 @@ private[persist] object compressionConfig {
 
   final def parquet(conf: Configuration, compression: Compression): CompressionCodecName =
     compression match {
-      case Compression.Uncompressed => CompressionCodecName.UNCOMPRESSED
-      case Compression.Snappy       => CompressionCodecName.SNAPPY
-      case Compression.Gzip         => CompressionCodecName.GZIP
-      case Compression.Lz4          => CompressionCodecName.LZ4
-      case Compression.Lz4_Raw      => CompressionCodecName.LZ4_RAW
-      case Compression.Brotli       => CompressionCodecName.BROTLI
+      case Compression.Uncompressed     => CompressionCodecName.UNCOMPRESSED
+      case Compression.Snappy           => CompressionCodecName.SNAPPY
+      case Compression.Gzip             => CompressionCodecName.GZIP
+      case Compression.Lz4              => CompressionCodecName.LZ4
+      case Compression.Lz4_Raw          => CompressionCodecName.LZ4_RAW
+      case Compression.Brotli           => CompressionCodecName.BROTLI
       case Compression.Zstandard(level) =>
         conf.set(ZstandardCodec.PARQUET_COMPRESS_ZSTD_LEVEL, level.toString)
         CompressionCodecName.ZSTD
@@ -53,7 +53,7 @@ private[persist] object compressionConfig {
   final def set(config: Configuration, compression: Compression): Unit =
     compression match {
       case Compression.Uncompressed => CompressionCodecs.setCodecConfiguration(config, null)
-      case Compression.Snappy =>
+      case Compression.Snappy       =>
         CompressionCodecs.setCodecConfiguration(config, classOf[SnappyCodec].getName)
       case Compression.Bzip2 => CompressionCodecs.setCodecConfiguration(config, classOf[BZip2Codec].getName)
       case Compression.Gzip  => CompressionCodecs.setCodecConfiguration(config, classOf[GzipCodec].getName)

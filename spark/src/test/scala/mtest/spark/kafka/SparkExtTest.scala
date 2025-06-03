@@ -21,9 +21,9 @@ object SparkExtTestData {
 }
 
 class SparkExtTest extends AnyFunSuite {
-  implicit val te: TypedEncoder[trip_record]                            = shapeless.cachedImplicit
+  implicit val te: TypedEncoder[trip_record] = shapeless.cachedImplicit
   implicit val te2: TypedEncoder[NJConsumerRecord[String, trip_record]] = shapeless.cachedImplicit
-  implicit val te3: TypedEncoder[SparkExtTestData.Foo]                  = shapeless.cachedImplicit
+  implicit val te3: TypedEncoder[SparkExtTestData.Foo] = shapeless.cachedImplicit
 
   implicit val ss: SparkSession = sparkSession
 

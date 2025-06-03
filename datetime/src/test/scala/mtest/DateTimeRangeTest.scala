@@ -63,9 +63,9 @@ class DateTimeRangeTest extends AnyFunSuite with FunSuiteDiscipline with Configu
   checkAll("NJTimestamp", AlternativeTests[DateTimeParser].alternative[Instant, Instant, Instant])
 
   test("order of applying time data does not matter") {
-    val zoneId    = ZoneId.of("Asia/Chongqing")
+    val zoneId = ZoneId.of("Asia/Chongqing")
     val startTime = LocalDateTime.of(2012, 10, 26, 18, 0, 0)
-    val endTime   = LocalDateTime.of(2012, 10, 26, 23, 0, 0)
+    val endTime = LocalDateTime.of(2012, 10, 26, 23, 0, 0)
 
     val param = DateTimeRange(sydneyTime)
 
@@ -99,7 +99,7 @@ class DateTimeRangeTest extends AnyFunSuite with FunSuiteDiscipline with Configu
   }
 
   test("days of same day should return empty list") {
-    val d3  = LocalDate.of(2012, 10, 28)
+    val d3 = LocalDate.of(2012, 10, 28)
     val dt4 = LocalDateTime.of(d3, LocalTime.of(10, 1, 1))
     val dt5 = LocalDateTime.of(d3, LocalTime.of(10, 1, 2))
 
@@ -170,7 +170,7 @@ class DateTimeRangeTest extends AnyFunSuite with FunSuiteDiscipline with Configu
 
   test("show sql date and timestamp") {
     val date = java.sql.Date.valueOf(LocalDate.now)
-    val ts   = java.sql.Timestamp.from(Instant.now())
+    val ts = java.sql.Timestamp.from(Instant.now())
     NJTimestamp.now(Clock.systemUTC())
     val nj = NJTimestamp.now()
     NJTimestamp(ts)
