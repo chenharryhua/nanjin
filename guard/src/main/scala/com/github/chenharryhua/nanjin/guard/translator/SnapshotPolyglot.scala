@@ -35,7 +35,7 @@ final class SnapshotPolyglot(snapshot: MetricSnapshot) {
       )
     }
 
-  private def call_rate(rate: Frequency): String = {
+  private def call_mean_rate(rate: Frequency): String = {
     val hertz = rate.toHertz
     if (hertz > 1)
       s"${decimalFormatter.format(hertz)} calls/${NJTimeUnit.SECONDS.symbol}"
@@ -49,12 +49,13 @@ final class SnapshotPolyglot(snapshot: MetricSnapshot) {
 
   private def timers: List[(MetricID, NonEmptyList[(String, String)])] =
     snapshot.timers.map { t =>
+      val unit = s"calls/${NJTimeUnit.SECONDS.symbol}"
       t.metricId -> NonEmptyList.of(
         "invocations" -> decimalFormatter.format(t.timer.calls),
-        "mean_rate" -> call_rate(t.timer.mean_rate),
-        "m1_rate" -> call_rate(t.timer.m1_rate),
-        "m5_rate" -> call_rate(t.timer.m5_rate),
-        "m15_rate" -> call_rate(t.timer.m15_rate),
+        "mean_rate" -> call_mean_rate(t.timer.mean_rate),
+        "m1_rate" -> s"${decimalFormatter.format(t.timer.m1_rate.toHertz)} $unit",
+        "m5_rate" -> s"${decimalFormatter.format(t.timer.m5_rate.toHertz)} $unit",
+        "m15_rate" -> s"${decimalFormatter.format(t.timer.m15_rate.toHertz)} $unit",
         "min" -> durationFormatter.format(t.timer.min),
         "max" -> durationFormatter.format(t.timer.max),
         "mean" -> durationFormatter.format(t.timer.mean),

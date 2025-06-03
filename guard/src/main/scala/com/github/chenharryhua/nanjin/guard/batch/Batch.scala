@@ -323,6 +323,13 @@ object Batch {
         case Outcome.Canceled() => Resource.eval(tracer.canceled(job))
       }
 
+    private def running[A](rfa: Resource[F, A], job: BatchJob): Resource[F, A] =
+      rfa match {
+        case Resource.Eval(fa) =>
+          Resource.eval(metrics.activeGauge(s"running ${job.indexedName}").surround(fa))
+        case unchange => unchange
+      }
+
     /** Exceptions thrown by individual jobs in the batch are propagated, causing the process to halt at the
       * point of failure
       *
@@ -350,7 +357,7 @@ object Batch {
                   kind = JobKind.Value,
                   correlationId = token)
 
-              rfa
+              running(rfa, job)
                 .preAllocate(tracer.kickoff(job))
                 .attempt
                 .timed
@@ -390,7 +397,7 @@ object Batch {
                   kind = JobKind.Quasi,
                   correlationId = token)
 
-              rfa
+              running(rfa, job)
                 .preAllocate(tracer.kickoff(job))
                 .attempt
                 .timed
