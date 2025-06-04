@@ -8,7 +8,8 @@ import com.github.chenharryhua.nanjin.guard.event.{MeasurementUnit, MetricSnapsh
 import io.circe.Json
 import io.circe.syntax.EncoderOps
 import org.apache.commons.lang3.StringUtils
-import squants.time.{Frequency, TimeConversions}
+import squants.information.BitsPerSecond
+import squants.time.TimeConversions
 
 final class SnapshotPolyglot(snapshot: MetricSnapshot) {
 
@@ -24,35 +25,45 @@ final class SnapshotPolyglot(snapshot: MetricSnapshot) {
         s"${decimalFormatter.format(unit.mUnit(data).value)} ${unit.symbol}"
     }
 
+  private def adaptable_mean_rate(data: Double, symbol: String): String =
+    if (data > 1)
+      s"${decimalFormatter.format(data)} $symbol/${NJTimeUnit.SECONDS.symbol}"
+    else if (data * 60 > 1)
+      s"${decimalFormatter.format(data * 60)} $symbol/${NJTimeUnit.MINUTES.symbol}"
+    else if (data * 3600 > 1)
+      s"${decimalFormatter.format(data * 3600)} $symbol/${NJTimeUnit.HOURS.symbol}"
+    else
+      s"${decimalFormatter.format(data * 86400)} $symbol/${NJTimeUnit.DAYS.symbol}"
+
+  private def meter_mean_rate[A: Numeric](mu: MeasurementUnit, data: A): String =
+    mu match {
+      case unit: NJTimeUnit =>
+        s"${durationFormatter.format(TimeConversions.timeToScalaDuration(unit.mUnit(data)))}/s"
+      case unit: NJInformationUnit =>
+        adaptable_mean_rate(unit.mUnit(data).value, unit.symbol)
+      case unit: NJDataRateUnit =>
+        adaptable_mean_rate(unit.mUnit(data).to(BitsPerSecond), "bps")
+      case unit: NJDimensionlessUnit =>
+        adaptable_mean_rate(unit.mUnit(data).value, unit.symbol)
+    }
+
   private def meters: List[(MetricID, NonEmptyList[(String, String)])] =
     snapshot.meters.map { m =>
       m.metricId -> NonEmptyList.of(
         "aggregate" -> normalize(m.meter.unit, m.meter.aggregate),
-        "mean_rate" -> s"${normalize(m.meter.unit, m.meter.mean_rate.toHertz)}/s",
+        "mean_rate" -> meter_mean_rate(m.meter.unit, m.meter.mean_rate.toHertz),
         "m1_rate" -> s"${normalize(m.meter.unit, m.meter.m1_rate.toHertz)}/s",
         "m5_rate" -> s"${normalize(m.meter.unit, m.meter.m5_rate.toHertz)}/s",
         "m15_rate" -> s"${normalize(m.meter.unit, m.meter.m15_rate.toHertz)}/s"
       )
     }
 
-  private def call_mean_rate(rate: Frequency): String = {
-    val hertz = rate.toHertz
-    if (hertz > 1)
-      s"${decimalFormatter.format(hertz)} calls/${NJTimeUnit.SECONDS.symbol}"
-    else if (hertz * 60 > 1)
-      s"${decimalFormatter.format(hertz * 60)} calls/${NJTimeUnit.MINUTES.symbol}"
-    else if (hertz * 3600 > 1)
-      s"${decimalFormatter.format(hertz * 3600)} calls/${NJTimeUnit.HOURS.symbol}"
-    else
-      s"${decimalFormatter.format(hertz * 864000)} calls/${NJTimeUnit.DAYS.symbol}"
-  }
-
   private def timers: List[(MetricID, NonEmptyList[(String, String)])] =
     snapshot.timers.map { t =>
       val unit = s"calls/${NJTimeUnit.SECONDS.symbol}"
       t.metricId -> NonEmptyList.of(
         "invocations" -> decimalFormatter.format(t.timer.calls),
-        "mean_rate" -> call_mean_rate(t.timer.mean_rate),
+        "mean_rate" -> adaptable_mean_rate(t.timer.mean_rate.toHertz, "calls"),
         "m1_rate" -> s"${decimalFormatter.format(t.timer.m1_rate.toHertz)} $unit",
         "m5_rate" -> s"${decimalFormatter.format(t.timer.m5_rate.toHertz)} $unit",
         "m15_rate" -> s"${decimalFormatter.format(t.timer.m15_rate.toHertz)} $unit",

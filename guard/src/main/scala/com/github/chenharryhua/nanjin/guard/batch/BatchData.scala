@@ -57,7 +57,7 @@ final case class BatchJob(
   correlationId: Unique.Token) {
   val batch: String = label.label
   val domain: String = label.domain.value
-  val indexedName: String = s"job-$index ($name)"
+  val indexedName: String = s"job-$index $name"
 }
 object BatchJob {
   implicit val encoderBatchJob: Encoder[BatchJob] =
