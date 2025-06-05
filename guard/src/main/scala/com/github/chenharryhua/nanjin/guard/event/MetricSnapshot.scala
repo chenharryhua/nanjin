@@ -28,7 +28,7 @@ object Snapshot {
 
   @JsonCodec
   final case class MeterData(
-    unit: MeasurementUnit,
+    unitSymbol: String,
     aggregate: Long,
     mean_rate: Frequency,
     m1_rate: Frequency,
@@ -62,7 +62,7 @@ object Snapshot {
 
   @JsonCodec
   final case class HistogramData(
-    unit: MeasurementUnit,
+    unitSymbol: String,
     updates: Long,
     min: Long,
     max: Long,
@@ -154,13 +154,13 @@ object MetricSnapshot extends duration {
               }
 
             // meter
-            case Category.Meter(_, unit) =>
+            case Category.Meter(_, unitSymbol) =>
               metric match {
                 case meter: metrics.Meter =>
                   val m: Snapshot.Meter = Snapshot.Meter(
                     metricId = mid,
                     Snapshot.MeterData(
-                      unit = unit,
+                      unitSymbol = unitSymbol,
                       aggregate = meter.getCount,
                       mean_rate = Hertz(meter.getMeanRate),
                       m1_rate = Hertz(meter.getOneMinuteRate),
@@ -173,14 +173,14 @@ object MetricSnapshot extends duration {
               }
 
             // histogram
-            case Category.Histogram(_, unit) =>
+            case Category.Histogram(_, unitSymbol) =>
               metric match {
                 case histogram: metrics.Histogram =>
                   val ss = histogram.getSnapshot
                   val h: Snapshot.Histogram = Snapshot.Histogram(
                     metricId = mid,
                     Snapshot.HistogramData(
-                      unit = unit,
+                      unitSymbol = unitSymbol,
                       updates = histogram.getCount,
                       min = ss.getMin,
                       max = ss.getMax,

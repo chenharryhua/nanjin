@@ -3,56 +3,42 @@ package com.github.chenharryhua.nanjin.guard.translator
 import cats.data.NonEmptyList
 import cats.implicits.{catsSyntaxEq, showInterpolator, toFunctorFilterOps}
 import com.github.chenharryhua.nanjin.guard.config.MetricID
-import com.github.chenharryhua.nanjin.guard.event.MeasurementUnit.*
-import com.github.chenharryhua.nanjin.guard.event.{MeasurementUnit, MetricSnapshot}
+import com.github.chenharryhua.nanjin.guard.event.MetricSnapshot
 import io.circe.Json
 import io.circe.syntax.EncoderOps
 import org.apache.commons.lang3.StringUtils
-import squants.time.{Frequency, TimeConversions}
+import squants.time
 
 final class SnapshotPolyglot(snapshot: MetricSnapshot) {
 
-  private def normalize[A: Numeric](mu: MeasurementUnit, data: A): String =
-    mu match {
-      case unit: NJTimeUnit =>
-        durationFormatter.format(TimeConversions.timeToScalaDuration(unit.mUnit(data)))
-      case unit: NJInformationUnit =>
-        s"${decimalFormatter.format(unit.mUnit(data).value)} ${unit.symbol}"
-      case unit: NJDataRateUnit =>
-        s"${decimalFormatter.format(unit.mUnit(data).value)} ${unit.symbol}"
-      case unit: NJDimensionlessUnit =>
-        s"${decimalFormatter.format(unit.mUnit(data).value)} ${unit.symbol}"
-    }
+  private def adaptable_mean_rate(data: Double, symbol: String): String =
+    if (data > 1)
+      s"${decimalFormatter.format(data)} $symbol/${time.Seconds.symbol}"
+    else if (data * 60 > 1)
+      s"${decimalFormatter.format(data * 60)} $symbol/${time.Minutes.symbol}"
+    else if (data * 3600 > 1)
+      s"${decimalFormatter.format(data * 3600)} $symbol/${time.Hours.symbol}"
+    else
+      s"${decimalFormatter.format(data * 86400)} $symbol/${time.Days.symbol}"
 
   private def meters: List[(MetricID, NonEmptyList[(String, String)])] =
     snapshot.meters.map { m =>
+      val unit = m.meter.unitSymbol
       m.metricId -> NonEmptyList.of(
-        "aggregate" -> normalize(m.meter.unit, m.meter.aggregate),
-        "mean_rate" -> s"${normalize(m.meter.unit, m.meter.mean_rate.toHertz)}/s",
-        "m1_rate" -> s"${normalize(m.meter.unit, m.meter.m1_rate.toHertz)}/s",
-        "m5_rate" -> s"${normalize(m.meter.unit, m.meter.m5_rate.toHertz)}/s",
-        "m15_rate" -> s"${normalize(m.meter.unit, m.meter.m15_rate.toHertz)}/s"
+        "aggregate" -> s"${decimalFormatter.format(m.meter.aggregate)} $unit",
+        "mean_rate" -> adaptable_mean_rate(m.meter.mean_rate.toHertz, unit),
+        "m1_rate" -> s"${decimalFormatter.format(m.meter.m1_rate.toHertz)} $unit/s",
+        "m5_rate" -> s"${decimalFormatter.format(m.meter.m5_rate.toHertz)} $unit/s",
+        "m15_rate" -> s"${decimalFormatter.format(m.meter.m15_rate.toHertz)} $unit/s"
       )
     }
 
-  private def call_mean_rate(rate: Frequency): String = {
-    val hertz = rate.toHertz
-    if (hertz > 1)
-      s"${decimalFormatter.format(hertz)} calls/${NJTimeUnit.SECONDS.symbol}"
-    else if (hertz * 60 > 1)
-      s"${decimalFormatter.format(hertz * 60)} calls/${NJTimeUnit.MINUTES.symbol}"
-    else if (hertz * 3600 > 1)
-      s"${decimalFormatter.format(hertz * 3600)} calls/${NJTimeUnit.HOURS.symbol}"
-    else
-      s"${decimalFormatter.format(hertz * 864000)} calls/${NJTimeUnit.DAYS.symbol}"
-  }
-
   private def timers: List[(MetricID, NonEmptyList[(String, String)])] =
     snapshot.timers.map { t =>
-      val unit = s"calls/${NJTimeUnit.SECONDS.symbol}"
+      val unit = s"calls/${time.Seconds.symbol}"
       t.metricId -> NonEmptyList.of(
         "invocations" -> decimalFormatter.format(t.timer.calls),
-        "mean_rate" -> call_mean_rate(t.timer.mean_rate),
+        "mean_rate" -> adaptable_mean_rate(t.timer.mean_rate.toHertz, "calls"),
         "m1_rate" -> s"${decimalFormatter.format(t.timer.m1_rate.toHertz)} $unit",
         "m5_rate" -> s"${decimalFormatter.format(t.timer.m5_rate.toHertz)} $unit",
         "m15_rate" -> s"${decimalFormatter.format(t.timer.m15_rate.toHertz)} $unit",
@@ -71,20 +57,20 @@ final class SnapshotPolyglot(snapshot: MetricSnapshot) {
 
   private def histograms: List[(MetricID, NonEmptyList[(String, String)])] =
     snapshot.histograms.map { h =>
-      val unit = h.histogram.unit
+      val unit = h.histogram.unitSymbol
       val histo = h.histogram
       h.metricId -> NonEmptyList.of(
         "updates" -> decimalFormatter.format(histo.updates),
-        "min" -> normalize(unit, histo.min),
-        "max" -> normalize(unit, histo.max),
-        "mean" -> normalize(unit, histo.mean),
-        "stddev" -> normalize(unit, histo.stddev),
-        "p50" -> normalize(unit, histo.p50),
-        "p75" -> normalize(unit, histo.p75),
-        "p95" -> normalize(unit, histo.p95),
-        "p98" -> normalize(unit, histo.p98),
-        "p99" -> normalize(unit, histo.p99),
-        "p999" -> normalize(unit, histo.p999)
+        "min" -> s"${decimalFormatter.format(histo.min)} $unit",
+        "max" -> s"${decimalFormatter.format(histo.max)} $unit",
+        "mean" -> s"${decimalFormatter.format(histo.mean)} $unit",
+        "stddev" -> s"${decimalFormatter.format(histo.stddev)} $unit",
+        "p50" -> s"${decimalFormatter.format(histo.p50)} $unit",
+        "p75" -> s"${decimalFormatter.format(histo.p75)} $unit",
+        "p95" -> s"${decimalFormatter.format(histo.p95)} $unit",
+        "p98" -> s"${decimalFormatter.format(histo.p98)} $unit",
+        "p99" -> s"${decimalFormatter.format(histo.p99)} $unit",
+        "p999" -> s"${decimalFormatter.format(histo.p999)} $unit"
       )
     }
 

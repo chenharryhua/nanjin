@@ -12,6 +12,11 @@ import com.github.chenharryhua.nanjin.guard.observers.ses.EmailObserver
 import com.github.chenharryhua.nanjin.guard.observers.sqs.SqsObserver
 import eu.timepit.refined.auto.*
 import org.scalatest.funsuite.AnyFunSuite
+import squants.Seconds
+import squants.information.{Bytes, BytesPerSecond}
+import squants.information.InformationConversions.InformationConversions
+import squants.mass.MassConversions.MassConversions
+import squants.mass.Micrograms
 
 import scala.concurrent.duration.DurationInt
 
@@ -21,9 +26,9 @@ class AwsObserverTest extends AnyFunSuite {
     .updateConfig(_.addBrief("brief").withRestartPolicy(Policy.fixedDelay(1.second).limited(1)))
     .eventStream { agent =>
       agent
-        .facilitate("metrics")(_.meter("meter").map(_.kleisli[Long](identity)))
+        .facilitate("metrics")(_.meter(Bytes)("meter"))
         .use(
-          _.run(10) >>
+          _.run(10.bytes) >>
             agent.herald.done("good") >>
             agent.herald.error(new Exception("oops oops oops oops oops oops oops oops"))("my error") >>
             agent.adhoc.report) >> IO.raiseError(new Exception)
@@ -66,16 +71,17 @@ class AwsObserverTest extends AnyFunSuite {
     val service = TaskGuard[IO]("aws")
       .service("cloudwatch")
       .eventStream { agent =>
-        agent.facilitate("metrics")(_.meter("meter-x").map(_.kleisli)).use { m =>
-          m.run(1) >> agent.adhoc.report >> IO.sleep(1.second) >>
-            m.run(2) >> agent.adhoc.report >> IO.sleep(1.second) >>
-            m.run(2) >> agent.adhoc.report >> IO.sleep(1.second) >>
-            m.run(0) >> agent.adhoc.report
+        agent.facilitate("metrics")(_.meter(Micrograms)("meter-x")).use { m =>
+          m.run(1.mg) >> agent.adhoc.report >> IO.sleep(1.second) >>
+            m.run(2.mg) >> agent.adhoc.report >> IO.sleep(1.second) >>
+            m.run(2.mg) >> agent.adhoc.report >> IO.sleep(1.second) >>
+            m.mark(10) >> agent.adhoc.report
         }
       }
       .debug()
 
-    val cloudwatch = CloudWatchObserver(cloudwatch_client)
+    val cloudwatch = CloudWatchObserver(cloudwatch_client).withHighStorageResolution
+      .withUnit(_.infoUnit(Bytes).timeUnit(Seconds).rateUnit(BytesPerSecond))
 
     service.through(cloudwatch.observe("cloudwatch")).compile.drain.unsafeRunSync()
   }

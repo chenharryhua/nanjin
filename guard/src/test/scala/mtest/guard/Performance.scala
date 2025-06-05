@@ -5,6 +5,7 @@ import cats.effect.unsafe.implicits.global
 import com.github.benmanes.caffeine.cache.Caffeine
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import org.scalatest.funsuite.AnyFunSuite
+import squants.information.Bytes
 
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 
@@ -58,7 +59,7 @@ class Performance extends AnyFunSuite {
   test("4.performance meter") {
     var i: Int = 0
     service
-      .eventStream(_.facilitate("meter")(_.meter("meter").use(_.mark(1).map(_ => i += 1).foreverM)))
+      .eventStream(_.facilitate("meter")(_.meter(Bytes)("meter").use(_.mark(1).map(_ => i += 1).foreverM)))
       .timeoutOnPullTo(timeout, fs2.Stream.empty)
       .compile
       .drain
@@ -71,8 +72,8 @@ class Performance extends AnyFunSuite {
   test("5.performance histogram") {
     var i: Int = 0
     service
-      .eventStream(
-        _.facilitate("histogram")(_.histogram("histogram").use(_.update(1000).map(_ => i += 1).foreverM)))
+      .eventStream(_.facilitate("histogram")(
+        _.histogram(Bytes)("histogram").use(_.update(1000).map(_ => i += 1).foreverM)))
       .timeoutOnPullTo(timeout, fs2.Stream.empty)
       .compile
       .drain
