@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.config
 
 import cats.kernel.Order
-import com.github.chenharryhua.nanjin.guard.event.MeasurementUnit
 import enumeratum.{CirceEnum, Enum, EnumEntry}
 import io.circe.Encoder
 import io.circe.generic.JsonCodec
@@ -67,8 +66,8 @@ object Category {
 
   final case class Gauge(kind: GaugeKind) extends Category
   final case class Counter(kind: CounterKind) extends Category
-  final case class Meter(kind: MeterKind, unit: MeasurementUnit) extends Category
-  final case class Histogram(kind: HistogramKind, unit: MeasurementUnit) extends Category
+  final case class Meter(kind: MeterKind, unitSymbol: String) extends Category
+  final case class Histogram(kind: HistogramKind, unitSymbol: String) extends Category
   final case class Timer(kind: TimerKind) extends Category
 }
 

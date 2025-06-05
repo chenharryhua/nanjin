@@ -9,6 +9,8 @@ import com.github.chenharryhua.nanjin.guard.event.{eventFilters, Event}
 import com.github.chenharryhua.nanjin.guard.observers.*
 import io.circe.Json
 import org.scalatest.funsuite.AnyFunSuite
+import squants.Each
+import squants.information.Bytes
 
 import scala.concurrent.duration.*
 
@@ -25,9 +27,9 @@ class ConsoleLogTest extends AnyFunSuite {
             _ <- mtx.gauge("7").register(IO(1000000000))
             _ <- mtx.healthCheck("6").register(IO(true))
             _ <- mtx.timer("5").evalMap(_.elapsed(10.second).replicateA(100))
-            _ <- mtx.meter("4", _.withUnit(_.COUNT)).evalMap(_.mark(10000).replicateA(100))
+            _ <- mtx.meter(Each)("4", _.enable(true)).evalMap(_.mark(10000).replicateA(100))
             _ <- mtx.counter("3", _.asRisk).evalMap(_.inc(1000))
-            _ <- mtx.histogram("2", _.withUnit(_.BYTES)).evalMap(_.update(10000L).replicateA(100))
+            _ <- mtx.histogram(Bytes)("2").evalMap(_.update(10000L).replicateA(100))
             _ <- mtx
               .percentile("1")
               .evalMap(f => f.incDenominator(500) >> f.incNumerator(60) >> f.incBoth(299, 500))

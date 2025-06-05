@@ -1,24 +1,21 @@
 package com.github.chenharryhua.nanjin.guard.observers.cloudwatch
 
-import com.github.chenharryhua.nanjin.guard.event.MeasurementUnit.{
-  NJDataRateUnit,
-  NJInformationUnit,
-  NJTimeUnit
-}
-import com.github.chenharryhua.nanjin.guard.event.UnitNormalization
-import monocle.Monocle.toAppliedFocusOps
+import squants.UnitOfMeasure
+import squants.information.{DataRate, Information}
+import squants.time.Time
 
-final class UnitBuilder private[cloudwatch] (unitNormalization: UnitNormalization) {
+final class UnitBuilder private[cloudwatch] (
+  private[cloudwatch] val timeU: UnitOfMeasure[Time],
+  private[cloudwatch] val dataRateU: UnitOfMeasure[DataRate],
+  private[cloudwatch] val infoU: UnitOfMeasure[Information]) {
 
-  def withTimeUnit(f: CloudWatchTimeUnit.type => NJTimeUnit) =
-    new UnitBuilder(unitNormalization.focus(_.timeUnit).replace(f(CloudWatchTimeUnit)))
+  def timeUnit(timeU: UnitOfMeasure[Time]): UnitBuilder =
+    new UnitBuilder(timeU, dataRateU, infoU)
 
-  def withInfoUnit(f: NJInformationUnit.type => NJInformationUnit) =
-    new UnitBuilder(unitNormalization.focus(_.infoUnit).replace(Some(f(NJInformationUnit))))
+  def infoUnit(infoU: UnitOfMeasure[Information]): UnitBuilder =
+    new UnitBuilder(timeU, dataRateU, infoU)
 
-  def withRateUnit(f: NJDataRateUnit.type => NJDataRateUnit) =
-    new UnitBuilder(unitNormalization.focus(_.rateUnit).replace(Some(f(NJDataRateUnit))))
-
-  private[cloudwatch] def build: UnitNormalization = unitNormalization
+  def rateUnit(dataRateU: UnitOfMeasure[DataRate]): UnitBuilder =
+    new UnitBuilder(timeU, dataRateU, infoU)
 
 }

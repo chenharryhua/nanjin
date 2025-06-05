@@ -7,34 +7,36 @@ import com.codahale.metrics
 import com.github.chenharryhua.nanjin.common.{utils, EnableConfig}
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.config.CategoryKind.HistogramKind
-import com.github.chenharryhua.nanjin.guard.event.{MeasurementUnit, NJUnits}
+import squants.{Quantity, UnitOfMeasure}
 
-trait Histogram[F[_]] extends KleisliLike[F, Long] {
+trait Histogram[F[_], A] extends KleisliLike[F, A] {
   def update(num: Long): F[Unit]
 
   final def update(num: Int): F[Unit] = update(num.toLong)
 
-  final override def run(num: Long): F[Unit] = update(num)
+  def run(num: A): F[Unit]
 }
 
 object Histogram {
-  def noop[F[_]](implicit F: Applicative[F]): Histogram[F] =
-    new Histogram[F] {
+  def noop[F[_], A](implicit F: Applicative[F]): Histogram[F, A] =
+    new Histogram[F, A] {
       override def update(num: Long): F[Unit] = F.unit
+
+      override def run(num: A): F[Unit] = F.unit
     }
 
-  private class Impl[F[_]: Sync](
+  private class Impl[F[_]: Sync, A <: Quantity[A]](
     private[this] val label: MetricLabel,
     private[this] val metricRegistry: metrics.MetricRegistry,
-    private[this] val unit: MeasurementUnit,
+    private[this] val unitOfMeasure: UnitOfMeasure[A],
     private[this] val reservoir: Option[metrics.Reservoir],
     private[this] val name: MetricName)
-      extends Histogram[F] {
+      extends Histogram[F, A] {
 
     private[this] val F = Sync[F]
 
     private[this] val histogram_name: String =
-      MetricID(label, name, Category.Histogram(HistogramKind.Histogram, unit)).identifier
+      MetricID(label, name, Category.Histogram(HistogramKind.Histogram, unitOfMeasure.symbol)).identifier
 
     private[this] val supplier: metrics.MetricRegistry.MetricSupplier[metrics.Histogram] = () =>
       reservoir match {
@@ -48,35 +50,34 @@ object Histogram {
     override def update(num: Long): F[Unit] = F.delay(histogram.update(num))
 
     val unregister: F[Unit] = F.delay(metricRegistry.remove(histogram_name)).void
+
+    override def run(num: A): F[Unit] = update(num.to(unitOfMeasure).toLong)
   }
 
-  final class Builder private[guard] (
+  final class Builder[A <: Quantity[A]] private[guard] (
     isEnabled: Boolean,
-    unit: MeasurementUnit,
+    unitOfMeasure: UnitOfMeasure[A],
     reservoir: Option[metrics.Reservoir])
-      extends EnableConfig[Builder] {
+      extends EnableConfig[Builder[A]] {
 
-    def withUnit(f: NJUnits.type => MeasurementUnit): Builder =
-      new Builder(isEnabled, f(NJUnits), reservoir)
+    def withReservoir(reservoir: metrics.Reservoir): Builder[A] =
+      new Builder(isEnabled, unitOfMeasure, Some(reservoir))
 
-    def withReservoir(reservoir: metrics.Reservoir): Builder =
-      new Builder(isEnabled, unit, Some(reservoir))
-
-    override def enable(isEnabled: Boolean): Builder =
-      new Builder(isEnabled, unit, reservoir)
+    override def enable(isEnabled: Boolean): Builder[A] =
+      new Builder(isEnabled, unitOfMeasure, reservoir)
 
     private[guard] def build[F[_]](label: MetricLabel, name: String, metricRegistry: metrics.MetricRegistry)(
-      implicit F: Sync[F]): Resource[F, Histogram[F]] =
+      implicit F: Sync[F]): Resource[F, Histogram[F, A]] =
       if (isEnabled) {
         Resource.make((F.monotonic, utils.randomUUID[F]).mapN { case (ts, unique) =>
-          new Impl[F](
+          new Impl[F, A](
             label = label,
             metricRegistry = metricRegistry,
-            unit = unit,
+            unitOfMeasure = unitOfMeasure,
             reservoir = reservoir,
             name = MetricName(name, ts, unique))
         })(_.unregister)
       } else
-        Resource.pure(noop[F])
+        Resource.pure(noop[F, A])
   }
 }
