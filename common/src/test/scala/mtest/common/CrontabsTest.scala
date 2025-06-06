@@ -12,8 +12,6 @@ class CrontabsTest extends AnyFunSuite {
     val now = LocalDateTime.now()
     assert(crontabs.everySecond.next(now).nonEmpty)
     assert(crontabs.secondly.next(now).nonEmpty)
-    assert(crontabs.bisecondly.next(now).nonEmpty)
-    assert(crontabs.trisecondly.next(now).nonEmpty)
     assert(crontabs.every2Seconds.next(now).nonEmpty)
     assert(crontabs.every3Seconds.next(now).nonEmpty)
     assert(crontabs.every4Seconds.next(now).nonEmpty)
@@ -27,8 +25,6 @@ class CrontabsTest extends AnyFunSuite {
 
     assert(crontabs.everyMinute.next(now).nonEmpty)
     assert(crontabs.minutely.next(now).nonEmpty)
-    assert(crontabs.biminutely.next(now).nonEmpty)
-    assert(crontabs.triminutely.next(now).nonEmpty)
     assert(crontabs.every2Minutes.next(now).nonEmpty)
     assert(crontabs.every3Minutes.next(now).nonEmpty)
     assert(crontabs.every4Minutes.next(now).nonEmpty)
@@ -42,8 +38,6 @@ class CrontabsTest extends AnyFunSuite {
 
     assert(crontabs.everyHour.next(now).nonEmpty)
     assert(crontabs.hourly.next(now).nonEmpty)
-    assert(crontabs.bihourly.next(now).nonEmpty)
-    assert(crontabs.trihourly.next(now).nonEmpty)
     assert(crontabs.every2Hours.next(now).nonEmpty)
     assert(crontabs.every3Hours.next(now).nonEmpty)
     assert(crontabs.every4Hours.next(now).nonEmpty)
