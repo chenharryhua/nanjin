@@ -9,8 +9,6 @@ import io.circe.{Encoder, Json}
 import squants.Dimensionless
 import squants.information.Information
 
-import java.time.Duration
-
 sealed trait TraceJob[F[_], A] {
   private[batch] def kickoff(bj: BatchJob): F[Unit]
   private[batch] def canceled(bj: BatchJob): F[Unit]
@@ -103,11 +101,11 @@ object TraceJob {
     def routeFailure(f: anchor.type => Json => F[Unit]): ByAgent[F] =
       copy(_failure = f(anchor))
 
-    def universal[A](f: (A, Duration) => Json): JobTracer[F, A] =
+    def universal[A](f: (A, JobResultState) => Json): JobTracer[F, A] =
       new JobTracer[F, A](
         _completed = { (jrv: JobResultValue[A]) =>
           val json: Json =
-            Json.obj("outcome" -> f(jrv.value, jrv.resultState.took)).deepMerge(jrv.resultState.asJson)
+            Json.obj("outcome" -> f(jrv.value, jrv.resultState)).deepMerge(jrv.resultState.asJson)
           if (jrv.resultState.done) _success(json) else _failure(json)
         },
         _errored = (jre: JobResultError) => _errored(jre),
@@ -121,15 +119,15 @@ object TraceJob {
     def json: JobTracer[F, Json] = standard[Json]
 
     def informationRate: JobTracer[F, Information] = {
-      def translate(number: Information, took: Duration): Json =
-        Json.obj("information" -> jsonDataRate(took, number))
+      def translate(number: Information, jrs: JobResultState): Json =
+        Json.obj("information" -> jsonDataRate(jrs.took, number))
 
       universal[Information](translate)
     }
 
     def dimensionlessRate: JobTracer[F, Dimensionless] = {
-      def translate(number: Dimensionless, took: Duration): Json =
-        Json.obj("dimensionless" -> jsonScalarRate(took, number))
+      def translate(number: Dimensionless, jrs: JobResultState): Json =
+        Json.obj("dimensionless" -> jsonScalarRate(jrs.took, number))
 
       universal[Dimensionless](translate)
     }

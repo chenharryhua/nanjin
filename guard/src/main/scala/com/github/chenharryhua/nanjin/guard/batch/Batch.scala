@@ -19,7 +19,6 @@ import io.circe.syntax.EncoderOps
 import io.circe.{Encoder, Json}
 import monocle.Monocle.toAppliedFocusOps
 
-import java.time.Duration
 import scala.concurrent.duration.FiniteDuration
 import scala.jdk.DurationConverters.ScalaDurationOps
 
@@ -308,7 +307,7 @@ object Batch {
       job: BatchJob,
       tracer: TraceJob[F, Json],
       updatePanel: UpdatePanel[F],
-      translate: (A, Duration) => Json)(
+      translate: (A, JobResultState) => Json)(
       outcome: Outcome[Resource[F, *], Throwable, SingleJobOutcome[A]]): Resource[F, Unit] =
       outcome match {
         case Outcome.Succeeded(rfa) =>
@@ -316,18 +315,11 @@ object Batch {
             updatePanel.run(jrs) *>
               eoa.fold(
                 ex => tracer.errored(JobResultError(jrs, ex)),
-                a => tracer.completed(JobResultValue(jrs, translate(a, jrs.took))))
+                a => tracer.completed(JobResultValue(jrs, translate(a, jrs))))
           }
         case Outcome.Errored(ex) =>
           Resource.raiseError[F, Unit, Throwable](shouldNeverHappenException(ex))
         case Outcome.Canceled() => Resource.eval(tracer.canceled(job))
-      }
-
-    private def running[A](rfa: Resource[F, A], job: BatchJob): Resource[F, A] =
-      rfa match {
-        case Resource.Eval(fa) =>
-          Resource.eval(metrics.activeGauge(s"running ${job.indexedName}").surround(fa))
-        case unchange => unchange
       }
 
     /** Exceptions thrown by individual jobs in the batch are propagated, causing the process to halt at the
@@ -343,7 +335,7 @@ object Batch {
     private def vincible_[A](
       name: String,
       rfa: Resource[F, A],
-      translate: (A, Duration) => Json): Monadic[A] =
+      translate: (A, JobResultState) => Json): Monadic[A] =
       new Monadic[A](
         kleisli = Kleisli { case Callbacks(updatePanel, tracer, renameJob) =>
           StateT { (index: Int) =>
@@ -357,7 +349,7 @@ object Batch {
                   kind = JobKind.Value,
                   correlationId = token)
 
-              running(rfa, job)
+              rfa
                 .preAllocate(tracer.kickoff(job))
                 .attempt
                 .timed
@@ -383,7 +375,11 @@ object Batch {
       * @return
       *   true if no exception occurs and evaluated to true, otherwise false
       */
-    private def invincible_(name: String, rfa: Resource[F, (Boolean, Json)]): Monadic[Boolean] =
+    private def invincible_[A](
+      name: String,
+      rfa: Resource[F, A],
+      translate: (A, JobResultState) => Json,
+      predicate: A => Boolean): Monadic[Boolean] =
       new Monadic[Boolean](
         kleisli = Kleisli { case Callbacks(updatePanel, tracer, renameJob) =>
           StateT { (index: Int) =>
@@ -397,15 +393,15 @@ object Batch {
                   kind = JobKind.Quasi,
                   correlationId = token)
 
-              running(rfa, job)
+              rfa
                 .preAllocate(tracer.kickoff(job))
                 .attempt
                 .timed
-                .map { case (fd: FiniteDuration, eoa: Either[Throwable, (Boolean, Json)]) =>
-                  val jrs = JobResultState(job, fd.toJava, eoa.fold(_ => false, pair => pair._1))
+                .map { case (fd: FiniteDuration, eoa: Either[Throwable, A]) =>
+                  val jrs = JobResultState(job, fd.toJava, eoa.fold(_ => false, predicate))
                   SingleJobOutcome(jrs, eoa)
                 }
-                .guaranteeCase(handleOutcome(job, tracer, updatePanel, (pair, _) => pair._2))
+                .guaranteeCase(handleOutcome(job, tracer, updatePanel, translate))
                 .map { case SingleJobOutcome(jrs, _) =>
                   (index + 1, JobState(eoa = Right(jrs.done), history = NonEmptyList.one(jrs)))
                 }
@@ -419,13 +415,13 @@ object Batch {
       * point of failure
       */
 
-    def customise[A](name: String, rfa: Resource[F, A])(f: (A, Duration) => Json): Monadic[A] =
+    def customise[A](name: String, rfa: Resource[F, A])(f: (A, JobResultState) => Json): Monadic[A] =
       vincible_[A](name, rfa, f)
 
-    def customise[A](name: String, fa: F[A])(f: (A, Duration) => Json): Monadic[A] =
+    def customise[A](name: String, fa: F[A])(f: (A, JobResultState) => Json): Monadic[A] =
       customise[A](name, Resource.eval(fa))(f)
 
-    def customise[A](tuple: (String, F[A]))(f: (A, Duration) => Json): Monadic[A] =
+    def customise[A](tuple: (String, F[A]))(f: (A, JobResultState) => Json): Monadic[A] =
       customise[A](tuple._1, Resource.eval(tuple._2))(f)
 
     def apply[A: Encoder](name: String, rfa: Resource[F, A]): Monadic[A] =
@@ -446,15 +442,20 @@ object Batch {
       *   true if no exception occurs and is evaluated to true, otherwise false
       */
 
-    def failSoft(name: String, rfa: Resource[F, (Boolean, Json)]): Monadic[Boolean] =
-      invincible_(name, rfa)
-    def failSoft(name: String, fa: F[(Boolean, Json)]): Monadic[Boolean] =
-      failSoft(name, Resource.eval(fa))
-    def failSoft(tuple: (String, F[(Boolean, Json)])): Monadic[Boolean] =
-      failSoft(tuple._1, Resource.eval(tuple._2))
+    def failSoft[A](name: String, rfa: Resource[F, A])(predicate: A => Boolean)(
+      translate: (A, JobResultState) => Json): Monadic[Boolean] =
+      invincible_[A](name, rfa, translate, predicate)
+
+    def failSoft[A](name: String, fa: F[A])(predicate: A => Boolean)(
+      translate: (A, JobResultState) => Json): Monadic[Boolean] =
+      failSoft[A](name, Resource.eval(fa))(predicate)(translate)
+
+    def failSoft[A](tuple: (String, F[A]))(predicate: A => Boolean)(
+      translate: (A, JobResultState) => Json): Monadic[Boolean] =
+      failSoft[A](tuple._1, Resource.eval(tuple._2))(predicate)(translate)
 
     def failSafe(name: String, rfa: Resource[F, Boolean]): Monadic[Boolean] =
-      failSoft(name, rfa.map((_, Json.Null)))
+      failSoft[Boolean](name, rfa)(identity)((_, _) => Json.fromString("fail-safe"))
     def failSafe(name: String, fa: F[Boolean]): Monadic[Boolean] =
       failSafe(name, Resource.eval(fa))
     def failSafe(tuple: (String, F[Boolean])): Monadic[Boolean] =

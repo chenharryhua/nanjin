@@ -72,7 +72,9 @@ object BatchJob {
       )
 }
 
-final case class JobResultState(job: BatchJob, took: Duration, done: Boolean)
+final case class JobResultState(job: BatchJob, took: Duration, done: Boolean) {
+  val fail: Boolean = !done
+}
 object JobResultState {
   implicit val encoderJobResultState: Encoder[JobResultState] =
     (a: JobResultState) =>

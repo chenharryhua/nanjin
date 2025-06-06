@@ -269,7 +269,7 @@ class BatchTest extends AnyFunSuite {
           assert(qr.resultState.jobs.head.done)
           assert(qr.resultState.jobs(1).done)
           assert(qr.resultState.jobs(2).done)
-          assert(!qr.resultState.jobs(3).done)
+          assert(qr.resultState.jobs(3).fail)
           assert(qr.resultState.jobs(4).done)
           assert(qr.resultState.jobs(5).done)
           assert(qr.resultState.jobs(6).done)

@@ -12,8 +12,7 @@ import com.github.chenharryhua.nanjin.guard.observers.ses.EmailObserver
 import com.github.chenharryhua.nanjin.guard.observers.sqs.SqsObserver
 import eu.timepit.refined.auto.*
 import org.scalatest.funsuite.AnyFunSuite
-import squants.Seconds
-import squants.information.{Bytes, BytesPerSecond}
+import squants.information.Bytes
 import squants.information.InformationConversions.InformationConversions
 import squants.mass.MassConversions.MassConversions
 import squants.mass.Micrograms
@@ -81,7 +80,6 @@ class AwsObserverTest extends AnyFunSuite {
       .debug()
 
     val cloudwatch = CloudWatchObserver(cloudwatch_client).withHighStorageResolution
-      .withUnit(_.infoUnit(Bytes).timeUnit(Seconds).rateUnit(BytesPerSecond))
 
     service.through(cloudwatch.observe("cloudwatch")).compile.drain.unsafeRunSync()
   }

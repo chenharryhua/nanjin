@@ -17,13 +17,15 @@ import com.github.chenharryhua.nanjin.guard.event.{
   retrieveTimer
 }
 import com.github.chenharryhua.nanjin.guard.metrics.Meter
+import com.github.chenharryhua.nanjin.guard.observers.console
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import io.circe.generic.JsonCodec
 import org.scalatest.funsuite.AnyFunSuite
-import squants.information.Bytes
+import squants.information.{Bytes, Information}
 import squants.information.InformationConversions.InformationConversions
 import squants.market.MoneyConversions.MoneyConversions
 import squants.market.{AUD, Money}
+import squants.time.{Milliseconds, Time}
 
 import java.time.{ZoneId, ZonedDateTime}
 import scala.concurrent.duration.DurationInt
@@ -73,12 +75,18 @@ class MetricsTest extends AnyFunSuite {
   test("4.meter") {
     val mr = service.eventStream { agent =>
       val meter: Resource[IO, Meter[IO, Money]] = agent.facilitate("meter")(_.meter(AUD)("meter"))
-      meter.use(_.run(10.AUD) >> agent.adhoc.report)
-    }.map(checkJson).mapFilter(eventFilters.metricReport).compile.lastOrError.unsafeRunSync()
+      meter.use(m => m.run(10.AUD) >> m.mark(20) >> agent.adhoc.report)
+    }.evalTap(console.text[IO])
+      .map(checkJson)
+      .mapFilter(eventFilters.metricReport)
+      .compile
+      .lastOrError
+      .unsafeRunSync()
     val meter = retrieveMeter(mr.snapshot.meters).values.head
     assert(mr.snapshot.nonEmpty)
-    assert(meter.aggregate == 10)
-    assert(meter.unitSymbol == AUD.symbol)
+    assert(meter.aggregate == 30)
+    assert(meter.squants.unitSymbol == AUD.symbol)
+    assert(meter.squants.dimensionName == Money.name)
   }
 
   test("5.meter disable") {
@@ -95,13 +103,38 @@ class MetricsTest extends AnyFunSuite {
     val mr = service.eventStream { agent =>
       agent
         .facilitate("histogram")(_.histogram(Bytes)("histogram"))
-        .use(_.run(10.bytes) >> agent.adhoc.report)
-    }.map(checkJson).mapFilter(eventFilters.metricReport).compile.lastOrError.unsafeRunSync()
+        .use(m => m.run(10.bytes) >> m.update(20) >> agent.adhoc.report)
+    }.evalTap(console.text[IO])
+      .map(checkJson)
+      .mapFilter(eventFilters.metricReport)
+      .compile
+      .lastOrError
+      .unsafeRunSync()
     val histo = retrieveHistogram(mr.snapshot.histograms).values.head
     assert(mr.snapshot.nonEmpty)
-    assert(histo.updates == 1)
-    assert(histo.max == 10)
-    assert(histo.unitSymbol == Bytes.symbol)
+    assert(histo.updates == 2)
+    assert(histo.max == 20)
+    assert(histo.squants.unitSymbol == Bytes.symbol)
+    assert(histo.squants.dimensionName == Information.name)
+  }
+
+  test("6.histogram timer") {
+    val mr = service.eventStream { agent =>
+      agent
+        .facilitate("histogram")(_.histogram(Milliseconds)("histogram"))
+        .use(m => m.update(1030) >> m.update(200) >> agent.adhoc.report)
+    }.evalTap(console.text[IO])
+      .map(checkJson)
+      .mapFilter(eventFilters.metricReport)
+      .compile
+      .lastOrError
+      .unsafeRunSync()
+    val histo = retrieveHistogram(mr.snapshot.histograms).values.head
+    assert(mr.snapshot.nonEmpty)
+    assert(histo.updates == 2)
+    assert(histo.max == 1030)
+    assert(histo.squants.unitSymbol == Milliseconds.symbol)
+    assert(histo.squants.dimensionName == Time.name)
   }
 
   test("7.histogram disable") {

@@ -8,6 +8,7 @@ import com.github.chenharryhua.nanjin.guard.batch.{PostConditionUnsatisfied, Tra
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStop
 import com.github.chenharryhua.nanjin.guard.observers.console
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
+import io.circe.Json
 import org.scalatest.freespec.AsyncFreeSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -46,7 +47,7 @@ class BatchSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
         .monadic { job =>
           for {
             a <- job("a", IO(1))
-            _ <- job.failSoft("b", IO.raiseError(new Exception()))
+            _ <- job.failSoft("b", IO.raiseError[Int](new Exception()))(_ => true)((_, _) => Json.Null)
             c <- job("c", IO(2))
           } yield a + c
         }

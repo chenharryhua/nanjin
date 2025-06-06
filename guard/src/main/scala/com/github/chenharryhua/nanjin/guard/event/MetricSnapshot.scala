@@ -4,7 +4,7 @@ import cats.effect.implicits.clockOps
 import cats.effect.kernel.Sync
 import cats.syntax.all.*
 import com.codahale.metrics
-import com.github.chenharryhua.nanjin.guard.config.{Category, MetricID}
+import com.github.chenharryhua.nanjin.guard.config.{Category, MetricID, Squants}
 import io.circe.Json
 import io.circe.generic.JsonCodec
 import io.circe.jawn.{decode, parse}
@@ -28,7 +28,7 @@ object Snapshot {
 
   @JsonCodec
   final case class MeterData(
-    unitSymbol: String,
+    squants: Squants,
     aggregate: Long,
     mean_rate: Frequency,
     m1_rate: Frequency,
@@ -62,7 +62,7 @@ object Snapshot {
 
   @JsonCodec
   final case class HistogramData(
-    unitSymbol: String,
+    squants: Squants,
     updates: Long,
     min: Long,
     max: Long,
@@ -154,13 +154,13 @@ object MetricSnapshot extends duration {
               }
 
             // meter
-            case Category.Meter(_, unitSymbol) =>
+            case Category.Meter(_, squants) =>
               metric match {
                 case meter: metrics.Meter =>
                   val m: Snapshot.Meter = Snapshot.Meter(
                     metricId = mid,
                     Snapshot.MeterData(
-                      unitSymbol = unitSymbol,
+                      squants = squants,
                       aggregate = meter.getCount,
                       mean_rate = Hertz(meter.getMeanRate),
                       m1_rate = Hertz(meter.getOneMinuteRate),
@@ -173,14 +173,14 @@ object MetricSnapshot extends duration {
               }
 
             // histogram
-            case Category.Histogram(_, unitSymbol) =>
+            case Category.Histogram(_, squants) =>
               metric match {
                 case histogram: metrics.Histogram =>
                   val ss = histogram.getSnapshot
                   val h: Snapshot.Histogram = Snapshot.Histogram(
                     metricId = mid,
                     Snapshot.HistogramData(
-                      unitSymbol = unitSymbol,
+                      squants = squants,
                       updates = histogram.getCount,
                       min = ss.getMin,
                       max = ss.getMax,

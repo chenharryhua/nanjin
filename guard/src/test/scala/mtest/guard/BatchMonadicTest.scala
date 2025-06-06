@@ -83,7 +83,7 @@ class BatchMonadicTest extends AnyFunSuite {
         .monadic { job =>
           for {
             a <- job("a" -> IO(1))
-            _ <- job.failSoft("b" -> IO.raiseError[(Boolean, Json)](new Exception()))
+            _ <- job.failSoft("b", IO.raiseError[Int](new Exception()))(_ => true)((_, _) => Json.Null)
             c <- job("c" -> IO(3))
           } yield a + c
         }
@@ -97,7 +97,7 @@ class BatchMonadicTest extends AnyFunSuite {
     assert(sorted.head.done)
     assert(sorted.head.job.index == 1)
 
-    assert(!errorJob.done)
+    assert(errorJob.fail)
     assert(errorJob.job.index == 2)
 
     assert(sorted(1).done)
@@ -114,7 +114,7 @@ class BatchMonadicTest extends AnyFunSuite {
         .monadic { job =>
           for {
             a <- job("a" -> IO(1))
-            _ <- job.failSoft("b" -> IO((false, Json.Null)))
+            _ <- job.failSoft("b" -> IO(10))(_ > 15)((_, _) => Json.Null)
             c <- job("c" -> IO(3))
           } yield a + c
         }
@@ -128,7 +128,7 @@ class BatchMonadicTest extends AnyFunSuite {
     assert(sorted.head.done)
     assert(sorted.head.job.index == 1)
 
-    assert(!sorted(1).done)
+    assert(sorted(1).fail)
     assert(sorted(1).job.index == 2)
 
     assert(sorted(2).done)

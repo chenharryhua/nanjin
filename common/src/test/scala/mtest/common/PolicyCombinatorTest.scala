@@ -210,7 +210,7 @@ class PolicyCombinatorTest extends AnyFunSuite {
   }
 
   test("except") {
-    val policy = Policy.crontab(_.trihourly).except(_.midnight).except(_.elevenPM).except(_.midnight)
+    val policy = Policy.crontab(_.hourly).except(_.midnight).except(_.elevenPM).except(_.midnight)
     println(policy.show)
     println(policy.asJson)
     assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
@@ -218,14 +218,14 @@ class PolicyCombinatorTest extends AnyFunSuite {
     val ticks = tickLazyList.fromTickStatus(zeroTickStatus.renewPolicy(policy)).take(8).toList
     val wakeup = ticks.map(_.zonedWakeup.toLocalTime)
     assert(wakeup.size == 8)
-    assert(wakeup.head == localTimes.threeAM)
-    assert(wakeup(1) == localTimes.sixAM)
-    assert(wakeup(2) == localTimes.nineAM)
-    assert(wakeup(3) == localTimes.noon)
-    assert(wakeup(4) == localTimes.threePM)
-    assert(wakeup(5) == localTimes.sixPM)
-    assert(wakeup(6) == localTimes.ninePM)
-    assert(wakeup(7) == localTimes.threeAM)
+    assert(wakeup.head == localTimes.oneAM)
+    assert(wakeup(1) == localTimes.twoAM)
+    assert(wakeup(2) == localTimes.threeAM)
+    assert(wakeup(3) == localTimes.fourAM)
+    assert(wakeup(4) == localTimes.fiveAM)
+    assert(wakeup(5) == localTimes.sixAM)
+    assert(wakeup(6) == localTimes.sevenAM)
+    assert(wakeup(7) == localTimes.eightAM)
   }
 
   test("offset") {

@@ -33,7 +33,13 @@ object Meter {
     private[this] val F = Sync[F]
 
     private[this] val meter_name: String =
-      MetricID(label, name, Category.Meter(MeterKind.Meter, unitOfMeasure.symbol)).identifier
+      MetricID(
+        metricLabel = label,
+        metricName = name,
+        Category.Meter(
+          kind = MeterKind.Meter,
+          squants = Squants(unitOfMeasure.symbol, unitOfMeasure(1).dimension.name))
+      ).identifier
 
     private[this] lazy val meter: metrics.Meter = metricRegistry.meter(meter_name)
 

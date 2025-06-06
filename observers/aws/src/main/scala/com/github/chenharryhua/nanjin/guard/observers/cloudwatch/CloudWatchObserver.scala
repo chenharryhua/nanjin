@@ -4,13 +4,13 @@ import cats.effect.kernel.{Concurrent, Resource}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.aws.CloudWatch
 import com.github.chenharryhua.nanjin.common.aws.CloudWatchNamespace
-import com.github.chenharryhua.nanjin.guard.config.{MetricLabel, ServiceParams}
+import com.github.chenharryhua.nanjin.guard.config.{MetricLabel, ServiceParams, Squants}
 import com.github.chenharryhua.nanjin.guard.event.Event.MetricReport
 import com.github.chenharryhua.nanjin.guard.event.{Event, MetricIndex, MetricSnapshot}
 import com.github.chenharryhua.nanjin.guard.translator.textConstants
 import fs2.{Pipe, Stream}
 import software.amazon.awssdk.services.cloudwatch.model.{Dimension, MetricDatum, StandardUnit}
-import squants.{information, time}
+import squants.time
 
 import java.time.Instant
 import java.util
@@ -24,8 +24,7 @@ object CloudWatchObserver {
       client = client,
       storageResolution = 60,
       histogramBuilder = identity,
-      dimensionBuilder = identity,
-      unitBuilder = identity
+      dimensionBuilder = identity
     )
 }
 
@@ -33,26 +32,19 @@ final class CloudWatchObserver[F[_]: Concurrent] private (
   client: Resource[F, CloudWatch[F]],
   storageResolution: Int,
   histogramBuilder: Endo[HistogramFieldBuilder],
-  dimensionBuilder: Endo[DimensionBuilder],
-  unitBuilder: Endo[UnitBuilder]) {
+  dimensionBuilder: Endo[DimensionBuilder]) {
   private val F = Concurrent[F]
 
   def withHighStorageResolution: CloudWatchObserver[F] =
-    new CloudWatchObserver[F](client, 1, histogramBuilder, dimensionBuilder, unitBuilder)
+    new CloudWatchObserver[F](client, 1, histogramBuilder, dimensionBuilder)
 
   def includeHistogram(f: Endo[HistogramFieldBuilder]): CloudWatchObserver[F] =
-    new CloudWatchObserver[F](client, storageResolution, f, dimensionBuilder, unitBuilder)
+    new CloudWatchObserver[F](client, storageResolution, f, dimensionBuilder)
 
   def includeDimensions(f: Endo[DimensionBuilder]): CloudWatchObserver[F] =
-    new CloudWatchObserver[F](client, storageResolution, histogramBuilder, f, unitBuilder)
-
-  def withUnit(f: Endo[UnitBuilder]): CloudWatchObserver[F] =
-    new CloudWatchObserver[F](client, storageResolution, histogramBuilder, dimensionBuilder, f)
+    new CloudWatchObserver[F](client, storageResolution, histogramBuilder, f)
 
   private val histogramB: HistogramFieldBuilder = histogramBuilder(new HistogramFieldBuilder(false, Nil))
-
-  private val unitB: UnitBuilder = unitBuilder(
-    new UnitBuilder(time.Milliseconds, information.BytesPerSecond, information.Bytes))
 
   private def computeDatum(report: MetricReport, lookup: Map[UUID, Long]): List[MetricDatum] = {
 
@@ -62,9 +54,8 @@ final class CloudWatchObserver[F[_]: Concurrent] private (
     } yield {
       val (dur, category) = hf.pick(timer)
       val (su, value) = CloudWatchTimeUnit.toStandardUnit(
-        unitB,
-        time.Microseconds.symbol,
-        time.Time(dur.toScala).to(time.Microseconds)
+        squants = Squants(time.Microseconds.symbol, time.Time.name),
+        data = time.Time(dur.toScala).to(time.Microseconds)
       )
       MetricKey(
         timestamp = report.timestamp.toInstant,
@@ -80,7 +71,7 @@ final class CloudWatchObserver[F[_]: Concurrent] private (
       histo <- report.snapshot.histograms
     } yield {
       val (value, category) = hf.pick(histo)
-      val (su, data) = CloudWatchTimeUnit.toStandardUnit(unitB, histo.histogram.unitSymbol, value)
+      val (su, data) = CloudWatchTimeUnit.toStandardUnit(squants = histo.histogram.squants, data = value)
       MetricKey(
         timestamp = report.timestamp.toInstant,
         serviceParams = report.serviceParams,
@@ -107,7 +98,8 @@ final class CloudWatchObserver[F[_]: Concurrent] private (
       report.snapshot.meters.map { meter =>
         val aggregate: Long = meter.meter.aggregate
         val value: Long = lookup.get(meter.metricId.metricName.uuid).fold(aggregate)(aggregate - _)
-        val (su, data) = CloudWatchTimeUnit.toStandardUnit(unitB, meter.meter.unitSymbol, value.toDouble)
+        val (su, data) =
+          CloudWatchTimeUnit.toStandardUnit(squants = meter.meter.squants, data = value.toDouble)
         MetricKey(
           timestamp = report.timestamp.toInstant,
           serviceParams = report.serviceParams,
