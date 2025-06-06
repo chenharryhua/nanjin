@@ -2,12 +2,13 @@ package com.github.chenharryhua.nanjin.guard.translator
 
 import cats.data.NonEmptyList
 import cats.implicits.{catsSyntaxEq, showInterpolator, toFunctorFilterOps}
-import com.github.chenharryhua.nanjin.guard.config.MetricID
+import com.github.chenharryhua.nanjin.guard.config.{MetricID, Squants}
 import com.github.chenharryhua.nanjin.guard.event.MetricSnapshot
 import io.circe.Json
 import io.circe.syntax.EncoderOps
 import org.apache.commons.lang3.StringUtils
 import squants.time
+import squants.time.TimeConversions.timeToScalaDuration
 
 final class SnapshotPolyglot(snapshot: MetricSnapshot) {
 
@@ -23,7 +24,7 @@ final class SnapshotPolyglot(snapshot: MetricSnapshot) {
 
   private def meters: List[(MetricID, NonEmptyList[(String, String)])] =
     snapshot.meters.map { m =>
-      val unit = m.meter.unitSymbol
+      val unit = m.meter.squants.unitSymbol
       m.metricId -> NonEmptyList.of(
         "aggregate" -> s"${decimalFormatter.format(m.meter.aggregate)} $unit",
         "mean_rate" -> adaptable_mean_rate(m.meter.mean_rate.toHertz, unit),
@@ -55,22 +56,43 @@ final class SnapshotPolyglot(snapshot: MetricSnapshot) {
       )
     }
 
+  private def interpret_histogram[A: Numeric](squants: Squants, data: A): String = {
+    val Squants(unitSymbol, dimensionName) = squants
+    unitSymbol match {
+      case time.Nanoseconds.symbol if dimensionName == time.Time.name =>
+        durationFormatter.format(timeToScalaDuration(time.Nanoseconds(data)))
+      case time.Microseconds.symbol if dimensionName == time.Time.name =>
+        durationFormatter.format(timeToScalaDuration(time.Microseconds(data)))
+      case time.Milliseconds.symbol if dimensionName == time.Time.name =>
+        durationFormatter.format(timeToScalaDuration(time.Milliseconds(data)))
+      case time.Seconds.symbol if dimensionName == time.Time.name =>
+        durationFormatter.format(timeToScalaDuration(time.Seconds(data)))
+      case time.Minutes.symbol if dimensionName == time.Time.name =>
+        durationFormatter.format(timeToScalaDuration(time.Minutes(data)))
+      case time.Hours.symbol if dimensionName == time.Time.name =>
+        durationFormatter.format(timeToScalaDuration(time.Hours(data)))
+      case time.Days.symbol if dimensionName == time.Time.name =>
+        durationFormatter.format(timeToScalaDuration(time.Days(data)))
+
+      case unit => s"${decimalFormatter.format(data)} $unit"
+    }
+  }
+
   private def histograms: List[(MetricID, NonEmptyList[(String, String)])] =
     snapshot.histograms.map { h =>
-      val unit = h.histogram.unitSymbol
       val histo = h.histogram
       h.metricId -> NonEmptyList.of(
         "updates" -> decimalFormatter.format(histo.updates),
-        "min" -> s"${decimalFormatter.format(histo.min)} $unit",
-        "max" -> s"${decimalFormatter.format(histo.max)} $unit",
-        "mean" -> s"${decimalFormatter.format(histo.mean)} $unit",
-        "stddev" -> s"${decimalFormatter.format(histo.stddev)} $unit",
-        "p50" -> s"${decimalFormatter.format(histo.p50)} $unit",
-        "p75" -> s"${decimalFormatter.format(histo.p75)} $unit",
-        "p95" -> s"${decimalFormatter.format(histo.p95)} $unit",
-        "p98" -> s"${decimalFormatter.format(histo.p98)} $unit",
-        "p99" -> s"${decimalFormatter.format(histo.p99)} $unit",
-        "p999" -> s"${decimalFormatter.format(histo.p999)} $unit"
+        "min" -> interpret_histogram(histo.squants, histo.min),
+        "max" -> interpret_histogram(histo.squants, histo.max),
+        "mean" -> interpret_histogram(histo.squants, histo.mean),
+        "stddev" -> interpret_histogram(histo.squants, histo.stddev),
+        "p50" -> interpret_histogram(histo.squants, histo.p50),
+        "p75" -> interpret_histogram(histo.squants, histo.p75),
+        "p95" -> interpret_histogram(histo.squants, histo.p95),
+        "p98" -> interpret_histogram(histo.squants, histo.p98),
+        "p99" -> interpret_histogram(histo.squants, histo.p99),
+        "p999" -> interpret_histogram(histo.squants, histo.p999)
       )
     }
 

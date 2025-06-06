@@ -36,7 +36,13 @@ object Histogram {
     private[this] val F = Sync[F]
 
     private[this] val histogram_name: String =
-      MetricID(label, name, Category.Histogram(HistogramKind.Histogram, unitOfMeasure.symbol)).identifier
+      MetricID(
+        metricLabel = label,
+        metricName = name,
+        Category.Histogram(
+          kind = HistogramKind.Histogram,
+          squants = Squants(unitOfMeasure.symbol, unitOfMeasure(1).dimension.name))
+      ).identifier
 
     private[this] val supplier: metrics.MetricRegistry.MetricSupplier[metrics.Histogram] = () =>
       reservoir match {

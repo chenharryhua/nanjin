@@ -58,6 +58,9 @@ object CategoryKind {
 }
 
 @JsonCodec
+final case class Squants(unitSymbol: String, dimensionName: String)
+
+@JsonCodec
 sealed trait Category extends Product with Serializable {
   def kind: CategoryKind
 }
@@ -66,8 +69,8 @@ object Category {
 
   final case class Gauge(kind: GaugeKind) extends Category
   final case class Counter(kind: CounterKind) extends Category
-  final case class Meter(kind: MeterKind, unitSymbol: String) extends Category
-  final case class Histogram(kind: HistogramKind, unitSymbol: String) extends Category
+  final case class Meter(kind: MeterKind, squants: Squants) extends Category
+  final case class Histogram(kind: HistogramKind, squants: Squants) extends Category
   final case class Timer(kind: TimerKind) extends Category
 }
 
