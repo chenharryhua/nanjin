@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.kafka.streaming
 
 import cats.data.{Cont, Reader}
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
-import com.github.chenharryhua.nanjin.kafka.KeyValueSerdePair
+import com.github.chenharryhua.nanjin.kafka.RegisteredSerdePair
 import org.apache.kafka.streams.Topology
 import org.apache.kafka.streams.kstream.GlobalKTable
 import org.apache.kafka.streams.processor.TimestampExtractor
@@ -12,7 +12,7 @@ import org.apache.kafka.streams.state.{KeyValueBytesStoreSupplier, StateSerdes}
 
 final class KafkaStreamingConsumer[F[_], K, V] private[kafka] (
   topicName: TopicName,
-  serdePair: KeyValueSerdePair[K, V],
+  serdePair: RegisteredSerdePair[K, V],
   resetPolicy: Option[Topology.AutoOffsetReset],
   processorName: Option[String],
   timestampExtractor: Option[TimestampExtractor]) {

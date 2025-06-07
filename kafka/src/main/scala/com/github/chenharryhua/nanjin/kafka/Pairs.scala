@@ -11,11 +11,14 @@ import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJProduc
 import org.apache.avro.{Schema, SchemaCompatibility}
 
 final case class RawKeyValueSerdePair[K, V](key: SerdeOf[K], value: SerdeOf[V]) {
-  def register(srs: SchemaRegistrySettings, name: TopicName): KeyValueSerdePair[K, V] =
-    KeyValueSerdePair(key.asKey(srs.config).withTopic(name), value.asValue(srs.config).withTopic(name))
+  def register(srs: SchemaRegistrySettings, name: TopicName): RegisteredSerdePair[K, V] =
+    RegisteredSerdePair(
+      name,
+      key.asKey(srs.config).withTopic(name),
+      value.asValue(srs.config).withTopic(name))
 }
 
-final case class KeyValueSerdePair[K, V](key: KafkaSerde[K], value: KafkaSerde[V])
+final case class RegisteredSerdePair[K, V](name: TopicName, key: KafkaSerde[K], value: KafkaSerde[V])
 
 final case class AvroSchemaPair(key: Schema, value: Schema) {
   val consumerSchema: Schema = NJConsumerRecord.schema(key, value)

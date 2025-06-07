@@ -1,19 +1,16 @@
 package com.github.chenharryhua.nanjin.kafka.streaming
 
-import cats.data.{Cont, Reader}
 import cats.effect.kernel.{Async, Deferred}
 import cats.effect.std.{CountDownLatch, Dispatcher}
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.kafka.KafkaStreamSettings
+import com.github.chenharryhua.nanjin.kafka.{KafkaSerdeBuilder, KafkaStreamSettings, SchemaRegistrySettings}
 import fs2.Stream
 import fs2.concurrent.Channel
 import io.circe.{Encoder, Json}
 import io.scalaland.enumz.Enum
 import org.apache.kafka.streams.KafkaStreams.State
-import org.apache.kafka.streams.processor.StateStore
 import org.apache.kafka.streams.scala.StreamsBuilder
-import org.apache.kafka.streams.state.StoreBuilder
-import org.apache.kafka.streams.{KafkaStreams, StreamsBuilder as JavaStreamsBuilder, StreamsConfig, Topology}
+import org.apache.kafka.streams.{KafkaStreams, StreamsConfig, Topology}
 
 import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.jdk.CollectionConverters.MapHasAsJava
@@ -35,8 +32,8 @@ object StateUpdate {
 final class KafkaStreamsBuilder[F[_]] private (
   applicationId: String,
   settings: KafkaStreamSettings,
-  top: Reader[StreamsBuilder, Unit],
-  localStateStores: Cont[JavaStreamsBuilder, JavaStreamsBuilder],
+  schemaRegistrySettings: SchemaRegistrySettings,
+  top: (StreamsBuilder, KafkaSerdeBuilder) => Unit,
   startUpTimeout: Duration)(implicit F: Async[F]) {
 
   final private class StateChange(
@@ -91,31 +88,24 @@ final class KafkaStreamsBuilder[F[_]] private (
     new KafkaStreamsBuilder[F](
       applicationId = applicationId,
       settings = settings,
+      schemaRegistrySettings = schemaRegistrySettings,
       top = top,
-      localStateStores = localStateStores,
-      startUpTimeout = value)
+      startUpTimeout = value
+    )
 
   def withProperty(key: String, value: String): KafkaStreamsBuilder[F] =
     new KafkaStreamsBuilder[F](
       applicationId = applicationId,
       settings = settings.withProperty(key, value),
+      schemaRegistrySettings = schemaRegistrySettings,
       top = top,
-      localStateStores = localStateStores,
-      startUpTimeout = startUpTimeout
-    )
-
-  def addStateStore[S <: StateStore](storeBuilder: StoreBuilder[S]): KafkaStreamsBuilder[F] =
-    new KafkaStreamsBuilder[F](
-      applicationId = applicationId,
-      settings = settings,
-      top = top,
-      localStateStores = localStateStores.map(_.addStateStore(storeBuilder)),
       startUpTimeout = startUpTimeout
     )
 
   lazy val topology: Topology = {
-    val builder: StreamsBuilder = new StreamsBuilder(localStateStores.eval.value)
-    top.run(builder)
+    val builder: StreamsBuilder = new StreamsBuilder()
+    val ksb: KafkaSerdeBuilder = new KafkaSerdeBuilder(schemaRegistrySettings)
+    top(builder, ksb)
     builder.build()
   }
 }
@@ -124,12 +114,13 @@ object KafkaStreamsBuilder {
   def apply[F[_]: Async](
     applicationId: String,
     settings: KafkaStreamSettings,
-    top: Reader[StreamsBuilder, Unit]): KafkaStreamsBuilder[F] =
+    schemaRegistrySettings: SchemaRegistrySettings,
+    top: (StreamsBuilder, KafkaSerdeBuilder) => Unit): KafkaStreamsBuilder[F] =
     new KafkaStreamsBuilder[F](
       applicationId = applicationId,
       settings = settings,
+      schemaRegistrySettings = schemaRegistrySettings,
       top = top,
-      localStateStores = Cont.defer(new JavaStreamsBuilder()),
       startUpTimeout = Duration.Inf
     )
 }
