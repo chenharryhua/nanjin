@@ -14,6 +14,6 @@ addSbtPlugin("com.github.sbt"    % "sbt-git"                   % "2.1.0")
 
 addSbtPlugin("com.thesamet" % "sbt-protoc" % "1.0.7")
 
-libraryDependencies += "com.thesamet.scalapb" %% "compilerplugin" % "0.11.17"
+libraryDependencies += "com.thesamet.scalapb" %% "compilerplugin" % "0.11.18"
 
 libraryDependencySchemes += "org.scala-lang.modules" %% "scala-xml" % VersionScheme.Always
