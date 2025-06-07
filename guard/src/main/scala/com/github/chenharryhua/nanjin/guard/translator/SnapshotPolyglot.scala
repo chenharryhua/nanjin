@@ -8,7 +8,6 @@ import io.circe.Json
 import io.circe.syntax.EncoderOps
 import org.apache.commons.lang3.StringUtils
 import squants.time
-import squants.time.TimeConversions.timeToScalaDuration
 
 final class SnapshotPolyglot(snapshot: MetricSnapshot) {
 
@@ -58,24 +57,19 @@ final class SnapshotPolyglot(snapshot: MetricSnapshot) {
 
   private def interpret_histogram[A: Numeric](squants: Squants, data: A): String = {
     val Squants(unitSymbol, dimensionName) = squants
-    unitSymbol match {
-      case time.Nanoseconds.symbol if dimensionName == time.Time.name =>
-        durationFormatter.format(timeToScalaDuration(time.Nanoseconds(data)))
-      case time.Microseconds.symbol if dimensionName == time.Time.name =>
-        durationFormatter.format(timeToScalaDuration(time.Microseconds(data)))
-      case time.Milliseconds.symbol if dimensionName == time.Time.name =>
-        durationFormatter.format(timeToScalaDuration(time.Milliseconds(data)))
-      case time.Seconds.symbol if dimensionName == time.Time.name =>
-        durationFormatter.format(timeToScalaDuration(time.Seconds(data)))
-      case time.Minutes.symbol if dimensionName == time.Time.name =>
-        durationFormatter.format(timeToScalaDuration(time.Minutes(data)))
-      case time.Hours.symbol if dimensionName == time.Time.name =>
-        durationFormatter.format(timeToScalaDuration(time.Hours(data)))
-      case time.Days.symbol if dimensionName == time.Time.name =>
-        durationFormatter.format(timeToScalaDuration(time.Days(data)))
-
-      case unit => s"${decimalFormatter.format(data)} $unit"
-    }
+    if (dimensionName === time.Time.name) {
+      unitSymbol match {
+        case time.Nanoseconds.symbol  => durationFormatter.format(time.Nanoseconds(data))
+        case time.Microseconds.symbol => durationFormatter.format(time.Microseconds(data))
+        case time.Milliseconds.symbol => durationFormatter.format(time.Milliseconds(data))
+        case time.Seconds.symbol      => durationFormatter.format(time.Seconds(data))
+        case time.Minutes.symbol      => durationFormatter.format(time.Minutes(data))
+        case time.Hours.symbol        => durationFormatter.format(time.Hours(data))
+        case time.Days.symbol         => durationFormatter.format(time.Days(data))
+        case unknown                  => sys.error(s"$unknown - unknown symbol of dimension $dimensionName")
+      }
+    } else
+      s"${decimalFormatter.format(data)} $unitSymbol"
   }
 
   private def histograms: List[(MetricID, NonEmptyList[(String, String)])] =

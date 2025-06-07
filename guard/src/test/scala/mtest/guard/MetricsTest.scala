@@ -21,11 +21,12 @@ import com.github.chenharryhua.nanjin.guard.observers.console
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import io.circe.generic.JsonCodec
 import org.scalatest.funsuite.AnyFunSuite
-import squants.information.{Bytes, Information}
 import squants.information.InformationConversions.InformationConversions
+import squants.information.{Bytes, Information}
 import squants.market.MoneyConversions.MoneyConversions
 import squants.market.{AUD, Money}
 import squants.time.{Milliseconds, Time}
+import squants.{Dimensionless, Percent}
 
 import java.time.{ZoneId, ZonedDateTime}
 import scala.concurrent.duration.DurationInt
@@ -135,6 +136,25 @@ class MetricsTest extends AnyFunSuite {
     assert(histo.max == 1030)
     assert(histo.squants.unitSymbol == Milliseconds.symbol)
     assert(histo.squants.dimensionName == Time.name)
+  }
+
+  test("6.histogram percent") {
+    val mr = service.eventStream { agent =>
+      agent
+        .facilitate("histogram")(_.histogram(Percent)("histogram"))
+        .use(m => m.update(30) >> m.update(50) >> agent.adhoc.report)
+    }.evalTap(console.text[IO])
+      .map(checkJson)
+      .mapFilter(eventFilters.metricReport)
+      .compile
+      .lastOrError
+      .unsafeRunSync()
+    val histo = retrieveHistogram(mr.snapshot.histograms).values.head
+    assert(mr.snapshot.nonEmpty)
+    assert(histo.updates == 2)
+    assert(histo.max == 50)
+    assert(histo.squants.unitSymbol == Percent.symbol)
+    assert(histo.squants.dimensionName == Dimensionless.name)
   }
 
   test("7.histogram disable") {

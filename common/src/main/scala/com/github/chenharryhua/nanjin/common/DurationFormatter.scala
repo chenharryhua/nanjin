@@ -2,6 +2,8 @@ package com.github.chenharryhua.nanjin.common
 
 import cats.implicits.catsSyntaxEq
 import org.apache.commons.lang3.time.DurationFormatUtils
+import squants.time.Time
+import squants.time.TimeConversions.timeToScalaDuration
 
 import java.time.{Duration as JavaDuration, Instant, ZonedDateTime}
 import java.util.concurrent.TimeUnit
@@ -18,6 +20,7 @@ trait DurationFormatter {
   final def format(start: Instant, end: Instant): String = format(JavaDuration.between(start, end))
   final def format(start: ZonedDateTime, end: ZonedDateTime): String =
     format(JavaDuration.between(start, end))
+  final def format(time: Time): String = format(timeToScalaDuration(time))
 }
 
 object DurationFormatter {
