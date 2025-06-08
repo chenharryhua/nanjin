@@ -18,8 +18,8 @@ class ExampleKafkaKStream extends AnyFunSuite {
     def top(sb: StreamsBuilder, ksb: StreamsSerde): Unit = {
       implicit val con: Consumed[Int, Foo] = ksb.consumed[Int, Foo]
       implicit val pro: Produced[Int, Bar] = ksb.produced[Int, Bar]
-      sb.stream[Int, Foo](fooTopic.topicDef.topicName.value)
-        .mapValues(foo => Bar(Random.nextInt(), foo.a.toLong))
+      sb.stream[Int, Foo](fooTopic.topicName.value)
+        .flatMapValues(Option(_).map(foo => Bar(Random.nextInt(), foo.a.toLong)))
         .to(barTopic.topicName.value)
     }
 
