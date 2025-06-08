@@ -28,7 +28,7 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
   val hadoop: Hadoop[F] = sparkSession.hadoop[F]
 
   def topic[K, V](topicDef: TopicDef[K, V]): SparKafkaTopic[F, K, V] =
-    new SparKafkaTopic[F, K, V](sparkSession, kafkaContext.topic(topicDef))
+    new SparKafkaTopic[F, K, V](sparkSession, kafkaContext, topicDef)
 
   def topic[K: AvroCodecOf, V: AvroCodecOf](topicName: TopicName): SparKafkaTopic[F, K, V] =
     topic[K, V](TopicDef[K, V](topicName))

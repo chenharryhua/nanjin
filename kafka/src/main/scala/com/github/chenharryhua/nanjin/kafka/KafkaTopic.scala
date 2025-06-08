@@ -16,10 +16,10 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
     withTopicName(TopicName(tn))
 
   // need to reconstruct codec when working in spark
-  @transient private lazy val registeredSerdePair: SerdePair[K, V] =
-    topicDef.codecPair.register(settings.schemaRegistrySettings, topicName)
-
-  lazy val serde: KafkaGenericSerde[K, V] =
-    new KafkaGenericSerde[K, V](registeredSerdePair.key, registeredSerdePair.value)
+//   private lazy val registeredSerdePair: SerdePair[K, V] =
+//    topicDef.codecPair.register(settings.schemaRegistrySettings, topicName)
+//
+//  lazy val serde: KafkaGenericSerde[K, V] =
+//    new KafkaGenericSerde[K, V](registeredSerdePair.key, registeredSerdePair.value)
 
 }

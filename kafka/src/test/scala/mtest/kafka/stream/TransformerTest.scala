@@ -22,9 +22,9 @@ class TransformerTest extends AnyFunSuite {
 
     def td: TopicDef[Int, String] = TopicDef[Int, String](TopicName("stream"))
 
-    val topic1 = ctx.topic[Int, String](td.withTopicName("stream.builder.test.stream1"))
-    val topic2 = ctx.topic[Int, String](td.withTopicName("stream.builder.test.table2"))
-    val tgt = ctx.topic[Int, String](td.withTopicName("stream.builder.test.target"))
+    val topic1 = td.withTopicName("stream.builder.test.stream1")
+    val topic2 = td.withTopicName("stream.builder.test.table2")
+    val tgt = td.withTopicName("stream.builder.test.target")
 
     val kafkaStreamService: KafkaStreamsBuilder[IO] =
       ctx.buildStreams(appid)(apps.transformer_app)
@@ -51,7 +51,7 @@ class TransformerTest extends AnyFunSuite {
     val havest = ctx
       .consume(tgt.topicName)
       .stream
-      .map(tgt.serde.deserialize(_))
+      .map(ctx.serde(tgt).deserialize(_))
       .debug()
       .observe(_.map(_.offset).through(commitBatchWithin(10, 2.seconds)).drain)
 

@@ -62,9 +62,9 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
     new KafkaConsume[F, K, V](
       topicDef.topicName,
       ConsumerSettings[F, K, V](
-        Deserializer.delegate[F, K](serdePair.key.serde.deserializer()),
-        Deserializer.delegate[F, V](serdePair.value.serde.deserializer()))
-        .withProperties(settings.consumerSettings.properties)
+        Deserializer.delegate[F, K](serdePair.key.registered.serde.deserializer()),
+        Deserializer.delegate[F, V](serdePair.value.registered.serde.deserializer())
+      ).withProperties(settings.consumerSettings.properties)
     )
   }
 

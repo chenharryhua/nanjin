@@ -12,27 +12,33 @@ final class KeyValueBytesStoreSupplierHelper[K, V] private[streaming] (
   val supplier: KeyValueBytesStoreSupplier,
   serdePair: SerdePair[K, V]) {
   def keyValueStoreBuilder: StoreBuilder[KeyValueStore[K, V]] =
-    Stores.keyValueStoreBuilder(supplier, serdePair.key.serde, serdePair.value.serde)
+    Stores.keyValueStoreBuilder(supplier, serdePair.key.registered.serde, serdePair.value.registered.serde)
 
   def timestampedKeyValueStoreBuilder: StoreBuilder[TimestampedKeyValueStore[K, V]] =
-    Stores.timestampedKeyValueStoreBuilder(supplier, serdePair.key.serde, serdePair.value.serde)
+    Stores.timestampedKeyValueStoreBuilder(
+      supplier,
+      serdePair.key.registered.serde,
+      serdePair.value.registered.serde)
 }
 
 final class WindowBytesStoreSupplierHelper[K, V] private[streaming] (
   val supplier: WindowBytesStoreSupplier,
   serdePair: SerdePair[K, V]) {
   def windowStoreBuilder: StoreBuilder[WindowStore[K, V]] =
-    Stores.windowStoreBuilder(supplier, serdePair.key.serde, serdePair.value.serde)
+    Stores.windowStoreBuilder(supplier, serdePair.key.registered.serde, serdePair.value.registered.serde)
 
   def timestampedWindowStoreBuilder: StoreBuilder[TimestampedWindowStore[K, V]] =
-    Stores.timestampedWindowStoreBuilder(supplier, serdePair.key.serde, serdePair.value.serde)
+    Stores.timestampedWindowStoreBuilder(
+      supplier,
+      serdePair.key.registered.serde,
+      serdePair.value.registered.serde)
 }
 
 final class SessionBytesStoreSupplierHelper[K, V] private[streaming] (
   val supplier: SessionBytesStoreSupplier,
   serdePair: SerdePair[K, V]) {
   def sessionStoreBuilder: StoreBuilder[SessionStore[K, V]] =
-    Stores.sessionStoreBuilder(supplier, serdePair.key.serde, serdePair.value.serde)
+    Stores.sessionStoreBuilder(supplier, serdePair.key.registered.serde, serdePair.value.registered.serde)
 }
 
 final class StateStores[K, V] private (serdePair: SerdePair[K, V]) extends Serializable {

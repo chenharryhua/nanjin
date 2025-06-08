@@ -13,20 +13,23 @@ import frameless.TypedEncoder
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 
-final class SparKafkaTopic[F[_], K, V](val sparkSession: SparkSession, val topic: KafkaTopic[F, K, V])
+final class SparKafkaTopic[F[_], K, V](
+  sparkSession: SparkSession,
+  ctx: KafkaContext[F],
+  topicDef: TopicDef[K, V])
     extends Serializable {
-  override val toString: String = topic.topicName.value
+  override val toString: String = topicDef.topicName.value
 
-  val topicName: TopicName = topic.topicDef.topicName
+  val topicName: TopicName = topicDef.topicName
 
   def ate(implicit tek: TypedEncoder[K], tev: TypedEncoder[V]): SchematizedEncoder[NJConsumerRecord[K, V]] =
-    SchematizedEncoder(topic.topicDef)
+    SchematizedEncoder(topicDef)
 
-  private val avroKeyCodec: AvroCodec[K] = topic.topicDef.codecPair.key.avroCodec
-  private val avroValCodec: AvroCodec[V] = topic.topicDef.codecPair.value.avroCodec
+  private val avroKeyCodec: AvroCodec[K] = topicDef.codecPair.key.avroCodec
+  private val avroValCodec: AvroCodec[V] = topicDef.codecPair.value.avroCodec
 
   private def downloadKafka(dateTimeRange: DateTimeRange)(implicit F: Async[F]): F[CrRdd[K, V]] =
-    sk.kafkaBatch(topic, sparkSession, dateTimeRange).map(crRdd)
+    sk.kafkaBatch(sparkSession, ctx, topicDef, ctx.serde(topicDef), dateTimeRange).map(crRdd)
 
   /** download topic according to datetime
     *
@@ -50,7 +53,7 @@ final class SparKafkaTopic[F[_], K, V](val sparkSession: SparkSession, val topic
     *   CrRdd
     */
   def fromKafka(offsets: Map[Int, (Long, Long)])(implicit F: Async[F]): F[CrRdd[K, V]] =
-    KafkaContext[F](topic.settings)
+    ctx
       .admin(topicName)
       .use(_.partitionsFor.map { partitions =>
         val topicPartition = partitions.value.map { tp =>
@@ -60,12 +63,13 @@ final class SparKafkaTopic[F[_], K, V](val sparkSession: SparkSession, val topic
         }.toMap
         TopicPartitionMap(topicPartition)
       })
-      .map(offsetRange => crRdd(sk.kafkaBatch(topic, sparkSession, offsetRange)))
+      .map(offsetRange =>
+        crRdd(sk.kafkaBatch(sparkSession, ctx.settings.consumerSettings, ctx.serde(topicDef), offsetRange)))
 
   /** load topic data from disk
     */
 
-  def load: LoadTopicFile[K, V] = new LoadTopicFile[K, V](topic.topicDef, sparkSession)
+  def load: LoadTopicFile[K, V] = new LoadTopicFile[K, V](topicDef, sparkSession)
 
   /** rdd and dataset
     */
@@ -77,7 +81,7 @@ final class SparKafkaTopic[F[_], K, V](val sparkSession: SparkSession, val topic
     crRdd(sparkSession.sparkContext.emptyRDD[NJConsumerRecord[K, V]])
 
   def prRdd(rdd: RDD[NJProducerRecord[K, V]]): PrRdd[K, V] =
-    new PrRdd[K, V](rdd, topic.topicDef.producerCodec)
+    new PrRdd[K, V](rdd, topicDef.producerCodec)
 
   def prRdd[G[_]: Foldable](list: G[NJProducerRecord[K, V]]): PrRdd[K, V] =
     prRdd(sparkSession.sparkContext.parallelize(list.toList))

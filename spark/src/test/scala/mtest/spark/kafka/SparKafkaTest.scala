@@ -131,13 +131,13 @@ class SparKafkaTest extends AnyFunSuite {
   test("should be able to reproduce") {
     import fs2.Stream
     val path = "./data/test/spark/kafka/reproduce/jackson"
-    val topic = sparKafka.topic[Int, HasDuck]("duck.test")
-    topic.fromKafka.flatMap(_.output.jackson(path).run[IO]).unsafeRunSync()
+    val topic = TopicDef[Int, HasDuck](TopicName("duck.test"))
+    sparKafka.topic(topic).fromKafka.flatMap(_.output.jackson(path).run[IO]).unsafeRunSync()
 
     Stream
       .eval(hadoop.filesIn(path))
       .flatMap(
-        _.map(hadoop.source(_).jackson(10, topic.topic.topicDef.schemaPair.consumerSchema))
+        _.map(hadoop.source(_).jackson(10, topic.schemaPair.consumerSchema))
           .reduce(_ ++ _)
           .chunks
           .through(ctx.sink(topic.topicName, _.withClientId("a"))))
