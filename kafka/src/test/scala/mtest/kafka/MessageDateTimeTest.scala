@@ -56,7 +56,7 @@ class MessageDateTimeTest extends AnyFunSuite {
 
   test("supported java date-time type") {
     import DatetimeCase.AllJavaDateTime
-    val topic = ctx.topic(TopicDef[Int, AllJavaDateTime](TopicName("message.datetime.test")))
+    val topic = TopicDef[Int, AllJavaDateTime](TopicName("message.datetime.test"))
     val m = AllJavaDateTime(LocalDateTime.now, LocalDate.now, Instant.ofEpochMilli(Instant.now.toEpochMilli))
     val data: fs2.Stream[IO, ProducerResult[Int, AllJavaDateTime]] =
       fs2

@@ -15,8 +15,8 @@ object CopyData {
 class CopyDataTest extends AnyFunSuite {
   import CopyData.*
   val td = TopicDef[Int, MyTestData](TopicName("tn"))
-  val src = ctx.topic[Int, MyTestData](td.withTopicName("copy.src"))
-  val tgt = ctx.topic[Int, MyTestData](td.withTopicName("copy.target"))
+  val src = td.withTopicName("copy.src")
+  val tgt = td.withTopicName("copy.target")
 
   val d1 = ProducerRecord(src.topicName.value, 0, MyTestData(1, "a")).withTimestamp(10)
   val d2 = ProducerRecord(src.topicName.value, 1, MyTestData(2, "b")).withTimestamp(20)
@@ -35,17 +35,17 @@ class CopyDataTest extends AnyFunSuite {
   val prepareData =
     ctx.admin(src.topicName).use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt) >>
       ctx.schemaRegistry.delete(src.topicName).attempt >>
-      ctx.schemaRegistry.register(src.topicDef).attempt >>
+      ctx.schemaRegistry.register(src).attempt >>
       ctx.admin(tgt.topicName).use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt) >>
       ctx.schemaRegistry.delete(tgt.topicName).attempt >>
-      ctx.schemaRegistry.register(tgt.topicDef).attempt >>
+      ctx.schemaRegistry.register(tgt).attempt >>
       loadData
 
   test("sparKafka pipeTo should copy data from source to target") {
     val rst = for {
       _ <- prepareData
       _ <- sparKafka
-        .topic(src.topicDef)
+        .topic(src)
         .fromKafka
         .flatMap(
           _.prRdd.noPartition.noTimestamp.noMeta
@@ -54,8 +54,8 @@ class CopyDataTest extends AnyFunSuite {
             .through(ctx.produce[Int, MyTestData].sink)
             .compile
             .drain)
-      srcData = sparKafka.topic(src.topicDef).fromKafka.map(_.rdd.collect()).unsafeRunSync()
-      tgtData = sparKafka.topic(tgt.topicDef).fromKafka.map(_.rdd.collect()).unsafeRunSync()
+      srcData = sparKafka.topic(src).fromKafka.map(_.rdd.collect()).unsafeRunSync()
+      tgtData = sparKafka.topic(tgt).fromKafka.map(_.rdd.collect()).unsafeRunSync()
     } yield {
 
       assert(srcData.length == 5)

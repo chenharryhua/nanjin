@@ -70,8 +70,9 @@ object KPB {
       override def parseFrom(input: CodedInputStream): KPB[A] = KPB(ev.parseFrom(input))
     }
 
-  implicit def kpbSerde[A <: GeneratedMessage](implicit ev: GeneratedMessageCompanion[A]): SerdeOf[KPB[A]] =
-    new SerdeOf[KPB[A]] {
+  implicit def kpbAvroCodec[A <: GeneratedMessage](implicit
+    ev: GeneratedMessageCompanion[A]): AvroCodecOf[KPB[A]] =
+    new AvroCodecOf[KPB[A]] {
       override val avroCodec: AvroCodec[KPB[A]] = {
         val kpbCodec: Codec[KPB[A]] = new Codec[KPB[A]] {
           override def decode(value: Any): KPB[A] = value match {

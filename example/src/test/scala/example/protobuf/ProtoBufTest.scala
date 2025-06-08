@@ -1,6 +1,6 @@
 package example.protobuf
 
-import com.github.chenharryhua.nanjin.messages.kafka.codec.{KPB, SerdeOf}
+import com.github.chenharryhua.nanjin.messages.kafka.codec.{KPB, AvroCodecOf}
 import mtest.pb.messages.MessagePerson
 import org.scalacheck.Prop.{forAll, propBoolean}
 import org.scalacheck.{Arbitrary, Gen, Properties}
@@ -8,7 +8,7 @@ import scalapb.UnknownFieldSet
 
 class ProtoBufTest extends Properties("protobuf") {
 
-  val ser: SerdeOf[KPB[MessagePerson]] = SerdeOf[KPB[MessagePerson]]
+  val ser: AvroCodecOf[KPB[MessagePerson]] = AvroCodecOf[KPB[MessagePerson]]
 
   val genPerson: Gen[MessagePerson] = for {
     name <- Gen.asciiStr

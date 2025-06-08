@@ -3,16 +3,15 @@ package mtest.spark.kafka
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
-import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, TopicDef}
+import com.github.chenharryhua.nanjin.kafka.TopicDef
 import eu.timepit.refined.auto.*
 import fs2.kafka.{ProducerRecord, ProducerRecords}
 import io.circe.Codec
-import io.circe.generic.auto.*
 import io.lemonlabs.uri.typesafe.dsl.*
 import org.scalatest.funsuite.AnyFunSuite
 import shapeless.*
+import io.circe.generic.auto.*
 import com.github.chenharryhua.nanjin.common.transformers.*
-
 object KafkaAvroTestData {
   final case class Child1(a: Int, b: String)
   final case class Child2(a: Int, b: String)
@@ -43,14 +42,11 @@ object KafkaAvroTestData {
   val cp1: PersonCoproduct = PersonCoproduct("aa", Coproduct[CoParent](Child1(1, "a")))
   val cp2: PersonCoproduct = PersonCoproduct("bb", Coproduct[CoParent](Child2(2, "b")))
 
-  val topicCO: KafkaTopic[IO, Int, PersonCaseObject] =
-    ctx.topic(TopicDef[Int, PersonCaseObject](TopicName("test.spark.kafka.coproduct.caseobject")))
+  val topicCO = TopicDef[Int, PersonCaseObject](TopicName("test.spark.kafka.coproduct.caseobject"))
 
-  val topicEnum: KafkaTopic[IO, Int, PersonEnum] =
-    ctx.topic(TopicDef[Int, PersonEnum](TopicName("test.spark.kafka.coproduct.scalaenum")))
+  val topicEnum = TopicDef[Int, PersonEnum](TopicName("test.spark.kafka.coproduct.scalaenum"))
 
-  val topicCoProd: KafkaTopic[IO, Int, PersonCoproduct] =
-    ctx.topic(TopicDef[Int, PersonCoproduct](TopicName("test.spark.kafka.coproduct.shapelesscoproduct")))
+  val topicCoProd = TopicDef[Int, PersonCoproduct](TopicName("test.spark.kafka.coproduct.shapelesscoproduct"))
 
 }
 
@@ -67,13 +63,13 @@ class KafkaAvroTest extends AnyFunSuite {
       .covary[IO]
       .through(ctx.produce[Int, PersonCaseObject].updateConfig(_.withClientId("kafka.avro.test1")).sink)
     val path = "./data/test/spark/kafka/coproduct/caseobject.avro"
-    val sk = sparKafka.topic(topicCO.topicDef)
+    val sk = sparKafka.topic(topicCO)
 
     val run =
       ctx
         .admin(topicCO.topicName)
         .use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt) >>
-        ctx.schemaRegistry.register(topicCO.topicDef) >>
+        ctx.schemaRegistry.register(topicCO) >>
         data.compile.drain >>
         sk.fromKafka.flatMap(_.output.avro(path).run[IO]) >>
         IO(sk.load.avro(path).rdd.collect().toSet)
@@ -94,13 +90,13 @@ class KafkaAvroTest extends AnyFunSuite {
     val circePath = "./data/test/spark/kafka/coproduct/scalaenum.circe.json"
     val parquetPath = "./data/test/spark/kafka/coproduct/scalaenum.parquet"
 
-    val sk = sparKafka.topic(topicEnum.topicDef)
+    val sk = sparKafka.topic(topicEnum)
 
     val run =
       ctx
         .admin(topicEnum.topicName)
         .use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt) >>
-        ctx.schemaRegistry.register(topicEnum.topicDef) >>
+        ctx.schemaRegistry.register(topicEnum) >>
         data.compile.drain >>
         sk.fromKafka.flatMap(_.output.avro(avroPath).run[IO]) >>
         sk.fromKafka.flatMap(_.output.jackson(jacksonPath).run[IO]) >>
@@ -125,13 +121,13 @@ class KafkaAvroTest extends AnyFunSuite {
       .through(ctx.produce[Int, PersonEnum].updateConfig(_.withClientId("kafka.avro.test3")).sink)
 
     val path = "./data/test/spark/kafka/coproduct/multi-scalaenum.avro"
-    val sk = sparKafka.topic(topicEnum.topicDef)
+    val sk = sparKafka.topic(topicEnum)
 
     val run =
       ctx
         .admin(topicEnum.topicName)
         .use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt) >>
-        ctx.schemaRegistry.register(topicEnum.topicDef) >>
+        ctx.schemaRegistry.register(topicEnum) >>
         data.compile.drain >>
         sk.fromKafka.flatMap(_.output.avro(path).run[IO]) >>
         IO(sk.load.avro(path).rdd.take(10).toSet)
@@ -149,13 +145,13 @@ class KafkaAvroTest extends AnyFunSuite {
       .through(ctx.produce[Int, PersonEnum].updateConfig(_.withClientId("kafka.avro.test4")).sink)
 
     val path = "./data/test/spark/kafka/coproduct/multi-scalaenum.snappy.avro"
-    val sk = sparKafka.topic(topicEnum.topicDef)
+    val sk = sparKafka.topic(topicEnum)
 
     val run =
       ctx
         .admin(topicEnum.topicName)
         .use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt) >>
-        ctx.schemaRegistry.register(topicEnum.topicDef) >>
+        ctx.schemaRegistry.register(topicEnum) >>
         data.compile.drain >>
         sk.fromKafka.flatMap(_.output.avro(path).withCompression(_.Snappy).run[IO]) >>
         IO(sk.load.avro(path).rdd.take(10).toSet)
@@ -171,13 +167,13 @@ class KafkaAvroTest extends AnyFunSuite {
       .covary[IO]
       .through(ctx.produce[Int, PersonEnum].updateConfig(_.withClientId("kafka.avro.test5")).sink)
     val path = "./data/test/spark/kafka/coproduct/scalaenum.avro.bzip2"
-    val sk = sparKafka.topic(topicEnum.topicDef)
+    val sk = sparKafka.topic(topicEnum)
 
     val run =
       ctx
         .admin(topicEnum.topicName)
         .use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt) >>
-        ctx.schemaRegistry.register(topicEnum.topicDef) >>
+        ctx.schemaRegistry.register(topicEnum) >>
         data.compile.drain >>
         sk.fromKafka.flatMap(_.output.binAvro(path).withCompression(_.Bzip2).run[IO]) >>
         IO(sk.load.binAvro(path).rdd.take(10).toSet)

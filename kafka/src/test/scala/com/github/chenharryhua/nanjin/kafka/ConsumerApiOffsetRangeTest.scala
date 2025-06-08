@@ -25,14 +25,14 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
     */
 
   val topicDef: TopicDef[Int, Int] = TopicDef[Int, Int](TopicName("range.test"))
-  val topic: KafkaTopic[IO, Int, Int] = ctx.topic[Int, Int](topicDef)
+  val topic = topicDef
 
   val pr1: ProducerRecord[Int, Int] = ProducerRecord(topic.topicName.value, 1, 1).withTimestamp(100)
   val pr2: ProducerRecord[Int, Int] = ProducerRecord(topic.topicName.value, 2, 2).withTimestamp(200)
   val pr3: ProducerRecord[Int, Int] = ProducerRecord(topic.topicName.value, 3, 3).withTimestamp(300)
 
   val topicData: Stream[IO, ProducerResult[Int, Int]] =
-    Stream(ProducerRecords(List(pr1, pr2, pr3))).covary[IO].through(ctx.produce(topicDef.rawSerdes).sink)
+    Stream(ProducerRecords(List(pr1, pr2, pr3))).covary[IO].through(ctx.produce(topicDef.codecPair).sink)
 
   (ctx.admin(topic.topicName).use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt) >>
     topicData.compile.drain).unsafeRunSync()
@@ -41,7 +41,7 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
     val cs: ConsumerSettings[Id, Nothing, Nothing] = ConsumerSettings[Id, Nothing, Nothing](null, null)
     TransientConsumer[IO](
       topic.topicName,
-      cs.withProperties(topic.settings.consumerSettings.properties).withGroupId("consumer-api-test"))
+      cs.withProperties(ctx.settings.consumerSettings.properties).withGroupId("consumer-api-test"))
   }
 
   test("start and end are both in range") {

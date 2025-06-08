@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin
 
-import com.github.chenharryhua.nanjin.kafka.{KafkaContext, KafkaTopic}
-import com.github.chenharryhua.nanjin.spark.kafka.SparKafkaTopic
+import com.github.chenharryhua.nanjin.kafka.KafkaContext
 import com.github.chenharryhua.nanjin.spark.persist.*
 import com.github.chenharryhua.nanjin.spark.table.LoadTable
 import com.github.chenharryhua.nanjin.terminals.Hadoop
@@ -58,9 +57,6 @@ package object spark {
 
     def alongWith[F[_]](ctx: KafkaContext[F]): SparKafkaContext[F] =
       new SparKafkaContext[F](ss, ctx)
-
-    def topic[F[_], K, V](topic: KafkaTopic[F, K, V]): SparKafkaTopic[F, K, V] =
-      new SparKafkaContext[F](ss, KafkaContext[F](topic.settings)).topic(topic.topicDef)
 
     def hadoop[F[_]]: Hadoop[F] = Hadoop[F](ss.sparkContext.hadoopConfiguration)
 

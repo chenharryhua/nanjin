@@ -1,13 +1,13 @@
 package com.github.chenharryhua.nanjin.kafka
 
 import cats.Endo
-import cats.data.Reader
 import cats.effect.Resource
 import cats.effect.kernel.{Async, Sync}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameL}
 import com.github.chenharryhua.nanjin.common.{utils, UpdateConfig}
-import com.github.chenharryhua.nanjin.kafka.streaming.{KafkaStreamsBuilder, StateStores}
+import com.github.chenharryhua.nanjin.kafka.connector.{KafkaByteConsume, KafkaConsume, KafkaProduce}
+import com.github.chenharryhua.nanjin.kafka.streaming.{KafkaStreamsBuilder, StateStores, StreamsSerde}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.*
 import fs2.kafka.*
 import fs2.{Chunk, Pipe, Stream}
@@ -16,7 +16,6 @@ import io.circe.jawn.parse
 import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient
 import io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig
 import org.apache.avro.generic.GenericRecord
-import org.apache.kafka.common.serialization.Serde
 import org.apache.kafka.streams.scala.StreamsBuilder
 
 import scala.util.Try
@@ -27,16 +26,15 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
   override def updateConfig(f: Endo[KafkaSettings]): KafkaContext[F] =
     new KafkaContext[F](f(settings))
 
-  def asKey[K: SerdeOf]: Serde[K] = SerdeOf[K].asKey(settings.schemaRegistrySettings.config).serde
-  def asValue[V: SerdeOf]: Serde[V] = SerdeOf[V].asValue(settings.schemaRegistrySettings.config).serde
+  def store[K, V](topicDef: TopicDef[K, V]): StateStores[K, V] = {
+    val pair = topicDef.codecPair.register(settings.schemaRegistrySettings, topicDef.topicName)
+    StateStores[K, V](pair)
+  }
 
-  def asKey[K](avro: AvroCodec[K]): Serde[K] =
-    SerdeOf[K](avro).asKey(settings.schemaRegistrySettings.config).serde
-  def asValue[V](avro: AvroCodec[V]): Serde[V] =
-    SerdeOf[V](avro).asValue(settings.schemaRegistrySettings.config).serde
-
-  def topic[K, V](topicDef: TopicDef[K, V]): KafkaTopic[F, K, V] =
-    new KafkaTopic[F, K, V](topicDef, settings)
+  def serde[K, V](topicDef: TopicDef[K, V]): KafkaGenericSerde[K, V] = {
+    val pair = topicDef.codecPair.register(settings.schemaRegistrySettings, topicDef.topicName)
+    new KafkaGenericSerde[K, V](pair.key, pair.value)
+  }
 
   @transient lazy val schemaRegistry: SchemaRegistryApi[F] = {
     val url_config = AbstractKafkaSchemaSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG
@@ -56,14 +54,14 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
    */
 
   def consume[K, V](topicDef: TopicDef[K, V])(implicit F: Sync[F]): KafkaConsume[F, K, V] = {
-    val serdePair: KeyValueSerdePair[K, V] =
-      topicDef.rawSerdes.register(settings.schemaRegistrySettings, topicDef.topicName)
+    val serdePair: SerdePair[K, V] =
+      topicDef.codecPair.register(settings.schemaRegistrySettings, topicDef.topicName)
     new KafkaConsume[F, K, V](
       topicDef.topicName,
       ConsumerSettings[F, K, V](
-        Deserializer.delegate[F, K](serdePair.key.serde.deserializer()),
-        Deserializer.delegate[F, V](serdePair.value.serde.deserializer()))
-        .withProperties(settings.consumerSettings.properties)
+        Deserializer.delegate[F, K](serdePair.key.registered.serde.deserializer()),
+        Deserializer.delegate[F, V](serdePair.value.registered.serde.deserializer())
+      ).withProperties(settings.consumerSettings.properties)
     )
   }
 
@@ -102,13 +100,17 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
    * producer
    */
 
-  def produce[K: SerdeOf, V: SerdeOf](implicit F: Sync[F]): KafkaProduce[F, K, V] =
+  def produce[K: AvroCodecOf, V: AvroCodecOf](implicit F: Sync[F]): KafkaProduce[F, K, V] = {
+    val registerSerde = new StreamsSerde(settings.schemaRegistrySettings)
     new KafkaProduce[F, K, V](
       ProducerSettings[F, K, V](
-        Serializer.delegate(asKey[K].serializer()),
-        Serializer.delegate(asValue[V].serializer())).withProperties(settings.producerSettings.properties)
+        Serializer.delegate(registerSerde.asKey[K].serializer()),
+        Serializer.delegate(registerSerde.asValue[V].serializer()))
+        .withProperties(settings.producerSettings.properties)
     )
-  def produce[K, V](raw: RawKeyValueSerdePair[K, V])(implicit F: Sync[F]): KafkaProduce[F, K, V] =
+  }
+
+  def produce[K, V](raw: AvroCodecPair[K, V])(implicit F: Sync[F]): KafkaProduce[F, K, V] =
     produce[K, V](raw.key, raw.value, Sync[F])
 
   private def bytesProducerSettings(implicit F: Sync[F]): ProducerSettings[F, Array[Byte], Array[Byte]] =
@@ -172,22 +174,13 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
    * kafka streaming
    */
 
-  def store[K: SerdeOf, V: SerdeOf](storeName: TopicName): StateStores[K, V] =
-    StateStores[K, V](
-      storeName,
+  def buildStreams(applicationId: String)(topology: (StreamsBuilder, StreamsSerde) => Unit)(implicit
+    F: Async[F]): KafkaStreamsBuilder[F] =
+    streaming.KafkaStreamsBuilder[F](
+      applicationId,
+      settings.streamSettings,
       settings.schemaRegistrySettings,
-      RawKeyValueSerdePair[K, V](SerdeOf[K], SerdeOf[V]))
-
-  def store[K: SerdeOf, V: SerdeOf](storeName: TopicNameL): StateStores[K, V] =
-    store(TopicName(storeName))
-
-  def buildStreams(applicationId: String, topology: Reader[StreamsBuilder, Unit])(implicit
-    F: Async[F]): KafkaStreamsBuilder[F] =
-    streaming.KafkaStreamsBuilder[F](applicationId, settings.streamSettings, topology)
-
-  def buildStreams(applicationId: String, topology: StreamsBuilder => Unit)(implicit
-    F: Async[F]): KafkaStreamsBuilder[F] =
-    buildStreams(applicationId, Reader(topology))
+      topology)
 
   /*
    * admin topic
@@ -216,6 +209,7 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
 
   def cherryPick(topicName: TopicNameL, partition: Int, offset: Long)(implicit F: Async[F]): F[String] =
     cherryPick(TopicName(topicName), partition, offset)
+
 }
 
 object KafkaContext {

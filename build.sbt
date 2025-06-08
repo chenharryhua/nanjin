@@ -1,4 +1,4 @@
-ThisBuild / version      := "0.19.3-SNAPSHOT"
+ThisBuild / version      := "0.19.6-SNAPSHOT"
 ThisBuild / scalaVersion := "2.13.16"
 
 ThisBuild / versionScheme := Some("early-semver")

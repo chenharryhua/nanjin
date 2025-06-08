@@ -69,23 +69,23 @@ class SparkKafkaStreamTest extends AnyFunSuite {
 //
   test("console") {
     import sparKafka.sparkSession.implicits.*
-    val rooster = ctx.topic(roosterTopic.withTopicName("sstream.file.rooster"))
+    val rooster = roosterTopic.withTopicName("sstream.file.rooster")
 
     sparKafka
       .sstream(rooster.topicName)
-      .flatMap(rooster.serde.tryDeserialize(_).toOption)
+      .flatMap(ctx.serde(rooster).tryDeserialize(_).toOption)
       .writeStream
       .format("console")
       .start()
 
     val upload = sparKafka
-      .topic(rooster.topicDef)
+      .topic(rooster)
       .prRdd(data)
       .withTopicName(rooster.topicName)
       .replicate(100)
       .producerRecords[IO](1)
       .metered(1.seconds)
-      .through(ctx.produce(rooster.topicDef.rawSerdes).sink)
+      .through(ctx.produce(rooster.codecPair).sink)
 
     upload.interruptAfter(10.seconds).compile.drain.unsafeRunSync()
   }

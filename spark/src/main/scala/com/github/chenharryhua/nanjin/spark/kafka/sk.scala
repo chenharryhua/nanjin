@@ -48,19 +48,22 @@ private[spark] object sk {
       LocationStrategies.PreferConsistent)
 
   def kafkaBatch[F[_], K, V](
-    topic: KafkaTopic[F, K, V],
     ss: SparkSession,
+    consumerSettings: KafkaConsumerSettings,
+    serde: KafkaGenericSerde[K, V],
     offsetRange: TopicPartitionMap[Option[OffsetRange]]): RDD[NJConsumerRecord[K, V]] =
-    kafkaBatchRDD(topic.settings.consumerSettings, ss, offsetRange).map(topic.serde.toNJConsumerRecord(_))
+    kafkaBatchRDD(consumerSettings, ss, offsetRange).map(serde.toNJConsumerRecord(_))
 
   def kafkaBatch[F[_]: Async, K, V](
-    topic: KafkaTopic[F, K, V],
     ss: SparkSession,
+    ctx: KafkaContext[F],
+    topicDef: TopicDef[K, V],
+    serde: KafkaGenericSerde[K, V],
     dateRange: DateTimeRange): F[RDD[NJConsumerRecord[K, V]]] =
-    KafkaContext[F](topic.settings)
-      .admin(topic.topicName)
+    ctx
+      .admin(topicDef.topicName)
       .use(_.offsetRangeFor(dateRange))
-      .map(kafkaBatch(topic, ss, _))
+      .map(kafkaBatch(ss, ctx.settings.consumerSettings, serde, _))
 
   /** streaming
     */

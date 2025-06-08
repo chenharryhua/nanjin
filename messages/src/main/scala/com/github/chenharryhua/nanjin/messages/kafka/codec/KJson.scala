@@ -77,8 +77,8 @@ object KJson {
     override def schemaFor: SchemaFor[KJson[A]] = SchemaFor[KJson[A]]
   }
 
-  implicit def jsonSerde[A: JsonEncoder: JsonDecoder]: SerdeOf[KJson[A]] =
-    new SerdeOf[KJson[A]] {
+  implicit def jsonAvroCodec[A: JsonEncoder: JsonDecoder]: AvroCodecOf[KJson[A]] =
+    new AvroCodecOf[KJson[A]] {
 
       override val avroCodec: AvroCodec[KJson[A]] = AvroCodec[KJson[A]]
 

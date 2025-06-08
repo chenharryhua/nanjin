@@ -2,7 +2,7 @@ package mtest
 
 import cats.effect.IO
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
-import com.github.chenharryhua.nanjin.kafka.{KafkaContext, KafkaSettings, KafkaTopic, TopicDef}
+import com.github.chenharryhua.nanjin.kafka.{KafkaContext, KafkaSettings, TopicDef}
 import eu.timepit.refined.auto.*
 import org.apache.kafka.clients.consumer.ConsumerConfig
 
@@ -15,6 +15,5 @@ package object kafka {
         .withConsumerProperty(ConsumerConfig.GROUP_ID_CONFIG, "nj-kafka-unit-test-group")
         .withStreamingProperty("state.dir", "./data/kafka_states"))
 
-  val taxi: KafkaTopic[IO, Int, trip_record] =
-    ctx.topic(TopicDef[Int, trip_record](TopicName("nyc_yellow_taxi_trip_data")))
+  val taxi = TopicDef[Int, trip_record](TopicName("nyc_yellow_taxi_trip_data"))
 }

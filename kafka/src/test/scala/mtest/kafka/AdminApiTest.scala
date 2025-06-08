@@ -16,8 +16,8 @@ import scala.concurrent.duration.DurationInt
 
 class AdminApiTest extends AnyFunSuite {
   private val topicDef: TopicDef[Int, Int] = TopicDef[Int, Int](TopicName("admin"))
-  private val topic: KafkaTopic[IO, Int, Int] = ctx.topic(topicDef)
-  private val mirror: KafkaTopic[IO, Int, Int] = ctx.topic(topicDef.withTopicName("admin.mirror"))
+  private val topic = topicDef
+  private val mirror = topicDef.withTopicName("admin.mirror")
 
   test("newTopic") {
     val run = ctx.admin(topic.topicName).use { admin =>

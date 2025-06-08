@@ -1,16 +1,15 @@
 package mtest.spark.kafka
 
 import cats.effect.IO
+import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
-import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, TopicDef}
+import com.github.chenharryhua.nanjin.kafka.TopicDef
 import com.github.chenharryhua.nanjin.messages.kafka.NJProducerRecord
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark.kafka.SparKafkaTopic
+import eu.timepit.refined.auto.*
 import frameless.TypedEncoder
 import io.circe.Codec
-//import frameless.cats.implicits._
-import cats.effect.unsafe.implicits.global
-import eu.timepit.refined.auto.*
 import io.lemonlabs.uri.typesafe.dsl.*
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -80,19 +79,19 @@ object DecimalTopicTestCase {
 class DecimalTopicTest extends AnyFunSuite {
   import DecimalTopicTestCase.*
 
-  val topic: KafkaTopic[IO, Int, HasDecimal] = ctx.topic(topicDef)
+  val topic = topicDef
   val stopic: SparKafkaTopic[IO, Int, HasDecimal] = sparKafka.topic(topicDef)
 
   val loadData: IO[Unit] =
     stopic
       .prRdd(List(NJProducerRecord(stopic.topicName, 1, data), NJProducerRecord(stopic.topicName, 2, data)))
       .producerRecords[IO](100)
-      .through(ctx.produce(topicDef.rawSerdes).sink)
+      .through(ctx.produce(topicDef.codecPair).sink)
       .compile
       .drain
 
   (ctx.admin(topic.topicName).use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt) >>
-    ctx.schemaRegistry.register(topic.topicDef) >>
+    ctx.schemaRegistry.register(topic) >>
     loadData).unsafeRunSync()
 
   test("sparKafka kafka and spark agree on circe") {
