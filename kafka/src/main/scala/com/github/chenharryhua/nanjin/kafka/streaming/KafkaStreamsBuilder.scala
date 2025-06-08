@@ -30,11 +30,11 @@ object StateUpdate {
 }
 
 final class KafkaStreamsBuilder[F[_]] private (
-                                                applicationId: String,
-                                                settings: KafkaStreamSettings,
-                                                schemaRegistrySettings: SchemaRegistrySettings,
-                                                top: (StreamsBuilder, StreamsSerde) => Unit,
-                                                startUpTimeout: Duration)(implicit F: Async[F]) {
+  applicationId: String,
+  settings: KafkaStreamSettings,
+  schemaRegistrySettings: SchemaRegistrySettings,
+  top: (StreamsBuilder, StreamsSerde) => Unit,
+  startUpTimeout: Duration)(implicit F: Async[F]) {
 
   final private class StateChange(
     dispatcher: Dispatcher[F],

@@ -7,7 +7,7 @@ import cats.kernel.laws.discipline.EqTests
 import cats.laws.discipline.DistributiveTests
 import cats.syntax.all.*
 import cats.tests.CatsSuite
-import com.github.chenharryhua.nanjin.messages.kafka.codec.{KJson, SerdeOf}
+import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroCodecOf, KJson}
 import io.circe.Json
 import io.circe.generic.auto.*
 import io.circe.syntax.*
@@ -19,7 +19,7 @@ object KJsonTestData {
   final case class Base(a: Long, b: Json)
   final case class CompositionType(c: Int, base: Base)
 
-  val goodJson: SerdeOf[KJson[CompositionType]] = SerdeOf[KJson[CompositionType]]
+  val goodJson: AvroCodecOf[KJson[CompositionType]] = AvroCodecOf[KJson[CompositionType]]
 
   val genCT: Gen[CompositionType] = for {
     a <- Gen.posNum[Long]

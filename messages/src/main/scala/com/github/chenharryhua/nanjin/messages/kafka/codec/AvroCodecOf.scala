@@ -23,7 +23,7 @@ import scala.util.{Failure, Try}
   * @tparam A
   *   schema related type
   */
-final class KafkaSerde[A](val topicName: TopicName, registered: RegisteredSerde[A]) extends Serializable {
+final class KafkaSerde[A](val topicName: TopicName, registered: Registered[A]) extends Serializable {
   val serde: Serde[A] = registered.serde
   def serialize(a: A): Array[Byte] = serde.serializer.serialize(topicName.value, a)
   def deserialize(ab: Array[Byte]): A = serde.deserializer.deserialize(topicName.value, ab)
@@ -33,25 +33,30 @@ final class KafkaSerde[A](val topicName: TopicName, registered: RegisteredSerde[
       Try(deserialize(x)))
 }
 
-sealed abstract class RegisteredSerde[A](serdeOf: SerdeOf[A]) extends Serializable {
+sealed abstract class Registered[A](avroCodecOf: AvroCodecOf[A]) extends Serializable {
 
-  val serde: Serde[A] = serdeOf
+  val serde: Serde[A] = new Serde[A] {
+    override val serializer: Serializer[A] = avroCodecOf.serializer
+    override val deserializer: Deserializer[A] = avroCodecOf.deserializer
+  }
 
   final def withTopic(topicName: TopicName): KafkaSerde[A] =
     new KafkaSerde[A](topicName, this)
 }
 
-trait SerdeOf[A] extends Serde[A] with Serializable { outer =>
+trait AvroCodecOf[A] extends Serializable { outer =>
   def avroCodec: AvroCodec[A]
+  def serializer: Serializer[A]
+  def deserializer: Deserializer[A]
 
-  final def asKey(props: Map[String, String]): RegisteredSerde[A] =
-    new RegisteredSerde(this) {
+  final def asKey(props: Map[String, String]): Registered[A] =
+    new Registered(this) {
       serializer.configure(props.asJava, true)
       deserializer.configure(props.asJava, true)
     }
 
-  final def asValue(props: Map[String, String]): RegisteredSerde[A] =
-    new RegisteredSerde(this) {
+  final def asValue(props: Map[String, String]): Registered[A] =
+    new Registered(this) {
       serializer.configure(props.asJava, false)
       deserializer.configure(props.asJava, false)
     }
@@ -59,15 +64,15 @@ trait SerdeOf[A] extends Serde[A] with Serializable { outer =>
 
 private[codec] trait LowerPriority {
 
-  implicit def avro4sCodec[A: SchemaFor: AvroEncoder: AvroDecoder]: SerdeOf[A] =
-    SerdeOf(AvroCodec[A])
+  implicit def avro4sCodec[A: SchemaFor: AvroEncoder: AvroDecoder]: AvroCodecOf[A] =
+    AvroCodecOf(AvroCodec[A])
 }
 
-object SerdeOf extends LowerPriority {
-  def apply[A](implicit ev: SerdeOf[A]): SerdeOf[A] = ev
+object AvroCodecOf extends LowerPriority {
+  def apply[A](implicit ev: AvroCodecOf[A]): AvroCodecOf[A] = ev
 
-  def apply[A](codec: AvroCodec[A]): SerdeOf[A] =
-    new SerdeOf[A] {
+  def apply[A](codec: AvroCodec[A]): AvroCodecOf[A] =
+    new AvroCodecOf[A] {
 
       override val serializer: Serializer[A] =
         new Serializer[A] with Serializable {
@@ -113,7 +118,7 @@ object SerdeOf extends LowerPriority {
     }
 
 // 1: String
-  implicit object StringPrimitiveSerde extends SerdeOf[String] {
+  implicit object StringPrimitiveAvroCodec extends AvroCodecOf[String] {
 
     override val avroCodec: AvroCodec[String] = AvroCodec[String]
 
@@ -145,7 +150,7 @@ object SerdeOf extends LowerPriority {
   }
 
   // 2: Long
-  implicit object LongPrimitiveSerde extends SerdeOf[Long] {
+  implicit object LongPrimitiveAvroCodec extends AvroCodecOf[Long] {
 
     override val avroCodec: AvroCodec[Long] = AvroCodec[Long]
 
@@ -177,7 +182,7 @@ object SerdeOf extends LowerPriority {
   }
 
 // 3: array byte
-  implicit object ByteArrayPrimitiveSerde extends SerdeOf[Array[Byte]] {
+  implicit object ByteArrayPrimitiveAvroCodec extends AvroCodecOf[Array[Byte]] {
 
     override val avroCodec: AvroCodec[Array[Byte]] = AvroCodec[Array[Byte]]
 
@@ -209,7 +214,7 @@ object SerdeOf extends LowerPriority {
   }
 
   // 4: byte buffer
-  implicit object ByteBufferPrimitiveSerde extends SerdeOf[ByteBuffer] {
+  implicit object ByteBufferPrimitiveAvroCodec extends AvroCodecOf[ByteBuffer] {
 
     override val avroCodec: AvroCodec[ByteBuffer] = AvroCodec[ByteBuffer]
 
@@ -241,7 +246,7 @@ object SerdeOf extends LowerPriority {
   }
 
   // 5: short
-  implicit object ShortPrimitiveSerde extends SerdeOf[Short] {
+  implicit object ShortPrimitiveAvroCodec extends AvroCodecOf[Short] {
 
     override val avroCodec: AvroCodec[Short] = AvroCodec[Short]
 
@@ -271,7 +276,7 @@ object SerdeOf extends LowerPriority {
   }
 
   // 6: float
-  implicit object FloatPrimitiveSerde extends SerdeOf[Float] {
+  implicit object FloatPrimitiveAvroCodec extends AvroCodecOf[Float] {
 
     override val avroCodec: AvroCodec[Float] = AvroCodec[Float]
 
@@ -303,7 +308,7 @@ object SerdeOf extends LowerPriority {
   }
 
   // 7: double
-  implicit object DoublePrimitiveSerde extends SerdeOf[Double] {
+  implicit object DoublePrimitiveAvroCodec extends AvroCodecOf[Double] {
 
     override val avroCodec: AvroCodec[Double] = AvroCodec[Double]
 
@@ -335,7 +340,7 @@ object SerdeOf extends LowerPriority {
   }
 
   // 8: int
-  implicit object IntPrimitiveSerde extends SerdeOf[Int] {
+  implicit object IntPrimitiveAvroCodec extends AvroCodecOf[Int] {
 
     override val avroCodec: AvroCodec[Int] = AvroCodec[Int]
 
@@ -365,7 +370,7 @@ object SerdeOf extends LowerPriority {
   }
 
   // 9: uuid
-  implicit object UUIDPrimitiveSerde extends SerdeOf[UUID] {
+  implicit object UUIDPrimitiveAvroCodec extends AvroCodecOf[UUID] {
 
     override val avroCodec: AvroCodec[UUID] = AvroCodec[UUID]
 

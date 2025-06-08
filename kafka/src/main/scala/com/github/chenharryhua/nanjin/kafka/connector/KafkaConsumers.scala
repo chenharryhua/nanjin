@@ -6,7 +6,15 @@ import cats.effect.kernel.{Async, Resource}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
-import com.github.chenharryhua.nanjin.kafka.{AvroSchemaPair, Offset, PullGenericRecord, PureConsumerSettings, SchemaRegistrySettings, TopicPartitionMap, pureConsumerSettings}
+import com.github.chenharryhua.nanjin.kafka.{
+  pureConsumerSettings,
+  AvroSchemaPair,
+  Offset,
+  PullGenericRecord,
+  PureConsumerSettings,
+  SchemaRegistrySettings,
+  TopicPartitionMap
+}
 import fs2.Stream
 import fs2.kafka.{CommittableConsumerRecord, ConsumerSettings, KafkaConsumer}
 import org.apache.avro.generic.GenericData

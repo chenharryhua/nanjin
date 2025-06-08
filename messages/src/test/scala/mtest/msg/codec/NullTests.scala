@@ -1,6 +1,6 @@
 package mtest.msg.codec
 
-import com.github.chenharryhua.nanjin.messages.kafka.codec.{immigrate, KJson, SerdeOf}
+import com.github.chenharryhua.nanjin.messages.kafka.codec.{immigrate, AvroCodecOf, KJson}
 import io.circe.Json
 import org.apache.avro.Schema
 import org.scalatest.funsuite.AnyFunSuite
@@ -45,7 +45,7 @@ class NullTests extends AnyFunSuite {
   }
 
   test("kjson codec null") {
-    val js = SerdeOf[KJson[Json]]
+    val js = AvroCodecOf[KJson[Json]]
     assert(js.serializer.serialize("", null) == null)
     assert(js.serializer.serialize("", KJson(null)) == null)
     assert(js.deserializer.deserialize("", null) == null)

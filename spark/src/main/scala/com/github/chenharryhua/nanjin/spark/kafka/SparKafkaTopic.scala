@@ -22,8 +22,8 @@ final class SparKafkaTopic[F[_], K, V](val sparkSession: SparkSession, val topic
   def ate(implicit tek: TypedEncoder[K], tev: TypedEncoder[V]): SchematizedEncoder[NJConsumerRecord[K, V]] =
     SchematizedEncoder(topic.topicDef)
 
-  private val avroKeyCodec: AvroCodec[K] = topic.topicDef.serdePair.key.avroCodec
-  private val avroValCodec: AvroCodec[V] = topic.topicDef.serdePair.value.avroCodec
+  private val avroKeyCodec: AvroCodec[K] = topic.topicDef.codecPair.key.avroCodec
+  private val avroValCodec: AvroCodec[V] = topic.topicDef.codecPair.value.avroCodec
 
   private def downloadKafka(dateTimeRange: DateTimeRange)(implicit F: Async[F]): F[CrRdd[K, V]] =
     sk.kafkaBatch(topic, sparkSession, dateTimeRange).map(crRdd)

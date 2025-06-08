@@ -12,8 +12,8 @@ import org.apache.spark.sql.SparkSession
 final class LoadTopicFile[K, V] private[kafka] (topicDef: TopicDef[K, V], ss: SparkSession)
     extends Serializable {
 
-  private val ack: AvroCodec[K] = topicDef.serdePair.key.avroCodec
-  private val acv: AvroCodec[V] = topicDef.serdePair.value.avroCodec
+  private val ack: AvroCodec[K] = topicDef.codecPair.key.avroCodec
+  private val acv: AvroCodec[V] = topicDef.codecPair.value.avroCodec
 
   private val decoder: Decoder[NJConsumerRecord[K, V]] = NJConsumerRecord.avroCodec(ack, acv)
 

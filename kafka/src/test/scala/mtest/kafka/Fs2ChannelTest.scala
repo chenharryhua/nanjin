@@ -176,14 +176,14 @@ class Fs2ChannelTest extends AnyFunSuite {
     _.withClientId("nanjin").withBootstrapServers("http://abc.com").withProperty("abc", "efg")
 
   test("producer setting") {
-    val producer = ctx.produce(topicDef.serdePair).updateConfig(ps).properties
+    val producer = ctx.produce(topicDef.codecPair).updateConfig(ps).properties
     assert(producer.get(ConsumerConfig.CLIENT_ID_CONFIG).contains("nanjin"))
     assert(producer.get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG).contains("http://abc.com"))
     assert(producer.get("abc").contains("efg"))
   }
 
   test("transactional producer setting") {
-    val producer = ctx.produce(topicDef.serdePair).updateConfig(ps).transactional("trans").properties
+    val producer = ctx.produce(topicDef.codecPair).updateConfig(ps).transactional("trans").properties
     assert(producer.get(ConsumerConfig.CLIENT_ID_CONFIG).contains("nanjin"))
     assert(producer.get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG).contains("http://abc.com"))
     assert(producer.get("abc").contains("efg"))

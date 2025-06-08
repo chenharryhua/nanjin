@@ -5,7 +5,7 @@ import cats.effect.Resource
 import cats.effect.kernel.{Async, Sync}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameL}
-import com.github.chenharryhua.nanjin.common.{UpdateConfig, utils}
+import com.github.chenharryhua.nanjin.common.{utils, UpdateConfig}
 import com.github.chenharryhua.nanjin.kafka.connector.{KafkaByteConsume, KafkaConsume, KafkaProduce}
 import com.github.chenharryhua.nanjin.kafka.streaming.{KafkaStreamsBuilder, StateStores, StreamsSerde}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.*
@@ -30,12 +30,12 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
     new KafkaTopic[F, K, V](topicDef, settings)
 
   def store[K, V](topicDef: TopicDef[K, V]): StateStores[K, V] = {
-    val pair = topicDef.serdePair.register(settings.schemaRegistrySettings, topicDef.topicName)
-    StateStores[K, V](RegisteredSerdePair(topicDef.topicName, pair.key, pair.value))
+    val pair = topicDef.codecPair.register(settings.schemaRegistrySettings, topicDef.topicName)
+    StateStores[K, V](pair)
   }
 
   def serde[K, V](topicDef: TopicDef[K, V]): KafkaGenericSerde[K, V] = {
-    val pair = topicDef.serdePair.register(settings.schemaRegistrySettings, topicDef.topicName)
+    val pair = topicDef.codecPair.register(settings.schemaRegistrySettings, topicDef.topicName)
     new KafkaGenericSerde[K, V](pair.key, pair.value)
   }
 
@@ -57,8 +57,8 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
    */
 
   def consume[K, V](topicDef: TopicDef[K, V])(implicit F: Sync[F]): KafkaConsume[F, K, V] = {
-    val serdePair: RegisteredSerdePair[K, V] =
-      topicDef.serdePair.register(settings.schemaRegistrySettings, topicDef.topicName)
+    val serdePair: SerdePair[K, V] =
+      topicDef.codecPair.register(settings.schemaRegistrySettings, topicDef.topicName)
     new KafkaConsume[F, K, V](
       topicDef.topicName,
       ConsumerSettings[F, K, V](
@@ -103,7 +103,7 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
    * producer
    */
 
-  def produce[K: SerdeOf, V: SerdeOf](implicit F: Sync[F]): KafkaProduce[F, K, V] = {
+  def produce[K: AvroCodecOf, V: AvroCodecOf](implicit F: Sync[F]): KafkaProduce[F, K, V] = {
     val registerSerde = new StreamsSerde(settings.schemaRegistrySettings)
     new KafkaProduce[F, K, V](
       ProducerSettings[F, K, V](
@@ -113,7 +113,7 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
     )
   }
 
-  def produce[K, V](raw: SerdePair[K, V])(implicit F: Sync[F]): KafkaProduce[F, K, V] =
+  def produce[K, V](raw: AvroCodecPair[K, V])(implicit F: Sync[F]): KafkaProduce[F, K, V] =
     produce[K, V](raw.key, raw.value, Sync[F])
 
   private def bytesProducerSettings(implicit F: Sync[F]): ProducerSettings[F, Array[Byte], Array[Byte]] =
@@ -178,7 +178,7 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
    */
 
   def buildStreams(applicationId: String)(topology: (StreamsBuilder, StreamsSerde) => Unit)(implicit
-                                                                                            F: Async[F]): KafkaStreamsBuilder[F] =
+    F: Async[F]): KafkaStreamsBuilder[F] =
     streaming.KafkaStreamsBuilder[F](
       applicationId,
       settings.streamSettings,

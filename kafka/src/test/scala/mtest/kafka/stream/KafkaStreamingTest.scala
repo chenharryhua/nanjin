@@ -38,7 +38,7 @@ object KafkaStreamingData {
         ProducerRecord(t2Topic.topicName.value, 1, TableTwo("x", 0)),
         ProducerRecord(t2Topic.topicName.value, 2, TableTwo("y", 1)),
         ProducerRecord(t2Topic.topicName.value, 3, TableTwo("z", 2))
-      ))).covary[IO].through(ctx.produce(t2Topic.topicDef.serdePair).sink)
+      ))).covary[IO].through(ctx.produce(t2Topic.topicDef.codecPair).sink)
 
   val harvest: Stream[IO, StreamTarget] =
     ctx

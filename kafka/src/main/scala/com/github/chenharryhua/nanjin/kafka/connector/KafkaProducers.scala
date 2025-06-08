@@ -4,7 +4,7 @@ import cats.Endo
 import cats.effect.kernel.*
 import cats.implicits.catsSyntaxFlatten
 import com.github.chenharryhua.nanjin.common.UpdateConfig
-import com.github.chenharryhua.nanjin.kafka.{PureProducerSettings, pureProducerSetting}
+import com.github.chenharryhua.nanjin.kafka.{pureProducerSetting, PureProducerSettings}
 import fs2.kafka.*
 import fs2.{Pipe, Stream}
 import org.apache.kafka.clients.producer.RecordMetadata
