@@ -26,9 +26,6 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
   override def updateConfig(f: Endo[KafkaSettings]): KafkaContext[F] =
     new KafkaContext[F](f(settings))
 
-  def topic[K, V](topicDef: TopicDef[K, V]): KafkaTopic[F, K, V] =
-    new KafkaTopic[F, K, V](topicDef, settings)
-
   def store[K, V](topicDef: TopicDef[K, V]): StateStores[K, V] = {
     val pair = topicDef.codecPair.register(settings.schemaRegistrySettings, topicDef.topicName)
     StateStores[K, V](pair)

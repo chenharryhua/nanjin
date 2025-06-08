@@ -3,7 +3,7 @@ package mtest.spark.kafka
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
-import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, TopicDef}
+import com.github.chenharryhua.nanjin.kafka.TopicDef
 import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
 import com.github.chenharryhua.nanjin.spark.*
 import com.landoop.transportation.nyc.trip.yellow.trip_record
@@ -27,10 +27,9 @@ class SparkExtTest extends AnyFunSuite {
 
   implicit val ss: SparkSession = sparkSession
 
-  val topic: KafkaTopic[IO, String, trip_record] =
-    ctx.topic(TopicDef[String, trip_record](TopicName("nyc_yellow_taxi_trip_data")))
+  val topic = TopicDef[String, trip_record](TopicName("nyc_yellow_taxi_trip_data"))
 
-  val ate: SchematizedEncoder[NJConsumerRecord[String, trip_record]] = SchematizedEncoder(topic.topicDef)
+  val ate: SchematizedEncoder[NJConsumerRecord[String, trip_record]] = SchematizedEncoder(topic)
 
   test("save syntax") {
     import SparkExtTestData.*

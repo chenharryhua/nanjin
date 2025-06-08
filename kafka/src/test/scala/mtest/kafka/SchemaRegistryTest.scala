@@ -20,10 +20,10 @@ class SchemaRegistryTest extends AnyFunSuite {
   }
 
   test("incompatible") {
-    val other = ctx.topic(TopicDef[String, String](topicName))
+    val other = TopicDef[String, String](topicName)
     val res = ctx.schemaRegistry.fetchAvroSchema(topicName).unsafeRunSync()
-    assert(res.backward(other.topicDef.schemaPair).nonEmpty)
-    assert(res.forward(other.topicDef.schemaPair).nonEmpty)
+    assert(res.backward(other.schemaPair).nonEmpty)
+    assert(res.forward(other.schemaPair).nonEmpty)
   }
 
   test("register schema should be identical") {

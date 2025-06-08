@@ -12,7 +12,7 @@ import com.github.chenharryhua.nanjin.spark.persist.{Rooster, RoosterData}
 import eu.timepit.refined.auto.*
 import frameless.TypedEncoder
 import io.scalaland.chimney.dsl.*
-import mtest.spark.kafka.{ctx, sparKafka}
+import mtest.spark.kafka.sparKafka
 import org.apache.spark.sql.types.*
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -80,9 +80,9 @@ class CrPrTest extends AnyFunSuite {
     ))
 
   val prRdd: PrRdd[Long, Rooster] = crRdd.prRdd.partitionOf(0)
-  val topic = ctx.topic(roosterLike)
-  val ack = topic.topicDef.codecPair.key.avroCodec
-  val acv = topic.topicDef.codecPair.key.avroCodec
+  val topic = roosterLike
+  val ack = topic.codecPair.key.avroCodec
+  val acv = topic.codecPair.key.avroCodec
 
   test("time range") {
     val dr =

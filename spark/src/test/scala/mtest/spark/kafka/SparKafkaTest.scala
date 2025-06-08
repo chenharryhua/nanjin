@@ -3,8 +3,8 @@ package mtest.spark.kafka
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
+import com.github.chenharryhua.nanjin.kafka.TopicDef
 import com.github.chenharryhua.nanjin.kafka.connector.KafkaByteConsume
-import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, TopicDef}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{gr2BinAvro, gr2Circe, gr2Jackson}
 import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJProducerRecord}
 import com.sksamuel.avro4s.SchemaFor
@@ -34,7 +34,7 @@ class SparKafkaTest extends AnyFunSuite {
   import SparKafkaTestData.*
   implicit val ss: SparkSession = sparkSession
 
-  val topic: KafkaTopic[IO, Int, HasDuck] = ctx.topic(TopicDef[Int, HasDuck](TopicName("duck.test")))
+  val topic = TopicDef[Int, HasDuck](TopicName("duck.test"))
 
   val loadData: IO[Unit] =
     fs2
@@ -46,30 +46,30 @@ class SparKafkaTest extends AnyFunSuite {
       .drain
 
   (ctx.admin(topic.topicName).use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt) >>
-    ctx.schemaRegistry.register(topic.topicDef) >> loadData).unsafeRunSync()
+    ctx.schemaRegistry.register(topic) >> loadData).unsafeRunSync()
 
   test("sparKafka read topic from kafka") {
-    val rst = sparKafka.topic(topic.topicDef).fromKafka.map(_.rdd.collect()).unsafeRunSync()
+    val rst = sparKafka.topic(topic).fromKafka.map(_.rdd.collect()).unsafeRunSync()
     assert(rst.toList.flatMap(_.value) === List(data, data))
   }
 
   test("sparKafka read topic from kafka and show minutely aggragation result") {
-    sparKafka.topic(topic.topicDef).fromKafka.flatMap(_.stats.minutely[IO]).unsafeRunSync()
+    sparKafka.topic(topic).fromKafka.flatMap(_.stats.minutely[IO]).unsafeRunSync()
   }
   test("sparKafka read topic from kafka and show daily-hour aggragation result") {
-    sparKafka.topic(topic.topicDef).fromKafka.flatMap(_.stats.dailyHour[IO]).unsafeRunSync()
+    sparKafka.topic(topic).fromKafka.flatMap(_.stats.dailyHour[IO]).unsafeRunSync()
   }
   test("sparKafka read topic from kafka and show daily-minutes aggragation result") {
-    sparKafka.topic(topic.topicDef).fromKafka.flatMap(_.stats.dailyMinute[IO]).unsafeRunSync()
+    sparKafka.topic(topic).fromKafka.flatMap(_.stats.dailyMinute[IO]).unsafeRunSync()
   }
   test("sparKafka read topic from kafka and show daily aggragation result") {
-    sparKafka.topic(topic.topicDef).fromKafka.flatMap(_.stats.daily[IO]).unsafeRunSync()
+    sparKafka.topic(topic).fromKafka.flatMap(_.stats.daily[IO]).unsafeRunSync()
   }
   test("sparKafka read topic from kafka and show hourly aggragation result") {
-    sparKafka.topic(topic.topicDef).fromKafka.flatMap(_.stats.hourly[IO]).unsafeRunSync()
+    sparKafka.topic(topic).fromKafka.flatMap(_.stats.hourly[IO]).unsafeRunSync()
   }
   test("sparKafka read topic from kafka and show summary") {
-    sparKafka.topic(topic.topicDef).fromKafka.flatMap(_.stats.summary[IO]).unsafeRunSync()
+    sparKafka.topic(topic).fromKafka.flatMap(_.stats.summary[IO]).unsafeRunSync()
   }
   import sparkSession.implicits.*
 
@@ -150,7 +150,7 @@ class SparKafkaTest extends AnyFunSuite {
     val p1 = path / "dump"
     val p2 = path / "download"
     sparKafka.dump("duck.test", p1).unsafeRunSync()
-    sparKafka.download[Int, HasDuck](topic.topicDef, p2).unsafeRunSync()
+    sparKafka.download[Int, HasDuck](topic, p2).unsafeRunSync()
     sparKafka.upload("duck.test", p1).unsafeRunSync()
     sparKafka.sequentialUpload("duck.test", p1).unsafeRunSync()
     sparKafka.crazyUpload("duck.test", p1).unsafeRunSync()
@@ -174,7 +174,7 @@ class SparKafkaTest extends AnyFunSuite {
       .compile
       .drain
       .unsafeRunSync()
-    assert(2 == sparKafka.topic(topic.topicDef).load.avro(path).count[IO].unsafeRunSync())
+    assert(2 == sparKafka.topic(topic).load.avro(path).count[IO].unsafeRunSync())
   }
 
   test("format") {
@@ -182,9 +182,9 @@ class SparKafkaTest extends AnyFunSuite {
       .take(2)
       .map(_.record.value)
       .evalMap(IO.fromTry)
-      .map(gr => topic.topicDef.consumerFormat.fromRecord(gr))
+      .map(gr => topic.consumerFormat.fromRecord(gr))
       .map(_.toNJProducerRecord)
-      .map(topic.topicDef.producerFormat.toRecord)
+      .map(topic.producerFormat.toRecord)
       .compile
       .drain
       .unsafeRunSync()
@@ -202,8 +202,8 @@ class SparKafkaTest extends AnyFunSuite {
   }
 
   test("empty") {
-    val prc = sparKafka.topic(topic.topicDef).emptyPrRdd.count[IO].unsafeRunSync()
-    val crc = sparKafka.topic(topic.topicDef).emptyCrRdd.count[IO].unsafeRunSync()
+    val prc = sparKafka.topic(topic).emptyPrRdd.count[IO].unsafeRunSync()
+    val crc = sparKafka.topic(topic).emptyCrRdd.count[IO].unsafeRunSync()
     assert(prc == 0)
     assert(crc == 0)
   }

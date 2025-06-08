@@ -46,9 +46,9 @@ class NullTests extends AnyFunSuite {
 
   test("kjson codec null") {
     val js = AvroCodecOf[KJson[Json]]
-    assert(js.serializer.serialize("", null) == null)
-    assert(js.serializer.serialize("", KJson(null)) == null)
-    assert(js.deserializer.deserialize("", null) == null)
+    assert(js.asKey(Map.empty).serde.serializer.serialize("", null) == null)
+    assert(js.asKey(Map.empty).serde.serializer.serialize("", KJson(null)) == null)
+    assert(js.asKey(Map.empty).serde.deserializer.deserialize("", null) == null)
     assert(js.avroCodec.encode(null) == null)
     assert(js.avroCodec.encode(KJson(null)) == null)
     assert(js.avroCodec.decode(null) == null)
