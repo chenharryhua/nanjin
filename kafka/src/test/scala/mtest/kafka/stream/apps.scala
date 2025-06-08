@@ -33,15 +33,18 @@ object apps {
     val t2Topic = TopicDef[Int, TableTwo](TopicName("stream.test.join.table.two"))
 
     implicit val ev1: Serde[StreamTarget] = rs.asValue[StreamTarget]
+    implicit val ev2: Serde[StreamOne] = rs.asValue[StreamOne]
     implicit val ev3: Serde[TableTwo] = rs.asValue[TableTwo]
 
     val a = sb.stream[Array[Byte], Array[Byte]](tn.value)
     val b = sb.table[Int, TableTwo](t2Topic.topicName.value)
     a.flatMap { (k, v) =>
-      (
+      val r = (
         Try(rs.asKey[Int].deserializer().deserialize(tn.value, k)).toOption,
-        Try(rs.asValue[TableTwo].deserializer().deserialize(tn.value, v)).toOption
+        Try(rs.asValue[StreamOne].deserializer().deserialize(tn.value, v)).toOption
       ).mapN((_, _))
+      println(r)
+      r
     }.join(b)((s1, t2) => StreamTarget(s1.name, 0, t2.color))
       .peek((k, v) => println(show"out=($k, $v)"))
       .to("stream.test.join.target")

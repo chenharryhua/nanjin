@@ -9,7 +9,7 @@ import com.github.chenharryhua.nanjin.kafka.{
 }
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroCodec, AvroCodecOf}
 import org.apache.kafka.common.serialization.Serde
-import org.apache.kafka.streams.scala.kstream.{Consumed, Produced}
+import org.apache.kafka.streams.scala.kstream.*
 
 final class StreamsSerde private[kafka] (schemaRegistrySettings: SchemaRegistrySettings)
     extends Serializable {
@@ -24,6 +24,17 @@ final class StreamsSerde private[kafka] (schemaRegistrySettings: SchemaRegistryS
 
   def produced[K: AvroCodecOf, V: AvroCodecOf]: Produced[K, V] = Produced.`with`[K, V](asKey[K], asValue[V])
   def produced[K, V](pair: AvroCodecPair[K, V]): Produced[K, V] = produced[K, V](pair.key, pair.value)
+
+  def joined[K: AvroCodecOf, V: AvroCodecOf, VO: AvroCodecOf]: Joined[K, V, VO] =
+    Joined.`with`(asKey[K], asValue[V], asValue[VO])
+
+  def grouped[K: AvroCodecOf, V: AvroCodecOf]: Grouped[K, V] = Grouped.`with`(asKey[K], asValue[V])
+
+  def repartitioned[K: AvroCodecOf, V: AvroCodecOf]: Repartitioned[K, V] =
+    Repartitioned.`with`(asKey[K], asValue[V])
+
+  def streamJoined[K: AvroCodecOf, V: AvroCodecOf, VO: AvroCodecOf]: StreamJoined[K, V, VO] =
+    StreamJoined.`with`(asKey[K], asValue[V], asValue[VO])
 
   def store[K: AvroCodecOf, V: AvroCodecOf](storeName: TopicName): StateStores[K, V] =
     StateStores[K, V](

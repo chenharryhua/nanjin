@@ -7,10 +7,12 @@ import cats.effect.unsafe.implicits.global
 import cats.implicits.showInterpolator
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.TopicDef
+import com.github.chenharryhua.nanjin.kafka.streaming.StreamsSerde
 import eu.timepit.refined.auto.*
 import fs2.Stream
-import fs2.kafka.{commitBatchWithin, ProducerRecord, ProducerRecords}
+import fs2.kafka.{commitBatchWithin, AutoOffsetReset, ProducerRecord, ProducerRecords}
 import mtest.kafka.*
+import org.apache.kafka.streams.scala.StreamsBuilder
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.{BeforeAndAfter, DoNotDiscover}
 
@@ -26,7 +28,7 @@ object KafkaStreamingData {
   val s1Def: TopicDef[Int, StreamOne] = TopicDef[Int, StreamOne](TopicName("stream.test.join.stream.one"))
 
   val s1Topic = s1Def
-  val t2Topic =
+  val t2Topic: TopicDef[Int, TableTwo] =
     TopicDef[Int, TableTwo](TopicName("stream.test.join.table.two"))
 
   val tgt = TopicDef[Int, StreamTarget](TopicName("stream.test.join.target"))
@@ -43,6 +45,7 @@ object KafkaStreamingData {
   val harvest: Stream[IO, StreamTarget] =
     ctx
       .consume(tgt.topicName)
+      .updateConfig(_.withGroupId("harvest").withAutoOffsetReset(AutoOffsetReset.Earliest))
       .stream
       .map(x => serde.deserialize(x))
       .observe(_.map(_.offset).through(commitBatchWithin[IO](1, 0.1.seconds)).drain)
@@ -106,4 +109,47 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
         case Outcome.Canceled()   => IO(assert(false)).void
       }).unsafeRunSync()
   }
+
+  test("kafka stream exception") {
+    val tn = TopicName("stream.test.stream.exception.one")
+    val s1Topic: TopicDef[Int, StreamOne] = s1Def.withTopicName(tn)
+    val s1TopicBin: TopicDef[Int, Array[Byte]] = TopicDef[Int, Array[Byte]](tn)
+
+    def top(sb: StreamsBuilder, ss: StreamsSerde): Unit = {
+      implicit val ev2 = ss.consumed[Int, StreamOne]
+      implicit val ev3 = ss.consumed[Int, TableTwo]
+      implicit val ev4 = ss.joined[Int, StreamOne, TableTwo]
+      implicit val ev5 = ss.produced[Int, StreamTarget]
+
+      val a = sb.stream[Int, StreamOne](s1Topic.topicName.value)
+      val b = sb.table[Int, TableTwo](t2Topic.topicName.value)
+
+      a.join(b)((s1, t2) => StreamTarget(s1.name, 0, t2.color))
+        .peek((k, v) => println(show"out=($k, $v)"))
+        .to(tgt.topicName.value)
+    }
+    val serde = ctx.serde(s1Topic)
+    val sendS1Data = Stream
+      .emits(List(
+        s1TopicBin.producerRecord(1, serde.serializeVal(StreamOne("a", 1))),
+        s1TopicBin.producerRecord(2, "exception1".getBytes),
+        s1TopicBin.producerRecord(3, serde.serializeVal(StreamOne("c", 3)))
+      ).map(ProducerRecords.one))
+      .covary[IO]
+      .metered(1.seconds)
+      .through(ctx.produce[Int, Array[Byte]].sink)
+      .debug()
+
+    assertThrows[Exception](
+      (IO.println(Console.CYAN + "kafka stream exception" + Console.RESET) >> ctx
+        .buildStreams(appId)(top)
+        .stateUpdates
+        .debug()
+        .concurrently(sendS1Data)
+        .concurrently(harvest)
+        .interruptAfter(1.day)
+        .compile
+        .drain).unsafeRunSync())
+  }
+
 }
