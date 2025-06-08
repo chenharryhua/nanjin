@@ -20,7 +20,6 @@ import scala.concurrent.duration.*
 object Fs2ChannelTestData {
   final case class Fs2Kafka(a: Int, b: String, c: Double)
   val topicDef: TopicDef[Int, Fs2Kafka] = TopicDef[Int, Fs2Kafka](TopicName("fs2.kafka.test"))
-  val topic: KafkaTopic[IO, Int, Fs2Kafka] = ctx.topic(topicDef)
   val jackson =
     """
       {
@@ -69,7 +68,7 @@ class Fs2ChannelTest extends AnyFunSuite {
 
     val ret =
       ctx.schemaRegistry.register(topicDef).attempt >>
-        ctx.produce[Int, Fs2Kafka].produceOne(topic.topicName.value, 1, Fs2Kafka(1, "a", 1.0)) >>
+        ctx.produce[Int, Fs2Kafka].produceOne(topicDef.topicName.value, 1, Fs2Kafka(1, "a", 1.0)) >>
         ctx
           .consume(topicDef)
           .updateConfig(_.withGroupId("g1").withAutoOffsetReset(AutoOffsetReset.Earliest))
@@ -89,7 +88,7 @@ class Fs2ChannelTest extends AnyFunSuite {
         .stream
         .take(1)
         .map(_.record)
-        .map(r => gr2Jackson(topic.topicDef.consumerFormat.toRecord(r)).get)
+        .map(r => gr2Jackson(topicDef.consumerFormat.toRecord(r)).get)
         .timeout(3.seconds)
         .compile
         .toList
@@ -98,23 +97,24 @@ class Fs2ChannelTest extends AnyFunSuite {
   }
 
   test("serde") {
+    val serde = ctx.serde(topicDef)
     ctx
-      .consume(topic.topicName)
+      .consume(topicDef.topicName)
       .stream
       .take(1)
       .map { ccr =>
-        topic.serde.deserialize(ccr)
-        topic.serde.deserializeKey(ccr)
-        topic.serde.deserializeValue(ccr.record)
-        topic.serde.tryDeserialize(ccr.record)
-        topic.serde.tryDeserializeKey(ccr.record)
-        topic.serde.tryDeserializeValue(ccr.record)
-        topic.serde.tryDeserializeKeyValue(ccr.record)
-        topic.serde.optionalDeserialize(ccr.record)
-        topic.serde.nullableDeserialize(ccr.record)
-        topic.serde.nullableDeserialize(ccr.record.bimap[Array[Byte], Array[Byte]](_ => null, _ => null))
-        val nj = topic.serde.toNJConsumerRecord(ccr).toNJProducerRecord.toProducerRecord
-        topic.serde.serialize(nj)
+        serde.deserialize(ccr)
+        serde.deserializeKey(ccr)
+        serde.deserializeValue(ccr.record)
+        serde.tryDeserialize(ccr.record)
+        serde.tryDeserializeKey(ccr.record)
+        serde.tryDeserializeValue(ccr.record)
+        serde.tryDeserializeKeyValue(ccr.record)
+        serde.optionalDeserialize(ccr.record)
+        serde.nullableDeserialize(ccr.record)
+        serde.nullableDeserialize(ccr.record.bimap[Array[Byte], Array[Byte]](_ => null, _ => null))
+        val nj = serde.toNJConsumerRecord(ccr).toNJProducerRecord.toProducerRecord
+        serde.serialize(nj)
       }
       .timeout(3.seconds)
       .compile
@@ -176,14 +176,14 @@ class Fs2ChannelTest extends AnyFunSuite {
     _.withClientId("nanjin").withBootstrapServers("http://abc.com").withProperty("abc", "efg")
 
   test("producer setting") {
-    val producer = ctx.produce(topicDef.rawSerdes).updateConfig(ps).properties
+    val producer = ctx.produce(topicDef.serdePair).updateConfig(ps).properties
     assert(producer.get(ConsumerConfig.CLIENT_ID_CONFIG).contains("nanjin"))
     assert(producer.get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG).contains("http://abc.com"))
     assert(producer.get("abc").contains("efg"))
   }
 
   test("transactional producer setting") {
-    val producer = ctx.produce(topicDef.rawSerdes).updateConfig(ps).transactional("trans").properties
+    val producer = ctx.produce(topicDef.serdePair).updateConfig(ps).transactional("trans").properties
     assert(producer.get(ConsumerConfig.CLIENT_ID_CONFIG).contains("nanjin"))
     assert(producer.get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG).contains("http://abc.com"))
     assert(producer.get("abc").contains("efg"))

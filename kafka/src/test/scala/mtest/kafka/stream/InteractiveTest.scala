@@ -3,8 +3,8 @@ package mtest.kafka.stream
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
-import com.github.chenharryhua.nanjin.kafka.streaming.StateStores
-import com.github.chenharryhua.nanjin.kafka.{KafkaContext, KafkaSerdeBuilder, KafkaSettings, TopicDef}
+import com.github.chenharryhua.nanjin.kafka.streaming.{StateStores, StreamsSerde}
+import com.github.chenharryhua.nanjin.kafka.{KafkaContext, KafkaSettings, TopicDef}
 import eu.timepit.refined.auto.*
 import fs2.Stream
 import fs2.kafka.{ProducerRecord, ProducerRecords, ProducerResult}
@@ -31,26 +31,22 @@ class InteractiveTest extends AnyFunSuite {
         .withConsumerProperty(ConsumerConfig.GROUP_ID_CONFIG, "nj-kafka-interactive-unit-test-group")
         .withStreamingProperty("state.dir", "./data/kafka_states"))
 
-  val topic = ctx.topic(TopicDef[Int, String](TopicName("stream.test.interactive.5")))
-  val localStore: StateStores[Int, String] =
-    ctx.store(TopicDef[Int, String](TopicName("stream.test.interactive.local.store.5")))
-  val globalStore: StateStores[Int, String] =
-    ctx.store(TopicDef(TopicName("stream.test.interactive.store.global.5")))
+  val topic: TopicDef[Int, String] = TopicDef[Int, String](TopicName("stream.test.interactive.5"))
+  val localStore: StateStores[Int, String] = ctx.store(topic.modifyTopicName(_ + ".local.store"))
+  val globalStore: StateStores[Int, String] = ctx.store(topic.modifyTopicName(_ + ".global.store"))
 
-  def top(sb: StreamsBuilder, ksb: KafkaSerdeBuilder): Unit = {
+  def top(sb: StreamsBuilder, ksb: StreamsSerde): Unit = {
     implicit val ev1: Serde[Int] = ksb.asKey[Int]
     implicit val ev2: Serde[String] = ksb.asValue[String]
-    sb.table(
-      topic.topicDef.topicName.value,
-      Materialized.as[Int, String](localStore.inMemoryKeyValueStore.supplier))
+    sb.table(topic.topicName.value, Materialized.as[Int, String](localStore.inMemoryKeyValueStore.supplier))
     ()
   }
 
-  def gtop(sb: StreamsBuilder, ksb: KafkaSerdeBuilder): Unit = {
+  def gtop(sb: StreamsBuilder, ksb: StreamsSerde): Unit = {
     implicit val ev1: Serde[Int] = ksb.asKey[Int]
     implicit val ev2: Serde[String] = ksb.asValue[String]
     sb.globalTable[Int, String](
-      "",
+      topic.topicName.value,
       Materialized.as[Int, String](globalStore.persistentKeyValueStore.supplier))
     ()
   }

@@ -5,7 +5,7 @@ import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.DateTimeRange
-import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, TopicDef}
+import com.github.chenharryhua.nanjin.kafka.TopicDef
 import eu.timepit.refined.auto.*
 import fs2.Stream
 import fs2.kafka.*
@@ -16,10 +16,9 @@ import scala.concurrent.duration.*
 
 class MonitorApiTest extends AnyFunSuite {
   private val topicDef: TopicDef[Int, Int] = TopicDef[Int, Int](TopicName("monitor.test"))
-  private val topic: KafkaTopic[IO, Int, Int] = ctx.topic[Int, Int](topicDef)
 
-  private val st: KafkaTopic[IO, Int, Array[Byte]] =
-    ctx.topic(TopicDef[Int, Array[Byte]](TopicName("monitor.test")))
+  private val st: TopicDef[Int, Array[Byte]] =
+    TopicDef[Int, Array[Byte]](TopicName("monitor.test"))
 
   private val headers1: Headers = Headers.fromSeq(List(Header("a", "aaaaa")))
   val headers2: Headers =
@@ -42,7 +41,7 @@ class MonitorApiTest extends AnyFunSuite {
     .through(ctx.produce[Int, Array[Byte]].sink)
 
   test("monitor") {
-    ctx.schemaRegistry.register(topic.topicDef).attempt.unsafeRunSync()
+    ctx.schemaRegistry.register(topicDef).attempt.unsafeRunSync()
     sender
       .concurrently(ctx.monitor("monitor.test").debug())
       .interruptAfter(8.seconds)

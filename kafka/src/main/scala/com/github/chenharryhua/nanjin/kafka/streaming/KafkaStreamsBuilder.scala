@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.kafka.streaming
 import cats.effect.kernel.{Async, Deferred}
 import cats.effect.std.{CountDownLatch, Dispatcher}
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.kafka.{KafkaSerdeBuilder, KafkaStreamSettings, SchemaRegistrySettings}
+import com.github.chenharryhua.nanjin.kafka.{KafkaStreamSettings, SchemaRegistrySettings}
 import fs2.Stream
 import fs2.concurrent.Channel
 import io.circe.{Encoder, Json}
@@ -30,11 +30,11 @@ object StateUpdate {
 }
 
 final class KafkaStreamsBuilder[F[_]] private (
-  applicationId: String,
-  settings: KafkaStreamSettings,
-  schemaRegistrySettings: SchemaRegistrySettings,
-  top: (StreamsBuilder, KafkaSerdeBuilder) => Unit,
-  startUpTimeout: Duration)(implicit F: Async[F]) {
+                                                applicationId: String,
+                                                settings: KafkaStreamSettings,
+                                                schemaRegistrySettings: SchemaRegistrySettings,
+                                                top: (StreamsBuilder, StreamsSerde) => Unit,
+                                                startUpTimeout: Duration)(implicit F: Async[F]) {
 
   final private class StateChange(
     dispatcher: Dispatcher[F],
@@ -103,10 +103,10 @@ final class KafkaStreamsBuilder[F[_]] private (
     )
 
   lazy val topology: Topology = {
-    val builder: StreamsBuilder = new StreamsBuilder()
-    val ksb: KafkaSerdeBuilder = new KafkaSerdeBuilder(schemaRegistrySettings)
-    top(builder, ksb)
-    builder.build()
+    val streamsBuilder: StreamsBuilder = new StreamsBuilder()
+    val streamsSerde: StreamsSerde = new StreamsSerde(schemaRegistrySettings)
+    top(streamsBuilder, streamsSerde)
+    streamsBuilder.build()
   }
 }
 
@@ -115,7 +115,7 @@ object KafkaStreamsBuilder {
     applicationId: String,
     settings: KafkaStreamSettings,
     schemaRegistrySettings: SchemaRegistrySettings,
-    top: (StreamsBuilder, KafkaSerdeBuilder) => Unit): KafkaStreamsBuilder[F] =
+    top: (StreamsBuilder, StreamsSerde) => Unit): KafkaStreamsBuilder[F] =
     new KafkaStreamsBuilder[F](
       applicationId = applicationId,
       settings = settings,

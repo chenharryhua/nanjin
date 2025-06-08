@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin.kafka
 
 import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameL}
-import com.github.chenharryhua.nanjin.kafka.streaming.KafkaStreamingConsumer
 
 final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V], val settings: KafkaSettings)
     extends Serializable {
@@ -17,17 +16,9 @@ final class KafkaTopic[F[_], K, V] private[kafka] (val topicDef: TopicDef[K, V],
     withTopicName(TopicName(tn))
 
   // need to reconstruct codec when working in spark
-  @transient lazy val serdePair: RegisteredSerdePair[K, V] =
-    topicDef.rawSerdes.register(settings.schemaRegistrySettings, topicName)
+  @transient lazy val registeredSerdePair: RegisteredSerdePair[K, V] =
+    topicDef.serdePair.register(settings.schemaRegistrySettings, topicName)
 
-  object serde extends KafkaGenericSerde[K, V](serdePair.key, serdePair.value)
-
-  // Streaming
-
-  def asConsumer: KafkaStreamingConsumer[F, K, V] =
-    new KafkaStreamingConsumer[F, K, V](topicName, serdePair, None, None, None)
-
-//  def asProduced: Produced[K, V] =
-//    Produced.`with`[K, V](serdePair.key.serde, serdePair.value.serde)
+  val serde = new KafkaGenericSerde[K, V](registeredSerdePair.key, registeredSerdePair.value)
 
 }

@@ -10,7 +10,7 @@ import com.github.chenharryhua.nanjin.messages.kafka.codec.{
 import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJProducerRecord}
 import org.apache.avro.{Schema, SchemaCompatibility}
 
-final case class RawKeyValueSerdePair[K, V](key: SerdeOf[K], value: SerdeOf[V]) {
+final case class SerdePair[K, V](key: SerdeOf[K], value: SerdeOf[V]) {
   def register(srs: SchemaRegistrySettings, name: TopicName): RegisteredSerdePair[K, V] =
     RegisteredSerdePair(
       name,

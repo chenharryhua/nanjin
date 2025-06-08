@@ -61,5 +61,5 @@ object SchematizedEncoder {
   def apply[K, V](topicDef: TopicDef[K, V])(implicit
     tek: TypedEncoder[K],
     tev: TypedEncoder[V]): SchematizedEncoder[NJConsumerRecord[K, V]] =
-    apply(topicDef.rawSerdes.key.avroCodec, topicDef.rawSerdes.value.avroCodec)
+    apply(topicDef.serdePair.key.avroCodec, topicDef.serdePair.value.avroCodec)
 }

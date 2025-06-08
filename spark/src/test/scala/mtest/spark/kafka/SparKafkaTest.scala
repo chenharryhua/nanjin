@@ -3,7 +3,8 @@ package mtest.spark.kafka
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
-import com.github.chenharryhua.nanjin.kafka.{KafkaByteConsume, KafkaTopic, TopicDef}
+import com.github.chenharryhua.nanjin.kafka.connector.KafkaByteConsume
+import com.github.chenharryhua.nanjin.kafka.{KafkaTopic, TopicDef}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{gr2BinAvro, gr2Circe, gr2Jackson}
 import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJProducerRecord}
 import com.sksamuel.avro4s.SchemaFor

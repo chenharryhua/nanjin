@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.kafka
 
-import cats.Show
+import cats.{Endo, Show}
 import cats.kernel.Eq
 import cats.syntax.eq.*
 import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameL}
@@ -12,18 +12,20 @@ import org.apache.avro.generic.IndexedRecord
 import org.apache.kafka.clients.consumer.ConsumerRecord as JavaConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord as JavaProducerRecord
 
-final class TopicDef[K, V] private (val topicName: TopicName, val rawSerdes: RawKeyValueSerdePair[K, V])
+final class TopicDef[K, V] private (val topicName: TopicName, val serdePair: SerdePair[K, V])
     extends Serializable {
 
   override def toString: String = topicName.value
 
-  def withTopicName(tn: TopicName): TopicDef[K, V] = new TopicDef[K, V](tn, rawSerdes)
+  def withTopicName(tn: TopicName): TopicDef[K, V] = new TopicDef[K, V](tn, serdePair)
   def withTopicName(tn: TopicNameL): TopicDef[K, V] = withTopicName(TopicName(tn))
+  def modifyTopicName(f: Endo[String]): TopicDef[K, V] =
+    withTopicName(TopicName.unsafeFrom(f(topicName.value)))
 
   def producerRecord(k: K, v: V): ProducerRecord[K, V] = ProducerRecord(topicName.value, k, v)
 
   lazy val schemaPair: AvroSchemaPair =
-    AvroSchemaPair(rawSerdes.key.avroCodec.schema, rawSerdes.value.avroCodec.schema)
+    AvroSchemaPair(serdePair.key.avroCodec.schema, serdePair.value.avroCodec.schema)
 
   final class ConsumerFormat(rf: RecordFormat[NJConsumerRecord[K, V]]) extends Serializable {
     def toRecord(nj: NJConsumerRecord[K, V]): Record = rf.to(nj)
@@ -43,10 +45,10 @@ final class TopicDef[K, V] private (val topicName: TopicName, val rawSerdes: Raw
   }
 
   lazy val consumerCodec: AvroCodec[NJConsumerRecord[K, V]] =
-    NJConsumerRecord.avroCodec(rawSerdes.key.avroCodec, rawSerdes.value.avroCodec)
+    NJConsumerRecord.avroCodec(serdePair.key.avroCodec, serdePair.value.avroCodec)
 
   lazy val producerCodec: AvroCodec[NJProducerRecord[K, V]] =
-    NJProducerRecord.avroCodec(rawSerdes.key.avroCodec, rawSerdes.value.avroCodec)
+    NJProducerRecord.avroCodec(serdePair.key.avroCodec, serdePair.value.avroCodec)
 
   lazy val consumerFormat: ConsumerFormat = new ConsumerFormat(RecordFormat(consumerCodec, consumerCodec))
   lazy val producerFormat: ProducerFormat = new ProducerFormat(RecordFormat(producerCodec, producerCodec))
@@ -60,24 +62,24 @@ object TopicDef {
   implicit def eqTopicDef[K, V]: Eq[TopicDef[K, V]] =
     (x: TopicDef[K, V], y: TopicDef[K, V]) =>
       x.topicName.value === y.topicName.value &&
-        x.rawSerdes.key.avroCodec.schema == y.rawSerdes.key.avroCodec.schema &&
-        x.rawSerdes.value.avroCodec.schema == y.rawSerdes.value.avroCodec.schema
+        x.serdePair.key.avroCodec.schema == y.serdePair.key.avroCodec.schema &&
+        x.serdePair.value.avroCodec.schema == y.serdePair.value.avroCodec.schema
 
   def apply[K, V](topicName: TopicName, keySchema: AvroCodec[K], valSchema: AvroCodec[V]): TopicDef[K, V] = {
     val sk = SerdeOf(keySchema)
     val sv = SerdeOf(valSchema)
-    new TopicDef(topicName, RawKeyValueSerdePair(sk, sv))
+    new TopicDef(topicName, SerdePair(sk, sv))
   }
 
   def apply[K: SerdeOf, V: SerdeOf](topicName: TopicName): TopicDef[K, V] = {
     val sk = SerdeOf[K]
     val sv = SerdeOf[V]
-    new TopicDef(topicName, RawKeyValueSerdePair(sk, sv))
+    new TopicDef(topicName, SerdePair(sk, sv))
   }
 
   def apply[K: SerdeOf, V](topicName: TopicName, valSchema: AvroCodec[V]): TopicDef[K, V] = {
     val sk = SerdeOf[K]
     val sv = SerdeOf(valSchema)
-    new TopicDef(topicName, RawKeyValueSerdePair(sk, sv))
+    new TopicDef(topicName, SerdePair(sk, sv))
   }
 }

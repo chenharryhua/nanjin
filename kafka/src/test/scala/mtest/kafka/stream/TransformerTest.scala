@@ -38,7 +38,7 @@ class TransformerTest extends AnyFunSuite {
           ProducerRecord(topic2.topicName.value, 4, "t1"),
           ProducerRecord(topic2.topicName.value, 6, "t2"))))
       .covary[IO]
-      .through(ctx.produce(td.rawSerdes).sink)
+      .through(ctx.produce(td.serdePair).sink)
 
     val s1Data: Stream[IO, ProducerResult[Int, String]] =
       Stream
