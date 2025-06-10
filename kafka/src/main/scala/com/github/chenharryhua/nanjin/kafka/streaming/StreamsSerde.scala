@@ -43,12 +43,12 @@ final class StreamsSerde private[kafka] (schemaRegistrySettings: SchemaRegistryS
   def store[K, V](topic: TopicDef[K, V]): StateStores[K, V] =
     store(topic.topicName)(topic.codecPair.key, topic.codecPair.value)
 
-  def serde[K: AvroCodecOf, V: AvroCodecOf](topicName: TopicName): KafkaGenericSerde[K, V] =
-    new KafkaGenericSerde[K, V](
-      AvroCodecOf[K].asKey(schemaRegistrySettings.config).withTopic(topicName),
-      AvroCodecOf[V].asValue(schemaRegistrySettings.config).withTopic(topicName))
+  def serde[K, V](topicDef: TopicDef[K, V]): KafkaGenericSerde[K, V] = {
+    val pair = topicDef.codecPair.register(schemaRegistrySettings, topicDef.topicName)
+    new KafkaGenericSerde[K, V](pair.key, pair.value)
+  }
 
-  def serde[K, V](topicDef: TopicDef[K, V]): KafkaGenericSerde[K, V] =
-    serde[K, V](topicDef.topicName)(topicDef.codecPair.key, topicDef.codecPair.value)
+  def serde[K: AvroCodecOf, V: AvroCodecOf](topicName: TopicName): KafkaGenericSerde[K, V] =
+    serde[K, V](TopicDef(topicName)(AvroCodecOf[K], AvroCodecOf[V]))
 
 }

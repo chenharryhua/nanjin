@@ -95,12 +95,14 @@ class InteractiveTest extends AnyFunSuite {
 
   test("detect stream stop") {
     println(Console.CYAN + "detect stream stop" + Console.RESET)
-    val to1 =
-      ctx
-        .buildStreams(appid)(top)
-        .kafkaStreams
-        .evalMap(ks => IO.sleep(1.seconds) >> IO(ks.close()) >> IO.sleep(1.day))
-    to1.compile.drain.unsafeRunSync()
+    ctx
+      .buildStreams(appid)(top)
+      .kafkaStreams
+      .evalMap(ks => IO.sleep(1.seconds) >> IO(ks.close()) >> IO.sleep(1.day))
+      .debug()
+      .compile
+      .drain
+      .unsafeRunSync()
   }
 
   test("detect stream error") {
