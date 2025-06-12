@@ -50,17 +50,16 @@ object apps {
       .to("stream.test.join.target")
   }
 
-  def transformer_app(sbb: StreamsBuilder, ksb: StreamsSerde): Unit = {
+  def transformer_app(sb: StreamsBuilder, ksb: StreamsSerde): Unit = {
     val topic1 = TopicName("stream.builder.test.stream1")
     val topic2 = TopicName("stream.builder.test.table2")
     val tgt = TopicName("stream.builder.test.target")
     val store = TopicName("stream.builder.test.store")
-    val sb: StreamsBuilder = new StreamsBuilder(
-      sbb.addStateStore(
-        ksb
-          .store[Int, String](TopicName("stream.builder.test.store"))
-          .inMemoryKeyValueStore
-          .keyValueStoreBuilder))
+    sb.addStateStore(
+      ksb
+        .store[Int, String](TopicName("stream.builder.test.store"))
+        .inMemoryKeyValueStore
+        .keyValueStoreBuilder)
 
     val processor: ProcessorSupplier[Int, String, Int, String] =
       new ProcessorSupplier[Int, String, Int, String] {
