@@ -17,7 +17,7 @@ val catsCoreV = "2.13.0"
 val catsEffectV = "3.6.1"
 val chimneyV = "1.8.1"
 val circeV = "0.14.13"
-val confluentV = "7.9.1"
+val confluentV = "8.0.0"
 val cron4sV = "0.8.2"
 val doobieV = "1.0.0-RC9"
 val drosteV = "0.10.0"
@@ -29,7 +29,7 @@ val hadoopV = "3.4.1"
 val http4sV = "0.23.30"
 val jacksonV = "2.19.0"
 val jwtV = "0.12.6"
-val kafkaV = "7.9.1-ce"
+val kafkaV = "8.0.0-ce"
 val kantanV = "0.8.0"
 val log4catsV = "2.7.1"
 val logbackV = "1.5.18"
@@ -38,7 +38,7 @@ val monocleV = "3.3.0"
 val natchezV = "0.3.8"
 val nettyV = "4.2.0.Final"
 val parquetV = "1.15.2"
-val postgresV = "42.7.6"
+val postgresV = "42.7.7"
 val refinedV = "0.11.3"
 val shapelessV = "2.3.13"
 val skunkV = "0.6.4"
@@ -264,7 +264,6 @@ lazy val messages =
         List(
           "io.circe" %% "circe-optics"                % "0.15.0",
           "io.circe" %% "circe-jawn"                  % circeV,
-          "org.typelevel" %% "frameless-core"         % framelessV,
           "org.apache.kafka" %% "kafka-streams-scala" % kafkaV,
           "com.github.fd4s" %% "fs2-kafka"            % fs2KafkaV,
           "com.sksamuel.avro4s" %% "avro4s-core"      % avro4sV,
@@ -431,3 +430,4 @@ lazy val nanjin =
     observer_kafka,
     observer_logging
   )
+
