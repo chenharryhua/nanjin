@@ -100,13 +100,12 @@ class SparkTableTest extends AnyFunSuite {
   test("load data") {
     val tds = TypedDataset.create(List(dbData))
     val d1 = loader.data(List(dbData))
-    val d2 = loader.data(tds)
     val d3 = loader.data(tds.dataset)
     val d4 = loader.data(tds.dataset.rdd)
-    assert(d1.diff(d2).dataset.count() == 0)
+    assert(d1.diff(d3).dataset.count() == 0)
     assert(d3.diff(d4).dataset.count() == 0)
     fs2.Stream
-      .eval(IO.sleep(2.seconds) >> IO(d1.diff(d2).dataset))
+      .eval(IO.sleep(2.seconds) >> IO(d1.diff(d3).dataset))
       .concurrently(listener)
       .compile
       .drain
@@ -115,7 +114,7 @@ class SparkTableTest extends AnyFunSuite {
   }
 
   test("upload dataset to table") {
-    val data = TypedDataset.create(List(dbData))
+    val data = List(dbData)
     loader.data(data).upload[IO](hikari, "sparktest", SaveMode.Overwrite).unsafeRunSync()
   }
 
