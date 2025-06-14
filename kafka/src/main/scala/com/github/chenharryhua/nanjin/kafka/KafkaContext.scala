@@ -100,15 +100,13 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
    * producer
    */
 
-  def produce[K: AvroCodecOf, V: AvroCodecOf](implicit F: Sync[F]): KafkaProduce[F, K, V] = {
-    val registerSerde = new StreamsSerde(settings.schemaRegistrySettings)
+  def produce[K: AvroCodecOf, V: AvroCodecOf](implicit F: Sync[F]): KafkaProduce[F, K, V] =
     new KafkaProduce[F, K, V](
       ProducerSettings[F, K, V](
-        Serializer.delegate(registerSerde.asKey[K].serializer()),
-        Serializer.delegate(registerSerde.asValue[V].serializer()))
-        .withProperties(settings.producerSettings.properties)
+        Serializer.delegate(AvroCodecOf[K].asKey(settings.schemaRegistrySettings.config).serde.serializer()),
+        Serializer.delegate(AvroCodecOf[V].asValue(settings.schemaRegistrySettings.config).serde.serializer())
+      ).withProperties(settings.producerSettings.properties)
     )
-  }
 
   def produce[K, V](raw: AvroCodecPair[K, V])(implicit F: Sync[F]): KafkaProduce[F, K, V] =
     produce[K, V](raw.key, raw.value, Sync[F])

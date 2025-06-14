@@ -34,40 +34,41 @@ object buildConsumer {
       new KafkaByteConsumer {
         override def assignment(): util.Set[TopicPartition] = ???
         override def subscription(): util.Set[String] = ???
-        override def subscribe(collection: util.Collection[String]): Unit = ???
+        override def subscribe(collection: util.Collection[String]): Unit = ()
         override def subscribe(
           collection: util.Collection[String],
-          consumerRebalanceListener: ConsumerRebalanceListener): Unit = ???
-        override def assign(collection: util.Collection[TopicPartition]): Unit = ???
+          consumerRebalanceListener: ConsumerRebalanceListener): Unit = ()
+        override def assign(collection: util.Collection[TopicPartition]): Unit = ()
         override def subscribe(pattern: Pattern, consumerRebalanceListener: ConsumerRebalanceListener): Unit =
-          ???
-        override def subscribe(pattern: Pattern): Unit = ???
-        override def unsubscribe(): Unit = ???
-        override def poll(l: Long): ConsumerRecords[Array[Byte], Array[Byte]] = ???
-        override def poll(duration: Duration): ConsumerRecords[Array[Byte], Array[Byte]] = ???
-        override def commitSync(): Unit = ???
-        override def commitSync(duration: Duration): Unit = ???
+          ()
+        override def subscribe(pattern: Pattern): Unit = ()
+        override def unsubscribe(): Unit = ()
+        override def poll(duration: Duration): ConsumerRecords[Array[Byte], Array[Byte]] =
+          poll(duration.toMillis)
+        override def commitSync(): Unit = ()
+        override def commitSync(duration: Duration): Unit = ()
         override def commitSync(map: util.Map[TopicPartition, OffsetAndMetadata]): Unit = ()
         override def commitSync(map: util.Map[TopicPartition, OffsetAndMetadata], duration: Duration): Unit =
-          ???
-        override def commitAsync(): Unit = ???
-        override def commitAsync(offsetCommitCallback: OffsetCommitCallback): Unit = ???
+          ()
+        override def commitAsync(): Unit = ()
+        override def commitAsync(offsetCommitCallback: OffsetCommitCallback): Unit = ()
         override def commitAsync(
           map: util.Map[TopicPartition, OffsetAndMetadata],
-          offsetCommitCallback: OffsetCommitCallback): Unit = ???
-        override def seek(topicPartition: TopicPartition, l: Long): Unit = ???
-        override def seek(topicPartition: TopicPartition, offsetAndMetadata: OffsetAndMetadata): Unit = ???
-        override def seekToBeginning(collection: util.Collection[TopicPartition]): Unit = ???
-        override def seekToEnd(collection: util.Collection[TopicPartition]): Unit = ???
-        override def position(topicPartition: TopicPartition): Long = ???
-        override def position(topicPartition: TopicPartition, duration: Duration): Long = ???
-        override def committed(topicPartition: TopicPartition): OffsetAndMetadata = ???
-        override def committed(topicPartition: TopicPartition, duration: Duration): OffsetAndMetadata = ???
+          offsetCommitCallback: OffsetCommitCallback): Unit = ()
+        override def seek(topicPartition: TopicPartition, l: Long): Unit = ()
+        override def seek(topicPartition: TopicPartition, offsetAndMetadata: OffsetAndMetadata): Unit = ()
+        override def seekToBeginning(collection: util.Collection[TopicPartition]): Unit = ()
+        override def seekToEnd(collection: util.Collection[TopicPartition]): Unit = ()
+        override def position(topicPartition: TopicPartition): Long = 0
+        override def position(topicPartition: TopicPartition, duration: Duration): Long = 0
+
         override def committed(set: util.Set[TopicPartition]): util.Map[TopicPartition, OffsetAndMetadata] =
-          ???
+          set.asScala.toList.map(tp => tp -> committed(tp)).toMap.asJava
         override def committed(
           set: util.Set[TopicPartition],
-          duration: Duration): util.Map[TopicPartition, OffsetAndMetadata] = ???
+          duration: Duration): util.Map[TopicPartition, OffsetAndMetadata] =
+          set.asScala.toList.map(tp => tp -> committed(tp, duration)).toMap.asJava
+
         override def clientInstanceId(duration: Duration): Uuid = ???
         override def metrics(): util.Map[MetricName, ? <: Metric] = ???
         override def partitionsFor(s: String): util.List[PartitionInfo] = partitionInfos
@@ -76,8 +77,8 @@ object buildConsumer {
         override def listTopics(): util.Map[String, util.List[PartitionInfo]] = ???
         override def listTopics(duration: Duration): util.Map[String, util.List[PartitionInfo]] = ???
         override def paused(): util.Set[TopicPartition] = ???
-        override def pause(collection: util.Collection[TopicPartition]): Unit = ???
-        override def resume(collection: util.Collection[TopicPartition]): Unit = ???
+        override def pause(collection: util.Collection[TopicPartition]): Unit = ()
+        override def resume(collection: util.Collection[TopicPartition]): Unit = ()
         override def offsetsForTimes(
           map: util.Map[TopicPartition, lang.Long]): util.Map[TopicPartition, OffsetAndTimestamp] =
           forTime.asJava
@@ -97,14 +98,25 @@ object buildConsumer {
         override def endOffsets(
           collection: util.Collection[TopicPartition],
           duration: Duration): util.Map[TopicPartition, lang.Long] =
-          end.toMap.asJava
+          end.asJava
         override def currentLag(topicPartition: TopicPartition): OptionalLong = ???
         override def groupMetadata(): ConsumerGroupMetadata = ???
-        override def enforceRebalance(): Unit = ???
-        override def enforceRebalance(s: String): Unit = ???
+        override def enforceRebalance(): Unit = ()
+        override def enforceRebalance(s: String): Unit = ()
         override def close(): Unit = ()
         override def close(duration: Duration): Unit = ()
-        override def wakeup(): Unit = ???
+        override def wakeup(): Unit = ()
+
+        def poll(l: Long): ConsumerRecords[Array[Byte], Array[Byte]] = null
+        def committed(topicPartition: TopicPartition): OffsetAndMetadata = null
+        def committed(topicPartition: TopicPartition, duration: Duration): OffsetAndMetadata = null
+        def registerMetricForSubscription(metric: org.apache.kafka.common.metrics.KafkaMetric): Unit = ???
+        def subscribe(pattern: org.apache.kafka.clients.consumer.SubscriptionPattern): Unit = ???
+        def subscribe(
+          pattern: org.apache.kafka.clients.consumer.SubscriptionPattern,
+          callback: org.apache.kafka.clients.consumer.ConsumerRebalanceListener): Unit = ???
+        def unregisterMetricFromSubscription(metric: org.apache.kafka.common.metrics.KafkaMetric): Unit = ???
+
       })
   }
 }

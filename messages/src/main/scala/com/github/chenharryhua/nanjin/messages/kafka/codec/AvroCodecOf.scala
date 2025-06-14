@@ -29,7 +29,7 @@ final class KafkaSerde[A] private[codec] (val topicName: TopicName, val register
   def deserialize(ab: Array[Byte]): A = registered.serde.deserializer.deserialize(topicName.value, ab)
 
   def tryDeserialize(ab: Array[Byte]): Try[A] =
-    Option(ab).fold[Try[A]](Failure(new NullPointerException("NJCodec.tryDecode a null Array[Byte]")))(x =>
+    Option(ab).fold[Try[A]](Failure(new NullPointerException("tryDeserialize a null Array[Byte]")))(x =>
       Try(deserialize(x)))
 }
 
