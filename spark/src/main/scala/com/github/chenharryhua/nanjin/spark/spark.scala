@@ -1,15 +1,20 @@
 package com.github.chenharryhua.nanjin
 
+import cats.effect.kernel.Sync
+import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.kafka.KafkaContext
+import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark.persist.*
 import com.github.chenharryhua.nanjin.spark.table.LoadTable
 import com.github.chenharryhua.nanjin.terminals.Hadoop
 import com.sksamuel.avro4s.Encoder as AvroEncoder
 import com.zaxxer.hikari.HikariConfig
+import fs2.Stream
 import io.lemonlabs.uri.Url
 import org.apache.avro.Schema
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.types.DataType
+import org.apache.spark.sql.avro.SchemaConverters
+import org.apache.spark.sql.types.{DataType, StructField, StructType}
 import org.apache.spark.sql.{DataFrame, SparkSession}
 import scalapb.{GeneratedMessage, GeneratedMessageCompanion}
 
@@ -18,12 +23,15 @@ import scala.reflect.ClassTag
 package object spark {
   object injection extends InjectionInstances
 
-  implicit final class RddExt[F[_], A](rdd: RDD[A]) extends Serializable {
+  implicit final class RddExt[A](rdd: RDD[A]) extends Serializable {
 
     def output: RddFileHoarder[A] = new RddFileHoarder[A](rdd)
 
     def output(encoder: AvroEncoder[A]): RddAvroFileHoarder[A] =
       new RddAvroFileHoarder[A](rdd, encoder)
+
+    def stream[F[_]: Sync](chunkSize: ChunkSize): Stream[F, A] =
+      Stream.fromBlockingIterator[F](rdd.toLocalIterator, chunkSize.value)
   }
 
   implicit final class DataframeExt(df: DataFrame) extends Serializable {
@@ -61,4 +69,10 @@ package object spark {
     def hadoop[F[_]]: Hadoop[F] = Hadoop[F](ss.sparkContext.hadoopConfiguration)
 
   }
+
+  def structType[A](avroCodec: AvroCodec[A]): StructType =
+    SchemaConverters.toSqlType(avroCodec.schema).dataType match {
+      case st: StructType => st
+      case primitive      => StructType(Array(StructField("value", primitive)))
+    }
 }

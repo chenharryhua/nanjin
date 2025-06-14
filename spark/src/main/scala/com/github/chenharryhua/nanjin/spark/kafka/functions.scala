@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.messages.kafka.{CRMetaInfo, NJConsumerRecord}
+import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
 import frameless.{TypedEncoder, TypedExpressionEncoder}
 import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.functions.{col, countDistinct}
@@ -50,7 +50,5 @@ object functions {
         .filter(col("count") > 1)
         .orderBy(col("count").desc)
     }
-
-    def stats: Statistics = new Statistics(dataset.map(CRMetaInfo(_)))
   }
 }

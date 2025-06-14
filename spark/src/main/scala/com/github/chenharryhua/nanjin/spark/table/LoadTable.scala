@@ -6,7 +6,6 @@ import com.github.chenharryhua.nanjin.common.database.{TableName, TableQuery}
 import com.github.chenharryhua.nanjin.spark.SchematizedEncoder
 import com.github.chenharryhua.nanjin.spark.persist.loaders
 import com.zaxxer.hikari.HikariConfig
-import frameless.TypedDataset
 import io.circe.Decoder as JsonDecoder
 import io.lemonlabs.uri.Url
 import kantan.csv.{CsvConfiguration, RowDecoder}
@@ -17,8 +16,7 @@ final class LoadTable[A] private[spark] (ate: SchematizedEncoder[A], ss: SparkSe
 
   def data(ds: Dataset[A]): Table[A] =
     new Table[A](ds, ate)
-  def data(tds: TypedDataset[A]): Table[A] =
-    new Table[A](tds.dataset, ate)
+
   def data(rdd: RDD[A]): Table[A] =
     new Table[A](ss.createDataset(rdd)(ate.sparkEncoder), ate)
   def data[G[_]: Foldable](ga: G[A]): Table[A] =
@@ -59,7 +57,6 @@ final class LoadTable[A] private[spark] (ate: SchematizedEncoder[A], ss: SparkSe
 
     def csv(path: Url, cfg: CsvConfiguration): Table[A] =
       new Table[A](loaders.spark.csv[A](path, ss, ate, cfg), ate)
-
   }
 
   private def toMap(hikari: HikariConfig): Map[String, String] =

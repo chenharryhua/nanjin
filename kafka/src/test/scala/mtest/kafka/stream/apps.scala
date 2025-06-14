@@ -5,23 +5,18 @@ import cats.implicits.{catsSyntaxTuple2Semigroupal, showInterpolator}
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.TopicDef
 import com.github.chenharryhua.nanjin.kafka.streaming.StreamsSerde
+import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroCodec, AvroCodecOf}
 import eu.timepit.refined.auto.*
 import mtest.kafka.stream.KafkaStreamingData.{StreamOne, StreamTarget, TableTwo}
-import org.apache.kafka.common.serialization.Serde
 import org.apache.kafka.streams.processor.api
 import org.apache.kafka.streams.processor.api.{Processor, ProcessorSupplier, Record}
-import org.apache.kafka.streams.scala.ImplicitConversions.*
 import org.apache.kafka.streams.scala.StreamsBuilder
-import org.apache.kafka.streams.scala.serialization.Serdes.{byteArraySerde, intSerde, stringSerde}
 import org.apache.kafka.streams.state.KeyValueStore
-
-import scala.util.Try
 
 object apps {
   def kafka_streaming(sb: StreamsBuilder, rs: StreamsSerde): Unit = {
-    implicit val ev1: Serde[StreamTarget] = rs.asValue[StreamTarget]
-    implicit val ev2: Serde[StreamOne] = rs.asValue[StreamOne]
-    implicit val ev3: Serde[TableTwo] = rs.asValue[TableTwo]
+    import rs.implicits.*
+    implicit val ev: AvroCodecOf[StreamOne] = AvroCodecOf(AvroCodec[StreamOne])
     val a = sb.stream[Int, StreamOne]("stream.test.join.stream.one")
     val b = sb.table[Int, TableTwo]("stream.test.join.table.two")
     a.join(b)((s1, t2) => StreamTarget(s1.name, 0, t2.color))
@@ -29,19 +24,18 @@ object apps {
       .to("stream.test.join.target")
   }
   def kafka_streaming_bad_record(sb: StreamsBuilder, rs: StreamsSerde): Unit = {
+    import rs.implicits.*
     val tn = TopicName("stream.test.stream.bad.records.one")
     val t2Topic = TopicDef[Int, TableTwo](TopicName("stream.test.join.table.two"))
-
-    implicit val ev1: Serde[StreamTarget] = rs.asValue[StreamTarget]
-    implicit val ev2: Serde[StreamOne] = rs.asValue[StreamOne]
-    implicit val ev3: Serde[TableTwo] = rs.asValue[TableTwo]
+    val keyS = rs.keySerde[Int](tn)
+    val valS = rs.valueSerde[StreamOne](tn)
 
     val a = sb.stream[Array[Byte], Array[Byte]](tn.value)
     val b = sb.table[Int, TableTwo](t2Topic.topicName.value)
     a.flatMap { (k, v) =>
       val r = (
-        Try(rs.asKey[Int].deserializer().deserialize(tn.value, k)).toOption,
-        Try(rs.asValue[StreamOne].deserializer().deserialize(tn.value, v)).toOption
+        keyS.tryDeserialize(k).toOption,
+        valS.tryDeserialize(v).toOption
       ).mapN((_, _))
       println(r)
       r
@@ -55,6 +49,7 @@ object apps {
     val topic2 = TopicName("stream.builder.test.table2")
     val tgt = TopicName("stream.builder.test.target")
     val store = TopicName("stream.builder.test.store")
+    import ksb.implicits.*
     sb.addStateStore(
       ksb
         .store[Int, String](TopicName("stream.builder.test.store"))

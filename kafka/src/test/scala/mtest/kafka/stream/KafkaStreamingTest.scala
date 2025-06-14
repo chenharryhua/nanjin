@@ -116,10 +116,7 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
     val s1TopicBin: TopicDef[Int, Array[Byte]] = TopicDef[Int, Array[Byte]](tn)
 
     def top(sb: StreamsBuilder, ss: StreamsSerde): Unit = {
-      implicit val ev2 = ss.consumed[Int, StreamOne]
-      implicit val ev3 = ss.consumed[Int, TableTwo]
-      implicit val ev4 = ss.joined[Int, StreamOne, TableTwo]
-      implicit val ev5 = ss.produced[Int, StreamTarget]
+      import ss.implicits.*
 
       val a = sb.stream[Int, StreamOne](s1Topic.topicName.value)
       val b = sb.table[Int, TableTwo](t2Topic.topicName.value)

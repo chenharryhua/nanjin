@@ -94,6 +94,7 @@ class HttpTest extends AnyFunSuite {
     val client = ember.map(cookieBox(new CookieManager()))
     server
       .surround(client.use(_.expect[String]("http://127.0.0.1:8080/cookie").flatMap(IO.println)))
+      .delayBy(2.seconds)
       .unsafeRunSync()
   }
 
@@ -101,6 +102,7 @@ class HttpTest extends AnyFunSuite {
     val client = entryPoint.root("root").flatMap(ep => ember.map(traceClient(ep)))
     server
       .surround(client.use(_.expect[String]("http://127.0.0.1:8080/trace/world").flatMap(IO.println)))
+      .delayBy(2.seconds)
       .unsafeRunSync()
   }
 

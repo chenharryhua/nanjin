@@ -9,11 +9,10 @@ import eu.timepit.refined.auto.*
 import fs2.Stream
 import fs2.kafka.{ProducerRecord, ProducerRecords, ProducerResult}
 import org.apache.kafka.clients.consumer.ConsumerConfig
-import org.apache.kafka.common.serialization.Serde
 import org.apache.kafka.streams.KeyValue
-import org.apache.kafka.streams.scala.ImplicitConversions.*
 import org.apache.kafka.streams.scala.StreamsBuilder
 import org.apache.kafka.streams.scala.kstream.Materialized
+import org.apache.kafka.streams.scala.serialization.Serdes.{intSerde, stringSerde}
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -36,15 +35,13 @@ class InteractiveTest extends AnyFunSuite {
   val globalStore: StateStores[Int, String] = ctx.store(topic.modifyTopicName(_ + ".global.store"))
 
   def top(sb: StreamsBuilder, ksb: StreamsSerde): Unit = {
-    implicit val ev1: Serde[Int] = ksb.asKey[Int]
-    implicit val ev2: Serde[String] = ksb.asValue[String]
+    import ksb.implicits.*
     sb.table(topic.topicName.value, Materialized.as[Int, String](localStore.inMemoryKeyValueStore.supplier))
     ()
   }
 
   def gtop(sb: StreamsBuilder, ksb: StreamsSerde): Unit = {
-    implicit val ev1: Serde[Int] = ksb.asKey[Int]
-    implicit val ev2: Serde[String] = ksb.asValue[String]
+    import ksb.implicits.*
     sb.globalTable[Int, String](
       topic.topicName.value,
       Materialized.as[Int, String](globalStore.persistentKeyValueStore.supplier))

@@ -5,7 +5,6 @@ import com.github.chenharryhua.nanjin.kafka.streaming.StreamsSerde
 import example.topics.{barTopic, fooTopic}
 import example.{ctx, Bar, Foo}
 import org.apache.kafka.streams.scala.StreamsBuilder
-import org.apache.kafka.streams.scala.kstream.{Consumed, Produced}
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -16,8 +15,8 @@ import scala.util.Random
 class ExampleKafkaKStream extends AnyFunSuite {
   test("kafka streaming") {
     def top(sb: StreamsBuilder, ksb: StreamsSerde): Unit = {
-      implicit val con: Consumed[Int, Foo] = ksb.consumed[Int, Foo]
-      implicit val pro: Produced[Int, Bar] = ksb.produced[Int, Bar]
+      import ksb.implicits.*
+
       sb.stream[Int, Foo](fooTopic.topicName.value)
         .flatMapValues(Option(_).map(foo => Bar(Random.nextInt(), foo.a.toLong)))
         .to(barTopic.topicName.value)
