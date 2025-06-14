@@ -1,5 +1,7 @@
 package com.github.chenharryhua.nanjin
 
+import cats.effect.kernel.Sync
+import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.kafka.KafkaContext
 import com.github.chenharryhua.nanjin.spark.persist.*
 import com.github.chenharryhua.nanjin.spark.table.LoadTable
@@ -12,18 +14,22 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.types.DataType
 import org.apache.spark.sql.{DataFrame, SparkSession}
 import scalapb.{GeneratedMessage, GeneratedMessageCompanion}
+import fs2.Stream
 
 import scala.reflect.ClassTag
 
 package object spark {
   object injection extends InjectionInstances
 
-  implicit final class RddExt[F[_], A](rdd: RDD[A]) extends Serializable {
+  implicit final class RddExt[A](rdd: RDD[A]) extends Serializable {
 
     def output: RddFileHoarder[A] = new RddFileHoarder[A](rdd)
 
     def output(encoder: AvroEncoder[A]): RddAvroFileHoarder[A] =
       new RddAvroFileHoarder[A](rdd, encoder)
+
+    def stream[F[_]: Sync](chunkSize: ChunkSize): Stream[F, A] =
+      Stream.fromBlockingIterator[F](rdd.toLocalIterator, chunkSize.value)
   }
 
   implicit final class DataframeExt(df: DataFrame) extends Serializable {
