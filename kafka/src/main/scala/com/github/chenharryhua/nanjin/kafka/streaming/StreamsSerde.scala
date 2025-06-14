@@ -14,22 +14,22 @@ final class StreamsSerde private[kafka] (schemaRegistrySettings: SchemaRegistryS
     private def asValue[V: AvroCodecOf]: Serde[V] =
       AvroCodecOf[V].asValue(schemaRegistrySettings.config).serde
 
-    implicit def consumed[K: AvroCodecOf, V: AvroCodecOf]: Consumed[K, V] =
+    implicit def consumedFromAC[K: AvroCodecOf, V: AvroCodecOf]: Consumed[K, V] =
       Consumed.`with`[K, V](asKey[K], asValue[V])
 
-    implicit def produced[K: AvroCodecOf, V: AvroCodecOf]: Produced[K, V] =
+    implicit def producedFromAC[K: AvroCodecOf, V: AvroCodecOf]: Produced[K, V] =
       Produced.`with`[K, V](asKey[K], asValue[V])
 
-    implicit def joined[K: AvroCodecOf, V: AvroCodecOf, VO: AvroCodecOf]: Joined[K, V, VO] =
+    implicit def joinedFromAC[K: AvroCodecOf, V: AvroCodecOf, VO: AvroCodecOf]: Joined[K, V, VO] =
       Joined.`with`(asKey[K], asValue[V], asValue[VO])
 
-    implicit def grouped[K: AvroCodecOf, V: AvroCodecOf]: Grouped[K, V] =
+    implicit def groupedFromAC[K: AvroCodecOf, V: AvroCodecOf]: Grouped[K, V] =
       Grouped.`with`(asKey[K], asValue[V])
 
-    implicit def repartitioned[K: AvroCodecOf, V: AvroCodecOf]: Repartitioned[K, V] =
+    implicit def repartitionedFromAC[K: AvroCodecOf, V: AvroCodecOf]: Repartitioned[K, V] =
       Repartitioned.`with`(asKey[K], asValue[V])
 
-    implicit def streamJoined[K: AvroCodecOf, V: AvroCodecOf, VO: AvroCodecOf]: StreamJoined[K, V, VO] =
+    implicit def streamJoinedFromAC[K: AvroCodecOf, V: AvroCodecOf, VO: AvroCodecOf]: StreamJoined[K, V, VO] =
       StreamJoined.`with`(asKey[K], asValue[V], asValue[VO])
   }
 
