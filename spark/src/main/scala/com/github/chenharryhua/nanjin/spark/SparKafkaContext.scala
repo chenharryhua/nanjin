@@ -7,16 +7,17 @@ import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameL}
 import com.github.chenharryhua.nanjin.datetime.DateTimeRange
 import com.github.chenharryhua.nanjin.kafka.*
-import com.github.chenharryhua.nanjin.messages.kafka.codec.{gr2Jackson, AvroCodecOf}
+import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroCodec, AvroCodecOf, gr2Jackson}
 import com.github.chenharryhua.nanjin.messages.kafka.{CRMetaInfo, NJConsumerRecord}
-import com.github.chenharryhua.nanjin.spark.kafka.{sk, SparKafkaTopic, Statistics}
+import com.github.chenharryhua.nanjin.spark.kafka.{SparKafkaTopic, Statistics, sk}
 import com.github.chenharryhua.nanjin.spark.persist.RddFileHoarder
-import com.github.chenharryhua.nanjin.terminals.{toHadoopPath, Hadoop}
+import com.github.chenharryhua.nanjin.terminals.{Hadoop, toHadoopPath}
 import eu.timepit.refined.refineMV
 import fs2.kafka.*
 import fs2.{Chunk, Stream}
 import io.lemonlabs.uri.Url
 import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.{Dataset, SparkSession}
 import org.typelevel.cats.time.instances.zoneid
 
@@ -203,16 +204,16 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
     sequentialUpload(TopicName(topicName), path, refineMV(1000), identity)
 
   object stats {
-    import kafka.{encoderCRMetaInfo, typedEncoderCRMetaInfo}
+    private val sparkSchema: StructType = structType(AvroCodec[CRMetaInfo])
 
-    private val ate: SchematizedEncoder[CRMetaInfo] = SchematizedEncoder[CRMetaInfo]
+    import sparkSession.implicits.*
 
     def avro(path: Url)(implicit F: Sync[F]): F[Statistics] =
       F.blocking {
         new Statistics(
           sparkSession.read
             .format("avro")
-            .schema(ate.sparkSchema)
+            .schema(sparkSchema)
             .load(toHadoopPath(path).toString)
             .as[CRMetaInfo]
         )
@@ -221,7 +222,7 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
     def jackson(path: Url)(implicit F: Sync[F]): F[Statistics] =
       F.blocking {
         new Statistics(
-          sparkSession.read.schema(ate.sparkSchema).json(toHadoopPath(path).toString).as[CRMetaInfo]
+          sparkSession.read.schema(sparkSchema).json(toHadoopPath(path).toString).as[CRMetaInfo]
         )
       }
 
@@ -231,7 +232,7 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
     def parquet(path: Url)(implicit F: Sync[F]): F[Statistics] =
       F.blocking {
         new Statistics(
-          sparkSession.read.schema(ate.sparkSchema).parquet(toHadoopPath(path).toString).as[CRMetaInfo]
+          sparkSession.read.schema(sparkSchema).parquet(toHadoopPath(path).toString).as[CRMetaInfo]
         )
       }
   }
