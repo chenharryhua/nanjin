@@ -19,6 +19,7 @@ final class LoadTable[A] private[spark] (ate: SchematizedEncoder[A], ss: SparkSe
 
   def data(rdd: RDD[A]): Table[A] =
     new Table[A](ss.createDataset(rdd)(ate.sparkEncoder), ate)
+
   def data[G[_]: Foldable](ga: G[A]): Table[A] =
     new Table[A](ss.createDataset(ga.toList)(ate.sparkEncoder), ate)
 

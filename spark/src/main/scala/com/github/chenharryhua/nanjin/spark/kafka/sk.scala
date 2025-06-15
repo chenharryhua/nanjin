@@ -47,7 +47,7 @@ private[spark] object sk {
       offsetRanges(offsetRange),
       LocationStrategies.PreferConsistent)
 
-  def kafkaBatch[F[_], K, V](
+  def kafkaBatch[K, V](
     ss: SparkSession,
     consumerSettings: KafkaConsumerSettings,
     serde: KafkaGenericSerde[K, V],
@@ -58,12 +58,11 @@ private[spark] object sk {
     ss: SparkSession,
     ctx: KafkaContext[F],
     topicDef: TopicDef[K, V],
-    serde: KafkaGenericSerde[K, V],
     dateRange: DateTimeRange): F[RDD[NJConsumerRecord[K, V]]] =
     ctx
       .admin(topicDef.topicName)
       .use(_.offsetRangeFor(dateRange))
-      .map(kafkaBatch(ss, ctx.settings.consumerSettings, serde, _))
+      .map(kafkaBatch(ss, ctx.settings.consumerSettings, ctx.serde(topicDef), _))
 
   /** streaming
     */

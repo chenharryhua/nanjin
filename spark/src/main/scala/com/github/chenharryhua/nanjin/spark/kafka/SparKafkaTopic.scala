@@ -29,7 +29,7 @@ final class SparKafkaTopic[F[_], K, V](
   private val avroValCodec: AvroCodec[V] = topicDef.codecPair.value.avroCodec
 
   private def downloadKafka(dateTimeRange: DateTimeRange)(implicit F: Async[F]): F[CrRdd[K, V]] =
-    sk.kafkaBatch(sparkSession, ctx, topicDef, ctx.serde(topicDef), dateTimeRange).map(crRdd)
+    sk.kafkaBatch(sparkSession, ctx, topicDef, dateTimeRange).map(crRdd)
 
   /** download topic according to datetime
     *
