@@ -12,6 +12,7 @@ import eu.timepit.refined.auto.*
 import fs2.Stream
 import fs2.kafka.{commitBatchWithin, AutoOffsetReset, ProducerRecord, ProducerRecords}
 import mtest.kafka.*
+import org.apache.kafka.streams.StreamsConfig
 import org.apache.kafka.streams.scala.StreamsBuilder
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.{BeforeAndAfter, DoNotDiscover}
@@ -83,11 +84,18 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
 
     val res: Set[StreamTarget] = (IO.println(Console.CYAN + "stream-table join" + Console.RESET) >> ctx
       .buildStreams(appId)(apps.kafka_streaming)
+      .withProperty(StreamsConfig.TOPOLOGY_OPTIMIZATION_CONFIG, StreamsConfig.OPTIMIZE)
       .kafkaStreams
       .concurrently(sendS1Data)
       .flatMap(_ => harvest.interruptAfter(10.seconds))
       .compile
       .toList).unsafeRunSync().toSet
+    println(
+      ctx
+        .buildStreams(appId)(apps.kafka_streaming)
+        .withProperty(StreamsConfig.TOPOLOGY_OPTIMIZATION_CONFIG, StreamsConfig.OPTIMIZE)
+        .topology
+        .describe())
     assert(res == expected)
   }
 

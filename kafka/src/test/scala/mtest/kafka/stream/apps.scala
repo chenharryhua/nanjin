@@ -51,10 +51,7 @@ object apps {
     val store = TopicName("stream.builder.test.store")
     import ksb.implicits.*
     sb.addStateStore(
-      ksb
-        .store[Int, String](TopicName("stream.builder.test.store"))
-        .inMemoryKeyValueStore
-        .keyValueStoreBuilder)
+      ksb.store[Int, String]("stream.builder.test.store").inMemoryKeyValueStore.keyValueStoreBuilder)
 
     val processor: ProcessorSupplier[Int, String, Int, String] =
       new ProcessorSupplier[Int, String, Int, String] {

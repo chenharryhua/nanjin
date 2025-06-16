@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.kafka.streaming
 
-import com.github.chenharryhua.nanjin.common.kafka.TopicName
+import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameL}
 import com.github.chenharryhua.nanjin.kafka.{AvroCodecPair, SchemaRegistrySettings, TopicDef}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroCodecOf, KafkaSerde}
 import org.apache.kafka.common.serialization.Serde
@@ -37,8 +37,11 @@ final class StreamsSerde private[kafka] (schemaRegistrySettings: SchemaRegistryS
     StateStores[K, V](
       AvroCodecPair[K, V](AvroCodecOf[K], AvroCodecOf[V]).register(schemaRegistrySettings, storeName))
 
+  def store[K: AvroCodecOf, V: AvroCodecOf](storeName: TopicNameL): StateStores[K, V] =
+    store[K, V](TopicName(storeName))
+
   def store[K, V](topic: TopicDef[K, V]): StateStores[K, V] =
-    store(topic.topicName)(topic.codecPair.key, topic.codecPair.value)
+    store[K, V](topic.topicName)(topic.codecPair.key, topic.codecPair.value)
 
   def keySerde[K: AvroCodecOf](topicName: TopicName): KafkaSerde[K] =
     AvroCodecOf[K].asKey(schemaRegistrySettings.config).withTopic(topicName)
