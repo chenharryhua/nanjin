@@ -3,6 +3,7 @@ package com.github.chenharryhua.nanjin.kafka.streaming
 import cats.effect.kernel.{Async, Deferred}
 import cats.effect.std.{CountDownLatch, Dispatcher}
 import cats.syntax.all.*
+import com.github.chenharryhua.nanjin.common.utils.toProperties
 import com.github.chenharryhua.nanjin.kafka.{KafkaStreamSettings, SchemaRegistrySettings}
 import fs2.Stream
 import fs2.concurrent.Channel
@@ -24,14 +25,14 @@ object StateUpdate {
 
   implicit final val stateUpdateEncoder: Encoder[StateUpdate] = (a: StateUpdate) =>
     Json.obj(
-      ("oldState", Json.fromString(es.getName(a.oldState))),
-      ("newState", Json.fromString(es.getName(a.newState)))
+      "oldState" -> Json.fromString(es.getName(a.oldState)),
+      "newState" -> Json.fromString(es.getName(a.newState))
     )
 }
 
 final class KafkaStreamsBuilder[F[_]] private (
   applicationId: String,
-  settings: KafkaStreamSettings,
+  streamSettings: KafkaStreamSettings,
   schemaRegistrySettings: SchemaRegistrySettings,
   top: (StreamsBuilder, StreamsSerde) => Unit,
   startUpTimeout: Duration)(implicit F: Async[F]) {
@@ -54,9 +55,11 @@ final class KafkaStreamsBuilder[F[_]] private (
     }
   }
 
+  private lazy val config: Map[String, String] =
+    streamSettings.withProperty(StreamsConfig.APPLICATION_ID_CONFIG, applicationId).properties
+
   private def kickoff(bus: Option[Channel[F, StateUpdate]]): Stream[F, KafkaStreams] = {
-    val sc: StreamsConfig = new StreamsConfig(
-      settings.withProperty(StreamsConfig.APPLICATION_ID_CONFIG, applicationId).properties.asJava)
+    val sc: StreamsConfig = new StreamsConfig(config.asJava)
     for { // fully initialized kafka-streams
       dispatcher <- Stream.resource[F, Dispatcher[F]](Dispatcher.sequential[F])
       stopSignal <- Stream.eval(F.deferred[Either[Throwable, Unit]])
@@ -87,7 +90,7 @@ final class KafkaStreamsBuilder[F[_]] private (
   def withStartUpTimeout(value: FiniteDuration): KafkaStreamsBuilder[F] =
     new KafkaStreamsBuilder[F](
       applicationId = applicationId,
-      settings = settings,
+      streamSettings = streamSettings,
       schemaRegistrySettings = schemaRegistrySettings,
       top = top,
       startUpTimeout = value
@@ -96,7 +99,7 @@ final class KafkaStreamsBuilder[F[_]] private (
   def withProperty(key: String, value: String): KafkaStreamsBuilder[F] =
     new KafkaStreamsBuilder[F](
       applicationId = applicationId,
-      settings = settings.withProperty(key, value),
+      streamSettings = streamSettings.withProperty(key, value),
       schemaRegistrySettings = schemaRegistrySettings,
       top = top,
       startUpTimeout = startUpTimeout
@@ -106,19 +109,20 @@ final class KafkaStreamsBuilder[F[_]] private (
     val streamsBuilder: StreamsBuilder = new StreamsBuilder()
     val streamsSerde: StreamsSerde = new StreamsSerde(schemaRegistrySettings)
     top(streamsBuilder, streamsSerde)
-    streamsBuilder.build()
+
+    streamsBuilder.build(toProperties(config))
   }
 }
 
 object KafkaStreamsBuilder {
   def apply[F[_]: Async](
     applicationId: String,
-    settings: KafkaStreamSettings,
+    streamSettings: KafkaStreamSettings,
     schemaRegistrySettings: SchemaRegistrySettings,
     top: (StreamsBuilder, StreamsSerde) => Unit): KafkaStreamsBuilder[F] =
     new KafkaStreamsBuilder[F](
       applicationId = applicationId,
-      settings = settings,
+      streamSettings = streamSettings,
       schemaRegistrySettings = schemaRegistrySettings,
       top = top,
       startUpTimeout = Duration.Inf
