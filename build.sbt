@@ -177,7 +177,7 @@ lazy val guard = (project in file("guard"))
       "io.dropwizard.metrics"               % "metrics-core"         % metricsV,
       "io.dropwizard.metrics"               % "metrics-jmx"          % metricsV,
       "com.github.ben-manes.caffeine"       % "caffeine"             % caffeineV,
-      "io.circe" %% "circe-optics"          % "0.15.0",
+      "io.circe" %% "circe-optics"          % "0.15.1",
       "org.http4s" %% "http4s-core"         % http4sV,
       "org.http4s" %% "http4s-dsl"          % http4sV,
       "org.http4s" %% "http4s-ember-server" % http4sV,
@@ -262,7 +262,7 @@ lazy val messages =
     .settings(
       libraryDependencies ++=
         List(
-          "io.circe" %% "circe-optics"                % "0.15.0",
+          "io.circe" %% "circe-optics"                % "0.15.1",
           "io.circe" %% "circe-jawn"                  % circeV,
           "org.apache.kafka" %% "kafka-streams-scala" % kafkaV,
           "com.github.fd4s" %% "fs2-kafka"            % fs2KafkaV,
