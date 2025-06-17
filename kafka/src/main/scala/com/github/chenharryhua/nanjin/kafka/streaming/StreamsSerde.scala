@@ -4,6 +4,7 @@ import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameL}
 import com.github.chenharryhua.nanjin.kafka.{AvroCodecPair, SchemaRegistrySettings, TopicDef}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroCodecOf, KafkaSerde}
 import org.apache.kafka.common.serialization.Serde
+import org.apache.kafka.streams.processor.StateStore
 import org.apache.kafka.streams.scala.kstream.*
 
 final class StreamsSerde private[kafka] (schemaRegistrySettings: SchemaRegistrySettings)
@@ -31,6 +32,9 @@ final class StreamsSerde private[kafka] (schemaRegistrySettings: SchemaRegistryS
 
     implicit def streamJoinedFromAC[K: AvroCodecOf, V: AvroCodecOf, VO: AvroCodecOf]: StreamJoined[K, V, VO] =
       StreamJoined.`with`(asKey[K], asValue[V], asValue[VO])
+
+    implicit def materializedFromAC[K: AvroCodecOf, V: AvroCodecOf, S <: StateStore]: Materialized[K, V, S] =
+      Materialized.`with`[K, V, S](asKey[K], asValue[V])
   }
 
   def store[K: AvroCodecOf, V: AvroCodecOf](storeName: TopicName): StateStores[K, V] =
