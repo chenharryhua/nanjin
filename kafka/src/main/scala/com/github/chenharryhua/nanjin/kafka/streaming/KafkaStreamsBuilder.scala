@@ -3,6 +3,7 @@ package com.github.chenharryhua.nanjin.kafka.streaming
 import cats.effect.kernel.{Async, Deferred}
 import cats.effect.std.{CountDownLatch, Dispatcher}
 import cats.syntax.all.*
+import com.github.chenharryhua.nanjin.common.HasProperties
 import com.github.chenharryhua.nanjin.common.utils.toProperties
 import com.github.chenharryhua.nanjin.kafka.{KafkaStreamSettings, SchemaRegistrySettings}
 import fs2.Stream
@@ -35,7 +36,8 @@ final class KafkaStreamsBuilder[F[_]] private (
   streamSettings: KafkaStreamSettings,
   schemaRegistrySettings: SchemaRegistrySettings,
   top: (StreamsBuilder, StreamsSerde) => Unit,
-  startUpTimeout: Duration)(implicit F: Async[F]) {
+  startUpTimeout: Duration)(implicit F: Async[F])
+    extends HasProperties {
 
   final private class StateChange(
     dispatcher: Dispatcher[F],
@@ -55,11 +57,11 @@ final class KafkaStreamsBuilder[F[_]] private (
     }
   }
 
-  private lazy val config: Map[String, String] =
+  override lazy val properties: Map[String, String] =
     streamSettings.withProperty(StreamsConfig.APPLICATION_ID_CONFIG, applicationId).properties
 
   private def kickoff(bus: Option[Channel[F, StateUpdate]]): Stream[F, KafkaStreams] = {
-    val sc: StreamsConfig = new StreamsConfig(config.asJava)
+    val sc: StreamsConfig = new StreamsConfig(properties.asJava)
     for { // fully initialized kafka-streams
       dispatcher <- Stream.resource[F, Dispatcher[F]](Dispatcher.sequential[F])
       stopSignal <- Stream.eval(F.deferred[Either[Throwable, Unit]])
@@ -110,7 +112,7 @@ final class KafkaStreamsBuilder[F[_]] private (
     val streamsSerde: StreamsSerde = new StreamsSerde(schemaRegistrySettings)
     top(streamsBuilder, streamsSerde)
 
-    streamsBuilder.build(toProperties(config))
+    streamsBuilder.build(toProperties(properties))
   }
 }
 

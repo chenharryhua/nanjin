@@ -9,3 +9,7 @@ trait UpdateConfig[A, B] {
 trait EnableConfig[A] {
   def enable(isEnabled: Boolean): A
 }
+
+trait HasProperties {
+  def properties: Map[String, String]
+}

@@ -1,23 +1,23 @@
 package com.github.chenharryhua.nanjin.kafka.connector
 
 import cats.Endo
-import cats.data.NonEmptyList
+import cats.data.{NonEmptyList, NonEmptySet}
 import cats.effect.kernel.{Async, Resource}
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
+import com.github.chenharryhua.nanjin.common.{HasProperties, UpdateConfig}
 import com.github.chenharryhua.nanjin.kafka.{
+  orderTopicPartition,
   pureConsumerSettings,
   AvroSchemaPair,
-  Offset,
   PullGenericRecord,
   PureConsumerSettings,
-  SchemaRegistrySettings,
-  TopicPartitionMap
+  SchemaRegistrySettings
 }
 import fs2.Stream
 import fs2.kafka.{CommittableConsumerRecord, ConsumerSettings, KafkaConsumer}
 import org.apache.avro.generic.GenericData
+import org.apache.kafka.common.TopicPartition
 
 import scala.util.Try
 
@@ -26,8 +26,9 @@ final class KafkaByteConsume[F[_]] private[kafka] (
   consumerSettings: ConsumerSettings[F, Array[Byte], Array[Byte]],
   getSchema: F[AvroSchemaPair],
   srs: SchemaRegistrySettings
-) extends UpdateConfig[PureConsumerSettings, KafkaByteConsume[F]] {
-  def properties: Map[String, String] = consumerSettings.properties
+) extends UpdateConfig[PureConsumerSettings, KafkaByteConsume[F]] with HasProperties {
+
+  override def properties: Map[String, String] = consumerSettings.properties
 
   override def updateConfig(f: Endo[PureConsumerSettings]): KafkaByteConsume[F] =
     new KafkaByteConsume[F](
@@ -46,22 +47,18 @@ final class KafkaByteConsume[F[_]] private[kafka] (
   def stream(implicit F: Async[F]): Stream[F, CommittableConsumerRecord[F, Array[Byte], Array[Byte]]] =
     KafkaConsumer
       .stream[F, Array[Byte], Array[Byte]](consumerSettings)
-      .evalTap(_.subscribe(NonEmptyList.of(topicName.value)))
+      .evalTap(_.subscribe(NonEmptyList.one(topicName.value)))
       .flatMap(_.stream)
 
-  def assign(tps: TopicPartitionMap[Offset])(implicit
+  def assign(partition: Int, offset: Long)(implicit
     F: Async[F]): Stream[F, CommittableConsumerRecord[F, Array[Byte], Array[Byte]]] =
-    if (tps.isEmpty)
-      Stream.empty.covaryAll[F, CommittableConsumerRecord[F, Array[Byte], Array[Byte]]]
-    else
-      KafkaConsumer
-        .stream[F, Array[Byte], Array[Byte]](consumerSettings)
-        .evalTap { c =>
-          c.assign(topicName.value) *> tps.value.toList.traverse { case (tp, offset) =>
-            c.seek(tp, offset.value)
-          }
-        }
-        .flatMap(_.stream)
+    KafkaConsumer
+      .stream[F, Array[Byte], Array[Byte]](consumerSettings)
+      .evalTap { kc =>
+        val tp = new TopicPartition(topicName.value, partition)
+        kc.assign(NonEmptySet.one(tp)) *> kc.seek(tp, offset)
+      }
+      .flatMap(_.stream)
 
   /** Retrieve Generic.Record from kafka
     *
@@ -72,20 +69,20 @@ final class KafkaByteConsume[F[_]] private[kafka] (
   def genericRecords(implicit
     F: Async[F]): Stream[F, CommittableConsumerRecord[F, Unit, Try[GenericData.Record]]] =
     Stream.eval(getSchema).flatMap { skm =>
-      val builder = new PullGenericRecord(srs, topicName, skm)
+      val pull = new PullGenericRecord(srs, topicName, skm)
       stream.mapChunks { crs =>
-        crs.map(cr => cr.bimap(_ => (), _ => builder.toGenericRecord(cr.record)))
+        crs.map(cr => cr.bimap(_ => (), _ => pull.toGenericRecord(cr.record)))
       }
     }
 
   // assignment
 
-  def genericRecords(tps: TopicPartitionMap[Offset])(implicit
+  def genericRecords(partition: Int, offset: Long)(implicit
     F: Async[F]): Stream[F, CommittableConsumerRecord[F, Unit, Try[GenericData.Record]]] =
     Stream.eval(getSchema).flatMap { skm =>
-      val builder = new PullGenericRecord(srs, topicName, skm)
-      assign(tps).mapChunks { crs =>
-        crs.map(cr => cr.bimap(_ => (), _ => builder.toGenericRecord(cr.record)))
+      val pull = new PullGenericRecord(srs, topicName, skm)
+      assign(partition, offset).mapChunks { crs =>
+        crs.map(cr => cr.bimap(_ => (), _ => pull.toGenericRecord(cr.record)))
       }
     }
 }
@@ -93,8 +90,8 @@ final class KafkaByteConsume[F[_]] private[kafka] (
 final class KafkaConsume[F[_], K, V] private[kafka] (
   topicName: TopicName,
   consumerSettings: ConsumerSettings[F, K, V]
-) extends UpdateConfig[PureConsumerSettings, KafkaConsume[F, K, V]] {
-  def properties: Map[String, String] = consumerSettings.properties
+) extends UpdateConfig[PureConsumerSettings, KafkaConsume[F, K, V]] with HasProperties {
+  override def properties: Map[String, String] = consumerSettings.properties
 
   override def updateConfig(f: Endo[PureConsumerSettings]): KafkaConsume[F, K, V] =
     new KafkaConsume[F, K, V](topicName, consumerSettings.withProperties(f(pureConsumerSettings).properties))
@@ -105,20 +102,16 @@ final class KafkaConsume[F[_], K, V] private[kafka] (
   def stream(implicit F: Async[F]): Stream[F, CommittableConsumerRecord[F, K, V]] =
     KafkaConsumer
       .stream[F, K, V](consumerSettings)
-      .evalTap(_.subscribe(NonEmptyList.of(topicName.value)))
+      .evalTap(_.subscribe(NonEmptyList.one(topicName.value)))
       .flatMap(_.stream)
 
-  def assign(tps: TopicPartitionMap[Offset])(implicit
+  def assign(partition: Int, offset: Long)(implicit
     F: Async[F]): Stream[F, CommittableConsumerRecord[F, K, V]] =
-    if (tps.isEmpty)
-      Stream.empty.covaryAll[F, CommittableConsumerRecord[F, K, V]]
-    else
-      KafkaConsumer
-        .stream[F, K, V](consumerSettings)
-        .evalTap { c =>
-          c.assign(topicName.value) *> tps.value.toList.traverse { case (tp, offset) =>
-            c.seek(tp, offset.value)
-          }
-        }
-        .flatMap(_.stream)
+    KafkaConsumer
+      .stream[F, K, V](consumerSettings)
+      .evalTap { kc =>
+        val tp = new TopicPartition(topicName.value, partition)
+        kc.assign(NonEmptySet.one(tp)) *> kc.seek(tp, offset)
+      }
+      .flatMap(_.stream)
 }

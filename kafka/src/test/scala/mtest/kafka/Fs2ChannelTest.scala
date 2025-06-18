@@ -188,4 +188,30 @@ class Fs2ChannelTest extends AnyFunSuite {
     assert(producer.get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG).contains("http://abc.com"))
     assert(producer.get("abc").contains("efg"))
   }
+
+  test("generic record from") {
+    ctx
+      .consume("telecom_italia_data")
+      .updateConfig(_.withMaxPollRecords(10))
+      .genericRecords(1, 10)
+      .take(50)
+      .debug()
+      .foreach(ccr => IO(assert(ccr.record.partition == 1)).void)
+      .compile
+      .drain
+      .unsafeRunSync()
+  }
+
+  test("assign") {
+    ctx
+      .consume(topicDef)
+      .updateConfig(_.withMaxPollRecords(5))
+      .assign(0, 0)
+      .take(1)
+      .debug()
+      .foreach(ccr => IO(assert(ccr.record.partition == 0)).void)
+      .compile
+      .drain
+      .unsafeRunSync()
+  }
 }
