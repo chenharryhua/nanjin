@@ -60,6 +60,13 @@ final class KafkaByteConsume[F[_]] private[kafka] (
       }
       .flatMap(_.stream)
 
+  def assign(partition: Int)(implicit
+    F: Async[F]): Stream[F, CommittableConsumerRecord[F, Array[Byte], Array[Byte]]] =
+    KafkaConsumer
+      .stream[F, Array[Byte], Array[Byte]](consumerSettings)
+      .evalTap(_.assign(NonEmptySet.one(new TopicPartition(topicName.value, partition))))
+      .flatMap(_.stream)
+
   /** Retrieve Generic.Record from kafka
     *
     * @return
@@ -82,6 +89,15 @@ final class KafkaByteConsume[F[_]] private[kafka] (
     Stream.eval(getSchema).flatMap { skm =>
       val pull = new PullGenericRecord(srs, topicName, skm)
       assign(partition, offset).mapChunks { crs =>
+        crs.map(cr => cr.bimap(_ => (), _ => pull.toGenericRecord(cr.record)))
+      }
+    }
+
+  def genericRecords(partition: Int)(implicit
+    F: Async[F]): Stream[F, CommittableConsumerRecord[F, Unit, Try[GenericData.Record]]] =
+    Stream.eval(getSchema).flatMap { skm =>
+      val pull = new PullGenericRecord(srs, topicName, skm)
+      assign(partition).mapChunks { crs =>
         crs.map(cr => cr.bimap(_ => (), _ => pull.toGenericRecord(cr.record)))
       }
     }
@@ -113,5 +129,11 @@ final class KafkaConsume[F[_], K, V] private[kafka] (
         val tp = new TopicPartition(topicName.value, partition)
         kc.assign(NonEmptySet.one(tp)) *> kc.seek(tp, offset)
       }
+      .flatMap(_.stream)
+
+  def assign(partition: Int)(implicit F: Async[F]): Stream[F, CommittableConsumerRecord[F, K, V]] =
+    KafkaConsumer
+      .stream[F, K, V](consumerSettings)
+      .evalTap(_.assign(NonEmptySet.one(new TopicPartition(topicName.value, partition))))
       .flatMap(_.stream)
 }
