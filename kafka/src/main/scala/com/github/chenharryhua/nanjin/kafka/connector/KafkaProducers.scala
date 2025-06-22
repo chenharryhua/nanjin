@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.kafka.connector
 import cats.Endo
 import cats.effect.kernel.*
 import cats.implicits.catsSyntaxFlatten
-import com.github.chenharryhua.nanjin.common.UpdateConfig
+import com.github.chenharryhua.nanjin.common.{HasProperties, UpdateConfig}
 import com.github.chenharryhua.nanjin.kafka.{pureProducerSetting, PureProducerSettings}
 import fs2.kafka.*
 import fs2.{Pipe, Stream}
@@ -15,9 +15,9 @@ import org.apache.kafka.clients.producer.RecordMetadata
   */
 
 final class KafkaProduce[F[_], K, V] private[kafka] (producerSettings: ProducerSettings[F, K, V])
-    extends UpdateConfig[PureProducerSettings, KafkaProduce[F, K, V]] {
+    extends UpdateConfig[PureProducerSettings, KafkaProduce[F, K, V]] with HasProperties {
 
-  def properties: Map[String, String] = producerSettings.properties
+  override def properties: Map[String, String] = producerSettings.properties
 
   def transactional(transactionalId: String): KafkaTransactional[F, K, V] =
     new KafkaTransactional[F, K, V](TransactionalProducerSettings(transactionalId, producerSettings))
@@ -47,8 +47,10 @@ final class KafkaProduce[F[_], K, V] private[kafka] (producerSettings: ProducerS
 }
 
 final class KafkaTransactional[F[_], K, V] private[kafka] (
-  txnSettings: TransactionalProducerSettings[F, K, V]) {
-  def properties: Map[String, String] = txnSettings.producerSettings.properties
+  txnSettings: TransactionalProducerSettings[F, K, V])
+    extends HasProperties {
+
+  override def properties: Map[String, String] = txnSettings.producerSettings.properties
 
   def stream(implicit F: Async[F]): Stream[F, TransactionalKafkaProducer[F, K, V]] =
     TransactionalKafkaProducer.stream(txnSettings)
