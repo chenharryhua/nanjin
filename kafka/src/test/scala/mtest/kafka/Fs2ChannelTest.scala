@@ -205,8 +205,8 @@ class Fs2ChannelTest extends AnyFunSuite {
   test("assign") {
     ctx
       .consume(topicDef)
-      .updateConfig(_.withMaxPollRecords(5))
-      .assign(0, 0)
+      .updateConfig(_.withMaxPollRecords(5).withAutoOffsetReset(AutoOffsetReset.Earliest))
+      .assign(0)
       .take(1)
       .debug()
       .foreach(ccr => IO(assert(ccr.record.partition == 0)).void)
