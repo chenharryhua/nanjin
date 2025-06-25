@@ -39,7 +39,7 @@ class ExampleKafkaBasic extends AnyFunSuite {
     val serde = ctx.serde(fooTopic)
     ctx
       .consume(fooTopic.topicName)
-      .stream
+      .subscribe
       .map(serde.deserializeValue(_))
       .debug()
       .interruptAfter(3.seconds)

@@ -47,7 +47,7 @@ object KafkaStreamingData {
     ctx
       .consume(tgt.topicName)
       .updateConfig(_.withGroupId("harvest").withAutoOffsetReset(AutoOffsetReset.Earliest))
-      .stream
+      .subscribe
       .map(x => serde.deserialize(x))
       .observe(_.map(_.offset).through(commitBatchWithin[IO](1, 0.1.seconds)).drain)
       .map(_.record.value)

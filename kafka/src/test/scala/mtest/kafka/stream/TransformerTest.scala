@@ -50,7 +50,7 @@ class TransformerTest extends AnyFunSuite {
         .through(ctx.produce[Int, String].sink)
     val havest = ctx
       .consume(tgt.topicName)
-      .stream
+      .subscribe
       .map(ctx.serde(tgt).deserialize(_))
       .debug()
       .observe(_.map(_.offset).through(commitBatchWithin(10, 2.seconds)).drain)
