@@ -72,7 +72,7 @@ class Fs2ChannelTest extends AnyFunSuite {
         ctx
           .consume(topicDef)
           .updateConfig(_.withGroupId("g1").withAutoOffsetReset(AutoOffsetReset.Earliest))
-          .stream
+          .subscribe
           .take(1)
           .map(ccr => NJConsumerRecord(ccr.record).asJson)
           .timeout(3.seconds)
@@ -85,7 +85,7 @@ class Fs2ChannelTest extends AnyFunSuite {
     val ret =
       ctx
         .consume(topicDef)
-        .stream
+        .subscribe
         .take(1)
         .map(_.record)
         .map(r => gr2Jackson(topicDef.consumerFormat.toRecord(r)).get)
@@ -100,7 +100,7 @@ class Fs2ChannelTest extends AnyFunSuite {
     val serde = ctx.serde(topicDef)
     ctx
       .consume(topicDef.topicName)
-      .stream
+      .subscribe
       .take(1)
       .map { ccr =>
         serde.deserialize(ccr)
@@ -205,8 +205,8 @@ class Fs2ChannelTest extends AnyFunSuite {
   test("assign") {
     ctx
       .consume(topicDef)
-      .updateConfig(_.withMaxPollRecords(5))
-      .assign(0, 0)
+      .updateConfig(_.withMaxPollRecords(5).withAutoOffsetReset(AutoOffsetReset.Earliest))
+      .assign(List(0))
       .take(1)
       .debug()
       .foreach(ccr => IO(assert(ccr.record.partition == 0)).void)

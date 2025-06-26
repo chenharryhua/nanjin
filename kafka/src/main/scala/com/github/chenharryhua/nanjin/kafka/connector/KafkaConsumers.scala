@@ -19,6 +19,7 @@ import fs2.kafka.{CommittableConsumerRecord, ConsumerSettings, KafkaConsumer}
 import org.apache.avro.generic.GenericData
 import org.apache.kafka.common.TopicPartition
 
+import scala.collection.immutable.SortedSet
 import scala.util.Try
 
 final class KafkaByteConsume[F[_]] private[kafka] (
@@ -44,7 +45,7 @@ final class KafkaByteConsume[F[_]] private[kafka] (
     * @return
     *   bytes
     */
-  def stream(implicit F: Async[F]): Stream[F, CommittableConsumerRecord[F, Array[Byte], Array[Byte]]] =
+  def subscribe(implicit F: Async[F]): Stream[F, CommittableConsumerRecord[F, Array[Byte], Array[Byte]]] =
     KafkaConsumer
       .stream[F, Array[Byte], Array[Byte]](consumerSettings)
       .evalTap(_.subscribe(NonEmptyList.one(topicName.value)))
@@ -60,12 +61,21 @@ final class KafkaByteConsume[F[_]] private[kafka] (
       }
       .flatMap(_.stream)
 
+  def assign(partitions: List[Int])(implicit
+    F: Async[F]): Stream[F, CommittableConsumerRecord[F, Array[Byte], Array[Byte]]] =
+    partitions match {
+      case ::(head, next) =>
+        val nes = NonEmptySet(head, SortedSet.from(next))
+        KafkaConsumer
+          .stream[F, Array[Byte], Array[Byte]](consumerSettings)
+          .evalTap(_.assign(topicName.value, nes))
+          .flatMap(_.stream)
+      case Nil => Stream.empty
+    }
+
   def assign(partition: Int)(implicit
     F: Async[F]): Stream[F, CommittableConsumerRecord[F, Array[Byte], Array[Byte]]] =
-    KafkaConsumer
-      .stream[F, Array[Byte], Array[Byte]](consumerSettings)
-      .evalTap(_.assign(NonEmptySet.one(new TopicPartition(topicName.value, partition))))
-      .flatMap(_.stream)
+    assign(List(partition))
 
   /** Retrieve Generic.Record from kafka
     *
@@ -77,7 +87,7 @@ final class KafkaByteConsume[F[_]] private[kafka] (
     F: Async[F]): Stream[F, CommittableConsumerRecord[F, Unit, Try[GenericData.Record]]] =
     Stream.eval(getSchema).flatMap { skm =>
       val pull = new PullGenericRecord(srs, topicName, skm)
-      stream.mapChunks { crs =>
+      subscribe.mapChunks { crs =>
         crs.map(cr => cr.bimap(_ => (), _ => pull.toGenericRecord(cr.record)))
       }
     }
@@ -93,14 +103,18 @@ final class KafkaByteConsume[F[_]] private[kafka] (
       }
     }
 
-  def genericRecords(partition: Int)(implicit
+  def genericRecords(partitions: List[Int])(implicit
     F: Async[F]): Stream[F, CommittableConsumerRecord[F, Unit, Try[GenericData.Record]]] =
     Stream.eval(getSchema).flatMap { skm =>
       val pull = new PullGenericRecord(srs, topicName, skm)
-      assign(partition).mapChunks { crs =>
+      assign(partitions).mapChunks { crs =>
         crs.map(cr => cr.bimap(_ => (), _ => pull.toGenericRecord(cr.record)))
       }
     }
+
+  def genericRecords(partition: Int)(implicit
+    F: Async[F]): Stream[F, CommittableConsumerRecord[F, Unit, Try[GenericData.Record]]] =
+    genericRecords(List(partition))
 }
 
 final class KafkaConsume[F[_], K, V] private[kafka] (
@@ -115,7 +129,7 @@ final class KafkaConsume[F[_], K, V] private[kafka] (
   def consumer(implicit F: Async[F]): Resource[F, KafkaConsumer[F, K, V]] =
     KafkaConsumer.resource(consumerSettings)
 
-  def stream(implicit F: Async[F]): Stream[F, CommittableConsumerRecord[F, K, V]] =
+  def subscribe(implicit F: Async[F]): Stream[F, CommittableConsumerRecord[F, K, V]] =
     KafkaConsumer
       .stream[F, K, V](consumerSettings)
       .evalTap(_.subscribe(NonEmptyList.one(topicName.value)))
@@ -131,9 +145,18 @@ final class KafkaConsume[F[_], K, V] private[kafka] (
       }
       .flatMap(_.stream)
 
+  def assign(partitions: List[Int])(implicit F: Async[F]): Stream[F, CommittableConsumerRecord[F, K, V]] =
+    partitions match {
+      case ::(head, next) =>
+        val nes = NonEmptySet(head, SortedSet.from(next))
+        KafkaConsumer
+          .stream[F, K, V](consumerSettings)
+          .evalTap(_.assign(topicName.value, nes))
+          .flatMap(_.stream)
+      case Nil => Stream.empty
+    }
+
   def assign(partition: Int)(implicit F: Async[F]): Stream[F, CommittableConsumerRecord[F, K, V]] =
-    KafkaConsumer
-      .stream[F, K, V](consumerSettings)
-      .evalTap(_.assign(NonEmptySet.one(new TopicPartition(topicName.value, partition))))
-      .flatMap(_.stream)
+    assign(List(partition))
+
 }
