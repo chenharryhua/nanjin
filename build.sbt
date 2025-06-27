@@ -268,7 +268,7 @@ lazy val messages =
           "com.github.fd4s" %% "fs2-kafka"            % fs2KafkaV,
           "com.sksamuel.avro4s" %% "avro4s-core"      % avro4sV,
           "org.apache.avro"                           % "avro"                      % avroV,
-          "com.thesamet.scalapb" %% "scalapb-runtime" % "0.11.18",
+          "com.thesamet.scalapb" %% "scalapb-runtime" % "0.11.19",
           "io.confluent"                              % "kafka-protobuf-serializer" % confluentV,
           "io.confluent"                              % "kafka-streams-avro-serde"  % confluentV,
           "com.google.protobuf"                       % "protobuf-java"             % "4.31.1", // snyk
