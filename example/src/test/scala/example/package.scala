@@ -17,5 +17,5 @@ package object example {
         .withConsumerProperty(ConsumerConfig.GROUP_ID_CONFIG, "example"))
 
   val sparKafka: SparKafkaContext[IO] = sparkSession.alongWith(ctx)
-  val hadoop: Hadoop[IO]              = sparkSession.hadoop[IO]
+  val hadoop: Hadoop[IO] = sparkSession.hadoop[IO]
 }

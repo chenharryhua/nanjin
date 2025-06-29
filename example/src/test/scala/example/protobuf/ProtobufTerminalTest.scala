@@ -17,8 +17,8 @@ import scalapb.GeneratedMessageCompanion
 class ProtobufTerminalTest extends AnyFunSuite {
   import ProtobufData.*
 
-  val root: Url                            = Url.parse("./data/example/protobuf")
-  val data: Stream[IO, Lion]               = Stream.emits(lions)
+  val root: Url = Url.parse("./data/example/protobuf")
+  val data: Stream[IO, Lion] = Stream.emits(lions)
   val gmc: GeneratedMessageCompanion[Lion] = implicitly
   def run(file: ProtobufFile): Assertion = {
     val path: Url = root / file.fileName

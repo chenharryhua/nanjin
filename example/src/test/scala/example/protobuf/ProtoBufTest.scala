@@ -1,6 +1,6 @@
 package example.protobuf
 
-import com.github.chenharryhua.nanjin.messages.kafka.codec.{KPB, AvroCodecOf}
+import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroCodecOf, KPB}
 import mtest.pb.messages.MessagePerson
 import org.scalacheck.Prop.{forAll, propBoolean}
 import org.scalacheck.{Arbitrary, Gen, Properties}

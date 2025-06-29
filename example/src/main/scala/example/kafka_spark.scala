@@ -11,10 +11,10 @@ import io.lemonlabs.uri.Url
 import org.apache.spark.sql.SparkSession
 
 object kafka_spark {
-  val spark: SparkSession             = SparkSettings(sydneyTime).sparkSession
+  val spark: SparkSession = SparkSettings(sydneyTime).sparkSession
   val sparKafka: SparKafkaContext[IO] = spark.alongWith[IO](kafka_connector_s3.ctx)
 
-  val path: Url        = Url.parse("s3a://bucket_name/folder_name")
+  val path: Url = Url.parse("s3a://bucket_name/folder_name")
   val topic: TopicName = TopicName("any.kafka.topic")
 
   // batch dump a kafka topic
