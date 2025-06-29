@@ -11,7 +11,7 @@ import com.github.chenharryhua.nanjin.kafka.{KafkaContext, KafkaSettings}
 import com.github.chenharryhua.nanjin.terminals.{Hadoop, JacksonFile}
 import eu.timepit.refined.auto.*
 import fs2.Pipe
-import fs2.kafka.{AutoOffsetReset, CommittableConsumerRecord, commitBatchWithin}
+import fs2.kafka.{commitBatchWithin, AutoOffsetReset, CommittableConsumerRecord}
 import io.lemonlabs.uri.Url
 import io.lemonlabs.uri.typesafe.dsl.urlToUrlDsl
 import org.apache.avro.generic.{GenericData, GenericRecord}
