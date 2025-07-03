@@ -331,7 +331,7 @@ lazy val pipes = (project in file("pipes"))
       "org.apache.parquet"               % "parquet-avro"           % parquetV,
       "org.apache.avro"                  % "avro"                   % avroV,
       "org.tukaani"                      % "xz"                     % "1.10",
-      "org.eclipse.jetty"                % "jetty-server"           % "12.0.22", // snyk
+      "org.eclipse.jetty"                % "jetty-server"           % "12.0.23", // snyk
       "io.netty"                         % "netty-all"              % nettyV, // snyk
       "com.nimbusds"                     % "nimbus-jose-jwt"        % "10.3.1", // snyk
       "dnsjava"                          % "dnsjava"                % "3.6.3", // snyk
