@@ -4,14 +4,12 @@ import cats.{Distributive, Eq, Functor, Show}
 import com.sksamuel.avro4s.{Codec, FieldMapper, SchemaFor}
 import io.circe.Decoder.Result
 import io.circe.syntax.*
-import io.circe.{jawn, Codec as JsonCodec, Decoder as JsonDecoder, Encoder as JsonEncoder, HCursor, Json}
+import io.circe.{HCursor, Json, jawn, Codec as JsonCodec, Decoder as JsonDecoder, Encoder as JsonEncoder}
 import monocle.Iso
 import org.apache.avro.Schema
 import org.apache.avro.util.Utf8
 import org.apache.kafka.common.serialization.{Deserializer, Serializer}
 import org.apache.kafka.streams.scala.serialization.Serdes
-
-import scala.util.{Failure, Success, Try}
 
 final class KJson[A] private (val value: A) extends Serializable {
   @SuppressWarnings(Array("IsInstanceOf"))
@@ -56,18 +54,14 @@ object KJson {
 
     override def decode(value: Any): KJson[A] = value match {
       case str: String =>
-        jawn.decode[KJson[A]](str) match {
-          case Right(r) => r
+        jawn.decode[A](str) match {
+          case Right(r) => KJson(r)
           case Left(ex) => throw new Exception(str, ex)
         }
       case utf8: Utf8 =>
-        Try(utf8.toString) match {
-          case Failure(exception) => throw exception
-          case Success(str)       =>
-            jawn.decode[A](str) match {
-              case Right(r) => KJson(r)
-              case Left(ex) => throw new Exception(str, ex)
-            }
+        jawn.decode[A](utf8.toString) match {
+          case Right(r) => KJson(r)
+          case Left(ex) => throw new Exception(utf8.toString, ex)
         }
       case null => null
       case ex   => sys.error(s"${ex.getClass.toString} is not a string: ${ex.toString}")
