@@ -15,7 +15,7 @@ val awsV = "2.31.77"
 val caffeineV = "3.2.1"
 val catsCoreV = "2.13.0"
 val catsEffectV = "3.6.2"
-val chimneyV = "1.8.1"
+val chimneyV = "1.8.2"
 val circeV = "0.14.14"
 val confluentV = "8.0.0"
 val cron4sV = "0.8.2"
@@ -116,7 +116,7 @@ lazy val common = (project in file("common"))
       "io.circe" %% "circe-generic"                    % circeV,
       "io.circe" %% "circe-refined"                    % "0.15.1",
       "dev.optics" %% "monocle-macro"                  % monocleV,
-      "org.apache.commons"                             % "commons-lang3" % "3.17.0",
+      "org.apache.commons"                             % "commons-lang3" % "3.18.0",
       "io.circe" %% "circe-jawn"                       % circeV          % Test
     ) ++ enumLib ++ refinedLib ++ testLib
   )
