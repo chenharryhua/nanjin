@@ -102,7 +102,7 @@ lazy val common = (project in file("common"))
   .settings(
     libraryDependencies ++= List(
       "com.github.alonsodomin.cron4s" %% "cron4s-core" % cron4sV,
-      "org.typelevel" %% "cats-time"                   % "0.5.1",
+      "org.typelevel" %% "cats-time"                   % "0.6.0",
       "org.typelevel" %% "squants"                     % "1.8.3",
       "org.typelevel" %% "cats-kernel"                 % catsCoreV,
       "org.typelevel" %% "cats-core"                   % catsCoreV,
