@@ -11,7 +11,7 @@ Global / parallelExecution := false
 val acyclicV = "0.3.18"
 val avroV = "1.12.0"
 val avro4sV = "4.1.2"
-val awsV = "2.31.77"
+val awsV = "2.32.4"
 val caffeineV = "3.2.2"
 val catsCoreV = "2.13.0"
 val catsEffectV = "3.6.2"
@@ -248,7 +248,7 @@ lazy val database = (project in file("database"))
       "org.tpolecat" %% "doobie-hikari" % doobieV,
       "org.tpolecat" %% "doobie-free"   % doobieV,
       "org.tpolecat" %% "skunk-core"    % skunkV,
-      "com.zaxxer"                      % "HikariCP"        % "6.3.0",
+      "com.zaxxer"                      % "HikariCP"        % "6.3.1",
       "org.postgresql"                  % "postgresql"      % postgresV % Test,
       "ch.qos.logback"                  % "logback-classic" % logbackV  % Test
     ) ++ testLib
@@ -333,7 +333,7 @@ lazy val pipes = (project in file("pipes"))
       "org.tukaani"                      % "xz"                     % "1.10",
       "org.eclipse.jetty"                % "jetty-server"           % "12.0.23", // snyk
       "io.netty"                         % "netty-all"              % nettyV, // snyk
-      "com.nimbusds"                     % "nimbus-jose-jwt"        % "10.3.1", // snyk
+      "com.nimbusds"                     % "nimbus-jose-jwt"        % "10.4", // snyk
       "dnsjava"                          % "dnsjava"                % "3.6.3", // snyk
       "com.google.guava"                 % "guava"                  % "33.4.8-jre", // snyk
       "org.apache.commons"               % "commons-configuration2" % "2.12.0", // snyk
