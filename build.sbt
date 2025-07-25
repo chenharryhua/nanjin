@@ -11,7 +11,7 @@ Global / parallelExecution := false
 val acyclicV = "0.3.18"
 val avroV = "1.12.0"
 val avro4sV = "4.1.2"
-val awsV = "2.32.6"
+val awsV = "2.32.8"
 val caffeineV = "3.2.2"
 val catsCoreV = "2.13.0"
 val catsEffectV = "3.6.3"
@@ -248,7 +248,7 @@ lazy val database = (project in file("database"))
       "org.tpolecat" %% "doobie-hikari" % doobieV,
       "org.tpolecat" %% "doobie-free"   % doobieV,
       "org.tpolecat" %% "skunk-core"    % skunkV,
-      "com.zaxxer"                      % "HikariCP"        % "6.3.1",
+      "com.zaxxer"                      % "HikariCP"        % "6.3.2",
       "org.postgresql"                  % "postgresql"      % postgresV % Test,
       "ch.qos.logback"                  % "logback-classic" % logbackV  % Test
     ) ++ testLib
