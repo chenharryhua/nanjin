@@ -60,7 +60,7 @@ class HadoopTest extends AnyFunSuite {
       before <- hdp.isExist(p1)
       del <- hdp.delete(p1)
       after <- hdp.isExist(p1)
-    } yield ((before, del, after))
+    } yield (before, del, after)
 
     val (before, del, after) = delAction.unsafeRunSync()
     assert(before)
