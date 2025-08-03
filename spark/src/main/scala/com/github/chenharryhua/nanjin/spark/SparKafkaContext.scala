@@ -15,6 +15,7 @@ import com.github.chenharryhua.nanjin.terminals.{toHadoopPath, Hadoop}
 import eu.timepit.refined.refineMV
 import fs2.kafka.*
 import fs2.{Chunk, Stream}
+import io.circe.Encoder as JsonEncoder
 import io.lemonlabs.uri.Url
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.types.StructType
@@ -75,13 +76,14 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
   def dump(topicName: TopicNameL, path: Url)(implicit F: Async[F]): F[Unit] =
     dump(TopicName(topicName), path, DateTimeRange(utils.sparkZoneId(sparkSession)))
 
-  def download[K, V](topicDef: TopicDef[K, V], path: Url, dateRange: DateTimeRange)(implicit
-    F: Async[F]): F[Unit] =
+  def download[K: JsonEncoder, V: JsonEncoder](topicDef: TopicDef[K, V], path: Url, dateRange: DateTimeRange)(
+    implicit F: Async[F]): F[Unit] =
     topic[K, V](topicDef).fromKafka(dateRange).flatMap {
-      _.output.jackson(path).withSaveMode(_.Overwrite).run[F]
+      _.output.circe(path).withSaveMode(_.Overwrite).run[F]
     }
 
-  def download[K, V](topicDef: TopicDef[K, V], path: Url)(implicit F: Async[F]): F[Unit] =
+  def download[K: JsonEncoder, V: JsonEncoder](topicDef: TopicDef[K, V], path: Url)(implicit
+    F: Async[F]): F[Unit] =
     download(topicDef, path, DateTimeRange(utils.sparkZoneId(sparkSession)))
 
   /** upload data from given folder to a kafka topic. files read in parallel

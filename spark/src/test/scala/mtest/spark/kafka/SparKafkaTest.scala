@@ -75,11 +75,11 @@ class SparKafkaTest extends AnyFunSuite {
 
   test("sparKafka someValue should filter out none values") {
     val cr1: NJConsumerRecord[Int, Int] =
-      NJConsumerRecord("t", 0, 1, 0, 0, None, None, None, Some(1), Nil, None)
+      NJConsumerRecord("t", 0, 1, 0, 0, Nil, None, None, None, None, Some(1))
     val cr2: NJConsumerRecord[Int, Int] =
-      NJConsumerRecord("t", 0, 2, 0, 0, None, None, Some(2), None, Nil, None)
+      NJConsumerRecord("t", 0, 2, 0, 0, Nil, None, None, None, Some(2), None)
     val cr3: NJConsumerRecord[Int, Int] =
-      NJConsumerRecord("t", 0, 3, 0, 0, None, None, Some(3), None, Nil, None)
+      NJConsumerRecord("t", 0, 3, 0, 0, Nil, None, None, None, Some(3), None)
     val crs: List[NJConsumerRecord[Int, Int]] = List(cr1, cr2, cr3)
     val ds: Dataset[NJConsumerRecord[Int, Int]] = sparkSession.createDataset(crs)
 
@@ -146,11 +146,12 @@ class SparKafkaTest extends AnyFunSuite {
       .unsafeRunSync()
   }
   test("dump topic") {
+    import io.circe.generic.auto.*
     val path = "./data/test/spark/kafka/dump/jackson"
     val p1 = path / "dump"
     val p2 = path / "download"
     sparKafka.dump("duck.test", p1).unsafeRunSync()
-    sparKafka.download[Int, HasDuck](topic, p2).unsafeRunSync()
+    sparKafka.download(topic, p2).unsafeRunSync()
     sparKafka.upload("duck.test", p1).unsafeRunSync()
     sparKafka.sequentialUpload("duck.test", p1).unsafeRunSync()
     sparKafka.crazyUpload("duck.test", p1).unsafeRunSync()

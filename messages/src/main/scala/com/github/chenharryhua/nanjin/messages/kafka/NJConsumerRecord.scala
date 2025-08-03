@@ -30,12 +30,13 @@ final case class NJConsumerRecord[K, V](
   @AvroDoc("kafka offset") offset: Long,
   @AvroDoc("kafka timestamp in millisecond") timestamp: Long,
   @AvroDoc("kafka timestamp type") timestampType: Int,
+  @AvroDoc("kafka headers") headers: List[NJHeader],
+  @AvroDoc("kafka leader epoch") leaderEpoch: Option[Int],
   @AvroDoc("kafka key size") serializedKeySize: Option[Int],
   @AvroDoc("kafka value size") serializedValueSize: Option[Int],
   @AvroDoc("kafka key") key: Option[K],
-  @AvroDoc("kafka value") value: Option[V],
-  @AvroDoc("kafka headers") headers: List[NJHeader],
-  @AvroDoc("kafka leader epoch") leaderEpoch: Option[Int]) {
+  @AvroDoc("kafka value") value: Option[V]
+) {
 
   def size: Option[Int] = serializedKeySize |+| serializedValueSize
 
@@ -46,11 +47,17 @@ final case class NJConsumerRecord[K, V](
     copy(key = key.flatten, value = value.flatten)
 
   def toNJProducerRecord: NJProducerRecord[K, V] =
-    NJProducerRecord[K, V](topic, Some(partition), Some(offset), Some(timestamp), key, value, headers)
+    NJProducerRecord[K, V](
+      topic = topic,
+      partition = Some(partition),
+      offset = Some(offset),
+      timestamp = Some(timestamp),
+      headers = headers,
+      key = key,
+      value = value)
 
   def toJavaConsumerRecord: JavaConsumerRecord[K, V] = this.transformInto[JavaConsumerRecord[K, V]]
   def toConsumerRecord: ConsumerRecord[K, V] = this.transformInto[ConsumerRecord[K, V]]
-
 }
 
 object NJConsumerRecord {

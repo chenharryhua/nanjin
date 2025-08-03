@@ -17,38 +17,38 @@ class SortTest extends AnyFunSuite {
   val ate = SchematizedEncoder(topic)
 
   val data = List(
-    NJConsumerRecord[Int, Int]("topic", 0, 0, 40, 0, None, None, Some(0), Some(Random.nextInt()), Nil, None),
-    NJConsumerRecord[Int, Int]("topic", 0, 1, 30, 0, None, None, Some(0), Some(Random.nextInt()), Nil, None),
-    NJConsumerRecord[Int, Int]("topic", 0, 2, 20, 0, None, None, Some(0), Some(Random.nextInt()), Nil, None),
-    NJConsumerRecord[Int, Int]("topic", 0, 3, 10, 0, None, None, Some(0), Some(Random.nextInt()), Nil, None),
-    NJConsumerRecord[Int, Int]("topic", 1, 0, 40, 0, None, None, Some(1), Some(Random.nextInt()), Nil, None),
-    NJConsumerRecord[Int, Int]("topic", 1, 1, 20, 0, None, None, Some(1), Some(Random.nextInt()), Nil, None),
-    NJConsumerRecord[Int, Int]("topic", 1, 2, 20, 0, None, None, Some(1), Some(Random.nextInt()), Nil, None),
-    NJConsumerRecord[Int, Int]("topic", 1, 4, 50, 0, None, None, Some(2), Some(Random.nextInt()), Nil, None),
+    NJConsumerRecord[Int, Int]("topic", 0, 0, 40, 0, Nil, None, None, None, Some(0), Some(Random.nextInt())),
+    NJConsumerRecord[Int, Int]("topic", 0, 1, 30, 0, Nil, None, None, None, Some(0), Some(Random.nextInt())),
+    NJConsumerRecord[Int, Int]("topic", 0, 2, 20, 0, Nil, None, None, None, Some(0), Some(Random.nextInt())),
+    NJConsumerRecord[Int, Int]("topic", 0, 3, 10, 0, Nil, None, None, None, Some(0), Some(Random.nextInt())),
+    NJConsumerRecord[Int, Int]("topic", 1, 0, 40, 0, Nil, None, None, None, Some(1), Some(Random.nextInt())),
+    NJConsumerRecord[Int, Int]("topic", 1, 1, 20, 0, Nil, None, None, None, Some(1), Some(Random.nextInt())),
+    NJConsumerRecord[Int, Int]("topic", 1, 2, 20, 0, Nil, None, None, None, Some(1), Some(Random.nextInt())),
+    NJConsumerRecord[Int, Int]("topic", 1, 4, 50, 0, Nil, None, None, None, Some(2), Some(Random.nextInt())),
     NJConsumerRecord[Int, Int](
       "topic",
       2,
       100,
       100,
       0,
+      Nil,
+      None,
       None,
       None,
       Some(2),
-      Some(Random.nextInt()),
-      Nil,
-      None),
+      Some(Random.nextInt())),
     NJConsumerRecord[Int, Int](
       "topic",
       2,
       100,
       100,
       0,
+      Nil,
+      None,
       None,
       None,
       Some(2),
-      Some(Random.nextInt()),
-      Nil,
-      None)
+      Some(Random.nextInt()))
   )
   val rdd = sparKafka.sparkSession.sparkContext.parallelize(data)
   val crRdd = sparKafka.topic(topic).crRdd(rdd)
@@ -59,14 +59,14 @@ class SortTest extends AnyFunSuite {
   test("produce record") {
     assert(
       prRdd.ascendTimestamp.rdd.collect().toList.map(_.key)
-        == crRdd.ascendTimestamp.rdd.collect().toList.map(_.key))
+        === crRdd.ascendTimestamp.rdd.collect().toList.map(_.key))
 
     assert(
       prRdd.ascendOffset.rdd.collect().toList.map(_.key) == crRdd.ascendOffset.rdd.collect().toList.map(_.key)
     )
     assert(
       prRdd.descendTimestamp.rdd.collect().toList.map(_.key)
-        == crRdd.descendTimestamp.rdd.collect().toList.map(_.key))
+        === crRdd.descendTimestamp.rdd.collect().toList.map(_.key))
 
     assert(
       prRdd.descendOffset.rdd.collect().toList.map(_.key) == crRdd.descendOffset.rdd
