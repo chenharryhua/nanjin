@@ -26,9 +26,10 @@ final case class NJProducerRecord[K, V](
   partition: Option[Int],
   offset: Option[Long], // for sort
   timestamp: Option[Long],
+  headers: List[NJHeader],
   key: Option[K],
-  value: Option[V],
-  headers: List[NJHeader]) {
+  value: Option[V]
+) {
 
   def withTopicName(name: TopicName): NJProducerRecord[K, V] = copy(topic = name.value)
   def withPartition(pt: Int): NJProducerRecord[K, V] = copy(partition = Some(pt))
@@ -56,7 +57,14 @@ object NJProducerRecord {
     pr.transformInto[NJProducerRecord[K, V]]
 
   def apply[K, V](topicName: TopicName, k: K, v: V): NJProducerRecord[K, V] =
-    NJProducerRecord(topicName.value, None, None, None, Option(k), Option(v), Nil)
+    NJProducerRecord(
+      topic = topicName.value,
+      partition = None,
+      offset = None,
+      timestamp = None,
+      headers = Nil,
+      key = Option(k),
+      value = Option(v))
 
   def avroCodec[K, V](keyCodec: AvroCodec[K], valCodec: AvroCodec[V]): AvroCodec[NJProducerRecord[K, V]] = {
     implicit val schemaForKey: SchemaFor[K] = keyCodec.schemaFor

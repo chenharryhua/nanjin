@@ -84,12 +84,12 @@ object genMessage {
       offset,
       timestamp,
       timestampType,
+      Nil,
+      None,
       None,
       None,
       Some(key),
-      Some(value),
-      Nil,
-      None)
+      Some(value))
 
     val genProducerRecord: Gen[ProducerRecord[Int, Int]] = for {
       topic <- Gen.asciiPrintableStr
