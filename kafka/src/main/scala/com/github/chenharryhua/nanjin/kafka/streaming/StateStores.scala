@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.kafka.streaming
 
-import com.github.chenharryhua.nanjin.kafka.SerdePair
+import com.github.chenharryhua.nanjin.kafka.KafkaTopic
 import org.apache.kafka.streams.StoreQueryParameters
 import org.apache.kafka.streams.state.*
 
@@ -10,52 +10,46 @@ import scala.jdk.DurationConverters.ScalaDurationOps
 
 final class KeyValueBytesStoreSupplierHelper[K, V] private[streaming] (
   val supplier: KeyValueBytesStoreSupplier,
-  serdePair: SerdePair[K, V]) {
+  topic: KafkaTopic[K, V]) {
   def keyValueStoreBuilder: StoreBuilder[KeyValueStore[K, V]] =
-    Stores.keyValueStoreBuilder(supplier, serdePair.key.registered.serde, serdePair.value.registered.serde)
+    Stores.keyValueStoreBuilder(supplier, topic.key.registered.serde, topic.value.registered.serde)
 
   def timestampedKeyValueStoreBuilder: StoreBuilder[TimestampedKeyValueStore[K, V]] =
-    Stores.timestampedKeyValueStoreBuilder(
-      supplier,
-      serdePair.key.registered.serde,
-      serdePair.value.registered.serde)
+    Stores.timestampedKeyValueStoreBuilder(supplier, topic.key.registered.serde, topic.value.registered.serde)
 }
 
 final class WindowBytesStoreSupplierHelper[K, V] private[streaming] (
   val supplier: WindowBytesStoreSupplier,
-  serdePair: SerdePair[K, V]) {
+  topic: KafkaTopic[K, V]) {
   def windowStoreBuilder: StoreBuilder[WindowStore[K, V]] =
-    Stores.windowStoreBuilder(supplier, serdePair.key.registered.serde, serdePair.value.registered.serde)
+    Stores.windowStoreBuilder(supplier, topic.key.registered.serde, topic.value.registered.serde)
 
   def timestampedWindowStoreBuilder: StoreBuilder[TimestampedWindowStore[K, V]] =
-    Stores.timestampedWindowStoreBuilder(
-      supplier,
-      serdePair.key.registered.serde,
-      serdePair.value.registered.serde)
+    Stores.timestampedWindowStoreBuilder(supplier, topic.key.registered.serde, topic.value.registered.serde)
 }
 
 final class SessionBytesStoreSupplierHelper[K, V] private[streaming] (
   val supplier: SessionBytesStoreSupplier,
-  serdePair: SerdePair[K, V]) {
+  topic: KafkaTopic[K, V]) {
   def sessionStoreBuilder: StoreBuilder[SessionStore[K, V]] =
-    Stores.sessionStoreBuilder(supplier, serdePair.key.registered.serde, serdePair.value.registered.serde)
+    Stores.sessionStoreBuilder(supplier, topic.key.registered.serde, topic.value.registered.serde)
 }
 
-final class StateStores[K, V] private (serdePair: SerdePair[K, V]) extends Serializable {
+final class StateStores[K, V] private (topic: KafkaTopic[K, V]) extends Serializable {
 
-  val name: String = serdePair.name.value
+  val name: String = topic.name.value
 
   def persistentKeyValueStore: KeyValueBytesStoreSupplierHelper[K, V] =
-    new KeyValueBytesStoreSupplierHelper(Stores.persistentKeyValueStore(name), serdePair)
+    new KeyValueBytesStoreSupplierHelper(Stores.persistentKeyValueStore(name), topic)
 
   def persistentTimestampedKeyValueStore: KeyValueBytesStoreSupplierHelper[K, V] =
-    new KeyValueBytesStoreSupplierHelper(Stores.persistentTimestampedKeyValueStore(name), serdePair)
+    new KeyValueBytesStoreSupplierHelper(Stores.persistentTimestampedKeyValueStore(name), topic)
 
   def inMemoryKeyValueStore: KeyValueBytesStoreSupplierHelper[K, V] =
-    new KeyValueBytesStoreSupplierHelper(Stores.inMemoryKeyValueStore(name), serdePair)
+    new KeyValueBytesStoreSupplierHelper(Stores.inMemoryKeyValueStore(name), topic)
 
   def lruMap(maxCacheSize: Int): KeyValueBytesStoreSupplierHelper[K, V] =
-    new KeyValueBytesStoreSupplierHelper(Stores.lruMap(name, maxCacheSize), serdePair)
+    new KeyValueBytesStoreSupplierHelper(Stores.lruMap(name, maxCacheSize), topic)
 
   def persistentWindowStore(
     retentionPeriod: Duration,
@@ -63,7 +57,7 @@ final class StateStores[K, V] private (serdePair: SerdePair[K, V]) extends Seria
     retainDuplicates: Boolean): WindowBytesStoreSupplierHelper[K, V] =
     new WindowBytesStoreSupplierHelper(
       Stores.persistentWindowStore(name, retentionPeriod, windowSize, retainDuplicates),
-      serdePair)
+      topic)
 
   def persistentWindowStore(
     retentionPeriod: FiniteDuration,
@@ -77,7 +71,7 @@ final class StateStores[K, V] private (serdePair: SerdePair[K, V]) extends Seria
     retainDuplicates: Boolean): WindowBytesStoreSupplierHelper[K, V] =
     new WindowBytesStoreSupplierHelper(
       Stores.persistentTimestampedWindowStore(name, retentionPeriod, windowSize, retainDuplicates),
-      serdePair)
+      topic)
 
   def persistentTimestampedWindowStore(
     retentionPeriod: FiniteDuration,
@@ -91,7 +85,7 @@ final class StateStores[K, V] private (serdePair: SerdePair[K, V]) extends Seria
     retainDuplicates: Boolean): WindowBytesStoreSupplierHelper[K, V] =
     new WindowBytesStoreSupplierHelper(
       Stores.inMemoryWindowStore(name, retentionPeriod, windowSize, retainDuplicates),
-      serdePair)
+      topic)
 
   def inMemoryWindowStore(
     retentionPeriod: FiniteDuration,
@@ -100,10 +94,10 @@ final class StateStores[K, V] private (serdePair: SerdePair[K, V]) extends Seria
     inMemoryWindowStore(retentionPeriod.toJava, windowSize.toJava, retainDuplicates)
 
   def persistentSessionStore(retentionPeriod: Duration): SessionBytesStoreSupplierHelper[K, V] =
-    new SessionBytesStoreSupplierHelper(Stores.persistentSessionStore(name, retentionPeriod), serdePair)
+    new SessionBytesStoreSupplierHelper(Stores.persistentSessionStore(name, retentionPeriod), topic)
 
   def inMemorySessionStore(retentionPeriod: Duration): SessionBytesStoreSupplierHelper[K, V] =
-    new SessionBytesStoreSupplierHelper(Stores.inMemorySessionStore(name, retentionPeriod), serdePair)
+    new SessionBytesStoreSupplierHelper(Stores.inMemorySessionStore(name, retentionPeriod), topic)
 
   def inMemorySessionStore(retentionPeriod: FiniteDuration): SessionBytesStoreSupplierHelper[K, V] =
     inMemorySessionStore(retentionPeriod.toJava)
@@ -127,6 +121,6 @@ final class StateStores[K, V] private (serdePair: SerdePair[K, V]) extends Seria
 }
 
 private[kafka] object StateStores {
-  def apply[K, V](serdePair: SerdePair[K, V]): StateStores[K, V] =
-    new StateStores[K, V](serdePair)
+  def apply[K, V](topic: KafkaTopic[K, V]): StateStores[K, V] =
+    new StateStores[K, V](topic)
 }

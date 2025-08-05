@@ -54,13 +54,13 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
    */
 
   def consume[K, V](topicDef: TopicDef[K, V])(implicit F: Sync[F]): KafkaConsume[F, K, V] = {
-    val serdePair: SerdePair[K, V] =
+    val topic: KafkaTopic[K, V] =
       topicDef.codecPair.register(settings.schemaRegistrySettings, topicDef.topicName)
     new KafkaConsume[F, K, V](
       topicDef.topicName,
       ConsumerSettings[F, K, V](
-        Deserializer.delegate[F, K](serdePair.key.registered.serde.deserializer()),
-        Deserializer.delegate[F, V](serdePair.value.registered.serde.deserializer())
+        Deserializer.delegate[F, K](topic.key.registered.serde.deserializer()),
+        Deserializer.delegate[F, V](topic.value.registered.serde.deserializer())
       ).withProperties(settings.consumerSettings.properties)
     )
   }

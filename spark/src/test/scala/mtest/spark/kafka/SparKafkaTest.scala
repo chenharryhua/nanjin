@@ -156,7 +156,7 @@ class SparKafkaTest extends AnyFunSuite {
     sparKafka.sequentialUpload("duck.test", p1).unsafeRunSync()
     sparKafka.crazyUpload("duck.test", p1).unsafeRunSync()
     val s1 = sparKafka.topic[Int, HasDuck]("aa").load.jackson(p1)
-    val s2 = sparKafka.topic[Int, HasDuck]("aa").load.jackson(p2)
+    val s2 = sparKafka.topic[Int, HasDuck]("aa").load.circe(p2)
     assert(s1.cherryPick[IO](1, 1).unsafeRunSync() === s2.cherryPick[IO](1, 1).unsafeRunSync())
     assert(s1.diff(s2).rdd.count() == 0)
   }
