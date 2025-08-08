@@ -115,7 +115,7 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
     ProducerSettings[F, Array[Byte], Array[Byte]](Serializer[F, Array[Byte]], Serializer[F, Array[Byte]])
       .withProperties(settings.producerSettings.properties)
 
-  def sink(topicName: TopicName, f: Endo[PureProducerSettings])(implicit
+  def sink(topicName: TopicName, f: Endo[ProducerSettings[F, Array[Byte], Array[Byte]]])(implicit
     F: Async[F]): Pipe[F, Chunk[GenericRecord], ProducerResult[Array[Byte], Array[Byte]]] = {
     (ss: Stream[F, Chunk[GenericRecord]]) =>
       Stream.eval(schemaRegistry.fetchAvroSchema(topicName)).flatMap { skm =>
@@ -123,13 +123,11 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
         val prStream: Stream[F, ProducerRecords[Array[Byte], Array[Byte]]] =
           ss.map(_.map(builder.fromGenericRecord))
 
-        KafkaProducer
-          .pipe(bytesProducerSettings.withProperties(f(pureProducerSetting).properties))
-          .apply(prStream)
+        KafkaProducer.pipe(f(bytesProducerSettings)).apply(prStream)
       }
   }
 
-  def sink(topicName: TopicNameL, f: Endo[PureProducerSettings])(implicit
+  def sink(topicName: TopicNameL, f: Endo[ProducerSettings[F, Array[Byte], Array[Byte]]])(implicit
     F: Async[F]): Pipe[F, Chunk[GenericRecord], ProducerResult[Array[Byte], Array[Byte]]] =
     sink(TopicName(topicName), f)
 
