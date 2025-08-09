@@ -12,6 +12,13 @@ import org.typelevel.cats.time.instances.all.*
 import java.time.{Duration, Instant, ZoneId, ZonedDateTime}
 import java.util.UUID
 
+/*
+ *  previous     acquire        wakeup
+ *    |            |----snooze----|
+ *    |---active---|              |
+ *    |----------interval---------|
+ */
+
 @JsonCodec @Lenses
 final case class Tick(
   sequenceId: UUID, // immutable
@@ -20,10 +27,9 @@ final case class Tick(
   previous: Instant, // previous tick's wakeup time
   index: Long, // monotonously increase
   acquire: Instant, // when acquire a new tick
-  snooze: Duration // sleep duration
+  snooze: Duration, // sleep duration
+  wakeup: Instant // wakeup time
 ) {
-
-  val wakeup: Instant = acquire.plus(snooze)
 
   def zonedLaunchTime: ZonedDateTime = launchTime.atZone(zoneId)
   def zonedWakeup: ZonedDateTime = wakeup.atZone(zoneId)
@@ -47,7 +53,8 @@ final case class Tick(
       previous = this.wakeup,
       index = this.index + 1,
       acquire = now,
-      snooze = delay
+      snooze = delay,
+      wakeup = now.plus(delay)
     )
 
   override def toString: String = {
@@ -68,7 +75,8 @@ object Tick {
       previous = now,
       index = 0L,
       acquire = now,
-      snooze = Duration.ZERO
+      snooze = Duration.ZERO,
+      wakeup = now
     )
 
   def zeroth[F[_]: Sync](zoneId: ZoneId): F[Tick] =
