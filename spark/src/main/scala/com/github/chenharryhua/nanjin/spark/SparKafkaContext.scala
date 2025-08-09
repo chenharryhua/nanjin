@@ -150,12 +150,11 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
   def upload(topicName: TopicNameL, path: Url)(implicit F: Async[F]): F[Long] =
     upload(TopicName(topicName), path, refineMV(1000), identity)
 
+  def crazyUpload(topicName: TopicName, path: Url)(implicit F: Async[F]): F[Long] =
+    upload(topicName, path, refineMV(1000), _.withBatchSize(200000).withLinger(10.milli).withAcks(Acks.One))
+
   def crazyUpload(topicName: TopicNameL, path: Url)(implicit F: Async[F]): F[Long] =
-    upload(
-      TopicName(topicName),
-      path,
-      refineMV(1000),
-      _.withBatchSize(200000).withLinger(10.milli).withAcks(Acks.One))
+    crazyUpload(TopicName(topicName), path)
 
   /** sequentially read files in the folder, sorted by modification time, and upload them into kafka
     *
