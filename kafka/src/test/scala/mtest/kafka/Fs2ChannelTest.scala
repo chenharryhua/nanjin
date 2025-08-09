@@ -1,6 +1,5 @@
 package mtest.kafka
 
-import cats.Endo
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.toBifunctorOps
@@ -9,10 +8,11 @@ import com.github.chenharryhua.nanjin.kafka.*
 import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
 import com.github.chenharryhua.nanjin.messages.kafka.codec.gr2Jackson
 import eu.timepit.refined.auto.*
-import fs2.kafka.AutoOffsetReset
+import fs2.kafka.{Acks, AutoOffsetReset}
 import io.circe.generic.auto.*
 import io.circe.syntax.EncoderOps
 import org.apache.kafka.clients.consumer.ConsumerConfig
+import org.apache.kafka.clients.producer.ProducerConfig
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.*
@@ -151,42 +151,68 @@ class Fs2ChannelTest extends AnyFunSuite {
     ctx.publishJackson(jackson).flatMap(IO.println).unsafeRunSync()
   }
 
-  private val cs: Endo[PureConsumerSettings] = _.withGroupId("nanjin")
-    .withEnableAutoCommit(true)
-    .withBootstrapServers("http://abc.com")
-    .withProperty("abc", "efg")
-
   test("consumer config") {
-    val consumer = ctx.consume(topicDef).updateConfig(cs).properties
+    val consumer = ctx
+      .consume(topicDef)
+      .updateConfig(
+        _.withGroupId("nanjin")
+          .withEnableAutoCommit(true)
+          .withBootstrapServers("http://abc.com")
+          .withProperty("abc", "efg"))
+      .updateConfig(_.withAutoOffsetReset(AutoOffsetReset.Earliest))
+      .properties
     assert(consumer.get(ConsumerConfig.GROUP_ID_CONFIG).contains("nanjin"))
     assert(consumer.get(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG).contains("true"))
     assert(consumer.get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG).contains("http://abc.com"))
     assert(consumer.get("abc").contains("efg"))
+    assert(consumer.get(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG).contains("earliest"))
   }
 
   test("byte consumer config") {
-    val consumer = ctx.consume("bytes").updateConfig(cs).properties
+    val consumer = ctx
+      .consume("bytes")
+      .updateConfig(
+        _.withGroupId("nanjin")
+          .withEnableAutoCommit(true)
+          .withBootstrapServers("http://abc.com")
+          .withProperty("abc", "efg"))
+      .updateConfig(_.withAutoOffsetReset(AutoOffsetReset.Earliest))
+      .properties
     assert(consumer.get(ConsumerConfig.GROUP_ID_CONFIG).contains("nanjin"))
     assert(consumer.get(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG).contains("true"))
     assert(consumer.get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG).contains("http://abc.com"))
     assert(consumer.get("abc").contains("efg"))
+    assert(consumer.get(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG).contains("earliest"))
   }
 
-  private val ps: Endo[PureProducerSettings] =
-    _.withClientId("nanjin").withBootstrapServers("http://abc.com").withProperty("abc", "efg")
-
   test("producer setting") {
-    val producer = ctx.produce(topicDef.codecPair).updateConfig(ps).properties
+    val producer =
+      ctx
+        .produce(topicDef.codecPair)
+        .updateConfig(
+          _.withClientId("nanjin").withBootstrapServers("http://abc.com").withProperty("abc", "efg")
+        )
+        .updateConfig(_.withAcks(Acks.Zero))
+        .properties
     assert(producer.get(ConsumerConfig.CLIENT_ID_CONFIG).contains("nanjin"))
     assert(producer.get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG).contains("http://abc.com"))
     assert(producer.get("abc").contains("efg"))
+    assert(producer.get(ProducerConfig.ACKS_CONFIG).contains("0"))
   }
 
   test("transactional producer setting") {
-    val producer = ctx.produce(topicDef.codecPair).updateConfig(ps).transactional("trans").properties
+    val producer = ctx
+      .produce(topicDef.codecPair)
+      .updateConfig(
+        _.withClientId("nanjin").withBootstrapServers("http://abc.com").withProperty("abc", "efg")
+      )
+      .updateConfig(_.withAcks(Acks.Zero))
+      .transactional("trans")
+      .properties
     assert(producer.get(ConsumerConfig.CLIENT_ID_CONFIG).contains("nanjin"))
     assert(producer.get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG).contains("http://abc.com"))
     assert(producer.get("abc").contains("efg"))
+    assert(producer.get(ProducerConfig.ACKS_CONFIG).contains("0"))
   }
 
   test("generic record from") {

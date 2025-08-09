@@ -102,13 +102,16 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
     * [[https://www.conduktor.io/kafka/kafka-producer-batching/]]
     */
 
-  def upload(topicName: TopicName, path: Url, chunkSize: ChunkSize, config: Endo[PureProducerSettings])(
-    implicit F: Async[F]): F[Long] = {
+  def upload(
+    topicName: TopicName,
+    path: Url,
+    chunkSize: ChunkSize,
+    config: Endo[ProducerSettings[F, Array[Byte], Array[Byte]]])(implicit F: Async[F]): F[Long] = {
 
     val producerSettings: ProducerSettings[F, Array[Byte], Array[Byte]] =
-      ProducerSettings[F, Array[Byte], Array[Byte]](Serializer[F, Array[Byte]], Serializer[F, Array[Byte]])
-        .withProperties(kafkaContext.settings.producerSettings.properties)
-        .withProperties(config(pureProducerSetting).properties)
+      config(
+        ProducerSettings[F, Array[Byte], Array[Byte]](Serializer[F, Array[Byte]], Serializer[F, Array[Byte]])
+          .withProperties(kafkaContext.settings.producerSettings.properties))
 
     for {
       schemaPair <- kafkaContext.schemaRegistry.fetchAvroSchema(topicName)
@@ -137,19 +140,21 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
     } yield num
   }
 
-  def upload(topicName: TopicNameL, path: Url, chunkSize: ChunkSize, config: Endo[PureProducerSettings])(
-    implicit F: Async[F]): F[Long] =
+  def upload(
+    topicName: TopicNameL,
+    path: Url,
+    chunkSize: ChunkSize,
+    config: Endo[ProducerSettings[F, Array[Byte], Array[Byte]]])(implicit F: Async[F]): F[Long] =
     upload(TopicName(topicName), path, chunkSize, config)
 
   def upload(topicName: TopicNameL, path: Url)(implicit F: Async[F]): F[Long] =
     upload(TopicName(topicName), path, refineMV(1000), identity)
 
+  def crazyUpload(topicName: TopicName, path: Url)(implicit F: Async[F]): F[Long] =
+    upload(topicName, path, refineMV(1000), _.withBatchSize(200000).withLinger(10.milli).withAcks(Acks.One))
+
   def crazyUpload(topicName: TopicNameL, path: Url)(implicit F: Async[F]): F[Long] =
-    upload(
-      TopicName(topicName),
-      path,
-      refineMV(1000),
-      _.withBatchSize(200000).withLinger(10.milli).withAcks(Acks.One))
+    crazyUpload(TopicName(topicName), path)
 
   /** sequentially read files in the folder, sorted by modification time, and upload them into kafka
     *

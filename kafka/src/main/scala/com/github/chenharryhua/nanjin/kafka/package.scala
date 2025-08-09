@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin
 
 import cats.{Order, Show}
-import fs2.kafka.{ConsumerSettings, Id, ProducerSettings}
+import fs2.kafka.{ConsumerSettings, Id}
 import io.circe.{Decoder, Encoder, HCursor, Json}
 import org.apache.kafka.common.TopicPartition
 
@@ -28,9 +28,6 @@ package object kafka {
         topic <- c.downField(TOPIC).as[String]
         partition <- c.downField(PARTITION).as[Int]
       } yield new TopicPartition(topic, partition)
-
-  type PureProducerSettings = ProducerSettings[Id, Nothing, Nothing]
-  val pureProducerSetting: PureProducerSettings = ProducerSettings[Id, Nothing, Nothing](null, null)
 
   type PureConsumerSettings = ConsumerSettings[Id, Nothing, Nothing]
   val pureConsumerSettings: PureConsumerSettings = ConsumerSettings[Id, Nothing, Nothing](null, null)

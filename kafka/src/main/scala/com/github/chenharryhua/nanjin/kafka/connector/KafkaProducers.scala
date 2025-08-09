@@ -4,7 +4,6 @@ import cats.Endo
 import cats.effect.kernel.*
 import cats.implicits.catsSyntaxFlatten
 import com.github.chenharryhua.nanjin.common.{HasProperties, UpdateConfig}
-import com.github.chenharryhua.nanjin.kafka.{pureProducerSetting, PureProducerSettings}
 import fs2.kafka.*
 import fs2.{Pipe, Stream}
 import org.apache.kafka.clients.producer.RecordMetadata
@@ -15,9 +14,19 @@ import org.apache.kafka.clients.producer.RecordMetadata
   */
 
 final class KafkaProduce[F[_], K, V] private[kafka] (producerSettings: ProducerSettings[F, K, V])
-    extends UpdateConfig[PureProducerSettings, KafkaProduce[F, K, V]] with HasProperties {
+    extends UpdateConfig[ProducerSettings[F, K, V], KafkaProduce[F, K, V]] with HasProperties {
 
+  /*
+   * config
+   */
   override def properties: Map[String, String] = producerSettings.properties
+
+  override def updateConfig(f: Endo[ProducerSettings[F, K, V]]): KafkaProduce[F, K, V] =
+    new KafkaProduce[F, K, V](f(producerSettings))
+
+  /*
+   * produce
+   */
 
   def transactional(transactionalId: String): KafkaTransactional[F, K, V] =
     new KafkaTransactional[F, K, V](TransactionalProducerSettings(transactionalId, producerSettings))
@@ -31,16 +40,12 @@ final class KafkaProduce[F[_], K, V] private[kafka] (producerSettings: ProducerS
   def stream(implicit F: Async[F]): Stream[F, KafkaProducer.Metrics[F, K, V]] =
     KafkaProducer.stream(producerSettings)
 
-  override def updateConfig(f: Endo[PureProducerSettings]): KafkaProduce[F, K, V] =
-    new KafkaProduce[F, K, V](producerSettings.withProperties(f(pureProducerSetting).properties))
-
-  /** for testing and repl
-    */
+  /*
+   * for testing and repl
+   */
   def produceOne(pr: ProducerRecord[K, V])(implicit F: Async[F]): F[RecordMetadata] =
     resource.use(_.produceOne_(pr).flatten)
 
-  /** for testing and repl
-    */
   def produceOne(topicName: String, k: K, v: V)(implicit F: Async[F]): F[RecordMetadata] =
     produceOne(ProducerRecord(topicName, k, v))
 
