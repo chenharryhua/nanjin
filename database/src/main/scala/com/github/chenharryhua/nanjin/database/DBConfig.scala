@@ -4,6 +4,7 @@ import cats.effect.kernel.{Async, Resource}
 import com.github.chenharryhua.nanjin.common.database.*
 import com.zaxxer.hikari.HikariConfig
 import doobie.hikari.HikariTransactor
+import doobie.util.log.LogHandler
 import fs2.Stream
 
 /** [[https://tpolecat.github.io/doobie/]]
@@ -23,11 +24,11 @@ sealed abstract class DBConfig(cfg: HikariConfig, updateOps: List[HikariConfig =
     cfg
   }
 
-  final def transactorR[F[_]: Async]: Resource[F, HikariTransactor[F]] =
-    HikariTransactor.fromHikariConfig[F](hikariConfig)
+  final def transactorR[F[_]: Async](logHandler: Option[LogHandler[F]]): Resource[F, HikariTransactor[F]] =
+    HikariTransactor.fromHikariConfig[F](hikariConfig, logHandler)
 
-  final def transactorS[F[_]: Async]: Stream[F, HikariTransactor[F]] =
-    Stream.resource(transactorR)
+  final def transactorS[F[_]: Async](logHandler: Option[LogHandler[F]]): Stream[F, HikariTransactor[F]] =
+    Stream.resource(transactorR(logHandler))
 }
 
 object DBConfig {

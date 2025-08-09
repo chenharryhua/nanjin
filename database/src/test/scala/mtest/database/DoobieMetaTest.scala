@@ -33,7 +33,7 @@ class DoobieMetaTest extends AnyFunSuite with FunSuiteDiscipline with Configurat
     assert(nj.hikariConfig.getMaximumPoolSize == 10)
 
     val stream: Stream[IO, Int] = for {
-      tnx <- nj.transactorS[IO]
+      tnx <- nj.transactorS[IO](None)
       n <- Stream.eval(tnx.trans.apply(42.pure[ConnectionIO]))
     } yield n
 
