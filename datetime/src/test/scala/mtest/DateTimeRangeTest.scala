@@ -106,6 +106,10 @@ class DateTimeRangeTest extends AnyFunSuite with FunSuiteDiscipline with Configu
     val sameDay = DateTimeRange(newyorkTime).withStartTime(dt4).withEndTime(dt5)
     assert(sameDay.days.size == 1)
     assert(sameDay.days.head == d3)
+
+    println(DateTimeRange(newyorkTime))
+    println(DateTimeRange(newyorkTime).withStartTime(dt4))
+    println(DateTimeRange(newyorkTime).withEndTime(dt4))
   }
 
   test("days") {
@@ -130,12 +134,28 @@ class DateTimeRangeTest extends AnyFunSuite with FunSuiteDiscipline with Configu
     assert(dr.days.length == 10)
   }
 
+  test("one day") {
+    val t = DateTimeRange(sydneyTime).withToday
+    val y = DateTimeRange(sydneyTime).withYesterday
+    val e = DateTimeRange(sydneyTime).withEreyesterday
+    assert(t.days.size == 1)
+    assert(y.days.size == 1)
+    assert(e.days.size == 1)
+    assert(t.duration.get.toMillis == 86399999)
+    assert(y.duration.get.toMillis == 86399999)
+    assert(e.duration.get.toMillis == 86399999)
+    println(t)
+    println(y)
+    println(e)
+  }
+
   test("fluent api") {
     val dr = DateTimeRange(sydneyTime)
       .withOneDay(LocalDate.now())
       .withOneDay(LocalDate.now().toString)
       .withToday
       .withYesterday
+      .withEreyesterday
       .withStartTime(1000L)
       .withStartTime("2012-12-30")
       .withStartTime(Instant.now)

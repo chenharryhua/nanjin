@@ -1,12 +1,12 @@
 package com.github.chenharryhua.nanjin.datetime
 
-import cats.{PartialOrder, Show}
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.common.DurationFormatter
+import cats.{PartialOrder, Show}
 import monocle.Prism
 import monocle.macros.Lenses
-import shapeless.{:+:, CNil, Poly1}
+import org.typelevel.cats.time.instances.{duration, zoneddatetime}
 import shapeless.ops.coproduct.{Inject, Selector}
+import shapeless.{:+:, CNil, Poly1}
 
 import java.sql.Timestamp
 import java.time.*
@@ -16,7 +16,8 @@ import scala.concurrent.duration.FiniteDuration
 @Lenses final case class DateTimeRange(
   private val start: Option[DateTimeRange.TimeTypes],
   private val end: Option[DateTimeRange.TimeTypes],
-  zoneId: ZoneId) {
+  zoneId: ZoneId)
+    extends zoneddatetime with duration {
 
   private object calcDateTime extends Poly1 {
 
@@ -135,8 +136,15 @@ import scala.concurrent.duration.FiniteDuration
     }
 
   def duration: Option[FiniteDuration] = (startTimestamp, endTimestamp).mapN((s, e) => e.minus(s))
+
   override def toString: String =
-    duration.map(DurationFormatter.defaultFormatter.format).getOrElse("infinite")
+    (zonedStartTime, zonedEndTime) match {
+      case (None, Some(e))    => show"start: null, end: $e, range: infinite"
+      case (Some(s), None)    => show"start: $s, end: null, range: infinite"
+      case (Some(s), Some(e)) =>
+        show"start: $s, end: $e, range: ${java.time.Duration.between(s, e)}"
+      case (None, None) => "start: null, end: null, range: infinite"
+    }
 }
 
 object DateTimeRange {

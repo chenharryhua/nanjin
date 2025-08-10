@@ -4,10 +4,11 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.TopicDef
+import com.github.chenharryhua.nanjin.kafka.connector.commitBatch
 import com.github.chenharryhua.nanjin.kafka.streaming.KafkaStreamsBuilder
 import eu.timepit.refined.auto.*
 import fs2.Stream
-import fs2.kafka.{commitBatchWithin, ProducerRecord, ProducerRecords, ProducerResult}
+import fs2.kafka.{ProducerRecord, ProducerRecords, ProducerResult}
 import mtest.kafka.*
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
@@ -53,7 +54,7 @@ class TransformerTest extends AnyFunSuite {
       .subscribe
       .map(ctx.serde(tgt).deserialize(_))
       .debug()
-      .observe(_.map(_.offset).through(commitBatchWithin(10, 2.seconds)).drain)
+      .observe(_.map(_.offset).through(commitBatch(10, 2.seconds)).drain)
 
     val res =
       havest

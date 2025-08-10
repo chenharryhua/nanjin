@@ -5,10 +5,11 @@ import cats.effect.IO
 import cats.effect.kernel.Resource
 import cats.implicits.{catsSyntaxApplicativeByName, catsSyntaxSemigroup, toTraverseOps}
 import com.github.chenharryhua.nanjin.common.chrono.{Policy, TickedValue}
+import com.github.chenharryhua.nanjin.datetime.DateTimeRange
 import com.github.chenharryhua.nanjin.guard.metrics.Metrics
 import com.github.chenharryhua.nanjin.guard.observers.console
 import com.github.chenharryhua.nanjin.kafka.{KafkaContext, KafkaSettings}
-import com.github.chenharryhua.nanjin.terminals.{Hadoop, JacksonFile}
+import com.github.chenharryhua.nanjin.terminals.{extractDate, Hadoop, JacksonFile}
 import eu.timepit.refined.auto.*
 import fs2.Pipe
 import fs2.kafka.{commitBatchWithin, AutoOffsetReset, CommittableConsumerRecord}
@@ -19,6 +20,7 @@ import org.apache.hadoop.conf.Configuration
 import squants.Each
 import squants.information.Bytes
 
+import java.time.Period
 import scala.concurrent.duration.DurationInt
 import scala.util.Try
 
@@ -75,4 +77,20 @@ object kafka_connector_s3 {
       }
     }
     .evalTap(console.text[IO])
+
+  /** delete obsolete folder at 1:00 am every day
+    */
+  aws_task_template.task.service("delete.obsolete.folder").eventStreamS { agent =>
+    val root: Url = Url.parse("s3://abc-efg-hij/klm")
+    agent.tickImmediately(_.crontab(_.daily.oneAM)).evalMap { tick =>
+      val dr = DateTimeRange(agent.zoneId)
+        .withEndTime(tick.wakeup)
+        .withStartTime(tick.wakeup.minus(Period.ofDays(30)))
+        .days
+
+      hadoop
+        .dataFolders(root)
+        .flatMap(_.filterNot(extractDate(_).forall(dr.contains)).traverse(hadoop.delete))
+    }
+  }
 }
