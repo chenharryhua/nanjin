@@ -2,14 +2,14 @@ package mtest.terminals
 
 import better.files.*
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.datetime.codec.year_month_day_hour
-import com.github.chenharryhua.nanjin.terminals.toHadoopPath
+import com.github.chenharryhua.nanjin.datetime.codec.{year_month_day, year_month_day_hour}
+import com.github.chenharryhua.nanjin.terminals.{extractDate, toHadoopPath}
 import io.lemonlabs.uri.Url
 import io.lemonlabs.uri.typesafe.dsl.*
 import mtest.terminals.HadoopTestData.hdp
 import org.scalatest.funsuite.AnyFunSuite
 
-import java.time.LocalDateTime
+import java.time.{LocalDate, LocalDateTime}
 
 class HadoopTest extends AnyFunSuite {
   private val path: Url = Url.parse("./data/test/terminals/hadoop")
@@ -88,5 +88,28 @@ class HadoopTest extends AnyFunSuite {
     assert(toHadoopPath(p9).toString == "abc/efg")
     hdp.sink(p9).outputStream
     hdp.source(p9).inputStream
+  }
+
+  test("extract date") {
+    val date = LocalDate.of(2025, 8, 10)
+    val p1 = path / year_month_day(date)
+    val p2 = path / year_month_day(date) / "abc" / "xyz.dat"
+    assert(extractDate(p1).get == date)
+    assert(extractDate(p2).get == date)
+  }
+
+  test("extract date - should be a valid date") {
+    val p1 = path / "Year=2025" / "Month=01" / "Day=35"
+    assert(extractDate(p1).isEmpty)
+  }
+
+  test("extract date - Month should be two digital") {
+    val p1 = path / "Year=2025" / "Month=1" / "Day=30"
+    assert(extractDate(p1).isEmpty)
+  }
+
+  test("extract date - year month day should be consecutive") {
+    val p1 = path / "Year=2025" / "ooo" / "Month=01" / "Day=30"
+    assert(extractDate(p1).isEmpty)
   }
 }
