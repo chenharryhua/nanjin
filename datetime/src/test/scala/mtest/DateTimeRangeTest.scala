@@ -82,14 +82,14 @@ class DateTimeRangeTest extends AnyFunSuite with FunSuiteDiscipline with Configu
     assert(a.zonedStartTime.get.eqv(startTime.atZone(zoneId)))
     assert(a.zonedEndTime.get.eqv(endTime.atZone(zoneId)))
   }
-  test("days should return list of date from start(inclusive) to end(exclusive)") {
+  test("days should return list of date") {
     val d1 = LocalDate.of(2012, 10, 26)
     val d2 = LocalDate.of(2012, 10, 27)
     val d3 = LocalDate.of(2012, 10, 28)
 
     val dtr = DateTimeRange(beijingTime).withStartTime(d1).withEndTime("2012-10-28")
 
-    assert(dtr.days.eqv(List(d1, d2)))
+    assert(dtr.days.eqv(List(d1, d2, d3)))
 
     assert(dtr.withOneDay(d3).days.eqv(List(d3)))
   }
@@ -98,13 +98,14 @@ class DateTimeRangeTest extends AnyFunSuite with FunSuiteDiscipline with Configu
     assert(DateTimeRange(cairoTime).days.isEmpty)
   }
 
-  test("days of same day should return empty list") {
+  test("days of same day should return one") {
     val d3 = LocalDate.of(2012, 10, 28)
     val dt4 = LocalDateTime.of(d3, LocalTime.of(10, 1, 1))
     val dt5 = LocalDateTime.of(d3, LocalTime.of(10, 1, 2))
 
     val sameDay = DateTimeRange(newyorkTime).withStartTime(dt4).withEndTime(dt5)
-    assert(sameDay.days.isEmpty)
+    assert(sameDay.days.size == 1)
+    assert(sameDay.days.head == d3)
   }
 
   test("days") {
@@ -126,7 +127,7 @@ class DateTimeRangeTest extends AnyFunSuite with FunSuiteDiscipline with Configu
       e - s
     }.get.toDays == 8)
     assert(dr.toString == "8 days 2 hours")
-    assert(dr.days.length == 9)
+    assert(dr.days.length == 10)
   }
 
   test("fluent api") {
