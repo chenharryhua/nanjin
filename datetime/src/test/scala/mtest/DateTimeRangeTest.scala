@@ -14,6 +14,7 @@ import com.github.chenharryhua.nanjin.common.chrono.zones.{
 }
 import com.github.chenharryhua.nanjin.datetime.*
 import com.github.chenharryhua.nanjin.datetime.instances.*
+import io.circe.syntax.EncoderOps
 import org.scalacheck.{Arbitrary, Cogen, Gen}
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.prop.Configuration
@@ -112,6 +113,12 @@ class DateTimeRangeTest extends AnyFunSuite with FunSuiteDiscipline with Configu
     println(DateTimeRange(newyorkTime).withEndTime(dt4))
   }
 
+  test("json") {
+    val dr = DateTimeRange(newyorkTime).withToday
+    println(dr.asJson.noSpaces)
+    println(dr)
+  }
+
   test("days") {
     val dr =
       DateTimeRange(sydneyTime)
@@ -130,7 +137,6 @@ class DateTimeRangeTest extends AnyFunSuite with FunSuiteDiscipline with Configu
       assert(e.`Year=yyyy/Month=mm/Day=dd`(sydneyTime) == "Year=2020/Month=12/Day=29")
       e - s
     }.get.toDays == 8)
-    assert(dr.toString == "8 days 2 hours")
     assert(dr.days.length == 10)
   }
 

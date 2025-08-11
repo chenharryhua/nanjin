@@ -27,9 +27,6 @@ package object datetime {
 
   def distance(value: LocalTime, other: LocalTime): FiniteDuration = {
     val dur = JavaDuration.between(value, other)
-    val res = if (dur.isNegative) {
-      dur.plusHours(24)
-    } else dur
-    res.toScala
+    if (dur.isNegative) dur.plusHours(24).toScala else dur.toScala
   }
 }
