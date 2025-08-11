@@ -1,26 +1,36 @@
 package com.github.chenharryhua.nanjin.datetime
 
-import java.time.{Instant, LocalTime, ZoneId, ZonedDateTime}
-import scala.concurrent.duration.{Duration, FiniteDuration}
+import io.circe.generic.JsonCodec
+
+import java.time.*
+import scala.concurrent.duration.FiniteDuration
 import scala.jdk.DurationConverters.ScalaDurationOps
 
-final case class LocalTimeRange(start: LocalTime, duration: FiniteDuration, zoneId: ZoneId) {
+@JsonCodec
+final case class LocalTimeRange(start: LocalTime, duration: Duration, zoneId: ZoneId) {
 
   // start time inclusive, end time exclusive
-  def inBetween(instant: Instant): Boolean =
-    if (duration >= oneDay) true
-    else if (duration <= Duration.Zero) false
+  def inBetween(now: LocalTime): Boolean =
+    if (duration.compareTo(oneDay.toJava) >= 0) true
+    else if (duration.isNegative) false
     else {
-      val st = LocalTime.MAX.minus(duration.toJava)
-      val ld = instant.atZone(zoneId).toLocalTime
-      val end = start.plus(duration.toJava)
-      if (st.isAfter(start)) {
-        ld.compareTo(start) >= 0 && ld.isBefore(end)
+      val crossMidnight = LocalTime.MAX.minus(duration).isAfter(start)
+      val end = start.plus(duration)
+      if (crossMidnight) {
+        now.compareTo(start) >= 0 && now.isBefore(end) //
       } else {
-        ld.compareTo(start) >= 0 || ld.isBefore(end)
+        now.compareTo(start) >= 0 || now.isBefore(end)
       }
     }
 
   def inBetween(zonedDateTime: ZonedDateTime): Boolean =
-    inBetween(zonedDateTime.toInstant)
+    inBetween(zonedDateTime.toLocalTime)
+
+  def inBetween(instant: Instant): Boolean =
+    inBetween(instant.atZone(zoneId).toLocalTime)
+}
+
+object LocalTimeRange {
+  def apply(start: LocalTime, duration: FiniteDuration, zoneId: ZoneId): LocalTimeRange =
+    LocalTimeRange(start, duration.toJava, zoneId)
 }

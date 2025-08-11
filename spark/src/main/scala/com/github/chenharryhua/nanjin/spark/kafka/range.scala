@@ -16,7 +16,7 @@ private[kafka] object range {
   object cr {
 
     def timestamp[K, V](nd: DateTimeRange)(rdd: RDD[NJConsumerRecord[K, V]]): RDD[NJConsumerRecord[K, V]] =
-      rdd.filter(o => nd.isInBetween(o.timestamp))
+      rdd.filter(o => nd.inBetween(o.timestamp))
 
     def offset[K, V](start: Long, end: Long)(rdd: RDD[NJConsumerRecord[K, V]]): RDD[NJConsumerRecord[K, V]] =
       rdd.filter(o => o.offset >= start && o.offset <= end)
@@ -25,7 +25,7 @@ private[kafka] object range {
   object pr {
 
     def timestamp[K, V](nd: DateTimeRange)(rdd: RDD[NJProducerRecord[K, V]]): RDD[NJProducerRecord[K, V]] =
-      rdd.filter(_.timestamp.exists(nd.isInBetween))
+      rdd.filter(_.timestamp.exists(nd.inBetween))
 
     def offset[K, V](start: Long, end: Long)(rdd: RDD[NJProducerRecord[K, V]]): RDD[NJProducerRecord[K, V]] =
       rdd.filter(_.offset.exists(o => o >= start && o <= end))
@@ -33,7 +33,7 @@ private[kafka] object range {
 
   def timestamp[K, V](nd: DateTimeRange)(
     ds: Dataset[NJConsumerRecord[K, V]]): Dataset[NJConsumerRecord[K, V]] = {
-    val f = udf(nd.isInBetween _)
+    val f = udf(nd.inBetween _)
     ds.filter(f(col("timestamp")))
   }
 

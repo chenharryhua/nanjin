@@ -2,9 +2,11 @@ package com.github.chenharryhua.nanjin.datetime
 
 import cats.syntax.all.*
 import cats.{PartialOrder, Show}
+import io.circe.syntax.EncoderOps
+import io.circe.{Decoder, Encoder, HCursor, Json}
 import monocle.Prism
 import monocle.macros.Lenses
-import org.typelevel.cats.time.instances.{duration, zoneddatetime}
+import org.typelevel.cats.time.instances.{duration, localdatetime, zoneid}
 import shapeless.ops.coproduct.{Inject, Selector}
 import shapeless.{:+:, CNil, Poly1}
 
@@ -17,7 +19,7 @@ import scala.concurrent.duration.FiniteDuration
   private val start: Option[DateTimeRange.TimeTypes],
   private val end: Option[DateTimeRange.TimeTypes],
   zoneId: ZoneId)
-    extends zoneddatetime with duration {
+    extends localdatetime with duration with zoneid {
 
   private object calcDateTime extends Poly1 {
 
@@ -127,7 +129,7 @@ import scala.concurrent.duration.FiniteDuration
     */
   def withEreyesterday: DateTimeRange = withOneDay(LocalDate.now.minusDays(2))
 
-  def isInBetween(ts: Long): Boolean =
+  def inBetween(ts: Long): Boolean =
     (startTimestamp, endTimestamp) match {
       case (Some(s), Some(e)) => ts >= s.milliseconds && ts < e.milliseconds
       case (Some(s), None)    => ts >= s.milliseconds
@@ -138,18 +140,18 @@ import scala.concurrent.duration.FiniteDuration
   def duration: Option[FiniteDuration] = (startTimestamp, endTimestamp).mapN((s, e) => e.minus(s))
 
   override def toString: String =
-    (zonedStartTime, zonedEndTime) match {
-      case (None, Some(e))    => show"start: null, end: $e, range: infinite"
-      case (Some(s), None)    => show"start: $s, end: null, range: infinite"
+    (zonedStartTime.map(_.toLocalDateTime), zonedEndTime.map(_.toLocalDateTime)) match {
+      case (None, Some(e))    => show"zoneId: $zoneId, start: null, end: $e, range: infinite"
+      case (Some(s), None)    => show"zoneId: $zoneId, start: $s, end: null, range: infinite"
       case (Some(s), Some(e)) =>
-        show"start: $s, end: $e, range: ${java.time.Duration.between(s, e)}"
-      case (None, None) => "start: null, end: null, range: infinite"
+        show"zoneId: $zoneId, start: $s, end: $e, range: ${java.time.Duration.between(s, e)}"
+      case (None, None) => show"zoneId: $zoneId, start: null, end: null, range: infinite"
     }
 }
 
 object DateTimeRange {
 
-  final type TimeTypes =
+  final private type TimeTypes =
     NJTimestamp :+:
       LocalDateTime :+:
       String :+: // date-time in string, like "03:12"
@@ -191,4 +193,18 @@ object DateTimeRange {
 
   def apply(zoneId: ZoneId): DateTimeRange = DateTimeRange(None, None, zoneId)
 
+  implicit val encoderDateTimeRange: Encoder[DateTimeRange] =
+    (a: DateTimeRange) =>
+      Json.obj(
+        "zone_id" -> a.zoneId.asJson,
+        "start" -> a.zonedStartTime.map(_.toLocalDateTime).asJson,
+        "end" -> a.zonedEndTime.map(_.toLocalDateTime).asJson)
+
+  implicit val decoderDateTimeRange: Decoder[DateTimeRange] =
+    (c: HCursor) =>
+      for {
+        zoneId <- c.get[ZoneId]("zone_id")
+        start <- c.get[LocalDateTime]("start")
+        end <- c.get[LocalDateTime]("end")
+      } yield DateTimeRange(zoneId).withStartTime(start).withEndTime(end)
 }
