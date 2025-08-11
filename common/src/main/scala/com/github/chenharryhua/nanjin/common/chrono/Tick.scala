@@ -4,12 +4,12 @@ import cats.effect.kernel.Sync
 import cats.syntax.all.*
 import cats.{Functor, Show}
 import com.github.chenharryhua.nanjin.common.utils
-import io.circe.generic.JsonCodec
-import io.circe.{Decoder, Encoder}
+import io.circe.syntax.EncoderOps
+import io.circe.{Decoder, Encoder, HCursor, Json}
 import monocle.macros.{Lenses, PLenses}
 import org.typelevel.cats.time.instances.all.*
 
-import java.time.{Duration, Instant, ZoneId, ZonedDateTime}
+import java.time.*
 import java.util.UUID
 
 /*
@@ -19,7 +19,7 @@ import java.util.UUID
  *    |----------interval---------|
  */
 
-@JsonCodec @Lenses
+@Lenses
 final case class Tick(
   sequenceId: UUID, // immutable
   launchTime: Instant, // immutable
@@ -84,6 +84,43 @@ object Tick {
       uuid <- utils.randomUUID[F]
       now <- Sync[F].realTimeInstant
     } yield zeroth(uuid, zoneId, now)
+
+  implicit val encoderTick: Encoder[Tick] =
+    (a: Tick) =>
+      Json.obj(
+        "sequenceId" -> a.sequenceId.asJson,
+        "launchTime" -> a.launchTime.atZone(a.zoneId).toLocalDateTime.asJson,
+        "zoneId" -> a.zoneId.asJson,
+        "previous" -> a.zonedPrevious.toLocalDateTime.asJson,
+        "acquire" -> a.zonedAcquire.toLocalDateTime.asJson,
+        "wakeup" -> a.zonedWakeup.toLocalDateTime.asJson,
+        "snooze" -> a.snooze.asJson,
+        "index" -> a.index.asJson
+      )
+
+  implicit val decoderTick: Decoder[Tick] =
+    (c: HCursor) =>
+      for {
+        sequenceId <- c.get[UUID]("sequenceId")
+        zoneId <- c.get[ZoneId]("zoneId")
+        launchTime <- c.get[LocalDateTime]("launchTime")
+        previous <- c.get[LocalDateTime]("previous")
+        index <- c.get[Long]("index")
+        acquire <- c.get[LocalDateTime]("acquire")
+        snooze <- c.get[Duration]("snooze")
+        wakeup <- c.get[LocalDateTime]("wakeup")
+      } yield Tick(
+        sequenceId = sequenceId,
+        launchTime = launchTime.atZone(zoneId).toInstant,
+        zoneId = zoneId,
+        previous = previous.atZone(zoneId).toInstant,
+        index = index,
+        acquire = acquire.atZone(zoneId).toInstant,
+        snooze = snooze,
+        wakeup = wakeup.atZone(zoneId).toInstant
+      )
+
+  implicit val showTick: Show[Tick] = Show.fromToString[Tick]
 }
 
 @PLenses

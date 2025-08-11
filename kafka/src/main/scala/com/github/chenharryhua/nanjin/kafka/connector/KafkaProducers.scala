@@ -53,10 +53,24 @@ final class KafkaProduce[F[_], K, V] private[kafka] (producerSettings: ProducerS
 
 final class KafkaTransactional[F[_], K, V] private[kafka] (
   txnSettings: TransactionalProducerSettings[F, K, V])
-    extends HasProperties {
+    extends UpdateConfig[TransactionalProducerSettings[F, K, V], KafkaTransactional[F, K, V]]
+    with HasProperties {
 
+  /*
+   * config
+   */
   override def properties: Map[String, String] = txnSettings.producerSettings.properties
 
-  def stream(implicit F: Async[F]): Stream[F, TransactionalKafkaProducer[F, K, V]] =
+  override def updateConfig(f: Endo[TransactionalProducerSettings[F, K, V]]): KafkaTransactional[F, K, V] =
+    new KafkaTransactional[F, K, V](f(txnSettings))
+
+  /*
+   * produce
+   */
+
+  def resource(implicit F: Async[F]): Resource[F, TransactionalKafkaProducer.WithoutOffsets[F, K, V]] =
+    TransactionalKafkaProducer.resource(txnSettings)
+
+  def stream(implicit F: Async[F]): Stream[F, TransactionalKafkaProducer.WithoutOffsets[F, K, V]] =
     TransactionalKafkaProducer.stream(txnSettings)
 }
