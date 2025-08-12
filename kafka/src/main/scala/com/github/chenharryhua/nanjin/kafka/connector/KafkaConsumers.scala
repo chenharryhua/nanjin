@@ -6,11 +6,14 @@ import cats.effect.kernel.{Async, Resource}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.common.{HasProperties, UpdateConfig}
+import com.github.chenharryhua.nanjin.datetime.DateTimeRange
 import com.github.chenharryhua.nanjin.kafka.{
   orderTopicPartition,
+  pureConsumerSettings,
   AvroSchemaPair,
   PullGenericRecord,
-  SchemaRegistrySettings
+  SchemaRegistrySettings,
+  TransientConsumer
 }
 import fs2.Stream
 import fs2.kafka.{CommittableConsumerRecord, ConsumerSettings, KafkaConsumer}
@@ -114,6 +117,38 @@ final class KafkaByteConsume[F[_]] private[kafka] (
   def genericRecords(partition: Int)(implicit
     F: Async[F]): Stream[F, CommittableConsumerRecord[F, Unit, Try[GenericData.Record]]] =
     genericRecords(List(partition))
+
+  def empty: Stream[F, CommittableConsumerRecord[F, Unit, Try[GenericData.Record]]] =
+    Stream.empty.covaryAll[F, CommittableConsumerRecord[F, Unit, Try[GenericData.Record]]]
+
+  def range(partition_offsets: Map[Int, (Long, Long)])(implicit
+    F: Async[F]): Stream[F, CommittableConsumerRecord[F, Unit, Try[GenericData.Record]]] =
+    Stream.eval(getSchema).flatMap { skm =>
+      val pull = new PullGenericRecord(srs, topicName, skm)
+      partition_offsets.map { case (partition, (from, to)) =>
+        assign(partition, from)
+          .takeWhile(ccr => ccr.record.offset < to, takeFailure = true)
+          .mapChunks { crs =>
+            crs.map(cr => cr.bimap(_ => (), _ => pull.toGenericRecord(cr.record)))
+          }
+          .filterNot(_.record.offset > to)
+      }.foldLeft(empty)(_.merge(_))
+    }
+
+  def range(dateRange: DateTimeRange)(implicit
+    F: Async[F]): Stream[F, CommittableConsumerRecord[F, Unit, Try[GenericData.Record]]] = {
+    val run: F[Stream[F, CommittableConsumerRecord[F, Unit, Try[GenericData.Record]]]] =
+      TransientConsumer(topicName, pureConsumerSettings.withProperties(consumerSettings.properties))
+        .offsetRangeFor(dateRange)
+        .map(_.flatten.value)
+        .map { tm =>
+          val partition_offsets = tm.map { case (tp, rng) =>
+            tp.partition() -> (rng.from.value, rng.until.value - 1)
+          }
+          range(partition_offsets)
+        }
+    Stream.force(run).timeoutOnPull(timeout)
+  }
 }
 
 final class KafkaConsume[F[_], K, V] private[kafka] (
@@ -165,4 +200,28 @@ final class KafkaConsume[F[_], K, V] private[kafka] (
   def assign(partition: Int)(implicit F: Async[F]): Stream[F, CommittableConsumerRecord[F, K, V]] =
     assign(List(partition))
 
+  def empty: Stream[F, CommittableConsumerRecord[F, K, V]] =
+    Stream.empty.covaryAll[F, CommittableConsumerRecord[F, K, V]]
+
+  def range(partition_offsets: Map[Int, (Long, Long)])(implicit
+    F: Async[F]): Stream[F, CommittableConsumerRecord[F, K, V]] =
+    partition_offsets.map { case (partition, (from, to)) =>
+      assign(partition, from)
+        .takeWhile(_.record.offset < to, takeFailure = true)
+        .filterNot(_.record.offset > to)
+    }.foldLeft(empty)(_.merge(_))
+
+  def range(dateRange: DateTimeRange)(implicit F: Async[F]): Stream[F, CommittableConsumerRecord[F, K, V]] = {
+    val run: F[Stream[F, CommittableConsumerRecord[F, K, V]]] =
+      TransientConsumer(topicName, pureConsumerSettings.withProperties(consumerSettings.properties))
+        .offsetRangeFor(dateRange)
+        .map(_.flatten.value)
+        .map { tm =>
+          val partition_offsets = tm.map { case (tp, rng) =>
+            tp.partition() -> (rng.from.value, rng.until.value - 1)
+          }
+          range(partition_offsets)
+        }
+    Stream.force(run).timeoutOnPull(timeout)
+  }
 }

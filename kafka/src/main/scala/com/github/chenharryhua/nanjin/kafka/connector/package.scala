@@ -5,9 +5,12 @@ import cats.implicits.toFunctorOps
 import fs2.Pipe
 import fs2.kafka.{CommittableOffset, CommittableOffsetBatch}
 
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration.{DurationInt, FiniteDuration}
 
 package object connector {
+
+  private[connector] val timeout: FiniteDuration = 15.seconds
+
   def commitBatch[F[_]: Temporal](n: Int, d: FiniteDuration): Pipe[F, CommittableOffset[F], Int] =
     _.groupWithin(n, d).evalMap(os => CommittableOffsetBatch.fromFoldable(os).commit.as(os.size))
 }
