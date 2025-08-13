@@ -379,7 +379,7 @@ lazy val spark = (project in file("spark"))
     val libs = List(
       "org.apache.avro"                        % "avro-mapred"     % avroV,
       "org.apache.ivy"                         % "ivy"             % "2.5.3", // snyk
-      "com.julianpeeters" %% "avrohugger-core" % "2.13.0"          % Test,
+      "com.julianpeeters" %% "avrohugger-core" % "2.14.0"          % Test,
       "io.circe" %% "circe-shapes"             % circeV            % Test,
       "ch.qos.logback"                         % "logback-classic" % logbackV  % Test,
       "org.postgresql"                         % "postgresql"      % postgresV % Test
