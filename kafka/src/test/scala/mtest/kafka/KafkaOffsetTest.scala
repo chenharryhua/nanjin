@@ -17,7 +17,7 @@ class KafkaOffsetTest extends CatsSuite with FunSuiteDiscipline {
     Cogen[Offset]((o: Offset) => o.value)
 
   implicit val cogenRange: Cogen[OffsetRange] =
-    Cogen[OffsetRange]((o: OffsetRange) => o.from.value)
+    Cogen[OffsetRange]((o: OffsetRange) => o.from)
 
   implicit val arbRange: Arbitrary[OffsetRange] = Arbitrary(
     for {

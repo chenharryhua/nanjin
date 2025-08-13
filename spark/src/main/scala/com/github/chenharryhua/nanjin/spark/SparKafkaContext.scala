@@ -7,22 +7,23 @@ import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameL}
 import com.github.chenharryhua.nanjin.datetime.DateTimeRange
 import com.github.chenharryhua.nanjin.kafka.*
-import com.github.chenharryhua.nanjin.messages.kafka.codec.{gr2Jackson, AvroCodec, AvroCodecOf}
+import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroCodec, AvroCodecOf}
 import com.github.chenharryhua.nanjin.messages.kafka.{CRMetaInfo, NJConsumerRecord}
-import com.github.chenharryhua.nanjin.spark.kafka.{sk, SparKafkaTopic, Statistics}
-import com.github.chenharryhua.nanjin.spark.persist.RddFileHoarder
+import com.github.chenharryhua.nanjin.spark.kafka.{SparKafkaTopic, Statistics}
 import com.github.chenharryhua.nanjin.terminals.{toHadoopPath, Hadoop}
 import eu.timepit.refined.refineMV
 import fs2.kafka.*
 import fs2.{Chunk, Stream}
 import io.circe.Encoder as JsonEncoder
+import io.circe.syntax.EncoderOps
 import io.lemonlabs.uri.Url
-import org.apache.spark.rdd.RDD
+import io.lemonlabs.uri.typesafe.dsl.urlToUrlDsl
+import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.types.StructType
-import org.apache.spark.sql.{Dataset, SparkSession}
 import org.typelevel.cats.time.instances.zoneid
 
-import scala.concurrent.duration.DurationInt
+import scala.collection.immutable.TreeMap
+import scala.concurrent.duration.{DurationInt, FiniteDuration}
 
 final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaContext: KafkaContext[F])
     extends Serializable with zoneid {
@@ -38,11 +39,12 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
   def topic[K: AvroCodecOf, V: AvroCodecOf](topicName: TopicNameL): SparKafkaTopic[F, K, V] =
     topic[K, V](TopicName(topicName))
 
-  def sstream(topicName: TopicName): Dataset[NJConsumerRecord[Array[Byte], Array[Byte]]] =
-    sk.kafkaSStream(topicName, kafkaContext.settings, sparkSession)
+  private val timeout: FiniteDuration = 15.seconds
 
-  def sstream(topicName: TopicNameL): Dataset[NJConsumerRecord[Array[Byte], Array[Byte]]] =
-    sstream(TopicName(topicName))
+  private def partition_offset_map(tm: TopicPartitionMap[Option[OffsetRange]]): TreeMap[Int, (Long, Long)] =
+    tm.flatten.value.map { case (tp, rng) =>
+      tp.partition() -> (rng.from, rng.until - 1)
+    }
 
   /** download a kafka topic and save to given folder
     *
@@ -53,38 +55,74 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
     * @param dateRange
     *   datetime range
     */
-  def dump(topicName: TopicName, path: Url, dateRange: DateTimeRange)(implicit F: Async[F]): F[Unit] = {
-    val grRdd: F[RDD[String]] = for {
-      schemaPair <- kafkaContext.schemaRegistry.fetchAvroSchema(topicName)
-      builder = new PullGenericRecord(kafkaContext.settings.schemaRegistrySettings, topicName, schemaPair)
-      range <- kafkaContext.admin(topicName).use(_.offsetRangeFor(dateRange))
-    } yield sk
-      .kafkaBatchRDD(kafkaContext.settings.consumerSettings, sparkSession, range)
-      .flatMap(builder.toGenericRecord(_).flatMap(gr2Jackson).toOption)
 
-    grRdd.flatMap { rdd =>
-      new RddFileHoarder(rdd).text(path).withSaveMode(_.Overwrite).withSuffix("jackson.json").run[F]
-    }
+  def dumpJackson(
+    topicName: TopicName,
+    path: Url,
+    dateRange: DateTimeRange,
+    config: Endo[ConsumerSettings[F, Array[Byte], Array[Byte]]])(implicit F: Async[F]): F[Long] = {
+
+    val run: F[Stream[F, Int]] = for {
+      pull <- kafkaContext.schemaRegistry
+        .fetchAvroSchema(topicName)
+        .map(new PullGenericRecord(kafkaContext.settings.schemaRegistrySettings, topicName, _))
+      range <- kafkaContext.admin(topicName).use(_.offsetRangeFor(dateRange)).map(partition_offset_map)
+    } yield kafkaContext
+      .consume(topicName)
+      .updateConfig(config)
+      .range(range, pull)
+      .map { case (pr, ss) =>
+        val destination: Url =
+          path / s"${topicName.value}-${pr.partition}-${pr.from}-${pr.to}.jackson.json"
+        ss.evalMapChunk(ccr => F.fromTry(ccr.record.value)).through(hadoop.sink(destination).jackson)
+      }
+      .foldLeft(Stream.empty.covaryAll[F, Int])(_.merge(_))
+
+    Stream.force(run).timeoutOnPull(timeout).compile.fold(0L) { case (s, i) => s + i }
   }
 
-  def dump(topicName: TopicName, path: Url)(implicit F: Async[F]): F[Unit] =
-    dump(topicName, path, DateTimeRange(utils.sparkZoneId(sparkSession)))
+  def dumpJackson(topicName: TopicName, path: Url)(implicit F: Async[F]): F[Long] =
+    dumpJackson(
+      topicName,
+      path,
+      DateTimeRange(utils.sparkZoneId(sparkSession)),
+      _.withPollInterval(0.second).withEnableAutoCommit(false))
 
-  def dump(topicName: TopicNameL, path: Url, dateRange: DateTimeRange)(implicit F: Async[F]): F[Unit] =
-    dump(TopicName(topicName), path, dateRange)
+  def dumpJackson(topicName: TopicNameL, path: Url)(implicit F: Async[F]): F[Long] =
+    dumpJackson(TopicName(topicName), path)
 
-  def dump(topicName: TopicNameL, path: Url)(implicit F: Async[F]): F[Unit] =
-    dump(TopicName(topicName), path, DateTimeRange(utils.sparkZoneId(sparkSession)))
+  def dumpCirce[K: JsonEncoder, V: JsonEncoder](
+    topicDef: TopicDef[K, V],
+    path: Url,
+    dateRange: DateTimeRange,
+    config: Endo[ConsumerSettings[F, K, V]])(implicit F: Async[F]): F[Long] = {
+    val run: F[Stream[F, Int]] = kafkaContext
+      .admin(topicDef.topicName)
+      .use(_.offsetRangeFor(dateRange).map(partition_offset_map))
+      .map { rng =>
+        kafkaContext
+          .consume(topicDef)
+          .updateConfig(config)
+          .range(rng)
+          .map { case (pr, ss) =>
+            val destination: Url =
+              path / s"${topicDef.topicName.value}-${pr.partition}-${pr.from}-${pr.to}.circe.json"
+            ss.mapChunks(_.map(cr => NJConsumerRecord(cr.record).asJson))
+              .through(hadoop.sink(destination).circe)
+          }
+          .foldLeft(Stream.empty.covaryAll[F, Int])(_.merge(_))
+      }
+    Stream.force(run).timeoutOnPull(timeout).compile.fold(0L)(_ + _)
+  }
 
-  def download[K: JsonEncoder, V: JsonEncoder](topicDef: TopicDef[K, V], path: Url, dateRange: DateTimeRange)(
-    implicit F: Async[F]): F[Unit] =
-    topic[K, V](topicDef).fromKafka(dateRange).flatMap {
-      _.output.circe(path).withSaveMode(_.Overwrite).run[F]
-    }
-
-  def download[K: JsonEncoder, V: JsonEncoder](topicDef: TopicDef[K, V], path: Url)(implicit
-    F: Async[F]): F[Unit] =
-    download(topicDef, path, DateTimeRange(utils.sparkZoneId(sparkSession)))
+  def dumpCirce[K: JsonEncoder, V: JsonEncoder](topicDef: TopicDef[K, V], path: Url)(implicit
+    F: Async[F]): F[Long] =
+    dumpCirce[K, V](
+      topicDef,
+      path,
+      DateTimeRange(utils.sparkZoneId(sparkSession)),
+      (cs: ConsumerSettings[F, K, V]) => cs.withPollInterval(0.second).withEnableAutoCommit(false)
+    )
 
   /** upload data from given folder to a kafka topic. files read in parallel
     *
