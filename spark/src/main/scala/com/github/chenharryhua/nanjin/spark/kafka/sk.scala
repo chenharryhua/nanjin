@@ -34,7 +34,7 @@ private[spark] object sk {
 
   private def offsetRanges(range: TopicPartitionMap[Option[OffsetRange]]): Array[SOffsetRange] =
     range.flatten.value.toArray.map { case (tp, r) =>
-      SOffsetRange.create(tp, r.from.value, r.until.value)
+      SOffsetRange.create(tp, r.from, r.until)
     }
 
   def kafkaBatchRDD(

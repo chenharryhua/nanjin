@@ -55,12 +55,12 @@ object Partition {
 }
 
 @JsonCodec
-final case class OffsetRange private (from: Offset, until: Offset, distance: Long)
+final case class OffsetRange private (from: Long, until: Long, distance: Long)
 
 object OffsetRange {
   def apply(from: Offset, until: Offset): Option[OffsetRange] =
     if (from < until)
-      Some(OffsetRange(from, until, until - from))
+      Some(OffsetRange(from.value, until.value, until - from))
     else
       None
 
@@ -78,10 +78,13 @@ object OffsetRange {
 }
 
 @JsonCodec
-final case class LagBehind private (current: Offset, end: Offset, lag: Long)
+final case class PartitionRange(partition: Int, from: Long, to: Long)
+
+@JsonCodec
+final case class LagBehind private (current: Long, end: Long, lag: Long)
 object LagBehind {
   def apply(current: Offset, end: Offset): LagBehind =
-    LagBehind(current, end, end - current)
+    LagBehind(current.value, end.value, end - current)
 }
 
 final case class ListOfTopicPartitions(value: List[TopicPartition]) extends AnyVal {

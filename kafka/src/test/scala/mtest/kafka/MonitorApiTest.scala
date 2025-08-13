@@ -56,7 +56,7 @@ class MonitorApiTest extends AnyFunSuite {
       .use(_.offsetRangeFor(DateTimeRange(sydneyTime)))
       .flatMap { kor =>
         val range = kor.get(new TopicPartition("monitor.test", 0)).flatten.get
-        ctx.cherryPick("monitor.test", 0, range.from.value)
+        ctx.cherryPick("monitor.test", 0, range.from)
       }
       .unsafeRunSync()
   }

@@ -95,7 +95,7 @@ object Tick {
         "acquire" -> a.zonedAcquire.toLocalDateTime.asJson,
         "wakeup" -> a.zonedWakeup.toLocalDateTime.asJson,
         "snooze" -> a.snooze.asJson,
-        "index" -> a.index.asJson
+        "index" -> Json.fromLong(a.index)
       )
 
   implicit val decoderTick: Decoder[Tick] =

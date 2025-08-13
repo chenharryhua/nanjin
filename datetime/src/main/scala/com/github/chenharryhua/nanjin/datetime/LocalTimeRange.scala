@@ -17,7 +17,7 @@ final case class LocalTimeRange(start: LocalTime, duration: Duration, zoneId: Zo
       val crossMidnight = LocalTime.MAX.minus(duration).isAfter(start)
       val end = start.plus(duration)
       if (crossMidnight) {
-        now.compareTo(start) >= 0 && now.isBefore(end) //
+        now.compareTo(start) >= 0 && now.isBefore(end)
       } else {
         now.compareTo(start) >= 0 || now.isBefore(end)
       }

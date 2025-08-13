@@ -455,7 +455,7 @@ object Batch {
       failSoft[A](tuple._1, Resource.eval(tuple._2))(predicate)(translate)
 
     def failSafe(name: String, rfa: Resource[F, Boolean]): Monadic[Boolean] =
-      failSoft[Boolean](name, rfa)(identity)((_, _) => Json.fromString("fail-safe"))
+      failSoft[Boolean](name, rfa)(identity)((a, _) => Json.fromBoolean(a))
     def failSafe(name: String, fa: F[Boolean]): Monadic[Boolean] =
       failSafe(name, Resource.eval(fa))
     def failSafe(tuple: (String, F[Boolean])): Monadic[Boolean] =
