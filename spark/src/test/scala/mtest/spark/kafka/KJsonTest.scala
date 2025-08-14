@@ -36,6 +36,6 @@ class KJsonTest extends AnyFunSuite {
       .unsafeRunSync()
     ctx.schemaRegistry.register(topic).unsafeRunSync()
     sparKafka.topic(topic).fromKafka.flatMap(_.output.circe(root / "circe").run[IO]).unsafeRunSync()
-    sparKafka.dumpJackson(topic.topicName, root / "jackson").unsafeRunSync()
+    sparKafka.dumpJackson(topic.topicName.name, root / "jackson").unsafeRunSync()
   }
 }
