@@ -34,10 +34,10 @@ import scala.concurrent.duration.FiniteDuration
 
   }
 
-  val startTimestamp: Option[NJTimestamp] = start.map(_.fold(calcDateTime))
-  val endTimestamp: Option[NJTimestamp] = end.map(_.fold(calcDateTime))
-  val zonedStartTime: Option[ZonedDateTime] = startTimestamp.map(_.atZone(zoneId))
-  val zonedEndTime: Option[ZonedDateTime] = endTimestamp.map(_.atZone(zoneId))
+  def startTimestamp: Option[NJTimestamp] = start.map(_.fold(calcDateTime))
+  def endTimestamp: Option[NJTimestamp] = end.map(_.fold(calcDateTime))
+  def zonedStartTime: Option[ZonedDateTime] = startTimestamp.map(_.atZone(zoneId))
+  def zonedEndTime: Option[ZonedDateTime] = endTimestamp.map(_.atZone(zoneId))
 
   /** @return
     *   list of local-date from start date to end date, both inclusive
