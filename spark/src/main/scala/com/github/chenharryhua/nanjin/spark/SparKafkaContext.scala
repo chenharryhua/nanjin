@@ -55,8 +55,8 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
     topicName: TopicName,
     folder: Url,
     dateRange: DateTimeRange,
-    config: Endo[ConsumerSettings[F, Array[Byte], Array[Byte]]],
-    compression: JacksonCompression)(implicit F: Async[F]): F[Long] = {
+    compression: JacksonCompression)(config: Endo[ConsumerSettings[F, Array[Byte], Array[Byte]]])(implicit
+    F: Async[F]): F[Long] = {
     val file = JacksonFile(compression)
     val run: F[Stream[F, Int]] = for {
       pull <- kafkaContext.schemaRegistry
@@ -81,24 +81,20 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
   def dumpJackson(
     topicName: TopicNameL,
     folder: Url,
-    dateRange: DateTimeRange = DateTimeRange(utils.sparkZoneId(sparkSession)),
-    compression: JacksonCompression = JacksonCompression.Uncompressed)(implicit F: Async[F]): F[Long] =
-    dumpJackson(
-      TopicName(topicName),
-      folder,
-      dateRange,
+    dateRange: DateTimeRange = DateTimeRange(utils.sparkZoneId(sparkSession)))(implicit
+    F: Async[F]): F[Long] =
+    dumpJackson(TopicName(topicName), folder, dateRange, JacksonCompression.Uncompressed)(
       _.withPollInterval(0.second)
         .withEnableAutoCommit(false)
-        .withIsolationLevel(IsolationLevel.ReadCommitted),
-      compression
+        .withIsolationLevel(IsolationLevel.ReadCommitted)
+        .withMaxPollRecords(3000)
     )
 
   def dumpCirce[K: JsonEncoder, V: JsonEncoder](
     topicDef: TopicDef[K, V],
     folder: Url,
     dateRange: DateTimeRange,
-    config: Endo[ConsumerSettings[F, K, V]],
-    compression: CirceCompression)(implicit F: Async[F]): F[Long] = {
+    compression: CirceCompression)(config: Endo[ConsumerSettings[F, K, V]])(implicit F: Async[F]): F[Long] = {
     val file = CirceFile(compression)
     val run: F[Stream[F, Int]] = kafkaContext
       .admin(topicDef.topicName)
@@ -122,17 +118,13 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
   def dumpCirce[K: JsonEncoder, V: JsonEncoder](
     topicDef: TopicDef[K, V],
     folder: Url,
-    dateRange: DateTimeRange = DateTimeRange(utils.sparkZoneId(sparkSession)),
-    compression: CirceCompression = CirceCompression.Uncompressed)(implicit F: Async[F]): F[Long] =
-    dumpCirce[K, V](
-      topicDef,
-      folder,
-      dateRange,
-      (cs: ConsumerSettings[F, K, V]) =>
-        cs.withPollInterval(0.second)
-          .withEnableAutoCommit(false)
-          .withIsolationLevel(IsolationLevel.ReadCommitted),
-      compression
+    dateRange: DateTimeRange = DateTimeRange(utils.sparkZoneId(sparkSession)))(implicit
+    F: Async[F]): F[Long] =
+    dumpCirce[K, V](topicDef, folder, dateRange, CirceCompression.Uncompressed)(
+      _.withPollInterval(0.second)
+        .withEnableAutoCommit(false)
+        .withIsolationLevel(IsolationLevel.ReadCommitted)
+        .withMaxPollRecords(3000)
     )
 
   /** upload data from given folder to a kafka topic. files read in parallel

@@ -141,6 +141,7 @@ lazy val http = (project in file("http"))
 
 val awsLib = List(
   "software.amazon.awssdk" % "cloudwatch",
+  "software.amazon.awssdk" % "secretsmanager",
   "software.amazon.awssdk" % "sqs",
   "software.amazon.awssdk" % "ssm",
   "software.amazon.awssdk" % "sns",

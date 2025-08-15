@@ -1,9 +1,11 @@
 package com.github.chenharryhua.nanjin.database
 
 import cats.effect.kernel.{Async, Resource}
+import cats.implicits.toFunctorOps
 import com.github.chenharryhua.nanjin.common.database.*
 import com.zaxxer.hikari.HikariConfig
 import doobie.hikari.HikariTransactor
+import doobie.implicits.toSqlInterpolator
 import doobie.util.log.LogHandler
 import fs2.Stream
 
@@ -29,6 +31,9 @@ sealed abstract class DBConfig(cfg: HikariConfig, updateOps: List[HikariConfig =
 
   final def transactorS[F[_]: Async](logHandler: Option[LogHandler[F]]): Stream[F, HikariTransactor[F]] =
     Stream.resource(transactorR(logHandler))
+
+  final def testConnection[F[_]: Async]: F[String] =
+    transactorR[F](None).use(_.trans.apply(sql"select 42".query[Int].unique)).as("good")
 }
 
 object DBConfig {
