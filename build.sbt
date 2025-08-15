@@ -333,7 +333,7 @@ lazy val pipes = (project in file("pipes"))
       "org.tukaani"                      % "xz"                     % "1.10",
       "org.eclipse.jetty"                % "jetty-server"           % "12.0.25", // snyk
       "io.netty"                         % "netty-all"              % nettyV, // snyk
-      "com.nimbusds"                     % "nimbus-jose-jwt"        % "10.4.1", // snyk
+      "com.nimbusds"                     % "nimbus-jose-jwt"        % "10.4.2", // snyk
       "dnsjava"                          % "dnsjava"                % "3.6.3", // snyk
       "com.google.guava"                 % "guava"                  % "33.4.8-jre", // snyk
       "org.apache.commons"               % "commons-configuration2" % "2.12.0", // snyk
