@@ -272,7 +272,7 @@ lazy val messages =
           "io.confluent"                              % "kafka-protobuf-serializer" % confluentV,
           "io.confluent"                              % "kafka-streams-avro-serde"  % confluentV,
           "com.google.protobuf"                       % "protobuf-java"             % "4.31.1", // snyk
-          "org.jetbrains.kotlin"                      % "kotlin-stdlib"             % "2.2.0", // snyk
+          "org.jetbrains.kotlin"                      % "kotlin-stdlib"             % "2.2.10", // snyk
           "io.circe" %% "circe-shapes"                % circeV                      % Test
         ) ++ testLib)
 
@@ -337,7 +337,7 @@ lazy val pipes = (project in file("pipes"))
       "dnsjava"                          % "dnsjava"                % "3.6.3", // snyk
       "com.google.guava"                 % "guava"                  % "33.4.8-jre", // snyk
       "org.apache.commons"               % "commons-configuration2" % "2.12.0", // snyk
-      "org.jetbrains.kotlin"             % "kotlin-stdlib"          % "2.2.0", // snyk
+      "org.jetbrains.kotlin"             % "kotlin-stdlib"          % "2.2.10", // snyk
       "org.apache.zookeeper"             % "zookeeper"              % "3.9.3", // snyk
       "org.typelevel" %% "jawn-fs2"      % "2.4.0"                  % Test
     ) ++ hadoopLib ++ kantanLib
