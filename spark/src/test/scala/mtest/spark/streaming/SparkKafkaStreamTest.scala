@@ -1,7 +1,5 @@
 package mtest.spark.streaming
 
-import cats.effect.IO
-import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.TopicDef
 import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJProducerRecord}
@@ -9,12 +7,10 @@ import com.github.chenharryhua.nanjin.spark.SchematizedEncoder
 import com.github.chenharryhua.nanjin.spark.persist.{Rooster, RoosterData}
 import eu.timepit.refined.auto.*
 import frameless.TypedEncoder
-import mtest.spark.kafka.{ctx, sparKafka}
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.Instant
-import scala.concurrent.duration.DurationInt
 import scala.util.Random
 
 @DoNotDiscover
@@ -67,28 +63,6 @@ class SparkKafkaStreamTest extends AnyFunSuite {
 //    ss.concurrently(upload).interruptAfter(10.seconds).compile.drain.unsafeRunSync()
 //  }
 //
-  test("console") {
-    import sparKafka.sparkSession.implicits.*
-    val rooster = roosterTopic.withTopicName("sstream.file.rooster")
-
-    sparKafka
-      .sstream(rooster.topicName)
-      .flatMap(ctx.serde(rooster).tryDeserialize(_).toOption)
-      .writeStream
-      .format("console")
-      .start()
-
-    val upload = sparKafka
-      .topic(rooster)
-      .prRdd(data)
-      .withTopicName(rooster.topicName)
-      .replicate(100)
-      .producerRecords[IO](1)
-      .metered(1.seconds)
-      .through(ctx.produce(rooster.codecPair).sink)
-
-    upload.interruptAfter(10.seconds).compile.drain.unsafeRunSync()
-  }
 //
 //  test("memory sink - validate kafka timestamp") {
 //    val rooster = roosterTopic.withTopicName("sstream.memory.rooster").in(ctx)

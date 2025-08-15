@@ -6,12 +6,13 @@ import cats.{Applicative, Endo}
 import com.github.chenharryhua.nanjin.common.aws.{ParameterStoreContent, ParameterStorePath}
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
-import software.amazon.awssdk.services.ssm.model.GetParametersRequest
+import software.amazon.awssdk.services.ssm.model.{GetParametersRequest, GetParametersResponse}
 import software.amazon.awssdk.services.ssm.{SsmClient, SsmClientBuilder}
 
 import java.util.Base64
 
 trait ParameterStore[F[_]] {
+  def fetch(request: GetParametersRequest): F[GetParametersResponse]
   def fetch(path: ParameterStorePath): F[ParameterStoreContent]
 
   final def base64(path: ParameterStorePath)(implicit F: Applicative[F]): F[Array[Byte]] =
@@ -36,6 +37,9 @@ object ParameterStore {
   final private class AwsPS[F[_]](buildFrom: Endo[SsmClientBuilder], logger: Logger[F])(implicit F: Sync[F])
       extends ShutdownService[F] with ParameterStore[F] {
     private lazy val client: SsmClient = buildFrom(SsmClient.builder()).build()
+
+    override def fetch(request: GetParametersRequest): F[GetParametersResponse] =
+      F.blocking(client.getParameters(request)).onError(ex => logger.error(ex)(request.toString))
 
     override def fetch(path: ParameterStorePath): F[ParameterStoreContent] = {
       val request: GetParametersRequest =
