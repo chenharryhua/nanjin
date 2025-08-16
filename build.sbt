@@ -28,7 +28,7 @@ val framelessV = "0.16.0"
 val hadoopV = "3.4.1"
 val http4sV = "0.23.30"
 val jacksonV = "2.19.2"
-val jwtV = "0.12.6"
+val jwtV = "0.12.7"
 val kafkaV = "8.0.0-ce"
 val kantanV = "0.8.0"
 val log4catsV = "2.7.1"
@@ -272,7 +272,7 @@ lazy val messages =
           "com.thesamet.scalapb" %% "scalapb-runtime" % "0.11.19",
           "io.confluent"                              % "kafka-protobuf-serializer" % confluentV,
           "io.confluent"                              % "kafka-streams-avro-serde"  % confluentV,
-          "com.google.protobuf"                       % "protobuf-java"             % "4.31.1", // snyk
+          "com.google.protobuf"                       % "protobuf-java"             % "4.32.0", // snyk
           "org.jetbrains.kotlin"                      % "kotlin-stdlib"             % "2.2.10", // snyk
           "io.circe" %% "circe-shapes"                % circeV                      % Test
         ) ++ testLib)
