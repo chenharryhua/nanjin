@@ -20,7 +20,7 @@ final private class EventLogger[F[_]: Monad](translator: Translator[F, String], 
     translator
       .translate(event)
       .map(_.map { text =>
-        val head = ColorScheme
+        val title: String = ColorScheme
           .decorate(event)
           .run {
             case ColorScheme.GoodColor  => Eval.now(Console.GREEN + event.name.entryName + Console.RESET)
@@ -29,7 +29,7 @@ final private class EventLogger[F[_]: Monad](translator: Translator[F, String], 
             case ColorScheme.ErrorColor => Eval.now(Console.RED + event.name.entryName + Console.RESET)
           }
           .value
-        s"$head $text"
+        s"$title $text"
       })
 
   def service_start(ss: ServiceStart): F[Unit] =

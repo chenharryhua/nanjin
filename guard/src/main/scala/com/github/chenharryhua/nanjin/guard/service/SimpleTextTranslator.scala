@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.guard.observers
+package com.github.chenharryhua.nanjin.guard.service
 
 import cats.Applicative
 import cats.syntax.all.*
@@ -6,7 +6,7 @@ import com.github.chenharryhua.nanjin.guard.event.{Error, Event, ServiceStopCaus
 import com.github.chenharryhua.nanjin.guard.translator.{textConstants, textHelper, Translator}
 import io.circe.syntax.EncoderOps
 
-object SimpleTextTranslator {
+private object SimpleTextTranslator {
   import Event.*
   import textConstants.*
 

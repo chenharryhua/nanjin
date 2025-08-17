@@ -12,7 +12,6 @@ import com.github.chenharryhua.nanjin.common.chrono.*
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.event.*
 import com.github.chenharryhua.nanjin.guard.event.Event.{MetricReport, ServiceMessage, ServicePanic}
-import com.github.chenharryhua.nanjin.guard.observers.{PrettyJsonTranslator, SimpleTextTranslator}
 import com.github.chenharryhua.nanjin.guard.translator.Translator
 import fs2.Stream
 import fs2.concurrent.Channel
@@ -64,7 +63,7 @@ final class ServiceGuard[F[_]: Network: Async: Console] private[guard] (
             new EventLogger[F](SimpleTextTranslator[F], new ConsoleLogger[F](serviceParams.zoneId))
           case LogFormat.PlainText    => new EventLogger[F](SimpleTextTranslator[F], logger)
           case LogFormat.JsonNoSpaces => new EventLogger[F](PrettyJsonTranslator[F].map(_.noSpaces), logger)
-          case LogFormat.JsonSpace2   => new EventLogger[F](PrettyJsonTranslator[F].map(_.spaces2), logger)
+          case LogFormat.JsonSpaces2   => new EventLogger[F](PrettyJsonTranslator[F].map(_.spaces2), logger)
           case LogFormat.JsonVerbose  =>
             new EventLogger[F](Translator.idTranslator.map(_.asJson.spaces2), logger)
         }

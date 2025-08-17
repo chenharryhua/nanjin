@@ -14,7 +14,7 @@ final private class ConsoleLogger[F[_]: Console: Clock: Monad](zoneId: ZoneId) e
 
   private[this] def out(message: String, logLevel: String): F[Unit] =
     Clock[F].realTimeInstant.map(t => t.atZone(zoneId).toLocalDateTime.format(fmt)).flatMap { time =>
-      Console[F].println(s"$time $logLevel - $message")
+      Console[F].println(s"$time $logLevel -- $message")
     }
 
   override def error(t: Throwable)(message: => String): F[Unit] = out(message, "ERROR")

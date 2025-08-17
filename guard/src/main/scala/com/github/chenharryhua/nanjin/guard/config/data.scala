@@ -26,7 +26,7 @@ object LogFormat extends Enum[LogFormat] with CirceEnum[LogFormat] {
   case object Console extends LogFormat
   case object PlainText extends LogFormat
   case object JsonNoSpaces extends LogFormat
-  case object JsonSpace2 extends LogFormat
+  case object JsonSpaces2 extends LogFormat
   case object JsonVerbose extends LogFormat
 }
 
