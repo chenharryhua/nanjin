@@ -78,9 +78,7 @@ final case class JobResultState(job: BatchJob, took: Duration, done: Boolean) {
 object JobResultState {
   implicit val encoderJobResultState: Encoder[JobResultState] =
     (a: JobResultState) =>
-      Json
-        .obj("took" -> Json.fromString(durationFormatter.format(a.took)), "done" -> Json.fromBoolean(a.done))
-        .deepMerge(a.job.asJson)
+      Json.obj("took" -> Json.fromString(durationFormatter.format(a.took))).deepMerge(a.job.asJson)
 }
 
 final case class JobResultValue[A](resultState: JobResultState, value: A) {

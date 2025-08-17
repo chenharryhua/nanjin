@@ -2,8 +2,14 @@ package com.github.chenharryhua.nanjin.guard
 
 import cats.effect.kernel.Unique.Token
 import cats.effect.kernel.{Clock, Sync}
-import cats.implicits.{catsSyntaxTuple2Semigroupal, toFlatMapOps, toFunctorOps}
-import cats.{Functor, Hash, Monad}
+import cats.implicits.{
+  catsSyntaxApplyOps,
+  catsSyntaxEq,
+  catsSyntaxTuple2Semigroupal,
+  toFlatMapOps,
+  toFunctorOps
+}
+import cats.{Applicative, Hash, Monad}
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.common.chrono.Tick
 import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, ServiceParams}
@@ -44,48 +50,64 @@ package object service {
         message = Encoder[S].apply(msg))
     }
 
-  private[service] def metricReport[F[_]: Sync](
+  private[service] def metricReport[F[_]](
     channel: Channel[F, Event],
+    eventLogger: EventLogger[F],
     serviceParams: ServiceParams,
     metricRegistry: MetricRegistry,
-    index: MetricIndex): F[MetricReport] =
+    index: MetricIndex)(implicit F: Sync[F]): F[MetricReport] =
     for {
       (took, snapshot) <- MetricSnapshot.timed(metricRegistry)
       mr = MetricReport(index, serviceParams, snapshot, took)
       _ <- channel.send(mr)
+      _ <- index match {
+        case MetricIndex.Adhoc(_)       => eventLogger.metric_report(mr)
+        case MetricIndex.Periodic(tick) =>
+          if (tick.index % serviceParams.servicePolicies.metricReport.logRatio === 0)
+            eventLogger.metric_report(mr)
+          else F.unit
+      }
     } yield mr
 
   private[service] def metricReset[F[_]: Sync](
     channel: Channel[F, Event],
+    eventLogger: EventLogger[F],
     serviceParams: ServiceParams,
     metricRegistry: MetricRegistry,
     index: MetricIndex): F[Unit] =
     for {
       (took, snapshot) <- MetricSnapshot.timed(metricRegistry)
-      mr = MetricReset(index, serviceParams, snapshot, took)
-      _ <- channel.send(mr)
+      ms = MetricReset(index, serviceParams, snapshot, took)
+      _ <- channel.send(ms)
+      _ <- eventLogger.metric_reset(ms)
     } yield metricRegistry.getCounters().values().asScala.foreach(c => c.dec(c.getCount))
 
-  private[service] def serviceReStart[F[_]: Functor](
+  private[service] def serviceReStart[F[_]: Applicative](
     channel: Channel[F, Event],
+    eventLogger: EventLogger[F],
     serviceParams: ServiceParams,
-    tick: Tick): F[Unit] =
-    channel.send(ServiceStart(serviceParams, tick)).void
+    tick: Tick): F[Unit] = {
+    val event = ServiceStart(serviceParams, tick)
+    eventLogger.service_start(event) <* channel.send(event)
+  }
 
-  private[service] def servicePanic[F[_]: Functor](
+  private[service] def servicePanic[F[_]: Applicative](
     channel: Channel[F, Event],
+    eventLogger: EventLogger[F],
     serviceParams: ServiceParams,
     tick: Tick,
     error: Error): F[ServicePanic] = {
     val panic: ServicePanic = ServicePanic(serviceParams, tick, error)
-    channel.send(panic).as(panic)
+    eventLogger.service_panic(panic) *> channel.send(panic).as(panic)
   }
 
   private[service] def serviceStop[F[_]: Clock: Monad](
     channel: Channel[F, Event],
+    eventLogger: EventLogger[F],
     serviceParams: ServiceParams,
     cause: ServiceStopCause): F[Unit] =
     serviceParams.zonedNow.flatMap { now =>
-      channel.closeWithElement(ServiceStop(serviceParams, now, cause)).void
+      val event = ServiceStop(serviceParams, now, cause)
+      eventLogger.service_stop(event) <* channel.closeWithElement(event)
     }
 }

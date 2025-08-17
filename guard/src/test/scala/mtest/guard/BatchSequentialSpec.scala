@@ -4,7 +4,6 @@ import cats.effect.IO
 import cats.effect.testing.scalatest.AsyncIOSpec
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStop
-import com.github.chenharryhua.nanjin.guard.observers.console
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import org.scalatest.freespec.AsyncFreeSpec
 import org.scalatest.matchers.should.Matchers
@@ -21,7 +20,7 @@ class BatchSequentialSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
       val jobs = List("a" -> IO(1), "b" -> IO(2), "c" -> IO(3), "d" -> IO(4), "e" -> IO(5))
       val se = service.eventStreamR { agent =>
         agent.batch("good job").sequential(jobs*).quasiBatch(TraceJob(agent).standard)
-      }.evalTap(console.text[IO]).compile.lastOrError
+      }.compile.lastOrError
       se.asserting(_.asInstanceOf[ServiceStop].cause.exitCode.shouldBe(0))
     }
 
@@ -37,7 +36,7 @@ class BatchSequentialSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
           mb.jobs(3).done.shouldBe(true)
           mb.jobs(4).done.shouldBe(true)
         }
-      }.evalTap(console.text[IO]).compile.lastOrError
+      }.compile.lastOrError
       se.asserting(_.asInstanceOf[ServiceStop].cause.exitCode.shouldBe(0))
     }
 
@@ -54,7 +53,7 @@ class BatchSequentialSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
           mb.jobs(3).done.shouldBe(true)
           mb.jobs(4).done.shouldBe(true)
         }
-      }.evalTap(console.text[IO]).compile.lastOrError
+      }.compile.lastOrError
       se.asserting(_.asInstanceOf[ServiceStop].cause.exitCode.shouldBe(0))
     }
   }
@@ -64,7 +63,7 @@ class BatchSequentialSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
       val jobs = List("a" -> IO(1), "b" -> IO(2), "c" -> IO(3), "d" -> IO(4), "e" -> IO(5))
       val se = service.eventStreamR { agent =>
         agent.batch("good job").sequential(jobs*).batchValue(TraceJob(agent).standard)
-      }.evalTap(console.text[IO]).compile.lastOrError
+      }.compile.lastOrError
       se.asserting(_.asInstanceOf[ServiceStop].cause.exitCode.shouldBe(0))
     }
 
@@ -88,7 +87,7 @@ class BatchSequentialSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
             }.void
           })
         result.assertThrowsError[Exception](_.getMessage.shouldBe("abc"))
-      }.evalTap(console.text[IO]).compile.lastOrError
+      }.compile.lastOrError
       se.asserting(_.asInstanceOf[ServiceStop].cause.exitCode.shouldBe(0))
     }
 
@@ -109,7 +108,7 @@ class BatchSequentialSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
               }.void
             })
         result.assertThrowsError[PostConditionUnsatisfied](_.job.index.shouldBe(1))
-      }.evalTap(console.text[IO]).compile.lastOrError
+      }.compile.lastOrError
       se.asserting(_.asInstanceOf[ServiceStop].cause.exitCode.shouldBe(0))
     }
   }

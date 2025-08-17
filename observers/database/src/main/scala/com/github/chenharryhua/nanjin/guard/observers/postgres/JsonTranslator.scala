@@ -1,8 +1,8 @@
 package com.github.chenharryhua.nanjin.guard.observers.postgres
 
 import cats.Applicative
-import com.github.chenharryhua.nanjin.guard.event.{Event, MetricSnapshot}
-import com.github.chenharryhua.nanjin.guard.translator.{jsonHelper, EventName, SnapshotPolyglot, Translator}
+import com.github.chenharryhua.nanjin.guard.event.{Event, EventName, MetricSnapshot}
+import com.github.chenharryhua.nanjin.guard.translator.{jsonHelper, SnapshotPolyglot, Translator}
 import io.circe.Json
 import io.circe.syntax.EncoderOps
 

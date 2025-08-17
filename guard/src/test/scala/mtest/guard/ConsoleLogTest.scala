@@ -6,7 +6,6 @@ import cats.effect.unsafe.implicits.global
 import cats.implicits.toFunctorFilterOps
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.{eventFilters, Event}
-import com.github.chenharryhua.nanjin.guard.observers.*
 import io.circe.Json
 import org.scalatest.funsuite.AnyFunSuite
 import squants.Each
@@ -20,7 +19,7 @@ class ConsoleLogTest extends AnyFunSuite {
   val service: fs2.Stream[IO, Event] =
     TaskGuard[IO]("nanjin")
       .service("observing")
-      .updateConfig(_.addBrief(Json.fromString("brief")))
+      .updateConfig(_.addBrief(Json.fromString("brief")).withLogFormat(_.JsonVerbose))
       .eventStream { agent =>
         val mtx = agent.facilitate("job") { mtx =>
           for {
@@ -40,28 +39,16 @@ class ConsoleLogTest extends AnyFunSuite {
       }
 
   test("1.console - verbose json") {
-    val mr = service
-      .evalTap(console.verbose[IO])
-      .map(checkJson)
-      .mapFilter(eventFilters.metricReport)
-      .compile
-      .lastOrError
-      .unsafeRunSync()
+    val mr = service.map(checkJson).mapFilter(eventFilters.metricReport).compile.lastOrError.unsafeRunSync()
     assert(!mr.snapshot.hasDuplication)
   }
 
   test("2.console - pretty json") {
-    service.evalTap(console.json[IO]).map(checkJson).compile.drain.unsafeRunSync()
+    service.map(checkJson).compile.drain.unsafeRunSync()
   }
 
   test("3.console - simple text") {
-    val mr = service
-      .evalTap(console.text[IO])
-      .map(checkJson)
-      .mapFilter(eventFilters.metricReport)
-      .compile
-      .lastOrError
-      .unsafeRunSync()
+    val mr = service.map(checkJson).mapFilter(eventFilters.metricReport).compile.lastOrError.unsafeRunSync()
     val tags = mr.snapshot.metricIDs.sortBy(_.metricName.age).map(_.metricName.name.toInt)
     assert(tags == List(7, 6, 5, 4, 3, 2, 1))
   }

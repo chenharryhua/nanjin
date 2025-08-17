@@ -168,8 +168,9 @@ private object SlackTranslator extends all {
             HeaderSection(eventTitle(evt)),
             host_service_section(evt.serviceParams),
             metrics_index_section(evt),
-            MarkdownSection(show"""|*$CONSTANT_POLICY:* ${evt.serviceParams.servicePolicies.metricReport}
-                                   |*$CONSTANT_SERVICE_ID:* ${evt.serviceParams.serviceId}""".stripMargin),
+            MarkdownSection(
+              show"""|*$CONSTANT_POLICY:* ${evt.serviceParams.servicePolicies.metricReport.policy}
+                     |*$CONSTANT_SERVICE_ID:* ${evt.serviceParams.serviceId}""".stripMargin),
             metrics_section(evt.snapshot)
           )
         ),
@@ -197,12 +198,11 @@ private object SlackTranslator extends all {
 
   private def service_message(evt: ServiceMessage): SlackApp = {
     val symbol: String = evt.level match {
-      case AlarmLevel.Disable => ""
-      case AlarmLevel.Error   => ":warning:"
-      case AlarmLevel.Warn    => ":warning:"
-      case AlarmLevel.Info    => ""
-      case AlarmLevel.Done    => ""
-      case AlarmLevel.Debug   => ""
+      case AlarmLevel.Error => ":warning:"
+      case AlarmLevel.Warn  => ":warning:"
+      case AlarmLevel.Info  => ""
+      case AlarmLevel.Done  => ""
+      case AlarmLevel.Debug => ""
     }
 
     val color = coloring(evt)

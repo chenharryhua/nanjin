@@ -7,7 +7,6 @@ import cats.implicits.{catsSyntaxApplicativeByName, catsSyntaxSemigroup, toTrave
 import com.github.chenharryhua.nanjin.common.chrono.{Policy, TickedValue}
 import com.github.chenharryhua.nanjin.datetime.DateTimeRange
 import com.github.chenharryhua.nanjin.guard.metrics.Metrics
-import com.github.chenharryhua.nanjin.guard.observers.console
 import com.github.chenharryhua.nanjin.kafka.{KafkaContext, KafkaSettings}
 import com.github.chenharryhua.nanjin.terminals.{extractDate, Hadoop, JacksonFile}
 import eu.timepit.refined.auto.*
@@ -76,7 +75,6 @@ object kafka_connector_s3 {
           .drain
       }
     }
-    .evalTap(console.text[IO])
 
   /** delete obsolete folder at 1:00 am every day
     */

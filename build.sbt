@@ -1,4 +1,4 @@
-ThisBuild / version      := "0.19.6-SNAPSHOT"
+ThisBuild / version      := "0.19.7-SNAPSHOT"
 ThisBuild / scalaVersion := "2.13.16"
 
 ThisBuild / versionScheme := Some("early-semver")
@@ -178,13 +178,15 @@ lazy val guard = (project in file("guard"))
       "io.dropwizard.metrics"               % "metrics-core"         % metricsV,
       "io.dropwizard.metrics"               % "metrics-jmx"          % metricsV,
       "com.github.ben-manes.caffeine"       % "caffeine"             % caffeineV,
+      "org.typelevel" %% "log4cats-slf4j"   % log4catsV,
       "io.circe" %% "circe-optics"          % "0.15.1",
       "org.http4s" %% "http4s-core"         % http4sV,
       "org.http4s" %% "http4s-dsl"          % http4sV,
       "org.http4s" %% "http4s-ember-server" % http4sV,
       "org.http4s" %% "http4s-circe"        % http4sV,
       "org.http4s" %% "http4s-scalatags"    % "0.25.2",
-      "org.http4s" %% "http4s-ember-client" % http4sV                % Test
+      "org.http4s" %% "http4s-ember-client" % http4sV                % Test,
+      "ch.qos.logback"                      % "logback-classic"      % logbackV % Test
     ) ++ testLib
   )
   .enablePlugins(BuildInfoPlugin)
@@ -197,17 +199,6 @@ lazy val guard = (project in file("guard"))
     ),
     buildInfoPackage := "com.github.chenharryhua.nanjin.guard.config",
     buildInfoOptions += BuildInfoOption.ToJson
-  )
-
-lazy val observer_logging = (project in file("observers/logging"))
-  .dependsOn(guard)
-  .settings(commonSettings *)
-  .settings(name := "nj-observer-logging")
-  .settings(
-    libraryDependencies ++=
-      List(
-        "org.typelevel" %% "log4cats-slf4j" % log4catsV,
-        "org.slf4j"                         % "slf4j-reload4j" % slf4jV % Test) ++ testLib
   )
 
 lazy val observer_aws = (project in file("observers/aws"))
@@ -400,7 +391,6 @@ lazy val example = (project in file("example"))
   .dependsOn(database)
   .dependsOn(spark)
   .dependsOn(guard)
-  .dependsOn(observer_logging)
   .dependsOn(observer_aws)
   .dependsOn(observer_database)
   .dependsOn(observer_kafka)
@@ -428,7 +418,5 @@ lazy val nanjin =
     guard,
     observer_aws,
     observer_database,
-    observer_kafka,
-    observer_logging
+    observer_kafka
   )
-

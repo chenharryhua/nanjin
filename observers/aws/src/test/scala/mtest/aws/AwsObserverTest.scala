@@ -93,7 +93,7 @@ class AwsObserverTest extends AnyFunSuite {
 
     TaskGuard[IO]("email")
       .service("email")
-      .updateConfig(_.withMetricReport(Policy.crontab(_.secondly)))
+      .updateConfig(_.withMetricReport(_.crontab(_.secondly)))
       .eventStream(_ => IO.never)
       .through(mail)
       .compile

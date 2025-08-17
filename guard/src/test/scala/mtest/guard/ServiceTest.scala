@@ -158,7 +158,7 @@ class ServiceTest extends AnyFunSuite {
       .updateConfig(
         _.withRestartPolicy(Policy.fixedDelay(1.second))
           .withMetricReset(Policy.giveUp)
-          .withMetricReport(Policy.crontab(crontabs.secondly))
+          .withMetricReport(Policy.crontab(crontabs.secondly), 1)
           .withMetricDailyReset
           .withRestartThreshold(2.second))
       .eventStreamR(_.facilitate("nothing")(_.counter("counter")))

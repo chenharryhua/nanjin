@@ -8,7 +8,6 @@ import com.github.benmanes.caffeine.cache.{Caffeine, RemovalCause, RemovalListen
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.ServiceStopCause.Successfully
 import com.github.chenharryhua.nanjin.guard.event.eventFilters
-import com.github.chenharryhua.nanjin.guard.observers.console
 import fs2.Stream
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -73,7 +72,6 @@ class CacheTest extends AnyFunSuite {
             .drain >> agent.adhoc.report
         }
       }
-      .evalMap(console.text[IO])
       .compile
       .drain
       .unsafeRunSync()
@@ -131,7 +129,6 @@ class CacheTest extends AnyFunSuite {
             .drain >> agent.adhoc.report
         }
       }
-      .evalMap(console.text[IO])
       .compile
       .drain
       .unsafeRunSync()

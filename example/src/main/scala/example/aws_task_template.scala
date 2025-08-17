@@ -8,7 +8,6 @@ import com.github.chenharryhua.nanjin.common.chrono.Policy.*
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.Event
-import com.github.chenharryhua.nanjin.guard.observers.console
 import fs2.Stream
 import io.circe.Json
 import io.circe.syntax.EncoderOps
@@ -43,6 +42,6 @@ object aws_task_template {
     .updateConfig(_.withHttpServer(_.withPort(port"1027")))
     .eventStream(_ => IO.never)
 
-  service1.merge(service2).evalTap(console.text[IO])
+  service1.merge(service2)
 
 }

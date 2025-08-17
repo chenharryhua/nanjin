@@ -105,7 +105,7 @@ final class EmailObserver[F[_]] private (
       } else {
         val text =
           p(b(
-            show"Message body size exceeds ${maximumMessageSize.value}, which contains ${data.size} events."))
+            s"Message body size exceeds ${maximumMessageSize.toString()}, which contains ${data.size} events."))
         val msg = html(header, body(letter.notice, text)).render
         EmailContent(from, to, subject, msg)
       }
