@@ -5,8 +5,8 @@ import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy}
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.event.MetricIndex.Periodic
 import com.github.chenharryhua.nanjin.guard.event.Event.{MetricReport, ServiceStart, ServiceStop}
+import com.github.chenharryhua.nanjin.guard.event.MetricIndex.Periodic
 import com.github.chenharryhua.nanjin.guard.event.eventFilters
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import eu.timepit.refined.auto.*
@@ -20,7 +20,7 @@ class EventFilterTest extends AnyFunSuite {
 
   test("1.sampling - FiniteDuration") {
     val List(a, b, c, d) = service
-      .updateConfig(_.withMetricReport(Policy.crontab(_.secondly)))
+      .updateConfig(_.withMetricReport(Policy.crontab(_.secondly), 1))
       .eventStream(_ => IO.sleep(7.seconds))
       .map(checkJson)
       .filter(eventFilters.sampling(3.seconds))
@@ -36,7 +36,7 @@ class EventFilterTest extends AnyFunSuite {
 
   test("2.sampling - divisor") {
     val List(a, b, c, d) = service
-      .updateConfig(_.withMetricReport(Policy.crontab(_.secondly)))
+      .updateConfig(_.withMetricReport(Policy.crontab(_.secondly), 1))
       .eventStream(_ => IO.sleep(7.seconds))
       .map(checkJson)
       .filter(eventFilters.sampling(3))
@@ -53,7 +53,7 @@ class EventFilterTest extends AnyFunSuite {
     val policy = Policy.crontab(_.secondly)
     val align = tickStream.fromOne[IO](Policy.crontab(_.every3Seconds).limited(1), sydneyTime)
     val run = service
-      .updateConfig(_.withMetricReport(policy))
+      .updateConfig(_.withMetricReport(policy, 1))
       .eventStream(_ => IO.sleep(7.seconds))
       .map(checkJson)
       .filter(eventFilters.sampling(_.every3Seconds))

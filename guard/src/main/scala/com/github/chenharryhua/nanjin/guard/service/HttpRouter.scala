@@ -59,7 +59,7 @@ final private class HttpRouter[F[_]](
       tr(th("Service"), th("Report Policy"), th("Time Zone"), th("Up Time"), th("Present"), th("Took")),
       tr(
         td(serviceParams.serviceName.value),
-        td(serviceParams.servicePolicies.metricReport.show),
+        td(serviceParams.servicePolicies.metricReport.policy.show),
         td(serviceParams.zoneId.show),
         td(durationFormatter.format(serviceParams.upTime(now))),
         td(now.toLocalTime.truncatedTo(ChronoUnit.SECONDS).show),

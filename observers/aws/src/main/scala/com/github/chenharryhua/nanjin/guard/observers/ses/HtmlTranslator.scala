@@ -119,7 +119,7 @@ private object HtmlTranslator extends all {
       ),
       tr(
         td(metricIndexText(evt.index)),
-        td(evt.serviceParams.servicePolicies.metricReport.show),
+        td(evt.serviceParams.servicePolicies.metricReport.policy.show),
         td(tookText(evt.took))
       )
     )

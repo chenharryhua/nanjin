@@ -43,7 +43,8 @@ class HttpServerTest extends AnyFunSuite {
     val res =
       guard
         .service("http stop")
-        .updateConfig(_.withMetricReport(Policy.crontab(_.secondly)).withHttpServer(_.withPort(port"9999")))
+        .updateConfig(
+          _.withMetricReport(Policy.crontab(_.secondly), 1).withHttpServer(_.withPort(port"9999")))
         .eventStream { agent =>
           agent
             .facilitate("test") { ag =>

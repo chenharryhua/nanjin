@@ -63,15 +63,15 @@ final class ServiceGuard[F[_]: Network: Async: Console] private[guard] (
             new EventLogger[F](SimpleTextTranslator[F], new ConsoleLogger[F](serviceParams.zoneId))
           case LogFormat.PlainText    => new EventLogger[F](SimpleTextTranslator[F], logger)
           case LogFormat.JsonNoSpaces => new EventLogger[F](PrettyJsonTranslator[F].map(_.noSpaces), logger)
-          case LogFormat.JsonSpaces2   => new EventLogger[F](PrettyJsonTranslator[F].map(_.spaces2), logger)
+          case LogFormat.JsonSpaces2  => new EventLogger[F](PrettyJsonTranslator[F].map(_.spaces2), logger)
           case LogFormat.JsonVerbose  =>
             new EventLogger[F](Translator.idTranslator.map(_.asJson.spaces2), logger)
         }
 
         val metrics_report: Stream[F, Nothing] =
           tickStream
-            .fromTickStatus[F](
-              TickStatus(serviceParams.zerothTick).renewPolicy(serviceParams.servicePolicies.metricReport))
+            .fromTickStatus[F](TickStatus(serviceParams.zerothTick).renewPolicy(
+              serviceParams.servicePolicies.metricReport.policy))
             .evalMap { tick =>
               metricReport(
                 channel = channel,

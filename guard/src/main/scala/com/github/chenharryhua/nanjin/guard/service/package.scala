@@ -44,17 +44,23 @@ package object service {
         message = Encoder[S].apply(msg))
     }
 
-  private[service] def metricReport[F[_]: Sync](
+  private[service] def metricReport[F[_]](
     channel: Channel[F, Event],
     eventLogger: EventLogger[F],
     serviceParams: ServiceParams,
     metricRegistry: MetricRegistry,
-    index: MetricIndex): F[MetricReport] =
+    index: MetricIndex)(implicit F: Sync[F]): F[MetricReport] =
     for {
       (took, snapshot) <- MetricSnapshot.timed(metricRegistry)
       mr = MetricReport(index, serviceParams, snapshot, took)
       _ <- channel.send(mr)
-      _ <- eventLogger.metric_report(mr)
+      _ <- index match {
+        case MetricIndex.Adhoc(_)       => eventLogger.metric_report(mr)
+        case MetricIndex.Periodic(tick) =>
+          if (tick.index % serviceParams.servicePolicies.metricReport.logRatio == 0)
+            eventLogger.metric_report(mr)
+          else F.unit
+      }
     } yield mr
 
   private[service] def metricReset[F[_]: Sync](

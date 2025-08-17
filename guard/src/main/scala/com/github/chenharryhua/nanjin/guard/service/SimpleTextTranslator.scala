@@ -61,7 +61,7 @@ private object SimpleTextTranslator {
   }
 
   private def metric_report(evt: MetricReport): String = {
-    val policy = s"$CONSTANT_POLICY:${evt.serviceParams.servicePolicies.metricReport.show}"
+    val policy = s"$CONSTANT_POLICY:${evt.serviceParams.servicePolicies.metricReport.policy.show}"
     val took = s"$CONSTANT_TOOK:${textHelper.tookText(evt.took)}"
     val index = s"$CONSTANT_INDEX:${textHelper.metricIndexText(evt.index)}"
 

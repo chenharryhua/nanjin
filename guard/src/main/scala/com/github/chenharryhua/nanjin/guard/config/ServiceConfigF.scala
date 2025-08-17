@@ -20,7 +20,10 @@ import scala.concurrent.duration.FiniteDuration
 import scala.jdk.DurationConverters.ScalaDurationOps
 
 @JsonCodec
-final case class ServicePolicies(restart: Policy, metricReport: Policy, metricReset: Policy)
+final case class MetricReportPolicy(policy: Policy, logRatio: Int)
+
+@JsonCodec
+final case class ServicePolicies(restart: Policy, metricReport: MetricReportPolicy, metricReset: Policy)
 @JsonCodec
 final case class HistoryCapacity(metric: Int, panic: Int, error: Int)
 
@@ -85,13 +88,15 @@ object ServiceParams {
       hostName = HostName.local_host,
       homePage = None,
       serviceName = serviceName,
-      servicePolicies =
-        ServicePolicies(restart = Policy.giveUp, metricReport = Policy.giveUp, metricReset = Policy.giveUp),
+      servicePolicies = ServicePolicies(
+        restart = Policy.giveUp,
+        metricReport = MetricReportPolicy(Policy.giveUp, 1),
+        metricReset = Policy.giveUp),
       emberServerParams = emberServerParams,
       threshold = None,
       zerothTick = zerothTick,
       historyCapacity = HistoryCapacity(32, 32, 32),
-      logFormat = LogFormat.PlainText,
+      logFormat = LogFormat.Console,
       nanjin = parse(BuildInfo.toJson).toOption,
       brief = brief.value
     )
@@ -106,7 +111,7 @@ private object ServiceConfigF {
 
   final case class WithRestartThreshold[K](value: Option[Duration], cont: K) extends ServiceConfigF[K]
   final case class WithRestartPolicy[K](value: Policy, cont: K) extends ServiceConfigF[K]
-  final case class WithMetricReportPolicy[K](value: Policy, cont: K) extends ServiceConfigF[K]
+  final case class WithMetricReportPolicy[K](policy: Policy, ratio: Int, cont: K) extends ServiceConfigF[K]
   final case class WithMetricResetPolicy[K](value: Policy, cont: K) extends ServiceConfigF[K]
 
   final case class WithHostName[K](value: HostName, cont: K) extends ServiceConfigF[K]
@@ -135,12 +140,13 @@ private object ServiceConfigF {
           zerothTick = zerothTick
         )
 
-      case WithRestartThreshold(v, c)   => c.focus(_.threshold).replace(v)
-      case WithRestartPolicy(v, c)      => c.focus(_.servicePolicies.restart).replace(v)
-      case WithMetricReportPolicy(v, c) => c.focus(_.servicePolicies.metricReport).replace(v)
-      case WithMetricResetPolicy(v, c)  => c.focus(_.servicePolicies.metricReset).replace(v)
-      case WithHostName(v, c)           => c.focus(_.hostName).replace(v)
-      case WithHomePage(v, c)           => c.focus(_.homePage).replace(v)
+      case WithRestartThreshold(v, c)      => c.focus(_.threshold).replace(v)
+      case WithRestartPolicy(v, c)         => c.focus(_.servicePolicies.restart).replace(v)
+      case WithMetricReportPolicy(p, r, c) =>
+        c.focus(_.servicePolicies.metricReport).replace(MetricReportPolicy(p, r))
+      case WithMetricResetPolicy(v, c) => c.focus(_.servicePolicies.metricReset).replace(v)
+      case WithHostName(v, c)          => c.focus(_.hostName).replace(v)
+      case WithHomePage(v, c)          => c.focus(_.homePage).replace(v)
 
       case WithMetricCapacity(v, c) => c.focus(_.historyCapacity.metric).replace(v)
       case WithPanicCapacity(v, c)  => c.focus(_.historyCapacity.panic).replace(v)
@@ -178,10 +184,16 @@ final class ServiceConfig[F[_]: Applicative] private (
   def withRestartPolicy(f: Policy.type => Policy): ServiceConfig[F] =
     withRestartPolicy(f(Policy))
 
-  def withMetricReport(report: Policy): ServiceConfig[F] =
-    copy(cont = Fix(WithMetricReportPolicy(report, cont)))
+  def withMetricReport(policy: Policy, ratio: Int): ServiceConfig[F] = {
+    require(ratio > 0, s"ratio($ratio) should be bigger than zero")
+    copy(cont = Fix(WithMetricReportPolicy(policy, ratio, cont)))
+  }
+
+  def withMetricReport(policy: Policy): ServiceConfig[F] =
+    withMetricReport(policy, 1)
+
   def withMetricReport(f: Policy.type => Policy): ServiceConfig[F] =
-    withMetricReport(f(Policy))
+    withMetricReport(f(Policy), 1)
 
   def withMetricReset(reset: Policy): ServiceConfig[F] =
     copy(cont = Fix(WithMetricResetPolicy(reset, cont)))

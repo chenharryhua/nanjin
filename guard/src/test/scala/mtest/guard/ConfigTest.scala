@@ -21,7 +21,7 @@ class ConfigTest extends AnyFunSuite {
           .withPanicHistoryCapacity(1)
           .withMetricHistoryCapacity(2)
           .withErrorHistoryCapacity(3))
-      .updateConfig(_.withMetricReport(crontab(_.hourly)))
+      .updateConfig(_.withMetricReport(crontab(_.hourly), 1))
       .updateConfig(_.withJmx(identity))
       .updateConfig(_.withAlarmLevel(_.Info))
       .updateConfig(_.withAlarmLevel(AlarmLevel.Info))
