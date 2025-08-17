@@ -7,7 +7,6 @@ import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.ServiceStopCause.Successfully
 import com.github.chenharryhua.nanjin.guard.event.eventFilters
-import com.github.chenharryhua.nanjin.guard.observers.console
 import com.github.chenharryhua.nanjin.guard.service.Agent
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -71,7 +70,6 @@ class RetryTest extends AnyFunSuite {
             retry(IO.println(4))).guarantee(agent.adhoc.report)
         })
       .mapFilter(eventFilters.metricReport)
-      .evalTap(console.text[IO])
       .compile
       .drain
       .unsafeRunSync()
@@ -98,7 +96,6 @@ class RetryTest extends AnyFunSuite {
             retry(IO.println("third"))).guarantee(agent.adhoc.report)
         })
       .mapFilter(eventFilters.metricReport)
-      .evalTap(console.text[IO])
       .compile
       .drain
       .unsafeRunSync()
@@ -123,7 +120,6 @@ class RetryTest extends AnyFunSuite {
             .guarantee(agent.adhoc.report)
         })
       .mapFilter(eventFilters.metricReport)
-      .evalTap(console.text[IO])
       .compile
       .drain
       .unsafeRunSync()

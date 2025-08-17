@@ -17,7 +17,6 @@ import com.github.chenharryhua.nanjin.guard.event.{
   retrieveTimer
 }
 import com.github.chenharryhua.nanjin.guard.metrics.Meter
-import com.github.chenharryhua.nanjin.guard.observers.console
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import io.circe.generic.JsonCodec
 import org.scalatest.funsuite.AnyFunSuite
@@ -77,12 +76,7 @@ class MetricsTest extends AnyFunSuite {
     val mr = service.eventStream { agent =>
       val meter: Resource[IO, Meter[IO, Money]] = agent.facilitate("meter")(_.meter(AUD)("meter"))
       meter.use(m => m.run(10.AUD) >> m.mark(20) >> agent.adhoc.report)
-    }.evalTap(console.text[IO])
-      .map(checkJson)
-      .mapFilter(eventFilters.metricReport)
-      .compile
-      .lastOrError
-      .unsafeRunSync()
+    }.map(checkJson).mapFilter(eventFilters.metricReport).compile.lastOrError.unsafeRunSync()
     val meter = retrieveMeter(mr.snapshot.meters).values.head
     assert(mr.snapshot.nonEmpty)
     assert(meter.aggregate == 30)
@@ -105,12 +99,7 @@ class MetricsTest extends AnyFunSuite {
       agent
         .facilitate("histogram")(_.histogram(Bytes)("histogram"))
         .use(m => m.run(10.bytes) >> m.update(20) >> agent.adhoc.report)
-    }.evalTap(console.text[IO])
-      .map(checkJson)
-      .mapFilter(eventFilters.metricReport)
-      .compile
-      .lastOrError
-      .unsafeRunSync()
+    }.map(checkJson).mapFilter(eventFilters.metricReport).compile.lastOrError.unsafeRunSync()
     val histo = retrieveHistogram(mr.snapshot.histograms).values.head
     assert(mr.snapshot.nonEmpty)
     assert(histo.updates == 2)
@@ -124,12 +113,7 @@ class MetricsTest extends AnyFunSuite {
       agent
         .facilitate("histogram")(_.histogram(Milliseconds)("histogram"))
         .use(m => m.update(1030) >> m.update(200) >> agent.adhoc.report)
-    }.evalTap(console.text[IO])
-      .map(checkJson)
-      .mapFilter(eventFilters.metricReport)
-      .compile
-      .lastOrError
-      .unsafeRunSync()
+    }.map(checkJson).mapFilter(eventFilters.metricReport).compile.lastOrError.unsafeRunSync()
     val histo = retrieveHistogram(mr.snapshot.histograms).values.head
     assert(mr.snapshot.nonEmpty)
     assert(histo.updates == 2)
@@ -143,12 +127,7 @@ class MetricsTest extends AnyFunSuite {
       agent
         .facilitate("histogram")(_.histogram(Percent)("histogram"))
         .use(m => m.update(30) >> m.update(50) >> agent.adhoc.report)
-    }.evalTap(console.text[IO])
-      .map(checkJson)
-      .mapFilter(eventFilters.metricReport)
-      .compile
-      .lastOrError
-      .unsafeRunSync()
+    }.map(checkJson).mapFilter(eventFilters.metricReport).compile.lastOrError.unsafeRunSync()
     val histo = retrieveHistogram(mr.snapshot.histograms).values.head
     assert(mr.snapshot.nonEmpty)
     assert(histo.updates == 2)

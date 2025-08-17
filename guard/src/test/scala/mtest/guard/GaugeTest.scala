@@ -7,14 +7,13 @@ import cats.implicits.toFunctorFilterOps
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.config.MetricID
 import com.github.chenharryhua.nanjin.guard.event.{eventFilters, retrieveGauge, retrieveHealthChecks}
-import com.github.chenharryhua.nanjin.guard.observers.console
 import io.circe.Json
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 
 class GaugeTest extends AnyFunSuite {
-  private val service = TaskGuard[IO]("gauge").service("gauge")
+  private val service = TaskGuard[IO]("gauge").service("gauge").updateConfig(_.withLogFormat(_.Console))
 
   test("1.gauge") {
     val mr = service.eventStream { agent =>
@@ -72,12 +71,7 @@ class GaugeTest extends AnyFunSuite {
         _.gauge("gauge", _.withTimeout(1.second).enable(true))
           .register(IO.never[Int])
           .surround(agent.adhoc.report))
-    }.map(checkJson)
-      .evalTap(console.text[IO])
-      .mapFilter(eventFilters.metricReport)
-      .compile
-      .lastOrError
-      .unsafeRunSync()
+    }.map(checkJson).mapFilter(eventFilters.metricReport).compile.lastOrError.unsafeRunSync()
     val gauge = retrieveGauge[Int](mr.snapshot.gauges)
     assert(mr.snapshot.nonEmpty)
     assert(gauge.isEmpty)
@@ -89,12 +83,7 @@ class GaugeTest extends AnyFunSuite {
         _.gauge("gauge", _.withTimeout(1.second).enable(true))
           .register(IO.raiseError[Int](new Exception("oops")))
           .surround(agent.adhoc.report))
-    }.map(checkJson)
-      .evalTap(console.text[IO])
-      .mapFilter(eventFilters.metricReport)
-      .compile
-      .lastOrError
-      .unsafeRunSync()
+    }.map(checkJson).mapFilter(eventFilters.metricReport).compile.lastOrError.unsafeRunSync()
     val gauge = retrieveGauge[Int](mr.snapshot.gauges)
     assert(mr.snapshot.nonEmpty)
     assert(gauge.isEmpty)
@@ -118,6 +107,6 @@ class GaugeTest extends AnyFunSuite {
         } yield ()
         mtx.surround(agent.adhoc.report)
       }
-    }.evalTap(console.text[IO]).compile.drain.unsafeRunSync()
+    }.compile.drain.unsafeRunSync()
   }
 }

@@ -10,7 +10,6 @@ import com.github.chenharryhua.nanjin.guard.batch.{
   TraceJob
 }
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStop
-import com.github.chenharryhua.nanjin.guard.observers.console
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -41,7 +40,7 @@ class BatchParallelTest extends AnyFunSuite {
           assert(!mb.jobs(2).done)
         }.void
       }
-    }.evalTap(console.text[IO]).compile.lastOrError.unsafeRunSync()
+    }.compile.lastOrError.unsafeRunSync()
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
   }
 
@@ -66,7 +65,7 @@ class BatchParallelTest extends AnyFunSuite {
         .attempt
         .use(e => IO(assert(e.isLeft)))
         .void
-    }.evalTap(console.text[IO]).compile.lastOrError.unsafeRunSync()
+    }.compile.lastOrError.unsafeRunSync()
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
 
     assert(succJob.index == 1)
@@ -90,7 +89,7 @@ class BatchParallelTest extends AnyFunSuite {
             assert(mb.jobs(2).done)
           }.void
         }
-    }.evalTap(console.text[IO]).compile.lastOrError.unsafeRunSync()
+    }.compile.lastOrError.unsafeRunSync()
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
   }
 
@@ -112,7 +111,7 @@ class BatchParallelTest extends AnyFunSuite {
         .attempt
         .use(e => IO(assert(e.fold(_.isInstanceOf[PostConditionUnsatisfied], _ => false))))
         .void
-    }.evalTap(console.text[IO]).compile.lastOrError.unsafeRunSync()
+    }.compile.lastOrError.unsafeRunSync()
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
 
     val sorted = completedJob.sortBy(_.job.index)

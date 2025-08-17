@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard.service
 
 import cats.Endo
 import cats.effect.kernel.{Async, Ref, Resource}
-import cats.effect.std.{AtomicCell, Dispatcher}
+import cats.effect.std.{AtomicCell, Console, Dispatcher}
 import cats.syntax.all.*
 import com.codahale.metrics.MetricRegistry
 import com.codahale.metrics.jmx.JmxReporter
@@ -12,14 +12,17 @@ import com.github.chenharryhua.nanjin.common.chrono.*
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.event.*
 import com.github.chenharryhua.nanjin.guard.event.Event.{MetricReport, ServiceMessage, ServicePanic}
+import com.github.chenharryhua.nanjin.guard.observers.{PrettyJsonTranslator, SimpleTextTranslator}
+import com.github.chenharryhua.nanjin.guard.translator.Translator
 import fs2.Stream
 import fs2.concurrent.Channel
 import fs2.io.net.Network
 import io.circe.syntax.*
 import org.apache.commons.collections4.queue.CircularFifoQueue
 import org.http4s.ember.server.EmberServerBuilder
+import org.typelevel.log4cats.slf4j.Slf4jLogger
 
-final class ServiceGuard[F[_]: Network: Async] private[guard] (
+final class ServiceGuard[F[_]: Network: Async: Console] private[guard] (
   serviceName: ServiceName,
   config: ServiceConfig[F])
     extends UpdateConfig[ServiceConfig[F], ServiceGuard[F]] { self =>
@@ -46,15 +49,25 @@ final class ServiceGuard[F[_]: Network: Async] private[guard] (
     for {
       serviceParams <- Stream.eval(initStatus)
       dispatcher <- Stream.resource(Dispatcher.sequential[F](await = false))
-      alarmLevel <- Stream.eval(Ref.of[F, AlarmLevel](config.alarmLevel))
+      alarmLevel <- Stream.eval(Ref.of[F, Option[AlarmLevel]](Some(config.alarmLevel)))
       panicHistory <- Stream.eval(
         AtomicCell[F].of(new CircularFifoQueue[ServicePanic](serviceParams.historyCapacity.panic)))
       metricsHistory <- Stream.eval(
         AtomicCell[F].of(new CircularFifoQueue[MetricReport](serviceParams.historyCapacity.metric)))
       errorHistory <- Stream.eval(
         AtomicCell[F].of(new CircularFifoQueue[ServiceMessage](serviceParams.historyCapacity.error)))
+      logger <- Stream.eval(Slf4jLogger.fromName[F](serviceName.value))
       event <- Stream.eval(Channel.unbounded[F, Event]).flatMap { channel =>
         val metricRegistry: MetricRegistry = new MetricRegistry()
+        val eventLogger: EventLogger[F] = serviceParams.logFormat match {
+          case LogFormat.Console =>
+            new EventLogger[F](SimpleTextTranslator[F], new ConsoleLogger[F](serviceParams.zoneId))
+          case LogFormat.PlainText    => new EventLogger[F](SimpleTextTranslator[F], logger)
+          case LogFormat.JsonNoSpaces => new EventLogger[F](PrettyJsonTranslator[F].map(_.noSpaces), logger)
+          case LogFormat.JsonSpace2   => new EventLogger[F](PrettyJsonTranslator[F].map(_.spaces2), logger)
+          case LogFormat.JsonVerbose  =>
+            new EventLogger[F](Translator.idTranslator.map(_.asJson.spaces2), logger)
+        }
 
         val metrics_report: Stream[F, Nothing] =
           tickStream
@@ -63,6 +76,7 @@ final class ServiceGuard[F[_]: Network: Async] private[guard] (
             .evalMap { tick =>
               metricReport(
                 channel = channel,
+                eventLogger = eventLogger,
                 serviceParams = serviceParams,
                 metricRegistry = metricRegistry,
                 index = MetricIndex.Periodic(tick)).flatMap(mr =>
@@ -77,6 +91,7 @@ final class ServiceGuard[F[_]: Network: Async] private[guard] (
             .evalMap(tick =>
               metricReset(
                 channel = channel,
+                eventLogger = eventLogger,
                 serviceParams = serviceParams,
                 metricRegistry = metricRegistry,
                 index = MetricIndex.Periodic(tick)))
@@ -110,7 +125,8 @@ final class ServiceGuard[F[_]: Network: Async] private[guard] (
                     metricsHistory = metricsHistory,
                     errorHistory = errorHistory,
                     alarmLevel = alarmLevel,
-                    channel = channel
+                    channel = channel,
+                    eventLogger = eventLogger
                   ).router)
                   .build) >>
                 Stream.never[F]
@@ -121,6 +137,7 @@ final class ServiceGuard[F[_]: Network: Async] private[guard] (
             serviceParams = serviceParams,
             metricRegistry = metricRegistry,
             channel = channel,
+            eventLogger = eventLogger,
             domain = Domain(serviceParams.serviceName.value),
             alarmLevel = alarmLevel,
             errorHistory = errorHistory,
@@ -130,6 +147,7 @@ final class ServiceGuard[F[_]: Network: Async] private[guard] (
         val surveillance: Stream[F, Nothing] =
           new ReStart[F](
             channel = channel,
+            eventLogger = eventLogger,
             serviceParams = serviceParams,
             panicHistory = panicHistory,
             theService = F.defer(runAgent(agent))

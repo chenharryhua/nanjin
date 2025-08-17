@@ -41,10 +41,10 @@ sealed trait Agent[F[_]] {
 
   /** metrics adhoc report/reset
     */
-  def adhoc: AdhocMetrics[F]
+  val adhoc: AdhocMetrics[F]
 
-  def herald: Herald[F]
-  def console: ConsoleHerald[F]
+  val herald: Herald[F]
+  val log: Log[F]
 
   def facilitate[A](label: String)(f: Metrics[F] => A): A
 
@@ -60,8 +60,9 @@ final private class GeneralAgent[F[_]: Async](
   serviceParams: ServiceParams,
   metricRegistry: MetricRegistry,
   channel: Channel[F, Event],
+  eventLogger: EventLogger[F],
   domain: Domain,
-  alarmLevel: Ref[F, AlarmLevel],
+  alarmLevel: Ref[F, Option[AlarmLevel]],
   errorHistory: AtomicCell[F, CircularFifoQueue[ServiceMessage]],
   dispatcher: Dispatcher[F])
     extends Agent[F] {
@@ -73,6 +74,7 @@ final private class GeneralAgent[F[_]: Async](
       serviceParams,
       metricRegistry,
       channel,
+      eventLogger,
       Domain(name),
       alarmLevel,
       errorHistory,
@@ -107,8 +109,8 @@ final private class GeneralAgent[F[_]: Async](
   override def retry(f: Endo[Retry.Builder[F]]): Resource[F, Retry[F]] =
     f(new Retry.Builder[F](Policy.giveUp, _ => true.pure[F])).build(zoneId)
 
-  override object adhoc extends AdhocMetricsImpl[F](channel, serviceParams, metricRegistry)
+  override object adhoc extends AdhocMetricsImpl[F](channel, eventLogger, serviceParams, metricRegistry)
 
-  override object herald extends HeraldImpl[F](serviceParams, channel, errorHistory)
-  override object console extends ConsoleHeraldImpl[F](serviceParams, alarmLevel)
+  override object herald extends HeraldImpl[F](serviceParams, channel, eventLogger, errorHistory)
+  override object log extends LogImpl[F](serviceParams, eventLogger, alarmLevel)
 }

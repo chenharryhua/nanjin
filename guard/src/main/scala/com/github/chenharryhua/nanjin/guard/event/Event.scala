@@ -13,23 +13,29 @@ sealed trait Event extends Product with Serializable {
   def serviceParams: ServiceParams
 
   final def upTime: Duration = serviceParams.upTime(timestamp)
+  def name: EventName
 }
 
 object Event {
 
   final case class ServiceStart(serviceParams: ServiceParams, tick: Tick) extends Event {
     val timestamp: ZonedDateTime = tick.zonedWakeup
+    val name: EventName = EventName.ServiceStart
   }
 
   final case class ServicePanic(serviceParams: ServiceParams, tick: Tick, error: Error) extends Event {
     val timestamp: ZonedDateTime = tick.zonedAcquire
+    val name: EventName = EventName.ServicePanic
   }
 
   final case class ServiceStop(
     serviceParams: ServiceParams,
     timestamp: ZonedDateTime,
     cause: ServiceStopCause)
-      extends Event
+      extends Event {
+    val name: EventName = EventName.ServiceStop
+
+  }
 
   final case class ServiceMessage(
     serviceParams: ServiceParams,
@@ -38,7 +44,10 @@ object Event {
     level: AlarmLevel,
     error: Option[Error],
     message: Json
-  ) extends Event
+  ) extends Event {
+    val name: EventName = EventName.ServiceMessage
+
+  }
 
   sealed trait MetricEvent extends Event {
     def index: MetricIndex
@@ -53,6 +62,7 @@ object Event {
     took: Duration)
       extends MetricEvent {
     override val timestamp: ZonedDateTime = index.launchTime
+    val name: EventName = EventName.MetricReport
   }
 
   final case class MetricReset(
@@ -62,5 +72,6 @@ object Event {
     took: Duration)
       extends MetricEvent {
     override val timestamp: ZonedDateTime = index.launchTime
+    val name: EventName = EventName.MetricReset
   }
 }

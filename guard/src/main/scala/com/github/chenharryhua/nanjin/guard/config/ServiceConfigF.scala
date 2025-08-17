@@ -8,6 +8,7 @@ import com.github.chenharryhua.nanjin.common.chrono.{Policy, Tick}
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
 import io.circe.generic.JsonCodec
+import io.circe.jawn.parse
 import io.circe.syntax.EncoderOps
 import io.circe.{Encoder, Json}
 import monocle.syntax.all.*
@@ -17,7 +18,6 @@ import java.time.*
 import java.util.UUID
 import scala.concurrent.duration.FiniteDuration
 import scala.jdk.DurationConverters.ScalaDurationOps
-import io.circe.jawn.parse
 
 @JsonCodec
 final case class ServicePolicies(restart: Policy, metricReport: Policy, metricReset: Policy)
@@ -54,6 +54,7 @@ final case class ServiceParams(
   threshold: Option[Duration],
   zerothTick: Tick,
   historyCapacity: HistoryCapacity,
+  logFormat: LogFormat,
   nanjin: Option[Json],
   brief: Json
 ) {
@@ -90,6 +91,7 @@ object ServiceParams {
       threshold = None,
       zerothTick = zerothTick,
       historyCapacity = HistoryCapacity(32, 32, 32),
+      logFormat = LogFormat.PlainText,
       nanjin = parse(BuildInfo.toJson).toOption,
       brief = brief.value
     )
@@ -115,6 +117,8 @@ private object ServiceConfigF {
   final case class WithErrorCapacity[K](value: Int, cont: K) extends ServiceConfigF[K]
 
   final case class WithTaskName[K](value: TaskName, cont: K) extends ServiceConfigF[K]
+
+  final case class WithLogFormat[K](value: LogFormat, cont: K) extends ServiceConfigF[K]
 
   def algebra(
     serviceName: ServiceName,
@@ -143,6 +147,8 @@ private object ServiceConfigF {
       case WithErrorCapacity(v, c)  => c.focus(_.historyCapacity.error).replace(v)
 
       case WithTaskName(v, c) => c.focus(_.taskName).replace(v)
+
+      case WithLogFormat(v, c) => c.focus(_.logFormat).replace(v)
     }
 }
 
@@ -221,6 +227,11 @@ final class ServiceConfig[F[_]: Applicative] private (
 
   def addBrief[A: Encoder](fa: F[A]): ServiceConfig[F] = copy(briefs = (fa, briefs).mapN(_.asJson :: _))
   def addBrief[A: Encoder](a: => A): ServiceConfig[F] = addBrief(a.pure[F])
+
+  def withLogFormat(fmt: LogFormat): ServiceConfig[F] =
+    copy(cont = Fix(WithLogFormat(fmt, cont)))
+  def withLogFormat(f: LogFormat.type => LogFormat): ServiceConfig[F] =
+    withLogFormat(f(LogFormat))
 
   private[guard] def evalConfig(
     serviceName: ServiceName,

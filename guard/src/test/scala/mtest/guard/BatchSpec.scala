@@ -6,7 +6,6 @@ import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.batch.{PostConditionUnsatisfied, TraceJob}
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStop
-import com.github.chenharryhua.nanjin.guard.observers.console
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import io.circe.Json
 import org.scalatest.freespec.AsyncFreeSpec
@@ -59,7 +58,7 @@ class BatchSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
         result.asserting(_.resultState.jobs(1).done.shouldBe(false)) >>
         result.asserting(_.resultState.jobs(2).done.shouldBe(true)) >>
         IO.unit
-    }.evalTap(console.text[IO]).compile.lastOrError.unsafeRunSync()
+    }.compile.lastOrError.unsafeRunSync()
 
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
   }

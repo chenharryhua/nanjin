@@ -12,7 +12,8 @@ import scala.concurrent.duration.{DurationInt, FiniteDuration}
 class Performance extends AnyFunSuite {
   // sbt "guard/testOnly mtest.guard.Performance"
 
-  private val service = TaskGuard[IO]("performance").service("performance")
+  private val service =
+    TaskGuard[IO]("performance").service("performance").updateConfig(_.withLogFormat(_.JsonNoSpaces))
 
   private val timeout: FiniteDuration = 5.seconds
 
@@ -139,15 +140,5 @@ class Performance extends AnyFunSuite {
       .compile
       .drain
       .unsafeRunSync()
-  }
-
-  test("10.performance herald") {
-    val i = service
-      .eventStream(_.herald.info("hi").foreverM.timeout(timeout).attempt.void)
-      .compile
-      .fold(0L)((sum, _) => sum + 1)
-      .unsafeRunSync()
-    println(s"cost:  ${timeout.toNanos / i} nano")
-    println(s"speed: ${i / timeout.toMillis} k/s")
   }
 }

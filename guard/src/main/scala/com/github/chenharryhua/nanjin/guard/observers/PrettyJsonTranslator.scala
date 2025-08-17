@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.guard.observers
 import cats.Applicative
 import com.github.chenharryhua.nanjin.common.chrono.Tick
 import com.github.chenharryhua.nanjin.guard.event.Event.*
-import com.github.chenharryhua.nanjin.guard.event.{Event, MetricSnapshot}
+import com.github.chenharryhua.nanjin.guard.event.{Event, EventName, MetricSnapshot}
 import com.github.chenharryhua.nanjin.guard.translator.*
 import io.circe.Json
 

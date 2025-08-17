@@ -7,7 +7,6 @@ import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.action.CircuitBreaker
 import com.github.chenharryhua.nanjin.guard.event.ServiceStopCause
 import com.github.chenharryhua.nanjin.guard.event.eventFilters
-import com.github.chenharryhua.nanjin.guard.observers.console
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.DurationInt
@@ -29,7 +28,7 @@ class CircuitBreakerTest extends AnyFunSuite {
           cb.attempt(bad) >> agent.adhoc.report >>
           cb.protect(good) >> agent.adhoc.report
       }
-    }.evalTap(console.text[IO]).mapFilter(eventFilters.serviceStop).compile.lastOrError.unsafeRunSync()
+    }.mapFilter(eventFilters.serviceStop).compile.lastOrError.unsafeRunSync()
     assert(ss.cause == ServiceStopCause.Successfully)
   }
 
@@ -48,7 +47,7 @@ class CircuitBreakerTest extends AnyFunSuite {
           cb.attempt(bad) >> agent.adhoc.report >>
           cb.protect(good).guarantee(agent.adhoc.report).void
       }
-    }.evalTap(console.text[IO]).mapFilter(eventFilters.serviceStop).compile.lastOrError.unsafeRunSync()
+    }.mapFilter(eventFilters.serviceStop).compile.lastOrError.unsafeRunSync()
     assert(
       ss.cause
         .asInstanceOf[ServiceStopCause.ByException]

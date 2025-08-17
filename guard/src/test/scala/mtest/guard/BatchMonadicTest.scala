@@ -12,7 +12,6 @@ import com.github.chenharryhua.nanjin.guard.batch.{
   TraceJob
 }
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStop
-import com.github.chenharryhua.nanjin.guard.observers.console
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import io.circe.Json
 import io.circe.syntax.EncoderOps
@@ -61,7 +60,7 @@ class BatchMonadicTest extends AnyFunSuite {
         .attempt
       res.map(r => assert(r.fold(_.isInstanceOf[Exception], _ => false)))
 
-    }.evalTap(console.text[IO]).compile.lastOrError.unsafeRunSync()
+    }.compile.lastOrError.unsafeRunSync()
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
     assert(completedJob.done)
     assert(completedJob.job.index == 1)
@@ -88,7 +87,7 @@ class BatchMonadicTest extends AnyFunSuite {
           } yield a + c
         }
         .batchValue(tracer |+| TraceJob(agent).json)
-    }.evalTap(console.text[IO]).compile.lastOrError.unsafeRunSync()
+    }.compile.lastOrError.unsafeRunSync()
 
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
 
@@ -119,7 +118,7 @@ class BatchMonadicTest extends AnyFunSuite {
           } yield a + c
         }
         .batchValue(tracer |+| TraceJob(agent).json)
-    }.evalTap(console.text[IO]).compile.lastOrError.unsafeRunSync()
+    }.compile.lastOrError.unsafeRunSync()
 
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
 

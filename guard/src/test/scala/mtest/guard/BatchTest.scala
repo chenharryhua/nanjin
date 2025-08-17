@@ -7,7 +7,6 @@ import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.batch.{Batch, BatchMode, BatchResultValue, TraceJob}
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStop
-import com.github.chenharryhua.nanjin.guard.observers.console
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import io.circe.Json
 import io.circe.jawn.decode
@@ -22,7 +21,8 @@ class BatchTest extends AnyFunSuite {
   private val service: ServiceGuard[IO] =
     TaskGuard[IO]("quasi")
       .service("quasi")
-      .updateConfig(_.withMetricReport(Policy.crontab(_.secondly)).withAlarmLevel(_.Debug))
+      .updateConfig(
+        _.withMetricReport(Policy.crontab(_.secondly)).withAlarmLevel(_.Debug).withLogFormat(_.JsonNoSpaces))
 
   test("1.quasi.sequential") {
     val se = service.eventStream { ga =>
@@ -56,7 +56,7 @@ class BatchTest extends AnyFunSuite {
           qr
         }
         .use(qr => IO.println(qr.asJson) *> ga.adhoc.report)
-    }.map(checkJson).evalTap(console.text[IO]).compile.lastOrError.unsafeRunSync()
+    }.map(checkJson).compile.lastOrError.unsafeRunSync()
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
   }
 
@@ -90,7 +90,7 @@ class BatchTest extends AnyFunSuite {
           qr
         }
         .use(_ => ga.adhoc.report)
-    }.map(checkJson).evalTap(console.text[IO]).compile.lastOrError.unsafeRunSync()
+    }.map(checkJson).compile.lastOrError.unsafeRunSync()
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
 
   }
@@ -105,7 +105,7 @@ class BatchTest extends AnyFunSuite {
           "c" -> IO.sleep(1.seconds).as(3.bytes))
         .batchValue(TraceJob(agent).informationRate)
         .use_
-    }.map(checkJson).evalTap(console.text[IO]).compile.lastOrError.unsafeRunSync()
+    }.map(checkJson).compile.lastOrError.unsafeRunSync()
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
 
   }
@@ -124,7 +124,7 @@ class BatchTest extends AnyFunSuite {
         .use(_.map(_.resultState.jobs.forall(_.done)))
         .map(assert(_))
         .void
-    }.map(checkJson).evalTap(console.text[IO]).compile.lastOrError.unsafeRunSync()
+    }.map(checkJson).compile.lastOrError.unsafeRunSync()
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
   }
 
@@ -138,7 +138,7 @@ class BatchTest extends AnyFunSuite {
           "d" -> IO.sleep(1.seconds))
         .batchValue(TraceJob(ga).standard)
         .use_
-    }.map(checkJson).evalTap(console.text[IO]).compile.lastOrError.unsafeRunSync()
+    }.map(checkJson).compile.lastOrError.unsafeRunSync()
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 3)
 
   }
@@ -153,7 +153,7 @@ class BatchTest extends AnyFunSuite {
     )
     val se = service.eventStream { ga =>
       ga.batch("parallel").parallel(3)(jobs*).batchValue(TraceJob.noop).use_
-    }.map(checkJson).evalTap(console.text[IO]).compile.lastOrError.unsafeRunSync()
+    }.map(checkJson).compile.lastOrError.unsafeRunSync()
 
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 3)
 
@@ -168,7 +168,6 @@ class BatchTest extends AnyFunSuite {
           .map(r => assert(r.mode == BatchMode.Parallel(1)))
           .use_)
       .map(checkJson)
-      .evalTap(console.text[IO])
       .compile
       .drain
 
@@ -180,7 +179,6 @@ class BatchTest extends AnyFunSuite {
           .map(r => assert(r.mode == BatchMode.Sequential))
           .use_)
       .map(checkJson)
-      .evalTap(console.text[IO])
       .compile
       .drain
     (j1 >> j2).unsafeRunSync()
@@ -219,7 +217,7 @@ class BatchTest extends AnyFunSuite {
           .batchValue(TraceJob(agent).standard)
           .use(agent.herald.done(_) >> agent.adhoc.report)
       }
-    }.evalTap(console.text[IO]).compile.drain.unsafeRunSync()
+    }.compile.drain.unsafeRunSync()
   }
 
   test("12. monadic for comprehension") {
@@ -244,7 +242,7 @@ class BatchTest extends AnyFunSuite {
           assert(qr.resultState.jobs.forall(_.job.name.startsWith("monadic")))
           agent.adhoc.report
         }
-    }.evalTap(console.text[IO]).compile.lastOrError.unsafeRunSync()
+    }.compile.lastOrError.unsafeRunSync()
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
 
   }
@@ -276,7 +274,7 @@ class BatchTest extends AnyFunSuite {
           assert(qr.resultState.jobs.size == 7)
           agent.adhoc.report >> agent.herald.info(qr)
         }
-    }.evalTap(console.text[IO]).compile.lastOrError.unsafeRunSync()
+    }.compile.lastOrError.unsafeRunSync()
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
   }
 
@@ -287,7 +285,7 @@ class BatchTest extends AnyFunSuite {
         .monadic(job => job("a" -> IO(0)))
         .batchValue(TraceJob(agent).standard)
         .use(qr => agent.adhoc.report >> agent.herald.info(qr.resultState))
-    }.evalTap(console.text[IO]).compile.drain.unsafeRunSync()
+    }.compile.drain.unsafeRunSync()
   }
 
   test("15. monadic many") {
@@ -329,7 +327,7 @@ class BatchTest extends AnyFunSuite {
           assert(details.size == 6)
           agent.adhoc.report >> agent.herald.info(qr)
         }
-    }.evalTap(console.text[IO]).compile.lastOrError.unsafeRunSync()
+    }.compile.lastOrError.unsafeRunSync()
 
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
   }
@@ -368,7 +366,7 @@ class BatchTest extends AnyFunSuite {
             assert(br.jobs(4).job.index == 5)
           }.void
         }
-    }.evalTap(console.text[IO]).compile.lastOrError.unsafeRunSync()
+    }.compile.lastOrError.unsafeRunSync()
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
   }
 
@@ -398,7 +396,7 @@ class BatchTest extends AnyFunSuite {
             assert(br.jobs(4).job.index == 5)
           }.void
         }
-    }.evalTap(console.text[IO]).compile.lastOrError.unsafeRunSync()
+    }.compile.lastOrError.unsafeRunSync()
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
   }
 
@@ -412,7 +410,6 @@ class BatchTest extends AnyFunSuite {
   test("20. empty sequential") {
     val se = service
       .eventStreamR(_.batch("b").sequential[Int]().batchValue(TraceJob.noop))
-      .evalTap(console.text[IO])
       .compile
       .lastOrError
       .unsafeRunSync()
@@ -422,7 +419,6 @@ class BatchTest extends AnyFunSuite {
   test("21. empty parallel") {
     val se = service
       .eventStreamR(_.batch("b").parallel[Int](1)().batchValue(TraceJob.noop))
-      .evalTap(console.text[IO])
       .compile
       .lastOrError
       .unsafeRunSync()

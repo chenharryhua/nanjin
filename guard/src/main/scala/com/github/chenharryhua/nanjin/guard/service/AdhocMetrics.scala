@@ -23,6 +23,7 @@ sealed trait AdhocMetrics[F[_]] {
 
 abstract private class AdhocMetricsImpl[F[_]](
   channel: Channel[F, Event],
+  eventLogger: EventLogger[F],
   serviceParams: ServiceParams,
   metricRegistry: MetricRegistry)(implicit F: Sync[F])
     extends AdhocMetrics[F] {
@@ -31,14 +32,17 @@ abstract private class AdhocMetricsImpl[F[_]](
     F.realTimeInstant.flatMap(ts =>
       metricReset(
         channel = channel,
+        eventLogger = eventLogger,
         serviceParams = serviceParams,
         metricRegistry = metricRegistry,
-        index = MetricIndex.Adhoc(serviceParams.toZonedDateTime(ts))))
+        index = MetricIndex.Adhoc(serviceParams.toZonedDateTime(ts))
+      ))
 
   override val report: F[Unit] =
     F.realTimeInstant.flatMap(ts =>
       metricReport(
         channel = channel,
+        eventLogger = eventLogger,
         serviceParams = serviceParams,
         metricRegistry = metricRegistry,
         index = MetricIndex.Adhoc(serviceParams.toZonedDateTime(ts))

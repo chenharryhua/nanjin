@@ -40,8 +40,9 @@ final private class HttpRouter[F[_]](
   panicHistory: AtomicCell[F, CircularFifoQueue[ServicePanic]],
   metricsHistory: AtomicCell[F, CircularFifoQueue[MetricReport]],
   errorHistory: AtomicCell[F, CircularFifoQueue[ServiceMessage]],
-  alarmLevel: Ref[F, AlarmLevel],
-  channel: Channel[F, Event])(implicit F: Async[F])
+  alarmLevel: Ref[F, Option[AlarmLevel]],
+  channel: Channel[F, Event],
+  eventLogger: EventLogger[F])(implicit F: Async[F])
     extends Http4sDsl[F] with all {
 
   private val html_header: Text.TypedTag[String] =
@@ -151,7 +152,7 @@ final private class HttpRouter[F[_]](
     case GET -> Root / "metrics" / "reset" =>
       for {
         ts <- serviceParams.zonedNow
-        _ <- metricReset[F](channel, serviceParams, metricRegistry, MetricIndex.Adhoc(ts))
+        _ <- metricReset[F](channel, eventLogger, serviceParams, metricRegistry, MetricIndex.Adhoc(ts))
         (fd, yaml) <- MetricSnapshot.timed(metricRegistry).map { case (fd, ms) =>
           (fd, new SnapshotPolyglot(ms).toYaml)
         }
@@ -190,7 +191,11 @@ final private class HttpRouter[F[_]](
     case GET -> Root / "service" / "params" => Ok(serviceParams.asJson)
 
     case GET -> Root / "service" / "stop" =>
-      Ok("stopping service") <* serviceStop[F](channel, serviceParams, ServiceStopCause.Maintenance)
+      Ok("stopping service") <* serviceStop[F](
+        channel,
+        eventLogger,
+        serviceParams,
+        ServiceStopCause.Maintenance)
 
     case GET -> Root / "service" / "health_check" =>
       panicHistory.get.map(_.iterator().asScala.toList.lastOption).flatMap {
@@ -265,24 +270,28 @@ final private class HttpRouter[F[_]](
         }
       }
 
-    case GET -> Root / "alarm_level"             => Ok(alarmLevel.get.map(_.entryName))
-    case GET -> Root / "alarm_level" / "debug"   => setAlarmLevel(AlarmLevel.Debug)
-    case GET -> Root / "alarm_level" / "done"    => setAlarmLevel(AlarmLevel.Done)
-    case GET -> Root / "alarm_level" / "info"    => setAlarmLevel(AlarmLevel.Info)
-    case GET -> Root / "alarm_level" / "warn"    => setAlarmLevel(AlarmLevel.Warn)
-    case GET -> Root / "alarm_level" / "error"   => setAlarmLevel(AlarmLevel.Error)
-    case GET -> Root / "alarm_level" / "disable" => setAlarmLevel(AlarmLevel.Disable)
+    case GET -> Root / "alarm_level" =>
+      Ok(alarmLevel.get.map {
+        case Some(value) => value.entryName
+        case None        => "disabled"
+      })
+    case GET -> Root / "alarm_level" / "debug"   => setAlarmLevel(Some(AlarmLevel.Debug))
+    case GET -> Root / "alarm_level" / "done"    => setAlarmLevel(Some(AlarmLevel.Done))
+    case GET -> Root / "alarm_level" / "info"    => setAlarmLevel(Some(AlarmLevel.Info))
+    case GET -> Root / "alarm_level" / "warn"    => setAlarmLevel(Some(AlarmLevel.Warn))
+    case GET -> Root / "alarm_level" / "error"   => setAlarmLevel(Some(AlarmLevel.Error))
+    case GET -> Root / "alarm_level" / "disable" => setAlarmLevel(None)
 
   }
 
-  private def setAlarmLevel(level: AlarmLevel): F[Response[F]] =
+  private def setAlarmLevel(level: Option[AlarmLevel]): F[Response[F]] =
     Accepted(
-      alarmLevel
-        .getAndSet(level)
-        .map(pre =>
-          Json.obj(
-            "previous" -> Json.fromString(pre.entryName),
-            "current" -> Json.fromString(level.entryName))))
+      alarmLevel.getAndSet(level).map { pre =>
+        Json.obj(
+          "previous" -> Json.fromString(pre.map(_.entryName).getOrElse("disabled")),
+          "current" -> Json.fromString(level.map(_.entryName).getOrElse("disabled")))
+      }
+    )
 
   val router: Kleisli[F, Request[F], Response[F]] =
     Router("/" -> metrics).orNotFound

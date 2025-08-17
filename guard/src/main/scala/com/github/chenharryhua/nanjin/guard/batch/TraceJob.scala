@@ -85,11 +85,11 @@ object TraceJob {
     )
 
     object anchor {
-      val warn: Json => F[Unit] = _agent.console.warn(_)
-      val done: Json => F[Unit] = _agent.console.done(_)
-      val info: Json => F[Unit] = _agent.console.info(_)
-      val debug: Json => F[Unit] = _agent.console.debug(_)
-      val void: Json => F[Unit] = _agent.console.void(_)
+      val warn: Json => F[Unit] = _agent.log.warn(_)
+      val done: Json => F[Unit] = _agent.log.done(_)
+      val info: Json => F[Unit] = _agent.log.info(_)
+      val debug: Json => F[Unit] = _agent.log.debug(_)
+      val void: Json => F[Unit] = _agent.log.void(_)
     }
 
     def routeKickoff(f: anchor.type => Json => F[Unit]): ByAgent[F] =
@@ -139,7 +139,7 @@ object TraceJob {
       _kickoff = agent.herald.info(_),
       _failure = agent.herald.warn(_),
       _success = agent.herald.done(_),
-      _canceled = agent.console.warn(_),
+      _canceled = agent.log.warn(_),
       _errored = (jre: JobResultError) => agent.herald.error(jre.error)(jre.resultState)
     )
 

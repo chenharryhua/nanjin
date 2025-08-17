@@ -27,7 +27,7 @@ object SimpleTextTranslator {
   private def service_started(evt: ServiceStart): String = {
     val idx = s"$CONSTANT_INDEX:${evt.tick.index}"
     val snz = s"$CONSTANT_SNOOZED:${textHelper.tookText(evt.tick.snooze)}"
-    s"""|${textHelper.eventTitle(evt)}
+    s"""|
         |  ${service_event(evt)}
         |  $idx, $snz
         |${evt.serviceParams.asJson.spaces2}
@@ -37,7 +37,7 @@ object SimpleTextTranslator {
   private def service_panic(evt: ServicePanic): String = {
     val idx = s"$CONSTANT_INDEX:${evt.tick.index}"
     val act = s"$CONSTANT_ACTIVE:${textHelper.tookText(evt.tick.active)}"
-    show"""|${textHelper.eventTitle(evt)}
+    show"""|
            |  ${service_event(evt)}
            |  $CONSTANT_POLICY:${evt.serviceParams.servicePolicies.restart}
            |  ${textHelper.panicText(evt)}
@@ -53,7 +53,7 @@ object SimpleTextTranslator {
       case ServiceStopCause.ByException(error) => error.stack.mkString("\n\t")
       case ServiceStopCause.Maintenance        => "Maintenance"
     }
-    show"""|${textHelper.eventTitle(evt)}
+    show"""|
            |  ${service_event(evt)}
            |  $CONSTANT_POLICY:${evt.serviceParams.servicePolicies.restart}
            |  $CONSTANT_CAUSE:${stopCause(evt.cause)}
@@ -65,7 +65,7 @@ object SimpleTextTranslator {
     val took = s"$CONSTANT_TOOK:${textHelper.tookText(evt.took)}"
     val index = s"$CONSTANT_INDEX:${textHelper.metricIndexText(evt.index)}"
 
-    s"""|${textHelper.eventTitle(evt)}
+    s"""|
         |  ${service_event(evt)}
         |  $index, $policy, $took
         |${textHelper.yamlMetrics(evt.snapshot)}
@@ -77,7 +77,7 @@ object SimpleTextTranslator {
     val took = s"$CONSTANT_TOOK:${textHelper.tookText(evt.took)}"
     val index = s"$CONSTANT_INDEX:${textHelper.metricIndexText(evt.index)}"
 
-    s"""|${textHelper.eventTitle(evt)}
+    s"""|
         |  ${service_event(evt)}
         |  $index, $policy, $took
         |${textHelper.yamlMetrics(evt.snapshot)}
@@ -87,7 +87,7 @@ object SimpleTextTranslator {
   private def service_message(evt: ServiceMessage): String = {
     val level = s"$CONSTANT_ALARM_LEVEL:${evt.level.entryName}"
     val token = s"$CONSTANT_MESSAGE_TOKEN:${evt.token}"
-    s"""|${textHelper.eventTitle(evt)}
+    s"""|
         |  ${service_event(evt)}
         |  $level, $token
         |${evt.message.spaces2}

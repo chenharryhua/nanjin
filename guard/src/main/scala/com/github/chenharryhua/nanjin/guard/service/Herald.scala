@@ -24,11 +24,13 @@ sealed trait Herald[F[_]] {
 abstract private class HeraldImpl[F[_]: Sync](
   serviceParams: ServiceParams,
   channel: Channel[F, Event],
+  eventLogger: EventLogger[F],
   errorHistory: AtomicCell[F, CircularFifoQueue[ServiceMessage]]
 ) extends Herald[F] {
 
   private def alarm[S: Encoder](msg: S, level: AlarmLevel, error: Option[Error]): F[Unit] =
-    toServiceMessage(serviceParams, msg, level, error).flatMap(channel.send).void
+    toServiceMessage(serviceParams, msg, level, error).flatMap(m =>
+      channel.send(m) *> eventLogger.service_message(m))
 
   override def warn[S: Encoder](msg: S): F[Unit] = alarm(msg, AlarmLevel.Warn, None)
   override def info[S: Encoder](msg: S): F[Unit] = alarm(msg, AlarmLevel.Info, None)
@@ -42,6 +44,7 @@ abstract private class HeraldImpl[F[_]: Sync](
       msg <- toServiceMessage(serviceParams, msg, AlarmLevel.Error, None)
       _ <- errorHistory.modify(queue => (queue, queue.add(msg)))
       _ <- channel.send(msg)
+      _ <- eventLogger.service_message(msg)
     } yield ()
 
   override def error[S: Encoder](ex: Throwable)(msg: S): F[Unit] =
@@ -54,5 +57,6 @@ abstract private class HeraldImpl[F[_]: Sync](
       )
       _ <- errorHistory.modify(queue => (queue, queue.add(msg)))
       _ <- channel.send(msg)
+      _ <- eventLogger.service_message(msg)
     } yield ()
 }

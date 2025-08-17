@@ -7,7 +7,7 @@ import com.github.chenharryhua.nanjin.common.chrono.Policy.*
 import com.github.chenharryhua.nanjin.common.chrono.zones.berlinTime
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.config.AlarmLevel
-import com.github.chenharryhua.nanjin.guard.translator.*
+import com.github.chenharryhua.nanjin.guard.event.EventName
 import io.circe.Json
 import org.scalatest.funsuite.AnyFunSuite
 

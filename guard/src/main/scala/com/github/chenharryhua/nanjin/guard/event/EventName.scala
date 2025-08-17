@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.guard.translator
+package com.github.chenharryhua.nanjin.guard.event
 
 import enumeratum.{CatsEnum, Enum, EnumEntry}
 import io.circe.Json
