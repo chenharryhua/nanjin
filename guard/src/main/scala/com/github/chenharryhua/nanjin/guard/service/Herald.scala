@@ -49,12 +49,7 @@ abstract private class HeraldImpl[F[_]: Sync](
 
   override def error[S: Encoder](ex: Throwable)(msg: S): F[Unit] =
     for {
-      msg <- toServiceMessage(
-        serviceParams,
-        msg,
-        AlarmLevel.Error,
-        Error(ex).some
-      )
+      msg <- toServiceMessage(serviceParams, msg, AlarmLevel.Error, Error(ex).some)
       _ <- errorHistory.modify(queue => (queue, queue.add(msg)))
       _ <- channel.send(msg)
       _ <- eventLogger.service_message(msg)

@@ -12,7 +12,7 @@ import scala.concurrent.duration.{DurationDouble, DurationInt}
 
 class LightBatchTest extends AnyFunSuite {
   private val service: ServiceGuard[IO] =
-    TaskGuard[IO]("light-batch").service("light-batch").updateConfig(_.withAlarmLevel(_.Debug))
+    TaskGuard[IO]("light-batch").service("light-batch")
 
   test("1.quasi.sequential") {
     val se = service.eventStream { ga =>

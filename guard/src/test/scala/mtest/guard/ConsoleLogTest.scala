@@ -8,6 +8,7 @@ import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.{eventFilters, Event}
 import io.circe.Json
 import org.scalatest.funsuite.AnyFunSuite
+import org.typelevel.log4cats.slf4j.Slf4jLogger
 import squants.Each
 import squants.information.Bytes
 
@@ -51,5 +52,14 @@ class ConsoleLogTest extends AnyFunSuite {
     val mr = service.map(checkJson).mapFilter(eventFilters.metricReport).compile.lastOrError.unsafeRunSync()
     val tags = mr.snapshot.metricIDs.sortBy(_.metricName.age).map(_.metricName.name.toInt)
     assert(tags == List(7, 6, 5, 4, 3, 2, 1))
+  }
+
+  test("4. slf4j") {
+    val logger = Slf4jLogger.getLoggerFromName[IO]("abc")
+    logger.isInfoEnabled.flatMap(IO.println).unsafeRunSync()
+    logger.isDebugEnabled.flatMap(IO.println).unsafeRunSync()
+    logger.isWarnEnabled.flatMap(IO.println).unsafeRunSync()
+    logger.isErrorEnabled.flatMap(IO.println).unsafeRunSync()
+    logger.isTraceEnabled.flatMap(IO.println).unsafeRunSync()
   }
 }
