@@ -2,7 +2,13 @@ package com.github.chenharryhua.nanjin.guard
 
 import cats.effect.kernel.Unique.Token
 import cats.effect.kernel.{Clock, Sync}
-import cats.implicits.{catsSyntaxApplyOps, catsSyntaxTuple2Semigroupal, toFlatMapOps, toFunctorOps}
+import cats.implicits.{
+  catsSyntaxApplyOps,
+  catsSyntaxEq,
+  catsSyntaxTuple2Semigroupal,
+  toFlatMapOps,
+  toFunctorOps
+}
 import cats.{Applicative, Hash, Monad}
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.common.chrono.Tick
@@ -57,7 +63,7 @@ package object service {
       _ <- index match {
         case MetricIndex.Adhoc(_)       => eventLogger.metric_report(mr)
         case MetricIndex.Periodic(tick) =>
-          if (tick.index % serviceParams.servicePolicies.metricReport.logRatio == 0)
+          if (tick.index % serviceParams.servicePolicies.metricReport.logRatio === 0)
             eventLogger.metric_report(mr)
           else F.unit
       }

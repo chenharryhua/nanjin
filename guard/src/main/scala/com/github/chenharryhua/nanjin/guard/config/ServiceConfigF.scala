@@ -189,9 +189,6 @@ final class ServiceConfig[F[_]: Applicative] private (
     copy(cont = Fix(WithMetricReportPolicy(policy, ratio, cont)))
   }
 
-  def withMetricReport(policy: Policy): ServiceConfig[F] =
-    withMetricReport(policy, 1)
-
   def withMetricReport(f: Policy.type => Policy): ServiceConfig[F] =
     withMetricReport(f(Policy), 1)
 
