@@ -201,17 +201,6 @@ lazy val guard = (project in file("guard"))
     buildInfoOptions += BuildInfoOption.ToJson
   )
 
-lazy val observer_logging = (project in file("observers/logging"))
-  .dependsOn(guard)
-  .settings(commonSettings *)
-  .settings(name := "nj-observer-logging")
-  .settings(
-    libraryDependencies ++=
-      List(
-        "org.typelevel" %% "log4cats-slf4j" % log4catsV,
-        "org.slf4j"                         % "slf4j-reload4j" % slf4jV % Test) ++ testLib
-  )
-
 lazy val observer_aws = (project in file("observers/aws"))
   .dependsOn(guard)
   .dependsOn(aws)
@@ -402,7 +391,6 @@ lazy val example = (project in file("example"))
   .dependsOn(database)
   .dependsOn(spark)
   .dependsOn(guard)
-  .dependsOn(observer_logging)
   .dependsOn(observer_aws)
   .dependsOn(observer_database)
   .dependsOn(observer_kafka)
@@ -430,6 +418,5 @@ lazy val nanjin =
     guard,
     observer_aws,
     observer_database,
-    observer_kafka,
-    observer_logging
+    observer_kafka
   )
