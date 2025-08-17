@@ -106,7 +106,7 @@ object TraceJob {
         _completed = { (jrv: JobResultValue[A]) =>
           val json: Json =
             Json.obj("outcome" -> f(jrv.value, jrv.resultState)).deepMerge(jrv.resultState.asJson)
-          if (jrv.resultState.done) _success(json) else _failure(json)
+          if (jrv.resultState.done) _success(Json.obj("done" -> json)) else _failure(Json.obj("fail" -> json))
         },
         _errored = (jre: JobResultError) => _errored(jre),
         _canceled = (bj: BatchJob) => _canceled(Json.obj("canceled" -> bj.asJson)),
@@ -140,7 +140,8 @@ object TraceJob {
       _failure = agent.herald.warn(_),
       _success = agent.herald.done(_),
       _canceled = agent.log.warn(_),
-      _errored = (jre: JobResultError) => agent.herald.error(jre.error)(jre.resultState)
+      _errored = (jre: JobResultError) =>
+        agent.herald.error(jre.error)(Json.obj("error" -> jre.resultState.asJson))
     )
 
   implicit def monoidTraceJob[F[_], A](implicit ev: MonadCancel[F, Throwable]): Monoid[TraceJob[F, A]] =
