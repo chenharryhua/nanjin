@@ -5,11 +5,14 @@ import cats.effect.kernel.{Clock, Sync}
 import cats.implicits.{
   catsSyntaxApplyOps,
   catsSyntaxEq,
+  catsSyntaxOptionId,
   catsSyntaxTuple2Semigroupal,
+  catsSyntaxTuple5Semigroupal,
   toFlatMapOps,
   toFunctorOps
 }
-import cats.{Applicative, Hash, Monad}
+import cats.syntax.all.none
+import cats.{Applicative, Functor, Hash, Monad, Semigroupal}
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.common.chrono.Tick
 import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, ServiceParams}
@@ -30,12 +33,25 @@ import com.github.chenharryhua.nanjin.guard.event.{
 }
 import fs2.concurrent.Channel
 import io.circe.Encoder
+import org.typelevel.log4cats.SelfAwareLogger
 
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 
 package object service {
 
-  private[service] def toServiceMessage[F[_], S: Encoder](
+  private[service] def get_alarm_level[F[_]: Functor: Semigroupal](
+    log: SelfAwareLogger[F]): F[Option[AlarmLevel]] =
+    (log.isTraceEnabled, log.isDebugEnabled, log.isInfoEnabled, log.isWarnEnabled, log.isErrorEnabled).mapN {
+      case (trace, debug, info, warn, error) =>
+        if (trace) AlarmLevel.Debug.some
+        else if (debug) AlarmLevel.Debug.some
+        else if (info) AlarmLevel.Info.some
+        else if (warn) AlarmLevel.Warn.some
+        else if (error) AlarmLevel.Error.some
+        else none[AlarmLevel]
+    }
+
+  private[service] def create_service_message[F[_], S: Encoder](
     serviceParams: ServiceParams,
     msg: S,
     level: AlarmLevel,

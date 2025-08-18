@@ -24,6 +24,9 @@ sealed trait Agent[F[_]] {
 
   def withDomain(name: String): Agent[F]
 
+  /*
+   * batch
+   */
   def batch(label: String): Batch[F]
   def lightBatch(label: String): LightBatch[F]
 
@@ -39,10 +42,14 @@ sealed trait Agent[F[_]] {
   final def tickImmediately(f: Policy.type => Policy): Stream[F, Tick] =
     tickImmediately(f(Policy))
 
-  /** metrics adhoc report/reset
-    */
+  /*
+   * metrics adhoc report/reset
+   */
   val adhoc: AdhocMetrics[F]
 
+  /*
+   * Service Message
+   */
   val herald: Herald[F]
   val log: Log[F]
 
@@ -112,5 +119,5 @@ final private class GeneralAgent[F[_]: Async](
   override object adhoc extends AdhocMetricsImpl[F](channel, eventLogger, serviceParams, metricRegistry)
 
   override object herald extends HeraldImpl[F](serviceParams, channel, eventLogger, errorHistory)
-  override object log extends LogImpl[F](serviceParams, eventLogger, alarmLevel)
+  override object log extends LogImpl[F](serviceParams, eventLogger)
 }

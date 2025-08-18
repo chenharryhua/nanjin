@@ -71,13 +71,7 @@ class BatchTest extends AnyFunSuite {
           "f" -> IO.sleep(4.seconds)
         )
         .withJobRename(_ + ":test")
-        .quasiBatch(
-          TraceJob(ga)
-            .routeSuccess(_.void)
-            .routeKickoff(_.void)
-            .routeFailure(_.void)
-            .universal[Unit]((_, _) => Json.Null)
-        )
+        .quasiBatch(TraceJob(ga).universal[Unit]((_, _) => Json.Null))
         .map { qr =>
           assert(qr.jobs.head.done)
           assert(qr.jobs(1).done)

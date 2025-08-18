@@ -85,11 +85,9 @@ private object SimpleTextTranslator {
   }
 
   private def service_message(evt: ServiceMessage): String = {
-    val level = s"$CONSTANT_ALARM_LEVEL:${evt.level.entryName}"
     val token = s"$CONSTANT_MESSAGE_TOKEN:${evt.token}"
     s"""|
-        |  ${service_event(evt)}
-        |  $level, $token
+        |  ${service_event(evt)}, $token
         |${evt.message.spaces2}
         |${evt.error.fold("")(error_str)}
         |""".stripMargin

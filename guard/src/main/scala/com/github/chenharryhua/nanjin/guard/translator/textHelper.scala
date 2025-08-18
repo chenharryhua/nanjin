@@ -1,6 +1,5 @@
 package com.github.chenharryhua.nanjin.guard.translator
 
-import cats.Eval
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.event.Event.ServicePanic
@@ -56,12 +55,4 @@ object textHelper extends localtime with localdatetime {
     val (time, dur) = localTime_duration(evt.timestamp, evt.tick.zonedWakeup)
     s"Restart was scheduled at $time, in $dur."
   }
-
-  def consoleColor(colorScheme: ColorScheme): Eval[String] =
-    colorScheme match {
-      case ColorScheme.GoodColor  => Eval.now(Console.GREEN + "SUCCESS" + Console.RESET)
-      case ColorScheme.InfoColor  => Eval.now(Console.CYAN + "INFO" + Console.RESET)
-      case ColorScheme.WarnColor  => Eval.now(Console.YELLOW + "WARN" + Console.RESET)
-      case ColorScheme.ErrorColor => Eval.now(Console.RED + "ERROR" + Console.RESET)
-    }
 }

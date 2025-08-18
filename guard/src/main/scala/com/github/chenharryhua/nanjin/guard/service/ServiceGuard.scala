@@ -19,7 +19,6 @@ import fs2.io.net.Network
 import io.circe.syntax.*
 import org.apache.commons.collections4.queue.CircularFifoQueue
 import org.http4s.ember.server.EmberServerBuilder
-import org.typelevel.log4cats.SelfAwareLogger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 final class ServiceGuard[F[_]: Network: Async: Console] private[guard] (
@@ -45,17 +44,6 @@ final class ServiceGuard[F[_]: Network: Async: Console] private[guard] (
     zerothTick = zeroth
   )
 
-  private def initAlarmLevel(log: SelfAwareLogger[F]): F[Option[AlarmLevel]] =
-    (log.isTraceEnabled, log.isDebugEnabled, log.isInfoEnabled, log.isWarnEnabled, log.isErrorEnabled).mapN {
-      case (trace, debug, info, warn, error) =>
-        if (trace) AlarmLevel.Debug.some
-        else if (debug) AlarmLevel.Debug.some
-        else if (info) AlarmLevel.Info.some
-        else if (warn) AlarmLevel.Warn.some
-        else if (error) AlarmLevel.Error.some
-        else none[AlarmLevel]
-    }
-
   def eventStream(runAgent: Agent[F] => F[Unit]): Stream[F, Event] =
     for {
       serviceParams <- Stream.eval(initStatus)
@@ -67,17 +55,22 @@ final class ServiceGuard[F[_]: Network: Async: Console] private[guard] (
       errorHistory <- Stream.eval(
         AtomicCell[F].of(new CircularFifoQueue[ServiceMessage](serviceParams.historyCapacity.error)))
       logger <- Stream.eval(Slf4jLogger.fromName[F](serviceName.value))
-      alarmLevel <- Stream.eval(initAlarmLevel(logger).flatMap(Ref.of[F, Option[AlarmLevel]]))
+      alarmLevel <- Stream.eval(Ref.of[F, Option[AlarmLevel]](AlarmLevel.Info.some))
       event <- Stream.eval(Channel.unbounded[F, Event]).flatMap { channel =>
         val metricRegistry: MetricRegistry = new MetricRegistry()
         val eventLogger: EventLogger[F] = serviceParams.logFormat match {
           case LogFormat.Console =>
-            new EventLogger[F](SimpleTextTranslator[F], new ConsoleLogger[F](serviceParams.zoneId))
-          case LogFormat.PlainText    => new EventLogger[F](SimpleTextTranslator[F], logger)
-          case LogFormat.JsonNoSpaces => new EventLogger[F](PrettyJsonTranslator[F].map(_.noSpaces), logger)
-          case LogFormat.JsonSpaces2  => new EventLogger[F](PrettyJsonTranslator[F].map(_.spaces2), logger)
-          case LogFormat.JsonVerbose  =>
-            new EventLogger[F](Translator.idTranslator.map(_.asJson.spaces2), logger)
+            new EventLogger[F](
+              SimpleTextTranslator[F],
+              new ConsoleLogger[F](serviceParams.zoneId),
+              alarmLevel)
+          case LogFormat.PlainText    => new EventLogger[F](SimpleTextTranslator[F], logger, alarmLevel)
+          case LogFormat.JsonNoSpaces =>
+            new EventLogger[F](PrettyJsonTranslator[F].map(_.noSpaces), logger, alarmLevel)
+          case LogFormat.JsonSpaces2 =>
+            new EventLogger[F](PrettyJsonTranslator[F].map(_.spaces2), logger, alarmLevel)
+          case LogFormat.JsonVerbose =>
+            new EventLogger[F](Translator.idTranslator.map(_.asJson.spaces2), logger, alarmLevel)
         }
 
         val metrics_report: Stream[F, Nothing] =
