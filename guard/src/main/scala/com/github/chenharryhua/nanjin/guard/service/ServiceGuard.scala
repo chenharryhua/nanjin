@@ -59,12 +59,18 @@ final class ServiceGuard[F[_]: Network: Async: Console] private[guard] (
       event <- Stream.eval(Channel.unbounded[F, Event]).flatMap { channel =>
         val metricRegistry: MetricRegistry = new MetricRegistry()
         val eventLogger: EventLogger[F] = serviceParams.logFormat match {
-          case LogFormat.Console =>
+          case LogFormat.Console_PlainText =>
             new EventLogger[F](
               SimpleTextTranslator[F],
               new ConsoleLogger[F](serviceParams.zoneId),
               alarmLevel)
-          case LogFormat.PlainText    => new EventLogger[F](SimpleTextTranslator[F], logger, alarmLevel)
+          case LogFormat.Console_JsonNoSpaces =>
+            new EventLogger[F](
+              PrettyJsonTranslator[F].map(_.noSpaces),
+              new ConsoleLogger[F](serviceParams.zoneId),
+              alarmLevel)
+          case LogFormat.PlainText =>
+            new EventLogger[F](SimpleTextTranslator[F], logger, alarmLevel)
           case LogFormat.JsonNoSpaces =>
             new EventLogger[F](PrettyJsonTranslator[F].map(_.noSpaces), logger, alarmLevel)
           case LogFormat.JsonSpaces2 =>

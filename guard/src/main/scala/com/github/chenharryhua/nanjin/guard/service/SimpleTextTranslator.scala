@@ -4,7 +4,6 @@ import cats.Applicative
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.event.{Error, Event, ServiceStopCause}
 import com.github.chenharryhua.nanjin.guard.translator.{textConstants, textHelper, Translator}
-import io.circe.syntax.EncoderOps
 
 private object SimpleTextTranslator {
   import Event.*
@@ -30,7 +29,7 @@ private object SimpleTextTranslator {
     s"""|
         |  ${service_event(evt)}
         |  $idx, $snz
-        |${evt.serviceParams.asJson.spaces2}
+        |${interpret_service_params(evt.serviceParams).spaces2}
         |""".stripMargin
   }
 
@@ -39,7 +38,7 @@ private object SimpleTextTranslator {
     val act = s"$CONSTANT_ACTIVE:${textHelper.tookText(evt.tick.active)}"
     show"""|
            |  ${service_event(evt)}
-           |  $CONSTANT_POLICY:${evt.serviceParams.servicePolicies.restart}
+           |  $CONSTANT_POLICY:${evt.serviceParams.servicePolicies.restart.policy}
            |  ${textHelper.panicText(evt)}
            |  $idx, $act
            |  ${error_str(evt.error)}
@@ -55,7 +54,7 @@ private object SimpleTextTranslator {
     }
     show"""|
            |  ${service_event(evt)}
-           |  $CONSTANT_POLICY:${evt.serviceParams.servicePolicies.restart}
+           |  $CONSTANT_POLICY:${evt.serviceParams.servicePolicies.restart.policy}
            |  $CONSTANT_CAUSE:${stopCause(evt.cause)}
            |""".stripMargin
   }

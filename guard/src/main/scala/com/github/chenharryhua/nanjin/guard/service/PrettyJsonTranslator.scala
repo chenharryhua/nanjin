@@ -26,7 +26,7 @@ private object PrettyJsonTranslator {
   // events handlers
   private def service_started(evt: ServiceStart): Json =
     Json.obj(
-      jsonHelper.service_params(evt.serviceParams),
+      "params" -> interpret_service_params(evt.serviceParams),
       uptime(evt),
       jsonHelper.index(evt.tick),
       "snoozed" -> Json.fromString(durationFormatter.format(evt.tick.snooze))
@@ -40,23 +40,21 @@ private object PrettyJsonTranslator {
       jsonHelper.index(evt.tick),
       active(evt.tick),
       "snooze" -> Json.fromString(durationFormatter.format(evt.tick.snooze)),
-      jsonHelper.policy(evt.serviceParams.servicePolicies.restart),
+      jsonHelper.policy(evt.serviceParams.servicePolicies.restart.policy),
       jsonHelper.stack(evt.error)
     )
 
   private def service_stopped(evt: ServiceStop): Json =
-
     Json.obj(
       jsonHelper.service_name(evt.serviceParams),
       jsonHelper.service_id(evt.serviceParams),
       uptime(evt),
-      jsonHelper.policy(evt.serviceParams.servicePolicies.restart),
+      jsonHelper.policy(evt.serviceParams.servicePolicies.restart.policy),
       jsonHelper.exit_code(evt.cause),
       jsonHelper.exit_cause(evt.cause)
     )
 
   private def metric_report(evt: MetricReport): Json =
-
     Json.obj(
       jsonHelper.metric_index(evt.index),
       jsonHelper.service_name(evt.serviceParams),

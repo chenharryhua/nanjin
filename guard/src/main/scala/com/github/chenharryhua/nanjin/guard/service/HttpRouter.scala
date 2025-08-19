@@ -222,7 +222,7 @@ final private class HttpRouter[F[_]](
               "service_id" -> Json.fromString(serviceParams.serviceId.show),
               "is_active" -> Json.fromBoolean(isActive),
               "present" -> now.toLocalTime.truncatedTo(ChronoUnit.SECONDS).asJson,
-              "restart_policy" -> serviceParams.servicePolicies.restart.show.asJson,
+              "restart_policy" -> serviceParams.servicePolicies.restart.policy.show.asJson,
               "zone_id" -> serviceParams.zoneId.asJson,
               "up_time" -> durationFormatter.format(serviceParams.upTime(now)).asJson,
               "panics" -> panics.size.asJson,

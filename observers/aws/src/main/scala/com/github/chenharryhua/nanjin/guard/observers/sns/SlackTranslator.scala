@@ -94,7 +94,7 @@ private object SlackTranslator extends all {
             HeaderSection(s":rocket: ${eventTitle(evt)}"),
             host_service_section(evt.serviceParams),
             index_section,
-            MarkdownSection(show"""|*$CONSTANT_POLICY:* ${evt.serviceParams.servicePolicies.restart}
+            MarkdownSection(show"""|*$CONSTANT_POLICY:* ${evt.serviceParams.servicePolicies.restart.policy}
                                    |*$CONSTANT_SERVICE_ID:* ${evt.serviceParams.serviceId}""".stripMargin)
           )
         ),
@@ -119,7 +119,7 @@ private object SlackTranslator extends all {
             ),
             MarkdownSection(show"""|${panicText(evt)}
                                    |*$CONSTANT_UPTIME:* ${uptimeText(evt)}
-                                   |*$CONSTANT_POLICY:* ${evt.serviceParams.servicePolicies.restart}
+                                   |*$CONSTANT_POLICY:* ${evt.serviceParams.servicePolicies.restart.policy}
                                    |*$CONSTANT_SERVICE_ID:* ${evt.serviceParams.serviceId}""".stripMargin)
           )
         ),

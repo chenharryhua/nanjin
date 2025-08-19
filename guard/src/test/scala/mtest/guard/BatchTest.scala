@@ -208,7 +208,7 @@ class BatchTest extends AnyFunSuite {
           .flatMap(_ => job("e", agent.adhoc.report))
           .flatMap(_ => job("f", IO.println(6)))
           .batchValue(TraceJob(agent).standard)
-          .use(agent.herald.done(_) >> agent.adhoc.report)
+          .use(agent.herald.soleDone(_) >> agent.adhoc.report)
       }
     }.compile.drain.unsafeRunSync()
   }
@@ -265,7 +265,7 @@ class BatchTest extends AnyFunSuite {
           assert(qr.resultState.jobs(5).done)
           assert(qr.resultState.jobs(6).done)
           assert(qr.resultState.jobs.size == 7)
-          agent.adhoc.report >> agent.herald.info(qr)
+          agent.adhoc.report >> agent.herald.soleInfo(qr)
         }
     }.compile.lastOrError.unsafeRunSync()
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
@@ -277,7 +277,7 @@ class BatchTest extends AnyFunSuite {
         .batch("monadic")
         .monadic(job => job("a" -> IO(0)))
         .batchValue(TraceJob(agent).standard)
-        .use(qr => agent.adhoc.report >> agent.herald.info(qr.resultState))
+        .use(qr => agent.adhoc.report >> agent.herald.soleInfo(qr.resultState))
     }.compile.drain.unsafeRunSync()
   }
 
@@ -318,7 +318,7 @@ class BatchTest extends AnyFunSuite {
           assert(details(5).job.name === "30")
           assert(details(5).job.index === 6)
           assert(details.size == 6)
-          agent.adhoc.report >> agent.herald.info(qr)
+          agent.adhoc.report >> agent.herald.soleInfo(qr)
         }
     }.compile.lastOrError.unsafeRunSync()
 

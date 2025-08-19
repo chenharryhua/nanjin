@@ -21,9 +21,14 @@ import scala.jdk.DurationConverters.ScalaDurationOps
 
 @JsonCodec
 final case class MetricReportPolicy(policy: Policy, logRatio: Int)
+@JsonCodec
+final case class RestartPolicy(policy: Policy, threshold: Option[Duration])
 
 @JsonCodec
-final case class ServicePolicies(restart: Policy, metricReport: MetricReportPolicy, metricReset: Policy)
+final case class ServicePolicies(
+  restart: RestartPolicy,
+  metricReport: MetricReportPolicy,
+  metricReset: Policy)
 @JsonCodec
 final case class HistoryCapacity(metric: Int, panic: Int, error: Int)
 
@@ -54,7 +59,6 @@ final case class ServiceParams(
   serviceName: ServiceName,
   servicePolicies: ServicePolicies,
   emberServerParams: Option[EmberServerParams],
-  threshold: Option[Duration],
   zerothTick: Tick,
   historyCapacity: HistoryCapacity,
   logFormat: LogFormat,
@@ -89,14 +93,13 @@ object ServiceParams {
       homePage = None,
       serviceName = serviceName,
       servicePolicies = ServicePolicies(
-        restart = Policy.giveUp,
+        restart = RestartPolicy(Policy.giveUp, None),
         metricReport = MetricReportPolicy(Policy.giveUp, 1),
         metricReset = Policy.giveUp),
       emberServerParams = emberServerParams,
-      threshold = None,
       zerothTick = zerothTick,
       historyCapacity = HistoryCapacity(32, 32, 32),
-      logFormat = LogFormat.Console,
+      logFormat = LogFormat.Console_PlainText,
       nanjin = parse(BuildInfo.toJson).toOption,
       brief = brief.value
     )
@@ -109,8 +112,8 @@ private object ServiceConfigF {
 
   final case class InitParams[K](taskName: TaskName) extends ServiceConfigF[K]
 
-  final case class WithRestartThreshold[K](value: Option[Duration], cont: K) extends ServiceConfigF[K]
-  final case class WithRestartPolicy[K](value: Policy, cont: K) extends ServiceConfigF[K]
+  final case class WithRestartPolicy[K](policy: Policy, threshold: Option[Duration], cont: K)
+      extends ServiceConfigF[K]
   final case class WithMetricReportPolicy[K](policy: Policy, ratio: Int, cont: K) extends ServiceConfigF[K]
   final case class WithMetricResetPolicy[K](value: Policy, cont: K) extends ServiceConfigF[K]
 
@@ -140,8 +143,8 @@ private object ServiceConfigF {
           zerothTick = zerothTick
         )
 
-      case WithRestartThreshold(v, c)      => c.focus(_.threshold).replace(v)
-      case WithRestartPolicy(v, c)         => c.focus(_.servicePolicies.restart).replace(v)
+      case WithRestartPolicy(p, t, c) =>
+        c.focus(_.servicePolicies.restart).replace(RestartPolicy(p, t))
       case WithMetricReportPolicy(p, r, c) =>
         c.focus(_.servicePolicies.metricReport).replace(MetricReportPolicy(p, r))
       case WithMetricResetPolicy(v, c) => c.focus(_.servicePolicies.metricReset).replace(v)
@@ -174,13 +177,11 @@ final class ServiceConfig[F[_]: Applicative] private (
     briefs: F[List[Json]] = this.briefs): ServiceConfig[F] =
     new ServiceConfig[F](cont, zoneId, jmxBuilder, httpBuilder, briefs)
 
-  def withRestartThreshold(fd: FiniteDuration): ServiceConfig[F] =
-    copy(cont = Fix(WithRestartThreshold(Some(fd.toJava), cont)))
+  def withRestartPolicy(restart: Policy, threshold: FiniteDuration): ServiceConfig[F] =
+    copy(cont = Fix(WithRestartPolicy(restart, Some(threshold.toJava), cont)))
 
-  def withRestartPolicy(restart: Policy): ServiceConfig[F] =
-    copy(cont = Fix(WithRestartPolicy(restart, cont)))
   def withRestartPolicy(f: Policy.type => Policy): ServiceConfig[F] =
-    withRestartPolicy(f(Policy))
+    copy(cont = Fix(WithRestartPolicy(f(Policy), None, cont)))
 
   def withMetricReport(policy: Policy, ratio: Int): ServiceConfig[F] = {
     require(ratio > 0, s"ratio($ratio) should be bigger than zero")

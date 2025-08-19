@@ -22,14 +22,14 @@ import scala.concurrent.duration.DurationInt
 class AwsObserverTest extends AnyFunSuite {
   private val service: fs2.Stream[IO, Event] = TaskGuard[IO]("aws")
     .service("test")
-    .updateConfig(_.addBrief("brief").withRestartPolicy(Policy.fixedDelay(1.second).limited(1)))
+    .updateConfig(_.addBrief("brief").withRestartPolicy(_.fixedDelay(1.second).limited(1)))
     .eventStream { agent =>
       agent
         .facilitate("metrics")(_.meter(Bytes)("meter"))
         .use(
           _.run(10.bytes) >>
-            agent.herald.done("good") >>
-            agent.herald.error(new Exception("oops oops oops oops oops oops oops oops"))("my error") >>
+            agent.herald.soleDone("good") >>
+            agent.herald.soleError(new Exception("oops oops oops oops oops oops oops oops"))("my error") >>
             agent.adhoc.report) >> IO.raiseError(new Exception)
     }
 

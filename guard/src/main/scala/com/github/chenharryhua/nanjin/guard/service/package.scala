@@ -9,7 +9,8 @@ import cats.implicits.{
   catsSyntaxTuple2Semigroupal,
   catsSyntaxTuple5Semigroupal,
   toFlatMapOps,
-  toFunctorOps
+  toFunctorOps,
+  toShow
 }
 import cats.syntax.all.none
 import cats.{Applicative, Functor, Hash, Monad, Semigroupal}
@@ -31,8 +32,10 @@ import com.github.chenharryhua.nanjin.guard.event.{
   MetricSnapshot,
   ServiceStopCause
 }
+import com.github.chenharryhua.nanjin.guard.translator.durationFormatter
 import fs2.concurrent.Channel
-import io.circe.Encoder
+import io.circe.syntax.EncoderOps
+import io.circe.{Encoder, Json}
 import org.typelevel.log4cats.SelfAwareLogger
 
 import scala.jdk.CollectionConverters.CollectionHasAsScala
@@ -50,6 +53,24 @@ package object service {
         else if (error) AlarmLevel.Error.some
         else none[AlarmLevel]
     }
+
+  private[service] def interpret_service_params(sp: ServiceParams): Json =
+    Json.obj(
+      "home_page" -> sp.homePage.asJson,
+      "policies" -> Json.obj(
+        "restart" -> sp.servicePolicies.restart.policy.show.asJson,
+        "threshold" -> sp.servicePolicies.restart.threshold.map(durationFormatter.format).asJson,
+        "metric_report" -> sp.servicePolicies.metricReport.policy.show.asJson,
+        "metric_reset" -> sp.servicePolicies.metricReset.show.asJson
+      ),
+      "history_capacity" -> Json.obj(
+        "metric" -> sp.historyCapacity.metric.asJson,
+        "panic" -> sp.historyCapacity.panic.asJson,
+        "error" -> sp.historyCapacity.error.asJson
+      ),
+      "log_format" -> sp.logFormat.asJson,
+      "brief" -> sp.brief
+    )
 
   private[service] def create_service_message[F[_], S: Encoder](
     serviceParams: ServiceParams,
@@ -75,7 +96,6 @@ package object service {
     for {
       (took, snapshot) <- MetricSnapshot.timed(metricRegistry)
       mr = MetricReport(index, serviceParams, snapshot, took)
-      _ <- channel.send(mr)
       _ <- index match {
         case MetricIndex.Adhoc(_)       => eventLogger.metric_report(mr)
         case MetricIndex.Periodic(tick) =>
@@ -83,6 +103,7 @@ package object service {
             eventLogger.metric_report(mr)
           else F.unit
       }
+      _ <- channel.send(mr)
     } yield mr
 
   private[service] def metricReset[F[_]: Sync](
@@ -94,8 +115,8 @@ package object service {
     for {
       (took, snapshot) <- MetricSnapshot.timed(metricRegistry)
       ms = MetricReset(index, serviceParams, snapshot, took)
-      _ <- channel.send(ms)
       _ <- eventLogger.metric_reset(ms)
+      _ <- channel.send(ms)
     } yield metricRegistry.getCounters().values().asScala.foreach(c => c.dec(c.getCount))
 
   private[service] def serviceReStart[F[_]: Applicative](
@@ -122,8 +143,10 @@ package object service {
     eventLogger: EventLogger[F],
     serviceParams: ServiceParams,
     cause: ServiceStopCause): F[Unit] =
-    serviceParams.zonedNow.flatMap { now =>
-      val event = ServiceStop(serviceParams, now, cause)
-      eventLogger.service_stop(event) <* channel.closeWithElement(event)
-    }
+    for {
+      now <- serviceParams.zonedNow
+      event = ServiceStop(serviceParams, now, cause)
+      _ <- eventLogger.service_stop(event)
+      _ <- channel.closeWithElement(event)
+    } yield ()
 }

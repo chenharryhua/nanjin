@@ -78,7 +78,7 @@ private object HtmlTranslator extends all {
       ),
       tr(
         td(evt.tick.index),
-        td(evt.serviceParams.servicePolicies.restart.show),
+        td(evt.serviceParams.servicePolicies.restart.policy.show),
         td(tookText(evt.tick.active))
       )
     )

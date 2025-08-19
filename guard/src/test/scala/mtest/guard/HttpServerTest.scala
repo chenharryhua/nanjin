@@ -7,6 +7,8 @@ import com.comcast.ip4s.IpLiteralSyntax
 import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.common.chrono.zones.londonTime
 import com.github.chenharryhua.nanjin.guard.TaskGuard
+import com.github.chenharryhua.nanjin.guard.event.Event.{ServiceStart, ServiceStop}
+import com.github.chenharryhua.nanjin.guard.event.ServiceStopCause.Maintenance
 import io.circe.{jawn, Json}
 import org.http4s.ember.client.EmberClientBuilder
 import org.scalatest.funsuite.AnyFunSuite
@@ -18,7 +20,7 @@ class HttpServerTest extends AnyFunSuite {
   val guard: TaskGuard[IO] = TaskGuard[IO]("http").updateConfig(
     _.withHomePage("https://abc.com/efg")
       .withZoneId(londonTime)
-      .withRestartPolicy(Policy.fixedDelay(1.seconds)))
+      .withRestartPolicy(Policy.fixedDelay(1.seconds),1.hour))
 
   test("1.stop service") {
     val client = EmberClientBuilder
@@ -40,11 +42,13 @@ class HttpServerTest extends AnyFunSuite {
       }
       .delayBy(5.seconds)
 
-    val res =
+    val run =
       guard
         .service("http stop")
         .updateConfig(
-          _.withMetricReport(Policy.crontab(_.secondly), 1).withHttpServer(_.withPort(port"9999")))
+          _.withMetricReport(Policy.crontab(_.secondly), 1)
+            .withHttpServer(_.withPort(port"9999"))
+            .withLogFormat(_.JsonNoSpaces))
         .eventStream { agent =>
           agent
             .facilitate("test") { ag =>
@@ -60,10 +64,10 @@ class HttpServerTest extends AnyFunSuite {
         .map(checkJson)
         .compile
         .toList <& client
-    res.unsafeRunSync()
+    val res = run.unsafeRunSync()
+    assert(res.head.isInstanceOf[ServiceStart])
+    assert(res.last.asInstanceOf[ServiceStop].cause === Maintenance)
   }
-
-  test("2.service panic") {}
 
   test("3.panic history") {
     val client = EmberClientBuilder
@@ -89,13 +93,11 @@ class HttpServerTest extends AnyFunSuite {
 
     val res = TaskGuard[IO]("panic")
       .service("history")
-      .updateConfig(_.withRestartPolicy(Policy.fixedDelay(1.second)).withHttpServer(_.withPort(port"9997")))
+      .updateConfig(_.withRestartPolicy(_.fixedDelay(1.second)).withHttpServer(_.withPort(port"9997")))
       .eventStream(_ => IO.raiseError(new Exception))
       .map(checkJson)
       .compile
       .drain &> client
     res.unsafeRunSync()
   }
-
-  test("4.monitor") {}
 }
