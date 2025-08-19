@@ -16,7 +16,7 @@ import scala.concurrent.duration.DurationInt
 
 class EventFilterTest extends AnyFunSuite {
   private val service: ServiceGuard[IO] =
-    TaskGuard[IO]("event.filters").service("filters").updateConfig(_.withLogFormat(_.JsonNoSpaces))
+    TaskGuard[IO]("event.filters").service("filters").updateConfig(_.withLogFormat(_.Slf4j_JsonNoSpaces))
 
   test("1.sampling - FiniteDuration") {
     val List(a, b, c, d) = service

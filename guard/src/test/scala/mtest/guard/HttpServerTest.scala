@@ -20,7 +20,7 @@ class HttpServerTest extends AnyFunSuite {
   val guard: TaskGuard[IO] = TaskGuard[IO]("http").updateConfig(
     _.withHomePage("https://abc.com/efg")
       .withZoneId(londonTime)
-      .withRestartPolicy(Policy.fixedDelay(1.seconds),1.hour))
+      .withRestartPolicy(Policy.fixedDelay(1.seconds), 1.hour))
 
   test("1.stop service") {
     val client = EmberClientBuilder
@@ -48,7 +48,7 @@ class HttpServerTest extends AnyFunSuite {
         .updateConfig(
           _.withMetricReport(Policy.crontab(_.secondly), 1)
             .withHttpServer(_.withPort(port"9999"))
-            .withLogFormat(_.JsonNoSpaces))
+            .withLogFormat(_.Slf4j_JsonNoSpaces))
         .eventStream { agent =>
           agent
             .facilitate("test") { ag =>

@@ -21,7 +21,7 @@ class BatchTest extends AnyFunSuite {
   private val service: ServiceGuard[IO] =
     TaskGuard[IO]("quasi")
       .service("quasi")
-      .updateConfig(_.withMetricReport(Policy.crontab(_.secondly), 1).withLogFormat(_.JsonNoSpaces))
+      .updateConfig(_.withMetricReport(Policy.crontab(_.secondly), 1).withLogFormat(_.Slf4j_JsonNoSpaces))
 
   test("1.quasi.sequential") {
     val se = service.eventStream { ga =>

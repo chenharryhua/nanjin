@@ -24,7 +24,7 @@ class ServiceTest extends AnyFunSuite {
     _.withHomePage("https://abc.com/efg")
       .withZoneId(londonTime)
       .withRestartPolicy(_.fixedDelay(1.seconds))
-      .withLogFormat(_.JsonNoSpaces)
+      .withLogFormat(_.Slf4j_JsonNoSpaces)
       .addBrief(Json.fromString("test")))
 
   val policy: Policy = Policy.fixedDelay(0.1.seconds).limited(3)

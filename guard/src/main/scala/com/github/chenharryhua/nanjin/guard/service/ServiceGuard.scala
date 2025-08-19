@@ -69,13 +69,13 @@ final class ServiceGuard[F[_]: Network: Async: Console] private[guard] (
               PrettyJsonTranslator[F].map(_.noSpaces),
               new ConsoleLogger[F](serviceParams.zoneId),
               alarmLevel)
-          case LogFormat.PlainText =>
+          case LogFormat.Slf4j_PlainText =>
             new EventLogger[F](SimpleTextTranslator[F], logger, alarmLevel)
-          case LogFormat.JsonNoSpaces =>
+          case LogFormat.Slf4j_JsonNoSpaces =>
             new EventLogger[F](PrettyJsonTranslator[F].map(_.noSpaces), logger, alarmLevel)
-          case LogFormat.JsonSpaces2 =>
+          case LogFormat.Slf4j_JsonSpaces2 =>
             new EventLogger[F](PrettyJsonTranslator[F].map(_.spaces2), logger, alarmLevel)
-          case LogFormat.JsonVerbose =>
+          case LogFormat.Slf4j_JsonVerbose =>
             new EventLogger[F](Translator.idTranslator.map(_.asJson.spaces2), logger, alarmLevel)
         }
 
