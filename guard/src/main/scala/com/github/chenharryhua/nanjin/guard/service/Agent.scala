@@ -118,6 +118,6 @@ final private class GeneralAgent[F[_]: Async](
 
   override object adhoc extends AdhocMetricsImpl[F](channel, eventLogger, serviceParams, metricRegistry)
 
-  override object herald extends HeraldImpl[F](serviceParams, channel, eventLogger, errorHistory)
-  override object log extends LogImpl[F](serviceParams, eventLogger)
+  override object herald extends HeraldImpl[F](channel, eventLogger, errorHistory)
+  override val log: Log[F] = eventLogger
 }
