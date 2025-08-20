@@ -70,7 +70,7 @@ private object SlackTranslator extends all {
     abbreviate(err.stack.mkString("\n\t"))
 
 // events
-  private def service_started(evt: ServiceStart): SlackApp = {
+  private def service_start(evt: ServiceStart): SlackApp = {
     val index_section = if (evt.tick.index == 0) {
       JuxtaposeSection(
         first = TextField(CONSTANT_TIMEZONE, evt.serviceParams.zoneId.show),
@@ -94,7 +94,7 @@ private object SlackTranslator extends all {
             HeaderSection(s":rocket: ${eventTitle(evt)}"),
             host_service_section(evt.serviceParams),
             index_section,
-            MarkdownSection(show"""|*$CONSTANT_POLICY:* ${evt.serviceParams.servicePolicies.restart}
+            MarkdownSection(show"""|*$CONSTANT_POLICY:* ${evt.serviceParams.servicePolicies.restart.policy}
                                    |*$CONSTANT_SERVICE_ID:* ${evt.serviceParams.serviceId}""".stripMargin)
           )
         ),
@@ -119,7 +119,7 @@ private object SlackTranslator extends all {
             ),
             MarkdownSection(show"""|${panicText(evt)}
                                    |*$CONSTANT_UPTIME:* ${uptimeText(evt)}
-                                   |*$CONSTANT_POLICY:* ${evt.serviceParams.servicePolicies.restart}
+                                   |*$CONSTANT_POLICY:* ${evt.serviceParams.servicePolicies.restart.policy}
                                    |*$CONSTANT_SERVICE_ID:* ${evt.serviceParams.serviceId}""".stripMargin)
           )
         ),
@@ -131,7 +131,7 @@ private object SlackTranslator extends all {
     )
   }
 
-  private def service_stopped(evt: ServiceStop): SlackApp = {
+  private def service_stop(evt: ServiceStop): SlackApp = {
     def stopCause(ssc: ServiceStopCause): String = ssc match {
       case ServiceStopCause.Successfully       => "Successfully"
       case ServiceStopCause.ByCancellation     => "ByCancellation"
@@ -229,9 +229,9 @@ private object SlackTranslator extends all {
   def apply[F[_]: Applicative]: Translator[F, SlackApp] =
     Translator
       .empty[F, SlackApp]
-      .withServiceStart(service_started)
+      .withServiceStart(service_start)
       .withServicePanic(service_panic)
-      .withServiceStop(service_stopped)
+      .withServiceStop(service_stop)
       .withMetricReport(metric_report)
       .withMetricReset(metric_reset)
       .withServiceMessage(service_message)

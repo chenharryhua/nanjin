@@ -49,7 +49,7 @@ private object HtmlTranslator extends all {
 
   // events
 
-  private def service_started(evt: ServiceStart): Text.TypedTag[String] = {
+  private def service_start(evt: ServiceStart): Text.TypedTag[String] = {
     val fg = frag(
       tr(
         th(CONSTANT_INDEX),
@@ -78,7 +78,7 @@ private object HtmlTranslator extends all {
       ),
       tr(
         td(evt.tick.index),
-        td(evt.serviceParams.servicePolicies.restart.show),
+        td(evt.serviceParams.servicePolicies.restart.policy.show),
         td(tookText(evt.tick.active))
       )
     )
@@ -90,7 +90,7 @@ private object HtmlTranslator extends all {
     )
   }
 
-  private def service_stopped(evt: ServiceStop): Text.TypedTag[String] = {
+  private def service_stop(evt: ServiceStop): Text.TypedTag[String] = {
     def stopCause(ssc: ServiceStopCause): Text.TypedTag[String] = ssc match {
       case ServiceStopCause.Successfully =>
         p(b(s"$CONSTANT_CAUSE: "), "Successfully")
@@ -174,9 +174,9 @@ private object HtmlTranslator extends all {
   def apply[F[_]: Applicative]: Translator[F, Text.TypedTag[String]] =
     Translator
       .empty[F, Text.TypedTag[String]]
-      .withServiceStart(service_started)
+      .withServiceStart(service_start)
       .withServicePanic(service_panic)
-      .withServiceStop(service_stopped)
+      .withServiceStop(service_stop)
       .withMetricReport(metric_report)
       .withMetricReset(metric_reset)
       .withServiceMessage(service_message)

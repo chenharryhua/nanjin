@@ -23,11 +23,12 @@ sealed trait LogFormat extends EnumEntry
 object LogFormat extends Enum[LogFormat] with CirceEnum[LogFormat] {
   override def values: IndexedSeq[LogFormat] = findValues
 
-  case object Console extends LogFormat
-  case object PlainText extends LogFormat
-  case object JsonNoSpaces extends LogFormat
-  case object JsonSpaces2 extends LogFormat
-  case object JsonVerbose extends LogFormat
+  case object Console_PlainText extends LogFormat
+  case object Console_JsonNoSpaces extends LogFormat
+  case object Slf4j_PlainText extends LogFormat
+  case object Slf4j_JsonNoSpaces extends LogFormat
+  case object Slf4j_JsonSpaces2 extends LogFormat
+  case object Slf4j_JsonVerbose extends LogFormat
 }
 
 final case class TaskName(value: String) extends AnyVal

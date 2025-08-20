@@ -3,7 +3,6 @@ import cats.effect.kernel.Clock
 import cats.syntax.all.*
 import cats.{Applicative, Endo, Functor}
 import com.codahale.metrics.jmx.JmxReporter
-import com.github.chenharryhua.nanjin.common.HostName
 import com.github.chenharryhua.nanjin.common.chrono.{Policy, Tick}
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
@@ -21,9 +20,14 @@ import scala.jdk.DurationConverters.ScalaDurationOps
 
 @JsonCodec
 final case class MetricReportPolicy(policy: Policy, logRatio: Int)
+@JsonCodec
+final case class RestartPolicy(policy: Policy, threshold: Option[Duration])
 
 @JsonCodec
-final case class ServicePolicies(restart: Policy, metricReport: MetricReportPolicy, metricReset: Policy)
+final case class ServicePolicies(
+  restart: RestartPolicy,
+  metricReport: MetricReportPolicy,
+  metricReset: Policy)
 @JsonCodec
 final case class HistoryCapacity(metric: Int, panic: Int, error: Int)
 
@@ -54,7 +58,6 @@ final case class ServiceParams(
   serviceName: ServiceName,
   servicePolicies: ServicePolicies,
   emberServerParams: Option[EmberServerParams],
-  threshold: Option[Duration],
   zerothTick: Tick,
   historyCapacity: HistoryCapacity,
   logFormat: LogFormat,
@@ -81,22 +84,22 @@ object ServiceParams {
     serviceName: ServiceName,
     emberServerParams: Option[EmberServerParams],
     brief: ServiceBrief,
-    zerothTick: Tick
+    zerothTick: Tick,
+    hostName: HostName
   ): ServiceParams =
     ServiceParams(
       taskName = taskName,
-      hostName = HostName.local_host,
+      hostName = hostName,
       homePage = None,
       serviceName = serviceName,
       servicePolicies = ServicePolicies(
-        restart = Policy.giveUp,
+        restart = RestartPolicy(Policy.giveUp, None),
         metricReport = MetricReportPolicy(Policy.giveUp, 1),
         metricReset = Policy.giveUp),
       emberServerParams = emberServerParams,
-      threshold = None,
       zerothTick = zerothTick,
       historyCapacity = HistoryCapacity(32, 32, 32),
-      logFormat = LogFormat.Console,
+      logFormat = LogFormat.Console_PlainText,
       nanjin = parse(BuildInfo.toJson).toOption,
       brief = brief.value
     )
@@ -109,12 +112,11 @@ private object ServiceConfigF {
 
   final case class InitParams[K](taskName: TaskName) extends ServiceConfigF[K]
 
-  final case class WithRestartThreshold[K](value: Option[Duration], cont: K) extends ServiceConfigF[K]
-  final case class WithRestartPolicy[K](value: Policy, cont: K) extends ServiceConfigF[K]
+  final case class WithRestartPolicy[K](policy: Policy, threshold: Option[Duration], cont: K)
+      extends ServiceConfigF[K]
   final case class WithMetricReportPolicy[K](policy: Policy, ratio: Int, cont: K) extends ServiceConfigF[K]
   final case class WithMetricResetPolicy[K](value: Policy, cont: K) extends ServiceConfigF[K]
 
-  final case class WithHostName[K](value: HostName, cont: K) extends ServiceConfigF[K]
   final case class WithHomePage[K](value: Option[HomePage], cont: K) extends ServiceConfigF[K]
 
   final case class WithMetricCapacity[K](value: Int, cont: K) extends ServiceConfigF[K]
@@ -129,7 +131,8 @@ private object ServiceConfigF {
     serviceName: ServiceName,
     emberServerParams: Option[EmberServerParams],
     brief: ServiceBrief,
-    zerothTick: Tick): Algebra[ServiceConfigF, ServiceParams] =
+    zerothTick: Tick,
+    hostName: HostName): Algebra[ServiceConfigF, ServiceParams] =
     Algebra[ServiceConfigF, ServiceParams] {
       case InitParams(taskName) =>
         ServiceParams(
@@ -137,15 +140,15 @@ private object ServiceConfigF {
           serviceName = serviceName,
           emberServerParams = emberServerParams,
           brief = brief,
-          zerothTick = zerothTick
+          zerothTick = zerothTick,
+          hostName = hostName
         )
 
-      case WithRestartThreshold(v, c)      => c.focus(_.threshold).replace(v)
-      case WithRestartPolicy(v, c)         => c.focus(_.servicePolicies.restart).replace(v)
+      case WithRestartPolicy(p, t, c) =>
+        c.focus(_.servicePolicies.restart).replace(RestartPolicy(p, t))
       case WithMetricReportPolicy(p, r, c) =>
         c.focus(_.servicePolicies.metricReport).replace(MetricReportPolicy(p, r))
       case WithMetricResetPolicy(v, c) => c.focus(_.servicePolicies.metricReset).replace(v)
-      case WithHostName(v, c)          => c.focus(_.hostName).replace(v)
       case WithHomePage(v, c)          => c.focus(_.homePage).replace(v)
 
       case WithMetricCapacity(v, c) => c.focus(_.historyCapacity.metric).replace(v)
@@ -161,7 +164,6 @@ private object ServiceConfigF {
 final class ServiceConfig[F[_]: Applicative] private (
   cont: Fix[ServiceConfigF],
   private[guard] val zoneId: ZoneId,
-  private[guard] val alarmLevel: AlarmLevel,
   private[guard] val jmxBuilder: Option[Endo[JmxReporter.Builder]],
   private[guard] val httpBuilder: Option[Endo[EmberServerBuilder[F]]],
   private[guard] val briefs: F[List[Json]]) {
@@ -170,19 +172,16 @@ final class ServiceConfig[F[_]: Applicative] private (
   private def copy(
     cont: Fix[ServiceConfigF] = this.cont,
     zoneId: ZoneId = this.zoneId,
-    alarmLevel: AlarmLevel = this.alarmLevel,
     jmxBuilder: Option[Endo[JmxReporter.Builder]] = this.jmxBuilder,
     httpBuilder: Option[Endo[EmberServerBuilder[F]]] = this.httpBuilder,
     briefs: F[List[Json]] = this.briefs): ServiceConfig[F] =
-    new ServiceConfig[F](cont, zoneId, alarmLevel, jmxBuilder, httpBuilder, briefs)
+    new ServiceConfig[F](cont, zoneId, jmxBuilder, httpBuilder, briefs)
 
-  def withRestartThreshold(fd: FiniteDuration): ServiceConfig[F] =
-    copy(cont = Fix(WithRestartThreshold(Some(fd.toJava), cont)))
+  def withRestartPolicy(restart: Policy, threshold: FiniteDuration): ServiceConfig[F] =
+    copy(cont = Fix(WithRestartPolicy(restart, Some(threshold.toJava), cont)))
 
-  def withRestartPolicy(restart: Policy): ServiceConfig[F] =
-    copy(cont = Fix(WithRestartPolicy(restart, cont)))
   def withRestartPolicy(f: Policy.type => Policy): ServiceConfig[F] =
-    withRestartPolicy(f(Policy))
+    copy(cont = Fix(WithRestartPolicy(f(Policy), None, cont)))
 
   def withMetricReport(policy: Policy, ratio: Int): ServiceConfig[F] = {
     require(ratio > 0, s"ratio($ratio) should be bigger than zero")
@@ -199,9 +198,6 @@ final class ServiceConfig[F[_]: Applicative] private (
 
   def withMetricDailyReset: ServiceConfig[F] =
     withMetricReset(Policy.crontab(_.daily.midnight))
-
-  def withHostName(hostName: HostName): ServiceConfig[F] =
-    copy(cont = Fix(WithHostName(hostName, cont)))
 
   def withHomePage(hp: String): ServiceConfig[F] =
     copy(cont = Fix(WithHomePage(Some(HomePage(hp)), cont)))
@@ -229,11 +225,6 @@ final class ServiceConfig[F[_]: Applicative] private (
   def withErrorHistoryCapacity(value: Int): ServiceConfig[F] =
     copy(cont = Fix(WithErrorCapacity(value, cont)))
 
-  def withAlarmLevel(level: AlarmLevel): ServiceConfig[F] =
-    copy(alarmLevel = level)
-  def withAlarmLevel(f: AlarmLevel.type => AlarmLevel): ServiceConfig[F] =
-    withAlarmLevel(f(AlarmLevel))
-
   def addBrief[A: Encoder](fa: F[A]): ServiceConfig[F] = copy(briefs = (fa, briefs).mapN(_.asJson :: _))
   def addBrief[A: Encoder](a: => A): ServiceConfig[F] = addBrief(a.pure[F])
 
@@ -246,14 +237,16 @@ final class ServiceConfig[F[_]: Applicative] private (
     serviceName: ServiceName,
     emberServerParams: Option[EmberServerParams],
     brief: ServiceBrief,
-    zerothTick: Tick): ServiceParams =
+    zerothTick: Tick,
+    hostName: HostName): ServiceParams =
     scheme
       .cata(
         algebra(
           serviceName = serviceName,
           emberServerParams = emberServerParams,
           brief = brief,
-          zerothTick = zerothTick
+          zerothTick = zerothTick,
+          hostName = hostName
         ))
       .apply(cont)
 }
@@ -264,7 +257,6 @@ private[guard] object ServiceConfig {
     new ServiceConfig[F](
       cont = Fix(ServiceConfigF.InitParams[Fix[ServiceConfigF]](taskName)),
       zoneId = ZoneId.systemDefault(),
-      alarmLevel = AlarmLevel.Info,
       jmxBuilder = None,
       httpBuilder = None,
       briefs = List.empty[Json].pure[F]

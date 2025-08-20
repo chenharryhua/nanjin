@@ -4,6 +4,7 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.batch.{BatchResultState, BatchResultValue}
+import com.github.chenharryhua.nanjin.guard.config.LogFormat.Console_JsonNoSpaces
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStop
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import org.scalatest.funsuite.AnyFunSuite
@@ -12,7 +13,7 @@ import scala.concurrent.duration.{DurationDouble, DurationInt}
 
 class LightBatchTest extends AnyFunSuite {
   private val service: ServiceGuard[IO] =
-    TaskGuard[IO]("light-batch").service("light-batch").updateConfig(_.withAlarmLevel(_.Debug))
+    TaskGuard[IO]("light-batch").service("light-batch").updateConfig(_.withLogFormat(Console_JsonNoSpaces))
 
   test("1.quasi.sequential") {
     val se = service.eventStream { ga =>

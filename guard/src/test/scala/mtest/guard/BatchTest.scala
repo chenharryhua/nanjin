@@ -21,10 +21,7 @@ class BatchTest extends AnyFunSuite {
   private val service: ServiceGuard[IO] =
     TaskGuard[IO]("quasi")
       .service("quasi")
-      .updateConfig(
-        _.withMetricReport(Policy.crontab(_.secondly), 1)
-          .withAlarmLevel(_.Debug)
-          .withLogFormat(_.JsonNoSpaces))
+      .updateConfig(_.withMetricReport(Policy.crontab(_.secondly), 1).withLogFormat(_.Slf4j_JsonNoSpaces))
 
   test("1.quasi.sequential") {
     val se = service.eventStream { ga =>
@@ -74,13 +71,7 @@ class BatchTest extends AnyFunSuite {
           "f" -> IO.sleep(4.seconds)
         )
         .withJobRename(_ + ":test")
-        .quasiBatch(
-          TraceJob(ga)
-            .routeSuccess(_.void)
-            .routeKickoff(_.void)
-            .routeFailure(_.void)
-            .universal[Unit]((_, _) => Json.Null)
-        )
+        .quasiBatch(TraceJob(ga).universal[Unit]((_, _) => Json.Null))
         .map { qr =>
           assert(qr.jobs.head.done)
           assert(qr.jobs(1).done)
@@ -217,7 +208,7 @@ class BatchTest extends AnyFunSuite {
           .flatMap(_ => job("e", agent.adhoc.report))
           .flatMap(_ => job("f", IO.println(6)))
           .batchValue(TraceJob(agent).standard)
-          .use(agent.herald.done(_) >> agent.adhoc.report)
+          .use(agent.herald.soleDone(_) >> agent.adhoc.report)
       }
     }.compile.drain.unsafeRunSync()
   }
@@ -274,7 +265,7 @@ class BatchTest extends AnyFunSuite {
           assert(qr.resultState.jobs(5).done)
           assert(qr.resultState.jobs(6).done)
           assert(qr.resultState.jobs.size == 7)
-          agent.adhoc.report >> agent.herald.info(qr)
+          agent.adhoc.report >> agent.herald.soleInfo(qr)
         }
     }.compile.lastOrError.unsafeRunSync()
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
@@ -286,7 +277,7 @@ class BatchTest extends AnyFunSuite {
         .batch("monadic")
         .monadic(job => job("a" -> IO(0)))
         .batchValue(TraceJob(agent).standard)
-        .use(qr => agent.adhoc.report >> agent.herald.info(qr.resultState))
+        .use(qr => agent.adhoc.report >> agent.herald.soleInfo(qr.resultState))
     }.compile.drain.unsafeRunSync()
   }
 
@@ -327,7 +318,7 @@ class BatchTest extends AnyFunSuite {
           assert(details(5).job.name === "30")
           assert(details(5).job.index === 6)
           assert(details.size == 6)
-          agent.adhoc.report >> agent.herald.info(qr)
+          agent.adhoc.report >> agent.herald.soleInfo(qr)
         }
     }.compile.lastOrError.unsafeRunSync()
 

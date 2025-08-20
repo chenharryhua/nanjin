@@ -24,12 +24,14 @@ private object PrettyJsonTranslator {
     "active" -> Json.fromString(durationFormatter.format(tick.active))
 
   // events handlers
-  private def service_started(evt: ServiceStart): Json =
+  private def service_start(evt: ServiceStart): Json =
     Json.obj(
-      jsonHelper.service_params(evt.serviceParams),
+      jsonHelper.service_name(evt.serviceParams),
+      jsonHelper.service_id(evt.serviceParams),
       uptime(evt),
       jsonHelper.index(evt.tick),
-      "snoozed" -> Json.fromString(durationFormatter.format(evt.tick.snooze))
+      "snoozed" -> Json.fromString(durationFormatter.format(evt.tick.snooze)),
+      "params" -> interpret_service_params(evt.serviceParams)
     )
 
   private def service_panic(evt: ServicePanic): Json =
@@ -40,23 +42,21 @@ private object PrettyJsonTranslator {
       jsonHelper.index(evt.tick),
       active(evt.tick),
       "snooze" -> Json.fromString(durationFormatter.format(evt.tick.snooze)),
-      jsonHelper.policy(evt.serviceParams.servicePolicies.restart),
+      jsonHelper.policy(evt.serviceParams.servicePolicies.restart.policy),
       jsonHelper.stack(evt.error)
     )
 
-  private def service_stopped(evt: ServiceStop): Json =
-
+  private def service_stop(evt: ServiceStop): Json =
     Json.obj(
       jsonHelper.service_name(evt.serviceParams),
       jsonHelper.service_id(evt.serviceParams),
       uptime(evt),
-      jsonHelper.policy(evt.serviceParams.servicePolicies.restart),
+      jsonHelper.policy(evt.serviceParams.servicePolicies.restart.policy),
       jsonHelper.exit_code(evt.cause),
       jsonHelper.exit_cause(evt.cause)
     )
 
   private def metric_report(evt: MetricReport): Json =
-
     Json.obj(
       jsonHelper.metric_index(evt.index),
       jsonHelper.service_name(evt.serviceParams),
@@ -84,8 +84,8 @@ private object PrettyJsonTranslator {
   def apply[F[_]: Applicative]: Translator[F, Json] =
     Translator
       .empty[F, Json]
-      .withServiceStart(service_started)
-      .withServiceStop(service_stopped)
+      .withServiceStart(service_start)
+      .withServiceStop(service_stop)
       .withServicePanic(service_panic)
       .withMetricReport(metric_report)
       .withMetricReset(metric_reset)

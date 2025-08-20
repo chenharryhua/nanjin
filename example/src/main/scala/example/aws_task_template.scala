@@ -2,9 +2,8 @@ package example
 
 import cats.effect.IO
 import com.comcast.ip4s.IpLiteralSyntax
-import com.github.chenharryhua.nanjin.aws.{ec2, ecs}
-import com.github.chenharryhua.nanjin.common.HostName
-import com.github.chenharryhua.nanjin.common.chrono.Policy.*
+import com.github.chenharryhua.nanjin.aws.ecs
+import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.Event
@@ -18,16 +17,15 @@ object aws_task_template {
   val task: TaskGuard[IO] = TaskGuard[IO]("nanjin").updateConfig(
     _.withZoneId(sydneyTime)
       .withHomePage("https://github.com/chenharryhua/nanjin")
-      .withHostName(ec2.private_ip / HostName.local_host)
-      .withMetricReport(crontab(_.every15Minutes))
-      .withMetricReset(crontab(_.daily.midnight))
+      .withMetricReport(_.crontab(_.every15Minutes))
+      .withMetricReset(_.crontab(_.daily.midnight))
       .withRestartPolicy(
-        fixedDelay(3.seconds, 2.minutes, 1.hour)
+        Policy
+          .fixedDelay(3.seconds, 2.minutes, 1.hour)
           .limited(3)
-          .followedBy(fixedRate(2.hours).limited(12))
-          .followedBy(crontab(_.daily.tenAM))
-      )
-      .withRestartThreshold(5.hours)
+          .followedBy(_.fixedRate(2.hours).limited(12))
+          .followedBy(_.crontab(_.daily.tenAM)),
+        5.hours)
       .addBrief(ecs.container_metadata[IO]))
 
   private val service1: Stream[IO, Event] = task

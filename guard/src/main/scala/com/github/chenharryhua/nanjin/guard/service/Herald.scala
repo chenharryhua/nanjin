@@ -11,14 +11,23 @@ import io.circe.Encoder
 import org.apache.commons.collections4.queue.CircularFifoQueue
 
 sealed trait Herald[F[_]] {
+  def soleInfo[S: Encoder](msg: S): F[Unit]
+  def info[S: Encoder](msg: S): F[Unit]
+
+  def soleDone[S: Encoder](msg: S): F[Unit]
+  def done[S: Encoder](msg: S): F[Unit]
+
+  def soleError[S: Encoder](msg: S): F[Unit]
   def error[S: Encoder](msg: S): F[Unit]
+
+  def soleError[S: Encoder](ex: Throwable)(msg: S): F[Unit]
   def error[S: Encoder](ex: Throwable)(msg: S): F[Unit]
 
+  def soleWarn[S: Encoder](msg: S): F[Unit]
   def warn[S: Encoder](msg: S): F[Unit]
-  def warn[S: Encoder](ex: Throwable)(msg: S): F[Unit]
 
-  def done[S: Encoder](msg: S): F[Unit]
-  def info[S: Encoder](msg: S): F[Unit]
+  def soleWarn[S: Encoder](ex: Throwable)(msg: S): F[Unit]
+  def warn[S: Encoder](ex: Throwable)(msg: S): F[Unit]
 }
 
 abstract private class HeraldImpl[F[_]: Sync](
@@ -29,34 +38,49 @@ abstract private class HeraldImpl[F[_]: Sync](
 ) extends Herald[F] {
 
   private def alarm[S: Encoder](msg: S, level: AlarmLevel, error: Option[Error]): F[Unit] =
-    toServiceMessage(serviceParams, msg, level, error).flatMap(m =>
-      channel.send(m) *> eventLogger.service_message(m))
+    create_service_message(serviceParams, msg, level, error).flatMap(m => channel.send(m)).void
 
-  override def warn[S: Encoder](msg: S): F[Unit] = alarm(msg, AlarmLevel.Warn, None)
-  override def info[S: Encoder](msg: S): F[Unit] = alarm(msg, AlarmLevel.Info, None)
-  override def done[S: Encoder](msg: S): F[Unit] = alarm(msg, AlarmLevel.Done, None)
+  override def soleInfo[S: Encoder](msg: S): F[Unit] =
+    alarm(msg, AlarmLevel.Info, None)
 
-  override def warn[S: Encoder](ex: Throwable)(msg: S): F[Unit] =
+  override def info[S: Encoder](msg: S): F[Unit] =
+    eventLogger.info(serviceParams, msg) *> soleInfo(msg)
+
+  override def soleDone[S: Encoder](msg: S): F[Unit] =
+    alarm(msg, AlarmLevel.Done, None)
+
+  override def done[S: Encoder](msg: S): F[Unit] =
+    eventLogger.done(serviceParams, msg) *> soleDone(msg)
+
+  override def soleWarn[S: Encoder](msg: S): F[Unit] =
+    alarm(msg, AlarmLevel.Warn, None)
+
+  override def warn[S: Encoder](msg: S): F[Unit] =
+    eventLogger.warn(serviceParams, msg) *> soleWarn(msg)
+
+  override def soleWarn[S: Encoder](ex: Throwable)(msg: S): F[Unit] =
     alarm(msg, AlarmLevel.Warn, Some(Error(ex)))
 
-  override def error[S: Encoder](msg: S): F[Unit] =
+  override def warn[S: Encoder](ex: Throwable)(msg: S): F[Unit] =
+    eventLogger.warn(ex)(serviceParams, msg) *> soleWarn(ex)(msg)
+
+  override def soleError[S: Encoder](msg: S): F[Unit] =
     for {
-      msg <- toServiceMessage(serviceParams, msg, AlarmLevel.Error, None)
-      _ <- errorHistory.modify(queue => (queue, queue.add(msg)))
-      _ <- channel.send(msg)
-      _ <- eventLogger.service_message(msg)
+      evt <- create_service_message(serviceParams, msg, AlarmLevel.Error, None)
+      _ <- errorHistory.modify(queue => (queue, queue.add(evt)))
+      _ <- channel.send(evt)
+    } yield ()
+
+  override def error[S: Encoder](msg: S): F[Unit] =
+    eventLogger.error(serviceParams, msg) *> soleError(msg)
+
+  override def soleError[S: Encoder](ex: Throwable)(msg: S): F[Unit] =
+    for {
+      evt <- create_service_message(serviceParams, msg, AlarmLevel.Error, Error(ex).some)
+      _ <- errorHistory.modify(queue => (queue, queue.add(evt)))
+      _ <- channel.send(evt)
     } yield ()
 
   override def error[S: Encoder](ex: Throwable)(msg: S): F[Unit] =
-    for {
-      msg <- toServiceMessage(
-        serviceParams,
-        msg,
-        AlarmLevel.Error,
-        Error(ex).some
-      )
-      _ <- errorHistory.modify(queue => (queue, queue.add(msg)))
-      _ <- channel.send(msg)
-      _ <- eventLogger.service_message(msg)
-    } yield ()
+    eventLogger.error(ex)(serviceParams, msg) *> soleError(ex)(msg)
 }

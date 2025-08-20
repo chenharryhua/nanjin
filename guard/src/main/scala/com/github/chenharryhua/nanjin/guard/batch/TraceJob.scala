@@ -84,22 +84,9 @@ object TraceJob {
       _errored = this._errored
     )
 
-    object anchor {
-      val warn: Json => F[Unit] = _agent.log.warn(_)
-      val done: Json => F[Unit] = _agent.log.done(_)
-      val info: Json => F[Unit] = _agent.log.info(_)
-      val debug: Json => F[Unit] = _agent.log.debug(_)
-      val void: Json => F[Unit] = _agent.log.void(_)
-    }
-
-    def routeKickoff(f: anchor.type => Json => F[Unit]): ByAgent[F] =
-      copy(_kickoff = f(anchor))
-
-    def routeSuccess(f: anchor.type => Json => F[Unit]): ByAgent[F] =
-      copy(_success = f(anchor))
-
-    def routeFailure(f: anchor.type => Json => F[Unit]): ByAgent[F] =
-      copy(_failure = f(anchor))
+    def disableKickoff: ByAgent[F] = copy(_kickoff = _agent.log.void)
+    def disableSuccess: ByAgent[F] = copy(_success = _agent.log.void)
+    def disableFailure: ByAgent[F] = copy(_failure = _agent.log.void)
 
     def universal[A](f: (A, JobResultState) => Json): JobTracer[F, A] =
       new JobTracer[F, A](
@@ -136,12 +123,12 @@ object TraceJob {
   def apply[F[_]](agent: Agent[F]): ByAgent[F] =
     new ByAgent[F](
       _agent = agent,
-      _kickoff = agent.herald.info(_),
-      _failure = agent.herald.warn(_),
-      _success = agent.herald.done(_),
+      _kickoff = agent.log.info(_),
+      _failure = agent.log.warn(_),
+      _success = agent.log.done(_),
       _canceled = agent.log.warn(_),
       _errored = (jre: JobResultError) =>
-        agent.herald.error(jre.error)(Json.obj("error" -> jre.resultState.asJson))
+        agent.log.warn(jre.error)(Json.obj("error" -> jre.resultState.asJson))
     )
 
   implicit def monoidTraceJob[F[_], A](implicit ev: MonadCancel[F, Throwable]): Monoid[TraceJob[F, A]] =

@@ -12,14 +12,12 @@ import com.github.chenharryhua.nanjin.common.chrono.*
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.event.*
 import com.github.chenharryhua.nanjin.guard.event.Event.{MetricReport, ServiceMessage, ServicePanic}
-import com.github.chenharryhua.nanjin.guard.translator.Translator
 import fs2.Stream
 import fs2.concurrent.Channel
 import fs2.io.net.Network
 import io.circe.syntax.*
 import org.apache.commons.collections4.queue.CircularFifoQueue
 import org.http4s.ember.server.EmberServerBuilder
-import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 final class ServiceGuard[F[_]: Network: Async: Console] private[guard] (
   serviceName: ServiceName,
@@ -37,36 +35,29 @@ final class ServiceGuard[F[_]: Network: Async: Console] private[guard] (
   private def initStatus: F[ServiceParams] = for {
     jsons <- config.briefs
     zeroth <- Tick.zeroth[F](config.zoneId)
+    hostName <- HostName[F]
   } yield config.evalConfig(
     serviceName = serviceName,
     emberServerParams = emberServerBuilder.map(EmberServerParams(_)),
     brief = ServiceBrief(jsons.filterNot(_.isNull).distinct.asJson),
-    zerothTick = zeroth
+    zerothTick = zeroth,
+    hostName = hostName
   )
 
   def eventStream(runAgent: Agent[F] => F[Unit]): Stream[F, Event] =
     for {
       serviceParams <- Stream.eval(initStatus)
       dispatcher <- Stream.resource(Dispatcher.sequential[F](await = false))
-      alarmLevel <- Stream.eval(Ref.of[F, Option[AlarmLevel]](Some(config.alarmLevel)))
       panicHistory <- Stream.eval(
         AtomicCell[F].of(new CircularFifoQueue[ServicePanic](serviceParams.historyCapacity.panic)))
       metricsHistory <- Stream.eval(
         AtomicCell[F].of(new CircularFifoQueue[MetricReport](serviceParams.historyCapacity.metric)))
       errorHistory <- Stream.eval(
         AtomicCell[F].of(new CircularFifoQueue[ServiceMessage](serviceParams.historyCapacity.error)))
-      logger <- Stream.eval(Slf4jLogger.fromName[F](serviceName.value))
+      alarmLevel <- Stream.eval(Ref.of[F, Option[AlarmLevel]](AlarmLevel.Info.some))
+      eventLogger <- Stream.eval(EventLogger[F](serviceParams, alarmLevel))
       event <- Stream.eval(Channel.unbounded[F, Event]).flatMap { channel =>
         val metricRegistry: MetricRegistry = new MetricRegistry()
-        val eventLogger: EventLogger[F] = serviceParams.logFormat match {
-          case LogFormat.Console =>
-            new EventLogger[F](SimpleTextTranslator[F], new ConsoleLogger[F](serviceParams.zoneId))
-          case LogFormat.PlainText    => new EventLogger[F](SimpleTextTranslator[F], logger)
-          case LogFormat.JsonNoSpaces => new EventLogger[F](PrettyJsonTranslator[F].map(_.noSpaces), logger)
-          case LogFormat.JsonSpaces2  => new EventLogger[F](PrettyJsonTranslator[F].map(_.spaces2), logger)
-          case LogFormat.JsonVerbose  =>
-            new EventLogger[F](Translator.idTranslator.map(_.asJson.spaces2), logger)
-        }
 
         val metrics_report: Stream[F, Nothing] =
           tickStream

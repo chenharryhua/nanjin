@@ -81,7 +81,7 @@ object Percentile {
     translator: Ior[Long, Long] => Json
   ) extends EnableConfig[Builder] {
 
-    def withTranslator(translator: Ior[Long, Long] => Json) =
+    def withTranslator(translator: Ior[Long, Long] => Json): Builder =
       new Builder(isEnabled, translator)
 
     override def enable(isEnabled: Boolean): Builder =

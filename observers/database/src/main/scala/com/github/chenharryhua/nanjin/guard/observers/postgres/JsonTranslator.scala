@@ -20,7 +20,7 @@ private object JsonTranslator {
     Json.obj(
       "event" -> EventName.ServiceStart.snakeJson,
       jsonHelper.index(evt.tick),
-      jsonHelper.service_params(evt.serviceParams),
+      "params" -> evt.serviceParams.asJson,
       jsonHelper.timestamp(evt))
 
   private def service_panic(evt: ServicePanic): Json =
@@ -28,7 +28,7 @@ private object JsonTranslator {
       "event" -> EventName.ServicePanic.snakeJson,
       jsonHelper.index(evt.tick),
       jsonHelper.service_name(evt.serviceParams),
-      jsonHelper.policy(evt.serviceParams.servicePolicies.restart),
+      jsonHelper.policy(evt.serviceParams.servicePolicies.restart.policy),
       jsonHelper.stack(evt.error),
       jsonHelper.service_id(evt.serviceParams),
       jsonHelper.timestamp(evt)
@@ -40,7 +40,7 @@ private object JsonTranslator {
       jsonHelper.service_name(evt.serviceParams),
       jsonHelper.exit_code(evt.cause),
       jsonHelper.exit_cause(evt.cause),
-      jsonHelper.policy(evt.serviceParams.servicePolicies.restart),
+      jsonHelper.policy(evt.serviceParams.servicePolicies.restart.policy),
       jsonHelper.service_id(evt.serviceParams),
       jsonHelper.timestamp(evt)
     )

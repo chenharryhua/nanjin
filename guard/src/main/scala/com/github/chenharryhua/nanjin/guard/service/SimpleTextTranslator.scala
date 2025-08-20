@@ -4,7 +4,6 @@ import cats.Applicative
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.event.{Error, Event, ServiceStopCause}
 import com.github.chenharryhua.nanjin.guard.translator.{textConstants, textHelper, Translator}
-import io.circe.syntax.EncoderOps
 
 private object SimpleTextTranslator {
   import Event.*
@@ -24,13 +23,13 @@ private object SimpleTextTranslator {
   private def error_str(err: Error): String =
     s"""Cause:${err.stack.mkString("\n\t")}"""
 
-  private def service_started(evt: ServiceStart): String = {
+  private def service_start(evt: ServiceStart): String = {
     val idx = s"$CONSTANT_INDEX:${evt.tick.index}"
     val snz = s"$CONSTANT_SNOOZED:${textHelper.tookText(evt.tick.snooze)}"
     s"""|
         |  ${service_event(evt)}
         |  $idx, $snz
-        |${evt.serviceParams.asJson.spaces2}
+        |${interpret_service_params(evt.serviceParams).spaces2}
         |""".stripMargin
   }
 
@@ -39,14 +38,14 @@ private object SimpleTextTranslator {
     val act = s"$CONSTANT_ACTIVE:${textHelper.tookText(evt.tick.active)}"
     show"""|
            |  ${service_event(evt)}
-           |  $CONSTANT_POLICY:${evt.serviceParams.servicePolicies.restart}
+           |  $CONSTANT_POLICY:${evt.serviceParams.servicePolicies.restart.policy}
            |  ${textHelper.panicText(evt)}
            |  $idx, $act
            |  ${error_str(evt.error)}
            |""".stripMargin
   }
 
-  private def service_stopped(evt: ServiceStop): String = {
+  private def service_stop(evt: ServiceStop): String = {
     def stopCause(ssc: ServiceStopCause): String = ssc match {
       case ServiceStopCause.Successfully       => "Successfully"
       case ServiceStopCause.ByCancellation     => "ByCancellation"
@@ -55,7 +54,7 @@ private object SimpleTextTranslator {
     }
     show"""|
            |  ${service_event(evt)}
-           |  $CONSTANT_POLICY:${evt.serviceParams.servicePolicies.restart}
+           |  $CONSTANT_POLICY:${evt.serviceParams.servicePolicies.restart.policy}
            |  $CONSTANT_CAUSE:${stopCause(evt.cause)}
            |""".stripMargin
   }
@@ -85,11 +84,9 @@ private object SimpleTextTranslator {
   }
 
   private def service_message(evt: ServiceMessage): String = {
-    val level = s"$CONSTANT_ALARM_LEVEL:${evt.level.entryName}"
     val token = s"$CONSTANT_MESSAGE_TOKEN:${evt.token}"
     s"""|
-        |  ${service_event(evt)}
-        |  $level, $token
+        |  ${service_event(evt)}, $token
         |${evt.message.spaces2}
         |${evt.error.fold("")(error_str)}
         |""".stripMargin
@@ -98,8 +95,8 @@ private object SimpleTextTranslator {
   def apply[F[_]: Applicative]: Translator[F, String] =
     Translator
       .empty[F, String]
-      .withServiceStart(service_started)
-      .withServiceStop(service_stopped)
+      .withServiceStart(service_start)
+      .withServiceStop(service_stop)
       .withServicePanic(service_panic)
       .withMetricReport(metric_report)
       .withMetricReset(metric_reset)

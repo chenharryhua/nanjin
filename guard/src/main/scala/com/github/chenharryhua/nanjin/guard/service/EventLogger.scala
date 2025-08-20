@@ -1,8 +1,18 @@
 package com.github.chenharryhua.nanjin.guard.service
 
-import cats.implicits.{toFlatMapOps, toFunctorOps, toTraverseOps}
-import cats.{Eval, Monad}
-import com.github.chenharryhua.nanjin.guard.config.AlarmLevel
+import cats.Eval
+import cats.effect.kernel.{Ref, Sync}
+import cats.effect.std.Console
+import cats.implicits.{
+  catsSyntaxApplicativeId,
+  catsSyntaxEq,
+  catsSyntaxIfM,
+  catsSyntaxPartialOrder,
+  toFlatMapOps,
+  toFunctorOps,
+  toTraverseOps
+}
+import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, LogFormat, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.Event.{
   MetricReport,
   MetricReset,
@@ -11,59 +21,185 @@ import com.github.chenharryhua.nanjin.guard.event.Event.{
   ServiceStart,
   ServiceStop
 }
-import com.github.chenharryhua.nanjin.guard.event.{Event, ServiceStopCause}
-import com.github.chenharryhua.nanjin.guard.translator.{ColorScheme, Translator}
-import org.typelevel.log4cats.Logger
+import com.github.chenharryhua.nanjin.guard.event.{Error, Event, ServiceStopCause}
+import com.github.chenharryhua.nanjin.guard.translator.{jsonHelper, ColorScheme, Translator}
+import io.circe.Encoder
+import io.circe.syntax.EncoderOps
+import org.typelevel.log4cats.MessageLogger
+import org.typelevel.log4cats.slf4j.Slf4jLogger
 
-final private class EventLogger[F[_]: Monad](translator: Translator[F, String], logger: Logger[F]) {
-  private def color_event(event: Event): F[Option[String]] =
+import scala.io.AnsiColor
+
+final private class EventLogger[F[_]](
+  translator: Translator[F, String],
+  logger: MessageLogger[F],
+  alarmLevel: Ref[F, Option[AlarmLevel]])(implicit F: Sync[F]) {
+
+  private def transform_event(event: Event): F[Option[String]] =
     translator
       .translate(event)
       .map(_.map { text =>
         val title: String = ColorScheme
           .decorate(event)
           .run {
-            case ColorScheme.GoodColor  => Eval.now(Console.GREEN + event.name.entryName + Console.RESET)
-            case ColorScheme.InfoColor  => Eval.now(Console.CYAN + event.name.entryName + Console.RESET)
-            case ColorScheme.WarnColor  => Eval.now(Console.YELLOW + event.name.entryName + Console.RESET)
-            case ColorScheme.ErrorColor => Eval.now(Console.RED + event.name.entryName + Console.RESET)
+            case ColorScheme.GoodColor =>
+              Eval.now(AnsiColor.GREEN + event.name.entryName + AnsiColor.RESET)
+            case ColorScheme.InfoColor =>
+              Eval.now(AnsiColor.CYAN + event.name.entryName + AnsiColor.RESET)
+            case ColorScheme.WarnColor =>
+              Eval.now(AnsiColor.YELLOW + event.name.entryName + AnsiColor.RESET)
+            case ColorScheme.ErrorColor =>
+              Eval.now(AnsiColor.RED + event.name.entryName + AnsiColor.RESET)
           }
           .value
         s"$title $text"
       })
 
+  /*
+   * compulsory events
+   */
   def service_start(ss: ServiceStart): F[Unit] =
-    color_event(ss).flatMap(_.traverse(logger.info(_))).void
+    transform_event(ss).flatMap(_.traverse(logger.info(_))).void
+
   def service_stop(ss: ServiceStop): F[Unit] =
     ss.cause match {
       case ServiceStopCause.Successfully =>
-        color_event(ss).flatMap(_.traverse(logger.info(_))).void
+        transform_event(ss).flatMap(_.traverse(logger.info(_))).void
       case ServiceStopCause.Maintenance =>
-        color_event(ss).flatMap(_.traverse(logger.info(_))).void
+        transform_event(ss).flatMap(_.traverse(logger.info(_))).void
       case ServiceStopCause.ByCancellation =>
-        color_event(ss).flatMap(_.traverse(logger.warn(_))).void
+        transform_event(ss).flatMap(_.traverse(logger.warn(_))).void
       case ServiceStopCause.ByException(_) =>
-        color_event(ss).flatMap(_.traverse(logger.error(_))).void
+        transform_event(ss).flatMap(_.traverse(logger.error(_))).void
     }
 
   def service_panic(ss: ServicePanic): F[Unit] =
-    color_event(ss).flatMap(_.traverse(logger.error(_))).void
+    transform_event(ss).flatMap(_.traverse(logger.error(_))).void
 
   def metric_report(ss: MetricReport): F[Unit] =
-    color_event(ss).flatMap(_.traverse(logger.info(_))).void
+    ColorScheme.decorate(ss).run(Eval.now).value match {
+      case ColorScheme.GoodColor =>
+        transform_event(ss).flatMap(_.traverse(logger.info(_))).void
+      case ColorScheme.InfoColor =>
+        transform_event(ss).flatMap(_.traverse(logger.info(_))).void
+      case ColorScheme.WarnColor =>
+        transform_event(ss).flatMap(_.traverse(logger.warn(_))).void
+      case ColorScheme.ErrorColor =>
+        transform_event(ss).flatMap(_.traverse(logger.error(_))).void
+    }
 
   def metric_reset(ss: MetricReset): F[Unit] =
-    color_event(ss).flatMap(_.traverse(logger.info(_))).void
+    ColorScheme.decorate(ss).run(Eval.now).value match {
+      case ColorScheme.GoodColor =>
+        transform_event(ss).flatMap(_.traverse(logger.info(_))).void
+      case ColorScheme.InfoColor =>
+        transform_event(ss).flatMap(_.traverse(logger.info(_))).void
+      case ColorScheme.WarnColor =>
+        transform_event(ss).flatMap(_.traverse(logger.warn(_))).void
+      case ColorScheme.ErrorColor =>
+        transform_event(ss).flatMap(_.traverse(logger.error(_))).void
+    }
 
-  def service_message(ss: ServiceMessage): F[Unit] =
-    color_event(ss)
-      .flatMap(_.traverse(m =>
-        ss.level match {
-          case AlarmLevel.Error => logger.error(m)
-          case AlarmLevel.Warn  => logger.warn(m)
-          case AlarmLevel.Done  => logger.info(m)
-          case AlarmLevel.Info  => logger.info(m)
-          case AlarmLevel.Debug => logger.debug(m)
-        }))
+  /*
+   * service message
+   */
+  private def transform_service_message[S: Encoder](
+    serviceParams: ServiceParams,
+    msg: S,
+    level: AlarmLevel,
+    error: Option[Error]): F[Option[String]] =
+    alarmLevel.get
+      .map(_.exists(_ <= level))
+      .ifM(create_service_message(serviceParams, msg, level, error).flatMap(transform_event(_)), F.pure(None))
+
+  def info[S: Encoder](serviceParams: ServiceParams, msg: S): F[Unit] =
+    transform_service_message(serviceParams, msg, AlarmLevel.Info, None)
+      .flatMap(_.traverse(logger.info(_)))
       .void
+
+  def done[S: Encoder](serviceParams: ServiceParams, msg: S): F[Unit] =
+    transform_service_message(serviceParams, msg, AlarmLevel.Done, None)
+      .flatMap(_.traverse(logger.info(_)))
+      .void
+
+  def warn[S: Encoder](serviceParams: ServiceParams, msg: S): F[Unit] =
+    transform_service_message(serviceParams, msg, AlarmLevel.Warn, None)
+      .flatMap(_.traverse(logger.warn(_)))
+      .void
+
+  def warn[S: Encoder](ex: Throwable)(serviceParams: ServiceParams, msg: S): F[Unit] =
+    transform_service_message(serviceParams, msg, AlarmLevel.Warn, Some(Error(ex)))
+      .flatMap(_.traverse(logger.warn(_)))
+      .void
+
+  def error[S: Encoder](serviceParams: ServiceParams, msg: S): F[Unit] =
+    transform_service_message(serviceParams, msg, AlarmLevel.Error, None)
+      .flatMap(_.traverse(logger.error(_)))
+      .void
+
+  def error[S: Encoder](ex: Throwable)(serviceParams: ServiceParams, msg: S): F[Unit] =
+    transform_service_message(serviceParams, msg, AlarmLevel.Error, Some(Error(ex)))
+      .flatMap(_.traverse(logger.error(_)))
+      .void
+
+  def debug[S: Encoder](serviceParams: ServiceParams, msg: => F[S]): F[Unit] = {
+    def debug_message(ss: ServiceMessage): String = {
+      val title = AnsiColor.BLUE + ss.name.entryName + AnsiColor.RESET
+      val txt = jsonHelper.json_service_message(ss).noSpaces
+      s"$title $txt"
+    }
+    alarmLevel.get
+      .map(_.exists(_ === AlarmLevel.Debug))
+      .ifM(
+        F.attempt(msg).flatMap {
+          case Left(ex) =>
+            create_service_message(serviceParams, "Error Message", AlarmLevel.Debug, Some(Error(ex)))
+              .flatMap(m => logger.debug(debug_message(m)))
+          case Right(value) =>
+            create_service_message(serviceParams, value, AlarmLevel.Debug, None)
+              .flatMap(m => logger.debug(debug_message(m)))
+        },
+        F.unit
+      )
+  }
+
+  def debug[S: Encoder](serviceParams: ServiceParams, msg: S): F[Unit] =
+    debug(serviceParams, F.pure(msg))
+
+  val void: F[Unit] = F.unit
+}
+
+private object EventLogger {
+  def apply[F[_]: Sync: Console](
+    serviceParams: ServiceParams,
+    alarmLevel: Ref[F, Option[AlarmLevel]]): F[EventLogger[F]] =
+    serviceParams.logFormat match {
+      case LogFormat.Console_PlainText =>
+        new EventLogger[F](
+          SimpleTextTranslator[F],
+          new ConsoleLogger[F](serviceParams.zoneId),
+          alarmLevel).pure
+      case LogFormat.Console_JsonNoSpaces =>
+        new EventLogger[F](
+          PrettyJsonTranslator[F].map(_.noSpaces),
+          new ConsoleLogger[F](serviceParams.zoneId),
+          alarmLevel).pure
+      case LogFormat.Slf4j_PlainText =>
+        Slf4jLogger
+          .fromName[F](serviceParams.serviceName.value)
+          .map(logger => new EventLogger[F](SimpleTextTranslator[F], logger, alarmLevel))
+      case LogFormat.Slf4j_JsonNoSpaces =>
+        Slf4jLogger
+          .fromName[F](serviceParams.serviceName.value)
+          .map(logger => new EventLogger[F](PrettyJsonTranslator[F].map(_.noSpaces), logger, alarmLevel))
+      case LogFormat.Slf4j_JsonSpaces2 =>
+        Slf4jLogger
+          .fromName[F](serviceParams.serviceName.value)
+          .map(logger => new EventLogger[F](PrettyJsonTranslator[F].map(_.spaces2), logger, alarmLevel))
+      case LogFormat.Slf4j_JsonVerbose =>
+        Slf4jLogger
+          .fromName[F](serviceParams.serviceName.value)
+          .map(logger =>
+            new EventLogger[F](Translator.idTranslator.map(_.asJson.spaces2), logger, alarmLevel))
+    }
 }

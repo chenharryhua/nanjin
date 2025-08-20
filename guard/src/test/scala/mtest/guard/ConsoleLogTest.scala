@@ -19,7 +19,7 @@ class ConsoleLogTest extends AnyFunSuite {
   val service: fs2.Stream[IO, Event] =
     TaskGuard[IO]("nanjin")
       .service("observing")
-      .updateConfig(_.addBrief(Json.fromString("brief")).withLogFormat(_.JsonVerbose))
+      .updateConfig(_.addBrief(Json.fromString("brief")).withLogFormat(_.Slf4j_JsonVerbose))
       .eventStream { agent =>
         val mtx = agent.facilitate("job") { mtx =>
           for {

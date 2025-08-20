@@ -13,7 +13,8 @@ import org.scalatest.funsuite.AnyFunSuite
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 
 class GaugeTest extends AnyFunSuite {
-  private val service = TaskGuard[IO]("gauge").service("gauge").updateConfig(_.withLogFormat(_.Console))
+  private val service =
+    TaskGuard[IO]("gauge").service("gauge").updateConfig(_.withLogFormat(_.Console_PlainText))
 
   test("1.gauge") {
     val mr = service.eventStream { agent =>

@@ -9,6 +9,7 @@ import com.github.chenharryhua.nanjin.common.chrono.{crontabs, Policy, Tick}
 import com.github.chenharryhua.nanjin.guard.*
 import com.github.chenharryhua.nanjin.guard.event.*
 import com.github.chenharryhua.nanjin.guard.event.Event.*
+import com.github.chenharryhua.nanjin.guard.event.ServiceStopCause.Successfully
 import io.circe.Json
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -22,13 +23,16 @@ class ServiceTest extends AnyFunSuite {
   val guard: TaskGuard[IO] = TaskGuard[IO]("service-level-guard").updateConfig(
     _.withHomePage("https://abc.com/efg")
       .withZoneId(londonTime)
-      .withRestartPolicy(Policy.fixedDelay(1.seconds))
+      .withRestartPolicy(_.fixedDelay(1.seconds))
+      .withLogFormat(_.Slf4j_JsonNoSpaces)
       .addBrief(Json.fromString("test")))
 
   val policy: Policy = Policy.fixedDelay(0.1.seconds).limited(3)
 
   test("1.should stopped if the operation normally exits") {
-    guard.service("exit").eventStream(_ => IO(())).compile.drain.unsafeRunSync()
+    val List(a, b) = guard.service("exit").eventStream(_ => IO(())).compile.toList.unsafeRunSync()
+    assert(a.isInstanceOf[ServiceStart])
+    assert(b.asInstanceOf[ServiceStop].cause == Successfully)
   }
 
   test("2.escalate to up level if retry failed") {
@@ -52,7 +56,7 @@ class ServiceTest extends AnyFunSuite {
   }
 
   test("3.force reset") {
-    val s :: b :: c :: _ = guard
+    val s :: b :: c :: d :: Nil = guard
       .service("reset")
       .updateConfig(_.withMetricReport(_.giveUp))
       .eventStream(ag => ag.adhoc.reset >> ag.adhoc.reset)
@@ -64,6 +68,7 @@ class ServiceTest extends AnyFunSuite {
     assert(s.isInstanceOf[ServiceStart])
     assert(b.isInstanceOf[MetricReset])
     assert(c.isInstanceOf[MetricReset])
+    assert(d.isInstanceOf[ServiceStop])
   }
 
   test("4.policy start over") {
@@ -75,7 +80,7 @@ class ServiceTest extends AnyFunSuite {
     println(policy.show)
     val List(a, b, c, d, e, f, g, h) = guard
       .service("start over")
-      .updateConfig(_.withRestartPolicy(policy))
+      .updateConfig(_.withRestartPolicy(policy, 2.hour))
       .eventStream(_ => IO.raiseError[Int](new Exception("oops")).void)
       .map(checkJson)
       .evalMapFilter[IO, Tick] {
@@ -123,8 +128,7 @@ class ServiceTest extends AnyFunSuite {
         .flatMap { box =>
           guard
             .service("threshold")
-            .updateConfig(_.withRestartPolicy(policy))
-            .updateConfig(_.withRestartThreshold(2.seconds))
+            .updateConfig(_.withRestartPolicy(policy, 2.seconds))
             .eventStream { _ =>
               box.getAndUpdate(_ + 1.second).flatMap(IO.sleep) <*
                 IO.raiseError[Int](new Exception("oops"))
@@ -156,11 +160,10 @@ class ServiceTest extends AnyFunSuite {
     TaskGuard[IO]("abc")
       .service("abc")
       .updateConfig(
-        _.withRestartPolicy(Policy.fixedDelay(1.second))
+        _.withRestartPolicy(Policy.fixedDelay(1.second), 2.seconds)
           .withMetricReset(Policy.giveUp)
           .withMetricReport(Policy.crontab(crontabs.secondly), 1)
-          .withMetricDailyReset
-          .withRestartThreshold(2.second))
+          .withMetricDailyReset)
       .eventStreamR(_.facilitate("nothing")(_.counter("counter")))
       .map(checkJson)
       .compile
@@ -171,14 +174,13 @@ class ServiceTest extends AnyFunSuite {
   test("7.throw exception in construction") {
     val List(a, b) = guard
       .service("simple")
-      .updateConfig(_.withRestartPolicy(Policy.giveUp))
+      .updateConfig(_.withRestartPolicy(_.giveUp))
       .eventStream { _ =>
         val c = true
         val err: Int = if (c) throw new Exception else 1
         IO.println(err)
       }
       .map(checkJson)
-      .debug()
       .compile
       .toList
       .unsafeRunSync()
@@ -192,10 +194,9 @@ class ServiceTest extends AnyFunSuite {
       .updateConfig(_.withRestartPolicy(_.fixedDelay(1.seconds).limited(1)))
       .eventStream { agent =>
         val a = UUID.randomUUID()
-        agent.herald.info(a.toString) *> IO.raiseError(new Exception)
+        agent.herald.warn(a.toString) *> IO.raiseError(new Exception)
       }
       .mapFilter(eventFilters.serviceMessage)
-      .debug()
       .compile
       .toList
       .unsafeRunSync()
@@ -211,12 +212,10 @@ class ServiceTest extends AnyFunSuite {
         fs2.Stream(0).covary[IO].evalMap(_ => agent.herald.info(a.toString) *> IO.raiseError(new Exception))
       }
       .mapFilter(eventFilters.serviceMessage)
-      .debug()
       .compile
       .toList
       .unsafeRunSync()
     assert(a.message.as[String].toOption.get != b.message.as[String].toOption.get)
-
   }
 
   test("10.exception throw by java") {
@@ -227,6 +226,7 @@ class ServiceTest extends AnyFunSuite {
         assert(1 == 2)
         IO.unit
       }
+      .debug()
       .compile
       .toList
       .unsafeRunSync()
@@ -254,5 +254,39 @@ class ServiceTest extends AnyFunSuite {
       .unsafeRunSync()
     assert(res.head.isInstanceOf[ServiceStart])
     assert(res(1).asInstanceOf[ServiceStop].cause == ServiceStopCause.Successfully)
+  }
+
+  test("12. by exception") {
+    val List(a, b, c, d) =
+      guard
+        .service("cancel")
+        .updateConfig(_.withRestartPolicy(_.fixedRate(1.seconds).limited(1)))
+        .eventStream(_ => IO.raiseError(new Exception))
+        .compile
+        .toList
+        .unsafeRunSync()
+    assert(a.isInstanceOf[ServiceStart])
+    assert(b.isInstanceOf[ServicePanic])
+    assert(c.isInstanceOf[ServiceStart])
+    assert(d.asInstanceOf[ServiceStop].cause.exitCode == 3)
+  }
+
+  test("13. by cancellation - internal") {
+    val List(a, b) =
+      guard.service("cancel").eventStream(_ => IO.println("a") <* IO.canceled).compile.toList.unsafeRunSync()
+    assert(a.isInstanceOf[ServiceStart])
+    assert(b.asInstanceOf[ServiceStop].cause == ServiceStopCause.ByCancellation)
+  }
+
+  test("14. by cancellation - external") {
+    val res: List[Event] =
+      guard
+        .service("cancel")
+        .eventStream(_.herald.error("oops").delayBy(1.seconds).replicateA_(1000))
+        .take(5)
+        .compile
+        .toList
+        .unsafeRunSync()
+    assert(res.last.isInstanceOf[ServiceMessage])
   }
 }

@@ -17,7 +17,7 @@ object Error {
   def apply(ex: Throwable): Error =
     Error(
       ExceptionUtils.getRootCauseMessage(ex),
-      ExceptionUtils.getRootCauseStackTraceList(ex).asScala.toList.map(_.replace("\t", "")))
+      ExceptionUtils.getRootCauseStackTraceList(ex).asScala.map(_.replace("\t", "")).toList)
 }
 
 @JsonCodec

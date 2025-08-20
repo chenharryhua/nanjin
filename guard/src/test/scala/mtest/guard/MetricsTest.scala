@@ -5,7 +5,6 @@ import cats.effect.kernel.Resource
 import cats.effect.unsafe.implicits.global
 import cats.syntax.all.*
 import com.codahale.metrics.SlidingWindowReservoir
-import com.github.chenharryhua.nanjin.common.HostName
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.config.MetricID
 import com.github.chenharryhua.nanjin.guard.event.{
@@ -39,7 +38,7 @@ class MetricsTest extends AnyFunSuite {
 
   private val service: ServiceGuard[IO] =
     TaskGuard[IO]("metrics")
-      .updateConfig(_.withZoneId(zoneId).withHostName(HostName.local_host).disableHttpServer.disableJmx)
+      .updateConfig(_.withZoneId(zoneId).disableHttpServer.disableJmx)
       .service("metrics")
 
   test("1.counter") {
@@ -206,7 +205,7 @@ class MetricsTest extends AnyFunSuite {
   test("12.measured.retry - give up") {
     val sm = service.eventStream { agent =>
       agent
-        .retry(_.isWorthRetry(tv => agent.herald.warn(tv.value)(tv.tick).as(true)))
+        .retry(_.isWorthRetry(tv => agent.herald.soleWarn(tv.value)(tv.tick).as(true)))
         .use(_.apply(IO.raiseError[Int](new Exception)) *> agent.adhoc.report)
     }.map(checkJson).mapFilter(eventFilters.serviceMessage).compile.toList.unsafeRunSync()
     assert(sm.size == 1)
@@ -216,7 +215,7 @@ class MetricsTest extends AnyFunSuite {
     val sm = service.eventStream { agent =>
       agent
         .retry(_.withPolicy(_.fixedDelay(1000.second).limited(2)).isWorthRetry(tv =>
-          agent.herald.warn(tv.value)(tv.tick).as(false)))
+          agent.herald.soleWarn(tv.value)(tv.tick).as(false)))
         .use(_.apply(IO.raiseError[Int](new Exception)) *> agent.adhoc.report)
     }.map(checkJson).mapFilter(eventFilters.serviceMessage).compile.toList.unsafeRunSync()
 
