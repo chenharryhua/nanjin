@@ -70,7 +70,7 @@ private object SlackTranslator extends all {
     abbreviate(err.stack.mkString("\n\t"))
 
 // events
-  private def service_started(evt: ServiceStart): SlackApp = {
+  private def service_start(evt: ServiceStart): SlackApp = {
     val index_section = if (evt.tick.index == 0) {
       JuxtaposeSection(
         first = TextField(CONSTANT_TIMEZONE, evt.serviceParams.zoneId.show),
@@ -131,7 +131,7 @@ private object SlackTranslator extends all {
     )
   }
 
-  private def service_stopped(evt: ServiceStop): SlackApp = {
+  private def service_stop(evt: ServiceStop): SlackApp = {
     def stopCause(ssc: ServiceStopCause): String = ssc match {
       case ServiceStopCause.Successfully       => "Successfully"
       case ServiceStopCause.ByCancellation     => "ByCancellation"
@@ -229,9 +229,9 @@ private object SlackTranslator extends all {
   def apply[F[_]: Applicative]: Translator[F, SlackApp] =
     Translator
       .empty[F, SlackApp]
-      .withServiceStart(service_started)
+      .withServiceStart(service_start)
       .withServicePanic(service_panic)
-      .withServiceStop(service_stopped)
+      .withServiceStop(service_stop)
       .withMetricReport(metric_report)
       .withMetricReset(metric_reset)
       .withServiceMessage(service_message)

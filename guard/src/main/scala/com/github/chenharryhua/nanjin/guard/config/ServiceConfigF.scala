@@ -3,7 +3,6 @@ import cats.effect.kernel.Clock
 import cats.syntax.all.*
 import cats.{Applicative, Endo, Functor}
 import com.codahale.metrics.jmx.JmxReporter
-import com.github.chenharryhua.nanjin.common.HostName
 import com.github.chenharryhua.nanjin.common.chrono.{Policy, Tick}
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
@@ -85,11 +84,12 @@ object ServiceParams {
     serviceName: ServiceName,
     emberServerParams: Option[EmberServerParams],
     brief: ServiceBrief,
-    zerothTick: Tick
+    zerothTick: Tick,
+    hostName: HostName
   ): ServiceParams =
     ServiceParams(
       taskName = taskName,
-      hostName = HostName.local_host,
+      hostName = hostName,
       homePage = None,
       serviceName = serviceName,
       servicePolicies = ServicePolicies(
@@ -117,7 +117,6 @@ private object ServiceConfigF {
   final case class WithMetricReportPolicy[K](policy: Policy, ratio: Int, cont: K) extends ServiceConfigF[K]
   final case class WithMetricResetPolicy[K](value: Policy, cont: K) extends ServiceConfigF[K]
 
-  final case class WithHostName[K](value: HostName, cont: K) extends ServiceConfigF[K]
   final case class WithHomePage[K](value: Option[HomePage], cont: K) extends ServiceConfigF[K]
 
   final case class WithMetricCapacity[K](value: Int, cont: K) extends ServiceConfigF[K]
@@ -132,7 +131,8 @@ private object ServiceConfigF {
     serviceName: ServiceName,
     emberServerParams: Option[EmberServerParams],
     brief: ServiceBrief,
-    zerothTick: Tick): Algebra[ServiceConfigF, ServiceParams] =
+    zerothTick: Tick,
+    hostName: HostName): Algebra[ServiceConfigF, ServiceParams] =
     Algebra[ServiceConfigF, ServiceParams] {
       case InitParams(taskName) =>
         ServiceParams(
@@ -140,7 +140,8 @@ private object ServiceConfigF {
           serviceName = serviceName,
           emberServerParams = emberServerParams,
           brief = brief,
-          zerothTick = zerothTick
+          zerothTick = zerothTick,
+          hostName = hostName
         )
 
       case WithRestartPolicy(p, t, c) =>
@@ -148,7 +149,6 @@ private object ServiceConfigF {
       case WithMetricReportPolicy(p, r, c) =>
         c.focus(_.servicePolicies.metricReport).replace(MetricReportPolicy(p, r))
       case WithMetricResetPolicy(v, c) => c.focus(_.servicePolicies.metricReset).replace(v)
-      case WithHostName(v, c)          => c.focus(_.hostName).replace(v)
       case WithHomePage(v, c)          => c.focus(_.homePage).replace(v)
 
       case WithMetricCapacity(v, c) => c.focus(_.historyCapacity.metric).replace(v)
@@ -199,9 +199,6 @@ final class ServiceConfig[F[_]: Applicative] private (
   def withMetricDailyReset: ServiceConfig[F] =
     withMetricReset(Policy.crontab(_.daily.midnight))
 
-  def withHostName(hostName: HostName): ServiceConfig[F] =
-    copy(cont = Fix(WithHostName(hostName, cont)))
-
   def withHomePage(hp: String): ServiceConfig[F] =
     copy(cont = Fix(WithHomePage(Some(HomePage(hp)), cont)))
 
@@ -240,14 +237,16 @@ final class ServiceConfig[F[_]: Applicative] private (
     serviceName: ServiceName,
     emberServerParams: Option[EmberServerParams],
     brief: ServiceBrief,
-    zerothTick: Tick): ServiceParams =
+    zerothTick: Tick,
+    hostName: HostName): ServiceParams =
     scheme
       .cata(
         algebra(
           serviceName = serviceName,
           emberServerParams = emberServerParams,
           brief = brief,
-          zerothTick = zerothTick
+          zerothTick = zerothTick,
+          hostName = hostName
         ))
       .apply(cont)
 }

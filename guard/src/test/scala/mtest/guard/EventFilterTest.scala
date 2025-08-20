@@ -12,6 +12,7 @@ import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import eu.timepit.refined.auto.*
 import org.scalatest.funsuite.AnyFunSuite
 
+import java.time.Duration
 import scala.concurrent.duration.DurationInt
 
 class EventFilterTest extends AnyFunSuite {
@@ -58,10 +59,12 @@ class EventFilterTest extends AnyFunSuite {
       .map(checkJson)
       .filter(eventFilters.sampling(_.every3Seconds))
 
-    val List(a, b, c, d) = align.flatMap(_ => run).debug().compile.toList.unsafeRunSync()
+    val List(a, b, c, d) = align.flatMap(_ => run).compile.toList.unsafeRunSync()
+    val tb = b.asInstanceOf[MetricReport].index.asInstanceOf[Periodic].tick
+    val tc = c.asInstanceOf[MetricReport].index.asInstanceOf[Periodic].tick
     assert(a.isInstanceOf[ServiceStart])
-    assert(b.asInstanceOf[MetricReport].index.asInstanceOf[Periodic].tick.index === 3)
-    assert(c.asInstanceOf[MetricReport].index.asInstanceOf[Periodic].tick.index === 6)
+    assert(tb.index + 3 == tc.index)
+    assert(Duration.between(tb.wakeup, tc.wakeup) == Duration.ofSeconds(3))
     assert(d.isInstanceOf[ServiceStop])
   }
 }

@@ -23,7 +23,7 @@ private object SimpleTextTranslator {
   private def error_str(err: Error): String =
     s"""Cause:${err.stack.mkString("\n\t")}"""
 
-  private def service_started(evt: ServiceStart): String = {
+  private def service_start(evt: ServiceStart): String = {
     val idx = s"$CONSTANT_INDEX:${evt.tick.index}"
     val snz = s"$CONSTANT_SNOOZED:${textHelper.tookText(evt.tick.snooze)}"
     s"""|
@@ -45,7 +45,7 @@ private object SimpleTextTranslator {
            |""".stripMargin
   }
 
-  private def service_stopped(evt: ServiceStop): String = {
+  private def service_stop(evt: ServiceStop): String = {
     def stopCause(ssc: ServiceStopCause): String = ssc match {
       case ServiceStopCause.Successfully       => "Successfully"
       case ServiceStopCause.ByCancellation     => "ByCancellation"
@@ -95,8 +95,8 @@ private object SimpleTextTranslator {
   def apply[F[_]: Applicative]: Translator[F, String] =
     Translator
       .empty[F, String]
-      .withServiceStart(service_started)
-      .withServiceStop(service_stopped)
+      .withServiceStart(service_start)
+      .withServiceStop(service_stop)
       .withServicePanic(service_panic)
       .withMetricReport(metric_report)
       .withMetricReset(metric_reset)

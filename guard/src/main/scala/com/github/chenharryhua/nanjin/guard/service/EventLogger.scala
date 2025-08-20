@@ -2,7 +2,9 @@ package com.github.chenharryhua.nanjin.guard.service
 
 import cats.Eval
 import cats.effect.kernel.{Ref, Sync}
+import cats.effect.std.Console
 import cats.implicits.{
+  catsSyntaxApplicativeId,
   catsSyntaxEq,
   catsSyntaxIfM,
   catsSyntaxPartialOrder,
@@ -10,7 +12,7 @@ import cats.implicits.{
   toFunctorOps,
   toTraverseOps
 }
-import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, ServiceParams}
+import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, LogFormat, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.Event.{
   MetricReport,
   MetricReset,
@@ -22,7 +24,9 @@ import com.github.chenharryhua.nanjin.guard.event.Event.{
 import com.github.chenharryhua.nanjin.guard.event.{Error, Event, ServiceStopCause}
 import com.github.chenharryhua.nanjin.guard.translator.{jsonHelper, ColorScheme, Translator}
 import io.circe.Encoder
+import io.circe.syntax.EncoderOps
 import org.typelevel.log4cats.MessageLogger
+import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 import scala.io.AnsiColor
 
@@ -163,4 +167,39 @@ final private class EventLogger[F[_]](
     debug(serviceParams, F.pure(msg))
 
   val void: F[Unit] = F.unit
+}
+
+private object EventLogger {
+  def apply[F[_]: Sync: Console](
+    serviceParams: ServiceParams,
+    alarmLevel: Ref[F, Option[AlarmLevel]]): F[EventLogger[F]] =
+    serviceParams.logFormat match {
+      case LogFormat.Console_PlainText =>
+        new EventLogger[F](
+          SimpleTextTranslator[F],
+          new ConsoleLogger[F](serviceParams.zoneId),
+          alarmLevel).pure
+      case LogFormat.Console_JsonNoSpaces =>
+        new EventLogger[F](
+          PrettyJsonTranslator[F].map(_.noSpaces),
+          new ConsoleLogger[F](serviceParams.zoneId),
+          alarmLevel).pure
+      case LogFormat.Slf4j_PlainText =>
+        Slf4jLogger
+          .fromName[F](serviceParams.serviceName.value)
+          .map(logger => new EventLogger[F](SimpleTextTranslator[F], logger, alarmLevel))
+      case LogFormat.Slf4j_JsonNoSpaces =>
+        Slf4jLogger
+          .fromName[F](serviceParams.serviceName.value)
+          .map(logger => new EventLogger[F](PrettyJsonTranslator[F].map(_.noSpaces), logger, alarmLevel))
+      case LogFormat.Slf4j_JsonSpaces2 =>
+        Slf4jLogger
+          .fromName[F](serviceParams.serviceName.value)
+          .map(logger => new EventLogger[F](PrettyJsonTranslator[F].map(_.spaces2), logger, alarmLevel))
+      case LogFormat.Slf4j_JsonVerbose =>
+        Slf4jLogger
+          .fromName[F](serviceParams.serviceName.value)
+          .map(logger =>
+            new EventLogger[F](Translator.idTranslator.map(_.asJson.spaces2), logger, alarmLevel))
+    }
 }

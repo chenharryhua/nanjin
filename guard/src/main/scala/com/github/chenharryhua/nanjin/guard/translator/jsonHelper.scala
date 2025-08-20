@@ -21,6 +21,9 @@ object jsonHelper {
 
   def stack(err: Error): (String, Json) = "stack" -> err.stack.asJson
 
+  def service_name(sp: ServiceParams): (String, Json) =
+    "service_name" -> Json.fromString(sp.serviceName.value)
+
   def json_service_message(sm: ServiceMessage): Json =
     sm.error
       .map(err => Json.obj(stack(err)))
@@ -33,11 +36,8 @@ object jsonHelper {
           sm.level.entryName -> sm.message
         ))
 
-  def service_name(sp: ServiceParams): (String, Json) =
-    "service_name" -> Json.fromString(sp.serviceName.value)
-
   def metric_index(index: MetricIndex): (String, Json) = index match {
-    case MetricIndex.Adhoc(_)       => "index" -> Json.Null
+    case MetricIndex.Adhoc(_)       => "index" -> Json.fromString("Adhoc")
     case MetricIndex.Periodic(tick) => "index" -> Json.fromLong(tick.index)
   }
 }

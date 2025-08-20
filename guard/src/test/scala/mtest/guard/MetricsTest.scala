@@ -5,7 +5,6 @@ import cats.effect.kernel.Resource
 import cats.effect.unsafe.implicits.global
 import cats.syntax.all.*
 import com.codahale.metrics.SlidingWindowReservoir
-import com.github.chenharryhua.nanjin.common.HostName
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.config.MetricID
 import com.github.chenharryhua.nanjin.guard.event.{
@@ -39,7 +38,7 @@ class MetricsTest extends AnyFunSuite {
 
   private val service: ServiceGuard[IO] =
     TaskGuard[IO]("metrics")
-      .updateConfig(_.withZoneId(zoneId).withHostName(HostName.local_host).disableHttpServer.disableJmx)
+      .updateConfig(_.withZoneId(zoneId).disableHttpServer.disableJmx)
       .service("metrics")
 
   test("1.counter") {

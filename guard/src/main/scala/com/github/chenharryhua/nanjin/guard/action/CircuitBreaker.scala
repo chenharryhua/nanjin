@@ -84,10 +84,8 @@ object CircuitBreaker {
   }
 
   final class Builder private[guard] (maxFailures: Int, policy: Policy) {
-    def withMaxFailures(maxFailures: Int): Builder = {
-      require(maxFailures > 0, s"maxFailures($maxFailures) should be bigger than zero")
+    def withMaxFailures(maxFailures: Int): Builder =
       new Builder(maxFailures, policy)
-    }
 
     def withPolicy(policy: Policy): Builder =
       new Builder(maxFailures, policy)
