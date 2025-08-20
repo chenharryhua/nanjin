@@ -36,7 +36,6 @@ import scala.jdk.CollectionConverters.IteratorHasAsScala
 
 final private class HttpRouter[F[_]](
   metricRegistry: MetricRegistry,
-  serviceParams: ServiceParams,
   panicHistory: AtomicCell[F, CircularFifoQueue[ServicePanic]],
   metricsHistory: AtomicCell[F, CircularFifoQueue[MetricReport]],
   errorHistory: AtomicCell[F, CircularFifoQueue[ServiceMessage]],
@@ -44,6 +43,7 @@ final private class HttpRouter[F[_]](
   channel: Channel[F, Event],
   eventLogger: EventLogger[F])(implicit F: Async[F])
     extends Http4sDsl[F] with all {
+  private val serviceParams: ServiceParams = eventLogger.serviceParams
 
   private val html_header: Text.TypedTag[String] =
     head(tag("style")("""

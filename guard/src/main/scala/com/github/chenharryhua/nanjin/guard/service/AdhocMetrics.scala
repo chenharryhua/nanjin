@@ -24,9 +24,9 @@ sealed trait AdhocMetrics[F[_]] {
 abstract private class AdhocMetricsImpl[F[_]](
   channel: Channel[F, Event],
   eventLogger: EventLogger[F],
-  serviceParams: ServiceParams,
   metricRegistry: MetricRegistry)(implicit F: Sync[F])
     extends AdhocMetrics[F] {
+  private val serviceParams: ServiceParams = eventLogger.serviceParams
 
   override val reset: F[Unit] =
     F.realTimeInstant.flatMap(ts =>
