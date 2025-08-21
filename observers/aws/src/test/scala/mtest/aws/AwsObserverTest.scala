@@ -28,8 +28,8 @@ class AwsObserverTest extends AnyFunSuite {
         .facilitate("metrics")(_.meter(Bytes)("meter"))
         .use(
           _.run(10.bytes) >>
-            agent.herald.soleDone("good") >>
-            agent.herald.soleError(new Exception("oops oops oops oops oops oops oops oops"))("my error") >>
+            agent.herald.done("good") >>
+            agent.herald.error(new Exception("oops oops oops oops oops oops oops oops"))("my error") >>
             agent.adhoc.report) >> IO.raiseError(new Exception)
     }
 

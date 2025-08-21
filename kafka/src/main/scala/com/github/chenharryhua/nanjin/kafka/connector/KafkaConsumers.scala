@@ -17,12 +17,17 @@ import com.github.chenharryhua.nanjin.kafka.{
   TransientConsumer
 }
 import fs2.Stream
+import fs2.kafka.consumer.KafkaCommit
 import fs2.kafka.{CommittableConsumerRecord, ConsumerSettings, KafkaConsumer}
 import org.apache.avro.generic.GenericData
 import org.apache.kafka.common.TopicPartition
 
 import scala.collection.immutable.{SortedSet, TreeMap}
 import scala.util.Try
+
+final case class ManuallyCommitStream[F[_], K, V](
+  committer: KafkaCommit[F],
+  stream: Stream[F, CommittableConsumerRecord[F, K, V]])
 
 final class KafkaByteConsume[F[_]] private[kafka] (
   topicName: TopicName,
@@ -42,38 +47,32 @@ final class KafkaByteConsume[F[_]] private[kafka] (
   /*
    * consume
    */
-  def consumer(implicit F: Async[F]): Resource[F, KafkaConsumer[F, Array[Byte], Array[Byte]]] =
+  def clientR(implicit F: Async[F]): Resource[F, KafkaConsumer[F, Array[Byte], Array[Byte]]] =
     KafkaConsumer.resource(consumerSettings)
+
+  def clientS(implicit F: Async[F]): Stream[F, KafkaConsumer[F, Array[Byte], Array[Byte]]] =
+    KafkaConsumer.stream(consumerSettings)
 
   /** raw bytes from kafka, un-deserialized
     * @return
     *   bytes
     */
   def subscribe(implicit F: Async[F]): Stream[F, CommittableConsumerRecord[F, Array[Byte], Array[Byte]]] =
-    KafkaConsumer
-      .stream[F, Array[Byte], Array[Byte]](consumerSettings)
-      .evalTap(_.subscribe(NonEmptyList.one(topicName.value)))
-      .flatMap(_.stream)
+    clientS.evalTap(_.subscribe(NonEmptyList.one(topicName.value))).flatMap(_.stream)
 
   def assign(partition: Int, offset: Long)(implicit
     F: Async[F]): Stream[F, CommittableConsumerRecord[F, Array[Byte], Array[Byte]]] =
-    KafkaConsumer
-      .stream[F, Array[Byte], Array[Byte]](consumerSettings)
-      .evalTap { kc =>
-        val tp = new TopicPartition(topicName.value, partition)
-        kc.assign(NonEmptySet.one(tp)) *> kc.seek(tp, offset)
-      }
-      .flatMap(_.stream)
+    clientS.evalTap { kc =>
+      val tp = new TopicPartition(topicName.value, partition)
+      kc.assign(NonEmptySet.one(tp)) *> kc.seek(tp, offset)
+    }.flatMap(_.stream)
 
   def assign(partitions: List[Int])(implicit
     F: Async[F]): Stream[F, CommittableConsumerRecord[F, Array[Byte], Array[Byte]]] =
     partitions match {
       case head :: rest =>
         val nes = NonEmptySet(head, SortedSet.from(rest))
-        KafkaConsumer
-          .stream[F, Array[Byte], Array[Byte]](consumerSettings)
-          .evalTap(_.assign(topicName.value, nes))
-          .flatMap(_.stream)
+        clientS.evalTap(_.assign(topicName.value, nes)).flatMap(_.stream)
       case Nil => Stream.empty
     }
 
@@ -93,6 +92,20 @@ final class KafkaByteConsume[F[_]] private[kafka] (
       subscribe.mapChunks { crs =>
         crs.map(cr => cr.bimap(_ => (), _ => pull.toGenericRecord(cr.record)))
       }
+    }
+
+  def manually(implicit F: Async[F]): Stream[F, ManuallyCommitStream[F, Unit, Try[GenericData.Record]]] =
+    Stream.eval(getSchema).flatMap { skm =>
+      val pull = new PullGenericRecord(srs, topicName, skm)
+      KafkaConsumer
+        .stream(consumerSettings.withEnableAutoCommit(false))
+        .evalTap(_.subscribe(NonEmptyList.one(topicName.value)))
+        .map(kc =>
+          ManuallyCommitStream(
+            kc,
+            kc.stream.mapChunks { crs =>
+              crs.map(cr => cr.bimap(_ => (), _ => pull.toGenericRecord(cr.record)))
+            }))
     }
 
   // assignment
@@ -169,33 +182,33 @@ final class KafkaConsume[F[_], K, V] private[kafka] (
    * consume
    */
 
-  def consumer(implicit F: Async[F]): Resource[F, KafkaConsumer[F, K, V]] =
+  def clientR(implicit F: Async[F]): Resource[F, KafkaConsumer[F, K, V]] =
     KafkaConsumer.resource(consumerSettings)
 
+  def clientS(implicit F: Async[F]): Stream[F, KafkaConsumer[F, K, V]] =
+    KafkaConsumer.stream(consumerSettings)
+
   def subscribe(implicit F: Async[F]): Stream[F, CommittableConsumerRecord[F, K, V]] =
+    clientS.evalTap(_.subscribe(NonEmptyList.one(topicName.value))).flatMap(_.stream)
+
+  def manually(implicit F: Async[F]): Stream[F, ManuallyCommitStream[F, K, V]] =
     KafkaConsumer
-      .stream[F, K, V](consumerSettings)
+      .stream(consumerSettings.withEnableAutoCommit(false))
       .evalTap(_.subscribe(NonEmptyList.one(topicName.value)))
-      .flatMap(_.stream)
+      .map(kc => ManuallyCommitStream(kc, kc.stream))
 
   def assign(partition: Int, offset: Long)(implicit
     F: Async[F]): Stream[F, CommittableConsumerRecord[F, K, V]] =
-    KafkaConsumer
-      .stream[F, K, V](consumerSettings)
-      .evalTap { kc =>
-        val tp = new TopicPartition(topicName.value, partition)
-        kc.assign(NonEmptySet.one(tp)) *> kc.seek(tp, offset)
-      }
-      .flatMap(_.stream)
+    clientS.evalTap { kc =>
+      val tp = new TopicPartition(topicName.value, partition)
+      kc.assign(NonEmptySet.one(tp)) *> kc.seek(tp, offset)
+    }.flatMap(_.stream)
 
   def assign(partitions: List[Int])(implicit F: Async[F]): Stream[F, CommittableConsumerRecord[F, K, V]] =
     partitions match {
       case head :: rest =>
         val nes = NonEmptySet(head, SortedSet.from(rest))
-        KafkaConsumer
-          .stream[F, K, V](consumerSettings)
-          .evalTap(_.assign(topicName.value, nes))
-          .flatMap(_.stream)
+        clientS.evalTap(_.assign(topicName.value, nes)).flatMap(_.stream)
       case Nil => Stream.empty
     }
 

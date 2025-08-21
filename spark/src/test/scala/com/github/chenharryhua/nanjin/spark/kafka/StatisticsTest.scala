@@ -60,4 +60,18 @@ class StatisticsTest extends AnyFunSuite {
     assert(res == Set(MissingOffset(0, 1)))
     assert(emptyStats.lostOffsets[IO].map(_.count()).unsafeRunSync() == 0)
   }
+
+  test("max/min") {
+    assert(stats.minPartitionOffset[IO].unsafeRunSync().map { case (tp, o) =>
+      tp.partition() -> o.offset()
+    } == Map(0 -> 0, 1 -> 1))
+    assert(stats.maxPartitionOffset[IO].unsafeRunSync().map { case (tp, o) =>
+      tp.partition() -> o.offset()
+    } == Map(0 -> 7, 1 -> 3))
+  }
+
+  test("emptyStats max/min") {
+    assert(emptyStats.minPartitionOffset[IO].unsafeRunSync() == Map.empty)
+    assert(emptyStats.maxPartitionOffset[IO].unsafeRunSync() == Map.empty)
+  }
 }

@@ -31,20 +31,20 @@ final class KafkaProduce[F[_], K, V] private[kafka] (producerSettings: ProducerS
   def transactional(transactionalId: String): KafkaTransactional[F, K, V] =
     new KafkaTransactional[F, K, V](TransactionalProducerSettings(transactionalId, producerSettings))
 
-  def resource(implicit F: Async[F]): Resource[F, KafkaProducer.Metrics[F, K, V]] =
+  def clientR(implicit F: Async[F]): Resource[F, KafkaProducer.Metrics[F, K, V]] =
     KafkaProducer.resource(producerSettings)
 
   def sink(implicit F: Async[F]): Pipe[F, ProducerRecords[K, V], ProducerResult[K, V]] =
     KafkaProducer.pipe[F, K, V](producerSettings)
 
-  def stream(implicit F: Async[F]): Stream[F, KafkaProducer.Metrics[F, K, V]] =
+  def clientS(implicit F: Async[F]): Stream[F, KafkaProducer.Metrics[F, K, V]] =
     KafkaProducer.stream(producerSettings)
 
   /*
    * for testing and repl
    */
   def produceOne(pr: ProducerRecord[K, V])(implicit F: Async[F]): F[RecordMetadata] =
-    resource.use(_.produceOne_(pr).flatten)
+    clientR.use(_.produceOne_(pr).flatten)
 
   def produceOne(topicName: String, k: K, v: V)(implicit F: Async[F]): F[RecordMetadata] =
     produceOne(ProducerRecord(topicName, k, v))
@@ -68,9 +68,9 @@ final class KafkaTransactional[F[_], K, V] private[kafka] (
    * produce
    */
 
-  def resource(implicit F: Async[F]): Resource[F, TransactionalKafkaProducer.WithoutOffsets[F, K, V]] =
+  def clientR(implicit F: Async[F]): Resource[F, TransactionalKafkaProducer.WithoutOffsets[F, K, V]] =
     TransactionalKafkaProducer.resource(txnSettings)
 
-  def stream(implicit F: Async[F]): Stream[F, TransactionalKafkaProducer.WithoutOffsets[F, K, V]] =
+  def clientS(implicit F: Async[F]): Stream[F, TransactionalKafkaProducer.WithoutOffsets[F, K, V]] =
     TransactionalKafkaProducer.stream(txnSettings)
 }

@@ -6,6 +6,8 @@ import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.datetime.{dayResolution, hourResolution, minuteResolution}
 import com.github.chenharryhua.nanjin.messages.kafka.{CRMetaInfo, ZonedCRMetaInfo}
 import com.github.chenharryhua.nanjin.spark.utils
+import org.apache.kafka.clients.consumer.OffsetAndMetadata
+import org.apache.kafka.common.TopicPartition
 import org.apache.spark.sql.Dataset
 
 import java.time.ZoneId
@@ -85,7 +87,7 @@ final class Statistics private[spark] (val dataset: Dataset[CRMetaInfo]) extends
     }
 
   private def internalSummary(ids: Dataset[CRMetaInfo]): List[KafkaSummaryInternal] = {
-    import org.apache.spark.sql.functions.*
+    import org.apache.spark.sql.functions.{min, max, count, first, lit, asc}
     ids
       .groupBy("partition")
       .agg(
@@ -196,5 +198,35 @@ final class Statistics private[spark] (val dataset: Dataset[CRMetaInfo]) extends
         }
         .orderBy(asc("partition"), asc("offset"))
     }
+  }
+
+  def maxPartitionOffset[F[_]](implicit F: Sync[F]): F[Map[TopicPartition, OffsetAndMetadata]] = {
+    import org.apache.spark.sql.functions.{first, max}
+    F.interruptible(
+      dataset
+        .groupBy("partition")
+        .agg(first("topic").as("topic"), max("offset").as("offset"))
+        .as[(Int, String, Long)]
+        .collect()
+        .map { case (partition, topic, offset) =>
+          val tp = new TopicPartition(topic, partition)
+          tp -> new OffsetAndMetadata(offset)
+        }
+        .toMap)
+  }
+
+  def minPartitionOffset[F[_]](implicit F: Sync[F]): F[Map[TopicPartition, OffsetAndMetadata]] = {
+    import org.apache.spark.sql.functions.{first, min}
+    F.interruptible(
+      dataset
+        .groupBy("partition")
+        .agg(first("topic").as("topic"), min("offset").as("offset"))
+        .as[(Int, String, Long)]
+        .collect()
+        .map { case (partition, topic, offset) =>
+          val tp = new TopicPartition(topic, partition)
+          tp -> new OffsetAndMetadata(offset)
+        }
+        .toMap)
   }
 }
