@@ -64,7 +64,6 @@ sealed trait Agent[F[_]] {
 }
 
 final private class GeneralAgent[F[_]: Async](
-  serviceParams: ServiceParams,
   metricRegistry: MetricRegistry,
   channel: Channel[F, Event],
   eventLogger: EventLogger[F],
@@ -74,11 +73,10 @@ final private class GeneralAgent[F[_]: Async](
   dispatcher: Dispatcher[F])
     extends Agent[F] {
 
-  override lazy val zoneId: ZoneId = serviceParams.zoneId
+  override lazy val zoneId: ZoneId = eventLogger.serviceParams.zoneId
 
   override def withDomain(name: String): Agent[F] =
     new GeneralAgent[F](
-      serviceParams,
       metricRegistry,
       channel,
       eventLogger,
@@ -116,8 +114,8 @@ final private class GeneralAgent[F[_]: Async](
   override def retry(f: Endo[Retry.Builder[F]]): Resource[F, Retry[F]] =
     f(new Retry.Builder[F](Policy.giveUp, _ => true.pure[F])).build(zoneId)
 
-  override object adhoc extends AdhocMetricsImpl[F](channel, eventLogger, serviceParams, metricRegistry)
+  override object adhoc extends AdhocMetricsImpl[F](channel, eventLogger, metricRegistry)
 
-  override object herald extends HeraldImpl[F](serviceParams, channel, eventLogger, errorHistory)
-  override object log extends LogImpl[F](serviceParams, eventLogger)
+  override object herald extends HeraldImpl[F](channel, eventLogger, errorHistory)
+  override val log: Log[F] = eventLogger
 }

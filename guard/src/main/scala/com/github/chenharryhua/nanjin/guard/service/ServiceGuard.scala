@@ -110,7 +110,6 @@ final class ServiceGuard[F[_]: Network: Async: Console] private[guard] (
                 builder
                   .withHttpApp(new HttpRouter[F](
                     metricRegistry = metricRegistry,
-                    serviceParams = serviceParams,
                     panicHistory = panicHistory,
                     metricsHistory = metricsHistory,
                     errorHistory = errorHistory,
@@ -124,7 +123,6 @@ final class ServiceGuard[F[_]: Network: Async: Console] private[guard] (
 
         val agent: GeneralAgent[F] =
           new GeneralAgent[F](
-            serviceParams = serviceParams,
             metricRegistry = metricRegistry,
             channel = channel,
             eventLogger = eventLogger,
@@ -138,7 +136,6 @@ final class ServiceGuard[F[_]: Network: Async: Console] private[guard] (
           new ReStart[F](
             channel = channel,
             eventLogger = eventLogger,
-            serviceParams = serviceParams,
             panicHistory = panicHistory,
             theService = F.defer(runAgent(agent))
           ).stream

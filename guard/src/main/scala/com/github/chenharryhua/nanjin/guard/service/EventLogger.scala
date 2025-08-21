@@ -30,10 +30,26 @@ import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 import scala.io.AnsiColor
 
+sealed trait Log[F[_]] {
+
+  def debug[S: Encoder](msg: S): F[Unit]
+  def debug[S: Encoder](msg: => F[S]): F[Unit]
+
+  def info[S: Encoder](msg: S): F[Unit]
+  def done[S: Encoder](msg: S): F[Unit]
+
+  def warn[S: Encoder](msg: S): F[Unit]
+  def warn[S: Encoder](ex: Throwable)(msg: S): F[Unit]
+
+  def void[S](msg: S): F[Unit]
+}
+
 final private class EventLogger[F[_]](
+  val serviceParams: ServiceParams,
   translator: Translator[F, String],
   logger: MessageLogger[F],
-  alarmLevel: Ref[F, Option[AlarmLevel]])(implicit F: Sync[F]) {
+  alarmLevel: Ref[F, Option[AlarmLevel]])(implicit F: Sync[F])
+    extends Log[F] {
 
   private def transform_event(event: Event): F[Option[String]] =
     translator
@@ -104,7 +120,6 @@ final private class EventLogger[F[_]](
    * service message
    */
   private def transform_service_message[S: Encoder](
-    serviceParams: ServiceParams,
     msg: S,
     level: AlarmLevel,
     error: Option[Error]): F[Option[String]] =
@@ -112,37 +127,27 @@ final private class EventLogger[F[_]](
       .map(_.exists(_ <= level))
       .ifM(create_service_message(serviceParams, msg, level, error).flatMap(transform_event(_)), F.pure(None))
 
-  def info[S: Encoder](serviceParams: ServiceParams, msg: S): F[Unit] =
-    transform_service_message(serviceParams, msg, AlarmLevel.Info, None)
-      .flatMap(_.traverse(logger.info(_)))
-      .void
+  def error[S: Encoder](msg: S): F[Unit] =
+    transform_service_message(msg, AlarmLevel.Error, None).flatMap(_.traverse(logger.error(_))).void
 
-  def done[S: Encoder](serviceParams: ServiceParams, msg: S): F[Unit] =
-    transform_service_message(serviceParams, msg, AlarmLevel.Done, None)
-      .flatMap(_.traverse(logger.info(_)))
-      .void
-
-  def warn[S: Encoder](serviceParams: ServiceParams, msg: S): F[Unit] =
-    transform_service_message(serviceParams, msg, AlarmLevel.Warn, None)
-      .flatMap(_.traverse(logger.warn(_)))
-      .void
-
-  def warn[S: Encoder](ex: Throwable)(serviceParams: ServiceParams, msg: S): F[Unit] =
-    transform_service_message(serviceParams, msg, AlarmLevel.Warn, Some(Error(ex)))
-      .flatMap(_.traverse(logger.warn(_)))
-      .void
-
-  def error[S: Encoder](serviceParams: ServiceParams, msg: S): F[Unit] =
-    transform_service_message(serviceParams, msg, AlarmLevel.Error, None)
+  def error[S: Encoder](ex: Throwable)(msg: S): F[Unit] =
+    transform_service_message(msg, AlarmLevel.Error, Some(Error(ex)))
       .flatMap(_.traverse(logger.error(_)))
       .void
 
-  def error[S: Encoder](ex: Throwable)(serviceParams: ServiceParams, msg: S): F[Unit] =
-    transform_service_message(serviceParams, msg, AlarmLevel.Error, Some(Error(ex)))
-      .flatMap(_.traverse(logger.error(_)))
-      .void
+  override def info[S: Encoder](msg: S): F[Unit] =
+    transform_service_message(msg, AlarmLevel.Info, None).flatMap(_.traverse(logger.info(_))).void
 
-  def debug[S: Encoder](serviceParams: ServiceParams, msg: => F[S]): F[Unit] = {
+  override def done[S: Encoder](msg: S): F[Unit] =
+    transform_service_message(msg, AlarmLevel.Done, None).flatMap(_.traverse(logger.info(_))).void
+
+  override def warn[S: Encoder](msg: S): F[Unit] =
+    transform_service_message(msg, AlarmLevel.Warn, None).flatMap(_.traverse(logger.warn(_))).void
+
+  override def warn[S: Encoder](ex: Throwable)(msg: S): F[Unit] =
+    transform_service_message(msg, AlarmLevel.Warn, Some(Error(ex))).flatMap(_.traverse(logger.warn(_))).void
+
+  override def debug[S: Encoder](msg: => F[S]): F[Unit] = {
     def debug_message(ss: ServiceMessage): String = {
       val title = AnsiColor.BLUE + ss.name.entryName + AnsiColor.RESET
       val txt = jsonHelper.json_service_message(ss).noSpaces
@@ -163,10 +168,10 @@ final private class EventLogger[F[_]](
       )
   }
 
-  def debug[S: Encoder](serviceParams: ServiceParams, msg: S): F[Unit] =
-    debug(serviceParams, F.pure(msg))
+  override def debug[S: Encoder](msg: S): F[Unit] =
+    debug(F.pure(msg))
 
-  val void: F[Unit] = F.unit
+  override def void[S](msg: S): F[Unit] = F.unit
 }
 
 private object EventLogger {
@@ -176,30 +181,38 @@ private object EventLogger {
     serviceParams.logFormat match {
       case LogFormat.Console_PlainText =>
         new EventLogger[F](
+          serviceParams,
           SimpleTextTranslator[F],
           new ConsoleLogger[F](serviceParams.zoneId),
           alarmLevel).pure
       case LogFormat.Console_JsonNoSpaces =>
         new EventLogger[F](
+          serviceParams,
           PrettyJsonTranslator[F].map(_.noSpaces),
           new ConsoleLogger[F](serviceParams.zoneId),
           alarmLevel).pure
       case LogFormat.Slf4j_PlainText =>
         Slf4jLogger
           .fromName[F](serviceParams.serviceName.value)
-          .map(logger => new EventLogger[F](SimpleTextTranslator[F], logger, alarmLevel))
+          .map(logger => new EventLogger[F](serviceParams, SimpleTextTranslator[F], logger, alarmLevel))
       case LogFormat.Slf4j_JsonNoSpaces =>
         Slf4jLogger
           .fromName[F](serviceParams.serviceName.value)
-          .map(logger => new EventLogger[F](PrettyJsonTranslator[F].map(_.noSpaces), logger, alarmLevel))
+          .map(logger =>
+            new EventLogger[F](serviceParams, PrettyJsonTranslator[F].map(_.noSpaces), logger, alarmLevel))
       case LogFormat.Slf4j_JsonSpaces2 =>
         Slf4jLogger
           .fromName[F](serviceParams.serviceName.value)
-          .map(logger => new EventLogger[F](PrettyJsonTranslator[F].map(_.spaces2), logger, alarmLevel))
+          .map(logger =>
+            new EventLogger[F](serviceParams, PrettyJsonTranslator[F].map(_.spaces2), logger, alarmLevel))
       case LogFormat.Slf4j_JsonVerbose =>
         Slf4jLogger
           .fromName[F](serviceParams.serviceName.value)
           .map(logger =>
-            new EventLogger[F](Translator.idTranslator.map(_.asJson.spaces2), logger, alarmLevel))
+            new EventLogger[F](
+              serviceParams,
+              Translator.idTranslator.map(_.asJson.spaces2),
+              logger,
+              alarmLevel))
     }
 }

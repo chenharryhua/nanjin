@@ -18,11 +18,12 @@ import scala.jdk.DurationConverters.JavaDurationOps
 
 final private class ReStart[F[_]: Temporal](
   channel: Channel[F, Event],
-  serviceParams: ServiceParams,
   panicHistory: AtomicCell[F, CircularFifoQueue[ServicePanic]],
   eventLogger: EventLogger[F],
   theService: F[Unit])
     extends duration {
+  private val serviceParams: ServiceParams = eventLogger.serviceParams
+
   private[this] val F = Temporal[F]
 
   private[this] def stop(cause: ServiceStopCause): F[Unit] =
