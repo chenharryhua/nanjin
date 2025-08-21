@@ -240,7 +240,7 @@ lazy val database = (project in file("database"))
       "org.tpolecat" %% "doobie-hikari" % doobieV,
       "org.tpolecat" %% "doobie-free"   % doobieV,
       "org.tpolecat" %% "skunk-core"    % skunkV,
-      "com.zaxxer"                      % "HikariCP"        % "7.0.1",
+      "com.zaxxer"                      % "HikariCP"        % "7.0.2",
       "org.postgresql"                  % "postgresql"      % postgresV % Test,
       "ch.qos.logback"                  % "logback-classic" % logbackV  % Test
     ) ++ testLib
