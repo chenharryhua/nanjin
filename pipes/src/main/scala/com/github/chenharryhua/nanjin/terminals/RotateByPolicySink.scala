@@ -41,7 +41,9 @@ final private class RotateByPolicySink[F[_]: Async](
               doWork(currentTick, getWriter, hotswap, writer, tail)
           case Right(ticked) =>
             Pull.eval(hotswap.swap(getWriter(ticked.value))).flatMap { newWriter =>
-              doWork(ticked.tick, getWriter, hotswap, newWriter, tail)
+              // make sure that at least one message is out in any time frame
+              Pull.output1(TickedValue(currentTick, 0)) >>
+                doWork(ticked.tick, getWriter, hotswap, newWriter, tail)
             }
         }
     }

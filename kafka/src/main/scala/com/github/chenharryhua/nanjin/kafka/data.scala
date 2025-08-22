@@ -145,34 +145,33 @@ final case class TopicPartitionMap[V](value: TreeMap[TopicPartition, V]) extends
 object TopicPartitionMap {
   def apply[V](map: Map[TopicPartition, V]): TopicPartitionMap[V] = TopicPartitionMap(TreeMap.from(map))
 
-  implicit def codecTopicPartitionMap[V: Encoder: Decoder]: Codec[TopicPartitionMap[V]] =
-    new Codec[TopicPartitionMap[V]] {
-      override def apply(a: TopicPartitionMap[V]): Json =
-        Encoder
-          .encodeList[Json]
-          .apply(a.value.map { case (tp, v) =>
-            Json.obj(
-              "topic" -> Json.fromString(tp.topic()),
-              "partition" -> Json.fromInt(tp.partition()),
-              "value" -> Encoder[V].apply(v))
-          }.toList)
+  implicit def encoderTopicPartitionMap[V: Encoder]: Encoder[TopicPartitionMap[V]] =
+    (a: TopicPartitionMap[V]) =>
+      Encoder
+        .encodeList[Json]
+        .apply(a.value.map { case (tp, v) =>
+          Json.obj(
+            TOPIC -> Json.fromString(tp.topic()),
+            PARTITION -> Json.fromInt(tp.partition()),
+            "value" -> Encoder[V].apply(v))
+        }.toList)
 
-      override def apply(c: HCursor): Result[TopicPartitionMap[V]] =
-        Decoder
-          .decodeList[Json]
-          .flatMap { jsons =>
-            Decoder.instance(_ =>
-              jsons.traverse { json =>
-                val hc = json.hcursor
-                for {
-                  t <- hc.downField(TOPIC).as[String]
-                  p <- hc.downField(PARTITION).as[Int]
-                  v <- hc.downField("value").as[V]
-                } yield new TopicPartition(t, p) -> v
-              }.map(lst => TopicPartitionMap(TreeMap.from(lst))))
-          }
-          .apply(c)
-    }
+  implicit def decoderTopicPartitionMap[V: Decoder]: Decoder[TopicPartitionMap[V]] =
+    (c: HCursor) =>
+      Decoder
+        .decodeList[Json]
+        .flatMap { jsons =>
+          Decoder.instance(_ =>
+            jsons.traverse { json =>
+              val hc = json.hcursor
+              for {
+                t <- hc.downField(TOPIC).as[String]
+                p <- hc.downField(PARTITION).as[Int]
+                v <- hc.downField("value").as[V]
+              } yield new TopicPartition(t, p) -> v
+            }.map(lst => TopicPartitionMap(TreeMap.from(lst))))
+        }
+        .apply(c)
 
   def empty[V]: TopicPartitionMap[V] = TopicPartitionMap(Map.empty[TopicPartition, V])
 
