@@ -87,6 +87,7 @@ class PolicyCombinatorTest extends AnyFunSuite {
     assert(a4.snooze == 2.seconds.toJava)
     assert(a5.snooze == 2.seconds.toJava)
     assert(a6.snooze == 1.second.toJava)
+    assert(List(a1, a2, a3, a4, a5, a6).forall(t => t.acquire.plus(t.snooze) == t.wakeup))
   }
 
   test("meet") {
@@ -114,6 +115,7 @@ class PolicyCombinatorTest extends AnyFunSuite {
     assert(a4.snooze.toScala <= 1.second)
     assert(a5.snooze.toScala <= 1.second)
     assert(a6.snooze.toScala <= 1.second)
+    assert(List(a1, a2, a3, a4, a5, a6).forall(t => t.acquire.plus(t.snooze) == t.wakeup))
   }
 
   test("meet - 2") {
@@ -140,6 +142,8 @@ class PolicyCombinatorTest extends AnyFunSuite {
     assert(a4.snooze.toScala <= 1.second)
     assert(a5.snooze.toScala <= 1.second)
     assert(a6.snooze.toScala <= 1.second)
+
+    assert(List(a1, a2, a3, a4, a5, a6).forall(t => t.acquire.plus(t.snooze) == t.wakeup))
   }
 
   test("infinite") {
@@ -216,6 +220,7 @@ class PolicyCombinatorTest extends AnyFunSuite {
     assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
 
     val ticks = tickLazyList.fromTickStatus(zeroTickStatus.renewPolicy(policy)).take(8).toList
+    assert(ticks.forall(t => t.acquire.plus(t.snooze) == t.wakeup))
     val wakeup = ticks.map(_.zonedWakeup.toLocalTime)
     assert(wakeup.size == 8)
     assert(wakeup.head == localTimes.oneAM)
@@ -234,6 +239,7 @@ class PolicyCombinatorTest extends AnyFunSuite {
     println(policy.asJson)
     assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
     val ticks = tickLazyList.fromTickStatus(zeroTickStatus.renewPolicy(policy)).take(32).toList
+    assert(ticks.forall(t => t.acquire.plus(t.snooze) == t.wakeup))
     val wakeup = ticks.map(_.zonedWakeup.toLocalTime.getSecond)
     wakeup.forall(_ == 3)
   }
@@ -246,7 +252,7 @@ class PolicyCombinatorTest extends AnyFunSuite {
 
     val ts = zeroTickStatus.renewPolicy(policy)
     val ticks = tickLazyList.fromTickStatus(ts).take(10).toList
-
+    assert(ticks.forall(t => t.acquire.plus(t.snooze) == t.wakeup))
     ticks.foreach(tk => println(tk))
   }
 

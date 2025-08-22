@@ -27,9 +27,9 @@ final case class Tick(
   previous: Instant, // previous tick's wakeup time
   index: Long, // monotonously increase
   acquire: Instant, // when acquire a new tick
-  snooze: Duration, // sleep duration
-  wakeup: Instant // wakeup time
+  snooze: Duration // sleep duration
 ) {
+  val wakeup: Instant = acquire.plus(snooze)
 
   def zonedLaunchTime: ZonedDateTime = launchTime.atZone(zoneId)
   def zonedWakeup: ZonedDateTime = wakeup.atZone(zoneId)
@@ -42,6 +42,8 @@ final case class Tick(
 
   def active: Duration = Duration.between(previous, acquire)
 
+  def sleepStretch(delay: Duration): Tick = copy(snooze = snooze.plus(delay))
+
   /** check if an instant is in this tick frame from previous timestamp(exclusive) to current
     * timestamp(inclusive).
     */
@@ -53,8 +55,7 @@ final case class Tick(
       previous = this.wakeup,
       index = this.index + 1,
       acquire = now,
-      snooze = delay,
-      wakeup = now.plus(delay)
+      snooze = delay
     )
 
   override def toString: String = {
@@ -75,8 +76,7 @@ object Tick {
       previous = now,
       index = 0L,
       acquire = now,
-      snooze = Duration.ZERO,
-      wakeup = now
+      snooze = Duration.ZERO
     )
 
   def zeroth[F[_]: Sync](zoneId: ZoneId): F[Tick] =
@@ -88,9 +88,9 @@ object Tick {
   implicit val encoderTick: Encoder[Tick] =
     (a: Tick) =>
       Json.obj(
-        "sequenceId" -> a.sequenceId.asJson,
-        "launchTime" -> a.launchTime.atZone(a.zoneId).toLocalDateTime.asJson,
-        "zoneId" -> a.zoneId.asJson,
+        "sequence_id" -> a.sequenceId.asJson,
+        "launch_time" -> a.launchTime.atZone(a.zoneId).toLocalDateTime.asJson,
+        "zone_id" -> a.zoneId.asJson,
         "previous" -> a.zonedPrevious.toLocalDateTime.asJson,
         "acquire" -> a.zonedAcquire.toLocalDateTime.asJson,
         "wakeup" -> a.zonedWakeup.toLocalDateTime.asJson,
@@ -101,14 +101,13 @@ object Tick {
   implicit val decoderTick: Decoder[Tick] =
     (c: HCursor) =>
       for {
-        sequenceId <- c.get[UUID]("sequenceId")
-        zoneId <- c.get[ZoneId]("zoneId")
-        launchTime <- c.get[LocalDateTime]("launchTime")
+        sequenceId <- c.get[UUID]("sequence_id")
+        launchTime <- c.get[LocalDateTime]("launch_time")
+        zoneId <- c.get[ZoneId]("zone_id")
         previous <- c.get[LocalDateTime]("previous")
         index <- c.get[Long]("index")
         acquire <- c.get[LocalDateTime]("acquire")
         snooze <- c.get[Duration]("snooze")
-        wakeup <- c.get[LocalDateTime]("wakeup")
       } yield Tick(
         sequenceId = sequenceId,
         launchTime = launchTime.atZone(zoneId).toInstant,
@@ -116,8 +115,7 @@ object Tick {
         previous = previous.atZone(zoneId).toInstant,
         index = index,
         acquire = acquire.atZone(zoneId).toInstant,
-        snooze = snooze,
-        wakeup = wakeup.atZone(zoneId).toInstant
+        snooze = snooze
       )
 
   implicit val showTick: Show[Tick] = Show.fromToString[Tick]
