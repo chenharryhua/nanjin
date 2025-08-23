@@ -142,7 +142,7 @@ final class Hadoop[F[_]] private (config: Configuration) {
     */
   def rotateSink(policy: Policy, zoneId: ZoneId)(pathBuilder: Tick => Url)(implicit
     F: Async[F]): RotateByPolicy[F] =
-    rotateSink(tickStream.fromZero[F](policy, zoneId).map(tick => TickedValue(tick, pathBuilder(tick))))
+    rotateSink(tickStream.future[F](policy, zoneId).map(tick => TickedValue(tick, pathBuilder(tick))))
 
   /** Size based rotation sink
     */

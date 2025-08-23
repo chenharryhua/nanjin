@@ -21,7 +21,7 @@ import scalapb.GeneratedMessage
 
 final private class RotateByPolicySink[F[_]: Async](
   configuration: Configuration,
-  ticks: Stream[F, TickedValue[Path]])
+  tickedPath: Stream[F, TickedValue[Path]])
     extends RotateByPolicy[F] {
 
   private def doWork[A](
@@ -81,7 +81,7 @@ final private class RotateByPolicySink[F[_]: Async](
     (ss: Stream[F, GenericRecord]) =>
       ss.pull.peek1.flatMap {
         case Some((gr, stream)) =>
-          persist(stream.chunks, ticks, get_writer(gr.getSchema))
+          persist(stream.chunks, tickedPath, get_writer(gr.getSchema))
         case None => Pull.done
       }.stream
   }
@@ -91,7 +91,7 @@ final private class RotateByPolicySink[F[_]: Async](
     def get_writer(url: Path): Resource[F, HadoopWriter[F, GenericRecord]] =
       HadoopWriter.avroR[F](compression.codecFactory, schema, configuration, url)
 
-    (ss: Stream[F, GenericRecord]) => persist(ss.chunks, ticks, get_writer).stream
+    (ss: Stream[F, GenericRecord]) => persist(ss.chunks, tickedPath, get_writer).stream
   }
 
   // binary avro
@@ -102,7 +102,7 @@ final private class RotateByPolicySink[F[_]: Async](
     (ss: Stream[F, GenericRecord]) =>
       ss.pull.peek1.flatMap {
         case Some((gr, stream)) =>
-          persist(stream.chunks, ticks, get_writer(gr.getSchema))
+          persist(stream.chunks, tickedPath, get_writer(gr.getSchema))
         case None => Pull.done
       }.stream
   }
@@ -111,7 +111,7 @@ final private class RotateByPolicySink[F[_]: Async](
     def get_writer(url: Path): Resource[F, HadoopWriter[F, GenericRecord]] =
       HadoopWriter.binAvroR[F](configuration, schema, url)
 
-    (ss: Stream[F, GenericRecord]) => persist(ss.chunks, ticks, get_writer).stream
+    (ss: Stream[F, GenericRecord]) => persist(ss.chunks, tickedPath, get_writer).stream
   }
 
   // jackson json
@@ -122,7 +122,7 @@ final private class RotateByPolicySink[F[_]: Async](
     (ss: Stream[F, GenericRecord]) =>
       ss.pull.peek1.flatMap {
         case Some((gr, stream)) =>
-          persist(stream.chunks, ticks, get_writer(gr.getSchema))
+          persist(stream.chunks, tickedPath, get_writer(gr.getSchema))
         case None => Pull.done
       }.stream
   }
@@ -131,7 +131,7 @@ final private class RotateByPolicySink[F[_]: Async](
     def get_writer(url: Path): Resource[F, HadoopWriter[F, GenericRecord]] =
       HadoopWriter.jacksonR[F](configuration, schema, url)
 
-    (ss: Stream[F, GenericRecord]) => persist(ss.chunks, ticks, get_writer).stream
+    (ss: Stream[F, GenericRecord]) => persist(ss.chunks, tickedPath, get_writer).stream
   }
 
   // parquet
@@ -153,7 +153,7 @@ final private class RotateByPolicySink[F[_]: Async](
     (ss: Stream[F, GenericRecord]) =>
       ss.pull.peek1.flatMap {
         case Some((gr, stream)) =>
-          persist(stream.chunks, ticks, get_writer(gr.getSchema))
+          persist(stream.chunks, tickedPath, get_writer(gr.getSchema))
         case None => Pull.done
       }.stream
   }
@@ -173,7 +173,7 @@ final private class RotateByPolicySink[F[_]: Async](
       HadoopWriter.parquetR[F](writeBuilder, url)
     }
 
-    (ss: Stream[F, GenericRecord]) => persist(ss.chunks, ticks, get_writer).stream
+    (ss: Stream[F, GenericRecord]) => persist(ss.chunks, tickedPath, get_writer).stream
   }
 
   // bytes
@@ -181,7 +181,7 @@ final private class RotateByPolicySink[F[_]: Async](
     def get_writer(url: Path): Resource[F, HadoopWriter[F, Byte]] =
       HadoopWriter.byteR[F](configuration, url)
 
-    (ss: Stream[F, Byte]) => persist(ss.chunks, ticks, get_writer).stream
+    (ss: Stream[F, Byte]) => persist(ss.chunks, tickedPath, get_writer).stream
   }
 
   // circe json
@@ -190,7 +190,7 @@ final private class RotateByPolicySink[F[_]: Async](
     def get_writer(url: Path): Resource[F, HadoopWriter[F, String]] =
       HadoopWriter.stringR[F](configuration, url)
 
-    (ss: Stream[F, Json]) => persist(ss.map(_.noSpaces).chunks, ticks, get_writer).stream
+    (ss: Stream[F, Json]) => persist(ss.map(_.noSpaces).chunks, tickedPath, get_writer).stream
   }
 
   // kantan csv
@@ -198,7 +198,8 @@ final private class RotateByPolicySink[F[_]: Async](
     def get_writer(url: Path): Resource[F, HadoopWriter[F, String]] =
       HadoopWriter.csvStringR[F](configuration, url).evalTap(_.write(csvHeader(csvConfiguration)))
 
-    (ss: Stream[F, Seq[String]]) => persist(ss.map(csvRow(csvConfiguration)).chunks, ticks, get_writer).stream
+    (ss: Stream[F, Seq[String]]) =>
+      persist(ss.map(csvRow(csvConfiguration)).chunks, tickedPath, get_writer).stream
   }
 
   // text
@@ -206,13 +207,13 @@ final private class RotateByPolicySink[F[_]: Async](
     def get_writer(url: Path): Resource[F, HadoopWriter[F, String]] =
       HadoopWriter.stringR(configuration, url)
 
-    (ss: Stream[F, String]) => persist(ss.chunks, ticks, get_writer).stream
+    (ss: Stream[F, String]) => persist(ss.chunks, tickedPath, get_writer).stream
   }
 
   override val protobuf: Sink[GeneratedMessage] = {
     def get_writer(url: Path): Resource[F, HadoopWriter[F, GeneratedMessage]] =
       HadoopWriter.protobufR(configuration, url)
 
-    (ss: Stream[F, GeneratedMessage]) => persist(ss.chunks, ticks, get_writer).stream
+    (ss: Stream[F, GeneratedMessage]) => persist(ss.chunks, tickedPath, get_writer).stream
   }
 }

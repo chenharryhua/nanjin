@@ -94,6 +94,6 @@ object CircuitBreaker {
       new Builder(maxFailures, f(Policy))
 
     private[guard] def build[F[_]: Async](zoneId: ZoneId): Resource[F, CircuitBreaker[F]] =
-      new Impl[F](maxFailures - 1, tickStream.fromOne[F](policy, zoneId)).stateMachine
+      new Impl[F](maxFailures - 1, tickStream.past[F](policy, zoneId)).stateMachine
   }
 }

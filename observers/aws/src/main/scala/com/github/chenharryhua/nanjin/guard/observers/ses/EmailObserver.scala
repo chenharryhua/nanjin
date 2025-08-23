@@ -172,7 +172,7 @@ final class EmailObserver[F[_]] private (
           case ss: ServiceStop  => state.update(_.removed(ss.serviceParams.serviceId))
           case _                => F.unit
         }.map(Left(_))
-        ticks = tickStream.fromOne[F](policy, zoneId).map(Right(_))
+        ticks = tickStream.past[F](policy, zoneId).map(Right(_))
         send_email = publish_one_email(ses, from, to, subject)(_)
         event <- go(monitor.mergeHaltBoth(ticks), send_email, cache).stream
           .onFinalize(good_bye(state, cache).flatMap(send_email))

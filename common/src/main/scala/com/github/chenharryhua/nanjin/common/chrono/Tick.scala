@@ -88,14 +88,16 @@ object Tick {
   implicit val encoderTick: Encoder[Tick] =
     (a: Tick) =>
       Json.obj(
-        "sequence_id" -> a.sequenceId.asJson,
-        "launch_time" -> a.launchTime.atZone(a.zoneId).toLocalDateTime.asJson,
-        "zone_id" -> a.zoneId.asJson,
+        "index" -> Json.fromLong(a.index),
         "previous" -> a.zonedPrevious.toLocalDateTime.asJson,
         "acquire" -> a.zonedAcquire.toLocalDateTime.asJson,
         "wakeup" -> a.zonedWakeup.toLocalDateTime.asJson,
+        "active" -> a.active.asJson,
         "snooze" -> a.snooze.asJson,
-        "index" -> Json.fromLong(a.index)
+        "interval" -> a.interval.asJson,
+        "sequence_id" -> a.sequenceId.asJson,
+        "launch_time" -> a.launchTime.atZone(a.zoneId).toLocalDateTime.asJson,
+        "zone_id" -> a.zoneId.asJson
       )
 
   implicit val decoderTick: Decoder[Tick] =

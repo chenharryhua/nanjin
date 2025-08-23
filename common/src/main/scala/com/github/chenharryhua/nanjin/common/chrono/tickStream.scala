@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.common.chrono
 
 import cats.effect.kernel.{Async, Temporal}
 import cats.syntax.all.*
-import fs2.Stream
+import fs2.{Pull, Stream}
 
 import java.time.{Instant, ZoneId}
 import java.util.UUID
@@ -18,15 +18,33 @@ object tickStream {
       }
     }
 
-  /** One based tick stream - tick index start from one
+  /** sleep, then emit the tick
+    *
+    * wakeup is before NOW
+    *
+    * first tick is not emitted immediately.
     */
-  def fromOne[F[_]: Async](policy: Policy, zoneId: ZoneId): Stream[F, Tick] =
+  def past[F[_]: Async](policy: Policy, zoneId: ZoneId): Stream[F, Tick] =
     Stream.eval[F, TickStatus](TickStatus.zeroth[F](policy, zoneId)).flatMap(fromTickStatus[F])
 
-  /** Zero based tick stream - tick index start from zero
+  /** emit the tick, then sleep
+    *
+    * wakeup is after NOW
+    *
+    * first tick is immediately emitted
     */
-  def fromZero[F[_]: Async](policy: Policy, zoneId: ZoneId): Stream[F, Tick] =
-    Stream.eval(TickStatus.zeroth(policy, zoneId)).flatMap(ts => fromTickStatus(ts).cons1(ts.tick))
+  def future[F[_]](policy: Policy, zoneId: ZoneId)(implicit F: Async[F]): Stream[F, Tick] =
+    Stream.eval[F, TickStatus](TickStatus.zeroth[F](policy, zoneId)).flatMap { status =>
+      def go(ticks: Stream[F, Tick]): Pull[F, Tick, Unit] =
+        ticks.pull.uncons1.flatMap {
+          case Some((tick, rest)) => Pull.output1(tick) >> Pull.sleep(tick.snooze.toScala) >> go(rest)
+          case None               => Pull.done
+        }
+      val sts: Stream[F, Tick] =
+        Stream.unfoldEval(status)(s => F.realTimeInstant.map(s.next(_).map(ns => (ns.tick, ns))))
+
+      go(sts).stream
+    }
 }
 
 /** for testing

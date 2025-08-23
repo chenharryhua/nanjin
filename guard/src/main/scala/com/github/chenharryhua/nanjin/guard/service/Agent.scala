@@ -95,10 +95,10 @@ final private class GeneralAgent[F[_]: Async](
   }
 
   override def ticks(policy: Policy): Stream[F, Tick] =
-    tickStream.fromOne[F](policy, zoneId)
+    tickStream.past[F](policy, zoneId)
 
   override def tickImmediately(policy: Policy): Stream[F, Tick] =
-    tickStream.fromZero(policy, zoneId)
+    tickStream.future(policy, zoneId)
 
   override def facilitate[A](label: String)(f: Metrics[F] => A): A = {
     val metricLabel = MetricLabel(label, domain)
