@@ -52,7 +52,7 @@ class EventFilterTest extends AnyFunSuite {
 
   test("3.sampling - cron") {
     val policy = Policy.crontab(_.secondly)
-    val align = tickStream.fromOne[IO](Policy.crontab(_.every3Seconds).limited(1), sydneyTime)
+    val align = tickStream.past[IO](Policy.crontab(_.every3Seconds).limited(1), sydneyTime)
     val run = service
       .updateConfig(_.withMetricReport(policy, 1))
       .eventStream(_ => IO.sleep(7.seconds))

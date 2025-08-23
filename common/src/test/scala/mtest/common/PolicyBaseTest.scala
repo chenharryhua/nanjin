@@ -56,6 +56,7 @@ class PolicyBaseTest extends AnyFunSuite {
     assert(a5.index == 5)
     assert(a5.previous === a4.wakeup)
     assert(a5.snooze == 1.second.toJava)
+    assert(List(a1, a2, a3, a4, a5).forall(t => t.acquire.plus(t.snooze) == t.wakeup))
   }
 
   test("fixed rate") {
@@ -96,6 +97,7 @@ class PolicyBaseTest extends AnyFunSuite {
     assert(a5.index == 5)
     assert(a5.previous === a4.wakeup)
     assert(a5.wakeup == a5.previous.plus(1.seconds.toJava))
+    assert(List(a1, a2, a3, a4, a5).forall(t => t.acquire.plus(t.snooze) == t.wakeup))
   }
 
   test("fixed delays") {
@@ -122,6 +124,7 @@ class PolicyBaseTest extends AnyFunSuite {
     assert(a5.snooze == 2.second.toJava)
     assert(a6.snooze == 3.second.toJava)
     assert(a7.snooze == 1.second.toJava)
+    assert(List(a1, a2, a3, a4, a5, a6, a7).forall(t => t.acquire.plus(t.snooze) == t.wakeup))
   }
 
   test("cron") {
@@ -145,6 +148,7 @@ class PolicyBaseTest extends AnyFunSuite {
     assert(a2.tick.snooze == 30.minutes.toJava)
     assert(a3.tick.snooze == 15.minutes.toJava)
     assert(a4.tick.snooze == 1.hour.toJava)
+
   }
 
   test("giveUp") {

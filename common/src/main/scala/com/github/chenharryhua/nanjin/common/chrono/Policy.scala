@@ -12,7 +12,6 @@ import io.circe.*
 import io.circe.Decoder.Result
 import io.circe.DecodingFailure.Reason
 import io.circe.syntax.EncoderOps
-import monocle.Monocle.toAppliedFocusOps
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.typelevel.cats.time.instances.all
 
@@ -100,19 +99,19 @@ private object PolicyF extends all {
           val tick = f(req)
           if (tick.zonedWakeup.toLocalTime === except) {
             val nt = f(TickRequest(tick, tick.wakeup))
-            tick.focus(_.snooze).modify(_.plus(nt.snooze))
+            tick.sleepStretch(nt.snooze)
           } else tick
         }
 
       case Offset(policy, offset) =>
         policy.map { (f: CalcTick) => (req: TickRequest) =>
-          f(req).focus(_.snooze).modify(_.plus(offset))
+          f(req).sleepStretch(offset)
         }
 
       case Jitter(policy, min, max) =>
         policy.map { (f: CalcTick) => (req: TickRequest) =>
           val delay = Duration.of(Random.between(min.toNanos, max.toNanos), ChronoUnit.NANOS)
-          f(req).focus(_.snooze).modify(_.plus(delay))
+          f(req).sleepStretch(delay)
         }
     }
 

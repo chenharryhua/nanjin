@@ -203,6 +203,15 @@ class NJCirceTest extends AnyFunSuite {
       (s ++ s ++ s).through(sink.circe).compile.drain).unsafeRunSync()
   }
 
+  test("emit in each time frame even if no data") {
+    val path: Url = fs2Root / "empty"
+    val sink =
+      hdp.rotateSink(Policy.fixedDelay(1.second), ZoneId.systemDefault())(t => path / t.index.toString)
+    val run = hdp.delete(path) >>
+      Stream.sleep[IO](5.seconds).map(_ => Json.Null).through(sink.circe).compile.toList
+    assert(run.unsafeRunSync().size > 3)
+  }
+
   ignore("large number (10000) of files - passed but too cost to run it") {
     val path = fs2Root / "rotation" / "many"
     val number = 1000L

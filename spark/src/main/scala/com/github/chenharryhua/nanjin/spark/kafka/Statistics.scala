@@ -4,9 +4,9 @@ import cats.Endo
 import cats.effect.kernel.Sync
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.datetime.{dayResolution, hourResolution, minuteResolution}
+import com.github.chenharryhua.nanjin.kafka.TopicPartitionMap
 import com.github.chenharryhua.nanjin.messages.kafka.{CRMetaInfo, ZonedCRMetaInfo}
 import com.github.chenharryhua.nanjin.spark.utils
-import org.apache.kafka.clients.consumer.OffsetAndMetadata
 import org.apache.kafka.common.TopicPartition
 import org.apache.spark.sql.Dataset
 
@@ -87,7 +87,7 @@ final class Statistics private[spark] (val dataset: Dataset[CRMetaInfo]) extends
     }
 
   private def internalSummary(ids: Dataset[CRMetaInfo]): List[KafkaSummaryInternal] = {
-    import org.apache.spark.sql.functions.{min, max, count, first, lit, asc}
+    import org.apache.spark.sql.functions.*
     ids
       .groupBy("partition")
       .agg(
@@ -200,33 +200,33 @@ final class Statistics private[spark] (val dataset: Dataset[CRMetaInfo]) extends
     }
   }
 
-  def maxPartitionOffset[F[_]](implicit F: Sync[F]): F[Map[TopicPartition, OffsetAndMetadata]] = {
+  def maxPartitionOffset[F[_]](implicit F: Sync[F]): F[TopicPartitionMap[Long]] = {
     import org.apache.spark.sql.functions.{first, max}
     F.interruptible(
-      dataset
-        .groupBy("partition")
-        .agg(first("topic").as("topic"), max("offset").as("offset"))
-        .as[(Int, String, Long)]
-        .collect()
-        .map { case (partition, topic, offset) =>
-          val tp = new TopicPartition(topic, partition)
-          tp -> new OffsetAndMetadata(offset)
-        }
-        .toMap)
+      TopicPartitionMap(
+        dataset
+          .groupBy("partition")
+          .agg(first("topic").as("topic"), max("offset").as("offset"))
+          .as[(Int, String, Long)]
+          .collect()
+          .map { case (partition, topic, offset) =>
+            val tp = new TopicPartition(topic, partition)
+            tp -> offset
+          }))
   }
 
-  def minPartitionOffset[F[_]](implicit F: Sync[F]): F[Map[TopicPartition, OffsetAndMetadata]] = {
+  def minPartitionOffset[F[_]](implicit F: Sync[F]): F[TopicPartitionMap[Long]] = {
     import org.apache.spark.sql.functions.{first, min}
     F.interruptible(
-      dataset
-        .groupBy("partition")
-        .agg(first("topic").as("topic"), min("offset").as("offset"))
-        .as[(Int, String, Long)]
-        .collect()
-        .map { case (partition, topic, offset) =>
-          val tp = new TopicPartition(topic, partition)
-          tp -> new OffsetAndMetadata(offset)
-        }
-        .toMap)
+      TopicPartitionMap(
+        dataset
+          .groupBy("partition")
+          .agg(first("topic").as("topic"), min("offset").as("offset"))
+          .as[(Int, String, Long)]
+          .collect()
+          .map { case (partition, topic, offset) =>
+            val tp = new TopicPartition(topic, partition)
+            tp -> offset
+          }))
   }
 }
