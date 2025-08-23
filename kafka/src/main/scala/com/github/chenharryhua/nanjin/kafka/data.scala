@@ -143,7 +143,8 @@ final case class TopicPartitionMap[V](value: TreeMap[TopicPartition, V]) extends
 }
 
 object TopicPartitionMap {
-  def apply[V](map: Map[TopicPartition, V]): TopicPartitionMap[V] = TopicPartitionMap(TreeMap.from(map))
+  def apply[V](it: IterableOnce[(TopicPartition, V)]): TopicPartitionMap[V] =
+    TopicPartitionMap(TreeMap.from(it))
 
   implicit def encoderTopicPartitionMap[V: Encoder]: Encoder[TopicPartitionMap[V]] =
     (a: TopicPartitionMap[V]) =>

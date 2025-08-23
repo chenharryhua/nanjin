@@ -18,18 +18,14 @@ object tickStream {
       }
     }
 
-  /** sleep, then emit the tick
-    *
-    * wakeup is before NOW
+  /** sleep then emit, so that wakeup of the tick is in the past
     *
     * first tick is not emitted immediately.
     */
   def past[F[_]: Async](policy: Policy, zoneId: ZoneId): Stream[F, Tick] =
     Stream.eval[F, TickStatus](TickStatus.zeroth[F](policy, zoneId)).flatMap(fromTickStatus[F])
 
-  /** emit the tick, then sleep
-    *
-    * wakeup is after NOW
+  /** emit then sleep, so that wakeup of the tick is in the future
     *
     * first tick is immediately emitted
     */
