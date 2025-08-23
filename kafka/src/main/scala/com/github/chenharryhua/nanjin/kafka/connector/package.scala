@@ -13,7 +13,7 @@ package object connector {
   def commitBatch[F[_]: Temporal](n: Int, d: FiniteDuration): Pipe[F, CommittableOffset[F], Int] =
     _.groupWithin(n, d).evalMap(os => CommittableOffsetBatch.fromFoldable(os).commit.as(os.size))
 
-  def partitionOffsetMap(tpm: TopicPartitionMap[Option[OffsetRange]]): TreeMap[Int, (Long, Long)] =
+  def partitionOffsetRange(tpm: TopicPartitionMap[Option[OffsetRange]]): TreeMap[Int, (Long, Long)] =
     tpm.flatten.value.map { case (tp, rng) =>
       tp.partition() -> (rng.from, rng.until - 1)
     }

@@ -67,7 +67,6 @@ final class ServiceGuard[F[_]: Network: Async: Console] private[guard] (
               metricReport(
                 channel = channel,
                 eventLogger = eventLogger,
-                serviceParams = serviceParams,
                 metricRegistry = metricRegistry,
                 index = MetricIndex.Periodic(tick)).flatMap(mr =>
                 metricsHistory.modify(queue => (queue, queue.add(mr))))
@@ -82,7 +81,6 @@ final class ServiceGuard[F[_]: Network: Async: Console] private[guard] (
               metricReset(
                 channel = channel,
                 eventLogger = eventLogger,
-                serviceParams = serviceParams,
                 metricRegistry = metricRegistry,
                 index = MetricIndex.Periodic(tick)))
             .drain

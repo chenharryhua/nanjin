@@ -152,7 +152,7 @@ final private class HttpRouter[F[_]](
     case GET -> Root / "metrics" / "reset" =>
       for {
         ts <- serviceParams.zonedNow
-        _ <- metricReset[F](channel, eventLogger, serviceParams, metricRegistry, MetricIndex.Adhoc(ts))
+        _ <- metricReset[F](channel, eventLogger, metricRegistry, MetricIndex.Adhoc(ts))
         (fd, yaml) <- MetricSnapshot.timed(metricRegistry).map { case (fd, ms) =>
           (fd, new SnapshotPolyglot(ms).toYaml)
         }
@@ -191,11 +191,7 @@ final private class HttpRouter[F[_]](
     case GET -> Root / "service" / "params" => Ok(serviceParams.asJson)
 
     case GET -> Root / "service" / "stop" =>
-      Ok("stopping service") <* serviceStop[F](
-        channel,
-        eventLogger,
-        serviceParams,
-        ServiceStopCause.Maintenance)
+      Ok("stopping service") <* serviceStop[F](channel, eventLogger, ServiceStopCause.Maintenance)
 
     case GET -> Root / "service" / "health_check" =>
       panicHistory.get.map(_.iterator().asScala.toList.lastOption).flatMap {

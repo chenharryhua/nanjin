@@ -90,16 +90,15 @@ package object service {
   private[service] def metricReport[F[_]](
     channel: Channel[F, Event],
     eventLogger: EventLogger[F],
-    serviceParams: ServiceParams,
     metricRegistry: MetricRegistry,
     index: MetricIndex)(implicit F: Sync[F]): F[MetricReport] =
     for {
       (took, snapshot) <- MetricSnapshot.timed(metricRegistry)
-      mr = MetricReport(index, serviceParams, snapshot, took)
+      mr = MetricReport(index, eventLogger.serviceParams, snapshot, took)
       _ <- index match {
         case MetricIndex.Adhoc(_)       => eventLogger.metric_report(mr)
         case MetricIndex.Periodic(tick) =>
-          if (tick.index % serviceParams.servicePolicies.metricReport.logRatio === 0)
+          if (tick.index % eventLogger.serviceParams.servicePolicies.metricReport.logRatio === 0)
             eventLogger.metric_report(mr)
           else F.unit
       }
@@ -109,12 +108,11 @@ package object service {
   private[service] def metricReset[F[_]: Sync](
     channel: Channel[F, Event],
     eventLogger: EventLogger[F],
-    serviceParams: ServiceParams,
     metricRegistry: MetricRegistry,
     index: MetricIndex): F[Unit] =
     for {
       (took, snapshot) <- MetricSnapshot.timed(metricRegistry)
-      ms = MetricReset(index, serviceParams, snapshot, took)
+      ms = MetricReset(index, eventLogger.serviceParams, snapshot, took)
       _ <- eventLogger.metric_reset(ms)
       _ <- channel.send(ms)
     } yield metricRegistry.getCounters().values().asScala.foreach(c => c.dec(c.getCount))
@@ -122,30 +120,27 @@ package object service {
   private[service] def serviceReStart[F[_]: Applicative](
     channel: Channel[F, Event],
     eventLogger: EventLogger[F],
-    serviceParams: ServiceParams,
     tick: Tick): F[Unit] = {
-    val event = ServiceStart(serviceParams, tick)
+    val event = ServiceStart(eventLogger.serviceParams, tick)
     eventLogger.service_start(event) <* channel.send(event)
   }
 
   private[service] def servicePanic[F[_]: Applicative](
     channel: Channel[F, Event],
     eventLogger: EventLogger[F],
-    serviceParams: ServiceParams,
     tick: Tick,
     error: Error): F[ServicePanic] = {
-    val panic: ServicePanic = ServicePanic(serviceParams, tick, error)
+    val panic: ServicePanic = ServicePanic(eventLogger.serviceParams, tick, error)
     eventLogger.service_panic(panic) *> channel.send(panic).as(panic)
   }
 
   private[service] def serviceStop[F[_]: Clock: Monad](
     channel: Channel[F, Event],
     eventLogger: EventLogger[F],
-    serviceParams: ServiceParams,
     cause: ServiceStopCause): F[Unit] =
     for {
-      now <- serviceParams.zonedNow
-      event = ServiceStop(serviceParams, now, cause)
+      now <- eventLogger.serviceParams.zonedNow
+      event = ServiceStop(eventLogger.serviceParams, now, cause)
       _ <- eventLogger.service_stop(event)
       _ <- channel.closeWithElement(event)
     } yield ()

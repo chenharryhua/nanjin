@@ -33,7 +33,6 @@ abstract private class AdhocMetricsImpl[F[_]](
       metricReset(
         channel = channel,
         eventLogger = eventLogger,
-        serviceParams = serviceParams,
         metricRegistry = metricRegistry,
         index = MetricIndex.Adhoc(serviceParams.toZonedDateTime(ts))
       ))
@@ -43,7 +42,6 @@ abstract private class AdhocMetricsImpl[F[_]](
       metricReport(
         channel = channel,
         eventLogger = eventLogger,
-        serviceParams = serviceParams,
         metricRegistry = metricRegistry,
         index = MetricIndex.Adhoc(serviceParams.toZonedDateTime(ts))
       ).void)

@@ -94,7 +94,8 @@ final class KafkaByteConsume[F[_]] private[kafka] (
       }
     }
 
-  def manually(implicit F: Async[F]): Stream[F, ManuallyCommitStream[F, Unit, Try[GenericData.Record]]] =
+  def commitManually(implicit
+    F: Async[F]): Stream[F, ManuallyCommitStream[F, Unit, Try[GenericData.Record]]] =
     Stream.eval(getSchema).flatMap { skm =>
       val pull = new PullGenericRecord(srs, topicName, skm)
       KafkaConsumer
@@ -153,7 +154,7 @@ final class KafkaByteConsume[F[_]] private[kafka] (
     val getRange: F[TreeMap[Int, (Long, Long)]] =
       TransientConsumer(topicName, pureConsumerSettings.withProperties(consumerSettings.properties))
         .offsetRangeFor(dateRange)
-        .map(partitionOffsetMap)
+        .map(partitionOffsetRange)
 
     val run: F[Stream[F, CommittableConsumerRecord[F, Unit, Try[GenericData.Record]]]] =
       (getRange, getSchema).mapN { (tm, skm) =>
@@ -191,7 +192,7 @@ final class KafkaConsume[F[_], K, V] private[kafka] (
   def subscribe(implicit F: Async[F]): Stream[F, CommittableConsumerRecord[F, K, V]] =
     clientS.evalTap(_.subscribe(NonEmptyList.one(topicName.value))).flatMap(_.stream)
 
-  def manually(implicit F: Async[F]): Stream[F, ManuallyCommitStream[F, K, V]] =
+  def commitManually(implicit F: Async[F]): Stream[F, ManuallyCommitStream[F, K, V]] =
     KafkaConsumer
       .stream(consumerSettings.withEnableAutoCommit(false))
       .evalTap(_.subscribe(NonEmptyList.one(topicName.value)))
@@ -234,7 +235,7 @@ final class KafkaConsume[F[_], K, V] private[kafka] (
     val run: F[Stream[F, CommittableConsumerRecord[F, K, V]]] =
       TransientConsumer(topicName, pureConsumerSettings.withProperties(consumerSettings.properties))
         .offsetRangeFor(dateRange)
-        .map(partitionOffsetMap)
+        .map(partitionOffsetRange)
         .map(range(_).foldLeft(empty) { case (sum, ss) => sum.merge(ss._2) })
     Stream.force(run)
   }

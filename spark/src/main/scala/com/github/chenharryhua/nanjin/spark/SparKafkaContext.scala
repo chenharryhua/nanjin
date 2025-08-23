@@ -7,7 +7,7 @@ import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameL}
 import com.github.chenharryhua.nanjin.datetime.DateTimeRange
 import com.github.chenharryhua.nanjin.kafka.*
-import com.github.chenharryhua.nanjin.kafka.connector.partitionOffsetMap
+import com.github.chenharryhua.nanjin.kafka.connector.partitionOffsetRange
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroCodec, AvroCodecOf}
 import com.github.chenharryhua.nanjin.messages.kafka.{CRMetaInfo, NJConsumerRecord}
 import com.github.chenharryhua.nanjin.spark.kafka.{SparKafkaTopic, Statistics}
@@ -62,7 +62,7 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
       pull <- kafkaContext.schemaRegistry
         .fetchAvroSchema(topicName)
         .map(new PullGenericRecord(kafkaContext.settings.schemaRegistrySettings, topicName, _))
-      range <- kafkaContext.admin(topicName).use(_.offsetRangeFor(dateRange)).map(partitionOffsetMap)
+      range <- kafkaContext.admin(topicName).use(_.offsetRangeFor(dateRange)).map(partitionOffsetRange)
     } yield kafkaContext
       .consume(topicName)
       .updateConfig(config)
@@ -98,7 +98,7 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
     val file = CirceFile(compression)
     val run: F[Stream[F, Int]] = kafkaContext
       .admin(topicDef.topicName)
-      .use(_.offsetRangeFor(dateRange).map(partitionOffsetMap))
+      .use(_.offsetRangeFor(dateRange).map(partitionOffsetRange))
       .map { rng =>
         kafkaContext
           .consume(topicDef)
