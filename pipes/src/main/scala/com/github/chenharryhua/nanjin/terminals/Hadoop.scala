@@ -2,7 +2,8 @@ package com.github.chenharryhua.nanjin.terminals
 
 import cats.data.NonEmptyList
 import cats.effect.kernel.{Async, Sync}
-import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick, TickedValue}
+import cats.implicits.{toFlatMapOps, toFunctorOps, toTraverseOps}
+import com.github.chenharryhua.nanjin.common.chrono.{Policy, Tick, TickedValue, tickStream}
 import com.github.chenharryhua.nanjin.datetime.codec
 import fs2.Stream
 import io.lemonlabs.uri.{Uri, Url}
@@ -10,7 +11,7 @@ import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.*
 import org.apache.parquet.hadoop.util.HiddenFileFilter
 
-import java.time.ZoneId
+import java.time.{LocalDate, ZoneId}
 import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
@@ -128,6 +129,11 @@ final class Hadoop[F[_]] private (config: Configuration) {
 
   def earliestYmdh(path: Url)(implicit F: Sync[F]): F[Option[Url]] =
     best(path, NonEmptyList.of(codec.year, codec.month, codec.day, codec.hour))(F, Ordering[Int].reverse)
+
+  def dateFolderRetention(path: Url, startFrom: LocalDate, retentionDays: Long)(implicit F: Sync[F]): F[Unit] = {
+    val keeps = List.range(0L, retentionDays).map(startFrom.minusDays)
+    dataFolders(path).flatMap(_.filterNot(extractDate(_).forall(keeps.contains)).traverse(delete)).void
+  }
 
   // sources and sinks
 

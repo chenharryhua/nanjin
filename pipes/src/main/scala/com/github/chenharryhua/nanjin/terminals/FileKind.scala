@@ -13,7 +13,7 @@ sealed abstract class FileKind(val fileFormat: FileFormat, val compression: Comp
   final val fileName: String = compression.fileName(fileFormat)
   final def fileName(tick: Tick): String = {
     val seqId: String = tick.sequenceId.toString.take(5)
-    val time: String = fmt.format(tick.zonedWakeup.toLocalTime)
+    val time: String = fmt.format(tick.zonedPrevious.toLocalTime)
     f"$seqId-${tick.index}%04d-$time.$fileName"
   }
 
