@@ -36,7 +36,7 @@ val logbackV = "1.5.18"
 val metricsV = "4.2.33"
 val monocleV = "3.3.0"
 val natchezV = "0.3.8"
-val nettyV = "4.2.0.Final"
+val nettyV = "4.2.4.Final"
 val parquetV = "1.15.2"
 val postgresV = "42.7.7"
 val refinedV = "0.11.3"
@@ -152,12 +152,12 @@ lazy val aws = (project in file("aws"))
   .dependsOn(common)
   .settings(commonSettings *)
   .settings(name := "nj-aws")
-  .settings(
-    libraryDependencies ++= List(
-      "org.typelevel" %% "log4cats-slf4j"   % log4catsV,
-      "org.http4s" %% "http4s-ember-client" % http4sV,
-      "org.http4s" %% "http4s-circe"        % http4sV
-    ) ++ awsLib ++ testLib)
+  .settings(libraryDependencies ++= List(
+    "org.typelevel" %% "log4cats-slf4j"   % log4catsV,
+    "org.http4s" %% "http4s-ember-client" % http4sV,
+    "org.http4s" %% "http4s-circe"        % http4sV,
+    "io.netty"                            % "netty-codec-http2" % nettyV // snyk cloudwatch
+  ) ++ awsLib ++ testLib)
 
 lazy val datetime = (project in file("datetime"))
   .dependsOn(common)
@@ -331,6 +331,7 @@ lazy val pipes = (project in file("pipes"))
       "org.apache.commons"               % "commons-configuration2" % "2.12.0", // snyk
       "org.jetbrains.kotlin"             % "kotlin-stdlib"          % "2.2.10", // snyk
       "org.apache.zookeeper"             % "zookeeper"              % "3.9.3", // snyk
+      "commons-beanutils"                % "commons-beanutils"      % "1.11.0", // snyk :hadoop-common
       "org.typelevel" %% "jawn-fs2"      % "2.4.0"                  % Test
     ) ++ hadoopLib ++ kantanLib
     libraryDependencies ++= libs ++ testLib
