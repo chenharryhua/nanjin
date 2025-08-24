@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.terminals
 
 import cats.Endo
 import cats.data.Reader
-import cats.effect.kernel.{Resource, Sync}
+import cats.effect.kernel.Sync
 import cats.implicits.toFunctorOps
 import fs2.{Pipe, Pull, Stream}
 import io.circe.Json
@@ -16,8 +16,6 @@ import org.apache.parquet.hadoop.ParquetFileWriter
 import org.apache.parquet.hadoop.metadata.CompressionCodecName
 import org.apache.parquet.hadoop.util.HadoopOutputFile
 import scalapb.GeneratedMessage
-
-import java.io.OutputStream
 
 final class FileSink[F[_]: Sync] private[terminals] (configuration: Configuration, url: Url) {
 
@@ -160,8 +158,4 @@ final class FileSink[F[_]: Sync] private[terminals] (configuration: Configuratio
       ss.chunks.evalMap(c => w.write(c).as(c.size))
     }
   }
-
-  // java OutputStream
-  val outputStream: Resource[F, OutputStream] =
-    HadoopWriter.outputStreamR[F](toHadoopPath(url), configuration)
 }
