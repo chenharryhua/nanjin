@@ -38,12 +38,15 @@ final private class RotateBySizeSink[F[_]](
     count: Int
   ): Pull[F, TickedValue[Int], Unit] =
     data.pull.uncons.flatMap {
-      case None               => Pull.done
+      case None =>
+        Pull.eval(hotswap.clear) >> Pull.eval(F.realTimeInstant.map(status.next)).flatMap {
+          case Some(ts) => Pull.output1(TickedValue(ts.tick, count))
+          case None     => Pull.done // never happen
+        }
       case Some((as, stream)) =>
         val dataSize = as.size
         if ((dataSize + count) < sizeLimit) {
           Pull.eval(writer.write(as)) >>
-            Pull.output1(TickedValue(status.tick, dataSize)) >>
             doWork(getWriter, hotswap, writer, stream, status, dataSize + count)
         } else {
           val (first, second) = as.splitAt(sizeLimit - count)
@@ -52,7 +55,7 @@ final private class RotateBySizeSink[F[_]](
             Pull.eval(F.realTimeInstant.map(status.next)).flatMap {
               case Some(ts) =>
                 Pull.eval(hotswap.swap(getWriter(ts.tick))).flatMap { newWriter =>
-                  Pull.output1(TickedValue(status.tick, first.size)) >>
+                  Pull.output1(TickedValue(ts.tick, count + first.size)) >>
                     doWork(getWriter, hotswap, newWriter, stream.cons(second), ts, 0)
                 }
               case None => Pull.done // never happen

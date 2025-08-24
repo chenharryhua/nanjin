@@ -29,21 +29,21 @@ final private class RotateByPolicySink[F[_]: Async](
     getWriter: Path => Resource[F, HadoopWriter[F, A]],
     hotswap: Hotswap[F, HadoopWriter[F, A]],
     writer: HadoopWriter[F, A],
-    merged: Stream[F, Either[Chunk[A], TickedValue[Path]]]
+    merged: Stream[F, Either[Chunk[A], TickedValue[Path]]],
+    count: Int
   ): Pull[F, TickedValue[Int], Unit] =
     merged.pull.uncons1.flatMap {
-      case None               => Pull.done
+      case None =>
+        Pull.eval(hotswap.clear) >> Pull.output1(TickedValue(currentTick, count))
       case Some((head, tail)) =>
         head match {
           case Left(data) =>
             Pull.eval(writer.write(data)) >>
-              Pull.output1(TickedValue(currentTick, data.size)) >>
-              doWork(currentTick, getWriter, hotswap, writer, tail)
+              doWork(currentTick, getWriter, hotswap, writer, tail, count + data.size)
           case Right(ticked) =>
             Pull.eval(hotswap.swap(getWriter(ticked.value))).flatMap { newWriter =>
-              // make sure that at least one message is out in any time frame
-              Pull.output1(TickedValue(currentTick, 0)) >>
-                doWork(ticked.tick, getWriter, hotswap, newWriter, tail)
+              Pull.output1(TickedValue(currentTick, count)) >>
+                doWork(ticked.tick, getWriter, hotswap, newWriter, tail, 0)
             }
         }
     }
@@ -63,7 +63,8 @@ final private class RotateByPolicySink[F[_]: Async](
               getWriter = getWriter,
               hotswap = hotswap,
               writer = writer,
-              merged = data.map(Left(_)).mergeHaltBoth(tail.map(Right(_)))).stream
+              merged = data.map(Left(_)).mergeHaltBoth(tail.map(Right(_))),
+              count = 0).stream
           }
           .pull
           .echo
