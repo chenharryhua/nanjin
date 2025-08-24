@@ -24,7 +24,7 @@ object codec {
   private def minute(ldt: LocalDateTime): String = f"Minute=${ldt.getMinute}%02d"
 
   def year(str: String): Option[Int] = {
-    val patten: Regex = """^Year=(\d{4})""".r
+    val patten: Regex = """^(?i)Year=(\d{4})""".r
     str match {
       case patten(y) => Try(y.toInt).toOption
       case _         => None
@@ -32,7 +32,7 @@ object codec {
   }
 
   def month(str: String): Option[Int] = {
-    val patten: Regex = """^Month=(\d{2})""".r
+    val patten: Regex = """^(?i)Month=(\d{2})""".r
     str match {
       case patten(m) => Try(m.toInt).toOption
       case _         => None
@@ -40,7 +40,7 @@ object codec {
   }
 
   def day(str: String): Option[Int] = {
-    val patten: Regex = """^Day=(\d{2})""".r
+    val patten: Regex = """^(?i)Day=(\d{2})""".r
     str match {
       case patten(d) => Try(d.toInt).toOption
       case _         => None
@@ -48,7 +48,7 @@ object codec {
   }
 
   def hour(str: String): Option[Int] = {
-    val patten: Regex = """^Hour=(\d{2})""".r
+    val patten: Regex = """^(?i)Hour=(\d{2})""".r
     str match {
       case patten(h) => Try(h.toInt).toOption
       case _         => None
@@ -56,7 +56,7 @@ object codec {
   }
 
   def minute(str: String): Option[Int] = {
-    val patten: Regex = """^Minute=(\d{2})""".r
+    val patten: Regex = """^(?i)Minute=(\d{2})""".r
     str match {
       case patten(m) => Try(m.toInt).toOption
       case _         => None
