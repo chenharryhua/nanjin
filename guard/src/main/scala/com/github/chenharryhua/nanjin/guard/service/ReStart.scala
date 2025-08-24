@@ -27,7 +27,7 @@ final private class ReStart[F[_]: Temporal](
   private[this] val F = Temporal[F]
 
   private[this] def stop(cause: ServiceStopCause): F[Unit] =
-    serviceStop(channel, eventLogger, serviceParams, cause)
+    serviceStop(channel, eventLogger, cause)
 
   private[this] def panic(status: TickStatus, ex: Throwable): F[Option[(Unit, TickStatus)]] =
     F.realTimeInstant.flatMap[Option[(Unit, TickStatus)]] { now =>
@@ -47,7 +47,7 @@ final private class ReStart[F[_]: Temporal](
         case None      => stop(ServiceStopCause.ByException(error)).as(None)
         case Some(nts) =>
           for {
-            evt <- servicePanic(channel, eventLogger, serviceParams, nts.tick, error)
+            evt <- servicePanic(channel, eventLogger, nts.tick, error)
             _ <- panicHistory.modify(queue => (queue, queue.add(evt))) // mutable queue
             _ <- F.sleep(nts.tick.snooze.toScala)
           } yield Some(((), nts))
@@ -59,7 +59,7 @@ final private class ReStart[F[_]: Temporal](
       .unfoldEval[F, TickStatus, Unit](
         TickStatus(serviceParams.zerothTick).renewPolicy(serviceParams.servicePolicies.restart.policy)) {
         status =>
-          (serviceReStart(channel, eventLogger, serviceParams, status.tick) <* theService)
+          (serviceReStart(channel, eventLogger, status.tick) <* theService)
             .redeemWith[Option[(Unit, TickStatus)]](
               err => panic(status, err),
               _ => stop(ServiceStopCause.Successfully).as(None)

@@ -30,13 +30,11 @@ sealed trait Agent[F[_]] {
   def batch(label: String): Batch[F]
   def lightBatch(label: String): LightBatch[F]
 
-  /** start from first tick
-    */
   def ticks(policy: Policy): Stream[F, Tick]
   final def ticks(f: Policy.type => Policy): Stream[F, Tick] =
     ticks(f(Policy))
 
-  /** start from zeroth tick immediately
+  /** start ticking immediately
     */
   def tickImmediately(policy: Policy): Stream[F, Tick]
   final def tickImmediately(f: Policy.type => Policy): Stream[F, Tick] =

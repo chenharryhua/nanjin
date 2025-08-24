@@ -86,8 +86,6 @@ class HadoopTest extends AnyFunSuite {
 
     val p9 = Url.parse("abc/efg/")
     assert(toHadoopPath(p9).toString == "abc/efg")
-    hdp.sink(p9).outputStream
-    hdp.source(p9).inputStream
   }
 
   test("extract date") {

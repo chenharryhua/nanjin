@@ -2,7 +2,6 @@ package com.github.chenharryhua.nanjin.terminals
 
 import cats.Endo
 import cats.data.Reader
-import cats.effect.Resource
 import cats.effect.kernel.Sync
 import com.github.chenharryhua.nanjin.common.ChunkSize
 import fs2.Stream
@@ -18,8 +17,6 @@ import org.apache.parquet.hadoop.ParquetReader
 import org.apache.parquet.hadoop.util.HadoopInputFile
 import scalapb.{GeneratedMessage, GeneratedMessageCompanion}
 import squants.information.Information
-
-import java.io.InputStream
 
 final class FileSource[F[_]: Sync] private (configuration: Configuration, path: Path) {
 
@@ -135,14 +132,7 @@ final class FileSource[F[_]: Sync] private (configuration: Configuration, path: 
     */
   def protobuf[A <: GeneratedMessage](chunkSize: ChunkSize)(implicit
     gmc: GeneratedMessageCompanion[A]): Stream[F, A] =
-    HadoopReader.inputStreamS(configuration, path).flatMap { is =>
-      Stream.fromIterator(gmc.streamFromDelimitedInput(is).iterator, chunkSize.value)
-    }
-
-  // java InputStream
-  val inputStream: Resource[F, InputStream] =
-    HadoopReader.inputStreamR[F](configuration, path)
-
+    HadoopReader.protobufS[F, A](configuration, path, chunkSize)
 }
 
 private object FileSource {

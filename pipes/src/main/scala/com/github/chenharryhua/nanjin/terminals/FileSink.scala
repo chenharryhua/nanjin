@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.terminals
 
 import cats.Endo
 import cats.data.Reader
-import cats.effect.kernel.{Resource, Sync}
+import cats.effect.kernel.Sync
 import cats.implicits.toFunctorOps
 import fs2.{Pipe, Pull, Stream}
 import io.circe.Json
@@ -17,9 +17,7 @@ import org.apache.parquet.hadoop.metadata.CompressionCodecName
 import org.apache.parquet.hadoop.util.HadoopOutputFile
 import scalapb.GeneratedMessage
 
-import java.io.OutputStream
-
-final class FileSink[F[_]: Sync] private (configuration: Configuration, path: Path) {
+final class FileSink[F[_]: Sync] private[terminals] (configuration: Configuration, url: Url) {
 
   /** [[https://avro.apache.org]]
     */
@@ -28,7 +26,7 @@ final class FileSink[F[_]: Sync] private (configuration: Configuration, path: Pa
       case Some(leg) =>
         val schema = leg.head(0).getSchema
         Stream
-          .resource(HadoopWriter.avroR[F](compression.codecFactory, schema, configuration, path))
+          .resource(HadoopWriter.avroR[F](compression.codecFactory, schema, configuration, url))
           .flatMap(w => leg.stream.cons(leg.head).chunks.evalMap(c => w.write(c).as(c.size)))
           .pull
           .echo
@@ -53,7 +51,7 @@ final class FileSink[F[_]: Sync] private (configuration: Configuration, path: Pa
       case Some(leg) =>
         val schema = leg.head(0).getSchema
         Stream
-          .resource(HadoopWriter.binAvroR[F](configuration, schema, path))
+          .resource(HadoopWriter.binAvroR[F](configuration, schema, url))
           .flatMap(w => leg.stream.cons(leg.head).chunks.evalMap(c => w.write(c).as(c.size)))
           .pull
           .echo
@@ -68,7 +66,7 @@ final class FileSink[F[_]: Sync] private (configuration: Configuration, path: Pa
       case Some(leg) =>
         val schema = leg.head(0).getSchema
         Stream
-          .resource(HadoopWriter.jacksonR[F](configuration, schema, path))
+          .resource(HadoopWriter.jacksonR[F](configuration, schema, url))
           .flatMap(w => leg.stream.cons(leg.head).chunks.evalMap(c => w.write(c).as(c.size)))
           .pull
           .echo
@@ -93,7 +91,7 @@ final class FileSink[F[_]: Sync] private (configuration: Configuration, path: Pa
               .withWriteMode(ParquetFileWriter.Mode.OVERWRITE)).map(f)
 
           Stream
-            .resource(HadoopWriter.parquetR[F](writeBuilder, path))
+            .resource(HadoopWriter.parquetR[F](writeBuilder, url))
             .flatMap(w => leg.stream.cons(leg.head).chunks.evalMap(c => w.write(c).as(c.size)))
             .pull
             .echo
@@ -109,7 +107,7 @@ final class FileSink[F[_]: Sync] private (configuration: Configuration, path: Pa
   // bytes
   val bytes: Pipe[F, Byte, Int] = { (ss: Stream[F, Byte]) =>
     Stream
-      .resource(HadoopWriter.byteR[F](configuration, path))
+      .resource(HadoopWriter.byteR[F](configuration, url))
       .flatMap(w => ss.chunks.evalMap(c => w.write(c).as(c.size)))
   }
 
@@ -117,7 +115,7 @@ final class FileSink[F[_]: Sync] private (configuration: Configuration, path: Pa
     */
   val circe: Pipe[F, Json, Int] = { (ss: Stream[F, Json]) =>
     Stream
-      .resource(HadoopWriter.stringR[F](configuration, path))
+      .resource(HadoopWriter.stringR[F](configuration, url))
       .flatMap(w => ss.map(_.noSpaces).chunks.evalMap(c => w.write(c).as(c.size)))
   }
 
@@ -127,7 +125,7 @@ final class FileSink[F[_]: Sync] private (configuration: Configuration, path: Pa
     (ss: Stream[F, Seq[String]]) =>
       Stream
         .resource(
-          HadoopWriter.csvStringR[F](configuration, path).evalTap(_.write(csvHeader(csvConfiguration))))
+          HadoopWriter.csvStringR[F](configuration, url).evalTap(_.write(csvHeader(csvConfiguration))))
         .flatMap { w =>
           ss.map(csvRow(csvConfiguration)).chunks.evalMap(c => w.write(c).as(c.size))
         }
@@ -146,7 +144,7 @@ final class FileSink[F[_]: Sync] private (configuration: Configuration, path: Pa
   // text
   val text: Pipe[F, String, Int] = { (ss: Stream[F, String]) =>
     Stream
-      .resource(HadoopWriter.stringR[F](configuration, path))
+      .resource(HadoopWriter.stringR[F](configuration, url))
       .flatMap(w => ss.chunks.evalMap(c => w.write(c).as(c.size)))
   }
 
@@ -156,17 +154,8 @@ final class FileSink[F[_]: Sync] private (configuration: Configuration, path: Pa
     * https://protobuf.dev/programming-guides/proto-limits/#total
     */
   val protobuf: Pipe[F, GeneratedMessage, Int] = { (ss: Stream[F, GeneratedMessage]) =>
-    Stream.resource(HadoopWriter.protobufR(configuration, path)).flatMap { w =>
+    Stream.resource(HadoopWriter.protobufR(configuration, url)).flatMap { w =>
       ss.chunks.evalMap(c => w.write(c).as(c.size))
     }
   }
-
-  // java OutputStream
-  val outputStream: Resource[F, OutputStream] =
-    HadoopWriter.outputStreamR[F](path, configuration)
-}
-
-private object FileSink {
-  def apply[F[_]: Sync](configuration: Configuration, path: Url): FileSink[F] =
-    new FileSink[F](configuration, toHadoopPath(path))
 }

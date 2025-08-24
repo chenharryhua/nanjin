@@ -88,7 +88,7 @@ class NJCirceTest extends AnyFunSuite {
       .map(_.asJson)
       .through(
         hdp.rotateSink(Policy.fixedDelay(1.second), ZoneId.systemDefault())(t => path / fk.fileName(t)).circe)
-      .fold(0L)((sum, v) => sum + v.value)
+      .fold(0L)((sum, v) => sum + v.value.count)
       .compile
       .lastOrError
       .unsafeRunSync()
@@ -132,7 +132,7 @@ class NJCirceTest extends AnyFunSuite {
       .repeatN(number)
       .map(_.asJson)
       .through(hdp.rotateSink(1000)(t => path / file.fileName(t)).circe)
-      .fold(0L)((sum, v) => sum + v.value)
+      .fold(0L)((sum, v) => sum + v.value.count)
       .compile
       .lastOrError
       .unsafeRunSync()
@@ -223,7 +223,7 @@ class NJCirceTest extends AnyFunSuite {
       .repeatN(number)
       .map(_.asJson)
       .through(hdp.rotateSink(1)(t => path / file.fileName(t)).circe)
-      .fold(0L)((sum, v) => sum + v.value)
+      .fold(0L)((sum, v) => sum + v.value.count)
       .compile
       .lastOrError
       .unsafeRunSync()

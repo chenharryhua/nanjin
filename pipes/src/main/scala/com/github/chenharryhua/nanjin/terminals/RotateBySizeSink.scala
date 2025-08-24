@@ -8,6 +8,7 @@ import cats.implicits.toFunctorOps
 import com.github.chenharryhua.nanjin.common.chrono.{Policy, Tick, TickStatus, TickedValue}
 import fs2.{Pull, Stream}
 import io.circe.Json
+import io.lemonlabs.uri.Url
 import kantan.csv.CsvConfiguration
 import org.apache.avro.Schema
 import org.apache.avro.generic.{GenericData, GenericRecord}
@@ -25,25 +26,31 @@ import scala.concurrent.duration.DurationInt
 
 final private class RotateBySizeSink[F[_]](
   configuration: Configuration,
-  pathBuilder: Tick => Path,
+  pathBuilder: CreateRotateFileEvent => Url,
   sizeLimit: Int)(implicit F: Async[F])
     extends RotateBySize[F] {
 
+  private def createRotateFileEvent(tick: Tick): CreateRotateFileEvent =
+    CreateRotateFileEvent(tick.sequenceId, tick.index + 1, tick.zonedWakeup)
+
   private def doWork[A](
-    getWriter: Tick => Resource[F, HadoopWriter[F, A]],
+    getWriter: CreateRotateFileEvent => Resource[F, HadoopWriter[F, A]],
     hotswap: Hotswap[F, HadoopWriter[F, A]],
     writer: HadoopWriter[F, A],
     data: Stream[F, A],
     status: TickStatus,
     count: Int
-  ): Pull[F, TickedValue[Int], Unit] =
+  ): Pull[F, TickedValue[RotateFileResult], Unit] =
     data.pull.uncons.flatMap {
-      case None               => Pull.done
+      case None =>
+        Pull.eval(hotswap.clear) >> Pull.eval(F.realTimeInstant.map(status.next)).flatMap {
+          case Some(ts) => Pull.output1(TickedValue(ts.tick, RotateFileResult(writer.fileUrl, count)))
+          case None     => Pull.done // never happen
+        }
       case Some((as, stream)) =>
         val dataSize = as.size
         if ((dataSize + count) < sizeLimit) {
           Pull.eval(writer.write(as)) >>
-            Pull.output1(TickedValue(status.tick, dataSize)) >>
             doWork(getWriter, hotswap, writer, stream, status, dataSize + count)
         } else {
           val (first, second) = as.splitAt(sizeLimit - count)
@@ -51,8 +58,8 @@ final private class RotateBySizeSink[F[_]](
           Pull.eval(writer.write(first)) >>
             Pull.eval(F.realTimeInstant.map(status.next)).flatMap {
               case Some(ts) =>
-                Pull.eval(hotswap.swap(getWriter(ts.tick))).flatMap { newWriter =>
-                  Pull.output1(TickedValue(status.tick, first.size)) >>
+                Pull.eval(hotswap.swap(getWriter(createRotateFileEvent(ts.tick)))).flatMap { newWriter =>
+                  Pull.output1(TickedValue(ts.tick, RotateFileResult(writer.fileUrl, count + first.size))) >>
                     doWork(getWriter, hotswap, newWriter, stream.cons(second), ts, 0)
                 }
               case None => Pull.done // never happen
@@ -62,11 +69,12 @@ final private class RotateBySizeSink[F[_]](
 
   private def persist[A](
     data: Stream[F, A],
-    getWriter: Tick => Resource[F, HadoopWriter[F, A]]): Pull[F, TickedValue[Int], Unit] = {
+    getWriter: CreateRotateFileEvent => Resource[F, HadoopWriter[F, A]])
+    : Pull[F, TickedValue[RotateFileResult], Unit] = {
     val resources: Resource[F, ((Hotswap[F, HadoopWriter[F, A]], HadoopWriter[F, A]), TickStatus)] =
-      Resource
-        .eval(TickStatus.zeroth(Policy.fixedDelay(0.seconds), ZoneId.systemDefault()))
-        .flatMap(ts => Hotswap(getWriter(ts.tick)).map((_, ts)))
+      Resource.eval(TickStatus.zeroth(Policy.fixedDelay(0.seconds), ZoneId.systemDefault())).flatMap { ts =>
+        Hotswap(getWriter(createRotateFileEvent(ts.tick))).map((_, ts))
+      }
 
     Stream
       .resource(resources)
@@ -86,7 +94,7 @@ final private class RotateBySizeSink[F[_]](
   // avro schema-less
 
   override def avro(compression: AvroCompression): Sink[GenericRecord] = {
-    def get_writer(schema: Schema)(tick: Tick): Resource[F, HadoopWriter[F, GenericRecord]] =
+    def get_writer(schema: Schema)(tick: CreateRotateFileEvent): Resource[F, HadoopWriter[F, GenericRecord]] =
       HadoopWriter.avroR[F](compression.codecFactory, schema, configuration, pathBuilder(tick))
 
     (ss: Stream[F, GenericRecord]) =>
@@ -99,7 +107,7 @@ final private class RotateBySizeSink[F[_]](
 
   // binary avro
   override val binAvro: Sink[GenericRecord] = {
-    def get_writer(schema: Schema)(tick: Tick): Resource[F, HadoopWriter[F, GenericRecord]] =
+    def get_writer(schema: Schema)(tick: CreateRotateFileEvent): Resource[F, HadoopWriter[F, GenericRecord]] =
       HadoopWriter.binAvroR[F](configuration, schema, pathBuilder(tick))
 
     (ss: Stream[F, GenericRecord]) =>
@@ -112,7 +120,7 @@ final private class RotateBySizeSink[F[_]](
 
   // jackson
   override val jackson: Sink[GenericRecord] = {
-    def get_writer(schema: Schema)(tick: Tick): Resource[F, HadoopWriter[F, GenericRecord]] =
+    def get_writer(schema: Schema)(tick: CreateRotateFileEvent): Resource[F, HadoopWriter[F, GenericRecord]] =
       HadoopWriter.jacksonR[F](configuration, schema, pathBuilder(tick))
 
     (ss: Stream[F, GenericRecord]) =>
@@ -126,7 +134,8 @@ final private class RotateBySizeSink[F[_]](
   // parquet
   override def parquet(f: Endo[Builder[GenericRecord]]): Sink[GenericRecord] = {
 
-    def get_writer(schema: Schema)(tick: Tick): Resource[F, HadoopWriter[F, GenericRecord]] = {
+    def get_writer(
+      schema: Schema)(tick: CreateRotateFileEvent): Resource[F, HadoopWriter[F, GenericRecord]] = {
       val writeBuilder: Reader[Path, Builder[GenericRecord]] = Reader((path: Path) =>
         AvroParquetWriter
           .builder[GenericRecord](HadoopOutputFile.fromPath(path, configuration))
@@ -149,8 +158,8 @@ final private class RotateBySizeSink[F[_]](
 
   // bytes
   override val bytes: Sink[Byte] = {
-    def get_writer(tick: Tick): Resource[F, HadoopWriter[F, Byte]] =
-      HadoopWriter.byteR[F](configuration, pathBuilder(tick))
+    def get_writer(cfe: CreateRotateFileEvent): Resource[F, HadoopWriter[F, Byte]] =
+      HadoopWriter.byteR[F](configuration, pathBuilder(cfe))
 
     (ss: Stream[F, Byte]) => persist(ss, get_writer).stream
   }
@@ -158,17 +167,17 @@ final private class RotateBySizeSink[F[_]](
   // circe json
   override val circe: Sink[Json] = {
 
-    def get_writer(tick: Tick): Resource[F, HadoopWriter[F, String]] =
-      HadoopWriter.stringR[F](configuration, pathBuilder(tick))
+    def get_writer(cfe: CreateRotateFileEvent): Resource[F, HadoopWriter[F, String]] =
+      HadoopWriter.stringR[F](configuration, pathBuilder(cfe))
 
     (ss: Stream[F, Json]) => persist(ss.map(_.noSpaces), get_writer).stream
   }
 
   // kantan csv
   override def kantan(csvConfiguration: CsvConfiguration): Sink[Seq[String]] = {
-    def get_writer(tick: Tick): Resource[F, HadoopWriter[F, String]] =
+    def get_writer(cfe: CreateRotateFileEvent): Resource[F, HadoopWriter[F, String]] =
       HadoopWriter
-        .csvStringR[F](configuration, pathBuilder(tick))
+        .csvStringR[F](configuration, pathBuilder(cfe))
         .evalTap(_.write(csvHeader(csvConfiguration)))
 
     (ss: Stream[F, Seq[String]]) => persist(ss.map(csvRow(csvConfiguration)), get_writer).stream
@@ -176,15 +185,15 @@ final private class RotateBySizeSink[F[_]](
 
   // text
   override val text: Sink[String] = {
-    def get_writer(tick: Tick): Resource[F, HadoopWriter[F, String]] =
-      HadoopWriter.stringR(configuration, pathBuilder(tick))
+    def get_writer(cfe: CreateRotateFileEvent): Resource[F, HadoopWriter[F, String]] =
+      HadoopWriter.stringR(configuration, pathBuilder(cfe))
 
     (ss: Stream[F, String]) => persist(ss, get_writer).stream
   }
 
   override val protobuf: Sink[GeneratedMessage] = {
-    def get_writer(tick: Tick): Resource[F, HadoopWriter[F, GeneratedMessage]] =
-      HadoopWriter.protobufR(configuration, pathBuilder(tick))
+    def get_writer(cfe: CreateRotateFileEvent): Resource[F, HadoopWriter[F, GeneratedMessage]] =
+      HadoopWriter.protobufR(configuration, pathBuilder(cfe))
 
     (ss: Stream[F, GeneratedMessage]) => persist(ss, get_writer).stream
   }
