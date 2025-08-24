@@ -1,6 +1,5 @@
 package com.github.chenharryhua.nanjin.terminals
 
-import com.github.chenharryhua.nanjin.common.chrono.Tick
 import com.github.chenharryhua.nanjin.datetime.codec
 import io.circe.generic.JsonCodec
 
@@ -11,15 +10,15 @@ sealed abstract class FileKind(val fileFormat: FileFormat, val compression: Comp
   private val fmt: DateTimeFormatter = DateTimeFormatter.ofPattern("HHmmss")
 
   final val fileName: String = compression.fileName(fileFormat)
-  final def fileName(tick: Tick): String = {
-    val seqId: String = tick.sequenceId.toString.take(5)
-    val time: String = fmt.format(tick.zonedPrevious.toLocalTime)
-    f"$seqId-${tick.index}%04d-$time.$fileName"
+  final def fileName(cfe: CreateRotateFileEvent): String = {
+    val seqId: String = cfe.sequenceId.toString.take(5)
+    val time: String = fmt.format(cfe.writeTime.toLocalTime)
+    f"$seqId-${cfe.index}%04d-$time.$fileName"
   }
 
-  final def ymdFileName(tick: Tick): String = {
-    val ymd = codec.year_month_day(tick.zonedWakeup.toLocalDate)
-    s"$ymd/${fileName(tick)}"
+  final def ymdFileName(cfe: CreateRotateFileEvent): String = {
+    val ymd = codec.year_month_day(cfe.writeTime.toLocalDate)
+    s"$ymd/${fileName(cfe)}"
   }
 }
 

@@ -89,7 +89,7 @@ class NJParquetTest extends AnyFunSuite {
       .through(hdp
         .rotateSink(Policy.fixedDelay(1.second), ZoneId.systemDefault())(t => path / file.ymdFileName(t))
         .parquet)
-      .fold(0L)((sum, v) => sum + v.value)
+      .fold(0L)((sum, v) => sum + v.value.count)
       .compile
       .lastOrError
       .unsafeRunSync()
@@ -114,7 +114,7 @@ class NJParquetTest extends AnyFunSuite {
       .covary[IO]
       .repeatN(number)
       .through(hdp.rotateSink(1000)(t => path / file.fileName(t)).parquet)
-      .fold(0L)((sum, v) => sum + v.value)
+      .fold(0L)((sum, v) => sum + v.value.count)
       .compile
       .lastOrError
       .unsafeRunSync()
@@ -173,7 +173,7 @@ class NJParquetTest extends AnyFunSuite {
       .covary[IO]
       .repeatN(number)
       .through(hdp.rotateSink(1)(t => path / file.fileName(t)).parquet)
-      .fold(0L)((sum, v) => sum + v.value)
+      .fold(0L)((sum, v) => sum + v.value.count)
       .compile
       .lastOrError
       .unsafeRunSync()

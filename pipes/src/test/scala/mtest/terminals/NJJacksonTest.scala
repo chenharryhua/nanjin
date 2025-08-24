@@ -78,7 +78,7 @@ class NJJacksonTest extends AnyFunSuite {
       .through(hdp
         .rotateSink(Policy.fixedDelay(0.2.second), ZoneId.systemDefault())(t => path / file.fileName(t))
         .jackson)
-      .fold(0L)((sum, v) => sum + v.value)
+      .fold(0L)((sum, v) => sum + v.value.count)
       .compile
       .lastOrError
       .unsafeRunSync()
@@ -104,7 +104,6 @@ class NJJacksonTest extends AnyFunSuite {
       .chunkN(300)
       .unchunks
       .through(hdp.rotateSink(1000)(t => path / file.fileName(t)).jackson)
-      .debug(_.asJson.noSpaces)
       .compile
       .toList
       .unsafeRunSync()
@@ -115,29 +114,29 @@ class NJJacksonTest extends AnyFunSuite {
         .map(_.sum)
         .unsafeRunSync()
     assert(size == number * 2)
-    assert(tickedValues.map(_.value).sum == number * 2)
+    assert(tickedValues.map(_.value.count).sum == number * 2)
 
-    assert(tickedValues.head.value == 1000)
+    assert(tickedValues.head.value.count == 1000)
     assert(tickedValues.head.tick.index == 1)
-    assert(tickedValues(1).value == 1000)
+    assert(tickedValues(1).value.count == 1000)
     assert(tickedValues(1).tick.index == 2)
-    assert(tickedValues(2).value == 1000)
+    assert(tickedValues(2).value.count == 1000)
     assert(tickedValues(2).tick.index == 3)
-    assert(tickedValues(3).value == 1000)
+    assert(tickedValues(3).value.count == 1000)
     assert(tickedValues(3).tick.index == 4)
 
-    assert(tickedValues(4).value == 1000)
+    assert(tickedValues(4).value.count == 1000)
     assert(tickedValues(4).tick.index == 5)
-    assert(tickedValues(5).value == 1000)
+    assert(tickedValues(5).value.count == 1000)
     assert(tickedValues(5).tick.index == 6)
-    assert(tickedValues(6).value == 1000)
+    assert(tickedValues(6).value.count == 1000)
     assert(tickedValues(6).tick.index == 7)
-    assert(tickedValues(7).value == 1000)
+    assert(tickedValues(7).value.count == 1000)
     assert(tickedValues(7).tick.index == 8)
 
-    assert(tickedValues(8).value == 1000)
+    assert(tickedValues(8).value.count == 1000)
     assert(tickedValues(8).tick.index == 9)
-    assert(tickedValues(9).value == 1000)
+    assert(tickedValues(9).value.count == 1000)
     assert(tickedValues(9).tick.index == 10)
 
   }
@@ -175,7 +174,7 @@ class NJJacksonTest extends AnyFunSuite {
       .through(hdp
         .rotateSink(Policy.fixedDelay(3.seconds), ZoneId.systemDefault())(t => path / file.fileName(t))
         .jackson)
-      .fold(0L)((sum, v) => sum + v.value)
+      .fold(0L)((sum, v) => sum + v.value.count)
       .timeout(4.seconds)
       .compile
       .lastOrError
@@ -193,7 +192,7 @@ class NJJacksonTest extends AnyFunSuite {
       .covary[IO]
       .repeatN(number)
       .through(hdp.rotateSink(1)(t => path / file.fileName(t)).jackson)
-      .fold(0L)((sum, v) => sum + v.value)
+      .fold(0L)((sum, v) => sum + v.value.count)
       .compile
       .lastOrError
       .unsafeRunSync()

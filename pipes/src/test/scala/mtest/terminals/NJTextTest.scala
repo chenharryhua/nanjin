@@ -89,7 +89,7 @@ class NJTextTest extends AnyFunSuite {
       .map(_.toString)
       .through(
         hdp.rotateSink(Policy.fixedDelay(1.second), ZoneId.systemDefault())(t => path / fk.fileName(t)).text)
-      .fold(0L)((sum, v) => sum + v.value)
+      .fold(0L)((sum, v) => sum + v.value.count)
       .compile
       .lastOrError
       .unsafeRunSync()
@@ -115,7 +115,7 @@ class NJTextTest extends AnyFunSuite {
       .repeatN(number)
       .map(_.toString)
       .through(hdp.rotateSink(1000)(t => path / fk.fileName(t)).text)
-      .fold(0L)((sum, v) => sum + v.value)
+      .fold(0L)((sum, v) => sum + v.value.count)
       .compile
       .lastOrError
       .unsafeRunSync()
@@ -169,7 +169,7 @@ class NJTextTest extends AnyFunSuite {
       .repeatN(number)
       .map(_.toString)
       .through(hdp.rotateSink(1)(t => path / file.fileName(t)).text)
-      .fold(0L)((sum, v) => sum + v.value)
+      .fold(0L)((sum, v) => sum + v.value.count)
       .compile
       .lastOrError
       .unsafeRunSync()

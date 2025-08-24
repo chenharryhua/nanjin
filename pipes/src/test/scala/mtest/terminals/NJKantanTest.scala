@@ -259,7 +259,7 @@ class NJKantanTest extends AnyFunSuite {
       .repeatN(number)
       .map(tigerEncoder.encode)
       .through(hdp.rotateSink(1)(t => path / file.fileName(t)).kantan)
-      .fold(0L)((sum, v) => sum + v.value)
+      .fold(0L)((sum, v) => sum + v.value.count)
       .compile
       .lastOrError
       .unsafeRunSync()

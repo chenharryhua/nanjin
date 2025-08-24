@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.terminals
 import cats.data.NonEmptyList
 import cats.effect.kernel.{Async, Sync}
 import cats.implicits.{toFlatMapOps, toFunctorOps, toTraverseOps}
-import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick, TickedValue}
+import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, TickedValue}
 import com.github.chenharryhua.nanjin.datetime.codec
 import fs2.Stream
 import io.lemonlabs.uri.{Uri, Url}
@@ -142,21 +142,25 @@ final class Hadoop[F[_]] private (config: Configuration) {
 
   def source(path: Url)(implicit F: Sync[F]): FileSource[F] = FileSource[F](config, path)
 
-  def sink(path: Url)(implicit F: Sync[F]): FileSink[F] = FileSink[F](config, path)
+  def sink(path: Url)(implicit F: Sync[F]): FileSink[F] = new FileSink[F](config, path)
 
   def rotateSink(ticks: Stream[F, TickedValue[Url]])(implicit F: Async[F]): RotateByPolicy[F] =
-    new RotateByPolicySink[F](config, ticks.map(_.map(toHadoopPath)))
+    new RotateByPolicySink[F](config, ticks)
 
   /** Policy based rotation sink
     */
-  def rotateSink(policy: Policy, zoneId: ZoneId)(pathBuilder: Tick => Url)(implicit
+  def rotateSink(policy: Policy, zoneId: ZoneId)(pathBuilder: CreateRotateFileEvent => Url)(implicit
     F: Async[F]): RotateByPolicy[F] =
-    rotateSink(tickStream.future[F](policy, zoneId).map(tick => TickedValue(tick, pathBuilder(tick))))
+    rotateSink(tickStream.future[F](policy, zoneId).map { tick =>
+      val cfe = CreateRotateFileEvent(tick.sequenceId, tick.index, tick.zonedPrevious)
+      TickedValue(tick, pathBuilder(cfe))
+    })
 
   /** Size based rotation sink
     */
-  def rotateSink(size: Int)(pathBuilder: Tick => Url)(implicit F: Async[F]): RotateBySize[F] = {
+  def rotateSink(size: Int)(pathBuilder: CreateRotateFileEvent => Url)(implicit
+    F: Async[F]): RotateBySize[F] = {
     require(size > 0, "size should be bigger than zero")
-    new RotateBySizeSink[F](config, pathBuilder.andThen(toHadoopPath), size)
+    new RotateBySizeSink[F](config, pathBuilder, size)
   }
 }
