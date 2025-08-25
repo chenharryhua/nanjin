@@ -22,6 +22,7 @@ import scala.util.Try
 
 class NJParquetTest extends AnyFunSuite {
   import HadoopTestData.*
+  val zoneId: ZoneId = ZoneId.systemDefault()
 
   def fs2(path: Url, file: ParquetFile, data: Set[GenericRecord]): Assertion = {
     val tgt = path / file.fileName
@@ -86,10 +87,8 @@ class NJParquetTest extends AnyFunSuite {
       .emits(pandaSet.toList)
       .covary[IO]
       .repeatN(number)
-      .through(hdp
-        .rotateSink(Policy.fixedDelay(1.second), ZoneId.systemDefault())(t => path / file.ymdFileName(t))
-        .parquet)
-      .fold(0L)((sum, v) => sum + v.value.count)
+      .through(hdp.rotateSink(zoneId, Policy.fixedDelay(1.second))(t => path / file.ymdFileName(t)).parquet)
+      .fold(0L)((sum, v) => sum + v.value.recordCount)
       .compile
       .lastOrError
       .unsafeRunSync()
@@ -114,7 +113,7 @@ class NJParquetTest extends AnyFunSuite {
       .covary[IO]
       .repeatN(number)
       .through(hdp.rotateSink(1000)(t => path / file.fileName(t)).parquet)
-      .fold(0L)((sum, v) => sum + v.value.count)
+      .fold(0L)((sum, v) => sum + v.value.recordCount)
       .compile
       .lastOrError
       .unsafeRunSync()
@@ -156,7 +155,7 @@ class NJParquetTest extends AnyFunSuite {
   test("stream concat - 2") {
     val s = Stream.emits(pandaSet.toList).covary[IO].repeatN(500)
     val path: Url = fs2Root / "concat" / "rotate"
-    val sink = hdp.rotateSink(Policy.fixedDelay(0.1.second), ZoneId.systemDefault())(t =>
+    val sink = hdp.rotateSink(zoneId, Policy.fixedDelay(0.1.second))(t =>
       path / ParquetFile(_.Uncompressed).fileName(t))
 
     (hdp.delete(path) >>
@@ -173,7 +172,7 @@ class NJParquetTest extends AnyFunSuite {
       .covary[IO]
       .repeatN(number)
       .through(hdp.rotateSink(1)(t => path / file.fileName(t)).parquet)
-      .fold(0L)((sum, v) => sum + v.value.count)
+      .fold(0L)((sum, v) => sum + v.value.recordCount)
       .compile
       .lastOrError
       .unsafeRunSync()

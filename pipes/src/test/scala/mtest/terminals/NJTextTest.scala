@@ -22,6 +22,7 @@ import java.time.ZoneId
 import scala.concurrent.duration.DurationInt
 
 class NJTextTest extends AnyFunSuite {
+  val zoneId: ZoneId = ZoneId.systemDefault()
 
   def fs2(path: Url, file: TextFile, data: Set[Tiger]): Assertion = {
     val tgt = path / file.fileName
@@ -87,9 +88,8 @@ class NJTextTest extends AnyFunSuite {
       .covary[IO]
       .repeatN(number)
       .map(_.toString)
-      .through(
-        hdp.rotateSink(Policy.fixedDelay(1.second), ZoneId.systemDefault())(t => path / fk.fileName(t)).text)
-      .fold(0L)((sum, v) => sum + v.value.count)
+      .through(hdp.rotateSink(zoneId, Policy.fixedDelay(1.second))(t => path / fk.fileName(t)).text)
+      .fold(0L)((sum, v) => sum + v.value.recordCount)
       .compile
       .lastOrError
       .unsafeRunSync()
@@ -115,7 +115,7 @@ class NJTextTest extends AnyFunSuite {
       .repeatN(number)
       .map(_.toString)
       .through(hdp.rotateSink(1000)(t => path / fk.fileName(t)).text)
-      .fold(0L)((sum, v) => sum + v.value.count)
+      .fold(0L)((sum, v) => sum + v.value.recordCount)
       .compile
       .lastOrError
       .unsafeRunSync()
@@ -137,10 +137,7 @@ class NJTextTest extends AnyFunSuite {
     (Stream.sleep[IO](10.hours) >>
       Stream.empty.covaryAll[IO, String])
       .through(
-        hdp
-          .rotateSink(Policy.fixedDelay(1.second).limited(3), ZoneId.systemDefault())(t =>
-            path / fk.fileName(t))
-          .text)
+        hdp.rotateSink(zoneId, Policy.fixedDelay(1.second).limited(3))(t => path / fk.fileName(t)).text)
       .compile
       .drain
       .unsafeRunSync()
@@ -169,7 +166,7 @@ class NJTextTest extends AnyFunSuite {
       .repeatN(number)
       .map(_.toString)
       .through(hdp.rotateSink(1)(t => path / file.fileName(t)).text)
-      .fold(0L)((sum, v) => sum + v.value.count)
+      .fold(0L)((sum, v) => sum + v.value.recordCount)
       .compile
       .lastOrError
       .unsafeRunSync()

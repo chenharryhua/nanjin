@@ -77,9 +77,9 @@ class NJAvroTest extends AnyFunSuite {
       .covary[IO]
       .repeatN(number)
       .through(hdp
-        .rotateSink(Policy.fixedDelay(1.second), ZoneId.systemDefault())(t => path / file.fileName(t))
+        .rotateSink(ZoneId.systemDefault(), Policy.fixedDelay(1.second))(t => path / file.fileName(t))
         .avro(_.Uncompressed))
-      .fold(0L)((sum, v) => sum + v.value.count)
+      .fold(0L)((sum, v) => sum + v.value.recordCount)
       .compile
       .lastOrError
       .unsafeRunSync()
@@ -103,7 +103,7 @@ class NJAvroTest extends AnyFunSuite {
       .covary[IO]
       .repeatN(number)
       .through(hdp.rotateSink(1000)(t => path / file.fileName(t)).avro(_.Uncompressed))
-      .fold(0L)((sum, v) => sum + v.value.count)
+      .fold(0L)((sum, v) => sum + v.value.recordCount)
       .compile
       .lastOrError
       .unsafeRunSync()
@@ -130,7 +130,7 @@ class NJAvroTest extends AnyFunSuite {
   test("stream concat - 2") {
     val s = Stream.emits(pandaSet.toList).covary[IO].repeatN(500)
     val path: Url = fs2Root / "concat" / "rotate"
-    val sink = hdp.rotateSink(Policy.fixedDelay(0.1.second), ZoneId.systemDefault())(t =>
+    val sink = hdp.rotateSink(ZoneId.systemDefault(), Policy.fixedDelay(0.1.second))(t =>
       path / AvroFile(_.Uncompressed).fileName(t))
 
     (hdp.delete(path) >>
@@ -147,7 +147,7 @@ class NJAvroTest extends AnyFunSuite {
       .covary[IO]
       .repeatN(number)
       .through(hdp.rotateSink(1000)(t => path / file.fileName(t)).avro(_.Uncompressed))
-      .fold(0L)((sum, v) => sum + v.value.count)
+      .fold(0L)((sum, v) => sum + v.value.recordCount)
       .compile
       .lastOrError
       .unsafeRunSync()
