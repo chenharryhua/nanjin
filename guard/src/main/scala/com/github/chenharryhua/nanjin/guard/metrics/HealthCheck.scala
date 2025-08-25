@@ -21,7 +21,7 @@ trait HealthCheck[F[_]] {
     * @param hc
     *   health check method.
     */
-  def register(hc: F[Boolean], policy: Policy, zoneId: ZoneId): Resource[F, Unit]
+  def register(hc: F[Boolean], policy: Policy): Resource[F, Unit]
 }
 
 object HealthCheck {
@@ -29,7 +29,7 @@ object HealthCheck {
     new HealthCheck[F] {
       override def register(hc: F[Boolean]): Resource[F, Unit] =
         Resource.unit[F]
-      override def register(hc: F[Boolean], policy: Policy, zoneId: ZoneId): Resource[F, Unit] =
+      override def register(hc: F[Boolean], policy: Policy): Resource[F, Unit] =
         Resource.unit[F]
     }
 
@@ -38,7 +38,8 @@ object HealthCheck {
     private[this] val metricRegistry: metrics.MetricRegistry,
     private[this] val timeout: FiniteDuration,
     private[this] val name: String,
-    private[this] val dispatcher: Dispatcher[F])
+    private[this] val dispatcher: Dispatcher[F],
+    private[this] val zoneId: ZoneId)
       extends HealthCheck[F] {
 
     private[this] val F = Async[F]
@@ -60,13 +61,13 @@ object HealthCheck {
             )))(_ => F.delay(metricRegistry.remove(metricID)).void)
       } yield ()
 
-    override def register(hc: F[Boolean], policy: Policy, zoneId: ZoneId): Resource[F, Unit] = {
+    override def register(hc: F[Boolean], policy: Policy): Resource[F, Unit] = {
       val check: F[Boolean] = F.handleError(hc.timeout(timeout))(_ => false)
       for {
         init <- Resource.eval(check)
         ref <- Resource.eval(F.ref(init))
         _ <- F.background(
-          tickStream.past[F](policy, zoneId).evalMap(_ => check.flatMap(ref.set)).compile.drain)
+          tickStream.past[F](zoneId, policy).evalMap(_ => check.flatMap(ref.set)).compile.drain)
         _ <- register(ref.get)
       } yield ()
     }
@@ -85,9 +86,10 @@ object HealthCheck {
       label: MetricLabel,
       name: String,
       metricRegistry: metrics.MetricRegistry,
-      dispatcher: Dispatcher[F]): HealthCheck[F] =
+      dispatcher: Dispatcher[F],
+      zoneId: ZoneId): HealthCheck[F] =
       if (isEnabled) {
-        new Impl[F](label, metricRegistry, timeout, name, dispatcher)
+        new Impl[F](label, metricRegistry, timeout, name, dispatcher, zoneId)
       } else noop[F]
   }
 }

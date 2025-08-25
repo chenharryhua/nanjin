@@ -2,7 +2,6 @@ package com.github.chenharryhua.nanjin.spark.kafka
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import cats.implicits.toShow
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import com.github.chenharryhua.nanjin.messages.kafka.CRMetaInfo
 import mtest.spark.sparkSession
@@ -45,7 +44,7 @@ class StatisticsTest extends AnyFunSuite {
     val res = stats.dupRecords[IO].map(_.collect().toSet).unsafeRunSync()
     assert(res == Set(DuplicateRecord(0, 7, 3)))
     assert(emptyStats.dupRecords[IO].map(_.count()).unsafeRunSync() == 0)
-    stats.summary[IO].unsafeRunSync().foreach(x => println(x.show))
+    stats.summary[IO].unsafeRunSync().foreach(x => println(x))
   }
 
   test("disorders") {

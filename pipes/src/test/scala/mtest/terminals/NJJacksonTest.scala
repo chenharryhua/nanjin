@@ -20,6 +20,8 @@ import scala.concurrent.duration.DurationDouble
 class NJJacksonTest extends AnyFunSuite {
   import HadoopTestData.*
 
+  val zoneId: ZoneId = ZoneId.systemDefault()
+
   def fs2(path: Url, file: JacksonFile, data: Set[GenericRecord]): Assertion = {
     val tgt = path / file.fileName
     hdp.delete(tgt).unsafeRunSync()
@@ -75,10 +77,8 @@ class NJJacksonTest extends AnyFunSuite {
       .emits(pandaSet.toList)
       .covary[IO]
       .repeatN(number)
-      .through(hdp
-        .rotateSink(Policy.fixedDelay(0.2.second), ZoneId.systemDefault())(t => path / file.fileName(t))
-        .jackson)
-      .fold(0L)((sum, v) => sum + v.value.count)
+      .through(hdp.rotateSink(zoneId, Policy.fixedDelay(0.2.second))(t => path / file.fileName(t)).jackson)
+      .fold(0L)((sum, v) => sum + v.value.recordCount)
       .compile
       .lastOrError
       .unsafeRunSync()
@@ -114,30 +114,35 @@ class NJJacksonTest extends AnyFunSuite {
         .map(_.sum)
         .unsafeRunSync()
     assert(size == number * 2)
-    assert(tickedValues.map(_.value.count).sum == number * 2)
+    assert(tickedValues.map(_.value.recordCount).sum == number * 2)
 
-    assert(tickedValues.head.value.count == 1000)
+    assert(tickedValues.head.value.recordCount == 1000)
+    assert(tickedValues.head.value.url.path.parts.toList.last.contains("0001"))
     assert(tickedValues.head.tick.index == 1)
-    assert(tickedValues(1).value.count == 1000)
+    assert(tickedValues(1).value.recordCount == 1000)
+    assert(tickedValues(1).value.url.path.parts.toList.last.contains("0002"))
     assert(tickedValues(1).tick.index == 2)
-    assert(tickedValues(2).value.count == 1000)
+    assert(tickedValues(2).value.recordCount == 1000)
+    assert(tickedValues(2).value.url.path.parts.toList.last.contains("0003"))
     assert(tickedValues(2).tick.index == 3)
-    assert(tickedValues(3).value.count == 1000)
+    assert(tickedValues(3).value.recordCount == 1000)
     assert(tickedValues(3).tick.index == 4)
 
-    assert(tickedValues(4).value.count == 1000)
+    assert(tickedValues(4).value.recordCount == 1000)
     assert(tickedValues(4).tick.index == 5)
-    assert(tickedValues(5).value.count == 1000)
+    assert(tickedValues(5).value.recordCount == 1000)
     assert(tickedValues(5).tick.index == 6)
-    assert(tickedValues(6).value.count == 1000)
+    assert(tickedValues(6).value.recordCount == 1000)
     assert(tickedValues(6).tick.index == 7)
-    assert(tickedValues(7).value.count == 1000)
+    assert(tickedValues(7).value.recordCount == 1000)
     assert(tickedValues(7).tick.index == 8)
 
-    assert(tickedValues(8).value.count == 1000)
+    assert(tickedValues(8).value.recordCount == 1000)
     assert(tickedValues(8).tick.index == 9)
-    assert(tickedValues(9).value.count == 1000)
+    assert(tickedValues(9).value.recordCount == 1000)
     assert(tickedValues(9).tick.index == 10)
+
+    assert(tickedValues.last.value.recordCount == 0)
 
   }
 
@@ -155,7 +160,7 @@ class NJJacksonTest extends AnyFunSuite {
   test("11.stream concat - 2") {
     val s = Stream.emits(pandaSet.toList).covary[IO].repeatN(500)
     val path: Url = fs2Root / "concat" / "rotate"
-    val sink = hdp.rotateSink(Policy.fixedDelay(0.1.second), ZoneId.systemDefault())(t =>
+    val sink = hdp.rotateSink(zoneId, Policy.fixedDelay(0.1.second))(t =>
       path / JacksonFile(_.Uncompressed).fileName(t))
 
     (hdp.delete(path) >>
@@ -171,10 +176,8 @@ class NJJacksonTest extends AnyFunSuite {
       .emits(pandaSet.toList)
       .covary[IO]
       .repeatN(number)
-      .through(hdp
-        .rotateSink(Policy.fixedDelay(3.seconds), ZoneId.systemDefault())(t => path / file.fileName(t))
-        .jackson)
-      .fold(0L)((sum, v) => sum + v.value.count)
+      .through(hdp.rotateSink(zoneId, Policy.fixedDelay(3.seconds))(t => path / file.fileName(t)).jackson)
+      .fold(0L)((sum, v) => sum + v.value.recordCount)
       .timeout(4.seconds)
       .compile
       .lastOrError
@@ -192,7 +195,7 @@ class NJJacksonTest extends AnyFunSuite {
       .covary[IO]
       .repeatN(number)
       .through(hdp.rotateSink(1)(t => path / file.fileName(t)).jackson)
-      .fold(0L)((sum, v) => sum + v.value.count)
+      .fold(0L)((sum, v) => sum + v.value.recordCount)
       .compile
       .lastOrError
       .unsafeRunSync()

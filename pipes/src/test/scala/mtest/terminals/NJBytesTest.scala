@@ -93,7 +93,7 @@ class NJBytesTest extends AnyFunSuite {
     hdp.delete(path).unsafeRunSync()
     val sink =
       hdp
-        .rotateSink(Policy.fixedDelay(1.second), ZoneId.systemDefault())(t => path / s"${t.index}.json")
+        .rotateSink(ZoneId.systemDefault(), Policy.fixedDelay(1.second))(t => path / s"${t.index}.json")
         .bytes
     Stream
       .emits(TestData.tigerSet.toList)

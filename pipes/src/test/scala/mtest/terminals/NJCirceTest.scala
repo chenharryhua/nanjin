@@ -87,8 +87,8 @@ class NJCirceTest extends AnyFunSuite {
       .repeatN(number)
       .map(_.asJson)
       .through(
-        hdp.rotateSink(Policy.fixedDelay(1.second), ZoneId.systemDefault())(t => path / fk.fileName(t)).circe)
-      .fold(0L)((sum, v) => sum + v.value.count)
+        hdp.rotateSink(ZoneId.systemDefault(), Policy.fixedDelay(1.second))(t => path / fk.fileName(t)).circe)
+      .fold(0L)((sum, v) => sum + v.value.recordCount)
       .compile
       .lastOrError
       .unsafeRunSync()
@@ -132,7 +132,7 @@ class NJCirceTest extends AnyFunSuite {
       .repeatN(number)
       .map(_.asJson)
       .through(hdp.rotateSink(1000)(t => path / file.fileName(t)).circe)
-      .fold(0L)((sum, v) => sum + v.value.count)
+      .fold(0L)((sum, v) => sum + v.value.recordCount)
       .compile
       .lastOrError
       .unsafeRunSync()
@@ -173,7 +173,7 @@ class NJCirceTest extends AnyFunSuite {
       Stream.empty.covaryAll[IO, Json])
       .through(
         hdp
-          .rotateSink(Policy.fixedDelay(1.second).limited(3), ZoneId.systemDefault())(t =>
+          .rotateSink(ZoneId.systemDefault(), Policy.fixedDelay(1.second).limited(3))(t =>
             path / fk.fileName(t))
           .circe)
       .compile
@@ -196,7 +196,7 @@ class NJCirceTest extends AnyFunSuite {
   test("stream concat - 2") {
     val s = Stream.emits(TestData.tigerSet.toList).covary[IO].map(_.asJson).repeatN(500)
     val path: Url = fs2Root / "concat" / "rotate"
-    val sink = hdp.rotateSink(Policy.fixedDelay(0.1.second), ZoneId.systemDefault())(t =>
+    val sink = hdp.rotateSink(ZoneId.systemDefault(), Policy.fixedDelay(0.1.second))(t =>
       path / ParquetFile(_.Uncompressed).fileName(t))
 
     (hdp.delete(path) >>
@@ -206,7 +206,7 @@ class NJCirceTest extends AnyFunSuite {
   test("emit in each time frame even if no data") {
     val path: Url = fs2Root / "empty"
     val sink =
-      hdp.rotateSink(Policy.fixedDelay(1.second), ZoneId.systemDefault())(t => path / t.index.toString)
+      hdp.rotateSink(ZoneId.systemDefault(), Policy.fixedDelay(1.second))(t => path / t.index.toString)
     val run = hdp.delete(path) >>
       Stream.sleep[IO](5.seconds).map(_ => Json.Null).through(sink.circe).compile.toList
     assert(run.unsafeRunSync().size > 3)
@@ -223,7 +223,7 @@ class NJCirceTest extends AnyFunSuite {
       .repeatN(number)
       .map(_.asJson)
       .through(hdp.rotateSink(1)(t => path / file.fileName(t)).circe)
-      .fold(0L)((sum, v) => sum + v.value.count)
+      .fold(0L)((sum, v) => sum + v.value.recordCount)
       .compile
       .lastOrError
       .unsafeRunSync()

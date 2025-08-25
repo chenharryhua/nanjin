@@ -14,15 +14,15 @@ import scala.concurrent.duration.{DurationLong, FiniteDuration}
 import scala.jdk.DurationConverters.JavaDurationOps
 
 object retry {
-  def apply[F[_]: Async](policy: Policy, zoneId: ZoneId): Client[F] => Client[F] =
-    client => impl[F](policy, zoneId, RetryPolicy.defaultRetriable)(client)
+  def apply[F[_]: Async](zoneId: ZoneId, policy: Policy): Client[F] => Client[F] =
+    client => impl[F](zoneId, policy, RetryPolicy.defaultRetriable)(client)
 
-  def reckless[F[_]: Async](policy: Policy, zoneId: ZoneId): Client[F] => Client[F] =
-    client => impl[F](policy, zoneId, (_, ex) => RetryPolicy.recklesslyRetriable(ex))(client)
+  def reckless[F[_]: Async](zoneId: ZoneId, policy: Policy): Client[F] => Client[F] =
+    client => impl[F](zoneId, policy, (_, ex) => RetryPolicy.recklesslyRetriable(ex))(client)
 
   private def impl[F[_]: Async](
-    policy: Policy,
     zoneId: ZoneId,
+    policy: Policy,
     retriable: (Request[F], Either[Throwable, Response[F]]) => Boolean)(client: Client[F]): Client[F] = {
     def nextAttempt(
       req: Request[F],
@@ -69,7 +69,7 @@ object retry {
 
     Client[F] { (req: Request[F]) =>
       Hotswap.create[F, Either[Throwable, Response[F]]].flatMap { hotswap =>
-        Resource.eval(TickStatus.zeroth(policy, zoneId).flatMap(ts => retryLoop(req, ts, hotswap)))
+        Resource.eval(TickStatus.zeroth(zoneId, policy).flatMap(ts => retryLoop(req, ts, hotswap)))
       }
     }
   }

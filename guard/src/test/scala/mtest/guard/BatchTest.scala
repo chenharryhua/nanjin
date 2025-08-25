@@ -3,7 +3,6 @@ package mtest.guard
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.catsSyntaxTuple2Semigroupal
-import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.batch.{Batch, BatchMode, BatchResultValue, TraceJob}
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStop
@@ -21,7 +20,7 @@ class BatchTest extends AnyFunSuite {
   private val service: ServiceGuard[IO] =
     TaskGuard[IO]("quasi")
       .service("quasi")
-      .updateConfig(_.withMetricReport(Policy.crontab(_.secondly), 1).withLogFormat(_.Slf4j_JsonNoSpaces))
+      .updateConfig(_.withMetricReport(_.crontab(_.secondly)).withLogFormat(_.Slf4j_JsonNoSpaces))
 
   test("1.quasi.sequential") {
     val se = service.eventStream { ga =>

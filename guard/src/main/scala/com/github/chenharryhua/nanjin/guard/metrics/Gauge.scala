@@ -20,7 +20,7 @@ import scala.util.Try
 
 trait Gauge[F[_]] {
   def register[A: Encoder](value: F[A]): Resource[F, Unit]
-  def register[A: Encoder](value: F[A], policy: Policy, zoneId: ZoneId): Resource[F, Unit]
+  def register[A: Encoder](value: F[A], policy: Policy): Resource[F, Unit]
 }
 
 object Gauge {
@@ -28,7 +28,7 @@ object Gauge {
     new Gauge[F] {
       override def register[A: Encoder](value: F[A]): Resource[F, Unit] =
         Resource.unit[F]
-      override def register[A: Encoder](value: F[A], policy: Policy, zoneId: ZoneId): Resource[F, Unit] =
+      override def register[A: Encoder](value: F[A], policy: Policy): Resource[F, Unit] =
         Resource.unit[F]
     }
 
@@ -37,7 +37,8 @@ object Gauge {
     private[this] val metricRegistry: metrics.MetricRegistry,
     private[this] val timeout: FiniteDuration,
     private[this] val name: String,
-    private[this] val dispatcher: Dispatcher[F]
+    private[this] val dispatcher: Dispatcher[F],
+    private[this] val zoneId: ZoneId
   ) extends Gauge[F] {
 
     private[this] val F = Async[F]
@@ -66,13 +67,13 @@ object Gauge {
         })
         .flatMap(json_gauge(_, value))
 
-    override def register[A: Encoder](value: F[A], policy: Policy, zoneId: ZoneId): Resource[F, Unit] = {
+    override def register[A: Encoder](value: F[A], policy: Policy): Resource[F, Unit] = {
       val fetch: F[Json] = F.handleError(value.map(_.asJson).timeout(timeout))(trans_error)
       for {
         init <- Resource.eval(fetch)
         ref <- Resource.eval(F.ref(init))
         _ <- F.background(
-          tickStream.past[F](policy, zoneId).evalMap(_ => fetch.flatMap(ref.set)).compile.drain)
+          tickStream.past[F](zoneId, policy).evalMap(_ => fetch.flatMap(ref.set)).compile.drain)
         _ <- register(ref.get)
       } yield ()
     }
@@ -91,9 +92,10 @@ object Gauge {
       label: MetricLabel,
       name: String,
       metricRegistry: metrics.MetricRegistry,
-      dispatcher: Dispatcher[F]): Gauge[F] =
+      dispatcher: Dispatcher[F],
+      zoneId: ZoneId): Gauge[F] =
       if (isEnabled) {
-        new Impl[F](label, metricRegistry, timeout, name, dispatcher)
+        new Impl[F](label, metricRegistry, timeout, name, dispatcher, zoneId)
       } else noop[F]
   }
 }

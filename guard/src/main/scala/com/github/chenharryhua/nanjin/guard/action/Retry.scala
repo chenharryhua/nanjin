@@ -52,7 +52,7 @@ object Retry {
       new Builder[F](f(Policy), worthy)
 
     private[guard] def build(zoneId: ZoneId)(implicit F: Async[F]): Resource[F, Retry[F]] =
-      Resource.eval(TickStatus.zeroth[F](policy, zoneId)).map { ts =>
+      Resource.eval(TickStatus.zeroth[F](zoneId, policy)).map { ts =>
         val impl = new Impl[F](ts)
         new Retry[F] {
           override def apply[A](fa: F[A]): F[A] =

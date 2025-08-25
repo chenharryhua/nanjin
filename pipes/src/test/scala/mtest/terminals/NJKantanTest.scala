@@ -20,6 +20,8 @@ import java.time.ZoneId
 import scala.concurrent.duration.DurationInt
 
 class NJKantanTest extends AnyFunSuite {
+  val zoneId: ZoneId = ZoneId.systemDefault()
+
   val tigerEncoder: RowEncoder[Tiger] = shapeless.cachedImplicit
   val tigerDecoder: RowDecoder[Tiger] = shapeless.cachedImplicit
   implicit val tigerHeader: CsvHeaderOf[Tiger] = shapeless.cachedImplicit
@@ -101,7 +103,7 @@ class NJKantanTest extends AnyFunSuite {
       .map(tigerEncoder.encode)
       .through(
         hdp
-          .rotateSink(policy, ZoneId.systemDefault())(t => path / file.fileName(t))
+          .rotateSink(zoneId, policy)(t => path / file.fileName(t))
           .kantan(_.withHeader(CsvHeaderOf[Tiger].header)))
       .compile
       .drain
@@ -163,8 +165,7 @@ class NJKantanTest extends AnyFunSuite {
       Stream.empty.covaryAll[IO, Seq[String]])
       .through(
         hdp
-          .rotateSink(Policy.fixedDelay(1.second).limited(3), ZoneId.systemDefault())(t =>
-            path / fk.fileName(t))
+          .rotateSink(zoneId, Policy.fixedDelay(1.second).limited(3))(t => path / fk.fileName(t))
           .kantan(_.withHeader(CsvHeaderOf[Tiger].header)))
       .compile
       .drain
@@ -180,8 +181,7 @@ class NJKantanTest extends AnyFunSuite {
     hdp.delete(path).unsafeRunSync()
     herd
       .map(tigerEncoder.encode)
-      .through(
-        hdp.rotateSink(policy, ZoneId.systemDefault())(t => path / file.fileName(t)).kantan.andThen(_.drain))
+      .through(hdp.rotateSink(zoneId, policy)(t => path / file.fileName(t)).kantan.andThen(_.drain))
       .map(tigerDecoder.decode)
       .rethrow
       .compile
@@ -227,10 +227,7 @@ class NJKantanTest extends AnyFunSuite {
     (Stream.sleep[IO](10.hours) >>
       Stream.empty.covaryAll[IO, Seq[String]])
       .through(
-        hdp
-          .rotateSink(Policy.fixedDelay(1.second).limited(3), ZoneId.systemDefault())(t =>
-            path / fk.fileName(t))
-          .kantan)
+        hdp.rotateSink(zoneId, Policy.fixedDelay(1.second).limited(3))(t => path / fk.fileName(t)).kantan)
       .compile
       .drain
       .unsafeRunSync()
@@ -259,7 +256,7 @@ class NJKantanTest extends AnyFunSuite {
       .repeatN(number)
       .map(tigerEncoder.encode)
       .through(hdp.rotateSink(1)(t => path / file.fileName(t)).kantan)
-      .fold(0L)((sum, v) => sum + v.value.count)
+      .fold(0L)((sum, v) => sum + v.value.recordCount)
       .compile
       .lastOrError
       .unsafeRunSync()

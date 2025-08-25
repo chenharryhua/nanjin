@@ -260,7 +260,7 @@ class PolicyCombinatorTest extends AnyFunSuite {
     val policy = Policy.fixedDelay(36500.days)
     println(policy.show)
     println(policy.asJson)
-    val ticks = tickLazyList.fromOne(policy, sydneyTime).take(10).toList
+    val ticks = tickLazyList.fromOne(sydneyTime, policy).take(10).toList
     ticks.foreach(tk => println(tk))
   }
 }

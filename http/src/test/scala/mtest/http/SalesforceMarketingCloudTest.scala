@@ -51,7 +51,7 @@ class SalesforceMarketingCloudTest extends AnyFunSuite {
     .default[IO]
     .build
     .map(Logger(logHeaders = true, logBody = true, _ => false))
-    .map(retry(Policy.fixedDelay(2.second), sydneyTime))
+    .map(retry(sydneyTime, Policy.fixedDelay(2.second)))
 
   private val cred: MarketingCloud[IO] = MarketingCloud.rest[IO](authClient)(
     auth_endpoint = uri"http://127.0.0.1:8080",

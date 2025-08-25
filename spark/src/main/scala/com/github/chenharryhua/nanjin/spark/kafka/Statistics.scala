@@ -3,6 +3,7 @@ package com.github.chenharryhua.nanjin.spark.kafka
 import cats.Endo
 import cats.effect.kernel.Sync
 import cats.syntax.all.*
+import com.github.chenharryhua.nanjin.common.DurationFormatter
 import com.github.chenharryhua.nanjin.datetime.{dayResolution, hourResolution, minuteResolution}
 import com.github.chenharryhua.nanjin.kafka.TopicPartitionMap
 import com.github.chenharryhua.nanjin.messages.kafka.{CRMetaInfo, ZonedCRMetaInfo}
@@ -10,7 +11,8 @@ import com.github.chenharryhua.nanjin.spark.utils
 import org.apache.kafka.common.TopicPartition
 import org.apache.spark.sql.Dataset
 
-import java.time.ZoneId
+import java.time.{Instant, ZoneId, ZonedDateTime}
+import scala.collection.immutable.TreeMap
 
 final class Statistics private[spark] (val dataset: Dataset[CRMetaInfo]) extends Serializable {
   private val zoneId: ZoneId = utils.sparkZoneId(dataset.sparkSession)
@@ -104,8 +106,42 @@ final class Statistics private[spark] (val dataset: Dataset[CRMetaInfo]) extends
       .toList
   }
 
-  def summary[F[_]](implicit F: Sync[F]): F[List[KafkaSummary]] =
-    F.interruptible(internalSummary(dataset).map(_.toKafkaSummary(zoneId)))
+  def summary[F[_]](implicit F: Sync[F]): F[Option[TopicSummary]] =
+    F.interruptible(internalSummary(dataset)).map { (kis: List[KafkaSummaryInternal]) =>
+      def time(ts: Long): ZonedDateTime = Instant.ofEpochMilli(ts).atZone(zoneId)
+
+      kis.headOption.map { head =>
+        val partitions: List[(Int, PartitionSummary)] =
+          kis.map { in =>
+            val offset_distance = in.endOffset - in.startOffset + 1
+            val start_ts = time(in.startTs)
+            val end_ts = time(in.endTs)
+            in.partition -> PartitionSummary(
+              start_offset = in.startOffset,
+              end___offset = in.endOffset,
+              offset_distance = offset_distance,
+              records___count = in.count,
+              count_distance_gap = in.count - offset_distance,
+              start_ts = start_ts.toLocalDateTime,
+              end___ts = end_ts.toLocalDateTime,
+              period = DurationFormatter.defaultFormatter.format(start_ts, end_ts)
+            )
+          }
+
+        val start_ts = time(kis.map(_.startTs).min)
+        val end_ts = time(kis.map(_.endTs).max)
+
+        TopicSummary(
+          topic = head.topic,
+          total_records = kis.map(_.count).sum,
+          zone_id = zoneId,
+          start_ts = start_ts.toLocalDateTime,
+          end___ts = end_ts.toLocalDateTime,
+          period = DurationFormatter.defaultFormatter.format(start_ts, end_ts),
+          partitions = TreeMap.from(partitions)
+        )
+      }
+    }
 
   /** Notes: offset is supposed to be monotonically increasing in a partition, except compact topic
     */

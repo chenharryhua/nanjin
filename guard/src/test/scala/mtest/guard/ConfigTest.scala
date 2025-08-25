@@ -3,7 +3,6 @@ package mtest.guard
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.chrono.Policy
-import com.github.chenharryhua.nanjin.common.chrono.Policy.*
 import com.github.chenharryhua.nanjin.common.chrono.zones.berlinTime
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.EventName
@@ -20,7 +19,7 @@ class ConfigTest extends AnyFunSuite {
           .withPanicHistoryCapacity(1)
           .withMetricHistoryCapacity(2)
           .withErrorHistoryCapacity(3))
-      .updateConfig(_.withMetricReport(crontab(_.hourly), 1))
+      .updateConfig(_.withMetricReport(_.crontab(_.hourly)))
       .updateConfig(_.withJmx(identity))
       .updateConfig(_.withTaskName("conf"))
 

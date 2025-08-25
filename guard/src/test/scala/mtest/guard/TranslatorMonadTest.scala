@@ -19,7 +19,7 @@ import org.scalacheck.{Arbitrary, Gen}
 
 object gendata {
   val service: ServiceGuard[IO] = TaskGuard[IO]("monad").service("tailrecM")
-  val tick: Tick = TickStatus.zeroth[IO](Policy.giveUp, sydneyTime).unsafeRunSync().tick
+  val tick: Tick = TickStatus.zeroth[IO](sydneyTime, Policy.giveUp).unsafeRunSync().tick
   implicit val exhaustiveCheck: ExhaustiveCheck[Event] =
     ExhaustiveCheck.instance(List(ServiceStart(null.asInstanceOf[ServiceParams], tick)))
 

@@ -10,6 +10,7 @@ import com.github.chenharryhua.nanjin.guard.config.MetricLabel
 import com.github.chenharryhua.nanjin.guard.translator.durationFormatter
 import squants.{Quantity, UnitOfMeasure}
 
+import java.time.ZoneId
 import scala.concurrent.duration.DurationInt
 
 trait KleisliLike[F[_], A] {
@@ -64,7 +65,8 @@ object Metrics {
   private[guard] class Impl[F[_]: Async](
     val metricLabel: MetricLabel,
     metricRegistry: MetricRegistry,
-    dispatcher: Dispatcher[F])
+    dispatcher: Dispatcher[F],
+    zoneId: ZoneId)
       extends Metrics[F] {
     private[this] val F = Async[F]
 
@@ -98,7 +100,7 @@ object Metrics {
 
     override def healthCheck(name: String, f: Endo[HealthCheck.Builder]): HealthCheck[F] = {
       val initial: HealthCheck.Builder = new HealthCheck.Builder(isEnabled = true, timeout = 5.seconds)
-      f(initial).build[F](metricLabel, name, metricRegistry, dispatcher)
+      f(initial).build[F](metricLabel, name, metricRegistry, dispatcher, zoneId)
     }
 
     override def percentile(name: String, f: Endo[Percentile.Builder]): Resource[F, Percentile[F]] = {
@@ -109,7 +111,7 @@ object Metrics {
 
     override def gauge(name: String, f: Endo[Gauge.Builder]): Gauge[F] = {
       val initial: Gauge.Builder = new Gauge.Builder(isEnabled = true, timeout = 5.seconds)
-      f(initial).build[F](metricLabel, name, metricRegistry, dispatcher)
+      f(initial).build[F](metricLabel, name, metricRegistry, dispatcher, zoneId)
     }
 
     // derived
