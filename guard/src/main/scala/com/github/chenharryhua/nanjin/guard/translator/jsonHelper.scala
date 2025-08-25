@@ -30,10 +30,10 @@ object jsonHelper {
       .asJson
       .deepMerge(
         Json.obj(
+          sm.level.entryName -> sm.message,
           service_name(sm.serviceParams),
           service_id(sm.serviceParams),
-          "token" -> sm.token.asJson,
-          sm.level.entryName -> sm.message
+          "token" -> sm.token.asJson
         ))
 
   def metric_index(index: MetricIndex): (String, Json) = index match {
