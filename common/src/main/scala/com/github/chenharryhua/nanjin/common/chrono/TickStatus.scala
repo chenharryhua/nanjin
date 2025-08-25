@@ -19,6 +19,6 @@ final class TickStatus private (val tick: Tick, decisions: LazyList[PolicyF.Calc
 
 object TickStatus {
   def apply(tick: Tick): TickStatus = new TickStatus(tick, LazyList.empty)
-  def zeroth[F[_]: Sync](policy: Policy, zoneId: ZoneId): F[TickStatus] =
+  def zeroth[F[_]: Sync](zoneId: ZoneId, policy: Policy): F[TickStatus] =
     Tick.zeroth[F](zoneId).map(new TickStatus(_, PolicyF.decisions(policy.policy)))
 }
