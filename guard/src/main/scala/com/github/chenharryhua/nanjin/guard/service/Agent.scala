@@ -85,22 +85,22 @@ final private class GeneralAgent[F[_]: Async](
 
   override def batch(label: String): Batch[F] = {
     val metricLabel = MetricLabel(label, domain)
-    new Batch[F](new Metrics.Impl[F](metricLabel, metricRegistry, dispatcher))
+    new Batch[F](new Metrics.Impl[F](metricLabel, metricRegistry, dispatcher, zoneId))
   }
   override def lightBatch(label: String): LightBatch[F] = {
     val metricLabel = MetricLabel(label, domain)
-    new LightBatch[F](new Metrics.Impl[F](metricLabel, metricRegistry, dispatcher))
+    new LightBatch[F](new Metrics.Impl[F](metricLabel, metricRegistry, dispatcher, zoneId))
   }
 
   override def ticks(policy: Policy): Stream[F, Tick] =
-    tickStream.past[F](policy, zoneId)
+    tickStream.past[F](zoneId, policy)
 
   override def tickImmediately(policy: Policy): Stream[F, Tick] =
-    tickStream.future(policy, zoneId)
+    tickStream.future(zoneId, policy)
 
   override def facilitate[A](label: String)(f: Metrics[F] => A): A = {
     val metricLabel = MetricLabel(label, domain)
-    f(new Metrics.Impl[F](metricLabel, metricRegistry, dispatcher))
+    f(new Metrics.Impl[F](metricLabel, metricRegistry, dispatcher, zoneId))
   }
 
   override def circuitBreaker(f: Endo[CircuitBreaker.Builder]): Resource[F, CircuitBreaker[F]] =
