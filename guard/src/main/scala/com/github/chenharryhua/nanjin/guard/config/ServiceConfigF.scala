@@ -177,19 +177,19 @@ final class ServiceConfig[F[_]: Applicative] private (
     briefs: F[List[Json]] = this.briefs): ServiceConfig[F] =
     new ServiceConfig[F](cont, zoneId, jmxBuilder, httpBuilder, briefs)
 
-  def withRestartPolicy(restart: Policy, threshold: FiniteDuration): ServiceConfig[F] =
+  def withRestartPolicy(threshold: FiniteDuration, restart: Policy): ServiceConfig[F] =
     copy(cont = Fix(WithRestartPolicy(restart, Some(threshold.toJava), cont)))
 
   def withRestartPolicy(f: Policy.type => Policy): ServiceConfig[F] =
     copy(cont = Fix(WithRestartPolicy(f(Policy), None, cont)))
 
-  def withMetricReport(policy: Policy, ratio: Int): ServiceConfig[F] = {
+  def withMetricReport(ratio: Int, policy: Policy): ServiceConfig[F] = {
     require(ratio > 0, s"ratio($ratio) should be bigger than zero")
     copy(cont = Fix(WithMetricReportPolicy(policy, ratio, cont)))
   }
 
   def withMetricReport(f: Policy.type => Policy): ServiceConfig[F] =
-    withMetricReport(f(Policy), 1)
+    withMetricReport(ratio = 1, policy = f(Policy))
 
   def withMetricReset(reset: Policy): ServiceConfig[F] =
     copy(cont = Fix(WithMetricResetPolicy(reset, cont)))

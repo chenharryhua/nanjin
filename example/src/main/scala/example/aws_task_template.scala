@@ -20,12 +20,12 @@ object aws_task_template {
       .withMetricReport(_.crontab(_.every15Minutes))
       .withMetricReset(_.crontab(_.daily.midnight))
       .withRestartPolicy(
+        8.hours,
         Policy
           .fixedDelay(3.seconds, 2.minutes, 1.hour)
           .limited(3)
           .followedBy(_.fixedRate(2.hours).limited(12))
-          .followedBy(_.crontab(_.daily.tenAM)),
-        5.hours)
+          .followedBy(_.crontab(_.daily.tenAM)))
       .addBrief(ecs.container_metadata[IO]))
 
   private val service1: Stream[IO, Event] = task

@@ -5,13 +5,12 @@ import cats.effect.IO
 import cats.effect.kernel.Resource
 import cats.implicits.{catsSyntaxApplicativeByName, catsSyntaxSemigroup, toTraverseOps}
 import com.github.chenharryhua.nanjin.common.chrono.{Policy, TickedValue}
-import com.github.chenharryhua.nanjin.datetime.DateTimeRange
 import com.github.chenharryhua.nanjin.guard.metrics.Metrics
 import com.github.chenharryhua.nanjin.kafka.{KafkaContext, KafkaSettings}
-import com.github.chenharryhua.nanjin.terminals.{Hadoop, JacksonFile, RotateFileResult, extractDate}
+import com.github.chenharryhua.nanjin.terminals.{Hadoop, JacksonFile, RotateFile}
 import eu.timepit.refined.auto.*
 import fs2.Pipe
-import fs2.kafka.{AutoOffsetReset, CommittableConsumerRecord, commitBatchWithin}
+import fs2.kafka.{commitBatchWithin, AutoOffsetReset, CommittableConsumerRecord}
 import io.lemonlabs.uri.Url
 import io.lemonlabs.uri.typesafe.dsl.urlToUrlDsl
 import org.apache.avro.generic.{GenericData, GenericRecord}
@@ -19,7 +18,6 @@ import org.apache.hadoop.conf.Configuration
 import squants.Each
 import squants.information.Bytes
 
-import java.time.Period
 import scala.concurrent.duration.DurationInt
 import scala.util.Try
 
@@ -51,44 +49,33 @@ object kafka_connector_s3 {
   private val root: Url = Url.parse("s3a://bucket_name") / "folder_name"
   private val hadoop = Hadoop[IO](new Configuration)
 
-  aws_task_template.task
-    .service("dump kafka topic to s3")
-    .eventStream { ga =>
-      val jackson = JacksonFile(_.Uncompressed)
-      val sink: Pipe[IO, GenericRecord, TickedValue[RotateFileResult]] = // rotate files every 5 minutes
-        hadoop
-          .rotateSink(Policy.crontab(_.every5Minutes), ga.zoneId)(tick => root / jackson.ymdFileName(tick))
-          .jackson
-      ga.facilitate("abc")(logMetrics).use { log =>
-        ctx
-          .consume("any.kafka.topic")
-          .updateConfig(
-            _.withGroupId("group.id")
-              .withAutoOffsetReset(AutoOffsetReset.Latest)
-              .withEnableAutoCommit(false)
-              .withMaxPollRecords(2000))
-          .genericRecords
-          .observe(_.map(_.offset).through(commitBatchWithin[IO](1000, 5.seconds)).drain)
-          .evalMap(x => IO.fromTry(x.record.value).guarantee(log.run(x)))
-          .through(sink)
-          .compile
-          .drain
-      }
+  aws_task_template.task.service("dump kafka topic to s3").eventStream { ga =>
+    val jackson = JacksonFile(_.Uncompressed)
+    val sink: Pipe[IO, GenericRecord, TickedValue[RotateFile]] = // rotate files every 5 minutes
+      hadoop.rotateSink(ga.zoneId, Policy.crontab(_.every5Minutes))(root / jackson.ymdFileName(_)).jackson
+    ga.facilitate("abc")(logMetrics).use { log =>
+      ctx
+        .consume("any.kafka.topic")
+        .updateConfig(
+          _.withGroupId("group.id")
+            .withAutoOffsetReset(AutoOffsetReset.Latest)
+            .withEnableAutoCommit(false)
+            .withMaxPollRecords(2000))
+        .genericRecords
+        .observe(_.map(_.offset).through(commitBatchWithin[IO](1000, 5.seconds)).drain)
+        .evalMap(x => IO.fromTry(x.record.value).guarantee(log.run(x)))
+        .through(sink)
+        .compile
+        .drain
     }
+  }
 
-  /** delete obsolete folder at 1:00 am every day
+  /** delete obsolete folder at 1:00 am every day. keep 8 days' data
     */
   aws_task_template.task.service("delete.obsolete.folder").eventStreamS { agent =>
     val root: Url = Url.parse("s3://abc-efg-hij/klm")
-    agent.tickImmediately(_.crontab(_.daily.oneAM)).evalMap { tick =>
-      val dr = DateTimeRange(agent.zoneId)
-        .withEndTime(tick.wakeup)
-        .withStartTime(tick.wakeup.minus(Period.ofDays(30)))
-        .days
-
-      hadoop
-        .dataFolders(root)
-        .flatMap(_.filterNot(extractDate(_).forall(dr.contains)).traverse(hadoop.delete))
+    agent.ticks(_.crontab(_.daily.oneAM)).evalMap { tick =>
+      hadoop.dateFolderRetention(root, tick.zonedWakeup.toLocalDate, 8)
     }
   }
 }

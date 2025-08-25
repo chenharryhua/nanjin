@@ -19,7 +19,7 @@ object salesforce_client {
     .default[IO]
     .build
     .map(Logger(logHeaders = true, logBody = true, _ => false))
-    .map(retry(Policy.fixedDelay(0.second).jitter(5.seconds), sydneyTime))
+    .map(retry(sydneyTime, Policy.fixedDelay(0.second).jitter(5.seconds)))
 
   private val credential: Resource[IO, Iot[IO]] =
     ParameterStore[IO](identity).evalMap { ps =>

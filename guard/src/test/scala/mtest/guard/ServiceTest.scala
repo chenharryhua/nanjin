@@ -80,7 +80,7 @@ class ServiceTest extends AnyFunSuite {
     println(policy.show)
     val List(a, b, c, d, e, f, g, h) = guard
       .service("start over")
-      .updateConfig(_.withRestartPolicy(policy, 2.hour))
+      .updateConfig(_.withRestartPolicy(2.hour, policy))
       .eventStream(_ => IO.raiseError[Int](new Exception("oops")).void)
       .map(checkJson)
       .evalMapFilter[IO, Tick] {
@@ -128,7 +128,7 @@ class ServiceTest extends AnyFunSuite {
         .flatMap { box =>
           guard
             .service("threshold")
-            .updateConfig(_.withRestartPolicy(policy, 2.seconds))
+            .updateConfig(_.withRestartPolicy(2.seconds, policy))
             .eventStream { _ =>
               box.getAndUpdate(_ + 1.second).flatMap(IO.sleep) <*
                 IO.raiseError[Int](new Exception("oops"))
@@ -160,9 +160,9 @@ class ServiceTest extends AnyFunSuite {
     TaskGuard[IO]("abc")
       .service("abc")
       .updateConfig(
-        _.withRestartPolicy(Policy.fixedDelay(1.second), 2.seconds)
+        _.withRestartPolicy(2.seconds, Policy.fixedDelay(1.second))
           .withMetricReset(Policy.giveUp)
-          .withMetricReport(Policy.crontab(crontabs.secondly), 1)
+          .withMetricReport(_.crontab(crontabs.secondly))
           .withMetricDailyReset)
       .eventStreamR(_.facilitate("nothing")(_.counter("counter")))
       .map(checkJson)

@@ -13,7 +13,7 @@ import org.scalatest.matchers.should.Matchers
 
 class BatchSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
   private val service: ServiceGuard[IO] =
-    TaskGuard[IO]("batch").service("batch").updateConfig(_.withMetricReport(Policy.crontab(_.secondly), 1))
+    TaskGuard[IO]("batch").service("batch").updateConfig(_.withMetricReport(1, Policy.crontab(_.secondly)))
 
   "monadic" -
     "filter - fully".in {

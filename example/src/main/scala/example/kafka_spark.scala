@@ -22,6 +22,6 @@ object kafka_spark {
   // load saved data into kafka
   sparKafka.upload(topic, path, 1000, _.withAcks(Acks.One))
 
-  // dataset statistics
-  sparKafka.stats.jackson(path)
+  // dataset statistics summary
+  sparKafka.stats.jackson(path).flatMap(_.summary[IO])
 }
