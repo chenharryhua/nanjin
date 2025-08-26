@@ -14,10 +14,16 @@ import scalapb.GeneratedMessage
 import java.time.ZonedDateTime
 import java.util.UUID
 
+/**
+ *
+ * @param sequenceId global unique sequence id
+ * @param index start from one
+ * @param openTime when the rotate sink open the file to write.
+ */
 final case class CreateRotateFile(
   sequenceId: UUID,
   index: Long,
-  writeTime: ZonedDateTime
+  openTime: ZonedDateTime
 )
 
 final case class RotateFile(url: Url, recordCount: Int)

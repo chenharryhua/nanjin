@@ -12,12 +12,12 @@ sealed abstract class FileKind(val fileFormat: FileFormat, val compression: Comp
   final val fileName: String = compression.fileName(fileFormat)
   final def fileName(cfe: CreateRotateFile): String = {
     val seqId: String = cfe.sequenceId.toString.take(5)
-    val time: String = fmt.format(cfe.writeTime.toLocalTime)
+    val time: String = fmt.format(cfe.openTime.toLocalTime)
     f"$seqId-${cfe.index}%04d-$time.$fileName"
   }
 
   final def ymdFileName(cfe: CreateRotateFile): String = {
-    val ymd = codec.year_month_day(cfe.writeTime.toLocalDate)
+    val ymd = codec.year_month_day(cfe.openTime.toLocalDate)
     s"$ymd/${fileName(cfe)}"
   }
 }
