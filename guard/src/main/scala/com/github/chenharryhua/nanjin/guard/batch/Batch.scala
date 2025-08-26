@@ -22,6 +22,11 @@ import monocle.Monocle.toAppliedFocusOps
 import scala.concurrent.duration.FiniteDuration
 import scala.jdk.DurationConverters.ScalaDurationOps
 
+trait JobHandler[A] {
+  def predicate(a: A): Boolean
+  def translate(a: A, jrs: JobResultState): Json
+}
+
 object Batch {
 
   /*
@@ -442,24 +447,14 @@ object Batch {
       *   true if no exception occurs and is evaluated to true, otherwise false
       */
 
-    def failSoft[A](name: String, rfa: Resource[F, A])(predicate: A => Boolean)(
-      translate: (A, JobResultState) => Json): Monadic[Boolean] =
-      invincible_[A](name, rfa, translate, predicate)
+    def failSafe[A](name: String, rfa: Resource[F, A])(handler: JobHandler[A]): Monadic[Boolean] =
+      invincible_[A](name, rfa, handler.translate, handler.predicate)
 
-    def failSoft[A](name: String, fa: F[A])(predicate: A => Boolean)(
-      translate: (A, JobResultState) => Json): Monadic[Boolean] =
-      failSoft[A](name, Resource.eval(fa))(predicate)(translate)
+    def failSafe[A](name: String, fa: F[A])(handler: JobHandler[A]): Monadic[Boolean] =
+      failSafe[A](name, Resource.eval(fa))(handler)
 
-    def failSoft[A](tuple: (String, F[A]))(predicate: A => Boolean)(
-      translate: (A, JobResultState) => Json): Monadic[Boolean] =
-      failSoft[A](tuple._1, Resource.eval(tuple._2))(predicate)(translate)
-
-    def failSafe(name: String, rfa: Resource[F, Boolean]): Monadic[Boolean] =
-      failSoft[Boolean](name, rfa)(identity)((a, _) => Json.fromBoolean(a))
-    def failSafe(name: String, fa: F[Boolean]): Monadic[Boolean] =
-      failSafe(name, Resource.eval(fa))
-    def failSafe(tuple: (String, F[Boolean])): Monadic[Boolean] =
-      failSafe(tuple._1, tuple._2)
+    def failSafe[A](tuple: (String, F[A]))(handler: JobHandler[A]): Monadic[Boolean] =
+      failSafe[A](tuple._1, Resource.eval(tuple._2))(handler)
 
     /*
      * dependent type

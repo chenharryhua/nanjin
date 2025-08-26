@@ -20,16 +20,16 @@ object tickStream {
 
   /** sleep then emit, so that wakeup of the tick is in the past
     *
-    * first tick is not emitted immediately.
+    * first tick is NOT emitted immediately.
     */
-  def past[F[_]: Async](zoneId: ZoneId, policy: Policy): Stream[F, Tick] =
+  def tickScheduled[F[_]: Async](zoneId: ZoneId, policy: Policy): Stream[F, Tick] =
     Stream.eval[F, TickStatus](TickStatus.zeroth[F](zoneId, policy)).flatMap(fromTickStatus[F])
 
   /** emit then sleep, so that wakeup of the tick is in the future
     *
     * first tick is immediately emitted
     */
-  def future[F[_]](zoneId: ZoneId, policy: Policy)(implicit F: Async[F]): Stream[F, Tick] =
+  def tickImmediate[F[_]](zoneId: ZoneId, policy: Policy)(implicit F: Async[F]): Stream[F, Tick] =
     Stream.eval[F, TickStatus](TickStatus.zeroth[F](zoneId, policy)).flatMap { status =>
       def go(ticks: Stream[F, Tick]): Pull[F, Tick, Unit] =
         ticks.pull.uncons1.flatMap {
@@ -50,9 +50,9 @@ object tickLazyList {
     LazyList.unfold(init)(ts =>
       ts.next(ts.tick.wakeup.plus(Random.between(1, 5).milliseconds.toJava)).map(s => (s.tick, s)))
 
-  def fromOne(zoneId: ZoneId, policy: Policy): LazyList[Tick] =
+  def from(zoneId: ZoneId, policy: Policy): LazyList[Tick] =
     fromTickStatus(TickStatus(Tick.zeroth(UUID.randomUUID(), zoneId, Instant.now())).renewPolicy(policy))
 
-  def fromOne(policy: Policy): LazyList[Tick] =
-    fromOne(ZoneId.systemDefault(), policy)
+  def from(policy: Policy): LazyList[Tick] =
+    from(ZoneId.systemDefault(), policy)
 }

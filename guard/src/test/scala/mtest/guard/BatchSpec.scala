@@ -4,7 +4,12 @@ import cats.effect.IO
 import cats.effect.testing.scalatest.AsyncIOSpec
 import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.batch.{PostConditionUnsatisfied, TraceJob}
+import com.github.chenharryhua.nanjin.guard.batch.{
+  JobHandler,
+  JobResultState,
+  PostConditionUnsatisfied,
+  TraceJob
+}
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStop
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import io.circe.Json
@@ -46,7 +51,10 @@ class BatchSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
         .monadic { job =>
           for {
             a <- job("a", IO(1))
-            _ <- job.failSoft("b", IO.raiseError[Int](new Exception()))(_ => true)((_, _) => Json.Null)
+            _ <- job.failSafe("b", IO.raiseError[Int](new Exception()))(new JobHandler[Int] {
+              override def predicate(a: Int): Boolean = true
+              override def translate(a: Int, jrs: JobResultState): Json = Json.Null
+            })
             c <- job("c", IO(2))
           } yield a + c
         }

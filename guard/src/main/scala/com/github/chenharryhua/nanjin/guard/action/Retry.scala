@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.guard.action
 import cats.effect.Temporal
 import cats.effect.kernel.{Async, Resource}
 import cats.effect.std.Hotswap
-import cats.implicits.{toFlatMapOps, toFunctorOps}
+import cats.implicits.{catsSyntaxEitherId, catsSyntaxIfM, toFlatMapOps, toFunctorOps}
 import com.github.chenharryhua.nanjin.common.chrono.{Policy, TickStatus, TickedValue}
 
 import java.time.ZoneId
@@ -21,17 +21,13 @@ object Retry {
     def comprehensive[A](fa: F[A], worthy: TickedValue[Throwable] => F[Boolean]): F[A] =
       F.tailRecM[TickStatus, A](initTS) { status =>
         F.handleErrorWith(fa.map[Either[TickStatus, A]](Right(_))) { ex =>
-          F.flatMap[Boolean, Either[TickStatus, A]](worthy(TickedValue(status.tick, ex))) {
-            case false => F.raiseError(ex)
-            case true  =>
-              for {
-                next <- F.realTimeInstant.map(status.next)
-                ns <- next match {
-                  case None     => F.raiseError(ex) // run out of policy
-                  case Some(ts) => // sleep and continue
-                    F.sleep(ts.tick.snooze.toScala).as(Left(ts))
-                }
-              } yield ns
+          F.realTimeInstant.map(status.next).flatMap {
+            case None     => F.raiseError(ex) // run out of policy
+            case Some(ts) =>
+              worthy(TickedValue(ts.tick, ex)).ifM(
+                F.sleep(ts.tick.snooze.toScala).as(ts.asLeft[A]), // sleep and then run fa again
+                F.raiseError(ex) // give up if unworthy to retry
+              )
           }
         }
       }

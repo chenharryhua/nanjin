@@ -32,8 +32,8 @@ sealed abstract class DBConfig(cfg: HikariConfig, updateOps: List[HikariConfig =
   final def transactorS[F[_]: Async](logHandler: Option[LogHandler[F]]): Stream[F, HikariTransactor[F]] =
     Stream.resource(transactorR(logHandler))
 
-  final def testConnection[F[_]: Async]: F[String] =
-    transactorR[F](None).use(_.trans.apply(sql"select 42".query[Int].unique)).as("good")
+  final def testConnection[F[_]: Async]: F[Boolean] =
+    transactorR[F](None).use(_.trans.apply(sql"select 42".query[Int].unique)).as(true)
 }
 
 object DBConfig {

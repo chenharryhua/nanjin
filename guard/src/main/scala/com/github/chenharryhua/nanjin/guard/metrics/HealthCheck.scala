@@ -67,7 +67,7 @@ object HealthCheck {
         init <- Resource.eval(check)
         ref <- Resource.eval(F.ref(init))
         _ <- F.background(
-          tickStream.past[F](zoneId, policy).evalMap(_ => check.flatMap(ref.set)).compile.drain)
+          tickStream.tickScheduled[F](zoneId, policy).evalMap(_ => check.flatMap(ref.set)).compile.drain)
         _ <- register(ref.get)
       } yield ()
     }

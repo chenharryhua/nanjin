@@ -22,7 +22,7 @@ class SyntaxTest extends AnyFunSuite {
   }
 
   test("tick") {
-    service.eventStreamS(_.ticks(_.giveUp))
-    service.eventStreamS(_.tickImmediately(_.giveUp))
+    service.eventStreamS(_.tickScheduled(_.giveUp))
+    service.eventStreamS(_.tickImmediate(_.giveUp))
   }
 }

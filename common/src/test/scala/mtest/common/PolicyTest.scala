@@ -11,7 +11,7 @@ class PolicyTest extends AnyFunSuite {
     val policy =
       Policy.crontab(_.every5Minutes).jitter(30.seconds)
 
-    tickLazyList.fromOne(policy).take(50).foreach(println)
+    tickLazyList.from(policy).take(50).foreach(println)
   }
 
 }
