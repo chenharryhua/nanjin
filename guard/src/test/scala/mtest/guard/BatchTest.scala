@@ -4,7 +4,14 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.catsSyntaxTuple2Semigroupal
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.batch.{Batch, BatchMode, BatchResultValue, TraceJob}
+import com.github.chenharryhua.nanjin.guard.batch.{
+  Batch,
+  BatchMode,
+  BatchResultValue,
+  JobHandler,
+  JobResultState,
+  TraceJob
+}
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStop
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import io.circe.Json
@@ -248,8 +255,11 @@ class BatchTest extends AnyFunSuite {
             a <- job("a", IO.println("a").as(10))
             b <- job("b", IO.sleep(1.seconds) >> IO.println("b").as(20))
             _ <- job("report-1" -> agent.adhoc.report)
-            _ <- job.failSafe("exception", IO.raiseError(new Exception("aaaa")))
-            _ <- job("f" -> IO.println("bbbb"))
+            _ <- job.failSafe("exception", IO.raiseError[Int](new Exception("aaaa")))(new JobHandler[Int] {
+              override def predicate(a: Int): Boolean = true
+              override def translate(a: Int, jrs: JobResultState): Json = a.asJson
+            })
+            _ <- job("f", IO.println("bbbb"))
             _ <- job("report-2" -> agent.adhoc.report)
             c <- job("c", IO.println("c").as(30))
           } yield a + b + c

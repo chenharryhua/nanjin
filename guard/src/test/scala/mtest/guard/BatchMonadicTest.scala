@@ -6,6 +6,7 @@ import cats.implicits.catsSyntaxSemigroup
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.batch.{
   BatchJob,
+  JobHandler,
   JobResultState,
   JobResultValue,
   PostConditionUnsatisfied,
@@ -82,7 +83,10 @@ class BatchMonadicTest extends AnyFunSuite {
         .monadic { job =>
           for {
             a <- job("a" -> IO(1))
-            _ <- job.failSoft("b", IO.raiseError[Int](new Exception()))(_ => true)((_, _) => Json.Null)
+            _ <- job.failSafe("b", IO.raiseError[Int](new Exception()))(new JobHandler[Int] {
+              override def predicate(a: Int): Boolean = true
+              override def translate(a: Int, jrs: JobResultState): Json = a.asJson
+            })
             c <- job("c" -> IO(3))
           } yield a + c
         }
@@ -113,7 +117,10 @@ class BatchMonadicTest extends AnyFunSuite {
         .monadic { job =>
           for {
             a <- job("a" -> IO(1))
-            _ <- job.failSoft("b" -> IO(10))(_ > 15)((_, _) => Json.Null)
+            _ <- job.failSafe("b" -> IO(10))(new JobHandler[Int] {
+              override def predicate(a: Int): Boolean = a > 15
+              override def translate(a: Int, jrs: JobResultState): Json = a.asJson
+            })
             c <- job("c" -> IO(3))
           } yield a + c
         }

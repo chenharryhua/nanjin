@@ -37,7 +37,7 @@ class ConfigTest extends AnyFunSuite {
   test("tick") {
     TaskGuard[IO]("tick")
       .service("tick")
-      .eventStreamS(_.tickImmediately(Policy.fixedDelay(1.seconds).limited(5)).debug())
+      .eventStreamS(_.tickImmediate(Policy.fixedDelay(1.seconds).limited(5)).debug())
       .compile
       .drain
       .unsafeRunSync()

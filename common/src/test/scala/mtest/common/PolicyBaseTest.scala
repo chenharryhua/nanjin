@@ -161,63 +161,63 @@ class PolicyBaseTest extends AnyFunSuite {
   }
 
   test("weekly") {
-    val sunday = tickLazyList.fromOne(Policy.crontab(_.weekly.sunday)).take(1).head.zonedWakeup
+    val sunday = tickLazyList.from(Policy.crontab(_.weekly.sunday)).take(1).head.zonedWakeup
     assert(DayOfWeek.from(sunday) == DayOfWeek.SUNDAY)
 
-    val monday = tickLazyList.fromOne(Policy.crontab(_.weekly.monday)).take(1).head.zonedWakeup
+    val monday = tickLazyList.from(Policy.crontab(_.weekly.monday)).take(1).head.zonedWakeup
     assert(DayOfWeek.from(monday) == DayOfWeek.MONDAY)
 
-    val tuesday = tickLazyList.fromOne(Policy.crontab(_.weekly.tuesday)).take(1).head.zonedWakeup
+    val tuesday = tickLazyList.from(Policy.crontab(_.weekly.tuesday)).take(1).head.zonedWakeup
     assert(DayOfWeek.from(tuesday) == DayOfWeek.TUESDAY)
 
-    val wednesday = tickLazyList.fromOne(Policy.crontab(_.weekly.wednesday)).take(1).head.zonedWakeup
+    val wednesday = tickLazyList.from(Policy.crontab(_.weekly.wednesday)).take(1).head.zonedWakeup
     assert(DayOfWeek.from(wednesday) == DayOfWeek.WEDNESDAY)
 
-    val thursday = tickLazyList.fromOne(Policy.crontab(_.weekly.thursday)).take(1).head.zonedWakeup
+    val thursday = tickLazyList.from(Policy.crontab(_.weekly.thursday)).take(1).head.zonedWakeup
     assert(DayOfWeek.from(thursday) == DayOfWeek.THURSDAY)
 
-    val friday = tickLazyList.fromOne(Policy.crontab(_.weekly.friday)).take(1).head.zonedWakeup
+    val friday = tickLazyList.from(Policy.crontab(_.weekly.friday)).take(1).head.zonedWakeup
     assert(DayOfWeek.from(friday) == DayOfWeek.FRIDAY)
 
-    val saturday = tickLazyList.fromOne(Policy.crontab(_.weekly.saturday)).take(1).head.zonedWakeup
+    val saturday = tickLazyList.from(Policy.crontab(_.weekly.saturday)).take(1).head.zonedWakeup
     assert(DayOfWeek.from(saturday) == DayOfWeek.SATURDAY)
   }
 
   test("yearly") {
-    val january = tickLazyList.fromOne(Policy.crontab(_.yearly.january)).take(1).head.zonedWakeup
+    val january = tickLazyList.from(Policy.crontab(_.yearly.january)).take(1).head.zonedWakeup
     assert(Month.from(january) == Month.JANUARY)
 
-    val february = tickLazyList.fromOne(Policy.crontab(_.yearly.february)).take(1).head.zonedWakeup
+    val february = tickLazyList.from(Policy.crontab(_.yearly.february)).take(1).head.zonedWakeup
     assert(Month.from(february) == Month.FEBRUARY)
 
-    val march = tickLazyList.fromOne(Policy.crontab(_.yearly.march)).take(1).head.zonedWakeup
+    val march = tickLazyList.from(Policy.crontab(_.yearly.march)).take(1).head.zonedWakeup
     assert(Month.from(march) == Month.MARCH)
 
-    val april = tickLazyList.fromOne(Policy.crontab(_.yearly.april)).take(1).head.zonedWakeup
+    val april = tickLazyList.from(Policy.crontab(_.yearly.april)).take(1).head.zonedWakeup
     assert(Month.from(april) == Month.APRIL)
 
-    val may = tickLazyList.fromOne(Policy.crontab(_.yearly.may)).take(1).head.zonedWakeup
+    val may = tickLazyList.from(Policy.crontab(_.yearly.may)).take(1).head.zonedWakeup
     assert(Month.from(may) == Month.MAY)
 
-    val june = tickLazyList.fromOne(Policy.crontab(_.yearly.june)).take(1).head.zonedWakeup
+    val june = tickLazyList.from(Policy.crontab(_.yearly.june)).take(1).head.zonedWakeup
     assert(Month.from(june) == Month.JUNE)
 
-    val july = tickLazyList.fromOne(Policy.crontab(_.yearly.july)).take(1).head.zonedWakeup
+    val july = tickLazyList.from(Policy.crontab(_.yearly.july)).take(1).head.zonedWakeup
     assert(Month.from(july) == Month.JULY)
 
-    val august = tickLazyList.fromOne(Policy.crontab(_.yearly.august)).take(1).head.zonedWakeup
+    val august = tickLazyList.from(Policy.crontab(_.yearly.august)).take(1).head.zonedWakeup
     assert(Month.from(august) == Month.AUGUST)
 
-    val september = tickLazyList.fromOne(Policy.crontab(_.yearly.september)).take(1).head.zonedWakeup
+    val september = tickLazyList.from(Policy.crontab(_.yearly.september)).take(1).head.zonedWakeup
     assert(Month.from(september) == Month.SEPTEMBER)
 
-    val october = tickLazyList.fromOne(Policy.crontab(_.yearly.october)).take(1).head.zonedWakeup
+    val october = tickLazyList.from(Policy.crontab(_.yearly.october)).take(1).head.zonedWakeup
     assert(Month.from(october) == Month.OCTOBER)
 
-    val november = tickLazyList.fromOne(Policy.crontab(_.yearly.november)).take(1).head.zonedWakeup
+    val november = tickLazyList.from(Policy.crontab(_.yearly.november)).take(1).head.zonedWakeup
     assert(Month.from(november) == Month.NOVEMBER)
 
-    val december = tickLazyList.fromOne(Policy.crontab(_.yearly.december)).take(1).head.zonedWakeup
+    val december = tickLazyList.from(Policy.crontab(_.yearly.december)).take(1).head.zonedWakeup
     assert(Month.from(december) == Month.DECEMBER)
 
   }

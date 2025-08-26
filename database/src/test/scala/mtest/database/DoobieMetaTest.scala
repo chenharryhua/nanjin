@@ -39,5 +39,8 @@ class DoobieMetaTest extends AnyFunSuite with FunSuiteDiscipline with Configurat
 
     val res: Int = stream.compile.lastOrError.unsafeRunSync()
     assert(res === 42)
+
+    assert(nj.testConnection[IO].unsafeRunSync())
   }
+
 }

@@ -208,7 +208,7 @@ class MetricsTest extends AnyFunSuite {
         .retry(_.isWorthRetry(tv => agent.herald.warn(tv.value)(tv.tick).as(true)))
         .use(_.apply(IO.raiseError[Int](new Exception)) *> agent.adhoc.report)
     }.map(checkJson).mapFilter(eventFilters.serviceMessage).compile.toList.unsafeRunSync()
-    assert(sm.size == 1)
+    assert(sm.isEmpty)
   }
 
   test("13.measured.retry - unworthy retry") {
