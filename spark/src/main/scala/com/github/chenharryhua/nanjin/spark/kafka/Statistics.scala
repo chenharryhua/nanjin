@@ -4,7 +4,12 @@ import cats.Endo
 import cats.effect.kernel.Sync
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.DurationFormatter
-import com.github.chenharryhua.nanjin.datetime.{dayResolution, hourResolution, minuteResolution}
+import com.github.chenharryhua.nanjin.datetime.{
+  dayResolution,
+  hourResolution,
+  minuteResolution,
+  DateTimeRange
+}
 import com.github.chenharryhua.nanjin.kafka.TopicPartitionMap
 import com.github.chenharryhua.nanjin.messages.kafka.{CRMetaInfo, ZonedCRMetaInfo}
 import com.github.chenharryhua.nanjin.spark.utils
@@ -18,6 +23,22 @@ final class Statistics private[spark] (val dataset: Dataset[CRMetaInfo]) extends
   private val zoneId: ZoneId = utils.sparkZoneId(dataset.sparkSession)
   import dataset.sparkSession.implicits.*
 
+  /*
+   * transformation
+   */
+  def transform(f: Endo[Dataset[CRMetaInfo]]): Statistics =
+    new Statistics(f(dataset))
+
+  def union(other: Statistics): Statistics =
+    transform(_.union(other.dataset))
+
+  def range(dtr: DateTimeRange): Statistics =
+    transform(_.filter(cr => dtr.inBetween(cr.timestamp)))
+
+  /*
+   * effectful
+   */
+
   def cherryPick[F[_]](partition: Int, offset: Long)(implicit F: Sync[F]): F[List[ZonedCRMetaInfo]] =
     F.interruptible {
       dataset
@@ -26,12 +47,6 @@ final class Statistics private[spark] (val dataset: Dataset[CRMetaInfo]) extends
         .toList
         .map(_.zoned(zoneId))
     }
-
-  def transform(f: Endo[Dataset[CRMetaInfo]]): Statistics =
-    new Statistics(f(dataset))
-
-  def union(other: Statistics): Statistics =
-    transform(_.union(other.dataset))
 
   def minutely[F[_]](implicit F: Sync[F]): F[List[MinutelyResult]] =
     F.interruptible {
@@ -115,29 +130,29 @@ final class Statistics private[spark] (val dataset: Dataset[CRMetaInfo]) extends
           kis.map { in =>
             val offset_distance = in.endOffset - in.startOffset + 1
             val start_ts = time(in.startTs)
-            val end_ts = time(in.endTs)
+            val cease_ts = time(in.endTs)
             in.partition -> PartitionSummary(
               start_offset = in.startOffset,
-              end___offset = in.endOffset,
+              cease_offset = in.endOffset,
               offset_distance = offset_distance,
-              records___count = in.count,
+              records_counted = in.count,
               count_distance_gap = in.count - offset_distance,
               start_ts = start_ts.toLocalDateTime,
-              end___ts = end_ts.toLocalDateTime,
-              period = DurationFormatter.defaultFormatter.format(start_ts, end_ts)
+              cease_ts = cease_ts.toLocalDateTime,
+              period = DurationFormatter.defaultFormatter.format(start_ts, cease_ts)
             )
           }
 
         val start_ts = time(kis.map(_.startTs).min)
-        val end_ts = time(kis.map(_.endTs).max)
+        val cease_ts = time(kis.map(_.endTs).max)
 
         TopicSummary(
           topic = head.topic,
           total_records = kis.map(_.count).sum,
           zone_id = zoneId,
           start_ts = start_ts.toLocalDateTime,
-          end___ts = end_ts.toLocalDateTime,
-          period = DurationFormatter.defaultFormatter.format(start_ts, end_ts),
+          cease_ts = cease_ts.toLocalDateTime,
+          period = DurationFormatter.defaultFormatter.format(start_ts, cease_ts),
           partitions = TreeMap.from(partitions)
         )
       }

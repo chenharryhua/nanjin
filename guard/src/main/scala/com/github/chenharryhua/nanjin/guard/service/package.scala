@@ -72,7 +72,7 @@ package object service {
       "brief" -> sp.brief
     )
 
-  private[service] def create_service_message[F[_], S: Encoder](
+  private[service] def serviceMessage[F[_], S: Encoder](
     serviceParams: ServiceParams,
     msg: S,
     level: AlarmLevel,
@@ -117,7 +117,7 @@ package object service {
       _ <- channel.send(ms)
     } yield metricRegistry.getCounters().values().asScala.foreach(c => c.dec(c.getCount))
 
-  private[service] def serviceReStart[F[_]: Applicative](
+  private[service] def serviceStart[F[_]: Applicative](
     channel: Channel[F, Event],
     eventLogger: EventLogger[F],
     tick: Tick): F[Unit] = {

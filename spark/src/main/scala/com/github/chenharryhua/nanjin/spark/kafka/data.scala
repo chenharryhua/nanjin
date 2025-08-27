@@ -23,12 +23,12 @@ final private case class KafkaSummaryInternal(
 @JsonCodec
 final case class PartitionSummary(
   start_offset: Long,
-  end___offset: Long,
+  cease_offset: Long,
   offset_distance: Long,
-  records___count: Long,
+  records_counted: Long,
   count_distance_gap: Long,
   start_ts: LocalDateTime,
-  end___ts: LocalDateTime,
+  cease_ts: LocalDateTime,
   period: String)
 
 @JsonCodec
@@ -37,7 +37,7 @@ final case class TopicSummary(
   total_records: Long,
   zone_id: ZoneId,
   start_ts: LocalDateTime,
-  end___ts: LocalDateTime,
+  cease_ts: LocalDateTime,
   period: String,
   partitions: TreeMap[Int, PartitionSummary]
 )

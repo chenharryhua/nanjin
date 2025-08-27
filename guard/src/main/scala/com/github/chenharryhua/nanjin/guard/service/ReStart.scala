@@ -59,7 +59,7 @@ final private class ReStart[F[_]: Temporal](
       .unfoldEval[F, TickStatus, Unit](
         TickStatus(serviceParams.zerothTick).renewPolicy(serviceParams.servicePolicies.restart.policy)) {
         status =>
-          (serviceReStart(channel, eventLogger, status.tick) <* theService)
+          (serviceStart(channel, eventLogger, status.tick) <* theService)
             .redeemWith[Option[(Unit, TickStatus)]](
               err => panic(status, err),
               _ => stop(ServiceStopCause.Successfully).as(None)

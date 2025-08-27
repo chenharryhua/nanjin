@@ -65,10 +65,10 @@ object BatchJob {
       Json.obj(
         show"job-${a.index}" -> Json.fromString(a.name),
         "batch" -> Json.fromString(a.batch),
+        "batch_id" -> a.batchId.asJson,
         "domain" -> Json.fromString(a.domain),
         "mode" -> Json.fromString(a.mode.show),
-        "kind" -> Json.fromString(a.kind.show),
-        "batch_id" -> a.batchId.asJson
+        "kind" -> Json.fromString(a.kind.show)
       )
 }
 

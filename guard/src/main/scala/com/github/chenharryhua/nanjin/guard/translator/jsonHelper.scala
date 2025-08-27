@@ -24,17 +24,17 @@ object jsonHelper {
   def service_name(sp: ServiceParams): (String, Json) =
     "service_name" -> Json.fromString(sp.serviceName.value)
 
-  def json_service_message(sm: ServiceMessage): Json =
-    sm.error
-      .map(err => Json.obj(stack(err)))
-      .asJson
-      .deepMerge(
-        Json.obj(
-          sm.level.entryName -> sm.message,
-          service_name(sm.serviceParams),
-          service_id(sm.serviceParams),
-          "token" -> sm.token.asJson
-        ))
+  def json_service_message(sm: ServiceMessage): Json = {
+    val serviceInfo: List[(String, Json)] =
+      List(service_name(sm.serviceParams), service_id(sm.serviceParams), "token" -> sm.token.asJson)
+
+    sm.error match {
+      case Some(err) =>
+        List(sm.message, (stack(err) :: serviceInfo).toMap.asJson).asJson
+      case None =>
+        List(sm.message, serviceInfo.toMap.asJson).asJson
+    }
+  }
 
   def metric_index(index: MetricIndex): (String, Json) = index match {
     case MetricIndex.Adhoc(_)       => "index" -> Json.fromString("Adhoc")
