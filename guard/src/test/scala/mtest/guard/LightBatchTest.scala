@@ -131,7 +131,7 @@ class LightBatchTest extends AnyFunSuite {
       List("a" -> IO(1).delayBy(3.second), "b" -> IO(2).delayBy(2.seconds), "c" -> IO(3).delayBy(1.seconds))
     val se = service.eventStream { agent =>
       agent.lightBatch("predicate.value").parallel(jobs*).withPredicate(_ < 2).quasiBatch.map {
-        case BatchResultState(_, _, _, jobs) =>
+        case BatchResultState(_, _, _, _, jobs) =>
           assert(jobs.head.done)
           assert(!jobs(1).done)
           assert(!jobs(2).done)
@@ -145,7 +145,7 @@ class LightBatchTest extends AnyFunSuite {
       List("a" -> IO(1), "b" -> IO(2), "c" -> IO(3))
     val se = service.eventStream { agent =>
       agent.lightBatch("predicate.value").sequential(jobs*).withPredicate(_ < 2).quasiBatch.map {
-        case BatchResultState(_, _, _, jobs) =>
+        case BatchResultState(_, _, _, _, jobs) =>
           assert(jobs.head.done)
           assert(!jobs(1).done)
           assert(!jobs(2).done)

@@ -8,6 +8,7 @@ import squants.information.{DataRate, Information}
 import squants.time.{Frequency, Nanoseconds}
 
 import java.time.Duration
+import java.util.UUID
 
 package object batch {
   def jsonDataRate(took: Duration, number: Information): Json = {
@@ -29,19 +30,20 @@ package object batch {
     Json.obj("count" -> Json.fromString(count), "rate" -> Json.fromString(formatted))
   }
 
-  private[batch] def sequentialBatchResultState[F[_]](metrics: Metrics[F], mode: BatchMode)(
+  private[batch] def sequentialBatchResultState[F[_]](metrics: Metrics[F], mode: BatchMode, batchId: UUID)(
     results: List[JobResultState]
   ): BatchResultState =
     BatchResultState(
       label = metrics.metricLabel,
       spent = results.map(_.took).foldLeft(Duration.ZERO)(_ plus _),
       mode = mode,
+      batchId = batchId,
       jobs = results
     )
 
-  private[batch] def sequentialBatchResultValue[F[_], A](metrics: Metrics[F], mode: BatchMode)(
+  private[batch] def sequentialBatchResultValue[F[_], A](metrics: Metrics[F], mode: BatchMode, batchId: UUID)(
     results: List[JobResultValue[A]]): BatchResultValue[List[A]] = {
-    val brs = sequentialBatchResultState(metrics, mode)(results.map(_.resultState))
+    val brs = sequentialBatchResultState(metrics, mode, batchId)(results.map(_.resultState))
     val as = results.map(_.value)
     BatchResultValue(brs, as)
   }
