@@ -112,7 +112,7 @@ object TraceJob {
       _success = agent.log.done(_),
       _canceled = agent.log.warn(_),
       _errored = (jre: JobResultError) =>
-        agent.log.warn(jre.error)(Json.obj("error" -> jre.resultState.asJson))
+        agent.herald.error(jre.error)(Json.obj("error" -> jre.resultState.asJson))
     )
 
   implicit def monoidTraceJob[F[_], A](implicit ev: MonadCancel[F, Throwable]): Monoid[TraceJob[F, A]] =

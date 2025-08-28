@@ -27,12 +27,17 @@ class ServiceMessageTest extends AnyFunSuite {
       agent.log.warn(new Exception())(Json.Null)
 
   test("1. info json space2") {
-    service.updateConfig(_.withLogFormat(_.Slf4j_JsonSpaces2)).eventStream(info).compile.drain.unsafeRunSync()
+    service
+      .updateConfig(_.withLogFormat(_.Slf4j_Json_MultiLine))
+      .eventStream(info)
+      .compile
+      .drain
+      .unsafeRunSync()
   }
 
   test("2. info json space2") {
     service
-      .updateConfig(_.withLogFormat(_.Console_JsonNoSpaces))
+      .updateConfig(_.withLogFormat(_.Console_Json_OneLine))
       .eventStream(info)
       .compile
       .drain
@@ -40,12 +45,17 @@ class ServiceMessageTest extends AnyFunSuite {
   }
 
   test("3. warn json space2") {
-    service.updateConfig(_.withLogFormat(_.Slf4j_JsonSpaces2)).eventStream(warn).compile.drain.unsafeRunSync()
+    service
+      .updateConfig(_.withLogFormat(_.Slf4j_Json_MultiLine))
+      .eventStream(warn)
+      .compile
+      .drain
+      .unsafeRunSync()
   }
 
   test("4. warn json no spaces") {
     service
-      .updateConfig(_.withLogFormat(_.Console_JsonNoSpaces))
+      .updateConfig(_.withLogFormat(_.Console_Json_OneLine))
       .eventStream(warn)
       .compile
       .drain
@@ -58,7 +68,7 @@ class ServiceMessageTest extends AnyFunSuite {
 
   test("6. warn console json no spaces") {
     service
-      .updateConfig(_.withLogFormat(_.Console_JsonNoSpaces))
+      .updateConfig(_.withLogFormat(_.Console_Json_OneLine))
       .eventStream(warn)
       .compile
       .drain

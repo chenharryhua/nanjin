@@ -13,7 +13,7 @@ class Performance extends AnyFunSuite {
   // sbt "guard/testOnly mtest.guard.Performance"
 
   private val service =
-    TaskGuard[IO]("performance").service("performance").updateConfig(_.withLogFormat(_.Slf4j_JsonNoSpaces))
+    TaskGuard[IO]("performance").service("performance").updateConfig(_.withLogFormat(_.Slf4j_Json_OneLine))
 
   private val timeout: FiniteDuration = 5.seconds
 
