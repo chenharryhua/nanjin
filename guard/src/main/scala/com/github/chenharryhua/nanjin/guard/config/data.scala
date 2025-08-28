@@ -24,11 +24,13 @@ object LogFormat extends Enum[LogFormat] with CirceEnum[LogFormat] {
   override def values: IndexedSeq[LogFormat] = findValues
 
   case object Console_PlainText extends LogFormat
-  case object Console_JsonNoSpaces extends LogFormat
+  case object Console_Json_OneLine extends LogFormat
+  case object Console_Json_MultiLine extends LogFormat
+  case object Console_JsonVerbose extends LogFormat
+
   case object Slf4j_PlainText extends LogFormat
-  case object Slf4j_JsonNoSpaces extends LogFormat
-  case object Slf4j_JsonSpaces2 extends LogFormat
-  case object Slf4j_JsonVerbose extends LogFormat
+  case object Slf4j_Json_OneLine extends LogFormat
+  case object Slf4j_Json_MultiLine extends LogFormat
 }
 
 final case class TaskName(value: String) extends AnyVal

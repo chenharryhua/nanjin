@@ -149,6 +149,11 @@ class PolicyBaseTest extends AnyFunSuite {
     assert(a3.tick.snooze == 15.minutes.toJava)
     assert(a4.tick.snooze == 1.hour.toJava)
 
+    assert(a4.tick.isWithinClosedOpen(a4.tick.previous))
+    assert(!a4.tick.isWithinClosedOpen(a4.tick.wakeup))
+
+    assert(a4.tick.isWithinOpenClosed(a4.tick.wakeup))
+    assert(!a4.tick.isWithinOpenClosed(a4.tick.previous))
   }
 
   test("giveUp") {

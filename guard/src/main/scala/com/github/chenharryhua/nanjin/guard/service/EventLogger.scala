@@ -12,6 +12,7 @@ import cats.implicits.{
   toFunctorOps,
   toTraverseOps
 }
+import com.github.chenharryhua.nanjin.guard.config.LogFormat.Console_Json_MultiLine
 import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, LogFormat, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.Event.{
   MetricReport,
@@ -48,26 +49,28 @@ final private class EventLogger[F[_]](
   val serviceParams: ServiceParams,
   translator: Translator[F, String],
   logger: MessageLogger[F],
-  alarmLevel: Ref[F, Option[AlarmLevel]])(implicit F: Sync[F])
+  alarmLevel: Ref[F, Option[AlarmLevel]],
+  isColoring: Boolean)(implicit F: Sync[F])
     extends Log[F] {
 
   private def transform_event(event: Event): F[Option[String]] =
     translator
       .translate(event)
       .map(_.map { text =>
-        val title: String = ColorScheme
-          .decorate(event)
-          .run {
-            case ColorScheme.GoodColor =>
-              Eval.now(AnsiColor.GREEN + event.name.entryName + AnsiColor.RESET)
-            case ColorScheme.InfoColor =>
-              Eval.now(AnsiColor.CYAN + event.name.entryName + AnsiColor.RESET)
-            case ColorScheme.WarnColor =>
-              Eval.now(AnsiColor.YELLOW + event.name.entryName + AnsiColor.RESET)
-            case ColorScheme.ErrorColor =>
-              Eval.now(AnsiColor.RED + event.name.entryName + AnsiColor.RESET)
-          }
-          .value
+        val name: String = event.name.entryName
+        val title: String =
+          if (isColoring) {
+            ColorScheme
+              .decorate(event)
+              .run {
+                case ColorScheme.GoodColor  => Eval.now(AnsiColor.GREEN + name + AnsiColor.RESET)
+                case ColorScheme.InfoColor  => Eval.now(AnsiColor.CYAN + name + AnsiColor.RESET)
+                case ColorScheme.WarnColor  => Eval.now(AnsiColor.YELLOW + name + AnsiColor.RESET)
+                case ColorScheme.ErrorColor => Eval.now(AnsiColor.RED + name + AnsiColor.RESET)
+              }
+              .value
+          } else name
+
         s"$title $text"
       })
 
@@ -125,7 +128,7 @@ final private class EventLogger[F[_]](
     error: Option[Error]): F[Option[String]] =
     alarmLevel.get
       .map(_.exists(_ <= level))
-      .ifM(create_service_message(serviceParams, msg, level, error).flatMap(transform_event(_)), F.pure(None))
+      .ifM(serviceMessage(serviceParams, msg, level, error).flatMap(transform_event(_)), F.pure(None))
 
   def error[S: Encoder](msg: S): F[Unit] =
     transform_service_message(msg, AlarmLevel.Error, None).flatMap(_.traverse(logger.error(_))).void
@@ -158,10 +161,10 @@ final private class EventLogger[F[_]](
       .ifM(
         F.attempt(msg).flatMap {
           case Left(ex) =>
-            create_service_message(serviceParams, "Error Message", AlarmLevel.Debug, Some(Error(ex)))
+            serviceMessage(serviceParams, "Error Message", AlarmLevel.Debug, Some(Error(ex)))
               .flatMap(m => logger.debug(debug_message(m)))
           case Right(value) =>
-            create_service_message(serviceParams, value, AlarmLevel.Debug, None)
+            serviceMessage(serviceParams, value, AlarmLevel.Debug, None)
               .flatMap(m => logger.debug(debug_message(m)))
         },
         F.unit
@@ -179,40 +182,74 @@ private object EventLogger {
     serviceParams: ServiceParams,
     alarmLevel: Ref[F, Option[AlarmLevel]]): F[EventLogger[F]] =
     serviceParams.logFormat match {
+      /*
+       * console
+       */
       case LogFormat.Console_PlainText =>
         new EventLogger[F](
-          serviceParams,
-          SimpleTextTranslator[F],
-          new ConsoleLogger[F](serviceParams.zoneId),
-          alarmLevel).pure
-      case LogFormat.Console_JsonNoSpaces =>
+          serviceParams = serviceParams,
+          translator = SimpleTextTranslator[F],
+          logger = new ConsoleLogger[F](serviceParams.zoneId),
+          alarmLevel = alarmLevel,
+          isColoring = true
+        ).pure
+      case LogFormat.Console_Json_OneLine =>
         new EventLogger[F](
-          serviceParams,
-          PrettyJsonTranslator[F].map(_.noSpaces),
-          new ConsoleLogger[F](serviceParams.zoneId),
-          alarmLevel).pure
+          serviceParams = serviceParams,
+          translator = PrettyJsonTranslator[F].map(_.noSpaces),
+          logger = new ConsoleLogger[F](serviceParams.zoneId),
+          alarmLevel = alarmLevel,
+          isColoring = true
+        ).pure
+      case Console_Json_MultiLine =>
+        new EventLogger[F](
+          serviceParams = serviceParams,
+          translator = PrettyJsonTranslator[F].map(_.spaces2),
+          logger = new ConsoleLogger[F](serviceParams.zoneId),
+          alarmLevel = alarmLevel,
+          isColoring = true
+        ).pure
+      case LogFormat.Console_JsonVerbose =>
+        new EventLogger[F](
+          serviceParams = serviceParams,
+          translator = Translator.idTranslator.map(_.asJson.spaces2),
+          logger = new ConsoleLogger[F](serviceParams.zoneId),
+          alarmLevel = alarmLevel,
+          isColoring = true
+        ).pure
+
+      /*
+       * slf4j
+       */
       case LogFormat.Slf4j_PlainText =>
-        Slf4jLogger
-          .fromName[F](serviceParams.serviceName.value)
-          .map(logger => new EventLogger[F](serviceParams, SimpleTextTranslator[F], logger, alarmLevel))
-      case LogFormat.Slf4j_JsonNoSpaces =>
-        Slf4jLogger
-          .fromName[F](serviceParams.serviceName.value)
-          .map(logger =>
-            new EventLogger[F](serviceParams, PrettyJsonTranslator[F].map(_.noSpaces), logger, alarmLevel))
-      case LogFormat.Slf4j_JsonSpaces2 =>
-        Slf4jLogger
-          .fromName[F](serviceParams.serviceName.value)
-          .map(logger =>
-            new EventLogger[F](serviceParams, PrettyJsonTranslator[F].map(_.spaces2), logger, alarmLevel))
-      case LogFormat.Slf4j_JsonVerbose =>
         Slf4jLogger
           .fromName[F](serviceParams.serviceName.value)
           .map(logger =>
             new EventLogger[F](
-              serviceParams,
-              Translator.idTranslator.map(_.asJson.spaces2),
-              logger,
-              alarmLevel))
+              serviceParams = serviceParams,
+              translator = SimpleTextTranslator[F],
+              logger = logger,
+              alarmLevel = alarmLevel,
+              isColoring = false))
+      case LogFormat.Slf4j_Json_OneLine =>
+        Slf4jLogger
+          .fromName[F](serviceParams.serviceName.value)
+          .map(logger =>
+            new EventLogger[F](
+              serviceParams = serviceParams,
+              translator = PrettyJsonTranslator[F].map(_.noSpaces),
+              logger = logger,
+              alarmLevel = alarmLevel,
+              isColoring = false))
+      case LogFormat.Slf4j_Json_MultiLine =>
+        Slf4jLogger
+          .fromName[F](serviceParams.serviceName.value)
+          .map(logger =>
+            new EventLogger[F](
+              serviceParams = serviceParams,
+              translator = PrettyJsonTranslator[F].map(_.spaces2),
+              logger = logger,
+              alarmLevel = alarmLevel,
+              isColoring = false))
     }
 }

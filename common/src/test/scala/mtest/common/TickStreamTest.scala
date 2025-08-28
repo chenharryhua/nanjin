@@ -73,12 +73,12 @@ class TickStreamTest extends AnyFunSuite {
     assert(ticks.isEmpty)
   }
 
-  test("7.future tick - giveUp") {
+  test("7.tickImmediate - giveUp") {
     val ticks = tickStream.tickImmediate[IO](saltaTime, Policy.giveUp).compile.toList.unsafeRunSync()
     assert(ticks.isEmpty)
   }
 
-  test("8.future tick") {
+  test("8.tickImmediate - fixed delay") {
     val List(a, b, c) =
       tickStream
         .tickImmediate[IO](saltaTime, Policy.fixedDelay(1.seconds).limited(3))

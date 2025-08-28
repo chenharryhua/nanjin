@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.batch
 
 import cats.Show
-import cats.effect.kernel.Unique
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.config.MetricLabel
 import com.github.chenharryhua.nanjin.guard.translator.durationFormatter
@@ -10,6 +9,7 @@ import io.circe.{Decoder, Encoder, Json}
 import org.apache.commons.lang3.exception.ExceptionUtils
 
 import java.time.Duration
+import java.util.UUID
 import scala.util.Try
 import scala.util.matching.Regex
 
@@ -54,7 +54,7 @@ final case class BatchJob(
   label: MetricLabel,
   mode: BatchMode,
   kind: JobKind,
-  correlationId: Unique.Token) {
+  batchId: UUID) {
   val batch: String = label.label
   val domain: String = label.domain.value
   val indexedName: String = s"job-$index $name"
@@ -65,10 +65,10 @@ object BatchJob {
       Json.obj(
         show"job-${a.index}" -> Json.fromString(a.name),
         "batch" -> Json.fromString(a.batch),
+        "batch_id" -> a.batchId.asJson,
         "domain" -> Json.fromString(a.domain),
         "mode" -> Json.fromString(a.mode.show),
-        "kind" -> Json.fromString(a.kind.show),
-        "correlation_id" -> Json.fromInt(a.correlationId.hash)
+        "kind" -> Json.fromString(a.kind.show)
       )
 }
 
@@ -91,12 +91,14 @@ final case class BatchResultState(
   label: MetricLabel,
   spent: Duration,
   mode: BatchMode,
+  batchId: UUID,
   jobs: List[JobResultState])
 object BatchResultState {
   implicit val encoderBatchResultState: Encoder[BatchResultState] = { (br: BatchResultState) =>
     val (done, fail) = br.jobs.partition(_.done)
     Json.obj(
       "batch" -> Json.fromString(br.label.label),
+      "batch_id" -> br.batchId.asJson,
       "domain" -> Json.fromString(br.label.domain.value),
       "mode" -> Json.fromString(br.mode.show),
       "spent" -> Json.fromString(durationFormatter.format(br.spent)),

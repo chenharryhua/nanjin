@@ -4,21 +4,13 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.catsSyntaxTuple2Semigroupal
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.batch.{
-  Batch,
-  BatchMode,
-  BatchResultValue,
-  JobHandler,
-  JobResultState,
-  TraceJob
-}
+import com.github.chenharryhua.nanjin.guard.batch.*
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStop
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import io.circe.Json
 import io.circe.jawn.decode
 import io.circe.syntax.EncoderOps
 import org.scalatest.funsuite.AnyFunSuite
-import squants.DimensionlessConversions.DimensionlessConversions
 import squants.information.InformationConversions.InformationConversions
 
 import scala.concurrent.duration.{DurationDouble, DurationInt}
@@ -27,7 +19,7 @@ class BatchTest extends AnyFunSuite {
   private val service: ServiceGuard[IO] =
     TaskGuard[IO]("quasi")
       .service("quasi")
-      .updateConfig(_.withMetricReport(_.crontab(_.secondly)).withLogFormat(_.Slf4j_JsonNoSpaces))
+      .updateConfig(_.withMetricReport(_.crontab(_.secondly)).withLogFormat(_.Slf4j_Json_OneLine))
 
   test("1.quasi.sequential") {
     val se = service.eventStream { ga =>
@@ -102,7 +94,7 @@ class BatchTest extends AnyFunSuite {
           "a" -> IO.sleep(1.second).as(1.mb),
           "b" -> IO.sleep(2.seconds).as(2.tb),
           "c" -> IO.sleep(1.seconds).as(3.bytes))
-        .batchValue(TraceJob(agent).informationRate)
+        .batchValue(TraceJob(agent).universal((_, _) => Json.Null))
         .use_
     }.map(checkJson).compile.lastOrError.unsafeRunSync()
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
@@ -344,11 +336,8 @@ class BatchTest extends AnyFunSuite {
 
   test("17. sorted parallel") {
     val se = service.eventStream { agent =>
-      agent
-        .batch("sorted.parallel")
-        .parallel(jobs*)
-        .batchValue(TraceJob(agent).informationRate.contramap(_.kb))
-        .use { case BatchResultValue(br, rst) =>
+      agent.batch("sorted.parallel").parallel(jobs*).batchValue(TraceJob(agent).standard).use {
+        case BatchResultValue(br, rst) =>
           IO {
             assert(rst.head == 1)
             assert(rst(1) == 2)
@@ -367,18 +356,15 @@ class BatchTest extends AnyFunSuite {
             assert(br.jobs(4).job.name == "5")
             assert(br.jobs(4).job.index == 5)
           }.void
-        }
+      }
     }.compile.lastOrError.unsafeRunSync()
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
   }
 
   test("18. sorted sequential") {
     val se = service.eventStream { agent =>
-      agent
-        .batch("sorted.sequential")
-        .sequential(jobs*)
-        .batchValue(TraceJob(agent).dimensionlessRate.contramap(x => (x * 10.0d).each))
-        .use { case BatchResultValue(br, rst) =>
+      agent.batch("sorted.sequential").sequential(jobs*).batchValue(TraceJob(agent).standard).use {
+        case BatchResultValue(br, rst) =>
           IO {
             assert(rst.head == 1)
             assert(rst(1) == 2)
@@ -397,7 +383,7 @@ class BatchTest extends AnyFunSuite {
             assert(br.jobs(4).job.name == "5")
             assert(br.jobs(4).job.index == 5)
           }.void
-        }
+      }
     }.compile.lastOrError.unsafeRunSync()
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
   }

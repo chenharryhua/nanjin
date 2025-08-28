@@ -6,8 +6,6 @@ import cats.{Applicative, Monoid}
 import com.github.chenharryhua.nanjin.guard.service.Agent
 import io.circe.syntax.EncoderOps
 import io.circe.{Encoder, Json}
-import squants.Dimensionless
-import squants.information.Information
 
 sealed trait TraceJob[F[_], A] {
   private[batch] def kickoff(bj: BatchJob): F[Unit]
@@ -104,20 +102,6 @@ object TraceJob {
       universal[A]((a, _) => a.asJson)
 
     def json: JobTracer[F, Json] = standard[Json]
-
-    def informationRate: JobTracer[F, Information] = {
-      def translate(number: Information, jrs: JobResultState): Json =
-        Json.obj("information" -> jsonDataRate(jrs.took, number))
-
-      universal[Information](translate)
-    }
-
-    def dimensionlessRate: JobTracer[F, Dimensionless] = {
-      def translate(number: Dimensionless, jrs: JobResultState): Json =
-        Json.obj("dimensionless" -> jsonScalarRate(jrs.took, number))
-
-      universal[Dimensionless](translate)
-    }
   }
 
   def apply[F[_]](agent: Agent[F]): ByAgent[F] =
@@ -128,7 +112,7 @@ object TraceJob {
       _success = agent.log.done(_),
       _canceled = agent.log.warn(_),
       _errored = (jre: JobResultError) =>
-        agent.log.warn(jre.error)(Json.obj("error" -> jre.resultState.asJson))
+        agent.herald.error(jre.error)(Json.obj("error" -> jre.resultState.asJson))
     )
 
   implicit def monoidTraceJob[F[_], A](implicit ev: MonadCancel[F, Throwable]): Monoid[TraceJob[F, A]] =

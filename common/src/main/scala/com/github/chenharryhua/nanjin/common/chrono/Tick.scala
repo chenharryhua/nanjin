@@ -44,13 +44,17 @@ final case class Tick(
 
   def sleepStretch(delay: Duration): Tick = copy(snooze = snooze.plus(delay))
 
-  /** check if an instant is in this tick frame from previous timestamp(exclusive) to current
-    * timestamp(inclusive).
+  /** check if an instant is in this tick frame from previous(exclusive) to wakeup(inclusive).
     */
-  def inBetween(now: Instant): Boolean =
+  def isWithinOpenClosed(now: Instant): Boolean =
     (now.isAfter(previous) && now.isBefore(wakeup)) || (now === wakeup)
 
-  def newTick(now: Instant, delay: Duration): Tick =
+  /** check if an instant is in this tick frame from previous(inclusive) to wakeup (exclusive).
+    */
+  def isWithinClosedOpen(now: Instant): Boolean =
+    (now.isAfter(previous) && now.isBefore(wakeup)) || (now === previous)
+
+  def nextTick(now: Instant, delay: Duration): Tick =
     copy(
       previous = this.wakeup,
       index = this.index + 1,

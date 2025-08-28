@@ -30,7 +30,7 @@ abstract private class HeraldImpl[F[_]: Sync](
   private val serviceParams: ServiceParams = eventLogger.serviceParams
 
   private def alarm[S: Encoder](msg: S, level: AlarmLevel, error: Option[Error]): F[Unit] =
-    create_service_message(serviceParams, msg, level, error).flatMap(m => channel.send(m)).void
+    serviceMessage(serviceParams, msg, level, error).flatMap(m => channel.send(m)).void
 
   override def info[S: Encoder](msg: S): F[Unit] =
     eventLogger.info(msg) *> alarm(msg, AlarmLevel.Info, None)
@@ -46,7 +46,7 @@ abstract private class HeraldImpl[F[_]: Sync](
 
   override def error[S: Encoder](msg: S): F[Unit] =
     for {
-      evt <- create_service_message(serviceParams, msg, AlarmLevel.Error, None)
+      evt <- serviceMessage(serviceParams, msg, AlarmLevel.Error, None)
       _ <- errorHistory.modify(queue => (queue, queue.add(evt)))
       _ <- eventLogger.error(msg)
       _ <- channel.send(evt)
@@ -54,7 +54,7 @@ abstract private class HeraldImpl[F[_]: Sync](
 
   override def error[S: Encoder](ex: Throwable)(msg: S): F[Unit] =
     for {
-      evt <- create_service_message(serviceParams, msg, AlarmLevel.Error, Error(ex).some)
+      evt <- serviceMessage(serviceParams, msg, AlarmLevel.Error, Error(ex).some)
       _ <- errorHistory.modify(queue => (queue, queue.add(evt)))
       _ <- eventLogger.error(ex)(msg)
       _ <- channel.send(evt)

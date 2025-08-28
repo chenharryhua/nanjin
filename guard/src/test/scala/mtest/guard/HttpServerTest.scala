@@ -48,7 +48,7 @@ class HttpServerTest extends AnyFunSuite {
         .updateConfig(
           _.withMetricReport(_.crontab(_.secondly))
             .withHttpServer(_.withPort(port"9999"))
-            .withLogFormat(_.Slf4j_JsonNoSpaces))
+            .withLogFormat(_.Slf4j_Json_OneLine))
         .eventStream { agent =>
           agent
             .facilitate("test") { ag =>

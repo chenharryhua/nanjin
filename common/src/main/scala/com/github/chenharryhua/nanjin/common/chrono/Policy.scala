@@ -60,7 +60,7 @@ private object PolicyF extends all {
       case Crontab(cronExpr) =>
         val calcTick: CalcTick = { case TickRequest(tick, now) =>
           cronExpr.next(now.atZone(tick.zoneId)) match {
-            case Some(value) => tick.newTick(now, Duration.between(now, value))
+            case Some(value) => tick.nextTick(now, Duration.between(now, value))
             case None        => // should not happen but in case
               sys.error(show"$cronExpr return None at $now. idx=${tick.index}")
           }
@@ -69,13 +69,13 @@ private object PolicyF extends all {
 
       case FixedDelay(delays) =>
         val seed: LazyList[CalcTick] = LazyList.from(delays.toList).map[CalcTick] { delay =>
-          { case TickRequest(tick, now) => tick.newTick(now, delay) }
+          { case TickRequest(tick, now) => tick.nextTick(now, delay) }
         }
         LazyList.continually(seed).flatten
 
       case FixedRate(delay) =>
         LazyList.continually { case TickRequest(tick, now) =>
-          tick.newTick(now, fixedRateSnooze(tick.wakeup, now, delay, 1))
+          tick.nextTick(now, fixedRateSnooze(tick.wakeup, now, delay, 1))
         }
 
       // ops

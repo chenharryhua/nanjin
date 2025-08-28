@@ -2,8 +2,9 @@ package com.github.chenharryhua.nanjin.guard.batch
 
 import cats.Endo
 import cats.data.Reader
-import cats.effect.kernel.{Async, Sync, Unique}
+import cats.effect.kernel.{Async, Sync}
 import cats.implicits.{catsSyntaxMonadErrorRethrow, toFlatMapOps, toFunctorOps, toTraverseOps}
+import com.github.chenharryhua.nanjin.common.utils
 import com.github.chenharryhua.nanjin.guard.metrics.Metrics
 import monocle.Monocle.toAppliedFocusOps
 
@@ -29,21 +30,21 @@ object LightBatch {
     private val mode: BatchMode = BatchMode.Parallel(parallelism)
 
     override def quasiBatch: F[BatchResultState] =
-      F.timed(F.parTraverseN(parallelism)(jobs) { case JobNameIndex(name, idx, fa) =>
-        Unique[F].unique.flatMap { token =>
-          val job = BatchJob(name, idx, metrics.metricLabel, mode, JobKind.Quasi, token)
+      utils.randomUUID[F].flatMap { batchId =>
+        F.timed(F.parTraverseN(parallelism)(jobs) { case JobNameIndex(name, idx, fa) =>
+          val job = BatchJob(name, idx, metrics.metricLabel, mode, JobKind.Quasi, batchId)
           F.timed(F.attempt(fa)).map { case (fd: FiniteDuration, eoa: Either[Throwable, A]) =>
             JobResultState(job, fd.toJava, eoa.fold(_ => false, predicate.run))
           }
+        }).map { case (fd: FiniteDuration, jrs: List[JobResultState]) =>
+          BatchResultState(metrics.metricLabel, fd.toJava, mode, batchId, jrs.sortBy(_.job.index))
         }
-      }).map { case (fd: FiniteDuration, jrs: List[JobResultState]) =>
-        BatchResultState(metrics.metricLabel, fd.toJava, mode, jrs.sortBy(_.job.index))
       }
 
     override def batchValue: F[BatchResultValue[List[A]]] =
-      F.timed(F.parTraverseN(parallelism)(jobs) { case JobNameIndex(name, idx, fa) =>
-        Unique[F].unique.flatMap { token =>
-          val job = BatchJob(name, idx, metrics.metricLabel, mode, JobKind.Value, token)
+      utils.randomUUID[F].flatMap { batchId =>
+        F.timed(F.parTraverseN(parallelism)(jobs) { case JobNameIndex(name, idx, fa) =>
+          val job = BatchJob(name, idx, metrics.metricLabel, mode, JobKind.Value, batchId)
           F.timed(F.attempt(fa))
             .map { case (fd: FiniteDuration, eoa: Either[Throwable, A]) =>
               eoa.flatMap { a =>
@@ -55,12 +56,12 @@ object LightBatch {
               }
             }
             .rethrow
+        }).map { case (fd: FiniteDuration, jrv: List[JobResultValue[A]]) =>
+          val sorted = jrv.sortBy(_.resultState.job.index)
+          val brs: BatchResultState =
+            BatchResultState(metrics.metricLabel, fd.toJava, mode, batchId, sorted.map(_.resultState))
+          BatchResultValue(brs, sorted.map(_.value))
         }
-      }).map { case (fd: FiniteDuration, jrv: List[JobResultValue[A]]) =>
-        val sorted = jrv.sortBy(_.resultState.job.index)
-        val brs: BatchResultState =
-          BatchResultState(metrics.metricLabel, fd.toJava, mode, sorted.map(_.resultState))
-        BatchResultValue(brs, sorted.map(_.value))
       }
 
     override def withJobRename(f: String => String): Parallel[F, A] =
@@ -79,19 +80,19 @@ object LightBatch {
     private val mode: BatchMode = BatchMode.Sequential
 
     override def quasiBatch: F[BatchResultState] =
-      jobs.traverse { case JobNameIndex(name, idx, fa) =>
-        Unique[F].unique.flatMap { token =>
-          val job = BatchJob(name, idx, metrics.metricLabel, mode, JobKind.Quasi, token)
+      utils.randomUUID[F].flatMap { batchId =>
+        jobs.traverse { case JobNameIndex(name, idx, fa) =>
+          val job = BatchJob(name, idx, metrics.metricLabel, mode, JobKind.Quasi, batchId)
           F.timed(F.attempt(fa)).map { case (fd: FiniteDuration, eoa: Either[Throwable, A]) =>
             JobResultState(job, fd.toJava, eoa.fold(_ => false, predicate.run))
           }
-        }
-      }.map(sequentialBatchResultState(metrics, mode))
+        }.map(sequentialBatchResultState(metrics, mode, batchId))
+      }
 
     override def batchValue: F[BatchResultValue[List[A]]] =
-      jobs.traverse { case JobNameIndex(name, idx, fa) =>
-        Unique[F].unique.flatMap { token =>
-          val job = BatchJob(name, idx, metrics.metricLabel, mode, JobKind.Value, token)
+      utils.randomUUID[F].flatMap { batchId =>
+        jobs.traverse { case JobNameIndex(name, idx, fa) =>
+          val job = BatchJob(name, idx, metrics.metricLabel, mode, JobKind.Value, batchId)
           F.timed(F.attempt(fa))
             .map { case (fd: FiniteDuration, eoa: Either[Throwable, A]) =>
               eoa.flatMap { a =>
@@ -103,8 +104,8 @@ object LightBatch {
               }
             }
             .rethrow
-        }
-      }.map(sequentialBatchResultValue(metrics, mode))
+        }.map(sequentialBatchResultValue(metrics, mode, batchId))
+      }
 
     override def withJobRename(f: String => String): Sequential[F, A] =
       new Sequential[F, A](predicate, metrics, jobs.map(_.focus(_.name).modify(f)))

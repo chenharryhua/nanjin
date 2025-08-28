@@ -4,7 +4,7 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.batch.{BatchResultState, BatchResultValue}
-import com.github.chenharryhua.nanjin.guard.config.LogFormat.Console_JsonNoSpaces
+import com.github.chenharryhua.nanjin.guard.config.LogFormat.Console_Json_OneLine
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStop
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import org.scalatest.funsuite.AnyFunSuite
@@ -13,7 +13,7 @@ import scala.concurrent.duration.{DurationDouble, DurationInt}
 
 class LightBatchTest extends AnyFunSuite {
   private val service: ServiceGuard[IO] =
-    TaskGuard[IO]("light-batch").service("light-batch").updateConfig(_.withLogFormat(Console_JsonNoSpaces))
+    TaskGuard[IO]("light-batch").service("light-batch").updateConfig(_.withLogFormat(Console_Json_OneLine))
 
   test("1.quasi.sequential") {
     val se = service.eventStream { ga =>
@@ -131,7 +131,7 @@ class LightBatchTest extends AnyFunSuite {
       List("a" -> IO(1).delayBy(3.second), "b" -> IO(2).delayBy(2.seconds), "c" -> IO(3).delayBy(1.seconds))
     val se = service.eventStream { agent =>
       agent.lightBatch("predicate.value").parallel(jobs*).withPredicate(_ < 2).quasiBatch.map {
-        case BatchResultState(_, _, _, jobs) =>
+        case BatchResultState(_, _, _, _, jobs) =>
           assert(jobs.head.done)
           assert(!jobs(1).done)
           assert(!jobs(2).done)
@@ -145,7 +145,7 @@ class LightBatchTest extends AnyFunSuite {
       List("a" -> IO(1), "b" -> IO(2), "c" -> IO(3))
     val se = service.eventStream { agent =>
       agent.lightBatch("predicate.value").sequential(jobs*).withPredicate(_ < 2).quasiBatch.map {
-        case BatchResultState(_, _, _, jobs) =>
+        case BatchResultState(_, _, _, _, jobs) =>
           assert(jobs.head.done)
           assert(!jobs(1).done)
           assert(!jobs(2).done)
