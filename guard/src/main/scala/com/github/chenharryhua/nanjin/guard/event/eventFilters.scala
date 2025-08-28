@@ -31,8 +31,7 @@ object eventFilters {
                 ((Duration
                   .between(sp.zerothTick.launchTime, tick.wakeup)
                   .toScala / interval).toLong * interval).toJava)
-
-            tick.inBetween(expect)
+            tick.isWithinOpenClosed(expect)
         }
       case _ => true
     }
@@ -59,7 +58,7 @@ object eventFilters {
         mrt match {
           case MetricIndex.Adhoc(_)       => true
           case MetricIndex.Periodic(tick) =>
-            cronExpr.next(tick.zonedPrevious).exists(zdt => tick.inBetween(zdt.toInstant))
+            cronExpr.next(tick.zonedPrevious).exists(zdt => tick.isWithinOpenClosed(zdt.toInstant))
         }
       case _ => true
     }
