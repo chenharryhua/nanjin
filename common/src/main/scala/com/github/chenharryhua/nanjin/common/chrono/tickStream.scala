@@ -48,7 +48,7 @@ object tickStream {
 object tickLazyList {
   def fromTickStatus(init: TickStatus): LazyList[Tick] =
     LazyList.unfold(init)(ts =>
-      ts.next(ts.tick.wakeup.plus(Random.between(1, 5).milliseconds.toJava)).map(s => (s.tick, s)))
+      ts.next(ts.tick.conclude.plus(Random.between(1, 5).milliseconds.toJava)).map(s => (s.tick, s)))
 
   def from(zoneId: ZoneId, policy: Policy): LazyList[Tick] =
     fromTickStatus(TickStatus(Tick.zeroth(UUID.randomUUID(), zoneId, Instant.now())).renewPolicy(policy))

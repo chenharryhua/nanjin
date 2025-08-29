@@ -35,7 +35,7 @@ final private class ReStart[F[_]: Temporal](
         case Some(threshold) =>
           // if the duration between last recover and this failure is larger than threshold,
           // start over policy
-          if (Duration.between(status.tick.wakeup, now) > threshold)
+          if (Duration.between(status.tick.conclude, now) > threshold)
             status.renewPolicy(serviceParams.servicePolicies.restart.policy)
           else status
         case None => status

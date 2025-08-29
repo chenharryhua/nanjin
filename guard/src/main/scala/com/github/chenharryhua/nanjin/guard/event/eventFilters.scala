@@ -29,7 +29,7 @@ object eventFilters {
             val expect: Instant =
               sp.zerothTick.launchTime.plus(
                 ((Duration
-                  .between(sp.zerothTick.launchTime, tick.wakeup)
+                  .between(sp.zerothTick.launchTime, tick.conclude)
                   .toScala / interval).toLong * interval).toJava)
             tick.isWithinOpenClosed(expect)
         }
@@ -58,7 +58,7 @@ object eventFilters {
         mrt match {
           case MetricIndex.Adhoc(_)       => true
           case MetricIndex.Periodic(tick) =>
-            cronExpr.next(tick.zonedPrevious).exists(zdt => tick.isWithinOpenClosed(zdt.toInstant))
+            cronExpr.next(tick.zoned(_.commence)).exists(zdt => tick.isWithinOpenClosed(zdt.toInstant))
         }
       case _ => true
     }

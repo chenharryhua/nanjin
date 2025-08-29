@@ -6,68 +6,64 @@ import cats.{Functor, Show}
 import com.github.chenharryhua.nanjin.common.utils
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, HCursor, Json}
-import monocle.macros.{Lenses, PLenses}
 import org.typelevel.cats.time.instances.all.*
 
 import java.time.*
 import java.util.UUID
 
 /*
- *  previous     acquire        wakeup
+ *  commence    acquires       conclude
  *    |            |----snooze----|
  *    |---active---|              |
  *    |----------interval---------|
  */
 
-@Lenses
 final case class Tick(
   sequenceId: UUID, // immutable
   launchTime: Instant, // immutable
   zoneId: ZoneId, // immutable
-  previous: Instant, // previous tick's wakeup time
   index: Long, // monotonously increase
-  acquire: Instant, // when acquire a new tick
-  snooze: Duration // sleep duration
+  commence: Instant,
+  acquires: Instant,
+  snooze: Duration
 ) {
-  val wakeup: Instant = acquire.plus(snooze)
+  val conclude: Instant = acquires.plus(snooze)
 
-  def zonedLaunchTime: ZonedDateTime = launchTime.atZone(zoneId)
-  def zonedWakeup: ZonedDateTime = wakeup.atZone(zoneId)
-  def zonedAcquire: ZonedDateTime = acquire.atZone(zoneId)
-  def zonedPrevious: ZonedDateTime = previous.atZone(zoneId)
+  def zoned(f: this.type => Instant): ZonedDateTime = f(this).atZone(zoneId)
+  def local(f: this.type => Instant): LocalDateTime = zoned(f).toLocalDateTime
 
   // interval = active  +  snooze
 
-  def interval: Duration = Duration.between(previous, wakeup)
+  def interval: Duration = Duration.between(commence, conclude)
 
-  def active: Duration = Duration.between(previous, acquire)
+  def active: Duration = Duration.between(commence, acquires)
 
-  def sleepStretch(delay: Duration): Tick = copy(snooze = snooze.plus(delay))
+  def snoozeStretch(delay: Duration): Tick = copy(snooze = snooze.plus(delay))
 
   /** check if an instant is in this tick frame from previous(exclusive) to wakeup(inclusive).
     */
   def isWithinOpenClosed(now: Instant): Boolean =
-    (now.isAfter(previous) && now.isBefore(wakeup)) || (now === wakeup)
+    (now.isAfter(commence) && now.isBefore(conclude)) || (now === conclude)
 
   /** check if an instant is in this tick frame from previous(inclusive) to wakeup (exclusive).
     */
   def isWithinClosedOpen(now: Instant): Boolean =
-    (now.isAfter(previous) && now.isBefore(wakeup)) || (now === previous)
+    (now.isAfter(commence) && now.isBefore(conclude)) || (now === commence)
 
   def nextTick(now: Instant, delay: Duration): Tick =
     copy(
-      previous = this.wakeup,
+      commence = this.conclude,
       index = this.index + 1,
-      acquire = now,
+      acquires = now,
       snooze = delay
     )
 
   override def toString: String = {
-    val wak = zonedWakeup.toLocalDateTime.show
-    val acq = zonedAcquire.toLocalDateTime.show
+    val cls = local(_.conclude).show
+    val acq = local(_.acquires).show
     val snz = snooze.show
     val id = show"$sequenceId".take(5)
-    f"id=$id, idx=$index%04d, acq=$acq, wak=$wak, snz=$snz"
+    f"id=$id, idx=$index%04d, acq=$acq, cls=$cls, snz=$snz"
   }
 }
 
@@ -77,9 +73,9 @@ object Tick {
       sequenceId = uuid,
       launchTime = now,
       zoneId = zoneId,
-      previous = now,
       index = 0L,
-      acquire = now,
+      commence = now,
+      acquires = now,
       snooze = Duration.ZERO
     )
 
@@ -93,14 +89,14 @@ object Tick {
     (a: Tick) =>
       Json.obj(
         "index" -> Json.fromLong(a.index),
-        "previous" -> a.zonedPrevious.toLocalDateTime.asJson,
-        "acquire" -> a.zonedAcquire.toLocalDateTime.asJson,
-        "wakeup" -> a.zonedWakeup.toLocalDateTime.asJson,
+        "commence" -> a.local(_.commence).asJson,
+        "acquires" -> a.local(_.acquires).asJson,
+        "conclude" -> a.local(_.conclude).asJson,
         "active" -> a.active.asJson,
         "snooze" -> a.snooze.asJson,
         "interval" -> a.interval.asJson,
         "sequence_id" -> a.sequenceId.asJson,
-        "launch_time" -> a.launchTime.atZone(a.zoneId).toLocalDateTime.asJson,
+        "launch_time" -> a.local(_.launchTime).asJson,
         "zone_id" -> a.zoneId.asJson
       )
 
@@ -110,24 +106,23 @@ object Tick {
         sequenceId <- c.get[UUID]("sequence_id")
         launchTime <- c.get[LocalDateTime]("launch_time")
         zoneId <- c.get[ZoneId]("zone_id")
-        previous <- c.get[LocalDateTime]("previous")
         index <- c.get[Long]("index")
-        acquire <- c.get[LocalDateTime]("acquire")
+        commence <- c.get[LocalDateTime]("commence")
+        acquires <- c.get[LocalDateTime]("acquires")
         snooze <- c.get[Duration]("snooze")
       } yield Tick(
         sequenceId = sequenceId,
         launchTime = launchTime.atZone(zoneId).toInstant,
         zoneId = zoneId,
-        previous = previous.atZone(zoneId).toInstant,
         index = index,
-        acquire = acquire.atZone(zoneId).toInstant,
+        commence = commence.atZone(zoneId).toInstant,
+        acquires = acquires.atZone(zoneId).toInstant,
         snooze = snooze
       )
 
   implicit val showTick: Show[Tick] = Show.fromToString[Tick]
 }
 
-@PLenses
 final case class TickedValue[A](tick: Tick, value: A) {
   def map[B](f: A => B): TickedValue[B] = copy(value = f(value))
 }

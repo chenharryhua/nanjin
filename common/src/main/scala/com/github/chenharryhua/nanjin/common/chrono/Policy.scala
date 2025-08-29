@@ -75,7 +75,7 @@ private object PolicyF extends all {
 
       case FixedRate(delay) =>
         LazyList.continually { case TickRequest(tick, now) =>
-          tick.nextTick(now, fixedRateSnooze(tick.wakeup, now, delay, 1))
+          tick.nextTick(now, fixedRateSnooze(tick.conclude, now, delay, 1))
         }
 
       // ops
@@ -97,21 +97,21 @@ private object PolicyF extends all {
       case Except(policy, except) =>
         policy.map { (f: CalcTick) => (req: TickRequest) =>
           val tick = f(req)
-          if (tick.zonedWakeup.toLocalTime === except) {
-            val nt = f(TickRequest(tick, tick.wakeup))
-            tick.sleepStretch(nt.snooze)
+          if (tick.local(_.conclude).toLocalTime === except) {
+            val nt = f(TickRequest(tick, tick.conclude))
+            tick.snoozeStretch(nt.snooze)
           } else tick
         }
 
       case Offset(policy, offset) =>
         policy.map { (f: CalcTick) => (req: TickRequest) =>
-          f(req).sleepStretch(offset)
+          f(req).snoozeStretch(offset)
         }
 
       case Jitter(policy, min, max) =>
         policy.map { (f: CalcTick) => (req: TickRequest) =>
           val delay = Duration.of(Random.between(min.toNanos, max.toNanos), ChronoUnit.NANOS)
-          f(req).sleepStretch(delay)
+          f(req).snoozeStretch(delay)
         }
     }
 

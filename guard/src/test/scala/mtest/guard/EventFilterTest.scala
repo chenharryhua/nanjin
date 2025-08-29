@@ -64,7 +64,7 @@ class EventFilterTest extends AnyFunSuite {
     val tc = c.asInstanceOf[MetricReport].index.asInstanceOf[Periodic].tick
     assert(a.isInstanceOf[ServiceStart])
     assert(tb.index + 3 == tc.index)
-    assert(Duration.between(tb.wakeup, tc.wakeup) == Duration.ofSeconds(3))
+    assert(Duration.between(tb.conclude, tc.conclude) == Duration.ofSeconds(3))
     assert(d.isInstanceOf[ServiceStop])
   }
 }

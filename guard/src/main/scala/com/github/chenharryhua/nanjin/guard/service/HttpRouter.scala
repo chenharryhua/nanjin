@@ -175,7 +175,7 @@ final private class HttpRouter[F[_]](
                       h3(style := htmlColoring(mr))("Report Index: ", tick.index),
                       table(
                         tr(th(CONSTANT_LAUNCH_TIME), th(CONSTANT_TOOK)),
-                        tr(td(tick.zonedWakeup.toLocalDateTime.show), td(durationFormatter.format(mr.took)))
+                        tr(td(tick.local(_.conclude).show), td(durationFormatter.format(mr.took)))
                       ),
                       pre(new SnapshotPolyglot(mr.snapshot).toYaml)
                     ))
@@ -198,8 +198,8 @@ final private class HttpRouter[F[_]](
         case None      => deps_health_check.flatMap(Ok(_))
         case Some(evt) =>
           Clock[F].realTimeInstant.flatMap { now =>
-            if (evt.tick.wakeup.isAfter(now)) {
-              val recover = Duration.between(now, evt.tick.wakeup)
+            if (evt.tick.conclude.isAfter(now)) {
+              val recover = Duration.between(now, evt.tick.conclude)
               ServiceUnavailable(s"Service panic! Restart will be in ${durationFormatter.format(recover)}")
             } else {
               deps_health_check.flatMap(Ok(_))
@@ -210,7 +210,7 @@ final private class HttpRouter[F[_]](
     case GET -> Root / "service" / "panic" / "history" =>
       serviceParams.zonedNow.flatMap { now =>
         panicHistory.get.map(_.iterator().asScala.toList).flatMap { panics =>
-          val isActive = panics.lastOption.map(_.tick.wakeup).forall(_.isBefore(now.toInstant))
+          val isActive = panics.lastOption.map(_.tick.conclude).forall(_.isBefore(now.toInstant))
 
           val json: Json =
             Json.obj(
@@ -227,11 +227,11 @@ final private class HttpRouter[F[_]](
                   Json.obj(
                     "index" -> sp.tick.index.asJson,
                     "age" -> durationFormatter.format(Duration.between(sp.timestamp, now)).asJson,
-                    "up_rouse_at" -> sp.tick.zonedPrevious.toLocalDateTime.asJson,
+                    "up_rouse_at" -> sp.tick.local(_.commence).asJson,
                     "active" -> durationFormatter.format(sp.tick.active).asJson,
-                    "when_panic" -> sp.tick.zonedAcquire.toLocalDateTime.asJson,
+                    "when_panic" -> sp.tick.local(_.acquires).asJson,
                     "snooze" -> durationFormatter.format(sp.tick.snooze).asJson,
-                    "restart_at" -> sp.tick.zonedWakeup.toLocalDateTime.asJson,
+                    "restart_at" -> sp.tick.local(_.conclude).asJson,
                     "caused_by" -> sp.error.message.asJson
                   )
                 }.asJson

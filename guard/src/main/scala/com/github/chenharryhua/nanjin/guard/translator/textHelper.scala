@@ -52,7 +52,7 @@ object textHelper extends localtime with localdatetime {
   }
 
   def panicText(evt: ServicePanic): String = {
-    val (time, dur) = localTime_duration(evt.timestamp, evt.tick.zonedWakeup)
+    val (time, dur) = localTime_duration(evt.timestamp, evt.tick.zoned(_.conclude))
     s"Restart was scheduled at $time, in $dur."
   }
 }

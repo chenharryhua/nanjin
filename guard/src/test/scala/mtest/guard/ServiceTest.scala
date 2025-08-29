@@ -100,13 +100,13 @@ class ServiceTest extends AnyFunSuite {
     assert(g.index == 7)
     assert(h.index == 8)
 
-    assert(b.previous == a.wakeup)
-    assert(c.previous == b.wakeup)
-    assert(d.previous == c.wakeup)
-    assert(e.previous == d.wakeup)
-    assert(f.previous == e.wakeup)
-    assert(g.previous == f.wakeup)
-    assert(h.previous == g.wakeup)
+    assert(b.commence == a.conclude)
+    assert(c.commence == b.conclude)
+    assert(d.commence == c.conclude)
+    assert(e.commence == d.conclude)
+    assert(f.commence == e.conclude)
+    assert(g.commence == f.conclude)
+    assert(h.commence == g.conclude)
 
     assert(a.snooze == 1.second.toJava)
     assert(b.snooze == 2.second.toJava)
@@ -148,8 +148,8 @@ class ServiceTest extends AnyFunSuite {
     assert(b.index == 2)
     assert(c.index == 3)
 
-    assert(b.previous == a.wakeup)
-    assert(c.previous == b.wakeup)
+    assert(b.commence == a.conclude)
+    assert(c.commence == b.conclude)
 
     assert(a.snooze == 1.second.toJava)
     assert(b.snooze == 2.second.toJava)
