@@ -258,7 +258,7 @@ final private class HttpRouter[F[_]](
                   "token" -> sm.token.asJson,
                   "age" -> durationFormatter.format(Duration.between(sm.timestamp, now)).asJson,
                   "timestamp" -> sm.timestamp.asJson,
-                  sm.level.entryName -> sm.message
+                  "message" -> sm.message
                 ))
             }.asJson
           )

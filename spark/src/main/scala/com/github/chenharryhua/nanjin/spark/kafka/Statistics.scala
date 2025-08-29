@@ -40,7 +40,7 @@ final class Statistics private[spark] (val dataset: Dataset[CRMetaInfo]) extends
    */
 
   def cherryPick[F[_]](partition: Int, offset: Long)(implicit F: Sync[F]): F[List[ZonedCRMetaInfo]] =
-    F.interruptible {
+    F.delay {
       dataset
         .filter(m => m.offset === offset && m.partition === partition)
         .collect()
@@ -49,7 +49,7 @@ final class Statistics private[spark] (val dataset: Dataset[CRMetaInfo]) extends
     }
 
   def minutely[F[_]](implicit F: Sync[F]): F[List[MinutelyResult]] =
-    F.interruptible {
+    F.delay {
       dataset
         .map(m => m.localDateTime(zoneId).getMinute)
         .groupByKey(identity)
@@ -60,7 +60,7 @@ final class Statistics private[spark] (val dataset: Dataset[CRMetaInfo]) extends
     }
 
   def hourly[F[_]](implicit F: Sync[F]): F[List[HourlyResult]] =
-    F.interruptible {
+    F.delay {
       dataset
         .map(m => m.localDateTime(zoneId).getHour)
         .groupByKey(identity)
@@ -71,7 +71,7 @@ final class Statistics private[spark] (val dataset: Dataset[CRMetaInfo]) extends
     }
 
   def daily[F[_]](implicit F: Sync[F]): F[List[DailyResult]] =
-    F.interruptible {
+    F.delay {
       dataset
         .map(m => dayResolution(m.localDateTime(zoneId)))
         .groupByKey(identity)
@@ -82,7 +82,7 @@ final class Statistics private[spark] (val dataset: Dataset[CRMetaInfo]) extends
     }
 
   def dailyHour[F[_]](implicit F: Sync[F]): F[List[DailyHourResult]] =
-    F.interruptible {
+    F.delay {
       dataset
         .map(m => hourResolution(m.localDateTime(zoneId)).toString)
         .groupByKey(identity)
@@ -93,7 +93,7 @@ final class Statistics private[spark] (val dataset: Dataset[CRMetaInfo]) extends
     }
 
   def dailyMinute[F[_]](implicit F: Sync[F]): F[List[DailyMinuteResult]] =
-    F.interruptible {
+    F.delay {
       dataset
         .map(m => minuteResolution(m.localDateTime(zoneId)).toString)
         .groupByKey(identity)
@@ -102,6 +102,10 @@ final class Statistics private[spark] (val dataset: Dataset[CRMetaInfo]) extends
         .collect()
         .toList
     }
+
+  private def describe[F[_], A](description: String, fa: F[A])(implicit F: Sync[F]): F[A] =
+    F.bracket(F.delay(dataset.sparkSession.sparkContext.setJobDescription(description)))(_ => fa)(_ =>
+      F.delay(dataset.sparkSession.sparkContext.setJobDescription(null)))
 
   private def internalSummary(ids: Dataset[CRMetaInfo]): List[KafkaSummaryInternal] = {
     import org.apache.spark.sql.functions.*
@@ -122,7 +126,7 @@ final class Statistics private[spark] (val dataset: Dataset[CRMetaInfo]) extends
   }
 
   def summary[F[_]](implicit F: Sync[F]): F[Option[TopicSummary]] =
-    F.interruptible(internalSummary(dataset)).map { (kis: List[KafkaSummaryInternal]) =>
+    F.delay(internalSummary(dataset)).map { (kis: List[KafkaSummaryInternal]) =>
       def time(ts: Long): ZonedDateTime = Instant.ofEpochMilli(ts).atZone(zoneId)
 
       kis.headOption.map { head =>
@@ -158,11 +162,14 @@ final class Statistics private[spark] (val dataset: Dataset[CRMetaInfo]) extends
       }
     }
 
+  def describeSummary[F[_]: Sync](description: String): F[Option[TopicSummary]] =
+    describe("Summary:" + description, summary[F])
+
   /** Notes: offset is supposed to be monotonically increasing in a partition, except compact topic
     */
   def lostOffsets[F[_]](implicit F: Sync[F]): F[Dataset[MissingOffset]] = {
     import org.apache.spark.sql.functions.col
-    F.interruptible {
+    F.delay {
       val all: List[Dataset[MissingOffset]] = internalSummary(dataset).map { kds =>
         val expect: Dataset[Long] =
           dataset.sparkSession.range(kds.startOffset, kds.endOffset + 1L).map(_.toLong)
@@ -208,7 +215,7 @@ final class Statistics private[spark] (val dataset: Dataset[CRMetaInfo]) extends
     * Timestamp is supposed to be ordered along with offset
     */
   def disorders[F[_]](implicit F: Sync[F]): F[Dataset[Disorder]] =
-    F.interruptible {
+    F.delay {
       import org.apache.spark.sql.functions.col
 
       val all: Array[Dataset[Disorder]] =
@@ -239,7 +246,7 @@ final class Statistics private[spark] (val dataset: Dataset[CRMetaInfo]) extends
     */
   def dupRecords[F[_]](implicit F: Sync[F]): F[Dataset[DuplicateRecord]] = {
     import org.apache.spark.sql.functions.{asc, col, count, lit}
-    F.interruptible {
+    F.delay {
       dataset
         .groupBy(col("partition"), col("offset"))
         .agg(count(lit(1)))
@@ -253,7 +260,7 @@ final class Statistics private[spark] (val dataset: Dataset[CRMetaInfo]) extends
 
   def maxPartitionOffset[F[_]](implicit F: Sync[F]): F[TopicPartitionMap[Long]] = {
     import org.apache.spark.sql.functions.{first, max}
-    F.interruptible(
+    F.delay(
       TopicPartitionMap(
         dataset
           .groupBy("partition")
@@ -266,9 +273,12 @@ final class Statistics private[spark] (val dataset: Dataset[CRMetaInfo]) extends
           }))
   }
 
+  def describeMaxPartitionOffset[F[_]: Sync](description: String): F[TopicPartitionMap[Long]] =
+    describe("Max:" + description, maxPartitionOffset[F])
+
   def minPartitionOffset[F[_]](implicit F: Sync[F]): F[TopicPartitionMap[Long]] = {
     import org.apache.spark.sql.functions.{first, min}
-    F.interruptible(
+    F.delay(
       TopicPartitionMap(
         dataset
           .groupBy("partition")
@@ -280,4 +290,8 @@ final class Statistics private[spark] (val dataset: Dataset[CRMetaInfo]) extends
             tp -> offset
           }))
   }
+
+  def describeMinPartitionOffset[F[_]: Sync](description: String): F[TopicPartitionMap[Long]] =
+    describe("Min:" + description, minPartitionOffset[F])
+
 }

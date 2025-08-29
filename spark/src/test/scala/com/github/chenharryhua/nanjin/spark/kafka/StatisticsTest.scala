@@ -70,7 +70,7 @@ class StatisticsTest extends AnyFunSuite {
   }
 
   test("emptyStats max/min") {
-    assert(emptyStats.minPartitionOffset[IO].unsafeRunSync().value == Map.empty)
-    assert(emptyStats.maxPartitionOffset[IO].unsafeRunSync().value == Map.empty)
+    assert(emptyStats.describeMinPartitionOffset[IO]("min").unsafeRunSync().value == Map.empty)
+    assert(emptyStats.describeMaxPartitionOffset[IO]("max").unsafeRunSync().value == Map.empty)
   }
 }
