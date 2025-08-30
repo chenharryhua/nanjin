@@ -11,7 +11,7 @@ Global / parallelExecution := false
 val acyclicV = "0.3.18"
 val avroV = "1.12.0"
 val avro4sV = "4.1.2"
-val awsV = "2.32.30"
+val awsV = "2.33.0"
 val caffeineV = "3.2.2"
 val catsCoreV = "2.13.0"
 val catsEffectV = "3.6.3"
@@ -25,7 +25,7 @@ val enumeratumV = "1.9.0"
 val fs2KafkaV = "3.9.0"
 val fs2V = "3.12.0"
 val framelessV = "0.16.0"
-val hadoopV = "3.4.1"
+val hadoopV = "3.4.2"
 val http4sV = "0.23.30"
 val jacksonV = "2.19.2"
 val jwtV = "0.13.0"
@@ -33,7 +33,7 @@ val kafkaV = "8.0.0-ce"
 val kantanV = "0.8.0"
 val log4catsV = "2.7.1"
 val logbackV = "1.5.18"
-val metricsV = "4.2.34"
+val metricsV = "4.2.35"
 val monocleV = "3.3.0"
 val natchezV = "0.3.8"
 val nettyV = "4.2.4.Final"
@@ -323,15 +323,15 @@ lazy val pipes = (project in file("pipes"))
       "org.apache.parquet"               % "parquet-avro"           % parquetV,
       "org.apache.avro"                  % "avro"                   % avroV,
       "org.tukaani"                      % "xz"                     % "1.10",
-      "org.eclipse.jetty"                % "jetty-server"           % "12.1.0", // snyk
+  //    "org.eclipse.jetty"                % "jetty-server"           % "12.1.0", // snyk
       "io.netty"                         % "netty-all"              % nettyV, // snyk
       "com.nimbusds"                     % "nimbus-jose-jwt"        % "10.4.2", // snyk
-      "dnsjava"                          % "dnsjava"                % "3.6.3", // snyk
-      "com.google.guava"                 % "guava"                  % "33.4.8-jre", // snyk
-      "org.apache.commons"               % "commons-configuration2" % "2.12.0", // snyk
-      "org.jetbrains.kotlin"             % "kotlin-stdlib"          % "2.2.10", // snyk
-      "org.apache.zookeeper"             % "zookeeper"              % "3.9.3", // snyk
-      "commons-beanutils"                % "commons-beanutils"      % "1.11.0", // snyk :hadoop-common
+  //    "dnsjava"                          % "dnsjava"                % "3.6.3", // snyk
+  //    "com.google.guava"                 % "guava"                  % "33.4.8-jre", // snyk
+   //   "org.apache.commons"               % "commons-configuration2" % "2.12.0", // snyk
+   //   "org.jetbrains.kotlin"             % "kotlin-stdlib"          % "2.2.10", // snyk
+      "org.apache.zookeeper"             % "zookeeper"              % "3.9.4", // snyk
+    //  "commons-beanutils"                % "commons-beanutils"      % "1.11.0", // snyk :hadoop-common
       "org.typelevel" %% "jawn-fs2"      % "2.4.0"                  % Test
     ) ++ hadoopLib ++ kantanLib
     libraryDependencies ++= libs ++ testLib
