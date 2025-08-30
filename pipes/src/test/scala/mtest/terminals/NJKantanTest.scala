@@ -3,6 +3,7 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.toTraverseOps
 import com.github.chenharryhua.nanjin.common.chrono.Policy
+import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.terminals.{CsvHeaderOf, FileKind, KantanFile}
 import eu.timepit.refined.auto.*
 import fs2.Stream
@@ -134,7 +135,9 @@ class NJKantanTest extends AnyFunSuite {
     herd
       .map(tigerEncoder.encode)
       .through(
-        hdp.rotateSink(1000)(t => path / file.fileName(t)).kantan(_.withHeader(CsvHeaderOf[Tiger].header)))
+        hdp
+          .rotateSink(sydneyTime, 1000)(t => path / file.fileName(t))
+          .kantan(_.withHeader(CsvHeaderOf[Tiger].header)))
       .compile
       .drain
       .unsafeRunSync()
@@ -204,7 +207,7 @@ class NJKantanTest extends AnyFunSuite {
     hdp.delete(path).unsafeRunSync()
     herd
       .map(tigerEncoder.encode)
-      .through(hdp.rotateSink(1000)(t => path / file.fileName(t)).kantan.andThen(_.drain))
+      .through(hdp.rotateSink(sydneyTime, 1000)(t => path / file.fileName(t)).kantan.andThen(_.drain))
       .map(tigerDecoder.decode)
       .rethrow
       .compile
@@ -255,7 +258,7 @@ class NJKantanTest extends AnyFunSuite {
       .covary[IO]
       .repeatN(number)
       .map(tigerEncoder.encode)
-      .through(hdp.rotateSink(1)(t => path / file.fileName(t)).kantan)
+      .through(hdp.rotateSink(sydneyTime, 1)(t => path / file.fileName(t)).kantan)
       .fold(0L)((sum, v) => sum + v.value.recordCount)
       .compile
       .lastOrError

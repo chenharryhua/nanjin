@@ -3,6 +3,7 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.toTraverseOps
 import com.github.chenharryhua.nanjin.common.chrono.Policy
+import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.terminals.{FileKind, JacksonFile}
 import eu.timepit.refined.auto.*
 import fs2.Stream
@@ -103,7 +104,7 @@ class NJJacksonTest extends AnyFunSuite {
       .repeatN(number)
       .chunkN(300)
       .unchunks
-      .through(hdp.rotateSink(1000)(t => path / file.fileName(t)).jackson)
+      .through(hdp.rotateSink(sydneyTime, 1000)(t => path / file.fileName(t)).jackson)
       .compile
       .toList
       .unsafeRunSync()
@@ -194,7 +195,7 @@ class NJJacksonTest extends AnyFunSuite {
       .emits(pandaSet.toList)
       .covary[IO]
       .repeatN(number)
-      .through(hdp.rotateSink(1)(t => path / file.fileName(t)).jackson)
+      .through(hdp.rotateSink(sydneyTime, 1)(t => path / file.fileName(t)).jackson)
       .fold(0L)((sum, v) => sum + v.value.recordCount)
       .compile
       .lastOrError

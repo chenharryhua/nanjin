@@ -3,6 +3,7 @@ package mtest.terminals
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.chrono.Policy
+import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import fs2.Stream
 import fs2.text.{lines, utf8}
 import io.circe.generic.auto.*
@@ -112,7 +113,7 @@ class NJBytesTest extends AnyFunSuite {
     val path = fs2Root / "rotation" / "index"
     val number = 10000L
     hdp.delete(path).unsafeRunSync()
-    val sink = hdp.rotateSink(10000)(t => path / s"${t.index}.json").bytes
+    val sink = hdp.rotateSink(sydneyTime, 10000)(t => path / s"${t.index}.json").bytes
     Stream
       .emits(TestData.tigerSet.toList)
       .covary[IO]

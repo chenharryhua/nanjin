@@ -158,8 +158,9 @@ final class Hadoop[F[_]] private (config: Configuration) {
 
   /** Size based rotation sink
     */
-  def rotateSink(size: Int)(pathBuilder: CreateRotateFile => Url)(implicit F: Async[F]): RotateBySize[F] = {
+  def rotateSink(zoneId: ZoneId, size: Int)(pathBuilder: CreateRotateFile => Url)(implicit
+    F: Async[F]): RotateBySize[F] = {
     require(size > 0, "size should be bigger than zero")
-    new RotateBySizeSink[F](config, pathBuilder, size)
+    new RotateBySizeSink[F](config, zoneId, pathBuilder, size)
   }
 }

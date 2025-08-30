@@ -4,6 +4,7 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.toTraverseOps
 import com.github.chenharryhua.nanjin.common.chrono.Policy
+import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.terminals.{BinAvroFile, FileKind}
 import eu.timepit.refined.auto.*
 import fs2.Stream
@@ -105,7 +106,7 @@ class NJBinAvroTest extends AnyFunSuite {
       .repeatN(number)
       .chunkN(1000)
       .unchunks
-      .through(hdp.rotateSink(1000)(t => path / file.fileName(t)).binAvro)
+      .through(hdp.rotateSink(sydneyTime, 1000)(t => path / file.fileName(t)).binAvro)
       .fold(0L)((sum, v) => sum + v.value.recordCount)
       .compile
       .lastOrError
@@ -150,7 +151,7 @@ class NJBinAvroTest extends AnyFunSuite {
       .emits(pandaSet.toList)
       .covary[IO]
       .repeatN(number)
-      .through(hdp.rotateSink(1000)(t => path / file.fileName(t)).binAvro)
+      .through(hdp.rotateSink(sydneyTime, 1000)(t => path / file.fileName(t)).binAvro)
       .fold(0L)((sum, v) => sum + v.value.recordCount)
       .compile
       .lastOrError
