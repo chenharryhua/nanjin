@@ -19,6 +19,7 @@ import org.apache.spark.sql.types.{DataType, StructField, StructType}
 import org.apache.spark.sql.{DataFrame, SparkSession}
 import scalapb.{GeneratedMessage, GeneratedMessageCompanion}
 
+import java.time.ZoneId
 import scala.reflect.ClassTag
 
 package object spark {
@@ -28,6 +29,9 @@ package object spark {
     F: Sync[F]): Resource[F, Unit] =
     Resource.make(F.delay(sparkContext.setJobDescription(description)))(_ =>
       F.delay(sparkContext.setJobDescription(null)))
+
+  final private val SPARK_ZONE_ID: String = "spark.sql.session.timeZone"
+  def sparkZoneId(ss: SparkSession): ZoneId = ZoneId.of(ss.conf.get(SPARK_ZONE_ID))
 
   implicit final class RddExt[A](rdd: RDD[A]) extends Serializable {
 

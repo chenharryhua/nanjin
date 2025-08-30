@@ -81,7 +81,7 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
   def dumpJackson(
     topicName: TopicNameL,
     folder: Url,
-    dateRange: DateTimeRange = DateTimeRange(utils.sparkZoneId(sparkSession)))(implicit
+    dateRange: DateTimeRange = DateTimeRange(sparkZoneId(sparkSession)))(implicit
     F: Async[F]): F[Long] =
     dumpJackson(TopicName(topicName), folder, dateRange, JacksonCompression.Uncompressed)(
       _.withPollInterval(0.second)
@@ -118,7 +118,7 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
   def dumpCirce[K: JsonEncoder, V: JsonEncoder](
     topicDef: TopicDef[K, V],
     folder: Url,
-    dateRange: DateTimeRange = DateTimeRange(utils.sparkZoneId(sparkSession)))(implicit
+    dateRange: DateTimeRange = DateTimeRange(sparkZoneId(sparkSession)))(implicit
     F: Async[F]): F[Long] =
     dumpCirce[K, V](topicDef, folder, dateRange, CirceCompression.Uncompressed)(
       _.withPollInterval(0.second)

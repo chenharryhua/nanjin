@@ -1,6 +1,5 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
-import com.github.chenharryhua.nanjin.spark.utils
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FSDataOutputStream, FileSystem, Path}
 import org.apache.hadoop.io.compress.{CompressionCodec, GzipCodec}
@@ -25,7 +24,7 @@ final private class NJBinaryOutputFormat extends FileOutputFormat[NullWritable, 
 
   override def getRecordWriter(job: TaskAttemptContext): RecordWriter[NullWritable, BytesWritable] = {
     val conf: Configuration = job.getConfiguration
-    val suffix: String = s"-${utils.uuidStr(job)}.${conf.get(NJBinaryOutputFormat.suffix, "")}"
+    val suffix: String = s"-${uuidStr(job)}.${conf.get(NJBinaryOutputFormat.suffix, "")}"
     val isCompressed: Boolean = getCompressOutput(job)
     if (isCompressed) {
       val codecClass: Class[? <: CompressionCodec] = getOutputCompressorClass(job, classOf[GzipCodec])

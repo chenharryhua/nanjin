@@ -12,7 +12,7 @@ import com.github.chenharryhua.nanjin.datetime.{
 }
 import com.github.chenharryhua.nanjin.kafka.TopicPartitionMap
 import com.github.chenharryhua.nanjin.messages.kafka.{CRMetaInfo, ZonedCRMetaInfo}
-import com.github.chenharryhua.nanjin.spark.{describeJob, utils}
+import com.github.chenharryhua.nanjin.spark.{describeJob, sparkZoneId}
 import org.apache.kafka.common.TopicPartition
 import org.apache.spark.sql.Dataset
 
@@ -20,7 +20,7 @@ import java.time.{Instant, ZoneId, ZonedDateTime}
 import scala.collection.immutable.TreeMap
 
 final class Statistics private[spark] (val dataset: Dataset[CRMetaInfo]) extends Serializable {
-  private val zoneId: ZoneId = utils.sparkZoneId(dataset.sparkSession)
+  private val zoneId: ZoneId = sparkZoneId(dataset.sparkSession)
   import dataset.sparkSession.implicits.*
 
   /*
