@@ -244,6 +244,16 @@ class PolicyCombinatorTest extends AnyFunSuite {
     wakeup.forall(_ == 3)
   }
 
+  test("offset - 0") {
+    val p1 = Policy.crontab(_.hourly).offset(0.seconds)
+    val p2 = Policy.crontab(_.hourly)
+
+    val t1 = tickLazyList.fromTickStatus(zeroTickStatus.renewPolicy(p1))
+    val t2 = tickLazyList.fromTickStatus(zeroTickStatus.renewPolicy(p2))
+    val res = t1.zip(t2).take(32).forall { case (a, b) => a.conclude == b.conclude }
+    assert(res)
+  }
+
   test("jitter") {
     val policy = Policy.crontab(_.hourly).jitter(3.seconds)
     println(policy.show)
@@ -262,5 +272,26 @@ class PolicyCombinatorTest extends AnyFunSuite {
     println(policy.asJson)
     val ticks = tickLazyList.from(sydneyTime, policy).take(10).toList
     ticks.foreach(tk => println(tk))
+  }
+
+  test("limited") {
+    val policy = Policy.crontab(_.hourly).limited(3)
+    println(policy.show)
+    println(policy.asJson)
+    assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
+    val ticks = tickLazyList.from(policy).take(100)
+    assert(ticks.size == 3)
+  }
+
+  test("limited 0") {
+    val policy = Policy.crontab(_.hourly).limited(0)
+    val ticks = tickLazyList.from(policy).take(100)
+    assert(ticks.isEmpty)
+  }
+
+  test("limited neg") {
+    val policy = Policy.crontab(_.hourly).limited(-1)
+    val ticks = tickLazyList.from(policy).take(100)
+    assert(ticks.isEmpty)
   }
 }
