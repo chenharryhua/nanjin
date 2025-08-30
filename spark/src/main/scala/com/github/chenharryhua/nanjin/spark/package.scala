@@ -24,7 +24,7 @@ import scala.reflect.ClassTag
 package object spark {
   object injection extends InjectionInstances
 
-  def describeJob[F[_]](sparkContext: SparkContext, description: String)(implicit
+  private[spark] def describeJob[F[_]](sparkContext: SparkContext, description: String)(implicit
     F: Sync[F]): Resource[F, Unit] =
     Resource.make(F.delay(sparkContext.setJobDescription(description)))(_ =>
       F.delay(sparkContext.setJobDescription(null)))
