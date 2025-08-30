@@ -69,8 +69,9 @@ final class CrRdd[K, V] private[kafka] (
 
   // IO
 
-  def count[F[_]](description: String)(implicit F: Sync[F]): F[Long] =
-    describeJob[F](rdd.sparkContext, description).surround(F.delay(rdd.count()))
+  def count[F[_]](implicit F: Sync[F]): F[Long] = F.delay(rdd.count())
+  def count[F[_]: Sync](description: String): F[Long] =
+    describeJob[F](rdd.sparkContext, description).surround(count[F])
 
   def cherryPick[F[_]](partition: Int, offset: Long)(implicit F: Sync[F]): F[Option[NJConsumerRecord[K, V]]] =
     F.delay(

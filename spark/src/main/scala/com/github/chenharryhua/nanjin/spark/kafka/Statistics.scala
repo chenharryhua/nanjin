@@ -14,6 +14,7 @@ import com.github.chenharryhua.nanjin.kafka.TopicPartitionMap
 import com.github.chenharryhua.nanjin.messages.kafka.{CRMetaInfo, ZonedCRMetaInfo}
 import com.github.chenharryhua.nanjin.spark.{describeJob, sparkZoneId}
 import org.apache.kafka.common.TopicPartition
+import org.apache.spark.SparkContext
 import org.apache.spark.sql.Dataset
 
 import java.time.{Instant, ZoneId, ZonedDateTime}
@@ -218,75 +219,82 @@ final class Statistics private[spark] (val dataset: Dataset[CRMetaInfo]) extends
    * described
    */
 
-  def summary[F[_]](description: String)(implicit F: Sync[F]): F[Option[TopicSummary]] =
-    describeJob[F](dataset.sparkSession.sparkContext, "Summary:" + description)
-      .surround(F.delay(internalSummary(dataset)).map { (kis: List[KafkaSummaryInternal]) =>
-        def time(ts: Long): ZonedDateTime = Instant.ofEpochMilli(ts).atZone(zoneId)
+  def summary[F[_]](implicit F: Sync[F]): F[Option[TopicSummary]] =
+    F.delay(internalSummary(dataset)).map { (kis: List[KafkaSummaryInternal]) =>
+      def time(ts: Long): ZonedDateTime = Instant.ofEpochMilli(ts).atZone(zoneId)
 
-        kis.headOption.map { head =>
-          val partitions: List[(Int, PartitionSummary)] =
-            kis.map { in =>
-              val offset_distance = in.endOffset - in.startOffset + 1
-              val start_ts = time(in.startTs)
-              val cease_ts = time(in.endTs)
-              in.partition -> PartitionSummary(
-                start_offset = in.startOffset,
-                cease_offset = in.endOffset,
-                offset_distance = offset_distance,
-                records_counted = in.count,
-                count_distance_gap = in.count - offset_distance,
-                start_ts = start_ts.toLocalDateTime,
-                cease_ts = cease_ts.toLocalDateTime,
-                period = DurationFormatter.defaultFormatter.format(start_ts, cease_ts)
-              )
-            }
+      kis.headOption.map { head =>
+        val partitions: List[(Int, PartitionSummary)] =
+          kis.map { in =>
+            val offset_distance = in.endOffset - in.startOffset + 1
+            val start_ts = time(in.startTs)
+            val cease_ts = time(in.endTs)
+            in.partition -> PartitionSummary(
+              start_offset = in.startOffset,
+              cease_offset = in.endOffset,
+              offset_distance = offset_distance,
+              records_counted = in.count,
+              count_distance_gap = in.count - offset_distance,
+              start_ts = start_ts.toLocalDateTime,
+              cease_ts = cease_ts.toLocalDateTime,
+              period = DurationFormatter.defaultFormatter.format(start_ts, cease_ts)
+            )
+          }
 
-          val start_ts = time(kis.map(_.startTs).min)
-          val cease_ts = time(kis.map(_.endTs).max)
+        val start_ts = time(kis.map(_.startTs).min)
+        val cease_ts = time(kis.map(_.endTs).max)
 
-          TopicSummary(
-            topic = head.topic,
-            total_records = kis.map(_.count).sum,
-            zone_id = zoneId,
-            start_ts = start_ts.toLocalDateTime,
-            cease_ts = cease_ts.toLocalDateTime,
-            period = DurationFormatter.defaultFormatter.format(start_ts, cease_ts),
-            partitions = TreeMap.from(partitions)
-          )
-        }
-      })
+        TopicSummary(
+          topic = head.topic,
+          total_records = kis.map(_.count).sum,
+          zone_id = zoneId,
+          start_ts = start_ts.toLocalDateTime,
+          cease_ts = cease_ts.toLocalDateTime,
+          period = DurationFormatter.defaultFormatter.format(start_ts, cease_ts),
+          partitions = TreeMap.from(partitions)
+        )
+      }
+    }
 
-  def maxPartitionOffset[F[_]](description: String)(implicit F: Sync[F]): F[TopicPartitionMap[Long]] = {
+  def maxPartitionOffset[F[_]](implicit F: Sync[F]): F[TopicPartitionMap[Long]] = {
     import org.apache.spark.sql.functions.{first, max}
-
-    describeJob[F](dataset.sparkSession.sparkContext, "Max:" + description).surround(
-      F.delay(
-        TopicPartitionMap(
-          dataset
-            .groupBy("partition")
-            .agg(first("topic").as("topic"), max("offset").as("offset"))
-            .as[(Int, String, Long)]
-            .collect()
-            .map { case (partition, topic, offset) =>
-              val tp = new TopicPartition(topic, partition)
-              tp -> offset
-            })))
+    F.delay(
+      TopicPartitionMap(
+        dataset
+          .groupBy("partition")
+          .agg(first("topic").as("topic"), max("offset").as("offset"))
+          .as[(Int, String, Long)]
+          .collect()
+          .map { case (partition, topic, offset) =>
+            val tp = new TopicPartition(topic, partition)
+            tp -> offset
+          }))
   }
 
-  def minPartitionOffset[F[_]](description: String)(implicit F: Sync[F]): F[TopicPartitionMap[Long]] = {
+  def minPartitionOffset[F[_]](implicit F: Sync[F]): F[TopicPartitionMap[Long]] = {
     import org.apache.spark.sql.functions.{first, min}
-    describeJob[F](dataset.sparkSession.sparkContext, "Min:" + description).surround(
-      F.delay(
-        TopicPartitionMap(
-          dataset
-            .groupBy("partition")
-            .agg(first("topic").as("topic"), min("offset").as("offset"))
-            .as[(Int, String, Long)]
-            .collect()
-            .map { case (partition, topic, offset) =>
-              val tp = new TopicPartition(topic, partition)
-              tp -> offset
-            })))
+    F.delay(
+      TopicPartitionMap(
+        dataset
+          .groupBy("partition")
+          .agg(first("topic").as("topic"), min("offset").as("offset"))
+          .as[(Int, String, Long)]
+          .collect()
+          .map { case (partition, topic, offset) =>
+            val tp = new TopicPartition(topic, partition)
+            tp -> offset
+          }))
   }
+
+  private val sc: SparkContext = dataset.sparkSession.sparkContext
+
+  def summary[F[_]: Sync](description: String): F[Option[TopicSummary]] =
+    describeJob[F](sc, "Summary:" + description).surround(summary[F])
+
+  def maxPartitionOffset[F[_]: Sync](description: String): F[TopicPartitionMap[Long]] =
+    describeJob[F](sc, "Max:" + description).surround(maxPartitionOffset[F])
+
+  def minPartitionOffset[F[_]: Sync](description: String): F[TopicPartitionMap[Long]] =
+    describeJob[F](sc, "Min:" + description).surround(minPartitionOffset[F])
 
 }

@@ -40,12 +40,12 @@ final case class Tick(
 
   def snoozeStretch(delay: Duration): Tick = copy(snooze = snooze.plus(delay))
 
-  /** check if an instant is in this tick frame from previous(exclusive) to wakeup(inclusive).
+  /** check if an instant is in this tick frame from commence(exclusive) to conclude(inclusive).
     */
   def isWithinOpenClosed(now: Instant): Boolean =
     (now.isAfter(commence) && now.isBefore(conclude)) || (now === conclude)
 
-  /** check if an instant is in this tick frame from previous(inclusive) to wakeup (exclusive).
+  /** check if an instant is in this tick frame from commence(inclusive) to conclude(exclusive).
     */
   def isWithinClosedOpen(now: Instant): Boolean =
     (now.isAfter(commence) && now.isBefore(conclude)) || (now === commence)

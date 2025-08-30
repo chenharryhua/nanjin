@@ -46,8 +46,9 @@ final class Table[A] private[spark] (val dataset: Dataset[A], ate: SchematizedEn
   def stream[F[_]: Sync](chunkSize: ChunkSize): Stream[F, A] =
     Stream.fromBlockingIterator[F](dataset.toLocalIterator().asScala, chunkSize.value)
 
-  def count[F[_]](description: String)(implicit F: Sync[F]): F[Long] =
-    describeJob[F](dataset.sparkSession.sparkContext, description).surround(F.delay(dataset.count()))
+  def count[F[_]](implicit F: Sync[F]): F[Long] = F.delay(dataset.count())
+  def count[F[_]: Sync](description: String): F[Long] =
+    describeJob[F](dataset.sparkSession.sparkContext, description).surround(count[F])
 
   def upload[F[_]](hikariConfig: HikariConfig, tableName: TableName, saveMode: SaveMode)(implicit
     F: Sync[F]): F[Unit] =
