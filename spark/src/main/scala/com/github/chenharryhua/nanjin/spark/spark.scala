@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin
 
-import cats.effect.kernel.Sync
+import cats.effect.kernel.{Resource, Sync}
 import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.kafka.KafkaContext
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
@@ -12,6 +12,7 @@ import com.zaxxer.hikari.HikariConfig
 import fs2.Stream
 import io.lemonlabs.uri.Url
 import org.apache.avro.Schema
+import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.avro.SchemaConverters
 import org.apache.spark.sql.types.{DataType, StructField, StructType}
@@ -22,6 +23,11 @@ import scala.reflect.ClassTag
 
 package object spark {
   object injection extends InjectionInstances
+
+  def describeJob[F[_]](sparkContext: SparkContext, description: String)(implicit
+    F: Sync[F]): Resource[F, Unit] =
+    Resource.make(F.delay(sparkContext.setJobDescription(description)))(_ =>
+      F.delay(sparkContext.setJobDescription(null)))
 
   implicit final class RddExt[A](rdd: RDD[A]) extends Serializable {
 

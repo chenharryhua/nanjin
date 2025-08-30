@@ -44,7 +44,7 @@ class StatisticsTest extends AnyFunSuite {
     val res = stats.dupRecords[IO].map(_.collect().toSet).unsafeRunSync()
     assert(res == Set(DuplicateRecord(0, 7, 3)))
     assert(emptyStats.dupRecords[IO].map(_.count()).unsafeRunSync() == 0)
-    stats.summary[IO].unsafeRunSync().foreach(x => println(x))
+    stats.summary[IO]("sum").unsafeRunSync().foreach(x => println(x))
   }
 
   test("disorders") {
@@ -61,16 +61,16 @@ class StatisticsTest extends AnyFunSuite {
   }
 
   test("max/min") {
-    assert(stats.minPartitionOffset[IO].unsafeRunSync().value.map { case (tp, o) =>
+    assert(stats.minPartitionOffset[IO]("min").unsafeRunSync().value.map { case (tp, o) =>
       tp.partition() -> o
     } == Map(0 -> 0, 1 -> 1))
-    assert(stats.maxPartitionOffset[IO].unsafeRunSync().value.map { case (tp, o) =>
+    assert(stats.maxPartitionOffset[IO]("max").unsafeRunSync().value.map { case (tp, o) =>
       tp.partition() -> o
     } == Map(0 -> 7, 1 -> 3))
   }
 
   test("emptyStats max/min") {
-    assert(emptyStats.describeMinPartitionOffset[IO]("min").unsafeRunSync().value == Map.empty)
-    assert(emptyStats.describeMaxPartitionOffset[IO]("max").unsafeRunSync().value == Map.empty)
+    assert(emptyStats.minPartitionOffset[IO]("min").unsafeRunSync().value == Map.empty)
+    assert(emptyStats.maxPartitionOffset[IO]("max").unsafeRunSync().value == Map.empty)
   }
 }

@@ -69,7 +69,7 @@ class SparKafkaTest extends AnyFunSuite {
     sparKafka.topic(topic).fromKafka.flatMap(_.stats.hourly[IO]).unsafeRunSync()
   }
   test("sparKafka read topic from kafka and show summary") {
-    sparKafka.topic(topic).fromKafka.flatMap(_.stats.summary[IO]).unsafeRunSync()
+    sparKafka.topic(topic).fromKafka.flatMap(_.stats.summary[IO]("sum")).unsafeRunSync()
   }
   import sparkSession.implicits.*
 
@@ -175,7 +175,7 @@ class SparKafkaTest extends AnyFunSuite {
       .compile
       .drain
       .unsafeRunSync()
-    assert(2 == sparKafka.topic(topic).load.avro(path).count[IO].unsafeRunSync())
+    assert(2 == sparKafka.topic(topic).load.avro(path).count[IO]("c").unsafeRunSync())
   }
 
   test("format") {
@@ -203,8 +203,8 @@ class SparKafkaTest extends AnyFunSuite {
   }
 
   test("empty") {
-    val prc = sparKafka.topic(topic).emptyPrRdd.count[IO].unsafeRunSync()
-    val crc = sparKafka.topic(topic).emptyCrRdd.count[IO].unsafeRunSync()
+    val prc = sparKafka.topic(topic).emptyPrRdd.count[IO]("c").unsafeRunSync()
+    val crc = sparKafka.topic(topic).emptyCrRdd.count[IO]("c").unsafeRunSync()
     assert(prc == 0)
     assert(crc == 0)
   }

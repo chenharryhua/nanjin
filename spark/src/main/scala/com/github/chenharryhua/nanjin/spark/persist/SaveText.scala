@@ -27,8 +27,19 @@ final class SaveText[A](rdd: RDD[A], cfg: HoarderConfig, show: Show[A], suffix: 
   def withCompression(f: TextCompression.type => TextCompression): SaveText[A] =
     withCompression(f(TextCompression))
 
-  def run[F[_]](implicit F: Sync[F]): F[Unit] =
-    new SaveModeAware[F](params.saveMode, params.outPath, rdd.sparkContext.hadoopConfiguration)
-      .checkAndRun(F.interruptible(saveRDD.text(rdd, params.outPath, params.compression, suffix)(show)))
+  override def run[F[_]](implicit F: Sync[F]): F[Unit] =
+    internalRun(
+      sparkContext = rdd.sparkContext,
+      params = params,
+      job = F.delay(saveRDD.text(rdd, params.outPath, params.compression, suffix)(show)),
+      description = None
+    )
 
+  override def run[F[_]](description: String)(implicit F: Sync[F]): F[Unit] =
+    internalRun(
+      sparkContext = rdd.sparkContext,
+      params = params,
+      job = F.delay(saveRDD.text(rdd, params.outPath, params.compression, suffix)(show)),
+      description = Some(description)
+    )
 }

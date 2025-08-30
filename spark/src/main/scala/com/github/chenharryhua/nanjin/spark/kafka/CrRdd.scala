@@ -7,6 +7,7 @@ import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.datetime.DateTimeRange
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.messages.kafka.{CRMetaInfo, NJConsumerRecord, NJProducerRecord}
+import com.github.chenharryhua.nanjin.spark.describeJob
 import com.github.chenharryhua.nanjin.spark.persist.RddAvroFileHoarder
 import fs2.Stream
 import org.apache.spark.rdd.RDD
@@ -68,10 +69,11 @@ final class CrRdd[K, V] private[kafka] (
 
   // IO
 
-  def count[F[_]](implicit F: Sync[F]): F[Long] = F.interruptible(rdd.count())
+  def count[F[_]](description: String)(implicit F: Sync[F]): F[Long] =
+    describeJob[F](rdd.sparkContext, description).surround(F.delay(rdd.count()))
 
   def cherryPick[F[_]](partition: Int, offset: Long)(implicit F: Sync[F]): F[Option[NJConsumerRecord[K, V]]] =
-    F.interruptible(
+    F.delay(
       transform(_.filter(cr => cr.partition === partition && cr.offset === offset)).rdd.collect().headOption)
 
   def stream[F[_]: Sync](chunkSize: ChunkSize): Stream[F, NJConsumerRecord[K, V]] =

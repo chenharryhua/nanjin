@@ -20,8 +20,20 @@ final class SaveParquet[A](rdd: RDD[A], encoder: AvroEncoder[A], cfg: HoarderCon
   def withCompression(f: ParquetCompression.type => ParquetCompression): SaveParquet[A] =
     withCompression(f(ParquetCompression))
 
-  def run[F[_]](implicit F: Sync[F]): F[Unit] =
-    new SaveModeAware[F](params.saveMode, params.outPath, rdd.sparkContext.hadoopConfiguration)
-      .checkAndRun(F.interruptible(saveRDD.parquet(rdd, params.outPath, encoder, params.compression)))
+  override def run[F[_]](implicit F: Sync[F]): F[Unit] =
+    internalRun(
+      sparkContext = rdd.sparkContext,
+      params = params,
+      job = F.delay(saveRDD.parquet(rdd, params.outPath, encoder, params.compression)),
+      description = None
+    )
+
+  override def run[F[_]](description: String)(implicit F: Sync[F]): F[Unit] =
+    internalRun(
+      sparkContext = rdd.sparkContext,
+      params = params,
+      job = F.delay(saveRDD.parquet(rdd, params.outPath, encoder, params.compression)),
+      description = Some(description)
+    )
 
 }

@@ -22,8 +22,19 @@ final class SaveBinaryAvro[A](rdd: RDD[A], encoder: AvroEncoder[A], cfg: Hoarder
   def withCompression(f: BinaryAvroCompression.type => BinaryAvroCompression): SaveBinaryAvro[A] =
     withCompression(f(BinaryAvroCompression))
 
-  def run[F[_]](implicit F: Sync[F]): F[Unit] =
-    new SaveModeAware[F](params.saveMode, params.outPath, rdd.sparkContext.hadoopConfiguration)
-      .checkAndRun(F.interruptible(saveRDD.binAvro(rdd, params.outPath, encoder, params.compression)))
+  override def run[F[_]](description: String)(implicit F: Sync[F]): F[Unit] =
+    internalRun(
+      sparkContext = rdd.sparkContext,
+      params = params,
+      job = F.delay(saveRDD.binAvro(rdd, params.outPath, encoder, params.compression)),
+      description = Some(description)
+    )
 
+  override def run[F[_]](implicit F: Sync[F]): F[Unit] =
+    internalRun(
+      sparkContext = rdd.sparkContext,
+      params = params,
+      job = F.delay(saveRDD.binAvro(rdd, params.outPath, encoder, params.compression)),
+      description = None
+    )
 }

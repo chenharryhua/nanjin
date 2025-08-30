@@ -24,8 +24,19 @@ final class SaveCirce[A](rdd: RDD[A], cfg: HoarderConfig, isKeepNull: Boolean, e
   def withCompression(f: CirceCompression.type => CirceCompression): SaveCirce[A] =
     withCompression(f(CirceCompression))
 
-  def run[F[_]](implicit F: Sync[F]): F[Unit] =
-    new SaveModeAware[F](params.saveMode, params.outPath, rdd.sparkContext.hadoopConfiguration).checkAndRun(
-      F.interruptible(saveRDD.circe(rdd, params.outPath, params.compression, isKeepNull)(encoder)))
+  override def run[F[_]](implicit F: Sync[F]): F[Unit] =
+    internalRun(
+      sparkContext = rdd.sparkContext,
+      params = params,
+      job = F.delay(saveRDD.circe(rdd, params.outPath, params.compression, isKeepNull)(encoder)),
+      description = None
+    )
 
+  override def run[F[_]](description: String)(implicit F: Sync[F]): F[Unit] =
+    internalRun(
+      sparkContext = rdd.sparkContext,
+      params = params,
+      job = F.delay(saveRDD.circe(rdd, params.outPath, params.compression, isKeepNull)(encoder)),
+      description = Some(description)
+    )
 }
