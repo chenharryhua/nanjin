@@ -61,10 +61,10 @@ class StatisticsTest extends AnyFunSuite {
   }
 
   test("max/min") {
-    assert(stats.minPartitionOffset[IO]("min").unsafeRunSync().value.map { case (tp, o) =>
+    assert(stats.minPartitionOffset[IO].unsafeRunSync().value.map { case (tp, o) =>
       tp.partition() -> o
     } == Map(0 -> 0, 1 -> 1))
-    assert(stats.maxPartitionOffset[IO]("max").unsafeRunSync().value.map { case (tp, o) =>
+    assert(stats.maxPartitionOffset[IO].unsafeRunSync().value.map { case (tp, o) =>
       tp.partition() -> o
     } == Map(0 -> 7, 1 -> 3))
   }
