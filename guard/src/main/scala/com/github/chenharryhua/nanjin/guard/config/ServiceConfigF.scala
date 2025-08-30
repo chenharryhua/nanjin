@@ -71,7 +71,7 @@ final case class ServiceParams(
   def toZonedDateTime(fd: FiniteDuration): ZonedDateTime =
     Instant.EPOCH.plusNanos(fd.toNanos).atZone(zoneId)
 
-  def upTime(ts: ZonedDateTime): Duration = Duration.between(zerothTick.zonedLaunchTime, ts)
+  def upTime(ts: ZonedDateTime): Duration = Duration.between(zerothTick.zoned(_.launchTime), ts)
   def upTime(ts: Instant): Duration = Duration.between(zerothTick.launchTime, ts)
 
   def zonedNow[F[_]: Clock: Functor]: F[ZonedDateTime] = Clock[F].realTimeInstant.map(toZonedDateTime)

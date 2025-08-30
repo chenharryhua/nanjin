@@ -15,8 +15,18 @@ final class SaveObjectFile[A](rdd: RDD[A], cfg: HoarderConfig) extends Serializa
   def withSaveMode(sm: SaveMode): SaveObjectFile[A] = updateConfig(cfg.saveMode(sm))
   def withSaveMode(f: SparkSaveMode.type => SaveMode): SaveObjectFile[A] = withSaveMode(f(SparkSaveMode))
 
-  def run[F[_]](implicit F: Sync[F]): F[Unit] =
-    new SaveModeAware[F](params.saveMode, params.outPath, rdd.sparkContext.hadoopConfiguration)
-      .checkAndRun(F.interruptible(rdd.saveAsObjectFile(toHadoopPath(params.outPath).toString)))
+  override def run[F[_]](implicit F: Sync[F]): F[Unit] =
+    internalRun(
+      sparkContext = rdd.sparkContext,
+      params = params,
+      job = F.delay(rdd.saveAsObjectFile(toHadoopPath(params.outPath).toString)),
+      description = None)
+
+  override def run[F[_]](description: String)(implicit F: Sync[F]): F[Unit] =
+    internalRun(
+      sparkContext = rdd.sparkContext,
+      params = params,
+      job = F.delay(rdd.saveAsObjectFile(toHadoopPath(params.outPath).toString)),
+      description = Some(description))
 
 }

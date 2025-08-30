@@ -17,7 +17,19 @@ final class SaveProtobuf[A](rdd: RDD[A], cfg: HoarderConfig, evidence: A <:< Gen
   def withSaveMode(f: SparkSaveMode.type => SaveMode): SaveProtobuf[A] = withSaveMode(f(SparkSaveMode))
 
   def run[F[_]](implicit F: Sync[F]): F[Unit] =
-    new SaveModeAware[F](params.saveMode, params.outPath, rdd.sparkContext.hadoopConfiguration)
-      .checkAndRun(F.interruptible(saveRDD.protobuf(rdd, params.outPath, params.compression)(evidence)))
+    internalRun(
+      sparkContext = rdd.sparkContext,
+      params = params,
+      job = F.delay(saveRDD.protobuf(rdd, params.outPath, params.compression)(evidence)),
+      description = None
+    )
+
+  override def run[F[_]](description: String)(implicit F: Sync[F]): F[Unit] =
+    internalRun(
+      sparkContext = rdd.sparkContext,
+      params = params,
+      job = F.delay(saveRDD.protobuf(rdd, params.outPath, params.compression)(evidence)),
+      description = Some(description)
+    )
 
 }

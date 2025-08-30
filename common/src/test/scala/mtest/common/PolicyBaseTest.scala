@@ -30,33 +30,33 @@ class PolicyBaseTest extends AnyFunSuite {
     assert(a1.sequenceId == ts.tick.sequenceId)
     assert(a1.launchTime == ts.tick.launchTime)
     assert(a1.index == 1)
-    assert(a1.previous === ts.tick.wakeup)
+    assert(a1.commence === ts.tick.conclude)
     assert(a1.snooze == 1.second.toJava)
 
     assert(a2.sequenceId == ts.tick.sequenceId)
     assert(a2.launchTime == ts.tick.launchTime)
     assert(a2.index == 2)
-    assert(a2.previous === a1.wakeup)
+    assert(a2.commence === a1.conclude)
     assert(a2.snooze == 0.second.toJava)
 
     assert(a3.sequenceId == ts.tick.sequenceId)
     assert(a3.launchTime == ts.tick.launchTime)
     assert(a3.index == 3)
-    assert(a3.previous === a2.wakeup)
+    assert(a3.commence === a2.conclude)
     assert(a3.snooze == 1.second.toJava)
 
     assert(a4.sequenceId == ts.tick.sequenceId)
     assert(a4.launchTime == ts.tick.launchTime)
     assert(a4.index == 4)
-    assert(a4.previous === a3.wakeup)
+    assert(a4.commence === a3.conclude)
     assert(a4.snooze == 0.second.toJava)
 
     assert(a5.sequenceId == ts.tick.sequenceId)
     assert(a5.launchTime == ts.tick.launchTime)
     assert(a5.index == 5)
-    assert(a5.previous === a4.wakeup)
+    assert(a5.commence === a4.conclude)
     assert(a5.snooze == 1.second.toJava)
-    assert(List(a1, a2, a3, a4, a5).forall(t => t.acquire.plus(t.snooze) == t.wakeup))
+    assert(List(a1, a2, a3, a4, a5).forall(t => t.acquires.plus(t.snooze) == t.conclude))
   }
 
   test("fixed rate") {
@@ -71,33 +71,33 @@ class PolicyBaseTest extends AnyFunSuite {
     assert(a1.sequenceId == ts.tick.sequenceId)
     assert(a1.launchTime == ts.tick.launchTime)
     assert(a1.index == 1)
-    assert(a1.previous === ts.tick.wakeup)
-    assert(a1.wakeup == a1.previous.plus(1.seconds.toJava))
+    assert(a1.commence === ts.tick.conclude)
+    assert(a1.conclude == a1.commence.plus(1.seconds.toJava))
 
     assert(a2.sequenceId == ts.tick.sequenceId)
     assert(a2.launchTime == ts.tick.launchTime)
     assert(a2.index == 2)
-    assert(a2.previous === a1.wakeup)
-    assert(a2.wakeup == a2.previous.plus(1.seconds.toJava))
+    assert(a2.commence === a1.conclude)
+    assert(a2.conclude == a2.commence.plus(1.seconds.toJava))
 
     assert(a3.sequenceId == ts.tick.sequenceId)
     assert(a3.launchTime == ts.tick.launchTime)
     assert(a3.index == 3)
-    assert(a3.previous === a2.wakeup)
-    assert(a3.wakeup == a3.previous.plus(1.seconds.toJava))
+    assert(a3.commence === a2.conclude)
+    assert(a3.conclude == a3.commence.plus(1.seconds.toJava))
 
     assert(a4.sequenceId == ts.tick.sequenceId)
     assert(a4.launchTime == ts.tick.launchTime)
     assert(a4.index == 4)
-    assert(a4.previous === a3.wakeup)
-    assert(a4.wakeup == a4.previous.plus(1.seconds.toJava))
+    assert(a4.commence === a3.conclude)
+    assert(a4.conclude == a4.commence.plus(1.seconds.toJava))
 
     assert(a5.sequenceId == ts.tick.sequenceId)
     assert(a5.launchTime == ts.tick.launchTime)
     assert(a5.index == 5)
-    assert(a5.previous === a4.wakeup)
-    assert(a5.wakeup == a5.previous.plus(1.seconds.toJava))
-    assert(List(a1, a2, a3, a4, a5).forall(t => t.acquire.plus(t.snooze) == t.wakeup))
+    assert(a5.commence === a4.conclude)
+    assert(a5.conclude == a5.commence.plus(1.seconds.toJava))
+    assert(List(a1, a2, a3, a4, a5).forall(t => t.acquires.plus(t.snooze) == t.conclude))
   }
 
   test("fixed delays") {
@@ -124,7 +124,7 @@ class PolicyBaseTest extends AnyFunSuite {
     assert(a5.snooze == 2.second.toJava)
     assert(a6.snooze == 3.second.toJava)
     assert(a7.snooze == 1.second.toJava)
-    assert(List(a1, a2, a3, a4, a5, a6, a7).forall(t => t.acquire.plus(t.snooze) == t.wakeup))
+    assert(List(a1, a2, a3, a4, a5, a6, a7).forall(t => t.acquires.plus(t.snooze) == t.conclude))
   }
 
   test("cron") {
@@ -136,9 +136,9 @@ class PolicyBaseTest extends AnyFunSuite {
     val ts = zeroTickStatus.renewPolicy(policy)
 
     val a1 = ts.next(ts.tick.launchTime.plus(1.hour.toJava)).get
-    val a2 = a1.next(a1.tick.wakeup.plus(30.minutes.toJava)).get
-    val a3 = a2.next(a2.tick.wakeup.plus(45.minutes.toJava)).get
-    val a4 = a3.next(a2.tick.wakeup.plus(60.minutes.toJava)).get
+    val a2 = a1.next(a1.tick.conclude.plus(30.minutes.toJava)).get
+    val a3 = a2.next(a2.tick.conclude.plus(45.minutes.toJava)).get
+    val a4 = a3.next(a2.tick.conclude.plus(60.minutes.toJava)).get
 
     assert(a1.tick.index == 1)
     assert(a2.tick.index == 2)
@@ -149,11 +149,11 @@ class PolicyBaseTest extends AnyFunSuite {
     assert(a3.tick.snooze == 15.minutes.toJava)
     assert(a4.tick.snooze == 1.hour.toJava)
 
-    assert(a4.tick.isWithinClosedOpen(a4.tick.previous))
-    assert(!a4.tick.isWithinClosedOpen(a4.tick.wakeup))
+    assert(a4.tick.isWithinClosedOpen(a4.tick.commence))
+    assert(!a4.tick.isWithinClosedOpen(a4.tick.conclude))
 
-    assert(a4.tick.isWithinOpenClosed(a4.tick.wakeup))
-    assert(!a4.tick.isWithinOpenClosed(a4.tick.previous))
+    assert(a4.tick.isWithinOpenClosed(a4.tick.conclude))
+    assert(!a4.tick.isWithinOpenClosed(a4.tick.commence))
   }
 
   test("giveUp") {
@@ -166,63 +166,63 @@ class PolicyBaseTest extends AnyFunSuite {
   }
 
   test("weekly") {
-    val sunday = tickLazyList.from(Policy.crontab(_.weekly.sunday)).take(1).head.zonedWakeup
+    val sunday = tickLazyList.from(Policy.crontab(_.weekly.sunday)).take(1).head.zoned(_.conclude)
     assert(DayOfWeek.from(sunday) == DayOfWeek.SUNDAY)
 
-    val monday = tickLazyList.from(Policy.crontab(_.weekly.monday)).take(1).head.zonedWakeup
+    val monday = tickLazyList.from(Policy.crontab(_.weekly.monday)).take(1).head.zoned(_.conclude)
     assert(DayOfWeek.from(monday) == DayOfWeek.MONDAY)
 
-    val tuesday = tickLazyList.from(Policy.crontab(_.weekly.tuesday)).take(1).head.zonedWakeup
+    val tuesday = tickLazyList.from(Policy.crontab(_.weekly.tuesday)).take(1).head.zoned(_.conclude)
     assert(DayOfWeek.from(tuesday) == DayOfWeek.TUESDAY)
 
-    val wednesday = tickLazyList.from(Policy.crontab(_.weekly.wednesday)).take(1).head.zonedWakeup
+    val wednesday = tickLazyList.from(Policy.crontab(_.weekly.wednesday)).take(1).head.zoned(_.conclude)
     assert(DayOfWeek.from(wednesday) == DayOfWeek.WEDNESDAY)
 
-    val thursday = tickLazyList.from(Policy.crontab(_.weekly.thursday)).take(1).head.zonedWakeup
+    val thursday = tickLazyList.from(Policy.crontab(_.weekly.thursday)).take(1).head.zoned(_.conclude)
     assert(DayOfWeek.from(thursday) == DayOfWeek.THURSDAY)
 
-    val friday = tickLazyList.from(Policy.crontab(_.weekly.friday)).take(1).head.zonedWakeup
+    val friday = tickLazyList.from(Policy.crontab(_.weekly.friday)).take(1).head.zoned(_.conclude)
     assert(DayOfWeek.from(friday) == DayOfWeek.FRIDAY)
 
-    val saturday = tickLazyList.from(Policy.crontab(_.weekly.saturday)).take(1).head.zonedWakeup
+    val saturday = tickLazyList.from(Policy.crontab(_.weekly.saturday)).take(1).head.zoned(_.conclude)
     assert(DayOfWeek.from(saturday) == DayOfWeek.SATURDAY)
   }
 
   test("yearly") {
-    val january = tickLazyList.from(Policy.crontab(_.yearly.january)).take(1).head.zonedWakeup
+    val january = tickLazyList.from(Policy.crontab(_.yearly.january)).take(1).head.zoned(_.conclude)
     assert(Month.from(january) == Month.JANUARY)
 
-    val february = tickLazyList.from(Policy.crontab(_.yearly.february)).take(1).head.zonedWakeup
+    val february = tickLazyList.from(Policy.crontab(_.yearly.february)).take(1).head.zoned(_.conclude)
     assert(Month.from(february) == Month.FEBRUARY)
 
-    val march = tickLazyList.from(Policy.crontab(_.yearly.march)).take(1).head.zonedWakeup
+    val march = tickLazyList.from(Policy.crontab(_.yearly.march)).take(1).head.zoned(_.conclude)
     assert(Month.from(march) == Month.MARCH)
 
-    val april = tickLazyList.from(Policy.crontab(_.yearly.april)).take(1).head.zonedWakeup
+    val april = tickLazyList.from(Policy.crontab(_.yearly.april)).take(1).head.zoned(_.conclude)
     assert(Month.from(april) == Month.APRIL)
 
-    val may = tickLazyList.from(Policy.crontab(_.yearly.may)).take(1).head.zonedWakeup
+    val may = tickLazyList.from(Policy.crontab(_.yearly.may)).take(1).head.zoned(_.conclude)
     assert(Month.from(may) == Month.MAY)
 
-    val june = tickLazyList.from(Policy.crontab(_.yearly.june)).take(1).head.zonedWakeup
+    val june = tickLazyList.from(Policy.crontab(_.yearly.june)).take(1).head.zoned(_.conclude)
     assert(Month.from(june) == Month.JUNE)
 
-    val july = tickLazyList.from(Policy.crontab(_.yearly.july)).take(1).head.zonedWakeup
+    val july = tickLazyList.from(Policy.crontab(_.yearly.july)).take(1).head.zoned(_.conclude)
     assert(Month.from(july) == Month.JULY)
 
-    val august = tickLazyList.from(Policy.crontab(_.yearly.august)).take(1).head.zonedWakeup
+    val august = tickLazyList.from(Policy.crontab(_.yearly.august)).take(1).head.zoned(_.conclude)
     assert(Month.from(august) == Month.AUGUST)
 
-    val september = tickLazyList.from(Policy.crontab(_.yearly.september)).take(1).head.zonedWakeup
+    val september = tickLazyList.from(Policy.crontab(_.yearly.september)).take(1).head.zoned(_.conclude)
     assert(Month.from(september) == Month.SEPTEMBER)
 
-    val october = tickLazyList.from(Policy.crontab(_.yearly.october)).take(1).head.zonedWakeup
+    val october = tickLazyList.from(Policy.crontab(_.yearly.october)).take(1).head.zoned(_.conclude)
     assert(Month.from(october) == Month.OCTOBER)
 
-    val november = tickLazyList.from(Policy.crontab(_.yearly.november)).take(1).head.zonedWakeup
+    val november = tickLazyList.from(Policy.crontab(_.yearly.november)).take(1).head.zoned(_.conclude)
     assert(Month.from(november) == Month.NOVEMBER)
 
-    val december = tickLazyList.from(Policy.crontab(_.yearly.december)).take(1).head.zonedWakeup
+    val december = tickLazyList.from(Policy.crontab(_.yearly.december)).take(1).head.zoned(_.conclude)
     assert(Month.from(december) == Month.DECEMBER)
 
   }

@@ -4,8 +4,8 @@ import cats.Endo
 import cats.effect.kernel.Sync
 import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.common.database.TableName
-import com.github.chenharryhua.nanjin.spark.SchematizedEncoder
 import com.github.chenharryhua.nanjin.spark.persist.RddAvroFileHoarder
+import com.github.chenharryhua.nanjin.spark.{describeJob, SchematizedEncoder}
 import com.zaxxer.hikari.HikariConfig
 import fs2.Stream
 import org.apache.spark.sql.{Dataset, SaveMode, SparkSession}
@@ -46,20 +46,23 @@ final class Table[A] private[spark] (val dataset: Dataset[A], ate: SchematizedEn
   def stream[F[_]: Sync](chunkSize: ChunkSize): Stream[F, A] =
     Stream.fromBlockingIterator[F](dataset.toLocalIterator().asScala, chunkSize.value)
 
-  def count[F[_]](implicit F: Sync[F]): F[Long] = F.interruptible(dataset.count())
+  def count[F[_]](implicit F: Sync[F]): F[Long] = F.delay(dataset.count())
+  def count[F[_]: Sync](description: String): F[Long] =
+    describeJob[F](dataset.sparkSession.sparkContext, description).surround(count[F])
 
   def upload[F[_]](hikariConfig: HikariConfig, tableName: TableName, saveMode: SaveMode)(implicit
     F: Sync[F]): F[Unit] =
-    F.blocking(
-      dataset.write
-        .mode(saveMode)
-        .format("jdbc")
-        .option("driver", hikariConfig.getDriverClassName)
-        .option("url", hikariConfig.getJdbcUrl)
-        .option("user", hikariConfig.getUsername)
-        .option("password", hikariConfig.getPassword)
-        .option("dbtable", tableName.value)
-        .save())
+    describeJob(dataset.sparkSession.sparkContext, s"Upload:${tableName.value}").surround(
+      F.delay(
+        dataset.write
+          .mode(saveMode)
+          .format("jdbc")
+          .option("driver", hikariConfig.getDriverClassName)
+          .option("url", hikariConfig.getJdbcUrl)
+          .option("user", hikariConfig.getUsername)
+          .option("password", hikariConfig.getPassword)
+          .option("dbtable", tableName.value)
+          .save()))
 }
 
 object Table {

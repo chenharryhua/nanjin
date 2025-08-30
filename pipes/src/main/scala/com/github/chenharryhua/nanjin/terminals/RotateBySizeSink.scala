@@ -31,7 +31,7 @@ final private class RotateBySizeSink[F[_]](
     extends RotateBySize[F] {
 
   private def createRotateFileEvent(tick: Tick): CreateRotateFile =
-    CreateRotateFile(tick.sequenceId, tick.index + 1, tick.zonedWakeup)
+    CreateRotateFile(tick.sequenceId, tick.index + 1, tick.zoned(_.conclude))
 
   private def doWork[A](
     getWriter: CreateRotateFile => Resource[F, HadoopWriter[F, A]],

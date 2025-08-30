@@ -8,6 +8,8 @@ import cats.syntax.all.*
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.guard.config.MetricLabel
 import com.github.chenharryhua.nanjin.guard.translator.durationFormatter
+import io.circe.Encoder
+import io.github.timwspence.cats.stm.STM
 import squants.{Quantity, UnitOfMeasure}
 
 import java.time.ZoneId
@@ -59,6 +61,8 @@ trait Metrics[F[_]] {
   def permanentCounter(name: String, f: Endo[Gauge.Builder]): Resource[F, Counter[F]]
   final def permanentCounter(name: String): Resource[F, Counter[F]] =
     permanentCounter(name, identity)
+
+  def txnGauge[A: Encoder](stm: STM[F], initial: A)(name: String): Resource[F, stm.TVar[A]]
 }
 
 object Metrics {
@@ -147,5 +151,11 @@ object Metrics {
       } yield new Counter[F] {
         override def inc(num: Long): F[Unit] = ref.update(_ + num)
       }
+
+    override def txnGauge[A: Encoder](stm: STM[F], initial: A)(name: String): Resource[F, stm.TVar[A]] =
+      for {
+        ta <- Resource.eval(stm.commit(stm.TVar.of(initial)))
+        _ <- gauge(name, identity).register(stm.commit(ta.get))
+      } yield ta
   }
 }

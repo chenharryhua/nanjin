@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin
 
-import cats.effect.kernel.Sync
+import cats.effect.kernel.{Resource, Sync}
 import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.kafka.KafkaContext
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
@@ -12,16 +12,26 @@ import com.zaxxer.hikari.HikariConfig
 import fs2.Stream
 import io.lemonlabs.uri.Url
 import org.apache.avro.Schema
+import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.avro.SchemaConverters
 import org.apache.spark.sql.types.{DataType, StructField, StructType}
 import org.apache.spark.sql.{DataFrame, SparkSession}
 import scalapb.{GeneratedMessage, GeneratedMessageCompanion}
 
+import java.time.ZoneId
 import scala.reflect.ClassTag
 
 package object spark {
   object injection extends InjectionInstances
+
+  private[spark] def describeJob[F[_]](sparkContext: SparkContext, description: String)(implicit
+    F: Sync[F]): Resource[F, Unit] =
+    Resource.make(F.delay(sparkContext.setJobDescription(description)))(_ =>
+      F.delay(sparkContext.setJobDescription(null)))
+
+  final private val SPARK_ZONE_ID: String = "spark.sql.session.timeZone"
+  def sparkZoneId(ss: SparkSession): ZoneId = ZoneId.of(ss.conf.get(SPARK_ZONE_ID))
 
   implicit final class RddExt[A](rdd: RDD[A]) extends Serializable {
 

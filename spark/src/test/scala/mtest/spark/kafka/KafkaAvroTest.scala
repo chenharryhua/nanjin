@@ -105,9 +105,9 @@ class KafkaAvroTest extends AnyFunSuite {
         IO(sk.load.avro(avroPath).rdd.take(10).toSet)
     assert(run.unsafeRunSync().flatMap(_.value) == Set(en1, en2))
     sparKafka.stats.jackson(jacksonPath).flatMap(_.summary[IO]).unsafeRunSync()
-    sparKafka.stats.circe(circePath).flatMap(_.summary[IO]).unsafeRunSync()
-    sparKafka.stats.avro(avroPath).flatMap(_.summary[IO]).unsafeRunSync()
-    sparKafka.stats.parquet(parquetPath).flatMap(_.summary[IO]).unsafeRunSync()
+    sparKafka.stats.circe(circePath).flatMap(_.summary[IO]("sum")).unsafeRunSync()
+    sparKafka.stats.avro(avroPath).flatMap(_.summary[IO]("sum")).unsafeRunSync()
+    sparKafka.stats.parquet(parquetPath).flatMap(_.summary[IO]("sum")).unsafeRunSync()
   }
 
   test("sparKafka should be sent to kafka and save to multi avro") {

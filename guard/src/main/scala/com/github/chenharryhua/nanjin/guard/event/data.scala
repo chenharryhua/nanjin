@@ -30,7 +30,7 @@ object MetricIndex {
     override val launchTime: ZonedDateTime = value
   }
   final case class Periodic(tick: Tick) extends MetricIndex {
-    override val launchTime: ZonedDateTime = tick.zonedWakeup
+    override val launchTime: ZonedDateTime = tick.zoned(_.conclude)
   }
 }
 

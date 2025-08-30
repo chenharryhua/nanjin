@@ -74,7 +74,7 @@ class InvestigationTest extends AnyFunSuite {
   test("sparKafka identical") {
     val m1 = table.data(mouses1)
     val m2 = table.data(mouses2)
-    assert(0 === m1.diff(m2).count[IO].unsafeRunSync())
+    assert(0 === m1.diff(m2).count[IO]("c").unsafeRunSync())
   }
 
   test("sparKafka one mismatch") {

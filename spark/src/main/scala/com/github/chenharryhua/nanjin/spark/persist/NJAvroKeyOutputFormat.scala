@@ -1,6 +1,5 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
-import com.github.chenharryhua.nanjin.spark.utils
 import com.github.chenharryhua.nanjin.terminals.FileFormat
 import org.apache.avro.Schema
 import org.apache.avro.file.{CodecFactory, DataFileWriter}
@@ -39,14 +38,14 @@ final private class NJAvroKeyOutputFormat extends AvroOutputFormatBase[AvroKey[G
     val syncInterval: Int = getSyncInterval(job)
     if (isCompressed) {
       val cf: CodecFactory = getCompressionCodec(job)
-      val suffix: String = s"-${utils.uuidStr(job)}.${cf.toString.toLowerCase}.${FileFormat.Avro.suffix}"
+      val suffix: String = s"-${uuidStr(job)}.${cf.toString.toLowerCase}.${FileFormat.Avro.suffix}"
       val file: Path = getDefaultWorkFile(job, suffix)
       val fs: FileSystem = file.getFileSystem(conf)
       val fileOut: FSDataOutputStream = fs.create(file, false)
       val out: DataOutputStream = new DataOutputStream(fileOut)
       new AvroKeyRecordWriter(schema, out, cf, syncInterval)
     } else {
-      val suffix: String = s"-${utils.uuidStr(job)}.${FileFormat.Avro.suffix}"
+      val suffix: String = s"-${uuidStr(job)}.${FileFormat.Avro.suffix}"
       val file: Path = getDefaultWorkFile(job, suffix)
       val fs: FileSystem = file.getFileSystem(conf)
       val out: FSDataOutputStream = fs.create(file, false)

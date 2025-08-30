@@ -11,7 +11,7 @@ Global / parallelExecution := false
 val acyclicV = "0.3.18"
 val avroV = "1.12.0"
 val avro4sV = "4.1.2"
-val awsV = "2.32.30"
+val awsV = "2.33.0"
 val caffeineV = "3.2.2"
 val catsCoreV = "2.13.0"
 val catsEffectV = "3.6.3"
@@ -25,7 +25,7 @@ val enumeratumV = "1.9.0"
 val fs2KafkaV = "3.9.0"
 val fs2V = "3.12.0"
 val framelessV = "0.16.0"
-val hadoopV = "3.4.1"
+val hadoopV = "3.4.2"
 val http4sV = "0.23.30"
 val jacksonV = "2.19.2"
 val jwtV = "0.13.0"
@@ -33,7 +33,7 @@ val kafkaV = "8.0.0-ce"
 val kantanV = "0.8.0"
 val log4catsV = "2.7.1"
 val logbackV = "1.5.18"
-val metricsV = "4.2.34"
+val metricsV = "4.2.35"
 val monocleV = "3.3.0"
 val natchezV = "0.3.8"
 val nettyV = "4.2.4.Final"
@@ -152,12 +152,12 @@ lazy val aws = (project in file("aws"))
   .dependsOn(common)
   .settings(commonSettings *)
   .settings(name := "nj-aws")
-  .settings(libraryDependencies ++= List(
-    "org.typelevel" %% "log4cats-slf4j"   % log4catsV,
-    "org.http4s" %% "http4s-ember-client" % http4sV,
-    "org.http4s" %% "http4s-circe"        % http4sV,
-    "io.netty"                            % "netty-codec-http2" % nettyV // snyk cloudwatch
-  ) ++ awsLib ++ testLib)
+  .settings(
+    libraryDependencies ++= List(
+      "org.typelevel" %% "log4cats-slf4j"   % log4catsV,
+      "org.http4s" %% "http4s-ember-client" % http4sV,
+      "org.http4s" %% "http4s-circe"        % http4sV
+    ) ++ awsLib ++ testLib)
 
 lazy val datetime = (project in file("datetime"))
   .dependsOn(common)
@@ -178,6 +178,7 @@ lazy val guard = (project in file("guard"))
       "io.dropwizard.metrics"               % "metrics-core"         % metricsV,
       "io.dropwizard.metrics"               % "metrics-jmx"          % metricsV,
       "com.github.ben-manes.caffeine"       % "caffeine"             % caffeineV,
+      "io.github.timwspence" %% "cats-stm"  % "0.13.5",
       "org.typelevel" %% "log4cats-slf4j"   % log4catsV,
       "io.circe" %% "circe-optics"          % "0.15.1",
       "org.http4s" %% "http4s-core"         % http4sV,
@@ -317,22 +318,17 @@ lazy val pipes = (project in file("pipes"))
       "co.fs2" %% "fs2-io"               % fs2V,
       "com.nrinaudo" %% "kantan.csv"     % kantanV,
       "com.indoorvivants" %% "scala-uri" % "4.2.0",
-      "software.amazon.awssdk"           % "bundle"                 % awsV,
-      "org.apache.parquet"               % "parquet-common"         % parquetV,
-      "org.apache.parquet"               % "parquet-hadoop"         % parquetV,
-      "org.apache.parquet"               % "parquet-avro"           % parquetV,
-      "org.apache.avro"                  % "avro"                   % avroV,
-      "org.tukaani"                      % "xz"                     % "1.10",
-      "org.eclipse.jetty"                % "jetty-server"           % "12.1.0", // snyk
-      "io.netty"                         % "netty-all"              % nettyV, // snyk
-      "com.nimbusds"                     % "nimbus-jose-jwt"        % "10.4.2", // snyk
-      "dnsjava"                          % "dnsjava"                % "3.6.3", // snyk
-      "com.google.guava"                 % "guava"                  % "33.4.8-jre", // snyk
-      "org.apache.commons"               % "commons-configuration2" % "2.12.0", // snyk
-      "org.jetbrains.kotlin"             % "kotlin-stdlib"          % "2.2.10", // snyk
-      "org.apache.zookeeper"             % "zookeeper"              % "3.9.3", // snyk
-      "commons-beanutils"                % "commons-beanutils"      % "1.11.0", // snyk :hadoop-common
-      "org.typelevel" %% "jawn-fs2"      % "2.4.0"                  % Test
+      "software.amazon.awssdk"           % "bundle"          % awsV,
+      "org.apache.parquet"               % "parquet-common"  % parquetV,
+      "org.apache.parquet"               % "parquet-hadoop"  % parquetV,
+      "org.apache.parquet"               % "parquet-avro"    % parquetV,
+      "org.apache.avro"                  % "avro"            % avroV,
+      "org.tukaani"                      % "xz"              % "1.10",
+      "org.eclipse.jetty"                % "jetty-server"    % "12.1.0", // snyk
+      "io.netty"                         % "netty-all"       % nettyV, // snyk
+      "com.nimbusds"                     % "nimbus-jose-jwt" % "10.4.2", // snyk
+      "org.apache.zookeeper"             % "zookeeper"       % "3.9.4", // snyk
+      "org.typelevel" %% "jawn-fs2"      % "2.4.0"           % Test
     ) ++ hadoopLib ++ kantanLib
     libraryDependencies ++= libs ++ testLib
   }

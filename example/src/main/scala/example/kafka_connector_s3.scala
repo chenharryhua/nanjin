@@ -75,7 +75,7 @@ object kafka_connector_s3 {
   aws_task_template.task.service("delete.obsolete.folder").eventStreamS { agent =>
     val root: Url = Url.parse("s3://abc-efg-hij/klm")
     agent.tickScheduled(_.crontab(_.daily.oneAM)).evalMap { tick =>
-      hadoop.dateFolderRetention(root, tick.zonedWakeup.toLocalDate, 8)
+      hadoop.dateFolderRetention(root, tick.local(_.conclude).toLocalDate, 8)
     }
   }
 }

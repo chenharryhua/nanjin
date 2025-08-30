@@ -25,8 +25,19 @@ final class SaveKantanCsv[A](
   def withCompression(f: KantanCompression.type => KantanCompression): SaveKantanCsv[A] =
     withCompression(f(KantanCompression))
 
-  def run[F[_]](implicit F: Sync[F]): F[Unit] =
-    new SaveModeAware[F](params.saveMode, params.outPath, rdd.sparkContext.hadoopConfiguration).checkAndRun(
-      F.interruptible(saveRDD.kantan[A](rdd, params.outPath, params.compression, csvConfiguration, encoder)))
+  override def run[F[_]](implicit F: Sync[F]): F[Unit] =
+    internalRun(
+      sparkContext = rdd.sparkContext,
+      params = params,
+      job = F.delay(saveRDD.kantan[A](rdd, params.outPath, params.compression, csvConfiguration, encoder)),
+      description = None
+    )
 
+  override def run[F[_]](description: String)(implicit F: Sync[F]): F[Unit] =
+    internalRun(
+      sparkContext = rdd.sparkContext,
+      params = params,
+      job = F.delay(saveRDD.kantan[A](rdd, params.outPath, params.compression, csvConfiguration, encoder)),
+      description = Some(description)
+    )
 }

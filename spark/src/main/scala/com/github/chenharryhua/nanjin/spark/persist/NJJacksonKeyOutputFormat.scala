@@ -1,6 +1,5 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
-import com.github.chenharryhua.nanjin.spark.utils
 import com.github.chenharryhua.nanjin.terminals.FileFormat
 import org.apache.avro.Schema
 import org.apache.avro.generic.{GenericDatumWriter, GenericRecord}
@@ -34,7 +33,7 @@ final private class NJJacksonKeyOutputFormat
 
   override def getRecordWriter(
     job: TaskAttemptContext): RecordWriter[AvroKey[GenericRecord], NullWritable] = {
-    val suffix: String = s"-${utils.uuidStr(job)}.${FileFormat.Jackson.suffix}"
+    val suffix: String = s"-${uuidStr(job)}.${FileFormat.Jackson.suffix}"
     val schema: Schema = AvroJob.getOutputKeySchema(job.getConfiguration)
     val conf: Configuration = job.getConfiguration
     val isCompressed: Boolean = getCompressOutput(job)

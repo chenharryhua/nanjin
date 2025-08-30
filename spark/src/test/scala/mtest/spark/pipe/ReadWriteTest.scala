@@ -50,7 +50,7 @@ class ReadWriteTest extends AnyFunSuite {
     val policy = Policy.fixedDelay(0.3.second)
     val writer = hdp.rotateSink(ZoneId.systemDefault(), policy)(t => path / t.index).circe
     data.map(_.asJson).through(writer).compile.drain.unsafeRunSync()
-    val count = loader.circe(path).count[IO].unsafeRunSync()
+    val count = loader.circe(path).count[IO]("c").unsafeRunSync()
     assert(count == number)
   }
   test("jackson write - read") {
@@ -59,7 +59,7 @@ class ReadWriteTest extends AnyFunSuite {
     val policy = Policy.fixedDelay(0.3.second)
     val writer = hdp.rotateSink(ZoneId.systemDefault(), policy)(t => path / t.index).jackson
     data.map(toRecord.to).through(writer).compile.drain.unsafeRunSync()
-    val count = loader.jackson(path).count[IO].unsafeRunSync()
+    val count = loader.jackson(path).count[IO]("c").unsafeRunSync()
     assert(count == number)
   }
   test("kantan write - read") {
@@ -72,7 +72,7 @@ class ReadWriteTest extends AnyFunSuite {
     val count = sparkSession
       .loadTable(SchematizedEncoder[TestData])
       .kantan(path, CsvConfiguration.rfc)
-      .count[IO]
+      .count[IO]("c")
       .unsafeRunSync()
     assert(count == number)
   }
@@ -82,7 +82,7 @@ class ReadWriteTest extends AnyFunSuite {
     val policy = Policy.fixedDelay(0.3.second)
     val writer = hdp.rotateSink(ZoneId.systemDefault(), policy)(t => path / t.index).avro
     data.map(toRecord.to).through(writer).compile.drain.unsafeRunSync()
-    val count = loader.avro(path).count[IO].unsafeRunSync()
+    val count = loader.avro(path).count[IO]("c").unsafeRunSync()
     assert(count == number)
   }
   test("bin-avro write - read") {
@@ -91,7 +91,7 @@ class ReadWriteTest extends AnyFunSuite {
     val policy = Policy.fixedDelay(0.3.second)
     val writer = hdp.rotateSink(ZoneId.systemDefault(), policy)(t => path / t.index).binAvro
     data.map(toRecord.to).through(writer).compile.drain.unsafeRunSync()
-    val count = loader.binAvro(path).count[IO].unsafeRunSync()
+    val count = loader.binAvro(path).count[IO]("c").unsafeRunSync()
     assert(count == number)
   }
 
@@ -101,7 +101,7 @@ class ReadWriteTest extends AnyFunSuite {
     val policy = Policy.fixedDelay(0.3.second)
     val writer = hdp.rotateSink(ZoneId.systemDefault(), policy)(t => path / t.index).parquet
     data.map(toRecord.to).through(writer).compile.drain.unsafeRunSync()
-    val count = loader.parquet(path).count[IO].unsafeRunSync()
+    val count = loader.parquet(path).count[IO]("c").unsafeRunSync()
     assert(count == number)
   }
 }

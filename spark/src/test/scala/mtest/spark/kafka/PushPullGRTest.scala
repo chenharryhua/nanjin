@@ -45,7 +45,7 @@ class PushPullGRTest extends AnyFunSuite {
     (baseData ++ evolveData).chunks.through(sink).compile.drain.unsafeRunSync()
     sparKafka.topic(baseTopic).fromKafka.flatMap(_.output.jackson(path).run[IO]).unsafeRunSync()
 
-    sparKafka.topic(baseTopic).load.jackson(path).count[IO].unsafeRunSync()
+    sparKafka.topic(baseTopic).load.jackson(path).count[IO]("c").unsafeRunSync()
     // sparKafka.topic(evolveTopic).load.jackson(path).count.unsafeRunSync()
     Stream // immigration
       .eval(hadoop.filesIn(path))
@@ -68,7 +68,7 @@ class PushPullGRTest extends AnyFunSuite {
     sparKafka.topic(evolveTopic).fromKafka.flatMap(_.output.jackson(path).run[IO]).unsafeRunSync()
 
     //  sparKafka.topic(baseTopic).load.jackson(path).count.unsafeRunSync()
-    sparKafka.topic(evolveTopic).load.jackson(path).count[IO].unsafeRunSync()
+    sparKafka.topic(evolveTopic).load.jackson(path).count[IO]("c").unsafeRunSync()
 
   }
 
@@ -79,11 +79,11 @@ class PushPullGRTest extends AnyFunSuite {
     sparKafka.topic(baseTopic).fromKafka.flatMap(_.output.avro(pb).run[IO]).unsafeRunSync()
     sparKafka.topic(evolveTopic).fromKafka.flatMap(_.output.avro(pe).run[IO]).unsafeRunSync()
 
-    sparKafka.topic(evolveTopic).load.avro(pb).count[IO].unsafeRunSync()
-    sparKafka.topic(evolveTopic).load.avro(pe).count[IO].unsafeRunSync()
+    sparKafka.topic(evolveTopic).load.avro(pb).count[IO]("c").unsafeRunSync()
+    sparKafka.topic(evolveTopic).load.avro(pe).count[IO]("c").unsafeRunSync()
 
-    sparKafka.topic(baseTopic).load.avro(pb).count[IO].unsafeRunSync()
-    sparKafka.topic(baseTopic).load.avro(pe).count[IO].unsafeRunSync()
+    sparKafka.topic(baseTopic).load.avro(pb).count[IO]("c").unsafeRunSync()
+    sparKafka.topic(baseTopic).load.avro(pe).count[IO]("c").unsafeRunSync()
   }
 
   test("parquet") {
@@ -93,10 +93,10 @@ class PushPullGRTest extends AnyFunSuite {
     sparKafka.topic(baseTopic).fromKafka.flatMap(_.output.parquet(pb).run[IO]).unsafeRunSync()
     sparKafka.topic(evolveTopic).fromKafka.flatMap(_.output.parquet(pe).run[IO]).unsafeRunSync()
 
-    sparKafka.topic(evolveTopic).load.parquet(pb).count[IO].unsafeRunSync()
-    sparKafka.topic(evolveTopic).load.parquet(pe).count[IO].unsafeRunSync()
+    sparKafka.topic(evolveTopic).load.parquet(pb).count[IO]("c").unsafeRunSync()
+    sparKafka.topic(evolveTopic).load.parquet(pe).count[IO]("c").unsafeRunSync()
 
-    sparKafka.topic(baseTopic).load.parquet(pb).count[IO].unsafeRunSync()
+    sparKafka.topic(baseTopic).load.parquet(pb).count[IO]("c").unsafeRunSync()
     // sparKafka.topic(baseTopic).load.parquet(pe).count.unsafeRunSync()
   }
 }
