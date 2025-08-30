@@ -34,7 +34,6 @@ object Event {
     cause: ServiceStopCause)
       extends Event {
     val name: EventName = EventName.ServiceStop
-
   }
 
   final case class ServiceMessage(
@@ -46,7 +45,6 @@ object Event {
     message: Json
   ) extends Event {
     val name: EventName = EventName.ServiceMessage
-
   }
 
   sealed trait MetricEvent extends Event {

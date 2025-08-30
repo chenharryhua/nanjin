@@ -178,6 +178,7 @@ lazy val guard = (project in file("guard"))
       "io.dropwizard.metrics"               % "metrics-core"         % metricsV,
       "io.dropwizard.metrics"               % "metrics-jmx"          % metricsV,
       "com.github.ben-manes.caffeine"       % "caffeine"             % caffeineV,
+      "io.github.timwspence" %% "cats-stm"  % "0.13.5",
       "org.typelevel" %% "log4cats-slf4j"   % log4catsV,
       "io.circe" %% "circe-optics"          % "0.15.1",
       "org.http4s" %% "http4s-core"         % http4sV,

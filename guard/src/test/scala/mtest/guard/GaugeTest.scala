@@ -1,7 +1,7 @@
 package mtest.guard
 
 import cats.data.Kleisli
-import cats.effect.IO
+import cats.effect.{IO, Resource}
 import cats.effect.unsafe.implicits.global
 import cats.implicits.toFunctorFilterOps
 import com.github.chenharryhua.nanjin.common.chrono.Policy
@@ -9,6 +9,7 @@ import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.config.MetricID
 import com.github.chenharryhua.nanjin.guard.event.{eventFilters, retrieveGauge, retrieveHealthChecks}
 import io.circe.Json
+import io.github.timwspence.cats.stm.STM
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
@@ -91,7 +92,7 @@ class GaugeTest extends AnyFunSuite {
     assert(gauge.isEmpty)
   }
 
-  test("expensive") {
+  test("8.expensive") {
     def compute(fd: FiniteDuration) =
       for {
         s <- IO.realTimeInstant.flatTap(IO.println)
@@ -110,5 +111,29 @@ class GaugeTest extends AnyFunSuite {
         mtx.surround(agent.adhoc.report)
       }
     }.debug().compile.drain.unsafeRunSync()
+  }
+
+  test("transactional gauge") {
+    service.eventStream { agent =>
+      val mtx =
+        agent.facilitate("transactional") { fac =>
+          for {
+            stm <- Resource.eval(STM.runtime[IO])
+            a <- fac.txnGauge(stm, 10)("account-a")
+            b <- fac.txnGauge(stm, 10)("account-b")
+          } yield { (n: Int) =>
+            val transfer = for {
+              balance <- a.get
+              _ <- stm.check(balance > n)
+              _ <- a.modify(_ - n)
+              _ <- b.modify(_ + n)
+            } yield ()
+            stm.commit(transfer)
+          }
+        }
+
+      mtx.use(_(5) >> agent.adhoc.report)
+    }.compile.drain.unsafeRunSync()
+
   }
 }
