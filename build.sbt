@@ -27,7 +27,7 @@ val fs2V = "3.12.0"
 val framelessV = "0.16.0"
 val hadoopV = "3.4.2"
 val http4sV = "0.23.30"
-val jacksonV = "2.19.2"
+val jacksonV = "2.20.0"
 val jwtV = "0.13.0"
 val kafkaV = "8.0.0-ce"
 val kantanV = "0.8.0"
@@ -347,7 +347,6 @@ val sparkLib = List(
 ).map(_ % framelessV)
 
 val jacksonLib = List(
-  "com.fasterxml.jackson.core"     % "jackson-annotations",
   "com.fasterxml.jackson.core"     % "jackson-core",
   "com.fasterxml.jackson.core"     % "jackson-databind",
   "com.fasterxml.jackson.datatype" % "jackson-datatype-jdk8",
