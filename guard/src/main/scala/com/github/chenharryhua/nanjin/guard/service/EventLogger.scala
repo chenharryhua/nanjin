@@ -119,36 +119,36 @@ final private class EventLogger[F[_]](
         transform_event(ss).flatMap(_.traverse(logger.error(_))).void
     }
 
+  def logServiceMessage(sm: ServiceMessage): F[Option[Unit]] =
+    transform_event(sm).flatMap(_.traverse(txt =>
+      sm.level match {
+        case AlarmLevel.Error => logger.error(txt)
+        case AlarmLevel.Warn  => logger.warn(txt)
+        case AlarmLevel.Done  => logger.info(txt)
+        case AlarmLevel.Info  => logger.info(txt)
+        case AlarmLevel.Debug => logger.debug(txt)
+      }))
+
   /*
-   * service message
+   * Log
    */
-  private def transform_service_message[S: Encoder](
-    msg: S,
-    level: AlarmLevel,
-    error: Option[Error]): F[Option[String]] =
+
+  private def sm2text[S: Encoder](msg: S, level: AlarmLevel, error: Option[Error]): F[Option[String]] =
     alarmLevel.get
       .map(_.exists(_ <= level))
       .ifM(serviceMessage(serviceParams, msg, level, error).flatMap(transform_event(_)), F.pure(None))
 
-  def error[S: Encoder](msg: S): F[Unit] =
-    transform_service_message(msg, AlarmLevel.Error, None).flatMap(_.traverse(logger.error(_))).void
-
-  def error[S: Encoder](ex: Throwable)(msg: S): F[Unit] =
-    transform_service_message(msg, AlarmLevel.Error, Some(Error(ex)))
-      .flatMap(_.traverse(logger.error(_)))
-      .void
-
   override def info[S: Encoder](msg: S): F[Unit] =
-    transform_service_message(msg, AlarmLevel.Info, None).flatMap(_.traverse(logger.info(_))).void
+    sm2text(msg, AlarmLevel.Info, None).flatMap(_.traverse(logger.info(_))).void
 
   override def done[S: Encoder](msg: S): F[Unit] =
-    transform_service_message(msg, AlarmLevel.Done, None).flatMap(_.traverse(logger.info(_))).void
+    sm2text(msg, AlarmLevel.Done, None).flatMap(_.traverse(logger.info(_))).void
 
   override def warn[S: Encoder](msg: S): F[Unit] =
-    transform_service_message(msg, AlarmLevel.Warn, None).flatMap(_.traverse(logger.warn(_))).void
+    sm2text(msg, AlarmLevel.Warn, None).flatMap(_.traverse(logger.warn(_))).void
 
   override def warn[S: Encoder](ex: Throwable)(msg: S): F[Unit] =
-    transform_service_message(msg, AlarmLevel.Warn, Some(Error(ex))).flatMap(_.traverse(logger.warn(_))).void
+    sm2text(msg, AlarmLevel.Warn, Some(Error(ex))).flatMap(_.traverse(logger.warn(_))).void
 
   override def debug[S: Encoder](msg: => F[S]): F[Unit] = {
     def debug_message(ss: ServiceMessage): String = {

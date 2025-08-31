@@ -35,7 +35,7 @@ class BatchMonadicTest extends AnyFunSuite {
             c <- job.customise("c" -> IO(3))((a, _) => a.asJson)
           } yield a + b + c
         }
-        .batchValue(TraceJob(agent).disableSuccess.disableFailure.disableKickoff.json)
+        .batchValue(TraceJob(agent).disableSuccess.escalateFailure.disableKickoff.json)
     }.compile.lastOrError.unsafeRunSync()
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
   }
