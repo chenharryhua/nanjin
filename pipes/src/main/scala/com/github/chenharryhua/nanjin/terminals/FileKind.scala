@@ -3,14 +3,20 @@ package com.github.chenharryhua.nanjin.terminals
 import com.github.chenharryhua.nanjin.datetime.codec
 import io.circe.generic.JsonCodec
 
+import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
 @JsonCodec
 sealed abstract class FileKind(val fileFormat: FileFormat, val compression: Compression) {
-  private val fmt: DateTimeFormatter = DateTimeFormatter.ofPattern("HHmmss")
-
   final val fileName: String = compression.fileName(fileFormat)
+
+  final def fileName(time: LocalDateTime): String = {
+    val fmt: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss")
+    s"${fmt.format(time)}-$fileName"
+  }
+
   final def fileName(cfe: CreateRotateFile): String = {
+    val fmt: DateTimeFormatter = DateTimeFormatter.ofPattern("HHmmss")
     val seqId: String = cfe.sequenceId.toString.take(5)
     val time: String = fmt.format(cfe.openTime.toLocalTime)
     f"$seqId-${cfe.index}%04d-$time.$fileName"

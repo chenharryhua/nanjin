@@ -84,7 +84,7 @@ final class Statistics private[spark] (val dataset: Dataset[CRMetaInfo]) extends
   def dailyHour[F[_]](implicit F: Sync[F]): F[List[DailyHourResult]] =
     F.delay {
       dataset
-        .map(m => hourResolution(m.localDateTime(zoneId)).toString)
+        .map(m => hourResolution(m.localDateTime(zoneId)))
         .groupByKey(identity)
         .mapGroups((m, iter) => DailyHourResult(m, iter.size))
         .orderBy("dateTime")
@@ -95,7 +95,7 @@ final class Statistics private[spark] (val dataset: Dataset[CRMetaInfo]) extends
   def dailyMinute[F[_]](implicit F: Sync[F]): F[List[DailyMinuteResult]] =
     F.delay {
       dataset
-        .map(m => minuteResolution(m.localDateTime(zoneId)).toString)
+        .map(m => minuteResolution(m.localDateTime(zoneId)))
         .groupByKey(identity)
         .mapGroups((m, iter) => DailyMinuteResult(m, iter.size))
         .orderBy("dateTime")
