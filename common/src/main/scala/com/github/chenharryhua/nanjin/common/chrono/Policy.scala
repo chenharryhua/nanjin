@@ -274,12 +274,10 @@ final case class Policy private (private[chrono] val policy: Fix[PolicyF]) {
   override def toString: String = scheme.cata(PolicyF.showPolicy).apply(policy)
 
   /** @param num
-    *   bigger than zero
+    *   non-positive num essentially disable the policy
     */
-  def limited(num: Int): Policy = {
-    require(num > 0, show"$num should be bigger than zero")
+  def limited(num: Int): Policy =
     Policy(Fix(Limited(policy, num)))
-  }
 
   def followedBy(other: Policy): Policy = Policy(Fix(FollowedBy(policy, other.policy)))
   def followedBy(f: Policy.type => Policy): Policy = followedBy(f(Policy))
@@ -293,7 +291,7 @@ final case class Policy private (private[chrono] val policy: Fix[PolicyF]) {
   def except(f: localTimes.type => LocalTime): Policy = except(f(localTimes))
 
   def offset(fd: FiniteDuration): Policy = {
-    require(fd > ScalaDuration.Zero, show"$fd should be positive")
+    require(fd >= ScalaDuration.Zero, show"$fd should be non-negative")
     Policy(Fix(Offset(policy, fd.toJava)))
   }
 
@@ -306,7 +304,7 @@ final case class Policy private (private[chrono] val policy: Fix[PolicyF]) {
     */
   def jitter(min: FiniteDuration, max: FiniteDuration): Policy = {
     require(min >= ScalaDuration.Zero, show"$min should not be negative")
-    require(max > min, show"$max should be bigger than $min")
+    require(max > min, show"$max should be strickly bigger than $min")
     Policy(Fix(Jitter(policy, min.toJava, max.toJava)))
   }
 

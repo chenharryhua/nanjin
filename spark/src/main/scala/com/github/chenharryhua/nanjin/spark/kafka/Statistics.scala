@@ -14,7 +14,6 @@ import com.github.chenharryhua.nanjin.kafka.TopicPartitionMap
 import com.github.chenharryhua.nanjin.messages.kafka.{CRMetaInfo, ZonedCRMetaInfo}
 import com.github.chenharryhua.nanjin.spark.{describeJob, sparkZoneId}
 import org.apache.kafka.common.TopicPartition
-import org.apache.spark.SparkContext
 import org.apache.spark.sql.Dataset
 
 import java.time.{Instant, ZoneId, ZonedDateTime}
@@ -85,7 +84,7 @@ final class Statistics private[spark] (val dataset: Dataset[CRMetaInfo]) extends
   def dailyHour[F[_]](implicit F: Sync[F]): F[List[DailyHourResult]] =
     F.delay {
       dataset
-        .map(m => hourResolution(m.localDateTime(zoneId)).toString)
+        .map(m => hourResolution(m.localDateTime(zoneId)))
         .groupByKey(identity)
         .mapGroups((m, iter) => DailyHourResult(m, iter.size))
         .orderBy("dateTime")
@@ -96,7 +95,7 @@ final class Statistics private[spark] (val dataset: Dataset[CRMetaInfo]) extends
   def dailyMinute[F[_]](implicit F: Sync[F]): F[List[DailyMinuteResult]] =
     F.delay {
       dataset
-        .map(m => minuteResolution(m.localDateTime(zoneId)).toString)
+        .map(m => minuteResolution(m.localDateTime(zoneId)))
         .groupByKey(identity)
         .mapGroups((m, iter) => DailyMinuteResult(m, iter.size))
         .orderBy("dateTime")
@@ -286,15 +285,12 @@ final class Statistics private[spark] (val dataset: Dataset[CRMetaInfo]) extends
           }))
   }
 
-  private val sc: SparkContext = dataset.sparkSession.sparkContext
-
   def summary[F[_]: Sync](description: String): F[Option[TopicSummary]] =
-    describeJob[F](sc, "Summary:" + description).surround(summary[F])
+    describeJob[F](dataset.sparkSession.sparkContext, "Summary:" + description).surround(summary[F])
 
   def maxPartitionOffset[F[_]: Sync](description: String): F[TopicPartitionMap[Long]] =
-    describeJob[F](sc, "Max:" + description).surround(maxPartitionOffset[F])
+    describeJob[F](dataset.sparkSession.sparkContext, "Max:" + description).surround(maxPartitionOffset[F])
 
   def minPartitionOffset[F[_]: Sync](description: String): F[TopicPartitionMap[Long]] =
-    describeJob[F](sc, "Min:" + description).surround(minPartitionOffset[F])
-
+    describeJob[F](dataset.sparkSession.sparkContext, "Min:" + description).surround(minPartitionOffset[F])
 }

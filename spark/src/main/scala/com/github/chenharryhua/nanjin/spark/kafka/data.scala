@@ -8,8 +8,8 @@ import scala.collection.immutable.TreeMap
 final case class MinutelyResult(minute: Int, count: Int)
 final case class HourlyResult(hour: Int, count: Int)
 final case class DailyResult(date: LocalDate, count: Int)
-final case class DailyHourResult(dateTime: String, count: Int)
-final case class DailyMinuteResult(dateTime: String, count: Int)
+final case class DailyHourResult(dateTime: LocalDateTime, count: Int)
+final case class DailyMinuteResult(dateTime: LocalDateTime, count: Int)
 
 final private case class KafkaSummaryInternal(
   partition: Int,

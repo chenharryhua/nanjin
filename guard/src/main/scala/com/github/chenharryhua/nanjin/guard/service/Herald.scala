@@ -29,26 +29,39 @@ abstract private class HeraldImpl[F[_]: Sync](
 ) extends Herald[F] {
   private val serviceParams: ServiceParams = eventLogger.serviceParams
 
-  private def alarm[S: Encoder](msg: S, level: AlarmLevel, error: Option[Error]): F[Unit] =
-    serviceMessage(serviceParams, msg, level, error).flatMap(m => channel.send(m)).void
-
   override def info[S: Encoder](msg: S): F[Unit] =
-    eventLogger.info(msg) *> alarm(msg, AlarmLevel.Info, None)
+    for {
+      evt <- serviceMessage(serviceParams, msg, AlarmLevel.Info, None)
+      _ <- eventLogger.logServiceMessage(evt)
+      _ <- channel.send(evt)
+    } yield ()
 
   override def done[S: Encoder](msg: S): F[Unit] =
-    eventLogger.done(msg) *> alarm(msg, AlarmLevel.Done, None)
+    for {
+      evt <- serviceMessage(serviceParams, msg, AlarmLevel.Done, None)
+      _ <- eventLogger.logServiceMessage(evt)
+      _ <- channel.send(evt)
+    } yield ()
 
   override def warn[S: Encoder](msg: S): F[Unit] =
-    eventLogger.warn(msg) *> alarm(msg, AlarmLevel.Warn, None)
+    for {
+      evt <- serviceMessage(serviceParams, msg, AlarmLevel.Warn, None)
+      _ <- eventLogger.logServiceMessage(evt)
+      _ <- channel.send(evt)
+    } yield ()
 
   override def warn[S: Encoder](ex: Throwable)(msg: S): F[Unit] =
-    eventLogger.warn(ex)(msg) *> alarm(msg, AlarmLevel.Warn, Some(Error(ex)))
+    for {
+      evt <- serviceMessage(serviceParams, msg, AlarmLevel.Warn, Some(Error(ex)))
+      _ <- eventLogger.logServiceMessage(evt)
+      _ <- channel.send(evt)
+    } yield ()
 
   override def error[S: Encoder](msg: S): F[Unit] =
     for {
       evt <- serviceMessage(serviceParams, msg, AlarmLevel.Error, None)
       _ <- errorHistory.modify(queue => (queue, queue.add(evt)))
-      _ <- eventLogger.error(msg)
+      _ <- eventLogger.logServiceMessage(evt)
       _ <- channel.send(evt)
     } yield ()
 
@@ -56,7 +69,7 @@ abstract private class HeraldImpl[F[_]: Sync](
     for {
       evt <- serviceMessage(serviceParams, msg, AlarmLevel.Error, Error(ex).some)
       _ <- errorHistory.modify(queue => (queue, queue.add(evt)))
-      _ <- eventLogger.error(ex)(msg)
+      _ <- eventLogger.logServiceMessage(evt)
       _ <- channel.send(evt)
     } yield ()
 

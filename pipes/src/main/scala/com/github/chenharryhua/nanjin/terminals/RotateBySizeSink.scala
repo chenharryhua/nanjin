@@ -5,7 +5,7 @@ import cats.data.Reader
 import cats.effect.kernel.{Async, Resource}
 import cats.effect.std.Hotswap
 import cats.implicits.toFunctorOps
-import com.github.chenharryhua.nanjin.common.chrono.{Policy, Tick, TickStatus, TickedValue}
+import com.github.chenharryhua.nanjin.common.chrono.{Tick, TickedValue}
 import fs2.{Pull, Stream}
 import io.circe.Json
 import io.lemonlabs.uri.Url
@@ -21,11 +21,11 @@ import org.apache.parquet.hadoop.metadata.CompressionCodecName
 import org.apache.parquet.hadoop.util.HadoopOutputFile
 import scalapb.GeneratedMessage
 
-import java.time.ZoneId
-import scala.concurrent.duration.DurationInt
+import java.time.{Duration, ZoneId}
 
 final private class RotateBySizeSink[F[_]](
   configuration: Configuration,
+  zoneId: ZoneId,
   pathBuilder: CreateRotateFile => Url,
   sizeLimit: Int)(implicit F: Async[F])
     extends RotateBySize[F] {
@@ -38,51 +38,50 @@ final private class RotateBySizeSink[F[_]](
     hotswap: Hotswap[F, HadoopWriter[F, A]],
     writer: HadoopWriter[F, A],
     data: Stream[F, A],
-    status: TickStatus,
+    currentTick: Tick,
     count: Int
   ): Pull[F, TickedValue[RotateFile], Unit] =
     data.pull.uncons.flatMap {
       case None =>
-        Pull.eval(hotswap.clear) >> Pull.eval(F.realTimeInstant.map(status.next)).flatMap {
-          case Some(ts) => Pull.output1(TickedValue(ts.tick, RotateFile(writer.fileUrl, count)))
-          case None     => Pull.done // never happen
-        }
+        Pull.eval(hotswap.clear) >> Pull
+          .eval(F.realTimeInstant.map(currentTick.nextTick(_, Duration.ZERO)))
+          .flatMap { newTick =>
+            Pull.output1(TickedValue(newTick, RotateFile(writer.fileUrl, count)))
+          }
       case Some((as, stream)) =>
         val dataSize = as.size
         if ((dataSize + count) < sizeLimit) {
           Pull.eval(writer.write(as)) >>
-            doWork(getWriter, hotswap, writer, stream, status, dataSize + count)
+            doWork(getWriter, hotswap, writer, stream, currentTick, dataSize + count)
         } else {
           val (first, second) = as.splitAt(sizeLimit - count)
 
           Pull.eval(writer.write(first)) >>
-            Pull.eval(F.realTimeInstant.map(status.next)).flatMap {
-              case Some(ts) =>
-                Pull.eval(hotswap.swap(getWriter(createRotateFileEvent(ts.tick)))).flatMap { newWriter =>
-                  Pull.output1(TickedValue(ts.tick, RotateFile(writer.fileUrl, count + first.size))) >>
-                    doWork(getWriter, hotswap, newWriter, stream.cons(second), ts, 0)
-                }
-              case None => Pull.done // never happen
+            Pull.eval(F.realTimeInstant.map(currentTick.nextTick(_, Duration.ZERO))).flatMap { newTick =>
+              Pull.eval(hotswap.swap(getWriter(createRotateFileEvent(newTick)))).flatMap { newWriter =>
+                Pull.output1(TickedValue(newTick, RotateFile(writer.fileUrl, count + first.size))) >>
+                  doWork(getWriter, hotswap, newWriter, stream.cons(second), newTick, 0)
+              }
             }
         }
     }
 
   private def persist[A](data: Stream[F, A], getWriter: CreateRotateFile => Resource[F, HadoopWriter[F, A]])
     : Pull[F, TickedValue[RotateFile], Unit] = {
-    val resources: Resource[F, ((Hotswap[F, HadoopWriter[F, A]], HadoopWriter[F, A]), TickStatus)] =
-      Resource.eval(TickStatus.zeroth(ZoneId.systemDefault(), Policy.fixedDelay(0.seconds))).flatMap { ts =>
-        Hotswap(getWriter(createRotateFileEvent(ts.tick))).map((_, ts))
+    val resources: Resource[F, ((Hotswap[F, HadoopWriter[F, A]], HadoopWriter[F, A]), Tick)] =
+      Resource.eval(Tick.zeroth(zoneId)).flatMap { tick =>
+        Hotswap(getWriter(createRotateFileEvent(tick))).map((_, tick))
       }
 
     Stream
       .resource(resources)
-      .flatMap { case ((hotswap, writer), tickStatus) =>
+      .flatMap { case ((hotswap, writer), tick) =>
         doWork(
           getWriter = getWriter,
           hotswap = hotswap,
           writer = writer,
           data = data,
-          status = tickStatus,
+          currentTick = tick,
           count = 0).stream
       }
       .pull

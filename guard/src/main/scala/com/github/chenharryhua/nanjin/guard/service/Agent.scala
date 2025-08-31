@@ -20,7 +20,7 @@ import org.apache.commons.collections4.queue.CircularFifoQueue
 import java.time.ZoneId
 
 sealed trait Agent[F[_]] {
-  def zoneId: ZoneId
+  val zoneId: ZoneId
 
   def withDomain(name: String): Agent[F]
 
@@ -71,7 +71,7 @@ final private class GeneralAgent[F[_]: Async](
   dispatcher: Dispatcher[F])
     extends Agent[F] {
 
-  override lazy val zoneId: ZoneId = eventLogger.serviceParams.zoneId
+  override val zoneId: ZoneId = eventLogger.serviceParams.zoneId
 
   override def withDomain(name: String): Agent[F] =
     new GeneralAgent[F](

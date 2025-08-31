@@ -4,6 +4,7 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.{toFunctorFilterOps, toTraverseOps}
 import com.github.chenharryhua.nanjin.common.chrono.Policy
+import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.terminals.*
 import com.github.chenharryhua.nanjin.terminals.Compression.*
 import eu.timepit.refined.auto.*
@@ -131,7 +132,7 @@ class NJCirceTest extends AnyFunSuite {
       .covary[IO]
       .repeatN(number)
       .map(_.asJson)
-      .through(hdp.rotateSink(1000)(t => path / file.fileName(t)).circe)
+      .through(hdp.rotateSink(sydneyTime, 1000)(t => path / file.fileName(t)).circe)
       .fold(0L)((sum, v) => sum + v.value.recordCount)
       .compile
       .lastOrError
@@ -222,7 +223,7 @@ class NJCirceTest extends AnyFunSuite {
       .covary[IO]
       .repeatN(number)
       .map(_.asJson)
-      .through(hdp.rotateSink(1)(t => path / file.fileName(t)).circe)
+      .through(hdp.rotateSink(sydneyTime, 1)(t => path / file.fileName(t)).circe)
       .fold(0L)((sum, v) => sum + v.value.recordCount)
       .compile
       .lastOrError

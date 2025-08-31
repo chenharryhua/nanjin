@@ -5,6 +5,7 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.toTraverseOps
 import com.github.chenharryhua.nanjin.common.chrono.Policy
+import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.terminals.{FileKind, ParquetFile}
 import eu.timepit.refined.auto.*
 import fs2.Stream
@@ -112,7 +113,7 @@ class NJParquetTest extends AnyFunSuite {
       .emits(pandaSet.toList)
       .covary[IO]
       .repeatN(number)
-      .through(hdp.rotateSink(1000)(t => path / file.fileName(t)).parquet)
+      .through(hdp.rotateSink(sydneyTime, 1000)(t => path / file.fileName(t)).parquet)
       .fold(0L)((sum, v) => sum + v.value.recordCount)
       .compile
       .lastOrError
@@ -171,7 +172,7 @@ class NJParquetTest extends AnyFunSuite {
       .emits(pandaSet.toList)
       .covary[IO]
       .repeatN(number)
-      .through(hdp.rotateSink(1)(t => path / file.fileName(t)).parquet)
+      .through(hdp.rotateSink(sydneyTime, 1)(t => path / file.fileName(t)).parquet)
       .fold(0L)((sum, v) => sum + v.value.recordCount)
       .compile
       .lastOrError

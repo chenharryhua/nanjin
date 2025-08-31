@@ -4,6 +4,7 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.toTraverseOps
 import com.github.chenharryhua.nanjin.common.chrono.Policy
+import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.terminals.*
 import eu.timepit.refined.auto.*
 import fs2.Stream
@@ -77,7 +78,7 @@ class NJAvroTest extends AnyFunSuite {
       .covary[IO]
       .repeatN(number)
       .through(hdp
-        .rotateSink(ZoneId.systemDefault(), Policy.fixedDelay(1.second))(t => path / file.fileName(t))
+        .rotateSink(sydneyTime, Policy.fixedDelay(1.second))(t => path / file.fileName(t))
         .avro(_.Uncompressed))
       .fold(0L)((sum, v) => sum + v.value.recordCount)
       .compile
@@ -102,7 +103,7 @@ class NJAvroTest extends AnyFunSuite {
       .emits(pandaSet.toList)
       .covary[IO]
       .repeatN(number)
-      .through(hdp.rotateSink(1000)(t => path / file.fileName(t)).avro(_.Uncompressed))
+      .through(hdp.rotateSink(sydneyTime, 1000)(t => path / file.fileName(t)).avro(_.Uncompressed))
       .fold(0L)((sum, v) => sum + v.value.recordCount)
       .compile
       .lastOrError
@@ -146,7 +147,7 @@ class NJAvroTest extends AnyFunSuite {
       .emits(pandaSet.toList)
       .covary[IO]
       .repeatN(number)
-      .through(hdp.rotateSink(1000)(t => path / file.fileName(t)).avro(_.Uncompressed))
+      .through(hdp.rotateSink(sydneyTime, 1000)(t => path / file.fileName(t)).avro(_.Uncompressed))
       .fold(0L)((sum, v) => sum + v.value.recordCount)
       .compile
       .lastOrError
