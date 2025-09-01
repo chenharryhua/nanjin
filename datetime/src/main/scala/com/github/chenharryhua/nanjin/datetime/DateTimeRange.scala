@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.datetime
 
 import cats.syntax.all.*
 import cats.{PartialOrder, Show}
+import com.github.chenharryhua.nanjin.common.chrono.Tick
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, HCursor, Json}
 import monocle.Prism
@@ -192,6 +193,8 @@ object DateTimeRange {
     }
 
   def apply(zoneId: ZoneId): DateTimeRange = DateTimeRange(None, None, zoneId)
+  def apply(tick: Tick): DateTimeRange =
+    DateTimeRange(tick.zoneId).withStartTime(tick.commence).withEndTime(tick.conclude)
 
   implicit val encoderDateTimeRange: Encoder[DateTimeRange] =
     (a: DateTimeRange) =>
