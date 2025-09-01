@@ -25,7 +25,7 @@ import org.apache.kafka.common.TopicPartition
 import scala.collection.immutable.{SortedSet, TreeMap}
 import scala.util.Try
 
-final case class ManuallyCommitStream[F[_], K, V](
+final case class ManualCommitStream[F[_], K, V](
   committer: KafkaCommit[F],
   stream: Stream[F, CommittableConsumerRecord[F, K, V]])
 
@@ -94,15 +94,15 @@ final class KafkaByteConsume[F[_]] private[kafka] (
       }
     }
 
-  def commitManually(implicit
-    F: Async[F]): Stream[F, ManuallyCommitStream[F, Unit, Try[GenericData.Record]]] =
+  def manualCommitStream(implicit
+    F: Async[F]): Stream[F, ManualCommitStream[F, Unit, Try[GenericData.Record]]] =
     Stream.eval(getSchema).flatMap { skm =>
       val pull = new PullGenericRecord(srs, topicName, skm)
       KafkaConsumer
         .stream(consumerSettings.withEnableAutoCommit(false))
         .evalTap(_.subscribe(NonEmptyList.one(topicName.value)))
         .map(kc =>
-          ManuallyCommitStream(
+          ManualCommitStream(
             kc,
             kc.stream.mapChunks { crs =>
               crs.map(cr => cr.bimap(_ => (), _ => pull.toGenericRecord(cr.record)))
@@ -192,11 +192,11 @@ final class KafkaConsume[F[_], K, V] private[kafka] (
   def subscribe(implicit F: Async[F]): Stream[F, CommittableConsumerRecord[F, K, V]] =
     clientS.evalTap(_.subscribe(NonEmptyList.one(topicName.value))).flatMap(_.stream)
 
-  def commitManually(implicit F: Async[F]): Stream[F, ManuallyCommitStream[F, K, V]] =
+  def manualCommitStream(implicit F: Async[F]): Stream[F, ManualCommitStream[F, K, V]] =
     KafkaConsumer
       .stream(consumerSettings.withEnableAutoCommit(false))
       .evalTap(_.subscribe(NonEmptyList.one(topicName.value)))
-      .map(kc => ManuallyCommitStream(kc, kc.stream))
+      .map(kc => ManualCommitStream(kc, kc.stream))
 
   def assign(partition: Int, offset: Long)(implicit
     F: Async[F]): Stream[F, CommittableConsumerRecord[F, K, V]] =
