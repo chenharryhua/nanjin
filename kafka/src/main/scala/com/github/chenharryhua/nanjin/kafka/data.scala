@@ -55,23 +55,26 @@ object Partition {
 }
 
 @JsonCodec
-final case class OffsetRange private (from: Long, until: Long, distance: Long)
+final case class OffsetRange private (from: Long, until: Long) {
+  val distance: Long = until - from
+  val to: Long = until - 1
+}
 
 object OffsetRange {
   def apply(from: Offset, until: Offset): Option[OffsetRange] =
     if (from < until)
-      Some(OffsetRange(from.value, until.value, until - from))
+      Some(OffsetRange(from.value, until.value))
     else
       None
 
   implicit val poOffsetRange: PartialOrder[OffsetRange] =
     (x: OffsetRange, y: OffsetRange) =>
       (x, y) match {
-        case (OffsetRange(xf, xu, _), OffsetRange(yf, yu, _)) if xf >= yf && xu < yu =>
+        case (OffsetRange(xf, xu), OffsetRange(yf, yu)) if xf >= yf && xu < yu =>
           -1.0
-        case (OffsetRange(xf, xu, _), OffsetRange(yf, yu, _)) if xf === yf && xu === yu =>
+        case (OffsetRange(xf, xu), OffsetRange(yf, yu)) if xf === yf && xu === yu =>
           0.0
-        case (OffsetRange(xf, xu, _), OffsetRange(yf, yu, _)) if xf <= yf && xu > yu =>
+        case (OffsetRange(xf, xu), OffsetRange(yf, yu)) if xf <= yf && xu > yu =>
           1.0
         case _ => Double.NaN
       }

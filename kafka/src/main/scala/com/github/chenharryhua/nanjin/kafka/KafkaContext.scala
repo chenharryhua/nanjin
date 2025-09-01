@@ -6,7 +6,7 @@ import cats.effect.kernel.{Async, Sync}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameL}
 import com.github.chenharryhua.nanjin.common.{utils, UpdateConfig}
-import com.github.chenharryhua.nanjin.kafka.connector.{KafkaByteConsume, KafkaConsume, KafkaProduce}
+import com.github.chenharryhua.nanjin.kafka.connector.{ConsumeByteKafka, ConsumeKafka, KafkaProduce}
 import com.github.chenharryhua.nanjin.kafka.streaming.{KafkaStreamsBuilder, StateStores, StreamsSerde}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.*
 import fs2.kafka.*
@@ -53,10 +53,10 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
    * consumer
    */
 
-  def consume[K, V](topicDef: TopicDef[K, V])(implicit F: Sync[F]): KafkaConsume[F, K, V] = {
+  def consume[K, V](topicDef: TopicDef[K, V])(implicit F: Sync[F]): ConsumeKafka[F, K, V] = {
     val topic: KafkaTopic[K, V] =
       topicDef.codecPair.register(settings.schemaRegistrySettings, topicDef.topicName)
-    new KafkaConsume[F, K, V](
+    new ConsumeKafka[F, K, V](
       topicDef.topicName,
       ConsumerSettings[F, K, V](
         Deserializer.delegate[F, K](topic.key.registered.serde.deserializer()),
@@ -65,8 +65,8 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
     )
   }
 
-  def consume(topicName: TopicName)(implicit F: Sync[F]): KafkaByteConsume[F] =
-    new KafkaByteConsume[F](
+  def consume(topicName: TopicName)(implicit F: Sync[F]): ConsumeByteKafka[F] =
+    new ConsumeByteKafka[F](
       topicName,
       ConsumerSettings[F, Array[Byte], Array[Byte]](
         Deserializer[F, Array[Byte]],
@@ -75,7 +75,7 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
       settings.schemaRegistrySettings
     )
 
-  def consume(topicName: TopicNameL)(implicit F: Sync[F]): KafkaByteConsume[F] =
+  def consume(topicName: TopicNameL)(implicit F: Sync[F]): ConsumeByteKafka[F] =
     consume(TopicName(topicName))
 
   def monitor(topicName: TopicNameL, f: AutoOffsetReset.type => AutoOffsetReset = _.Latest)(implicit

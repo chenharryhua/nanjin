@@ -19,6 +19,7 @@ import io.circe.Encoder as JsonEncoder
 import io.circe.syntax.EncoderOps
 import io.lemonlabs.uri.Url
 import io.lemonlabs.uri.typesafe.dsl.urlToUrlDsl
+import org.apache.kafka.common.TopicPartition
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.types.StructType
 import org.typelevel.cats.time.instances.zoneid
@@ -66,14 +67,26 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
     } yield kafkaContext
       .consume(topicName)
       .updateConfig(config)
-      .range(range)
-      .map { case (pr, ss) =>
-        val destination: Url =
-          folder / s"${topicName.value}-${pr.partition}-${pr.from}-${pr.to}.${file.fileName}"
-        ss.evalMapChunk(ccr => F.fromTry(pull.toGenericRecord(ccr.record)))
-          .through(hadoop.sink(destination).jackson)
+      .clientS
+      .evalTap { kc =>
+        kc.assign(topicName.value) *> range.toList.traverse { case (partition, (from, _)) =>
+          kc.seek(new TopicPartition(topicName.value, partition), from)
+        }
       }
-      .foldLeft(Stream.empty.covaryAll[F, Int])(_.merge(_))
+      .flatMap { kc =>
+        kc.partitionsMapStream.map { ms =>
+          val streams = ms.toList.map { case (tp, stream) =>
+            val (from, to) = range(tp.partition())
+            val destination: Url =
+              folder / s"${topicName.value}-${tp.partition()}-$from-$to.${file.fileName}"
+            stream
+              .takeWhile(_.record.offset < to, takeFailure = true)
+              .evalMapChunk(ccr => F.fromTry(pull.toGenericRecord(ccr.record)))
+              .through(hadoop.sink(destination).jackson)
+          }
+          streams.parJoinUnbounded.onFinalize(F.delay(println("done")) >> kc.stopConsuming)
+        }.parJoinUnbounded
+      }
 
     Stream.force(run).timeoutOnPull(timeout).compile.fold(0L) { case (s, i) => s + i }
   }

@@ -17,7 +17,6 @@ import com.github.chenharryhua.nanjin.kafka.{
   TransientConsumer
 }
 import fs2.Stream
-import fs2.kafka.consumer.KafkaCommit
 import fs2.kafka.{CommittableConsumerRecord, ConsumerSettings, KafkaConsumer}
 import org.apache.avro.generic.GenericData
 import org.apache.kafka.common.TopicPartition
@@ -25,24 +24,20 @@ import org.apache.kafka.common.TopicPartition
 import scala.collection.immutable.{SortedSet, TreeMap}
 import scala.util.Try
 
-final case class ManualCommitStream[F[_], K, V](
-  committer: KafkaCommit[F],
-  stream: Stream[F, CommittableConsumerRecord[F, K, V]])
-
-final class KafkaByteConsume[F[_]] private[kafka] (
+final class ConsumeByteKafka[F[_]] private[kafka] (
   topicName: TopicName,
   consumerSettings: ConsumerSettings[F, Array[Byte], Array[Byte]],
   getSchema: F[AvroSchemaPair],
   srs: SchemaRegistrySettings
-) extends UpdateConfig[ConsumerSettings[F, Array[Byte], Array[Byte]], KafkaByteConsume[F]]
+) extends UpdateConfig[ConsumerSettings[F, Array[Byte], Array[Byte]], ConsumeByteKafka[F]]
     with HasProperties {
   /*
    * config
    */
   override def properties: Map[String, String] = consumerSettings.properties
 
-  override def updateConfig(f: Endo[ConsumerSettings[F, Array[Byte], Array[Byte]]]): KafkaByteConsume[F] =
-    new KafkaByteConsume[F](topicName, f(consumerSettings), getSchema, srs)
+  override def updateConfig(f: Endo[ConsumerSettings[F, Array[Byte], Array[Byte]]]): ConsumeByteKafka[F] =
+    new ConsumeByteKafka[F](topicName, f(consumerSettings), getSchema, srs)
 
   /*
    * consume
@@ -167,17 +162,17 @@ final class KafkaByteConsume[F[_]] private[kafka] (
   }
 }
 
-final class KafkaConsume[F[_], K, V] private[kafka] (
+final class ConsumeKafka[F[_], K, V] private[kafka] (
   topicName: TopicName,
   consumerSettings: ConsumerSettings[F, K, V]
-) extends UpdateConfig[ConsumerSettings[F, K, V], KafkaConsume[F, K, V]] with HasProperties {
+) extends UpdateConfig[ConsumerSettings[F, K, V], ConsumeKafka[F, K, V]] with HasProperties {
   /*
    * config
    */
   override def properties: Map[String, String] = consumerSettings.properties
 
-  override def updateConfig(f: Endo[ConsumerSettings[F, K, V]]): KafkaConsume[F, K, V] =
-    new KafkaConsume[F, K, V](topicName, f(consumerSettings))
+  override def updateConfig(f: Endo[ConsumerSettings[F, K, V]]): ConsumeKafka[F, K, V] =
+    new ConsumeKafka[F, K, V](topicName, f(consumerSettings))
 
   /*
    * consume
