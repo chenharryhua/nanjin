@@ -76,22 +76,22 @@ class SortTest extends AnyFunSuite {
     )
   }
   test("disorders") {
-    assert(crRdd.stats.disorders[IO].map(_.count()).unsafeRunSync() == 4)
+    assert(crRdd.stats[IO].disorders.map(_.count()).unsafeRunSync() == 4)
   }
   test("dup") {
-    assert(crRdd.stats.dupRecords[IO].map(_.count()).unsafeRunSync() == 1)
+    assert(crRdd.stats[IO].dupRecords.map(_.count()).unsafeRunSync() == 1)
   }
   test("missing offsets") {
 
-    assert(crRdd.stats.lostOffsets[IO].map(_.count()).unsafeRunSync() == 1)
+    assert(crRdd.stats[IO].lostOffsets.map(_.count()).unsafeRunSync() == 1)
   }
 
   test("earliest") {
-    assert(crRdd.stats.lostEarliest[IO].unsafeRunSync().size == 1)
+    assert(crRdd.stats[IO].lostEarliest.unsafeRunSync().size == 1)
   }
 
   test("latest") {
-    assert(crRdd.stats.lostLatest[IO].unsafeRunSync().size == 1)
+    assert(crRdd.stats[IO].lostLatest.unsafeRunSync().size == 1)
   }
 
   test("misorder keys") {

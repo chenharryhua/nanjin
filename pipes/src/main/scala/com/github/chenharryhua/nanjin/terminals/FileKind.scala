@@ -12,7 +12,7 @@ sealed abstract class FileKind(val fileFormat: FileFormat, val compression: Comp
 
   final def fileName(time: LocalDateTime): String = {
     val fmt: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss")
-    s"${fmt.format(time)}-$fileName"
+    s"${fmt.format(time)}.$fileName"
   }
 
   final def fileName(cfe: CreateRotateFile): String = {

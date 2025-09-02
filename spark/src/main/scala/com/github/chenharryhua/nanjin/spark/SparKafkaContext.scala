@@ -7,7 +7,7 @@ import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameL}
 import com.github.chenharryhua.nanjin.datetime.DateTimeRange
 import com.github.chenharryhua.nanjin.kafka.*
-import com.github.chenharryhua.nanjin.kafka.connector.partitionOffsetRange
+import com.github.chenharryhua.nanjin.kafka.connector.RangedStream
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroCodec, AvroCodecOf}
 import com.github.chenharryhua.nanjin.messages.kafka.{CRMetaInfo, NJConsumerRecord}
 import com.github.chenharryhua.nanjin.spark.kafka.{SparKafkaTopic, Statistics}
@@ -58,24 +58,19 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
     compression: JacksonCompression)(config: Endo[ConsumerSettings[F, Array[Byte], Array[Byte]]])(implicit
     F: Async[F]): F[Long] = {
     val file = JacksonFile(compression)
-    val run: F[Stream[F, Int]] = for {
-      pull <- kafkaContext.schemaRegistry
-        .fetchAvroSchema(topicName)
-        .map(new PullGenericRecord(kafkaContext.settings.schemaRegistrySettings, topicName, _))
-      range <- kafkaContext.admin(topicName).use(_.offsetRangeFor(dateRange)).map(partitionOffsetRange)
-    } yield kafkaContext
+    kafkaContext
       .consume(topicName)
       .updateConfig(config)
-      .range(range)
-      .map { case (pr, ss) =>
-        val destination: Url =
-          folder / s"${topicName.value}-${pr.partition}-${pr.from}-${pr.to}.${file.fileName}"
-        ss.evalMapChunk(ccr => F.fromTry(pull.toGenericRecord(ccr.record)))
-          .through(hadoop.sink(destination).jackson)
+      .rangeGenericRecord(dateRange)
+      .flatMap { case RangedStream(stopConsuming, streams) =>
+        streams.toList.map { case (pr, ss) =>
+          val destination: Url = folder / s"${pr.toString}.${file.fileName}"
+          ss.through(hadoop.sink(destination).jackson)
+        }.parJoinUnbounded.onFinalize(stopConsuming)
       }
-      .foldLeft(Stream.empty.covaryAll[F, Int])(_.merge(_))
-
-    Stream.force(run).timeoutOnPull(timeout).compile.fold(0L) { case (s, i) => s + i }
+      .timeoutOnPull(timeout)
+      .compile
+      .fold(0L)(_ + _)
   }
 
   def dumpJackson(
@@ -95,23 +90,21 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
     dateRange: DateTimeRange,
     compression: CirceCompression)(config: Endo[ConsumerSettings[F, K, V]])(implicit F: Async[F]): F[Long] = {
     val file = CirceFile(compression)
-    val run: F[Stream[F, Int]] = kafkaContext
-      .admin(topicDef.topicName)
-      .use(_.offsetRangeFor(dateRange).map(partitionOffsetRange))
-      .map { rng =>
-        kafkaContext
-          .consume(topicDef)
-          .updateConfig(config)
-          .range(rng)
-          .map { case (pr, ss) =>
-            val destination: Url =
-              folder / s"${topicDef.topicName.value}-${pr.partition}-${pr.from}-${pr.to}.${file.fileName}"
-            ss.mapChunks(_.map(cr => NJConsumerRecord(cr.record).asJson))
-              .through(hadoop.sink(destination).circe)
-          }
-          .foldLeft(Stream.empty.covaryAll[F, Int])(_.merge(_))
+    kafkaContext
+      .consume(topicDef)
+      .updateConfig(config)
+      .range(dateRange)
+      .flatMap { case RangedStream(stopConsuming, streams) =>
+        streams.toList.map { case (pr, ss) =>
+          val destination: Url = folder / s"${pr.toString}.${file.fileName}"
+          ss.mapChunks(_.map(cr => NJConsumerRecord(cr.record).asJson))
+            .through(hadoop.sink(destination).circe)
+        }.parJoinUnbounded.onFinalize(stopConsuming)
       }
-    Stream.force(run).timeoutOnPull(timeout).compile.fold(0L)(_ + _)
+      .timeoutOnPull(timeout)
+      .compile
+      .fold(0L)(_ + _)
+
   }
 
   def dumpCirce[K: JsonEncoder, V: JsonEncoder](
@@ -249,9 +242,9 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
 
     import sparkSession.implicits.*
 
-    def avro(folder: Url)(implicit F: Sync[F]): F[Statistics] =
+    def avro(folder: Url)(implicit F: Sync[F]): F[Statistics[F]] =
       F.blocking {
-        new Statistics(
+        new Statistics[F](
           sparkSession.read
             .format("avro")
             .schema(sparkSchema)
@@ -260,19 +253,19 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
         )
       }
 
-    def jackson(folder: Url)(implicit F: Sync[F]): F[Statistics] =
+    def jackson(folder: Url)(implicit F: Sync[F]): F[Statistics[F]] =
       F.blocking {
-        new Statistics(
+        new Statistics[F](
           sparkSession.read.schema(sparkSchema).json(toHadoopPath(folder).toString).as[CRMetaInfo]
         )
       }
 
-    def circe(folder: Url)(implicit F: Sync[F]): F[Statistics] =
+    def circe(folder: Url)(implicit F: Sync[F]): F[Statistics[F]] =
       jackson(folder)
 
-    def parquet(folder: Url)(implicit F: Sync[F]): F[Statistics] =
+    def parquet(folder: Url)(implicit F: Sync[F]): F[Statistics[F]] =
       F.blocking {
-        new Statistics(
+        new Statistics[F](
           sparkSession.read.schema(sparkSchema).parquet(toHadoopPath(folder).toString).as[CRMetaInfo]
         )
       }

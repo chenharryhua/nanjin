@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.kafka
 
 import cats.syntax.all.*
-import cats.{Order, PartialOrder}
+import cats.{Order, PartialOrder, Show}
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import io.circe.*
 import io.circe.Decoder.Result
@@ -54,31 +54,39 @@ object Partition {
   implicit val orderPartition: Order[Partition] = Order.fromOrdering
 }
 
-@JsonCodec
-final case class OffsetRange private (from: Long, until: Long, distance: Long)
+final case class OffsetRange private (from: Long, until: Long) {
+  val distance: Long = until - from
+  val to: Long = until - 1
+}
 
 object OffsetRange {
   def apply(from: Offset, until: Offset): Option[OffsetRange] =
     if (from < until)
-      Some(OffsetRange(from.value, until.value, until - from))
+      Some(OffsetRange(from.value, until.value))
     else
       None
 
   implicit val poOffsetRange: PartialOrder[OffsetRange] =
     (x: OffsetRange, y: OffsetRange) =>
       (x, y) match {
-        case (OffsetRange(xf, xu, _), OffsetRange(yf, yu, _)) if xf >= yf && xu < yu =>
+        case (OffsetRange(xf, xu), OffsetRange(yf, yu)) if xf >= yf && xu < yu =>
           -1.0
-        case (OffsetRange(xf, xu, _), OffsetRange(yf, yu, _)) if xf === yf && xu === yu =>
+        case (OffsetRange(xf, xu), OffsetRange(yf, yu)) if xf === yf && xu === yu =>
           0.0
-        case (OffsetRange(xf, xu, _), OffsetRange(yf, yu, _)) if xf <= yf && xu > yu =>
+        case (OffsetRange(xf, xu), OffsetRange(yf, yu)) if xf <= yf && xu > yu =>
           1.0
         case _ => Double.NaN
       }
 }
 
-@JsonCodec
-final case class PartitionRange(partition: Int, from: Long, to: Long)
+final case class PartitionRange(topicPartition: TopicPartition, offsetRange: OffsetRange) {
+  override def toString: String =
+    s"${topicPartition.topic()}-${topicPartition.partition()}-${offsetRange.from}-${offsetRange.to}"
+}
+
+object PartitionRange {
+  implicit val showPartitionRange: Show[PartitionRange] = Show.fromToString[PartitionRange]
+}
 
 @JsonCodec
 final case class LagBehind private (current: Long, end: Long, lag: Long)
