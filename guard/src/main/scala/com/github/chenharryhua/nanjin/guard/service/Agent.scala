@@ -30,9 +30,13 @@ sealed trait Agent[F[_]] {
   def batch(label: String): Batch[F]
   def lightBatch(label: String): LightBatch[F]
 
-  def tickScheduled(policy: Policy): Stream[F, Tick]
+  def tickPast(policy: Policy): Stream[F, Tick]
   final def tickScheduled(f: Policy.type => Policy): Stream[F, Tick] =
-    tickScheduled(f(Policy))
+    tickPast(f(Policy))
+
+  def tickFuture(policy: Policy): Stream[F, Tick]
+  final def tickFuture(f: Policy.type => Policy): Stream[F, Tick] =
+    tickFuture(f(Policy))
 
   /** start ticking immediately
     */
@@ -92,8 +96,11 @@ final private class GeneralAgent[F[_]: Async](
     new LightBatch[F](new Metrics.Impl[F](metricLabel, metricRegistry, dispatcher, zoneId))
   }
 
-  override def tickScheduled(policy: Policy): Stream[F, Tick] =
-    tickStream.tickScheduled[F](zoneId, policy)
+  override def tickPast(policy: Policy): Stream[F, Tick] =
+    tickStream.tickPast[F](zoneId, policy)
+
+  override def tickFuture(policy: Policy): Stream[F, Tick] =
+    tickStream.tickFuture(zoneId, policy)
 
   override def tickImmediate(policy: Policy): Stream[F, Tick] =
     tickStream.tickImmediate(zoneId, policy)
