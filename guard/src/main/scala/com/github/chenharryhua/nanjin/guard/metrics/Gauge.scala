@@ -73,7 +73,7 @@ object Gauge {
         init <- Resource.eval(fetch)
         ref <- Resource.eval(F.ref(init))
         _ <- F.background(
-          tickStream.tickPast[F](zoneId, policy).evalMap(_ => fetch.flatMap(ref.set)).compile.drain)
+          tickStream.tickScheduled[F](zoneId, policy).evalMap(_ => fetch.flatMap(ref.set)).compile.drain)
         _ <- register(ref.get)
       } yield ()
     }

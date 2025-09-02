@@ -30,19 +30,20 @@ sealed trait Agent[F[_]] {
   def batch(label: String): Batch[F]
   def lightBatch(label: String): LightBatch[F]
 
-  def tickPast(policy: Policy): Stream[F, Tick]
+  /*
+   * ticks
+   */
+  def tickScheduled(policy: Policy): Stream[F, Tick]
   final def tickScheduled(f: Policy.type => Policy): Stream[F, Tick] =
-    tickPast(f(Policy))
+    tickScheduled(f(Policy))
+
+  def tickImmediate(policy: Policy): Stream[F, Tick]
+  final def tickImmediate(f: Policy.type => Policy): Stream[F, Tick] =
+    tickImmediate(f(Policy))
 
   def tickFuture(policy: Policy): Stream[F, Tick]
   final def tickFuture(f: Policy.type => Policy): Stream[F, Tick] =
     tickFuture(f(Policy))
-
-  /** start ticking immediately
-    */
-  def tickImmediate(policy: Policy): Stream[F, Tick]
-  final def tickImmediate(f: Policy.type => Policy): Stream[F, Tick] =
-    tickImmediate(f(Policy))
 
   /*
    * metrics adhoc report/reset
@@ -96,8 +97,8 @@ final private class GeneralAgent[F[_]: Async](
     new LightBatch[F](new Metrics.Impl[F](metricLabel, metricRegistry, dispatcher, zoneId))
   }
 
-  override def tickPast(policy: Policy): Stream[F, Tick] =
-    tickStream.tickPast[F](zoneId, policy)
+  override def tickScheduled(policy: Policy): Stream[F, Tick] =
+    tickStream.tickScheduled[F](zoneId, policy)
 
   override def tickFuture(policy: Policy): Stream[F, Tick] =
     tickStream.tickFuture(zoneId, policy)

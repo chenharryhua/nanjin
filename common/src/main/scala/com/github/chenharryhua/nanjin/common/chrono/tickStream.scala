@@ -20,11 +20,13 @@ object tickStream {
 
   /** sleep then emit, so that conclude time of the tick is in the past
     *
-    * first tick is NOT emitted immediately.
+    * first tick, which index is One, is NOT emitted immediately.
     */
-  def tickPast[F[_]: Async](zoneId: ZoneId, policy: Policy): Stream[F, Tick] =
+  def tickScheduled[F[_]: Async](zoneId: ZoneId, policy: Policy): Stream[F, Tick] =
     Stream.eval[F, TickStatus](TickStatus.zeroth[F](zoneId, policy)).flatMap(fromTickStatus[F])
 
+  /** first tick, which index is Zero, is emitted immediately
+    */
   def tickImmediate[F[_]: Async](zoneId: ZoneId, policy: Policy): Stream[F, Tick] =
     Stream
       .eval[F, TickStatus](TickStatus.zeroth(zoneId, policy))
@@ -32,7 +34,7 @@ object tickStream {
 
   /** emit then sleep, so that conclude time of the tick is in the future
     *
-    * first tick is immediately emitted
+    * first tick, which index is One, is immediately emitted
     */
   def tickFuture[F[_]](zoneId: ZoneId, policy: Policy)(implicit F: Async[F]): Stream[F, Tick] =
     Stream.eval[F, TickStatus](TickStatus.zeroth[F](zoneId, policy)).flatMap { status =>
