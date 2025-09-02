@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.kafka
 
 import cats.syntax.all.*
-import cats.{Order, PartialOrder}
+import cats.{Order, PartialOrder, Show}
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import io.circe.*
 import io.circe.Decoder.Result
@@ -54,7 +54,6 @@ object Partition {
   implicit val orderPartition: Order[Partition] = Order.fromOrdering
 }
 
-@JsonCodec
 final case class OffsetRange private (from: Long, until: Long) {
   val distance: Long = until - from
   val to: Long = until - 1
@@ -80,8 +79,14 @@ object OffsetRange {
       }
 }
 
-@JsonCodec
-final case class PartitionRange(partition: Int, from: Long, to: Long)
+final case class PartitionRange(topicPartition: TopicPartition, offsetRange: OffsetRange) {
+  override def toString: String =
+    s"${topicPartition.topic()}-${topicPartition.partition()}-${offsetRange.from}-${offsetRange.to}"
+}
+
+object PartitionRange {
+  implicit val showPartitionRange: Show[PartitionRange] = Show.fromToString[PartitionRange]
+}
 
 @JsonCodec
 final case class LagBehind private (current: Long, end: Long, lag: Long)

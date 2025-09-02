@@ -7,7 +7,7 @@ import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameL}
 import com.github.chenharryhua.nanjin.datetime.DateTimeRange
 import com.github.chenharryhua.nanjin.kafka.*
-import com.github.chenharryhua.nanjin.kafka.connector.partitionOffsetRange
+import com.github.chenharryhua.nanjin.kafka.connector.RangedStream
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroCodec, AvroCodecOf}
 import com.github.chenharryhua.nanjin.messages.kafka.{CRMetaInfo, NJConsumerRecord}
 import com.github.chenharryhua.nanjin.spark.kafka.{SparKafkaTopic, Statistics}
@@ -19,7 +19,6 @@ import io.circe.Encoder as JsonEncoder
 import io.circe.syntax.EncoderOps
 import io.lemonlabs.uri.Url
 import io.lemonlabs.uri.typesafe.dsl.urlToUrlDsl
-import org.apache.kafka.common.TopicPartition
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.types.StructType
 import org.typelevel.cats.time.instances.zoneid
@@ -59,36 +58,19 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
     compression: JacksonCompression)(config: Endo[ConsumerSettings[F, Array[Byte], Array[Byte]]])(implicit
     F: Async[F]): F[Long] = {
     val file = JacksonFile(compression)
-    val run: F[Stream[F, Int]] = for {
-      pull <- kafkaContext.schemaRegistry
-        .fetchAvroSchema(topicName)
-        .map(new PullGenericRecord(kafkaContext.settings.schemaRegistrySettings, topicName, _))
-      range <- kafkaContext.admin(topicName).use(_.offsetRangeFor(dateRange)).map(partitionOffsetRange)
-    } yield kafkaContext
+    kafkaContext
       .consume(topicName)
       .updateConfig(config)
-      .clientS
-      .evalTap { kc =>
-        kc.assign(topicName.value) *> range.toList.traverse { case (partition, (from, _)) =>
-          kc.seek(new TopicPartition(topicName.value, partition), from)
-        }
+      .rangeGenericRecord(dateRange)
+      .flatMap { case RangedStream(stopConsuming, streams) =>
+        streams.toList.map { case (pr, ss) =>
+          val destination: Url = folder / s"${pr.toString}.${file.fileName}"
+          ss.through(hadoop.sink(destination).jackson)
+        }.parJoinUnbounded.onFinalize(stopConsuming)
       }
-      .flatMap { kc =>
-        kc.partitionsMapStream.map { ms =>
-          val streams = ms.toList.map { case (tp, stream) =>
-            val (from, to) = range(tp.partition())
-            val destination: Url =
-              folder / s"${topicName.value}-${tp.partition()}-$from-$to.${file.fileName}"
-            stream
-              .takeWhile(_.record.offset < to, takeFailure = true)
-              .evalMapChunk(ccr => F.fromTry(pull.toGenericRecord(ccr.record)))
-              .through(hadoop.sink(destination).jackson)
-          }
-          streams.parJoinUnbounded.onFinalize(F.delay(println("done")) >> kc.stopConsuming)
-        }.parJoinUnbounded
-      }
-
-    Stream.force(run).timeoutOnPull(timeout).compile.fold(0L) { case (s, i) => s + i }
+      .timeoutOnPull(timeout)
+      .compile
+      .fold(0L)(_ + _)
   }
 
   def dumpJackson(
@@ -108,23 +90,21 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
     dateRange: DateTimeRange,
     compression: CirceCompression)(config: Endo[ConsumerSettings[F, K, V]])(implicit F: Async[F]): F[Long] = {
     val file = CirceFile(compression)
-    val run: F[Stream[F, Int]] = kafkaContext
-      .admin(topicDef.topicName)
-      .use(_.offsetRangeFor(dateRange).map(partitionOffsetRange))
-      .map { rng =>
-        kafkaContext
-          .consume(topicDef)
-          .updateConfig(config)
-          .range(rng)
-          .map { case (pr, ss) =>
-            val destination: Url =
-              folder / s"${topicDef.topicName.value}-${pr.partition}-${pr.from}-${pr.to}.${file.fileName}"
-            ss.mapChunks(_.map(cr => NJConsumerRecord(cr.record).asJson))
-              .through(hadoop.sink(destination).circe)
-          }
-          .foldLeft(Stream.empty.covaryAll[F, Int])(_.merge(_))
+    kafkaContext
+      .consume(topicDef)
+      .updateConfig(config)
+      .range(dateRange)
+      .flatMap { case RangedStream(stopConsuming, streams) =>
+        streams.toList.map { case (pr, ss) =>
+          val destination: Url = folder / s"${pr.toString}.${file.fileName}"
+          ss.mapChunks(_.map(cr => NJConsumerRecord(cr.record).asJson))
+            .through(hadoop.sink(destination).circe)
+        }.parJoinUnbounded.onFinalize(stopConsuming)
       }
-    Stream.force(run).timeoutOnPull(timeout).compile.fold(0L)(_ + _)
+      .timeoutOnPull(timeout)
+      .compile
+      .fold(0L)(_ + _)
+
   }
 
   def dumpCirce[K: JsonEncoder, V: JsonEncoder](
@@ -262,9 +242,9 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
 
     import sparkSession.implicits.*
 
-    def avro(folder: Url)(implicit F: Sync[F]): F[Statistics] =
+    def avro(folder: Url)(implicit F: Sync[F]): F[Statistics[F]] =
       F.blocking {
-        new Statistics(
+        new Statistics[F](
           sparkSession.read
             .format("avro")
             .schema(sparkSchema)
@@ -273,19 +253,19 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
         )
       }
 
-    def jackson(folder: Url)(implicit F: Sync[F]): F[Statistics] =
+    def jackson(folder: Url)(implicit F: Sync[F]): F[Statistics[F]] =
       F.blocking {
-        new Statistics(
+        new Statistics[F](
           sparkSession.read.schema(sparkSchema).json(toHadoopPath(folder).toString).as[CRMetaInfo]
         )
       }
 
-    def circe(folder: Url)(implicit F: Sync[F]): F[Statistics] =
+    def circe(folder: Url)(implicit F: Sync[F]): F[Statistics[F]] =
       jackson(folder)
 
-    def parquet(folder: Url)(implicit F: Sync[F]): F[Statistics] =
+    def parquet(folder: Url)(implicit F: Sync[F]): F[Statistics[F]] =
       F.blocking {
-        new Statistics(
+        new Statistics[F](
           sparkSession.read.schema(sparkSchema).parquet(toHadoopPath(folder).toString).as[CRMetaInfo]
         )
       }

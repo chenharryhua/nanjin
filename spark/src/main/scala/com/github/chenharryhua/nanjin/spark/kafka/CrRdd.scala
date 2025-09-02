@@ -64,8 +64,8 @@ final class CrRdd[K, V] private[kafka] (
   def output: RddAvroFileHoarder[NJConsumerRecord[K, V]] =
     new RddAvroFileHoarder[NJConsumerRecord[K, V]](rdd, codec)
 
-  def stats: Statistics =
-    new Statistics(ss.createDataset(rdd.map(CRMetaInfo(_))))
+  def stats[F[_]]: Statistics[F] =
+    new Statistics[F](ss.createDataset(rdd.map(CRMetaInfo(_))))
 
   // IO
 

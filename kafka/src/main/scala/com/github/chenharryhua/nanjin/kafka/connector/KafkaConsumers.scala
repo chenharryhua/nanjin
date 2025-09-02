@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.kafka.connector
 
 import cats.Endo
-import cats.data.{NonEmptyList, NonEmptySet}
+import cats.data.{NonEmptyList, NonEmptySet, ReaderT}
 import cats.effect.kernel.{Async, Resource}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
@@ -9,19 +9,16 @@ import com.github.chenharryhua.nanjin.common.{HasProperties, UpdateConfig}
 import com.github.chenharryhua.nanjin.datetime.DateTimeRange
 import com.github.chenharryhua.nanjin.kafka.{
   orderTopicPartition,
-  pureConsumerSettings,
   AvroSchemaPair,
-  PartitionRange,
   PullGenericRecord,
-  SchemaRegistrySettings,
-  TransientConsumer
+  SchemaRegistrySettings
 }
 import fs2.Stream
 import fs2.kafka.{CommittableConsumerRecord, ConsumerSettings, KafkaConsumer}
 import org.apache.avro.generic.GenericData
 import org.apache.kafka.common.TopicPartition
 
-import scala.collection.immutable.{SortedSet, TreeMap}
+import scala.collection.immutable.SortedSet
 import scala.util.Try
 
 final class ConsumeByteKafka[F[_]] private[kafka] (
@@ -89,8 +86,8 @@ final class ConsumeByteKafka[F[_]] private[kafka] (
       }
     }
 
-  def manualCommitStream(implicit
-    F: Async[F]): Stream[F, ManualCommitStream[F, Unit, Try[GenericData.Record]]] =
+  def manualCommitStream(implicit F: Async[F])
+    : Stream[F, ManualCommitStream[F, CommittableConsumerRecord[F, Unit, Try[GenericData.Record]]]] =
     Stream.eval(getSchema).flatMap { skm =>
       val pull = new PullGenericRecord(srs, topicName, skm)
       KafkaConsumer
@@ -98,7 +95,7 @@ final class ConsumeByteKafka[F[_]] private[kafka] (
         .evalTap(_.subscribe(NonEmptyList.one(topicName.value)))
         .map(kc =>
           ManualCommitStream(
-            kc,
+            ReaderT(kc.commitSync),
             kc.stream.mapChunks { crs =>
               crs.map(cr => cr.bimap(_ => (), _ => pull.toGenericRecord(cr.record)))
             }))
@@ -135,31 +132,32 @@ final class ConsumeByteKafka[F[_]] private[kafka] (
    * range
    */
 
-  def range(partition_offsets: Map[Int, (Long, Long)])(implicit
-    F: Async[F]): Map[PartitionRange, Stream[F, CommittableConsumerRecord[F, Array[Byte], Array[Byte]]]] =
-    partition_offsets.map { case (partition, (from, to)) =>
-      PartitionRange(partition, from, to) ->
-        assign(partition, from)
-          .takeWhile(ccr => ccr.record.offset < to, takeFailure = true)
-          .filter(_.record.offset <= to)
-    }
-
   def range(dateRange: DateTimeRange)(implicit
-    F: Async[F]): Stream[F, CommittableConsumerRecord[F, Unit, Try[GenericData.Record]]] = {
-    val getRange: F[TreeMap[Int, (Long, Long)]] =
-      TransientConsumer(topicName, pureConsumerSettings.withProperties(consumerSettings.properties))
-        .offsetRangeFor(dateRange)
-        .map(partitionOffsetRange)
-
-    val run: F[Stream[F, CommittableConsumerRecord[F, Unit, Try[GenericData.Record]]]] =
-      (getRange, getSchema).mapN { (tm, skm) =>
-        val pull = new PullGenericRecord(srs, topicName, skm)
-        range(tm).foldLeft(empty) { case (sum, ss) =>
-          sum.merge(ss._2.mapChunks(_.map(cr => cr.bimap(_ => (), _ => pull.toGenericRecord(cr.record)))))
-        }
+    F: Async[F]): Stream[F, RangedStream[F, CommittableConsumerRecord[F, Array[Byte], Array[Byte]]]] =
+    KafkaConsumer
+      .stream(consumerSettings.withEnableAutoCommit(false))
+      .evalMap { kc =>
+        for {
+          tpm <- consumerClient.get_offset_range(kc, topicName, dateRange).map(_.flatten)
+          _ <- consumerClient.assign_range(kc, tpm)
+        } yield (kc, tpm)
       }
-    Stream.force(run)
-  }
+      .flatMap { case (kc, tpm) => consumerClient.ranged_stream(kc, tpm) }
+
+  def rangeGenericRecord(dateRange: DateTimeRange)(implicit
+    F: Async[F]): Stream[F, RangedStream[F, GenericData.Record]] =
+    Stream.eval(getSchema).flatMap { skm =>
+      val pull = new PullGenericRecord(srs, topicName, skm)
+      KafkaConsumer
+        .stream(consumerSettings.withEnableAutoCommit(false))
+        .evalMap { kc =>
+          for {
+            tpm <- consumerClient.get_offset_range(kc, topicName, dateRange).map(_.flatten)
+            _ <- consumerClient.assign_range(kc, tpm)
+          } yield (kc, tpm)
+        }
+        .flatMap { case (kc, tpm) => consumerClient.ranged_gr_stream(kc, tpm, pull) }
+    }
 }
 
 final class ConsumeKafka[F[_], K, V] private[kafka] (
@@ -187,11 +185,12 @@ final class ConsumeKafka[F[_], K, V] private[kafka] (
   def subscribe(implicit F: Async[F]): Stream[F, CommittableConsumerRecord[F, K, V]] =
     clientS.evalTap(_.subscribe(NonEmptyList.one(topicName.value))).flatMap(_.stream)
 
-  def manualCommitStream(implicit F: Async[F]): Stream[F, ManualCommitStream[F, K, V]] =
+  def manualCommitStream(implicit
+    F: Async[F]): Stream[F, ManualCommitStream[F, CommittableConsumerRecord[F, K, V]]] =
     KafkaConsumer
       .stream(consumerSettings.withEnableAutoCommit(false))
       .evalTap(_.subscribe(NonEmptyList.one(topicName.value)))
-      .map(kc => ManualCommitStream(kc, kc.stream))
+      .map(kc => ManualCommitStream(ReaderT(kc.commitSync), kc.stream))
 
   def assign(partition: Int, offset: Long)(implicit
     F: Async[F]): Stream[F, CommittableConsumerRecord[F, K, V]] =
@@ -217,21 +216,16 @@ final class ConsumeKafka[F[_], K, V] private[kafka] (
   /*
    * range
    */
-  def range(partition_offsets: Map[Int, (Long, Long)])(implicit
-    F: Async[F]): Map[PartitionRange, Stream[F, CommittableConsumerRecord[F, K, V]]] =
-    partition_offsets.map { case (partition, (from, to)) =>
-      PartitionRange(partition, from, to) ->
-        assign(partition, from)
-          .takeWhile(_.record.offset < to, takeFailure = true)
-          .filter(_.record.offset <= to)
-    }
 
-  def range(dateRange: DateTimeRange)(implicit F: Async[F]): Stream[F, CommittableConsumerRecord[F, K, V]] = {
-    val run: F[Stream[F, CommittableConsumerRecord[F, K, V]]] =
-      TransientConsumer(topicName, pureConsumerSettings.withProperties(consumerSettings.properties))
-        .offsetRangeFor(dateRange)
-        .map(partitionOffsetRange)
-        .map(range(_).foldLeft(empty) { case (sum, ss) => sum.merge(ss._2) })
-    Stream.force(run)
-  }
+  def range(dateRange: DateTimeRange)(implicit
+    F: Async[F]): Stream[F, RangedStream[F, CommittableConsumerRecord[F, K, V]]] =
+    KafkaConsumer
+      .stream(consumerSettings.withEnableAutoCommit(false))
+      .evalMap { kc =>
+        for {
+          tpm <- consumerClient.get_offset_range(kc, topicName, dateRange).map(_.flatten)
+          _ <- consumerClient.assign_range(kc, tpm)
+        } yield (kc, tpm)
+      }
+      .flatMap { case (kc, tpm) => consumerClient.ranged_stream(kc, tpm) }
 }

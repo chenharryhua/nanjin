@@ -54,22 +54,22 @@ class SparKafkaTest extends AnyFunSuite {
   }
 
   test("sparKafka read topic from kafka and show minutely aggragation result") {
-    sparKafka.topic(topic).fromKafka.flatMap(_.stats.minutely[IO]).unsafeRunSync()
+    sparKafka.topic(topic).fromKafka.flatMap(_.stats[IO].minutely).unsafeRunSync()
   }
   test("sparKafka read topic from kafka and show daily-hour aggragation result") {
-    sparKafka.topic(topic).fromKafka.flatMap(_.stats.dailyHour[IO]).unsafeRunSync()
+    sparKafka.topic(topic).fromKafka.flatMap(_.stats[IO].dailyHour).unsafeRunSync()
   }
   test("sparKafka read topic from kafka and show daily-minutes aggragation result") {
-    sparKafka.topic(topic).fromKafka.flatMap(_.stats.dailyMinute[IO]).unsafeRunSync()
+    sparKafka.topic(topic).fromKafka.flatMap(_.stats[IO].dailyMinute).unsafeRunSync()
   }
   test("sparKafka read topic from kafka and show daily aggragation result") {
-    sparKafka.topic(topic).fromKafka.flatMap(_.stats.daily[IO]).unsafeRunSync()
+    sparKafka.topic(topic).fromKafka.flatMap(_.stats[IO].daily).unsafeRunSync()
   }
   test("sparKafka read topic from kafka and show hourly aggragation result") {
-    sparKafka.topic(topic).fromKafka.flatMap(_.stats.hourly[IO]).unsafeRunSync()
+    sparKafka.topic(topic).fromKafka.flatMap(_.stats[IO].hourly).unsafeRunSync()
   }
   test("sparKafka read topic from kafka and show summary") {
-    sparKafka.topic(topic).fromKafka.flatMap(_.stats.summary[IO]("sum")).unsafeRunSync()
+    sparKafka.topic(topic).fromKafka.flatMap(_.stats[IO].summary("sum")).unsafeRunSync()
   }
   import sparkSession.implicits.*
 
@@ -150,6 +150,7 @@ class SparKafkaTest extends AnyFunSuite {
     val path = "./data/test/spark/kafka/dump/jackson"
     val p1 = path / "dump"
     val p2 = path / "download"
+    sparKafka.hadoop.delete(path).unsafeRunSync()
     sparKafka.dumpJackson("duck.test", p1).unsafeRunSync()
     sparKafka.dumpCirce(topic, p2).unsafeRunSync()
     sparKafka.upload("duck.test", p1).unsafeRunSync()

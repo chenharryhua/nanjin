@@ -36,41 +36,41 @@ object StatisticsTestData {
 
 class StatisticsTest extends AnyFunSuite {
   import StatisticsTestData.*
-  val stats = new Statistics(ds)
+  val stats = new Statistics[IO](ds)
 
-  val emptyStats = new Statistics(empty)
+  val emptyStats = new Statistics[IO](empty)
 
   test("dupRecords") {
-    val res = stats.dupRecords[IO].map(_.collect().toSet).unsafeRunSync()
+    val res = stats.dupRecords.map(_.collect().toSet).unsafeRunSync()
     assert(res == Set(DuplicateRecord(0, 7, 3)))
-    assert(emptyStats.dupRecords[IO].map(_.count()).unsafeRunSync() == 0)
-    stats.summary[IO]("sum").unsafeRunSync().foreach(x => println(x))
+    assert(emptyStats.dupRecords.map(_.count()).unsafeRunSync() == 0)
+    stats.summary("sum").unsafeRunSync().foreach(x => println(x))
   }
 
   test("disorders") {
-    val res = stats.disorders[IO].map(_.collect().toSet).unsafeRunSync()
+    val res = stats.disorders.map(_.collect().toSet).unsafeRunSync()
     assert(res == Set(Disorder(0, 3, 1351620000000L, "2012-10-31T05:00", "2012-10-28T05:00", 259200000L, 0)))
 
-    assert(emptyStats.disorders[IO].map(_.count()).unsafeRunSync() == 0)
+    assert(emptyStats.disorders.map(_.count()).unsafeRunSync() == 0)
   }
 
   test("missingOffsets") {
-    val res = stats.lostOffsets[IO].map(_.collect().toSet).unsafeRunSync()
+    val res = stats.lostOffsets.map(_.collect().toSet).unsafeRunSync()
     assert(res == Set(MissingOffset(0, 1)))
-    assert(emptyStats.lostOffsets[IO].map(_.count()).unsafeRunSync() == 0)
+    assert(emptyStats.lostOffsets.map(_.count()).unsafeRunSync() == 0)
   }
 
   test("max/min") {
-    assert(stats.minPartitionOffset[IO].unsafeRunSync().value.map { case (tp, o) =>
+    assert(stats.minPartitionOffset.unsafeRunSync().value.map { case (tp, o) =>
       tp.partition() -> o
     } == Map(0 -> 0, 1 -> 1))
-    assert(stats.maxPartitionOffset[IO].unsafeRunSync().value.map { case (tp, o) =>
+    assert(stats.maxPartitionOffset.unsafeRunSync().value.map { case (tp, o) =>
       tp.partition() -> o
     } == Map(0 -> 7, 1 -> 3))
   }
 
   test("emptyStats max/min") {
-    assert(emptyStats.minPartitionOffset[IO]("min").unsafeRunSync().value == Map.empty)
-    assert(emptyStats.maxPartitionOffset[IO]("max").unsafeRunSync().value == Map.empty)
+    assert(emptyStats.minPartitionOffset("min").unsafeRunSync().value == Map.empty)
+    assert(emptyStats.maxPartitionOffset("max").unsafeRunSync().value == Map.empty)
   }
 }
