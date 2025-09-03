@@ -14,11 +14,14 @@ import com.github.chenharryhua.nanjin.kafka.{
   PullGenericRecord,
   TopicPartitionMap
 }
+import com.github.chenharryhua.nanjin.messages.kafka.CRMetaInfo
 import fs2.Stream
 import fs2.kafka.consumer.{KafkaConsume, KafkaTopicsV2}
 import fs2.kafka.{CommittableConsumerRecord, KafkaConsumer}
 import org.apache.avro.generic.GenericData
 import org.apache.kafka.common.TopicPartition
+
+import scala.util.{Failure, Success}
 
 private object consumerClient {
   def get_offset_range[F[_]: Monad](
@@ -42,12 +45,12 @@ private object consumerClient {
 
   def assign_range[F[_]: Monad, K, V](
     client: KafkaConsumer[F, K, V],
-    tpm: TopicPartitionMap[OffsetRange]): F[Unit] =
+    ranges: TopicPartitionMap[OffsetRange]): F[Unit] =
     NonEmptySet
-      .fromSet(tpm.value.keySet)
+      .fromSet(ranges.value.keySet)
       .traverse(tps =>
         client.assign(tps) *> tps.toNonEmptyList.traverse(tp =>
-          tpm.get(tp).traverse(or => client.seek(tp, or.from))))
+          ranges.get(tp).traverse(or => client.seek(tp, or.from))))
       .void
 
   def ranged_stream[F[_], K, V](
@@ -67,15 +70,28 @@ private object consumerClient {
   def ranged_gr_stream[F[_]](
     client: KafkaConsume[F, Array[Byte], Array[Byte]],
     ranges: TopicPartitionMap[OffsetRange],
-    pull: PullGenericRecord)(implicit F: Sync[F]): Stream[F, RangedStream[F, GenericData.Record]] =
+    pull: PullGenericRecord,
+    ignoreError: Boolean)(implicit F: Sync[F]): Stream[F, RangedStream[F, GenericData.Record]] =
     client.partitionsMapStream.map { pms =>
       val streams: Map[PartitionRange, Stream[F, GenericData.Record]] =
         pms.toList.mapFilter { case (tp, stream) =>
           ranges.get(tp).map { offsetRange =>
-            PartitionRange(tp, offsetRange) ->
-              stream.takeWhile(_.record.offset < offsetRange.to, takeFailure = true).evalMapChunk { ccr =>
-                F.fromTry(pull.toGenericRecord(ccr.record))
+            val sgr: Stream[F, GenericData.Record] =
+              if (ignoreError) {
+                stream.takeWhile(_.record.offset < offsetRange.to, takeFailure = true).mapChunks {
+                  _.mapFilter(ccr => pull.toGenericRecord(ccr.record).toOption)
+                }
+              } else {
+                stream.takeWhile(_.record.offset < offsetRange.to, takeFailure = true).evalMapChunk { ccr =>
+                  pull.toGenericRecord(ccr.record) match {
+                    case Success(value)     => F.pure(value)
+                    case Failure(exception) =>
+                      F.raiseError[GenericData.Record](PullDecodeException(CRMetaInfo(ccr.record), exception))
+                  }
+                }
               }
+
+            PartitionRange(tp, offsetRange) -> sgr
           }
         }.toMap
       RangedStream(client.stopConsuming, streams)

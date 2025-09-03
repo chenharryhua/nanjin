@@ -132,19 +132,7 @@ final class ConsumeByteKafka[F[_]] private[kafka] (
    * range
    */
 
-  def range(dateRange: DateTimeRange)(implicit
-    F: Async[F]): Stream[F, RangedStream[F, CommittableConsumerRecord[F, Array[Byte], Array[Byte]]]] =
-    KafkaConsumer
-      .stream(consumerSettings.withEnableAutoCommit(false))
-      .evalMap { kc =>
-        for {
-          tpm <- consumerClient.get_offset_range(kc, topicName, dateRange).map(_.flatten)
-          _ <- consumerClient.assign_range(kc, tpm)
-        } yield (kc, tpm)
-      }
-      .flatMap { case (kc, tpm) => consumerClient.ranged_stream(kc, tpm) }
-
-  def rangeGenericRecord(dateRange: DateTimeRange)(implicit
+  def range(dateRange: DateTimeRange, ignoreError: Boolean)(implicit
     F: Async[F]): Stream[F, RangedStream[F, GenericData.Record]] =
     Stream.eval(getSchema).flatMap { skm =>
       val pull = new PullGenericRecord(srs, topicName, skm)
@@ -156,7 +144,7 @@ final class ConsumeByteKafka[F[_]] private[kafka] (
             _ <- consumerClient.assign_range(kc, tpm)
           } yield (kc, tpm)
         }
-        .flatMap { case (kc, tpm) => consumerClient.ranged_gr_stream(kc, tpm, pull) }
+        .flatMap { case (kc, tpm) => consumerClient.ranged_gr_stream(kc, tpm, pull, ignoreError) }
     }
 }
 
