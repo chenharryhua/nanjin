@@ -55,13 +55,14 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
     topicName: TopicName,
     folder: Url,
     dateRange: DateTimeRange,
-    compression: JacksonCompression)(config: Endo[ConsumerSettings[F, Array[Byte], Array[Byte]]])(implicit
+    compression: JacksonCompression,
+    ignoreError: Boolean)(config: Endo[ConsumerSettings[F, Array[Byte], Array[Byte]]])(implicit
     F: Async[F]): F[Long] = {
     val file = JacksonFile(compression)
     kafkaContext
       .consume(topicName)
       .updateConfig(config)
-      .rangeGenericRecord(dateRange)
+      .range(dateRange, ignoreError)
       .flatMap { case RangedStream(stopConsuming, streams) =>
         streams.toList.map { case (pr, ss) =>
           val destination: Url = folder / s"${pr.toString}.${file.fileName}"
@@ -77,11 +78,13 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
     topicName: TopicNameL,
     folder: Url,
     dateRange: DateTimeRange = DateTimeRange(sparkZoneId(sparkSession)))(implicit F: Async[F]): F[Long] =
-    dumpJackson(TopicName(topicName), folder, dateRange, JacksonCompression.Uncompressed)(
-      _.withPollInterval(0.second)
-        .withEnableAutoCommit(false)
-        .withIsolationLevel(IsolationLevel.ReadCommitted)
-        .withMaxPollRecords(3000)
+    dumpJackson(
+      topicName = TopicName(topicName),
+      folder = folder,
+      dateRange = dateRange,
+      compression = JacksonCompression.Uncompressed,
+      ignoreError = false)(
+      _.withPollInterval(0.second).withIsolationLevel(IsolationLevel.ReadCommitted).withMaxPollRecords(3000)
     )
 
   def dumpCirce[K: JsonEncoder, V: JsonEncoder](
@@ -112,10 +115,7 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
     folder: Url,
     dateRange: DateTimeRange = DateTimeRange(sparkZoneId(sparkSession)))(implicit F: Async[F]): F[Long] =
     dumpCirce[K, V](topicDef, folder, dateRange, CirceCompression.Uncompressed)(
-      _.withPollInterval(0.second)
-        .withEnableAutoCommit(false)
-        .withIsolationLevel(IsolationLevel.ReadCommitted)
-        .withMaxPollRecords(3000)
+      _.withPollInterval(0.second).withIsolationLevel(IsolationLevel.ReadCommitted).withMaxPollRecords(3000)
     )
 
   /** upload data from given folder to a kafka topic. files read in parallel
