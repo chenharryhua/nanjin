@@ -10,8 +10,10 @@ import com.github.chenharryhua.nanjin.datetime.DateTimeRange
 import com.github.chenharryhua.nanjin.kafka.{
   orderTopicPartition,
   AvroSchemaPair,
+  OffsetRange,
   PullGenericRecord,
-  SchemaRegistrySettings
+  SchemaRegistrySettings,
+  TopicPartitionMap
 }
 import fs2.Stream
 import fs2.kafka.{CommittableConsumerRecord, ConsumerSettings, KafkaConsumer}
@@ -132,7 +134,10 @@ final class ConsumeByteKafka[F[_]] private[kafka] (
    * range
    */
 
-  def range(dateRange: DateTimeRange, ignoreError: Boolean)(implicit
+  def offsetRange(dateTimeRange: DateTimeRange)(implicit F: Async[F]): F[TopicPartitionMap[OffsetRange]] =
+    clientR.use(kc => consumerClient.get_offset_range(kc, topicName, dateTimeRange))
+
+  def range(dateTimeRange: DateTimeRange, ignoreError: Boolean)(implicit
     F: Async[F]): Stream[F, RangedStream[F, GenericData.Record]] =
     Stream.eval(getSchema).flatMap { skm =>
       val pull = new PullGenericRecord(srs, topicName, skm)
@@ -140,7 +145,7 @@ final class ConsumeByteKafka[F[_]] private[kafka] (
         .stream(consumerSettings.withEnableAutoCommit(false))
         .evalMap { kc =>
           for {
-            tpm <- consumerClient.get_offset_range(kc, topicName, dateRange).map(_.flatten)
+            tpm <- consumerClient.get_offset_range(kc, topicName, dateTimeRange)
             _ <- consumerClient.assign_range(kc, tpm)
           } yield (kc, tpm)
         }
@@ -205,13 +210,16 @@ final class ConsumeKafka[F[_], K, V] private[kafka] (
    * range
    */
 
-  def range(dateRange: DateTimeRange)(implicit
+  def offsetRange(dateTimeRange: DateTimeRange)(implicit F: Async[F]): F[TopicPartitionMap[OffsetRange]] =
+    clientR.use(kc => consumerClient.get_offset_range(kc, topicName, dateTimeRange))
+
+  def range(dateTimeRange: DateTimeRange)(implicit
     F: Async[F]): Stream[F, RangedStream[F, CommittableConsumerRecord[F, K, V]]] =
     KafkaConsumer
       .stream(consumerSettings.withEnableAutoCommit(false))
       .evalMap { kc =>
         for {
-          tpm <- consumerClient.get_offset_range(kc, topicName, dateRange).map(_.flatten)
+          tpm <- consumerClient.get_offset_range(kc, topicName, dateTimeRange)
           _ <- consumerClient.assign_range(kc, tpm)
         } yield (kc, tpm)
       }

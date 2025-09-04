@@ -7,7 +7,6 @@ import cats.implicits.*
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.DateTimeRange
 import com.github.chenharryhua.nanjin.kafka.{
-  calculate,
   Offset,
   OffsetRange,
   PartitionRange,
@@ -27,21 +26,34 @@ private object consumerClient {
   def get_offset_range[F[_]: Monad](
     client: KafkaTopicsV2[F],
     topicName: TopicName,
-    dtr: DateTimeRange): F[TopicPartitionMap[Option[OffsetRange]]] =
-    for {
-      partitions <- client.partitionsFor(topicName.value)
-      tps = partitions.map(pi => new TopicPartition(pi.topic(), pi.partition()))
-      from <- dtr.startTimestamp.fold(
-        client.beginningOffsets(tps.toSet).map(TopicPartitionMap(_).mapValues(o => Offset(o).some))) { ts =>
+    dtr: DateTimeRange): F[TopicPartitionMap[OffsetRange]] =
+    client.partitionsFor(topicName.value).flatMap { pis =>
+      val tps = pis.map(pi => new TopicPartition(pi.topic(), pi.partition()))
+
+      val start_offsets: F[TopicPartitionMap[Long]] = {
+        val start_time = dtr.startTimestamp.map(_.milliseconds).getOrElse(0L)
         client
-          .offsetsForTimes(tps.map(tp => tp -> ts.milliseconds).toMap)
-          .map(TopicPartitionMap(_).mapValues(_.map(o => Offset(o.offset()))))
+          .offsetsForTimes(tps.map(_ -> start_time).toMap)
+          .map(TopicPartitionMap(_).flatten.mapValues(_.offset()))
       }
-      end <- client.endOffsets(tps.toSet).map(TopicPartitionMap(_).mapValues(o => Offset(o).some))
-      to <- dtr.endTimestamp
-        .traverse(ts => client.offsetsForTimes(tps.map(tp => tp -> ts.milliseconds).toMap))
-        .map(_.map(TopicPartitionMap(_).mapValues(_.map(o => Offset(o.offset())))))
-    } yield calculate.consumer_offsetRange(from, end, to)
+
+      val end_offsets: F[TopicPartitionMap[Long]] =
+        client.endOffsets(tps.toSet).map(TopicPartitionMap(_)).flatMap { topic_end =>
+          dtr.endTimestamp.map(_.milliseconds) match {
+            case Some(end_time) =>
+              client.offsetsForTimes(tps.map(_ -> end_time).toMap).map {
+                TopicPartitionMap(_).intersectCombine(topic_end) {
+                  _.map(_.offset()).getOrElse(_)
+                }
+              }
+            case _ => Monad[F].pure(topic_end)
+          }
+        }
+
+      (start_offsets, end_offsets).mapN {
+        _.intersectCombine(_)((s, e) => OffsetRange(Offset(s), Offset(e))).flatten
+      }
+    }
 
   def assign_range[F[_]: Monad, K, V](
     client: KafkaConsumer[F, K, V],
