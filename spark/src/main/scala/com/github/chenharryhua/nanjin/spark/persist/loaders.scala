@@ -27,6 +27,8 @@ import scalapb.{GeneratedMessage, GeneratedMessageCompanion}
 
 import java.io.InputStream
 import scala.reflect.ClassTag
+final case class RDDReadException(pathStr: String, cause: Throwable)
+    extends Exception(s"read $pathStr fail", cause)
 
 private[spark] object loaders {
 
@@ -94,7 +96,7 @@ private[spark] object loaders {
           if (str.isEmpty) None
           else
             decode[A](str) match {
-              case Left(value)  => throw new Exception(str, value)
+              case Left(ex)     => throw RDDReadException(path.toString(), ex)
               case Right(value) => Some(value)
             }
         })
@@ -140,7 +142,7 @@ private[spark] object loaders {
             try
               Some(decoder.decode(datumReader.read(null, jsonDecoder)))
             catch {
-              case ex: Throwable => throw new Exception(str, ex)
+              case ex: Throwable => throw RDDReadException(path.toString(), ex)
             }
           }
         }
@@ -156,7 +158,8 @@ private[spark] object loaders {
         case None     => pds.open()
       }
 
-    private class ClosableIterator[A](is: InputStream, itor: Iterator[A]) extends Iterator[A] {
+    private class ClosableIterator[A](is: InputStream, itor: Iterator[A], pathStr: String)
+        extends Iterator[A] {
       override def hasNext: Boolean =
         if (itor.hasNext) true
         else {
@@ -168,7 +171,7 @@ private[spark] object loaders {
         catch {
           case ex: Throwable =>
             is.close()
-            throw ex
+            throw RDDReadException(pathStr, ex)
         }
     }
 
@@ -179,7 +182,7 @@ private[spark] object loaders {
         .mapPartitions(_.flatMap { case (_, pds) =>
           val is: InputStream = decompressedInputStream(pds)
           val itor: Iterator[A] = decoder.streamFromDelimitedInput(is).iterator
-          new ClosableIterator[A](is, itor)
+          new ClosableIterator[A](is, itor, pds.getPath())
         })
 
     def binAvro[A: ClassTag](path: Url, ss: SparkSession, decoder: AvroDecoder[A]): RDD[A] =
@@ -189,7 +192,7 @@ private[spark] object loaders {
           _.flatMap { case (_, pds) =>
             val is: InputStream = decompressedInputStream(pds)
             val itor: Iterator[A] = AvroInputStream.binary[A](decoder).from(is).build(decoder.schema).iterator
-            new ClosableIterator[A](is, itor)
+            new ClosableIterator[A](is, itor, pds.getPath())
           }
         )
 
@@ -200,10 +203,10 @@ private[spark] object loaders {
         .mapPartitions(_.flatMap { case (_, pds) =>
           val is: InputStream = decompressedInputStream(pds)
           val itor: Iterator[A] = is.asCsvReader[A](cfg).iterator.map {
-            case Left(ex)     => throw ex
+            case Left(ex)     => throw RDDReadException(pds.getPath(), ex)
             case Right(value) => value
           }
-          new ClosableIterator[A](is, itor)
+          new ClosableIterator[A](is, itor, pds.getPath())
         })
   }
 }
