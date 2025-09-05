@@ -7,7 +7,6 @@ import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameL}
 import com.github.chenharryhua.nanjin.datetime.DateTimeRange
 import com.github.chenharryhua.nanjin.kafka.*
-import com.github.chenharryhua.nanjin.kafka.connector.RangedStream
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroCodec, AvroCodecOf}
 import com.github.chenharryhua.nanjin.messages.kafka.{CRMetaInfo, NJConsumerRecord}
 import com.github.chenharryhua.nanjin.spark.kafka.{SparKafkaTopic, Statistics}
@@ -62,12 +61,15 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
     kafkaContext
       .consume(topicName)
       .updateConfig(config)
-      .range(dateRange, ignoreError)
-      .flatMap { case RangedStream(stopConsuming, streams) =>
-        streams.toList.map { case (pr, ss) =>
-          val destination: Url = folder / s"${pr.toString}.${file.fileName}"
-          ss.through(hadoop.sink(destination).jackson)
-        }.parJoinUnbounded.onFinalize(stopConsuming)
+      .range(dateRange)
+      .flatMap { rs =>
+        rs.partitionsMapStream.toList.map { case (pr, ss) =>
+          val sink = hadoop.sink(folder / s"${pr.toString}.${file.fileName}").jackson
+          if (ignoreError)
+            ss.mapChunks(_.map(_.record.value.toOption)).unNone.through(sink)
+          else
+            ss.evalMapChunk(ccr => F.fromTry(ccr.record.value)).through(sink)
+        }.parJoinUnbounded.onFinalize(rs.stopConsuming)
       }
       .timeoutOnPull(timeout)
       .compile
@@ -97,12 +99,11 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
       .consume(topicDef)
       .updateConfig(config)
       .range(dateRange)
-      .flatMap { case RangedStream(stopConsuming, streams) =>
-        streams.toList.map { case (pr, ss) =>
-          val destination: Url = folder / s"${pr.toString}.${file.fileName}"
-          ss.mapChunks(_.map(cr => NJConsumerRecord(cr.record).asJson))
-            .through(hadoop.sink(destination).circe)
-        }.parJoinUnbounded.onFinalize(stopConsuming)
+      .flatMap { rs =>
+        rs.partitionsMapStream.toList.map { case (pr, ss) =>
+          val sink = hadoop.sink(folder / s"${pr.toString}.${file.fileName}").circe
+          ss.mapChunks(_.map(cr => NJConsumerRecord(cr.record).asJson)).through(sink)
+        }.parJoinUnbounded.onFinalize(rs.stopConsuming)
       }
       .timeoutOnPull(timeout)
       .compile

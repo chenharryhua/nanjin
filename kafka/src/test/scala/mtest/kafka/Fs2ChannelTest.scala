@@ -64,7 +64,7 @@ object Fs2ChannelTestData {
 
 class Fs2ChannelTest extends AnyFunSuite {
   import Fs2ChannelTestData.*
-  test("should be able to consume avro topic") {
+  test("1.should be able to consume avro topic") {
 
     val ret =
       ctx.schemaRegistry.register(topicDef).attempt >>
@@ -81,7 +81,7 @@ class Fs2ChannelTest extends AnyFunSuite {
     assert(ret.unsafeRunSync().size == 1)
   }
 
-  test("record format") {
+  test("2.record format") {
     val ret =
       ctx
         .consume(topicDef)
@@ -96,7 +96,7 @@ class Fs2ChannelTest extends AnyFunSuite {
     assert(ret.size == 1)
   }
 
-  test("serde") {
+  test("3.serde") {
     val serde = ctx.serde(topicDef)
     ctx
       .consume(topicDef.topicName)
@@ -122,7 +122,7 @@ class Fs2ChannelTest extends AnyFunSuite {
       .unsafeRunSync()
   }
 
-  test("produce") {
+  test("4.produce") {
     val jackson =
       """
       {
@@ -151,7 +151,7 @@ class Fs2ChannelTest extends AnyFunSuite {
     ctx.publishJackson(jackson).flatMap(IO.println).unsafeRunSync()
   }
 
-  test("consumer config") {
+  test("5.consumer config") {
     val consumer = ctx
       .consume(topicDef)
       .updateConfig(
@@ -168,7 +168,7 @@ class Fs2ChannelTest extends AnyFunSuite {
     assert(consumer.get(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG).contains("earliest"))
   }
 
-  test("byte consumer config") {
+  test("6.byte consumer config") {
     val consumer = ctx
       .consume("bytes")
       .updateConfig(
@@ -185,7 +185,7 @@ class Fs2ChannelTest extends AnyFunSuite {
     assert(consumer.get(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG).contains("earliest"))
   }
 
-  test("producer setting") {
+  test("7.producer setting") {
     val producer =
       ctx
         .produce(topicDef.codecPair)
@@ -200,7 +200,7 @@ class Fs2ChannelTest extends AnyFunSuite {
     assert(producer.get(ProducerConfig.ACKS_CONFIG).contains("0"))
   }
 
-  test("transactional producer setting") {
+  test("8.transactional producer setting") {
     val producer = ctx
       .produce(topicDef.codecPair)
       .updateConfig(
@@ -215,29 +215,56 @@ class Fs2ChannelTest extends AnyFunSuite {
     assert(producer.get(ProducerConfig.ACKS_CONFIG).contains("0"))
   }
 
-  test("generic record from") {
-    ctx
+  test("9.generic record range - should stop") {
+    val res = ctx
       .consume("telecom_italia_data")
       .updateConfig(_.withMaxPollRecords(10))
-      .genericRecords(1, 10)
-      .take(50)
-      .debug()
-      .foreach(ccr => IO(assert(ccr.record.partition == 1)).void)
+      .range(Map(0 -> (0L, 5L)))
+      .flatMap(_.stream.map(_.record.value).debug())
       .compile
       .drain
-      .unsafeRunSync()
+      .as(true)
+
+    assert(res.unsafeRunSync())
   }
 
-  test("assign") {
-    ctx
-      .consume(topicDef)
-      .updateConfig(_.withMaxPollRecords(5).withAutoOffsetReset(AutoOffsetReset.Earliest))
-      .assign(List(0))
-      .take(1)
+  test("10.generic record manualCommitStream") {
+    val res = ctx
+      .consume("telecom_italia_data")
+      .updateConfig(_.withMaxPollRecords(10))
+      .manualCommitStream
+      .flatMap(_.stream.map(_.record.value))
+      .take(5)
       .debug()
-      .foreach(ccr => IO(assert(ccr.record.partition == 0)).void)
       .compile
       .drain
-      .unsafeRunSync()
+      .as(true)
+    assert(res.unsafeRunSync())
+  }
+
+  test("11.range - should stop") {
+    val res = ctx
+      .consume(topicDef)
+      .updateConfig(_.withMaxPollRecords(10))
+      .range(Map(0 -> (0L, 1L)))
+      .flatMap(_.stream.map(_.record.value).debug())
+      .compile
+      .drain
+      .as(true)
+    assert(res.unsafeRunSync())
+  }
+
+  test("12.manualCommitStream") {
+    val res = ctx
+      .consume(topicDef)
+      .updateConfig(_.withMaxPollRecords(10))
+      .manualCommitStream
+      .flatMap(_.stream.map(_.record.value))
+      .take(1)
+      .debug()
+      .compile
+      .drain
+      .as(true)
+    assert(res.unsafeRunSync())
   }
 }
