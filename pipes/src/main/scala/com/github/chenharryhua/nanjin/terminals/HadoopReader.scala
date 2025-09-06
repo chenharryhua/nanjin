@@ -15,11 +15,9 @@ import org.apache.avro.file.DataFileStream
 import org.apache.avro.generic.{GenericData, GenericDatumReader}
 import org.apache.avro.io.{Decoder, DecoderFactory}
 import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.fs.Path
+import org.apache.hadoop.fs.{FSDataInputStream, FileSystem, Path}
 import org.apache.hadoop.io.compress.{CodecPool, CompressionCodecFactory, Decompressor}
 import org.apache.parquet.hadoop.ParquetReader
-import org.apache.parquet.hadoop.util.HadoopInputFile
-import org.apache.parquet.io.SeekableInputStream
 import org.typelevel.jawn.AsyncParser
 import scalapb.{GeneratedMessage, GeneratedMessageCompanion}
 import squants.information.Information
@@ -31,15 +29,6 @@ import scala.annotation.tailrec
 import scala.jdk.CollectionConverters.IteratorHasAsScala
 
 private object HadoopReader {
-
-  def avroS[F[_]](configuration: Configuration, path: Path, chunkSize: ChunkSize)(implicit
-    F: Sync[F]): Stream[F, GenericData.Record] =
-    Stream
-      .bracket(F.blocking {
-        val is = HadoopInputFile.fromPath(path, configuration).newStream()
-        new DataFileStream[GenericData.Record](is, new GenericDatumReader())
-      })(r => F.blocking(r.close()))
-      .flatMap(dfs => Stream.fromBlockingIterator[F](dfs.iterator().asScala, chunkSize.value))
 
   def parquetS[F[_]](
     readBuilder: Reader[Path, ParquetReader.Builder[GenericData.Record]],
@@ -69,13 +58,17 @@ private object HadoopReader {
         Stream.unfoldChunkLoopEval[F, Unit, GenericData.Record](())(_ => F.blocking(go()))
       }
 
+  /*
+   * input stream based
+   */
+
   private def fileInputStream(path: Path, configuration: Configuration): InputStream = {
-    val sis: SeekableInputStream = HadoopInputFile.fromPath(path, configuration).newStream()
+    val data_is: FSDataInputStream = FileSystem.get(path.toUri, configuration).open(path)
     Option(new CompressionCodecFactory(configuration).getCodec(path)) match {
       case Some(cc) =>
         val decompressor: Decompressor = CodecPool.getDecompressor(cc)
-        cc.createInputStream(sis, decompressor)
-      case None => sis
+        cc.createInputStream(data_is, decompressor)
+      case None => data_is
     }
   }
 
@@ -85,6 +78,12 @@ private object HadoopReader {
 
   private def inputStreamS[F[_]](configuration: Configuration, path: Path)(implicit
     F: Sync[F]): Stream[F, InputStream] = Stream.resource(inputStreamR(configuration, path))
+
+  def avroS[F[_]](configuration: Configuration, path: Path, chunkSize: ChunkSize)(implicit
+    F: Sync[F]): Stream[F, GenericData.Record] =
+    inputStreamS[F](configuration, path)
+      .map(new DataFileStream[GenericData.Record](_, new GenericDatumReader()))
+      .flatMap(dfs => Stream.fromBlockingIterator[F](dfs.iterator().asScala, chunkSize.value))
 
   // respect chunk size
   def byteS[F[_]](configuration: Configuration, path: Path, bs: Information)(implicit
@@ -159,6 +158,10 @@ private object HadoopReader {
       })(r => F.blocking(r.close()))
       .flatMap(reader => Stream.fromBlockingIterator[F](reader.iterator, chunkSize.value).rethrow)
 
+  /*
+   * generic record
+   */
+
   private def genericRecordReaderS[F[_]](
     getDecoder: InputStream => Decoder,
     configuration: Configuration,
@@ -205,6 +208,10 @@ private object HadoopReader {
       schema = schema,
       path = path,
       chunkSize = chunkSize)
+
+  /*
+   * protobuf
+   */
 
   def protobufS[F[_]: Sync, A <: GeneratedMessage](
     configuration: Configuration,
