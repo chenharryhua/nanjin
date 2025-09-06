@@ -61,7 +61,7 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
     kafkaContext
       .consume(topicName)
       .updateConfig(config)
-      .range(dateRange)
+      .circumscribedStream(dateRange)
       .flatMap { rs =>
         rs.partitionsMapStream.toList.map { case (pr, ss) =>
           val sink = hadoop.sink(folder / s"${pr.toString}.${file.fileName}").jackson
@@ -98,7 +98,7 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
     kafkaContext
       .consume(topicDef)
       .updateConfig(config)
-      .range(dateRange)
+      .circumscribedStream(dateRange)
       .flatMap { rs =>
         rs.partitionsMapStream.toList.map { case (pr, ss) =>
           val sink = hadoop.sink(folder / s"${pr.toString}.${file.fileName}").circe
