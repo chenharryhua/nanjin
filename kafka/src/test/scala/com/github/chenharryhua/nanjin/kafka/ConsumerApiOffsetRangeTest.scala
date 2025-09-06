@@ -171,6 +171,14 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
 
   }
 
+  test("same range") {
+    val r = DateTimeRange(darwinTime)
+    val res = client.circumscribedStream(r).map(_.offsets).take(1).compile.lastOrError.unsafeRunSync()
+    val r2 = Map(0 -> (-1000L, 1000000000L), 100 -> (0L, 9999L))
+    val res2 = client.circumscribedStream(r2).map(_.offsets).take(1).compile.lastOrError.unsafeRunSync()
+    assert(res == res2)
+  }
+
   test("time range is infinite") {
     val expect: TopicPartitionMap[Option[OffsetRange]] =
       TopicPartitionMap(

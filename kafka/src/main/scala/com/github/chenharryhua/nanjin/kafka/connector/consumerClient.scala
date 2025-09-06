@@ -59,16 +59,23 @@ private object consumerClient {
     pos: Map[Int, (Long, Long)]): F[TopicPartitionMap[OffsetRange]] =
     for {
       pis <- client.partitionsFor(topicName.value)
-      topic_ends <- client
-        .endOffsets(pis.map(pi => new TopicPartition(pi.topic(), pi.partition())).toSet)
-        .map(TopicPartitionMap(_))
+      tps = pis.map(pi => new TopicPartition(pi.topic(), pi.partition())).toSet
+      topic_begin <- client.beginningOffsets(tps).map(TopicPartitionMap(_))
+      topic_end <- client.endOffsets(tps).map(TopicPartitionMap(_))
     } yield {
-      val tps = pos.map { case (partition, (from, to)) =>
-        new TopicPartition(topicName.value, partition) -> OffsetRange(Offset(from), Offset(to))
-      }
-      topic_ends
-        .intersectCombine(TopicPartitionMap(tps).flatten) { (e, r) =>
-          if (r.until < e) Some(r) else OffsetRange(Offset(r.from), Offset(e))
+      val origin: TopicPartitionMap[OffsetRange] =
+        TopicPartitionMap(pos.map { case (partition, (from, until)) =>
+          new TopicPartition(topicName.value, partition) -> OffsetRange(Offset(from), Offset(until))
+        }).flatten
+
+      val topic_range: TopicPartitionMap[OffsetRange] =
+        topic_begin.intersectCombine(topic_end)((s, e) => OffsetRange(Offset(s), Offset(e))).flatten
+
+      topic_range
+        .intersectCombine(origin) { (tr, o) =>
+          val start = Math.max(tr.from, o.from)
+          val end = Math.min(tr.until, o.until)
+          OffsetRange(Offset(start), Offset(end))
         }
         .flatten
     }
