@@ -27,8 +27,7 @@ trait KleisliLike[F[_], A] {
 trait Metrics[F[_]] {
   def metricLabel: MetricLabel
 
-  def counter(name: String, f: Endo[Counter.Builder]): Resource[F, Counter[F]]
-  final def counter(name: String): Resource[F, Counter[F]] = counter(name, identity)
+  def counter(name: String, f: Endo[Counter.Builder] = identity): Resource[F, Counter[F]]
 
   def meter[A <: Quantity[A]](unitOfMeasure: UnitOfMeasure[A])(
     name: String,
@@ -38,29 +37,20 @@ trait Metrics[F[_]] {
     name: String,
     f: Endo[Histogram.Builder[A]] = identity[Histogram.Builder[A]]): Resource[F, Histogram[F, A]]
 
-  def timer(name: String, f: Endo[Timer.Builder]): Resource[F, Timer[F]]
-  final def timer(name: String): Resource[F, Timer[F]] = timer(name, identity)
+  def timer(name: String, f: Endo[Timer.Builder] = identity): Resource[F, Timer[F]]
 
   // gauges
-  def gauge(name: String, f: Endo[Gauge.Builder]): Gauge[F]
-  final def gauge(name: String): Gauge[F] = gauge(name, identity)
+  def gauge(name: String, f: Endo[Gauge.Builder] = identity): Gauge[F]
 
-  def percentile(name: String, f: Endo[Percentile.Builder]): Resource[F, Percentile[F]]
-  final def percentile(name: String): Resource[F, Percentile[F]] = percentile(name, identity)
+  def percentile(name: String, f: Endo[Percentile.Builder] = identity): Resource[F, Percentile[F]]
 
-  def healthCheck(name: String, f: Endo[HealthCheck.Builder]): HealthCheck[F]
-  final def healthCheck(name: String): HealthCheck[F] = healthCheck(name, identity)
+  def healthCheck(name: String, f: Endo[HealthCheck.Builder] = identity): HealthCheck[F]
 
-  def idleGauge(name: String, f: Endo[Gauge.Builder]): Resource[F, IdleGauge[F]]
-  final def idleGauge(name: String): Resource[F, IdleGauge[F]] =
-    idleGauge(name, identity[Gauge.Builder])
+  def idleGauge(name: String, f: Endo[Gauge.Builder] = identity): Resource[F, IdleGauge[F]]
 
-  def activeGauge(name: String, f: Endo[Gauge.Builder]): Resource[F, ActiveGauge[F]]
-  final def activeGauge(name: String): Resource[F, ActiveGauge[F]] = activeGauge(name, identity)
+  def activeGauge(name: String, f: Endo[Gauge.Builder] = identity): Resource[F, ActiveGauge[F]]
 
-  def permanentCounter(name: String, f: Endo[Gauge.Builder]): Resource[F, Counter[F]]
-  final def permanentCounter(name: String): Resource[F, Counter[F]] =
-    permanentCounter(name, identity)
+  def permanentCounter(name: String, f: Endo[Gauge.Builder] = identity): Resource[F, Counter[F]]
 
   def txnGauge[A: Encoder](stm: STM[F], initial: A)(name: String): Resource[F, stm.TVar[A]]
 }

@@ -10,8 +10,6 @@ import com.github.chenharryhua.nanjin.datetime.DateTimeRange
 import com.github.chenharryhua.nanjin.kafka.{
   orderTopicPartition,
   AvroSchemaPair,
-  Offset,
-  OffsetRange,
   PullGenericRecord,
   SchemaRegistrySettings,
   TopicPartitionMap
@@ -126,39 +124,33 @@ final class ConsumeByteKafka[F[_]] private[kafka] (
     }
 
   /*
-   * range
+   * Circumscribed Stream
    */
 
-  def range(dateTimeRange: DateTimeRange)(implicit
-    F: Async[F]): Stream[F, RangedStream[F, Unit, Try[GenericData.Record]]] =
-    Stream.eval(getSchema).flatMap { skm =>
-      val pull = new PullGenericRecord(srs, topicName, skm)
-      KafkaConsumer
-        .stream(consumerSettings.withEnableAutoCommit(false))
-        .evalMap { kc =>
+  private def circumscribed(or: Either[DateTimeRange, Map[Int, (Long, Long)]])(implicit
+    F: Async[F]): Stream[F, CircumscribedStream[F, Unit, Try[GenericData.Record]]] =
+    for {
+      kc <- KafkaConsumer.stream(consumerSettings.withEnableAutoCommit(false))
+      ranges <- Stream.eval(consumerClient.get_offset_range(kc, topicName, or))
+      stream <-
+        if (ranges.isEmpty) Stream.empty
+        else {
           for {
-            tpm <- consumerClient.get_offset_range(kc, topicName, dateTimeRange)
-            _ <- consumerClient.assign_range(kc, tpm)
-          } yield (kc, tpm)
+            _ <- Stream.eval(consumerClient.assign_offset_range(kc, ranges))
+            schema <- Stream.eval(getSchema)
+            pull = new PullGenericRecord(srs, topicName, schema)
+            s <- consumerClient.circumscribed_generic_record_stream(kc, ranges, pull)
+          } yield s
         }
-        .flatMap { case (kc, tpm) => consumerClient.ranged_gr_stream(kc, tpm, pull) }
-    }
+    } yield stream
 
-  def range(pos: Map[Int, (Long, Long)])(implicit
-    F: Async[F]): Stream[F, RangedStream[F, Unit, Try[GenericData.Record]]] = {
-    val mor: Map[TopicPartition, Option[OffsetRange]] =
-      pos.map { case (partition, (start, end)) =>
-        new TopicPartition(topicName.value, partition) -> OffsetRange(Offset(start), Offset(end))
-      }
-    val tps = TopicPartitionMap(mor).flatten
-    Stream.eval(getSchema).flatMap { skm =>
-      val pull = new PullGenericRecord(srs, topicName, skm)
-      KafkaConsumer
-        .stream(consumerSettings.withEnableAutoCommit(false))
-        .evalMap(kc => consumerClient.assign_range(kc, tps).as((kc, tps)))
-        .flatMap { case (kc, tpm) => consumerClient.ranged_gr_stream(kc, tpm, pull) }
-    }
-  }
+  def circumscribedStream(dateTimeRange: DateTimeRange)(implicit
+    F: Async[F]): Stream[F, CircumscribedStream[F, Unit, Try[GenericData.Record]]] =
+    circumscribed(Left(dateTimeRange))
+
+  def circumscribedStream(pos: Map[Int, (Long, Long)])(implicit
+    F: Async[F]): Stream[F, CircumscribedStream[F, Unit, Try[GenericData.Record]]] =
+    circumscribed(Right(pos))
 }
 
 final class ConsumeKafka[F[_], K, V] private[kafka] (
@@ -213,29 +205,27 @@ final class ConsumeKafka[F[_], K, V] private[kafka] (
         })
 
   /*
-   * range
+   * Circumscribed Stream
    */
 
-  def range(dateTimeRange: DateTimeRange)(implicit F: Async[F]): Stream[F, RangedStream[F, K, V]] =
-    KafkaConsumer
-      .stream(consumerSettings.withEnableAutoCommit(false))
-      .evalMap { kc =>
-        for {
-          tpm <- consumerClient.get_offset_range(kc, topicName, dateTimeRange)
-          _ <- consumerClient.assign_range(kc, tpm)
-        } yield (kc, tpm)
-      }
-      .flatMap { case (kc, tpm) => consumerClient.ranged_stream(kc, tpm) }
+  private def circumscribed(or: Either[DateTimeRange, Map[Int, (Long, Long)]])(implicit
+    F: Async[F]): Stream[F, CircumscribedStream[F, K, V]] =
+    for {
+      kc <- KafkaConsumer.stream(consumerSettings.withEnableAutoCommit(false))
+      ranges <- Stream.eval(consumerClient.get_offset_range(kc, topicName, or))
+      stream <-
+        if (ranges.isEmpty) Stream.empty
+        else {
+          Stream.eval(consumerClient.assign_offset_range(kc, ranges)) *>
+            consumerClient.circumscribed_stream(kc, ranges)
+        }
+    } yield stream
 
-  def range(pos: Map[Int, (Long, Long)])(implicit F: Async[F]): Stream[F, RangedStream[F, K, V]] = {
-    val or: Map[TopicPartition, Option[OffsetRange]] =
-      pos.map { case (partition, (start, end)) =>
-        new TopicPartition(topicName.value, partition) -> OffsetRange(Offset(start), Offset(end))
-      }
-    val tps = TopicPartitionMap(or).flatten
-    KafkaConsumer
-      .stream(consumerSettings.withEnableAutoCommit(false))
-      .evalMap(kc => consumerClient.assign_range(kc, tps).as((kc, tps)))
-      .flatMap { case (kc, tpm) => consumerClient.ranged_stream(kc, tpm) }
-  }
+  def circumscribedStream(dateTimeRange: DateTimeRange)(implicit
+    F: Async[F]): Stream[F, CircumscribedStream[F, K, V]] =
+    circumscribed(Left(dateTimeRange))
+
+  def circumscribedStream(pos: Map[Int, (Long, Long)])(implicit
+    F: Async[F]): Stream[F, CircumscribedStream[F, K, V]] =
+    circumscribed(Right(pos))
 }

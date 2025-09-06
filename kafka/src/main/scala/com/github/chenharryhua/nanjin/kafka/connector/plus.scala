@@ -8,7 +8,9 @@ import fs2.kafka.CommittableConsumerRecord
 import org.apache.kafka.clients.consumer.OffsetAndMetadata
 import org.apache.kafka.common.TopicPartition
 
-trait RangedStream[F[_], K, V] {
+/** Stream which has a boundary
+  */
+trait CircumscribedStream[F[_], K, V] {
   def stopConsuming: F[Unit]
 
   def partitionsMapStream: Map[PartitionRange, Stream[F, CommittableConsumerRecord[F, K, V]]]

@@ -219,7 +219,7 @@ class Fs2ChannelTest extends AnyFunSuite {
     val res = ctx
       .consume("telecom_italia_data")
       .updateConfig(_.withMaxPollRecords(10))
-      .range(Map(0 -> (0L, 5L)))
+      .circumscribedStream(Map(0 -> (0L, 5L)))
       .flatMap(_.stream.map(_.record.value).debug())
       .compile
       .drain
@@ -246,7 +246,7 @@ class Fs2ChannelTest extends AnyFunSuite {
     val res = ctx
       .consume(topicDef)
       .updateConfig(_.withMaxPollRecords(10))
-      .range(Map(0 -> (0L, 1L)))
+      .circumscribedStream(Map(0 -> (0L, 1L)))
       .flatMap(_.stream.map(_.record.value).debug())
       .compile
       .drain
