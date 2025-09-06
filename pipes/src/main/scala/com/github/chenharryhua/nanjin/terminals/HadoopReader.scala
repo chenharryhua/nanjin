@@ -15,7 +15,7 @@ import org.apache.avro.file.DataFileStream
 import org.apache.avro.generic.{GenericData, GenericDatumReader}
 import org.apache.avro.io.{Decoder, DecoderFactory}
 import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.fs.{FSDataInputStream, FileSystem, Path}
+import org.apache.hadoop.fs.{FSDataInputStream, Path}
 import org.apache.hadoop.io.compress.{CodecPool, CompressionCodecFactory, Decompressor}
 import org.apache.parquet.hadoop.ParquetReader
 import org.typelevel.jawn.AsyncParser
@@ -63,7 +63,7 @@ private object HadoopReader {
    */
 
   private def fileInputStream(path: Path, configuration: Configuration): InputStream = {
-    val data_is: FSDataInputStream = FileSystem.get(path.toUri, configuration).open(path)
+    val data_is: FSDataInputStream = path.getFileSystem(configuration).open(path)
     Option(new CompressionCodecFactory(configuration).getCodec(path)) match {
       case Some(cc) =>
         val decompressor: Decompressor = CodecPool.getDecompressor(cc)
@@ -74,7 +74,7 @@ private object HadoopReader {
 
   private def inputStreamR[F[_]](configuration: Configuration, path: Path)(implicit
     F: Sync[F]): Resource[F, InputStream] =
-    Resource.make(F.blocking(fileInputStream(path, configuration)))(r => F.blocking(r.close()))
+    Resource.fromAutoCloseable(F.blocking(fileInputStream(path, configuration)))
 
   private def inputStreamS[F[_]](configuration: Configuration, path: Path)(implicit
     F: Sync[F]): Stream[F, InputStream] = Stream.resource(inputStreamR(configuration, path))

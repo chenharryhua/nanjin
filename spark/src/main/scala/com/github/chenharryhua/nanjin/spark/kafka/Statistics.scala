@@ -84,6 +84,9 @@ final class Statistics[F[_]] private[spark] (val dataset: Dataset[CRMetaInfo]) e
         .toList
     }
 
+  def daily(description: String)(implicit F: Sync[F]): F[List[DailyResult]] =
+    describeJob[F](dataset.sparkSession.sparkContext, "Daily:" + description).surround(daily)
+
   def dailyHour(implicit F: Sync[F]): F[List[DailyHourResult]] =
     F.delay {
       dataset
@@ -95,6 +98,9 @@ final class Statistics[F[_]] private[spark] (val dataset: Dataset[CRMetaInfo]) e
         .toList
     }
 
+  def dailyHour(description: String)(implicit F: Sync[F]): F[List[DailyHourResult]] =
+    describeJob[F](dataset.sparkSession.sparkContext, "Daily.Hour:" + description).surround(dailyHour)
+
   def dailyMinute(implicit F: Sync[F]): F[List[DailyMinuteResult]] =
     F.delay {
       dataset
@@ -105,6 +111,9 @@ final class Statistics[F[_]] private[spark] (val dataset: Dataset[CRMetaInfo]) e
         .collect()
         .toList
     }
+
+  def dailyMinute(description: String)(implicit F: Sync[F]): F[List[DailyMinuteResult]] =
+    describeJob[F](dataset.sparkSession.sparkContext, "Daily.Minute:" + description).surround(dailyMinute)
 
   private def internalSummary(ids: Dataset[CRMetaInfo]): List[KafkaSummaryInternal] = {
     import org.apache.spark.sql.functions.*
