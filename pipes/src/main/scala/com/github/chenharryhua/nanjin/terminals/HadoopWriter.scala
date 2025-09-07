@@ -32,8 +32,8 @@ private object HadoopWriter {
         val path: Path = toHadoopPath(url)
         val dfw: DataFileWriter[GenericRecord] =
           new DataFileWriter(new GenericDatumWriter[GenericRecord](schema)).setCodec(codecFactory)
-        val data_os: FSDataOutputStream = path.getFileSystem(configuration).create(path, true)
-        dfw.create(schema, data_os)
+        val os: FSDataOutputStream = path.getFileSystem(configuration).create(path, true)
+        dfw.create(schema, os)
       })
       .map { (dfw: DataFileWriter[GenericRecord]) =>
         new HadoopWriter[F, GenericRecord] {
@@ -61,22 +61,22 @@ private object HadoopWriter {
    * output stream based
    */
 
-  private def fileOutputStream(url: Url, configuration: Configuration): OutputStream = {
+  private def fileOutputStream(configuration: Configuration, url: Url): OutputStream = {
     val path: Path = toHadoopPath(url)
-    val data_os: FSDataOutputStream = path.getFileSystem(configuration).create(path, true)
+    val os: FSDataOutputStream = path.getFileSystem(configuration).create(path, true)
     Option(new CompressionCodecFactory(configuration).getCodec(path)) match {
-      case Some(cc) => cc.createOutputStream(data_os)
-      case None     => data_os
+      case Some(cc) => cc.createOutputStream(os)
+      case None     => os
     }
   }
 
-  private def outputStreamR[F[_]](url: Url, configuration: Configuration)(implicit
+  private def outputStreamR[F[_]](configuration: Configuration, url: Url)(implicit
     F: Sync[F]): Resource[F, OutputStream] =
-    Resource.fromAutoCloseable(F.blocking(fileOutputStream(url, configuration)))
+    Resource.fromAutoCloseable(F.blocking(fileOutputStream(configuration, url)))
 
   def byteR[F[_]](configuration: Configuration, url: Url)(implicit
     F: Sync[F]): Resource[F, HadoopWriter[F, Byte]] =
-    outputStreamR(url, configuration).map(os =>
+    outputStreamR(configuration, url).map(os =>
       new HadoopWriter[F, Byte] {
         override val fileUrl: Url = url
         override def write(cb: Chunk[Byte]): F[Unit] =
@@ -86,14 +86,14 @@ private object HadoopWriter {
           }
       })
 
-  private def outputStreamWriterR[F[_]](url: Url, configuration: Configuration)(implicit
+  private def outputStreamWriterR[F[_]](configuration: Configuration, url: Url)(implicit
     F: Sync[F]): Resource[F, OutputStreamWriter] =
     Resource.fromAutoCloseable(
-      F.blocking(new OutputStreamWriter(fileOutputStream(url, configuration), StandardCharsets.UTF_8)))
+      F.blocking(new OutputStreamWriter(fileOutputStream(configuration, url), StandardCharsets.UTF_8)))
 
   def stringR[F[_]](configuration: Configuration, url: Url)(implicit
     F: Sync[F]): Resource[F, HadoopWriter[F, String]] =
-    outputStreamWriterR(url, configuration).map(writer =>
+    outputStreamWriterR(configuration, url).map(writer =>
       new HadoopWriter[F, String] {
         override val fileUrl: Url = url
         override def write(cs: Chunk[String]): F[Unit] =
@@ -108,7 +108,7 @@ private object HadoopWriter {
 
   def csvStringR[F[_]](configuration: Configuration, url: Url)(implicit
     F: Sync[F]): Resource[F, HadoopWriter[F, String]] =
-    outputStreamWriterR(url, configuration).map(writer =>
+    outputStreamWriterR(configuration, url).map(writer =>
       new HadoopWriter[F, String] {
         override val fileUrl: Url = url
         override def write(cs: Chunk[String]): F[Unit] =
@@ -122,7 +122,7 @@ private object HadoopWriter {
   def protobufR[F[_]](configuration: Configuration, url: Url)(implicit
     F: Sync[F]): Resource[F, HadoopWriter[F, GeneratedMessage]] =
 
-    outputStreamR(url, configuration).map { os =>
+    outputStreamR(configuration, url).map { os =>
       new HadoopWriter[F, GeneratedMessage] {
         override val fileUrl: Url = url
         override def write(cgm: Chunk[GeneratedMessage]): F[Unit] =
@@ -138,7 +138,7 @@ private object HadoopWriter {
     configuration: Configuration,
     schema: Schema,
     url: Url)(implicit F: Sync[F]): Resource[F, HadoopWriter[F, GenericRecord]] =
-    outputStreamR(url, configuration).map { os =>
+    outputStreamR(configuration, url).map { os =>
       val datumWriter = new GenericDatumWriter[GenericRecord](schema)
       val encoder = getEncoder(os)
       new HadoopWriter[F, GenericRecord] {

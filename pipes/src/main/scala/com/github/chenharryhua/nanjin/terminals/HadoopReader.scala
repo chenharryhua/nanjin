@@ -63,20 +63,18 @@ private object HadoopReader {
    * input stream based
    */
 
-  private def fileInputStream(url: Url, configuration: Configuration): InputStream = {
-    val path = toHadoopPath(url)
-    val data_is: FSDataInputStream = path.getFileSystem(configuration).open(path)
-    Option(new CompressionCodecFactory(configuration).getCodec(path)) match {
-      case Some(cc) =>
-        val decompressor: Decompressor = CodecPool.getDecompressor(cc)
-        cc.createInputStream(data_is, decompressor)
-      case None => data_is
-    }
-  }
-
   private def inputStreamR[F[_]](configuration: Configuration, url: Url)(implicit
     F: Sync[F]): Resource[F, InputStream] =
-    Resource.fromAutoCloseable(F.blocking(fileInputStream(url, configuration)))
+    Resource.fromAutoCloseable(F.blocking {
+      val path = toHadoopPath(url)
+      val is: FSDataInputStream = path.getFileSystem(configuration).open(path)
+      Option(new CompressionCodecFactory(configuration).getCodec(path)) match {
+        case Some(cc) =>
+          val decompressor: Decompressor = CodecPool.getDecompressor(cc)
+          cc.createInputStream(is, decompressor)
+        case None => is
+      }
+    })
 
   private def inputStreamS[F[_]](configuration: Configuration, url: Url)(implicit
     F: Sync[F]): Stream[F, InputStream] = Stream.resource(inputStreamR(configuration, url))
@@ -152,13 +150,12 @@ private object HadoopReader {
     url: Url,
     chunkSize: ChunkSize,
     csvConfiguration: CsvConfiguration)(implicit F: Sync[F]): Stream[F, Seq[String]] =
-    Stream
-      .bracket(F.blocking {
-        val cr: CsvReader[ReadResult[Seq[String]]] = ReaderEngine.internalCsvReaderEngine
-          .readerFor(new InputStreamReader(fileInputStream(url, configuration)), csvConfiguration)
-        if (csvConfiguration.hasHeader) cr.drop(1) else cr
-      })(r => F.blocking(r.close()))
-      .flatMap(reader => Stream.fromBlockingIterator[F](reader.iterator, chunkSize.value).rethrow)
+    inputStreamS(configuration, url).flatMap { is =>
+      val cr: CsvReader[ReadResult[Seq[String]]] =
+        ReaderEngine.internalCsvReaderEngine.readerFor(new InputStreamReader(is), csvConfiguration)
+      val reader = if (csvConfiguration.hasHeader) cr.drop(1) else cr
+      Stream.fromBlockingIterator[F](reader.iterator, chunkSize.value).rethrow
+    }
 
   /*
    * generic record
