@@ -138,11 +138,13 @@ final class Hadoop[F[_]] private (config: Configuration) {
     dataFolders(path).flatMap(_.filterNot(extractDate(_).forall(keeps.contains)).traverse(delete)).void
   }
 
-  // sources and sinks
+  /*
+   * source and sink
+   */
 
-  def source(path: Url)(implicit F: Sync[F]): FileSource[F] = FileSource[F](config, path)
+  def source(url: Url)(implicit F: Sync[F]): FileSource[F] = new FileSourceImpl[F](config, url)
 
-  def sink(path: Url)(implicit F: Sync[F]): FileSink[F] = new FileSink[F](config, path)
+  def sink(url: Url)(implicit F: Sync[F]): FileSink[F] = new FileSinkImpl[F](config, url)
 
   def rotateSink(ticks: Stream[F, TickedValue[Url]])(implicit F: Async[F]): RotateByPolicy[F] =
     new RotateByPolicySink[F](config, ticks)
