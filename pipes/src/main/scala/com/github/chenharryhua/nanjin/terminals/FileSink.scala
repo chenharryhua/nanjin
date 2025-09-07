@@ -17,36 +17,89 @@ import org.apache.parquet.hadoop.metadata.CompressionCodecName
 import org.apache.parquet.hadoop.util.HadoopOutputFile
 import scalapb.GeneratedMessage
 
-final class FileSink[F[_]: Sync] private[terminals] (configuration: Configuration, url: Url) {
+sealed trait FileSink[F[_]] {
 
   /** [[https://avro.apache.org]]
     */
-  def avro(compression: AvroCompression): Pipe[F, GenericRecord, Int] = { (ss: Stream[F, GenericRecord]) =>
-    ss.pull.stepLeg.flatMap {
-      case Some(leg) =>
-        val schema = leg.head(0).getSchema
-        Stream
-          .resource(HadoopWriter.avroR[F](compression.codecFactory, schema, configuration, url))
-          .flatMap(w => leg.stream.cons(leg.head).chunks.evalMap(c => w.write(c).as(c.size)))
-          .pull
-          .echo
-      case None => Pull.done
-    }.stream
+  def avro(compression: AvroCompression): Pipe[F, GenericRecord, Int]
+
+  /** [[https://avro.apache.org]]
+    */
+  def avro(f: AvroCompression.type => AvroCompression): Pipe[F, GenericRecord, Int]
+
+  /** [[https://avro.apache.org]]
+    */
+  def avro: Pipe[F, GenericRecord, Int]
+
+  /** [[https://avro.apache.org]]
+    */
+  def binAvro: Pipe[F, GenericRecord, Int]
+
+  /** [[https://github.com/FasterXML/jackson]]
+    */
+  def jackson: Pipe[F, GenericRecord, Int]
+
+  /** [[https://parquet.apache.org]]
+    */
+  def parquet(f: Endo[AvroParquetWriter.Builder[GenericRecord]]): Pipe[F, GenericRecord, Int]
+
+  /** [[https://parquet.apache.org]]
+    */
+  def parquet: Pipe[F, GenericRecord, Int]
+
+  // bytes
+  def bytes: Pipe[F, Byte, Int]
+
+  /** [[https://github.com/circe/circe]]
+    */
+  def circe: Pipe[F, Json, Int]
+
+  /** [[https://nrinaudo.github.io/kantan.csv]]
+    */
+  def kantan(csvConfiguration: CsvConfiguration): Pipe[F, Seq[String], Int]
+
+  /** [[https://nrinaudo.github.io/kantan.csv]]
+    */
+  def kantan(f: Endo[CsvConfiguration]): Pipe[F, Seq[String], Int]
+
+  /** [[https://nrinaudo.github.io/kantan.csv]]
+    */
+  def kantan: Pipe[F, Seq[String], Int]
+
+  // text
+  def text: Pipe[F, String, Int]
+
+  /** Any proto in serialized form must be <2GiB, as that is the maximum size supported by all
+    * implementations. It’s recommended to bound request and response sizes.
+    *
+    * https://protobuf.dev/programming-guides/proto-limits/#total
+    */
+  def protobuf: Pipe[F, GeneratedMessage, Int]
+}
+
+final private class FileSinkImpl[F[_]: Sync](configuration: Configuration, url: Url) extends FileSink[F] {
+
+  override def avro(compression: AvroCompression): Pipe[F, GenericRecord, Int] = {
+    (ss: Stream[F, GenericRecord]) =>
+      ss.pull.stepLeg.flatMap {
+        case Some(leg) =>
+          val schema = leg.head(0).getSchema
+          Stream
+            .resource(HadoopWriter.avroR[F](compression.codecFactory, schema, configuration, url))
+            .flatMap(w => leg.stream.cons(leg.head).chunks.evalMap(c => w.write(c).as(c.size)))
+            .pull
+            .echo
+        case None => Pull.done
+      }.stream
   }
 
-  /** [[https://avro.apache.org]]
-    */
-  def avro(f: AvroCompression.type => AvroCompression): Pipe[F, GenericRecord, Int] =
+  override def avro(f: AvroCompression.type => AvroCompression): Pipe[F, GenericRecord, Int] =
     avro(f(AvroCompression))
 
-  /** [[https://avro.apache.org]]
-    */
-  val avro: Pipe[F, GenericRecord, Int] =
+  override val avro: Pipe[F, GenericRecord, Int] =
     avro(AvroCompression.Uncompressed)
 
-  /** [[https://avro.apache.org]]
-    */
-  val binAvro: Pipe[F, GenericRecord, Int] = { (ss: Stream[F, GenericRecord]) =>
+  override val binAvro: Pipe[F, GenericRecord, Int] = { (ss: Stream[F, GenericRecord]) =>
     ss.pull.stepLeg.flatMap {
       case Some(leg) =>
         val schema = leg.head(0).getSchema
@@ -59,9 +112,7 @@ final class FileSink[F[_]: Sync] private[terminals] (configuration: Configuratio
     }.stream
   }
 
-  /** [[https://github.com/FasterXML/jackson]]
-    */
-  val jackson: Pipe[F, GenericRecord, Int] = { (ss: Stream[F, GenericRecord]) =>
+  override val jackson: Pipe[F, GenericRecord, Int] = { (ss: Stream[F, GenericRecord]) =>
     ss.pull.stepLeg.flatMap {
       case Some(leg) =>
         val schema = leg.head(0).getSchema
@@ -74,9 +125,7 @@ final class FileSink[F[_]: Sync] private[terminals] (configuration: Configuratio
     }.stream
   }
 
-  /** [[https://parquet.apache.org]]
-    */
-  def parquet(f: Endo[AvroParquetWriter.Builder[GenericRecord]]): Pipe[F, GenericRecord, Int] = {
+  override def parquet(f: Endo[AvroParquetWriter.Builder[GenericRecord]]): Pipe[F, GenericRecord, Int] = {
     (ss: Stream[F, GenericRecord]) =>
       ss.pull.stepLeg.flatMap {
         case Some(leg) =>
@@ -99,29 +148,22 @@ final class FileSink[F[_]: Sync] private[terminals] (configuration: Configuratio
       }.stream
   }
 
-  /** [[https://parquet.apache.org]]
-    */
-  val parquet: Pipe[F, GenericRecord, Int] =
+  override val parquet: Pipe[F, GenericRecord, Int] =
     parquet(identity)
 
-  // bytes
-  val bytes: Pipe[F, Byte, Int] = { (ss: Stream[F, Byte]) =>
+  override val bytes: Pipe[F, Byte, Int] = { (ss: Stream[F, Byte]) =>
     Stream
       .resource(HadoopWriter.byteR[F](configuration, url))
       .flatMap(w => ss.chunks.evalMap(c => w.write(c).as(c.size)))
   }
 
-  /** [[https://github.com/circe/circe]]
-    */
-  val circe: Pipe[F, Json, Int] = { (ss: Stream[F, Json]) =>
+  override val circe: Pipe[F, Json, Int] = { (ss: Stream[F, Json]) =>
     Stream
       .resource(HadoopWriter.stringR[F](configuration, url))
       .flatMap(w => ss.map(_.noSpaces).chunks.evalMap(c => w.write(c).as(c.size)))
   }
 
-  /** [[https://nrinaudo.github.io/kantan.csv]]
-    */
-  def kantan(csvConfiguration: CsvConfiguration): Pipe[F, Seq[String], Int] = {
+  override def kantan(csvConfiguration: CsvConfiguration): Pipe[F, Seq[String], Int] = {
     (ss: Stream[F, Seq[String]]) =>
       Stream
         .resource(
@@ -131,29 +173,19 @@ final class FileSink[F[_]: Sync] private[terminals] (configuration: Configuratio
         }
   }
 
-  /** [[https://nrinaudo.github.io/kantan.csv]]
-    */
-  def kantan(f: Endo[CsvConfiguration]): Pipe[F, Seq[String], Int] =
+  override def kantan(f: Endo[CsvConfiguration]): Pipe[F, Seq[String], Int] =
     kantan(f(CsvConfiguration.rfc))
 
-  /** [[https://nrinaudo.github.io/kantan.csv]]
-    */
-  val kantan: Pipe[F, Seq[String], Int] =
+  override val kantan: Pipe[F, Seq[String], Int] =
     kantan(CsvConfiguration.rfc)
 
-  // text
-  val text: Pipe[F, String, Int] = { (ss: Stream[F, String]) =>
+  override val text: Pipe[F, String, Int] = { (ss: Stream[F, String]) =>
     Stream
       .resource(HadoopWriter.stringR[F](configuration, url))
       .flatMap(w => ss.chunks.evalMap(c => w.write(c).as(c.size)))
   }
 
-  /** Any proto in serialized form must be <2GiB, as that is the maximum size supported by all
-    * implementations. It’s recommended to bound request and response sizes.
-    *
-    * https://protobuf.dev/programming-guides/proto-limits/#total
-    */
-  val protobuf: Pipe[F, GeneratedMessage, Int] = { (ss: Stream[F, GeneratedMessage]) =>
+  override val protobuf: Pipe[F, GeneratedMessage, Int] = { (ss: Stream[F, GeneratedMessage]) =>
     Stream.resource(HadoopWriter.protobufR(configuration, url)).flatMap { w =>
       ss.chunks.evalMap(c => w.write(c).as(c.size))
     }

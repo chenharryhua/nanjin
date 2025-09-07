@@ -56,15 +56,15 @@ object KJson {
       case str: String =>
         jawn.decode[A](str) match {
           case Right(r) => KJson(r)
-          case Left(ex) => throw new Exception(str, ex)
+          case Left(ex) => throw ex
         }
       case utf8: Utf8 =>
         jawn.decode[A](utf8.toString) match {
           case Right(r) => KJson(r)
-          case Left(ex) => throw new Exception(utf8.toString, ex)
+          case Left(ex) => throw ex
         }
       case null => null
-      case ex   => sys.error(s"${ex.getClass.toString} is not a string: ${ex.toString}")
+      case ex   => sys.error(s"${ex.getClass.toString} is not String")
     }
 
     override def schemaFor: SchemaFor[KJson[A]] = SchemaFor[KJson[A]]

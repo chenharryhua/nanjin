@@ -93,7 +93,7 @@ object AvroCodecOf extends LowerPriority {
               case Some(value) =>
                 avroCodec.encode(value) match {
                   case gr: GenericRecord => ser.serialize(topic, gr)
-                  case ex                => sys.error(s"not a generic record: ${ex.toString}")
+                  case ex                => sys.error(s"${ex.getClass.toString} is not Generic Record")
                 }
             }
         }
