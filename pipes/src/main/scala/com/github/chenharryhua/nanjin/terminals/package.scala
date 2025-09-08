@@ -6,6 +6,7 @@ import eu.timepit.refined.api.{Refined, RefinedTypeOps}
 import eu.timepit.refined.cats.CatsRefinedTypeOpsSyntax
 import eu.timepit.refined.numeric.Interval.Closed
 import fs2.Chunk
+import io.circe.{Decoder, Encoder}
 import io.lemonlabs.uri.Url
 import kantan.csv.CsvConfiguration
 import kantan.csv.CsvConfiguration.Header
@@ -18,6 +19,9 @@ import scala.annotation.tailrec
 import scala.util.Try
 
 package object terminals {
+
+  implicit val encoderUrl: Encoder[Url] = Encoder.encodeString.contramap(_.toString())
+  implicit val decoderUrl: Decoder[Url] = Decoder.decodeString.map(Url.parse(_))
 
   type NJCompressionLevel = Int Refined Closed[1, 9]
   object NJCompressionLevel extends RefinedTypeOps[NJCompressionLevel, Int] with CatsRefinedTypeOpsSyntax

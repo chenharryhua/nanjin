@@ -3,7 +3,8 @@ package com.github.chenharryhua.nanjin.terminals
 import cats.Endo
 import com.github.chenharryhua.nanjin.common.chrono.TickedValue
 import fs2.Pipe
-import io.circe.{Decoder, Encoder, HCursor, Json}
+import io.circe.Json
+import io.circe.generic.JsonCodec
 import io.lemonlabs.uri.Url
 import kantan.csv.CsvConfiguration
 import org.apache.avro.Schema
@@ -27,19 +28,8 @@ final case class CreateRotateFile(
   openTime: ZonedDateTime
 )
 
+@JsonCodec
 final case class RotateFile(url: Url, recordCount: Int)
-object RotateFile {
-  implicit val encoderRotateFile: Encoder[RotateFile] =
-    (a: RotateFile) =>
-      Json.obj("url" -> Json.fromString(a.url.toString()), "record_count" -> Json.fromInt(a.recordCount))
-
-  implicit val decoderRotateFile: Decoder[RotateFile] =
-    (c: HCursor) =>
-      for {
-        url <- c.get[String]("url").map(Url.parse)
-        count <- c.get[Int]("record_count")
-      } yield RotateFile(url, count)
-}
 
 sealed trait RotateSink[F[_]] {
   protected type Sink[A] = Pipe[F, A, TickedValue[RotateFile]]

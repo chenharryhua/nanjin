@@ -25,62 +25,68 @@ final class Hadoop[F[_]] private (config: Configuration) {
 
   // disk operations
 
-  def delete(path: Url)(implicit F: Sync[F]): F[Boolean] = F.blocking {
-    val hp: Path = toHadoopPath(path)
-    val fs: FileSystem = hp.getFileSystem(config)
-    fs.delete(hp, true)
-  }
+  def delete(path: Url)(implicit F: Sync[F]): F[Boolean] =
+    F.blocking {
+      val hp: Path = toHadoopPath(path)
+      val fs: FileSystem = hp.getFileSystem(config)
+      fs.delete(hp, true)
+    }
 
-  def isExist(path: Url)(implicit F: Sync[F]): F[Boolean] = F.blocking {
-    val hp: Path = toHadoopPath(path)
-    val fs: FileSystem = hp.getFileSystem(config)
-    fs.exists(hp)
-  }
+  def isExist(path: Url)(implicit F: Sync[F]): F[Boolean] =
+    F.blocking {
+      val hp: Path = toHadoopPath(path)
+      val fs: FileSystem = hp.getFileSystem(config)
+      fs.exists(hp)
+    }
 
   /** hadoop listFiles
     * @return
     */
-  def locatedFileStatus(path: Url)(implicit F: Sync[F]): F[List[LocatedFileStatus]] = F.blocking {
-    val hp: Path = toHadoopPath(path)
-    val fs: FileSystem = hp.getFileSystem(config)
-    val ri: RemoteIterator[LocatedFileStatus] = fs.listFiles(hp, true)
-    val lb: ListBuffer[LocatedFileStatus] = ListBuffer.empty[LocatedFileStatus]
-    while (ri.hasNext) lb.addOne(ri.next())
-    lb.toList
-  }
+  def locatedFileStatus(path: Url)(implicit F: Sync[F]): F[List[LocatedFileStatus]] =
+    F.blocking {
+      val hp: Path = toHadoopPath(path)
+      val fs: FileSystem = hp.getFileSystem(config)
+      val ri: RemoteIterator[LocatedFileStatus] = fs.listFiles(hp, true)
+      val lb: ListBuffer[LocatedFileStatus] = ListBuffer.empty[LocatedFileStatus]
+      while (ri.hasNext) lb.addOne(ri.next())
+      lb.toList
+    }
 
   /** retrieve all folder names which contain files under path folder
     * @param path
     *   search root
     * @return
     */
-  def dataFolders(path: Url)(implicit F: Sync[F]): F[List[Url]] = F.blocking {
-    val hp: Path = toHadoopPath(path)
-    val fs: FileSystem = hp.getFileSystem(config)
-    val ri: RemoteIterator[LocatedFileStatus] = fs.listFiles(hp, true)
-    val lb: mutable.Set[Path] = collection.mutable.Set.empty
-    while (ri.hasNext) lb.addOne(ri.next().getPath.getParent)
-    lb.toList.map(p => Uri(p.toUri).toUrl)
-  }
+  def dataFolders(path: Url)(implicit F: Sync[F]): F[List[Url]] =
+    F.blocking {
+      val hp: Path = toHadoopPath(path)
+      val fs: FileSystem = hp.getFileSystem(config)
+      val ri: RemoteIterator[LocatedFileStatus] = fs.listFiles(hp, true)
+      val lb: mutable.Set[Path] = collection.mutable.Set.empty
+      while (ri.hasNext) lb.addOne(ri.next().getPath.getParent)
+      lb.toList.map(p => Uri(p.toUri).toUrl)
+    }
 
   /** retrieve file name under path folder, sorted by modification time
     * @param path
     *   root
     * @return
     */
-  def filesIn(path: Url, filter: PathFilter)(implicit F: Sync[F]): F[List[Url]] = F.blocking {
-    val hp: Path = toHadoopPath(path)
-    val fs: FileSystem = hp.getFileSystem(config)
-    val stat: FileStatus = fs.getFileStatus(hp)
-    if (stat.isFile)
-      List(Uri(stat.getPath.toUri).toUrl)
-    else
-      fs.listStatus(hp, filter)
-        .filter(_.isFile)
-        .sortBy(_.getModificationTime)
-        .map(s => Uri(s.getPath.toUri).toUrl)
-        .toList
-  }
+  def filesIn(path: Url, filter: PathFilter)(implicit F: Sync[F]): F[List[Url]] =
+    F.blocking {
+      val hp: Path = toHadoopPath(path)
+      val fs: FileSystem = hp.getFileSystem(config)
+      val stat: FileStatus = fs.getFileStatus(hp)
+      if (stat.isFile)
+        List(Uri(stat.getPath.toUri).toUrl)
+      else
+        fs.listStatus(hp, filter)
+          .filter(_.isFile)
+          .sortBy(_.getModificationTime)
+          .map(s => Uri(s.getPath.toUri).toUrl)
+          .toList
+    }
+
   def filesIn(path: Url)(implicit F: Sync[F]): F[List[Url]] =
     filesIn(path, HiddenFileFilter.INSTANCE)
 
@@ -130,13 +136,24 @@ final class Hadoop[F[_]] private (config: Configuration) {
   def earliestYmdh(path: Url)(implicit F: Sync[F]): F[Option[Url]] =
     best(path, NonEmptyList.of(codec.year, codec.month, codec.day, codec.hour))(F, Ordering[Int].reverse)
 
-  /** keep date folders which is from date backwards retentionDays.
-    * @return
+  /** remove date folders which is not in the given list. folders which are not date folder will be retained
     */
-  def dateFolderRetention(path: Url, date: LocalDate, retentionDays: Long)(implicit F: Sync[F]): F[Unit] = {
-    val keeps = List.range(0L, retentionDays).map(date.minusDays)
-    dataFolders(path).flatMap(_.filterNot(extractDate(_).forall(keeps.contains)).traverse(delete)).void
-  }
+  def dateFolderRetention(path: Url, keeps: List[LocalDate])(implicit
+    F: Sync[F]): F[List[RetentionFolderStatus]] =
+    dataFolders(path).flatMap(_.traverse { url =>
+      extractDate(url) match {
+        case Some(date) =>
+          if (keeps.contains(date))
+            F.pure(RetentionFolderStatus(url, RetentionStatus.Retained))
+          else {
+            delete(url).map {
+              case true  => RetentionFolderStatus(url, RetentionStatus.Removed)
+              case false => RetentionFolderStatus(url, RetentionStatus.RemovalFailed)
+            }
+          }
+        case None => F.pure(RetentionFolderStatus(url, RetentionStatus.Retained))
+      }
+    })
 
   /*
    * source and sink

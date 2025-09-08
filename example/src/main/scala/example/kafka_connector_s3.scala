@@ -5,6 +5,7 @@ import cats.effect.IO
 import cats.effect.kernel.Resource
 import cats.implicits.{catsSyntaxApplicativeByName, catsSyntaxSemigroup, toTraverseOps}
 import com.github.chenharryhua.nanjin.common.chrono.{Policy, TickedValue}
+import com.github.chenharryhua.nanjin.datetime.DateTimeRange
 import com.github.chenharryhua.nanjin.guard.metrics.Metrics
 import com.github.chenharryhua.nanjin.kafka.{KafkaContext, KafkaSettings}
 import com.github.chenharryhua.nanjin.terminals.{Hadoop, JacksonFile, RotateFile}
@@ -75,7 +76,10 @@ object kafka_connector_s3 {
   aws_task_template.task.service("delete.obsolete.folder").eventStreamS { agent =>
     val root: Url = Url.parse("s3://abc-efg-hij/klm")
     agent.tickScheduled(_.crontab(_.daily.oneAM)).evalMap { tick =>
-      hadoop.dateFolderRetention(root, tick.local(_.conclude).toLocalDate, 8)
+      val dr = DateTimeRange(agent.zoneId)
+        .withStartTime(tick.conclude)
+        .withEndTime(tick.zoned(_.conclude).plusDays(8))
+      hadoop.dateFolderRetention(root, dr.days)
     }
   }
 }
