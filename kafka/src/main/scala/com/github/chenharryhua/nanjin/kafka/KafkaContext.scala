@@ -8,16 +8,19 @@ import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameL}
 import com.github.chenharryhua.nanjin.common.{utils, UpdateConfig}
 import com.github.chenharryhua.nanjin.kafka.connector.{ConsumeByteKafka, ConsumeKafka, KafkaProduce}
 import com.github.chenharryhua.nanjin.kafka.streaming.{KafkaStreamsBuilder, StateStores, StreamsSerde}
+import com.github.chenharryhua.nanjin.messages.kafka.CRMetaInfo
 import com.github.chenharryhua.nanjin.messages.kafka.codec.*
 import fs2.kafka.*
 import fs2.{Chunk, Pipe, Stream}
 import io.circe.Json
 import io.circe.jawn.parse
+import io.circe.syntax.EncoderOps
 import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient
 import io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig
 import org.apache.avro.generic.GenericRecord
 import org.apache.kafka.streams.scala.StreamsBuilder
 
+import java.time.Instant
 import scala.util.Try
 
 final class KafkaContext[F[_]] private (val settings: KafkaSettings)
@@ -78,20 +81,18 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
   def consume(topicName: TopicNameL)(implicit F: Sync[F]): ConsumeByteKafka[F] =
     consume(TopicName(topicName))
 
-  def monitor(topicName: TopicNameL, f: AutoOffsetReset.type => AutoOffsetReset = _.Latest)(implicit
-    F: Async[F]): Stream[F, String] =
+  def monitor(topicName: TopicNameL, time: Instant = Instant.now())(implicit F: Async[F]): Stream[F, String] =
     Stream.eval(utils.randomUUID[F]).flatMap { uuid =>
       consume(TopicName(topicName))
         .updateConfig( // avoid accidentally join an existing consumer-group
-          _.withGroupId(uuid.show).withEnableAutoCommit(false).withAutoOffsetReset(f(AutoOffsetReset)))
-        .genericRecords
+          _.withGroupId(uuid.show).withEnableAutoCommit(false))
+        .assign(time)
         .map { ccr =>
           val rcd = ccr.record
           rcd.value
             .flatMap(gr2Jackson)
             .toEither
-            .leftMap(e =>
-              new Exception(s"topic=${rcd.topic}, partition=${rcd.partition}, offset=${rcd.offset}", e))
+            .leftMap(e => new Exception(CRMetaInfo(ccr.record).asJson.noSpaces, e))
         }
         .rethrow
     }

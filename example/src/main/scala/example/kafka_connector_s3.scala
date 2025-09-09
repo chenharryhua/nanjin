@@ -62,7 +62,7 @@ object kafka_connector_s3 {
             .withAutoOffsetReset(AutoOffsetReset.Latest)
             .withEnableAutoCommit(false)
             .withMaxPollRecords(2000))
-        .genericRecords
+        .subscribe
         .observe(_.map(_.offset).through(commitBatchWithin[IO](1000, 5.seconds)).drain)
         .evalMap(x => IO.fromTry(x.record.value).guarantee(log.run(x)))
         .through(sink)

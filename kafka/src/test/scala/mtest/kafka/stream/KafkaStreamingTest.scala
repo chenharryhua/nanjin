@@ -45,10 +45,9 @@ object KafkaStreamingData {
 
   val harvest: Stream[IO, StreamTarget] =
     ctx
-      .consume(tgt.topicName)
+      .consume(tgt)
       .updateConfig(_.withGroupId("harvest").withAutoOffsetReset(AutoOffsetReset.Earliest))
       .subscribe
-      .map(x => serde.deserialize(x))
       .observe(_.map(_.offset).through(commitBatchWithin[IO](1, 0.1.seconds)).drain)
       .map(_.record.value)
       .debug(o => show"harvest: $o")
