@@ -168,7 +168,7 @@ class SparKafkaTest extends AnyFunSuite {
   test("generic record") {
     val path = "./data/test/spark/kafka/consume/duck.avro"
     val sink = hadoop.sink(path).avro
-    duckConsume.genericRecords
+    duckConsume.subscribe
       .take(2)
       .map(_.record.value)
       .evalMap(IO.fromTry)
@@ -180,7 +180,7 @@ class SparKafkaTest extends AnyFunSuite {
   }
 
   test("format") {
-    duckConsume.genericRecords
+    duckConsume.subscribe
       .take(2)
       .map(_.record.value)
       .evalMap(IO.fromTry)
@@ -193,7 +193,7 @@ class SparKafkaTest extends AnyFunSuite {
   }
 
   test("generic record conversion") {
-    duckConsume.genericRecords
+    duckConsume.subscribe
       .take(2)
       .evalTap(gr => IO.fromTry(gr.record.value.flatMap(gr2Jackson(_))))
       .evalTap(gr => IO.fromTry(gr.record.value.flatMap(gr2BinAvro(_))))
