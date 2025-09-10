@@ -15,7 +15,6 @@ import eu.timepit.refined.refineMV
 import fs2.kafka.*
 import fs2.{Chunk, Stream}
 import io.circe.Encoder as JsonEncoder
-import io.circe.syntax.EncoderOps
 import io.lemonlabs.uri.Url
 import io.lemonlabs.uri.typesafe.dsl.urlToUrlDsl
 import org.apache.spark.sql.SparkSession
@@ -102,13 +101,12 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
       .flatMap { rs =>
         rs.partitionsMapStream.toList.map { case (pr, ss) =>
           val sink = hadoop.sink(folder / s"${pr.toString}.${file.fileName}").circe
-          ss.mapChunks(_.map(cr => NJConsumerRecord(cr.record).asJson)).through(sink)
+          ss.mapChunks(_.map(cr => NJConsumerRecord(cr.record).zonedJson(dateRange.zoneId))).through(sink)
         }.parJoinUnbounded.onFinalize(rs.stopConsuming)
       }
       .timeoutOnPull(timeout)
       .compile
       .fold(0L)(_ + _)
-
   }
 
   def dumpCirce[K: JsonEncoder, V: JsonEncoder](
