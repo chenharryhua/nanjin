@@ -192,27 +192,8 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
   def admin(implicit F: Async[F]): Resource[F, KafkaAdminClient[F]] =
     KafkaAdminClient.resource[F](settings.adminSettings)
 
-  def admin(topicName: TopicName)(implicit F: Async[F]): Resource[F, KafkaAdminApi[F]] =
-    KafkaAdminApi[F](admin, topicName, settings.consumerSettings)
-
   def admin(topicName: TopicNameL)(implicit F: Async[F]): Resource[F, KafkaAdminApi[F]] =
-    admin(TopicName(topicName))
-
-  // pick up single record
-
-  def cherryPick(topicName: TopicName, partition: Int, offset: Long)(implicit F: Async[F]): F[String] =
-    admin(topicName).use(_.retrieveRecord(partition, offset).flatMap {
-      case None        => F.raiseError(new Exception("no record"))
-      case Some(value) =>
-        schemaRegistry.fetchAvroSchema(topicName).flatMap { schemaPair =>
-          val pgr = new PullGenericRecord(settings.schemaRegistrySettings, topicName, schemaPair)
-          F.fromTry(pgr.toGenericRecord(value).flatMap(gr2Jackson))
-        }
-    })
-
-  def cherryPick(topicName: TopicNameL, partition: Int, offset: Long)(implicit F: Async[F]): F[String] =
-    cherryPick(TopicName(topicName), partition, offset)
-
+    KafkaAdminApi[F](admin, TopicName(topicName), settings.consumerSettings)
 }
 
 object KafkaContext {
