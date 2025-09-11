@@ -36,11 +36,9 @@ class ExampleKafkaBasic extends AnyFunSuite {
   }
 
   test("consume messages from kafka using https://fd4s.github.io/fs2-kafka/") {
-    val serde = ctx.serde(fooTopic)
     ctx
-      .consume(fooTopic.topicName)
+      .consume(fooTopic.topicName.name)
       .subscribe
-      .map(serde.deserializeValue(_))
       .debug()
       .interruptAfter(3.seconds)
       .compile

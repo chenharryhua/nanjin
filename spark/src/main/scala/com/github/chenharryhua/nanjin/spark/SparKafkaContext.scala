@@ -50,7 +50,7 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
     */
 
   def dumpJackson(
-    topicName: TopicName,
+    topicName: TopicNameL,
     folder: Url,
     dateRange: DateTimeRange,
     compression: JacksonCompression,
@@ -80,7 +80,7 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
     folder: Url,
     dateRange: DateTimeRange = DateTimeRange(sparkZoneId(sparkSession)))(implicit F: Async[F]): F[Long] =
     dumpJackson(
-      topicName = TopicName(topicName),
+      topicName = topicName,
       folder = folder,
       dateRange = dateRange,
       compression = JacksonCompression.Uncompressed,

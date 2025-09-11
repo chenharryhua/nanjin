@@ -68,22 +68,28 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
     )
   }
 
-  def consume(topicName: TopicName)(implicit F: Sync[F]): ConsumeByteKafka[F] =
+  def consume(topicName: TopicNameL)(implicit F: Sync[F]): ConsumeByteKafka[F] =
     new ConsumeByteKafka[F](
-      topicName,
+      TopicName(topicName),
+      schemaRegistry.fetchAvroSchema(topicName),
       ConsumerSettings[F, Array[Byte], Array[Byte]](
         Deserializer[F, Array[Byte]],
-        Deserializer[F, Array[Byte]]).withProperties(settings.consumerSettings.properties),
-      schemaRegistry.fetchAvroSchema(topicName),
-      settings.schemaRegistrySettings
+        Deserializer[F, Array[Byte]]).withProperties(settings.consumerSettings.properties)
     )
 
-  def consume(topicName: TopicNameL)(implicit F: Sync[F]): ConsumeByteKafka[F] =
-    consume(TopicName(topicName))
+  def consume(topicName: TopicNameL, avroSchemaPair: AvroSchemaPair)(implicit
+    F: Sync[F]): ConsumeByteKafka[F] =
+    new ConsumeByteKafka[F](
+      TopicName(topicName),
+      F.pure(avroSchemaPair),
+      ConsumerSettings[F, Array[Byte], Array[Byte]](
+        Deserializer[F, Array[Byte]],
+        Deserializer[F, Array[Byte]]).withProperties(settings.consumerSettings.properties)
+    )
 
   def monitor(topicName: TopicNameL, time: Instant = Instant.now())(implicit F: Async[F]): Stream[F, String] =
     Stream.eval(utils.randomUUID[F]).flatMap { uuid =>
-      consume(TopicName(topicName))
+      consume(topicName)
         .updateConfig( // avoid accidentally join an existing consumer-group
           _.withGroupId(uuid.show).withEnableAutoCommit(false))
         .assign(time)

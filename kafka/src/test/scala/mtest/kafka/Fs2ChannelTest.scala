@@ -99,7 +99,7 @@ class Fs2ChannelTest extends AnyFunSuite {
   test("3.serde") {
     val serde = ctx.serde(topicDef)
     ctx
-      .consume(topicDef.topicName)
+      .consume(topicDef.topicName.name)
       .subscribeBytes
       .take(1)
       .map { ccr =>
@@ -266,5 +266,21 @@ class Fs2ChannelTest extends AnyFunSuite {
       .drain
       .as(true)
     assert(res.unsafeRunSync())
+  }
+
+  test("13. generic record without schema registry") {
+    val ret =
+      ctx
+        .consume(topicDef.topicName.name, topicDef.schemaPair)
+        .subscribe
+        .take(1)
+        .map(_.record)
+        .debug()
+        .timeout(3.seconds)
+        .compile
+        .toList
+        .unsafeRunSync()
+    assert(ret.size == 1)
+    assert(ret.head.value.isSuccess)
   }
 }

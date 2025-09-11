@@ -5,13 +5,7 @@ import cats.implicits.*
 import cats.{Applicative, Monad}
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.DateTimeRange
-import com.github.chenharryhua.nanjin.kafka.{
-  Offset,
-  OffsetRange,
-  PartitionRange,
-  PullGenericRecord,
-  TopicPartitionMap
-}
+import com.github.chenharryhua.nanjin.kafka.{Offset, OffsetRange, PartitionRange, TopicPartitionMap}
 import fs2.Stream
 import fs2.kafka.consumer.{KafkaConsume, KafkaTopicsV2}
 import fs2.kafka.{CommittableConsumerRecord, KafkaConsumer}
@@ -20,7 +14,7 @@ import org.apache.kafka.common.TopicPartition
 
 import scala.util.Try
 
-private object consumerClient {
+private object utils {
   private def get_offset_range_by_time[F[_]: Monad](
     client: KafkaTopicsV2[F],
     topicName: TopicName,
