@@ -27,7 +27,7 @@ final private class PullGenericRecord(topicName: TopicName, pair: AvroSchemaPair
         (data: Array[Byte]) =>
           if (data == null) Success(null)
           else
-            Try {
+            Try { // drop 5: 1 byte magic, 4 bytes schema ID
               val decoder = DecoderFactory.get.binaryDecoder(data.drop(5), null)
               reader.read(null, decoder)
             }

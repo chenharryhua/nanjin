@@ -76,9 +76,6 @@ final class PushGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName,
       case _ => throw new RuntimeException(s"unsupported value schema: ${pair.value.toString}")
     }
 
-  def fromGenericRecord(key: GenericRecord, value: GenericRecord): ProducerRecord[Array[Byte], Array[Byte]] =
-    ProducerRecord(topic, key_serialize(key), val_serialize(value))
-
   /** @param gr
     *   a GenericRecord of NJConsumerRecord
     * @return

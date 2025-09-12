@@ -83,17 +83,17 @@ final class ConsumeByteKafka[F[_]](
 
   def assign(pos: Map[Int, Long])(implicit
     F: Async[F]): Stream[F, CommittableConsumerRecord[F, Unit, Try[GenericData.Record]]] = {
-    val topic_offset: Map[TopicPartition, Long] =
+    val start_offsets: Map[TopicPartition, Long] =
       pos.map { case (p, o) => new TopicPartition(topicName.value, p) -> o }
 
-    NonEmptySet.fromSet(SortedSet.from(topic_offset.keySet)) match {
+    NonEmptySet.fromSet(SortedSet.from(start_offsets.keySet)) match {
       case None                  => Stream.empty
       case Some(topic_partition) =>
         KafkaConsumer
           .stream(consumerSettings.withAutoOffsetReset(AutoOffsetReset.None))
           .evalTap { c =>
             c.assign(topic_partition) *>
-              topic_offset.toList.traverse { case (p, o) => c.seek(p, o) }
+              start_offsets.toList.traverse { case (p, o) => c.seek(p, o) }
           }
           .flatMap(toGenericRecordStream)
     }

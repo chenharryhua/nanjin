@@ -52,10 +52,15 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
   def dumpJackson(
     topicName: TopicNameL,
     folder: Url,
-    dateRange: DateTimeRange,
-    compression: JacksonCompression,
-    ignoreError: Boolean)(config: Endo[ConsumerSettings[F, Array[Byte], Array[Byte]]])(implicit
-    F: Async[F]): F[Long] = {
+    dateRange: DateTimeRange = DateTimeRange(sparkZoneId(sparkSession)),
+    compression: JacksonCompression = JacksonCompression.Uncompressed,
+    ignoreError: Boolean = false,
+    config: Endo[ConsumerSettings[F, Array[Byte], Array[Byte]]] =
+      (_: ConsumerSettings[F, Array[Byte], Array[Byte]])
+        .withPollInterval(0.second)
+        .withEnableAutoCommit(false)
+        .withIsolationLevel(IsolationLevel.ReadCommitted)
+        .withMaxPollRecords(3000))(implicit F: Async[F]): F[Long] = {
     val file = JacksonFile(compression)
     kafkaContext
       .consume(topicName)
@@ -75,24 +80,16 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
       .fold(0L)(_ + _)
   }
 
-  def dumpJackson(
-    topicName: TopicNameL,
-    folder: Url,
-    dateRange: DateTimeRange = DateTimeRange(sparkZoneId(sparkSession)))(implicit F: Async[F]): F[Long] =
-    dumpJackson(
-      topicName = topicName,
-      folder = folder,
-      dateRange = dateRange,
-      compression = JacksonCompression.Uncompressed,
-      ignoreError = false)(
-      _.withPollInterval(0.second).withIsolationLevel(IsolationLevel.ReadCommitted).withMaxPollRecords(3000)
-    )
-
   def dumpCirce[K: JsonEncoder, V: JsonEncoder](
     topicDef: TopicDef[K, V],
     folder: Url,
-    dateRange: DateTimeRange,
-    compression: CirceCompression)(config: Endo[ConsumerSettings[F, K, V]])(implicit F: Async[F]): F[Long] = {
+    dateRange: DateTimeRange = DateTimeRange(sparkZoneId(sparkSession)),
+    compression: CirceCompression = CirceCompression.Uncompressed,
+    config: Endo[ConsumerSettings[F, K, V]] = (_: ConsumerSettings[F, K, V])
+      .withPollInterval(0.second)
+      .withEnableAutoCommit(false)
+      .withIsolationLevel(IsolationLevel.ReadCommitted)
+      .withMaxPollRecords(3000))(implicit F: Async[F]): F[Long] = {
     val file = CirceFile(compression)
     kafkaContext
       .consume(topicDef)
@@ -108,14 +105,6 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
       .compile
       .fold(0L)(_ + _)
   }
-
-  def dumpCirce[K: JsonEncoder, V: JsonEncoder](
-    topicDef: TopicDef[K, V],
-    folder: Url,
-    dateRange: DateTimeRange = DateTimeRange(sparkZoneId(sparkSession)))(implicit F: Async[F]): F[Long] =
-    dumpCirce[K, V](topicDef, folder, dateRange, CirceCompression.Uncompressed)(
-      _.withPollInterval(0.second).withIsolationLevel(IsolationLevel.ReadCommitted).withMaxPollRecords(3000)
-    )
 
   /** upload data from given folder to a kafka topic. files read in parallel
     *
@@ -134,10 +123,10 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
     */
 
   def upload(
-    topicName: TopicName,
+    topicName: TopicNameL,
     folder: Url,
-    chunkSize: ChunkSize,
-    config: Endo[ProducerSettings[F, Array[Byte], Array[Byte]]])(implicit F: Async[F]): F[Long] = {
+    chunkSize: ChunkSize = refineMV(1000),
+    config: Endo[ProducerSettings[F, Array[Byte], Array[Byte]]] = identity)(implicit F: Async[F]): F[Long] = {
 
     val producerSettings: ProducerSettings[F, Array[Byte], Array[Byte]] =
       config(
@@ -148,42 +137,33 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
       schemaPair <- kafkaContext.schemaRegistry.fetchAvroSchema(topicName)
       partitions <- kafkaContext.admin(topicName).use(_.partitionsFor.map(_.value.size))
       hadoop = Hadoop[F](sparkSession.sparkContext.hadoopConfiguration)
-      builder = new PushGenericRecord(kafkaContext.settings.schemaRegistrySettings, topicName, schemaPair)
+      builder = new PushGenericRecord(
+        kafkaContext.settings.schemaRegistrySettings,
+        TopicName(topicName),
+        schemaPair)
       num <- hadoop.filesIn(folder).flatMap { fs =>
         val step: Int = Math.ceil(fs.size.toDouble / partitions.toDouble).toInt
         if (step > 0) {
-          val uploads: List[F[Long]] = fs
-            .sliding(step, step)
+          fs.sliding(step, step)
             .map { urls =>
               val ss: Stream[F, Chunk[ProducerRecord[Array[Byte], Array[Byte]]]] = urls
                 .map(hadoop.source(_).jackson(chunkSize, schemaPair.consumerSchema))
                 .reduce(_ ++ _)
                 .chunks
                 .map(_.map(builder.fromGenericRecord))
-              KafkaProducer.pipe(producerSettings).apply(ss).compile.fold(0L) { case (sum, prs) =>
-                sum + prs.size
-              }
+              KafkaProducer.pipe(producerSettings).apply(ss)
             }
             .toList
-          F.parSequenceN(uploads.size)(uploads).map(_.sum)
+            .parJoinUnbounded
+            .compile
+            .fold(0L) { case (sum, prs) => sum + prs.size }
         } else F.pure(0L)
       }
     } yield num
   }
 
-  def upload(
-    topicName: TopicNameL,
-    folder: Url,
-    chunkSize: ChunkSize = refineMV(1000),
-    config: Endo[ProducerSettings[F, Array[Byte], Array[Byte]]] = identity)(implicit F: Async[F]): F[Long] =
-    upload(TopicName(topicName), folder, chunkSize, config)
-
   def crazyUpload(topicName: TopicNameL, folder: Url)(implicit F: Async[F]): F[Long] =
-    upload(
-      TopicName(topicName),
-      folder,
-      refineMV(1000),
-      _.withBatchSize(200000).withLinger(10.milli).withAcks(Acks.One))
+    upload(topicName, folder, refineMV(1000), _.withBatchSize(200000).withLinger(10.milli).withAcks(Acks.One))
 
   /** sequentially read files in the folder, sorted by modification time, and upload them into kafka
     *
@@ -199,10 +179,10 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
     *   number of records uploaded
     */
   def sequentialUpload(
-    topicName: TopicName,
+    topicName: TopicNameL,
     folder: Url,
-    chunkSize: ChunkSize,
-    config: Endo[ProducerSettings[F, Array[Byte], Array[Byte]]])(implicit F: Async[F]): F[Long] = {
+    chunkSize: ChunkSize = refineMV(1000),
+    config: Endo[ProducerSettings[F, Array[Byte], Array[Byte]]] = identity)(implicit F: Async[F]): F[Long] = {
 
     val producerSettings: ProducerSettings[F, Array[Byte], Array[Byte]] =
       config(
@@ -212,7 +192,10 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
     for {
       schemaPair <- kafkaContext.schemaRegistry.fetchAvroSchema(topicName)
       hadoop = Hadoop[F](sparkSession.sparkContext.hadoopConfiguration)
-      builder = new PushGenericRecord(kafkaContext.settings.schemaRegistrySettings, topicName, schemaPair)
+      builder = new PushGenericRecord(
+        kafkaContext.settings.schemaRegistrySettings,
+        TopicName(topicName),
+        schemaPair)
       num <- hadoop
         .filesIn(folder)
         .flatMap(
@@ -228,13 +211,6 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
         .map(_.sum)
     } yield num
   }
-
-  def sequentialUpload(
-    topicName: TopicNameL,
-    folder: Url,
-    chunkSize: ChunkSize = refineMV(1000),
-    config: Endo[ProducerSettings[F, Array[Byte], Array[Byte]]] = identity)(implicit F: Async[F]): F[Long] =
-    sequentialUpload(TopicName(topicName), folder, chunkSize, config)
 
   object stats {
     private val sparkSchema: StructType = structType(AvroCodec[CRMetaInfo])

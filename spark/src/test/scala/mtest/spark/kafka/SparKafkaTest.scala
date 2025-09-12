@@ -45,7 +45,7 @@ class SparKafkaTest extends AnyFunSuite {
       .compile
       .drain
 
-  (ctx.admin(topic.topicName).use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt) >>
+  (ctx.admin(topic.topicName.name).use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt) >>
     ctx.schemaRegistry.register(topic) >> loadData).unsafeRunSync()
 
   test("sparKafka read topic from kafka") {

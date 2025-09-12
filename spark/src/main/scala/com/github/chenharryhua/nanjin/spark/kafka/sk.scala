@@ -37,7 +37,7 @@ private[spark] object sk {
       SOffsetRange.create(tp, r.from, r.until)
     }
 
-  def kafkaBatchRDD(
+  private def kafkaBatchRDD(
     consumerSettings: KafkaConsumerSettings,
     ss: SparkSession,
     offsetRange: TopicPartitionMap[Option[OffsetRange]]): RDD[ConsumerRecord[Array[Byte], Array[Byte]]] =
@@ -60,7 +60,7 @@ private[spark] object sk {
     topicDef: TopicDef[K, V],
     dateRange: DateTimeRange): F[RDD[NJConsumerRecord[K, V]]] =
     ctx
-      .admin(topicDef.topicName)
+      .admin(topicDef.topicName.name)
       .use(_.offsetRangeFor(dateRange))
       .map(kafkaBatch(ss, ctx.settings.consumerSettings, ctx.serde(topicDef), _))
 
