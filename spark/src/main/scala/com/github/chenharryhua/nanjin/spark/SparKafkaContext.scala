@@ -157,6 +157,7 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
               urls
                 .map(hadoop.source(_).jackson(chunkSize, schemaPair.consumerSchema))
                 .reduce(_ ++ _)
+                .prefetch
                 .through(sink)
             }
             .toList
