@@ -36,7 +36,9 @@ class CopyDataTest extends AnyFunSuite {
     ctx.admin(src.topicName.name).use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt) >>
       ctx.schemaRegistry.delete(src.topicName).attempt >>
       ctx.schemaRegistry.register(src).attempt >>
-      ctx.admin(tgt.topicName.name).use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt) >>
+      ctx
+        .admin(tgt.topicName.name)
+        .use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt) >>
       ctx.schemaRegistry.delete(tgt.topicName).attempt >>
       ctx.schemaRegistry.register(tgt).attempt >>
       loadData

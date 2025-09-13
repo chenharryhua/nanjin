@@ -14,16 +14,16 @@ import org.apache.kafka.clients.producer.RecordMetadata
   * [[https://redpanda.com/guides/kafka-performance/kafka-performance-tuning]]
   */
 
-final class ProduceKafka[F[_], K, V] private[kafka] (producerSettings: ProducerSettings[F, K, V])
-    extends UpdateConfig[ProducerSettings[F, K, V], ProduceKafka[F, K, V]] with HasProperties {
+final class KafkaGenericProduce[F[_], K, V] private[kafka] (producerSettings: ProducerSettings[F, K, V])
+    extends UpdateConfig[ProducerSettings[F, K, V], KafkaGenericProduce[F, K, V]] with HasProperties {
 
   /*
    * config
    */
   override def properties: Map[String, String] = producerSettings.properties
 
-  override def updateConfig(f: Endo[ProducerSettings[F, K, V]]): ProduceKafka[F, K, V] =
-    new ProduceKafka[F, K, V](f(producerSettings))
+  override def updateConfig(f: Endo[ProducerSettings[F, K, V]]): KafkaGenericProduce[F, K, V] =
+    new KafkaGenericProduce[F, K, V](f(producerSettings))
 
   /*
    * produce

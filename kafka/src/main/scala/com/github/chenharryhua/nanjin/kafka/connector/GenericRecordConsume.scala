@@ -18,11 +18,11 @@ import java.time.Instant
 import scala.collection.immutable.SortedSet
 import scala.util.Try
 
-final class ConsumeByteKafka[F[_]](
+final class GenericRecordConsume[F[_]](
   topicName: TopicName,
   getSchema: F[AvroSchemaPair],
   consumerSettings: ConsumerSettings[F, Array[Byte], Array[Byte]]
-) extends UpdateConfig[ConsumerSettings[F, Array[Byte], Array[Byte]], ConsumeByteKafka[F]]
+) extends UpdateConfig[ConsumerSettings[F, Array[Byte], Array[Byte]], GenericRecordConsume[F]]
     with HasProperties {
 
   /*
@@ -30,8 +30,8 @@ final class ConsumeByteKafka[F[_]](
    */
   override def properties: Map[String, String] = consumerSettings.properties
 
-  override def updateConfig(f: Endo[ConsumerSettings[F, Array[Byte], Array[Byte]]]): ConsumeByteKafka[F] =
-    new ConsumeByteKafka[F](topicName, getSchema, f(consumerSettings))
+  override def updateConfig(f: Endo[ConsumerSettings[F, Array[Byte], Array[Byte]]]): GenericRecordConsume[F] =
+    new GenericRecordConsume[F](topicName, getSchema, f(consumerSettings))
 
   /*
    * Array[Byte]
@@ -53,7 +53,7 @@ final class ConsumeByteKafka[F[_]](
   private def toGenericRecordStream(kc: KafkaConsumer[F, Array[Byte], Array[Byte]])(implicit
     F: Concurrent[F]): Stream[F, CommittableConsumerRecord[F, Unit, Try[GenericData.Record]]] =
     Stream.eval(getSchema).flatMap { schema =>
-      val pull: PullGenericRecord = new PullGenericRecord(topicName, schema)
+      val pull: GenericRecordPull = new GenericRecordPull(topicName, schema)
       kc.partitionsMapStream.flatMap {
         _.toList.map { case (_, stream) =>
           stream.mapChunks { crs =>
@@ -128,7 +128,7 @@ final class ConsumeByteKafka[F[_]](
   def manualCommitStream(implicit
     F: Async[F]): Stream[F, ManualCommitStream[F, Unit, Try[GenericData.Record]]] =
     Stream.eval(getSchema).flatMap { schema =>
-      val pull: PullGenericRecord = new PullGenericRecord(topicName, schema)
+      val pull: GenericRecordPull = new GenericRecordPull(topicName, schema)
       KafkaConsumer
         .stream(consumerSettings.withEnableAutoCommit(false))
         .evalTap(_.subscribe(NonEmptyList.one(topicName.value)))
@@ -168,7 +168,7 @@ final class ConsumeByteKafka[F[_]](
           for {
             _ <- Stream.eval(utils.assign_offset_range(kc, ranges))
             schema <- Stream.eval(getSchema)
-            pull: PullGenericRecord = new PullGenericRecord(topicName, schema)
+            pull = new GenericRecordPull(topicName, schema)
             s <- utils.circumscribed_generic_record_stream(kc, ranges, pull)
           } yield s
         }

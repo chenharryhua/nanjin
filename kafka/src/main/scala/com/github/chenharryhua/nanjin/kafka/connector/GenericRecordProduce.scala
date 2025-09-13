@@ -10,10 +10,10 @@ import fs2.kafka.*
 import fs2.{Pipe, Stream}
 import org.apache.avro.generic.GenericRecord
 
-final class ProduceByteKafka[F[_]] private[kafka] (
-  pushGenericRecord: F[PushGenericRecord],
+final class GenericRecordProduce[F[_]] private[kafka] (
+  pushGenericRecord: F[GenericRecordPush],
   producerSettings: ProducerSettings[F, Array[Byte], Array[Byte]])
-    extends UpdateConfig[ProducerSettings[F, Array[Byte], Array[Byte]], ProduceByteKafka[F]]
+    extends UpdateConfig[ProducerSettings[F, Array[Byte], Array[Byte]], GenericRecordProduce[F]]
     with HasProperties {
 
   /*
@@ -21,8 +21,8 @@ final class ProduceByteKafka[F[_]] private[kafka] (
    */
   override def properties: Map[String, String] = producerSettings.properties
 
-  override def updateConfig(f: Endo[ProducerSettings[F, Array[Byte], Array[Byte]]]): ProduceByteKafka[F] =
-    new ProduceByteKafka[F](pushGenericRecord, f(producerSettings))
+  override def updateConfig(f: Endo[ProducerSettings[F, Array[Byte], Array[Byte]]]): GenericRecordProduce[F] =
+    new GenericRecordProduce[F](pushGenericRecord, f(producerSettings))
 
   /*
    * sink

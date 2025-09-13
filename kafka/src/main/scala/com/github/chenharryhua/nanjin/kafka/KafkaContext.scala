@@ -7,11 +7,11 @@ import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameL}
 import com.github.chenharryhua.nanjin.common.{utils, UpdateConfig}
 import com.github.chenharryhua.nanjin.kafka.connector.{
-  ConsumeByteKafka,
-  ConsumeKafka,
-  ProduceByteKafka,
-  ProduceKafka,
-  PushGenericRecord
+  GenericRecordConsume,
+  GenericRecordProduce,
+  GenericRecordPush,
+  KafkaGenericConsume,
+  KafkaGenericProduce
 }
 import com.github.chenharryhua.nanjin.kafka.streaming.{KafkaStreamsBuilder, StateStores, StreamsSerde}
 import com.github.chenharryhua.nanjin.messages.kafka.CRMetaInfo
@@ -59,10 +59,10 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
    * consumer
    */
 
-  def consume[K, V](topicDef: TopicDef[K, V])(implicit F: Sync[F]): ConsumeKafka[F, K, V] = {
+  def consume[K, V](topicDef: TopicDef[K, V])(implicit F: Sync[F]): KafkaGenericConsume[F, K, V] = {
     val topic: KafkaTopic[K, V] =
       topicDef.codecPair.register(settings.schemaRegistrySettings, topicDef.topicName)
-    new ConsumeKafka[F, K, V](
+    new KafkaGenericConsume[F, K, V](
       topicDef.topicName,
       ConsumerSettings[F, K, V](
         Deserializer.delegate[F, K](topic.key.registered.serde.deserializer()),
@@ -71,8 +71,8 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
     )
   }
 
-  def consume(topicName: TopicNameL)(implicit F: Sync[F]): ConsumeByteKafka[F] =
-    new ConsumeByteKafka[F](
+  def consume(topicName: TopicNameL)(implicit F: Sync[F]): GenericRecordConsume[F] =
+    new GenericRecordConsume[F](
       TopicName(topicName),
       schemaRegistry.fetchAvroSchema(topicName),
       ConsumerSettings[F, Array[Byte], Array[Byte]](
@@ -81,8 +81,8 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
     )
 
   def consume(topicName: TopicNameL, avroSchemaPair: AvroSchemaPair)(implicit
-    F: Sync[F]): ConsumeByteKafka[F] =
-    new ConsumeByteKafka[F](
+    F: Sync[F]): GenericRecordConsume[F] =
+    new GenericRecordConsume[F](
       TopicName(topicName),
       F.pure(avroSchemaPair),
       ConsumerSettings[F, Array[Byte], Array[Byte]](
@@ -112,30 +112,30 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
    * producer
    */
 
-  def produce[K: AvroCodecOf, V: AvroCodecOf](implicit F: Sync[F]): ProduceKafka[F, K, V] =
-    new ProduceKafka[F, K, V](
+  def produce[K: AvroCodecOf, V: AvroCodecOf](implicit F: Sync[F]): KafkaGenericProduce[F, K, V] =
+    new KafkaGenericProduce[F, K, V](
       ProducerSettings[F, K, V](
         Serializer.delegate(AvroCodecOf[K].asKey(settings.schemaRegistrySettings.config).serde.serializer()),
         Serializer.delegate(AvroCodecOf[V].asValue(settings.schemaRegistrySettings.config).serde.serializer())
       ).withProperties(settings.producerSettings.properties)
     )
 
-  def produce[K, V](raw: AvroCodecPair[K, V])(implicit F: Sync[F]): ProduceKafka[F, K, V] =
+  def produce[K, V](raw: AvroCodecPair[K, V])(implicit F: Sync[F]): KafkaGenericProduce[F, K, V] =
     produce[K, V](raw.key, raw.value, Sync[F])
 
   def produce(topicName: TopicNameL, avroSchemaPair: AvroSchemaPair)(implicit F: Sync[F]) =
-    new ProduceByteKafka[F](
-      F.pure(new PushGenericRecord(settings.schemaRegistrySettings, TopicName(topicName), avroSchemaPair)),
+    new GenericRecordProduce[F](
+      F.pure(new GenericRecordPush(settings.schemaRegistrySettings, TopicName(topicName), avroSchemaPair)),
       ProducerSettings[F, Array[Byte], Array[Byte]](Serializer[F, Array[Byte]], Serializer[F, Array[Byte]])
         .withProperties(settings.producerSettings.properties)
     )
 
-  def produce(topicName: TopicNameL)(implicit F: Sync[F]): ProduceByteKafka[F] = {
+  def produce(topicName: TopicNameL)(implicit F: Sync[F]): GenericRecordProduce[F] = {
     val push = schemaRegistry
       .fetchAvroSchema(topicName)
-      .map(pair => new PushGenericRecord(settings.schemaRegistrySettings, TopicName(topicName), pair))
+      .map(pair => new GenericRecordPush(settings.schemaRegistrySettings, TopicName(topicName), pair))
 
-    new ProduceByteKafka[F](
+    new GenericRecordProduce[F](
       push,
       ProducerSettings[F, Array[Byte], Array[Byte]](Serializer[F, Array[Byte]], Serializer[F, Array[Byte]])
         .withProperties(settings.producerSettings.properties)

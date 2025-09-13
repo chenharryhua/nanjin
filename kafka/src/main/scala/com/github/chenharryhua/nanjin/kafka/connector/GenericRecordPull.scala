@@ -16,7 +16,7 @@ import scala.jdk.CollectionConverters.SeqHasAsJava
 import scala.jdk.OptionConverters.RichOptional
 import scala.util.{Success, Try}
 
-final private class PullGenericRecord(topicName: TopicName, pair: AvroSchemaPair) {
+final private class GenericRecordPull(topicName: TopicName, pair: AvroSchemaPair) {
   private val schema: Schema = pair.consumerSchema
   private val topic: String = topicName.value
 
