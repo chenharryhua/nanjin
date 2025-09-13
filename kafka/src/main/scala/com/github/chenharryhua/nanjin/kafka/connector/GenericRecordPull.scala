@@ -49,6 +49,8 @@ final private class GenericRecordPull(topicName: TopicName, pair: AvroSchemaPair
       case Schema.Type.BYTES =>
         val deser = Serdes.byteArraySerde.deserializer()
         (data: Array[Byte]) => Try(deser.deserialize(topic, data))
+      case Schema.Type.NULL =>
+        (_: Array[Byte]) => Success(null)
 
       case _ => throw new RuntimeException(s"unsupported key schema: ${pair.key.toString}")
     }
@@ -82,6 +84,8 @@ final private class GenericRecordPull(topicName: TopicName, pair: AvroSchemaPair
       case Schema.Type.BYTES =>
         val deser = Serdes.byteArraySerde.deserializer()
         (data: Array[Byte]) => Try(deser.deserialize(topic, data))
+      case Schema.Type.NULL =>
+        (_: Array[Byte]) => Success(null)
 
       case _ => throw new RuntimeException(s"unsupported value schema: ${pair.value.toString}")
     }

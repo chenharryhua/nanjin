@@ -272,7 +272,9 @@ class Fs2ChannelTest extends AnyFunSuite {
     val ret =
       ctx
         .consume(topicDef.topicName.name)
-        .withSchema(_.withKeySchema(topicDef.schemaPair.key).withValSchema(topicDef.schemaPair.value))
+        .withSchema(_.withoutKeySchema.withoutValSchema
+          .withKeySchema(topicDef.schemaPair.key)
+          .withValSchema(topicDef.schemaPair.value))
         .subscribe
         .take(1)
         .map(_.record)

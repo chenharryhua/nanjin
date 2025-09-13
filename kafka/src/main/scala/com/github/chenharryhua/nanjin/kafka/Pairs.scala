@@ -39,6 +39,9 @@ final class OptionalAvroSchemaPair(key: Option[Schema], value: Option[Schema]) {
   def withValSchema(schema: Schema): OptionalAvroSchemaPair =
     new OptionalAvroSchemaPair(key, Some(schema))
 
+  def withoutKeySchema: OptionalAvroSchemaPair = withKeySchema(Schema.create(Schema.Type.NULL))
+  def withoutValSchema: OptionalAvroSchemaPair = withValSchema(Schema.create(Schema.Type.NULL))
+
   private[kafka] def toPair: AvroSchemaPair = (key, value) match {
     case (None, None)       => throw new Exception("both key and value schema are absent")
     case (None, Some(_))    => throw new Exception("key schema is absent")

@@ -1,9 +1,9 @@
 package com.github.chenharryhua.nanjin.kafka.connector
 
-import cats.Endo
 import cats.data.{NonEmptyList, NonEmptySet, ReaderT}
 import cats.effect.kernel.{Async, Concurrent}
 import cats.syntax.all.*
+import cats.{Endo, Functor}
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.common.{HasProperties, UpdateConfig}
 import com.github.chenharryhua.nanjin.datetime.DateTimeRange
@@ -14,6 +14,7 @@ import com.github.chenharryhua.nanjin.kafka.{
 }
 import fs2.Stream
 import fs2.kafka.{AutoOffsetReset, CommittableConsumerRecord, ConsumerSettings, KafkaConsumer}
+import org.apache.avro.Schema
 import org.apache.avro.generic.GenericData
 import org.apache.kafka.clients.consumer.OffsetAndMetadata
 import org.apache.kafka.common.TopicPartition
@@ -40,6 +41,9 @@ final class GenericRecordConsume[F[_]](
 
   def withSchema(f: Endo[OptionalAvroSchemaPair]): GenericRecordConsume[F] =
     new GenericRecordConsume[F](topicName, getSchema, f, consumerSettings)
+
+  def schema(implicit F: Functor[F]): F[Schema] =
+    getSchema.map(updateSchema(_).toPair.consumerSchema)
 
   /*
    * Array[Byte]
