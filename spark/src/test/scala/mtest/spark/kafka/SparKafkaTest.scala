@@ -140,7 +140,7 @@ class SparKafkaTest extends AnyFunSuite {
         _.map(hadoop.source(_).jackson(10, topic.schemaPair.consumerSchema))
           .reduce(_ ++ _)
           .chunks
-          .through(ctx.sink(topic.topicName, _.withClientId("a"))))
+          .through(ctx.sink(topic.topicName.name, _.withClientId("a"))))
       .compile
       .drain
       .unsafeRunSync()

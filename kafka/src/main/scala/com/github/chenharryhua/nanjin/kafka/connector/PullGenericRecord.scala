@@ -16,11 +16,11 @@ import scala.jdk.CollectionConverters.SeqHasAsJava
 import scala.jdk.OptionConverters.RichOptional
 import scala.util.{Success, Try}
 
-final private class PullGenericRecord(topicName: TopicName, pair: AvroSchemaPair) extends Serializable {
+final private class PullGenericRecord(topicName: TopicName, pair: AvroSchemaPair) {
   private val schema: Schema = pair.consumerSchema
   private val topic: String = topicName.value
 
-  @transient private lazy val key_decode: Array[Byte] => Try[Any] =
+  private val key_decode: Array[Byte] => Try[Any] =
     pair.key.getType match {
       case Schema.Type.RECORD =>
         val reader = new GenericDatumReader[GenericData.Record](pair.key)
@@ -53,7 +53,7 @@ final private class PullGenericRecord(topicName: TopicName, pair: AvroSchemaPair
       case _ => throw new RuntimeException(s"unsupported key schema: ${pair.key.toString}")
     }
 
-  @transient private lazy val val_decode: Array[Byte] => Try[Any] =
+  private val val_decode: Array[Byte] => Try[Any] =
     pair.value.getType match {
       case Schema.Type.RECORD =>
         val reader = new GenericDatumReader[GenericData.Record](pair.value)

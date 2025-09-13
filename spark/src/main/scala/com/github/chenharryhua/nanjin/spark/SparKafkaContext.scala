@@ -126,7 +126,8 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
     topicName: TopicNameL,
     folder: Url,
     chunkSize: ChunkSize = refineMV(1000),
-    config: Endo[ProducerSettings[F, Array[Byte], Array[Byte]]] = identity)(implicit F: Async[F]): F[Long] = {
+    config: Endo[ProducerSettings[F, Array[Byte], Array[Byte]]] =
+      _.withBatchSize(512 * 1024).withLinger(50.milli))(implicit F: Async[F]): F[Long] = {
 
     val producerSettings: ProducerSettings[F, Array[Byte], Array[Byte]] =
       config(
@@ -151,6 +152,7 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
                 .reduce(_ ++ _)
                 .chunks
                 .map(_.map(builder.fromGenericRecord))
+                .prefetch
               KafkaProducer.pipe(producerSettings).apply(ss)
             }
             .toList
@@ -163,7 +165,11 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
   }
 
   def crazyUpload(topicName: TopicNameL, folder: Url)(implicit F: Async[F]): F[Long] =
-    upload(topicName, folder, refineMV(1000), _.withBatchSize(200000).withLinger(10.milli).withAcks(Acks.One))
+    upload(
+      topicName,
+      folder,
+      refineMV(1000),
+      _.withBatchSize(512 * 1024).withLinger(50.milli).withAcks(Acks.One))
 
   /** sequentially read files in the folder, sorted by modification time, and upload them into kafka
     *

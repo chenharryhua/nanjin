@@ -68,7 +68,7 @@ class Fs2ChannelTest extends AnyFunSuite {
 
     val ret =
       ctx.schemaRegistry.register(topicDef).attempt >>
-        ctx.produce[Int, Fs2Kafka].produceOne(topicDef.topicName.value, 1, Fs2Kafka(1, "a", 1.0)) >>
+        ctx.produce[Int, Fs2Kafka].produceOne(topicDef.topicName.name, 1, Fs2Kafka(1, "a", 1.0)) >>
         ctx
           .consume(topicDef)
           .updateConfig(_.withGroupId("g1").withAutoOffsetReset(AutoOffsetReset.Earliest))

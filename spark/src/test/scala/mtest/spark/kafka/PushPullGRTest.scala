@@ -61,7 +61,7 @@ class PushPullGRTest extends AnyFunSuite {
   }
 
   test("push - pull - evolve") {
-    val sink = ctx.sink(evolveTopic.topicName, identity)
+    val sink = ctx.sink(evolveTopic.topicName.name, identity)
     val path = root / "evolve"
 
     (baseData ++ evolveData).chunks.through(sink).compile.drain.unsafeRunSync()
