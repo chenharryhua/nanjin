@@ -8,7 +8,8 @@ import cats.syntax.semigroup.catsSyntaxSemigroup
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.sksamuel.avro4s.*
 import fs2.kafka.*
-import io.circe.{Codec as JsonCodec, Decoder as JsonDecoder, Encoder as JsonEncoder}
+import io.circe.syntax.EncoderOps
+import io.circe.{Codec as JsonCodec, Decoder as JsonDecoder, Encoder as JsonEncoder, Json}
 import io.scalaland.chimney.Transformer
 import io.scalaland.chimney.dsl.*
 import monocle.macros.PLenses
@@ -18,6 +19,7 @@ import org.apache.kafka.common.header.Header as JavaHeader
 import org.apache.kafka.common.header.internals.RecordHeaders
 import org.apache.kafka.common.record.TimestampType as JavaTimestampType
 
+import java.time.{Instant, ZoneId}
 import scala.jdk.OptionConverters.{RichOption, RichOptional}
 
 @AvroDoc("kafka consumer record, optional Key and optional Value")
@@ -58,6 +60,12 @@ final case class NJConsumerRecord[K, V](
 
   def toJavaConsumerRecord: JavaConsumerRecord[K, V] = this.transformInto[JavaConsumerRecord[K, V]]
   def toConsumerRecord: ConsumerRecord[K, V] = this.transformInto[ConsumerRecord[K, V]]
+
+  def zonedJson(zoneID: ZoneId)(implicit K: JsonEncoder[K], V: JsonEncoder[V]): Json =
+    NJConsumerRecord
+      .encoderNJConsumerRecord[K, V]
+      .apply(this)
+      .deepMerge(Json.obj("ts" -> Instant.ofEpochMilli(timestamp).atZone(zoneID).toLocalDateTime.asJson))
 }
 
 object NJConsumerRecord {

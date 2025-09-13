@@ -1,33 +1,36 @@
-package com.github.chenharryhua.nanjin.kafka
-
+package com.github.chenharryhua.nanjin.kafka.connector
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
+import com.github.chenharryhua.nanjin.kafka.AvroSchemaPair
 import com.github.chenharryhua.nanjin.messages.kafka.NJHeader
-import com.github.chenharryhua.nanjin.messages.kafka.codec.immigrate
 import com.github.chenharryhua.nanjin.messages.kafka.instances.*
 import com.sksamuel.avro4s.SchemaFor
 import fs2.kafka.{ConsumerRecord, KafkaByteConsumerRecord}
-import io.confluent.kafka.streams.serdes.avro.GenericAvroDeserializer
 import io.scalaland.chimney.dsl.TransformerOps
 import org.apache.avro.Schema
-import org.apache.avro.generic.GenericData
+import org.apache.avro.generic.{GenericData, GenericDatumReader}
+import org.apache.avro.io.DecoderFactory
 import org.apache.kafka.streams.scala.serialization.Serdes
 
 import java.nio.ByteBuffer
-import scala.jdk.CollectionConverters.{MapHasAsJava, SeqHasAsJava}
+import scala.jdk.CollectionConverters.SeqHasAsJava
 import scala.jdk.OptionConverters.RichOptional
-import scala.util.Try
+import scala.util.{Success, Try}
 
-final class PullGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName, pair: AvroSchemaPair)
-    extends Serializable {
+final private class GenericRecordPull(topicName: TopicName, pair: AvroSchemaPair) {
   private val schema: Schema = pair.consumerSchema
   private val topic: String = topicName.value
 
-  @transient private lazy val key_decode: Array[Byte] => Try[Any] =
+  private val key_decode: Array[Byte] => Try[Any] =
     pair.key.getType match {
       case Schema.Type.RECORD =>
-        val deser = new GenericAvroDeserializer()
-        deser.configure(srs.config.asJava, true)
-        (data: Array[Byte]) => immigrate(pair.key, deser.deserialize(topic, data))
+        val reader = new GenericDatumReader[GenericData.Record](pair.key)
+        (data: Array[Byte]) =>
+          if (data == null) Success(null)
+          else
+            Try { // drop 5: 1 byte magic, 4 bytes schema ID
+              val decoder = DecoderFactory.get.binaryDecoder(data.drop(5), null)
+              reader.read(null, decoder)
+            }
       case Schema.Type.STRING =>
         val deser = Serdes.stringSerde.deserializer()
         (data: Array[Byte]) => Try(deser.deserialize(topic, data))
@@ -46,16 +49,23 @@ final class PullGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName,
       case Schema.Type.BYTES =>
         val deser = Serdes.byteArraySerde.deserializer()
         (data: Array[Byte]) => Try(deser.deserialize(topic, data))
+      case Schema.Type.NULL =>
+        (_: Array[Byte]) => Success(null)
 
       case _ => throw new RuntimeException(s"unsupported key schema: ${pair.key.toString}")
     }
 
-  @transient private lazy val val_decode: Array[Byte] => Try[Any] =
+  private val val_decode: Array[Byte] => Try[Any] =
     pair.value.getType match {
       case Schema.Type.RECORD =>
-        val deser = new GenericAvroDeserializer()
-        deser.configure(srs.config.asJava, false)
-        (data: Array[Byte]) => immigrate(pair.value, deser.deserialize(topic, data))
+        val reader = new GenericDatumReader[GenericData.Record](pair.value)
+        (data: Array[Byte]) =>
+          if (data == null) Success(null)
+          else
+            Try { // drop 5: 1 byte magic, 4 bytes schema ID
+              val decoder = DecoderFactory.get.binaryDecoder(data.drop(5), null)
+              reader.read(null, decoder)
+            }
       case Schema.Type.STRING =>
         val deser = Serdes.stringSerde.deserializer()
         (data: Array[Byte]) => Try(deser.deserialize(topic, data))
@@ -74,6 +84,8 @@ final class PullGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName,
       case Schema.Type.BYTES =>
         val deser = Serdes.byteArraySerde.deserializer()
         (data: Array[Byte]) => Try(deser.deserialize(topic, data))
+      case Schema.Type.NULL =>
+        (_: Array[Byte]) => Success(null)
 
       case _ => throw new RuntimeException(s"unsupported value schema: ${pair.value.toString}")
     }
@@ -90,8 +102,8 @@ final class PullGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName,
         header.put("value", ByteBuffer.wrap(h.value()))
         header
       }
-      record.put(TOPIC, ccr.topic)
-      record.put(PARTITION, ccr.partition)
+      record.put("topic", ccr.topic)
+      record.put("partition", ccr.partition)
       record.put("offset", ccr.offset)
       record.put("timestamp", ccr.timestamp())
       record.put("timestampType", ccr.timestampType().id)

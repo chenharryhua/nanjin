@@ -54,7 +54,7 @@ final class SparKafkaTopic[F[_], K, V](
     */
   def fromKafka(offsets: Map[Int, (Long, Long)])(implicit F: Async[F]): F[CrRdd[K, V]] =
     ctx
-      .admin(topicName)
+      .admin(topicName.name)
       .use(_.partitionsFor.map { partitions =>
         val topicPartition = partitions.value.map { tp =>
           val ofs: Option[OffsetRange] =

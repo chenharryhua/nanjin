@@ -2,14 +2,11 @@ package mtest.kafka
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
-import com.github.chenharryhua.nanjin.datetime.DateTimeRange
 import com.github.chenharryhua.nanjin.kafka.TopicDef
 import eu.timepit.refined.auto.*
 import fs2.Stream
 import fs2.kafka.*
-import org.apache.kafka.common.TopicPartition
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.*
@@ -49,16 +46,4 @@ class MonitorApiTest extends AnyFunSuite {
       .drain
       .unsafeRunSync()
   }
-
-  test("cherry pick") {
-    ctx
-      .admin("monitor.test")
-      .use(_.offsetRangeFor(DateTimeRange(sydneyTime)))
-      .flatMap { kor =>
-        val range = kor.get(new TopicPartition("monitor.test", 0)).flatten.get
-        ctx.cherryPick("monitor.test", 0, range.from)
-      }
-      .unsafeRunSync()
-  }
-
 }

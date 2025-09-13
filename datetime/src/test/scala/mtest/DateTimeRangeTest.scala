@@ -5,13 +5,7 @@ import cats.kernel.laws.discipline.PartialOrderTests
 import cats.laws.discipline.AlternativeTests
 import cats.syntax.all.*
 import com.fortysevendeg.scalacheck.datetime.jdk8.ArbitraryJdk8.*
-import com.github.chenharryhua.nanjin.common.chrono.zones.{
-  beijingTime,
-  cairoTime,
-  darwinTime,
-  newyorkTime,
-  sydneyTime
-}
+import com.github.chenharryhua.nanjin.common.chrono.zones.*
 import com.github.chenharryhua.nanjin.datetime.*
 import com.github.chenharryhua.nanjin.datetime.instances.*
 import io.circe.syntax.EncoderOps
@@ -93,6 +87,13 @@ class DateTimeRangeTest extends AnyFunSuite with FunSuiteDiscipline with Configu
     assert(dtr.days.eqv(List(d1, d2, d3)))
 
     assert(dtr.withOneDay(d3).days.eqv(List(d3)))
+  }
+
+  test("start after end") {
+    val d1 = LocalDate.of(2012, 10, 26)
+    val d3 = LocalDate.of(2012, 10, 28)
+    val dtr = DateTimeRange(beijingTime).withStartTime(d3).withEndTime(d1)
+    assert(dtr.days.isEmpty)
   }
 
   test("infinite range should return empty list") {

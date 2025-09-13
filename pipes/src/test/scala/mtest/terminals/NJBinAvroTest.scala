@@ -34,6 +34,9 @@ class NJBinAvroTest extends AnyFunSuite {
     assert(jawn.decode[FileKind](fileName).toOption.get == file)
     assert(action.unsafeRunSync().toSet == data)
     val size = ts.through(sink).fold(0)(_ + _).compile.lastOrError.unsafeRunSync()
+
+    hdp.source(tgt).binAvro(100, pandaSchema, readerSchema).debug().compile.drain.unsafeRunSync()
+
     assert(size == data.size)
     assert(hdp.source(tgt).binAvro(100, pandaSchema).compile.toList.unsafeRunSync().toSet == data)
   }

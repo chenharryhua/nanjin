@@ -4,7 +4,7 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.TopicDef
-import com.github.chenharryhua.nanjin.kafka.connector.ConsumeByteKafka
+import com.github.chenharryhua.nanjin.kafka.connector.GenericRecordConsume
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{gr2BinAvro, gr2Circe, gr2Jackson}
 import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJProducerRecord}
 import com.sksamuel.avro4s.SchemaFor
@@ -45,7 +45,9 @@ class SparKafkaTest extends AnyFunSuite {
       .compile
       .drain
 
-  (ctx.admin(topic.topicName).use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt) >>
+  (ctx
+    .admin(topic.topicName.name)
+    .use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt) >>
     ctx.schemaRegistry.register(topic) >> loadData).unsafeRunSync()
 
   test("sparKafka read topic from kafka") {
@@ -139,8 +141,7 @@ class SparKafkaTest extends AnyFunSuite {
       .flatMap(
         _.map(hadoop.source(_).jackson(10, topic.schemaPair.consumerSchema))
           .reduce(_ ++ _)
-          .chunks
-          .through(ctx.sink(topic.topicName, _.withClientId("a"))))
+          .through(ctx.produce(topic.topicName.name).updateConfig(_.withClientId("a")).sink))
       .compile
       .drain
       .unsafeRunSync()
@@ -151,7 +152,7 @@ class SparKafkaTest extends AnyFunSuite {
     val p1 = path / "dump"
     val p2 = path / "download"
     sparKafka.hadoop.delete(path).unsafeRunSync()
-    sparKafka.dumpJackson("duck.test", p1).unsafeRunSync()
+    sparKafka.dump("duck.test", p1).unsafeRunSync()
     sparKafka.dumpCirce(topic, p2).unsafeRunSync()
     sparKafka.upload("duck.test", p1).unsafeRunSync()
     sparKafka.sequentialUpload("duck.test", p1).unsafeRunSync()
@@ -162,7 +163,7 @@ class SparKafkaTest extends AnyFunSuite {
     assert(s1.diff(s2).rdd.count() == 0)
   }
 
-  val duckConsume: ConsumeByteKafka[IO] =
+  val duckConsume: GenericRecordConsume[IO] =
     ctx.consume("duck.test").updateConfig(_.withAutoOffsetReset(AutoOffsetReset.Earliest).withGroupId("duck"))
 
   test("generic record") {

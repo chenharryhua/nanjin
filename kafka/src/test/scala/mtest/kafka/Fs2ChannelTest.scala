@@ -68,7 +68,7 @@ class Fs2ChannelTest extends AnyFunSuite {
 
     val ret =
       ctx.schemaRegistry.register(topicDef).attempt >>
-        ctx.produce[Int, Fs2Kafka].produceOne(topicDef.topicName.value, 1, Fs2Kafka(1, "a", 1.0)) >>
+        ctx.produce[Int, Fs2Kafka].produceOne(topicDef.topicName.name, 1, Fs2Kafka(1, "a", 1.0)) >>
         ctx
           .consume(topicDef)
           .updateConfig(_.withGroupId("g1").withAutoOffsetReset(AutoOffsetReset.Earliest))
@@ -99,7 +99,7 @@ class Fs2ChannelTest extends AnyFunSuite {
   test("3.serde") {
     val serde = ctx.serde(topicDef)
     ctx
-      .consume(topicDef.topicName)
+      .consume(topicDef.topicName.name)
       .subscribeBytes
       .take(1)
       .map { ccr =>
@@ -148,7 +148,7 @@ class Fs2ChannelTest extends AnyFunSuite {
       "leaderEpoch":null
     }
      """
-    ctx.publishJackson(jackson).flatMap(IO.println).unsafeRunSync()
+    ctx.produce("fs2.kafka.test").jackson(jackson).flatMap(IO.println).unsafeRunSync()
   }
 
   test("5.consumer config") {
@@ -266,5 +266,24 @@ class Fs2ChannelTest extends AnyFunSuite {
       .drain
       .as(true)
     assert(res.unsafeRunSync())
+  }
+
+  test("13. generic record without schema registry") {
+    val ret =
+      ctx
+        .consume(topicDef.topicName.name)
+        .withSchema(_.withoutKeySchema.withoutValSchema
+          .withKeySchema(topicDef.schemaPair.key)
+          .withValSchema(topicDef.schemaPair.value))
+        .subscribe
+        .take(1)
+        .map(_.record)
+        .debug()
+        .timeout(3.seconds)
+        .compile
+        .toList
+        .unsafeRunSync()
+    assert(ret.size == 1)
+    assert(ret.head.value.isSuccess)
   }
 }

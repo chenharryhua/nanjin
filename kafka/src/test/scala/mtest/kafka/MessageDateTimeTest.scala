@@ -64,7 +64,7 @@ class MessageDateTimeTest extends AnyFunSuite {
         .through(ctx.produce[Int, AllJavaDateTime].sink)
     val rst = for {
       _ <- ctx
-        .admin(topic.topicName)
+        .admin(topic.topicName.name)
         .use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt)
       _ <- data.compile.drain
     } yield ()

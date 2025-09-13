@@ -1,6 +1,7 @@
-package com.github.chenharryhua.nanjin.kafka
+package com.github.chenharryhua.nanjin.kafka.connector
 
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
+import com.github.chenharryhua.nanjin.kafka.{AvroSchemaPair, SchemaRegistrySettings}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.immigrate
 import com.sksamuel.avro4s.Decoder
 import fs2.kafka.ProducerRecord
@@ -11,12 +12,15 @@ import org.apache.kafka.streams.scala.serialization.Serdes
 
 import scala.jdk.CollectionConverters.MapHasAsJava
 
-final class PushGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName, pair: AvroSchemaPair)
-    extends Serializable {
+final private[kafka] class GenericRecordPush(
+  srs: SchemaRegistrySettings,
+  topicName: TopicName,
+  pair: AvroSchemaPair) {
+  val schema: Schema = pair.consumerSchema
 
   private val topic: String = topicName.value
 
-  @transient private lazy val key_serialize: AnyRef => Array[Byte] =
+  private val key_serialize: AnyRef => Array[Byte] =
     pair.key.getType match {
       case Schema.Type.RECORD =>
         val ser = new GenericAvroSerializer()
@@ -46,7 +50,7 @@ final class PushGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName,
       case _ => throw new RuntimeException(s"unsupported key schema: ${pair.key.toString}")
     }
 
-  @transient private lazy val val_serialize: AnyRef => Array[Byte] =
+  private val val_serialize: AnyRef => Array[Byte] =
     pair.value.getType match {
       case Schema.Type.RECORD =>
         val ser = new GenericAvroSerializer()
@@ -75,9 +79,6 @@ final class PushGenericRecord(srs: SchemaRegistrySettings, topicName: TopicName,
 
       case _ => throw new RuntimeException(s"unsupported value schema: ${pair.value.toString}")
     }
-
-  def fromGenericRecord(key: GenericRecord, value: GenericRecord): ProducerRecord[Array[Byte], Array[Byte]] =
-    ProducerRecord(topic, key_serialize(key), val_serialize(value))
 
   /** @param gr
     *   a GenericRecord of NJConsumerRecord

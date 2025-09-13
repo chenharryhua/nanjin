@@ -33,10 +33,12 @@ class CopyDataTest extends AnyFunSuite {
       .drain
 
   val prepareData =
-    ctx.admin(src.topicName).use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt) >>
+    ctx.admin(src.topicName.name).use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt) >>
       ctx.schemaRegistry.delete(src.topicName).attempt >>
       ctx.schemaRegistry.register(src).attempt >>
-      ctx.admin(tgt.topicName).use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt) >>
+      ctx
+        .admin(tgt.topicName.name)
+        .use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt) >>
       ctx.schemaRegistry.delete(tgt.topicName).attempt >>
       ctx.schemaRegistry.register(tgt).attempt >>
       loadData

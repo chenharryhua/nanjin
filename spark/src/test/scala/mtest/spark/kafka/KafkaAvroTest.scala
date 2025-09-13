@@ -67,7 +67,7 @@ class KafkaAvroTest extends AnyFunSuite {
 
     val run =
       ctx
-        .admin(topicCO.topicName)
+        .admin(topicCO.topicName.name)
         .use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt) >>
         ctx.schemaRegistry.register(topicCO) >>
         data.compile.drain >>
@@ -94,7 +94,7 @@ class KafkaAvroTest extends AnyFunSuite {
 
     val run =
       ctx
-        .admin(topicEnum.topicName)
+        .admin(topicEnum.topicName.name)
         .use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt) >>
         ctx.schemaRegistry.register(topicEnum) >>
         data.compile.drain >>
@@ -125,7 +125,7 @@ class KafkaAvroTest extends AnyFunSuite {
 
     val run =
       ctx
-        .admin(topicEnum.topicName)
+        .admin(topicEnum.topicName.name)
         .use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt) >>
         ctx.schemaRegistry.register(topicEnum) >>
         data.compile.drain >>
@@ -149,7 +149,7 @@ class KafkaAvroTest extends AnyFunSuite {
 
     val run =
       ctx
-        .admin(topicEnum.topicName)
+        .admin(topicEnum.topicName.name)
         .use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt) >>
         ctx.schemaRegistry.register(topicEnum) >>
         data.compile.drain >>
@@ -171,7 +171,7 @@ class KafkaAvroTest extends AnyFunSuite {
 
     val run =
       ctx
-        .admin(topicEnum.topicName)
+        .admin(topicEnum.topicName.name)
         .use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt) >>
         ctx.schemaRegistry.register(topicEnum) >>
         data.compile.drain >>

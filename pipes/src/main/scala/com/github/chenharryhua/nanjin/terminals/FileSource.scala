@@ -28,11 +28,62 @@ sealed trait FileSource[F[_]] {
   def avro(chunkSize: ChunkSize): Stream[F, GenericData.Record]
 
   /** [[https://avro.apache.org]]
+    *
+    * re-interpret the record according to the reader schema
+    *
     * @param chunkSize
     *   Each chunk of the stream is of uniform size, except for the final chunk, which may be smaller
     *   depending on the remaining data.
+    * @param readerSchema
+    *   expected schema
+    */
+  def avro(chunkSize: ChunkSize, readerSchema: Schema): Stream[F, GenericData.Record]
+
+  /** [[https://avro.apache.org]]
+    *
+    * re-interpret the record according to the reader schema
+    *
+    * @param chunkSize
+    *   Each chunk of the stream is of uniform size, except for the final chunk, which may be smaller
+    *   depending on the remaining data.
+    * @param writerSchema
+    *   the one the record was originally written with
+    * @param readerSchema
+    *   the new (upgraded) schema
+    */
+  def binAvro(chunkSize: ChunkSize, writerSchema: Schema, readerSchema: Schema): Stream[F, GenericData.Record]
+
+  /** [[https://avro.apache.org]]
+    *
+    * @param chunkSize
+    *   Each chunk of the stream is of uniform size, except for the final chunk, which may be smaller
+    *   depending on the remaining data.
+    * @param schema
+    *   the schema of the file
     */
   def binAvro(chunkSize: ChunkSize, schema: Schema): Stream[F, GenericData.Record]
+
+  /** [[https://github.com/FasterXML/jackson]]
+    *
+    * re-interpret the record according to the reader schema
+    * @param chunkSize
+    *   Each chunk of the stream is of uniform size, except for the final chunk, which may be smaller
+    *   depending on the remaining data.
+    * @param writerSchema
+    *   the one the record was originally written with
+    * @param readerSchema
+    *   the new (upgraded) schema
+    */
+  def jackson(chunkSize: ChunkSize, writerSchema: Schema, readerSchema: Schema): Stream[F, GenericData.Record]
+
+  /** [[https://github.com/FasterXML/jackson]]
+    * @param chunkSize
+    *   Each chunk of the stream is of uniform size, except for the final chunk, which may be smaller
+    *   depending on the remaining data.
+    * @param schema
+    *   the schema of the file
+    */
+  def jackson(chunkSize: ChunkSize, schema: Schema): Stream[F, GenericData.Record]
 
   /** @param bufferSize
     *   in terms of bytes, bits, kilobytes, megabytes, etc. Each chunk of the stream is of uniform size,
@@ -46,15 +97,6 @@ sealed trait FileSource[F[_]] {
     *   depending on the remaining data.
     */
   def circe(chunkSize: ChunkSize): Stream[F, Json]
-
-  /** [[https://github.com/FasterXML/jackson]]
-    * @param chunkSize
-    *   Each chunk of the stream is of uniform size, except for the final chunk, which may be smaller
-    *   depending on the remaining data.
-    * @param schema
-    *   the schema of the file
-    */
-  def jackson(chunkSize: ChunkSize, schema: Schema): Stream[F, GenericData.Record]
 
   /** [[https://nrinaudo.github.io/kantan.csv]]
     * @param chunkSize
@@ -116,10 +158,18 @@ sealed trait FileSource[F[_]] {
 final private class FileSourceImpl[F[_]: Sync](configuration: Configuration, url: Url) extends FileSource[F] {
 
   override def avro(chunkSize: ChunkSize): Stream[F, GenericData.Record] =
-    HadoopReader.avroS(configuration, url, chunkSize)
+    HadoopReader.avroS(configuration, url, chunkSize, None)
+  override def avro(chunkSize: ChunkSize, readerSchema: Schema): Stream[F, GenericData.Record] =
+    HadoopReader.avroS(configuration, url, chunkSize, Some(readerSchema))
+
+  override def binAvro(
+    chunkSize: ChunkSize,
+    writerSchema: Schema,
+    readerSchema: Schema): Stream[F, GenericData.Record] =
+    HadoopReader.binAvroS[F](configuration, writerSchema, readerSchema, url, chunkSize)
 
   override def binAvro(chunkSize: ChunkSize, schema: Schema): Stream[F, GenericData.Record] =
-    HadoopReader.binAvroS[F](configuration, schema, url, chunkSize)
+    binAvro(chunkSize, schema, schema)
 
   override def bytes(bufferSize: Information): Stream[F, Byte] = {
     require(bufferSize.toBytes > 0, s"bufferSize(${bufferSize.toString()}) should be bigger than zero")
@@ -129,8 +179,14 @@ final private class FileSourceImpl[F[_]: Sync](configuration: Configuration, url
   override def circe(chunkSize: ChunkSize): Stream[F, Json] =
     HadoopReader.jawnS[F](configuration, url, chunkSize)
 
+  override def jackson(
+    chunkSize: ChunkSize,
+    writerSchema: Schema,
+    readerSchema: Schema): Stream[F, GenericData.Record] =
+    HadoopReader.jacksonS[F](configuration, writerSchema, readerSchema, url, chunkSize)
+
   override def jackson(chunkSize: ChunkSize, schema: Schema): Stream[F, GenericData.Record] =
-    HadoopReader.jacksonS[F](configuration, schema, url, chunkSize)
+    jackson(chunkSize, schema, schema)
 
   override def kantan(chunkSize: ChunkSize, csvConfiguration: CsvConfiguration): Stream[F, Seq[String]] =
     HadoopReader.kantanS[F](configuration, url, chunkSize, csvConfiguration)
@@ -163,4 +219,5 @@ final private class FileSourceImpl[F[_]: Sync](configuration: Configuration, url
   override def protobuf[A <: GeneratedMessage](chunkSize: ChunkSize)(implicit
     gmc: GeneratedMessageCompanion[A]): Stream[F, A] =
     HadoopReader.protobufS[F, A](configuration, url, chunkSize)
+
 }

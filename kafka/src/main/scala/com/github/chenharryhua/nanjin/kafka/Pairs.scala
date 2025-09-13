@@ -32,3 +32,20 @@ final case class AvroSchemaPair(key: Schema, value: Schema) {
   def isIdentical(other: AvroSchemaPair): Boolean =
     key.equals(other.key) && value.equals(other.value)
 }
+
+final class OptionalAvroSchemaPair(key: Option[Schema], value: Option[Schema]) {
+  def withKeySchema(schema: Schema): OptionalAvroSchemaPair =
+    new OptionalAvroSchemaPair(Some(schema), value)
+  def withValSchema(schema: Schema): OptionalAvroSchemaPair =
+    new OptionalAvroSchemaPair(key, Some(schema))
+
+  def withoutKeySchema: OptionalAvroSchemaPair = withKeySchema(Schema.create(Schema.Type.NULL))
+  def withoutValSchema: OptionalAvroSchemaPair = withValSchema(Schema.create(Schema.Type.NULL))
+
+  private[kafka] def toPair: AvroSchemaPair = (key, value) match {
+    case (None, None)       => throw new Exception("both key and value schema are absent")
+    case (None, Some(_))    => throw new Exception("key schema is absent")
+    case (Some(_), None)    => throw new Exception("value schema is absent")
+    case (Some(k), Some(v)) => AvroSchemaPair(k, v)
+  }
+}

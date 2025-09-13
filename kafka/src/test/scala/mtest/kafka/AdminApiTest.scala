@@ -20,7 +20,7 @@ class AdminApiTest extends AnyFunSuite {
   private val mirror = topicDef.withTopicName("admin.mirror")
 
   test("newTopic") {
-    val run = ctx.admin(topic.topicName).use { admin =>
+    val run = ctx.admin(topic.topicName.name).use { admin =>
       for {
         _ <- admin.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt
         _ <- IO.sleep(1.seconds)
@@ -33,8 +33,8 @@ class AdminApiTest extends AnyFunSuite {
   }
 
   test("mirrorTo") {
-    val admin = ctx.admin(topic.topicName)
-    val madmin = ctx.admin(mirror.topicName)
+    val admin = ctx.admin(topic.topicName.name)
+    val madmin = ctx.admin(mirror.topicName.name)
     val run = for {
       _ <- madmin.use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt)
       _ <- IO.sleep(1.seconds)
@@ -50,7 +50,7 @@ class AdminApiTest extends AnyFunSuite {
     val tpo = Map(new TopicPartition(topic.topicName.value, 0) -> new OffsetAndMetadata(0))
     val admin = ctx.admin("admin")
     val gp =
-      ctx.produce[Int, Int].produceOne(topic.topicName.value, 0, 0) >> ctx.admin("admin").use { admin =>
+      ctx.produce[Int, Int].produceOne(topic.topicName.name, 0, 0) >> ctx.admin("admin").use { admin =>
         ctx.admin.use(_.listTopics.listings) >>
           admin.commitSync(gid, tpo) >>
           admin.retrieveRecord(0, 0) >>

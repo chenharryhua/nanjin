@@ -6,7 +6,7 @@ import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.chrono.zones.darwinTime
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.{DateTimeRange, NJTimestamp}
-import com.github.chenharryhua.nanjin.kafka.connector.ConsumeKafka
+import com.github.chenharryhua.nanjin.kafka.connector.KafkaGenericConsume
 import eu.timepit.refined.auto.*
 import fs2.Stream
 import fs2.kafka.{ConsumerSettings, ProducerRecord, ProducerRecords, ProducerResult}
@@ -34,7 +34,9 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
   val topicData: Stream[IO, ProducerResult[Int, Int]] =
     Stream(ProducerRecords(List(pr1, pr2, pr3))).covary[IO].through(ctx.produce(topicDef.codecPair).sink)
 
-  (ctx.admin(topic.topicName).use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt) >>
+  (ctx
+    .admin(topic.topicName.name)
+    .use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt) >>
     topicData.compile.drain).unsafeRunSync()
 
   val transientConsumer: TransientConsumer[IO] = {
@@ -44,7 +46,7 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
       cs.withProperties(ctx.settings.consumerSettings.properties).withGroupId("consumer-api-test"))
   }
 
-  val client: ConsumeKafka[IO, Int, Int] = ctx.consume(topic)
+  val client: KafkaGenericConsume[IO, Int, Int] = ctx.consume(topic)
 
   test("start and end are both in range") {
     val expect: TopicPartitionMap[Option[OffsetRange]] =
