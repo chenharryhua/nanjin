@@ -152,7 +152,7 @@ class SparKafkaTest extends AnyFunSuite {
     val p1 = path / "dump"
     val p2 = path / "download"
     sparKafka.hadoop.delete(path).unsafeRunSync()
-    sparKafka.dumpJackson("duck.test", p1).unsafeRunSync()
+    sparKafka.dump("duck.test", p1).unsafeRunSync()
     sparKafka.dumpCirce(topic, p2).unsafeRunSync()
     sparKafka.upload("duck.test", p1).unsafeRunSync()
     sparKafka.sequentialUpload("duck.test", p1).unsafeRunSync()

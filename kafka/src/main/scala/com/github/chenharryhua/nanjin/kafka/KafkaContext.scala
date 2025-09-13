@@ -6,18 +6,12 @@ import cats.effect.kernel.{Async, Sync}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameL}
 import com.github.chenharryhua.nanjin.common.{utils, UpdateConfig}
-import com.github.chenharryhua.nanjin.kafka.connector.{
-  GenericRecordConsume,
-  GenericRecordProduce,
-  GenericRecordPush,
-  KafkaGenericConsume,
-  KafkaGenericProduce
-}
+import com.github.chenharryhua.nanjin.kafka.connector.*
 import com.github.chenharryhua.nanjin.kafka.streaming.{KafkaStreamsBuilder, StateStores, StreamsSerde}
 import com.github.chenharryhua.nanjin.messages.kafka.CRMetaInfo
 import com.github.chenharryhua.nanjin.messages.kafka.codec.*
-import fs2.kafka.*
 import fs2.Stream
+import fs2.kafka.*
 import io.circe.syntax.EncoderOps
 import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient
 import io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig
@@ -74,17 +68,8 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
   def consume(topicName: TopicNameL)(implicit F: Sync[F]): GenericRecordConsume[F] =
     new GenericRecordConsume[F](
       TopicName(topicName),
-      schemaRegistry.fetchAvroSchema(topicName),
-      ConsumerSettings[F, Array[Byte], Array[Byte]](
-        Deserializer[F, Array[Byte]],
-        Deserializer[F, Array[Byte]]).withProperties(settings.consumerSettings.properties)
-    )
-
-  def consume(topicName: TopicNameL, avroSchemaPair: AvroSchemaPair)(implicit
-    F: Sync[F]): GenericRecordConsume[F] =
-    new GenericRecordConsume[F](
-      TopicName(topicName),
-      F.pure(avroSchemaPair),
+      schemaRegistry.fetchOptionalAvroSchema(TopicName(topicName)),
+      identity,
       ConsumerSettings[F, Array[Byte], Array[Byte]](
         Deserializer[F, Array[Byte]],
         Deserializer[F, Array[Byte]]).withProperties(settings.consumerSettings.properties)

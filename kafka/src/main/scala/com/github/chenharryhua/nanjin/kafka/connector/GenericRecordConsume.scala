@@ -7,7 +7,11 @@ import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.common.{HasProperties, UpdateConfig}
 import com.github.chenharryhua.nanjin.datetime.DateTimeRange
-import com.github.chenharryhua.nanjin.kafka.{orderingTopicPartition, AvroSchemaPair, TopicPartitionMap}
+import com.github.chenharryhua.nanjin.kafka.{
+  orderingTopicPartition,
+  OptionalAvroSchemaPair,
+  TopicPartitionMap
+}
 import fs2.Stream
 import fs2.kafka.{AutoOffsetReset, CommittableConsumerRecord, ConsumerSettings, KafkaConsumer}
 import org.apache.avro.generic.GenericData
@@ -20,7 +24,8 @@ import scala.util.Try
 
 final class GenericRecordConsume[F[_]](
   topicName: TopicName,
-  getSchema: F[AvroSchemaPair],
+  getSchema: F[OptionalAvroSchemaPair],
+  updateSchema: Endo[OptionalAvroSchemaPair],
   consumerSettings: ConsumerSettings[F, Array[Byte], Array[Byte]]
 ) extends UpdateConfig[ConsumerSettings[F, Array[Byte], Array[Byte]], GenericRecordConsume[F]]
     with HasProperties {
@@ -31,7 +36,10 @@ final class GenericRecordConsume[F[_]](
   override def properties: Map[String, String] = consumerSettings.properties
 
   override def updateConfig(f: Endo[ConsumerSettings[F, Array[Byte], Array[Byte]]]): GenericRecordConsume[F] =
-    new GenericRecordConsume[F](topicName, getSchema, f(consumerSettings))
+    new GenericRecordConsume[F](topicName, getSchema, updateSchema, f(consumerSettings))
+
+  def withSchema(f: Endo[OptionalAvroSchemaPair]): GenericRecordConsume[F] =
+    new GenericRecordConsume[F](topicName, getSchema, f, consumerSettings)
 
   /*
    * Array[Byte]
@@ -53,7 +61,7 @@ final class GenericRecordConsume[F[_]](
   private def toGenericRecordStream(kc: KafkaConsumer[F, Array[Byte], Array[Byte]])(implicit
     F: Concurrent[F]): Stream[F, CommittableConsumerRecord[F, Unit, Try[GenericData.Record]]] =
     Stream.eval(getSchema).flatMap { schema =>
-      val pull: GenericRecordPull = new GenericRecordPull(topicName, schema)
+      val pull: GenericRecordPull = new GenericRecordPull(topicName, updateSchema(schema).toPair)
       kc.partitionsMapStream.flatMap {
         _.toList.map { case (_, stream) =>
           stream.mapChunks { crs =>
@@ -128,7 +136,7 @@ final class GenericRecordConsume[F[_]](
   def manualCommitStream(implicit
     F: Async[F]): Stream[F, ManualCommitStream[F, Unit, Try[GenericData.Record]]] =
     Stream.eval(getSchema).flatMap { schema =>
-      val pull: GenericRecordPull = new GenericRecordPull(topicName, schema)
+      val pull: GenericRecordPull = new GenericRecordPull(topicName, updateSchema(schema).toPair)
       KafkaConsumer
         .stream(consumerSettings.withEnableAutoCommit(false))
         .evalTap(_.subscribe(NonEmptyList.one(topicName.value)))
@@ -168,7 +176,7 @@ final class GenericRecordConsume[F[_]](
           for {
             _ <- Stream.eval(utils.assign_offset_range(kc, ranges))
             schema <- Stream.eval(getSchema)
-            pull = new GenericRecordPull(topicName, schema)
+            pull = new GenericRecordPull(topicName, updateSchema(schema).toPair)
             s <- utils.circumscribed_generic_record_stream(kc, ranges, pull)
           } yield s
         }

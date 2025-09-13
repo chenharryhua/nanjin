@@ -17,7 +17,7 @@ object kafka_spark {
   val topic: TopicName = TopicName("any.kafka.topic")
 
   // batch dump a kafka topic
-  sparKafka.dumpJackson(topic.name, path)
+  sparKafka.dump(topic.name, path)
 
   // load saved data into kafka
   sparKafka.upload(topic.name, path, 1000, _.withAcks(Acks.One))

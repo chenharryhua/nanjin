@@ -271,7 +271,8 @@ class Fs2ChannelTest extends AnyFunSuite {
   test("13. generic record without schema registry") {
     val ret =
       ctx
-        .consume(topicDef.topicName.name, topicDef.schemaPair)
+        .consume(topicDef.topicName.name)
+        .withSchema(_.withKeySchema(topicDef.schemaPair.key).withValSchema(topicDef.schemaPair.value))
         .subscribe
         .take(1)
         .map(_.record)

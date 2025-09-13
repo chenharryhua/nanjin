@@ -17,17 +17,29 @@ final case class KvSchemaMetadata(key: SchemaMetadata, value: SchemaMetadata)
 
 final class SchemaRegistryApi[F[_]](client: CachedSchemaRegistryClient) extends Serializable {
 
-  def metaData(topicName: TopicName)(implicit F: Sync[F]): F[KvSchemaMetadata] = {
+  private def keyMetaData(topicName: TopicName)(implicit F: Sync[F]): F[SchemaMetadata] = {
     val loc = SchemaLocation(topicName)
-    for {
-      key <- F
-        .blocking(client.getLatestSchemaMetadata(loc.keyLoc))
-        .adaptError(ex => new Exception(topicName.value, ex))
-      value <- F
-        .blocking(client.getLatestSchemaMetadata(loc.valLoc))
-        .adaptError(ex => new Exception(topicName.value, ex))
-    } yield KvSchemaMetadata(key, value)
+    F.blocking(client.getLatestSchemaMetadata(loc.keyLoc))
+      .adaptError(ex => new Exception(topicName.value, ex))
   }
+
+  private def valMetaData(topicName: TopicName)(implicit F: Sync[F]): F[SchemaMetadata] = {
+    val loc = SchemaLocation(topicName)
+    F.blocking(client.getLatestSchemaMetadata(loc.valLoc))
+      .adaptError(ex => new Exception(topicName.value, ex))
+  }
+
+  def metaData(topicName: TopicName)(implicit F: Sync[F]): F[KvSchemaMetadata] =
+    for {
+      key <- keyMetaData(topicName)
+      value <- valMetaData(topicName)
+    } yield KvSchemaMetadata(key, value)
+
+  def fetchOptionalAvroSchema(topicName: TopicName)(implicit F: Sync[F]): F[OptionalAvroSchemaPair] =
+    for {
+      key <- keyMetaData(topicName).redeem(_ => None, sm => Some(new AvroSchema(sm.getSchema).rawSchema()))
+      value <- valMetaData(topicName).redeem(_ => None, sm => Some(new AvroSchema(sm.getSchema).rawSchema()))
+    } yield new OptionalAvroSchemaPair(key, value)
 
   def fetchAvroSchema(topicName: TopicName)(implicit F: Sync[F]): F[AvroSchemaPair] =
     for {

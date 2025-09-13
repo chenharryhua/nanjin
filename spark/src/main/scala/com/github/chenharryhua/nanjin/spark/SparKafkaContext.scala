@@ -38,37 +38,54 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
 
   private val timeout: FiniteDuration = 15.seconds
 
+  final class DumpConfig(
+    private[spark] val dateRange: DateTimeRange = DateTimeRange(sparkZoneId(sparkSession)),
+    private[spark] val updateSchema: Endo[OptionalAvroSchemaPair] = identity,
+    private[spark] val compression: JacksonCompression = JacksonCompression.Uncompressed,
+    private[spark] val ignoreError: Boolean = false,
+    private[spark] val updateConsumerSettings: Endo[ConsumerSettings[F, Array[Byte], Array[Byte]]] =
+      (_: ConsumerSettings[F, Array[Byte], Array[Byte]])
+        .withPollInterval(0.second)
+        .withEnableAutoCommit(false)
+        .withIsolationLevel(IsolationLevel.ReadCommitted)
+        .withMaxPollRecords(3000)) {
+    private def copy(
+      dateRange: DateTimeRange = this.dateRange,
+      updateSchema: Endo[OptionalAvroSchemaPair] = this.updateSchema,
+      compression: JacksonCompression = this.compression,
+      ignoreError: Boolean = this.ignoreError,
+      updateConsumerSettings: Endo[ConsumerSettings[F, Array[Byte], Array[Byte]]] =
+        this.updateConsumerSettings): DumpConfig =
+      new DumpConfig(dateRange, updateSchema, compression, ignoreError, updateConsumerSettings)
+
+    def withDateTimeRange(dr: DateTimeRange): DumpConfig = copy(dateRange = dr)
+    def withSchema(f: Endo[OptionalAvroSchemaPair]): DumpConfig = copy(updateSchema = f)
+    def withCompression(cp: JacksonCompression): DumpConfig = copy(compression = cp)
+    def isIgnoreError(ignore: Boolean): DumpConfig = copy(ignoreError = ignore)
+    def withConsumer(cs: Endo[ConsumerSettings[F, Array[Byte], Array[Byte]]]): DumpConfig =
+      copy(updateConsumerSettings = cs)
+  }
+
   /** download a kafka topic and save to given folder
     *
     * @param topicName
     *   the source topic name
     * @param folder
     *   the target folder
-    * @param dateRange
-    *   datetime range
     */
-
-  def dumpJackson(
-    topicName: TopicNameL,
-    folder: Url,
-    dateRange: DateTimeRange = DateTimeRange(sparkZoneId(sparkSession)),
-    compression: JacksonCompression = JacksonCompression.Uncompressed,
-    ignoreError: Boolean = false,
-    config: Endo[ConsumerSettings[F, Array[Byte], Array[Byte]]] =
-      (_: ConsumerSettings[F, Array[Byte], Array[Byte]])
-        .withPollInterval(0.second)
-        .withEnableAutoCommit(false)
-        .withIsolationLevel(IsolationLevel.ReadCommitted)
-        .withMaxPollRecords(3000))(implicit F: Async[F]): F[Long] = {
-    val file = JacksonFile(compression)
+  def dump(topicName: TopicNameL, folder: Url, updateConfig: Endo[DumpConfig] = identity)(implicit
+    F: Async[F]): F[Long] = {
+    val config = updateConfig(new DumpConfig())
+    val file = JacksonFile(config.compression)
     kafkaContext
       .consume(topicName)
-      .updateConfig(config)
-      .circumscribedStream(dateRange)
+      .updateConfig(config.updateConsumerSettings)
+      .withSchema(config.updateSchema)
+      .circumscribedStream(config.dateRange)
       .flatMap { rs =>
         rs.partitionsMapStream.toList.map { case (pr, ss) =>
           val sink = hadoop.sink(folder / s"${pr.toString}.${file.fileName}").jackson
-          if (ignoreError)
+          if (config.ignoreError)
             ss.mapChunks(_.map(_.record.value.toOption)).unNone.through(sink)
           else
             ss.evalMapChunk(ccr => F.fromTry(ccr.record.value)).through(sink)
