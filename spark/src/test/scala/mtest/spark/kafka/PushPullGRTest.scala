@@ -39,10 +39,10 @@ class PushPullGRTest extends AnyFunSuite {
       .covary[IO]
 
   test("push - pull - base") {
-    val sink = ctx.sink("pull.test", identity)
+    val sink = ctx.produce("pull.test").sink
     val path = root / "base"
     (ctx.schemaRegistry.register(baseTopic) >> ctx.schemaRegistry.register(evolveTopic)).unsafeRunSync()
-    (baseData ++ evolveData).chunks.through(sink).compile.drain.unsafeRunSync()
+    (baseData ++ evolveData).through(sink).compile.drain.unsafeRunSync()
     sparKafka.topic(baseTopic).fromKafka.flatMap(_.output.jackson(path).run[IO]).unsafeRunSync()
 
     sparKafka.topic(baseTopic).load.jackson(path).count[IO]("c").unsafeRunSync()
@@ -61,10 +61,10 @@ class PushPullGRTest extends AnyFunSuite {
   }
 
   test("push - pull - evolve") {
-    val sink = ctx.sink(evolveTopic.topicName.name, identity)
+    val sink = ctx.produce(evolveTopic.topicName.name).sink
     val path = root / "evolve"
 
-    (baseData ++ evolveData).chunks.through(sink).compile.drain.unsafeRunSync()
+    (baseData ++ evolveData).through(sink).compile.drain.unsafeRunSync()
     sparKafka.topic(evolveTopic).fromKafka.flatMap(_.output.jackson(path).run[IO]).unsafeRunSync()
 
     //  sparKafka.topic(baseTopic).load.jackson(path).count.unsafeRunSync()

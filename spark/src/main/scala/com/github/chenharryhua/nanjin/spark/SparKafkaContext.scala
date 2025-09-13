@@ -13,7 +13,6 @@ import com.github.chenharryhua.nanjin.spark.kafka.{SparKafkaTopic, Statistics}
 import com.github.chenharryhua.nanjin.terminals.*
 import eu.timepit.refined.refineMV
 import fs2.kafka.*
-import fs2.{Chunk, Stream}
 import io.circe.Encoder as JsonEncoder
 import io.lemonlabs.uri.Url
 import io.lemonlabs.uri.typesafe.dsl.urlToUrlDsl
@@ -127,33 +126,21 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
     folder: Url,
     chunkSize: ChunkSize = refineMV(1000),
     config: Endo[ProducerSettings[F, Array[Byte], Array[Byte]]] =
-      _.withBatchSize(512 * 1024).withLinger(50.milli))(implicit F: Async[F]): F[Long] = {
-
-    val producerSettings: ProducerSettings[F, Array[Byte], Array[Byte]] =
-      config(
-        ProducerSettings[F, Array[Byte], Array[Byte]](Serializer[F, Array[Byte]], Serializer[F, Array[Byte]])
-          .withProperties(kafkaContext.settings.producerSettings.properties))
-
+      _.withBatchSize(512 * 1024).withLinger(50.milli))(implicit F: Async[F]): F[Long] =
     for {
       schemaPair <- kafkaContext.schemaRegistry.fetchAvroSchema(topicName)
       partitions <- kafkaContext.admin(topicName).use(_.partitionsFor.map(_.value.size))
       hadoop = Hadoop[F](sparkSession.sparkContext.hadoopConfiguration)
-      builder = new PushGenericRecord(
-        kafkaContext.settings.schemaRegistrySettings,
-        TopicName(topicName),
-        schemaPair)
+      sink = kafkaContext.produce(topicName, schemaPair).updateConfig(config).sink
       num <- hadoop.filesIn(folder).flatMap { fs =>
         val step: Int = Math.ceil(fs.size.toDouble / partitions.toDouble).toInt
         if (step > 0) {
           fs.sliding(step, step)
             .map { urls =>
-              val ss: Stream[F, Chunk[ProducerRecord[Array[Byte], Array[Byte]]]] = urls
+              urls
                 .map(hadoop.source(_).jackson(chunkSize, schemaPair.consumerSchema))
                 .reduce(_ ++ _)
-                .chunks
-                .map(_.map(builder.fromGenericRecord))
-                .prefetch
-              KafkaProducer.pipe(producerSettings).apply(ss)
+                .through(sink)
             }
             .toList
             .parJoinUnbounded
@@ -162,7 +149,6 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
         } else F.pure(0L)
       }
     } yield num
-  }
 
   def crazyUpload(topicName: TopicNameL, folder: Url)(implicit F: Async[F]): F[Long] =
     upload(
@@ -188,35 +174,20 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
     topicName: TopicNameL,
     folder: Url,
     chunkSize: ChunkSize = refineMV(1000),
-    config: Endo[ProducerSettings[F, Array[Byte], Array[Byte]]] = identity)(implicit F: Async[F]): F[Long] = {
-
-    val producerSettings: ProducerSettings[F, Array[Byte], Array[Byte]] =
-      config(
-        ProducerSettings[F, Array[Byte], Array[Byte]](Serializer[F, Array[Byte]], Serializer[F, Array[Byte]])
-          .withProperties(kafkaContext.settings.producerSettings.properties))
+    config: Endo[ProducerSettings[F, Array[Byte], Array[Byte]]] = identity)(implicit F: Async[F]): F[Long] =
 
     for {
       schemaPair <- kafkaContext.schemaRegistry.fetchAvroSchema(topicName)
       hadoop = Hadoop[F](sparkSession.sparkContext.hadoopConfiguration)
-      builder = new PushGenericRecord(
-        kafkaContext.settings.schemaRegistrySettings,
-        TopicName(topicName),
-        schemaPair)
+      sink = kafkaContext.produce(topicName, schemaPair).updateConfig(config).sink
       num <- hadoop
         .filesIn(folder)
-        .flatMap(
-          _.traverse(
-            hadoop
-              .source(_)
-              .jackson(chunkSize, schemaPair.consumerSchema)
-              .chunks
-              .map(_.map(builder.fromGenericRecord))
-              .through(KafkaProducer.pipe(producerSettings))
-              .compile
-              .fold(0L) { case (sum, prs) => sum + prs.size }))
+        .flatMap(_.traverse(
+          hadoop.source(_).jackson(chunkSize, schemaPair.consumerSchema).through(sink).compile.fold(0L) {
+            case (sum, prs) => sum + prs.size
+          }))
         .map(_.sum)
     } yield num
-  }
 
   object stats {
     private val sparkSchema: StructType = structType(AvroCodec[CRMetaInfo])

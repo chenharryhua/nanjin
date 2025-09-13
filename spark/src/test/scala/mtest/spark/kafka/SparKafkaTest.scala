@@ -45,7 +45,9 @@ class SparKafkaTest extends AnyFunSuite {
       .compile
       .drain
 
-  (ctx.admin(topic.topicName.name).use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt) >>
+  (ctx
+    .admin(topic.topicName.name)
+    .use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt) >>
     ctx.schemaRegistry.register(topic) >> loadData).unsafeRunSync()
 
   test("sparKafka read topic from kafka") {
@@ -139,8 +141,7 @@ class SparKafkaTest extends AnyFunSuite {
       .flatMap(
         _.map(hadoop.source(_).jackson(10, topic.schemaPair.consumerSchema))
           .reduce(_ ++ _)
-          .chunks
-          .through(ctx.sink(topic.topicName.name, _.withClientId("a"))))
+          .through(ctx.produce(topic.topicName.name).updateConfig(_.withClientId("a")).sink))
       .compile
       .drain
       .unsafeRunSync()

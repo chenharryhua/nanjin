@@ -148,7 +148,7 @@ class Fs2ChannelTest extends AnyFunSuite {
       "leaderEpoch":null
     }
      """
-    ctx.publishJackson(jackson).flatMap(IO.println).unsafeRunSync()
+    ctx.produce("fs2.kafka.test").jackson(jackson).flatMap(IO.println).unsafeRunSync()
   }
 
   test("5.consumer config") {

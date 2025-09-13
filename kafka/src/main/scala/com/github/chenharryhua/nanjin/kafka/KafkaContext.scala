@@ -6,17 +6,21 @@ import cats.effect.kernel.{Async, Sync}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameL}
 import com.github.chenharryhua.nanjin.common.{utils, UpdateConfig}
-import com.github.chenharryhua.nanjin.kafka.connector.{ConsumeByteKafka, ConsumeKafka, ProduceKafka}
+import com.github.chenharryhua.nanjin.kafka.connector.{
+  ConsumeByteKafka,
+  ConsumeKafka,
+  ProduceByteKafka,
+  ProduceKafka,
+  PushGenericRecord
+}
 import com.github.chenharryhua.nanjin.kafka.streaming.{KafkaStreamsBuilder, StateStores, StreamsSerde}
 import com.github.chenharryhua.nanjin.messages.kafka.CRMetaInfo
 import com.github.chenharryhua.nanjin.messages.kafka.codec.*
 import fs2.kafka.*
-import fs2.{Chunk, Pipe, Stream}
-import io.circe.jawn.parse
+import fs2.Stream
 import io.circe.syntax.EncoderOps
 import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient
 import io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig
-import org.apache.avro.generic.GenericRecord
 import org.apache.kafka.streams.scala.StreamsBuilder
 
 import java.time.Instant
@@ -119,33 +123,24 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
   def produce[K, V](raw: AvroCodecPair[K, V])(implicit F: Sync[F]): ProduceKafka[F, K, V] =
     produce[K, V](raw.key, raw.value, Sync[F])
 
-  private def bytesProducerSettings(implicit F: Sync[F]): ProducerSettings[F, Array[Byte], Array[Byte]] =
-    ProducerSettings[F, Array[Byte], Array[Byte]](Serializer[F, Array[Byte]], Serializer[F, Array[Byte]])
-      .withProperties(settings.producerSettings.properties)
+  def produce(topicName: TopicNameL, avroSchemaPair: AvroSchemaPair)(implicit F: Sync[F]) =
+    new ProduceByteKafka[F](
+      F.pure(new PushGenericRecord(settings.schemaRegistrySettings, TopicName(topicName), avroSchemaPair)),
+      ProducerSettings[F, Array[Byte], Array[Byte]](Serializer[F, Array[Byte]], Serializer[F, Array[Byte]])
+        .withProperties(settings.producerSettings.properties)
+    )
 
-  def sink(topicName: TopicNameL, f: Endo[ProducerSettings[F, Array[Byte], Array[Byte]]])(implicit
-    F: Async[F]): Pipe[F, Chunk[GenericRecord], ProducerResult[Array[Byte], Array[Byte]]] = {
-    (ss: Stream[F, Chunk[GenericRecord]]) =>
-      Stream.eval(schemaRegistry.fetchAvroSchema(topicName)).flatMap { skm =>
-        val builder = new PushGenericRecord(settings.schemaRegistrySettings, TopicName(topicName), skm)
-        val prStream: Stream[F, ProducerRecords[Array[Byte], Array[Byte]]] =
-          ss.map(_.map(builder.fromGenericRecord))
+  def produce(topicName: TopicNameL)(implicit F: Sync[F]): ProduceByteKafka[F] = {
+    val push = schemaRegistry
+      .fetchAvroSchema(topicName)
+      .map(pair => new PushGenericRecord(settings.schemaRegistrySettings, TopicName(topicName), pair))
 
-        KafkaProducer.pipe(f(bytesProducerSettings)).apply(prStream)
-      }
+    new ProduceByteKafka[F](
+      push,
+      ProducerSettings[F, Array[Byte], Array[Byte]](Serializer[F, Array[Byte]], Serializer[F, Array[Byte]])
+        .withProperties(settings.producerSettings.properties)
+    )
   }
-
-  def publishJackson(jackson: String)(implicit F: Async[F]): F[ProducerResult[Array[Byte], Array[Byte]]] =
-    for {
-      tn <- F.fromEither(parse(jackson).flatMap(_.hcursor.get[String]("topic")))
-      topicName <- F.fromEither(TopicName.from(tn))
-      schemaPair <- schemaRegistry.fetchAvroSchema(topicName)
-      gr <- F.fromTry(jackson2GR(schemaPair.consumerSchema, jackson))
-      builder = new PushGenericRecord(settings.schemaRegistrySettings, topicName, schemaPair)
-      res <- KafkaProducer
-        .resource(bytesProducerSettings)
-        .use(_.produce(ProducerRecords.one(builder.fromGenericRecord(gr))).flatten)
-    } yield res
 
   /*
    * kafka streaming
