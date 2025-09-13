@@ -79,10 +79,16 @@ private object HadoopReader {
   private def inputStreamS[F[_]](configuration: Configuration, url: Url)(implicit
     F: Sync[F]): Stream[F, InputStream] = Stream.resource(inputStreamR(configuration, url))
 
-  def avroS[F[_]](configuration: Configuration, url: Url, chunkSize: ChunkSize)(implicit
-    F: Sync[F]): Stream[F, GenericData.Record] =
+  def avroS[F[_]](configuration: Configuration, url: Url, chunkSize: ChunkSize, readerSchema: Option[Schema])(
+    implicit F: Sync[F]): Stream[F, GenericData.Record] =
     inputStreamS[F](configuration, url)
-      .map(new DataFileStream[GenericData.Record](_, new GenericDatumReader()))
+      .map(is =>
+        new DataFileStream[GenericData.Record](
+          is,
+          readerSchema match {
+            case Some(schema) => new GenericDatumReader(null, schema)
+            case None         => new GenericDatumReader()
+          }))
       .flatMap(dfs => Stream.fromBlockingIterator[F](dfs.iterator().asScala, chunkSize.value))
 
   // respect chunk size
@@ -164,12 +170,13 @@ private object HadoopReader {
   private def genericRecordReaderS[F[_]](
     getDecoder: InputStream => Decoder,
     configuration: Configuration,
-    schema: Schema,
+    writerSchema: Schema,
+    readerSchema: Schema,
     url: Url,
     chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, GenericData.Record] =
     inputStreamS[F](configuration, url).flatMap { is =>
       val datumReader: GenericDatumReader[GenericData.Record] =
-        new GenericDatumReader[GenericData.Record](schema)
+        new GenericDatumReader[GenericData.Record](writerSchema, readerSchema)
       val decoder: Decoder = getDecoder(is)
 
       def go(): (Chunk[GenericData.Record], Option[Unit]) = {
@@ -190,23 +197,35 @@ private object HadoopReader {
       Stream.unfoldChunkLoopEval[F, Unit, GenericData.Record](())(_ => F.blocking(go()))
     }
 
-  def jacksonS[F[_]](configuration: Configuration, schema: Schema, url: Url, chunkSize: ChunkSize)(implicit
-    F: Sync[F]): Stream[F, GenericData.Record] =
+  def jacksonS[F[_]](
+    configuration: Configuration,
+    writerSchema: Schema,
+    readerSchema: Schema,
+    url: Url,
+    chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, GenericData.Record] =
     genericRecordReaderS[F](
-      getDecoder = (is: InputStream) => DecoderFactory.get.jsonDecoder(schema, is),
+      getDecoder = (is: InputStream) => DecoderFactory.get.jsonDecoder(writerSchema, is),
       configuration = configuration,
-      schema = schema,
+      writerSchema = writerSchema,
+      readerSchema = readerSchema,
       url = url,
-      chunkSize = chunkSize)
+      chunkSize = chunkSize
+    )
 
-  def binAvroS[F[_]](configuration: Configuration, schema: Schema, url: Url, chunkSize: ChunkSize)(implicit
-    F: Sync[F]): Stream[F, GenericData.Record] =
+  def binAvroS[F[_]](
+    configuration: Configuration,
+    writerSchema: Schema,
+    readerSchema: Schema,
+    url: Url,
+    chunkSize: ChunkSize)(implicit F: Sync[F]): Stream[F, GenericData.Record] =
     genericRecordReaderS[F](
       getDecoder = (is: InputStream) => DecoderFactory.get.binaryDecoder(is, null),
       configuration = configuration,
-      schema = schema,
+      writerSchema = writerSchema,
+      readerSchema = readerSchema,
       url = url,
-      chunkSize = chunkSize)
+      chunkSize = chunkSize
+    )
 
   /*
    * protobuf

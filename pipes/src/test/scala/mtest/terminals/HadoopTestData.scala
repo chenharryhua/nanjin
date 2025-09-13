@@ -1,6 +1,7 @@
 package mtest.terminals
 
 import cats.effect.IO
+import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.terminals.Hadoop
 import org.apache.avro.Schema
 import org.apache.avro.generic.{GenericData, GenericRecord}
@@ -47,4 +48,7 @@ object HadoopTestData {
 
   val cfg = new Configuration
   val hdp: Hadoop[IO] = Hadoop[IO](cfg)
+
+  final case class Upgrade(name: String, age: Int, id: Int, zoo: String = "SiChuang")
+  val readerSchema: Schema = AvroCodec[Upgrade].schema
 }

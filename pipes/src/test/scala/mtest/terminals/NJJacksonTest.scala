@@ -34,6 +34,9 @@ class NJJacksonTest extends AnyFunSuite {
     val fileName = (file: FileKind).asJson.noSpaces
     assert(jawn.decode[FileKind](fileName).toOption.get == file)
     val size = ts.through(sink).fold(0)(_ + _).compile.lastOrError.unsafeRunSync()
+
+    hdp.source(tgt).jackson(100, pandaSchema, readerSchema).debug().compile.drain.unsafeRunSync()
+
     assert(size == data.size)
     assert(hdp.source(tgt).jackson(10, pandaSchema).compile.toList.unsafeRunSync().toSet == data)
 

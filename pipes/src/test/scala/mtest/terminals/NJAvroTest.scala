@@ -30,9 +30,11 @@ class NJAvroTest extends AnyFunSuite {
     val ts = Stream.emits(data.toList).covary[IO]
     val action = ts.through(sink).compile.drain >> src.compile.toList.map(_.toList)
     val fileName = (file: FileKind).asJson.noSpaces
+
     assert(jawn.decode[FileKind](fileName).toOption.get == file)
     assert(action.unsafeRunSync().toSet == data)
     val size = ts.through(sink).fold(0)(_ + _).compile.lastOrError.unsafeRunSync()
+    hdp.source(tgt).avro(100, readerSchema).debug().compile.drain.unsafeRunSync()
     assert(size == data.size)
     assert(hdp.source(tgt).avro(100).compile.toList.unsafeRunSync().toSet == data)
   }
