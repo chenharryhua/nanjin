@@ -116,7 +116,7 @@ private object utils {
   def circumscribed_generic_record_stream[F[_]](
     client: KafkaConsume[F, Array[Byte], Array[Byte]],
     ranges: TopicPartitionMap[OffsetRange],
-    pull: GenericRecordPull): Stream[F, CircumscribedStream[F, Unit, Try[GenericData.Record]]] =
+    pull: PullGenericRecord): Stream[F, CircumscribedStream[F, Unit, Try[GenericData.Record]]] =
     client.partitionsMapStream.map { pms =>
       val streams
         : Map[PartitionRange, Stream[F, CommittableConsumerRecord[F, Unit, Try[GenericData.Record]]]] =

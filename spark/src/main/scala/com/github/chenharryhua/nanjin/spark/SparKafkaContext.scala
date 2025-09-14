@@ -152,7 +152,7 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
       schemaPair <- kafkaContext.schemaRegistry.fetchAvroSchema(topicName)
       partitions <- kafkaContext.admin(topicName).use(_.partitionsFor.map(_.value.size))
       hadoop = Hadoop[F](sparkSession.sparkContext.hadoopConfiguration)
-      sink = kafkaContext.produce(topicName, schemaPair).updateConfig(config).sink
+      sink = kafkaContext.produce(topicName).updateConfig(config).sink
       num <- hadoop.filesIn(folder).flatMap { fs =>
         val step: Int = Math.ceil(fs.size.toDouble / partitions.toDouble).toInt
         if (step > 0) {
@@ -201,7 +201,7 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
     for {
       schemaPair <- kafkaContext.schemaRegistry.fetchAvroSchema(topicName)
       hadoop = Hadoop[F](sparkSession.sparkContext.hadoopConfiguration)
-      sink = kafkaContext.produce(topicName, schemaPair).updateConfig(config).sink
+      sink = kafkaContext.produce(topicName).updateConfig(config).sink
       num <- hadoop
         .filesIn(folder)
         .flatMap(_.traverse(

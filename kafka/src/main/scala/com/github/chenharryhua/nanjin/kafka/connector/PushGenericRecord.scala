@@ -12,7 +12,7 @@ import org.apache.kafka.streams.scala.serialization.Serdes
 
 import scala.jdk.CollectionConverters.MapHasAsJava
 
-final private[kafka] class GenericRecordPush(
+final private class PushGenericRecord(
   srs: SchemaRegistrySettings,
   topicName: TopicName,
   pair: AvroSchemaPair) {
