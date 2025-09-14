@@ -4,7 +4,7 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.TopicDef
-import com.github.chenharryhua.nanjin.kafka.connector.GenericRecordConsume
+import com.github.chenharryhua.nanjin.kafka.connector.ConsumeGenericRecord
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{gr2BinAvro, gr2Circe, gr2Jackson}
 import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJProducerRecord}
 import com.sksamuel.avro4s.SchemaFor
@@ -163,7 +163,7 @@ class SparKafkaTest extends AnyFunSuite {
     assert(s1.diff(s2).rdd.count() == 0)
   }
 
-  val duckConsume: GenericRecordConsume[IO] =
+  val duckConsume: ConsumeGenericRecord[IO] =
     ctx.consume("duck.test").updateConfig(_.withAutoOffsetReset(AutoOffsetReset.Earliest).withGroupId("duck"))
 
   test("generic record") {

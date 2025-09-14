@@ -37,8 +37,18 @@ final class SchemaRegistryApi[F[_]](client: CachedSchemaRegistryClient) extends 
 
   def fetchOptionalAvroSchema(topicName: TopicName)(implicit F: Sync[F]): F[OptionalAvroSchemaPair] =
     for {
-      key <- keyMetaData(topicName).redeem(_ => None, sm => Some(new AvroSchema(sm.getSchema).rawSchema()))
-      value <- valMetaData(topicName).redeem(_ => None, sm => Some(new AvroSchema(sm.getSchema).rawSchema()))
+      key <- keyMetaData(topicName).redeem(
+        _ => None,
+        sm => {
+          require(sm.getSchemaType === "AVRO", "key schema is not AVRO")
+          Some(new AvroSchema(sm.getSchema).rawSchema())
+        })
+      value <- valMetaData(topicName).redeem(
+        _ => None,
+        sm => {
+          require(sm.getSchemaType === "AVRO", "value schema is not AVRO")
+          Some(new AvroSchema(sm.getSchema).rawSchema())
+        })
     } yield new OptionalAvroSchemaPair(key, value)
 
   def fetchAvroSchema(topicName: TopicName)(implicit F: Sync[F]): F[AvroSchemaPair] =

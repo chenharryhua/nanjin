@@ -16,18 +16,18 @@ import org.apache.kafka.common.TopicPartition
 import java.time.Instant
 import scala.collection.immutable.SortedSet
 
-final class KafkaGenericConsume[F[_], K, V] private[kafka] (
+final class ConsumeKafka[F[_], K, V] private[kafka] (
   topicName: TopicName,
   consumerSettings: ConsumerSettings[F, K, V]
-) extends UpdateConfig[ConsumerSettings[F, K, V], KafkaGenericConsume[F, K, V]] with HasProperties {
+) extends UpdateConfig[ConsumerSettings[F, K, V], ConsumeKafka[F, K, V]] with HasProperties {
 
   /*
    * config
    */
   override def properties: Map[String, String] = consumerSettings.properties
 
-  override def updateConfig(f: Endo[ConsumerSettings[F, K, V]]): KafkaGenericConsume[F, K, V] =
-    new KafkaGenericConsume[F, K, V](topicName, f(consumerSettings))
+  override def updateConfig(f: Endo[ConsumerSettings[F, K, V]]): ConsumeKafka[F, K, V] =
+    new ConsumeKafka[F, K, V](topicName, f(consumerSettings))
 
   /*
    * client

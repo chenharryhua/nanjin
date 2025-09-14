@@ -33,10 +33,16 @@ final case class AvroSchemaPair(key: Schema, value: Schema) {
     key.equals(other.key) && value.equals(other.value)
 }
 
-final class OptionalAvroSchemaPair(key: Option[Schema], value: Option[Schema]) {
+final class OptionalAvroSchemaPair private[kafka] (key: Option[Schema], value: Option[Schema]) {
   def withKeySchema(schema: Schema): OptionalAvroSchemaPair =
-    new OptionalAvroSchemaPair(Some(schema), value)
+    new OptionalAvroSchemaPair(key.orElse(Some(schema)), value)
   def withValSchema(schema: Schema): OptionalAvroSchemaPair =
+    new OptionalAvroSchemaPair(key, value.orElse(Some(schema)))
+
+  def replaceKeySchema(schema: Schema): OptionalAvroSchemaPair =
+    new OptionalAvroSchemaPair(Some(schema), value)
+
+  def replaceValSchema(schema: Schema): OptionalAvroSchemaPair =
     new OptionalAvroSchemaPair(key, Some(schema))
 
   def withoutKeySchema: OptionalAvroSchemaPair = withKeySchema(Schema.create(Schema.Type.NULL))

@@ -53,10 +53,10 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
    * consumer
    */
 
-  def consume[K, V](topicDef: TopicDef[K, V])(implicit F: Sync[F]): KafkaGenericConsume[F, K, V] = {
+  def consume[K, V](topicDef: TopicDef[K, V])(implicit F: Sync[F]): ConsumeKafka[F, K, V] = {
     val topic: KafkaTopic[K, V] =
       topicDef.codecPair.register(settings.schemaRegistrySettings, topicDef.topicName)
-    new KafkaGenericConsume[F, K, V](
+    new ConsumeKafka[F, K, V](
       topicDef.topicName,
       ConsumerSettings[F, K, V](
         Deserializer.delegate[F, K](topic.key.registered.serde.deserializer()),
@@ -65,8 +65,8 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
     )
   }
 
-  def consume(topicName: TopicNameL)(implicit F: Sync[F]): GenericRecordConsume[F] =
-    new GenericRecordConsume[F](
+  def consume(topicName: TopicNameL)(implicit F: Sync[F]): ConsumeGenericRecord[F] =
+    new ConsumeGenericRecord[F](
       TopicName(topicName),
       schemaRegistry.fetchOptionalAvroSchema(TopicName(topicName)),
       identity,
@@ -97,35 +97,26 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
    * producer
    */
 
-  def produce[K: AvroCodecOf, V: AvroCodecOf](implicit F: Sync[F]): KafkaGenericProduce[F, K, V] =
-    new KafkaGenericProduce[F, K, V](
+  def produce[K: AvroCodecOf, V: AvroCodecOf](implicit F: Sync[F]): ProduceKafka[F, K, V] =
+    new ProduceKafka[F, K, V](
       ProducerSettings[F, K, V](
         Serializer.delegate(AvroCodecOf[K].asKey(settings.schemaRegistrySettings.config).serde.serializer()),
         Serializer.delegate(AvroCodecOf[V].asValue(settings.schemaRegistrySettings.config).serde.serializer())
       ).withProperties(settings.producerSettings.properties)
     )
 
-  def produce[K, V](raw: AvroCodecPair[K, V])(implicit F: Sync[F]): KafkaGenericProduce[F, K, V] =
+  def produce[K, V](raw: AvroCodecPair[K, V])(implicit F: Sync[F]): ProduceKafka[F, K, V] =
     produce[K, V](raw.key, raw.value, Sync[F])
 
-  def produce(topicName: TopicNameL, avroSchemaPair: AvroSchemaPair)(implicit F: Sync[F]) =
-    new GenericRecordProduce[F](
-      F.pure(new GenericRecordPush(settings.schemaRegistrySettings, TopicName(topicName), avroSchemaPair)),
+  def produce(topicName: TopicNameL)(implicit F: Sync[F]): ProduceGenericRecord[F] =
+    new ProduceGenericRecord[F](
+      TopicName(topicName),
+      schemaRegistry.fetchOptionalAvroSchema(TopicName(topicName)),
+      identity,
+      settings.schemaRegistrySettings,
       ProducerSettings[F, Array[Byte], Array[Byte]](Serializer[F, Array[Byte]], Serializer[F, Array[Byte]])
         .withProperties(settings.producerSettings.properties)
     )
-
-  def produce(topicName: TopicNameL)(implicit F: Sync[F]): GenericRecordProduce[F] = {
-    val push = schemaRegistry
-      .fetchAvroSchema(topicName)
-      .map(pair => new GenericRecordPush(settings.schemaRegistrySettings, TopicName(topicName), pair))
-
-    new GenericRecordProduce[F](
-      push,
-      ProducerSettings[F, Array[Byte], Array[Byte]](Serializer[F, Array[Byte]], Serializer[F, Array[Byte]])
-        .withProperties(settings.producerSettings.properties)
-    )
-  }
 
   /*
    * kafka streaming

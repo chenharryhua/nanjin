@@ -7,8 +7,8 @@ import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameL}
 import com.github.chenharryhua.nanjin.datetime.DateTimeRange
 import com.github.chenharryhua.nanjin.kafka.*
+import com.github.chenharryhua.nanjin.messages.kafka.CRMetaInfo
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroCodec, AvroCodecOf}
-import com.github.chenharryhua.nanjin.messages.kafka.{CRMetaInfo, NJConsumerRecord}
 import com.github.chenharryhua.nanjin.spark.kafka.{SparKafkaTopic, Statistics}
 import com.github.chenharryhua.nanjin.terminals.*
 import eu.timepit.refined.refineMV
@@ -36,12 +36,10 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
   def topic[K: AvroCodecOf, V: AvroCodecOf](topicName: TopicNameL): SparKafkaTopic[F, K, V] =
     topic[K, V](TopicName(topicName))
 
-  private val timeout: FiniteDuration = 15.seconds
-
   final class DumpConfig(
     private[spark] val dateRange: DateTimeRange = DateTimeRange(sparkZoneId(sparkSession)),
     private[spark] val updateSchema: Endo[OptionalAvroSchemaPair] = identity,
-    private[spark] val compression: JacksonCompression = JacksonCompression.Uncompressed,
+    private[spark] val timeout: FiniteDuration = 15.seconds,
     private[spark] val ignoreError: Boolean = false,
     private[spark] val updateConsumerSettings: Endo[ConsumerSettings[F, Array[Byte], Array[Byte]]] =
       (_: ConsumerSettings[F, Array[Byte], Array[Byte]])
@@ -52,18 +50,18 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
     private def copy(
       dateRange: DateTimeRange = this.dateRange,
       updateSchema: Endo[OptionalAvroSchemaPair] = this.updateSchema,
-      compression: JacksonCompression = this.compression,
+      timeout: FiniteDuration = this.timeout,
       ignoreError: Boolean = this.ignoreError,
       updateConsumerSettings: Endo[ConsumerSettings[F, Array[Byte], Array[Byte]]] =
         this.updateConsumerSettings): DumpConfig =
-      new DumpConfig(dateRange, updateSchema, compression, ignoreError, updateConsumerSettings)
+      new DumpConfig(dateRange, updateSchema, timeout, ignoreError, updateConsumerSettings)
 
     def withDateTimeRange(dr: DateTimeRange): DumpConfig = copy(dateRange = dr)
     def withSchema(f: Endo[OptionalAvroSchemaPair]): DumpConfig = copy(updateSchema = f)
-    def withCompression(cp: JacksonCompression): DumpConfig = copy(compression = cp)
+    def withTimeout(fd: FiniteDuration): DumpConfig = copy(timeout = fd)
     def isIgnoreError(ignore: Boolean): DumpConfig = copy(ignoreError = ignore)
     def withConsumer(cs: Endo[ConsumerSettings[F, Array[Byte], Array[Byte]]]): DumpConfig =
-      copy(updateConsumerSettings = cs)
+      copy(updateConsumerSettings = cs.compose(this.updateConsumerSettings))
   }
 
   /** download a kafka topic and save to given folder
@@ -76,7 +74,7 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
   def dump(topicName: TopicNameL, folder: Url, updateConfig: Endo[DumpConfig] = identity)(implicit
     F: Async[F]): F[Long] = {
     val config = updateConfig(new DumpConfig())
-    val file = JacksonFile(config.compression)
+    val file = JacksonFile(_.Uncompressed)
     kafkaContext
       .consume(topicName)
       .updateConfig(config.updateConsumerSettings)
@@ -91,7 +89,7 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
             ss.evalMapChunk(ccr => F.fromTry(ccr.record.value)).through(sink)
         }.parJoinUnbounded.onFinalize(rs.stopConsuming)
       }
-      .timeoutOnPull(timeout)
+      .timeoutOnPull(config.timeout)
       .compile
       .fold(0L)(_ + _)
   }
@@ -99,25 +97,31 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
   def dumpCirce[K: JsonEncoder, V: JsonEncoder](
     topicDef: TopicDef[K, V],
     folder: Url,
-    dateRange: DateTimeRange = DateTimeRange(sparkZoneId(sparkSession)),
-    compression: CirceCompression = CirceCompression.Uncompressed,
-    config: Endo[ConsumerSettings[F, K, V]] = (_: ConsumerSettings[F, K, V])
-      .withPollInterval(0.second)
-      .withEnableAutoCommit(false)
-      .withIsolationLevel(IsolationLevel.ReadCommitted)
-      .withMaxPollRecords(3000))(implicit F: Async[F]): F[Long] = {
-    val file = CirceFile(compression)
+    updateConfig: Endo[DumpConfig] = identity)(implicit F: Async[F]): F[Long] = {
+    val config = updateConfig(new DumpConfig())
+    val file = CirceFile(_.Uncompressed)
     kafkaContext
-      .consume(topicDef)
-      .updateConfig(config)
-      .circumscribedStream(dateRange)
+      .consume(topicDef.topicName.name)
+      .updateConfig(config.updateConsumerSettings)
+      .withSchema(config.updateSchema)
+      .withSchema(_.withKeySchema(topicDef.schemaPair.key).withValSchema(topicDef.schemaPair.value))
+      .circumscribedStream(config.dateRange)
       .flatMap { rs =>
         rs.partitionsMapStream.toList.map { case (pr, ss) =>
           val sink = hadoop.sink(folder / s"${pr.toString}.${file.fileName}").circe
-          ss.mapChunks(_.map(cr => NJConsumerRecord(cr.record).zonedJson(dateRange.zoneId))).through(sink)
+          if (config.ignoreError)
+            ss.mapChunks(_.map(_.record.value.toOption.map(
+              topicDef.consumerFormat.fromRecord(_).zonedJson(config.dateRange.zoneId))))
+              .unNone
+              .through(sink)
+          else
+            ss.evalMapChunk(ccr =>
+              F.fromTry(ccr.record.value.map(
+                topicDef.consumerFormat.fromRecord(_).zonedJson(config.dateRange.zoneId))))
+              .through(sink)
         }.parJoinUnbounded.onFinalize(rs.stopConsuming)
       }
-      .timeoutOnPull(timeout)
+      .timeoutOnPull(config.timeout)
       .compile
       .fold(0L)(_ + _)
   }
@@ -148,7 +152,7 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
       schemaPair <- kafkaContext.schemaRegistry.fetchAvroSchema(topicName)
       partitions <- kafkaContext.admin(topicName).use(_.partitionsFor.map(_.value.size))
       hadoop = Hadoop[F](sparkSession.sparkContext.hadoopConfiguration)
-      sink = kafkaContext.produce(topicName, schemaPair).updateConfig(config).sink
+      sink = kafkaContext.produce(topicName).updateConfig(config).sink
       num <- hadoop.filesIn(folder).flatMap { fs =>
         val step: Int = Math.ceil(fs.size.toDouble / partitions.toDouble).toInt
         if (step > 0) {
@@ -157,6 +161,7 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
               urls
                 .map(hadoop.source(_).jackson(chunkSize, schemaPair.consumerSchema))
                 .reduce(_ ++ _)
+                .prefetch
                 .through(sink)
             }
             .toList
@@ -196,7 +201,7 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
     for {
       schemaPair <- kafkaContext.schemaRegistry.fetchAvroSchema(topicName)
       hadoop = Hadoop[F](sparkSession.sparkContext.hadoopConfiguration)
-      sink = kafkaContext.produce(topicName, schemaPair).updateConfig(config).sink
+      sink = kafkaContext.produce(topicName).updateConfig(config).sink
       num <- hadoop
         .filesIn(folder)
         .flatMap(_.traverse(
