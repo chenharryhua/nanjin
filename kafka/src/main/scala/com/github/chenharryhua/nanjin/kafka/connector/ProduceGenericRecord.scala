@@ -31,7 +31,7 @@ final class ProduceGenericRecord[F[_]] private[kafka] (
     new ProduceGenericRecord[F](topicName, getSchema, updateSchema, srs, f(producerSettings))
 
   def withSchema(f: Endo[OptionalAvroSchemaPair]): ProduceGenericRecord[F] =
-    new ProduceGenericRecord[F](topicName, getSchema, f, srs, producerSettings)
+    new ProduceGenericRecord[F](topicName, getSchema, f.compose(updateSchema), srs, producerSettings)
 
   def schema(implicit F: Functor[F]): F[Schema] =
     getSchema.map(updateSchema(_).toPair.consumerSchema)

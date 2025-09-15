@@ -4,11 +4,11 @@ import cats.Endo
 import cats.effect.kernel.{Async, Sync}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.ChunkSize
-import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameL}
+import com.github.chenharryhua.nanjin.common.kafka.TopicNameL
 import com.github.chenharryhua.nanjin.datetime.DateTimeRange
 import com.github.chenharryhua.nanjin.kafka.*
 import com.github.chenharryhua.nanjin.messages.kafka.CRMetaInfo
-import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroCodec, AvroCodecOf}
+import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark.kafka.{SparKafkaTopic, Statistics}
 import com.github.chenharryhua.nanjin.terminals.*
 import eu.timepit.refined.refineMV
@@ -16,6 +16,8 @@ import fs2.kafka.*
 import io.circe.Encoder as JsonEncoder
 import io.lemonlabs.uri.Url
 import io.lemonlabs.uri.typesafe.dsl.urlToUrlDsl
+import org.apache.kafka.clients.consumer.ConsumerConfig
+import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.types.StructType
 import org.typelevel.cats.time.instances.zoneid
@@ -30,23 +32,22 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
   def topic[K, V](topicDef: TopicDef[K, V]): SparKafkaTopic[F, K, V] =
     new SparKafkaTopic[F, K, V](sparkSession, kafkaContext, topicDef)
 
-  def topic[K: AvroCodecOf, V: AvroCodecOf](topicName: TopicName): SparKafkaTopic[F, K, V] =
-    topic[K, V](TopicDef[K, V](topicName))
-
-  def topic[K: AvroCodecOf, V: AvroCodecOf](topicName: TopicNameL): SparKafkaTopic[F, K, V] =
-    topic[K, V](TopicName(topicName))
-
   final class DumpConfig(
-    private[spark] val dateRange: DateTimeRange = DateTimeRange(sparkZoneId(sparkSession)),
-    private[spark] val updateSchema: Endo[OptionalAvroSchemaPair] = identity,
-    private[spark] val timeout: FiniteDuration = 15.seconds,
-    private[spark] val ignoreError: Boolean = false,
-    private[spark] val updateConsumerSettings: Endo[ConsumerSettings[F, Array[Byte], Array[Byte]]] =
-      (_: ConsumerSettings[F, Array[Byte], Array[Byte]])
-        .withPollInterval(0.second)
-        .withEnableAutoCommit(false)
-        .withIsolationLevel(IsolationLevel.ReadCommitted)
-        .withMaxPollRecords(3000)) {
+    private[SparKafkaContext] val dateRange: DateTimeRange = DateTimeRange(sparkZoneId(sparkSession)),
+    private[SparKafkaContext] val updateSchema: Endo[OptionalAvroSchemaPair] = identity,
+    private[SparKafkaContext] val timeout: FiniteDuration = 15.seconds,
+    private[SparKafkaContext] val ignoreError: Boolean = false,
+    private[SparKafkaContext] val updateConsumerSettings: Endo[
+      ConsumerSettings[F, Array[Byte], Array[Byte]]] = (_: ConsumerSettings[F, Array[Byte], Array[Byte]])
+      .withProperty(ConsumerConfig.FETCH_MIN_BYTES_CONFIG, "1048576") // chatGPT recommendation
+      .withProperty(ConsumerConfig.FETCH_MAX_WAIT_MS_CONFIG, "1000")
+      .withProperty(ConsumerConfig.MAX_PARTITION_FETCH_BYTES_CONFIG, "5242880")
+      .withProperty(ConsumerConfig.FETCH_MAX_BYTES_CONFIG, "104857600")
+      .withProperty(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, "5000")
+      .withMaxPrefetchBatches(10)
+      .withIsolationLevel(IsolationLevel.ReadCommitted)
+      .withPollInterval(0.second)
+      .withEnableAutoCommit(false)) {
     private def copy(
       dateRange: DateTimeRange = this.dateRange,
       updateSchema: Endo[OptionalAvroSchemaPair] = this.updateSchema,
@@ -57,9 +58,11 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
       new DumpConfig(dateRange, updateSchema, timeout, ignoreError, updateConsumerSettings)
 
     def withDateTimeRange(dr: DateTimeRange): DumpConfig = copy(dateRange = dr)
-    def withSchema(f: Endo[OptionalAvroSchemaPair]): DumpConfig = copy(updateSchema = f)
     def withTimeout(fd: FiniteDuration): DumpConfig = copy(timeout = fd)
     def isIgnoreError(ignore: Boolean): DumpConfig = copy(ignoreError = ignore)
+
+    def withSchema(f: Endo[OptionalAvroSchemaPair]): DumpConfig =
+      copy(updateSchema = f.compose(updateSchema))
     def withConsumer(cs: Endo[ConsumerSettings[F, Array[Byte], Array[Byte]]]): DumpConfig =
       copy(updateConsumerSettings = cs.compose(this.updateConsumerSettings))
   }
@@ -104,7 +107,7 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
       .consume(topicDef.topicName.name)
       .updateConfig(config.updateConsumerSettings)
       .withSchema(config.updateSchema)
-      .withSchema(_.withKeySchema(topicDef.schemaPair.key).withValSchema(topicDef.schemaPair.value))
+      .withSchema(_.withKeyIfAbsent(topicDef.schemaPair.key).withValIfAbsent(topicDef.schemaPair.value))
       .circumscribedStream(config.dateRange)
       .flatMap { rs =>
         rs.partitionsMapStream.toList.map { case (pr, ss) =>
@@ -126,58 +129,75 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
       .fold(0L)(_ + _)
   }
 
+  final class UploadConfig(
+    private[SparKafkaContext] val chunkSize: ChunkSize = refineMV(1000),
+    private[SparKafkaContext] val updateSchema: Endo[OptionalAvroSchemaPair] = identity,
+    private[SparKafkaContext] val timeout: FiniteDuration = 15.seconds,
+    private[SparKafkaContext] val updateProducerSettings: Endo[
+      ProducerSettings[F, Array[Byte], Array[Byte]]] = _.withBatchSize(512 * 1024)
+      .withLinger(30.milli)
+      .withProperty(ProducerConfig.BUFFER_MEMORY_CONFIG, "67108864")
+      .withProperty(ProducerConfig.COMPRESSION_TYPE_CONFIG, "lz4")
+  ) {
+    private def copy(
+      chunkSize: ChunkSize = this.chunkSize,
+      updateSchema: Endo[OptionalAvroSchemaPair] = this.updateSchema,
+      timeout: FiniteDuration = this.timeout,
+      updateProducerSettings: Endo[ProducerSettings[F, Array[Byte], Array[Byte]]] =
+        this.updateProducerSettings) =
+      new UploadConfig(chunkSize, updateSchema, timeout, updateProducerSettings)
+
+    def withTimeout(fd: FiniteDuration): UploadConfig = copy(timeout = fd)
+
+    def withSchema(f: Endo[OptionalAvroSchemaPair]): UploadConfig =
+      copy(updateSchema = f.compose(updateSchema))
+    def withProducer(cs: Endo[ProducerSettings[F, Array[Byte], Array[Byte]]]): UploadConfig =
+      copy(updateProducerSettings = cs.compose(this.updateProducerSettings))
+  }
+
   /** upload data from given folder to a kafka topic. files read in parallel
     *
     * @param topicName
     *   target topic name
     * @param folder
     *   the source data files folder
-    * @param chunkSize
-    *   when set to 1, the data will be sent in order
-    * @param config
-    *   config fs2.kafka.producer. Acks.All for reliable upload
     * @return
     *   number of records uploaded
     *
     * [[https://www.conduktor.io/kafka/kafka-producer-batching/]]
     */
 
-  def upload(
-    topicName: TopicNameL,
-    folder: Url,
-    chunkSize: ChunkSize = refineMV(1000),
-    config: Endo[ProducerSettings[F, Array[Byte], Array[Byte]]] =
-      _.withBatchSize(512 * 1024).withLinger(50.milli))(implicit F: Async[F]): F[Long] =
+  def upload(topicName: TopicNameL, folder: Url, updateConfig: Endo[UploadConfig] = identity)(implicit
+    F: Async[F]): F[Long] = {
+    val config = updateConfig(new UploadConfig())
+    val producer = kafkaContext
+      .produce(topicName)
+      .withSchema(config.updateSchema)
+      .updateConfig(config.updateProducerSettings)
     for {
-      schemaPair <- kafkaContext.schemaRegistry.fetchAvroSchema(topicName)
+      schema <- producer.schema
       partitions <- kafkaContext.admin(topicName).use(_.partitionsFor.map(_.value.size))
       hadoop = Hadoop[F](sparkSession.sparkContext.hadoopConfiguration)
-      sink = kafkaContext.produce(topicName).updateConfig(config).sink
       num <- hadoop.filesIn(folder).flatMap { fs =>
         val step: Int = Math.ceil(fs.size.toDouble / partitions.toDouble).toInt
         if (step > 0) {
           fs.sliding(step, step)
             .map { urls =>
               urls
-                .map(hadoop.source(_).jackson(chunkSize, schemaPair.consumerSchema))
+                .map(hadoop.source(_).jackson(config.chunkSize, schema))
                 .reduce(_ ++ _)
                 .prefetch
-                .through(sink)
+                .through(producer.sink)
             }
             .toList
             .parJoinUnbounded
+            .timeoutOnPull(config.timeout)
             .compile
             .fold(0L) { case (sum, prs) => sum + prs.size }
         } else F.pure(0L)
       }
     } yield num
-
-  def crazyUpload(topicName: TopicNameL, folder: Url)(implicit F: Async[F]): F[Long] =
-    upload(
-      topicName,
-      folder,
-      refineMV(1000),
-      _.withBatchSize(512 * 1024).withLinger(50.milli).withAcks(Acks.One))
+  }
 
   /** sequentially read files in the folder, sorted by modification time, and upload them into kafka
     *
@@ -185,31 +205,35 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
     *   target topic name
     * @param folder
     *   the source data folder
-    * @param chunkSize
-    *   when set to 1, the data will be sent in order
-    * @param config
-    *   config fs2.kafka.producer. Acks.All for reliable upload
     * @return
     *   number of records uploaded
     */
-  def sequentialUpload(
-    topicName: TopicNameL,
-    folder: Url,
-    chunkSize: ChunkSize = refineMV(1000),
-    config: Endo[ProducerSettings[F, Array[Byte], Array[Byte]]] = identity)(implicit F: Async[F]): F[Long] =
-
+  def sequentialUpload(topicName: TopicNameL, folder: Url, updateConfig: Endo[UploadConfig] = identity)(
+    implicit F: Async[F]): F[Long] = {
+    val config = updateConfig(new UploadConfig())
+    val producer = kafkaContext
+      .produce(topicName)
+      .withSchema(config.updateSchema)
+      .updateConfig(config.updateProducerSettings)
     for {
-      schemaPair <- kafkaContext.schemaRegistry.fetchAvroSchema(topicName)
+      schema <- producer.schema
       hadoop = Hadoop[F](sparkSession.sparkContext.hadoopConfiguration)
-      sink = kafkaContext.produce(topicName).updateConfig(config).sink
       num <- hadoop
         .filesIn(folder)
-        .flatMap(_.traverse(
-          hadoop.source(_).jackson(chunkSize, schemaPair.consumerSchema).through(sink).compile.fold(0L) {
-            case (sum, prs) => sum + prs.size
-          }))
+        .flatMap(
+          _.traverse(
+            hadoop
+              .source(_)
+              .jackson(config.chunkSize, schema)
+              .through(producer.sink)
+              .timeoutOnPull(config.timeout)
+              .compile
+              .fold(0L) { case (sum, prs) =>
+                sum + prs.size
+              }))
         .map(_.sum)
     } yield num
+  }
 
   object stats {
     private val sparkSchema: StructType = structType(AvroCodec[CRMetaInfo])

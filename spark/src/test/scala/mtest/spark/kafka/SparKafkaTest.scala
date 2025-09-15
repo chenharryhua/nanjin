@@ -2,7 +2,9 @@ package mtest.spark.kafka
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
+import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
+import com.github.chenharryhua.nanjin.datetime.DateTimeRange
 import com.github.chenharryhua.nanjin.kafka.TopicDef
 import com.github.chenharryhua.nanjin.kafka.connector.ConsumeGenericRecord
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{gr2BinAvro, gr2Circe, gr2Jackson}
@@ -18,6 +20,7 @@ import org.apache.spark.sql.{Dataset, SparkSession}
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.{Instant, LocalDate}
+import scala.concurrent.duration.DurationInt
 object SparKafkaTestData {
   final case class Duck(f: Int, g: String)
 
@@ -101,7 +104,7 @@ class SparKafkaTest extends AnyFunSuite {
 
     val t =
       sparKafka
-        .topic[Int, Int]("some.value")
+        .topic(TopicDef[Int, Int](TopicName("some.value")))
         .crRdd(ds.rdd)
         .repartition(3)
         .descendTimestamp
@@ -152,13 +155,22 @@ class SparKafkaTest extends AnyFunSuite {
     val p1 = path / "dump"
     val p2 = path / "download"
     sparKafka.hadoop.delete(path).unsafeRunSync()
-    sparKafka.dump("duck.test", p1).unsafeRunSync()
-    sparKafka.dumpCirce(topic, p2).unsafeRunSync()
-    sparKafka.upload("duck.test", p1).unsafeRunSync()
-    sparKafka.sequentialUpload("duck.test", p1).unsafeRunSync()
-    sparKafka.crazyUpload("duck.test", p1).unsafeRunSync()
-    val s1 = sparKafka.topic[Int, HasDuck]("aa").load.jackson(p1)
-    val s2 = sparKafka.topic[Int, HasDuck]("aa").load.circe(p2)
+    sparKafka.dump("duck.test", p1, _.isIgnoreError(false).withConsumer(identity)).unsafeRunSync()
+    sparKafka
+      .dumpCirce(
+        topic,
+        p2,
+        _.withSchema(identity).withTimeout(10.seconds).withDateTimeRange(DateTimeRange(sydneyTime)))
+      .unsafeRunSync()
+    sparKafka
+      .sequentialUpload(
+        "duck.test",
+        p1,
+        _.withProducer(identity).withSchema(identity).withTimeout(10.seconds))
+      .unsafeRunSync()
+    val td = TopicDef[Int, HasDuck](TopicName("aa"))
+    val s1 = sparKafka.topic(td).load.jackson(p1)
+    val s2 = sparKafka.topic(td).load.circe(p2)
     assert(s1.cherryPick[IO](1, 1).unsafeRunSync() === s2.cherryPick[IO](1, 1).unsafeRunSync())
     assert(s1.diff(s2).rdd.count() == 0)
   }

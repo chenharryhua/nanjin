@@ -273,12 +273,12 @@ class Fs2ChannelTest extends AnyFunSuite {
       ctx
         .consume(topicDef.topicName.name)
         .withSchema(
-          _.withKeySchema(topicDef.schemaPair.key)
-            .withValSchema(topicDef.schemaPair.value)
-            .withoutKeySchema
-            .withoutValSchema
-            .replaceKeySchema(topicDef.schemaPair.key)
-            .replaceValSchema(topicDef.schemaPair.value))
+          _.withKeyIfAbsent(topicDef.schemaPair.key)
+            .withValIfAbsent(topicDef.schemaPair.value)
+            .withNullKey
+            .withNullVal
+            .withKeyReplaced(topicDef.schemaPair.key)
+            .withValReplaced(topicDef.schemaPair.value))
         .subscribe
         .take(1)
         .map(_.record)

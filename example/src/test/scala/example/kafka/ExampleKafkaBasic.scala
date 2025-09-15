@@ -23,7 +23,7 @@ class ExampleKafkaBasic extends AnyFunSuite {
         NJProducerRecord(fooTopic.topicName, 4, Foo(40, "d"))
       )
     val run =
-      ctx.admin(fooTopic.topicName).use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence) >>
+      ctx.admin(fooTopic.topicName.name).use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence) >>
         sparKafka
           .topic(fooTopic)
           .prRdd(producerRecords)

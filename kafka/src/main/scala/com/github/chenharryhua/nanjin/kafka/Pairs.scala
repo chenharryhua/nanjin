@@ -34,19 +34,18 @@ final case class AvroSchemaPair(key: Schema, value: Schema) {
 }
 
 final class OptionalAvroSchemaPair private[kafka] (key: Option[Schema], value: Option[Schema]) {
-  def withKeySchema(schema: Schema): OptionalAvroSchemaPair =
+  def withKeyIfAbsent(schema: Schema): OptionalAvroSchemaPair =
     new OptionalAvroSchemaPair(key.orElse(Some(schema)), value)
-  def withValSchema(schema: Schema): OptionalAvroSchemaPair =
+  def withValIfAbsent(schema: Schema): OptionalAvroSchemaPair =
     new OptionalAvroSchemaPair(key, value.orElse(Some(schema)))
 
-  def replaceKeySchema(schema: Schema): OptionalAvroSchemaPair =
+  def withKeyReplaced(schema: Schema): OptionalAvroSchemaPair =
     new OptionalAvroSchemaPair(Some(schema), value)
-
-  def replaceValSchema(schema: Schema): OptionalAvroSchemaPair =
+  def withValReplaced(schema: Schema): OptionalAvroSchemaPair =
     new OptionalAvroSchemaPair(key, Some(schema))
 
-  def withoutKeySchema: OptionalAvroSchemaPair = withKeySchema(Schema.create(Schema.Type.NULL))
-  def withoutValSchema: OptionalAvroSchemaPair = withValSchema(Schema.create(Schema.Type.NULL))
+  def withNullKey: OptionalAvroSchemaPair = withKeyReplaced(Schema.create(Schema.Type.NULL))
+  def withNullVal: OptionalAvroSchemaPair = withValReplaced(Schema.create(Schema.Type.NULL))
 
   private[kafka] def toPair: AvroSchemaPair = (key, value) match {
     case (None, None)       => throw new Exception("both key and value schema are absent")
