@@ -11,7 +11,7 @@ import com.github.chenharryhua.nanjin.messages.kafka.codec.{gr2BinAvro, gr2Circe
 import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJProducerRecord}
 import com.sksamuel.avro4s.SchemaFor
 import eu.timepit.refined.auto.*
-import fs2.kafka.{AutoOffsetReset, ProducerRecord, ProducerRecords}
+import fs2.kafka.AutoOffsetReset
 import io.circe.syntax.*
 import io.lemonlabs.uri.typesafe.dsl.*
 import monocle.syntax.all.*
@@ -40,11 +40,10 @@ class SparKafkaTest extends AnyFunSuite {
   val topic = AvroTopic[Int, HasDuck](TopicName("duck.test"))
 
   val loadData: IO[Unit] =
-    fs2
-      .Stream(ProducerRecords(
-        List(ProducerRecord(topic.topicName.value, 1, data), ProducerRecord(topic.topicName.value, 2, data))))
+    fs2.Stream
+      .emits(List((1, data), (2, data)))
       .covary[IO]
-      .through(ctx.produce[Int, HasDuck](topic).updateConfig(_.withClientId("spark.kafka.test")).sink)
+      .through(ctx.kvProduce[Int, HasDuck](topic).updateConfig(_.withClientId("spark.kafka.test")).sink)
       .compile
       .drain
 
@@ -176,7 +175,9 @@ class SparKafkaTest extends AnyFunSuite {
   }
 
   val duckConsume: ConsumeGenericRecord[IO] =
-    ctx.consumeAvro("duck.test").updateConfig(_.withAutoOffsetReset(AutoOffsetReset.Earliest).withGroupId("duck"))
+    ctx
+      .consumeAvro("duck.test")
+      .updateConfig(_.withAutoOffsetReset(AutoOffsetReset.Earliest).withGroupId("duck"))
 
   test("generic record") {
     val path = "./data/test/spark/kafka/consume/duck.avro"

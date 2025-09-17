@@ -35,7 +35,7 @@ class MonitorApiTest extends AnyFunSuite {
     .chunkN(1)
     .unchunks
     .metered(1.seconds)
-    .through(ctx.produce[Int, Array[Byte]](st).sink)
+    .through(ctx.produce[Int, Array[Byte]](st.pair).sink)
 
   test("monitor") {
     ctx.schemaRegistry.register(topicDef).attempt.unsafeRunSync()

@@ -21,8 +21,8 @@ class ParquetTest extends AnyFunSuite {
   def loadRooster(path: Url): IO[Set[Rooster]] =
     hdp
       .filesIn(path)
-      .flatMap(_.flatTraverse(
-        hdp.source(_).parquet(100).map(FromRecord(Rooster.avroCodec).from).compile.toList))
+      .flatMap(
+        _.flatTraverse(hdp.source(_).parquet(100).map(FromRecord(Rooster.avroCodec).from).compile.toList))
       .map(_.toSet)
 
   def roosterSaver(path: Url): SaveParquet[Rooster] =

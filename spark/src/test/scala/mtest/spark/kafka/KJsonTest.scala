@@ -2,6 +2,7 @@ package mtest.spark.kafka
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
+import cats.implicits.{catsSyntaxTuple2Semigroupal, toFunctorFilterOps}
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.AvroTopic
 import com.github.chenharryhua.nanjin.messages.kafka.NJProducerRecord
@@ -28,9 +29,8 @@ class KJsonTest extends AnyFunSuite {
       .topic(topic)
       .prRdd(data)
       .stream[IO](1)
-      .map(_.toProducerRecord)
-      .chunks
-      .through(ctx.produce[KJson[Json], KJson[Json]](topicDef).sink)
+      .mapFilter(r => (r.key, r.value).mapN(_ -> _))
+      .through(ctx.kvProduce[KJson[Json], KJson[Json]](topicDef).sink)
       .compile
       .drain
       .unsafeRunSync()

@@ -28,7 +28,7 @@ class CopyDataTest extends AnyFunSuite {
     fs2
       .Stream(ProducerRecords(List(d1, d2, d3, d4, d5)))
       .covary[IO]
-      .through(ctx.produce[Int, MyTestData](td).sink)
+      .through(ctx.produce[Int, MyTestData](td.pair).sink)
       .compile
       .drain
 
@@ -53,7 +53,7 @@ class CopyDataTest extends AnyFunSuite {
           _.prRdd.noPartition.noTimestamp.noMeta
             .withTopicName(tgt.topicName)
             .producerRecords[IO](100)
-            .through(ctx.produce[Int, MyTestData](td).sink)
+            .through(ctx.produce[Int, MyTestData](td.pair).sink)
             .compile
             .drain)
       srcData = sparKafka.topic(src).fromKafka.map(_.rdd.collect()).unsafeRunSync()

@@ -61,7 +61,7 @@ class MessageDateTimeTest extends AnyFunSuite {
     val data: fs2.Stream[IO, ProducerResult[Int, AllJavaDateTime]] =
       fs2
         .Stream(ProducerRecords.one(ProducerRecord(topic.topicName.value, 0, m)))
-        .through(ctx.produce[Int, AllJavaDateTime](topic).sink)
+        .through(ctx.produce[Int, AllJavaDateTime](topic.pair).sink)
     val rst = for {
       _ <- ctx
         .admin(topic.topicName.name)

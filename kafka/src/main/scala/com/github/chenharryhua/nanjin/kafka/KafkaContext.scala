@@ -111,9 +111,9 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
    * producer
    */
 
-  def produce[K, V](avroTopic: AvroTopic[K, V])(implicit F: Sync[F]): ProduceKafka[F, K, V] = {
+  def kvProduce[K, V](avroTopic: AvroTopic[K, V])(implicit F: Sync[F]): ProduceKVKafka[F, K, V] = {
     val topic = avroTopic.pair.register(settings.schemaRegistrySettings, avroTopic.topicName)
-    new ProduceKafka[F, K, V](
+    new ProduceKVKafka[F, K, V](
       avroTopic.topicName,
       ProducerSettings[F, K, V](
         Serializer.delegate(topic.key.registered.serde.serializer()),
@@ -122,10 +122,10 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
     )
   }
 
-  def produce[K <: GeneratedMessage, V <: GeneratedMessage](protobufTopic: ProtobufTopic[K, V])(implicit
-    F: Sync[F]): ProduceKafka[F, K, V] = {
+  def kvProduce[K <: GeneratedMessage, V <: GeneratedMessage](protobufTopic: ProtobufTopic[K, V])(implicit
+    F: Sync[F]): ProduceKVKafka[F, K, V] = {
     val topic = protobufTopic.pair.register(settings.schemaRegistrySettings, protobufTopic.topicName)
-    new ProduceKafka[F, K, V](
+    new ProduceKVKafka[F, K, V](
       protobufTopic.topicName,
       ProducerSettings[F, K, V](
         Serializer.delegate(topic.key.registered.serde.serializer()),
@@ -133,6 +133,22 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
       ).withProperties(settings.producerSettings.properties)
     )
   }
+
+  def produce[K, V](pair: AvroPair[K, V])(implicit F: Sync[F]) =
+    new ProduceKafka[F, K, V](
+      ProducerSettings[F, K, V](
+        Serializer.delegate(pair.key.asKey(settings.producerSettings.properties).serde.serializer()),
+        Serializer.delegate(pair.value.asValue(settings.producerSettings.properties).serde.serializer())
+      ).withProperties(settings.producerSettings.properties)
+    )
+
+  def produce[K <: GeneratedMessage, V <: GeneratedMessage](pair: ProtobufPair[K, V])(implicit F: Sync[F]) =
+    new ProduceKafka[F, K, V](
+      ProducerSettings[F, K, V](
+        Serializer.delegate(pair.key.asKey(settings.producerSettings.properties).serde.serializer()),
+        Serializer.delegate(pair.value.asValue(settings.producerSettings.properties).serde.serializer())
+      ).withProperties(settings.producerSettings.properties)
+    )
 
   def produceAvro(topicName: TopicNameL)(implicit F: Sync[F]): ProduceGenericRecord[F] =
     new ProduceGenericRecord[F](

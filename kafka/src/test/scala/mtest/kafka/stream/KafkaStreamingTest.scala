@@ -10,7 +10,7 @@ import com.github.chenharryhua.nanjin.kafka.{AvroTopic, KafkaGenericSerde}
 import com.github.chenharryhua.nanjin.kafka.streaming.StreamsSerde
 import eu.timepit.refined.auto.*
 import fs2.Stream
-import fs2.kafka.{AutoOffsetReset, ProducerRecord, ProducerRecords, commitBatchWithin}
+import fs2.kafka.{commitBatchWithin, AutoOffsetReset, ProducerRecord, ProducerRecords}
 import mtest.kafka.*
 import org.apache.kafka.streams.StreamsConfig
 import org.apache.kafka.streams.scala.StreamsBuilder
@@ -35,13 +35,13 @@ object KafkaStreamingData {
   val tgt = AvroTopic[Int, StreamTarget](TopicName("stream.test.join.target"))
   val serde: KafkaGenericSerde[Int, StreamTarget] = ctx.serde(tgt)
 
-  val sendT2Data=
+  val sendT2Data =
     Stream(
       ProducerRecords(List(
         ProducerRecord(t2Topic.topicName.value, 1, TableTwo("x", 0)),
         ProducerRecord(t2Topic.topicName.value, 2, TableTwo("y", 1)),
         ProducerRecord(t2Topic.topicName.value, 3, TableTwo("z", 2))
-      ))).covary[IO].through(ctx.produce(t2Topic).sink)
+      ))).covary[IO].through(ctx.produce(t2Topic.pair).sink)
 
   val harvest: Stream[IO, StreamTarget] =
     ctx
@@ -79,7 +79,7 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
         ).map(ProducerRecords.one))
       .covary[IO]
       .metered(1.seconds)
-      .through(ctx.produce[Int, StreamOne](s1Def).sink)
+      .through(ctx.produce[Int, StreamOne](s1Def.pair).sink)
 
     val res: Set[StreamTarget] = (IO.println(Console.CYAN + "stream-table join" + Console.RESET) >> ctx
       .buildStreams(appId)(apps.kafka_streaming)
@@ -141,7 +141,7 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
       ).map(ProducerRecords.one))
       .covary[IO]
       .metered(1.seconds)
-      .through(ctx.produce[Int, Array[Byte]](s1TopicBin).sink)
+      .through(ctx.produce[Int, Array[Byte]](s1TopicBin.pair).sink)
       .debug()
 
     assertThrows[Exception](

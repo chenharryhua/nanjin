@@ -42,7 +42,7 @@ final class KafkaObserver[F[_]](ctx: KafkaContext[F], translator: Translator[F, 
 
     (ss: Stream[F, Event]) =>
       for {
-        client <- Stream.resource(ctx.produce(topic).clientR)
+        client <- Stream.resource(ctx.produce(topic.pair).clientR)
         ofm <- Stream.eval(F.ref[Map[UUID, ServiceStart]](Map.empty).map(new FinalizeMonitor(translate, _)))
         event <- ss
           .evalTap(ofm.monitoring)
