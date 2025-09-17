@@ -13,7 +13,7 @@ import org.apache.kafka.streams.scala.serialization.Serdes
 
 final class KJson[A] private (val value: A) extends Serializable {
   @SuppressWarnings(Array("IsInstanceOf"))
-  def canEqual(a: Any): Boolean = a.isInstanceOf[KJson[?]]
+  private def canEqual(a: Any): Boolean = a.isInstanceOf[KJson[?]]
 
   override def equals(that: Any): Boolean =
     that match {
@@ -70,8 +70,8 @@ object KJson {
     override def schemaFor: SchemaFor[KJson[A]] = SchemaFor[KJson[A]]
   }
 
-  implicit def jsonAvroCodec[A: JsonEncoder: JsonDecoder]: AvroCodecOf[KJson[A]] =
-    new AvroCodecOf[KJson[A]] {
+  implicit def jsonAvroCodec[A: JsonEncoder: JsonDecoder]: AvroFor[KJson[A]] =
+    new AvroFor[KJson[A]] {
 
       override val avroCodec: AvroCodec[KJson[A]] = AvroCodec[KJson[A]]
 

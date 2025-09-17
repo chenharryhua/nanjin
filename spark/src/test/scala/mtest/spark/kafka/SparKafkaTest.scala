@@ -5,7 +5,7 @@ import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.DateTimeRange
-import com.github.chenharryhua.nanjin.kafka.TopicDef
+import com.github.chenharryhua.nanjin.kafka.AvroTopic
 import com.github.chenharryhua.nanjin.kafka.connector.ConsumeGenericRecord
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{gr2BinAvro, gr2Circe, gr2Jackson}
 import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJProducerRecord}
@@ -37,14 +37,14 @@ class SparKafkaTest extends AnyFunSuite {
   import SparKafkaTestData.*
   implicit val ss: SparkSession = sparkSession
 
-  val topic = TopicDef[Int, HasDuck](TopicName("duck.test"))
+  val topic = AvroTopic[Int, HasDuck](TopicName("duck.test"))
 
   val loadData: IO[Unit] =
     fs2
       .Stream(ProducerRecords(
         List(ProducerRecord(topic.topicName.value, 1, data), ProducerRecord(topic.topicName.value, 2, data))))
       .covary[IO]
-      .through(ctx.produce[Int, HasDuck].updateConfig(_.withClientId("spark.kafka.test")).sink)
+      .through(ctx.produce[Int, HasDuck](topic).updateConfig(_.withClientId("spark.kafka.test")).sink)
       .compile
       .drain
 
@@ -104,7 +104,7 @@ class SparKafkaTest extends AnyFunSuite {
 
     val t =
       sparKafka
-        .topic(TopicDef[Int, Int](TopicName("some.value")))
+        .topic(AvroTopic[Int, Int](TopicName("some.value")))
         .crRdd(ds.rdd)
         .repartition(3)
         .descendTimestamp
@@ -136,7 +136,7 @@ class SparKafkaTest extends AnyFunSuite {
   test("should be able to reproduce") {
     import fs2.Stream
     val path = "./data/test/spark/kafka/reproduce/jackson"
-    val topic = TopicDef[Int, HasDuck](TopicName("duck.test"))
+    val topic = AvroTopic[Int, HasDuck](TopicName("duck.test"))
     sparKafka.topic(topic).fromKafka.flatMap(_.output.jackson(path).run[IO]).unsafeRunSync()
 
     Stream
@@ -144,7 +144,7 @@ class SparKafkaTest extends AnyFunSuite {
       .flatMap(
         _.map(hadoop.source(_).jackson(10, topic.schemaPair.consumerSchema))
           .reduce(_ ++ _)
-          .through(ctx.produce(topic.topicName.name).updateConfig(_.withClientId("a")).sink))
+          .through(ctx.produceAvro(topic.topicName.name).updateConfig(_.withClientId("a")).sink))
       .compile
       .drain
       .unsafeRunSync()
@@ -168,7 +168,7 @@ class SparKafkaTest extends AnyFunSuite {
         p1,
         _.withProducer(identity).withSchema(identity).withTimeout(10.seconds))
       .unsafeRunSync()
-    val td = TopicDef[Int, HasDuck](TopicName("aa"))
+    val td = AvroTopic[Int, HasDuck](TopicName("aa"))
     val s1 = sparKafka.topic(td).load.jackson(p1)
     val s2 = sparKafka.topic(td).load.circe(p2)
     assert(s1.cherryPick[IO](1, 1).unsafeRunSync() === s2.cherryPick[IO](1, 1).unsafeRunSync())
@@ -176,7 +176,7 @@ class SparKafkaTest extends AnyFunSuite {
   }
 
   val duckConsume: ConsumeGenericRecord[IO] =
-    ctx.consume("duck.test").updateConfig(_.withAutoOffsetReset(AutoOffsetReset.Earliest).withGroupId("duck"))
+    ctx.consumeAvro("duck.test").updateConfig(_.withAutoOffsetReset(AutoOffsetReset.Earliest).withGroupId("duck"))
 
   test("generic record") {
     val path = "./data/test/spark/kafka/consume/duck.avro"

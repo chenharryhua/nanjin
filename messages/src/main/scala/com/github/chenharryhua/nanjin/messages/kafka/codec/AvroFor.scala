@@ -1,6 +1,5 @@
 package com.github.chenharryhua.nanjin.messages.kafka.codec
 
-import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.sksamuel.avro4s.{Decoder as AvroDecoder, Encoder as AvroEncoder, SchemaFor}
 import io.confluent.kafka.streams.serdes.avro.{GenericAvroDeserializer, GenericAvroSerializer}
 import org.apache.avro.generic.GenericRecord
@@ -10,74 +9,49 @@ import org.apache.kafka.streams.scala.serialization.Serdes
 import java.nio.ByteBuffer
 import java.util
 import java.util.UUID
-import scala.jdk.CollectionConverters.*
-import scala.util.{Failure, Try}
 
-/** [[https://github.com/sksamuel/avro4s]]
-  */
-
-/** @param topicName
-  *   - topic name or state store name
-  * @param registered
-  *   serializer/deserializer config method was called
-  * @tparam A
-  *   schema related type
-  */
-final class KafkaSerde[A] private[codec] (val topicName: TopicName, val registered: Registered[A])
-    extends Serializable {
-  def serialize(a: A): Array[Byte] = registered.serde.serializer.serialize(topicName.value, a)
-  def deserialize(ab: Array[Byte]): A = registered.serde.deserializer.deserialize(topicName.value, ab)
-
-  def tryDeserialize(ab: Array[Byte]): Try[A] =
-    Option(ab).fold[Try[A]](Failure(new NullPointerException("tryDeserialize a null Array[Byte]")))(x =>
-      Try(deserialize(x)))
-}
-
-final class Registered[A] private[codec] (
-  avroCodecOf: AvroCodecOf[A],
-  props: Map[String, String],
-  isKey: Boolean)
-    extends Serializable {
-
-  @transient lazy val serde: Serde[A] = new Serde[A] {
-    override val serializer: Serializer[A] = {
-      val ser = avroCodecOf.serializer
-      ser.configure(props.asJava, isKey)
-      ser
-    }
-    override val deserializer: Deserializer[A] = {
-      val deser = avroCodecOf.deserializer
-      deser.configure(props.asJava, isKey)
-      deser
-    }
-  }
-
-  def withTopic(topicName: TopicName): KafkaSerde[A] =
-    new KafkaSerde[A](topicName, this)
-}
-
-trait AvroCodecOf[A] extends Serializable {
+/*
+ * spark friendly
+ */
+trait AvroFor[A] extends RegisterSerde[A] { outer =>
   def avroCodec: AvroCodec[A]
-  private[codec] def serializer: Serializer[A]
-  private[codec] def deserializer: Deserializer[A]
+  protected def serializer: Serializer[A]
+  protected def deserializer: Deserializer[A]
 
-  final def asKey(props: Map[String, String]): Registered[A] = new Registered[A](this, props, true)
-  final def asValue(props: Map[String, String]): Registered[A] = new Registered(this, props, false)
+  final override def asKey(props: Map[String, String]): Registered[A] =
+    new Registered[A](
+      new Serde[A] with Serializable {
+        override def serializer: Serializer[A] = outer.serializer
+        override def deserializer: Deserializer[A] = outer.deserializer
+      },
+      props,
+      true
+    )
+
+  final override def asValue(props: Map[String, String]): Registered[A] =
+    new Registered(
+      new Serde[A] with Serializable {
+        override def serializer: Serializer[A] = outer.serializer
+        override def deserializer: Deserializer[A] = outer.deserializer
+      },
+      props,
+      false
+    )
 }
 
 private[codec] trait LowerPriority {
 
-  implicit def avro4sCodec[A: SchemaFor: AvroEncoder: AvroDecoder]: AvroCodecOf[A] =
-    AvroCodecOf(AvroCodec[A])
+  implicit def avro4sCodec[A: SchemaFor: AvroEncoder: AvroDecoder]: AvroFor[A] =
+    AvroFor(AvroCodec[A])
 }
 
-object AvroCodecOf extends LowerPriority {
-  def apply[A](implicit ev: AvroCodecOf[A]): AvroCodecOf[A] = ev
+object AvroFor extends LowerPriority {
+  def apply[A](implicit ev: AvroFor[A]): AvroFor[A] = ev
 
-  def apply[A](codec: AvroCodec[A]): AvroCodecOf[A] =
-    new AvroCodecOf[A] {
+  def apply[A](codec: AvroCodec[A]): AvroFor[A] =
+    new AvroFor[A] {
 
-      override val serializer: Serializer[A] =
+      override protected val serializer: Serializer[A] =
         new Serializer[A] with Serializable {
           @transient private[this] lazy val ser: GenericAvroSerializer = new GenericAvroSerializer
 
@@ -86,19 +60,17 @@ object AvroCodecOf extends LowerPriority {
 
           override def close(): Unit = ser.close()
 
-          @SuppressWarnings(Array("AsInstanceOf"))
           override def serialize(topic: String, data: A): Array[Byte] =
-            Option(data) match {
-              case None        => null.asInstanceOf[Array[Byte]]
-              case Some(value) =>
-                avroCodec.encode(value) match {
-                  case gr: GenericRecord => ser.serialize(topic, gr)
-                  case ex                => sys.error(s"${ex.getClass.toString} is not Generic Record")
-                }
-            }
+            if (data == null) null
+            else
+              avroCodec.encode(data) match {
+                case gr: GenericRecord => ser.serialize(topic, gr)
+
+                case ex => sys.error(s"${ex.getClass.toString} is not Generic Record")
+              }
         }
 
-      override val deserializer: Deserializer[A] =
+      override protected val deserializer: Deserializer[A] =
         new Deserializer[A] with Serializable {
 
           @transient private[this] lazy val deSer: GenericAvroDeserializer =
@@ -112,20 +84,18 @@ object AvroCodecOf extends LowerPriority {
 
           @SuppressWarnings(Array("AsInstanceOf"))
           override def deserialize(topic: String, data: Array[Byte]): A =
-            Option(data) match {
-              case None        => null.asInstanceOf[A]
-              case Some(value) => avroCodec.decode(deSer.deserialize(topic, value))
-            }
+            if (data == null) null.asInstanceOf[A]
+            else avroCodec.decode(deSer.deserialize(topic, data))
         }
       override val avroCodec: AvroCodec[A] = codec
     }
 
 // 1: String
-  implicit object StringPrimitiveAvroCodec extends AvroCodecOf[String] {
+  implicit object StringPrimitiveAvroCodec extends AvroFor[String] {
 
     override val avroCodec: AvroCodec[String] = AvroCodec[String]
 
-    override val serializer: Serializer[String] =
+    override protected val serializer: Serializer[String] =
       new Serializer[String] with Serializable {
         private val delegate: Serializer[String] = Serdes.stringSerde.serializer()
 
@@ -138,7 +108,7 @@ object AvroCodecOf extends LowerPriority {
           delegate.serialize(topic, data)
       }
 
-    override val deserializer: Deserializer[String] =
+    override protected val deserializer: Deserializer[String] =
       new Deserializer[String] with Serializable {
         private val delegate: Deserializer[String] = Serdes.stringSerde.deserializer()
 
@@ -153,11 +123,11 @@ object AvroCodecOf extends LowerPriority {
   }
 
   // 2: Long
-  implicit object LongPrimitiveAvroCodec extends AvroCodecOf[Long] {
+  implicit object LongPrimitiveAvroCodec extends AvroFor[Long] {
 
     override val avroCodec: AvroCodec[Long] = AvroCodec[Long]
 
-    override val serializer: Serializer[Long] =
+    override protected val serializer: Serializer[Long] =
       new Serializer[Long] with Serializable {
         private val delegate: Serializer[Long] = Serdes.longSerde.serializer()
 
@@ -170,7 +140,7 @@ object AvroCodecOf extends LowerPriority {
           delegate.serialize(topic, data)
       }
 
-    override val deserializer: Deserializer[Long] =
+    override protected val deserializer: Deserializer[Long] =
       new Deserializer[Long] with Serializable {
         private val delegate: Deserializer[Long] = Serdes.longSerde.deserializer()
 
@@ -185,11 +155,11 @@ object AvroCodecOf extends LowerPriority {
   }
 
 // 3: array byte
-  implicit object ByteArrayPrimitiveAvroCodec extends AvroCodecOf[Array[Byte]] {
+  implicit object ByteArrayPrimitiveAvroCodec extends AvroFor[Array[Byte]] {
 
     override val avroCodec: AvroCodec[Array[Byte]] = AvroCodec[Array[Byte]]
 
-    override val serializer: Serializer[Array[Byte]] =
+    override protected val serializer: Serializer[Array[Byte]] =
       new Serializer[Array[Byte]] with Serializable {
         private val delegate: Serializer[Array[Byte]] = Serdes.byteArraySerde.serializer()
 
@@ -202,7 +172,7 @@ object AvroCodecOf extends LowerPriority {
           delegate.serialize(topic, data)
       }
 
-    override val deserializer: Deserializer[Array[Byte]] =
+    override protected val deserializer: Deserializer[Array[Byte]] =
       new Deserializer[Array[Byte]] with Serializable {
         private val delegate: Deserializer[Array[Byte]] = Serdes.byteArraySerde.deserializer()
 
@@ -217,11 +187,11 @@ object AvroCodecOf extends LowerPriority {
   }
 
   // 4: byte buffer
-  implicit object ByteBufferPrimitiveAvroCodec extends AvroCodecOf[ByteBuffer] {
+  implicit object ByteBufferPrimitiveAvroCodec extends AvroFor[ByteBuffer] {
 
     override val avroCodec: AvroCodec[ByteBuffer] = AvroCodec[ByteBuffer]
 
-    override val serializer: Serializer[ByteBuffer] =
+    override protected val serializer: Serializer[ByteBuffer] =
       new Serializer[ByteBuffer] with Serializable {
         private val delegate: Serializer[ByteBuffer] = Serdes.byteBufferSerde.serializer()
 
@@ -234,7 +204,7 @@ object AvroCodecOf extends LowerPriority {
           delegate.serialize(topic, data)
       }
 
-    override val deserializer: Deserializer[ByteBuffer] =
+    override protected val deserializer: Deserializer[ByteBuffer] =
       new Deserializer[ByteBuffer] with Serializable {
         private val delegate: Deserializer[ByteBuffer] = Serdes.byteBufferSerde.deserializer()
 
@@ -249,11 +219,11 @@ object AvroCodecOf extends LowerPriority {
   }
 
   // 5: short
-  implicit object ShortPrimitiveAvroCodec extends AvroCodecOf[Short] {
+  implicit object ShortPrimitiveAvroCodec extends AvroFor[Short] {
 
     override val avroCodec: AvroCodec[Short] = AvroCodec[Short]
 
-    override val serializer: Serializer[Short] =
+    override protected val serializer: Serializer[Short] =
       new Serializer[Short] with Serializable {
         private val delegate: Serializer[Short] = Serdes.shortSerde.serializer()
         override def close(): Unit = delegate.close()
@@ -265,7 +235,7 @@ object AvroCodecOf extends LowerPriority {
           delegate.serialize(topic, data)
       }
 
-    override val deserializer: Deserializer[Short] =
+    override protected val deserializer: Deserializer[Short] =
       new Deserializer[Short] with Serializable {
         private val delegate: Deserializer[Short] = Serdes.shortSerde.deserializer()
         override def close(): Unit = delegate.close()
@@ -279,11 +249,11 @@ object AvroCodecOf extends LowerPriority {
   }
 
   // 6: float
-  implicit object FloatPrimitiveAvroCodec extends AvroCodecOf[Float] {
+  implicit object FloatPrimitiveAvroCodec extends AvroFor[Float] {
 
     override val avroCodec: AvroCodec[Float] = AvroCodec[Float]
 
-    override val serializer: Serializer[Float] =
+    override protected val serializer: Serializer[Float] =
       new Serializer[Float] with Serializable {
         private val delegate: Serializer[Float] = Serdes.floatSerde.serializer()
 
@@ -296,7 +266,7 @@ object AvroCodecOf extends LowerPriority {
           delegate.serialize(topic, data)
       }
 
-    override val deserializer: Deserializer[Float] =
+    override protected val deserializer: Deserializer[Float] =
       new Deserializer[Float] with Serializable {
         private val delegate: Deserializer[Float] = Serdes.floatSerde.deserializer()
 
@@ -311,11 +281,11 @@ object AvroCodecOf extends LowerPriority {
   }
 
   // 7: double
-  implicit object DoublePrimitiveAvroCodec extends AvroCodecOf[Double] {
+  implicit object DoublePrimitiveAvroCodec extends AvroFor[Double] {
 
     override val avroCodec: AvroCodec[Double] = AvroCodec[Double]
 
-    override val serializer: Serializer[Double] =
+    override protected val serializer: Serializer[Double] =
       new Serializer[Double] with Serializable {
         private val delegate: Serializer[Double] = Serdes.doubleSerde.serializer()
 
@@ -328,7 +298,7 @@ object AvroCodecOf extends LowerPriority {
           delegate.serialize(topic, data)
       }
 
-    override val deserializer: Deserializer[Double] =
+    override protected val deserializer: Deserializer[Double] =
       new Deserializer[Double] with Serializable {
         private val delegate: Deserializer[Double] = Serdes.doubleSerde.deserializer()
 
@@ -343,11 +313,11 @@ object AvroCodecOf extends LowerPriority {
   }
 
   // 8: int
-  implicit object IntPrimitiveAvroCodec extends AvroCodecOf[Int] {
+  implicit object IntPrimitiveAvroCodec extends AvroFor[Int] {
 
     override val avroCodec: AvroCodec[Int] = AvroCodec[Int]
 
-    override val serializer: Serializer[Int] =
+    override protected val serializer: Serializer[Int] =
       new Serializer[Int] with Serializable {
         private val delegate: Serializer[Int] = Serdes.intSerde.serializer()
         override def close(): Unit = delegate.close()
@@ -359,7 +329,7 @@ object AvroCodecOf extends LowerPriority {
           delegate.serialize(topic, data)
       }
 
-    override val deserializer: Deserializer[Int] =
+    override protected val deserializer: Deserializer[Int] =
       new Deserializer[Int] with Serializable {
         private val delegate: Deserializer[Int] = Serdes.intSerde.deserializer()
         override def close(): Unit = delegate.close()
@@ -373,11 +343,11 @@ object AvroCodecOf extends LowerPriority {
   }
 
   // 9: uuid
-  implicit object UUIDPrimitiveAvroCodec extends AvroCodecOf[UUID] {
+  implicit object UUIDPrimitiveAvroCodec extends AvroFor[UUID] {
 
     override val avroCodec: AvroCodec[UUID] = AvroCodec[UUID]
 
-    override val serializer: Serializer[UUID] =
+    override protected val serializer: Serializer[UUID] =
       new Serializer[UUID] with Serializable {
         private val delegate: Serializer[UUID] = Serdes.uuidSerde.serializer()
         override def close(): Unit = delegate.close()
@@ -389,7 +359,7 @@ object AvroCodecOf extends LowerPriority {
           delegate.serialize(topic, data)
       }
 
-    override val deserializer: Deserializer[UUID] =
+    override protected val deserializer: Deserializer[UUID] =
       new Deserializer[UUID] with Serializable {
         private val delegate: Deserializer[UUID] = Serdes.uuidSerde.deserializer()
         override def close(): Unit = delegate.close()

@@ -26,7 +26,8 @@ class AvroTest extends AnyFunSuite {
   def loadRoosters(path: Url): IO[List[Rooster]] =
     hadoop
       .filesIn(path)
-      .flatMap(_.flatTraverse(hadoop.source(_).avro(100).map(Rooster.avroCodec.decode).compile.toList))
+      .flatMap(
+        _.flatTraverse(hadoop.source(_).avro(100).map(Rooster.avroCodec.decode).compile.toList))
 
   val root: Url = Url.parse("./data/test/spark/persist/avro/")
 

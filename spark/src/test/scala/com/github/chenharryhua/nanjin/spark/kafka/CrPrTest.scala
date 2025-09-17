@@ -3,9 +3,8 @@ package com.github.chenharryhua.nanjin.spark.kafka
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.DateTimeRange
-import com.github.chenharryhua.nanjin.kafka.TopicDef
+import com.github.chenharryhua.nanjin.kafka.AvroTopic
 import com.github.chenharryhua.nanjin.messages.kafka.{CRMetaInfo, NJConsumerRecord}
-import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark.SchematizedEncoder
 import com.github.chenharryhua.nanjin.spark.persist.RoosterData.{instant, timestamp}
 import com.github.chenharryhua.nanjin.spark.persist.{Rooster, RoosterData}
@@ -18,6 +17,7 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.Instant
 import scala.math.BigDecimal.RoundingMode
+import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroFor
 final case class RoosterLike(c: BigDecimal, d: BigDecimal)
 
 object RoosterLike {
@@ -36,14 +36,14 @@ class CrPrTest extends AnyFunSuite {
   implicit val te2: TypedEncoder[RoosterLike] = shapeless.cachedImplicit
   implicit val te3: TypedEncoder[RoosterLike2] = shapeless.cachedImplicit
 
-  val rooster = TopicDef[Long, Rooster](TopicName("rooster"), Rooster.avroCodec)
+  val rooster = AvroTopic[Long, Rooster](TopicName("rooster"))(AvroFor[Long], AvroFor(Rooster.avroCodec))
   val roosterATE = SchematizedEncoder(rooster)
 
   val roosterLike =
-    TopicDef[Long, RoosterLike](TopicName("roosterLike"), AvroCodec[RoosterLike])
+    AvroTopic[Long, RoosterLike](TopicName("roosterLike"))(AvroFor[Long], AvroFor[RoosterLike])
 
   val roosterLike2 =
-    TopicDef[Long, RoosterLike2](TopicName("roosterLike2"), AvroCodec[RoosterLike2])
+    AvroTopic[Long, RoosterLike2](TopicName("roosterLike2"))(AvroFor[Long], AvroFor[RoosterLike2])
 
   val crRdd: CrRdd[Long, Rooster] = sparKafka
     .topic(rooster)
@@ -81,8 +81,8 @@ class CrPrTest extends AnyFunSuite {
 
   val prRdd: PrRdd[Long, Rooster] = crRdd.prRdd.partitionOf(0)
   val topic = roosterLike
-  val ack = topic.codecPair.key.avroCodec
-  val acv = topic.codecPair.key.avroCodec
+  val ack = topic.pair.key.avroCodec
+  val acv = topic.pair.key.avroCodec
 
   test("time range") {
     val dr =

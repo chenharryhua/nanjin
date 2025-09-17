@@ -10,7 +10,7 @@ import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.util.Random
-import com.github.chenharryhua.nanjin.kafka.TopicDef
+import com.github.chenharryhua.nanjin.kafka.AvroTopic
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 
 object StreamJoinTestData {
@@ -37,7 +37,7 @@ object StreamJoinTestData {
   val barDS: Dataset[Bar] =
     TypedDataset.create(List(Bar(rand + 1, 1), Bar(rand + 2, 2), Bar(rand + 3, 3))).dataset
 
-  val fooTopic = sparKafka.topic(TopicDef[Int, Foo](TopicName("spark.stream.table.join.test")))
+  val fooTopic = sparKafka.topic(AvroTopic[Int, Foo](TopicName("spark.stream.table.join.test")))
 
   val fooData: List[NJProducerRecord[Int, Foo]] = List
     .fill(50)(Foo(0, "a"))

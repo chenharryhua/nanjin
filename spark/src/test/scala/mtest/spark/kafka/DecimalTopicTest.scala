@@ -3,9 +3,9 @@ package mtest.spark.kafka
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
-import com.github.chenharryhua.nanjin.kafka.TopicDef
+import com.github.chenharryhua.nanjin.kafka.AvroTopic
 import com.github.chenharryhua.nanjin.messages.kafka.NJProducerRecord
-import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
+import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroCodec, AvroFor}
 import com.github.chenharryhua.nanjin.spark.kafka.SparKafkaTopic
 import eu.timepit.refined.auto.*
 import frameless.TypedEncoder
@@ -65,8 +65,8 @@ object DecimalTopicTestCase {
 
   val codec: AvroCodec[HasDecimal] = AvroCodec[HasDecimal](schemaText)
 
-  val topicDef: TopicDef[Int, HasDecimal] =
-    TopicDef[Int, HasDecimal](TopicName("kafka.decimal.test"), codec)
+  val topicDef: AvroTopic[Int, HasDecimal] =
+    AvroTopic[Int, HasDecimal](TopicName("kafka.decimal.test"))(AvroFor[Int], AvroFor(codec))
 
   val now: Instant = Instant.ofEpochMilli(Instant.now.toEpochMilli)
 
@@ -86,7 +86,7 @@ class DecimalTopicTest extends AnyFunSuite {
     stopic
       .prRdd(List(NJProducerRecord(stopic.topicName, 1, data), NJProducerRecord(stopic.topicName, 2, data)))
       .producerRecords[IO](100)
-      .through(ctx.produce(topicDef.codecPair).sink)
+      .through(ctx.produce(topicDef).sink)
       .compile
       .drain
 

@@ -3,7 +3,7 @@ package mtest.kafka
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
-import com.github.chenharryhua.nanjin.kafka.TopicDef
+import com.github.chenharryhua.nanjin.kafka.AvroTopic
 import eu.timepit.refined.auto.*
 import fs2.Stream
 import fs2.kafka.*
@@ -12,10 +12,10 @@ import org.scalatest.funsuite.AnyFunSuite
 import scala.concurrent.duration.*
 
 class MonitorApiTest extends AnyFunSuite {
-  private val topicDef: TopicDef[Int, Int] = TopicDef[Int, Int](TopicName("monitor.test"))
+  private val topicDef: AvroTopic[Int, Int] = AvroTopic[Int, Int](TopicName("monitor.test"))
 
-  private val st: TopicDef[Int, Array[Byte]] =
-    TopicDef[Int, Array[Byte]](TopicName("monitor.test"))
+  private val st: AvroTopic[Int, Array[Byte]] =
+    AvroTopic[Int, Array[Byte]](TopicName("monitor.test"))
 
   private val headers1: Headers = Headers.fromSeq(List(Header("a", "aaaaa")))
   val headers2: Headers =
@@ -35,7 +35,7 @@ class MonitorApiTest extends AnyFunSuite {
     .chunkN(1)
     .unchunks
     .metered(1.seconds)
-    .through(ctx.produce[Int, Array[Byte]].sink)
+    .through(ctx.produce[Int, Array[Byte]](st).sink)
 
   test("monitor") {
     ctx.schemaRegistry.register(topicDef).attempt.unsafeRunSync()

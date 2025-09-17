@@ -11,9 +11,12 @@ import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.*
+import com.github.chenharryhua.nanjin.common.kafka.TopicName
+import com.github.chenharryhua.nanjin.kafka.AvroTopic
 
 @DoNotDiscover
 class ExampleKafkaBasic extends AnyFunSuite {
+  val topic = AvroTopic[Int,Foo](TopicName("foo"))
   test("populate topic") {
     val producerRecords: List[NJProducerRecord[Int, Foo]] =
       List(
@@ -28,7 +31,7 @@ class ExampleKafkaBasic extends AnyFunSuite {
           .topic(fooTopic)
           .prRdd(producerRecords)
           .producerRecords[IO](100)
-          .through(ctx.produce[Int, Foo].sink)
+          .through(ctx.produce[Int, Foo](topic).sink)
           .compile
           .drain
 
@@ -37,7 +40,7 @@ class ExampleKafkaBasic extends AnyFunSuite {
 
   test("consume messages from kafka using https://fd4s.github.io/fs2-kafka/") {
     ctx
-      .consume(fooTopic.topicName.name)
+      .consumeAvro(fooTopic.topicName.name)
       .subscribe
       .debug()
       .interruptAfter(3.seconds)
@@ -55,7 +58,7 @@ class ExampleKafkaBasic extends AnyFunSuite {
       .circe(path)
       .prRdd
       .producerRecords[IO](2)
-      .through(ctx.produce[Int, Foo].sink)
+      .through(ctx.produce[Int, Foo](topic).sink)
       .compile
       .drain
       .unsafeRunSync()

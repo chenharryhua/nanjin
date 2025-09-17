@@ -3,7 +3,7 @@ package mtest.spark.kafka
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
-import com.github.chenharryhua.nanjin.kafka.TopicDef
+import com.github.chenharryhua.nanjin.kafka.AvroTopic
 import com.github.chenharryhua.nanjin.messages.kafka.NJProducerRecord
 import com.github.chenharryhua.nanjin.messages.kafka.codec.KJson
 import eu.timepit.refined.auto.*
@@ -12,8 +12,8 @@ import io.lemonlabs.uri.typesafe.dsl.*
 import org.scalatest.funsuite.AnyFunSuite
 
 class KJsonTest extends AnyFunSuite {
-  val topicDef: TopicDef[KJson[Json], KJson[Json]] =
-    TopicDef[KJson[Json], KJson[Json]](TopicName("kjson.text"))
+  val topicDef: AvroTopic[KJson[Json], KJson[Json]] =
+    AvroTopic[KJson[Json], KJson[Json]](TopicName("kjson.text"))
   val topic = topicDef
 
   val data: List[NJProducerRecord[KJson[Json], KJson[Json]]] = List
@@ -30,7 +30,7 @@ class KJsonTest extends AnyFunSuite {
       .stream[IO](1)
       .map(_.toProducerRecord)
       .chunks
-      .through(ctx.produce[KJson[Json], KJson[Json]].sink)
+      .through(ctx.produce[KJson[Json], KJson[Json]](topicDef).sink)
       .compile
       .drain
       .unsafeRunSync()

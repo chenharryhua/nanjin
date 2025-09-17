@@ -1,31 +1,31 @@
 package com.github.chenharryhua.nanjin.kafka
 
-import cats.{Endo, Show}
 import cats.kernel.Eq
 import cats.syntax.eq.*
+import cats.{Endo, Show}
 import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameL}
-import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroCodec, AvroCodecOf}
+import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroCodec, AvroFor, ProtobufFor}
 import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJProducerRecord}
 import com.sksamuel.avro4s.{Record, RecordFormat}
 import fs2.kafka.{ConsumerRecord, ProducerRecord}
 import org.apache.avro.generic.IndexedRecord
 import org.apache.kafka.clients.consumer.ConsumerRecord as JavaConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord as JavaProducerRecord
+import scalapb.GeneratedMessage
 
-final class TopicDef[K, V] private (val topicName: TopicName, val codecPair: AvroCodecPair[K, V])
+final class AvroTopic[K, V] private (val topicName: TopicName, val pair: AvroPair[K, V])
     extends Serializable {
 
   override def toString: String = topicName.value
 
-  def withTopicName(tn: TopicName): TopicDef[K, V] = new TopicDef[K, V](tn, codecPair)
-  def withTopicName(tn: TopicNameL): TopicDef[K, V] = withTopicName(TopicName(tn))
-  def modifyTopicName(f: Endo[String]): TopicDef[K, V] =
-    withTopicName(TopicName.unsafeFrom(f(topicName.value)))
+  def withTopicName(tn: TopicNameL): AvroTopic[K, V] = new AvroTopic[K, V](TopicName(tn), pair)
+  def modifyTopicName(f: Endo[String]): AvroTopic[K, V] =
+    withTopicName(TopicName.unsafeFrom(f(topicName.value)).name)
 
   def producerRecord(k: K, v: V): ProducerRecord[K, V] = ProducerRecord(topicName.value, k, v)
 
   lazy val schemaPair: AvroSchemaPair =
-    AvroSchemaPair(codecPair.key.avroCodec.schema, codecPair.value.avroCodec.schema)
+    AvroSchemaPair(pair.key.avroCodec.schema, pair.value.avroCodec.schema)
 
   final class ConsumerFormat(rf: RecordFormat[NJConsumerRecord[K, V]]) extends Serializable {
     def toRecord(nj: NJConsumerRecord[K, V]): Record = rf.to(nj)
@@ -45,41 +45,42 @@ final class TopicDef[K, V] private (val topicName: TopicName, val codecPair: Avr
   }
 
   lazy val consumerCodec: AvroCodec[NJConsumerRecord[K, V]] =
-    NJConsumerRecord.avroCodec(codecPair.key.avroCodec, codecPair.value.avroCodec)
+    NJConsumerRecord.avroCodec(pair.key.avroCodec, pair.value.avroCodec)
 
   lazy val producerCodec: AvroCodec[NJProducerRecord[K, V]] =
-    NJProducerRecord.avroCodec(codecPair.key.avroCodec, codecPair.value.avroCodec)
+    NJProducerRecord.avroCodec(pair.key.avroCodec, pair.value.avroCodec)
 
   lazy val consumerFormat: ConsumerFormat = new ConsumerFormat(RecordFormat(consumerCodec, consumerCodec))
   lazy val producerFormat: ProducerFormat = new ProducerFormat(RecordFormat(producerCodec, producerCodec))
 
 }
 
-object TopicDef {
+object AvroTopic {
 
-  implicit def showTopicDef[K, V]: Show[TopicDef[K, V]] = Show.fromToString
+  implicit def showTopicDef[K, V]: Show[AvroTopic[K, V]] = Show.fromToString
 
-  implicit def eqTopicDef[K, V]: Eq[TopicDef[K, V]] =
-    (x: TopicDef[K, V], y: TopicDef[K, V]) =>
+  implicit def eqTopicDef[K, V]: Eq[AvroTopic[K, V]] =
+    (x: AvroTopic[K, V], y: AvroTopic[K, V]) =>
       x.topicName.value === y.topicName.value &&
-        x.codecPair.key.avroCodec.schema == y.codecPair.key.avroCodec.schema &&
-        x.codecPair.value.avroCodec.schema == y.codecPair.value.avroCodec.schema
+        x.pair.key.avroCodec.schema == y.pair.key.avroCodec.schema &&
+        x.pair.value.avroCodec.schema == y.pair.value.avroCodec.schema
 
-  def apply[K, V](topicName: TopicName, keySchema: AvroCodec[K], valSchema: AvroCodec[V]): TopicDef[K, V] = {
-    val sk = AvroCodecOf(keySchema)
-    val sv = AvroCodecOf(valSchema)
-    new TopicDef(topicName, AvroCodecPair(sk, sv))
-  }
+  def apply[K, V](key: AvroFor[K], value: AvroFor[V], topicName: TopicName): AvroTopic[K, V] =
+    new AvroTopic(topicName, AvroPair(key, value))
 
-  def apply[K: AvroCodecOf, V: AvroCodecOf](topicName: TopicName): TopicDef[K, V] = {
-    val sk = AvroCodecOf[K]
-    val sv = AvroCodecOf[V]
-    new TopicDef(topicName, AvroCodecPair(sk, sv))
-  }
+  def apply[K: AvroFor, V: AvroFor](topicName: TopicName): AvroTopic[K, V] =
+    new AvroTopic(topicName, AvroPair(AvroFor[K], AvroFor[V]))
 
-  def apply[K: AvroCodecOf, V](topicName: TopicName, valSchema: AvroCodec[V]): TopicDef[K, V] = {
-    val sk = AvroCodecOf[K]
-    val sv = AvroCodecOf(valSchema)
-    new TopicDef(topicName, AvroCodecPair(sk, sv))
-  }
+}
+
+final class ProtobufTopic[K <: GeneratedMessage, V <: GeneratedMessage] private (
+  val topicName: TopicName,
+  val pair: ProtobufPair[K, V])
+
+object ProtobufTopic {
+  def apply[K <: GeneratedMessage, V <: GeneratedMessage](
+    key: ProtobufFor[K],
+    value: ProtobufFor[V],
+    topicName: TopicName): ProtobufTopic[K, V] =
+    new ProtobufTopic[K, V](topicName, ProtobufPair[K, V](key, value))
 }

@@ -1,14 +1,14 @@
 package mtest.kafka
 
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
-import com.github.chenharryhua.nanjin.kafka.TopicDef
+import com.github.chenharryhua.nanjin.kafka.AvroTopic
 import eu.timepit.refined.auto.*
 import fs2.kafka.ConsumerRecord
 import org.scalatest.funsuite.AnyFunSuite
 
 class NJConsumerRecordDecoderTest extends AnyFunSuite {
 
-  val topic: TopicDef[Int, Int] = TopicDef[Int, Int](TopicName("decode.test"))
+  val topic: AvroTopic[Int, Int] = AvroTopic[Int, Int](TopicName("decode.test"))
   val goodData: ConsumerRecord[Array[Byte], Array[Byte]] =
     ConsumerRecord("test", 0, 0, Array[Byte](0, 0, 0, 1), Array[Byte](0, 0, 0, 2))
 

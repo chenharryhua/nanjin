@@ -3,7 +3,7 @@ package mtest.spark.kafka
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
-import com.github.chenharryhua.nanjin.kafka.TopicDef
+import com.github.chenharryhua.nanjin.kafka.AvroTopic
 import eu.timepit.refined.auto.*
 import fs2.kafka.{ProducerRecord, ProducerRecords}
 import org.scalatest.funsuite.AnyFunSuite
@@ -14,7 +14,7 @@ object CopyData {
 
 class CopyDataTest extends AnyFunSuite {
   import CopyData.*
-  val td = TopicDef[Int, MyTestData](TopicName("tn"))
+  val td = AvroTopic[Int, MyTestData](TopicName("tn"))
   val src = td.withTopicName("copy.src")
   val tgt = td.withTopicName("copy.target")
 
@@ -28,7 +28,7 @@ class CopyDataTest extends AnyFunSuite {
     fs2
       .Stream(ProducerRecords(List(d1, d2, d3, d4, d5)))
       .covary[IO]
-      .through(ctx.produce[Int, MyTestData].sink)
+      .through(ctx.produce[Int, MyTestData](td).sink)
       .compile
       .drain
 
@@ -53,7 +53,7 @@ class CopyDataTest extends AnyFunSuite {
           _.prRdd.noPartition.noTimestamp.noMeta
             .withTopicName(tgt.topicName)
             .producerRecords[IO](100)
-            .through(ctx.produce[Int, MyTestData].sink)
+            .through(ctx.produce[Int, MyTestData](td).sink)
             .compile
             .drain)
       srcData = sparKafka.topic(src).fromKafka.map(_.rdd.collect()).unsafeRunSync()

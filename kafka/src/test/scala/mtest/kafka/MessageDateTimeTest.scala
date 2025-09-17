@@ -56,12 +56,12 @@ class MessageDateTimeTest extends AnyFunSuite {
 
   test("supported java date-time type") {
     import DatetimeCase.AllJavaDateTime
-    val topic = TopicDef[Int, AllJavaDateTime](TopicName("message.datetime.test"))
+    val topic = AvroTopic[Int, AllJavaDateTime](TopicName("message.datetime.test"))
     val m = AllJavaDateTime(LocalDateTime.now, LocalDate.now, Instant.ofEpochMilli(Instant.now.toEpochMilli))
     val data: fs2.Stream[IO, ProducerResult[Int, AllJavaDateTime]] =
       fs2
         .Stream(ProducerRecords.one(ProducerRecord(topic.topicName.value, 0, m)))
-        .through(ctx.produce[Int, AllJavaDateTime].sink)
+        .through(ctx.produce[Int, AllJavaDateTime](topic).sink)
     val rst = for {
       _ <- ctx
         .admin(topic.topicName.name)

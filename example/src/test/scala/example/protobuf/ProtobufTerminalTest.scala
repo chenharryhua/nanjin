@@ -3,7 +3,7 @@ package example.protobuf
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.spark.SparkSessionExt
-import com.github.chenharryhua.nanjin.terminals.{Compression, ProtobufFile}
+import com.github.chenharryhua.nanjin.terminals.ProtobufFile
 import eu.timepit.refined.auto.*
 import example.{hadoop, sparkSession}
 import fs2.Stream
@@ -12,14 +12,12 @@ import io.lemonlabs.uri.typesafe.dsl.urlToUrlDsl
 import mtest.pb.test.Lion
 import org.scalatest.Assertion
 import org.scalatest.funsuite.AnyFunSuite
-import scalapb.GeneratedMessageCompanion
 
 class ProtobufTerminalTest extends AnyFunSuite {
   import ProtobufData.*
 
   val root: Url = Url.parse("./data/example/protobuf")
   val data: Stream[IO, Lion] = Stream.emits(lions)
-  val gmc: GeneratedMessageCompanion[Lion] = implicitly
   def run(file: ProtobufFile): Assertion = {
     val path: Url = root / file.fileName
 
@@ -30,26 +28,25 @@ class ProtobufTerminalTest extends AnyFunSuite {
     val res = (hadoop.delete(path) >> write >> read).unsafeRunSync()
     assert(lions === res)
     assert(sparkSession.loadProtobuf[Lion](path).collect().toSet == lions.toSet)
-
   }
 
   test("1.uncompressed") {
-    run(ProtobufFile(Compression.Uncompressed))
+    run(ProtobufFile(_.Uncompressed))
   }
   test("2.snappy") {
-    run(ProtobufFile(Compression.Snappy))
+    run(ProtobufFile(_.Snappy))
   }
   test("3.bzip2") {
-    run(ProtobufFile(Compression.Bzip2))
+    run(ProtobufFile(_.Bzip2))
   }
   test("4.gzip") {
-    run(ProtobufFile(Compression.Gzip))
+    run(ProtobufFile(_.Gzip))
   }
   test("6.lz4") {
-    run(ProtobufFile(Compression.Lz4))
+    run(ProtobufFile(_.Lz4))
   }
   test("9.deflate-3") {
-    run(ProtobufFile(Compression.Deflate(3)))
+    run(ProtobufFile(_.Deflate(3)))
   }
 
 }

@@ -15,7 +15,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import scala.concurrent.duration.DurationInt
 
 class AdminApiTest extends AnyFunSuite {
-  private val topicDef: TopicDef[Int, Int] = TopicDef[Int, Int](TopicName("admin"))
+  private val topicDef: AvroTopic[Int, Int] = AvroTopic[Int, Int](TopicName("admin"))
   private val topic = topicDef
   private val mirror = topicDef.withTopicName("admin.mirror")
 
@@ -50,7 +50,7 @@ class AdminApiTest extends AnyFunSuite {
     val tpo = Map(new TopicPartition(topic.topicName.value, 0) -> new OffsetAndMetadata(0))
     val admin = ctx.admin("admin")
     val gp =
-      ctx.produce[Int, Int].produceOne(topic.topicName.name, 0, 0) >> ctx.admin("admin").use { admin =>
+      ctx.produce(topicDef).produceOne(topic.topicName.name, 0, 0) >> ctx.admin("admin").use { admin =>
         ctx.admin.use(_.listTopics.listings) >>
           admin.commitSync(gid, tpo) >>
           admin.retrieveRecord(0, 0) >>
@@ -75,6 +75,5 @@ class AdminApiTest extends AnyFunSuite {
         new TopicPartition("t", 2) -> None)
     )
     assert(end.asJson.as[TopicPartitionMap[Option[Offset]]].toOption.get == end)
-
   }
 }

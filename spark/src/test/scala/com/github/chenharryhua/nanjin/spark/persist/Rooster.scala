@@ -1,14 +1,13 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.Show
-import com.github.chenharryhua.nanjin.datetime.instances.*
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark.SchematizedEncoder
 import frameless.TypedEncoder
 import io.circe.Codec
 import kantan.csv.RowEncoder
 import org.apache.avro.Schema
-
+import com.github.chenharryhua.nanjin.datetime.instances.*
 import java.sql.Timestamp
 import java.time.Instant
 import scala.math.BigDecimal.RoundingMode
