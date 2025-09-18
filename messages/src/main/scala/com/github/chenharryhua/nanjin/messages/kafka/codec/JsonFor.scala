@@ -1,18 +1,14 @@
 package com.github.chenharryhua.nanjin.messages.kafka.codec
 
-import com.fasterxml.jackson.databind.JsonNode
-import io.circe.jackson.{circeToJackson, jacksonToCirce}
-import io.circe.syntax.EncoderOps
-import io.circe.{Decoder, Encoder}
 import io.confluent.kafka.serializers.json.{KafkaJsonSchemaDeserializer, KafkaJsonSchemaSerializer}
 import org.apache.kafka.common.serialization.{Deserializer, Serde, Serializer}
 
 import java.util
 
-final class JsonFor[A] private (implicit EA: Encoder[A], DA: Decoder[A]) extends RegisterSerde[A] { outer =>
+final class JsonFor[A] private extends RegisterSerde[A] { outer =>
   @transient private lazy val serializer: Serializer[A] =
     new Serializer[A] with Serializable {
-      private lazy val ser = new KafkaJsonSchemaSerializer[JsonNode]()
+      private lazy val ser = new KafkaJsonSchemaSerializer[A]()
 
       override def configure(configs: util.Map[String, ?], isKey: Boolean): Unit =
         ser.configure(configs, isKey)
@@ -20,14 +16,12 @@ final class JsonFor[A] private (implicit EA: Encoder[A], DA: Decoder[A]) extends
       override def close(): Unit = ser.close()
 
       override def serialize(topic: String, data: A): Array[Byte] =
-        if (data == null) null
-        else
-          ser.serialize(topic, circeToJackson(data.asJson))
+        ser.serialize(topic, data)
     }
 
   @transient private lazy val deserializer: Deserializer[A] =
     new Deserializer[A] with Serializable {
-      private lazy val deSer = new KafkaJsonSchemaDeserializer[JsonNode]()
+      private lazy val deSer = new KafkaJsonSchemaDeserializer[A]()
 
       override def configure(configs: util.Map[String, ?], isKey: Boolean): Unit =
         deSer.configure(configs, isKey)
@@ -35,12 +29,7 @@ final class JsonFor[A] private (implicit EA: Encoder[A], DA: Decoder[A]) extends
       override def close(): Unit = deSer.close()
 
       override def deserialize(topic: String, data: Array[Byte]): A =
-        if (data == null) null.asInstanceOf[A]
-        else
-          jacksonToCirce(deSer.deserialize(topic, data)).as[A] match {
-            case Left(value)  => throw value
-            case Right(value) => value
-          }
+        deSer.deserialize(topic, data)
     }
 
   override def asKey(props: Map[String, String]): Registered[A] =
@@ -64,5 +53,5 @@ final class JsonFor[A] private (implicit EA: Encoder[A], DA: Decoder[A]) extends
     )
 }
 object JsonFor {
-  def apply[A: Encoder: Decoder]: JsonFor[A] = new JsonFor[A]
+  def apply[A]: JsonFor[A] = new JsonFor[A]
 }

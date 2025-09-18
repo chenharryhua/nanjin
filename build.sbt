@@ -259,7 +259,6 @@ lazy val messages =
       libraryDependencies ++=
         List(
           "io.circe" %% "circe-optics"                % "0.15.1",
-          "io.circe" %% "circe-jackson28"             % "0.14.2",
           "io.circe" %% "circe-jawn"                  % circeV,
           "org.apache.kafka" %% "kafka-streams-scala" % kafkaV,
           "com.github.fd4s" %% "fs2-kafka"            % fs2KafkaV,
@@ -272,7 +271,7 @@ lazy val messages =
           "com.google.protobuf"                       % "protobuf-java"                % "4.32.1", // snyk
           "org.jetbrains.kotlin"                      % "kotlin-stdlib"                % "2.2.20", // snyk
           "io.circe" %% "circe-shapes"                % circeV                         % Test
-        ) ++ jacksonLib ++ testLib)
+        ) ++ testLib)
 
 lazy val kafka = (project in file("kafka"))
   .dependsOn(common)
