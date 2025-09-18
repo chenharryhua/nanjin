@@ -272,7 +272,7 @@ lazy val messages =
           "com.google.protobuf"                       % "protobuf-java"                % "4.32.1", // snyk
           "org.jetbrains.kotlin"                      % "kotlin-stdlib"                % "2.2.20", // snyk
           "io.circe" %% "circe-shapes"                % circeV                         % Test
-        ) ++ testLib)
+        ) ++ jacksonLib ++ testLib)
 
 lazy val kafka = (project in file("kafka"))
   .dependsOn(common)
