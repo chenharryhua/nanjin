@@ -3,9 +3,9 @@ package mtest.kafka.stream
 import cats.derived.auto.show.*
 import cats.implicits.{catsSyntaxTuple2Semigroupal, showInterpolator}
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
-import com.github.chenharryhua.nanjin.kafka.TopicDef
+import com.github.chenharryhua.nanjin.kafka.AvroTopic
 import com.github.chenharryhua.nanjin.kafka.streaming.StreamsSerde
-import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroCodec, AvroCodecOf}
+import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroCodec, AvroFor}
 import eu.timepit.refined.auto.*
 import mtest.kafka.stream.KafkaStreamingData.{StreamOne, StreamTarget, TableTwo}
 import org.apache.kafka.streams.processor.api
@@ -16,7 +16,7 @@ import org.apache.kafka.streams.state.KeyValueStore
 object apps {
   def kafka_streaming(sb: StreamsBuilder, rs: StreamsSerde): Unit = {
     import rs.implicits.*
-    implicit val ev: AvroCodecOf[StreamOne] = AvroCodecOf(AvroCodec[StreamOne])
+    implicit val ev: AvroFor[StreamOne] = AvroFor(AvroCodec[StreamOne])
     val a = sb.stream[Int, StreamOne]("stream.test.join.stream.one")
     val b = sb.table[Int, TableTwo]("stream.test.join.table.two")
     a.join(b)((s1, t2) => StreamTarget(s1.name, 0, t2.color))
@@ -26,7 +26,7 @@ object apps {
   def kafka_streaming_bad_record(sb: StreamsBuilder, rs: StreamsSerde): Unit = {
     import rs.implicits.*
     val tn = TopicName("stream.test.stream.bad.records.one")
-    val t2Topic = TopicDef[Int, TableTwo](TopicName("stream.test.join.table.two"))
+    val t2Topic = AvroTopic[Int, TableTwo](TopicName("stream.test.join.table.two"))
     val keyS = rs.keySerde[Int](tn)
     val valS = rs.valueSerde[StreamOne](tn)
 

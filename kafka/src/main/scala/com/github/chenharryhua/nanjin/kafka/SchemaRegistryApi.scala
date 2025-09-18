@@ -5,6 +5,7 @@ import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameL}
 import io.confluent.kafka.schemaregistry.avro.AvroSchema
 import io.confluent.kafka.schemaregistry.client.{CachedSchemaRegistryClient, SchemaMetadata}
+import io.confluent.kafka.schemaregistry.protobuf.ProtobufSchema
 
 import scala.jdk.CollectionConverters.*
 
@@ -51,6 +52,24 @@ final class SchemaRegistryApi[F[_]](client: CachedSchemaRegistryClient) extends 
         })
     } yield new OptionalAvroSchemaPair(key, value)
 
+  def fetchProtobufDescriptor(topicName: TopicName)(implicit F: Sync[F]): F[ProtobufDescriptorPair] =
+    for {
+      mkv <- metaData(topicName)
+      skv <- (mkv.key.getSchemaType === "PROTOBUF", mkv.value.getSchemaType === "PROTOBUF") match {
+        case (true, true) =>
+          F.pure(
+            ProtobufDescriptorPair(
+              new ProtobufSchema(mkv.key.getSchema).toDescriptor,
+              new ProtobufSchema(mkv.value.getSchema).toDescriptor))
+        case (false, true) =>
+          F.raiseError(new Exception(s"${topicName.value} key is not Protobuf"))
+        case (true, false) =>
+          F.raiseError(new Exception(s"${topicName.value} value is not Protobuf"))
+        case (false, false) =>
+          F.raiseError(new Exception(s"${topicName.value} both key and value are not Protobuf"))
+      }
+    } yield skv
+
   def fetchAvroSchema(topicName: TopicName)(implicit F: Sync[F]): F[AvroSchemaPair] =
     for {
       mkv <- metaData(topicName)
@@ -84,8 +103,8 @@ final class SchemaRegistryApi[F[_]](client: CachedSchemaRegistryClient) extends 
     } yield (k, v)
   }
 
-  def register[K, V](topic: TopicDef[K, V])(implicit F: Sync[F]): F[(Int, Int)] =
-    register(topic.topicName, topic.schemaPair)
+  def register[K, V](topic: AvroTopic[K, V])(implicit F: Sync[F]): F[(Int, Int)] =
+    register(topic.topicName, topic.pair.schemaPair)
 
   def delete(topicName: TopicName)(implicit F: Sync[F]): F[(List[Integer], List[Integer])] = {
     val loc = SchemaLocation(topicName)

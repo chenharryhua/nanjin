@@ -16,6 +16,7 @@ import io.circe.syntax.EncoderOps
 import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient
 import io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig
 import org.apache.kafka.streams.scala.StreamsBuilder
+import scalapb.GeneratedMessage
 
 import java.time.Instant
 import scala.util.Try
@@ -26,14 +27,14 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
   override def updateConfig(f: Endo[KafkaSettings]): KafkaContext[F] =
     new KafkaContext[F](f(settings))
 
-  def store[K, V](topicDef: TopicDef[K, V]): StateStores[K, V] = {
-    val pair = topicDef.codecPair.register(settings.schemaRegistrySettings, topicDef.topicName)
-    StateStores[K, V](pair)
+  def store[K, V](avroTopic: AvroTopic[K, V]): StateStores[K, V] = {
+    val topic = avroTopic.pair.register(settings.schemaRegistrySettings, avroTopic.topicName)
+    StateStores[K, V](topic)
   }
 
-  def serde[K, V](topicDef: TopicDef[K, V]): KafkaGenericSerde[K, V] = {
-    val pair = topicDef.codecPair.register(settings.schemaRegistrySettings, topicDef.topicName)
-    new KafkaGenericSerde[K, V](pair.key, pair.value)
+  def serde[K, V](avroTopic: AvroTopic[K, V]): KafkaGenericSerde[K, V] = {
+    val topic = avroTopic.pair.register(settings.schemaRegistrySettings, avroTopic.topicName)
+    new KafkaGenericSerde[K, V](topic.key, topic.value)
   }
 
   @transient lazy val schemaRegistry: SchemaRegistryApi[F] = {
@@ -53,11 +54,11 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
    * consumer
    */
 
-  def consume[K, V](topicDef: TopicDef[K, V])(implicit F: Sync[F]): ConsumeKafka[F, K, V] = {
-    val topic: KafkaTopic[K, V] =
-      topicDef.codecPair.register(settings.schemaRegistrySettings, topicDef.topicName)
+  def consume[K, V](avroTopic: AvroTopic[K, V])(implicit F: Sync[F]): ConsumeKafka[F, K, V] = {
+    val topic: TopicSerde[K, V] =
+      avroTopic.pair.register(settings.schemaRegistrySettings, avroTopic.topicName)
     new ConsumeKafka[F, K, V](
-      topicDef.topicName,
+      avroTopic.topicName,
       ConsumerSettings[F, K, V](
         Deserializer.delegate[F, K](topic.key.registered.serde.deserializer()),
         Deserializer.delegate[F, V](topic.value.registered.serde.deserializer())
@@ -65,7 +66,20 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
     )
   }
 
-  def consume(topicName: TopicNameL)(implicit F: Sync[F]): ConsumeGenericRecord[F] =
+  def consume[K <: GeneratedMessage, V <: GeneratedMessage](protobufTopic: ProtobufTopic[K, V])(implicit
+    F: Sync[F]): ConsumeKafka[F, K, V] = {
+    val topic: TopicSerde[K, V] =
+      protobufTopic.pair.register(settings.schemaRegistrySettings, protobufTopic.topicName)
+    new ConsumeKafka[F, K, V](
+      protobufTopic.topicName,
+      ConsumerSettings[F, K, V](
+        Deserializer.delegate[F, K](topic.key.registered.serde.deserializer()),
+        Deserializer.delegate[F, V](topic.value.registered.serde.deserializer())
+      ).withProperties(settings.consumerSettings.properties)
+    )
+  }
+
+  def consumeAvro(topicName: TopicNameL)(implicit F: Sync[F]): ConsumeGenericRecord[F] =
     new ConsumeGenericRecord[F](
       TopicName(topicName),
       schemaRegistry.fetchOptionalAvroSchema(TopicName(topicName)),
@@ -79,7 +93,7 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
     */
   def monitor(topicName: TopicNameL, from: Instant = Instant.now())(implicit F: Async[F]): Stream[F, String] =
     Stream.eval(utils.randomUUID[F]).flatMap { uuid =>
-      consume(topicName)
+      consumeAvro(topicName)
         .updateConfig( // avoid accidentally join an existing consumer-group
           _.withGroupId(uuid.show).withEnableAutoCommit(false))
         .assign(from)
@@ -97,18 +111,65 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
    * producer
    */
 
-  def produce[K: AvroCodecOf, V: AvroCodecOf](implicit F: Sync[F]): ProduceKafka[F, K, V] =
+  def kvProduce[K, V](avroTopic: AvroTopic[K, V])(implicit F: Sync[F]): ProduceKeyValuePair[F, K, V] = {
+    val topic = avroTopic.pair.register(settings.schemaRegistrySettings, avroTopic.topicName)
+    new ProduceKeyValuePair[F, K, V](
+      avroTopic.topicName,
+      ProducerSettings[F, K, V](
+        Serializer.delegate(topic.key.registered.serde.serializer()),
+        Serializer.delegate(topic.value.registered.serde.serializer())
+      ).withProperties(settings.producerSettings.properties)
+    )
+  }
+
+  def kvProduce[K <: GeneratedMessage, V <: GeneratedMessage](protobufTopic: ProtobufTopic[K, V])(implicit
+    F: Sync[F]): ProduceKeyValuePair[F, K, V] = {
+    val topic = protobufTopic.pair.register(settings.schemaRegistrySettings, protobufTopic.topicName)
+    new ProduceKeyValuePair[F, K, V](
+      protobufTopic.topicName,
+      ProducerSettings[F, K, V](
+        Serializer.delegate(topic.key.registered.serde.serializer()),
+        Serializer.delegate(topic.value.registered.serde.serializer())
+      ).withProperties(settings.producerSettings.properties)
+    )
+  }
+
+  def kvProduce[K, V](jsonPair: JsonTopic[K, V])(implicit F: Sync[F]): ProduceKeyValuePair[F, K, V] = {
+    val topic = jsonPair.pair.register(settings.schemaRegistrySettings, jsonPair.topicName)
+    new ProduceKeyValuePair[F, K, V](
+      jsonPair.topicName,
+      ProducerSettings[F, K, V](
+        Serializer.delegate(topic.key.registered.serde.serializer()),
+        Serializer.delegate(topic.value.registered.serde.serializer())
+      ).withProperties(settings.producerSettings.properties)
+    )
+  }
+
+  def produce[K, V](pair: AvroPair[K, V])(implicit F: Sync[F]) =
     new ProduceKafka[F, K, V](
       ProducerSettings[F, K, V](
-        Serializer.delegate(AvroCodecOf[K].asKey(settings.schemaRegistrySettings.config).serde.serializer()),
-        Serializer.delegate(AvroCodecOf[V].asValue(settings.schemaRegistrySettings.config).serde.serializer())
+        Serializer.delegate(pair.key.asKey(settings.schemaRegistrySettings.config).serde.serializer()),
+        Serializer.delegate(pair.value.asValue(settings.schemaRegistrySettings.config).serde.serializer())
       ).withProperties(settings.producerSettings.properties)
     )
 
-  def produce[K, V](raw: AvroCodecPair[K, V])(implicit F: Sync[F]): ProduceKafka[F, K, V] =
-    produce[K, V](raw.key, raw.value, Sync[F])
+  def produce[K <: GeneratedMessage, V <: GeneratedMessage](pair: ProtobufPair[K, V])(implicit F: Sync[F]) =
+    new ProduceKafka[F, K, V](
+      ProducerSettings[F, K, V](
+        Serializer.delegate(pair.key.asKey(settings.schemaRegistrySettings.config).serde.serializer()),
+        Serializer.delegate(pair.value.asValue(settings.schemaRegistrySettings.config).serde.serializer())
+      ).withProperties(settings.producerSettings.properties)
+    )
 
-  def produce(topicName: TopicNameL)(implicit F: Sync[F]): ProduceGenericRecord[F] =
+  def produce[K, V](pair: JsonPair[K, V])(implicit F: Sync[F]): ProduceKafka[F, K, V] =
+    new ProduceKafka[F, K, V](
+      ProducerSettings[F, K, V](
+        Serializer.delegate(pair.key.asKey(settings.schemaRegistrySettings.config).serde.serializer()),
+        Serializer.delegate(pair.value.asValue(settings.schemaRegistrySettings.config).serde.serializer())
+      ).withProperties(settings.producerSettings.properties)
+    )
+
+  def produceAvro(topicName: TopicNameL)(implicit F: Sync[F]): ProduceGenericRecord[F] =
     new ProduceGenericRecord[F](
       TopicName(topicName),
       schemaRegistry.fetchOptionalAvroSchema(TopicName(topicName)),

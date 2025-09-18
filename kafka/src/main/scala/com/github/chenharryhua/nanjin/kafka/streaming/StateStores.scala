@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.kafka.streaming
 
-import com.github.chenharryhua.nanjin.kafka.KafkaTopic
+import com.github.chenharryhua.nanjin.kafka.TopicSerde
 import org.apache.kafka.streams.StoreQueryParameters
 import org.apache.kafka.streams.state.*
 
@@ -10,7 +10,7 @@ import scala.jdk.DurationConverters.ScalaDurationOps
 
 final class KeyValueBytesStoreSupplierHelper[K, V] private[streaming] (
   val supplier: KeyValueBytesStoreSupplier,
-  topic: KafkaTopic[K, V]) {
+  topic: TopicSerde[K, V]) {
   def keyValueStoreBuilder: StoreBuilder[KeyValueStore[K, V]] =
     Stores.keyValueStoreBuilder(supplier, topic.key.registered.serde, topic.value.registered.serde)
 
@@ -20,7 +20,7 @@ final class KeyValueBytesStoreSupplierHelper[K, V] private[streaming] (
 
 final class WindowBytesStoreSupplierHelper[K, V] private[streaming] (
   val supplier: WindowBytesStoreSupplier,
-  topic: KafkaTopic[K, V]) {
+  topic: TopicSerde[K, V]) {
   def windowStoreBuilder: StoreBuilder[WindowStore[K, V]] =
     Stores.windowStoreBuilder(supplier, topic.key.registered.serde, topic.value.registered.serde)
 
@@ -30,12 +30,12 @@ final class WindowBytesStoreSupplierHelper[K, V] private[streaming] (
 
 final class SessionBytesStoreSupplierHelper[K, V] private[streaming] (
   val supplier: SessionBytesStoreSupplier,
-  topic: KafkaTopic[K, V]) {
+  topic: TopicSerde[K, V]) {
   def sessionStoreBuilder: StoreBuilder[SessionStore[K, V]] =
     Stores.sessionStoreBuilder(supplier, topic.key.registered.serde, topic.value.registered.serde)
 }
 
-final class StateStores[K, V] private (topic: KafkaTopic[K, V]) extends Serializable {
+final class StateStores[K, V] private (topic: TopicSerde[K, V]) extends Serializable {
 
   val name: String = topic.name.value
 
@@ -121,6 +121,6 @@ final class StateStores[K, V] private (topic: KafkaTopic[K, V]) extends Serializ
 }
 
 private[kafka] object StateStores {
-  def apply[K, V](topic: KafkaTopic[K, V]): StateStores[K, V] =
+  def apply[K, V](topic: TopicSerde[K, V]): StateStores[K, V] =
     new StateStores[K, V](topic)
 }

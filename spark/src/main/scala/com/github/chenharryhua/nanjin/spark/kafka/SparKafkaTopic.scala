@@ -16,7 +16,7 @@ import org.apache.spark.sql.SparkSession
 final class SparKafkaTopic[F[_], K, V](
   sparkSession: SparkSession,
   ctx: KafkaContext[F],
-  topicDef: TopicDef[K, V])
+  topicDef: AvroTopic[K, V])
     extends Serializable {
   override val toString: String = topicDef.topicName.value
 
@@ -25,8 +25,8 @@ final class SparKafkaTopic[F[_], K, V](
   def ate(implicit tek: TypedEncoder[K], tev: TypedEncoder[V]): SchematizedEncoder[NJConsumerRecord[K, V]] =
     SchematizedEncoder(topicDef)
 
-  private val avroKeyCodec: AvroCodec[K] = topicDef.codecPair.key.avroCodec
-  private val avroValCodec: AvroCodec[V] = topicDef.codecPair.value.avroCodec
+  private val avroKeyCodec: AvroCodec[K] = topicDef.pair.key.avroCodec
+  private val avroValCodec: AvroCodec[V] = topicDef.pair.value.avroCodec
 
   private def downloadKafka(dateTimeRange: DateTimeRange)(implicit F: Async[F]): F[CrRdd[K, V]] =
     sk.kafkaBatch(sparkSession, ctx, topicDef, dateTimeRange).map(crRdd)
@@ -81,7 +81,7 @@ final class SparKafkaTopic[F[_], K, V](
     crRdd(sparkSession.sparkContext.emptyRDD[NJConsumerRecord[K, V]])
 
   def prRdd(rdd: RDD[NJProducerRecord[K, V]]): PrRdd[K, V] =
-    new PrRdd[K, V](rdd, topicDef.producerCodec)
+    new PrRdd[K, V](rdd, topicDef.pair.producerFormat.codec)
 
   def prRdd[G[_]: Foldable](list: G[NJProducerRecord[K, V]]): PrRdd[K, V] =
     prRdd(sparkSession.sparkContext.parallelize(list.toList))

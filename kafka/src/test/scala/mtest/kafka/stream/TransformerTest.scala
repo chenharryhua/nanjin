@@ -3,7 +3,7 @@ package mtest.kafka.stream
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
-import com.github.chenharryhua.nanjin.kafka.TopicDef
+import com.github.chenharryhua.nanjin.kafka.AvroTopic
 import com.github.chenharryhua.nanjin.kafka.connector.commitBatch
 import com.github.chenharryhua.nanjin.kafka.streaming.KafkaStreamsBuilder
 import eu.timepit.refined.auto.*
@@ -21,7 +21,7 @@ class TransformerTest extends AnyFunSuite {
   test("stream transformer") {
     // val store = ctx.store[Int, String]("stream.builder.test.store")
 
-    def td: TopicDef[Int, String] = TopicDef[Int, String](TopicName("stream"))
+    def td: AvroTopic[Int, String] = AvroTopic[Int, String](TopicName("stream"))
 
     val topic1 = td.withTopicName("stream.builder.test.stream1")
     val topic2 = td.withTopicName("stream.builder.test.table2")
@@ -37,9 +37,7 @@ class TransformerTest extends AnyFunSuite {
         List(
           ProducerRecord(topic2.topicName.value, 2, "t0"),
           ProducerRecord(topic2.topicName.value, 4, "t1"),
-          ProducerRecord(topic2.topicName.value, 6, "t2"))))
-      .covary[IO]
-      .through(ctx.produce(td.codecPair).sink)
+          ProducerRecord(topic2.topicName.value, 6, "t2")))).covary[IO].through(ctx.produce(td.pair).sink)
 
     val s1Data: Stream[IO, ProducerResult[Int, String]] =
       Stream
@@ -48,9 +46,9 @@ class TransformerTest extends AnyFunSuite {
         .map { case (_, index) =>
           ProducerRecords.one(ProducerRecord(topic1.topicName.value, index.toInt, s"stream$index"))
         }
-        .through(ctx.produce[Int, String].sink)
+        .through(ctx.produce[Int, String](td.pair).sink)
     val havest = ctx
-      .consume(tgt.topicName.name)
+      .consumeAvro(tgt.topicName.name)
       .assignBytes
       .map(ctx.serde(tgt).deserialize(_))
       .debug()

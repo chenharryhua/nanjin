@@ -40,7 +40,7 @@ final class ConsumeGenericRecord[F[_]](
     new ConsumeGenericRecord[F](topicName, getSchema, updateSchema, f(consumerSettings))
 
   def withSchema(f: Endo[OptionalAvroSchemaPair]): ConsumeGenericRecord[F] =
-    new ConsumeGenericRecord[F](topicName, getSchema, f, consumerSettings)
+    new ConsumeGenericRecord[F](topicName, getSchema, f.compose(updateSchema), consumerSettings)
 
   def schema(implicit F: Functor[F]): F[Schema] =
     getSchema.map(updateSchema(_).toPair.consumerSchema)

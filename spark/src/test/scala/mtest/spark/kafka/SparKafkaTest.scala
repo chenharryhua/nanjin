@@ -2,14 +2,16 @@ package mtest.spark.kafka
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
+import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
-import com.github.chenharryhua.nanjin.kafka.TopicDef
+import com.github.chenharryhua.nanjin.datetime.DateTimeRange
+import com.github.chenharryhua.nanjin.kafka.AvroTopic
 import com.github.chenharryhua.nanjin.kafka.connector.ConsumeGenericRecord
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{gr2BinAvro, gr2Circe, gr2Jackson}
 import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJProducerRecord}
 import com.sksamuel.avro4s.SchemaFor
 import eu.timepit.refined.auto.*
-import fs2.kafka.{AutoOffsetReset, ProducerRecord, ProducerRecords}
+import fs2.kafka.AutoOffsetReset
 import io.circe.syntax.*
 import io.lemonlabs.uri.typesafe.dsl.*
 import monocle.syntax.all.*
@@ -18,6 +20,7 @@ import org.apache.spark.sql.{Dataset, SparkSession}
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.{Instant, LocalDate}
+import scala.concurrent.duration.DurationInt
 object SparKafkaTestData {
   final case class Duck(f: Int, g: String)
 
@@ -34,14 +37,14 @@ class SparKafkaTest extends AnyFunSuite {
   import SparKafkaTestData.*
   implicit val ss: SparkSession = sparkSession
 
-  val topic = TopicDef[Int, HasDuck](TopicName("duck.test"))
+  val topic = AvroTopic[Int, HasDuck](TopicName("duck.test"))
 
   val loadData: IO[Unit] =
-    fs2
-      .Stream(ProducerRecords(
-        List(ProducerRecord(topic.topicName.value, 1, data), ProducerRecord(topic.topicName.value, 2, data))))
+    fs2.Stream
+      .emits(List((1, data), (2, data)))
       .covary[IO]
-      .through(ctx.produce[Int, HasDuck].updateConfig(_.withClientId("spark.kafka.test")).sink)
+      .chunks
+      .through(ctx.kvProduce[Int, HasDuck](topic).updateConfig(_.withClientId("spark.kafka.test")).sink)
       .compile
       .drain
 
@@ -101,7 +104,7 @@ class SparKafkaTest extends AnyFunSuite {
 
     val t =
       sparKafka
-        .topic[Int, Int]("some.value")
+        .topic(AvroTopic[Int, Int](TopicName("some.value")))
         .crRdd(ds.rdd)
         .repartition(3)
         .descendTimestamp
@@ -133,15 +136,15 @@ class SparKafkaTest extends AnyFunSuite {
   test("should be able to reproduce") {
     import fs2.Stream
     val path = "./data/test/spark/kafka/reproduce/jackson"
-    val topic = TopicDef[Int, HasDuck](TopicName("duck.test"))
+    val topic = AvroTopic[Int, HasDuck](TopicName("duck.test"))
     sparKafka.topic(topic).fromKafka.flatMap(_.output.jackson(path).run[IO]).unsafeRunSync()
 
     Stream
       .eval(hadoop.filesIn(path))
       .flatMap(
-        _.map(hadoop.source(_).jackson(10, topic.schemaPair.consumerSchema))
+        _.map(hadoop.source(_).jackson(10, topic.pair.schemaPair.consumerSchema))
           .reduce(_ ++ _)
-          .through(ctx.produce(topic.topicName.name).updateConfig(_.withClientId("a")).sink))
+          .through(ctx.produceAvro(topic.topicName.name).updateConfig(_.withClientId("a")).sink))
       .compile
       .drain
       .unsafeRunSync()
@@ -152,19 +155,30 @@ class SparKafkaTest extends AnyFunSuite {
     val p1 = path / "dump"
     val p2 = path / "download"
     sparKafka.hadoop.delete(path).unsafeRunSync()
-    sparKafka.dump("duck.test", p1).unsafeRunSync()
-    sparKafka.dumpCirce(topic, p2).unsafeRunSync()
-    sparKafka.upload("duck.test", p1).unsafeRunSync()
-    sparKafka.sequentialUpload("duck.test", p1).unsafeRunSync()
-    sparKafka.crazyUpload("duck.test", p1).unsafeRunSync()
-    val s1 = sparKafka.topic[Int, HasDuck]("aa").load.jackson(p1)
-    val s2 = sparKafka.topic[Int, HasDuck]("aa").load.circe(p2)
+    sparKafka.dump("duck.test", p1, _.isIgnoreError(false).withConsumer(identity)).unsafeRunSync()
+    sparKafka
+      .dumpCirce(
+        topic,
+        p2,
+        _.withSchema(identity).withTimeout(10.seconds).withDateTimeRange(DateTimeRange(sydneyTime)))
+      .unsafeRunSync()
+    sparKafka
+      .sequentialUpload(
+        "duck.test",
+        p1,
+        _.withProducer(identity).withSchema(identity).withTimeout(10.seconds))
+      .unsafeRunSync()
+    val td = AvroTopic[Int, HasDuck](TopicName("aa"))
+    val s1 = sparKafka.topic(td).load.jackson(p1)
+    val s2 = sparKafka.topic(td).load.circe(p2)
     assert(s1.cherryPick[IO](1, 1).unsafeRunSync() === s2.cherryPick[IO](1, 1).unsafeRunSync())
     assert(s1.diff(s2).rdd.count() == 0)
   }
 
   val duckConsume: ConsumeGenericRecord[IO] =
-    ctx.consume("duck.test").updateConfig(_.withAutoOffsetReset(AutoOffsetReset.Earliest).withGroupId("duck"))
+    ctx
+      .consumeAvro("duck.test")
+      .updateConfig(_.withAutoOffsetReset(AutoOffsetReset.Earliest).withGroupId("duck"))
 
   test("generic record") {
     val path = "./data/test/spark/kafka/consume/duck.avro"
@@ -185,9 +199,9 @@ class SparKafkaTest extends AnyFunSuite {
       .take(2)
       .map(_.record.value)
       .evalMap(IO.fromTry)
-      .map(gr => topic.consumerFormat.fromRecord(gr))
+      .map(gr => topic.pair.consumerFormat.fromRecord(gr))
       .map(_.toNJProducerRecord)
-      .map(topic.producerFormat.toRecord)
+      .map(topic.pair.producerFormat.toRecord)
       .compile
       .drain
       .unsafeRunSync()

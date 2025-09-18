@@ -1,10 +1,8 @@
 package example.protobuf
 
 import cats.effect.IO
-import com.github.chenharryhua.nanjin.messages.kafka.codec.KPB
 import com.github.chenharryhua.nanjin.spark.SparkSessionExt
-import eu.timepit.refined.auto.*
-import example.{sparKafka, sparkSession}
+import example.sparkSession
 import mtest.pb.test.Lion
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -24,7 +22,7 @@ class ProtobufSparkTest extends AnyFunSuite {
 //  import ProtobufData.*
   val hdp = sparkSession.hadoop[IO]
 
-  val topic = sparKafka.topic[Int, KPB[Lion]]("test")
+  // val topic = sparKafka.topic(TopicDef[Int, Lion](TopicName("test")))
 
 //  test("protobuf gzip") {
 //    val path = NJPath("./data/test/protobuf/uncompress.proto.gz")

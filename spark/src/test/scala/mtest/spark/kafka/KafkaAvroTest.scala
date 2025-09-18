@@ -3,9 +3,8 @@ package mtest.spark.kafka
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
-import com.github.chenharryhua.nanjin.kafka.TopicDef
+import com.github.chenharryhua.nanjin.kafka.AvroTopic
 import eu.timepit.refined.auto.*
-import fs2.kafka.{ProducerRecord, ProducerRecords}
 import io.circe.Codec
 import io.lemonlabs.uri.typesafe.dsl.*
 import org.scalatest.funsuite.AnyFunSuite
@@ -42,11 +41,12 @@ object KafkaAvroTestData {
   val cp1: PersonCoproduct = PersonCoproduct("aa", Coproduct[CoParent](Child1(1, "a")))
   val cp2: PersonCoproduct = PersonCoproduct("bb", Coproduct[CoParent](Child2(2, "b")))
 
-  val topicCO = TopicDef[Int, PersonCaseObject](TopicName("test.spark.kafka.coproduct.caseobject"))
+  val topicCO = AvroTopic[Int, PersonCaseObject](TopicName("test.spark.kafka.coproduct.caseobject"))
 
-  val topicEnum = TopicDef[Int, PersonEnum](TopicName("test.spark.kafka.coproduct.scalaenum"))
+  val topicEnum = AvroTopic[Int, PersonEnum](TopicName("test.spark.kafka.coproduct.scalaenum"))
 
-  val topicCoProd = TopicDef[Int, PersonCoproduct](TopicName("test.spark.kafka.coproduct.shapelesscoproduct"))
+  val topicCoProd =
+    AvroTopic[Int, PersonCoproduct](TopicName("test.spark.kafka.coproduct.shapelesscoproduct"))
 
 }
 
@@ -54,14 +54,12 @@ class KafkaAvroTest extends AnyFunSuite {
   import KafkaAvroTestData.*
 
   test("sparKafka not work with case object -- task serializable issue(avro4s) - happy failure") {
-    val data = fs2
-      .Stream(
-        ProducerRecords(
-          List(
-            ProducerRecord(topicCO.topicName.value, 0, co1),
-            ProducerRecord(topicCO.topicName.value, 1, co2))))
+    val data = fs2.Stream
+      .emits(List((0, co1), (1, co2)))
       .covary[IO]
-      .through(ctx.produce[Int, PersonCaseObject].updateConfig(_.withClientId("kafka.avro.test1")).sink)
+      .chunks
+      .through(
+        ctx.kvProduce[Int, PersonCaseObject](topicCO).updateConfig(_.withClientId("kafka.avro.test1")).sink)
     val path = "./data/test/spark/kafka/coproduct/caseobject.avro"
     val sk = sparKafka.topic(topicCO)
 
@@ -77,14 +75,12 @@ class KafkaAvroTest extends AnyFunSuite {
   }
 
   test("sparKafka should be sent to kafka and save to single avro") {
-    val data = fs2
-      .Stream(
-        ProducerRecords(
-          List(
-            ProducerRecord(topicEnum.topicName.value, 0, en1),
-            ProducerRecord(topicEnum.topicName.value, 1, en2))))
+    val data = fs2.Stream
+      .emits(List((0, en1), (1, en2)))
       .covary[IO]
-      .through(ctx.produce[Int, PersonEnum].updateConfig(_.withClientId("kafka.avro.test2")).sink)
+      .chunks
+      .through(
+        ctx.kvProduce[Int, PersonEnum](topicEnum).updateConfig(_.withClientId("kafka.avro.test2")).sink)
     val avroPath = "./data/test/spark/kafka/coproduct/scalaenum.avro"
     val jacksonPath = "./data/test/spark/kafka/coproduct/scalaenum.jackson.json"
     val circePath = "./data/test/spark/kafka/coproduct/scalaenum.circe.json"
@@ -111,14 +107,12 @@ class KafkaAvroTest extends AnyFunSuite {
   }
 
   test("sparKafka should be sent to kafka and save to multi avro") {
-    val data = fs2
-      .Stream(
-        ProducerRecords(
-          List(
-            ProducerRecord(topicEnum.topicName.value, 0, en1),
-            ProducerRecord(topicEnum.topicName.value, 1, en2))))
+    val data = fs2.Stream
+      .emits(List((0, en1), (1, en2)))
       .covary[IO]
-      .through(ctx.produce[Int, PersonEnum].updateConfig(_.withClientId("kafka.avro.test3")).sink)
+      .chunks
+      .through(
+        ctx.kvProduce[Int, PersonEnum](topicEnum).updateConfig(_.withClientId("kafka.avro.test3")).sink)
 
     val path = "./data/test/spark/kafka/coproduct/multi-scalaenum.avro"
     val sk = sparKafka.topic(topicEnum)
@@ -135,14 +129,12 @@ class KafkaAvroTest extends AnyFunSuite {
   }
 
   test("should be sent to kafka and save to multi snappy avro") {
-    val data = fs2
-      .Stream(
-        ProducerRecords(
-          List(
-            ProducerRecord(topicEnum.topicName.value, 0, en1),
-            ProducerRecord(topicEnum.topicName.value, 1, en2))))
+    val data = fs2.Stream
+      .emits(List((0, en1), (1, en2)))
       .covary[IO]
-      .through(ctx.produce[Int, PersonEnum].updateConfig(_.withClientId("kafka.avro.test4")).sink)
+      .chunks
+      .through(
+        ctx.kvProduce[Int, PersonEnum](topicEnum).updateConfig(_.withClientId("kafka.avro.test4")).sink)
 
     val path = "./data/test/spark/kafka/coproduct/multi-scalaenum.snappy.avro"
     val sk = sparKafka.topic(topicEnum)
@@ -158,14 +150,12 @@ class KafkaAvroTest extends AnyFunSuite {
     assert(run.unsafeRunSync().flatMap(_.value) == Set(en1, en2))
   }
   test("should be sent to kafka and save to binary bzip2 avro") {
-    val data = fs2
-      .Stream(
-        ProducerRecords(
-          List(
-            ProducerRecord(topicEnum.topicName.value, 0, en1),
-            ProducerRecord(topicEnum.topicName.value, 1, en2))))
+    val data = fs2.Stream
+      .emits(List((0, en1), (1, en2)))
       .covary[IO]
-      .through(ctx.produce[Int, PersonEnum].updateConfig(_.withClientId("kafka.avro.test5")).sink)
+      .chunks
+      .through(
+        ctx.kvProduce[Int, PersonEnum](topicEnum).updateConfig(_.withClientId("kafka.avro.test5")).sink)
     val path = "./data/test/spark/kafka/coproduct/scalaenum.avro.bzip2"
     val sk = sparKafka.topic(topicEnum)
 

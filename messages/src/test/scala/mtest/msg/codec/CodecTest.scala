@@ -1,7 +1,7 @@
 package mtest.msg.codec
 
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
-import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroCodec, AvroCodecOf, KafkaSerde}
+import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroCodec, AvroFor, KafkaSerde}
 import eu.timepit.refined.auto.*
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -10,8 +10,8 @@ import scala.util.Success
 object CodecTestData {
   final case class Foo(a: String, b: Int)
   final case class Bar(a: Int, b: String)
-  val fooCodec: KafkaSerde[Foo] = AvroCodecOf[Foo].asValue(sr).withTopic(TopicName("avro.test"))
-  val barCodec: KafkaSerde[Bar] = AvroCodecOf[Bar].asKey(sr).withTopic(TopicName("avro.test"))
+  val fooCodec: KafkaSerde[Foo] = AvroFor[Foo].asValue(sr).withTopic(TopicName("avro.test"))
+  val barCodec: KafkaSerde[Bar] = AvroFor[Bar].asKey(sr).withTopic(TopicName("avro.test"))
 }
 
 class CodecTest extends AnyFunSuite {

@@ -57,7 +57,7 @@ private[spark] object sk {
   def kafkaBatch[F[_]: Async, K, V](
     ss: SparkSession,
     ctx: KafkaContext[F],
-    topicDef: TopicDef[K, V],
+    topicDef: AvroTopic[K, V],
     dateRange: DateTimeRange): F[RDD[NJConsumerRecord[K, V]]] =
     ctx
       .admin(topicDef.topicName.name)

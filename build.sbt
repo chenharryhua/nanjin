@@ -1,4 +1,4 @@
-ThisBuild / version      := "0.19.7-SNAPSHOT"
+ThisBuild / version      := "0.19.9-SNAPSHOT"
 ThisBuild / scalaVersion := "2.13.16"
 
 ThisBuild / versionScheme := Some("early-semver")
@@ -11,7 +11,7 @@ Global / parallelExecution := false
 val acyclicV = "0.3.18"
 val avroV = "1.12.0"
 val avro4sV = "4.1.2"
-val awsV = "2.33.5"
+val awsV = "2.33.11"
 val caffeineV = "3.2.2"
 val catsCoreV = "2.13.0"
 val catsEffectV = "3.6.3"
@@ -33,7 +33,7 @@ val kafkaV = "8.0.0-ce"
 val kantanV = "0.8.0"
 val log4catsV = "2.7.1"
 val logbackV = "1.5.18"
-val metricsV = "4.2.36"
+val metricsV = "4.2.37"
 val monocleV = "3.3.0"
 val natchezV = "0.3.8"
 val nettyV = "4.2.6.Final"
@@ -71,7 +71,7 @@ lazy val commonSettings = List(
 )
 
 val testLib = List(
-  "org.typelevel" %% "cats-effect-testing-scalatest"          % "1.6.0",
+  "org.typelevel" %% "cats-effect-testing-scalatest"          % "1.7.0",
   "org.typelevel" %% "cats-effect-testkit"                    % catsEffectV,
   "org.typelevel" %% "cats-testkit-scalatest"                 % "2.1.5",
   "org.typelevel" %% "discipline-scalatest"                   % "2.3.0",
@@ -130,8 +130,9 @@ lazy val http = (project in file("http"))
       "org.http4s" %% "http4s-circe"        % http4sV,
       "org.http4s" %% "http4s-client"       % http4sV,
       "org.tpolecat" %% "natchez-core"      % natchezV,
-      "org.bouncycastle"                    % "bcpkix-jdk18on" % "1.81",
+      "org.bouncycastle"                    % "bcpkix-jdk18on" % "1.82",
       "io.jsonwebtoken"                     % "jjwt-api"       % jwtV,
+      "co.fs2" %% "fs2-io"                  % fs2V, // snyk - http4s
       "org.http4s" %% "http4s-dsl"          % http4sV          % Test,
       "org.http4s" %% "http4s-ember-server" % http4sV          % Test,
       "org.http4s" %% "http4s-ember-client" % http4sV          % Test,
@@ -152,12 +153,12 @@ lazy val aws = (project in file("aws"))
   .dependsOn(common)
   .settings(commonSettings *)
   .settings(name := "nj-aws")
-  .settings(
-    libraryDependencies ++= List(
-      "org.typelevel" %% "log4cats-slf4j"   % log4catsV,
-      "org.http4s" %% "http4s-ember-client" % http4sV,
-      "org.http4s" %% "http4s-circe"        % http4sV
-    ) ++ awsLib ++ testLib)
+  .settings(libraryDependencies ++= List(
+    "org.typelevel" %% "log4cats-slf4j"   % log4catsV,
+    "org.http4s" %% "http4s-ember-client" % http4sV,
+    "org.http4s" %% "http4s-circe"        % http4sV,
+    "co.fs2" %% "fs2-io"                  % fs2V // snyk
+  ) ++ awsLib ++ testLib)
 
 lazy val datetime = (project in file("datetime"))
   .dependsOn(common)
@@ -186,6 +187,7 @@ lazy val guard = (project in file("guard"))
       "org.http4s" %% "http4s-ember-server" % http4sV,
       "org.http4s" %% "http4s-circe"        % http4sV,
       "org.http4s" %% "http4s-scalatags"    % "0.25.2",
+      "co.fs2" %% "fs2-io"                  % fs2V, // snyk - http4s
       "org.http4s" %% "http4s-ember-client" % http4sV                % Test,
       "ch.qos.logback"                      % "logback-classic"      % logbackV % Test
     ) ++ testLib
@@ -242,6 +244,7 @@ lazy val database = (project in file("database"))
       "org.tpolecat" %% "doobie-free"   % doobieV,
       "org.tpolecat" %% "skunk-core"    % skunkV,
       "com.zaxxer"                      % "HikariCP"        % "7.0.2",
+      "co.fs2" %% "fs2-io"              % fs2V, // snyk - http4s
       "org.postgresql"                  % "postgresql"      % postgresV % Test,
       "ch.qos.logback"                  % "logback-classic" % logbackV  % Test
     ) ++ testLib
@@ -260,13 +263,14 @@ lazy val messages =
           "org.apache.kafka" %% "kafka-streams-scala" % kafkaV,
           "com.github.fd4s" %% "fs2-kafka"            % fs2KafkaV,
           "com.sksamuel.avro4s" %% "avro4s-core"      % avro4sV,
-          "org.apache.avro"                           % "avro"                      % avroV,
+          "org.apache.avro"                           % "avro"                         % avroV,
           "com.thesamet.scalapb" %% "scalapb-runtime" % "0.11.20",
-          "io.confluent"                              % "kafka-protobuf-serializer" % confluentV,
-          "io.confluent"                              % "kafka-streams-avro-serde"  % confluentV,
-          "com.google.protobuf"                       % "protobuf-java"             % "4.32.1", // snyk
-          "org.jetbrains.kotlin"                      % "kotlin-stdlib"             % "2.2.20", // snyk
-          "io.circe" %% "circe-shapes"                % circeV                      % Test
+          "io.confluent"                              % "kafka-protobuf-serializer"    % confluentV,
+          "io.confluent"                              % "kafka-json-schema-serializer" % confluentV,
+          "io.confluent"                              % "kafka-streams-avro-serde"     % confluentV,
+          "com.google.protobuf"                       % "protobuf-java"                % "4.32.1", // snyk
+          "org.jetbrains.kotlin"                      % "kotlin-stdlib"                % "2.2.20", // snyk
+          "io.circe" %% "circe-shapes"                % circeV                         % Test
         ) ++ testLib)
 
 lazy val kafka = (project in file("kafka"))
@@ -401,18 +405,20 @@ lazy val example = (project in file("example"))
   .settings(dependencyOverrides += "org.json4s" %% "json4s-native" % "3.6.12")
 
 lazy val nanjin =
-  (project in file(".")).aggregate(
-    common,
-    datetime,
-    http,
-    aws,
-    messages,
-    pipes,
-    kafka,
-    database,
-    spark,
-    guard,
-    observer_aws,
-    observer_database,
-    observer_kafka
-  )
+  (project in file("."))
+    .aggregate(
+      common,
+      datetime,
+      http,
+      aws,
+      messages,
+      pipes,
+      kafka,
+      database,
+      spark,
+      guard,
+      observer_aws,
+      observer_database,
+      observer_kafka
+    )
+

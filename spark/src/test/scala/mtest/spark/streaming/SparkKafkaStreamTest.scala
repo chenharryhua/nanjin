@@ -1,7 +1,7 @@
 package mtest.spark.streaming
 
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
-import com.github.chenharryhua.nanjin.kafka.TopicDef
+import com.github.chenharryhua.nanjin.kafka.AvroTopic
 import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJProducerRecord}
 import com.github.chenharryhua.nanjin.spark.SchematizedEncoder
 import com.github.chenharryhua.nanjin.spark.persist.{Rooster, RoosterData}
@@ -12,14 +12,15 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.Instant
 import scala.util.Random
+import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroFor
 
 @DoNotDiscover
 class SparkKafkaStreamTest extends AnyFunSuite {
 
   val root = "./data/test/spark/sstream/"
 
-  val roosterTopic: TopicDef[Int, Rooster] =
-    TopicDef[Int, Rooster](TopicName("sstream.rooster"), Rooster.avroCodec)
+  val roosterTopic: AvroTopic[Int, Rooster] =
+    AvroTopic[Int, Rooster](TopicName("sstream.rooster"))(AvroFor[Int], AvroFor(Rooster.avroCodec))
 
   val ate = SchematizedEncoder(roosterTopic)
 

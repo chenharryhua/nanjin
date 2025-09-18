@@ -1,16 +1,15 @@
 package mtest.kafka.stream
-
 import cats.derived.auto.show.*
 import cats.effect.IO
 import cats.effect.kernel.Outcome
 import cats.effect.unsafe.implicits.global
 import cats.implicits.showInterpolator
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
-import com.github.chenharryhua.nanjin.kafka.TopicDef
 import com.github.chenharryhua.nanjin.kafka.streaming.StreamsSerde
+import com.github.chenharryhua.nanjin.kafka.{AvroTopic, KafkaGenericSerde}
 import eu.timepit.refined.auto.*
 import fs2.Stream
-import fs2.kafka.{commitBatchWithin, AutoOffsetReset, ProducerRecord, ProducerRecords}
+import fs2.kafka.{commitBatchWithin, AutoOffsetReset, ProducerRecords, ProducerResult}
 import mtest.kafka.*
 import org.apache.kafka.streams.StreamsConfig
 import org.apache.kafka.streams.scala.StreamsBuilder
@@ -26,22 +25,25 @@ object KafkaStreamingData {
 
   case class StreamTarget(name: String, weight: Int, color: Int)
 
-  val s1Def: TopicDef[Int, StreamOne] = TopicDef[Int, StreamOne](TopicName("stream.test.join.stream.one"))
+  val s1Def: AvroTopic[Int, StreamOne] = AvroTopic[Int, StreamOne](TopicName("stream.test.join.stream.one"))
 
-  val s1Topic = s1Def
-  val t2Topic: TopicDef[Int, TableTwo] =
-    TopicDef[Int, TableTwo](TopicName("stream.test.join.table.two"))
+  val s1Topic: AvroTopic[Int, StreamOne] = s1Def
+  val t2Topic: AvroTopic[Int, TableTwo] =
+    AvroTopic[Int, TableTwo](TopicName("stream.test.join.table.two"))
 
-  val tgt = TopicDef[Int, StreamTarget](TopicName("stream.test.join.target"))
-  val serde = ctx.serde(tgt)
+  val tgt = AvroTopic[Int, StreamTarget](TopicName("stream.test.join.target"))
+  val serde: KafkaGenericSerde[Int, StreamTarget] = ctx.serde(tgt)
 
-  val sendT2Data =
-    Stream(
-      ProducerRecords(List(
-        ProducerRecord(t2Topic.topicName.value, 1, TableTwo("x", 0)),
-        ProducerRecord(t2Topic.topicName.value, 2, TableTwo("y", 1)),
-        ProducerRecord(t2Topic.topicName.value, 3, TableTwo("z", 2))
-      ))).covary[IO].through(ctx.produce(t2Topic.codecPair).sink)
+  val sendT2Data: IO[ProducerResult[Int, TableTwo]] =
+    ctx
+      .kvProduce(t2Topic)
+      .produce(
+        List(
+          1 -> TableTwo("x", 0),
+          2 -> TableTwo("y", 1),
+          3 -> TableTwo("z", 2)
+        )
+      )
 
   val harvest: Stream[IO, StreamTarget] =
     ctx
@@ -62,7 +64,7 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
 
   val appId = "kafka_stream_test"
 
-  before(sendT2Data.compile.drain.unsafeRunSync())
+  before(sendT2Data.unsafeRunSync())
 
   test("stream-table join") {
     val sendS1Data = Stream
@@ -79,7 +81,7 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
         ).map(ProducerRecords.one))
       .covary[IO]
       .metered(1.seconds)
-      .through(ctx.produce[Int, StreamOne].sink)
+      .through(ctx.produce[Int, StreamOne](s1Def.pair).sink)
 
     val res: Set[StreamTarget] = (IO.println(Console.CYAN + "stream-table join" + Console.RESET) >> ctx
       .buildStreams(appId)(apps.kafka_streaming)
@@ -119,8 +121,8 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
 
   test("kafka stream exception") {
     val tn = TopicName("stream.test.stream.exception.one")
-    val s1Topic: TopicDef[Int, StreamOne] = s1Def.withTopicName(tn)
-    val s1TopicBin: TopicDef[Int, Array[Byte]] = TopicDef[Int, Array[Byte]](tn)
+    val s1Topic: AvroTopic[Int, StreamOne] = s1Def.withTopicName(tn.name)
+    val s1TopicBin: AvroTopic[Int, Array[Byte]] = AvroTopic[Int, Array[Byte]](tn)
 
     def top(sb: StreamsBuilder, ss: StreamsSerde): Unit = {
       import ss.implicits.*
@@ -141,7 +143,7 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
       ).map(ProducerRecords.one))
       .covary[IO]
       .metered(1.seconds)
-      .through(ctx.produce[Int, Array[Byte]].sink)
+      .through(ctx.produce[Int, Array[Byte]](s1TopicBin.pair).sink)
       .debug()
 
     assertThrows[Exception](

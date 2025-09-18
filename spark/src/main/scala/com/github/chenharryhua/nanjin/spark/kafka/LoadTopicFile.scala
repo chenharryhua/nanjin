@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
-import com.github.chenharryhua.nanjin.kafka.TopicDef
+import com.github.chenharryhua.nanjin.kafka.AvroTopic
 import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark.persist.loaders
@@ -9,13 +9,13 @@ import io.circe.Decoder as JsonDecoder
 import io.lemonlabs.uri.Url
 import org.apache.spark.sql.SparkSession
 
-final class LoadTopicFile[K, V] private[kafka] (topicDef: TopicDef[K, V], ss: SparkSession)
+final class LoadTopicFile[K, V] private[kafka] (topicDef: AvroTopic[K, V], ss: SparkSession)
     extends Serializable {
 
-  private val ack: AvroCodec[K] = topicDef.codecPair.key.avroCodec
-  private val acv: AvroCodec[V] = topicDef.codecPair.value.avroCodec
+  private val ack: AvroCodec[K] = topicDef.pair.key.avroCodec
+  private val acv: AvroCodec[V] = topicDef.pair.value.avroCodec
 
-  private val decoder: Decoder[NJConsumerRecord[K, V]] = NJConsumerRecord.avroCodec(ack, acv)
+  private val decoder: Decoder[NJConsumerRecord[K, V]] = topicDef.pair.consumerFormat.codec
 
   def avro(path: Url): CrRdd[K, V] = {
     val rdd = loaders.rdd.avro[NJConsumerRecord[K, V]](path, ss, decoder)

@@ -3,13 +3,14 @@ package mtest.spark.kafka
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
-import com.github.chenharryhua.nanjin.kafka.TopicDef
-import com.github.chenharryhua.nanjin.messages.kafka.codec.{immigrate, AvroCodec}
+import com.github.chenharryhua.nanjin.kafka.AvroTopic
+import com.github.chenharryhua.nanjin.messages.kafka.codec.immigrate
 import com.sksamuel.avro4s.Record
 import eu.timepit.refined.auto.*
 import fs2.Stream
 import io.lemonlabs.uri.typesafe.dsl.*
 import org.scalatest.funsuite.AnyFunSuite
+import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroFor
 
 object version1 {
   final case class Tiger(a: Int)
@@ -24,22 +25,19 @@ class PushPullGRTest extends AnyFunSuite {
 
   val root = "./data/test/spark/kafka/push_pull"
 
-  val baseTopic: TopicDef[Int, version1.Tiger] =
-    TopicDef[Int, version1.Tiger](topicName, AvroCodec[version1.Tiger])
-  val evolveTopic: TopicDef[Int, version2.Tiger] =
-    TopicDef[Int, version2.Tiger](topicName, AvroCodec[version2.Tiger])
+  val baseTopic: AvroTopic[Int, version1.Tiger] =
+    AvroTopic[Int, version1.Tiger](topicName)(AvroFor[Int], AvroFor[version1.Tiger])
+  val evolveTopic: AvroTopic[Int, version2.Tiger] =
+    AvroTopic[Int, version2.Tiger](topicName)(AvroFor[Int], AvroFor[version2.Tiger])
 
   val baseData: Stream[IO, Record] =
-    Stream.range(0, 10).map(a => baseTopic.producerFormat.toRecord(a, version1.Tiger(a))).covary[IO]
+    Stream.range(0, 10).map(a => baseTopic.genericRecord(a, version1.Tiger(a))).covary[IO]
 
   val evolveData: Stream[IO, Record] =
-    Stream
-      .range(10, 20)
-      .map(a => evolveTopic.producerFormat.toRecord(a, version2.Tiger(a, Some("b"))))
-      .covary[IO]
+    Stream.range(10, 20).map(a => evolveTopic.genericRecord(a, version2.Tiger(a, Some("b")))).covary[IO]
 
   test("push - pull - base") {
-    val sink = ctx.produce("pull.test").sink
+    val sink = ctx.produceAvro("pull.test").sink
     val path = root / "base"
     (ctx.schemaRegistry.register(baseTopic) >> ctx.schemaRegistry.register(evolveTopic)).unsafeRunSync()
     (baseData ++ evolveData).through(sink).compile.drain.unsafeRunSync()
@@ -50,18 +48,18 @@ class PushPullGRTest extends AnyFunSuite {
     Stream // immigration
       .eval(hadoop.filesIn(path))
       .flatMap(
-        _.map(hadoop.source(_).jackson(100, baseTopic.schemaPair.consumerSchema))
+        _.map(hadoop.source(_).jackson(100, baseTopic.pair.schemaPair.consumerSchema))
           .reduce(_ ++ _)
-          .evalTap(r => IO(assert(r.getSchema == baseTopic.schemaPair.consumerSchema)))
-          .map(r => immigrate(evolveTopic.schemaPair.consumerSchema, r))
-          .evalTap(r => IO(assert(r.get.getSchema == evolveTopic.schemaPair.consumerSchema))))
+          .evalTap(r => IO(assert(r.getSchema == baseTopic.pair.schemaPair.consumerSchema)))
+          .map(r => immigrate(evolveTopic.pair.schemaPair.consumerSchema, r))
+          .evalTap(r => IO(assert(r.get.getSchema == evolveTopic.pair.schemaPair.consumerSchema))))
       .compile
       .drain
       .unsafeRunSync()
   }
 
   test("push - pull - evolve") {
-    val sink = ctx.produce(evolveTopic.topicName.name).sink
+    val sink = ctx.produceAvro(evolveTopic.topicName.name).sink
     val path = root / "evolve"
 
     (baseData ++ evolveData).through(sink).compile.drain.unsafeRunSync()

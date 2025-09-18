@@ -56,7 +56,7 @@ object kafka_connector_s3 {
       hadoop.rotateSink(ga.zoneId, Policy.crontab(_.every5Minutes))(root / jackson.ymdFileName(_)).jackson
     ga.facilitate("abc")(logMetrics).use { log =>
       ctx
-        .consume("any.kafka.topic")
+        .consumeAvro("any.kafka.topic")
         .updateConfig(
           _.withGroupId("group.id")
             .withAutoOffsetReset(AutoOffsetReset.Latest)
