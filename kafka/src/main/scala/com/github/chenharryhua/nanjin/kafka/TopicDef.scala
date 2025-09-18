@@ -4,13 +4,9 @@ import cats.kernel.Eq
 import cats.syntax.eq.*
 import cats.{Endo, Show}
 import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameL}
-import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroCodec, AvroFor, ProtobufFor}
-import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJProducerRecord}
-import com.sksamuel.avro4s.{Record, RecordFormat}
-import fs2.kafka.{ConsumerRecord, ProducerRecord}
-import org.apache.avro.generic.IndexedRecord
-import org.apache.kafka.clients.consumer.ConsumerRecord as JavaConsumerRecord
-import org.apache.kafka.clients.producer.ProducerRecord as JavaProducerRecord
+import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroFor, JsonFor, ProtobufFor}
+import com.sksamuel.avro4s.Record
+import fs2.kafka.ProducerRecord
 import scalapb.GeneratedMessage
 
 final class AvroTopic[K, V] private (val topicName: TopicName, val pair: AvroPair[K, V])
@@ -23,36 +19,7 @@ final class AvroTopic[K, V] private (val topicName: TopicName, val pair: AvroPai
     withTopicName(TopicName.unsafeFrom(f(topicName.value)).name)
 
   def producerRecord(k: K, v: V): ProducerRecord[K, V] = ProducerRecord(topicName.value, k, v)
-
-  lazy val schemaPair: AvroSchemaPair =
-    AvroSchemaPair(pair.key.avroCodec.schema, pair.value.avroCodec.schema)
-
-  final class ConsumerFormat(rf: RecordFormat[NJConsumerRecord[K, V]]) extends Serializable {
-    def toRecord(nj: NJConsumerRecord[K, V]): Record = rf.to(nj)
-    def toRecord(cr: ConsumerRecord[K, V]): Record = toRecord(NJConsumerRecord(cr))
-    def toRecord(jcr: JavaConsumerRecord[K, V]): Record = toRecord(NJConsumerRecord(jcr))
-
-    def fromRecord(gr: IndexedRecord): NJConsumerRecord[K, V] = rf.from(gr)
-  }
-
-  final class ProducerFormat(rf: RecordFormat[NJProducerRecord[K, V]]) extends Serializable {
-    def toRecord(nj: NJProducerRecord[K, V]): Record = rf.to(nj)
-    def toRecord(k: K, v: V): Record = toRecord(NJProducerRecord(topicName, k, v))
-    def toRecord(pr: ProducerRecord[K, V]): Record = toRecord(NJProducerRecord(pr))
-    def toRecord(jpr: JavaProducerRecord[K, V]): Record = toRecord(NJProducerRecord(jpr))
-
-    def fromRecord(gr: IndexedRecord): NJProducerRecord[K, V] = rf.from(gr)
-  }
-
-  lazy val consumerCodec: AvroCodec[NJConsumerRecord[K, V]] =
-    NJConsumerRecord.avroCodec(pair.key.avroCodec, pair.value.avroCodec)
-
-  lazy val producerCodec: AvroCodec[NJProducerRecord[K, V]] =
-    NJProducerRecord.avroCodec(pair.key.avroCodec, pair.value.avroCodec)
-
-  lazy val consumerFormat: ConsumerFormat = new ConsumerFormat(RecordFormat(consumerCodec, consumerCodec))
-  lazy val producerFormat: ProducerFormat = new ProducerFormat(RecordFormat(producerCodec, producerCodec))
-
+  def genericRecord(k: K, v: V): Record = pair.producerFormat.toRecord(producerRecord(k, v))
 }
 
 object AvroTopic {
@@ -70,7 +37,6 @@ object AvroTopic {
 
   def apply[K: AvroFor, V: AvroFor](topicName: TopicName): AvroTopic[K, V] =
     new AvroTopic(topicName, AvroPair(AvroFor[K], AvroFor[V]))
-
 }
 
 final class ProtobufTopic[K <: GeneratedMessage, V <: GeneratedMessage] private (
@@ -83,4 +49,10 @@ object ProtobufTopic {
     value: ProtobufFor[V],
     topicName: TopicName): ProtobufTopic[K, V] =
     new ProtobufTopic[K, V](topicName, ProtobufPair[K, V](key, value))
+}
+
+final class JsonTopic[K, V] private (val topicName: TopicName, val pair: JsonPair[K, V])
+object JsonTopic {
+  def apply[K, V](key: JsonFor[K], value: JsonFor[V], topicName: TopicName) =
+    new JsonTopic[K, V](topicName, JsonPair(key, value))
 }

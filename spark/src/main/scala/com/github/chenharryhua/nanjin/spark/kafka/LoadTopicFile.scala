@@ -15,7 +15,7 @@ final class LoadTopicFile[K, V] private[kafka] (topicDef: AvroTopic[K, V], ss: S
   private val ack: AvroCodec[K] = topicDef.pair.key.avroCodec
   private val acv: AvroCodec[V] = topicDef.pair.value.avroCodec
 
-  private val decoder: Decoder[NJConsumerRecord[K, V]] = NJConsumerRecord.avroCodec(ack, acv)
+  private val decoder: Decoder[NJConsumerRecord[K, V]] = topicDef.pair.consumerFormat.codec
 
   def avro(path: Url): CrRdd[K, V] = {
     val rdd = loaders.rdd.avro[NJConsumerRecord[K, V]](path, ss, decoder)

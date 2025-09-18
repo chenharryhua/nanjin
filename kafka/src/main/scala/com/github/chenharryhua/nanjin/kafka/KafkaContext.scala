@@ -111,9 +111,9 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
    * producer
    */
 
-  def kvProduce[K, V](avroTopic: AvroTopic[K, V])(implicit F: Sync[F]): ProduceKVKafka[F, K, V] = {
+  def kvProduce[K, V](avroTopic: AvroTopic[K, V])(implicit F: Sync[F]): ProduceKeyValuePair[F, K, V] = {
     val topic = avroTopic.pair.register(settings.schemaRegistrySettings, avroTopic.topicName)
-    new ProduceKVKafka[F, K, V](
+    new ProduceKeyValuePair[F, K, V](
       avroTopic.topicName,
       ProducerSettings[F, K, V](
         Serializer.delegate(topic.key.registered.serde.serializer()),
@@ -123,10 +123,21 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
   }
 
   def kvProduce[K <: GeneratedMessage, V <: GeneratedMessage](protobufTopic: ProtobufTopic[K, V])(implicit
-    F: Sync[F]): ProduceKVKafka[F, K, V] = {
+    F: Sync[F]): ProduceKeyValuePair[F, K, V] = {
     val topic = protobufTopic.pair.register(settings.schemaRegistrySettings, protobufTopic.topicName)
-    new ProduceKVKafka[F, K, V](
+    new ProduceKeyValuePair[F, K, V](
       protobufTopic.topicName,
+      ProducerSettings[F, K, V](
+        Serializer.delegate(topic.key.registered.serde.serializer()),
+        Serializer.delegate(topic.value.registered.serde.serializer())
+      ).withProperties(settings.producerSettings.properties)
+    )
+  }
+
+  def kvProduce[K, V](jsonPair: JsonTopic[K, V])(implicit F: Sync[F]): ProduceKeyValuePair[F, K, V] = {
+    val topic = jsonPair.pair.register(settings.schemaRegistrySettings, jsonPair.topicName)
+    new ProduceKeyValuePair[F, K, V](
+      jsonPair.topicName,
       ProducerSettings[F, K, V](
         Serializer.delegate(topic.key.registered.serde.serializer()),
         Serializer.delegate(topic.value.registered.serde.serializer())
@@ -137,16 +148,24 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
   def produce[K, V](pair: AvroPair[K, V])(implicit F: Sync[F]) =
     new ProduceKafka[F, K, V](
       ProducerSettings[F, K, V](
-        Serializer.delegate(pair.key.asKey(settings.producerSettings.properties).serde.serializer()),
-        Serializer.delegate(pair.value.asValue(settings.producerSettings.properties).serde.serializer())
+        Serializer.delegate(pair.key.asKey(settings.schemaRegistrySettings.config).serde.serializer()),
+        Serializer.delegate(pair.value.asValue(settings.schemaRegistrySettings.config).serde.serializer())
       ).withProperties(settings.producerSettings.properties)
     )
 
   def produce[K <: GeneratedMessage, V <: GeneratedMessage](pair: ProtobufPair[K, V])(implicit F: Sync[F]) =
     new ProduceKafka[F, K, V](
       ProducerSettings[F, K, V](
-        Serializer.delegate(pair.key.asKey(settings.producerSettings.properties).serde.serializer()),
-        Serializer.delegate(pair.value.asValue(settings.producerSettings.properties).serde.serializer())
+        Serializer.delegate(pair.key.asKey(settings.schemaRegistrySettings.config).serde.serializer()),
+        Serializer.delegate(pair.value.asValue(settings.schemaRegistrySettings.config).serde.serializer())
+      ).withProperties(settings.producerSettings.properties)
+    )
+
+  def produce[K, V](pair: JsonPair[K, V])(implicit F: Sync[F]): ProduceKafka[F, K, V] =
+    new ProduceKafka[F, K, V](
+      ProducerSettings[F, K, V](
+        Serializer.delegate(pair.key.asKey(settings.schemaRegistrySettings.config).serde.serializer()),
+        Serializer.delegate(pair.value.asValue(settings.schemaRegistrySettings.config).serde.serializer())
       ).withProperties(settings.producerSettings.properties)
     )
 

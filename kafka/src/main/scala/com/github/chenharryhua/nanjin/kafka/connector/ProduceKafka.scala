@@ -13,7 +13,7 @@ import fs2.kafka.{
   TransactionalProducerSettings
 }
 
-class ProduceKafka[F[_], K, V] private[kafka] (producerSettings: ProducerSettings[F, K, V])
+final class ProduceKafka[F[_], K, V] private[kafka] (producerSettings: ProducerSettings[F, K, V])
     extends UpdateConfig[ProducerSettings[F, K, V], ProduceKafka[F, K, V]] with HasProperties {
   override def updateConfig(f: Endo[ProducerSettings[F, K, V]]): ProduceKafka[F, K, V] =
     new ProduceKafka[F, K, V](f(producerSettings))

@@ -43,6 +43,7 @@ class SparKafkaTest extends AnyFunSuite {
     fs2.Stream
       .emits(List((1, data), (2, data)))
       .covary[IO]
+      .chunks
       .through(ctx.kvProduce[Int, HasDuck](topic).updateConfig(_.withClientId("spark.kafka.test")).sink)
       .compile
       .drain
@@ -141,7 +142,7 @@ class SparKafkaTest extends AnyFunSuite {
     Stream
       .eval(hadoop.filesIn(path))
       .flatMap(
-        _.map(hadoop.source(_).jackson(10, topic.schemaPair.consumerSchema))
+        _.map(hadoop.source(_).jackson(10, topic.pair.schemaPair.consumerSchema))
           .reduce(_ ++ _)
           .through(ctx.produceAvro(topic.topicName.name).updateConfig(_.withClientId("a")).sink))
       .compile
@@ -198,9 +199,9 @@ class SparKafkaTest extends AnyFunSuite {
       .take(2)
       .map(_.record.value)
       .evalMap(IO.fromTry)
-      .map(gr => topic.consumerFormat.fromRecord(gr))
+      .map(gr => topic.pair.consumerFormat.fromRecord(gr))
       .map(_.toNJProducerRecord)
-      .map(topic.producerFormat.toRecord)
+      .map(topic.pair.producerFormat.toRecord)
       .compile
       .drain
       .unsafeRunSync()

@@ -30,6 +30,7 @@ class KJsonTest extends AnyFunSuite {
       .prRdd(data)
       .stream[IO](1)
       .mapFilter(r => (r.key, r.value).mapN(_ -> _))
+      .chunks
       .through(ctx.kvProduce[KJson[Json], KJson[Json]](topicDef).sink)
       .compile
       .drain

@@ -4,7 +4,12 @@ import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.messages.kafka.codec.*
 import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJProducerRecord}
 import com.google.protobuf.Descriptors
+import com.sksamuel.avro4s.{Record, RecordFormat}
+import fs2.kafka.{ConsumerRecord, ProducerRecord}
+import org.apache.avro.generic.IndexedRecord
 import org.apache.avro.{Schema, SchemaCompatibility}
+import org.apache.kafka.clients.consumer.ConsumerRecord as JavaConsumerRecord
+import org.apache.kafka.clients.producer.ProducerRecord as JavaProducerRecord
 import scalapb.GeneratedMessage
 
 final case class TopicSerde[K, V](name: TopicName, key: KafkaSerde[K], value: KafkaSerde[V])
@@ -12,11 +17,55 @@ final case class TopicSerde[K, V](name: TopicName, key: KafkaSerde[K], value: Ka
 final case class AvroPair[K, V](key: AvroFor[K], value: AvroFor[V]) {
   def register(srs: SchemaRegistrySettings, name: TopicName): TopicSerde[K, V] =
     TopicSerde(name, key.asKey(srs.config).withTopic(name), value.asValue(srs.config).withTopic(name))
+
+  val schemaPair: AvroSchemaPair =
+    AvroSchemaPair(key.avroCodec.schema, value.avroCodec.schema)
+
+  final class ConsumerFormat private[AvroPair] (rf: RecordFormat[NJConsumerRecord[K, V]])
+      extends Serializable {
+    val codec: AvroCodec[NJConsumerRecord[K, V]] =
+      NJConsumerRecord.avroCodec(key.avroCodec, value.avroCodec)
+
+    def toRecord(nj: NJConsumerRecord[K, V]): Record = rf.to(nj)
+    def toRecord(cr: ConsumerRecord[K, V]): Record = toRecord(NJConsumerRecord(cr))
+    def toRecord(jcr: JavaConsumerRecord[K, V]): Record = toRecord(NJConsumerRecord(jcr))
+
+    def fromRecord(gr: IndexedRecord): NJConsumerRecord[K, V] = rf.from(gr)
+  }
+
+  final class ProducerFormat private[AvroPair] (rf: RecordFormat[NJProducerRecord[K, V]])
+      extends Serializable {
+    val codec: AvroCodec[NJProducerRecord[K, V]] =
+      NJProducerRecord.avroCodec(key.avroCodec, value.avroCodec)
+
+    def toRecord(nj: NJProducerRecord[K, V]): Record = rf.to(nj)
+    def toRecord(pr: ProducerRecord[K, V]): Record = toRecord(NJProducerRecord(pr))
+    def toRecord(jpr: JavaProducerRecord[K, V]): Record = toRecord(NJProducerRecord(jpr))
+
+    def fromRecord(gr: IndexedRecord): NJProducerRecord[K, V] = rf.from(gr)
+  }
+
+  val consumerFormat: ConsumerFormat = {
+    val consumerCodec: AvroCodec[NJConsumerRecord[K, V]] =
+      NJConsumerRecord.avroCodec(key.avroCodec, value.avroCodec)
+    new ConsumerFormat(RecordFormat(consumerCodec, consumerCodec))
+  }
+
+  val producerFormat: ProducerFormat = {
+    val producerCodec: AvroCodec[NJProducerRecord[K, V]] =
+      NJProducerRecord.avroCodec(key.avroCodec, value.avroCodec)
+    new ProducerFormat(RecordFormat(producerCodec, producerCodec))
+  }
 }
 
 final case class ProtobufPair[K <: GeneratedMessage, V <: GeneratedMessage](
   key: ProtobufFor[K],
   value: ProtobufFor[V]) {
+  def register(srs: SchemaRegistrySettings, name: TopicName): TopicSerde[K, V] =
+    TopicSerde(name, key.asKey(srs.config).withTopic(name), value.asValue(srs.config).withTopic(name))
+}
+
+final case class JsonPair[K, V](key: JsonFor[K], value: JsonFor[V]) {
   def register(srs: SchemaRegistrySettings, name: TopicName): TopicSerde[K, V] =
     TopicSerde(name, key.asKey(srs.config).withTopic(name), value.asValue(srs.config).withTopic(name))
 }

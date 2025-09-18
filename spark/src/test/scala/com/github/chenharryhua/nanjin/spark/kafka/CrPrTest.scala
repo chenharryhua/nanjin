@@ -116,7 +116,7 @@ class CrPrTest extends AnyFunSuite {
       headers = Nil,
       leaderEpoch = None
     )
-    val gr = rooster.consumerFormat.toRecord(roosterCR)
+    val gr = rooster.pair.consumerFormat.toRecord(roosterCR)
     assert(CRMetaInfo(gr).get == CRMetaInfo(roosterCR))
   }
 

@@ -98,29 +98,29 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
   }
 
   def dumpCirce[K: JsonEncoder, V: JsonEncoder](
-    topicDef: AvroTopic[K, V],
+    topic: AvroTopic[K, V],
     folder: Url,
     updateConfig: Endo[DumpConfig] = identity)(implicit F: Async[F]): F[Long] = {
     val config = updateConfig(new DumpConfig())
     val file = CirceFile(_.Uncompressed)
     kafkaContext
-      .consumeAvro(topicDef.topicName.name)
+      .consumeAvro(topic.topicName.name)
       .updateConfig(config.updateConsumerSettings)
       .withSchema(config.updateSchema)
-      .withSchema(_.withKeyIfAbsent(topicDef.schemaPair.key).withValIfAbsent(topicDef.schemaPair.value))
+      .withSchema(_.withKeyIfAbsent(topic.pair.schemaPair.key).withValIfAbsent(topic.pair.schemaPair.value))
       .circumscribedStream(config.dateRange)
       .flatMap { rs =>
         rs.partitionsMapStream.toList.map { case (pr, ss) =>
           val sink = hadoop.sink(folder / s"${pr.toString}.${file.fileName}").circe
           if (config.ignoreError)
             ss.mapChunks(_.map(_.record.value.toOption.map(
-              topicDef.consumerFormat.fromRecord(_).zonedJson(config.dateRange.zoneId))))
+              topic.pair.consumerFormat.fromRecord(_).zonedJson(config.dateRange.zoneId))))
               .unNone
               .through(sink)
           else
             ss.evalMapChunk(ccr =>
               F.fromTry(ccr.record.value.map(
-                topicDef.consumerFormat.fromRecord(_).zonedJson(config.dateRange.zoneId))))
+                topic.pair.consumerFormat.fromRecord(_).zonedJson(config.dateRange.zoneId))))
               .through(sink)
         }.parJoinUnbounded.onFinalize(rs.stopConsuming)
       }

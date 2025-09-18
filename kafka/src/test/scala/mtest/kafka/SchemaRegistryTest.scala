@@ -16,14 +16,14 @@ class SchemaRegistryTest extends AnyFunSuite {
     val res = (ctx.schemaRegistry.register(topic) >>
       ctx.schemaRegistry.metaData(topic.topicName) >>
       ctx.schemaRegistry.fetchAvroSchema(topic.topicName)).unsafeRunSync()
-    assert(res.isFullCompatible(topic.schemaPair))
+    assert(res.isFullCompatible(topic.pair.schemaPair))
   }
 
   test("incompatible") {
     val other = AvroTopic[String, String](topicName)
     val res = ctx.schemaRegistry.fetchAvroSchema(topicName).unsafeRunSync()
-    assert(res.backward(other.schemaPair).nonEmpty)
-    assert(res.forward(other.schemaPair).nonEmpty)
+    assert(res.backward(other.pair.schemaPair).nonEmpty)
+    assert(res.forward(other.pair.schemaPair).nonEmpty)
   }
 
   test("register schema should be identical") {
@@ -31,13 +31,13 @@ class SchemaRegistryTest extends AnyFunSuite {
     val report = ctx.schemaRegistry.delete(topic.topicName).attempt >>
       ctx.schemaRegistry.register(topic) >>
       ctx.schemaRegistry.fetchAvroSchema(topic.topicName)
-    assert(report.unsafeRunSync().isIdentical(topic.schemaPair))
-    assert(report.unsafeRunSync().isFullCompatible(topic.schemaPair))
+    assert(report.unsafeRunSync().isIdentical(topic.pair.schemaPair))
+    assert(report.unsafeRunSync().isFullCompatible(topic.pair.schemaPair))
   }
 
   test("compatibility") {
-    val other = AvroTopic[Int, reddit_post](TopicName("abc")).schemaPair
-    val skm = topic.schemaPair
+    val other = AvroTopic[Int, reddit_post](TopicName("abc")).pair.schemaPair
+    val skm = topic.pair.schemaPair
     assert(other.forward(skm).nonEmpty)
     assert(other.backward(skm).nonEmpty)
   }

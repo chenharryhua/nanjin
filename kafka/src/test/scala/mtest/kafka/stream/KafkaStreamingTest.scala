@@ -1,16 +1,15 @@
 package mtest.kafka.stream
-
 import cats.derived.auto.show.*
 import cats.effect.IO
 import cats.effect.kernel.Outcome
 import cats.effect.unsafe.implicits.global
 import cats.implicits.showInterpolator
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
-import com.github.chenharryhua.nanjin.kafka.{AvroTopic, KafkaGenericSerde}
 import com.github.chenharryhua.nanjin.kafka.streaming.StreamsSerde
+import com.github.chenharryhua.nanjin.kafka.{AvroTopic, KafkaGenericSerde}
 import eu.timepit.refined.auto.*
 import fs2.Stream
-import fs2.kafka.{commitBatchWithin, AutoOffsetReset, ProducerRecord, ProducerRecords}
+import fs2.kafka.{commitBatchWithin, AutoOffsetReset, ProducerRecords, ProducerResult}
 import mtest.kafka.*
 import org.apache.kafka.streams.StreamsConfig
 import org.apache.kafka.streams.scala.StreamsBuilder
@@ -35,13 +34,16 @@ object KafkaStreamingData {
   val tgt = AvroTopic[Int, StreamTarget](TopicName("stream.test.join.target"))
   val serde: KafkaGenericSerde[Int, StreamTarget] = ctx.serde(tgt)
 
-  val sendT2Data =
-    Stream(
-      ProducerRecords(List(
-        ProducerRecord(t2Topic.topicName.value, 1, TableTwo("x", 0)),
-        ProducerRecord(t2Topic.topicName.value, 2, TableTwo("y", 1)),
-        ProducerRecord(t2Topic.topicName.value, 3, TableTwo("z", 2))
-      ))).covary[IO].through(ctx.produce(t2Topic.pair).sink)
+  val sendT2Data: IO[ProducerResult[Int, TableTwo]] =
+    ctx
+      .kvProduce(t2Topic)
+      .produce(
+        List(
+          1 -> TableTwo("x", 0),
+          2 -> TableTwo("y", 1),
+          3 -> TableTwo("z", 2)
+        )
+      )
 
   val harvest: Stream[IO, StreamTarget] =
     ctx
@@ -62,7 +64,7 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
 
   val appId = "kafka_stream_test"
 
-  before(sendT2Data.compile.drain.unsafeRunSync())
+  before(sendT2Data.unsafeRunSync())
 
   test("stream-table join") {
     val sendS1Data = Stream

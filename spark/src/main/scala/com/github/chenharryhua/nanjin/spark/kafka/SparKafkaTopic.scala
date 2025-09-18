@@ -81,7 +81,7 @@ final class SparKafkaTopic[F[_], K, V](
     crRdd(sparkSession.sparkContext.emptyRDD[NJConsumerRecord[K, V]])
 
   def prRdd(rdd: RDD[NJProducerRecord[K, V]]): PrRdd[K, V] =
-    new PrRdd[K, V](rdd, topicDef.producerCodec)
+    new PrRdd[K, V](rdd, topicDef.pair.producerFormat.codec)
 
   def prRdd[G[_]: Foldable](list: G[NJProducerRecord[K, V]]): PrRdd[K, V] =
     prRdd(sparkSession.sparkContext.parallelize(list.toList))

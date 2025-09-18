@@ -104,7 +104,7 @@ final class SchemaRegistryApi[F[_]](client: CachedSchemaRegistryClient) extends 
   }
 
   def register[K, V](topic: AvroTopic[K, V])(implicit F: Sync[F]): F[(Int, Int)] =
-    register(topic.topicName, topic.schemaPair)
+    register(topic.topicName, topic.pair.schemaPair)
 
   def delete(topicName: TopicName)(implicit F: Sync[F]): F[(List[Integer], List[Integer])] = {
     val loc = SchemaLocation(topicName)

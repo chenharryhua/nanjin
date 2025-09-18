@@ -57,6 +57,7 @@ class KafkaAvroTest extends AnyFunSuite {
     val data = fs2.Stream
       .emits(List((0, co1), (1, co2)))
       .covary[IO]
+      .chunks
       .through(
         ctx.kvProduce[Int, PersonCaseObject](topicCO).updateConfig(_.withClientId("kafka.avro.test1")).sink)
     val path = "./data/test/spark/kafka/coproduct/caseobject.avro"
@@ -77,6 +78,7 @@ class KafkaAvroTest extends AnyFunSuite {
     val data = fs2.Stream
       .emits(List((0, en1), (1, en2)))
       .covary[IO]
+      .chunks
       .through(
         ctx.kvProduce[Int, PersonEnum](topicEnum).updateConfig(_.withClientId("kafka.avro.test2")).sink)
     val avroPath = "./data/test/spark/kafka/coproduct/scalaenum.avro"
@@ -108,6 +110,7 @@ class KafkaAvroTest extends AnyFunSuite {
     val data = fs2.Stream
       .emits(List((0, en1), (1, en2)))
       .covary[IO]
+      .chunks
       .through(
         ctx.kvProduce[Int, PersonEnum](topicEnum).updateConfig(_.withClientId("kafka.avro.test3")).sink)
 
@@ -129,6 +132,7 @@ class KafkaAvroTest extends AnyFunSuite {
     val data = fs2.Stream
       .emits(List((0, en1), (1, en2)))
       .covary[IO]
+      .chunks
       .through(
         ctx.kvProduce[Int, PersonEnum](topicEnum).updateConfig(_.withClientId("kafka.avro.test4")).sink)
 
@@ -149,6 +153,7 @@ class KafkaAvroTest extends AnyFunSuite {
     val data = fs2.Stream
       .emits(List((0, en1), (1, en2)))
       .covary[IO]
+      .chunks
       .through(
         ctx.kvProduce[Int, PersonEnum](topicEnum).updateConfig(_.withClientId("kafka.avro.test5")).sink)
     val path = "./data/test/spark/kafka/coproduct/scalaenum.avro.bzip2"

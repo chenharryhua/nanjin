@@ -88,7 +88,7 @@ class Fs2ChannelTest extends AnyFunSuite {
         .subscribe
         .take(1)
         .map(_.record)
-        .map(r => gr2Jackson(topicDef.consumerFormat.toRecord(r)).get)
+        .map(r => gr2Jackson(topicDef.pair.consumerFormat.toRecord(r)).get)
         .timeout(3.seconds)
         .compile
         .toList
@@ -273,12 +273,12 @@ class Fs2ChannelTest extends AnyFunSuite {
       ctx
         .consumeAvro(topicDef.topicName.name)
         .withSchema(
-          _.withKeyIfAbsent(topicDef.schemaPair.key)
-            .withValIfAbsent(topicDef.schemaPair.value)
+          _.withKeyIfAbsent(topicDef.pair.schemaPair.key)
+            .withValIfAbsent(topicDef.pair.schemaPair.value)
             .withNullKey
             .withNullVal
-            .withKeyReplaced(topicDef.schemaPair.key)
-            .withValReplaced(topicDef.schemaPair.value))
+            .withKeyReplaced(topicDef.pair.schemaPair.key)
+            .withValReplaced(topicDef.pair.schemaPair.value))
         .subscribe
         .take(1)
         .map(_.record)
