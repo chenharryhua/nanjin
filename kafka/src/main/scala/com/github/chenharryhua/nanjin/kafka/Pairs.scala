@@ -6,17 +6,33 @@ import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJProduc
 import com.google.protobuf.Descriptors
 import com.sksamuel.avro4s.{Record, RecordFormat}
 import fs2.kafka.{ConsumerRecord, ProducerRecord}
+import io.confluent.kafka.schemaregistry.json.JsonSchema
 import org.apache.avro.generic.IndexedRecord
 import org.apache.avro.{Schema, SchemaCompatibility}
 import org.apache.kafka.clients.consumer.ConsumerRecord as JavaConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord as JavaProducerRecord
+import org.apache.kafka.common.serialization.Serde
 import scalapb.GeneratedMessage
 
-final case class TopicSerde[K, V](name: TopicName, key: KafkaSerde[K], value: KafkaSerde[V])
+sealed trait RegisterSerde[K, V] {
+  def register(srs: SchemaRegistrySettings): SerdePair[K, V]
+  def register(srs: SchemaRegistrySettings, topicName: TopicName): TopicSerde[K, V]
+}
 
-final case class AvroPair[K, V](key: AvroFor[K], value: AvroFor[V]) {
-  def register(srs: SchemaRegistrySettings, name: TopicName): TopicSerde[K, V] =
-    TopicSerde(name, key.asKey(srs.config).withTopic(name), value.asValue(srs.config).withTopic(name))
+final case class TopicSerde[K, V](topicName: TopicName, key: KafkaSerde[K], value: KafkaSerde[V])
+    extends KafkaGenericSerde(key, value)
+
+final case class SerdePair[K, V](key: Serde[K], value: Serde[V])
+
+final case class AvroPair[K, V](key: AvroFor[K], value: AvroFor[V]) extends RegisterSerde[K, V] {
+  override def register(srs: SchemaRegistrySettings): SerdePair[K, V] =
+    SerdePair(key.asKey(srs.config).serde, value.asValue(srs.config).serde)
+
+  override def register(srs: SchemaRegistrySettings, topicName: TopicName): TopicSerde[K, V] =
+    TopicSerde(
+      topicName,
+      key.asKey(srs.config).withTopic(topicName),
+      value.asValue(srs.config).withTopic(topicName))
 
   val schemaPair: AvroSchemaPair =
     AvroSchemaPair(key.avroCodec.schema, value.avroCodec.schema)
@@ -60,14 +76,28 @@ final case class AvroPair[K, V](key: AvroFor[K], value: AvroFor[V]) {
 
 final case class ProtobufPair[K <: GeneratedMessage, V <: GeneratedMessage](
   key: ProtobufFor[K],
-  value: ProtobufFor[V]) {
-  def register(srs: SchemaRegistrySettings, name: TopicName): TopicSerde[K, V] =
-    TopicSerde(name, key.asKey(srs.config).withTopic(name), value.asValue(srs.config).withTopic(name))
+  value: ProtobufFor[V])
+    extends RegisterSerde[K, V] {
+  override def register(srs: SchemaRegistrySettings): SerdePair[K, V] =
+    SerdePair(key.asKey(srs.config).serde, value.asValue(srs.config).serde)
+
+  override def register(srs: SchemaRegistrySettings, topicName: TopicName): TopicSerde[K, V] =
+    TopicSerde(
+      topicName,
+      key.asKey(srs.config).withTopic(topicName),
+      value.asValue(srs.config).withTopic(topicName))
 }
 
-final case class JsonPair[K, V](key: JsonFor[K], value: JsonFor[V]) {
-  def register(srs: SchemaRegistrySettings, name: TopicName): TopicSerde[K, V] =
-    TopicSerde(name, key.asKey(srs.config).withTopic(name), value.asValue(srs.config).withTopic(name))
+final case class JsonPair[K, V](key: JsonFor[K], value: JsonFor[V]) extends RegisterSerde[K, V] {
+  override def register(srs: SchemaRegistrySettings): SerdePair[K, V] =
+    SerdePair(key.asKey(srs.config).serde, value.asValue(srs.config).serde)
+
+  override def register(srs: SchemaRegistrySettings, topicName: TopicName): TopicSerde[K, V] =
+    TopicSerde(
+      topicName,
+      key.asKey(srs.config).withTopic(topicName),
+      value.asValue(srs.config).withTopic(topicName))
+
 }
 
 final case class AvroSchemaPair(key: Schema, value: Schema) {
@@ -87,6 +117,7 @@ final case class AvroSchemaPair(key: Schema, value: Schema) {
 }
 
 final case class ProtobufDescriptorPair(key: Descriptors.Descriptor, value: Descriptors.Descriptor)
+final case class JsonSchemaPair(key: JsonSchema, value: JsonSchema)
 
 final class OptionalAvroSchemaPair private[kafka] (key: Option[Schema], value: Option[Schema]) {
   def withKeyIfAbsent(schema: Schema): OptionalAvroSchemaPair =

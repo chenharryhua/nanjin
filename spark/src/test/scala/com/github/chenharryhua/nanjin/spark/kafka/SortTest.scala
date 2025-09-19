@@ -14,7 +14,7 @@ import scala.util.Random
 
 class SortTest extends AnyFunSuite {
   val topic = AvroTopic[Int, Int](TopicName("topic"))
-  val ate = SchematizedEncoder(topic)
+  val ate = SchematizedEncoder(topic.pair)
 
   val data = List(
     NJConsumerRecord[Int, Int]("topic", 0, 0, 40, 0, Nil, None, None, None, Some(0), Some(Random.nextInt())),

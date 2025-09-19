@@ -37,7 +37,7 @@ class CrPrTest extends AnyFunSuite {
   implicit val te3: TypedEncoder[RoosterLike2] = shapeless.cachedImplicit
 
   val rooster = AvroTopic[Long, Rooster](TopicName("rooster"))(AvroFor[Long], AvroFor(Rooster.avroCodec))
-  val roosterATE = SchematizedEncoder(rooster)
+  val roosterATE = SchematizedEncoder(rooster.pair)
 
   val roosterLike =
     AvroTopic[Long, RoosterLike](TopicName("roosterLike"))(AvroFor[Long], AvroFor[RoosterLike])
