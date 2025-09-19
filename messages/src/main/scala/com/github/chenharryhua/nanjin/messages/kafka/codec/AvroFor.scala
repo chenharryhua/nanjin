@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.messages.kafka.codec
 import com.sksamuel.avro4s.{Decoder as AvroDecoder, Encoder as AvroEncoder, SchemaFor}
 import io.confluent.kafka.streams.serdes.avro.{GenericAvroDeserializer, GenericAvroSerializer}
 import org.apache.avro.generic.GenericRecord
-import org.apache.kafka.common.serialization.{Deserializer, Serde, Serializer}
+import org.apache.kafka.common.serialization.{Deserializer, Serializer}
 import org.apache.kafka.streams.scala.serialization.Serdes
 
 import java.nio.ByteBuffer
@@ -13,30 +13,10 @@ import java.util.UUID
 /*
  * spark friendly
  */
-trait AvroFor[A] extends RegisterSerde[A] { outer =>
+trait AvroFor[A] extends RegisterSerde[A] {
   def avroCodec: AvroCodec[A]
   protected def serializer: Serializer[A]
   protected def deserializer: Deserializer[A]
-
-  final override def asKey(props: Map[String, String]): Registered[A] =
-    new Registered[A](
-      new Serde[A] with Serializable {
-        override def serializer: Serializer[A] = outer.serializer
-        override def deserializer: Deserializer[A] = outer.deserializer
-      },
-      props,
-      true
-    )
-
-  final override def asValue(props: Map[String, String]): Registered[A] =
-    new Registered(
-      new Serde[A] with Serializable {
-        override def serializer: Serializer[A] = outer.serializer
-        override def deserializer: Deserializer[A] = outer.deserializer
-      },
-      props,
-      false
-    )
 }
 
 private[codec] trait LowerPriority {

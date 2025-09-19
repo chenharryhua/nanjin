@@ -79,6 +79,18 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
     )
   }
 
+  def consume[K, V](jsonTopic: JsonTopic[K, V])(implicit F: Sync[F]): ConsumeKafka[F, K, V] = {
+    val topic: TopicSerde[K, V] =
+      jsonTopic.pair.register(settings.schemaRegistrySettings, jsonTopic.topicName)
+    new ConsumeKafka[F, K, V](
+      jsonTopic.topicName,
+      ConsumerSettings[F, K, V](
+        Deserializer.delegate[F, K](topic.key.registered.serde.deserializer()),
+        Deserializer.delegate[F, V](topic.value.registered.serde.deserializer())
+      ).withProperties(settings.consumerSettings.properties)
+    )
+  }
+
   def consumeAvro(topicName: TopicNameL)(implicit F: Sync[F]): ConsumeGenericRecord[F] =
     new ConsumeGenericRecord[F](
       TopicName(topicName),
