@@ -47,9 +47,11 @@ class TransformerTest extends AnyFunSuite {
           ProducerRecords.one(ProducerRecord(topic1.topicName.value, index.toInt, s"stream$index"))
         }
         .through(ctx.produce[Int, String](td.pair).sink)
+
+    val byteTopic = AvroTopic[Array[Byte],Array[Byte]](tgt.topicName)
     val havest = ctx
-      .consumeAvro(tgt.topicName.name)
-      .assignBytes
+      .consume(byteTopic)
+      .assign
       .map(ctx.serde(tgt).deserialize(_))
       .debug()
       .observe(_.map(_.offset).through(commitBatch(10, 2.seconds)).drain)

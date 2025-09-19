@@ -14,7 +14,7 @@ final class JsonFor[A: ClassTag] private extends RegisterSerde[A] {
   private val mapper = new ObjectMapper() with ClassTagExtensions
   mapper.registerModule(DefaultScalaModule)
 
-  private val schema: JsonSchema =
+  val jsonSchema: JsonSchema =
     new JsonSchema(new JsonSchemaGenerator(mapper).generateJsonSchema(implicitly[ClassTag[A]].runtimeClass))
 
   override protected val serializer: Serializer[A] =
@@ -30,7 +30,7 @@ final class JsonFor[A: ClassTag] private extends RegisterSerde[A] {
         if (data == null) null
         else {
           val payload: JsonNode = mapper.valueToTree[JsonNode](data)
-          ser.serialize(topic, JsonSchemaUtils.envelope(schema, payload))
+          ser.serialize(topic, JsonSchemaUtils.envelope(jsonSchema, payload))
         }
     }
 

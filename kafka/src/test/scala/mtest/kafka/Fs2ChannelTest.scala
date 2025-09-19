@@ -98,9 +98,10 @@ class Fs2ChannelTest extends AnyFunSuite {
 
   test("3.serde") {
     val serde = ctx.serde(topicDef)
+    val byteTopic = AvroTopic[Array[Byte],Array[Byte]](topicDef.topicName)
     ctx
-      .consumeAvro(topicDef.topicName.name)
-      .subscribeBytes
+      .consume(byteTopic)
+      .subscribe
       .take(1)
       .map { ccr =>
         serde.deserialize(ccr)

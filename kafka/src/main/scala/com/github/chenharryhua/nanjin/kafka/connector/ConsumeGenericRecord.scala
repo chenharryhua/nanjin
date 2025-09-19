@@ -46,19 +46,6 @@ final class ConsumeGenericRecord[F[_]](
     getSchema.map(updateSchema(_).toPair.consumerSchema)
 
   /*
-   * Array[Byte]
-   */
-
-  def subscribeBytes(implicit
-    F: Async[F]): Stream[F, CommittableConsumerRecord[F, Array[Byte], Array[Byte]]] =
-    KafkaConsumer
-      .stream(consumerSettings)
-      .evalTap(_.subscribe(NonEmptyList.one(topicName.value)))
-      .flatMap(_.stream)
-  def assignBytes(implicit F: Async[F]): Stream[F, CommittableConsumerRecord[F, Array[Byte], Array[Byte]]] =
-    KafkaConsumer.stream(consumerSettings).evalTap(_.assign(topicName.value)).flatMap(_.stream)
-
-  /*
    * Generic Record
    */
 

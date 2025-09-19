@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.messages.kafka.codec
 
-import com.google.protobuf.DynamicMessage
+import com.google.protobuf.{Descriptors, DynamicMessage}
 import io.confluent.kafka.serializers.protobuf.{KafkaProtobufDeserializer, KafkaProtobufSerializer}
 import org.apache.kafka.common.serialization.{Deserializer, Serializer}
 import scalapb.{GeneratedMessage, GeneratedMessageCompanion}
@@ -8,7 +8,10 @@ import scalapb.{GeneratedMessage, GeneratedMessageCompanion}
 import java.util
 
 final class ProtobufFor[A <: GeneratedMessage] private (gmc: GeneratedMessageCompanion[A])
-    extends RegisterSerde[A] { outer =>
+    extends RegisterSerde[A] {
+
+  val descriptor: Descriptors.Descriptor = gmc.javaDescriptor
+
   override protected val serializer: Serializer[A] =
     new Serializer[A] with Serializable {
 
