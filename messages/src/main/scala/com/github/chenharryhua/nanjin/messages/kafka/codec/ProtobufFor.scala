@@ -9,7 +9,7 @@ import java.util
 
 sealed trait ProtobufFor[A] extends RegisterSerde[A] {
   def descriptor: Descriptors.Descriptor
-  protected def serde: Serde[A]
+  protected def unregisteredSerde: Serde[A]
 }
 
 object ProtobufFor {
@@ -17,17 +17,17 @@ object ProtobufFor {
 
   implicit val protobufForString: ProtobufFor[String] = new ProtobufFor[String] {
     override def descriptor: Descriptors.Descriptor = StringValue.getDescriptor
-    override protected def serde: Serde[String] = serializable.stringSerde
+    override protected val unregisteredSerde: Serde[String] = serializable.stringSerde
   }
 
   implicit val protobufForLong: ProtobufFor[Long] = new ProtobufFor[Long] {
     override def descriptor: Descriptors.Descriptor = Int64Value.getDescriptor
-    override protected def serde: Serde[Long] = serializable.longSerde
+    override protected val unregisteredSerde: Serde[Long] = serializable.longSerde
   }
 
   implicit val ProtobufForInt: ProtobufFor[Int] = new ProtobufFor[Int] {
     override def descriptor: Descriptors.Descriptor = Int32Value.getDescriptor
-    override protected def serde: Serde[Int] = serializable.intSerde
+    override protected val unregisteredSerde: Serde[Int] = serializable.intSerde
   }
 
   implicit def protobufForGeneratedMessage[A <: GeneratedMessage](implicit
@@ -36,7 +36,7 @@ object ProtobufFor {
 
       val descriptor: Descriptors.Descriptor = gmc.javaDescriptor
 
-      override protected val serde: Serde[A] = new Serde[A] with Serializable {
+      override protected val unregisteredSerde: Serde[A] = new Serde[A] with Serializable {
         override val serializer: Serializer[A] =
           new Serializer[A] with Serializable {
 

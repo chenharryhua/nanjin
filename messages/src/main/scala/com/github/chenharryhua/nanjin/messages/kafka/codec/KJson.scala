@@ -73,7 +73,7 @@ object KJson {
   implicit def jsonAvroCodec[A: JsonEncoder: JsonDecoder]: AvroFor[KJson[A]] =
     new AvroFor[KJson[A]] {
       override val avroCodec: AvroCodec[KJson[A]] = AvroCodec[KJson[A]]
-      override protected val serde: Serde[KJson[A]] = new Serde[KJson[A]] with Serializable {
+      override protected val unregisteredSerde: Serde[KJson[A]] = new Serde[KJson[A]] with Serializable {
 
         override val serializer: Serializer[KJson[A]] =
           new Serializer[KJson[A]] with Serializable {

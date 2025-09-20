@@ -13,7 +13,7 @@ import scala.reflect.ClassTag
 
 sealed trait JsonFor[A] extends RegisterSerde[A] {
   def jsonSchema: JsonSchema
-  protected def serde: Serde[A]
+  protected def unregisteredSerde: Serde[A]
 }
 
 object JsonFor {
@@ -27,28 +27,28 @@ object JsonFor {
 
   implicit val jsonForString: JsonFor[String] = new JsonFor[String] {
     override def jsonSchema: JsonSchema = buildSchema(classOf[String])
-    override protected def serde: Serde[String] = serializable.stringSerde
+    override protected val unregisteredSerde: Serde[String] = serializable.stringSerde
   }
 
   implicit val jsonForLong: JsonFor[Long] = new JsonFor[Long] {
     override def jsonSchema: JsonSchema = buildSchema(classOf[Long])
-    override protected def serde: Serde[Long] = serializable.longSerde
+    override protected val unregisteredSerde: Serde[Long] = serializable.longSerde
   }
 
   implicit val jsonForInt: JsonFor[Int] = new JsonFor[Int] {
     override def jsonSchema: JsonSchema = buildSchema(classOf[Int])
-    override protected def serde: Serde[Int] = serializable.intSerde
+    override protected val unregisteredSerde: Serde[Int] = serializable.intSerde
   }
 
   implicit val jsonForUUID: JsonFor[UUID] = new JsonFor[UUID] {
     override def jsonSchema: JsonSchema = buildSchema(classOf[UUID])
-    override protected def serde: Serde[UUID] = serializable.uuidSerde
+    override protected val unregisteredSerde: Serde[UUID] = serializable.uuidSerde
   }
 
   implicit def jsonForClassTag[A: ClassTag]: JsonFor[A] = new JsonFor[A] {
     val jsonSchema: JsonSchema = buildSchema(implicitly[ClassTag[A]].runtimeClass)
 
-    override protected val serde: Serde[A] =
+    override protected val unregisteredSerde: Serde[A] =
       new Serde[A] with Serializable {
         override val serializer: Serializer[A] =
           new Serializer[A] with Serializable {
@@ -77,7 +77,9 @@ object JsonFor {
             override def close(): Unit = deSer.close()
 
             override def deserialize(topic: String, data: Array[Byte]): A =
-              mapper.convertValue[A](deSer.deserialize(topic, data))
+              if (data == null) null.asInstanceOf[A]
+              else
+                mapper.convertValue[A](deSer.deserialize(topic, data))
           }
       }
   }

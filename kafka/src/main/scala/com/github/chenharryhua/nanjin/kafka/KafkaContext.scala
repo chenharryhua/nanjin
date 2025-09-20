@@ -26,19 +26,11 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
   override def updateConfig(f: Endo[KafkaSettings]): KafkaContext[F] =
     new KafkaContext[F](f(settings))
 
-  def store[K, V](avroTopic: AvroTopic[K, V]): StateStores[K, V] = {
-    val topic = avroTopic.pair.register(settings.schemaRegistrySettings, avroTopic.topicName)
-    StateStores[K, V](topic)
-  }
+  def store[K, V](topic: KafkaTopic[K, V]): StateStores[K, V] =
+    StateStores[K, V](topic.register(settings.schemaRegistrySettings))
 
-  def serde[K, V](topic: AvroTopic[K, V]): KafkaGenericSerde[K, V] =
-    topic.pair.register(settings.schemaRegistrySettings, topic.topicName)
-
-  def serde[K, V](topic: JsonTopic[K, V]): KafkaGenericSerde[K, V] =
-    topic.pair.register(settings.schemaRegistrySettings, topic.topicName)
-
-  def serde[K, V](topic: ProtobufTopic[K, V]): KafkaGenericSerde[K, V] =
-    topic.pair.register(settings.schemaRegistrySettings, topic.topicName)
+  def serde[K, V](topic: KafkaTopic[K, V]): KafkaGenericSerde[K, V] =
+    topic.register(settings.schemaRegistrySettings)
 
   @transient lazy val schemaRegistry: SchemaRegistryApi[F] = {
     val url_config = AbstractKafkaSchemaSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG

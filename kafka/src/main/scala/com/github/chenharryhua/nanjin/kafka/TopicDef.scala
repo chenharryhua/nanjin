@@ -17,6 +17,8 @@ sealed trait KafkaTopic[K, V] extends Serializable {
   def producerSettings[F[_]: Sync](
     srs: SchemaRegistrySettings,
     ps: KafkaProducerSettings): ProducerSettings[F, K, V]
+
+  def register(srs: SchemaRegistrySettings): TopicSerde[K, V]
 }
 
 final class AvroTopic[K, V] private (val topicName: TopicName, val pair: AvroPair[K, V])
@@ -40,6 +42,12 @@ final class AvroTopic[K, V] private (val topicName: TopicName, val pair: AvroPai
     srs: SchemaRegistrySettings,
     ps: KafkaProducerSettings): ProducerSettings[F, K, V] =
     pair.producerSettings[F](srs, ps)
+
+  override def register(srs: SchemaRegistrySettings): TopicSerde[K, V] =
+    TopicSerde(
+      topicName,
+      pair.key.asKey(srs.config).withTopic(topicName),
+      pair.value.asValue(srs.config).withTopic(topicName))
 }
 
 object AvroTopic {
@@ -70,6 +78,12 @@ final class ProtobufTopic[K, V] private (val topicName: TopicName, val pair: Pro
     srs: SchemaRegistrySettings,
     ps: KafkaProducerSettings): ProducerSettings[F, K, V] =
     pair.producerSettings[F](srs, ps)
+
+  override def register(srs: SchemaRegistrySettings): TopicSerde[K, V] =
+    TopicSerde(
+      topicName,
+      pair.key.asKey(srs.config).withTopic(topicName),
+      pair.value.asValue(srs.config).withTopic(topicName))
 }
 
 object ProtobufTopic {
@@ -90,6 +104,12 @@ final class JsonTopic[K, V] private (val topicName: TopicName, val pair: JsonPai
     srs: SchemaRegistrySettings,
     ps: KafkaProducerSettings): ProducerSettings[F, K, V] =
     pair.producerSettings[F](srs, ps)
+
+  override def register(srs: SchemaRegistrySettings): TopicSerde[K, V] =
+    TopicSerde(
+      topicName,
+      pair.key.asKey(srs.config).withTopic(topicName),
+      pair.value.asValue(srs.config).withTopic(topicName))
 }
 object JsonTopic {
   def apply[K, V](key: JsonFor[K], value: JsonFor[V], topicName: TopicName) =
