@@ -1,4 +1,4 @@
-package example.protobuf
+package example.kafka
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
@@ -24,7 +24,7 @@ object ProtobufData {
 }
 final case class JsonLion(name: String, age: Int)
 final case class AvroLion(name: String, age: Int)
-class ProtobufSparkTest extends AnyFunSuite {
+class KafkaTopicTest extends AnyFunSuite {
 //  import ProtobufData.*
   val hdp = sparkSession.hadoop[IO]
 

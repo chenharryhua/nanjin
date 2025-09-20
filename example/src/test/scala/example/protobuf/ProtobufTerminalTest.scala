@@ -14,7 +14,7 @@ import org.scalatest.Assertion
 import org.scalatest.funsuite.AnyFunSuite
 
 class ProtobufTerminalTest extends AnyFunSuite {
-  import ProtobufData.*
+  import example.kafka.ProtobufData.*
 
   val root: Url = Url.parse("./data/example/protobuf")
   val data: Stream[IO, Lion] = Stream.emits(lions)
