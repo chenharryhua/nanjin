@@ -14,7 +14,7 @@ import java.util.UUID
  */
 trait AvroFor[A] extends RegisterSerde[A] {
   def avroCodec: AvroCodec[A]
-  protected def serde: Serde[A]
+  protected def unregisteredSerde: Serde[A]
 }
 
 private[codec] trait LowerPriority {
@@ -28,7 +28,8 @@ object AvroFor extends LowerPriority {
   def apply[A](codec: AvroCodec[A]): AvroFor[A] =
     new AvroFor[A] {
       override val avroCodec: AvroCodec[A] = codec
-      override protected val serde: Serde[A] = new Serde[A] with Serializable {
+
+      override protected val unregisteredSerde: Serde[A] = new Serde[A] with Serializable {
         override val serializer: Serializer[A] =
           new Serializer[A] with Serializable {
             @transient private[this] lazy val ser: GenericAvroSerializer = new GenericAvroSerializer
@@ -70,54 +71,54 @@ object AvroFor extends LowerPriority {
 // 1: String
   implicit object StringPrimitiveAvroCodec extends AvroFor[String] {
     override val avroCodec: AvroCodec[String] = AvroCodec[String]
-    override protected val serde: Serde[String] = serializable.stringSerde
+    override protected val unregisteredSerde: Serde[String] = serializable.stringSerde
   }
 
   // 2: Long
   implicit object LongPrimitiveAvroCodec extends AvroFor[Long] {
     override val avroCodec: AvroCodec[Long] = AvroCodec[Long]
-    override protected val serde: Serde[Long] = serializable.longSerde
+    override protected val unregisteredSerde: Serde[Long] = serializable.longSerde
   }
 
 // 3: array byte
   implicit object ByteArrayPrimitiveAvroCodec extends AvroFor[Array[Byte]] {
     override val avroCodec: AvroCodec[Array[Byte]] = AvroCodec[Array[Byte]]
-    override protected val serde: Serde[Array[Byte]] = serializable.byteArraySerde
+    override protected val unregisteredSerde: Serde[Array[Byte]] = serializable.byteArraySerde
   }
 
   // 4: byte buffer
   implicit object ByteBufferPrimitiveAvroCodec extends AvroFor[ByteBuffer] {
     override val avroCodec: AvroCodec[ByteBuffer] = AvroCodec[ByteBuffer]
-    override protected val serde: Serde[ByteBuffer] = serializable.byteBufferSerde
+    override protected val unregisteredSerde: Serde[ByteBuffer] = serializable.byteBufferSerde
   }
 
   // 5: short
   implicit object ShortPrimitiveAvroCodec extends AvroFor[Short] {
     override val avroCodec: AvroCodec[Short] = AvroCodec[Short]
-    override protected val serde: Serde[Short] = serializable.shortSerde
+    override protected val unregisteredSerde: Serde[Short] = serializable.shortSerde
   }
 
   // 6: float
   implicit object FloatPrimitiveAvroCodec extends AvroFor[Float] {
     override val avroCodec: AvroCodec[Float] = AvroCodec[Float]
-    override protected val serde: Serde[Float] = serializable.floatSerde
+    override protected val unregisteredSerde: Serde[Float] = serializable.floatSerde
   }
 
   // 7: double
   implicit object DoublePrimitiveAvroCodec extends AvroFor[Double] {
     override val avroCodec: AvroCodec[Double] = AvroCodec[Double]
-    override protected val serde: Serde[Double] = serializable.doubleSerde
+    override protected val unregisteredSerde: Serde[Double] = serializable.doubleSerde
   }
 
   // 8: int
   implicit object IntPrimitiveAvroCodec extends AvroFor[Int] {
     override val avroCodec: AvroCodec[Int] = AvroCodec[Int]
-    override protected val serde: Serde[Int] = serializable.intSerde
+    override protected val unregisteredSerde: Serde[Int] = serializable.intSerde
   }
 
   // 9: uuid
   implicit object UUIDPrimitiveAvroCodec extends AvroFor[UUID] {
     override val avroCodec: AvroCodec[UUID] = AvroCodec[UUID]
-    override protected val serde: Serde[UUID] = serializable.uuidSerde
+    override protected val unregisteredSerde: Serde[UUID] = serializable.uuidSerde
   }
 }

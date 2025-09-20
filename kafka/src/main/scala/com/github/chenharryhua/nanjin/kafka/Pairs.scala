@@ -13,15 +13,9 @@ import org.apache.avro.{Schema, SchemaCompatibility}
 import org.apache.kafka.clients.consumer.ConsumerRecord as JavaConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord as JavaProducerRecord
 
-sealed trait SerdePair[K, V] {
+sealed trait SerdePair[K, V] extends Serializable{
   protected def key: RegisterSerde[K]
   protected def value: RegisterSerde[V]
-
-  final def register(srs: SchemaRegistrySettings, topicName: TopicName): TopicSerde[K, V] =
-    TopicSerde(
-      topicName,
-      key.asKey(srs.config).withTopic(topicName),
-      value.asValue(srs.config).withTopic(topicName))
 
   final def consumerSettings[F[_]: Sync](
     srs: SchemaRegistrySettings,
