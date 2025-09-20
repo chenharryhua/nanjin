@@ -46,8 +46,7 @@ object JsonFor {
   }
 
   implicit def jsonForClassTag[A: ClassTag]: JsonFor[A] = new JsonFor[A] {
-    val jsonSchema: JsonSchema =
-      buildSchema(implicitly[ClassTag[A]].runtimeClass)
+    val jsonSchema: JsonSchema = buildSchema(implicitly[ClassTag[A]].runtimeClass)
 
     override protected val serde: Serde[A] =
       new Serde[A] with Serializable {
@@ -70,7 +69,7 @@ object JsonFor {
 
         override val deserializer: Deserializer[A] =
           new Deserializer[A] with Serializable {
-            @transient private[this] lazy val deSer = new KafkaJsonSchemaDeserializer[A]()
+            @transient private[this] lazy val deSer = new KafkaJsonSchemaDeserializer[JsonNode]()
 
             override def configure(configs: util.Map[String, ?], isKey: Boolean): Unit =
               deSer.configure(configs, isKey)
@@ -78,7 +77,7 @@ object JsonFor {
             override def close(): Unit = deSer.close()
 
             override def deserialize(topic: String, data: Array[Byte]): A =
-              deSer.deserialize(topic, data)
+              mapper.convertValue[A](deSer.deserialize(topic, data))
           }
       }
   }

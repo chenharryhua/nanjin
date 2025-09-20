@@ -81,7 +81,7 @@ class DecimalTopicTest extends AnyFunSuite {
   val topic = topicDef
   val stopic: SparKafkaTopic[IO, Int, HasDecimal] = sparKafka.topic(topicDef)
 
-  val loadData = ctx.kvProduce(topicDef).produce(List((1, data), (2, data)))
+  val loadData = ctx.produce(topicDef).produce(List((1, data), (2, data)))
 
   (ctx
     .admin(topic.topicName.name)

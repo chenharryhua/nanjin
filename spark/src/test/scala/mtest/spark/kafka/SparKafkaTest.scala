@@ -44,7 +44,7 @@ class SparKafkaTest extends AnyFunSuite {
       .emits(List((1, data), (2, data)))
       .covary[IO]
       .chunks
-      .through(ctx.kvProduce[Int, HasDuck](topic).updateConfig(_.withClientId("spark.kafka.test")).sink)
+      .through(ctx.produce[Int, HasDuck](topic).updateConfig(_.withClientId("spark.kafka.test")).sink)
       .compile
       .drain
 

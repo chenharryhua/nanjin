@@ -1,15 +1,26 @@
 package com.github.chenharryhua.nanjin.kafka
 
+import cats.effect.kernel.Sync
 import cats.kernel.Eq
 import cats.syntax.eq.*
 import cats.{Endo, Show}
 import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameL}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroFor, JsonFor, ProtobufFor}
 import com.sksamuel.avro4s.Record
-import fs2.kafka.ProducerRecord
+import fs2.kafka.{ConsumerSettings, ProducerRecord, ProducerSettings}
+
+sealed trait KafkaTopic[K, V] extends Serializable {
+  def topicName: TopicName
+  def consumerSettings[F[_]: Sync](
+    srs: SchemaRegistrySettings,
+    cs: KafkaConsumerSettings): ConsumerSettings[F, K, V]
+  def producerSettings[F[_]: Sync](
+    srs: SchemaRegistrySettings,
+    ps: KafkaProducerSettings): ProducerSettings[F, K, V]
+}
 
 final class AvroTopic[K, V] private (val topicName: TopicName, val pair: AvroPair[K, V])
-    extends Serializable {
+    extends KafkaTopic[K, V] {
 
   override def toString: String = topicName.value
 
@@ -19,6 +30,16 @@ final class AvroTopic[K, V] private (val topicName: TopicName, val pair: AvroPai
 
   def producerRecord(k: K, v: V): ProducerRecord[K, V] = ProducerRecord(topicName.value, k, v)
   def genericRecord(k: K, v: V): Record = pair.producerFormat.toRecord(producerRecord(k, v))
+
+  override def consumerSettings[F[_]: Sync](
+    srs: SchemaRegistrySettings,
+    cs: KafkaConsumerSettings): ConsumerSettings[F, K, V] =
+    pair.consumerSettings[F](srs, cs)
+
+  override def producerSettings[F[_]: Sync](
+    srs: SchemaRegistrySettings,
+    ps: KafkaProducerSettings): ProducerSettings[F, K, V] =
+    pair.producerSettings[F](srs, ps)
 }
 
 object AvroTopic {
@@ -39,6 +60,17 @@ object AvroTopic {
 }
 
 final class ProtobufTopic[K, V] private (val topicName: TopicName, val pair: ProtobufPair[K, V])
+    extends KafkaTopic[K, V] {
+  override def consumerSettings[F[_]: Sync](
+    srs: SchemaRegistrySettings,
+    cs: KafkaConsumerSettings): ConsumerSettings[F, K, V] =
+    pair.consumerSettings[F](srs, cs)
+
+  override def producerSettings[F[_]: Sync](
+    srs: SchemaRegistrySettings,
+    ps: KafkaProducerSettings): ProducerSettings[F, K, V] =
+    pair.producerSettings[F](srs, ps)
+}
 
 object ProtobufTopic {
   def apply[K, V](key: ProtobufFor[K], value: ProtobufFor[V], topicName: TopicName): ProtobufTopic[K, V] =
@@ -49,6 +81,16 @@ object ProtobufTopic {
 }
 
 final class JsonTopic[K, V] private (val topicName: TopicName, val pair: JsonPair[K, V])
+    extends KafkaTopic[K, V] {
+  override def consumerSettings[F[_]: Sync](
+    srs: SchemaRegistrySettings,
+    cs: KafkaConsumerSettings): ConsumerSettings[F, K, V] =
+    pair.consumerSettings[F](srs, cs)
+  override def producerSettings[F[_]: Sync](
+    srs: SchemaRegistrySettings,
+    ps: KafkaProducerSettings): ProducerSettings[F, K, V] =
+    pair.producerSettings[F](srs, ps)
+}
 object JsonTopic {
   def apply[K, V](key: JsonFor[K], value: JsonFor[V], topicName: TopicName) =
     new JsonTopic[K, V](topicName, JsonPair(key, value))

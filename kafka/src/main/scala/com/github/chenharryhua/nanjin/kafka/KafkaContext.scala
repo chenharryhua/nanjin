@@ -16,7 +16,6 @@ import io.circe.syntax.EncoderOps
 import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient
 import io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig
 import org.apache.kafka.streams.scala.StreamsBuilder
-import scalapb.GeneratedMessage
 
 import java.time.Instant
 import scala.util.Try
@@ -38,8 +37,7 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
   def serde[K, V](topic: JsonTopic[K, V]): KafkaGenericSerde[K, V] =
     topic.pair.register(settings.schemaRegistrySettings, topic.topicName)
 
-  def serde[K <: GeneratedMessage, V <: GeneratedMessage](
-    topic: ProtobufTopic[K, V]): KafkaGenericSerde[K, V] =
+  def serde[K, V](topic: ProtobufTopic[K, V]): KafkaGenericSerde[K, V] =
     topic.pair.register(settings.schemaRegistrySettings, topic.topicName)
 
   @transient lazy val schemaRegistry: SchemaRegistryApi[F] = {
@@ -59,23 +57,10 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
    * consumer
    */
 
-  def consume[K, V](topic: AvroTopic[K, V])(implicit F: Sync[F]): ConsumeKafka[F, K, V] =
+  def consume[K, V](topic: KafkaTopic[K, V])(implicit F: Sync[F]): ConsumeKafka[F, K, V] =
     new ConsumeKafka[F, K, V](
       topic.topicName,
-      topic.pair.consumerSettings(settings.schemaRegistrySettings, settings.consumerSettings)
-    )
-
-  def consume[K <: GeneratedMessage, V <: GeneratedMessage](topic: ProtobufTopic[K, V])(implicit
-    F: Sync[F]): ConsumeKafka[F, K, V] =
-    new ConsumeKafka[F, K, V](
-      topic.topicName,
-      topic.pair.consumerSettings(settings.schemaRegistrySettings, settings.consumerSettings)
-    )
-
-  def consume[K, V](topic: JsonTopic[K, V])(implicit F: Sync[F]): ConsumeKafka[F, K, V] =
-    new ConsumeKafka[F, K, V](
-      topic.topicName,
-      topic.pair.consumerSettings(settings.schemaRegistrySettings, settings.consumerSettings)
+      topic.consumerSettings(settings.schemaRegistrySettings, settings.consumerSettings)
     )
 
   def consumeAvro(topicName: TopicNameL)(implicit F: Sync[F]): ConsumeGenericRecord[F] =
@@ -110,37 +95,13 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
    * producer
    */
 
-  def kvProduce[K, V](topic: AvroTopic[K, V])(implicit F: Sync[F]): ProduceKeyValuePair[F, K, V] =
+  def produce[K, V](topic: KafkaTopic[K, V])(implicit F: Sync[F]): ProduceKeyValuePair[F, K, V] =
     new ProduceKeyValuePair[F, K, V](
       topic.topicName,
-      topic.pair.producerSettings(settings.schemaRegistrySettings, settings.producerSettings)
+      topic.producerSettings(settings.schemaRegistrySettings, settings.producerSettings)
     )
 
-  def kvProduce[K <: GeneratedMessage, V <: GeneratedMessage](topic: ProtobufTopic[K, V])(implicit
-    F: Sync[F]): ProduceKeyValuePair[F, K, V] =
-    new ProduceKeyValuePair[F, K, V](
-      topic.topicName,
-      topic.pair.producerSettings(settings.schemaRegistrySettings, settings.producerSettings)
-    )
-
-  def kvProduce[K, V](topic: JsonTopic[K, V])(implicit F: Sync[F]): ProduceKeyValuePair[F, K, V] =
-    new ProduceKeyValuePair[F, K, V](
-      topic.topicName,
-      topic.pair.producerSettings(settings.schemaRegistrySettings, settings.producerSettings)
-    )
-
-  def produce[K, V](pair: AvroPair[K, V])(implicit F: Sync[F]): ProduceKafka[F, K, V] =
-    new ProduceKafka[F, K, V](
-      pair.producerSettings(settings.schemaRegistrySettings, settings.producerSettings)
-    )
-
-  def produce[K <: GeneratedMessage, V <: GeneratedMessage](pair: ProtobufPair[K, V])(implicit
-    F: Sync[F]): ProduceKafka[F, K, V] =
-    new ProduceKafka[F, K, V](
-      pair.producerSettings(settings.schemaRegistrySettings, settings.producerSettings)
-    )
-
-  def produce[K, V](pair: JsonPair[K, V])(implicit F: Sync[F]): ProduceKafka[F, K, V] =
+  def sharedProduce[K, V](pair: SerdePair[K, V])(implicit F: Sync[F]): ProduceKafka[F, K, V] =
     new ProduceKafka[F, K, V](
       pair.producerSettings(settings.schemaRegistrySettings, settings.producerSettings)
     )

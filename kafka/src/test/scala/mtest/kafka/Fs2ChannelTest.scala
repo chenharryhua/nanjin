@@ -68,7 +68,7 @@ class Fs2ChannelTest extends AnyFunSuite {
 
     val ret =
       ctx.schemaRegistry.register(topicDef).attempt >>
-        ctx.kvProduce(topicDef).produceOne(1, Fs2Kafka(1, "a", 1.0)) >>
+        ctx.produce(topicDef).produceOne(1, Fs2Kafka(1, "a", 1.0)) >>
         ctx
           .consume(topicDef)
           .updateConfig(_.withGroupId("g1").withAutoOffsetReset(AutoOffsetReset.Earliest))
@@ -189,7 +189,7 @@ class Fs2ChannelTest extends AnyFunSuite {
   test("7.producer setting") {
     val producer =
       ctx
-        .kvProduce(topicDef)
+        .produce(topicDef)
         .updateConfig(
           _.withClientId("nanjin").withBootstrapServers("http://abc.com").withProperty("abc", "efg")
         )
@@ -203,7 +203,7 @@ class Fs2ChannelTest extends AnyFunSuite {
 
   test("8.transactional producer setting") {
     val producer = ctx
-      .produce(topicDef.pair)
+      .sharedProduce(topicDef.pair)
       .updateConfig(
         _.withClientId("nanjin").withBootstrapServers("http://abc.com").withProperty("abc", "efg")
       )

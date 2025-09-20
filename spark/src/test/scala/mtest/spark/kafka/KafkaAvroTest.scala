@@ -59,7 +59,7 @@ class KafkaAvroTest extends AnyFunSuite {
       .covary[IO]
       .chunks
       .through(
-        ctx.kvProduce[Int, PersonCaseObject](topicCO).updateConfig(_.withClientId("kafka.avro.test1")).sink)
+        ctx.produce[Int, PersonCaseObject](topicCO).updateConfig(_.withClientId("kafka.avro.test1")).sink)
     val path = "./data/test/spark/kafka/coproduct/caseobject.avro"
     val sk = sparKafka.topic(topicCO)
 
@@ -80,7 +80,7 @@ class KafkaAvroTest extends AnyFunSuite {
       .covary[IO]
       .chunks
       .through(
-        ctx.kvProduce[Int, PersonEnum](topicEnum).updateConfig(_.withClientId("kafka.avro.test2")).sink)
+        ctx.produce[Int, PersonEnum](topicEnum).updateConfig(_.withClientId("kafka.avro.test2")).sink)
     val avroPath = "./data/test/spark/kafka/coproduct/scalaenum.avro"
     val jacksonPath = "./data/test/spark/kafka/coproduct/scalaenum.jackson.json"
     val circePath = "./data/test/spark/kafka/coproduct/scalaenum.circe.json"
@@ -112,7 +112,7 @@ class KafkaAvroTest extends AnyFunSuite {
       .covary[IO]
       .chunks
       .through(
-        ctx.kvProduce[Int, PersonEnum](topicEnum).updateConfig(_.withClientId("kafka.avro.test3")).sink)
+        ctx.produce[Int, PersonEnum](topicEnum).updateConfig(_.withClientId("kafka.avro.test3")).sink)
 
     val path = "./data/test/spark/kafka/coproduct/multi-scalaenum.avro"
     val sk = sparKafka.topic(topicEnum)
@@ -134,7 +134,7 @@ class KafkaAvroTest extends AnyFunSuite {
       .covary[IO]
       .chunks
       .through(
-        ctx.kvProduce[Int, PersonEnum](topicEnum).updateConfig(_.withClientId("kafka.avro.test4")).sink)
+        ctx.produce[Int, PersonEnum](topicEnum).updateConfig(_.withClientId("kafka.avro.test4")).sink)
 
     val path = "./data/test/spark/kafka/coproduct/multi-scalaenum.snappy.avro"
     val sk = sparKafka.topic(topicEnum)
@@ -155,7 +155,7 @@ class KafkaAvroTest extends AnyFunSuite {
       .covary[IO]
       .chunks
       .through(
-        ctx.kvProduce[Int, PersonEnum](topicEnum).updateConfig(_.withClientId("kafka.avro.test5")).sink)
+        ctx.produce[Int, PersonEnum](topicEnum).updateConfig(_.withClientId("kafka.avro.test5")).sink)
     val path = "./data/test/spark/kafka/coproduct/scalaenum.avro.bzip2"
     val sk = sparKafka.topic(topicEnum)
 
