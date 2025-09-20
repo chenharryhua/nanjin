@@ -36,7 +36,7 @@ object KafkaStreamingData {
 
   val sendT2Data: IO[ProducerResult[Int, TableTwo]] =
     ctx
-      .kvProduce(t2Topic)
+      .produce(t2Topic)
       .produce(
         List(
           1 -> TableTwo("x", 0),
@@ -81,7 +81,7 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
         ).map(ProducerRecords.one))
       .covary[IO]
       .metered(1.seconds)
-      .through(ctx.produce[Int, StreamOne](s1Def.pair).sink)
+      .through(ctx.sharedProduce[Int, StreamOne](s1Def.pair).sink)
 
     val res: Set[StreamTarget] = (IO.println(Console.CYAN + "stream-table join" + Console.RESET) >> ctx
       .buildStreams(appId)(apps.kafka_streaming)
@@ -143,7 +143,7 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
       ).map(ProducerRecords.one))
       .covary[IO]
       .metered(1.seconds)
-      .through(ctx.produce[Int, Array[Byte]](s1TopicBin.pair).sink)
+      .through(ctx.sharedProduce[Int, Array[Byte]](s1TopicBin.pair).sink)
       .debug()
 
     assertThrows[Exception](

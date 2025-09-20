@@ -5,6 +5,7 @@ import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameL}
 import io.confluent.kafka.schemaregistry.avro.AvroSchema
 import io.confluent.kafka.schemaregistry.client.{CachedSchemaRegistryClient, SchemaMetadata}
+import io.confluent.kafka.schemaregistry.json.JsonSchema
 import io.confluent.kafka.schemaregistry.protobuf.ProtobufSchema
 
 import scala.jdk.CollectionConverters.*
@@ -67,6 +68,21 @@ final class SchemaRegistryApi[F[_]](client: CachedSchemaRegistryClient) extends 
           F.raiseError(new Exception(s"${topicName.value} value is not Protobuf"))
         case (false, false) =>
           F.raiseError(new Exception(s"${topicName.value} both key and value are not Protobuf"))
+      }
+    } yield skv
+
+  def fetchJsonSchema(topicName: TopicName)(implicit F: Sync[F]): F[JsonSchemaPair] =
+    for {
+      mkv <- metaData(topicName)
+      skv <- (mkv.key.getSchemaType === "JSON", mkv.value.getSchemaType === "JSON") match {
+        case (true, true) =>
+          F.pure(JsonSchemaPair(new JsonSchema(mkv.key.getSchema), new JsonSchema(mkv.value.getSchema)))
+        case (false, true) =>
+          F.raiseError(new Exception(s"${topicName.value} key is not JSON"))
+        case (true, false) =>
+          F.raiseError(new Exception(s"${topicName.value} value is not JSON"))
+        case (false, false) =>
+          F.raiseError(new Exception(s"${topicName.value} both key and value are not JSON"))
       }
     } yield skv
 

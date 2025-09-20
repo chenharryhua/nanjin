@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.spark
 
-import com.github.chenharryhua.nanjin.kafka.AvroTopic
+import com.github.chenharryhua.nanjin.kafka.AvroPair
 import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.sksamuel.avro4s.{Decoder as AvroDecoder, Encoder as AvroEncoder, SchemaFor}
@@ -54,6 +54,6 @@ object SchematizedEncoder {
   }
 
   def apply[K: TypedEncoder, V: TypedEncoder](
-    topicDef: AvroTopic[K, V]): SchematizedEncoder[NJConsumerRecord[K, V]] =
-    apply(topicDef.pair.key.avroCodec, topicDef.pair.value.avroCodec)
+    pair: AvroPair[K, V]): SchematizedEncoder[NJConsumerRecord[K, V]] =
+    apply(pair.key.avroCodec, pair.value.avroCodec)
 }

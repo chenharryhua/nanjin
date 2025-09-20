@@ -2,21 +2,28 @@ package example.kafka
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
+import com.github.chenharryhua.nanjin.common.kafka.TopicName
+import com.github.chenharryhua.nanjin.kafka.AvroTopic
 import com.github.chenharryhua.nanjin.messages.kafka.NJProducerRecord
+import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroFor, JsonFor, ProtobufFor}
 import eu.timepit.refined.auto.*
 import example.*
 import example.topics.fooTopic
 import io.lemonlabs.uri.Url
+import mtest.pb.test.Lion
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.*
-import com.github.chenharryhua.nanjin.common.kafka.TopicName
-import com.github.chenharryhua.nanjin.kafka.AvroTopic
 
 @DoNotDiscover
 class ExampleKafkaBasic extends AnyFunSuite {
-  val topic = AvroTopic[Int,Foo](TopicName("foo"))
+  val topic = AvroTopic[Int, Foo](TopicName("foo"))
+  test("schema") {
+    JsonFor[Int].jsonSchema
+    AvroFor[Int].avroCodec.schema
+    ProtobufFor[Lion].descriptor
+  }
   test("populate topic") {
     val producerRecords: List[NJProducerRecord[Int, Foo]] =
       List(
@@ -31,7 +38,7 @@ class ExampleKafkaBasic extends AnyFunSuite {
           .topic(fooTopic)
           .prRdd(producerRecords)
           .producerRecords[IO](100)
-          .through(ctx.produce[Int, Foo](topic.pair).sink)
+          .through(ctx.sharedProduce[Int, Foo](topic.pair).sink)
           .compile
           .drain
 
@@ -58,7 +65,7 @@ class ExampleKafkaBasic extends AnyFunSuite {
       .circe(path)
       .prRdd
       .producerRecords[IO](2)
-      .through(ctx.produce[Int, Foo](topic.pair).sink)
+      .through(ctx.sharedProduce[Int, Foo](topic.pair).sink)
       .compile
       .drain
       .unsafeRunSync()

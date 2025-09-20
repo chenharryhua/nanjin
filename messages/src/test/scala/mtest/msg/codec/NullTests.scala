@@ -8,10 +8,10 @@ import org.scalatest.funsuite.AnyFunSuite
 class NullTests extends AnyFunSuite {
 
   test("decode null should return null") {
-    assert(intCodec.deserialize(null) === 0)
-    assert(longCodec.deserialize(null) === 0)
-    assert(doubleCodec.deserialize(null) === 0)
-    assert(floatCodec.deserialize(null) === 0)
+    assert(intCodec.deserialize(null) === null)
+    assert(longCodec.deserialize(null) === null)
+    assert(doubleCodec.deserialize(null) === null)
+    assert(floatCodec.deserialize(null) === null)
     assert(strCodec.deserialize(null) === null)
     assert(byteArrayCodec.deserialize(null) === null)
     assert(PrimitiveTypeCombined.primitiviesCodec.deserialize(null) === null)

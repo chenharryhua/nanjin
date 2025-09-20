@@ -22,7 +22,7 @@ class SparkKafkaStreamTest extends AnyFunSuite {
   val roosterTopic: AvroTopic[Int, Rooster] =
     AvroTopic[Int, Rooster](TopicName("sstream.rooster"))(AvroFor[Int], AvroFor(Rooster.avroCodec))
 
-  val ate = SchematizedEncoder(roosterTopic)
+  val ate = SchematizedEncoder(roosterTopic.pair)
 
   val data: List[NJProducerRecord[Int, Rooster]] =
     RoosterData.data.map(x =>

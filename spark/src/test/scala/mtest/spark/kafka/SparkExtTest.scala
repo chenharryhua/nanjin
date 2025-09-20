@@ -29,7 +29,7 @@ class SparkExtTest extends AnyFunSuite {
 
   val topic = AvroTopic[String, trip_record](TopicName("nyc_yellow_taxi_trip_data"))
 
-  val ate: SchematizedEncoder[NJConsumerRecord[String, trip_record]] = SchematizedEncoder(topic)
+  val ate: SchematizedEncoder[NJConsumerRecord[String, trip_record]] = SchematizedEncoder(topic.pair)
 
   test("save syntax") {
     import SparkExtTestData.*

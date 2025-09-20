@@ -37,7 +37,7 @@ class TransformerTest extends AnyFunSuite {
         List(
           ProducerRecord(topic2.topicName.value, 2, "t0"),
           ProducerRecord(topic2.topicName.value, 4, "t1"),
-          ProducerRecord(topic2.topicName.value, 6, "t2")))).covary[IO].through(ctx.produce(td.pair).sink)
+          ProducerRecord(topic2.topicName.value, 6, "t2")))).covary[IO].through(ctx.sharedProduce(td.pair).sink)
 
     val s1Data: Stream[IO, ProducerResult[Int, String]] =
       Stream
@@ -46,10 +46,12 @@ class TransformerTest extends AnyFunSuite {
         .map { case (_, index) =>
           ProducerRecords.one(ProducerRecord(topic1.topicName.value, index.toInt, s"stream$index"))
         }
-        .through(ctx.produce[Int, String](td.pair).sink)
+        .through(ctx.sharedProduce[Int, String](td.pair).sink)
+
+    val byteTopic = AvroTopic[Array[Byte], Array[Byte]](tgt.topicName)
     val havest = ctx
-      .consumeAvro(tgt.topicName.name)
-      .assignBytes
+      .consume(byteTopic)
+      .assign
       .map(ctx.serde(tgt).deserialize(_))
       .debug()
       .observe(_.map(_.offset).through(commitBatch(10, 2.seconds)).drain)
