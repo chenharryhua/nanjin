@@ -12,7 +12,6 @@ import org.apache.avro.generic.IndexedRecord
 import org.apache.avro.{Schema, SchemaCompatibility}
 import org.apache.kafka.clients.consumer.ConsumerRecord as JavaConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord as JavaProducerRecord
-import scalapb.GeneratedMessage
 
 sealed protected trait RegisterPair[K, V] {
   protected def key: RegisterSerde[K]
@@ -86,10 +85,7 @@ final case class AvroPair[K, V](key: AvroFor[K], value: AvroFor[V]) extends Regi
   }
 }
 
-final case class ProtobufPair[K <: GeneratedMessage, V <: GeneratedMessage](
-  key: ProtobufFor[K],
-  value: ProtobufFor[V])
-    extends RegisterPair[K, V]
+final case class ProtobufPair[K, V](key: ProtobufFor[K], value: ProtobufFor[V]) extends RegisterPair[K, V]
 
 final case class JsonPair[K, V](key: JsonFor[K], value: JsonFor[V]) extends RegisterPair[K, V]
 

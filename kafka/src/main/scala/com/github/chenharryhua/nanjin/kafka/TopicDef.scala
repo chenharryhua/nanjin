@@ -7,7 +7,6 @@ import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameL}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroFor, JsonFor, ProtobufFor}
 import com.sksamuel.avro4s.Record
 import fs2.kafka.ProducerRecord
-import scalapb.GeneratedMessage
 
 final class AvroTopic[K, V] private (val topicName: TopicName, val pair: AvroPair[K, V])
     extends Serializable {
@@ -36,23 +35,24 @@ object AvroTopic {
     new AvroTopic(topicName, AvroPair(key, value))
 
   def apply[K: AvroFor, V: AvroFor](topicName: TopicName): AvroTopic[K, V] =
-    new AvroTopic(topicName, AvroPair(AvroFor[K], AvroFor[V]))
+    apply[K, V](AvroFor[K], AvroFor[V], topicName)
 }
 
-final class ProtobufTopic[K <: GeneratedMessage, V <: GeneratedMessage] private (
-  val topicName: TopicName,
-  val pair: ProtobufPair[K, V])
+final class ProtobufTopic[K, V] private (val topicName: TopicName, val pair: ProtobufPair[K, V])
 
 object ProtobufTopic {
-  def apply[K <: GeneratedMessage, V <: GeneratedMessage](
-    key: ProtobufFor[K],
-    value: ProtobufFor[V],
-    topicName: TopicName): ProtobufTopic[K, V] =
+  def apply[K, V](key: ProtobufFor[K], value: ProtobufFor[V], topicName: TopicName): ProtobufTopic[K, V] =
     new ProtobufTopic[K, V](topicName, ProtobufPair[K, V](key, value))
+
+  def apply[K: ProtobufFor, V: ProtobufFor](topicName: TopicName): ProtobufTopic[K, V] =
+    apply[K, V](ProtobufFor[K], ProtobufFor[V], topicName)
 }
 
 final class JsonTopic[K, V] private (val topicName: TopicName, val pair: JsonPair[K, V])
 object JsonTopic {
   def apply[K, V](key: JsonFor[K], value: JsonFor[V], topicName: TopicName) =
     new JsonTopic[K, V](topicName, JsonPair(key, value))
+
+  def apply[K: JsonFor, V: JsonFor](topicName: TopicName): JsonTopic[K, V] =
+    apply[K, V](JsonFor[K], JsonFor[V], topicName)
 }

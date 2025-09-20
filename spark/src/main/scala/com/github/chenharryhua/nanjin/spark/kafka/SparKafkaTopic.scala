@@ -12,7 +12,7 @@ import frameless.TypedEncoder
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 
-final class SparKafkaAvroTopic[F[_], K, V](
+final class SparKafkaTopic[F[_], K, V](
   sparkSession: SparkSession,
   ctx: KafkaContext[F],
   avroTopic: AvroTopic[K, V])

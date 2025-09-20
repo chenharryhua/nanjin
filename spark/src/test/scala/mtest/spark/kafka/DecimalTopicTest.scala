@@ -5,7 +5,7 @@ import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.AvroTopic
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroCodec, AvroFor}
-import com.github.chenharryhua.nanjin.spark.kafka.SparKafkaAvroTopic
+import com.github.chenharryhua.nanjin.spark.kafka.SparKafkaTopic
 import eu.timepit.refined.auto.*
 import frameless.TypedEncoder
 import io.circe.Codec
@@ -79,7 +79,7 @@ class DecimalTopicTest extends AnyFunSuite {
   import DecimalTopicTestCase.*
 
   val topic = topicDef
-  val stopic: SparKafkaAvroTopic[IO, Int, HasDecimal] = sparKafka.topic(topicDef)
+  val stopic: SparKafkaTopic[IO, Int, HasDecimal] = sparKafka.topic(topicDef)
 
   val loadData = ctx.kvProduce(topicDef).produce(List((1, data), (2, data)))
 
