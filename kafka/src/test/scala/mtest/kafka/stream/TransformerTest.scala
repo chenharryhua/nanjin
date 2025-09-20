@@ -48,7 +48,7 @@ class TransformerTest extends AnyFunSuite {
         }
         .through(ctx.produce[Int, String](td.pair).sink)
 
-    val byteTopic = AvroTopic[Array[Byte],Array[Byte]](tgt.topicName)
+    val byteTopic = AvroTopic[Array[Byte], Array[Byte]](tgt.topicName)
     val havest = ctx
       .consume(byteTopic)
       .assign

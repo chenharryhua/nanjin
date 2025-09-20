@@ -29,8 +29,8 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
 
   val hadoop: Hadoop[F] = sparkSession.hadoop[F]
 
-  def topic[K, V](avroTopic: AvroTopic[K, V]): SparKafkaAvroTopic[F, K, V] =
-    new SparKafkaAvroTopic[F, K, V](sparkSession, kafkaContext, avroTopic)
+  def topic[K, V](topic: AvroTopic[K, V]): SparKafkaAvroTopic[F, K, V] =
+    new SparKafkaAvroTopic[F, K, V](sparkSession, kafkaContext, topic)
 
   final class DumpConfig(
     private[SparKafkaContext] val dateRange: DateTimeRange = DateTimeRange(sparkZoneId(sparkSession)),

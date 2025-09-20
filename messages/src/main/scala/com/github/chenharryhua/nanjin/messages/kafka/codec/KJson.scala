@@ -8,7 +8,7 @@ import io.circe.{jawn, Codec as JsonCodec, Decoder as JsonDecoder, Encoder as Js
 import monocle.Iso
 import org.apache.avro.Schema
 import org.apache.avro.util.Utf8
-import org.apache.kafka.common.serialization.{Deserializer, Serializer}
+import org.apache.kafka.common.serialization.{Deserializer, Serde, Serializer}
 import org.apache.kafka.streams.scala.serialization.Serdes
 
 final class KJson[A] private (val value: A) extends Serializable {
@@ -72,28 +72,25 @@ object KJson {
 
   implicit def jsonAvroCodec[A: JsonEncoder: JsonDecoder]: AvroFor[KJson[A]] =
     new AvroFor[KJson[A]] {
-
       override val avroCodec: AvroCodec[KJson[A]] = AvroCodec[KJson[A]]
+      override protected val serde: Serde[KJson[A]] = new Serde[KJson[A]] with Serializable {
 
-      override val serializer: Serializer[KJson[A]] =
-        new Serializer[KJson[A]] with Serializable {
+        override val serializer: Serializer[KJson[A]] =
+          new Serializer[KJson[A]] with Serializable {
+            override def close(): Unit = ()
+            @SuppressWarnings(Array("AsInstanceOf"))
+            override def serialize(topic: String, data: KJson[A]): Array[Byte] =
+              Serdes.stringSerde.serializer().serialize(topic, avroCodec.encode(data).asInstanceOf[String])
+          }
 
-          override def close(): Unit = ()
-
-          @SuppressWarnings(Array("AsInstanceOf"))
-          override def serialize(topic: String, data: KJson[A]): Array[Byte] =
-            Serdes.stringSerde.serializer().serialize(topic, avroCodec.encode(data).asInstanceOf[String])
-        }
-
-      override val deserializer: Deserializer[KJson[A]] =
-        new Deserializer[KJson[A]] with Serializable {
-
-          override def close(): Unit = ()
-
-          @SuppressWarnings(Array("AsInstanceOf"))
-          override def deserialize(topic: String, data: Array[Byte]): KJson[A] =
-            avroCodec.decode(Serdes.stringSerde.deserializer().deserialize(topic, data))
-        }
+        override val deserializer: Deserializer[KJson[A]] =
+          new Deserializer[KJson[A]] with Serializable {
+            override def close(): Unit = ()
+            @SuppressWarnings(Array("AsInstanceOf"))
+            override def deserialize(topic: String, data: Array[Byte]): KJson[A] =
+              avroCodec.decode(Serdes.stringSerde.deserializer().deserialize(topic, data))
+          }
+      }
     }
 
   implicit val distributiveKJson: Distributive[KJson] = new Distributive[KJson] {
