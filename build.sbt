@@ -250,6 +250,16 @@ lazy val database = (project in file("database"))
     ) ++ testLib
   )
 
+val jacksonLib = List(
+  "com.fasterxml.jackson.core"     % "jackson-core",
+  "com.fasterxml.jackson.core"     % "jackson-databind",
+  "com.fasterxml.jackson.datatype" % "jackson-datatype-jdk8",
+  "com.fasterxml.jackson.module"   % "jackson-module-jaxb-annotations",
+  "com.fasterxml.jackson.jaxrs"    % "jackson-jaxrs-base",
+  "com.fasterxml.jackson.jaxrs"    % "jackson-jaxrs-json-provider",
+  "com.fasterxml.jackson.module" %% "jackson-module-scala"
+).map(_ % jacksonV)
+
 lazy val messages =
   (project in file("messages"))
     .dependsOn(common)
@@ -271,7 +281,7 @@ lazy val messages =
           "com.google.protobuf"                       % "protobuf-java"                % "4.32.1", // snyk
           "org.jetbrains.kotlin"                      % "kotlin-stdlib"                % "2.2.20", // snyk
           "io.circe" %% "circe-shapes"                % circeV                         % Test
-        ) ++ testLib)
+        ) ++ jacksonLib ++ testLib)
 
 lazy val kafka = (project in file("kafka"))
   .dependsOn(common)
@@ -350,16 +360,6 @@ val sparkLib = List(
   "org.typelevel" %% "frameless-core"
 ).map(_ % framelessV)
 
-val jacksonLib = List(
-  "com.fasterxml.jackson.core"     % "jackson-core",
-  "com.fasterxml.jackson.core"     % "jackson-databind",
-  "com.fasterxml.jackson.datatype" % "jackson-datatype-jdk8",
-  "com.fasterxml.jackson.module"   % "jackson-module-jaxb-annotations",
-  "com.fasterxml.jackson.jaxrs"    % "jackson-jaxrs-base",
-  "com.fasterxml.jackson.jaxrs"    % "jackson-jaxrs-json-provider",
-  "com.fasterxml.jackson.module" %% "jackson-module-scala"
-).map(_ % jacksonV)
-
 lazy val spark = (project in file("spark"))
   .dependsOn(common)
   .dependsOn(kafka)
@@ -405,20 +405,18 @@ lazy val example = (project in file("example"))
   .settings(dependencyOverrides += "org.json4s" %% "json4s-native" % "3.6.12")
 
 lazy val nanjin =
-  (project in file("."))
-    .aggregate(
-      common,
-      datetime,
-      http,
-      aws,
-      messages,
-      pipes,
-      kafka,
-      database,
-      spark,
-      guard,
-      observer_aws,
-      observer_database,
-      observer_kafka
-    )
-
+  (project in file(".")).aggregate(
+    common,
+    datetime,
+    http,
+    aws,
+    messages,
+    pipes,
+    kafka,
+    database,
+    spark,
+    guard,
+    observer_aws,
+    observer_database,
+    observer_kafka
+  )
