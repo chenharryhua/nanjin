@@ -29,7 +29,7 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
   def store[K, V](topic: KafkaTopic[K, V]): StateStores[K, V] =
     StateStores[K, V](topic.register(settings.schemaRegistrySettings))
 
-  def serde[K, V](topic: KafkaTopic[K, V]): KafkaGenericSerde[K, V] =
+  def serde[K, V](topic: KafkaTopic[K, V]): TopicSerde[K, V] =
     topic.register(settings.schemaRegistrySettings)
 
   @transient lazy val schemaRegistry: SchemaRegistryApi[F] = {

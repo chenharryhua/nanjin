@@ -6,6 +6,7 @@ import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.AvroTopic
 import com.github.chenharryhua.nanjin.messages.kafka.NJProducerRecord
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroFor, JsonFor, ProtobufFor}
+import com.sksamuel.avro4s.SchemaFor
 import eu.timepit.refined.auto.*
 import example.*
 import example.topics.fooTopic
@@ -33,7 +34,10 @@ class ExampleKafkaBasic extends AnyFunSuite {
         NJProducerRecord(fooTopic.topicName, 4, Foo(40, "d"))
       )
     val run =
-      ctx.admin(fooTopic.topicName.name).use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence) >>
+      ctx
+        .admin(fooTopic.topicName.name)
+        .use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence)
+        .attempt >>
         sparKafka
           .topic(fooTopic)
           .prRdd(producerRecords)
@@ -48,6 +52,7 @@ class ExampleKafkaBasic extends AnyFunSuite {
   test("consume messages from kafka using https://fd4s.github.io/fs2-kafka/") {
     ctx
       .consumeAvro(fooTopic.topicName.name)
+      .withSchema(_.withKeyIfAbsent(SchemaFor[Int].schema))
       .subscribe
       .debug()
       .interruptAfter(3.seconds)
