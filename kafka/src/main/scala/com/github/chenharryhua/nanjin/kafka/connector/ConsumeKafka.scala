@@ -50,9 +50,9 @@ final class ConsumeKafka[F[_]: Async, K, V] private[kafka] (
   def assign: Stream[F, CommittableConsumerRecord[F, K, V]] =
     clientS.evalTap(_.assign(topicName.value)).flatMap(_.stream)
 
-  def assign(pos: Map[Int, Long]): Stream[F, CommittableConsumerRecord[F, K, V]] = {
+  def assign(partitionOffsets: Map[Int, Long]): Stream[F, CommittableConsumerRecord[F, K, V]] = {
     val topic_offset: Map[TopicPartition, Long] =
-      pos.map { case (p, o) => new TopicPartition(topicName.value, p) -> o }
+      partitionOffsets.map { case (p, o) => new TopicPartition(topicName.value, p) -> o }
 
     NonEmptySet.fromSet(SortedSet.from(topic_offset.keySet)) match {
       case None      => Stream.empty
@@ -131,6 +131,6 @@ final class ConsumeKafka[F[_]: Async, K, V] private[kafka] (
   def circumscribedStream(dateTimeRange: DateTimeRange): Stream[F, CircumscribedStream[F, K, V]] =
     circumscribed(Left(dateTimeRange))
 
-  def circumscribedStream(pos: Map[Int, (Long, Long)]): Stream[F, CircumscribedStream[F, K, V]] =
-    circumscribed(Right(pos))
+  def circumscribedStream(partitionOffsets: Map[Int, (Long, Long)]): Stream[F, CircumscribedStream[F, K, V]] =
+    circumscribed(Right(partitionOffsets))
 }

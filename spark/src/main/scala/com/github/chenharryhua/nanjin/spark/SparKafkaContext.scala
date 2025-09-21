@@ -4,7 +4,6 @@ import cats.Endo
 import cats.effect.kernel.{Async, Sync}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.ChunkSize
-import com.github.chenharryhua.nanjin.common.kafka.TopicNameL
 import com.github.chenharryhua.nanjin.datetime.DateTimeRange
 import com.github.chenharryhua.nanjin.kafka.*
 import com.github.chenharryhua.nanjin.messages.kafka.CRMetaInfo
@@ -115,7 +114,7 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
 
   /** upload data from given folder to a kafka topic. files read in parallel
     *
-    * @param topicName
+    * @param avroTopic
     *   target topic name
     * @param folder
     *   the source data files folder
@@ -125,15 +124,13 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
     * [[https://www.conduktor.io/kafka/kafka-producer-batching/]]
     */
 
-  def upload(topicName: TopicNameL, folder: Url, updateConfig: Endo[UploadConfig] = identity)(implicit
-    F: Async[F]): F[Long] = {
+  def upload[K, V](avroTopic: AvroTopic[K, V], folder: Url, updateConfig: Endo[UploadConfig] = identity)(
+    implicit F: Async[F]): F[Long] = {
     val config = updateConfig(new UploadConfig())
-    val producer = kafkaContext
-      .produceAvro(topicName)
-      .updateConfig(config.updateProducerSettings)
+    val producer = kafkaContext.produceGenericRecord(avroTopic).updateConfig(config.updateProducerSettings)
     for {
       schema <- producer.schema
-      partitions <- kafkaContext.admin(topicName).use(_.partitionsFor.map(_.value.size))
+      partitions <- kafkaContext.admin(avroTopic.topicName.name).use(_.partitionsFor.map(_.value.size))
       hadoop = Hadoop[F](sparkSession.sparkContext.hadoopConfiguration)
       num <- hadoop.filesIn(folder).flatMap { fs =>
         val step: Int = Math.ceil(fs.size.toDouble / partitions.toDouble).toInt
@@ -158,19 +155,19 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
 
   /** sequentially read files in the folder, sorted by modification time, and upload them into kafka
     *
-    * @param topicName
+    * @param avroTopic
     *   target topic name
     * @param folder
     *   the source data folder
     * @return
     *   number of records uploaded
     */
-  def sequentialUpload(topicName: TopicNameL, folder: Url, updateConfig: Endo[UploadConfig] = identity)(
-    implicit F: Async[F]): F[Long] = {
+  def sequentialUpload[K, V](
+    avroTopic: AvroTopic[K, V],
+    folder: Url,
+    updateConfig: Endo[UploadConfig] = identity)(implicit F: Async[F]): F[Long] = {
     val config = updateConfig(new UploadConfig())
-    val producer = kafkaContext
-      .produceAvro(topicName)
-      .updateConfig(config.updateProducerSettings)
+    val producer = kafkaContext.produceGenericRecord(avroTopic).updateConfig(config.updateProducerSettings)
     for {
       schema <- producer.schema
       hadoop = Hadoop[F](sparkSession.sparkContext.hadoopConfiguration)

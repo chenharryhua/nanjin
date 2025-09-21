@@ -46,7 +46,7 @@ class PushPullGRTest extends AnyFunSuite {
       .covary[IO]
 
   test("push - pull - base") {
-    val sink = ctx.produceAvro("pull.test").sink
+    val sink = ctx.produceGenericRecord(baseTopic).sink
     val path = root / "base"
     (ctx.schemaRegistry.register(baseTopic) >> ctx.schemaRegistry.register(evolveTopic)).unsafeRunSync()
     (baseData ++ evolveData).through(sink).compile.drain.unsafeRunSync()
@@ -74,7 +74,7 @@ class PushPullGRTest extends AnyFunSuite {
   }
 
   test("push - pull - evolve") {
-    val sink = ctx.produceAvro(evolveTopic.topicName.name).sink
+    val sink = ctx.produceGenericRecord(evolveTopic).sink
     val path = root / "evolve"
 
     (baseData ++ evolveData).through(sink).compile.drain.unsafeRunSync()

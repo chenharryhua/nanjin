@@ -58,7 +58,7 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
     )
 
   def consumeGenericRecord[K, V](avroTopic: AvroTopic[K, V])(implicit
-    F: Sync[F]): ConsumeGenericRecord[F, K, V] =
+    F: Async[F]): ConsumeGenericRecord[F, K, V] =
     new ConsumeGenericRecord[F, K, V](
       avroTopic,
       schemaRegistry.fetchOptionalAvroSchema(avroTopic.topicName),
@@ -82,11 +82,11 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
       pair.producerSettings(settings.schemaRegistrySettings, settings.producerSettings)
     )
 
-  def produceAvro(topicName: TopicNameL)(implicit F: Sync[F]): ProduceGenericRecord[F] =
-    new ProduceGenericRecord[F](
-      TopicName(topicName),
-      schemaRegistry.fetchOptionalAvroSchema(TopicName(topicName)),
-      identity,
+  def produceGenericRecord[K, V](avroTopic: AvroTopic[K, V])(implicit
+    F: Sync[F]): ProduceGenericRecord[F, K, V] =
+    new ProduceGenericRecord[F, K, V](
+      avroTopic,
+      schemaRegistry.fetchOptionalAvroSchema(avroTopic.topicName),
       settings.schemaRegistrySettings,
       ProducerSettings[F, Array[Byte], Array[Byte]](Serializer[F, Array[Byte]], Serializer[F, Array[Byte]])
         .withProperties(settings.producerSettings.properties)

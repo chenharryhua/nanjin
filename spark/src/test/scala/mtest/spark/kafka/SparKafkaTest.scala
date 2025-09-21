@@ -144,7 +144,7 @@ class SparKafkaTest extends AnyFunSuite {
       .flatMap(
         _.map(hadoop.source(_).jackson(10, topic.pair.optionalAvroSchemaPair.toPair.consumerSchema))
           .reduce(_ ++ _)
-          .through(ctx.produceAvro(topic.topicName.name).updateConfig(_.withClientId("a")).sink))
+          .through(ctx.produceGenericRecord(topic).updateConfig(_.withClientId("a")).sink))
       .compile
       .drain
       .unsafeRunSync()

@@ -22,7 +22,7 @@ object kafka_spark {
   sparKafka.dump(topic, path)
 
   // load saved data into kafka
-  sparKafka.upload(topic.topicName.name, path, _.withProducer(_.withAcks(Acks.One)))
+  sparKafka.upload(topic, path, _.withProducer(_.withAcks(Acks.One)))
 
   // dataset statistics summary
   sparKafka.stats.jackson(path).flatMap(_.summary("test"))
