@@ -25,7 +25,7 @@ final class SparKafkaTopic[F[_], K, V](
     SchematizedEncoder(avroTopic.pair)
 
   private def downloadKafka(dateTimeRange: DateTimeRange)(implicit F: Async[F]): F[CrRdd[K, V]] =
-    sk.kafkaBatch(sparkSession, ctx, avroTopic, dateTimeRange).map(crRdd)
+    sk.kafkaBatch(sparkSession, ctx, ctx.serde(avroTopic), dateTimeRange).map(crRdd)
 
   /** download topic according to datetime
     *

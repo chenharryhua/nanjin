@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.messages.kafka.codec
 
-import com.google.protobuf.{Descriptors, DynamicMessage, Int32Value, Int64Value, StringValue}
+import com.google.protobuf.DynamicMessage
 import io.confluent.kafka.serializers.protobuf.{KafkaProtobufDeserializer, KafkaProtobufSerializer}
 import org.apache.kafka.common.serialization.{Deserializer, Serde, Serializer}
 import scalapb.{GeneratedMessage, GeneratedMessageCompanion}
@@ -8,7 +8,6 @@ import scalapb.{GeneratedMessage, GeneratedMessageCompanion}
 import java.util
 
 sealed trait ProtobufFor[A] extends RegisterSerde[A] {
-  def descriptor: Descriptors.Descriptor
   protected def unregisteredSerde: Serde[A]
 }
 
@@ -16,25 +15,50 @@ object ProtobufFor {
   def apply[A](implicit ev: ProtobufFor[A]): ProtobufFor[A] = ev
 
   implicit val protobufForString: ProtobufFor[String] = new ProtobufFor[String] {
-    override def descriptor: Descriptors.Descriptor = StringValue.getDescriptor
     override protected val unregisteredSerde: Serde[String] = serializable.stringSerde
   }
 
   implicit val protobufForLong: ProtobufFor[Long] = new ProtobufFor[Long] {
-    override def descriptor: Descriptors.Descriptor = Int64Value.getDescriptor
     override protected val unregisteredSerde: Serde[Long] = serializable.longSerde
   }
 
-  implicit val ProtobufForInt: ProtobufFor[Int] = new ProtobufFor[Int] {
-    override def descriptor: Descriptors.Descriptor = Int32Value.getDescriptor
+  implicit val protobufForInt: ProtobufFor[Int] = new ProtobufFor[Int] {
     override protected val unregisteredSerde: Serde[Int] = serializable.intSerde
+  }
+
+  implicit val protobufForDynamicMessage: ProtobufFor[DynamicMessage] = new ProtobufFor[DynamicMessage] {
+    override protected def unregisteredSerde: Serde[DynamicMessage] = new Serde[DynamicMessage]
+      with Serializable {
+      override val serializer: Serializer[DynamicMessage] = new Serializer[DynamicMessage] with Serializable {
+        @transient private[this] lazy val ser: KafkaProtobufSerializer[DynamicMessage] =
+          new KafkaProtobufSerializer[DynamicMessage]
+
+        override def configure(configs: util.Map[String, ?], isKey: Boolean): Unit =
+          ser.configure(configs, isKey)
+
+        override def close(): Unit = ser.close()
+
+        override def serialize(topic: String, data: DynamicMessage): Array[Byte] = ser.serialize(topic, data)
+      }
+      override val deserializer: Deserializer[DynamicMessage] = new Deserializer[DynamicMessage]
+        with Serializable {
+        @transient private[this] lazy val deSer: KafkaProtobufDeserializer[DynamicMessage] =
+          new KafkaProtobufDeserializer[DynamicMessage]
+
+        override def configure(configs: util.Map[String, ?], isKey: Boolean): Unit =
+          deSer.configure(configs, isKey)
+
+        override def close(): Unit = deSer.close()
+
+        override def deserialize(topic: String, data: Array[Byte]): DynamicMessage =
+          deSer.deserialize(topic, data)
+      }
+    }
   }
 
   implicit def protobufForGeneratedMessage[A <: GeneratedMessage](implicit
     gmc: GeneratedMessageCompanion[A]): ProtobufFor[A] =
     new ProtobufFor[A] {
-
-      val descriptor: Descriptors.Descriptor = gmc.javaDescriptor
 
       override protected val unregisteredSerde: Serde[A] = new Serde[A] with Serializable {
         override val serializer: Serializer[A] =

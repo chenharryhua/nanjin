@@ -50,19 +50,19 @@ private[spark] object sk {
   def kafkaBatch[K, V](
     ss: SparkSession,
     consumerSettings: KafkaConsumerSettings,
-    serde: KafkaGenericSerde[K, V],
+    serde: TopicSerde[K, V],
     offsetRange: TopicPartitionMap[Option[OffsetRange]]): RDD[NJConsumerRecord[K, V]] =
     kafkaBatchRDD(consumerSettings, ss, offsetRange).map(serde.toNJConsumerRecord(_))
 
   def kafkaBatch[F[_]: Async, K, V](
     ss: SparkSession,
     ctx: KafkaContext[F],
-    topicDef: AvroTopic[K, V],
+    serde: TopicSerde[K, V],
     dateRange: DateTimeRange): F[RDD[NJConsumerRecord[K, V]]] =
     ctx
-      .admin(topicDef.topicName.name)
+      .admin(serde.topicName.name)
       .use(_.offsetRangeFor(dateRange))
-      .map(kafkaBatch(ss, ctx.settings.consumerSettings, ctx.serde(topicDef), _))
+      .map(kafkaBatch(ss, ctx.settings.consumerSettings, serde, _))
 
   /** streaming
     */

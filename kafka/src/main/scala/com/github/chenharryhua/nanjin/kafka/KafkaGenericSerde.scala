@@ -6,7 +6,7 @@ import com.github.chenharryhua.nanjin.messages.kafka.codec.KafkaSerde
 
 import scala.util.{Success, Try}
 
-abstract class KafkaGenericSerde[K, V](keySerde: KafkaSerde[K], valSerde: KafkaSerde[V])
+abstract class KafkaGenericSerde[K, V] private[kafka] (keySerde: KafkaSerde[K], valSerde: KafkaSerde[V])
     extends Serializable {
 
   def deserialize[G[_, _]: NJConsumerMessage](data: G[Array[Byte], Array[Byte]]): G[K, V] =

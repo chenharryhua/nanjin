@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin.kafka
 
 import cats.effect.kernel.Sync
-import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.messages.kafka.codec.*
 import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJProducerRecord}
 import com.google.protobuf.Descriptors
@@ -13,7 +12,7 @@ import org.apache.avro.{Schema, SchemaCompatibility}
 import org.apache.kafka.clients.consumer.ConsumerRecord as JavaConsumerRecord
 import org.apache.kafka.clients.producer.ProducerRecord as JavaProducerRecord
 
-sealed trait SerdePair[K, V] extends Serializable{
+sealed trait SerdePair[K, V] extends Serializable {
   protected def key: RegisterSerde[K]
   protected def value: RegisterSerde[V]
 
@@ -33,9 +32,6 @@ sealed trait SerdePair[K, V] extends Serializable{
       Serializer.delegate(value.asValue(srs.config).serde.serializer())
     ).withProperties(producerSettings.properties)
 }
-
-final case class TopicSerde[K, V](topicName: TopicName, key: KafkaSerde[K], value: KafkaSerde[V])
-    extends KafkaGenericSerde(key, value)
 
 final case class AvroPair[K, V](key: AvroFor[K], value: AvroFor[V]) extends SerdePair[K, V] {
 

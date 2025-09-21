@@ -5,13 +5,11 @@ import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.AvroTopic
 import com.github.chenharryhua.nanjin.messages.kafka.NJProducerRecord
-import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroFor, JsonFor, ProtobufFor}
 import com.sksamuel.avro4s.SchemaFor
 import eu.timepit.refined.auto.*
 import example.*
 import example.topics.fooTopic
 import io.lemonlabs.uri.Url
-import mtest.pb.test.Lion
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -20,11 +18,7 @@ import scala.concurrent.duration.*
 @DoNotDiscover
 class ExampleKafkaBasic extends AnyFunSuite {
   val topic = AvroTopic[Int, Foo](TopicName("foo"))
-  test("schema") {
-    JsonFor[Int].jsonSchema
-    AvroFor[Int].avroCodec.schema
-    ProtobufFor[Lion].descriptor
-  }
+
   test("populate topic") {
     val producerRecords: List[NJProducerRecord[Int, Foo]] =
       List(
