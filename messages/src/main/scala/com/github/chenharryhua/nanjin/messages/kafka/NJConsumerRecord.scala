@@ -14,6 +14,7 @@ import io.scalaland.chimney.Transformer
 import io.scalaland.chimney.dsl.*
 import monocle.macros.PLenses
 import org.apache.avro.Schema
+import org.apache.avro.generic.IndexedRecord
 import org.apache.kafka.clients.consumer.ConsumerRecord as JavaConsumerRecord
 import org.apache.kafka.common.header.Header as JavaHeader
 import org.apache.kafka.common.header.internals.RecordHeaders
@@ -103,6 +104,13 @@ object NJConsumerRecord {
     }
     SchemaFor[NJConsumerRecord[KEY, VAL]].schema
   }
+
+  def recordFormat[K: Encoder: Decoder, V: Encoder: Decoder]: RecordFormat[NJConsumerRecord[K, V]] =
+    new RecordFormat[NJConsumerRecord[K, V]] {
+      private val rf = RecordFormat[NJConsumerRecord[K, V]]
+      override def from(record: IndexedRecord): NJConsumerRecord[K, V] = rf.from(record)
+      override def to(t: NJConsumerRecord[K, V]): Record = rf.to(t)
+    }
 
   implicit def encoderNJConsumerRecord[K: JsonEncoder, V: JsonEncoder]: JsonEncoder[NJConsumerRecord[K, V]] =
     io.circe.generic.semiauto.deriveEncoder[NJConsumerRecord[K, V]]

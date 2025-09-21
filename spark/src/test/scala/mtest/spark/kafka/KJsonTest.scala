@@ -7,6 +7,7 @@ import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.AvroTopic
 import com.github.chenharryhua.nanjin.messages.kafka.NJProducerRecord
 import com.github.chenharryhua.nanjin.messages.kafka.codec.KJson
+import com.github.chenharryhua.nanjin.spark.RddExt
 import eu.timepit.refined.auto.*
 import io.circe.Json
 import io.lemonlabs.uri.typesafe.dsl.*
@@ -36,8 +37,7 @@ class KJsonTest extends AnyFunSuite {
       .drain
       .unsafeRunSync()
     ctx.schemaRegistry.register(topic).unsafeRunSync()
-    sparKafka.topic(topic).fromKafka.flatMap(_.output.circe(root / "circe").run[IO]).unsafeRunSync()
-    sparKafka.dump(topic.topicName.name, root / "jackson").unsafeRunSync()
-    sparKafka.dumpCirce(topic, root / "circe2").unsafeRunSync()
+    sparKafka.topic(topic).fromKafka.flatMap(_.rdd.output.circe(root / "circe").run[IO]).unsafeRunSync()
+    sparKafka.dump(topic, root / "jackson").unsafeRunSync()
   }
 }

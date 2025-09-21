@@ -4,11 +4,11 @@ import cats.data.{NonEmptyList, NonEmptySet, ReaderT}
 import cats.effect.kernel.{Async, Concurrent}
 import cats.syntax.all.*
 import cats.{Endo, Functor}
-import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.common.{HasProperties, UpdateConfig}
 import com.github.chenharryhua.nanjin.datetime.DateTimeRange
 import com.github.chenharryhua.nanjin.kafka.{
   orderingTopicPartition,
+  AvroTopic,
   OptionalAvroSchemaPair,
   TopicPartitionMap
 }
@@ -23,12 +23,11 @@ import java.time.Instant
 import scala.collection.immutable.SortedSet
 import scala.util.Try
 
-final class ConsumeGenericRecord[F[_]](
-  topicName: TopicName,
+final class ConsumeGenericRecord[F[_], K, V](
+  avroTopic: AvroTopic[K, V],
   getSchema: F[OptionalAvroSchemaPair],
-  updateSchema: Endo[OptionalAvroSchemaPair],
   consumerSettings: ConsumerSettings[F, Array[Byte], Array[Byte]]
-) extends UpdateConfig[ConsumerSettings[F, Array[Byte], Array[Byte]], ConsumeGenericRecord[F]]
+) extends UpdateConfig[ConsumerSettings[F, Array[Byte], Array[Byte]], ConsumeGenericRecord[F, K, V]]
     with HasProperties {
 
   /*
@@ -36,14 +35,12 @@ final class ConsumeGenericRecord[F[_]](
    */
   override def properties: Map[String, String] = consumerSettings.properties
 
-  override def updateConfig(f: Endo[ConsumerSettings[F, Array[Byte], Array[Byte]]]): ConsumeGenericRecord[F] =
-    new ConsumeGenericRecord[F](topicName, getSchema, updateSchema, f(consumerSettings))
-
-  def withSchema(f: Endo[OptionalAvroSchemaPair]): ConsumeGenericRecord[F] =
-    new ConsumeGenericRecord[F](topicName, getSchema, f.compose(updateSchema), consumerSettings)
+  override def updateConfig(
+    f: Endo[ConsumerSettings[F, Array[Byte], Array[Byte]]]): ConsumeGenericRecord[F, K, V] =
+    new ConsumeGenericRecord[F, K, V](avroTopic, getSchema, f(consumerSettings))
 
   def schema(implicit F: Functor[F]): F[Schema] =
-    getSchema.map(updateSchema(_).toPair.consumerSchema)
+    getSchema.map(avroTopic.pair.optionalAvroSchemaPair.read(_).toPair.consumerSchema)
 
   /*
    * Generic Record
@@ -51,8 +48,9 @@ final class ConsumeGenericRecord[F[_]](
 
   private def toGenericRecordStream(kc: KafkaConsumer[F, Array[Byte], Array[Byte]])(implicit
     F: Concurrent[F]): Stream[F, CommittableConsumerRecord[F, Unit, Try[GenericData.Record]]] =
-    Stream.eval(getSchema).flatMap { schema =>
-      val pull: PullGenericRecord = new PullGenericRecord(topicName, updateSchema(schema).toPair)
+    Stream.eval(getSchema).flatMap { broker =>
+      val schema = avroTopic.pair.optionalAvroSchemaPair.read(broker).toPair
+      val pull: PullGenericRecord = new PullGenericRecord(avroTopic.topicName, schema)
       kc.partitionsMapStream.flatMap {
         _.toList.map { case (_, stream) =>
           stream.mapChunks { crs =>
@@ -70,7 +68,7 @@ final class ConsumeGenericRecord[F[_]](
     F: Async[F]): Stream[F, CommittableConsumerRecord[F, Unit, Try[GenericData.Record]]] =
     KafkaConsumer
       .stream(consumerSettings)
-      .evalTap(_.subscribe(NonEmptyList.one(topicName.value)))
+      .evalTap(_.subscribe(NonEmptyList.one(avroTopic.topicName.value)))
       .flatMap(toGenericRecordStream)
 
   /*
@@ -78,12 +76,15 @@ final class ConsumeGenericRecord[F[_]](
    */
 
   def assign(implicit F: Async[F]): Stream[F, CommittableConsumerRecord[F, Unit, Try[GenericData.Record]]] =
-    KafkaConsumer.stream(consumerSettings).evalTap(_.assign(topicName.value)).flatMap(toGenericRecordStream)
+    KafkaConsumer
+      .stream(consumerSettings)
+      .evalTap(_.assign(avroTopic.topicName.value))
+      .flatMap(toGenericRecordStream)
 
   def assign(pos: Map[Int, Long])(implicit
     F: Async[F]): Stream[F, CommittableConsumerRecord[F, Unit, Try[GenericData.Record]]] = {
     val start_offsets: Map[TopicPartition, Long] =
-      pos.map { case (p, o) => new TopicPartition(topicName.value, p) -> o }
+      pos.map { case (p, o) => new TopicPartition(avroTopic.topicName.value, p) -> o }
 
     NonEmptySet.fromSet(SortedSet.from(start_offsets.keySet)) match {
       case None                  => Stream.empty
@@ -104,8 +105,8 @@ final class ConsumeGenericRecord[F[_]](
       .stream(consumerSettings)
       .evalTap { c =>
         for {
-          _ <- c.assign(topicName.value)
-          partitions <- c.partitionsFor(topicName.value)
+          _ <- c.assign(avroTopic.topicName.value)
+          partitions <- c.partitionsFor(avroTopic.topicName.value)
           tps = partitions.map { pi =>
             new TopicPartition(pi.topic(), pi.partition()) -> time.toEpochMilli
           }.toMap
@@ -126,11 +127,12 @@ final class ConsumeGenericRecord[F[_]](
 
   def manualCommitStream(implicit
     F: Async[F]): Stream[F, ManualCommitStream[F, Unit, Try[GenericData.Record]]] =
-    Stream.eval(getSchema).flatMap { schema =>
-      val pull: PullGenericRecord = new PullGenericRecord(topicName, updateSchema(schema).toPair)
+    Stream.eval(getSchema).flatMap { broker =>
+      val schema = avroTopic.pair.optionalAvroSchemaPair.read(broker).toPair
+      val pull: PullGenericRecord = new PullGenericRecord(avroTopic.topicName, schema)
       KafkaConsumer
         .stream(consumerSettings.withEnableAutoCommit(false))
-        .evalTap(_.subscribe(NonEmptyList.one(topicName.value)))
+        .evalTap(_.subscribe(NonEmptyList.one(avroTopic.topicName.value)))
         .flatMap(kc =>
           kc.partitionsMapStream.map { pms =>
             new ManualCommitStream[F, Unit, Try[GenericData.Record]] {
@@ -160,14 +162,14 @@ final class ConsumeGenericRecord[F[_]](
     F: Async[F]): Stream[F, CircumscribedStream[F, Unit, Try[GenericData.Record]]] =
     for {
       kc <- KafkaConsumer.stream(consumerSettings.withEnableAutoCommit(false))
-      ranges <- Stream.eval(utils.get_offset_range(kc, topicName, or))
+      ranges <- Stream.eval(utils.get_offset_range(kc, avroTopic.topicName, or))
       stream <-
         if (ranges.isEmpty) Stream.empty
         else {
           for {
             _ <- Stream.eval(utils.assign_offset_range(kc, ranges))
-            schema <- Stream.eval(getSchema)
-            pull = new PullGenericRecord(topicName, updateSchema(schema).toPair)
+            schema <- Stream.eval(getSchema).map(avroTopic.pair.optionalAvroSchemaPair.read(_).toPair)
+            pull = new PullGenericRecord(avroTopic.topicName, schema)
             s <- utils.circumscribed_generic_record_stream(kc, ranges, pull)
           } yield s
         }

@@ -3,21 +3,15 @@ package com.github.chenharryhua.nanjin.kafka
 import cats.Endo
 import cats.effect.Resource
 import cats.effect.kernel.{Async, Sync}
-import cats.syntax.all.*
+import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameL}
-import com.github.chenharryhua.nanjin.common.{utils, UpdateConfig}
 import com.github.chenharryhua.nanjin.kafka.connector.*
 import com.github.chenharryhua.nanjin.kafka.streaming.{KafkaStreamsBuilder, StateStores, StreamsSerde}
-import com.github.chenharryhua.nanjin.messages.kafka.CRMetaInfo
-import com.github.chenharryhua.nanjin.messages.kafka.codec.*
-import fs2.Stream
 import fs2.kafka.*
-import io.circe.syntax.EncoderOps
 import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient
 import io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig
 import org.apache.kafka.streams.scala.StreamsBuilder
 
-import java.time.Instant
 import scala.util.Try
 
 final class KafkaContext[F[_]] private (val settings: KafkaSettings)
@@ -63,33 +57,15 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
         Deserializer[F, Array[Byte]]).withProperties(settings.consumerSettings.properties)
     )
 
-  def consumeAvro(topicName: TopicNameL)(implicit F: Sync[F]): ConsumeGenericRecord[F] =
-    new ConsumeGenericRecord[F](
-      TopicName(topicName),
-      schemaRegistry.fetchOptionalAvroSchema(TopicName(topicName)),
-      identity,
+  def consumeGenericRecord[K, V](avroTopic: AvroTopic[K, V])(implicit
+    F: Sync[F]): ConsumeGenericRecord[F, K, V] =
+    new ConsumeGenericRecord[F, K, V](
+      avroTopic,
+      schemaRegistry.fetchOptionalAvroSchema(avroTopic.topicName),
       ConsumerSettings[F, Array[Byte], Array[Byte]](
         Deserializer[F, Array[Byte]],
         Deserializer[F, Array[Byte]]).withProperties(settings.consumerSettings.properties)
     )
-
-  /** Monitor topic from a given instant
-    */
-  def monitor(topicName: TopicNameL, from: Instant = Instant.now())(implicit F: Async[F]): Stream[F, String] =
-    Stream.eval(utils.randomUUID[F]).flatMap { uuid =>
-      consumeAvro(topicName)
-        .updateConfig( // avoid accidentally join an existing consumer-group
-          _.withGroupId(uuid.show).withEnableAutoCommit(false))
-        .assign(from)
-        .map { ccr =>
-          val rcd = ccr.record
-          rcd.value
-            .flatMap(gr2Jackson)
-            .toEither
-            .leftMap(e => new Exception(CRMetaInfo(ccr.record).asJson.noSpaces, e))
-        }
-        .rethrow
-    }
 
   /*
    * producer

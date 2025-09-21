@@ -4,9 +4,7 @@ import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.DateTimeRange
 import com.github.chenharryhua.nanjin.kafka.AvroTopic
-import com.github.chenharryhua.nanjin.messages.kafka.{CRMetaInfo, NJConsumerRecord}
-import com.github.chenharryhua.nanjin.spark.SchematizedEncoder
-import com.github.chenharryhua.nanjin.spark.persist.RoosterData.{instant, timestamp}
+import com.github.chenharryhua.nanjin.messages.kafka.{ NJConsumerRecord}
 import com.github.chenharryhua.nanjin.spark.persist.{Rooster, RoosterData}
 import eu.timepit.refined.auto.*
 import frameless.TypedEncoder
@@ -37,7 +35,7 @@ class CrPrTest extends AnyFunSuite {
   implicit val te3: TypedEncoder[RoosterLike2] = shapeless.cachedImplicit
 
   val rooster = AvroTopic[Long, Rooster](TopicName("rooster"))(AvroFor[Long], AvroFor(Rooster.avroCodec))
-  val roosterATE = SchematizedEncoder(rooster.pair)
+ // val roosterATE = SchematizedEncoder(rooster.pair)
 
   val roosterLike =
     AvroTopic[Long, RoosterLike](TopicName("roosterLike"))(AvroFor[Long], AvroFor[RoosterLike])
@@ -62,7 +60,6 @@ class CrPrTest extends AnyFunSuite {
         leaderEpoch = None
       )
     })
-    .normalize
 
   val expectSchema = StructType(
     List(
@@ -81,8 +78,8 @@ class CrPrTest extends AnyFunSuite {
 
   val prRdd: PrRdd[Long, Rooster] = crRdd.prRdd.partitionOf(0)
   val topic = roosterLike
-  val ack = topic.pair.key.avroCodec
-  val acv = topic.pair.key.avroCodec
+  val ack = topic.pair.key.schema
+  val acv = topic.pair.key.schema
 
   test("time range") {
     val dr =
@@ -100,24 +97,6 @@ class CrPrTest extends AnyFunSuite {
   }
   test("replicate") {
     assert(prRdd.replicate(3).rdd.count() == 12)
-  }
-
-  test("CRMetaInfo") {
-    val roosterCR: NJConsumerRecord[Long, Rooster] = NJConsumerRecord(
-      topic = "rooster",
-      partition = 0,
-      offset = 5,
-      timestamp = Instant.now.getEpochSecond * 1000,
-      timestampType = 0,
-      serializedKeySize = None,
-      serializedValueSize = Some(10),
-      key = Some(0L),
-      value = Some(Rooster(1, instant, timestamp, BigDecimal("1234.567"), BigDecimal("654321"), None)),
-      headers = Nil,
-      leaderEpoch = None
-    )
-    val gr = rooster.pair.consumerFormat.toRecord(roosterCR)
-    assert(CRMetaInfo(gr).get == CRMetaInfo(roosterCR))
   }
 
 }

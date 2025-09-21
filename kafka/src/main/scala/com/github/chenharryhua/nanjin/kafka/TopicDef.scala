@@ -1,12 +1,9 @@
 package com.github.chenharryhua.nanjin.kafka
 
 import cats.effect.kernel.Sync
-import cats.kernel.Eq
-import cats.syntax.eq.*
 import cats.{Endo, Show}
 import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameL}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroFor, JsonFor, KafkaSerde, ProtobufFor}
-import com.sksamuel.avro4s.Record
 import fs2.kafka.{ConsumerSettings, ProducerRecord, ProducerSettings}
 
 final case class TopicSerde[K, V](topicName: TopicName, key: KafkaSerde[K], value: KafkaSerde[V])
@@ -34,7 +31,6 @@ final class AvroTopic[K, V] private (val topicName: TopicName, val pair: AvroPai
     withTopicName(TopicName.unsafeFrom(f(topicName.value)).name)
 
   def producerRecord(k: K, v: V): ProducerRecord[K, V] = ProducerRecord(topicName.value, k, v)
-  def genericRecord(k: K, v: V): Record = pair.producerFormat.toRecord(producerRecord(k, v))
 
   override def consumerSettings[F[_]: Sync](
     srs: SchemaRegistrySettings,
@@ -56,12 +52,6 @@ final class AvroTopic[K, V] private (val topicName: TopicName, val pair: AvroPai
 object AvroTopic {
 
   implicit def showTopicDef[K, V]: Show[AvroTopic[K, V]] = Show.fromToString
-
-  implicit def eqTopicDef[K, V]: Eq[AvroTopic[K, V]] =
-    (x: AvroTopic[K, V], y: AvroTopic[K, V]) =>
-      x.topicName.value === y.topicName.value &&
-        x.pair.key.avroCodec.schema == y.pair.key.avroCodec.schema &&
-        x.pair.value.avroCodec.schema == y.pair.value.avroCodec.schema
 
   def apply[K, V](key: AvroFor[K], value: AvroFor[V], topicName: TopicName): AvroTopic[K, V] =
     new AvroTopic(topicName, AvroPair(key, value))

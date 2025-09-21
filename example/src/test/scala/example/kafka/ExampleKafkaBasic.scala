@@ -45,7 +45,7 @@ class ExampleKafkaBasic extends AnyFunSuite {
 
   test("consume messages from kafka using https://fd4s.github.io/fs2-kafka/") {
     ctx
-      .consumeAvro(fooTopic.topicName.name)
+      .consumeGenericRecord(fooTopic.topicName.name)
       .withSchema(_.withKeyIfAbsent(SchemaFor[Int].schema))
       .subscribe
       .debug()

@@ -7,8 +7,7 @@ import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.DateTimeRange
 import com.github.chenharryhua.nanjin.kafka.*
 import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJProducerRecord}
-import com.github.chenharryhua.nanjin.spark.{sparkZoneId, SchematizedEncoder}
-import frameless.TypedEncoder
+import com.github.chenharryhua.nanjin.spark.{sparkZoneId}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 
@@ -21,8 +20,6 @@ final class SparKafkaTopic[F[_], K, V](
 
   val topicName: TopicName = avroTopic.topicName
 
-  def ate(implicit tek: TypedEncoder[K], tev: TypedEncoder[V]): SchematizedEncoder[NJConsumerRecord[K, V]] =
-    SchematizedEncoder(avroTopic.pair)
 
   private def downloadKafka(dateTimeRange: DateTimeRange)(implicit F: Async[F]): F[CrRdd[K, V]] =
     sk.kafkaBatch(sparkSession, ctx, ctx.serde(avroTopic), dateTimeRange).map(crRdd)

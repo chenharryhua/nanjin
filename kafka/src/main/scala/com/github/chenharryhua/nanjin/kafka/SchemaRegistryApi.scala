@@ -107,20 +107,19 @@ final class SchemaRegistryApi[F[_]](client: CachedSchemaRegistryClient) extends 
   def fetchAvroSchema(topicName: TopicNameL)(implicit F: Sync[F]): F[AvroSchemaPair] =
     fetchAvroSchema(TopicName(topicName))
 
-  def register(topicName: TopicName, pair: AvroSchemaPair)(implicit F: Sync[F]): F[(Int, Int)] = {
-    val loc = SchemaLocation(topicName)
+  def register[K, V](topic: AvroTopic[K, V])(implicit F: Sync[F]): F[(Option[Int], Option[Int])] = {
+    val loc = SchemaLocation(topic.topicName)
     for {
       k <- F
-        .blocking(client.register(loc.keyLoc, new AvroSchema(pair.key)))
-        .adaptError(ex => new Exception(topicName.value, ex))
+        .blocking(
+          topic.pair.optionalAvroSchemaPair.key.map(k => client.register(loc.keyLoc, new AvroSchema(k))))
+        .adaptError(ex => new Exception(topic.topicName.value, ex))
       v <- F
-        .blocking(client.register(loc.valLoc, new AvroSchema(pair.value)))
-        .adaptError(ex => new Exception(topicName.value, ex))
+        .blocking(
+          topic.pair.optionalAvroSchemaPair.value.map(v => client.register(loc.valLoc, new AvroSchema(v))))
+        .adaptError(ex => new Exception(topic.topicName.value, ex))
     } yield (k, v)
   }
-
-  def register[K, V](topic: AvroTopic[K, V])(implicit F: Sync[F]): F[(Int, Int)] =
-    register(topic.topicName, topic.pair.schemaPair)
 
   def delete(topicName: TopicName)(implicit F: Sync[F]): F[(List[Integer], List[Integer])] = {
     val loc = SchemaLocation(topicName)

@@ -8,7 +8,6 @@ import com.github.chenharryhua.nanjin.datetime.DateTimeRange
 import com.github.chenharryhua.nanjin.kafka.AvroPair
 import com.github.chenharryhua.nanjin.messages.kafka.{CRMetaInfo, NJConsumerRecord}
 import com.github.chenharryhua.nanjin.spark.describeJob
-import com.github.chenharryhua.nanjin.spark.persist.RddAvroFileHoarder
 import fs2.Stream
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
@@ -40,7 +39,7 @@ final class CrRdd[K, V] private[kafka] (
   def persist(f: StorageLevel.type => StorageLevel): CrRdd[K, V] =
     transform(_.persist(f(StorageLevel)))
 
-  def normalize: CrRdd[K, V] = transform(_.map(pair.consumerFormat.codec.idConversion))
+ // def normalize: CrRdd[K, V] = transform(_.map(pair.consumerFormat.codec.idConversion))
 
   def diff(other: RDD[NJConsumerRecord[K, V]]): CrRdd[K, V] = transform(_.subtract(other))
   def diff(other: CrRdd[K, V]): CrRdd[K, V] = diff(other.rdd)
@@ -58,8 +57,8 @@ final class CrRdd[K, V] private[kafka] (
   def prRdd: PrRdd[K, V] =
     new PrRdd[K, V](rdd.map(_.toNJProducerRecord), pair)
 
-  def output: RddAvroFileHoarder[NJConsumerRecord[K, V]] =
-    new RddAvroFileHoarder[NJConsumerRecord[K, V]](rdd, pair.consumerFormat.codec)
+ // def output: RddAvroFileHoarder[NJConsumerRecord[K, V]] =
+ //   new RddAvroFileHoarder[NJConsumerRecord[K, V]](rdd, pair.consumerFormat.codec)
 
   def stats[F[_]]: Statistics[F] =
     new Statistics[F](ss.createDataset(rdd.map(CRMetaInfo(_))))

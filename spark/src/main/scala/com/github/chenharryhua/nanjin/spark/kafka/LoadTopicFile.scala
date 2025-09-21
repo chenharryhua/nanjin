@@ -10,8 +10,8 @@ import org.apache.spark.sql.SparkSession
 
 final class LoadTopicFile[K, V] private[kafka] (pair: AvroPair[K, V], ss: SparkSession) extends Serializable {
 
-  private val decoder: Decoder[NJConsumerRecord[K, V]] =
-    pair.consumerFormat.codec
+  private val decoder: Decoder[NJConsumerRecord[K, V]] = null
+  //  pair.consumerFormat.codec
 
   def avro(path: Url): CrRdd[K, V] = {
     val rdd = loaders.rdd.avro[NJConsumerRecord[K, V]](path, ss, decoder)

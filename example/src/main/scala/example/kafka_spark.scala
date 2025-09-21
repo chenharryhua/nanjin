@@ -8,19 +8,21 @@ import eu.timepit.refined.auto.*
 import fs2.kafka.Acks
 import io.lemonlabs.uri.Url
 import org.apache.spark.sql.SparkSession
+import com.github.chenharryhua.nanjin.kafka.AvroTopic
+import org.apache.avro.generic.GenericRecord
 
 object kafka_spark {
   val spark: SparkSession = SparkSettings(sydneyTime).sparkSession
   val sparKafka: SparKafkaContext[IO] = spark.alongWith[IO](kafka_connector_s3.ctx)
 
   val path: Url = Url.parse("s3a://bucket_name/folder_name")
-  val topic: TopicName = TopicName("any.kafka.topic")
+  val topic = AvroTopic[Int,GenericRecord](TopicName("any.kafka.topic"))
 
   // batch dump a kafka topic
-  sparKafka.dump(topic.name, path)
+  sparKafka.dump(topic, path)
 
   // load saved data into kafka
-  sparKafka.upload(topic.name, path, _.withProducer(_.withAcks(Acks.One)))
+  sparKafka.upload(topic.topicName.name, path, _.withProducer(_.withAcks(Acks.One)))
 
   // dataset statistics summary
   sparKafka.stats.jackson(path).flatMap(_.summary("test"))

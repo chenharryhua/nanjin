@@ -49,8 +49,5 @@ class NullTests extends AnyFunSuite {
     assert(js.asKey(Map.empty).serde.serializer.serialize("", null) == null)
     assert(js.asKey(Map.empty).serde.serializer.serialize("", KJson(null)) == null)
     assert(js.asKey(Map.empty).serde.deserializer.deserialize("", null) == null)
-    assert(js.avroCodec.encode(null) == null)
-    assert(js.avroCodec.encode(KJson(null)) == null)
-    assert(js.avroCodec.decode(null) == null)
   }
 }

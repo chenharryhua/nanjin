@@ -9,7 +9,6 @@ import com.github.chenharryhua.nanjin.datetime.DateTimeRange
 import com.github.chenharryhua.nanjin.kafka.AvroPair
 import com.github.chenharryhua.nanjin.messages.kafka.NJProducerRecord
 import com.github.chenharryhua.nanjin.spark.describeJob
-import com.github.chenharryhua.nanjin.spark.persist.RddAvroFileHoarder
 import fs2.Stream
 import fs2.kafka.ProducerRecords
 import org.apache.spark.rdd.RDD
@@ -42,12 +41,12 @@ final class PrRdd[K, V] private[kafka] (
   def replicate(num: Int): PrRdd[K, V] =
     transform(rdd => (1 until num).foldLeft(rdd) { case (r, _) => r.union(rdd) })
 
-  def normalize: PrRdd[K, V] = transform(_.map(pair.producerFormat.codec.idConversion))
+ /// def normalize: PrRdd[K, V] = transform(_.map(pair.producerFormat.codec.idConversion))
 
   // transition
 
-  def output: RddAvroFileHoarder[NJProducerRecord[K, V]] =
-    new RddAvroFileHoarder[NJProducerRecord[K, V]](rdd, pair.producerFormat.codec)
+//  def output: RddAvroFileHoarder[NJProducerRecord[K, V]] =
+ //   new RddAvroFileHoarder[NJProducerRecord[K, V]](rdd, pair.producerFormat.codec)
 
   // IO
 

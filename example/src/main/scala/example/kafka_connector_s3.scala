@@ -21,6 +21,7 @@ import squants.information.Bytes
 
 import scala.concurrent.duration.DurationInt
 import scala.util.Try
+import com.github.chenharryhua.nanjin.kafka.AvroTopic
 
 object kafka_connector_s3 {
   val ctx: KafkaContext[IO] = KafkaContext[IO](KafkaSettings.local)
@@ -56,7 +57,7 @@ object kafka_connector_s3 {
       hadoop.rotateSink(ga.zoneId, Policy.crontab(_.every5Minutes))(root / jackson.ymdFileName(_)).jackson
     ga.facilitate("abc")(logMetrics).use { log =>
       ctx
-        .consumeAvro("any.kafka.topic")
+        .consumeGenericRecord(AvroTopic[Int,GenericRecord]("any.kafka.topic"))
         .updateConfig(
           _.withGroupId("group.id")
             .withAutoOffsetReset(AutoOffsetReset.Latest)

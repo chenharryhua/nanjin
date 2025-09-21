@@ -6,7 +6,6 @@ import cats.implicits.toBifunctorOps
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.*
 import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
-import com.github.chenharryhua.nanjin.messages.kafka.codec.gr2Jackson
 import eu.timepit.refined.auto.*
 import fs2.kafka.{Acks, AutoOffsetReset}
 import io.circe.generic.auto.*
@@ -16,6 +15,7 @@ import org.apache.kafka.clients.producer.ProducerConfig
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.*
+import org.apache.avro.generic.GenericRecord
 
 object Fs2ChannelTestData {
   final case class Fs2Kafka(a: Int, b: String, c: Double)
@@ -86,7 +86,6 @@ class Fs2ChannelTest extends AnyFunSuite {
         .subscribe
         .take(1)
         .map(_.record)
-        .map(r => gr2Jackson(avroTopic.pair.consumerFormat.toRecord(r)).get)
         .timeout(3.seconds)
         .compile
         .toList
@@ -168,7 +167,7 @@ class Fs2ChannelTest extends AnyFunSuite {
 
   test("6.byte consumer config") {
     val consumer = ctx
-      .consumeAvro("bytes")
+      .consumeGenericRecord(AvroTopic[Short,Int]("bytes"))
       .updateConfig(
         _.withGroupId("nanjin")
           .withEnableAutoCommit(true)
@@ -215,7 +214,7 @@ class Fs2ChannelTest extends AnyFunSuite {
 
   test("9.generic record range - should stop") {
     val res = ctx
-      .consumeAvro("telecom_italia_data")
+      .consumeGenericRecord(AvroTopic[GenericRecord,GenericRecord]("telecom_italia_data"))
       .updateConfig(_.withMaxPollRecords(10))
       .circumscribedStream(Map(0 -> (0L, 5L)))
       .flatMap(_.stream.map(_.record.value).debug())
@@ -228,7 +227,7 @@ class Fs2ChannelTest extends AnyFunSuite {
 
   test("10.generic record manualCommitStream") {
     val res = ctx
-      .consumeAvro("telecom_italia_data")
+      .consumeGenericRecord(AvroTopic[GenericRecord,GenericRecord]("telecom_italia_data"))
       .updateConfig(_.withMaxPollRecords(10))
       .manualCommitStream
       .flatMap(_.stream.map(_.record.value))
@@ -269,14 +268,7 @@ class Fs2ChannelTest extends AnyFunSuite {
   test("13. generic record without schema registry") {
     val ret =
       ctx
-        .consumeAvro(avroTopic.topicName.name)
-        .withSchema(
-          _.withKeyIfAbsent(avroTopic.pair.schemaPair.key)
-            .withValIfAbsent(avroTopic.pair.schemaPair.value)
-            .withNullKey
-            .withNullVal
-            .withKeyReplaced(avroTopic.pair.schemaPair.key)
-            .withValReplaced(avroTopic.pair.schemaPair.value))
+        .consumeGenericRecord(avroTopic)
         .subscribe
         .take(1)
         .map(_.record)
