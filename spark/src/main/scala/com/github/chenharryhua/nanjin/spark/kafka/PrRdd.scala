@@ -6,7 +6,6 @@ import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameL}
 import com.github.chenharryhua.nanjin.datetime.DateTimeRange
-import com.github.chenharryhua.nanjin.kafka.AvroPair
 import com.github.chenharryhua.nanjin.messages.kafka.NJProducerRecord
 import com.github.chenharryhua.nanjin.spark.describeJob
 import fs2.Stream
@@ -14,13 +13,12 @@ import fs2.kafka.ProducerRecords
 import org.apache.spark.rdd.RDD
 
 final class PrRdd[K, V] private[kafka] (
-  val rdd: RDD[NJProducerRecord[K, V]],
-  pair: AvroPair[K, V]
+  val rdd: RDD[NJProducerRecord[K, V]]
 ) extends Serializable {
 
   // transform
   def transform(f: Endo[RDD[NJProducerRecord[K, V]]]): PrRdd[K, V] =
-    new PrRdd[K, V](f(rdd), pair)
+    new PrRdd[K, V](f(rdd))
 
   def filter(f: NJProducerRecord[K, V] => Boolean): PrRdd[K, V] = transform(_.filter(f))
   def partitionOf(num: Int): PrRdd[K, V] = filter(_.partition.exists(_ === num))
@@ -41,12 +39,12 @@ final class PrRdd[K, V] private[kafka] (
   def replicate(num: Int): PrRdd[K, V] =
     transform(rdd => (1 until num).foldLeft(rdd) { case (r, _) => r.union(rdd) })
 
- /// def normalize: PrRdd[K, V] = transform(_.map(pair.producerFormat.codec.idConversion))
+  /// def normalize: PrRdd[K, V] = transform(_.map(pair.producerFormat.codec.idConversion))
 
   // transition
 
 //  def output: RddAvroFileHoarder[NJProducerRecord[K, V]] =
- //   new RddAvroFileHoarder[NJProducerRecord[K, V]](rdd, pair.producerFormat.codec)
+  //   new RddAvroFileHoarder[NJProducerRecord[K, V]](rdd, pair.producerFormat.codec)
 
   // IO
 

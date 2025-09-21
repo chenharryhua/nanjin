@@ -7,7 +7,8 @@ import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.DateTimeRange
 import com.github.chenharryhua.nanjin.kafka.*
 import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJProducerRecord}
-import com.github.chenharryhua.nanjin.spark.{sparkZoneId}
+import com.github.chenharryhua.nanjin.spark.sparkZoneId
+import com.sksamuel.avro4s.Decoder
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 
@@ -19,7 +20,6 @@ final class SparKafkaTopic[F[_], K, V](
   override val toString: String = avroTopic.topicName.value
 
   val topicName: TopicName = avroTopic.topicName
-
 
   private def downloadKafka(dateTimeRange: DateTimeRange)(implicit F: Async[F]): F[CrRdd[K, V]] =
     sk.kafkaBatch(sparkSession, ctx, ctx.serde(avroTopic), dateTimeRange).map(crRdd)
@@ -62,19 +62,20 @@ final class SparKafkaTopic[F[_], K, V](
   /** load topic data from disk
     */
 
-  def load: LoadTopicFile[K, V] = new LoadTopicFile[K, V](avroTopic.pair, sparkSession)
+  def load(implicit dk: Decoder[K], dv: Decoder[V]): LoadTopicFile[K, V] =
+    new LoadTopicFile[K, V](sparkSession)
 
   /** rdd and dataset
     */
 
   def crRdd(rdd: RDD[NJConsumerRecord[K, V]]): CrRdd[K, V] =
-    new CrRdd[K, V](rdd, avroTopic.pair, sparkSession)
+    new CrRdd[K, V](rdd, sparkSession)
 
   def emptyCrRdd: CrRdd[K, V] =
     crRdd(sparkSession.sparkContext.emptyRDD[NJConsumerRecord[K, V]])
 
   def prRdd(rdd: RDD[NJProducerRecord[K, V]]): PrRdd[K, V] =
-    new PrRdd[K, V](rdd, avroTopic.pair)
+    new PrRdd[K, V](rdd)
 
   def prRdd[G[_]: Foldable](list: G[NJProducerRecord[K, V]]): PrRdd[K, V] =
     prRdd(sparkSession.sparkContext.parallelize(list.toList))
