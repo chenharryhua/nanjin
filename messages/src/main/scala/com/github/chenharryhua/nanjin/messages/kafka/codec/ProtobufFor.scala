@@ -14,19 +14,19 @@ sealed trait ProtobufFor[A] extends RegisterSerde[A] {
 object ProtobufFor {
   def apply[A](implicit ev: ProtobufFor[A]): ProtobufFor[A] = ev
 
-  implicit val protobufForString: ProtobufFor[String] = new ProtobufFor[String] {
+  implicit object protobufForString extends ProtobufFor[String] {
     override protected val unregisteredSerde: Serde[String] = serializable.stringSerde
   }
 
-  implicit val protobufForLong: ProtobufFor[Long] = new ProtobufFor[Long] {
+  implicit object protobufForLong extends ProtobufFor[Long] {
     override protected val unregisteredSerde: Serde[Long] = serializable.longSerde
   }
 
-  implicit val protobufForInt: ProtobufFor[Int] = new ProtobufFor[Int] {
+  implicit object protobufForInt extends ProtobufFor[Int] {
     override protected val unregisteredSerde: Serde[Int] = serializable.intSerde
   }
 
-  implicit val protobufForDynamicMessage: ProtobufFor[DynamicMessage] = new ProtobufFor[DynamicMessage] {
+  implicit object protobufForDynamicMessage extends ProtobufFor[DynamicMessage] {
     override protected def unregisteredSerde: Serde[DynamicMessage] = new Serde[DynamicMessage]
       with Serializable {
       override val serializer: Serializer[DynamicMessage] = new Serializer[DynamicMessage] with Serializable {

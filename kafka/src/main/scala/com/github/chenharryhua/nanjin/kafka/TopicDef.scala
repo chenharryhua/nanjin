@@ -68,6 +68,9 @@ object AvroTopic {
 
   def apply[K: AvroFor, V: AvroFor](topicName: TopicName): AvroTopic[K, V] =
     apply[K, V](AvroFor[K], AvroFor[V], topicName)
+
+  def apply[K: AvroFor, V: AvroFor](topicName: TopicNameL): AvroTopic[K, V] =
+    apply[K, V](TopicName(topicName))
 }
 
 final class ProtobufTopic[K, V] private (val topicName: TopicName, val pair: ProtobufPair[K, V])
@@ -95,6 +98,9 @@ object ProtobufTopic {
 
   def apply[K: ProtobufFor, V: ProtobufFor](topicName: TopicName): ProtobufTopic[K, V] =
     apply[K, V](ProtobufFor[K], ProtobufFor[V], topicName)
+
+  def apply[K: ProtobufFor, V: ProtobufFor](topicName: TopicNameL): ProtobufTopic[K, V] =
+    apply[K, V](TopicName(topicName))
 }
 
 final class JsonTopic[K, V] private (val topicName: TopicName, val pair: JsonPair[K, V])
@@ -120,4 +126,7 @@ object JsonTopic {
 
   def apply[K: JsonFor, V: JsonFor](topicName: TopicName): JsonTopic[K, V] =
     apply[K, V](JsonFor[K], JsonFor[V], topicName)
+
+  def apply[K: JsonFor, V: JsonFor](topicName: TopicNameL): JsonTopic[K, V] =
+    apply[K, V](TopicName(topicName))
 }

@@ -49,10 +49,18 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
    * consumer
    */
 
-  def consume[K, V](topic: KafkaTopic[K, V])(implicit F: Sync[F]): ConsumeKafka[F, K, V] =
+  def consume[K, V](topic: KafkaTopic[K, V])(implicit F: Async[F]): ConsumeKafka[F, K, V] =
     new ConsumeKafka[F, K, V](
       topic.topicName,
       topic.consumerSettings(settings.schemaRegistrySettings, settings.consumerSettings)
+    )
+
+  def consumeBytes(topicName: TopicNameL)(implicit F: Async[F]): ConsumeBytes[F] =
+    new ConsumeBytes[F](
+      TopicName(topicName),
+      ConsumerSettings[F, Array[Byte], Array[Byte]](
+        Deserializer[F, Array[Byte]],
+        Deserializer[F, Array[Byte]]).withProperties(settings.consumerSettings.properties)
     )
 
   def consumeAvro(topicName: TopicNameL)(implicit F: Sync[F]): ConsumeGenericRecord[F] =

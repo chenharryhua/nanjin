@@ -35,13 +35,15 @@ sealed trait SerdePair[K, V] extends Serializable {
 
 final case class AvroPair[K, V](key: AvroFor[K], value: AvroFor[V]) extends SerdePair[K, V] {
 
-  val schemaPair: AvroSchemaPair =
+  lazy val schemaPair: AvroSchemaPair =
     AvroSchemaPair(key.avroCodec.schema, value.avroCodec.schema)
 
-  final class ConsumerFormat private[AvroPair] (rf: RecordFormat[NJConsumerRecord[K, V]])
-      extends Serializable {
+  object consumerFormat {
     val codec: AvroCodec[NJConsumerRecord[K, V]] =
       NJConsumerRecord.avroCodec(key.avroCodec, value.avroCodec)
+
+    private val rf: RecordFormat[NJConsumerRecord[K, V]] =
+      RecordFormat(codec, codec)
 
     def toRecord(nj: NJConsumerRecord[K, V]): Record = rf.to(nj)
     def toRecord(cr: ConsumerRecord[K, V]): Record = toRecord(NJConsumerRecord(cr))
@@ -50,28 +52,18 @@ final case class AvroPair[K, V](key: AvroFor[K], value: AvroFor[V]) extends Serd
     def fromRecord(gr: IndexedRecord): NJConsumerRecord[K, V] = rf.from(gr)
   }
 
-  final class ProducerFormat private[AvroPair] (rf: RecordFormat[NJProducerRecord[K, V]])
-      extends Serializable {
+  object producerFormat {
     val codec: AvroCodec[NJProducerRecord[K, V]] =
       NJProducerRecord.avroCodec(key.avroCodec, value.avroCodec)
+
+    private val rf: RecordFormat[NJProducerRecord[K, V]] =
+      RecordFormat(codec, codec)
 
     def toRecord(nj: NJProducerRecord[K, V]): Record = rf.to(nj)
     def toRecord(pr: ProducerRecord[K, V]): Record = toRecord(NJProducerRecord(pr))
     def toRecord(jpr: JavaProducerRecord[K, V]): Record = toRecord(NJProducerRecord(jpr))
 
     def fromRecord(gr: IndexedRecord): NJProducerRecord[K, V] = rf.from(gr)
-  }
-
-  val consumerFormat: ConsumerFormat = {
-    val consumerCodec: AvroCodec[NJConsumerRecord[K, V]] =
-      NJConsumerRecord.avroCodec(key.avroCodec, value.avroCodec)
-    new ConsumerFormat(RecordFormat(consumerCodec, consumerCodec))
-  }
-
-  val producerFormat: ProducerFormat = {
-    val producerCodec: AvroCodec[NJProducerRecord[K, V]] =
-      NJProducerRecord.avroCodec(key.avroCodec, value.avroCodec)
-    new ProducerFormat(RecordFormat(producerCodec, producerCodec))
   }
 }
 

@@ -19,7 +19,7 @@ import scala.concurrent.duration.*
 
 object Fs2ChannelTestData {
   final case class Fs2Kafka(a: Int, b: String, c: Double)
-  val topicDef: AvroTopic[Int, Fs2Kafka] = AvroTopic[Int, Fs2Kafka](TopicName("fs2.kafka.test"))
+  val avroTopic: AvroTopic[Int, Fs2Kafka] = AvroTopic[Int, Fs2Kafka](TopicName("fs2.kafka.test"))
   val jackson =
     """
       {
@@ -65,12 +65,10 @@ object Fs2ChannelTestData {
 class Fs2ChannelTest extends AnyFunSuite {
   import Fs2ChannelTestData.*
   test("1.should be able to consume avro topic") {
-
     val ret =
-      ctx.schemaRegistry.register(topicDef).attempt >>
-        ctx.produce(topicDef).produceOne(1, Fs2Kafka(1, "a", 1.0)) >>
+        ctx.produce(avroTopic).produceOne(1, Fs2Kafka(1, "a", 1.0)) >>
         ctx
-          .consume(topicDef)
+          .consume(avroTopic)
           .updateConfig(_.withGroupId("g1").withAutoOffsetReset(AutoOffsetReset.Earliest))
           .subscribe
           .take(1)
@@ -84,11 +82,11 @@ class Fs2ChannelTest extends AnyFunSuite {
   test("2.record format") {
     val ret =
       ctx
-        .consume(topicDef)
+        .consume(avroTopic)
         .subscribe
         .take(1)
         .map(_.record)
-        .map(r => gr2Jackson(topicDef.pair.consumerFormat.toRecord(r)).get)
+        .map(r => gr2Jackson(avroTopic.pair.consumerFormat.toRecord(r)).get)
         .timeout(3.seconds)
         .compile
         .toList
@@ -97,11 +95,10 @@ class Fs2ChannelTest extends AnyFunSuite {
   }
 
   test("3.serde") {
-    val serde = ctx.serde(topicDef)
-    val byteTopic = AvroTopic[Array[Byte], Array[Byte]](topicDef.topicName)
+    val serde = ctx.serde(avroTopic)
     ctx
-      .consume(byteTopic)
-      .subscribe
+      .consumeBytes(avroTopic.topicName.name)
+      .assign
       .take(1)
       .map { ccr =>
         serde.deserialize(ccr)
@@ -154,7 +151,7 @@ class Fs2ChannelTest extends AnyFunSuite {
 
   test("5.consumer config") {
     val consumer = ctx
-      .consume(topicDef)
+      .consume(avroTopic)
       .updateConfig(
         _.withGroupId("nanjin")
           .withEnableAutoCommit(true)
@@ -189,7 +186,7 @@ class Fs2ChannelTest extends AnyFunSuite {
   test("7.producer setting") {
     val producer =
       ctx
-        .produce(topicDef)
+        .produce(avroTopic)
         .updateConfig(
           _.withClientId("nanjin").withBootstrapServers("http://abc.com").withProperty("abc", "efg")
         )
@@ -203,7 +200,7 @@ class Fs2ChannelTest extends AnyFunSuite {
 
   test("8.transactional producer setting") {
     val producer = ctx
-      .sharedProduce(topicDef.pair)
+      .sharedProduce(avroTopic.pair)
       .updateConfig(
         _.withClientId("nanjin").withBootstrapServers("http://abc.com").withProperty("abc", "efg")
       )
@@ -245,7 +242,7 @@ class Fs2ChannelTest extends AnyFunSuite {
 
   test("11.range - should stop") {
     val res = ctx
-      .consume(topicDef)
+      .consume(avroTopic)
       .updateConfig(_.withMaxPollRecords(10))
       .circumscribedStream(Map(0 -> (0L, 1L)))
       .flatMap(_.stream.map(_.record.value).debug())
@@ -257,7 +254,7 @@ class Fs2ChannelTest extends AnyFunSuite {
 
   test("12.manualCommitStream") {
     val res = ctx
-      .consume(topicDef)
+      .consume(avroTopic)
       .updateConfig(_.withMaxPollRecords(10))
       .manualCommitStream
       .flatMap(_.stream.map(_.record.value))
@@ -272,14 +269,14 @@ class Fs2ChannelTest extends AnyFunSuite {
   test("13. generic record without schema registry") {
     val ret =
       ctx
-        .consumeAvro(topicDef.topicName.name)
+        .consumeAvro(avroTopic.topicName.name)
         .withSchema(
-          _.withKeyIfAbsent(topicDef.pair.schemaPair.key)
-            .withValIfAbsent(topicDef.pair.schemaPair.value)
+          _.withKeyIfAbsent(avroTopic.pair.schemaPair.key)
+            .withValIfAbsent(avroTopic.pair.schemaPair.value)
             .withNullKey
             .withNullVal
-            .withKeyReplaced(topicDef.pair.schemaPair.key)
-            .withValReplaced(topicDef.pair.schemaPair.value))
+            .withKeyReplaced(avroTopic.pair.schemaPair.key)
+            .withValReplaced(avroTopic.pair.schemaPair.value))
         .subscribe
         .take(1)
         .map(_.record)

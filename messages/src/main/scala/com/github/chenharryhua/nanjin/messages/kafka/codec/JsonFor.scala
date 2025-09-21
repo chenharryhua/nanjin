@@ -25,22 +25,22 @@ object JsonFor {
   private def buildSchema(klass: Class[?]): JsonSchema =
     new JsonSchema(new JsonSchemaGenerator(mapper).generateJsonSchema(klass))
 
-  implicit val jsonForString: JsonFor[String] = new JsonFor[String] {
+  implicit object jsonForString extends JsonFor[String] {
     override def jsonSchema: JsonSchema = buildSchema(classOf[String])
     override protected val unregisteredSerde: Serde[String] = serializable.stringSerde
   }
 
-  implicit val jsonForLong: JsonFor[Long] = new JsonFor[Long] {
+  implicit object jsonForLong extends JsonFor[Long] {
     override def jsonSchema: JsonSchema = buildSchema(classOf[Long])
     override protected val unregisteredSerde: Serde[Long] = serializable.longSerde
   }
 
-  implicit val jsonForInt: JsonFor[Int] = new JsonFor[Int] {
+  implicit object jsonForInt extends JsonFor[Int] {
     override def jsonSchema: JsonSchema = buildSchema(classOf[Int])
     override protected val unregisteredSerde: Serde[Int] = serializable.intSerde
   }
 
-  implicit val jsonForUUID: JsonFor[UUID] = new JsonFor[UUID] {
+  implicit object jsonForUUID extends JsonFor[UUID] {
     override def jsonSchema: JsonSchema = buildSchema(classOf[UUID])
     override protected val unregisteredSerde: Serde[UUID] = serializable.uuidSerde
   }

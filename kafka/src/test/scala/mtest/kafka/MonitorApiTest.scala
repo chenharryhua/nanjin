@@ -12,7 +12,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import scala.concurrent.duration.*
 
 class MonitorApiTest extends AnyFunSuite {
-  private val topicDef: AvroTopic[Int, Int] = AvroTopic[Int, Int](TopicName("monitor.test"))
+  private val topicDef: AvroTopic[Int, Int] = AvroTopic[Int, Int]("monitor.test")
 
   private val st: AvroTopic[Int, Array[Byte]] =
     AvroTopic[Int, Array[Byte]](TopicName("monitor.test"))
@@ -38,9 +38,8 @@ class MonitorApiTest extends AnyFunSuite {
     .through(ctx.sharedProduce[Int, Array[Byte]](st.pair).sink)
 
   test("monitor") {
-    ctx.schemaRegistry.register(topicDef).attempt.unsafeRunSync()
     sender
-      .concurrently(ctx.monitor("monitor.test").debug())
+      .concurrently(Stream.sleep[IO](1.seconds) >> ctx.monitor(topicDef.topicName.name).debug())
       .interruptAfter(8.seconds)
       .compile
       .drain
