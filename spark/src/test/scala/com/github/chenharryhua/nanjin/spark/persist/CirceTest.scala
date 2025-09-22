@@ -131,8 +131,8 @@ class CirceTest extends AnyFunSuite {
     val rdd = sparkSession.sparkContext.parallelize(data)
     val saver = new RddFileHoarder[Int](rdd.repartition(1)).circe(path)
     saver.run[IO].unsafeRunSync()
-    val t = loaders.rdd.circe[Json](path, sparkSession).collect().toSet
-    assert(data.toSet == t)
+    val t = loaders.rdd.circe[Json](path, sparkSession).collect().map(_.as[Int].toOption.get).toSet
+    assert(data.toSet === t)
   }
 
   test("circe append") {
@@ -154,7 +154,7 @@ class CirceTest extends AnyFunSuite {
     val rdd = sparkSession.sparkContext.parallelize(data)
     val saver = new RddFileHoarder[Int](rdd.repartition(1)).circe(path)
     saver.run[IO].unsafeRunSync()
-    val t = loaders.rdd.circe[Json](path, sparkSession).collect().toSet
+    val t = loaders.rdd.circe[Json](path, sparkSession).collect().map(_.as[Int].toOption.get).toSet
     assert(data.toSet == t)
   }
 }

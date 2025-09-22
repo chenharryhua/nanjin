@@ -74,7 +74,7 @@ class KafkaAvroTest extends AnyFunSuite {
         ctx.schemaRegistry.register(topicCO) >>
         data.compile.drain >>
         sk.fromKafka.flatMap(
-          _.rdd.output(Encoder[NJConsumerRecord[Int, PersonCaseObject]]).avro(path).run[IO]) >>
+          _.rdd.out(Encoder[NJConsumerRecord[Int, PersonCaseObject]]).avro(path).run[IO]) >>
         IO(sk.load.avro(path).rdd.collect().toSet)
     intercept[Exception](run.unsafeRunSync().flatMap(_.value) == Set(co1, co2))
   }
@@ -98,13 +98,12 @@ class KafkaAvroTest extends AnyFunSuite {
         .use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt) >>
         ctx.schemaRegistry.register(topicEnum) >>
         data.compile.drain >>
+        sk.fromKafka.flatMap(_.rdd.out(Encoder[NJConsumerRecord[Int, PersonEnum]]).avro(avroPath).run[IO]) >>
         sk.fromKafka.flatMap(
-          _.rdd.output(Encoder[NJConsumerRecord[Int, PersonEnum]]).avro(avroPath).run[IO]) >>
-        sk.fromKafka.flatMap(
-          _.rdd.output(Encoder[NJConsumerRecord[Int, PersonEnum]]).jackson(jacksonPath).run[IO]) >>
+          _.rdd.out(Encoder[NJConsumerRecord[Int, PersonEnum]]).jackson(jacksonPath).run[IO]) >>
         sk.fromKafka.flatMap(_.rdd.output.circe(circePath).run[IO]) >>
         sk.fromKafka.flatMap(
-          _.rdd.output(Encoder[NJConsumerRecord[Int, PersonEnum]]).parquet(parquetPath).run[IO]) >>
+          _.rdd.out(Encoder[NJConsumerRecord[Int, PersonEnum]]).parquet(parquetPath).run[IO]) >>
         IO(sk.load.avro(avroPath).rdd.take(10).toSet)
     assert(run.unsafeRunSync().flatMap(_.value) == Set(en1, en2))
     sparKafka.stats.jackson(jacksonPath).flatMap(_.summary).unsafeRunSync()
@@ -129,7 +128,7 @@ class KafkaAvroTest extends AnyFunSuite {
         .use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt) >>
         ctx.schemaRegistry.register(topicEnum) >>
         data.compile.drain >>
-        sk.fromKafka.flatMap(_.rdd.output(Encoder[NJConsumerRecord[Int, PersonEnum]]).avro(path).run[IO]) >>
+        sk.fromKafka.flatMap(_.rdd.out(Encoder[NJConsumerRecord[Int, PersonEnum]]).avro(path).run[IO]) >>
         IO(sk.load.avro(path).rdd.take(10).toSet)
     assert(run.unsafeRunSync().flatMap(_.value) == Set(en1, en2))
   }
@@ -152,7 +151,7 @@ class KafkaAvroTest extends AnyFunSuite {
         data.compile.drain >>
         sk.fromKafka.flatMap(
           _.rdd
-            .output(Encoder[NJConsumerRecord[Int, PersonEnum]])
+            .out(Encoder[NJConsumerRecord[Int, PersonEnum]])
             .avro(path)
             .withCompression(_.Snappy)
             .run[IO]) >>
@@ -176,7 +175,7 @@ class KafkaAvroTest extends AnyFunSuite {
         data.compile.drain >>
         sk.fromKafka.flatMap(
           _.rdd
-            .output(Encoder[NJConsumerRecord[Int, PersonEnum]])
+            .out(Encoder[NJConsumerRecord[Int, PersonEnum]])
             .binAvro(path)
             .withCompression(_.Bzip2)
             .run[IO]) >>

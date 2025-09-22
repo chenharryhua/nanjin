@@ -7,12 +7,10 @@ import scalapb.{GeneratedMessage, GeneratedMessageCompanion}
 
 import java.util
 
-sealed trait ProtobufFor[A] extends RegisterSerde[A] {
-  protected def unregisteredSerde: Serde[A]
-}
+sealed trait ProtobufFor[A] extends RegisterSerde[A]
 
 object ProtobufFor {
-  def apply[A](implicit ev: ProtobufFor[A]): ProtobufFor[A] = ev
+  def apply[A](implicit ev: ProtobufFor[A]): ProtobufFor[A] = macro imp.summon[ProtobufFor[A]]
 
   implicit object protobufForString extends ProtobufFor[String] {
     override protected val unregisteredSerde: Serde[String] = serializable.stringSerde
@@ -27,7 +25,7 @@ object ProtobufFor {
   }
 
   implicit object protobufForDynamicMessage extends ProtobufFor[DynamicMessage] {
-    override protected def unregisteredSerde: Serde[DynamicMessage] = new Serde[DynamicMessage]
+    override protected val unregisteredSerde: Serde[DynamicMessage] = new Serde[DynamicMessage]
       with Serializable {
       override val serializer: Serializer[DynamicMessage] = new Serializer[DynamicMessage] with Serializable {
         @transient private[this] lazy val ser: KafkaProtobufSerializer[DynamicMessage] =

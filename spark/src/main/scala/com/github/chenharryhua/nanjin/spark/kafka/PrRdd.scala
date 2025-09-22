@@ -39,15 +39,7 @@ final class PrRdd[K, V] private[kafka] (
   def replicate(num: Int): PrRdd[K, V] =
     transform(rdd => (1 until num).foldLeft(rdd) { case (r, _) => r.union(rdd) })
 
-  /// def normalize: PrRdd[K, V] = transform(_.map(pair.producerFormat.codec.idConversion))
-
-  // transition
-
-//  def output: RddAvroFileHoarder[NJProducerRecord[K, V]] =
-  //   new RddAvroFileHoarder[NJProducerRecord[K, V]](rdd, pair.producerFormat.codec)
-
   // IO
-
   def count[F[_]](implicit F: Sync[F]): F[Long] = F.delay(rdd.count())
   def count[F[_]: Sync](description: String): F[Long] =
     describeJob[F](rdd.sparkContext, description).surround(count[F])

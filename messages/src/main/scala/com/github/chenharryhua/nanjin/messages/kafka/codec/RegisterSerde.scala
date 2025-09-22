@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.messages.kafka.codec
 import org.apache.kafka.common.serialization.Serde
 
 trait RegisterSerde[A] extends Serializable { outer =>
-  protected def unregisteredSerde: Serde[A]
+  protected val unregisteredSerde: Serde[A]
 
   final def asKey(props: Map[String, String]): Registered[A] =
     new Registered[A](unregisteredSerde, props, true)

@@ -52,7 +52,6 @@ class SortTest extends AnyFunSuite {
   val crRdd = sparKafka.topic(topic).crRdd(rdd)
   val prRdd = crRdd.prRdd
 
-
   test("produce record") {
     assert(
       prRdd.ascendTimestamp.rdd.collect().toList.map(_.key)

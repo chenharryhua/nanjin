@@ -11,13 +11,10 @@ import java.util
 import java.util.UUID
 import scala.reflect.ClassTag
 
-sealed trait JsonFor[A] extends RegisterSerde[A] {
-  def jsonSchema: JsonSchema
-  protected def unregisteredSerde: Serde[A]
-}
+sealed trait JsonFor[A] extends RegisterSerde[A]
 
 object JsonFor {
-  def apply[A](implicit ev: JsonFor[A]): JsonFor[A] = ev
+  def apply[A](implicit ev: JsonFor[A]): JsonFor[A] = macro imp.summon[JsonFor[A]]
 
   private val mapper = new ObjectMapper() with ClassTagExtensions
   mapper.registerModule(DefaultScalaModule)
@@ -26,27 +23,22 @@ object JsonFor {
     new JsonSchema(new JsonSchemaGenerator(mapper).generateJsonSchema(klass))
 
   implicit object jsonForString extends JsonFor[String] {
-    override def jsonSchema: JsonSchema = buildSchema(classOf[String])
     override protected val unregisteredSerde: Serde[String] = serializable.stringSerde
   }
 
   implicit object jsonForLong extends JsonFor[Long] {
-    override def jsonSchema: JsonSchema = buildSchema(classOf[Long])
     override protected val unregisteredSerde: Serde[Long] = serializable.longSerde
   }
 
   implicit object jsonForInt extends JsonFor[Int] {
-    override def jsonSchema: JsonSchema = buildSchema(classOf[Int])
     override protected val unregisteredSerde: Serde[Int] = serializable.intSerde
   }
 
   implicit object jsonForUUID extends JsonFor[UUID] {
-    override def jsonSchema: JsonSchema = buildSchema(classOf[UUID])
     override protected val unregisteredSerde: Serde[UUID] = serializable.uuidSerde
   }
 
   implicit def jsonForClassTag[A: ClassTag]: JsonFor[A] = new JsonFor[A] {
-    val jsonSchema: JsonSchema = buildSchema(implicitly[ClassTag[A]].runtimeClass)
 
     override protected val unregisteredSerde: Serde[A] =
       new Serde[A] with Serializable {
@@ -63,7 +55,9 @@ object JsonFor {
               if (data == null) null
               else {
                 val payload: JsonNode = mapper.valueToTree[JsonNode](data)
-                ser.serialize(topic, JsonSchemaUtils.envelope(jsonSchema, payload))
+                ser.serialize(
+                  topic,
+                  JsonSchemaUtils.envelope(buildSchema(implicitly[ClassTag[A]].runtimeClass), payload))
               }
           }
 

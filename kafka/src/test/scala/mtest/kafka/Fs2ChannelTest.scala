@@ -66,7 +66,7 @@ class Fs2ChannelTest extends AnyFunSuite {
   import Fs2ChannelTestData.*
   test("1.should be able to consume avro topic") {
     val ret =
-        ctx.produce(avroTopic).produceOne(1, Fs2Kafka(1, "a", 1.0)) >>
+      ctx.produce(avroTopic).produceOne(1, Fs2Kafka(1, "a", 1.0)) >>
         ctx
           .consume(avroTopic)
           .updateConfig(_.withGroupId("g1").withAutoOffsetReset(AutoOffsetReset.Earliest))
@@ -81,15 +81,7 @@ class Fs2ChannelTest extends AnyFunSuite {
 
   test("2.record format") {
     val ret =
-      ctx
-        .consume(avroTopic)
-        .subscribe
-        .take(1)
-        .map(_.record)
-        .timeout(3.seconds)
-        .compile
-        .toList
-        .unsafeRunSync()
+      ctx.consume(avroTopic).subscribe.take(1).map(_.record).timeout(3.seconds).compile.toList.unsafeRunSync()
     assert(ret.size == 1)
   }
 
@@ -167,7 +159,7 @@ class Fs2ChannelTest extends AnyFunSuite {
 
   test("6.byte consumer config") {
     val consumer = ctx
-      .consumeGenericRecord(AvroTopic[Short,Int]("bytes"))
+      .consumeGenericRecord(AvroTopic[Short, Int]("bytes"))
       .updateConfig(
         _.withGroupId("nanjin")
           .withEnableAutoCommit(true)
@@ -214,7 +206,7 @@ class Fs2ChannelTest extends AnyFunSuite {
 
   test("9.generic record range - should stop") {
     val res = ctx
-      .consumeGenericRecord(AvroTopic[GenericRecord,GenericRecord]("telecom_italia_data"))
+      .consumeGenericRecord(AvroTopic[GenericRecord, GenericRecord]("telecom_italia_data"))
       .updateConfig(_.withMaxPollRecords(10))
       .circumscribedStream(Map(0 -> (0L, 5L)))
       .flatMap(_.stream.map(_.record.value).debug())
@@ -227,7 +219,7 @@ class Fs2ChannelTest extends AnyFunSuite {
 
   test("10.generic record manualCommitStream") {
     val res = ctx
-      .consumeGenericRecord(AvroTopic[GenericRecord,GenericRecord]("telecom_italia_data"))
+      .consumeGenericRecord(AvroTopic[GenericRecord, GenericRecord]("telecom_italia_data"))
       .updateConfig(_.withMaxPollRecords(10))
       .manualCommitStream
       .flatMap(_.stream.map(_.record.value))

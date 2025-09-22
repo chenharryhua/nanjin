@@ -100,11 +100,11 @@ class DecimalTopicTest extends AnyFunSuite {
     assert(res == expected)
   }
 
-  val enc = Encoder[NJConsumerRecord[Int,HasDecimal]]
+  val enc = Encoder[NJConsumerRecord[Int, HasDecimal]]
 
   test("sparKafka kafka and spark agree on parquet") {
     val path = "./data/test/spark/kafka/decimal.parquet"
-    stopic.fromKafka.flatMap(_.rdd.output(enc).parquet(path).run[IO]).unsafeRunSync()
+    stopic.fromKafka.flatMap(_.rdd.out(enc).parquet(path).run[IO]).unsafeRunSync()
 
     val res = stopic.load.parquet(path).rdd.collect().head.value.get
     assert(res == expected)
@@ -112,7 +112,7 @@ class DecimalTopicTest extends AnyFunSuite {
 
   test("sparKafka kafka and spark agree on jackson") {
     val path = "./data/test/spark/kafka/decimal.jackson"
-    stopic.fromKafka.flatMap(_.rdd.output(enc).jackson(path).run[IO]).unsafeRunSync()
+    stopic.fromKafka.flatMap(_.rdd.out(enc).jackson(path).run[IO]).unsafeRunSync()
 
     val res = stopic.load.jackson(path).rdd.collect().head.value.get
     assert(res == expected)
@@ -120,7 +120,7 @@ class DecimalTopicTest extends AnyFunSuite {
 
   test("sparKafka kafka and spark agree on avro") {
     val path = "./data/test/spark/kafka/decimal.avro"
-    stopic.fromKafka.flatMap(_.rdd.output(enc).avro(path).run[IO]).unsafeRunSync()
+    stopic.fromKafka.flatMap(_.rdd.out(enc).avro(path).run[IO]).unsafeRunSync()
 
     val res = stopic.load.avro(path).rdd.collect().head.value.get
     assert(res == expected)
@@ -136,7 +136,7 @@ class DecimalTopicTest extends AnyFunSuite {
 
   test("sparKafka kafka and spark agree on binavro") {
     val path = "./data/test/spark/kafka/decimal.bin.avro"
-    stopic.fromKafka.flatMap(_.rdd.output(enc).binAvro(path).run[IO]).unsafeRunSync()
+    stopic.fromKafka.flatMap(_.rdd.out(enc).binAvro(path).run[IO]).unsafeRunSync()
 
     val res = stopic.load.binAvro(path).rdd.collect().head.value.get
     assert(res == expected)

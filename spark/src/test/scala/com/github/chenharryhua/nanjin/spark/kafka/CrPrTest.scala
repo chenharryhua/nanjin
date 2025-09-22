@@ -4,7 +4,7 @@ import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.DateTimeRange
 import com.github.chenharryhua.nanjin.kafka.AvroTopic
-import com.github.chenharryhua.nanjin.messages.kafka.{ NJConsumerRecord}
+import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
 import com.github.chenharryhua.nanjin.spark.persist.{Rooster, RoosterData}
 import eu.timepit.refined.auto.*
 import frameless.TypedEncoder
@@ -35,7 +35,7 @@ class CrPrTest extends AnyFunSuite {
   implicit val te3: TypedEncoder[RoosterLike2] = shapeless.cachedImplicit
 
   val rooster = AvroTopic[Long, Rooster](TopicName("rooster"))(AvroFor[Long], AvroFor(Rooster.avroCodec))
- // val roosterATE = SchematizedEncoder(rooster.pair)
+  // val roosterATE = SchematizedEncoder(rooster.pair)
 
   val roosterLike =
     AvroTopic[Long, RoosterLike](TopicName("roosterLike"))(AvroFor[Long], AvroFor[RoosterLike])

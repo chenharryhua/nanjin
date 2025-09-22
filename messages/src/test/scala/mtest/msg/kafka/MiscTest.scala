@@ -1,13 +1,14 @@
 package mtest.msg.kafka
 
+import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJHeader, NJProducerRecord}
 import fs2.kafka.{ConsumerRecord, ProducerRecord}
-import org.scalatest.funsuite.AnyFunSuite
-import io.scalaland.chimney.dsl.*
-import cats.syntax.all.*
-import io.circe.syntax.EncoderOps
 import io.circe.jawn.decode
+import io.circe.syntax.EncoderOps
+import io.scalaland.chimney.dsl.*
+import org.scalatest.funsuite.AnyFunSuite
 class MiscTest extends AnyFunSuite {
+
   test("consumer record equal") {
     val cr: NJConsumerRecord[Int, Int] = NJConsumerRecord[Int, Int](
       topic = "topic",

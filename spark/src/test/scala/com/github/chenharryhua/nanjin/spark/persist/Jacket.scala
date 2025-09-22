@@ -2,9 +2,9 @@ package com.github.chenharryhua.nanjin.spark.persist
 
 import com.github.chenharryhua.nanjin.common.transformers.*
 import com.github.chenharryhua.nanjin.datetime.instances.*
-import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroCodec}
+import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import io.circe.generic.JsonCodec
-import io.circe.{Codec}
+import io.circe.Codec
 import io.circe.generic.auto.*
 import mtest.spark.*
 import org.apache.spark.rdd.RDD
@@ -36,11 +36,11 @@ object JacketData {
         Jacket(
           a = Random.nextInt(),
           p = if (Random.nextBoolean()) Pocket.L else Pocket.R,
-          neck = (Neck(
+          neck = Neck(
             d = Date.valueOf(LocalDate.now()),
             t = Timestamp.from(Instant.now.truncatedTo(ChronoUnit.MILLIS)),
             j = 1
-          ))
+          )
         ))
       .sortBy(_.p)
   val rdd: RDD[Jacket] = sparkSession.sparkContext.parallelize(expected)

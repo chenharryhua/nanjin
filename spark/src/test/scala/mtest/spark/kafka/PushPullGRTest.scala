@@ -53,7 +53,7 @@ class PushPullGRTest extends AnyFunSuite {
     sparKafka
       .topic(baseTopic)
       .fromKafka
-      .flatMap(_.rdd.output(Encoder[NJConsumerRecord[Int, version1.Tiger]]).jackson(path).run[IO])
+      .flatMap(_.rdd.out(Encoder[NJConsumerRecord[Int, version1.Tiger]]).jackson(path).run[IO])
       .unsafeRunSync()
 
     sparKafka.topic(baseTopic).load.jackson(path).count[IO]("c").unsafeRunSync()
@@ -81,7 +81,7 @@ class PushPullGRTest extends AnyFunSuite {
     sparKafka
       .topic(evolveTopic)
       .fromKafka
-      .flatMap(_.rdd.output(Encoder[NJConsumerRecord[Int, version2.Tiger]]).jackson(path).run[IO])
+      .flatMap(_.rdd.out(Encoder[NJConsumerRecord[Int, version2.Tiger]]).jackson(path).run[IO])
       .unsafeRunSync()
 
     //  sparKafka.topic(baseTopic).load.jackson(path).count.unsafeRunSync()
@@ -96,12 +96,12 @@ class PushPullGRTest extends AnyFunSuite {
     sparKafka
       .topic(baseTopic)
       .fromKafka
-      .flatMap(_.rdd.output(Encoder[NJConsumerRecord[Int, version1.Tiger]]).avro(pb).run[IO])
+      .flatMap(_.rdd.out(Encoder[NJConsumerRecord[Int, version1.Tiger]]).avro(pb).run[IO])
       .unsafeRunSync()
     sparKafka
       .topic(evolveTopic)
       .fromKafka
-      .flatMap(_.rdd.output(Encoder[NJConsumerRecord[Int, version2.Tiger]]).avro(pe).run[IO])
+      .flatMap(_.rdd.out(Encoder[NJConsumerRecord[Int, version2.Tiger]]).avro(pe).run[IO])
       .unsafeRunSync()
 
     sparKafka.topic(evolveTopic).load.avro(pb).count[IO]("c").unsafeRunSync()
@@ -118,12 +118,12 @@ class PushPullGRTest extends AnyFunSuite {
     sparKafka
       .topic(baseTopic)
       .fromKafka
-      .flatMap(_.rdd.output(Encoder[NJConsumerRecord[Int, version1.Tiger]]).parquet(pb).run[IO])
+      .flatMap(_.rdd.out(Encoder[NJConsumerRecord[Int, version1.Tiger]]).parquet(pb).run[IO])
       .unsafeRunSync()
     sparKafka
       .topic(evolveTopic)
       .fromKafka
-      .flatMap(_.rdd.output(Encoder[NJConsumerRecord[Int, version2.Tiger]]).parquet(pe).run[IO])
+      .flatMap(_.rdd.out(Encoder[NJConsumerRecord[Int, version2.Tiger]]).parquet(pe).run[IO])
       .unsafeRunSync()
 
     sparKafka.topic(evolveTopic).load.parquet(pb).count[IO]("c").unsafeRunSync()

@@ -35,8 +35,6 @@ final class CrRdd[K, V] private[kafka] (val rdd: RDD[NJConsumerRecord[K, V]], ss
   def persist(f: StorageLevel.type => StorageLevel): CrRdd[K, V] =
     transform(_.persist(f(StorageLevel)))
 
-  // def normalize: CrRdd[K, V] = transform(_.map(pair.consumerFormat.codec.idConversion))
-
   def diff(other: RDD[NJConsumerRecord[K, V]]): CrRdd[K, V] = transform(_.subtract(other))
   def diff(other: CrRdd[K, V]): CrRdd[K, V] = diff(other.rdd)
 
@@ -52,9 +50,6 @@ final class CrRdd[K, V] private[kafka] (val rdd: RDD[NJConsumerRecord[K, V]], ss
 
   def prRdd: PrRdd[K, V] =
     new PrRdd[K, V](rdd.map(_.toNJProducerRecord))
-
-  // def output: RddAvroFileHoarder[NJConsumerRecord[K, V]] =
-  //   new RddAvroFileHoarder[NJConsumerRecord[K, V]](rdd, pair.consumerFormat.codec)
 
   def stats[F[_]]: Statistics[F] =
     new Statistics[F](ss.createDataset(rdd.map(CRMetaInfo(_))))

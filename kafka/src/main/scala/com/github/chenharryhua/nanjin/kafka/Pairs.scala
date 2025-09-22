@@ -58,13 +58,13 @@ final case class JsonSchemaPair(key: JsonSchema, value: JsonSchema)
 
 final private[kafka] case class OptionalAvroSchemaPair(key: Option[Schema], value: Option[Schema]) {
   def read(broker: OptionalAvroSchemaPair): OptionalAvroSchemaPair =
-    new OptionalAvroSchemaPair(key.orElse(broker.key), value.orElse(broker.value))
+    OptionalAvroSchemaPair(key.orElse(broker.key), value.orElse(broker.value))
 
   def write(broker: OptionalAvroSchemaPair): OptionalAvroSchemaPair = {
     val nk = (key, broker.key) match {
       case (k @ Some(a), Some(b)) =>
         if (backwardCompatibility(b, a).nonEmpty)
-          sys.error(s"incompatible schema. reader: ${b.toString} writer: ${a.toString}")
+          sys.error(s"incompatible key schema. reader: ${b.toString} writer: ${a.toString}")
         else
           k
       case (None, k @ Some(_)) => k
@@ -74,14 +74,14 @@ final private[kafka] case class OptionalAvroSchemaPair(key: Option[Schema], valu
     val nv = (value, broker.value) match {
       case (v @ Some(a), Some(b)) =>
         if (backwardCompatibility(b, a).nonEmpty)
-          sys.error(s"incompatible schema. reader: ${b.toString} writer: ${a.toString}")
+          sys.error(s"incompatible value schema. reader: ${b.toString} writer: ${a.toString}")
         else
           v
       case (None, v @ Some(_)) => v
       case (v @ Some(_), None) => v
       case (None, None)        => None
     }
-    new OptionalAvroSchemaPair(nk, nv)
+    OptionalAvroSchemaPair(nk, nv)
   }
 
   def toPair: AvroSchemaPair = (key, value) match {

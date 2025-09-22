@@ -50,7 +50,8 @@ final class ConsumeBytes[F[_]: Async] private[kafka] (
   def assign: Stream[F, CommittableConsumerRecord[F, Array[Byte], Array[Byte]]] =
     clientS.evalTap(_.assign(topicName.value)).flatMap(_.stream)
 
-  def assign(partitionOffsets: Map[Int, Long]): Stream[F, CommittableConsumerRecord[F, Array[Byte], Array[Byte]]] = {
+  def assign(
+    partitionOffsets: Map[Int, Long]): Stream[F, CommittableConsumerRecord[F, Array[Byte], Array[Byte]]] = {
     val topic_offset: Map[TopicPartition, Long] =
       partitionOffsets.map { case (p, o) => new TopicPartition(topicName.value, p) -> o }
 
@@ -133,6 +134,6 @@ final class ConsumeBytes[F[_]: Async] private[kafka] (
     circumscribed(Left(dateTimeRange))
 
   def circumscribedStream(
-                           partitionOffsets: Map[Int, (Long, Long)]): Stream[F, CircumscribedStream[F, Array[Byte], Array[Byte]]] =
+    partitionOffsets: Map[Int, (Long, Long)]): Stream[F, CircumscribedStream[F, Array[Byte], Array[Byte]]] =
     circumscribed(Right(partitionOffsets))
 }

@@ -14,7 +14,7 @@ import io.scalaland.chimney.Transformer
 import io.scalaland.chimney.dsl.*
 import monocle.macros.PLenses
 import org.apache.avro.Schema
-import org.apache.avro.generic.IndexedRecord
+import org.apache.avro.generic.GenericRecord
 import org.apache.kafka.clients.consumer.ConsumerRecord as JavaConsumerRecord
 import org.apache.kafka.common.header.Header as JavaHeader
 import org.apache.kafka.common.header.internals.RecordHeaders
@@ -48,6 +48,9 @@ final case class NJConsumerRecord[K, V](
     evV: V <:< Option[V2]
   ): NJConsumerRecord[K2, V2] =
     copy(key = key.flatten, value = value.flatten)
+
+  def bimap[K1, V1](k: K => K1, v: V => V1): NJConsumerRecord[K1, V1] =
+    NJConsumerRecord.bifunctorNJConsumerRecord.bimap(this)(k, v)
 
   def toNJProducerRecord: NJProducerRecord[K, V] =
     NJProducerRecord[K, V](
@@ -105,12 +108,12 @@ object NJConsumerRecord {
     SchemaFor[NJConsumerRecord[KEY, VAL]].schema
   }
 
-  def recordFormat[K: Encoder: Decoder, V: Encoder: Decoder]: RecordFormat[NJConsumerRecord[K, V]] =
-    new RecordFormat[NJConsumerRecord[K, V]] {
-      private val rf = RecordFormat[NJConsumerRecord[K, V]]
-      override def from(record: IndexedRecord): NJConsumerRecord[K, V] = rf.from(record)
-      override def to(t: NJConsumerRecord[K, V]): Record = rf.to(t)
-    }
+  implicit val jsonEncoderGenericRecord: JsonEncoder[GenericRecord] =
+    (a: GenericRecord) =>
+      io.circe.jawn.parse(a.toString) match {
+        case Left(value)  => throw value
+        case Right(value) => value
+      }
 
   implicit def encoderNJConsumerRecord[K: JsonEncoder, V: JsonEncoder]: JsonEncoder[NJConsumerRecord[K, V]] =
     io.circe.generic.semiauto.deriveEncoder[NJConsumerRecord[K, V]]

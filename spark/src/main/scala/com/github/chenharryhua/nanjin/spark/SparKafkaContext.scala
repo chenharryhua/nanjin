@@ -6,12 +6,13 @@ import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.datetime.DateTimeRange
 import com.github.chenharryhua.nanjin.kafka.*
-import com.github.chenharryhua.nanjin.messages.kafka.CRMetaInfo
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
+import com.github.chenharryhua.nanjin.messages.kafka.{CRMetaInfo, NJConsumerRecord}
 import com.github.chenharryhua.nanjin.spark.kafka.{SparKafkaTopic, Statistics}
 import com.github.chenharryhua.nanjin.terminals.*
 import eu.timepit.refined.refineMV
 import fs2.kafka.*
+import io.circe.Encoder as JsonEncoder
 import io.lemonlabs.uri.Url
 import io.lemonlabs.uri.typesafe.dsl.urlToUrlDsl
 import org.apache.kafka.clients.consumer.ConsumerConfig
@@ -27,15 +28,11 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
 
   val hadoop: Hadoop[F] = sparkSession.hadoop[F]
 
-  def topic[K, V](topic: AvroTopic[K, V]): SparKafkaTopic[F, K, V] =
-    new SparKafkaTopic[F, K, V](sparkSession, kafkaContext, topic)
+  def topic[K, V](topic: KafkaTopic[K, V]): SparKafkaTopic[F, K, V] =
+    new SparKafkaTopic[F, K, V](sparkSession, kafkaContext, kafkaContext.serde(topic))
 
-  final class DumpConfig(
-    private[SparKafkaContext] val dateRange: DateTimeRange = DateTimeRange(sparkZoneId(sparkSession)),
-    private[SparKafkaContext] val timeout: FiniteDuration = 15.seconds,
-    private[SparKafkaContext] val ignoreError: Boolean = false,
-    private[SparKafkaContext] val updateConsumerSettings: Endo[
-      ConsumerSettings[F, Array[Byte], Array[Byte]]] = (_: ConsumerSettings[F, Array[Byte], Array[Byte]])
+  private def defaultConsumerSettings[K, V]: Endo[ConsumerSettings[F, K, V]] =
+    (_: ConsumerSettings[F, K, V])
       .withProperty(ConsumerConfig.FETCH_MIN_BYTES_CONFIG, "1048576") // chatGPT recommendation
       .withProperty(ConsumerConfig.FETCH_MAX_WAIT_MS_CONFIG, "1000")
       .withProperty(ConsumerConfig.MAX_PARTITION_FETCH_BYTES_CONFIG, "5242880")
@@ -44,7 +41,14 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
       .withMaxPrefetchBatches(10)
       .withIsolationLevel(IsolationLevel.ReadCommitted)
       .withPollInterval(0.second)
-      .withEnableAutoCommit(false)) {
+      .withEnableAutoCommit(false)
+
+  final class DumpConfig(
+    private[SparKafkaContext] val dateRange: DateTimeRange = DateTimeRange(sparkZoneId(sparkSession)),
+    private[SparKafkaContext] val timeout: FiniteDuration = 15.seconds,
+    private[SparKafkaContext] val ignoreError: Boolean = false,
+    private[SparKafkaContext] val updateConsumerSettings: Endo[
+      ConsumerSettings[F, Array[Byte], Array[Byte]]] = defaultConsumerSettings[Array[Byte], Array[Byte]]) {
     private def copy(
       dateRange: DateTimeRange = this.dateRange,
       timeout: FiniteDuration = this.timeout,
@@ -86,6 +90,27 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
         }.parJoinUnbounded.onFinalize(rs.stopConsuming)
       }
       .timeoutOnPull(config.timeout)
+      .compile
+      .fold(0L)(_ + _)
+  }
+
+  def dumpCirce[K: JsonEncoder, V: JsonEncoder](
+    topic: KafkaTopic[K, V],
+    folder: Url,
+    dateTimeRange: DateTimeRange = DateTimeRange(sparkZoneId(sparkSession)),
+    consumerSetting: Endo[ConsumerSettings[F, K, V]] = defaultConsumerSettings[K, V])(implicit
+    F: Async[F]): F[Long] = {
+    val file = CirceFile(_.Uncompressed)
+    kafkaContext
+      .consume(topic)
+      .updateConfig(consumerSetting)
+      .circumscribedStream(dateTimeRange)
+      .flatMap { rs =>
+        rs.partitionsMapStream.toList.map { case (pr, ss) =>
+          val sink = hadoop.sink(folder / s"${pr.toString}.${file.fileName}").circe
+          ss.mapChunks(_.map(cr => NJConsumerRecord(cr.record).zonedJson(dateTimeRange.zoneId))).through(sink)
+        }.parJoinUnbounded.onFinalize(rs.stopConsuming)
+      }
       .compile
       .fold(0L)(_ + _)
   }

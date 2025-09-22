@@ -37,7 +37,7 @@ package object spark {
 
     def output: RddFileHoarder[A] = new RddFileHoarder[A](rdd)
 
-    def output(encoder: AvroEncoder[A]): RddAvroFileHoarder[A] =
+    def out(implicit encoder: AvroEncoder[A]): RddAvroFileHoarder[A] =
       new RddAvroFileHoarder[A](rdd, encoder)
 
     def stream[F[_]: Sync](chunkSize: ChunkSize): Stream[F, A] =

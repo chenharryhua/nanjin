@@ -136,7 +136,7 @@ class SparKafkaTest extends AnyFunSuite {
     sparKafka
       .topic(topic)
       .fromKafka
-      .flatMap(_.rdd.output(Encoder[NJConsumerRecord[Int, HasDuck]]).jackson(path).run[IO])
+      .flatMap(_.rdd.out(Encoder[NJConsumerRecord[Int, HasDuck]]).jackson(path).run[IO])
       .unsafeRunSync()
 
     Stream

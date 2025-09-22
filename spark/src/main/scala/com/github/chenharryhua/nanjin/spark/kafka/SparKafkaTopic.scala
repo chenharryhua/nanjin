@@ -15,14 +15,14 @@ import org.apache.spark.sql.SparkSession
 final class SparKafkaTopic[F[_], K, V](
   sparkSession: SparkSession,
   ctx: KafkaContext[F],
-  avroTopic: AvroTopic[K, V])
+  topicSerde: TopicSerde[K, V])
     extends Serializable {
-  override val toString: String = avroTopic.topicName.value
+  override val toString: String = topicSerde.topicName.value
 
-  val topicName: TopicName = avroTopic.topicName
+  val topicName: TopicName = topicSerde.topicName
 
   private def downloadKafka(dateTimeRange: DateTimeRange)(implicit F: Async[F]): F[CrRdd[K, V]] =
-    sk.kafkaBatch(sparkSession, ctx, ctx.serde(avroTopic), dateTimeRange).map(crRdd)
+    sk.kafkaBatch(sparkSession, ctx, topicSerde, dateTimeRange).map(crRdd)
 
   /** download topic according to datetime
     *
@@ -57,7 +57,7 @@ final class SparKafkaTopic[F[_], K, V](
         TopicPartitionMap(topicPartition)
       })
       .map(offsetRange =>
-        crRdd(sk.kafkaBatch(sparkSession, ctx.settings.consumerSettings, ctx.serde(avroTopic), offsetRange)))
+        crRdd(sk.kafkaBatch(sparkSession, ctx.settings.consumerSettings, topicSerde, offsetRange)))
 
   /** load topic data from disk
     */
