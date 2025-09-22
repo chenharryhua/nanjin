@@ -12,7 +12,7 @@ import com.github.chenharryhua.nanjin.spark.kafka.{SparKafkaTopic, Statistics}
 import com.github.chenharryhua.nanjin.terminals.*
 import eu.timepit.refined.refineMV
 import fs2.kafka.*
-import io.circe.Encoder as JsonEncoder
+import io.circe.{Encoder as JsonEncoder, Json}
 import io.lemonlabs.uri.Url
 import io.lemonlabs.uri.typesafe.dsl.urlToUrlDsl
 import org.apache.kafka.clients.consumer.ConsumerConfig
@@ -31,8 +31,12 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
   def topic[K, V](topic: KafkaTopic[K, V]): SparKafkaTopic[F, K, V] =
     new SparKafkaTopic[F, K, V](sparkSession, kafkaContext, kafkaContext.serde(topic))
 
-  private def defaultConsumerSettings[K, V]: Endo[ConsumerSettings[F, K, V]] =
-    (_: ConsumerSettings[F, K, V])
+  final class DumpConfig(
+    private[SparKafkaContext] val dateRange: DateTimeRange = DateTimeRange(sparkZoneId(sparkSession)),
+    private[SparKafkaContext] val timeout: FiniteDuration = 15.seconds,
+    private[SparKafkaContext] val ignoreError: Boolean = false,
+    private[SparKafkaContext] val updateConsumerSettings: Endo[
+      ConsumerSettings[F, Array[Byte], Array[Byte]]] = (_: ConsumerSettings[F, Array[Byte], Array[Byte]])
       .withProperty(ConsumerConfig.FETCH_MIN_BYTES_CONFIG, "1048576") // chatGPT recommendation
       .withProperty(ConsumerConfig.FETCH_MAX_WAIT_MS_CONFIG, "1000")
       .withProperty(ConsumerConfig.MAX_PARTITION_FETCH_BYTES_CONFIG, "5242880")
@@ -41,14 +45,7 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
       .withMaxPrefetchBatches(10)
       .withIsolationLevel(IsolationLevel.ReadCommitted)
       .withPollInterval(0.second)
-      .withEnableAutoCommit(false)
-
-  final class DumpConfig(
-    private[SparKafkaContext] val dateRange: DateTimeRange = DateTimeRange(sparkZoneId(sparkSession)),
-    private[SparKafkaContext] val timeout: FiniteDuration = 15.seconds,
-    private[SparKafkaContext] val ignoreError: Boolean = false,
-    private[SparKafkaContext] val updateConsumerSettings: Endo[
-      ConsumerSettings[F, Array[Byte], Array[Byte]]] = defaultConsumerSettings[Array[Byte], Array[Byte]]) {
+      .withEnableAutoCommit(false)) {
     private def copy(
       dateRange: DateTimeRange = this.dateRange,
       timeout: FiniteDuration = this.timeout,
@@ -97,20 +94,31 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
   def dumpCirce[K: JsonEncoder, V: JsonEncoder](
     topic: KafkaTopic[K, V],
     folder: Url,
-    dateTimeRange: DateTimeRange = DateTimeRange(sparkZoneId(sparkSession)),
-    consumerSetting: Endo[ConsumerSettings[F, K, V]] = defaultConsumerSettings[K, V])(implicit
-    F: Async[F]): F[Long] = {
+    updateConfig: Endo[DumpConfig] = identity)(implicit F: Async[F]): F[Long] = {
+    val config = updateConfig(new DumpConfig())
     val file = CirceFile(_.Uncompressed)
+    val decode: ConsumerRecord[Array[Byte], Array[Byte]] => Json =
+      if (config.ignoreError)
+        kafkaContext
+          .serde(topic)
+          .optionalDeserialize[ConsumerRecord]
+          .andThen(NJConsumerRecord(_).flatten.zonedJson(config.dateRange.zoneId))
+      else
+        kafkaContext.serde(topic).deserialize[ConsumerRecord].andThen {
+          NJConsumerRecord(_).zonedJson(config.dateRange.zoneId)
+        }
+
     kafkaContext
-      .consume(topic)
-      .updateConfig(consumerSetting)
-      .circumscribedStream(dateTimeRange)
+      .consumeBytes(topic.topicName.name)
+      .updateConfig(config.updateConsumerSettings)
+      .circumscribedStream(config.dateRange)
       .flatMap { rs =>
         rs.partitionsMapStream.toList.map { case (pr, ss) =>
           val sink = hadoop.sink(folder / s"${pr.toString}.${file.fileName}").circe
-          ss.mapChunks(_.map(cr => NJConsumerRecord(cr.record).zonedJson(dateTimeRange.zoneId))).through(sink)
+          ss.mapChunks(_.map(cr => decode(cr.record))).through(sink)
         }.parJoinUnbounded.onFinalize(rs.stopConsuming)
       }
+      .timeoutOnPull(config.timeout)
       .compile
       .fold(0L)(_ + _)
   }

@@ -110,10 +110,12 @@ object NJConsumerRecord {
 
   implicit val jsonEncoderGenericRecord: JsonEncoder[GenericRecord] =
     (a: GenericRecord) =>
-      io.circe.jawn.parse(a.toString) match {
-        case Left(value)  => throw value
-        case Right(value) => value
-      }
+      if (a == null) Json.Null
+      else
+        io.circe.jawn.parse(a.toString) match {
+          case Left(value)  => throw value
+          case Right(value) => value
+        }
 
   implicit def encoderNJConsumerRecord[K: JsonEncoder, V: JsonEncoder]: JsonEncoder[NJConsumerRecord[K, V]] =
     io.circe.generic.semiauto.deriveEncoder[NJConsumerRecord[K, V]]
