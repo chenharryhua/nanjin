@@ -97,16 +97,12 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
     updateConfig: Endo[DumpConfig] = identity)(implicit F: Async[F]): F[Long] = {
     val config = updateConfig(new DumpConfig())
     val file = CirceFile(_.Uncompressed)
-    val decode: ConsumerRecord[Array[Byte], Array[Byte]] => Json =
+    val serde = kafkaContext.serde(topic)
+    def decode(cr: ConsumerRecord[Array[Byte], Array[Byte]]): Json =
       if (config.ignoreError)
-        kafkaContext
-          .serde(topic)
-          .optionalDeserialize[ConsumerRecord]
-          .andThen(NJConsumerRecord(_).flatten.zonedJson(config.dateRange.zoneId))
+        serde.toNJConsumerRecord[ConsumerRecord](cr).zonedJson(config.dateRange.zoneId)
       else
-        kafkaContext.serde(topic).deserialize[ConsumerRecord].andThen {
-          NJConsumerRecord(_).zonedJson(config.dateRange.zoneId)
-        }
+        NJConsumerRecord(serde.deserialize[ConsumerRecord](cr)).zonedJson(config.dateRange.zoneId)
 
     kafkaContext
       .consumeBytes(topic.topicName.name)

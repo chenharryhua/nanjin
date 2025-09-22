@@ -110,8 +110,6 @@ object NJConsumerRecord {
 
   implicit val jsonEncoderGenericRecord: JsonEncoder[GenericRecord] =
     (a: GenericRecord) =>
-      if (a == null) Json.Null
-      else
         io.circe.jawn.parse(a.toString) match {
           case Left(value)  => throw value
           case Right(value) => value

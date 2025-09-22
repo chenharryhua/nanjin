@@ -35,7 +35,7 @@ abstract class KafkaGenericSerde[K, V] private[kafka] (keySerde: KafkaSerde[K], 
 
   def optionalDeserialize[G[_, _]: NJConsumerMessage](
     data: G[Array[Byte], Array[Byte]]): G[Option[K], Option[V]] =
-    tryDeserializeKeyValue(data).bimap(_.toOption, _.toOption)
+    tryDeserializeKeyValue(data).bimap(_.toOption.flatMap(Option(_)), _.toOption.flatMap(Option(_)))
 
   def nullableDeserialize[G[_, _]: NJConsumerMessage](data: G[Array[Byte], Array[Byte]]): G[K, V] =
     data.bimap(
