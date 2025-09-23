@@ -14,7 +14,6 @@ import io.scalaland.chimney.Transformer
 import io.scalaland.chimney.dsl.*
 import monocle.macros.PLenses
 import org.apache.avro.Schema
-import org.apache.avro.generic.GenericRecord
 import org.apache.kafka.clients.consumer.ConsumerRecord as JavaConsumerRecord
 import org.apache.kafka.common.header.Header as JavaHeader
 import org.apache.kafka.common.header.internals.RecordHeaders
@@ -107,13 +106,6 @@ object NJConsumerRecord {
     }
     SchemaFor[NJConsumerRecord[KEY, VAL]].schema
   }
-
-  implicit val jsonEncoderGenericRecord: JsonEncoder[GenericRecord] =
-    (a: GenericRecord) =>
-        io.circe.jawn.parse(a.toString) match {
-          case Left(value)  => throw value
-          case Right(value) => value
-        }
 
   implicit def encoderNJConsumerRecord[K: JsonEncoder, V: JsonEncoder]: JsonEncoder[NJConsumerRecord[K, V]] =
     io.circe.generic.semiauto.deriveEncoder[NJConsumerRecord[K, V]]

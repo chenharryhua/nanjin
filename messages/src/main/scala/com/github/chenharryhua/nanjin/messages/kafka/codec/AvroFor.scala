@@ -5,6 +5,7 @@ import com.sksamuel.avro4s.{Decoder as AvroDecoder, Encoder as AvroEncoder, Sche
 import io.circe.syntax.EncoderOps
 import io.circe.{jawn, Decoder as JsonDecoder, Encoder as JsonEncoder}
 import io.confluent.kafka.streams.serdes.avro.{GenericAvroDeserializer, GenericAvroSerializer}
+import io.estatico.newtype.macros.newtype
 import org.apache.avro.Schema
 import org.apache.avro.generic.GenericRecord
 import org.apache.kafka.common.serialization.{Deserializer, Serde, Serializer}
@@ -29,48 +30,19 @@ private[codec] trait LowerPriority {
 object AvroFor extends LowerPriority {
   def apply[A](implicit ev: AvroFor[A]): AvroFor[A] = macro imp.summon[AvroFor[A]]
 
-  def apply[A](codec: AvroCodec[A]): AvroFor[A] =
-    new AvroFor[A] {
-      override val schema: Option[Schema] = codec.schema.some
+  @newtype final case class Universal(value: GenericRecord)
+  object Universal {
+    implicit val jsonEncoderUniversal: JsonEncoder[Universal] =
+      (a: Universal) =>
+        io.circe.jawn.parse(a.value.toString) match {
+          case Left(value)  => throw value
+          case Right(value) => value
+        }
+  }
 
-      override protected val unregisteredSerde: Serde[A] = new Serde[A] with Serializable {
-        override val serializer: Serializer[A] =
-          new Serializer[A] with Serializable {
-            @transient private[this] lazy val ser: GenericAvroSerializer = new GenericAvroSerializer
-            override def configure(configs: util.Map[String, ?], isKey: Boolean): Unit =
-              ser.configure(configs, isKey)
-
-            override def close(): Unit = ser.close()
-
-            override def serialize(topic: String, data: A): Array[Byte] =
-              if (data == null) null
-              else
-                codec.encode(data) match {
-                  case gr: GenericRecord => ser.serialize(topic, gr)
-
-                  case ex => sys.error(s"${ex.getClass.toString} is not Generic Record")
-                }
-          }
-
-        override val deserializer: Deserializer[A] =
-          new Deserializer[A] with Serializable {
-
-            @transient private[this] lazy val deSer: GenericAvroDeserializer =
-              new GenericAvroDeserializer
-
-            override def close(): Unit =
-              deSer.close()
-
-            override def configure(configs: util.Map[String, ?], isKey: Boolean): Unit =
-              deSer.configure(configs, isKey)
-
-            @SuppressWarnings(Array("AsInstanceOf"))
-            override def deserialize(topic: String, data: Array[Byte]): A =
-              if (data == null) null.asInstanceOf[A]
-              else codec.decode(deSer.deserialize(topic, data))
-          }
-      }
-    }
+  /*
+   * Specific
+   */
 
 // 1: String
   implicit object avroForString extends AvroFor[String] {
@@ -126,45 +98,83 @@ object AvroFor extends LowerPriority {
     override protected val unregisteredSerde: Serde[UUID] = serializable.uuidSerde
   }
 
-  // 10. generic record
-  implicit object avroForGenericRecord extends AvroFor[GenericRecord] {
+  // 10. universal - generic record
+  implicit object avroForUniversal extends AvroFor[Universal] {
 
     override val schema: Option[Schema] = none[Schema]
 
-    override protected val unregisteredSerde: Serde[GenericRecord] = new Serde[GenericRecord]
-      with Serializable {
-      override val serializer: Serializer[GenericRecord] =
-        new Serializer[GenericRecord] with Serializable {
+    override protected val unregisteredSerde: Serde[Universal] =
+      new Serde[Universal] with Serializable {
+        override val serializer: Serializer[Universal] =
+          new Serializer[Universal] with Serializable {
+            override def configure(configs: util.Map[String, ?], isKey: Boolean): Unit = ()
+            override def close(): Unit = ()
+            override def serialize(topic: String, data: Universal): Array[Byte] =
+              throw ForbiddenProduceException("Avro")
+          }
 
-          @transient private[this] lazy val ser: GenericAvroSerializer = new GenericAvroSerializer
+        override val deserializer: Deserializer[Universal] =
+          new Deserializer[Universal] with Serializable {
 
-          override def configure(configs: util.Map[String, ?], isKey: Boolean): Unit =
-            ser.configure(configs, isKey)
+            @transient private[this] lazy val deSer = new GenericAvroDeserializer
 
-          override def close(): Unit = ser.close()
+            override def close(): Unit = deSer.close()
 
-          override def serialize(topic: String, data: GenericRecord): Array[Byte] =
-            ser.serialize(topic, data)
-        }
+            override def configure(configs: util.Map[String, ?], isKey: Boolean): Unit =
+              deSer.configure(configs, isKey)
 
-      override val deserializer: Deserializer[GenericRecord] =
-        new Deserializer[GenericRecord] with Serializable {
-
-          @transient private[this] lazy val deSer: GenericAvroDeserializer =
-            new GenericAvroDeserializer
-
-          override def close(): Unit = deSer.close()
-
-          override def configure(configs: util.Map[String, ?], isKey: Boolean): Unit =
-            deSer.configure(configs, isKey)
-
-          override def deserialize(topic: String, data: Array[Byte]): GenericRecord =
-            deSer.deserialize(topic, data)
-        }
-    }
+            override def deserialize(topic: String, data: Array[Byte]): Universal =
+              Universal(deSer.deserialize(topic, data))
+          }
+      }
   }
 
-  implicit def avroForJson[A: JsonEncoder: JsonDecoder]: AvroFor[KJson[A]] =
+  /*
+   * General
+   */
+
+  def apply[A](codec: AvroCodec[A]): AvroFor[A] =
+    new AvroFor[A] {
+      override val schema: Option[Schema] = codec.schema.some
+
+      override protected val unregisteredSerde: Serde[A] = new Serde[A] with Serializable {
+        override val serializer: Serializer[A] =
+          new Serializer[A] with Serializable {
+            @transient private[this] lazy val ser = new GenericAvroSerializer
+            override def configure(configs: util.Map[String, ?], isKey: Boolean): Unit =
+              ser.configure(configs, isKey)
+
+            override def close(): Unit = ser.close()
+
+            override def serialize(topic: String, data: A): Array[Byte] =
+              if (data == null) null
+              else
+                codec.encode(data) match {
+                  case gr: GenericRecord => ser.serialize(topic, gr)
+
+                  case ex => sys.error(s"${ex.getClass.toString} is not Generic Record")
+                }
+          }
+
+        override val deserializer: Deserializer[A] =
+          new Deserializer[A] with Serializable {
+
+            @transient private[this] lazy val deSer = new GenericAvroDeserializer
+
+            override def close(): Unit = deSer.close()
+
+            override def configure(configs: util.Map[String, ?], isKey: Boolean): Unit =
+              deSer.configure(configs, isKey)
+
+            @SuppressWarnings(Array("AsInstanceOf"))
+            override def deserialize(topic: String, data: Array[Byte]): A =
+              if (data == null) null.asInstanceOf[A]
+              else codec.decode(deSer.deserialize(topic, data))
+          }
+      }
+    }
+
+  implicit def avroForKJson[A: JsonEncoder: JsonDecoder]: AvroFor[KJson[A]] =
     new AvroFor[KJson[A]] {
       override val schema: Option[Schema] = Some(SchemaFor[String].schema)
 

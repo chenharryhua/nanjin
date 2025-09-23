@@ -4,7 +4,7 @@ import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.DateTimeRange
-import com.github.chenharryhua.nanjin.kafka.{AvroTopic, JsonTopic, ProtobufTopic}
+import com.github.chenharryhua.nanjin.kafka.{AvroTopic, JsonLightTopic, JsonSchemaTopic, ProtobufTopic}
 import eu.timepit.refined.auto.*
 import mtest.pb.test.Lion
 import org.scalatest.funsuite.AnyFunSuite
@@ -38,7 +38,23 @@ class KafkaTopicTest extends AnyFunSuite {
   }
 
   test("json") {
-    val topic = JsonTopic[Int, JsonLion](TopicName("json-example"))
+    val topic = JsonSchemaTopic[Int, JsonLion](TopicName("json-example"))
+    val lion = JsonLion("b", Random.nextInt())
+    example.ctx.produce(topic).produceOne(1, lion).unsafeRunSync()
+
+    val res = example.ctx
+      .consume(topic)
+      .circumscribedStream(DateTimeRange(sydneyTime))
+      .flatMap(_.stream)
+      .map(_.record.value)
+      .compile
+      .lastOrError
+      .unsafeRunSync()
+    assert(res == lion)
+  }
+
+  test("json light") {
+    val topic = JsonLightTopic[Int, JsonLion](TopicName("json-light-example"))
     val lion = JsonLion("b", Random.nextInt())
     example.ctx.produce(topic).produceOne(1, lion).unsafeRunSync()
 

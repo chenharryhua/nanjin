@@ -15,6 +15,7 @@ import fs2.kafka.*
 import io.circe.{Encoder as JsonEncoder, Json}
 import io.lemonlabs.uri.Url
 import io.lemonlabs.uri.typesafe.dsl.urlToUrlDsl
+import org.apache.avro.generic.GenericRecord
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.spark.sql.SparkSession
@@ -90,6 +91,13 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
       .compile
       .fold(0L)(_ + _)
   }
+
+  implicit val jsonEncoderGenericRecord: JsonEncoder[GenericRecord] =
+    (a: GenericRecord) =>
+      io.circe.jawn.parse(a.toString) match {
+        case Left(value)  => throw value
+        case Right(value) => value
+      }
 
   def dumpCirce[K: JsonEncoder, V: JsonEncoder](
     topic: KafkaTopic[K, V],

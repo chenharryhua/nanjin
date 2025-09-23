@@ -6,6 +6,7 @@ import cats.implicits.toBifunctorOps
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.*
 import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
+import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroFor
 import eu.timepit.refined.auto.*
 import fs2.kafka.{Acks, AutoOffsetReset}
 import io.circe.generic.auto.*
@@ -15,7 +16,6 @@ import org.apache.kafka.clients.producer.ProducerConfig
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.*
-import org.apache.avro.generic.GenericRecord
 
 object Fs2ChannelTestData {
   final case class Fs2Kafka(a: Int, b: String, c: Double)
@@ -206,7 +206,7 @@ class Fs2ChannelTest extends AnyFunSuite {
 
   test("9.generic record range - should stop") {
     val res = ctx
-      .consumeGenericRecord(AvroTopic[GenericRecord, GenericRecord]("telecom_italia_data"))
+      .consumeGenericRecord(AvroTopic[AvroFor.Universal, AvroFor.Universal]("telecom_italia_data"))
       .updateConfig(_.withMaxPollRecords(10))
       .circumscribedStream(Map(0 -> (0L, 5L)))
       .flatMap(_.stream.map(_.record.value).debug())
@@ -219,7 +219,7 @@ class Fs2ChannelTest extends AnyFunSuite {
 
   test("10.generic record manualCommitStream") {
     val res = ctx
-      .consumeGenericRecord(AvroTopic[GenericRecord, GenericRecord]("telecom_italia_data"))
+      .consumeGenericRecord(AvroTopic[AvroFor.Universal, AvroFor.Universal]("telecom_italia_data"))
       .updateConfig(_.withMaxPollRecords(10))
       .manualCommitStream
       .flatMap(_.stream.map(_.record.value))

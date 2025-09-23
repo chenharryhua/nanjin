@@ -9,14 +9,14 @@ import fs2.kafka.Acks
 import io.lemonlabs.uri.Url
 import org.apache.spark.sql.SparkSession
 import com.github.chenharryhua.nanjin.kafka.AvroTopic
-import org.apache.avro.generic.GenericRecord
+import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroFor
 
 object kafka_spark {
   val spark: SparkSession = SparkSettings(sydneyTime).sparkSession
   val sparKafka: SparKafkaContext[IO] = spark.alongWith[IO](kafka_connector_s3.ctx)
 
   val path: Url = Url.parse("s3a://bucket_name/folder_name")
-  val topic = AvroTopic[Int,GenericRecord](TopicName("any.kafka.topic"))
+  val topic = AvroTopic[Int,AvroFor.Universal](TopicName("any.kafka.topic"))
 
   // batch dump a kafka topic
   sparKafka.dump(topic, path)

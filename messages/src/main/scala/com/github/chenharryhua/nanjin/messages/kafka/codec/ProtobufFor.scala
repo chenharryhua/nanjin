@@ -1,7 +1,10 @@
 package com.github.chenharryhua.nanjin.messages.kafka.codec
 
 import com.google.protobuf.DynamicMessage
+import com.google.protobuf.util.JsonFormat
+import io.circe.Encoder as JsonEncoder
 import io.confluent.kafka.serializers.protobuf.{KafkaProtobufDeserializer, KafkaProtobufSerializer}
+import io.estatico.newtype.macros.newtype
 import org.apache.kafka.common.serialization.{Deserializer, Serde, Serializer}
 import scalapb.{GeneratedMessage, GeneratedMessageCompanion}
 
@@ -11,6 +14,21 @@ sealed trait ProtobufFor[A] extends RegisterSerde[A]
 
 object ProtobufFor {
   def apply[A](implicit ev: ProtobufFor[A]): ProtobufFor[A] = macro imp.summon[ProtobufFor[A]]
+
+  @newtype final case class Universal(value: DynamicMessage)
+  object Universal {
+    private val jsonFormat = JsonFormat.printer()
+    implicit val jsonEncoderUniversal: JsonEncoder[Universal] =
+      (a: Universal) =>
+        io.circe.jawn.parse(jsonFormat.print(a.value)) match {
+          case Left(value)  => throw value
+          case Right(value) => value
+        }
+  }
+
+  /*
+   * Specific
+   */
 
   implicit object protobufForString extends ProtobufFor[String] {
     override protected val unregisteredSerde: Serde[String] = serializable.stringSerde
@@ -24,35 +42,31 @@ object ProtobufFor {
     override protected val unregisteredSerde: Serde[Int] = serializable.intSerde
   }
 
-  implicit object protobufForDynamicMessage extends ProtobufFor[DynamicMessage] {
-    override protected val unregisteredSerde: Serde[DynamicMessage] = new Serde[DynamicMessage]
-      with Serializable {
-      override val serializer: Serializer[DynamicMessage] = new Serializer[DynamicMessage] with Serializable {
-        @transient private[this] lazy val ser: KafkaProtobufSerializer[DynamicMessage] =
-          new KafkaProtobufSerializer[DynamicMessage]
-
-        override def configure(configs: util.Map[String, ?], isKey: Boolean): Unit =
-          ser.configure(configs, isKey)
-
-        override def close(): Unit = ser.close()
-
-        override def serialize(topic: String, data: DynamicMessage): Array[Byte] = ser.serialize(topic, data)
+  implicit object protobufForUniversal extends ProtobufFor[Universal] {
+    override protected val unregisteredSerde: Serde[Universal] = new Serde[Universal] with Serializable {
+      override val serializer: Serializer[Universal] = new Serializer[Universal] with Serializable {
+        override def configure(configs: util.Map[String, ?], isKey: Boolean): Unit = ()
+        override def close(): Unit = ()
+        override def serialize(topic: String, data: Universal): Array[Byte] =
+          throw ForbiddenProduceException("Protobuf")
       }
-      override val deserializer: Deserializer[DynamicMessage] = new Deserializer[DynamicMessage]
-        with Serializable {
-        @transient private[this] lazy val deSer: KafkaProtobufDeserializer[DynamicMessage] =
-          new KafkaProtobufDeserializer[DynamicMessage]
+      override val deserializer: Deserializer[Universal] = new Deserializer[Universal] with Serializable {
+        @transient private[this] lazy val deSer = new KafkaProtobufDeserializer[DynamicMessage]
 
         override def configure(configs: util.Map[String, ?], isKey: Boolean): Unit =
           deSer.configure(configs, isKey)
 
         override def close(): Unit = deSer.close()
 
-        override def deserialize(topic: String, data: Array[Byte]): DynamicMessage =
-          deSer.deserialize(topic, data)
+        override def deserialize(topic: String, data: Array[Byte]): Universal =
+          Universal(deSer.deserialize(topic, data))
       }
     }
   }
+
+  /*
+   * General
+   */
 
   implicit def protobufForGeneratedMessage[A <: GeneratedMessage](implicit
     gmc: GeneratedMessageCompanion[A]): ProtobufFor[A] =
@@ -62,8 +76,7 @@ object ProtobufFor {
         override val serializer: Serializer[A] =
           new Serializer[A] with Serializable {
 
-            @transient private[this] lazy val ser: KafkaProtobufSerializer[DynamicMessage] =
-              new KafkaProtobufSerializer[DynamicMessage]
+            @transient private[this] lazy val ser = new KafkaProtobufSerializer[DynamicMessage]
 
             override def configure(configs: util.Map[String, ?], isKey: Boolean): Unit =
               ser.configure(configs, isKey)
@@ -81,8 +94,7 @@ object ProtobufFor {
         override val deserializer: Deserializer[A] =
           new Deserializer[A] with Serializable {
 
-            @transient private[this] lazy val deSer: KafkaProtobufDeserializer[DynamicMessage] =
-              new KafkaProtobufDeserializer[DynamicMessage]
+            @transient private[this] lazy val deSer = new KafkaProtobufDeserializer[DynamicMessage]
 
             override def configure(configs: util.Map[String, ?], isKey: Boolean): Unit =
               deSer.configure(configs, isKey)

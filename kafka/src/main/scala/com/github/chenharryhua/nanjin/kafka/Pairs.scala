@@ -29,13 +29,16 @@ sealed trait SerdePair[K, V] extends Serializable {
     ).withProperties(producerSettings.properties)
 }
 
-final case class AvroPair[K, V](key: AvroFor[K], value: AvroFor[V]) extends SerdePair[K, V] {
+final case class AvroForPair[K, V](key: AvroFor[K], value: AvroFor[V]) extends SerdePair[K, V] {
   val optionalAvroSchemaPair: OptionalAvroSchemaPair = OptionalAvroSchemaPair(key.schema, value.schema)
 }
 
-final case class ProtobufPair[K, V](key: ProtobufFor[K], value: ProtobufFor[V]) extends SerdePair[K, V]
+final case class ProtobufForPair[K, V](key: ProtobufFor[K], value: ProtobufFor[V]) extends SerdePair[K, V]
 
-final case class JsonPair[K, V](key: JsonFor[K], value: JsonFor[V]) extends SerdePair[K, V]
+final case class JsonSchemaForPair[K, V](key: JsonSchemaFor[K], value: JsonSchemaFor[V])
+    extends SerdePair[K, V]
+
+final case class JsonLightForPair[K, V](key: JsonLightFor[K], value: JsonLightFor[V]) extends SerdePair[K, V]
 
 final case class AvroSchemaPair(key: Schema, value: Schema) {
   val consumerSchema: Schema = NJConsumerRecord.schema(key, value)
@@ -60,29 +63,9 @@ final private[kafka] case class OptionalAvroSchemaPair(key: Option[Schema], valu
   def read(broker: OptionalAvroSchemaPair): OptionalAvroSchemaPair =
     OptionalAvroSchemaPair(key.orElse(broker.key), value.orElse(broker.value))
 
-  def write(broker: OptionalAvroSchemaPair): OptionalAvroSchemaPair = {
-    val nk = (key, broker.key) match {
-      case (k @ Some(a), Some(b)) =>
-        if (backwardCompatibility(b, a).nonEmpty)
-          sys.error(s"incompatible key schema. reader: ${b.toString} writer: ${a.toString}")
-        else
-          k
-      case (None, k @ Some(_)) => k
-      case (k @ Some(_), None) => k
-      case (None, None)        => None
-    }
-    val nv = (value, broker.value) match {
-      case (v @ Some(a), Some(b)) =>
-        if (backwardCompatibility(b, a).nonEmpty)
-          sys.error(s"incompatible value schema. reader: ${b.toString} writer: ${a.toString}")
-        else
-          v
-      case (None, v @ Some(_)) => v
-      case (v @ Some(_), None) => v
-      case (None, None)        => None
-    }
-    OptionalAvroSchemaPair(nk, nv)
-  }
+  // write prefer broker's schema
+  def write(broker: OptionalAvroSchemaPair): OptionalAvroSchemaPair =
+    OptionalAvroSchemaPair(broker.key.orElse(key), broker.value.orElse(value))
 
   def toPair: AvroSchemaPair = (key, value) match {
     case (None, None)       => sys.error("both key and value schema are absent")
