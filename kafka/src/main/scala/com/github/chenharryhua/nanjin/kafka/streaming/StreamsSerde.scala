@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.kafka.streaming
 
 import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameL}
-import com.github.chenharryhua.nanjin.kafka.{AvroPair, AvroTopic, SchemaRegistrySettings}
+import com.github.chenharryhua.nanjin.kafka.{AvroTopic, SchemaRegistrySettings}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroFor, KafkaSerde}
 import org.apache.kafka.common.serialization.Serde
 import org.apache.kafka.streams.processor.StateStore
@@ -38,7 +38,7 @@ final class StreamsSerde private[kafka] (schemaRegistrySettings: SchemaRegistryS
   }
 
   def store[K: AvroFor, V: AvroFor](storeName: TopicName): StateStores[K, V] =
-    StateStores[K, V](AvroPair[K, V](AvroFor[K], AvroFor[V]).register(schemaRegistrySettings, storeName))
+    StateStores[K, V](AvroTopic[K, V](AvroFor[K], AvroFor[V], storeName).register(schemaRegistrySettings))
 
   def store[K: AvroFor, V: AvroFor](storeName: TopicNameL): StateStores[K, V] =
     store[K, V](TopicName(storeName))

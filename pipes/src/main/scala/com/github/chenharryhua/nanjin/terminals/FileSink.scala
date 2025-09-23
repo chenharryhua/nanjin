@@ -4,6 +4,7 @@ import cats.Endo
 import cats.data.Reader
 import cats.effect.kernel.Sync
 import cats.implicits.toFunctorOps
+import com.fasterxml.jackson.databind.JsonNode
 import fs2.{Pipe, Pull, Stream}
 import io.circe.Json
 import io.lemonlabs.uri.Url
@@ -75,6 +76,11 @@ sealed trait FileSink[F[_]] {
     * https://protobuf.dev/programming-guides/proto-limits/#total
     */
   def protobuf: Pipe[F, GeneratedMessage, Int]
+
+  /** [[https://github.com/FasterXML/jackson-databind]]
+    * @return
+    */
+  def jsonNode: Pipe[F, JsonNode, Int]
 }
 
 final private class FileSinkImpl[F[_]: Sync](configuration: Configuration, url: Url) extends FileSink[F] {
@@ -187,6 +193,12 @@ final private class FileSinkImpl[F[_]: Sync](configuration: Configuration, url: 
 
   override val protobuf: Pipe[F, GeneratedMessage, Int] = { (ss: Stream[F, GeneratedMessage]) =>
     Stream.resource(HadoopWriter.protobufR(configuration, url)).flatMap { w =>
+      ss.chunks.evalMap(c => w.write(c).as(c.size))
+    }
+  }
+
+  override def jsonNode: Pipe[F, JsonNode, Int] = { (ss: Stream[F, JsonNode]) =>
+    Stream.resource(HadoopWriter.jsonNodeR(configuration, url)).flatMap { w =>
       ss.chunks.evalMap(c => w.write(c).as(c.size))
     }
   }

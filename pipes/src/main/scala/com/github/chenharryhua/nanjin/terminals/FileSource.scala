@@ -3,7 +3,9 @@ package com.github.chenharryhua.nanjin.terminals
 import cats.Endo
 import cats.data.Reader
 import cats.effect.kernel.Sync
+import com.fasterxml.jackson.databind.{JsonNode, ObjectReader}
 import com.github.chenharryhua.nanjin.common.ChunkSize
+import com.github.chenharryhua.nanjin.messages.kafka.globalObjectMapper
 import fs2.Stream
 import io.circe.Json
 import io.lemonlabs.uri.Url
@@ -153,6 +155,14 @@ sealed trait FileSource[F[_]] {
     */
   def protobuf[A <: GeneratedMessage](chunkSize: ChunkSize)(implicit
     gmc: GeneratedMessageCompanion[A]): Stream[F, A]
+
+  /** @param chunkSize
+    *   Each chunk of the stream is of uniform size, except for the final chunk, which may be smaller
+    *   depending on the remaining data.
+    *
+    * empty line regarded as end of the file
+    */
+  def jsonNode(chunkSize: ChunkSize): Stream[F, JsonNode]
 }
 
 final private class FileSourceImpl[F[_]: Sync](configuration: Configuration, url: Url) extends FileSource[F] {
@@ -220,4 +230,8 @@ final private class FileSourceImpl[F[_]: Sync](configuration: Configuration, url
     gmc: GeneratedMessageCompanion[A]): Stream[F, A] =
     HadoopReader.protobufS[F, A](configuration, url, chunkSize)
 
+  override def jsonNode(chunkSize: ChunkSize): Stream[F, JsonNode] = {
+    val reader: ObjectReader = globalObjectMapper.reader()
+    text(chunkSize).takeWhile(_.nonEmpty).map(reader.readTree)
+  }
 }

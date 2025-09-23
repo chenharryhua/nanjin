@@ -29,16 +29,14 @@ class SparkExtTest extends AnyFunSuite {
 
   val topic = AvroTopic[String, trip_record](TopicName("nyc_yellow_taxi_trip_data"))
 
-  val ate: SchematizedEncoder[NJConsumerRecord[String, trip_record]] = SchematizedEncoder(topic.pair)
-
   test("save syntax") {
     import SparkExtTestData.*
     import sparkSession.implicits.*
     val ate = SchematizedEncoder[Foo]
     val rdd = sparkSession.sparkContext.parallelize(list.flatMap(Option(_)))
-    rdd.output(ate.avroCodec).avro("./data/test/spark/sytax/rdd/avro").run[IO].unsafeRunSync()
+    rdd.out(ate.avroCodec).avro("./data/test/spark/sytax/rdd/avro").run[IO].unsafeRunSync()
     rdd.output.circe("./data/test/spark/sytax/rdd/circe").run[IO].unsafeRunSync()
     val ds = sparkSession.createDataset(rdd)
-    ds.rdd.output(ate.avroCodec).parquet("./data/test/spark/sytax/ds/parquet").run[IO].unsafeRunSync()
+    ds.rdd.out(ate.avroCodec).parquet("./data/test/spark/sytax/ds/parquet").run[IO].unsafeRunSync()
   }
 }

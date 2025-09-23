@@ -3,11 +3,14 @@ package com.github.chenharryhua.nanjin.messages.kafka.codec
 import org.apache.kafka.common.serialization.Serde
 
 trait RegisterSerde[A] extends Serializable { outer =>
-  protected def serde: Serde[A]
+  protected val unregisteredSerde: Serde[A]
 
   final def asKey(props: Map[String, String]): Registered[A] =
-    new Registered[A](serde, props, true)
+    new Registered[A](unregisteredSerde, props, true)
 
   final def asValue(props: Map[String, String]): Registered[A] =
-    new Registered(serde, props, false)
+    new Registered(unregisteredSerde, props, false)
 }
+
+final case class ForbiddenProduceException(kind: String)
+    extends Exception(s"Universal ${kind} Serde is not allowed to do serialization")

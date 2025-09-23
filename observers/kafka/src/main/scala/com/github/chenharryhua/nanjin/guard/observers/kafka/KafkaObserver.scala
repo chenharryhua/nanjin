@@ -8,7 +8,7 @@ import com.github.chenharryhua.nanjin.guard.event.Event
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStart
 import com.github.chenharryhua.nanjin.guard.observers.FinalizeMonitor
 import com.github.chenharryhua.nanjin.guard.translator.{Translator, UpdateTranslator}
-import com.github.chenharryhua.nanjin.kafka.{AvroPair, KafkaContext}
+import com.github.chenharryhua.nanjin.kafka.{AvroForPair, KafkaContext}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroFor, KJson}
 import fs2.kafka.ProducerRecord
 import fs2.{Pipe, Stream}
@@ -38,7 +38,7 @@ final class KafkaObserver[F[_]](ctx: KafkaContext[F], translator: Translator[F, 
               KJson(EventKey(evt.serviceParams.taskName.value, evt.serviceParams.serviceName.value)),
               KJson(evt))))
 
-    val pair = AvroPair(AvroFor[KJson[EventKey]], AvroFor[KJson[Event]])
+    val pair = AvroForPair(AvroFor[KJson[EventKey]], AvroFor[KJson[Event]])
 
     (ss: Stream[F, Event]) =>
       for {

@@ -5,6 +5,8 @@ import cats.data.Cont
 import cats.kernel.Eq
 import cats.syntax.eq.catsSyntaxEq
 import cats.syntax.semigroup.catsSyntaxSemigroup
+import com.fasterxml.jackson.databind.node.{ArrayNode, ObjectNode}
+import com.fasterxml.jackson.databind.JsonNode
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.sksamuel.avro4s.*
 import fs2.kafka.*
@@ -19,6 +21,7 @@ import org.apache.kafka.common.header.Header as JavaHeader
 import org.apache.kafka.common.header.internals.RecordHeaders
 import org.apache.kafka.common.record.TimestampType as JavaTimestampType
 
+import java.nio.charset.StandardCharsets
 import java.time.{Instant, ZoneId}
 import scala.jdk.OptionConverters.{RichOption, RichOptional}
 
@@ -48,6 +51,9 @@ final case class NJConsumerRecord[K, V](
   ): NJConsumerRecord[K2, V2] =
     copy(key = key.flatten, value = value.flatten)
 
+  def bimap[K1, V1](k: K => K1, v: V => V1): NJConsumerRecord[K1, V1] =
+    NJConsumerRecord.bifunctorNJConsumerRecord.bimap(this)(k, v)
+
   def toNJProducerRecord: NJProducerRecord[K, V] =
     NJProducerRecord[K, V](
       topic = topic,
@@ -60,6 +66,9 @@ final case class NJConsumerRecord[K, V](
 
   def toJavaConsumerRecord: JavaConsumerRecord[K, V] = this.transformInto[JavaConsumerRecord[K, V]]
   def toConsumerRecord: ConsumerRecord[K, V] = this.transformInto[ConsumerRecord[K, V]]
+
+  def toJsonNode(k: K => Option[JsonNode], v: V => Option[JsonNode]): JsonNode =
+    NJConsumerRecord.buildJsonNode(this)(k, v)
 
   def zonedJson(zoneID: ZoneId)(implicit K: JsonEncoder[K], V: JsonEncoder[V]): Json =
     NJConsumerRecord
@@ -75,6 +84,53 @@ object NJConsumerRecord {
 
   def apply[K, V](cr: ConsumerRecord[K, V]): NJConsumerRecord[K, V] =
     cr.transformInto[NJConsumerRecord[K, V]]
+
+  def buildJsonNode[K, V](
+    record: NJConsumerRecord[K, V])(k: K => Option[JsonNode], v: V => Option[JsonNode]): JsonNode = {
+    val root: ObjectNode = globalObjectMapper.createObjectNode()
+    root.put("topic", record.topic)
+    root.put("partition", record.partition)
+    root.put("offset", record.offset)
+    root.put("timestamp", record.timestamp)
+    root.put("timestampType", record.timestampType)
+
+    record.serializedKeySize match {
+      case Some(value) => root.put("serializedKeySize", value)
+      case None        => root.putNull("serializedKeySize")
+    }
+    record.serializedValueSize match {
+      case Some(value) => root.put("serializedValueSize", value)
+      case None        => root.putNull("serializedValueSize")
+    }
+    record.leaderEpoch match {
+      case Some(value) => root.put("leaderEpoch", value)
+      case None        => root.putNull("leaderEpoch")
+    }
+
+    val arr: ArrayNode = globalObjectMapper.createArrayNode()
+    record.headers.map { hd =>
+      val node = globalObjectMapper.createObjectNode()
+      // according to the spec, header's key should not be null
+      if (hd.value == null) node.putNull(hd.key)
+      else
+        node.put(hd.key, new String(hd.value, StandardCharsets.UTF_8))
+
+      arr.add(node)
+    }
+    root.set[ArrayNode]("headers", arr)
+
+    record.key.flatMap(k) match {
+      case Some(value) => root.set("key", value)
+      case None        => root.putNull("key")
+    }
+
+    record.value.flatMap(v) match {
+      case Some(value) => root.set("value", value)
+      case None        => root.putNull("value")
+    }
+
+    root
+  }
 
   def avroCodec[K, V](keyCodec: AvroCodec[K], valCodec: AvroCodec[V]): AvroCodec[NJConsumerRecord[K, V]] = {
     implicit val schemaForKey: SchemaFor[K] = keyCodec.schemaFor

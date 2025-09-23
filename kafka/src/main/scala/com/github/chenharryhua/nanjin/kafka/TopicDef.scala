@@ -1,13 +1,13 @@
 package com.github.chenharryhua.nanjin.kafka
 
 import cats.effect.kernel.Sync
-import cats.kernel.Eq
-import cats.syntax.eq.*
 import cats.{Endo, Show}
 import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameL}
-import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroFor, JsonFor, ProtobufFor}
-import com.sksamuel.avro4s.Record
+import com.github.chenharryhua.nanjin.messages.kafka.codec.*
 import fs2.kafka.{ConsumerSettings, ProducerRecord, ProducerSettings}
+
+final case class TopicSerde[K, V](topicName: TopicName, key: KafkaSerde[K], value: KafkaSerde[V])
+    extends KafkaGenericSerde(key, value)
 
 sealed trait KafkaTopic[K, V] extends Serializable {
   def topicName: TopicName
@@ -17,9 +17,11 @@ sealed trait KafkaTopic[K, V] extends Serializable {
   def producerSettings[F[_]: Sync](
     srs: SchemaRegistrySettings,
     ps: KafkaProducerSettings): ProducerSettings[F, K, V]
+
+  def register(srs: SchemaRegistrySettings): TopicSerde[K, V]
 }
 
-final class AvroTopic[K, V] private (val topicName: TopicName, val pair: AvroPair[K, V])
+final class AvroTopic[K, V] private (val topicName: TopicName, val pair: AvroForPair[K, V])
     extends KafkaTopic[K, V] {
 
   override def toString: String = topicName.value
@@ -29,7 +31,6 @@ final class AvroTopic[K, V] private (val topicName: TopicName, val pair: AvroPai
     withTopicName(TopicName.unsafeFrom(f(topicName.value)).name)
 
   def producerRecord(k: K, v: V): ProducerRecord[K, V] = ProducerRecord(topicName.value, k, v)
-  def genericRecord(k: K, v: V): Record = pair.producerFormat.toRecord(producerRecord(k, v))
 
   override def consumerSettings[F[_]: Sync](
     srs: SchemaRegistrySettings,
@@ -40,26 +41,29 @@ final class AvroTopic[K, V] private (val topicName: TopicName, val pair: AvroPai
     srs: SchemaRegistrySettings,
     ps: KafkaProducerSettings): ProducerSettings[F, K, V] =
     pair.producerSettings[F](srs, ps)
+
+  override def register(srs: SchemaRegistrySettings): TopicSerde[K, V] =
+    TopicSerde(
+      topicName,
+      pair.key.asKey(srs.config).withTopic(topicName),
+      pair.value.asValue(srs.config).withTopic(topicName))
 }
 
 object AvroTopic {
 
   implicit def showTopicDef[K, V]: Show[AvroTopic[K, V]] = Show.fromToString
 
-  implicit def eqTopicDef[K, V]: Eq[AvroTopic[K, V]] =
-    (x: AvroTopic[K, V], y: AvroTopic[K, V]) =>
-      x.topicName.value === y.topicName.value &&
-        x.pair.key.avroCodec.schema == y.pair.key.avroCodec.schema &&
-        x.pair.value.avroCodec.schema == y.pair.value.avroCodec.schema
-
   def apply[K, V](key: AvroFor[K], value: AvroFor[V], topicName: TopicName): AvroTopic[K, V] =
-    new AvroTopic(topicName, AvroPair(key, value))
+    new AvroTopic(topicName, AvroForPair(key, value))
 
   def apply[K: AvroFor, V: AvroFor](topicName: TopicName): AvroTopic[K, V] =
     apply[K, V](AvroFor[K], AvroFor[V], topicName)
+
+  def apply[K: AvroFor, V: AvroFor](topicName: TopicNameL): AvroTopic[K, V] =
+    apply[K, V](TopicName(topicName))
 }
 
-final class ProtobufTopic[K, V] private (val topicName: TopicName, val pair: ProtobufPair[K, V])
+final class ProtobufTopic[K, V] private (val topicName: TopicName, val pair: ProtobufForPair[K, V])
     extends KafkaTopic[K, V] {
   override def consumerSettings[F[_]: Sync](
     srs: SchemaRegistrySettings,
@@ -70,17 +74,26 @@ final class ProtobufTopic[K, V] private (val topicName: TopicName, val pair: Pro
     srs: SchemaRegistrySettings,
     ps: KafkaProducerSettings): ProducerSettings[F, K, V] =
     pair.producerSettings[F](srs, ps)
+
+  override def register(srs: SchemaRegistrySettings): TopicSerde[K, V] =
+    TopicSerde(
+      topicName,
+      pair.key.asKey(srs.config).withTopic(topicName),
+      pair.value.asValue(srs.config).withTopic(topicName))
 }
 
 object ProtobufTopic {
   def apply[K, V](key: ProtobufFor[K], value: ProtobufFor[V], topicName: TopicName): ProtobufTopic[K, V] =
-    new ProtobufTopic[K, V](topicName, ProtobufPair[K, V](key, value))
+    new ProtobufTopic[K, V](topicName, ProtobufForPair[K, V](key, value))
 
   def apply[K: ProtobufFor, V: ProtobufFor](topicName: TopicName): ProtobufTopic[K, V] =
     apply[K, V](ProtobufFor[K], ProtobufFor[V], topicName)
+
+  def apply[K: ProtobufFor, V: ProtobufFor](topicName: TopicNameL): ProtobufTopic[K, V] =
+    apply[K, V](TopicName(topicName))
 }
 
-final class JsonTopic[K, V] private (val topicName: TopicName, val pair: JsonPair[K, V])
+final class JsonSchemaTopic[K, V] private (val topicName: TopicName, val pair: JsonSchemaForPair[K, V])
     extends KafkaTopic[K, V] {
   override def consumerSettings[F[_]: Sync](
     srs: SchemaRegistrySettings,
@@ -90,11 +103,49 @@ final class JsonTopic[K, V] private (val topicName: TopicName, val pair: JsonPai
     srs: SchemaRegistrySettings,
     ps: KafkaProducerSettings): ProducerSettings[F, K, V] =
     pair.producerSettings[F](srs, ps)
-}
-object JsonTopic {
-  def apply[K, V](key: JsonFor[K], value: JsonFor[V], topicName: TopicName) =
-    new JsonTopic[K, V](topicName, JsonPair(key, value))
 
-  def apply[K: JsonFor, V: JsonFor](topicName: TopicName): JsonTopic[K, V] =
-    apply[K, V](JsonFor[K], JsonFor[V], topicName)
+  override def register(srs: SchemaRegistrySettings): TopicSerde[K, V] =
+    TopicSerde(
+      topicName,
+      pair.key.asKey(srs.config).withTopic(topicName),
+      pair.value.asValue(srs.config).withTopic(topicName))
+}
+object JsonSchemaTopic {
+  def apply[K, V](key: JsonSchemaFor[K], value: JsonSchemaFor[V], topicName: TopicName) =
+    new JsonSchemaTopic[K, V](topicName, JsonSchemaForPair(key, value))
+
+  def apply[K: JsonSchemaFor, V: JsonSchemaFor](topicName: TopicName): JsonSchemaTopic[K, V] =
+    apply[K, V](JsonSchemaFor[K], JsonSchemaFor[V], topicName)
+
+  def apply[K: JsonSchemaFor, V: JsonSchemaFor](topicName: TopicNameL): JsonSchemaTopic[K, V] =
+    apply[K, V](TopicName(topicName))
+}
+
+final class JsonLightTopic[K, V] private (val topicName: TopicName, val pair: JsonLightForPair[K, V])
+    extends KafkaTopic[K, V] {
+  override def consumerSettings[F[_]: Sync](
+    srs: SchemaRegistrySettings,
+    cs: KafkaConsumerSettings): ConsumerSettings[F, K, V] =
+    pair.consumerSettings[F](srs, cs)
+  override def producerSettings[F[_]: Sync](
+    srs: SchemaRegistrySettings,
+    ps: KafkaProducerSettings): ProducerSettings[F, K, V] =
+    pair.producerSettings[F](srs, ps)
+
+  override def register(srs: SchemaRegistrySettings): TopicSerde[K, V] =
+    TopicSerde(
+      topicName,
+      pair.key.asKey(srs.config).withTopic(topicName),
+      pair.value.asValue(srs.config).withTopic(topicName))
+}
+
+object JsonLightTopic {
+  def apply[K, V](key: JsonLightFor[K], value: JsonLightFor[V], topicName: TopicName): JsonLightTopic[K, V] =
+    new JsonLightTopic[K, V](topicName, JsonLightForPair(key, value))
+
+  def apply[K: JsonLightFor, V: JsonLightFor](topicName: TopicName): JsonLightTopic[K, V] =
+    apply[K, V](JsonLightFor[K], JsonLightFor[V], topicName)
+
+  def apply[K: JsonLightFor, V: JsonLightFor](topicName: TopicNameL): JsonLightTopic[K, V] =
+    apply[K, V](TopicName(topicName))
 }

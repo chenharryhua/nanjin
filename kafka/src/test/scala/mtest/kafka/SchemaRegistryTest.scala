@@ -15,15 +15,15 @@ class SchemaRegistryTest extends AnyFunSuite {
   test("compatible") {
     val res = (ctx.schemaRegistry.register(topic) >>
       ctx.schemaRegistry.metaData(topic.topicName) >>
-      ctx.schemaRegistry.fetchAvroSchema(topic.topicName)).unsafeRunSync()
-    assert(res.isFullCompatible(topic.pair.schemaPair))
+      ctx.schemaRegistry.fetchOptionalAvroSchema(topic.topicName)).unsafeRunSync()
+    assert(res.toPair.isFullCompatible(topic.pair.optionalAvroSchemaPair.toPair))
   }
 
   test("incompatible") {
     val other = AvroTopic[String, String](topicName)
-    val res = ctx.schemaRegistry.fetchAvroSchema(topicName).unsafeRunSync()
-    assert(res.backward(other.pair.schemaPair).nonEmpty)
-    assert(res.forward(other.pair.schemaPair).nonEmpty)
+    val res = ctx.schemaRegistry.fetchOptionalAvroSchema(topicName).unsafeRunSync()
+    assert(res.toPair.backward(other.pair.optionalAvroSchemaPair.toPair).nonEmpty)
+    assert(res.toPair.forward(other.pair.optionalAvroSchemaPair.toPair).nonEmpty)
   }
 
   test("register schema should be identical") {
@@ -31,13 +31,13 @@ class SchemaRegistryTest extends AnyFunSuite {
     val report = ctx.schemaRegistry.delete(topic.topicName).attempt >>
       ctx.schemaRegistry.register(topic) >>
       ctx.schemaRegistry.fetchAvroSchema(topic.topicName)
-    assert(report.unsafeRunSync().isIdentical(topic.pair.schemaPair))
-    assert(report.unsafeRunSync().isFullCompatible(topic.pair.schemaPair))
+    assert(report.unsafeRunSync().isIdentical(topic.pair.optionalAvroSchemaPair.toPair))
+    assert(report.unsafeRunSync().isFullCompatible(topic.pair.optionalAvroSchemaPair.toPair))
   }
 
   test("compatibility") {
-    val other = AvroTopic[Int, reddit_post](TopicName("abc")).pair.schemaPair
-    val skm = topic.pair.schemaPair
+    val other = AvroTopic[Int, reddit_post](TopicName("abc")).pair.optionalAvroSchemaPair.toPair
+    val skm = topic.pair.optionalAvroSchemaPair.toPair
     assert(other.forward(skm).nonEmpty)
     assert(other.backward(skm).nonEmpty)
   }

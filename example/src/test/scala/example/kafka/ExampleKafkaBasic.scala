@@ -5,12 +5,11 @@ import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.AvroTopic
 import com.github.chenharryhua.nanjin.messages.kafka.NJProducerRecord
-import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroFor, JsonFor, ProtobufFor}
+import com.github.chenharryhua.nanjin.spark.RddExt
 import eu.timepit.refined.auto.*
 import example.*
 import example.topics.fooTopic
 import io.lemonlabs.uri.Url
-import mtest.pb.test.Lion
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -19,11 +18,7 @@ import scala.concurrent.duration.*
 @DoNotDiscover
 class ExampleKafkaBasic extends AnyFunSuite {
   val topic = AvroTopic[Int, Foo](TopicName("foo"))
-  test("schema") {
-    JsonFor[Int].jsonSchema
-    AvroFor[Int].avroCodec.schema
-    ProtobufFor[Lion].descriptor
-  }
+
   test("populate topic") {
     val producerRecords: List[NJProducerRecord[Int, Foo]] =
       List(
@@ -33,7 +28,10 @@ class ExampleKafkaBasic extends AnyFunSuite {
         NJProducerRecord(fooTopic.topicName, 4, Foo(40, "d"))
       )
     val run =
-      ctx.admin(fooTopic.topicName.name).use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence) >>
+      ctx
+        .admin(fooTopic.topicName.name)
+        .use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence)
+        .attempt >>
         sparKafka
           .topic(fooTopic)
           .prRdd(producerRecords)
@@ -47,7 +45,7 @@ class ExampleKafkaBasic extends AnyFunSuite {
 
   test("consume messages from kafka using https://fd4s.github.io/fs2-kafka/") {
     ctx
-      .consumeAvro(fooTopic.topicName.name)
+      .consumeGenericRecord(fooTopic)
       .subscribe
       .debug()
       .interruptAfter(3.seconds)
@@ -58,7 +56,7 @@ class ExampleKafkaBasic extends AnyFunSuite {
 
   test("persist messages to local disk and then load data back into kafka") {
     val path = Url.parse("./data/example/foo.json")
-    sparKafka.topic(fooTopic).fromKafka.flatMap(_.output.circe(path).run[IO]).unsafeRunSync()
+    sparKafka.topic(fooTopic).fromKafka.flatMap(_.rdd.output.circe(path).run[IO]).unsafeRunSync()
     sparKafka
       .topic(fooTopic)
       .load

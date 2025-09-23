@@ -4,6 +4,9 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.AvroTopic
+import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
+import com.github.chenharryhua.nanjin.spark.RddExt
+import com.sksamuel.avro4s.Encoder
 import eu.timepit.refined.auto.*
 import io.circe.Codec
 import io.lemonlabs.uri.typesafe.dsl.*
@@ -11,6 +14,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import shapeless.*
 import io.circe.generic.auto.*
 import com.github.chenharryhua.nanjin.common.transformers.*
+
 object KafkaAvroTestData {
   final case class Child1(a: Int, b: String)
   final case class Child2(a: Int, b: String)
@@ -69,7 +73,8 @@ class KafkaAvroTest extends AnyFunSuite {
         .use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt) >>
         ctx.schemaRegistry.register(topicCO) >>
         data.compile.drain >>
-        sk.fromKafka.flatMap(_.output.avro(path).run[IO]) >>
+        sk.fromKafka.flatMap(
+          _.rdd.out(Encoder[NJConsumerRecord[Int, PersonCaseObject]]).avro(path).run[IO]) >>
         IO(sk.load.avro(path).rdd.collect().toSet)
     intercept[Exception](run.unsafeRunSync().flatMap(_.value) == Set(co1, co2))
   }
@@ -79,8 +84,7 @@ class KafkaAvroTest extends AnyFunSuite {
       .emits(List((0, en1), (1, en2)))
       .covary[IO]
       .chunks
-      .through(
-        ctx.produce[Int, PersonEnum](topicEnum).updateConfig(_.withClientId("kafka.avro.test2")).sink)
+      .through(ctx.produce[Int, PersonEnum](topicEnum).updateConfig(_.withClientId("kafka.avro.test2")).sink)
     val avroPath = "./data/test/spark/kafka/coproduct/scalaenum.avro"
     val jacksonPath = "./data/test/spark/kafka/coproduct/scalaenum.jackson.json"
     val circePath = "./data/test/spark/kafka/coproduct/scalaenum.circe.json"
@@ -94,10 +98,12 @@ class KafkaAvroTest extends AnyFunSuite {
         .use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt) >>
         ctx.schemaRegistry.register(topicEnum) >>
         data.compile.drain >>
-        sk.fromKafka.flatMap(_.output.avro(avroPath).run[IO]) >>
-        sk.fromKafka.flatMap(_.output.jackson(jacksonPath).run[IO]) >>
-        sk.fromKafka.flatMap(_.output.circe(circePath).run[IO]) >>
-        sk.fromKafka.flatMap(_.output.parquet(parquetPath).run[IO]) >>
+        sk.fromKafka.flatMap(_.rdd.out(Encoder[NJConsumerRecord[Int, PersonEnum]]).avro(avroPath).run[IO]) >>
+        sk.fromKafka.flatMap(
+          _.rdd.out(Encoder[NJConsumerRecord[Int, PersonEnum]]).jackson(jacksonPath).run[IO]) >>
+        sk.fromKafka.flatMap(_.rdd.output.circe(circePath).run[IO]) >>
+        sk.fromKafka.flatMap(
+          _.rdd.out(Encoder[NJConsumerRecord[Int, PersonEnum]]).parquet(parquetPath).run[IO]) >>
         IO(sk.load.avro(avroPath).rdd.take(10).toSet)
     assert(run.unsafeRunSync().flatMap(_.value) == Set(en1, en2))
     sparKafka.stats.jackson(jacksonPath).flatMap(_.summary).unsafeRunSync()
@@ -111,8 +117,7 @@ class KafkaAvroTest extends AnyFunSuite {
       .emits(List((0, en1), (1, en2)))
       .covary[IO]
       .chunks
-      .through(
-        ctx.produce[Int, PersonEnum](topicEnum).updateConfig(_.withClientId("kafka.avro.test3")).sink)
+      .through(ctx.produce[Int, PersonEnum](topicEnum).updateConfig(_.withClientId("kafka.avro.test3")).sink)
 
     val path = "./data/test/spark/kafka/coproduct/multi-scalaenum.avro"
     val sk = sparKafka.topic(topicEnum)
@@ -123,7 +128,7 @@ class KafkaAvroTest extends AnyFunSuite {
         .use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt) >>
         ctx.schemaRegistry.register(topicEnum) >>
         data.compile.drain >>
-        sk.fromKafka.flatMap(_.output.avro(path).run[IO]) >>
+        sk.fromKafka.flatMap(_.rdd.out(Encoder[NJConsumerRecord[Int, PersonEnum]]).avro(path).run[IO]) >>
         IO(sk.load.avro(path).rdd.take(10).toSet)
     assert(run.unsafeRunSync().flatMap(_.value) == Set(en1, en2))
   }
@@ -133,8 +138,7 @@ class KafkaAvroTest extends AnyFunSuite {
       .emits(List((0, en1), (1, en2)))
       .covary[IO]
       .chunks
-      .through(
-        ctx.produce[Int, PersonEnum](topicEnum).updateConfig(_.withClientId("kafka.avro.test4")).sink)
+      .through(ctx.produce[Int, PersonEnum](topicEnum).updateConfig(_.withClientId("kafka.avro.test4")).sink)
 
     val path = "./data/test/spark/kafka/coproduct/multi-scalaenum.snappy.avro"
     val sk = sparKafka.topic(topicEnum)
@@ -145,7 +149,12 @@ class KafkaAvroTest extends AnyFunSuite {
         .use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt) >>
         ctx.schemaRegistry.register(topicEnum) >>
         data.compile.drain >>
-        sk.fromKafka.flatMap(_.output.avro(path).withCompression(_.Snappy).run[IO]) >>
+        sk.fromKafka.flatMap(
+          _.rdd
+            .out(Encoder[NJConsumerRecord[Int, PersonEnum]])
+            .avro(path)
+            .withCompression(_.Snappy)
+            .run[IO]) >>
         IO(sk.load.avro(path).rdd.take(10).toSet)
     assert(run.unsafeRunSync().flatMap(_.value) == Set(en1, en2))
   }
@@ -154,8 +163,7 @@ class KafkaAvroTest extends AnyFunSuite {
       .emits(List((0, en1), (1, en2)))
       .covary[IO]
       .chunks
-      .through(
-        ctx.produce[Int, PersonEnum](topicEnum).updateConfig(_.withClientId("kafka.avro.test5")).sink)
+      .through(ctx.produce[Int, PersonEnum](topicEnum).updateConfig(_.withClientId("kafka.avro.test5")).sink)
     val path = "./data/test/spark/kafka/coproduct/scalaenum.avro.bzip2"
     val sk = sparKafka.topic(topicEnum)
 
@@ -165,7 +173,12 @@ class KafkaAvroTest extends AnyFunSuite {
         .use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt) >>
         ctx.schemaRegistry.register(topicEnum) >>
         data.compile.drain >>
-        sk.fromKafka.flatMap(_.output.binAvro(path).withCompression(_.Bzip2).run[IO]) >>
+        sk.fromKafka.flatMap(
+          _.rdd
+            .out(Encoder[NJConsumerRecord[Int, PersonEnum]])
+            .binAvro(path)
+            .withCompression(_.Bzip2)
+            .run[IO]) >>
         IO(sk.load.binAvro(path).rdd.take(10).toSet)
     assert(run.unsafeRunSync().flatMap(_.value) == Set(en1, en2))
   }

@@ -4,7 +4,7 @@ import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import org.apache.kafka.common.serialization.{Deserializer, Serde, Serializer}
 
 import scala.jdk.CollectionConverters.*
-import scala.util.{Failure, Try}
+import scala.util.Try
 
 /** [[https://github.com/sksamuel/avro4s]]
   */
@@ -21,9 +21,7 @@ final class KafkaSerde[A] private[codec] (val topicName: TopicName, val register
   def serialize(a: A): Array[Byte] = registered.serde.serializer.serialize(topicName.value, a)
   def deserialize(ab: Array[Byte]): A = registered.serde.deserializer.deserialize(topicName.value, ab)
 
-  def tryDeserialize(ab: Array[Byte]): Try[A] =
-    Option(ab).fold[Try[A]](Failure(new NullPointerException("tryDeserialize a null Array[Byte]")))(x =>
-      Try(deserialize(x)))
+  def tryDeserialize(ab: Array[Byte]): Try[A] = Try(deserialize(ab))
 }
 
 final class Registered[A] private[codec] (

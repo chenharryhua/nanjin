@@ -1,6 +1,5 @@
 package com.github.chenharryhua.nanjin.spark
 
-import com.github.chenharryhua.nanjin.kafka.AvroPair
 import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.sksamuel.avro4s.{Decoder as AvroDecoder, Encoder as AvroEncoder, SchemaFor}
@@ -52,8 +51,4 @@ object SchematizedEncoder {
     val ote: TypedEncoder[NJConsumerRecord[K, V]] = shapeless.cachedImplicit
     SchematizedEncoder[NJConsumerRecord[K, V]](ote, NJConsumerRecord.avroCodec(keyCodec, valCodec))
   }
-
-  def apply[K: TypedEncoder, V: TypedEncoder](
-    pair: AvroPair[K, V]): SchematizedEncoder[NJConsumerRecord[K, V]] =
-    apply(pair.key.avroCodec, pair.value.avroCodec)
 }

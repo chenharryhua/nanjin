@@ -2,11 +2,10 @@ package com.github.chenharryhua.nanjin.spark.persist
 
 import com.github.chenharryhua.nanjin.common.transformers.*
 import com.github.chenharryhua.nanjin.datetime.instances.*
-import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroCodec, KJson}
+import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import io.circe.generic.JsonCodec
-import io.circe.{Codec, Json}
+import io.circe.Codec
 import io.circe.generic.auto.*
-import io.circe.jawn.parse
 import mtest.spark.*
 import org.apache.spark.rdd.RDD
 
@@ -19,9 +18,9 @@ object Pocket extends Enumeration {
   val R, L = Value
 }
 @JsonCodec
-final case class Neck(d: Date, t: Timestamp, j: Json)
+final case class Neck(d: Date, t: Timestamp, j: Int)
 @JsonCodec
-final case class Jacket(a: Int, p: Pocket.Value, neck: KJson[Neck])
+final case class Jacket(a: Int, p: Pocket.Value, neck: Neck)
 
 object Jacket {
   val avroCodec: AvroCodec[Jacket] = AvroCodec[Jacket]
@@ -37,12 +36,11 @@ object JacketData {
         Jacket(
           a = Random.nextInt(),
           p = if (Random.nextBoolean()) Pocket.L else Pocket.R,
-          neck = KJson(Neck(
+          neck = Neck(
             d = Date.valueOf(LocalDate.now()),
             t = Timestamp.from(Instant.now.truncatedTo(ChronoUnit.MILLIS)),
-            j =
-              parse(s""" {"jsonFloat":"${Random.nextFloat()}","jsonInt":${Random.nextInt()}} """).toOption.get
-          ))
+            j = 1
+          )
         ))
       .sortBy(_.p)
   val rdd: RDD[Jacket] = sparkSession.sparkContext.parallelize(expected)

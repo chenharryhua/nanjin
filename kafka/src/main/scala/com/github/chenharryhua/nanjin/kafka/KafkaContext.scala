@@ -3,21 +3,15 @@ package com.github.chenharryhua.nanjin.kafka
 import cats.Endo
 import cats.effect.Resource
 import cats.effect.kernel.{Async, Sync}
-import cats.syntax.all.*
+import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameL}
-import com.github.chenharryhua.nanjin.common.{utils, UpdateConfig}
 import com.github.chenharryhua.nanjin.kafka.connector.*
 import com.github.chenharryhua.nanjin.kafka.streaming.{KafkaStreamsBuilder, StateStores, StreamsSerde}
-import com.github.chenharryhua.nanjin.messages.kafka.CRMetaInfo
-import com.github.chenharryhua.nanjin.messages.kafka.codec.*
-import fs2.Stream
 import fs2.kafka.*
-import io.circe.syntax.EncoderOps
 import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient
 import io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig
 import org.apache.kafka.streams.scala.StreamsBuilder
 
-import java.time.Instant
 import scala.util.Try
 
 final class KafkaContext[F[_]] private (val settings: KafkaSettings)
@@ -26,19 +20,11 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
   override def updateConfig(f: Endo[KafkaSettings]): KafkaContext[F] =
     new KafkaContext[F](f(settings))
 
-  def store[K, V](avroTopic: AvroTopic[K, V]): StateStores[K, V] = {
-    val topic = avroTopic.pair.register(settings.schemaRegistrySettings, avroTopic.topicName)
-    StateStores[K, V](topic)
-  }
+  def store[K, V](topic: KafkaTopic[K, V]): StateStores[K, V] =
+    StateStores[K, V](topic.register(settings.schemaRegistrySettings))
 
-  def serde[K, V](topic: AvroTopic[K, V]): KafkaGenericSerde[K, V] =
-    topic.pair.register(settings.schemaRegistrySettings, topic.topicName)
-
-  def serde[K, V](topic: JsonTopic[K, V]): KafkaGenericSerde[K, V] =
-    topic.pair.register(settings.schemaRegistrySettings, topic.topicName)
-
-  def serde[K, V](topic: ProtobufTopic[K, V]): KafkaGenericSerde[K, V] =
-    topic.pair.register(settings.schemaRegistrySettings, topic.topicName)
+  def serde[K, V](topic: KafkaTopic[K, V]): TopicSerde[K, V] =
+    topic.register(settings.schemaRegistrySettings)
 
   @transient lazy val schemaRegistry: SchemaRegistryApi[F] = {
     val url_config = AbstractKafkaSchemaSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG
@@ -57,39 +43,29 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
    * consumer
    */
 
-  def consume[K, V](topic: KafkaTopic[K, V])(implicit F: Sync[F]): ConsumeKafka[F, K, V] =
+  def consume[K, V](topic: KafkaTopic[K, V])(implicit F: Async[F]): ConsumeKafka[F, K, V] =
     new ConsumeKafka[F, K, V](
       topic.topicName,
       topic.consumerSettings(settings.schemaRegistrySettings, settings.consumerSettings)
     )
 
-  def consumeAvro(topicName: TopicNameL)(implicit F: Sync[F]): ConsumeGenericRecord[F] =
-    new ConsumeGenericRecord[F](
+  def consumeBytes(topicName: TopicNameL)(implicit F: Async[F]): ConsumeBytes[F] =
+    new ConsumeBytes[F](
       TopicName(topicName),
-      schemaRegistry.fetchOptionalAvroSchema(TopicName(topicName)),
-      identity,
       ConsumerSettings[F, Array[Byte], Array[Byte]](
         Deserializer[F, Array[Byte]],
         Deserializer[F, Array[Byte]]).withProperties(settings.consumerSettings.properties)
     )
 
-  /** Monitor topic from a given instant
-    */
-  def monitor(topicName: TopicNameL, from: Instant = Instant.now())(implicit F: Async[F]): Stream[F, String] =
-    Stream.eval(utils.randomUUID[F]).flatMap { uuid =>
-      consumeAvro(topicName)
-        .updateConfig( // avoid accidentally join an existing consumer-group
-          _.withGroupId(uuid.show).withEnableAutoCommit(false))
-        .assign(from)
-        .map { ccr =>
-          val rcd = ccr.record
-          rcd.value
-            .flatMap(gr2Jackson)
-            .toEither
-            .leftMap(e => new Exception(CRMetaInfo(ccr.record).asJson.noSpaces, e))
-        }
-        .rethrow
-    }
+  def consumeGenericRecord[K, V](avroTopic: AvroTopic[K, V])(implicit
+    F: Async[F]): ConsumeGenericRecord[F, K, V] =
+    new ConsumeGenericRecord[F, K, V](
+      avroTopic,
+      schemaRegistry.fetchOptionalAvroSchema(avroTopic.topicName),
+      ConsumerSettings[F, Array[Byte], Array[Byte]](
+        Deserializer[F, Array[Byte]],
+        Deserializer[F, Array[Byte]]).withProperties(settings.consumerSettings.properties)
+    )
 
   /*
    * producer
@@ -106,11 +82,11 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
       pair.producerSettings(settings.schemaRegistrySettings, settings.producerSettings)
     )
 
-  def produceAvro(topicName: TopicNameL)(implicit F: Sync[F]): ProduceGenericRecord[F] =
-    new ProduceGenericRecord[F](
-      TopicName(topicName),
-      schemaRegistry.fetchOptionalAvroSchema(TopicName(topicName)),
-      identity,
+  def produceGenericRecord[K, V](avroTopic: AvroTopic[K, V])(implicit
+    F: Sync[F]): ProduceGenericRecord[F, K, V] =
+    new ProduceGenericRecord[F, K, V](
+      avroTopic,
+      schemaRegistry.fetchOptionalAvroSchema(avroTopic.topicName),
       settings.schemaRegistrySettings,
       ProducerSettings[F, Array[Byte], Array[Byte]](Serializer[F, Array[Byte]], Serializer[F, Array[Byte]])
         .withProperties(settings.producerSettings.properties)

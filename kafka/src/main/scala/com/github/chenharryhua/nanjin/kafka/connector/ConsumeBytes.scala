@@ -16,41 +16,42 @@ import org.apache.kafka.common.TopicPartition
 import java.time.Instant
 import scala.collection.immutable.SortedSet
 
-final class ConsumeKafka[F[_]: Async, K, V] private[kafka] (
+final class ConsumeBytes[F[_]: Async] private[kafka] (
   topicName: TopicName,
-  consumerSettings: ConsumerSettings[F, K, V]
-) extends ConsumerService[F, K, V] with UpdateConfig[ConsumerSettings[F, K, V], ConsumeKafka[F, K, V]]
-    with HasProperties {
+  consumerSettings: ConsumerSettings[F, Array[Byte], Array[Byte]]
+) extends ConsumerService[F, Array[Byte], Array[Byte]]
+    with UpdateConfig[ConsumerSettings[F, Array[Byte], Array[Byte]], ConsumeBytes[F]] with HasProperties {
 
   /*
    * config
    */
   override def properties: Map[String, String] = consumerSettings.properties
 
-  override def updateConfig(f: Endo[ConsumerSettings[F, K, V]]): ConsumeKafka[F, K, V] =
-    new ConsumeKafka[F, K, V](topicName, f(consumerSettings))
+  override def updateConfig(f: Endo[ConsumerSettings[F, Array[Byte], Array[Byte]]]): ConsumeBytes[F] =
+    new ConsumeBytes[F](topicName, f(consumerSettings))
 
   /*
    * client
    */
 
-  def clientR: Resource[F, KafkaConsumer[F, K, V]] =
+  def clientR: Resource[F, KafkaConsumer[F, Array[Byte], Array[Byte]]] =
     KafkaConsumer.resource(consumerSettings)
 
-  def clientS: Stream[F, KafkaConsumer[F, K, V]] =
+  def clientS: Stream[F, KafkaConsumer[F, Array[Byte], Array[Byte]]] =
     KafkaConsumer.stream(consumerSettings)
 
   /*
    * Records
    */
 
-  def subscribe: Stream[F, CommittableConsumerRecord[F, K, V]] =
+  def subscribe: Stream[F, CommittableConsumerRecord[F, Array[Byte], Array[Byte]]] =
     clientS.evalTap(_.subscribe(NonEmptyList.one(topicName.value))).flatMap(_.stream)
 
-  def assign: Stream[F, CommittableConsumerRecord[F, K, V]] =
+  def assign: Stream[F, CommittableConsumerRecord[F, Array[Byte], Array[Byte]]] =
     clientS.evalTap(_.assign(topicName.value)).flatMap(_.stream)
 
-  def assign(partitionOffsets: Map[Int, Long]): Stream[F, CommittableConsumerRecord[F, K, V]] = {
+  def assign(
+    partitionOffsets: Map[Int, Long]): Stream[F, CommittableConsumerRecord[F, Array[Byte], Array[Byte]]] = {
     val topic_offset: Map[TopicPartition, Long] =
       partitionOffsets.map { case (p, o) => new TopicPartition(topicName.value, p) -> o }
 
@@ -67,7 +68,7 @@ final class ConsumeKafka[F[_]: Async, K, V] private[kafka] (
     }
   }
 
-  def assign(time: Instant): Stream[F, CommittableConsumerRecord[F, K, V]] =
+  def assign(time: Instant): Stream[F, CommittableConsumerRecord[F, Array[Byte], Array[Byte]]] =
     KafkaConsumer
       .stream(consumerSettings)
       .evalTap { c =>
@@ -92,13 +93,13 @@ final class ConsumeKafka[F[_]: Async, K, V] private[kafka] (
    * manual commit stream
    */
 
-  def manualCommitStream: Stream[F, ManualCommitStream[F, K, V]] =
+  def manualCommitStream: Stream[F, ManualCommitStream[F, Array[Byte], Array[Byte]]] =
     KafkaConsumer
       .stream(consumerSettings.withEnableAutoCommit(false))
       .evalTap(_.subscribe(NonEmptyList.one(topicName.value)))
       .flatMap(kc =>
         kc.partitionsMapStream.map { pms =>
-          new ManualCommitStream[F, K, V] {
+          new ManualCommitStream[F, Array[Byte], Array[Byte]] {
             override def commitSync: ReaderT[F, Map[TopicPartition, OffsetAndMetadata], Unit] =
               ReaderT(kc.commitSync)
 
@@ -106,7 +107,7 @@ final class ConsumeKafka[F[_]: Async, K, V] private[kafka] (
               ReaderT(kc.commitAsync)
 
             override def partitionsMapStream
-              : Map[TopicPartition, Stream[F, CommittableConsumerRecord[F, K, V]]] =
+              : Map[TopicPartition, Stream[F, CommittableConsumerRecord[F, Array[Byte], Array[Byte]]]] =
               pms
           }
         })
@@ -115,8 +116,8 @@ final class ConsumeKafka[F[_]: Async, K, V] private[kafka] (
    * Circumscribed Stream
    */
 
-  private def circumscribed(
-    or: Either[DateTimeRange, Map[Int, (Long, Long)]]): Stream[F, CircumscribedStream[F, K, V]] =
+  private def circumscribed(or: Either[DateTimeRange, Map[Int, (Long, Long)]])
+    : Stream[F, CircumscribedStream[F, Array[Byte], Array[Byte]]] =
     for {
       kc <- KafkaConsumer.stream(consumerSettings.withEnableAutoCommit(false))
       ranges <- Stream.eval(utils.get_offset_range(kc, topicName, or))
@@ -128,9 +129,11 @@ final class ConsumeKafka[F[_]: Async, K, V] private[kafka] (
         }
     } yield stream
 
-  def circumscribedStream(dateTimeRange: DateTimeRange): Stream[F, CircumscribedStream[F, K, V]] =
+  def circumscribedStream(
+    dateTimeRange: DateTimeRange): Stream[F, CircumscribedStream[F, Array[Byte], Array[Byte]]] =
     circumscribed(Left(dateTimeRange))
 
-  def circumscribedStream(partitionOffsets: Map[Int, (Long, Long)]): Stream[F, CircumscribedStream[F, K, V]] =
+  def circumscribedStream(
+    partitionOffsets: Map[Int, (Long, Long)]): Stream[F, CircumscribedStream[F, Array[Byte], Array[Byte]]] =
     circumscribed(Right(partitionOffsets))
 }

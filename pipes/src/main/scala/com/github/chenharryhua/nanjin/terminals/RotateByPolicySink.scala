@@ -4,8 +4,9 @@ import cats.Endo
 import cats.data.Reader
 import cats.effect.kernel.{Async, Resource}
 import cats.effect.std.Hotswap
+import com.fasterxml.jackson.databind.JsonNode
 import com.github.chenharryhua.nanjin.common.chrono.{Tick, TickedValue}
-import fs2.{Chunk, Pull, Stream}
+import fs2.{Chunk, Pipe, Pull, Stream}
 import io.circe.Json
 import io.lemonlabs.uri.Url
 import kantan.csv.CsvConfiguration
@@ -212,10 +213,19 @@ final private class RotateByPolicySink[F[_]: Async](
     (ss: Stream[F, String]) => persist(ss.chunks, tickedUrl, get_writer).stream
   }
 
+  // protobuf
   override val protobuf: Sink[GeneratedMessage] = {
     def get_writer(url: Url): Resource[F, HadoopWriter[F, GeneratedMessage]] =
       HadoopWriter.protobufR(configuration, url)
 
     (ss: Stream[F, GeneratedMessage]) => persist(ss.chunks, tickedUrl, get_writer).stream
+  }
+
+  // json node
+  override def jsonNode: Pipe[F, JsonNode, TickedValue[RotateFile]] = {
+    def get_writer(url: Url): Resource[F, HadoopWriter[F, JsonNode]] =
+      HadoopWriter.jsonNodeR(configuration, url)
+
+    (ss: Stream[F, JsonNode]) => persist(ss.chunks, tickedUrl, get_writer).stream
   }
 }

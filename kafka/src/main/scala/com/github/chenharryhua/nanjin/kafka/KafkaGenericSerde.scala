@@ -6,7 +6,7 @@ import com.github.chenharryhua.nanjin.messages.kafka.codec.KafkaSerde
 
 import scala.util.{Success, Try}
 
-abstract class KafkaGenericSerde[K, V](keySerde: KafkaSerde[K], valSerde: KafkaSerde[V])
+abstract class KafkaGenericSerde[K, V] private[kafka] (keySerde: KafkaSerde[K], valSerde: KafkaSerde[V])
     extends Serializable {
 
   def deserialize[G[_, _]: NJConsumerMessage](data: G[Array[Byte], Array[Byte]]): G[K, V] =
@@ -35,7 +35,7 @@ abstract class KafkaGenericSerde[K, V](keySerde: KafkaSerde[K], valSerde: KafkaS
 
   def optionalDeserialize[G[_, _]: NJConsumerMessage](
     data: G[Array[Byte], Array[Byte]]): G[Option[K], Option[V]] =
-    tryDeserializeKeyValue(data).bimap(_.toOption, _.toOption)
+    tryDeserializeKeyValue(data).bimap(_.toOption.flatMap(Option(_)), _.toOption.flatMap(Option(_)))
 
   def nullableDeserialize[G[_, _]: NJConsumerMessage](data: G[Array[Byte], Array[Byte]]): G[K, V] =
     data.bimap(
