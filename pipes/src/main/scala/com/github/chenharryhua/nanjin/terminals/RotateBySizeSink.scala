@@ -5,8 +5,9 @@ import cats.data.Reader
 import cats.effect.kernel.{Async, Resource}
 import cats.effect.std.Hotswap
 import cats.implicits.toFunctorOps
+import com.fasterxml.jackson.databind.JsonNode
 import com.github.chenharryhua.nanjin.common.chrono.{Tick, TickedValue}
-import fs2.{Pull, Stream}
+import fs2.{Pipe, Pull, Stream}
 import io.circe.Json
 import io.lemonlabs.uri.Url
 import kantan.csv.CsvConfiguration
@@ -192,5 +193,13 @@ final private class RotateBySizeSink[F[_]](
       HadoopWriter.protobufR(configuration, pathBuilder(cfe))
 
     (ss: Stream[F, GeneratedMessage]) => persist(ss, get_writer).stream
+  }
+
+  // json node
+  override def jsonNode: Pipe[F, JsonNode, TickedValue[RotateFile]] = {
+    def get_writer(cfe: CreateRotateFile): Resource[F, HadoopWriter[F, JsonNode]] =
+      HadoopWriter.jsonNodeR(configuration, pathBuilder(cfe))
+
+    (ss: Stream[F, JsonNode]) => persist(ss, get_writer).stream
   }
 }

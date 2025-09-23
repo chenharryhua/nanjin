@@ -8,7 +8,6 @@ import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroCodec, AvroFor}
 import com.github.chenharryhua.nanjin.spark.RddExt
 import com.github.chenharryhua.nanjin.spark.kafka.SparKafkaTopic
-import com.sksamuel.avro4s.Encoder
 import eu.timepit.refined.auto.*
 import frameless.TypedEncoder
 import io.circe.Codec
@@ -100,13 +99,13 @@ class DecimalTopicTest extends AnyFunSuite {
     assert(res == expected)
   }
 
-  val enc = Encoder[NJConsumerRecord[Int, HasDecimal]]
+  val enc = NJConsumerRecord.avroCodec(AvroCodec[Int], codec)
 
   test("sparKafka kafka and spark agree on parquet") {
     val path = "./data/test/spark/kafka/decimal.parquet"
     stopic.fromKafka.flatMap(_.rdd.out(enc).parquet(path).run[IO]).unsafeRunSync()
 
-    val res = stopic.load.parquet(path).rdd.collect().head.value.get
+    val res = stopic.load(AvroCodec[Int], codec).parquet(path).rdd.collect().head.value.get
     assert(res == expected)
   }
 
@@ -114,7 +113,7 @@ class DecimalTopicTest extends AnyFunSuite {
     val path = "./data/test/spark/kafka/decimal.jackson"
     stopic.fromKafka.flatMap(_.rdd.out(enc).jackson(path).run[IO]).unsafeRunSync()
 
-    val res = stopic.load.jackson(path).rdd.collect().head.value.get
+    val res = stopic.load(AvroCodec[Int], codec).jackson(path).rdd.collect().head.value.get
     assert(res == expected)
   }
 
@@ -122,7 +121,7 @@ class DecimalTopicTest extends AnyFunSuite {
     val path = "./data/test/spark/kafka/decimal.avro"
     stopic.fromKafka.flatMap(_.rdd.out(enc).avro(path).run[IO]).unsafeRunSync()
 
-    val res = stopic.load.avro(path).rdd.collect().head.value.get
+    val res = stopic.load(AvroCodec[Int], codec).avro(path).rdd.collect().head.value.get
     assert(res == expected)
   }
 
@@ -130,7 +129,7 @@ class DecimalTopicTest extends AnyFunSuite {
     val path = "./data/test/spark/kafka/decimal.obj"
     stopic.fromKafka.flatMap(_.rdd.output.objectFile(path).run[IO]).unsafeRunSync()
 
-    val res = stopic.load.objectFile(path).rdd.collect().head.value.get
+    val res = stopic.load(AvroCodec[Int], codec).objectFile(path).rdd.collect().head.value.get
     assert(res == expected)
   }
 
@@ -138,7 +137,7 @@ class DecimalTopicTest extends AnyFunSuite {
     val path = "./data/test/spark/kafka/decimal.bin.avro"
     stopic.fromKafka.flatMap(_.rdd.out(enc).binAvro(path).run[IO]).unsafeRunSync()
 
-    val res = stopic.load.binAvro(path).rdd.collect().head.value.get
+    val res = stopic.load(AvroCodec[Int], codec).binAvro(path).rdd.collect().head.value.get
     assert(res == expected)
   }
 

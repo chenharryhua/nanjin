@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.terminals
 
 import cats.Endo
+import com.fasterxml.jackson.databind.JsonNode
 import com.github.chenharryhua.nanjin.common.chrono.TickedValue
 import fs2.Pipe
 import io.circe.Json
@@ -136,6 +137,13 @@ sealed trait RotateSink[F[_]] {
     * controlled by a time-based or size-based policy.
     */
   def protobuf: Pipe[F, GeneratedMessage, TickedValue[RotateFile]]
+
+  /** [[https://github.com/FasterXML/jackson-databind]]
+    *
+    * A JsonNode rotate sink that periodically writes JsonNode to text files, with file rotation controlled by
+    * a time-based or size-based policy.
+    */
+  def jsonNode: Pipe[F, JsonNode, TickedValue[RotateFile]]
 }
 
 abstract class RotateBySize[F[_]] extends RotateSink[F] {}

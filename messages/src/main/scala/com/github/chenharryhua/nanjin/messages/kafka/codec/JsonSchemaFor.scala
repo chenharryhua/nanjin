@@ -1,7 +1,5 @@
 package com.github.chenharryhua.nanjin.messages.kafka.codec
 
-import com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
-import com.fasterxml.jackson.module.scala.{ClassTagExtensions, DefaultScalaModule}
 import com.kjetland.jackson.jsonSchema.JsonSchemaGenerator
 import io.circe.Encoder as JsonEncoder
 import io.confluent.kafka.schemaregistry.json.{JsonSchema, JsonSchemaUtils}
@@ -12,27 +10,26 @@ import org.apache.kafka.common.serialization.{Deserializer, Serde, Serializer}
 import java.util
 import java.util.UUID
 import scala.reflect.ClassTag
+import com.github.chenharryhua.nanjin.messages.kafka.globalObjectMapper
+import com.fasterxml.jackson.databind.JsonNode
 
 sealed trait JsonSchemaFor[A] extends RegisterSerde[A]
 
 object JsonSchemaFor {
   def apply[A](implicit ev: JsonSchemaFor[A]): JsonSchemaFor[A] = macro imp.summon[JsonSchemaFor[A]]
 
-  private val mapper = new ObjectMapper() with ClassTagExtensions
-  mapper.registerModule(DefaultScalaModule)
-
   @newtype final case class Universal(value: JsonNode)
   object Universal {
     implicit val jsonEncoderUniversal: JsonEncoder[Universal] =
       (a: Universal) =>
-        io.circe.jawn.parse(mapper.writeValueAsString(a.value)) match {
+        io.circe.jawn.parse(globalObjectMapper.writeValueAsString(a.value)) match {
           case Left(value)  => throw value
           case Right(value) => value
         }
   }
 
   private def buildSchema(klass: Class[?]): JsonSchema =
-    new JsonSchema(new JsonSchemaGenerator(mapper).generateJsonSchema(klass))
+    new JsonSchema(new JsonSchemaGenerator(globalObjectMapper).generateJsonSchema(klass))
 
   /*
    * Specific
@@ -76,7 +73,7 @@ object JsonSchemaFor {
             override def deserialize(topic: String, data: Array[Byte]): Universal =
               if (data == null) null.asInstanceOf[Universal]
               else
-                Universal(mapper.convertValue[JsonNode](deSer.deserialize(topic, data)))
+                Universal(globalObjectMapper.convertValue[JsonNode](deSer.deserialize(topic, data)))
           }
       }
   }
@@ -99,7 +96,7 @@ object JsonSchemaFor {
             override def serialize(topic: String, data: A): Array[Byte] =
               if (data == null) null
               else {
-                val payload: JsonNode = mapper.valueToTree[JsonNode](data)
+                val payload: JsonNode = globalObjectMapper.valueToTree[JsonNode](data)
                 ser.serialize(
                   topic,
                   JsonSchemaUtils.envelope(buildSchema(implicitly[ClassTag[A]].runtimeClass), payload))
@@ -118,7 +115,7 @@ object JsonSchemaFor {
             override def deserialize(topic: String, data: Array[Byte]): A =
               if (data == null) null.asInstanceOf[A]
               else
-                mapper.convertValue[A](deSer.deserialize(topic, data))
+                globalObjectMapper.convertValue[A](deSer.deserialize(topic, data))
           }
       }
   }

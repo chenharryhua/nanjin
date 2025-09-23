@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin.messages.kafka.codec
 
-import com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
-import com.fasterxml.jackson.module.scala.{ClassTagExtensions, DefaultScalaModule}
+import com.fasterxml.jackson.databind.JsonNode
 import io.circe.Encoder as JsonEncoder
 import io.confluent.kafka.serializers.{KafkaJsonDeserializer, KafkaJsonSerializer}
 import io.estatico.newtype.macros.newtype
@@ -10,20 +9,18 @@ import org.apache.kafka.common.serialization.{Deserializer, Serde, Serializer}
 import java.util
 import java.util.UUID
 import scala.reflect.ClassTag
+import com.github.chenharryhua.nanjin.messages.kafka.globalObjectMapper
 
 trait JsonLightFor[A] extends RegisterSerde[A]
 
 object JsonLightFor {
   def apply[A](implicit ev: JsonLightFor[A]): JsonLightFor[A] = macro imp.summon[JsonLightFor[A]]
 
-  private val mapper = new ObjectMapper() with ClassTagExtensions
-  mapper.registerModule(DefaultScalaModule)
-
   @newtype final case class Universal(value: JsonNode)
   object Universal {
     implicit val jsonEncoderUniversal: JsonEncoder[Universal] =
       (a: Universal) =>
-        io.circe.jawn.parse(mapper.writeValueAsString(a.value)) match {
+        io.circe.jawn.parse(globalObjectMapper.writeValueAsString(a.value)) match {
           case Left(value)  => throw value
           case Right(value) => value
         }
@@ -73,7 +70,7 @@ object JsonLightFor {
             override def deserialize(topic: String, data: Array[Byte]): Universal =
               if (data == null) null.asInstanceOf[Universal]
               else
-                Universal(mapper.convertValue[JsonNode](deSer.deserialize(topic, data)))
+                Universal(globalObjectMapper.convertValue[JsonNode](deSer.deserialize(topic, data)))
           }
       }
   }
@@ -97,7 +94,7 @@ object JsonLightFor {
 
             override def serialize(topic: String, data: A): Array[Byte] =
               if (data == null) null
-              else ser.serialize(topic, mapper.valueToTree[JsonNode](data))
+              else ser.serialize(topic, globalObjectMapper.valueToTree[JsonNode](data))
           }
 
         override val deserializer: Deserializer[A] =
@@ -112,7 +109,7 @@ object JsonLightFor {
             override def deserialize(topic: String, data: Array[Byte]): A =
               if (data == null) null.asInstanceOf[A]
               else
-                mapper.convertValue[A](deSer.deserialize(topic, data))
+                globalObjectMapper.convertValue[A](deSer.deserialize(topic, data))
           }
       }
   }
