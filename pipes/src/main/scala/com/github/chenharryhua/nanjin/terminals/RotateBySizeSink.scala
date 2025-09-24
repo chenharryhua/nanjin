@@ -164,10 +164,10 @@ final private class RotateBySizeSink[F[_]](
   // circe json
   override val circe: Sink[Json] = {
 
-    def get_writer(cfe: CreateRotateFile): Resource[F, HadoopWriter[F, String]] =
-      HadoopWriter.stringR[F](configuration, pathBuilder(cfe))
+    def get_writer(cfe: CreateRotateFile): Resource[F, HadoopWriter[F, Json]] =
+      HadoopWriter.circeR[F](configuration, pathBuilder(cfe))
 
-    (ss: Stream[F, Json]) => persist(ss.map(_.noSpaces), get_writer).stream
+    (ss: Stream[F, Json]) => persist(ss, get_writer).stream
   }
 
   // kantan csv

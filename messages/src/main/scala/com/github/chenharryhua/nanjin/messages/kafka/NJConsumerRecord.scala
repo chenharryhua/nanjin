@@ -5,8 +5,8 @@ import cats.data.Cont
 import cats.kernel.Eq
 import cats.syntax.eq.catsSyntaxEq
 import cats.syntax.semigroup.catsSyntaxSemigroup
-import com.fasterxml.jackson.databind.node.{ArrayNode, ObjectNode}
 import com.fasterxml.jackson.databind.JsonNode
+import com.fasterxml.jackson.databind.node.{ArrayNode, ObjectNode}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.sksamuel.avro4s.*
 import fs2.kafka.*
@@ -67,7 +67,7 @@ final case class NJConsumerRecord[K, V](
   def toJavaConsumerRecord: JavaConsumerRecord[K, V] = this.transformInto[JavaConsumerRecord[K, V]]
   def toConsumerRecord: ConsumerRecord[K, V] = this.transformInto[ConsumerRecord[K, V]]
 
-  def toJsonNode(k: K => Option[JsonNode], v: V => Option[JsonNode]): JsonNode =
+  def toJsonNode(k: K => JsonNode, v: V => JsonNode): JsonNode =
     NJConsumerRecord.buildJsonNode(this)(k, v)
 
   def zonedJson(zoneID: ZoneId)(implicit K: JsonEncoder[K], V: JsonEncoder[V]): Json =
@@ -85,8 +85,8 @@ object NJConsumerRecord {
   def apply[K, V](cr: ConsumerRecord[K, V]): NJConsumerRecord[K, V] =
     cr.transformInto[NJConsumerRecord[K, V]]
 
-  def buildJsonNode[K, V](
-    record: NJConsumerRecord[K, V])(k: K => Option[JsonNode], v: V => Option[JsonNode]): JsonNode = {
+  private def buildJsonNode[K, V](
+    record: NJConsumerRecord[K, V])(k: K => JsonNode, v: V => JsonNode): JsonNode = {
     val root: ObjectNode = globalObjectMapper.createObjectNode()
     root.put("topic", record.topic)
     root.put("partition", record.partition)
@@ -119,12 +119,12 @@ object NJConsumerRecord {
     }
     root.set[ArrayNode]("headers", arr)
 
-    record.key.flatMap(k) match {
+    record.key.map(k) match {
       case Some(value) => root.set("key", value)
       case None        => root.putNull("key")
     }
 
-    record.value.flatMap(v) match {
+    record.value.map(v) match {
       case Some(value) => root.set("value", value)
       case None        => root.putNull("value")
     }

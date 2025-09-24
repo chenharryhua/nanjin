@@ -5,6 +5,7 @@ import cats.effect.kernel.{Resource, Sync}
 import com.fasterxml.jackson.databind.{JsonNode, ObjectWriter}
 import com.github.chenharryhua.nanjin.messages.kafka.globalObjectMapper
 import fs2.Chunk
+import io.circe.{Json, Printer}
 import io.lemonlabs.uri.Url
 import org.apache.avro.Schema
 import org.apache.avro.file.{CodecFactory, DataFileWriter}
@@ -182,6 +183,24 @@ private object HadoopWriter {
               os.write('\n')
             }
             os.flush()
+          }
+      }
+    }
+  }
+
+  def circeR[F[_]](configuration: Configuration, url: Url)(implicit
+    F: Sync[F]): Resource[F, HadoopWriter[F, Json]] = {
+    val printer = Printer.noSpaces
+    outputStreamWriterR(configuration, url).map { writer =>
+      new HadoopWriter[F, Json] {
+        override val fileUrl: Url = url
+        override def write(cs: Chunk[Json]): F[Unit] =
+          F.blocking {
+            cs.foreach { json =>
+              printer.unsafePrintToAppendable(json, writer)
+              writer.write(System.lineSeparator())
+            }
+            writer.flush()
           }
       }
     }

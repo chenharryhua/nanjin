@@ -190,10 +190,10 @@ final private class RotateByPolicySink[F[_]: Async](
   // circe json
   override val circe: Sink[Json] = {
 
-    def get_writer(url: Url): Resource[F, HadoopWriter[F, String]] =
-      HadoopWriter.stringR[F](configuration, url)
+    def get_writer(url: Url): Resource[F, HadoopWriter[F, Json]] =
+      HadoopWriter.circeR[F](configuration, url)
 
-    (ss: Stream[F, Json]) => persist(ss.map(_.noSpaces).chunks, tickedUrl, get_writer).stream
+    (ss: Stream[F, Json]) => persist(ss.chunks, tickedUrl, get_writer).stream
   }
 
   // kantan csv

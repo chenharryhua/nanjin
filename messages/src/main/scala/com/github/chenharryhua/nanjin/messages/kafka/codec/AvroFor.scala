@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.messages.kafka.codec
 import cats.implicits.{catsSyntaxOptionId, none}
 import com.sksamuel.avro4s.{Decoder as AvroDecoder, Encoder as AvroEncoder, SchemaFor}
 import io.circe.syntax.EncoderOps
-import io.circe.{jawn, Decoder as JsonDecoder, Encoder as JsonEncoder}
+import io.circe.{Decoder as JsonDecoder, Encoder as JsonEncoder, Printer}
 import io.confluent.kafka.streams.serdes.avro.{GenericAvroDeserializer, GenericAvroSerializer}
 import io.estatico.newtype.macros.newtype
 import org.apache.avro.Schema
@@ -178,37 +178,28 @@ object AvroFor extends LowerPriority {
     new AvroFor[KJson[A]] {
       override val schema: Option[Schema] = Some(SchemaFor[String].schema)
 
+      private val serdes_internal: Serde[ByteBuffer] = Serdes.byteBufferSerde
+
       override protected val unregisteredSerde: Serde[KJson[A]] =
         new Serde[KJson[A]] with Serializable {
-          private def encode(value: KJson[A]): String =
-            Option(value).flatMap(v => Option(v.value)) match {
-              case Some(value) => value.asJson.noSpaces
-              case None        => null
-            }
-
           override val serializer: Serializer[KJson[A]] =
             new Serializer[KJson[A]] with Serializable {
-              override def configure(configs: util.Map[String, ?], isKey: Boolean): Unit = ()
-              override def close(): Unit = ()
+              private val ser = serdes_internal.serializer()
+              private val print = Printer.noSpaces
               override def serialize(topic: String, data: KJson[A]): Array[Byte] =
-                Serdes.stringSerde.serializer().serialize(topic, encode(data))
+                ser.serialize(topic, print.printToByteBuffer(data.value.asJson))
             }
 
           override val deserializer: Deserializer[KJson[A]] =
             new Deserializer[KJson[A]] with Serializable {
-              private def decode(value: String): KJson[A] =
-                jawn.decode[A](value) match {
-                  case Right(r) => KJson(r)
-                  case Left(ex) => throw ex
-                }
-
-              override def configure(configs: util.Map[String, ?], isKey: Boolean): Unit = ()
-              override def close(): Unit = ()
-              @SuppressWarnings(Array("AsInstanceOf"))
+              private val deSer = serdes_internal.deserializer()
               override def deserialize(topic: String, data: Array[Byte]): KJson[A] =
                 if (data == null) null
                 else
-                  decode(Serdes.stringSerde.deserializer().deserialize(topic, data))
+                  io.circe.jawn.decodeByteBuffer[A](deSer.deserialize(topic, data)) match {
+                    case Left(value)  => throw value
+                    case Right(value) => KJson(value)
+                  }
             }
         }
     }
