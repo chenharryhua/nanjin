@@ -22,7 +22,7 @@ sealed trait AvroFor[A] extends RegisterSerde[A] {
 }
 
 private[codec] trait LowerPriority {
-  implicit def avro4sCodec[A: SchemaFor: AvroEncoder: AvroDecoder]: AvroFor[A] =
+  implicit def avro4sCodec[A: SchemaFor: AvroEncoder: AvroDecoder](implicit ev: Null <:< A): AvroFor[A] =
     AvroFor(AvroCodec[A])
 }
 
@@ -137,7 +137,7 @@ object AvroFor extends LowerPriority {
    * General
    */
 
-  def apply[A](codec: AvroCodec[A]): AvroFor[A] =
+  def apply[A](codec: AvroCodec[A])(implicit ev: Null <:< A): AvroFor[A] =
     new AvroFor[A] {
       override val schema: Option[Schema] = codec.schema.some
 
@@ -167,10 +167,8 @@ object AvroFor extends LowerPriority {
               override def configure(configs: util.Map[String, ?], isKey: Boolean): Unit =
                 deSer.configure(configs, isKey)
 
-              @SuppressWarnings(Array("AsInstanceOf"))
               override def deserialize(topic: String, data: Array[Byte]): A =
-                if (data == null) null.asInstanceOf[A]
-                else codec.decode(deSer.deserialize(topic, data))
+                Option(deSer.deserialize(topic, data)).map(codec.decode).orNull
             }
         }
     }

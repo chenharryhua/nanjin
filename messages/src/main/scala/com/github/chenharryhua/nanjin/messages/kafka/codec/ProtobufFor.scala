@@ -74,7 +74,8 @@ object ProtobufFor {
    */
 
   implicit def protobufForGeneratedMessage[A <: GeneratedMessage](implicit
-    gmc: GeneratedMessageCompanion[A]): ProtobufFor[A] =
+    gmc: GeneratedMessageCompanion[A],
+    ev: Null <:< A): ProtobufFor[A] =
     new ProtobufFor[A] {
 
       override protected val unregisteredSerde: Serde[A] = new Serde[A] with Serializable {
@@ -105,11 +106,8 @@ object ProtobufFor {
 
             override def close(): Unit = deSer.close()
 
-            @SuppressWarnings(Array("AsInstanceOf"))
-            override def deserialize(topic: String, data: Array[Byte]): A = {
-              val dm: DynamicMessage = deSer.deserialize(topic, data)
-              if (dm == null) null.asInstanceOf[A] else gmc.parseFrom(dm.toByteArray)
-            }
+            override def deserialize(topic: String, data: Array[Byte]): A =
+              Option(deSer.deserialize(topic, data)).map(dm => gmc.parseFrom(dm.toByteArray)).orNull
           }
       }
     }
