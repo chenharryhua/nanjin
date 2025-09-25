@@ -6,7 +6,7 @@ import cats.syntax.functor.toFunctorOps
 import cats.{Endo, Functor}
 import com.github.chenharryhua.nanjin.common.{HasProperties, UpdateConfig}
 import com.github.chenharryhua.nanjin.kafka.{AvroTopic, OptionalAvroSchemaPair, SchemaRegistrySettings}
-import com.github.chenharryhua.nanjin.messages.kafka.codec.jackson2GR
+import com.github.chenharryhua.nanjin.messages.kafka.codec.jackson2GenericRecord
 import fs2.kafka.*
 import fs2.{Pipe, Stream}
 import org.apache.avro.Schema
@@ -53,7 +53,7 @@ final class ProduceGenericRecord[F[_], K, V] private[kafka] (
   def jackson(jackson: String)(implicit F: Async[F]): F[ProducerResult[Array[Byte], Array[Byte]]] =
     for {
       pair <- getSchema.map(avroTopic.pair.optionalAvroSchemaPair.write(_).toPair)
-      gr <- F.fromTry(jackson2GR(pair.consumerSchema, jackson))
+      gr <- F.fromTry(jackson2GenericRecord(pair.consumerSchema, jackson))
       push = new PushGenericRecord(srs, avroTopic.topicName, pair)
       res <- KafkaProducer.resource(producerSettings).use(_.produceOne(push.fromGenericRecord(gr)).flatten)
     } yield res
