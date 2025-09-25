@@ -1,12 +1,10 @@
 package com.github.chenharryhua.nanjin.messages.kafka.codec
 
+import io.circe.*
 import io.circe.syntax.EncoderOps
-import io.circe.{Decoder, Encoder, Json, Printer}
-import io.estatico.newtype.macros.newtype
 import org.apache.kafka.common.serialization.{Deserializer, Serde, Serializer}
 import org.apache.kafka.streams.scala.serialization.Serdes
 
-import java.nio.ByteBuffer
 import java.util.UUID
 
 /** JsonLightFor is schemaless json serde as opposite to JsonSchemaFor which has schema and talks to schema
@@ -17,9 +15,11 @@ trait JsonLightFor[A] extends RegisterSerde[A]
 object JsonLightFor {
   def apply[A](implicit ev: JsonLightFor[A]): JsonLightFor[A] = macro imp.summon[JsonLightFor[A]]
 
-  @newtype final case class Universal(value: Json)
+  final class Universal(val value: Json)
   object Universal {
     implicit val encoderUniversal: Encoder[Universal] = (a: Universal) => a.value
+    implicit val decoderUniversal: Decoder[Universal] =
+      (c: HCursor) => Right(new Universal(c.value))
   }
 
   /*
@@ -42,29 +42,30 @@ object JsonLightFor {
     override protected val unregisteredSerde: Serde[UUID] = serializable.uuidSerde
   }
 
-  private val serdes_internal: Serde[ByteBuffer] = Serdes.byteBufferSerde
-
   implicit object jsonLightForUniversal extends JsonLightFor[Universal] {
 
     override protected val unregisteredSerde: Serde[Universal] =
       new Serde[Universal] with Serializable {
         override val serializer: Serializer[Universal] =
           new Serializer[Universal] with Serializable {
+            @transient private[this] lazy val  ser = Serdes.byteBufferSerde.serializer()
+            private val printer = Printer.noSpaces
             override def serialize(topic: String, data: Universal): Array[Byte] =
-              throw ForbiddenProduceException("JsonLight")
+              Option(data)
+                .flatMap(u => Option(u.value))
+                .map(js => ser.serialize(topic, printer.printToByteBuffer(js)))
+                .orNull
           }
 
         override val deserializer: Deserializer[Universal] =
           new Deserializer[Universal] with Serializable {
-            private val deSer = serdes_internal.deserializer()
             override def deserialize(topic: String, data: Array[Byte]): Universal =
-              if (data == null) null.asInstanceOf[Universal]
-              else {
-                io.circe.jawn.parseByteBuffer(deSer.deserialize(topic, data)) match {
+              Option(data).map { ab =>
+                io.circe.jawn.parseByteArray(ab) match {
                   case Left(value)  => throw value
-                  case Right(value) => Universal(value)
+                  case Right(value) => new Universal(value)
                 }
-              }
+              }.orNull
           }
       }
   }
@@ -73,29 +74,27 @@ object JsonLightFor {
    * General
    */
 
-  implicit def jsonLightForCodec[A: Encoder: Decoder]: JsonLightFor[A] =
+  implicit def jsonLightForCodec[A: Encoder: Decoder](implicit ev: Null <:< A): JsonLightFor[A] =
     new JsonLightFor[A] {
       override protected val unregisteredSerde: Serde[A] =
         new Serde[A] with Serializable {
           override val serializer: Serializer[A] =
             new Serializer[A] with Serializable {
-              private val ser = serdes_internal.serializer()
-              private val print = Printer.noSpaces
+              @transient private[this] lazy val  ser = Serdes.byteBufferSerde.serializer()
+              private val printer = Printer.noSpaces
               override def serialize(topic: String, data: A): Array[Byte] =
-                if (data == null) null
-                else ser.serialize(topic, print.printToByteBuffer(data.asJson))
+                Option(data).map(a => ser.serialize(topic, printer.printToByteBuffer(a.asJson))).orNull
             }
 
           override val deserializer: Deserializer[A] =
             new Deserializer[A] with Serializable {
-              private val deSer = serdes_internal.deserializer()
               override def deserialize(topic: String, data: Array[Byte]): A =
-                if (data == null) null.asInstanceOf[A]
-                else
-                  io.circe.jawn.decodeByteBuffer[A](deSer.deserialize(topic, data)) match {
+                Option(data).map { ab =>
+                  io.circe.jawn.decodeByteArray[A](ab) match {
                     case Left(value)  => throw value
                     case Right(value) => value
                   }
+                }.orNull
             }
         }
     }

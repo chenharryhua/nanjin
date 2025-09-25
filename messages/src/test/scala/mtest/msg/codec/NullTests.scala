@@ -1,13 +1,25 @@
 package mtest.msg.codec
 
-import com.github.chenharryhua.nanjin.messages.kafka.codec.{immigrate, AvroFor, KJson}
+import com.fasterxml.jackson.databind.JsonNode
+import com.github.chenharryhua.nanjin.messages.kafka.codec.*
+import com.google.protobuf.DynamicMessage
 import io.circe.Json
 import org.apache.avro.Schema
+import org.apache.avro.generic.GenericRecord
 import org.scalatest.funsuite.AnyFunSuite
 
 class NullTests extends AnyFunSuite {
 
   test("decode null should return null") {
+    assert(avro.deserialize(null) == null)
+    assert(avroU.deserialize(null) == null)
+    assert(avroU.deserialize(null) == null)
+    assert(jsonLight.deserialize(null) == null)
+    assert(jsonLightU.deserialize(null) == null)
+    assert(jsonSchema.deserialize(null) == null)
+    assert(jsonSchemaU.deserialize(null) == null)
+    assert(protobufU.deserialize(null) == null)
+
     assert(intCodec.deserialize(null) === null)
     assert(longCodec.deserialize(null) === null)
     assert(doubleCodec.deserialize(null) === null)
@@ -30,6 +42,21 @@ class NullTests extends AnyFunSuite {
   }
 
   test("encode null should return null") {
+    assert(avro.serialize(null.asInstanceOf[CoproductJsons.Foo]) == null)
+    assert(avroU.serialize(null.asInstanceOf[AvroFor.Universal]) == null)
+    assert(avroU.serialize(new AvroFor.Universal(null.asInstanceOf[GenericRecord])) == null)
+
+    assert(jsonLight.serialize(null.asInstanceOf[CoproductJsons.Foo]) == null)
+    assert(jsonLightU.serialize(null.asInstanceOf[JsonLightFor.Universal]) == null)
+    assert(jsonLightU.serialize(new JsonLightFor.Universal(null.asInstanceOf[Json])) == null)
+
+    assert(jsonSchema.serialize(null.asInstanceOf[CoproductJsons.Foo]) == null)
+    assert(jsonSchemaU.serialize(null.asInstanceOf[JsonSchemaFor.Universal]) == null)
+    assert(jsonSchemaU.serialize(new JsonSchemaFor.Universal(null.asInstanceOf[JsonNode])) == null)
+
+    assert(protobufU.serialize(null.asInstanceOf[ProtobufFor.Universal]) == null)
+    assert(protobufU.serialize(new ProtobufFor.Universal(null.asInstanceOf[DynamicMessage])) == null)
+
     // assert(intCodec.encode(null) === null)
     // assert(longCodec.encode(null) === null)
     // assert(doubleCodec.encode(null) === null)

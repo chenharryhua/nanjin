@@ -4,7 +4,6 @@ import com.google.protobuf.DynamicMessage
 import com.google.protobuf.util.JsonFormat
 import io.circe.Encoder as JsonEncoder
 import io.confluent.kafka.serializers.protobuf.{KafkaProtobufDeserializer, KafkaProtobufSerializer}
-import io.estatico.newtype.macros.newtype
 import org.apache.kafka.common.serialization.{Deserializer, Serde, Serializer}
 import scalapb.{GeneratedMessage, GeneratedMessageCompanion}
 
@@ -15,7 +14,7 @@ sealed trait ProtobufFor[A] extends RegisterSerde[A]
 object ProtobufFor {
   def apply[A](implicit ev: ProtobufFor[A]): ProtobufFor[A] = macro imp.summon[ProtobufFor[A]]
 
-  @newtype final case class Universal(value: DynamicMessage)
+  final class Universal(val value: DynamicMessage)
   object Universal {
     private val jsonFormat = JsonFormat.printer()
     implicit val jsonEncoderUniversal: JsonEncoder[Universal] =
@@ -45,11 +44,17 @@ object ProtobufFor {
   implicit object protobufForUniversal extends ProtobufFor[Universal] {
     override protected val unregisteredSerde: Serde[Universal] = new Serde[Universal] with Serializable {
       override val serializer: Serializer[Universal] = new Serializer[Universal] with Serializable {
-        override def configure(configs: util.Map[String, ?], isKey: Boolean): Unit = ()
-        override def close(): Unit = ()
+        @transient private[this] lazy val ser = new KafkaProtobufSerializer[DynamicMessage]
+
+        override def configure(configs: util.Map[String, ?], isKey: Boolean): Unit =
+          ser.configure(configs, isKey)
+
+        override def close(): Unit = ser.close()
+
         override def serialize(topic: String, data: Universal): Array[Byte] =
-          throw ForbiddenProduceException("Protobuf")
+          Option(data).flatMap(u => Option(u.value)).map(dm => ser.serialize(topic, dm)).orNull
       }
+
       override val deserializer: Deserializer[Universal] = new Deserializer[Universal] with Serializable {
         @transient private[this] lazy val deSer = new KafkaProtobufDeserializer[DynamicMessage]
 
@@ -59,7 +64,7 @@ object ProtobufFor {
         override def close(): Unit = deSer.close()
 
         override def deserialize(topic: String, data: Array[Byte]): Universal =
-          Universal(deSer.deserialize(topic, data))
+          Option(deSer.deserialize(topic, data)).map(new Universal(_)).orNull
       }
     }
   }
@@ -84,11 +89,10 @@ object ProtobufFor {
             override def close(): Unit = ser.close()
 
             override def serialize(topic: String, data: A): Array[Byte] =
-              if (data == null) null
-              else {
-                val dm = DynamicMessage.parseFrom(data.companion.javaDescriptor, data.toByteArray)
+              Option(data).map { a =>
+                val dm: DynamicMessage = DynamicMessage.parseFrom(a.companion.javaDescriptor, a.toByteArray)
                 ser.serialize(topic, dm)
-              }
+              }.orNull
           }
 
         override val deserializer: Deserializer[A] =
@@ -101,10 +105,11 @@ object ProtobufFor {
 
             override def close(): Unit = deSer.close()
 
-            override def deserialize(topic: String, data: Array[Byte]): A =
-              if (data == null) null.asInstanceOf[A]
-              else
-                gmc.parseFrom(deSer.deserialize(topic, data).toByteArray)
+            @SuppressWarnings(Array("AsInstanceOf"))
+            override def deserialize(topic: String, data: Array[Byte]): A = {
+              val dm: DynamicMessage = deSer.deserialize(topic, data)
+              if (dm == null) null.asInstanceOf[A] else gmc.parseFrom(dm.toByteArray)
+            }
           }
       }
     }

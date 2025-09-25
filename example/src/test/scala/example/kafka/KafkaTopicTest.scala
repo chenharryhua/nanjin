@@ -10,6 +10,7 @@ import mtest.pb.test.Lion
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.util.Random
+import io.circe.generic.JsonCodec
 object ProtobufData {
   val lions: List[Lion] =
     (1 to 10).map(_ => Lion("Melbourne Zoo", Random.nextInt())).toList
@@ -17,6 +18,7 @@ object ProtobufData {
   val herd: List[Lion] = (1 to 10000).map(Lion("ChengDu Zoo", _)).toList
 
 }
+@JsonCodec
 final case class JsonLion(name: String, age: Int)
 final case class AvroLion(name: String, age: Int)
 class KafkaTopicTest extends AnyFunSuite {

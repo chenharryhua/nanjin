@@ -108,9 +108,9 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
     val serde = kafkaContext.serde(topic)
     def decode(cr: ConsumerRecord[Array[Byte], Array[Byte]]): Json =
       if (config.ignoreError)
-        serde.toNJConsumerRecord[ConsumerRecord](cr).zonedJson(config.dateRange.zoneId)
+        serde.toNJConsumerRecord[ConsumerRecord](cr).toZonedJson(config.dateRange.zoneId)
       else
-        NJConsumerRecord(serde.deserialize[ConsumerRecord](cr)).zonedJson(config.dateRange.zoneId)
+        NJConsumerRecord(serde.deserialize[ConsumerRecord](cr)).toZonedJson(config.dateRange.zoneId)
 
     kafkaContext
       .consumeBytes(topic.topicName.name)

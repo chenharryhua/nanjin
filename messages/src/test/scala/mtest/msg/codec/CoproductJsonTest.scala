@@ -1,5 +1,6 @@
 package mtest.msg.codec
 
+import io.circe.generic.JsonCodec
 import io.circe.generic.auto.*
 import io.circe.jawn.decode
 import io.circe.shapes.*
@@ -8,6 +9,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import shapeless.*
 
 object CoproductJsons {
+  @JsonCodec
   final case class Foo(a: Int, b: String)
   final case class Bar(a: Int, b: String)
 
