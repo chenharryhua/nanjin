@@ -267,8 +267,7 @@ lazy val messages =
     .settings(name := "nj-messages")
     .settings(
       libraryDependencies ++=
-        jacksonLib ++ List(
-          "io.circe" %% "circe-jackson28"             % "0.14.2",
+        List(
           "org.spire-math" %% "imp"                   % "0.5.0",
           "io.circe" %% "circe-optics"                % "0.15.1",
           "io.circe" %% "circe-jawn"                  % circeV,
@@ -283,7 +282,7 @@ lazy val messages =
           "com.google.protobuf"                       % "protobuf-java"                % "4.32.1", // snyk
           "org.jetbrains.kotlin"                      % "kotlin-stdlib"                % "2.2.20", // snyk
           "io.circe" %% "circe-shapes"                % circeV                         % Test
-        ) ++ testLib)
+        ) ++ jacksonLib ++ testLib)
 
 lazy val kafka = (project in file("kafka"))
   .dependsOn(common)
