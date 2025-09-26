@@ -2,7 +2,7 @@ package example.spark
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.kafka.{AvroTopic, JsonTopic, ProtobufTopic}
+import com.github.chenharryhua.nanjin.kafka.{AvroTopic, JsonTopic, ProtoTopic}
 import com.github.chenharryhua.nanjin.spark.RddExt
 import eu.timepit.refined.auto.*
 import example.kafka.JsonLion
@@ -20,7 +20,7 @@ import org.scalatest.funsuite.AnyFunSuite
 class ExampleKafkaDump extends AnyFunSuite {
   val avro = AvroTopic[Long, JsonLion]("spark-avro")
   val sjson = JsonTopic[Long, JsonLion]("spark-json-schema")
-  val proto = ProtobufTopic[Long, Lion]("spark-protobuf")
+  val proto = ProtoTopic[Long, Lion]("spark-protobuf")
 
   val lions = Stream.emits(List.fill(10)(Lion("lion", 0))).covary[IO]
   val jlions = lions.map(_.transformInto[JsonLion]).zipWithIndex.map(_.swap)

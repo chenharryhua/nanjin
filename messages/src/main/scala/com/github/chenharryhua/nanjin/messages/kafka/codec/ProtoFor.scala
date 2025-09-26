@@ -9,10 +9,10 @@ import scalapb.{GeneratedMessage, GeneratedMessageCompanion}
 
 import java.util
 
-sealed trait ProtobufFor[A] extends RegisterSerde[A]
+sealed trait ProtoFor[A] extends RegisterSerde[A]
 
-object ProtobufFor {
-  def apply[A](implicit ev: ProtobufFor[A]): ProtobufFor[A] = macro imp.summon[ProtobufFor[A]]
+object ProtoFor {
+  def apply[A](implicit ev: ProtoFor[A]): ProtoFor[A] = macro imp.summon[ProtoFor[A]]
 
   final class Universal(val value: DynamicMessage)
   object Universal {
@@ -29,19 +29,19 @@ object ProtobufFor {
    * Specific
    */
 
-  implicit object protobufForString extends ProtobufFor[String] {
+  implicit object protoForString extends ProtoFor[String] {
     override protected val unregisteredSerde: Serde[String] = serializable.stringSerde
   }
 
-  implicit object protobufForLong extends ProtobufFor[Long] {
+  implicit object protoForLong extends ProtoFor[Long] {
     override protected val unregisteredSerde: Serde[Long] = serializable.longSerde
   }
 
-  implicit object protobufForInt extends ProtobufFor[Int] {
+  implicit object protoForInt extends ProtoFor[Int] {
     override protected val unregisteredSerde: Serde[Int] = serializable.intSerde
   }
 
-  implicit object protobufForUniversal extends ProtobufFor[Universal] {
+  implicit object protoForUniversal extends ProtoFor[Universal] {
     override protected val unregisteredSerde: Serde[Universal] = new Serde[Universal] with Serializable {
       override val serializer: Serializer[Universal] = new Serializer[Universal] with Serializable {
         @transient private[this] lazy val ser = new KafkaProtobufSerializer[DynamicMessage]
@@ -73,10 +73,10 @@ object ProtobufFor {
    * General
    */
 
-  implicit def protobufForGeneratedMessage[A <: GeneratedMessage](implicit
+  implicit def protoForGeneratedMessage[A <: GeneratedMessage](implicit
     gmc: GeneratedMessageCompanion[A],
-    ev: Null <:< A): ProtobufFor[A] =
-    new ProtobufFor[A] {
+    ev: Null <:< A): ProtoFor[A] =
+    new ProtoFor[A] {
 
       override protected val unregisteredSerde: Serde[A] = new Serde[A] with Serializable {
         override val serializer: Serializer[A] =

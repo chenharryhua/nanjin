@@ -33,7 +33,7 @@ final case class AvroForPair[K, V](key: AvroFor[K], value: AvroFor[V]) extends S
   val optionalAvroSchemaPair: OptionalAvroSchemaPair = OptionalAvroSchemaPair(key.schema, value.schema)
 }
 
-final case class ProtobufForPair[K, V](key: ProtobufFor[K], value: ProtobufFor[V]) extends SerdePair[K, V]
+final case class ProtoForPair[K, V](key: ProtoFor[K], value: ProtoFor[V]) extends SerdePair[K, V]
 
 final case class JsonForPair[K, V](key: JsonFor[K], value: JsonFor[V]) extends SerdePair[K, V]
 
