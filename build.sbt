@@ -286,7 +286,6 @@ lazy val messages =
         ) ++ jacksonLib ++ testLib)
 
 lazy val kafka = (project in file("kafka"))
-  .dependsOn(common)
   .dependsOn(messages)
   .dependsOn(datetime)
   .settings(commonSettings *)
@@ -324,7 +323,6 @@ val kantanLib = List(
 ).map(_ % kantanV)
 
 lazy val pipes = (project in file("pipes"))
-  .dependsOn(common)
   .dependsOn(messages)
   .dependsOn(datetime)
   .settings(commonSettings *)
@@ -363,7 +361,6 @@ val sparkLib = List(
 ).map(_ % framelessV)
 
 lazy val spark = (project in file("spark"))
-  .dependsOn(common)
   .dependsOn(kafka)
   .dependsOn(pipes)
   .dependsOn(database)
