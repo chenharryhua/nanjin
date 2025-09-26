@@ -299,7 +299,7 @@ lazy val kafka = (project in file("kafka"))
       "org.apache.kafka" %% "kafka-streams-scala" % kafkaV,
       ("com.github.fd4s" %% "fs2-kafka"           % fs2KafkaV).exclude("org.apache.kafka", "kafka-clients"),
       "ch.qos.logback"                            % "logback-classic"              % logbackV % Test
-    ) ++ testLib)
+    ) ++ jacksonLib ++ testLib)
 
 /** hadoop based
   */
@@ -345,7 +345,7 @@ lazy val pipes = (project in file("pipes"))
       "com.nimbusds"                     % "nimbus-jose-jwt" % "10.5", // snyk
       "org.apache.zookeeper"             % "zookeeper"       % "3.9.4", // snyk
       "org.typelevel" %% "jawn-fs2"      % "2.4.0"           % Test
-    ) ++ hadoopLib ++ kantanLib
+    ) ++ jacksonLib ++ hadoopLib ++ kantanLib
     libraryDependencies ++= libs ++ testLib
   }
 
