@@ -52,6 +52,9 @@ final case class NJConsumerRecord[K, V](
   def bimap[K1, V1](k: K => K1, v: V => V1): NJConsumerRecord[K1, V1] =
     NJConsumerRecord.bifunctorNJConsumerRecord.bimap(this)(k, v)
 
+  def map[V1](v: V => V1): NJConsumerRecord[K, V1] =
+    NJConsumerRecord.bifunctorNJConsumerRecord.rightFunctor.map(this)(v)
+
   def toNJProducerRecord: NJProducerRecord[K, V] =
     NJProducerRecord[K, V](
       topic = topic,
