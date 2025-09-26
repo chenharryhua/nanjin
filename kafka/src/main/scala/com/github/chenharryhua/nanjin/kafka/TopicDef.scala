@@ -93,7 +93,7 @@ object ProtobufTopic {
     apply[K, V](TopicName(topicName))
 }
 
-final class JsonSchemaTopic[K, V] private (val topicName: TopicName, val pair: JsonSchemaForPair[K, V])
+final class JsonTopic[K, V] private (val topicName: TopicName, val pair: JsonForPair[K, V])
     extends KafkaTopic[K, V] {
   override def consumerSettings[F[_]: Sync](
     srs: SchemaRegistrySettings,
@@ -110,42 +110,13 @@ final class JsonSchemaTopic[K, V] private (val topicName: TopicName, val pair: J
       pair.key.asKey(srs.config).withTopic(topicName),
       pair.value.asValue(srs.config).withTopic(topicName))
 }
-object JsonSchemaTopic {
-  def apply[K, V](key: JsonSchemaFor[K], value: JsonSchemaFor[V], topicName: TopicName) =
-    new JsonSchemaTopic[K, V](topicName, JsonSchemaForPair(key, value))
+object JsonTopic {
+  def apply[K, V](key: JsonFor[K], value: JsonFor[V], topicName: TopicName) =
+    new JsonTopic[K, V](topicName, JsonForPair(key, value))
 
-  def apply[K: JsonSchemaFor, V: JsonSchemaFor](topicName: TopicName): JsonSchemaTopic[K, V] =
-    apply[K, V](JsonSchemaFor[K], JsonSchemaFor[V], topicName)
+  def apply[K: JsonFor, V: JsonFor](topicName: TopicName): JsonTopic[K, V] =
+    apply[K, V](JsonFor[K], JsonFor[V], topicName)
 
-  def apply[K: JsonSchemaFor, V: JsonSchemaFor](topicName: TopicNameL): JsonSchemaTopic[K, V] =
-    apply[K, V](TopicName(topicName))
-}
-
-final class JsonLightTopic[K, V] private (val topicName: TopicName, val pair: JsonLightForPair[K, V])
-    extends KafkaTopic[K, V] {
-  override def consumerSettings[F[_]: Sync](
-    srs: SchemaRegistrySettings,
-    cs: KafkaConsumerSettings): ConsumerSettings[F, K, V] =
-    pair.consumerSettings[F](srs, cs)
-  override def producerSettings[F[_]: Sync](
-    srs: SchemaRegistrySettings,
-    ps: KafkaProducerSettings): ProducerSettings[F, K, V] =
-    pair.producerSettings[F](srs, ps)
-
-  override def register(srs: SchemaRegistrySettings): TopicSerde[K, V] =
-    TopicSerde(
-      topicName,
-      pair.key.asKey(srs.config).withTopic(topicName),
-      pair.value.asValue(srs.config).withTopic(topicName))
-}
-
-object JsonLightTopic {
-  def apply[K, V](key: JsonLightFor[K], value: JsonLightFor[V], topicName: TopicName): JsonLightTopic[K, V] =
-    new JsonLightTopic[K, V](topicName, JsonLightForPair(key, value))
-
-  def apply[K: JsonLightFor, V: JsonLightFor](topicName: TopicName): JsonLightTopic[K, V] =
-    apply[K, V](JsonLightFor[K], JsonLightFor[V], topicName)
-
-  def apply[K: JsonLightFor, V: JsonLightFor](topicName: TopicNameL): JsonLightTopic[K, V] =
+  def apply[K: JsonFor, V: JsonFor](topicName: TopicNameL): JsonTopic[K, V] =
     apply[K, V](TopicName(topicName))
 }

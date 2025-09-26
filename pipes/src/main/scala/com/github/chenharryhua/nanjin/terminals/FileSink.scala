@@ -165,8 +165,8 @@ final private class FileSinkImpl[F[_]: Sync](configuration: Configuration, url: 
 
   override val circe: Pipe[F, Json, Int] = { (ss: Stream[F, Json]) =>
     Stream
-      .resource(HadoopWriter.stringR[F](configuration, url))
-      .flatMap(w => ss.map(_.noSpaces).chunks.evalMap(c => w.write(c).as(c.size)))
+      .resource(HadoopWriter.circeR[F](configuration, url))
+      .flatMap(w => ss.chunks.evalMap(c => w.write(c).as(c.size)))
   }
 
   override def kantan(csvConfiguration: CsvConfiguration): Pipe[F, Seq[String], Int] = {

@@ -11,7 +11,7 @@ Global / parallelExecution := false
 val acyclicV = "0.3.18"
 val avroV = "1.12.0"
 val avro4sV = "4.1.2"
-val awsV = "2.33.11"
+val awsV = "2.34.3"
 val caffeineV = "3.2.2"
 val catsCoreV = "2.13.0"
 val catsEffectV = "3.6.3"
@@ -26,7 +26,7 @@ val fs2KafkaV = "3.9.0"
 val fs2V = "3.12.2"
 val framelessV = "0.16.0"
 val hadoopV = "3.4.2"
-val http4sV = "0.23.31"
+val http4sV = "0.23.32"
 val jacksonV = "2.20.0"
 val jwtV = "0.13.0"
 val kafkaV = "8.0.0-ce"
@@ -43,7 +43,7 @@ val refinedV = "0.11.3"
 val shapelessV = "2.3.13"
 val skunkV = "0.6.4"
 val slf4jV = "2.0.17"
-val sparkV = "3.5.6"
+val sparkV = "3.5.7"
 
 lazy val commonSettings = List(
   organization       := "com.github.chenharryhua",
@@ -116,7 +116,7 @@ lazy val common = (project in file("common"))
       "io.circe" %% "circe-generic"                    % circeV,
       "io.circe" %% "circe-refined"                    % "0.15.1",
       "dev.optics" %% "monocle-macro"                  % monocleV,
-      "org.apache.commons"                             % "commons-lang3" % "3.18.0",
+      "org.apache.commons"                             % "commons-lang3" % "3.19.0",
       "io.circe" %% "circe-jawn"                       % circeV          % Test
     ) ++ enumLib ++ refinedLib ++ testLib
   )
@@ -268,7 +268,6 @@ lazy val messages =
     .settings(
       libraryDependencies ++=
         List(
-          "io.estatico" %% "newtype"                  % "0.4.4",
           "org.spire-math" %% "imp"                   % "0.5.0",
           "io.circe" %% "circe-optics"                % "0.15.1",
           "io.circe" %% "circe-jawn"                  % circeV,

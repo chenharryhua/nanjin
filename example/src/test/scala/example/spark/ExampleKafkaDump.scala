@@ -2,26 +2,58 @@ package example.spark
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
+import com.github.chenharryhua.nanjin.kafka.{AvroTopic, JsonTopic, ProtobufTopic}
+import com.github.chenharryhua.nanjin.spark.RddExt
+import eu.timepit.refined.auto.*
+import example.kafka.JsonLion
 import example.sparKafka
-import example.topics.fooTopic
+import fs2.Stream
+import io.lemonlabs.uri.Url
+import io.lemonlabs.uri.typesafe.dsl.urlToUrlDsl
+import io.scalaland.chimney.dsl.TransformerOps
+import mtest.pb.test.Lion
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
-import io.circe.generic.auto.*
-import io.lemonlabs.uri.Url
-import com.github.chenharryhua.nanjin.spark.RddExt
+
 
 @DoNotDiscover
 class ExampleKafkaDump extends AnyFunSuite {
-  test("dump kafka data in json") {
-    val path = Url.parse("./data/example/foo/batch/circe.json")
-    sparKafka.topic(fooTopic).fromKafka.flatMap(_.rdd.output.circe(path).run[IO]).unsafeRunSync()
-  }
-  test("dump kafka data in avro compressed by snappy") {
-    val path = Url.parse("./data/example/foo/batch/avro")
-    sparKafka
-      .topic(fooTopic)
-      .fromKafka
-      .flatMap(_.rdd.out.avro(path).withCompression(_.Snappy).run[IO])
+  val avro = AvroTopic[Long, JsonLion]("spark-avro")
+  val sjson = JsonTopic[Long, JsonLion]("spark-json-schema")
+  val proto = ProtobufTopic[Long, Lion]("spark-protobuf")
+
+  val lions = Stream.emits(List.fill(10)(Lion("lion", 0))).covary[IO]
+  val jlions = lions.map(_.transformInto[JsonLion]).zipWithIndex.map(_.swap)
+
+  test("upload") {
+    jlions.chunks
+      .through(example.ctx.produce(avro).sink)
+      .concurrently(jlions.chunks.through(example.ctx.produce(sjson).sink))
+      .concurrently(lions.zipWithIndex.map(_.swap).chunks.through(example.ctx.produce(proto).sink))
+      .compile
+      .drain
       .unsafeRunSync()
+  }
+  test("spark dump") {
+    val path = Url.parse("./data/example/spark/dump")
+    val d1 =
+      sparKafka.topic(avro).fromKafka.flatMap(_.rdd.out.avro(path / "1").withCompression(_.Snappy).run[IO])
+
+    val d2 =
+      sparKafka.topic(sjson).fromKafka.flatMap(_.rdd.out.avro(path / "2").withCompression(_.Snappy).run[IO])
+
+
+    val d4 =
+      sparKafka
+        .topic(proto)
+        .fromKafka
+        .flatMap(
+          _.rdd
+            .map(_.bimap(identity, _.transformInto[JsonLion]))
+            .out
+            .avro(path / "4")
+            .run[IO])
+
+    (d1 >> d2 >>  d4).unsafeRunSync()
   }
 }

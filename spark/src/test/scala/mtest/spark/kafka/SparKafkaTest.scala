@@ -4,7 +4,11 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.AvroTopic
-import com.github.chenharryhua.nanjin.messages.kafka.codec.{gr2BinAvro, gr2Circe, gr2Jackson}
+import com.github.chenharryhua.nanjin.messages.kafka.codec.{
+  genericRecord2BinAvro,
+  genericRecord2Circe,
+  genericRecord2Jackson
+}
 import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJProducerRecord}
 import com.github.chenharryhua.nanjin.spark.RddExt
 import com.sksamuel.avro4s.{Encoder, SchemaFor}
@@ -172,9 +176,9 @@ class SparKafkaTest extends AnyFunSuite {
   test("generic record conversion") {
     duckConsume.subscribe
       .take(2)
-      .evalTap(gr => IO.fromTry(gr.record.value.flatMap(gr2Jackson(_))))
-      .evalTap(gr => IO.fromTry(gr.record.value.flatMap(gr2BinAvro(_))))
-      .evalTap(gr => IO.fromTry(gr.record.value.flatMap(gr2Circe(_))))
+      .evalTap(gr => IO.fromTry(gr.record.value.flatMap(genericRecord2Jackson(_))))
+      .evalTap(gr => IO.fromTry(gr.record.value.flatMap(genericRecord2BinAvro(_))))
+      .evalTap(gr => IO.fromTry(gr.record.value.flatMap(genericRecord2Circe(_))))
       .compile
       .drain
       .unsafeRunSync()
