@@ -379,29 +379,7 @@ lazy val spark = (project in file("spark"))
   }
   .settings(dependencyOverrides += "org.json4s" %% "json4s-native" % "3.6.12")
 
-lazy val example = (project in file("example"))
-  .dependsOn(common)
-  .dependsOn(datetime)
-  .dependsOn(http)
-  .dependsOn(aws)
-  .dependsOn(messages)
-  .dependsOn(pipes)
-  .dependsOn(kafka)
-  .dependsOn(database)
-  .dependsOn(spark)
-  .dependsOn(guard)
-  .dependsOn(observer_aws)
-  .dependsOn(observer_database)
-  .dependsOn(observer_kafka)
-  .settings(commonSettings *)
-  .settings(name := "nj-example")
-  .settings(libraryDependencies ++= List(
-    "ch.qos.logback" % "logback-classic" % logbackV % Test
-  ) ++ testLib)
-  .settings(Test / PB.targets := Seq(
-    scalapb.gen() -> (Test / sourceManaged).value / "scalapb"
-  ))
-  .settings(dependencyOverrides += "org.json4s" %% "json4s-native" % "3.6.12")
+
 
 lazy val nanjin =
   (project in file(".")).aggregate(
