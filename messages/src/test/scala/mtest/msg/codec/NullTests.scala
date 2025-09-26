@@ -14,8 +14,6 @@ class NullTests extends AnyFunSuite {
     assert(avro.deserialize(null) == null)
     assert(avroU.deserialize(null) == null)
     assert(avroU.deserialize(null) == null)
-    assert(jsonLight.deserialize(null) == null)
-    assert(jsonLightU.deserialize(null) == null)
     assert(jsonSchema.deserialize(null) == null)
     assert(jsonSchemaU.deserialize(null) == null)
     assert(protobufU.deserialize(null) == null)
@@ -46,13 +44,9 @@ class NullTests extends AnyFunSuite {
     assert(avroU.serialize(null.asInstanceOf[AvroFor.Universal]) == null)
     assert(avroU.serialize(new AvroFor.Universal(null.asInstanceOf[GenericRecord])) == null)
 
-    assert(jsonLight.serialize(null.asInstanceOf[CoproductJsons.Foo]) == null)
-    assert(jsonLightU.serialize(null.asInstanceOf[JsonLightFor.Universal]) == null)
-    assert(jsonLightU.serialize(new JsonLightFor.Universal(null.asInstanceOf[Json])) == null)
-
     assert(jsonSchema.serialize(null.asInstanceOf[CoproductJsons.Foo]) == null)
-    assert(jsonSchemaU.serialize(null.asInstanceOf[JsonSchemaFor.Universal]) == null)
-    assert(jsonSchemaU.serialize(new JsonSchemaFor.Universal(null.asInstanceOf[JsonNode])) == null)
+    assert(jsonSchemaU.serialize(null.asInstanceOf[JsonFor.Universal]) == null)
+    assert(jsonSchemaU.serialize(new JsonFor.Universal(null.asInstanceOf[JsonNode])) == null)
 
     assert(protobufU.serialize(null.asInstanceOf[ProtobufFor.Universal]) == null)
     assert(protobufU.serialize(new ProtobufFor.Universal(null.asInstanceOf[DynamicMessage])) == null)

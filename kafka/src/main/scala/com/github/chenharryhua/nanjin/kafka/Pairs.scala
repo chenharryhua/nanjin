@@ -35,10 +35,7 @@ final case class AvroForPair[K, V](key: AvroFor[K], value: AvroFor[V]) extends S
 
 final case class ProtobufForPair[K, V](key: ProtobufFor[K], value: ProtobufFor[V]) extends SerdePair[K, V]
 
-final case class JsonSchemaForPair[K, V](key: JsonSchemaFor[K], value: JsonSchemaFor[V])
-    extends SerdePair[K, V]
-
-final case class JsonLightForPair[K, V](key: JsonLightFor[K], value: JsonLightFor[V]) extends SerdePair[K, V]
+final case class JsonSchemaForPair[K, V](key: JsonFor[K], value: JsonFor[V]) extends SerdePair[K, V]
 
 final case class AvroSchemaPair(key: Schema, value: Schema) {
   val consumerSchema: Schema = NJConsumerRecord.schema(key, value)

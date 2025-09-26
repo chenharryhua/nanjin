@@ -2,7 +2,7 @@ package example.spark
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.kafka.{AvroTopic, JsonLightTopic, JsonSchemaTopic, ProtobufTopic}
+import com.github.chenharryhua.nanjin.kafka.{AvroTopic, JsonSchemaTopic, ProtobufTopic}
 import com.github.chenharryhua.nanjin.spark.RddExt
 import eu.timepit.refined.auto.*
 import example.kafka.JsonLion
@@ -20,7 +20,6 @@ import org.scalatest.funsuite.AnyFunSuite
 class ExampleKafkaDump extends AnyFunSuite {
   val avro = AvroTopic[Long, JsonLion]("spark-avro")
   val sjson = JsonSchemaTopic[Long, JsonLion]("spark-json-schema")
-  val ljson = JsonLightTopic[Long, JsonLion]("spark-json-light")
   val proto = ProtobufTopic[Long, Lion]("spark-protobuf")
 
   val lions = Stream.emits(List.fill(10)(Lion("lion", 0))).covary[IO]
@@ -30,7 +29,6 @@ class ExampleKafkaDump extends AnyFunSuite {
     jlions.chunks
       .through(example.ctx.produce(avro).sink)
       .concurrently(jlions.chunks.through(example.ctx.produce(sjson).sink))
-      .concurrently(jlions.chunks.through(example.ctx.produce(ljson).sink))
       .concurrently(lions.zipWithIndex.map(_.swap).chunks.through(example.ctx.produce(proto).sink))
       .compile
       .drain
@@ -44,8 +42,6 @@ class ExampleKafkaDump extends AnyFunSuite {
     val d2 =
       sparKafka.topic(sjson).fromKafka.flatMap(_.rdd.out.avro(path / "2").withCompression(_.Snappy).run[IO])
 
-    val d3 =
-      sparKafka.topic(ljson).fromKafka.flatMap(_.rdd.out.avro(path / "3").withCompression(_.Snappy).run[IO])
 
     val d4 =
       sparKafka
@@ -58,6 +54,6 @@ class ExampleKafkaDump extends AnyFunSuite {
             .avro(path / "4")
             .run[IO])
 
-    (d1 >> d2 >> d3 >> d4).unsafeRunSync()
+    (d1 >> d2 >>  d4).unsafeRunSync()
   }
 }

@@ -20,10 +20,10 @@ import scala.jdk.CollectionConverters.{MapHasAsJava, MapHasAsScala}
 import scala.reflect.ClassTag
 import scala.util.{Failure, Success, Try}
 
-sealed trait JsonSchemaFor[A] extends RegisterSerde[A]
+sealed trait JsonFor[A] extends RegisterSerde[A]
 
-object JsonSchemaFor {
-  def apply[A](implicit ev: JsonSchemaFor[A]): JsonSchemaFor[A] = macro imp.summon[JsonSchemaFor[A]]
+object JsonFor {
+  def apply[A](implicit ev: JsonFor[A]): JsonFor[A] = macro imp.summon[JsonFor[A]]
 
   final class Universal(val value: JsonNode)
   object Universal {
@@ -47,23 +47,23 @@ object JsonSchemaFor {
   /*
    * Specific
    */
-  implicit object jsonSchemaForString extends JsonSchemaFor[String] {
+  implicit object jsonForString extends JsonFor[String] {
     override protected val unregisteredSerde: Serde[String] = serializable.stringSerde
   }
 
-  implicit object jsonSchemaForLong extends JsonSchemaFor[Long] {
+  implicit object jsonForLong extends JsonFor[Long] {
     override protected val unregisteredSerde: Serde[Long] = serializable.longSerde
   }
 
-  implicit object jsonSchemaForInt extends JsonSchemaFor[Int] {
+  implicit object jsonForInt extends JsonFor[Int] {
     override protected val unregisteredSerde: Serde[Int] = serializable.intSerde
   }
 
-  implicit object jsonSchemaForUUID extends JsonSchemaFor[UUID] {
+  implicit object jsonForUUID extends JsonFor[UUID] {
     override protected val unregisteredSerde: Serde[UUID] = serializable.uuidSerde
   }
 
-  implicit object jsonSchemaForUniversal extends JsonSchemaFor[Universal] {
+  implicit object jsonForUniversal extends JsonFor[Universal] {
     override protected val unregisteredSerde: Serde[Universal] =
       new Serde[Universal] with Serializable {
         override val serializer: Serializer[Universal] =
@@ -105,8 +105,8 @@ object JsonSchemaFor {
   /*
    * General
    */
-  implicit def jsonSchemaForClassTag[A: ClassTag](implicit ev: Null <:< A): JsonSchemaFor[A] =
-    new JsonSchemaFor[A] {
+  implicit def jsonForClassTag[A: ClassTag](implicit ev: Null <:< A): JsonFor[A] =
+    new JsonFor[A] {
 
       @transient private[this] lazy val schema: JsonSchema = buildSchema(implicitly[ClassTag[A]].runtimeClass)
 
