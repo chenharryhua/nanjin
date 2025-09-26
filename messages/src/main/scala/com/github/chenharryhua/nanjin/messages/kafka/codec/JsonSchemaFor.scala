@@ -108,7 +108,7 @@ object JsonSchemaFor {
   implicit def jsonSchemaForClassTag[A: ClassTag](implicit ev: Null <:< A): JsonSchemaFor[A] =
     new JsonSchemaFor[A] {
 
-      private val schema: JsonSchema = buildSchema(implicitly[ClassTag[A]].runtimeClass)
+      @transient private[this] lazy val schema: JsonSchema = buildSchema(implicitly[ClassTag[A]].runtimeClass)
 
       override protected val unregisteredSerde: Serde[A] =
         new Serde[A] with Serializable {

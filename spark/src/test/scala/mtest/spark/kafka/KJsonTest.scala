@@ -2,42 +2,33 @@ package mtest.spark.kafka
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import cats.implicits.{catsSyntaxTuple2Semigroupal, toFunctorFilterOps}
-import com.github.chenharryhua.nanjin.common.kafka.TopicName
-import com.github.chenharryhua.nanjin.kafka.AvroTopic
-import com.github.chenharryhua.nanjin.messages.kafka.NJProducerRecord
-import com.github.chenharryhua.nanjin.messages.kafka.codec.KJson
+import com.github.chenharryhua.nanjin.kafka.{AvroTopic, JsonSchemaTopic}
 import com.github.chenharryhua.nanjin.spark.RddExt
 import eu.timepit.refined.auto.*
-import io.circe.Json
+import fs2.Stream
 import io.lemonlabs.uri.typesafe.dsl.*
 import org.scalatest.funsuite.AnyFunSuite
 
 class KJsonTest extends AnyFunSuite {
-  val topicDef: AvroTopic[KJson[Json], KJson[Json]] =
-    AvroTopic[KJson[Json], KJson[Json]](TopicName("kjson.text"))
-  val topic = topicDef
+  val avro = AvroTopic[Int, Simple]("spark-avro-simple")
+  val json = JsonSchemaTopic[Int, Simple]("spark-json-simple")
 
-  val data: List[NJProducerRecord[KJson[Json], KJson[Json]]] = List
-    .range(0, 10)
-    .map(a =>
-      NJProducerRecord(topic.topicName, KJson(Json.fromInt(a)), KJson(Json.fromString("test.string"))))
+  val data: List[(Int, Simple)] = List.range(0, 10).map(a => a -> Simple("simple", a))
 
   val root = "./data/test/spark/kafka/kjson"
 
   test("load - unload") {
-    sparKafka
-      .topic(topic)
-      .prRdd(data)
-      .stream[IO](1)
-      .mapFilter(r => (r.key, r.value).mapN(_ -> _))
+    Stream
+      .emits(data)
       .chunks
-      .through(ctx.produce[KJson[Json], KJson[Json]](topicDef).sink)
+      .broadcastThrough(ctx.produce(avro).sink, ctx.produce(json).sink)
       .compile
       .drain
       .unsafeRunSync()
-    ctx.schemaRegistry.register(topic).unsafeRunSync()
-    sparKafka.topic(topic).fromKafka.flatMap(_.rdd.output.circe(root / "circe").run[IO]).unsafeRunSync()
-    sparKafka.dump(topic, root / "jackson").unsafeRunSync()
+
+    val res = sparKafka.topic(avro).fromKafka.flatMap(_.rdd.output.circe(root / "circe").run[IO]) >>
+      sparKafka.topic(json).fromKafka.flatMap(_.rdd.output.circe(root / "circe").run[IO])
+
+    res.unsafeRunSync()
   }
 }

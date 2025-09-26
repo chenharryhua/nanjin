@@ -4,7 +4,11 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.AvroTopic
-import com.github.chenharryhua.nanjin.messages.kafka.codec.{genericRecord2BinAvro, genericRecord2Circe, genericRecord2Jackson}
+import com.github.chenharryhua.nanjin.messages.kafka.codec.{
+  genericRecord2BinAvro,
+  genericRecord2Circe,
+  genericRecord2Jackson
+}
 import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJProducerRecord}
 import com.github.chenharryhua.nanjin.spark.RddExt
 import com.sksamuel.avro4s.{Encoder, SchemaFor}

@@ -11,11 +11,13 @@ import com.github.chenharryhua.nanjin.messages.kafka.{CRMetaInfo, NJConsumerReco
 import com.github.chenharryhua.nanjin.spark.kafka.{SparKafkaTopic, Statistics}
 import com.github.chenharryhua.nanjin.terminals.*
 import eu.timepit.refined.refineMV
+import fs2.Stream
 import fs2.kafka.*
+import io.circe.syntax.EncoderOps
 import io.circe.{Encoder as JsonEncoder, Json}
 import io.lemonlabs.uri.Url
 import io.lemonlabs.uri.typesafe.dsl.urlToUrlDsl
-import org.apache.avro.generic.GenericRecord
+import org.apache.avro.generic.GenericData
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.spark.sql.SparkSession
@@ -80,24 +82,25 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
       .circumscribedStream(config.dateRange)
       .flatMap { rs =>
         rs.partitionsMapStream.toList.map { case (pr, ss) =>
-          val sink = hadoop.sink(folder / s"${pr.toString}.${file.fileName}").jackson
-          if (config.ignoreError)
-            ss.mapChunks(_.map(_.record.value.toOption)).unNone.through(sink)
-          else
-            ss.evalMapChunk(ccr => F.fromTry(ccr.record.value)).through(sink)
+          val fn: Url = folder / s"${pr.toString}.${file.fileName}"
+          val process: Stream[F, GenericData.Record] =
+            if (config.ignoreError)
+              ss.mapChunks(_.map(_.record.value.toOption)).unNone
+            else
+              ss.evalMapChunk(ccr => F.fromTry(ccr.record.value))
+
+          process
+            .through(hadoop.sink(fn).jackson)
+            .adaptError(new Exception(
+              Json.obj("dump.topic" -> avroTopic.topicName.asJson, "to" -> fn.asJson).noSpaces,
+              _))
         }.parJoinUnbounded.onFinalize(rs.stopConsuming)
       }
       .timeoutOnPull(config.timeout)
       .compile
       .fold(0L)(_ + _)
-  }
 
-  implicit val jsonEncoderGenericRecord: JsonEncoder[GenericRecord] =
-    (a: GenericRecord) =>
-      io.circe.jawn.parse(a.toString) match {
-        case Left(value)  => throw value
-        case Right(value) => value
-      }
+  }
 
   def dumpCirce[K: JsonEncoder, V: JsonEncoder](
     topic: KafkaTopic[K, V],
@@ -118,13 +121,17 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
       .circumscribedStream(config.dateRange)
       .flatMap { rs =>
         rs.partitionsMapStream.toList.map { case (pr, ss) =>
-          val sink = hadoop.sink(folder / s"${pr.toString}.${file.fileName}").circe
-          ss.mapChunks(_.map(cr => decode(cr.record))).through(sink)
+          val fn: Url = folder / s"${pr.toString}.${file.fileName}"
+          ss.mapChunks(_.map(cr => decode(cr.record)))
+            .through(hadoop.sink(fn).circe)
+            .adaptError(
+              new Exception(Json.obj("dump.circe" -> topic.topicName.asJson, "to" -> fn.asJson).noSpaces, _))
         }.parJoinUnbounded.onFinalize(rs.stopConsuming)
       }
       .timeoutOnPull(config.timeout)
       .compile
       .fold(0L)(_ + _)
+
   }
 
   final class UploadConfig(
@@ -175,7 +182,15 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
           fs.sliding(step, step)
             .map { urls =>
               urls
-                .map(hadoop.source(_).jackson(config.chunkSize, schema))
+                .map(fn =>
+                  hadoop
+                    .source(fn)
+                    .jackson(config.chunkSize, schema)
+                    .adaptError(
+                      new Exception(
+                        Json.obj("upload.to" -> avroTopic.topicName.asJson, "from" -> fn.asJson).noSpaces,
+                        _)
+                    ))
                 .reduce(_ ++ _)
                 .prefetch
                 .through(producer.sink)
@@ -211,16 +226,19 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
       num <- hadoop
         .filesIn(folder)
         .flatMap(
-          _.traverse(
+          _.traverse(fn =>
             hadoop
-              .source(_)
+              .source(fn)
               .jackson(config.chunkSize, schema)
               .through(producer.sink)
               .timeoutOnPull(config.timeout)
               .compile
               .fold(0L) { case (sum, prs) =>
                 sum + prs.size
-              }))
+              }
+              .adaptError(new Exception(
+                Json.obj("sequential.upload.to" -> avroTopic.topicName.asJson, "from" -> fn.asJson).noSpaces,
+                _))))
         .map(_.sum)
     } yield num
   }

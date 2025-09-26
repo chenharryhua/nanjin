@@ -126,7 +126,7 @@ private object consumer_record_format {
     .build()
 
   def buildDynamicMessage[K, V](record: NJConsumerRecord[K, V]) = {
-    println(record) //Todo
+    println(record) // Todo
     recordProto
   }
 

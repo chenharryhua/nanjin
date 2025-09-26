@@ -41,3 +41,6 @@ final case class Pencil(name: String, color: Colorish)
 
 case class FirstStream(name: String, age: Int)
 case class SecondStream(name: String, score: Int)
+
+@JsonCodec
+final case class Simple(name: String, count: Int)

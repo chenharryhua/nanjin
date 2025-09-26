@@ -48,7 +48,7 @@ object JsonLightFor {
       new Serde[Universal] with Serializable {
         override val serializer: Serializer[Universal] =
           new Serializer[Universal] with Serializable {
-            @transient private[this] lazy val  ser = Serdes.byteBufferSerde.serializer()
+            @transient private[this] lazy val ser = Serdes.byteBufferSerde.serializer()
             private val printer = Printer.noSpaces
             override def serialize(topic: String, data: Universal): Array[Byte] =
               Option(data)
@@ -80,7 +80,7 @@ object JsonLightFor {
         new Serde[A] with Serializable {
           override val serializer: Serializer[A] =
             new Serializer[A] with Serializable {
-              @transient private[this] lazy val  ser = Serdes.byteBufferSerde.serializer()
+              @transient private[this] lazy val ser = Serdes.byteBufferSerde.serializer()
               private val printer = Printer.noSpaces
               override def serialize(topic: String, data: A): Array[Byte] =
                 Option(data).map(a => ser.serialize(topic, printer.printToByteBuffer(a.asJson))).orNull
