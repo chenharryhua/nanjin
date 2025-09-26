@@ -269,6 +269,7 @@ lazy val messages =
       libraryDependencies ++=
         List(
           "org.spire-math" %% "imp"                   % "0.5.0",
+          "io.circe" %% "circe-jackson212"            % "0.14.2",
           "io.circe" %% "circe-optics"                % "0.15.1",
           "io.circe" %% "circe-jawn"                  % circeV,
           "org.apache.kafka" %% "kafka-streams-scala" % kafkaV,
