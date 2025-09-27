@@ -20,7 +20,7 @@ class MiscTest extends AnyFunSuite {
       serializedValueSize = Some(1),
       key = None,
       value = Some(1),
-      headers = List(NJHeader("header", "header".getBytes())),
+      headers = List(NJHeader("header", "header".getBytes().toList)),
       leaderEpoch = Some(1)
     )
 
@@ -40,7 +40,7 @@ class MiscTest extends AnyFunSuite {
       timestamp = None,
       key = Some(1),
       value = None,
-      headers = List(NJHeader("header", "header".getBytes())))
+      headers = List(NJHeader("header", "header".getBytes().toList)))
     val pr1 = decode[NJProducerRecord[Int, Int]](pr.asJson.noSpaces).toOption.get
       .transformInto[ProducerRecord[Int, Int]]
     assert(pr1.eqv(pr.toProducerRecord))

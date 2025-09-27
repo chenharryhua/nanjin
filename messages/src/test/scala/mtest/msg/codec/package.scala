@@ -1,7 +1,7 @@
 package mtest.msg
 
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
-import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroFor, JsonFor, KafkaSerde, ProtobufFor}
+import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroFor, JsonFor, KafkaSerde, ProtoFor}
 import eu.timepit.refined.auto.*
 
 package object codec {
@@ -27,6 +27,6 @@ package object codec {
   val jsonSchemaU: KafkaSerde[JsonFor.Universal] =
     JsonFor[JsonFor.Universal].asValue(sr).withTopic(TopicName("json.schema.test.universal"))
 
-  val protobufU: KafkaSerde[ProtobufFor.Universal] =
-    ProtobufFor[ProtobufFor.Universal].asValue(sr).withTopic(TopicName("protobuf.test.universal"))
+  val protobufU: KafkaSerde[ProtoFor.Universal] =
+    ProtoFor[ProtoFor.Universal].asValue(sr).withTopic(TopicName("protobuf.test.universal"))
 }

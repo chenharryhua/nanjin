@@ -4,8 +4,6 @@ import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.node.{ArrayNode, ObjectNode}
 import com.google.protobuf.DescriptorProtos.*
 
-import java.nio.charset.StandardCharsets
-
 private object consumer_record_format {
   def buildJsonNode[K, V](record: NJConsumerRecord[K, V])(k: K => JsonNode, v: V => JsonNode): JsonNode = {
     val root: ObjectNode = globalObjectMapper.createObjectNode()
@@ -15,6 +13,25 @@ private object consumer_record_format {
     root.put("timestamp", record.timestamp)
     root.put("timestampType", record.timestampType)
 
+    val arr: ArrayNode = globalObjectMapper.createArrayNode()
+    record.headers.map { hd =>
+      val node = globalObjectMapper.createObjectNode()
+      // according to the spec, header's key should not be null
+      if (hd.value == null) node.putNull(hd.key)
+      else {
+        node.put("key", hd.key)
+        node.putPOJO("value", hd.value.map(_.toInt).toArray)
+      }
+
+      arr.add(node)
+    }
+    root.set[ArrayNode]("headers", arr)
+
+    record.leaderEpoch match {
+      case Some(value) => root.put("leaderEpoch", value)
+      case None        => root.putNull("leaderEpoch")
+    }
+
     record.serializedKeySize match {
       case Some(value) => root.put("serializedKeySize", value)
       case None        => root.putNull("serializedKeySize")
@@ -23,22 +40,6 @@ private object consumer_record_format {
       case Some(value) => root.put("serializedValueSize", value)
       case None        => root.putNull("serializedValueSize")
     }
-    record.leaderEpoch match {
-      case Some(value) => root.put("leaderEpoch", value)
-      case None        => root.putNull("leaderEpoch")
-    }
-
-    val arr: ArrayNode = globalObjectMapper.createArrayNode()
-    record.headers.map { hd =>
-      val node = globalObjectMapper.createObjectNode()
-      // according to the spec, header's key should not be null
-      if (hd.value == null) node.putNull(hd.key)
-      else
-        node.put(hd.key, new String(hd.value, StandardCharsets.UTF_8))
-
-      arr.add(node)
-    }
-    root.set[ArrayNode]("headers", arr)
 
     record.key.map(k) match {
       case Some(value) => root.set("key", value)
@@ -87,42 +88,54 @@ private object consumer_record_format {
         .setName("partition")
         .setNumber(2)
         .setType(FieldDescriptorProto.Type.TYPE_INT32))
-    .addField(
-      FieldDescriptorProto
-        .newBuilder()
-        .setName("offset")
-        .setNumber(3)
-        .setType(FieldDescriptorProto.Type.TYPE_INT64))
-    .addField(
-      FieldDescriptorProto
-        .newBuilder()
-        .setName("timestamp")
-        .setNumber(4)
-        .setType(FieldDescriptorProto.Type.TYPE_INT64))
-    .addField(
-      FieldDescriptorProto
-        .newBuilder()
-        .setName("timestampType")
-        .setNumber(4)
-        .setType(FieldDescriptorProto.Type.TYPE_INT32))
     .addField(FieldDescriptorProto
       .newBuilder()
-      .setName("key")
+      .setName("offset")
+      .setNumber(3)
+      .setType(FieldDescriptorProto.Type.TYPE_INT64))
+    .addField(FieldDescriptorProto
+      .newBuilder()
+      .setName("timestamp")
+      .setNumber(4)
+      .setType(FieldDescriptorProto.Type.TYPE_INT64))
+    .addField(FieldDescriptorProto
+      .newBuilder()
+      .setName("timestampType")
       .setNumber(5)
-      .setType(FieldDescriptorProto.Type.TYPE_BYTES))
-    .addField(FieldDescriptorProto
-      .newBuilder()
-      .setName("value")
-      .setNumber(6)
-      .setType(FieldDescriptorProto.Type.TYPE_BYTES))
+      .setType(FieldDescriptorProto.Type.TYPE_INT32))
     .addField(
       FieldDescriptorProto
         .newBuilder()
         .setName("headers")
-        .setNumber(7)
+        .setNumber(6)
         .setTypeName("Header") // nested type
         .setLabel(FieldDescriptorProto.Label.LABEL_REPEATED))
     .addNestedType(headerProto)
+    .addField(FieldDescriptorProto
+      .newBuilder()
+      .setName("leaderEpoch")
+      .setNumber(7)
+      .setType(FieldDescriptorProto.Type.TYPE_INT32))
+    .addField(FieldDescriptorProto
+      .newBuilder()
+      .setName("serializedKeySize")
+      .setNumber(8)
+      .setType(FieldDescriptorProto.Type.TYPE_INT32))
+    .addField(FieldDescriptorProto
+      .newBuilder()
+      .setName("serializedValueSize")
+      .setNumber(9)
+      .setType(FieldDescriptorProto.Type.TYPE_INT32))
+    .addField(FieldDescriptorProto
+      .newBuilder()
+      .setName("key")
+      .setNumber(10)
+      .setType(FieldDescriptorProto.Type.TYPE_BYTES))
+    .addField(FieldDescriptorProto
+      .newBuilder()
+      .setName("value")
+      .setNumber(11)
+      .setType(FieldDescriptorProto.Type.TYPE_BYTES))
     .build()
 
   def buildDynamicMessage[K, V](record: NJConsumerRecord[K, V]) = {

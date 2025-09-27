@@ -48,8 +48,8 @@ class NullTests extends AnyFunSuite {
     assert(jsonSchemaU.serialize(null.asInstanceOf[JsonFor.Universal]) == null)
     assert(jsonSchemaU.serialize(new JsonFor.Universal(null.asInstanceOf[JsonNode])) == null)
 
-    assert(protobufU.serialize(null.asInstanceOf[ProtobufFor.Universal]) == null)
-    assert(protobufU.serialize(new ProtobufFor.Universal(null.asInstanceOf[DynamicMessage])) == null)
+    assert(protobufU.serialize(null.asInstanceOf[ProtoFor.Universal]) == null)
+    assert(protobufU.serialize(new ProtoFor.Universal(null.asInstanceOf[DynamicMessage])) == null)
 
     // assert(intCodec.encode(null) === null)
     // assert(longCodec.encode(null) === null)

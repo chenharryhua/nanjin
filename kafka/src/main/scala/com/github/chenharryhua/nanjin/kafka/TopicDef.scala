@@ -63,7 +63,7 @@ object AvroTopic {
     apply[K, V](TopicName(topicName))
 }
 
-final class ProtobufTopic[K, V] private (val topicName: TopicName, val pair: ProtobufForPair[K, V])
+final class ProtoTopic[K, V] private (val topicName: TopicName, val pair: ProtoForPair[K, V])
     extends KafkaTopic[K, V] {
   override def consumerSettings[F[_]: Sync](
     srs: SchemaRegistrySettings,
@@ -82,14 +82,14 @@ final class ProtobufTopic[K, V] private (val topicName: TopicName, val pair: Pro
       pair.value.asValue(srs.config).withTopic(topicName))
 }
 
-object ProtobufTopic {
-  def apply[K, V](key: ProtobufFor[K], value: ProtobufFor[V], topicName: TopicName): ProtobufTopic[K, V] =
-    new ProtobufTopic[K, V](topicName, ProtobufForPair[K, V](key, value))
+object ProtoTopic {
+  def apply[K, V](key: ProtoFor[K], value: ProtoFor[V], topicName: TopicName): ProtoTopic[K, V] =
+    new ProtoTopic[K, V](topicName, ProtoForPair[K, V](key, value))
 
-  def apply[K: ProtobufFor, V: ProtobufFor](topicName: TopicName): ProtobufTopic[K, V] =
-    apply[K, V](ProtobufFor[K], ProtobufFor[V], topicName)
+  def apply[K: ProtoFor, V: ProtoFor](topicName: TopicName): ProtoTopic[K, V] =
+    apply[K, V](ProtoFor[K], ProtoFor[V], topicName)
 
-  def apply[K: ProtobufFor, V: ProtobufFor](topicName: TopicNameL): ProtobufTopic[K, V] =
+  def apply[K: ProtoFor, V: ProtoFor](topicName: TopicNameL): ProtoTopic[K, V] =
     apply[K, V](TopicName(topicName))
 }
 
