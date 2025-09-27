@@ -5,6 +5,7 @@ import com.google.protobuf.util.JsonFormat
 import io.circe.Encoder as JsonEncoder
 import io.confluent.kafka.serializers.protobuf.{KafkaProtobufDeserializer, KafkaProtobufSerializer}
 import org.apache.kafka.common.serialization.{Deserializer, Serde, Serializer}
+import org.apache.kafka.streams.scala.serialization.Serdes
 import scalapb.{GeneratedMessage, GeneratedMessageCompanion}
 
 import java.util
@@ -30,21 +31,21 @@ object ProtoFor {
    */
 
   implicit object protoForString extends ProtoFor[String] {
-    override protected val unregisteredSerde: Serde[String] = serializable.stringSerde
+    override protected val unregisteredSerde: Serde[String] = Serdes.stringSerde
   }
 
   implicit object protoForLong extends ProtoFor[Long] {
-    override protected val unregisteredSerde: Serde[Long] = serializable.longSerde
+    override protected val unregisteredSerde: Serde[Long] = Serdes.longSerde
   }
 
   implicit object protoForInt extends ProtoFor[Int] {
-    override protected val unregisteredSerde: Serde[Int] = serializable.intSerde
+    override protected val unregisteredSerde: Serde[Int] = Serdes.intSerde
   }
 
   implicit object protoForUniversal extends ProtoFor[Universal] {
-    override protected val unregisteredSerde: Serde[Universal] = new Serde[Universal] with Serializable {
-      override val serializer: Serializer[Universal] = new Serializer[Universal] with Serializable {
-        @transient private[this] lazy val ser = new KafkaProtobufSerializer[DynamicMessage]
+    override protected val unregisteredSerde: Serde[Universal] = new Serde[Universal] {
+      override val serializer: Serializer[Universal] = new Serializer[Universal] {
+        private[this] val ser = new KafkaProtobufSerializer[DynamicMessage]
 
         override def configure(configs: util.Map[String, ?], isKey: Boolean): Unit =
           ser.configure(configs, isKey)
@@ -55,8 +56,8 @@ object ProtoFor {
           Option(data).flatMap(u => Option(u.value)).map(dm => ser.serialize(topic, dm)).orNull
       }
 
-      override val deserializer: Deserializer[Universal] = new Deserializer[Universal] with Serializable {
-        @transient private[this] lazy val deSer = new KafkaProtobufDeserializer[DynamicMessage]
+      override val deserializer: Deserializer[Universal] = new Deserializer[Universal] {
+        private[this] val deSer = new KafkaProtobufDeserializer[DynamicMessage]
 
         override def configure(configs: util.Map[String, ?], isKey: Boolean): Unit =
           deSer.configure(configs, isKey)
@@ -78,37 +79,34 @@ object ProtoFor {
     ev: Null <:< A): ProtoFor[A] =
     new ProtoFor[A] {
 
-      override protected val unregisteredSerde: Serde[A] = new Serde[A] with Serializable {
-        override val serializer: Serializer[A] =
-          new Serializer[A] with Serializable {
+      override protected val unregisteredSerde: Serde[A] = new Serde[A] {
+        override val serializer: Serializer[A] = new Serializer[A] {
 
-            @transient private[this] lazy val ser = new KafkaProtobufSerializer[DynamicMessage]
+          private[this] val ser = new KafkaProtobufSerializer[DynamicMessage]
 
-            override def configure(configs: util.Map[String, ?], isKey: Boolean): Unit =
-              ser.configure(configs, isKey)
+          override def configure(configs: util.Map[String, ?], isKey: Boolean): Unit =
+            ser.configure(configs, isKey)
 
-            override def close(): Unit = ser.close()
+          override def close(): Unit = ser.close()
 
-            override def serialize(topic: String, data: A): Array[Byte] =
-              Option(data).map { a =>
-                val dm: DynamicMessage = DynamicMessage.parseFrom(a.companion.javaDescriptor, a.toByteArray)
-                ser.serialize(topic, dm)
-              }.orNull
-          }
+          override def serialize(topic: String, data: A): Array[Byte] =
+            Option(data).map { a =>
+              val dm: DynamicMessage = DynamicMessage.parseFrom(a.companion.javaDescriptor, a.toByteArray)
+              ser.serialize(topic, dm)
+            }.orNull
+        }
 
-        override val deserializer: Deserializer[A] =
-          new Deserializer[A] with Serializable {
+        override val deserializer: Deserializer[A] = new Deserializer[A] {
+          private[this] val deSer = new KafkaProtobufDeserializer[DynamicMessage]
 
-            @transient private[this] lazy val deSer = new KafkaProtobufDeserializer[DynamicMessage]
+          override def configure(configs: util.Map[String, ?], isKey: Boolean): Unit =
+            deSer.configure(configs, isKey)
 
-            override def configure(configs: util.Map[String, ?], isKey: Boolean): Unit =
-              deSer.configure(configs, isKey)
+          override def close(): Unit = deSer.close()
 
-            override def close(): Unit = deSer.close()
-
-            override def deserialize(topic: String, data: Array[Byte]): A =
-              Option(deSer.deserialize(topic, data)).map(dm => gmc.parseFrom(dm.toByteArray)).orNull
-          }
+          override def deserialize(topic: String, data: Array[Byte]): A =
+            Option(deSer.deserialize(topic, data)).map(dm => gmc.parseFrom(dm.toByteArray)).orNull
+        }
       }
     }
 }

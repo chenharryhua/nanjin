@@ -4,11 +4,8 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.AvroTopic
-import com.github.chenharryhua.nanjin.messages.kafka.codec.{
-  genericRecord2BinAvro,
-  genericRecord2Circe,
-  genericRecord2Jackson
-}
+import com.github.chenharryhua.nanjin.kafka.connector.ConsumeGenericRecord
+import com.github.chenharryhua.nanjin.messages.kafka.codec.{genericRecord2BinAvro, genericRecord2Circe, genericRecord2Jackson}
 import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJProducerRecord}
 import com.github.chenharryhua.nanjin.spark.RddExt
 import com.sksamuel.avro4s.{Encoder, SchemaFor}
@@ -54,29 +51,6 @@ class SparKafkaTest extends AnyFunSuite {
     .use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt) >>
     ctx.schemaRegistry.register(topic) >> loadData).unsafeRunSync()
 
-  test("sparKafka read topic from kafka") {
-    val rst = sparKafka.topic(topic).fromKafka.map(_.rdd.collect()).unsafeRunSync()
-    assert(rst.toList.flatMap(_.value) === List(data, data))
-  }
-
-  test("sparKafka read topic from kafka and show minutely aggragation result") {
-    sparKafka.topic(topic).fromKafka.flatMap(_.stats[IO].minutely).unsafeRunSync()
-  }
-  test("sparKafka read topic from kafka and show daily-hour aggragation result") {
-    sparKafka.topic(topic).fromKafka.flatMap(_.stats[IO].dailyHour).unsafeRunSync()
-  }
-  test("sparKafka read topic from kafka and show daily-minutes aggragation result") {
-    sparKafka.topic(topic).fromKafka.flatMap(_.stats[IO].dailyMinute).unsafeRunSync()
-  }
-  test("sparKafka read topic from kafka and show daily aggragation result") {
-    sparKafka.topic(topic).fromKafka.flatMap(_.stats[IO].daily).unsafeRunSync()
-  }
-  test("sparKafka read topic from kafka and show hourly aggragation result") {
-    sparKafka.topic(topic).fromKafka.flatMap(_.stats[IO].hourly).unsafeRunSync()
-  }
-  test("sparKafka read topic from kafka and show summary") {
-    sparKafka.topic(topic).fromKafka.flatMap(_.stats[IO].summary("sum")).unsafeRunSync()
-  }
   import sparkSession.implicits.*
 
   test("sparKafka someValue should filter out none values") {
@@ -154,7 +128,7 @@ class SparKafkaTest extends AnyFunSuite {
       .unsafeRunSync()
   }
 
-  val duckConsume =
+  val duckConsume: ConsumeGenericRecord[IO, Int, HasDuck] =
     ctx
       .consumeGenericRecord(topic)
       .updateConfig(_.withAutoOffsetReset(AutoOffsetReset.Earliest).withGroupId("duck"))
@@ -182,12 +156,5 @@ class SparKafkaTest extends AnyFunSuite {
       .compile
       .drain
       .unsafeRunSync()
-  }
-
-  test("empty") {
-    val prc = sparKafka.topic(topic).emptyPrRdd.count[IO]("c").unsafeRunSync()
-    val crc = sparKafka.topic(topic).emptyCrRdd.count[IO]("c").unsafeRunSync()
-    assert(prc == 0)
-    assert(crc == 0)
   }
 }

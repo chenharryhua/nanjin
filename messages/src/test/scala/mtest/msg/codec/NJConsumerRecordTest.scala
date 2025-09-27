@@ -21,13 +21,17 @@ class NJConsumerRecordTest extends AnyFunSuite {
     key = Some(1),
     value = Some(UnderTest(1, "b"))
   )
-  test("to json node") {
+
+  test("from/to json node") {
     val res = cr.toJsonNode(
       globalObjectMapper.convertValue[JsonNode](_),
       globalObjectMapper.convertValue[JsonNode](_))
     println(res)
     println(cr.toZonedJson(sydneyTime).noSpaces)
     assert(io.circe.jawn.decode[NJConsumerRecord[Int, UnderTest]](res.toPrettyString).toOption.get == cr)
+    val tree = globalObjectMapper.readTree(res.toPrettyString)
+    val readback = globalObjectMapper.convertValue[NJConsumerRecord[Int,UnderTest]](tree)
+    assert(readback === cr)
   }
 
   test("to zoned json") {

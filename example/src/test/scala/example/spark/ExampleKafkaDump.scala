@@ -3,18 +3,13 @@ package example.spark
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.kafka.{AvroTopic, JsonTopic, ProtoTopic}
-import com.github.chenharryhua.nanjin.spark.RddExt
 import eu.timepit.refined.auto.*
 import example.kafka.JsonLion
-import example.sparKafka
 import fs2.Stream
-import io.lemonlabs.uri.Url
-import io.lemonlabs.uri.typesafe.dsl.urlToUrlDsl
 import io.scalaland.chimney.dsl.TransformerOps
 import mtest.pb.test.Lion
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
-
 
 @DoNotDiscover
 class ExampleKafkaDump extends AnyFunSuite {
@@ -33,27 +28,5 @@ class ExampleKafkaDump extends AnyFunSuite {
       .compile
       .drain
       .unsafeRunSync()
-  }
-  test("spark dump") {
-    val path = Url.parse("./data/example/spark/dump")
-    val d1 =
-      sparKafka.topic(avro).fromKafka.flatMap(_.rdd.out.avro(path / "1").withCompression(_.Snappy).run[IO])
-
-    val d2 =
-      sparKafka.topic(sjson).fromKafka.flatMap(_.rdd.out.avro(path / "2").withCompression(_.Snappy).run[IO])
-
-
-    val d4 =
-      sparKafka
-        .topic(proto)
-        .fromKafka
-        .flatMap(
-          _.rdd
-            .map(_.bimap(identity, _.transformInto[JsonLion]))
-            .out
-            .avro(path / "4")
-            .run[IO])
-
-    (d1 >> d2 >>  d4).unsafeRunSync()
   }
 }
