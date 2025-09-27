@@ -34,7 +34,7 @@ object genMessage {
 
     val genNJHeader: Gen[NJHeader] = for {
       key <- Gen.asciiPrintableStr
-      value <- Gen.containerOfN[Array, Byte](5, arbitrary[Byte])
+      value <- Gen.containerOfN[List, Byte](5, arbitrary[Byte])
     } yield NJHeader(key, value)
 
     val genHeaders: Gen[RecordHeaders] = for {

@@ -272,4 +272,8 @@ class Fs2ChannelTest extends AnyFunSuite {
     assert(ret.size == 1)
     assert(ret.head.value.isSuccess)
   }
+
+  test("14. schema") {
+    println(avroTopic.pair.optionalAvroSchemaPair.toPair.consumerSchema)
+  }
 }
