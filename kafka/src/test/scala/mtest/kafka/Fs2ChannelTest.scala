@@ -274,6 +274,6 @@ class Fs2ChannelTest extends AnyFunSuite {
   }
 
   test("14. schema") {
-    println(avroTopic.pair.optionalAvroSchemaPair.toPair.consumerSchema)
+    println(avroTopic.pair.optionalSchemaPair.toPair.consumerSchema)
   }
 }

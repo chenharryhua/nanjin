@@ -61,13 +61,12 @@ class PushPullGRTest extends AnyFunSuite {
     Stream // immigration
       .eval(hadoop.filesIn(path))
       .flatMap(
-        _.map(hadoop.source(_).jackson(100, baseTopic.pair.optionalAvroSchemaPair.toPair.consumerSchema))
+        _.map(hadoop.source(_).jackson(100, baseTopic.pair.optionalSchemaPair.toPair.consumerSchema))
           .reduce(_ ++ _)
+          .evalTap(r => IO(assert(r.getSchema == baseTopic.pair.optionalSchemaPair.toPair.consumerSchema)))
+          .map(r => immigrate(evolveTopic.pair.optionalSchemaPair.toPair.consumerSchema, r))
           .evalTap(r =>
-            IO(assert(r.getSchema == baseTopic.pair.optionalAvroSchemaPair.toPair.consumerSchema)))
-          .map(r => immigrate(evolveTopic.pair.optionalAvroSchemaPair.toPair.consumerSchema, r))
-          .evalTap(r =>
-            IO(assert(r.get.getSchema == evolveTopic.pair.optionalAvroSchemaPair.toPair.consumerSchema))))
+            IO(assert(r.get.getSchema == evolveTopic.pair.optionalSchemaPair.toPair.consumerSchema))))
       .compile
       .drain
       .unsafeRunSync()

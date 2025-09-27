@@ -3,6 +3,7 @@ package com.github.chenharryhua.nanjin.messages.kafka.codec
 import com.google.protobuf.DynamicMessage
 import com.google.protobuf.util.JsonFormat
 import io.circe.Encoder as JsonEncoder
+import io.confluent.kafka.schemaregistry.protobuf.ProtobufSchema
 import io.confluent.kafka.serializers.protobuf.{KafkaProtobufDeserializer, KafkaProtobufSerializer}
 import org.apache.kafka.common.serialization.{Deserializer, Serde, Serializer}
 import org.apache.kafka.streams.scala.serialization.Serdes
@@ -10,7 +11,9 @@ import scalapb.{GeneratedMessage, GeneratedMessageCompanion}
 
 import java.util
 
-sealed trait ProtoFor[A] extends RegisterSerde[A]
+sealed trait ProtoFor[A] extends RegisterSerde[A] {
+  def protobufSchema: Option[ProtobufSchema]
+}
 
 object ProtoFor {
   def apply[A](implicit ev: ProtoFor[A]): ProtoFor[A] = macro imp.summon[ProtoFor[A]]
@@ -32,17 +35,25 @@ object ProtoFor {
 
   implicit object protoForString extends ProtoFor[String] {
     override protected val unregisteredSerde: Serde[String] = Serdes.stringSerde
+
+    override val protobufSchema: Option[ProtobufSchema] = None
   }
 
   implicit object protoForLong extends ProtoFor[Long] {
     override protected val unregisteredSerde: Serde[Long] = Serdes.longSerde
+    override val protobufSchema: Option[ProtobufSchema] = None
+
   }
 
   implicit object protoForInt extends ProtoFor[Int] {
     override protected val unregisteredSerde: Serde[Int] = Serdes.intSerde
+    override val protobufSchema: Option[ProtobufSchema] = None
+
   }
 
   implicit object protoForUniversal extends ProtoFor[Universal] {
+    override val protobufSchema: Option[ProtobufSchema] = None
+
     override protected val unregisteredSerde: Serde[Universal] = new Serde[Universal] {
       override val serializer: Serializer[Universal] = new Serializer[Universal] {
         private[this] val ser = new KafkaProtobufSerializer[DynamicMessage]
@@ -78,6 +89,7 @@ object ProtoFor {
     gmc: GeneratedMessageCompanion[A],
     ev: Null <:< A): ProtoFor[A] =
     new ProtoFor[A] {
+      override val protobufSchema: Option[ProtobufSchema] = None
 
       override protected val unregisteredSerde: Serde[A] = new Serde[A] {
         override val serializer: Serializer[A] = new Serializer[A] {

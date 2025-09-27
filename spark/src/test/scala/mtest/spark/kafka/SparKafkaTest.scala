@@ -5,7 +5,11 @@ import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.AvroTopic
 import com.github.chenharryhua.nanjin.kafka.connector.ConsumeGenericRecord
-import com.github.chenharryhua.nanjin.messages.kafka.codec.{genericRecord2BinAvro, genericRecord2Circe, genericRecord2Jackson}
+import com.github.chenharryhua.nanjin.messages.kafka.codec.{
+  genericRecord2BinAvro,
+  genericRecord2Circe,
+  genericRecord2Jackson
+}
 import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJProducerRecord}
 import com.github.chenharryhua.nanjin.spark.RddExt
 import com.sksamuel.avro4s.{Encoder, SchemaFor}
@@ -120,7 +124,7 @@ class SparKafkaTest extends AnyFunSuite {
     Stream
       .eval(hadoop.filesIn(path))
       .flatMap(
-        _.map(hadoop.source(_).jackson(10, topic.pair.optionalAvroSchemaPair.toPair.consumerSchema))
+        _.map(hadoop.source(_).jackson(10, topic.pair.optionalSchemaPair.toPair.consumerSchema))
           .reduce(_ ++ _)
           .through(ctx.produceGenericRecord(topic).updateConfig(_.withClientId("a")).sink))
       .compile

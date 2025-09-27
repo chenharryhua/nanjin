@@ -29,4 +29,16 @@ class ExampleKafkaDump extends AnyFunSuite {
       .drain
       .unsafeRunSync()
   }
+
+  test("schema register") {
+    val a = example.ctx.schemaRegistry.fetchOptionalJsonSchema(sjson.topicName).unsafeRunSync()
+    val b = example.ctx.schemaRegistry.fetchOptionalAvroSchema(avro.topicName).unsafeRunSync()
+    val c = example.ctx.schemaRegistry.fetchOptionalProtobufSchema(proto.topicName).unsafeRunSync()
+    assert(a.key.isEmpty)
+    assert(a.value.nonEmpty)
+    assert(b.key.isEmpty)
+    assert(b.value.nonEmpty)
+    assert(c.key.isEmpty)
+    assert(c.value.nonEmpty)
+  }
 }

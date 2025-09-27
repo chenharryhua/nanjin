@@ -30,7 +30,7 @@ final class ProduceGenericRecord[F[_], K, V] private[kafka] (
     new ProduceGenericRecord[F, K, V](avroTopic, getSchema, srs, f(producerSettings))
 
   def schema(implicit F: Functor[F]): F[Schema] =
-    getSchema.map(avroTopic.pair.optionalAvroSchemaPair.write(_).toPair.consumerSchema)
+    getSchema.map(avroTopic.pair.optionalSchemaPair.write(_).toPair.consumerSchema)
 
   /*
    * sink
@@ -38,7 +38,7 @@ final class ProduceGenericRecord[F[_], K, V] private[kafka] (
   def sink(implicit F: Async[F]): Pipe[F, GenericRecord, ProducerResult[Array[Byte], Array[Byte]]] = {
     (grStream: Stream[F, GenericRecord]) =>
       for {
-        pair <- Stream.eval(getSchema.map(avroTopic.pair.optionalAvroSchemaPair.write(_).toPair))
+        pair <- Stream.eval(getSchema.map(avroTopic.pair.optionalSchemaPair.write(_).toPair))
         push = new PushGenericRecord(srs, avroTopic.topicName, pair)
         producer <- KafkaProducer.stream(producerSettings)
         prs <- grStream.chunks
@@ -52,7 +52,7 @@ final class ProduceGenericRecord[F[_], K, V] private[kafka] (
     */
   def jackson(jackson: String)(implicit F: Async[F]): F[ProducerResult[Array[Byte], Array[Byte]]] =
     for {
-      pair <- getSchema.map(avroTopic.pair.optionalAvroSchemaPair.write(_).toPair)
+      pair <- getSchema.map(avroTopic.pair.optionalSchemaPair.write(_).toPair)
       gr <- F.fromTry(jackson2GenericRecord(pair.consumerSchema, jackson))
       push = new PushGenericRecord(srs, avroTopic.topicName, pair)
       res <- KafkaProducer.resource(producerSettings).use(_.produceOne(push.fromGenericRecord(gr)).flatten)
