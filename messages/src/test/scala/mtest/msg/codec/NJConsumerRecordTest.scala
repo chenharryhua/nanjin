@@ -1,6 +1,5 @@
 package mtest.msg.codec
 
-import com.fasterxml.jackson.databind.JsonNode
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroFor
 import com.github.chenharryhua.nanjin.messages.kafka.{globalObjectMapper, NJConsumerRecord, NJHeader}
@@ -23,9 +22,7 @@ class NJConsumerRecordTest extends AnyFunSuite {
   )
 
   test("from/to json node") {
-    val res = cr.toJsonNode(
-      globalObjectMapper.convertValue[JsonNode](_),
-      globalObjectMapper.convertValue[JsonNode](_))
+    val res = cr.toJsonNode
     println(res)
     println(cr.toZonedJson(sydneyTime).noSpaces)
     assert(io.circe.jawn.decode[NJConsumerRecord[Int, UnderTest]](res.toPrettyString).toOption.get == cr)

@@ -12,6 +12,8 @@ import io.confluent.kafka.serializers.json.{
   KafkaJsonSchemaDeserializerConfig,
   KafkaJsonSchemaSerializer
 }
+import io.estatico.newtype.macros.newtype
+import io.estatico.newtype.ops.toCoercibleIdOps
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.apache.kafka.common.serialization.{Deserializer, Serde, Serializer}
 import org.apache.kafka.streams.scala.serialization.Serdes
@@ -29,7 +31,7 @@ sealed trait JsonFor[A] extends RegisterSerde[A] {
 object JsonFor {
   def apply[A](implicit ev: JsonFor[A]): JsonFor[A] = macro imp.summon[JsonFor[A]]
 
-  final class Universal(val value: JsonNode)
+  @newtype final class Universal private (val value: JsonNode)
   object Universal {
     implicit val jsonEncoderUniversal: JsonEncoder[Universal] =
       (a: Universal) =>
@@ -41,7 +43,7 @@ object JsonFor {
       (c: HCursor) =>
         Try(globalObjectMapper.convertValue[JsonNode](c.value.noSpaces)) match {
           case Failure(ex)    => Left(DecodingFailure(CustomReason(ExceptionUtils.getMessage(ex)), c.history))
-          case Success(value) => Right(new Universal(value))
+          case Success(value) => Right(value.coerce)
         }
   }
 
@@ -105,7 +107,9 @@ object JsonFor {
           override def close(): Unit = deSer.close()
 
           override def deserialize(topic: String, data: Array[Byte]): Universal =
-            Option(deSer.deserialize(topic, data)).map(new Universal(_)).orNull
+            Option(deSer.deserialize(topic, data))
+              .map(_.coerce[Universal])
+              .getOrElse(null.asInstanceOf[Universal])
         }
       }
   }

@@ -1,6 +1,5 @@
 package mtest.msg.codec
 
-import com.fasterxml.jackson.databind.JsonNode
 import com.github.chenharryhua.nanjin.messages.kafka.codec.*
 import com.google.protobuf.DynamicMessage
 import io.circe.Json
@@ -46,7 +45,7 @@ class NullTests extends AnyFunSuite {
 
     assert(jsonSchema.serialize(null.asInstanceOf[CoproductJsons.Foo]) == null)
     assert(jsonSchemaU.serialize(null.asInstanceOf[JsonFor.Universal]) == null)
-    assert(jsonSchemaU.serialize(new JsonFor.Universal(null.asInstanceOf[JsonNode])) == null)
+    assert(jsonSchemaU.serialize(null.asInstanceOf[JsonFor.Universal]) == null)
 
     assert(protobufU.serialize(null.asInstanceOf[ProtoFor.Universal]) == null)
     assert(protobufU.serialize(new ProtoFor.Universal(null.asInstanceOf[DynamicMessage])) == null)

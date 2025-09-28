@@ -268,6 +268,7 @@ lazy val messages =
     .settings(
       libraryDependencies ++=
         List(
+          "io.estatico" %% "newtype"                  % "0.4.4",
           "org.spire-math" %% "imp"                   % "0.5.0",
           "io.circe" %% "circe-optics"                % "0.15.1",
           "io.circe" %% "circe-jawn"                  % circeV,

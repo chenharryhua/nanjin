@@ -68,8 +68,8 @@ final case class NJConsumerRecord[K, V](
   def toJavaConsumerRecord: JavaConsumerRecord[K, V] = this.transformInto[JavaConsumerRecord[K, V]]
   def toConsumerRecord: ConsumerRecord[K, V] = this.transformInto[ConsumerRecord[K, V]]
 
-  def toJsonNode(k: K => JsonNode, v: V => JsonNode): JsonNode =
-    consumer_record_format.buildJsonNode(this)(k, v)
+  def toJsonNode : JsonNode =
+    consumer_record_format.buildJsonNode(this)
 
   def toZonedJson(zoneID: ZoneId)(implicit K: JsonEncoder[K], V: JsonEncoder[V]): Json =
     NJConsumerRecord

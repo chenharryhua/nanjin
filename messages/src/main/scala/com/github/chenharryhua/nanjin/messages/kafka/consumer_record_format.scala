@@ -6,7 +6,7 @@ import com.google.protobuf.DescriptorProtos.*
 
 private object consumer_record_format {
 
-  def buildJsonNode[K, V](record: NJConsumerRecord[K, V])(k: K => JsonNode, v: V => JsonNode): JsonNode = {
+  def buildJsonNode[K, V](record: NJConsumerRecord[K, V]) : JsonNode = {
     val root: ObjectNode = globalObjectMapper.createObjectNode()
     root.put("topic", record.topic)
     root.put("partition", record.partition)
@@ -37,13 +37,13 @@ private object consumer_record_format {
       case None        => root.putNull("serializedValueSize")
     }
 
-    record.key.map(k) match {
-      case Some(value) => root.set("key", value)
+    record.key  match {
+      case Some(value) => root.set("key", globalObjectMapper.convertValue[JsonNode](value))
       case None        => root.putNull("key")
     }
 
-    record.value.map(v) match {
-      case Some(value) => root.set("value", value)
+    record.value match {
+      case Some(value) => root.set("value", globalObjectMapper.convertValue[JsonNode](value))
       case None        => root.putNull("value")
     }
 
