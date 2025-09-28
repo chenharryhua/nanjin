@@ -5,6 +5,8 @@ import com.google.protobuf.util.JsonFormat
 import io.circe.Encoder as JsonEncoder
 import io.confluent.kafka.schemaregistry.protobuf.ProtobufSchema
 import io.confluent.kafka.serializers.protobuf.{KafkaProtobufDeserializer, KafkaProtobufSerializer}
+import io.estatico.newtype.macros.newtype
+import io.estatico.newtype.ops.toCoercibleIdOps
 import org.apache.kafka.common.serialization.{Deserializer, Serde, Serializer}
 import org.apache.kafka.streams.scala.serialization.Serdes
 import scalapb.{GeneratedMessage, GeneratedMessageCompanion}
@@ -18,7 +20,7 @@ sealed trait ProtoFor[A] extends RegisterSerde[A] {
 object ProtoFor {
   def apply[A](implicit ev: ProtoFor[A]): ProtoFor[A] = macro imp.summon[ProtoFor[A]]
 
-  final class Universal(val value: DynamicMessage)
+  @newtype final class Universal private (val value: DynamicMessage)
   object Universal {
     private val jsonFormat = JsonFormat.printer()
     implicit val jsonEncoderUniversal: JsonEncoder[Universal] =
@@ -76,7 +78,9 @@ object ProtoFor {
         override def close(): Unit = deSer.close()
 
         override def deserialize(topic: String, data: Array[Byte]): Universal =
-          Option(deSer.deserialize(topic, data)).map(new Universal(_)).orNull
+          Option(deSer.deserialize(topic, data))
+            .map(_.coerce[Universal])
+            .getOrElse(null.asInstanceOf[Universal])
       }
     }
   }

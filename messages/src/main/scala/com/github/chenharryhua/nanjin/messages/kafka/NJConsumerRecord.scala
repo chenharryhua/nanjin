@@ -5,7 +5,6 @@ import cats.data.Cont
 import cats.kernel.Eq
 import cats.syntax.eq.catsSyntaxEq
 import cats.syntax.semigroup.catsSyntaxSemigroup
-import com.fasterxml.jackson.databind.JsonNode
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.sksamuel.avro4s.*
 import fs2.kafka.*
@@ -67,9 +66,6 @@ final case class NJConsumerRecord[K, V](
 
   def toJavaConsumerRecord: JavaConsumerRecord[K, V] = this.transformInto[JavaConsumerRecord[K, V]]
   def toConsumerRecord: ConsumerRecord[K, V] = this.transformInto[ConsumerRecord[K, V]]
-
-  def toJsonNode : JsonNode =
-    consumer_record_format.buildJsonNode(this)
 
   def toZonedJson(zoneID: ZoneId)(implicit K: JsonEncoder[K], V: JsonEncoder[V]): Json =
     NJConsumerRecord

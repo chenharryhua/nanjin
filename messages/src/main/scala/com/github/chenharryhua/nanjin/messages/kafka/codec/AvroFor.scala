@@ -5,6 +5,8 @@ import com.sksamuel.avro4s.{Decoder as AvroDecoder, Encoder as AvroEncoder, Sche
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder as JsonDecoder, Encoder as JsonEncoder, Printer}
 import io.confluent.kafka.streams.serdes.avro.{GenericAvroDeserializer, GenericAvroSerializer}
+import io.estatico.newtype.macros.newtype
+import io.estatico.newtype.ops.toCoercibleIdOps
 import org.apache.avro.Schema
 import org.apache.avro.generic.GenericRecord
 import org.apache.kafka.common.serialization.{Deserializer, Serde, Serializer}
@@ -29,7 +31,7 @@ private[codec] trait LowerPriority {
 object AvroFor extends LowerPriority {
   def apply[A](implicit ev: AvroFor[A]): AvroFor[A] = macro imp.summon[AvroFor[A]]
 
-  final class Universal(val value: GenericRecord)
+  @newtype final class Universal private (val value: GenericRecord)
   object Universal {
     implicit val jsonEncoderUniversal: JsonEncoder[Universal] =
       (a: Universal) =>
@@ -128,7 +130,9 @@ object AvroFor extends LowerPriority {
               deSer.configure(configs, isKey)
 
             override def deserialize(topic: String, data: Array[Byte]): Universal =
-              Option(deSer.deserialize(topic, data)).map(new Universal(_)).orNull
+              Option(deSer.deserialize(topic, data))
+                .map(_.coerce[Universal])
+                .getOrElse(null.asInstanceOf[Universal])
           }
       }
   }
@@ -194,7 +198,7 @@ object AvroFor extends LowerPriority {
                   case Left(value)  => throw value
                   case Right(value) => KJson(value)
                 }
-              }.orNull
+              }.getOrElse(null.asInstanceOf[KJson[A]])
           }
       }
   }

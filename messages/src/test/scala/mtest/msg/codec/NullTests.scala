@@ -1,10 +1,8 @@
 package mtest.msg.codec
 
 import com.github.chenharryhua.nanjin.messages.kafka.codec.*
-import com.google.protobuf.DynamicMessage
 import io.circe.Json
 import org.apache.avro.Schema
-import org.apache.avro.generic.GenericRecord
 import org.scalatest.funsuite.AnyFunSuite
 
 class NullTests extends AnyFunSuite {
@@ -41,14 +39,12 @@ class NullTests extends AnyFunSuite {
   test("encode null should return null") {
     assert(avro.serialize(null.asInstanceOf[CoproductJsons.Foo]) == null)
     assert(avroU.serialize(null.asInstanceOf[AvroFor.Universal]) == null)
-    assert(avroU.serialize(new AvroFor.Universal(null.asInstanceOf[GenericRecord])) == null)
 
     assert(jsonSchema.serialize(null.asInstanceOf[CoproductJsons.Foo]) == null)
     assert(jsonSchemaU.serialize(null.asInstanceOf[JsonFor.Universal]) == null)
     assert(jsonSchemaU.serialize(null.asInstanceOf[JsonFor.Universal]) == null)
 
     assert(protobufU.serialize(null.asInstanceOf[ProtoFor.Universal]) == null)
-    assert(protobufU.serialize(new ProtoFor.Universal(null.asInstanceOf[DynamicMessage])) == null)
 
     // assert(intCodec.encode(null) === null)
     // assert(longCodec.encode(null) === null)
@@ -57,7 +53,8 @@ class NullTests extends AnyFunSuite {
     assert(strCodec.serialize(null) === null)
     assert(byteArrayCodec.serialize(null) === null)
     assert(PrimitiveTypeCombined.primitiviesCodec.serialize(null) === null)
-    assert(PrimitiveTypeCombined.jsonPrimCodec.serialize(null) === null)
+    assert(
+      PrimitiveTypeCombined.jsonPrimCodec.serialize(null.asInstanceOf[KJson[PrimitiveTypeCombined]]) === null)
   }
 
   test("immigrate null") {
@@ -66,7 +63,7 @@ class NullTests extends AnyFunSuite {
 
   test("kjson codec null") {
     val js = AvroFor[KJson[Json]]
-    assert(js.asKey(Map.empty).serde.serializer.serialize("", null) == null)
+    assert(js.asKey(Map.empty).serde.serializer.serialize("", null.asInstanceOf[KJson[Json]]) == null)
     assert(js.asKey(Map.empty).serde.serializer.serialize("", KJson(null)) == null)
     assert(js.asKey(Map.empty).serde.deserializer.deserialize("", null) == null)
   }

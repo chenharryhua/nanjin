@@ -1,8 +1,11 @@
 package com.github.chenharryhua.nanjin.messages.kafka
 
 import com.fasterxml.jackson.databind.JsonNode
+import io.circe.Decoder.Result
 import io.circe.optics.all.*
-import io.circe.{jawn, Json}
+import io.circe.{jawn, Codec as JsonCodec, Decoder as JsonDecoder, Encoder as JsonEncoder, HCursor, Json}
+import io.estatico.newtype.macros.newtype
+import io.estatico.newtype.ops.toCoercibleIdOps
 import monocle.function.Plated
 import org.apache.avro.generic.{GenericData, GenericDatumReader, GenericDatumWriter, GenericRecord}
 import org.apache.avro.io.*
@@ -141,7 +144,7 @@ package object codec {
 
   def genericRecord2Jackson(genericRecord: GenericRecord): Try[String] =
     Using(new ByteArrayOutputStream()) { baos =>
-      val encoder: JsonEncoder = EncoderFactory.get().jsonEncoder(genericRecord.getSchema, baos)
+      val encoder = EncoderFactory.get().jsonEncoder(genericRecord.getSchema, baos)
       new GenericDatumWriter[GenericRecord](genericRecord.getSchema).write(genericRecord, encoder)
       encoder.flush()
       baos.toString(StandardCharsets.UTF_8)
@@ -182,4 +185,15 @@ package object codec {
       val decoder = DecoderFactory.get().jsonDecoder(schema, in)
       reader.read(null, decoder)
     }
+
+  @newtype final class KJson[A] private (val value: A)
+  object KJson {
+    def apply[A](a: A): KJson[A] = a.coerce[KJson[A]]
+
+    implicit def jsonCodec[A: JsonEncoder: JsonDecoder]: JsonCodec[KJson[A]] =
+      new JsonCodec[KJson[A]] {
+        override def apply(a: KJson[A]): Json = JsonEncoder[A].apply(a.value)
+        override def apply(c: HCursor): Result[KJson[A]] = JsonDecoder[A].apply(c).map(KJson[A])
+      }
+  }
 }
