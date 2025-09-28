@@ -6,12 +6,15 @@ import com.sksamuel.avro4s.{
   DecoderHelpers,
   Encoder as AvroEncoder,
   EncoderHelpers,
+  Record,
   SchemaFor
 }
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.string.MatchesRegex
 import org.apache.avro.Schema
-import org.apache.avro.generic.GenericRecord
+import org.apache.avro.generic.IndexedRecord
+
+import scala.util.Try
 
 final class AvroCodec[A] private (
   override val schemaFor: SchemaFor[A],
@@ -28,10 +31,13 @@ final class AvroCodec[A] private (
   override def encode(value: A): AnyRef = avroEncoder.encode(value)
   override def decode(value: Any): A = avroDecoder.decode(value)
 
-  def recordOf(value: A): Option[GenericRecord] = encode(value) match {
-    case gr: GenericRecord => Some(gr)
-    case _                 => None
+  def toRecord(value: A): Record = encode(value) match {
+    case record: Record => record
+    case other          => sys.error(s"${other.getClass.getName} is not com.sksamuel.avro4s.Record")
   }
+  def fromRecord(value: IndexedRecord): A = avroDecoder.decode(value)
+
+  def recordOf(value: A): Option[Record] = Try(toRecord(value)).toOption
 
   /** https://avro.apache.org/docs/current/spec.html the grammar for a namespace is:
     *

@@ -11,17 +11,15 @@ final case class TopicSerde[K, V](topicName: TopicName, key: KafkaSerde[K], valu
 
 sealed trait KafkaTopic[K, V] extends Serializable {
   def topicName: TopicName
-  def consumerSettings[F[_]: Sync](
-    srs: SchemaRegistrySettings,
-    cs: KafkaConsumerSettings): ConsumerSettings[F, K, V]
-  def producerSettings[F[_]: Sync](
-    srs: SchemaRegistrySettings,
-    ps: KafkaProducerSettings): ProducerSettings[F, K, V]
+  def consumerSettings[F[_]](srs: SchemaRegistrySettings, cs: KafkaConsumerSettings)(implicit
+    F: Sync[F]): ConsumerSettings[F, K, V]
+  def producerSettings[F[_]](srs: SchemaRegistrySettings, ps: KafkaProducerSettings)(implicit
+    F: Sync[F]): ProducerSettings[F, K, V]
 
   def register(srs: SchemaRegistrySettings): TopicSerde[K, V]
 }
 
-final class AvroTopic[K, V] private (val topicName: TopicName, val pair: AvroForPair[K, V])
+final case class AvroTopic[K, V] private (topicName: TopicName, pair: AvroForPair[K, V])
     extends KafkaTopic[K, V] {
 
   override def toString: String = topicName.value
@@ -63,7 +61,7 @@ object AvroTopic {
     apply[K, V](TopicName(topicName))
 }
 
-final class ProtoTopic[K, V] private (val topicName: TopicName, val pair: ProtoForPair[K, V])
+final case class ProtoTopic[K, V] private (topicName: TopicName, pair: ProtoForPair[K, V])
     extends KafkaTopic[K, V] {
   override def consumerSettings[F[_]: Sync](
     srs: SchemaRegistrySettings,
@@ -93,7 +91,7 @@ object ProtoTopic {
     apply[K, V](TopicName(topicName))
 }
 
-final class JsonTopic[K, V] private (val topicName: TopicName, val pair: JsonForPair[K, V])
+final case class JsonTopic[K, V] private (topicName: TopicName, pair: JsonForPair[K, V])
     extends KafkaTopic[K, V] {
   override def consumerSettings[F[_]: Sync](
     srs: SchemaRegistrySettings,

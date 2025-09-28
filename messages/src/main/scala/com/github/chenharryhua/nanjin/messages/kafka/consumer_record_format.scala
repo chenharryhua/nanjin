@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.node.{ArrayNode, ObjectNode}
 import com.google.protobuf.DescriptorProtos.*
 
 private object consumer_record_format {
+
   def buildJsonNode[K, V](record: NJConsumerRecord[K, V])(k: K => JsonNode, v: V => JsonNode): JsonNode = {
     val root: ObjectNode = globalObjectMapper.createObjectNode()
     root.put("topic", record.topic)
@@ -16,13 +17,8 @@ private object consumer_record_format {
     val arr: ArrayNode = globalObjectMapper.createArrayNode()
     record.headers.map { hd =>
       val node = globalObjectMapper.createObjectNode()
-      // according to the spec, header's key should not be null
-      if (hd.value == null) node.putNull(hd.key)
-      else {
-        node.put("key", hd.key)
-        node.putPOJO("value", hd.value.map(_.toInt).toArray)
-      }
-
+      node.put("key", hd.key)
+      node.putPOJO("value", hd.value.map(_.toInt).toArray)
       arr.add(node)
     }
     root.set[ArrayNode]("headers", arr)

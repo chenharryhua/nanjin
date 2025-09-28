@@ -113,48 +113,49 @@ object JsonFor {
   /*
    * General
    */
-  implicit def jsonForClassTag[A: ClassTag](implicit ev: Null <:< A): JsonFor[A] =
-    new JsonFor[A] {
+  implicit def jsonForClassTag[A: ClassTag]: JsonFor[A] = new JsonFor[A] {
 
-      private val schema: JsonSchema = buildSchema(implicitly[ClassTag[A]].runtimeClass)
-      override val jsonSchema: Option[JsonSchema] = schema.some
+    private val schema: JsonSchema = buildSchema(implicitly[ClassTag[A]].runtimeClass)
+    override val jsonSchema: Option[JsonSchema] = schema.some
 
-      override protected val unregisteredSerde: Serde[A] =
-        new Serde[A] {
-          override val serializer: Serializer[A] = new Serializer[A] {
-            private[this] val ser = new KafkaJsonSchemaSerializer[JsonNode]()
+    override protected val unregisteredSerde: Serde[A] =
+      new Serde[A] {
+        override val serializer: Serializer[A] = new Serializer[A] {
+          private[this] val ser = new KafkaJsonSchemaSerializer[JsonNode]()
 
-            override def configure(configs: util.Map[String, ?], isKey: Boolean): Unit =
-              ser.configure(configs, isKey)
+          override def configure(configs: util.Map[String, ?], isKey: Boolean): Unit =
+            ser.configure(configs, isKey)
 
-            override def close(): Unit = ser.close()
+          override def close(): Unit = ser.close()
 
-            override def serialize(topic: String, data: A): Array[Byte] =
-              Option(data).map { a =>
-                val payload: JsonNode = globalObjectMapper.valueToTree[JsonNode](a)
-                ser.serialize(topic, JsonSchemaUtils.envelope(schema, payload))
-              }.orNull
-          }
-
-          override val deserializer: Deserializer[A] = new Deserializer[A] {
-            private[this] val deSer = new KafkaJsonSchemaDeserializer[JsonNode]()
-
-            override def configure(configs: util.Map[String, ?], isKey: Boolean): Unit = {
-              val sm = configs.asScala.toMap
-              val newConfig: Map[String, Any] =
-                if (isKey)
-                  sm.updated(KafkaJsonSchemaDeserializerConfig.JSON_KEY_TYPE, classOf[JsonNode].getName)
-                else
-                  sm.updated(KafkaJsonSchemaDeserializerConfig.JSON_VALUE_TYPE, classOf[JsonNode].getName)
-
-              deSer.configure(newConfig.asJava, isKey)
-            }
-
-            override def close(): Unit = deSer.close()
-
-            override def deserialize(topic: String, data: Array[Byte]): A =
-              Option(deSer.deserialize(topic, data)).map(jn => globalObjectMapper.convertValue[A](jn)).orNull
-          }
+          override def serialize(topic: String, data: A): Array[Byte] =
+            Option(data).map { a =>
+              val payload: JsonNode = globalObjectMapper.valueToTree[JsonNode](a)
+              ser.serialize(topic, JsonSchemaUtils.envelope(schema, payload))
+            }.orNull
         }
-    }
+
+        override val deserializer: Deserializer[A] = new Deserializer[A] {
+          private[this] val deSer = new KafkaJsonSchemaDeserializer[JsonNode]()
+
+          override def configure(configs: util.Map[String, ?], isKey: Boolean): Unit = {
+            val sm = configs.asScala.toMap
+            val newConfig: Map[String, Any] =
+              if (isKey)
+                sm.updated(KafkaJsonSchemaDeserializerConfig.JSON_KEY_TYPE, classOf[JsonNode].getName)
+              else
+                sm.updated(KafkaJsonSchemaDeserializerConfig.JSON_VALUE_TYPE, classOf[JsonNode].getName)
+
+            deSer.configure(newConfig.asJava, isKey)
+          }
+
+          override def close(): Unit = deSer.close()
+
+          override def deserialize(topic: String, data: Array[Byte]): A =
+            Option(deSer.deserialize(topic, data))
+              .map(jn => globalObjectMapper.convertValue[A](jn))
+              .getOrElse(null.asInstanceOf[A])
+        }
+      }
+  }
 }

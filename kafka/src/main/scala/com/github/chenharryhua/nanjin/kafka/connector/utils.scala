@@ -47,7 +47,7 @@ private object utils {
       }
     }
 
-  private def get_offset_range_by_given_offsets[F[_]: Monad](
+  private def get_offset_range_by_offsets[F[_]: Monad](
     client: KafkaTopicsV2[F],
     topicName: TopicName,
     pos: Map[Int, (Long, Long)]): F[TopicPartitionMap[OffsetRange]] =
@@ -80,7 +80,7 @@ private object utils {
     or: Either[DateTimeRange, Map[Int, (Long, Long)]]): F[TopicPartitionMap[OffsetRange]] =
     or match {
       case Left(value)  => get_offset_range_by_time(client, topicName, value)
-      case Right(value) => get_offset_range_by_given_offsets(client, topicName, value)
+      case Right(value) => get_offset_range_by_offsets(client, topicName, value)
     }
 
   def assign_offset_range[F[_]: Applicative, K, V](
