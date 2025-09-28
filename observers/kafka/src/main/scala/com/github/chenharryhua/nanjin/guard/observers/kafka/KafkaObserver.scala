@@ -9,7 +9,7 @@ import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStart
 import com.github.chenharryhua.nanjin.guard.observers.FinalizeMonitor
 import com.github.chenharryhua.nanjin.guard.translator.{Translator, UpdateTranslator}
 import com.github.chenharryhua.nanjin.kafka.{AvroForPair, KafkaContext}
-import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroFor, KJson}
+import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroFor
 import fs2.kafka.ProducerRecord
 import fs2.{Pipe, Stream}
 import io.circe.generic.JsonCodec
@@ -28,17 +28,17 @@ final class KafkaObserver[F[_]](ctx: KafkaContext[F], translator: Translator[F, 
     extends UpdateTranslator[F, Event, KafkaObserver[F]] {
 
   def observe(topicName: TopicName): Pipe[F, Event, Event] = {
-    def translate(evt: Event): F[Option[ProducerRecord[KJson[EventKey], KJson[Event]]]] =
+    def translate(evt: Event): F[Option[ProducerRecord[AvroFor.KJson[EventKey], AvroFor.KJson[Event]]]] =
       translator
         .translate(evt)
         .map(
           _.map(evt =>
             ProducerRecord(
               topicName.value,
-              KJson(EventKey(evt.serviceParams.taskName.value, evt.serviceParams.serviceName.value)),
-              KJson(evt))))
+              AvroFor.KJson(EventKey(evt.serviceParams.taskName.value, evt.serviceParams.serviceName.value)),
+              AvroFor.KJson(evt))))
 
-    val pair = AvroForPair(AvroFor[KJson[EventKey]], AvroFor[KJson[Event]])
+    val pair = AvroForPair(AvroFor[AvroFor.KJson[EventKey]], AvroFor[AvroFor.KJson[Event]])
 
     (ss: Stream[F, Event]) =>
       for {

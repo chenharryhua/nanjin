@@ -2,8 +2,9 @@ package com.github.chenharryhua.nanjin.messages.kafka.codec
 
 import cats.implicits.{catsSyntaxOptionId, none}
 import com.sksamuel.avro4s.{Decoder as AvroDecoder, Encoder as AvroEncoder, SchemaFor}
+import io.circe.Decoder.Result
 import io.circe.syntax.EncoderOps
-import io.circe.{Decoder as JsonDecoder, Encoder as JsonEncoder, Printer}
+import io.circe.{Codec as JsonCodec, Decoder as JsonDecoder, Encoder as JsonEncoder, HCursor, Json, Printer}
 import io.confluent.kafka.schemaregistry.avro.AvroSchema
 import io.confluent.kafka.streams.serdes.avro.{GenericAvroDeserializer, GenericAvroSerializer}
 import io.estatico.newtype.macros.newtype
@@ -36,6 +37,17 @@ object AvroFor extends LowerPriority {
           case Left(value)  => throw value
           case Right(value) => value
         }
+  }
+
+  @newtype final class KJson[A] private (val value: A)
+  object KJson {
+    def apply[A](a: A): KJson[A] = a.coerce[KJson[A]]
+
+    implicit def jsonCodec[A: JsonEncoder: JsonDecoder]: JsonCodec[KJson[A]] =
+      new JsonCodec[KJson[A]] {
+        override def apply(a: KJson[A]): Json = JsonEncoder[A].apply(a.value)
+        override def apply(c: HCursor): Result[KJson[A]] = JsonDecoder[A].apply(c).map(KJson[A])
+      }
   }
 
   /*
