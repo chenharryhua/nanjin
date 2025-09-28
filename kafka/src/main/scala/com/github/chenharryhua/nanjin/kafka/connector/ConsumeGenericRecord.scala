@@ -41,7 +41,7 @@ final class ConsumeGenericRecord[F[_]: Async, K, V](
     new ConsumeGenericRecord[F, K, V](avroTopic, getSchema, f(consumerSettings))
 
   def schema: F[Schema] =
-    getSchema.map(avroTopic.pair.optionalAvroSchemaPair.read(_).toPair.consumerSchema)
+    getSchema.map(avroTopic.pair.optionalSchemaPair.read(_).toPair.consumerSchema)
 
   /*
    * Generic Record
@@ -50,7 +50,7 @@ final class ConsumeGenericRecord[F[_]: Async, K, V](
   private def toGenericRecordStream(kc: KafkaConsumer[F, Array[Byte], Array[Byte]])
     : Stream[F, CommittableConsumerRecord[F, Unit, Try[GenericData.Record]]] =
     Stream.eval(getSchema).flatMap { broker =>
-      val schema = avroTopic.pair.optionalAvroSchemaPair.read(broker).toPair
+      val schema = avroTopic.pair.optionalSchemaPair.read(broker).toPair
       val pull: PullGenericRecord = new PullGenericRecord(avroTopic.topicName, schema)
       kc.partitionsMapStream.flatMap {
         _.toList.map { case (_, stream) =>
@@ -126,7 +126,7 @@ final class ConsumeGenericRecord[F[_]: Async, K, V](
 
   def manualCommitStream: Stream[F, ManualCommitStream[F, Unit, Try[GenericData.Record]]] =
     Stream.eval(getSchema).flatMap { broker =>
-      val schema = avroTopic.pair.optionalAvroSchemaPair.read(broker).toPair
+      val schema = avroTopic.pair.optionalSchemaPair.read(broker).toPair
       val pull: PullGenericRecord = new PullGenericRecord(avroTopic.topicName, schema)
       KafkaConsumer
         .stream(consumerSettings.withEnableAutoCommit(false))
@@ -166,7 +166,7 @@ final class ConsumeGenericRecord[F[_]: Async, K, V](
         else {
           for {
             _ <- Stream.eval(utils.assign_offset_range(kc, ranges))
-            schema <- Stream.eval(getSchema).map(avroTopic.pair.optionalAvroSchemaPair.read(_).toPair)
+            schema <- Stream.eval(getSchema).map(avroTopic.pair.optionalSchemaPair.read(_).toPair)
             pull = new PullGenericRecord(avroTopic.topicName, schema)
             s <- utils.circumscribed_generic_record_stream(kc, ranges, pull)
           } yield s

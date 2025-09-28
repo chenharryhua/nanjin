@@ -16,14 +16,14 @@ class SchemaRegistryTest extends AnyFunSuite {
     val res = (ctx.schemaRegistry.register(topic) >>
       ctx.schemaRegistry.metaData(topic.topicName) >>
       ctx.schemaRegistry.fetchOptionalAvroSchema(topic.topicName)).unsafeRunSync()
-    assert(res.toPair.isFullCompatible(topic.pair.optionalAvroSchemaPair.toPair))
+    assert(res.toPair.isFullCompatible(topic.pair.optionalSchemaPair.toPair))
   }
 
   test("incompatible") {
     val other = AvroTopic[String, String](topicName)
     val res = ctx.schemaRegistry.fetchOptionalAvroSchema(topicName).unsafeRunSync()
-    assert(res.toPair.backward(other.pair.optionalAvroSchemaPair.toPair).nonEmpty)
-    assert(res.toPair.forward(other.pair.optionalAvroSchemaPair.toPair).nonEmpty)
+    assert(res.toPair.backward(other.pair.optionalSchemaPair.toPair).nonEmpty)
+    assert(res.toPair.forward(other.pair.optionalSchemaPair.toPair).nonEmpty)
   }
 
   test("register schema should be identical") {
@@ -31,13 +31,13 @@ class SchemaRegistryTest extends AnyFunSuite {
     val report = ctx.schemaRegistry.delete(topic.topicName).attempt >>
       ctx.schemaRegistry.register(topic) >>
       ctx.schemaRegistry.fetchAvroSchema(topic.topicName)
-    assert(report.unsafeRunSync().isIdentical(topic.pair.optionalAvroSchemaPair.toPair))
-    assert(report.unsafeRunSync().isFullCompatible(topic.pair.optionalAvroSchemaPair.toPair))
+    assert(report.unsafeRunSync().isIdentical(topic.pair.optionalSchemaPair.toPair))
+    assert(report.unsafeRunSync().isFullCompatible(topic.pair.optionalSchemaPair.toPair))
   }
 
   test("compatibility") {
-    val other = AvroTopic[Int, reddit_post](TopicName("abc")).pair.optionalAvroSchemaPair.toPair
-    val skm = topic.pair.optionalAvroSchemaPair.toPair
+    val other = AvroTopic[Int, reddit_post](TopicName("abc")).pair.optionalSchemaPair.toPair
+    val skm = topic.pair.optionalSchemaPair.toPair
     assert(other.forward(skm).nonEmpty)
     assert(other.backward(skm).nonEmpty)
   }

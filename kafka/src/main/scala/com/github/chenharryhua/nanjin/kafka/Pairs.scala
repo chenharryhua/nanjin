@@ -3,9 +3,9 @@ package com.github.chenharryhua.nanjin.kafka
 import cats.effect.kernel.Sync
 import com.github.chenharryhua.nanjin.messages.kafka.codec.*
 import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJProducerRecord}
-import com.google.protobuf.Descriptors
 import fs2.kafka.*
 import io.confluent.kafka.schemaregistry.json.JsonSchema
+import io.confluent.kafka.schemaregistry.protobuf.ProtobufSchema
 import org.apache.avro.{Schema, SchemaCompatibility}
 
 sealed trait SerdePair[K, V] extends Serializable {
@@ -30,12 +30,18 @@ sealed trait SerdePair[K, V] extends Serializable {
 }
 
 final case class AvroForPair[K, V](key: AvroFor[K], value: AvroFor[V]) extends SerdePair[K, V] {
-  val optionalAvroSchemaPair: OptionalAvroSchemaPair = OptionalAvroSchemaPair(key.schema, value.schema)
+  val optionalSchemaPair: OptionalAvroSchemaPair = OptionalAvroSchemaPair(key.schema, value.schema)
 }
 
-final case class ProtobufForPair[K, V](key: ProtobufFor[K], value: ProtobufFor[V]) extends SerdePair[K, V]
+final case class ProtoForPair[K, V](key: ProtoFor[K], value: ProtoFor[V]) extends SerdePair[K, V] {
+  val optionalSchemaPair: OptionalProtobufSchemaPair =
+    OptionalProtobufSchemaPair(key.protobufSchema, value.protobufSchema)
+}
 
-final case class JsonForPair[K, V](key: JsonFor[K], value: JsonFor[V]) extends SerdePair[K, V]
+final case class JsonForPair[K, V](key: JsonFor[K], value: JsonFor[V]) extends SerdePair[K, V] {
+  val optionalSchemaPair: OptionalJsonSchemaPair =
+    OptionalJsonSchemaPair(key.jsonSchema, value.jsonSchema)
+}
 
 final case class AvroSchemaPair(key: Schema, value: Schema) {
   val consumerSchema: Schema = NJConsumerRecord.schema(key, value)
@@ -53,8 +59,41 @@ final case class AvroSchemaPair(key: Schema, value: Schema) {
     key.equals(other.key) && value.equals(other.value)
 }
 
-final case class ProtobufDescriptorPair(key: Descriptors.Descriptor, value: Descriptors.Descriptor)
+final case class ProtobufSchemaPair(key: ProtobufSchema, value: ProtobufSchema)
+
 final case class JsonSchemaPair(key: JsonSchema, value: JsonSchema)
+
+final case class OptionalJsonSchemaPair(key: Option[JsonSchema], value: Option[JsonSchema]) {
+  def read(broker: OptionalJsonSchemaPair): OptionalJsonSchemaPair =
+    OptionalJsonSchemaPair(key.orElse(broker.key), value.orElse(broker.value))
+
+  // write prefer broker's schema
+  def write(broker: OptionalJsonSchemaPair): OptionalJsonSchemaPair =
+    OptionalJsonSchemaPair(broker.key.orElse(key), broker.value.orElse(value))
+
+  def toPair: JsonSchemaPair = (key, value) match {
+    case (None, None)       => sys.error("both key and value schema are absent")
+    case (None, Some(_))    => sys.error("key schema is absent")
+    case (Some(_), None)    => sys.error("value schema is absent")
+    case (Some(k), Some(v)) => JsonSchemaPair(k, v)
+  }
+}
+
+final case class OptionalProtobufSchemaPair(key: Option[ProtobufSchema], value: Option[ProtobufSchema]) {
+  def read(broker: OptionalProtobufSchemaPair): OptionalProtobufSchemaPair =
+    OptionalProtobufSchemaPair(key.orElse(broker.key), value.orElse(broker.value))
+
+  // write prefer broker's schema
+  def write(broker: OptionalProtobufSchemaPair): OptionalProtobufSchemaPair =
+    OptionalProtobufSchemaPair(broker.key.orElse(key), broker.value.orElse(value))
+
+  def toPair: ProtobufSchemaPair = (key, value) match {
+    case (None, None)       => sys.error("both key and value schema are absent")
+    case (None, Some(_))    => sys.error("key schema is absent")
+    case (Some(_), None)    => sys.error("value schema is absent")
+    case (Some(k), Some(v)) => ProtobufSchemaPair(k, v)
+  }
+}
 
 final private[kafka] case class OptionalAvroSchemaPair(key: Option[Schema], value: Option[Schema]) {
   def read(broker: OptionalAvroSchemaPair): OptionalAvroSchemaPair =

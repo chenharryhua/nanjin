@@ -4,7 +4,7 @@ import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.DateTimeRange
-import com.github.chenharryhua.nanjin.kafka.{AvroTopic, JsonTopic, ProtobufTopic}
+import com.github.chenharryhua.nanjin.kafka.{AvroTopic, JsonTopic, ProtoTopic}
 import eu.timepit.refined.auto.*
 import mtest.pb.test.Lion
 import org.scalatest.funsuite.AnyFunSuite
@@ -24,7 +24,7 @@ final case class AvroLion(name: String, age: Int)
 class KafkaTopicTest extends AnyFunSuite {
 
   test("protobuf") {
-    val topic = ProtobufTopic[Int, Lion](TopicName("protobuf-example"))
+    val topic = ProtoTopic[Int, Lion](TopicName("protobuf-example"))
     val lion = Lion("a", Random.nextInt())
     example.ctx.produce(topic).produceOne(1, lion).unsafeRunSync()
 

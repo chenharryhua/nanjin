@@ -51,40 +51,39 @@ final class SchemaRegistryApi[F[_]](client: CachedSchemaRegistryClient) extends 
           require(sm.getSchemaType === "AVRO", "value schema is not AVRO")
           Some(new AvroSchema(sm.getSchema).rawSchema())
         })
-    } yield new OptionalAvroSchemaPair(key, value)
+    } yield OptionalAvroSchemaPair(key, value)
 
-  def fetchProtobufDescriptor(topicName: TopicName)(implicit F: Sync[F]): F[ProtobufDescriptorPair] =
+  def fetchOptionalJsonSchema(topicName: TopicName)(implicit F: Sync[F]): F[OptionalJsonSchemaPair] =
     for {
-      mkv <- metaData(topicName)
-      skv <- (mkv.key.getSchemaType === "PROTOBUF", mkv.value.getSchemaType === "PROTOBUF") match {
-        case (true, true) =>
-          F.pure(
-            ProtobufDescriptorPair(
-              new ProtobufSchema(mkv.key.getSchema).toDescriptor,
-              new ProtobufSchema(mkv.value.getSchema).toDescriptor))
-        case (false, true) =>
-          F.raiseError(new Exception(s"${topicName.value} key is not Protobuf"))
-        case (true, false) =>
-          F.raiseError(new Exception(s"${topicName.value} value is not Protobuf"))
-        case (false, false) =>
-          F.raiseError(new Exception(s"${topicName.value} both key and value are not Protobuf"))
-      }
-    } yield skv
+      key <- keyMetaData(topicName).redeem(
+        _ => None,
+        sm => {
+          require(sm.getSchemaType === "JSON", "key schema is not JSON")
+          Some(new JsonSchema(sm.getSchema))
+        })
+      value <- valMetaData(topicName).redeem(
+        _ => None,
+        sm => {
+          require(sm.getSchemaType === "JSON", "value schema is not JSON")
+          Some(new JsonSchema(sm.getSchema))
+        })
+    } yield OptionalJsonSchemaPair(key, value)
 
-  def fetchJsonSchema(topicName: TopicName)(implicit F: Sync[F]): F[JsonSchemaPair] =
+  def fetchOptionalProtobufSchema(topicName: TopicName)(implicit F: Sync[F]): F[OptionalProtobufSchemaPair] =
     for {
-      mkv <- metaData(topicName)
-      skv <- (mkv.key.getSchemaType === "JSON", mkv.value.getSchemaType === "JSON") match {
-        case (true, true) =>
-          F.pure(JsonSchemaPair(new JsonSchema(mkv.key.getSchema), new JsonSchema(mkv.value.getSchema)))
-        case (false, true) =>
-          F.raiseError(new Exception(s"${topicName.value} key is not JSON"))
-        case (true, false) =>
-          F.raiseError(new Exception(s"${topicName.value} value is not JSON"))
-        case (false, false) =>
-          F.raiseError(new Exception(s"${topicName.value} both key and value are not JSON"))
-      }
-    } yield skv
+      key <- keyMetaData(topicName).redeem(
+        _ => None,
+        sm => {
+          require(sm.getSchemaType === "PROTOBUF", "key schema is not PROTOBUF")
+          Some(new ProtobufSchema(sm.getSchema))
+        })
+      value <- valMetaData(topicName).redeem(
+        _ => None,
+        sm => {
+          require(sm.getSchemaType === "PROTOBUF", "value schema is not PROTOBUF")
+          Some(new ProtobufSchema(sm.getSchema))
+        })
+    } yield OptionalProtobufSchemaPair(key, value)
 
   def fetchAvroSchema(topicName: TopicName)(implicit F: Sync[F]): F[AvroSchemaPair] =
     for {
@@ -111,12 +110,11 @@ final class SchemaRegistryApi[F[_]](client: CachedSchemaRegistryClient) extends 
     val loc = SchemaLocation(topic.topicName)
     for {
       k <- F
-        .blocking(
-          topic.pair.optionalAvroSchemaPair.key.map(k => client.register(loc.keyLoc, new AvroSchema(k))))
+        .blocking(topic.pair.optionalSchemaPair.key.map(k => client.register(loc.keyLoc, new AvroSchema(k))))
         .adaptError(ex => new Exception(topic.topicName.value, ex))
       v <- F
         .blocking(
-          topic.pair.optionalAvroSchemaPair.value.map(v => client.register(loc.valLoc, new AvroSchema(v))))
+          topic.pair.optionalSchemaPair.value.map(v => client.register(loc.valLoc, new AvroSchema(v))))
         .adaptError(ex => new Exception(topic.topicName.value, ex))
     } yield (k, v)
   }

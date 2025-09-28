@@ -1,10 +1,12 @@
 package mtest.msg.codec
 
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
+import io.circe.generic.JsonCodec
 import org.scalatest.funsuite.AnyFunSuite
 
 object ManualAvroSchemaTestData {
 
+  @JsonCodec
   final case class UnderTest(a: Int, b: String)
 
   object UnderTest {
