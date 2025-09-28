@@ -4,6 +4,7 @@ import cats.effect.kernel.Sync
 import com.github.chenharryhua.nanjin.messages.kafka.codec.*
 import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJProducerRecord}
 import fs2.kafka.*
+import io.confluent.kafka.schemaregistry.avro.AvroSchema
 import io.confluent.kafka.schemaregistry.json.JsonSchema
 import io.confluent.kafka.schemaregistry.protobuf.ProtobufSchema
 import org.apache.avro.{Schema, SchemaCompatibility}
@@ -43,9 +44,9 @@ final case class JsonForPair[K, V](key: JsonFor[K], value: JsonFor[V]) extends S
     OptionalJsonSchemaPair(key.jsonSchema, value.jsonSchema)
 }
 
-final case class AvroSchemaPair(key: Schema, value: Schema) {
-  val consumerSchema: Schema = NJConsumerRecord.schema(key, value)
-  val producerSchema: Schema = NJProducerRecord.schema(key, value)
+final case class AvroSchemaPair(key: AvroSchema, value: AvroSchema) {
+  val consumerSchema: Schema = NJConsumerRecord.schema(key.rawSchema(), value.rawSchema())
+  val producerSchema: Schema = NJProducerRecord.schema(key.rawSchema(), value.rawSchema())
 
   def backward(other: AvroSchemaPair): List[SchemaCompatibility.Incompatibility] =
     backwardCompatibility(consumerSchema, other.consumerSchema)
@@ -80,6 +81,7 @@ final case class OptionalJsonSchemaPair(key: Option[JsonSchema], value: Option[J
 }
 
 final case class OptionalProtobufSchemaPair(key: Option[ProtobufSchema], value: Option[ProtobufSchema]) {
+
   def read(broker: OptionalProtobufSchemaPair): OptionalProtobufSchemaPair =
     OptionalProtobufSchemaPair(key.orElse(broker.key), value.orElse(broker.value))
 
@@ -95,7 +97,7 @@ final case class OptionalProtobufSchemaPair(key: Option[ProtobufSchema], value: 
   }
 }
 
-final private[kafka] case class OptionalAvroSchemaPair(key: Option[Schema], value: Option[Schema]) {
+final private[kafka] case class OptionalAvroSchemaPair(key: Option[AvroSchema], value: Option[AvroSchema]) {
   def read(broker: OptionalAvroSchemaPair): OptionalAvroSchemaPair =
     OptionalAvroSchemaPair(key.orElse(broker.key), value.orElse(broker.value))
 

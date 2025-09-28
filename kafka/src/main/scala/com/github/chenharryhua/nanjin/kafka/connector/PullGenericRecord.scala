@@ -21,9 +21,9 @@ final private class PullGenericRecord(topicName: TopicName, pair: AvroSchemaPair
   private val topic: String = topicName.value
 
   private val key_decode: Array[Byte] => Try[Any] =
-    pair.key.getType match {
+    pair.key.rawSchema().getType match {
       case Schema.Type.RECORD =>
-        val reader = new GenericDatumReader[GenericData.Record](pair.key)
+        val reader = new GenericDatumReader[GenericData.Record](pair.key.rawSchema())
         (data: Array[Byte]) =>
           if (data == null) Success(null)
           else
@@ -56,9 +56,9 @@ final private class PullGenericRecord(topicName: TopicName, pair: AvroSchemaPair
     }
 
   private val val_decode: Array[Byte] => Try[Any] =
-    pair.value.getType match {
+    pair.value.rawSchema().getType match {
       case Schema.Type.RECORD =>
-        val reader = new GenericDatumReader[GenericData.Record](pair.value)
+        val reader = new GenericDatumReader[GenericData.Record](pair.value.rawSchema())
         (data: Array[Byte]) =>
           if (data == null) Success(null)
           else
