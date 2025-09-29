@@ -49,20 +49,20 @@ class SortTest extends AnyFunSuite {
       Some(Random.nextInt()))
   )
   val rdd = sparKafka.sparkSession.sparkContext.parallelize(data)
-  val crRdd = sparKafka.topic(topic).crRdd(rdd)
+  val crRdd = new CrRdd[Int, Int](rdd, sparKafka.sparkSession)
   val prRdd = crRdd.prRdd
 
   test("produce record") {
     assert(
-      prRdd.ascendTimestamp.rdd.collect().toList.map(_.key)
-        === crRdd.ascendTimestamp.rdd.collect().toList.map(_.key))
+      prRdd.ascendTimestamp.rdd.collect().toList.map(_.key) ===
+        crRdd.ascendTimestamp.rdd.collect().toList.map(_.key))
 
     assert(
       prRdd.ascendOffset.rdd.collect().toList.map(_.key) == crRdd.ascendOffset.rdd.collect().toList.map(_.key)
     )
     assert(
-      prRdd.descendTimestamp.rdd.collect().toList.map(_.key)
-        === crRdd.descendTimestamp.rdd.collect().toList.map(_.key))
+      prRdd.descendTimestamp.rdd.collect().toList.map(_.key) ===
+        crRdd.descendTimestamp.rdd.collect().toList.map(_.key))
 
     assert(
       prRdd.descendOffset.rdd.collect().toList.map(_.key) == crRdd.descendOffset.rdd
