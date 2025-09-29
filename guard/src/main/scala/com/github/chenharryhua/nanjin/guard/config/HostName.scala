@@ -10,7 +10,7 @@ import java.net.{HttpURLConnection, InetAddress, URL}
 import scala.io.{BufferedSource, Source}
 import scala.util.Try
 
-final class HostName private (val value: String) extends AnyVal with Serializable {
+final class HostName private (val value: String) extends AnyVal {
 
   override def toString: String = value
 }

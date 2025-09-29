@@ -1,14 +1,18 @@
 package com.github.chenharryhua.nanjin.kafka
 
 import cats.effect.kernel.Sync
+import cats.implicits.catsSyntaxTuple2Semigroupal
+import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
 import com.github.chenharryhua.nanjin.messages.kafka.codec.*
-import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJProducerRecord}
 import fs2.kafka.*
+import io.confluent.kafka.schemaregistry.avro.AvroSchema
 import io.confluent.kafka.schemaregistry.json.JsonSchema
 import io.confluent.kafka.schemaregistry.protobuf.ProtobufSchema
-import org.apache.avro.{Schema, SchemaCompatibility}
+import org.apache.avro.Schema
 
-sealed trait SerdePair[K, V] extends Serializable {
+import scala.jdk.CollectionConverters.CollectionHasAsScala
+
+sealed trait SerdePair[K, V] {
   protected def key: RegisterSerde[K]
   protected def value: RegisterSerde[V]
 
@@ -43,32 +47,32 @@ final case class JsonForPair[K, V](key: JsonFor[K], value: JsonFor[V]) extends S
     OptionalJsonSchemaPair(key.jsonSchema, value.jsonSchema)
 }
 
-final case class AvroSchemaPair(key: Schema, value: Schema) {
-  val consumerSchema: Schema = NJConsumerRecord.schema(key, value)
-  val producerSchema: Schema = NJProducerRecord.schema(key, value)
-
-  def backward(other: AvroSchemaPair): List[SchemaCompatibility.Incompatibility] =
-    backwardCompatibility(consumerSchema, other.consumerSchema)
-  def forward(other: AvroSchemaPair): List[SchemaCompatibility.Incompatibility] =
-    forwardCompatibility(consumerSchema, other.consumerSchema)
-
-  def isFullCompatible(other: AvroSchemaPair): Boolean =
-    backward(other).isEmpty && forward(other).isEmpty
-
-  def isIdentical(other: AvroSchemaPair): Boolean =
-    key.equals(other.key) && value.equals(other.value)
+final case class AvroSchemaPair(key: AvroSchema, value: AvroSchema) {
+  val consumerSchema: Schema = NJConsumerRecord.schema(key.rawSchema(), value.rawSchema())
 }
 
 final case class ProtobufSchemaPair(key: ProtobufSchema, value: ProtobufSchema)
 
 final case class JsonSchemaPair(key: JsonSchema, value: JsonSchema)
 
-final case class OptionalJsonSchemaPair(key: Option[JsonSchema], value: Option[JsonSchema]) {
-  def read(broker: OptionalJsonSchemaPair): OptionalJsonSchemaPair =
+sealed trait CheckBackwardCompatibility[A] {
+  def isBackwardCompatible(broker: A): Boolean
+  def read(broker: A): A
+  def write(broker: A): A
+}
+
+final case class OptionalJsonSchemaPair(key: Option[JsonSchema], value: Option[JsonSchema])
+    extends CheckBackwardCompatibility[OptionalJsonSchemaPair] {
+  override def isBackwardCompatible(broker: OptionalJsonSchemaPair): Boolean = {
+    val k = (key, broker.key).traverseN((a, b) => a.isBackwardCompatible(b).asScala.toList).flatten
+    val v = (value, broker.value).traverseN((a, b) => a.isBackwardCompatible(b).asScala.toList).flatten
+    k.isEmpty & v.isEmpty
+  }
+  override def read(broker: OptionalJsonSchemaPair): OptionalJsonSchemaPair =
     OptionalJsonSchemaPair(key.orElse(broker.key), value.orElse(broker.value))
 
   // write prefer broker's schema
-  def write(broker: OptionalJsonSchemaPair): OptionalJsonSchemaPair =
+  override def write(broker: OptionalJsonSchemaPair): OptionalJsonSchemaPair =
     OptionalJsonSchemaPair(broker.key.orElse(key), broker.value.orElse(value))
 
   def toPair: JsonSchemaPair = (key, value) match {
@@ -79,12 +83,19 @@ final case class OptionalJsonSchemaPair(key: Option[JsonSchema], value: Option[J
   }
 }
 
-final case class OptionalProtobufSchemaPair(key: Option[ProtobufSchema], value: Option[ProtobufSchema]) {
-  def read(broker: OptionalProtobufSchemaPair): OptionalProtobufSchemaPair =
+final case class OptionalProtobufSchemaPair(key: Option[ProtobufSchema], value: Option[ProtobufSchema])
+    extends CheckBackwardCompatibility[OptionalProtobufSchemaPair] {
+
+  override def isBackwardCompatible(broker: OptionalProtobufSchemaPair): Boolean = {
+    val k = (key, broker.key).traverseN((a, b) => a.isBackwardCompatible(b).asScala.toList).flatten
+    val v = (value, broker.value).traverseN((a, b) => a.isBackwardCompatible(b).asScala.toList).flatten
+    k.isEmpty & v.isEmpty
+  }
+  override def read(broker: OptionalProtobufSchemaPair): OptionalProtobufSchemaPair =
     OptionalProtobufSchemaPair(key.orElse(broker.key), value.orElse(broker.value))
 
   // write prefer broker's schema
-  def write(broker: OptionalProtobufSchemaPair): OptionalProtobufSchemaPair =
+  override def write(broker: OptionalProtobufSchemaPair): OptionalProtobufSchemaPair =
     OptionalProtobufSchemaPair(broker.key.orElse(key), broker.value.orElse(value))
 
   def toPair: ProtobufSchemaPair = (key, value) match {
@@ -95,12 +106,20 @@ final case class OptionalProtobufSchemaPair(key: Option[ProtobufSchema], value: 
   }
 }
 
-final private[kafka] case class OptionalAvroSchemaPair(key: Option[Schema], value: Option[Schema]) {
-  def read(broker: OptionalAvroSchemaPair): OptionalAvroSchemaPair =
+final private[kafka] case class OptionalAvroSchemaPair(key: Option[AvroSchema], value: Option[AvroSchema])
+    extends CheckBackwardCompatibility[OptionalAvroSchemaPair] {
+
+  override def isBackwardCompatible(broker: OptionalAvroSchemaPair): Boolean = {
+    val k = (key, broker.key).traverseN((a, b) => a.isBackwardCompatible(b).asScala.toList).flatten
+    val v = (value, broker.value).traverseN((a, b) => a.isBackwardCompatible(b).asScala.toList).flatten
+    k.isEmpty & v.isEmpty
+  }
+
+  override def read(broker: OptionalAvroSchemaPair): OptionalAvroSchemaPair =
     OptionalAvroSchemaPair(key.orElse(broker.key), value.orElse(broker.value))
 
   // write prefer broker's schema
-  def write(broker: OptionalAvroSchemaPair): OptionalAvroSchemaPair =
+  override def write(broker: OptionalAvroSchemaPair): OptionalAvroSchemaPair =
     OptionalAvroSchemaPair(broker.key.orElse(key), broker.value.orElse(value))
 
   def toPair: AvroSchemaPair = (key, value) match {

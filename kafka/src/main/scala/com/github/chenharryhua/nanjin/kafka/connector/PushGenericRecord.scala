@@ -21,12 +21,13 @@ final private class PushGenericRecord(
   private val topic: String = topicName.value
 
   private val key_serialize: AnyRef => Array[Byte] =
-    pair.key.getType match {
+    pair.key.rawSchema().getType match {
       case Schema.Type.RECORD =>
         val ser = new GenericAvroSerializer()
         ser.configure(srs.config.asJava, true)
         // java world
-        (data: AnyRef) => ser.serialize(topic, immigrate(pair.key, data.asInstanceOf[GenericRecord]).get)
+        (data: AnyRef) =>
+          ser.serialize(topic, immigrate(pair.key.rawSchema(), data.asInstanceOf[GenericRecord]).get)
 
       case Schema.Type.STRING =>
         val ser = Serdes.stringSerde.serializer()
@@ -51,12 +52,13 @@ final private class PushGenericRecord(
     }
 
   private val val_serialize: AnyRef => Array[Byte] =
-    pair.value.getType match {
+    pair.value.rawSchema().getType match {
       case Schema.Type.RECORD =>
         val ser = new GenericAvroSerializer()
         ser.configure(srs.config.asJava, false)
         // java world
-        (data: AnyRef) => ser.serialize(topic, immigrate(pair.value, data.asInstanceOf[GenericRecord]).get)
+        (data: AnyRef) =>
+          ser.serialize(topic, immigrate(pair.value.rawSchema(), data.asInstanceOf[GenericRecord]).get)
 
       case Schema.Type.STRING =>
         val ser = Serdes.stringSerde.serializer()

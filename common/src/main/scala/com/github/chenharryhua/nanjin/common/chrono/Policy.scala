@@ -22,7 +22,7 @@ import scala.concurrent.duration.{Duration as ScalaDuration, FiniteDuration}
 import scala.jdk.DurationConverters.ScalaDurationOps
 import scala.util.{Random, Try}
 
-sealed trait PolicyF[K] extends Product with Serializable
+sealed trait PolicyF[K] extends Product
 
 private object PolicyF extends all {
 

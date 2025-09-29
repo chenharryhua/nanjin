@@ -18,7 +18,7 @@ import java.util.UUID
 import scala.jdk.CollectionConverters.*
 import scala.jdk.DurationConverters.ScalaDurationOps
 
-sealed trait Snapshot extends Product with Serializable { def metricId: MetricID }
+sealed trait Snapshot extends Product { def metricId: MetricID }
 
 object Snapshot {
   @JsonCodec

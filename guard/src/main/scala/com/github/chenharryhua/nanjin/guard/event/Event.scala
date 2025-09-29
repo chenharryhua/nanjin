@@ -8,7 +8,7 @@ import io.circe.generic.JsonCodec
 import java.time.{Duration, ZonedDateTime}
 
 @JsonCodec
-sealed trait Event extends Product with Serializable {
+sealed trait Event extends Product {
   def timestamp: ZonedDateTime // event timestamp - when the event occurs
   def serviceParams: ServiceParams
 

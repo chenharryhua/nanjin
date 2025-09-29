@@ -5,6 +5,7 @@ import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.DateTimeRange
 import com.github.chenharryhua.nanjin.kafka.AvroTopic
 import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
+import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroFor
 import com.github.chenharryhua.nanjin.spark.persist.{Rooster, RoosterData}
 import eu.timepit.refined.auto.*
 import frameless.TypedEncoder
@@ -15,7 +16,6 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.Instant
 import scala.math.BigDecimal.RoundingMode
-import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroFor
 final case class RoosterLike(c: BigDecimal, d: BigDecimal)
 
 object RoosterLike {
@@ -43,23 +43,25 @@ class CrPrTest extends AnyFunSuite {
   val roosterLike2 =
     AvroTopic[Long, RoosterLike2](TopicName("roosterLike2"))(AvroFor[Long], AvroFor[RoosterLike2])
 
-  val crRdd: CrRdd[Long, Rooster] = sparKafka
-    .topic(rooster)
-    .crRdd(RoosterData.rdd.zipWithIndex().map { case (r, i) =>
-      NJConsumerRecord(
-        topic = "rooster",
-        partition = 0,
-        offset = i,
-        timestamp = Instant.now.getEpochSecond * 1000 + i,
-        timestampType = 0,
-        serializedKeySize = None,
-        serializedValueSize = None,
-        key = Some(i),
-        value = Some(r),
-        headers = Nil,
-        leaderEpoch = None
-      )
-    })
+  val crRdd: CrRdd[Long, Rooster] =
+    new CrRdd(
+      RoosterData.rdd.zipWithIndex().map { case (r, i) =>
+        NJConsumerRecord(
+          topic = "rooster",
+          partition = 0,
+          offset = i,
+          timestamp = Instant.now.getEpochSecond * 1000 + i,
+          timestampType = 0,
+          serializedKeySize = None,
+          serializedValueSize = None,
+          key = Some(i),
+          value = Some(r),
+          headers = Nil,
+          leaderEpoch = None
+        )
+      },
+      sparKafka.sparkSession
+    )
 
   val expectSchema = StructType(
     List(

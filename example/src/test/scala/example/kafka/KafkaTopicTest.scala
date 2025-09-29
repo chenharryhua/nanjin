@@ -19,17 +19,17 @@ object ProtobufData {
 
 }
 @JsonCodec
-final case class JsonLion(name: String, age: Int)
-final case class AvroLion(name: String, age: Int)
+final case class Cub(name: String, age: Int)
+
 class KafkaTopicTest extends AnyFunSuite {
+  private val protoTopic = ProtoTopic[Int, Lion](TopicName("protobuf-example"))
 
   test("protobuf") {
-    val topic = ProtoTopic[Int, Lion](TopicName("protobuf-example"))
     val lion = Lion("a", Random.nextInt())
-    example.ctx.produce(topic).produceOne(1, lion).unsafeRunSync()
+    example.ctx.produce(protoTopic).produceOne(1, lion).unsafeRunSync()
 
     val res = example.ctx
-      .consume(topic)
+      .consume(protoTopic)
       .circumscribedStream(DateTimeRange(sydneyTime))
       .flatMap(_.stream)
       .map(_.record.value)
@@ -40,8 +40,8 @@ class KafkaTopicTest extends AnyFunSuite {
   }
 
   test("json") {
-    val topic = JsonTopic[Int, JsonLion](TopicName("json-example"))
-    val lion = JsonLion("b", Random.nextInt())
+    val topic = JsonTopic[Int, Cub](TopicName("json-example"))
+    val lion = Cub("b", Random.nextInt())
     example.ctx.produce(topic).produceOne(1, lion).unsafeRunSync()
 
     val res = example.ctx
@@ -56,8 +56,8 @@ class KafkaTopicTest extends AnyFunSuite {
   }
 
   test("avro") {
-    val topic = AvroTopic[Int, AvroLion](TopicName("avro-example"))
-    val lion = AvroLion("c", Random.nextInt())
+    val topic = AvroTopic[Int, Cub](TopicName("avro-example"))
+    val lion = Cub("c", Random.nextInt())
     example.ctx.produce(topic).produceOne(1, lion).unsafeRunSync()
 
     val res = example.ctx

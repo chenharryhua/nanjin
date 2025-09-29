@@ -16,8 +16,7 @@ import scala.util.Try
   * @tparam A
   *   schema related type
   */
-final class KafkaSerde[A] private[codec] (val topicName: TopicName, val registered: Registered[A])
-    extends Serializable {
+final class KafkaSerde[A] private[codec] (val topicName: TopicName, val registered: Registered[A]) {
   def serialize(a: A): Array[Byte] = registered.serde.serializer.serialize(topicName.value, a)
   def deserialize(ab: Array[Byte]): A = registered.serde.deserializer.deserialize(topicName.value, ab)
 
@@ -27,8 +26,7 @@ final class KafkaSerde[A] private[codec] (val topicName: TopicName, val register
 final class Registered[A] private[codec] (
   unregisteredSerde: Serde[A],
   props: Map[String, String],
-  isKey: Boolean)
-    extends Serializable {
+  isKey: Boolean) {
 
   @transient lazy val serde: Serde[A] = new Serde[A] {
     override val serializer: Serializer[A] = {

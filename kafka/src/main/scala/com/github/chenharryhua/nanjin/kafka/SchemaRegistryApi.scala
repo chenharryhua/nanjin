@@ -17,7 +17,7 @@ final private case class SchemaLocation(topicName: TopicName) {
 
 final case class KvSchemaMetadata(key: SchemaMetadata, value: SchemaMetadata)
 
-final class SchemaRegistryApi[F[_]](client: CachedSchemaRegistryClient) extends Serializable {
+final class SchemaRegistryApi[F[_]](client: CachedSchemaRegistryClient) {
 
   private def keyMetaData(topicName: TopicName)(implicit F: Sync[F]): F[SchemaMetadata] = {
     val loc = SchemaLocation(topicName)
@@ -43,13 +43,13 @@ final class SchemaRegistryApi[F[_]](client: CachedSchemaRegistryClient) extends 
         _ => None,
         sm => {
           require(sm.getSchemaType === "AVRO", "key schema is not AVRO")
-          Some(new AvroSchema(sm.getSchema).rawSchema())
+          Some(new AvroSchema(sm.getSchema))
         })
       value <- valMetaData(topicName).redeem(
         _ => None,
         sm => {
           require(sm.getSchemaType === "AVRO", "value schema is not AVRO")
-          Some(new AvroSchema(sm.getSchema).rawSchema())
+          Some(new AvroSchema(sm.getSchema))
         })
     } yield OptionalAvroSchemaPair(key, value)
 
@@ -90,10 +90,7 @@ final class SchemaRegistryApi[F[_]](client: CachedSchemaRegistryClient) extends 
       mkv <- metaData(topicName)
       skv <- (mkv.key.getSchemaType === "AVRO", mkv.value.getSchemaType === "AVRO") match {
         case (true, true) =>
-          F.pure(
-            AvroSchemaPair(
-              new AvroSchema(mkv.key.getSchema).rawSchema(),
-              new AvroSchema(mkv.value.getSchema).rawSchema()))
+          F.pure(AvroSchemaPair(new AvroSchema(mkv.key.getSchema), new AvroSchema(mkv.value.getSchema)))
         case (false, true) =>
           F.raiseError(new Exception(s"${topicName.value} key is not AVRO"))
         case (true, false) =>
@@ -110,11 +107,10 @@ final class SchemaRegistryApi[F[_]](client: CachedSchemaRegistryClient) extends 
     val loc = SchemaLocation(topic.topicName)
     for {
       k <- F
-        .blocking(topic.pair.optionalSchemaPair.key.map(k => client.register(loc.keyLoc, new AvroSchema(k))))
+        .blocking(topic.pair.optionalSchemaPair.key.map(k => client.register(loc.keyLoc, k)))
         .adaptError(ex => new Exception(topic.topicName.value, ex))
       v <- F
-        .blocking(
-          topic.pair.optionalSchemaPair.value.map(v => client.register(loc.valLoc, new AvroSchema(v))))
+        .blocking(topic.pair.optionalSchemaPair.value.map(v => client.register(loc.valLoc, v)))
         .adaptError(ex => new Exception(topic.topicName.value, ex))
     } yield (k, v)
   }

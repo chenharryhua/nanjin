@@ -20,7 +20,7 @@ final class AvroCodec[A] private (
   override val schemaFor: SchemaFor[A],
   avroDecoder: AvroDecoder[A],
   avroEncoder: AvroEncoder[A])
-    extends Codec[A] with Serializable {
+    extends Codec[A] {
 
   def idConversion(a: A): A = avroDecoder.decode(avroEncoder.encode(a))
 

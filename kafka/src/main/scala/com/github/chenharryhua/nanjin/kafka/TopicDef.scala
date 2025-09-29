@@ -9,7 +9,7 @@ import fs2.kafka.{ConsumerSettings, ProducerRecord, ProducerSettings}
 final case class TopicSerde[K, V](topicName: TopicName, key: KafkaSerde[K], value: KafkaSerde[V])
     extends KafkaGenericSerde(key, value)
 
-sealed trait KafkaTopic[K, V] extends Serializable {
+sealed trait KafkaTopic[K, V] {
   def topicName: TopicName
   def consumerSettings[F[_]](srs: SchemaRegistrySettings, cs: KafkaConsumerSettings)(implicit
     F: Sync[F]): ConsumerSettings[F, K, V]

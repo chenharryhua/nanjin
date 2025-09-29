@@ -28,6 +28,8 @@ object StatisticsTestData {
     CRMetaInfo("topic", 1, 3, dt.plus(unit * 4).milliseconds, 0, None, None)
   )
 
+  import sparkSession.implicits.*
+
   val ds: Dataset[CRMetaInfo] = sparkSession.createDataset(list)
 
   val empty: Dataset[CRMetaInfo] = sparkSession.emptyDataset[CRMetaInfo]

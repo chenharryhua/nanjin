@@ -1,4 +1,4 @@
-ThisBuild / version      := "0.19.9-SNAPSHOT"
+ThisBuild / version      := "0.19.11-SNAPSHOT"
 ThisBuild / scalaVersion := "2.13.16"
 
 ThisBuild / versionScheme := Some("early-semver")
@@ -17,7 +17,7 @@ val catsCoreV = "2.13.0"
 val catsEffectV = "3.6.3"
 val chimneyV = "1.8.2"
 val circeV = "0.14.14"
-val confluentV = "8.0.0"
+val confluentV = "8.0.1"
 val cron4sV = "0.8.2"
 val doobieV = "1.0.0-RC10"
 val drosteV = "0.10.0"
@@ -29,7 +29,7 @@ val hadoopV = "3.4.2"
 val http4sV = "0.23.32"
 val jacksonV = "2.20.0"
 val jwtV = "0.13.0"
-val kafkaV = "8.0.0-ce"
+val kafkaV = "8.0.1-ce"
 val kantanV = "0.8.0"
 val log4catsV = "2.7.1"
 val logbackV = "1.5.18"
@@ -351,9 +351,6 @@ val sparkLib = List(
   "org.apache.spark" %% "spark-catalyst",
   "org.apache.spark" %% "spark-core",
   "org.apache.spark" %% "spark-sql",
-  "org.apache.spark" %% "spark-sql-kafka-0-10",
-  "org.apache.spark" %% "spark-streaming",
-  "org.apache.spark" %% "spark-streaming-kafka-0-10",
   "org.apache.spark" %% "spark-avro"
 ).map(_ % sparkV) ++ List(
   "org.typelevel" %% "frameless-dataset",

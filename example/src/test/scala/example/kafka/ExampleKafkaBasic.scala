@@ -1,20 +1,17 @@
 package example.kafka
 
-import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.AvroTopic
 import com.github.chenharryhua.nanjin.messages.kafka.NJProducerRecord
-import com.github.chenharryhua.nanjin.spark.RddExt
 import eu.timepit.refined.auto.*
 import example.*
 import example.topics.fooTopic
-import io.lemonlabs.uri.Url
+import fs2.Stream
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.*
-
 @DoNotDiscover
 class ExampleKafkaBasic extends AnyFunSuite {
   val topic = AvroTopic[Int, Foo](TopicName("foo"))
@@ -32,10 +29,10 @@ class ExampleKafkaBasic extends AnyFunSuite {
         .admin(fooTopic.topicName.name)
         .use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence)
         .attempt >>
-        sparKafka
-          .topic(fooTopic)
-          .prRdd(producerRecords)
-          .producerRecords[IO](100)
+        Stream
+          .emits(producerRecords)
+          .map(_.toProducerRecord)
+          .chunks
           .through(ctx.sharedProduce[Int, Foo](topic.pair).sink)
           .compile
           .drain
@@ -49,21 +46,6 @@ class ExampleKafkaBasic extends AnyFunSuite {
       .subscribe
       .debug()
       .interruptAfter(3.seconds)
-      .compile
-      .drain
-      .unsafeRunSync()
-  }
-
-  test("persist messages to local disk and then load data back into kafka") {
-    val path = Url.parse("./data/example/foo.json")
-    sparKafka.topic(fooTopic).fromKafka.flatMap(_.rdd.output.circe(path).run[IO]).unsafeRunSync()
-    sparKafka
-      .topic(fooTopic)
-      .load
-      .circe(path)
-      .prRdd
-      .producerRecords[IO](2)
-      .through(ctx.sharedProduce[Int, Foo](topic.pair).sink)
       .compile
       .drain
       .unsafeRunSync()

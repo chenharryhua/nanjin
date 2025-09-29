@@ -21,7 +21,7 @@ object FailedParsers {
   def apply(parser: String): FailedParsers = FailedParsers(NonEmptyList.one(parser))
 }
 
-sealed trait DateTimeParser[A] extends Serializable { self =>
+sealed trait DateTimeParser[A] { self =>
   def parse(str: String): Either[FailedParsers, A]
 }
 

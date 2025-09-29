@@ -12,7 +12,7 @@ object kafka {
 
   type TopicNameL = String Refined MR
 
-  final class TopicName private (val name: TopicNameL) extends Serializable {
+  final class TopicName private (val name: TopicNameL) {
     val value: String = name.value
     override val toString: String = name.value
   }

@@ -6,8 +6,7 @@ import enumeratum.{CatsEnum, Enum, EnumEntry}
 
 import scala.collection.immutable
 
-sealed abstract private[database] class Protocols(val value: String)
-    extends EnumEntry with Product with Serializable {
+sealed abstract private[database] class Protocols(val value: String) extends EnumEntry with Product {
 
   final def url(host: Host, port: Option[Port]): String =
     port match {

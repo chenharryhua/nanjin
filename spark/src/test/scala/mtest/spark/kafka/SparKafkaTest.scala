@@ -11,15 +11,14 @@ import com.github.chenharryhua.nanjin.messages.kafka.codec.{
   genericRecord2Jackson
 }
 import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJProducerRecord}
-import com.github.chenharryhua.nanjin.spark.RddExt
-import com.sksamuel.avro4s.{Encoder, SchemaFor}
+import com.github.chenharryhua.nanjin.spark.SparkSessionExt
+import com.sksamuel.avro4s.SchemaFor
 import eu.timepit.refined.auto.*
 import fs2.kafka.AutoOffsetReset
 import io.circe.syntax.*
 import io.lemonlabs.uri.typesafe.dsl.*
-import monocle.syntax.all.*
 import mtest.spark.sparkSession
-import org.apache.spark.sql.{Dataset, SparkSession}
+import org.apache.spark.sql.SparkSession
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.{Instant, LocalDate}
@@ -55,43 +54,6 @@ class SparKafkaTest extends AnyFunSuite {
     .use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt) >>
     ctx.schemaRegistry.register(topic) >> loadData).unsafeRunSync()
 
-  import sparkSession.implicits.*
-
-  test("sparKafka someValue should filter out none values") {
-    val cr1: NJConsumerRecord[Int, Int] =
-      NJConsumerRecord("t", 0, 1, 0, 0, Nil, None, None, None, None, Some(1))
-    val cr2: NJConsumerRecord[Int, Int] =
-      NJConsumerRecord("t", 0, 2, 0, 0, Nil, None, None, None, Some(2), None)
-    val cr3: NJConsumerRecord[Int, Int] =
-      NJConsumerRecord("t", 0, 3, 0, 0, Nil, None, None, None, Some(3), None)
-    val crs: List[NJConsumerRecord[Int, Int]] = List(cr1, cr2, cr3)
-    val ds: Dataset[NJConsumerRecord[Int, Int]] = sparkSession.createDataset(crs)
-
-    println(
-      cr1.toNJProducerRecord
-        .focus(_.key)
-        .modify(_.map(_ + 1))
-        .focus(_.value)
-        .modify(_.map(_ + 1))
-        .withKey(1)
-        .withValue(2)
-        .withTimestamp(3)
-        .withPartition(4)
-        .noHeaders
-        .asJson
-        .spaces2)
-
-    val t =
-      sparKafka
-        .topic(AvroTopic[Int, Int](TopicName("some.value")))
-        .crRdd(ds.rdd)
-        .repartition(3)
-        .descendTimestamp
-        .transform(_.distinct())
-    val rst = t.rdd.collect().flatMap(_.value)
-    assert(rst === Seq(cr1.value.get))
-  }
-
   test("identical json") {
     val cr1: NJConsumerRecord[Int, Int] =
       NJConsumerRecord(
@@ -112,26 +74,6 @@ class SparKafkaTest extends AnyFunSuite {
     assert(io.circe.jawn.decode[NJProducerRecord[Int, Int]](pr1.asJson.noSpaces).toOption.get == pr1)
   }
 
-  test("should be able to reproduce") {
-    import fs2.Stream
-    val path = "./data/test/spark/kafka/reproduce/jackson"
-    sparKafka
-      .topic(topic)
-      .fromKafka
-      .flatMap(_.rdd.out(Encoder[NJConsumerRecord[Int, HasDuck]]).jackson(path).run[IO])
-      .unsafeRunSync()
-
-    Stream
-      .eval(hadoop.filesIn(path))
-      .flatMap(
-        _.map(hadoop.source(_).jackson(10, topic.pair.optionalSchemaPair.toPair.consumerSchema))
-          .reduce(_ ++ _)
-          .through(ctx.produceGenericRecord(topic).updateConfig(_.withClientId("a")).sink))
-      .compile
-      .drain
-      .unsafeRunSync()
-  }
-
   val duckConsume: ConsumeGenericRecord[IO, Int, HasDuck] =
     ctx
       .consumeGenericRecord(topic)
@@ -148,7 +90,7 @@ class SparKafkaTest extends AnyFunSuite {
       .compile
       .drain
       .unsafeRunSync()
-    assert(2 == sparKafka.topic(topic).load.avro(path).count[IO]("c").unsafeRunSync())
+    assert(2 == sparkSession.loadRdd[NJConsumerRecord[Int, HasDuck]](path).avro.count())
   }
 
   test("generic record conversion") {

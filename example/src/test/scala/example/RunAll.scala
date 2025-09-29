@@ -1,8 +1,7 @@
 package example
 
 import example.database.ExampleDatabase
-import example.kafka.{ExampleKafkaBasic, ExampleKafkaKStream}
-import example.spark.ExampleKafkaDump
+import example.kafka.{ExampleKafkaBasic, ExampleKafkaDump, ExampleKafkaKStream}
 import org.scalatest.Sequential
 
 class RunAll extends Sequential(

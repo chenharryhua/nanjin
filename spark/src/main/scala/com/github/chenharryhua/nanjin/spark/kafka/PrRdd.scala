@@ -12,9 +12,7 @@ import fs2.Stream
 import fs2.kafka.ProducerRecords
 import org.apache.spark.rdd.RDD
 
-final class PrRdd[K, V] private[kafka] (
-  val rdd: RDD[NJProducerRecord[K, V]]
-) extends Serializable {
+final class PrRdd[K, V](val rdd: RDD[NJProducerRecord[K, V]]) extends Serializable {
 
   // transform
   def transform(f: Endo[RDD[NJProducerRecord[K, V]]]): PrRdd[K, V] =

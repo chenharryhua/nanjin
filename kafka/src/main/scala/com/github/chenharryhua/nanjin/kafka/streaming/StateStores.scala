@@ -35,7 +35,7 @@ final class SessionBytesStoreSupplierHelper[K, V] private[streaming] (
     Stores.sessionStoreBuilder(supplier, topic.key.registered.serde, topic.value.registered.serde)
 }
 
-final class StateStores[K, V] private (topic: TopicSerde[K, V]) extends Serializable {
+final class StateStores[K, V] private (topic: TopicSerde[K, V]) {
 
   val name: String = topic.topicName.value
 

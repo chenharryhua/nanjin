@@ -1,4 +1,4 @@
-package mtest.spark.kafka
+package mtest.kafka
 
 import cats.effect.unsafe.implicits.global
 import cats.implicits.catsSyntaxTuple2Semigroupal
@@ -7,11 +7,15 @@ import com.github.chenharryhua.nanjin.datetime.DateTimeRange
 import com.github.chenharryhua.nanjin.kafka.{AvroTopic, JsonTopic}
 import eu.timepit.refined.auto.*
 import fs2.Stream
+import io.circe.generic.JsonCodec
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.util.Random
+@JsonCodec
+final case class Simple(name: String, count: Int)
 
-class KJsonTest extends AnyFunSuite {
+class LoadUnload extends AnyFunSuite {
+
   val avro = AvroTopic[Int, Simple]("spark-avro-simple")
   val json = JsonTopic[Int, Simple]("spark-json-simple")
 

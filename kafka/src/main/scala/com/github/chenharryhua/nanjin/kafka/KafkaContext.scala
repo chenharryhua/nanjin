@@ -3,19 +3,22 @@ package com.github.chenharryhua.nanjin.kafka
 import cats.Endo
 import cats.effect.Resource
 import cats.effect.kernel.{Async, Sync}
+import cats.implicits.toFunctorOps
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameL}
 import com.github.chenharryhua.nanjin.kafka.connector.*
 import com.github.chenharryhua.nanjin.kafka.streaming.{KafkaStreamsBuilder, StateStores, StreamsSerde}
+import com.github.chenharryhua.nanjin.messages.kafka.codec.RegisterSerde
 import fs2.kafka.*
 import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient
 import io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig
+import org.apache.kafka.common.serialization.Serde
 import org.apache.kafka.streams.scala.StreamsBuilder
 
 import scala.util.Try
 
 final class KafkaContext[F[_]] private (val settings: KafkaSettings)
-    extends UpdateConfig[KafkaSettings, KafkaContext[F]] with Serializable {
+    extends UpdateConfig[KafkaSettings, KafkaContext[F]] {
 
   override def updateConfig(f: Endo[KafkaSettings]): KafkaContext[F] =
     new KafkaContext[F](f(settings))
@@ -23,8 +26,21 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
   def store[K, V](topic: KafkaTopic[K, V]): StateStores[K, V] =
     StateStores[K, V](topic.register(settings.schemaRegistrySettings))
 
+  /*
+   * serde
+   */
   def serde[K, V](topic: KafkaTopic[K, V]): TopicSerde[K, V] =
     topic.register(settings.schemaRegistrySettings)
+
+  def asKey[A](rs: RegisterSerde[A]): Serde[A] =
+    rs.asKey(settings.schemaRegistrySettings.config).serde
+
+  def asValue[A](rs: RegisterSerde[A]): Serde[A] =
+    rs.asValue(settings.schemaRegistrySettings.config).serde
+
+  /*
+   * schema registry
+   */
 
   @transient lazy val schemaRegistry: SchemaRegistryApi[F] = {
     val url_config = AbstractKafkaSchemaSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG
@@ -38,6 +54,18 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
       .getOrElse(AbstractKafkaSchemaSerDeConfig.MAX_SCHEMAS_PER_SUBJECT_DEFAULT)
     new SchemaRegistryApi[F](new CachedSchemaRegistryClient(url, cacheCapacity))
   }
+
+  def isCompatible[K, V](topic: KafkaTopic[K, V])(implicit F: Sync[F]): F[Boolean] =
+    topic match {
+      case AvroTopic(topicName, pair) =>
+        schemaRegistry.fetchOptionalAvroSchema(topicName).map(pair.optionalSchemaPair.isBackwardCompatible)
+      case ProtoTopic(topicName, pair) =>
+        schemaRegistry
+          .fetchOptionalProtobufSchema(topicName)
+          .map(pair.optionalSchemaPair.isBackwardCompatible)
+      case JsonTopic(topicName, pair) =>
+        schemaRegistry.fetchOptionalJsonSchema(topicName).map(pair.optionalSchemaPair.isBackwardCompatible)
+    }
 
   /*
    * consumer
