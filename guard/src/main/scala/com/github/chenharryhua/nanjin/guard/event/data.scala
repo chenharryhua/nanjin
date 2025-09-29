@@ -21,7 +21,7 @@ object Error {
 }
 
 @JsonCodec
-sealed trait MetricIndex extends Product with Serializable {
+sealed trait MetricIndex extends Product {
   def launchTime: ZonedDateTime
 }
 
@@ -34,7 +34,7 @@ object MetricIndex {
   }
 }
 
-sealed abstract class ServiceStopCause(val exitCode: Int) extends Product with Serializable
+sealed abstract class ServiceStopCause(val exitCode: Int) extends Product
 
 object ServiceStopCause {
   case object Successfully extends ServiceStopCause(0)

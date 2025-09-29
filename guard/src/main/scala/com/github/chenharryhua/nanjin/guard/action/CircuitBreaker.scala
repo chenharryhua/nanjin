@@ -15,7 +15,7 @@ trait CircuitBreaker[F[_]] {
 }
 
 object CircuitBreaker {
-  sealed trait State extends Product with Serializable
+  sealed trait State extends Product
   implicit val encoderState: Encoder[State] = {
     case State.Closed(failures) => Json.fromString(s"[Closed: $failures failures]")
     case State.HalfOpen         => Json.fromString("[Half-Open]")

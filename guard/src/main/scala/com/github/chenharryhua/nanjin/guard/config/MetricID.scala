@@ -8,7 +8,7 @@ import io.circe.generic.JsonCodec
 import java.util.UUID
 import scala.concurrent.duration.FiniteDuration
 
-sealed trait CategoryKind extends EnumEntry with Product with Serializable
+sealed trait CategoryKind extends EnumEntry with Product
 
 object CategoryKind {
   sealed trait GaugeKind extends CategoryKind
@@ -61,7 +61,7 @@ object CategoryKind {
 final case class Squants(unitSymbol: String, dimensionName: String)
 
 @JsonCodec
-sealed trait Category extends Product with Serializable {
+sealed trait Category extends Product {
   def kind: CategoryKind
 }
 object Category {

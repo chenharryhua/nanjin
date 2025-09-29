@@ -8,7 +8,7 @@ import com.github.chenharryhua.nanjin.datetime.DateTimeRange
 import com.github.chenharryhua.nanjin.kafka.*
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.messages.kafka.{CRMetaInfo, NJConsumerRecord}
-import com.github.chenharryhua.nanjin.spark.kafka.{SparKafkaTopic, Statistics}
+import com.github.chenharryhua.nanjin.spark.kafka.Statistics
 import com.github.chenharryhua.nanjin.terminals.*
 import eu.timepit.refined.refineMV
 import fs2.Stream
@@ -30,9 +30,6 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
     extends Serializable with zoneid {
 
   val hadoop: Hadoop[F] = sparkSession.hadoop[F]
-
-  def topic[K, V](topic: KafkaTopic[K, V]): SparKafkaTopic[F, K, V] =
-    new SparKafkaTopic[F, K, V](sparkSession, kafkaContext, kafkaContext.serde(topic))
 
   final class DumpConfig(
     private[SparKafkaContext] val dateRange: DateTimeRange = DateTimeRange(sparkZoneId(sparkSession)),

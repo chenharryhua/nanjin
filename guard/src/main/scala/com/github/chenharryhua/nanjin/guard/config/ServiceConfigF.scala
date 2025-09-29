@@ -105,7 +105,7 @@ object ServiceParams {
     )
 }
 
-sealed private[guard] trait ServiceConfigF[X] extends Product with Serializable
+sealed private[guard] trait ServiceConfigF[X] extends Product
 
 private object ServiceConfigF {
   implicit val functorServiceConfigF: Functor[ServiceConfigF] = cats.derived.semiauto.functor[ServiceConfigF]

@@ -2,7 +2,6 @@ package com.github.chenharryhua.nanjin.spark.sstream
 
 import cats.Endo
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
-import frameless.{TypedEncoder, TypedExpressionEncoder}
 import io.lemonlabs.uri.Url
 import org.apache.spark.sql.functions.udf
 import org.apache.spark.sql.{Dataset, Row}
@@ -25,12 +24,6 @@ final class SparkSStream[F[_], A](val dataset: Dataset[A], cfg: SStreamConfig) e
     new SparkSStream[F, B](dataset.transform(f), cfg)
 
   def filter(f: A => Boolean): SparkSStream[F, A] = transform(_.filter(f))
-
-  def map[B: TypedEncoder](f: A => B): SparkSStream[F, B] =
-    transform(_.map(f)(TypedExpressionEncoder[B]))
-
-  def flatMap[B: TypedEncoder](f: A => IterableOnce[B]): SparkSStream[F, B] =
-    transform(_.flatMap(f)(TypedExpressionEncoder[B]))
 
   def coalesce: SparkSStream[F, A] = transform(_.coalesce(1))
 

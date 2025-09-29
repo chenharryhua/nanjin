@@ -7,8 +7,7 @@ import org.apache.kafka.common.serialization.Serde
 import org.apache.kafka.streams.processor.StateStore
 import org.apache.kafka.streams.scala.kstream.*
 
-final class StreamsSerde private[kafka] (schemaRegistrySettings: SchemaRegistrySettings)
-    extends Serializable {
+final class StreamsSerde private[kafka] (schemaRegistrySettings: SchemaRegistrySettings) {
   object implicits {
     private def asKey[K: AvroFor]: Serde[K] =
       AvroFor[K].asKey(schemaRegistrySettings.config).serde

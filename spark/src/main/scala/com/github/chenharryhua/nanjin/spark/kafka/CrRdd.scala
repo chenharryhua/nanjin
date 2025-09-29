@@ -12,8 +12,7 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.storage.StorageLevel
 
-final class CrRdd[K, V] private[kafka] (val rdd: RDD[NJConsumerRecord[K, V]], ss: SparkSession)
-    extends Serializable {
+final class CrRdd[K, V](val rdd: RDD[NJConsumerRecord[K, V]], ss: SparkSession) extends Serializable {
 
   // transforms
 
@@ -51,8 +50,10 @@ final class CrRdd[K, V] private[kafka] (val rdd: RDD[NJConsumerRecord[K, V]], ss
   def prRdd: PrRdd[K, V] =
     new PrRdd[K, V](rdd.map(_.toNJProducerRecord))
 
-  def stats[F[_]]: Statistics[F] =
+  def stats[F[_]]: Statistics[F] = {
+    import ss.implicits.*
     new Statistics[F](ss.createDataset(rdd.map(CRMetaInfo(_))))
+  }
 
   // IO
 
