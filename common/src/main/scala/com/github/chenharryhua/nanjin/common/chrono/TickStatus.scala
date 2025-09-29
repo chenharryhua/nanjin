@@ -5,7 +5,7 @@ import cats.implicits.toFunctorOps
 
 import java.time.{Instant, ZoneId}
 
-final class TickStatus private (val tick: Tick, decisions: LazyList[PolicyF.CalcTick]) extends Serializable {
+final class TickStatus private (val tick: Tick, decisions: LazyList[PolicyF.CalcTick]) {
 
   def renewPolicy(policy: Policy): TickStatus =
     new TickStatus(tick, PolicyF.decisions(policy.policy))
