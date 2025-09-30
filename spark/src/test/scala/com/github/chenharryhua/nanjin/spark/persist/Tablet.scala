@@ -2,9 +2,6 @@ package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.Show
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
-import com.github.chenharryhua.nanjin.spark.SchematizedEncoder
-import com.github.chenharryhua.nanjin.spark.injection.*
-import frameless.TypedEncoder
 import kantan.csv.RowEncoder
 import kantan.csv.generic.*
 import kantan.csv.java8.*
@@ -19,8 +16,6 @@ final case class Tablet(a: Int, b: Long, c: Float, d: LocalDate, e: Instant, f: 
 
 object Tablet {
   val avroCodec: AvroCodec[Tablet] = AvroCodec[Tablet]
-  implicit val te: TypedEncoder[Tablet] = shapeless.cachedImplicit
-  val ate: SchematizedEncoder[Tablet] = SchematizedEncoder(avroCodec)
   implicit val re: RowEncoder[Tablet] = shapeless.cachedImplicit
   implicit val showTablet: Show[Tablet] = _.toString
 }

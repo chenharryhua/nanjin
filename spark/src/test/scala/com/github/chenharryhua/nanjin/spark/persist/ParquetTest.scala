@@ -4,7 +4,7 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.toTraverseOps
 import com.github.chenharryhua.nanjin.spark.SparkSessionExt
-import com.github.chenharryhua.nanjin.terminals.{toHadoopPath, Compression, Hadoop}
+import com.github.chenharryhua.nanjin.terminals.{Compression, Hadoop}
 import com.sksamuel.avro4s.FromRecord
 import eu.timepit.refined.auto.*
 import io.lemonlabs.uri.Url
@@ -17,6 +17,7 @@ import org.scalatest.funsuite.AnyFunSuite
 class ParquetTest extends AnyFunSuite {
   import RoosterData.*
   val hdp: Hadoop[IO] = sparkSession.hadoop[IO]
+  import sparkSession.implicits.*
 
   def loadRooster(path: Url): IO[Set[Rooster]] =
     hdp
@@ -29,15 +30,6 @@ class ParquetTest extends AnyFunSuite {
     new RddAvroFileHoarder[Rooster](RoosterData.rdd, Rooster.avroCodec).parquet(path)
 
   val root = "./data/test/spark/persist/parquet"
-
-  test("1.spark parquet =!= apache parquet") {
-    val path = root / "rooster" / "spark"
-    hdp.delete(path).unsafeRunSync()
-    ds.write.parquet(toHadoopPath(path).toString)
-    val r = loaders.spark.parquet(path, sparkSession, Rooster.ate).collect().toSet
-    assert(expected == r)
-    // intercept[Throwable](loaders.rdd.parquet(path, sparkSession, Rooster.avroCodec.avroDecoder).collect())
-  }
 
   test("2.apache parquet =!= spark parquet") {
     val path = root / "rooster" / "spark2"
@@ -57,7 +49,7 @@ class ParquetTest extends AnyFunSuite {
   test("4.datetime read/write identity multi.snappy") {
     val path = root / "rooster" / "snappy"
     roosterSaver(path).withCompression(_.Snappy).run[IO].unsafeRunSync()
-    val r = loaders.rdd.parquet(path, sparkSession, Rooster.avroCodec).collect().toSet
+    val r = sparkSession.loadRdd[Rooster](path).parquet(Rooster.avroCodec).collect().toSet
     val t = loadRooster(path)
     assert(expected == r)
     assert(expected == t.unsafeRunSync())
@@ -66,7 +58,7 @@ class ParquetTest extends AnyFunSuite {
   test("5.datetime read/write identity multi.lz4") {
     val path = root / "rooster" / "lz4"
     roosterSaver(path).withCompression(_.Lz4).run[IO].unsafeRunSync()
-    val r = loaders.rdd.parquet(path, sparkSession, Rooster.avroCodec).collect().toSet
+    val r = sparkSession.loadRdd[Rooster](path).parquet(Rooster.avroCodec).collect().toSet
     val t = loadRooster(path)
     assert(expected == r)
     assert(expected == t.unsafeRunSync())
@@ -75,7 +67,7 @@ class ParquetTest extends AnyFunSuite {
   test("6.datetime read/write identity multi.lz4raw") {
     val path = root / "rooster" / "lz4raw"
     roosterSaver(path).withCompression(_.Lz4_Raw).run[IO].unsafeRunSync()
-    val r = loaders.rdd.parquet(path, sparkSession, Rooster.avroCodec).collect().toSet
+    val r = sparkSession.loadRdd[Rooster](path).parquet(Rooster.avroCodec).collect().toSet
     val t = loadRooster(path)
     assert(expected == r)
     assert(expected == t.unsafeRunSync())
@@ -85,7 +77,7 @@ class ParquetTest extends AnyFunSuite {
     val path = root / "rooster" / "zstd"
     val compression = Compression.Zstandard(1)
     roosterSaver(path).withCompression(compression).run[IO].unsafeRunSync()
-    val r = loaders.rdd.parquet(path, sparkSession, Rooster.avroCodec).collect().toSet
+    val r = sparkSession.loadRdd[Rooster](path).parquet(Rooster.avroCodec).collect().toSet
     val t = loadRooster(path)
     assert(expected == r)
     assert(expected == t.unsafeRunSync())
@@ -105,7 +97,7 @@ class ParquetTest extends AnyFunSuite {
     val path = root / "rooster" / "gzip"
     hdp.delete(path).unsafeRunSync()
     saveRDD.parquet(RoosterData.rdd, path, Rooster.avroCodec, Compression.Gzip)
-    val r = loaders.rdd.parquet(path, sparkSession, Rooster.avroCodec).collect().toSet
+    val r = sparkSession.loadRdd[Rooster](path).parquet(Rooster.avroCodec).collect().toSet
     val t = loadRooster(path)
     assert(expected == r)
     assert(expected == t.unsafeRunSync())
@@ -127,7 +119,7 @@ class ParquetTest extends AnyFunSuite {
     import cats.implicits.*
     val path = "./data/test/spark/persist/parquet/bee/multi.parquet"
     beeSaver(path).withCompression(_.Uncompressed).run[IO].unsafeRunSync()
-    val t = loaders.parquet[Bee](path, sparkSession, Bee.ate).collect().toList
+    val t = loaders.parquet[Bee](path, sparkSession).collect().toList
     assert(bees.sortBy(_.b).zip(t.sortBy(_.b)).forall { case (a, b) => a.eqv(b) })
   }
 
@@ -136,7 +128,7 @@ class ParquetTest extends AnyFunSuite {
     val path = "./data/test/spark/persist/parquet/ant/multi.parquet"
     val saver = new RddAvroFileHoarder[Ant](rdd, Ant.avroEncoder).parquet(path)
     saver.withCompression(_.Uncompressed).run[IO].unsafeRunSync()
-    val t = loaders.parquet[Ant](path, sparkSession, Ant.ate).collect().toSet
+    val t = sparkSession.loadRdd[Ant](path).parquet(Ant.avroCodec).collect().toSet
     assert(ants.toSet == t)
   }
 
@@ -145,7 +137,7 @@ class ParquetTest extends AnyFunSuite {
     val path = "./data/test/spark/persist/parquet/emcop/multi.parquet"
     val saver = new RddAvroFileHoarder[EmCop](emRDD, EmCop.avroCodec).parquet(path)
     saver.withCompression(_.Uncompressed).run[IO].unsafeRunSync()
-    val t = loaders.parquet[EmCop](path, sparkSession, EmCop.ate).collect().toSet
+    val t = sparkSession.loadRdd[EmCop](path).parquet(EmCop.avroCodec).collect().toSet
     assert(emCops.toSet == t)
   }
 

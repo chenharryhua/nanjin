@@ -1,10 +1,7 @@
 package mtest.spark.kafka
 
-import cats.effect.IO
-import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.messages.kafka.{CRMetaInfo, NJConsumerRecord}
-import com.github.chenharryhua.nanjin.spark.table.LoadTable
-import com.github.chenharryhua.nanjin.spark.{SchematizedEncoder, SparkSessionExt}
+import com.github.chenharryhua.nanjin.spark.SparkSessionExt
 import mtest.spark.sparkSession
 import org.apache.spark.sql.SparkSession
 import org.scalatest.funsuite.AnyFunSuite
@@ -65,33 +62,33 @@ object InvestigationTestData {
 
 }
 
+import mtest.spark.sparkSession.implicits.*
+
 class InvestigationTest extends AnyFunSuite {
   import InvestigationTestData.*
   implicit val ss: SparkSession = sparkSession
-  val table: LoadTable[NJConsumerRecord[String, Mouse]] =
-    ss.loadTable(SchematizedEncoder[NJConsumerRecord[String, Mouse]])
 
   test("sparKafka identical") {
-    val m1 = table.data(mouses1)
-    val m2 = table.data(mouses2)
-    assert(0 === m1.diff(m2).count[IO]("c").unsafeRunSync())
+    val m1 = ss.loadData(mouses1)
+    val m2 = ss.loadData(mouses2)
+    assert(0 === m1.except(m2).count())
   }
 
   test("sparKafka one mismatch") {
-    val m1 = table.data(mouses1)
-    val m3 = table.data(mouses3)
-    val rst = m1.diff(m3).dataset.collect().toSet
+    val m1 = ss.loadData(mouses1)
+    val m3 = ss.loadData(mouses3)
+    val rst = m1.except(m3).collect().toSet
     assert(
       rst === Set(
         NJConsumerRecord("topic", 1, 6, 60, 0, Nil, None, None, None, Some("mike6"), Some(Mouse(6, 0.6f)))))
   }
 
   test("sparKafka one lost") {
-    val m1 = table.data(mouses1)
-    val m4 = table.data(mouses4)
+    val m1 = ss.loadData(mouses1)
+    val m4 = ss.loadData(mouses4)
 
     assert(
-      m1.diff(m4).dataset.collect().toSet === Set(
+      m1.except(m4).collect().toSet === Set(
         NJConsumerRecord("topic", 1, 5, 50, 0, Nil, None, None, None, Some("mike5"), Some(Mouse(5, 0.5f)))))
   }
 }

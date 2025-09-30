@@ -2,8 +2,6 @@ package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.Show
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
-import com.github.chenharryhua.nanjin.spark.SchematizedEncoder
-import frameless.TypedEncoder
 import io.circe.Codec
 import kantan.csv.RowEncoder
 import org.apache.avro.Schema
@@ -73,12 +71,7 @@ object Rooster {
 
   implicit val circeCodec: Codec[Rooster] = io.circe.generic.semiauto.deriveCodec
 
-  implicit val typedEncoder: TypedEncoder[Rooster] = shapeless.cachedImplicit
-
   val avroCodec: AvroCodec[Rooster] = AvroCodec[Rooster](schema)
-
-  val ate: SchematizedEncoder[Rooster] =
-    SchematizedEncoder[Rooster](TypedEncoder[Rooster], avroCodec)
 
   implicit val showRooster: Show[Rooster] = _.toString
 

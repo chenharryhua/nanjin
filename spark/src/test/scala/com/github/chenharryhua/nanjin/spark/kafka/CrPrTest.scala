@@ -8,7 +8,6 @@ import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroFor
 import com.github.chenharryhua.nanjin.spark.persist.{Rooster, RoosterData}
 import eu.timepit.refined.auto.*
-import frameless.TypedEncoder
 import io.scalaland.chimney.dsl.*
 import mtest.spark.kafka.sparKafka
 import org.apache.spark.sql.types.*
@@ -30,9 +29,6 @@ object RoosterLike2 {
 
 class CrPrTest extends AnyFunSuite {
   implicit val roundingMode: BigDecimal.RoundingMode.Value = RoundingMode.HALF_UP
-  implicit val te1: TypedEncoder[Rooster] = shapeless.cachedImplicit
-  implicit val te2: TypedEncoder[RoosterLike] = shapeless.cachedImplicit
-  implicit val te3: TypedEncoder[RoosterLike2] = shapeless.cachedImplicit
 
   val rooster = AvroTopic[Long, Rooster](TopicName("rooster"))(AvroFor[Long], AvroFor(Rooster.avroCodec))
   // val roosterATE = SchematizedEncoder(rooster.pair)

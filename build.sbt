@@ -11,7 +11,7 @@ Global / parallelExecution := false
 val acyclicV = "0.3.18"
 val avroV = "1.12.0"
 val avro4sV = "4.1.2"
-val awsV = "2.34.5"
+val awsV = "2.34.6"
 val caffeineV = "3.2.2"
 val catsCoreV = "2.13.0"
 val catsEffectV = "3.6.3"
@@ -24,7 +24,6 @@ val drosteV = "0.10.0"
 val enumeratumV = "1.9.0"
 val fs2KafkaV = "3.9.0"
 val fs2V = "3.12.2"
-val framelessV = "0.16.0"
 val hadoopV = "3.4.2"
 val http4sV = "0.23.32"
 val jacksonV = "2.20.0"
@@ -43,7 +42,7 @@ val refinedV = "0.11.3"
 val shapelessV = "2.3.13"
 val skunkV = "0.6.4"
 val slf4jV = "2.0.17"
-val sparkV = "3.5.7"
+val sparkV = "4.0.1"
 
 lazy val commonSettings = List(
   organization       := "com.github.chenharryhua",
@@ -352,10 +351,7 @@ val sparkLib = List(
   "org.apache.spark" %% "spark-core",
   "org.apache.spark" %% "spark-sql",
   "org.apache.spark" %% "spark-avro"
-).map(_ % sparkV) ++ List(
-  "org.typelevel" %% "frameless-dataset",
-  "org.typelevel" %% "frameless-core"
-).map(_ % framelessV)
+).map(_ % sparkV)
 
 lazy val spark = (project in file("spark"))
   .dependsOn(kafka)
@@ -374,7 +370,6 @@ lazy val spark = (project in file("spark"))
     ) ++ jacksonLib ++ sparkLib
     libraryDependencies ++= libs ++ testLib
   }
-  .settings(dependencyOverrides += "org.json4s" %% "json4s-native" % "3.6.12")
 
 lazy val example = (project in file("example"))
   .dependsOn(common)
@@ -398,7 +393,6 @@ lazy val example = (project in file("example"))
   .settings(Test / PB.targets := Seq(
     scalapb.gen() -> (Test / sourceManaged).value / "scalapb"
   ))
-  .settings(dependencyOverrides += "org.json4s" %% "json4s-native" % "3.6.12")
 
 lazy val nanjin =
   (project in file(".")).aggregate(

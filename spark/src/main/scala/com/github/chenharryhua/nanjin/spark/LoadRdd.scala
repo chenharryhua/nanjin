@@ -21,15 +21,15 @@ final class LoadRdd[A: ClassTag] private[spark] (ss: SparkSession, path: Url) {
     loaders.rdd.objectFile[A](path, ss)
 
   def avro(implicit dec: AvroDecoder[A]): RDD[A] =
-    loaders.rdd.avro[A](path, ss, dec)
+    loaders.rdd.avro[A](path, ss)
 
   def jackson(implicit dec: AvroDecoder[A]): RDD[A] =
-    loaders.rdd.jackson[A](path, ss, dec)
+    loaders.rdd.jackson[A](path, ss)
 
   def binAvro(implicit dec: AvroDecoder[A]): RDD[A] =
-    loaders.rdd.binAvro[A](path, ss, dec)
+    loaders.rdd.binAvro[A](path, ss)
 
   def parquet(implicit dec: AvroDecoder[A]): RDD[A] =
-    loaders.rdd.parquet[A](path, ss, dec)
+    loaders.rdd.parquet[A](path, ss)
 
 }

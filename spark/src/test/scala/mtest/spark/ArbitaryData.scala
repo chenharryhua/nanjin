@@ -1,7 +1,6 @@
 package mtest.spark
 
 import com.fortysevendeg.scalacheck.datetime.jdk8.ArbitraryJdk8.*
-import frameless.{SQLDate, SQLTimestamp}
 import org.scalacheck.{Arbitrary, Cogen, Gen}
 import org.scalacheck.Arbitrary.arbitrary
 
@@ -18,12 +17,6 @@ object ArbitaryData {
 
   implicit val coTimestamp: Cogen[Timestamp] =
     Cogen[Timestamp]((a: Timestamp) => a.getTime)
-
-  implicit val coSqlTimestamp: Cogen[SQLTimestamp] =
-    Cogen[SQLTimestamp]((a: SQLTimestamp) => a.us)
-
-  implicit val coSqlDate: Cogen[SQLDate] =
-    Cogen[SQLDate]((a: SQLDate) => a.days.toLong)
 
   implicit val coLocalDate: Cogen[LocalDate] =
     Cogen[LocalDate]((a: LocalDate) => a.toEpochDay)
@@ -44,14 +37,9 @@ object ArbitaryData {
   implicit val arbLocalDate: Arbitrary[LocalDate] =
     Arbitrary(Gen.choose[Long](-dateRange, dateRange).map(d => LocalDate.ofEpochDay(d.toLong)))
 
-  implicit val arbSQLDate: Arbitrary[SQLDate] =
-    Arbitrary(arbitrary[Int].map(SQLDate(_)))
-
   implicit val arbLocalDateTime: Arbitrary[LocalDateTime] =
     Arbitrary(
       arbitrary[Long].map(d => LocalDateTime.ofInstant(Instant.ofEpochMilli(d), ZoneId.of("Etc/UTC"))))
-
-  implicit val arbSQLTimestamp: Arbitrary[SQLTimestamp] = Arbitrary(arbitrary[Long].map(d => SQLTimestamp(d)))
 
   implicit val arbTimestamp: Arbitrary[Timestamp] = Arbitrary(
     Gen.choose[Long](Int.MinValue.toLong, Int.MaxValue.toLong).map(d => new Timestamp(d)))

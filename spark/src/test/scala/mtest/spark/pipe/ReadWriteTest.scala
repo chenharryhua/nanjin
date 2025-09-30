@@ -4,14 +4,13 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
-import com.github.chenharryhua.nanjin.spark.table.LoadTable
-import com.github.chenharryhua.nanjin.spark.{SchematizedEncoder, SparkSessionExt}
+import com.github.chenharryhua.nanjin.spark.{LoadDataset, SparkSessionExt}
 import com.github.chenharryhua.nanjin.terminals.Hadoop
 import com.sksamuel.avro4s.ToRecord
-import frameless.TypedEncoder
 import fs2.Stream
 import io.circe.generic.auto.*
 import io.circe.syntax.EncoderOps
+import io.lemonlabs.uri.Url
 import io.lemonlabs.uri.typesafe.dsl.*
 import kantan.csv.generic.*
 import kantan.csv.{CsvConfiguration, RowDecoder, RowEncoder}
@@ -30,14 +29,14 @@ object ReadWriteTestData {
     Stream.emits(List.fill(number)(cr)).covary[IO].chunkLimit(2).unchunks.zipWithIndex.map { case (cr, idx) =>
       cr.focus(_.index).replace(idx)
     }
-  implicit val te: TypedEncoder[TestData] = shapeless.cachedImplicit
   implicit val hd: RowEncoder[TestData] = shapeless.cachedImplicit
   implicit val ri: RowDecoder[TestData] = shapeless.cachedImplicit
 
   val codec: AvroCodec[TestData] = AvroCodec[TestData]
   val toRecord: ToRecord[TestData] = ToRecord(codec)
+  import sparkSession.implicits.*
 
-  val loader: LoadTable[TestData] = sparkSession.loadTable(SchematizedEncoder[TestData](codec))
+  def loader(url: Url): LoadDataset[TestData] = sparkSession.loadDataset[TestData](url)
 
 }
 
@@ -50,7 +49,7 @@ class ReadWriteTest extends AnyFunSuite {
     val policy = Policy.fixedDelay(0.3.second)
     val writer = hdp.rotateSink(ZoneId.systemDefault(), policy)(t => path / t.index).circe
     data.map(_.asJson).through(writer).compile.drain.unsafeRunSync()
-    val count = loader.circe(path).count[IO]("c").unsafeRunSync()
+    val count = loader(path).circe.count()
     assert(count == number)
   }
   test("jackson write - read") {
@@ -59,7 +58,7 @@ class ReadWriteTest extends AnyFunSuite {
     val policy = Policy.fixedDelay(0.3.second)
     val writer = hdp.rotateSink(ZoneId.systemDefault(), policy)(t => path / t.index).jackson
     data.map(toRecord.to).through(writer).compile.drain.unsafeRunSync()
-    val count = loader.jackson(path).count[IO]("c").unsafeRunSync()
+    val count = loader(path).jackson.count()
     assert(count == number)
   }
   test("kantan write - read") {
@@ -69,11 +68,7 @@ class ReadWriteTest extends AnyFunSuite {
     val writer =
       hdp.rotateSink(ZoneId.systemDefault(), policy)(t => path / t.index).kantan(CsvConfiguration.rfc)
     data.map(hd.encode).through(writer).compile.drain.unsafeRunSync()
-    val count = sparkSession
-      .loadTable(SchematizedEncoder[TestData])
-      .kantan(path, CsvConfiguration.rfc)
-      .count[IO]("c")
-      .unsafeRunSync()
+    val count = loader(path).kantan(CsvConfiguration.rfc).count()
     assert(count == number)
   }
   test("avro write - read") {
@@ -82,7 +77,7 @@ class ReadWriteTest extends AnyFunSuite {
     val policy = Policy.fixedDelay(0.3.second)
     val writer = hdp.rotateSink(ZoneId.systemDefault(), policy)(t => path / t.index).avro
     data.map(toRecord.to).through(writer).compile.drain.unsafeRunSync()
-    val count = loader.avro(path).count[IO]("c").unsafeRunSync()
+    val count = loader(path).avro.count()
     assert(count == number)
   }
   test("bin-avro write - read") {
@@ -91,7 +86,7 @@ class ReadWriteTest extends AnyFunSuite {
     val policy = Policy.fixedDelay(0.3.second)
     val writer = hdp.rotateSink(ZoneId.systemDefault(), policy)(t => path / t.index).binAvro
     data.map(toRecord.to).through(writer).compile.drain.unsafeRunSync()
-    val count = loader.binAvro(path).count[IO]("c").unsafeRunSync()
+    val count = loader(path).binAvro.count()
     assert(count == number)
   }
 
@@ -101,7 +96,7 @@ class ReadWriteTest extends AnyFunSuite {
     val policy = Policy.fixedDelay(0.3.second)
     val writer = hdp.rotateSink(ZoneId.systemDefault(), policy)(t => path / t.index).parquet
     data.map(toRecord.to).through(writer).compile.drain.unsafeRunSync()
-    val count = loader.parquet(path).count[IO]("c").unsafeRunSync()
+    val count = loader(path).parquet.count()
     assert(count == number)
   }
 }

@@ -3,9 +3,7 @@ package com.github.chenharryhua.nanjin.spark.persist
 import cats.Eq
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
-import com.github.chenharryhua.nanjin.spark.SchematizedEncoder
 import com.sksamuel.avro4s.{Avro4sDecodingException, Decoder, Encoder, SchemaFor}
-import frameless.TypedEncoder
 import io.circe.Codec
 import io.scalaland.chimney.dsl.*
 import org.apache.avro.generic.GenericFixed
@@ -72,8 +70,5 @@ object Bee {
   val avroDecoder: Decoder[Bee] = shapeless.cachedImplicit
 
   val avroCodec: AvroCodec[Bee] = AvroCodec[Bee](schemaText)
-  implicit val typedEncoder: TypedEncoder[Bee] = shapeless.cachedImplicit
   implicit val jsonCodec: Codec[Bee] = io.circe.generic.semiauto.deriveCodec[Bee]
-  val ate: SchematizedEncoder[Bee] = SchematizedEncoder[Bee](avroCodec)
-
 }
