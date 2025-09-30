@@ -1,11 +1,13 @@
 package com.github.chenharryhua.nanjin
 
+import cats.Foldable
 import cats.effect.kernel.{Resource, Sync}
+import cats.implicits.toFoldableOps
 import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.kafka.KafkaContext
+import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark.persist.*
-import com.github.chenharryhua.nanjin.spark.table.LoadTable
 import com.github.chenharryhua.nanjin.terminals.Hadoop
 import com.sksamuel.avro4s.Encoder as AvroEncoder
 import com.zaxxer.hikari.HikariConfig
@@ -16,14 +18,13 @@ import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.avro.SchemaConverters
 import org.apache.spark.sql.types.{DataType, StructField, StructType}
-import org.apache.spark.sql.{DataFrame, SparkSession}
+import org.apache.spark.sql.{DataFrame, Dataset, Encoder, SparkSession}
 import scalapb.{GeneratedMessage, GeneratedMessageCompanion}
 
 import java.time.ZoneId
 import scala.reflect.ClassTag
 
 package object spark {
-  object injection extends InjectionInstances
 
   private[spark] def describeJob[F[_]](sparkContext: SparkContext, description: String)(implicit
     F: Sync[F]): Resource[F, Unit] =
@@ -68,8 +69,14 @@ package object spark {
       ss.read.format("jdbc").options(options).load()
     }
 
-    def loadTable[A](ate: SchematizedEncoder[A]): LoadTable[A] = new LoadTable[A](ate, ss)
     def loadRdd[A: ClassTag](path: Url): LoadRdd[A] = new LoadRdd[A](ss, path)
+    def loadConsumerRecord[K, V](path: Url): LoadRdd[NJConsumerRecord[K, V]] =
+      new LoadRdd[NJConsumerRecord[K, V]](ss, path)
+
+    def loadDataset[A: ClassTag: Encoder](ate: Url): LoadDataset[A] = new LoadDataset[A](ate, ss)
+    def loadData[A: Encoder, G[_]: Foldable](ga: G[A]): Dataset[A] =
+      ss.createDataset(ga.toList)
+
     def loadProtobuf[A <: GeneratedMessage: ClassTag: GeneratedMessageCompanion](path: Url): RDD[A] =
       loaders.rdd.protobuf[A](path, ss)
 

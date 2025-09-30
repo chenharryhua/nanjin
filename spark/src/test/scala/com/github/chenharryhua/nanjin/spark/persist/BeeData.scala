@@ -9,6 +9,7 @@ object BeeData {
   val bees = List(Bee(Array(1, 2, 3), 1), Bee(Array(2, 3, 4), 2), Bee(Array(), 3))
 
   val rdd: RDD[Bee] = sparkSession.sparkContext.parallelize(bees)
+  import sparkSession.implicits.*
 
-  val ds: Dataset[Bee] = Bee.ate.normalize(rdd, sparkSession)
+  val ds: Dataset[Bee] = sparkSession.createDataset(rdd)
 }

@@ -33,12 +33,11 @@ object RoosterData {
 
   val rdd: RDD[Rooster] = sparkSession.sparkContext.parallelize(data)
 
-  val ds: Dataset[Rooster] = Rooster.ate.normalize(rdd, sparkSession)
+  import sparkSession.implicits.*
+  val ds: Dataset[Rooster] = sparkSession.createDataset(rdd)
 
-  val bigset: Dataset[Rooster] =
-    Rooster.ate.normalize(
-      sparkSession.sparkContext.parallelize(
-        List.fill(1000)(Rooster(0, instant, timestamp, BigDecimal("0"), BigDecimal("0"), None))),
-      sparkSession)
+  val bigset: Dataset[Rooster] = sparkSession.createDataset(
+    sparkSession.sparkContext.parallelize(
+      List.fill(1000)(Rooster(0, instant, timestamp, BigDecimal("0"), BigDecimal("0"), None))))
 
 }

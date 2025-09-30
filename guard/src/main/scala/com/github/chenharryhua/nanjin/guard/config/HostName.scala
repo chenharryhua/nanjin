@@ -6,7 +6,7 @@ import cats.implicits.{catsSyntaxApplicativeError, catsSyntaxEq, toFunctorOps}
 import cats.kernel.Eq
 import io.circe.{Decoder, Encoder}
 
-import java.net.{HttpURLConnection, InetAddress, URL}
+import java.net.{HttpURLConnection, InetAddress, URI, URL}
 import scala.io.{BufferedSource, Source}
 import scala.util.Try
 
@@ -43,7 +43,7 @@ object HostName {
     }
 
     val aws_ec2_ipv4: F[Option[String]] =
-      http_get(new URL("http://169.254.169.254/latest/meta-data/local-ipv4"))
+      http_get(URI.create("http://169.254.169.254/latest/meta-data/local-ipv4").toURL)
         .use(conn =>
           F.blocking(conn.map { c =>
             val bs: BufferedSource = Source.fromInputStream(c.getInputStream)
