@@ -48,7 +48,7 @@ lazy val commonSettings = List(
   organization       := "com.github.chenharryhua",
   evictionErrorLevel := Level.Info,
   resolvers += "Confluent Maven Repo".at("https://packages.confluent.io/maven/"),
-  addCompilerPlugin(("org.typelevel" %% "kind-projector" % "0.13.3").cross(CrossVersion.full)),
+  addCompilerPlugin(("org.typelevel" %% "kind-projector" % "0.13.4").cross(CrossVersion.full)),
   addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.1"),
   addCompilerPlugin(("com.lihaoyi" %% "acyclic" % acyclicV).cross(CrossVersion.full)),
   libraryDependencies ++= List(
