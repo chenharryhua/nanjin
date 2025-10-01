@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
+import cats.implicits.showInterpolator
 import com.github.chenharryhua.nanjin.terminals.toHadoopPath
 import com.sksamuel.avro4s.{AvroInputStream, Decoder as AvroDecoder}
 import io.circe.jawn.CirceSupportParser.facade
@@ -16,9 +17,11 @@ import org.apache.hadoop.io.compress.CompressionCodecFactory
 import org.apache.hadoop.mapreduce.Job
 import org.apache.parquet.avro.{AvroParquetInputFormat, AvroReadSupport, GenericDataSupplier}
 import org.apache.parquet.hadoop.ParquetInputFormat
+import org.apache.spark.TaskContext
 import org.apache.spark.input.PortableDataStream
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{Dataset, Encoder as SparkEncoder, SparkSession}
+import org.slf4j.{Logger, LoggerFactory}
 import org.typelevel.jawn.AsyncParser
 import scalapb.{GeneratedMessage, GeneratedMessageCompanion}
 
@@ -55,11 +58,14 @@ private[spark] object loaders {
     ss.createDataset(rdd.binAvro[A](path, ss))
 
   object rdd {
+    private val LOG: Logger = LoggerFactory.getLogger("load-rdd")
 
-    def objectFile[A: ClassTag](path: Url, ss: SparkSession): RDD[A] =
+    def objectFile[A: ClassTag](path: Url, ss: SparkSession): RDD[A] = {
+      LOG.info(show"load object-file from $path. auto-close")
       ss.sparkContext.objectFile[A](toHadoopPath(path).toString)
+    }
 
-//    def circe2[A: ClassTag: JsonDecoder](path: Url, ss: SparkSession): RDD[A] =
+    //    def circe2[A: ClassTag: JsonDecoder](path: Url, ss: SparkSession): RDD[A] =
 //      ss.sparkContext
 //        .textFile(toHadoopPath(path).toString)
 //        .mapPartitions(_.flatMap { str =>
@@ -72,6 +78,7 @@ private[spark] object loaders {
 //        })
 
     def avro[A: ClassTag](path: Url, ss: SparkSession)(implicit decoder: AvroDecoder[A]): RDD[A] = {
+      LOG.info(show"load avro from $path. auto-close")
       val job = Job.getInstance(ss.sparkContext.hadoopConfiguration)
       AvroJob.setDataModelClass(job, classOf[GenericData])
       AvroJob.setInputKeySchema(job, decoder.schema)
@@ -87,6 +94,7 @@ private[spark] object loaders {
     }
 
     def parquet[A: ClassTag](path: Url, ss: SparkSession)(implicit decoder: AvroDecoder[A]): RDD[A] = {
+      LOG.info(show"load parquet from $path, auto-close")
       val job = Job.getInstance(ss.sparkContext.hadoopConfiguration)
       AvroParquetInputFormat.setAvroReadSchema(job, decoder.schema)
       ParquetInputFormat.setReadSupportClass(job, classOf[AvroReadSupport[GenericRecord]])
@@ -112,10 +120,14 @@ private[spark] object loaders {
 
     private class ClosableIterator[A](is: InputStream, itor: Iterator[A], pathStr: String)
         extends Iterator[A] {
+
+      TaskContext.get().addTaskCompletionListener[Unit](_ => is.close())
+
       override def hasNext: Boolean =
         if (itor.hasNext) true
         else {
           is.close()
+          LOG.info(show"closed $pathStr")
           false
         }
       override def next(): A =
@@ -123,12 +135,15 @@ private[spark] object loaders {
         catch {
           case ex: Throwable =>
             is.close()
+            LOG.error(show"closed $pathStr", ex)
             throw RDDReadException(pathStr, ex)
         }
     }
 
     def protobuf[A <: GeneratedMessage: ClassTag](path: Url, ss: SparkSession)(implicit
-      decoder: GeneratedMessageCompanion[A]): RDD[A] =
+      decoder: GeneratedMessageCompanion[A]): RDD[A] = {
+      LOG.info(show"load protobuf from $path")
+
       ss.sparkContext
         .binaryFiles(toHadoopPath(path).toString)
         .mapPartitions(_.flatMap { case (name, pds) =>
@@ -136,8 +151,11 @@ private[spark] object loaders {
           val itor: Iterator[A] = decoder.streamFromDelimitedInput(is).iterator
           new ClosableIterator[A](is, itor, name)
         })
+    }
 
-    def binAvro[A: ClassTag](path: Url, ss: SparkSession)(implicit decoder: AvroDecoder[A]): RDD[A] =
+    def binAvro[A: ClassTag](path: Url, ss: SparkSession)(implicit decoder: AvroDecoder[A]): RDD[A] = {
+      LOG.info(show"load binary avro from $path")
+
       ss.sparkContext
         .binaryFiles(toHadoopPath(path).toString)
         .mapPartitions(
@@ -147,8 +165,11 @@ private[spark] object loaders {
             new ClosableIterator[A](is, itor, name)
           }
         )
+    }
 
-    def jackson[A: ClassTag](path: Url, ss: SparkSession)(implicit decoder: AvroDecoder[A]): RDD[A] =
+    def jackson[A: ClassTag](path: Url, ss: SparkSession)(implicit decoder: AvroDecoder[A]): RDD[A] = {
+      LOG.info(show"load jackson from $path")
+
       ss.sparkContext
         .binaryFiles(toHadoopPath(path).toString)
         .mapPartitions(
@@ -158,8 +179,11 @@ private[spark] object loaders {
             new ClosableIterator[A](is, itor, name)
           }
         )
+    }
 
-    def kantan[A: ClassTag: RowDecoder](path: Url, ss: SparkSession, cfg: CsvConfiguration): RDD[A] =
+    def kantan[A: ClassTag: RowDecoder](path: Url, ss: SparkSession, cfg: CsvConfiguration): RDD[A] = {
+      LOG.info(show"load kantan csv from $path")
+
       ss.sparkContext
         .binaryFiles(toHadoopPath(path).toString)
         .mapPartitions(_.flatMap { case (name, pds) =>
@@ -170,8 +194,11 @@ private[spark] object loaders {
           }
           new ClosableIterator[A](is, itor, name)
         })
+    }
 
-    def circe[A: ClassTag](path: Url, ss: SparkSession)(implicit decoder: JsonDecoder[A]): RDD[A] =
+    def circe[A: ClassTag](path: Url, ss: SparkSession)(implicit decoder: JsonDecoder[A]): RDD[A] = {
+      LOG.info(show"load circe json from $path")
+
       ss.sparkContext
         .binaryFiles(toHadoopPath(path).toString)
         .mapPartitions(_.flatMap { case (name, pds) =>
@@ -199,5 +226,6 @@ private[spark] object loaders {
             .flatten
           new ClosableIterator[A](is, itor, name)
         })
+    }
   }
 }
