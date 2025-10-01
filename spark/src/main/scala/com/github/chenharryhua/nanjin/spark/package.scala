@@ -26,7 +26,7 @@ import scala.reflect.ClassTag
 
 package object spark {
 
-  private[spark] def describeJob[F[_]](sparkContext: SparkContext, description: String)(implicit
+  def describeJob[F[_]](sparkContext: SparkContext, description: String)(implicit
     F: Sync[F]): Resource[F, Unit] =
     Resource.make(F.delay(sparkContext.setJobDescription(description)))(_ =>
       F.delay(sparkContext.setJobDescription(null)))
@@ -69,9 +69,9 @@ package object spark {
       ss.read.format("jdbc").options(options).load()
     }
 
-    def loadRdd[A: ClassTag](path: Url): LoadRdd[A] = new LoadRdd[A](ss, path)
+    def loadRdd[A: ClassTag](path: Url): LoadRdd[A] = new LoadRdd[A](path, ss)
     def loadConsumerRecord[K, V](path: Url): LoadRdd[NJConsumerRecord[K, V]] =
-      new LoadRdd[NJConsumerRecord[K, V]](ss, path)
+      new LoadRdd[NJConsumerRecord[K, V]](path, ss)
 
     def loadDataset[A: ClassTag: Encoder](ate: Url): LoadDataset[A] = new LoadDataset[A](ate, ss)
     def loadData[A: Encoder, G[_]: Foldable](ga: G[A]): Dataset[A] =
