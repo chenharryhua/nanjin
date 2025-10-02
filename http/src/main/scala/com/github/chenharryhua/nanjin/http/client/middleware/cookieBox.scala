@@ -13,7 +13,7 @@ object cookieBox {
     val cookie_store: CookieStore = cookieManager.getCookieStore
     Client[F] { req =>
       for {
-        cookies <- Resource.pure(
+        cookies <- Resource.pure[F, List[RequestCookie]](
           cookie_store
             .get(URI.create(req.uri.renderString))
             .asScala

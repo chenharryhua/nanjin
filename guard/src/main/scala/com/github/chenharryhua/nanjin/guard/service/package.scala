@@ -93,7 +93,7 @@ package object service {
     metricRegistry: MetricRegistry,
     index: MetricIndex)(implicit F: Sync[F]): F[MetricReport] =
     for {
-      (took, snapshot) <- MetricSnapshot.timed(metricRegistry)
+      (took, snapshot) <- MetricSnapshot.timed[F](metricRegistry)
       mr = MetricReport(index, eventLogger.serviceParams, snapshot, took)
       _ <- index match {
         case MetricIndex.Adhoc(_)       => eventLogger.metric_report(mr)
@@ -111,7 +111,7 @@ package object service {
     metricRegistry: MetricRegistry,
     index: MetricIndex): F[Unit] =
     for {
-      (took, snapshot) <- MetricSnapshot.timed(metricRegistry)
+      (took, snapshot) <- MetricSnapshot.timed[F](metricRegistry)
       ms = MetricReset(index, eventLogger.serviceParams, snapshot, took)
       _ <- eventLogger.metric_reset(ms)
       _ <- channel.send(ms)

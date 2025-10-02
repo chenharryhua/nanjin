@@ -69,7 +69,7 @@ object retry {
 
     Client[F] { (req: Request[F]) =>
       Hotswap.create[F, Either[Throwable, Response[F]]].flatMap { hotswap =>
-        Resource.eval(TickStatus.zeroth(zoneId, policy).flatMap(ts => retryLoop(req, ts, hotswap)))
+        Resource.eval(TickStatus.zeroth[F](zoneId, policy).flatMap(ts => retryLoop(req, ts, hotswap)))
       }
     }
   }

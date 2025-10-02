@@ -31,7 +31,7 @@ final class SparkConsoleSink[F[_], A](
   def queryName(name: String): SparkConsoleSink[F, A] = updateConfig(_.queryName(name))
 
   override def stream(implicit F: Async[F]): Stream[F, StreamingQueryProgress] =
-    ss.queryStream(
+    ss.queryStream[F, A](
       dsw
         .trigger(params.trigger)
         .format("console")

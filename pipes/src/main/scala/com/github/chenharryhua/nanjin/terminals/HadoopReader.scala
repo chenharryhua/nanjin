@@ -77,7 +77,7 @@ private object HadoopReader {
     })
 
   private def inputStreamS[F[_]](configuration: Configuration, url: Url)(implicit
-    F: Sync[F]): Stream[F, InputStream] = Stream.resource(inputStreamR(configuration, url))
+    F: Sync[F]): Stream[F, InputStream] = Stream.resource[F, InputStream](inputStreamR(configuration, url))
 
   def avroS[F[_]](configuration: Configuration, url: Url, chunkSize: ChunkSize, readerSchema: Option[Schema])(
     implicit F: Sync[F]): Stream[F, GenericData.Record] =
@@ -156,7 +156,7 @@ private object HadoopReader {
     url: Url,
     chunkSize: ChunkSize,
     csvConfiguration: CsvConfiguration)(implicit F: Sync[F]): Stream[F, Seq[String]] =
-    inputStreamS(configuration, url).flatMap { is =>
+    inputStreamS[F](configuration, url).flatMap { is =>
       val cr: CsvReader[ReadResult[Seq[String]]] =
         ReaderEngine.internalCsvReaderEngine.readerFor(new InputStreamReader(is), csvConfiguration)
       val reader = if (csvConfiguration.hasHeader) cr.drop(1) else cr
@@ -235,7 +235,7 @@ private object HadoopReader {
     configuration: Configuration,
     url: Url,
     chunkSize: ChunkSize)(implicit gmc: GeneratedMessageCompanion[A]): Stream[F, A] =
-    inputStreamS(configuration, url).flatMap { is =>
-      Stream.fromIterator(gmc.streamFromDelimitedInput(is).iterator, chunkSize.value)
+    inputStreamS[F](configuration, url).flatMap { is =>
+      Stream.fromIterator[F](gmc.streamFromDelimitedInput(is).iterator, chunkSize.value)
     }
 }

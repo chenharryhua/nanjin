@@ -47,5 +47,5 @@ abstract private class AdhocMetricsImpl[F[_]](
       ).void)
 
   override val getSnapshot: F[MetricSnapshot] =
-    MetricSnapshot.timed(metricRegistry).map(_._2)
+    MetricSnapshot.timed[F](metricRegistry).map(_._2)
 }

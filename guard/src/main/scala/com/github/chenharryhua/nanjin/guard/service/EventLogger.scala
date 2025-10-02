@@ -136,7 +136,7 @@ final private class EventLogger[F[_]](
   private def sm2text[S: Encoder](msg: S, level: AlarmLevel, error: Option[Error]): F[Option[String]] =
     alarmLevel.get
       .map(_.exists(_ <= level))
-      .ifM(serviceMessage(serviceParams, msg, level, error).flatMap(transform_event(_)), F.pure(None))
+      .ifM(serviceMessage[F, S](serviceParams, msg, level, error).flatMap(transform_event(_)), F.pure(None))
 
   override def info[S: Encoder](msg: S): F[Unit] =
     sm2text(msg, AlarmLevel.Info, None).flatMap(_.traverse(logger.info(_))).void
@@ -161,10 +161,10 @@ final private class EventLogger[F[_]](
       .ifM(
         F.attempt(msg).flatMap {
           case Left(ex) =>
-            serviceMessage(serviceParams, "Error Message", AlarmLevel.Debug, Some(Error(ex)))
+            serviceMessage[F, String](serviceParams, "Error Message", AlarmLevel.Debug, Some(Error(ex)))
               .flatMap(m => logger.debug(debug_message(m)))
           case Right(value) =>
-            serviceMessage(serviceParams, value, AlarmLevel.Debug, None)
+            serviceMessage[F, S](serviceParams, value, AlarmLevel.Debug, None)
               .flatMap(m => logger.debug(debug_message(m)))
         },
         F.unit

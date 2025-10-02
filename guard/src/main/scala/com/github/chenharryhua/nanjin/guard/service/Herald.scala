@@ -31,35 +31,35 @@ abstract private class HeraldImpl[F[_]: Sync](
 
   override def info[S: Encoder](msg: S): F[Unit] =
     for {
-      evt <- serviceMessage(serviceParams, msg, AlarmLevel.Info, None)
+      evt <- serviceMessage[F, S](serviceParams, msg, AlarmLevel.Info, None)
       _ <- eventLogger.logServiceMessage(evt)
       _ <- channel.send(evt)
     } yield ()
 
   override def done[S: Encoder](msg: S): F[Unit] =
     for {
-      evt <- serviceMessage(serviceParams, msg, AlarmLevel.Done, None)
+      evt <- serviceMessage[F, S](serviceParams, msg, AlarmLevel.Done, None)
       _ <- eventLogger.logServiceMessage(evt)
       _ <- channel.send(evt)
     } yield ()
 
   override def warn[S: Encoder](msg: S): F[Unit] =
     for {
-      evt <- serviceMessage(serviceParams, msg, AlarmLevel.Warn, None)
+      evt <- serviceMessage[F, S](serviceParams, msg, AlarmLevel.Warn, None)
       _ <- eventLogger.logServiceMessage(evt)
       _ <- channel.send(evt)
     } yield ()
 
   override def warn[S: Encoder](ex: Throwable)(msg: S): F[Unit] =
     for {
-      evt <- serviceMessage(serviceParams, msg, AlarmLevel.Warn, Some(Error(ex)))
+      evt <- serviceMessage[F, S](serviceParams, msg, AlarmLevel.Warn, Some(Error(ex)))
       _ <- eventLogger.logServiceMessage(evt)
       _ <- channel.send(evt)
     } yield ()
 
   override def error[S: Encoder](msg: S): F[Unit] =
     for {
-      evt <- serviceMessage(serviceParams, msg, AlarmLevel.Error, None)
+      evt <- serviceMessage[F, S](serviceParams, msg, AlarmLevel.Error, None)
       _ <- errorHistory.modify(queue => (queue, queue.add(evt)))
       _ <- eventLogger.logServiceMessage(evt)
       _ <- channel.send(evt)
@@ -67,7 +67,7 @@ abstract private class HeraldImpl[F[_]: Sync](
 
   override def error[S: Encoder](ex: Throwable)(msg: S): F[Unit] =
     for {
-      evt <- serviceMessage(serviceParams, msg, AlarmLevel.Error, Error(ex).some)
+      evt <- serviceMessage[F, S](serviceParams, msg, AlarmLevel.Error, Error(ex).some)
       _ <- errorHistory.modify(queue => (queue, queue.add(evt)))
       _ <- eventLogger.logServiceMessage(evt)
       _ <- channel.send(evt)

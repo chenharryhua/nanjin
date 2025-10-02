@@ -69,7 +69,7 @@ final private class HttpRouter[F[_]](
 
   private val deps_health_check: F[Json] =
     serviceParams.zonedNow[F].flatMap { now =>
-      MetricSnapshot.timed(metricRegistry).map { case (fd, ss) =>
+      MetricSnapshot.timed[F](metricRegistry).map { case (fd, ss) =>
         Json.obj(
           "healthy" -> retrieveHealthChecks(ss.gauges).values.forall(identity).asJson,
           "took" -> durationFormatter.format(fd).asJson,
@@ -113,7 +113,7 @@ final private class HttpRouter[F[_]](
     case GET -> Root / "metrics" / "yaml" =>
       val text: F[Text.TypedTag[String]] =
         serviceParams.zonedNow.flatMap { now =>
-          MetricSnapshot.timed(metricRegistry).map { case (fd, ms) =>
+          MetricSnapshot.timed[F](metricRegistry).map { case (fd, ms) =>
             val yaml = new SnapshotPolyglot(ms).toYaml
             html(html_header, body(div(html_table_title(now, fd), pre(yaml))))
           }
@@ -121,7 +121,7 @@ final private class HttpRouter[F[_]](
       Ok(text)
 
     case GET -> Root / "metrics" / "vanilla" =>
-      val vanilla = MetricSnapshot.timed(metricRegistry).map { case (fd, ms) =>
+      val vanilla = MetricSnapshot.timed[F](metricRegistry).map { case (fd, ms) =>
         Json.obj(
           "service" -> Json.fromString(serviceParams.serviceName.value),
           "took" -> Json.fromString(durationFormatter.format(fd)),
@@ -131,7 +131,7 @@ final private class HttpRouter[F[_]](
       Ok(vanilla)
 
     case GET -> Root / "metrics" / "json" =>
-      val json = MetricSnapshot.timed(metricRegistry).map { case (fd, ms) =>
+      val json = MetricSnapshot.timed[F](metricRegistry).map { case (fd, ms) =>
         Json.obj(
           "service" -> Json.fromString(serviceParams.serviceName.value),
           "took" -> Json.fromString(durationFormatter.format(fd)),
@@ -141,7 +141,7 @@ final private class HttpRouter[F[_]](
       Ok(json)
 
     case GET -> Root / "metrics" / "raw" =>
-      val json = MetricSnapshot.timed(metricRegistry).map { case (fd, ms) =>
+      val json = MetricSnapshot.timed[F](metricRegistry).map { case (fd, ms) =>
         Json.obj(
           "service" -> Json.fromString(serviceParams.serviceName.value),
           "took" -> Json.fromString(durationFormatter.format(fd)),
@@ -153,7 +153,7 @@ final private class HttpRouter[F[_]](
       for {
         ts <- serviceParams.zonedNow
         _ <- metricReset[F](channel, eventLogger, metricRegistry, MetricIndex.Adhoc(ts))
-        (fd, yaml) <- MetricSnapshot.timed(metricRegistry).map { case (fd, ms) =>
+        (fd, yaml) <- MetricSnapshot.timed[F](metricRegistry).map { case (fd, ms) =>
           (fd, new SnapshotPolyglot(ms).toYaml)
         }
         response <- Ok(html(html_header, body(div(html_table_title(ts, fd), pre(yaml)))))

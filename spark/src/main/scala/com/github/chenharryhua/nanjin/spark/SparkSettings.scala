@@ -36,23 +36,5 @@ final class SparkSettings private (sparkConf: SparkConf) extends UpdateConfig[Sp
 object SparkSettings {
 
   def apply(zoneId: ZoneId): SparkSettings =
-    new SparkSettings(new SparkConf)
-      .withAppName("nj-spark")
-      .withMaster("local[*]")
-      .withUI
-      .withZoneId(zoneId)
-      .updateConfig(
-        _.set("spark.network.timeout", "800")
-          .set("spark.debug.maxToStringFields", "1000")
-          .set(
-            "spark.hadoop.fs.s3a.aws.credentials.provider",
-            "software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider")
-          .set("spark.hadoop.fs.s3a.connection.maximum", "100")
-          .set("spark.hadoop.fs.s3a.connection.establish.timeout", "15000")
-          .set("spark.hadoop.fs.s3a.experimental.input.fadvise", "sequential")
-          .set("spark.hadoop.fs.s3a.committer.name", "directory")
-          .set("spark.hadoop.fs.s3a.committer.staging.unique-filenames", "false")
-          .set("spark.streaming.kafka.consumer.poll.ms", "180000")
-          .set("spark.streaming.kafka.allowNonConsecutiveOffsets", "true")
-          .set("spark.sql.streaming.forceDeleteTempCheckpointLocation", "true"))
+    new SparkSettings(new SparkConf).withAppName("nj-spark").withMaster("local[*]").withUI.withZoneId(zoneId)
 }

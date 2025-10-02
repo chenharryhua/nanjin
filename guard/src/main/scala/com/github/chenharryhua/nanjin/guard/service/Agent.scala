@@ -101,13 +101,13 @@ final private class GeneralAgent[F[_]: Async](
     tickScheduled(f(Policy))
 
   override def tickFuture(policy: Policy): Stream[F, Tick] =
-    tickStream.tickFuture(zoneId, policy)
+    tickStream.tickFuture[F](zoneId, policy)
 
   override def tickFuture(f: Policy.type => Policy): Stream[F, Tick] =
     tickFuture(f(Policy))
 
   override def tickImmediate(policy: Policy): Stream[F, Tick] =
-    tickStream.tickImmediate(zoneId, policy)
+    tickStream.tickImmediate[F](zoneId, policy)
 
   override def tickImmediate(f: Policy.type => Policy): Stream[F, Tick] =
     tickImmediate(f(Policy))

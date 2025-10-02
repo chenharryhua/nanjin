@@ -29,8 +29,8 @@ object javaObject {
         F.delay(try Some(ois.readObject().asInstanceOf[A])
         catch { case _: EOFException => None }))
       .flatMap {
-        case Some(a) => Pull.output1(a) >> Pull.pure[F, Option[ObjectInputStream]](Some(ois))
-        case None    => Pull.eval(F.blocking(ois.close())) >> Pull.pure(None)
+        case Some(a) => Pull.output1[F, A](a) >> Pull.pure[F, Option[ObjectInputStream]](Some(ois))
+        case None    => Pull.eval(F.blocking(ois.close())) >> Pull.pure[F, Option[ObjectInputStream]](None)
       }
 
   private def readInputStream[F[_], A](is: InputStream)(implicit F: Sync[F]): Stream[F, A] =

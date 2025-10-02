@@ -155,17 +155,18 @@ object Batch {
     override def quasiBatch(tracer: TraceJob[F, A]): Resource[F, BatchResultState] = {
 
       def exec(batchPanel: BatchPanel[F], batchId: UUID): F[(FiniteDuration, List[JobResultState])] =
-        F.timed(F.parTraverseN(parallelism)(jobs) { case JobNameIndex(name, idx, fa) =>
+        F.timed(F.parTraverseN[List, JobNameIndex[F, A], JobResultState](parallelism)(jobs) {
+          case JobNameIndex(name, idx, fa) =>
 
-          val job = BatchJob(name, idx, metrics.metricLabel, mode, JobKind.Quasi, batchId)
-          tracer.kickoff(job) *>
-            F.timed(F.attempt(fa))
-              .map { case (fd: FiniteDuration, eoa: Either[Throwable, A]) =>
-                val jrs = JobResultState(job, fd.toJava, eoa.fold(_ => false, predicate.run))
-                SingleJobOutcome(jrs, eoa)
-              }
-              .guaranteeCase(handleOutcome(job, tracer, batchPanel.updatePanel))
-              .map(_.jrs)
+            val job = BatchJob(name, idx, metrics.metricLabel, mode, JobKind.Quasi, batchId)
+            tracer.kickoff(job) *>
+              F.timed(F.attempt(fa))
+                .map { case (fd: FiniteDuration, eoa: Either[Throwable, A]) =>
+                  val jrs = JobResultState(job, fd.toJava, eoa.fold(_ => false, predicate.run))
+                  SingleJobOutcome(jrs, eoa)
+                }
+                .guaranteeCase(handleOutcome(job, tracer, batchPanel.updatePanel))
+                .map(_.jrs)
 
         }).guarantee(batchPanel.activeGauge.deactivate)
 
@@ -180,24 +181,25 @@ object Batch {
     override def batchValue(tracer: TraceJob[F, A]): Resource[F, BatchResultValue[List[A]]] = {
 
       def exec(batchPanel: BatchPanel[F], batchId: UUID): F[(FiniteDuration, List[JobResultValue[A]])] =
-        F.timed(F.parTraverseN(parallelism)(jobs) { case JobNameIndex(name, idx, fa) =>
-          val job = BatchJob(name, idx, metrics.metricLabel, mode, JobKind.Value, batchId)
-          tracer.kickoff(job) *>
-            F.timed(F.attempt(fa))
-              .map { case (fd: FiniteDuration, eoa: Either[Throwable, A]) =>
-                val jrs = JobResultState(job, fd.toJava, done = eoa.fold(_ => false, predicate.run))
-                SingleJobOutcome(jrs, eoa)
-              }
-              .guaranteeCase(handleOutcome(job, tracer, batchPanel.updatePanel))
-              .map { case SingleJobOutcome(jrs, eoa) =>
-                eoa.flatMap { a =>
-                  if (jrs.done)
-                    Right(JobResultValue(jrs, a))
-                  else
-                    Left(PostConditionUnsatisfied(job))
+        F.timed(F.parTraverseN[List, JobNameIndex[F, A], JobResultValue[A]](parallelism)(jobs) {
+          case JobNameIndex(name, idx, fa) =>
+            val job = BatchJob(name, idx, metrics.metricLabel, mode, JobKind.Value, batchId)
+            tracer.kickoff(job) *>
+              F.timed(F.attempt(fa))
+                .map { case (fd: FiniteDuration, eoa: Either[Throwable, A]) =>
+                  val jrs = JobResultState(job, fd.toJava, done = eoa.fold(_ => false, predicate.run))
+                  SingleJobOutcome(jrs, eoa)
                 }
-              }
-              .rethrow
+                .guaranteeCase(handleOutcome(job, tracer, batchPanel.updatePanel))
+                .map { case SingleJobOutcome(jrs, eoa) =>
+                  eoa.flatMap { a =>
+                    if (jrs.done)
+                      Right(JobResultValue(jrs, a))
+                    else
+                      Left(PostConditionUnsatisfied(job))
+                  }
+                }
+                .rethrow
         }).guarantee(batchPanel.activeGauge.deactivate)
 
       Resource.eval(utils.randomUUID[F]).flatMap { batchId =>
@@ -472,7 +474,8 @@ object Batch {
         val runB: Kleisli[StateT[Resource[F, *], Int, *], Callbacks[F], JobState[B]] =
           kleisli.tapWithF { (callbacks: Callbacks[F], jobState: JobState[T]) =>
             jobState.eoa match {
-              case Left(ex) => StateT(idx => Resource.pure(jobState.update[B](ex)).map((idx, _)))
+              case Left(ex) =>
+                StateT(idx => Resource.pure[F, JobState[B]](jobState.update[B](ex)).map((idx, _)))
               case Right(a) => f(a).kleisli.run(callbacks).map(jobState.update[B])
             }
           }

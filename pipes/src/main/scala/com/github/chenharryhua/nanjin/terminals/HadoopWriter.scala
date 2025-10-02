@@ -79,7 +79,7 @@ private object HadoopWriter {
 
   def byteR[F[_]](configuration: Configuration, url: Url)(implicit
     F: Sync[F]): Resource[F, HadoopWriter[F, Byte]] =
-    outputStreamR(configuration, url).map(os =>
+    outputStreamR[F](configuration, url).map(os =>
       new HadoopWriter[F, Byte] {
         override val fileUrl: Url = url
         override def write(cb: Chunk[Byte]): F[Unit] =
@@ -96,7 +96,7 @@ private object HadoopWriter {
 
   def stringR[F[_]](configuration: Configuration, url: Url)(implicit
     F: Sync[F]): Resource[F, HadoopWriter[F, String]] =
-    outputStreamWriterR(configuration, url).map(writer =>
+    outputStreamWriterR[F](configuration, url).map(writer =>
       new HadoopWriter[F, String] {
         override val fileUrl: Url = url
         override def write(cs: Chunk[String]): F[Unit] =
@@ -111,7 +111,7 @@ private object HadoopWriter {
 
   def csvStringR[F[_]](configuration: Configuration, url: Url)(implicit
     F: Sync[F]): Resource[F, HadoopWriter[F, String]] =
-    outputStreamWriterR(configuration, url).map(writer =>
+    outputStreamWriterR[F](configuration, url).map(writer =>
       new HadoopWriter[F, String] {
         override val fileUrl: Url = url
         override def write(cs: Chunk[String]): F[Unit] =
@@ -125,7 +125,7 @@ private object HadoopWriter {
   def protobufR[F[_]](configuration: Configuration, url: Url)(implicit
     F: Sync[F]): Resource[F, HadoopWriter[F, GeneratedMessage]] =
 
-    outputStreamR(configuration, url).map { os =>
+    outputStreamR[F](configuration, url).map { os =>
       new HadoopWriter[F, GeneratedMessage] {
         override val fileUrl: Url = url
         override def write(cgm: Chunk[GeneratedMessage]): F[Unit] =
@@ -141,7 +141,7 @@ private object HadoopWriter {
     configuration: Configuration,
     schema: Schema,
     url: Url)(implicit F: Sync[F]): Resource[F, HadoopWriter[F, GenericRecord]] =
-    outputStreamR(configuration, url).map { os =>
+    outputStreamR[F](configuration, url).map { os =>
       val datumWriter = new GenericDatumWriter[GenericRecord](schema)
       val encoder = getEncoder(os)
       new HadoopWriter[F, GenericRecord] {
@@ -173,7 +173,7 @@ private object HadoopWriter {
   def jsonNodeR[F[_]](configuration: Configuration, url: Url)(implicit
     F: Sync[F]): Resource[F, HadoopWriter[F, JsonNode]] = {
     val writer: ObjectWriter = globalObjectMapper.writer()
-    outputStreamR(configuration, url).map { os =>
+    outputStreamR[F](configuration, url).map { os =>
       new HadoopWriter[F, JsonNode] {
         override val fileUrl: Url = url
         override def write(cjn: Chunk[JsonNode]): F[Unit] =
@@ -191,7 +191,7 @@ private object HadoopWriter {
   def circeR[F[_]](configuration: Configuration, url: Url)(implicit
     F: Sync[F]): Resource[F, HadoopWriter[F, Json]] = {
     val printer = Printer.noSpaces
-    outputStreamWriterR(configuration, url).map { writer =>
+    outputStreamWriterR[F](configuration, url).map { writer =>
       new HadoopWriter[F, Json] {
         override val fileUrl: Url = url
         override def write(cs: Chunk[Json]): F[Unit] =

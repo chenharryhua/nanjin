@@ -33,7 +33,7 @@ final class SparkFileSink[F[_], A](dsw: DataStreamWriter[A], cfg: SStreamConfig,
 
   override def stream(implicit F: Async[F]): Stream[F, StreamingQueryProgress] = {
     val ps = toHadoopPath(path).toString
-    ss.queryStream(
+    ss.queryStream[F, A](
       dsw
         .trigger(params.trigger)
         .format(params.fileFormat.format)

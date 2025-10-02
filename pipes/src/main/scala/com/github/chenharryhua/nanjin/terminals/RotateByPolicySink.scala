@@ -36,7 +36,8 @@ final private class RotateByPolicySink[F[_]: Async](
   ): Pull[F, TickedValue[RotateFile], Unit] =
     merged.pull.uncons1.flatMap {
       case None =>
-        Pull.eval(hotswap.clear) >> Pull.output1(TickedValue(currentTick, RotateFile(writer.fileUrl, count)))
+        Pull.eval(hotswap.clear) >> Pull.output1[F, TickedValue[RotateFile]](
+          TickedValue(currentTick, RotateFile(writer.fileUrl, count)))
       case Some((head, tail)) =>
         head match {
           case Left(data) =>
@@ -44,7 +45,8 @@ final private class RotateByPolicySink[F[_]: Async](
               doWork(currentTick, getWriter, hotswap, writer, tail, count + data.size)
           case Right(ticked) =>
             Pull.eval(hotswap.swap(getWriter(ticked.value))).flatMap { newWriter =>
-              Pull.output1(TickedValue(currentTick, RotateFile(writer.fileUrl, count))) >>
+              Pull.output1[F, TickedValue[RotateFile]](
+                TickedValue(currentTick, RotateFile(writer.fileUrl, count))) >>
                 doWork(ticked.tick, getWriter, hotswap, newWriter, tail, 0)
             }
         }

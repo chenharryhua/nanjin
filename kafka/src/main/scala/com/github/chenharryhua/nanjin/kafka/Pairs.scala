@@ -28,8 +28,8 @@ sealed trait SerdePair[K, V] {
     srs: SchemaRegistrySettings,
     producerSettings: KafkaProducerSettings): ProducerSettings[F, K, V] =
     ProducerSettings[F, K, V](
-      Serializer.delegate(key.asKey(srs.config).serde.serializer()),
-      Serializer.delegate(value.asValue(srs.config).serde.serializer())
+      Serializer.delegate[F, K](key.asKey(srs.config).serde.serializer()),
+      Serializer.delegate[F, V](value.asValue(srs.config).serde.serializer())
     ).withProperties(producerSettings.properties)
 }
 

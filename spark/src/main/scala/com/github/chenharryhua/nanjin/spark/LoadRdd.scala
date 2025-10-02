@@ -10,7 +10,7 @@ import org.apache.spark.sql.SparkSession
 
 import scala.reflect.ClassTag
 
-final class LoadRdd[A: ClassTag] private[spark] (ss: SparkSession, path: Url) {
+final class LoadRdd[A: ClassTag] private[spark] (path: Url, ss: SparkSession) {
   def circe(implicit ev: JsonDecoder[A]): RDD[A] =
     loaders.rdd.circe[A](path, ss)
 

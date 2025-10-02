@@ -31,11 +31,12 @@ object LightBatch {
 
     override def quasiBatch: F[BatchResultState] =
       utils.randomUUID[F].flatMap { batchId =>
-        F.timed(F.parTraverseN(parallelism)(jobs) { case JobNameIndex(name, idx, fa) =>
-          val job = BatchJob(name, idx, metrics.metricLabel, mode, JobKind.Quasi, batchId)
-          F.timed(F.attempt(fa)).map { case (fd: FiniteDuration, eoa: Either[Throwable, A]) =>
-            JobResultState(job, fd.toJava, eoa.fold(_ => false, predicate.run))
-          }
+        F.timed(F.parTraverseN[List, JobNameIndex[F, A], JobResultState](parallelism)(jobs) {
+          case JobNameIndex(name, idx, fa) =>
+            val job = BatchJob(name, idx, metrics.metricLabel, mode, JobKind.Quasi, batchId)
+            F.timed(F.attempt(fa)).map { case (fd: FiniteDuration, eoa: Either[Throwable, A]) =>
+              JobResultState(job, fd.toJava, eoa.fold(_ => false, predicate.run))
+            }
         }).map { case (fd: FiniteDuration, jrs: List[JobResultState]) =>
           BatchResultState(metrics.metricLabel, fd.toJava, mode, batchId, jrs.sortBy(_.job.index))
         }
@@ -43,19 +44,20 @@ object LightBatch {
 
     override def batchValue: F[BatchResultValue[List[A]]] =
       utils.randomUUID[F].flatMap { batchId =>
-        F.timed(F.parTraverseN(parallelism)(jobs) { case JobNameIndex(name, idx, fa) =>
-          val job = BatchJob(name, idx, metrics.metricLabel, mode, JobKind.Value, batchId)
-          F.timed(F.attempt(fa))
-            .map { case (fd: FiniteDuration, eoa: Either[Throwable, A]) =>
-              eoa.flatMap { a =>
-                if (predicate.run(a)) {
-                  val jrs = JobResultState(job, fd.toJava, done = true)
-                  Right(JobResultValue(jrs, a))
-                } else
-                  Left(PostConditionUnsatisfied(job))
+        F.timed(F.parTraverseN[List, JobNameIndex[F, A], JobResultValue[A]](parallelism)(jobs) {
+          case JobNameIndex(name, idx, fa) =>
+            val job = BatchJob(name, idx, metrics.metricLabel, mode, JobKind.Value, batchId)
+            F.timed(F.attempt(fa))
+              .map { case (fd: FiniteDuration, eoa: Either[Throwable, A]) =>
+                eoa.flatMap { a =>
+                  if (predicate.run(a)) {
+                    val jrs = JobResultState(job, fd.toJava, done = true)
+                    Right(JobResultValue(jrs, a))
+                  } else
+                    Left(PostConditionUnsatisfied(job))
+                }
               }
-            }
-            .rethrow
+              .rethrow
         }).map { case (fd: FiniteDuration, jrv: List[JobResultValue[A]]) =>
           val sorted = jrv.sortBy(_.resultState.job.index)
           val brs: BatchResultState =

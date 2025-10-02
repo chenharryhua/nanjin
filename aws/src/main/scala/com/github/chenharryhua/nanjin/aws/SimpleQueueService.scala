@@ -108,21 +108,21 @@ object SimpleQueueService {
                   batchSize = size
                 )
               }
-              Pull.output(chunk) >> receiving(status.renewPolicy(policy), batchIndex + 1)
+              Pull.output[F, SqsMessage](chunk) >> receiving(status.renewPolicy(policy), batchIndex + 1)
             } else {
               Pull
                 .eval(F.realTimeInstant.map { now =>
                   status.next(now) match {
                     case None     => Pull.done
                     case Some(ts) =>
-                      Pull.sleep(ts.tick.snooze.toScala) >> receiving(ts, batchIndex)
+                      Pull.sleep[F](ts.tick.snooze.toScala) >> receiving(ts, batchIndex)
                   }
                 })
                 .flatten
             }
         }
 
-      Stream.eval(TickStatus.zeroth(zoneId, policy)).flatMap(zeroth => receiving(zeroth, 0L).stream)
+      Stream.eval(TickStatus.zeroth[F](zoneId, policy)).flatMap(zeroth => receiving(zeroth, 0L).stream)
     }
 
     override def delete(msg: SqsMessage): F[DeleteMessageResponse] = {

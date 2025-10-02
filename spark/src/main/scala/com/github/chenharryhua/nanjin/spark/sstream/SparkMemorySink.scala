@@ -21,7 +21,7 @@ final class SparkMemorySink[F[_], A](dsw: DataStreamWriter[A], cfg: SStreamConfi
   def trigger(trigger: Trigger): SparkMemorySink[F, A] = updateCfg(_.triggerMode(trigger))
 
   override def stream(implicit F: Async[F]): Stream[F, StreamingQueryProgress] =
-    ss.queryStream(
+    ss.queryStream[F, A](
       dsw
         .trigger(params.trigger)
         .format("memory")

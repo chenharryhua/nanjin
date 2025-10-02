@@ -31,11 +31,11 @@ trait Metrics[F[_]] {
 
   def meter[A <: Quantity[A]](unitOfMeasure: UnitOfMeasure[A])(
     name: String,
-    f: Endo[Meter.Builder[A]] = identity[Meter.Builder[A]]): Resource[F, Meter[F, A]]
+    f: Endo[Meter.Builder[A]] = identity[Meter.Builder[A]](_)): Resource[F, Meter[F, A]]
 
   def histogram[A <: Quantity[A]](unitOfMeasure: UnitOfMeasure[A])(
     name: String,
-    f: Endo[Histogram.Builder[A]] = identity[Histogram.Builder[A]]): Resource[F, Histogram[F, A]]
+    f: Endo[Histogram.Builder[A]] = identity[Histogram.Builder[A]](_)): Resource[F, Histogram[F, A]]
 
   def timer(name: String, f: Endo[Timer.Builder] = identity): Resource[F, Timer[F]]
 

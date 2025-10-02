@@ -42,7 +42,7 @@ trait UpdateTranslator[F[_], A, B] {
 
   // for convenience
   def traverse[G[_]](ge: G[Event])(implicit F: Applicative[F], G: Traverse[G]): F[G[Option[A]]] =
-    G.traverse(ge)(translate)
+    G.traverse[F, Event, Option[A]](ge)(translate)
 
   def skipServiceStart(implicit F: Applicative[F]): Translator[F, A] =
     copy(serviceStart = Translator.noop[F, A])
