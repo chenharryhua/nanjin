@@ -36,8 +36,8 @@ object jackson {
             .functionKInstance(F.blocking(try Some(datumReader.read(null, jsonDecoder))
             catch { case _: EOFException => None }))
             .flatMap {
-              case Some(a) => Pull.output1(a) >> Pull.pure[F, Option[InputStream]](Some(is))
-              case None    => Pull.eval(F.blocking(is.close())) >> Pull.pure(None)
+              case Some(a) => Pull.output1[F, GenericRecord](a) >> Pull.pure[F, Option[InputStream]](Some(is))
+              case None    => Pull.eval(F.blocking(is.close())) >> Pull.pure[F, Option[InputStream]](None)
             }
         Pull.loop(pullAll)(is).void.stream
       }

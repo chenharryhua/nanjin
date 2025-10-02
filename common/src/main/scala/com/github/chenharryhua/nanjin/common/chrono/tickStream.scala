@@ -29,8 +29,8 @@ object tickStream {
     */
   def tickImmediate[F[_]: Async](zoneId: ZoneId, policy: Policy): Stream[F, Tick] =
     Stream
-      .eval[F, TickStatus](TickStatus.zeroth(zoneId, policy))
-      .flatMap(zero => fromTickStatus(zero).cons1(zero.tick))
+      .eval[F, TickStatus](TickStatus.zeroth[F](zoneId, policy))
+      .flatMap(zero => fromTickStatus[F](zero).cons1(zero.tick))
 
   /** emit then sleep, so that conclude time of the tick is in the future
     *
@@ -40,11 +40,13 @@ object tickStream {
     Stream.eval[F, TickStatus](TickStatus.zeroth[F](zoneId, policy)).flatMap { status =>
       def go(ticks: Stream[F, Tick]): Pull[F, Tick, Unit] =
         ticks.pull.uncons1.flatMap {
-          case Some((tick, rest)) => Pull.output1(tick) >> Pull.sleep(tick.snooze.toScala) >> go(rest)
-          case None               => Pull.done
+          case Some((tick, rest)) =>
+            Pull.output1[F, Tick](tick) >> Pull.sleep[F](tick.snooze.toScala) >> go(rest)
+          case None => Pull.done
         }
       val sts: Stream[F, Tick] =
-        Stream.unfoldEval(status)(s => F.realTimeInstant.map(s.next(_).map(ns => (ns.tick, ns))))
+        Stream.unfoldEval[F, TickStatus, Tick](status)(s =>
+          F.realTimeInstant.map(s.next(_).map(ns => (ns.tick, ns))))
 
       go(sts).stream
     }

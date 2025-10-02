@@ -168,9 +168,9 @@ sealed trait FileSource[F[_]] {
 final private class FileSourceImpl[F[_]: Sync](configuration: Configuration, url: Url) extends FileSource[F] {
 
   override def avro(chunkSize: ChunkSize): Stream[F, GenericData.Record] =
-    HadoopReader.avroS(configuration, url, chunkSize, None)
+    HadoopReader.avroS[F](configuration, url, chunkSize, None)
   override def avro(chunkSize: ChunkSize, readerSchema: Schema): Stream[F, GenericData.Record] =
-    HadoopReader.avroS(configuration, url, chunkSize, Some(readerSchema))
+    HadoopReader.avroS[F](configuration, url, chunkSize, Some(readerSchema))
 
   override def binAvro(
     chunkSize: ChunkSize,
@@ -183,7 +183,7 @@ final private class FileSourceImpl[F[_]: Sync](configuration: Configuration, url
 
   override def bytes(bufferSize: Information): Stream[F, Byte] = {
     require(bufferSize.toBytes > 0, s"bufferSize(${bufferSize.toString()}) should be bigger than zero")
-    HadoopReader.byteS(configuration, url, bufferSize)
+    HadoopReader.byteS[F](configuration, url, bufferSize)
   }
 
   override def circe(chunkSize: ChunkSize): Stream[F, Json] =
@@ -210,7 +210,7 @@ final private class FileSourceImpl[F[_]: Sync](configuration: Configuration, url
   override def parquet(
     chunkSize: ChunkSize,
     f: Endo[ParquetReader.Builder[GenericData.Record]] = identity): Stream[F, GenericData.Record] =
-    HadoopReader.parquetS(
+    HadoopReader.parquetS[F](
       Reader((path: Path) =>
         AvroParquetReader
           .builder[GenericData.Record](HadoopInputFile.fromPath(path, configuration))

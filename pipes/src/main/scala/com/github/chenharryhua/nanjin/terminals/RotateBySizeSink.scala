@@ -47,7 +47,7 @@ final private class RotateBySizeSink[F[_]](
         Pull.eval(hotswap.clear) >> Pull
           .eval(F.realTimeInstant.map(currentTick.nextTick(_, Duration.ZERO)))
           .flatMap { newTick =>
-            Pull.output1(TickedValue(newTick, RotateFile(writer.fileUrl, count)))
+            Pull.output1[F, TickedValue[RotateFile]](TickedValue(newTick, RotateFile(writer.fileUrl, count)))
           }
       case Some((as, stream)) =>
         val dataSize = as.size
@@ -60,7 +60,8 @@ final private class RotateBySizeSink[F[_]](
           Pull.eval(writer.write(first)) >>
             Pull.eval(F.realTimeInstant.map(currentTick.nextTick(_, Duration.ZERO))).flatMap { newTick =>
               Pull.eval(hotswap.swap(getWriter(createRotateFileEvent(newTick)))).flatMap { newWriter =>
-                Pull.output1(TickedValue(newTick, RotateFile(writer.fileUrl, count + first.size))) >>
+                Pull.output1[F, TickedValue[RotateFile]](
+                  TickedValue(newTick, RotateFile(writer.fileUrl, count + first.size))) >>
                   doWork(getWriter, hotswap, newWriter, stream.cons(second), newTick, 0)
               }
             }
@@ -70,7 +71,7 @@ final private class RotateBySizeSink[F[_]](
   private def persist[A](data: Stream[F, A], getWriter: CreateRotateFile => Resource[F, HadoopWriter[F, A]])
     : Pull[F, TickedValue[RotateFile], Unit] = {
     val resources: Resource[F, ((Hotswap[F, HadoopWriter[F, A]], HadoopWriter[F, A]), Tick)] =
-      Resource.eval(Tick.zeroth(zoneId)).flatMap { tick =>
+      Resource.eval(Tick.zeroth[F](zoneId)).flatMap { tick =>
         Hotswap(getWriter(createRotateFileEvent(tick))).map((_, tick))
       }
 

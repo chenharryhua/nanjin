@@ -65,18 +65,6 @@ private[spark] object loaders {
       ss.sparkContext.objectFile[A](toHadoopPath(path).toString)
     }
 
-    //    def circe2[A: ClassTag: JsonDecoder](path: Url, ss: SparkSession): RDD[A] =
-//      ss.sparkContext
-//        .textFile(toHadoopPath(path).toString)
-//        .mapPartitions(_.flatMap { str =>
-//          if (str.isEmpty) None
-//          else
-//            decode[A](str) match {
-//              case Left(ex)     => throw RDDReadException(path.toString(), ex)
-//              case Right(value) => Some(value)
-//            }
-//        })
-
     def avro[A: ClassTag](path: Url, ss: SparkSession)(implicit decoder: AvroDecoder[A]): RDD[A] = {
       LOG.info(show"load avro from $path. auto-close")
       val job = Job.getInstance(ss.sparkContext.hadoopConfiguration)

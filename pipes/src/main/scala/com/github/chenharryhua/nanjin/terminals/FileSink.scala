@@ -192,13 +192,13 @@ final private class FileSinkImpl[F[_]: Sync](configuration: Configuration, url: 
   }
 
   override val protobuf: Pipe[F, GeneratedMessage, Int] = { (ss: Stream[F, GeneratedMessage]) =>
-    Stream.resource(HadoopWriter.protobufR(configuration, url)).flatMap { w =>
+    Stream.resource(HadoopWriter.protobufR[F](configuration, url)).flatMap { w =>
       ss.chunks.evalMap(c => w.write(c).as(c.size))
     }
   }
 
   override def jsonNode: Pipe[F, JsonNode, Int] = { (ss: Stream[F, JsonNode]) =>
-    Stream.resource(HadoopWriter.jsonNodeR(configuration, url)).flatMap { w =>
+    Stream.resource(HadoopWriter.jsonNodeR[F](configuration, url)).flatMap { w =>
       ss.chunks.evalMap(c => w.write(c).as(c.size))
     }
   }

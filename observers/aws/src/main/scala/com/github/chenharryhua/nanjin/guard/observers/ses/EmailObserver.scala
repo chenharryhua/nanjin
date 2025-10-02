@@ -11,6 +11,7 @@ import com.github.chenharryhua.nanjin.common.{ChunkSize, EmailAddr}
 import com.github.chenharryhua.nanjin.guard.event.Event.{ServiceStart, ServiceStop}
 import com.github.chenharryhua.nanjin.guard.event.{Event, ServiceStopCause}
 import com.github.chenharryhua.nanjin.guard.translator.{ColorScheme, Translator, UpdateTranslator}
+import eu.timepit.refined.auto.*
 import fs2.{Chunk, Pipe, Pull, Stream}
 import scalatags.Text
 import scalatags.Text.all.*
@@ -30,7 +31,7 @@ object EmailObserver {
       client = client,
       translator = HtmlTranslator[F],
       isNewestFirst = true,
-      capacity = ChunkSize(100),
+      capacity = 100,
       policy = Policy.fixedDelay(36500.days), // 100 years
       zoneId = ZoneId.systemDefault()
     )
@@ -151,7 +152,7 @@ final class EmailObserver[F[_]] private (
                 case None => F.unit
               }
 
-              Pull.output1(event) >>
+              Pull.output1[F, Event](event) >>
                 Pull.eval(send_and_update) >>
                 go(tail, send_email, cache)
 

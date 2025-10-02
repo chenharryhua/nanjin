@@ -131,10 +131,14 @@ final class Hadoop[F[_]] private (config: Configuration) {
     best[Int](path, NonEmptyList.of(codec.year, codec.month, codec.day, codec.hour))
 
   def earliestYmd(path: Url)(implicit F: Sync[F]): F[Option[Url]] =
-    best(path, NonEmptyList.of(codec.year, codec.month, codec.day))(F, Ordering[Int].reverse)
+    best(path, NonEmptyList.of[String => Option[Int]](codec.year, codec.month, codec.day))(
+      F,
+      Ordering[Int].reverse)
 
   def earliestYmdh(path: Url)(implicit F: Sync[F]): F[Option[Url]] =
-    best(path, NonEmptyList.of(codec.year, codec.month, codec.day, codec.hour))(F, Ordering[Int].reverse)
+    best(path, NonEmptyList.of[String => Option[Int]](codec.year, codec.month, codec.day, codec.hour))(
+      F,
+      Ordering[Int].reverse)
 
   /** remove date folders which is not in the given list. folders which are not date folder will be retained
     */
