@@ -7,7 +7,7 @@ import eu.timepit.refined.auto.*
 import skunk.Session
 
 package object table {
-  val postgres: Postgres = Postgres(Username("postgres"), Password("postgres"), "localhost", 5432, "postgres")
+  val postgres: Postgres = Postgres("postgres", "postgres", "localhost", 5432, "postgres")
 
   val dbSession: Resource[IO, Session[IO]] = SkunkSession[IO](postgres).single
 
