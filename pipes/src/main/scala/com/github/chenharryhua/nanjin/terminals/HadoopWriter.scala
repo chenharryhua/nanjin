@@ -64,7 +64,7 @@ private object HadoopWriter {
    * output stream based
    */
 
-  private def fileOutputStream(configuration: Configuration, url: Url): OutputStream = {
+  private[this] def fileOutputStream(configuration: Configuration, url: Url): OutputStream = {
     val path: Path = toHadoopPath(url)
     val os: FSDataOutputStream = path.getFileSystem(configuration).create(path, true)
     Option(new CompressionCodecFactory(configuration).getCodec(path)) match {
@@ -89,42 +89,8 @@ private object HadoopWriter {
           }
       })
 
-  private def outputStreamWriterR[F[_]](configuration: Configuration, url: Url)(implicit
-    F: Sync[F]): Resource[F, OutputStreamWriter] =
-    Resource.fromAutoCloseable(
-      F.blocking(new OutputStreamWriter(fileOutputStream(configuration, url), StandardCharsets.UTF_8)))
-
-  def stringR[F[_]](configuration: Configuration, url: Url)(implicit
-    F: Sync[F]): Resource[F, HadoopWriter[F, String]] =
-    outputStreamWriterR[F](configuration, url).map(writer =>
-      new HadoopWriter[F, String] {
-        override val fileUrl: Url = url
-        override def write(cs: Chunk[String]): F[Unit] =
-          F.blocking {
-            cs.foreach { s =>
-              writer.write(s)
-              writer.write(System.lineSeparator())
-            }
-            writer.flush()
-          }
-      })
-
-  def csvStringR[F[_]](configuration: Configuration, url: Url)(implicit
-    F: Sync[F]): Resource[F, HadoopWriter[F, String]] =
-    outputStreamWriterR[F](configuration, url).map(writer =>
-      new HadoopWriter[F, String] {
-        override val fileUrl: Url = url
-        override def write(cs: Chunk[String]): F[Unit] =
-          // already has new line separator
-          F.blocking {
-            cs.foreach(s => writer.write(s))
-            writer.flush()
-          }
-      })
-
   def protobufR[F[_]](configuration: Configuration, url: Url)(implicit
     F: Sync[F]): Resource[F, HadoopWriter[F, GeneratedMessage]] =
-
     outputStreamR[F](configuration, url).map { os =>
       new HadoopWriter[F, GeneratedMessage] {
         override val fileUrl: Url = url
@@ -171,9 +137,9 @@ private object HadoopWriter {
       url)
 
   def jsonNodeR[F[_]](configuration: Configuration, url: Url)(implicit
-    F: Sync[F]): Resource[F, HadoopWriter[F, JsonNode]] = {
-    val writer: ObjectWriter = globalObjectMapper.writer()
+    F: Sync[F]): Resource[F, HadoopWriter[F, JsonNode]] =
     outputStreamR[F](configuration, url).map { os =>
+      val writer: ObjectWriter = globalObjectMapper.writer()
       new HadoopWriter[F, JsonNode] {
         override val fileUrl: Url = url
         override def write(cjn: Chunk[JsonNode]): F[Unit] =
@@ -186,12 +152,48 @@ private object HadoopWriter {
           }
       }
     }
-  }
+
+  /*
+   * output stream writer based
+   */
+
+  private def outputStreamWriterR[F[_]](configuration: Configuration, url: Url)(implicit
+    F: Sync[F]): Resource[F, OutputStreamWriter] =
+    Resource.fromAutoCloseable(
+      F.blocking(new OutputStreamWriter(fileOutputStream(configuration, url), StandardCharsets.UTF_8)))
+
+  def stringR[F[_]](configuration: Configuration, url: Url)(implicit
+    F: Sync[F]): Resource[F, HadoopWriter[F, String]] =
+    outputStreamWriterR[F](configuration, url).map(writer =>
+      new HadoopWriter[F, String] {
+        override val fileUrl: Url = url
+        override def write(cs: Chunk[String]): F[Unit] =
+          F.blocking {
+            cs.foreach { s =>
+              writer.write(s)
+              writer.write(System.lineSeparator())
+            }
+            writer.flush()
+          }
+      })
+
+  def csvStringR[F[_]](configuration: Configuration, url: Url)(implicit
+    F: Sync[F]): Resource[F, HadoopWriter[F, String]] =
+    outputStreamWriterR[F](configuration, url).map(writer =>
+      new HadoopWriter[F, String] {
+        override val fileUrl: Url = url
+        override def write(cs: Chunk[String]): F[Unit] =
+          // already has new line separator
+          F.blocking {
+            cs.foreach(s => writer.write(s))
+            writer.flush()
+          }
+      })
 
   def circeR[F[_]](configuration: Configuration, url: Url)(implicit
-    F: Sync[F]): Resource[F, HadoopWriter[F, Json]] = {
-    val printer = Printer.noSpaces
+    F: Sync[F]): Resource[F, HadoopWriter[F, Json]] =
     outputStreamWriterR[F](configuration, url).map { writer =>
+      val printer = Printer.noSpaces
       new HadoopWriter[F, Json] {
         override val fileUrl: Url = url
         override def write(cs: Chunk[Json]): F[Unit] =
@@ -204,5 +206,4 @@ private object HadoopWriter {
           }
       }
     }
-  }
 }

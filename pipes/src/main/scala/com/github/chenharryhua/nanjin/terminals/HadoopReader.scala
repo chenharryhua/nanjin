@@ -52,10 +52,8 @@ private object HadoopReader {
               counter += 1
             }
           }
-
           (Chunk.from(builder.result()), if (keepGoing) Some(()) else None)
         }
-
         Stream.unfoldChunkLoopEval[F, Unit, GenericData.Record](())(_ => F.blocking(go()))
       }
 
@@ -238,4 +236,5 @@ private object HadoopReader {
     inputStreamS[F](configuration, url).flatMap { is =>
       Stream.fromIterator[F](gmc.streamFromDelimitedInput(is).iterator, chunkSize.value)
     }
+
 }
