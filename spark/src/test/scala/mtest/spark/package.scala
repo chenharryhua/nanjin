@@ -9,12 +9,15 @@ package object spark {
   val sparkSession: SparkSession =
     SparkSettings(sydneyTime)
       .withAppName("nj.spark.test")
+      .withMaster("local[*]")
+      .withKms("kms")
+      .withUI
       .withoutUI
       .updateConfig(
-        _.set("spark.hadoop.fs.ftp.host", "localhost")
-          .set("spark.hadoop.fs.ftp.user.localhost", "chenh")
-          .set("spark.hadoop.fs.ftp.password.localhost", "test")
-          .set("spark.hadoop.fs.ftp.data.connection.mode", "PASSIVE_LOCAL_DATA_CONNECTION_MODE")
-          .set("spark.hadoop.fs.ftp.impl", "org.apache.hadoop.fs.ftp.FTPFileSystem"))
+        _.config("spark.hadoop.fs.ftp.host", "localhost")
+          .config("spark.hadoop.fs.ftp.user.localhost", "chenh")
+          .config("spark.hadoop.fs.ftp.password.localhost", "test")
+          .config("spark.hadoop.fs.ftp.data.connection.mode", "PASSIVE_LOCAL_DATA_CONNECTION_MODE")
+          .config("spark.hadoop.fs.ftp.impl", "org.apache.hadoop.fs.ftp.FTPFileSystem"))
       .sparkSession
 }

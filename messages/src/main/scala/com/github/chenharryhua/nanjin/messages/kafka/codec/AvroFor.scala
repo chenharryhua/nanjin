@@ -27,7 +27,7 @@ private[codec] trait LowerPriority {
 }
 
 object AvroFor extends LowerPriority {
-  def apply[A](implicit ev: AvroFor[A]): AvroFor[A] = macro imp.summon[AvroFor[A]]
+  def apply[A](implicit ev: AvroFor[A]): AvroFor[A] = ev
 
   @newtype final class Universal private (val value: GenericRecord)
   object Universal {

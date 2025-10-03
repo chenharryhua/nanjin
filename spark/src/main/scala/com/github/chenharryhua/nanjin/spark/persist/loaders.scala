@@ -29,7 +29,7 @@ import java.io.InputStream
 import java.nio.ByteBuffer
 import scala.reflect.ClassTag
 final case class RDDReadException(pathStr: String, cause: Throwable)
-    extends Exception(s"read $pathStr fail", cause)
+    extends Exception(s"read: $pathStr", cause)
 
 private[spark] object loaders {
 
@@ -109,7 +109,7 @@ private[spark] object loaders {
     private class ClosableIterator[A](is: InputStream, itor: Iterator[A], pathStr: String)
         extends Iterator[A] {
 
-      TaskContext.get().addTaskCompletionListener[Unit](_ => is.close())
+      TaskContext.get().addTaskCompletionListener[Unit](_ => is.close()): Unit
 
       override def hasNext: Boolean =
         if (itor.hasNext) true

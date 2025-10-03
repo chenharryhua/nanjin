@@ -18,7 +18,7 @@ sealed trait ProtoFor[A] extends RegisterSerde[A] {
 }
 
 object ProtoFor {
-  def apply[A](implicit ev: ProtoFor[A]): ProtoFor[A] = macro imp.summon[ProtoFor[A]]
+  def apply[A](implicit ev: ProtoFor[A]): ProtoFor[A] = ev
 
   @newtype final class Universal private (val value: DynamicMessage)
   object Universal {

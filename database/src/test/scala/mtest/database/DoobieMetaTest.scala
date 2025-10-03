@@ -15,7 +15,7 @@ import eu.timepit.refined.auto.*
 class DoobieMetaTest extends AnyFunSuite with FunSuiteDiscipline with Configuration {
 
   val postgres: Postgres =
-    Postgres("unknown", "unknown", "localhost", 5432, "postgres")
+    Postgres(Username("unknown"), Password("unknown"), Host("localhost"), 5432, DatabaseName("postgres"))
 
   test("setter") {
     val username: Username = "postgres"

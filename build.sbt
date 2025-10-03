@@ -65,7 +65,10 @@ lazy val commonSettings = List(
     "-Vcyclic",
     "-P:acyclic:warn"
   ),
-  Compile / tpolecatExcludeOptions += org.typelevel.scalacoptions.ScalacOptions.warnNonUnitStatement,
+  Test / tpolecatExcludeOptions ++=
+    org.typelevel.scalacoptions.ScalacOptions.lintOptions
+      .filterNot(_.option.startsWith("-Xlint:kind-projector")) +
+      org.typelevel.scalacoptions.ScalacOptions.warnNonUnitStatement,
   Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat
 )
 
@@ -268,7 +271,6 @@ lazy val messages =
       libraryDependencies ++=
         List(
           "io.estatico" %% "newtype"                  % "0.4.4",
-          "org.spire-math" %% "imp"                   % "0.5.0",
           "io.circe" %% "circe-optics"                % "0.15.1",
           "io.circe" %% "circe-jawn"                  % circeV,
           "org.apache.kafka" %% "kafka-streams-scala" % kafkaV,

@@ -52,7 +52,7 @@ object kafka_connector_s3 {
   private val root: Url = Url.parse("s3a://bucket_name") / "folder_name"
   private val hadoop = Hadoop[IO](new Configuration)
 
-  aws_task_template.task.service("dump kafka topic to s3").eventStream { ga =>
+  val dump = aws_task_template.task.service("dump kafka topic to s3").eventStream { ga =>
     val jackson = JacksonFile(_.Uncompressed)
     val topic = AvroTopic[Int, AvroFor.Universal]("any.kafka.topic")
     val sink: Pipe[IO, GenericRecord, TickedValue[RotateFile]] = // rotate files every 5 minutes
@@ -76,7 +76,7 @@ object kafka_connector_s3 {
 
   /** delete obsolete folder at 1:00 am every day. keep 8 days' data
     */
-  aws_task_template.task.service("delete.obsolete.folder").eventStreamS { agent =>
+  val delete = aws_task_template.task.service("delete.obsolete.folder").eventStreamS { agent =>
     val root: Url = Url.parse("s3://abc-efg-hij/klm")
     agent.tickScheduled(_.crontab(_.daily.oneAM)).evalMap { tick =>
       val dr = DateTimeRange(agent.zoneId)
