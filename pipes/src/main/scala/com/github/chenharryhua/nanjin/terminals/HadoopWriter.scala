@@ -95,7 +95,7 @@ private object HadoopWriter {
       new HadoopWriter[F, GeneratedMessage] {
         override val fileUrl: Url = url
         override def write(cgm: Chunk[GeneratedMessage]): F[Unit] =
-          F.delay {
+          F.blocking {
             cgm.foreach(_.writeDelimitedTo(os))
             os.flush()
           }
@@ -143,7 +143,7 @@ private object HadoopWriter {
       new HadoopWriter[F, JsonNode] {
         override val fileUrl: Url = url
         override def write(cjn: Chunk[JsonNode]): F[Unit] =
-          F.delay {
+          F.blocking {
             cjn.foreach { jn =>
               os.write(writer.writeValueAsBytes(jn))
               os.write('\n')

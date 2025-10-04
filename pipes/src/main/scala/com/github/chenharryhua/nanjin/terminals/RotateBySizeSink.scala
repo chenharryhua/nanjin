@@ -4,10 +4,10 @@ import cats.Endo
 import cats.data.Reader
 import cats.effect.kernel.{Async, Resource}
 import cats.effect.std.Hotswap
-import cats.implicits.toFunctorOps
+import cats.implicits.{catsSyntaxMonadError, toFunctorOps}
 import com.fasterxml.jackson.databind.JsonNode
 import com.github.chenharryhua.nanjin.common.chrono.{Tick, TickedValue}
-import fs2.{Pipe, Pull, Stream}
+import fs2.{Chunk, Pipe, Pull, Stream}
 import io.circe.Json
 import io.lemonlabs.uri.Url
 import kantan.csv.CsvConfiguration
@@ -41,7 +41,12 @@ final private class RotateBySizeSink[F[_]](
     data: Stream[F, A],
     currentTick: Tick,
     count: Int
-  ): Pull[F, TickedValue[RotateFile], Unit] =
+  ): Pull[F, TickedValue[RotateFile], Unit] = {
+    def writeChunk(as: Chunk[A]): Pull[F, Nothing, Unit] =
+      Pull
+        .eval(writer.write(as))
+        .adaptError(ex => RotateWriteException(TickedValue(currentTick, writer.fileUrl), ex))
+
     data.pull.uncons.flatMap {
       case None =>
         Pull.eval(hotswap.clear) >> Pull
@@ -52,12 +57,11 @@ final private class RotateBySizeSink[F[_]](
       case Some((as, stream)) =>
         val dataSize = as.size
         if ((dataSize + count) < sizeLimit) {
-          Pull.eval(writer.write(as)) >>
-            doWork(getWriter, hotswap, writer, stream, currentTick, dataSize + count)
+          writeChunk(as) >> doWork(getWriter, hotswap, writer, stream, currentTick, dataSize + count)
         } else {
           val (first, second) = as.splitAt(sizeLimit - count)
 
-          Pull.eval(writer.write(first)) >>
+          writeChunk(first) >>
             Pull.eval(F.realTimeInstant.map(currentTick.nextTick(_, Duration.ZERO))).flatMap { newTick =>
               Pull.eval(hotswap.swap(getWriter(createRotateFileEvent(newTick)))).flatMap { newWriter =>
                 Pull.output1[F, TickedValue[RotateFile]](
@@ -67,6 +71,7 @@ final private class RotateBySizeSink[F[_]](
             }
         }
     }
+  }
 
   private def persist[A](data: Stream[F, A], getWriter: CreateRotateFile => Resource[F, HadoopWriter[F, A]])
     : Pull[F, TickedValue[RotateFile], Unit] = {
