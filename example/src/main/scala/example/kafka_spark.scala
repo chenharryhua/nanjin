@@ -16,14 +16,14 @@ object kafka_spark {
   val sparKafka: SparKafkaContext[IO] = spark.alongWith[IO](kafka_connector_s3.ctx)
 
   val path: Url = Url.parse("s3a://bucket_name/folder_name")
-  val topic = AvroTopic[Int,AvroFor.Universal](TopicName("any.kafka.topic"))
+  val topic = AvroTopic[Int, AvroFor.Universal](TopicName("any.kafka.topic"))
 
   // batch dump a kafka topic
-  sparKafka.dump(topic, path)
+  val dump = sparKafka.dump(topic, path)
 
   // load saved data into kafka
-  sparKafka.upload(topic, path, _.withProducer(_.withAcks(Acks.One)))
+  val load = sparKafka.upload(topic, path, _.withProducer(_.withAcks(Acks.One)))
 
   // dataset statistics summary
-  sparKafka.stats.jackson(path).flatMap(_.summary("test"))
+  val stats = sparKafka.stats.jackson(path).flatMap(_.summary("test"))
 }

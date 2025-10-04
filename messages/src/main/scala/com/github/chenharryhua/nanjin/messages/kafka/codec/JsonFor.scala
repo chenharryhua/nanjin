@@ -29,7 +29,7 @@ sealed trait JsonFor[A] extends RegisterSerde[A] {
 }
 
 object JsonFor {
-  def apply[A](implicit ev: JsonFor[A]): JsonFor[A] = macro imp.summon[JsonFor[A]]
+  def apply[A](implicit ev: JsonFor[A]): JsonFor[A] = ev
 
   @newtype final class Universal private (val value: JsonNode)
   object Universal {

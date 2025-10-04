@@ -117,4 +117,10 @@ class CirceTest extends AnyFunSuite {
     val t = loaders.rdd.circe[Neck](path, sparkSession).collect().toSet
     assert(data.toSet == t)
   }
+
+  test("load wrong folder"){
+    val path = "./data/test/spark/persist/circe/jacket-neck-multi.json"
+    val t = loaders.rdd.circe[Bee](path, sparkSession)
+    assertThrows[Exception](t.collect())
+  }
 }

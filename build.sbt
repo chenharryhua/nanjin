@@ -1,5 +1,5 @@
 ThisBuild / version      := "0.19.11-SNAPSHOT"
-ThisBuild / scalaVersion := "2.13.16"
+ThisBuild / scalaVersion := "2.13.17"
 
 ThisBuild / versionScheme := Some("early-semver")
 
@@ -8,10 +8,10 @@ ThisBuild / Test / logBuffered       := false
 
 Global / parallelExecution := false
 
-val acyclicV = "0.3.18"
+val acyclicV = "0.3.19"
 val avroV = "1.12.0"
 val avro4sV = "4.1.2"
-val awsV = "2.34.6"
+val awsV = "2.35.0"
 val caffeineV = "3.2.2"
 val catsCoreV = "2.13.0"
 val catsEffectV = "3.6.3"
@@ -48,7 +48,7 @@ lazy val commonSettings = List(
   organization       := "com.github.chenharryhua",
   evictionErrorLevel := Level.Info,
   resolvers += "Confluent Maven Repo".at("https://packages.confluent.io/maven/"),
-  addCompilerPlugin(("org.typelevel" %% "kind-projector" % "0.13.3").cross(CrossVersion.full)),
+  addCompilerPlugin(("org.typelevel" %% "kind-projector" % "0.13.4").cross(CrossVersion.full)),
   addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.1"),
   addCompilerPlugin(("com.lihaoyi" %% "acyclic" % acyclicV).cross(CrossVersion.full)),
   libraryDependencies ++= List(
@@ -65,7 +65,10 @@ lazy val commonSettings = List(
     "-Vcyclic",
     "-P:acyclic:warn"
   ),
-  Compile / tpolecatExcludeOptions += org.typelevel.scalacoptions.ScalacOptions.warnNonUnitStatement,
+  Test / tpolecatExcludeOptions ++=
+    org.typelevel.scalacoptions.ScalacOptions.lintOptions
+      .filterNot(_.option.startsWith("-Xlint:kind-projector")) +
+      org.typelevel.scalacoptions.ScalacOptions.warnNonUnitStatement,
   Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat
 )
 
@@ -268,7 +271,6 @@ lazy val messages =
       libraryDependencies ++=
         List(
           "io.estatico" %% "newtype"                  % "0.4.4",
-          "org.spire-math" %% "imp"                   % "0.5.0",
           "io.circe" %% "circe-optics"                % "0.15.1",
           "io.circe" %% "circe-jawn"                  % circeV,
           "org.apache.kafka" %% "kafka-streams-scala" % kafkaV,

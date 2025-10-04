@@ -14,12 +14,12 @@ class AwsArnTest extends AnyFunSuite {
 
   test("cloudwatch namespace") {
     CloudWatchNamespace("_-abc:213.33#")
-
     shapeless.test.illTyped(""" CloudWatchNamespace("a\b") """)
   }
 
   test("kms") {
     KmsArn("arn:aws:kms:ap-southeast-2:123456789012:key/1111-2222-3333-13d5b006fbbb")
+
   }
 
   test("sqs url") {

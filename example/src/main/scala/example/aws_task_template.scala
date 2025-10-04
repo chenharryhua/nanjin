@@ -40,6 +40,6 @@ object aws_task_template {
     .updateConfig(_.withHttpServer(_.withPort(port"1027")))
     .eventStream(_ => IO.never)
 
-  service1.merge(service2)
+  val merged = service1.merge(service2)
 
 }

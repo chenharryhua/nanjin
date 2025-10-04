@@ -28,8 +28,8 @@ import scalapb.{GeneratedMessage, GeneratedMessageCompanion}
 import java.io.InputStream
 import java.nio.ByteBuffer
 import scala.reflect.ClassTag
-final case class RDDReadException(pathStr: String, cause: Throwable)
-    extends Exception(s"read $pathStr fail", cause)
+final case class RDDReadException(pathStr: String, line: Int, cause: Throwable)
+    extends Exception(s"read: $pathStr, line: $line", cause)
 
 private[spark] object loaders {
 
@@ -109,7 +109,9 @@ private[spark] object loaders {
     private class ClosableIterator[A](is: InputStream, itor: Iterator[A], pathStr: String)
         extends Iterator[A] {
 
-      TaskContext.get().addTaskCompletionListener[Unit](_ => is.close())
+      private[this] var lineNumber: Int = 0
+
+      TaskContext.get().addTaskCompletionListener[Unit](_ => is.close()): Unit
 
       override def hasNext: Boolean =
         if (itor.hasNext) true
@@ -119,12 +121,14 @@ private[spark] object loaders {
           false
         }
       override def next(): A =
-        try itor.next()
-        catch {
+        try {
+          lineNumber += 1
+          itor.next()
+        } catch {
           case ex: Throwable =>
             is.close()
             LOG.error(show"closed $pathStr", ex)
-            throw RDDReadException(pathStr, ex)
+            throw RDDReadException(pathStr, lineNumber, ex)
         }
     }
 

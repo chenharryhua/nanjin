@@ -49,7 +49,7 @@ class HttpTest extends AnyFunSuite {
     .build
 
   val ember: Resource[IO, Client[IO]] =
-    EmberClientBuilder.default[IO].build.map(MLogger(logHeaders = true, logBody = true)(_))
+    EmberClientBuilder.default[IO].build.map(MLogger[IO](logHeaders = true, logBody = true)(_))
 
   test("1.timeout") {
     val client = ember.map(retry(sydneyTime, Policy.fixedRate(1.seconds).limited(2)))

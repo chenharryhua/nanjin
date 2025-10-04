@@ -11,7 +11,7 @@ import org.apache.spark.sql.SparkSession
 import scala.reflect.ClassTag
 
 final class LoadRdd[A: ClassTag] private[spark] (path: Url, ss: SparkSession) {
-  def circe(implicit ev: JsonDecoder[A]): RDD[A] =
+  def circe(implicit dec: JsonDecoder[A]): RDD[A] =
     loaders.rdd.circe[A](path, ss)
 
   def kantan(cfg: CsvConfiguration)(implicit dec: RowDecoder[A]): RDD[A] =

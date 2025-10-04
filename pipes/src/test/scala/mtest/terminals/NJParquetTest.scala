@@ -139,7 +139,7 @@ class NJParquetTest extends AnyFunSuite {
     def r1(str: String): Option[Int] = Try(str.takeRight(4).toInt).toOption
     def r2(str: String): Option[Int] = Try(str.takeRight(2).toInt).toOption
 
-    val res3 = hdp.best(path, NonEmptyList.of(r1, r2)).unsafeRunSync()
+    val res3 = hdp.best(path, NonEmptyList.of(r1(_), r2(_))).unsafeRunSync()
     assert(res3.exists(_.toString().takeRight(8).take(6) === "Month="))
   }
 

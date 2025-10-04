@@ -29,6 +29,9 @@ final case class CreateRotateFile(
   openTime: ZonedDateTime
 )
 
+final case class RotateWriteException(tv: TickedValue[Url], cause: Throwable)
+    extends Exception(s"failed to write to: ${tv.value.toString()}", cause)
+
 @JsonCodec
 final case class RotateFile(url: Url, recordCount: Int)
 

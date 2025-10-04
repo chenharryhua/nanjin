@@ -159,6 +159,19 @@ final class Hadoop[F[_]] private (config: Configuration) {
       }
     })
 
+  /** Retain folders from ''startFrom'' going back ''days''
+    * @param startFrom
+    *   start date
+    * @param backwardDays
+    *   backward days
+    * @return
+    */
+  def dateFolderRetention(path: Url, startFrom: LocalDate, backwardDays: Long)(implicit
+    F: Sync[F]): F[List[RetentionFolderStatus]] = {
+    val keeps = (0L until backwardDays).map(startFrom.minusDays).toList
+    dateFolderRetention(path, keeps)
+  }
+
   /*
    * source and sink
    */

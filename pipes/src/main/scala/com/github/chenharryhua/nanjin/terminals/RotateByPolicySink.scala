@@ -4,6 +4,7 @@ import cats.Endo
 import cats.data.Reader
 import cats.effect.kernel.{Async, Resource}
 import cats.effect.std.Hotswap
+import cats.implicits.catsSyntaxMonadError
 import com.fasterxml.jackson.databind.JsonNode
 import com.github.chenharryhua.nanjin.common.chrono.{Tick, TickedValue}
 import fs2.{Chunk, Pipe, Pull, Stream}
@@ -41,7 +42,9 @@ final private class RotateByPolicySink[F[_]: Async](
       case Some((head, tail)) =>
         head match {
           case Left(data) =>
-            Pull.eval(writer.write(data)) >>
+            Pull
+              .eval(writer.write(data))
+              .adaptError(ex => RotateWriteException(TickedValue(currentTick, writer.fileUrl), ex)) >>
               doWork(currentTick, getWriter, hotswap, writer, tail, count + data.size)
           case Right(ticked) =>
             Pull.eval(hotswap.swap(getWriter(ticked.value))).flatMap { newWriter =>

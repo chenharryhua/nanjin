@@ -5,7 +5,6 @@ import cats.effect.kernel.{Resource, Sync}
 import cats.implicits.toFoldableOps
 import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.kafka.KafkaContext
-import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.spark.persist.*
 import com.github.chenharryhua.nanjin.terminals.Hadoop
@@ -70,12 +69,8 @@ package object spark {
     }
 
     def loadRdd[A: ClassTag](path: Url): LoadRdd[A] = new LoadRdd[A](path, ss)
-    def loadConsumerRecord[K, V](path: Url): LoadRdd[NJConsumerRecord[K, V]] =
-      new LoadRdd[NJConsumerRecord[K, V]](path, ss)
-
     def loadDataset[A: ClassTag: Encoder](ate: Url): LoadDataset[A] = new LoadDataset[A](ate, ss)
-    def loadData[A: Encoder, G[_]: Foldable](ga: G[A]): Dataset[A] =
-      ss.createDataset(ga.toList)
+    def loadData[A: Encoder, G[_]: Foldable](ga: G[A]): Dataset[A] = ss.createDataset(ga.toList)
 
     def loadProtobuf[A <: GeneratedMessage: ClassTag: GeneratedMessageCompanion](path: Url): RDD[A] =
       loaders.rdd.protobuf[A](path, ss)
