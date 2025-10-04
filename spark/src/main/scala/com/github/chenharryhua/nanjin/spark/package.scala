@@ -70,8 +70,7 @@ package object spark {
 
     def loadRdd[A: ClassTag](path: Url): LoadRdd[A] = new LoadRdd[A](path, ss)
     def loadDataset[A: ClassTag: Encoder](ate: Url): LoadDataset[A] = new LoadDataset[A](ate, ss)
-    def loadData[A: Encoder, G[_]: Foldable](ga: G[A]): Dataset[A] =
-      ss.createDataset(ga.toList)
+    def loadData[A: Encoder, G[_]: Foldable](ga: G[A]): Dataset[A] = ss.createDataset(ga.toList)
 
     def loadProtobuf[A <: GeneratedMessage: ClassTag: GeneratedMessageCompanion](path: Url): RDD[A] =
       loaders.rdd.protobuf[A](path, ss)
