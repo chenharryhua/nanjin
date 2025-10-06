@@ -21,7 +21,7 @@ object ProtoFor {
   def apply[A](implicit ev: ProtoFor[A]): ProtoFor[A] = ev
 
   @newtype final class Universal private (val value: DynamicMessage)
-  object Universal {
+  protected object Universal {
     private val jsonFormat = JsonFormat.printer()
     implicit val jsonEncoderUniversal: JsonEncoder[Universal] =
       (a: Universal) =>

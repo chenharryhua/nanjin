@@ -28,7 +28,7 @@ final class Registered[A] private[codec] (
   props: Map[String, String],
   isKey: Boolean) {
 
-  @transient lazy val serde: Serde[A] = new Serde[A] {
+  val serde: Serde[A] = new Serde[A] {
     override val serializer: Serializer[A] = {
       val ser = unregisteredSerde.serializer
       ser.configure(props.asJava, isKey)

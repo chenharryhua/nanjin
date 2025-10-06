@@ -32,7 +32,7 @@ object JsonFor {
   def apply[A](implicit ev: JsonFor[A]): JsonFor[A] = ev
 
   @newtype final class Universal private (val value: JsonNode)
-  object Universal {
+  protected object Universal {
     implicit val jsonEncoderUniversal: JsonEncoder[Universal] =
       (a: Universal) =>
         io.circe.jawn.parse(globalObjectMapper.writeValueAsString(a.value)) match {
