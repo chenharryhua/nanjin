@@ -5,7 +5,7 @@ import cats.effect.kernel.Resource.ExitCase
 import cats.syntax.apply.*
 import org.typelevel.log4cats.Logger
 
-private[aws] trait ShutdownService[F[_]] {
+private trait ShutdownService[F[_]] {
 
   protected def closeService: F[Unit]
 

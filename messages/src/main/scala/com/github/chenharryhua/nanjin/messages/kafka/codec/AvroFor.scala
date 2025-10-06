@@ -30,7 +30,7 @@ object AvroFor extends LowerPriority {
   def apply[A](implicit ev: AvroFor[A]): AvroFor[A] = ev
 
   @newtype final class Universal private (val value: GenericRecord)
-  object Universal {
+  protected object Universal {
     implicit val jsonEncoderUniversal: JsonEncoder[Universal] =
       (a: Universal) =>
         io.circe.jawn.parse(a.value.toString) match {

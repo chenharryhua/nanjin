@@ -26,6 +26,7 @@ import scala.jdk.OptionConverters.{RichOption, RichOptional}
 @AvroNamespace("nanjin.kafka")
 @AvroName("NJConsumerRecord")
 @PLenses
+@SerialVersionUID(0L)
 final case class NJConsumerRecord[K, V](
   @AvroDoc("kafka topic name") topic: String,
   @AvroDoc("kafka partition") partition: Int,

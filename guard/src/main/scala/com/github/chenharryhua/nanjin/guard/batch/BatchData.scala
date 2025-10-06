@@ -125,7 +125,7 @@ object BatchResultValue {
     (a: BatchResultValue[A]) => Json.obj("batch" -> a.resultState.asJson, "value" -> a.value.asJson)
 }
 
-final case class PostConditionUnsatisfied(job: BatchJob) extends Exception(
-      show"${job.indexedName} of batch(${job.batch}, ${job.batchId}) in domain(${job.domain}) run to the end smoothly but failed post-condition check")
+final case class PostConditionUnsatisfied(job: BatchJob)
+    extends Exception(s"post-condition check failed after: ${job.asJson.noSpaces}")
 
 final private[batch] case class JobNameIndex[F[_], A](name: String, index: Int, fa: F[A])
