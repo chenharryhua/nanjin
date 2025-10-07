@@ -17,7 +17,6 @@ import org.scalatest.funsuite.AnyFunSuite
 class ParquetTest extends AnyFunSuite {
   import RoosterData.*
   val hdp: Hadoop[IO] = sparkSession.hadoop[IO]
-  import sparkSession.implicits.*
 
   def loadRooster(path: Url): IO[Set[Rooster]] =
     hdp
@@ -119,7 +118,7 @@ class ParquetTest extends AnyFunSuite {
     import cats.implicits.*
     val path = "./data/test/spark/persist/parquet/bee/multi.parquet"
     beeSaver(path).withCompression(_.Uncompressed).run[IO].unsafeRunSync()
-    val t = loaders.parquet[Bee](path, sparkSession).collect().toList
+    val t = sparkSession.loadRdd[Bee](path).parquet.collect().toList
     assert(bees.sortBy(_.b).zip(t.sortBy(_.b)).forall { case (a, b) => a.eqv(b) })
   }
 

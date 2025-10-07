@@ -53,7 +53,7 @@ class KantanCsvTest extends AnyFunSuite {
     val s = saver(path, cfg).withCompression(_.Gzip)
     s.run[IO].unsafeRunSync()
 
-    val t = loaders.rdd.kantan[Tablet](path, sparkSession, cfg)
+    val t = loaders.kantan[Tablet](path, sparkSession, cfg)
     assert(data.toSet == t.collect().toSet)
     assert(data.toSet == loadTablet(path, cfg).unsafeRunSync())
   }
@@ -64,7 +64,7 @@ class KantanCsvTest extends AnyFunSuite {
     val s = saver(path, cfg)
     s.withCompression(_.Deflate(9)).run[IO].unsafeRunSync()
 
-    val t = loaders.rdd.kantan[Tablet](path, sparkSession, cfg)
+    val t = loaders.kantan[Tablet](path, sparkSession, cfg)
     assert(data.toSet == t.collect().toSet)
     assert(data.toSet == loadTablet(path, cfg).unsafeRunSync())
   }
@@ -74,7 +74,7 @@ class KantanCsvTest extends AnyFunSuite {
     val cfg = CsvConfiguration.rfc.withHeader
     val s = saver(path, cfg).withCompression(_.Bzip2)
     s.run[IO].unsafeRunSync()
-    val t = loaders.rdd.kantan[Tablet](path, sparkSession, cfg)
+    val t = loaders.kantan[Tablet](path, sparkSession, cfg)
     assert(data.toSet == t.collect().toSet)
     assert(data.toSet == loadTablet(path, cfg).unsafeRunSync())
   }
@@ -84,7 +84,7 @@ class KantanCsvTest extends AnyFunSuite {
     val cfg = CsvConfiguration.rfc.withHeader
     val s = saver(path, cfg).withCompression(_.Lz4)
     s.run[IO].unsafeRunSync()
-    val t = loaders.rdd.kantan[Tablet](path, sparkSession, cfg)
+    val t = loaders.kantan[Tablet](path, sparkSession, cfg)
     assert(data.toSet == t.collect().toSet)
     assert(data.toSet == loadTablet(path, cfg).unsafeRunSync())
   }
@@ -109,7 +109,7 @@ class KantanCsvTest extends AnyFunSuite {
     val cfg = CsvConfiguration.rfc.withHeader("x", "y", "z")
     val s = saver(path, cfg)
     s.run[IO].unsafeRunSync()
-    val t = loaders.rdd.kantan[Tablet](path, sparkSession, cfg)
+    val t = loaders.kantan[Tablet](path, sparkSession, cfg)
     assert(data.toSet == t.collect().toSet)
     assert(data.toSet == loadTablet(path, cfg).unsafeRunSync())
     checkHeader(path, "x,y,z")
@@ -120,7 +120,7 @@ class KantanCsvTest extends AnyFunSuite {
     val cfg = CsvConfiguration.rfc.withHeader
     val s = saver(path, cfg)
     s.run[IO].unsafeRunSync()
-    val t = loaders.rdd.kantan[Tablet](path, sparkSession, cfg)
+    val t = loaders.kantan[Tablet](path, sparkSession, cfg)
     assert(data.toSet == t.collect().toSet)
     assert(data.toSet == loadTablet(path, cfg).unsafeRunSync())
     checkHeader(path, csvHeader(cfg).head.get.dropRight(2))
@@ -131,7 +131,7 @@ class KantanCsvTest extends AnyFunSuite {
     val cfg = CsvConfiguration.rfc.withCellSeparator('|').withHeader("a", "b")
     val s = saver(path, cfg)
     s.run[IO].unsafeRunSync()
-    val t = loaders.rdd.kantan[Tablet](path, sparkSession, cfg)
+    val t = loaders.kantan[Tablet](path, sparkSession, cfg)
     assert(data.toSet == t.collect().toSet)
     assert(data.toSet == loadTablet(path, cfg).unsafeRunSync())
     checkHeader(path, "a|b")
@@ -142,7 +142,7 @@ class KantanCsvTest extends AnyFunSuite {
     val cfg = CsvConfiguration.rfc.withHeader("", "b", "").withCellSeparator('|').withQuote('*').quoteAll
     val s = saver(path, cfg)
     s.run[IO].unsafeRunSync()
-    val t = loaders.rdd.kantan[Tablet](path, sparkSession, cfg)
+    val t = loaders.kantan[Tablet](path, sparkSession, cfg)
     assert(data.toSet == t.collect().toSet)
     assert(data.toSet == loadTablet(path, cfg).unsafeRunSync())
     checkHeader(path, "**|*b*|**")

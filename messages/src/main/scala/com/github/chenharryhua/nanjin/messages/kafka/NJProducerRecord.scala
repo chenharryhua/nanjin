@@ -21,7 +21,6 @@ import scala.jdk.CollectionConverters.*
 @AvroDoc("kafka producer record, optional Key and optional Value")
 @AvroNamespace("nanjin.kafka")
 @AvroName("NJProducerRecord")
-@SerialVersionUID(0L)
 final case class NJProducerRecord[K, V](
   topic: String,
   partition: Option[Int],
