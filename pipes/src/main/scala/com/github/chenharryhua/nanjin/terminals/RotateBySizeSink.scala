@@ -22,7 +22,7 @@ import org.apache.parquet.hadoop.metadata.CompressionCodecName
 import org.apache.parquet.hadoop.util.HadoopOutputFile
 import scalapb.GeneratedMessage
 
-import java.time.{Duration, ZoneId}
+import java.time.ZoneId
 
 final private class RotateBySizeSink[F[_]](
   configuration: Configuration,
@@ -50,7 +50,7 @@ final private class RotateBySizeSink[F[_]](
     data.pull.uncons.flatMap {
       case None =>
         Pull.eval(hotswap.clear) >> Pull
-          .eval(F.realTimeInstant.map(currentTick.nextTick(_, Duration.ZERO)))
+          .eval(F.realTimeInstant.map(now => currentTick.nextTick(now, now)))
           .flatMap { newTick =>
             Pull.output1[F, TickedValue[RotateFile]](TickedValue(newTick, RotateFile(writer.fileUrl, count)))
           }
@@ -62,7 +62,7 @@ final private class RotateBySizeSink[F[_]](
           val (first, second) = as.splitAt(sizeLimit - count)
 
           writeChunk(first) >>
-            Pull.eval(F.realTimeInstant.map(currentTick.nextTick(_, Duration.ZERO))).flatMap { newTick =>
+            Pull.eval(F.realTimeInstant.map(now => currentTick.nextTick(now, now))).flatMap { newTick =>
               Pull.eval(hotswap.swap(getWriter(createRotateFileEvent(newTick)))).flatMap { newWriter =>
                 Pull.output1[F, TickedValue[RotateFile]](
                   TickedValue(newTick, RotateFile(writer.fileUrl, count + first.size))) >>

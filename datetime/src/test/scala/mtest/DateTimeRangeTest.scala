@@ -148,6 +148,7 @@ class DateTimeRangeTest extends AnyFunSuite with FunSuiteDiscipline with Configu
     assert(t.days.size == 1)
     assert(y.days.size == 1)
     assert(e.days.size == 1)
+    // fail on day leap
     assert(t.duration.get.toMillis == 86399999)
     assert(y.duration.get.toMillis == 86399999)
     assert(e.duration.get.toMillis == 86399999)

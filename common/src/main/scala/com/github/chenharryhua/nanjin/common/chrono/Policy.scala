@@ -45,9 +45,9 @@ private object PolicyF extends all {
   final case class TickRequest(tick: Tick, now: Instant)
 
   @tailrec
-  private def fixedRateSnooze(wakeup: Instant, now: Instant, delay: Duration, count: Long): Duration = {
+  private def fixedRateSnooze(wakeup: Instant, now: Instant, delay: Duration, count: Long): Instant = {
     val next = wakeup.plus(delay.multipliedBy(count))
-    if (next.isAfter(now)) Duration.between(now, next)
+    if (next.isAfter(now)) next
     else
       fixedRateSnooze(wakeup, now, delay, count + 1)
   }
@@ -60,7 +60,7 @@ private object PolicyF extends all {
       case Crontab(cronExpr) =>
         val calcTick: CalcTick = { case TickRequest(tick, now) =>
           cronExpr.next(now.atZone(tick.zoneId)) match {
-            case Some(value) => tick.nextTick(now, Duration.between(now, value))
+            case Some(value) => tick.nextTick(now, value.toInstant)
             case None        => // should not happen but in case
               sys.error(show"$cronExpr return None at $now. idx=${tick.index}")
           }
@@ -69,7 +69,7 @@ private object PolicyF extends all {
 
       case FixedDelay(delays) =>
         val seed: LazyList[CalcTick] = LazyList.from(delays.toList).map[CalcTick] { delay =>
-          { case TickRequest(tick, now) => tick.nextTick(now, delay) }
+          { case TickRequest(tick, now) => tick.nextTick(now, now.plus(delay)) }
         }
         LazyList.continually(seed).flatten
 

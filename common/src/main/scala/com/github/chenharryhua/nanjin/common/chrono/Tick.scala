@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.common.chrono
 import cats.effect.kernel.Sync
 import cats.syntax.all.*
 import cats.{Functor, Show}
-import com.github.chenharryhua.nanjin.common.utils
+import com.github.chenharryhua.nanjin.common.{utils, DurationFormatter}
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, HCursor, Json}
 import org.typelevel.cats.time.instances.all.*
@@ -15,7 +15,7 @@ import java.util.UUID
  *  commence    acquires       conclude
  *    |            |----snooze----|
  *    |---active---|              |
- *    |----------interval---------|
+ *    |----------window-----------|
  */
 
 final case class Tick(
@@ -25,20 +25,20 @@ final case class Tick(
   index: Long, // monotonously increase
   commence: Instant,
   acquires: Instant,
-  snooze: Duration
+  conclude: Instant
 ) {
-  val conclude: Instant = acquires.plus(snooze)
+  val snooze: Duration = Duration.between(acquires, conclude)
 
   def zoned(f: this.type => Instant): ZonedDateTime = f(this).atZone(zoneId)
   def local(f: this.type => Instant): LocalDateTime = zoned(f).toLocalDateTime
 
-  // interval = active  +  snooze
+  // window = active  +  snooze
 
-  def interval: Duration = Duration.between(commence, conclude)
+  def window: Duration = Duration.between(commence, conclude)
 
   def active: Duration = Duration.between(commence, acquires)
 
-  def snoozeStretch(delay: Duration): Tick = copy(snooze = snooze.plus(delay))
+  def snoozeStretch(delay: Duration): Tick = copy(conclude = conclude.plus(delay))
 
   /** check if an instant is in this tick frame from commence(exclusive) to conclude(inclusive).
     */
@@ -50,20 +50,20 @@ final case class Tick(
   def isWithinClosedOpen(now: Instant): Boolean =
     (now.isAfter(commence) && now.isBefore(conclude)) || (now === commence)
 
-  def nextTick(now: Instant, delay: Duration): Tick =
+  def nextTick(now: Instant, wakeup: Instant): Tick =
     copy(
       commence = this.conclude,
       index = this.index + 1,
       acquires = now,
-      snooze = delay
+      conclude = wakeup
     )
 
   override def toString: String = {
-    val cls = local(_.conclude).show
+    val cld = local(_.conclude).show
     val acq = local(_.acquires).show
     val snz = snooze.show
     val id = show"$sequenceId".take(5)
-    f"id=$id, idx=$index%04d, acq=$acq, cls=$cls, snz=$snz"
+    f"id=$id, idx=$index%04d, acq=$acq, cld=$cld, snz=$snz"
   }
 }
 
@@ -76,7 +76,7 @@ object Tick {
       index = 0L,
       commence = now,
       acquires = now,
-      snooze = Duration.ZERO
+      conclude = now
     )
 
   def zeroth[F[_]: Sync](zoneId: ZoneId): F[Tick] =
@@ -85,6 +85,8 @@ object Tick {
       now <- Sync[F].realTimeInstant
     } yield zeroth(uuid, zoneId, now)
 
+  private val fmt = DurationFormatter.defaultFormatter
+
   implicit val encoderTick: Encoder[Tick] =
     (a: Tick) =>
       Json.obj(
@@ -92,9 +94,9 @@ object Tick {
         "commence" -> a.local(_.commence).asJson,
         "acquires" -> a.local(_.acquires).asJson,
         "conclude" -> a.local(_.conclude).asJson,
-        "active" -> a.active.asJson,
-        "snooze" -> a.snooze.asJson,
-        "interval" -> a.interval.asJson,
+        "active" -> fmt.format(a.active).asJson,
+        "snooze" -> fmt.format(a.snooze).asJson,
+        "window" -> fmt.format(a.window).asJson,
         "sequence_id" -> a.sequenceId.asJson,
         "launch_time" -> a.local(_.launchTime).asJson,
         "zone_id" -> a.zoneId.asJson
@@ -109,7 +111,7 @@ object Tick {
         index <- c.get[Long]("index")
         commence <- c.get[LocalDateTime]("commence")
         acquires <- c.get[LocalDateTime]("acquires")
-        snooze <- c.get[Duration]("snooze")
+        conclude <- c.get[LocalDateTime]("conclude")
       } yield Tick(
         sequenceId = sequenceId,
         launchTime = launchTime.atZone(zoneId).toInstant,
@@ -117,7 +119,7 @@ object Tick {
         index = index,
         commence = commence.atZone(zoneId).toInstant,
         acquires = acquires.atZone(zoneId).toInstant,
-        snooze = snooze
+        conclude = conclude.atZone(zoneId).toInstant
       )
 
   implicit val showTick: Show[Tick] = Show.fromToString[Tick]
