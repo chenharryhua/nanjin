@@ -11,8 +11,7 @@ package object spark {
       .withAppName("nj.spark.test")
       .withMaster("local[*]")
       .withKms("kms")
-      .withUI
-      .withoutUI
+      .withAwsS3
       .updateConfig(
         _.config("spark.hadoop.fs.ftp.host", "localhost")
           .config("spark.hadoop.fs.ftp.user.localhost", "chenh")
