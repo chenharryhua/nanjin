@@ -31,15 +31,15 @@ sealed trait JsonFor[A] extends RegisterSerde[A] {
 object JsonFor {
   def apply[A](implicit ev: JsonFor[A]): JsonFor[A] = ev
 
-  @newtype final class Universal private (val value: JsonNode)
-  protected object Universal {
-    implicit val jsonEncoderUniversal: JsonEncoder[Universal] =
-      (a: Universal) =>
+  @newtype final class FromBroker private (val value: JsonNode)
+  protected object FromBroker {
+    implicit val jsonEncoderUniversal: JsonEncoder[FromBroker] =
+      (a: FromBroker) =>
         io.circe.jawn.parse(globalObjectMapper.writeValueAsString(a.value)) match {
           case Left(value)  => throw value
           case Right(value) => value
         }
-    implicit val jsonDecoderUniversal: JsonDecoder[Universal] =
+    implicit val jsonDecoderUniversal: JsonDecoder[FromBroker] =
       (c: HCursor) =>
         Try(globalObjectMapper.convertValue[JsonNode](c.value.noSpaces)) match {
           case Failure(ex)    => Left(DecodingFailure(CustomReason(ExceptionUtils.getMessage(ex)), c.history))
@@ -73,12 +73,12 @@ object JsonFor {
     override val jsonSchema: Option[JsonSchema] = buildSchema(classOf[UUID]).some
   }
 
-  implicit object jsonForUniversal extends JsonFor[Universal] {
+  implicit object jsonForFromBroker extends JsonFor[FromBroker] {
     override val jsonSchema: Option[JsonSchema] = None
 
-    override protected val unregisteredSerde: Serde[Universal] =
-      new Serde[Universal] {
-        override val serializer: Serializer[Universal] = new Serializer[Universal] {
+    override protected val unregisteredSerde: Serde[FromBroker] =
+      new Serde[FromBroker] {
+        override val serializer: Serializer[FromBroker] = new Serializer[FromBroker] {
           private[this] val ser = new KafkaJsonSchemaSerializer[JsonNode]()
 
           override def configure(configs: util.Map[String, ?], isKey: Boolean): Unit =
@@ -86,11 +86,11 @@ object JsonFor {
 
           override def close(): Unit = ser.close()
 
-          override def serialize(topic: String, data: Universal): Array[Byte] =
+          override def serialize(topic: String, data: FromBroker): Array[Byte] =
             Option(data).flatMap(u => Option(u.value)).map(jn => ser.serialize(topic, jn)).orNull
         }
 
-        override val deserializer: Deserializer[Universal] = new Deserializer[Universal] {
+        override val deserializer: Deserializer[FromBroker] = new Deserializer[FromBroker] {
           private[this] val deSer = new KafkaJsonSchemaDeserializer[JsonNode]()
 
           override def configure(configs: util.Map[String, ?], isKey: Boolean): Unit = {
@@ -106,10 +106,10 @@ object JsonFor {
 
           override def close(): Unit = deSer.close()
 
-          override def deserialize(topic: String, data: Array[Byte]): Universal =
+          override def deserialize(topic: String, data: Array[Byte]): FromBroker =
             Option(deSer.deserialize(topic, data))
-              .map(_.coerce[Universal])
-              .getOrElse(null.asInstanceOf[Universal])
+              .map(_.coerce[FromBroker])
+              .getOrElse(null.asInstanceOf[FromBroker])
         }
       }
   }

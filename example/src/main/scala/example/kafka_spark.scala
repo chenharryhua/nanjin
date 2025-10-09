@@ -16,7 +16,7 @@ object kafka_spark {
   val sparKafka: SparKafkaContext[IO] = spark.alongWith[IO](kafka_connector_s3.ctx)
 
   val path: Url = Url.parse("s3a://bucket_name/folder_name")
-  val topic = AvroTopic[Int, AvroFor.Universal](TopicName("any.kafka.topic"))
+  val topic = AvroTopic[Int, AvroFor.FromBroker](TopicName("any.kafka.topic"))
 
   // batch dump a kafka topic
   val dump = sparKafka.dump(topic, path)

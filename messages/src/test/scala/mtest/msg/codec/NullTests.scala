@@ -38,13 +38,13 @@ class NullTests extends AnyFunSuite {
 
   test("encode null should return null") {
     assert(avro.serialize(null.asInstanceOf[CoproductJsons.Foo]) == null)
-    assert(avroU.serialize(null.asInstanceOf[AvroFor.Universal]) == null)
+    assert(avroU.serialize(null.asInstanceOf[AvroFor.FromBroker]) == null)
 
     assert(jsonSchema.serialize(null.asInstanceOf[CoproductJsons.Foo]) == null)
-    assert(jsonSchemaU.serialize(null.asInstanceOf[JsonFor.Universal]) == null)
-    assert(jsonSchemaU.serialize(null.asInstanceOf[JsonFor.Universal]) == null)
+    assert(jsonSchemaU.serialize(null.asInstanceOf[JsonFor.FromBroker]) == null)
+    assert(jsonSchemaU.serialize(null.asInstanceOf[JsonFor.FromBroker]) == null)
 
-    assert(protobufU.serialize(null.asInstanceOf[ProtoFor.Universal]) == null)
+    assert(protobufU.serialize(null.asInstanceOf[ProtoFor.FromBroker]) == null)
 
     // assert(intCodec.encode(null) === null)
     // assert(longCodec.encode(null) === null)

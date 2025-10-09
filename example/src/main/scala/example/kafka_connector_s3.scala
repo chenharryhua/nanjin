@@ -54,7 +54,7 @@ object kafka_connector_s3 {
 
   val dump = aws_task_template.task.service("dump kafka topic to s3").eventStream { ga =>
     val jackson = JacksonFile(_.Uncompressed)
-    val topic = AvroTopic[Int, AvroFor.Universal]("any.kafka.topic")
+    val topic = AvroTopic[Int, AvroFor.FromBroker]("any.kafka.topic")
     val sink: Pipe[IO, GenericRecord, TickedValue[RotateFile]] = // rotate files every 5 minutes
       hadoop.rotateSink(ga.zoneId, Policy.crontab(_.every5Minutes))(root / jackson.ymdFileName(_)).jackson
     ga.facilitate("abc")(logMetrics).use { log =>

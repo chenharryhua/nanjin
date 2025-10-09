@@ -16,7 +16,7 @@ class TickStreamTest extends AnyFunSuite {
     val policy = Policy.crontab(crontabs.secondly).limited(5)
     val ticks = tickStream.tickScheduled[IO](londonTime, policy)
 
-    val res = ticks.map(_.interval.toScala).compile.toList.unsafeRunSync()
+    val res = ticks.map(_.window.toScala).compile.toList.unsafeRunSync()
     assert(res.tail.forall(d => d === 1.seconds), res)
     assert(res.size == 5)
   }
@@ -28,7 +28,7 @@ class TickStreamTest extends AnyFunSuite {
     val fds =
       ticks.evalTap(_ => IO.sleep(1.5.seconds)).take(5).compile.toList.unsafeRunSync()
     fds.tail.foreach { t =>
-      val interval = t.interval.toScala
+      val interval = t.window.toScala
       assert(interval === 2.seconds)
     }
   }
@@ -40,7 +40,7 @@ class TickStreamTest extends AnyFunSuite {
     val fds =
       ticks.evalTap(_ => IO.sleep(0.5.seconds)).take(5).compile.toList.unsafeRunSync()
     fds.tail.foreach { t =>
-      val interval = t.interval.toScala
+      val interval = t.window.toScala
       assert(interval === 1.seconds)
     }
   }

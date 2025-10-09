@@ -153,8 +153,7 @@ sealed trait FileSource[F[_]] {
     *   Each chunk of the stream is of uniform size, except for the final chunk, which may be smaller
     *   depending on the remaining data.
     */
-  def protobuf[A <: GeneratedMessage](chunkSize: ChunkSize)(implicit
-    gmc: GeneratedMessageCompanion[A]): Stream[F, A]
+  def protobuf[A <: GeneratedMessage: GeneratedMessageCompanion](chunkSize: ChunkSize): Stream[F, A]
 
   /** @param chunkSize
     *   Each chunk of the stream is of uniform size, except for the final chunk, which may be smaller
@@ -226,8 +225,8 @@ final private class FileSourceImpl[F[_]: Sync](configuration: Configuration, url
   override def text(chunkSize: ChunkSize): Stream[F, String] =
     HadoopReader.stringS[F](configuration, url, chunkSize)
 
-  override def protobuf[A <: GeneratedMessage](chunkSize: ChunkSize)(implicit
-    gmc: GeneratedMessageCompanion[A]): Stream[F, A] =
+  override def protobuf[A <: GeneratedMessage: GeneratedMessageCompanion](
+    chunkSize: ChunkSize): Stream[F, A] =
     HadoopReader.protobufS[F, A](configuration, url, chunkSize)
 
   override def jsonNode(chunkSize: ChunkSize): Stream[F, JsonNode] = {

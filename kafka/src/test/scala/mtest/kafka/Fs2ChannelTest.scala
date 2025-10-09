@@ -206,7 +206,7 @@ class Fs2ChannelTest extends AnyFunSuite {
 
   test("9.generic record range - should stop") {
     val res = ctx
-      .consumeGenericRecord(AvroTopic[AvroFor.Universal, AvroFor.Universal]("telecom_italia_data"))
+      .consumeGenericRecord(AvroTopic[AvroFor.FromBroker, AvroFor.FromBroker]("telecom_italia_data"))
       .updateConfig(_.withMaxPollRecords(10))
       .circumscribedStream(Map(0 -> (0L, 5L)))
       .flatMap(_.stream.map(_.record.value).debug())
@@ -219,7 +219,7 @@ class Fs2ChannelTest extends AnyFunSuite {
 
   test("10.generic record manualCommitStream") {
     val res = ctx
-      .consumeGenericRecord(AvroTopic[AvroFor.Universal, AvroFor.Universal]("telecom_italia_data"))
+      .consumeGenericRecord(AvroTopic[AvroFor.FromBroker, AvroFor.FromBroker]("telecom_italia_data"))
       .updateConfig(_.withMaxPollRecords(10))
       .manualCommitStream
       .flatMap(_.stream.map(_.record.value))

@@ -29,10 +29,10 @@ private[codec] trait LowerPriority {
 object AvroFor extends LowerPriority {
   def apply[A](implicit ev: AvroFor[A]): AvroFor[A] = ev
 
-  @newtype final class Universal private (val value: GenericRecord)
-  protected object Universal {
-    implicit val jsonEncoderUniversal: JsonEncoder[Universal] =
-      (a: Universal) =>
+  @newtype final class FromBroker private (val value: GenericRecord)
+  protected object FromBroker {
+    implicit val jsonEncoderUniversal: JsonEncoder[FromBroker] =
+      (a: FromBroker) =>
         io.circe.jawn.parse(a.value.toString) match {
           case Left(value)  => throw value
           case Right(value) => value
@@ -109,13 +109,13 @@ object AvroFor extends LowerPriority {
   }
 
   // 10. universal - generic record
-  implicit object avroForUniversal extends AvroFor[Universal] {
+  implicit object avroForFromBroker extends AvroFor[FromBroker] {
 
     override val schema: Option[AvroSchema] = none[AvroSchema]
 
-    override protected val unregisteredSerde: Serde[Universal] = new Serde[Universal] {
-      override val serializer: Serializer[Universal] =
-        new Serializer[Universal] {
+    override protected val unregisteredSerde: Serde[FromBroker] = new Serde[FromBroker] {
+      override val serializer: Serializer[FromBroker] =
+        new Serializer[FromBroker] {
           private[this] val ser = new GenericAvroSerializer
 
           override def configure(configs: util.Map[String, ?], isKey: Boolean): Unit =
@@ -123,11 +123,11 @@ object AvroFor extends LowerPriority {
 
           override def close(): Unit = ser.close()
 
-          override def serialize(topic: String, data: Universal): Array[Byte] =
+          override def serialize(topic: String, data: FromBroker): Array[Byte] =
             Option(data).flatMap(u => Option(u.value)).map(gr => ser.serialize(topic, gr)).orNull
         }
 
-      override val deserializer: Deserializer[Universal] = new Deserializer[Universal] {
+      override val deserializer: Deserializer[FromBroker] = new Deserializer[FromBroker] {
         private[this] val deSer = new GenericAvroDeserializer
 
         override def close(): Unit = deSer.close()
@@ -135,10 +135,10 @@ object AvroFor extends LowerPriority {
         override def configure(configs: util.Map[String, ?], isKey: Boolean): Unit =
           deSer.configure(configs, isKey)
 
-        override def deserialize(topic: String, data: Array[Byte]): Universal =
+        override def deserialize(topic: String, data: Array[Byte]): FromBroker =
           Option(deSer.deserialize(topic, data))
-            .map(_.coerce[Universal])
-            .getOrElse(null.asInstanceOf[Universal])
+            .map(_.coerce[FromBroker])
+            .getOrElse(null.asInstanceOf[FromBroker])
       }
     }
   }
