@@ -16,7 +16,7 @@ final class SparkSettings private (build: Endo[SparkSession.Builder])
   def withAppName(appName: String): SparkSettings = updateConfig(_.appName(appName))
   def withMaster(master: String): SparkSettings = updateConfig(_.master(master))
 
-  def withKms(kmsKey: String): SparkSettings = {
+  def withAwsKms(kmsKey: String): SparkSettings = {
     val kms = if (kmsKey.startsWith("alias/")) kmsKey else s"alias/$kmsKey"
     updateConfig(
       _.config("spark.hadoop.fs.s3a.server-side-encryption-algorithm", "SSE-KMS")

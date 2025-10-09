@@ -18,15 +18,15 @@ package object codec {
 
   val avro: KafkaSerde[CoproductJsons.Foo] =
     AvroFor[CoproductJsons.Foo].asValue(sr).withTopic(TopicName("avro.test"))
-  val avroU: KafkaSerde[AvroFor.Universal] =
-    AvroFor[AvroFor.Universal].asValue(sr).withTopic(TopicName("avro.test.universal"))
+  val avroU: KafkaSerde[AvroFor.FromBroker] =
+    AvroFor[AvroFor.FromBroker].asValue(sr).withTopic(TopicName("avro.test.universal"))
 
   val jsonSchema: KafkaSerde[CoproductJsons.Foo] =
     JsonFor[CoproductJsons.Foo].asValue(sr).withTopic(TopicName("json.schema.test"))
 
-  val jsonSchemaU: KafkaSerde[JsonFor.Universal] =
-    JsonFor[JsonFor.Universal].asValue(sr).withTopic(TopicName("json.schema.test.universal"))
+  val jsonSchemaU: KafkaSerde[JsonFor.FromBroker] =
+    JsonFor[JsonFor.FromBroker].asValue(sr).withTopic(TopicName("json.schema.test.universal"))
 
-  val protobufU: KafkaSerde[ProtoFor.Universal] =
-    ProtoFor[ProtoFor.Universal].asValue(sr).withTopic(TopicName("protobuf.test.universal"))
+  val protobufU: KafkaSerde[ProtoFor.FromBroker] =
+    ProtoFor[ProtoFor.FromBroker].asValue(sr).withTopic(TopicName("protobuf.test.universal"))
 }

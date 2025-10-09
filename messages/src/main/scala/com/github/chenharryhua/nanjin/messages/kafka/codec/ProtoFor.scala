@@ -20,11 +20,11 @@ sealed trait ProtoFor[A] extends RegisterSerde[A] {
 object ProtoFor {
   def apply[A](implicit ev: ProtoFor[A]): ProtoFor[A] = ev
 
-  @newtype final class Universal private (val value: DynamicMessage)
-  protected object Universal {
+  @newtype final class FromBroker private (val value: DynamicMessage)
+  protected object FromBroker {
     private val jsonFormat = JsonFormat.printer()
-    implicit val jsonEncoderUniversal: JsonEncoder[Universal] =
-      (a: Universal) =>
+    implicit val jsonEncoderUniversal: JsonEncoder[FromBroker] =
+      (a: FromBroker) =>
         io.circe.jawn.parse(jsonFormat.print(a.value)) match {
           case Left(value)  => throw value
           case Right(value) => value
@@ -53,11 +53,11 @@ object ProtoFor {
 
   }
 
-  implicit object protoForUniversal extends ProtoFor[Universal] {
+  implicit object protoForFromBroker extends ProtoFor[FromBroker] {
     override val protobufSchema: Option[ProtobufSchema] = None
 
-    override protected val unregisteredSerde: Serde[Universal] = new Serde[Universal] {
-      override val serializer: Serializer[Universal] = new Serializer[Universal] {
+    override protected val unregisteredSerde: Serde[FromBroker] = new Serde[FromBroker] {
+      override val serializer: Serializer[FromBroker] = new Serializer[FromBroker] {
         private[this] val ser = new KafkaProtobufSerializer[DynamicMessage]
 
         override def configure(configs: util.Map[String, ?], isKey: Boolean): Unit =
@@ -65,11 +65,11 @@ object ProtoFor {
 
         override def close(): Unit = ser.close()
 
-        override def serialize(topic: String, data: Universal): Array[Byte] =
+        override def serialize(topic: String, data: FromBroker): Array[Byte] =
           Option(data).flatMap(u => Option(u.value)).map(dm => ser.serialize(topic, dm)).orNull
       }
 
-      override val deserializer: Deserializer[Universal] = new Deserializer[Universal] {
+      override val deserializer: Deserializer[FromBroker] = new Deserializer[FromBroker] {
         private[this] val deSer = new KafkaProtobufDeserializer[DynamicMessage]
 
         override def configure(configs: util.Map[String, ?], isKey: Boolean): Unit =
@@ -77,10 +77,10 @@ object ProtoFor {
 
         override def close(): Unit = deSer.close()
 
-        override def deserialize(topic: String, data: Array[Byte]): Universal =
+        override def deserialize(topic: String, data: Array[Byte]): FromBroker =
           Option(deSer.deserialize(topic, data))
-            .map(_.coerce[Universal])
-            .getOrElse(null.asInstanceOf[Universal])
+            .map(_.coerce[FromBroker])
+            .getOrElse(null.asInstanceOf[FromBroker])
       }
     }
   }
