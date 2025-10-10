@@ -3,8 +3,7 @@ package com.github.chenharryhua.nanjin.spark.persist
 import cats.implicits.showInterpolator
 import com.github.chenharryhua.nanjin.terminals.toHadoopPath
 import com.sksamuel.avro4s.{AvroInputStream, Decoder as AvroDecoder}
-import io.circe.jawn.CirceSupportParser.facade
-import io.circe.{Decoder as JsonDecoder, Json}
+import io.circe.Decoder as JsonDecoder
 import io.lemonlabs.uri.Url
 import kantan.csv.ops.toCsvInputOps
 import kantan.csv.{CsvConfiguration, RowDecoder}
@@ -22,17 +21,15 @@ import org.apache.spark.input.PortableDataStream
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 import org.slf4j.{Logger, LoggerFactory}
-import org.typelevel.jawn.AsyncParser
 import scalapb.{GeneratedMessage, GeneratedMessageCompanion}
 
 import java.io.InputStream
-import java.nio.ByteBuffer
 import scala.reflect.ClassTag
 
 /*
  * load RDD
  */
-final case class RDDReadException(pathStr: String, line: Int, cause: Throwable)
+final case class RDDReadException(pathStr: String, line: Long, cause: Throwable)
     extends Exception(s"read: $pathStr, line: $line", cause)
 
 private[spark] object loaders {
@@ -76,6 +73,19 @@ private[spark] object loaders {
       .map { case (_, gr) => decoder.decode(gr) }
   }
 
+  def circe[A: ClassTag: JsonDecoder](path: Url, ss: SparkSession): RDD[A] =
+    ss.sparkContext
+      .textFile(toHadoopPath(path).toString)
+      .zipWithIndex()
+      .mapPartitions(_.flatMap { case (str, idx) =>
+        if (str.isEmpty) None
+        else
+          io.circe.jawn.decode[A](str) match {
+            case Left(ex)  => throw RDDReadException(path.toString(), idx + 1, ex)
+            case Right(value) => Some(value)
+          }
+      })
+
   /** binary files
     */
 
@@ -87,7 +97,7 @@ private[spark] object loaders {
 
   private class ClosableIterator[A](is: InputStream, itor: Iterator[A], pathStr: String) extends Iterator[A] {
 
-    private[this] var lineNumber: Int = 0
+    private[this] var lineNumber: Long = 0
 
     TaskContext.get().addTaskCompletionListener[Unit](_ => is.close()): Unit
 
@@ -166,35 +176,4 @@ private[spark] object loaders {
       })
   }
 
-  def circe[A: ClassTag](path: Url, ss: SparkSession)(implicit decoder: JsonDecoder[A]): RDD[A] = {
-    LOG.info(show"load circe json from $path")
-
-    ss.sparkContext
-      .binaryFiles(toHadoopPath(path).toString)
-      .mapPartitions(_.flatMap { case (name, pds) =>
-        val buffer: Array[Byte] = Array.ofDim[Byte](131072)
-        val is: InputStream = decompressedInputStream(pds)
-        val itor = Iterator
-          .unfold(AsyncParser[Json](AsyncParser.ValueStream)) { parser =>
-            val num = is.read(buffer)
-            if (num == -1) None
-            else {
-              val as: Iterator[A] =
-                parser.absorb(ByteBuffer.wrap(buffer, 0, num)) match {
-                  case Left(ex)     => throw ex
-                  case Right(jsons) =>
-                    Iterator.from(jsons).map { js =>
-                      decoder.decodeJson(js) match {
-                        case Left(ex) => throw ex
-                        case Right(a) => a
-                      }
-                    }
-                }
-              Some((as, parser))
-            }
-          }
-          .flatten
-        new ClosableIterator[A](is, itor, name)
-      })
-  }
 }
