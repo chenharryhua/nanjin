@@ -1,5 +1,6 @@
-package com.github.chenharryhua.nanjin.spark.persist
+package mtest.spark.persist
 
+import com.github.chenharryhua.nanjin.spark.SparkSessionExt
 import mtest.spark.*
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.Dataset
@@ -34,7 +35,7 @@ object RoosterData {
   val rdd: RDD[Rooster] = sparkSession.sparkContext.parallelize(data)
 
   import sparkSession.implicits.*
-  val ds: Dataset[Rooster] = sparkSession.createDataset(rdd)
+  val ds: Dataset[Rooster] = sparkSession.loadData(data)
 
   val bigset: Dataset[Rooster] = sparkSession.createDataset(
     sparkSession.sparkContext.parallelize(

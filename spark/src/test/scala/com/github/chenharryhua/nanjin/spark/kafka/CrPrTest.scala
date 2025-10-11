@@ -6,10 +6,10 @@ import com.github.chenharryhua.nanjin.datetime.DateTimeRange
 import com.github.chenharryhua.nanjin.kafka.AvroTopic
 import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroFor
-import com.github.chenharryhua.nanjin.spark.persist.{Rooster, RoosterData}
 import eu.timepit.refined.auto.*
 import io.scalaland.chimney.dsl.*
 import mtest.spark.kafka.sparKafka
+import mtest.spark.persist.{Rooster, RoosterData}
 import org.apache.spark.sql.types.*
 import org.scalatest.funsuite.AnyFunSuite
 

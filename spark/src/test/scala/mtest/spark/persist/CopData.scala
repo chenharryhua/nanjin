@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.spark.persist
+package mtest.spark.persist
 
 import mtest.spark.*
 import org.apache.spark.rdd.RDD

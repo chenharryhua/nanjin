@@ -88,6 +88,7 @@ class SparkTableTest extends AnyFunSuite {
   val hikari: HikariConfig = DBConfig(postgres).hikariConfig
 
   test("save/load") {
+    ss.loadData(List(dbData)).write.mode(SaveMode.Overwrite).format("avro").save((root / "base").toString())
     val avroRdd = ss.loadDataset[DBTable](root / "base").avro.rdd
     avroRdd.out.avro(root / "avro" / 1).run[IO].unsafeRunSync()
     avroRdd.out.binAvro(root / "bin.avro" / 1).run[IO].unsafeRunSync()
