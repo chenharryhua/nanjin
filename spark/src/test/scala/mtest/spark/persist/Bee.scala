@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.spark.persist
+package mtest.spark.persist
 
 import cats.Eq
 import cats.syntax.all.*

@@ -1,8 +1,9 @@
-package com.github.chenharryhua.nanjin.spark.persist
+package mtest.spark.persist
 
 import better.files.File
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
+import com.github.chenharryhua.nanjin.spark.persist.RddAvroFileHoarder
 import eu.timepit.refined.auto.*
 import kantan.csv.CsvConfiguration
 //import org.scalatest.DoNotDiscover

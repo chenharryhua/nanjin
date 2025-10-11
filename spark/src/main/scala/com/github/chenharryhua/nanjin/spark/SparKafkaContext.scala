@@ -6,6 +6,7 @@ import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.datetime.DateTimeRange
 import com.github.chenharryhua.nanjin.kafka.*
+import com.github.chenharryhua.nanjin.messages.ProtoConsumerRecord.ProtoConsumerRecord
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.messages.kafka.{CRMetaInfo, NJConsumerRecord}
 import com.github.chenharryhua.nanjin.spark.kafka.Statistics
@@ -270,6 +271,14 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
       F.blocking {
         new Statistics[F](
           sparkSession.read.schema(sparkSchema).parquet(toHadoopPath(folder).toString).as[CRMetaInfo]
+        )
+      }
+
+    def protobuf(folder: Url)(implicit F: Sync[F]): F[Statistics[F]] =
+      F.blocking {
+        new Statistics[F](
+          sparkSession.createDataset(
+            sparkSession.loadProtobuf[ProtoConsumerRecord](folder).map(CRMetaInfo(_)))
         )
       }
   }

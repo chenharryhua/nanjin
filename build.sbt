@@ -11,13 +11,13 @@ Global / parallelExecution := false
 val acyclicV = "0.3.19"
 val avroV = "1.12.0"
 val avro4sV = "4.1.2"
-val awsV = "2.35.3"
+val awsV = "2.35.5"
 val caffeineV = "3.2.2"
 val catsCoreV = "2.13.0"
 val catsEffectV = "3.6.3"
 val chimneyV = "1.8.2"
 val circeV = "0.14.15"
-val confluentV = "8.0.1"
+val confluentV = "8.0.2"
 val cron4sV = "0.8.2"
 val doobieV = "1.0.0-RC10"
 val drosteV = "0.10.0"
@@ -28,7 +28,7 @@ val hadoopV = "3.4.2"
 val http4sV = "0.23.32"
 val jacksonV = "2.20.0"
 val jwtV = "0.13.0"
-val kafkaV = "8.0.1-ce"
+val kafkaV = "8.0.2-ce"
 val kantanV = "0.8.0"
 val log4catsV = "2.7.1"
 val logbackV = "1.5.19"
@@ -285,6 +285,7 @@ lazy val messages =
           "org.jetbrains.kotlin"                      % "kotlin-stdlib"                % "2.2.20", // snyk
           "io.circe" %% "circe-shapes"                % circeV                         % Test
         ) ++ jacksonLib ++ testLib)
+    .settings(Compile / PB.targets := List(scalapb.gen() -> (Compile / sourceManaged).value / "scalapb"))
 
 lazy val kafka = (project in file("kafka"))
   .dependsOn(messages)
@@ -392,7 +393,7 @@ lazy val example = (project in file("example"))
   .settings(libraryDependencies ++= List(
     "ch.qos.logback" % "logback-classic" % logbackV % Test
   ) ++ testLib)
-  .settings(Test / PB.targets := Seq(
+  .settings(Test / PB.targets := List(
     scalapb.gen() -> (Test / sourceManaged).value / "scalapb"
   ))
 

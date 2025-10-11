@@ -1,0 +1,45 @@
+syntax = "proto3";
+
+package com.github.chenharryhua.nanjin.messages;
+
+// Represents a Kafka ConsumerRecord: one message consumed from a topic
+message ProtoConsumerRecord {
+    // Topic from which this record was consumed
+    string topic = 1;
+
+    // Partition number within the topic
+    int32 partition = 2;
+
+    // Offset of the record in the partition
+    int64 offset = 3;
+
+    // Timestamp of the record
+    int64 timestamp = 4;
+
+    // Timestamp Type of the record (either create or log append time)
+    int32 timestamp_type = 5;
+
+    // Serialized key (can be absent / null)
+    optional bytes key = 6;
+
+    // Serialized value (can be absent / null)
+    optional bytes value = 7;
+
+    // Kafka headers associated with the record
+    repeated ProtoHeader headers = 8;
+
+    // Size of the serialized key in bytes (or -1 if key is null)
+    optional int32 serialized_key_size = 9;
+
+    // Size of the serialized value in bytes (or -1 if value is null)
+    optional int32 serialized_value_size = 10;
+
+    // Leader epoch of the partition at the time this record was consumed (may be null in older Kafka versions)
+    optional int32 leader_epoch = 11;
+}
+
+// A single Kafka header (key–value pair)
+message ProtoHeader {
+    string key = 1;
+    bytes value = 2;
+}

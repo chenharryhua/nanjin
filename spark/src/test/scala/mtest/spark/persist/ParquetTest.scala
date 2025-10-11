@@ -1,15 +1,17 @@
-package com.github.chenharryhua.nanjin.spark.persist
+package mtest.spark.persist
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.toTraverseOps
 import com.github.chenharryhua.nanjin.spark.SparkSessionExt
+import com.github.chenharryhua.nanjin.spark.persist.{RddAvroFileHoarder, SaveParquet}
 import com.github.chenharryhua.nanjin.terminals.{Compression, Hadoop}
 import com.sksamuel.avro4s.FromRecord
 import eu.timepit.refined.auto.*
 import io.lemonlabs.uri.Url
 import io.lemonlabs.uri.typesafe.dsl.*
 import mtest.spark.*
+import org.apache.spark.sql.SaveMode
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -30,10 +32,12 @@ class ParquetTest extends AnyFunSuite {
 
   val root = "./data/test/spark/persist/parquet"
 
-  test("2.apache parquet =!= spark parquet") {
-    val path = root / "rooster" / "spark2"
-    roosterSaver(path).withCompression(_.Uncompressed).run[IO].unsafeRunSync()
-    // intercept[Throwable](sparkSession.read.parquet(path.pathStr).show())
+  test("2.simple parquet agreed (doesn't work for roost because of decimal)") {
+    import sparkSession.implicits.*
+    val path = root / "ant" / "spark2"
+    AntData.ds.write.mode(SaveMode.Overwrite).parquet(path.toString())
+    val r = sparkSession.loadDataset[Ant](path).parquet.collect().toSet
+    assert(r == AntData.ants.toSet)
   }
 
   test("3.datetime read/write identity multi.uncompressed") {
@@ -95,7 +99,7 @@ class ParquetTest extends AnyFunSuite {
   test("9.datetime read/write identity multi.gzip") {
     val path = root / "rooster" / "gzip"
     hdp.delete(path).unsafeRunSync()
-    saveRDD.parquet(RoosterData.rdd, path, Rooster.avroCodec, Compression.Gzip)
+    roosterSaver(path).run[IO].unsafeRunSync()
     val r = sparkSession.loadRdd[Rooster](path).parquet(Rooster.avroCodec).collect().toSet
     val t = loadRooster(path)
     assert(expected == r)

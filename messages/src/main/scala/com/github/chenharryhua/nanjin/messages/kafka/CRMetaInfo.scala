@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.messages.kafka
 
 import cats.implicits.catsSyntaxSemigroup
+import com.github.chenharryhua.nanjin.messages.ProtoConsumerRecord.ProtoConsumerRecord
 import fs2.kafka.{CommittableConsumerRecord, ConsumerRecord as Fs2ConsumerRecord}
 import io.circe.generic.JsonCodec
 import io.scalaland.chimney.dsl.*
@@ -46,6 +47,9 @@ object CRMetaInfo {
 
   def apply[K, V](jcr: JavaConsumerRecord[K, V]): CRMetaInfo =
     apply(jcr.transformInto[NJConsumerRecord[K, V]])
+
+  def apply(pcr: ProtoConsumerRecord): CRMetaInfo =
+    pcr.transformInto[CRMetaInfo]
 
   def apply(gr: GenericRecord): Try[CRMetaInfo] = Try {
     CRMetaInfo(

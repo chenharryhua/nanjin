@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.spark.persist
+package mtest.spark.persist
 
 import com.github.chenharryhua.nanjin.common.transformers.*
 import com.github.chenharryhua.nanjin.datetime.instances.*

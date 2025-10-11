@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.spark.persist
+package mtest.spark.persist
 
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.sksamuel.avro4s.{Decoder, Encoder}
