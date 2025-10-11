@@ -285,6 +285,7 @@ lazy val messages =
           "org.jetbrains.kotlin"                      % "kotlin-stdlib"                % "2.2.20", // snyk
           "io.circe" %% "circe-shapes"                % circeV                         % Test
         ) ++ jacksonLib ++ testLib)
+    .settings(Compile / PB.targets := List(scalapb.gen() -> (Compile / sourceManaged).value / "scalapb"))
 
 lazy val kafka = (project in file("kafka"))
   .dependsOn(messages)
@@ -392,7 +393,7 @@ lazy val example = (project in file("example"))
   .settings(libraryDependencies ++= List(
     "ch.qos.logback" % "logback-classic" % logbackV % Test
   ) ++ testLib)
-  .settings(Test / PB.targets := Seq(
+  .settings(Test / PB.targets := List(
     scalapb.gen() -> (Test / sourceManaged).value / "scalapb"
   ))
 

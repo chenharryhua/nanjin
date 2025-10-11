@@ -5,7 +5,9 @@ import cats.data.Cont
 import cats.kernel.Eq
 import cats.syntax.eq.catsSyntaxEq
 import cats.syntax.semigroup.catsSyntaxSemigroup
+import com.github.chenharryhua.nanjin.messages.ProtoConsumerRecord.{ProtoConsumerRecord, ProtoHeader}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
+import com.google.protobuf.ByteString
 import com.sksamuel.avro4s.*
 import fs2.kafka.*
 import io.circe.syntax.EncoderOps
@@ -72,6 +74,17 @@ final case class NJConsumerRecord[K, V](
       .encoderNJConsumerRecord[K, V]
       .apply(this)
       .deepMerge(Json.obj("ts" -> Instant.ofEpochMilli(timestamp).atZone(zoneID).toLocalDateTime.asJson))
+
+  def toProtoConsumerRecord(k: K => ByteString, v: V => ByteString): ProtoConsumerRecord =
+    this
+      .into[ProtoConsumerRecord]
+      .withFieldComputed(_.key, _.key.map(k))
+      .withFieldComputed(_.value, _.value.map(v))
+      .withFieldComputed(
+        _.headers,
+        _.headers.map(h => ProtoHeader(h.key, ByteString.copyFrom(h.value.toArray))))
+      .withFieldConst(_.unknownFields, _root_.scalapb.UnknownFieldSet.empty)
+      .transform
 }
 
 object NJConsumerRecord {
