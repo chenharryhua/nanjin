@@ -1,5 +1,7 @@
 package com.github.chenharryhua.nanjin.messages.kafka.codec
 
+import cats.implicits.catsSyntaxOptionId
+import com.github.chenharryhua.nanjin.messages.ProtoPrimitive.{ProtoInt, ProtoLong, ProtoString}
 import com.google.protobuf.DynamicMessage
 import com.google.protobuf.util.JsonFormat
 import io.circe.Encoder as JsonEncoder
@@ -37,20 +39,17 @@ object ProtoFor {
 
   implicit object protoForString extends ProtoFor[String] {
     override protected val unregisteredSerde: Serde[String] = Serdes.stringSerde
-
-    override val protobufSchema: Option[ProtobufSchema] = None
+    override val protobufSchema: Option[ProtobufSchema] = new ProtobufSchema(ProtoString.javaDescriptor).some
   }
 
   implicit object protoForLong extends ProtoFor[Long] {
     override protected val unregisteredSerde: Serde[Long] = Serdes.longSerde
-    override val protobufSchema: Option[ProtobufSchema] = None
-
+    override val protobufSchema: Option[ProtobufSchema] = new ProtobufSchema(ProtoLong.javaDescriptor).some
   }
 
   implicit object protoForInt extends ProtoFor[Int] {
     override protected val unregisteredSerde: Serde[Int] = Serdes.intSerde
-    override val protobufSchema: Option[ProtobufSchema] = None
-
+    override val protobufSchema: Option[ProtobufSchema] = new ProtobufSchema(ProtoInt.javaDescriptor).some
   }
 
   implicit object protoForFromBroker extends ProtoFor[FromBroker] {
@@ -91,7 +90,7 @@ object ProtoFor {
 
   implicit def protoForGeneratedMessage[A <: GeneratedMessage](implicit
     gmc: GeneratedMessageCompanion[A]): ProtoFor[A] = new ProtoFor[A] {
-    override val protobufSchema: Option[ProtobufSchema] = None
+    override val protobufSchema: Option[ProtobufSchema] = new ProtobufSchema(gmc.javaDescriptor).some
 
     override protected val unregisteredSerde: Serde[A] = new Serde[A] {
       override val serializer: Serializer[A] = new Serializer[A] {
