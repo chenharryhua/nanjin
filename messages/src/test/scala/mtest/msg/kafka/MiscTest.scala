@@ -2,6 +2,7 @@ package mtest.msg.kafka
 
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.messages.kafka.{NJConsumerRecord, NJHeader, NJProducerRecord}
+import com.google.protobuf.ByteString
 import fs2.kafka.{ConsumerRecord, ProducerRecord}
 import io.circe.jawn.decode
 import io.circe.syntax.EncoderOps
@@ -44,5 +45,24 @@ class MiscTest extends AnyFunSuite {
     val pr1 = decode[NJProducerRecord[Int, Int]](pr.asJson.noSpaces).toOption.get
       .transformInto[ProducerRecord[Int, Int]]
     assert(pr1.eqv(pr.toProducerRecord))
+  }
+
+  test("protobuf") {
+    val cr: NJConsumerRecord[ByteString, ByteString] = NJConsumerRecord[ByteString, ByteString](
+      topic = "topic",
+      partition = 1,
+      offset = 1,
+      timestamp = 1,
+      timestampType = 1,
+      serializedKeySize = Some(1),
+      serializedValueSize = Some(1),
+      key = None,
+      value = Some(ByteString.copyFrom("abc".getBytes())),
+      headers = List(NJHeader("header", "header".getBytes().toList)),
+      leaderEpoch = Some(1)
+    )
+
+    val res = NJConsumerRecord(cr.toProtoConsumerRecord(identity,identity))
+    assert(res == cr)
   }
 }

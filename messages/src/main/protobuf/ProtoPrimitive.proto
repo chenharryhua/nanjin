@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package com.github.chenharryhua.nanjin.messages;
+
+message ProtoLong {
+    int64 value = 1;
+}
+
+message ProtoInt {
+    int32 value = 1;
+}
+
+message ProtoString {
+    string value = 1;
+}

@@ -95,6 +95,12 @@ object NJConsumerRecord {
   def apply[K, V](cr: ConsumerRecord[K, V]): NJConsumerRecord[K, V] =
     cr.transformInto[NJConsumerRecord[K, V]]
 
+  def apply(pcr: ProtoConsumerRecord): NJConsumerRecord[ByteString, ByteString] =
+    pcr
+      .into[NJConsumerRecord[ByteString, ByteString]]
+      .withFieldComputed(_.headers, _.headers.toList.map(ph => NJHeader(ph.key, ph.value.toByteArray.toList)))
+      .transform
+
   def avroCodec[K, V](keyCodec: AvroCodec[K], valCodec: AvroCodec[V]): AvroCodec[NJConsumerRecord[K, V]] = {
     implicit val schemaForKey: SchemaFor[K] = keyCodec.schemaFor
     implicit val schemaForVal: SchemaFor[V] = valCodec.schemaFor
