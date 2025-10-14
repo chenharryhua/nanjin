@@ -23,7 +23,8 @@ object ProtoFor {
   def apply[A](implicit ev: ProtoFor[A]): ProtoFor[A] = ev
 
   @newtype final class FromBroker private (val value: DynamicMessage)
-  protected object FromBroker {
+  object FromBroker {
+    def apply(dm: DynamicMessage): FromBroker = dm.coerce
     private val jsonFormat = JsonFormat.printer()
     implicit val jsonEncoderUniversal: JsonEncoder[FromBroker] =
       (a: FromBroker) =>

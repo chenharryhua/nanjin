@@ -21,7 +21,7 @@ sealed trait AvroFor[A] extends RegisterSerde[A] {
   val schema: Option[AvroSchema]
 }
 
-private[codec] trait LowerPriority {
+sealed trait LowerPriority {
   implicit def avro4sCodec[A: SchemaFor: AvroEncoder: AvroDecoder]: AvroFor[A] =
     AvroFor(AvroCodec[A])
 }
@@ -30,7 +30,8 @@ object AvroFor extends LowerPriority {
   def apply[A](implicit ev: AvroFor[A]): AvroFor[A] = ev
 
   @newtype final class FromBroker private (val value: GenericRecord)
-  protected object FromBroker {
+  object FromBroker {
+    def apply(gr: GenericRecord): FromBroker = gr.coerce
     implicit val jsonEncoderUniversal: JsonEncoder[FromBroker] =
       (a: FromBroker) =>
         io.circe.jawn.parse(a.value.toString) match {

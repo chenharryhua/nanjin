@@ -80,18 +80,14 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
       .circumscribedStream(config.dateRange)
       .flatMap { rs =>
         rs.partitionsMapStream.toList.map { case (pr, ss) =>
-          val fn: Url = folder / s"${pr.toString}.${file.fileName}"
+          val url: Url = folder / s"${pr.toString}.${file.fileName}"
           val process: Stream[F, GenericData.Record] =
             if (config.ignoreError)
               ss.mapChunks(_.map(_.record.value.toOption)).unNone
             else
               ss.evalMapChunk(ccr => F.fromTry(ccr.record.value))
 
-          process
-            .through(hadoop.sink(fn).jackson)
-            .adaptError(new Exception(
-              Json.obj("dump.topic" -> avroTopic.topicName.asJson, "to" -> fn.asJson).noSpaces,
-              _))
+          process.through(hadoop.sink(url).jackson).adaptError(new Exception(url.toString(), _))
         }.parJoinUnbounded.onFinalize(rs.stopConsuming)
       }
       .timeoutOnPull(config.timeout)
@@ -119,11 +115,10 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
       .circumscribedStream(config.dateRange)
       .flatMap { rs =>
         rs.partitionsMapStream.toList.map { case (pr, ss) =>
-          val fn: Url = folder / s"${pr.toString}.${file.fileName}"
+          val url: Url = folder / s"${pr.toString}.${file.fileName}"
           ss.mapChunks(_.map(cr => decode(cr.record)))
-            .through(hadoop.sink(fn).circe)
-            .adaptError(
-              new Exception(Json.obj("dump.circe" -> topic.topicName.asJson, "to" -> fn.asJson).noSpaces, _))
+            .through(hadoop.sink(url).circe)
+            .adaptError(new Exception(url.toString(), _))
         }.parJoinUnbounded.onFinalize(rs.stopConsuming)
       }
       .timeoutOnPull(config.timeout)

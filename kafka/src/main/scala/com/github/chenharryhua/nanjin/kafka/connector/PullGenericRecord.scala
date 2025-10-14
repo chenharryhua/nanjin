@@ -1,10 +1,11 @@
 package com.github.chenharryhua.nanjin.kafka.connector
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.AvroSchemaPair
-import com.github.chenharryhua.nanjin.messages.kafka.NJHeader
 import com.github.chenharryhua.nanjin.messages.kafka.instances.*
+import com.github.chenharryhua.nanjin.messages.kafka.{CRMetaInfo, NJHeader}
 import com.sksamuel.avro4s.SchemaFor
 import fs2.kafka.{ConsumerRecord, KafkaByteConsumerRecord}
+import io.circe.syntax.EncoderOps
 import io.scalaland.chimney.dsl.TransformerOps
 import org.apache.avro.Schema
 import org.apache.avro.generic.{GenericData, GenericDatumReader}
@@ -14,7 +15,7 @@ import org.apache.kafka.streams.scala.serialization.Serdes
 import java.nio.ByteBuffer
 import scala.jdk.CollectionConverters.SeqHasAsJava
 import scala.jdk.OptionConverters.RichOptional
-import scala.util.{Success, Try}
+import scala.util.{Failure, Success, Try}
 
 final private class PullGenericRecord(topicName: TopicName, pair: AvroSchemaPair) {
   private val schema: Schema = pair.consumerSchema
@@ -90,8 +91,8 @@ final private class PullGenericRecord(topicName: TopicName, pair: AvroSchemaPair
       case _ => throw new RuntimeException(s"unsupported value schema: ${pair.value.toString}")
     }
 
-  def toGenericRecord(ccr: KafkaByteConsumerRecord): Try[GenericData.Record] =
-    for {
+  def toGenericRecord(ccr: KafkaByteConsumerRecord): Try[GenericData.Record] = {
+    val res = for {
       key <- key_decode(ccr.key)
       value <- val_decode(ccr.value)
     } yield {
@@ -115,6 +116,12 @@ final private class PullGenericRecord(topicName: TopicName, pair: AvroSchemaPair
       record.put("leaderEpoch", ccr.leaderEpoch().toScala.orNull)
       record
     }
+
+    res match {
+      case Failure(exception) => Failure(new Exception(CRMetaInfo(ccr).asJson.noSpaces, exception))
+      case good @ Success(_)  => good
+    }
+  }
 
   def toGenericRecord(ccr: ConsumerRecord[Array[Byte], Array[Byte]]): Try[GenericData.Record] =
     toGenericRecord(ccr.transformInto[KafkaByteConsumerRecord])
