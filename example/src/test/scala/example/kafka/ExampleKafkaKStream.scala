@@ -17,9 +17,9 @@ class ExampleKafkaKStream extends AnyFunSuite {
     def top(sb: StreamsBuilder, ksb: StreamsSerde): Unit = {
       import ksb.implicits.*
 
-      sb.stream[Int, Foo](fooTopic.topicName.value)
+      sb.stream[Int, Foo](fooTopic.topicName.name.value)
         .flatMapValues(Option(_).map(foo => Bar(Random.nextInt(), foo.a.toLong)))
-        .to(barTopic.topicName.value)
+        .to(barTopic.topicName.name.value)
     }
 
     ctx.buildStreams("app")(top).stateUpdates.interruptAfter(3.seconds).compile.drain.unsafeRunSync()

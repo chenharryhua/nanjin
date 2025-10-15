@@ -11,8 +11,8 @@ import io.confluent.kafka.schemaregistry.protobuf.ProtobufSchema
 import scala.jdk.CollectionConverters.*
 
 final private case class SchemaLocation(topicName: TopicName) {
-  val keyLoc: String = s"${topicName.value}-key"
-  val valLoc: String = s"${topicName.value}-value"
+  val keyLoc: String = s"${topicName.name.value}-key"
+  val valLoc: String = s"${topicName.name.value}-value"
 }
 
 final case class KvSchemaMetadata(key: SchemaMetadata, value: SchemaMetadata)
@@ -22,13 +22,13 @@ final class SchemaRegistryApi[F[_]](client: CachedSchemaRegistryClient) {
   private def keyMetaData(topicName: TopicName)(implicit F: Sync[F]): F[SchemaMetadata] = {
     val loc = SchemaLocation(topicName)
     F.blocking(client.getLatestSchemaMetadata(loc.keyLoc))
-      .adaptError(ex => new Exception(topicName.value, ex))
+      .adaptError(ex => new Exception(topicName.name.value, ex))
   }
 
   private def valMetaData(topicName: TopicName)(implicit F: Sync[F]): F[SchemaMetadata] = {
     val loc = SchemaLocation(topicName)
     F.blocking(client.getLatestSchemaMetadata(loc.valLoc))
-      .adaptError(ex => new Exception(topicName.value, ex))
+      .adaptError(ex => new Exception(topicName.name.value, ex))
   }
 
   def metaData(topicName: TopicName)(implicit F: Sync[F]): F[KvSchemaMetadata] =
@@ -92,11 +92,11 @@ final class SchemaRegistryApi[F[_]](client: CachedSchemaRegistryClient) {
         case (true, true) =>
           F.pure(AvroSchemaPair(new AvroSchema(mkv.key.getSchema), new AvroSchema(mkv.value.getSchema)))
         case (false, true) =>
-          F.raiseError(new Exception(s"${topicName.value} key is not AVRO"))
+          F.raiseError(new Exception(s"${topicName.name.value} key is not AVRO"))
         case (true, false) =>
-          F.raiseError(new Exception(s"${topicName.value} value is not AVRO"))
+          F.raiseError(new Exception(s"${topicName.name.value} value is not AVRO"))
         case (false, false) =>
-          F.raiseError(new Exception(s"${topicName.value} both key and value are not AVRO"))
+          F.raiseError(new Exception(s"${topicName.name.value} both key and value are not AVRO"))
       }
     } yield skv
 
@@ -108,10 +108,10 @@ final class SchemaRegistryApi[F[_]](client: CachedSchemaRegistryClient) {
     for {
       k <- F
         .blocking(topic.pair.optionalSchemaPair.key.map(k => client.register(loc.keyLoc, k)))
-        .adaptError(ex => new Exception(topic.topicName.value, ex))
+        .adaptError(ex => new Exception(topic.topicName.name.value, ex))
       v <- F
         .blocking(topic.pair.optionalSchemaPair.value.map(v => client.register(loc.valLoc, v)))
-        .adaptError(ex => new Exception(topic.topicName.value, ex))
+        .adaptError(ex => new Exception(topic.topicName.name.value, ex))
     } yield (k, v)
   }
 
@@ -120,10 +120,10 @@ final class SchemaRegistryApi[F[_]](client: CachedSchemaRegistryClient) {
     for {
       k <- F
         .blocking(client.deleteSubject(loc.keyLoc).asScala.toList)
-        .adaptError(ex => new Exception(topicName.value, ex))
+        .adaptError(ex => new Exception(topicName.name.value, ex))
       v <- F
         .blocking(client.deleteSubject(loc.valLoc).asScala.toList)
-        .adaptError(ex => new Exception(topicName.value, ex))
+        .adaptError(ex => new Exception(topicName.name.value, ex))
     } yield (k, v)
   }
 }

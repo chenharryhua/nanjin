@@ -29,16 +29,16 @@ final class ProduceKeyValuePair[F[_], K, V] private[kafka] (
   def sink(implicit F: Async[F]): Pipe[F, Chunk[(K, V)], ProducerResult[K, V]] =
     KafkaProducer
       .pipe[F, K, V](producerSettings)
-      .compose(_.map(_.map { case (k, v) => ProducerRecord(topicName.value, k, v) }))
+      .compose(_.map(_.map { case (k, v) => ProducerRecord(topicName.name.value, k, v) }))
 
   /*
    * for testing and repl
    */
   def produce[G[_]: Foldable](kvs: G[(K, V)])(implicit F: Async[F]): F[ProducerResult[K, V]] = {
-    val prs = Chunk.from(kvs.toList).map { case (k, v) => ProducerRecord(topicName.value, k, v) }
+    val prs = Chunk.from(kvs.toList).map { case (k, v) => ProducerRecord(topicName.name.value, k, v) }
     KafkaProducer.resource(producerSettings).use(_.produce(prs).flatten)
   }
 
   def produceOne(k: K, v: V)(implicit F: Async[F]): F[RecordMetadata] =
-    KafkaProducer.resource(producerSettings).use(_.produceOne_(topicName.value, k, v).flatten)
+    KafkaProducer.resource(producerSettings).use(_.produceOne_(topicName.name.value, k, v).flatten)
 }

@@ -10,6 +10,7 @@ import org.apache.avro.Schema
 import org.apache.avro.generic.GenericRecord
 import org.apache.kafka.streams.scala.serialization.Serdes
 
+import java.nio.ByteBuffer
 import scala.jdk.CollectionConverters.MapHasAsJava
 
 final private class PushGenericRecord(
@@ -18,7 +19,7 @@ final private class PushGenericRecord(
   pair: AvroSchemaPair) {
   val schema: Schema = pair.consumerSchema
 
-  private val topic: String = topicName.value
+  private val topic: String = topicName.name.value
 
   private val key_serialize: AnyRef => Array[Byte] =
     pair.key.rawSchema().getType match {
@@ -45,8 +46,8 @@ final private class PushGenericRecord(
         val ser = Serdes.doubleSerde.serializer()
         (data: AnyRef) => ser.serialize(topic, Decoder[Double].decode(data))
       case Schema.Type.BYTES =>
-        val ser = Serdes.byteArraySerde.serializer()
-        (data: AnyRef) => ser.serialize(topic, Decoder[Array[Byte]].decode(data))
+        val ser = Serdes.byteBufferSerde.serializer()
+        (data: AnyRef) => ser.serialize(topic, Decoder[ByteBuffer].decode(data))
 
       case _ => throw new RuntimeException(s"unsupported key schema: ${pair.key.toString}")
     }
@@ -76,8 +77,8 @@ final private class PushGenericRecord(
         val ser = Serdes.doubleSerde.serializer()
         (data: AnyRef) => ser.serialize(topic, Decoder[Double].decode(data))
       case Schema.Type.BYTES =>
-        val ser = Serdes.byteArraySerde.serializer()
-        (data: AnyRef) => ser.serialize(topic, Decoder[Array[Byte]].decode(data))
+        val ser = Serdes.byteBufferSerde.serializer()
+        (data: AnyRef) => ser.serialize(topic, Decoder[ByteBuffer].decode(data))
 
       case _ => throw new RuntimeException(s"unsupported value schema: ${pair.value.toString}")
     }

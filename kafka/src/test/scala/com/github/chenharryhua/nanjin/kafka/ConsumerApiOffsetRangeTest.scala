@@ -27,9 +27,9 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
   val topicDef: AvroTopic[Int, Int] = AvroTopic[Int, Int](TopicName("range.test"))
   val topic: AvroTopic[Int, Int] = topicDef
 
-  val pr1: ProducerRecord[Int, Int] = ProducerRecord(topic.topicName.value, 1, 1).withTimestamp(100)
-  val pr2: ProducerRecord[Int, Int] = ProducerRecord(topic.topicName.value, 2, 2).withTimestamp(200)
-  val pr3: ProducerRecord[Int, Int] = ProducerRecord(topic.topicName.value, 3, 3).withTimestamp(300)
+  val pr1: ProducerRecord[Int, Int] = ProducerRecord(topic.topicName.name.value, 1, 1).withTimestamp(100)
+  val pr2: ProducerRecord[Int, Int] = ProducerRecord(topic.topicName.name.value, 2, 2).withTimestamp(200)
+  val pr3: ProducerRecord[Int, Int] = ProducerRecord(topic.topicName.name.value, 3, 3).withTimestamp(300)
 
   val topicData: Stream[IO, ProducerResult[Int, Int]] =
     Stream(ProducerRecords(List(pr1, pr2, pr3))).covary[IO].through(ctx.sharedProduce(topicDef.pair).sink)

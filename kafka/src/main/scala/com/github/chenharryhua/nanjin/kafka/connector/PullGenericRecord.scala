@@ -19,7 +19,7 @@ import scala.util.{Failure, Success, Try}
 
 final private class PullGenericRecord(topicName: TopicName, pair: AvroSchemaPair) {
   private val schema: Schema = pair.consumerSchema
-  private val topic: String = topicName.value
+  private val topic: String = topicName.name.value
 
   private val key_decode: Array[Byte] => Try[Any] =
     pair.key.rawSchema().getType match {
@@ -48,7 +48,7 @@ final private class PullGenericRecord(topicName: TopicName, pair: AvroSchemaPair
         val deser = Serdes.doubleSerde.deserializer()
         (data: Array[Byte]) => Try(deser.deserialize(topic, data))
       case Schema.Type.BYTES =>
-        val deser = Serdes.byteArraySerde.deserializer()
+        val deser = Serdes.byteBufferSerde.deserializer()
         (data: Array[Byte]) => Try(deser.deserialize(topic, data))
       case Schema.Type.NULL =>
         (_: Array[Byte]) => Success(null)
@@ -83,7 +83,7 @@ final private class PullGenericRecord(topicName: TopicName, pair: AvroSchemaPair
         val deser = Serdes.doubleSerde.deserializer()
         (data: Array[Byte]) => Try(deser.deserialize(topic, data))
       case Schema.Type.BYTES =>
-        val deser = Serdes.byteArraySerde.deserializer()
+        val deser = Serdes.byteBufferSerde.deserializer()
         (data: Array[Byte]) => Try(deser.deserialize(topic, data))
       case Schema.Type.NULL =>
         (_: Array[Byte]) => Success(null)

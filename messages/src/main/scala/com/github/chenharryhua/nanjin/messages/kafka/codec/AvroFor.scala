@@ -55,61 +55,55 @@ object AvroFor extends LowerPriority {
    * Specific
    */
 
-// 1: String
-  implicit object avroForString extends AvroFor[String] {
-    override val schema: Option[AvroSchema] = new AvroSchema(SchemaFor[String].schema).some
-    override protected val unregisteredSerde: Serde[String] = Serdes.stringSerde
-  }
-
-  // 2: Long
-  implicit object avroForLong extends AvroFor[Long] {
-    override val schema: Option[AvroSchema] = new AvroSchema(SchemaFor[Long].schema).some
-    override protected val unregisteredSerde: Serde[Long] = Serdes.longSerde
-  }
-
-// 3: array byte
-  implicit object avroForArrayByte extends AvroFor[Array[Byte]] {
-    override val schema: Option[AvroSchema] = new AvroSchema(SchemaFor[Array[Byte]].schema).some
-    override protected val unregisteredSerde: Serde[Array[Byte]] = Serdes.byteArraySerde
-  }
-
-  // 4: byte buffer
+  // 1: byte buffer
   implicit object avroForByteBuffer extends AvroFor[ByteBuffer] {
     override val schema: Option[AvroSchema] = new AvroSchema(SchemaFor[ByteBuffer].schema).some
     override protected val unregisteredSerde: Serde[ByteBuffer] = Serdes.byteBufferSerde
   }
 
-  // 5: short
+  // 2: String
+  implicit object avroForString extends AvroFor[String] {
+    override val schema: Option[AvroSchema] = new AvroSchema(SchemaFor[String].schema).some
+    override protected val unregisteredSerde: Serde[String] = Serdes.stringSerde
+  }
+
+  // 3: Long
+  implicit object avroForLong extends AvroFor[Long] {
+    override val schema: Option[AvroSchema] = new AvroSchema(SchemaFor[Long].schema).some
+    override protected val unregisteredSerde: Serde[Long] = Serdes.longSerde
+  }
+
+  // 4: short
   implicit object avroForShort extends AvroFor[Short] {
     override val schema: Option[AvroSchema] = new AvroSchema(SchemaFor[Short].schema).some
     override protected val unregisteredSerde: Serde[Short] = Serdes.shortSerde
   }
 
-  // 6: float
+  // 5: float
   implicit object avroForFloat extends AvroFor[Float] {
     override val schema: Option[AvroSchema] = new AvroSchema(SchemaFor[Float].schema).some
     override protected val unregisteredSerde: Serde[Float] = Serdes.floatSerde
   }
 
-  // 7: double
+  // 6: double
   implicit object avroForDouble extends AvroFor[Double] {
     override val schema: Option[AvroSchema] = new AvroSchema(SchemaFor[Double].schema).some
     override protected val unregisteredSerde: Serde[Double] = Serdes.doubleSerde
   }
 
-  // 8: int
+  // 7: int
   implicit object avroForInt extends AvroFor[Int] {
     override val schema: Option[AvroSchema] = new AvroSchema(SchemaFor[Int].schema).some
     override protected val unregisteredSerde: Serde[Int] = Serdes.intSerde
   }
 
-  // 9: uuid
+  // 8: uuid
   implicit object avroForUUID extends AvroFor[UUID] {
     override val schema: Option[AvroSchema] = new AvroSchema(SchemaFor[UUID].schema).some
     override protected val unregisteredSerde: Serde[UUID] = Serdes.uuidSerde
   }
 
-  // 10. universal - generic record
+  // 9. universal - generic record
   implicit object avroForFromBroker extends AvroFor[FromBroker] {
 
     override val schema: Option[AvroSchema] = none[AvroSchema]

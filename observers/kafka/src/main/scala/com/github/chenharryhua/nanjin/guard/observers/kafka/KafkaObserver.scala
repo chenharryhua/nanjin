@@ -34,7 +34,7 @@ final class KafkaObserver[F[_]](ctx: KafkaContext[F], translator: Translator[F, 
         .map(
           _.map(evt =>
             ProducerRecord(
-              topicName.value,
+              topicName.name.value,
               AvroFor.KJson(EventKey(evt.serviceParams.taskName.value, evt.serviceParams.serviceName.value)),
               AvroFor.KJson(evt))))
 

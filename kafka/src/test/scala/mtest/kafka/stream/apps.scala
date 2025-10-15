@@ -30,8 +30,8 @@ object apps {
     val keyS = rs.keySerde[Int](tn)
     val valS = rs.valueSerde[StreamOne](tn)
 
-    val a = sb.stream[Array[Byte], Array[Byte]](tn.value)
-    val b = sb.table[Int, TableTwo](t2Topic.topicName.value)
+    val a = sb.stream[Array[Byte], Array[Byte]](tn.name.value)
+    val b = sb.table[Int, TableTwo](t2Topic.topicName.name.value)
     a.flatMap { (k, v) =>
       val r = (
         keyS.tryDeserialize(k).toOption,
@@ -59,7 +59,7 @@ object apps {
         var ctx: api.ProcessorContext[Int, String] = _
         override def get(): Processor[Int, String, Int, String] = new Processor[Int, String, Int, String] {
           override def init(context: api.ProcessorContext[Int, String]): Unit = {
-            kvStore = context.getStateStore[KeyValueStore[Int, String]](store.value)
+            kvStore = context.getStateStore[KeyValueStore[Int, String]](store.name.value)
             ctx = context
             println("transformer initialized")
           }
@@ -76,10 +76,10 @@ object apps {
         }
       }
 
-    sb.stream[Int, String](topic1.value)
-      .process(processor, store.value)
-      .join(sb.table[Int, String](topic2.value))(_ + _)
-      .to(tgt.value)
+    sb.stream[Int, String](topic1.name.value)
+      .process(processor, store.name.value)
+      .join(sb.table[Int, String](topic2.name.value))(_ + _)
+      .to(tgt.name.value)
   }
 
 }

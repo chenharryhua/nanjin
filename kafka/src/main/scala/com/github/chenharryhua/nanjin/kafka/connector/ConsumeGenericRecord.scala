@@ -68,7 +68,7 @@ final class ConsumeGenericRecord[F[_]: Async, K, V](
   def subscribe: Stream[F, CommittableConsumerRecord[F, Unit, Try[GenericData.Record]]] =
     KafkaConsumer
       .stream(consumerSettings)
-      .evalTap(_.subscribe(NonEmptyList.one(avroTopic.topicName.value)))
+      .evalTap(_.subscribe(NonEmptyList.one(avroTopic.topicName.name.value)))
       .flatMap(toGenericRecordStream)
 
   /*
@@ -78,13 +78,13 @@ final class ConsumeGenericRecord[F[_]: Async, K, V](
   def assign: Stream[F, CommittableConsumerRecord[F, Unit, Try[GenericData.Record]]] =
     KafkaConsumer
       .stream(consumerSettings)
-      .evalTap(_.assign(avroTopic.topicName.value))
+      .evalTap(_.assign(avroTopic.topicName.name.value))
       .flatMap(toGenericRecordStream)
 
   def assign(partitionOffsets: Map[Int, Long])
     : Stream[F, CommittableConsumerRecord[F, Unit, Try[GenericData.Record]]] = {
     val start_offsets: Map[TopicPartition, Long] =
-      partitionOffsets.map { case (p, o) => new TopicPartition(avroTopic.topicName.value, p) -> o }
+      partitionOffsets.map { case (p, o) => new TopicPartition(avroTopic.topicName.name.value, p) -> o }
 
     NonEmptySet.fromSet(SortedSet.from(start_offsets.keySet)) match {
       case None                  => Stream.empty
@@ -104,8 +104,8 @@ final class ConsumeGenericRecord[F[_]: Async, K, V](
       .stream(consumerSettings)
       .evalTap { c =>
         for {
-          _ <- c.assign(avroTopic.topicName.value)
-          partitions <- c.partitionsFor(avroTopic.topicName.value)
+          _ <- c.assign(avroTopic.topicName.name.value)
+          partitions <- c.partitionsFor(avroTopic.topicName.name.value)
           tps = partitions.map { pi =>
             new TopicPartition(pi.topic(), pi.partition()) -> time.toEpochMilli
           }.toMap
@@ -130,7 +130,7 @@ final class ConsumeGenericRecord[F[_]: Async, K, V](
       val pull: PullGenericRecord = new PullGenericRecord(avroTopic.topicName, schema)
       KafkaConsumer
         .stream(consumerSettings.withEnableAutoCommit(false))
-        .evalTap(_.subscribe(NonEmptyList.one(avroTopic.topicName.value)))
+        .evalTap(_.subscribe(NonEmptyList.one(avroTopic.topicName.name.value)))
         .flatMap(kc =>
           kc.partitionsMapStream.map { pms =>
             new ManualCommitStream[F, Unit, Try[GenericData.Record]] {

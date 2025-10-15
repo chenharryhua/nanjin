@@ -37,7 +37,7 @@ final class SessionBytesStoreSupplierHelper[K, V] private[streaming] (
 
 final class StateStores[K, V] private (topic: TopicSerde[K, V]) {
 
-  val name: String = topic.topicName.value
+  val name: String = topic.topicName.name.value
 
   def persistentKeyValueStore: KeyValueBytesStoreSupplierHelper[K, V] =
     new KeyValueBytesStoreSupplierHelper(Stores.persistentKeyValueStore(name), topic)
