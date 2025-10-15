@@ -62,7 +62,7 @@ class MiscTest extends AnyFunSuite {
       leaderEpoch = Some(1)
     )
 
-    val res = NJConsumerRecord(cr.toProtoConsumerRecord(identity,identity))
+    val res = NJConsumerRecord(cr.toProtoConsumerRecord(identity, identity))
     assert(res == cr)
   }
 }

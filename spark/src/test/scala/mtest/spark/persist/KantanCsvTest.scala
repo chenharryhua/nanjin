@@ -6,7 +6,7 @@ import cats.effect.unsafe.implicits.global
 import cats.implicits.toTraverseOps
 import com.github.chenharryhua.nanjin.spark.*
 import com.github.chenharryhua.nanjin.spark.persist.{RddFileHoarder, SaveKantanCsv}
-import com.github.chenharryhua.nanjin.terminals.{Hadoop, csvHeader, toHadoopPath}
+import com.github.chenharryhua.nanjin.terminals.{csvHeader, toHadoopPath, Hadoop}
 import eu.timepit.refined.auto.*
 import io.lemonlabs.uri.Url
 import io.lemonlabs.uri.typesafe.dsl.*
@@ -110,7 +110,7 @@ class KantanCsvTest extends AnyFunSuite {
     val cfg = CsvConfiguration.rfc.withHeader("x", "y", "z")
     val s = saver(path, cfg)
     s.run[IO].unsafeRunSync()
-    val t =sparkSession.loadRdd[Tablet](path).kantan(cfg)
+    val t = sparkSession.loadRdd[Tablet](path).kantan(cfg)
     assert(data.toSet == t.collect().toSet)
     assert(data.toSet == loadTablet(path, cfg).unsafeRunSync())
     checkHeader(path, "x,y,z")
