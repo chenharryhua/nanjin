@@ -12,17 +12,16 @@ import io.estatico.newtype.ops.toCoercibleIdOps
 import org.apache.avro.generic.GenericRecord
 import org.apache.kafka.common.serialization.{Deserializer, Serde, Serializer}
 import org.apache.kafka.streams.scala.serialization.Serdes
+import shapeless.LabelledGeneric
 
-import java.nio.ByteBuffer
 import java.util
-import java.util.UUID
 
 sealed trait AvroFor[A] extends RegisterSerde[A] {
   val schema: Option[AvroSchema]
 }
 
 sealed trait LowerPriority {
-  implicit def avro4sCodec[A: SchemaFor: AvroEncoder: AvroDecoder]: AvroFor[A] =
+  implicit def avro4sCodec[A: SchemaFor: AvroEncoder: AvroDecoder: LabelledGeneric]: AvroFor[A] =
     AvroFor(AvroCodec[A])
 }
 
@@ -55,10 +54,10 @@ object AvroFor extends LowerPriority {
    * Specific
    */
 
-  // 1: byte buffer
-  implicit object avroForByteBuffer extends AvroFor[ByteBuffer] {
-    override val schema: Option[AvroSchema] = new AvroSchema(SchemaFor[ByteBuffer].schema).some
-    override protected val unregisteredSerde: Serde[ByteBuffer] = Serdes.byteBufferSerde
+  // 1: array byte
+  implicit object avroForArrayByte extends AvroFor[Array[Byte]] {
+    override val schema: Option[AvroSchema] = new AvroSchema(SchemaFor[Array[Byte]].schema).some
+    override protected val unregisteredSerde: Serde[Array[Byte]] = Serdes.byteArraySerde
   }
 
   // 2: String
@@ -73,37 +72,25 @@ object AvroFor extends LowerPriority {
     override protected val unregisteredSerde: Serde[Long] = Serdes.longSerde
   }
 
-  // 4: short
-  implicit object avroForShort extends AvroFor[Short] {
-    override val schema: Option[AvroSchema] = new AvroSchema(SchemaFor[Short].schema).some
-    override protected val unregisteredSerde: Serde[Short] = Serdes.shortSerde
-  }
-
-  // 5: float
+  // 4: float
   implicit object avroForFloat extends AvroFor[Float] {
     override val schema: Option[AvroSchema] = new AvroSchema(SchemaFor[Float].schema).some
     override protected val unregisteredSerde: Serde[Float] = Serdes.floatSerde
   }
 
-  // 6: double
+  // 5: double
   implicit object avroForDouble extends AvroFor[Double] {
     override val schema: Option[AvroSchema] = new AvroSchema(SchemaFor[Double].schema).some
     override protected val unregisteredSerde: Serde[Double] = Serdes.doubleSerde
   }
 
-  // 7: int
+  // 6: int
   implicit object avroForInt extends AvroFor[Int] {
     override val schema: Option[AvroSchema] = new AvroSchema(SchemaFor[Int].schema).some
     override protected val unregisteredSerde: Serde[Int] = Serdes.intSerde
   }
 
-  // 8: uuid
-  implicit object avroForUUID extends AvroFor[UUID] {
-    override val schema: Option[AvroSchema] = new AvroSchema(SchemaFor[UUID].schema).some
-    override protected val unregisteredSerde: Serde[UUID] = Serdes.uuidSerde
-  }
-
-  // 9. universal - generic record
+  // 7. universal - generic record
   implicit object avroForFromBroker extends AvroFor[FromBroker] {
 
     override val schema: Option[AvroSchema] = none[AvroSchema]
@@ -185,9 +172,10 @@ object AvroFor extends LowerPriority {
       }
 
       override val deserializer: Deserializer[KJson[A]] = new Deserializer[KJson[A]] {
+        import io.circe.jawn.decodeByteArray
         override def deserialize(topic: String, data: Array[Byte]): KJson[A] =
           Option(data).map { ab =>
-            io.circe.jawn.decodeByteArray[A](ab) match {
+            decodeByteArray[A](ab) match {
               case Left(value)  => throw value
               case Right(value) => KJson(value)
             }

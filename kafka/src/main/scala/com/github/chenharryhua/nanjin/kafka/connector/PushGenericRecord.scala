@@ -10,8 +10,8 @@ import org.apache.avro.Schema
 import org.apache.avro.generic.GenericRecord
 import org.apache.kafka.streams.scala.serialization.Serdes
 
-import java.nio.ByteBuffer
 import scala.jdk.CollectionConverters.MapHasAsJava
+import scala.util.{Failure, Success}
 
 final private class PushGenericRecord(
   srs: SchemaRegistrySettings,
@@ -27,8 +27,14 @@ final private class PushGenericRecord(
         val ser = new GenericAvroSerializer()
         ser.configure(srs.config.asJava, true)
         // java world
-        (data: AnyRef) =>
-          ser.serialize(topic, immigrate(pair.key.rawSchema(), data.asInstanceOf[GenericRecord]).get)
+        (_: AnyRef) match {
+          case gr: GenericRecord =>
+            immigrate(pair.key.rawSchema(), gr) match {
+              case Success(value) => ser.serialize(topic, value)
+              case Failure(ex)    => throw new Exception("unable immigrate key", ex)
+            }
+          case other => throw new Exception(s"${other.getClass.getName} (key) is not Generic Record")
+        }
 
       case Schema.Type.STRING =>
         val ser = Serdes.stringSerde.serializer()
@@ -46,8 +52,8 @@ final private class PushGenericRecord(
         val ser = Serdes.doubleSerde.serializer()
         (data: AnyRef) => ser.serialize(topic, Decoder[Double].decode(data))
       case Schema.Type.BYTES =>
-        val ser = Serdes.byteBufferSerde.serializer()
-        (data: AnyRef) => ser.serialize(topic, Decoder[ByteBuffer].decode(data))
+        val ser = Serdes.byteArraySerde.serializer()
+        (data: AnyRef) => ser.serialize(topic, Decoder[Array[Byte]].decode(data))
 
       case _ => throw new RuntimeException(s"unsupported key schema: ${pair.key.toString}")
     }
@@ -58,9 +64,14 @@ final private class PushGenericRecord(
         val ser = new GenericAvroSerializer()
         ser.configure(srs.config.asJava, false)
         // java world
-        (data: AnyRef) =>
-          ser.serialize(topic, immigrate(pair.value.rawSchema(), data.asInstanceOf[GenericRecord]).get)
-
+        (_: AnyRef) match {
+          case gr: GenericRecord =>
+            immigrate(pair.value.rawSchema(), gr) match {
+              case Success(value) => ser.serialize(topic, value)
+              case Failure(ex)    => throw new Exception("unable immigrate value", ex)
+            }
+          case other => throw new Exception(s"${other.getClass.getName} (value) is not Generic Record")
+        }
       case Schema.Type.STRING =>
         val ser = Serdes.stringSerde.serializer()
         (data: AnyRef) => ser.serialize(topic, Decoder[String].decode(data))
@@ -77,8 +88,8 @@ final private class PushGenericRecord(
         val ser = Serdes.doubleSerde.serializer()
         (data: AnyRef) => ser.serialize(topic, Decoder[Double].decode(data))
       case Schema.Type.BYTES =>
-        val ser = Serdes.byteBufferSerde.serializer()
-        (data: AnyRef) => ser.serialize(topic, Decoder[ByteBuffer].decode(data))
+        val ser = Serdes.byteArraySerde.serializer()
+        (data: AnyRef) => ser.serialize(topic, Decoder[Array[Byte]].decode(data))
 
       case _ => throw new RuntimeException(s"unsupported value schema: ${pair.value.toString}")
     }
