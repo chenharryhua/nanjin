@@ -44,11 +44,11 @@ private object KafkaPrimitiveConsumerApi {
     override val partitionsFor: F[ListOfTopicPartitions] =
       kbc.ask.map { c =>
         val ret: List[TopicPartition] = c
-          .partitionsFor(topicName.value)
+          .partitionsFor(topicName.name.value)
           .asScala
           .toList
           .mapFilter(Option(_))
-          .map(info => new TopicPartition(topicName.value, info.partition))
+          .map(info => new TopicPartition(topicName.name.value, info.partition))
         ListOfTopicPartitions(ret)
       }
 
@@ -74,7 +74,7 @@ private object KafkaPrimitiveConsumerApi {
       partition: Partition,
       offset: Offset): F[Option[ConsumerRecord[Array[Byte], Array[Byte]]]] =
       kbc.ask.map { consumer =>
-        val tp = new TopicPartition(topicName.value, partition.value)
+        val tp = new TopicPartition(topicName.name.value, partition.value)
         consumer.assign(List(tp).asJava)
         consumer.seek(tp, offset.value)
         consumer.poll(Duration.ofSeconds(15)).records(tp).asScala.toList.headOption

@@ -33,20 +33,18 @@ class TransformerTest extends AnyFunSuite {
     println(kafkaStreamService.topology.describe())
 
     val t2Data = Stream(
-      ProducerRecords(
-        List(
-          ProducerRecord(topic2.topicName.value, 2, "t0"),
-          ProducerRecord(topic2.topicName.value, 4, "t1"),
-          ProducerRecord(topic2.topicName.value, 6, "t2"))))
-      .covary[IO]
-      .through(ctx.sharedProduce(td.pair).sink)
+      ProducerRecords(List(
+        ProducerRecord(topic2.topicName.name.value, 2, "t0"),
+        ProducerRecord(topic2.topicName.name.value, 4, "t1"),
+        ProducerRecord(topic2.topicName.name.value, 6, "t2")
+      ))).covary[IO].through(ctx.sharedProduce(td.pair).sink)
 
     val s1Data: Stream[IO, ProducerResult[Int, String]] =
       Stream
         .awakeEvery[IO](1.seconds)
         .zipWithIndex
         .map { case (_, index) =>
-          ProducerRecords.one(ProducerRecord(topic1.topicName.value, index.toInt, s"stream$index"))
+          ProducerRecords.one(ProducerRecord(topic1.topicName.name.value, index.toInt, s"stream$index"))
         }
         .through(ctx.sharedProduce[Int, String](td.pair).sink)
 

@@ -1,58 +1,58 @@
 package com.github.chenharryhua.nanjin.kafka.connector
 
-import cats.Endo
-import cats.effect.kernel.{Async, Resource}
+import cats.{Endo, Foldable}
+import cats.effect.kernel.*
+import cats.implicits.{catsSyntaxFlatten, toFoldableOps}
+import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.common.{HasProperties, UpdateConfig}
-import fs2.{Pipe, Stream}
-import fs2.kafka.{
-  KafkaProducer,
-  ProducerRecords,
-  ProducerResult,
-  ProducerSettings,
-  TransactionalKafkaProducer,
-  TransactionalProducerSettings
-}
-
-final class ProduceKafka[F[_], K, V] private[kafka] (producerSettings: ProducerSettings[F, K, V])
+import fs2.kafka.*
+import fs2.{Chunk, Pipe}
+import org.apache.kafka.clients.producer.RecordMetadata
+import fs2.Stream
+final class ProduceKafka[F[_], K, V] private[kafka] (
+  topicName: TopicName,
+  producerSettings: ProducerSettings[F, K, V],
+  isCompatible: F[Boolean])
     extends UpdateConfig[ProducerSettings[F, K, V], ProduceKafka[F, K, V]] with HasProperties {
-  override def updateConfig(f: Endo[ProducerSettings[F, K, V]]): ProduceKafka[F, K, V] =
-    new ProduceKafka[F, K, V](f(producerSettings))
-
-  override def properties: Map[String, String] = producerSettings.properties
-
-  def clientR(implicit F: Async[F]): Resource[F, KafkaProducer.Metrics[F, K, V]] =
-    KafkaProducer.resource(producerSettings)
-
-  def clientS(implicit F: Async[F]): Stream[F, KafkaProducer.Metrics[F, K, V]] =
-    KafkaProducer.stream(producerSettings)
-
-  def transactional(transactionalId: String): KafkaTransactional[F, K, V] =
-    new KafkaTransactional[F, K, V](TransactionalProducerSettings(transactionalId, producerSettings))
-
-  def sink(implicit F: Async[F]): Pipe[F, ProducerRecords[K, V], ProducerResult[K, V]] =
-    KafkaProducer.pipe[F, K, V](producerSettings)
-}
-
-final class KafkaTransactional[F[_], K, V] private[kafka] (
-  txnSettings: TransactionalProducerSettings[F, K, V])
-    extends UpdateConfig[TransactionalProducerSettings[F, K, V], KafkaTransactional[F, K, V]]
-    with HasProperties {
 
   /*
    * config
    */
-  override def properties: Map[String, String] = txnSettings.producerSettings.properties
+  override def properties: Map[String, String] = producerSettings.properties
 
-  override def updateConfig(f: Endo[TransactionalProducerSettings[F, K, V]]): KafkaTransactional[F, K, V] =
-    new KafkaTransactional[F, K, V](f(txnSettings))
+  override def updateConfig(f: Endo[ProducerSettings[F, K, V]]): ProduceKafka[F, K, V] =
+    new ProduceKafka[F, K, V](topicName, f(producerSettings), isCompatible)
+
+  private def kafkaProducer(implicit F: Async[F]): Resource[F, KafkaProducer.PartitionsFor[F, K, V]] =
+    Resource.eval(isCompatible).flatMap {
+      case false =>
+        Resource.raiseError[F, KafkaProducer.PartitionsFor[F, K, V], Throwable](
+          new Exception("incompatible schema"))
+      case true => KafkaProducer.resource(producerSettings)
+    }
 
   /*
-   * produce
+   * sink
    */
 
-  def clientR(implicit F: Async[F]): Resource[F, TransactionalKafkaProducer.WithoutOffsets[F, K, V]] =
-    TransactionalKafkaProducer.resource(txnSettings)
+  def sink(implicit F: Async[F]): Pipe[F, Chunk[(K, V)], ProducerResult[K, V]] = {
+    (ss: Stream[F, Chunk[(K, V)]]) =>
+      Stream.resource(kafkaProducer).flatMap { producer =>
+        ss.evalMap { ck =>
+          producer.produce(ck.map { case (k, v) => ProducerRecord(topicName.name.value, k, v) })
+        }.parEvalMap(Int.MaxValue)(identity)
+      }
+  }
 
-  def clientS(implicit F: Async[F]): Stream[F, TransactionalKafkaProducer.WithoutOffsets[F, K, V]] =
-    TransactionalKafkaProducer.stream(txnSettings)
+  /*
+   * for testing and repl
+   */
+
+  def produce[G[_]: Foldable](kvs: G[(K, V)])(implicit F: Async[F]): F[ProducerResult[K, V]] = {
+    val prs = Chunk.from(kvs.toList).map { case (k, v) => ProducerRecord(topicName.name.value, k, v) }
+    kafkaProducer.use(_.produce(prs).flatten)
+  }
+
+  def produceOne(k: K, v: V)(implicit F: Async[F]): F[RecordMetadata] =
+    kafkaProducer.use(_.produceOne_(topicName.name.value, k, v).flatten)
 }

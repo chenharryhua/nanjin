@@ -103,6 +103,7 @@ lazy val common = (project in file("common"))
   .settings(name := "nj-common")
   .settings(
     libraryDependencies ++= List(
+      "io.estatico" %% "newtype"                       % "0.4.4",
       "com.github.alonsodomin.cron4s" %% "cron4s-core" % cron4sV,
       "org.typelevel" %% "cats-time"                   % "0.6.0",
       "org.typelevel" %% "squants"                     % "1.8.3",
@@ -270,7 +271,6 @@ lazy val messages =
     .settings(
       libraryDependencies ++=
         List(
-          "io.estatico" %% "newtype"                  % "0.4.4",
           "io.circe" %% "circe-optics"                % "0.15.1",
           "io.circe" %% "circe-jawn"                  % circeV,
           "org.apache.kafka" %% "kafka-streams-scala" % kafkaV,

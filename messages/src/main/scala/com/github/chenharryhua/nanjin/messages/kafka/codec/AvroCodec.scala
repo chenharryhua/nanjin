@@ -13,10 +13,11 @@ import eu.timepit.refined.api.Refined
 import eu.timepit.refined.string.MatchesRegex
 import org.apache.avro.Schema
 import org.apache.avro.generic.IndexedRecord
+import shapeless.LabelledGeneric
 
 import scala.util.Try
 
-final class AvroCodec[A] private (
+final class AvroCodec[A: LabelledGeneric] private (
   override val schemaFor: SchemaFor[A],
   avroDecoder: AvroDecoder[A],
   avroEncoder: AvroEncoder[A])
@@ -25,7 +26,7 @@ final class AvroCodec[A] private (
   def idConversion(a: A): A = avroDecoder.decode(avroEncoder.encode(a))
 
   def withSchema(schema: Schema): AvroCodec[A] =
-    AvroCodec(schema)(avroDecoder, avroEncoder, schemaFor)
+    AvroCodec(schema)(LabelledGeneric[A], avroDecoder, avroEncoder, schemaFor)
 
   override def withSchema(schemaFor: SchemaFor[A]): AvroCodec[A] = withSchema(schemaFor.schema)
   override def encode(value: A): AnyRef = avroEncoder.encode(value)
@@ -55,13 +56,16 @@ final class AvroCodec[A] private (
 }
 
 object AvroCodec {
-  def apply[A](sf: SchemaFor[A], dc: AvroDecoder[A], ec: AvroEncoder[A]): AvroCodec[A] =
+  def apply[A: LabelledGeneric](sf: SchemaFor[A], dc: AvroDecoder[A], ec: AvroEncoder[A]): AvroCodec[A] =
     new AvroCodec[A](sf, DecoderHelpers.buildWithSchema(dc, sf), EncoderHelpers.buildWithSchema(ec, sf))
 
-  def apply[A](implicit dc: AvroDecoder[A], ec: AvroEncoder[A], sf: SchemaFor[A]): AvroCodec[A] =
+  def apply[A: LabelledGeneric](implicit
+    dc: AvroDecoder[A],
+    ec: AvroEncoder[A],
+    sf: SchemaFor[A]): AvroCodec[A] =
     apply[A](sf, dc, ec)
 
-  def apply[A](
+  def apply[A: LabelledGeneric](
     schema: Schema)(implicit dc: AvroDecoder[A], ec: AvroEncoder[A], sf: SchemaFor[A]): AvroCodec[A] = {
     val b = backwardCompatibility(sf.schema, schema)
     val f = forwardCompatibility(sf.schema, schema)
@@ -73,6 +77,6 @@ object AvroCodec {
     }
   }
 
-  def apply[A: AvroDecoder: AvroEncoder: SchemaFor](schemaText: String): AvroCodec[A] =
+  def apply[A: AvroDecoder: AvroEncoder: SchemaFor: LabelledGeneric](schemaText: String): AvroCodec[A] =
     apply[A]((new Schema.Parser).parse(schemaText))
 }

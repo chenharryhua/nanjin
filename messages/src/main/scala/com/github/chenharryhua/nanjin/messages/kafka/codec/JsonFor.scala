@@ -32,7 +32,8 @@ object JsonFor {
   def apply[A](implicit ev: JsonFor[A]): JsonFor[A] = ev
 
   @newtype final class FromBroker private (val value: JsonNode)
-  protected object FromBroker {
+  object FromBroker {
+    def apply(jn: JsonNode): FromBroker = jn.coerce
     implicit val jsonEncoderUniversal: JsonEncoder[FromBroker] =
       (a: FromBroker) =>
         io.circe.jawn.parse(globalObjectMapper.writeValueAsString(a.value)) match {

@@ -99,14 +99,15 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
    * producer
    */
 
-  def produce[K, V](topic: KafkaTopic[K, V])(implicit F: Sync[F]): ProduceKeyValuePair[F, K, V] =
-    new ProduceKeyValuePair[F, K, V](
+  def produce[K, V](topic: KafkaTopic[K, V])(implicit F: Sync[F]): ProduceKafka[F, K, V] =
+    new ProduceKafka[F, K, V](
       topic.topicName,
-      topic.producerSettings(settings.schemaRegistrySettings, settings.producerSettings)
+      topic.producerSettings(settings.schemaRegistrySettings, settings.producerSettings),
+      isCompatible(topic)
     )
 
-  def sharedProduce[K, V](pair: SerdePair[K, V])(implicit F: Sync[F]): ProduceKafka[F, K, V] =
-    new ProduceKafka[F, K, V](
+  def sharedProduce[K, V](pair: SerdePair[K, V])(implicit F: Sync[F]): ProduceShared[F, K, V] =
+    new ProduceShared[F, K, V](
       pair.producerSettings(settings.schemaRegistrySettings, settings.producerSettings)
     )
 

@@ -13,29 +13,29 @@ message ProtoConsumerRecord {
     // Offset of the record in the partition
     int64 offset = 3;
 
-    // Timestamp of the record
+    // Timestamp of the record in millisecond
     int64 timestamp = 4;
 
     // Timestamp Type of the record (either create or log append time)
     int32 timestamp_type = 5;
 
-    // Serialized key (can be absent / null)
-    optional bytes key = 6;
-
-    // Serialized value (can be absent / null)
-    optional bytes value = 7;
-
     // Kafka headers associated with the record
-    repeated ProtoHeader headers = 8;
-
-    // Size of the serialized key in bytes (or -1 if key is null)
-    optional int32 serialized_key_size = 9;
-
-    // Size of the serialized value in bytes (or -1 if value is null)
-    optional int32 serialized_value_size = 10;
+    repeated ProtoHeader headers = 6;
 
     // Leader epoch of the partition at the time this record was consumed (may be null in older Kafka versions)
-    optional int32 leader_epoch = 11;
+    optional int32 leader_epoch = 7;
+
+    // Size of the serialized key in bytes (or -1 if key is null)
+    optional int32 serialized_key_size = 8;
+
+    // Size of the serialized value in bytes (or -1 if value is null)
+    optional int32 serialized_value_size = 9;
+
+    // Serialized key (can be absent / null)
+    optional bytes key = 10;
+
+    // Serialized value (can be absent / null)
+    optional bytes value = 11;
 }
 
 // A single Kafka header (key–value pair)

@@ -3,9 +3,14 @@ package com.github.chenharryhua.nanjin.kafka.connector
 import cats.effect.kernel.*
 import cats.syntax.flatMap.toFlatMapOps
 import cats.syntax.functor.toFunctorOps
-import cats.{Endo, Functor}
+import cats.{Endo, MonadError}
 import com.github.chenharryhua.nanjin.common.{HasProperties, UpdateConfig}
-import com.github.chenharryhua.nanjin.kafka.{AvroTopic, OptionalAvroSchemaPair, SchemaRegistrySettings}
+import com.github.chenharryhua.nanjin.kafka.{
+  AvroSchemaPair,
+  AvroTopic,
+  OptionalAvroSchemaPair,
+  SchemaRegistrySettings
+}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.jackson2GenericRecord
 import fs2.kafka.*
 import fs2.{Pipe, Stream}
@@ -29,8 +34,14 @@ final class ProduceGenericRecord[F[_], K, V] private[kafka] (
     f: Endo[ProducerSettings[F, Array[Byte], Array[Byte]]]): ProduceGenericRecord[F, K, V] =
     new ProduceGenericRecord[F, K, V](avroTopic, getSchema, srs, f(producerSettings))
 
-  def schema(implicit F: Functor[F]): F[Schema] =
-    getSchema.map(avroTopic.pair.optionalSchemaPair.write(_).toPair.consumerSchema)
+  private def schemaPair(implicit F: MonadError[F, Throwable]): F[AvroSchemaPair] =
+    getSchema.flatMap { skm =>
+      if (avroTopic.pair.optionalSchemaPair.isBackwardCompatible(skm))
+        F.pure(avroTopic.pair.optionalSchemaPair.write(skm).toPair)
+      else F.raiseError(new Exception("incompatible schema"))
+    }
+
+  def schema(implicit F: MonadError[F, Throwable]): F[Schema] = schemaPair.map(_.consumerSchema)
 
   /*
    * sink
@@ -38,7 +49,7 @@ final class ProduceGenericRecord[F[_], K, V] private[kafka] (
   def sink(implicit F: Async[F]): Pipe[F, GenericRecord, ProducerResult[Array[Byte], Array[Byte]]] = {
     (grStream: Stream[F, GenericRecord]) =>
       for {
-        pair <- Stream.eval(getSchema.map(avroTopic.pair.optionalSchemaPair.write(_).toPair))
+        pair <- Stream.eval(schemaPair)
         push = new PushGenericRecord(srs, avroTopic.topicName, pair)
         producer <- KafkaProducer.stream(producerSettings)
         prs <- grStream.chunks
@@ -52,7 +63,7 @@ final class ProduceGenericRecord[F[_], K, V] private[kafka] (
     */
   def jackson(jackson: String)(implicit F: Async[F]): F[ProducerResult[Array[Byte], Array[Byte]]] =
     for {
-      pair <- getSchema.map(avroTopic.pair.optionalSchemaPair.write(_).toPair)
+      pair <- schemaPair
       gr <- F.fromTry(jackson2GenericRecord(pair.consumerSchema, jackson))
       push = new PushGenericRecord(srs, avroTopic.topicName, pair)
       res <- KafkaProducer.resource(producerSettings).use(_.produceOne(push.fromGenericRecord(gr)).flatten)

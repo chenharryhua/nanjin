@@ -11,6 +11,7 @@ import org.apache.avro.generic.GenericRecord
 import org.apache.kafka.streams.scala.serialization.Serdes
 
 import scala.jdk.CollectionConverters.MapHasAsJava
+import scala.util.{Failure, Success}
 
 final private class PushGenericRecord(
   srs: SchemaRegistrySettings,
@@ -18,7 +19,7 @@ final private class PushGenericRecord(
   pair: AvroSchemaPair) {
   val schema: Schema = pair.consumerSchema
 
-  private val topic: String = topicName.value
+  private val topic: String = topicName.name.value
 
   private val key_serialize: AnyRef => Array[Byte] =
     pair.key.rawSchema().getType match {
@@ -26,8 +27,14 @@ final private class PushGenericRecord(
         val ser = new GenericAvroSerializer()
         ser.configure(srs.config.asJava, true)
         // java world
-        (data: AnyRef) =>
-          ser.serialize(topic, immigrate(pair.key.rawSchema(), data.asInstanceOf[GenericRecord]).get)
+        (_: AnyRef) match {
+          case gr: GenericRecord =>
+            immigrate(pair.key.rawSchema(), gr) match {
+              case Success(value) => ser.serialize(topic, value)
+              case Failure(ex)    => throw new Exception("unable immigrate key", ex)
+            }
+          case other => throw new Exception(s"${other.getClass.getName} (key) is not Generic Record")
+        }
 
       case Schema.Type.STRING =>
         val ser = Serdes.stringSerde.serializer()
@@ -57,9 +64,14 @@ final private class PushGenericRecord(
         val ser = new GenericAvroSerializer()
         ser.configure(srs.config.asJava, false)
         // java world
-        (data: AnyRef) =>
-          ser.serialize(topic, immigrate(pair.value.rawSchema(), data.asInstanceOf[GenericRecord]).get)
-
+        (_: AnyRef) match {
+          case gr: GenericRecord =>
+            immigrate(pair.value.rawSchema(), gr) match {
+              case Success(value) => ser.serialize(topic, value)
+              case Failure(ex)    => throw new Exception("unable immigrate value", ex)
+            }
+          case other => throw new Exception(s"${other.getClass.getName} (value) is not Generic Record")
+        }
       case Schema.Type.STRING =>
         val ser = Serdes.stringSerde.serializer()
         (data: AnyRef) => ser.serialize(topic, Decoder[String].decode(data))

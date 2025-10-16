@@ -159,7 +159,7 @@ class Fs2ChannelTest extends AnyFunSuite {
 
   test("6.byte consumer config") {
     val consumer = ctx
-      .consumeGenericRecord(AvroTopic[Short, Int]("bytes"))
+      .consumeGenericRecord(AvroTopic[Long, Int]("bytes"))
       .updateConfig(
         _.withGroupId("nanjin")
           .withEnableAutoCommit(true)

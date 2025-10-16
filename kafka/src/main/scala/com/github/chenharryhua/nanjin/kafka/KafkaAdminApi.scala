@@ -54,19 +54,19 @@ object KafkaAdminApi {
       extends KafkaAdminApi[F] {
 
     override def iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence: F[Unit] =
-      client.deleteTopic(topicName.value)
+      client.deleteTopic(topicName.name.value)
 
     override def newTopic(numPartition: Int, numReplica: Short): F[Unit] =
-      client.createTopic(new NewTopic(topicName.value, numPartition, numReplica))
+      client.createTopic(new NewTopic(topicName.name.value, numPartition, numReplica))
 
     override def mirrorTo(other: TopicName, numReplica: Short): F[Unit] =
       for {
-        desc <- client.describeTopics(List(topicName.value)).map(_(topicName.value))
-        _ <- client.createTopic(new NewTopic(other.value, desc.partitions().size(), numReplica))
+        desc <- client.describeTopics(List(topicName.name.value)).map(_(topicName.name.value))
+        _ <- client.createTopic(new NewTopic(other.name.value, desc.partitions().size(), numReplica))
       } yield ()
 
     override def describe: F[Map[String, TopicDescription]] =
-      client.describeTopics(List(topicName.value))
+      client.describeTopics(List(topicName.name.value))
 
     /** list of all consumer-groups which consume the topic
       * @return
@@ -78,7 +78,7 @@ object KafkaAdminApi {
           client
             .listConsumerGroupOffsets(gid)
             .partitionsToOffsetAndMetadata
-            .map(m => if (m.keySet.map(_.topic()).contains(topicName.value)) Some(gid) else None))
+            .map(m => if (m.keySet.map(_.topic()).contains(topicName.name.value)) Some(gid) else None))
       } yield ids.distinct.map(GroupId(_))
 
     // consumer
@@ -95,7 +95,7 @@ object KafkaAdminApi {
         curr <- client
           .listConsumerGroupOffsets(groupId)
           .partitionsToOffsetAndMetadata
-          .map(_.filter(_._1.topic() === topicName.value).view.mapValues(Offset(_)).toMap)
+          .map(_.filter(_._1.topic() === topicName.name.value).view.mapValues(Offset(_)).toMap)
           .map(TopicPartitionMap(_))
       } yield calculate.admin_lagBehind(ends, curr)
 
@@ -120,7 +120,7 @@ object KafkaAdminApi {
       transientConsumer(initCS.withGroupId(groupId)).commitSync(offsets)
 
     override def commitSync(groupId: String, partition: Int, offset: Long): F[Unit] = {
-      val tp = new TopicPartition(topicName.value, partition)
+      val tp = new TopicPartition(topicName.name.value, partition)
       val oam = new OffsetAndMetadata(offset)
       commitSync(groupId, Map(tp -> oam))
     }

@@ -31,7 +31,7 @@ final case class NJProducerRecord[K, V](
   value: Option[V]
 ) {
 
-  def withTopicName(name: TopicName): NJProducerRecord[K, V] = copy(topic = name.value)
+  def withTopicName(name: TopicName): NJProducerRecord[K, V] = copy(topic = name.name.value)
   def withPartition(pt: Int): NJProducerRecord[K, V] = copy(partition = Some(pt))
   def withTimestamp(ts: Long): NJProducerRecord[K, V] = copy(timestamp = Some(ts))
   def withKey(k: K): NJProducerRecord[K, V] = copy(key = Some(k))
@@ -58,7 +58,7 @@ object NJProducerRecord {
 
   def apply[K, V](topicName: TopicName, k: K, v: V): NJProducerRecord[K, V] =
     NJProducerRecord(
-      topic = topicName.value,
+      topic = topicName.name.value,
       partition = None,
       offset = None,
       timestamp = None,

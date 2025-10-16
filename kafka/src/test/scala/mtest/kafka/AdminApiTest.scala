@@ -47,7 +47,7 @@ class AdminApiTest extends AnyFunSuite {
 
   test("groups") {
     val gid = "g1"
-    val tpo = Map(new TopicPartition(topic.topicName.value, 0) -> new OffsetAndMetadata(0))
+    val tpo = Map(new TopicPartition(topic.topicName.name.value, 0) -> new OffsetAndMetadata(0))
     val admin = ctx.admin("admin")
     val gp =
       ctx.produce(topicDef).produceOne(0, 0) >> ctx.admin("admin").use { admin =>

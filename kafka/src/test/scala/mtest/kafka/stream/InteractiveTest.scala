@@ -36,21 +36,23 @@ class InteractiveTest extends AnyFunSuite {
 
   def top(sb: StreamsBuilder, ksb: StreamsSerde): Unit = {
     import ksb.implicits.*
-    sb.table(topic.topicName.value, Materialized.as[Int, String](localStore.inMemoryKeyValueStore.supplier))
+    sb.table(
+      topic.topicName.name.value,
+      Materialized.as[Int, String](localStore.inMemoryKeyValueStore.supplier))
     ()
   }
 
   def gtop(sb: StreamsBuilder, ksb: StreamsSerde): Unit = {
     import ksb.implicits.*
     sb.globalTable[Int, String](
-      topic.topicName.value,
+      topic.topicName.name.value,
       Materialized.as[Int, String](globalStore.persistentKeyValueStore.supplier))
     ()
   }
 
   test("interactive") {
     val pr: ProducerRecords[Int, String] = ProducerRecords.one(
-      ProducerRecord(topic.topicName.value, Random.nextInt(3), s"a${Random.nextInt(1000)}"))
+      ProducerRecord(topic.topicName.name.value, Random.nextInt(3), s"a${Random.nextInt(1000)}"))
     val feedData: Stream[IO, ProducerResult[Int, String]] =
       ctx.sharedProduce[Int, String](topic.pair).clientS.evalMap(_.produce(pr).flatten)
 

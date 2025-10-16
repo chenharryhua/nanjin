@@ -6,19 +6,21 @@ import eu.timepit.refined.api.Refined
 import eu.timepit.refined.refineV
 import eu.timepit.refined.string.MatchesRegex
 import io.circe.{Decoder, Encoder}
+import io.estatico.newtype.macros.newtype
+import io.estatico.newtype.ops.toCoercibleIdOps
 
 object kafka {
   private type MR = MatchesRegex["""^[a-zA-Z0-9_.\-]+$"""]
 
   type TopicNameL = String Refined MR
 
-  final class TopicName private (val name: TopicNameL) {
-    val value: String = name.value
-    override val toString: String = name.value
+  @newtype final class TopicName private (val name: TopicNameL) {
+    // val value: String = name.value
+    override def toString: String = name.value
   }
 
   object TopicName {
-    def apply(tnc: TopicNameL): TopicName = new TopicName(tnc)
+    def apply(tnc: TopicNameL): TopicName = tnc.coerce[TopicName]
 
     private def trans(str: String): Either[String, TopicName] = refineV[MR](str).map(apply)
 
@@ -31,10 +33,10 @@ object kafka {
 
     implicit val showTopicName: Show[TopicName] = Show.fromToString
 
-    implicit val orderingTopicName: Ordering[TopicName] = Ordering.by(_.value)
+    implicit val orderingTopicName: Ordering[TopicName] = Ordering.by(_.name.value)
     implicit val orderTopicName: Order[TopicName] = Order.fromOrdering[TopicName]
 
-    implicit val encodeTopicName: Encoder[TopicName] = Encoder.encodeString.contramap(_.value)
+    implicit val encodeTopicName: Encoder[TopicName] = Encoder.encodeString.contramap(_.name.value)
     implicit val decodeTopicName: Decoder[TopicName] = Decoder.decodeString.emap(trans)
   }
 }

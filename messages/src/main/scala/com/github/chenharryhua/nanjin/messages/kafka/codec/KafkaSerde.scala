@@ -17,8 +17,8 @@ import scala.util.Try
   *   schema related type
   */
 final class KafkaSerde[A] private[codec] (val topicName: TopicName, val registered: Registered[A]) {
-  def serialize(a: A): Array[Byte] = registered.serde.serializer.serialize(topicName.value, a)
-  def deserialize(ab: Array[Byte]): A = registered.serde.deserializer.deserialize(topicName.value, ab)
+  def serialize(a: A): Array[Byte] = registered.serde.serializer.serialize(topicName.name.value, a)
+  def deserialize(ab: Array[Byte]): A = registered.serde.deserializer.deserialize(topicName.name.value, ab)
 
   def tryDeserialize(ab: Array[Byte]): Try[A] = Try(deserialize(ab))
 }

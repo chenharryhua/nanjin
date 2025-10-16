@@ -127,12 +127,12 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
     def top(sb: StreamsBuilder, ss: StreamsSerde): Unit = {
       import ss.implicits.*
 
-      val a = sb.stream[Int, StreamOne](s1Topic.topicName.value)
-      val b = sb.table[Int, TableTwo](t2Topic.topicName.value)
+      val a = sb.stream[Int, StreamOne](s1Topic.topicName.name.value)
+      val b = sb.table[Int, TableTwo](t2Topic.topicName.name.value)
 
       a.join(b)((s1, t2) => StreamTarget(s1.name, 0, t2.color))
         .peek((k, v) => println(show"out=($k, $v)"))
-        .to(tgt.topicName.value)
+        .to(tgt.topicName.name.value)
     }
     val serde = ctx.serde(s1Topic)
     val sendS1Data = Stream

@@ -22,13 +22,13 @@ sealed trait KafkaTopic[K, V] {
 final case class AvroTopic[K, V] private (topicName: TopicName, pair: AvroForPair[K, V])
     extends KafkaTopic[K, V] {
 
-  override def toString: String = topicName.value
+  override def toString: String = topicName.name.value
 
   def withTopicName(tn: TopicNameL): AvroTopic[K, V] = new AvroTopic[K, V](TopicName(tn), pair)
   def modifyTopicName(f: Endo[String]): AvroTopic[K, V] =
-    withTopicName(TopicName.unsafeFrom(f(topicName.value)).name)
+    withTopicName(TopicName.unsafeFrom(f(topicName.name.value)).name)
 
-  def producerRecord(k: K, v: V): ProducerRecord[K, V] = ProducerRecord(topicName.value, k, v)
+  def producerRecord(k: K, v: V): ProducerRecord[K, V] = ProducerRecord(topicName.name.value, k, v)
 
   override def consumerSettings[F[_]: Sync](
     srs: SchemaRegistrySettings,

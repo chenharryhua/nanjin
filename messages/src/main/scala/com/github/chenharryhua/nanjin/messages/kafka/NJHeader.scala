@@ -1,6 +1,8 @@
 package com.github.chenharryhua.nanjin.messages.kafka
 
 import cats.Eq
+import com.github.chenharryhua.nanjin.messages.ProtoConsumerRecord.ProtoHeader
+import com.google.protobuf.ByteString
 import com.sksamuel.avro4s.{AvroName, AvroNamespace}
 import fs2.kafka.Header
 import io.circe.generic.JsonCodec
@@ -26,4 +28,7 @@ object NJHeader {
 
   implicit val transformHeaderNJJava: Transformer[NJHeader, JavaHeader] =
     (src: NJHeader) => new RecordHeader(src.key, src.value.toArray)
+
+  implicit val transformHeaderProto: Transformer[NJHeader, ProtoHeader] =
+    (src: NJHeader) => ProtoHeader(src.key, ByteString.copyFrom(src.value.toArray))
 }

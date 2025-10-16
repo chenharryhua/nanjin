@@ -81,7 +81,7 @@ private[spark] object loaders {
         if (str.isEmpty) None
         else
           io.circe.jawn.decode[A](str) match {
-            case Left(ex)  => throw RDDReadException(path.toString(), idx + 1, ex)
+            case Left(ex)     => throw RDDReadException(path.toString(), idx + 1, ex)
             case Right(value) => Some(value)
           }
       })

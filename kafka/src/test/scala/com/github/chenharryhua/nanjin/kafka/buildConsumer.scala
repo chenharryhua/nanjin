@@ -16,14 +16,14 @@ import eu.timepit.refined.auto.*
 object buildConsumer {
   val topicName: TopicName = TopicName("transient.consumer.topic")
 
-  val tp0 = new TopicPartition(topicName.value, 0)
-  val tp1 = new TopicPartition(topicName.value, 1)
-  val tp2 = new TopicPartition(topicName.value, 2)
+  val tp0 = new TopicPartition(topicName.name.value, 0)
+  val tp1 = new TopicPartition(topicName.name.value, 1)
+  val tp2 = new TopicPartition(topicName.name.value, 2)
 
   private val partitionInfos: util.List[PartitionInfo] = List(
-    new PartitionInfo(topicName.value, 0, null, null, null),
-    new PartitionInfo(topicName.value, 1, null, null, null),
-    new PartitionInfo(topicName.value, 2, null, null, null)
+    new PartitionInfo(topicName.name.value, 0, null, null, null),
+    new PartitionInfo(topicName.name.value, 1, null, null, null),
+    new PartitionInfo(topicName.name.value, 2, null, null, null)
   ).asJava
 
   def apply(
