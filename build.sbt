@@ -281,7 +281,7 @@ lazy val messages =
           "io.confluent"                              % "kafka-protobuf-serializer"    % confluentV,
           "io.confluent"                              % "kafka-json-schema-serializer" % confluentV,
           "io.confluent"                              % "kafka-streams-avro-serde"     % confluentV,
-          "com.google.protobuf"                       % "protobuf-java"                % "4.32.1", // snyk
+          "com.google.protobuf"                       % "protobuf-java"                % "4.33.0", // snyk
           "org.jetbrains.kotlin"                      % "kotlin-stdlib"                % "2.2.20", // snyk
           "io.circe" %% "circe-shapes"                % circeV                         % Test
         ) ++ jacksonLib ++ testLib)
