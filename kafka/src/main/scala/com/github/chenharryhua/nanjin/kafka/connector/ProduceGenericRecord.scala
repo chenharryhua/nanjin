@@ -37,7 +37,7 @@ final class ProduceGenericRecord[F[_], K, V] private[kafka] (
   private def schemaPair(implicit F: MonadError[F, Throwable]): F[AvroSchemaPair] =
     getSchema.flatMap { skm =>
       if (avroTopic.pair.optionalSchemaPair.isBackwardCompatible(skm))
-        F.pure(avroTopic.pair.optionalSchemaPair.write(skm).toPair)
+        F.pure(avroTopic.pair.optionalSchemaPair.write(skm).toSchemaPair)
       else F.raiseError(new Exception("incompatible schema"))
     }
 
