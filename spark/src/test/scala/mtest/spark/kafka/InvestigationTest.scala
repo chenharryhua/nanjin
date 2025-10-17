@@ -1,6 +1,7 @@
 package mtest.spark.kafka
 
-import com.github.chenharryhua.nanjin.messages.kafka.{CRMetaInfo, NJConsumerRecord}
+import cats.implicits.catsSyntaxOptionId
+import com.github.chenharryhua.nanjin.messages.kafka.{MetaInfo, NJConsumerRecord}
 import com.github.chenharryhua.nanjin.spark.SparkSessionExt
 import mtest.spark.sparkSession
 import org.apache.spark.sql.SparkSession
@@ -45,19 +46,19 @@ object InvestigationTestData {
   )
 
   val mouses5 = List( // missing (1,5)
-    CRMetaInfo("topic", 0, 1, 1, 0, None, None),
-    CRMetaInfo("topic", 0, 2, 2, 0, None, None),
-    CRMetaInfo("topic", 0, 3, 3, 0, None, None),
-    CRMetaInfo("topic", 1, 4, 4, 0, None, None),
-    CRMetaInfo("topic", 1, 6, 6, 0, None, None)
+    MetaInfo("topic", 0, 1, 1, 0.some, None, None),
+    MetaInfo("topic", 0, 2, 2, 0.some, None, None),
+    MetaInfo("topic", 0, 3, 3, 0.some, None, None),
+    MetaInfo("topic", 1, 4, 4, 0.some, None, None),
+    MetaInfo("topic", 1, 6, 6, 0.some, None, None)
   )
 
   val mouses6 = List( // (0,2) duplicate
-    CRMetaInfo("topic", 0, 1, 1, 0, None, None),
-    CRMetaInfo("topic", 0, 2, 2, 0, None, None),
-    CRMetaInfo("topic", 0, 2, 3, 0, None, None),
-    CRMetaInfo("topic", 0, 2, 4, 0, None, None),
-    CRMetaInfo("topic", 1, 5, 6, 0, None, None)
+    MetaInfo("topic", 0, 1, 1, 0.some, None, None),
+    MetaInfo("topic", 0, 2, 2, 0.some, None, None),
+    MetaInfo("topic", 0, 2, 3, 0.some, None, None),
+    MetaInfo("topic", 0, 2, 4, 0.some, None, None),
+    MetaInfo("topic", 1, 5, 6, 0.some, None, None)
   )
 
 }

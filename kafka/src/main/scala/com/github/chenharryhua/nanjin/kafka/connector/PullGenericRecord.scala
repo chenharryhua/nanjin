@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.kafka.connector
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.AvroSchemaPair
 import com.github.chenharryhua.nanjin.messages.kafka.instances.*
-import com.github.chenharryhua.nanjin.messages.kafka.{CRMetaInfo, NJHeader}
+import com.github.chenharryhua.nanjin.messages.kafka.{MetaInfo, NJHeader}
 import com.sksamuel.avro4s.SchemaFor
 import fs2.kafka.{ConsumerRecord, KafkaByteConsumerRecord}
 import io.circe.syntax.EncoderOps
@@ -52,7 +52,7 @@ final private class PullGenericRecord(topicName: TopicName, pair: AvroSchemaPair
       case Schema.Type.NULL =>
         (_: Array[Byte]) => null
 
-      case _ => throw new RuntimeException(s"unsupported key schema: ${pair.key.toString}")
+      case us => throw new RuntimeException(s"unsupported key schema: ${us.toString}")
     }
 
   private val val_decode: Array[Byte] => Any =
@@ -86,7 +86,7 @@ final private class PullGenericRecord(topicName: TopicName, pair: AvroSchemaPair
       case Schema.Type.NULL =>
         (_: Array[Byte]) => Success(null)
 
-      case _ => throw new RuntimeException(s"unsupported value schema: ${pair.value.toString}")
+      case us => throw new RuntimeException(s"unsupported value schema: ${us.toString}")
     }
 
   def toGenericRecord(ccr: KafkaByteConsumerRecord): Try[GenericData.Record] =
@@ -111,7 +111,7 @@ final private class PullGenericRecord(topicName: TopicName, pair: AvroSchemaPair
       record.put("leaderEpoch", ccr.leaderEpoch().toScala.orNull)
       Success(record)
     } catch {
-      case ex: Throwable => Failure(new Exception(CRMetaInfo(ccr).asJson.noSpaces, ex))
+      case ex: Throwable => Failure(new Exception(MetaInfo(ccr).asJson.noSpaces, ex))
     }
 
   def toGenericRecord(ccr: ConsumerRecord[Array[Byte], Array[Byte]]): Try[GenericData.Record] =

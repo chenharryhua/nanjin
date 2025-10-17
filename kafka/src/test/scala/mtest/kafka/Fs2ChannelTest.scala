@@ -2,7 +2,6 @@ package mtest.kafka
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import cats.implicits.toBifunctorOps
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.*
 import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
@@ -100,8 +99,6 @@ class Fs2ChannelTest extends AnyFunSuite {
         serde.tryDeserializeValue(ccr.record)
         serde.tryDeserializeKeyValue(ccr.record)
         serde.optionalDeserialize(ccr.record)
-        serde.nullableDeserialize(ccr.record)
-        serde.nullableDeserialize(ccr.record.bimap[Array[Byte], Array[Byte]](_ => null, _ => null))
         val nj = serde.toNJConsumerRecord(ccr).toNJProducerRecord.toProducerRecord
         serde.serialize(nj)
       }

@@ -4,7 +4,6 @@ import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import org.apache.kafka.common.serialization.{Deserializer, Serde, Serializer}
 
 import scala.jdk.CollectionConverters.*
-import scala.util.Try
 
 /** [[https://github.com/sksamuel/avro4s]]
   */
@@ -17,10 +16,11 @@ import scala.util.Try
   *   schema related type
   */
 final class KafkaSerde[A] private[codec] (val topicName: TopicName, val registered: Registered[A]) {
-  def serialize(a: A): Array[Byte] = registered.serde.serializer.serialize(topicName.name.value, a)
-  def deserialize(ab: Array[Byte]): A = registered.serde.deserializer.deserialize(topicName.name.value, ab)
+  private[this] val ser: Serializer[A] = registered.serde.serializer()
+  def serialize(a: A): Array[Byte] = ser.serialize(topicName.name.value, a)
 
-  def tryDeserialize(ab: Array[Byte]): Try[A] = Try(deserialize(ab))
+  private[this] val deser: Deserializer[A] = registered.serde.deserializer()
+  def deserialize(ab: Array[Byte]): A = deser.deserialize(topicName.name.value, ab)
 }
 
 final class Registered[A] private[codec] (

@@ -42,7 +42,8 @@ class SparKafkaTest extends AnyFunSuite {
 
   val loadData: IO[Unit] =
     fs2.Stream
-      .emits(List((1, data), (2, data)))
+      .emits[IO, (Int, HasDuck)](
+        List((1, data), (2, null), (null.asInstanceOf[Int], data), (null.asInstanceOf[Int], null)))
       .covary[IO]
       .chunks
       .through(ctx.produce[Int, HasDuck](topic).updateConfig(_.withClientId("spark.kafka.test")).sink)
@@ -83,19 +84,34 @@ class SparKafkaTest extends AnyFunSuite {
     val path = "./data/test/spark/kafka/consume/duck.avro"
     val sink = hadoop.sink(path).avro
     duckConsume.subscribe
-      .take(2)
+      .take(4)
       .map(_.record.value)
       .evalMap(IO.fromTry)
       .through(sink)
       .compile
       .drain
       .unsafeRunSync()
-    assert(2 == sparkSession.loadRdd[NJConsumerRecord[Int, HasDuck]](path).avro.count())
+    val List(a, b, c, d) = sparkSession.loadRdd[NJConsumerRecord[Int, HasDuck]](path).avro.collect().toList
+    assert(a.key.get == 1)
+    assert(a.value.get == data)
+    assert(b.key.get == 2)
+    assert(b.value.isEmpty)
+    assert(c.key.get == 0)
+    assert(c.value.get == data)
+    assert(d.key.get == 0)
+    assert(d.value.isEmpty)
+  }
+
+  test("upload/download") {
+    val path = "./data/test/spark/kafka/dump"
+    val run = sparKafka.dump(topic, path) >> sparKafka.upload(topic, path)
+
+    run.unsafeRunSync()
   }
 
   test("generic record conversion") {
     duckConsume.subscribe
-      .take(2)
+      .take(4)
       .evalTap(gr => IO.fromTry(gr.record.value.flatMap(genericRecord2Jackson(_))))
       .evalTap(gr => IO.fromTry(gr.record.value.flatMap(genericRecord2BinAvro(_))))
       .evalTap(gr => IO.fromTry(gr.record.value.flatMap(genericRecord2Circe(_))))
