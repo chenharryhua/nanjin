@@ -9,7 +9,7 @@ ThisBuild / Test / logBuffered       := false
 Global / parallelExecution := false
 
 val acyclicV = "0.3.19"
-val avroV = "1.12.0"
+val avroV = "1.12.1"
 val avro4sV = "4.1.2"
 val awsV = "2.35.5"
 val caffeineV = "3.2.2"
@@ -281,7 +281,7 @@ lazy val messages =
           "io.confluent"                              % "kafka-protobuf-serializer"    % confluentV,
           "io.confluent"                              % "kafka-json-schema-serializer" % confluentV,
           "io.confluent"                              % "kafka-streams-avro-serde"     % confluentV,
-          "com.google.protobuf"                       % "protobuf-java"                % "4.32.1", // snyk
+          "com.google.protobuf"                       % "protobuf-java"                % "4.33.0", // snyk
           "org.jetbrains.kotlin"                      % "kotlin-stdlib"                % "2.2.20", // snyk
           "io.circe" %% "circe-shapes"                % circeV                         % Test
         ) ++ jacksonLib ++ testLib)
