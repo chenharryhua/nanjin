@@ -19,7 +19,7 @@ object NJConsumerRecordTestData {
     timestampType <- Gen.oneOf(List(0, 1))
     k <- Gen.option(Gen.posNum[Int])
     v <- Gen.option(Gen.posNum[Int])
-  } yield NJConsumerRecord("topic", partition, offset, timestamp, timestampType, Nil, None, None, None, k, v)
+  } yield NJConsumerRecord("topic", partition, offset, timestamp, timestampType, Nil, None, -1, -1, k, v)
 
   val genPR: Gen[NJProducerRecord[Int, Int]] = for {
     partition <- Gen.option(Gen.posNum[Int])

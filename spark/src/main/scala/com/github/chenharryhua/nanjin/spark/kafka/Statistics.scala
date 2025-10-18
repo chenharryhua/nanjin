@@ -11,7 +11,7 @@ import com.github.chenharryhua.nanjin.datetime.{
   DateTimeRange
 }
 import com.github.chenharryhua.nanjin.kafka.TopicPartitionMap
-import com.github.chenharryhua.nanjin.messages.kafka.{CRMetaInfo, ZonedCRMetaInfo}
+import com.github.chenharryhua.nanjin.messages.kafka.{MetaInfo, ZonedMetaInfo}
 import com.github.chenharryhua.nanjin.spark.{describeJob, sparkZoneId}
 import org.apache.kafka.common.TopicPartition
 import org.apache.spark.sql.Dataset
@@ -19,14 +19,14 @@ import org.apache.spark.sql.Dataset
 import java.time.{Instant, ZoneId, ZonedDateTime}
 import scala.collection.immutable.TreeMap
 
-final class Statistics[F[_]] private[spark] (val dataset: Dataset[CRMetaInfo]) extends Serializable {
+final class Statistics[F[_]] private[spark] (val dataset: Dataset[MetaInfo]) extends Serializable {
   private val zoneId: ZoneId = sparkZoneId(dataset.sparkSession)
   import dataset.sparkSession.implicits.*
 
   /*
    * transformation
    */
-  def transform(f: Endo[Dataset[CRMetaInfo]]): Statistics[F] =
+  def transform(f: Endo[Dataset[MetaInfo]]): Statistics[F] =
     new Statistics(f(dataset))
 
   def union(other: Statistics[F]): Statistics[F] =
@@ -42,7 +42,7 @@ final class Statistics[F[_]] private[spark] (val dataset: Dataset[CRMetaInfo]) e
    * effectful
    */
 
-  def cherryPick(partition: Int, offset: Long)(implicit F: Sync[F]): F[List[ZonedCRMetaInfo]] =
+  def cherryPick(partition: Int, offset: Long)(implicit F: Sync[F]): F[List[ZonedMetaInfo]] =
     F.delay {
       dataset
         .filter(m => m.offset === offset && m.partition === partition)
@@ -115,7 +115,7 @@ final class Statistics[F[_]] private[spark] (val dataset: Dataset[CRMetaInfo]) e
   def dailyMinute(description: String)(implicit F: Sync[F]): F[List[DailyMinuteResult]] =
     describeJob[F](dataset.sparkSession.sparkContext, "Daily.Minute:" + description).surround(dailyMinute)
 
-  private def internalSummary(ids: Dataset[CRMetaInfo]): List[KafkaSummaryInternal] = {
+  private def internalSummary(ids: Dataset[MetaInfo]): List[KafkaSummaryInternal] = {
     import org.apache.spark.sql.functions.*
     ids
       .groupBy("partition")
@@ -150,7 +150,7 @@ final class Statistics[F[_]] private[spark] (val dataset: Dataset[CRMetaInfo]) e
     }
   }
 
-  def lostEarliest(implicit F: Sync[F]): F[List[ZonedCRMetaInfo]] =
+  def lostEarliest(implicit F: Sync[F]): F[List[ZonedMetaInfo]] =
     lostOffsets.map { (mo: Dataset[MissingOffset]) =>
       import org.apache.spark.sql.functions.min
 
@@ -164,7 +164,7 @@ final class Statistics[F[_]] private[spark] (val dataset: Dataset[CRMetaInfo]) e
         .sortBy(_.partition)
     }
 
-  def lostLatest(implicit F: Sync[F]): F[List[ZonedCRMetaInfo]] =
+  def lostLatest(implicit F: Sync[F]): F[List[ZonedMetaInfo]] =
     lostOffsets.map { (mo: Dataset[MissingOffset]) =>
       import org.apache.spark.sql.functions.max
 
@@ -188,8 +188,8 @@ final class Statistics[F[_]] private[spark] (val dataset: Dataset[CRMetaInfo]) e
 
       val all: Array[Dataset[Disorder]] =
         dataset.map(_.partition).distinct().collect().map { pt =>
-          val curr: Dataset[(Long, CRMetaInfo)] = dataset.filter(_.partition === pt).map(x => (x.offset, x))
-          val pre: Dataset[(Long, CRMetaInfo)] = curr.map { case (index, crm) => (index + 1, crm) }
+          val curr: Dataset[(Long, MetaInfo)] = dataset.filter(_.partition === pt).map(x => (x.offset, x))
+          val pre: Dataset[(Long, MetaInfo)] = curr.map { case (index, crm) => (index + 1, crm) }
 
           curr.joinWith(pre, curr("_1") === pre("_1"), "inner").flatMap { case ((_, c), (_, p)) =>
             if (c.timestamp >= p.timestamp) None
@@ -198,10 +198,10 @@ final class Statistics[F[_]] private[spark] (val dataset: Dataset[CRMetaInfo]) e
                 partition = pt,
                 offset = p.offset,
                 timestamp = p.timestamp,
-                currTs = p.localDateTime(zoneId).toString,
-                nextTS = c.localDateTime(zoneId).toString,
-                msGap = p.timestamp - c.timestamp,
-                tsType = p.timestampType
+                current_timestamp = p.localDateTime(zoneId).toString,
+                next_timestamp = c.localDateTime(zoneId).toString,
+                gap_millisecond = p.timestamp - c.timestamp,
+                timestamp_type = p.timestampType
               ))
           }
         }

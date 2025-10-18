@@ -5,7 +5,7 @@ import cats.effect.kernel.Sync
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.datetime.DateTimeRange
-import com.github.chenharryhua.nanjin.messages.kafka.{CRMetaInfo, NJConsumerRecord}
+import com.github.chenharryhua.nanjin.messages.kafka.{MetaInfo, NJConsumerRecord}
 import com.github.chenharryhua.nanjin.spark.describeJob
 import fs2.Stream
 import org.apache.spark.rdd.RDD
@@ -52,7 +52,7 @@ final class CrRdd[K, V](val rdd: RDD[NJConsumerRecord[K, V]], ss: SparkSession) 
 
   def stats[F[_]]: Statistics[F] = {
     import ss.implicits.*
-    new Statistics[F](ss.createDataset(rdd.map(CRMetaInfo(_))))
+    new Statistics[F](ss.createDataset(rdd.map(MetaInfo(_))))
   }
 
   // IO

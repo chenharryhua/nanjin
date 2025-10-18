@@ -25,17 +25,6 @@ class NullTests extends AnyFunSuite {
     assert(PrimitiveTypeCombined.jsonPrimCodec.deserialize(null) === null)
   }
 
-  test("tryDecode null should return success") {
-    assert(intCodec.tryDeserialize(null).isSuccess)
-    assert(longCodec.tryDeserialize(null).isSuccess)
-    assert(doubleCodec.tryDeserialize(null).isSuccess)
-    assert(floatCodec.tryDeserialize(null).isSuccess)
-    assert(strCodec.tryDeserialize(null).isSuccess)
-    assert(byteArrayCodec.tryDeserialize(null).isSuccess)
-    assert(PrimitiveTypeCombined.primitiviesCodec.tryDeserialize(null).isSuccess)
-    assert(PrimitiveTypeCombined.jsonPrimCodec.tryDeserialize(null).isSuccess)
-  }
-
   test("encode null should return null") {
     assert(avro.serialize(null.asInstanceOf[CoproductJsons.Foo]) == null)
     assert(avroU.serialize(null.asInstanceOf[AvroFor.FromBroker]) == null)

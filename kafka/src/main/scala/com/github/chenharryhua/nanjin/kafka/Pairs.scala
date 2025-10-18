@@ -34,7 +34,8 @@ sealed trait SerdePair[K, V] {
 }
 
 final case class AvroForPair[K, V](key: AvroFor[K], value: AvroFor[V]) extends SerdePair[K, V] {
-  val optionalSchemaPair: OptionalAvroSchemaPair = OptionalAvroSchemaPair(key.schema, value.schema)
+  val optionalSchemaPair: OptionalAvroSchemaPair =
+    OptionalAvroSchemaPair(key.schema, value.schema)
 }
 
 final case class ProtoForPair[K, V](key: ProtoFor[K], value: ProtoFor[V]) extends SerdePair[K, V] {
@@ -55,6 +56,9 @@ final case class ProtobufSchemaPair(key: ProtobufSchema, value: ProtobufSchema)
 
 final case class JsonSchemaPair(key: JsonSchema, value: JsonSchema)
 
+/*
+ * optional
+ */
 sealed trait CheckBackwardCompatibility[A] {
   def isBackwardCompatible(broker: A): Boolean
   def read(broker: A): A
@@ -75,7 +79,7 @@ final case class OptionalJsonSchemaPair(key: Option[JsonSchema], value: Option[J
   override def write(broker: OptionalJsonSchemaPair): OptionalJsonSchemaPair =
     OptionalJsonSchemaPair(broker.key.orElse(key), broker.value.orElse(value))
 
-  def toPair: JsonSchemaPair = (key, value) match {
+  def toSchemaPair: JsonSchemaPair = (key, value) match {
     case (None, None)       => sys.error("both key and value schema are absent")
     case (None, Some(_))    => sys.error("key schema is absent")
     case (Some(_), None)    => sys.error("value schema is absent")
@@ -98,7 +102,7 @@ final case class OptionalProtobufSchemaPair(key: Option[ProtobufSchema], value: 
   override def write(broker: OptionalProtobufSchemaPair): OptionalProtobufSchemaPair =
     OptionalProtobufSchemaPair(broker.key.orElse(key), broker.value.orElse(value))
 
-  def toPair: ProtobufSchemaPair = (key, value) match {
+  def toSchemaPair: ProtobufSchemaPair = (key, value) match {
     case (None, None)       => sys.error("both key and value schema are absent")
     case (None, Some(_))    => sys.error("key schema is absent")
     case (Some(_), None)    => sys.error("value schema is absent")
@@ -122,7 +126,7 @@ final private[kafka] case class OptionalAvroSchemaPair(key: Option[AvroSchema], 
   override def write(broker: OptionalAvroSchemaPair): OptionalAvroSchemaPair =
     OptionalAvroSchemaPair(broker.key.orElse(key), broker.value.orElse(value))
 
-  def toPair: AvroSchemaPair = (key, value) match {
+  def toSchemaPair: AvroSchemaPair = (key, value) match {
     case (None, None)       => sys.error("both key and value schema are absent")
     case (None, Some(_))    => sys.error("key schema is absent")
     case (Some(_), None)    => sys.error("value schema is absent")

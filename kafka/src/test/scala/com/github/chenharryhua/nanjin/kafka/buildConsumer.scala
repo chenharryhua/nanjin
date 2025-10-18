@@ -32,6 +32,9 @@ object buildConsumer {
     forTime: Map[TopicPartition, OffsetAndTimestamp]): MkConsumer[IO] = new MkConsumer[IO] {
     override def apply[G[_]](settings: ConsumerSettings[G, ?, ?]): IO[KafkaByteConsumer] = IO(
       new KafkaByteConsumer {
+
+        override def close(option: CloseOptions): Unit = ()
+
         override def assignment(): util.Set[TopicPartition] = ???
         override def subscription(): util.Set[String] = ???
         override def subscribe(collection: util.Collection[String]): Unit = ()

@@ -9,7 +9,7 @@ import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.{DateTimeRange, NJTimestamp}
 import fs2.kafka.KafkaByteConsumer
 import fs2.kafka.consumer.MkConsumer
-import org.apache.kafka.clients.consumer.{ConsumerRecord, OffsetAndMetadata}
+import org.apache.kafka.clients.consumer.{CloseOptions, ConsumerRecord, OffsetAndMetadata}
 import org.apache.kafka.common.{Metric, MetricName, TopicPartition}
 
 import java.time.Duration
@@ -113,7 +113,7 @@ private object TransientConsumer {
       extends TransientConsumer[F] {
 
     private[this] val consumer: Resource[F, KafkaByteConsumer] =
-      Resource.make(MC(cs))(c => Sync[F].blocking(c.close(cs.closeTimeout.toJava)))
+      Resource.make(MC(cs))(c => Sync[F].blocking(c.close(CloseOptions.timeout(cs.closeTimeout.toJava))))
 
     private[this] val kpc: KafkaPrimitiveConsumerApi[Kleisli[F, KafkaByteConsumer, *]] =
       KafkaPrimitiveConsumerApi[Kleisli[F, KafkaByteConsumer, *]](topicName)

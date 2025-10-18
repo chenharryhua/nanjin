@@ -12,6 +12,7 @@ import org.apache.kafka.streams.processor.api
 import org.apache.kafka.streams.processor.api.{Processor, ProcessorSupplier, Record}
 import org.apache.kafka.streams.scala.StreamsBuilder
 import org.apache.kafka.streams.state.KeyValueStore
+import scala.util.Try
 
 object apps {
   def kafka_streaming(sb: StreamsBuilder, rs: StreamsSerde): Unit = {
@@ -34,8 +35,8 @@ object apps {
     val b = sb.table[Int, TableTwo](t2Topic.topicName.name.value)
     a.flatMap { (k, v) =>
       val r = (
-        keyS.tryDeserialize(k).toOption,
-        valS.tryDeserialize(v).toOption
+        Try(keyS.deserialize(k)).toOption,
+        Try(valS.deserialize(v)).toOption
       ).mapN((_, _))
       println(r)
       r

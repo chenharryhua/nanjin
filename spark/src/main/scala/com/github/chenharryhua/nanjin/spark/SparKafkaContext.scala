@@ -8,7 +8,7 @@ import com.github.chenharryhua.nanjin.datetime.DateTimeRange
 import com.github.chenharryhua.nanjin.kafka.*
 import com.github.chenharryhua.nanjin.messages.ProtoConsumerRecord.ProtoConsumerRecord
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
-import com.github.chenharryhua.nanjin.messages.kafka.{CRMetaInfo, NJConsumerRecord}
+import com.github.chenharryhua.nanjin.messages.kafka.{MetaInfo, NJConsumerRecord}
 import com.github.chenharryhua.nanjin.spark.kafka.Statistics
 import com.github.chenharryhua.nanjin.terminals.*
 import eu.timepit.refined.refineMV
@@ -237,7 +237,7 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
   }
 
   object stats {
-    private val sparkSchema: StructType = structType(AvroCodec[CRMetaInfo])
+    private val sparkSchema: StructType = structType(AvroCodec[MetaInfo])
 
     import sparkSession.implicits.*
 
@@ -248,14 +248,14 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
             .format("avro")
             .schema(sparkSchema)
             .load(toHadoopPath(folder).toString)
-            .as[CRMetaInfo]
+            .as[MetaInfo]
         )
       }
 
     def jackson(folder: Url)(implicit F: Sync[F]): F[Statistics[F]] =
       F.blocking {
         new Statistics[F](
-          sparkSession.read.schema(sparkSchema).json(toHadoopPath(folder).toString).as[CRMetaInfo]
+          sparkSession.read.schema(sparkSchema).json(toHadoopPath(folder).toString).as[MetaInfo]
         )
       }
 
@@ -265,15 +265,14 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
     def parquet(folder: Url)(implicit F: Sync[F]): F[Statistics[F]] =
       F.blocking {
         new Statistics[F](
-          sparkSession.read.schema(sparkSchema).parquet(toHadoopPath(folder).toString).as[CRMetaInfo]
+          sparkSession.read.schema(sparkSchema).parquet(toHadoopPath(folder).toString).as[MetaInfo]
         )
       }
 
     def protobuf(folder: Url)(implicit F: Sync[F]): F[Statistics[F]] =
       F.blocking {
         new Statistics[F](
-          sparkSession.createDataset(
-            sparkSession.loadProtobuf[ProtoConsumerRecord](folder).map(CRMetaInfo(_)))
+          sparkSession.createDataset(sparkSession.loadProtobuf[ProtoConsumerRecord](folder).map(MetaInfo(_)))
         )
       }
   }

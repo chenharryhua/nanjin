@@ -15,8 +15,8 @@ class NJConsumerRecordTest extends AnyFunSuite {
     timestampType = 0,
     headers = List(NJHeader("key", "value".getBytes.toList)),
     leaderEpoch = None,
-    serializedKeySize = Some(10),
-    serializedValueSize = Some(10),
+    serializedKeySize = 10,
+    serializedValueSize = 10,
     key = Some(1),
     value = Some(UnderTest(1, "b"))
   )

@@ -13,7 +13,7 @@ import fs2.kafka.{
   TransactionalProducerSettings
 }
 
-final class ProduceShared[F[_], K, V] private[kafka](producerSettings: ProducerSettings[F, K, V])
+final class ProduceShared[F[_], K, V] private[kafka] (producerSettings: ProducerSettings[F, K, V])
     extends UpdateConfig[ProducerSettings[F, K, V], ProduceShared[F, K, V]] with HasProperties {
   override def updateConfig(f: Endo[ProducerSettings[F, K, V]]): ProduceShared[F, K, V] =
     new ProduceShared[F, K, V](f(producerSettings))

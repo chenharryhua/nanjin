@@ -1,14 +1,13 @@
 package com.github.chenharryhua.nanjin.kafka.connector
 
-import cats.{Endo, Foldable}
 import cats.effect.kernel.*
 import cats.implicits.{catsSyntaxFlatten, toFoldableOps}
+import cats.{Endo, Foldable}
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.common.{HasProperties, UpdateConfig}
 import fs2.kafka.*
-import fs2.{Chunk, Pipe}
+import fs2.{Chunk, Pipe, Stream}
 import org.apache.kafka.clients.producer.RecordMetadata
-import fs2.Stream
 final class ProduceKafka[F[_], K, V] private[kafka] (
   topicName: TopicName,
   producerSettings: ProducerSettings[F, K, V],
@@ -23,7 +22,7 @@ final class ProduceKafka[F[_], K, V] private[kafka] (
   override def updateConfig(f: Endo[ProducerSettings[F, K, V]]): ProduceKafka[F, K, V] =
     new ProduceKafka[F, K, V](topicName, f(producerSettings), isCompatible)
 
-  private def kafkaProducer(implicit F: Async[F]): Resource[F, KafkaProducer.PartitionsFor[F, K, V]] =
+  private def kafkaProducer(implicit F: Async[F]): Resource[F, KafkaProducer[F, K, V]] =
     Resource.eval(isCompatible).flatMap {
       case false =>
         Resource.raiseError[F, KafkaProducer.PartitionsFor[F, K, V], Throwable](

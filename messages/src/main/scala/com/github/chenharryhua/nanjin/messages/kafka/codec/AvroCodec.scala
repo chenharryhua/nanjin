@@ -15,8 +15,6 @@ import org.apache.avro.Schema
 import org.apache.avro.generic.IndexedRecord
 import shapeless.LabelledGeneric
 
-import scala.util.Try
-
 final class AvroCodec[A: LabelledGeneric] private (
   override val schemaFor: SchemaFor[A],
   avroDecoder: AvroDecoder[A],
@@ -37,8 +35,6 @@ final class AvroCodec[A: LabelledGeneric] private (
     case other          => sys.error(s"${other.getClass.getName} is not com.sksamuel.avro4s.Record")
   }
   def fromRecord(value: IndexedRecord): A = avroDecoder.decode(value)
-
-  def recordOf(value: A): Option[Record] = Try(toRecord(value)).toOption
 
   /** https://avro.apache.org/docs/current/spec.html the grammar for a namespace is:
     *

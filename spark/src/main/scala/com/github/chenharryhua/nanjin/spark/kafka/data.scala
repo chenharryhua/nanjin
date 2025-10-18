@@ -48,10 +48,10 @@ final case class Disorder(
   partition: Int,
   offset: Long,
   timestamp: Long,
-  currTs: String,
-  nextTS: String,
-  msGap: Long,
-  tsType: Int)
+  current_timestamp: String,
+  next_timestamp: String,
+  gap_millisecond: Long,
+  timestamp_type: Option[Int])
 
 final case class DuplicateRecord(partition: Int, offset: Long, num: Long)
 

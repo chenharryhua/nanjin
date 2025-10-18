@@ -6,6 +6,8 @@ import cats.effect.unsafe.implicits.global
 import cats.implicits.toTraverseOps
 import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
+import com.github.chenharryhua.nanjin.messages.kafka.NJHeader
+import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.terminals.{FileKind, ParquetFile}
 import eu.timepit.refined.auto.*
 import fs2.Stream
@@ -177,5 +179,15 @@ class NJParquetTest extends AnyFunSuite {
       .compile
       .lastOrError
       .unsafeRunSync()
+  }
+
+  test("NJHeader") {
+    val path = fs2Root / "header.parquet"
+    val format = AvroCodec[NJHeader]
+    val data = List(NJHeader("k1", "abc".getBytes().toList), NJHeader("k2", Nil), NJHeader("", Nil))
+    val sink = hdp.sink(path).parquet
+    Stream.emits(data).covary[IO].map(format.toRecord).through(sink).compile.drain.unsafeRunSync()
+    val res = hdp.source(path).parquet(10).compile.toList.unsafeRunSync().map(format.fromRecord)
+    assert(data == res)
   }
 }

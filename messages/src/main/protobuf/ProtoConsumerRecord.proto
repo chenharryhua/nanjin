@@ -26,10 +26,10 @@ message ProtoConsumerRecord {
     optional int32 leader_epoch = 7;
 
     // Size of the serialized key in bytes (or -1 if key is null)
-    optional int32 serialized_key_size = 8;
+    int32 serialized_key_size = 8;
 
     // Size of the serialized value in bytes (or -1 if value is null)
-    optional int32 serialized_value_size = 9;
+    int32 serialized_value_size = 9;
 
     // Serialized key (can be absent / null)
     optional bytes key = 10;
