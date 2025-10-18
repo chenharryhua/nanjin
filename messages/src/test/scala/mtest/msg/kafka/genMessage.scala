@@ -86,8 +86,8 @@ object genMessage {
       timestampType,
       Nil,
       None,
-      None,
-      None,
+      -1,
+      -1,
       Some(key),
       Some(value))
 

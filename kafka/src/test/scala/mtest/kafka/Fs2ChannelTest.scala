@@ -125,8 +125,8 @@ class Fs2ChannelTest extends AnyFunSuite {
           "c" : 2.0
         }
       },
-      "serializedKeySize":null,
-      "serializedValueSize":null,
+      "serializedKeySize":-1,
+      "serializedValueSize":-1,
       "topic" : "fs2.kafka.test",
       "timestampType" : 0,
       "headers" : [

@@ -4,7 +4,6 @@ import cats.Bifunctor
 import cats.data.Cont
 import cats.kernel.Eq
 import cats.syntax.eq.catsSyntaxEq
-import cats.syntax.semigroup.catsSyntaxSemigroup
 import com.github.chenharryhua.nanjin.messages.ProtoConsumerRecord.ProtoConsumerRecord
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.google.protobuf.ByteString
@@ -36,14 +35,11 @@ final case class NJConsumerRecord[K, V](
   @AvroDoc("kafka timestamp type") timestampType: Int,
   @AvroDoc("kafka headers") headers: List[NJHeader],
   @AvroDoc("kafka leader epoch") leaderEpoch: Option[Int],
-  @AvroDoc("kafka key size") serializedKeySize: Option[Int],
-  @AvroDoc("kafka value size") serializedValueSize: Option[Int],
+  @AvroDoc("kafka key size") serializedKeySize: Int,
+  @AvroDoc("kafka value size") serializedValueSize: Int,
   @AvroDoc("kafka key") key: Option[K],
   @AvroDoc("kafka value") value: Option[V]
 ) {
-
-  def size: Option[Int] = serializedKeySize |+| serializedValueSize
-
   def flatten[K2, V2](implicit
     evK: K <:< Option[K2],
     evV: V <:< Option[V2]
@@ -166,12 +162,8 @@ object NJConsumerRecord {
         offset = src.offset(),
         timestamp = src.timestamp(),
         timestampType = src.timestampType().id,
-        serializedKeySize =
-          if (src.serializedKeySize() === JavaConsumerRecord.NULL_SIZE) None
-          else Some(src.serializedKeySize()),
-        serializedValueSize =
-          if (src.serializedValueSize() === JavaConsumerRecord.NULL_SIZE) None
-          else Some(src.serializedValueSize()),
+        serializedKeySize = src.serializedKeySize(),
+        serializedValueSize = src.serializedValueSize(),
         key = Option(src.key()),
         value = Option(src.value()),
         headers = src.headers().toArray.map(_.transformInto[NJHeader]).toList,
@@ -190,8 +182,8 @@ object NJConsumerRecord {
           case 1 => JavaTimestampType.LOG_APPEND_TIME
           case _ => JavaTimestampType.NO_TIMESTAMP_TYPE
         },
-        src.serializedKeySize.getOrElse(JavaConsumerRecord.NULL_SIZE),
-        src.serializedValueSize.getOrElse(JavaConsumerRecord.NULL_SIZE),
+        src.serializedKeySize,
+        src.serializedValueSize,
         src.key.getOrElse(null.asInstanceOf[K]),
         src.value.getOrElse(null.asInstanceOf[V]),
         new RecordHeaders(src.headers.map(_.transformInto[JavaHeader]).toArray),
@@ -213,8 +205,8 @@ object NJConsumerRecord {
         offset = src.offset,
         timestamp = timestamp,
         timestampType = timestampType,
-        serializedKeySize = src.serializedKeySize,
-        serializedValueSize = src.serializedValueSize,
+        serializedKeySize = src.serializedKeySize.getOrElse(JavaConsumerRecord.NULL_SIZE),
+        serializedValueSize = src.serializedValueSize.getOrElse(JavaConsumerRecord.NULL_SIZE),
         key = Option(src.key),
         value = Option(src.value),
         headers = src.headers.toChain.map(_.transformInto[NJHeader]).toList,
@@ -239,9 +231,13 @@ object NJConsumerRecord {
           case _ =>
             Timestamp.unknownTime(src.timestamp)
         }).withHeaders(Headers.fromSeq(src.headers.map(_.transformInto[Header]))))
-        .map(cr => src.serializedKeySize.fold(cr)(cr.withSerializedKeySize))
-        .map(cr => src.serializedValueSize.fold(cr)(cr.withSerializedValueSize))
         .map(cr => src.leaderEpoch.fold(cr)(cr.withLeaderEpoch))
+        .map(cr =>
+          if (src.serializedKeySize === JavaConsumerRecord.NULL_SIZE) cr
+          else cr.withSerializedKeySize(src.serializedKeySize))
+        .map(cr =>
+          if (src.serializedValueSize === JavaConsumerRecord.NULL_SIZE) cr
+          else cr.withSerializedValueSize(src.serializedValueSize))
         .eval
         .value
 

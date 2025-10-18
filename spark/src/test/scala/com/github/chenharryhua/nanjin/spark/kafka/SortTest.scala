@@ -15,38 +15,16 @@ class SortTest extends AnyFunSuite {
   val topic = AvroTopic[Int, Int](TopicName("topic"))
 
   val data = List(
-    NJConsumerRecord[Int, Int]("topic", 0, 0, 40, 0, Nil, None, None, None, Some(0), Some(Random.nextInt())),
-    NJConsumerRecord[Int, Int]("topic", 0, 1, 30, 0, Nil, None, None, None, Some(0), Some(Random.nextInt())),
-    NJConsumerRecord[Int, Int]("topic", 0, 2, 20, 0, Nil, None, None, None, Some(0), Some(Random.nextInt())),
-    NJConsumerRecord[Int, Int]("topic", 0, 3, 10, 0, Nil, None, None, None, Some(0), Some(Random.nextInt())),
-    NJConsumerRecord[Int, Int]("topic", 1, 0, 40, 0, Nil, None, None, None, Some(1), Some(Random.nextInt())),
-    NJConsumerRecord[Int, Int]("topic", 1, 1, 20, 0, Nil, None, None, None, Some(1), Some(Random.nextInt())),
-    NJConsumerRecord[Int, Int]("topic", 1, 2, 20, 0, Nil, None, None, None, Some(1), Some(Random.nextInt())),
-    NJConsumerRecord[Int, Int]("topic", 1, 4, 50, 0, Nil, None, None, None, Some(2), Some(Random.nextInt())),
-    NJConsumerRecord[Int, Int](
-      "topic",
-      2,
-      100,
-      100,
-      0,
-      Nil,
-      None,
-      None,
-      None,
-      Some(2),
-      Some(Random.nextInt())),
-    NJConsumerRecord[Int, Int](
-      "topic",
-      2,
-      100,
-      100,
-      0,
-      Nil,
-      None,
-      None,
-      None,
-      Some(2),
-      Some(Random.nextInt()))
+    NJConsumerRecord[Int, Int]("topic", 0, 0, 40, 0, Nil, None, -1, -1, Some(0), Some(Random.nextInt())),
+    NJConsumerRecord[Int, Int]("topic", 0, 1, 30, 0, Nil, None, -1, -1, Some(0), Some(Random.nextInt())),
+    NJConsumerRecord[Int, Int]("topic", 0, 2, 20, 0, Nil, None, -1, -1, Some(0), Some(Random.nextInt())),
+    NJConsumerRecord[Int, Int]("topic", 0, 3, 10, 0, Nil, None, -1, -1, Some(0), Some(Random.nextInt())),
+    NJConsumerRecord[Int, Int]("topic", 1, 0, 40, 0, Nil, None, -1, -1, Some(1), Some(Random.nextInt())),
+    NJConsumerRecord[Int, Int]("topic", 1, 1, 20, 0, Nil, None, -1, -1, Some(1), Some(Random.nextInt())),
+    NJConsumerRecord[Int, Int]("topic", 1, 2, 20, 0, Nil, None, -1, -1, Some(1), Some(Random.nextInt())),
+    NJConsumerRecord[Int, Int]("topic", 1, 4, 50, 0, Nil, None, -1, -1, Some(2), Some(Random.nextInt())),
+    NJConsumerRecord[Int, Int]("topic", 2, 100, 100, 0, Nil, None, -1, -1, Some(2), Some(Random.nextInt())),
+    NJConsumerRecord[Int, Int]("topic", 2, 100, 100, 0, Nil, None, -1, -1, Some(2), Some(Random.nextInt()))
   )
   val rdd = sparKafka.sparkSession.sparkContext.parallelize(data)
   val crRdd = new CrRdd[Int, Int](rdd, sparKafka.sparkSession)
