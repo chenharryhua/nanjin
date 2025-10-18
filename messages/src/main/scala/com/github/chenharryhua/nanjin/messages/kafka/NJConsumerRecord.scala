@@ -94,6 +94,9 @@ object NJConsumerRecord {
       .withFieldComputed(_.headers, _.headers.toList.map(ph => NJHeader(ph.key, ph.value.toByteArray.toList)))
       .transform
 
+  def jsonCodec[K: JsonEncoder: JsonDecoder, V: JsonEncoder: JsonDecoder]: JsonCodec[NJConsumerRecord[K, V]] =
+    JsonCodec.implied[NJConsumerRecord[K, V]]
+
   def avroCodec[K, V](keyCodec: AvroCodec[K], valCodec: AvroCodec[V]): AvroCodec[NJConsumerRecord[K, V]] = {
     implicit val schemaForKey: SchemaFor[K] = keyCodec.schemaFor
     implicit val schemaForVal: SchemaFor[V] = valCodec.schemaFor
@@ -127,9 +130,6 @@ object NJConsumerRecord {
 
   implicit def decoderNJConsumerRecord[K: JsonDecoder, V: JsonDecoder]: JsonDecoder[NJConsumerRecord[K, V]] =
     io.circe.generic.semiauto.deriveDecoder[NJConsumerRecord[K, V]]
-
-  def jsonCodec[K: JsonEncoder: JsonDecoder, V: JsonEncoder: JsonDecoder]: JsonCodec[NJConsumerRecord[K, V]] =
-    JsonCodec.implied[NJConsumerRecord[K, V]]
 
   implicit val bifunctorNJConsumerRecord: Bifunctor[NJConsumerRecord] =
     new Bifunctor[NJConsumerRecord] {

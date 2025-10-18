@@ -12,6 +12,7 @@ import org.apache.avro.io.DecoderFactory
 import org.apache.kafka.streams.scala.serialization.Serdes
 
 import scala.jdk.OptionConverters.RichOptional
+import scala.util.control.NonFatal
 import scala.util.{Failure, Success, Try}
 
 final private class PullGenericRecord(pair: AvroSchemaPair) {
@@ -81,7 +82,7 @@ final private class PullGenericRecord(pair: AvroSchemaPair) {
         val deser = Serdes.byteArraySerde.deserializer()
         (data: Array[Byte]) => deser.deserialize(topic, data)
       case Schema.Type.NULL =>
-        (_: Array[Byte]) => Success(null)
+        (_: Array[Byte]) => null
 
       case us => throw new RuntimeException(s"unsupported value schema: ${us.toString}")
     }
@@ -104,7 +105,7 @@ final private class PullGenericRecord(pair: AvroSchemaPair) {
         Encoder[Array[NJHeader]].encode(ccr.headers().toArray.map(_.transformInto[NJHeader])))
       Success(record)
     } catch {
-      case ex: Throwable => Failure(new Exception(MetaInfo(ccr).asJson.noSpaces, ex))
+      case NonFatal(ex) => Failure(new Exception(MetaInfo(ccr).asJson.noSpaces, ex))
     }
 
   def toGenericRecord(ccr: ConsumerRecord[Array[Byte], Array[Byte]]): Try[GenericData.Record] =

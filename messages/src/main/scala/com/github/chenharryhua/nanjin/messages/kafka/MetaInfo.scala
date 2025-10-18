@@ -1,6 +1,5 @@
 package com.github.chenharryhua.nanjin.messages.kafka
 
-import cats.implicits.catsSyntaxSemigroup
 import com.github.chenharryhua.nanjin.messages.ProtoConsumerRecord.ProtoConsumerRecord
 import fs2.kafka.{CommittableConsumerRecord, ConsumerRecord as Fs2ConsumerRecord}
 import io.circe.generic.JsonCodec
@@ -19,11 +18,9 @@ final case class MetaInfo(
   offset: Long,
   timestamp: Long,
   timestampType: Option[Int],
-  serializedKeySize: Option[Int],
-  serializedValueSize: Option[Int]
+  serializedKeySize: Int,
+  serializedValueSize: Int
 ) {
-
-  def size: Option[Int] = serializedKeySize |+| serializedValueSize
 
   def localDateTime(zoneId: ZoneId): LocalDateTime =
     Instant.ofEpochMilli(timestamp).atZone(zoneId).toLocalDateTime
@@ -59,32 +56,21 @@ object MetaInfo {
       offset = gr.get("offset").asInstanceOf[Long],
       timestamp = gr.get("timestamp").asInstanceOf[Long],
       timestampType = Option(gr.get("timestampType").asInstanceOf[Int]),
-      serializedKeySize = Option(gr.get("serializedKeySize")).asInstanceOf[Option[Int]],
-      serializedValueSize = Option(gr.get("serializedValueSize")).asInstanceOf[Option[Int]]
+      serializedKeySize = gr.get("serializedKeySize").asInstanceOf[Int],
+      serializedValueSize = gr.get("serializedValueSize").asInstanceOf[Int]
     )
   }
 
-  def apply(rm: RecordMetadata): MetaInfo = {
-    val keySize = {
-      val k = rm.serializedKeySize()
-      if (k == JavaConsumerRecord.NULL_SIZE) None else Some(k)
-    }
-
-    val valSize = {
-      val v = rm.serializedValueSize()
-      if (v == JavaConsumerRecord.NULL_SIZE) None else Some(v)
-    }
-
+  def apply(rm: RecordMetadata): MetaInfo =
     MetaInfo(
       topic = rm.topic(),
       partition = rm.partition(),
       offset = rm.offset(),
       timestamp = rm.timestamp(),
       timestampType = None,
-      serializedKeySize = keySize,
-      serializedValueSize = valSize
+      serializedKeySize = rm.serializedKeySize(),
+      serializedValueSize = rm.serializedValueSize()
     )
-  }
 }
 
 @JsonCodec
