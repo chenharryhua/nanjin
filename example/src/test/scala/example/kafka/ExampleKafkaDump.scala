@@ -12,12 +12,12 @@ import org.scalatest.funsuite.AnyFunSuite
 
 @DoNotDiscover
 class ExampleKafkaDump extends AnyFunSuite {
-  val avro = AvroTopic[Long, Cub]("spark-avro")
-  val sjson = JsonTopic[Long, Cub]("spark-json-schema")
-  val proto = ProtoTopic[Long, Lion]("spark-protobuf")
+  private val avro = AvroTopic[Long, Cub]("spark-avro")
+  private val sjson = JsonTopic[Long, Cub]("spark-json-schema")
+  private val proto = ProtoTopic[Long, Lion]("spark-protobuf")
 
-  val lions = Stream.emits(List.fill(10)(Lion("lion", 0))).covary[IO]
-  val jlions = lions.map(_.transformInto[Cub]).zipWithIndex.map(_.swap)
+  private val lions: Stream[IO, Lion] = Stream.emits(List.fill(10)(Lion("lion", 0))).covary[IO]
+  private val jlions: Stream[IO, (Long, Cub)] = lions.map(_.transformInto[Cub]).zipWithIndex.map(_.swap)
 
   test("upload") {
     jlions.chunks

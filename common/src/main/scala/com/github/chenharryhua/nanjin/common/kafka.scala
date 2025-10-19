@@ -6,21 +6,19 @@ import eu.timepit.refined.api.Refined
 import eu.timepit.refined.refineV
 import eu.timepit.refined.string.MatchesRegex
 import io.circe.{Decoder, Encoder}
-import io.estatico.newtype.macros.newtype
-import io.estatico.newtype.ops.toCoercibleIdOps
 
 object kafka {
   private type MR = MatchesRegex["""^[a-zA-Z0-9_.\-]+$"""]
 
   type TopicNameL = String Refined MR
 
-  @newtype final class TopicName private (val name: TopicNameL) {
-    // val value: String = name.value
-    override def toString: String = name.value
+  final class TopicName private (val name: TopicNameL) {
+    val value: String = name.value
+    override val toString: String = name.value
   }
 
   object TopicName {
-    def apply(tnc: TopicNameL): TopicName = tnc.coerce[TopicName]
+    def apply(tnc: TopicNameL): TopicName = new TopicName(tnc)
 
     private def trans(str: String): Either[String, TopicName] = refineV[MR](str).map(apply)
 

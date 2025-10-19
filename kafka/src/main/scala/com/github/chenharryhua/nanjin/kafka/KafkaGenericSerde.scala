@@ -19,27 +19,22 @@ abstract class KafkaGenericSerde[K, V] private[kafka] (keySerde: KafkaSerde[K], 
 
   def tryDeserializeKeyValue[G[_, _]: NJConsumerMessage](
     data: G[Array[Byte], Array[Byte]]): G[Try[K], Try[V]] =
-    data.bimap(keySerde.tryDeserialize, valSerde.tryDeserialize)
+    data.bimap(k => Try(keySerde.deserialize(k)), v => Try(valSerde.deserialize(v)))
 
   def tryDeserialize[G[_, _]: NJConsumerMessage](data: G[Array[Byte], Array[Byte]]): Try[G[K, V]] =
-    data.bitraverse(keySerde.tryDeserialize, valSerde.tryDeserialize)
+    data.bitraverse(k => Try(keySerde.deserialize(k)), v => Try(valSerde.deserialize(v)))
 
   def tryDeserializeValue[G[_, _]: NJConsumerMessage](
     data: G[Array[Byte], Array[Byte]]): Try[G[Array[Byte], V]] =
-    data.bitraverse(Success(_), valSerde.tryDeserialize)
+    data.bitraverse(Success(_), v => Try(valSerde.deserialize(v)))
 
   def tryDeserializeKey[G[_, _]: NJConsumerMessage](
     data: G[Array[Byte], Array[Byte]]): Try[G[K, Array[Byte]]] =
-    data.bitraverse(keySerde.tryDeserialize, Success(_))
+    data.bitraverse(k => Try(keySerde.deserialize(k)), Success(_))
 
   def optionalDeserialize[G[_, _]: NJConsumerMessage](
     data: G[Array[Byte], Array[Byte]]): G[Option[K], Option[V]] =
     tryDeserializeKeyValue(data).bimap(_.toOption.flatMap(Option(_)), _.toOption.flatMap(Option(_)))
-
-  def nullableDeserialize[G[_, _]: NJConsumerMessage](data: G[Array[Byte], Array[Byte]]): G[K, V] =
-    data.bimap(
-      k => keySerde.tryDeserialize(k).getOrElse(null.asInstanceOf[K]),
-      v => valSerde.tryDeserialize(v).getOrElse(null.asInstanceOf[V]))
 
   def toNJConsumerRecord[G[_, _]: NJConsumerMessage](
     gaa: G[Array[Byte], Array[Byte]]): NJConsumerRecord[K, V] =

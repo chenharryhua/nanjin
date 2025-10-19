@@ -33,6 +33,7 @@ final private class PushGenericRecord(
               case Success(value) => ser.serialize(topic, value)
               case Failure(ex)    => throw new Exception("unable immigrate key", ex)
             }
+          case null  => null
           case other => throw new Exception(s"${other.getClass.getName} (key) is not Generic Record")
         }
 
@@ -55,7 +56,7 @@ final private class PushGenericRecord(
         val ser = Serdes.byteArraySerde.serializer()
         (data: AnyRef) => ser.serialize(topic, Decoder[Array[Byte]].decode(data))
 
-      case _ => throw new RuntimeException(s"unsupported key schema: ${pair.key.toString}")
+      case us => throw new RuntimeException(s"unsupported key schema: ${us.toString}")
     }
 
   private val val_serialize: AnyRef => Array[Byte] =
@@ -70,6 +71,7 @@ final private class PushGenericRecord(
               case Success(value) => ser.serialize(topic, value)
               case Failure(ex)    => throw new Exception("unable immigrate value", ex)
             }
+          case null  => null
           case other => throw new Exception(s"${other.getClass.getName} (value) is not Generic Record")
         }
       case Schema.Type.STRING =>
@@ -91,7 +93,7 @@ final private class PushGenericRecord(
         val ser = Serdes.byteArraySerde.serializer()
         (data: AnyRef) => ser.serialize(topic, Decoder[Array[Byte]].decode(data))
 
-      case _ => throw new RuntimeException(s"unsupported value schema: ${pair.value.toString}")
+      case us => throw new RuntimeException(s"unsupported value schema: ${us.toString}")
     }
 
   /** @param gr
