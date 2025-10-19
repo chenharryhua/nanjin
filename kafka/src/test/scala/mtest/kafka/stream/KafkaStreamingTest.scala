@@ -9,7 +9,7 @@ import com.github.chenharryhua.nanjin.kafka.streaming.StreamsSerde
 import com.github.chenharryhua.nanjin.kafka.{AvroTopic, KafkaGenericSerde}
 import eu.timepit.refined.auto.*
 import fs2.Stream
-import fs2.kafka.{commitBatchWithin, AutoOffsetReset, ProducerRecords, ProducerResult}
+import fs2.kafka.{commitBatchWithin, AutoOffsetReset, ProducerRecords}
 import mtest.kafka.*
 import org.apache.kafka.streams.StreamsConfig
 import org.apache.kafka.streams.scala.StreamsBuilder
@@ -17,6 +17,8 @@ import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.{BeforeAndAfter, DoNotDiscover}
 
 import scala.concurrent.duration.*
+import fs2.Chunk
+import org.apache.kafka.clients.producer.RecordMetadata
 
 object KafkaStreamingData {
 
@@ -34,7 +36,7 @@ object KafkaStreamingData {
   val tgt = AvroTopic[Int, StreamTarget](TopicName("stream.test.join.target"))
   val serde: KafkaGenericSerde[Int, StreamTarget] = ctx.serde(tgt)
 
-  val sendT2Data: IO[ProducerResult[Int, TableTwo]] =
+  val sendT2Data: IO[Chunk[RecordMetadata]] =
     ctx
       .produce(t2Topic)
       .produce(
@@ -81,6 +83,7 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
         ).map(ProducerRecords.one))
       .covary[IO]
       .metered(1.seconds)
+      .unchunks
       .through(ctx.sharedProduce[Int, StreamOne](s1Def.pair).sink)
 
     val res: Set[StreamTarget] = (IO.println(Console.CYAN + "stream-table join" + Console.RESET) >> ctx
@@ -143,6 +146,7 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
       ).map(ProducerRecords.one))
       .covary[IO]
       .metered(1.seconds)
+      .unchunks
       .through(ctx.sharedProduce[Int, Array[Byte]](s1TopicBin.pair).sink)
       .debug()
 

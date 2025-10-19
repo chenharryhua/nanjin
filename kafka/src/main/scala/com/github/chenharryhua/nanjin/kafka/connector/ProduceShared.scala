@@ -2,38 +2,39 @@ package com.github.chenharryhua.nanjin.kafka.connector
 
 import cats.Endo
 import cats.effect.kernel.{Async, Resource}
+import cats.implicits.toFunctorOps
 import com.github.chenharryhua.nanjin.common.{HasProperties, UpdateConfig}
-import fs2.{Pipe, Stream}
-import fs2.kafka.{
-  KafkaProducer,
-  ProducerRecords,
-  ProducerResult,
-  ProducerSettings,
-  TransactionalKafkaProducer,
-  TransactionalProducerSettings
-}
+import fs2.kafka.*
+import fs2.{Chunk, Pipe, Stream}
+import org.apache.kafka.clients.producer.RecordMetadata
 
-final class ProduceShared[F[_], K, V] private[kafka] (producerSettings: ProducerSettings[F, K, V])
+/*
+ * Shared Producer
+ */
+final class ProduceShared[F[_]: Async, K, V] private[kafka] (producerSettings: ProducerSettings[F, K, V])
     extends UpdateConfig[ProducerSettings[F, K, V], ProduceShared[F, K, V]] with HasProperties {
   override def updateConfig(f: Endo[ProducerSettings[F, K, V]]): ProduceShared[F, K, V] =
     new ProduceShared[F, K, V](f(producerSettings))
 
   override def properties: Map[String, String] = producerSettings.properties
 
-  def clientR(implicit F: Async[F]): Resource[F, KafkaProducer.Metrics[F, K, V]] =
+  lazy val clientR: Resource[F, KafkaProducer.Metrics[F, K, V]] =
     KafkaProducer.resource(producerSettings)
 
-  def clientS(implicit F: Async[F]): Stream[F, KafkaProducer.Metrics[F, K, V]] =
+  lazy val clientS: Stream[F, KafkaProducer.Metrics[F, K, V]] =
     KafkaProducer.stream(producerSettings)
 
   def transactional(transactionalId: String): KafkaTransactional[F, K, V] =
     new KafkaTransactional[F, K, V](TransactionalProducerSettings(transactionalId, producerSettings))
 
-  def sink(implicit F: Async[F]): Pipe[F, ProducerRecords[K, V], ProducerResult[K, V]] =
-    KafkaProducer.pipe[F, K, V](producerSettings)
+  lazy val sink: Pipe[F, ProducerRecord[K, V], Chunk[RecordMetadata]] =
+    (ss: Stream[F, ProducerRecord[K, V]]) =>
+      KafkaProducer.stream[F, K, V](producerSettings).flatMap { producer =>
+        ss.chunks.evalMap(producer.produce).parEvalMap(Int.MaxValue)(_.map(_.map(_._2)))
+      }
 }
 
-final class KafkaTransactional[F[_], K, V] private[kafka] (
+final class KafkaTransactional[F[_]: Async, K, V] private[kafka] (
   txnSettings: TransactionalProducerSettings[F, K, V])
     extends UpdateConfig[TransactionalProducerSettings[F, K, V], KafkaTransactional[F, K, V]]
     with HasProperties {
@@ -50,9 +51,9 @@ final class KafkaTransactional[F[_], K, V] private[kafka] (
    * produce
    */
 
-  def clientR(implicit F: Async[F]): Resource[F, TransactionalKafkaProducer.WithoutOffsets[F, K, V]] =
+  lazy val clientR: Resource[F, TransactionalKafkaProducer.WithoutOffsets[F, K, V]] =
     TransactionalKafkaProducer.resource(txnSettings)
 
-  def clientS(implicit F: Async[F]): Stream[F, TransactionalKafkaProducer.WithoutOffsets[F, K, V]] =
+  lazy val clientS: Stream[F, TransactionalKafkaProducer.WithoutOffsets[F, K, V]] =
     TransactionalKafkaProducer.stream(txnSettings)
 }

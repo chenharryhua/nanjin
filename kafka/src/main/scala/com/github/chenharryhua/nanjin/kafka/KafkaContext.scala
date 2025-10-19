@@ -99,20 +99,20 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
    * producer
    */
 
-  def produce[K, V](topic: KafkaTopic[K, V])(implicit F: Sync[F]): ProduceKafka[F, K, V] =
+  def produce[K, V](topic: KafkaTopic[K, V])(implicit F: Async[F]): ProduceKafka[F, K, V] =
     new ProduceKafka[F, K, V](
       topic.topicName,
       topic.producerSettings(settings.schemaRegistrySettings, settings.producerSettings),
       isCompatible(topic)
     )
 
-  def sharedProduce[K, V](pair: SerdePair[K, V])(implicit F: Sync[F]): ProduceShared[F, K, V] =
+  def sharedProduce[K, V](pair: SerdePair[K, V])(implicit F: Async[F]): ProduceShared[F, K, V] =
     new ProduceShared[F, K, V](
       pair.producerSettings(settings.schemaRegistrySettings, settings.producerSettings)
     )
 
   def produceGenericRecord[K, V](avroTopic: AvroTopic[K, V])(implicit
-    F: Sync[F]): ProduceGenericRecord[F, K, V] =
+    F: Async[F]): ProduceGenericRecord[F, K, V] =
     new ProduceGenericRecord[F, K, V](
       avroTopic,
       schemaRegistry.fetchOptionalAvroSchema(avroTopic.topicName),

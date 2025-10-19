@@ -8,7 +8,7 @@ import com.github.chenharryhua.nanjin.kafka.connector.commitBatch
 import com.github.chenharryhua.nanjin.kafka.streaming.KafkaStreamsBuilder
 import eu.timepit.refined.auto.*
 import fs2.Stream
-import fs2.kafka.{ProducerRecord, ProducerRecords, ProducerResult}
+import fs2.kafka.{ProducerRecord, ProducerRecords}
 import mtest.kafka.*
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
@@ -37,14 +37,14 @@ class TransformerTest extends AnyFunSuite {
         ProducerRecord(topic2.topicName.name.value, 2, "t0"),
         ProducerRecord(topic2.topicName.name.value, 4, "t1"),
         ProducerRecord(topic2.topicName.name.value, 6, "t2")
-      ))).covary[IO].through(ctx.sharedProduce(td.pair).sink)
+      ))).covary[IO].unchunks.through(ctx.sharedProduce(td.pair).sink)
 
-    val s1Data: Stream[IO, ProducerResult[Int, String]] =
+    val s1Data =
       Stream
         .awakeEvery[IO](1.seconds)
         .zipWithIndex
         .map { case (_, index) =>
-          ProducerRecords.one(ProducerRecord(topic1.topicName.name.value, index.toInt, s"stream$index"))
+          ProducerRecord(topic1.topicName.name.value, index.toInt, s"stream$index")
         }
         .through(ctx.sharedProduce[Int, String](td.pair).sink)
 
