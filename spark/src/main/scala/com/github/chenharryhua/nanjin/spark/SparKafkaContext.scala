@@ -175,13 +175,13 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
           fs.sliding(step, step)
             .map { urls =>
               urls
-                .map(fn =>
+                .map(url =>
                   hadoop
-                    .source(fn)
+                    .source(url)
                     .jackson(config.chunkSize, schema)
                     .adaptError(
                       new Exception(
-                        Json.obj("upload.to" -> avroTopic.topicName.asJson, "from" -> fn.asJson).noSpaces,
+                        Json.obj("upload.to" -> avroTopic.topicName.asJson, "from" -> url.asJson).noSpaces,
                         _)
                     ))
                 .reduce(_ ++ _)

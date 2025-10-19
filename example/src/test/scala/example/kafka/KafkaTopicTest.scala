@@ -56,7 +56,7 @@ class KafkaTopicTest extends AnyFunSuite {
   }
 
   test("avro") {
-    val topic = AvroTopic[Int, Cub](TopicName("avro-example"))
+    val topic = AvroTopic[Int, Cub](TopicName("avro-example-2"))
     val lion = Cub("c", Random.nextInt())
     example.ctx.produce(topic).produceOne(1, lion).unsafeRunSync()
 
