@@ -16,7 +16,8 @@ final class ProduceKafka[F[_], K, V] private[kafka] (
   topicName: TopicName,
   producerSettings: ProducerSettings[F, K, V],
   isCompatible: F[Boolean])(implicit F: Async[F])
-    extends UpdateConfig[ProducerSettings[F, K, V], ProduceKafka[F, K, V]] with HasProperties {
+    extends UpdateConfig[ProducerSettings[F, K, V], ProduceKafka[F, K, V]] with HasProperties
+    with ProducerService[F, (K, V)] {
 
   /*
    * config
@@ -26,7 +27,7 @@ final class ProduceKafka[F[_], K, V] private[kafka] (
   override def updateConfig(f: Endo[ProducerSettings[F, K, V]]): ProduceKafka[F, K, V] =
     new ProduceKafka[F, K, V](topicName, f(producerSettings), isCompatible)
 
-  private lazy val kafkaProducer: Resource[F, KafkaProducer[F, K, V]] =
+  private lazy val kafka_producer: Resource[F, KafkaProducer[F, K, V]] =
     Resource.eval(isCompatible).flatMap {
       case false =>
         Resource.raiseError[F, KafkaProducer.PartitionsFor[F, K, V], Throwable](
@@ -38,8 +39,8 @@ final class ProduceKafka[F[_], K, V] private[kafka] (
    * sink
    */
 
-  lazy val sink: Pipe[F, (K, V), Chunk[RecordMetadata]] = { (ss: Stream[F, (K, V)]) =>
-    Stream.resource(kafkaProducer).flatMap { producer =>
+  override lazy val sink: Pipe[F, (K, V), Chunk[RecordMetadata]] = { (ss: Stream[F, (K, V)]) =>
+    Stream.resource(kafka_producer).flatMap { producer =>
       ss.chunks.evalMap { ck =>
         producer.produce(ck.map { case (k, v) => ProducerRecord(topicName.name.value, k, v) })
       }.parEvalMap(Int.MaxValue)(_.map(_.map(_._2)))
@@ -52,9 +53,12 @@ final class ProduceKafka[F[_], K, V] private[kafka] (
 
   def produce[G[_]: Foldable](kvs: G[(K, V)]): F[Chunk[RecordMetadata]] = {
     val prs = Chunk.from(kvs.toList).map { case (k, v) => ProducerRecord(topicName.name.value, k, v) }
-    kafkaProducer.use(_.produce(prs).flatten).map(_.map(_._2))
+    kafka_producer.use(_.produce(prs).flatten).map(_.map(_._2))
   }
 
   def produceOne(k: K, v: V): F[RecordMetadata] =
-    kafkaProducer.use(_.produceOne_(topicName.name.value, k, v).flatten)
+    kafka_producer.use(_.produceOne_(topicName.name.value, k, v).flatten)
+
+  override def produceOne(record: (K, V)): F[RecordMetadata] =
+    produceOne(record._1, record._2)
 }

@@ -27,7 +27,7 @@ final class ProduceGenericRecord[F[_], K, V] private[kafka] (
   srs: SchemaRegistrySettings,
   producerSettings: ProducerSettings[F, Array[Byte], Array[Byte]])(implicit F: Async[F])
     extends UpdateConfig[ProducerSettings[F, Array[Byte], Array[Byte]], ProduceGenericRecord[F, K, V]]
-    with HasProperties {
+    with HasProperties with ProducerService[F, GenericRecord] {
 
   /*
    * config
@@ -50,25 +50,34 @@ final class ProduceGenericRecord[F[_], K, V] private[kafka] (
   /*
    * sink
    */
-  lazy val sink: Pipe[F, GenericRecord, Chunk[RecordMetadata]] = { (grStream: Stream[F, GenericRecord]) =>
-    for {
-      pair <- Stream.eval(schemaPair)
-      push = new PushGenericRecord(srs, avroTopic.topicName, pair)
-      producer <- KafkaProducer.stream(producerSettings)
-      prs <- grStream.chunks
-        .evalMap(grs => producer.produce(grs.map(push.fromGenericRecord)))
-        .parEvalMap(Int.MaxValue)(identity)
-    } yield prs.map(_._2)
+  override lazy val sink: Pipe[F, GenericRecord, Chunk[RecordMetadata]] = {
+    (grStream: Stream[F, GenericRecord]) =>
+      for {
+        pair <- Stream.eval(schemaPair)
+        push = new PushGenericRecord(srs, avroTopic.topicName, pair)
+        producer <- KafkaProducer.stream(producerSettings)
+        prs <- grStream.chunks
+          .evalMap(grs => producer.produce(grs.map(push.fromGenericRecord)))
+          .parEvalMap(Int.MaxValue)(identity)
+      } yield prs.map(_._2)
   }
+
+  override def produceOne(record: GenericRecord): F[RecordMetadata] =
+    for {
+      pair <- schemaPair
+      push = new PushGenericRecord(srs, avroTopic.topicName, pair)
+      res <- KafkaProducer
+        .resource(producerSettings)
+        .use(_.produceOne_(push.fromGenericRecord(record)).flatten)
+    } yield res
 
   /** @param jackson
     *   a Json String generated from NJConsumerRecord
     */
-  def jackson(jackson: String): F[Chunk[RecordMetadata]] =
+  def jackson(jackson: String): F[RecordMetadata] =
     for {
       pair <- schemaPair
       gr <- F.fromTry(jackson2GenericRecord(pair.consumerSchema, jackson))
-      push = new PushGenericRecord(srs, avroTopic.topicName, pair)
-      res <- KafkaProducer.resource(producerSettings).use(_.produceOne(push.fromGenericRecord(gr)).flatten)
-    } yield res.map(_._2)
+      res <- produceOne(gr)
+    } yield res
 }

@@ -28,8 +28,8 @@ final class SchemaRegistryApi[F[_]](client: CachedSchemaRegistryClient) {
     F.blocking(client.getLatestSchemaMetadata(loc.valLoc))
   }
 
-  private def handleError(ex: Throwable): None.type =
-    ex match {
+  private def handleError(throwable: Throwable): None.type =
+    throwable match {
       case _: RestClientException => None
       case ex                     => throw ex
     }

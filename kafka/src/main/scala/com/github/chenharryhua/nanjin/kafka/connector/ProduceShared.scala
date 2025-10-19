@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.kafka.connector
 
 import cats.Endo
 import cats.effect.kernel.{Async, Resource}
-import cats.implicits.toFunctorOps
+import cats.implicits.{toFlatMapOps, toFunctorOps}
 import com.github.chenharryhua.nanjin.common.{HasProperties, UpdateConfig}
 import fs2.kafka.*
 import fs2.{Chunk, Pipe, Stream}
@@ -12,7 +12,8 @@ import org.apache.kafka.clients.producer.RecordMetadata
  * Shared Producer
  */
 final class ProduceShared[F[_]: Async, K, V] private[kafka] (producerSettings: ProducerSettings[F, K, V])
-    extends UpdateConfig[ProducerSettings[F, K, V], ProduceShared[F, K, V]] with HasProperties {
+    extends UpdateConfig[ProducerSettings[F, K, V], ProduceShared[F, K, V]] with HasProperties
+    with ProducerService[F, ProducerRecord[K, V]] {
   override def updateConfig(f: Endo[ProducerSettings[F, K, V]]): ProduceShared[F, K, V] =
     new ProduceShared[F, K, V](f(producerSettings))
 
@@ -27,11 +28,14 @@ final class ProduceShared[F[_]: Async, K, V] private[kafka] (producerSettings: P
   def transactional(transactionalId: String): KafkaTransactional[F, K, V] =
     new KafkaTransactional[F, K, V](TransactionalProducerSettings(transactionalId, producerSettings))
 
-  lazy val sink: Pipe[F, ProducerRecord[K, V], Chunk[RecordMetadata]] =
+  override lazy val sink: Pipe[F, ProducerRecord[K, V], Chunk[RecordMetadata]] =
     (ss: Stream[F, ProducerRecord[K, V]]) =>
       KafkaProducer.stream[F, K, V](producerSettings).flatMap { producer =>
         ss.chunks.evalMap(producer.produce).parEvalMap(Int.MaxValue)(_.map(_.map(_._2)))
       }
+
+  override def produceOne(record: ProducerRecord[K, V]): F[RecordMetadata] =
+    KafkaProducer.resource(producerSettings).use(_.produceOne_(record).flatten)
 }
 
 final class KafkaTransactional[F[_]: Async, K, V] private[kafka] (
