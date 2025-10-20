@@ -8,7 +8,7 @@ import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameL}
 import com.github.chenharryhua.nanjin.kafka.connector.*
 import com.github.chenharryhua.nanjin.kafka.streaming.{KafkaStreamsBuilder, StateStores, StreamsSerde}
-import com.github.chenharryhua.nanjin.messages.kafka.codec.RegisterSerde
+import com.github.chenharryhua.nanjin.messages.kafka.codec.UnregisteredSerde
 import fs2.kafka.*
 import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient
 import io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig
@@ -32,10 +32,10 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
   def serde[K, V](topic: KafkaTopic[K, V]): TopicSerde[K, V] =
     topic.register(settings.schemaRegistrySettings)
 
-  def asKey[A](rs: RegisterSerde[A]): Serde[A] =
+  def asKey[A](rs: UnregisteredSerde[A]): Serde[A] =
     rs.asKey(settings.schemaRegistrySettings.config).serde
 
-  def asValue[A](rs: RegisterSerde[A]): Serde[A] =
+  def asValue[A](rs: UnregisteredSerde[A]): Serde[A] =
     rs.asValue(settings.schemaRegistrySettings.config).serde
 
   /*

@@ -24,7 +24,7 @@ import scala.jdk.CollectionConverters.{MapHasAsJava, MapHasAsScala}
 import scala.reflect.ClassTag
 import scala.util.{Failure, Success, Try}
 
-sealed trait JsonFor[A] extends RegisterSerde[A] {
+sealed trait JsonFor[A] extends UnregisteredSerde[A] {
   def jsonSchema: Option[JsonSchema]
 }
 

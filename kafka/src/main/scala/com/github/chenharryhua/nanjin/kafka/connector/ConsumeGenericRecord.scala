@@ -6,7 +6,12 @@ import cats.effect.kernel.Async
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.{HasProperties, UpdateConfig}
 import com.github.chenharryhua.nanjin.datetime.DateTimeRange
-import com.github.chenharryhua.nanjin.kafka.{AvroTopic, OptionalAvroSchemaPair, TopicPartitionMap, orderingTopicPartition}
+import com.github.chenharryhua.nanjin.kafka.{
+  orderingTopicPartition,
+  AvroTopic,
+  OptionalAvroSchemaPair,
+  TopicPartitionMap
+}
 import fs2.Stream
 import fs2.kafka.{AutoOffsetReset, CommittableConsumerRecord, ConsumerSettings, KafkaConsumer}
 import org.apache.avro.Schema
@@ -59,7 +64,8 @@ final class ConsumeGenericRecord[F[_]: Async, K, V](
    * subscribe
    */
 
-  def subscribe: Stream[F, CommittableConsumerRecord[F, Unit, Either[PullGenericRecordException, GenericData.Record]]] =
+  def subscribe
+    : Stream[F, CommittableConsumerRecord[F, Unit, Either[PullGenericRecordException, GenericData.Record]]] =
     KafkaConsumer
       .stream(consumerSettings)
       .evalTap(_.subscribe(NonEmptyList.one(avroTopic.topicName.name.value)))
@@ -69,14 +75,16 @@ final class ConsumeGenericRecord[F[_]: Async, K, V](
    * assign
    */
 
-  def assign: Stream[F, CommittableConsumerRecord[F, Unit, Either[PullGenericRecordException, GenericData.Record]]] =
+  def assign
+    : Stream[F, CommittableConsumerRecord[F, Unit, Either[PullGenericRecordException, GenericData.Record]]] =
     KafkaConsumer
       .stream(consumerSettings)
       .evalTap(_.assign(avroTopic.topicName.name.value))
       .flatMap(toGenericRecordStream)
 
-  def assign(partitionOffsets: Map[Int, Long])
-    : Stream[F, CommittableConsumerRecord[F, Unit, Either[PullGenericRecordException, GenericData.Record]]] = {
+  def assign(partitionOffsets: Map[Int, Long]): Stream[
+    F,
+    CommittableConsumerRecord[F, Unit, Either[PullGenericRecordException, GenericData.Record]]] = {
     val start_offsets: Map[TopicPartition, Long] =
       partitionOffsets.map { case (p, o) => new TopicPartition(avroTopic.topicName.name.value, p) -> o }
 
@@ -93,7 +101,8 @@ final class ConsumeGenericRecord[F[_]: Async, K, V](
     }
   }
 
-  def assign(time: Instant): Stream[F, CommittableConsumerRecord[F, Unit, Either[PullGenericRecordException, GenericData.Record]]] =
+  def assign(time: Instant)
+    : Stream[F, CommittableConsumerRecord[F, Unit, Either[PullGenericRecordException, GenericData.Record]]] =
     KafkaConsumer
       .stream(consumerSettings)
       .evalTap { c =>
@@ -118,7 +127,8 @@ final class ConsumeGenericRecord[F[_]: Async, K, V](
    * manual commit stream
    */
 
-  def manualCommitStream: Stream[F, ManualCommitStream[F, Unit, Either[PullGenericRecordException, GenericData.Record]]] =
+  def manualCommitStream
+    : Stream[F, ManualCommitStream[F, Unit, Either[PullGenericRecordException, GenericData.Record]]] =
     Stream.eval(getSchema).flatMap { broker =>
       val schema = avroTopic.pair.optionalSchemaPair.read(broker).toSchemaPair
       val pull: PullGenericRecord = new PullGenericRecord(schema)
@@ -136,7 +146,12 @@ final class ConsumeGenericRecord[F[_]: Async, K, V](
 
               override def partitionsMapStream: Map[
                 TopicPartition,
-                Stream[F, CommittableConsumerRecord[F, Unit, Either[PullGenericRecordException, GenericData.Record]]]] =
+                Stream[
+                  F,
+                  CommittableConsumerRecord[
+                    F,
+                    Unit,
+                    Either[PullGenericRecordException, GenericData.Record]]]] =
                 TopicPartitionMap(pms)
                   .mapValues(_.mapChunks { crs =>
                     crs.map(cr => cr.bimap(_ => (), _ => pull.toGenericRecord(cr.record)))
@@ -167,8 +182,8 @@ final class ConsumeGenericRecord[F[_]: Async, K, V](
         }
     } yield stream
 
-  def circumscribedStream(
-    dateTimeRange: DateTimeRange): Stream[F, CircumscribedStream[F, Unit, Either[PullGenericRecordException, GenericData.Record]]] =
+  def circumscribedStream(dateTimeRange: DateTimeRange)
+    : Stream[F, CircumscribedStream[F, Unit, Either[PullGenericRecordException, GenericData.Record]]] =
     circumscribed(Left(dateTimeRange))
 
   def circumscribedStream(partitionOffsets: Map[Int, (Long, Long)])
