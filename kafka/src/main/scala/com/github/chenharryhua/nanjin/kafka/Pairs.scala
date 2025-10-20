@@ -13,8 +13,8 @@ import org.apache.avro.Schema
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 
 sealed trait SerdePair[K, V] {
-  protected def key: RegisterSerde[K]
-  protected def value: RegisterSerde[V]
+  protected def key: UnregisteredSerde[K]
+  protected def value: UnregisteredSerde[V]
 
   final def consumerSettings[F[_]: Sync](
     srs: SchemaRegistrySettings,

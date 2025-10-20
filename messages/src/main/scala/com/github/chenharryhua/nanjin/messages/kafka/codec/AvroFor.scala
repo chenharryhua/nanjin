@@ -16,7 +16,7 @@ import shapeless.LabelledGeneric
 
 import java.util
 
-sealed trait AvroFor[A] extends RegisterSerde[A] {
+sealed trait AvroFor[A] extends UnregisteredSerde[A] {
   val schema: Option[AvroSchema]
 }
 

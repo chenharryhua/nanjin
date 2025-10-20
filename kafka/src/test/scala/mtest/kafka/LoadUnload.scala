@@ -24,7 +24,6 @@ class LoadUnload extends AnyFunSuite {
   test("load - unload") {
     Stream
       .emits(data)
-      .chunks
       .broadcastThrough(ctx.produce(avro).sink, ctx.produce(json).sink)
       .compile
       .drain

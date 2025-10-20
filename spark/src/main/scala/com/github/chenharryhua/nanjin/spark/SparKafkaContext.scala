@@ -85,7 +85,7 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
             if (config.ignoreError)
               ss.mapChunks(_.map(_.record.value.toOption)).unNone
             else
-              ss.evalMapChunk(ccr => F.fromTry(ccr.record.value))
+              ss.evalMapChunk(ccr => F.fromEither(ccr.record.value))
 
           process.through(hadoop.sink(url).jackson).adaptError(new Exception(url.toString(), _))
         }.parJoinUnbounded.onFinalize(rs.stopConsuming)
@@ -124,7 +124,6 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
       .timeoutOnPull(config.timeout)
       .compile
       .fold(0L)(_ + _)
-
   }
 
   final class UploadConfig(

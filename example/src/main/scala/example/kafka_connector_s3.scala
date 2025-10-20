@@ -5,9 +5,11 @@ import cats.effect.IO
 import cats.effect.kernel.Resource
 import cats.implicits.{catsSyntaxApplicativeByName, catsSyntaxSemigroup, toTraverseOps}
 import com.github.chenharryhua.nanjin.common.chrono.{Policy, TickedValue}
-import com.github.chenharryhua.nanjin.datetime.DateTimeRange
+import com.github.chenharryhua.nanjin.guard.event.Event
 import com.github.chenharryhua.nanjin.guard.metrics.Metrics
-import com.github.chenharryhua.nanjin.kafka.{KafkaContext, KafkaSettings}
+import com.github.chenharryhua.nanjin.kafka.connector.PullGenericRecordException
+import com.github.chenharryhua.nanjin.kafka.{AvroTopic, KafkaContext, KafkaSettings}
+import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroFor
 import com.github.chenharryhua.nanjin.terminals.{Hadoop, JacksonFile, RotateFile}
 import eu.timepit.refined.auto.*
 import fs2.Pipe
@@ -20,14 +22,12 @@ import squants.Each
 import squants.information.Bytes
 
 import scala.concurrent.duration.DurationInt
-import scala.util.Try
-import com.github.chenharryhua.nanjin.kafka.AvroTopic
-import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroFor
 
 object kafka_connector_s3 {
   val ctx: KafkaContext[IO] = KafkaContext[IO](KafkaSettings.local)
 
-  private type CCR = CommittableConsumerRecord[IO, Unit, Try[GenericData.Record]]
+  private type CCR =
+    CommittableConsumerRecord[IO, Unit, Either[PullGenericRecordException, GenericData.Record]]
 
   private def logMetrics(mtx: Metrics[IO]): Resource[IO, Kleisli[IO, CCR, Unit]] =
     for {
@@ -45,44 +45,43 @@ object kafka_connector_s3 {
       idle.wakeUp *>
         ks.traverse(keySize.update) *> vs.traverse(valSize.update) *>
         (ks |+| vs).traverse(byteRate.mark) *> countRate.mark(1) *>
-        goodNum.inc(1).whenA(ccr.record.value.isSuccess) *>
-        badNum.inc(1).whenA(ccr.record.value.isFailure)
+        goodNum.inc(1).whenA(ccr.record.value.isRight) *>
+        badNum.inc(1).whenA(ccr.record.value.isLeft)
     }
 
   private val root: Url = Url.parse("s3a://bucket_name") / "folder_name"
   private val hadoop = Hadoop[IO](new Configuration)
 
-  val dump = aws_task_template.task.service("dump kafka topic to s3").eventStream { ga =>
-    val jackson = JacksonFile(_.Uncompressed)
-    val topic = AvroTopic[Int, AvroFor.FromBroker]("any.kafka.topic")
-    val sink: Pipe[IO, GenericRecord, TickedValue[RotateFile]] = // rotate files every 5 minutes
-      hadoop.rotateSink(ga.zoneId, Policy.crontab(_.every5Minutes))(root / jackson.ymdFileName(_)).jackson
-    ga.facilitate("abc")(logMetrics).use { log =>
-      ctx
-        .consumeGenericRecord(topic)
-        .updateConfig(
-          _.withGroupId("group.id")
-            .withAutoOffsetReset(AutoOffsetReset.Latest)
-            .withEnableAutoCommit(false)
-            .withMaxPollRecords(2000))
-        .subscribe
-        .observe(_.map(_.offset).through(commitBatchWithin[IO](1000, 5.seconds)).drain)
-        .evalMap(x => IO.fromTry(x.record.value).guarantee(log.run(x)))
-        .through(sink)
-        .compile
-        .drain
+  val dump: fs2.Stream[IO, Event] =
+    aws_task_template.task.service("dump kafka topic to s3").eventStream { ga =>
+      val jackson = JacksonFile(_.Uncompressed)
+      val topic = AvroTopic[Int, AvroFor.FromBroker]("any.kafka.topic")
+      val sink: Pipe[IO, GenericRecord, TickedValue[RotateFile]] = // rotate files every 5 minutes
+        hadoop.rotateSink(ga.zoneId, Policy.crontab(_.every5Minutes))(root / jackson.ymdFileName(_)).jackson
+      ga.facilitate("abc")(logMetrics).use { log =>
+        ctx
+          .consumeGenericRecord(topic)
+          .updateConfig(
+            _.withGroupId("group.id")
+              .withAutoOffsetReset(AutoOffsetReset.Latest)
+              .withEnableAutoCommit(false)
+              .withMaxPollRecords(2000))
+          .subscribe
+          .observe(_.map(_.offset).through(commitBatchWithin[IO](1000, 5.seconds)).drain)
+          .evalMap(x => IO.fromEither(x.record.value).guarantee(log.run(x)))
+          .through(sink)
+          .compile
+          .drain
+      }
     }
-  }
 
   /** delete obsolete folder at 1:00 am every day. keep 8 days' data
     */
-  val delete = aws_task_template.task.service("delete.obsolete.folder").eventStreamS { agent =>
-    val root: Url = Url.parse("s3://abc-efg-hij/klm")
-    agent.tickScheduled(_.crontab(_.daily.oneAM)).evalMap { tick =>
-      val dr = DateTimeRange(agent.zoneId)
-        .withStartTime(tick.conclude)
-        .withEndTime(tick.zoned(_.conclude).plusDays(8))
-      hadoop.dateFolderRetention(root, dr.days)
+  val retention: fs2.Stream[IO, Event] =
+    aws_task_template.task.service("delete.obsolete.folder").eventStreamS { agent =>
+      val root: Url = Url.parse("s3://abc-efg-hij/klm")
+      agent.tickScheduled(_.crontab(_.daily.oneAM)).evalMap { tick =>
+        hadoop.dateFolderRetention(root, tick.local(_.conclude).toLocalDate, 8)
+      }
     }
-  }
 }

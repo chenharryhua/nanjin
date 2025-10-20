@@ -12,8 +12,6 @@ import fs2.kafka.{CommittableConsumerRecord, KafkaConsumer}
 import org.apache.avro.generic.GenericData
 import org.apache.kafka.common.TopicPartition
 
-import scala.util.Try
-
 private object utils {
   private def get_offset_range_by_time[F[_]: Monad](
     client: KafkaTopicsV2[F],
@@ -116,13 +114,19 @@ private object utils {
   def circumscribed_generic_record_stream[F[_]](
     client: KafkaConsume[F, Array[Byte], Array[Byte]],
     ranges: TopicPartitionMap[OffsetRange],
-    pull: PullGenericRecord): Stream[F, CircumscribedStream[F, Unit, Try[GenericData.Record]]] =
+    pull: PullGenericRecord)
+    : Stream[F, CircumscribedStream[F, Unit, Either[PullGenericRecordException, GenericData.Record]]] =
     client.partitionsMapStream.map { pms =>
-      val streams
-        : Map[PartitionRange, Stream[F, CommittableConsumerRecord[F, Unit, Try[GenericData.Record]]]] =
+      val streams: Map[
+        PartitionRange,
+        Stream[
+          F,
+          CommittableConsumerRecord[F, Unit, Either[PullGenericRecordException, GenericData.Record]]]] =
         pms.toList.mapFilter { case (tp, stream) =>
           ranges.get(tp).map { offsetRange =>
-            val sgr: Stream[F, CommittableConsumerRecord[F, Unit, Try[GenericData.Record]]] =
+            val sgr: Stream[
+              F,
+              CommittableConsumerRecord[F, Unit, Either[PullGenericRecordException, GenericData.Record]]] =
               stream.takeWhile(_.record.offset < offsetRange.to, takeFailure = true).mapChunks { crs =>
                 crs.map(cr => cr.bimap(_ => (), _ => pull.toGenericRecord(cr.record)))
               }
@@ -131,11 +135,14 @@ private object utils {
           }
         }.toMap
 
-      new CircumscribedStream[F, Unit, Try[GenericData.Record]] {
+      new CircumscribedStream[F, Unit, Either[PullGenericRecordException, GenericData.Record]] {
         override def stopConsuming: F[Unit] =
           client.stopConsuming
-        override def partitionsMapStream
-          : Map[PartitionRange, Stream[F, CommittableConsumerRecord[F, Unit, Try[GenericData.Record]]]] =
+        override def partitionsMapStream: Map[
+          PartitionRange,
+          Stream[
+            F,
+            CommittableConsumerRecord[F, Unit, Either[PullGenericRecordException, GenericData.Record]]]] =
           streams
       }
     }

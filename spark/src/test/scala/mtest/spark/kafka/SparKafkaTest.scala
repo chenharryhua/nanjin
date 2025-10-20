@@ -45,7 +45,6 @@ class SparKafkaTest extends AnyFunSuite {
       .emits[IO, (Int, HasDuck)](
         List((1, data), (2, null), (null.asInstanceOf[Int], data), (null.asInstanceOf[Int], null)))
       .covary[IO]
-      .chunks
       .through(ctx.produce[Int, HasDuck](topic).updateConfig(_.withClientId("spark.kafka.test")).sink)
       .compile
       .drain
@@ -86,7 +85,7 @@ class SparKafkaTest extends AnyFunSuite {
     duckConsume.subscribe
       .take(4)
       .map(_.record.value)
-      .evalMap(IO.fromTry)
+      .evalMap(IO.fromEither)
       .through(sink)
       .compile
       .drain
@@ -112,9 +111,9 @@ class SparKafkaTest extends AnyFunSuite {
   test("generic record conversion") {
     duckConsume.subscribe
       .take(4)
-      .evalTap(gr => IO.fromTry(gr.record.value.flatMap(genericRecord2Jackson(_))))
-      .evalTap(gr => IO.fromTry(gr.record.value.flatMap(genericRecord2BinAvro(_))))
-      .evalTap(gr => IO.fromTry(gr.record.value.flatMap(genericRecord2Circe(_))))
+      .evalTap(gr => IO.fromTry(gr.record.value.toTry.flatMap(genericRecord2Jackson(_))))
+      .evalTap(gr => IO.fromTry(gr.record.value.toTry.flatMap(genericRecord2BinAvro(_))))
+      .evalTap(gr => IO.fromTry(gr.record.value.toTry.flatMap(genericRecord2Circe(_))))
       .compile
       .drain
       .unsafeRunSync()

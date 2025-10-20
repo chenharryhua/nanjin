@@ -5,13 +5,15 @@ import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.*
 import com.sksamuel.avro4s.Encoder
-import fs2.kafka.{ProducerRecord, ProducerRecords, ProducerResult}
+import fs2.kafka.ProducerRecord
 import io.circe.generic.JsonCodec
 import org.scalatest.funsuite.AnyFunSuite
 import eu.timepit.refined.auto.*
 
 import java.sql.{Date, Timestamp}
 import java.time.*
+import fs2.Chunk
+import org.apache.kafka.clients.producer.RecordMetadata
 
 object DatetimeCase {
 
@@ -58,9 +60,9 @@ class MessageDateTimeTest extends AnyFunSuite {
     import DatetimeCase.AllJavaDateTime
     val topic = AvroTopic[Int, AllJavaDateTime](TopicName("message.datetime.test"))
     val m = AllJavaDateTime(LocalDateTime.now, LocalDate.now, Instant.ofEpochMilli(Instant.now.toEpochMilli))
-    val data: fs2.Stream[IO, ProducerResult[Int, AllJavaDateTime]] =
+    val data: fs2.Stream[IO, Chunk[RecordMetadata]] =
       fs2
-        .Stream(ProducerRecords.one(ProducerRecord(topic.topicName.name.value, 0, m)))
+        .Stream(ProducerRecord(topic.topicName.name.value, 0, m))
         .through(ctx.sharedProduce[Int, AllJavaDateTime](topic.pair).sink)
     val rst = for {
       _ <- ctx

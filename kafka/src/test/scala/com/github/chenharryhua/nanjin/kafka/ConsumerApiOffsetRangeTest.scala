@@ -9,11 +9,13 @@ import com.github.chenharryhua.nanjin.datetime.{DateTimeRange, NJTimestamp}
 import com.github.chenharryhua.nanjin.kafka.connector.ConsumeKafka
 import eu.timepit.refined.auto.*
 import fs2.Stream
-import fs2.kafka.{ConsumerSettings, ProducerRecord, ProducerRecords, ProducerResult}
+import fs2.kafka.{ConsumerSettings, ProducerRecord, ProducerRecords}
 import mtest.kafka.ctx
 import org.apache.kafka.clients.consumer.OffsetAndMetadata
 import org.apache.kafka.common.TopicPartition
 import org.scalatest.funsuite.AnyFunSuite
+import fs2.Chunk
+import org.apache.kafka.clients.producer.RecordMetadata
 
 class ConsumerApiOffsetRangeTest extends AnyFunSuite {
 
@@ -31,8 +33,11 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
   val pr2: ProducerRecord[Int, Int] = ProducerRecord(topic.topicName.name.value, 2, 2).withTimestamp(200)
   val pr3: ProducerRecord[Int, Int] = ProducerRecord(topic.topicName.name.value, 3, 3).withTimestamp(300)
 
-  val topicData: Stream[IO, ProducerResult[Int, Int]] =
-    Stream(ProducerRecords(List(pr1, pr2, pr3))).covary[IO].through(ctx.sharedProduce(topicDef.pair).sink)
+  val topicData: Stream[IO, Chunk[RecordMetadata]] =
+    Stream(ProducerRecords(List(pr1, pr2, pr3)))
+      .covary[IO]
+      .unchunks
+      .through(ctx.sharedProduce(topicDef.pair).sink)
 
   (ctx
     .admin(topic.topicName.name)

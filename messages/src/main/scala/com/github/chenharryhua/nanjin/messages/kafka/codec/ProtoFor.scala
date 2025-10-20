@@ -15,7 +15,7 @@ import scalapb.{GeneratedMessage, GeneratedMessageCompanion}
 
 import java.util
 
-sealed trait ProtoFor[A] extends RegisterSerde[A] {
+sealed trait ProtoFor[A] extends UnregisteredSerde[A] {
   def protobufSchema: Option[ProtobufSchema]
 }
 
