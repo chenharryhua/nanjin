@@ -2,12 +2,14 @@ package mtest.kafka
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
+import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
+import com.github.chenharryhua.nanjin.datetime.DateTimeRange
 import com.github.chenharryhua.nanjin.kafka.*
 import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
-import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroFor
+import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroCodec, AvroFor}
 import eu.timepit.refined.auto.*
-import fs2.kafka.{Acks, AutoOffsetReset}
+import fs2.kafka.{Acks, AutoOffsetReset, Header, Headers, ProducerRecord}
 import io.circe.generic.auto.*
 import io.circe.syntax.EncoderOps
 import org.apache.kafka.clients.consumer.ConsumerConfig
@@ -65,7 +67,10 @@ class Fs2ChannelTest extends AnyFunSuite {
   import Fs2ChannelTestData.*
   test("1.should be able to consume avro topic") {
     val ret =
-      ctx.produce(avroTopic).produceOne(1, Fs2Kafka(1, "a", 1.0)) >>
+      ctx
+        .sharedProduce(avroTopic.pair)
+        .produceOne(ProducerRecord(avroTopic.topicName.value, 1, Fs2Kafka(1, "a", 1.0))
+          .withHeaders(Headers(Header("k", "abc")))) >>
         ctx
           .consume(avroTopic)
           .updateConfig(_.withGroupId("g1").withAutoOffsetReset(AutoOffsetReset.Earliest))
@@ -201,12 +206,26 @@ class Fs2ChannelTest extends AnyFunSuite {
     assert(producer.get(ProducerConfig.ACKS_CONFIG).contains("0"))
   }
 
-  test("9.generic record range - should stop") {
+  test("9.generic record range - offset") {
     val res = ctx
       .consumeGenericRecord(AvroTopic[AvroFor.FromBroker, AvroFor.FromBroker]("telecom_italia_data"))
       .updateConfig(_.withMaxPollRecords(10))
       .circumscribedStream(Map(0 -> (0L, 5L)))
       .flatMap(_.stream.map(_.record.value).debug())
+      .compile
+      .drain
+      .as(true)
+
+    assert(res.unsafeRunSync())
+  }
+
+  test("10.generic record range - date time") {
+    val codec = AvroCodec[NJConsumerRecord[Int, Fs2Kafka]]
+    val res = ctx
+      .consumeGenericRecord(AvroTopic[AvroFor.FromBroker, AvroFor.FromBroker](avroTopic.topicName))
+      .updateConfig(_.withMaxPollRecords(10))
+      .circumscribedStream(DateTimeRange(sydneyTime).withToday)
+      .flatMap(_.stream.map(_.record.value.toOption.map(codec.fromRecord)).debug())
       .compile
       .drain
       .as(true)
@@ -267,7 +286,7 @@ class Fs2ChannelTest extends AnyFunSuite {
         .toList
         .unsafeRunSync()
     assert(ret.size == 1)
-    assert(ret.head.value.isSuccess)
+    assert(ret.head.value.isRight)
   }
 
   test("14. schema") {

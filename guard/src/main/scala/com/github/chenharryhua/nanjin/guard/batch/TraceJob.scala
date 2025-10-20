@@ -85,6 +85,7 @@ object TraceJob {
     def disableKickoff: ByAgent[F] = copy(_kickoff = _agent.log.void)
     def disableSuccess: ByAgent[F] = copy(_success = _agent.log.void)
     def escalateFailure: ByAgent[F] = copy(_failure = _agent.herald.error(_))
+    def escalateSuccess: ByAgent[F] = copy(_success = _agent.herald.done(_))
 
     def universal[A](f: (A, JobResultState) => Json): JobTracer[F, A] =
       new JobTracer[F, A](
