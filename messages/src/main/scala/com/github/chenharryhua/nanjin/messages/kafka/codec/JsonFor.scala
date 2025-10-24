@@ -55,26 +55,35 @@ object JsonFor {
    * Specific
    */
   implicit object jsonForString extends JsonFor[String] {
+    override val isPrimitive: Boolean = true
+
     override protected val unregisteredSerde: Serde[String] = Serdes.stringSerde
     override val jsonSchema: Option[JsonSchema] = buildSchema(classOf[String]).some
   }
 
   implicit object jsonForLong extends JsonFor[Long] {
+    override val isPrimitive: Boolean = true
+
     override protected val unregisteredSerde: Serde[Long] = Serdes.longSerde
     override val jsonSchema: Option[JsonSchema] = buildSchema(classOf[Long]).some
   }
 
   implicit object jsonForInt extends JsonFor[Int] {
+    override val isPrimitive: Boolean = true
+
     override protected val unregisteredSerde: Serde[Int] = Serdes.intSerde
     override val jsonSchema: Option[JsonSchema] = buildSchema(classOf[Int]).some
   }
 
   implicit object jsonForUUID extends JsonFor[UUID] {
+    override val isPrimitive: Boolean = true
+
     override protected val unregisteredSerde: Serde[UUID] = Serdes.uuidSerde
     override val jsonSchema: Option[JsonSchema] = buildSchema(classOf[UUID]).some
   }
 
   implicit object jsonForFromBroker extends JsonFor[FromBroker] {
+    override val isPrimitive: Boolean = false
     override val jsonSchema: Option[JsonSchema] = None
 
     override protected val unregisteredSerde: Serde[FromBroker] =
@@ -119,6 +128,7 @@ object JsonFor {
    * General
    */
   implicit def jsonForClassTag[A: ClassTag]: JsonFor[A] = new JsonFor[A] {
+    override val isPrimitive: Boolean = false
 
     private val schema: JsonSchema = buildSchema(implicitly[ClassTag[A]].runtimeClass)
     override val jsonSchema: Option[JsonSchema] = schema.some

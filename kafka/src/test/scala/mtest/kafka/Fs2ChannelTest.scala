@@ -105,6 +105,8 @@ class Fs2ChannelTest extends AnyFunSuite {
         serde.tryDeserializeKeyValue(ccr.record)
         serde.optionalDeserialize(ccr.record)
         val nj = serde.toNJConsumerRecord(ccr).toNJProducerRecord.toProducerRecord
+        serde.serializeKey(nj.key)
+        serde.serializeVal(nj.value)
         serde.serialize(nj)
       }
       .timeout(3.seconds)

@@ -169,15 +169,15 @@ final class ConsumeGenericRecord[F[_]: Async, K, V](
     : Stream[F, CircumscribedStream[F, Unit, Either[PullGenericRecordException, GenericData.Record]]] =
     for {
       kc <- KafkaConsumer.stream(consumerSettings.withEnableAutoCommit(false))
-      ranges <- Stream.eval(utils.get_offset_range(kc, avroTopic.topicName, or))
+      ranges <- Stream.eval(topic_utils.get_offset_range(kc, avroTopic.topicName, or))
       stream <-
         if (ranges.isEmpty) Stream.empty
         else {
           for {
-            _ <- Stream.eval(utils.assign_offset_range(kc, ranges))
+            _ <- Stream.eval(topic_utils.assign_offset_range(kc, ranges))
             schema <- Stream.eval(getSchema).map(avroTopic.pair.optionalSchemaPair.read(_).toSchemaPair)
             pull = new PullGenericRecord(schema)
-            s <- utils.circumscribed_generic_record_stream(kc, ranges, pull)
+            s <- topic_utils.circumscribed_generic_record_stream(kc, ranges, pull)
           } yield s
         }
     } yield stream

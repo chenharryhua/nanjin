@@ -12,6 +12,7 @@ import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.*
+
 @DoNotDiscover
 class ExampleKafkaBasic extends AnyFunSuite {
   val topic = AvroTopic[Int, Foo](TopicName("foo"))
@@ -32,7 +33,6 @@ class ExampleKafkaBasic extends AnyFunSuite {
         Stream
           .emits(producerRecords)
           .map(_.toProducerRecord)
-          .chunks
           .through(ctx.sharedProduce[Int, Foo](topic.pair).sink)
           .compile
           .drain

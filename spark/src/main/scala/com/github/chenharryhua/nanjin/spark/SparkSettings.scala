@@ -58,6 +58,32 @@ final class SparkSettings private (build: Endo[SparkSession.Builder])
         .config("spark.hadoop.fs.s3a.connection.timeout", 20_000)
     )
 
+  def withJava17plus: SparkSettings = {
+    val add_opens: String = List(
+      "--add-modules=jdk.incubator.vector",
+      "--add-opens=java.base/java.lang=ALL-UNNAMED",
+      "--add-opens=java.base/java.lang.invoke=ALL-UNNAMED",
+      "--add-opens=java.base/java.lang.reflect=ALL-UNNAMED",
+      "--add-opens=java.base/java.io=ALL-UNNAMED",
+      "--add-opens=java.base/java.net=ALL-UNNAMED",
+      "--add-opens=java.base/java.nio=ALL-UNNAMED",
+      "--add-opens=java.base/java.util=ALL-UNNAMED",
+      "--add-opens=java.base/java.util.concurrent=ALL-UNNAMED",
+      "--add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED",
+      "--add-opens=java.base/jdk.internal.ref=ALL-UNNAMED",
+      "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED",
+      "--add-opens=java.base/sun.nio.cs=ALL-UNNAMED",
+      "--add-opens=java.base/sun.security.action=ALL-UNNAMED",
+      "--add-opens=java.base/sun.util.calendar=ALL-UNNAMED",
+      "--add-opens=java.security.jgss/sun.security.krb5=ALL-UNNAMED",
+      "-Djdk.reflect.useDirectMethodHandle=false",
+      "-Dio.netty.tryReflectionSetAccessible=true"
+    ).mkString(" ")
+    updateConfig(
+      _.config("spark.driver.extraJavaOptions", add_opens)
+        .config("spark.executor.extraJavaOptions", add_opens))
+  }
+
   lazy val sparkSession: SparkSession = build(SparkSession.builder()).getOrCreate()
 }
 
