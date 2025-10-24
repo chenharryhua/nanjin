@@ -282,7 +282,7 @@ lazy val messages =
           "io.confluent"                              % "kafka-json-schema-serializer" % confluentV,
           "io.confluent"                              % "kafka-streams-avro-serde"     % confluentV,
           "com.google.protobuf"                       % "protobuf-java"                % "4.33.0", // snyk
-          "org.jetbrains.kotlin"                      % "kotlin-stdlib"                % "2.2.20", // snyk
+          "org.jetbrains.kotlin"                      % "kotlin-stdlib"                % "2.2.21", // snyk
           "io.circe" %% "circe-shapes"                % circeV                         % Test
         ) ++ jacksonLib ++ testLib)
     .settings(Compile / PB.targets := List(scalapb.gen() -> (Compile / sourceManaged).value / "scalapb"))
