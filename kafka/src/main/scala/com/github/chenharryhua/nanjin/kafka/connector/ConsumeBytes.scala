@@ -120,12 +120,12 @@ final class ConsumeBytes[F[_]: Async] private[kafka] (
     : Stream[F, CircumscribedStream[F, Array[Byte], Array[Byte]]] =
     for {
       kc <- KafkaConsumer.stream(consumerSettings.withEnableAutoCommit(false))
-      ranges <- Stream.eval(utils.get_offset_range(kc, topicName, or))
+      ranges <- Stream.eval(topic_utils.get_offset_range(kc, topicName, or))
       stream <-
         if (ranges.isEmpty) Stream.empty
         else {
-          Stream.eval(utils.assign_offset_range(kc, ranges)) *>
-            utils.circumscribed_stream(kc, ranges)
+          Stream.eval(topic_utils.assign_offset_range(kc, ranges)) *>
+            topic_utils.circumscribed_stream(kc, ranges)
         }
     } yield stream
 

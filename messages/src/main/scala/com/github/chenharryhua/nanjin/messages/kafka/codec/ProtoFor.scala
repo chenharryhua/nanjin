@@ -39,21 +39,25 @@ object ProtoFor {
    */
 
   implicit object protoForString extends ProtoFor[String] {
+    override val isPrimitive: Boolean = true
     override protected val unregisteredSerde: Serde[String] = Serdes.stringSerde
     override val protobufSchema: Option[ProtobufSchema] = new ProtobufSchema(ProtoString.javaDescriptor).some
   }
 
   implicit object protoForLong extends ProtoFor[Long] {
+    override val isPrimitive: Boolean = true
     override protected val unregisteredSerde: Serde[Long] = Serdes.longSerde
     override val protobufSchema: Option[ProtobufSchema] = new ProtobufSchema(ProtoLong.javaDescriptor).some
   }
 
   implicit object protoForInt extends ProtoFor[Int] {
+    override val isPrimitive: Boolean = true
     override protected val unregisteredSerde: Serde[Int] = Serdes.intSerde
     override val protobufSchema: Option[ProtobufSchema] = new ProtobufSchema(ProtoInt.javaDescriptor).some
   }
 
   implicit object protoForFromBroker extends ProtoFor[FromBroker] {
+    override val isPrimitive: Boolean = false
     override val protobufSchema: Option[ProtobufSchema] = None
 
     override protected val unregisteredSerde: Serde[FromBroker] = new Serde[FromBroker] {
@@ -91,6 +95,8 @@ object ProtoFor {
 
   implicit def protoForGeneratedMessage[A <: GeneratedMessage](implicit
     gmc: GeneratedMessageCompanion[A]): ProtoFor[A] = new ProtoFor[A] {
+    override val isPrimitive: Boolean = false
+
     override val protobufSchema: Option[ProtobufSchema] = new ProtobufSchema(gmc.javaDescriptor).some
 
     override protected val unregisteredSerde: Serde[A] = new Serde[A] {

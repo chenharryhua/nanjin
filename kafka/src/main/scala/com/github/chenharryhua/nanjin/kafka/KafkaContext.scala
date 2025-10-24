@@ -57,14 +57,12 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
 
   def isCompatible[K, V](topic: KafkaTopic[K, V])(implicit F: Sync[F]): F[Boolean] =
     topic match {
-      case AvroTopic(topicName, pair) =>
-        schemaRegistry.fetchOptionalAvroSchema(topicName).map(pair.optionalSchemaPair.isBackwardCompatible)
-      case ProtoTopic(topicName, pair) =>
-        schemaRegistry
-          .fetchOptionalProtobufSchema(topicName)
-          .map(pair.optionalSchemaPair.isBackwardCompatible)
-      case JsonTopic(topicName, pair) =>
-        schemaRegistry.fetchOptionalJsonSchema(topicName).map(pair.optionalSchemaPair.isBackwardCompatible)
+      case topic @ AvroTopic(topicName, pair) =>
+        schemaRegistry.fetchOptionalAvroSchema(topic).map(pair.optionalSchemaPair.isBackwardCompatible)
+      case topic @ ProtoTopic(topicName, pair) =>
+        schemaRegistry.fetchOptionalProtobufSchema(topic).map(pair.optionalSchemaPair.isBackwardCompatible)
+      case topic @ JsonTopic(topicName, pair) =>
+        schemaRegistry.fetchOptionalJsonSchema(topic).map(pair.optionalSchemaPair.isBackwardCompatible)
     }
 
   /*
@@ -89,7 +87,7 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
     F: Async[F]): ConsumeGenericRecord[F, K, V] =
     new ConsumeGenericRecord[F, K, V](
       avroTopic,
-      schemaRegistry.fetchOptionalAvroSchema(avroTopic.topicName),
+      schemaRegistry.fetchOptionalAvroSchema(avroTopic),
       ConsumerSettings[F, Array[Byte], Array[Byte]](
         Deserializer[F, Array[Byte]],
         Deserializer[F, Array[Byte]]).withProperties(settings.consumerSettings.properties)
@@ -115,7 +113,7 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
     F: Async[F]): ProduceGenericRecord[F, K, V] =
     new ProduceGenericRecord[F, K, V](
       avroTopic,
-      schemaRegistry.fetchOptionalAvroSchema(avroTopic.topicName),
+      schemaRegistry.fetchOptionalAvroSchema(avroTopic),
       settings.schemaRegistrySettings,
       ProducerSettings[F, Array[Byte], Array[Byte]](Serializer[F, Array[Byte]], Serializer[F, Array[Byte]])
         .withProperties(settings.producerSettings.properties)

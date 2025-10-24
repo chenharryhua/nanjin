@@ -12,6 +12,7 @@ package object spark {
       .withMaster("local[*]")
       .withAwsKms("kms")
       .withAwsS3
+      .withJava17plus
       .updateConfig(
         _.config("spark.hadoop.fs.ftp.host", "localhost")
           .config("spark.hadoop.fs.ftp.user.localhost", "chenh")

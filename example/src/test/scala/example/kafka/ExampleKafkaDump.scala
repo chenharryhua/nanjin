@@ -20,19 +20,19 @@ class ExampleKafkaDump extends AnyFunSuite {
   private val jlions: Stream[IO, (Long, Cub)] = lions.map(_.transformInto[Cub]).zipWithIndex.map(_.swap)
 
   test("upload") {
-    jlions.chunks
+    jlions
       .through(example.ctx.produce(avro).sink)
-      .concurrently(jlions.chunks.through(example.ctx.produce(sjson).sink))
-      .concurrently(lions.zipWithIndex.map(_.swap).chunks.through(example.ctx.produce(proto).sink))
+      .concurrently(jlions.through(example.ctx.produce(sjson).sink))
+      .concurrently(lions.zipWithIndex.map(_.swap).through(example.ctx.produce(proto).sink))
       .compile
       .drain
       .unsafeRunSync()
   }
 
   test("schema register") {
-    val a = example.ctx.schemaRegistry.fetchOptionalJsonSchema(sjson.topicName).unsafeRunSync()
-    val b = example.ctx.schemaRegistry.fetchOptionalAvroSchema(avro.topicName).unsafeRunSync()
-    val c = example.ctx.schemaRegistry.fetchOptionalProtobufSchema(proto.topicName).unsafeRunSync()
+    val a = example.ctx.schemaRegistry.fetchOptionalJsonSchema(sjson).unsafeRunSync()
+    val b = example.ctx.schemaRegistry.fetchOptionalAvroSchema(avro).unsafeRunSync()
+    val c = example.ctx.schemaRegistry.fetchOptionalProtobufSchema(proto).unsafeRunSync()
     assert(a.key.isEmpty)
     assert(a.value.nonEmpty)
     assert(b.key.isEmpty)

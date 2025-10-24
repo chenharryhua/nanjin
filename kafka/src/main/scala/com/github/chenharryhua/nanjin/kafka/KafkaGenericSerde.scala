@@ -44,5 +44,5 @@ abstract class KafkaGenericSerde[K, V] private[kafka] (keySerde: KafkaSerde[K], 
   def serializeVal(v: V): Array[Byte] = valSerde.serialize(v)
 
   def serialize[G[_, _]: NJProducerMessage](data: G[K, V]): G[Array[Byte], Array[Byte]] =
-    data.bimap(keySerde.serialize, valSerde.serialize)
+    data.bimap(serializeKey, serializeVal)
 }

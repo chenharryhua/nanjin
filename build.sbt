@@ -1,4 +1,4 @@
-ThisBuild / version      := "0.19.11-SNAPSHOT"
+ThisBuild / version      := "0.19.19-SNAPSHOT"
 ThisBuild / scalaVersion := "2.13.17"
 
 ThisBuild / versionScheme := Some("early-semver")
@@ -11,7 +11,7 @@ Global / parallelExecution := false
 val acyclicV = "0.3.19"
 val avroV = "1.12.1"
 val avro4sV = "4.1.2"
-val awsV = "2.35.10"
+val awsV = "2.36.1"
 val caffeineV = "3.2.2"
 val catsCoreV = "2.13.0"
 val catsEffectV = "3.6.3"
@@ -282,7 +282,7 @@ lazy val messages =
           "io.confluent"                              % "kafka-json-schema-serializer" % confluentV,
           "io.confluent"                              % "kafka-streams-avro-serde"     % confluentV,
           "com.google.protobuf"                       % "protobuf-java"                % "4.33.0", // snyk
-          "org.jetbrains.kotlin"                      % "kotlin-stdlib"                % "2.2.20", // snyk
+          "org.jetbrains.kotlin"                      % "kotlin-stdlib"                % "2.2.21", // snyk
           "io.circe" %% "circe-shapes"                % circeV                         % Test
         ) ++ jacksonLib ++ testLib)
     .settings(Compile / PB.targets := List(scalapb.gen() -> (Compile / sourceManaged).value / "scalapb"))

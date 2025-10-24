@@ -4,7 +4,6 @@ import cats.effect.kernel.Sync
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import io.confluent.kafka.schemaregistry.avro.AvroSchema
-import io.confluent.kafka.schemaregistry.client.rest.exceptions.RestClientException
 import io.confluent.kafka.schemaregistry.client.{CachedSchemaRegistryClient, SchemaMetadata}
 import io.confluent.kafka.schemaregistry.json.JsonSchema
 import io.confluent.kafka.schemaregistry.protobuf.ProtobufSchema
@@ -28,22 +27,20 @@ final class SchemaRegistryApi[F[_]](client: CachedSchemaRegistryClient) {
     F.blocking(client.getLatestSchemaMetadata(loc.valLoc))
   }
 
-  private def handleError(throwable: Throwable): None.type =
-    throwable match {
-      case _: RestClientException => None
-      case ex                     => throw ex
-    }
+  private def handleError(isPrimitive: Boolean)(throwable: Throwable): None.type =
+    if (isPrimitive) None else throw throwable
 
-  def fetchOptionalAvroSchema(topicName: TopicName)(implicit F: Sync[F]): F[OptionalAvroSchemaPair] =
+  def fetchOptionalAvroSchema[K, V](avroTopic: AvroTopic[K, V])(implicit
+    F: Sync[F]): F[OptionalAvroSchemaPair] =
     for {
-      key <- keyMetaData(topicName).redeem(
-        handleError,
+      key <- keyMetaData(avroTopic.topicName).redeem(
+        handleError(avroTopic.pair.key.isPrimitive),
         sm => {
           require(sm.getSchemaType === "AVRO", "key schema is not AVRO")
           Some(new AvroSchema(sm.getSchema))
         })
-      value <- valMetaData(topicName).redeem(
-        handleError,
+      value <- valMetaData(avroTopic.topicName).redeem(
+        handleError(avroTopic.pair.value.isPrimitive),
         sm => {
           require(sm.getSchemaType === "AVRO", "value schema is not AVRO")
           Some(new AvroSchema(sm.getSchema))
@@ -51,16 +48,17 @@ final class SchemaRegistryApi[F[_]](client: CachedSchemaRegistryClient) {
       )
     } yield OptionalAvroSchemaPair(key, value)
 
-  def fetchOptionalJsonSchema(topicName: TopicName)(implicit F: Sync[F]): F[OptionalJsonSchemaPair] =
+  def fetchOptionalJsonSchema[K, V](jsonTopic: JsonTopic[K, V])(implicit
+    F: Sync[F]): F[OptionalJsonSchemaPair] =
     for {
-      key <- keyMetaData(topicName).redeem(
-        handleError,
+      key <- keyMetaData(jsonTopic.topicName).redeem(
+        handleError(jsonTopic.pair.key.isPrimitive),
         sm => {
           require(sm.getSchemaType === "JSON", "key schema is not JSON")
           Some(new JsonSchema(sm.getSchema))
         })
-      value <- valMetaData(topicName).redeem(
-        handleError,
+      value <- valMetaData(jsonTopic.topicName).redeem(
+        handleError(jsonTopic.pair.value.isPrimitive),
         sm => {
           require(sm.getSchemaType === "JSON", "value schema is not JSON")
           Some(new JsonSchema(sm.getSchema))
@@ -68,17 +66,18 @@ final class SchemaRegistryApi[F[_]](client: CachedSchemaRegistryClient) {
       )
     } yield OptionalJsonSchemaPair(key, value)
 
-  def fetchOptionalProtobufSchema(topicName: TopicName)(implicit F: Sync[F]): F[OptionalProtobufSchemaPair] =
+  def fetchOptionalProtobufSchema[K, V](protoTopic: ProtoTopic[K, V])(implicit
+    F: Sync[F]): F[OptionalProtobufSchemaPair] =
     for {
-      key <- keyMetaData(topicName).redeem(
-        handleError,
+      key <- keyMetaData(protoTopic.topicName).redeem(
+        handleError(protoTopic.pair.key.isPrimitive),
         sm => {
           require(sm.getSchemaType === "PROTOBUF", "key schema is not PROTOBUF")
           Some(new ProtobufSchema(sm.getSchema))
         }
       )
-      value <- valMetaData(topicName).redeem(
-        handleError,
+      value <- valMetaData(protoTopic.topicName).redeem(
+        handleError(protoTopic.pair.value.isPrimitive),
         sm => {
           require(sm.getSchemaType === "PROTOBUF", "value schema is not PROTOBUF")
           Some(new ProtobufSchema(sm.getSchema))
