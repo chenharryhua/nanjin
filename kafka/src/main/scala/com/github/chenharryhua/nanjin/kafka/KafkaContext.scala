@@ -52,7 +52,7 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
       .get(AbstractKafkaSchemaSerDeConfig.MAX_SCHEMAS_PER_SUBJECT_CONFIG)
       .flatMap(s => Try(s.toInt).toOption)
       .getOrElse(AbstractKafkaSchemaSerDeConfig.MAX_SCHEMAS_PER_SUBJECT_DEFAULT)
-    new SchemaRegistryApi[F](new CachedSchemaRegistryClient(url, cacheCapacity))
+    new SchemaRegistryApiImpl[F](new CachedSchemaRegistryClient(url, cacheCapacity))
   }
 
   def isCompatible[K, V](topic: KafkaTopic[K, V])(implicit F: Sync[F]): F[Boolean] =
