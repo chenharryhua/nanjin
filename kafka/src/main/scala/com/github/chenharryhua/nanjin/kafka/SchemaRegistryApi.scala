@@ -15,14 +15,14 @@ final private case class SchemaLocation(topicName: TopicName) {
   val valLoc: String = s"${topicName.name.value}-value"
 }
 
-final class SchemaRegistryApi[F[_]](client: CachedSchemaRegistryClient) {
+final class SchemaRegistryApi[F[_]](client: CachedSchemaRegistryClient)(implicit F: Sync[F]) {
 
-  private def keyMetaData(topicName: TopicName)(implicit F: Sync[F]): F[SchemaMetadata] = {
+  private def keyMetaData(topicName: TopicName): F[SchemaMetadata] = {
     val loc = SchemaLocation(topicName)
     F.blocking(client.getLatestSchemaMetadata(loc.keyLoc))
   }
 
-  private def valMetaData(topicName: TopicName)(implicit F: Sync[F]): F[SchemaMetadata] = {
+  private def valMetaData(topicName: TopicName): F[SchemaMetadata] = {
     val loc = SchemaLocation(topicName)
     F.blocking(client.getLatestSchemaMetadata(loc.valLoc))
   }
@@ -30,8 +30,7 @@ final class SchemaRegistryApi[F[_]](client: CachedSchemaRegistryClient) {
   private def handleError(isPrimitive: Boolean)(throwable: Throwable): None.type =
     if (isPrimitive) None else throw throwable
 
-  def fetchOptionalAvroSchema[K, V](avroTopic: AvroTopic[K, V])(implicit
-    F: Sync[F]): F[OptionalAvroSchemaPair] =
+  def fetchOptionalAvroSchema[K, V](avroTopic: AvroTopic[K, V]): F[OptionalAvroSchemaPair] =
     for {
       key <- keyMetaData(avroTopic.topicName).redeem(
         handleError(avroTopic.pair.key.isPrimitive),
@@ -48,8 +47,7 @@ final class SchemaRegistryApi[F[_]](client: CachedSchemaRegistryClient) {
       )
     } yield OptionalAvroSchemaPair(key, value)
 
-  def fetchOptionalJsonSchema[K, V](jsonTopic: JsonTopic[K, V])(implicit
-    F: Sync[F]): F[OptionalJsonSchemaPair] =
+  def fetchOptionalJsonSchema[K, V](jsonTopic: JsonTopic[K, V]): F[OptionalJsonSchemaPair] =
     for {
       key <- keyMetaData(jsonTopic.topicName).redeem(
         handleError(jsonTopic.pair.key.isPrimitive),
@@ -66,8 +64,7 @@ final class SchemaRegistryApi[F[_]](client: CachedSchemaRegistryClient) {
       )
     } yield OptionalJsonSchemaPair(key, value)
 
-  def fetchOptionalProtobufSchema[K, V](protoTopic: ProtoTopic[K, V])(implicit
-    F: Sync[F]): F[OptionalProtobufSchemaPair] =
+  def fetchOptionalProtobufSchema[K, V](protoTopic: ProtoTopic[K, V]): F[OptionalProtobufSchemaPair] =
     for {
       key <- keyMetaData(protoTopic.topicName).redeem(
         handleError(protoTopic.pair.key.isPrimitive),
@@ -85,19 +82,46 @@ final class SchemaRegistryApi[F[_]](client: CachedSchemaRegistryClient) {
       )
     } yield OptionalProtobufSchemaPair(key, value)
 
-  def register[K, V](topic: AvroTopic[K, V])(implicit F: Sync[F]): F[(Option[Int], Option[Int])] = {
-    val loc = SchemaLocation(topic.topicName)
-    for {
-      k <- F
-        .blocking(topic.pair.optionalSchemaPair.key.map(k => client.register(loc.keyLoc, k)))
-        .adaptError(ex => new Exception(topic.topicName.name.value, ex))
-      v <- F
-        .blocking(topic.pair.optionalSchemaPair.value.map(v => client.register(loc.valLoc, v)))
-        .adaptError(ex => new Exception(topic.topicName.name.value, ex))
-    } yield (k, v)
-  }
+  /** register topic's schema. primitive type will not be registered.
+    * @return
+    */
+  def register[K, V](topic: KafkaTopic[K, V]): F[(Option[Int], Option[Int])] =
+    topic match {
+      case AvroTopic(topicName, pair) =>
+        val loc = SchemaLocation(topicName)
+        for {
+          k <- F.blocking(pair.optionalSchemaPair.key.flatMap { k =>
+            if (pair.key.isPrimitive) None else Some(client.register(loc.keyLoc, k))
+          })
+          v <- F.blocking(pair.optionalSchemaPair.value.flatMap { v =>
+            if (pair.value.isPrimitive) None else Some(client.register(loc.valLoc, v))
+          })
+        } yield (k, v)
 
-  def delete(topicName: TopicName)(implicit F: Sync[F]): F[(List[Integer], List[Integer])] = {
+      case ProtoTopic(topicName, pair) =>
+        val loc = SchemaLocation(topicName)
+        for {
+          k <- F.blocking(pair.optionalSchemaPair.key.flatMap { k =>
+            if (pair.key.isPrimitive) None else Some(client.register(loc.keyLoc, k))
+          })
+          v <- F.blocking(pair.optionalSchemaPair.value.flatMap { v =>
+            if (pair.value.isPrimitive) None else Some(client.register(loc.valLoc, v))
+          })
+        } yield (k, v)
+
+      case JsonTopic(topicName, pair) =>
+        val loc = SchemaLocation(topicName)
+        for {
+          k <- F.blocking(pair.optionalSchemaPair.key.flatMap { k =>
+            if (pair.key.isPrimitive) None else Some(client.register(loc.keyLoc, k))
+          })
+          v <- F.blocking(pair.optionalSchemaPair.value.flatMap { v =>
+            if (pair.value.isPrimitive) None else Some(client.register(loc.valLoc, v))
+          })
+        } yield (k, v)
+    }
+
+  def delete(topicName: TopicName): F[(List[Integer], List[Integer])] = {
     val loc = SchemaLocation(topicName)
     for {
       k <- F

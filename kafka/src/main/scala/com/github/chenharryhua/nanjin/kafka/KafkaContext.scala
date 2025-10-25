@@ -42,7 +42,7 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
    * schema registry
    */
 
-  @transient lazy val schemaRegistry: SchemaRegistryApi[F] = {
+  def schemaRegistry(implicit F: Sync[F]): SchemaRegistryApi[F] = {
     val url_config = AbstractKafkaSchemaSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG
     val url = settings.schemaRegistrySettings.config.get(url_config) match {
       case Some(value) => value
@@ -57,11 +57,11 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
 
   def isCompatible[K, V](topic: KafkaTopic[K, V])(implicit F: Sync[F]): F[Boolean] =
     topic match {
-      case topic @ AvroTopic(topicName, pair) =>
+      case topic @ AvroTopic(_, pair) =>
         schemaRegistry.fetchOptionalAvroSchema(topic).map(pair.optionalSchemaPair.isBackwardCompatible)
-      case topic @ ProtoTopic(topicName, pair) =>
+      case topic @ ProtoTopic(_, pair) =>
         schemaRegistry.fetchOptionalProtobufSchema(topic).map(pair.optionalSchemaPair.isBackwardCompatible)
-      case topic @ JsonTopic(topicName, pair) =>
+      case topic @ JsonTopic(_, pair) =>
         schemaRegistry.fetchOptionalJsonSchema(topic).map(pair.optionalSchemaPair.isBackwardCompatible)
     }
 
