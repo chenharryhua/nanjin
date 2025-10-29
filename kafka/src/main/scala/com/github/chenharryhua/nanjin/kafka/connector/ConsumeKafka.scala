@@ -25,7 +25,7 @@ final class ConsumeKafka[F[_]: Async, K, V] private[kafka] (
   /*
    * config
    */
-  override def properties: Map[String, String] = consumerSettings.properties
+  override lazy val properties: Map[String, String] = consumerSettings.properties
 
   override def updateConfig(f: Endo[ConsumerSettings[F, K, V]]): ConsumeKafka[F, K, V] =
     new ConsumeKafka[F, K, V](topicName, f(consumerSettings))
@@ -34,20 +34,20 @@ final class ConsumeKafka[F[_]: Async, K, V] private[kafka] (
    * client
    */
 
-  def clientR: Resource[F, KafkaConsumer[F, K, V]] =
+  lazy val clientR: Resource[F, KafkaConsumer[F, K, V]] =
     KafkaConsumer.resource(consumerSettings)
 
-  def clientS: Stream[F, KafkaConsumer[F, K, V]] =
+  lazy val clientS: Stream[F, KafkaConsumer[F, K, V]] =
     KafkaConsumer.stream(consumerSettings)
 
   /*
    * Records
    */
 
-  def subscribe: Stream[F, CommittableConsumerRecord[F, K, V]] =
+  lazy val subscribe: Stream[F, CommittableConsumerRecord[F, K, V]] =
     clientS.evalTap(_.subscribe(NonEmptyList.one(topicName.name.value))).flatMap(_.stream)
 
-  def assign: Stream[F, CommittableConsumerRecord[F, K, V]] =
+  lazy val assign: Stream[F, CommittableConsumerRecord[F, K, V]] =
     clientS.evalTap(_.assign(topicName.name.value)).flatMap(_.stream)
 
   def assign(partitionOffsets: Map[Int, Long]): Stream[F, CommittableConsumerRecord[F, K, V]] = {
@@ -92,7 +92,7 @@ final class ConsumeKafka[F[_]: Async, K, V] private[kafka] (
    * manual commit stream
    */
 
-  def manualCommitStream: Stream[F, ManualCommitStream[F, K, V]] =
+  lazy val manualCommitStream: Stream[F, ManualCommitStream[F, K, V]] =
     KafkaConsumer
       .stream(consumerSettings.withEnableAutoCommit(false))
       .evalTap(_.subscribe(NonEmptyList.one(topicName.name.value)))

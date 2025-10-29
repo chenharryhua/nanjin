@@ -25,7 +25,7 @@ final class ConsumeBytes[F[_]: Async] private[kafka] (
   /*
    * config
    */
-  override def properties: Map[String, String] = consumerSettings.properties
+  override lazy val properties: Map[String, String] = consumerSettings.properties
 
   override def updateConfig(f: Endo[ConsumerSettings[F, Array[Byte], Array[Byte]]]): ConsumeBytes[F] =
     new ConsumeBytes[F](topicName, f(consumerSettings))
@@ -34,20 +34,20 @@ final class ConsumeBytes[F[_]: Async] private[kafka] (
    * client
    */
 
-  def clientR: Resource[F, KafkaConsumer[F, Array[Byte], Array[Byte]]] =
+  lazy val clientR: Resource[F, KafkaConsumer[F, Array[Byte], Array[Byte]]] =
     KafkaConsumer.resource(consumerSettings)
 
-  def clientS: Stream[F, KafkaConsumer[F, Array[Byte], Array[Byte]]] =
+  lazy val clientS: Stream[F, KafkaConsumer[F, Array[Byte], Array[Byte]]] =
     KafkaConsumer.stream(consumerSettings)
 
   /*
    * Records
    */
 
-  def subscribe: Stream[F, CommittableConsumerRecord[F, Array[Byte], Array[Byte]]] =
+  lazy val subscribe: Stream[F, CommittableConsumerRecord[F, Array[Byte], Array[Byte]]] =
     clientS.evalTap(_.subscribe(NonEmptyList.one(topicName.name.value))).flatMap(_.stream)
 
-  def assign: Stream[F, CommittableConsumerRecord[F, Array[Byte], Array[Byte]]] =
+  lazy val assign: Stream[F, CommittableConsumerRecord[F, Array[Byte], Array[Byte]]] =
     clientS.evalTap(_.assign(topicName.name.value)).flatMap(_.stream)
 
   def assign(
@@ -93,7 +93,7 @@ final class ConsumeBytes[F[_]: Async] private[kafka] (
    * manual commit stream
    */
 
-  def manualCommitStream: Stream[F, ManualCommitStream[F, Array[Byte], Array[Byte]]] =
+  lazy val manualCommitStream: Stream[F, ManualCommitStream[F, Array[Byte], Array[Byte]]] =
     KafkaConsumer
       .stream(consumerSettings.withEnableAutoCommit(false))
       .evalTap(_.subscribe(NonEmptyList.one(topicName.name.value)))

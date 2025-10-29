@@ -39,7 +39,7 @@ object salesforce_client {
     }
 
   private val client: Resource[IO, Client[IO]] =
-    EmberClientBuilder.default[IO].build.flatMap(ecb => credential.flatMap(_.loginR(ecb)))
+    credential.flatMap(_.loginR(EmberClientBuilder.default[IO].build))
 
   val get = client.use(_.expect[String]("path"))
 

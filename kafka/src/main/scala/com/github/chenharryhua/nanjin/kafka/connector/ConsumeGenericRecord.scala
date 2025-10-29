@@ -33,13 +33,13 @@ final class ConsumeGenericRecord[F[_]: Async, K, V](
   /*
    * config
    */
-  override def properties: Map[String, String] = consumerSettings.properties
+  override lazy val properties: Map[String, String] = consumerSettings.properties
 
   override def updateConfig(
     f: Endo[ConsumerSettings[F, Array[Byte], Array[Byte]]]): ConsumeGenericRecord[F, K, V] =
     new ConsumeGenericRecord[F, K, V](avroTopic, getSchema, f(consumerSettings))
 
-  def schema: F[Schema] =
+  lazy val schema: F[Schema] =
     getSchema.map(avroTopic.pair.optionalSchemaPair.read(_).toSchemaPair.consumerSchema)
 
   /*
@@ -64,7 +64,7 @@ final class ConsumeGenericRecord[F[_]: Async, K, V](
    * subscribe
    */
 
-  def subscribe
+  lazy val subscribe
     : Stream[F, CommittableConsumerRecord[F, Unit, Either[PullGenericRecordException, GenericData.Record]]] =
     KafkaConsumer
       .stream(consumerSettings)
@@ -75,7 +75,7 @@ final class ConsumeGenericRecord[F[_]: Async, K, V](
    * assign
    */
 
-  def assign
+  lazy val assign
     : Stream[F, CommittableConsumerRecord[F, Unit, Either[PullGenericRecordException, GenericData.Record]]] =
     KafkaConsumer
       .stream(consumerSettings)
@@ -127,7 +127,7 @@ final class ConsumeGenericRecord[F[_]: Async, K, V](
    * manual commit stream
    */
 
-  def manualCommitStream
+  lazy val manualCommitStream
     : Stream[F, ManualCommitStream[F, Unit, Either[PullGenericRecordException, GenericData.Record]]] =
     Stream.eval(getSchema).flatMap { broker =>
       val schema = avroTopic.pair.optionalSchemaPair.read(broker).toSchemaPair

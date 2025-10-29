@@ -22,7 +22,7 @@ final class ProduceKafka[F[_], K, V] private[kafka] (
   /*
    * config
    */
-  override def properties: Map[String, String] = producerSettings.properties
+  override lazy val properties: Map[String, String] = producerSettings.properties
 
   override def updateConfig(f: Endo[ProducerSettings[F, K, V]]): ProduceKafka[F, K, V] =
     new ProduceKafka[F, K, V](topicName, f(producerSettings), isCompatible)
