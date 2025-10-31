@@ -30,6 +30,6 @@ package object kafka {
       } yield new TopicPartition(topic, partition)
 
   type PureConsumerSettings = ConsumerSettings[Id, Nothing, Nothing]
-  val pureConsumerSettings: PureConsumerSettings = ConsumerSettings[Id, Nothing, Nothing](null, null)
+  val PureConsumerSettings: PureConsumerSettings = ConsumerSettings[Id, Nothing, Nothing](null, null)
 
 }

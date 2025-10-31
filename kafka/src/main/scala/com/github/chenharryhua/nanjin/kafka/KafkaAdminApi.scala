@@ -84,7 +84,7 @@ object KafkaAdminApi {
     // consumer
 
     private val initCS: PureConsumerSettings =
-      pureConsumerSettings.withProperties(consumerSettings.properties)
+      PureConsumerSettings.withProperties(consumerSettings.properties)
 
     private def transientConsumer(cs: PureConsumerSettings): TransientConsumer[F] =
       TransientConsumer(topicName, cs.withAutoOffsetReset(AutoOffsetReset.None).withEnableAutoCommit(false))
