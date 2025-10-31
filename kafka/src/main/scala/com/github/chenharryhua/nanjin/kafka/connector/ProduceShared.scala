@@ -17,7 +17,7 @@ final class ProduceShared[F[_]: Async, K, V] private[kafka] (producerSettings: P
   override def updateConfig(f: Endo[ProducerSettings[F, K, V]]): ProduceShared[F, K, V] =
     new ProduceShared[F, K, V](f(producerSettings))
 
-  override def properties: Map[String, String] = producerSettings.properties
+  override lazy val properties: Map[String, String] = producerSettings.properties
 
   lazy val clientR: Resource[F, KafkaProducer.Metrics[F, K, V]] =
     KafkaProducer.resource(producerSettings)
@@ -46,7 +46,7 @@ final class KafkaTransactional[F[_]: Async, K, V] private[kafka] (
   /*
    * config
    */
-  override def properties: Map[String, String] = txnSettings.producerSettings.properties
+  override lazy val properties: Map[String, String] = txnSettings.producerSettings.properties
 
   override def updateConfig(f: Endo[TransactionalProducerSettings[F, K, V]]): KafkaTransactional[F, K, V] =
     new KafkaTransactional[F, K, V](f(txnSettings))
