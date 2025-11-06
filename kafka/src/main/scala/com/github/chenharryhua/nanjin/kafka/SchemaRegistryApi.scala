@@ -93,7 +93,8 @@ final private class SchemaRegistryApiImpl[F[_]](client: CachedSchemaRegistryClie
     } yield OptionalProtobufSchemaPair(key, value)
 
   /** register topic's schema. primitive type will not be registered.
-    * @return pair of Schema ID
+    * @return
+    *   pair of Schema ID
     */
   override def register[K, V](topic: KafkaTopic[K, V]): F[(Option[Int], Option[Int])] =
     topic match {
