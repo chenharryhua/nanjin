@@ -11,7 +11,7 @@ Global / parallelExecution := false
 val acyclicV = "0.3.19"
 val avroV = "1.12.1"
 val avro4sV = "4.1.2"
-val awsV = "2.37.5"
+val awsV = "2.38.1"
 val caffeineV = "3.2.3"
 val catsCoreV = "2.13.0"
 val catsEffectV = "3.6.3"
@@ -342,7 +342,7 @@ lazy val pipes = (project in file("pipes"))
       "org.tukaani"                      % "xz"              % "1.10",
       "org.eclipse.jetty"                % "jetty-server"    % "12.1.3", // snyk
       "io.netty"                         % "netty-all"       % nettyV, // snyk
-      "com.nimbusds"                     % "nimbus-jose-jwt" % "10.5", // snyk
+      "com.nimbusds"                     % "nimbus-jose-jwt" % "10.6", // snyk
       "org.apache.zookeeper"             % "zookeeper"       % "3.9.4", // snyk
       "org.typelevel" %% "jawn-fs2"      % "2.4.0"           % Test
     ) ++ jacksonLib ++ hadoopLib ++ kantanLib
