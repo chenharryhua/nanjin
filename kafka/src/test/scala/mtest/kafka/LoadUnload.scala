@@ -22,12 +22,11 @@ class LoadUnload extends AnyFunSuite {
   val data: List[(Int, Simple)] = List.range(1, 10).map(a => a -> Simple("simple", Random.nextInt(99)))
 
   test("load - unload") {
-    Stream
-      .emits(data)
-      .broadcastThrough(ctx.produce(avro).sink, ctx.produce(json).sink)
-      .compile
-      .drain
-      .unsafeRunSync()
+    val init = ctx.schemaRegistry.register(avro) >>
+      ctx.schemaRegistry.register(json) >>
+      Stream.emits(data).broadcastThrough(ctx.produce(avro).sink, ctx.produce(json).sink).compile.drain
+
+    init.unsafeRunSync()
 
     val a = ctx
       .consume(avro)
