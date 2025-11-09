@@ -36,6 +36,8 @@ object KafkaStreamingData {
   val tgt = AvroTopic[Int, StreamTarget](TopicName("stream.test.join.target"))
   val serde: KafkaGenericSerde[Int, StreamTarget] = ctx.serde(tgt)
 
+  val register = ctx.schemaRegistry.register(s1Def) >> ctx.schemaRegistry.register(t2Topic)
+
   val sendT2Data: IO[Chunk[RecordMetadata]] =
     ctx
       .produce(t2Topic)
@@ -66,7 +68,7 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
 
   val appId = "kafka_stream_test"
 
-  before(sendT2Data.unsafeRunSync())
+  before((register >> sendT2Data).unsafeRunSync())
 
   test("stream-table join") {
     val sendS1Data = Stream

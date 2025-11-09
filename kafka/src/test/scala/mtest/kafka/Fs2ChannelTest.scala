@@ -7,7 +7,7 @@ import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.DateTimeRange
 import com.github.chenharryhua.nanjin.kafka.*
 import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
-import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroCodec, AvroFor}
+import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroFor
 import eu.timepit.refined.auto.*
 import fs2.kafka.{Acks, AutoOffsetReset, Header, Headers, ProducerRecord}
 import io.circe.generic.auto.*
@@ -222,12 +222,11 @@ class Fs2ChannelTest extends AnyFunSuite {
   }
 
   test("10.generic record range - date time") {
-    val codec = AvroCodec[NJConsumerRecord[Int, Fs2Kafka]]
     val res = ctx
-      .consumeGenericRecord(AvroTopic[AvroFor.FromBroker, AvroFor.FromBroker](avroTopic.topicName))
+      .consumeGenericRecord(AvroTopic[AvroFor.FromBroker, AvroFor.FromBroker]("telecom_italia_data"))
       .updateConfig(_.withMaxPollRecords(10))
       .circumscribedStream(DateTimeRange(sydneyTime).withToday)
-      .flatMap(_.stream.map(_.record.value.toOption.map(codec.fromRecord)).debug())
+      .flatMap(_.stream.map(_.record.value.toOption).take(5).debug())
       .compile
       .drain
       .as(true)
@@ -235,7 +234,7 @@ class Fs2ChannelTest extends AnyFunSuite {
     assert(res.unsafeRunSync())
   }
 
-  test("10.generic record manualCommitStream") {
+  test("11.generic record manualCommitStream") {
     val res = ctx
       .consumeGenericRecord(AvroTopic[AvroFor.FromBroker, AvroFor.FromBroker]("telecom_italia_data"))
       .updateConfig(_.withMaxPollRecords(10))
@@ -249,7 +248,7 @@ class Fs2ChannelTest extends AnyFunSuite {
     assert(res.unsafeRunSync())
   }
 
-  test("11.range - should stop") {
+  test("12.range - should stop") {
     val res = ctx
       .consume(avroTopic)
       .updateConfig(_.withMaxPollRecords(10))
@@ -261,7 +260,7 @@ class Fs2ChannelTest extends AnyFunSuite {
     assert(res.unsafeRunSync())
   }
 
-  test("12.manualCommitStream") {
+  test("13.manualCommitStream") {
     val res = ctx
       .consume(avroTopic)
       .updateConfig(_.withMaxPollRecords(10))
@@ -275,7 +274,7 @@ class Fs2ChannelTest extends AnyFunSuite {
     assert(res.unsafeRunSync())
   }
 
-  test("13. generic record without schema registry") {
+  test("14. generic record without schema registry") {
     val ret =
       ctx
         .consumeGenericRecord(avroTopic)
@@ -291,7 +290,7 @@ class Fs2ChannelTest extends AnyFunSuite {
     assert(ret.head.value.isRight)
   }
 
-  test("14. schema") {
+  test("15. schema") {
     println(avroTopic.pair.optionalSchemaPair.toSchemaPair.consumerSchema)
   }
 }
