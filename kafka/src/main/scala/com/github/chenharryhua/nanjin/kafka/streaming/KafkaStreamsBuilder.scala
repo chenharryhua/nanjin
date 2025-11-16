@@ -81,9 +81,9 @@ final class KafkaStreamsBuilder[F[_]] private (
 
   /** one object KafkaStreams stream. for interactive state store query
     */
-  val kafkaStreams: Stream[F, KafkaStreams] = kickoff(None)
+  lazy val kafkaStreams: Stream[F, KafkaStreams] = kickoff(None)
 
-  val stateUpdates: Stream[F, StateUpdate] = for {
+  lazy val stateUpdates: Stream[F, StateUpdate] = for {
     bus <- Stream.eval(Channel.unbounded[F, StateUpdate])
     _ <- kickoff(Some(bus))
     state <- bus.stream
