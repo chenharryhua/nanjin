@@ -119,7 +119,7 @@ lazy val common = (project in file("common"))
       "io.circe" %% "circe-generic"                    % circeV,
       "io.circe" %% "circe-refined"                    % "0.15.1",
       "dev.optics" %% "monocle-macro"                  % monocleV,
-      "org.apache.commons"                             % "commons-lang3" % "3.19.0",
+      "org.apache.commons"                             % "commons-lang3" % "3.20.0",
       "io.circe" %% "circe-jawn"                       % circeV          % Test
     ) ++ enumLib ++ refinedLib ++ testLib
   )
