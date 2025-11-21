@@ -1,5 +1,5 @@
 ThisBuild / version      := "0.19.19-SNAPSHOT"
-ThisBuild / scalaVersion := "2.13.17"
+ThisBuild / scalaVersion := "2.13.18"
 
 ThisBuild / versionScheme := Some("early-semver")
 
@@ -8,10 +8,10 @@ ThisBuild / Test / logBuffered       := false
 
 Global / parallelExecution := false
 
-val acyclicV = "0.3.19"
+val acyclicV = "0.3.20"
 val avroV = "1.12.1"
 val avro4sV = "4.1.2"
-val awsV = "2.38.8"
+val awsV = "2.39.0"
 val caffeineV = "3.2.3"
 val catsCoreV = "2.13.0"
 val catsEffectV = "3.6.3"
@@ -339,7 +339,7 @@ lazy val pipes = (project in file("pipes"))
       "org.apache.parquet"               % "parquet-hadoop"  % parquetV,
       "org.apache.parquet"               % "parquet-avro"    % parquetV,
       "org.apache.avro"                  % "avro"            % avroV,
-      "org.tukaani"                      % "xz"              % "1.10",
+      "org.tukaani"                      % "xz"              % "1.11",
       "org.eclipse.jetty"                % "jetty-server"    % "12.1.4", // snyk
       "io.netty"                         % "netty-all"       % nettyV, // snyk
       "com.nimbusds"                     % "nimbus-jose-jwt" % "10.6", // snyk
