@@ -11,7 +11,7 @@ Global / parallelExecution := false
 val acyclicV = "0.3.20"
 val avroV = "1.12.1"
 val avro4sV = "4.1.2"
-val awsV = "2.39.2"
+val awsV = "2.39.3"
 val caffeineV = "3.2.3"
 val catsCoreV = "2.13.0"
 val catsEffectV = "3.6.3"
@@ -90,7 +90,7 @@ val testLib = List(
 val enumLib = List(
   "com.beachape" %% "enumeratum"       % enumeratumV,
   "com.beachape" %% "enumeratum-cats"  % enumeratumV,
-  "com.beachape" %% "enumeratum-circe" % "1.9.0"
+  "com.beachape" %% "enumeratum-circe" % enumeratumV
 )
 
 val refinedLib = List(
@@ -413,3 +413,4 @@ lazy val nanjin =
     observer_database,
     observer_kafka
   )
+
