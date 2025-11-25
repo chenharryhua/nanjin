@@ -90,7 +90,7 @@ val testLib = List(
 val enumLib = List(
   "com.beachape" %% "enumeratum"       % enumeratumV,
   "com.beachape" %% "enumeratum-cats"  % enumeratumV,
-  "com.beachape" %% "enumeratum-circe" % enumeratumV
+  "com.beachape" %% "enumeratum-circe" % "1.9.0"
 )
 
 val refinedLib = List(
