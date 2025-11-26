@@ -133,7 +133,7 @@ lazy val http = (project in file("http"))
       "org.http4s" %% "http4s-circe"        % http4sV,
       "org.http4s" %% "http4s-client"       % http4sV,
       "org.tpolecat" %% "natchez-core"      % natchezV,
-      "org.bouncycastle"                    % "bcpkix-jdk18on" % "1.82",
+      "org.bouncycastle"                    % "bcpkix-jdk18on" % "1.83",
       "io.jsonwebtoken"                     % "jjwt-api"       % jwtV,
       "co.fs2" %% "fs2-io"                  % fs2V, // snyk - http4s
       "org.http4s" %% "http4s-dsl"          % http4sV          % Test,
