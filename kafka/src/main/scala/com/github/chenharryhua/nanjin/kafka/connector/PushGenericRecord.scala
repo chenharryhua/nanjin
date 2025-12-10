@@ -39,22 +39,40 @@ final private class PushGenericRecord(
 
       case Schema.Type.STRING =>
         val ser = Serdes.stringSerde.serializer()
-        (data: AnyRef) => ser.serialize(topic, Decoder[String].decode(data))
+        (_: AnyRef) match {
+          case null => null
+          case data => ser.serialize(topic, Decoder[String].decode(data))
+        }
       case Schema.Type.INT =>
         val ser = Serdes.intSerde.serializer()
-        (data: AnyRef) => ser.serialize(topic, Decoder[Int].decode(data))
+        (_: AnyRef) match {
+          case null => null
+          case data => ser.serialize(topic, Decoder[Int].decode(data))
+        }
       case Schema.Type.LONG =>
         val ser = Serdes.longSerde.serializer()
-        (data: AnyRef) => ser.serialize(topic, Decoder[Long].decode(data))
+        (_: AnyRef) match {
+          case null => null
+          case data => ser.serialize(topic, Decoder[Long].decode(data))
+        }
       case Schema.Type.FLOAT =>
         val ser = Serdes.floatSerde.serializer()
-        (data: AnyRef) => ser.serialize(topic, Decoder[Float].decode(data))
+        (_: AnyRef) match {
+          case null => null
+          case data => ser.serialize(topic, Decoder[Float].decode(data))
+        }
       case Schema.Type.DOUBLE =>
         val ser = Serdes.doubleSerde.serializer()
-        (data: AnyRef) => ser.serialize(topic, Decoder[Double].decode(data))
+        (_: AnyRef) match {
+          case null => null
+          case data => ser.serialize(topic, Decoder[Double].decode(data))
+        }
       case Schema.Type.BYTES =>
         val ser = Serdes.byteArraySerde.serializer()
-        (data: AnyRef) => ser.serialize(topic, Decoder[Array[Byte]].decode(data))
+        (_: AnyRef) match {
+          case null => null
+          case data => ser.serialize(topic, Decoder[Array[Byte]].decode(data))
+        }
 
       case us => throw new RuntimeException(s"unsupported key schema: ${us.toString}")
     }
@@ -76,22 +94,40 @@ final private class PushGenericRecord(
         }
       case Schema.Type.STRING =>
         val ser = Serdes.stringSerde.serializer()
-        (data: AnyRef) => ser.serialize(topic, Decoder[String].decode(data))
+        (_: AnyRef) match {
+          case null => null
+          case data => ser.serialize(topic, Decoder[String].decode(data))
+        }
       case Schema.Type.INT =>
         val ser = Serdes.intSerde.serializer()
-        (data: AnyRef) => ser.serialize(topic, Decoder[Int].decode(data))
+        (_: AnyRef) match {
+          case null => null
+          case data => ser.serialize(topic, Decoder[Int].decode(data))
+        }
       case Schema.Type.LONG =>
         val ser = Serdes.longSerde.serializer()
-        (data: AnyRef) => ser.serialize(topic, Decoder[Long].decode(data))
+        (_: AnyRef) match {
+          case null => null
+          case data => ser.serialize(topic, Decoder[Long].decode(data))
+        }
       case Schema.Type.FLOAT =>
         val ser = Serdes.floatSerde.serializer()
-        (data: AnyRef) => ser.serialize(topic, Decoder[Float].decode(data))
+        (_: AnyRef) match {
+          case null => null
+          case data => ser.serialize(topic, Decoder[Float].decode(data))
+        }
       case Schema.Type.DOUBLE =>
         val ser = Serdes.doubleSerde.serializer()
-        (data: AnyRef) => ser.serialize(topic, Decoder[Double].decode(data))
+        (_: AnyRef) match {
+          case null => null
+          case data => ser.serialize(topic, Decoder[Double].decode(data))
+        }
       case Schema.Type.BYTES =>
         val ser = Serdes.byteArraySerde.serializer()
-        (data: AnyRef) => ser.serialize(topic, Decoder[Array[Byte]].decode(data))
+        (_: AnyRef) match {
+          case null => null
+          case data => ser.serialize(topic, Decoder[Array[Byte]].decode(data))
+        }
 
       case us => throw new RuntimeException(s"unsupported value schema: ${us.toString}")
     }
