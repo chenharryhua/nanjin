@@ -40,7 +40,7 @@ val parquetV = "1.16.0"
 val postgresV = "42.7.8"
 val refinedV = "0.11.3"
 val shapelessV = "2.3.13"
-val skunkV = "0.6.4"
+val skunkV = "0.6.5"
 val slf4jV = "2.0.17"
 val sparkV = "4.0.1"
 
