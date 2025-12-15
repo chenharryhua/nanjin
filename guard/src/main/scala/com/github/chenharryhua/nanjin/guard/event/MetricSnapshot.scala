@@ -109,6 +109,14 @@ final case class MetricSnapshot(
       timers.map(t => t.metricId.metricName.uuid -> t.timer.calls) :::
       histograms.map(h => h.metricId.metricName.uuid -> h.histogram.updates)
   }.toMap
+
+  def sorted: MetricSnapshot = MetricSnapshot(
+    counters = counters.sortBy(_.metricId.metricName),
+    meters = meters.sortBy(_.metricId.metricName),
+    timers = timers.sortBy(_.metricId.metricName),
+    histograms = histograms.sortBy(_.metricId.metricName),
+    gauges = gauges.sortBy(_.metricId.metricName)
+  )
 }
 
 object MetricSnapshot extends duration {

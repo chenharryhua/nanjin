@@ -145,7 +145,7 @@ final private class HttpRouter[F[_]](
         Json.obj(
           "service" -> Json.fromString(serviceParams.serviceName.value),
           "took" -> Json.fromString(durationFormatter.format(fd)),
-          "snapshot" -> ms.asJson)
+          "snapshot" -> ms.sorted.asJson)
       }
       Ok(json)
 
