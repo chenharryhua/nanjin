@@ -42,7 +42,7 @@ val refinedV = "0.11.3"
 val shapelessV = "2.3.13"
 val skunkV = "0.6.5"
 val slf4jV = "2.0.17"
-val sparkV = "4.0.1"
+val sparkV = "4.1.0"
 
 lazy val commonSettings = List(
   organization       := "com.github.chenharryhua",
