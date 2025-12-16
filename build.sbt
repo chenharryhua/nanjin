@@ -35,14 +35,14 @@ val logbackV = "1.5.22"
 val metricsV = "4.2.37"
 val monocleV = "3.3.0"
 val natchezV = "0.3.8"
-val nettyV = "4.2.8.Final"
+val nettyV = "4.2.9.Final"
 val parquetV = "1.16.0"
 val postgresV = "42.7.8"
 val refinedV = "0.11.3"
 val shapelessV = "2.3.13"
 val skunkV = "0.6.5"
 val slf4jV = "2.0.17"
-val sparkV = "4.0.1"
+val sparkV = "4.1.0"
 
 lazy val commonSettings = List(
   organization       := "com.github.chenharryhua",
@@ -282,7 +282,7 @@ lazy val messages =
           "io.confluent"                              % "kafka-json-schema-serializer" % confluentV,
           "io.confluent"                              % "kafka-streams-avro-serde"     % confluentV,
           "com.google.protobuf"                       % "protobuf-java"                % "4.33.2", // snyk
-          "org.jetbrains.kotlin"                      % "kotlin-stdlib"                % "2.2.21", // snyk
+          "org.jetbrains.kotlin"                      % "kotlin-stdlib"                % "2.3.0", // snyk
           "io.circe" %% "circe-shapes"                % circeV                         % Test
         ) ++ jacksonLib ++ testLib)
     .settings(Compile / PB.targets := List(scalapb.gen() -> (Compile / sourceManaged).value / "scalapb"))
