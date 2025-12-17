@@ -18,8 +18,8 @@ sealed trait SchemaRegistryApi[F[_]] {
   def fetchOptionalJsonSchema[K, V](jsonTopic: JsonTopic[K, V]): F[OptionalJsonSchemaPair]
   def fetchOptionalProtobufSchema[K, V](protoTopic: ProtoTopic[K, V]): F[OptionalProtobufSchemaPair]
 
-  def register[K, V](topic: KafkaTopic[K, V]): F[(Option[Int], Option[Int])]
-  def register(topicName: TopicName, key: ParsedSchema, value: ParsedSchema): F[(Int, Int)]
+  def register[K, V](topic: KafkaTopic[K, V]): F[RegisteredSchemaID]
+  def register(topicName: TopicName, key: ParsedSchema, value: ParsedSchema): F[RegisteredSchemaID]
 
   def delete(topicName: TopicName): F[(List[Integer], List[Integer])]
 }
@@ -104,10 +104,10 @@ final private class SchemaRegistryApiImpl[F[_]](client: CachedSchemaRegistryClie
       )
     } yield OptionalProtobufSchemaPair(key, value)
 
-  def register(topicName: TopicName, key: ParsedSchema, value: ParsedSchema): F[(Int, Int)] = {
+  def register(topicName: TopicName, key: ParsedSchema, value: ParsedSchema): F[RegisteredSchemaID] = {
     val loc = SchemaLocation(topicName)
     F.blocking {
-      (client.register(loc.keyLoc, key), client.register(loc.valLoc, value))
+      RegisteredSchemaID(client.register(loc.keyLoc, key).some, client.register(loc.valLoc, value).some)
     }
   }
 
@@ -115,7 +115,7 @@ final private class SchemaRegistryApiImpl[F[_]](client: CachedSchemaRegistryClie
     * @return
     *   pair of Schema ID
     */
-  override def register[K, V](topic: KafkaTopic[K, V]): F[(Option[Int], Option[Int])] =
+  override def register[K, V](topic: KafkaTopic[K, V]): F[RegisteredSchemaID] =
     topic match {
       case AvroTopic(topicName, pair) =>
         val loc = SchemaLocation(topicName)
@@ -126,7 +126,7 @@ final private class SchemaRegistryApiImpl[F[_]](client: CachedSchemaRegistryClie
           v <- F.blocking(pair.optionalSchemaPair.value.flatMap { v =>
             if (pair.value.isPrimitive) None else Some(client.register(loc.valLoc, v))
           })
-        } yield (k, v)
+        } yield RegisteredSchemaID(k, v)
 
       case ProtoTopic(topicName, pair) =>
         val loc = SchemaLocation(topicName)
@@ -137,7 +137,7 @@ final private class SchemaRegistryApiImpl[F[_]](client: CachedSchemaRegistryClie
           v <- F.blocking(pair.optionalSchemaPair.value.flatMap { v =>
             if (pair.value.isPrimitive) None else Some(client.register(loc.valLoc, v))
           })
-        } yield (k, v)
+        } yield RegisteredSchemaID(k, v)
 
       case JsonTopic(topicName, pair) =>
         val loc = SchemaLocation(topicName)
@@ -148,7 +148,7 @@ final private class SchemaRegistryApiImpl[F[_]](client: CachedSchemaRegistryClie
           v <- F.blocking(pair.optionalSchemaPair.value.flatMap { v =>
             if (pair.value.isPrimitive) None else Some(client.register(loc.valLoc, v))
           })
-        } yield (k, v)
+        } yield RegisteredSchemaID(k, v)
     }
 
   override def delete(topicName: TopicName): F[(List[Integer], List[Integer])] = {

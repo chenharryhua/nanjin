@@ -22,7 +22,7 @@ sealed trait KafkaAdminApi[F[_]] {
   def newTopic(numPartition: Int, numReplica: Short): F[Unit]
   def newTopic(description: TopicDescription): F[Unit]
 
-  def mirrorTo(other: TopicName, numReplica: Short): F[Unit]
+  def mirrorTo(other: TopicName): F[Unit]
 
   def deleteConsumerGroupOffsets(groupId: String): F[Unit]
 
@@ -67,10 +67,14 @@ object KafkaAdminApi {
       newTopic(partitions, replicas)
     }
 
-    override def mirrorTo(other: TopicName, numReplica: Short): F[Unit] =
+    override def mirrorTo(other: TopicName): F[Unit] =
       for {
         desc <- client.describeTopics(List(topicName.name.value)).map(_(topicName.name.value))
-        _ <- client.createTopic(new NewTopic(other.name.value, desc.partitions().size(), numReplica))
+        _ <- client.createTopic(
+          new NewTopic(
+            other.name.value,
+            desc.partitions().size(),
+            desc.partitions().get(0).replicas().size().toShort))
       } yield ()
 
     override def describe: F[Map[String, TopicDescription]] =

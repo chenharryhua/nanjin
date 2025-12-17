@@ -12,13 +12,12 @@ object kafka {
 
   type TopicNameL = String Refined MR
 
-  final class TopicName private (val name: TopicNameL) {
+  final case class TopicName(name: TopicNameL) {
     val value: String = name.value
     override val toString: String = name.value
   }
 
   object TopicName {
-    def apply(tnc: TopicNameL): TopicName = new TopicName(tnc)
 
     private def trans(str: String): Either[String, TopicName] = refineV[MR](str).map(apply)
 

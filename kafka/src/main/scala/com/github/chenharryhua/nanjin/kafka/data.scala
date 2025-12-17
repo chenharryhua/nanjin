@@ -186,3 +186,5 @@ object TopicPartitionMap {
 
   val emptyOffset: TopicPartitionMap[Offset] = empty[Offset]
 }
+
+final case class RegisteredSchemaID(key: Option[Int], value: Option[Int])
