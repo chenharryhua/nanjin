@@ -38,7 +38,7 @@ class AdminApiTest extends AnyFunSuite {
     val run = for {
       _ <- madmin.use(_.iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence.attempt)
       _ <- IO.sleep(1.seconds)
-      _ <- admin.use(_.mirrorTo(mirror.topicName, 1))
+      _ <- admin.use(_.mirrorTo(mirror.topicName))
       _ <- IO.sleep(1.seconds)
       info <- admin.use(_.describe)
     } yield println(info)

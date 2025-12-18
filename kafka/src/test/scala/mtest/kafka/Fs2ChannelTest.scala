@@ -76,11 +76,13 @@ class Fs2ChannelTest extends AnyFunSuite {
           .updateConfig(_.withGroupId("g1").withAutoOffsetReset(AutoOffsetReset.Earliest))
           .subscribe
           .take(1)
+          .evalTap(_.offset.commit)
           .map(ccr => NJConsumerRecord(ccr.record).asJson)
           .timeout(3.seconds)
           .compile
           .toList
     assert(ret.unsafeRunSync().size == 1)
+    assert(ctx.ungroup("g1").unsafeRunSync() == List(avroTopic.topicName))
   }
 
   test("2.record format") {

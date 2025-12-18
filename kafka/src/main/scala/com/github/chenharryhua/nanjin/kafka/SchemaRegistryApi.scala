@@ -3,6 +3,7 @@ package com.github.chenharryhua.nanjin.kafka
 import cats.effect.kernel.Sync
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
+import io.confluent.kafka.schemaregistry.ParsedSchema
 import io.confluent.kafka.schemaregistry.avro.AvroSchema
 import io.confluent.kafka.schemaregistry.client.{CachedSchemaRegistryClient, SchemaMetadata}
 import io.confluent.kafka.schemaregistry.json.JsonSchema
@@ -11,10 +12,15 @@ import io.confluent.kafka.schemaregistry.protobuf.ProtobufSchema
 import scala.jdk.CollectionConverters.*
 
 sealed trait SchemaRegistryApi[F[_]] {
+  def fetchAvroSchema(topicName: TopicName): F[(AvroSchema, AvroSchema)]
+
   def fetchOptionalAvroSchema[K, V](avroTopic: AvroTopic[K, V]): F[OptionalAvroSchemaPair]
   def fetchOptionalJsonSchema[K, V](jsonTopic: JsonTopic[K, V]): F[OptionalJsonSchemaPair]
   def fetchOptionalProtobufSchema[K, V](protoTopic: ProtoTopic[K, V]): F[OptionalProtobufSchemaPair]
-  def register[K, V](topic: KafkaTopic[K, V]): F[(Option[Int], Option[Int])]
+
+  def register[K, V](topic: KafkaTopic[K, V]): F[RegisteredSchemaID]
+  def register(topicName: TopicName, key: ParsedSchema, value: ParsedSchema): F[RegisteredSchemaID]
+
   def delete(topicName: TopicName): F[(List[Integer], List[Integer])]
 }
 
@@ -38,6 +44,12 @@ final private class SchemaRegistryApiImpl[F[_]](client: CachedSchemaRegistryClie
 
   private def handleError(isPrimitive: Boolean)(throwable: Throwable): None.type =
     if (isPrimitive) None else throw throwable
+
+  override def fetchAvroSchema(topicName: TopicName): F[(AvroSchema, AvroSchema)] =
+    for {
+      key <- keyMetaData(topicName)
+      value <- valMetaData(topicName)
+    } yield (new AvroSchema(key.getSchema), new AvroSchema(value.getSchema))
 
   override def fetchOptionalAvroSchema[K, V](avroTopic: AvroTopic[K, V]): F[OptionalAvroSchemaPair] =
     for {
@@ -92,11 +104,18 @@ final private class SchemaRegistryApiImpl[F[_]](client: CachedSchemaRegistryClie
       )
     } yield OptionalProtobufSchemaPair(key, value)
 
+  def register(topicName: TopicName, key: ParsedSchema, value: ParsedSchema): F[RegisteredSchemaID] = {
+    val loc = SchemaLocation(topicName)
+    F.blocking {
+      RegisteredSchemaID(client.register(loc.keyLoc, key).some, client.register(loc.valLoc, value).some)
+    }
+  }
+
   /** register topic's schema. primitive type will not be registered.
     * @return
     *   pair of Schema ID
     */
-  override def register[K, V](topic: KafkaTopic[K, V]): F[(Option[Int], Option[Int])] =
+  override def register[K, V](topic: KafkaTopic[K, V]): F[RegisteredSchemaID] =
     topic match {
       case AvroTopic(topicName, pair) =>
         val loc = SchemaLocation(topicName)
@@ -107,7 +126,7 @@ final private class SchemaRegistryApiImpl[F[_]](client: CachedSchemaRegistryClie
           v <- F.blocking(pair.optionalSchemaPair.value.flatMap { v =>
             if (pair.value.isPrimitive) None else Some(client.register(loc.valLoc, v))
           })
-        } yield (k, v)
+        } yield RegisteredSchemaID(k, v)
 
       case ProtoTopic(topicName, pair) =>
         val loc = SchemaLocation(topicName)
@@ -118,7 +137,7 @@ final private class SchemaRegistryApiImpl[F[_]](client: CachedSchemaRegistryClie
           v <- F.blocking(pair.optionalSchemaPair.value.flatMap { v =>
             if (pair.value.isPrimitive) None else Some(client.register(loc.valLoc, v))
           })
-        } yield (k, v)
+        } yield RegisteredSchemaID(k, v)
 
       case JsonTopic(topicName, pair) =>
         val loc = SchemaLocation(topicName)
@@ -129,7 +148,7 @@ final private class SchemaRegistryApiImpl[F[_]](client: CachedSchemaRegistryClie
           v <- F.blocking(pair.optionalSchemaPair.value.flatMap { v =>
             if (pair.value.isPrimitive) None else Some(client.register(loc.valLoc, v))
           })
-        } yield (k, v)
+        } yield RegisteredSchemaID(k, v)
     }
 
   override def delete(topicName: TopicName): F[(List[Integer], List[Integer])] = {

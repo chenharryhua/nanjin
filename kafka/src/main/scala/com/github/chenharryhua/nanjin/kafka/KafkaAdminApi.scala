@@ -20,7 +20,9 @@ sealed trait KafkaAdminApi[F[_]] {
   def lagBehind(groupId: String): F[TopicPartitionMap[Option[LagBehind]]]
 
   def newTopic(numPartition: Int, numReplica: Short): F[Unit]
-  def mirrorTo(other: TopicName, numReplica: Short): F[Unit]
+  def newTopic(description: TopicDescription): F[Unit]
+
+  def mirrorTo(other: TopicName): F[Unit]
 
   def deleteConsumerGroupOffsets(groupId: String): F[Unit]
 
@@ -59,10 +61,20 @@ object KafkaAdminApi {
     override def newTopic(numPartition: Int, numReplica: Short): F[Unit] =
       client.createTopic(new NewTopic(topicName.name.value, numPartition, numReplica))
 
-    override def mirrorTo(other: TopicName, numReplica: Short): F[Unit] =
+    override def newTopic(description: TopicDescription): F[Unit] = {
+      val partitions = description.partitions().size()
+      val replicas = description.partitions().get(0).replicas().size().toShort
+      newTopic(partitions, replicas)
+    }
+
+    override def mirrorTo(other: TopicName): F[Unit] =
       for {
         desc <- client.describeTopics(List(topicName.name.value)).map(_(topicName.name.value))
-        _ <- client.createTopic(new NewTopic(other.name.value, desc.partitions().size(), numReplica))
+        _ <- client.createTopic(
+          new NewTopic(
+            other.name.value,
+            desc.partitions().size(),
+            desc.partitions().get(0).replicas().size().toShort))
       } yield ()
 
     override def describe: F[Map[String, TopicDescription]] =

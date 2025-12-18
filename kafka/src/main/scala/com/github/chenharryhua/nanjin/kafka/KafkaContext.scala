@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.kafka
 import cats.Endo
 import cats.effect.Resource
 import cats.effect.kernel.{Async, Sync}
-import cats.implicits.toFunctorOps
+import cats.implicits.{catsSyntaxApplicativeError, toFlatMapOps, toFunctorOps, toTraverseOps}
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameL}
 import com.github.chenharryhua.nanjin.kafka.connector.*
@@ -140,6 +140,22 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
 
   def admin(topicName: TopicNameL)(implicit F: Async[F]): Resource[F, KafkaAdminApi[F]] =
     KafkaAdminApi[F](admin, TopicName(topicName), settings.consumerSettings)
+
+  /** remove topics from consumer group, except keeps
+    */
+  def ungroup(groupId: String, keeps: List[TopicName] = Nil)(implicit F: Async[F]): F[List[TopicName]] =
+    admin
+      .use(
+        _.listConsumerGroupOffsets(groupId).partitionsToOffsetAndMetadata
+          .map(_.keys.map(_.topic()).toList.distinct.diff(keeps.map(_.value))))
+      .flatMap(
+        _.traverse { tn =>
+          admin(TopicName.unsafeFrom(tn).name).use(_.deleteConsumerGroupOffsets(groupId)).attempt.map {
+            case Left(_)  => None
+            case Right(_) => Some(TopicName.unsafeFrom(tn))
+          }
+        }.map(_.flatten)
+      )
 }
 
 object KafkaContext {
