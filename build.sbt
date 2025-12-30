@@ -413,3 +413,4 @@ lazy val nanjin =
     observer_database,
     observer_kafka
   )
+
