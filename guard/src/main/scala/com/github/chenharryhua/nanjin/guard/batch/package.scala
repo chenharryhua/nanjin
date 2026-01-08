@@ -48,4 +48,8 @@ package object batch {
     BatchResultValue(brs, as)
   }
 
+  private[batch] def jobNameIndex[F[_], A](fas: List[(String, F[A])]): List[JobNameIndex[F, A]] =
+    fas.zipWithIndex.map { case ((name, fa), idx) =>
+      JobNameIndex[F, A](name, idx + 1, fa)
+    }
 }

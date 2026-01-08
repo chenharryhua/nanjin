@@ -214,7 +214,7 @@ object Batch {
     }
 
     override def withJobRename(f: String => String): Parallel[F, A] =
-      new Parallel[F, A](predicate, metrics, parallelism, jobs.map(_.focus(_.name).modify(f)))
+      new Batch.Parallel[F, A](predicate, metrics, parallelism, jobs.map(_.focus(_.name).modify(f)))
 
     override def withPredicate(f: A => Boolean): Parallel[F, A] =
       new Parallel[F, A](predicate = Reader(f), metrics, parallelism, jobs)
@@ -257,9 +257,7 @@ object Batch {
 
       def exec(batchPanel: BatchPanel[F], batchId: UUID): F[List[JobResultValue[A]]] =
         jobs.traverse { case JobNameIndex(name, idx, fa) =>
-
           val job = BatchJob(name, idx, metrics.metricLabel, mode, JobKind.Value, batchId)
-
           tracer.kickoff(job) *>
             F.timed(F.attempt(fa))
               .map { case (fd: FiniteDuration, eoa: Either[Throwable, A]) =>
@@ -287,10 +285,10 @@ object Batch {
     }
 
     override def withJobRename(f: String => String): Sequential[F, A] =
-      new Sequential[F, A](predicate, metrics, jobs.map(_.focus(_.name).modify(f)))
+      new Batch.Sequential[F, A](predicate, metrics, jobs.map(_.focus(_.name).modify(f)))
 
     override def withPredicate(f: A => Boolean): Sequential[F, A] =
-      new Sequential[F, A](predicate = Reader(f), metrics, jobs)
+      new Batch.Sequential[F, A](predicate = Reader(f), metrics, jobs)
   }
 
   /*
@@ -520,19 +518,11 @@ object Batch {
 
 final class Batch[F[_]: Async] private[guard] (metrics: Metrics[F]) {
 
-  def sequential[A](fas: (String, F[A])*): Batch.Sequential[F, A] = {
-    val jobs = fas.toList.zipWithIndex.map { case ((name, fa), idx) =>
-      JobNameIndex[F, A](name, idx + 1, fa)
-    }
-    new Batch.Sequential[F, A](Reader(_ => true), metrics, jobs)
-  }
+  def sequential[A](fas: (String, F[A])*): Batch.Sequential[F, A] =
+    new Batch.Sequential[F, A](Reader(_ => true), metrics, jobNameIndex(fas.toList))
 
-  def parallel[A](parallelism: Int)(fas: (String, F[A])*): Batch.Parallel[F, A] = {
-    val jobs = fas.toList.zipWithIndex.map { case ((name, fa), idx) =>
-      JobNameIndex[F, A](name, idx + 1, fa)
-    }
-    new Batch.Parallel[F, A](Reader(_ => true), metrics, parallelism, jobs)
-  }
+  def parallel[A](parallelism: Int)(fas: (String, F[A])*): Batch.Parallel[F, A] =
+    new Batch.Parallel[F, A](Reader(_ => true), metrics, parallelism, jobNameIndex(fas.toList))
 
   def parallel[A](fas: (String, F[A])*): Batch.Parallel[F, A] =
     parallel[A](fas.size)(fas*)
