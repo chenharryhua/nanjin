@@ -32,7 +32,7 @@ class BatchMonadicTest extends AnyFunSuite {
           for {
             a <- job("a" -> IO(1))
             b <- job("b" -> IO(2))
-            c <- job.customise("c" -> IO(3))((a, _) => a.asJson)
+            c <- job("c" -> IO(3))
           } yield a + b + c
         }
         .batchValue(TraceJob(agent).disableSuccess.escalateFailure.disableKickoff.escalateSuccess.json)
@@ -87,7 +87,10 @@ class BatchMonadicTest extends AnyFunSuite {
               override def predicate(a: Int): Boolean = true
               override def translate(a: Int, jrs: JobResultState): Json = a.asJson
             })
-            c <- job("c" -> IO(3))
+            c <- job.customise("c" -> IO(3))(new JobHandler[Int] {
+              override def predicate(a: Int): Boolean = true
+              override def translate(a: Int, jrs: JobResultState): Json = a.asJson
+            })
           } yield a + c
         }
         .batchValue(tracer |+| TraceJob(agent).json)
