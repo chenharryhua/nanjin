@@ -121,9 +121,9 @@ class BatchMonadicTest extends AnyFunSuite {
           for {
             a <- job("a" -> IO(1))
             _ <- job.failSafe("b" -> IO(10))(new JobHandler[Int] {
-              override def predicate(a: Int): Boolean = a > 15
+              override def predicate(a: Int): Boolean = false
               override def translate(a: Int, jrs: JobResultState): Json = a.asJson
-            })
+            }.withPredicate(_ > 15).contramap(identity))
             c <- job("c" -> IO(3))
           } yield a + c
         }
