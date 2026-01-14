@@ -43,22 +43,31 @@ sealed trait Agent[F[_]] {
   def tickFuture(f: Policy.type => Policy): Stream[F, Tick]
 
   /*
-   * metrics adhoc report/reset
-   */
-  val adhoc: AdhocMetrics[F]
-
-  /*
    * Service Message
    */
   val herald: Herald[F]
   val log: Log[F]
 
+  /*
+   * metrics
+   */
+  def metrics(label: String): Metrics[F]
   def facilitate[A](label: String)(f: Metrics[F] => A): A
+  val adhoc: AdhocMetrics[F]
 
+  /*
+   * circuit breaker
+   */
   def circuitBreaker(f: Endo[CircuitBreaker.Builder]): Resource[F, CircuitBreaker[F]]
 
+  /*
+   * cache
+   */
   def caffeineCache[K, V](cache: Cache[K, V]): Resource[F, CaffeineCache[F, K, V]]
 
+  /*
+   * retry
+   */
   def retry(f: Endo[Retry.Builder[F]]): Resource[F, Retry[F]]
 
 }
@@ -112,10 +121,13 @@ final private class GeneralAgent[F[_]: Async](
   override def tickImmediate(f: Policy.type => Policy): Stream[F, Tick] =
     tickImmediate(f(Policy))
 
-  override def facilitate[A](label: String)(f: Metrics[F] => A): A = {
+  override def metrics(label: String): Metrics[F] = {
     val metricLabel = MetricLabel(label, domain)
-    f(new Metrics.Impl[F](metricLabel, metricRegistry, dispatcher, zoneId))
+    new Metrics.Impl[F](metricLabel, metricRegistry, dispatcher, zoneId)
   }
+
+  override def facilitate[A](label: String)(f: Metrics[F] => A): A =
+    f(metrics(label))
 
   override def circuitBreaker(f: Endo[CircuitBreaker.Builder]): Resource[F, CircuitBreaker[F]] =
     f(new CircuitBreaker.Builder(maxFailures = 5, policy = Policy.giveUp)).build[F](zoneId)
