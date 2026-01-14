@@ -11,7 +11,7 @@ Global / parallelExecution := false
 val acyclicV = "0.3.20"
 val avroV = "1.12.1"
 val avro4sV = "4.1.2"
-val awsV = "2.41.5"
+val awsV = "2.41.6"
 val caffeineV = "3.2.3"
 val catsCoreV = "2.13.0"
 val catsEffectV = "3.6.3"
@@ -36,7 +36,7 @@ val metricsV = "4.2.37"
 val monocleV = "3.3.0"
 val natchezV = "0.3.8"
 val nettyV = "4.2.9.Final"
-val parquetV = "1.16.0"
+val parquetV = "1.17.0"
 val postgresV = "42.7.8"
 val refinedV = "0.11.3"
 val shapelessV = "2.3.13"
@@ -281,7 +281,7 @@ lazy val messages =
           "io.confluent"                              % "kafka-protobuf-serializer"    % confluentV,
           "io.confluent"                              % "kafka-json-schema-serializer" % confluentV,
           "io.confluent"                              % "kafka-streams-avro-serde"     % confluentV,
-          "com.google.protobuf"                       % "protobuf-java"                % "4.33.3", // snyk
+          "com.google.protobuf"                       % "protobuf-java"                % "4.33.4", // snyk
           "org.jetbrains.kotlin"                      % "kotlin-stdlib"                % "2.3.0", // snyk
           "io.circe" %% "circe-shapes"                % circeV                         % Test
         ) ++ jacksonLib ++ testLib)
