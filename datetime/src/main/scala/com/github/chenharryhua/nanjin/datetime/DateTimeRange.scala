@@ -152,6 +152,10 @@ import scala.concurrent.duration.FiniteDuration
 
 object DateTimeRange {
 
+  def apply(zoneId: ZoneId): DateTimeRange = DateTimeRange(None, None, zoneId)
+  def apply(tick: Tick): DateTimeRange =
+    DateTimeRange(tick.zoneId).withStartTime(tick.commence).withEndTime(tick.conclude)
+
   final private type TimeTypes =
     NJTimestamp :+:
       LocalDateTime :+:
@@ -191,10 +195,6 @@ object DateTimeRange {
       override def show(x: DateTimeRange): String = x.toString
 
     }
-
-  def apply(zoneId: ZoneId): DateTimeRange = DateTimeRange(None, None, zoneId)
-  def apply(tick: Tick): DateTimeRange =
-    DateTimeRange(tick.zoneId).withStartTime(tick.commence).withEndTime(tick.conclude)
 
   implicit val encoderDateTimeRange: Encoder[DateTimeRange] =
     (a: DateTimeRange) =>
