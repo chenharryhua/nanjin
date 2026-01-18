@@ -60,7 +60,10 @@ object CaffeineCache {
     override val invalidateAll: F[Unit] =
       F.blocking(cache.invalidateAll())
 
-    val cleanUp: F[Unit] = F.blocking(cache.cleanUp())
+    val cleanUp: F[Unit] = F.blocking {
+      cache.invalidateAll()
+      cache.cleanUp()
+    }
   }
 
   private[guard] def build[F[_], K, V](cache: Cache[K, V])(implicit
