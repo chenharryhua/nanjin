@@ -13,7 +13,7 @@ trait BuildRunnable {
     params: HoarderParams,
     job: F[Unit],
     description: Option[String])(implicit F: Sync[F]): F[Unit] = {
-    val jd: String = description.getOrElse(params.outPath.toString())
+    val jd: String = description.getOrElse(s"Save:${params.outPath.toString()}")
     describeJob[F](sparkContext, jd).surround {
       val hadoop = Hadoop[F](sparkContext.hadoopConfiguration)
       params.saveMode match {
