@@ -9,7 +9,7 @@ import scala.concurrent.duration.FiniteDuration
 
 /* Best Fs2 Kafka Lib [[https://fd4s.github.io/fs2-kafka/]]
  *
-  * [[https://redpanda.com/guides/kafka-performance/kafka-performance-tuning]]
+ * [[https://redpanda.com/guides/kafka-performance/kafka-performance-tuning]]
  */
 
 package object connector {
