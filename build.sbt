@@ -26,7 +26,7 @@ val fs2KafkaV = "3.9.1"
 val fs2V = "3.12.2"
 val hadoopV = "3.4.2"
 val http4sV = "0.23.33"
-val jacksonV = "2.20.1"
+val jacksonV = "2.21.0"
 val jwtV = "0.13.0"
 val kafkaV = "8.1.1-ce"
 val kantanV = "0.8.0"
@@ -257,9 +257,6 @@ val jacksonLib = List(
   "com.fasterxml.jackson.core"     % "jackson-core",
   "com.fasterxml.jackson.core"     % "jackson-databind",
   "com.fasterxml.jackson.datatype" % "jackson-datatype-jdk8",
-  "com.fasterxml.jackson.module"   % "jackson-module-jaxb-annotations",
-  "com.fasterxml.jackson.jaxrs"    % "jackson-jaxrs-base",
-  "com.fasterxml.jackson.jaxrs"    % "jackson-jaxrs-json-provider",
   "com.fasterxml.jackson.module" %% "jackson-module-scala"
 ).map(_ % jacksonV)
 
@@ -413,4 +410,3 @@ lazy val nanjin =
     observer_database,
     observer_kafka
   )
-
