@@ -67,7 +67,7 @@ object Batch {
   private def toJson(results: List[JobResultState]): Json =
     if (results.isEmpty) Json.Null
     else {
-      val pairs: List[(String, Json)] = results.map { (jrs: JobResultState) =>
+      val pairs: List[(String, Json)] = results.sortBy(_.job.index).map { (jrs: JobResultState) =>
         val took: String = durationFormatter.format(jrs.took)
         val result: String = if (jrs.done) took else s"$took (failed)"
         jrs.job.indexedName -> result.asJson

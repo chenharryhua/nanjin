@@ -11,7 +11,7 @@ Global / parallelExecution := false
 val acyclicV = "0.3.20"
 val avroV = "1.12.1"
 val avro4sV = "4.1.2"
-val awsV = "2.41.10"
+val awsV = "2.41.12"
 val caffeineV = "3.2.3"
 val catsCoreV = "2.13.0"
 val catsEffectV = "3.6.3"
@@ -256,7 +256,6 @@ lazy val database = (project in file("database"))
 val jacksonLib = List(
   "com.fasterxml.jackson.core"     % "jackson-core",
   "com.fasterxml.jackson.core"     % "jackson-databind",
-  "com.fasterxml.jackson.datatype" % "jackson-datatype-jdk8",
   "com.fasterxml.jackson.module" %% "jackson-module-scala"
 ).map(_ % jacksonV)
 
