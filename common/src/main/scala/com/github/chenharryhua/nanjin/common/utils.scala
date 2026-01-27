@@ -18,11 +18,13 @@ object utils {
   final val sparkEpoch: LocalDateTime = LocalDateTime.of(2014, 2, 1, 0, 0, 0)
   final val flinkEpoch: LocalDateTime = LocalDateTime.of(2014, 12, 1, 0, 0, 0)
 
-  def toProperties(props: Map[String, String]): Properties =
-    props.foldLeft(new Properties) { case (a, (k, v)) => a.put(k, v); a }
+  def toProperties(props: Map[String, String]): Properties = {
+    val p = new Properties()
+    props.foreach { case (k, v) => p.setProperty(k, v) }
+    p
+  }
 
   final val random4d: Eval[Int] = Eval.always(1000 + Random.nextInt(9000))
-  final val defaultLocalParallelism: Int = Runtime.getRuntime.availableProcessors()
 
   final def randomUUID[F[_]: Sync]: F[UUID] =
     SecureRandom.javaSecuritySecureRandom[F].flatMap(implicit jssr => UUIDGen.fromSecureRandom[F].randomUUID)

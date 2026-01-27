@@ -10,7 +10,7 @@ import monocle.function.Plated
   */
 object fixpoint extends FixPointTrait
 
-trait FixPointTrait {
+sealed trait FixPointTrait {
 
   implicit final def platedFix[G[_]: Traverse]: Plated[Fix[G]] =
     Plated[Fix[G]](new Traversal[Fix[G], Fix[G]] {
