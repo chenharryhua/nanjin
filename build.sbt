@@ -8,10 +8,13 @@ ThisBuild / Test / logBuffered       := false
 
 Global / parallelExecution := false
 
+// ==========================
+// Versions
+// ==========================
 val acyclicV = "0.3.20"
 val avroV = "1.12.1"
 val avro4sV = "4.1.2"
-val awsV = "2.41.10"
+val awsV = "2.41.15"
 val caffeineV = "3.2.3"
 val catsCoreV = "2.13.0"
 val catsEffectV = "3.6.3"
@@ -26,13 +29,13 @@ val fs2KafkaV = "3.9.1"
 val fs2V = "3.12.2"
 val hadoopV = "3.4.2"
 val http4sV = "0.23.33"
-val jacksonV = "2.20.1"
+val jacksonV = "2.21.0"
 val jwtV = "0.13.0"
 val kafkaV = "8.1.1-ce"
 val kantanV = "0.8.0"
 val log4catsV = "2.7.1"
-val logbackV = "1.5.25"
-val metricsV = "4.2.37"
+val logbackV = "1.5.26"
+val metricsV = "4.2.38"
 val monocleV = "3.3.0"
 val natchezV = "0.3.8"
 val nettyV = "4.2.9.Final"
@@ -56,8 +59,12 @@ lazy val commonSettings = List(
     "org.scala-lang"            % "scala-compiler"                   % scalaVersion.value % Runtime,
     ("com.lihaoyi" %% "acyclic" % acyclicV).cross(CrossVersion.full) % Runtime
   ),
+  dependencyUpdatesFilter := { _.organization != "org.scala-lang" },
   scalacOptions ++= List(
     "-Ymacro-annotations",
+    "-deprecation",
+    "-feature",
+    "-unchecked",
     "-Xsource:3",
     "-Xsource-features:case-apply-copy-access",
     "-Wconf:src=src_managed/.*:silent",
@@ -65,6 +72,7 @@ lazy val commonSettings = List(
     "-Vcyclic",
     "-P:acyclic:warn"
   ),
+
   Test / tpolecatExcludeOptions ++=
     org.typelevel.scalacoptions.ScalacOptions.lintOptions
       .filterNot(_.option.startsWith("-Xlint:kind-projector")) +
@@ -98,6 +106,9 @@ val refinedLib = List(
   "eu.timepit" %% "refined-cats"
 ).map(_ % refinedV)
 
+// ==========================
+// Common
+// ==========================
 lazy val common = (project in file("common"))
   .settings(commonSettings *)
   .settings(name := "nj-common")
@@ -124,6 +135,9 @@ lazy val common = (project in file("common"))
     ) ++ enumLib ++ refinedLib ++ testLib
   )
 
+// ==========================
+// Http
+// ==========================
 lazy val http = (project in file("http"))
   .dependsOn(common)
   .settings(commonSettings *)
@@ -143,6 +157,9 @@ lazy val http = (project in file("http"))
       "org.slf4j"                           % "slf4j-reload4j" % slf4jV % Test
     ) ++ testLib)
 
+// ==========================
+// Aws
+// ==========================
 val awsLib = List(
   "software.amazon.awssdk" % "cloudwatch",
   "software.amazon.awssdk" % "secretsmanager",
@@ -163,6 +180,9 @@ lazy val aws = (project in file("aws"))
     "co.fs2" %% "fs2-io"                  % fs2V // snyk
   ) ++ awsLib ++ testLib)
 
+// ==========================
+// Date-time
+// ==========================
 lazy val datetime = (project in file("datetime"))
   .dependsOn(common)
   .settings(commonSettings *)
@@ -172,6 +192,9 @@ lazy val datetime = (project in file("datetime"))
       testLib
   )
 
+// ==========================
+// Guard
+// ==========================
 lazy val guard = (project in file("guard"))
   .dependsOn(common)
   .settings(commonSettings *)
@@ -207,6 +230,9 @@ lazy val guard = (project in file("guard"))
     buildInfoOptions += BuildInfoOption.ToJson
   )
 
+// ==========================
+// Observers
+// ==========================
 lazy val observer_aws = (project in file("observers/aws"))
   .dependsOn(guard)
   .dependsOn(aws)
@@ -236,6 +262,9 @@ lazy val observer_database = (project in file("observers/database"))
     ) ++ testLib
   )
 
+// ==========================
+// Database
+// ==========================
 lazy val database = (project in file("database"))
   .dependsOn(common)
   .settings(commonSettings *)
@@ -253,13 +282,12 @@ lazy val database = (project in file("database"))
     ) ++ testLib
   )
 
+// ==========================
+// Messages
+// ==========================
 val jacksonLib = List(
-  "com.fasterxml.jackson.core"     % "jackson-core",
-  "com.fasterxml.jackson.core"     % "jackson-databind",
-  "com.fasterxml.jackson.datatype" % "jackson-datatype-jdk8",
-  "com.fasterxml.jackson.module"   % "jackson-module-jaxb-annotations",
-  "com.fasterxml.jackson.jaxrs"    % "jackson-jaxrs-base",
-  "com.fasterxml.jackson.jaxrs"    % "jackson-jaxrs-json-provider",
+  "com.fasterxml.jackson.core" % "jackson-core",
+  "com.fasterxml.jackson.core" % "jackson-databind",
   "com.fasterxml.jackson.module" %% "jackson-module-scala"
 ).map(_ % jacksonV)
 
@@ -287,6 +315,9 @@ lazy val messages =
         ) ++ jacksonLib ++ testLib)
     .settings(Compile / PB.targets := List(scalapb.gen() -> (Compile / sourceManaged).value / "scalapb"))
 
+// ==========================
+// Kafka
+// ==========================
 lazy val kafka = (project in file("kafka"))
   .dependsOn(messages)
   .dependsOn(datetime)
@@ -302,9 +333,9 @@ lazy val kafka = (project in file("kafka"))
       "ch.qos.logback"                            % "logback-classic"              % logbackV % Test
     ) ++ jacksonLib ++ testLib)
 
-/** hadoop based
-  */
-
+// ==========================
+// Pipes
+// ==========================
 val hadoopLib = List(
   "org.apache.hadoop" % "hadoop-mapreduce-client-core",
   "org.apache.hadoop" % "hadoop-aws",
@@ -349,6 +380,9 @@ lazy val pipes = (project in file("pipes"))
     libraryDependencies ++= libs ++ testLib
   }
 
+// ==========================
+// Spark
+// ==========================
 val sparkLib = List(
   "org.apache.spark" %% "spark-catalyst",
   "org.apache.spark" %% "spark-core",
@@ -374,6 +408,9 @@ lazy val spark = (project in file("spark"))
     libraryDependencies ++= libs ++ testLib
   }
 
+// ==========================
+// Example
+// ==========================
 lazy val example = (project in file("example"))
   .dependsOn(common)
   .dependsOn(datetime)
@@ -397,20 +434,24 @@ lazy val example = (project in file("example"))
     scalapb.gen() -> (Test / sourceManaged).value / "scalapb"
   ))
 
+// ==========================
+// Nanjin
+// ==========================
 lazy val nanjin =
-  (project in file(".")).aggregate(
-    common,
-    datetime,
-    http,
-    aws,
-    messages,
-    pipes,
-    kafka,
-    database,
-    spark,
-    guard,
-    observer_aws,
-    observer_database,
-    observer_kafka
-  )
-
+  (project in file("."))
+    .settings(commonSettings *)
+    .aggregate(
+      common,
+      datetime,
+      http,
+      aws,
+      messages,
+      pipes,
+      kafka,
+      database,
+      spark,
+      guard,
+      observer_aws,
+      observer_database,
+      observer_kafka
+    )

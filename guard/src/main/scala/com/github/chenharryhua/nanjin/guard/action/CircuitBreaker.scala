@@ -17,17 +17,20 @@ trait CircuitBreaker[F[_]] {
 object CircuitBreaker {
   sealed trait State extends Product
   implicit val encoderState: Encoder[State] = {
-    case State.Closed(failures) => Json.fromString(s"[Closed: $failures failures]")
-    case State.HalfOpen         => Json.fromString("[Half-Open]")
-    case State.Open(rejects)    => Json.fromString(s"[Open: $rejects rejects]")
+    case State.Closed(failures) =>
+      Json.obj("state" -> Json.fromString("Closed"), "failures" -> Json.fromInt(failures))
+    case State.HalfOpen =>
+      Json.obj("state" -> Json.fromString("Half-Open"))
+    case State.Open(rejects) =>
+      Json.obj("state" -> Json.fromString("Open"), "rejects" -> Json.fromInt(rejects))
   }
   private object State {
     final case class Closed(failures: Int) extends State
-    final case object HalfOpen extends State
+    case object HalfOpen extends State
     final case class Open(rejects: Int) extends State
   }
 
-  final case object RejectedException extends Exception("CircuitBreaker Rejected Exception")
+  case object RejectedException extends Exception("CircuitBreaker Rejected Exception")
 
   final private class Impl[F[_]](maxFailures: Int, ticks: Stream[F, Tick])(implicit F: Async[F]) {
 
