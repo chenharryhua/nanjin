@@ -1,12 +1,15 @@
 package com.github.chenharryhua.nanjin.guard.action
 
-import cats.effect.kernel.{Async, Resource}
-import cats.implicits.{catsSyntaxApplicativeError, catsSyntaxApplyOps, toFlatMapOps}
+import cats.Endo
+import cats.effect.implicits.genSpawnOps
+import cats.effect.kernel.{Async, Outcome, Resource}
+import cats.implicits.{catsSyntaxApplicativeError, toFlatMapOps}
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick}
 import fs2.Stream
 import io.circe.{Encoder, Json}
 
 import java.time.ZoneId
+import scala.util.control.NoStackTrace
 
 trait CircuitBreaker[F[_]] {
   def attempt[A](fa: F[A]): F[Either[Throwable, A]]
@@ -19,18 +22,22 @@ object CircuitBreaker {
   implicit val encoderState: Encoder[State] = {
     case State.Closed(failures) =>
       Json.obj("state" -> Json.fromString("Closed"), "failures" -> Json.fromInt(failures))
-    case State.HalfOpen =>
+    case State.HalfOpen | State.HalfOpenRunning =>
       Json.obj("state" -> Json.fromString("Half-Open"))
     case State.Open(rejects) =>
       Json.obj("state" -> Json.fromString("Open"), "rejects" -> Json.fromInt(rejects))
   }
+
   private object State {
     final case class Closed(failures: Int) extends State
     case object HalfOpen extends State
+    private[CircuitBreaker] case object HalfOpenRunning extends State
     final case class Open(rejects: Int) extends State
   }
 
-  case object RejectedException extends Exception("CircuitBreaker Rejected Exception")
+  case object RejectedException extends Exception("CircuitBreaker Rejected Exception") with NoStackTrace {
+    override def fillInStackTrace(): Throwable = this
+  }
 
   final private class Impl[F[_]](maxFailures: Int, ticks: Stream[F, Tick])(implicit F: Async[F]) {
 
@@ -39,50 +46,63 @@ object CircuitBreaker {
 
     val stateMachine: Resource[F, CircuitBreaker[F]] = for {
       state <- Resource.eval(F.ref[State](initClosed))
-      _ <- F.background(
-        ticks
-          .evalMap(_ =>
-            state.update {
-              case State.Open(_)   => State.HalfOpen
-              case State.Closed(_) => initClosed
-              case State.HalfOpen  => State.HalfOpen
-            })
-          .compile
-          .drain)
+      _ <- ticks.evalMap { _ =>
+        state.update {
+          case State.Open(_) => State.HalfOpen
+          case other         => other
+        }
+      }.compile.drain.background
     } yield new CircuitBreaker[F] {
 
       override val getState: F[State] = state.get
 
-      override def attempt[A](fa: F[A]): F[Either[Throwable, A]] = {
-        def updateState(result: Either[Throwable, A]): F[Unit] =
-          state.update {
-            case keep @ State.Closed(failures) =>
-              result match {
-                case Left(_)  => if (failures < maxFailures) State.Closed(failures + 1) else initOpen
-                case Right(_) => keep
-              }
-            case State.HalfOpen =>
-              result match {
-                case Left(_)  => initOpen
-                case Right(_) => initClosed
-              }
-            case keep @ State.Open(rejects) =>
-              result match {
-                case Left(_)  => State.Open(rejects + 1)
-                case Right(_) => keep
-              }
+      override def protect[A](fa: F[A]): F[A] = {
+
+        sealed trait Decision
+        case object Run extends Decision
+        case object Reject extends Decision
+
+        val admit: F[Decision] =
+          state.modify {
+            case State.Open(rejects)      => State.Open(rejects + 1) -> Reject
+            case State.HalfOpen           => State.HalfOpenRunning -> Run
+            case State.HalfOpenRunning    => State.HalfOpenRunning -> Reject
+            case closed @ State.Closed(_) => closed -> Run
           }
 
-        F.uncancelable(poll =>
-          state.get.flatMap {
-            case State.Open(_) =>
-              val rejected: Left[RejectedException.type, A] = Left(RejectedException)
-              updateState(rejected) *> F.pure(rejected)
-            case _ => poll(fa).attempt.flatTap(updateState)
-          })
+        admit.flatMap {
+          case Reject => F.raiseError(RejectedException)
+
+          case Run =>
+            F.guaranteeCase(fa) {
+              case Outcome.Succeeded(_) =>
+                state.update {
+                  case State.HalfOpenRunning => initClosed
+                  case State.HalfOpen        => initClosed
+                  case State.Closed(_)       => initClosed
+                  case open @ State.Open(_)  => open
+                }
+
+              case Outcome.Errored(_) =>
+                state.update {
+                  case State.HalfOpenRunning  => initOpen
+                  case State.HalfOpen         => initOpen
+                  case State.Closed(failures) =>
+                    if (failures + 1 < maxFailures) State.Closed(failures + 1) else initOpen
+                  case open @ State.Open(_) => open
+                }
+
+              case Outcome.Canceled() =>
+                state.update {
+                  case State.HalfOpenRunning => initOpen
+                  case other                 => other
+                }
+            }
+        }
       }
 
-      override def protect[A](fa: F[A]): F[A] = F.rethrow(attempt(fa))
+      override def attempt[A](fa: F[A]): F[Either[Throwable, A]] = protect(fa).attempt
+
     }
   }
 
@@ -96,7 +116,10 @@ object CircuitBreaker {
     def withPolicy(f: Policy.type => Policy): Builder =
       new Builder(maxFailures, f(Policy))
 
-    private[guard] def build[F[_]: Async](zoneId: ZoneId): Resource[F, CircuitBreaker[F]] =
-      new Impl[F](maxFailures - 1, tickStream.tickScheduled[F](zoneId, policy)).stateMachine
+    private[CircuitBreaker] def build[F[_]: Async](zoneId: ZoneId): Resource[F, CircuitBreaker[F]] =
+      new Impl[F](maxFailures, tickStream.tickScheduled[F](zoneId, policy)).stateMachine
   }
+
+  def apply[F[_]: Async](zoneId: ZoneId)(f: Endo[Builder]): Resource[F, CircuitBreaker[F]] =
+    f(new Builder(maxFailures = 5, policy = Policy.giveUp)).build[F](zoneId)
 }

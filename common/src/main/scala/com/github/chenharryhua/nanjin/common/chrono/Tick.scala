@@ -38,7 +38,7 @@ final case class Tick(
 
   def active: Duration = Duration.between(commence, acquires)
 
-  def snoozeStretch(delay: Duration): Tick = copy(conclude = conclude.plus(delay))
+  def withSnoozeStretch(delay: Duration): Tick = copy(conclude = conclude.plus(delay))
 
   /** check if an instant is in this tick frame from commence(exclusive) to conclude(inclusive).
     */

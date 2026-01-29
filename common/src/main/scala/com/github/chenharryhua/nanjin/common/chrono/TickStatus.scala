@@ -5,6 +5,9 @@ import cats.implicits.toFunctorOps
 
 import java.time.{Instant, ZoneId}
 
+/** TickStatus wraps a Tick with a sequence of policy-driven decisions. next() computes the next tick
+  * according to the policy.
+  */
 final class TickStatus private (val tick: Tick, decisions: LazyList[PolicyF.CalcTick]) {
 
   def renewPolicy(policy: Policy): TickStatus =

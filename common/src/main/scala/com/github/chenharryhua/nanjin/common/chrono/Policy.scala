@@ -99,19 +99,19 @@ private object PolicyF extends all {
           val tick = f(req)
           if (tick.local(_.conclude).toLocalTime === except) {
             val nt = f(TickRequest(tick, tick.conclude))
-            tick.snoozeStretch(nt.snooze)
+            tick.withSnoozeStretch(nt.snooze)
           } else tick
         }
 
       case Offset(policy, offset) =>
         policy.map { (f: CalcTick) => (req: TickRequest) =>
-          f(req).snoozeStretch(offset)
+          f(req).withSnoozeStretch(offset)
         }
 
       case Jitter(policy, min, max) =>
         policy.map { (f: CalcTick) => (req: TickRequest) =>
           val delay = Duration.of(Random.between(min.toNanos, max.toNanos), ChronoUnit.NANOS)
-          f(req).snoozeStretch(delay)
+          f(req).withSnoozeStretch(delay)
         }
     }
 
