@@ -3,7 +3,6 @@ package com.github.chenharryhua.nanjin.guard.service
 import cats.Endo
 import cats.effect.kernel.{Async, Ref, Resource}
 import cats.effect.std.{AtomicCell, Dispatcher}
-import cats.implicits.catsSyntaxApplicativeId
 import com.codahale.metrics.MetricRegistry
 import com.github.benmanes.caffeine.cache.Cache
 import com.github.chenharryhua.nanjin.common.chrono.*
@@ -136,7 +135,7 @@ final private class GeneralAgent[F[_]: Async](
     CaffeineCache.build[F, K, V](cache)
 
   override def retry(f: Endo[Retry.Builder[F]]): Resource[F, Retry[F]] =
-    f(new Retry.Builder[F](Policy.giveUp, _ => true.pure[F])).build(zoneId)
+    Retry[F](zoneId)(f)
 
   override object adhoc extends AdhocMetricsImpl[F](channel, eventLogger, metricRegistry)
 

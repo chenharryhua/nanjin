@@ -106,7 +106,7 @@ object CircuitBreaker {
     }
   }
 
-  final class Builder private[guard] (maxFailures: Int, policy: Policy) {
+  final class Builder private[CircuitBreaker] (maxFailures: Int, policy: Policy) {
     def withMaxFailures(maxFailures: Int): Builder =
       new Builder(maxFailures, policy)
 
