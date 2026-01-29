@@ -129,7 +129,7 @@ final private class GeneralAgent[F[_]: Async](
     f(metrics(label))
 
   override def circuitBreaker(f: Endo[CircuitBreaker.Builder]): Resource[F, CircuitBreaker[F]] =
-    CircuitBreaker(zoneId)(f)
+    CircuitBreaker[F](zoneId)(f)
 
   override def caffeineCache[K, V](cache: Cache[K, V]): Resource[F, CaffeineCache[F, K, V]] =
     CaffeineCache.build[F, K, V](cache)
