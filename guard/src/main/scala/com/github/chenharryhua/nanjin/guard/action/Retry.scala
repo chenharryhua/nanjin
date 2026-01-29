@@ -1,9 +1,10 @@
 package com.github.chenharryhua.nanjin.guard.action
 
+import cats.Endo
 import cats.effect.Temporal
 import cats.effect.kernel.{Async, Resource}
 import cats.effect.std.Hotswap
-import cats.implicits.{catsSyntaxEitherId, catsSyntaxIfM, toFlatMapOps, toFunctorOps}
+import cats.implicits.{catsSyntaxApplicativeId, catsSyntaxEitherId, catsSyntaxIfM, toFlatMapOps, toFunctorOps}
 import com.github.chenharryhua.nanjin.common.chrono.{Policy, TickStatus, TickedValue}
 
 import java.time.ZoneId
@@ -36,7 +37,7 @@ object Retry {
       Hotswap.create[F, A].evalMap(hotswap => comprehensive(hotswap.swap(rfa), worthy))
   }
 
-  final class Builder[F[_]] private[guard] (policy: Policy, worthy: TickedValue[Throwable] => F[Boolean]) {
+  final class Builder[F[_]] private[Retry] (policy: Policy, worthy: TickedValue[Throwable] => F[Boolean]) {
 
     def isWorthRetry(worthy: TickedValue[Throwable] => F[Boolean]): Builder[F] =
       new Builder[F](policy, worthy)
@@ -47,7 +48,7 @@ object Retry {
     def withPolicy(f: Policy.type => Policy): Builder[F] =
       new Builder[F](f(Policy), worthy)
 
-    private[guard] def build(zoneId: ZoneId)(implicit F: Async[F]): Resource[F, Retry[F]] =
+    private[Retry] def build(zoneId: ZoneId)(implicit F: Async[F]): Resource[F, Retry[F]] =
       Resource.eval(TickStatus.zeroth[F](zoneId, policy)).map { ts =>
         val impl = new Impl[F](ts)
         new Retry[F] {
@@ -59,4 +60,8 @@ object Retry {
         }
       }
   }
+
+  def apply[F[_]: Async](zoneId: ZoneId)(f: Endo[Builder[F]]): Resource[F, Retry[F]] =
+    f(new Builder[F](Policy.giveUp, _ => true.pure[F])).build(zoneId)
+
 }

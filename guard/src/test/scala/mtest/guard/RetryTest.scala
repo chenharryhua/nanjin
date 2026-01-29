@@ -5,6 +5,7 @@ import cats.effect.{IO, Resource}
 import cats.implicits.toFunctorFilterOps
 import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.guard.TaskGuard
+import com.github.chenharryhua.nanjin.guard.action.Retry
 import com.github.chenharryhua.nanjin.guard.event.ServiceStopCause.{ByCancellation, Successfully}
 import com.github.chenharryhua.nanjin.guard.event.{eventFilters, retrieveCounter}
 import com.github.chenharryhua.nanjin.guard.service.Agent
@@ -31,7 +32,7 @@ class RetryTest extends AnyFunSuite {
     val action = IO(j += 1) >> IO.raiseError[Unit](new Exception())
     var i = 0 // retry count
     service.eventStream { agent =>
-      val retry = agent.retry(_.withPolicy(_.fixedDelay(1.second).limited(3)).isWorthRetry { tv =>
+      val retry = Retry[IO](agent.zoneId)(_.withPolicy(_.fixedDelay(1.second).limited(3)).isWorthRetry { tv =>
         i += 1
         IO.println(tv).as(true)
       })
