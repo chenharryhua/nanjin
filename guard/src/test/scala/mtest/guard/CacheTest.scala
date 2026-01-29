@@ -20,7 +20,7 @@ class CacheTest extends AnyFunSuite {
   test("1.put get") {
     val ss = service.eventStream { agent =>
       agent.caffeineCache(Caffeine.newBuilder().build[Int, Int]()).use { cache =>
-        cache.put(1, 101) >> cache.getIfPresent(1).flatMap(agent.herald.done(_))
+        cache.putAll(Map(1 -> 101, 2 -> 102)) >> cache.getIfPresent(1).flatMap(agent.herald.done(_))
       }
     }.mapFilter(eventFilters.serviceStop).compile.lastOrError.unsafeRunSync()
     assert(ss.cause == Successfully)

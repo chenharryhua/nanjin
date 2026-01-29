@@ -6,11 +6,14 @@ import com.github.benmanes.caffeine.cache.Cache
 import com.github.benmanes.caffeine.cache.stats.CacheStats
 import io.circe.generic.JsonCodec
 
+import scala.jdk.CollectionConverters.MapHasAsJava
+
 trait CaffeineCache[F[_], K, V] {
   def getIfPresent(key: K): F[Option[V]]
   def get(key: K, fv: F[V]): F[V]
 
   def put(key: K, value: V): F[Unit]
+  def putAll(map: Map[K, V]): F[Unit]
 
   def updateWith(key: K)(f: Option[V] => V): F[V]
 
@@ -41,6 +44,9 @@ object CaffeineCache {
 
     override def put(key: K, value: V): F[Unit] =
       F.delay(cache.put(key, value))
+
+    override def putAll(map: Map[K, V]): F[Unit] =
+      F.delay(cache.putAll(map.asJava))
 
     override def get(key: K, fv: F[V]): F[V] =
       getIfPresent(key).flatMap {
