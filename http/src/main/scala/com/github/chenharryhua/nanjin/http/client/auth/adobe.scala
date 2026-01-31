@@ -31,7 +31,7 @@ object adobe {
     client_code: String,
     client_secret: String,
     authClient: Resource[F, Client[F]])
-      extends Http4sClientDsl[F] with Login[F, IMS[F]] {
+      extends Http4sClientDsl[F] with Login[F] {
 
     private case class Token(
       token_type: String,
@@ -64,7 +64,7 @@ object adobe {
             Authorization(Credentials.Token(CIString(token.token_type), token.access_token)),
             "x-api-key" -> client_id)
 
-        loginInternal(client, get_token, update_token, with_token)
+        login_internal(client, get_token, update_token, with_token)
       }
   }
 
@@ -93,7 +93,7 @@ object adobe {
     metascopes: NonEmptyList[AdobeMetascope],
     private_key: PrivateKey,
     authClient: Resource[F, Client[F]])
-      extends Http4sClientDsl[F] with Login[F, JWT[F]] {
+      extends Http4sClientDsl[F] with Login[F] {
 
     private case class Token(
       token_type: String,
@@ -143,7 +143,7 @@ object adobe {
             "x-gw-ims-org-id" -> ims_org_id,
             "x-api-key" -> client_id)
 
-        loginInternal(client, getToken(12.hours), updateToken, withToken)
+        login_internal(client, getToken(12.hours), updateToken, withToken)
       }
   }
 
@@ -173,7 +173,7 @@ object adobe {
     client_id: String,
     client_secret: String,
     authClient: Resource[F, Client[F]])
-      extends Http4sClientDsl[F] with Login[F, OAuth[F]] {
+      extends Http4sClientDsl[F] with Login[F] {
 
     private case class Token(
       token_type: String,
@@ -205,7 +205,7 @@ object adobe {
         def with_token(token: Token, req: Request[F]): Request[F] =
           req.putHeaders(Authorization(Credentials.Token(CIString(token.token_type), token.access_token)))
 
-        loginInternal(client, get_token, update_token, with_token)
+        login_internal(client, get_token, update_token, with_token)
       }
   }
 

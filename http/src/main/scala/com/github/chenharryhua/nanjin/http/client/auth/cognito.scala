@@ -30,7 +30,7 @@ object cognito {
     redirect_uri: String,
     code_verifier: String,
     authClient: Resource[F, Client[F]])
-      extends Http4sClientDsl[F] with Login[F, AuthorizationCode[F]] {
+      extends Http4sClientDsl[F] with Login[F] {
 
     private case class Token(
       access_token: String,
@@ -82,7 +82,7 @@ object cognito {
         def with_token(token: Token, req: Request[F]): Request[F] =
           req.putHeaders(Authorization(Credentials.Token(CIString(token.token_type), token.access_token)))
 
-        loginInternal(client, get_token, update_token, with_token)
+        login_internal(client, get_token, update_token, with_token)
       }
   }
 
@@ -111,7 +111,7 @@ object cognito {
     client_secret: String,
     scopes: NonEmptyList[String],
     authClient: Resource[F, Client[F]])
-      extends Http4sClientDsl[F] with Login[F, ClientCredentials[F]] {
+      extends Http4sClientDsl[F] with Login[F] {
 
     private case class Token(
       access_token: String,
@@ -143,7 +143,7 @@ object cognito {
         def withToken(token: Token, req: Request[F]): Request[F] =
           req.putHeaders(Authorization(Credentials.Token(CIString(token.token_type), token.access_token)))
 
-        loginInternal(client, getToken, updateToken, withToken)
+        login_internal(client, getToken, updateToken, withToken)
       }
   }
 

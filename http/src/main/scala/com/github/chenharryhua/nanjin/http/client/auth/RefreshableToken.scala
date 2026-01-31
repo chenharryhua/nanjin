@@ -21,7 +21,7 @@ final class RefreshableToken[F[_]] private (
   client_id: String,
   client_secret: String,
   authClient: Resource[F, Client[F]])
-    extends Http4sClientDsl[F] with Login[F, RefreshableToken[F]] {
+    extends Http4sClientDsl[F] with Login[F] {
 
   private case class Token(
     token_type: String,
@@ -67,7 +67,7 @@ final class RefreshableToken[F[_]] private (
       def with_token(token: Token, req: Request[F]): Request[F] =
         req.putHeaders(Authorization(Credentials.Token(CIString(token.token_type), token.access_token)))
 
-      loginInternal(client, get_token, update_token, with_token)
+      login_internal(client, get_token, update_token, with_token)
     }
 }
 
