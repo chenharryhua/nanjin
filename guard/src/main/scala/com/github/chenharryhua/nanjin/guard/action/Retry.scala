@@ -61,7 +61,7 @@ object Retry {
       }
   }
 
-  def apply[F[_]: Async](zoneId: ZoneId)(f: Endo[Builder[F]]): Resource[F, Retry[F]] =
+  def apply[F[_]: Async](zoneId: ZoneId, f: Endo[Builder[F]]): Resource[F, Retry[F]] =
     f(new Builder[F](Policy.giveUp, _ => true.pure[F])).build(zoneId)
 
 }

@@ -131,7 +131,7 @@ class Performance extends AnyFunSuite {
     service
       .eventStream(_.caffeineCache(Caffeine.newBuilder().build[Int, Int]()).use { cache =>
         cache.put(1, 0) >>
-          cache.updateWith(1)(_.fold(0)(_ + 1)).foreverM.timeout(timeout).attempt >>
+          cache.updateWith(1)(x => IO(x.fold(0)(_ + 1))).foreverM.timeout(timeout).attempt >>
           cache.get(1, IO(0)).flatMap { i =>
             IO.println(s"cost:  ${timeout.toNanos / i} nano") >>
               IO.println(s"speed: ${i / timeout.toMillis} k/s")

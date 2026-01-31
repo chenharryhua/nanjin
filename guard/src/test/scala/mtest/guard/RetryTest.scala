@@ -32,10 +32,12 @@ class RetryTest extends AnyFunSuite {
     val action = IO(j += 1) >> IO.raiseError[Unit](new Exception())
     var i = 0 // retry count
     service.eventStream { agent =>
-      val retry = Retry[IO](agent.zoneId)(_.withPolicy(_.fixedDelay(1.second).limited(3)).isWorthRetry { tv =>
-        i += 1
-        IO.println(tv).as(true)
-      })
+      val retry = Retry[IO](
+        agent.zoneId,
+        _.withPolicy(_.fixedDelay(1.second).limited(3)).isWorthRetry { tv =>
+          i += 1
+          IO.println(tv).as(true)
+        })
 
       retry.use(_(action))
     }.map(checkJson).compile.toList.unsafeRunSync()
