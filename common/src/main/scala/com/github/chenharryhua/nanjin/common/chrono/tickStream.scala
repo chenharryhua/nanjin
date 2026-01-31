@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.common.chrono
 
 import cats.effect.kernel.{Async, Temporal}
-import cats.syntax.all.*
+import cats.implicits.{toFlatMapOps, toFunctorOps, toTraverseOps}
 import fs2.{Pull, Stream}
 
 import java.time.{Instant, ZoneId}
