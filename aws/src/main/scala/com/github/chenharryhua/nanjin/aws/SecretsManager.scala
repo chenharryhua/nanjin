@@ -12,32 +12,32 @@ import software.amazon.awssdk.services.secretsmanager.{SecretsManagerClient, Sec
 trait SecretsManager[F[_]] {
 
   /** Fetch the raw secret value response from AWS.
-   *
-   * Example:
-   * {{{
-   * val secretValue: F[GetSecretValueResponse] = secretsManager.getValue(
-   *   GetSecretValueRequest.builder().secretId("my-secret").build()
-   * )
-   * }}}
-   */
+    *
+    * Example:
+    * {{{
+    * val secretValue: F[GetSecretValueResponse] = secretsManager.getValue(
+    *   GetSecretValueRequest.builder().secretId("my-secret").build()
+    * )
+    * }}}
+    */
   def getValue(req: GetSecretValueRequest): F[GetSecretValueResponse]
 
   /** Fetch a secret as a UTF-8 string.
-   *
-   * Example:
-   * {{{
-   * val secret: F[String] = secretsManager.getString("my-secret")
-   * }}}
-   */
+    *
+    * Example:
+    * {{{
+    * val secret: F[String] = secretsManager.getString("my-secret")
+    * }}}
+    */
   def getString(secretId: String): F[String]
 
   /** Fetch a secret as raw binary.
-   *
-   * Example:
-   * {{{
-   * val secretBinary: F[SdkBytes] = secretsManager.getBinary("my-binary-secret")
-   * }}}
-   */
+    *
+    * Example:
+    * {{{
+    * val secretBinary: F[SdkBytes] = secretsManager.getBinary("my-binary-secret")
+    * }}}
+    */
   def getBinary(secretId: String): F[SdkBytes]
 }
 
@@ -46,7 +46,7 @@ object SecretsManager {
   private val name = "aws.SecretsManager"
 
   def apply[F[_]](f: Endo[SecretsManagerClientBuilder])(implicit
-                                                        F: Async[F]): Resource[F, SecretsManager[F]] =
+    F: Async[F]): Resource[F, SecretsManager[F]] =
     for {
       logger <- Resource.eval(Slf4jLogger.create[F])
       _ <- Resource.eval(logger.info(s"initialize $name"))
@@ -56,10 +56,10 @@ object SecretsManager {
     } yield new SecretsManagerImpl(client, logger)
 
   final private class SecretsManagerImpl[F[_]](
-                                                client: SecretsManagerClient,
-                                                logger: Logger[F]
-                                              )(implicit F: Sync[F])
-    extends SecretsManager[F] {
+    client: SecretsManagerClient,
+    logger: Logger[F]
+  )(implicit F: Sync[F])
+      extends SecretsManager[F] {
 
     override def getValue(req: GetSecretValueRequest): F[GetSecretValueResponse] =
       blockingF(client.getSecretValue(req), req.toString, logger)
