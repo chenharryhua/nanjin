@@ -65,7 +65,7 @@ class CacheTest extends AnyFunSuite {
             .evalMap(i =>
               IO.println(s"send: $i") >>
                 c.get(i, IO(i)) >>
-                c.updateWith(i)(_.fold(0)(_ + 100)) >>
+                c.updateWith(i)(x => IO(x.fold(0)(_ + 100))) >>
                 c.getIfPresent(i).map(_.exists(_ == i + 100).ensuring(b => b)))
             .onFinalize(c.invalidateAll)
             .compile
@@ -118,8 +118,8 @@ class CacheTest extends AnyFunSuite {
                 .covary[IO]
                 .metered(1.second)
                 .evalMap(i =>
-                  c.updateWith(i)(_ => i) >>
-                    c.updateWith(i)(_.fold(0)(_ + 100)) >>
+                  c.updateWith(i)(_ => IO(i)) >>
+                    c.updateWith(i)(x => IO(x.fold(0)(_ + 100))) >>
                     c.getIfPresent(i).map(_.exists(_ == i + 100).ensuring(b => b)))
                 .onFinalize(c.invalidateAll >> IO.sleep(1.second) >> queue.offer(None))
             )

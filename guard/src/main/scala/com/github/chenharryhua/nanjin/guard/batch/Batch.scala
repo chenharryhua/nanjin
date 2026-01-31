@@ -49,7 +49,7 @@ object Batch {
    */
 
   private def shouldNeverHappenException(e: Throwable): Exception =
-    new RuntimeException("Should never happen", e)
+    new RuntimeException("[Batch internal error] unexpected outcome", e)
 
   private val translator: Ior[Long, Long] => Json = {
     case Ior.Left(a)    => Json.fromString(s"$a/0")
@@ -70,21 +70,21 @@ object Batch {
       val pairs: List[(String, Json)] = results.sortBy(_.job.index).map { (jrs: JobResultState) =>
         val took: String = durationFormatter.format(jrs.took)
         val result: String = if (jrs.done) took else s"$took (failed)"
-        jrs.job.indexedName -> result.asJson
+        jrs.job.displayName -> result.asJson
       }
       Json.obj(pairs*)
     }
 
   private type UpdatePanel[F[_]] = Kleisli[F, JobResultState, Unit]
 
-  final private case class BatchPanel[F[_]](updatePanel: UpdatePanel[F], activeGauge: ActiveGauge[F])
+  final private case class BatchMetrics[F[_]](updatePanel: UpdatePanel[F], activeGauge: ActiveGauge[F])
 
   final private case class SingleJobOutcome[A](jrs: JobResultState, eoa: Either[Throwable, A]) {
     def map[B](f: A => B): SingleJobOutcome[B] = copy(eoa = eoa.map(f))
   }
 
   private def createPanel[F[_]](mtx: Metrics[F], size: Int, kind: JobKind, mode: BatchMode)(implicit
-    F: Async[F]): Resource[F, BatchPanel[F]] =
+    F: Async[F]): Resource[F, BatchMetrics[F]] =
     for {
       active <- mtx.activeGauge("active")
       percentile <- mtx
@@ -92,18 +92,18 @@ object Batch {
         .evalTap(_.incDenominator(size.toLong))
       progress <- Resource.eval(F.ref[List[JobResultState]](Nil))
       _ <- mtx.gauge("completed jobs").register(progress.get.map(toJson))
-    } yield BatchPanel(
+    } yield BatchMetrics(
       Kleisli { (jrs: JobResultState) =>
         F.uncancelable(_ => percentile.incNumerator(1) *> progress.update(_.appended(jrs)))
       },
       active)
 
-  private def createPanel[F[_]](mtx: Metrics[F])(implicit F: Async[F]): Resource[F, BatchPanel[F]] =
+  private def createPanel[F[_]](mtx: Metrics[F])(implicit F: Async[F]): Resource[F, BatchMetrics[F]] =
     for {
       active <- mtx.activeGauge("active")
       progress <- Resource.eval(F.ref[List[JobResultState]](Nil))
       _ <- mtx.gauge(show"${BatchMode.Monadic} jobs completed").register(progress.get.map(toJson))
-    } yield BatchPanel(
+    } yield BatchMetrics(
       Kleisli((jrs: JobResultState) => F.uncancelable(_ => progress.update(_.appended(jrs)))),
       active)
 
@@ -126,6 +126,7 @@ object Batch {
       outcome: Outcome[F, Throwable, SingleJobOutcome[A]])(implicit F: MonadError[F, Throwable]): F[Unit] =
       outcome.fold(
         canceled = tracer.canceled(job),
+        // Outcome.Errored should be impossible because job effects are wrapped in attempt
         errored = ex => F.raiseError(shouldNeverHappenException(ex)),
         completed = _.flatMap { case SingleJobOutcome(jrs, eoa) =>
           updatePanel.run(jrs) *>
@@ -167,7 +168,7 @@ object Batch {
 
     override def quasiBatch(tracer: TraceJob[F, A]): Resource[F, BatchResultState] = {
 
-      def exec(batchPanel: BatchPanel[F], batchId: UUID): F[(FiniteDuration, List[JobResultState])] =
+      def exec(batchPanel: BatchMetrics[F], batchId: UUID): F[(FiniteDuration, List[JobResultState])] =
         F.timed(F.parTraverseN[List, JobNameIndex[F, A], JobResultState](parallelism)(jobs) {
           case JobNameIndex(name, idx, fa) =>
             val job = BatchJob(name, idx, metrics.metricLabel, mode, JobKind.Quasi, batchId)
@@ -179,7 +180,6 @@ object Batch {
                 }
                 .guaranteeCase(handleOutcome(job, tracer, batchPanel.updatePanel))
                 .map(_.jrs)
-
         }).guarantee(batchPanel.activeGauge.deactivate)
 
       Resource.eval(utils.randomUUID[F]).flatMap { batchId =>
@@ -192,7 +192,7 @@ object Batch {
 
     override def batchValue(tracer: TraceJob[F, A]): Resource[F, BatchResultValue[List[A]]] = {
 
-      def exec(batchPanel: BatchPanel[F], batchId: UUID): F[(FiniteDuration, List[JobResultValue[A]])] =
+      def exec(batchPanel: BatchMetrics[F], batchId: UUID): F[(FiniteDuration, List[JobResultValue[A]])] =
         F.timed(F.parTraverseN[List, JobNameIndex[F, A], JobResultValue[A]](parallelism)(jobs) {
           case JobNameIndex(name, idx, fa) =>
             val job = BatchJob(name, idx, metrics.metricLabel, mode, JobKind.Value, batchId)
@@ -245,7 +245,7 @@ object Batch {
     override protected val mode: BatchMode = BatchMode.Sequential
 
     override def quasiBatch(tracer: TraceJob[F, A]): Resource[F, BatchResultState] = {
-      def exec(batchPanel: BatchPanel[F], batchId: UUID): F[List[JobResultState]] =
+      def exec(batchPanel: BatchMetrics[F], batchId: UUID): F[List[JobResultState]] =
         jobs.traverse { case JobNameIndex(name, idx, fa) =>
           val job = BatchJob(name, idx, metrics.metricLabel, mode, JobKind.Quasi, batchId)
           tracer.kickoff(job) *>
@@ -267,7 +267,7 @@ object Batch {
 
     override def batchValue(tracer: TraceJob[F, A]): Resource[F, BatchResultValue[List[A]]] = {
 
-      def exec(batchPanel: BatchPanel[F], batchId: UUID): F[List[JobResultValue[A]]] =
+      def exec(batchPanel: BatchMetrics[F], batchId: UUID): F[List[JobResultValue[A]]] =
         jobs.traverse { case JobNameIndex(name, idx, fa) =>
           val job = BatchJob(name, idx, metrics.metricLabel, mode, JobKind.Value, batchId)
           tracer.kickoff(job) *>
@@ -310,7 +310,7 @@ object Batch {
   final private case class JobState[A](eoa: Either[Throwable, A], history: NonEmptyList[JobResultState]) {
     def update[B](ex: Throwable): JobState[B] = copy(eoa = Left(ex))
     // reversed order
-    def update[B](js: JobState[B]): JobState[B] =
+    def prependHistory[B](js: JobState[B]): JobState[B] =
       JobState[B](js.eoa, js.history ::: history)
 
     def map[B](f: A => B): JobState[B] = copy(eoa = eoa.map(f))
@@ -340,6 +340,7 @@ object Batch {
                 ex => tracer.errored(JobResultError(jrs, ex)),
                 a => tracer.completed(JobResultValue(jrs, translate(a, jrs))))
           }
+        // Outcome.Errored should be impossible because job effects are wrapped in attempt
         case Outcome.Errored(ex) =>
           Resource.raiseError[F, Unit, Throwable](shouldNeverHappenException(ex))
         case Outcome.Canceled() => Resource.eval(tracer.canceled(job))
@@ -480,7 +481,7 @@ object Batch {
             jobState.eoa match {
               case Left(ex) =>
                 StateT(idx => Resource.pure[F, JobState[B]](jobState.update[B](ex)).map((idx, _)))
-              case Right(a) => f(a).kleisli.run(callbacks).map(jobState.update[B])
+              case Right(a) => f(a).kleisli.run(callbacks).map(jobState.prependHistory[B])
             }
           }
         new Monadic[B](kleisli = runB, renameJob)
@@ -505,7 +506,7 @@ object Batch {
 
       def batchValue(tracer: TraceJob[F, Json]): Resource[F, BatchResultValue[T]] =
         Resource.eval(utils.randomUUID[F]).flatMap { batchId =>
-          createPanel[F](metrics).flatMap { case BatchPanel(updatePanel, activeGauge) =>
+          createPanel[F](metrics).flatMap { case BatchMetrics(updatePanel, activeGauge) =>
             kleisli
               .run(Callbacks[F](updatePanel, tracer, renameJob, batchId))
               .run(1)

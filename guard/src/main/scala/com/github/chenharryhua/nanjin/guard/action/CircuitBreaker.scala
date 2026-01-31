@@ -120,6 +120,6 @@ object CircuitBreaker {
       new Impl[F](maxFailures, tickStream.tickScheduled[F](zoneId, policy)).stateMachine
   }
 
-  def apply[F[_]: Async](zoneId: ZoneId)(f: Endo[Builder]): Resource[F, CircuitBreaker[F]] =
+  def apply[F[_]: Async](zoneId: ZoneId, f: Endo[Builder]): Resource[F, CircuitBreaker[F]] =
     f(new Builder(maxFailures = 5, policy = Policy.giveUp)).build[F](zoneId)
 }

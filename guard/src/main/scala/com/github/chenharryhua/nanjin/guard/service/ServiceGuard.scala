@@ -64,7 +64,7 @@ final class ServiceGuard[F[_]: Network: Async: Console] private[guard] (
             .fromTickStatus[F](TickStatus(serviceParams.zerothTick).renewPolicy(
               serviceParams.servicePolicies.metricReport.policy))
             .evalMap { tick =>
-              metricReport(
+              metric_report(
                 channel = channel,
                 eventLogger = eventLogger,
                 metricRegistry = metricRegistry,
@@ -78,7 +78,7 @@ final class ServiceGuard[F[_]: Network: Async: Console] private[guard] (
             .fromTickStatus[F](
               TickStatus(serviceParams.zerothTick).renewPolicy(serviceParams.servicePolicies.metricReset))
             .evalMap(tick =>
-              metricReset(
+              metric_reset(
                 channel = channel,
                 eventLogger = eventLogger,
                 metricRegistry = metricRegistry,

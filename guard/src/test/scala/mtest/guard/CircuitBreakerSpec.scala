@@ -21,7 +21,8 @@ class CircuitBreakerSpec extends AnyFreeSpec with Matchers {
     maxFailures: Int,
     policy: Policy
   ): Resource[IO, CircuitBreaker[IO]] =
-    CircuitBreaker[IO](zoneId)(
+    CircuitBreaker[IO](
+      zoneId,
       _.withMaxFailures(maxFailures).withPolicy(policy)
     )
 

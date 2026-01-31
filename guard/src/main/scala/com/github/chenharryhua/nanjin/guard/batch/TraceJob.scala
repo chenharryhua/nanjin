@@ -69,6 +69,7 @@ object TraceJob {
     private[TraceJob] val _success: Json => F[Unit],
     private[TraceJob] val _canceled: Json => F[Unit],
     private[TraceJob] val _errored: JobResultError => F[Unit]) {
+    // canceled / errored are intentionally not overridable
     private def copy(
       _kickoff: Json => F[Unit] = this._kickoff,
       _failure: Json => F[Unit] = this._failure,
