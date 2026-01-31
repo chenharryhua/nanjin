@@ -88,6 +88,7 @@ val testLib = List(
   "org.typelevel" %% "discipline-munit"                       % "2.0.0",
   "org.typelevel" %% "cats-laws"                              % catsCoreV,
   "org.typelevel" %% "algebra-laws"                           % catsCoreV,
+  "org.typelevel" %% "munit-cats-effect"                      % "2.1.0",
   "com.github.alexarchambault" %% "scalacheck-shapeless_1.15" % "1.3.0",
   "org.scalatest" %% "scalatest"                              % "3.2.19",
   "dev.optics" %% "monocle-law"                               % monocleV,
@@ -455,3 +456,4 @@ lazy val nanjin =
       observer_database,
       observer_kafka
     )
+

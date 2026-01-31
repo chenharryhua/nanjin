@@ -6,7 +6,7 @@ import com.comcast.ip4s.*
 import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.http.client.middleware.{cookieBox, retry, traceClient}
-import com.github.chenharryhua.nanjin.http.server.middleware.traceServer
+import com.github.chenharryhua.nanjin.http.server.middleware.TraceServer
 import io.circe.Json
 import natchez.log.Log
 import natchez.{EntryPoint, Span}
@@ -45,7 +45,7 @@ class HttpTest extends AnyFunSuite {
     .default[IO]
     .withHost(ipv4"0.0.0.0")
     .withPort(port"8080")
-    .withHttpApp(Router("/" -> GZip(traceServer(entryPoint)(service))).orNotFound)
+    .withHttpApp(Router("/" -> GZip(TraceServer(entryPoint)(service))).orNotFound)
     .build
 
   val ember: Resource[IO, Client[IO]] =
