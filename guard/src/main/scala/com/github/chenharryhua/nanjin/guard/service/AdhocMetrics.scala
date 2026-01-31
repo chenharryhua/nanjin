@@ -26,24 +26,24 @@ abstract private class AdhocMetricsImpl[F[_]](
   eventLogger: EventLogger[F],
   metricRegistry: MetricRegistry)(implicit F: Sync[F])
     extends AdhocMetrics[F] {
-  private val serviceParams: ServiceParams = eventLogger.serviceParams
+  private val sp: ServiceParams = eventLogger.serviceParams
 
   override val reset: F[Unit] =
     F.realTimeInstant.flatMap(ts =>
-      metricReset(
+      metric_reset(
         channel = channel,
         eventLogger = eventLogger,
         metricRegistry = metricRegistry,
-        index = MetricIndex.Adhoc(serviceParams.toZonedDateTime(ts))
+        index = MetricIndex.Adhoc(sp.toZonedDateTime(ts))
       ))
 
   override val report: F[Unit] =
     F.realTimeInstant.flatMap(ts =>
-      metricReport(
+      metric_report(
         channel = channel,
         eventLogger = eventLogger,
         metricRegistry = metricRegistry,
-        index = MetricIndex.Adhoc(serviceParams.toZonedDateTime(ts))
+        index = MetricIndex.Adhoc(sp.toZonedDateTime(ts))
       ).void)
 
   override val getSnapshot: F[MetricSnapshot] =

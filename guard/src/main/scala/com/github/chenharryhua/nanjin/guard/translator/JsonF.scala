@@ -8,7 +8,7 @@ sealed trait JsonF[+A]
 
 object JsonF {
 
-  final private case object NullF extends JsonF[Nothing]
+  private case object NullF extends JsonF[Nothing]
   final private case class BooleanF(bool: Boolean) extends JsonF[Nothing]
   final private case class NumberF(number: JsonNumber) extends JsonF[Nothing]
   final private case class StringF(str: String) extends JsonF[Nothing]
@@ -29,7 +29,7 @@ object JsonF {
     json.foldWith(unfolded) match {
       case NullF           => Nil
       case BooleanF(bool)  => List(show"$name: $bool")
-      case NumberF(number) => List(show"$name: ${number.toString}")
+      case NumberF(number) => List(show"$name: ${decimalFormatter.format(number.toDouble)}")
       case StringF(str)    => List(show"$name: $str")
       case ArrayF(values)  =>
         List(show"$name: ${values.map(_.noSpaces).mkString("[", ", ", "]")}")
@@ -39,7 +39,7 @@ object JsonF {
           val jsStr: String = js.foldWith(unfolded) match {
             case NullF           => "null"
             case BooleanF(bool)  => bool.toString
-            case NumberF(number) => number.toString
+            case NumberF(number) => decimalFormatter.format(number.toDouble)
             case StringF(str)    => str
             case ArrayF(values)  => values.map(_.noSpaces).mkString("[", ", ", "]")
             case ObjectF(fields) => Json.obj(fields*).noSpaces

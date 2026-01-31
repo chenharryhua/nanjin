@@ -17,7 +17,7 @@ sealed trait JobKind
 object JobKind {
   case object Quasi extends JobKind
   case object Value extends JobKind
-  implicit val showBatchKind: Show[JobKind] = {
+  implicit val showJobKind: Show[JobKind] = {
     case Quasi => "quasi" // tolerable - exception will be ignored
     case Value => "value" // intolerable - exception will be propagated
   }
@@ -43,8 +43,9 @@ object BatchMode {
   implicit val decodeBatchMode: Decoder[BatchMode] = Decoder[String].emap {
     case "sequential" => Right(Sequential)
     case "monadic"    => Right(Monadic)
-    case Pattern(par) => Try(Parallel(par.toInt)).toEither.leftMap(ExceptionUtils.getMessage)
-    case oops         => Left(s"$oops is unable to be decoded to batch mode")
+    case Pattern(par) =>
+      Try(par.toInt).filter(_ > 0).map(Parallel(_)).toEither.leftMap(ExceptionUtils.getMessage)
+    case oops => Left(s"Invalid batch mode: $oops")
   }
 }
 
@@ -57,7 +58,7 @@ final case class BatchJob(
   batchId: UUID) {
   val batch: String = label.label
   val domain: String = label.domain.value
-  val indexedName: String = s"job-$index $name"
+  def displayName: String = s"job-$index $name"
 }
 object BatchJob {
   implicit val encoderBatchJob: Encoder[BatchJob] =

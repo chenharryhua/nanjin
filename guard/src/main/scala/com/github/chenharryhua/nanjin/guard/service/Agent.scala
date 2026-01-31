@@ -18,6 +18,9 @@ import org.apache.commons.collections4.queue.CircularFifoQueue
 
 import java.time.ZoneId
 
+/** Agent is the primary service façade providing scoped access to metrics, batching, scheduling, and
+  * resilience primitives.
+  */
 sealed trait Agent[F[_]] {
   val zoneId: ZoneId
 
@@ -129,13 +132,13 @@ final private class GeneralAgent[F[_]: Async](
     f(metrics(label))
 
   override def circuitBreaker(f: Endo[CircuitBreaker.Builder]): Resource[F, CircuitBreaker[F]] =
-    CircuitBreaker[F](zoneId)(f)
+    CircuitBreaker[F](zoneId, f)
 
   override def caffeineCache[K, V](cache: Cache[K, V]): Resource[F, CaffeineCache[F, K, V]] =
-    CaffeineCache.build[F, K, V](cache)
+    CaffeineCache[F, K, V](cache)
 
   override def retry(f: Endo[Retry.Builder[F]]): Resource[F, Retry[F]] =
-    Retry[F](zoneId)(f)
+    Retry[F](zoneId, f)
 
   override object adhoc extends AdhocMetricsImpl[F](channel, eventLogger, metricRegistry)
 

@@ -72,7 +72,7 @@ package object service {
       "brief" -> sp.brief
     )
 
-  private[service] def serviceMessage[F[_], S: Encoder](
+  private[service] def service_message[F[_], S: Encoder](
     serviceParams: ServiceParams,
     msg: S,
     level: AlarmLevel,
@@ -87,7 +87,7 @@ package object service {
         message = Encoder[S].apply(msg))
     }
 
-  private[service] def metricReport[F[_]](
+  private[service] def metric_report[F[_]](
     channel: Channel[F, Event],
     eventLogger: EventLogger[F],
     metricRegistry: MetricRegistry,
@@ -105,7 +105,7 @@ package object service {
       _ <- channel.send(mr)
     } yield mr
 
-  private[service] def metricReset[F[_]: Sync](
+  private[service] def metric_reset[F[_]: Sync](
     channel: Channel[F, Event],
     eventLogger: EventLogger[F],
     metricRegistry: MetricRegistry,
@@ -117,7 +117,7 @@ package object service {
       _ <- channel.send(ms)
     } yield metricRegistry.getCounters().values().asScala.foreach(c => c.dec(c.getCount))
 
-  private[service] def serviceStart[F[_]: Applicative](
+  private[service] def service_start[F[_]: Applicative](
     channel: Channel[F, Event],
     eventLogger: EventLogger[F],
     tick: Tick): F[Unit] = {
@@ -125,7 +125,7 @@ package object service {
     eventLogger.service_start(event) <* channel.send(event)
   }
 
-  private[service] def servicePanic[F[_]: Applicative](
+  private[service] def service_panic[F[_]: Applicative](
     channel: Channel[F, Event],
     eventLogger: EventLogger[F],
     tick: Tick,
@@ -134,7 +134,7 @@ package object service {
     eventLogger.service_panic(panic) *> channel.send(panic).as(panic)
   }
 
-  private[service] def serviceStop[F[_]: Clock: Monad](
+  private[service] def service_stop[F[_]: Clock: Monad](
     channel: Channel[F, Event],
     eventLogger: EventLogger[F],
     cause: ServiceStopCause): F[Unit] =
