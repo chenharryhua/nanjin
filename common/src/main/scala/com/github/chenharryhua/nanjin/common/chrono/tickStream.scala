@@ -11,6 +11,12 @@ import scala.jdk.DurationConverters.{JavaDurationOps, ScalaDurationOps}
 import scala.util.Random
 
 object tickStream {
+
+  /** Convert a TickStatus into a stream of Tick. For each status:
+    *   - Compute the next tick based on the current time
+    *   - Sleep for the tick’s snooze duration
+    *   - Emit the tick
+    */
   def fromTickStatus[F[_]](zeroth: TickStatus)(implicit F: Temporal[F]): Stream[F, Tick] =
     Stream.unfoldEval[F, TickStatus, Tick](zeroth) { status =>
       F.realTimeInstant.flatMap { now =>
@@ -18,23 +24,22 @@ object tickStream {
       }
     }
 
-  /** sleep then emit, so that conclude time of the tick is in the past
-    *
-    * first tick, which index is One, is NOT emitted immediately.
+  /** Stream ticks according to the policy, sleeping first. The first tick (index = 1) is not emitted
+    * immediately.
     */
   def tickScheduled[F[_]: Async](zoneId: ZoneId, policy: Policy): Stream[F, Tick] =
     Stream.eval[F, TickStatus](TickStatus.zeroth[F](zoneId, policy)).flatMap(fromTickStatus[F])
 
-  /** first tick, which index is Zero, is emitted immediately
+  /** Stream ticks starting from the zeroth tick. The first tick (index = 0) is emitted immediately, then
+    * continues according to the policy.
     */
   def tickImmediate[F[_]: Async](zoneId: ZoneId, policy: Policy): Stream[F, Tick] =
     Stream
       .eval[F, TickStatus](TickStatus.zeroth[F](zoneId, policy))
       .flatMap(zero => fromTickStatus[F](zero).cons1(zero.tick))
 
-  /** emit then sleep, so that conclude time of the tick is in the future
-    *
-    * first tick, which index is One, is immediately emitted
+  /** Stream ticks in “emit first, then sleep” mode. The first tick (index = 1) is emitted immediately, and
+    * each tick sleeps after emission.
     */
   def tickFuture[F[_]](zoneId: ZoneId, policy: Policy)(implicit F: Async[F]): Stream[F, Tick] =
     Stream.eval[F, TickStatus](TickStatus.zeroth[F](zoneId, policy)).flatMap { status =>
@@ -52,16 +57,24 @@ object tickStream {
     }
 }
 
-/** for testing
+/** LazyList generators for testing or simulation.
   */
 object tickLazyList {
+
+  /** Generate an infinite LazyList of ticks starting from an initial TickStatus. Each next tick is delayed by
+    * a random 1–5 milliseconds for testing purposes.
+    */
   def fromTickStatus(init: TickStatus): LazyList[Tick] =
     LazyList.unfold(init)(ts =>
       ts.next(ts.tick.conclude.plus(Random.between(1, 5).milliseconds.toJava)).map(s => (s.tick, s)))
 
+  /** Generate ticks starting from a zeroth tick with the given ZoneId and policy.
+    */
   def from(zoneId: ZoneId, policy: Policy): LazyList[Tick] =
     fromTickStatus(TickStatus(Tick.zeroth(UUID.randomUUID(), zoneId, Instant.now())).renewPolicy(policy))
 
+  /** Generate ticks with the default system ZoneId.
+    */
   def from(policy: Policy): LazyList[Tick] =
     from(ZoneId.systemDefault(), policy)
 }
