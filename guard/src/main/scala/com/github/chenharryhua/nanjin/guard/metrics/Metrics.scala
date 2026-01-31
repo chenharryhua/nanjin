@@ -51,6 +51,7 @@ trait Metrics[F[_]] {
   def activeGauge(name: String, f: Endo[Gauge.Builder] = identity): Resource[F, ActiveGauge[F]]
 
   def permanentCounter(name: String, f: Endo[Gauge.Builder] = identity): Resource[F, Counter[F]]
+  def deltaCounter(name: String, f: Endo[Gauge.Builder]): Resource[F, Counter[F]]
 
   def txnGauge[A: Encoder](stm: STM[F], initial: A)(name: String): Resource[F, stm.TVar[A]]
 }
@@ -138,6 +139,14 @@ object Metrics {
       for {
         ref <- Resource.eval(Ref[F].of[Long](0L))
         _ <- gauge(name, f).register(ref.get)
+      } yield new Counter[F] {
+        override def inc(num: Long): F[Unit] = ref.update(_ + num)
+      }
+
+    override def deltaCounter(name: String, f: Endo[Gauge.Builder]): Resource[F, Counter[F]] =
+      for {
+        ref <- Resource.eval(Ref[F].of[Long](0L))
+        _ <- gauge(name, f).register(ref.getAndSet(0L))
       } yield new Counter[F] {
         override def inc(num: Long): F[Unit] = ref.update(_ + num)
       }
