@@ -14,7 +14,7 @@ Global / parallelExecution := false
 val acyclicV = "0.3.20"
 val avroV = "1.12.1"
 val avro4sV = "4.1.2"
-val awsV = "2.41.16"
+val awsV = "2.41.19"
 val caffeineV = "3.2.3"
 val catsCoreV = "2.13.0"
 val catsEffectV = "3.6.3"
@@ -24,7 +24,7 @@ val confluentV = "8.1.1"
 val cron4sV = "0.8.2"
 val doobieV = "1.0.0-RC11"
 val drosteV = "0.10.0"
-val enumeratumV = "1.9.2"
+val enumeratumV = "1.9.3"
 val fs2KafkaV = "3.9.1"
 val fs2V = "3.12.2"
 val hadoopV = "3.4.2"
@@ -34,7 +34,7 @@ val jwtV = "0.13.0"
 val kafkaV = "8.1.1-ce"
 val kantanV = "0.8.0"
 val log4catsV = "2.7.1"
-val logbackV = "1.5.26"
+val logbackV = "1.5.27"
 val metricsV = "4.2.38"
 val monocleV = "3.3.0"
 val natchezV = "0.3.8"
@@ -310,7 +310,7 @@ lazy val messages =
           "io.confluent"                              % "kafka-protobuf-serializer"    % confluentV,
           "io.confluent"                              % "kafka-json-schema-serializer" % confluentV,
           "io.confluent"                              % "kafka-streams-avro-serde"     % confluentV,
-          "com.google.protobuf"                       % "protobuf-java"                % "4.33.4", // snyk
+          "com.google.protobuf"                       % "protobuf-java"                % "4.33.5", // snyk
           "org.jetbrains.kotlin"                      % "kotlin-stdlib"                % "2.3.0", // snyk
           "io.circe" %% "circe-shapes"                % circeV                         % Test
         ) ++ jacksonLib ++ testLib)
@@ -372,7 +372,7 @@ lazy val pipes = (project in file("pipes"))
       "org.apache.parquet"               % "parquet-avro"    % parquetV,
       "org.apache.avro"                  % "avro"            % avroV,
       "org.tukaani"                      % "xz"              % "1.11",
-      "org.eclipse.jetty"                % "jetty-server"    % "12.1.5", // snyk
+      "org.eclipse.jetty"                % "jetty-server"    % "12.1.6", // snyk
       "io.netty"                         % "netty-all"       % nettyV, // snyk
       "com.nimbusds"                     % "nimbus-jose-jwt" % "10.7", // snyk
       "org.apache.zookeeper"             % "zookeeper"       % "3.9.4", // snyk

@@ -32,7 +32,7 @@ object salesforce {
     client_secret: String,
     instanceURL: InstanceURL,
     authClient: Resource[F, Client[F]]
-  ) extends Http4sClientDsl[F] with Login[F, MarketingCloud[F]] {
+  ) extends Http4sClientDsl[F] with Login[F] {
 
     private case class Token(
       access_token: String,
@@ -74,7 +74,7 @@ object salesforce {
             .putHeaders(Authorization(Credentials.Token(CIString(token.token_type), token.access_token)))
         }
 
-        loginInternal(client, get_token, update_token, with_token)
+        login_internal(client, get_token, update_token, with_token)
       }
   }
 
@@ -113,7 +113,7 @@ object salesforce {
     password: String,
     expiresIn: FiniteDuration,
     authClient: Resource[F, Client[F]]
-  ) extends Http4sClientDsl[F] with Login[F, Iot[F]] {
+  ) extends Http4sClientDsl[F] with Login[F] {
 
     private case class Token(
       access_token: String,
@@ -147,7 +147,7 @@ object salesforce {
             .withUri(Uri.unsafeFromString(token.instance_url).withPath(req.pathInfo))
             .putHeaders(Authorization(Credentials.Token(CIString(token.token_type), token.access_token)))
 
-        loginInternal(client, get_token, update_token, with_token)
+        login_internal(client, get_token, update_token, with_token)
       }
   }
 

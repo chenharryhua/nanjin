@@ -1,16 +1,13 @@
 package com.github.chenharryhua.nanjin.http.client.auth
 
 import cats.effect.kernel.{Async, Ref, Resource}
+import cats.effect.std.Semaphore
 import cats.syntax.all.*
 import fs2.Stream
 import org.http4s.client.Client
-import org.http4s.{Request, Status}
+import org.http4s.{Request, Response, Status}
 
-/** @tparam A
-  *   Implementation class
-  */
-
-trait Login[F[_], A] {
+trait Login[F[_]] {
 
   def loginR(client: Client[F])(implicit F: Async[F]): Resource[F, Client[F]]
 
@@ -36,7 +33,7 @@ trait Login[F[_], A] {
     * @return
     */
 
-  final protected def loginInternal[T](
+  final protected def login_internal[T](
     client: Client[F],
     getToken: F[T],
     updateToken: Ref[F, T] => F[Unit],
@@ -45,17 +42,22 @@ trait Login[F[_], A] {
     for {
       authToken <- Resource.eval(getToken.flatMap(F.ref))
       _ <- F.background[Nothing](updateToken(authToken).attempt.foreverM)
+      refreshLock <- Resource.eval(Semaphore[F](1))
     } yield Client[F] { req =>
-      for {
-        token <- Resource.eval(authToken.get)
-        out <- client.run(withToken(token, req)).flatMap { response =>
+      def runWithToken(token: T): Resource[F, Response[F]] =
+        client.run(withToken(token, req))
+
+      Resource.eval(authToken.get).flatMap { token =>
+        runWithToken(token).flatMap { response =>
           if (response.status === Status.Unauthorized) {
+            // Retry once with refreshed token, single-refresh protected by semaphore
             Resource
-              .eval(getToken) // retrieve token in case token was expired
-              .evalTap(authToken.set) // update cache if success
-              .flatMap(tkn => client.run(withToken(tkn, req))) // re-run the request using new token
+              .eval(refreshLock.permit.use { _ =>
+                getToken.flatTap(authToken.set)
+              })
+              .flatMap(runWithToken)
           } else Resource.pure(response)
         }
-      } yield out
+      }
     }
 }
