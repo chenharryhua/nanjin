@@ -88,6 +88,7 @@ val testLib = List(
   "org.typelevel" %% "discipline-munit"                       % "2.0.0",
   "org.typelevel" %% "cats-laws"                              % catsCoreV,
   "org.typelevel" %% "algebra-laws"                           % catsCoreV,
+  "org.typelevel" %% "munit-cats-effect"                      % "2.1.0",
   "com.github.alexarchambault" %% "scalacheck-shapeless_1.15" % "1.3.0",
   "org.scalatest" %% "scalatest"                              % "3.2.19",
   "dev.optics" %% "monocle-law"                               % monocleV,
@@ -454,4 +455,12 @@ lazy val nanjin =
       observer_aws,
       observer_database,
       observer_kafka
+    )
+    .settings(
+      publish / skip := true,
+      ThisBuild / credentials += Credentials(Path.userHome / ".sbt" / ".credentials"),
+      ThisBuild / publishTo := Some(
+        "tabcorp-maven".at("https://artifacts.tabdigital.com.au/artifactory/tabcorp-maven")),
+      ThisBuild / publishConfiguration      := publishConfiguration.value.withOverwrite(true),
+      ThisBuild / publishLocalConfiguration := publishLocalConfiguration.value.withOverwrite(true)
     )
