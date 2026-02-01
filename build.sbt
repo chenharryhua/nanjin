@@ -93,7 +93,8 @@ val testLib = List(
   "org.scalatest" %% "scalatest"                              % "3.2.19",
   "dev.optics" %% "monocle-law"                               % monocleV,
   "com.47deg" %% "scalacheck-toolbox-datetime"                % "0.7.0",
-  "com.github.pathikrit" %% "better-files"                    % "3.9.2"
+  "com.github.pathikrit" %% "better-files"                    % "3.9.2",
+  "io.circe" %% "circe-jawn"                                  % circeV
 ).map(_ % Test)
 
 val enumLib = List(
@@ -131,8 +132,7 @@ lazy val common = (project in file("common"))
       "io.circe" %% "circe-generic"                    % circeV,
       "io.circe" %% "circe-refined"                    % "0.15.1",
       "dev.optics" %% "monocle-macro"                  % monocleV,
-      "org.apache.commons"                             % "commons-lang3" % "3.20.0",
-      "io.circe" %% "circe-jawn"                       % circeV          % Test
+      "org.apache.commons"                             % "commons-lang3" % "3.20.0"
     ) ++ enumLib ++ refinedLib ++ testLib
   )
 
@@ -189,9 +189,7 @@ lazy val datetime = (project in file("datetime"))
   .settings(commonSettings *)
   .settings(name := "nj-datetime")
   .settings(
-    libraryDependencies ++= List(
-      "org.typelevel" %% "cats-parse" % "1.1.0",
-      "io.circe" %% "circe-jawn"      % circeV % Test) ++
+    libraryDependencies ++= List("org.typelevel" %% "cats-parse" % "1.1.0") ++
       testLib
   )
 
@@ -333,7 +331,8 @@ lazy val kafka = (project in file("kafka"))
       "org.apache.kafka"                          % "kafka-streams"                % kafkaV,
       "org.apache.kafka" %% "kafka-streams-scala" % kafkaV,
       ("com.github.fd4s" %% "fs2-kafka"           % fs2KafkaV).exclude("org.apache.kafka", "kafka-clients"),
-      "ch.qos.logback"                            % "logback-classic"              % logbackV % Test
+
+      "ch.qos.logback" % "logback-classic" % logbackV % Test
     ) ++ jacksonLib ++ testLib)
 
 // ==========================
@@ -458,4 +457,3 @@ lazy val nanjin =
       observer_database,
       observer_kafka
     )
-

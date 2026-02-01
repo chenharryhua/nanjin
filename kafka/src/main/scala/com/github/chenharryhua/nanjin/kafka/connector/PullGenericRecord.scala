@@ -29,7 +29,8 @@ final private class PullGenericRecord(pair: AvroSchemaPair) {
         val reader = new GenericDatumReader[GenericData.Record](pair.key.rawSchema())
         (data: Array[Byte]) =>
           if (data == null) null
-          else { // drop 5: 1 byte magic, 4 bytes schema ID
+          else {
+            // Confluent wire format: 1-byte magic + 4-byte schema ID prefix, skip first 5 bytes
             val decoder = DecoderFactory.get.binaryDecoder(data.drop(5), null)
             reader.read(null, decoder)
           }
@@ -63,7 +64,8 @@ final private class PullGenericRecord(pair: AvroSchemaPair) {
         val reader = new GenericDatumReader[GenericData.Record](pair.value.rawSchema())
         (data: Array[Byte]) =>
           if (data == null) null
-          else { // drop 5: 1 byte magic, 4 bytes schema ID
+          else {
+            // Confluent wire format: 1-byte magic + 4-byte schema ID prefix, skip first 5 bytes
             val decoder = DecoderFactory.get.binaryDecoder(data.drop(5), null)
             reader.read(null, decoder)
           }
