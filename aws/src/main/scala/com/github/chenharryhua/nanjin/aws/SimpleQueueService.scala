@@ -104,7 +104,7 @@ object SimpleQueueService {
 
   private val name: String = "aws.SQS"
 
-  def apply[F[_]](policy: Policy, zoneId: ZoneId)(f: Endo[SqsClientBuilder])(implicit
+  def apply[F[_]](zoneId: ZoneId, policy: Policy)(f: Endo[SqsClientBuilder])(implicit
     F: Async[F]): Resource[F, SimpleQueueService[F]] =
     for {
       logger <- Resource.eval(Slf4jLogger.create[F])
