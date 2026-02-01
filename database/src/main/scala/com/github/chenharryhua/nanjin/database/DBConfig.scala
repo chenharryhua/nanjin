@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.database
 
 import cats.effect.kernel.{Async, Resource}
-import cats.implicits.toFunctorOps
+import cats.implicits.{catsSyntaxApplicativeError, toFunctorOps}
 import com.github.chenharryhua.nanjin.common.database.*
 import com.zaxxer.hikari.HikariConfig
 import doobie.hikari.HikariTransactor
@@ -21,9 +21,11 @@ sealed abstract class DBConfig(cfg: HikariConfig, updateOps: List[HikariConfig =
     new DBConfig(cfg, f :: updateOps) {}
 
   final lazy val hikariConfig: HikariConfig = {
-    updateOps.reverse.foreach(_(cfg))
-    cfg.validate()
-    cfg
+    val cfgCopy = new HikariConfig()
+    cfg.copyStateTo(cfgCopy)
+    updateOps.reverse.foreach(_(cfgCopy))
+    cfgCopy.validate()
+    cfgCopy
   }
 
   final def transactorR[F[_]: Async](logHandler: Option[LogHandler[F]]): Resource[F, HikariTransactor[F]] =
@@ -33,7 +35,7 @@ sealed abstract class DBConfig(cfg: HikariConfig, updateOps: List[HikariConfig =
     Stream.resource(transactorR(logHandler))
 
   final def testConnection[F[_]: Async]: F[Boolean] =
-    transactorR[F](None).use(_.trans.apply(sql"select 42".query[Int].unique)).as(true)
+    transactorR[F](None).use(_.trans.apply(sql"select 42".query[Int].unique)).attempt.map(_.isRight)
 }
 
 object DBConfig {
