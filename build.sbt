@@ -189,7 +189,9 @@ lazy val datetime = (project in file("datetime"))
   .settings(commonSettings *)
   .settings(name := "nj-datetime")
   .settings(
-    libraryDependencies ++= List("org.typelevel" %% "cats-parse" % "1.1.0") ++
+    libraryDependencies ++= List(
+      "org.typelevel" %% "cats-parse" % "1.1.0",
+      "io.circe" %% "circe-jawn"      % circeV % Test) ++
       testLib
   )
 
