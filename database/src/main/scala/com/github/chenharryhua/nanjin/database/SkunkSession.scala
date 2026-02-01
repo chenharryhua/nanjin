@@ -44,25 +44,27 @@ final case class SkunkSession[F[_]](
 
   def withTrace(trace: Trace[F]): SkunkSession[F] = copy(trace = Some(trace))
 
-  def pooled(implicit C: Temporal[F], N: Network[F], S: Console[F]): Resource[F, Resource[F, Session[F]]] = {
+  def pooled(implicit C: Temporal[F], N: Network[F], S: Console[F]): Resource[F, Session[F]] = {
     implicit val tc: Trace[F] = trace.getOrElse(natchez.Trace.Implicits.noop)
-    Session.pooled(
-      host = postgres.host.value,
-      port = postgres.port.value,
-      user = postgres.username.value,
-      database = postgres.database.value,
-      password = Some(postgres.password.value),
-      max = max,
-      debug = debug,
-      strategy = strategy,
-      ssl = ssl,
-      parameters = parameters,
-      socketOptions = socketOptions,
-      commandCache = commandCache,
-      queryCache = queryCache,
-      parseCache = parseCache,
-      readTimeout = readTimeout
-    )
+    Session
+      .pooled(
+        host = postgres.host.value,
+        port = postgres.port.value,
+        user = postgres.username.value,
+        database = postgres.database.value,
+        password = Some(postgres.password.value),
+        max = max,
+        debug = debug,
+        strategy = strategy,
+        ssl = ssl,
+        parameters = parameters,
+        socketOptions = socketOptions,
+        commandCache = commandCache,
+        queryCache = queryCache,
+        parseCache = parseCache,
+        readTimeout = readTimeout
+      )
+      .flatMap(identity)
   }
 
   def single(implicit C: Temporal[F], N: Network[F], S: Console[F]): Resource[F, Session[F]] = {

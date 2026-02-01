@@ -1,4 +1,4 @@
-ThisBuild / version      := "0.20.1-SNAPSHOT"
+ThisBuild / version      := "0.20.3-SNAPSHOT"
 ThisBuild / scalaVersion := "2.13.18"
 
 ThisBuild / versionScheme := Some("early-semver")
@@ -458,3 +458,4 @@ lazy val nanjin =
       observer_database,
       observer_kafka
     )
+

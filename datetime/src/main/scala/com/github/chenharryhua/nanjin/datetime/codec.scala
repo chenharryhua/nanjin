@@ -27,7 +27,7 @@ object codec {
     val pattern: Regex = """^(?i)Year=(\d{4})""".r
     str match {
       case pattern(y) => Try(y.toInt).toOption
-      case _         => None
+      case _          => None
     }
   }
 
@@ -35,7 +35,7 @@ object codec {
     val pattern: Regex = """^(?i)Month=(\d{2})""".r
     str match {
       case pattern(m) => Try(m.toInt).toOption
-      case _         => None
+      case _          => None
     }
   }
 
@@ -43,7 +43,7 @@ object codec {
     val pattern: Regex = """^(?i)Day=(\d{2})""".r
     str match {
       case pattern(d) => Try(d.toInt).toOption
-      case _         => None
+      case _          => None
     }
   }
 
@@ -51,7 +51,7 @@ object codec {
     val pattern: Regex = """^(?i)Hour=(\d{2})""".r
     str match {
       case pattern(h) => Try(h.toInt).toOption
-      case _         => None
+      case _          => None
     }
   }
 
@@ -59,7 +59,7 @@ object codec {
     val pattern: Regex = """^(?i)Minute=(\d{2})""".r
     str match {
       case pattern(m) => Try(m.toInt).toOption
-      case _         => None
+      case _          => None
     }
   }
 }
