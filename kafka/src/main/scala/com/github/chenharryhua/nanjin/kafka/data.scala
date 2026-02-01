@@ -22,7 +22,7 @@ object GroupId {
 }
 
 final case class Offset(value: Long) extends AnyVal {
-  def asLast: Offset = Offset(value - 1) // represent last message
+  def asLast: Offset = Offset(Math.max(0, value - 1)) // represent last message
   def -(other: Offset): Long = value - other.value
 }
 

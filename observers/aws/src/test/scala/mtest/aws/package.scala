@@ -1,27 +1,20 @@
 package mtest
 
-import cats.Endo
 import cats.effect.IO
 import cats.effect.kernel.Resource
 import cats.implicits.toShow
 import com.github.chenharryhua.nanjin.aws.*
-import com.github.chenharryhua.nanjin.common.chrono.Policy
 import fs2.Stream
-import software.amazon.awssdk.services.cloudwatch.CloudWatchClientBuilder
 import software.amazon.awssdk.services.cloudwatch.model.{PutMetricDataRequest, PutMetricDataResponse}
-import software.amazon.awssdk.services.ses.SesClientBuilder
 import software.amazon.awssdk.services.ses.model.{
   SendEmailRequest,
   SendEmailResponse,
   SendRawEmailRequest,
   SendRawEmailResponse
 }
-import software.amazon.awssdk.services.sns.SnsClientBuilder
 import software.amazon.awssdk.services.sns.model.{PublishRequest, PublishResponse}
-import software.amazon.awssdk.services.sqs.SqsClientBuilder
 import software.amazon.awssdk.services.sqs.model.*
 
-import java.time.ZoneId
 import java.util.UUID
 import scala.concurrent.duration.FiniteDuration
 
@@ -30,17 +23,12 @@ package object aws {
     Resource.pure[IO, CloudWatch[IO]](new CloudWatch[IO] {
       override def putMetricData(putMetricDataRequest: PutMetricDataRequest): IO[PutMetricDataResponse] =
         IO.println(putMetricDataRequest.toString) *> IO.pure(PutMetricDataResponse.builder().build())
-
-      override def updateBuilder(f: Endo[CloudWatchClientBuilder]): CloudWatch[IO] =
-        this
     })
 
   def ses_client: Resource[IO, SimpleEmailService[IO]] =
     Resource.make(IO.pure(new SimpleEmailService[IO] {
       override def send(txt: SendEmailRequest): IO[SendEmailResponse] =
         IO.println(txt.toString) *> IO.pure(SendEmailResponse.builder().messageId("fake.message.id").build())
-
-      override def updateBuilder(f: Endo[SesClientBuilder]): SimpleEmailService[IO] = this
 
       override def send(req: SendRawEmailRequest): IO[SendRawEmailResponse] =
         IO.println(req.toString) *> IO.pure(
@@ -57,8 +45,6 @@ package object aws {
             .sequenceNumber("fake.sequence.number")
             .build())
 
-      override def updateBuilder(f: Endo[SnsClientBuilder]): SimpleNotificationService[IO] =
-        this
     }))(_ => IO.unit)
 
   def sqs_client(duration: FiniteDuration, body: String): Resource[IO, SimpleQueueService[IO]] =
@@ -79,9 +65,6 @@ package object aws {
           )
         }
 
-      override def updateBuilder(f: Endo[SqsClientBuilder]): SimpleQueueService[IO] = this
-      override def withDelayPolicy(delayPolicy: Policy): SimpleQueueService[IO] = this
-      override def withZoneId(zoneId: ZoneId): SimpleQueueService[IO] = this
       override def delete(msg: SqsMessage): IO[DeleteMessageResponse] =
         IO.pure(DeleteMessageResponse.builder().build())
       override def sendMessage(msg: SendMessageRequest): IO[SendMessageResponse] =
