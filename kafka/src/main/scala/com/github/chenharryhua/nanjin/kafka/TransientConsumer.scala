@@ -56,19 +56,19 @@ private object KafkaPrimitiveConsumerApi {
       for {
         tps <- partitionsFor
         ret <- kbc.ask.map(_.beginningOffsets(tps.asJava).asScala)
-      } yield TopicPartitionMap(ret.view.mapValues(Option(_).map(Offset(_))).toMap)
+      } yield TopicPartitionMap(ret.map { case (k, v) => k -> Option(v).map(Offset(_)) })
 
     override val endOffsets: F[TopicPartitionMap[Option[Offset]]] =
       for {
         tps <- partitionsFor
         ret <- kbc.ask.map(_.endOffsets(tps.asJava).asScala)
-      } yield TopicPartitionMap(ret.view.mapValues(Option(_).map(Offset(_))).toMap)
+      } yield TopicPartitionMap(ret.map { case (k, v) => k -> Option(v).map(Offset(_)) })
 
     override def offsetsForTimes(ts: NJTimestamp): F[TopicPartitionMap[Option[Offset]]] =
       for {
         tps <- partitionsFor
         ret <- kbc.ask.map(_.offsetsForTimes(tps.javaTimed(ts)).asScala)
-      } yield TopicPartitionMap(ret.view.mapValues(Option(_).map(Offset(_))).toMap)
+      } yield TopicPartitionMap(ret.map { case (k, v) => k -> Option(v).map(Offset(_)) })
 
     override def retrieveRecord(
       partition: Partition,
@@ -208,7 +208,7 @@ private object TransientConsumer {
 
     private def offsetsOf(
       offsets: TopicPartitionMap[Option[Offset]]): Map[TopicPartition, OffsetAndMetadata] =
-      offsets.flatten.value.view.mapValues(x => new OffsetAndMetadata(x.value)).toMap
+      offsets.flatten.value.map { case (k, x) => k -> new OffsetAndMetadata(x.value) }
 
     override val resetOffsetsToBegin: F[Unit] =
       execute(kpc.beginningOffsets.flatMap(x => kpc.commitSync(offsetsOf(x))))

@@ -123,7 +123,7 @@ final case class TopicPartitionMap[V](value: TreeMap[TopicPartition, V]) extends
     value.get(new TopicPartition(topic, partition))
 
   def mapValues[W](f: V => W): TopicPartitionMap[W] =
-    copy(value = TreeMap.from(value.view.mapValues(f)))
+    copy(value = TreeMap.from(value.map { case (k, v) => k -> f(v) }))
 
   def map[W](f: (TopicPartition, V) => W): TopicPartitionMap[W] =
     copy(value = value.map { case (k, v) => k -> f(k, v) })

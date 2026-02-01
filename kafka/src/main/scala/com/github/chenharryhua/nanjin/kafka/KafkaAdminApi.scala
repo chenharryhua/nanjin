@@ -107,7 +107,7 @@ object KafkaAdminApi {
         curr <- client
           .listConsumerGroupOffsets(groupId)
           .partitionsToOffsetAndMetadata
-          .map(_.filter(_._1.topic() === topicName.name.value).view.mapValues(Offset(_)).toMap)
+          .map(_.filter(_._1.topic() === topicName.name.value).map { case (k, v) => k -> Offset(v) })
           .map(TopicPartitionMap(_))
       } yield calculate.admin_lagBehind(ends, curr)
 
