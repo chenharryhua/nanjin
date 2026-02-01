@@ -29,8 +29,7 @@ sealed trait KafkaAdminApi[F[_]] {
   /** Describe the topic associated with this admin instance.
     *
     * @return
-    *   a map of topic name to `TopicDescription`; in practice, this will contain a single entry for the
-    *   topic
+    *   a map of topic name to `TopicDescription`; in practice, this will contain a single entry for the topic
     */
   def describe: F[Map[String, TopicDescription]]
 

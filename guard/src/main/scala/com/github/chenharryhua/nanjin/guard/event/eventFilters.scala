@@ -16,9 +16,17 @@ import scala.jdk.DurationConverters.{JavaDurationOps, ScalaDurationOps}
 
 object eventFilters {
 
-  /** interval based sampling
+  /** Interval-based sampling.
     *
-    * in every interval, only one MetricReport is allowed to pass
+    * In each `interval`, only one `MetricReport` is allowed to pass. Adhoc reports (`MetricIndex.Adhoc`)
+    * always pass. Periodic reports are checked if their tick falls within the expected open-closed interval.
+    *
+    * @param interval
+    *   the sampling interval
+    * @param evt
+    *   the event to test
+    * @return
+    *   `true` if the event should pass, `false` otherwise
     */
   def sampling(interval: FiniteDuration)(evt: Event): Boolean =
     evt match {
@@ -36,9 +44,16 @@ object eventFilters {
       case _ => true
     }
 
-  /** index based sampling
+  /** Index-based sampling.
     *
-    * report index mod divisor === 0
+    * Only `MetricReport` events whose index modulo `divisor` is zero will pass. Adhoc reports always pass.
+    *
+    * @param divisor
+    *   a positive integer refined type used as the modulo divisor
+    * @param evt
+    *   the event to test
+    * @return
+    *   `true` if the event should pass, `false` otherwise
     */
   def sampling(divisor: Refined[Int, Positive])(evt: Event): Boolean =
     evt match {
@@ -50,7 +65,16 @@ object eventFilters {
       case _ => true
     }
 
-  /** cron based sampling
+  /** Cron-based sampling.
+    *
+    * Only `MetricReport` events that match the given cron expression will pass. Adhoc reports always pass.
+    *
+    * @param cronExpr
+    *   the cron expression defining the schedule
+    * @param evt
+    *   the event to test
+    * @return
+    *   `true` if the event should pass, `false` otherwise
     */
   def sampling(cronExpr: CronExpr)(evt: Event): Boolean =
     evt match {
@@ -63,27 +87,38 @@ object eventFilters {
       case _ => true
     }
 
+  /** Cron-based sampling using a function to access the `crontabs` object.
+    *
+    * @param f
+    *   function from `crontabs.type` to `CronExpr`
+    * @param evt
+    *   the event to test
+    * @return
+    *   `true` if the event should pass, `false` otherwise
+    */
   def sampling(f: crontabs.type => CronExpr)(evt: Event): Boolean =
     sampling(f(crontabs))(evt)
 
-  // mapFilter friendly
+  // --------------------------------------------------------------------------
+  // MapFilter-friendly accessors
+  // --------------------------------------------------------------------------
 
   val metricReport: Event => Option[Event.MetricReport] =
-    GenPrism[Event, Event.MetricReport].getOption(_)
+    GenPrism[Event, Event.MetricReport].getOption
 
   val metricReset: Event => Option[Event.MetricReset] =
-    GenPrism[Event, Event.MetricReset].getOption(_)
+    GenPrism[Event, Event.MetricReset].getOption
 
   val serviceMessage: Event => Option[Event.ServiceMessage] =
-    GenPrism[Event, Event.ServiceMessage].getOption(_)
+    GenPrism[Event, Event.ServiceMessage].getOption
 
   val serviceStart: Event => Option[Event.ServiceStart] =
-    GenPrism[Event, Event.ServiceStart].getOption(_)
+    GenPrism[Event, Event.ServiceStart].getOption
 
   val serviceStop: Event => Option[Event.ServiceStop] =
-    GenPrism[Event, Event.ServiceStop].getOption(_)
+    GenPrism[Event, Event.ServiceStop].getOption
 
   val servicePanic: Event => Option[Event.ServicePanic] =
-    GenPrism[Event, Event.ServicePanic].getOption(_)
+    GenPrism[Event, Event.ServicePanic].getOption
 
 }
