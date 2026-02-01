@@ -13,22 +13,22 @@ import org.apache.kafka.common.security.auth.SecurityProtocol
 
 final case class KafkaConsumerSettings(properties: Map[String, String]) {
   def withProperty(key: String, value: String): KafkaConsumerSettings =
-    copy(properties = properties.updatedWith(key)(_ => Some(value)))
+    copy(properties = properties.updated(key, value))
 }
 
 final case class KafkaProducerSettings(properties: Map[String, String]) {
   def withProperty(key: String, value: String): KafkaProducerSettings =
-    copy(properties = properties.updatedWith(key)(_ => Some(value)))
+    copy(properties = properties.updated(key, value))
 }
 
 final case class KafkaStreamSettings(properties: Map[String, String]) {
   def withProperty(key: String, value: String): KafkaStreamSettings =
-    copy(properties = properties.updatedWith(key)(_ => Some(value)))
+    copy(properties = properties.updated(key, value))
 }
 
 final case class SchemaRegistrySettings(config: Map[String, String]) {
   def withProperty(key: String, value: String): SchemaRegistrySettings =
-    copy(config = config.updatedWith(key)(_ => Some(value)))
+    copy(config = config.updated(key, value))
 }
 
 final case class KafkaSettings(
