@@ -32,42 +32,52 @@ object DateTimeParser {
     new DateTimeParser[LocalDate] {
 
       override def parse(str: String): Either[FailedParsers, LocalDate] =
-        Either.catchNonFatal(LocalDate.parse(str)).leftMap(_ => FailedParsers("LocalDate"))
+        Either
+          .catchOnly[DateTimeParseException](LocalDate.parse(str))
+          .leftMap(_ => FailedParsers("LocalDate"))
     }
 
   implicit final val localTimeParser: DateTimeParser[LocalTime] =
     new DateTimeParser[LocalTime] {
 
       override def parse(str: String): Either[FailedParsers, LocalTime] =
-        Either.catchNonFatal(LocalTime.parse(str)).leftMap(_ => FailedParsers("LocalTime"))
+        Either
+          .catchOnly[DateTimeParseException](LocalTime.parse(str))
+          .leftMap(_ => FailedParsers("LocalTime"))
     }
 
   implicit final val localDateTimeParser: DateTimeParser[LocalDateTime] =
     new DateTimeParser[LocalDateTime] {
 
       override def parse(str: String): Either[FailedParsers, LocalDateTime] =
-        Either.catchNonFatal(LocalDateTime.parse(str)).leftMap(_ => FailedParsers("LocalDateTime"))
+        Either
+          .catchOnly[DateTimeParseException](LocalDateTime.parse(str))
+          .leftMap(_ => FailedParsers("LocalDateTime"))
     }
 
   implicit final val instantParser: DateTimeParser[Instant] =
     new DateTimeParser[Instant] {
 
       override def parse(str: String): Either[FailedParsers, Instant] =
-        Either.catchNonFatal(Instant.parse(str)).leftMap(_ => FailedParsers("Instant"))
+        Either.catchOnly[DateTimeParseException](Instant.parse(str)).leftMap(_ => FailedParsers("Instant"))
     }
 
   implicit final val zonedParser: DateTimeParser[ZonedDateTime] =
     new DateTimeParser[ZonedDateTime] {
 
       override def parse(str: String): Either[FailedParsers, ZonedDateTime] =
-        Either.catchNonFatal(ZonedDateTime.parse(str)).leftMap(_ => FailedParsers("ZonedDateTime"))
+        Either
+          .catchOnly[DateTimeParseException](ZonedDateTime.parse(str))
+          .leftMap(_ => FailedParsers("ZonedDateTime"))
     }
 
   implicit final val offsetParser: DateTimeParser[OffsetDateTime] =
     new DateTimeParser[OffsetDateTime] {
 
       override def parse(str: String): Either[FailedParsers, OffsetDateTime] =
-        Either.catchNonFatal(OffsetDateTime.parse(str)).leftMap(_ => FailedParsers("OffsetDateTime"))
+        Either
+          .catchOnly[DateTimeParseException](OffsetDateTime.parse(str))
+          .leftMap(_ => FailedParsers("OffsetDateTime"))
     }
 
   implicit final val alternativeDateTimeParser: Alternative[DateTimeParser] =
@@ -77,7 +87,7 @@ object DateTimeParser {
         new DateTimeParser[A] {
 
           override def parse(str: String): Left[FailedParsers, A] =
-            Left(FailedParsers("NonParser"))
+            Left(FailedParsers("EmptyParser"))
         }
 
       override def combineK[A](x: DateTimeParser[A], y: DateTimeParser[A]): DateTimeParser[A] =
@@ -103,7 +113,7 @@ object DateTimeParser {
         new DateTimeParser[B] {
 
           override def parse(str: String): Either[FailedParsers, B] =
-            fa.parse(str).ap(ff.parse(str))
+            ff.parse(str).ap(fa.parse(str))
         }
     }
 }
