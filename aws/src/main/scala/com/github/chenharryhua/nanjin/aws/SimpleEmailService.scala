@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.aws
 
 import cats.Endo
 import cats.effect.kernel.{Async, Resource, Sync}
+import cats.implicits.toFunctorOps
 import com.github.chenharryhua.nanjin.common.aws.EmailContent
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
@@ -93,10 +94,10 @@ object SimpleEmailService {
   def apply[F[_]](f: Endo[SesClientBuilder])(implicit F: Async[F]): Resource[F, SimpleEmailService[F]] =
     for {
       logger <- Resource.eval(Slf4jLogger.create[F])
-      _ <- Resource.eval(logger.info(s"initialize $name"))
-      client <- Resource.makeCase(
-        F.blocking(f(SesClient.builder()).build())
-      )((client, quitCase) => shutdown(name, quitCase, logger)(F.blocking(client.close())))
+      client <- Resource.makeCase(logger.info(s"initialize $name").as(f(SesClient.builder()).build())) {
+        case (client, quitCase) =>
+          shutdown(name, quitCase, logger)(F.blocking(client.close()))
+      }
     } yield new AwsSES[F](client, logger)
 
   final private class AwsSES[F[_]](

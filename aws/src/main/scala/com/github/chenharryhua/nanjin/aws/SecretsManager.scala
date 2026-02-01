@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.aws
 
 import cats.Endo
 import cats.effect.kernel.{Async, Resource, Sync}
+import cats.implicits.toFunctorOps
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import software.amazon.awssdk.core.SdkBytes
@@ -49,10 +50,10 @@ object SecretsManager {
     F: Async[F]): Resource[F, SecretsManager[F]] =
     for {
       logger <- Resource.eval(Slf4jLogger.create[F])
-      _ <- Resource.eval(logger.info(s"initialize $name"))
       client <- Resource.makeCase(
-        F.blocking(f(SecretsManagerClient.builder()).build())
-      )((sm, quitCase) => shutdown(name, quitCase, logger)(F.blocking(sm.close())))
+        logger.info(s"initialize $name").as(f(SecretsManagerClient.builder()).build())) {
+        case (sm, quitCase) => shutdown(name, quitCase, logger)(F.blocking(sm.close()))
+      }
     } yield new SecretsManagerImpl(client, logger)
 
   final private class SecretsManagerImpl[F[_]](

@@ -60,19 +60,14 @@ object ParameterStore {
 
   private val name = "aws.ParameterStore"
 
-  def apply[F[_]: Async](f: Endo[SsmClientBuilder]): Resource[F, ParameterStore[F]] =
+  def apply[F[_]](f: Endo[SsmClientBuilder])(implicit F: Async[F]): Resource[F, ParameterStore[F]] =
     for {
       logger <- Resource.eval(Slf4jLogger.create[F])
-      client <- buildClient(f, logger)
+      client <- Resource.makeCase(logger.info(s"initialize $name").as(f(SsmClient.builder()).build())) {
+        case (client, quitCase) =>
+          shutdown(name, quitCase, logger)(F.blocking(client.close()))
+      }
     } yield new AwsPS[F](client, logger)
-
-  private def buildClient[F[_]](
-    f: Endo[SsmClientBuilder],
-    logger: Logger[F]
-  )(implicit F: Async[F]): Resource[F, SsmClient] =
-    Resource.makeCase(
-      F.blocking(f(SsmClient.builder()).build()) <* logger.info(s"initialize $name")
-    )((client, cause) => shutdown(name, cause, logger)(F.blocking(client.close())))
 
   final private class AwsPS[F[_]](client: SsmClient, logger: Logger[F])(implicit F: Async[F])
       extends ParameterStore[F] {
