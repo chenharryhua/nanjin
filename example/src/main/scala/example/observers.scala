@@ -36,6 +36,7 @@ object observers {
       .includeDimensions(_.withServiceID.withServiceName)
 
   val sqsObserver: SqsObserver[IO] =
-    SqsObserver(SimpleQueueService[IO](_.region(Region.AP_SOUTHEAST_2)))
+    SqsObserver(
+      SimpleQueueService[IO](sydneyTime, Policy.fixedDelay(10.seconds))(_.region(Region.AP_SOUTHEAST_2)))
 
 }

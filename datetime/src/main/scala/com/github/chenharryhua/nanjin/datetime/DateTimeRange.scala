@@ -1,7 +1,8 @@
 package com.github.chenharryhua.nanjin.datetime
 
+import cats.data.Cont
 import cats.syntax.all.*
-import cats.{PartialOrder, Show}
+import cats.{Eval, PartialOrder, Show}
 import com.github.chenharryhua.nanjin.common.chrono.Tick
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, HCursor, Json}
@@ -207,7 +208,12 @@ object DateTimeRange {
     (c: HCursor) =>
       for {
         zoneId <- c.get[ZoneId]("zone_id")
-        start <- c.get[LocalDateTime]("start")
-        end <- c.get[LocalDateTime]("end")
-      } yield DateTimeRange(zoneId).withStartTime(start).withEndTime(end)
+        start <- c.get[Option[LocalDateTime]]("start")
+        end <- c.get[Option[LocalDateTime]]("end")
+      } yield Cont
+        .pure[DateTimeRange, DateTimeRange](DateTimeRange(zoneId))
+        .map(dtr => start.fold(dtr)(dtr.withStartTime))
+        .map(dtr => end.fold(dtr)(dtr.withEndTime))
+        .run(Eval.now)
+        .value
 }
