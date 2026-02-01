@@ -76,8 +76,8 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
 
   /** Returns a SchemaRegistryApi for interacting with the configured Schema Registry.
     *
-    * @note
-    *   Throws [[IllegalStateException]] if the URL config is absent.
+    * @throws java.lang.IllegalStateException
+    *   if the URL config is absent
     */
   def schemaRegistry(implicit F: Sync[F]): SchemaRegistryApi[F] = {
     val url_config = AbstractKafkaSchemaSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG
@@ -198,7 +198,7 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
     * @param applicationId
     *   Kafka Streams application ID
     * @param topology
-    *   Function to build the topology, receives a [[StreamsBuilder]] and [[StreamsSerde]].
+    *   Function to build the topology, receives a `StreamsBuilder` and `StreamsSerde`.
     */
   def buildStreams(applicationId: String)(topology: (StreamsBuilder, StreamsSerde) => Unit)(implicit
     F: Async[F]): KafkaStreamsBuilder[F] =
