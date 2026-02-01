@@ -15,9 +15,9 @@ package object aws {
   )(shutdownEffect: F[Unit]): F[Unit] = {
 
     val log: F[Unit] = cause match {
-      case Resource.ExitCase.Succeeded  => logger.info(s"$name closed normally")
-      case Resource.ExitCase.Errored(e) => logger.error(e)(s"$name closed abnormally")
-      case Resource.ExitCase.Canceled   => logger.warn(s"$name shutdown canceled")
+      case Resource.ExitCase.Succeeded  => logger.info(s"$name was closed normally")
+      case Resource.ExitCase.Errored(e) => logger.error(e)(s"$name was closed abnormally")
+      case Resource.ExitCase.Canceled   => logger.warn(s"$name was canceled")
     }
     val close: F[Unit] = shutdownEffect.timeout(10.seconds).handleErrorWith { ex =>
       logger.warn(ex)(s"$name shutdown encountered an error")

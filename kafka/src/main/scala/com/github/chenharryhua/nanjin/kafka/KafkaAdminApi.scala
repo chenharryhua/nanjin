@@ -29,15 +29,14 @@ sealed trait KafkaAdminApi[F[_]] {
   /** Describe the topic associated with this admin instance.
     *
     * @return
-    *   a map of topic name to [[TopicDescription]]; in practice, this will contain a single entry for the
-    *   topic
+    *   a map of topic name to `TopicDescription`; in practice, this will contain a single entry for the topic
     */
   def describe: F[Map[String, TopicDescription]]
 
   /** List all consumer groups consuming this topic.
     *
     * @return
-    *   a list of [[GroupId]] for all consumer groups that have offsets in this topic
+    *   a list of `GroupId` for all consumer groups that have offsets in this topic
     */
   def groups: F[List[GroupId]]
 
@@ -61,7 +60,7 @@ sealed trait KafkaAdminApi[F[_]] {
     */
   def newTopic(numPartition: Int, numReplica: Short): F[Unit]
 
-  /** Create a new topic based on the given [[TopicDescription]].
+  /** Create a new topic based on the given `TopicDescription`.
     *
     * Assumes `description.partitions()` is non-empty. Will throw if `partitions()` is empty – this is
     * intentional, as a topic must have at least one partition.
@@ -97,14 +96,14 @@ sealed trait KafkaAdminApi[F[_]] {
   /** List all partitions of this topic.
     *
     * @return
-    *   a [[ListOfTopicPartitions]] containing partition information
+    *   a `ListOfTopicPartitions` containing partition information
     */
   def partitionsFor: F[ListOfTopicPartitions]
 
   /** Compute offset ranges for the topic for a given time window.
     *
     * @param dtr
-    *   the [[DateTimeRange]] for which to compute offsets
+    *   the `DateTimeRange` for which to compute offsets
     * @return
     *   a map of topic partitions to optional offset ranges
     */
@@ -115,7 +114,7 @@ sealed trait KafkaAdminApi[F[_]] {
     * @param groupId
     *   the consumer group id
     * @param offsets
-    *   a map of topic partitions to [[OffsetAndMetadata]] to commit
+    *   a map of topic partitions to `OffsetAndMetadata` to commit
     * @return
     *   an effect that commits the offsets
     */
@@ -157,7 +156,7 @@ sealed trait KafkaAdminApi[F[_]] {
     * @param groupId
     *   the consumer group id
     * @param ts
-    *   the target [[NJTimestamp]]
+    *   the target `NJTimestamp`
     * @return
     *   an effect that resets offsets
     */

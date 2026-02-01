@@ -4,6 +4,18 @@ import enumeratum.{CatsEnum, Enum, EnumEntry}
 import io.circe.Json
 import io.circe.syntax.EncoderOps
 
+/** Represents the name of an `Event` in the system.
+  *
+  * Provides multiple string formats for consistent serialization and display:
+  *   - `compact`: removes spaces, e.g., `"Service Start"` → `"ServiceStart"`
+  *   - `camel`: lowerCamelCase, e.g., `"Service Start"` → `"serviceStart"`
+  *   - `snake`: snake_case, e.g., `"Service Start"` → `"service_start"`
+  *
+  * JSON-ready versions are also provided for each format: `compactJson`, `camelJson`, `snakeJson`.
+  *
+  * @param entryName
+  *   the canonical display name of the event
+  */
 sealed abstract class EventName(override val entryName: String) extends EnumEntry with Product {
   final val compact: String = entryName.replace(" ", "")
   final val compactJson: Json = compact.asJson

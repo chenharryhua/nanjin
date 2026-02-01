@@ -70,7 +70,7 @@ object SimpleNotificationService {
   ): Resource[F, SimpleNotificationService[F]] =
     for {
       logger <- Resource.eval(Slf4jLogger.create[F])
-      client <- Resource.makeCase(logger.info(s"initialize $name").map(_ => f(SnsClient.builder).build())) {
+      client <- Resource.makeCase(logger.info(s"initialize $name").as(f(SnsClient.builder).build())) {
         case (cw, quitCase) => shutdown(name, quitCase, logger)(F.blocking(cw.close()))
       }
     } yield new AwsSNS[F](client, logger)

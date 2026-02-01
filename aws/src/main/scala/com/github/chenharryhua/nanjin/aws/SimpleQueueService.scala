@@ -108,7 +108,7 @@ object SimpleQueueService {
     F: Async[F]): Resource[F, SimpleQueueService[F]] =
     for {
       logger <- Resource.eval(Slf4jLogger.create[F])
-      client <- Resource.makeCase(logger.info(s"initialize $name").map(_ => f(SqsClient.builder()).build())) {
+      client <- Resource.makeCase(logger.info(s"initialize $name").as(f(SqsClient.builder()).build())) {
         case (cw, quitCase) => shutdown(name, quitCase, logger)(F.blocking(cw.close()))
       }
     } yield new AwsSQS[F](client, policy, zoneId, logger)
