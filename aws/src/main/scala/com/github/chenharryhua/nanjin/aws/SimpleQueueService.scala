@@ -26,7 +26,7 @@ import scala.jdk.DurationConverters.JavaDurationOps
   * @param request
   *   the original `ReceiveMessageRequest` used to fetch this message
   * @param response
-  *   the raw `Message]] object from AWS SQS
+  *   the raw `Message` object from AWS SQS
   * @param batchIndex
   *   zero-based index of the batch in which this message was received
   * @param messageIndex
@@ -61,7 +61,7 @@ trait SimpleQueueService[F[_]] {
     * @param request
     *   AWS `ReceiveMessageRequest` configuration
     * @return
-    *   a stream of `SqsMessage]]s
+    *   a stream of `SqsMessage`s
     */
   def receive(request: ReceiveMessageRequest): Stream[F, SqsMessage]
 
@@ -183,7 +183,7 @@ object sqsS3Parser {
   @JsonCodec @Lenses
   final case class SqsS3File(path: S3Path, size: Long, messageId: String, queueUrl: String)
 
-  /** `https://docs.aws.amazon.com/AmazonS3/latest/userguide/notification-content-structure.html
+  /** `https://docs.aws.amazon.com/AmazonS3/latest/userguide/notification-content-structure.html`
     */
   def apply(msg: SqsMessage): List[SqsS3File] =
     Option(msg.response)
