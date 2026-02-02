@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.guard.action
+package com.github.chenharryhua.nanjin.common
 
 import cats.Endo
 import cats.effect.Temporal
@@ -10,6 +10,44 @@ import com.github.chenharryhua.nanjin.common.chrono.{Policy, TickStatus, TickedV
 import java.time.ZoneId
 import scala.jdk.DurationConverters.JavaDurationOps
 
+/** A typeclass providing retry functionality for effectful computations and resources.
+  *
+  * Retry behavior is governed by a `Policy` and a "worthiness" predicate that decides whether a failed
+  * attempt should be retried.
+  *
+  * Features:
+  *   - Retry any `F[A]` effect.
+  *   - Retry resource acquisition via `Resource[F, A]`.
+  *   - Configurable retry policy and backoff.
+  *   - Optional filter to determine if a failure is worth retrying.
+  *
+  * Example usage:
+  * {{{
+  *
+  * val retryResource: Resource[IO, Retry[IO]] =
+  *   Retry[IO](ZoneId.systemDefault(), _.withPolicy(
+  *     _.fixedRate(1.second)    // retry every second
+  *       .jitter(200.millis, 1.second) // add random jitter
+  *       .limited(5)             // max 5 retries
+  *   ))
+  *
+  * val riskyOp: IO[String] = IO {
+  *   println("Running risky operation")
+  *   if (math.random() < 0.7) throw new RuntimeException("Failed")
+  *   else "Success!"
+  * }
+  *
+  * val program: IO[String] = retryResource.use { r =>
+  *   r(riskyOp)
+  * }
+  *
+  * program.unsafeRunSync()
+  * }}}
+  *
+  * Notes:
+  *   - The `worthy` function can filter which exceptions should trigger a retry.
+  *   - Resource finalizers may run multiple times if retries occur.
+  */
 trait Retry[F[_]] {
   def apply[A](fa: F[A]): F[A]
   def apply[A](rfa: Resource[F, A]): Resource[F, A]

@@ -59,14 +59,14 @@ class InteractiveTest extends AnyFunSuite {
     val res: Stream[IO, List[KeyValue[Int, String]]] =
       for {
         _ <- feedData
-        kss1 <- ctx.buildStreams(appid)(top).kafkaStreams
-        kss2 <- ctx.buildStreams(appid)(gtop).kafkaStreams
+        kss1 <- ctx.buildStreams(appid)(top).singleKafkaStreams
+        kss2 <- ctx.buildStreams(appid)(gtop).singleKafkaStreams
         _ <- Stream.sleep[IO](2.seconds)
       } yield {
         val g: List[KeyValue[Int, String]] =
-          kss1.store(localStore.query.keyValueStore).all().asScala.toList.sortBy(_.key)
+          kss1.store(localStore.queries.keyValueStore).all().asScala.toList.sortBy(_.key)
         val q: List[KeyValue[Int, String]] =
-          kss2.store(globalStore.query.keyValueStore).all().asScala.toList.sortBy(_.key)
+          kss2.store(globalStore.queries.keyValueStore).all().asScala.toList.sortBy(_.key)
         assert(q === g)
         q
       }
@@ -82,13 +82,20 @@ class InteractiveTest extends AnyFunSuite {
       .buildStreams(appid)(top)
       .withProperty(ConsumerConfig.GROUP_ID_CONFIG, "gid")
       .withStartUpTimeout(0.seconds)
-      .stateUpdates
+      .stateUpdatesStream
       .debug()
       .compile
       .drain
     assertThrows[TimeoutException](to1.unsafeRunSync())
     val to2 =
-      ctx.buildStreams(appid)(top).withStartUpTimeout(1.day).kafkaStreams.map(_.state()).debug().compile.drain
+      ctx
+        .buildStreams(appid)(top)
+        .withStartUpTimeout(1.day)
+        .singleKafkaStreams
+        .map(_.state())
+        .debug()
+        .compile
+        .drain
     to2.unsafeRunSync()
   }
 
@@ -96,7 +103,7 @@ class InteractiveTest extends AnyFunSuite {
     println(Console.CYAN + "detect stream stop" + Console.RESET)
     ctx
       .buildStreams(appid)(top)
-      .kafkaStreams
+      .singleKafkaStreams
       .evalMap(ks => IO.sleep(1.seconds) >> IO(ks.close()) >> IO.sleep(1.day))
       .debug()
       .compile
@@ -109,7 +116,7 @@ class InteractiveTest extends AnyFunSuite {
     val to1 =
       ctx
         .buildStreams(appid)(top)
-        .kafkaStreams
+        .singleKafkaStreams
         .evalMap(ks => IO.sleep(1.seconds) >> IO(ks.cleanUp()) >> IO.sleep(1.day))
     assertThrows[IllegalStateException](to1.compile.drain.unsafeRunSync())
   }

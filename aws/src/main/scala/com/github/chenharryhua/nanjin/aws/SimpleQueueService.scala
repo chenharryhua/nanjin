@@ -24,9 +24,9 @@ import scala.jdk.DurationConverters.JavaDurationOps
 /** Represents a single SQS message along with metadata for batch processing.
   *
   * @param request
-  *   the original [[ReceiveMessageRequest]] used to fetch this message
+  *   the original `ReceiveMessageRequest` used to fetch this message
   * @param response
-  *   the raw [[Message]] object from AWS SQS
+  *   the raw `Message` object from AWS SQS
   * @param batchIndex
   *   zero-based index of the batch in which this message was received
   * @param messageIndex
@@ -59,9 +59,9 @@ trait SimpleQueueService[F[_]] {
   /** Streams messages from SQS according to the given request.
     *
     * @param request
-    *   AWS [[ReceiveMessageRequest]] configuration
+    *   AWS `ReceiveMessageRequest` configuration
     * @return
-    *   a stream of [[SqsMessage]]s
+    *   a stream of `SqsMessage`s
     */
   def receive(request: ReceiveMessageRequest): Stream[F, SqsMessage]
 
@@ -73,7 +73,7 @@ trait SimpleQueueService[F[_]] {
     * @param msg
     *   the message to delete
     * @return
-    *   AWS [[DeleteMessageResponse]]
+    *   AWS `DeleteMessageResponse`
     */
   def delete(msg: SqsMessage): F[DeleteMessageResponse]
 
@@ -82,16 +82,16 @@ trait SimpleQueueService[F[_]] {
     * @param msg
     *   the message to reset
     * @return
-    *   AWS [[ChangeMessageVisibilityResponse]]
+    *   AWS `ChangeMessageVisibilityResponse`
     */
   def resetVisibility(msg: SqsMessage): F[ChangeMessageVisibilityResponse]
 
   /** Sends a message to SQS using the given request.
     *
     * @param msg
-    *   AWS [[SendMessageRequest]] configuration
+    *   AWS `SendMessageRequest` configuration
     * @return
-    *   AWS [[SendMessageResponse]]
+    *   AWS `SendMessageResponse`
     */
   def sendMessage(msg: SendMessageRequest): F[SendMessageResponse]
 
@@ -120,7 +120,7 @@ object SimpleQueueService {
     override def receive(request: ReceiveMessageRequest): Stream[F, SqsMessage] = {
 
       // when no data can be retrieved, the delay policy will be applied
-      // [[https://cb372.github.io/cats-retry/docs/policies.html]]
+      // `https://cb372.github.io/cats-retry/docs/policies.html`
       def receiving(status: TickStatus, batchIndex: Long): Pull[F, SqsMessage, Unit] =
         Pull.eval(blockingF(client.receiveMessage(request), name, logger)).flatMap { rmr =>
           val messages: mutable.Buffer[Message] = rmr.messages.asScala
@@ -183,7 +183,7 @@ object sqsS3Parser {
   @JsonCodec @Lenses
   final case class SqsS3File(path: S3Path, size: Long, messageId: String, queueUrl: String)
 
-  /** [[https://docs.aws.amazon.com/AmazonS3/latest/userguide/notification-content-structure.html]]
+  /** `https://docs.aws.amazon.com/AmazonS3/latest/userguide/notification-content-structure.html`
     */
   def apply(msg: SqsMessage): List[SqsS3File] =
     Option(msg.response)

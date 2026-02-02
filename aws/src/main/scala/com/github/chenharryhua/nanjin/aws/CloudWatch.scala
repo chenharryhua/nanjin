@@ -20,20 +20,20 @@ trait CloudWatch[F[_]] {
   /** Sends a CloudWatch metric using the given request.
     *
     * @param request
-    *   the AWS [[PutMetricDataRequest]] to send
+    *   the AWS `PutMetricDataRequest` to send
     * @return
-    *   the AWS [[PutMetricDataResponse]] wrapped in F
+    *   the AWS `PutMetricDataResponse` wrapped in F
     */
   def putMetricData(request: PutMetricDataRequest): F[PutMetricDataResponse]
 
   /** Sends a CloudWatch metric using a builder function.
     *
-    * Convenience method to construct a [[PutMetricDataRequest]] using a builder function.
+    * Convenience method to construct a `PutMetricDataRequest` using a builder function.
     *
     * @param f
-    *   function to modify a [[PutMetricDataRequest.Builder]]
+    *   function to modify a `PutMetricDataRequest.Builder`
     * @return
-    *   the AWS [[PutMetricDataResponse]] wrapped in F
+    *   the AWS `PutMetricDataResponse` wrapped in F
     */
   final def putMetricData(f: Endo[PutMetricDataRequest.Builder]): F[PutMetricDataResponse] =
     putMetricData(f(PutMetricDataRequest.builder()).build())
@@ -45,14 +45,14 @@ object CloudWatch {
 
   /** Creates a managed CloudWatch client.
     *
-    * The returned [[Resource]] ensures proper client shutdown and logging.
+    * The returned `Resource` ensures proper client shutdown and logging.
     *
     * @param f
-    *   function to modify a [[CloudWatchClientBuilder]]
+    *   function to modify a `CloudWatchClientBuilder`
     * @param F
     *   async effect type
     * @return
-    *   a resource wrapping [[CloudWatch]] implementation
+    *   a resource wrapping `CloudWatch` implementation
     */
   def apply[F[_]](f: Endo[CloudWatchClientBuilder])(implicit F: Async[F]): Resource[F, CloudWatch[F]] =
     for {

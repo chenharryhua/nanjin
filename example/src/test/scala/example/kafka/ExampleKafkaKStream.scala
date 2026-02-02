@@ -22,6 +22,6 @@ class ExampleKafkaKStream extends AnyFunSuite {
         .to(barTopic.topicName.name.value)
     }
 
-    ctx.buildStreams("app")(top).stateUpdates.interruptAfter(3.seconds).compile.drain.unsafeRunSync()
+    ctx.buildStreams("app")(top).stateUpdatesStream.interruptAfter(3.seconds).compile.drain.unsafeRunSync()
   }
 }

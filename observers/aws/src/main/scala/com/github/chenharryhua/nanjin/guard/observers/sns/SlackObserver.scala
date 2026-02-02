@@ -20,7 +20,7 @@ object SlackObserver {
     new SlackObserver[F](client, SlackTranslator[F])
 }
 
-/** Notes: slack messages [[https://api.slack.com/docs/messages/builder]]
+/** Notes: slack messages `https://api.slack.com/docs/messages/builder`
   */
 
 final class SlackObserver[F[_]: Clock](

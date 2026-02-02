@@ -157,7 +157,7 @@ final class SparKafkaContext[F[_]](val sparkSession: SparkSession, val kafkaCont
     * @return
     *   number of records uploaded
     *
-    * [[https://www.conduktor.io/kafka/kafka-producer-batching/]]
+    * `https://www.conduktor.io/kafka/kafka-producer-batching/`
     */
 
   def upload[K, V](avroTopic: AvroTopic[K, V], folder: Url, updateConfig: Endo[UploadConfig] = identity)(

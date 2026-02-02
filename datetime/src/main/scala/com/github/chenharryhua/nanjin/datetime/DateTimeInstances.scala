@@ -8,7 +8,7 @@ import java.sql.{Date, Timestamp}
 import scala.concurrent.duration.FiniteDuration
 import scala.jdk.DurationConverters.{JavaDurationOps, ScalaDurationOps}
 
-/** [[https://typelevel.org/cats-time/]]
+/** `https://typelevel.org/cats-time/`
   */
 trait DateTimeInstances extends all {
 

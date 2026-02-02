@@ -81,9 +81,9 @@ final class KafkaStreamsBuilder[F[_]] private (
 
   /** one object KafkaStreams stream. for interactive state store query
     */
-  lazy val kafkaStreams: Stream[F, KafkaStreams] = kickoff(None)
+  lazy val singleKafkaStreams: Stream[F, KafkaStreams] = kickoff(None)
 
-  lazy val stateUpdates: Stream[F, StateUpdate] = for {
+  lazy val stateUpdatesStream: Stream[F, StateUpdate] = for {
     bus <- Stream.eval(Channel.unbounded[F, StateUpdate])
     _ <- kickoff(Some(bus))
     state <- bus.stream
@@ -102,6 +102,15 @@ final class KafkaStreamsBuilder[F[_]] private (
     new KafkaStreamsBuilder[F](
       applicationId = applicationId,
       streamSettings = streamSettings.withProperty(key, value),
+      schemaRegistrySettings = schemaRegistrySettings,
+      top = top,
+      startUpTimeout = startUpTimeout
+    )
+
+  def withProperties(map: Map[String, String]): KafkaStreamsBuilder[F] =
+    new KafkaStreamsBuilder[F](
+      applicationId = applicationId,
+      streamSettings = map.foldLeft(streamSettings) { case (ss, (k, v)) => ss.withProperty(k, v) },
       schemaRegistrySettings = schemaRegistrySettings,
       top = top,
       startUpTimeout = startUpTimeout

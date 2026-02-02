@@ -9,7 +9,7 @@ import doobie.implicits.toSqlInterpolator
 import doobie.util.log.LogHandler
 import fs2.Stream
 
-/** [[https://tpolecat.github.io/doobie/]]
+/** `https://tpolecat.github.io/doobie/`
   * @param cfg
   *   initial HikariConfig
   * @param updateOps

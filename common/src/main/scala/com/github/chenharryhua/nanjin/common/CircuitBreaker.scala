@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.guard.action
+package com.github.chenharryhua.nanjin.common
 
 import cats.Endo
 import cats.effect.implicits.genSpawnOps

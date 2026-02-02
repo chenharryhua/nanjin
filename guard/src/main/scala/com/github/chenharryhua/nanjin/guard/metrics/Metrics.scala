@@ -51,7 +51,7 @@ trait Metrics[F[_]] {
   def activeGauge(name: String, f: Endo[Gauge.Builder] = identity): Resource[F, ActiveGauge[F]]
 
   def permanentCounter(name: String, f: Endo[Gauge.Builder] = identity): Resource[F, Counter[F]]
-  def deltaCounter(name: String, f: Endo[Gauge.Builder]): Resource[F, Counter[F]]
+  def deltaCounter(name: String, f: Endo[Gauge.Builder] = identity): Resource[F, Counter[F]]
 
   def txnGauge[A: Encoder](stm: STM[F], initial: A)(name: String): Resource[F, stm.TVar[A]]
 }

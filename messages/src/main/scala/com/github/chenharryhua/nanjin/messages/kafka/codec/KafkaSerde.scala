@@ -5,7 +5,7 @@ import org.apache.kafka.common.serialization.{Deserializer, Serde, Serializer}
 
 import scala.jdk.CollectionConverters.*
 
-/** [[https://github.com/sksamuel/avro4s]]
+/** `https://github.com/sksamuel/avro4s`
   */
 
 /** @param topicName
