@@ -10,11 +10,12 @@ import mtest.spark.kafka.sparKafka
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.util.Random
+import org.apache.spark.rdd.RDD
 
 class SortTest extends AnyFunSuite {
   val topic = AvroTopic[Int, Int](TopicName("topic"))
 
-  val data = List(
+  val data: List[NJConsumerRecord[Int, Int]] = List(
     NJConsumerRecord[Int, Int]("topic", 0, 0, 40, 0, Nil, None, -1, -1, Some(0), Some(Random.nextInt())),
     NJConsumerRecord[Int, Int]("topic", 0, 1, 30, 0, Nil, None, -1, -1, Some(0), Some(Random.nextInt())),
     NJConsumerRecord[Int, Int]("topic", 0, 2, 20, 0, Nil, None, -1, -1, Some(0), Some(Random.nextInt())),
@@ -26,7 +27,7 @@ class SortTest extends AnyFunSuite {
     NJConsumerRecord[Int, Int]("topic", 2, 100, 100, 0, Nil, None, -1, -1, Some(2), Some(Random.nextInt())),
     NJConsumerRecord[Int, Int]("topic", 2, 100, 100, 0, Nil, None, -1, -1, Some(2), Some(Random.nextInt()))
   )
-  val rdd = sparKafka.sparkSession.sparkContext.parallelize(data)
+  val rdd: RDD[NJConsumerRecord[Int, Int]] = sparKafka.sparkSession.sparkContext.parallelize(data)
   val crRdd = new CrRdd[Int, Int](rdd, sparKafka.sparkSession)
   val prRdd = crRdd.prRdd
 

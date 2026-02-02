@@ -59,7 +59,7 @@ class CrPrTest extends AnyFunSuite {
       sparKafka.sparkSession
     )
 
-  val expectSchema = StructType(
+  val expectSchema: StructType = StructType(
     List(
       StructField("partition", IntegerType, false),
       StructField("offset", LongType, false),

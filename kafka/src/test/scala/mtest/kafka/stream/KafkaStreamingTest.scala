@@ -19,6 +19,7 @@ import org.scalatest.{BeforeAndAfter, DoNotDiscover}
 import scala.concurrent.duration.*
 import fs2.Chunk
 import org.apache.kafka.clients.producer.RecordMetadata
+import com.github.chenharryhua.nanjin.kafka.RegisteredSchemaID
 
 object KafkaStreamingData {
 
@@ -33,10 +34,11 @@ object KafkaStreamingData {
   val t2Topic: AvroTopic[Int, TableTwo] =
     AvroTopic[Int, TableTwo](TopicName("stream.test.join.table.two"))
 
-  val tgt = AvroTopic[Int, StreamTarget](TopicName("stream.test.join.target"))
+  val tgt: AvroTopic[Int, StreamTarget] = AvroTopic[Int, StreamTarget](TopicName("stream.test.join.target"))
   val serde: KafkaGenericSerde[Int, StreamTarget] = ctx.serde(tgt)
 
-  val register = ctx.schemaRegistry.register(s1Def) >> ctx.schemaRegistry.register(t2Topic)
+  val register: IO[RegisteredSchemaID] =
+    ctx.schemaRegistry.register(s1Def) >> ctx.schemaRegistry.register(t2Topic)
 
   val sendT2Data: IO[Chunk[RecordMetadata]] =
     ctx

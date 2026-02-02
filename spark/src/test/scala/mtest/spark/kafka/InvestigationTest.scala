@@ -45,7 +45,7 @@ object InvestigationTestData {
     NJConsumerRecord("topic", 1, 6, 60, 0, Nil, None, -1, -1, Some("mike6"), Some(Mouse(6, 0.6f)))
   )
 
-  val mouses5 = List( // missing (1,5)
+  val mouses5: List[MetaInfo] = List( // missing (1,5)
     MetaInfo("topic", 0, 1, 1, 0.some, -1, -1),
     MetaInfo("topic", 0, 2, 2, 0.some, -1, -1),
     MetaInfo("topic", 0, 3, 3, 0.some, -1, -1),
@@ -53,7 +53,7 @@ object InvestigationTestData {
     MetaInfo("topic", 1, 6, 6, 0.some, -1, -1)
   )
 
-  val mouses6 = List( // (0,2) duplicate
+  val mouses6: List[MetaInfo] = List( // (0,2) duplicate
     MetaInfo("topic", 0, 1, 1, 0.some, -1, -1),
     MetaInfo("topic", 0, 2, 2, 0.some, -1, -1),
     MetaInfo("topic", 0, 2, 3, 0.some, -1, -1),

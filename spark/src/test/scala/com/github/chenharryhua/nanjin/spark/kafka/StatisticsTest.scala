@@ -14,7 +14,7 @@ object StatisticsTestData {
   val dt: NJTimestamp = NJTimestamp("2012-10-26T18:00:00Z")
   val unit: Long = 1000 * 3600 * 24 // a day
 
-  val list = List(
+  val list: List[MetaInfo] = List(
     MetaInfo("topic", 0, 0, dt.plus(unit * 1).milliseconds, 0.some, -1, -1),
     MetaInfo("topic", 0, 2, dt.plus(unit * 3).milliseconds, 0.some, -1, -1),
     MetaInfo("topic", 0, 3, dt.plus(unit * 4).milliseconds, 0.some, -1, -1),

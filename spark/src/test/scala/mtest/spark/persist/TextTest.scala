@@ -9,10 +9,11 @@ import io.lemonlabs.uri.typesafe.dsl.*
 import mtest.spark.*
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
+import com.github.chenharryhua.nanjin.spark.persist.SaveText
 @DoNotDiscover
 class TextTest extends AnyFunSuite {
   import TabletData.*
-  def saver(path: Url) = new RddFileHoarder[Tablet](rdd).text(path)
+  def saver(path: Url): SaveText[Tablet] = new RddFileHoarder[Tablet](rdd).text(path)
   val root = "./data/test/spark/persist/text/tablet"
   test("tablet") {
     val path = root / "uncompressed"

@@ -16,8 +16,8 @@ final case class Simple(name: String, count: Int)
 
 class LoadUnload extends AnyFunSuite {
 
-  val avro = AvroTopic[Int, Simple]("spark-avro-simple")
-  val json = JsonTopic[Int, Simple]("spark-json-simple")
+  val avro: AvroTopic[Int, Simple] = AvroTopic[Int, Simple]("spark-avro-simple")
+  val json: JsonTopic[Int, Simple] = JsonTopic[Int, Simple]("spark-json-simple")
 
   val data: List[(Int, Simple)] = List.range(1, 10).map(a => a -> Simple("simple", Random.nextInt(99)))
 
