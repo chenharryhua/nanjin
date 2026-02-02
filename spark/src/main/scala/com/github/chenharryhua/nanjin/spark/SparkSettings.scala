@@ -6,7 +6,7 @@ import org.apache.spark.sql.SparkSession
 
 import java.time.ZoneId
 
-/** [[http://spark.apache.org/]]
+/** `http://spark.apache.org`
   */
 
 final class SparkSettings private (build: Endo[SparkSession.Builder])

@@ -20,50 +20,50 @@ import scalapb.GeneratedMessage
 
 sealed trait FileSink[F[_]] {
 
-  /** [[https://avro.apache.org]]
+  /** `https://avro.apache.org`
     */
   def avro(compression: AvroCompression): Pipe[F, GenericRecord, Int]
 
-  /** [[https://avro.apache.org]]
+  /** `https://avro.apache.org`
     */
   def avro(f: AvroCompression.type => AvroCompression): Pipe[F, GenericRecord, Int]
 
-  /** [[https://avro.apache.org]]
+  /** `https://avro.apache.org`
     */
   def avro: Pipe[F, GenericRecord, Int]
 
-  /** [[https://avro.apache.org]]
+  /** `https://avro.apache.org`
     */
   def binAvro: Pipe[F, GenericRecord, Int]
 
-  /** [[https://github.com/FasterXML/jackson]]
+  /** `https://github.com/FasterXML/jackson`
     */
   def jackson: Pipe[F, GenericRecord, Int]
 
-  /** [[https://parquet.apache.org]]
+  /** `https://parquet.apache.org`
     */
   def parquet(f: Endo[AvroParquetWriter.Builder[GenericRecord]]): Pipe[F, GenericRecord, Int]
 
-  /** [[https://parquet.apache.org]]
+  /** `https://parquet.apache.org`
     */
   def parquet: Pipe[F, GenericRecord, Int]
 
   // bytes
   def bytes: Pipe[F, Byte, Int]
 
-  /** [[https://github.com/circe/circe]]
+  /** `https://github.com/circe/circe`
     */
   def circe: Pipe[F, Json, Int]
 
-  /** [[https://nrinaudo.github.io/kantan.csv]]
+  /** `https://nrinaudo.github.io/kantan.csv`
     */
   def kantan(csvConfiguration: CsvConfiguration): Pipe[F, Seq[String], Int]
 
-  /** [[https://nrinaudo.github.io/kantan.csv]]
+  /** `https://nrinaudo.github.io/kantan.csv`
     */
   def kantan(f: Endo[CsvConfiguration]): Pipe[F, Seq[String], Int]
 
-  /** [[https://nrinaudo.github.io/kantan.csv]]
+  /** `https://nrinaudo.github.io/kantan.csv`
     */
   def kantan: Pipe[F, Seq[String], Int]
 
@@ -77,7 +77,7 @@ sealed trait FileSink[F[_]] {
     */
   def protobuf: Pipe[F, GeneratedMessage, Int]
 
-  /** [[https://github.com/FasterXML/jackson-databind]]
+  /** `https://github.com/FasterXML/jackson-databind`
     * @return
     */
   def jsonNode: Pipe[F, JsonNode, Int]

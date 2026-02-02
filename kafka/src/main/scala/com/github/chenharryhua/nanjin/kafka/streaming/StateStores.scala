@@ -102,7 +102,7 @@ final class StateStores[K, V] private (topic: TopicSerde[K, V]) {
   def inMemorySessionStore(retentionPeriod: FiniteDuration): SessionBytesStoreSupplierHelper[K, V] =
     inMemorySessionStore(retentionPeriod.toJava)
 
-  object query {
+  object queries {
     def keyValueStore: StoreQueryParameters[ReadOnlyKeyValueStore[K, V]] =
       StoreQueryParameters.fromNameAndType(name, QueryableStoreTypes.keyValueStore[K, V])
 

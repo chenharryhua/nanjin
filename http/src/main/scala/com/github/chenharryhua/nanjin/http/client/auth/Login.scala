@@ -1,8 +1,8 @@
 package com.github.chenharryhua.nanjin.http.client.auth
 
 import cats.effect.kernel.{Async, Ref, Resource}
-import cats.effect.std.Semaphore
 import cats.syntax.all.*
+import com.github.chenharryhua.nanjin.common.SingleFlight
 import fs2.Stream
 import org.http4s.client.Client
 import org.http4s.{Request, Response, Status}
@@ -42,7 +42,7 @@ trait Login[F[_]] {
     for {
       authToken <- Resource.eval(getToken.flatMap(F.ref))
       _ <- F.background[Nothing](updateToken(authToken).attempt.foreverM)
-      refreshLock <- Resource.eval(Semaphore[F](1))
+      singleFlight <- Resource.eval(SingleFlight.create[F, T])
     } yield Client[F] { req =>
       def runWithToken(token: T): Resource[F, Response[F]] =
         client.run(withToken(token, req))
@@ -50,12 +50,7 @@ trait Login[F[_]] {
       Resource.eval(authToken.get).flatMap { token =>
         runWithToken(token).flatMap { response =>
           if (response.status === Status.Unauthorized) {
-            // Retry once with refreshed token, single-refresh protected by semaphore
-            Resource
-              .eval(refreshLock.permit.use { _ =>
-                getToken.flatTap(authToken.set)
-              })
-              .flatMap(runWithToken)
+            Resource.eval(singleFlight(getToken.flatTap(authToken.set))).flatMap(runWithToken)
           } else Resource.pure(response)
         }
       }

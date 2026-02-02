@@ -109,7 +109,7 @@ private[spark] object DataTypeF {
   private def unionNull(nullable: Boolean, sm: Schema): Schema =
     if (nullable) Schema.createUnion(sm, nullSchema) else sm
 
-  /** [[org.apache.spark.sql.avro.SchemaConverters]] translate decimal to avro fixed type which was not
+  /** `org.apache.spark.sql.avro.SchemaConverters` translate decimal to avro fixed type which was not
     * supported by avro-hugger yet
     */
   def schemaAlgebra(builder: SchemaBuilder.TypeBuilder[Schema]): Algebra[DataTypeF, Schema] =

@@ -8,7 +8,7 @@ import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.common.config.SaslConfigs
 import org.apache.kafka.common.security.auth.SecurityProtocol
 
-/** [[https://kafka.apache.org/]]
+/** `https://kafka.apache.org/`
   */
 
 final case class KafkaConsumerSettings(properties: Map[String, String]) {

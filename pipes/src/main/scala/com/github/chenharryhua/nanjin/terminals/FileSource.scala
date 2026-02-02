@@ -22,14 +22,14 @@ import squants.information.Information
 
 sealed trait FileSource[F[_]] {
 
-  /** [[https://avro.apache.org]]
+  /** `https://avro.apache.org`
     * @param chunkSize
     *   Each chunk of the stream is of uniform size, except for the final chunk, which may be smaller
     *   depending on the remaining data.
     */
   def avro(chunkSize: ChunkSize): Stream[F, GenericData.Record]
 
-  /** [[https://avro.apache.org]]
+  /** `https://avro.apache.org`
     *
     * re-interpret the record according to the reader schema
     *
@@ -41,7 +41,7 @@ sealed trait FileSource[F[_]] {
     */
   def avro(chunkSize: ChunkSize, readerSchema: Schema): Stream[F, GenericData.Record]
 
-  /** [[https://avro.apache.org]]
+  /** `https://avro.apache.org`
     *
     * re-interpret the record according to the reader schema
     *
@@ -55,7 +55,7 @@ sealed trait FileSource[F[_]] {
     */
   def binAvro(chunkSize: ChunkSize, writerSchema: Schema, readerSchema: Schema): Stream[F, GenericData.Record]
 
-  /** [[https://avro.apache.org]]
+  /** `https://avro.apache.org`
     *
     * @param chunkSize
     *   Each chunk of the stream is of uniform size, except for the final chunk, which may be smaller
@@ -65,7 +65,7 @@ sealed trait FileSource[F[_]] {
     */
   def binAvro(chunkSize: ChunkSize, schema: Schema): Stream[F, GenericData.Record]
 
-  /** [[https://github.com/FasterXML/jackson]]
+  /** `https://github.com/FasterXML/jackson`
     *
     * re-interpret the record according to the reader schema
     * @param chunkSize
@@ -78,7 +78,7 @@ sealed trait FileSource[F[_]] {
     */
   def jackson(chunkSize: ChunkSize, writerSchema: Schema, readerSchema: Schema): Stream[F, GenericData.Record]
 
-  /** [[https://github.com/FasterXML/jackson]]
+  /** `https://github.com/FasterXML/jackson`
     * @param chunkSize
     *   Each chunk of the stream is of uniform size, except for the final chunk, which may be smaller
     *   depending on the remaining data.
@@ -93,14 +93,14 @@ sealed trait FileSource[F[_]] {
     */
   def bytes(bufferSize: Information): Stream[F, Byte]
 
-  /** [[https://github.com/circe/circe]]
+  /** `https://github.com/circe/circe`
     * @param chunkSize
     *   Each chunk of the stream is of uniform size, except for the final chunk, which may be smaller
     *   depending on the remaining data.
     */
   def circe(chunkSize: ChunkSize): Stream[F, Json]
 
-  /** [[https://nrinaudo.github.io/kantan.csv]]
+  /** `https://nrinaudo.github.io/kantan.csv`
     * @param chunkSize
     *   Each chunk of the stream is of uniform size, except for the final chunk, which may be smaller
     *   depending on the remaining data.
@@ -109,21 +109,21 @@ sealed trait FileSource[F[_]] {
     */
   def kantan(chunkSize: ChunkSize, csvConfiguration: CsvConfiguration): Stream[F, Seq[String]]
 
-  /** [[https://nrinaudo.github.io/kantan.csv]]
+  /** `https://nrinaudo.github.io/kantan.csv`
     * @param chunkSize
     *   Each chunk of the stream is of uniform size, except for the final chunk, which may be smaller
     *   depending on the remaining data.
     */
   def kantan(chunkSize: ChunkSize, f: Endo[CsvConfiguration]): Stream[F, Seq[String]]
 
-  /** [[https://nrinaudo.github.io/kantan.csv]]
+  /** `https://nrinaudo.github.io/kantan.csv`
     * @param chunkSize
     *   Each chunk of the stream is of uniform size, except for the final chunk, which may be smaller
     *   depending on the remaining data.
     */
   def kantan(chunkSize: ChunkSize): Stream[F, Seq[String]]
 
-  /** [[https://parquet.apache.org]]
+  /** `https://parquet.apache.org`
     * @param chunkSize
     *   Each chunk of the stream is of uniform size, except for the final chunk, which may be smaller
     *   depending on the remaining data.
@@ -132,7 +132,7 @@ sealed trait FileSource[F[_]] {
     chunkSize: ChunkSize,
     f: Endo[ParquetReader.Builder[GenericData.Record]] = identity): Stream[F, GenericData.Record]
 
-  /** [[https://parquet.apache.org]]
+  /** `https://parquet.apache.org`
     * @param chunkSize
     *   Each chunk of the stream is of uniform size, except for the final chunk, which may be smaller
     *   depending on the remaining data.
@@ -148,7 +148,7 @@ sealed trait FileSource[F[_]] {
   /** Any proto in serialized form must be <2GiB, as that is the maximum size supported by all
     * implementations. It’s recommended to bound request and response sizes.
     *
-    * [[https://protobuf.dev/programming-guides/proto-limits/#total]]
+    * `https://protobuf.dev/programming-guides/proto-limits/#total`
     * @param chunkSize
     *   Each chunk of the stream is of uniform size, except for the final chunk, which may be smaller
     *   depending on the remaining data.

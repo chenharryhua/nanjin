@@ -91,7 +91,7 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
     val res: Set[StreamTarget] = (IO.println(Console.CYAN + "stream-table join" + Console.RESET) >> ctx
       .buildStreams(appId)(apps.kafka_streaming)
       .withProperty(StreamsConfig.TOPOLOGY_OPTIMIZATION_CONFIG, StreamsConfig.OPTIMIZE)
-      .kafkaStreams
+      .singleKafkaStreams
       .concurrently(sendS1Data)
       .flatMap(_ => harvest.interruptAfter(10.seconds))
       .compile
@@ -109,7 +109,7 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
 
     (IO.println(Console.CYAN + "kafka stream should be able to be closed" + Console.RESET) >> ctx
       .buildStreams("app-close")(apps.kafka_streaming)
-      .kafkaStreams
+      .singleKafkaStreams
       .flatMap(ks =>
         Stream
           .fixedRate[IO](1.seconds)
@@ -155,7 +155,7 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
     assertThrows[Exception](
       (IO.println(Console.CYAN + "kafka stream exception" + Console.RESET) >> ctx
         .buildStreams(appId)(top)
-        .stateUpdates
+        .stateUpdatesStream
         .debug()
         .concurrently(sendS1Data)
         .concurrently(harvest)

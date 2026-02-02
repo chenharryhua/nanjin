@@ -23,8 +23,13 @@ object Hadoop {
 
 final class Hadoop[F[_]] private (config: Configuration) {
 
-  // disk operations
-
+  /** Delete a path recursively.
+    *
+    * @param path
+    *   Path to delete
+    * @return
+    *   true if deletion succeeded, false otherwise
+    */
   def delete(path: Url)(implicit F: Sync[F]): F[Boolean] =
     F.blocking {
       val hp: Path = toHadoopPath(path)
@@ -32,6 +37,11 @@ final class Hadoop[F[_]] private (config: Configuration) {
       fs.delete(hp, true)
     }
 
+  /** Check whether a path exists.
+    *
+    * @param path
+    *   Path to check
+    */
   def isExist(path: Url)(implicit F: Sync[F]): F[Boolean] =
     F.blocking {
       val hp: Path = toHadoopPath(path)
@@ -39,8 +49,12 @@ final class Hadoop[F[_]] private (config: Configuration) {
       fs.exists(hp)
     }
 
-  /** hadoop listFiles
+  /** Recursively list all files under the given path.
+    *
+    * @param path
+    *   Root path
     * @return
+    *   All located file statuses
     */
   def locatedFileStatus(path: Url)(implicit F: Sync[F]): F[List[LocatedFileStatus]] =
     F.blocking {
@@ -52,10 +66,12 @@ final class Hadoop[F[_]] private (config: Configuration) {
       lb.toList
     }
 
-  /** retrieve all folder names which contain files under path folder
+  /** Retrieve all folders that contain at least one file under the given path.
+    *
+    * Non-leaf directories that contain no files are excluded.
+    *
     * @param path
-    *   search root
-    * @return
+    *   Search root
     */
   def dataFolders(path: Url)(implicit F: Sync[F]): F[List[Url]] =
     F.blocking {
@@ -67,10 +83,14 @@ final class Hadoop[F[_]] private (config: Configuration) {
       lb.toList.map(p => Uri(p.toUri).toUrl)
     }
 
-  /** retrieve file name under path folder, sorted by modification time
+  /** List files directly under a path, sorted by modification time.
+    *
+    * If the path is a file, it is returned as a single-element list.
+    *
     * @param path
-    *   root
-    * @return
+    *   Root path
+    * @param filter
+    *   Hadoop path filter
     */
   def filesIn(path: Url, filter: PathFilter)(implicit F: Sync[F]): F[List[Url]] =
     F.blocking {
@@ -90,12 +110,21 @@ final class Hadoop[F[_]] private (config: Configuration) {
   def filesIn(path: Url)(implicit F: Sync[F]): F[List[Url]] =
     filesIn(path, HiddenFileFilter.INSTANCE)
 
-  /** @param path
-    *   the root path where search starts
+  /** Select the best matching sub-path according to a sequence of rules.
+    *
+    * Each rule extracts an ordering key from a directory name. Directories are traversed level by level,
+    * selecting the maximum (or minimum) value at each step.
+    *
+    * Typical use cases include selecting the latest or earliest year/month/day/hour partition.
+    *
+    * @param path
+    *   Root path
     * @param rules
-    *   list of rules. the String looks like Year=2023 or Month=07 or Day=29
+    *   Non-empty list of directory name parsers
+    * @param Ord
+    *   Ordering for extracted values
     * @return
-    *   the best path according to the rules
+    *   Best matching path, if any
     */
   def best[T](path: Url, rules: NonEmptyList[String => Option[T]])(implicit
     F: Sync[F],
@@ -140,7 +169,15 @@ final class Hadoop[F[_]] private (config: Configuration) {
       F,
       Ordering[Int].reverse)
 
-  /** remove date folders which is not in the given list. folders which are not date folder will be retained
+  /** Apply date-based retention on folders.
+    *
+    * Folders whose extracted date is not present in `keeps` will be deleted. Folders that do not represent a
+    * date are retained.
+    *
+    * @param path
+    *   Root path
+    * @param keeps
+    *   Dates to retain
     */
   def dateFolderRetention(path: Url, keeps: List[LocalDate])(implicit
     F: Sync[F]): F[List[RetentionFolderStatus]] =
@@ -180,10 +217,21 @@ final class Hadoop[F[_]] private (config: Configuration) {
 
   def sink(url: Url)(implicit F: Sync[F]): FileSink[F] = new FileSinkImpl[F](config, url)
 
+  /** Create a policy-based rotating sink.
+    *
+    * Rotation is driven by an externally provided tick stream.
+    */
   def rotateSink(ticks: Stream[F, TickedValue[Url]])(implicit F: Async[F]): RotateByPolicy[F] =
     new RotateByPolicySink[F](config, ticks)
 
-  /** Policy based rotation sink
+  /** Create a policy-based rotating sink using a time policy.
+    *
+    * @param zoneId
+    *   Time zone
+    * @param policy
+    *   Rotation policy
+    * @param pathBuilder
+    *   Builds output paths for each rotation
     */
   def rotateSink(zoneId: ZoneId, policy: Policy)(pathBuilder: CreateRotateFile => Url)(implicit
     F: Async[F]): RotateByPolicy[F] =
@@ -192,7 +240,14 @@ final class Hadoop[F[_]] private (config: Configuration) {
       TickedValue(tick, pathBuilder(cfe))
     })
 
-  /** Size based rotation sink
+  /** Create a size-based rotating sink.
+    *
+    * Rotation occurs when the number of elements written reaches `size`.
+    *
+    * @param zoneId
+    *   Time zone
+    * @param size
+    *   Maximum elements per file (must be > 0)
     */
   def rotateSink(zoneId: ZoneId, size: Int)(pathBuilder: CreateRotateFile => Url)(implicit
     F: Async[F]): RotateBySize[F] = {
