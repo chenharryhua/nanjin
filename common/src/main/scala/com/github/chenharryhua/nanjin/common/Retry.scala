@@ -24,6 +24,10 @@ import scala.jdk.DurationConverters.JavaDurationOps
   * Example usage:
   * {{{
   *
+  * import cats.effect.{IO, Resource}
+  * import scala.concurrent.duration.*
+  * import java.time.ZoneId
+  *
   * val retryResource: Resource[IO, Retry[IO]] =
   *   Retry[IO](ZoneId.systemDefault(), _.withPolicy(
   *     _.fixedRate(1.second)    // retry every second

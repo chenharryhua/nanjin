@@ -27,6 +27,6 @@ final class SingleFlight[F[_]: Async, A] private (
 }
 
 object SingleFlight {
-  def create[F[_]: Async, A]: F[SingleFlight[F, A]] =
+  def apply[F[_]: Async, A]: F[SingleFlight[F, A]] =
     Ref.of[F, Option[Deferred[F, Either[Throwable, A]]]](None).map(new SingleFlight[F, A](_))
 }

@@ -42,7 +42,7 @@ trait Login[F[_]] {
     for {
       authToken <- Resource.eval(getToken.flatMap(F.ref))
       _ <- F.background[Nothing](updateToken(authToken).attempt.foreverM)
-      singleFlight <- Resource.eval(SingleFlight.create[F, T])
+      singleFlight <- Resource.eval(SingleFlight[F, T])
     } yield Client[F] { req =>
       def runWithToken(token: T): Resource[F, Response[F]] =
         client.run(withToken(token, req))

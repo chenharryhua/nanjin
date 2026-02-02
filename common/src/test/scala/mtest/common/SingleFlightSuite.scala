@@ -13,7 +13,7 @@ class SingleFlightSuite extends CatsEffectSuite {
 
   test("SingleFlight deduplicates concurrent calls") {
     val prom = for {
-      sf <- SingleFlight.create[IO, Int]
+      sf <- SingleFlight[IO, Int]
       counter <- Ref.of[IO, Int](0)
       effect = counter.updateAndGet(_ + 1) // side-effecting effect
       // Run 5 concurrent fibers
@@ -31,7 +31,7 @@ class SingleFlightSuite extends CatsEffectSuite {
 
   test("SingleFlight propagates errors to all followers") {
     val prom = for {
-      sf <- SingleFlight.create[IO, Int]
+      sf <- SingleFlight.apply[IO, Int]
 
       failing = IO.raiseError[Int](new RuntimeException("boom"))
 
@@ -45,7 +45,7 @@ class SingleFlightSuite extends CatsEffectSuite {
 
   test("SingleFlight allows new calls after completion") {
     val prom = for {
-      sf <- SingleFlight.create[IO, Int]
+      sf <- SingleFlight.apply[IO, Int]
       counter <- Ref.of[IO, Int](0)
       effect = counter.updateAndGet(_ + 1)
       _ <- sf(effect) // first call runs effect
