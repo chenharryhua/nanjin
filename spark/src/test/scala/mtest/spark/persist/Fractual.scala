@@ -45,11 +45,11 @@ object Fractual {
 }
 
 object FractualData {
-  val int = Fractual(Some(Coproduct[Fractual.FType](1)))
-  val string = Fractual(Some(Coproduct[Fractual.FType]("hello world")))
-  val list = Fractual(Some(Coproduct[Fractual.FType](List(int, string))))
-  val map = Fractual(Some(Coproduct[Fractual.FType](Map("a" -> int, "b" -> string, "c" -> list))))
-  val complex = Fractual(Some(Coproduct[Fractual.FType](Map("int" -> int, "map" -> map))))
+  val int: Fractual = Fractual(Some(Coproduct[Fractual.FType](1)))
+  val string: Fractual = Fractual(Some(Coproduct[Fractual.FType]("hello world")))
+  val list: Fractual = Fractual(Some(Coproduct[Fractual.FType](List(int, string))))
+  val map: Fractual = Fractual(Some(Coproduct[Fractual.FType](Map("a" -> int, "b" -> string, "c" -> list))))
+  val complex: Fractual = Fractual(Some(Coproduct[Fractual.FType](Map("int" -> int, "map" -> map))))
 
   val data: List[Fractual] = List(int, string, list, map, complex)
 

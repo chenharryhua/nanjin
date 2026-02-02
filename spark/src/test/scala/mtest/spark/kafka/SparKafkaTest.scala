@@ -38,7 +38,7 @@ class SparKafkaTest extends AnyFunSuite {
   import SparKafkaTestData.*
   implicit val ss: SparkSession = sparkSession
 
-  val topic = AvroTopic[Int, HasDuck](TopicName("duck.test"))
+  val topic: AvroTopic[Int, HasDuck] = AvroTopic[Int, HasDuck](TopicName("duck.test"))
 
   val loadData: IO[Unit] =
     fs2.Stream

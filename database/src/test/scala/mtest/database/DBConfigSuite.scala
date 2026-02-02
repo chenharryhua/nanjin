@@ -9,7 +9,7 @@ import munit.CatsEffectSuite
 class DBConfigSuite extends CatsEffectSuite {
 
   // Dummy Postgres credentials for testing
-  val testDb = Postgres(
+  val testDb: Postgres = Postgres(
     host = "localhost",
     port = 5432,
     database = "postgres",

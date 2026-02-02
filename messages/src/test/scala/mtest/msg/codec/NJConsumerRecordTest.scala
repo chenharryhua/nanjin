@@ -7,7 +7,7 @@ import mtest.msg.codec.ManualAvroSchemaTestData.UnderTest
 import org.scalatest.funsuite.AnyFunSuite
 
 class NJConsumerRecordTest extends AnyFunSuite {
-  val cr = NJConsumerRecord[Int, UnderTest](
+  val cr: NJConsumerRecord[Int, UnderTest] = NJConsumerRecord[Int, UnderTest](
     topic = "test",
     partition = 12,
     offset = 34,

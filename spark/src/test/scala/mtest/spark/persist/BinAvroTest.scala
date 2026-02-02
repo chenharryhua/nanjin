@@ -14,6 +14,7 @@ import io.lemonlabs.uri.typesafe.dsl.*
 import mtest.spark.*
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
+import com.github.chenharryhua.nanjin.spark.LoadRdd
 
 @DoNotDiscover
 class BinAvroTest extends AnyFunSuite {
@@ -31,10 +32,10 @@ class BinAvroTest extends AnyFunSuite {
         hdp.source(_).binAvro(100, Rooster.schema).map(Rooster.avroCodec.decode).compile.toList))
       .map(_.toSet)
 
-  def loadRoosterRdd(path: Url) =
+  def loadRoosterRdd(path: Url): LoadRdd[Rooster] =
     sparkSession.loadRdd[Rooster](path)
 
-  val root = "./data/test/spark/persist/bin_avro/" / "rooster"
+  val root: Url = "./data/test/spark/persist/bin_avro/" / "rooster"
   test("binary avro - uncompressed") {
     val path = root / "rooster" / "uncompressed"
     saver(path).withCompression(_.Uncompressed).run[IO].unsafeRunSync()
@@ -96,7 +97,7 @@ class BinAvroTest extends AnyFunSuite {
     assert(RoosterData.expected == t3)
   }
 
-  val reverseRoot = root / "reverse"
+  val reverseRoot: Url = root / "reverse"
   val toRecord: ToRecord[Rooster] = ToRecord(Rooster.avroCodec)
   test("reverse read/write gzip") {
     val path = reverseRoot / "rooster.binary.avro.gz"

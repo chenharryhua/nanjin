@@ -8,7 +8,7 @@ import org.scalatest.funsuite.AnyFunSuite
 
 object NJDataTypeFTestData {
 
-  val st = StructType(
+  val st: StructType = StructType(
     List(
       StructField("a", ByteType, true),
       StructField("b", ShortType, true),

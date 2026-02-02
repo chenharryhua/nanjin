@@ -8,10 +8,11 @@ import io.lemonlabs.uri.Url
 import mtest.spark.*
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
+import com.github.chenharryhua.nanjin.terminals.Hadoop
 @DoNotDiscover
 class ObjectFileTest extends AnyFunSuite {
   import TabletData.*
-  val hdp = sparkSession.hadoop[IO]
+  val hdp: Hadoop[IO] = sparkSession.hadoop[IO]
   test("object file identity") {
     val path = Url.parse("./data/test/spark/persist/object/tablet.obj")
     val saver = new RddFileHoarder[Tablet](rdd).objectFile(path)

@@ -8,6 +8,8 @@ ThisBuild / Test / logBuffered       := false
 
 Global / parallelExecution := false
 
+inThisBuild(List(semanticdbEnabled := true, semanticdbVersion := scalafixSemanticdb.revision))
+
 // ==========================
 // Versions
 // ==========================
@@ -69,6 +71,7 @@ lazy val commonSettings = List(
     "-Xsource-features:case-apply-copy-access",
     "-Wconf:src=src_managed/.*:silent",
     "-Wtostring-interpolated",
+    "-Wunused:imports",
     "-Vcyclic",
     "-P:acyclic:warn"
   ),

@@ -6,7 +6,7 @@ import org.apache.spark.sql.Dataset
 
 object BeeData {
 
-  val bees = List(Bee(Array(1, 2, 3), 1), Bee(Array(2, 3, 4), 2), Bee(Array(), 3))
+  val bees: List[Bee] = List(Bee(Array(1, 2, 3), 1), Bee(Array(2, 3, 4), 2), Bee(Array(), 3))
 
   val rdd: RDD[Bee] = sparkSession.sparkContext.parallelize(bees)
   import sparkSession.implicits.*

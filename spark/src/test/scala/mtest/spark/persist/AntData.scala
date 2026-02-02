@@ -6,7 +6,7 @@ import org.apache.spark.sql.Dataset
 
 object AntData {
 
-  val ants = List(
+  val ants: List[Ant] = List(
     Ant(List(1), Vector(Legs("a", 1), Legs("b", 2))),
     Ant(List(1, 2), Vector(Legs("a", 1), Legs("b", 2))),
     Ant(List(1, 2, 3), Vector(Legs("a", 1), Legs("b", 2)))

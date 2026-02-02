@@ -22,7 +22,7 @@ object CopData {
   lazy val coRDD: RDD[CoCop] = sparkSession.sparkContext.parallelize(coCops)
   lazy val coDS: Dataset[CoCop] = sparkSession.createDataset(coRDD)
 
-  lazy val cpCops = List(
+  lazy val cpCops: List[CpCop] = List(
     CpCop(1, Coproduct[CoproductCop.Cop](CoproductCop.Domestic())),
     CpCop(2, Coproduct[CoproductCop.Cop](CoproductCop.International()))
   )
