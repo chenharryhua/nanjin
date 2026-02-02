@@ -3,8 +3,8 @@ package mtest.guard
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.toFunctorFilterOps
+import com.github.chenharryhua.nanjin.common.CircuitBreaker
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.action.CircuitBreaker
 import com.github.chenharryhua.nanjin.guard.event.ServiceStopCause
 import com.github.chenharryhua.nanjin.guard.event.eventFilters
 import org.scalatest.funsuite.AnyFunSuite

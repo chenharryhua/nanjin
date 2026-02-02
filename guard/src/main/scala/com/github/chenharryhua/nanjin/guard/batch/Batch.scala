@@ -149,7 +149,7 @@ object Batch {
     def quasiBatch(tracer: TraceJob[F, A]): Resource[F, BatchResultState]
 
     /** Exceptions thrown by individual jobs in the batch are propagated, causing the process to halt at the
-      * point of failure, and fail prediction will cause [[PostConditionUnsatisfied]] exception
+      * point of failure, and fail prediction will cause `PostConditionUnsatisfied` exception
       */
     def batchValue(tracer: TraceJob[F, A]): Resource[F, BatchResultValue[List[A]]]
   }

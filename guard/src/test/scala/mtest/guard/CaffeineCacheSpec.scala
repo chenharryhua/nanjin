@@ -4,7 +4,7 @@ import cats.effect.kernel.Async
 import cats.effect.unsafe.IORuntime
 import cats.effect.{Deferred, IO, Resource}
 import com.github.benmanes.caffeine.cache.Caffeine
-import com.github.chenharryhua.nanjin.guard.action.CaffeineCache
+import com.github.chenharryhua.nanjin.guard.service.CaffeineCache
 import org.scalatest.flatspec.AsyncFlatSpec
 import org.scalatest.matchers.should.Matchers
 

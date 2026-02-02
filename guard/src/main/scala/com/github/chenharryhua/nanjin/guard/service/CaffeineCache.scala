@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.guard.action
+package com.github.chenharryhua.nanjin.guard.service
 
 import cats.effect.implicits.monadCancelOps_
 import cats.effect.kernel.{Async, Deferred, Ref, Resource}

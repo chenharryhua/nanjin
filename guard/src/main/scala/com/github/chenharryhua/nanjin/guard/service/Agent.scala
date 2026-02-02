@@ -5,8 +5,8 @@ import cats.effect.kernel.{Async, Ref, Resource}
 import cats.effect.std.{AtomicCell, Dispatcher}
 import com.codahale.metrics.MetricRegistry
 import com.github.benmanes.caffeine.cache.Cache
+import com.github.chenharryhua.nanjin.common.{CircuitBreaker, Retry}
 import com.github.chenharryhua.nanjin.common.chrono.*
-import com.github.chenharryhua.nanjin.guard.action.{CaffeineCache, CircuitBreaker, Retry}
 import com.github.chenharryhua.nanjin.guard.batch.{Batch, LightBatch}
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.event.*
