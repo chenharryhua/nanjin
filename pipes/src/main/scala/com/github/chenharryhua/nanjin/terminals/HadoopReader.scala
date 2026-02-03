@@ -16,8 +16,8 @@ import org.apache.avro.file.DataFileStream
 import org.apache.avro.generic.{GenericData, GenericDatumReader}
 import org.apache.avro.io.{Decoder, DecoderFactory}
 import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.fs.{FSDataInputStream, Path}
-import org.apache.hadoop.io.compress.{CodecPool, CompressionCodecFactory, Decompressor}
+import org.apache.hadoop.fs.Path
+import org.apache.hadoop.io.compress.{CodecPool, CompressionCodecFactory}
 import org.apache.parquet.hadoop.ParquetReader
 import org.typelevel.jawn.AsyncParser
 import scalapb.{GeneratedMessage, GeneratedMessageCompanion}
@@ -64,49 +64,53 @@ private object HadoopReader {
    */
 
   private def inputStreamR[F[_]](configuration: Configuration, url: Url)(implicit
-    F: Sync[F]): Resource[F, InputStream] =
-    Resource.fromAutoCloseable(F.blocking {
-      val path = toHadoopPath(url)
-      val is: FSDataInputStream = path.getFileSystem(configuration).open(path)
+    F: Sync[F]): Resource[F, InputStream] = {
+    val path = toHadoopPath(url)
+    Resource.fromAutoCloseable(F.blocking(path.getFileSystem(configuration).open(path))).flatMap { is =>
       Option(new CompressionCodecFactory(configuration).getCodec(path)) match {
         case Some(cc) =>
-          val decompressor: Decompressor = CodecPool.getDecompressor(cc)
-          cc.createInputStream(is, decompressor)
-        case None => is
+          Resource
+            .make(F.blocking(CodecPool.getDecompressor(cc))) { dc =>
+              F.blocking(CodecPool.returnDecompressor(dc))
+            }
+            .map(dc => cc.createInputStream(is, dc))
+        case None => Resource.pure(is)
       }
-    })
+    }
+  }
 
   private def inputStreamS[F[_]](configuration: Configuration, url: Url)(implicit
     F: Sync[F]): Stream[F, InputStream] = Stream.resource[F, InputStream](inputStreamR(configuration, url))
 
+  // DataFileStream does not own resources beyond the InputStream
   def avroS[F[_]](configuration: Configuration, url: Url, chunkSize: ChunkSize, readerSchema: Option[Schema])(
     implicit F: Sync[F]): Stream[F, GenericData.Record] =
-    inputStreamS[F](configuration, url)
-      .map(is =>
-        new DataFileStream[GenericData.Record](
-          is,
-          readerSchema match {
-            case Some(schema) => new GenericDatumReader(null, schema)
-            case None         => new GenericDatumReader()
-          }))
-      .flatMap(dfs => Stream.fromBlockingIterator[F](dfs.iterator().asScala, chunkSize.value))
+    inputStreamS[F](configuration, url).flatMap { is =>
+      val dfs = new DataFileStream[GenericData.Record](
+        is,
+        readerSchema match {
+          case Some(schema) => new GenericDatumReader(null, schema)
+          case None         => new GenericDatumReader()
+        })
+      Stream.fromBlockingIterator[F](dfs.iterator().asScala, chunkSize.value)
+    }
 
   // respect chunk size
   def byteS[F[_]](configuration: Configuration, url: Url, bs: Information)(implicit
     F: Sync[F]): Stream[F, Byte] =
     inputStreamS[F](configuration, url).flatMap { (is: InputStream) =>
       val bufferSize: Int = bs.toBytes.toInt
-      val buffer: Array[Byte] = Array.ofDim[Byte](bufferSize)
 
       @tailrec
-      def go(offset: Int): (Chunk[Byte], Option[Int]) = {
+      def go(offset: Int, buffer: Array[Byte]): (Chunk[Byte], Option[Int]) = {
         val numBytes = is.read(buffer, offset, bufferSize - offset)
         if (numBytes === -1) (Chunk.array(buffer, 0, offset), None)
         else if ((numBytes + offset) === bufferSize) (Chunk.array(buffer), 0.some)
-        else go(offset + numBytes)
+        else go(offset + numBytes, buffer)
       }
 
-      Stream.unfoldChunkLoopEval[F, Int, Byte](0)(offset => F.blocking(go(offset)))
+      Stream.unfoldChunkLoopEval[F, Int, Byte](0)(offset =>
+        F.blocking(go(offset, Array.ofDim[Byte](bufferSize))))
     }
 
   def jawnS[F[_]](configuration: Configuration, url: Url, chunkSize: ChunkSize)(implicit
@@ -236,7 +240,7 @@ private object HadoopReader {
     url: Url,
     chunkSize: ChunkSize)(implicit gmc: GeneratedMessageCompanion[A]): Stream[F, A] =
     inputStreamS[F](configuration, url).flatMap { is =>
-      Stream.fromIterator[F](gmc.streamFromDelimitedInput(is).iterator, chunkSize.value)
+      Stream.fromBlockingIterator[F](gmc.streamFromDelimitedInput(is).iterator, chunkSize.value)
     }
 
 }
