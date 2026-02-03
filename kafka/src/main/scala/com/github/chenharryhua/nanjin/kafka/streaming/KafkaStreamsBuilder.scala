@@ -11,8 +11,8 @@ import fs2.concurrent.Channel
 import io.circe.{Encoder, Json}
 import io.scalaland.enumz.Enum
 import org.apache.kafka.streams.KafkaStreams.State
-import org.apache.kafka.streams.scala.StreamsBuilder
 import org.apache.kafka.streams.{KafkaStreams, StreamsConfig, Topology}
+import org.apache.kafka.streams.scala.StreamsBuilder
 
 import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.jdk.CollectionConverters.MapHasAsJava

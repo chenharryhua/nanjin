@@ -5,8 +5,8 @@ import cats.effect.kernel.{Async, Resource, Sync}
 import cats.syntax.all.*
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
-import software.amazon.awssdk.services.cloudwatch.model.{PutMetricDataRequest, PutMetricDataResponse}
 import software.amazon.awssdk.services.cloudwatch.{CloudWatchClient, CloudWatchClientBuilder}
+import software.amazon.awssdk.services.cloudwatch.model.{PutMetricDataRequest, PutMetricDataResponse}
 
 /** A simplified Cats Effect wrapper for AWS CloudWatch.
   *

@@ -41,6 +41,6 @@ object salesforce_client {
   private val client: Resource[IO, Client[IO]] =
     credential.flatMap(_.loginR(EmberClientBuilder.default[IO].build))
 
-  val get = client.use(_.expect[String]("path"))
+  val get: IO[String] = client.use(_.expect[String]("path"))
 
 }

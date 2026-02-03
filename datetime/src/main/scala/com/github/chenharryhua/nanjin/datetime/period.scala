@@ -1,10 +1,9 @@
 package com.github.chenharryhua.nanjin.datetime
 import cats.data.{NonEmptyList, Validated}
-
-import java.time.Period
 import cats.parse.{Numbers, Parser, Parser0, Rfc5234}
 import org.apache.commons.lang3.exception.ExceptionUtils
 
+import java.time.Period
 import scala.util.Try
 
 object period {

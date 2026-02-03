@@ -1,8 +1,8 @@
 package com.github.chenharryhua.nanjin.common.chrono
 
+import cats.{Functor, Show}
 import cats.data.NonEmptyList
 import cats.syntax.all.*
-import cats.{Functor, Show}
 import cron4s.CronExpr
 import cron4s.lib.javatime.javaTemporalInstance
 import cron4s.syntax.all.*
@@ -253,7 +253,7 @@ private object PolicyF extends all {
           .orElse(repeat(hc))
 
       result match {
-        case Left(value)  => throw value
+        case Left(value)  => throw value // scalafix:ok
         case Right(value) => value
       }
     }

@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.common
 
-import cats.implicits.toBifunctorOps
 import cats.{Order, Show}
+import cats.implicits.toBifunctorOps
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.refineV
 import eu.timepit.refined.string.MatchesRegex
@@ -24,7 +24,7 @@ object kafka {
     def from(str: String): Either[Exception, TopicName] = trans(str).leftMap(new Exception(_))
 
     def unsafeFrom(str: String): TopicName = from(str) match {
-      case Left(value)  => throw value
+      case Left(value)  => throw value // scalafix:ok
       case Right(value) => value
     }
 

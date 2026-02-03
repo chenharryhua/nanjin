@@ -5,7 +5,6 @@ import cats.effect.unsafe.implicits.global
 import cats.implicits.toTraverseOps
 import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
-import com.github.chenharryhua.nanjin.messages.kafka.codec.{genericRecord2JsonNode, jsonNode2GenericRecord}
 import com.github.chenharryhua.nanjin.terminals.{FileKind, JacksonFile}
 import eu.timepit.refined.auto.*
 import fs2.Stream
@@ -19,6 +18,8 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.ZoneId
 import scala.concurrent.duration.DurationDouble
+import com.github.chenharryhua.nanjin.messages.kafka.codec.genericRecord2JsonNode
+import com.github.chenharryhua.nanjin.messages.kafka.codec.jsonNode2GenericRecord
 
 class NJJsonNodeTest extends AnyFunSuite {
   import HadoopTestData.*

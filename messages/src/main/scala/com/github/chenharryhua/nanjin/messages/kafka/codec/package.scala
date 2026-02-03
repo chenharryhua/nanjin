@@ -128,7 +128,7 @@ package object codec {
   def immigrate(schema: Schema, getGenericRecord: => GenericRecord): Try[GenericData.Record] =
     Using(new ByteArrayOutputStream()) { baos =>
       val gr: GenericRecord = getGenericRecord
-      if (gr == null) null
+      if (gr eq null) null
       else {
         val encoder: BinaryEncoder = EncoderFactory.get().binaryEncoder(baos, null)
         new GenericDatumWriter[GenericRecord](gr.getSchema).write(gr, encoder)

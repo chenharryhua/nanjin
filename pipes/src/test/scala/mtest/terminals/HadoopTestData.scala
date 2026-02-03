@@ -1,13 +1,13 @@
 package mtest.terminals
 
 import cats.effect.IO
-import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.terminals.Hadoop
 import org.apache.avro.Schema
 import org.apache.avro.generic.{GenericData, GenericRecord}
 import org.apache.hadoop.conf.Configuration
 
 import scala.util.Random
+import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 object HadoopTestData {
 
   val pandaSchema: Schema = (new Schema.Parser).parse("""

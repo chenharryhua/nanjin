@@ -31,10 +31,11 @@ final private class PushGenericRecord(
           case gr: GenericRecord =>
             immigrate(pair.key.rawSchema(), gr) match {
               case Success(value) => ser.serialize(topic, value)
-              case Failure(ex)    => throw new Exception("unable immigrate key", ex)
+              case Failure(ex)    => throw new Exception("unable immigrate key", ex) // scalafix:ok
             }
           case null  => null
-          case other => throw new Exception(s"${other.getClass.getName} (key) is not Generic Record")
+          case other =>
+            throw new Exception(s"${other.getClass.getName} (key) is not Generic Record") // scalafix:ok
         }
 
       case Schema.Type.STRING =>
@@ -74,7 +75,7 @@ final private class PushGenericRecord(
           case data => ser.serialize(topic, Decoder[Array[Byte]].decode(data))
         }
 
-      case us => throw new RuntimeException(s"unsupported key schema: ${us.toString}")
+      case us => sys.error(s"unsupported key schema: ${us.toString}")
     }
 
   private val val_serialize: AnyRef => Array[Byte] =
@@ -87,10 +88,11 @@ final private class PushGenericRecord(
           case gr: GenericRecord =>
             immigrate(pair.value.rawSchema(), gr) match {
               case Success(value) => ser.serialize(topic, value)
-              case Failure(ex)    => throw new Exception("unable immigrate value", ex)
+              case Failure(ex)    => throw new Exception("unable immigrate value", ex) // scalafix:ok
             }
           case null  => null
-          case other => throw new Exception(s"${other.getClass.getName} (value) is not Generic Record")
+          case other =>
+            throw new Exception(s"${other.getClass.getName} (value) is not Generic Record") // scalafix:ok
         }
       case Schema.Type.STRING =>
         val ser = Serdes.stringSerde.serializer()
@@ -129,7 +131,7 @@ final private class PushGenericRecord(
           case data => ser.serialize(topic, Decoder[Array[Byte]].decode(data))
         }
 
-      case us => throw new RuntimeException(s"unsupported value schema: ${us.toString}")
+      case us => sys.error(s"unsupported value schema: ${us.toString}")
     }
 
   /** @param gr

@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.datetime
 
-import cats.syntax.all.*
 import cats.{Hash, Order, Show}
+import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.chrono.zones.utcTime
 
 import java.sql.Timestamp
@@ -76,7 +76,7 @@ object NJTimestamp {
 
     parser.parse(str) match {
       case Right(r) => r
-      case Left(ex) => throw ex.parseException(str)
+      case Left(ex) => throw ex.parseException(str) // scalafix:ok
     }
   }
 
@@ -88,7 +88,7 @@ object NJTimestamp {
 
     parser.parse(str) match {
       case Right(r) => r
-      case Left(ex) => throw ex.parseException(str)
+      case Left(ex) => throw ex.parseException(str) // scalafix:ok
     }
   }
 

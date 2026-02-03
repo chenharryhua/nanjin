@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.kafka
 
-import cats.syntax.all.*
 import cats.{Order, PartialOrder, Show}
+import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import io.circe.*
 import io.circe.Decoder.Result

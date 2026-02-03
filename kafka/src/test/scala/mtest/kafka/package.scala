@@ -15,5 +15,5 @@ package object kafka {
         .withConsumerProperty(ConsumerConfig.GROUP_ID_CONFIG, "nj-kafka-unit-test-group")
         .withStreamingProperty("state.dir", "./data/kafka_states"))
 
-  val taxi = AvroTopic[Int, trip_record](TopicName("nyc_yellow_taxi_trip_data"))
+  val taxi: AvroTopic[Int, trip_record] = AvroTopic[Int, trip_record](TopicName("nyc_yellow_taxi_trip_data"))
 }

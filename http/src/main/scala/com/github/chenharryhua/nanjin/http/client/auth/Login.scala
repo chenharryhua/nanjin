@@ -4,8 +4,8 @@ import cats.effect.kernel.{Async, Ref, Resource}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.SingleFlight
 import fs2.Stream
-import org.http4s.client.Client
 import org.http4s.{Request, Response, Status}
+import org.http4s.client.Client
 
 trait Login[F[_]] {
 

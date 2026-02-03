@@ -4,8 +4,8 @@ import cats.Endo
 import cats.effect.kernel.{Async, Resource}
 import cats.implicits.{toFlatMapOps, toFunctorOps}
 import com.github.chenharryhua.nanjin.common.{HasProperties, UpdateConfig}
-import fs2.kafka.*
 import fs2.{Chunk, Pipe, Stream}
+import fs2.kafka.*
 import org.apache.kafka.clients.producer.RecordMetadata
 
 /*

@@ -2,11 +2,11 @@ package mtest.terminals
 
 import cats.effect.IO
 import com.sksamuel.avro4s.{Decoder, Encoder, FromRecord, ToRecord}
+import fs2.Stream
 import kantan.csv.generic.*
 import kantan.csv.{RowDecoder, RowEncoder}
 
 import scala.util.Random
-import fs2.Stream
 
 object TestData {
   case class Tiger(id: Int, zooName: Option[String])

@@ -3,7 +3,9 @@ import cats.Endo
 import cats.effect.kernel.Async
 import cats.effect.std.Console
 import com.github.chenharryhua.nanjin.common.UpdateConfig
-import com.github.chenharryhua.nanjin.guard.config.{ServiceConfig, ServiceName, TaskName}
+import com.github.chenharryhua.nanjin.guard.config.ServiceConfig
+import com.github.chenharryhua.nanjin.guard.config.ServiceName
+import com.github.chenharryhua.nanjin.guard.config.TaskName
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import fs2.io.net.Network
 

@@ -4,10 +4,10 @@ import cats.effect.kernel.{Async, Resource, Temporal}
 import cats.effect.std.Hotswap
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.chrono.{Policy, TickStatus}
+import org.http4s.{Request, Response}
 import org.http4s.client.Client
 import org.http4s.client.middleware.RetryPolicy
 import org.http4s.headers.`Retry-After`
-import org.http4s.{Request, Response}
 
 import java.time.ZoneId
 import scala.concurrent.duration.{DurationLong, FiniteDuration}

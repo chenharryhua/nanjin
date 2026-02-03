@@ -6,8 +6,8 @@ import cats.implicits.toFunctorOps
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import software.amazon.awssdk.core.SdkBytes
-import software.amazon.awssdk.services.secretsmanager.model.{GetSecretValueRequest, GetSecretValueResponse}
 import software.amazon.awssdk.services.secretsmanager.{SecretsManagerClient, SecretsManagerClientBuilder}
+import software.amazon.awssdk.services.secretsmanager.model.{GetSecretValueRequest, GetSecretValueResponse}
 
 /** Provides access to AWS Secrets Manager. */
 trait SecretsManager[F[_]] {

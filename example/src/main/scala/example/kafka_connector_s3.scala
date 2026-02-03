@@ -7,13 +7,13 @@ import cats.implicits.{catsSyntaxApplicativeByName, catsSyntaxSemigroup, toTrave
 import com.github.chenharryhua.nanjin.common.chrono.{Policy, TickedValue}
 import com.github.chenharryhua.nanjin.guard.event.Event
 import com.github.chenharryhua.nanjin.guard.metrics.Metrics
-import com.github.chenharryhua.nanjin.kafka.connector.PullGenericRecordException
 import com.github.chenharryhua.nanjin.kafka.{AvroTopic, KafkaContext, KafkaSettings}
+import com.github.chenharryhua.nanjin.kafka.connector.PullGenericRecordException
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroFor
 import com.github.chenharryhua.nanjin.terminals.{Hadoop, JacksonFile, RotateFile}
 import eu.timepit.refined.auto.*
 import fs2.Pipe
-import fs2.kafka.{commitBatchWithin, AutoOffsetReset, CommittableConsumerRecord}
+import fs2.kafka.{AutoOffsetReset, CommittableConsumerRecord, commitBatchWithin}
 import io.lemonlabs.uri.Url
 import io.lemonlabs.uri.typesafe.dsl.urlToUrlDsl
 import org.apache.avro.generic.{GenericData, GenericRecord}

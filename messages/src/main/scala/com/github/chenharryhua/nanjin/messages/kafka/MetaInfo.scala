@@ -52,13 +52,14 @@ object MetaInfo {
   def apply(gr: GenericRecord): Try[MetaInfo] = Try {
     MetaInfo(
       topic = gr.get("topic").toString,
-      partition = gr.get("partition").asInstanceOf[Int],
-      offset = gr.get("offset").asInstanceOf[Long],
-      timestamp = gr.get("timestamp").asInstanceOf[Long],
-      timestampType = Option(gr.get("timestampType").asInstanceOf[Int]),
-      serializedKeySize = gr.get("serializedKeySize").asInstanceOf[Int],
-      serializedValueSize = gr.get("serializedValueSize").asInstanceOf[Int]
+      partition = gr.get("partition").asInstanceOf[Int], // scalafix:ok
+      offset = gr.get("offset").asInstanceOf[Long], // scalafix:ok
+      timestamp = gr.get("timestamp").asInstanceOf[Long], // scalafix:ok
+      timestampType = Option(gr.get("timestampType").asInstanceOf[Int]), // scalafix:ok
+      serializedKeySize = gr.get("serializedKeySize").asInstanceOf[Int], // scalafix:ok
+      serializedValueSize = gr.get("serializedValueSize").asInstanceOf[Int] // scalafix:ok
     )
+
   }
 
   def apply(rm: RecordMetadata): MetaInfo =

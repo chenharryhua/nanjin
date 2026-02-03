@@ -7,6 +7,7 @@ import com.github.chenharryhua.nanjin.datetime.DateTimeRange
 import com.github.chenharryhua.nanjin.kafka.AvroTopic
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroFor
 import com.github.chenharryhua.nanjin.spark.{SparKafkaContext, SparkSessionExt, SparkSettings}
+import com.github.chenharryhua.nanjin.spark.kafka.TopicSummary
 import eu.timepit.refined.auto.*
 import fs2.kafka.Acks
 import io.lemonlabs.uri.Url
@@ -19,18 +20,18 @@ object kafka_spark {
   val sparKafka: SparKafkaContext[IO] = spark.alongWith[IO](kafka_connector_s3.ctx)
 
   val path: Url = Url.parse("s3a://bucket_name/folder_name")
-  val topic = AvroTopic[Int, AvroFor.FromBroker](TopicName("any.kafka.topic"))
+  val topic: AvroTopic[Int,AvroFor.FromBroker] = AvroTopic[Int, AvroFor.FromBroker](TopicName("any.kafka.topic"))
 
-  val dr = DateTimeRange(sydneyTime)
+  val dr: DateTimeRange = DateTimeRange(sydneyTime)
 
   // batch dump a kafka topic
-  val dump = sparKafka.dump(topic, path, _.withConsumer(_.withGroupId("gid")))
+  val dump: IO[Long] = sparKafka.dump(topic, path, _.withConsumer(_.withGroupId("gid")))
 
-  val dumpCirce = sparKafka.dumpCirce(topic, path, _.isIgnoreError(true).withDateTimeRange(dr))
+  val dumpCirce: IO[Long] = sparKafka.dumpCirce(topic, path, _.isIgnoreError(true).withDateTimeRange(dr))
 
   // load saved data into kafka
-  val load = sparKafka.upload(topic, path, _.withProducer(_.withAcks(Acks.One)).withTimeout(3.seconds))
+  val load: IO[Long] = sparKafka.upload(topic, path, _.withProducer(_.withAcks(Acks.One)).withTimeout(3.seconds))
 
   // dataset statistics summary
-  val stats = sparKafka.stats.jackson(path).flatMap(_.summary("test"))
+  val stats: IO[Option[TopicSummary]] = sparKafka.stats.jackson(path).flatMap(_.summary("test"))
 }

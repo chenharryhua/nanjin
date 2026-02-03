@@ -1,8 +1,8 @@
 package com.github.chenharryhua.nanjin.pipes
 
 import cats.effect.kernel.{Async, Sync}
-import fs2.{Pipe, Pull, Stream}
 import fs2.io.toInputStream
+import fs2.{Pipe, Pull, Stream}
 
 import java.io.*
 
@@ -26,7 +26,8 @@ object javaObject {
     F: Sync[F]): Pull[F, A, Option[ObjectInputStream]] =
     Pull
       .functionKInstance(
-        F.delay(try Some(ois.readObject().asInstanceOf[A])
+        F.delay(try Some(ois.readObject().asInstanceOf[A]) // scalafix:ok
+
         catch { case _: EOFException => None }))
       .flatMap {
         case Some(a) => Pull.output1[F, A](a) >> Pull.pure[F, Option[ObjectInputStream]](Some(ois))

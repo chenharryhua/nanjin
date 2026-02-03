@@ -34,7 +34,7 @@ object AvroFor extends LowerPriority {
     implicit val jsonEncoderUniversal: JsonEncoder[FromBroker] =
       (a: FromBroker) =>
         io.circe.jawn.parse(a.value.toString) match {
-          case Left(value)  => throw value
+          case Left(value)  => throw value // scalafix:ok
           case Right(value) => value
         }
   }
@@ -126,7 +126,8 @@ object AvroFor extends LowerPriority {
         override def deserialize(topic: String, data: Array[Byte]): FromBroker =
           Option(deSer.deserialize(topic, data))
             .map(_.coerce[FromBroker])
-            .getOrElse(null.asInstanceOf[FromBroker])
+            .getOrElse(null.asInstanceOf[FromBroker]) // scalafix:ok
+
       }
     }
   }
@@ -159,7 +160,10 @@ object AvroFor extends LowerPriority {
           deSer.configure(configs, isKey)
 
         override def deserialize(topic: String, data: Array[Byte]): A =
-          Option(deSer.deserialize(topic, data)).map(codec.fromRecord).getOrElse(null.asInstanceOf[A])
+          Option(deSer.deserialize(topic, data))
+            .map(codec.fromRecord)
+            .getOrElse(null.asInstanceOf[A]) // scalafix:ok
+
       }
     }
   }
@@ -187,7 +191,8 @@ object AvroFor extends LowerPriority {
               case Left(value)  => throw value
               case Right(value) => KJson(value)
             }
-          }.getOrElse(null.asInstanceOf[KJson[A]])
+          }.getOrElse(null.asInstanceOf[KJson[A]]) // scalafix:ok
+
       }
     }
   }

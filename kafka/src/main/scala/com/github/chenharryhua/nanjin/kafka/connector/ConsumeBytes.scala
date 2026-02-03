@@ -4,8 +4,8 @@ import cats.Endo
 import cats.data.{NonEmptyList, NonEmptySet, ReaderT}
 import cats.effect.kernel.{Async, Resource}
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.common.{HasProperties, UpdateConfig}
+import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.DateTimeRange
 import com.github.chenharryhua.nanjin.kafka.orderingTopicPartition
 import fs2.Stream

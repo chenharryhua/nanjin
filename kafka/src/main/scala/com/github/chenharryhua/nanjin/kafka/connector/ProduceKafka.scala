@@ -1,12 +1,12 @@
 package com.github.chenharryhua.nanjin.kafka.connector
 
+import cats.{Endo, Foldable}
 import cats.effect.kernel.*
 import cats.implicits.{catsSyntaxFlatten, toFoldableOps, toFunctorOps}
-import cats.{Endo, Foldable}
-import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.common.{HasProperties, UpdateConfig}
-import fs2.kafka.*
+import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import fs2.{Chunk, Pipe, Stream}
+import fs2.kafka.*
 import org.apache.kafka.clients.producer.RecordMetadata
 
 /*

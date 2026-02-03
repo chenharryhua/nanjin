@@ -1,13 +1,13 @@
 package com.github.chenharryhua.nanjin.spark.listeners
 
+import cats.Functor
 import cats.effect.kernel.Async
 import cats.effect.std.Dispatcher
-import cats.Functor
 import cats.syntax.functor.*
 import fs2.Stream
 import fs2.concurrent.Channel
-import org.apache.spark.sql.streaming.StreamingQueryListener
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.streaming.StreamingQueryListener
 
 final private class SparkSStreamListener[F[_]: Functor](
   bus: Channel[F, StreamingQueryListener.Event],

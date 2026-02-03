@@ -1,16 +1,16 @@
 package com.github.chenharryhua.nanjin.datetime
 
+import cats.{Eval, PartialOrder, Show}
 import cats.data.Cont
 import cats.syntax.all.*
-import cats.{Eval, PartialOrder, Show}
 import com.github.chenharryhua.nanjin.common.chrono.Tick
-import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, HCursor, Json}
+import io.circe.syntax.EncoderOps
 import monocle.Prism
 import monocle.macros.Lenses
 import org.typelevel.cats.time.instances.{duration, localdatetime, zoneid}
-import shapeless.ops.coproduct.{Inject, Selector}
 import shapeless.{:+:, CNil, Poly1}
+import shapeless.ops.coproduct.{Inject, Selector}
 
 import java.sql.Timestamp
 import java.time.*
@@ -119,7 +119,7 @@ import scala.concurrent.duration.FiniteDuration
 
   def withOneDay(ts: String): DateTimeRange =
     DateTimeParser.localDateParser.parse(ts).map(withOneDay) match {
-      case Left(ex)   => throw ex.parseException(ts)
+      case Left(ex)   => throw ex.parseException(ts) // scalafix:ok
       case Right(day) => day
     }
 

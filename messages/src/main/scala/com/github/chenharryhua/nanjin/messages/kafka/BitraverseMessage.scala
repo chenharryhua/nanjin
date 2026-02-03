@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.messages.kafka
 
-import cats.syntax.all.*
 import cats.{Applicative, Bitraverse, Eval}
+import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.messages.kafka.instances.*
 import fs2.kafka.{CommittableConsumerRecord, ConsumerRecord, ProducerRecord}
 import io.scalaland.chimney.dsl.*

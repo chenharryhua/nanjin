@@ -1,13 +1,13 @@
 package com.github.chenharryhua.nanjin.spark.listeners
 
+import cats.Functor
 import cats.effect.kernel.Async
 import cats.effect.std.Dispatcher
-import cats.Functor
 import cats.syntax.functor.*
-import fs2.concurrent.Channel
 import fs2.Stream
-import org.apache.spark.{SparkContext, SparkFirehoseListener}
+import fs2.concurrent.Channel
 import org.apache.spark.scheduler.*
+import org.apache.spark.{SparkContext, SparkFirehoseListener}
 
 final private class SparkContextListener[F[_]: Functor](
   bus: Channel[F, SparkListenerEvent],

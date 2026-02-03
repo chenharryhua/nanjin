@@ -7,12 +7,12 @@ import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.utils
 import io.circe.generic.auto.*
 import org.http4s.Method.POST
+import org.http4s.{BasicCredentials, Credentials, Request, Uri, UrlForm}
 import org.http4s.circe.CirceEntityCodec.circeEntityDecoder
 import org.http4s.client.Client
 import org.http4s.client.dsl.Http4sClientDsl
 import org.http4s.headers.{`Idempotency-Key`, Authorization}
 import org.http4s.implicits.http4sLiteralsSyntax
-import org.http4s.{BasicCredentials, Credentials, Request, Uri, UrlForm}
 import org.typelevel.ci.CIString
 
 import scala.concurrent.duration.*

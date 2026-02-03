@@ -12,8 +12,8 @@ import io.circe.syntax.EncoderOps
 import monocle.macros.Lenses
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
-import software.amazon.awssdk.services.sqs.model.*
 import software.amazon.awssdk.services.sqs.{SqsClient, SqsClientBuilder}
+import software.amazon.awssdk.services.sqs.model.*
 
 import java.net.URLDecoder
 import java.time.ZoneId

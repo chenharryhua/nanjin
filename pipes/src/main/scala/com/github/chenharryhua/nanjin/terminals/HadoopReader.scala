@@ -40,18 +40,20 @@ private object HadoopReader {
         F.blocking(r.close()))
       .flatMap { reader =>
         def go(): (Chunk[GenericData.Record], Option[Unit]) = {
-          var counter: Int = 0
-          var keepGoing: Boolean = true
+          var counter: Int = 0 // scalafix:ok
+          var keepGoing: Boolean = true // scalafix:ok
           val builder = Vector.newBuilder[GenericData.Record]
-          while (keepGoing && (counter < chunkSize.value)) {
+
+          while (keepGoing && (counter < chunkSize.value)) { // scalafix:ok
             val gr: GenericData.Record = reader.read()
-            if (null == gr) {
+            if (gr eq null) {
               keepGoing = false
             } else {
               builder += gr
               counter += 1
             }
           }
+
           (Chunk.from(builder.result()), if (keepGoing) Some(()) else None)
         }
         Stream.unfoldChunkLoopEval[F, Unit, GenericData.Record](())(_ => F.blocking(go()))
@@ -99,7 +101,7 @@ private object HadoopReader {
       @tailrec
       def go(offset: Int): (Chunk[Byte], Option[Int]) = {
         val numBytes = is.read(buffer, offset, bufferSize - offset)
-        if (numBytes == -1) (Chunk.array(buffer, 0, offset), None)
+        if (numBytes === -1) (Chunk.array(buffer, 0, offset), None)
         else if ((numBytes + offset) === bufferSize) (Chunk.array(buffer), 0.some)
         else go(offset + numBytes)
       }
@@ -116,14 +118,14 @@ private object HadoopReader {
       @tailrec
       def go(existing: Chunk[Json], existCount: Int): (Chunk[Json], Option[Chunk[Json]]) = {
         val numBytes = is.read(buffer, 0, bufferSize)
-        if (numBytes == -1) {
+        if (numBytes === -1) {
           parser.finish() match {
-            case Left(ex)     => throw ex
+            case Left(ex)     => throw ex // scalafix:ok
             case Right(value) => (existing ++ Chunk.from(value), None)
           }
         } else {
           parser.absorb(ByteBuffer.wrap(buffer, 0, numBytes)) match {
-            case Left(ex)     => throw ex
+            case Left(ex)     => throw ex // scalafix:ok
             case Right(value) =>
               val size = value.size
               val jsons = Chunk.from(value)
@@ -179,9 +181,9 @@ private object HadoopReader {
 
       def go(): (Chunk[GenericData.Record], Option[Unit]) = {
         val builder = Vector.newBuilder[GenericData.Record]
-        var counter: Int = 0
+        var counter: Int = 0 // scalafix:ok
         try {
-          while (counter < chunkSize.value) {
+          while (counter < chunkSize.value) { // scalafix:ok
             builder += datumReader.read(null, decoder)
             counter += 1
           }

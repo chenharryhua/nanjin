@@ -1,8 +1,8 @@
 package com.github.chenharryhua.nanjin.guard.translator
 
+import io.circe.{Encoder, Json}
 import io.circe.optics.all.*
 import io.circe.syntax.EncoderOps
-import io.circe.{Encoder, Json}
 import monocle.function.Plated
 
 import java.time.Duration

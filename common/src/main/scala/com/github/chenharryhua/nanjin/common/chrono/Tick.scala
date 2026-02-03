@@ -1,11 +1,11 @@
 package com.github.chenharryhua.nanjin.common.chrono
 
+import cats.{Functor, Show}
 import cats.effect.kernel.Sync
 import cats.syntax.all.*
-import cats.{Functor, Show}
 import com.github.chenharryhua.nanjin.common.{utils, DurationFormatter}
-import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, HCursor, Json}
+import io.circe.syntax.EncoderOps
 import org.typelevel.cats.time.instances.all.*
 
 import java.time.*

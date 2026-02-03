@@ -15,23 +15,23 @@ import com.github.chenharryhua.nanjin.guard.event.{
   ServiceStopCause
 }
 import com.github.chenharryhua.nanjin.guard.translator.htmlHelper.htmlColoring
-import com.github.chenharryhua.nanjin.guard.translator.textConstants.{CONSTANT_TIMESTAMP, CONSTANT_TOOK}
 import com.github.chenharryhua.nanjin.guard.translator.{durationFormatter, prettifyJson, SnapshotPolyglot}
+import com.github.chenharryhua.nanjin.guard.translator.textConstants.{CONSTANT_TIMESTAMP, CONSTANT_TOOK}
 import fs2.concurrent.Channel
 import io.circe.Json
 import io.circe.syntax.EncoderOps
 import org.apache.commons.collections4.queue.CircularFifoQueue
+import org.http4s.{HttpRoutes, Request, Response}
 import org.http4s.circe.CirceEntityCodec.circeEntityEncoder
 import org.http4s.dsl.Http4sDsl
 import org.http4s.scalatags.*
 import org.http4s.server.Router
-import org.http4s.{HttpRoutes, Request, Response}
 import org.typelevel.cats.time.instances.all
 import scalatags.Text
 import scalatags.Text.all.*
 
-import java.time.temporal.ChronoUnit
 import java.time.{Duration, ZonedDateTime}
+import java.time.temporal.ChronoUnit
 import scala.jdk.CollectionConverters.IteratorHasAsScala
 
 final private class HttpRouter[F[_]](
