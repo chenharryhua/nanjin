@@ -1,8 +1,8 @@
 package com.github.chenharryhua.nanjin.guard.config
 
 import cats.Show
-import enumeratum.values.{CatsOrderValueEnum, IntCirceEnum, IntEnum, IntEnumEntry}
 import enumeratum.{CirceEnum, Enum, EnumEntry}
+import enumeratum.values.{CatsOrderValueEnum, IntCirceEnum, IntEnum, IntEnumEntry}
 import io.circe.{Decoder, Encoder, Json}
 
 sealed abstract class AlarmLevel(override val value: Int, val entryName: String)

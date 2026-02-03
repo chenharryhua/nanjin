@@ -1,14 +1,14 @@
 package com.github.chenharryhua.nanjin.kafka.connector
 
+import cats.{Applicative, Monad}
 import cats.data.NonEmptySet
 import cats.implicits.*
-import cats.{Applicative, Monad}
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.DateTimeRange
 import com.github.chenharryhua.nanjin.kafka.{Offset, OffsetRange, PartitionRange, TopicPartitionMap}
 import fs2.Stream
-import fs2.kafka.consumer.{KafkaConsume, KafkaTopicsV2}
 import fs2.kafka.{CommittableConsumerRecord, KafkaConsumer}
+import fs2.kafka.consumer.{KafkaConsume, KafkaTopicsV2}
 import org.apache.avro.generic.GenericData
 import org.apache.kafka.common.TopicPartition
 

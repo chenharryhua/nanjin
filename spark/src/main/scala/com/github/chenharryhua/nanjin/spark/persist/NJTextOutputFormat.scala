@@ -17,7 +17,7 @@ final private class NJTextOutputFormat extends FileOutputFormat[NullWritable, Te
   @SuppressWarnings(Array("NullParameter"))
   override def checkOutputSpecs(job: JobContext): Unit = {
     val outDir = FileOutputFormat.getOutputPath(job)
-    if (outDir == null) throw new InvalidJobConfException("Output directory not set.")
+    if (outDir eq null) throw new InvalidJobConfException("Output directory not set.") // scalafix:ok
     TokenCache.obtainTokensForNamenodes(job.getCredentials, Array[Path](outDir), job.getConfiguration)
   }
 

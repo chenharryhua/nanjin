@@ -132,7 +132,7 @@ private[spark] object DataTypeF {
         builder.array().items(unionNull(containsNull, sm))
       case NJMapType(NJDataType(NJStringType()), v, n) =>
         builder.map().values(unionNull(n, v.toSchema(builder)))
-      case NJMapType(_, _, _) => throw KeyMustBeStringException
+      case NJMapType(_, _, _) => throw KeyMustBeStringException // scalafix:ok
 
       case NJStructType(cn, ns, fields) =>
         val fieldsAssembler = SchemaBuilder.builder(ns).record(cn).fields()

@@ -43,7 +43,7 @@ final private class SchemaRegistryApiImpl[F[_]](client: CachedSchemaRegistryClie
   }
 
   private def handleError(isPrimitive: Boolean)(throwable: Throwable): None.type =
-    if (isPrimitive) None else throw throwable
+    if (isPrimitive) None else throw throwable // scalafix:ok
 
   override def fetchAvroSchema(topicName: TopicName): F[(AvroSchema, AvroSchema)] =
     for {

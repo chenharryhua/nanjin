@@ -30,13 +30,14 @@ object RoosterLike2 {
 class CrPrTest extends AnyFunSuite {
   implicit val roundingMode: BigDecimal.RoundingMode.Value = RoundingMode.HALF_UP
 
-  val rooster = AvroTopic[Long, Rooster](TopicName("rooster"))(AvroFor[Long], AvroFor(Rooster.avroCodec))
+  val rooster: AvroTopic[Long, Rooster] =
+    AvroTopic[Long, Rooster](TopicName("rooster"))(AvroFor[Long], AvroFor(Rooster.avroCodec))
   // val roosterATE = SchematizedEncoder(rooster.pair)
 
-  val roosterLike =
+  val roosterLike: AvroTopic[Long, RoosterLike] =
     AvroTopic[Long, RoosterLike](TopicName("roosterLike"))(AvroFor[Long], AvroFor[RoosterLike])
 
-  val roosterLike2 =
+  val roosterLike2: AvroTopic[Long, RoosterLike2] =
     AvroTopic[Long, RoosterLike2](TopicName("roosterLike2"))(AvroFor[Long], AvroFor[RoosterLike2])
 
   val crRdd: CrRdd[Long, Rooster] =

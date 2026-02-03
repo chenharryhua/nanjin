@@ -1,7 +1,8 @@
 package com.github.chenharryhua.nanjin.guard
 
-import cats.effect.kernel.Unique.Token
+import cats.{Applicative, Functor, Hash, Monad, Semigroupal}
 import cats.effect.kernel.{Clock, Sync}
+import cats.effect.kernel.Unique.Token
 import cats.implicits.{
   catsSyntaxApplyOps,
   catsSyntaxEq,
@@ -13,7 +14,6 @@ import cats.implicits.{
   toShow
 }
 import cats.syntax.all.none
-import cats.{Applicative, Functor, Hash, Monad, Semigroupal}
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.common.chrono.Tick
 import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, ServiceParams}
@@ -34,8 +34,8 @@ import com.github.chenharryhua.nanjin.guard.event.{
 }
 import com.github.chenharryhua.nanjin.guard.translator.durationFormatter
 import fs2.concurrent.Channel
-import io.circe.syntax.EncoderOps
 import io.circe.{Encoder, Json}
+import io.circe.syntax.EncoderOps
 import org.typelevel.log4cats.SelfAwareLogger
 
 import scala.jdk.CollectionConverters.CollectionHasAsScala

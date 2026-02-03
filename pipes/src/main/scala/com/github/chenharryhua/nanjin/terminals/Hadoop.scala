@@ -62,7 +62,7 @@ final class Hadoop[F[_]] private (config: Configuration) {
       val fs: FileSystem = hp.getFileSystem(config)
       val ri: RemoteIterator[LocatedFileStatus] = fs.listFiles(hp, true)
       val lb: ListBuffer[LocatedFileStatus] = ListBuffer.empty[LocatedFileStatus]
-      while (ri.hasNext) lb.addOne(ri.next())
+      while (ri.hasNext) lb.addOne(ri.next()) // scalafix:ok
       lb.toList
     }
 
@@ -79,7 +79,9 @@ final class Hadoop[F[_]] private (config: Configuration) {
       val fs: FileSystem = hp.getFileSystem(config)
       val ri: RemoteIterator[LocatedFileStatus] = fs.listFiles(hp, true)
       val lb: mutable.Set[Path] = collection.mutable.Set.empty
-      while (ri.hasNext) lb.addOne(ri.next().getPath.getParent)
+
+      while (ri.hasNext) lb.addOne(ri.next().getPath.getParent) // scalafix:ok
+
       lb.toList.map(p => Uri(p.toUri).toUrl)
     }
 

@@ -2,10 +2,10 @@ package com.github.chenharryhua.nanjin.guard.observers.sns
 
 import cats.Show
 import cats.derived.auto.show.*
-import io.circe.{Encoder, Json}
 import io.circe.generic.JsonCodec
 import io.circe.generic.auto.*
 import io.circe.syntax.EncoderOps
+import io.circe.{Encoder, Json}
 
 final case class TextField(tag: String, value: String)
 object TextField {

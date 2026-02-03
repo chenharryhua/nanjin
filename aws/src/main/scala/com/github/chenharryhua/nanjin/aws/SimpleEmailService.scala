@@ -6,8 +6,8 @@ import cats.implicits.toFunctorOps
 import com.github.chenharryhua.nanjin.common.aws.EmailContent
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
-import software.amazon.awssdk.services.ses.model.*
 import software.amazon.awssdk.services.ses.{SesClient, SesClientBuilder}
+import software.amazon.awssdk.services.ses.model.*
 
 import scala.jdk.CollectionConverters.*
 

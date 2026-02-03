@@ -25,10 +25,10 @@ final private class NJJacksonKeyOutputFormat
   @SuppressWarnings(Array("NullParameter"))
   override def checkOutputSpecs(job: JobContext): Unit = {
     val outDir = FileOutputFormat.getOutputPath(job)
-    if (outDir == null) throw new InvalidJobConfException("Output directory not set.")
+    if (outDir eq null) throw new InvalidJobConfException("Output directory not set.") // scalafix:ok
     TokenCache.obtainTokensForNamenodes(job.getCredentials, Array[Path](outDir), job.getConfiguration)
-    if (AvroJob.getOutputKeySchema(job.getConfiguration) == null)
-      throw new InvalidJobConfException("schema not set")
+    if (AvroJob.getOutputKeySchema(job.getConfiguration) eq null)
+      throw new InvalidJobConfException("schema not set") // scalafix:ok
   }
 
   override def getRecordWriter(

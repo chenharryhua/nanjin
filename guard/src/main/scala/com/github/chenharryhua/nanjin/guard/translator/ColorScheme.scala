@@ -2,8 +2,8 @@ package com.github.chenharryhua.nanjin.guard.translator
 
 import cats.data.Cont
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.guard.config.CategoryKind.CounterKind
 import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, Category}
+import com.github.chenharryhua.nanjin.guard.config.CategoryKind.CounterKind
 import com.github.chenharryhua.nanjin.guard.event.{
   retrieveHealthChecks,
   Event,

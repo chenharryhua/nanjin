@@ -6,8 +6,8 @@ import com.github.chenharryhua.nanjin.guard.event.Event.ServicePanic
 import com.github.chenharryhua.nanjin.guard.event.{Event, MetricIndex, MetricSnapshot}
 import org.typelevel.cats.time.instances.{localdatetime, localtime}
 
-import java.time.temporal.ChronoUnit
 import java.time.{Duration, ZonedDateTime}
+import java.time.temporal.ChronoUnit
 
 object textHelper extends localtime with localdatetime {
   def yamlMetrics(ss: MetricSnapshot): String =

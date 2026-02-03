@@ -8,8 +8,6 @@ ThisBuild / Test / logBuffered       := false
 
 Global / parallelExecution := false
 
-inThisBuild(List(semanticdbEnabled := true, semanticdbVersion := scalafixSemanticdb.revision))
-
 // ==========================
 // Versions
 // ==========================
@@ -80,7 +78,15 @@ lazy val commonSettings = List(
     org.typelevel.scalacoptions.ScalacOptions.lintOptions
       .filterNot(_.option.startsWith("-Xlint:kind-projector")) +
       org.typelevel.scalacoptions.ScalacOptions.warnNonUnitStatement,
-  Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat
+  Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat,
+
+  // scalafix
+  semanticdbEnabled           := true,
+  semanticdbVersion           := scalafixSemanticdb.revision,
+  Compile / scalafixOnCompile := true,
+  Test / scalafixOnCompile    := false,
+  Compile / scalafixConfig    := Option((ThisBuild / baseDirectory).value / ".scalafix.conf"),
+  Test / scalafixConfig       := Option((ThisBuild / baseDirectory).value / ".scalafix-test.conf")
 )
 
 val testLib = List(

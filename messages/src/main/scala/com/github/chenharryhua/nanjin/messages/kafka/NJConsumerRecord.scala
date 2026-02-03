@@ -9,8 +9,8 @@ import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.google.protobuf.ByteString
 import com.sksamuel.avro4s.*
 import fs2.kafka.*
-import io.circe.syntax.EncoderOps
 import io.circe.{Codec as JsonCodec, Decoder as JsonDecoder, Encoder as JsonEncoder, Json}
+import io.circe.syntax.EncoderOps
 import io.scalaland.chimney.Transformer
 import io.scalaland.chimney.dsl.*
 import monocle.macros.PLenses
@@ -184,8 +184,10 @@ object NJConsumerRecord {
         },
         src.serializedKeySize,
         src.serializedValueSize,
-        src.key.getOrElse(null.asInstanceOf[K]),
-        src.value.getOrElse(null.asInstanceOf[V]),
+
+        src.key.getOrElse(null.asInstanceOf[K]), // scalafix:ok
+        src.value.getOrElse(null.asInstanceOf[V]), // scalafix:ok
+
         new RecordHeaders(src.headers.map(_.transformInto[JavaHeader]).toArray),
         src.leaderEpoch.map(Integer.valueOf).toJava
       )
@@ -221,8 +223,10 @@ object NJConsumerRecord {
           topic = src.topic,
           partition = src.partition,
           offset = src.offset,
-          key = src.key.getOrElse(null.asInstanceOf[K]),
-          value = src.value.getOrElse(null.asInstanceOf[V])
+
+          key = src.key.getOrElse(null.asInstanceOf[K]), // scalafix:ok
+          value = src.value.getOrElse(null.asInstanceOf[V]) // scalafix:ok
+
         ).withTimestamp(src.timestampType match {
           case JavaTimestampType.CREATE_TIME.id =>
             Timestamp.createTime(src.timestamp)

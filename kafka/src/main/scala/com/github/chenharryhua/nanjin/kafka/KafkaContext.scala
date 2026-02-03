@@ -82,8 +82,10 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
   def schemaRegistry(implicit F: Sync[F]): SchemaRegistryApi[F] = {
     val url_config = AbstractKafkaSchemaSerDeConfig.SCHEMA_REGISTRY_URL_CONFIG
     val url: String =
-      settings.schemaRegistrySettings.config
-        .getOrElse(url_config, throw new IllegalStateException(s"Fatal error: $url_config is absent"))
+      settings.schemaRegistrySettings.config.getOrElse(
+        url_config,
+        throw new IllegalStateException(s"Fatal error: $url_config is absent")
+      ) // scalafix:ok
 
     val cacheCapacity: Int = settings.schemaRegistrySettings.config
       .get(AbstractKafkaSchemaSerDeConfig.MAX_SCHEMAS_PER_SUBJECT_CONFIG)

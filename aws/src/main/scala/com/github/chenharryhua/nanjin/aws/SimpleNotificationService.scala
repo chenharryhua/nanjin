@@ -5,8 +5,8 @@ import cats.effect.kernel.{Async, Resource, Sync}
 import cats.syntax.all.*
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
-import software.amazon.awssdk.services.sns.model.{PublishRequest, PublishResponse}
 import software.amazon.awssdk.services.sns.{SnsClient, SnsClientBuilder}
+import software.amazon.awssdk.services.sns.model.{PublishRequest, PublishResponse}
 
 /** A simple wrapper around AWS SNS for publishing messages.
   *

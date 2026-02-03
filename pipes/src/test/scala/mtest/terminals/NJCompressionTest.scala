@@ -1,10 +1,10 @@
 package mtest.terminals
 
 import com.github.chenharryhua.nanjin.terminals.*
-import io.circe.jawn.decode
-import org.scalatest.funsuite.AnyFunSuite
-import io.circe.syntax.*
 import eu.timepit.refined.auto.*
+import io.circe.jawn.decode
+import io.circe.syntax.*
+import org.scalatest.funsuite.AnyFunSuite
 
 class NJCompressionTest extends AnyFunSuite {
   test("json") {

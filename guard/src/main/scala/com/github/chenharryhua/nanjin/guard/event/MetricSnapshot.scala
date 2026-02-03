@@ -101,7 +101,7 @@ final case class MetricSnapshot(
 
   def hasDuplication: Boolean = {
     val stable = metricIDs.map(id => (id.metricLabel, id.metricName.name))
-    stable.distinct.size != stable.size
+    stable.distinct.size =!= stable.size
   }
 
   def lookupCount: Map[UUID, Long] = {

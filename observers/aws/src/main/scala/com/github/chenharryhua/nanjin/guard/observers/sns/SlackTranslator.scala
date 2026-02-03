@@ -71,7 +71,7 @@ private object SlackTranslator extends all {
 
 // events
   private def service_start(evt: ServiceStart): SlackApp = {
-    val index_section = if (evt.tick.index == 0) {
+    val index_section = if (evt.tick.index === 0) {
       JuxtaposeSection(
         first = TextField(CONSTANT_TIMEZONE, evt.serviceParams.zoneId.show),
         second = TextField(CONSTANT_INDEX, evt.tick.index.show)

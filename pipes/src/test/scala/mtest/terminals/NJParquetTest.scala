@@ -7,7 +7,6 @@ import cats.implicits.toTraverseOps
 import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.messages.kafka.NJHeader
-import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.github.chenharryhua.nanjin.terminals.{FileKind, ParquetFile}
 import eu.timepit.refined.auto.*
 import fs2.Stream
@@ -22,6 +21,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import java.time.ZoneId
 import scala.concurrent.duration.{DurationDouble, DurationInt}
 import scala.util.Try
+import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 
 class NJParquetTest extends AnyFunSuite {
   import HadoopTestData.*

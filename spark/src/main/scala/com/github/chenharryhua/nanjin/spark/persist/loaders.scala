@@ -81,7 +81,7 @@ private[spark] object loaders {
         if (str.isEmpty) None
         else
           io.circe.jawn.decode[A](str) match {
-            case Left(ex)     => throw RDDReadException(path.toString(), idx + 1, ex)
+            case Left(ex)     => throw RDDReadException(path.toString(), idx + 1, ex) // scalafix:ok
             case Right(value) => Some(value)
           }
       })
@@ -97,7 +97,7 @@ private[spark] object loaders {
 
   private class ClosableIterator[A](is: InputStream, itor: Iterator[A], pathStr: String) extends Iterator[A] {
 
-    private[this] var lineNumber: Long = 0
+    private[this] var lineNumber: Long = 0 // scalafix:ok
 
     TaskContext.get().addTaskCompletionListener[Unit](_ => is.close()): Unit
 
@@ -116,7 +116,7 @@ private[spark] object loaders {
         case ex: Throwable =>
           is.close()
           LOG.error(show"closed $pathStr", ex)
-          throw RDDReadException(pathStr, lineNumber, ex)
+          throw RDDReadException(pathStr, lineNumber, ex) // scalafix:ok
       }
   }
 
@@ -169,7 +169,7 @@ private[spark] object loaders {
       .mapPartitions(_.flatMap { case (name, pds) =>
         val is: InputStream = decompressedInputStream(pds)
         val itor: Iterator[A] = is.asCsvReader[A](cfg).iterator.map {
-          case Left(ex)     => throw ex
+          case Left(ex)     => throw ex // scalafix:ok
           case Right(value) => value
         }
         new ClosableIterator[A](is, itor, name)

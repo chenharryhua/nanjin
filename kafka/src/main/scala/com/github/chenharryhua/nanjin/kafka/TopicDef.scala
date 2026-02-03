@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.kafka
 
-import cats.effect.kernel.Sync
 import cats.{Endo, Show}
+import cats.effect.kernel.Sync
 import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameL}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.*
 import fs2.kafka.{ConsumerSettings, ProducerRecord, ProducerSettings}

@@ -37,7 +37,7 @@ object JsonFor {
     implicit val jsonEncoderUniversal: JsonEncoder[FromBroker] =
       (a: FromBroker) =>
         io.circe.jawn.parse(globalObjectMapper.writeValueAsString(a.value)) match {
-          case Left(value)  => throw value
+          case Left(value)  => throw value // scalafix:ok
           case Right(value) => value
         }
     implicit val jsonDecoderUniversal: JsonDecoder[FromBroker] =
@@ -119,7 +119,8 @@ object JsonFor {
           override def deserialize(topic: String, data: Array[Byte]): FromBroker =
             Option(deSer.deserialize(topic, data))
               .map(_.coerce[FromBroker])
-              .getOrElse(null.asInstanceOf[FromBroker])
+              .getOrElse(null.asInstanceOf[FromBroker]) // scalafix:ok
+
         }
       }
   }
@@ -169,7 +170,8 @@ object JsonFor {
           override def deserialize(topic: String, data: Array[Byte]): A =
             Option(deSer.deserialize(topic, data))
               .map(jn => globalObjectMapper.convertValue[A](jn))
-              .getOrElse(null.asInstanceOf[A])
+              .getOrElse(null.asInstanceOf[A]) // scalafix:ok
+
         }
       }
   }

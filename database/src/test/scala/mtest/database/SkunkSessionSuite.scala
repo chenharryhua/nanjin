@@ -14,7 +14,7 @@ import scala.concurrent.duration.Duration
 class SkunkSessionSuite extends CatsEffectSuite {
 
   // Dummy Postgres config
-  val testDb = Postgres(
+  val testDb: Postgres = Postgres(
     host = "localhost",
     port = 5432,
     database = "postgres",

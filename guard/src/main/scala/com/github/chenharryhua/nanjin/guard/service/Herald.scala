@@ -4,8 +4,8 @@ import cats.effect.kernel.Sync
 import cats.effect.std.AtomicCell
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, ServiceParams}
-import com.github.chenharryhua.nanjin.guard.event.Event.ServiceMessage
 import com.github.chenharryhua.nanjin.guard.event.{Error, Event}
+import com.github.chenharryhua.nanjin.guard.event.Event.ServiceMessage
 import fs2.concurrent.Channel
 import io.circe.Encoder
 import org.apache.commons.collections4.queue.CircularFifoQueue

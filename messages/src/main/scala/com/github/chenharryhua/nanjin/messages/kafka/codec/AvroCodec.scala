@@ -69,7 +69,7 @@ object AvroCodec {
       apply(SchemaFor[A](schema), dc, ec)
     } else {
       val msg = (b ++ f).map(m => s"${m.getMessage} at ${m.getLocation}").mkString("\n")
-      throw new Exception(s"incompatible schema: $msg")
+      throw new Exception(s"incompatible schema: $msg") // scalafix:ok
     }
   }
 
