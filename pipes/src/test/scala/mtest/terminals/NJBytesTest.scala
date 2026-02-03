@@ -40,6 +40,7 @@ class NJBytesTest extends AnyFunSuite {
       hdp
         .source(path)
         .bytes(1.kb)
+        .prefetchN(3)
         .chunks
         .map { c =>
           assert(c.nonEmpty)
