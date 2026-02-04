@@ -138,7 +138,7 @@ final private class GeneralAgent[F[_]: Async](
     CaffeineCache[F, K, V](cache)
 
   override def retry(f: Endo[Retry.Builder[F]]): Resource[F, Retry[F]] =
-    Retry[F](zoneId, f)
+    Resource.eval(Retry[F](zoneId, f))
 
   override object adhoc extends AdhocMetricsImpl[F](channel, eventLogger, metricRegistry)
 

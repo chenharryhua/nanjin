@@ -90,8 +90,8 @@ object Retry {
     def withPolicy(f: Policy.type => Policy): Builder[F] =
       new Builder[F](f(Policy), worthy)
 
-    private[Retry] def build(zoneId: ZoneId)(implicit F: Async[F]): Resource[F, Retry[F]] =
-      Resource.eval(TickStatus.zeroth[F](zoneId, policy)).map { ts =>
+    private[Retry] def build(zoneId: ZoneId)(implicit F: Async[F]): F[Retry[F]] =
+      TickStatus.zeroth[F](zoneId, policy).map { ts =>
         val impl = new Impl[F](ts)
         new Retry[F] {
           override def apply[A](fa: F[A]): F[A] =
@@ -103,7 +103,7 @@ object Retry {
       }
   }
 
-  def apply[F[_]: Async](zoneId: ZoneId, f: Endo[Builder[F]]): Resource[F, Retry[F]] =
+  def apply[F[_]: Async](zoneId: ZoneId, f: Endo[Builder[F]]): F[Retry[F]] =
     f(new Builder[F](Policy.giveUp, _ => true.pure[F])).build(zoneId)
 
 }
