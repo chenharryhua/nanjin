@@ -26,7 +26,7 @@ class NJConsumerRecordTest extends AnyFunSuite {
   }
 
   test("schema") {
-    println(AvroFor[UnderTest].schema)
+    println(AvroFor[UnderTest].avroSchema)
   }
 
 }

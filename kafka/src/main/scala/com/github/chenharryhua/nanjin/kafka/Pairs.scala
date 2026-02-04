@@ -35,7 +35,7 @@ sealed trait SerdePair[K, V] {
 
 final case class AvroForPair[K, V](key: AvroFor[K], value: AvroFor[V]) extends SerdePair[K, V] {
   val optionalSchemaPair: OptionalAvroSchemaPair =
-    OptionalAvroSchemaPair(key.schema, value.schema)
+    OptionalAvroSchemaPair(key.avroSchema, value.avroSchema)
 }
 
 final case class ProtoForPair[K, V](key: ProtoFor[K], value: ProtoFor[V]) extends SerdePair[K, V] {
