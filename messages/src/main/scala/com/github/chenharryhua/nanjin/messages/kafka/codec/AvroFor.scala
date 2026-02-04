@@ -17,7 +17,7 @@ import shapeless.LabelledGeneric
 import java.util
 
 sealed trait AvroFor[A] extends UnregisteredSerde[A] {
-  val schema: Option[AvroSchema]
+  val avroSchema: Option[AvroSchema]
 }
 
 sealed trait LowerPriority {
@@ -57,49 +57,49 @@ object AvroFor extends LowerPriority {
   // 1: array byte
   implicit object avroForArrayByte extends AvroFor[Array[Byte]] {
     override val isPrimitive: Boolean = true
-    override val schema: Option[AvroSchema] = new AvroSchema(SchemaFor[Array[Byte]].schema).some
+    override val avroSchema: Option[AvroSchema] = new AvroSchema(SchemaFor[Array[Byte]].schema).some
     override protected val unregisteredSerde: Serde[Array[Byte]] = Serdes.byteArraySerde
   }
 
   // 2: String
   implicit object avroForString extends AvroFor[String] {
     override val isPrimitive: Boolean = true
-    override val schema: Option[AvroSchema] = new AvroSchema(SchemaFor[String].schema).some
+    override val avroSchema: Option[AvroSchema] = new AvroSchema(SchemaFor[String].schema).some
     override protected val unregisteredSerde: Serde[String] = Serdes.stringSerde
   }
 
   // 3: Long
   implicit object avroForLong extends AvroFor[Long] {
     override val isPrimitive: Boolean = true
-    override val schema: Option[AvroSchema] = new AvroSchema(SchemaFor[Long].schema).some
+    override val avroSchema: Option[AvroSchema] = new AvroSchema(SchemaFor[Long].schema).some
     override protected val unregisteredSerde: Serde[Long] = Serdes.longSerde
   }
 
   // 4: float
   implicit object avroForFloat extends AvroFor[Float] {
     override val isPrimitive: Boolean = true
-    override val schema: Option[AvroSchema] = new AvroSchema(SchemaFor[Float].schema).some
+    override val avroSchema: Option[AvroSchema] = new AvroSchema(SchemaFor[Float].schema).some
     override protected val unregisteredSerde: Serde[Float] = Serdes.floatSerde
   }
 
   // 5: double
   implicit object avroForDouble extends AvroFor[Double] {
     override val isPrimitive: Boolean = true
-    override val schema: Option[AvroSchema] = new AvroSchema(SchemaFor[Double].schema).some
+    override val avroSchema: Option[AvroSchema] = new AvroSchema(SchemaFor[Double].schema).some
     override protected val unregisteredSerde: Serde[Double] = Serdes.doubleSerde
   }
 
   // 6: int
   implicit object avroForInt extends AvroFor[Int] {
     override val isPrimitive: Boolean = true
-    override val schema: Option[AvroSchema] = new AvroSchema(SchemaFor[Int].schema).some
+    override val avroSchema: Option[AvroSchema] = new AvroSchema(SchemaFor[Int].schema).some
     override protected val unregisteredSerde: Serde[Int] = Serdes.intSerde
   }
 
   // 7. universal - generic record
   implicit object avroForFromBroker extends AvroFor[FromBroker] {
     override val isPrimitive: Boolean = false
-    override val schema: Option[AvroSchema] = none[AvroSchema]
+    override val avroSchema: Option[AvroSchema] = none[AvroSchema]
 
     override protected val unregisteredSerde: Serde[FromBroker] = new Serde[FromBroker] {
       override val serializer: Serializer[FromBroker] =
@@ -138,7 +138,7 @@ object AvroFor extends LowerPriority {
 
   def apply[A](codec: AvroCodec[A]): AvroFor[A] = new AvroFor[A] {
     override val isPrimitive: Boolean = false
-    override val schema: Option[AvroSchema] = new AvroSchema(codec.schema).some
+    override val avroSchema: Option[AvroSchema] = new AvroSchema(codec.schema).some
 
     override protected val unregisteredSerde: Serde[A] = new Serde[A] {
       override val serializer: Serializer[A] = new Serializer[A] {
@@ -170,7 +170,7 @@ object AvroFor extends LowerPriority {
 
   implicit def avroForKJson[A: JsonEncoder: JsonDecoder]: AvroFor[KJson[A]] = new AvroFor[KJson[A]] {
     override val isPrimitive: Boolean = true
-    override val schema: Option[AvroSchema] = new AvroSchema(SchemaFor[String].schema).some
+    override val avroSchema: Option[AvroSchema] = new AvroSchema(SchemaFor[String].schema).some
 
     override protected val unregisteredSerde: Serde[KJson[A]] = new Serde[KJson[A]] {
       override val serializer: Serializer[KJson[A]] = new Serializer[KJson[A]] {

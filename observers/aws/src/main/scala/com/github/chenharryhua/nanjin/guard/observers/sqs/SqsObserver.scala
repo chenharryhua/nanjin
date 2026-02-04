@@ -13,7 +13,7 @@ import com.github.chenharryhua.nanjin.guard.translator.{Translator, UpdateTransl
 import fs2.{Pipe, Stream}
 import io.circe.Json
 import io.circe.syntax.EncoderOps
-import software.amazon.awssdk.services.sqs.model.{SendMessageRequest, SendMessageResponse}
+import software.amazon.awssdk.services.sqs.model.SendMessageRequest
 
 import java.util.UUID
 
@@ -30,12 +30,12 @@ final class SqsObserver[F[_]: Clock: UUIDGen](
   private def translate(evt: Event): F[Option[Json]] =
     translator.translate(evt).map(_.map(_.asJson))
 
-  private def send(
-    sqs: SimpleQueueService[F],
-    builder: SendMessageRequest.Builder,
-    json: Json): F[Either[Throwable, SendMessageResponse]] =
+  private def send(sqs: SimpleQueueService[F], builder: SendMessageRequest.Builder, json: Json): F[Unit] =
     UUIDGen[F].randomUUID.flatMap(uuid =>
-      sqs.sendMessage(builder.messageBody(json.noSpaces).messageDeduplicationId(uuid.show).build()).attempt)
+      sqs
+        .sendMessage(builder.messageBody(json.noSpaces).messageDeduplicationId(uuid.show).build())
+        .attempt
+        .void)
 
   private def internal(builder: SendMessageRequest.Builder): Pipe[F, Event, Event] =
     (es: Stream[F, Event]) =>
@@ -44,10 +44,8 @@ final class SqsObserver[F[_]: Clock: UUIDGen](
         ofm <- Stream.eval(F.ref[Map[UUID, ServiceStart]](Map.empty).map(new FinalizeMonitor(translate, _)))
         event <- es
           .evalTap(ofm.monitoring)
-          .evalTap { e =>
-            translate(e).flatMap(_.traverse(json => send(sqs, builder, json)))
-          }
-          .onFinalize(ofm.terminated.flatMap(_.traverse(json => send(sqs, builder, json))).void)
+          .evalTap(e => translate(e).flatMap(_.traverse(json => send(sqs, builder, json))))
+          .onFinalize(ofm.terminated.flatMap(_.traverse_(json => send(sqs, builder, json))))
       } yield event
 
   def observe(builder: SendMessageRequest.Builder): Pipe[F, Event, Event] = internal(builder)

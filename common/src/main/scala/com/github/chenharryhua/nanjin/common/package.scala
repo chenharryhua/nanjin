@@ -13,6 +13,11 @@ package object common {
   // number of records
   type ChunkSize = Refined[Int, Positive]
   object ChunkSize extends RefinedTypeOps[ChunkSize, Int] with CatsRefinedTypeOpsSyntax {
-    def apply(bufferSize: Information): ChunkSize = unsafeFrom(bufferSize.toBytes.toInt)
+    def fromBytes(bytes: Information): ChunkSize = {
+      val b = bytes.toBytes
+      require(b >= 1 && b <= Int.MaxValue, s"ChunkSize($b) out of Int range")
+      unsafeFrom(b.toInt)
+    }
+    def apply(bufferSize: Information): ChunkSize = fromBytes(bufferSize)
   }
 }

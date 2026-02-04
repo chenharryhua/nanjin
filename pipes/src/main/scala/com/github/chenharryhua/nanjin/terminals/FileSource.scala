@@ -181,7 +181,8 @@ final private class FileSourceImpl[F[_]: Sync](configuration: Configuration, url
     binAvro(chunkSize, schema, schema)
 
   override def bytes(bufferSize: Information): Stream[F, Byte] = {
-    require(bufferSize.toBytes > 0, s"bufferSize(${bufferSize.toString()}) should be bigger than zero")
+    val size = bufferSize.toBytes.toInt
+    require(size >= 1, s"bufferSize($size) must be at least 1 byte")
     HadoopReader.byteS[F](configuration, url, bufferSize)
   }
 

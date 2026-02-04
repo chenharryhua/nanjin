@@ -77,8 +77,8 @@ class CrPrTest extends AnyFunSuite {
 
   val prRdd: PrRdd[Long, Rooster] = crRdd.prRdd.partitionOf(0)
   val topic = roosterLike
-  val ack = topic.pair.key.schema
-  val acv = topic.pair.key.schema
+  val ack = topic.pair.key.avroSchema
+  val acv = topic.pair.key.avroSchema
 
   test("time range") {
     val dr =

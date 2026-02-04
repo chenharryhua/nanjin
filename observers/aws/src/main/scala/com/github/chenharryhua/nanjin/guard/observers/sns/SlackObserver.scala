@@ -11,7 +11,7 @@ import com.github.chenharryhua.nanjin.guard.observers.FinalizeMonitor
 import com.github.chenharryhua.nanjin.guard.translator.*
 import fs2.{Pipe, Stream}
 import io.circe.syntax.*
-import software.amazon.awssdk.services.sns.model.{PublishRequest, PublishResponse}
+import software.amazon.awssdk.services.sns.model.PublishRequest
 
 import java.util.UUID
 
@@ -43,12 +43,9 @@ final class SlackObserver[F[_]: Clock](
   override def updateTranslator(f: Endo[Translator[F, SlackApp]]): SlackObserver[F] =
     new SlackObserver[F](client, translator = f(translator))
 
-  private def publish(
-    client: SimpleNotificationService[F],
-    snsArn: SnsArn,
-    msg: String): F[Either[Throwable, PublishResponse]] = {
+  private def publish(client: SimpleNotificationService[F], snsArn: SnsArn, msg: String): F[Unit] = {
     val req: PublishRequest.Builder = PublishRequest.builder().topicArn(snsArn.value).message(msg)
-    client.publish(req.build()).attempt
+    client.publish(req.build()).attempt.void
   }
 
   def observe(snsArn: SnsArn): Pipe[F, Event, Event] = (es: Stream[F, Event]) =>
@@ -60,6 +57,6 @@ final class SlackObserver[F[_]: Clock](
         .evalTap(ofm.monitoring)
         .evalTap(e =>
           translator.translate(e).flatMap(_.traverse(msg => publish(sns, snsArn, msg.asJson.noSpaces))))
-        .onFinalize(ofm.terminated.flatMap(_.traverse(msg => publish(sns, snsArn, msg.asJson.noSpaces))).void)
+        .onFinalize(ofm.terminated.flatMap(_.traverse_(msg => publish(sns, snsArn, msg.asJson.noSpaces))))
     } yield event
 }
