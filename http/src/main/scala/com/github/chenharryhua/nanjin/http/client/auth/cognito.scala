@@ -106,10 +106,7 @@ object cognito {
   }
 
   final class ClientCredentials[F[_]] private (
-    auth_endpoint: Uri,
-    client_id: String,
-    client_secret: String,
-    scopes: NonEmptyList[String],
+    credential: ClientCredentials.Credential,
     authClient: Resource[F, Client[F]])
       extends Http4sClientDsl[F] with Login[F] {
 
@@ -126,10 +123,10 @@ object cognito {
             authenticationClient.expect[Token](POST(
               UrlForm(
                 "grant_type" -> "client_credentials",
-                "scope" -> scopes.toList.mkString(" ")
+                "scope" -> credential.scopes.toList.mkString(" ")
               ),
-              auth_endpoint.withPath(path"/oauth2/token"),
-              Authorization(BasicCredentials(client_id, client_secret))
+              credential.auth_endpoint.withPath(path"/oauth2/token"),
+              Authorization(BasicCredentials(credential.client_id, credential.client_secret))
             ).putHeaders(`Idempotency-Key`(show"$uuid")))
           }
 
@@ -148,16 +145,14 @@ object cognito {
   }
 
   object ClientCredentials {
-    def apply[F[_]](authClient: Resource[F, Client[F]])(
+
+    final case class Credential(
       auth_endpoint: Uri,
       client_id: String,
       client_secret: String,
-      scopes: NonEmptyList[String]): ClientCredentials[F] =
-      new ClientCredentials[F](
-        auth_endpoint = auth_endpoint,
-        client_id = client_id,
-        client_secret = client_secret,
-        scopes = scopes,
-        authClient = authClient)
+      scopes: NonEmptyList[String])
+
+    def apply[F[_]](authClient: Resource[F, Client[F]])(credential: Credential): ClientCredentials[F] =
+      new ClientCredentials[F](credential = credential, authClient = authClient)
   }
 }

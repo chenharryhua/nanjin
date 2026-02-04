@@ -42,14 +42,15 @@ object adobe {
       authClient.flatMap { authenticationClient =>
         val get_token: F[Token] =
           utils.randomUUID[F].flatMap { uuid =>
-            authenticationClient.expect[Token](POST(
-              UrlForm(
-                "grant_type" -> "authorization_code",
-                "client_id" -> client_id,
-                "client_secret" -> client_secret,
-                "code" -> client_code),
-              auth_endpoint.withPath(path"/ims/token/v1")
-            ).putHeaders(`Idempotency-Key`(show"$uuid")))
+            authenticationClient.expect[Token](
+              POST(
+                UrlForm(
+                  "grant_type" -> "authorization_code",
+                  "client_id" -> client_id,
+                  "client_secret" -> client_secret,
+                  "code" -> client_code),
+                auth_endpoint
+              ).putHeaders(`Idempotency-Key`(show"$uuid")))
           }
 
         def update_token(ref: Ref[F, Token]): F[Unit] =
@@ -168,11 +169,7 @@ object adobe {
       )
   }
 
-  final class OAuth[F[_]] private (
-    auth_endpoint: Uri,
-    client_id: String,
-    client_secret: String,
-    authClient: Resource[F, Client[F]])
+  final class OAuth[F[_]] private (credential: OAuth.Credential, authClient: Resource[F, Client[F]])
       extends Http4sClientDsl[F] with Login[F] {
 
     private case class Token(
@@ -187,11 +184,11 @@ object adobe {
             authenticationClient.expect[Token](POST(
               UrlForm(
                 "grant_type" -> "client_credentials",
-                "client_id" -> client_id,
-                "client_secret" -> client_secret,
+                "client_id" -> credential.client_id,
+                "client_secret" -> credential.client_secret,
                 "scope" -> "openid,session,AdobeID,read_organizations,additional_info.projectedProductContext"
               ),
-              auth_endpoint.withPath(path"/ims/token/v3")
+              credential.auth_endpoint
             ).putHeaders(`Idempotency-Key`(show"$uuid")))
           }
 
@@ -210,14 +207,11 @@ object adobe {
   }
 
   object OAuth {
-    def apply[F[_]](authClient: Resource[F, Client[F]])(
-      auth_endpoint: Uri,
-      client_id: String,
-      client_secret: String): OAuth[F] =
+    final case class Credential(auth_endpoint: Uri, client_id: String, client_secret: String)
+
+    def apply[F[_]](authClient: Resource[F, Client[F]])(credential: Credential): OAuth[F] =
       new OAuth[F](
-        auth_endpoint = auth_endpoint,
-        client_id = client_id,
-        client_secret = client_secret,
+        credential = credential,
         authClient = authClient
       )
   }

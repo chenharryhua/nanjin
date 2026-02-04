@@ -54,9 +54,8 @@ class SalesforceMarketingCloudTest extends AnyFunSuite {
     .map(retry(sydneyTime, Policy.fixedDelay(2.second)))
 
   private val cred: MarketingCloud[IO] = MarketingCloud.rest[IO](authClient)(
-    auth_endpoint = uri"http://127.0.0.1:8080",
-    client_id = "a",
-    client_secret = "b"
+    MarketingCloud
+      .Credential(auth_endpoint = uri"http://127.0.0.1:8080", client_id = "a", client_secret = "b")
   )
 
   val client: Resource[IO, Client[IO]] =

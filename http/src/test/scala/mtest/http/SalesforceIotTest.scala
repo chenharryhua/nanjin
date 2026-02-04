@@ -6,6 +6,7 @@ import cats.implicits.catsSyntaxApplyOps
 import com.comcast.ip4s.*
 import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
+import com.github.chenharryhua.nanjin.http.client.auth.salesforce
 import com.github.chenharryhua.nanjin.http.client.auth.salesforce.Iot
 import com.github.chenharryhua.nanjin.http.client.middleware.retry
 import io.circe.Json
@@ -54,11 +55,12 @@ class SalesforceIotTest extends AnyFunSuite {
     .map(retry(sydneyTime, Policy.fixedDelay(0.second).jitter(3.seconds)))
 
   val cred: Iot[IO] = Iot(authClient)(
-    auth_endpoint = uri"http://127.0.0.1:8080",
-    client_id = "a",
-    client_secret = "b",
-    username = "c",
-    password = "d",
+    salesforce.Iot.Credential(
+      auth_endpoint = uri"http://127.0.0.1:8080",
+      client_id = "a",
+      client_secret = "b",
+      username = "c",
+      password = "d"),
     expiresIn = 2.hours
   )
 

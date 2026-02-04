@@ -11,7 +11,6 @@ import org.http4s.circe.CirceEntityCodec.circeEntityDecoder
 import org.http4s.client.Client
 import org.http4s.client.dsl.Http4sClientDsl
 import org.http4s.headers.{`Idempotency-Key`, Authorization}
-import org.http4s.implicits.http4sLiteralsSyntax
 import org.typelevel.ci.CIString
 
 import scala.concurrent.duration.{DurationLong, FiniteDuration}
@@ -27,9 +26,7 @@ object salesforce {
   private case object Soap extends InstanceURL
 
   final class MarketingCloud[F[_]] private (
-    auth_endpoint: Uri,
-    client_id: String,
-    client_secret: String,
+    credential: MarketingCloud.Credential,
     instanceURL: InstanceURL,
     authClient: Resource[F, Client[F]]
   ) extends Http4sClientDsl[F] with Login[F] {
@@ -50,10 +47,10 @@ object salesforce {
               POST(
                 UrlForm(
                   "grant_type" -> "client_credentials",
-                  "client_id" -> client_id,
-                  "client_secret" -> client_secret
+                  "client_id" -> credential.client_id,
+                  "client_secret" -> credential.client_secret
                 ),
-                auth_endpoint.withPath(path"/v2/token")
+                credential.auth_endpoint
               ).putHeaders(`Idempotency-Key`(show"$uuid")))
           }
 
@@ -79,26 +76,19 @@ object salesforce {
   }
 
   object MarketingCloud {
-    def rest[F[_]](authClient: Resource[F, Client[F]])(
-      auth_endpoint: Uri,
-      client_id: String,
-      client_secret: String): MarketingCloud[F] =
+
+    final case class Credential(auth_endpoint: Uri, client_id: String, client_secret: String)
+
+    def rest[F[_]](authClient: Resource[F, Client[F]])(credential: Credential): MarketingCloud[F] =
       new MarketingCloud[F](
-        auth_endpoint = auth_endpoint,
-        client_id = client_id,
-        client_secret = client_secret,
+        credential = credential,
         instanceURL = Rest,
         authClient = authClient
       )
 
-    def soap[F[_]](authClient: Resource[F, Client[F]])(
-      auth_endpoint: Uri,
-      client_id: String,
-      client_secret: String): MarketingCloud[F] =
+    def soap[F[_]](authClient: Resource[F, Client[F]])(credential: Credential): MarketingCloud[F] =
       new MarketingCloud[F](
-        auth_endpoint = auth_endpoint,
-        client_id = client_id,
-        client_secret = client_secret,
+        credential = credential,
         instanceURL = Soap,
         authClient = authClient
       )
@@ -106,11 +96,7 @@ object salesforce {
 
   // https://developer.salesforce.com/docs/atlas.en-us.api_iot.meta/api_iot/qs_auth_access_token.htm
   final class Iot[F[_]] private (
-    auth_endpoint: Uri,
-    client_id: String,
-    client_secret: String,
-    username: String,
-    password: String,
+    credential: Iot.Credential,
     expiresIn: FiniteDuration,
     authClient: Resource[F, Client[F]]
   ) extends Http4sClientDsl[F] with Login[F] {
@@ -130,12 +116,12 @@ object salesforce {
             authenticationClient.expect[Token](POST(
               UrlForm(
                 "grant_type" -> "password",
-                "client_id" -> client_id,
-                "client_secret" -> client_secret,
-                "username" -> username,
-                "password" -> password
+                "client_id" -> credential.client_id,
+                "client_secret" -> credential.client_secret,
+                "username" -> credential.username,
+                "password" -> credential.password
               ),
-              auth_endpoint.withPath(path"/services/oauth2/token")
+              credential.auth_endpoint
             ).putHeaders(`Idempotency-Key`(show"$uuid")))
           }
 
@@ -152,21 +138,17 @@ object salesforce {
   }
 
   object Iot {
-    def apply[F[_]](authClient: Resource[F, Client[F]])(
+
+    final case class Credential(
       auth_endpoint: Uri,
       client_id: String,
       client_secret: String,
       username: String,
-      password: String,
-      expiresIn: FiniteDuration): Iot[F] =
-      new Iot[F](
-        auth_endpoint = auth_endpoint,
-        client_id = client_id,
-        client_secret = client_secret,
-        username = username,
-        password = password,
-        expiresIn = expiresIn,
-        authClient = authClient
-      )
+      password: String)
+
+    def apply[F[_]](authClient: Resource[F, Client[F]])(
+      credential: Credential,
+      expiresIn: FiniteDuration = 24.hours): Iot[F] =
+      new Iot[F](credential, expiresIn, authClient)
   }
 }
