@@ -5,7 +5,7 @@ import com.github.chenharryhua.nanjin.aws.ParameterStore
 import com.github.chenharryhua.nanjin.common.aws.ParameterStorePath
 import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
-import com.github.chenharryhua.nanjin.http.client.auth.salesforce.Iot
+import com.github.chenharryhua.nanjin.http.client.auth.{Login, Salesforce}
 import com.github.chenharryhua.nanjin.http.client.middleware.retry
 import org.http4s.client.Client
 import org.http4s.client.middleware.Logger
@@ -21,19 +21,21 @@ object salesforce_client {
     .map(Logger(logHeaders = true, logBody = true, _ => false))
     .map(retry(sydneyTime, Policy.fixedDelay(0.second).jitter(5.seconds)))
 
-  private val credential: Resource[IO, Iot[IO]] =
+  private val credential: Resource[IO, Login[IO]] =
     ParameterStore[IO](identity).evalMap { ps =>
       for {
         id <- ps.fetch(ParameterStorePath("salesforce/client_id"))
         cs <- ps.fetch(ParameterStorePath("salesforce/client_secret"))
         un <- ps.fetch(ParameterStorePath("salesforce/username"))
         pw <- ps.fetch(ParameterStorePath("salesforce/password"))
-      } yield Iot(authClient)(
-        auth_endpoint = uri"https://test.salesforce.com",
-        client_id = id.value,
-        client_secret = cs.value,
-        username = un.value,
-        password = pw.value,
+      } yield Salesforce(
+        authClient,
+        Salesforce.PasswordGrant(
+          auth_endpoint = uri"https://test.salesforce.com",
+          client_id = id.value,
+          client_secret = cs.value,
+          username = un.value,
+          password = pw.value),
         expiresIn = 2.hours
       )
     }

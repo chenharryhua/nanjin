@@ -14,7 +14,7 @@ Global / parallelExecution := false
 val acyclicV = "0.3.20"
 val avroV = "1.12.1"
 val avro4sV = "4.1.2"
-val awsV = "2.41.19"
+val awsV = "2.41.20"
 val caffeineV = "3.2.3"
 val catsCoreV = "2.13.0"
 val catsEffectV = "3.6.3"
@@ -30,7 +30,6 @@ val fs2V = "3.12.2"
 val hadoopV = "3.4.2"
 val http4sV = "0.23.33"
 val jacksonV = "2.21.0"
-val jwtV = "0.13.0"
 val kafkaV = "8.1.1-ce"
 val kantanV = "0.8.0"
 val log4catsV = "2.7.1"
@@ -157,8 +156,6 @@ lazy val http = (project in file("http"))
       "org.http4s" %% "http4s-circe"        % http4sV,
       "org.http4s" %% "http4s-client"       % http4sV,
       "org.tpolecat" %% "natchez-core"      % natchezV,
-      "org.bouncycastle"                    % "bcpkix-jdk18on" % "1.83",
-      "io.jsonwebtoken"                     % "jjwt-api"       % jwtV,
       "co.fs2" %% "fs2-io"                  % fs2V, // snyk - http4s
       "org.http4s" %% "http4s-dsl"          % http4sV          % Test,
       "org.http4s" %% "http4s-ember-server" % http4sV          % Test,

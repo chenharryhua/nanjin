@@ -6,8 +6,7 @@ import cats.implicits.catsSyntaxApplyOps
 import com.comcast.ip4s.*
 import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
-import com.github.chenharryhua.nanjin.http.client.auth.salesforce
-import com.github.chenharryhua.nanjin.http.client.auth.salesforce.Iot
+import com.github.chenharryhua.nanjin.http.client.auth.Salesforce
 import com.github.chenharryhua.nanjin.http.client.middleware.retry
 import io.circe.Json
 import io.circe.syntax.EncoderOps
@@ -54,9 +53,10 @@ class SalesforceIotTest extends AnyFunSuite {
     .map(Logger(logHeaders = true, logBody = true, _ => false))
     .map(retry(sydneyTime, Policy.fixedDelay(0.second).jitter(3.seconds)))
 
-  val cred: Iot[IO] = Iot(authClient)(
-    salesforce.Iot.Credential(
-      auth_endpoint = uri"http://127.0.0.1:8080",
+  val login = Salesforce(
+    authClient,
+    Salesforce.PasswordGrant(
+      auth_endpoint = uri"http://127.0.0.1:8080/services/oauth2/token",
       client_id = "a",
       client_secret = "b",
       username = "c",
@@ -68,7 +68,7 @@ class SalesforceIotTest extends AnyFunSuite {
     EmberClientBuilder
       .default[IO]
       .build
-      .flatMap(cred.loginR)
+      .flatMap(login.loginR)
       .map(Logger(logHeaders = true, logBody = true, _ => false))
 
   test("salesforce.iot") {
