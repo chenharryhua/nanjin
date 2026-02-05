@@ -100,11 +100,7 @@ private class ClientCredentialsAuth[F[_]: Async](
     authClient.flatMap { authenticationClient =>
       val tac: TokenAuthClient[F, Token] = new TokenAuthClient[F, Token]() {
         override protected def getToken: F[Token] =
-          post_token[Token](
-            authenticationClient,
-            credential.auth_endpoint,
-            urlForm
-          )
+          post_token[Token](authenticationClient, credential.auth_endpoint, urlForm)
 
         private def refresh_access_token(refresh_token: String): F[Token] =
           utils.randomUUID[F].flatMap { uuid =>
