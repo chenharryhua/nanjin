@@ -1,80 +1,121 @@
 package mtest.common
 
-import cats.effect.IO
-import cats.effect.unsafe.IORuntime
+import cats.effect.{IO, Resource}
 import com.github.chenharryhua.nanjin.common.Retry
+import com.github.chenharryhua.nanjin.common.chrono.Policy
 import munit.CatsEffectSuite
 
 import java.time.ZoneId
+import scala.collection.mutable
 import scala.concurrent.duration.*
 
 class RetrySpec extends CatsEffectSuite {
 
-  implicit val runtime: IORuntime = IORuntime.global
+  test("Retry: effect succeeds after failures") {
+    val zoneId = ZoneId.systemDefault()
+    val maxAttempts = 3
+    val state = mutable.ListBuffer.empty[String]
 
-  /** Helper: create a Retry with simple fixedRate policy */
-  def simpleRetry: IO[Retry[IO]] =
-    Retry[IO](ZoneId.systemDefault(), _.withPolicy(_.fixedRate(100.millis).limited(5)))
-
-  test("Retry should eventually succeed") {
-    var attempt = 0
-    val effect: IO[String] = IO {
-      attempt += 1
-      if (attempt < 3) throw new RuntimeException("fail")
+    // fail first 2 times, succeed 3rd
+    var counter = 0
+    val riskyOp: IO[String] = IO {
+      counter += 1
+      state += s"attempt $counter"
+      if (counter < 3) throw new RuntimeException(s"fail $counter")
       else "success"
     }
 
-    simpleRetry.flatMap { r =>
-      r(effect).map { result =>
+    val policy = Policy.fixedDelay(100.millis).limited(maxAttempts)
+    val retryIO = Retry[IO](zoneId, _.withPolicy(_ => policy))
+
+    retryIO.flatMap { retry =>
+      retry(riskyOp).map { result =>
         assertEquals(result, "success")
-        assertEquals(attempt, 3) // retried twice before succeeding
+        assertEquals(state.toList, List("attempt 1", "attempt 2", "attempt 3"))
       }
-    }.unsafeRunSync()
+    }
   }
 
-  test("Retry should give up after limit") {
-    val effect: IO[String] = IO.raiseError(new RuntimeException("always fail"))
+  test("Retry: fails after exhausting policy, only last failure propagated") {
+    val zoneId = ZoneId.systemDefault()
+    val maxAttempts = 2
+    var counter = 0
 
-    simpleRetry.flatMap { r =>
-      r(effect).attempt.map { result =>
-        assert(result.isLeft)
-      }
-    }.unsafeRunSync()
-  }
-
-  test("Retry should respect worthy predicate") {
-    var attempt = 0
-    val effect: IO[String] = IO {
-      attempt += 1
-      if (attempt == 1) throw new IllegalArgumentException("bad arg")
-      else if (attempt == 2) throw new RuntimeException("other fail")
-      else "success"
+    val riskyOp: IO[String] = IO {
+      counter += 1
+      throw new RuntimeException(s"fail $counter")
     }
 
-    val worthy: Retry.Builder[IO] => Retry.Builder[IO] =
-      _.isWorthRetry(tv => IO.pure(tv.value.isInstanceOf[RuntimeException]))
+    val policy = Policy.fixedDelay(50.millis).limited(maxAttempts)
+    val retryIO = Retry[IO](zoneId, _.withPolicy(_ => policy))
 
-    Retry[IO](ZoneId.systemDefault(), worthy).flatMap { r =>
-      r(effect).attempt.map { result =>
-        assert(result.isLeft) // first exception is not retried because it's IllegalArgumentException
-        assertEquals(attempt, 1) // retried only once
+    retryIO.flatMap { retry =>
+      retry(riskyOp).attempt.map {
+        case Left(ex) =>
+          assertEquals(ex.getMessage, "fail 3") // only last failure
+          assertEquals(counter, 3)
+        case Right(_) => fail("Expected failure, got success")
       }
-    }.unsafeRunSync()
+    }
   }
 
-  test("Retry should retry Resource acquisition") {
-    var attempt = 0
-    val riskyRes: IO[String] = IO {
-      attempt += 1
-      if (attempt < 2) throw new RuntimeException("fail")
-      else "ok"
+  test("Retry: resource acquisition retries on failure") {
+    val zoneId = ZoneId.systemDefault()
+    val maxAttempts = 3
+    val state = mutable.ListBuffer.empty[String]
+
+    var counter = 0
+    val riskyResource: Resource[IO, Int] = Resource.make {
+      IO {
+        counter += 1
+        state += s"acquire $counter"
+        if (counter < 3) throw new RuntimeException(s"fail $counter")
+        else counter
+      }
+    }(_ => IO(state += s"release $counter") >> IO.println("released"))
+
+    val policy = Policy.fixedDelay(10.millis).limited(maxAttempts)
+    val retryIO = Retry[IO](zoneId, _.withPolicy(_ => policy))
+
+    retryIO.flatMap { retry =>
+      retry(riskyResource).use { r =>
+        IO {
+          assertEquals(r, 3)
+          assertEquals(
+            state.toList,
+            List(
+              "acquire 1",
+              "acquire 2",
+              "acquire 3"
+            )
+          )
+        }
+      }
+    }
+  }
+
+  test("Retry: decision can stop retry early") {
+    val zoneId = ZoneId.systemDefault()
+    var counter = 0
+    val riskyOp: IO[String] = IO {
+      counter += 1
+      throw new RuntimeException(s"fail $counter")
     }
 
-    simpleRetry.flatMap { r =>
-      r(riskyRes).map { result =>
-        assertEquals(result, "ok")
-        assertEquals(attempt, 2)
+    val retryIO = Retry[IO](
+      zoneId,
+      _.withDecision { tv =>
+        // Stop retrying after first failure
+        IO.pure(tv.map(_ => false))
+      })
+
+    retryIO.flatMap { retry =>
+      retry(riskyOp).attempt.map {
+        case Left(ex) =>
+          assertEquals(ex.getMessage, "fail 1")
+          assertEquals(counter, 1)
+        case Right(_) => fail("Expected failure")
       }
-    }.unsafeRunSync()
+    }
   }
 }

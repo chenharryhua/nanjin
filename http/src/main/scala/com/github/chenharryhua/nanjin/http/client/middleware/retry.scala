@@ -4,44 +4,62 @@ import cats.effect.kernel.{Async, Resource, Temporal}
 import cats.effect.std.Hotswap
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.chrono.{Policy, TickStatus}
-import org.http4s.{Request, Response}
 import org.http4s.client.Client
 import org.http4s.client.middleware.RetryPolicy
 import org.http4s.headers.`Retry-After`
+import org.http4s.{Headers, Message, Request, Response}
+import org.typelevel.ci.CIString
 
 import java.time.ZoneId
 import scala.concurrent.duration.{DurationLong, FiniteDuration}
 import scala.jdk.DurationConverters.JavaDurationOps
 
-object retry {
-  def apply[F[_]: Async](zoneId: ZoneId, policy: Policy): Client[F] => Client[F] =
-    client => impl[F](zoneId, policy, RetryPolicy.defaultRetriable)(client)
+final case class LogRetry[F[_]](
+  logHeaders: Boolean,
+  logBody: Boolean,
+  logging: String => F[Unit],
+  redactHeadersWhen: CIString => Boolean = Headers.SensitiveHeaders.contains)
 
-  def reckless[F[_]: Async](zoneId: ZoneId, policy: Policy): Client[F] => Client[F] =
-    client => impl[F](zoneId, policy, (_, ex) => RetryPolicy.recklesslyRetriable(ex))(client)
+object retry {
+  def apply[F[_]: Async](zoneId: ZoneId, policy: Policy, logRetry: Option[LogRetry[F]] = None)(
+    client: Client[F]): Client[F] =
+    impl[F](zoneId, policy, logRetry, RetryPolicy.defaultRetriable)(client)
+
+  def reckless[F[_]: Async](zoneId: ZoneId, policy: Policy, logRetry: Option[LogRetry[F]] = None)(
+    client: Client[F]): Client[F] =
+    impl[F](zoneId, policy, logRetry, (_, ex) => RetryPolicy.recklesslyRetriable(ex))(client)
 
   private def impl[F[_]: Async](
     zoneId: ZoneId,
     policy: Policy,
+    logRetry: Option[LogRetry[F]],
     retriable: (Request[F], Either[Throwable, Response[F]]) => Boolean)(client: Client[F]): Client[F] = {
+
+    def logging(message: Message[F]): F[Unit] =
+      logRetry.traverse_ { lr =>
+        org.http4s.internal.Logger.logMessage(message)(
+          logHeaders = lr.logHeaders,
+          logBody = lr.logBody,
+          redactHeadersWhen = lr.redactHeadersWhen)(lr.logging)
+      }
+
     def nextAttempt(
       req: Request[F],
       tickStatus: TickStatus,
       retryHeader: Option[`Retry-After`],
       hotswap: Hotswap[F, Either[Throwable, Response[F]]]
     ): F[Response[F]] = {
-      val header_duration: F[Option[FiniteDuration]] =
+      val effective_delay: F[FiniteDuration] =
         retryHeader.traverse { h =>
           h.retry match {
-            case Left(date)  => Async[F].realTime.map(date.toDuration - _)
+            case Left(date)  => Async[F].realTime.map(n => (date.toDuration - n).max(0.seconds))
             case Right(secs) => secs.seconds.pure[F]
           }
+        }.map {
+          case Some(after) => after.max(tickStatus.tick.snooze.toScala)
+          case None        => tickStatus.tick.snooze.toScala
         }
-      val sleep_duration = header_duration.map {
-        case Some(value) => value.max(tickStatus.tick.snooze.toScala)
-        case None        => tickStatus.tick.snooze.toScala
-      }
-      sleep_duration.flatMap(Temporal[F].sleep(_)) >> retryLoop(req, tickStatus, hotswap)
+      effective_delay.flatMap(Temporal[F].sleep(_)) >> retryLoop(req, tickStatus, hotswap)
     }
 
     def retryLoop(
@@ -49,8 +67,8 @@ object retry {
       tickStatus: TickStatus,
       hotswap: Hotswap[F, Either[Throwable, Response[F]]]
     ): F[Response[F]] =
-      hotswap.clear >>
-        hotswap.swap(client.run(req).attempt).flatMap {
+      logging(req) >>
+        hotswap.swap(client.run(req).evalTap(logging(_)).attempt).flatMap {
           case Left(ex) =>
             Temporal[F].realTimeInstant.flatMap(now =>
               tickStatus.next(now) match {

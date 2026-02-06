@@ -4,56 +4,48 @@ import cats.Endo
 import cats.effect.Temporal
 import cats.effect.kernel.{Async, Resource}
 import cats.effect.std.Hotswap
-import cats.implicits.{catsSyntaxApplicativeId, catsSyntaxEitherId, catsSyntaxIfM, toFlatMapOps, toFunctorOps}
+import cats.implicits.{catsSyntaxApplicativeId, catsSyntaxEitherId, toFlatMapOps, toFunctorOps}
 import com.github.chenharryhua.nanjin.common.chrono.{Policy, TickStatus, TickedValue}
 
 import java.time.ZoneId
+import scala.concurrent.duration.DurationInt
 import scala.jdk.DurationConverters.JavaDurationOps
 
-/** A typeclass providing retry functionality for effectful computations and resources.
+/** A `Retry` coordinates repeated execution of effectful computations and resource acquisition under a
+  * time-based policy.
   *
-  * Retry behavior is governed by a `Policy` and a "worthiness" predicate that decides whether a failed
-  * attempt should be retried.
+  * A retry is governed by two orthogonal concerns:
   *
-  * Features:
-  *   - Retry any `F[A]` effect.
-  *   - Retry resource acquisition via `Resource[F, A]`.
-  *   - Configurable retry policy and backoff.
-  *   - Optional filter to determine if a failure is worth retrying.
+  *   1. A [[com.github.chenharryhua.nanjin.common.chrono.Policy]] that defines the temporal structure of
+  *      retry attempts (limits, delays, backoff)
+  *   2. A *decision function* that is invoked on failure and determines whether execution should continue,
+  *      optionally reshaping the next retry time-frame
   *
-  * Example usage:
-  * {{{
+  * Retry execution is driven by a sequence of evolving [[com.github.chenharryhua.nanjin.common.chrono.Tick]]
+  * instances, allowing retry behavior to be time-aware, observable, and adaptive.
   *
-  * import cats.effect.{IO, Resource}
-  * import scala.concurrent.duration.*
-  * import java.time.ZoneId
+  * `Retry` is a coordination mechanism only: it does not impose semantics on the effect itself, but
+  * re-invokes it according to the configured policy and decision logic.
   *
-  * val retryResource: Resource[IO, Retry[IO]] =
-  *   Retry[IO](ZoneId.systemDefault(), _.withPolicy(
-  *     _.fixedRate(1.second)    // retry every second
-  *       .jitter(200.millis, 1.second) // add random jitter
-  *       .limited(5)             // max 5 retries
-  *   ))
-  *
-  * val riskyOp: IO[String] = IO {
-  *   println("Running risky operation")
-  *   if (math.random() < 0.7) throw new RuntimeException("Failed")
-  *   else "Success!"
-  * }
-  *
-  * val program: IO[String] = retryResource.use { r =>
-  *   r(riskyOp)
-  * }
-  *
-  * program.unsafeRunSync()
-  * }}}
-  *
-  * Notes:
-  *   - The `worthy` function can filter which exceptions should trigger a retry.
-  *   - Resource finalizers may run multiple times if retries occur.
+  * A `Retry[F]` instance is immutable and may be safely reused.
   */
 trait Retry[F[_]] {
+
+  /** Executes the given effect, retrying failures according to the configured policy and decision function.
+    *
+    * Only the last failure is propagated if execution ultimately fails.
+    */
   def apply[A](fa: F[A]): F[A]
+
+  /** Executes the acquisition of the given resource, retrying acquisition failures according to the
+    * configured policy and decision function.
+    *
+    * Only resource acquisition is retried; failures during resource usage are not intercepted.
+    *
+    * Resource finalizers may be invoked multiple times if retries occur.
+    *
+    * Only the last acquisition failure is propagated if all retries fail.
+    */
   def apply[A](rfa: Resource[F, A]): Resource[F, A]
 }
 
@@ -61,49 +53,63 @@ object Retry {
 
   final private class Impl[F[_]](initTS: TickStatus)(implicit F: Temporal[F]) {
 
-    def comprehensive[A](fa: F[A], worthy: TickedValue[Throwable] => F[Boolean]): F[A] =
+    def retryLoop[A](fa: F[A], decide: TickedValue[Throwable] => F[TickedValue[Boolean]]): F[A] =
       F.tailRecM[TickStatus, A](initTS) { status =>
         F.handleErrorWith(fa.map[Either[TickStatus, A]](Right(_))) { ex =>
           F.realTimeInstant.map(status.next).flatMap {
             case None     => F.raiseError(ex) // run out of policy
-            case Some(ts) =>
-              worthy(TickedValue(ts.tick, ex)).ifM(
-                F.sleep(ts.tick.snooze.toScala).as(ts.asLeft[A]), // sleep and then run fa again
-                F.raiseError(ex) // give up if unworthy to retry
-              )
+            case Some(ts) => // respect user's decision
+              decide(TickedValue(ts.tick, ex)).flatMap { tv =>
+                if (tv.value)
+                  F.sleep(tv.tick.snooze.toScala.max(0.seconds)).as(ts.withTick(tv.tick).asLeft[A])
+                else
+                  F.raiseError(ex)
+              }
           }
         }
       }
 
-    def resource[A](rfa: Resource[F, A], worthy: TickedValue[Throwable] => F[Boolean]): Resource[F, A] =
-      Hotswap.create[F, A].evalMap(hotswap => comprehensive(hotswap.swap(rfa), worthy))
+    def resource[A](
+      rfa: Resource[F, A],
+      decide: TickedValue[Throwable] => F[TickedValue[Boolean]]): Resource[F, A] =
+      Hotswap.create[F, A].evalMap(hotswap => retryLoop(hotswap.swap(rfa), decide))
   }
 
-  final class Builder[F[_]] private[Retry] (policy: Policy, worthy: TickedValue[Throwable] => F[Boolean]) {
+  final class Builder[F[_]] private[Retry] (
+    policy: Policy,
+    decide: TickedValue[Throwable] => F[TickedValue[Boolean]]) {
 
-    def isWorthRetry(worthy: TickedValue[Throwable] => F[Boolean]): Builder[F] =
-      new Builder[F](policy, worthy)
+    /** Replaces the decision function used to control retry behavior on failure.
+      *
+      * The function receives the failure annotated with the current 'Tick'.
+      *
+      * It determines:
+      *   - whether execution should continue (`true`) or terminate (`false`)
+      *   - the timing of the next retry attempt, via modifications to the provided `Tick`
+      */
+    def withDecision(f: TickedValue[Throwable] => F[TickedValue[Boolean]]): Builder[F] =
+      new Builder[F](policy, f)
 
     def withPolicy(policy: Policy): Builder[F] =
-      new Builder[F](policy, worthy)
+      new Builder[F](policy, decide)
 
     def withPolicy(f: Policy.type => Policy): Builder[F] =
-      new Builder[F](f(Policy), worthy)
+      new Builder[F](f(Policy), decide)
 
     private[Retry] def build(zoneId: ZoneId)(implicit F: Async[F]): F[Retry[F]] =
       TickStatus.zeroth[F](zoneId, policy).map { ts =>
         val impl = new Impl[F](ts)
         new Retry[F] {
           override def apply[A](fa: F[A]): F[A] =
-            impl.comprehensive(fa, worthy)
+            impl.retryLoop(fa, decide)
 
           override def apply[A](rfa: Resource[F, A]): Resource[F, A] =
-            impl.resource(rfa, worthy)
+            impl.resource(rfa, decide)
         }
       }
   }
 
   def apply[F[_]: Async](zoneId: ZoneId, f: Endo[Builder[F]]): F[Retry[F]] =
-    f(new Builder[F](Policy.giveUp, _ => true.pure[F])).build(zoneId)
+    f(new Builder[F](Policy.giveUp, _.map(_ => true).pure[F])).build(zoneId)
 
 }

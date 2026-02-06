@@ -11,13 +11,48 @@ import org.typelevel.cats.time.instances.all.*
 import java.time.*
 import java.util.UUID
 
-/*
- *  commence    acquires       conclude
- *    |            |----snooze----|
- *    |---active---|              |
- *    |----------window-----------|
- */
-
+/** A `Tick` represents a bounded, evolving **time-frame** with identity and structure.
+  *
+  * A tick captures how time is partitioned into three ordered instants:
+  *
+  * {{{
+  *   commence  ──► acquires ──► conclude
+  *       |         |--- snooze ---|
+  *       |--- active ---|
+  *       |----------- window -----------|
+  * }}}
+  *
+  * Conceptually:
+  *
+  *   - `commence` marks the start of the time-frame
+  *   - `acquires` marks the point at which an action is attempted or acquired
+  *   - `conclude` marks the end of the time-frame
+  *
+  * A `Tick` carries stable identity and temporal provenance, allowing it to be:
+  *
+  *   - evolved deterministically (`nextTick`)
+  *   - measured (`active`, `snooze`, `window`)
+  *   - serialized and reconstructed across systems
+  *
+  * ===Invariants===
+  *
+  * The following invariants are assumed to hold:
+  *
+  *   - `launchTime <= commence <= acquires <= conclude`
+  *   - `index` is monotonically increasing within a `sequenceId`
+  *   - `sequenceId`, `launchTime`, and `zoneId` are immutable across evolution
+  *
+  * These invariants are not enforced at runtime and must be preserved by constructors and transformation
+  * methods.
+  *
+  * ===Time semantics===
+  *
+  * All internal fields are stored as `Instant`. Local and zoned representations are derived using the
+  * associated `zoneId`.
+  *
+  * A `Tick` is independent of any particular domain (e.g. retry, scheduling, polling) and may be used
+  * wherever a structured time-frame is required.
+  */
 final case class Tick(
   sequenceId: UUID, // immutable
   launchTime: Instant, // immutable
@@ -125,8 +160,22 @@ object Tick {
   implicit val showTick: Show[Tick] = Show.fromToString[Tick]
 }
 
+/** A value annotated with the `Tick` (time-frame) in which it was produced or observed.
+  *
+  * This type preserves temporal provenance alongside a computed value, allowing downstream consumers to make
+  * decisions with full time-frame context.
+  *
+  * Common use cases include:
+  *   - time-aware decision making
+  *   - observability and metrics
+  *   - state transitions with temporal bounds
+  *
+  * `TickedValue` forms a lawful `Functor`, mapping over the value while preserving the associated `Tick`.
+  */
 final case class TickedValue[A](tick: Tick, value: A) {
   def map[B](f: A => B): TickedValue[B] = copy(value = f(value))
+  def withSnoozeStretch(delay: Duration): TickedValue[A] =
+    copy(tick = tick.withSnoozeStretch(delay))
 }
 object TickedValue {
   implicit def encoderTickedValue[A: Encoder]: Encoder[TickedValue[A]] =
