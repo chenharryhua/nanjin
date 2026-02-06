@@ -2,12 +2,12 @@ package mtest.terminals
 
 import cats.effect.IO
 import com.github.chenharryhua.nanjin.terminals.Hadoop
+import com.sksamuel.avro4s.SchemaFor
 import org.apache.avro.Schema
 import org.apache.avro.generic.{GenericData, GenericRecord}
 import org.apache.hadoop.conf.Configuration
 
 import scala.util.Random
-import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 object HadoopTestData {
 
   val pandaSchema: Schema = (new Schema.Parser).parse("""
@@ -50,5 +50,5 @@ object HadoopTestData {
   val hdp: Hadoop[IO] = Hadoop[IO](cfg)
 
   final case class Upgrade(name: String, age: Int, id: Int, zoo: String = "SiChuang")
-  val readerSchema: Schema = AvroCodec[Upgrade].schema
+  val readerSchema: Schema = SchemaFor[Upgrade].schema
 }
