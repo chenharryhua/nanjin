@@ -18,8 +18,6 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.ZoneId
 import scala.concurrent.duration.DurationDouble
-import com.github.chenharryhua.nanjin.messages.kafka.codec.genericRecord2JsonNode
-import com.github.chenharryhua.nanjin.messages.kafka.codec.jsonNode2GenericRecord
 
 class NJJsonNodeTest extends AnyFunSuite {
   import HadoopTestData.*

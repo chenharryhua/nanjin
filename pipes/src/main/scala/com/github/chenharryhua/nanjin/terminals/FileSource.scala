@@ -5,7 +5,6 @@ import cats.data.Reader
 import cats.effect.kernel.Sync
 import com.fasterxml.jackson.databind.{JsonNode, ObjectReader}
 import com.github.chenharryhua.nanjin.common.ChunkSize
-import com.github.chenharryhua.nanjin.messages.kafka.globalObjectMapper
 import fs2.Stream
 import io.circe.Json
 import io.lemonlabs.uri.Url
@@ -231,7 +230,7 @@ final private class FileSourceImpl[F[_]: Sync](configuration: Configuration, url
     HadoopReader.protobufS[F, A](configuration, url, chunkSize)
 
   override def jsonNode(chunkSize: ChunkSize): Stream[F, JsonNode] = {
-    val reader: ObjectReader = globalObjectMapper.reader()
+    val reader: ObjectReader = objectMapper.reader()
     text(chunkSize).takeWhile(_.nonEmpty).map(reader.readTree)
   }
 }

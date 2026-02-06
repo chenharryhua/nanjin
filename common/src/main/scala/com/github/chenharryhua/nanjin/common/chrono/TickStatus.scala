@@ -13,6 +13,9 @@ final class TickStatus private (val tick: Tick, decisions: LazyList[PolicyF.Calc
   def renewPolicy(policy: Policy): TickStatus =
     new TickStatus(tick, PolicyF.decisions(policy.policy))
 
+  def withTick(tick: Tick): TickStatus =
+    new TickStatus(tick, decisions)
+
   def next(now: Instant): Option[TickStatus] =
     decisions match {
       case head #:: tail => Some(new TickStatus(head(PolicyF.TickRequest(tick, now)), tail))

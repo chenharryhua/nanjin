@@ -3,7 +3,6 @@ package com.github.chenharryhua.nanjin.terminals
 import cats.data.Reader
 import cats.effect.kernel.{Resource, Sync}
 import com.fasterxml.jackson.databind.{JsonNode, ObjectWriter}
-import com.github.chenharryhua.nanjin.messages.kafka.globalObjectMapper
 import fs2.Chunk
 import io.circe.{Json, Printer}
 import io.lemonlabs.uri.Url
@@ -139,7 +138,7 @@ private object HadoopWriter {
   def jsonNodeR[F[_]](configuration: Configuration, url: Url)(implicit
     F: Sync[F]): Resource[F, HadoopWriter[F, JsonNode]] =
     outputStreamR[F](configuration, url).map { os =>
-      val writer: ObjectWriter = globalObjectMapper.writer()
+      val writer: ObjectWriter = objectMapper.writer()
       new HadoopWriter[F, JsonNode] {
         override val fileUrl: Url = url
         override def write(cjn: Chunk[JsonNode]): F[Unit] =

@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.http.client.auth
 
+import cats.effect.MonadCancel
 import cats.effect.kernel.{Async, Ref, Resource}
 import cats.implicits.{
   catsSyntaxApplicativeError,
@@ -17,7 +18,7 @@ import org.http4s.headers.`Idempotency-Key`
 import org.http4s.{EntityDecoder, Request, Response, Status, Uri, UrlForm}
 
 /** Wraps an HTTP client with authentication, providing Resource and Stream APIs. */
-abstract class Login[F[_]: Async] {
+abstract class Login[F[_]](implicit F: MonadCancel[F, ?]) {
 
   def loginR(client: Client[F]): Resource[F, Client[F]]
 
