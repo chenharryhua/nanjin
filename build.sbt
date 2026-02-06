@@ -14,7 +14,7 @@ Global / parallelExecution := false
 val acyclicV = "0.3.20"
 val avroV = "1.12.1"
 val avro4sV = "4.1.2"
-val awsV = "2.41.20"
+val awsV = "2.41.23"
 val caffeineV = "3.2.3"
 val catsCoreV = "2.13.0"
 val catsEffectV = "3.6.3"
@@ -37,7 +37,7 @@ val logbackV = "1.5.27"
 val metricsV = "4.2.38"
 val monocleV = "3.3.0"
 val natchezV = "0.3.8"
-val nettyV = "4.2.9.Final"
+val nettyV = "4.2.10.Final"
 val parquetV = "1.17.0"
 val postgresV = "42.7.9"
 val refinedV = "0.11.3"
@@ -140,7 +140,8 @@ lazy val common = (project in file("common"))
       "io.circe" %% "circe-generic"                    % circeV,
       "io.circe" %% "circe-refined"                    % "0.15.1",
       "dev.optics" %% "monocle-macro"                  % monocleV,
-      "org.apache.commons"                             % "commons-lang3" % "3.20.0"
+      // java
+      "org.apache.commons" % "commons-lang3" % "3.20.0"
     ) ++ enumLib ++ refinedLib ++ testLib
   )
 
@@ -157,11 +158,12 @@ lazy val http = (project in file("http"))
       "org.http4s" %% "http4s-client"       % http4sV,
       "org.tpolecat" %% "natchez-core"      % natchezV,
       "co.fs2" %% "fs2-io"                  % fs2V, // snyk - http4s
-      "org.http4s" %% "http4s-dsl"          % http4sV          % Test,
-      "org.http4s" %% "http4s-ember-server" % http4sV          % Test,
-      "org.http4s" %% "http4s-ember-client" % http4sV          % Test,
-      "org.tpolecat" %% "natchez-log"       % natchezV         % Test,
-      "org.slf4j"                           % "slf4j-reload4j" % slf4jV % Test
+      "org.http4s" %% "http4s-dsl"          % http4sV  % Test,
+      "org.http4s" %% "http4s-ember-server" % http4sV  % Test,
+      "org.http4s" %% "http4s-ember-client" % http4sV  % Test,
+      "org.tpolecat" %% "natchez-log"       % natchezV % Test,
+      // java
+      "org.slf4j" % "slf4j-reload4j" % slf4jV % Test
     ) ++ testLib)
 
 // ==========================
@@ -208,10 +210,6 @@ lazy val guard = (project in file("guard"))
   .settings(name := "nj-guard")
   .settings(
     libraryDependencies ++= List(
-      "org.apache.commons"                  % "commons-collections4" % "4.5.0",
-      "io.dropwizard.metrics"               % "metrics-core"         % metricsV,
-      "io.dropwizard.metrics"               % "metrics-jmx"          % metricsV,
-      "com.github.ben-manes.caffeine"       % "caffeine"             % caffeineV,
       "io.github.timwspence" %% "cats-stm"  % "0.13.5",
       "org.typelevel" %% "log4cats-slf4j"   % log4catsV,
       "io.circe" %% "circe-optics"          % "0.15.1",
@@ -221,8 +219,13 @@ lazy val guard = (project in file("guard"))
       "org.http4s" %% "http4s-circe"        % http4sV,
       "org.http4s" %% "http4s-scalatags"    % "0.25.2",
       "co.fs2" %% "fs2-io"                  % fs2V, // snyk - http4s
-      "org.http4s" %% "http4s-ember-client" % http4sV                % Test,
-      "ch.qos.logback"                      % "logback-classic"      % logbackV % Test
+      "org.http4s" %% "http4s-ember-client" % http4sV % Test,
+      // java
+      "org.apache.commons"            % "commons-collections4" % "4.5.0",
+      "io.dropwizard.metrics"         % "metrics-core"         % metricsV,
+      "io.dropwizard.metrics"         % "metrics-jmx"          % metricsV,
+      "com.github.ben-manes.caffeine" % "caffeine"             % caffeineV,
+      "ch.qos.logback"                % "logback-classic"      % logbackV % Test
     ) ++ testLib
   )
   .enablePlugins(BuildInfoPlugin)
@@ -282,10 +285,11 @@ lazy val database = (project in file("database"))
       "org.tpolecat" %% "doobie-hikari" % doobieV,
       "org.tpolecat" %% "doobie-free"   % doobieV,
       "org.tpolecat" %% "skunk-core"    % skunkV,
-      "com.zaxxer"                      % "HikariCP"        % "7.0.2",
       "co.fs2" %% "fs2-io"              % fs2V, // snyk - http4s
-      "org.postgresql"                  % "postgresql"      % postgresV % Test,
-      "ch.qos.logback"                  % "logback-classic" % logbackV  % Test
+      // java
+      "com.zaxxer"     % "HikariCP"        % "7.0.2",
+      "org.postgresql" % "postgresql"      % postgresV % Test,
+      "ch.qos.logback" % "logback-classic" % logbackV  % Test
     ) ++ testLib
   )
 
@@ -311,14 +315,15 @@ lazy val messages =
           "org.apache.kafka" %% "kafka-streams-scala" % kafkaV,
           "com.github.fd4s" %% "fs2-kafka"            % fs2KafkaV,
           "com.sksamuel.avro4s" %% "avro4s-core"      % avro4sV,
-          "org.apache.avro"                           % "avro"                         % avroV,
           "com.thesamet.scalapb" %% "scalapb-runtime" % "0.11.20",
-          "io.confluent"                              % "kafka-protobuf-serializer"    % confluentV,
-          "io.confluent"                              % "kafka-json-schema-serializer" % confluentV,
-          "io.confluent"                              % "kafka-streams-avro-serde"     % confluentV,
-          "com.google.protobuf"                       % "protobuf-java"                % "4.33.5", // snyk
-          "org.jetbrains.kotlin"                      % "kotlin-stdlib"                % "2.3.0", // snyk
-          "io.circe" %% "circe-shapes"                % circeV                         % Test
+          "io.circe" %% "circe-shapes"                % circeV % Test,
+          // java
+          "org.apache.avro"      % "avro"                         % avroV,
+          "io.confluent"         % "kafka-protobuf-serializer"    % confluentV,
+          "io.confluent"         % "kafka-json-schema-serializer" % confluentV,
+          "io.confluent"         % "kafka-streams-avro-serde"     % confluentV,
+          "com.google.protobuf"  % "protobuf-java"                % "4.33.5", // snyk
+          "org.jetbrains.kotlin" % "kotlin-stdlib"                % "2.3.10" // snyk
         ) ++ jacksonLib ++ testLib)
     .settings(Compile / PB.targets := List(scalapb.gen() -> (Compile / sourceManaged).value / "scalapb"))
 
@@ -332,13 +337,13 @@ lazy val kafka = (project in file("kafka"))
   .settings(name := "nj-kafka")
   .settings(
     libraryDependencies ++= List(
-      "io.confluent"                              % "kafka-schema-registry-client" % confluentV,
-      "io.confluent"                              % "kafka-schema-serializer"      % confluentV,
-      "org.apache.kafka"                          % "kafka-streams"                % kafkaV,
       "org.apache.kafka" %% "kafka-streams-scala" % kafkaV,
       ("com.github.fd4s" %% "fs2-kafka"           % fs2KafkaV).exclude("org.apache.kafka", "kafka-clients"),
-
-      "ch.qos.logback" % "logback-classic" % logbackV % Test
+      // java
+      "io.confluent"     % "kafka-schema-registry-client" % confluentV,
+      "io.confluent"     % "kafka-schema-serializer"      % confluentV,
+      "org.apache.kafka" % "kafka-streams"                % kafkaV,
+      "ch.qos.logback"   % "logback-classic"              % logbackV % Test
     ) ++ jacksonLib ++ testLib)
 
 // ==========================
@@ -364,26 +369,32 @@ val kantanLib = List(
 ).map(_ % kantanV)
 
 lazy val pipes = (project in file("pipes"))
-  .dependsOn(messages)
   .dependsOn(datetime)
   .settings(commonSettings *)
   .settings(name := "nj-pipes")
   .settings {
     val libs = List(
-      "co.fs2" %% "fs2-io"               % fs2V,
-      "com.nrinaudo" %% "kantan.csv"     % kantanV,
-      "com.indoorvivants" %% "scala-uri" % "4.2.0",
-      "software.amazon.awssdk"           % "bundle"          % awsV,
-      "org.apache.parquet"               % "parquet-common"  % parquetV,
-      "org.apache.parquet"               % "parquet-hadoop"  % parquetV,
-      "org.apache.parquet"               % "parquet-avro"    % parquetV,
-      "org.apache.avro"                  % "avro"            % avroV,
-      "org.tukaani"                      % "xz"              % "1.11",
-      "org.eclipse.jetty"                % "jetty-server"    % "12.1.6", // snyk
-      "io.netty"                         % "netty-all"       % nettyV, // snyk
-      "com.nimbusds"                     % "nimbus-jose-jwt" % "10.7", // snyk
-      "org.apache.zookeeper"             % "zookeeper"       % "3.9.4", // snyk
-      "org.typelevel" %% "jawn-fs2"      % "2.4.0"           % Test
+      "co.fs2" %% "fs2-io"                                     % fs2V,
+      "com.nrinaudo" %% "kantan.csv"                           % kantanV,
+      "com.indoorvivants" %% "scala-uri"                       % "4.2.0",
+      "com.thesamet.scalapb" %% "scalapb-runtime"              % "0.11.20",
+      "io.circe" %% "circe-jawn"                               % circeV,
+      "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonV,
+      "org.typelevel" %% "jawn-fs2"                            % "2.4.0" % Test,
+      "com.sksamuel.avro4s" %% "avro4s-core"                   % avro4sV % Test,
+      // java
+      "software.amazon.awssdk" % "bundle"          % awsV,
+      "org.apache.parquet"     % "parquet-common"  % parquetV,
+      "org.apache.parquet"     % "parquet-hadoop"  % parquetV,
+      "org.apache.parquet"     % "parquet-avro"    % parquetV,
+      "org.apache.avro"        % "avro"            % avroV,
+      "org.tukaani"            % "xz"              % "1.11",
+      "at.yawk.lz4"            % "lz4-java"        % "1.10.3",
+      "org.eclipse.jetty"      % "jetty-server"    % "12.1.6", // snyk
+      "io.netty"               % "netty-all"       % nettyV, // snyk
+      "com.nimbusds"           % "nimbus-jose-jwt" % "10.7", // snyk
+      "org.apache.zookeeper"   % "zookeeper"       % "3.9.4" // snyk
+
     ) ++ jacksonLib ++ hadoopLib ++ kantanLib
     libraryDependencies ++= libs ++ testLib
   }
@@ -406,12 +417,13 @@ lazy val spark = (project in file("spark"))
   .settings(name := "nj-spark")
   .settings {
     val libs = List(
-      "org.apache.avro"                        % "avro-mapred"     % avroV,
-      "org.apache.ivy"                         % "ivy"             % "2.5.3", // snyk
-      "com.julianpeeters" %% "avrohugger-core" % "2.15.0"          % Test,
-      "io.circe" %% "circe-shapes"             % circeV            % Test,
-      "ch.qos.logback"                         % "logback-classic" % logbackV  % Test,
-      "org.postgresql"                         % "postgresql"      % postgresV % Test
+      "com.julianpeeters" %% "avrohugger-core" % "2.16.0" % Test,
+      "io.circe" %% "circe-shapes"             % circeV   % Test,
+      // java
+      "org.apache.avro" % "avro-mapred"     % avroV,
+      "org.apache.ivy"  % "ivy"             % "2.5.3", // snyk
+      "ch.qos.logback"  % "logback-classic" % logbackV  % Test,
+      "org.postgresql"  % "postgresql"      % postgresV % Test
     ) ++ jacksonLib ++ sparkLib
     libraryDependencies ++= libs ++ testLib
   }
@@ -463,3 +475,4 @@ lazy val nanjin =
       observer_database,
       observer_kafka
     )
+
