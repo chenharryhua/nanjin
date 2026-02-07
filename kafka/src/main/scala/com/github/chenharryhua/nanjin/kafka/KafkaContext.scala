@@ -249,7 +249,7 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
     *   List of topics successfully removed from the consumer group
     *
     * @note
-    *   Errors during deletion are ignored (logged via `attempt`).
+    *   Errors during deletion are ignored.
     */
   def ungroup(groupId: String, keeps: List[TopicName] = Nil)(implicit F: Async[F]): F[List[TopicName]] = {
     val program: Resource[F, F[List[TopicName]]] = for {

@@ -50,9 +50,8 @@ object SecretsManager {
     F: Async[F]): Resource[F, SecretsManager[F]] =
     for {
       logger <- Resource.eval(Slf4jLogger.create[F])
-      client <- Resource.makeCase(
-        logger.info(s"initialize $name").as(f(SecretsManagerClient.builder()).build())) {
-        case (sm, quitCase) => shutdown(name, quitCase, logger)(F.blocking(sm.close()))
+      client <- Resource.make(logger.info(s"initialize $name").as(f(SecretsManagerClient.builder()).build())) {
+        sm => shutdown(name, logger)(F.blocking(sm.close()))
       }
     } yield new SecretsManagerImpl(client, logger)
 
