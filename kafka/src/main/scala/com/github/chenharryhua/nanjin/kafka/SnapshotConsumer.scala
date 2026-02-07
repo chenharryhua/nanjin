@@ -8,13 +8,11 @@ import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.{DateTimeRange, NJTimestamp}
 import fs2.kafka.KafkaByteConsumer
-import fs2.kafka.consumer.MkConsumer
-import org.apache.kafka.clients.consumer.{CloseOptions, ConsumerRecord, OffsetAndMetadata}
+import org.apache.kafka.clients.consumer.{ConsumerRecord, OffsetAndMetadata}
 import org.apache.kafka.common.{Metric, MetricName, TopicPartition}
 
 import java.time.Duration
 import scala.jdk.CollectionConverters.*
-import scala.jdk.DurationConverters.ScalaDurationOps
 
 sealed trait KafkaConsumerOps[F[_]] {
   def partitionsFor: F[ListOfTopicPartitions]
@@ -76,7 +74,7 @@ private object KafkaConsumerOps {
         val tp = new TopicPartition(topicName.name.value, partition.value)
         consumer.assign(List(tp).asJava)
         consumer.seek(tp, offset.value)
-        consumer.poll(Duration.ZERO).records(tp).asScala.toList.headOption
+        consumer.poll(Duration.ofSeconds(15)).records(tp).asScala.toList.headOption
       }
 
     override def commitSync(offsets: Map[TopicPartition, OffsetAndMetadata]): F[Unit] =
@@ -104,11 +102,8 @@ sealed trait SnapshotConsumer[F[_]] extends KafkaConsumerOps[F] {
 
 private object SnapshotConsumer {
 
-  def apply[F[_]: Sync](topicName: TopicName, cs: PureConsumerSettings)(implicit
-    MC: MkConsumer[F]): Resource[F, SnapshotConsumer[F]] =
-    Resource.make(MC(cs))(c => Sync[F].blocking(c.close(CloseOptions.timeout(cs.closeTimeout.toJava)))).map {
-      consumer => new SnapshotConsumerImpl(topicName, consumer)
-    }
+  def apply[F[_]: Sync](topicName: TopicName, cs: PureConsumerSettings): Resource[F, SnapshotConsumer[F]] =
+    makePureConsumer(cs).map(consumer => new SnapshotConsumerImpl(topicName, consumer))
 }
 
 final private class SnapshotConsumerImpl[F[_]: Sync](topicName: TopicName, consumer: KafkaByteConsumer)

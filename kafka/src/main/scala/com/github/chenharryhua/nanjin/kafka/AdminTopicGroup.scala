@@ -1,10 +1,10 @@
 package com.github.chenharryhua.nanjin.kafka
 
-import cats.effect.kernel.{Resource, Sync}
+import cats.effect.kernel.Sync
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
-import fs2.kafka.{AutoOffsetReset, KafkaAdminClient}
+import fs2.kafka.KafkaAdminClient
 import org.apache.kafka.clients.consumer.OffsetAndMetadata
 import org.apache.kafka.common.TopicPartition
 
@@ -71,65 +71,45 @@ sealed trait AdminTopicGroup[F[_]] {
 
 }
 
-object AdminTopicGroup {
+final private class AdminTopicGroupImpl[F[_]: Sync](
+  adminClient: KafkaAdminClient[F],
+  consumerClient: SnapshotConsumer[F],
+  topicName: TopicName,
+  groupId: GroupId
+) extends AdminTopicGroup[F] {
 
-  def apply[F[_]: Sync](
-    adminResource: Resource[F, KafkaAdminClient[F]],
-    topicName: TopicName,
-    groupId: GroupId,
-    consumerSettings: KafkaConsumerSettings): Resource[F, AdminTopicGroup[F]] =
+  override def lagBehind: F[TopicPartitionMap[Option[LagBehind]]] =
     for {
-      admin <- adminResource
-      consumer <- SnapshotConsumer(
-        topicName,
-        PureConsumerSettings
-          .withProperties(consumerSettings.properties)
-          .withAutoOffsetReset(AutoOffsetReset.None)
-          .withEnableAutoCommit(false)
-          .withGroupId(groupId.value)
-      )
-    } yield new AdminTopicGroupImpl(admin, consumer, topicName, groupId)
+      ends <- consumerClient.endOffsets
+      curr <- adminClient
+        .listConsumerGroupOffsets(groupId.value)
+        .partitionsToOffsetAndMetadata
+        .map(_.filter(_._1.topic() === topicName.name.value).map { case (k, v) => k -> Offset(v) })
+        .map(TopicPartitionMap(_))
+    } yield calculate.admin_lagBehind(ends, curr)
 
-  final private class AdminTopicGroupImpl[F[_]: Sync](
-    adminClient: KafkaAdminClient[F],
-    consumerClient: SnapshotConsumer[F],
-    topicName: TopicName,
-    groupId: GroupId
-  ) extends AdminTopicGroup[F] {
+  override def deleteConsumerGroupOffsets: F[Unit] =
+    for {
+      tps <- consumerClient.partitionsFor
+      _ <- adminClient.deleteConsumerGroupOffsets(groupId.value, tps.value.toSet)
+    } yield ()
 
-    override def lagBehind: F[TopicPartitionMap[Option[LagBehind]]] =
-      for {
-        ends <- consumerClient.endOffsets
-        curr <- adminClient
-          .listConsumerGroupOffsets(groupId.value)
-          .partitionsToOffsetAndMetadata
-          .map(_.filter(_._1.topic() === topicName.name.value).map { case (k, v) => k -> Offset(v) })
-          .map(TopicPartitionMap(_))
-      } yield calculate.admin_lagBehind(ends, curr)
+  override def commitSync(offsets: Map[TopicPartition, OffsetAndMetadata]): F[Unit] =
+    consumerClient.commitSync(offsets)
 
-    override def deleteConsumerGroupOffsets: F[Unit] =
-      for {
-        tps <- consumerClient.partitionsFor
-        _ <- adminClient.deleteConsumerGroupOffsets(groupId.value, tps.value.toSet)
-      } yield ()
-
-    override def commitSync(offsets: Map[TopicPartition, OffsetAndMetadata]): F[Unit] =
-      consumerClient.commitSync(offsets)
-
-    override def commitSync(partition: Int, offset: Long): F[Unit] = {
-      val tp = new TopicPartition(topicName.name.value, partition)
-      val oam = new OffsetAndMetadata(offset)
-      commitSync(Map(tp -> oam))
-    }
-
-    override def resetOffsetsToBegin: F[Unit] =
-      consumerClient.resetOffsetsToBegin
-
-    override def resetOffsetsToEnd: F[Unit] =
-      consumerClient.resetOffsetsToEnd
-
-    override def resetOffsetsForTimes(ts: NJTimestamp): F[Unit] =
-      consumerClient.resetOffsetsForTimes(ts)
-
+  override def commitSync(partition: Int, offset: Long): F[Unit] = {
+    val tp = new TopicPartition(topicName.name.value, partition)
+    val oam = new OffsetAndMetadata(offset)
+    commitSync(Map(tp -> oam))
   }
+
+  override def resetOffsetsToBegin: F[Unit] =
+    consumerClient.resetOffsetsToBegin
+
+  override def resetOffsetsToEnd: F[Unit] =
+    consumerClient.resetOffsetsToEnd
+
+  override def resetOffsetsForTimes(ts: NJTimestamp): F[Unit] =
+    consumerClient.resetOffsetsForTimes(ts)
+
 }

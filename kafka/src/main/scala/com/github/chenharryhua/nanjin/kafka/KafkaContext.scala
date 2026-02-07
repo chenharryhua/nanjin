@@ -129,15 +129,14 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
       topic.consumerSettings(settings.schemaRegistrySettings, settings.consumerSettings)
     )
 
+  private def byteConsumerSetting(implicit F: Sync[F]): ConsumerSettings[F, Array[Byte], Array[Byte]] =
+    ConsumerSettings[F, Array[Byte], Array[Byte]](Deserializer[F, Array[Byte]], Deserializer[F, Array[Byte]])
+      .withProperties(settings.consumerSettings.properties)
+
   /** Create a raw byte consumer for the topic name.
     */
   def consumeBytes(topicName: TopicNameL)(implicit F: Async[F]): ConsumeBytes[F] =
-    new ConsumeBytes[F](
-      TopicName(topicName),
-      ConsumerSettings[F, Array[Byte], Array[Byte]](
-        Deserializer[F, Array[Byte]],
-        Deserializer[F, Array[Byte]]).withProperties(settings.consumerSettings.properties)
-    )
+    new ConsumeBytes[F](TopicName(topicName), byteConsumerSetting)
 
   /** Create a consumer that produces Avro GenericRecord values.
     *
@@ -149,10 +148,7 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
     new ConsumeGenericRecord[F, K, V](
       avroTopic,
       schemaRegistry.fetchOptionalAvroSchema(avroTopic),
-      ConsumerSettings[F, Array[Byte], Array[Byte]](
-        Deserializer[F, Array[Byte]],
-        Deserializer[F, Array[Byte]]).withProperties(settings.consumerSettings.properties)
-    )
+      byteConsumerSetting)
 
   // --------------------------------------------------------------------------
   // Producers
@@ -219,10 +215,29 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
     KafkaAdminClient.resource[F](settings.adminSettings)
 
   def admin(topicName: TopicNameL, groupId: String)(implicit F: Async[F]): Resource[F, AdminTopicGroup[F]] =
-    AdminTopicGroup[F](admin, TopicName(topicName), GroupId(groupId), settings.consumerSettings)
+    for {
+      admin <- KafkaAdminClient.resource[F](settings.adminSettings)
+      consumer <- SnapshotConsumer(
+        TopicName(topicName),
+        PureConsumerSettings
+          .withProperties(settings.consumerSettings.properties)
+          .withAutoOffsetReset(AutoOffsetReset.None)
+          .withEnableAutoCommit(false)
+          .withGroupId(groupId)
+      )
+    } yield new AdminTopicGroupImpl(admin, consumer, TopicName(topicName), GroupId(groupId))
 
   def admin(topicName: TopicNameL)(implicit F: Async[F]): Resource[F, AdminTopic[F]] =
-    AdminTopic[F](admin, TopicName(topicName), settings.consumerSettings)
+    for {
+      admin <- KafkaAdminClient.resource[F](settings.adminSettings)
+      consumer <- SnapshotConsumer(
+        TopicName(topicName),
+        PureConsumerSettings
+          .withProperties(settings.consumerSettings.properties)
+          .withAutoOffsetReset(AutoOffsetReset.None)
+          .withEnableAutoCommit(false)
+      )
+    } yield new AdminTopicImpl(admin, consumer, TopicName(topicName))
 
   /** Remove consumer group offsets for all topics except those in `keeps`.
     *
@@ -236,19 +251,28 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
     * @note
     *   Errors during deletion are ignored (logged via `attempt`).
     */
-  def ungroup(groupId: String, keeps: List[TopicName] = Nil)(implicit F: Async[F]): F[List[TopicName]] =
-    admin
-      .use(
-        _.listConsumerGroupOffsets(groupId).partitionsToOffsetAndMetadata
-          .map(_.keys.map(_.topic()).toList.distinct.diff(keeps.map(_.value))))
+  def ungroup(groupId: String, keeps: List[TopicName] = Nil)(implicit F: Async[F]): F[List[TopicName]] = {
+    val program: Resource[F, F[List[TopicName]]] = for {
+      admin <- KafkaAdminClient.resource[F](settings.adminSettings)
+      consumer <- makePureConsumer(PureConsumerSettings.withProperties(settings.consumerSettings.properties))
+    } yield admin
+      .listConsumerGroupOffsets(groupId)
+      .partitionsToOffsetAndMetadata
+      .map(_.keys.map(_.topic()).toList.distinct.diff(keeps.map(_.value)))
       .flatMap(
         _.traverse { tn =>
-          admin(TopicName.unsafeFrom(tn).name, groupId).use(_.deleteConsumerGroupOffsets).attempt.map {
-            case Left(_)  => None
-            case Right(_) => Some(TopicName.unsafeFrom(tn))
-          }
-        }.map(_.flatten)
+          new SnapshotConsumerImpl[F](TopicName.unsafeFrom(tn), consumer).partitionsFor
+            .flatMap(tps => admin.deleteConsumerGroupOffsets(groupId, tps.value.toSet))
+            .attempt
+            .map {
+              case Left(_)  => None
+              case Right(_) => Some(TopicName.unsafeFrom(tn))
+            }
+        }
       )
+      .map(_.flatten)
+    program.use(identity)
+  }
 }
 
 object KafkaContext {

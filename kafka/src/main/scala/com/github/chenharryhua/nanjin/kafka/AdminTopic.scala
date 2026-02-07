@@ -1,10 +1,10 @@
 package com.github.chenharryhua.nanjin.kafka
 
-import cats.effect.kernel.{Resource, Sync}
+import cats.effect.kernel.Sync
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.DateTimeRange
-import fs2.kafka.{AutoOffsetReset, KafkaAdminClient}
+import fs2.kafka.KafkaAdminClient
 import org.apache.kafka.clients.admin.{NewTopic, TopicDescription}
 import org.apache.kafka.clients.consumer.ConsumerRecord
 
@@ -98,73 +98,57 @@ trait AdminTopic[F[_]] {
     *   an effect that returns the record if it exists
     */
   def retrieveRecord(partition: Int, offset: Long): F[Option[ConsumerRecord[Array[Byte], Array[Byte]]]]
-
 }
 
-object AdminTopic {
-  def apply[F[_]: Sync](
-    adminResource: Resource[F, KafkaAdminClient[F]],
-    topicName: TopicName,
-    consumerSettings: KafkaConsumerSettings): Resource[F, AdminTopic[F]] =
-    for {
-      admin <- adminResource
-      consumer <- SnapshotConsumer(
-        topicName,
-        PureConsumerSettings
-          .withProperties(consumerSettings.properties)
-          .withAutoOffsetReset(AutoOffsetReset.None)
-          .withEnableAutoCommit(false))
-    } yield new AdminTopicImpl(admin, consumer, topicName)
+final private class AdminTopicImpl[F[_]: Sync](
+  adminClient: KafkaAdminClient[F],
+  consumerClient: SnapshotConsumer[F],
+  topicName: TopicName)
+    extends AdminTopic[F] {
+  override def iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence: F[Unit] =
+    adminClient.deleteTopic(topicName.name.value)
 
-  private class AdminTopicImpl[F[_]: Sync](
-    adminClient: KafkaAdminClient[F],
-    consumerClient: SnapshotConsumer[F],
-    topicName: TopicName)
-      extends AdminTopic[F] {
-    override def iDefinitelyWantToDeleteTheTopicAndUnderstoodItsConsequence: F[Unit] =
-      adminClient.deleteTopic(topicName.name.value)
+  override def newTopic(numPartition: Int, numReplica: Short): F[Unit] =
+    adminClient.createTopic(new NewTopic(topicName.name.value, numPartition, numReplica))
 
-    override def newTopic(numPartition: Int, numReplica: Short): F[Unit] =
-      adminClient.createTopic(new NewTopic(topicName.name.value, numPartition, numReplica))
-
-    override def newTopic(description: TopicDescription): F[Unit] = {
-      val partitions = description.partitions().size()
-      val replicas = description.partitions().get(0).replicas().size().toShort
-      newTopic(partitions, replicas)
-    }
-
-    override def mirrorTo(other: TopicName): F[Unit] =
-      for {
-        desc <- adminClient.describeTopics(List(topicName.name.value)).map(_(topicName.name.value))
-        _ <- adminClient.createTopic(
-          new NewTopic(
-            other.name.value,
-            desc.partitions().size(),
-            desc.partitions().get(0).replicas().size().toShort))
-      } yield ()
-
-    override def describe: F[Map[String, TopicDescription]] =
-      adminClient.describeTopics(List(topicName.name.value))
-
-    override def groups: F[List[GroupId]] =
-      for {
-        gIds <- adminClient.listConsumerGroups.groupIds
-        ids <- gIds.traverseFilter(gid =>
-          adminClient
-            .listConsumerGroupOffsets(gid)
-            .partitionsToOffsetAndMetadata
-            .map(m => if (m.keySet.map(_.topic()).contains(topicName.name.value)) Some(gid) else None))
-      } yield ids.distinct.map(GroupId(_))
-
-    override def offsetRangeFor(dtr: DateTimeRange): F[TopicPartitionMap[Option[OffsetRange]]] =
-      consumerClient.offsetRangeFor(dtr)
-
-    override def partitionsFor: F[ListOfTopicPartitions] =
-      consumerClient.partitionsFor
-
-    override def retrieveRecord(
-      partition: Int,
-      offset: Long): F[Option[ConsumerRecord[Array[Byte], Array[Byte]]]] =
-      consumerClient.retrieveRecord(Partition(partition), Offset(offset))
+  override def newTopic(description: TopicDescription): F[Unit] = {
+    val partitions = description.partitions().size()
+    val replicas = description.partitions().get(0).replicas().size().toShort
+    newTopic(partitions, replicas)
   }
+
+  override def mirrorTo(other: TopicName): F[Unit] =
+    for {
+      desc <- adminClient.describeTopics(List(topicName.name.value)).map(_(topicName.name.value))
+      _ <- adminClient.createTopic(
+        new NewTopic(
+          other.name.value,
+          desc.partitions().size(),
+          desc.partitions().get(0).replicas().size().toShort))
+    } yield ()
+
+  override def describe: F[Map[String, TopicDescription]] =
+    adminClient.describeTopics(List(topicName.name.value))
+
+  override def groups: F[List[GroupId]] =
+    for {
+      gIds <- adminClient.listConsumerGroups.groupIds
+      ids <- gIds.traverseFilter(gid =>
+        adminClient
+          .listConsumerGroupOffsets(gid)
+          .partitionsToOffsetAndMetadata
+          .map(m => if (m.keySet.map(_.topic()).contains(topicName.name.value)) Some(gid) else None))
+    } yield ids.distinct.map(GroupId(_))
+
+  override def offsetRangeFor(dtr: DateTimeRange): F[TopicPartitionMap[Option[OffsetRange]]] =
+    consumerClient.offsetRangeFor(dtr)
+
+  override def partitionsFor: F[ListOfTopicPartitions] =
+    consumerClient.partitionsFor
+
+  override def retrieveRecord(
+    partition: Int,
+    offset: Long): F[Option[ConsumerRecord[Array[Byte], Array[Byte]]]] =
+    consumerClient.retrieveRecord(Partition(partition), Offset(offset))
+
 }
