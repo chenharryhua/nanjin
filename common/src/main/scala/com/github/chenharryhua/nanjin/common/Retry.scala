@@ -4,7 +4,13 @@ import cats.Endo
 import cats.effect.Temporal
 import cats.effect.kernel.{Async, Resource}
 import cats.effect.std.Hotswap
-import cats.implicits.{catsSyntaxApplicativeId, catsSyntaxEitherId, toFlatMapOps, toFunctorOps}
+import cats.implicits.{
+  catsSyntaxApplicativeId,
+  catsSyntaxEitherId,
+  catsSyntaxFlatMapOps,
+  toFlatMapOps,
+  toFunctorOps
+}
 import com.github.chenharryhua.nanjin.common.chrono.{Policy, TickStatus, TickedValue}
 
 import java.time.ZoneId
@@ -69,10 +75,12 @@ object Retry {
         }
       }
 
+    // Drop any previously acquired resource before retrying acquisition.
+    // A failed acquisition poisons the previous resource; retries must start fresh.
     def resource[A](
       rfa: Resource[F, A],
       decide: TickedValue[Throwable] => F[TickedValue[Boolean]]): Resource[F, A] =
-      Hotswap.create[F, A].evalMap(hotswap => retryLoop(hotswap.swap(rfa), decide))
+      Hotswap.create[F, A].evalMap(hotswap => retryLoop(hotswap.clear >> hotswap.swap(rfa), decide))
   }
 
   final class Builder[F[_]] private[Retry] (

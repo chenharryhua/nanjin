@@ -67,7 +67,7 @@ object retry {
       tickStatus: TickStatus,
       hotswap: Hotswap[F, Either[Throwable, Response[F]]]
     ): F[Response[F]] =
-      logging(req) >>
+      logging(req) >> hotswap.clear >>
         hotswap.swap(client.run(req).evalTap(logging(_)).attempt).flatMap {
           case Left(ex) =>
             Temporal[F].realTimeInstant.flatMap(now =>

@@ -15,23 +15,23 @@ import com.github.chenharryhua.nanjin.guard.event.{
   ServiceStopCause
 }
 import com.github.chenharryhua.nanjin.guard.translator.htmlHelper.htmlColoring
-import com.github.chenharryhua.nanjin.guard.translator.{durationFormatter, prettifyJson, SnapshotPolyglot}
 import com.github.chenharryhua.nanjin.guard.translator.textConstants.{CONSTANT_TIMESTAMP, CONSTANT_TOOK}
+import com.github.chenharryhua.nanjin.guard.translator.{durationFormatter, prettifyJson, SnapshotPolyglot}
 import fs2.concurrent.Channel
 import io.circe.Json
 import io.circe.syntax.EncoderOps
 import org.apache.commons.collections4.queue.CircularFifoQueue
-import org.http4s.{HttpRoutes, Request, Response}
 import org.http4s.circe.CirceEntityCodec.circeEntityEncoder
 import org.http4s.dsl.Http4sDsl
 import org.http4s.scalatags.*
 import org.http4s.server.Router
+import org.http4s.{HttpRoutes, Request, Response}
 import org.typelevel.cats.time.instances.all
 import scalatags.Text
 import scalatags.Text.all.*
 
-import java.time.{Duration, ZonedDateTime}
 import java.time.temporal.ChronoUnit
+import java.time.{Duration, ZonedDateTime}
 import scala.jdk.CollectionConverters.IteratorHasAsScala
 
 final private class HttpRouter[F[_]](
@@ -46,13 +46,16 @@ final private class HttpRouter[F[_]](
   private val serviceParams: ServiceParams = eventLogger.serviceParams
 
   private val html_header: Text.TypedTag[String] =
-    head(tag("style")("""
+    head(
+      tag("style")("""
         td, th {text-align: left; padding: 2px; border: 1px solid;}
         table {
           border-collapse: collapse;
           width: 70%;
         }
-      """))
+      """),
+      tag("title")(serviceParams.serviceName.value)
+    )
 
   private def html_table_title(now: ZonedDateTime, took: Duration): Text.TypedTag[String] =
     table(
@@ -79,6 +82,7 @@ final private class HttpRouter[F[_]](
     }
 
   private val indexHtml: Text.TypedTag[String] = html(
+    head(tag("title")(serviceParams.serviceName.value)),
     body(
       h3(s"Service: ${serviceParams.serviceName.value}"),
       a(href := "/metrics/yaml")("Metrics At Present"),
@@ -104,7 +108,8 @@ final private class HttpRouter[F[_]](
       br(),
       form(action := "/service/stop")(
         input(`type` := "submit", onclick := "return confirm('Are you sure?')", value := "Stop Service"))
-    ))
+    )
+  )
 
   private val metrics = HttpRoutes.of[F] {
     case GET -> Root                => Ok(indexHtml)
@@ -184,25 +189,38 @@ final private class HttpRouter[F[_]](
           history.map(hist => div(html_table_title(now, Duration.ZERO), hist))
         }
 
-      Ok(text.map(t => html(html_header, body(t))))
+      Ok(text.map(t => html(html_header, body(div(t)))))
 
     // service part
 
     case GET -> Root / "service" / "params" => Ok(serviceParams.asJson)
 
     case GET -> Root / "service" / "stop" =>
-      Ok("stopping service") <* service_stop[F](channel, eventLogger, ServiceStopCause.Maintenance)
+      val stopping = html(
+        head(meta(attr("http-equiv") := "refresh", attr("content") := "3;url=/")),
+        body(h2("Stopping Service")))
+
+      Ok(stopping) <* service_stop[F](channel, eventLogger, ServiceStopCause.Maintenance)
 
     case GET -> Root / "service" / "health_check" =>
       panicHistory.get.map(_.iterator().asScala.toList.lastOption).flatMap {
-        case None      => deps_health_check.flatMap(Ok(_))
+        case None      => Ok(deps_health_check)
         case Some(evt) =>
           Clock[F].realTimeInstant.flatMap { now =>
             if (evt.tick.conclude.isAfter(now)) {
-              val recover = Duration.between(now, evt.tick.conclude)
-              ServiceUnavailable(s"Service panic! Restart will be in ${durationFormatter.format(recover)}")
+              ServiceUnavailable(
+                Json.obj(
+                  "healthy" -> false.asJson,
+                  "service" -> evt.serviceParams.serviceName.asJson,
+                  "service_id" -> evt.serviceParams.serviceId.asJson,
+                  "index" -> evt.tick.index.asJson,
+                  "when_panic" -> evt.tick.zoned(_.acquires).asJson,
+                  "restart_at" -> evt.tick.zoned(_.conclude).asJson,
+                  "caused_by" -> evt.error.message.asJson,
+                  "age" -> durationFormatter.format(Duration.between(evt.timestamp, now)).asJson
+                ))
             } else {
-              deps_health_check.flatMap(Ok(_))
+              Ok(deps_health_check)
             }
           }
       }
