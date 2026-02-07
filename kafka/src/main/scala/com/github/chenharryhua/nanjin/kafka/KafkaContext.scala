@@ -218,9 +218,11 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
   def admin(implicit F: Async[F]): Resource[F, KafkaAdminClient[F]] =
     KafkaAdminClient.resource[F](settings.adminSettings)
 
-  /** Resource for a KafkaAdminApi targeting a specific topic. */
-  def admin(topicName: TopicNameL)(implicit F: Async[F]): Resource[F, KafkaAdminApi[F]] =
-    KafkaAdminApi[F](admin, TopicName(topicName), settings.consumerSettings)
+  def admin(topicName: TopicNameL, groupId: String)(implicit F: Async[F]): Resource[F, AdminTopicGroup[F]] =
+    AdminTopicGroup[F](admin, TopicName(topicName), GroupId(groupId), settings.consumerSettings)
+
+  def admin(topicName: TopicNameL)(implicit F: Async[F]): Resource[F, AdminTopic[F]] =
+    AdminTopic[F](admin, TopicName(topicName), settings.consumerSettings)
 
   /** Remove consumer group offsets for all topics except those in `keeps`.
     *
@@ -241,7 +243,7 @@ final class KafkaContext[F[_]] private (val settings: KafkaSettings)
           .map(_.keys.map(_.topic()).toList.distinct.diff(keeps.map(_.value))))
       .flatMap(
         _.traverse { tn =>
-          admin(TopicName.unsafeFrom(tn).name).use(_.deleteConsumerGroupOffsets(groupId)).attempt.map {
+          admin(TopicName.unsafeFrom(tn).name, groupId).use(_.deleteConsumerGroupOffsets).attempt.map {
             case Left(_)  => None
             case Right(_) => Some(TopicName.unsafeFrom(tn))
           }

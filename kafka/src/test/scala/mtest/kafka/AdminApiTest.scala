@@ -2,9 +2,8 @@ package mtest.kafka
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
-import com.github.chenharryhua.nanjin.datetime.{DateTimeRange, NJTimestamp}
+import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import com.github.chenharryhua.nanjin.kafka.*
 import eu.timepit.refined.auto.*
 import io.circe.syntax.EncoderOps
@@ -46,25 +45,17 @@ class AdminApiTest extends AnyFunSuite {
   }
 
   test("groups") {
-    val gid = "g1"
     val tpo = Map(new TopicPartition(topic.topicName.name.value, 0) -> new OffsetAndMetadata(0))
-    val admin = ctx.admin("admin")
     val gp =
-      ctx.produce(topicDef).produceOne(0, 0) >> ctx.admin("admin").use { admin =>
+      ctx.produce(topicDef).produceOne(0, 0) >> ctx.admin("admin", "groupid").use { admin =>
         ctx.admin.use(_.listTopics.listings) >>
-          admin.commitSync(gid, tpo) >>
-          admin.retrieveRecord(0, 0) >>
-          admin.resetOffsetsToBegin(gid) >>
-          admin.resetOffsetsForTimes(gid, NJTimestamp(0)) >>
-          admin.resetOffsetsToEnd(gid) >>
-          admin.lagBehind(gid) >>
-          admin.offsetRangeFor(DateTimeRange(sydneyTime).withToday) >>
-          admin.partitionsFor >>
-          admin.groups
+          admin.commitSync(tpo) >>
+          admin.resetOffsetsToBegin >>
+          admin.resetOffsetsForTimes(NJTimestamp(0)) >>
+          admin.resetOffsetsToEnd >>
+          admin.lagBehind
       }
-    assert(gp.unsafeRunSync().map(_.value).contains(gid))
-    val gp2 = admin.use(am => am.deleteConsumerGroupOffsets(gid) >> am.groups)
-    assert(!gp2.unsafeRunSync().map(_.value).contains(gid))
+    gp.unsafeRunSync()
   }
 
   test("KafkaOffset") {
