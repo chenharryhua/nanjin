@@ -204,14 +204,23 @@ final private class HttpRouter[F[_]](
 
     case GET -> Root / "service" / "health_check" =>
       panicHistory.get.map(_.iterator().asScala.toList.lastOption).flatMap {
-        case None      => deps_health_check.flatMap(Ok(_))
+        case None      => Ok(deps_health_check)
         case Some(evt) =>
           Clock[F].realTimeInstant.flatMap { now =>
             if (evt.tick.conclude.isAfter(now)) {
-              val recover = Duration.between(now, evt.tick.conclude)
-              ServiceUnavailable(s"Service panic! Restart will be in ${durationFormatter.format(recover)}")
+              ServiceUnavailable(
+                Json.obj(
+                  "healthy" -> false.asJson,
+                  "service" -> evt.serviceParams.serviceName.asJson,
+                  "service_id" -> evt.serviceParams.serviceId.asJson,
+                  "index" -> evt.tick.index.asJson,
+                  "when_panic" -> evt.tick.zoned(_.acquires).asJson,
+                  "restart_at" -> evt.tick.zoned(_.conclude).asJson,
+                  "caused_by" -> evt.error.message.asJson,
+                  "age" -> durationFormatter.format(Duration.between(evt.timestamp, now)).asJson
+                ))
             } else {
-              deps_health_check.flatMap(Ok(_))
+              Ok(deps_health_check)
             }
           }
       }
