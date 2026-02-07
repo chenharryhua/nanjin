@@ -20,7 +20,7 @@ class TransientConsumerTest extends AnyFunSuite {
     val begin: Map[TopicPartition, java.lang.Long] = Map(tp0 -> 0L, tp1 -> 0, tp2 -> 10)
     val end: Map[TopicPartition, java.lang.Long] = Map(tp0 -> 10L, tp1 -> 10, tp2 -> 10)
     implicit val mkConsumer: MkConsumer[IO] = buildConsumer(begin, end, Map.empty)
-    val consumer =  mkConsumer(pcs).map(new SnapshotConsumerImpl[IO](topicName, _))
+    val consumer = mkConsumer(pcs).map(new SnapshotConsumerImpl[IO](topicName, _))
     val res = consumer.flatMap(_.offsetRangeFor(DateTimeRange(sydneyTime))).unsafeRunSync()
     println(res)
     assert(res.value.size == 3)
@@ -35,7 +35,7 @@ class TransientConsumerTest extends AnyFunSuite {
       tp1 -> new OffsetAndTimestamp(5, 0),
       tp2 -> new OffsetAndTimestamp(5, 0))
     implicit val mkConsumer: MkConsumer[IO] = buildConsumer(begin, end, forTime)
-    val consumer =  mkConsumer(pcs).map(new SnapshotConsumerImpl[IO](topicName, _))
+    val consumer = mkConsumer(pcs).map(new SnapshotConsumerImpl[IO](topicName, _))
     val res = consumer.flatMap(_.offsetRangeFor(DateTimeRange(sydneyTime))).unsafeRunSync()
     assert(res.value.size == 3)
     assert(res.value.forall(_._2.forall(_.distance == 10)))
@@ -50,9 +50,11 @@ class TransientConsumerTest extends AnyFunSuite {
         tp1 -> new OffsetAndTimestamp(5, 0),
         tp2 -> new OffsetAndTimestamp(5, 0))
     implicit val mkConsumer: MkConsumer[IO] = buildConsumer(begin, end, forTime)
-    val consumer =  mkConsumer(pcs).map(new SnapshotConsumerImpl[IO](topicName, _))
+    val consumer = mkConsumer(pcs).map(new SnapshotConsumerImpl[IO](topicName, _))
     val res =
-      consumer.flatMap(_.offsetRangeFor(DateTimeRange(sydneyTime).withEndTime(LocalDate.now()))).unsafeRunSync()
+      consumer
+        .flatMap(_.offsetRangeFor(DateTimeRange(sydneyTime).withEndTime(LocalDate.now())))
+        .unsafeRunSync()
     assert(res.value.size == 3)
     assert(res.value.forall(_._2.exists(_.distance == 5)))
   }
@@ -62,9 +64,11 @@ class TransientConsumerTest extends AnyFunSuite {
     val end: Map[TopicPartition, java.lang.Long] = Map(tp0 -> 10L, tp1 -> 10, tp2 -> 10)
     val forTime: Map[TopicPartition, OffsetAndTimestamp] = Map(tp0 -> null, tp1 -> null, tp2 -> null)
     implicit val mkConsumer: MkConsumer[IO] = buildConsumer(begin, end, forTime)
-    val consumer =  mkConsumer(pcs).map(new SnapshotConsumerImpl[IO](topicName, _))
+    val consumer = mkConsumer(pcs).map(new SnapshotConsumerImpl[IO](topicName, _))
     val res =
-      consumer.flatMap(_.offsetRangeFor(DateTimeRange(sydneyTime).withEndTime(LocalDate.now()))).unsafeRunSync()
+      consumer
+        .flatMap(_.offsetRangeFor(DateTimeRange(sydneyTime).withEndTime(LocalDate.now())))
+        .unsafeRunSync()
     println(res)
     assert(res.value.size == 3)
     assert(res.value.forall(_._2.exists(_.distance == 10)))
