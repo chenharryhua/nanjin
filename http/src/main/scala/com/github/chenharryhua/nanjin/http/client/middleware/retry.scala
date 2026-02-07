@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.http.client.middleware
 
-import cats.effect.kernel.{Async, Resource, Temporal}
+import cats.effect.kernel.{Async, Clock, Resource, Temporal}
 import cats.effect.std.Hotswap
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.chrono.{Policy, TickStatus}
@@ -52,7 +52,7 @@ object retry {
       val effective_delay: F[FiniteDuration] =
         retryHeader.traverse { h =>
           h.retry match {
-            case Left(date)  => Async[F].realTime.map(n => (date.toDuration - n).max(0.seconds))
+            case Left(date)  => Clock[F].realTime.map(n => (date.toDuration - n).max(0.seconds))
             case Right(secs) => secs.seconds.pure[F]
           }
         }.map {
@@ -70,14 +70,14 @@ object retry {
       logging(req) >> hotswap.clear >>
         hotswap.swap(client.run(req).evalTap(logging(_)).attempt).flatMap {
           case Left(ex) =>
-            Temporal[F].realTimeInstant.flatMap(now =>
+            Clock[F].realTimeInstant.flatMap(now =>
               tickStatus.next(now) match {
                 case Some(ts) => nextAttempt(req, ts, None, hotswap)
                 case None     => ex.raiseError
               })
           case Right(response) =>
             if (retriable(req, Right(response))) {
-              Temporal[F].realTimeInstant.flatMap(now =>
+              Clock[F].realTimeInstant.flatMap(now =>
                 tickStatus.next(now) match {
                   case Some(ts) => nextAttempt(req, ts, response.headers.get[`Retry-After`], hotswap)
                   case None     => response.pure[F]
