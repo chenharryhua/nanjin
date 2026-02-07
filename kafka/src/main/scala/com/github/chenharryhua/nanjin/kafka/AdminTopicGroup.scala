@@ -12,6 +12,8 @@ import org.apache.kafka.common.TopicPartition
 
 sealed trait AdminTopicGroup[F[_]] {
 
+  def adminClient: KafkaAdminClient[F]
+
   /** Compute lag behind the latest offsets for a consumer group.
     *
     * @return
@@ -72,7 +74,7 @@ sealed trait AdminTopicGroup[F[_]] {
 }
 
 final private class AdminTopicGroupImpl[F[_]: Sync](
-  adminClient: KafkaAdminClient[F],
+  override val adminClient: KafkaAdminClient[F],
   consumerClient: SnapshotConsumer[F],
   topicName: TopicName,
   groupId: GroupId

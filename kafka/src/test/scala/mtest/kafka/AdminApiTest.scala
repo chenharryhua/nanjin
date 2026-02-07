@@ -25,7 +25,6 @@ class AdminApiTest extends AnyFunSuite {
         _ <- IO.sleep(1.seconds)
         _ <- admin.newTopic(3, 1)
         _ <- IO.sleep(1.seconds)
-        info <- admin.describe
       } yield println(info)
     }
     run.unsafeRunSync()
@@ -39,8 +38,7 @@ class AdminApiTest extends AnyFunSuite {
       _ <- IO.sleep(1.seconds)
       _ <- admin.use(_.mirrorTo(mirror.topicName))
       _ <- IO.sleep(1.seconds)
-      info <- admin.use(_.describe)
-    } yield println(info)
+    } yield ()
     run.unsafeRunSync()
   }
 

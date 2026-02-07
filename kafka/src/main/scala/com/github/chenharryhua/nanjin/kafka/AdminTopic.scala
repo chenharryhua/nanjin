@@ -9,6 +9,7 @@ import org.apache.kafka.clients.admin.{NewTopic, TopicDescription}
 import org.apache.kafka.clients.consumer.ConsumerRecord
 
 trait AdminTopic[F[_]] {
+  def adminClient: KafkaAdminClient[F]
 
   /** Permanently deletes the topic associated with this admin instance.
     *
@@ -58,13 +59,6 @@ trait AdminTopic[F[_]] {
     */
   def mirrorTo(other: TopicName): F[Unit]
 
-  /** Describe the topic associated with this admin instance.
-    *
-    * @return
-    *   a map of topic name to `TopicDescription`; in practice, this will contain a single entry for the topic
-    */
-  def describe: F[Map[String, TopicDescription]]
-
   /** List all consumer groups consuming this topic.
     *
     * @return
@@ -101,7 +95,7 @@ trait AdminTopic[F[_]] {
 }
 
 final private class AdminTopicImpl[F[_]: Sync](
-  adminClient: KafkaAdminClient[F],
+  override val adminClient: KafkaAdminClient[F],
   consumerClient: SnapshotConsumer[F],
   topicName: TopicName)
     extends AdminTopic[F] {
@@ -126,9 +120,6 @@ final private class AdminTopicImpl[F[_]: Sync](
           desc.partitions().size(),
           desc.partitions().get(0).replicas().size().toShort))
     } yield ()
-
-  override def describe: F[Map[String, TopicDescription]] =
-    adminClient.describeTopics(List(topicName.name.value))
 
   override def groups: F[List[GroupId]] =
     for {
