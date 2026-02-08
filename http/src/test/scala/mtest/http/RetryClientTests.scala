@@ -3,7 +3,7 @@ package mtest.http
 import cats.effect.*
 import cats.effect.kernel.Ref
 import com.github.chenharryhua.nanjin.common.chrono.Policy
-import com.github.chenharryhua.nanjin.http.client.middleware.retry
+import com.github.chenharryhua.nanjin.http.client.middleware.httpRetry
 import munit.CatsEffectSuite
 import org.http4s.*
 import org.http4s.client.Client
@@ -38,7 +38,7 @@ class RetryClientTests extends CatsEffectSuite {
     val resp = Response[IO](Status.Ok)
     val client = okClient(resp)
     val policy = Policy.fixedRate(1.second).limited(3)
-    val retryClient = retry[IO](zoneId, policy)(client)
+    val retryClient = httpRetry[IO](zoneId, policy)(client)
 
     val req = Request[IO](Method.GET, uri"/ok")
 
@@ -52,7 +52,7 @@ class RetryClientTests extends CatsEffectSuite {
     val resp = Response[IO](Status.Ok)
     val client = failingClient(counter, failTimes = 2, resp)
     val policy = Policy.fixedRate(10.millis).limited(5)
-    val retryClient = retry.reckless[IO](zoneId, policy)(client)
+    val retryClient = httpRetry.reckless[IO](zoneId, policy)(client)
 
     val req = Request[IO](Method.GET, uri"/retry")
     for {
@@ -69,7 +69,7 @@ class RetryClientTests extends CatsEffectSuite {
     val resp = Response[IO](Status.Ok)
     val client = failingClient(counter, failTimes = 3, resp)
     val policy = Policy.fixedRate(10.millis).limited(5)
-    val retryClient = retry.reckless[IO](zoneId, policy)(client)
+    val retryClient = httpRetry.reckless[IO](zoneId, policy)(client)
 
     val req = Request[IO](Method.GET, uri"/reckless")
     for {
@@ -85,7 +85,7 @@ class RetryClientTests extends CatsEffectSuite {
     val counter = Ref.unsafe[IO, Int](0)
     val client = failingClient(counter, failTimes = 5, Response[IO](Status.Ok))
     val policy = Policy.fixedRate(10.millis).limited(3)
-    val retryClient = retry[IO](zoneId, policy)(client)
+    val retryClient = httpRetry[IO](zoneId, policy)(client)
 
     val req = Request[IO](Method.GET, uri"/fail")
     retryClient.run(req).use(_ => IO.unit).attempt.map {

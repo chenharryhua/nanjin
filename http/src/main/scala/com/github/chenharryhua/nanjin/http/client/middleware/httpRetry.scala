@@ -13,7 +13,7 @@ import java.time.ZoneId
 import scala.concurrent.duration.{DurationLong, FiniteDuration}
 import scala.jdk.DurationConverters.JavaDurationOps
 
-object retry {
+object httpRetry {
   def apply[F[_]: Async](zoneId: ZoneId, policy: Policy)(client: Client[F]): Client[F] =
     impl[F](zoneId, policy, RetryPolicy.defaultRetriable)(client)
 

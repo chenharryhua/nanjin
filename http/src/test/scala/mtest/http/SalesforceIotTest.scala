@@ -7,7 +7,7 @@ import com.comcast.ip4s.*
 import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.http.client.auth.Salesforce
-import com.github.chenharryhua.nanjin.http.client.middleware.retry
+import com.github.chenharryhua.nanjin.http.client.middleware.httpRetry
 import io.circe.Json
 import io.circe.syntax.EncoderOps
 import org.http4s.HttpRoutes
@@ -51,7 +51,7 @@ class SalesforceIotTest extends AnyFunSuite {
     .default[IO]
     .build
     .map(Logger(logHeaders = true, logBody = true, _ => false))
-    .map(retry(sydneyTime, Policy.fixedDelay(0.second).jitter(3.seconds)))
+    .map(httpRetry(sydneyTime, Policy.fixedDelay(0.second).jitter(3.seconds)))
 
   val login = Salesforce(
     authClient,
