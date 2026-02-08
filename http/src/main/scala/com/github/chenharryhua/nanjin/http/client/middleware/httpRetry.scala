@@ -14,11 +14,20 @@ import scala.concurrent.duration.{DurationLong, FiniteDuration}
 import scala.jdk.DurationConverters.JavaDurationOps
 
 object httpRetry {
-  def apply[F[_]: Async](zoneId: ZoneId, policy: Policy)(client: Client[F]): Client[F] =
-    impl[F](zoneId, policy, RetryPolicy.defaultRetriable)(client)
+
+  private type Retriable[F[_]] = (Request[F], Either[Throwable, Response[F]]) => Boolean
+
+  def apply[F[_]: Async](
+    zoneId: ZoneId,
+    policy: Policy,
+    retriable: Retriable[F] = RetryPolicy.defaultRetriable[F](_, _))(client: Client[F]): Client[F] =
+    impl[F](zoneId, policy, retriable)(client)
 
   def reckless[F[_]: Async](zoneId: ZoneId, policy: Policy)(client: Client[F]): Client[F] =
-    impl[F](zoneId, policy, (_, ex) => RetryPolicy.recklesslyRetriable(ex))(client)
+    apply[F](
+      zoneId,
+      policy,
+      (_: Request[F], ex: Either[Throwable, Response[F]]) => RetryPolicy.recklesslyRetriable[F](ex))(client)
 
   private def impl[F[_]: Async](
     zoneId: ZoneId,
