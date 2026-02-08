@@ -1,25 +1,27 @@
 package com.github.chenharryhua.nanjin.common.chrono
 
-import cats.{Functor, Show}
 import cats.effect.kernel.Sync
 import cats.syntax.all.*
+import cats.{Functor, Show}
 import com.github.chenharryhua.nanjin.common.{utils, DurationFormatter}
-import io.circe.{Decoder, Encoder, HCursor, Json}
+import fs2.timeseries.TimeStamped
 import io.circe.syntax.EncoderOps
+import io.circe.{Decoder, Encoder, HCursor, Json}
 import org.typelevel.cats.time.instances.all.*
 
 import java.time.*
 import java.util.UUID
+import scala.concurrent.duration.FiniteDuration
 
 /** A `Tick` represents a bounded, evolving **time-frame** with identity and structure.
   *
   * A tick captures how time is partitioned into three ordered instants:
   *
   * {{{
-  *   commence  ──► acquires ──► conclude
-  *       |         |--- snooze ---|
+  *   commence   ──►  acquires  ──►  conclude
+  *       |              |--- snooze ---|
   *       |--- active ---|
-  *       |----------- window -----------|
+  *       |----------- window ----------|
   * }}}
   *
   * Conceptually:
@@ -174,9 +176,14 @@ object Tick {
   */
 final case class TickedValue[A](tick: Tick, value: A) {
   def map[B](f: A => B): TickedValue[B] = copy(value = f(value))
+
   def withSnoozeStretch(delay: Duration): TickedValue[A] =
     copy(tick = tick.withSnoozeStretch(delay))
+
+  def resolveTime(f: Tick => FiniteDuration): TimeStamped[A] =
+    TimeStamped[A](f(tick), value)
 }
+
 object TickedValue {
   implicit def encoderTickedValue[A: Encoder]: Encoder[TickedValue[A]] =
     io.circe.generic.semiauto.deriveEncoder[TickedValue[A]]
