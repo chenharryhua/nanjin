@@ -6,7 +6,7 @@ import com.github.chenharryhua.nanjin.common.aws.ParameterStorePath
 import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.http.client.auth.{Login, Salesforce}
-import com.github.chenharryhua.nanjin.http.client.middleware.retry
+import com.github.chenharryhua.nanjin.http.client.middleware.httpRetry
 import org.http4s.client.Client
 import org.http4s.client.middleware.Logger
 import org.http4s.ember.client.EmberClientBuilder
@@ -19,7 +19,7 @@ object salesforce_client {
     .default[IO]
     .build
     .map(Logger(logHeaders = true, logBody = true, _ => false))
-    .map(retry(sydneyTime, Policy.fixedDelay(0.second).jitter(5.seconds)))
+    .map(httpRetry(sydneyTime, Policy.fixedDelay(0.second).jitter(5.seconds)))
 
   private val credential: Resource[IO, Login[IO]] =
     ParameterStore[IO](identity).evalMap { ps =>

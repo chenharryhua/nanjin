@@ -57,9 +57,9 @@ object CloudWatch {
   def apply[F[_]](f: Endo[CloudWatchClientBuilder])(implicit F: Async[F]): Resource[F, CloudWatch[F]] =
     for {
       logger <- Resource.eval(Slf4jLogger.create[F])
-      client <- Resource.makeCase(
-        logger.info(s"initialize $name").as(f(CloudWatchClient.builder()).build())) { case (cw, quitCase) =>
-        shutdown(name, quitCase, logger)(F.blocking(cw.close()))
+      client <- Resource.make(logger.info(s"initialize $name").as(f(CloudWatchClient.builder()).build())) {
+        cw =>
+          shutdown(name, logger)(F.blocking(cw.close()))
       }
     } yield new AwsCloudWatch[F](client, logger)
 
