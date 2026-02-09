@@ -1,12 +1,12 @@
 package com.github.chenharryhua.nanjin.guard.service
 
 import cats.Endo
-import cats.effect.kernel.{Async, Ref, Resource}
+import cats.effect.kernel.{Async, Resource}
 import cats.effect.std.{AtomicCell, Dispatcher}
 import com.codahale.metrics.MetricRegistry
 import com.github.benmanes.caffeine.cache.Cache
-import com.github.chenharryhua.nanjin.common.{CircuitBreaker, Retry}
 import com.github.chenharryhua.nanjin.common.chrono.*
+import com.github.chenharryhua.nanjin.common.{CircuitBreaker, Retry}
 import com.github.chenharryhua.nanjin.guard.batch.{Batch, LightBatch}
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.event.*
@@ -78,8 +78,6 @@ final private class GeneralAgent[F[_]: Async](
   metricRegistry: MetricRegistry,
   channel: Channel[F, Event],
   eventLogger: EventLogger[F],
-  domain: Domain,
-  alarmLevel: Ref[F, Option[AlarmLevel]],
   errorHistory: AtomicCell[F, CircularFifoQueue[ServiceMessage]],
   dispatcher: Dispatcher[F])
     extends Agent[F] {
@@ -90,18 +88,16 @@ final private class GeneralAgent[F[_]: Async](
     new GeneralAgent[F](
       metricRegistry,
       channel,
-      eventLogger,
-      Domain(name),
-      alarmLevel,
+      eventLogger.withDomain(Domain(name)),
       errorHistory,
       dispatcher)
 
   override def batch(label: String): Batch[F] = {
-    val metricLabel = MetricLabel(label, domain)
+    val metricLabel = MetricLabel(label, eventLogger.domain)
     new Batch[F](new Metrics.Impl[F](metricLabel, metricRegistry, dispatcher, zoneId))
   }
   override def lightBatch(label: String): LightBatch[F] = {
-    val metricLabel = MetricLabel(label, domain)
+    val metricLabel = MetricLabel(label, eventLogger.domain)
     new LightBatch[F](new Metrics.Impl[F](metricLabel, metricRegistry, dispatcher, zoneId))
   }
 
@@ -124,7 +120,7 @@ final private class GeneralAgent[F[_]: Async](
     tickImmediate(f(Policy))
 
   override def metrics(label: String): Metrics[F] = {
-    val metricLabel = MetricLabel(label, domain)
+    val metricLabel = MetricLabel(label, eventLogger.domain)
     new Metrics.Impl[F](metricLabel, metricRegistry, dispatcher, zoneId)
   }
 

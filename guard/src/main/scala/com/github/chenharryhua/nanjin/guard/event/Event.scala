@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.event
 
 import com.github.chenharryhua.nanjin.common.chrono.Tick
-import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, ServiceParams}
+import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, Domain, ServiceParams}
 import io.circe.Json
 import io.circe.generic.JsonCodec
 
@@ -38,6 +38,7 @@ object Event {
 
   final case class ServiceMessage(
     serviceParams: ServiceParams,
+    domain: Domain,
     timestamp: ZonedDateTime,
     token: Int,
     level: AlarmLevel,

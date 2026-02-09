@@ -89,17 +89,19 @@ final private class HttpRouter[F[_]](
       br(),
       a(href := "/metrics/json")("Metrics At Present(Json)"),
       br(),
-      a(href := "/metrics/history")("Metrics History"),
-      br(),
       a(href := "/metrics/reset")("Metrics Counters Reset"),
       br(),
-      a(href := "/metrics/jvm")("Jvm"),
+      br(),
+      a(href := "/metrics/history")("Metrics History"),
+      br(),
+      a(href := "/service/panic/history")("Panic History"),
+      br(),
+      a(href := "/service/error/history")("Error History"),
+      br(),
       br(),
       a(href := "/service/params")("Service Parameters"),
       br(),
-      a(href := "/service/panic/history")("Service Panic History"),
-      br(),
-      a(href := "/service/error/history")("Error History"),
+      a(href := "/metrics/jvm")("Java Runtime"),
       br(),
       a(href := "/service/health_check")("Service Health Check"),
       br(),
@@ -197,8 +199,11 @@ final private class HttpRouter[F[_]](
 
     case GET -> Root / "service" / "stop" =>
       val stopping = html(
-        head(meta(attr("http-equiv") := "refresh", attr("content") := "3;url=/")),
-        body(h2("Stopping Service")))
+        head(
+          meta(attr("http-equiv") := "refresh", attr("content") := "3;url=/"),
+          tag("title")(serviceParams.serviceName.value)),
+        body(h1("Stopping Service"))
+      )
 
       Ok(stopping) <* service_stop[F](channel, eventLogger, ServiceStopCause.Maintenance)
 
@@ -264,6 +269,7 @@ final private class HttpRouter[F[_]](
                 .map(err => Json.obj("stack" -> err.stack.asJson))
                 .asJson
                 .deepMerge(Json.obj(
+                  "domain" -> sm.domain.asJson,
                   "token" -> sm.token.asJson,
                   "age" -> durationFormatter.format(Duration.between(sm.timestamp, now)).asJson,
                   "timestamp" -> sm.timestamp.asJson,

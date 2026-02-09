@@ -44,4 +44,15 @@ class JsonFTest extends AnyFunSuite {
     val json = List(true.asJson, Json.Null, false.asJson).asJson
     assert(JsonF.yml("name", json).head == "name: [true, null, false]")
   }
+
+  test("two layers") {
+    val json = Json.obj(
+      "top" ->
+        Json.obj(
+          "str" -> Json.fromString("str"),
+          "arrStr" -> List("a", "b", "c").asJson,
+          "nullType" -> Json.Null
+        ))
+    println(JsonF.yml("name", json))
+  }
 }

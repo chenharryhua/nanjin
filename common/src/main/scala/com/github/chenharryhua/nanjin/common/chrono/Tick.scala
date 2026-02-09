@@ -27,7 +27,7 @@ import scala.concurrent.duration.FiniteDuration
   * Conceptually:
   *
   *   - `commence` marks the start of the time-frame
-  *   - `acquires` marks the point at which an action is attempted or acquired
+  *   - `acquires` marks the point at which the tick is acquired
   *   - `conclude` marks the end of the time-frame
   *
   * A `Tick` carries stable identity and temporal provenance, allowing it to be:
@@ -75,7 +75,11 @@ final case class Tick(
 
   def active: Duration = Duration.between(commence, acquires)
 
+  /** Stretch the conclude time by adding a delay */
   def withSnoozeStretch(delay: Duration): Tick = copy(conclude = conclude.plus(delay))
+
+  /** Replace the conclude time entirely */
+  def withConclude(newConclude: Instant): Tick = copy(conclude = newConclude)
 
   /** check if an instant is in this tick frame from commence(exclusive) to conclude(inclusive).
     */
@@ -179,6 +183,9 @@ final case class TickedValue[A](tick: Tick, value: A) {
 
   def withSnoozeStretch(delay: Duration): TickedValue[A] =
     copy(tick = tick.withSnoozeStretch(delay))
+
+  def withConclude(newConclude: Instant): TickedValue[A] =
+    copy(tick = tick.withConclude(newConclude))
 
   def resolveTime(f: Tick => FiniteDuration): TimeStamped[A] =
     TimeStamped[A](f(tick), value)
