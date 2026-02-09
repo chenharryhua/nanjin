@@ -48,7 +48,7 @@ object JsonF {
             case ObjectF(fields) => Json.obj(fields*).noSpaces
           }
           // add 4 space
-          show"${space * 4}${StringUtils.rightPad(key, maxKeyLength)}: $jsStr"
+          show"$space4${StringUtils.rightPad(key, maxKeyLength)}: $jsStr"
         }
 
         // don't forget attach name

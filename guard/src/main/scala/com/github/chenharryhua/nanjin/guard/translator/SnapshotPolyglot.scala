@@ -164,7 +164,7 @@ final class SnapshotPolyglot(snapshot: MetricSnapshot) {
 
   private def padded(data: NonEmptyList[(String, String)]): NonEmptyList[String] = {
     val pad = data.map(_._1.length).toList.max
-    data.map { case (k, v) => s"${space * 4}${StringUtils.leftPad(k, pad)}: $v" }
+    data.map { case (k, v) => s"$space4${StringUtils.leftPad(k, pad)}: $v" }
   }
 
   private def named(id: MetricID, data: NonEmptyList[String]): List[String] =
@@ -190,11 +190,11 @@ final class SnapshotPolyglot(snapshot: MetricSnapshot) {
           .toList
           .map { case (name, items) =>
             val age = items.map(_._1.metricName.age).min
-            (age, name) -> items.sortBy(_._1.metricName).flatMap(_._2.map(space * 4 + _))
+            (age, name) -> items.sortBy(_._1.metricName).flatMap(_._2.map(space4 + _))
           }
           .sortBy(_._1._1)
           .flatMap { case ((_, n), items) =>
-            s"${space * 2}- ${n.label}:" :: items
+            s"$space2- ${n.label}:" :: items
           }
         val age = domains.map(_._1.metricName.age).min
         (age, show"[$domain]:" :: arr)
