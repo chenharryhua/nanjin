@@ -154,8 +154,6 @@ final class SnapshotPolyglot(snapshot: MetricSnapshot) {
       .filter(_.count > 0)
       .map(c => c.metricId -> List(show"${c.metricId.metricName.name}: ${decimalFormatter.format(c.count)}"))
 
-  private val space: String = StringUtils.SPACE
-
   private def gauge_str: List[(MetricID, List[String])] =
     snapshot.gauges.mapFilter { g =>
       val content = JsonF.yml(g.metricId.metricName.name, g.value)
@@ -164,20 +162,22 @@ final class SnapshotPolyglot(snapshot: MetricSnapshot) {
         Some(g.metricId -> content)
     }
 
-  private def padded(kv: (String, String)): String =
-    s"${space * 2}${StringUtils.leftPad(kv._1, 11)}: ${kv._2}"
+  private def padded(data: NonEmptyList[(String, String)]): NonEmptyList[String] = {
+    val pad = data.map(_._1.length).toList.max
+    data.map { case (k, v) => s"${space * 4}${StringUtils.leftPad(k, pad)}: $v" }
+  }
 
   private def named(id: MetricID, data: NonEmptyList[String]): List[String] =
     s"${id.metricName.name}:" :: data.toList
 
   private def meter_str: List[(MetricID, List[String])] =
-    meters.map { case (id, data) => id -> named(id, data.map(padded)) }
+    meters.map { case (id, data) => id -> named(id, padded(data)) }
 
   private def timer_str: List[(MetricID, List[String])] =
-    timers.map { case (id, data) => id -> named(id, data.map(padded)) }
+    timers.map { case (id, data) => id -> named(id, padded(data)) }
 
   private def histogram_str: List[(MetricID, List[String])] =
-    histograms.map { case (id, data) => id -> named(id, data.map(padded)) }
+    histograms.map { case (id, data) => id -> named(id, padded(data)) }
 
   private def group_yaml(pairs: List[(MetricID, List[String])]): List[String] =
     pairs

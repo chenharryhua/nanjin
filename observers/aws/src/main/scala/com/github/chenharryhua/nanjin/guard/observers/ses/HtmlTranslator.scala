@@ -154,12 +154,14 @@ private object HtmlTranslator extends all {
   private def service_message(evt: ServiceMessage): Text.TypedTag[String] = {
     val fg = frag(
       tr(
-        th(CONSTANT_ALARM_LEVEL),
-        th(CONSTANT_MESSAGE_TOKEN)
+        th(CONSTANT_DOMAIN),
+        th(CONSTANT_MESSAGE_TOKEN),
+        th(CONSTANT_ALARM_LEVEL)
       ),
       tr(
-        td(evt.level.entryName),
-        td(evt.token)
+        td(evt.domain.value),
+        td(evt.token),
+        td(evt.level.entryName)
       )
     )
 

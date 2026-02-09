@@ -26,7 +26,11 @@ object jsonHelper {
 
   def json_service_message(sm: ServiceMessage): Json = {
     val serviceInfo: List[(String, Json)] =
-      List(service_name(sm.serviceParams), service_id(sm.serviceParams), "token" -> sm.token.asJson)
+      List(
+        service_name(sm.serviceParams),
+        service_id(sm.serviceParams),
+        "domain" -> sm.domain.asJson,
+        "token" -> sm.token.asJson)
 
     sm.error match {
       case Some(err) =>

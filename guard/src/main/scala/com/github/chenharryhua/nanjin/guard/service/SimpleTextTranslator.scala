@@ -15,8 +15,9 @@ private object SimpleTextTranslator {
     val tn: String = s"$CONSTANT_TASK:${se.serviceParams.taskName.value}"
     val serviceId: String = s"$CONSTANT_SERVICE_ID:${se.serviceParams.serviceId.show}"
     val uptime: String = s"$CONSTANT_UPTIME:${textHelper.uptimeText(se)}"
-    s"""|$sn, $tn, $serviceId
-        |  $host, $uptime""".stripMargin
+    s"""|$sn, $tn, $uptime
+        |  $host
+        |  $serviceId""".stripMargin
 
   }
 
@@ -84,9 +85,18 @@ private object SimpleTextTranslator {
   }
 
   private def service_message(evt: ServiceMessage): String = {
+    val host: String = s"$CONSTANT_HOST:${textHelper.hostText(evt.serviceParams)}"
+    val sn: String = s"$CONSTANT_SERVICE:${evt.serviceParams.serviceName.value}"
+    val tn: String = s"$CONSTANT_TASK:${evt.serviceParams.taskName.value}"
+    val serviceId: String = s"$CONSTANT_SERVICE_ID:${evt.serviceParams.serviceId.show}"
+    val uptime: String = s"$CONSTANT_UPTIME:${textHelper.uptimeText(evt)}"
     val token = s"$CONSTANT_MESSAGE_TOKEN:${evt.token}"
+    val domain = s"$CONSTANT_DOMAIN:${evt.domain.value}"
+
     s"""|
-        |  ${service_event(evt)}, $token
+        |  $sn, $tn, $domain, $uptime
+        |  $host
+        |  $serviceId, $token
         |${evt.message.spaces2}
         |${evt.error.fold("")(error_str)}
         |""".stripMargin

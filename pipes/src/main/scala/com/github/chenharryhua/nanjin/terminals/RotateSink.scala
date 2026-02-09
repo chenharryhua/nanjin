@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.terminals
 
 import cats.Endo
+import cats.implicits.showInterpolator
 import com.fasterxml.jackson.databind.JsonNode
 import com.github.chenharryhua.nanjin.common.chrono.TickedValue
 import fs2.Pipe
@@ -16,12 +17,19 @@ import scalapb.GeneratedMessage
 import java.time.ZonedDateTime
 import java.util.UUID
 
-/** @param sequenceId
-  *   global unique sequence id
+/** Instruction to create a new rotated file.
+  *
+  * This event marks the beginning of a new `Tick` window. A writer opened from this information will accept
+  * records that belong to that tick.
+  *
+  * @param sequenceId
+  *   globally unique id for the entire rotation stream
+  *
   * @param index
-  *   start from one
+  *   1-based, strictly increasing number of the file within the sequence
+  *
   * @param openTime
-  *   when the rotate sink open the file to write.
+  *   timestamp when the sink starts writing records for this file
   */
 final case class CreateRotateFile(
   sequenceId: UUID,
@@ -29,9 +37,24 @@ final case class CreateRotateFile(
   openTime: ZonedDateTime
 )
 
-final case class RotateWriteException(tv: TickedValue[Url], cause: Throwable)
-    extends Exception(s"failed to write to: ${tv.value.toString()}", cause)
+final case class RotateWriteException(tv: TickedValue[Url], cause: Throwable) extends Exception(
+      show"failed to write to: ${tv.value} (seq=${tv.tick.sequenceId}, idx=${tv.tick.index})",
+      cause)
 
+/** Result of a completed rotation window.
+  *
+  * One `RotateFile` is emitted for every finished `Tick`.
+  *
+  * The file identified by `url` contains exactly `recordCount` records written while that tick window was
+  * active.
+  *
+  * Invariants typically guaranteed by rotation sinks:
+  *
+  *   - there is at most one `RotateFile` per tick
+  *   - tick indices are strictly increasing
+  *   - the sum of `recordCount` equals the total number of input records
+  *   - records in this file belong exclusively to that tick’s time window
+  */
 @JsonCodec
 final case class RotateFile(url: Url, recordCount: Int)
 

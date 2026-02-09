@@ -34,41 +34,72 @@ final private class RotateBySizeSink[F[_]](
   private def createRotateFileEvent(tick: Tick): CreateRotateFile =
     CreateRotateFile(tick.sequenceId, tick.index + 1, tick.zoned(_.conclude))
 
+  /** Recursively writes data from the stream to disk, rotating files based on size.
+    *
+    * @param getWriter
+    *   function to create a new HadoopWriter given a CreateRotateFile event
+    * @param hotswap
+    *   current Hotswap managing the writer resource
+    * @param writer
+    *   current writer for the active file
+    * @param data
+    *   stream of elements to write
+    * @param previousTick
+    *   tick representing the previous file's timing window
+    * @param count
+    *   number of elements already written to the current file
+    *
+    * @return
+    *   Pull emitting one TickedValue per file, where each TickedValue contains:
+    *   - tick: the temporal window (commence, acquires, conclude)
+    *   - value: RotateFile with file URL and number of records written
+    *
+    * ===Semantics===
+    *
+    *   1. Each file corresponds to one TickedValue.
+    *   2. `previousTick` represents the previous file; `nextTick` generates the new tick for the current
+    *      file.
+    *   3. `acquires` marks the moment writing starts, `conclude` marks when writing ends.
+    *   4. Files that exceed `sizeLimit` are split across ticks, generating multiple TickedValues.
+    *   5. The tick index increments sequentially starting from 1.
+    */
   private def doWork[A](
     getWriter: CreateRotateFile => Resource[F, HadoopWriter[F, A]],
     hotswap: Hotswap[F, HadoopWriter[F, A]],
     writer: HadoopWriter[F, A],
     data: Stream[F, A],
-    currentTick: Tick,
+    previousTick: Tick,
     count: Int
   ): Pull[F, TickedValue[RotateFile], Unit] = {
     def writeChunk(as: Chunk[A]): Pull[F, Nothing, Unit] =
       Pull
         .eval(writer.write(as))
-        .adaptError(ex => RotateWriteException(TickedValue(currentTick, writer.fileUrl), ex))
+        .adaptError(ex => RotateWriteException(TickedValue(previousTick, writer.fileUrl), ex))
 
     data.pull.uncons.flatMap {
       case None =>
         Pull.eval(hotswap.clear) >> Pull
-          .eval(F.realTimeInstant.map(now => currentTick.nextTick(now, now)))
+          .eval(F.realTimeInstant.map(now => previousTick.nextTick(previousTick.conclude, now)))
           .flatMap { newTick =>
             Pull.output1[F, TickedValue[RotateFile]](TickedValue(newTick, RotateFile(writer.fileUrl, count)))
           }
       case Some((as, stream)) =>
         val dataSize = as.size
         if ((dataSize + count) < sizeLimit) {
-          writeChunk(as) >> doWork(getWriter, hotswap, writer, stream, currentTick, dataSize + count)
+          writeChunk(as) >> doWork(getWriter, hotswap, writer, stream, previousTick, dataSize + count)
         } else {
           val (first, second) = as.splitAt(sizeLimit - count)
 
           writeChunk(first) >>
-            Pull.eval(F.realTimeInstant.map(now => currentTick.nextTick(now, now))).flatMap { newTick =>
-              Pull.eval(hotswap.swap(getWriter(createRotateFileEvent(newTick)))).flatMap { newWriter =>
-                Pull.output1[F, TickedValue[RotateFile]](
-                  TickedValue(newTick, RotateFile(writer.fileUrl, count + first.size))) >>
-                  doWork(getWriter, hotswap, newWriter, stream.cons(second), newTick, 0)
+            Pull
+              .eval(F.realTimeInstant.map(now => previousTick.nextTick(previousTick.conclude, now)))
+              .flatMap { newTick =>
+                Pull.eval(hotswap.swap(getWriter(createRotateFileEvent(newTick)))).flatMap { newWriter =>
+                  Pull.output1[F, TickedValue[RotateFile]](
+                    TickedValue(newTick, RotateFile(writer.fileUrl, count + first.size))) >>
+                    doWork(getWriter, hotswap, newWriter, stream.cons(second), newTick, 0)
+                }
               }
-            }
         }
     }
   }
@@ -88,7 +119,7 @@ final private class RotateBySizeSink[F[_]](
           hotswap = hotswap,
           writer = writer,
           data = data,
-          currentTick = tick,
+          previousTick = tick,
           count = 0).stream
       }
       .pull

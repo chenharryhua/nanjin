@@ -16,7 +16,7 @@ import cats.implicits.{
 import cats.syntax.all.none
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.common.chrono.Tick
-import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, ServiceParams}
+import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, Domain, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.Event.{
   MetricReport,
   MetricReset,
@@ -74,12 +74,14 @@ package object service {
 
   private[service] def service_message[F[_], S: Encoder](
     serviceParams: ServiceParams,
+    domain: Domain,
     msg: S,
     level: AlarmLevel,
     error: Option[Error])(implicit F: Sync[F]): F[ServiceMessage] =
     (F.unique, serviceParams.zonedNow).mapN { case (token, ts) =>
       ServiceMessage(
         serviceParams = serviceParams,
+        domain = domain,
         timestamp = ts,
         token = Hash[Token].hash(token),
         level = level,

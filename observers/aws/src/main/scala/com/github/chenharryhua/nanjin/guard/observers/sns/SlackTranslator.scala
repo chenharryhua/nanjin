@@ -213,7 +213,7 @@ private object SlackTranslator extends all {
         HeaderSection(s"$symbol ${eventTitle(evt)}"),
         host_service_section(evt.serviceParams),
         JuxtaposeSection(
-          TextField(CONSTANT_ALARM_LEVEL, evt.level.entryName),
+          TextField(CONSTANT_DOMAIN, evt.domain.value),
           TextField(CONSTANT_MESSAGE_TOKEN, evt.token.toString)),
         MarkdownSection(s"*$CONSTANT_SERVICE_ID:* ${evt.serviceParams.serviceId.show}"),
         MarkdownSection(s"```${abbreviate(evt.message)}```")

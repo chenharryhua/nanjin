@@ -13,7 +13,7 @@ import cats.implicits.{
   toTraverseOps
 }
 import com.github.chenharryhua.nanjin.guard.config.LogFormat.Console_Json_MultiLine
-import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, LogFormat, ServiceParams}
+import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, Domain, LogFormat, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.Event.{
   MetricReport,
   MetricReset,
@@ -47,11 +47,15 @@ sealed trait Log[F[_]] {
 
 final private class EventLogger[F[_]](
   val serviceParams: ServiceParams,
+  val domain: Domain,
+  alarmLevel: Ref[F, Option[AlarmLevel]],
   translator: Translator[F, String],
   logger: MessageLogger[F],
-  alarmLevel: Ref[F, Option[AlarmLevel]],
   isColoring: Boolean)(implicit F: Sync[F])
     extends Log[F] {
+
+  def withDomain(domain: Domain): EventLogger[F] =
+    new EventLogger[F](serviceParams, domain, alarmLevel, translator, logger, isColoring)
 
   private def transform_event(event: Event): F[Option[String]] =
     translator
@@ -136,7 +140,9 @@ final private class EventLogger[F[_]](
   private def sm2text[S: Encoder](msg: S, level: AlarmLevel, error: Option[Error]): F[Option[String]] =
     alarmLevel.get
       .map(_.exists(_ <= level))
-      .ifM(service_message[F, S](serviceParams, msg, level, error).flatMap(transform_event(_)), F.pure(None))
+      .ifM(
+        service_message[F, S](serviceParams, domain, msg, level, error).flatMap(transform_event(_)),
+        F.pure(None))
 
   override def info[S: Encoder](msg: S): F[Unit] =
     sm2text(msg, AlarmLevel.Info, None).flatMap(_.traverse(logger.info(_))).void
@@ -161,10 +167,14 @@ final private class EventLogger[F[_]](
       .ifM(
         F.attempt(msg).flatMap {
           case Left(ex) =>
-            service_message[F, String](serviceParams, "Error Message", AlarmLevel.Debug, Some(Error(ex)))
-              .flatMap(m => logger.debug(debug_message(m)))
+            service_message[F, String](
+              serviceParams,
+              domain,
+              "Error Message",
+              AlarmLevel.Debug,
+              Some(Error(ex))).flatMap(m => logger.debug(debug_message(m)))
           case Right(value) =>
-            service_message[F, S](serviceParams, value, AlarmLevel.Debug, None)
+            service_message[F, S](serviceParams, domain, value, AlarmLevel.Debug, None)
               .flatMap(m => logger.debug(debug_message(m)))
         },
         F.unit
@@ -180,6 +190,7 @@ final private class EventLogger[F[_]](
 private object EventLogger {
   def apply[F[_]: Sync: Console](
     serviceParams: ServiceParams,
+    domain: Domain,
     alarmLevel: Ref[F, Option[AlarmLevel]]): F[EventLogger[F]] =
     serviceParams.logFormat match {
       /*
@@ -188,6 +199,7 @@ private object EventLogger {
       case LogFormat.Console_PlainText =>
         new EventLogger[F](
           serviceParams = serviceParams,
+          domain = domain,
           translator = SimpleTextTranslator[F],
           logger = new ConsoleLogger[F](serviceParams.zoneId),
           alarmLevel = alarmLevel,
@@ -196,6 +208,7 @@ private object EventLogger {
       case LogFormat.Console_Json_OneLine =>
         new EventLogger[F](
           serviceParams = serviceParams,
+          domain = domain,
           translator = PrettyJsonTranslator[F].map(_.noSpaces),
           logger = new ConsoleLogger[F](serviceParams.zoneId),
           alarmLevel = alarmLevel,
@@ -204,6 +217,7 @@ private object EventLogger {
       case Console_Json_MultiLine =>
         new EventLogger[F](
           serviceParams = serviceParams,
+          domain = domain,
           translator = PrettyJsonTranslator[F].map(_.spaces2),
           logger = new ConsoleLogger[F](serviceParams.zoneId),
           alarmLevel = alarmLevel,
@@ -212,6 +226,7 @@ private object EventLogger {
       case LogFormat.Console_JsonVerbose =>
         new EventLogger[F](
           serviceParams = serviceParams,
+          domain = domain,
           translator = Translator.idTranslator.map(_.asJson.spaces2),
           logger = new ConsoleLogger[F](serviceParams.zoneId),
           alarmLevel = alarmLevel,
@@ -227,6 +242,7 @@ private object EventLogger {
           .map(logger =>
             new EventLogger[F](
               serviceParams = serviceParams,
+              domain = domain,
               translator = SimpleTextTranslator[F],
               logger = logger,
               alarmLevel = alarmLevel,
@@ -237,6 +253,7 @@ private object EventLogger {
           .map(logger =>
             new EventLogger[F](
               serviceParams = serviceParams,
+              domain = domain,
               translator = PrettyJsonTranslator[F].map(_.noSpaces),
               logger = logger,
               alarmLevel = alarmLevel,
@@ -247,6 +264,7 @@ private object EventLogger {
           .map(logger =>
             new EventLogger[F](
               serviceParams = serviceParams,
+              domain = domain,
               translator = PrettyJsonTranslator[F].map(_.spaces2),
               logger = logger,
               alarmLevel = alarmLevel,

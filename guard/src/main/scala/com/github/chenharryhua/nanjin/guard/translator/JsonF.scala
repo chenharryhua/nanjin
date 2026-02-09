@@ -25,28 +25,33 @@ object JsonF {
       def onObject(value: JsonObject): JsonF[Json] = ObjectF(value.toList)
     }
 
+  private def format_json_umber(jn: JsonNumber): String =
+    jn.toBigDecimal.map(decimalFormatter.format).getOrElse(jn.toString)
+
   def yml(name: String, json: Json): List[String] =
     json.foldWith(unfolded) match {
       case NullF           => Nil
       case BooleanF(bool)  => List(show"$name: $bool")
-      case NumberF(number) => List(show"$name: ${decimalFormatter.format(number.toDouble)}")
+      case NumberF(number) => List(show"$name: ${format_json_umber(number)}")
       case StringF(str)    => List(show"$name: $str")
       case ArrayF(values)  =>
         List(show"$name: ${values.map(_.noSpaces).mkString("[", ", ", "]")}")
       case ObjectF(fields) =>
-        val maxKeyLength = fields.map(_._1.length).max
+        val maxKeyLength = fields.map(_._1.length).foldLeft(0)(math.max)
         val content: List[String] = fields.map { case (key, js) =>
           val jsStr: String = js.foldWith(unfolded) match {
             case NullF           => "null"
             case BooleanF(bool)  => bool.toString
-            case NumberF(number) => decimalFormatter.format(number.toDouble)
+            case NumberF(number) => format_json_umber(number)
             case StringF(str)    => str
             case ArrayF(values)  => values.map(_.noSpaces).mkString("[", ", ", "]")
             case ObjectF(fields) => Json.obj(fields*).noSpaces
           }
-          // add 2 space
-          show"  ${StringUtils.rightPad(key, maxKeyLength)}: $jsStr"
+          // add 4 space
+          show"${space * 4}${StringUtils.rightPad(key, maxKeyLength)}: $jsStr"
         }
+
+        // don't forget attach name
         s"$name:" :: content
     }
 }

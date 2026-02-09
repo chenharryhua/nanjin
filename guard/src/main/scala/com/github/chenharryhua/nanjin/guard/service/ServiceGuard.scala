@@ -55,7 +55,8 @@ final class ServiceGuard[F[_]: Network: Async: Console] private[guard] (
       errorHistory <- Stream.eval(
         AtomicCell[F].of(new CircularFifoQueue[ServiceMessage](serviceParams.historyCapacity.error)))
       alarmLevel <- Stream.eval(Ref.of[F, Option[AlarmLevel]](AlarmLevel.Info.some))
-      eventLogger <- Stream.eval(EventLogger[F](serviceParams, alarmLevel))
+      eventLogger <- Stream.eval(
+        EventLogger[F](serviceParams, Domain(serviceParams.serviceName.value), alarmLevel))
       event <- Stream.eval(Channel.unbounded[F, Event]).flatMap { channel =>
         val metricRegistry: MetricRegistry = new MetricRegistry()
 
@@ -124,8 +125,6 @@ final class ServiceGuard[F[_]: Network: Async: Console] private[guard] (
             metricRegistry = metricRegistry,
             channel = channel,
             eventLogger = eventLogger,
-            domain = Domain(serviceParams.serviceName.value),
-            alarmLevel = alarmLevel,
             errorHistory = errorHistory,
             dispatcher = dispatcher
           )
