@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.metrics
 
 import cats.effect.implicits.genTemporalOps
-import cats.effect.kernel.{Async, Resource}
+import cats.effect.kernel.{Async, Concurrent, Ref, Resource}
 import cats.effect.std.Dispatcher
 import cats.syntax.all.*
 import com.codahale.metrics
@@ -9,8 +9,8 @@ import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy}
 import com.github.chenharryhua.nanjin.common.{utils, EnableConfig}
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.config.CategoryKind.GaugeKind
-import io.circe.{Encoder, Json}
 import io.circe.syntax.EncoderOps
+import io.circe.{Encoder, Json}
 import org.apache.commons.lang3.StringUtils
 import org.apache.commons.lang3.exception.ExceptionUtils
 
@@ -21,15 +21,19 @@ import scala.util.Try
 trait Gauge[F[_]] {
   def register[A: Encoder](value: F[A]): Resource[F, Unit]
   def register[A: Encoder](value: F[A], policy: Policy): Resource[F, Unit]
+
+  def ref[A: Encoder](value: A): Resource[F, Ref[F, A]]
 }
 
 object Gauge {
-  def noop[F[_]]: Gauge[F] =
+  def noop[F[_]: Concurrent]: Gauge[F] =
     new Gauge[F] {
       override def register[A: Encoder](value: F[A]): Resource[F, Unit] =
         Resource.unit[F]
       override def register[A: Encoder](value: F[A], policy: Policy): Resource[F, Unit] =
         Resource.unit[F]
+      override def ref[A: Encoder](value: A): Resource[F, Ref[F, A]] =
+        Resource.eval(Concurrent[F].ref(value))
     }
 
   private class Impl[F[_]: Async](
@@ -77,6 +81,12 @@ object Gauge {
         _ <- register(ref.get)
       } yield ()
     }
+
+    override def ref[A: Encoder](value: A): Resource[F, Ref[F, A]] =
+      for {
+        ref <- Resource.eval(F.ref(value))
+        _ <- register(ref.get)
+      } yield ref
   }
 
   final class Builder private[guard] (isEnabled: Boolean, timeout: FiniteDuration)
