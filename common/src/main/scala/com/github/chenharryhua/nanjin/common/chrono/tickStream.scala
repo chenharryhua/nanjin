@@ -4,9 +4,9 @@ import cats.effect.kernel.{Async, Temporal}
 import cats.implicits.{toFlatMapOps, toFunctorOps, toTraverseOps}
 import fs2.{Pull, Stream}
 
-import java.time.{Instant, ZoneId}
+import java.time.{Duration as JavaDuration, Instant, ZoneId}
 import java.util.UUID
-import scala.concurrent.duration.DurationInt
+import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.jdk.DurationConverters.{JavaDurationOps, ScalaDurationOps}
 import scala.util.Random
 
@@ -24,8 +24,35 @@ object tickStream {
       }
     }
 
-  /** Stream ticks according to the policy, sleeping first. The first tick (index = 1) is not emitted
-    * immediately.
+  /** Stream ticks in a **“sleep first, then emit”** pattern.
+    *
+    * Each tick represents a structured time-frame governed by a `Policy`.
+    *
+    * Behavior:
+    *   - The **first tick** (index = 1) is **not emitted immediately**; the stream waits for the tick's
+    *     `snooze` first.
+    *   - After sleeping for `tick.snooze`, the tick is emitted downstream.
+    *   - If downstream processing takes longer than the tick’s duration, the next tick still waits for its
+    *     **full snooze**.
+    *
+    * ===Key semantics===
+    *
+    *   - `tick.conclude` represents the **moment the downstream actually receives the tick**.
+    *   - Strict, time-driven schedule: ticks always respect the planned snooze/duration.
+    *
+    * ===Notes===
+    *
+    *   - The stream terminates automatically when the policy has no further decisions (e.g., `GiveUp` or
+    *     `Limited` exhausted).
+    *
+    * @param zoneId
+    *   The time zone used for generating ticks
+    * @param policy
+    *   The scheduling/retry policy controlling tick evolution
+    * @tparam F
+    *   Effect type supporting asynchronous operations (e.g., `IO`)
+    * @return
+    *   A `Stream[F, Tick]` that emits sequential ticks according to the policy and sleeps first
     */
   def tickScheduled[F[_]: Async](zoneId: ZoneId, policy: Policy): Stream[F, Tick] =
     Stream.eval[F, TickStatus](TickStatus.zeroth[F](zoneId, policy)).flatMap(fromTickStatus[F])
@@ -38,22 +65,52 @@ object tickStream {
       .eval[F, TickStatus](TickStatus.zeroth[F](zoneId, policy))
       .flatMap(zero => fromTickStatus[F](zero).cons1(zero.tick))
 
-  /** Stream ticks in “emit first, then sleep” mode. The first tick (index = 1) is emitted immediately, and
-    * each tick sleeps after emission.
+  /** Stream ticks in an **“emit first, then sleep”** pattern.
+    *
+    * Each tick represents a structured time-frame governed by a `Policy`.
+    *
+    * Behavior:
+    *   - The **first tick** (index = 1) is emitted immediately.
+    *   - Each subsequent tick is computed according to the policy sequence.
+    *   - After emission, the stream sleeps until the tick’s `conclude` time.
+    *   - If downstream processing takes longer than the tick's duration, the stream **skips the sleep** and
+    *     produces the next tick immediately.
+    *
+    * ===Key semantics===
+    *
+    *   - `tick.acquires` represents the **moment the downstream actually receives the tick**.
+    *   - Tick emission may **drift relative to the nominal schedule** if processing is slow.
+    *
+    * ===Notes===
+    *
+    *   - The stream terminates automatically when the policy has no further decisions (e.g., `GiveUp` or
+    *     `Limited` exhausted).
+    *
+    * @param zoneId
+    *   The time zone used for generating ticks
+    * @param policy
+    *   The scheduling/retry policy controlling tick evolution
+    * @tparam F
+    *   Effect type supporting asynchronous operations (e.g., `IO`)
+    * @return
+    *   A `Stream[F, Tick]` that emits sequential ticks respecting the policy timing
     */
   def tickFuture[F[_]](zoneId: ZoneId, policy: Policy)(implicit F: Async[F]): Stream[F, Tick] =
     Stream.eval[F, TickStatus](TickStatus.zeroth[F](zoneId, policy)).flatMap { status =>
-      def go(ticks: Stream[F, Tick]): Pull[F, Tick, Unit] =
-        ticks.pull.uncons1.flatMap {
-          case Some((tick, rest)) =>
-            Pull.output1[F, Tick](tick) >> Pull.sleep[F](tick.snooze.toScala) >> go(rest)
-          case None => Pull.done
+      def go(status: TickStatus): Pull[F, Tick, Unit] =
+        Pull.eval(F.realTimeInstant.map(status.next)).flatMap {
+          case None     => Pull.done
+          case Some(ts) =>
+            Pull.output1(ts.tick) >> // do evalMap etc at this moment
+              Pull.eval(F.realTimeInstant).flatMap { now =>
+                val conclude: Instant = ts.tick.conclude
+                if (now.isBefore(conclude)) {
+                  val gap: FiniteDuration = JavaDuration.between(now, conclude).toScala
+                  Pull.sleep(gap) >> go(ts)
+                } else go(ts) // cross border
+              }
         }
-      val sts: Stream[F, Tick] =
-        Stream.unfoldEval[F, TickStatus, Tick](status)(s =>
-          F.realTimeInstant.map(s.next(_).map(ns => (ns.tick, ns))))
-
-      go(sts).stream
+      go(status).stream
     }
 }
 
