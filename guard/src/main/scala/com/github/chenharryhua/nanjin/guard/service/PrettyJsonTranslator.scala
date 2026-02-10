@@ -61,7 +61,7 @@ private object PrettyJsonTranslator {
       jsonHelper.metric_index(evt.index),
       jsonHelper.service_name(evt.serviceParams),
       jsonHelper.service_id(evt.serviceParams),
-      jsonHelper.policy(evt.serviceParams.servicePolicies.metricReport.policy),
+      jsonHelper.policy(evt.serviceParams.servicePolicies.metricReport),
       uptime(evt),
       took(evt.took),
       pretty_metrics(evt.snapshot)

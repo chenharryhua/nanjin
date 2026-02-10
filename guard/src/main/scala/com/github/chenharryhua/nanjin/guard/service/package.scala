@@ -1,11 +1,9 @@
 package com.github.chenharryhua.nanjin.guard
 
-import cats.{Applicative, Functor, Hash, Monad, Semigroupal}
-import cats.effect.kernel.{Clock, Sync}
 import cats.effect.kernel.Unique.Token
+import cats.effect.kernel.{Clock, Sync}
 import cats.implicits.{
   catsSyntaxApplyOps,
-  catsSyntaxEq,
   catsSyntaxOptionId,
   catsSyntaxTuple2Semigroupal,
   catsSyntaxTuple5Semigroupal,
@@ -14,6 +12,7 @@ import cats.implicits.{
   toShow
 }
 import cats.syntax.all.none
+import cats.{Applicative, Functor, Hash, Monad, Semigroupal}
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.common.chrono.Tick
 import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, Domain, ServiceParams}
@@ -30,12 +29,13 @@ import com.github.chenharryhua.nanjin.guard.event.{
   Event,
   MetricIndex,
   MetricSnapshot,
+  ScrapeMode,
   ServiceStopCause
 }
 import com.github.chenharryhua.nanjin.guard.translator.durationFormatter
 import fs2.concurrent.Channel
-import io.circe.{Encoder, Json}
 import io.circe.syntax.EncoderOps
+import io.circe.{Encoder, Json}
 import org.typelevel.log4cats.SelfAwareLogger
 
 import scala.jdk.CollectionConverters.CollectionHasAsScala
@@ -60,7 +60,7 @@ package object service {
       "policies" -> Json.obj(
         "restart" -> sp.servicePolicies.restart.policy.show.asJson,
         "threshold" -> sp.servicePolicies.restart.threshold.map(durationFormatter.format).asJson,
-        "metric_report" -> sp.servicePolicies.metricReport.policy.show.asJson,
+        "metric_report" -> sp.servicePolicies.metricReport.show.asJson,
         "metric_reset" -> sp.servicePolicies.metricReset.show.asJson
       ),
       "history_capacity" -> Json.obj(
@@ -89,21 +89,23 @@ package object service {
         message = Encoder[S].apply(msg))
     }
 
+  private[service] def create_metric_report[F[_]: Sync](
+    serviceParams: ServiceParams,
+    metricRegistry: MetricRegistry,
+    index: MetricIndex,
+    mode: ScrapeMode): F[MetricReport] =
+    MetricSnapshot.timed[F](metricRegistry, mode).map { case (took, snapshot) =>
+      MetricReport(index, serviceParams, snapshot, took)
+    }
+
   private[service] def metric_report[F[_]](
     channel: Channel[F, Event],
     eventLogger: EventLogger[F],
     metricRegistry: MetricRegistry,
     index: MetricIndex)(implicit F: Sync[F]): F[MetricReport] =
     for {
-      (took, snapshot) <- MetricSnapshot.timed[F](metricRegistry)
-      mr = MetricReport(index, eventLogger.serviceParams, snapshot, took)
-      _ <- index match {
-        case MetricIndex.Adhoc(_)       => eventLogger.metric_report(mr)
-        case MetricIndex.Periodic(tick) =>
-          if (tick.index % eventLogger.serviceParams.servicePolicies.metricReport.logRatio === 0)
-            eventLogger.metric_report(mr)
-          else F.unit
-      }
+      mr <- create_metric_report(eventLogger.serviceParams, metricRegistry, index, ScrapeMode.Full)
+      _ <- eventLogger.metric_report(mr)
       _ <- channel.send(mr)
     } yield mr
 
@@ -113,7 +115,7 @@ package object service {
     metricRegistry: MetricRegistry,
     index: MetricIndex): F[Unit] =
     for {
-      (took, snapshot) <- MetricSnapshot.timed[F](metricRegistry)
+      (took, snapshot) <- MetricSnapshot.timed[F](metricRegistry, ScrapeMode.Full)
       ms = MetricReset(index, eventLogger.serviceParams, snapshot, took)
       _ <- eventLogger.metric_reset(ms)
       _ <- channel.send(ms)

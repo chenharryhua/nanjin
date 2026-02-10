@@ -1,9 +1,10 @@
 package com.github.chenharryhua.nanjin.guard.observers.cloudwatch
 import cats.Endo
-import cats.effect.kernel.{Concurrent, Resource}
+import cats.effect.kernel.{Async, Concurrent, Resource}
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.aws.CloudWatch
 import com.github.chenharryhua.nanjin.common.aws.CloudWatchNamespace
+import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick}
 import com.github.chenharryhua.nanjin.guard.config.{MetricLabel, ServiceParams, Squants}
 import com.github.chenharryhua.nanjin.guard.event.Event.MetricReport
 import com.github.chenharryhua.nanjin.guard.event.{Event, MetricIndex, MetricSnapshot}
@@ -12,14 +13,14 @@ import fs2.{Pipe, Stream}
 import software.amazon.awssdk.services.cloudwatch.model.{Dimension, MetricDatum, StandardUnit}
 import squants.time
 
-import java.time.Instant
+import java.time.{Instant, ZoneId}
 import java.util
 import java.util.UUID
 import scala.jdk.CollectionConverters.*
 import scala.jdk.DurationConverters.JavaDurationOps
 
 object CloudWatchObserver {
-  def apply[F[_]: Concurrent](client: Resource[F, CloudWatch[F]]): CloudWatchObserver[F] =
+  def apply[F[_]: Async](client: Resource[F, CloudWatch[F]]): CloudWatchObserver[F] =
     new CloudWatchObserver[F](
       client = client,
       storageResolution = 60,
@@ -28,7 +29,7 @@ object CloudWatchObserver {
     )
 }
 
-final class CloudWatchObserver[F[_]: Concurrent] private (
+final class CloudWatchObserver[F[_]: Async] private (
   client: Resource[F, CloudWatch[F]],
   storageResolution: Int,
   histogramBuilder: Endo[HistogramFieldBuilder],
@@ -151,6 +152,10 @@ final class CloudWatchObserver[F[_]: Concurrent] private (
       }
     } yield event
   }
+
+  def scrape(namespace: CloudWatchNamespace, zoneId: ZoneId, policy: Policy)(
+    getMetricReport: Tick => F[MetricReport]): Stream[F, Event] =
+    tickStream.tickScheduled(zoneId, policy).evalMap(getMetricReport).through(observe(namespace))
 
   private case class MetricKey(
     timestamp: Instant,
