@@ -1,15 +1,15 @@
 package com.github.chenharryhua.nanjin.guard.config
-import cats.{Applicative, Endo, Functor}
 import cats.effect.kernel.Clock
 import cats.syntax.all.*
+import cats.{Applicative, Endo, Functor}
 import com.codahale.metrics.jmx.JmxReporter
 import com.github.chenharryhua.nanjin.common.chrono.{Policy, Tick}
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
-import io.circe.{Encoder, Json}
 import io.circe.generic.JsonCodec
 import io.circe.jawn.parse
 import io.circe.syntax.EncoderOps
+import io.circe.{Encoder, Json}
 import monocle.syntax.all.*
 import org.http4s.ember.server.EmberServerBuilder
 
@@ -19,15 +19,10 @@ import scala.concurrent.duration.FiniteDuration
 import scala.jdk.DurationConverters.ScalaDurationOps
 
 @JsonCodec
-final case class MetricReportPolicy(policy: Policy, logRatio: Int)
-@JsonCodec
 final case class RestartPolicy(policy: Policy, threshold: Option[Duration])
 
 @JsonCodec
-final case class ServicePolicies(
-  restart: RestartPolicy,
-  metricReport: MetricReportPolicy,
-  metricReset: Policy)
+final case class ServicePolicies(restart: RestartPolicy, metricReport: Policy, metricReset: Policy)
 @JsonCodec
 final case class HistoryCapacity(metric: Int, panic: Int, error: Int)
 
@@ -94,7 +89,7 @@ object ServiceParams {
       serviceName = serviceName,
       servicePolicies = ServicePolicies(
         restart = RestartPolicy(Policy.giveUp, None),
-        metricReport = MetricReportPolicy(Policy.giveUp, 1),
+        metricReport = Policy.giveUp,
         metricReset = Policy.giveUp),
       emberServerParams = emberServerParams,
       zerothTick = zerothTick,
@@ -112,9 +107,9 @@ private object ServiceConfigF {
 
   final case class InitParams[K](taskName: TaskName) extends ServiceConfigF[K]
 
+  final case class WithMetricReportPolicy[K](policy: Policy, cont: K) extends ServiceConfigF[K]
   final case class WithRestartPolicy[K](policy: Policy, threshold: Option[Duration], cont: K)
       extends ServiceConfigF[K]
-  final case class WithMetricReportPolicy[K](policy: Policy, ratio: Int, cont: K) extends ServiceConfigF[K]
   final case class WithMetricResetPolicy[K](value: Policy, cont: K) extends ServiceConfigF[K]
 
   final case class WithHomePage[K](value: Option[HomePage], cont: K) extends ServiceConfigF[K]
@@ -146,10 +141,9 @@ private object ServiceConfigF {
 
       case WithRestartPolicy(p, t, c) =>
         c.focus(_.servicePolicies.restart).replace(RestartPolicy(p, t))
-      case WithMetricReportPolicy(p, r, c) =>
-        c.focus(_.servicePolicies.metricReport).replace(MetricReportPolicy(p, r))
-      case WithMetricResetPolicy(v, c) => c.focus(_.servicePolicies.metricReset).replace(v)
-      case WithHomePage(v, c)          => c.focus(_.homePage).replace(v)
+      case WithMetricResetPolicy(v, c)  => c.focus(_.servicePolicies.metricReset).replace(v)
+      case WithMetricReportPolicy(p, c) => c.focus(_.servicePolicies.metricReport).replace(p)
+      case WithHomePage(v, c)           => c.focus(_.homePage).replace(v)
 
       case WithMetricCapacity(v, c) => c.focus(_.historyCapacity.metric).replace(v)
       case WithPanicCapacity(v, c)  => c.focus(_.historyCapacity.panic).replace(v)
@@ -183,13 +177,11 @@ final class ServiceConfig[F[_]: Applicative] private (
   def withRestartPolicy(f: Policy.type => Policy): ServiceConfig[F] =
     copy(cont = Fix(WithRestartPolicy(f(Policy), None, cont)))
 
-  def withMetricReport(ratio: Int, policy: Policy): ServiceConfig[F] = {
-    require(ratio > 0, s"ratio($ratio) should be bigger than zero")
-    copy(cont = Fix(WithMetricReportPolicy(policy, ratio, cont)))
-  }
+  def withMetricReport(policy: Policy): ServiceConfig[F] =
+    copy(cont = Fix(WithMetricReportPolicy(policy, cont)))
 
   def withMetricReport(f: Policy.type => Policy): ServiceConfig[F] =
-    withMetricReport(ratio = 1, policy = f(Policy))
+    withMetricReport(policy = f(Policy))
 
   def withMetricReset(reset: Policy): ServiceConfig[F] =
     copy(cont = Fix(WithMetricResetPolicy(reset, cont)))

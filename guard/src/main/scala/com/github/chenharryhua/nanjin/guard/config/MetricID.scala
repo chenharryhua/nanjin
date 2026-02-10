@@ -4,6 +4,7 @@ import cats.kernel.Order
 import enumeratum.{CirceEnum, Enum, EnumEntry}
 import io.circe.Encoder
 import io.circe.generic.JsonCodec
+import monocle.macros.GenPrism
 
 import java.util.UUID
 import scala.concurrent.duration.FiniteDuration
@@ -91,4 +92,6 @@ final case class MetricLabel(label: String, domain: Domain)
 @JsonCodec
 final case class MetricID(metricLabel: MetricLabel, metricName: MetricName, category: Category) {
   val identifier: String = Encoder[MetricID].apply(this).noSpaces
+  val isMeter: Option[Category.Meter] = GenPrism[Category, Category.Meter].getOption(category)
+  val isHisto: Option[Category.Histogram] = GenPrism[Category, Category.Histogram].getOption(category)
 }

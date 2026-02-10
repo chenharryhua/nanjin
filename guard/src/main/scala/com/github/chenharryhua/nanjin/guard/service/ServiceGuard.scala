@@ -62,8 +62,8 @@ final class ServiceGuard[F[_]: Network: Async: Console] private[guard] (
 
         val metrics_report: Stream[F, Nothing] =
           tickStream
-            .fromTickStatus[F](TickStatus(serviceParams.zerothTick).renewPolicy(
-              serviceParams.servicePolicies.metricReport.policy))
+            .fromTickStatus[F](
+              TickStatus(serviceParams.zerothTick).renewPolicy(serviceParams.servicePolicies.metricReport))
             .evalMap { tick =>
               metric_report(
                 channel = channel,

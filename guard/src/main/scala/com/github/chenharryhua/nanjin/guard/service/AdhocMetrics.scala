@@ -3,8 +3,10 @@ package com.github.chenharryhua.nanjin.guard.service
 import cats.effect.kernel.Sync
 import cats.implicits.{toFlatMapOps, toFunctorOps}
 import com.codahale.metrics.MetricRegistry
+import com.github.chenharryhua.nanjin.common.chrono.Tick
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
-import com.github.chenharryhua.nanjin.guard.event.{Event, MetricIndex, MetricSnapshot}
+import com.github.chenharryhua.nanjin.guard.event.Event.MetricReport
+import com.github.chenharryhua.nanjin.guard.event.{Event, MetricIndex, MetricSnapshot, ScrapeMode}
 import fs2.concurrent.Channel
 
 /** adhoc metrics report and reset
@@ -19,6 +21,7 @@ sealed trait AdhocMetrics[F[_]] {
     */
   def report: F[Unit]
   def getSnapshot: F[MetricSnapshot]
+  def cheapMetricReport(tick: Tick): F[MetricReport]
 }
 
 abstract private class AdhocMetricsImpl[F[_]](
@@ -46,6 +49,9 @@ abstract private class AdhocMetricsImpl[F[_]](
         index = MetricIndex.Adhoc(sp.toZonedDateTime(ts))
       ).void)
 
+  override def cheapMetricReport(tick: Tick): F[MetricReport] =
+    create_metric_report(sp, metricRegistry, MetricIndex.Periodic(tick), ScrapeMode.Cheap)
+
   override val getSnapshot: F[MetricSnapshot] =
-    MetricSnapshot.timed[F](metricRegistry).map(_._2)
+    MetricSnapshot.timed[F](metricRegistry, ScrapeMode.Full).map(_._2)
 }
