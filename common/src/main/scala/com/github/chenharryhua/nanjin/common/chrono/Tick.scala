@@ -30,6 +30,10 @@ import scala.concurrent.duration.FiniteDuration
   *   - `acquires` marks the point at which the tick is acquired
   *   - `conclude` marks the end of the time-frame
   *
+  * in sleep-then-emit mode, conclude represents the **moment the downstream actually receives the tick
+  *
+  * in emit-then-sleep mode, acquires represents the **moment the downstream actually receives the tick
+  *
   * A `Tick` carries stable identity and temporal provenance, allowing it to be:
   *
   *   - evolved deterministically (`nextTick`)
