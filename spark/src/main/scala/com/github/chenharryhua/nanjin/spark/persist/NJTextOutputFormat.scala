@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
+import com.github.chenharryhua.nanjin.terminals.FileFormat
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FSDataOutputStream, FileSystem, Path}
 import org.apache.hadoop.io.compress.{CompressionCodec, GzipCodec}
@@ -11,6 +12,7 @@ import org.apache.hadoop.mapreduce.{JobContext, RecordWriter, TaskAttemptContext
 import org.apache.hadoop.util.ReflectionUtils
 
 import java.io.DataOutputStream
+import scala.util.Try
 
 final private class NJTextOutputFormat extends FileOutputFormat[NullWritable, Text] {
 
@@ -23,22 +25,22 @@ final private class NJTextOutputFormat extends FileOutputFormat[NullWritable, Te
 
   override def getRecordWriter(job: TaskAttemptContext): RecordWriter[NullWritable, Text] = {
     val conf: Configuration = job.getConfiguration
-    val isCompressed: Boolean = FileOutputFormat.getCompressOutput(job)
-    val suffix: String = s"-${uuidStr(job)}.${conf.get(NJTextOutputFormat.suffix, "")}"
-    if (isCompressed) {
+    val suffix: String = s"-${uuidStr(job)}.${conf.get(NJTextOutputFormat.suffix, FileFormat.Text.suffix)}"
+    val dos: DataOutputStream = if (FileOutputFormat.getCompressOutput(job)) {
       val codecClass: Class[? <: CompressionCodec] =
         FileOutputFormat.getOutputCompressorClass(job, classOf[GzipCodec])
       val codec: CompressionCodec = ReflectionUtils.newInstance(codecClass, conf)
       val file: Path = getDefaultWorkFile(job, suffix + codec.getDefaultExtension)
       val fs: FileSystem = file.getFileSystem(conf)
       val fileOut: FSDataOutputStream = fs.create(file, false)
-      new NJTextRecordWriter(new DataOutputStream(codec.createOutputStream(fileOut)))
+      new DataOutputStream(codec.createOutputStream(fileOut))
     } else {
       val file: Path = getDefaultWorkFile(job, suffix)
       val fs: FileSystem = file.getFileSystem(conf)
-      val fileOut: FSDataOutputStream = fs.create(file, false)
-      new NJTextRecordWriter(fileOut)
+      fs.create(file, false)
     }
+
+    Try(new NJTextRecordWriter(dos)).fold(handleException(dos), identity)
   }
 }
 

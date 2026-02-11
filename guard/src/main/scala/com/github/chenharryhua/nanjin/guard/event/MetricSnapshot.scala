@@ -16,7 +16,6 @@ import java.time.Duration
 import java.util.UUID
 import scala.jdk.CollectionConverters.*
 import scala.jdk.DurationConverters.ScalaDurationOps
-import scala.tools.nsc.tasty.SafeEq
 
 sealed trait Snapshot extends Product { def metricId: MetricID }
 
@@ -223,18 +222,22 @@ object MetricSnapshot extends duration {
       }
 
     // gauges
-    val gauges: List[Snapshot.Gauge] = if (mode === ScrapeMode.Full) {
-      metricRegistry.getGauges().asScala.foldLeft(List.empty[Snapshot.Gauge]) { case (lst, (name, gauge)) =>
-        decode[MetricID](name) match {
-          case Left(_)    => lst
-          case Right(mid) =>
-            parse(gauge.getValue.toString) match {
-              case Right(json) => Snapshot.Gauge(mid, json) :: lst
-              case Left(_)     => lst
-            }
-        }
+    val gauges: List[Snapshot.Gauge] =
+      mode match {
+        case ScrapeMode.Cheap => Nil
+        case ScrapeMode.Full  =>
+          metricRegistry.getGauges().asScala.foldLeft(List.empty[Snapshot.Gauge]) {
+            case (lst, (name, gauge)) =>
+              decode[MetricID](name) match {
+                case Left(_)    => lst
+                case Right(mid) =>
+                  parse(gauge.getValue.toString) match {
+                    case Right(json) => Snapshot.Gauge(mid, json) :: lst
+                    case Left(_)     => lst
+                  }
+              }
+          }
       }
-    } else Nil
 
     MetricSnapshot(
       counters = counters,

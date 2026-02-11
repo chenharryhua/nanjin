@@ -32,7 +32,7 @@ package object terminals {
     sw.toString
   }
 
-  def csvHeader(csvConfiguration: CsvConfiguration): Chunk[String] =
+  def headerWithCrlf(csvConfiguration: CsvConfiguration): Chunk[String] =
     csvConfiguration.header match {
       case Header.None             => Chunk.empty
       case Header.Implicit         => Chunk.singleton("no header was explicitly provided\r\n") // csv use CRLF

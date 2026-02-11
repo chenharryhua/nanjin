@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
+import com.github.chenharryhua.nanjin.terminals.FileFormat
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FSDataOutputStream, FileSystem, Path}
 import org.apache.hadoop.io.compress.{CompressionCodec, GzipCodec}
@@ -12,6 +13,7 @@ import org.apache.hadoop.mapreduce.{JobContext, RecordWriter, TaskAttemptContext
 import org.apache.hadoop.util.ReflectionUtils
 
 import java.io.DataOutputStream
+import scala.util.Try
 
 final private class NJBinaryOutputFormat extends FileOutputFormat[NullWritable, BytesWritable] {
 
@@ -24,22 +26,22 @@ final private class NJBinaryOutputFormat extends FileOutputFormat[NullWritable, 
 
   override def getRecordWriter(job: TaskAttemptContext): RecordWriter[NullWritable, BytesWritable] = {
     val conf: Configuration = job.getConfiguration
-    val suffix: String = s"-${uuidStr(job)}.${conf.get(NJBinaryOutputFormat.suffix, "")}"
-    val isCompressed: Boolean = getCompressOutput(job)
-    if (isCompressed) {
+    val suffix: String =
+      s"-${uuidStr(job)}.${conf.get(NJBinaryOutputFormat.suffix, FileFormat.BinaryAvro.suffix)}"
+    val dos: DataOutputStream = if (getCompressOutput(job)) {
       val codecClass: Class[? <: CompressionCodec] = getOutputCompressorClass(job, classOf[GzipCodec])
       val codec: CompressionCodec = ReflectionUtils.newInstance(codecClass, conf)
       val file: Path = getDefaultWorkFile(job, suffix + codec.getDefaultExtension)
       val fs: FileSystem = file.getFileSystem(conf)
       val fileOut: FSDataOutputStream = fs.create(file, false)
-      val out: DataOutputStream = new DataOutputStream(codec.createOutputStream(fileOut))
-      new NJBinaryRecordWriter(out)
+      new DataOutputStream(codec.createOutputStream(fileOut))
     } else {
       val file: Path = getDefaultWorkFile(job, suffix)
       val fs: FileSystem = file.getFileSystem(conf)
-      val fileOut: FSDataOutputStream = fs.create(file, false)
-      new NJBinaryRecordWriter(fileOut)
+      fs.create(file, false)
     }
+
+    Try(new NJBinaryRecordWriter(dos)).fold(handleException(dos), identity)
   }
 }
 

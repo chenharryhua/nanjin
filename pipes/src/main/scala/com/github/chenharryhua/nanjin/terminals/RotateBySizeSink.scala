@@ -212,7 +212,7 @@ final private class RotateBySizeSink[F[_]](
     def get_writer(crf: CreateRotateFile): Resource[F, HadoopWriter[F, String]] =
       HadoopWriter
         .csvStringR[F](configuration, pathBuilder(crf))
-        .evalTap(_.write(csvHeader(csvConfiguration)))
+        .evalTap(_.write(headerWithCrlf(csvConfiguration)))
 
     (ss: Stream[F, Seq[String]]) => persist(ss.map(csvRow(csvConfiguration)), get_writer).stream
   }
