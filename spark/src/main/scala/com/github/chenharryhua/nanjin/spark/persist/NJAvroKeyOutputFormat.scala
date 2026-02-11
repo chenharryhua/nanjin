@@ -8,7 +8,7 @@ import org.apache.avro.mapred.AvroKey
 import org.apache.avro.mapreduce.AvroOutputFormatBase.{getCompressionCodec, getSyncInterval}
 import org.apache.avro.mapreduce.{AvroJob, AvroOutputFormatBase, Syncable}
 import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.fs.{FSDataOutputStream, FileSystem, Path}
+import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.hadoop.io.NullWritable
 import org.apache.hadoop.mapred.InvalidJobConfException
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat
@@ -17,6 +17,7 @@ import org.apache.hadoop.mapreduce.security.TokenCache
 import org.apache.hadoop.mapreduce.{JobContext, RecordWriter, TaskAttemptContext}
 
 import java.io.{DataOutputStream, OutputStream}
+import scala.util.Try
 
 // avro build-in(AvroKeyOutputFormat) does not support s3, yet
 final private class NJAvroKeyOutputFormat extends AvroOutputFormatBase[AvroKey[GenericRecord], NullWritable] {
@@ -34,23 +35,21 @@ final private class NJAvroKeyOutputFormat extends AvroOutputFormatBase[AvroKey[G
     job: TaskAttemptContext): RecordWriter[AvroKey[GenericRecord], NullWritable] = {
     val schema: Schema = AvroJob.getOutputKeySchema(job.getConfiguration)
     val conf: Configuration = job.getConfiguration
-    val isCompressed: Boolean = getCompressOutput(job)
     val syncInterval: Int = getSyncInterval(job)
-    if (isCompressed) {
+    val (codec: CodecFactory, dos: DataOutputStream) = if (getCompressOutput(job)) {
       val cf: CodecFactory = getCompressionCodec(job)
       val suffix: String = s"-${uuidStr(job)}.${cf.toString.toLowerCase}.${FileFormat.Avro.suffix}"
       val file: Path = getDefaultWorkFile(job, suffix)
       val fs: FileSystem = file.getFileSystem(conf)
-      val fileOut: FSDataOutputStream = fs.create(file, false)
-      val out: DataOutputStream = new DataOutputStream(fileOut)
-      new AvroKeyRecordWriter(schema, out, cf, syncInterval)
+      (cf, fs.create(file, false))
     } else {
       val suffix: String = s"-${uuidStr(job)}.${FileFormat.Avro.suffix}"
       val file: Path = getDefaultWorkFile(job, suffix)
       val fs: FileSystem = file.getFileSystem(conf)
-      val out: FSDataOutputStream = fs.create(file, false)
-      new AvroKeyRecordWriter(schema, out, CodecFactory.nullCodec(), syncInterval)
+      (CodecFactory.nullCodec(), fs.create(file, false))
     }
+
+    Try(new AvroKeyRecordWriter(schema, dos, codec, syncInterval)).fold(handleException(dos), identity)
   }
 }
 
@@ -69,9 +68,9 @@ final private class AvroKeyRecordWriter(schema: Schema, os: OutputStream, cf: Co
   override def write(key: AvroKey[GenericRecord], value: NullWritable): Unit =
     dataFileWriter.append(key.datum())
 
-  override def close(context: TaskAttemptContext): Unit = {
-    dataFileWriter.flush()
-    os.close()
-  }
+  override def close(context: TaskAttemptContext): Unit =
+    try dataFileWriter.flush()
+    finally os.close()
+
   override def sync(): Long = dataFileWriter.sync()
 }

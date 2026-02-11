@@ -18,6 +18,7 @@ import org.apache.hadoop.mapreduce.{JobContext, RecordWriter, TaskAttemptContext
 import org.apache.hadoop.util.ReflectionUtils
 
 import java.io.{DataOutputStream, OutputStream}
+import scala.util.Try
 
 final private class NJJacksonKeyOutputFormat
     extends AvroOutputFormatBase[AvroKey[GenericRecord], NullWritable] {
@@ -36,23 +37,23 @@ final private class NJJacksonKeyOutputFormat
     val suffix: String = s"-${uuidStr(job)}.${FileFormat.Jackson.suffix}"
     val schema: Schema = AvroJob.getOutputKeySchema(job.getConfiguration)
     val conf: Configuration = job.getConfiguration
-    val isCompressed: Boolean = getCompressOutput(job)
-    if (isCompressed) {
+    val dos: DataOutputStream = if (getCompressOutput(job)) {
       val codecClass: Class[? <: CompressionCodec] =
         getOutputCompressorClass(job, classOf[GzipCodec])
       val codec: CompressionCodec = ReflectionUtils.newInstance(codecClass, conf)
       val file: Path = getDefaultWorkFile(job, suffix + codec.getDefaultExtension)
       val fs: FileSystem = file.getFileSystem(conf)
       val fileOut: FSDataOutputStream = fs.create(file, false)
-      val out: DataOutputStream = new DataOutputStream(codec.createOutputStream(fileOut))
-      new JacksonKeyRecordWriter(schema, out)
+      new DataOutputStream(codec.createOutputStream(fileOut))
     } else {
       val file: Path = getDefaultWorkFile(job, suffix)
       val fs: FileSystem = file.getFileSystem(conf)
-      val out: FSDataOutputStream = fs.create(file, false)
-      new JacksonKeyRecordWriter(schema, out)
+      fs.create(file, false)
     }
+
+    Try(new JacksonKeyRecordWriter(schema, dos)).fold(handleException(dos), identity)
   }
+
 }
 
 final private class JacksonKeyRecordWriter(schema: Schema, os: OutputStream)

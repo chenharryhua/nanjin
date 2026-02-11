@@ -2,7 +2,13 @@ package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.Show
 import cats.syntax.show.*
-import com.github.chenharryhua.nanjin.terminals.{csvHeader, csvRow, toHadoopPath, Compression, FileFormat}
+import com.github.chenharryhua.nanjin.terminals.{
+  csvRow,
+  headerWithCrlf,
+  toHadoopPath,
+  Compression,
+  FileFormat
+}
 import com.sksamuel.avro4s.{AvroOutputStream, Encoder as AvroEncoder, ToRecord}
 import io.circe.{Encoder as JsonEncoder, Json}
 import io.lemonlabs.uri.Url
@@ -29,9 +35,9 @@ private[spark] object saveRDD {
     val job: Job = Job.getInstance(config)
     AvroJob.setOutputKeySchema(job, encoder.schema)
     // run
+    val toRecord: ToRecord[A] = ToRecord[A](encoder)
     rdd.mapPartitions { rcds =>
-      val to: ToRecord[A] = ToRecord[A](encoder)
-      rcds.map(rcd => (new AvroKey[GenericRecord](to.to(rcd)), NullWritable.get()))
+      rcds.map(rcd => (new AvroKey[GenericRecord](toRecord.to(rcd)), NullWritable.get()))
     }.saveAsNewAPIHadoopFile(
       toHadoopPath(path).toString,
       classOf[AvroKey[GenericRecord]],
@@ -41,27 +47,31 @@ private[spark] object saveRDD {
   }
 
   def binAvro[A](rdd: RDD[A], path: Url, encoder: AvroEncoder[A], compression: Compression): Unit = {
-    def bytesWritable(a: A): BytesWritable = {
-      val os = new ByteArrayOutputStream
-      val aos = AvroOutputStream.binary(encoder).to(os).build()
-      aos.write(a)
-      aos.flush()
-      aos.close()
-      new BytesWritable(os.toByteArray)
-    }
-    // config
+    // Hadoop configuration
     val config: Configuration = new Configuration(rdd.sparkContext.hadoopConfiguration)
     compressionConfig.set(config, compression)
     config.set(NJBinaryOutputFormat.suffix, FileFormat.BinaryAvro.suffix)
-    // run
-    rdd
-      .map(x => (NullWritable.get(), bytesWritable(x)))
-      .saveAsNewAPIHadoopFile(
-        toHadoopPath(path).toString,
-        classOf[NullWritable],
-        classOf[BytesWritable],
-        classOf[NJBinaryOutputFormat],
-        config)
+
+    rdd.mapPartitions { iter =>
+      val os = new ByteArrayOutputStream()
+      val aos = AvroOutputStream.binary(encoder).to(os).build()
+
+      new Iterator[(NullWritable, BytesWritable)] {
+        override def hasNext: Boolean = iter.hasNext
+        override def next(): (NullWritable, BytesWritable) = {
+          os.reset()
+          aos.write(iter.next())
+          aos.flush()
+          (NullWritable.get(), new BytesWritable(os.toByteArray))
+        }
+      }
+    }.saveAsNewAPIHadoopFile(
+      toHadoopPath(path).toString,
+      classOf[NullWritable],
+      classOf[BytesWritable],
+      classOf[NJBinaryOutputFormat],
+      config
+    )
   }
 
   def parquet[A](rdd: RDD[A], path: Url, encoder: AvroEncoder[A], compression: Compression): Unit = {
@@ -90,7 +100,7 @@ private[spark] object saveRDD {
     compressionConfig.set(config, compression)
     // run
     rdd
-      .map(x => (NullWritable.get(), new Text(encode(x).noSpaces.concat(System.lineSeparator()))))
+      .map(x => (NullWritable.get(), new Text(encode(x).noSpaces.concat("\n"))))
       .saveAsNewAPIHadoopFile(
         toHadoopPath(path).toString,
         classOf[NullWritable],
@@ -119,25 +129,28 @@ private[spark] object saveRDD {
 
   def protobuf[A](rdd: RDD[A], path: Url, compression: Compression)(implicit
     enc: A <:< GeneratedMessage): Unit = {
-    def bytesWritable(a: A): BytesWritable = {
-      val os: ByteArrayOutputStream = new ByteArrayOutputStream
-      enc(a).writeDelimitedTo(os)
-      os.close()
-      new BytesWritable(os.toByteArray)
-    }
     // config
     val config: Configuration = new Configuration(rdd.sparkContext.hadoopConfiguration)
     compressionConfig.set(config, compression)
     config.set(NJBinaryOutputFormat.suffix, FileFormat.ProtoBuf.suffix)
     // run
-    rdd
-      .map(x => (NullWritable.get(), bytesWritable(x)))
-      .saveAsNewAPIHadoopFile(
-        toHadoopPath(path).toString,
-        classOf[NullWritable],
-        classOf[BytesWritable],
-        classOf[NJBinaryOutputFormat],
-        config)
+    rdd.mapPartitions { iter =>
+      val os = new ByteArrayOutputStream()
+
+      new Iterator[(NullWritable, BytesWritable)] {
+        override def hasNext: Boolean = iter.hasNext
+        override def next(): (NullWritable, BytesWritable) = {
+          os.reset()
+          enc(iter.next()).writeDelimitedTo(os)
+          (NullWritable.get(), new BytesWritable(os.toByteArray))
+        }
+      }
+    }.saveAsNewAPIHadoopFile(
+      toHadoopPath(path).toString,
+      classOf[NullWritable],
+      classOf[BytesWritable],
+      classOf[NJBinaryOutputFormat],
+      config)
   }
 
   def text[A: Show](rdd: RDD[A], path: Url, compression: Compression, suffix: String): Unit = {
@@ -147,7 +160,7 @@ private[spark] object saveRDD {
     compressionConfig.set(config, compression)
     // run
     rdd
-      .map(a => (NullWritable.get(), new Text(a.show.concat(System.lineSeparator()))))
+      .map(a => (NullWritable.get(), new Text(a.show.concat("\n"))))
       .saveAsNewAPIHadoopFile(
         toHadoopPath(path).toString,
         classOf[NullWritable],
@@ -167,7 +180,7 @@ private[spark] object saveRDD {
     config.set(NJTextOutputFormat.suffix, FileFormat.Kantan.suffix)
     compressionConfig.set(config, compression)
 
-    val header_crlf = csvHeader(csvCfg).toList.mkString
+    val header_crlf = headerWithCrlf(csvCfg).toList.mkString
 
     // run
     rdd

@@ -173,7 +173,7 @@ final private class FileSinkImpl[F[_]: Sync](configuration: Configuration, url: 
     (ss: Stream[F, Seq[String]]) =>
       Stream
         .resource(
-          HadoopWriter.csvStringR[F](configuration, url).evalTap(_.write(csvHeader(csvConfiguration))))
+          HadoopWriter.csvStringR[F](configuration, url).evalTap(_.write(headerWithCrlf(csvConfiguration))))
         .flatMap { w =>
           ss.map(csvRow(csvConfiguration)).chunks.evalMap(c => w.write(c).as(c.size))
         }

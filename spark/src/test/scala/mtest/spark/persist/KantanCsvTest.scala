@@ -6,7 +6,7 @@ import cats.effect.unsafe.implicits.global
 import cats.implicits.toTraverseOps
 import com.github.chenharryhua.nanjin.spark.*
 import com.github.chenharryhua.nanjin.spark.persist.{RddFileHoarder, SaveKantanCsv}
-import com.github.chenharryhua.nanjin.terminals.{csvHeader, toHadoopPath, Hadoop}
+import com.github.chenharryhua.nanjin.terminals.{headerWithCrlf, toHadoopPath, Hadoop}
 import eu.timepit.refined.auto.*
 import io.lemonlabs.uri.Url
 import io.lemonlabs.uri.typesafe.dsl.*
@@ -124,7 +124,7 @@ class KantanCsvTest extends AnyFunSuite {
     val t = sparkSession.loadRdd[Tablet](path).kantan(cfg)
     assert(data.toSet == t.collect().toSet)
     assert(data.toSet == loadTablet(path, cfg).unsafeRunSync())
-    checkHeader(path, csvHeader(cfg).head.get.dropRight(2))
+    checkHeader(path, headerWithCrlf(cfg).head.get.dropRight(2))
   }
 
   test("8.tablet read/write identity with-header-delimiter") {
