@@ -4,7 +4,7 @@ import cats.Endo
 import cats.data.Reader
 import cats.effect.kernel.{Async, Resource}
 import cats.effect.std.Hotswap
-import cats.implicits.{catsSyntaxMonadError, toFunctorOps}
+import cats.implicits.catsSyntaxMonadError
 import com.fasterxml.jackson.databind.JsonNode
 import com.github.chenharryhua.nanjin.common.chrono.{Tick, TickedValue}
 import fs2.{Chunk, Pipe, Pull, Stream}
@@ -28,11 +28,8 @@ final private class RotateBySizeSink[F[_]](
   configuration: Configuration,
   zoneId: ZoneId,
   pathBuilder: CreateRotateFile => Url,
-  sizeLimit: Int)(implicit F: Async[F])
+  sizeLimit: Long)(implicit F: Async[F])
     extends RotateBySize[F] {
-
-  private def createRotateFileEvent(tick: Tick): CreateRotateFile =
-    CreateRotateFile(tick.sequenceId, tick.index + 1, tick.zoned(_.conclude))
 
   /** Recursively writes data from the stream to disk, rotating files based on size.
     *
@@ -69,7 +66,7 @@ final private class RotateBySizeSink[F[_]](
     writer: HadoopWriter[F, A],
     data: Stream[F, A],
     previousTick: Tick,
-    count: Int
+    count: Long
   ): Pull[F, TickedValue[RotateFile], Unit] = {
     def writeChunk(as: Chunk[A]): Pull[F, Nothing, Unit] =
       Pull
@@ -78,28 +75,53 @@ final private class RotateBySizeSink[F[_]](
 
     data.pull.uncons.flatMap {
       case None =>
-        Pull.eval(hotswap.clear) >> Pull
-          .eval(F.realTimeInstant.map(now => previousTick.nextTick(previousTick.conclude, now)))
-          .flatMap { newTick =>
-            Pull.output1[F, TickedValue[RotateFile]](TickedValue(newTick, RotateFile(writer.fileUrl, count)))
-          }
+        for {
+          _ <- Pull.eval(hotswap.clear)
+          now <- Pull.eval(F.realTimeInstant)
+          currentTick = previousTick.nextTick(previousTick.conclude, now)
+          _ <- Pull.output1[F, TickedValue[RotateFile]](
+            TickedValue(
+              currentTick,
+              RotateFile(
+                open = previousTick.local(_.conclude),
+                close = now.atZone(previousTick.zoneId).toLocalDateTime,
+                url = writer.fileUrl,
+                recordCount = count
+              )
+            ))
+        } yield ()
+
       case Some((as, stream)) =>
         val dataSize = as.size
+        // invariant: count is always < sizeLimit, therefore splitAt always consumes > 0
         if ((dataSize + count) < sizeLimit) {
           writeChunk(as) >> doWork(getWriter, hotswap, writer, stream, previousTick, dataSize + count)
         } else {
-          val (first, second) = as.splitAt(sizeLimit - count)
+          val (first, second) = as.splitAt((sizeLimit - count).toInt)
 
-          writeChunk(first) >>
-            Pull
-              .eval(F.realTimeInstant.map(now => previousTick.nextTick(previousTick.conclude, now)))
-              .flatMap { newTick =>
-                Pull.eval(hotswap.swap(getWriter(createRotateFileEvent(newTick)))).flatMap { newWriter =>
-                  Pull.output1[F, TickedValue[RotateFile]](
-                    TickedValue(newTick, RotateFile(writer.fileUrl, count + first.size))) >>
-                    doWork(getWriter, hotswap, newWriter, stream.cons(second), newTick, 0)
-                }
-              }
+          for {
+            _ <- writeChunk(first)
+            now <- Pull.eval(F.realTimeInstant)
+            currentTick = previousTick.nextTick(previousTick.conclude, now)
+            newWriter <- Pull.eval(
+              hotswap.swap(
+                getWriter(
+                  CreateRotateFile(
+                    sequenceId = currentTick.sequenceId,
+                    index = currentTick.index + 1,
+                    openTime = currentTick.zoned(_.conclude)))))
+            _ <- Pull.output1[F, TickedValue[RotateFile]](
+              TickedValue(
+                currentTick,
+                RotateFile(
+                  open = previousTick.local(_.conclude),
+                  close = currentTick.local(_.conclude),
+                  url = writer.fileUrl,
+                  recordCount = count + first.size
+                )
+              ))
+            _ <- doWork(getWriter, hotswap, newWriter, stream.cons(second), currentTick, 0L)
+          } yield ()
         }
     }
   }
@@ -108,7 +130,12 @@ final private class RotateBySizeSink[F[_]](
     : Pull[F, TickedValue[RotateFile], Unit] = {
     val resources: Resource[F, ((Hotswap[F, HadoopWriter[F, A]], HadoopWriter[F, A]), Tick)] =
       Resource.eval(Tick.zeroth[F](zoneId)).flatMap { tick =>
-        Hotswap(getWriter(createRotateFileEvent(tick))).map((_, tick))
+        Hotswap(
+          getWriter(
+            CreateRotateFile(
+              sequenceId = tick.sequenceId,
+              index = tick.index + 1,
+              openTime = tick.zoned(_.conclude)))).map((_, tick))
       }
 
     Stream

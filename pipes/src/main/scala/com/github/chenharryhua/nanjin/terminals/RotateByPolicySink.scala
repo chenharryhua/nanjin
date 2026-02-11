@@ -33,12 +33,25 @@ final private class RotateByPolicySink[F[_]: Async](
     hotswap: Hotswap[F, HadoopWriter[F, A]],
     writer: HadoopWriter[F, A],
     merged: Stream[F, Either[Chunk[A], TickedValue[Url]]],
-    count: Int
+    count: Long
   ): Pull[F, TickedValue[RotateFile], Unit] =
     merged.pull.uncons1.flatMap {
       case None =>
-        Pull.eval(hotswap.clear) >> Pull.output1[F, TickedValue[RotateFile]](
-          TickedValue(currentTick, RotateFile(writer.fileUrl, count)))
+        for {
+          _ <- Pull.eval(hotswap.clear)
+          now <- Pull.eval(Async[F].realTimeInstant)
+          _ <- Pull.output1[F, TickedValue[RotateFile]](
+            TickedValue(
+              currentTick,
+              RotateFile(
+                open = currentTick.local(_.acquires),
+                close = now.atZone(currentTick.zoneId).toLocalDateTime,
+                url = writer.fileUrl,
+                recordCount = count
+              )
+            ))
+        } yield ()
+
       case Some((head, tail)) =>
         head match {
           case Left(data) =>
@@ -46,12 +59,21 @@ final private class RotateByPolicySink[F[_]: Async](
               .eval(writer.write(data))
               .adaptError(ex => RotateWriteException(TickedValue(currentTick, writer.fileUrl), ex)) >>
               doWork(currentTick, getWriter, hotswap, writer, tail, count + data.size)
-          case Right(ticked) =>
-            Pull.eval(hotswap.swap(getWriter(ticked.value))).flatMap { newWriter =>
-              Pull.output1[F, TickedValue[RotateFile]](
-                TickedValue(currentTick, RotateFile(writer.fileUrl, count))) >>
-                doWork(ticked.tick, getWriter, hotswap, newWriter, tail, 0)
-            }
+          case Right(nextTick) =>
+            for {
+              newWriter <- Pull.eval(hotswap.swap(getWriter(nextTick.value)))
+              _ <- Pull.output1[F, TickedValue[RotateFile]](
+                TickedValue(
+                  currentTick,
+                  RotateFile(
+                    open = currentTick.local(_.acquires),
+                    close = nextTick.tick.local(_.acquires),
+                    url = writer.fileUrl,
+                    recordCount = count
+                  )
+                ))
+              _ <- doWork(nextTick.tick, getWriter, hotswap, newWriter, tail, 0L)
+            } yield ()
         }
     }
 
@@ -71,7 +93,7 @@ final private class RotateByPolicySink[F[_]: Async](
               hotswap = hotswap,
               writer = writer,
               merged = data.map(Left(_)).mergeHaltBoth(tail.map(Right(_))),
-              count = 0).stream
+              count = 0L).stream
           }
           .pull
           .echo

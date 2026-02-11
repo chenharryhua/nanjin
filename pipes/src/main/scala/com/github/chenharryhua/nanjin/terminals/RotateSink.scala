@@ -3,10 +3,11 @@ package com.github.chenharryhua.nanjin.terminals
 import cats.Endo
 import cats.implicits.showInterpolator
 import com.fasterxml.jackson.databind.JsonNode
+import com.github.chenharryhua.nanjin.common.DurationFormatter
 import com.github.chenharryhua.nanjin.common.chrono.TickedValue
 import fs2.Pipe
-import io.circe.Json
-import io.circe.generic.JsonCodec
+import io.circe.syntax.EncoderOps
+import io.circe.{Decoder, Encoder, HCursor, Json}
 import io.lemonlabs.uri.Url
 import kantan.csv.CsvConfiguration
 import org.apache.avro.Schema
@@ -14,7 +15,7 @@ import org.apache.avro.generic.GenericRecord
 import org.apache.parquet.avro.AvroParquetWriter.Builder
 import scalapb.GeneratedMessage
 
-import java.time.ZonedDateTime
+import java.time.{Duration, LocalDateTime, ZonedDateTime}
 import java.util.UUID
 
 /** Instruction to create a new rotated file.
@@ -50,13 +51,45 @@ final case class RotateWriteException(tv: TickedValue[Url], cause: Throwable) ex
   *
   * Invariants typically guaranteed by rotation sinks:
   *
-  *   - there is at most one `RotateFile` per tick
+  *   - there is one `RotateFile` per tick
   *   - tick indices are strictly increasing
   *   - the sum of `recordCount` equals the total number of input records
-  *   - records in this file belong exclusively to that tick’s time window
+  *   - records in this file belong exclusively to the time window
+  *   - open: the moment when the file open for write
+  *   - close: the moment when the file is closed
+  *
+  * tick represents a plan while RotateFile is what really happen
   */
-@JsonCodec
-final case class RotateFile(url: Url, recordCount: Int)
+
+final case class RotateFile(open: LocalDateTime, close: LocalDateTime, url: Url, recordCount: Long) {
+  val window: Duration = Duration.between(open, close)
+}
+
+object RotateFile {
+  implicit val encoderRotateFile: Encoder[RotateFile] =
+    (a: RotateFile) =>
+      Json.obj(
+        "open" -> a.open.asJson,
+        "close" -> a.close.asJson,
+        "window" -> DurationFormatter.defaultFormatter.format(a.window).asJson,
+        "url" -> a.url.asJson,
+        "recordCount" -> Json.fromLong(a.recordCount)
+      )
+
+  implicit val decoderRotateFile: Decoder[RotateFile] =
+    (c: HCursor) =>
+      for {
+        open <- c.get[LocalDateTime]("open")
+        close <- c.get[LocalDateTime]("close")
+        url <- c.get[Url]("url")
+        recordCount <- c.get[Long]("recordCount")
+      } yield RotateFile(
+        open = open,
+        close = close,
+        url = url,
+        recordCount = recordCount
+      )
+}
 
 sealed trait RotateSink[F[_]] {
   protected type Sink[A] = Pipe[F, A, TickedValue[RotateFile]]
