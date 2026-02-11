@@ -147,7 +147,7 @@ final private class RotateBySizeSink[F[_]](
           writer = writer,
           data = data,
           previousTick = tick,
-          count = 0).stream
+          count = 0L).stream
       }
       .pull
       .echo
