@@ -1,6 +1,8 @@
 package mtest.common
 
-import com.github.chenharryhua.nanjin.common.chrono.{tickLazyList, Policy}
+import cats.effect.IO
+import cats.effect.unsafe.implicits.global
+import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy}
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.DurationInt
@@ -11,7 +13,7 @@ class PolicyTest extends AnyFunSuite {
     val policy =
       Policy.crontab(_.every5Minutes).jitter(30.seconds)
 
-    tickLazyList.from(policy).take(50).foreach(println)
+    tickStream.testPolicy[IO](policy).take(3).debug().compile.toList.unsafeRunSync()
   }
 
 }

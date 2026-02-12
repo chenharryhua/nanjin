@@ -19,14 +19,15 @@ final class SaveObjectFile[A](rdd: RDD[A], cfg: HoarderConfig) extends Serializa
     internalRun(
       sparkContext = rdd.sparkContext,
       params = params,
-      job = F.delay(rdd.saveAsObjectFile(toHadoopPath(params.outPath).toString)),
+      job = F.blocking(rdd.saveAsObjectFile(toHadoopPath(params.outPath).toString)),
       description = None)
 
   override def run[F[_]](description: String)(implicit F: Sync[F]): F[Unit] =
     internalRun(
       sparkContext = rdd.sparkContext,
       params = params,
-      job = F.delay(rdd.saveAsObjectFile(toHadoopPath(params.outPath).toString)),
-      description = Some(description))
+      job = F.blocking(rdd.saveAsObjectFile(toHadoopPath(params.outPath).toString)),
+      description = Some(description)
+    )
 
 }

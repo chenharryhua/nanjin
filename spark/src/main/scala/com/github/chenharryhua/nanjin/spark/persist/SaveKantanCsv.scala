@@ -29,7 +29,7 @@ final class SaveKantanCsv[A](
     internalRun(
       sparkContext = rdd.sparkContext,
       params = params,
-      job = F.delay(saveRDD.kantan[A](rdd, params.outPath, params.compression, csvConfiguration, encoder)),
+      job = F.blocking(saveRDD.kantan[A](rdd, params.outPath, params.compression, csvConfiguration, encoder)),
       description = None
     )
 
@@ -37,7 +37,7 @@ final class SaveKantanCsv[A](
     internalRun(
       sparkContext = rdd.sparkContext,
       params = params,
-      job = F.delay(saveRDD.kantan[A](rdd, params.outPath, params.compression, csvConfiguration, encoder)),
+      job = F.blocking(saveRDD.kantan[A](rdd, params.outPath, params.compression, csvConfiguration, encoder)),
       description = Some(description)
     )
 }

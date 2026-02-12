@@ -25,13 +25,14 @@ final class SaveAvro[A](rdd: RDD[A], encoder: AvroEncoder[A], cfg: HoarderConfig
     internalRun(
       sparkContext = rdd.sparkContext,
       params = params,
-      job = F.delay(saveRDD.avro(rdd, params.outPath, encoder, params.compression)),
-      description = Some(description))
+      job = F.blocking(saveRDD.avro(rdd, params.outPath, encoder, params.compression)),
+      description = Some(description)
+    )
 
   override def run[F[_]](implicit F: Sync[F]): F[Unit] =
     internalRun(
       sparkContext = rdd.sparkContext,
       params = params,
-      job = F.delay(saveRDD.avro(rdd, params.outPath, encoder, params.compression)),
+      job = F.blocking(saveRDD.avro(rdd, params.outPath, encoder, params.compression)),
       description = None)
 }

@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.service
 
 import cats.effect.implicits.monadCancelOps_
-import cats.effect.kernel.Temporal
+import cats.effect.kernel.Async
 import cats.effect.std.AtomicCell
 import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.chrono.TickStatus
@@ -16,7 +16,7 @@ import org.typelevel.cats.time.instances.duration
 import java.time.Duration
 import scala.jdk.DurationConverters.JavaDurationOps
 
-final private class ReStart[F[_]: Temporal](
+final private class ReStart[F[_]: Async](
   channel: Channel[F, Event],
   panicHistory: AtomicCell[F, CircularFifoQueue[ServicePanic]],
   eventLogger: EventLogger[F],
@@ -24,14 +24,14 @@ final private class ReStart[F[_]: Temporal](
     extends duration {
   private val serviceParams: ServiceParams = eventLogger.serviceParams
 
-  private[this] val F = Temporal[F]
+  private[this] val F = Async[F]
 
   private[this] def stop(cause: ServiceStopCause): F[Unit] =
     service_stop(channel, eventLogger, cause)
 
-  private[this] def panic(status: TickStatus, ex: Throwable): F[Option[(Unit, TickStatus)]] =
-    F.realTimeInstant.flatMap[Option[(Unit, TickStatus)]] { now =>
-      val tickStatus: TickStatus = serviceParams.servicePolicies.restart.threshold match {
+  private[this] def panic(status: TickStatus[F], ex: Throwable): F[Option[(Unit, TickStatus[F])]] =
+    F.realTimeInstant.flatMap[Option[(Unit, TickStatus[F])]] { now =>
+      val tickStatus: TickStatus[F] = serviceParams.servicePolicies.restart.threshold match {
         case Some(threshold) =>
           // if the duration between last recover and this failure is larger than threshold,
           // start over policy
@@ -43,7 +43,7 @@ final private class ReStart[F[_]: Temporal](
 
       val error: Error = Error(ex)
 
-      tickStatus.next(now) match {
+      tickStatus.next(now).flatMap {
         case None      => stop(ServiceStopCause.ByException(error)).as(None)
         case Some(nts) =>
           for {
@@ -56,15 +56,18 @@ final private class ReStart[F[_]: Temporal](
 
   val stream: Stream[F, Nothing] =
     Stream
-      .unfoldEval[F, TickStatus, Unit](
-        TickStatus(serviceParams.zerothTick).renewPolicy(serviceParams.servicePolicies.restart.policy)) {
-        status =>
-          (service_start(channel, eventLogger, status.tick) <* theService)
-            .redeemWith[Option[(Unit, TickStatus)]](
-              err => panic(status, err),
-              _ => stop(ServiceStopCause.Successfully).as(None)
-            )
-            .onCancel(channel.isClosed.ifM(F.unit, stop(ServiceStopCause.ByCancellation)))
+      .eval(TickStatus(serviceParams.zerothTick))
+      .map(_.renewPolicy(serviceParams.servicePolicies.restart.policy))
+      .flatMap {
+        Stream
+          .unfoldEval[F, TickStatus[F], Unit](_) { status =>
+            (service_start(channel, eventLogger, status.tick) <* theService)
+              .redeemWith[Option[(Unit, TickStatus[F])]](
+                err => panic(status, err),
+                _ => stop(ServiceStopCause.Successfully).as(None)
+              )
+              .onCancel(channel.isClosed.ifM(F.unit, stop(ServiceStopCause.ByCancellation)))
+          }
+          .drain
       }
-      .drain
 }

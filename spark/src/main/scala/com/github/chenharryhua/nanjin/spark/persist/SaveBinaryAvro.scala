@@ -26,7 +26,7 @@ final class SaveBinaryAvro[A](rdd: RDD[A], encoder: AvroEncoder[A], cfg: Hoarder
     internalRun(
       sparkContext = rdd.sparkContext,
       params = params,
-      job = F.delay(saveRDD.binAvro(rdd, params.outPath, encoder, params.compression)),
+      job = F.blocking(saveRDD.binAvro(rdd, params.outPath, encoder, params.compression)),
       description = Some(description)
     )
 
@@ -34,7 +34,7 @@ final class SaveBinaryAvro[A](rdd: RDD[A], encoder: AvroEncoder[A], cfg: Hoarder
     internalRun(
       sparkContext = rdd.sparkContext,
       params = params,
-      job = F.delay(saveRDD.binAvro(rdd, params.outPath, encoder, params.compression)),
+      job = F.blocking(saveRDD.binAvro(rdd, params.outPath, encoder, params.compression)),
       description = None
     )
 }

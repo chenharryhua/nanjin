@@ -24,7 +24,7 @@ final class SaveParquet[A](rdd: RDD[A], encoder: AvroEncoder[A], cfg: HoarderCon
     internalRun(
       sparkContext = rdd.sparkContext,
       params = params,
-      job = F.delay(saveRDD.parquet(rdd, params.outPath, encoder, params.compression)),
+      job = F.blocking(saveRDD.parquet(rdd, params.outPath, encoder, params.compression)),
       description = None
     )
 
@@ -32,7 +32,7 @@ final class SaveParquet[A](rdd: RDD[A], encoder: AvroEncoder[A], cfg: HoarderCon
     internalRun(
       sparkContext = rdd.sparkContext,
       params = params,
-      job = F.delay(saveRDD.parquet(rdd, params.outPath, encoder, params.compression)),
+      job = F.blocking(saveRDD.parquet(rdd, params.outPath, encoder, params.compression)),
       description = Some(description)
     )
 

@@ -12,8 +12,8 @@ import io.circe.syntax.EncoderOps
 import monocle.macros.Lenses
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
-import software.amazon.awssdk.services.sqs.{SqsClient, SqsClientBuilder}
 import software.amazon.awssdk.services.sqs.model.*
+import software.amazon.awssdk.services.sqs.{SqsClient, SqsClientBuilder}
 
 import java.net.URLDecoder
 import java.time.ZoneId
@@ -121,7 +121,7 @@ object SimpleQueueService {
 
       // when no data can be retrieved, the delay policy will be applied
       // `https://cb372.github.io/cats-retry/docs/policies.html`
-      def receiving(status: TickStatus, batchIndex: Long): Pull[F, SqsMessage, Unit] =
+      def receiving(status: TickStatus[F], batchIndex: Long): Pull[F, SqsMessage, Unit] =
         Pull.eval(blockingF(client.receiveMessage(request), name, logger)).flatMap { rmr =>
           val messages: mutable.Buffer[Message] = rmr.messages.asScala
           val size: Int = messages.size
@@ -137,12 +137,10 @@ object SimpleQueueService {
             }
             Pull.output[F, SqsMessage](chunk) >> receiving(status.renewPolicy(policy), batchIndex + 1)
           } else {
-            Pull.eval(F.realTimeInstant).flatMap { now =>
-              status.next(now) match {
-                case None     => Pull.done
-                case Some(ts) =>
-                  Pull.sleep[F](ts.tick.snooze.toScala) >> receiving(ts, batchIndex)
-              }
+            Pull.eval(F.realTimeInstant.flatMap(status.next)).flatMap {
+              case None     => Pull.done
+              case Some(ts) =>
+                Pull.sleep[F](ts.tick.snooze.toScala) >> receiving(ts, batchIndex)
             }
           }
         }
