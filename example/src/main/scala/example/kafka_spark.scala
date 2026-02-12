@@ -20,7 +20,8 @@ object kafka_spark {
   val sparKafka: SparKafkaContext[IO] = spark.alongWith[IO](kafka_connector_s3.ctx)
 
   val path: Url = Url.parse("s3a://bucket_name/folder_name")
-  val topic: AvroTopic[Int,AvroFor.FromBroker] = AvroTopic[Int, AvroFor.FromBroker](TopicName("any.kafka.topic"))
+  val topic: AvroTopic[Int, AvroFor.FromBroker] =
+    AvroTopic[Int, AvroFor.FromBroker](TopicName("any.kafka.topic"))
 
   val dr: DateTimeRange = DateTimeRange(sydneyTime)
 
@@ -30,7 +31,8 @@ object kafka_spark {
   val dumpCirce: IO[Long] = sparKafka.dumpCirce(topic, path, _.isIgnoreError(true).withDateTimeRange(dr))
 
   // load saved data into kafka
-  val load: IO[Long] = sparKafka.upload(topic, path, _.withProducer(_.withAcks(Acks.One)).withTimeout(3.seconds))
+  val load: IO[Long] =
+    sparKafka.upload(topic, path, _.withProducer(_.withAcks(Acks.One)).withTimeout(3.seconds))
 
   // dataset statistics summary
   val stats: IO[Option[TopicSummary]] = sparKafka.stats.jackson(path).flatMap(_.summary("test"))
