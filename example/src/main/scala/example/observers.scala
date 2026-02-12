@@ -1,8 +1,13 @@
 package example
 
 import cats.effect.IO
-import com.github.chenharryhua.nanjin.aws.{CloudWatch, SimpleEmailService, SimpleNotificationService, SimpleQueueService}
-import com.github.chenharryhua.nanjin.common.chrono.{Policy, crontabs}
+import com.github.chenharryhua.nanjin.aws.{
+  CloudWatch,
+  SimpleEmailService,
+  SimpleNotificationService,
+  SimpleQueueService
+}
+import com.github.chenharryhua.nanjin.common.chrono.{crontabs, Policy}
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.guard.event.eventFilters
 import com.github.chenharryhua.nanjin.guard.observers.cloudwatch.CloudWatchObserver
