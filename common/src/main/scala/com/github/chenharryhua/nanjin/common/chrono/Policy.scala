@@ -1,8 +1,9 @@
 package com.github.chenharryhua.nanjin.common.chrono
 
-import cats.{Functor, Show}
-import cats.data.NonEmptyList
+import cats.data.{Kleisli, NonEmptyList}
+import cats.effect.std.Random
 import cats.syntax.all.*
+import cats.{Functor, Monad, Show}
 import cron4s.CronExpr
 import cron4s.lib.javatime.javaTemporalInstance
 import cron4s.syntax.all.*
@@ -20,7 +21,7 @@ import java.time.temporal.ChronoUnit
 import scala.annotation.tailrec
 import scala.concurrent.duration.{Duration as ScalaDuration, FiniteDuration}
 import scala.jdk.DurationConverters.ScalaDurationOps
-import scala.util.{Random, Try}
+import scala.util.Try
 
 sealed trait PolicyF[K] extends Product
 
@@ -41,7 +42,7 @@ private object PolicyF extends all {
   final case class Offset[K](policy: K, offset: Duration) extends PolicyF[K]
   final case class Jitter[K](policy: K, min: Duration, max: Duration) extends PolicyF[K]
 
-  type CalcTick = TickRequest => Tick
+  type CalcTick[F[_]] = Kleisli[F, TickRequest, Tick]
   final case class TickRequest(tick: Tick, now: Instant)
 
   @tailrec
@@ -52,31 +53,31 @@ private object PolicyF extends all {
       fixedRateSnooze(wakeup, now, delay, count + 1)
   }
 
-  private val algebra: Algebra[PolicyF, LazyList[CalcTick]] =
-    Algebra[PolicyF, LazyList[CalcTick]] {
+  private def algebra[F[_]: Monad](rng: Random[F]): Algebra[PolicyF, LazyList[CalcTick[F]]] =
+    Algebra[PolicyF, LazyList[CalcTick[F]]] {
 
       case GiveUp() => LazyList.empty
 
       case Crontab(cronExpr) =>
-        val calcTick: CalcTick = { case TickRequest(tick, now) =>
+        val calcTick: CalcTick[F] = Kleisli { case TickRequest(tick, now) =>
           cronExpr.next(now.atZone(tick.zoneId)) match {
-            case Some(value) => tick.nextTick(now, value.toInstant)
+            case Some(value) => tick.nextTick(now, value.toInstant).pure[F]
             case None        => // should not happen but in case
-              sys.error(show"$cronExpr return None at $now. idx=${tick.index}")
+              sys.error(show"$cronExpr returned None at $now. This should never happen.")
           }
         }
         LazyList.continually(calcTick)
 
       case FixedDelay(delays) =>
-        val seed: LazyList[CalcTick] = LazyList.from(delays.toList).map[CalcTick] { delay =>
-          { case TickRequest(tick, now) => tick.nextTick(now, now.plus(delay)) }
+        val seed: LazyList[CalcTick[F]] = LazyList.from(delays.toList).map[CalcTick[F]] { delay =>
+          Kleisli { case TickRequest(tick, now) => tick.nextTick(now, now.plus(delay)).pure[F] }
         }
         LazyList.continually(seed).flatten
 
       case FixedRate(delay) =>
-        LazyList.continually { case TickRequest(tick, now) =>
-          tick.nextTick(now, fixedRateSnooze(tick.conclude, now, delay, 1))
-        }
+        LazyList.continually(Kleisli { case TickRequest(tick, now) =>
+          tick.nextTick(now, fixedRateSnooze(tick.conclude, now, delay, 1)).pure[F]
+        })
 
       // ops
       case Limited(policy, limit) => policy.take(limit)
@@ -87,36 +88,44 @@ private object PolicyF extends all {
 
       // https://en.wikipedia.org/wiki/Join_and_meet
       case Meet(first, second) =>
-        first.zip(second).map { case (fa: CalcTick, fb: CalcTick) =>
-          (req: TickRequest) =>
-            val ra = fa(req)
-            val rb = fb(req)
-            if (ra.snooze < rb.snooze) ra else rb // shorter win
+        first.zip(second).map { case (fa: CalcTick[F], fb: CalcTick[F]) =>
+          Kleisli { (req: TickRequest) =>
+            (fa(req), fb(req)).mapN { (ra, rb) =>
+              if (ra.snooze < rb.snooze) ra else rb // shorter win
+            }
+          }
         }
 
       case Except(policy, except) =>
-        policy.map { (f: CalcTick) => (req: TickRequest) =>
-          val tick = f(req)
-          if (tick.local(_.conclude).toLocalTime === except) {
-            val nt = f(TickRequest(tick, tick.conclude))
-            tick.withSnoozeStretch(nt.snooze)
-          } else tick
+        policy.map { (f: CalcTick[F]) =>
+          Kleisli { (req: TickRequest) =>
+            f(req).flatMap { tick =>
+              if (tick.local(_.conclude).toLocalTime === except) {
+                f(TickRequest(tick, tick.conclude)).map(nt => tick.withSnoozeStretch(nt.snooze))
+              } else tick.pure[F]
+            }
+          }
         }
 
       case Offset(policy, offset) =>
-        policy.map { (f: CalcTick) => (req: TickRequest) =>
-          f(req).withSnoozeStretch(offset)
+        policy.map { (f: CalcTick[F]) =>
+          Kleisli { (req: TickRequest) =>
+            f(req).map(_.withSnoozeStretch(offset))
+          }
         }
 
       case Jitter(policy, min, max) =>
-        policy.map { (f: CalcTick) => (req: TickRequest) =>
-          val delay = Duration.of(Random.between(min.toNanos, max.toNanos), ChronoUnit.NANOS)
-          f(req).withSnoozeStretch(delay)
+        policy.map { (f: CalcTick[F]) =>
+          Kleisli { (req: TickRequest) =>
+            rng.betweenLong(min.toNanos, max.toNanos).flatMap { delay =>
+              f(req).map(_.withSnoozeStretch(Duration.of(delay, ChronoUnit.NANOS)))
+            }
+          }
         }
     }
 
-  def decisions(policy: Fix[PolicyF]): LazyList[CalcTick] =
-    scheme.cata(algebra).apply(policy)
+  def evaluatePolicy[F[_]: Random: Monad](policy: Fix[PolicyF]): LazyList[CalcTick[F]] =
+    scheme.cata(algebra(Random[F])).apply(policy)
 
   private val GIVE_UP: String = "giveUp"
   private val CRONTAB: String = "crontab"

@@ -57,12 +57,12 @@ trait Retry[F[_]] {
 
 object Retry {
 
-  final private class Impl[F[_]](initTS: TickStatus)(implicit F: Temporal[F]) {
+  final private class Impl[F[_]](initTS: TickStatus[F])(implicit F: Temporal[F]) {
 
     def retryLoop[A](fa: F[A], decide: TickedValue[Throwable] => F[TickedValue[Boolean]]): F[A] =
-      F.tailRecM[TickStatus, A](initTS) { status =>
-        F.handleErrorWith(fa.map[Either[TickStatus, A]](Right(_))) { ex =>
-          F.realTimeInstant.map(status.next).flatMap {
+      F.tailRecM[TickStatus[F], A](initTS) { status =>
+        F.handleErrorWith(fa.map[Either[TickStatus[F], A]](Right(_))) { ex =>
+          F.realTimeInstant.flatMap(status.next).flatMap {
             case None     => F.raiseError(ex) // run out of policy
             case Some(ts) => // respect user's decision
               decide(TickedValue(ts.tick, ex)).flatMap { tv =>

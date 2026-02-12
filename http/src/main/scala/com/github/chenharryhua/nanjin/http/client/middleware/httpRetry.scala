@@ -36,7 +36,7 @@ object httpRetry {
 
     def nextAttempt(
       req: Request[F],
-      tickStatus: TickStatus,
+      tickStatus: TickStatus[F],
       retryHeader: Option[`Retry-After`],
       hotswap: Hotswap[F, Either[Throwable, Response[F]]]
     ): F[Response[F]] = {
@@ -55,24 +55,22 @@ object httpRetry {
 
     def retryLoop(
       req: Request[F],
-      tickStatus: TickStatus,
+      tickStatus: TickStatus[F],
       hotswap: Hotswap[F, Either[Throwable, Response[F]]]
     ): F[Response[F]] =
       hotswap.clear >>
         hotswap.swap(client.run(req).attempt).flatMap {
           case Left(ex) =>
-            Clock[F].realTimeInstant.flatMap(now =>
-              tickStatus.next(now) match {
-                case Some(ts) => nextAttempt(req, ts, None, hotswap)
-                case None     => ex.raiseError
-              })
+            Clock[F].realTimeInstant.flatMap(tickStatus.next).flatMap {
+              case Some(ts) => nextAttempt(req, ts, None, hotswap)
+              case None     => ex.raiseError
+            }
           case Right(response) =>
             if (retriable(req, Right(response))) {
-              Clock[F].realTimeInstant.flatMap(now =>
-                tickStatus.next(now) match {
-                  case Some(ts) => nextAttempt(req, ts, response.headers.get[`Retry-After`], hotswap)
-                  case None     => response.pure[F]
-                })
+              Clock[F].realTimeInstant.flatMap(tickStatus.next).flatMap {
+                case Some(ts) => nextAttempt(req, ts, response.headers.get[`Retry-After`], hotswap)
+                case None     => response.pure[F]
+              }
             } else response.pure[F]
         }
 

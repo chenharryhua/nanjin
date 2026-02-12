@@ -1,14 +1,13 @@
 package com.github.chenharryhua.nanjin.common.chrono
 
-import cats.effect.kernel.{Async, Temporal}
+import cats.effect.kernel.{Async, Sync, Temporal}
+import cats.effect.std.Random
 import cats.implicits.{toFlatMapOps, toFunctorOps, toTraverseOps}
 import fs2.{Pull, Stream}
 
 import java.time.{Duration as JavaDuration, Instant, ZoneId}
-import java.util.UUID
-import scala.concurrent.duration.{DurationInt, FiniteDuration}
+import scala.concurrent.duration.{DurationLong, FiniteDuration}
 import scala.jdk.DurationConverters.{JavaDurationOps, ScalaDurationOps}
-import scala.util.Random
 
 object tickStream {
 
@@ -17,10 +16,10 @@ object tickStream {
     *   - Sleep for the tick’s snooze duration
     *   - Emit the tick
     */
-  def fromTickStatus[F[_]](zeroth: TickStatus)(implicit F: Temporal[F]): Stream[F, Tick] =
-    Stream.unfoldEval[F, TickStatus, Tick](zeroth) { status =>
+  def fromTickStatus[F[_]](zeroth: TickStatus[F])(implicit F: Temporal[F]): Stream[F, Tick] =
+    Stream.unfoldEval[F, TickStatus[F], Tick](zeroth) { status =>
       F.realTimeInstant.flatMap { now =>
-        status.next(now).traverse(nt => F.sleep(nt.tick.snooze.toScala).as((nt.tick, nt)))
+        status.next(now).flatMap(_.traverse(nt => F.sleep(nt.tick.snooze.toScala).as((nt.tick, nt))))
       }
     }
 
@@ -55,14 +54,14 @@ object tickStream {
     *   A `Stream[F, Tick]` that emits sequential ticks according to the policy and sleeps first
     */
   def tickScheduled[F[_]: Async](zoneId: ZoneId, policy: Policy): Stream[F, Tick] =
-    Stream.eval[F, TickStatus](TickStatus.zeroth[F](zoneId, policy)).flatMap(fromTickStatus[F])
+    Stream.eval[F, TickStatus[F]](TickStatus.zeroth[F](zoneId, policy)).flatMap(fromTickStatus[F])
 
   /** Stream ticks starting from the zeroth tick. The first tick (index = 0) is emitted immediately, then
     * continues according to the policy.
     */
   def tickImmediate[F[_]: Async](zoneId: ZoneId, policy: Policy): Stream[F, Tick] =
     Stream
-      .eval[F, TickStatus](TickStatus.zeroth[F](zoneId, policy))
+      .eval[F, TickStatus[F]](TickStatus.zeroth[F](zoneId, policy))
       .flatMap(zero => fromTickStatus[F](zero).cons1(zero.tick))
 
   /** Stream ticks in an **“emit first, then sleep”** pattern.
@@ -96,9 +95,9 @@ object tickStream {
     *   A `Stream[F, Tick]` that emits sequential ticks respecting the policy timing
     */
   def tickFuture[F[_]](zoneId: ZoneId, policy: Policy)(implicit F: Async[F]): Stream[F, Tick] =
-    Stream.eval[F, TickStatus](TickStatus.zeroth[F](zoneId, policy)).flatMap { status =>
-      def go(status: TickStatus): Pull[F, Tick, Unit] =
-        Pull.eval(F.realTimeInstant.map(status.next)).flatMap {
+    Stream.eval[F, TickStatus[F]](TickStatus.zeroth[F](zoneId, policy)).flatMap { status =>
+      def go(status: TickStatus[F]): Pull[F, Tick, Unit] =
+        Pull.eval(F.realTimeInstant.flatMap(status.next)).flatMap {
           case None     => Pull.done
           case Some(ts) =>
             Pull.output1(ts.tick) >> // do evalMap etc at this moment
@@ -112,26 +111,22 @@ object tickStream {
         }
       go(status).stream
     }
-}
 
-/** LazyList generators for testing or simulation.
-  */
-object tickLazyList {
-
-  /** Generate an infinite LazyList of ticks starting from an initial TickStatus. Each next tick is delayed by
-    * a random 1–5 milliseconds for testing purposes.
+  /** for test Policy only
     */
-  def fromTickStatus(init: TickStatus): LazyList[Tick] =
-    LazyList.unfold(init)(ts =>
-      ts.next(ts.tick.conclude.plus(Random.between(1, 5).milliseconds.toJava)).map(s => (s.tick, s)))
+  def testPolicy[F[_]: Sync](zoneId: ZoneId, policy: Policy): Stream[F, Tick] =
+    for {
+      init <- Stream.eval(TickStatus.zeroth(zoneId, policy))
+      rng <- Stream.eval(Random.scalaUtilRandom[F])
+      tick <- Stream.unfoldEval(init) { ts =>
+        rng
+          .betweenLong(0L, 5L)
+          .map(_.milliseconds.toJava)
+          .flatMap(jitter => ts.next(ts.tick.conclude.plus(jitter)))
+          .map(_.map(s => (s.tick, s)))
+      }
+    } yield tick
 
-  /** Generate ticks starting from a zeroth tick with the given ZoneId and policy.
-    */
-  def from(zoneId: ZoneId, policy: Policy): LazyList[Tick] =
-    fromTickStatus(TickStatus(Tick.zeroth(UUID.randomUUID(), zoneId, Instant.now())).renewPolicy(policy))
-
-  /** Generate ticks with the default system ZoneId.
-    */
-  def from(policy: Policy): LazyList[Tick] =
-    from(ZoneId.systemDefault(), policy)
+  def testPolicy[F[_]: Sync](policy: Policy): Stream[F, Tick] =
+    testPolicy[F](ZoneId.systemDefault(), policy)
 }

@@ -60,24 +60,22 @@ final class ServiceGuard[F[_]: Network: Async: Console] private[guard] (
       event <- Stream.eval(Channel.unbounded[F, Event]).flatMap { channel =>
         val metricRegistry: MetricRegistry = new MetricRegistry()
 
+        def tickingBy(policy: Policy): Stream[F, Tick] = Stream
+          .eval(TickStatus(serviceParams.zerothTick).map(_.renewPolicy(policy)))
+          .flatMap(tickStream.fromTickStatus[F](_))
+
         val metrics_report: Stream[F, Nothing] =
-          tickStream
-            .fromTickStatus[F](
-              TickStatus(serviceParams.zerothTick).renewPolicy(serviceParams.servicePolicies.metricReport))
-            .evalMap { tick =>
-              metric_report(
-                channel = channel,
-                eventLogger = eventLogger,
-                metricRegistry = metricRegistry,
-                index = MetricIndex.Periodic(tick)).flatMap(mr =>
-                metricsHistory.modify(queue => (queue, queue.add(mr))))
-            }
-            .drain
+          tickingBy(serviceParams.servicePolicies.metricReport).evalMap { tick =>
+            metric_report(
+              channel = channel,
+              eventLogger = eventLogger,
+              metricRegistry = metricRegistry,
+              index = MetricIndex.Periodic(tick)).flatMap(mr =>
+              metricsHistory.modify(queue => (queue, queue.add(mr))))
+          }.drain
 
         val metrics_reset: Stream[F, Nothing] =
-          tickStream
-            .fromTickStatus[F](
-              TickStatus(serviceParams.zerothTick).renewPolicy(serviceParams.servicePolicies.metricReset))
+          tickingBy(serviceParams.servicePolicies.metricReset)
             .evalMap(tick =>
               metric_reset(
                 channel = channel,

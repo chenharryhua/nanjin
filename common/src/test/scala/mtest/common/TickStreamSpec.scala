@@ -1,14 +1,13 @@
 package mtest.common
 import cats.effect.unsafe.implicits.global
 import cats.effect.{IO, Temporal}
-import com.github.chenharryhua.nanjin.common.chrono.{tickLazyList, tickStream, Policy, Tick}
+import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick}
 import fs2.Stream
 import org.scalatest.funsuite.AnyFunSuite
 
-import java.time.{LocalTime, ZoneId}
+import java.time.{Duration as JDuration, LocalTime, ZoneId}
 import scala.concurrent.duration.*
 import scala.jdk.DurationConverters.*
-import java.time.Duration as JDuration
 class TickStreamSpec extends AnyFunSuite {
 
   val zoneId: ZoneId = ZoneId.systemDefault()
@@ -48,11 +47,4 @@ class TickStreamSpec extends AnyFunSuite {
     assert(JDuration.between(start, ticks.head.local(_.acquires).toLocalTime).toScala < 1.second)
   }
 
-  test("tickLazyList produces monotonically increasing ticks") {
-    val ticks = tickLazyList.from(zoneId, policy).take(5).toList
-    assert(ticks.sliding(2).forall {
-      case Seq(a, b) => a.conclude.isBefore(b.conclude)
-      case _         => true
-    })
-  }
 }
