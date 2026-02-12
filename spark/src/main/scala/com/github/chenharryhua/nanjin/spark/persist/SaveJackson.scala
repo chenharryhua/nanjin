@@ -25,7 +25,7 @@ final class SaveJackson[A](rdd: RDD[A], encoder: AvroEncoder[A], cfg: HoarderCon
     internalRun(
       sparkContext = rdd.sparkContext,
       params = params,
-      job = F.delay(saveRDD.jackson(rdd, params.outPath, encoder, params.compression)),
+      job = F.blocking(saveRDD.jackson(rdd, params.outPath, encoder, params.compression)),
       description = None
     )
 
@@ -33,7 +33,7 @@ final class SaveJackson[A](rdd: RDD[A], encoder: AvroEncoder[A], cfg: HoarderCon
     internalRun(
       sparkContext = rdd.sparkContext,
       params = params,
-      job = F.delay(saveRDD.jackson(rdd, params.outPath, encoder, params.compression)),
+      job = F.blocking(saveRDD.jackson(rdd, params.outPath, encoder, params.compression)),
       description = Some(description)
     )
 }

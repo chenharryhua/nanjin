@@ -43,7 +43,7 @@ private object HoarderConfigF {
 
 final private[spark] case class HoarderConfig(value: Fix[HoarderConfigF]) {
   import HoarderConfigF.*
-  val evalConfig: HoarderParams = HoarderConfigF.evalConfig(this)
+  lazy val evalConfig: HoarderParams = HoarderConfigF.evalConfig(this)
 
   def saveMode(sm: SaveMode): HoarderConfig =
     HoarderConfig(Fix(WithSaveMode(sm, value)))

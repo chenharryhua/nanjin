@@ -28,7 +28,7 @@ final class SaveCirce[A](rdd: RDD[A], cfg: HoarderConfig, isKeepNull: Boolean, e
     internalRun(
       sparkContext = rdd.sparkContext,
       params = params,
-      job = F.delay(saveRDD.circe(rdd, params.outPath, params.compression, isKeepNull)(encoder)),
+      job = F.blocking(saveRDD.circe(rdd, params.outPath, params.compression, isKeepNull)(encoder)),
       description = None
     )
 
@@ -36,7 +36,7 @@ final class SaveCirce[A](rdd: RDD[A], cfg: HoarderConfig, isKeepNull: Boolean, e
     internalRun(
       sparkContext = rdd.sparkContext,
       params = params,
-      job = F.delay(saveRDD.circe(rdd, params.outPath, params.compression, isKeepNull)(encoder)),
+      job = F.blocking(saveRDD.circe(rdd, params.outPath, params.compression, isKeepNull)(encoder)),
       description = Some(description)
     )
 }

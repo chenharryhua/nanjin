@@ -20,7 +20,7 @@ final class SaveProtobuf[A](rdd: RDD[A], cfg: HoarderConfig, evidence: A <:< Gen
     internalRun(
       sparkContext = rdd.sparkContext,
       params = params,
-      job = F.delay(saveRDD.protobuf(rdd, params.outPath, params.compression)(evidence)),
+      job = F.blocking(saveRDD.protobuf(rdd, params.outPath, params.compression)(evidence)),
       description = None
     )
 
@@ -28,7 +28,7 @@ final class SaveProtobuf[A](rdd: RDD[A], cfg: HoarderConfig, evidence: A <:< Gen
     internalRun(
       sparkContext = rdd.sparkContext,
       params = params,
-      job = F.delay(saveRDD.protobuf(rdd, params.outPath, params.compression)(evidence)),
+      job = F.blocking(saveRDD.protobuf(rdd, params.outPath, params.compression)(evidence)),
       description = Some(description)
     )
 

@@ -31,7 +31,7 @@ final class SaveText[A](rdd: RDD[A], cfg: HoarderConfig, show: Show[A], suffix: 
     internalRun(
       sparkContext = rdd.sparkContext,
       params = params,
-      job = F.delay(saveRDD.text(rdd, params.outPath, params.compression, suffix)(show)),
+      job = F.blocking(saveRDD.text(rdd, params.outPath, params.compression, suffix)(show)),
       description = None
     )
 
@@ -39,7 +39,7 @@ final class SaveText[A](rdd: RDD[A], cfg: HoarderConfig, show: Show[A], suffix: 
     internalRun(
       sparkContext = rdd.sparkContext,
       params = params,
-      job = F.delay(saveRDD.text(rdd, params.outPath, params.compression, suffix)(show)),
+      job = F.blocking(saveRDD.text(rdd, params.outPath, params.compression, suffix)(show)),
       description = Some(description)
     )
 }
