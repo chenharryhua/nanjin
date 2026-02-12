@@ -24,12 +24,12 @@ final class TickStatus[F[_]: Random] private (val tick: Tick, decisions: LazyLis
   def next(now: Instant): F[Option[TickStatus[F]]] =
     decisions match {
       case head #:: tail =>
-        if (!now.isBefore(tick.conclude))
-          head(PolicyF.TickRequest(tick, now)).map(r => Some(new TickStatus(r, tail)))
-        else
+        if (now.isBefore(tick.conclude))
           F.raiseError(
             new IllegalArgumentException(
               show"Invalid time: now=$now is before tick.conclude=${tick.conclude}"))
+        else
+          head(PolicyF.TickRequest(tick, now)).map(tk => Some(new TickStatus(tk, tail)))
 
       case _ => none[TickStatus[F]].pure[F]
     }

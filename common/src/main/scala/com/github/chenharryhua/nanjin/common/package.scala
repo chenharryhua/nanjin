@@ -7,17 +7,20 @@ import eu.timepit.refined.string.MatchesRegex
 import squants.information.Information
 
 package object common {
+  // Simple email validation: checks general "local@domain.tld" format.
+  // Does NOT cover all RFC 5322 edge cases (comments, quoted strings, IP literals, etc.)
+  // Chosen for readability, maintainability, and practical usage in typical applications.
   type EmailAddr = Refined[String, MatchesRegex["""^\w+([-+.']\w+)*@\w+([-.]\w+)*\.\w+([-.]\w+)*$"""]]
   object EmailAddr extends RefinedTypeOps[EmailAddr, String] with CatsRefinedTypeOpsSyntax
 
   // number of records
   type ChunkSize = Refined[Int, Positive]
   object ChunkSize extends RefinedTypeOps[ChunkSize, Int] with CatsRefinedTypeOpsSyntax {
-    def fromBytes(bytes: Information): ChunkSize = {
+    def unsafeFromBytes(bytes: Information): ChunkSize = {
       val b = bytes.toBytes
-      require(b >= 1 && b <= Int.MaxValue, s"ChunkSize($b) out of Int range")
+      require(b >= 1, s"ChunkSize($b) must be positive")
       unsafeFrom(b.toInt)
     }
-    def apply(bufferSize: Information): ChunkSize = fromBytes(bufferSize)
+    @inline def apply(bufferSize: Information): ChunkSize = unsafeFromBytes(bufferSize)
   }
 }

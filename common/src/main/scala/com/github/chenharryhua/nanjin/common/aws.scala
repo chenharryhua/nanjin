@@ -34,6 +34,15 @@ object aws {
   @JsonCodec
   final case class ParameterStoreContent(value: String)
 
+  /** @param from
+    *   sender email address
+    * @param to
+    *   primary recipients (non-empty)
+    * @param cc
+    *   optional carbon copy recipients
+    * @param bcc
+    *   optional blind carbon copy recipients
+    */
   @JsonCodec
   final case class EmailContent(
     from: EmailAddr,

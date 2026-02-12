@@ -19,7 +19,7 @@ object tickStream {
   def fromTickStatus[F[_]](zeroth: TickStatus[F])(implicit F: Temporal[F]): Stream[F, Tick] =
     Stream.unfoldEval[F, TickStatus[F], Tick](zeroth) { status =>
       F.realTimeInstant.flatMap(status.next).flatMap {
-        _.traverse(nt => F.sleep(nt.tick.snooze.toScala).as((nt.tick, nt)))
+        _.traverse(ns => F.sleep(ns.tick.snooze.toScala).as((ns.tick, ns)))
       }
     }
 
