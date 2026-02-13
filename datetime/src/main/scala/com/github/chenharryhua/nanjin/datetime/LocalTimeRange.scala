@@ -29,8 +29,8 @@ final case class LocalTimeRange(start: LocalTime, duration: Duration) {
     if (duration.compareTo(oneDay.toJava) >= 0) true
     else if (duration.isNegative) false
     else {
-      val crossMidnight = !LocalTime.MAX.minus(duration).isAfter(start)
-      val end = start.plus(duration)
+      val end: LocalTime = start.plus(duration)
+      val crossMidnight: Boolean = end.isBefore(start)
       if (crossMidnight) {
         now.compareTo(start) >= 0 || now.isBefore(end)
       } else {

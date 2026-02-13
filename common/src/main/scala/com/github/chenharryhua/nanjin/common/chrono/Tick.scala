@@ -104,9 +104,9 @@ final case class Tick(
     )
 
   override def toString: String = {
-    val cld = local(_.conclude).show.take(23).padTo(23, ' ')
-    val acq = local(_.acquires).show.take(23).padTo(23, ' ')
-    val snz = snooze.show
+    val cld = local(_.conclude).show.take(24).padTo(24, ' ')
+    val acq = local(_.acquires).show.take(24).padTo(24, ' ')
+    val snz = snooze.show.take(9).padTo(9, ' ')
     val id = show"$sequenceId".take(3)
     f"id=$id, idx=$index%03d, acq=$acq, cld=$cld, snz=$snz"
   }

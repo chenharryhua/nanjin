@@ -5,8 +5,8 @@ import cats.effect.std.Random
 import cats.implicits.{toFlatMapOps, toFunctorOps, toTraverseOps}
 import fs2.{Pull, Stream}
 
-import java.time.{Duration as JavaDuration, Instant, ZoneId}
-import scala.concurrent.duration.{DurationLong, FiniteDuration}
+import java.time.ZoneId
+import scala.concurrent.duration.DurationLong
 import scala.jdk.DurationConverters.{JavaDurationOps, ScalaDurationOps}
 
 object tickStream {
@@ -95,21 +95,15 @@ object tickStream {
     *   A `Stream[F, Tick]` that emits sequential ticks respecting the policy timing
     */
   def tickFuture[F[_]](zoneId: ZoneId, policy: Policy)(implicit F: Async[F]): Stream[F, Tick] =
-    Stream.eval[F, TickStatus[F]](TickStatus.zeroth[F](zoneId, policy)).flatMap { status =>
-      def go(status: TickStatus[F]): Pull[F, Tick, Unit] =
-        Pull.eval(F.realTimeInstant.flatMap(status.next)).flatMap {
-          case None     => Pull.done
-          case Some(ts) =>
-            Pull.output1(ts.tick) >> // do evalMap etc at this moment
-              Pull.eval(F.realTimeInstant).flatMap { now =>
-                val conclude: Instant = ts.tick.conclude
-                if (now.isBefore(conclude)) {
-                  val gap: FiniteDuration = JavaDuration.between(now, conclude).toScala
-                  Pull.sleep(gap) >> go(ts)
-                } else go(ts) // cross border
-              }
+    Stream.eval[F, TickStatus[F]](TickStatus.zeroth[F](zoneId, policy)).flatMap { initStatus =>
+      val loop: TickStatus[F] => Pull[F, Tick, Unit] =
+        Pull.loop[F, Tick, TickStatus[F]] { ts =>
+          Pull
+            .eval(F.realTimeInstant.flatMap(ts.next))
+            .flatMap(_.traverse(ns => Pull.output1(ns.tick) >> Pull.sleep(ns.tick.snooze.toScala).as(ns)))
         }
-      go(status).stream
+
+      loop(initStatus).stream
     }
 
   /** for test Policy only

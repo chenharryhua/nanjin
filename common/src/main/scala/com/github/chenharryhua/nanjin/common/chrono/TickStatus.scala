@@ -4,7 +4,7 @@ import cats.MonadError
 import cats.effect.kernel.Sync
 import cats.effect.std.Random
 import cats.implicits.{catsSyntaxApplicativeId, none, showInterpolator, toFlatMapOps, toFunctorOps}
-import org.typelevel.cats.time.instances.instant
+import org.typelevel.cats.time.instances.localdatetime
 
 import java.time.{Instant, ZoneId}
 
@@ -13,7 +13,7 @@ import java.time.{Instant, ZoneId}
   */
 final class TickStatus[F[_]: Random] private (val tick: Tick, decisions: LazyList[PolicyF.CalcTick[F]])(
   implicit F: MonadError[F, Throwable])
-    extends instant {
+    extends localdatetime {
 
   def renewPolicy(policy: Policy): TickStatus[F] =
     new TickStatus(tick, PolicyF.evaluatePolicy(policy.policy))
@@ -24,11 +24,10 @@ final class TickStatus[F[_]: Random] private (val tick: Tick, decisions: LazyLis
   def next(now: Instant): F[Option[TickStatus[F]]] =
     decisions match {
       case head #:: tail =>
-        if (now.isBefore(tick.conclude))
-          F.raiseError(
-            new IllegalArgumentException(
-              show"Invalid time: now=$now is before tick.conclude=${tick.conclude}"))
-        else
+        if (now.isBefore(tick.conclude)) {
+          val ldt = now.atZone(tick.zoneId).toLocalDateTime
+          F.raiseError(new IllegalArgumentException(show"Invalid time: now=$ldt, tick=$tick"))
+        } else
           head(PolicyF.TickRequest(tick, now)).map(tk => Some(new TickStatus(tk, tail)))
 
       case _ => none[TickStatus[F]].pure[F]

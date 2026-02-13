@@ -26,14 +26,14 @@ object HostName {
   def apply[F[_]](implicit F: Sync[F]): F[HostName] = {
 
     def http_get(url: URL): Resource[F, Option[HttpURLConnection]] =
-      Resource.make(F.pure(url.openConnection() match {
+      Resource.make(F.blocking(url.openConnection() match {
         case conn: HttpURLConnection =>
           conn.setRequestMethod("GET")
           conn.setConnectTimeout(1000)
           conn.setReadTimeout(1000)
           Some(conn)
         case _ => None
-      }))(conn => F.blocking(conn.map(_.disconnect())).void)
+      }))(conn => F.blocking(conn.foreach(_.disconnect())).void)
 
     def combine(a: Option[String], b: Option[String]): Option[String] = (a, b) match {
       case (None, None)        => None
@@ -47,14 +47,14 @@ object HostName {
         .use(conn =>
           F.blocking(conn.map { c =>
             val bs: BufferedSource = Source.fromInputStream(c.getInputStream)
-            try bs.getLines().mkString.ensuring(_.trim.nonEmpty)
+            try Option(bs.getLines().mkString.trim).filter(_.nonEmpty)
             finally bs.close()
           }))
         .attempt
-        .map(_.toOption.flatten)
+        .map(_.toOption.flatMap(_.flatten))
 
     val local_host: Option[String] =
-      Try(Option(InetAddress.getLocalHost.getHostName.ensuring(_.trim.nonEmpty))).toOption.flatten
+      Try(Option(InetAddress.getLocalHost.getHostName).filter(_.trim.nonEmpty)).toOption.flatten
 
     aws_ec2_ipv4.map(combine(_, local_host).fold(new HostName("unknown"))(new HostName(_)))
   }
