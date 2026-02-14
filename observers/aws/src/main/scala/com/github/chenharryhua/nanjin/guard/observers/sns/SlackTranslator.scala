@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.observers.sns
-
-import cats.syntax.all.*
+import cats.syntax.show.showInterpolator
+import cats.syntax.show.toShow
+import cats.syntax.eq.catsSyntaxEq
 import cats.{Applicative, Eval}
 import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.{Error, Event, MetricSnapshot, ServiceStopCause}
@@ -35,7 +36,7 @@ private object SlackTranslator extends all {
   private def host_service_section(sp: ServiceParams): JuxtaposeSection = {
     val sn: String =
       sp.homePage.fold(sp.serviceName.value)(hp => s"<${hp.value}|${sp.serviceName.value}>")
-    JuxtaposeSection(TextField(CONSTANT_SERVICE, sn), TextField(CONSTANT_HOST, sp.host.toString()))
+    JuxtaposeSection(TextField(CONSTANT_SERVICE, sn), TextField(CONSTANT_HOST, sp.host.show))
   }
 
   private def uptime_section(evt: Event): JuxtaposeSection =

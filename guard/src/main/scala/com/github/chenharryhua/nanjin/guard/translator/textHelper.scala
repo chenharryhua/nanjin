@@ -1,6 +1,9 @@
 package com.github.chenharryhua.nanjin.guard.translator
 
-import cats.syntax.all.*
+import cats.syntax.eq.catsSyntaxEq
+import cats.syntax.show.showInterpolator
+import cats.syntax.show.toShow
+
 import com.github.chenharryhua.nanjin.guard.event.Event.ServicePanic
 import com.github.chenharryhua.nanjin.guard.event.{Event, MetricIndex, MetricSnapshot}
 import org.typelevel.cats.time.instances.{localdatetime, localtime}

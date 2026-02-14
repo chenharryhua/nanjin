@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.observers.ses
 
 import cats.Applicative
-import cats.syntax.all.*
+import cats.syntax.show.toShow
 import com.github.chenharryhua.nanjin.guard.event.{Error, Event, ServiceStopCause}
 import com.github.chenharryhua.nanjin.guard.translator.{htmlHelper, textConstants, textHelper, Translator}
 import io.circe.Json
@@ -34,7 +34,7 @@ private object HtmlTranslator extends all {
       ),
       tr(
         td(evt.serviceParams.taskName.value),
-        td(evt.serviceParams.host.toString()),
+        td(evt.serviceParams.host.show),
         td(evt.timestamp.toLocalTime.truncatedTo(ChronoUnit.SECONDS).show)),
       tr(th(CONSTANT_SERVICE), th(CONSTANT_SERVICE_ID), th(CONSTANT_UPTIME)),
       tr(serviceName, td(evt.serviceParams.serviceId.show), td(uptimeText(evt)))

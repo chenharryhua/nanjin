@@ -26,11 +26,11 @@ final case class ServicePolicies(restart: RestartPolicy, metricReport: Policy, m
 final case class HistoryCapacity(metric: Int, panic: Int, error: Int)
 
 @JsonCodec
-final case class Host(hostName: HostName, port: Option[Port]) {
+final case class Host(name: HostName, port: Option[Port]) {
   override def toString: String =
     port match {
-      case Some(p) => s"${hostName.value}:${p.value}"
-      case None    => hostName.value
+      case Some(p) => s"${name.value}:${p.value}"
+      case None    => name.value
     }
 }
 object Host {
