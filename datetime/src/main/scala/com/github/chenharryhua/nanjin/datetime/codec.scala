@@ -1,6 +1,5 @@
 package com.github.chenharryhua.nanjin.datetime
 import java.time.{LocalDate, LocalDateTime}
-import scala.util.Try
 import scala.util.matching.Regex
 
 object codec {
@@ -23,43 +22,27 @@ object codec {
   private def hour(ldt: LocalDateTime): String = f"Hour=${ldt.getHour}%02d"
   private def minute(ldt: LocalDateTime): String = f"Minute=${ldt.getMinute}%02d"
 
-  def year(str: String): Option[Int] = {
-    val pattern: Regex = """^(?i)Year=(\d{4})""".r
+  private def parseIntField(str: String, pattern: Regex, min: Int, max: Int): Option[Int] =
     str match {
-      case pattern(y) => Try(y.toInt).toOption
-      case _          => None
+      case pattern(v) =>
+        val value = v.toInt
+        Option.when(value >= min && value <= max)(value)
+      case _ => None
     }
-  }
 
-  def month(str: String): Option[Int] = {
-    val pattern: Regex = """^(?i)Month=(\d{2})""".r
-    str match {
-      case pattern(m) => Try(m.toInt).toOption
-      case _          => None
-    }
-  }
+  def year(str: String): Option[Int] =
+    parseIntField(str, """^(?i)Year=(\d{4})""".r, 0, 9999)
 
-  def day(str: String): Option[Int] = {
-    val pattern: Regex = """^(?i)Day=(\d{2})""".r
-    str match {
-      case pattern(d) => Try(d.toInt).toOption
-      case _          => None
-    }
-  }
+  def month(str: String): Option[Int] =
+    parseIntField(str, """^(?i)Month=(\d{2})""".r, 1, 12)
 
-  def hour(str: String): Option[Int] = {
-    val pattern: Regex = """^(?i)Hour=(\d{2})""".r
-    str match {
-      case pattern(h) => Try(h.toInt).toOption
-      case _          => None
-    }
-  }
+  def day(str: String): Option[Int] =
+    parseIntField(str, """^(?i)Day=(\d{2})""".r, 1, 31)
 
-  def minute(str: String): Option[Int] = {
-    val pattern: Regex = """^(?i)Minute=(\d{2})""".r
-    str match {
-      case pattern(m) => Try(m.toInt).toOption
-      case _          => None
-    }
-  }
+  def hour(str: String): Option[Int] =
+    parseIntField(str, """^(?i)Hour=(\d{2})""".r, 0, 23)
+
+  def minute(str: String): Option[Int] =
+    parseIntField(str, """^(?i)Minute=(\d{2})""".r, 0, 59)
+
 }

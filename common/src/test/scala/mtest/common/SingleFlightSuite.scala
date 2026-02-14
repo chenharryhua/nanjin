@@ -19,6 +19,7 @@ class SingleFlightSuite extends CatsEffectSuite {
       // Run 5 concurrent fibers
       results <- List.fill(5)(sf(effect)).parSequence
       finalCount <- counter.get
+      _ <- sf.isBusy
     } yield {
       // All fibers should get the same value
       assert(results.forall(_ == 1), s"results = ${results.mkString(",")}")

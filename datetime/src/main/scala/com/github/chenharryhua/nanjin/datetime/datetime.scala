@@ -25,6 +25,9 @@ package object datetime {
   def minuteResolution(localDateTime: LocalDateTime): LocalDateTime =
     localDateTime.withSecond(0).withNano(0)
 
+  def secondResolution(localDateTime: LocalDateTime): LocalDateTime =
+    localDateTime.withNano(0)
+
   def distance(value: LocalTime, other: LocalTime): FiniteDuration = {
     val dur = JavaDuration.between(value, other)
     if (dur.isNegative) dur.plusHours(24).toScala else dur.toScala

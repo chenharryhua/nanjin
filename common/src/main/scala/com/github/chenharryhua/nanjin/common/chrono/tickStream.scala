@@ -2,11 +2,13 @@ package com.github.chenharryhua.nanjin.common.chrono
 
 import cats.effect.kernel.{Async, Sync, Temporal}
 import cats.effect.std.Random
-import cats.implicits.{toFlatMapOps, toFunctorOps, toTraverseOps}
+import cats.syntax.flatMap.toFlatMapOps
+import cats.syntax.functor.toFunctorOps
+import cats.syntax.traverse.toTraverseOps
 import fs2.{Pull, Stream}
 
-import java.time.{Duration as JavaDuration, Instant, ZoneId}
-import scala.concurrent.duration.{DurationLong, FiniteDuration}
+import java.time.ZoneId
+import scala.concurrent.duration.DurationLong
 import scala.jdk.DurationConverters.{JavaDurationOps, ScalaDurationOps}
 
 object tickStream {
@@ -19,7 +21,7 @@ object tickStream {
   def fromTickStatus[F[_]](zeroth: TickStatus[F])(implicit F: Temporal[F]): Stream[F, Tick] =
     Stream.unfoldEval[F, TickStatus[F], Tick](zeroth) { status =>
       F.realTimeInstant.flatMap(status.next).flatMap {
-        _.traverse(nt => F.sleep(nt.tick.snooze.toScala).as((nt.tick, nt)))
+        _.traverse(ns => F.sleep(ns.tick.snooze.toScala).as((ns.tick, ns)))
       }
     }
 
@@ -30,7 +32,7 @@ object tickStream {
     * Behavior:
     *   - The **first tick** (index = 1) is **not emitted immediately**; the stream waits for the tick's
     *     `snooze` first.
-    *   - After sleeping for `tick.snooze`, the tick is emitted downstream.
+    *   - After sleeping for `tick#snooze`, the tick is emitted downstream.
     *   - If downstream processing takes longer than the tick’s duration, the next tick still waits for its
     *     **full snooze**.
     *
@@ -95,21 +97,15 @@ object tickStream {
     *   A `Stream[F, Tick]` that emits sequential ticks respecting the policy timing
     */
   def tickFuture[F[_]](zoneId: ZoneId, policy: Policy)(implicit F: Async[F]): Stream[F, Tick] =
-    Stream.eval[F, TickStatus[F]](TickStatus.zeroth[F](zoneId, policy)).flatMap { status =>
-      def go(status: TickStatus[F]): Pull[F, Tick, Unit] =
-        Pull.eval(F.realTimeInstant.flatMap(status.next)).flatMap {
-          case None     => Pull.done
-          case Some(ts) =>
-            Pull.output1(ts.tick) >> // do evalMap etc at this moment
-              Pull.eval(F.realTimeInstant).flatMap { now =>
-                val conclude: Instant = ts.tick.conclude
-                if (now.isBefore(conclude)) {
-                  val gap: FiniteDuration = JavaDuration.between(now, conclude).toScala
-                  Pull.sleep(gap) >> go(ts)
-                } else go(ts) // cross border
-              }
+    Stream.eval[F, TickStatus[F]](TickStatus.zeroth[F](zoneId, policy)).flatMap { initStatus =>
+      val loop: TickStatus[F] => Pull[F, Tick, Unit] =
+        Pull.loop[F, Tick, TickStatus[F]] { ts =>
+          Pull
+            .eval(F.realTimeInstant.flatMap(ts.next))
+            .flatMap(_.traverse(ns => Pull.output1(ns.tick) >> Pull.sleep(ns.tick.snooze.toScala).as(ns)))
         }
-      go(status).stream
+
+      loop(initStatus).stream
     }
 
   /** for test Policy only

@@ -1,8 +1,8 @@
 package com.github.chenharryhua.nanjin.guard.config
 
 import cats.Show
-import enumeratum.{CirceEnum, Enum, EnumEntry}
 import enumeratum.values.{CatsOrderValueEnum, IntCirceEnum, IntEnum, IntEnumEntry}
+import enumeratum.{CirceEnum, Enum, EnumEntry}
 import io.circe.{Decoder, Encoder, Json}
 
 sealed abstract class AlarmLevel(override val value: Int, val entryName: String)
@@ -59,6 +59,13 @@ object Domain {
   implicit val showDomain: Show[Domain] = _.value
   implicit val encoderDomain: Encoder[Domain] = Encoder.encodeString.contramap(_.value)
   implicit val decoderDomain: Decoder[Domain] = Decoder.decodeString.map(Domain(_))
+}
+
+final case class Port(value: Int) extends AnyVal
+object Port {
+  implicit val showPort: Show[Port] = _.value.toString
+  implicit val encoderPort: Encoder[Port] = Encoder.encodeInt.contramap(_.value)
+  implicit val decoderPort: Decoder[Port] = Decoder.decodeInt.map(Port(_))
 }
 
 final private[guard] case class ServiceBrief(value: Json) extends AnyVal

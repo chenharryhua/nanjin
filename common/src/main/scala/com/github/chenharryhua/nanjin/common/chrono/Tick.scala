@@ -1,15 +1,21 @@
 package com.github.chenharryhua.nanjin.common.chrono
 
 import cats.effect.kernel.Sync
-import cats.syntax.all.*
+import cats.effect.std.{SecureRandom, UUIDGen}
+import cats.syntax.eq.catsSyntaxEq
+import cats.syntax.flatMap.toFlatMapOps
+import cats.syntax.functor.toFunctorOps
+import cats.syntax.show.{showInterpolator, toShow}
 import cats.{Functor, Show}
-import com.github.chenharryhua.nanjin.common.{utils, DurationFormatter}
+import com.github.chenharryhua.nanjin.common.DurationFormatter
 import fs2.timeseries.TimeStamped
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, HCursor, Json}
-import org.typelevel.cats.time.instances.all.*
+import org.typelevel.cats.time.instances.duration.durationInstances
+import org.typelevel.cats.time.instances.instant.instantInstances
+import org.typelevel.cats.time.instances.localdatetime.localdatetimeInstances
 
-import java.time.*
+import java.time.{Duration, Instant, LocalDateTime, ZoneId, ZonedDateTime}
 import java.util.UUID
 import scala.concurrent.duration.FiniteDuration
 
@@ -104,11 +110,11 @@ final case class Tick(
     )
 
   override def toString: String = {
-    val cld = local(_.conclude).show.take(23).padTo(23, ' ')
-    val acq = local(_.acquires).show.take(23).padTo(23, ' ')
-    val snz = snooze.show
+    val cld = local(_.conclude).show.take(24).padTo(24, ' ')
+    val acq = local(_.acquires).show.take(24).padTo(24, ' ')
+    val snz = snooze.show.take(9).padTo(9, ' ')
     val id = show"$sequenceId".take(3)
-    f"id=$id, idx=$index%03d, acq=$acq, cld=$cld, snz=$snz"
+    f"id=$id, idx=$index%04d, acq=$acq, cld=$cld, snz=$snz"
   }
 }
 
@@ -124,11 +130,14 @@ object Tick {
       conclude = now
     )
 
-  def zeroth[F[_]: Sync](zoneId: ZoneId): F[Tick] =
-    for {
-      uuid <- utils.randomUUID[F]
-      now <- Sync[F].realTimeInstant
-    } yield zeroth(uuid, zoneId, now)
+  def zeroth[F[_]](zoneId: ZoneId)(implicit F: Sync[F]): F[Tick] =
+    SecureRandom.javaSecuritySecureRandom[F].flatMap { implicit sr =>
+      UUIDGen.fromSecureRandom[F].randomUUID.flatMap { uuid =>
+        F.realTimeInstant.map { now =>
+          zeroth(uuid, zoneId, now)
+        }
+      }
+    }
 
   private val fmt = DurationFormatter.defaultFormatter
 
@@ -176,7 +185,7 @@ object Tick {
   * decisions with full time-frame context.
   *
   * Common use cases include:
-  *   - time-aware decision making
+  *   - time-aware decision-making
   *   - observability and metrics
   *   - state transitions with temporal bounds
   *
