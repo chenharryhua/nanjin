@@ -4,7 +4,6 @@ import cats.data.Kleisli
 import cats.effect.{IO, Resource}
 import cats.effect.unsafe.implicits.global
 import cats.implicits.toFunctorFilterOps
-import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.config.MetricID
 import com.github.chenharryhua.nanjin.guard.event.{eventFilters, retrieveGauge, retrieveHealthChecks}
@@ -104,9 +103,9 @@ class GaugeTest extends AnyFunSuite {
     service.eventStream { agent =>
       agent.facilitate("expensive") { fac =>
         val mtx = for {
-          _ <- fac.gauge("3").register(compute(3.second), Policy.fixedDelay(15.minutes))
-          _ <- fac.gauge("2").register(compute(2.second), Policy.fixedDelay(15.minutes))
-          _ <- fac.gauge("1").register(compute(1.second), Policy.fixedDelay(15.minutes))
+          _ <- fac.gauge("3").register(compute(3.second), _.fixedDelay(15.minutes))
+          _ <- fac.gauge("2").register(compute(2.second), _.fixedDelay(15.minutes))
+          _ <- fac.gauge("1").register(compute(1.second), _.fixedDelay(15.minutes))
         } yield ()
         mtx.surround(agent.adhoc.report)
       }

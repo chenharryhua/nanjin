@@ -20,7 +20,7 @@ import scala.util.Try
 
 trait Gauge[F[_]] {
   def register[A: Encoder](value: F[A]): Resource[F, Unit]
-  def register[A: Encoder](value: F[A], policy: Policy): Resource[F, Unit]
+  def register[A: Encoder](value: F[A], f: Policy.type => Policy): Resource[F, Unit]
 
   def ref[A: Encoder](value: A): Resource[F, Ref[F, A]]
 }
@@ -30,7 +30,7 @@ object Gauge {
     new Gauge[F] {
       override def register[A: Encoder](value: F[A]): Resource[F, Unit] =
         Resource.unit[F]
-      override def register[A: Encoder](value: F[A], policy: Policy): Resource[F, Unit] =
+      override def register[A: Encoder](value: F[A], f: Policy.type => Policy): Resource[F, Unit] =
         Resource.unit[F]
       override def ref[A: Encoder](value: A): Resource[F, Ref[F, A]] =
         Resource.eval(Concurrent[F].ref(value))
@@ -71,13 +71,13 @@ object Gauge {
         })
         .flatMap(json_gauge(_, value))
 
-    override def register[A: Encoder](value: F[A], policy: Policy): Resource[F, Unit] = {
+    override def register[A: Encoder](value: F[A], f: Policy.type => Policy): Resource[F, Unit] = {
       val fetch: F[Json] = F.handleError(value.map(_.asJson).timeout(timeout))(trans_error)
       for {
         init <- Resource.eval(fetch)
         ref <- Resource.eval(F.ref(init))
         _ <- F.background(
-          tickStream.tickScheduled[F](zoneId, policy).evalMap(_ => fetch.flatMap(ref.set)).compile.drain)
+          tickStream.tickScheduled[F](zoneId, f).evalMap(_ => fetch.flatMap(ref.set)).compile.drain)
         _ <- register(ref.get)
       } yield ()
     }

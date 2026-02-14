@@ -3,7 +3,6 @@ package mtest.aws
 import cats.data.NonEmptyList
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.Event
@@ -22,7 +21,7 @@ import scala.concurrent.duration.DurationInt
 class AwsObserverTest extends AnyFunSuite {
   private val service: fs2.Stream[IO, Event] = TaskGuard[IO]("aws")
     .service("test")
-    .updateConfig(_.addBrief("brief").withRestartPolicy(_.fixedDelay(1.second).limited(1)))
+    .updateConfig(_.addBrief("brief").withRestartPolicy(10.hours, _.fixedDelay(1.second).limited(1)))
     .eventStream { agent =>
       agent
         .facilitate("metrics")(_.meter(Bytes)("meter"))
@@ -42,7 +41,7 @@ class AwsObserverTest extends AnyFunSuite {
   test("2.ses mail") {
     val mail =
       EmailObserver(ses_client)
-        .withPolicy(Policy.fixedDelay(5.seconds))
+        .withPolicy(_.fixedDelay(5.seconds))
         .withZoneId(sydneyTime)
         .withCapacity(200)
         .withOldestFirst

@@ -158,25 +158,17 @@ final class ServiceConfig[F[_]: Applicative] private (
     briefs: F[List[Json]] = this.briefs): ServiceConfig[F] =
     new ServiceConfig[F](cont, zoneId, jmxBuilder, httpBuilder, briefs)
 
-  def withRestartPolicy(threshold: FiniteDuration, restart: Policy): ServiceConfig[F] =
-    copy(cont = Fix(WithRestartPolicy(restart, Some(threshold.toJava), cont)))
-
-  def withRestartPolicy(f: Policy.type => Policy): ServiceConfig[F] =
-    copy(cont = Fix(WithRestartPolicy(f(Policy), None, cont)))
-
-  def withMetricReport(policy: Policy): ServiceConfig[F] =
-    copy(cont = Fix(WithMetricReportPolicy(policy, cont)))
+  def withRestartPolicy(threshold: FiniteDuration, f: Policy.type => Policy): ServiceConfig[F] =
+    copy(cont = Fix(WithRestartPolicy(f(Policy), Some(threshold.toJava), cont)))
 
   def withMetricReport(f: Policy.type => Policy): ServiceConfig[F] =
-    withMetricReport(policy = f(Policy))
+    copy(cont = Fix(WithMetricReportPolicy(f(Policy), cont)))
 
-  def withMetricReset(reset: Policy): ServiceConfig[F] =
-    copy(cont = Fix(WithMetricResetPolicy(reset, cont)))
   def withMetricReset(f: Policy.type => Policy): ServiceConfig[F] =
-    withMetricReset(f(Policy))
+    copy(cont = Fix(WithMetricResetPolicy(f(Policy), cont)))
 
   def withMetricDailyReset: ServiceConfig[F] =
-    withMetricReset(Policy.crontab(_.daily.midnight))
+    withMetricReset(_.crontab(_.daily.midnight))
 
   def withHomePage(hp: String): ServiceConfig[F] =
     copy(cont = Fix(WithHomePage(Some(HomePage(hp)), cont)))

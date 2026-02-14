@@ -3,7 +3,6 @@ package mtest.terminals
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.toTraverseOps
-import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.terminals.{BinAvroFile, FileKind}
 import eu.timepit.refined.auto.*
@@ -81,9 +80,8 @@ class NJBinAvroTest extends AnyFunSuite {
       .emits(pandaSet.toList)
       .covary[IO]
       .repeatN(number)
-      .through(hdp
-        .rotateSink(ZoneId.systemDefault(), Policy.fixedDelay(1.second))(t => path / file.fileName(t))
-        .binAvro)
+      .through(
+        hdp.rotateSink(ZoneId.systemDefault(), _.fixedDelay(1.second))(t => path / file.fileName(t)).binAvro)
       .fold(0L)((sum, v) => sum + v.value.recordCount)
       .compile
       .lastOrError
@@ -138,7 +136,7 @@ class NJBinAvroTest extends AnyFunSuite {
   test("stream concat - 2") {
     val s = Stream.emits(pandaSet.toList).covary[IO].repeatN(500)
     val path: Url = fs2Root / "concat" / "rotate"
-    val sink = hdp.rotateSink(ZoneId.systemDefault(), Policy.fixedDelay(0.1.second))(t =>
+    val sink = hdp.rotateSink(ZoneId.systemDefault(), _.fixedDelay(0.1.second))(t =>
       path / BinAvroFile(_.Uncompressed).fileName(t))
 
     (hdp.delete(path) >>

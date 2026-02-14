@@ -3,7 +3,6 @@ package mtest.terminals
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.{toFunctorFilterOps, toTraverseOps}
-import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.terminals.*
 import com.github.chenharryhua.nanjin.terminals.Compression.*
@@ -88,7 +87,7 @@ class NJCirceTest extends AnyFunSuite {
       .repeatN(number)
       .map(_.asJson)
       .through(
-        hdp.rotateSink(ZoneId.systemDefault(), Policy.fixedDelay(1.second))(t => path / fk.fileName(t)).circe)
+        hdp.rotateSink(ZoneId.systemDefault(), _.fixedDelay(1.second))(t => path / fk.fileName(t)).circe)
       .fold(0L)((sum, v) => sum + v.value.recordCount)
       .compile
       .lastOrError
@@ -174,8 +173,7 @@ class NJCirceTest extends AnyFunSuite {
       Stream.empty.covaryAll[IO, Json])
       .through(
         hdp
-          .rotateSink(ZoneId.systemDefault(), Policy.fixedDelay(1.second).limited(3))(t =>
-            path / fk.fileName(t))
+          .rotateSink(ZoneId.systemDefault(), _.fixedDelay(1.second).limited(3))(t => path / fk.fileName(t))
           .circe)
       .compile
       .drain
@@ -197,7 +195,7 @@ class NJCirceTest extends AnyFunSuite {
   test("stream concat - 2") {
     val s = Stream.emits(TestData.tigerSet.toList).covary[IO].map(_.asJson).repeatN(500)
     val path: Url = fs2Root / "concat" / "rotate"
-    val sink = hdp.rotateSink(ZoneId.systemDefault(), Policy.fixedDelay(0.1.second))(t =>
+    val sink = hdp.rotateSink(ZoneId.systemDefault(), _.fixedDelay(0.1.second))(t =>
       path / ParquetFile(_.Uncompressed).fileName(t))
 
     (hdp.delete(path) >>
@@ -207,7 +205,7 @@ class NJCirceTest extends AnyFunSuite {
   test("emit in each time frame even if no data") {
     val path: Url = fs2Root / "empty"
     val sink =
-      hdp.rotateSink(ZoneId.systemDefault(), Policy.fixedDelay(1.second))(t => path / t.index.toString)
+      hdp.rotateSink(ZoneId.systemDefault(), _.fixedDelay(1.second))(t => path / t.index.toString)
     val run = hdp.delete(path) >>
       Stream.sleep[IO](5.seconds).map(_ => Json.Null).through(sink.circe).compile.toList
     assert(run.unsafeRunSync().size > 3)

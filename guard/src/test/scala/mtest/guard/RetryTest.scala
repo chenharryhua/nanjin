@@ -3,7 +3,6 @@ package mtest.guard
 import cats.effect.unsafe.implicits.global
 import cats.effect.{IO, Resource}
 import cats.implicits.toFunctorFilterOps
-import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.ServiceStopCause.{ByCancellation, Successfully}
 import com.github.chenharryhua.nanjin.guard.event.{eventFilters, retrieveCounter}
@@ -70,7 +69,7 @@ class RetryTest extends AnyFunSuite {
   test("6.retry - simple cancellation") {
     val res = service
       .eventStream(agent =>
-        agent.retry(_.withPolicy(Policy.giveUp)).use { retry =>
+        agent.retry(_.withPolicy(_.giveUp)).use { retry =>
           (retry(IO.println(1)) >>
             retry(IO.println(2) <* IO.canceled *> IO.println(3)) >>
             retry(IO.println(4))).guarantee(agent.adhoc.report)

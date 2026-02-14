@@ -95,9 +95,6 @@ object Retry {
     def withDecision(f: TickedValue[Throwable] => F[TickedValue[Boolean]]): Builder[F] =
       new Builder[F](policy, f)
 
-    def withPolicy(policy: Policy): Builder[F] =
-      new Builder[F](policy, decide)
-
     def withPolicy(f: Policy.type => Policy): Builder[F] =
       new Builder[F](f(Policy), decide)
 

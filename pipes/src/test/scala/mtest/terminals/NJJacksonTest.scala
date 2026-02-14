@@ -2,7 +2,6 @@ package mtest.terminals
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.toTraverseOps
-import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.terminals.{FileKind, JacksonFile}
 import eu.timepit.refined.auto.*
@@ -81,7 +80,7 @@ class NJJacksonTest extends AnyFunSuite {
       .emits(pandaSet.toList)
       .covary[IO]
       .repeatN(number)
-      .through(hdp.rotateSink(zoneId, Policy.fixedDelay(0.2.second))(t => path / file.fileName(t)).jackson)
+      .through(hdp.rotateSink(zoneId, _.fixedDelay(0.2.second))(t => path / file.fileName(t)).jackson)
       .fold(0L)((sum, v) => sum + v.value.recordCount)
       .compile
       .lastOrError
@@ -164,8 +163,8 @@ class NJJacksonTest extends AnyFunSuite {
   test("11.stream concat - 2") {
     val s = Stream.emits(pandaSet.toList).covary[IO].repeatN(500)
     val path: Url = fs2Root / "concat" / "rotate"
-    val sink = hdp.rotateSink(zoneId, Policy.fixedDelay(0.1.second))(t =>
-      path / JacksonFile(_.Uncompressed).fileName(t))
+    val sink =
+      hdp.rotateSink(zoneId, _.fixedDelay(0.1.second))(t => path / JacksonFile(_.Uncompressed).fileName(t))
 
     (hdp.delete(path) >>
       (s ++ s ++ s).through(sink.jackson).compile.drain).unsafeRunSync()
@@ -180,7 +179,7 @@ class NJJacksonTest extends AnyFunSuite {
       .emits(pandaSet.toList)
       .covary[IO]
       .repeatN(number)
-      .through(hdp.rotateSink(zoneId, Policy.fixedDelay(3.seconds))(t => path / file.fileName(t)).jackson)
+      .through(hdp.rotateSink(zoneId, _.fixedDelay(3.seconds))(t => path / file.fileName(t)).jackson)
       .fold(0L)((sum, v) => sum + v.value.recordCount)
       .timeout(4.seconds)
       .compile

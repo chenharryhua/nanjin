@@ -107,20 +107,17 @@ object CircuitBreaker {
     }
   }
 
-  final class Builder private[CircuitBreaker] (maxFailures: Int, policy: Policy) {
+  final class Builder private[CircuitBreaker] (maxFailures: Int, policy: Policy.type => Policy) {
     def withMaxFailures(maxFailures: Int): Builder =
       new Builder(maxFailures, policy)
 
-    def withPolicy(policy: Policy): Builder =
-      new Builder(maxFailures, policy)
-
     def withPolicy(f: Policy.type => Policy): Builder =
-      new Builder(maxFailures, f(Policy))
+      new Builder(maxFailures, f)
 
     private[CircuitBreaker] def build[F[_]: Async](zoneId: ZoneId): Resource[F, CircuitBreaker[F]] =
       new Impl[F](maxFailures, tickStream.tickScheduled[F](zoneId, policy)).stateMachine
   }
 
   def apply[F[_]: Async](zoneId: ZoneId, f: Endo[Builder]): Resource[F, CircuitBreaker[F]] =
-    f(new Builder(maxFailures = 5, policy = Policy.giveUp)).build[F](zoneId)
+    f(new Builder(maxFailures = 5, policy = _.giveUp)).build[F](zoneId)
 }

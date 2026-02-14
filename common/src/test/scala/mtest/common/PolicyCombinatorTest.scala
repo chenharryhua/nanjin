@@ -34,7 +34,7 @@ class PolicyCombinatorTest extends AnyFunSuite {
     println(policy.asJson)
     assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
     val List(a1, a2, a3, a4, a5) =
-      tickStream.testPolicy[IO](policy).take(16).compile.toList.unsafeRunSync()
+      tickStream.testPolicy[IO]((_: Policy.type) => policy).take(16).compile.toList.unsafeRunSync()
     assert(a1.index == 1)
     assert(a2.index == 2)
     assert(a3.index == 3)
@@ -62,7 +62,7 @@ class PolicyCombinatorTest extends AnyFunSuite {
     assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
 
     val List(a1, a2, a3, a4, a5, a6) =
-      tickStream.testPolicy[IO](policy).take(6).compile.toList.unsafeRunSync()
+      tickStream.testPolicy[IO]((_: Policy.type) => policy).take(6).compile.toList.unsafeRunSync()
 
     assert(a1.index == 1)
     assert(a2.index == 2)
@@ -89,7 +89,7 @@ class PolicyCombinatorTest extends AnyFunSuite {
     assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
 
     val List(a1, a2, a3, a4, a5, a6) =
-      tickStream.testPolicy[IO](policy).take(6).compile.toList.unsafeRunSync()
+      tickStream.testPolicy[IO]((_: Policy.type) => policy).take(6).compile.toList.unsafeRunSync()
 
     assert(a1.index == 1)
     assert(a2.index == 2)
@@ -115,7 +115,7 @@ class PolicyCombinatorTest extends AnyFunSuite {
     assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
 
     val List(a1, a2, a3, a4, a5, a6) =
-      tickStream.testPolicy[IO](policy).take(6).compile.toList.unsafeRunSync()
+      tickStream.testPolicy[IO]((_: Policy.type) => policy).take(6).compile.toList.unsafeRunSync()
 
     assert(a1.index == 1)
     assert(a2.index == 2)
@@ -197,7 +197,7 @@ class PolicyCombinatorTest extends AnyFunSuite {
     assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
 
     val wakeup = tickStream
-      .testPolicy[IO](policy)
+      .testPolicy[IO]((_: Policy.type) => policy)
       .take(32)
       .debug()
       .compile
@@ -225,7 +225,7 @@ class PolicyCombinatorTest extends AnyFunSuite {
     println(policy.show)
     println(policy.asJson)
     assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
-    val ticks = tickStream.testPolicy[IO](policy).take(32).compile.toList.unsafeRunSync()
+    val ticks = tickStream.testPolicy[IO]((_: Policy.type) => policy).take(32).compile.toList.unsafeRunSync()
     assert(ticks.forall(t => t.acquires.plus(t.snooze) == t.conclude))
     val wakeup = ticks.map(_.local(_.conclude).toLocalTime.getSecond)
     wakeup.forall(_ == 3)
@@ -244,19 +244,19 @@ class PolicyCombinatorTest extends AnyFunSuite {
     println(policy.show)
     println(policy.asJson)
     assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
-    val ticks = tickStream.testPolicy[IO](policy).take(60).compile.toList.unsafeRunSync()
+    val ticks = tickStream.testPolicy[IO]((_: Policy.type) => policy).take(60).compile.toList.unsafeRunSync()
     assert(ticks.size == 3)
   }
 
   test("limited 0") {
     val policy = Policy.crontab(_.hourly).limited(0)
-    val ticks = tickStream.testPolicy[IO](policy).take(6).compile.toList.unsafeRunSync()
+    val ticks = tickStream.testPolicy[IO]((_: Policy.type) => policy).take(6).compile.toList.unsafeRunSync()
     assert(ticks.isEmpty)
   }
 
   test("limited neg") {
     val policy = Policy.crontab(_.hourly).limited(-1)
-    val ticks = tickStream.testPolicy[IO](policy).take(6).compile.toList.unsafeRunSync()
+    val ticks = tickStream.testPolicy[IO]((_: Policy.type) => policy).take(6).compile.toList.unsafeRunSync()
     assert(ticks.isEmpty)
   }
 }

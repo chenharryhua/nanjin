@@ -32,7 +32,7 @@ object EmailObserver {
       translator = HtmlTranslator[F],
       isNewestFirst = true,
       capacity = 100,
-      policy = Policy.fixedDelay(36500.days), // 100 years
+      policy = _.fixedDelay(36500.days), // 100 years
       zoneId = ZoneId.systemDefault()
     )
 }
@@ -42,14 +42,14 @@ final class EmailObserver[F[_]] private (
   translator: Translator[F, Text.TypedTag[String]],
   isNewestFirst: Boolean,
   capacity: ChunkSize,
-  policy: Policy,
+  policy: Policy.type => Policy,
   zoneId: ZoneId)(implicit F: Async[F])
     extends UpdateTranslator[F, Text.TypedTag[String], EmailObserver[F]] {
 
   private[this] def copy(
     isNewestFirst: Boolean = this.isNewestFirst,
     capacity: ChunkSize = this.capacity,
-    policy: Policy = this.policy,
+    policy: Policy.type => Policy = this.policy,
     zoneId: ZoneId = this.zoneId,
     translator: Translator[F, Text.TypedTag[String]] = this.translator): EmailObserver[F] =
     new EmailObserver[F](client, translator, isNewestFirst, capacity, policy, zoneId)
@@ -59,8 +59,7 @@ final class EmailObserver[F[_]] private (
 
   def withOldestFirst: EmailObserver[F] = copy(isNewestFirst = false)
   def withCapacity(cs: ChunkSize): EmailObserver[F] = copy(capacity = cs)
-  def withPolicy(policy: Policy): EmailObserver[F] = copy(policy = policy)
-  def withPolicy(f: Policy.type => Policy): EmailObserver[F] = withPolicy(f(Policy))
+  def withPolicy(f: Policy.type => Policy): EmailObserver[F] = copy(policy = f)
   def withZoneId(zoneId: ZoneId): EmailObserver[F] = copy(zoneId = zoneId)
 
   private def translate(evt: Event): F[Option[ColoredTag]] =

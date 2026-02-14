@@ -24,7 +24,8 @@ class PolicyBaseTest extends AnyFunSuite {
     println(policy.show)
     assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
 
-    val List(a1, a2, a3, a4, a5) = tickStream.testPolicy[IO](policy).take(5).compile.toList.unsafeRunSync()
+    val List(a1, a2, a3, a4, a5) =
+      tickStream.testPolicy[IO]((_: Policy.type) => policy).take(5).compile.toList.unsafeRunSync()
 
     assert(a1.index == 1)
     assert(a1.snooze == 1.second.toJava)
@@ -52,7 +53,8 @@ class PolicyBaseTest extends AnyFunSuite {
     println(policy.show)
     assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
 
-    val List(a1, a2, a3, a4, a5) = tickStream.testPolicy[IO](policy).take(5).compile.toList.unsafeRunSync()
+    val List(a1, a2, a3, a4, a5) =
+      tickStream.testPolicy[IO]((_: Policy.type) => policy).take(5).compile.toList.unsafeRunSync()
 
     assert(a1.index == 1)
     assert(a1.conclude == a1.commence.plus(1.seconds.toJava))
@@ -81,7 +83,7 @@ class PolicyBaseTest extends AnyFunSuite {
     assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
 
     val List(a1, a2, a3, a4, a5, a6, a7) =
-      tickStream.testPolicy[IO](policy).take(7).compile.toList.unsafeRunSync()
+      tickStream.testPolicy[IO]((_: Policy.type) => policy).take(7).compile.toList.unsafeRunSync()
 
     assert(a1.index == 1)
     assert(a2.index == 2)
@@ -107,7 +109,7 @@ class PolicyBaseTest extends AnyFunSuite {
     println(policy.asJson)
     assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
     val List(a1, a2, a3, a4, a5, a6) =
-      tickStream.testPolicy[IO](policy).take(6).compile.toList.unsafeRunSync()
+      tickStream.testPolicy[IO]((_: Policy.type) => policy).take(6).compile.toList.unsafeRunSync()
 
     assert(a1.index == 1)
     assert(a2.index == 2)
@@ -129,7 +131,7 @@ class PolicyBaseTest extends AnyFunSuite {
     println(policy.show)
     assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
 
-    val ts = tickStream.testPolicy[IO](policy).take(7).compile.toList.unsafeRunSync()
+    val ts = tickStream.testPolicy[IO]((_: Policy.type) => policy).take(7).compile.toList.unsafeRunSync()
 
     assert(ts.isEmpty)
   }
