@@ -19,7 +19,7 @@ final class DimensionBuilder private[cloudwatch] (serviceParams: ServiceParams, 
     add(textConstants.CONSTANT_TASK, serviceParams.taskName.value)
 
   def withHostName: DimensionBuilder =
-    add(textConstants.CONSTANT_HOST, serviceParams.hostName.value)
+    add(textConstants.CONSTANT_HOST, serviceParams.host.hostName.value)
 
   def withLaunchDate: DimensionBuilder =
     add(textConstants.CONSTANT_LAUNCH_TIME, serviceParams.zerothTick.local(_.launchTime).toLocalDate.show)

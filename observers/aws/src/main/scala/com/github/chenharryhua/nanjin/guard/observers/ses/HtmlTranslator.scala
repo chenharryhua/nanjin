@@ -34,7 +34,7 @@ private object HtmlTranslator extends all {
       ),
       tr(
         td(evt.serviceParams.taskName.value),
-        td(hostText(evt.serviceParams)),
+        td(evt.serviceParams.host.toString()),
         td(evt.timestamp.toLocalTime.truncatedTo(ChronoUnit.SECONDS).show)),
       tr(th(CONSTANT_SERVICE), th(CONSTANT_SERVICE_ID), th(CONSTANT_UPTIME)),
       tr(serviceName, td(evt.serviceParams.serviceId.show), td(uptimeText(evt)))

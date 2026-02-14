@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.config
 import cats.effect.kernel.Clock
 import cats.syntax.all.*
-import cats.{Applicative, Endo, Functor}
+import cats.{Applicative, Endo, Functor, Show}
 import com.codahale.metrics.jmx.JmxReporter
 import com.github.chenharryhua.nanjin.common.chrono.{Policy, Tick}
 import higherkindness.droste.data.Fix
@@ -26,10 +26,21 @@ final case class ServicePolicies(restart: RestartPolicy, metricReport: Policy, m
 final case class HistoryCapacity(metric: Int, panic: Int, error: Int)
 
 @JsonCodec
+final case class Host(hostName: HostName, port: Option[Port]) {
+  override def toString: String =
+    port match {
+      case Some(p) => s"${hostName.value}:${p.value}"
+      case None    => hostName.value
+    }
+}
+object Host {
+  implicit val showHost: Show[Host] = Show.fromToString[Host]
+}
+
+@JsonCodec
 final case class ServiceParams(
   taskName: TaskName,
-  hostName: HostName,
-  port: Option[Port],
+  host: Host,
   homePage: Option[HomePage],
   serviceName: ServiceName,
   servicePolicies: ServicePolicies,
@@ -59,13 +70,11 @@ object ServiceParams {
     serviceName: ServiceName,
     brief: ServiceBrief,
     zerothTick: Tick,
-    hostName: HostName,
-    port: Option[Port]
+    host: Host
   ): ServiceParams =
     ServiceParams(
       taskName = taskName,
-      hostName = hostName,
-      port = port,
+      host = host,
       homePage = None,
       serviceName = serviceName,
       servicePolicies = ServicePolicies(
@@ -106,8 +115,7 @@ private object ServiceConfigF {
     serviceName: ServiceName,
     brief: ServiceBrief,
     zerothTick: Tick,
-    hostName: HostName,
-    port: Option[Port]): Algebra[ServiceConfigF, ServiceParams] =
+    host: Host): Algebra[ServiceConfigF, ServiceParams] =
     Algebra[ServiceConfigF, ServiceParams] {
       case InitParams(taskName) =>
         ServiceParams(
@@ -115,8 +123,7 @@ private object ServiceConfigF {
           serviceName = serviceName,
           brief = brief,
           zerothTick = zerothTick,
-          hostName = hostName,
-          port = port
+          host = host
         )
 
       case WithRestartPolicy(p, t, c) =>
@@ -209,16 +216,14 @@ final class ServiceConfig[F[_]: Applicative] private (
     serviceName: ServiceName,
     brief: ServiceBrief,
     zerothTick: Tick,
-    hostName: HostName,
-    port: Option[Port]): ServiceParams =
+    host: Host): ServiceParams =
     scheme
       .cata(
         algebra(
           serviceName = serviceName,
           brief = brief,
           zerothTick = zerothTick,
-          hostName = hostName,
-          port = port
+          host = host
         ))
       .apply(cont)
 }
