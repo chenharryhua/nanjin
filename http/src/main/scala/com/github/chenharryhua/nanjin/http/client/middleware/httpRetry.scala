@@ -19,14 +19,14 @@ object httpRetry {
 
   def apply[F[_]: Async](
     zoneId: ZoneId,
-    policy: Policy,
+    f: Policy.type => Policy,
     retriable: Retriable[F] = RetryPolicy.defaultRetriable[F](_, _))(client: Client[F]): Client[F] =
-    impl[F](zoneId, policy, retriable)(client)
+    impl[F](zoneId, f(Policy), retriable)(client)
 
-  def reckless[F[_]: Async](zoneId: ZoneId, policy: Policy)(client: Client[F]): Client[F] =
+  def reckless[F[_]: Async](zoneId: ZoneId, f: Policy.type => Policy)(client: Client[F]): Client[F] =
     apply[F](
       zoneId,
-      policy,
+      f,
       (_: Request[F], ex: Either[Throwable, Response[F]]) => RetryPolicy.recklesslyRetriable[F](ex))(client)
 
   private def impl[F[_]: Async](

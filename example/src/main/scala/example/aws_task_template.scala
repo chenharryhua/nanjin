@@ -3,7 +3,6 @@ package example
 import cats.effect.IO
 import com.comcast.ip4s.IpLiteralSyntax
 import com.github.chenharryhua.nanjin.aws.ecs
-import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.Event
@@ -21,7 +20,7 @@ object aws_task_template {
       .withMetricReset(_.crontab(_.daily.midnight))
       .withRestartPolicy(
         8.hours,
-        Policy
+        _
           .fixedDelay(3.seconds, 2.minutes, 1.hour)
           .limited(3)
           .followedBy(_.fixedRate(2.hours).limited(12))

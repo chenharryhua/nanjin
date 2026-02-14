@@ -342,18 +342,15 @@ object Policy {
   implicit val decoderPolicy: Decoder[Policy] =
     (c: HCursor) => PolicyF.decoderFixPolicyF(c).map(Policy(_))
 
-  def crontab(cronExpr: CronExpr): Policy = Policy(Fix(Crontab(cronExpr)))
-  def crontab(f: crontabs.type => CronExpr): Policy = crontab(f(crontabs))
-
-  def fixedDelay(delays: NonEmptyList[Duration]): Policy = {
-    require(delays.forall(!_.isNegative), "every delay should be positive or zero")
-    Policy(Fix(FixedDelay(delays)))
-  }
+  def crontab(f: crontabs.type => CronExpr): Policy = Policy(Fix(Crontab(f(crontabs))))
 
   /** should be non-negative
     */
-  def fixedDelay(head: FiniteDuration, tail: FiniteDuration*): Policy =
-    fixedDelay(NonEmptyList(head.toJava, tail.toList.map(_.toJava)))
+  def fixedDelay(head: FiniteDuration, tail: FiniteDuration*): Policy = {
+    val nel = NonEmptyList(head.toJava, tail.toList.map(_.toJava))
+    require(nel.forall(!_.isNegative), "every delay should be positive or zero")
+    Policy(Fix(FixedDelay(nel)))
+  }
 
   /** @param delay
     *   should be bigger than zero

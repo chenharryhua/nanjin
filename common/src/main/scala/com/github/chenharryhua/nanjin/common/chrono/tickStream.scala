@@ -99,9 +99,9 @@ object tickStream {
 
   /** for test Policy only
     */
-  def testPolicy[F[_]: Sync](zoneId: ZoneId, f: Policy.type => Policy): Stream[F, Tick] =
+  def testPolicy[F[_]: Sync](f: Policy.type => Policy): Stream[F, Tick] =
     for {
-      init <- Stream.eval(TickStatus.zeroth(zoneId, f(Policy)))
+      init <- Stream.eval(TickStatus.zeroth(ZoneId.systemDefault(), f(Policy)))
       rng <- Stream.eval(Random.scalaUtilRandom[F])
       tick <- Stream.unfoldEval(init) { ts =>
         rng
@@ -111,7 +111,4 @@ object tickStream {
           .map(_.map(s => (s.tick, s)))
       }
     } yield tick
-
-  def testPolicy[F[_]: Sync](f: Policy.type => Policy): Stream[F, Tick] =
-    testPolicy[F](ZoneId.systemDefault(), f)
 }

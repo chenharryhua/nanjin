@@ -3,7 +3,6 @@ package example
 import cats.effect.{IO, Resource}
 import com.github.chenharryhua.nanjin.aws.ParameterStore
 import com.github.chenharryhua.nanjin.common.aws.ParameterStorePath
-import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.http.client.auth.{Login, Salesforce}
 import com.github.chenharryhua.nanjin.http.client.middleware.httpRetry
@@ -19,7 +18,7 @@ object salesforce_client {
     .default[IO]
     .build
     .map(Logger(logHeaders = true, logBody = true, _ => false))
-    .map(httpRetry(sydneyTime, Policy.fixedDelay(0.second).jitter(5.seconds)))
+    .map(httpRetry(sydneyTime, _.fixedDelay(0.second).jitter(5.seconds)))
 
   private val credential: Resource[IO, Login[IO]] =
     ParameterStore[IO](identity).evalMap { ps =>
