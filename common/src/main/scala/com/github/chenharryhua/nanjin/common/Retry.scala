@@ -4,13 +4,10 @@ import cats.Endo
 import cats.effect.Temporal
 import cats.effect.kernel.{Async, Resource}
 import cats.effect.std.Hotswap
-import cats.implicits.{
-  catsSyntaxApplicativeId,
-  catsSyntaxEitherId,
-  catsSyntaxFlatMapOps,
-  toFlatMapOps,
-  toFunctorOps
-}
+import cats.syntax.applicative.catsSyntaxApplicativeId
+import cats.syntax.either.catsSyntaxEitherId
+import cats.syntax.flatMap.{catsSyntaxFlatMapOps, toFlatMapOps}
+import cats.syntax.functor.toFunctorOps
 import com.github.chenharryhua.nanjin.common.chrono.{Policy, TickStatus, TickedValue}
 
 import java.time.ZoneId

@@ -1,9 +1,10 @@
 package com.github.chenharryhua.nanjin.common
 
 import cats.Endo
-import cats.effect.implicits.genSpawnOps
 import cats.effect.kernel.{Async, Outcome, Resource}
-import cats.implicits.{catsSyntaxApplicativeError, toFlatMapOps}
+import cats.effect.syntax.spawn.genSpawnOps
+import cats.syntax.applicativeError.catsSyntaxApplicativeError
+import cats.syntax.flatMap.toFlatMapOps
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick}
 import fs2.Stream
 import io.circe.{Encoder, Json}

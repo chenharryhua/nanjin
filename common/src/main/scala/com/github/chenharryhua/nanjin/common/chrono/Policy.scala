@@ -16,10 +16,10 @@ import cron4s.lib.javatime.javaTemporalInstance
 import cron4s.syntax.all.*
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra, Coalgebra}
-import io.circe.*
 import io.circe.Decoder.Result
 import io.circe.DecodingFailure.Reason
 import io.circe.syntax.EncoderOps
+import io.circe.{Decoder, DecodingFailure, Encoder, HCursor, Json}
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.typelevel.cats.time.instances.all.*
 
