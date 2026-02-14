@@ -1,22 +1,21 @@
 package com.github.chenharryhua.nanjin.common.chrono
 
-import cats.MonadError
+import cats.Monad
 import cats.effect.kernel.Sync
 import cats.effect.std.{Random, SecureRandom}
 import cats.syntax.applicative.catsSyntaxApplicativeId
 import cats.syntax.flatMap.toFlatMapOps
 import cats.syntax.functor.toFunctorOps
 import cats.syntax.option.none
-import cats.syntax.show.showInterpolator
-import org.typelevel.cats.time.instances.localdatetime.localdatetimeInstances
 
 import java.time.{Instant, ZoneId}
 
 /** TickStatus wraps a Tick with a sequence of policy-driven decisions. next() computes the next tick
   * according to the policy.
   */
-final class TickStatus[F[_]: Random] private (val tick: Tick, decisions: LazyList[PolicyF.CalcTick[F]])(
-  implicit F: MonadError[F, Throwable]) {
+final class TickStatus[F[_]: Random: Monad] private (
+  val tick: Tick,
+  decisions: LazyList[PolicyF.CalcTick[F]]) {
 
   def renewPolicy(policy: Policy): TickStatus[F] =
     new TickStatus(tick, PolicyF.evaluatePolicy(policy.policy))
@@ -27,9 +26,8 @@ final class TickStatus[F[_]: Random] private (val tick: Tick, decisions: LazyLis
   def next(now: Instant): F[Option[TickStatus[F]]] =
     decisions match {
       case head #:: tail =>
-        if (now.isBefore(tick.conclude)) {
-          val ldt = now.atZone(tick.zoneId).toLocalDateTime
-          F.raiseError(new IllegalArgumentException(show"Invalid time: now=$ldt, tick=$tick"))
+        if (now.isBefore(tick.conclude)) { // pretend it concludes on time
+          head(PolicyF.TickRequest(tick, tick.conclude)).map(tk => Some(new TickStatus(tk, tail)))
         } else
           head(PolicyF.TickRequest(tick, now)).map(tk => Some(new TickStatus(tk, tail)))
 
