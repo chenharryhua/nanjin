@@ -8,7 +8,7 @@ import cats.syntax.flatMap.toFlatMapOps
 import cats.syntax.functor.toFunctorOps
 import cats.syntax.option.none
 import cats.syntax.show.showInterpolator
-import org.typelevel.cats.time.instances.localdatetime
+import org.typelevel.cats.time.instances.localdatetime.localdatetimeInstances
 
 import java.time.{Instant, ZoneId}
 
@@ -16,8 +16,7 @@ import java.time.{Instant, ZoneId}
   * according to the policy.
   */
 final class TickStatus[F[_]: Random] private (val tick: Tick, decisions: LazyList[PolicyF.CalcTick[F]])(
-  implicit F: MonadError[F, Throwable])
-    extends localdatetime {
+  implicit F: MonadError[F, Throwable]) {
 
   def renewPolicy(policy: Policy): TickStatus[F] =
     new TickStatus(tick, PolicyF.evaluatePolicy(policy.policy))

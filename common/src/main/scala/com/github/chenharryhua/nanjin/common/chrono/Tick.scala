@@ -1,12 +1,12 @@
 package com.github.chenharryhua.nanjin.common.chrono
 
-import cats.effect.kernel.Clock
-import cats.effect.std.UUIDGen
+import cats.effect.kernel.Sync
+import cats.effect.std.{SecureRandom, UUIDGen}
 import cats.syntax.eq.catsSyntaxEq
 import cats.syntax.flatMap.toFlatMapOps
 import cats.syntax.functor.toFunctorOps
 import cats.syntax.show.{showInterpolator, toShow}
-import cats.{Functor, Monad, Show}
+import cats.{Functor, Show}
 import com.github.chenharryhua.nanjin.common.DurationFormatter
 import fs2.timeseries.TimeStamped
 import io.circe.syntax.EncoderOps
@@ -130,11 +130,14 @@ object Tick {
       conclude = now
     )
 
-  def zeroth[F[_]: Monad](zoneId: ZoneId)(implicit C: Clock[F], U: UUIDGen[F]): F[Tick] =
-    for {
-      uuid <- U.randomUUID
-      now <- C.realTimeInstant
-    } yield zeroth(uuid, zoneId, now)
+  def zeroth[F[_]](zoneId: ZoneId)(implicit F: Sync[F]): F[Tick] =
+    SecureRandom.javaSecuritySecureRandom[F].flatMap { implicit sr =>
+      UUIDGen.fromSecureRandom[F].randomUUID.flatMap { uuid =>
+        F.realTimeInstant.map { now =>
+          zeroth(uuid, zoneId, now)
+        }
+      }
+    }
 
   private val fmt = DurationFormatter.defaultFormatter
 

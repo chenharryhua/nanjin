@@ -2,7 +2,9 @@ package com.github.chenharryhua.nanjin.common.chrono
 
 import cats.effect.kernel.{Async, Sync, Temporal}
 import cats.effect.std.Random
-import cats.implicits.{toFlatMapOps, toFunctorOps, toTraverseOps}
+import cats.syntax.flatMap.toFlatMapOps
+import cats.syntax.functor.toFunctorOps
+import cats.syntax.traverse.toTraverseOps
 import fs2.{Pull, Stream}
 
 import java.time.ZoneId
@@ -30,7 +32,7 @@ object tickStream {
     * Behavior:
     *   - The **first tick** (index = 1) is **not emitted immediately**; the stream waits for the tick's
     *     `snooze` first.
-    *   - After sleeping for `tick.snooze`, the tick is emitted downstream.
+    *   - After sleeping for `tick#snooze`, the tick is emitted downstream.
     *   - If downstream processing takes longer than the tick’s duration, the next tick still waits for its
     *     **full snooze**.
     *

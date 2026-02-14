@@ -2,7 +2,14 @@ package com.github.chenharryhua.nanjin.common.chrono
 
 import cats.data.{Kleisli, NonEmptyList}
 import cats.effect.std.Random
-import cats.syntax.all.*
+import cats.syntax.applicative.catsSyntaxApplicativeId
+import cats.syntax.apply.{catsSyntaxTuple2Semigroupal, catsSyntaxTuple3Semigroupal}
+import cats.syntax.either.catsSyntaxEither
+import cats.syntax.eq.catsSyntaxEq
+import cats.syntax.flatMap.toFlatMapOps
+import cats.syntax.functor.toFunctorOps
+import cats.syntax.order.catsSyntaxPartialOrder
+import cats.syntax.show.showInterpolator
 import cats.{Functor, Monad, Show}
 import cron4s.CronExpr
 import cron4s.lib.javatime.javaTemporalInstance
@@ -14,10 +21,10 @@ import io.circe.Decoder.Result
 import io.circe.DecodingFailure.Reason
 import io.circe.syntax.EncoderOps
 import org.apache.commons.lang3.exception.ExceptionUtils
-import org.typelevel.cats.time.instances.all
+import org.typelevel.cats.time.instances.all.*
 
-import java.time.*
 import java.time.temporal.ChronoUnit
+import java.time.{Duration, Instant, LocalTime}
 import scala.annotation.tailrec
 import scala.concurrent.duration.{Duration as ScalaDuration, FiniteDuration}
 import scala.jdk.DurationConverters.ScalaDurationOps
@@ -25,7 +32,7 @@ import scala.util.Try
 
 sealed trait PolicyF[K] extends Product
 
-private object PolicyF extends all {
+private object PolicyF {
 
   implicit val functorPolicyF: Functor[PolicyF] = cats.derived.semiauto.functor[PolicyF]
 
