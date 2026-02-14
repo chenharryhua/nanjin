@@ -2,8 +2,12 @@ package com.github.chenharryhua.nanjin.common.chrono
 
 import cats.MonadError
 import cats.effect.kernel.Sync
-import cats.effect.std.Random
-import cats.implicits.{catsSyntaxApplicativeId, none, showInterpolator, toFlatMapOps, toFunctorOps}
+import cats.effect.std.{Random, SecureRandom}
+import cats.syntax.applicative.catsSyntaxApplicativeId
+import cats.syntax.flatMap.toFlatMapOps
+import cats.syntax.functor.toFunctorOps
+import cats.syntax.option.none
+import cats.syntax.show.showInterpolator
 import org.typelevel.cats.time.instances.localdatetime
 
 import java.time.{Instant, ZoneId}
@@ -36,12 +40,12 @@ final class TickStatus[F[_]: Random] private (val tick: Tick, decisions: LazyLis
 
 object TickStatus {
   def zeroth[F[_]: Sync](zoneId: ZoneId, policy: Policy): F[TickStatus[F]] =
-    Random.scalaUtilRandom[F].flatMap { implicit rnd =>
+    SecureRandom.javaSecuritySecureRandom[F].flatMap { implicit sr =>
       Tick.zeroth[F](zoneId).map(new TickStatus(_, PolicyF.evaluatePolicy(policy.policy)))
     }
 
   def apply[F[_]: Sync](tick: Tick): F[TickStatus[F]] =
-    Random.scalaUtilRandom[F].map { implicit rng =>
+    SecureRandom.javaSecuritySecureRandom[F].map { implicit sr =>
       new TickStatus[F](tick, LazyList.empty)
     }
 }

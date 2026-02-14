@@ -16,7 +16,7 @@ class TickStreamSpec extends AnyFunSuite {
   private def takeTicks[F[_]: Temporal](stream: Stream[F, Tick], n: Long): F[List[Tick]] =
     stream.take(n).compile.toList
 
-  test("tickImmediate emits zeroth tick immediately") {
+  test("1.tickImmediate emits zeroth tick immediately") {
     val ticks = takeTicks(tickStream.tickImmediate[IO](zoneId, policy), 3).unsafeRunSync()
     assert(ticks.nonEmpty)
     assert(ticks.head.index == 0)
@@ -26,7 +26,7 @@ class TickStreamSpec extends AnyFunSuite {
     })
   }
 
-  test("tickScheduled emits first tick after snooze") {
+  test("2.tickScheduled emits first tick after snooze") {
     val ticks = takeTicks(tickStream.tickScheduled[IO](zoneId, policy), 3).unsafeRunSync()
     assert(ticks.nonEmpty)
     assert(ticks.head.index == 1)
@@ -36,7 +36,7 @@ class TickStreamSpec extends AnyFunSuite {
     })
   }
 
-  test("tickFuture emits first tick immediately and sleeps afterward") {
+  test("3.tickFuture emits first tick immediately and sleeps afterward") {
     val start = LocalTime.now()
     val ticks = takeTicks(tickStream.tickFuture[IO](zoneId, Policy.fixedDelay(2.seconds)), 3).unsafeRunSync()
     val elapsed = JDuration.between(start, LocalTime.now())

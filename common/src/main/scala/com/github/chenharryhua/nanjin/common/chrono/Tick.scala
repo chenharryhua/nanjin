@@ -1,15 +1,21 @@
 package com.github.chenharryhua.nanjin.common.chrono
 
-import cats.effect.kernel.Sync
-import cats.syntax.all.*
-import cats.{Functor, Show}
-import com.github.chenharryhua.nanjin.common.{utils, DurationFormatter}
+import cats.effect.kernel.Clock
+import cats.effect.std.UUIDGen
+import cats.syntax.eq.catsSyntaxEq
+import cats.syntax.flatMap.toFlatMapOps
+import cats.syntax.functor.toFunctorOps
+import cats.syntax.show.{showInterpolator, toShow}
+import cats.{Functor, Monad, Show}
+import com.github.chenharryhua.nanjin.common.DurationFormatter
 import fs2.timeseries.TimeStamped
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, Encoder, HCursor, Json}
-import org.typelevel.cats.time.instances.all.*
+import org.typelevel.cats.time.instances.duration.durationInstances
+import org.typelevel.cats.time.instances.instant.instantInstances
+import org.typelevel.cats.time.instances.localdatetime.localdatetimeInstances
 
-import java.time.*
+import java.time.{Duration, Instant, LocalDateTime, ZoneId, ZonedDateTime}
 import java.util.UUID
 import scala.concurrent.duration.FiniteDuration
 
@@ -124,10 +130,10 @@ object Tick {
       conclude = now
     )
 
-  def zeroth[F[_]: Sync](zoneId: ZoneId): F[Tick] =
+  def zeroth[F[_]: Monad](zoneId: ZoneId)(implicit C: Clock[F], U: UUIDGen[F]): F[Tick] =
     for {
-      uuid <- utils.randomUUID[F]
-      now <- Sync[F].realTimeInstant
+      uuid <- U.randomUUID
+      now <- C.realTimeInstant
     } yield zeroth(uuid, zoneId, now)
 
   private val fmt = DurationFormatter.defaultFormatter
@@ -176,7 +182,7 @@ object Tick {
   * decisions with full time-frame context.
   *
   * Common use cases include:
-  *   - time-aware decision making
+  *   - time-aware decision-making
   *   - observability and metrics
   *   - state transitions with temporal bounds
   *
