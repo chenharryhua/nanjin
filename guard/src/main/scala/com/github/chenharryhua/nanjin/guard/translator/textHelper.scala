@@ -18,9 +18,9 @@ object textHelper extends localtime with localdatetime {
   def tookText(dur: Duration): String = durationFormatter.format(dur)
 
   def hostText(sp: ServiceParams): String =
-    sp.emberServerParams match {
-      case Some(esp) => s"${sp.hostName.value}:${esp.port}"
-      case None      => sp.hostName.value
+    sp.port match {
+      case Some(port) => s"${sp.hostName.value}:${port.value}"
+      case None       => sp.hostName.value
     }
 
   def metricIndexText(index: MetricIndex): String =

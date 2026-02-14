@@ -114,7 +114,7 @@ final case class Tick(
     val acq = local(_.acquires).show.take(24).padTo(24, ' ')
     val snz = snooze.show.take(9).padTo(9, ' ')
     val id = show"$sequenceId".take(3)
-    f"id=$id, idx=$index%03d, acq=$acq, cld=$cld, snz=$snz"
+    f"id=$id, idx=$index%04d, acq=$acq, cld=$cld, snz=$snz"
   }
 }
 

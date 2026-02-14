@@ -17,7 +17,6 @@ import java.time.*
 import java.util.UUID
 import scala.concurrent.duration.FiniteDuration
 import scala.jdk.DurationConverters.ScalaDurationOps
-
 @JsonCodec
 final case class RestartPolicy(policy: Policy, threshold: Option[Duration])
 
@@ -27,32 +26,13 @@ final case class ServicePolicies(restart: RestartPolicy, metricReport: Policy, m
 final case class HistoryCapacity(metric: Int, panic: Int, error: Int)
 
 @JsonCodec
-final case class EmberServerParams(
-  host: Option[String],
-  port: Int,
-  maxConnections: Int,
-  receiveBufferSize: Int,
-  maxHeaderSize: Int)
-
-object EmberServerParams {
-  def apply[F[_]](esb: EmberServerBuilder[F]): EmberServerParams =
-    EmberServerParams(
-      host = esb.host.map(_.show),
-      port = esb.port.value,
-      maxConnections = esb.maxConnections,
-      receiveBufferSize = esb.receiveBufferSize,
-      maxHeaderSize = esb.maxHeaderSize
-    )
-}
-
-@JsonCodec
 final case class ServiceParams(
   taskName: TaskName,
   hostName: HostName,
+  port: Option[Port],
   homePage: Option[HomePage],
   serviceName: ServiceName,
   servicePolicies: ServicePolicies,
-  emberServerParams: Option[EmberServerParams],
   zerothTick: Tick,
   historyCapacity: HistoryCapacity,
   logFormat: LogFormat,
@@ -77,21 +57,21 @@ object ServiceParams {
   def apply(
     taskName: TaskName,
     serviceName: ServiceName,
-    emberServerParams: Option[EmberServerParams],
     brief: ServiceBrief,
     zerothTick: Tick,
-    hostName: HostName
+    hostName: HostName,
+    port: Option[Port]
   ): ServiceParams =
     ServiceParams(
       taskName = taskName,
       hostName = hostName,
+      port = port,
       homePage = None,
       serviceName = serviceName,
       servicePolicies = ServicePolicies(
         restart = RestartPolicy(Policy.giveUp, None),
         metricReport = Policy.giveUp,
         metricReset = Policy.giveUp),
-      emberServerParams = emberServerParams,
       zerothTick = zerothTick,
       historyCapacity = HistoryCapacity(32, 32, 32),
       logFormat = LogFormat.Console_PlainText,
@@ -124,19 +104,19 @@ private object ServiceConfigF {
 
   def algebra(
     serviceName: ServiceName,
-    emberServerParams: Option[EmberServerParams],
     brief: ServiceBrief,
     zerothTick: Tick,
-    hostName: HostName): Algebra[ServiceConfigF, ServiceParams] =
+    hostName: HostName,
+    port: Option[Port]): Algebra[ServiceConfigF, ServiceParams] =
     Algebra[ServiceConfigF, ServiceParams] {
       case InitParams(taskName) =>
         ServiceParams(
           taskName = taskName,
           serviceName = serviceName,
-          emberServerParams = emberServerParams,
           brief = brief,
           zerothTick = zerothTick,
-          hostName = hostName
+          hostName = hostName,
+          port = port
         )
 
       case WithRestartPolicy(p, t, c) =>
@@ -227,18 +207,18 @@ final class ServiceConfig[F[_]: Applicative] private (
 
   private[guard] def evalConfig(
     serviceName: ServiceName,
-    emberServerParams: Option[EmberServerParams],
     brief: ServiceBrief,
     zerothTick: Tick,
-    hostName: HostName): ServiceParams =
+    hostName: HostName,
+    port: Option[Port]): ServiceParams =
     scheme
       .cata(
         algebra(
           serviceName = serviceName,
-          emberServerParams = emberServerParams,
           brief = brief,
           zerothTick = zerothTick,
-          hostName = hostName
+          hostName = hostName,
+          port = port
         ))
       .apply(cont)
 }

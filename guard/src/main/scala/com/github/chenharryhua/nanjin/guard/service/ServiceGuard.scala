@@ -2,87 +2,78 @@ package com.github.chenharryhua.nanjin.guard.service
 
 import cats.Endo
 import cats.effect.kernel.{Async, Ref, Resource}
-import cats.effect.std.{AtomicCell, Console, Dispatcher}
-import cats.syntax.all.*
+import cats.effect.std.{Console, Dispatcher}
+import cats.syntax.flatMap.toFlatMapOps
+import cats.syntax.functor.toFunctorOps
+import cats.syntax.option.catsSyntaxOptionId
 import com.codahale.metrics.MetricRegistry
 import com.codahale.metrics.jmx.JmxReporter
 import com.comcast.ip4s.IpLiteralSyntax
 import com.github.chenharryhua.nanjin.common.UpdateConfig
-import com.github.chenharryhua.nanjin.common.chrono.*
-import com.github.chenharryhua.nanjin.guard.config.*
-import com.github.chenharryhua.nanjin.guard.event.*
-import com.github.chenharryhua.nanjin.guard.event.Event.{MetricReport, ServiceMessage, ServicePanic}
+import com.github.chenharryhua.nanjin.common.chrono.Tick
+import com.github.chenharryhua.nanjin.guard.config.{
+  AlarmLevel,
+  HostName,
+  Port,
+  ServiceBrief,
+  ServiceConfig,
+  ServiceName,
+  ServiceParams
+}
+import com.github.chenharryhua.nanjin.guard.event.Event
 import fs2.Stream
 import fs2.concurrent.Channel
 import fs2.io.net.Network
-import io.circe.syntax.*
-import org.apache.commons.collections4.queue.CircularFifoQueue
+import io.circe.syntax.EncoderOps
 import org.http4s.ember.server.EmberServerBuilder
 
-final class ServiceGuard[F[_]: Network: Async: Console] private[guard] (
+sealed trait ServiceGuard[F[_]] extends UpdateConfig[ServiceConfig[F], ServiceGuard[F]] {
+  def eventStream(runAgent: Agent[F] => F[Unit]): Stream[F, Event]
+
+  def eventStreamS[A](runAgent: Agent[F] => Stream[F, A]): Stream[F, Event]
+  def eventStreamR[A](runAgent: Agent[F] => Resource[F, A]): Stream[F, Event]
+}
+
+final private[guard] class ServiceGuardImpl[F[_]: Network: Async: Console] private[guard] (
   serviceName: ServiceName,
   config: ServiceConfig[F])
-    extends UpdateConfig[ServiceConfig[F], ServiceGuard[F]] { self =>
+    extends ServiceGuard[F] { self =>
 
   private[this] val F = Async[F]
 
   override def updateConfig(f: Endo[ServiceConfig[F]]): ServiceGuard[F] =
-    new ServiceGuard[F](serviceName, f(config))
+    new ServiceGuardImpl[F](serviceName, f(config))
 
-  private lazy val emberServerBuilder: Option[EmberServerBuilder[F]] =
-    config.httpBuilder.map(_(EmberServerBuilder.default[F].withHost(ip"0.0.0.0").withPort(port"1026")))
-
-  private def initStatus: F[ServiceParams] = for {
+  private def initStatus: F[(ServiceParams, Option[EmberServerBuilder[F]])] = for {
     jsons <- config.briefs
     zeroth <- Tick.zeroth[F](config.zoneId)
     hostName <- HostName[F]
-  } yield config.evalConfig(
-    serviceName = serviceName,
-    emberServerParams = emberServerBuilder.map(EmberServerParams(_)),
-    brief = ServiceBrief(jsons.filterNot(_.isNull).distinct.asJson),
-    zerothTick = zeroth,
-    hostName = hostName
-  )
+  } yield {
+    val esb: Option[EmberServerBuilder[F]] =
+      config.httpBuilder.map(_(EmberServerBuilder.default[F].withHost(ip"0.0.0.0").withPort(port"1026")))
 
-  def eventStream(runAgent: Agent[F] => F[Unit]): Stream[F, Event] =
+    val params: ServiceParams = config.evalConfig(
+      serviceName = serviceName,
+      brief = ServiceBrief(jsons.filterNot(_.isNull).distinct.asJson),
+      zerothTick = zeroth,
+      hostName = hostName,
+      port = esb.map(_.port.value).map(Port(_))
+    )
+    (params, esb)
+  }
+
+  override def eventStream(runAgent: Agent[F] => F[Unit]): Stream[F, Event] =
     for {
-      serviceParams <- Stream.eval(initStatus)
+      (serviceParams, emberServerBuilder) <- Stream.eval(initStatus)
       dispatcher <- Stream.resource(Dispatcher.sequential[F](await = false))
-      panicHistory <- Stream.eval(
-        AtomicCell[F].of(new CircularFifoQueue[ServicePanic](serviceParams.historyCapacity.panic)))
-      metricsHistory <- Stream.eval(
-        AtomicCell[F].of(new CircularFifoQueue[MetricReport](serviceParams.historyCapacity.metric)))
-      errorHistory <- Stream.eval(
-        AtomicCell[F].of(new CircularFifoQueue[ServiceMessage](serviceParams.historyCapacity.error)))
+      helper = new ServiceBuildHelper[F](serviceParams)
+      panicHistory <- helper.panic_history
+      metricsHistory <- helper.metrics_history
+      errorHistory <- helper.error_history
       alarmLevel <- Stream.eval(Ref.of[F, Option[AlarmLevel]](AlarmLevel.Info.some))
-      eventLogger <- Stream.eval(
-        EventLogger[F](serviceParams, Domain(serviceParams.serviceName.value), alarmLevel))
+      eventLogger <- helper.event_logger(alarmLevel)
       event <- Stream.eval(Channel.unbounded[F, Event]).flatMap { channel =>
         val metricRegistry: MetricRegistry = new MetricRegistry()
-
-        def tickingBy(policy: Policy): Stream[F, Tick] = Stream
-          .eval(TickStatus(serviceParams.zerothTick).map(_.renewPolicy(policy)))
-          .flatMap(tickStream.fromTickStatus[F](_))
-
-        val metrics_report: Stream[F, Nothing] =
-          tickingBy(serviceParams.servicePolicies.metricReport).evalMap { tick =>
-            metric_report(
-              channel = channel,
-              eventLogger = eventLogger,
-              metricRegistry = metricRegistry,
-              index = MetricIndex.Periodic(tick)).flatMap(mr =>
-              metricsHistory.modify(queue => (queue, queue.add(mr))))
-          }.drain
-
-        val metrics_reset: Stream[F, Nothing] =
-          tickingBy(serviceParams.servicePolicies.metricReset)
-            .evalMap(tick =>
-              metric_reset(
-                channel = channel,
-                eventLogger = eventLogger,
-                metricRegistry = metricRegistry,
-                index = MetricIndex.Periodic(tick)))
-            .drain
 
         val jmx_report: Stream[F, Nothing] =
           config.jmxBuilder match {
@@ -101,10 +92,10 @@ final class ServiceGuard[F[_]: Network: Async: Console] private[guard] (
 
         val http_server: Stream[F, Nothing] =
           emberServerBuilder match {
-            case None          => Stream.empty
-            case Some(builder) =>
+            case None      => Stream.empty
+            case Some(esb) =>
               Stream.resource(
-                builder
+                esb
                   .withHttpApp(new HttpRouter[F](
                     metricRegistry = metricRegistry,
                     panicHistory = panicHistory,
@@ -137,8 +128,8 @@ final class ServiceGuard[F[_]: Network: Async: Console] private[guard] (
 
         // put together
         channel.stream
-          .concurrently(metrics_reset)
-          .concurrently(metrics_report)
+          .concurrently(helper.metrics_reset(channel, eventLogger, metricRegistry))
+          .concurrently(helper.metrics_report(channel, eventLogger, metricRegistry, metricsHistory))
           .concurrently(jmx_report)
           .concurrently(http_server)
           .concurrently(surveillance)
