@@ -17,7 +17,6 @@ import com.github.chenharryhua.nanjin.guard.event.{
 import com.github.chenharryhua.nanjin.guard.translator.SnapshotPolyglot
 import fs2.concurrent.Channel
 import io.circe.Json
-import io.circe.syntax.EncoderOps
 import org.apache.commons.collections4.queue.CircularFifoQueue
 import org.http4s.circe.CirceEntityCodec.circeEntityEncoder
 import org.http4s.dsl.Http4sDsl
@@ -71,12 +70,13 @@ final private class HttpRouter[F[_]](
     )
   )
 
-  private val helper = new HttpRouterHelper[F](
-    serviceParams = serviceParams,
-    metricRegistry = metricRegistry,
-    panicHistory = panicHistory,
-    metricsHistory = metricsHistory,
-    errorHistory = errorHistory)
+  private val helper: HttpRouterHelper[F] =
+    new HttpRouterHelper[F](
+      serviceParams = serviceParams,
+      metricRegistry = metricRegistry,
+      panicHistory = panicHistory,
+      metricsHistory = metricsHistory,
+      errorHistory = errorHistory)
 
   private val metrics = HttpRoutes.of[F] {
     case GET -> Root                => Ok(indexHtml)
@@ -102,7 +102,7 @@ final private class HttpRouter[F[_]](
 
     // service part
 
-    case GET -> Root / "service" / "params"            => Ok(serviceParams.asJson)
+    case GET -> Root / "service" / "params"            => Ok(helper.service_params)
     case GET -> Root / "service" / "panic" / "history" => Ok(helper.service_panic_history)
     case GET -> Root / "service" / "error" / "history" => Ok(helper.service_error_history)
 

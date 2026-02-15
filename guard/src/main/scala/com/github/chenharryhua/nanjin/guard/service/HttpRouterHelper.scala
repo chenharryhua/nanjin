@@ -63,7 +63,7 @@ final private class HttpRouterHelper[F[_]: Sync](
       )
     )
 
-  def metrics_yaml: F[Text.TypedTag[String]] =
+  val metrics_yaml: F[Text.TypedTag[String]] =
     serviceParams.zonedNow.flatMap { now =>
       MetricSnapshot.timed[F](metricRegistry, ScrapeMode.Full).map { case (fd, ms) =>
         val yaml = new SnapshotPolyglot(ms).toYaml
@@ -71,7 +71,7 @@ final private class HttpRouterHelper[F[_]: Sync](
       }
     }
 
-  def metrics_vanilla: F[Json] =
+  val metrics_vanilla: F[Json] =
     MetricSnapshot.timed[F](metricRegistry, ScrapeMode.Full).map { case (fd, ms) =>
       Json.obj(
         "service" -> Json.fromString(serviceParams.serviceName.value),
@@ -80,7 +80,7 @@ final private class HttpRouterHelper[F[_]: Sync](
       )
     }
 
-  def metrics_json: F[Json] =
+  val metrics_json: F[Json] =
     MetricSnapshot.timed[F](metricRegistry, ScrapeMode.Full).map { case (fd, ms) =>
       Json.obj(
         "service" -> Json.fromString(serviceParams.serviceName.value),
@@ -89,7 +89,7 @@ final private class HttpRouterHelper[F[_]: Sync](
       )
     }
 
-  def metrics_raw_json: F[Json] =
+  val metrics_raw_json: F[Json] =
     MetricSnapshot.timed[F](metricRegistry, ScrapeMode.Full).map { case (fd, ms) =>
       Json.obj(
         "service" -> Json.fromString(serviceParams.serviceName.value),
@@ -97,7 +97,7 @@ final private class HttpRouterHelper[F[_]: Sync](
         "snapshot" -> ms.sorted.asJson)
     }
 
-  def metrics_history: F[Text.TypedTag[String]] = {
+  val metrics_history: F[Text.TypedTag[String]] = {
     val text: F[Text.TypedTag[String]] =
       serviceParams.zonedNow.flatMap { now =>
         val history: F[List[Text.TypedTag[String]]] =
@@ -124,7 +124,32 @@ final private class HttpRouterHelper[F[_]: Sync](
 
   def jvm_state: Json = prettifyJson(mxBeans.allJvmGauge.value.asJson)
 
-  def service_panic_history: F[Json] =
+  val service_params: Json = Json.obj(
+    "task_name" -> serviceParams.taskName.asJson,
+    "service_name" -> serviceParams.serviceName.asJson,
+    "service_id" -> serviceParams.serviceId.asJson,
+    "home_page" -> serviceParams.homePage.asJson,
+    "host" -> Json.obj(
+      "name" -> serviceParams.host.name.asJson,
+      "port" -> serviceParams.host.port.asJson
+    ),
+    "service_policies" -> Json.obj(
+      "restart" -> serviceParams.servicePolicies.restart.policy.show.asJson,
+      "metric_report" -> serviceParams.servicePolicies.metricReport.show.asJson,
+      "metric_reset" -> serviceParams.servicePolicies.metricReset.show.asJson
+    ),
+    "launch_time" -> serviceParams.launchTime.asJson,
+    "log_format" -> serviceParams.logFormat.asJson,
+    "history_capacity" -> Json.obj(
+      "metric_queue_length" -> serviceParams.historyCapacity.metric.asJson,
+      "error_queue_length" -> serviceParams.historyCapacity.error.asJson,
+      "panic_queue_length" -> serviceParams.historyCapacity.panic.asJson
+    ),
+    "nanjin" -> serviceParams.nanjin.asJson,
+    "brief" -> serviceParams.brief
+  )
+
+  val service_panic_history: F[Json] =
     serviceParams.zonedNow.flatMap { now =>
       panicHistory.get.map(_.iterator().asScala.toList).map { panics =>
         val isActive = panics.lastOption.map(_.tick.conclude).forall(_.isBefore(now.toInstant))
@@ -155,7 +180,7 @@ final private class HttpRouterHelper[F[_]: Sync](
       }
     }
 
-  def service_error_history: F[Json] =
+  val service_error_history: F[Json] =
     serviceParams.zonedNow.flatMap { now =>
       errorHistory.get.map(_.iterator().asScala.toList).map { serviceMessages =>
         Json.obj(
@@ -181,7 +206,7 @@ final private class HttpRouterHelper[F[_]: Sync](
       }
     }
 
-  def service_health_check: F[Either[String, Json]] = {
+  val service_health_check: F[Either[String, Json]] = {
     val deps_health_check: F[Json] =
       serviceParams.zonedNow[F].flatMap { now =>
         MetricSnapshot.timed[F](metricRegistry, ScrapeMode.Full).map { case (fd, ss) =>
