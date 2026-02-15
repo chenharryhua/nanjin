@@ -7,12 +7,12 @@ import cats.syntax.flatMap.toFlatMapOps
 import cats.syntax.functor.toFunctorOps
 import cats.syntax.option.catsSyntaxOptionId
 import com.codahale.metrics.MetricRegistry
-import com.codahale.metrics.jmx.JmxReporter
 import com.comcast.ip4s.IpLiteralSyntax
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.common.chrono.Tick
 import com.github.chenharryhua.nanjin.guard.config.{
   AlarmLevel,
+  Host,
   HostName,
   Port,
   ServiceBrief,
@@ -56,8 +56,7 @@ final private[guard] class ServiceGuardImpl[F[_]: Network: Async: Console] priva
       serviceName = serviceName,
       brief = ServiceBrief(jsons.filterNot(_.isNull).distinct.asJson),
       zerothTick = zeroth,
-      hostName = hostName,
-      port = esb.map(_.port.value).map(Port(_))
+      host = Host(hostName, esb.map(_.port.value).map(Port(_)))
     )
     (params, esb)
   }
@@ -74,21 +73,6 @@ final private[guard] class ServiceGuardImpl[F[_]: Network: Async: Console] priva
       eventLogger <- helper.event_logger(alarmLevel)
       event <- Stream.eval(Channel.unbounded[F, Event]).flatMap { channel =>
         val metricRegistry: MetricRegistry = new MetricRegistry()
-
-        val jmx_report: Stream[F, Nothing] =
-          config.jmxBuilder match {
-            case None        => Stream.empty
-            case Some(build) =>
-              Stream.bracket(F.blocking {
-                val reporter =
-                  build(JmxReporter.forRegistry(metricRegistry)) // use home-brew factory
-                    .createsObjectNamesWith(objectNameFactory)
-                    .build()
-                reporter.start()
-                reporter
-              })(r => F.blocking(r.stop())) >>
-                Stream.never[F]
-          }
 
         val http_server: Stream[F, Nothing] =
           emberServerBuilder match {
@@ -130,16 +114,16 @@ final private[guard] class ServiceGuardImpl[F[_]: Network: Async: Console] priva
         channel.stream
           .concurrently(helper.metrics_reset(channel, eventLogger, metricRegistry))
           .concurrently(helper.metrics_report(channel, eventLogger, metricRegistry, metricsHistory))
-          .concurrently(jmx_report)
+          .concurrently(helper.jmx_report(metricRegistry, config.jmxBuilder))
           .concurrently(http_server)
           .concurrently(surveillance)
       }
     } yield event
 
-  def eventStreamS[A](runAgent: Agent[F] => Stream[F, A]): Stream[F, Event] =
+  override def eventStreamS[A](runAgent: Agent[F] => Stream[F, A]): Stream[F, Event] =
     eventStream(agent => runAgent(agent).compile.drain)
 
-  def eventStreamR[A](runAgent: Agent[F] => Resource[F, A]): Stream[F, Event] =
+  override def eventStreamR[A](runAgent: Agent[F] => Resource[F, A]): Stream[F, Event] =
     eventStream(agent => runAgent(agent).use_)
 
 }

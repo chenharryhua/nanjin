@@ -14,6 +14,7 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.Duration
 import scala.concurrent.duration.DurationInt
+import com.github.chenharryhua.nanjin.common.chrono.crontabs
 
 class EventFilterTest extends AnyFunSuite {
   private val service: ServiceGuard[IO] =
@@ -52,12 +53,12 @@ class EventFilterTest extends AnyFunSuite {
 
   test("3.sampling - cron") {
     val policy = Policy.crontab(_.secondly)
-    val align = tickStream.tickScheduled[IO](sydneyTime, Policy.crontab(_.every3Seconds).limited(1))
+    val align = tickStream.tickScheduled[IO](sydneyTime, _.crontab(_.every3Seconds).limited(1))
     val run = service
-      .updateConfig(_.withMetricReport(policy))
+      .updateConfig(_.withMetricReport(_ => policy))
       .eventStream(_ => IO.sleep(7.seconds))
       .map(checkJson)
-      .filter(eventFilters.sampling(_.every3Seconds))
+      .filter(eventFilters.sampling(crontabs.every3Seconds))
 
     val List(a, b, c, d) = align.flatMap(_ => run).compile.toList.unsafeRunSync()
     val tb = b.asInstanceOf[MetricReport].index.asInstanceOf[Periodic].tick

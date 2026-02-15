@@ -4,7 +4,7 @@ import cats.data.Kleisli
 import cats.effect.IO
 import cats.effect.kernel.Resource
 import cats.implicits.{catsSyntaxApplicativeByName, catsSyntaxSemigroup, toTraverseOps}
-import com.github.chenharryhua.nanjin.common.chrono.{Policy, TickedValue}
+import com.github.chenharryhua.nanjin.common.chrono.{TickedValue}
 import com.github.chenharryhua.nanjin.guard.event.Event
 import com.github.chenharryhua.nanjin.guard.metrics.Metrics
 import com.github.chenharryhua.nanjin.kafka.{AvroTopic, KafkaContext, KafkaSettings}
@@ -57,7 +57,7 @@ object kafka_connector_s3 {
       val jackson = JacksonFile(_.Uncompressed)
       val topic = AvroTopic[Int, AvroFor.FromBroker]("any.kafka.topic")
       val sink: Pipe[IO, GenericRecord, TickedValue[RotateFile]] = // rotate files every 5 minutes
-        hadoop.rotateSink(ga.zoneId, Policy.crontab(_.every5Minutes))(root / jackson.ymdFileName(_)).jackson
+        hadoop.rotateSink(ga.zoneId, _.crontab(_.every5Minutes))(root / jackson.ymdFileName(_)).jackson
       ga.facilitate("abc")(logMetrics).use { log =>
         ctx
           .consumeGenericRecord(topic)

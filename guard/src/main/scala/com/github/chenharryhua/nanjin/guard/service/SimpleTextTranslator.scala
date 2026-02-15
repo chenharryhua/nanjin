@@ -10,7 +10,7 @@ private object SimpleTextTranslator {
   import textConstants.*
 
   private def service_event(se: Event): String = {
-    val host: String = s"$CONSTANT_HOST:${textHelper.hostText(se.serviceParams)}"
+    val host: String = show"$CONSTANT_HOST:${se.serviceParams.host}"
     val sn: String = s"$CONSTANT_SERVICE:${se.serviceParams.serviceName.value}"
     val tn: String = s"$CONSTANT_TASK:${se.serviceParams.taskName.value}"
     val serviceId: String = s"$CONSTANT_SERVICE_ID:${se.serviceParams.serviceId.show}"
@@ -85,7 +85,7 @@ private object SimpleTextTranslator {
   }
 
   private def service_message(evt: ServiceMessage): String = {
-    val host: String = s"$CONSTANT_HOST:${textHelper.hostText(evt.serviceParams)}"
+    val host: String = show"$CONSTANT_HOST:${evt.serviceParams.host}"
     val sn: String = s"$CONSTANT_SERVICE:${evt.serviceParams.serviceName.value}"
     val tn: String = s"$CONSTANT_TASK:${evt.serviceParams.taskName.value}"
     val serviceId: String = s"$CONSTANT_SERVICE_ID:${evt.serviceParams.serviceId.show}"

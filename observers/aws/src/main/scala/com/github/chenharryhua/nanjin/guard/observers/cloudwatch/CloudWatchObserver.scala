@@ -153,9 +153,9 @@ final class CloudWatchObserver[F[_]: Async] private (
     } yield event
   }
 
-  def scrape(namespace: CloudWatchNamespace, zoneId: ZoneId, policy: Policy)(
+  def scrape(namespace: CloudWatchNamespace, zoneId: ZoneId, f: Policy.type => Policy)(
     getMetricReport: Tick => F[MetricReport]): Stream[F, Event] =
-    tickStream.tickScheduled(zoneId, policy).evalMap(getMetricReport).through(observe(namespace))
+    tickStream.tickScheduled(zoneId, f).evalMap(getMetricReport).through(observe(namespace))
 
   private case class MetricKey(
     timestamp: Instant,

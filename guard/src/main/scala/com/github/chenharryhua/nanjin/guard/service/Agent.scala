@@ -35,13 +35,8 @@ sealed trait Agent[F[_]] {
   /*
    * ticks
    */
-  def tickScheduled(policy: Policy): Stream[F, Tick]
   def tickScheduled(f: Policy.type => Policy): Stream[F, Tick]
-
-  def tickImmediate(policy: Policy): Stream[F, Tick]
   def tickImmediate(f: Policy.type => Policy): Stream[F, Tick]
-
-  def tickFuture(policy: Policy): Stream[F, Tick]
   def tickFuture(f: Policy.type => Policy): Stream[F, Tick]
 
   /*
@@ -101,23 +96,14 @@ final private class GeneralAgent[F[_]: Async](
     new LightBatch[F](new Metrics.Impl[F](metricLabel, metricRegistry, dispatcher, zoneId))
   }
 
-  override def tickScheduled(policy: Policy): Stream[F, Tick] =
-    tickStream.tickScheduled[F](zoneId, policy)
-
   override def tickScheduled(f: Policy.type => Policy): Stream[F, Tick] =
-    tickScheduled(f(Policy))
-
-  override def tickFuture(policy: Policy): Stream[F, Tick] =
-    tickStream.tickFuture[F](zoneId, policy)
+    tickStream.tickScheduled[F](zoneId, f)
 
   override def tickFuture(f: Policy.type => Policy): Stream[F, Tick] =
-    tickFuture(f(Policy))
-
-  override def tickImmediate(policy: Policy): Stream[F, Tick] =
-    tickStream.tickImmediate[F](zoneId, policy)
+    tickStream.tickFuture[F](zoneId, f)
 
   override def tickImmediate(f: Policy.type => Policy): Stream[F, Tick] =
-    tickImmediate(f(Policy))
+    tickStream.tickImmediate[F](zoneId, f)
 
   override def metrics(label: String): Metrics[F] = {
     val metricLabel = MetricLabel(label, eventLogger.domain)

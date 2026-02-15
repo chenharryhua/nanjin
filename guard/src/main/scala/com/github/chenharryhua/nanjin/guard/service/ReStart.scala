@@ -4,7 +4,7 @@ import cats.effect.implicits.monadCancelOps_
 import cats.effect.kernel.Async
 import cats.effect.std.AtomicCell
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.common.chrono.TickStatus
+import com.github.chenharryhua.nanjin.common.chrono.PolicyTick
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.event.Event.ServicePanic
 import com.github.chenharryhua.nanjin.guard.event.{Error, Event, ServiceStopCause}
@@ -29,9 +29,9 @@ final private class ReStart[F[_]: Async](
   private[this] def stop(cause: ServiceStopCause): F[Unit] =
     service_stop(channel, eventLogger, cause)
 
-  private[this] def panic(status: TickStatus[F], ex: Throwable): F[Option[(Unit, TickStatus[F])]] =
-    F.realTimeInstant.flatMap[Option[(Unit, TickStatus[F])]] { now =>
-      val tickStatus: TickStatus[F] = serviceParams.servicePolicies.restart.threshold match {
+  private[this] def panic(status: PolicyTick[F], ex: Throwable): F[Option[(Unit, PolicyTick[F])]] =
+    F.realTimeInstant.flatMap[Option[(Unit, PolicyTick[F])]] { now =>
+      val tickStatus: PolicyTick[F] = serviceParams.servicePolicies.restart.threshold match {
         case Some(threshold) =>
           // if the duration between last recover and this failure is larger than threshold,
           // start over policy
@@ -56,13 +56,13 @@ final private class ReStart[F[_]: Async](
 
   val stream: Stream[F, Nothing] =
     Stream
-      .eval(TickStatus(serviceParams.zerothTick))
+      .eval(PolicyTick(serviceParams.zerothTick))
       .map(_.renewPolicy(serviceParams.servicePolicies.restart.policy))
       .flatMap {
         Stream
-          .unfoldEval[F, TickStatus[F], Unit](_) { status =>
+          .unfoldEval[F, PolicyTick[F], Unit](_) { status =>
             (service_start(channel, eventLogger, status.tick) <* theService)
-              .redeemWith[Option[(Unit, TickStatus[F])]](
+              .redeemWith[Option[(Unit, PolicyTick[F])]](
                 err => panic(status, err),
                 _ => stop(ServiceStopCause.Successfully).as(None)
               )

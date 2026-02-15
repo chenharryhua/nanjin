@@ -13,7 +13,7 @@ class PolicyTest extends AnyFunSuite {
     val policy =
       Policy.crontab(_.every5Minutes).jitter(30.seconds)
 
-    tickStream.testPolicy[IO](policy).take(3).debug().compile.toList.unsafeRunSync()
+    tickStream.testPolicy[IO]((_: Policy.type) => policy).take(3).debug().compile.toList.unsafeRunSync()
   }
 
 }

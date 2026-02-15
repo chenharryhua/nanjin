@@ -1,11 +1,13 @@
 package com.github.chenharryhua.nanjin.guard.service
 
+import cats.Endo
 import cats.effect.kernel.{Async, Ref}
 import cats.effect.std.{AtomicCell, Console}
 import cats.syntax.flatMap.toFlatMapOps
 import cats.syntax.functor.toFunctorOps
 import com.codahale.metrics.MetricRegistry
-import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick, TickStatus}
+import com.codahale.metrics.jmx.JmxReporter
+import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, PolicyTick, Tick}
 import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, Domain, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.Event.{MetricReport, ServiceMessage, ServicePanic}
 import com.github.chenharryhua.nanjin.guard.event.{Event, MetricIndex}
@@ -14,6 +16,8 @@ import fs2.concurrent.Channel
 import org.apache.commons.collections4.queue.CircularFifoQueue
 
 final private class ServiceBuildHelper[F[_]: Async](serviceParams: ServiceParams) {
+  private val F = Async[F]
+
   def panic_history: Stream[F, AtomicCell[F, CircularFifoQueue[ServicePanic]]] =
     Stream.eval(AtomicCell[F].of(new CircularFifoQueue[ServicePanic](serviceParams.historyCapacity.panic)))
 
@@ -28,7 +32,7 @@ final private class ServiceBuildHelper[F[_]: Async](serviceParams: ServiceParams
     Stream.eval(EventLogger[F](serviceParams, Domain(serviceParams.serviceName.value), alarmLevel))
 
   private def tickingBy(policy: Policy): Stream[F, Tick] = Stream
-    .eval(TickStatus(serviceParams.zerothTick).map(_.renewPolicy(policy)))
+    .eval(PolicyTick(serviceParams.zerothTick).map(_.renewPolicy(policy)))
     .flatMap(tickStream.fromTickStatus[F](_))
 
   def metrics_report(
@@ -57,4 +61,21 @@ final private class ServiceBuildHelper[F[_]: Async](serviceParams: ServiceParams
           metricRegistry = metricRegistry,
           index = MetricIndex.Periodic(tick)))
       .drain
+
+  def jmx_report(
+    metricRegistry: MetricRegistry,
+    jmxBuilder: Option[Endo[JmxReporter.Builder]]): Stream[F, Nothing] =
+    jmxBuilder match {
+      case None        => Stream.empty
+      case Some(build) =>
+        Stream.bracket(F.blocking {
+          val reporter =
+            build(JmxReporter.forRegistry(metricRegistry)) // use home-brew factory
+              .createsObjectNamesWith(objectNameFactory)
+              .build()
+          reporter.start()
+          reporter
+        })(r => F.blocking(r.stop())) >>
+          Stream.never[F]
+    }
 }

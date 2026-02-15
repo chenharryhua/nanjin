@@ -21,7 +21,7 @@ trait HealthCheck[F[_]] {
     * @param hc
     *   health check method.
     */
-  def register(hc: F[Boolean], policy: Policy): Resource[F, Unit]
+  def register(hc: F[Boolean], f: Policy.type => Policy): Resource[F, Unit]
 }
 
 object HealthCheck {
@@ -29,7 +29,7 @@ object HealthCheck {
     new HealthCheck[F] {
       override def register(hc: F[Boolean]): Resource[F, Unit] =
         Resource.unit[F]
-      override def register(hc: F[Boolean], policy: Policy): Resource[F, Unit] =
+      override def register(hc: F[Boolean], f: Policy.type => Policy): Resource[F, Unit] =
         Resource.unit[F]
     }
 
@@ -61,13 +61,13 @@ object HealthCheck {
             )))(_ => F.delay(metricRegistry.remove(metricID)).void)
       } yield ()
 
-    override def register(hc: F[Boolean], policy: Policy): Resource[F, Unit] = {
+    override def register(hc: F[Boolean], f: Policy.type => Policy): Resource[F, Unit] = {
       val check: F[Boolean] = F.handleError(hc.timeout(timeout))(_ => false)
       for {
         init <- Resource.eval(check)
         ref <- Resource.eval(F.ref(init))
         _ <- F.background(
-          tickStream.tickScheduled[F](zoneId, policy).evalMap(_ => check.flatMap(ref.set)).compile.drain)
+          tickStream.tickScheduled[F](zoneId, f).evalMap(_ => check.flatMap(ref.set)).compile.drain)
         _ <- register(ref.get)
       } yield ()
     }

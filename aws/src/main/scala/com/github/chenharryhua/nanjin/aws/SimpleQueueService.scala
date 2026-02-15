@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.aws
 import cats.Endo
 import cats.effect.kernel.{Async, Resource}
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.common.chrono.{Policy, TickStatus}
+import com.github.chenharryhua.nanjin.common.chrono.{Policy, PolicyTick}
 import fs2.{Chunk, Pull, Stream}
 import io.circe.Json
 import io.circe.generic.JsonCodec
@@ -104,14 +104,14 @@ object SimpleQueueService {
 
   private val name: String = "aws.SQS"
 
-  def apply[F[_]](zoneId: ZoneId, policy: Policy)(f: Endo[SqsClientBuilder])(implicit
+  def apply[F[_]](zoneId: ZoneId, f: Policy.type => Policy)(g: Endo[SqsClientBuilder])(implicit
     F: Async[F]): Resource[F, SimpleQueueService[F]] =
     for {
       logger <- Resource.eval(Slf4jLogger.create[F])
-      client <- Resource.make(logger.info(s"initialize $name").as(f(SqsClient.builder()).build())) { cw =>
+      client <- Resource.make(logger.info(s"initialize $name").as(g(SqsClient.builder()).build())) { cw =>
         shutdown(name, logger)(F.blocking(cw.close()))
       }
-    } yield new AwsSQS[F](client, policy, zoneId, logger)
+    } yield new AwsSQS[F](client, f(Policy), zoneId, logger)
 
   final private class AwsSQS[F[_]](client: SqsClient, policy: Policy, zoneId: ZoneId, logger: Logger[F])(
     implicit F: Async[F])
@@ -121,7 +121,7 @@ object SimpleQueueService {
 
       // when no data can be retrieved, the delay policy will be applied
       // `https://cb372.github.io/cats-retry/docs/policies.html`
-      def receiving(status: TickStatus[F], batchIndex: Long): Pull[F, SqsMessage, Unit] =
+      def receiving(status: PolicyTick[F], batchIndex: Long): Pull[F, SqsMessage, Unit] =
         Pull.eval(blockingF(client.receiveMessage(request), name, logger)).flatMap { rmr =>
           val messages: mutable.Buffer[Message] = rmr.messages.asScala
           val size: Int = messages.size
@@ -145,7 +145,7 @@ object SimpleQueueService {
           }
         }
 
-      Stream.eval(TickStatus.zeroth[F](zoneId, policy)).flatMap(zeroth => receiving(zeroth, 0L).stream)
+      Stream.eval(PolicyTick.zeroth[F](zoneId, policy)).flatMap(zeroth => receiving(zeroth, 0L).stream)
     }
 
     override def delete(msg: SqsMessage): F[DeleteMessageResponse] = {

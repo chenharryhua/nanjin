@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.http.client.middleware
 import cats.effect.kernel.{Async, Clock, Resource, Temporal}
 import cats.effect.std.Hotswap
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.common.chrono.{Policy, TickStatus}
+import com.github.chenharryhua.nanjin.common.chrono.{Policy, PolicyTick}
 import org.http4s.client.Client
 import org.http4s.client.middleware.RetryPolicy
 import org.http4s.headers.`Retry-After`
@@ -19,14 +19,14 @@ object httpRetry {
 
   def apply[F[_]: Async](
     zoneId: ZoneId,
-    policy: Policy,
+    f: Policy.type => Policy,
     retriable: Retriable[F] = RetryPolicy.defaultRetriable[F](_, _))(client: Client[F]): Client[F] =
-    impl[F](zoneId, policy, retriable)(client)
+    impl[F](zoneId, f(Policy), retriable)(client)
 
-  def reckless[F[_]: Async](zoneId: ZoneId, policy: Policy)(client: Client[F]): Client[F] =
+  def reckless[F[_]: Async](zoneId: ZoneId, f: Policy.type => Policy)(client: Client[F]): Client[F] =
     apply[F](
       zoneId,
-      policy,
+      f,
       (_: Request[F], ex: Either[Throwable, Response[F]]) => RetryPolicy.recklesslyRetriable[F](ex))(client)
 
   private def impl[F[_]: Async](
@@ -36,7 +36,7 @@ object httpRetry {
 
     def nextAttempt(
       req: Request[F],
-      tickStatus: TickStatus[F],
+      tickStatus: PolicyTick[F],
       retryHeader: Option[`Retry-After`],
       hotswap: Hotswap[F, Either[Throwable, Response[F]]]
     ): F[Response[F]] = {
@@ -55,7 +55,7 @@ object httpRetry {
 
     def retryLoop(
       req: Request[F],
-      tickStatus: TickStatus[F],
+      tickStatus: PolicyTick[F],
       hotswap: Hotswap[F, Either[Throwable, Response[F]]]
     ): F[Response[F]] =
       hotswap.clear >>
@@ -76,7 +76,7 @@ object httpRetry {
 
     Client[F] { (req: Request[F]) =>
       Hotswap.create[F, Either[Throwable, Response[F]]].flatMap { hotswap =>
-        Resource.eval(TickStatus.zeroth[F](zoneId, policy).flatMap(ts => retryLoop(req, ts, hotswap)))
+        Resource.eval(PolicyTick.zeroth[F](zoneId, policy).flatMap(ts => retryLoop(req, ts, hotswap)))
       }
     }
   }

@@ -3,7 +3,6 @@ package mtest.terminals
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.toTraverseOps
-import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.terminals.{FileKind, JacksonFile}
 import eu.timepit.refined.auto.*
@@ -85,7 +84,7 @@ class NJJsonNodeTest extends AnyFunSuite {
       .emits(pandaSet.toList.flatMap(genericRecord2JsonNode(_).toOption))
       .covary[IO]
       .repeatN(number)
-      .through(hdp.rotateSink(zoneId, Policy.fixedDelay(0.2.second))(t => path / file.fileName(t)).jsonNode)
+      .through(hdp.rotateSink(zoneId, _.fixedDelay(0.2.second))(t => path / file.fileName(t)).jsonNode)
       .fold(0L)((sum, v) => sum + v.value.recordCount)
       .compile
       .lastOrError

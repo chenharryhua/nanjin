@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.event
 
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.common.chrono.crontabs
 import com.github.chenharryhua.nanjin.guard.event.Event.MetricReport
 import cron4s.CronExpr
 import cron4s.lib.javatime.javaTemporalInstance
@@ -69,7 +68,7 @@ object eventFilters {
     *
     * Only `MetricReport` events that match the given cron expression will pass. Adhoc reports always pass.
     *
-    * @param cronExpr
+    * @param f
     *   the cron expression defining the schedule
     * @param evt
     *   the event to test
@@ -86,18 +85,6 @@ object eventFilters {
         }
       case _ => true
     }
-
-  /** Cron-based sampling using a function to access the `crontabs` object.
-    *
-    * @param f
-    *   function from `crontabs.type` to `CronExpr`
-    * @param evt
-    *   the event to test
-    * @return
-    *   `true` if the event should pass, `false` otherwise
-    */
-  def sampling(f: crontabs.type => CronExpr)(evt: Event): Boolean =
-    sampling(f(crontabs))(evt)
 
   // --------------------------------------------------------------------------
   // MapFilter-friendly accessors

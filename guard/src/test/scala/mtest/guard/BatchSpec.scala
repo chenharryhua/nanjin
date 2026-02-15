@@ -2,7 +2,6 @@ package mtest.guard
 
 import cats.effect.IO
 import cats.effect.testing.scalatest.AsyncIOSpec
-import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.batch.{
   JobHandler,
@@ -18,7 +17,7 @@ import org.scalatest.matchers.should.Matchers
 
 class BatchSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
   private val service: ServiceGuard[IO] =
-    TaskGuard[IO]("batch").service("batch").updateConfig(_.withMetricReport(Policy.crontab(_.secondly)))
+    TaskGuard[IO]("batch").service("batch").updateConfig(_.withMetricReport(_.crontab(_.secondly)))
 
   "monadic" -
     "filter - fully".in {

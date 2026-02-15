@@ -2,7 +2,6 @@ package mtest.guard
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.common.chrono.zones.berlinTime
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.EventName
@@ -37,7 +36,7 @@ class ConfigTest extends AnyFunSuite {
   test("tick") {
     TaskGuard[IO]("tick")
       .service("tick")
-      .eventStreamS(_.tickFuture(Policy.fixedDelay(1.seconds).limited(5)).debug())
+      .eventStreamS(_.tickFuture(_.fixedDelay(1.seconds).limited(5)).debug())
       .compile
       .drain
       .unsafeRunSync()

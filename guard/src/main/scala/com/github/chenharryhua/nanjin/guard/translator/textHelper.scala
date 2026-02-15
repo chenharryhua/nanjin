@@ -1,7 +1,9 @@
 package com.github.chenharryhua.nanjin.guard.translator
 
-import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.guard.config.ServiceParams
+import cats.syntax.eq.catsSyntaxEq
+import cats.syntax.show.showInterpolator
+import cats.syntax.show.toShow
+
 import com.github.chenharryhua.nanjin.guard.event.Event.ServicePanic
 import com.github.chenharryhua.nanjin.guard.event.{Event, MetricIndex, MetricSnapshot}
 import org.typelevel.cats.time.instances.{localdatetime, localtime}
@@ -16,12 +18,6 @@ object textHelper extends localtime with localdatetime {
   def uptimeText(evt: Event): String = durationFormatter.format(evt.upTime)
 
   def tookText(dur: Duration): String = durationFormatter.format(dur)
-
-  def hostText(sp: ServiceParams): String =
-    sp.port match {
-      case Some(port) => s"${sp.hostName.value}:${port.value}"
-      case None       => sp.hostName.value
-    }
 
   def metricIndexText(index: MetricIndex): String =
     index match {

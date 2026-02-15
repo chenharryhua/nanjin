@@ -4,7 +4,6 @@ import cats.effect.unsafe.implicits.global
 import cats.effect.{IO, Resource}
 import cats.implicits.catsSyntaxApplyOps
 import com.comcast.ip4s.*
-import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.http.client.auth.Salesforce
 import com.github.chenharryhua.nanjin.http.client.middleware.httpRetry
@@ -51,7 +50,7 @@ class SalesforceIotTest extends AnyFunSuite {
     .default[IO]
     .build
     .map(Logger(logHeaders = true, logBody = true, _ => false))
-    .map(httpRetry(sydneyTime, Policy.fixedDelay(0.second).jitter(3.seconds)))
+    .map(httpRetry(sydneyTime, _.fixedDelay(0.second).jitter(3.seconds)))
 
   val login = Salesforce(
     authClient,

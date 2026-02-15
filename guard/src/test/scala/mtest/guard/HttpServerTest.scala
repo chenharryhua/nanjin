@@ -4,7 +4,6 @@ import cats.data.Kleisli
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.comcast.ip4s.IpLiteralSyntax
-import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.common.chrono.zones.londonTime
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.Event.{ServiceStart, ServiceStop}
@@ -20,7 +19,7 @@ class HttpServerTest extends AnyFunSuite {
   val guard: TaskGuard[IO] = TaskGuard[IO]("http").updateConfig(
     _.withHomePage("https://abc.com/efg")
       .withZoneId(londonTime)
-      .withRestartPolicy(1.hour, Policy.fixedDelay(1.seconds)))
+      .withRestartPolicy(1.hour, _.fixedDelay(1.seconds)))
 
   test("1.stop service") {
     val client = EmberClientBuilder
@@ -93,7 +92,8 @@ class HttpServerTest extends AnyFunSuite {
 
     val res = TaskGuard[IO]("panic")
       .service("history")
-      .updateConfig(_.withRestartPolicy(_.fixedDelay(1.second)).withHttpServer(_.withPort(port"9997")))
+      .updateConfig(
+        _.withRestartPolicy(1.hour, _.fixedDelay(1.second)).withHttpServer(_.withPort(port"9997")))
       .eventStream(_ => IO.raiseError(new Exception))
       .map(checkJson)
       .compile

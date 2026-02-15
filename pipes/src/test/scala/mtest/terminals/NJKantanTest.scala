@@ -104,7 +104,7 @@ class NJKantanTest extends AnyFunSuite {
       .map(tigerEncoder.encode)
       .through(
         hdp
-          .rotateSink(zoneId, policy)(t => path / file.fileName(t))
+          .rotateSink(zoneId, _.fixedDelay(1.second))(t => path / file.fileName(t))
           .kantan(_.withHeader(CsvHeaderOf[Tiger].header)))
       .compile
       .drain
@@ -168,7 +168,7 @@ class NJKantanTest extends AnyFunSuite {
       Stream.empty.covaryAll[IO, Seq[String]])
       .through(
         hdp
-          .rotateSink(zoneId, Policy.fixedDelay(1.second).limited(3))(t => path / fk.fileName(t))
+          .rotateSink(zoneId, _.fixedDelay(1.second).limited(3))(t => path / fk.fileName(t))
           .kantan(_.withHeader(CsvHeaderOf[Tiger].header)))
       .compile
       .drain
@@ -184,7 +184,8 @@ class NJKantanTest extends AnyFunSuite {
     hdp.delete(path).unsafeRunSync()
     herd
       .map(tigerEncoder.encode)
-      .through(hdp.rotateSink(zoneId, policy)(t => path / file.fileName(t)).kantan.andThen(_.drain))
+      .through(
+        hdp.rotateSink(zoneId, _.fixedDelay(1.second))(t => path / file.fileName(t)).kantan.andThen(_.drain))
       .map(tigerDecoder.decode)
       .rethrow
       .compile
@@ -229,8 +230,7 @@ class NJKantanTest extends AnyFunSuite {
     val fk = KantanFile(_.Uncompressed)
     (Stream.sleep[IO](10.hours) >>
       Stream.empty.covaryAll[IO, Seq[String]])
-      .through(
-        hdp.rotateSink(zoneId, Policy.fixedDelay(1.second).limited(3))(t => path / fk.fileName(t)).kantan)
+      .through(hdp.rotateSink(zoneId, _.fixedDelay(1.second).limited(3))(t => path / fk.fileName(t)).kantan)
       .compile
       .drain
       .unsafeRunSync()

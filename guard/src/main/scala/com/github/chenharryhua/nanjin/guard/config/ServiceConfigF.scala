@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.config
 import cats.effect.kernel.Clock
 import cats.syntax.all.*
-import cats.{Applicative, Endo, Functor}
+import cats.{Applicative, Endo, Functor, Show}
 import com.codahale.metrics.jmx.JmxReporter
 import com.github.chenharryhua.nanjin.common.chrono.{Policy, Tick}
 import higherkindness.droste.data.Fix
@@ -26,10 +26,21 @@ final case class ServicePolicies(restart: RestartPolicy, metricReport: Policy, m
 final case class HistoryCapacity(metric: Int, panic: Int, error: Int)
 
 @JsonCodec
+final case class Host(name: HostName, port: Option[Port]) {
+  override def toString: String =
+    port match {
+      case Some(p) => s"${name.value}:${p.value}"
+      case None    => name.value
+    }
+}
+object Host {
+  implicit val showHost: Show[Host] = Show.fromToString[Host]
+}
+
+@JsonCodec
 final case class ServiceParams(
   taskName: TaskName,
-  hostName: HostName,
-  port: Option[Port],
+  host: Host,
   homePage: Option[HomePage],
   serviceName: ServiceName,
   servicePolicies: ServicePolicies,
@@ -59,13 +70,11 @@ object ServiceParams {
     serviceName: ServiceName,
     brief: ServiceBrief,
     zerothTick: Tick,
-    hostName: HostName,
-    port: Option[Port]
+    host: Host
   ): ServiceParams =
     ServiceParams(
       taskName = taskName,
-      hostName = hostName,
-      port = port,
+      host = host,
       homePage = None,
       serviceName = serviceName,
       servicePolicies = ServicePolicies(
@@ -106,8 +115,7 @@ private object ServiceConfigF {
     serviceName: ServiceName,
     brief: ServiceBrief,
     zerothTick: Tick,
-    hostName: HostName,
-    port: Option[Port]): Algebra[ServiceConfigF, ServiceParams] =
+    host: Host): Algebra[ServiceConfigF, ServiceParams] =
     Algebra[ServiceConfigF, ServiceParams] {
       case InitParams(taskName) =>
         ServiceParams(
@@ -115,8 +123,7 @@ private object ServiceConfigF {
           serviceName = serviceName,
           brief = brief,
           zerothTick = zerothTick,
-          hostName = hostName,
-          port = port
+          host = host
         )
 
       case WithRestartPolicy(p, t, c) =>
@@ -151,25 +158,17 @@ final class ServiceConfig[F[_]: Applicative] private (
     briefs: F[List[Json]] = this.briefs): ServiceConfig[F] =
     new ServiceConfig[F](cont, zoneId, jmxBuilder, httpBuilder, briefs)
 
-  def withRestartPolicy(threshold: FiniteDuration, restart: Policy): ServiceConfig[F] =
-    copy(cont = Fix(WithRestartPolicy(restart, Some(threshold.toJava), cont)))
-
-  def withRestartPolicy(f: Policy.type => Policy): ServiceConfig[F] =
-    copy(cont = Fix(WithRestartPolicy(f(Policy), None, cont)))
-
-  def withMetricReport(policy: Policy): ServiceConfig[F] =
-    copy(cont = Fix(WithMetricReportPolicy(policy, cont)))
+  def withRestartPolicy(threshold: FiniteDuration, f: Policy.type => Policy): ServiceConfig[F] =
+    copy(cont = Fix(WithRestartPolicy(f(Policy), Some(threshold.toJava), cont)))
 
   def withMetricReport(f: Policy.type => Policy): ServiceConfig[F] =
-    withMetricReport(policy = f(Policy))
+    copy(cont = Fix(WithMetricReportPolicy(f(Policy), cont)))
 
-  def withMetricReset(reset: Policy): ServiceConfig[F] =
-    copy(cont = Fix(WithMetricResetPolicy(reset, cont)))
   def withMetricReset(f: Policy.type => Policy): ServiceConfig[F] =
-    withMetricReset(f(Policy))
+    copy(cont = Fix(WithMetricResetPolicy(f(Policy), cont)))
 
   def withMetricDailyReset: ServiceConfig[F] =
-    withMetricReset(Policy.crontab(_.daily.midnight))
+    withMetricReset(_.crontab(_.daily.midnight))
 
   def withHomePage(hp: String): ServiceConfig[F] =
     copy(cont = Fix(WithHomePage(Some(HomePage(hp)), cont)))
@@ -209,16 +208,14 @@ final class ServiceConfig[F[_]: Applicative] private (
     serviceName: ServiceName,
     brief: ServiceBrief,
     zerothTick: Tick,
-    hostName: HostName,
-    port: Option[Port]): ServiceParams =
+    host: Host): ServiceParams =
     scheme
       .cata(
         algebra(
           serviceName = serviceName,
           brief = brief,
           zerothTick = zerothTick,
-          hostName = hostName,
-          port = port
+          host = host
         ))
       .apply(cont)
 }

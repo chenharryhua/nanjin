@@ -235,9 +235,9 @@ final class Hadoop[F[_]] private (config: Configuration) {
     * @param pathBuilder
     *   Builds output paths for each rotation
     */
-  def rotateSink(zoneId: ZoneId, policy: Policy)(pathBuilder: CreateRotateFile => Url)(implicit
+  def rotateSink(zoneId: ZoneId, f: Policy.type => Policy)(pathBuilder: CreateRotateFile => Url)(implicit
     F: Async[F]): RotateByPolicy[F] =
-    rotateSink(tickStream.tickFuture[F](zoneId, policy).map { tick =>
+    rotateSink(tickStream.tickFuture[F](zoneId, f).map { tick =>
       val cfe = CreateRotateFile(tick.sequenceId, tick.index, tick.zoned(_.acquires))
       TickedValue(tick, pathBuilder(cfe))
     })

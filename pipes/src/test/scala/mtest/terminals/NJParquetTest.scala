@@ -4,7 +4,6 @@ import cats.data.NonEmptyList
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.toTraverseOps
-import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.terminals.{FileKind, ParquetFile}
 import eu.timepit.refined.auto.*
@@ -88,7 +87,7 @@ class NJParquetTest extends AnyFunSuite {
       .emits(pandaSet.toList)
       .covary[IO]
       .repeatN(number)
-      .through(hdp.rotateSink(zoneId, Policy.fixedDelay(1.second))(t => path / file.ymdFileName(t)).parquet)
+      .through(hdp.rotateSink(zoneId, _.fixedDelay(1.second))(t => path / file.ymdFileName(t)).parquet)
       .fold(0L)((sum, v) => sum + v.value.recordCount)
       .compile
       .lastOrError
@@ -156,8 +155,8 @@ class NJParquetTest extends AnyFunSuite {
   test("stream concat - 2") {
     val s = Stream.emits(pandaSet.toList).covary[IO].repeatN(500)
     val path: Url = fs2Root / "concat" / "rotate"
-    val sink = hdp.rotateSink(zoneId, Policy.fixedDelay(0.1.second))(t =>
-      path / ParquetFile(_.Uncompressed).fileName(t))
+    val sink =
+      hdp.rotateSink(zoneId, _.fixedDelay(0.1.second))(t => path / ParquetFile(_.Uncompressed).fileName(t))
 
     (hdp.delete(path) >>
       (s ++ s ++ s).through(sink.parquet).compile.drain).unsafeRunSync()

@@ -7,7 +7,6 @@ import com.github.chenharryhua.nanjin.aws.{
   SimpleNotificationService,
   SimpleQueueService
 }
-import com.github.chenharryhua.nanjin.common.chrono.{crontabs, Policy}
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.guard.event.eventFilters
 import com.github.chenharryhua.nanjin.guard.observers.cloudwatch.CloudWatchObserver
@@ -18,6 +17,7 @@ import eu.timepit.refined.auto.*
 import software.amazon.awssdk.regions.Region
 
 import scala.concurrent.duration.DurationInt
+import com.github.chenharryhua.nanjin.common.chrono.crontabs
 
 object observers {
   val slackObserver: SlackObserver[IO] =
@@ -26,7 +26,7 @@ object observers {
 
   def emailObserver: EmailObserver[IO] =
     EmailObserver(SimpleEmailService[IO](_.region(Region.AP_SOUTHEAST_2)))
-      .withPolicy(Policy.crontab(_.every12Hours).offset(8.hours))
+      .withPolicy(_.crontab(_.every12Hours).offset(8.hours))
       .withZoneId(sydneyTime)
       .withCapacity(200)
 
@@ -37,6 +37,6 @@ object observers {
 
   val sqsObserver: SqsObserver[IO] =
     SqsObserver(
-      SimpleQueueService[IO](sydneyTime, Policy.fixedDelay(10.seconds))(_.region(Region.AP_SOUTHEAST_2)))
+      SimpleQueueService[IO](sydneyTime, _.fixedDelay(10.seconds))(_.region(Region.AP_SOUTHEAST_2)))
 
 }

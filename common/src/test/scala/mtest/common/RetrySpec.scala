@@ -2,7 +2,6 @@ package mtest.common
 
 import cats.effect.{IO, Resource}
 import com.github.chenharryhua.nanjin.common.Retry
-import com.github.chenharryhua.nanjin.common.chrono.Policy
 import munit.CatsEffectSuite
 
 import java.time.ZoneId
@@ -25,8 +24,7 @@ class RetrySpec extends CatsEffectSuite {
       else "success"
     }
 
-    val policy = Policy.fixedDelay(100.millis).limited(maxAttempts)
-    val retryIO = Retry[IO](zoneId, _.withPolicy(_ => policy))
+    val retryIO = Retry[IO](zoneId, _.withPolicy(_.fixedDelay(100.millis).limited(maxAttempts)))
 
     retryIO.flatMap { retry =>
       retry(riskyOp).map { result =>
@@ -46,8 +44,7 @@ class RetrySpec extends CatsEffectSuite {
       throw new RuntimeException(s"fail $counter")
     }
 
-    val policy = Policy.fixedDelay(50.millis).limited(maxAttempts)
-    val retryIO = Retry[IO](zoneId, _.withPolicy(_ => policy))
+    val retryIO = Retry[IO](zoneId, _.withPolicy(_.fixedDelay(50.millis).limited(maxAttempts)))
 
     retryIO.flatMap { retry =>
       retry(riskyOp).attempt.map {
@@ -74,8 +71,7 @@ class RetrySpec extends CatsEffectSuite {
       }
     }(_ => IO(state += s"release $counter") >> IO.println("released"))
 
-    val policy = Policy.fixedDelay(10.millis).limited(maxAttempts)
-    val retryIO = Retry[IO](zoneId, _.withPolicy(_ => policy))
+    val retryIO = Retry[IO](zoneId, _.withPolicy(_.fixedDelay(10.millis).limited(maxAttempts)))
 
     retryIO.flatMap { retry =>
       retry(riskyResource).use { r =>
