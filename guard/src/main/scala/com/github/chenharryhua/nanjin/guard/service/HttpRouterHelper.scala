@@ -124,31 +124,6 @@ final private class HttpRouterHelper[F[_]: Sync](
 
   def jvm_state: Json = prettifyJson(mxBeans.allJvmGauge.value.asJson)
 
-  val service_params: Json = Json.obj(
-    "task_name" -> serviceParams.taskName.asJson,
-    "service_name" -> serviceParams.serviceName.asJson,
-    "service_id" -> serviceParams.serviceId.asJson,
-    "home_page" -> serviceParams.homePage.asJson,
-    "host" -> Json.obj(
-      "name" -> serviceParams.host.name.asJson,
-      "port" -> serviceParams.host.port.asJson
-    ),
-    "service_policies" -> Json.obj(
-      "restart" -> serviceParams.servicePolicies.restart.policy.show.asJson,
-      "metric_report" -> serviceParams.servicePolicies.metricReport.show.asJson,
-      "metric_reset" -> serviceParams.servicePolicies.metricReset.show.asJson
-    ),
-    "launch_time" -> serviceParams.launchTime.asJson,
-    "log_format" -> serviceParams.logFormat.asJson,
-    "history_capacity" -> Json.obj(
-      "metric_queue_length" -> serviceParams.historyCapacity.metric.asJson,
-      "error_queue_length" -> serviceParams.historyCapacity.error.asJson,
-      "panic_queue_length" -> serviceParams.historyCapacity.panic.asJson
-    ),
-    "nanjin" -> serviceParams.nanjin.asJson,
-    "brief" -> serviceParams.brief
-  )
-
   val service_panic_history: F[Json] =
     serviceParams.zonedNow.flatMap { now =>
       panicHistory.get.map(_.iterator().asScala.toList).map { panics =>

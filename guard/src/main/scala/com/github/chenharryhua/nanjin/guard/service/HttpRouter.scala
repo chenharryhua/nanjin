@@ -102,7 +102,7 @@ final private class HttpRouter[F[_]](
 
     // service part
 
-    case GET -> Root / "service" / "params"            => Ok(helper.service_params)
+    case GET -> Root / "service" / "params"            => Ok(interpret_service_params(serviceParams))
     case GET -> Root / "service" / "panic" / "history" => Ok(helper.service_panic_history)
     case GET -> Root / "service" / "error" / "history" => Ok(helper.service_error_history)
 

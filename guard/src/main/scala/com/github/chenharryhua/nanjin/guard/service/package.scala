@@ -2,18 +2,14 @@ package com.github.chenharryhua.nanjin.guard
 
 import cats.effect.kernel.Unique.Token
 import cats.effect.kernel.{Clock, Sync}
-import cats.implicits.{
-  catsSyntaxApplyOps,
-  catsSyntaxOptionId,
-  catsSyntaxTuple2Semigroupal,
-  catsSyntaxTuple5Semigroupal,
-  toFlatMapOps,
-  toFunctorOps,
-  toShow
-}
-import cats.syntax.all.none
+import cats.syntax.apply.{catsSyntaxApplyOps, catsSyntaxTuple2Semigroupal, catsSyntaxTuple5Semigroupal}
+import cats.syntax.flatMap.toFlatMapOps
+import cats.syntax.functor.toFunctorOps
+import cats.syntax.option.{catsSyntaxOptionId, none}
+import cats.syntax.show.toShow
 import cats.{Applicative, Functor, Hash, Monad, Semigroupal}
 import com.codahale.metrics.MetricRegistry
+import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter
 import com.github.chenharryhua.nanjin.common.chrono.Tick
 import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, Domain, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.Event.{
@@ -32,7 +28,6 @@ import com.github.chenharryhua.nanjin.guard.event.{
   ScrapeMode,
   ServiceStopCause
 }
-import com.github.chenharryhua.nanjin.guard.translator.durationFormatter
 import fs2.concurrent.Channel
 import io.circe.syntax.EncoderOps
 import io.circe.{Encoder, Json}
@@ -54,22 +49,33 @@ package object service {
         else none[AlarmLevel]
     }
 
-  private[service] def interpret_service_params(sp: ServiceParams): Json =
+  private[service] def interpret_service_params(serviceParams: ServiceParams): Json =
     Json.obj(
-      "home_page" -> sp.homePage.asJson,
-      "policies" -> Json.obj(
-        "restart" -> sp.servicePolicies.restart.policy.show.asJson,
-        "threshold" -> sp.servicePolicies.restart.threshold.map(durationFormatter.format).asJson,
-        "metric_report" -> sp.servicePolicies.metricReport.show.asJson,
-        "metric_reset" -> sp.servicePolicies.metricReset.show.asJson
+      "task_name" -> serviceParams.taskName.asJson,
+      "service_name" -> serviceParams.serviceName.asJson,
+      "service_id" -> serviceParams.serviceId.asJson,
+      "home_page" -> serviceParams.homePage.asJson,
+      "host" -> Json.obj(
+        "name" -> serviceParams.host.name.asJson,
+        "port" -> serviceParams.host.port.asJson
       ),
+      "service_policies" -> Json.obj(
+        "restart" -> Json.obj(
+          "policy" -> serviceParams.servicePolicies.restart.policy.show.asJson,
+          "threshold" -> serviceParams.servicePolicies.restart.threshold.map(defaultFormatter.format).asJson
+        ),
+        "metric_report" -> serviceParams.servicePolicies.metricReport.show.asJson,
+        "metric_reset" -> serviceParams.servicePolicies.metricReset.show.asJson
+      ),
+      "launch_time" -> serviceParams.launchTime.asJson,
+      "log_format" -> serviceParams.logFormat.asJson,
       "history_capacity" -> Json.obj(
-        "metric" -> sp.historyCapacity.metric.asJson,
-        "panic" -> sp.historyCapacity.panic.asJson,
-        "error" -> sp.historyCapacity.error.asJson
+        "metric_queue_length" -> serviceParams.historyCapacity.metric.asJson,
+        "error_queue_length" -> serviceParams.historyCapacity.error.asJson,
+        "panic_queue_length" -> serviceParams.historyCapacity.panic.asJson
       ),
-      "log_format" -> sp.logFormat.asJson,
-      "brief" -> sp.brief
+      "nanjin" -> serviceParams.nanjin.asJson,
+      "brief" -> serviceParams.brief
     )
 
   private[service] def service_message[F[_], S: Encoder](
