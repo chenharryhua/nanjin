@@ -34,9 +34,9 @@ object eventFilters {
           case MetricIndex.Adhoc(_)       => true
           case MetricIndex.Periodic(tick) =>
             val expect: Instant =
-              sp.zerothTick.launchTime.plus(
+              sp.launchTime.toInstant.plus(
                 ((Duration
-                  .between(sp.zerothTick.launchTime, tick.conclude)
+                  .between(sp.launchTime.toInstant, tick.conclude)
                   .toScala / interval).toLong * interval).toJava)
             tick.isWithinOpenClosed(expect)
         }

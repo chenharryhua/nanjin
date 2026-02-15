@@ -3,7 +3,7 @@ import cats.effect.kernel.Clock
 import cats.syntax.all.*
 import cats.{Applicative, Endo, Functor, Show}
 import com.codahale.metrics.jmx.JmxReporter
-import com.github.chenharryhua.nanjin.common.chrono.{Policy, Tick}
+import com.github.chenharryhua.nanjin.common.chrono.Policy
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
 import io.circe.generic.JsonCodec
@@ -43,22 +43,22 @@ final case class ServiceParams(
   host: Host,
   homePage: Option[HomePage],
   serviceName: ServiceName,
+  launchTime: ZonedDateTime,
+  serviceId: UUID,
   servicePolicies: ServicePolicies,
-  zerothTick: Tick,
   historyCapacity: HistoryCapacity,
   logFormat: LogFormat,
   nanjin: Option[Json],
   brief: Json
 ) {
-  val zoneId: ZoneId = zerothTick.zoneId
-  val serviceId: UUID = zerothTick.sequenceId
+  val zoneId: ZoneId = launchTime.getZone
 
   def toZonedDateTime(ts: Instant): ZonedDateTime = ts.atZone(zoneId)
   def toZonedDateTime(fd: FiniteDuration): ZonedDateTime =
     Instant.EPOCH.plusNanos(fd.toNanos).atZone(zoneId)
 
-  def upTime(ts: ZonedDateTime): Duration = Duration.between(zerothTick.zoned(_.launchTime), ts)
-  def upTime(ts: Instant): Duration = Duration.between(zerothTick.launchTime, ts)
+  def upTime(ts: ZonedDateTime): Duration = Duration.between(launchTime, ts)
+  def upTime(ts: Instant): Duration = Duration.between(launchTime.toInstant, ts)
 
   def zonedNow[F[_]: Clock: Functor]: F[ZonedDateTime] = Clock[F].realTimeInstant.map(toZonedDateTime)
 }
@@ -69,7 +69,8 @@ object ServiceParams {
     taskName: TaskName,
     serviceName: ServiceName,
     brief: ServiceBrief,
-    zerothTick: Tick,
+    launchTime: ZonedDateTime,
+    serviceId: UUID,
     host: Host
   ): ServiceParams =
     ServiceParams(
@@ -81,7 +82,8 @@ object ServiceParams {
         restart = RestartPolicy(Policy.giveUp, None),
         metricReport = Policy.giveUp,
         metricReset = Policy.giveUp),
-      zerothTick = zerothTick,
+      launchTime = launchTime,
+      serviceId = serviceId,
       historyCapacity = HistoryCapacity(32, 32, 32),
       logFormat = LogFormat.Console_PlainText,
       nanjin = parse(BuildInfo.toJson).toOption,
@@ -114,7 +116,8 @@ private object ServiceConfigF {
   def algebra(
     serviceName: ServiceName,
     brief: ServiceBrief,
-    zerothTick: Tick,
+    launchTime: ZonedDateTime,
+    serviceId: UUID,
     host: Host): Algebra[ServiceConfigF, ServiceParams] =
     Algebra[ServiceConfigF, ServiceParams] {
       case InitParams(taskName) =>
@@ -122,7 +125,8 @@ private object ServiceConfigF {
           taskName = taskName,
           serviceName = serviceName,
           brief = brief,
-          zerothTick = zerothTick,
+          launchTime = launchTime,
+          serviceId = serviceId,
           host = host
         )
 
@@ -207,14 +211,16 @@ final class ServiceConfig[F[_]: Applicative] private (
   private[guard] def evalConfig(
     serviceName: ServiceName,
     brief: ServiceBrief,
-    zerothTick: Tick,
+    launchTime: ZonedDateTime,
+    serviceId: UUID,
     host: Host): ServiceParams =
     scheme
       .cata(
         algebra(
           serviceName = serviceName,
           brief = brief,
-          zerothTick = zerothTick,
+          launchTime = launchTime,
+          serviceId = serviceId,
           host = host
         ))
       .apply(cont)

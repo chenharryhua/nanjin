@@ -2,14 +2,13 @@ package com.github.chenharryhua.nanjin.guard.service
 
 import cats.Endo
 import cats.effect.kernel.{Async, Ref, Resource}
-import cats.effect.std.{Console, Dispatcher}
+import cats.effect.std.{Console, Dispatcher, SecureRandom, UUIDGen}
 import cats.syntax.flatMap.toFlatMapOps
 import cats.syntax.functor.toFunctorOps
 import cats.syntax.option.catsSyntaxOptionId
 import com.codahale.metrics.MetricRegistry
 import com.comcast.ip4s.IpLiteralSyntax
 import com.github.chenharryhua.nanjin.common.UpdateConfig
-import com.github.chenharryhua.nanjin.common.chrono.Tick
 import com.github.chenharryhua.nanjin.guard.config.{
   AlarmLevel,
   Host,
@@ -44,22 +43,27 @@ final private[guard] class ServiceGuardImpl[F[_]: Network: Async: Console] priva
   override def updateConfig(f: Endo[ServiceConfig[F]]): ServiceGuard[F] =
     new ServiceGuardImpl[F](serviceName, f(config))
 
-  private def initStatus: F[(ServiceParams, Option[EmberServerBuilder[F]])] = for {
-    jsons <- config.briefs
-    zeroth <- Tick.zeroth[F](config.zoneId)
-    hostName <- HostName[F]
-  } yield {
-    val esb: Option[EmberServerBuilder[F]] =
-      config.httpBuilder.map(_(EmberServerBuilder.default[F].withHost(ip"0.0.0.0").withPort(port"1026")))
+  private def initStatus: F[(ServiceParams, Option[EmberServerBuilder[F]])] =
+    SecureRandom.javaSecuritySecureRandom[F].flatMap { implicit sr =>
+      for {
+        launchTime <- F.realTimeInstant
+        jsons <- config.briefs
+        serviceId <- UUIDGen.randomUUID[F]
+        hostName <- HostName[F]
+      } yield {
+        val esb: Option[EmberServerBuilder[F]] =
+          config.httpBuilder.map(_(EmberServerBuilder.default[F].withHost(ip"0.0.0.0").withPort(port"1026")))
 
-    val params: ServiceParams = config.evalConfig(
-      serviceName = serviceName,
-      brief = ServiceBrief(jsons.filterNot(_.isNull).distinct.asJson),
-      zerothTick = zeroth,
-      host = Host(hostName, esb.map(_.port.value).map(Port(_)))
-    )
-    (params, esb)
-  }
+        val params: ServiceParams = config.evalConfig(
+          serviceName = serviceName,
+          brief = ServiceBrief(jsons.filterNot(_.isNull).distinct.asJson),
+          launchTime = launchTime.atZone(config.zoneId),
+          serviceId = serviceId,
+          host = Host(hostName, esb.map(_.port.value).map(Port(_)))
+        )
+        (params, esb)
+      }
+    }
 
   override def eventStream(runAgent: Agent[F] => F[Unit]): Stream[F, Event] =
     for {

@@ -56,8 +56,7 @@ final private class ReStart[F[_]: Async](
 
   val stream: Stream[F, Nothing] =
     Stream
-      .eval(PolicyTick(serviceParams.zerothTick))
-      .map(_.renewPolicy(serviceParams.servicePolicies.restart.policy))
+      .eval(PolicyTick.zeroth[F](serviceParams.zoneId, serviceParams.servicePolicies.restart.policy))
       .flatMap {
         Stream
           .unfoldEval[F, PolicyTick[F], Unit](_) { status =>
