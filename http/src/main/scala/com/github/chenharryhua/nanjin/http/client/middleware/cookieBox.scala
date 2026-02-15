@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.http.client.middleware
 import cats.effect.kernel.*
-import cats.syntax.all.*
+import cats.syntax.eq.catsSyntaxEq
 import org.http4s.RequestCookie
 import org.http4s.client.Client
 import org.http4s.headers.`Set-Cookie`
