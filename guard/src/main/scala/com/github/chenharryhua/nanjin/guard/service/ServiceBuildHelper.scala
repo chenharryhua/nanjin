@@ -4,10 +4,9 @@ import cats.Endo
 import cats.effect.kernel.{Async, Ref}
 import cats.effect.std.{AtomicCell, Console}
 import cats.syntax.flatMap.toFlatMapOps
-import cats.syntax.functor.toFunctorOps
 import com.codahale.metrics.MetricRegistry
 import com.codahale.metrics.jmx.JmxReporter
-import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, PolicyTick, Tick}
+import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick}
 import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, Domain, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.Event.{MetricReport, ServiceMessage, ServicePanic}
 import com.github.chenharryhua.nanjin.guard.event.{Event, MetricIndex}
@@ -31,9 +30,8 @@ final private class ServiceBuildHelper[F[_]: Async](serviceParams: ServiceParams
     F: Console[F]): Stream[F, EventLogger[F]] =
     Stream.eval(EventLogger[F](serviceParams, Domain(serviceParams.serviceName.value), alarmLevel))
 
-  private def tickingBy(policy: Policy): Stream[F, Tick] = Stream
-    .eval(PolicyTick(serviceParams.zerothTick).map(_.renewPolicy(policy)))
-    .flatMap(tickStream.fromTickStatus[F](_))
+  private def tickingBy(policy: Policy): Stream[F, Tick] =
+    tickStream.tickScheduled(serviceParams.zoneId, _ => policy)
 
   def metrics_report(
     channel: Channel[F, Event],
