@@ -1,7 +1,8 @@
 package com.github.chenharryhua.nanjin.datetime
 
+import cats.syntax.functor.toFunctorOps
+import cats.syntax.semigroupk.toSemigroupKOps
 import cats.{Hash, Order, Show}
-import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.common.chrono.zones.utcTime
 
 import java.sql.Timestamp

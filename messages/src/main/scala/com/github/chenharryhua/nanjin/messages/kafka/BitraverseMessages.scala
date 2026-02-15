@@ -1,7 +1,8 @@
 package com.github.chenharryhua.nanjin.messages.kafka
 
+import cats.syntax.bifoldable.toBifoldableOps
+import cats.syntax.bitraverse.catsSyntaxBitraverse
 import cats.{Applicative, Bitraverse, Eval}
-import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.messages.kafka.instances.*
 import fs2.Chunk
 import fs2.kafka.{CommittableProducerRecords, ProducerRecords, TransactionalProducerRecords}

@@ -2,7 +2,10 @@ package com.github.chenharryhua.nanjin.guard.observers.postgres
 
 import cats.Endo
 import cats.effect.kernel.{Clock, Concurrent, Resource}
-import cats.syntax.all.*
+import cats.syntax.applicativeError.catsSyntaxApplicativeError
+import cats.syntax.flatMap.toFlatMapOps
+import cats.syntax.foldable.toFoldableOps
+import cats.syntax.functor.toFunctorOps
 import com.github.chenharryhua.nanjin.common.database.TableName
 import com.github.chenharryhua.nanjin.guard.event.Event
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStart

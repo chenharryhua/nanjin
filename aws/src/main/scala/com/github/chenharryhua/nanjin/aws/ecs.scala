@@ -1,7 +1,10 @@
 package com.github.chenharryhua.nanjin.aws
 import cats.effect.kernel.{Async, Sync}
 import cats.effect.std.Env
-import cats.syntax.all.*
+import cats.syntax.applicativeError.catsSyntaxApplicativeError
+import cats.syntax.flatMap.toFlatMapOps
+import cats.syntax.functor.toFunctorOps
+import cats.syntax.traverse.toTraverseOps
 import fs2.io.net.Network
 import io.circe.Json
 import org.http4s.Uri

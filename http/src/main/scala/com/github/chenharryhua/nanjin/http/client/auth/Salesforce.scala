@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.http.client.auth
 
 import cats.effect.implicits.genTemporalOps_
 import cats.effect.kernel.{Async, Ref, Resource}
-import cats.syntax.all.*
+import cats.syntax.flatMap.toFlatMapOps
 import io.circe.generic.auto.*
 import org.http4s.*
 import org.http4s.circe.CirceEntityCodec.circeEntityDecoder

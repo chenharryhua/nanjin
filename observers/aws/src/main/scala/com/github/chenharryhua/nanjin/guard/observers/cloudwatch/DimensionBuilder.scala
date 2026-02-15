@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.observers.cloudwatch
 
-import cats.implicits.toShow
+import cats.syntax.show.toShow
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.translator.textConstants
 import org.typelevel.cats.time.instances.localdate

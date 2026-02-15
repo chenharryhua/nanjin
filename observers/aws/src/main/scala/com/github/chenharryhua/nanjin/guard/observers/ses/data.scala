@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.observers.ses
 
-import cats.implicits.showInterpolator
+import cats.syntax.show.showInterpolator
 import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.guard.translator.ColorScheme
 import scalatags.Text

@@ -1,16 +1,19 @@
 package com.github.chenharryhua.nanjin.datetime
 
-import cats.{Eval, PartialOrder, Show}
 import cats.data.Cont
-import cats.syntax.all.*
+import cats.syntax.apply.catsSyntaxTuple2Semigroupal
+import cats.syntax.eq.catsSyntaxEq
+import cats.syntax.partialOrder.catsSyntaxPartialOrder
+import cats.syntax.show.showInterpolator
+import cats.{Eval, PartialOrder, Show}
 import com.github.chenharryhua.nanjin.common.chrono.Tick
-import io.circe.{Decoder, Encoder, HCursor, Json}
 import io.circe.syntax.EncoderOps
+import io.circe.{Decoder, Encoder, HCursor, Json}
 import monocle.Prism
 import monocle.macros.Lenses
 import org.typelevel.cats.time.instances.{duration, localdatetime, zoneid}
-import shapeless.{:+:, CNil, Poly1}
 import shapeless.ops.coproduct.{Inject, Selector}
+import shapeless.{:+:, CNil, Poly1}
 
 import java.sql.Timestamp
 import java.time.*

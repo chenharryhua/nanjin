@@ -3,7 +3,9 @@ package com.github.chenharryhua.nanjin.http.client.auth
 import cats.data.NonEmptyList
 import cats.effect.implicits.genTemporalOps_
 import cats.effect.kernel.{Async, Ref, Resource}
-import cats.syntax.all.*
+import cats.syntax.flatMap.toFlatMapOps
+import cats.syntax.functor.toFunctorOps
+import cats.syntax.show.showInterpolator
 import com.github.chenharryhua.nanjin.common.utils
 import io.circe.generic.auto.*
 import org.http4s.*

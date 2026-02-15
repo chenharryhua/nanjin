@@ -1,13 +1,12 @@
 package com.github.chenharryhua.nanjin.database
 
-import cats.effect.Resource
-import cats.effect.kernel.Temporal
+import cats.effect.kernel.{Resource, Temporal}
 import cats.effect.std.Console
 import com.github.chenharryhua.nanjin.common.database.Postgres
 import fs2.io.net.{Network, SocketOption}
 import natchez.Trace
-import skunk.{SSL, Session}
 import skunk.util.Typer
+import skunk.{SSL, Session}
 
 import scala.concurrent.duration.Duration
 

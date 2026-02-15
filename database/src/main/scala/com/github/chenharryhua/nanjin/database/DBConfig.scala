@@ -1,7 +1,8 @@
 package com.github.chenharryhua.nanjin.database
 
 import cats.effect.kernel.{Async, Resource}
-import cats.implicits.{catsSyntaxApplicativeError, toFunctorOps}
+import cats.syntax.applicativeError.catsSyntaxApplicativeError
+import cats.syntax.functor.toFunctorOps
 import com.github.chenharryhua.nanjin.common.database.*
 import com.zaxxer.hikari.HikariConfig
 import doobie.hikari.HikariTransactor

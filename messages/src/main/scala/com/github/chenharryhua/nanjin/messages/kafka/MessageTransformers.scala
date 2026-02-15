@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.messages.kafka
 import cats.data.Cont
-import cats.implicits.catsSyntaxEq
+import cats.syntax.eq.catsSyntaxEq
 import fs2.kafka.*
 import io.scalaland.chimney.Transformer
 import io.scalaland.chimney.dsl.*

@@ -3,7 +3,11 @@ package com.github.chenharryhua.nanjin.guard.observers.ses
 import cats.Endo
 import cats.data.NonEmptyList
 import cats.effect.kernel.{Async, Ref, Resource}
-import cats.syntax.all.*
+import cats.syntax.applicative.catsSyntaxApplicativeByName
+import cats.syntax.applicativeError.catsSyntaxApplicativeError
+import cats.syntax.apply.catsSyntaxTuple2Semigroupal
+import cats.syntax.flatMap.toFlatMapOps
+import cats.syntax.functor.toFunctorOps
 import com.github.chenharryhua.nanjin.aws.*
 import com.github.chenharryhua.nanjin.common.aws.EmailContent
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick}

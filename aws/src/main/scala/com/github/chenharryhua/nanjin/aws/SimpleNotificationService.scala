@@ -2,11 +2,11 @@ package com.github.chenharryhua.nanjin.aws
 
 import cats.Endo
 import cats.effect.kernel.{Async, Resource, Sync}
-import cats.syntax.all.*
+import cats.syntax.functor.toFunctorOps
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
-import software.amazon.awssdk.services.sns.{SnsClient, SnsClientBuilder}
 import software.amazon.awssdk.services.sns.model.{PublishRequest, PublishResponse}
+import software.amazon.awssdk.services.sns.{SnsClient, SnsClientBuilder}
 
 /** A simple wrapper around AWS SNS for publishing messages.
   *

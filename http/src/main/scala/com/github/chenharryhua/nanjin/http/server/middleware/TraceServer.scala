@@ -3,7 +3,9 @@ package com.github.chenharryhua.nanjin.http.server.middleware
 import cats.data.{Kleisli, OptionT}
 import cats.effect.implicits.monadCancelOps
 import cats.effect.kernel.{MonadCancel, Outcome, Resource}
-import cats.syntax.all.*
+import cats.syntax.apply.catsSyntaxApplyOps
+import cats.syntax.flatMap.toFlatMapOps
+import cats.syntax.functor.toFunctorOps
 import natchez.*
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.http4s.{HttpRoutes, Response}

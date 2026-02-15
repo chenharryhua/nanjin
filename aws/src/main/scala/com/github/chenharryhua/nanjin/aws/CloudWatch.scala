@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.aws
 
 import cats.Endo
 import cats.effect.kernel.{Async, Resource, Sync}
-import cats.syntax.all.*
+import cats.syntax.all.toFunctorOps
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import software.amazon.awssdk.services.cloudwatch.{CloudWatchClient, CloudWatchClientBuilder}

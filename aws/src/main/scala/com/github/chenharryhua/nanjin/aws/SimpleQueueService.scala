@@ -2,7 +2,10 @@ package com.github.chenharryhua.nanjin.aws
 
 import cats.Endo
 import cats.effect.kernel.{Async, Resource}
-import cats.syntax.all.*
+import cats.syntax.apply.catsSyntaxTuple3Semigroupal
+import cats.syntax.flatMap.toFlatMapOps
+import cats.syntax.functor.toFunctorOps
+import cats.syntax.traverse.toTraverseOps
 import com.github.chenharryhua.nanjin.common.chrono.{Policy, PolicyTick}
 import fs2.{Chunk, Pull, Stream}
 import io.circe.Json

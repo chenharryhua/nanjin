@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.messages.kafka
 
 import cats.Bifunctor
 import cats.data.Cont
-import cats.implicits.catsSyntaxEq
+import cats.syntax.eq.catsSyntaxEq
 import cats.kernel.Eq
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec

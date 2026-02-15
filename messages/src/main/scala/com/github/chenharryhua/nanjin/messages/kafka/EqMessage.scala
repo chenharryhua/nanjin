@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.messages.kafka
 
 import cats.Eq
-import cats.syntax.all.*
+import cats.syntax.eq.catsSyntaxEq
 import org.apache.kafka.clients.consumer.{ConsumerRecord, OffsetAndMetadata}
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.common.TopicPartition
