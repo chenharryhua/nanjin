@@ -1,13 +1,14 @@
 package com.github.chenharryhua.nanjin.aws
 
-import cats.{Applicative, Endo}
 import cats.effect.kernel.{Async, Resource}
-import cats.syntax.all.*
+import cats.syntax.flatMap.toFlatMapOps
+import cats.syntax.functor.toFunctorOps
+import cats.{Applicative, Endo}
 import com.github.chenharryhua.nanjin.common.aws.{ParameterStoreContent, ParameterStorePath}
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
-import software.amazon.awssdk.services.ssm.{SsmClient, SsmClientBuilder}
 import software.amazon.awssdk.services.ssm.model.{GetParametersRequest, GetParametersResponse}
+import software.amazon.awssdk.services.ssm.{SsmClient, SsmClientBuilder}
 
 import java.util.Base64
 import scala.jdk.CollectionConverters.*
