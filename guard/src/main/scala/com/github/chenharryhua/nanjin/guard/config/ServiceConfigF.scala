@@ -43,8 +43,8 @@ final case class ServiceParams(
   host: Host,
   homePage: Option[HomePage],
   serviceName: ServiceName,
-  launchTime: ZonedDateTime,
   serviceId: UUID,
+  launchTime: ZonedDateTime,
   servicePolicies: ServicePolicies,
   historyCapacity: HistoryCapacity,
   logFormat: LogFormat,
@@ -68,9 +68,9 @@ object ServiceParams {
   def apply(
     taskName: TaskName,
     serviceName: ServiceName,
-    brief: ServiceBrief,
-    launchTime: ZonedDateTime,
     serviceId: UUID,
+    launchTime: ZonedDateTime,
+    brief: ServiceBrief,
     host: Host
   ): ServiceParams =
     ServiceParams(
@@ -78,12 +78,12 @@ object ServiceParams {
       host = host,
       homePage = None,
       serviceName = serviceName,
+      serviceId = serviceId,
+      launchTime = launchTime,
       servicePolicies = ServicePolicies(
         restart = RestartPolicy(Policy.giveUp, None),
         metricReport = Policy.giveUp,
         metricReset = Policy.giveUp),
-      launchTime = launchTime,
-      serviceId = serviceId,
       historyCapacity = HistoryCapacity(32, 32, 32),
       logFormat = LogFormat.Console_PlainText,
       nanjin = parse(BuildInfo.toJson).toOption,
@@ -210,17 +210,17 @@ final class ServiceConfig[F[_]: Applicative] private (
 
   private[guard] def evalConfig(
     serviceName: ServiceName,
-    brief: ServiceBrief,
-    launchTime: ZonedDateTime,
     serviceId: UUID,
+    launchTime: ZonedDateTime,
+    brief: ServiceBrief,
     host: Host): ServiceParams =
     scheme
       .cata(
         algebra(
           serviceName = serviceName,
-          brief = brief,
-          launchTime = launchTime,
           serviceId = serviceId,
+          launchTime = launchTime,
+          brief = brief,
           host = host
         ))
       .apply(cont)

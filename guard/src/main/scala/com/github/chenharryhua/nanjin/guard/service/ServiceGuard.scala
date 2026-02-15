@@ -56,9 +56,9 @@ final private[guard] class ServiceGuardImpl[F[_]: Network: Async: Console] priva
 
         val params: ServiceParams = config.evalConfig(
           serviceName = serviceName,
-          brief = ServiceBrief(jsons.filterNot(_.isNull).distinct.asJson),
-          launchTime = launchTime.atZone(config.zoneId),
           serviceId = serviceId,
+          launchTime = launchTime.atZone(config.zoneId),
+          brief = ServiceBrief(jsons.filterNot(_.isNull).distinct.asJson),
           host = Host(hostName, esb.map(_.port.value).map(Port(_)))
         )
         (params, esb)
