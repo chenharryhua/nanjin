@@ -8,7 +8,7 @@ import cats.syntax.applicative.catsSyntaxApplicativeId
 import cats.syntax.either.catsSyntaxEitherId
 import cats.syntax.flatMap.{catsSyntaxFlatMapOps, toFlatMapOps}
 import cats.syntax.functor.toFunctorOps
-import com.github.chenharryhua.nanjin.common.chrono.{Policy, TickStatus, TickedValue}
+import com.github.chenharryhua.nanjin.common.chrono.{Policy, PolicyTick, TickedValue}
 
 import java.time.ZoneId
 import scala.concurrent.duration.DurationInt
@@ -54,11 +54,11 @@ trait Retry[F[_]] {
 
 object Retry {
 
-  final private class Impl[F[_]](initTS: TickStatus[F])(implicit F: Temporal[F]) {
+  final private class Impl[F[_]](initTS: PolicyTick[F])(implicit F: Temporal[F]) {
 
     def retryLoop[A](fa: F[A], decide: TickedValue[Throwable] => F[TickedValue[Boolean]]): F[A] =
-      F.tailRecM[TickStatus[F], A](initTS) { status =>
-        F.handleErrorWith(fa.map[Either[TickStatus[F], A]](Right(_))) { ex =>
+      F.tailRecM[PolicyTick[F], A](initTS) { status =>
+        F.handleErrorWith(fa.map[Either[PolicyTick[F], A]](Right(_))) { ex =>
           F.realTimeInstant.flatMap(status.next).flatMap {
             case None     => F.raiseError(ex) // run out of policy
             case Some(ts) => // respect user's decision
@@ -99,7 +99,7 @@ object Retry {
       new Builder[F](f(Policy), decide)
 
     private[Retry] def build(zoneId: ZoneId)(implicit F: Async[F]): F[Retry[F]] =
-      TickStatus.zeroth[F](zoneId, policy).map { ts =>
+      PolicyTick.zeroth[F](zoneId, policy).map { ts =>
         val impl = new Impl[F](ts)
         new Retry[F] {
           override def apply[A](fa: F[A]): F[A] =

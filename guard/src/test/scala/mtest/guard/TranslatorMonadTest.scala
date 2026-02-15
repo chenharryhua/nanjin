@@ -6,7 +6,7 @@ import cats.effect.unsafe.implicits.global
 import cats.laws.discipline.eq.*
 import cats.laws.discipline.{ExhaustiveCheck, FunctorFilterTests, MonadTests}
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
-import com.github.chenharryhua.nanjin.common.chrono.{Policy, Tick, TickStatus}
+import com.github.chenharryhua.nanjin.common.chrono.{Policy, PolicyTick, Tick}
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.event.*
@@ -19,7 +19,7 @@ import org.scalacheck.{Arbitrary, Gen}
 
 object gendata {
   val service: ServiceGuard[IO] = TaskGuard[IO]("monad").service("tailrecM")
-  val tick: Tick = TickStatus.zeroth[IO](sydneyTime, Policy.giveUp).unsafeRunSync().tick
+  val tick: Tick = PolicyTick.zeroth[IO](sydneyTime, Policy.giveUp).unsafeRunSync().tick
   implicit val exhaustiveCheck: ExhaustiveCheck[Event] =
     ExhaustiveCheck.instance(List(ServiceStart(null.asInstanceOf[ServiceParams], tick)))
 

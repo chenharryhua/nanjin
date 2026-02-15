@@ -17,8 +17,8 @@ object tickStream {
     *   - Sleep for the tick’s snooze duration
     *   - Emit the tick
     */
-  def fromTickStatus[F[_]](zeroth: TickStatus[F])(implicit F: Temporal[F]): Stream[F, Tick] =
-    Stream.unfoldEval[F, TickStatus[F], Tick](zeroth) { status =>
+  def fromTickStatus[F[_]](zeroth: PolicyTick[F])(implicit F: Temporal[F]): Stream[F, Tick] =
+    Stream.unfoldEval[F, PolicyTick[F], Tick](zeroth) { status =>
       F.realTimeInstant.flatMap(status.next).flatMap {
         _.traverse(ns => F.sleep(ns.tick.snooze.toScala).as((ns.tick, ns)))
       }
@@ -26,45 +26,34 @@ object tickStream {
 
   /** Stream ticks according to a policy in a **“sleep first, then emit”** pattern.
     *
-    *   - The **first tick** is **not emitted immediately**; the stream waits for its scheduled snooze before
-    *     emitting.
-    *   - Each subsequent tick waits for its full snooze duration before being emitted.
-    *   - Tick emission strictly respects the **planned snooze intervals** defined by the policy.
-    *   - Tick indices increase sequentially according to the policy; if the policy ends (e.g., `GiveUp`), the
-    *     stream terminates.
-    *   - Downstream processing time does **not shorten the snooze**; ticks are emitted after waiting their
-    *     full scheduled interval.
+    * Stream ticks in a **strict schedule** pattern.
     */
   def tickScheduled[F[_]: Async](zoneId: ZoneId, f: Policy.type => Policy): Stream[F, Tick] =
-    Stream.eval[F, TickStatus[F]](TickStatus.zeroth[F](zoneId, f(Policy))).flatMap(fromTickStatus[F])
+    Stream.eval[F, PolicyTick[F]](PolicyTick.zeroth[F](zoneId, f(Policy))).flatMap(fromTickStatus[F])
 
   /** Stream ticks starting from the zeroth tick. The first tick (index = 0) is emitted immediately, then
     * continues according to the policy.
     */
   def tickImmediate[F[_]: Async](zoneId: ZoneId, f: Policy.type => Policy): Stream[F, Tick] =
     Stream
-      .eval[F, TickStatus[F]](TickStatus.zeroth[F](zoneId, f(Policy)))
+      .eval[F, PolicyTick[F]](PolicyTick.zeroth[F](zoneId, f(Policy)))
       .flatMap(zero => fromTickStatus[F](zero).cons1(zero.tick))
 
   /** Stream ticks according to a policy in an **“emit first, then sleep to next”** pattern.
-    *   - The **first tick** is emitted immediately when the stream starts.
-    *   - Subsequent ticks are emitted in **policy order** (tick indices 1, 2 …).
-    *   - Each tick’s emission respects the policy as closely as possible, **even if downstream processing is
-    *     slow**. Downstream work that takes longer than the nominal interval may delay the next observable
-    *     tick.
-    *   - Tick indices **always increase sequentially**; no tick index is skipped.
-    *   - Observed tick times may drift relative to the nominal schedule if downstream is slow
+    *
+    * Stream ticks in an **“at-least schedule”** manner according to the given `Policy`.
     */
   def tickFuture[F[_]](zoneId: ZoneId, f: Policy.type => Policy)(implicit F: Async[F]): Stream[F, Tick] =
-    Stream.eval[F, TickStatus[F]](TickStatus.zeroth[F](zoneId, f(Policy))).flatMap { initStatus =>
-      val loop: TickStatus[F] => Pull[F, Tick, Unit] =
-        Pull.loop[F, Tick, TickStatus[F]] { ts =>
+    Stream.eval[F, PolicyTick[F]](PolicyTick.zeroth[F](zoneId, f(Policy))).flatMap { initStatus =>
+      val loop: PolicyTick[F] => Pull[F, Tick, Unit] =
+        Pull.loop[F, Tick, PolicyTick[F]] { ts =>
           Pull.eval(F.realTimeInstant.flatMap(ts.next)).flatMap {
             _.traverse { ns =>
-              Pull.output1(ns.tick) >>
+              Pull.output1(ns.tick) >> // downstream process the tick
                 Pull.eval(F.realTimeInstant).flatMap { ts =>
-                  if (ts.isBefore(ns.tick.conclude)) {
-                    val gap = Duration.between(ts, ns.tick.conclude)
+                  val conclude = ns.tick.conclude
+                  if (ts.isBefore(conclude)) {
+                    val gap = Duration.between(ts, conclude)
                     Pull.sleep(gap.toScala).as(ns)
                   } else Pull.pure(ns)
                 }
@@ -79,7 +68,7 @@ object tickStream {
     */
   def testPolicy[F[_]: Sync](f: Policy.type => Policy): Stream[F, Tick] =
     for {
-      init <- Stream.eval(TickStatus.zeroth(ZoneId.systemDefault(), f(Policy)))
+      init <- Stream.eval(PolicyTick.zeroth(ZoneId.systemDefault(), f(Policy)))
       rng <- Stream.eval(Random.scalaUtilRandom[F])
       tick <- Stream.unfoldEval(init) { ts =>
         rng

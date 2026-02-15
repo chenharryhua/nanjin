@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.aws
 import cats.Endo
 import cats.effect.kernel.{Async, Resource}
 import cats.syntax.all.*
-import com.github.chenharryhua.nanjin.common.chrono.{Policy, TickStatus}
+import com.github.chenharryhua.nanjin.common.chrono.{Policy, PolicyTick}
 import fs2.{Chunk, Pull, Stream}
 import io.circe.Json
 import io.circe.generic.JsonCodec
@@ -121,7 +121,7 @@ object SimpleQueueService {
 
       // when no data can be retrieved, the delay policy will be applied
       // `https://cb372.github.io/cats-retry/docs/policies.html`
-      def receiving(status: TickStatus[F], batchIndex: Long): Pull[F, SqsMessage, Unit] =
+      def receiving(status: PolicyTick[F], batchIndex: Long): Pull[F, SqsMessage, Unit] =
         Pull.eval(blockingF(client.receiveMessage(request), name, logger)).flatMap { rmr =>
           val messages: mutable.Buffer[Message] = rmr.messages.asScala
           val size: Int = messages.size
@@ -145,7 +145,7 @@ object SimpleQueueService {
           }
         }
 
-      Stream.eval(TickStatus.zeroth[F](zoneId, policy)).flatMap(zeroth => receiving(zeroth, 0L).stream)
+      Stream.eval(PolicyTick.zeroth[F](zoneId, policy)).flatMap(zeroth => receiving(zeroth, 0L).stream)
     }
 
     override def delete(msg: SqsMessage): F[DeleteMessageResponse] = {
