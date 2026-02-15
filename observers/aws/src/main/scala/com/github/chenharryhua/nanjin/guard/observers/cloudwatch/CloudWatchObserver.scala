@@ -1,7 +1,10 @@
 package com.github.chenharryhua.nanjin.guard.observers.cloudwatch
 import cats.Endo
 import cats.effect.kernel.{Async, Concurrent, Resource}
-import cats.syntax.all.*
+import cats.syntax.applicativeError.catsSyntaxApplicativeError
+import cats.syntax.flatMap.toFlatMapOps
+import cats.syntax.functor.toFunctorOps
+import cats.syntax.traverse.toTraverseOps
 import com.github.chenharryhua.nanjin.aws.CloudWatch
 import com.github.chenharryhua.nanjin.common.aws.CloudWatchNamespace
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick}
