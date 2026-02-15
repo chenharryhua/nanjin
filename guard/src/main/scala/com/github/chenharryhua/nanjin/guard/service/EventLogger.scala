@@ -3,15 +3,15 @@ package com.github.chenharryhua.nanjin.guard.service
 import cats.Eval
 import cats.effect.kernel.{Ref, Sync}
 import cats.effect.std.Console
-import cats.implicits.{
+import cats.syntax.all.{
   catsSyntaxApplicativeId,
-  catsSyntaxEq,
   catsSyntaxIfM,
   catsSyntaxPartialOrder,
   toFlatMapOps,
   toFunctorOps,
   toTraverseOps
 }
+import cats.syntax.eq.catsSyntaxEq
 import com.github.chenharryhua.nanjin.guard.config.LogFormat.Console_Json_MultiLine
 import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, Domain, LogFormat, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.Event.{
