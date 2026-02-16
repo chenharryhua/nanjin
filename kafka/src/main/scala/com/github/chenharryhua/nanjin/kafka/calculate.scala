@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.kafka
 
-import cats.implicits.catsSyntaxTuple2Semigroupal
+import cats.syntax.apply.catsSyntaxTuple2Semigroupal
 
 private object calculate {
   def admin_lagBehind(

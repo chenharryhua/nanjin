@@ -2,7 +2,8 @@ package com.github.chenharryhua.nanjin.guard.event
 
 import cats.effect.implicits.clockOps
 import cats.effect.kernel.Sync
-import cats.syntax.all.*
+import cats.syntax.eq.catsSyntaxEq
+import cats.syntax.functor.toFunctorOps
 import com.codahale.metrics
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.guard.config.{MetricID, Squants}

@@ -1,7 +1,9 @@
 package com.github.chenharryhua.nanjin.kafka
 
 import cats.effect.kernel.Sync
-import cats.syntax.all.*
+import cats.syntax.eq.catsSyntaxEq
+import cats.syntax.functor.toFunctorOps
+import cats.syntax.flatMap.toFlatMapOps
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import fs2.kafka.KafkaAdminClient

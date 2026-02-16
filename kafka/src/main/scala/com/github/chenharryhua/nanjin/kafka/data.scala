@@ -1,7 +1,10 @@
 package com.github.chenharryhua.nanjin.kafka
 
+import cats.syntax.apply.catsSyntaxTuple2Semigroupal
+import cats.syntax.eq.catsSyntaxEq
+import cats.syntax.order.catsSyntaxPartialOrder
+import cats.syntax.traverse.toTraverseOps
 import cats.{Order, PartialOrder, Show}
-import cats.syntax.all.*
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import io.circe.*
 import io.circe.Decoder.Result

@@ -1,7 +1,9 @@
 package com.github.chenharryhua.nanjin.guard.translator
 
 import cats.data.NonEmptyList
-import cats.implicits.{catsSyntaxEq, showInterpolator, toFunctorFilterOps}
+import cats.syntax.eq.catsSyntaxEq
+import cats.syntax.functorFilter.toFunctorFilterOps
+import cats.syntax.show.showInterpolator
 import com.github.chenharryhua.nanjin.guard.config.{MetricID, Squants}
 import com.github.chenharryhua.nanjin.guard.event.MetricSnapshot
 import io.circe.Json

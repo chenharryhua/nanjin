@@ -2,20 +2,17 @@ package com.github.chenharryhua.nanjin.terminals
 
 import cats.Endo
 import cats.data.Reader
-import cats.effect.kernel.Sync
-import cats.implicits.toFunctorOps
+import cats.effect.kernel.{Resource, Sync}
+import cats.syntax.functor.toFunctorOps
 import com.fasterxml.jackson.databind.JsonNode
 import fs2.{Pipe, Pull, Stream}
 import io.circe.Json
 import io.lemonlabs.uri.Url
 import kantan.csv.CsvConfiguration
-import org.apache.avro.generic.{GenericData, GenericRecord}
+import org.apache.avro.Schema
+import org.apache.avro.generic.GenericRecord
 import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.fs.Path
 import org.apache.parquet.avro.AvroParquetWriter
-import org.apache.parquet.hadoop.ParquetFileWriter
-import org.apache.parquet.hadoop.metadata.CompressionCodecName
-import org.apache.parquet.hadoop.util.HadoopOutputFile
 import scalapb.GeneratedMessage
 
 sealed trait FileSink[F[_]] {
@@ -84,19 +81,26 @@ sealed trait FileSink[F[_]] {
 }
 
 final private class FileSinkImpl[F[_]: Sync](configuration: Configuration, url: Url) extends FileSink[F] {
+  private type GetWriter[A] = Reader[Schema, Resource[F, HadoopWriter[F, A]]]
+
+  private def generic_record_stream_step_leg(writer: GetWriter[GenericRecord])(
+    ss: Stream[F, GenericRecord]): Stream[F, Int] =
+    ss.pull.stepLeg.flatMap {
+      case Some(leg) =>
+        val schema = leg.head(0).getSchema
+        Stream
+          .resource(writer(schema))
+          .flatMap(w => leg.stream.cons(leg.head).chunks.evalMap(c => w.write(c).as(c.size)))
+          .pull
+          .echo
+      case None => Pull.done
+    }.stream
 
   override def avro(compression: AvroCompression): Pipe[F, GenericRecord, Int] = {
-    (ss: Stream[F, GenericRecord]) =>
-      ss.pull.stepLeg.flatMap {
-        case Some(leg) =>
-          val schema = leg.head(0).getSchema
-          Stream
-            .resource(HadoopWriter.avroR[F](compression.codecFactory, schema, configuration, url))
-            .flatMap(w => leg.stream.cons(leg.head).chunks.evalMap(c => w.write(c).as(c.size)))
-            .pull
-            .echo
-        case None => Pull.done
-      }.stream
+    val get_writer: GetWriter[GenericRecord] =
+      Reader(schema => HadoopWriter.avroR[F](compression.codecFactory, schema, configuration, url))
+
+    generic_record_stream_step_leg(get_writer)
   }
 
   override def avro(f: AvroCompression.type => AvroCompression): Pipe[F, GenericRecord, Int] =
@@ -105,53 +109,25 @@ final private class FileSinkImpl[F[_]: Sync](configuration: Configuration, url: 
   override val avro: Pipe[F, GenericRecord, Int] =
     avro(AvroCompression.Uncompressed)
 
-  override val binAvro: Pipe[F, GenericRecord, Int] = { (ss: Stream[F, GenericRecord]) =>
-    ss.pull.stepLeg.flatMap {
-      case Some(leg) =>
-        val schema = leg.head(0).getSchema
-        Stream
-          .resource(HadoopWriter.binAvroR[F](configuration, schema, url))
-          .flatMap(w => leg.stream.cons(leg.head).chunks.evalMap(c => w.write(c).as(c.size)))
-          .pull
-          .echo
-      case None => Pull.done
-    }.stream
+  override val binAvro: Pipe[F, GenericRecord, Int] = {
+    val get_writer: GetWriter[GenericRecord] =
+      Reader(schema => HadoopWriter.binAvroR[F](configuration, schema, url))
+
+    generic_record_stream_step_leg(get_writer)
   }
 
-  override val jackson: Pipe[F, GenericRecord, Int] = { (ss: Stream[F, GenericRecord]) =>
-    ss.pull.stepLeg.flatMap {
-      case Some(leg) =>
-        val schema = leg.head(0).getSchema
-        Stream
-          .resource(HadoopWriter.jacksonR[F](configuration, schema, url))
-          .flatMap(w => leg.stream.cons(leg.head).chunks.evalMap(c => w.write(c).as(c.size)))
-          .pull
-          .echo
-      case None => Pull.done
-    }.stream
+  override val jackson: Pipe[F, GenericRecord, Int] = {
+    val get_writer: GetWriter[GenericRecord] =
+      Reader(schema => HadoopWriter.jacksonR[F](configuration, schema, url))
+
+    generic_record_stream_step_leg(get_writer)
   }
 
   override def parquet(f: Endo[AvroParquetWriter.Builder[GenericRecord]]): Pipe[F, GenericRecord, Int] = {
-    (ss: Stream[F, GenericRecord]) =>
-      ss.pull.stepLeg.flatMap {
-        case Some(leg) =>
-          val schema = leg.head(0).getSchema
-          val writeBuilder = Reader((path: Path) =>
-            AvroParquetWriter
-              .builder[GenericRecord](HadoopOutputFile.fromPath(path, configuration))
-              .withDataModel(GenericData.get())
-              .withConf(configuration)
-              .withSchema(schema)
-              .withCompressionCodec(CompressionCodecName.UNCOMPRESSED)
-              .withWriteMode(ParquetFileWriter.Mode.OVERWRITE)).map(f)
+    val get_writer: GetWriter[GenericRecord] =
+      Reader(schema => HadoopWriter.parquetR[F](default_parquet_write_builder(configuration, schema, f), url))
 
-          Stream
-            .resource(HadoopWriter.parquetR[F](writeBuilder, url))
-            .flatMap(w => leg.stream.cons(leg.head).chunks.evalMap(c => w.write(c).as(c.size)))
-            .pull
-            .echo
-        case None => Pull.done
-      }.stream
+    generic_record_stream_step_leg(get_writer)
   }
 
   override val parquet: Pipe[F, GenericRecord, Int] =

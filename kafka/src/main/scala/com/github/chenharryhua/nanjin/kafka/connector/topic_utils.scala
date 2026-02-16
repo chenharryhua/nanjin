@@ -1,14 +1,19 @@
 package com.github.chenharryhua.nanjin.kafka.connector
 
-import cats.{Applicative, Monad}
 import cats.data.NonEmptySet
-import cats.implicits.*
+import cats.syntax.apply.{catsSyntaxApplyOps, catsSyntaxTuple2Semigroupal}
+import cats.syntax.bifunctor.toBifunctorOps
+import cats.syntax.flatMap.toFlatMapOps
+import cats.syntax.functor.toFunctorOps
+import cats.syntax.functorFilter.toFunctorFilterOps
+import cats.syntax.traverse.toTraverseOps
+import cats.{Applicative, Monad}
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.DateTimeRange
 import com.github.chenharryhua.nanjin.kafka.{Offset, OffsetRange, PartitionRange, TopicPartitionMap}
 import fs2.Stream
-import fs2.kafka.{CommittableConsumerRecord, KafkaConsumer}
 import fs2.kafka.consumer.{KafkaConsume, KafkaTopicsV2}
+import fs2.kafka.{CommittableConsumerRecord, KafkaConsumer}
 import org.apache.avro.generic.GenericData
 import org.apache.kafka.common.TopicPartition
 

@@ -1,6 +1,9 @@
 package com.github.chenharryhua.nanjin
 
-import cats.implicits.{catsSyntaxEq, catsSyntaxTuple2Semigroupal}
+import cats.Endo
+import cats.data.Reader
+import cats.syntax.apply.catsSyntaxTuple2Semigroupal
+import cats.syntax.eq.catsSyntaxEq
 import com.github.chenharryhua.nanjin.datetime.codec
 import eu.timepit.refined.api.{Refined, RefinedTypeOps}
 import eu.timepit.refined.cats.CatsRefinedTypeOpsSyntax
@@ -11,7 +14,15 @@ import io.lemonlabs.uri.Url
 import kantan.csv.CsvConfiguration
 import kantan.csv.CsvConfiguration.Header
 import kantan.csv.engine.WriterEngine
+import org.apache.avro.Schema
+import org.apache.avro.generic.{GenericData, GenericRecord}
+import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.Path
+import org.apache.parquet.avro.AvroParquetWriter
+import org.apache.parquet.avro.AvroParquetWriter.Builder
+import org.apache.parquet.hadoop.ParquetFileWriter
+import org.apache.parquet.hadoop.metadata.CompressionCodecName
+import org.apache.parquet.hadoop.util.HadoopOutputFile
 
 import java.io.StringWriter
 import java.time.LocalDate
@@ -69,4 +80,16 @@ package object terminals {
       }
     go(url.path.parts.toList)
   }
+
+  def default_parquet_write_builder(
+    configuration: Configuration,
+    schema: Schema,
+    f: Endo[Builder[GenericRecord]]): Reader[Url, Builder[GenericRecord]] = Reader((url: Url) =>
+    AvroParquetWriter
+      .builder[GenericRecord](HadoopOutputFile.fromPath(toHadoopPath(url), configuration))
+      .withDataModel(GenericData.get())
+      .withConf(configuration)
+      .withSchema(schema)
+      .withCompressionCodec(CompressionCodecName.UNCOMPRESSED)
+      .withWriteMode(ParquetFileWriter.Mode.OVERWRITE)).map(f)
 }

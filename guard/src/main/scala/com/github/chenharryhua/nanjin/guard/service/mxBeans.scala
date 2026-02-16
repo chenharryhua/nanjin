@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.service
 
 import cats.Eval
-import cats.syntax.all.*
+import cats.syntax.traverse.toTraverseOps
 
 import java.lang.management.*
 import scala.concurrent.duration.DurationLong

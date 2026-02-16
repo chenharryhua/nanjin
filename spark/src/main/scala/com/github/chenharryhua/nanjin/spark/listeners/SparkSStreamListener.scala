@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.spark.listeners
 import cats.Functor
 import cats.effect.kernel.Async
 import cats.effect.std.Dispatcher
-import cats.syntax.functor.*
+import cats.syntax.functor.toFunctorOps
 import fs2.Stream
 import fs2.concurrent.Channel
 import org.apache.spark.sql.SparkSession

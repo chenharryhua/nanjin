@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.event
 
-import cats.implicits.toFunctorOps
+import cats.syntax.functor.toFunctorOps
 import com.github.chenharryhua.nanjin.common.chrono.Tick
 import io.circe.{Decoder, DecodingFailure, Encoder, Json}
 import io.circe.generic.JsonCodec

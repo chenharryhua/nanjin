@@ -1,8 +1,10 @@
 package com.github.chenharryhua.nanjin.kafka.connector
 
+import cats.effect.kernel.{Async, Resource}
 import cats.{Endo, Foldable}
-import cats.effect.kernel.*
-import cats.implicits.{catsSyntaxFlatten, toFoldableOps, toFunctorOps}
+import cats.syntax.flatMap.toFlatMapOps
+import cats.syntax.foldable.toFoldableOps
+import cats.syntax.functor.toFunctorOps
 import com.github.chenharryhua.nanjin.common.{HasProperties, UpdateConfig}
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import fs2.{Chunk, Pipe, Stream}

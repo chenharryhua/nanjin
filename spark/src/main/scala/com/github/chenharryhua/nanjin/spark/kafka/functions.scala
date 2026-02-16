@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.spark.kafka
 
-import cats.syntax.all.*
+import cats.syntax.traverse.toTraverseOps
 import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
 import org.apache.spark.sql.functions.{col, countDistinct}
 import org.apache.spark.sql.{Dataset, Encoder}

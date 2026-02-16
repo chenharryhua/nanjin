@@ -2,7 +2,9 @@ package com.github.chenharryhua.nanjin.guard.service
 
 import cats.effect.kernel.Sync
 import cats.effect.std.AtomicCell
-import cats.syntax.all.*
+import cats.syntax.functor.toFunctorOps
+import cats.syntax.flatMap.toFlatMapOps
+import cats.syntax.option.catsSyntaxOptionId
 import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, Domain, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceMessage
 import com.github.chenharryhua.nanjin.guard.event.{Error, Event}

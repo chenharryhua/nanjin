@@ -3,7 +3,11 @@ package com.github.chenharryhua.nanjin.guard.service
 import cats.effect.implicits.monadCancelOps_
 import cats.effect.kernel.Async
 import cats.effect.std.AtomicCell
-import cats.syntax.all.*
+import cats.syntax.apply.catsSyntaxApplyOps
+import cats.syntax.functor.toFunctorOps
+import cats.syntax.flatMap.{catsSyntaxIfM, toFlatMapOps}
+import cats.syntax.monadError.catsSyntaxMonadError
+import cats.syntax.order.catsSyntaxPartialOrder
 import com.github.chenharryhua.nanjin.common.chrono.PolicyTick
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.event.Event.ServicePanic

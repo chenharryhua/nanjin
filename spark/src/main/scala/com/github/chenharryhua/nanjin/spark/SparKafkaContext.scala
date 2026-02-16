@@ -2,7 +2,10 @@ package com.github.chenharryhua.nanjin.spark
 
 import cats.Endo
 import cats.effect.kernel.{Async, Sync}
-import cats.syntax.all.*
+import cats.syntax.functor.toFunctorOps
+import cats.syntax.flatMap.toFlatMapOps
+import cats.syntax.monadError.catsSyntaxMonadError
+import cats.syntax.traverse.toTraverseOps
 import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.datetime.DateTimeRange
 import com.github.chenharryhua.nanjin.kafka.*

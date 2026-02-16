@@ -4,7 +4,9 @@ import cats.Endo
 import cats.data.Kleisli
 import cats.effect.kernel.{Async, Ref, Resource}
 import cats.effect.std.Dispatcher
-import cats.syntax.all.*
+import cats.syntax.functor.toFunctorOps
+import cats.syntax.flatMap.{catsSyntaxIfM, toFlatMapOps}
+import cats.syntax.option.{catsSyntaxOptionId, none}
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.guard.config.MetricLabel
 import com.github.chenharryhua.nanjin.guard.translator.durationFormatter

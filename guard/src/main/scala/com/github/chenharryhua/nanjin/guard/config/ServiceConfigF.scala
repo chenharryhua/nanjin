@@ -1,6 +1,8 @@
 package com.github.chenharryhua.nanjin.guard.config
 import cats.effect.kernel.Clock
-import cats.syntax.all.*
+import cats.syntax.applicative.catsSyntaxApplicativeId
+import cats.syntax.apply.catsSyntaxTuple2Semigroupal
+import cats.syntax.functor.toFunctorOps
 import cats.{Applicative, Endo, Functor, Show}
 import com.codahale.metrics.jmx.JmxReporter
 import com.github.chenharryhua.nanjin.common.chrono.Policy
@@ -17,6 +19,7 @@ import java.time.*
 import java.util.UUID
 import scala.concurrent.duration.FiniteDuration
 import scala.jdk.DurationConverters.ScalaDurationOps
+
 @JsonCodec
 final case class RestartPolicy(policy: Policy, threshold: Option[Duration])
 

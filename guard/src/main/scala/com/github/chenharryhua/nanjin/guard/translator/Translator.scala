@@ -3,7 +3,9 @@ package com.github.chenharryhua.nanjin.guard.translator
 import alleycats.Pure
 import cats.{Applicative, Endo, Functor, FunctorFilter, Monad, Traverse}
 import cats.data.{Kleisli, OptionT}
-import cats.syntax.all.*
+import cats.syntax.functor.toFunctorOps
+import cats.syntax.flatMap.toFlatMapOps
+import cats.syntax.traverse.toTraverseOps
 import com.github.chenharryhua.nanjin.guard.event.Event
 import com.github.chenharryhua.nanjin.guard.event.Event.*
 import monocle.macros.Lenses

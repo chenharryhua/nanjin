@@ -1,14 +1,15 @@
 package com.github.chenharryhua.nanjin.guard.metrics
 
-import cats.effect.implicits.genTemporalOps
 import cats.effect.kernel.{Async, Concurrent, Ref, Resource}
 import cats.effect.std.Dispatcher
-import cats.syntax.all.*
+import cats.effect.syntax.temporal.genTemporalOps
+import cats.syntax.apply.catsSyntaxTuple2Semigroupal
+import cats.syntax.functor.toFunctorOps
 import com.codahale.metrics
-import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy}
+import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.common.{utils, EnableConfig}
-import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.config.CategoryKind.GaugeKind
+import com.github.chenharryhua.nanjin.guard.config.{Category, MetricID, MetricLabel, MetricName}
 import io.circe.syntax.EncoderOps
 import io.circe.{Encoder, Json}
 import org.apache.commons.lang3.StringUtils
@@ -73,13 +74,7 @@ object Gauge {
 
     override def register[A: Encoder](value: F[A], f: Policy.type => Policy): Resource[F, Unit] = {
       val fetch: F[Json] = F.handleError(value.map(_.asJson).timeout(timeout))(trans_error)
-      for {
-        init <- Resource.eval(fetch)
-        ref <- Resource.eval(F.ref(init))
-        _ <- F.background(
-          tickStream.tickScheduled[F](zoneId, f).evalMap(_ => fetch.flatMap(ref.set)).compile.drain)
-        _ <- register(ref.get)
-      } yield ()
+      run_gauge_job_background(fetch, zoneId, f).flatMap(ref => register(ref.get))
     }
 
     override def ref[A: Encoder](value: A): Resource[F, Ref[F, A]] =
@@ -103,9 +98,11 @@ object Gauge {
       name: String,
       metricRegistry: metrics.MetricRegistry,
       dispatcher: Dispatcher[F],
-      zoneId: ZoneId): Gauge[F] =
-      if (isEnabled) {
+      zoneId: ZoneId): Gauge[F] = {
+      val gauge: Gauge[F] =
         new Impl[F](label, metricRegistry, timeout, name, dispatcher, zoneId)
-      } else noop[F]
+
+      fold_create_noop(isEnabled)(gauge, noop[F])
+    }
   }
 }

@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.kafka
 
-import cats.syntax.all.*
+import cats.syntax.bifunctor.toBifunctorOps
+import cats.syntax.bitraverse.catsSyntaxBitraverse
 import com.github.chenharryhua.nanjin.messages.kafka.*
 import com.github.chenharryhua.nanjin.messages.kafka.codec.KafkaSerde
 

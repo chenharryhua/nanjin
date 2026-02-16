@@ -2,7 +2,8 @@ package com.github.chenharryhua.nanjin.spark.kafka
 
 import cats.Endo
 import cats.effect.kernel.Sync
-import cats.syntax.all.*
+import cats.syntax.eq.catsSyntaxEq
+import cats.syntax.functor.toFunctorOps
 import com.github.chenharryhua.nanjin.common.DurationFormatter
 import com.github.chenharryhua.nanjin.datetime.{
   dayResolution,

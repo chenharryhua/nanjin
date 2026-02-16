@@ -4,7 +4,10 @@ import cats.Applicative
 import cats.data.Ior
 import cats.effect.kernel.{Async, Ref, Resource}
 import cats.effect.std.Dispatcher
-import cats.syntax.all.*
+import cats.syntax.apply.catsSyntaxTuple2Semigroupal
+import cats.syntax.eq.catsSyntaxEq
+import cats.syntax.functor.toFunctorOps
+import cats.syntax.group.catsSyntaxSemigroup
 import com.codahale.metrics.{Gauge, MetricRegistry}
 import com.github.chenharryhua.nanjin.common.{utils, EnableConfig}
 import com.github.chenharryhua.nanjin.guard.config.*

@@ -3,9 +3,10 @@ package com.github.chenharryhua.nanjin.guard.metrics
 import cats.effect.implicits.genTemporalOps
 import cats.effect.kernel.{Async, Resource}
 import cats.effect.std.Dispatcher
-import cats.syntax.all.*
+import cats.syntax.apply.catsSyntaxTuple2Semigroupal
+import cats.syntax.functor.toFunctorOps
 import com.codahale.metrics
-import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy}
+import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.common.{utils, EnableConfig}
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.config.CategoryKind.GaugeKind
@@ -63,13 +64,7 @@ object HealthCheck {
 
     override def register(hc: F[Boolean], f: Policy.type => Policy): Resource[F, Unit] = {
       val check: F[Boolean] = F.handleError(hc.timeout(timeout))(_ => false)
-      for {
-        init <- Resource.eval(check)
-        ref <- Resource.eval(F.ref(init))
-        _ <- F.background(
-          tickStream.tickScheduled[F](zoneId, f).evalMap(_ => check.flatMap(ref.set)).compile.drain)
-        _ <- register(ref.get)
-      } yield ()
+      run_gauge_job_background(check, zoneId, f).flatMap(ref => register(ref.get))
     }
   }
 
@@ -87,9 +82,11 @@ object HealthCheck {
       name: String,
       metricRegistry: metrics.MetricRegistry,
       dispatcher: Dispatcher[F],
-      zoneId: ZoneId): HealthCheck[F] =
-      if (isEnabled) {
+      zoneId: ZoneId): HealthCheck[F] = {
+      val hc: HealthCheck[F] =
         new Impl[F](label, metricRegistry, timeout, name, dispatcher, zoneId)
-      } else noop[F]
+
+      fold_create_noop(isEnabled)(hc, noop[F])
+    }
   }
 }

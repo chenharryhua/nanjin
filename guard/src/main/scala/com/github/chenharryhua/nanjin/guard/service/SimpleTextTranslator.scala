@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.service
 
 import cats.Applicative
-import cats.syntax.all.*
+import cats.syntax.show.{showInterpolator, toShow}
 import com.github.chenharryhua.nanjin.guard.event.{Error, Event, ServiceStopCause}
 import com.github.chenharryhua.nanjin.guard.translator.{textConstants, textHelper, Translator}
 

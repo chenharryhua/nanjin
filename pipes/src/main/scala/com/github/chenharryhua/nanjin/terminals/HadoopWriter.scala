@@ -48,10 +48,10 @@ private object HadoopWriter {
         }
       }
 
-  def parquetR[F[_]](writeBuilder: Reader[Path, AvroParquetWriter.Builder[GenericRecord]], url: Url)(implicit
+  def parquetR[F[_]](writeBuilder: Reader[Url, AvroParquetWriter.Builder[GenericRecord]], url: Url)(implicit
     F: Sync[F]): Resource[F, HadoopWriter[F, GenericRecord]] =
     Resource
-      .fromAutoCloseable(F.blocking(writeBuilder.run(toHadoopPath(url)).build()))
+      .fromAutoCloseable(F.blocking(writeBuilder.run(url).build()))
       .map((pw: ParquetWriter[GenericRecord]) =>
         new HadoopWriter[F, GenericRecord] {
           override val fileUrl: Url = url

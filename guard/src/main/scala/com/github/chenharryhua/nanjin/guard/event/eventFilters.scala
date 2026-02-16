@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.event
 
-import cats.syntax.all.*
+import cats.syntax.eq.catsSyntaxEq
 import com.github.chenharryhua.nanjin.guard.event.Event.MetricReport
 import cron4s.CronExpr
 import cron4s.lib.javatime.javaTemporalInstance

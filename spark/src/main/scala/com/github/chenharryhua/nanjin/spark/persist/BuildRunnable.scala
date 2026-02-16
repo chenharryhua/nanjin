@@ -1,7 +1,8 @@
 package com.github.chenharryhua.nanjin.spark.persist
 
 import cats.effect.kernel.Sync
-import cats.implicits.{catsSyntaxApplyOps, catsSyntaxIfM}
+import cats.syntax.apply.catsSyntaxApplyOps
+import cats.syntax.flatMap.catsSyntaxIfM
 import com.github.chenharryhua.nanjin.spark.describeJob
 import com.github.chenharryhua.nanjin.terminals.Hadoop
 import org.apache.spark.SparkContext

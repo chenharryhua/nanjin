@@ -57,8 +57,8 @@ object Meter {
       new Builder(isEnabled, unitOfMeasure)
 
     private[guard] def build[F[_]](label: MetricLabel, name: String, metricRegistry: metrics.MetricRegistry)(
-      implicit F: Sync[F]): Resource[F, Meter[F, A]] =
-      if (isEnabled) {
+      implicit F: Sync[F]): Resource[F, Meter[F, A]] = {
+      val meter: Resource[F, Meter[F, A]] =
         Resource.make((F.monotonic, utils.randomUUID[F]).mapN { case (ts, unique) =>
           new Impl[F, A](
             label = label,
@@ -66,7 +66,8 @@ object Meter {
             unitOfMeasure = unitOfMeasure,
             name = MetricName(name, ts, unique))
         })(_.unregister)
-      } else
-        Resource.pure(noop[F, A])
+
+      fold_create_noop(isEnabled)(meter, Resource.pure(noop[F, A]))
+    }
   }
 }
