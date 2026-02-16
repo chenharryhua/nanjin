@@ -19,13 +19,13 @@ sealed trait Event extends Product {
 object Event {
 
   final case class ServiceStart(serviceParams: ServiceParams, tick: Tick) extends Event {
-    val timestamp: ZonedDateTime = tick.zoned(_.conclude)
-    val name: EventName = EventName.ServiceStart
+    override val timestamp: ZonedDateTime = tick.zoned(_.conclude)
+    override val name: EventName = EventName.ServiceStart
   }
 
   final case class ServicePanic(serviceParams: ServiceParams, tick: Tick, error: Error) extends Event {
-    val timestamp: ZonedDateTime = tick.zoned(_.acquires)
-    val name: EventName = EventName.ServicePanic
+    override val timestamp: ZonedDateTime = tick.zoned(_.acquires)
+    override val name: EventName = EventName.ServicePanic
   }
 
   final case class ServiceStop(
@@ -33,19 +33,19 @@ object Event {
     timestamp: ZonedDateTime,
     cause: ServiceStopCause)
       extends Event {
-    val name: EventName = EventName.ServiceStop
+    override val name: EventName = EventName.ServiceStop
   }
 
   final case class ServiceMessage(
     serviceParams: ServiceParams,
     domain: Domain,
     timestamp: ZonedDateTime,
-    token: Int,
+    correlation: Correlation,
     level: AlarmLevel,
     error: Option[Error],
     message: Json
   ) extends Event {
-    val name: EventName = EventName.ServiceMessage
+    override val name: EventName = EventName.ServiceMessage
   }
 
   sealed trait MetricEvent extends Event {
@@ -61,7 +61,7 @@ object Event {
     took: Duration)
       extends MetricEvent {
     override val timestamp: ZonedDateTime = index.launchTime
-    val name: EventName = EventName.MetricReport
+    override val name: EventName = EventName.MetricReport
   }
 
   final case class MetricReset(
@@ -71,6 +71,6 @@ object Event {
     took: Duration)
       extends MetricEvent {
     override val timestamp: ZonedDateTime = index.launchTime
-    val name: EventName = EventName.MetricReset
+    override val name: EventName = EventName.MetricReset
   }
 }

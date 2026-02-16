@@ -1,10 +1,12 @@
 package com.github.chenharryhua.nanjin.guard.event
 
+import cats.effect.Unique
 import cats.syntax.functor.toFunctorOps
+import cats.{Hash, Show}
 import com.github.chenharryhua.nanjin.common.chrono.Tick
-import io.circe.{Decoder, DecodingFailure, Encoder, Json}
 import io.circe.generic.JsonCodec
 import io.circe.syntax.EncoderOps
+import io.circe.{Decoder, DecodingFailure, Encoder, Json}
 import org.apache.commons.lang3.exception.ExceptionUtils
 
 import java.time.ZonedDateTime
@@ -64,4 +66,14 @@ object ServiceStopCause {
       }.widen,
       _.downField(BY_EXCEPTION).as[Error].map(err => ByException(err)).widen
     ).reduceLeft(_ or _)
+}
+
+final case class Correlation private (value: Int) extends AnyVal
+object Correlation {
+  def apply(token: Unique.Token): Correlation =
+    Correlation(Hash[Unique.Token].hash(token))
+
+  implicit val showCorrelation: Show[Correlation] = _.value.toString
+  implicit val encoderCorrelation: Encoder[Correlation] = Encoder.encodeInt.contramap(_.value)
+  implicit val decoderCorrelation: Decoder[Correlation] = Decoder.decodeInt.map(Correlation(_))
 }

@@ -1,13 +1,12 @@
 package com.github.chenharryhua.nanjin.guard
 
-import cats.effect.kernel.Unique.Token
 import cats.effect.kernel.{Clock, Sync}
 import cats.syntax.apply.{catsSyntaxApplyOps, catsSyntaxTuple2Semigroupal, catsSyntaxTuple5Semigroupal}
 import cats.syntax.flatMap.toFlatMapOps
 import cats.syntax.functor.toFunctorOps
 import cats.syntax.option.{catsSyntaxOptionId, none}
 import cats.syntax.show.toShow
-import cats.{Applicative, Functor, Hash, Monad, Semigroupal}
+import cats.{Applicative, Functor, Monad, Semigroupal}
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter
 import com.github.chenharryhua.nanjin.common.chrono.Tick
@@ -34,6 +33,7 @@ import io.circe.{Encoder, Json}
 import org.typelevel.log4cats.SelfAwareLogger
 
 import scala.jdk.CollectionConverters.CollectionHasAsScala
+import com.github.chenharryhua.nanjin.guard.event.Correlation
 
 package object service {
 
@@ -89,7 +89,7 @@ package object service {
         serviceParams = serviceParams,
         domain = domain,
         timestamp = ts,
-        token = Hash[Token].hash(token),
+        correlation = Correlation(token),
         level = level,
         error = error,
         message = Encoder[S].apply(msg))
