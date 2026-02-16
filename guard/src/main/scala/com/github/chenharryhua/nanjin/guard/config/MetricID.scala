@@ -1,13 +1,14 @@
 package com.github.chenharryhua.nanjin.guard.config
 
+import cats.effect.Unique
+import cats.effect.kernel.Clock
 import cats.kernel.Order
+import cats.syntax.apply.catsSyntaxTuple2Semigroupal
+import cats.{Applicative, Hash}
 import enumeratum.{CirceEnum, Enum, EnumEntry}
 import io.circe.Encoder
 import io.circe.generic.JsonCodec
 import monocle.macros.GenPrism
-
-import java.util.UUID
-import scala.concurrent.duration.FiniteDuration
 
 sealed trait CategoryKind extends EnumEntry with Product
 
@@ -75,15 +76,26 @@ object Category {
   final case class Timer(kind: TimerKind) extends Category
 }
 
+/** Represents a uniquely identifiable metric within a single JVM runtime.
+  *
+  * Uniqueness guarantee:
+  *   - `age` is a monotonic timestamp (nanoseconds) from the Cats Effect `Clock[F].monotonic`. It preserves
+  *     ordering between metrics.
+  *   - `uniqueToken` is generated from `Unique[F]` and hashed to an `Int`. This guarantees uniqueness even if
+  *     two metrics are created in the same monotonic tick.
+  *
+  * Together, `(name, age, uniqueToken)` ensures that no two `MetricName` instances will collide in the same
+  * JVM.
+  */
 @JsonCodec
-final case class MetricName private (name: String, age: Long, uuid: UUID)
+final case class MetricName private (name: String, age: Long, uniqueToken: Int)
 object MetricName {
   implicit val orderingMetricName: Ordering[MetricName] = Ordering.by(_.age)
   implicit val orderMetricName: Order[MetricName] = Order.fromOrdering
 
-  def apply(name: String, fd: FiniteDuration, uuid: UUID): MetricName =
-    MetricName(name, fd.toNanos, uuid)
-
+  def apply[F[_]: Applicative](name: String)(implicit U: Unique[F], C: Clock[F]): F[MetricName] =
+    (C.monotonic, U.unique).mapN((age, token) =>
+      MetricName(name, age.toNanos, Hash[Unique.Token].hash(token)))
 }
 
 @JsonCodec

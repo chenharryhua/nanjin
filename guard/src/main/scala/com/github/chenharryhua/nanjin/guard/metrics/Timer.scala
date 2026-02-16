@@ -2,10 +2,9 @@ package com.github.chenharryhua.nanjin.guard.metrics
 
 import cats.Applicative
 import cats.effect.kernel.{Resource, Sync}
-import cats.syntax.apply.catsSyntaxTuple2Semigroupal
 import cats.syntax.functor.toFunctorOps
 import com.codahale.metrics
-import com.github.chenharryhua.nanjin.common.{utils, EnableConfig}
+import com.github.chenharryhua.nanjin.common.EnableConfig
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.config.CategoryKind.TimerKind
 
@@ -82,12 +81,12 @@ object Timer {
     private[guard] def build[F[_]](label: MetricLabel, name: String, metricRegistry: metrics.MetricRegistry)(
       implicit F: Sync[F]): Resource[F, Timer[F]] = {
       val timer: Resource[F, Timer[F]] =
-        Resource.make((F.monotonic, utils.randomUUID[F]).mapN { case (ts, unique) =>
+        Resource.make(MetricName(name).map { metricName =>
           new Impl[F](
             label = label,
             metricRegistry = metricRegistry,
             reservoir = reservoir,
-            name = MetricName(name, ts, unique))
+            name = metricName)
         })(_.unregister)
 
       fold_create_noop(isEnabled)(timer, Resource.pure(noop[F]))

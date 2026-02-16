@@ -3,11 +3,10 @@ package com.github.chenharryhua.nanjin.guard.metrics
 import cats.effect.implicits.genTemporalOps
 import cats.effect.kernel.{Async, Resource}
 import cats.effect.std.Dispatcher
-import cats.syntax.apply.catsSyntaxTuple2Semigroupal
 import cats.syntax.functor.toFunctorOps
 import com.codahale.metrics
+import com.github.chenharryhua.nanjin.common.EnableConfig
 import com.github.chenharryhua.nanjin.common.chrono.Policy
-import com.github.chenharryhua.nanjin.common.{utils, EnableConfig}
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.config.CategoryKind.GaugeKind
 
@@ -47,8 +46,8 @@ object HealthCheck {
 
     override def register(hc: F[Boolean]): Resource[F, Unit] =
       for {
-        metricID <- Resource.eval((F.monotonic, utils.randomUUID[F]).mapN { case (ts, unique) =>
-          MetricID(label, MetricName(name, ts, unique), Category.Gauge(GaugeKind.HealthCheck)).identifier
+        metricID <- Resource.eval(MetricName(name).map { metricName =>
+          MetricID(label, metricName, Category.Gauge(GaugeKind.HealthCheck)).identifier
         })
         _ <- Resource.make(
           F.delay(
