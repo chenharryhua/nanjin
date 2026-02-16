@@ -118,7 +118,7 @@ final private class RotateByPolicySink[F[_]: Async](
 
   // avro schema
   override def avro(schema: Schema, compression: AvroCompression): Sink[GenericRecord] = {
-    def get_writer: GetWriter[GenericRecord] =
+    val get_writer: GetWriter[GenericRecord] =
       Reader(url => HadoopWriter.avroR[F](compression.codecFactory, schema, configuration, url))
 
     (ss: Stream[F, GenericRecord]) => persist(ss.chunks, tickedUrl, get_writer).stream
@@ -133,7 +133,7 @@ final private class RotateByPolicySink[F[_]: Async](
   }
 
   override def binAvro(schema: Schema): Sink[GenericRecord] = {
-    def get_writer: GetWriter[GenericRecord] =
+    val get_writer: GetWriter[GenericRecord] =
       Reader(url => HadoopWriter.binAvroR[F](configuration, schema, url))
 
     (ss: Stream[F, GenericRecord]) => persist(ss.chunks, tickedUrl, get_writer).stream
@@ -148,7 +148,7 @@ final private class RotateByPolicySink[F[_]: Async](
   }
 
   override def jackson(schema: Schema): Sink[GenericRecord] = {
-    def get_writer: GetWriter[GenericRecord] =
+    val get_writer: GetWriter[GenericRecord] =
       Reader(url => HadoopWriter.jacksonR[F](configuration, schema, url))
 
     (ss: Stream[F, GenericRecord]) => persist(ss.chunks, tickedUrl, get_writer).stream
@@ -164,7 +164,6 @@ final private class RotateByPolicySink[F[_]: Async](
   }
 
   override def parquet(schema: Schema, f: Endo[Builder[GenericRecord]]): Sink[GenericRecord] = {
-
     val get_writer: GetWriter[GenericRecord] = Reader { url =>
       HadoopWriter.parquetR[F](default_parquet_write_builder(configuration, schema, f).map(f), url)
     }
@@ -182,7 +181,6 @@ final private class RotateByPolicySink[F[_]: Async](
 
   // circe json
   override val circe: Sink[Json] = {
-
     val get_writer: GetWriter[Json] =
       Reader(url => HadoopWriter.circeR[F](configuration, url))
 
