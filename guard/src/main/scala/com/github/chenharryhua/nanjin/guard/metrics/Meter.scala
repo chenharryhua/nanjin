@@ -2,9 +2,9 @@ package com.github.chenharryhua.nanjin.guard.metrics
 
 import cats.Applicative
 import cats.effect.kernel.{Resource, Sync}
-import cats.implicits.{catsSyntaxTuple2Semigroupal, toFunctorOps}
+import cats.implicits.toFunctorOps
 import com.codahale.metrics
-import com.github.chenharryhua.nanjin.common.{utils, EnableConfig}
+import com.github.chenharryhua.nanjin.common.EnableConfig
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.config.CategoryKind.MeterKind
 import squants.{Quantity, UnitOfMeasure}
@@ -57,16 +57,17 @@ object Meter {
       new Builder(isEnabled, unitOfMeasure)
 
     private[guard] def build[F[_]](label: MetricLabel, name: String, metricRegistry: metrics.MetricRegistry)(
-      implicit F: Sync[F]): Resource[F, Meter[F, A]] =
-      if (isEnabled) {
-        Resource.make((F.monotonic, utils.randomUUID[F]).mapN { case (ts, unique) =>
+      implicit F: Sync[F]): Resource[F, Meter[F, A]] = {
+      val meter: Resource[F, Meter[F, A]] =
+        Resource.make(MetricName(name).map { metricName =>
           new Impl[F, A](
             label = label,
             metricRegistry = metricRegistry,
             unitOfMeasure = unitOfMeasure,
-            name = MetricName(name, ts, unique))
+            name = metricName)
         })(_.unregister)
-      } else
-        Resource.pure(noop[F, A])
+
+      fold_create_noop(isEnabled)(meter, Resource.pure(noop[F, A]))
+    }
   }
 }

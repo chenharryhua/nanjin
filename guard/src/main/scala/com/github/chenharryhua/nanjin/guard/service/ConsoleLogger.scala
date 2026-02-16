@@ -3,7 +3,8 @@ package com.github.chenharryhua.nanjin.guard.service
 import cats.Monad
 import cats.effect.kernel.Clock
 import cats.effect.std.Console
-import cats.implicits.{toFlatMapOps, toFunctorOps}
+import cats.syntax.functor.toFunctorOps
+import cats.syntax.flatMap.toFlatMapOps
 import org.typelevel.log4cats.MessageLogger
 
 import java.time.ZoneId

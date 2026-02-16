@@ -2,7 +2,11 @@ package com.github.chenharryhua.nanjin.guard.observers.sns
 
 import cats.Endo
 import cats.effect.kernel.{Clock, Concurrent, Resource}
-import cats.syntax.all.*
+import cats.syntax.applicativeError.catsSyntaxApplicativeError
+import cats.syntax.flatMap.toFlatMapOps
+import cats.syntax.foldable.toFoldableOps
+import cats.syntax.functor.toFunctorOps
+import cats.syntax.traverse.toTraverseOps
 import com.github.chenharryhua.nanjin.aws.SimpleNotificationService
 import com.github.chenharryhua.nanjin.common.aws.SnsArn
 import com.github.chenharryhua.nanjin.guard.event.Event

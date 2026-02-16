@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.spark.kafka
 
 import cats.Endo
 import cats.effect.kernel.Sync
-import cats.syntax.all.*
+import cats.syntax.eq.catsSyntaxEq
 import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.datetime.DateTimeRange
 import com.github.chenharryhua.nanjin.messages.kafka.{MetaInfo, NJConsumerRecord}

@@ -3,7 +3,10 @@ package com.github.chenharryhua.nanjin.kafka
 import cats.Endo
 import cats.effect.Resource
 import cats.effect.kernel.{Async, Sync}
-import cats.implicits.{catsSyntaxApplicativeError, toFlatMapOps, toFunctorOps, toTraverseOps}
+import cats.syntax.applicativeError.catsSyntaxApplicativeError
+import cats.syntax.functor.toFunctorOps
+import cats.syntax.flatMap.toFlatMapOps
+import cats.syntax.traverse.toTraverseOps
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameL}
 import com.github.chenharryhua.nanjin.kafka.connector.*

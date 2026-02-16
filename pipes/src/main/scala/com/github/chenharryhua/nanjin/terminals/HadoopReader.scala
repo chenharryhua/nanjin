@@ -3,7 +3,8 @@ package com.github.chenharryhua.nanjin.terminals
 import cats.data.Reader
 import cats.effect.Resource
 import cats.effect.kernel.Sync
-import cats.implicits.{catsSyntaxEq, catsSyntaxOptionId}
+import cats.syntax.option.catsSyntaxOptionId
+import cats.syntax.eq.catsSyntaxEq
 import com.github.chenharryhua.nanjin.common.ChunkSize
 import fs2.{Chunk, Stream}
 import io.circe.Json

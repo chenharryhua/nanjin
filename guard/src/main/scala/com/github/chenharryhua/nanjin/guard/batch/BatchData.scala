@@ -1,7 +1,8 @@
 package com.github.chenharryhua.nanjin.guard.batch
 
 import cats.Show
-import cats.syntax.all.*
+import cats.syntax.bifunctor.toBifunctorOps
+import cats.syntax.show.{showInterpolator, toShow}
 import com.github.chenharryhua.nanjin.guard.config.MetricLabel
 import com.github.chenharryhua.nanjin.guard.translator.durationFormatter
 import io.circe.syntax.EncoderOps

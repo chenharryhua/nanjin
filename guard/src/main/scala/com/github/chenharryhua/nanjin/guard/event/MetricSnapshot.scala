@@ -2,7 +2,8 @@ package com.github.chenharryhua.nanjin.guard.event
 
 import cats.effect.implicits.clockOps
 import cats.effect.kernel.Sync
-import cats.syntax.all.*
+import cats.syntax.eq.catsSyntaxEq
+import cats.syntax.functor.toFunctorOps
 import com.codahale.metrics
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.guard.config.{MetricID, Squants}
@@ -13,7 +14,6 @@ import org.typelevel.cats.time.instances.duration
 import squants.time.{Frequency, Hertz}
 
 import java.time.Duration
-import java.util.UUID
 import scala.jdk.CollectionConverters.*
 import scala.jdk.DurationConverters.ScalaDurationOps
 
@@ -103,10 +103,10 @@ final case class MetricSnapshot(
     stable.distinct.size =!= stable.size
   }
 
-  def lookupCount: Map[UUID, Long] = {
-    meters.map(m => m.metricId.metricName.uuid -> m.meter.aggregate) :::
-      timers.map(t => t.metricId.metricName.uuid -> t.timer.calls) :::
-      histograms.map(h => h.metricId.metricName.uuid -> h.histogram.updates)
+  def lookupCount: Map[MetricID, Long] = {
+    meters.map(m => m.metricId -> m.meter.aggregate) :::
+      timers.map(t => t.metricId -> t.timer.calls) :::
+      histograms.map(h => h.metricId -> h.histogram.updates)
   }.toMap
 
   def sorted: MetricSnapshot = MetricSnapshot(

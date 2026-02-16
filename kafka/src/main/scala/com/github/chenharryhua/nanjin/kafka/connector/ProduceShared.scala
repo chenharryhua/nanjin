@@ -2,7 +2,8 @@ package com.github.chenharryhua.nanjin.kafka.connector
 
 import cats.Endo
 import cats.effect.kernel.{Async, Resource}
-import cats.implicits.{toFlatMapOps, toFunctorOps}
+import cats.syntax.flatMap.toFlatMapOps
+import cats.syntax.functor.toFunctorOps
 import com.github.chenharryhua.nanjin.common.{HasProperties, UpdateConfig}
 import fs2.{Chunk, Pipe, Stream}
 import fs2.kafka.*

@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.translator
 
 import cats.data.Cont
-import cats.syntax.all.*
+import cats.syntax.order.catsSyntaxOrder
 import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, Category}
 import com.github.chenharryhua.nanjin.guard.config.CategoryKind.CounterKind
 import com.github.chenharryhua.nanjin.guard.event.{

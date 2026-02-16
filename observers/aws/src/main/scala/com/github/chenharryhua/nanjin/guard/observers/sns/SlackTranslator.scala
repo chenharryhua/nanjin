@@ -214,7 +214,7 @@ private object SlackTranslator extends all {
         host_service_section(evt.serviceParams),
         JuxtaposeSection(
           TextField(CONSTANT_DOMAIN, evt.domain.value),
-          TextField(CONSTANT_MESSAGE_TOKEN, evt.token.toString)),
+          TextField(CONSTANT_MESSAGE_CORRELATION, evt.correlation.show)),
         MarkdownSection(s"*$CONSTANT_SERVICE_ID:* ${evt.serviceParams.serviceId.show}"),
         MarkdownSection(s"```${abbreviate(evt.message)}```")
       )

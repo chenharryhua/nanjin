@@ -30,7 +30,7 @@ object jsonHelper {
         service_name(sm.serviceParams),
         service_id(sm.serviceParams),
         "domain" -> sm.domain.asJson,
-        "token" -> sm.token.asJson)
+        "correlation" -> sm.correlation.asJson)
 
     sm.error match {
       case Some(err) =>

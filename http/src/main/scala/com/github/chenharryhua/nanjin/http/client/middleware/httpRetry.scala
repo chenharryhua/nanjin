@@ -2,7 +2,11 @@ package com.github.chenharryhua.nanjin.http.client.middleware
 
 import cats.effect.kernel.{Async, Clock, Resource, Temporal}
 import cats.effect.std.Hotswap
-import cats.syntax.all.*
+import cats.syntax.applicative.catsSyntaxApplicativeId
+import cats.syntax.applicativeError.catsSyntaxApplicativeErrorId
+import cats.syntax.flatMap.{catsSyntaxFlatMapOps, toFlatMapOps}
+import cats.syntax.functor.toFunctorOps
+import cats.syntax.traverse.toTraverseOps
 import com.github.chenharryhua.nanjin.common.chrono.{Policy, PolicyTick}
 import org.http4s.client.Client
 import org.http4s.client.middleware.RetryPolicy

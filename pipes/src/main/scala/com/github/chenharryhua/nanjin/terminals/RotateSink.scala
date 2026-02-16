@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.terminals
 
 import cats.Endo
-import cats.implicits.showInterpolator
+import cats.syntax.show.showInterpolator
 import com.fasterxml.jackson.databind.JsonNode
 import com.github.chenharryhua.nanjin.common.DurationFormatter
 import com.github.chenharryhua.nanjin.common.chrono.TickedValue

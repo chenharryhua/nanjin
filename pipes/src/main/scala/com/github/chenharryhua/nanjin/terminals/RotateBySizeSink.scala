@@ -4,7 +4,7 @@ import cats.Endo
 import cats.data.Reader
 import cats.effect.kernel.{Async, Resource}
 import cats.effect.std.Hotswap
-import cats.implicits.catsSyntaxMonadError
+import cats.syntax.monadError.catsSyntaxMonadError
 import com.fasterxml.jackson.databind.JsonNode
 import com.github.chenharryhua.nanjin.common.chrono.{Tick, TickedValue}
 import fs2.{Chunk, Pipe, Pull, Stream}
@@ -12,14 +12,9 @@ import io.circe.Json
 import io.lemonlabs.uri.Url
 import kantan.csv.CsvConfiguration
 import org.apache.avro.Schema
-import org.apache.avro.generic.{GenericData, GenericRecord}
+import org.apache.avro.generic.GenericRecord
 import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.fs.Path
-import org.apache.parquet.avro.AvroParquetWriter
 import org.apache.parquet.avro.AvroParquetWriter.Builder
-import org.apache.parquet.hadoop.ParquetFileWriter
-import org.apache.parquet.hadoop.metadata.CompressionCodecName
-import org.apache.parquet.hadoop.util.HadoopOutputFile
 import scalapb.GeneratedMessage
 
 import java.time.ZoneId
@@ -30,6 +25,8 @@ final private class RotateBySizeSink[F[_]](
   pathBuilder: CreateRotateFile => Url,
   sizeLimit: Long)(implicit F: Async[F])
     extends RotateBySize[F] {
+
+  private type GetWriter[A] = Reader[CreateRotateFile, Resource[F, HadoopWriter[F, A]]]
 
   /** Recursively writes data from the stream to disk, rotating files based on size.
     *
@@ -61,7 +58,7 @@ final private class RotateBySizeSink[F[_]](
     *   5. The tick index increments sequentially starting from 1.
     */
   private def doWork[A](
-    getWriter: CreateRotateFile => Resource[F, HadoopWriter[F, A]],
+    getWriter: GetWriter[A],
     hotswap: Hotswap[F, HadoopWriter[F, A]],
     writer: HadoopWriter[F, A],
     data: Stream[F, A],
@@ -126,8 +123,9 @@ final private class RotateBySizeSink[F[_]](
     }
   }
 
-  private def persist[A](data: Stream[F, A], getWriter: CreateRotateFile => Resource[F, HadoopWriter[F, A]])
-    : Pull[F, TickedValue[RotateFile], Unit] = {
+  private def persist[A](
+    data: Stream[F, A],
+    getWriter: GetWriter[A]): Pull[F, TickedValue[RotateFile], Unit] = {
     val resources: Resource[F, ((Hotswap[F, HadoopWriter[F, A]], HadoopWriter[F, A]), Tick)] =
       Resource.eval(Tick.zeroth[F](zoneId)).flatMap { tick =>
         Hotswap(
@@ -153,116 +151,94 @@ final private class RotateBySizeSink[F[_]](
       .echo
   }
 
+  private def generic_record_stream_step_leg(get_writer: Schema => GetWriter[GenericRecord])(
+    ss: Stream[F, GenericRecord]): Stream[F, TickedValue[RotateFile]] =
+    ss.pull.stepLeg.flatMap {
+      case Some(leg) =>
+        persist(leg.stream.cons(leg.head), get_writer(leg.head(0).getSchema))
+      case None => Pull.done
+    }.stream
+
   // avro schema-less
 
   override def avro(compression: AvroCompression): Sink[GenericRecord] = {
-    def get_writer(schema: Schema)(crf: CreateRotateFile): Resource[F, HadoopWriter[F, GenericRecord]] =
-      HadoopWriter.avroR[F](compression.codecFactory, schema, configuration, pathBuilder(crf))
+    def get_writer(schema: Schema): GetWriter[GenericRecord] =
+      Reader(crf => HadoopWriter.avroR[F](compression.codecFactory, schema, configuration, pathBuilder(crf)))
 
-    (ss: Stream[F, GenericRecord]) =>
-      ss.pull.stepLeg.flatMap {
-        case Some(leg) =>
-          persist(leg.stream.cons(leg.head), get_writer(leg.head(0).getSchema))
-        case None => Pull.done
-      }.stream
+    generic_record_stream_step_leg(get_writer)
   }
 
   // binary avro
   override val binAvro: Sink[GenericRecord] = {
-    def get_writer(schema: Schema)(crf: CreateRotateFile): Resource[F, HadoopWriter[F, GenericRecord]] =
-      HadoopWriter.binAvroR[F](configuration, schema, pathBuilder(crf))
+    def get_writer(schema: Schema): GetWriter[GenericRecord] =
+      Reader(crf => HadoopWriter.binAvroR[F](configuration, schema, pathBuilder(crf)))
 
-    (ss: Stream[F, GenericRecord]) =>
-      ss.pull.stepLeg.flatMap {
-        case Some(leg) =>
-          persist(leg.stream.cons(leg.head), get_writer(leg.head(0).getSchema))
-        case None => Pull.done
-      }.stream
+    generic_record_stream_step_leg(get_writer)
   }
 
   // jackson
   override val jackson: Sink[GenericRecord] = {
-    def get_writer(schema: Schema)(crf: CreateRotateFile): Resource[F, HadoopWriter[F, GenericRecord]] =
-      HadoopWriter.jacksonR[F](configuration, schema, pathBuilder(crf))
+    def get_writer(schema: Schema): GetWriter[GenericRecord] =
+      Reader(crf => HadoopWriter.jacksonR[F](configuration, schema, pathBuilder(crf)))
 
-    (ss: Stream[F, GenericRecord]) =>
-      ss.pull.stepLeg.flatMap {
-        case Some(leg) =>
-          persist(leg.stream.cons(leg.head), get_writer(leg.head(0).getSchema))
-        case None => Pull.done
-      }.stream
+    generic_record_stream_step_leg(get_writer)
   }
 
   // parquet
   override def parquet(f: Endo[Builder[GenericRecord]]): Sink[GenericRecord] = {
-
-    def get_writer(schema: Schema)(crf: CreateRotateFile): Resource[F, HadoopWriter[F, GenericRecord]] = {
-      val writeBuilder: Reader[Path, Builder[GenericRecord]] = Reader((path: Path) =>
-        AvroParquetWriter
-          .builder[GenericRecord](HadoopOutputFile.fromPath(path, configuration))
-          .withDataModel(GenericData.get())
-          .withConf(configuration)
-          .withSchema(schema)
-          .withCompressionCodec(CompressionCodecName.UNCOMPRESSED)
-          .withWriteMode(ParquetFileWriter.Mode.OVERWRITE)).map(f)
-
-      HadoopWriter.parquetR[F](writeBuilder, pathBuilder(crf))
+    def get_writer(schema: Schema): GetWriter[GenericRecord] = Reader { crf =>
+      HadoopWriter.parquetR[F](default_parquet_write_builder(configuration, schema, f), pathBuilder(crf))
     }
 
-    (ss: Stream[F, GenericRecord]) =>
-      ss.pull.stepLeg.flatMap {
-        case Some(leg) =>
-          persist(leg.stream.cons(leg.head), get_writer(leg.head(0).getSchema))
-        case None => Pull.done
-      }.stream
+    generic_record_stream_step_leg(get_writer)
   }
 
   // bytes
   override val bytes: Sink[Byte] = {
-    def get_writer(crf: CreateRotateFile): Resource[F, HadoopWriter[F, Byte]] =
-      HadoopWriter.byteR[F](configuration, pathBuilder(crf))
+    val get_writer: GetWriter[Byte] =
+      Reader(crf => HadoopWriter.byteR[F](configuration, pathBuilder(crf)))
 
     (ss: Stream[F, Byte]) => persist(ss, get_writer).stream
   }
 
   // circe json
   override val circe: Sink[Json] = {
-
-    def get_writer(crf: CreateRotateFile): Resource[F, HadoopWriter[F, Json]] =
-      HadoopWriter.circeR[F](configuration, pathBuilder(crf))
+    val get_writer: GetWriter[Json] =
+      Reader(crf => HadoopWriter.circeR[F](configuration, pathBuilder(crf)))
 
     (ss: Stream[F, Json]) => persist(ss, get_writer).stream
   }
 
   // kantan csv
   override def kantan(csvConfiguration: CsvConfiguration): Sink[Seq[String]] = {
-    def get_writer(crf: CreateRotateFile): Resource[F, HadoopWriter[F, String]] =
-      HadoopWriter
-        .csvStringR[F](configuration, pathBuilder(crf))
-        .evalTap(_.write(headerWithCrlf(csvConfiguration)))
+    val get_writer: GetWriter[String] =
+      Reader(crf =>
+        HadoopWriter
+          .csvStringR[F](configuration, pathBuilder(crf))
+          .evalTap(_.write(headerWithCrlf(csvConfiguration))))
 
     (ss: Stream[F, Seq[String]]) => persist(ss.map(csvRow(csvConfiguration)), get_writer).stream
   }
 
   // text
   override val text: Sink[String] = {
-    def get_writer(crf: CreateRotateFile): Resource[F, HadoopWriter[F, String]] =
-      HadoopWriter.stringR(configuration, pathBuilder(crf))
+    val get_writer: GetWriter[String] =
+      Reader(crf => HadoopWriter.stringR(configuration, pathBuilder(crf)))
 
     (ss: Stream[F, String]) => persist(ss, get_writer).stream
   }
 
   override val protobuf: Sink[GeneratedMessage] = {
-    def get_writer(crf: CreateRotateFile): Resource[F, HadoopWriter[F, GeneratedMessage]] =
-      HadoopWriter.protobufR(configuration, pathBuilder(crf))
+    val get_writer: GetWriter[GeneratedMessage] =
+      Reader(crf => HadoopWriter.protobufR(configuration, pathBuilder(crf)))
 
     (ss: Stream[F, GeneratedMessage]) => persist(ss, get_writer).stream
   }
 
   // json node
   override def jsonNode: Pipe[F, JsonNode, TickedValue[RotateFile]] = {
-    def get_writer(crf: CreateRotateFile): Resource[F, HadoopWriter[F, JsonNode]] =
-      HadoopWriter.jsonNodeR(configuration, pathBuilder(crf))
+    val get_writer: GetWriter[JsonNode] =
+      Reader(crf => HadoopWriter.jsonNodeR(configuration, pathBuilder(crf)))
 
     (ss: Stream[F, JsonNode]) => persist(ss, get_writer).stream
   }

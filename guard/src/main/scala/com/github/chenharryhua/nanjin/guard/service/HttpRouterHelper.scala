@@ -171,7 +171,7 @@ final private class HttpRouterHelper[F[_]: Sync](
               .asJson
               .deepMerge(Json.obj(
                 "domain" -> sm.domain.asJson,
-                "token" -> sm.token.asJson,
+                "correlation" -> sm.correlation.asJson,
                 "age" -> durationFormatter.format(Duration.between(sm.timestamp, now)).asJson,
                 "timestamp" -> sm.timestamp.asJson,
                 "message" -> sm.message

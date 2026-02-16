@@ -2,7 +2,9 @@ package com.github.chenharryhua.nanjin.terminals
 
 import cats.data.NonEmptyList
 import cats.effect.kernel.{Async, Sync}
-import cats.implicits.{toFlatMapOps, toFunctorOps, toTraverseOps}
+import cats.syntax.flatMap.toFlatMapOps
+import cats.syntax.functor.toFunctorOps
+import cats.syntax.traverse.toTraverseOps
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, TickedValue}
 import com.github.chenharryhua.nanjin.datetime.codec
 import fs2.Stream
@@ -49,6 +51,12 @@ final class Hadoop[F[_]] private (config: Configuration) {
       fs.exists(hp)
     }
 
+  private def remote_iterator(path: Url): RemoteIterator[LocatedFileStatus] = {
+    val hp: Path = toHadoopPath(path)
+    val fs: FileSystem = hp.getFileSystem(config)
+    fs.listFiles(hp, true)
+  }
+
   /** Recursively list all files under the given path.
     *
     * @param path
@@ -58,9 +66,7 @@ final class Hadoop[F[_]] private (config: Configuration) {
     */
   def locatedFileStatus(path: Url)(implicit F: Sync[F]): F[List[LocatedFileStatus]] =
     F.blocking {
-      val hp: Path = toHadoopPath(path)
-      val fs: FileSystem = hp.getFileSystem(config)
-      val ri: RemoteIterator[LocatedFileStatus] = fs.listFiles(hp, true)
+      val ri: RemoteIterator[LocatedFileStatus] = remote_iterator(path)
       val lb: ListBuffer[LocatedFileStatus] = ListBuffer.empty[LocatedFileStatus]
       while (ri.hasNext) lb.addOne(ri.next()) // scalafix:ok
       lb.toList
@@ -75,9 +81,7 @@ final class Hadoop[F[_]] private (config: Configuration) {
     */
   def dataFolders(path: Url)(implicit F: Sync[F]): F[List[Url]] =
     F.blocking {
-      val hp: Path = toHadoopPath(path)
-      val fs: FileSystem = hp.getFileSystem(config)
-      val ri: RemoteIterator[LocatedFileStatus] = fs.listFiles(hp, true)
+      val ri: RemoteIterator[LocatedFileStatus] = remote_iterator(path)
       val lb: mutable.Set[Path] = collection.mutable.Set.empty
 
       while (ri.hasNext) lb.addOne(ri.next().getPath.getParent) // scalafix:ok
@@ -230,7 +234,7 @@ final class Hadoop[F[_]] private (config: Configuration) {
     *
     * @param zoneId
     *   Time zone
-    * @param policy
+    * @param f
     *   Rotation policy
     * @param pathBuilder
     *   Builds output paths for each rotation

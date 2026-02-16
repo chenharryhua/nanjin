@@ -2,9 +2,9 @@ package com.github.chenharryhua.nanjin.guard.metrics
 
 import cats.Applicative
 import cats.effect.kernel.{Resource, Sync}
-import cats.implicits.{catsSyntaxTuple2Semigroupal, toFunctorOps}
+import cats.syntax.functor.toFunctorOps
 import com.codahale.metrics
-import com.github.chenharryhua.nanjin.common.{utils, EnableConfig}
+import com.github.chenharryhua.nanjin.common.EnableConfig
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.config.CategoryKind.HistogramKind
 import squants.{Quantity, UnitOfMeasure}
@@ -73,17 +73,18 @@ object Histogram {
       new Builder(isEnabled, unitOfMeasure, reservoir)
 
     private[guard] def build[F[_]](label: MetricLabel, name: String, metricRegistry: metrics.MetricRegistry)(
-      implicit F: Sync[F]): Resource[F, Histogram[F, A]] =
-      if (isEnabled) {
-        Resource.make((F.monotonic, utils.randomUUID[F]).mapN { case (ts, unique) =>
+      implicit F: Sync[F]): Resource[F, Histogram[F, A]] = {
+      val histogram: Resource[F, Histogram[F, A]] =
+        Resource.make(MetricName(name).map { metricName =>
           new Impl[F, A](
             label = label,
             metricRegistry = metricRegistry,
             unitOfMeasure = unitOfMeasure,
             reservoir = reservoir,
-            name = MetricName(name, ts, unique))
+            name = metricName)
         })(_.unregister)
-      } else
-        Resource.pure(noop[F, A])
+
+      fold_create_noop(isEnabled)(histogram, Resource.pure(noop[F, A]))
+    }
   }
 }

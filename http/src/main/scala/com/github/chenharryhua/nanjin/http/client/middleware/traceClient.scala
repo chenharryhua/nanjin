@@ -1,10 +1,11 @@
 package com.github.chenharryhua.nanjin.http.client.middleware
 
 import cats.effect.kernel.*
-import cats.syntax.all.*
+import cats.syntax.flatMap.toFlatMapOps
+import cats.syntax.functor.toFunctorOps
 import natchez.Span
-import org.http4s.{Header, Headers, Response}
 import org.http4s.client.Client
+import org.http4s.{Header, Headers, Response}
 
 object traceClient {
   // steal from https://github.com/typelevel/natchez-http4s/blob/main/modules/http4s/src/main/scala/natchez/http4s/NatchezMiddleware.scala

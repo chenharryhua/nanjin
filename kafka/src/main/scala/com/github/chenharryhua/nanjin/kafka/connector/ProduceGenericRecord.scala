@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.kafka.connector
 
 import cats.Endo
-import cats.effect.kernel.*
+import cats.effect.kernel.Async
 import cats.syntax.flatMap.toFlatMapOps
 import cats.syntax.functor.toFunctorOps
 import com.github.chenharryhua.nanjin.common.{HasProperties, UpdateConfig}
@@ -12,8 +12,8 @@ import com.github.chenharryhua.nanjin.kafka.{
   SchemaRegistrySettings
 }
 import com.github.chenharryhua.nanjin.messages.kafka.codec.jackson2GenericRecord
-import fs2.{Chunk, Pipe, Stream}
 import fs2.kafka.*
+import fs2.{Chunk, Pipe, Stream}
 import org.apache.avro.Schema
 import org.apache.avro.generic.GenericRecord
 import org.apache.kafka.clients.producer.RecordMetadata

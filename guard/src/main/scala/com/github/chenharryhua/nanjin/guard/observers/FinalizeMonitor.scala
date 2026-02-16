@@ -2,7 +2,9 @@ package com.github.chenharryhua.nanjin.guard.observers
 
 import cats.Monad
 import cats.effect.kernel.{Clock, Ref}
-import cats.implicits.{catsSyntaxApplicativeId, toFlatMapOps, toFunctorOps}
+import cats.syntax.applicative.catsSyntaxApplicativeId
+import cats.syntax.functor.toFunctorOps
+import cats.syntax.flatMap.toFlatMapOps
 import com.github.chenharryhua.nanjin.guard.event.Event.{ServiceStart, ServiceStop}
 import com.github.chenharryhua.nanjin.guard.event.{Event, ServiceStopCause}
 import fs2.Chunk

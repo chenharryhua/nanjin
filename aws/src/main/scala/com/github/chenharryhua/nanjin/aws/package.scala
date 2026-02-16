@@ -2,7 +2,8 @@ package com.github.chenharryhua.nanjin
 
 import cats.effect.implicits.genTemporalOps
 import cats.effect.kernel.{Async, Sync}
-import cats.implicits.{catsSyntaxApplicativeError, toFlatMapOps}
+import cats.syntax.applicativeError.catsSyntaxApplicativeError
+import cats.syntax.flatMap.toFlatMapOps
 import org.typelevel.log4cats.Logger
 
 import scala.concurrent.duration.DurationInt

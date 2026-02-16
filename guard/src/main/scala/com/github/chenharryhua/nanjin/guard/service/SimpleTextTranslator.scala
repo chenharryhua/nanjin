@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.service
 
 import cats.Applicative
-import cats.syntax.all.*
+import cats.syntax.show.{showInterpolator, toShow}
 import com.github.chenharryhua.nanjin.guard.event.{Error, Event, ServiceStopCause}
 import com.github.chenharryhua.nanjin.guard.translator.{textConstants, textHelper, Translator}
 
@@ -90,13 +90,13 @@ private object SimpleTextTranslator {
     val tn: String = s"$CONSTANT_TASK:${evt.serviceParams.taskName.value}"
     val serviceId: String = s"$CONSTANT_SERVICE_ID:${evt.serviceParams.serviceId.show}"
     val uptime: String = s"$CONSTANT_UPTIME:${textHelper.uptimeText(evt)}"
-    val token = s"$CONSTANT_MESSAGE_TOKEN:${evt.token}"
+    val correlation = s"$CONSTANT_MESSAGE_CORRELATION:${evt.correlation.show}"
     val domain = s"$CONSTANT_DOMAIN:${evt.domain.value}"
 
     s"""|
         |  $sn, $tn, $domain, $uptime
         |  $host
-        |  $serviceId, $token
+        |  $serviceId, $correlation
         |${evt.message.spaces2}
         |${evt.error.fold("")(error_str)}
         |""".stripMargin

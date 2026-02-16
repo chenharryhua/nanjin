@@ -104,7 +104,7 @@ sealed trait FileSource[F[_]] {
     *   Each chunk of the stream is of uniform size, except for the final chunk, which may be smaller
     *   depending on the remaining data.
     * @param csvConfiguration
-    *   kantan's CSV configuration
+    *   kantan CSV configuration
     */
   def kantan(chunkSize: ChunkSize, csvConfiguration: CsvConfiguration): Stream[F, Seq[String]]
 

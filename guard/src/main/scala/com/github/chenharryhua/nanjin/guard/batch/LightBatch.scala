@@ -3,7 +3,10 @@ package com.github.chenharryhua.nanjin.guard.batch
 import cats.Endo
 import cats.data.Reader
 import cats.effect.kernel.{Async, Sync}
-import cats.implicits.{catsSyntaxMonadErrorRethrow, toFlatMapOps, toFunctorOps, toTraverseOps}
+import cats.syntax.functor.toFunctorOps
+import cats.syntax.flatMap.toFlatMapOps
+import cats.syntax.monadError.catsSyntaxMonadErrorRethrow
+import cats.syntax.traverse.toTraverseOps
 import com.github.chenharryhua.nanjin.common.utils
 import com.github.chenharryhua.nanjin.guard.metrics.Metrics
 import monocle.Monocle.toAppliedFocusOps

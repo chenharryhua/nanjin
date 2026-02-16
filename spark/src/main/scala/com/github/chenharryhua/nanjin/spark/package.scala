@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin
 
 import cats.Foldable
 import cats.effect.kernel.{Resource, Sync}
-import cats.implicits.toFoldableOps
+import cats.syntax.foldable.toFoldableOps
 import com.github.chenharryhua.nanjin.common.ChunkSize
 import com.github.chenharryhua.nanjin.kafka.KafkaContext
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec

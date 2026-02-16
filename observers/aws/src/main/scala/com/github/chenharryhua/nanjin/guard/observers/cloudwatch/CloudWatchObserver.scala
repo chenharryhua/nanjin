@@ -1,11 +1,14 @@
 package com.github.chenharryhua.nanjin.guard.observers.cloudwatch
 import cats.Endo
 import cats.effect.kernel.{Async, Concurrent, Resource}
-import cats.syntax.all.*
+import cats.syntax.applicativeError.catsSyntaxApplicativeError
+import cats.syntax.flatMap.toFlatMapOps
+import cats.syntax.functor.toFunctorOps
+import cats.syntax.traverse.toTraverseOps
 import com.github.chenharryhua.nanjin.aws.CloudWatch
 import com.github.chenharryhua.nanjin.common.aws.CloudWatchNamespace
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick}
-import com.github.chenharryhua.nanjin.guard.config.{MetricLabel, ServiceParams, Squants}
+import com.github.chenharryhua.nanjin.guard.config.{MetricID, MetricLabel, ServiceParams, Squants}
 import com.github.chenharryhua.nanjin.guard.event.Event.MetricReport
 import com.github.chenharryhua.nanjin.guard.event.{Event, MetricIndex, MetricSnapshot}
 import com.github.chenharryhua.nanjin.guard.translator.textConstants
@@ -47,7 +50,7 @@ final class CloudWatchObserver[F[_]: Async] private (
 
   private val histogramB: HistogramFieldBuilder = histogramBuilder(new HistogramFieldBuilder(false, Nil))
 
-  private def computeDatum(report: MetricReport, lookup: Map[UUID, Long]): List[MetricDatum] = {
+  private def computeDatum(report: MetricReport, lookup: Map[MetricID, Long]): List[MetricDatum] = {
 
     val timer_histo: List[MetricDatum] = for {
       hf <- histogramB.build
@@ -85,7 +88,7 @@ final class CloudWatchObserver[F[_]: Async] private (
     val timer_count: List[MetricDatum] =
       report.snapshot.timers.map { timer =>
         val calls: Long = timer.timer.calls
-        val delta: Long = lookup.get(timer.metricId.metricName.uuid).fold(calls)(calls - _)
+        val delta: Long = lookup.get(timer.metricId).fold(calls)(calls - _)
         MetricKey(
           timestamp = report.timestamp.toInstant,
           serviceParams = report.serviceParams,
@@ -98,7 +101,7 @@ final class CloudWatchObserver[F[_]: Async] private (
     val meter_count: List[MetricDatum] =
       report.snapshot.meters.map { meter =>
         val aggregate: Long = meter.meter.aggregate
-        val value: Long = lookup.get(meter.metricId.metricName.uuid).fold(aggregate)(aggregate - _)
+        val value: Long = lookup.get(meter.metricId).fold(aggregate)(aggregate - _)
         val (su, data) =
           CloudWatchTimeUnit.toStandardUnit(squants = meter.meter.squants, data = value.toDouble)
         MetricKey(
@@ -114,7 +117,7 @@ final class CloudWatchObserver[F[_]: Async] private (
       if (histogramB.includeUpdate)
         report.snapshot.histograms.map { histo =>
           val updates: Long = histo.histogram.updates
-          val delta: Long = lookup.get(histo.metricId.metricName.uuid).fold(updates)(updates - _)
+          val delta: Long = lookup.get(histo.metricId).fold(updates)(updates - _)
           MetricKey(
             timestamp = report.timestamp.toInstant,
             serviceParams = report.serviceParams,
@@ -139,7 +142,7 @@ final class CloudWatchObserver[F[_]: Async] private (
     for {
       cwc <- Stream.resource(client)
       // indexed by ServiceID and MetricName's uuid
-      lookup <- Stream.eval(F.ref(Map.empty[UUID, Map[UUID, Long]]))
+      lookup <- Stream.eval(F.ref(Map.empty[UUID, Map[MetricID, Long]]))
       event <- events.evalTap {
         case mr @ MetricReport(MetricIndex.Periodic(_), sp, snapshot, _) =>
           lookup.getAndUpdate(_.updated(sp.serviceId, snapshot.lookupCount)).flatMap { last =>

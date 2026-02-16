@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.batch
 
 import cats.effect.kernel.MonadCancel
-import cats.implicits.catsSyntaxFlatMapOps
+import cats.syntax.flatMap.catsSyntaxFlatMapOps
 import cats.{Applicative, Monoid}
 import com.github.chenharryhua.nanjin.guard.service.Agent
 import io.circe.syntax.EncoderOps

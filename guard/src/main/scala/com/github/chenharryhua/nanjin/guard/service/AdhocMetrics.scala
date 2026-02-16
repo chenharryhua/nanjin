@@ -1,7 +1,8 @@
 package com.github.chenharryhua.nanjin.guard.service
 
 import cats.effect.kernel.Sync
-import cats.implicits.{toFlatMapOps, toFunctorOps}
+import cats.syntax.functor.toFunctorOps
+import cats.syntax.flatMap.toFlatMapOps
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.common.chrono.Tick
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams

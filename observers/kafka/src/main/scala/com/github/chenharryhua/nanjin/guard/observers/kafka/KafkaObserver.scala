@@ -2,7 +2,9 @@ package com.github.chenharryhua.nanjin.guard.observers.kafka
 
 import cats.Endo
 import cats.effect.kernel.Async
-import cats.implicits.{toFlatMapOps, toFunctorOps, toTraverseOps}
+import cats.syntax.flatMap.toFlatMapOps
+import cats.syntax.functor.toFunctorOps
+import cats.syntax.traverse.toTraverseOps
 import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameL}
 import com.github.chenharryhua.nanjin.guard.event.Event
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStart
@@ -10,8 +12,8 @@ import com.github.chenharryhua.nanjin.guard.observers.FinalizeMonitor
 import com.github.chenharryhua.nanjin.guard.translator.{Translator, UpdateTranslator}
 import com.github.chenharryhua.nanjin.kafka.{AvroForPair, KafkaContext}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroFor
-import fs2.{Pipe, Stream}
 import fs2.kafka.ProducerRecord
+import fs2.{Pipe, Stream}
 import io.circe.generic.JsonCodec
 
 import java.util.UUID

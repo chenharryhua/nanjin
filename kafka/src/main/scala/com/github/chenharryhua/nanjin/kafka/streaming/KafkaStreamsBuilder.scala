@@ -2,7 +2,9 @@ package com.github.chenharryhua.nanjin.kafka.streaming
 
 import cats.effect.kernel.{Async, Deferred}
 import cats.effect.std.{CountDownLatch, Dispatcher}
-import cats.syntax.all.*
+import cats.syntax.flatMap.{catsSyntaxFlatMapOps, toFlatMapOps}
+import cats.syntax.functor.toFunctorOps
+import cats.syntax.traverse.toTraverseOps
 import com.github.chenharryhua.nanjin.common.HasProperties
 import com.github.chenharryhua.nanjin.common.utils.toProperties
 import com.github.chenharryhua.nanjin.kafka.{KafkaStreamSettings, SchemaRegistrySettings}
@@ -11,8 +13,8 @@ import fs2.concurrent.Channel
 import io.circe.{Encoder, Json}
 import io.scalaland.enumz.Enum
 import org.apache.kafka.streams.KafkaStreams.State
-import org.apache.kafka.streams.{KafkaStreams, StreamsConfig, Topology}
 import org.apache.kafka.streams.scala.StreamsBuilder
+import org.apache.kafka.streams.{KafkaStreams, StreamsConfig, Topology}
 
 import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.jdk.CollectionConverters.MapHasAsJava

@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.terminals
 
-import cats.syntax.all.*
+import cats.syntax.bifunctor.toBifunctorOps
+import cats.syntax.show.toShow
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.numeric.Interval.Closed
 import io.circe.{Decoder, Encoder, Json}

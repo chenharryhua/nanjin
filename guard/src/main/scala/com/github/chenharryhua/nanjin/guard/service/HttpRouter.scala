@@ -3,7 +3,9 @@ package com.github.chenharryhua.nanjin.guard.service
 import cats.data.Kleisli
 import cats.effect.kernel.{Async, Ref}
 import cats.effect.std.AtomicCell
-import cats.syntax.all.*
+import cats.syntax.apply.catsSyntaxApplyOps
+import cats.syntax.functor.toFunctorOps
+import cats.syntax.flatMap.toFlatMapOps
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.Event.{MetricReport, ServiceMessage, ServicePanic}

@@ -2,8 +2,10 @@ package com.github.chenharryhua.nanjin.guard.config
 
 import cats.Show
 import cats.effect.kernel.{Resource, Sync}
-import cats.implicits.{catsSyntaxApplicativeError, catsSyntaxEq, toFunctorOps}
 import cats.kernel.Eq
+import cats.syntax.applicativeError.catsSyntaxApplicativeError
+import cats.syntax.eq.catsSyntaxEq
+import cats.syntax.functor.toFunctorOps
 import io.circe.{Decoder, Encoder}
 
 import java.net.{HttpURLConnection, InetAddress, URI, URL}

@@ -155,12 +155,12 @@ private object HtmlTranslator extends all {
     val fg = frag(
       tr(
         th(CONSTANT_DOMAIN),
-        th(CONSTANT_MESSAGE_TOKEN),
+        th(CONSTANT_MESSAGE_CORRELATION),
         th(CONSTANT_ALARM_LEVEL)
       ),
       tr(
         td(evt.domain.value),
-        td(evt.token),
+        td(evt.correlation.show),
         td(evt.level.entryName)
       )
     )

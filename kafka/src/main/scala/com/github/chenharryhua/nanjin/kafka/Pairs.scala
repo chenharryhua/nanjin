@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.kafka
 
 import cats.effect.kernel.Sync
-import cats.implicits.catsSyntaxTuple2Semigroupal
+import cats.syntax.apply.catsSyntaxTuple2Semigroupal
 import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
 import com.github.chenharryhua.nanjin.messages.kafka.codec.*
 import fs2.kafka.*
