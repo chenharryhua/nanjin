@@ -26,6 +26,8 @@ import fs2.io.net.Network
 import io.circe.syntax.EncoderOps
 import org.http4s.ember.server.EmberServerBuilder
 
+import java.util.UUID
+
 sealed trait ServiceGuard[F[_]] extends UpdateConfig[ServiceConfig[F], ServiceGuard[F]] {
   def eventStream(runAgent: Agent[F] => F[Unit]): Stream[F, Event]
 
@@ -43,7 +45,12 @@ final private[guard] class ServiceGuardImpl[F[_]: Network: Async: Console] priva
   override def updateConfig(f: Endo[ServiceConfig[F]]): ServiceGuard[F] =
     new ServiceGuardImpl[F](serviceName, f(config))
 
-  private def initStatus: F[(ServiceParams, Option[EmberServerBuilder[F]])] =
+  private case class KickedOff(
+    serviceParams: ServiceParams,
+    emberServerBuilder: Option[EmberServerBuilder[F]],
+    uuidGenerator: F[UUID])
+
+  private def kicking_off: F[KickedOff] =
     SecureRandom.javaSecuritySecureRandom[F].flatMap { implicit sr =>
       for {
         launchTime <- F.realTimeInstant
@@ -61,15 +68,15 @@ final private[guard] class ServiceGuardImpl[F[_]: Network: Async: Console] priva
           brief = ServiceBrief(jsons.filterNot(_.isNull).distinct.asJson),
           host = Host(hostName, esb.map(_.port.value).map(Port(_)))
         )
-        (params, esb)
+        KickedOff(params, esb, UUIDGen.randomUUID[F])
       }
     }
 
   override def eventStream(runAgent: Agent[F] => F[Unit]): Stream[F, Event] =
     for {
-      (serviceParams, emberServerBuilder) <- Stream.eval(initStatus)
+      kickedOff <- Stream.eval(kicking_off)
       dispatcher <- Stream.resource(Dispatcher.sequential[F](await = false))
-      helper = new ServiceBuildHelper[F](serviceParams)
+      helper = new ServiceBuildHelper[F](kickedOff.serviceParams)
       panicHistory <- helper.panic_history
       metricsHistory <- helper.metrics_history
       errorHistory <- helper.error_history
@@ -79,7 +86,7 @@ final private[guard] class ServiceGuardImpl[F[_]: Network: Async: Console] priva
         val metricRegistry: MetricRegistry = new MetricRegistry()
 
         val http_server: Stream[F, Nothing] =
-          emberServerBuilder match {
+          kickedOff.emberServerBuilder match {
             case None      => Stream.empty
             case Some(esb) =>
               Stream.resource(
@@ -93,8 +100,7 @@ final private[guard] class ServiceGuardImpl[F[_]: Network: Async: Console] priva
                     channel = channel,
                     eventLogger = eventLogger
                   ).router)
-                  .build) >>
-                Stream.never[F]
+                  .build) >> Stream.never[F]
           }
 
         val agent: GeneralAgent[F] =
@@ -103,7 +109,8 @@ final private[guard] class ServiceGuardImpl[F[_]: Network: Async: Console] priva
             channel = channel,
             eventLogger = eventLogger,
             errorHistory = errorHistory,
-            dispatcher = dispatcher
+            dispatcher = dispatcher,
+            uuidGenerator = kickedOff.uuidGenerator
           )
 
         val surveillance: Stream[F, Nothing] =

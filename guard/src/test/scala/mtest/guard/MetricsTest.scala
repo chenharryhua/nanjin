@@ -3,10 +3,11 @@ package mtest.guard
 import cats.effect.IO
 import cats.effect.kernel.Resource
 import cats.effect.unsafe.implicits.global
+import cats.kernel.Eq
 import cats.syntax.all.*
 import com.codahale.metrics.SlidingWindowReservoir
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.config.MetricID
+import com.github.chenharryhua.nanjin.guard.config.{MetricID, MetricName}
 import com.github.chenharryhua.nanjin.guard.event.{
   eventFilters,
   retrieveCounter,
@@ -18,6 +19,7 @@ import com.github.chenharryhua.nanjin.guard.event.{
 import com.github.chenharryhua.nanjin.guard.metrics.Meter
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import io.circe.generic.JsonCodec
+import io.circe.jawn.decode
 import org.scalatest.funsuite.AnyFunSuite
 import squants.information.InformationConversions.InformationConversions
 import squants.information.{Bytes, Information}
@@ -29,7 +31,6 @@ import squants.{Dimensionless, Percent}
 import java.time.{ZoneId, ZonedDateTime}
 import scala.concurrent.duration.DurationInt
 import scala.jdk.DurationConverters.ScalaDurationOps
-
 @JsonCodec
 final case class SystemInfo(now: ZonedDateTime, on: Boolean, size: Int)
 
@@ -220,5 +221,18 @@ class MetricsTest extends AnyFunSuite {
     }.map(checkJson).mapFilter(eventFilters.serviceMessage).compile.toList.unsafeRunSync()
 
     assert(sm.size == 1)
+  }
+
+  test("14. MetricName") {
+    val m1 = decode[MetricName]("""{"name" : "foo","age" : 5,"uniqueToken" : 1}""").toOption.get
+    val m2 = decode[MetricName]("""{"name" : "foo","age" : 5,"uniqueToken" : 1}""").toOption.get
+    val m3 = decode[MetricName]("""{"name" : "foo","age" : 5,"uniqueToken" : 2}""").toOption.get
+
+    val ek = Eq[MetricName]
+    assert(ek.eqv(m1, m2))
+    assert(!ek.eqv(m1, m3))
+    assert(m1 == m2)
+    assert(m1 != m3)
+    assert(m1 =!= m3)
   }
 }
