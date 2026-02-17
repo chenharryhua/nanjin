@@ -6,7 +6,6 @@ import cats.effect.kernel.{Async, Ref, Resource}
 import cats.syntax.flatMap.toFlatMapOps
 import cats.syntax.functor.toFunctorOps
 import cats.syntax.show.showInterpolator
-import com.github.chenharryhua.nanjin.common.utils
 import io.circe.generic.auto.*
 import org.http4s.*
 import org.http4s.Method.POST
@@ -15,6 +14,7 @@ import org.http4s.client.Client
 import org.http4s.headers.{`Idempotency-Key`, Authorization}
 import org.typelevel.ci.CIString
 
+import java.util.UUID
 import scala.concurrent.duration.{DurationLong, FiniteDuration}
 
 /*
@@ -82,7 +82,8 @@ final case class AuthorizationCode(
   */
 private class ClientCredentialsAuth[F[_]: Async](
   credential: ClientCredentials,
-  authClient: Resource[F, Client[F]]
+  authClient: Resource[F, Client[F]],
+  uuidGenerator: F[UUID]
 ) extends Login[F] {
   private case class Token(
     token_type: String,
@@ -98,22 +99,23 @@ private class ClientCredentialsAuth[F[_]: Async](
     credential.scope.fold(uf)(s => uf + ("scope" -> s.toList.mkString(" ")))
   }
 
-  override def loginR(client: Client[F]): Resource[F, Client[F]] =
+  override def login(client: Client[F]): Resource[F, Client[F]] =
     authClient.flatMap { authenticationClient =>
       val tac: TokenAuthClient[F, Token] = new TokenAuthClient[F, Token]() {
         override protected def getToken: F[Token] =
-          post_token[Token](authenticationClient, credential.auth_endpoint, urlForm)
+          post_token[Token](authenticationClient, credential.auth_endpoint, urlForm, uuidGenerator)
 
         private def refresh_access_token(refresh_token: String): F[Token] =
-          utils.randomUUID[F].flatMap { uuid =>
-            authenticationClient.expect[Token](POST(
-              UrlForm(
-                "grant_type" -> "refresh_token",
-                "refresh_token" -> refresh_token,
-                "client_id" -> credential.client_id,
-                "client_secret" -> credential.client_secret),
-              credential.auth_endpoint
-            ).putHeaders(`Idempotency-Key`(show"$uuid")))
+          uuidGenerator.flatMap { uuid =>
+            authenticationClient.expect[Token](
+              POST(
+                UrlForm(
+                  "grant_type" -> "refresh_token",
+                  "refresh_token" -> refresh_token,
+                  "client_id" -> credential.client_id,
+                  "client_secret" -> credential.client_secret),
+                credential.auth_endpoint
+              ).putHeaders(`Idempotency-Key`(show"$uuid")))
           }
 
         /** @note A 30-second skew is applied when scheduling token renewal to avoid race conditions. */
@@ -154,7 +156,8 @@ private class ClientCredentialsAuth[F[_]: Async](
   */
 private class AuthorizationCodeAuth[F[_]: Async](
   credential: AuthorizationCode,
-  authClient: Resource[F, Client[F]])
+  authClient: Resource[F, Client[F]],
+  uuidGenerator: F[UUID])
     extends Login[F] {
   private case class Token(
     access_token: String,
@@ -174,11 +177,11 @@ private class AuthorizationCodeAuth[F[_]: Async](
     credential.scope.fold(uf)(s => uf + ("scope" -> s.toList.mkString(" ")))
   }
 
-  override def loginR(client: Client[F]): Resource[F, Client[F]] =
+  override def login(client: Client[F]): Resource[F, Client[F]] =
     authClient.flatMap { authenticationClient =>
       val tac = new TokenAuthClient[F, Token] {
         override protected def getToken: F[Token] =
-          utils.randomUUID[F].flatMap { uuid =>
+          uuidGenerator.flatMap { uuid =>
             authenticationClient.expect[Token](
               POST(
                 urlForm,
@@ -188,7 +191,7 @@ private class AuthorizationCodeAuth[F[_]: Async](
           }
 
         private def refresh_access_token(pre: Token): F[Token] =
-          utils.randomUUID[F].flatMap { uuid =>
+          uuidGenerator.flatMap { uuid =>
             authClient.use(
               _.expect[Token](POST(
                 UrlForm(

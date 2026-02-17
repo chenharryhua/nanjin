@@ -27,20 +27,16 @@ object salesforce_client {
         cs <- ps.fetch(ParameterStorePath("salesforce/client_secret"))
         un <- ps.fetch(ParameterStorePath("salesforce/username"))
         pw <- ps.fetch(ParameterStorePath("salesforce/password"))
-      } yield Salesforce(
-        authClient,
-        Salesforce.PasswordGrant(
-          auth_endpoint = uri"https://test.salesforce.com",
-          client_id = id.value,
-          client_secret = cs.value,
-          username = un.value,
-          password = pw.value),
-        expiresIn = 2.hours
-      )
-    }
+      } yield Salesforce.PasswordGrant(
+        auth_endpoint = uri"https://test.salesforce.com",
+        client_id = id.value,
+        client_secret = cs.value,
+        username = un.value,
+        password = pw.value)
+    }.flatMap(pg => Salesforce(authClient, pg))
 
   private val client: Resource[IO, Client[IO]] =
-    credential.flatMap(_.loginR(EmberClientBuilder.default[IO].build))
+    credential.flatMap(_.login(EmberClientBuilder.default[IO].build))
 
   val get: IO[String] = client.use(_.expect[String]("path"))
 

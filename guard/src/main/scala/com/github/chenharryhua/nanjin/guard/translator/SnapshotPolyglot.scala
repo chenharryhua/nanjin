@@ -111,7 +111,7 @@ final class SnapshotPolyglot(snapshot: MetricSnapshot) {
             val age = items.map(_._1.metricName.age).min
             val inner: Json =
               items
-                .sortBy(_._1.metricName)
+                .sortBy(_._1.metricName.age)
                 .map { case (mId, js) => Json.obj(mId.metricName.name -> js) }
                 .reduce((a, b) => b.deepMerge(a))
 
@@ -192,7 +192,7 @@ final class SnapshotPolyglot(snapshot: MetricSnapshot) {
           .toList
           .map { case (name, items) =>
             val age = items.map(_._1.metricName.age).min
-            (age, name) -> items.sortBy(_._1.metricName).flatMap(_._2.map(space4 + _))
+            (age, name) -> items.sortBy(_._1.metricName.age).flatMap(_._2.map(space4 + _))
           }
           .sortBy(_._1._1)
           .flatMap { case ((_, n), items) =>

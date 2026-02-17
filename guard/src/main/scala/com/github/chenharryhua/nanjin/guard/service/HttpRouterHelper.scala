@@ -9,7 +9,7 @@ import cats.syntax.functor.toFunctorOps
 import cats.syntax.show.toShow
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
-import com.github.chenharryhua.nanjin.guard.event.Event.{MetricReport, ServiceMessage, ServicePanic}
+import com.github.chenharryhua.nanjin.guard.event.Event.{MetricsReport, ServiceMessage, ServicePanic}
 import com.github.chenharryhua.nanjin.guard.event.{
   retrieveHealthChecks,
   MetricIndex,
@@ -34,7 +34,7 @@ final private class HttpRouterHelper[F[_]: Sync](
   serviceParams: ServiceParams,
   metricRegistry: MetricRegistry,
   panicHistory: AtomicCell[F, CircularFifoQueue[ServicePanic]],
-  metricsHistory: AtomicCell[F, CircularFifoQueue[MetricReport]],
+  metricsHistory: AtomicCell[F, CircularFifoQueue[MetricsReport]],
   errorHistory: AtomicCell[F, CircularFifoQueue[ServiceMessage]])
     extends all {
 
@@ -55,7 +55,7 @@ final private class HttpRouterHelper[F[_]: Sync](
       tr(th("Service"), th("Report Policy"), th("Time Zone"), th("Up Time"), th("Present"), th("Took")),
       tr(
         td(serviceParams.serviceName.value),
-        td(serviceParams.servicePolicies.metricReport.show),
+        td(serviceParams.servicePolicies.metricsReport.show),
         td(serviceParams.zoneId.show),
         td(durationFormatter.format(serviceParams.upTime(now))),
         td(now.toLocalTime.truncatedTo(ChronoUnit.SECONDS).show),

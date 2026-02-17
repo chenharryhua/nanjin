@@ -2,7 +2,9 @@ package com.github.chenharryhua.nanjin.http.client.auth
 
 import cats.effect.implicits.genTemporalOps_
 import cats.effect.kernel.{Async, Ref, Resource}
+import cats.effect.std.{SecureRandom, UUIDGen}
 import cats.syntax.flatMap.toFlatMapOps
+import cats.syntax.functor.toFunctorOps
 import io.circe.generic.auto.*
 import org.http4s.*
 import org.http4s.circe.CirceEntityCodec.circeEntityDecoder
@@ -10,6 +12,7 @@ import org.http4s.client.Client
 import org.http4s.headers.Authorization
 import org.typelevel.ci.CIString
 
+import java.util.UUID
 import scala.concurrent.duration.{DurationLong, FiniteDuration}
 
 /** Salesforce-specific OAuth authentication helpers.
@@ -32,7 +35,8 @@ object Salesforce {
   private class PasswordGrantAuth[F[_]: Async](
     credential: PasswordGrant,
     expiresIn: FiniteDuration,
-    authClient: Resource[F, Client[F]]
+    authClient: Resource[F, Client[F]],
+    uuidGenerator: F[UUID]
   ) extends Login[F] {
 
     private val urlForm: UrlForm = UrlForm(
@@ -51,11 +55,11 @@ object Salesforce {
       issued_at: String,
       signature: String)
 
-    override def loginR(client: Client[F]): Resource[F, Client[F]] =
+    override def login(client: Client[F]): Resource[F, Client[F]] =
       authClient.flatMap { authenticationClient =>
         val tac = new TokenAuthClient[F, Token] {
           override protected def getToken: F[Token] =
-            post_token[Token](authenticationClient, credential.auth_endpoint, urlForm)
+            post_token[Token](authenticationClient, credential.auth_endpoint, urlForm, uuidGenerator)
 
           override protected def renewToken(ref: Ref[F, Token]): F[Unit] =
             getToken.delayBy(expiresIn).flatMap(ref.set)
@@ -88,10 +92,13 @@ object Salesforce {
   def apply[F[_]: Async](
     authClient: Resource[F, Client[F]],
     credential: PasswordGrant,
-    expiresIn: FiniteDuration = 2.hours): Login[F] =
-    new PasswordGrantAuth[F](
-      credential = credential,
-      expiresIn = expiresIn,
-      authClient = authClient
-    )
+    expiresIn: FiniteDuration = 2.hours): Resource[F, Login[F]] =
+    Resource.eval(SecureRandom.javaSecuritySecureRandom[F].map { implicit sr =>
+      new PasswordGrantAuth[F](
+        credential = credential,
+        expiresIn = expiresIn,
+        authClient = authClient,
+        uuidGenerator = UUIDGen.randomUUID[F]
+      )
+    })
 }

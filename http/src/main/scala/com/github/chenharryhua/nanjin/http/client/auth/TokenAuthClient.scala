@@ -1,32 +1,27 @@
 package com.github.chenharryhua.nanjin.http.client.auth
 
-import cats.effect.MonadCancel
 import cats.effect.kernel.{Async, Ref, Resource}
 import cats.syntax.applicativeError.catsSyntaxApplicativeError
 import cats.syntax.eq.catsSyntaxEq
 import cats.syntax.flatMap.{catsSyntaxFlatMapOps, toFlatMapOps}
 import cats.syntax.show.showInterpolator
-import com.github.chenharryhua.nanjin.common.{utils, SingleFlight}
-import fs2.Stream
+import com.github.chenharryhua.nanjin.common.SingleFlight
 import org.http4s.Method.POST
 import org.http4s.client.Client
 import org.http4s.client.dsl.Http4sClientDsl
 import org.http4s.headers.`Idempotency-Key`
 import org.http4s.{EntityDecoder, Request, Response, Status, Uri, UrlForm}
 
+import java.util.UUID
+
 /** Wraps an HTTP client with authentication, providing Resource and Stream APIs. */
-abstract class Login[F[_]](implicit F: MonadCancel[F, ?]) {
+trait Login[F[_]] {
 
-  def loginR(client: Client[F]): Resource[F, Client[F]]
+  def login(client: Client[F]): Resource[F, Client[F]]
 
-  final def loginR(client: Resource[F, Client[F]]): Resource[F, Client[F]] =
-    client.flatMap(loginR)
+  final def login(client: Resource[F, Client[F]]): Resource[F, Client[F]] =
+    client.flatMap(login)
 
-  final def login(client: Client[F]): Stream[F, Client[F]] =
-    Stream.resource(loginR(client))
-
-  final def login(client: Resource[F, Client[F]]): Stream[F, Client[F]] =
-    Stream.resource(loginR(client))
 }
 
 /** Provides token-based authentication for an HTTP client.
@@ -46,10 +41,10 @@ abstract private class TokenAuthClient[F[_], T](implicit F: Async[F]) extends Ht
   final protected def post_token[A: EntityDecoder[F, *]](
     client: Client[F],
     auth_endpoint: Uri,
-    form: UrlForm): F[A] =
-    utils
-      .randomUUID[F]
-      .flatMap(uuid => client.expect[A](POST(form, auth_endpoint).putHeaders(`Idempotency-Key`(show"$uuid"))))
+    form: UrlForm,
+    uuidGenerator: F[UUID]): F[A] =
+    uuidGenerator.flatMap(uuid =>
+      client.expect[A](POST(form, auth_endpoint).putHeaders(`Idempotency-Key`(show"$uuid"))))
 
   final def wrap(client: Client[F]): Resource[F, Client[F]] =
     for {

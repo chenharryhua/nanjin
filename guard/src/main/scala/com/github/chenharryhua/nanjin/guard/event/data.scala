@@ -68,12 +68,16 @@ object ServiceStopCause {
     ).reduceLeft(_ or _)
 }
 
-final case class Correlation private (value: Int) extends AnyVal
+final case class Correlation private (value: String) extends AnyVal {
+  override def toString: String = value
+}
 object Correlation {
-  def apply(token: Unique.Token): Correlation =
-    Correlation(Hash[Unique.Token].hash(token))
+  def apply(token: Unique.Token): Correlation = {
+    val id = Integer.toUnsignedLong(Hash[Unique.Token].hash(token))
+    Correlation(f"$id%010d")
+  }
 
-  implicit val showCorrelation: Show[Correlation] = _.value.toString
-  implicit val encoderCorrelation: Encoder[Correlation] = Encoder.encodeInt.contramap(_.value)
-  implicit val decoderCorrelation: Decoder[Correlation] = Decoder.decodeInt.map(Correlation(_))
+  implicit val showCorrelation: Show[Correlation] = Show.fromToString
+  implicit val encoderCorrelation: Encoder[Correlation] = Encoder.encodeString.contramap(_.value)
+  implicit val decoderCorrelation: Decoder[Correlation] = Decoder.decodeString.map(Correlation(_))
 }

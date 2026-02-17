@@ -110,11 +110,11 @@ final case class MetricSnapshot(
   }.toMap
 
   def sorted: MetricSnapshot = MetricSnapshot(
-    counters = counters.sortBy(_.metricId.metricName),
-    meters = meters.sortBy(_.metricId.metricName),
-    timers = timers.sortBy(_.metricId.metricName),
-    histograms = histograms.sortBy(_.metricId.metricName),
-    gauges = gauges.sortBy(_.metricId.metricName)
+    counters = counters.sortBy(_.metricId.metricName.age),
+    meters = meters.sortBy(_.metricId.metricName.age),
+    timers = timers.sortBy(_.metricId.metricName.age),
+    histograms = histograms.sortBy(_.metricId.metricName.age),
+    gauges = gauges.sortBy(_.metricId.metricName.age)
   )
 }
 

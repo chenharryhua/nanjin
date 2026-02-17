@@ -12,8 +12,8 @@ import cats.syntax.traverse.toTraverseOps
 import com.github.chenharryhua.nanjin.guard.config.LogFormat.Console_Json_MultiLine
 import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, Domain, LogFormat, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.Event.{
-  MetricReport,
-  MetricReset,
+  MetricsReport,
+  MetricsReset,
   ServiceMessage,
   ServicePanic,
   ServiceStart,
@@ -96,7 +96,7 @@ final private class EventLogger[F[_]](
   def service_panic(ss: ServicePanic): F[Unit] =
     transform_event(ss).flatMap(_.traverse(logger.error(_))).void
 
-  def metric_report(ss: MetricReport): F[Unit] =
+  def metrics_report(ss: MetricsReport): F[Unit] =
     ColorScheme.decorate(ss).run(Eval.now).value match {
       case ColorScheme.GoodColor =>
         transform_event(ss).flatMap(_.traverse(logger.info(_))).void
@@ -108,7 +108,7 @@ final private class EventLogger[F[_]](
         transform_event(ss).flatMap(_.traverse(logger.error(_))).void
     }
 
-  def metric_reset(ss: MetricReset): F[Unit] =
+  def metrics_reset(ss: MetricsReset): F[Unit] =
     ColorScheme.decorate(ss).run(Eval.now).value match {
       case ColorScheme.GoodColor =>
         transform_event(ss).flatMap(_.traverse(logger.info(_))).void

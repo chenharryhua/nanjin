@@ -110,7 +110,7 @@ private object HtmlTranslator extends all {
     )
   }
 
-  private def metric_report(evt: MetricReport): Text.TypedTag[String] = {
+  private def metrics_report(evt: MetricsReport): Text.TypedTag[String] = {
     val fg = frag(
       tr(
         th(CONSTANT_INDEX),
@@ -119,7 +119,7 @@ private object HtmlTranslator extends all {
       ),
       tr(
         td(metricIndexText(evt.index)),
-        td(evt.serviceParams.servicePolicies.metricReport.show),
+        td(evt.serviceParams.servicePolicies.metricsReport.show),
         td(tookText(evt.took))
       )
     )
@@ -131,7 +131,7 @@ private object HtmlTranslator extends all {
     )
   }
 
-  private def metric_reset(evt: MetricReset): Text.TypedTag[String] = {
+  private def metrics_reset(evt: MetricsReset): Text.TypedTag[String] = {
     val fg = frag(
       tr(
         th(CONSTANT_INDEX),
@@ -140,7 +140,7 @@ private object HtmlTranslator extends all {
       ),
       tr(
         td(metricIndexText(evt.index)),
-        td(evt.serviceParams.servicePolicies.metricReset.show),
+        td(evt.serviceParams.servicePolicies.metricsReset.show),
         td(tookText(evt.took))
       )
     )
@@ -179,7 +179,7 @@ private object HtmlTranslator extends all {
       .withServiceStart(service_start)
       .withServicePanic(service_panic)
       .withServiceStop(service_stop)
-      .withMetricReport(metric_report)
-      .withMetricReset(metric_reset)
+      .withMetricsReport(metrics_report)
+      .withMetricsReset(metrics_reset)
       .withServiceMessage(service_message)
 }

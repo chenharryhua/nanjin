@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard.config
 
 import cats.effect.Unique
 import cats.effect.kernel.Clock
-import cats.kernel.Order
+import cats.kernel.Eq
 import cats.syntax.apply.catsSyntaxTuple2Semigroupal
 import cats.{Applicative, Hash}
 import enumeratum.{CirceEnum, Enum, EnumEntry}
@@ -78,20 +78,22 @@ object Category {
 
 /** Represents a uniquely identifiable metric within a single JVM runtime.
   *
-  * Uniqueness guarantee:
-  *   - `age` is a monotonic timestamp (nanoseconds) from the Cats Effect `Clock[F].monotonic`. It preserves
-  *     ordering between metrics.
-  *   - `uniqueToken` is generated from `Unique[F]` and hashed to an `Int`. This guarantees uniqueness even if
-  *     two metrics are created in the same monotonic tick.
+  * Each `MetricName` instance is uniquely identified by the combination of:
+  *   - `name`: the logical name of the metric.
+  *   - `age`: a monotonic timestamp in nanoseconds from `Clock[F].monotonic`.
+  *   - `uniqueToken`: an internal, hashed token generated via `Unique[F]`.
   *
-  * Together, `(name, age, uniqueToken)` ensures that no two `MetricName` instances will collide in the same
-  * JVM.
+  * Notes on `uniqueToken`:
+  *   - It is private and cannot be set externally.
+  *   - It acts as an internal safeguard to guarantee uniqueness even if two metrics are created at the exact
+  *     same monotonic timestamp (extremely rare).
+  *   - It participates in equality and hashing (via case class semantics), ensuring that no two `MetricName`
+  *     instances are ever considered equal unless all three components match.
   */
 @JsonCodec
-final case class MetricName private (name: String, age: Long, uniqueToken: Int)
+final case class MetricName private (name: String, age: Long, private val uniqueToken: Int)
 object MetricName {
-  implicit val orderingMetricName: Ordering[MetricName] = Ordering.by(_.age)
-  implicit val orderMetricName: Order[MetricName] = Order.fromOrdering
+  implicit val eqMetricName: Eq[MetricName] = Eq.fromUniversalEquals
 
   def apply[F[_]: Applicative](name: String)(implicit U: Unique[F], C: Clock[F]): F[MetricName] =
     (C.monotonic, U.unique).mapN((age, token) =>

@@ -32,8 +32,8 @@ object textHelper extends localtime with localdatetime {
       case _: Event.ServiceStop    => "Service Stopped"
       case _: Event.ServicePanic   => "Service Panic"
       case _: Event.ServiceMessage => "Service Message"
-      case _: Event.MetricReport   => "Metric Report"
-      case _: Event.MetricReset    => "Metric Reset"
+      case _: Event.MetricsReport  => "Metrics Report"
+      case _: Event.MetricsReset   => "Metrics Reset"
     }
 
   private def localTime_duration(start: ZonedDateTime, end: ZonedDateTime): (String, String) = {

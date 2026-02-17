@@ -48,29 +48,29 @@ object Event {
     override val name: EventName = EventName.ServiceMessage
   }
 
-  sealed trait MetricEvent extends Event {
+  sealed trait MetricsEvent extends Event {
     def index: MetricIndex
     def snapshot: MetricSnapshot
     def took: Duration // time took to retrieve snapshot
   }
 
-  final case class MetricReport(
+  final case class MetricsReport(
     index: MetricIndex,
     serviceParams: ServiceParams,
     snapshot: MetricSnapshot,
     took: Duration)
-      extends MetricEvent {
+      extends MetricsEvent {
     override val timestamp: ZonedDateTime = index.launchTime
-    override val name: EventName = EventName.MetricReport
+    override val name: EventName = EventName.MetricsReport
   }
 
-  final case class MetricReset(
+  final case class MetricsReset(
     index: MetricIndex,
     serviceParams: ServiceParams,
     snapshot: MetricSnapshot,
     took: Duration)
-      extends MetricEvent {
+      extends MetricsEvent {
     override val timestamp: ZonedDateTime = index.launchTime
-    override val name: EventName = EventName.MetricReset
+    override val name: EventName = EventName.MetricsReset
   }
 }

@@ -8,7 +8,7 @@ import cats.syntax.functor.toFunctorOps
 import cats.syntax.flatMap.toFlatMapOps
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, ServiceParams}
-import com.github.chenharryhua.nanjin.guard.event.Event.{MetricReport, ServiceMessage, ServicePanic}
+import com.github.chenharryhua.nanjin.guard.event.Event.{MetricsReport, ServiceMessage, ServicePanic}
 import com.github.chenharryhua.nanjin.guard.event.{
   Event,
   MetricIndex,
@@ -32,7 +32,7 @@ import scalatags.Text.all.*
 final private class HttpRouter[F[_]](
   metricRegistry: MetricRegistry,
   panicHistory: AtomicCell[F, CircularFifoQueue[ServicePanic]],
-  metricsHistory: AtomicCell[F, CircularFifoQueue[MetricReport]],
+  metricsHistory: AtomicCell[F, CircularFifoQueue[MetricsReport]],
   errorHistory: AtomicCell[F, CircularFifoQueue[ServiceMessage]],
   alarmLevel: Ref[F, Option[AlarmLevel]],
   channel: Channel[F, Event],
@@ -92,7 +92,7 @@ final private class HttpRouter[F[_]](
     case GET -> Root / "metrics" / "reset" =>
       for {
         ts <- serviceParams.zonedNow
-        _ <- metric_reset[F](channel, eventLogger, metricRegistry, MetricIndex.Adhoc(ts))
+        _ <- metrics_reset[F](channel, eventLogger, metricRegistry, MetricIndex.Adhoc(ts))
         (fd, yaml) <- MetricSnapshot.timed[F](metricRegistry, ScrapeMode.Full).map { case (fd, ms) =>
           (fd, new SnapshotPolyglot(ms).toYaml)
         }
