@@ -92,7 +92,7 @@ final private class HttpRouter[F[_]](
     case GET -> Root / "metrics" / "reset" =>
       for {
         ts <- serviceParams.zonedNow
-        _ <- metrics_reset[F](channel, eventLogger, metricRegistry, MetricIndex.Adhoc(ts))
+        _ <- publish_metrics_reset[F](channel, eventLogger, metricRegistry, MetricIndex.Adhoc(ts))
         (fd, yaml) <- MetricSnapshot.timed[F](metricRegistry, ScrapeMode.Full).map { case (fd, ms) =>
           (fd, new SnapshotPolyglot(ms).toYaml)
         }
@@ -116,7 +116,7 @@ final private class HttpRouter[F[_]](
         body(h1("Stopping Service"))
       )
 
-      Ok(stopping) <* service_stop[F](channel, eventLogger, ServiceStopCause.Maintenance)
+      Ok(stopping) <* publish_service_stop[F](channel, eventLogger, ServiceStopCause.Maintenance)
 
     case GET -> Root / "service" / "health_check" =>
       helper.service_health_check.flatMap {

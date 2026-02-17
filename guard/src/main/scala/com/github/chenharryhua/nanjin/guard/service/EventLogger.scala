@@ -138,7 +138,7 @@ final private class EventLogger[F[_]](
     alarmLevel.get
       .map(_.exists(_ <= level))
       .ifM(
-        service_message[F, S](serviceParams, domain, msg, level, error).flatMap(transform_event(_)),
+        create_service_message[F, S](serviceParams, domain, msg, level, error).flatMap(transform_event(_)),
         F.pure(None))
 
   override def info[S: Encoder](msg: S): F[Unit] =
@@ -164,14 +164,14 @@ final private class EventLogger[F[_]](
       .ifM(
         F.attempt(msg).flatMap {
           case Left(ex) =>
-            service_message[F, String](
+            create_service_message[F, String](
               serviceParams,
               domain,
               "Error Message",
               AlarmLevel.Debug,
               Some(Error(ex))).flatMap(m => logger.debug(debug_message(m)))
           case Right(value) =>
-            service_message[F, S](serviceParams, domain, value, AlarmLevel.Debug, None)
+            create_service_message[F, S](serviceParams, domain, value, AlarmLevel.Debug, None)
               .flatMap(m => logger.debug(debug_message(m)))
         },
         F.unit

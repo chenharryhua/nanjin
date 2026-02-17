@@ -39,7 +39,7 @@ final private class ServiceBuildHelper[F[_]: Async](serviceParams: ServiceParams
     metricRegistry: MetricRegistry,
     metricsHistory: AtomicCell[F, CircularFifoQueue[Event.MetricsReport]]): Stream[F, Nothing] =
     tickingBy(serviceParams.servicePolicies.metricsReport).evalMap { tick =>
-      metrics_report(
+      publish_metrics_report(
         channel = channel,
         eventLogger = eventLogger,
         metricRegistry = metricRegistry,
@@ -53,7 +53,7 @@ final private class ServiceBuildHelper[F[_]: Async](serviceParams: ServiceParams
     metricRegistry: MetricRegistry): Stream[F, Nothing] =
     tickingBy(serviceParams.servicePolicies.metricsReset)
       .evalMap(tick =>
-        metrics_reset(
+        publish_metrics_reset(
           channel = channel,
           eventLogger = eventLogger,
           metricRegistry = metricRegistry,

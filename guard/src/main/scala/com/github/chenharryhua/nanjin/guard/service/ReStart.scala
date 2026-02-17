@@ -31,7 +31,7 @@ final private class ReStart[F[_]: Async](
   private[this] val F = Async[F]
 
   private[this] def stop(cause: ServiceStopCause): F[Unit] =
-    service_stop(channel, eventLogger, cause)
+    publish_service_stop(channel, eventLogger, cause)
 
   private[this] def panic(status: PolicyTick[F], ex: Throwable): F[Option[(Unit, PolicyTick[F])]] =
     F.realTimeInstant.flatMap[Option[(Unit, PolicyTick[F])]] { now =>
@@ -51,7 +51,7 @@ final private class ReStart[F[_]: Async](
         case None      => stop(ServiceStopCause.ByException(error)).as(None)
         case Some(nts) =>
           for {
-            evt <- service_panic(channel, eventLogger, nts.tick, error)
+            evt <- publish_service_panic(channel, eventLogger, nts.tick, error)
             _ <- panicHistory.modify(queue => (queue, queue.add(evt))) // mutable queue
             _ <- F.sleep(nts.tick.snooze.toScala)
           } yield Some(((), nts))
@@ -64,7 +64,7 @@ final private class ReStart[F[_]: Async](
       .flatMap {
         Stream
           .unfoldEval[F, PolicyTick[F], Unit](_) { status =>
-            (service_start(channel, eventLogger, status.tick) <* theService)
+            (publish_service_start(channel, eventLogger, status.tick) <* theService)
               .redeemWith[Option[(Unit, PolicyTick[F])]](
                 err => panic(status, err),
                 _ => stop(ServiceStopCause.Successfully).as(None)

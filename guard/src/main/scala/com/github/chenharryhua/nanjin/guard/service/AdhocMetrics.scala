@@ -34,7 +34,7 @@ abstract private class AdhocMetricsImpl[F[_]](
 
   override val reset: F[Unit] =
     F.realTimeInstant.flatMap(ts =>
-      metrics_reset(
+      publish_metrics_reset(
         channel = channel,
         eventLogger = eventLogger,
         metricRegistry = metricRegistry,
@@ -43,7 +43,7 @@ abstract private class AdhocMetricsImpl[F[_]](
 
   override val report: F[Unit] =
     F.realTimeInstant.flatMap(ts =>
-      metrics_report(
+      publish_metrics_report(
         channel = channel,
         eventLogger = eventLogger,
         metricRegistry = metricRegistry,
