@@ -75,7 +75,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
     val login =
       auth.clientCredentials[IO](authClient, credential)
 
-    login.loginR(protectedResource).use { authed =>
+    login.flatMap(_.login(protectedResource)).use { authed =>
       authed.expect[String](uri"/hello").map { body =>
         assertEquals(body, "ok")
       }
@@ -105,7 +105,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
     val login =
       auth.authorizationCode[IO](authClient, credential)
 
-    login.loginR(protectedResource).use { authed =>
+    login.flatMap(_.login(protectedResource)).use { authed =>
       authed.expect[String](uri"/resource").map { body =>
         assertEquals(body, "ok")
       }
@@ -144,7 +144,7 @@ final class AuthLoginSuite extends CatsEffectSuite {
     val login =
       auth.clientCredentials[IO](authClient, credential)
 
-    login.loginR(protectedResource).use { authed =>
+    login.flatMap(_.login(protectedResource)).use { authed =>
       for {
         _ <- authed.expect[String](uri"/a")
         _ <- authed.expect[String](uri"/b")

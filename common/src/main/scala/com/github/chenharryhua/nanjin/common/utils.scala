@@ -1,12 +1,9 @@
 package com.github.chenharryhua.nanjin.common
 
 import cats.Eval
-import cats.effect.kernel.Sync
-import cats.effect.std.{SecureRandom, UUIDGen}
-import cats.implicits.toFlatMapOps
 
 import java.time.LocalDateTime
-import java.util.{Properties, UUID}
+import java.util.Properties
 import scala.util.Random
 
 object utils {
@@ -25,8 +22,4 @@ object utils {
   }
 
   final val random4d: Eval[Int] = Eval.always(1000 + Random.nextInt(9000))
-
-  final def randomUUID[F[_]: Sync]: F[UUID] =
-    SecureRandom.javaSecuritySecureRandom[F].flatMap(implicit jssr => UUIDGen.fromSecureRandom[F].randomUUID)
-
 }

@@ -2,6 +2,8 @@ package com.github.chenharryhua.nanjin.http.client
 
 import cats.effect.Resource
 import cats.effect.kernel.Async
+import cats.effect.std.{SecureRandom, UUIDGen}
+import cats.syntax.functor.toFunctorOps
 import org.http4s.client.Client
 
 /** Entry points for creating OAuth 2.0 authenticators.
@@ -52,8 +54,10 @@ package object auth {
   def clientCredentials[F[_]: Async](
     client: Resource[F, Client[F]],
     credential: ClientCredentials
-  ): Login[F] =
-    new ClientCredentialsAuth[F](credential, client)
+  ): Resource[F, Login[F]] =
+    Resource.eval(SecureRandom.javaSecuritySecureRandom[F].map { implicit sr =>
+      new ClientCredentialsAuth[F](credential, client, UUIDGen.randomUUID)
+    })
 
   /** Creates a `Login` instance using OAuth 2.0 Authorization Code flow.
     *
@@ -72,6 +76,8 @@ package object auth {
   def authorizationCode[F[_]: Async](
     client: Resource[F, Client[F]],
     credential: AuthorizationCode
-  ): Login[F] =
-    new AuthorizationCodeAuth[F](credential, client)
+  ): Resource[F, Login[F]] =
+    Resource.eval(SecureRandom.javaSecuritySecureRandom[F].map { implicit sr =>
+      new AuthorizationCodeAuth[F](credential, client, UUIDGen.randomUUID)
+    })
 }

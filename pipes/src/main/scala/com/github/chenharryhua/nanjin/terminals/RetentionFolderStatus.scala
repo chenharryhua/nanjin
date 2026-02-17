@@ -1,6 +1,5 @@
 package com.github.chenharryhua.nanjin.terminals
 
-import cats.kernel.Order
 import enumeratum.{CirceEnum, Enum, EnumEntry}
 import io.circe.generic.JsonCodec
 import io.lemonlabs.uri.Url
@@ -17,8 +16,3 @@ object RetentionStatus extends Enum[RetentionStatus] with CirceEnum[RetentionSta
 
 @JsonCodec
 final case class RetentionFolderStatus(folder: Url, status: RetentionStatus)
-object RetentionFolderStatus {
-  implicit val orderingRetentionFolderStatus: Ordering[RetentionFolderStatus] =
-    Ordering.by(_.folder.toString())
-  implicit val orderRetentionFolderStatus: Order[RetentionFolderStatus] = Order.fromOrdering
-}
