@@ -60,8 +60,8 @@ private object SimpleTextTranslator {
            |""".stripMargin
   }
 
-  private def metric_report(evt: MetricReport): String = {
-    val policy = s"$CONSTANT_POLICY:${evt.serviceParams.servicePolicies.metricReport.show}"
+  private def metrics_report(evt: MetricsReport): String = {
+    val policy = s"$CONSTANT_POLICY:${evt.serviceParams.servicePolicies.metricsReport.show}"
     val took = s"$CONSTANT_TOOK:${textHelper.tookText(evt.took)}"
     val index = s"$CONSTANT_INDEX:${textHelper.metricIndexText(evt.index)}"
 
@@ -72,8 +72,8 @@ private object SimpleTextTranslator {
         |""".stripMargin
   }
 
-  private def metric_reset(evt: MetricReset): String = {
-    val policy = s"$CONSTANT_POLICY:${evt.serviceParams.servicePolicies.metricReset.show}"
+  private def metrics_reset(evt: MetricsReset): String = {
+    val policy = s"$CONSTANT_POLICY:${evt.serviceParams.servicePolicies.metricsReset.show}"
     val took = s"$CONSTANT_TOOK:${textHelper.tookText(evt.took)}"
     val index = s"$CONSTANT_INDEX:${textHelper.metricIndexText(evt.index)}"
 
@@ -108,7 +108,7 @@ private object SimpleTextTranslator {
       .withServiceStart(service_start)
       .withServiceStop(service_stop)
       .withServicePanic(service_panic)
-      .withMetricReport(metric_report)
-      .withMetricReset(metric_reset)
+      .withMetricsReport(metrics_report)
+      .withMetricsReset(metrics_reset)
       .withServiceMessage(service_message)
 }

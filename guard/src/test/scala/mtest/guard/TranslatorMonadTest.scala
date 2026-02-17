@@ -34,8 +34,8 @@ object gendata {
           .withServiceStart(_ => 1)
           .withServiceStop(_ => 2)
           .withServicePanic(_ => 3)
-          .withMetricReport(_ => 4)
-          .withMetricReset(_ => 5)
+          .withMetricsReport(_ => 4)
+          .withMetricsReset(_ => 5)
           .withServiceMessage(_ => 6)
       ))
 
@@ -49,8 +49,8 @@ object gendata {
           .withServiceStart(_ => add)
           .withServiceStop(_ => add)
           .withServicePanic(_ => add)
-          .withMetricReport(_ => add)
-          .withMetricReset(_ => add)
+          .withMetricsReport(_ => add)
+          .withMetricsReset(_ => add)
           .withServiceMessage(_ => add)
       ))
 
@@ -65,8 +65,8 @@ object gendata {
           .withServiceStart(_ => Option(1))
           .withServiceStop(_ => Option(2))
           .withServicePanic(_ => Option(3))
-          .withMetricReport(_ => Option(4))
-          .withMetricReset(_ => Option(5))
+          .withMetricsReport(_ => Option(4))
+          .withMetricsReset(_ => Option(5))
           .withServiceMessage(_ => Option(6))
       ))
 }

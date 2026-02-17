@@ -66,8 +66,8 @@ class ServiceTest extends AnyFunSuite {
       .unsafeRunSync()
 
     assert(s.isInstanceOf[ServiceStart])
-    assert(b.isInstanceOf[MetricReset])
-    assert(c.isInstanceOf[MetricReset])
+    assert(b.isInstanceOf[MetricsReset])
+    assert(c.isInstanceOf[MetricsReset])
     assert(d.isInstanceOf[ServiceStop])
   }
 

@@ -44,7 +44,7 @@ private object SlackTranslator extends all {
       first = TextField(CONSTANT_UPTIME, uptimeText(evt)),
       second = TextField(CONSTANT_TIMEZONE, evt.serviceParams.zoneId.show))
 
-  private def metrics_index_section(evt: MetricEvent): JuxtaposeSection =
+  private def metrics_index_section(evt: MetricsEvent): JuxtaposeSection =
     JuxtaposeSection(
       first = TextField(CONSTANT_UPTIME, uptimeText(evt)),
       second = TextField(CONSTANT_INDEX, metricIndexText(evt.index)))
@@ -158,7 +158,7 @@ private object SlackTranslator extends all {
     )
   }
 
-  private def metric_report(evt: MetricReport): SlackApp = {
+  private def metrics_report(evt: MetricsReport): SlackApp = {
     val color = coloring(evt)
     SlackApp(
       username = evt.serviceParams.taskName.value,
@@ -169,7 +169,7 @@ private object SlackTranslator extends all {
             HeaderSection(eventTitle(evt)),
             host_service_section(evt.serviceParams),
             metrics_index_section(evt),
-            MarkdownSection(show"""|*$CONSTANT_POLICY:* ${evt.serviceParams.servicePolicies.metricReport}
+            MarkdownSection(show"""|*$CONSTANT_POLICY:* ${evt.serviceParams.servicePolicies.metricsReport}
                                    |*$CONSTANT_SERVICE_ID:* ${evt.serviceParams.serviceId}""".stripMargin),
             metrics_section(evt.snapshot)
           )
@@ -179,7 +179,7 @@ private object SlackTranslator extends all {
     )
   }
 
-  private def metric_reset(evt: MetricReset): SlackApp =
+  private def metrics_reset(evt: MetricsReset): SlackApp =
     SlackApp(
       username = evt.serviceParams.taskName.value,
       attachments = List(
@@ -189,7 +189,7 @@ private object SlackTranslator extends all {
             HeaderSection(eventTitle(evt)),
             host_service_section(evt.serviceParams),
             metrics_index_section(evt),
-            MarkdownSection(show"""|*$CONSTANT_POLICY:* ${evt.serviceParams.servicePolicies.metricReset}
+            MarkdownSection(show"""|*$CONSTANT_POLICY:* ${evt.serviceParams.servicePolicies.metricsReset}
                                    |*$CONSTANT_SERVICE_ID:* ${evt.serviceParams.serviceId}""".stripMargin),
             metrics_section(evt.snapshot)
           )
@@ -232,7 +232,7 @@ private object SlackTranslator extends all {
       .withServiceStart(service_start)
       .withServicePanic(service_panic)
       .withServiceStop(service_stop)
-      .withMetricReport(metric_report)
-      .withMetricReset(metric_reset)
+      .withMetricsReport(metrics_report)
+      .withMetricsReset(metrics_reset)
       .withServiceMessage(service_message)
 }

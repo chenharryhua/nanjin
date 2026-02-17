@@ -21,7 +21,7 @@ class RetryTest extends AnyFunSuite {
   test("2.retry - give up") {
     val mr = service.eventStream { agent =>
       agent.retry(_.withPolicy(_.giveUp)).use(_(IO(()) *> agent.adhoc.report))
-    }.map(checkJson).mapFilter(eventFilters.metricReport).compile.toList.unsafeRunSync()
+    }.map(checkJson).mapFilter(eventFilters.metricsReport).compile.toList.unsafeRunSync()
     assert(mr.head.snapshot.isEmpty)
   }
 
@@ -126,7 +126,7 @@ class RetryTest extends AnyFunSuite {
             .void
             .guarantee(agent.adhoc.report)
         })
-      .mapFilter(eventFilters.metricReport)
+      .mapFilter(eventFilters.metricsReport)
       .compile
       .lastOrError
       .unsafeRunSync()

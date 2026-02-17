@@ -56,23 +56,23 @@ private object PrettyJsonTranslator {
       jsonHelper.exit_cause(evt.cause)
     )
 
-  private def metric_report(evt: MetricReport): Json =
+  private def metrics_report(evt: MetricsReport): Json =
     Json.obj(
       jsonHelper.metric_index(evt.index),
       jsonHelper.service_name(evt.serviceParams),
       jsonHelper.service_id(evt.serviceParams),
-      jsonHelper.policy(evt.serviceParams.servicePolicies.metricReport),
+      jsonHelper.policy(evt.serviceParams.servicePolicies.metricsReport),
       uptime(evt),
       took(evt.took),
       pretty_metrics(evt.snapshot)
     )
 
-  private def metric_reset(evt: MetricReset): Json =
+  private def metrics_reset(evt: MetricsReset): Json =
     Json.obj(
       jsonHelper.metric_index(evt.index),
       jsonHelper.service_name(evt.serviceParams),
       jsonHelper.service_id(evt.serviceParams),
-      jsonHelper.policy(evt.serviceParams.servicePolicies.metricReset),
+      jsonHelper.policy(evt.serviceParams.servicePolicies.metricsReset),
       uptime(evt),
       took(evt.took),
       pretty_metrics(evt.snapshot)
@@ -87,7 +87,7 @@ private object PrettyJsonTranslator {
       .withServiceStart(service_start)
       .withServiceStop(service_stop)
       .withServicePanic(service_panic)
-      .withMetricReport(metric_report)
-      .withMetricReset(metric_reset)
+      .withMetricsReport(metrics_report)
+      .withMetricsReset(metrics_reset)
       .withServiceMessage(service_message)
 }

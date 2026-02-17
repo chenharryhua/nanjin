@@ -6,7 +6,7 @@ import cats.syntax.flatMap.toFlatMapOps
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.common.chrono.Tick
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
-import com.github.chenharryhua.nanjin.guard.event.Event.MetricReport
+import com.github.chenharryhua.nanjin.guard.event.Event.MetricsReport
 import com.github.chenharryhua.nanjin.guard.event.{Event, MetricIndex, MetricSnapshot, ScrapeMode}
 import fs2.concurrent.Channel
 
@@ -22,7 +22,7 @@ sealed trait AdhocMetrics[F[_]] {
     */
   def report: F[Unit]
   def getSnapshot: F[MetricSnapshot]
-  def cheapMetricReport(tick: Tick): F[MetricReport]
+  def cheapMetricsReport(tick: Tick): F[MetricsReport]
 }
 
 abstract private class AdhocMetricsImpl[F[_]](
@@ -34,7 +34,7 @@ abstract private class AdhocMetricsImpl[F[_]](
 
   override val reset: F[Unit] =
     F.realTimeInstant.flatMap(ts =>
-      metric_reset(
+      metrics_reset(
         channel = channel,
         eventLogger = eventLogger,
         metricRegistry = metricRegistry,
@@ -43,15 +43,15 @@ abstract private class AdhocMetricsImpl[F[_]](
 
   override val report: F[Unit] =
     F.realTimeInstant.flatMap(ts =>
-      metric_report(
+      metrics_report(
         channel = channel,
         eventLogger = eventLogger,
         metricRegistry = metricRegistry,
         index = MetricIndex.Adhoc(sp.toZonedDateTime(ts))
       ).void)
 
-  override def cheapMetricReport(tick: Tick): F[MetricReport] =
-    create_metric_report(sp, metricRegistry, MetricIndex.Periodic(tick), ScrapeMode.Cheap)
+  override def cheapMetricsReport(tick: Tick): F[MetricsReport] =
+    create_metrics_report(sp, metricRegistry, MetricIndex.Periodic(tick), ScrapeMode.Cheap)
 
   override val getSnapshot: F[MetricSnapshot] =
     MetricSnapshot.timed[F](metricRegistry, ScrapeMode.Full).map(_._2)

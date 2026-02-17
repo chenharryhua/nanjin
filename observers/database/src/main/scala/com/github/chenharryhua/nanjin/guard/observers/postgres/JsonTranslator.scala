@@ -45,9 +45,9 @@ private object JsonTranslator {
       jsonHelper.timestamp(evt)
     )
 
-  private def metric_report(evt: MetricReport): Json =
+  private def metric_report(evt: MetricsReport): Json =
     Json.obj(
-      "event" -> EventName.MetricReport.snakeJson,
+      "event" -> EventName.MetricsReport.snakeJson,
       jsonHelper.metric_index(evt.index),
       jsonHelper.service_name(evt.serviceParams),
       took(evt.took),
@@ -56,9 +56,9 @@ private object JsonTranslator {
       jsonHelper.timestamp(evt)
     )
 
-  private def metric_reset(evt: MetricReset): Json =
+  private def metric_reset(evt: MetricsReset): Json =
     Json.obj(
-      "event" -> EventName.MetricReset.snakeJson,
+      "event" -> EventName.MetricsReset.snakeJson,
       jsonHelper.metric_index(evt.index),
       jsonHelper.service_name(evt.serviceParams),
       took(evt.took),
@@ -80,8 +80,8 @@ private object JsonTranslator {
       .withServiceStart(service_started)
       .withServiceStop(service_stopped)
       .withServicePanic(service_panic)
-      .withMetricReport(metric_report)
-      .withMetricReset(metric_reset)
+      .withMetricsReport(metric_report)
+      .withMetricsReset(metric_reset)
       .withServiceMessage(service_message)
 
 }

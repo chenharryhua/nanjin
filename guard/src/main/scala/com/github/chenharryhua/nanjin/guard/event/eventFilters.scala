@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.event
 
 import cats.syntax.eq.catsSyntaxEq
-import com.github.chenharryhua.nanjin.guard.event.Event.MetricReport
+import com.github.chenharryhua.nanjin.guard.event.Event.MetricsReport
 import cron4s.CronExpr
 import cron4s.lib.javatime.javaTemporalInstance
 import cron4s.syntax.all.*
@@ -29,7 +29,7 @@ object eventFilters {
     */
   def sampling(interval: FiniteDuration)(evt: Event): Boolean =
     evt match {
-      case MetricReport(mrt, sp, _, _) =>
+      case MetricsReport(mrt, sp, _, _) =>
         mrt match {
           case MetricIndex.Adhoc(_)       => true
           case MetricIndex.Periodic(tick) =>
@@ -56,7 +56,7 @@ object eventFilters {
     */
   def sampling(divisor: Refined[Int, Positive])(evt: Event): Boolean =
     evt match {
-      case MetricReport(mrt, _, _, _) =>
+      case MetricsReport(mrt, _, _, _) =>
         mrt match {
           case MetricIndex.Adhoc(_)       => true
           case MetricIndex.Periodic(tick) => (tick.index % divisor.value) === 0
@@ -77,7 +77,7 @@ object eventFilters {
     */
   def sampling(cronExpr: CronExpr)(evt: Event): Boolean =
     evt match {
-      case MetricReport(mrt, _, _, _) =>
+      case MetricsReport(mrt, _, _, _) =>
         mrt match {
           case MetricIndex.Adhoc(_)       => true
           case MetricIndex.Periodic(tick) =>
@@ -90,11 +90,11 @@ object eventFilters {
   // MapFilter-friendly accessors
   // --------------------------------------------------------------------------
 
-  val metricReport: Event => Option[Event.MetricReport] =
-    GenPrism[Event, Event.MetricReport].getOption
+  val metricsReport: Event => Option[Event.MetricsReport] =
+    GenPrism[Event, Event.MetricsReport].getOption
 
-  val metricReset: Event => Option[Event.MetricReset] =
-    GenPrism[Event, Event.MetricReset].getOption
+  val metricsReset: Event => Option[Event.MetricsReset] =
+    GenPrism[Event, Event.MetricsReset].getOption
 
   val serviceMessage: Event => Option[Event.ServiceMessage] =
     GenPrism[Event, Event.ServiceMessage].getOption

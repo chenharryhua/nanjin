@@ -24,7 +24,7 @@ import scala.jdk.DurationConverters.ScalaDurationOps
 final case class RestartPolicy(policy: Policy, threshold: Option[Duration])
 
 @JsonCodec
-final case class ServicePolicies(restart: RestartPolicy, metricReport: Policy, metricReset: Policy)
+final case class ServicePolicies(restart: RestartPolicy, metricsReport: Policy, metricsReset: Policy)
 @JsonCodec
 final case class HistoryCapacity(metric: Int, panic: Int, error: Int)
 
@@ -85,8 +85,8 @@ object ServiceParams {
       launchTime = launchTime,
       servicePolicies = ServicePolicies(
         restart = RestartPolicy(Policy.giveUp, None),
-        metricReport = Policy.giveUp,
-        metricReset = Policy.giveUp),
+        metricsReport = Policy.giveUp,
+        metricsReset = Policy.giveUp),
       historyCapacity = HistoryCapacity(32, 32, 32),
       logFormat = LogFormat.Console_PlainText,
       nanjin = parse(BuildInfo.toJson).toOption,
@@ -135,8 +135,8 @@ private object ServiceConfigF {
 
       case WithRestartPolicy(p, t, c) =>
         c.focus(_.servicePolicies.restart).replace(RestartPolicy(p, t))
-      case WithMetricResetPolicy(v, c)  => c.focus(_.servicePolicies.metricReset).replace(v)
-      case WithMetricReportPolicy(p, c) => c.focus(_.servicePolicies.metricReport).replace(p)
+      case WithMetricResetPolicy(v, c)  => c.focus(_.servicePolicies.metricsReset).replace(v)
+      case WithMetricReportPolicy(p, c) => c.focus(_.servicePolicies.metricsReport).replace(p)
       case WithHomePage(v, c)           => c.focus(_.homePage).replace(v)
 
       case WithMetricCapacity(v, c) => c.focus(_.historyCapacity.metric).replace(v)

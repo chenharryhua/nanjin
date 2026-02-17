@@ -12,8 +12,8 @@ import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter
 import com.github.chenharryhua.nanjin.common.chrono.Tick
 import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, Domain, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.Event.{
-  MetricReport,
-  MetricReset,
+  MetricsReport,
+  MetricsReset,
   ServiceMessage,
   ServicePanic,
   ServiceStart,
@@ -64,8 +64,8 @@ package object service {
           "policy" -> serviceParams.servicePolicies.restart.policy.show.asJson,
           "threshold" -> serviceParams.servicePolicies.restart.threshold.map(defaultFormatter.format).asJson
         ),
-        "metric_report" -> serviceParams.servicePolicies.metricReport.show.asJson,
-        "metric_reset" -> serviceParams.servicePolicies.metricReset.show.asJson
+        "metrics_report" -> serviceParams.servicePolicies.metricsReport.show.asJson,
+        "metrics_reset" -> serviceParams.servicePolicies.metricsReset.show.asJson
       ),
       "launch_time" -> serviceParams.launchTime.asJson,
       "log_format" -> serviceParams.logFormat.asJson,
@@ -95,35 +95,35 @@ package object service {
         message = Encoder[S].apply(msg))
     }
 
-  private[service] def create_metric_report[F[_]: Sync](
+  private[service] def create_metrics_report[F[_]: Sync](
     serviceParams: ServiceParams,
     metricRegistry: MetricRegistry,
     index: MetricIndex,
-    mode: ScrapeMode): F[MetricReport] =
+    mode: ScrapeMode): F[MetricsReport] =
     MetricSnapshot.timed[F](metricRegistry, mode).map { case (took, snapshot) =>
-      MetricReport(index, serviceParams, snapshot, took)
+      MetricsReport(index, serviceParams, snapshot, took)
     }
 
-  private[service] def metric_report[F[_]](
+  private[service] def metrics_report[F[_]](
     channel: Channel[F, Event],
     eventLogger: EventLogger[F],
     metricRegistry: MetricRegistry,
-    index: MetricIndex)(implicit F: Sync[F]): F[MetricReport] =
+    index: MetricIndex)(implicit F: Sync[F]): F[MetricsReport] =
     for {
-      mr <- create_metric_report(eventLogger.serviceParams, metricRegistry, index, ScrapeMode.Full)
-      _ <- eventLogger.metric_report(mr)
+      mr <- create_metrics_report(eventLogger.serviceParams, metricRegistry, index, ScrapeMode.Full)
+      _ <- eventLogger.metrics_report(mr)
       _ <- channel.send(mr)
     } yield mr
 
-  private[service] def metric_reset[F[_]: Sync](
+  private[service] def metrics_reset[F[_]: Sync](
     channel: Channel[F, Event],
     eventLogger: EventLogger[F],
     metricRegistry: MetricRegistry,
     index: MetricIndex): F[Unit] =
     for {
       (took, snapshot) <- MetricSnapshot.timed[F](metricRegistry, ScrapeMode.Full)
-      ms = MetricReset(index, eventLogger.serviceParams, snapshot, took)
-      _ <- eventLogger.metric_reset(ms)
+      ms = MetricsReset(index, eventLogger.serviceParams, snapshot, took)
+      _ <- eventLogger.metrics_reset(ms)
       _ <- channel.send(ms)
     } yield metricRegistry.getCounters().values().asScala.foreach(c => c.dec(c.getCount))
 

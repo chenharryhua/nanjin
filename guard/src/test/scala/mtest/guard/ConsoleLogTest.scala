@@ -41,7 +41,7 @@ class ConsoleLogTest extends AnyFunSuite {
       .updateConfig(_.withLogFormat(_.Console_JsonVerbose))
       .eventStream(action)
       .map(checkJson)
-      .mapFilter(eventFilters.metricReport)
+      .mapFilter(eventFilters.metricsReport)
       .compile
       .lastOrError
       .unsafeRunSync()
@@ -63,7 +63,7 @@ class ConsoleLogTest extends AnyFunSuite {
       .updateConfig(_.withLogFormat(_.Console_PlainText))
       .eventStream(action)
       .map(checkJson)
-      .mapFilter(eventFilters.metricReport)
+      .mapFilter(eventFilters.metricsReport)
       .compile
       .lastOrError
       .unsafeRunSync()

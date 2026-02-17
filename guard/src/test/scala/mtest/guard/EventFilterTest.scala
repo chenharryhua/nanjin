@@ -5,7 +5,7 @@ import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy}
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.event.Event.{MetricReport, ServiceStart, ServiceStop}
+import com.github.chenharryhua.nanjin.guard.event.Event.{MetricsReport, ServiceStart, ServiceStop}
 import com.github.chenharryhua.nanjin.guard.event.MetricIndex.Periodic
 import com.github.chenharryhua.nanjin.guard.event.eventFilters
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
@@ -29,10 +29,10 @@ class EventFilterTest extends AnyFunSuite {
       .compile
       .toList
       .unsafeRunSync()
-    val first = b.asInstanceOf[MetricReport].index.asInstanceOf[Periodic].tick.index
+    val first = b.asInstanceOf[MetricsReport].index.asInstanceOf[Periodic].tick.index
     assert(a.isInstanceOf[ServiceStart])
-    assert(b.isInstanceOf[MetricReport])
-    assert(c.asInstanceOf[MetricReport].index.asInstanceOf[Periodic].tick.index === first + 3)
+    assert(b.isInstanceOf[MetricsReport])
+    assert(c.asInstanceOf[MetricsReport].index.asInstanceOf[Periodic].tick.index === first + 3)
     assert(d.isInstanceOf[ServiceStop])
   }
 
@@ -46,8 +46,8 @@ class EventFilterTest extends AnyFunSuite {
       .toList
       .unsafeRunSync()
     assert(a.isInstanceOf[ServiceStart])
-    assert(b.asInstanceOf[MetricReport].index.asInstanceOf[Periodic].tick.index === 3)
-    assert(c.asInstanceOf[MetricReport].index.asInstanceOf[Periodic].tick.index === 6)
+    assert(b.asInstanceOf[MetricsReport].index.asInstanceOf[Periodic].tick.index === 3)
+    assert(c.asInstanceOf[MetricsReport].index.asInstanceOf[Periodic].tick.index === 6)
     assert(d.isInstanceOf[ServiceStop])
   }
 
@@ -61,8 +61,8 @@ class EventFilterTest extends AnyFunSuite {
       .filter(eventFilters.sampling(crontabs.every3Seconds))
 
     val List(a, b, c, d) = align.flatMap(_ => run).compile.toList.unsafeRunSync()
-    val tb = b.asInstanceOf[MetricReport].index.asInstanceOf[Periodic].tick
-    val tc = c.asInstanceOf[MetricReport].index.asInstanceOf[Periodic].tick
+    val tb = b.asInstanceOf[MetricsReport].index.asInstanceOf[Periodic].tick
+    val tc = c.asInstanceOf[MetricsReport].index.asInstanceOf[Periodic].tick
     assert(a.isInstanceOf[ServiceStart])
     assert(tb.index + 3 == tc.index)
     assert(Duration.between(tb.conclude, tc.conclude) == Duration.ofSeconds(3))

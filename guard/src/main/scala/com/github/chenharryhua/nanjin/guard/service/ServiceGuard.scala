@@ -123,9 +123,9 @@ final private[guard] class ServiceGuardImpl[F[_]: Network: Async: Console] priva
 
         // put together
         channel.stream
-          .concurrently(helper.metrics_reset(channel, eventLogger, metricRegistry))
-          .concurrently(helper.metrics_report(channel, eventLogger, metricRegistry, metricsHistory))
-          .concurrently(helper.jmx_report(metricRegistry, config.jmxBuilder))
+          .concurrently(helper.service_metrics_reset(channel, eventLogger, metricRegistry))
+          .concurrently(helper.service_metrics_report(channel, eventLogger, metricRegistry, metricsHistory))
+          .concurrently(helper.service_jmx_report(metricRegistry, config.jmxBuilder))
           .concurrently(http_server)
           .concurrently(surveillance)
       }
