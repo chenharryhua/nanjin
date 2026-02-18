@@ -1,10 +1,9 @@
 package com.github.chenharryhua.nanjin.guard.observers.ses
 
 import cats.Applicative
-import cats.syntax.show.toShow
 import com.github.chenharryhua.nanjin.guard.config.Attribute
-import com.github.chenharryhua.nanjin.guard.event.{Error, Event, Index, Took}
-import com.github.chenharryhua.nanjin.guard.translator.{htmlHelper, textConstants, textHelper, Translator}
+import com.github.chenharryhua.nanjin.guard.event.{Active, Error, Event, Index, Snooze}
+import com.github.chenharryhua.nanjin.guard.translator.{htmlHelper, textHelper, Translator}
 import io.circe.Json
 import org.typelevel.cats.time.instances.all
 import scalatags.Text.all.*
@@ -16,7 +15,6 @@ import scalatags.{generic, Text}
 private object HtmlTranslator extends all {
   import Event.*
   import htmlHelper.*
-  import textConstants.*
   import textHelper.*
 
   private def service_table(evt: Event): generic.Frag[Builder, String] = {
@@ -49,18 +47,12 @@ private object HtmlTranslator extends all {
 
   private def service_start(evt: ServiceStart): Text.TypedTag[String] = {
     val index = Attribute(Index(evt.tick.index)).textEntry
+    val active = Attribute(Active(evt.tick.active)).textEntry
+    val snooze = Attribute(Snooze(evt.tick.snooze)).textEntry
 
     val fg = frag(
-      tr(
-        th(index.tag),
-        th(CONSTANT_ACTIVE),
-        th(CONSTANT_SNOOZED)
-      ),
-      tr(
-        td(index.text),
-        td(Took(evt.tick.active).show),
-        td(Took(evt.tick.snooze).show)
-      )
+      tr(th(index.tag), th(active.tag), th(snooze.tag)),
+      tr(td(index.text), td(active.text), td(snooze.text))
     )
     div(
       h3(style := htmlColoring(evt))(eventTitle(evt)),
@@ -72,18 +64,11 @@ private object HtmlTranslator extends all {
   private def service_panic(evt: ServicePanic): Text.TypedTag[String] = {
     val policy = Attribute(evt.serviceParams.servicePolicies.restart.policy).textEntry
     val index = Attribute(Index(evt.tick.index)).textEntry
+    val active = Attribute(Active(evt.tick.active)).textEntry
 
     val fg = frag(
-      tr(
-        th(index.tag),
-        th(policy.tag),
-        th(CONSTANT_ACTIVE)
-      ),
-      tr(
-        td(index.text),
-        td(policy.text),
-        td(Took(evt.tick.active).show)
-      )
+      tr(th(index.tag), th(policy.tag), th(active.tag)),
+      tr(td(index.text), td(policy.text), td(active.text))
     )
     div(
       h3(style := htmlColoring(evt))(eventTitle(evt)),

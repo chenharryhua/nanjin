@@ -3,10 +3,9 @@ import cats.syntax.eq.catsSyntaxEq
 import cats.syntax.show.{showInterpolator, toShow}
 import cats.{Applicative, Eval}
 import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, Attribute, Brief, ServiceParams}
-import com.github.chenharryhua.nanjin.guard.event.{Event, Index, MetricSnapshot, Took}
-import com.github.chenharryhua.nanjin.guard.translator.textConstants.*
-import com.github.chenharryhua.nanjin.guard.translator.textHelper.*
+import com.github.chenharryhua.nanjin.guard.event.{Active, Event, Index, MetricSnapshot, Snooze}
 import com.github.chenharryhua.nanjin.guard.translator.{ColorScheme, SnapshotPolyglot, Translator}
+import com.github.chenharryhua.nanjin.guard.translator.textHelper.*
 import org.apache.commons.lang3.StringUtils
 import org.typelevel.cats.time.instances.all
 import squants.information.{Bytes, Information}
@@ -61,8 +60,8 @@ private object SlackTranslator extends all {
             case None        => abbreviate(yaml)
           }
         }
-      KeyValueSection(CONSTANT_METRICS, s"""```$msg```""")
-    } else KeyValueSection(CONSTANT_METRICS, """`not available`""")
+      KeyValueSection("Metrics", s"""```$msg```""")
+    } else KeyValueSection("Metrics", """`not available`""")
 
   private def brief(sb: Brief): KeyValueSection = {
     val service_brief = Attribute(sb).textEntry
@@ -73,6 +72,7 @@ private object SlackTranslator extends all {
   private def service_start(evt: ServiceStart): SlackApp = {
     val zone = Attribute(evt.serviceParams.timeZone).textEntry
     val index = Attribute(Index(evt.tick.index)).textEntry
+    val snooze = Attribute(Snooze(evt.tick.snooze)).textEntry
 
     val index_section = if (evt.tick.index === 0) {
       JuxtaposeSection(
@@ -81,7 +81,7 @@ private object SlackTranslator extends all {
       )
     } else {
       JuxtaposeSection(
-        first = TextField(CONSTANT_SNOOZED, Took(evt.tick.snooze).show),
+        first = TextField(snooze.tag, snooze.text),
         second = TextField(index.tag, index.text)
       )
     }
@@ -113,6 +113,7 @@ private object SlackTranslator extends all {
     val service_id = Attribute(evt.serviceParams.serviceId).textEntry
     val index = Attribute(Index(evt.tick.index)).textEntry
     val error = Attribute(evt.error).textEntry
+    val active = Attribute(Active(evt.tick.active)).textEntry
 
     val color = coloring(evt)
     SlackApp(
@@ -124,7 +125,7 @@ private object SlackTranslator extends all {
             HeaderSection(s":alarm: ${eventTitle(evt)}"),
             host_service_section(evt.serviceParams),
             JuxtaposeSection(
-              first = TextField(CONSTANT_ACTIVE, Took(evt.tick.active).show),
+              first = TextField(active.tag, active.text),
               second = TextField(index.tag, index.text)
             ),
             MarkdownSection(show"""|${panicText(evt)}

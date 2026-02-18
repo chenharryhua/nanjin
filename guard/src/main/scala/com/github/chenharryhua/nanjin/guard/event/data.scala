@@ -88,6 +88,20 @@ object Took {
   implicit val decoderTook: Decoder[Took] = Decoder.decodeDuration.map(Took(_))
 }
 
+final case class Active(value: Duration) extends AnyVal
+object Active {
+  implicit val showActive: Show[Active] = ut => DurationFormatter.defaultFormatter.format(ut.value)
+  implicit val encoderActive: Encoder[Active] = Encoder.encodeDuration.contramap(_.value)
+  implicit val decoderActive: Decoder[Active] = Decoder.decodeDuration.map(Active(_))
+}
+
+final case class Snooze(value: Duration) extends AnyVal
+object Snooze {
+  implicit val showSnooze: Show[Snooze] = ut => DurationFormatter.defaultFormatter.format(ut.value)
+  implicit val encoderSnooze: Encoder[Snooze] = Encoder.encodeDuration.contramap(_.value)
+  implicit val decoderSnooze: Decoder[Snooze] = Decoder.decodeDuration.map(Snooze(_))
+}
+
 final case class Timestamp(value: ZonedDateTime) extends AnyVal
 object Timestamp {
   implicit val showTimestamp: Show[Timestamp] = _.value.toLocalTime.truncatedTo(ChronoUnit.SECONDS).show

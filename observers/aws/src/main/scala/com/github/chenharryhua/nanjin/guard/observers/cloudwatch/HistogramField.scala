@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.observers.cloudwatch
 
+import com.codahale.metrics.MetricAttribute
 import com.github.chenharryhua.nanjin.guard.event.MetricElement
 
 import java.time.Duration
@@ -10,7 +11,17 @@ sealed private trait HistogramField {
 }
 
 private object HistogramField {
-  import com.github.chenharryhua.nanjin.guard.translator.metricConstants.*
+  private val METRICS_MIN: String = MetricAttribute.MIN.getCode
+  private val METRICS_MAX: String = MetricAttribute.MAX.getCode
+  private val METRICS_MEAN: String = MetricAttribute.MEAN.getCode
+  private val METRICS_STD_DEV: String = MetricAttribute.STDDEV.getCode
+  private val METRICS_P50: String = MetricAttribute.P50.getCode
+  private val METRICS_P75: String = MetricAttribute.P75.getCode
+  private val METRICS_P95: String = MetricAttribute.P95.getCode
+  private val METRICS_P98: String = MetricAttribute.P98.getCode
+  private val METRICS_P99: String = MetricAttribute.P99.getCode
+  private val METRICS_P999: String = MetricAttribute.P999.getCode
+
   case object Min extends HistogramField {
     override def pick(timer: MetricElement.Timer): (Duration, String) = (timer.timer.min, METRICS_MIN)
     override def pick(histo: MetricElement.Histogram): (Double, String) =
