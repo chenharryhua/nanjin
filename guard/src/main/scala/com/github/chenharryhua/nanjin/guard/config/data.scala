@@ -4,7 +4,7 @@ import cats.Show
 import cats.syntax.show.toShow
 import com.github.chenharryhua.nanjin.guard.translator.durationFormatter
 import enumeratum.values.{CatsOrderValueEnum, CatsValueEnum, IntCirceEnum, IntEnum, IntEnumEntry}
-import enumeratum.{CirceEnum, Enum, EnumEntry}
+import enumeratum.{CatsEnum, CirceEnum, Enum, EnumEntry}
 import io.circe.{Decoder, Encoder, Json}
 
 import java.time.{Duration, ZoneId}
@@ -26,7 +26,7 @@ object AlarmLevel
 }
 
 sealed trait LogFormat extends EnumEntry
-object LogFormat extends Enum[LogFormat] with CirceEnum[LogFormat] {
+object LogFormat extends Enum[LogFormat] with CirceEnum[LogFormat] with CatsEnum[LogFormat] {
   override def values: IndexedSeq[LogFormat] = findValues
 
   case object Console_PlainText extends LogFormat
