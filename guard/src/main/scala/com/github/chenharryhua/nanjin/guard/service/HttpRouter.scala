@@ -4,18 +4,13 @@ import cats.data.Kleisli
 import cats.effect.kernel.{Async, Ref}
 import cats.effect.std.AtomicCell
 import cats.syntax.apply.catsSyntaxApplyOps
-import cats.syntax.functor.toFunctorOps
 import cats.syntax.flatMap.toFlatMapOps
+import cats.syntax.functor.toFunctorOps
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.Event.{MetricsReport, ServiceMessage, ServicePanic}
-import com.github.chenharryhua.nanjin.guard.event.{
-  Event,
-  MetricIndex,
-  MetricSnapshot,
-  ScrapeMode,
-  ServiceStopCause
-}
+import com.github.chenharryhua.nanjin.guard.event.MetricsReportData.Index
+import com.github.chenharryhua.nanjin.guard.event.{Event, MetricSnapshot, ScrapeMode, ServiceStopCause}
 import com.github.chenharryhua.nanjin.guard.translator.SnapshotPolyglot
 import fs2.concurrent.Channel
 import io.circe.Json
@@ -92,7 +87,7 @@ final private class HttpRouter[F[_]](
     case GET -> Root / "metrics" / "reset" =>
       for {
         ts <- serviceParams.zonedNow
-        _ <- metrics_reset[F](channel, eventLogger, metricRegistry, MetricIndex.Adhoc(ts))
+        _ <- publish_metrics_reset[F](channel, eventLogger, metricRegistry, Index.Adhoc(ts))
         (fd, yaml) <- MetricSnapshot.timed[F](metricRegistry, ScrapeMode.Full).map { case (fd, ms) =>
           (fd, new SnapshotPolyglot(ms).toYaml)
         }
@@ -104,7 +99,7 @@ final private class HttpRouter[F[_]](
 
     // service part
 
-    case GET -> Root / "service" / "params"            => Ok(interpret_service_params(serviceParams))
+    case GET -> Root / "service" / "params"            => Ok(serviceParams.simpleJson)
     case GET -> Root / "service" / "panic" / "history" => Ok(helper.service_panic_history)
     case GET -> Root / "service" / "error" / "history" => Ok(helper.service_error_history)
 
@@ -116,7 +111,7 @@ final private class HttpRouter[F[_]](
         body(h1("Stopping Service"))
       )
 
-      Ok(stopping) <* service_stop[F](channel, eventLogger, ServiceStopCause.Maintenance)
+      Ok(stopping) <* publish_service_stop[F](channel, eventLogger, ServiceStopCause.Maintenance)
 
     case GET -> Root / "service" / "health_check" =>
       helper.service_health_check.flatMap {

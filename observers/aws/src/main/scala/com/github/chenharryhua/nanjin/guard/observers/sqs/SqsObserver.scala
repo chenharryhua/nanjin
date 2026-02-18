@@ -19,8 +19,7 @@ import fs2.{Pipe, Stream}
 import io.circe.Json
 import io.circe.syntax.EncoderOps
 import software.amazon.awssdk.services.sqs.model.SendMessageRequest
-
-import java.util.UUID
+import com.github.chenharryhua.nanjin.guard.config.ServiceId
 
 object SqsObserver {
   def apply[F[_]: Concurrent: Clock: UUIDGen](client: Resource[F, SimpleQueueService[F]]): SqsObserver[F] =
@@ -46,7 +45,8 @@ final class SqsObserver[F[_]: Clock: UUIDGen](
     (es: Stream[F, Event]) =>
       for {
         sqs <- Stream.resource(client)
-        ofm <- Stream.eval(F.ref[Map[UUID, ServiceStart]](Map.empty).map(new FinalizeMonitor(translate, _)))
+        ofm <- Stream.eval(
+          F.ref[Map[ServiceId, ServiceStart]](Map.empty).map(new FinalizeMonitor(translate, _)))
         event <- es
           .evalTap(ofm.monitoring)
           .evalTap(e => translate(e).flatMap(_.traverse(json => send(sqs, builder, json))))

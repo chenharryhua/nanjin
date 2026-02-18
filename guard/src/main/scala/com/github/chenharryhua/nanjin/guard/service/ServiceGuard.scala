@@ -11,12 +11,13 @@ import com.comcast.ip4s.IpLiteralSyntax
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.guard.config.{
   AlarmLevel,
+  Brief,
   Host,
   HostName,
   Port,
-  ServiceBrief,
+  Service,
   ServiceConfig,
-  ServiceName,
+  ServiceId,
   ServiceParams
 }
 import com.github.chenharryhua.nanjin.guard.event.Event
@@ -36,7 +37,7 @@ sealed trait ServiceGuard[F[_]] extends UpdateConfig[ServiceConfig[F], ServiceGu
 }
 
 final private[guard] class ServiceGuardImpl[F[_]: Network: Async: Console] private[guard] (
-  serviceName: ServiceName,
+  serviceName: Service,
   config: ServiceConfig[F])
     extends ServiceGuard[F] { self =>
 
@@ -63,9 +64,9 @@ final private[guard] class ServiceGuardImpl[F[_]: Network: Async: Console] priva
 
         val params: ServiceParams = config.evalConfig(
           serviceName = serviceName,
-          serviceId = serviceId,
+          serviceId = ServiceId(serviceId),
           launchTime = launchTime.atZone(config.zoneId),
-          brief = ServiceBrief(jsons.filterNot(_.isNull).distinct.asJson),
+          brief = Brief(jsons.filterNot(_.isNull).distinct.asJson),
           host = Host(hostName, esb.map(_.port.value).map(Port(_)))
         )
         KickedOff(params, esb, UUIDGen.randomUUID[F])

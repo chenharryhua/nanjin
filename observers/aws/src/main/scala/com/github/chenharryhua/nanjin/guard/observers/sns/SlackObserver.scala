@@ -17,7 +17,7 @@ import fs2.{Pipe, Stream}
 import io.circe.syntax.*
 import software.amazon.awssdk.services.sns.model.PublishRequest
 
-import java.util.UUID
+import com.github.chenharryhua.nanjin.guard.config.ServiceId
 
 object SlackObserver {
   def apply[F[_]: Concurrent: Clock](client: Resource[F, SimpleNotificationService[F]]): SlackObserver[F] =
@@ -56,7 +56,7 @@ final class SlackObserver[F[_]: Clock](
     for {
       sns <- Stream.resource(client)
       ofm <- Stream.eval(
-        F.ref[Map[UUID, ServiceStart]](Map.empty).map(new FinalizeMonitor(translator.translate, _)))
+        F.ref[Map[ServiceId, ServiceStart]](Map.empty).map(new FinalizeMonitor(translator.translate, _)))
       event <- es
         .evalTap(ofm.monitoring)
         .evalTap(e =>

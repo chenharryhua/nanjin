@@ -334,7 +334,7 @@ final case class Policy private (private[chrono] val policy: Fix[PolicyF]) {
 object Policy {
   import PolicyF.{Crontab, FixedDelay, FixedRate, GiveUp}
 
-  implicit val showPolicy: Show[Policy] = _.toString
+  implicit val showPolicy: Show[Policy] = Show.fromToString
 
   implicit val encoderPolicy: Encoder[Policy] =
     (a: Policy) => PolicyF.encoderFixPolicyF(a.policy)

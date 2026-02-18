@@ -17,7 +17,7 @@ import skunk.circe.codec.json.json
 import skunk.implicits.toStringOps
 import skunk.{Command, PreparedCommand, Session}
 
-import java.util.UUID
+import com.github.chenharryhua.nanjin.guard.config.ServiceId
 
 /** DDL:
   *
@@ -45,7 +45,7 @@ final class PostgresObserver[F[_]: Clock](session: Resource[F, Session[F]], tran
     for {
       pg <- Stream.resource(session.evalMap(_.prepare(cmd)))
       ofm <- Stream.eval(
-        F.ref[Map[UUID, ServiceStart]](Map.empty).map(new FinalizeMonitor(translator.translate, _)))
+        F.ref[Map[ServiceId, ServiceStart]](Map.empty).map(new FinalizeMonitor(translator.translate, _)))
       event <- events
         .evalTap(ofm.monitoring)
         .evalTap(evt => translator.translate(evt).flatMap(_.traverse_(execute(pg, _))))

@@ -1,17 +1,14 @@
 package com.github.chenharryhua.nanjin.guard.observers.postgres
 
 import cats.Applicative
-import com.github.chenharryhua.nanjin.guard.event.{Event, EventName, MetricSnapshot}
+import com.github.chenharryhua.nanjin.guard.config.Attribute
+import com.github.chenharryhua.nanjin.guard.event.{Event, EventName, Index, MetricSnapshot}
 import com.github.chenharryhua.nanjin.guard.translator.{jsonHelper, SnapshotPolyglot, Translator}
 import io.circe.Json
 import io.circe.syntax.EncoderOps
 
-import java.time.Duration
-
 private object JsonTranslator {
   import Event.*
-
-  private def took(dur: Duration): (String, Json) = "took" -> dur.asJson
 
   private def metrics(ss: MetricSnapshot): (String, Json) =
     "metrics" -> new SnapshotPolyglot(ss).toVanillaJson
@@ -19,59 +16,59 @@ private object JsonTranslator {
   private def service_started(evt: ServiceStart): Json =
     Json.obj(
       "event" -> EventName.ServiceStart.snakeJson,
-      jsonHelper.index(evt.tick),
+      Attribute(Index(evt.tick.index)).snakeJsonEntry,
       "params" -> evt.serviceParams.asJson,
-      jsonHelper.timestamp(evt))
+      Attribute(evt.timestamp).snakeJsonEntry
+    )
 
   private def service_panic(evt: ServicePanic): Json =
     Json.obj(
       "event" -> EventName.ServicePanic.snakeJson,
-      jsonHelper.index(evt.tick),
-      jsonHelper.service_name(evt.serviceParams),
-      jsonHelper.policy(evt.serviceParams.servicePolicies.restart.policy),
-      jsonHelper.stack(evt.error),
-      jsonHelper.service_id(evt.serviceParams),
-      jsonHelper.timestamp(evt)
+      Attribute(Index(evt.tick.index)).snakeJsonEntry,
+      Attribute(evt.serviceParams.serviceName).snakeJsonEntry,
+      Attribute(evt.serviceParams.servicePolicies.restart.policy).snakeJsonEntry,
+      Attribute(evt.error).snakeJsonEntry,
+      Attribute(evt.serviceParams.serviceId).snakeJsonEntry,
+      Attribute(evt.timestamp).snakeJsonEntry
     )
 
   private def service_stopped(evt: ServiceStop): Json =
     Json.obj(
       "event" -> EventName.ServiceStop.snakeJson,
-      jsonHelper.service_name(evt.serviceParams),
-      jsonHelper.exit_code(evt.cause),
-      jsonHelper.exit_cause(evt.cause),
-      jsonHelper.policy(evt.serviceParams.servicePolicies.restart.policy),
-      jsonHelper.service_id(evt.serviceParams),
-      jsonHelper.timestamp(evt)
+      Attribute(evt.serviceParams.serviceName).snakeJsonEntry,
+      Attribute(evt.cause).snakeJsonEntry,
+      Attribute(evt.serviceParams.servicePolicies.restart.policy).snakeJsonEntry,
+      Attribute(evt.serviceParams.serviceId).snakeJsonEntry,
+      Attribute(evt.timestamp).snakeJsonEntry
     )
 
   private def metric_report(evt: MetricsReport): Json =
     Json.obj(
       "event" -> EventName.MetricsReport.snakeJson,
-      jsonHelper.metric_index(evt.index),
-      jsonHelper.service_name(evt.serviceParams),
-      took(evt.took),
+      Attribute(evt.index).snakeJsonEntry,
+      Attribute(evt.serviceParams.serviceName).snakeJsonEntry,
+      Attribute(evt.took).snakeJsonEntry,
       metrics(evt.snapshot),
-      jsonHelper.service_id(evt.serviceParams),
-      jsonHelper.timestamp(evt)
+      Attribute(evt.serviceParams.serviceId).snakeJsonEntry,
+      Attribute(evt.timestamp).snakeJsonEntry
     )
 
   private def metric_reset(evt: MetricsReset): Json =
     Json.obj(
       "event" -> EventName.MetricsReset.snakeJson,
-      jsonHelper.metric_index(evt.index),
-      jsonHelper.service_name(evt.serviceParams),
-      took(evt.took),
+      Attribute(evt.index).snakeJsonEntry,
+      Attribute(evt.serviceParams.serviceName).snakeJsonEntry,
+      Attribute(evt.took).snakeJsonEntry,
       metrics(evt.snapshot),
-      jsonHelper.service_id(evt.serviceParams),
-      jsonHelper.timestamp(evt)
+      Attribute(evt.serviceParams.serviceId).snakeJsonEntry,
+      Attribute(evt.timestamp).snakeJsonEntry
     )
 
   private def service_message(evt: ServiceMessage): Json =
     Json.obj(
       "event" -> EventName.ServiceMessage.snakeJson,
       "message" -> jsonHelper.json_service_message(evt),
-      jsonHelper.timestamp(evt)
+      Attribute(evt.timestamp).snakeJsonEntry
     )
 
   def apply[F[_]: Applicative]: Translator[F, Json] =

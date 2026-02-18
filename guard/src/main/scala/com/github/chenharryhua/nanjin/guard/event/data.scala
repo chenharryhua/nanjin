@@ -2,14 +2,17 @@ package com.github.chenharryhua.nanjin.guard.event
 
 import cats.effect.Unique
 import cats.syntax.functor.toFunctorOps
+import cats.syntax.show.toShow
 import cats.{Hash, Show}
-import com.github.chenharryhua.nanjin.common.chrono.Tick
+import com.github.chenharryhua.nanjin.common.DurationFormatter
 import io.circe.generic.JsonCodec
 import io.circe.syntax.EncoderOps
 import io.circe.{Decoder, DecodingFailure, Encoder, Json}
 import org.apache.commons.lang3.exception.ExceptionUtils
+import org.typelevel.cats.time.instances.localtime.localtimeInstances
 
-import java.time.ZonedDateTime
+import java.time.temporal.ChronoUnit
+import java.time.{Duration, ZonedDateTime}
 import scala.jdk.CollectionConverters.ListHasAsScala
 
 @JsonCodec
@@ -20,20 +23,8 @@ object Error {
     Error(
       ExceptionUtils.getRootCauseMessage(ex),
       ExceptionUtils.getRootCauseStackTraceList(ex).asScala.map(_.replace("\t", "")).toList)
-}
 
-@JsonCodec
-sealed trait MetricIndex extends Product {
-  def launchTime: ZonedDateTime
-}
-
-object MetricIndex {
-  final case class Adhoc(value: ZonedDateTime) extends MetricIndex {
-    override val launchTime: ZonedDateTime = value
-  }
-  final case class Periodic(tick: Tick) extends MetricIndex {
-    override val launchTime: ZonedDateTime = tick.zoned(_.conclude)
-  }
+  implicit val showError: Show[Error] = _.stack.mkString("\n\t")
 }
 
 sealed abstract class ServiceStopCause(val exitCode: Int) extends Product
@@ -49,12 +40,20 @@ object ServiceStopCause {
   private val MAINTENANCE: String = "Maintenance"
   private val BY_EXCEPTION: String = "ByException"
 
-  implicit val encoderServiceStopCause: Encoder[ServiceStopCause] = Encoder.instance {
-    case Successfully       => Json.fromString(SUCCESSFULLY)
-    case ByCancellation     => Json.fromString(BY_CANCELLATION)
-    case ByException(error) => Json.obj(BY_EXCEPTION -> error.asJson)
-    case Maintenance        => Json.fromString(MAINTENANCE)
+  implicit val showServiceStopCause: Show[ServiceStopCause] = {
+    case Successfully       => SUCCESSFULLY
+    case Maintenance        => MAINTENANCE
+    case ByCancellation     => BY_CANCELLATION
+    case ByException(error) => error.show
   }
+
+  implicit val encoderServiceStopCause: Encoder[ServiceStopCause] =
+    Encoder.instance {
+      case Successfully       => Json.fromString(SUCCESSFULLY)
+      case ByCancellation     => Json.fromString(BY_CANCELLATION)
+      case ByException(error) => Json.obj(BY_EXCEPTION -> error.asJson)
+      case Maintenance        => Json.fromString(MAINTENANCE)
+    }
 
   implicit val decoderServiceStopCause: Decoder[ServiceStopCause] =
     List[Decoder[ServiceStopCause]](
@@ -80,4 +79,39 @@ object Correlation {
   implicit val showCorrelation: Show[Correlation] = Show.fromToString
   implicit val encoderCorrelation: Encoder[Correlation] = Encoder.encodeString.contramap(_.value)
   implicit val decoderCorrelation: Decoder[Correlation] = Decoder.decodeString.map(Correlation(_))
+}
+
+final case class Took(value: Duration) extends AnyVal
+object Took {
+  implicit val showTook: Show[Took] = ut => DurationFormatter.defaultFormatter.format(ut.value)
+  implicit val encoderTook: Encoder[Took] = Encoder.encodeDuration.contramap(_.value)
+  implicit val decoderTook: Decoder[Took] = Decoder.decodeDuration.map(Took(_))
+}
+
+final case class Active(value: Duration) extends AnyVal
+object Active {
+  implicit val showActive: Show[Active] = ut => DurationFormatter.defaultFormatter.format(ut.value)
+  implicit val encoderActive: Encoder[Active] = Encoder.encodeDuration.contramap(_.value)
+  implicit val decoderActive: Decoder[Active] = Decoder.decodeDuration.map(Active(_))
+}
+
+final case class Snooze(value: Duration) extends AnyVal
+object Snooze {
+  implicit val showSnooze: Show[Snooze] = ut => DurationFormatter.defaultFormatter.format(ut.value)
+  implicit val encoderSnooze: Encoder[Snooze] = Encoder.encodeDuration.contramap(_.value)
+  implicit val decoderSnooze: Decoder[Snooze] = Decoder.decodeDuration.map(Snooze(_))
+}
+
+final case class Timestamp(value: ZonedDateTime) extends AnyVal
+object Timestamp {
+  implicit val showTimestamp: Show[Timestamp] = _.value.toLocalTime.truncatedTo(ChronoUnit.SECONDS).show
+  implicit val encoderTimestamp: Encoder[Timestamp] = Encoder.encodeZonedDateTime.contramap(_.value)
+  implicit val decoderTimestamp: Decoder[Timestamp] = Decoder.decodeZonedDateTime.map(Timestamp(_))
+}
+
+final case class Index(value: Long) extends AnyVal
+object Index {
+  implicit val showIndex: Show[Index] = _.value.toString
+  implicit val encoderIndex: Encoder[Index] = Encoder.encodeLong.contramap(_.value)
+  implicit val decoderIndex: Decoder[Index] = Decoder.decodeLong.map(Index(_))
 }

@@ -8,8 +8,9 @@ import com.codahale.metrics.MetricRegistry
 import com.codahale.metrics.jmx.JmxReporter
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick}
 import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, Domain, ServiceParams}
+import com.github.chenharryhua.nanjin.guard.event.Event
 import com.github.chenharryhua.nanjin.guard.event.Event.{MetricsReport, ServiceMessage, ServicePanic}
-import com.github.chenharryhua.nanjin.guard.event.{Event, MetricIndex}
+import com.github.chenharryhua.nanjin.guard.event.MetricsReportData.Index
 import fs2.Stream
 import fs2.concurrent.Channel
 import org.apache.commons.collections4.queue.CircularFifoQueue
@@ -39,12 +40,11 @@ final private class ServiceBuildHelper[F[_]: Async](serviceParams: ServiceParams
     metricRegistry: MetricRegistry,
     metricsHistory: AtomicCell[F, CircularFifoQueue[Event.MetricsReport]]): Stream[F, Nothing] =
     tickingBy(serviceParams.servicePolicies.metricsReport).evalMap { tick =>
-      metrics_report(
+      publish_metrics_report(
         channel = channel,
         eventLogger = eventLogger,
         metricRegistry = metricRegistry,
-        index = MetricIndex.Periodic(tick)).flatMap(mr =>
-        metricsHistory.modify(queue => (queue, queue.add(mr))))
+        index = Index.Periodic(tick)).flatMap(mr => metricsHistory.modify(queue => (queue, queue.add(mr))))
     }.drain
 
   def service_metrics_reset(
@@ -53,11 +53,11 @@ final private class ServiceBuildHelper[F[_]: Async](serviceParams: ServiceParams
     metricRegistry: MetricRegistry): Stream[F, Nothing] =
     tickingBy(serviceParams.servicePolicies.metricsReset)
       .evalMap(tick =>
-        metrics_reset(
+        publish_metrics_reset(
           channel = channel,
           eventLogger = eventLogger,
           metricRegistry = metricRegistry,
-          index = MetricIndex.Periodic(tick)))
+          index = Index.Periodic(tick)))
       .drain
 
   def service_jmx_report(

@@ -34,35 +34,35 @@ abstract private class HeraldImpl[F[_]: Sync](
 
   override def info[S: Encoder](msg: S): F[Unit] =
     for {
-      evt <- service_message[F, S](serviceParams, domain, msg, AlarmLevel.Info, None)
+      evt <- create_service_message[F, S](serviceParams, domain, msg, AlarmLevel.Info, None)
       _ <- eventLogger.logServiceMessage(evt)
       _ <- channel.send(evt)
     } yield ()
 
   override def done[S: Encoder](msg: S): F[Unit] =
     for {
-      evt <- service_message[F, S](serviceParams, domain, msg, AlarmLevel.Done, None)
+      evt <- create_service_message[F, S](serviceParams, domain, msg, AlarmLevel.Done, None)
       _ <- eventLogger.logServiceMessage(evt)
       _ <- channel.send(evt)
     } yield ()
 
   override def warn[S: Encoder](msg: S): F[Unit] =
     for {
-      evt <- service_message[F, S](serviceParams, domain, msg, AlarmLevel.Warn, None)
+      evt <- create_service_message[F, S](serviceParams, domain, msg, AlarmLevel.Warn, None)
       _ <- eventLogger.logServiceMessage(evt)
       _ <- channel.send(evt)
     } yield ()
 
   override def warn[S: Encoder](ex: Throwable)(msg: S): F[Unit] =
     for {
-      evt <- service_message[F, S](serviceParams, domain, msg, AlarmLevel.Warn, Some(Error(ex)))
+      evt <- create_service_message[F, S](serviceParams, domain, msg, AlarmLevel.Warn, Some(Error(ex)))
       _ <- eventLogger.logServiceMessage(evt)
       _ <- channel.send(evt)
     } yield ()
 
   override def error[S: Encoder](msg: S): F[Unit] =
     for {
-      evt <- service_message[F, S](serviceParams, domain, msg, AlarmLevel.Error, None)
+      evt <- create_service_message[F, S](serviceParams, domain, msg, AlarmLevel.Error, None)
       _ <- errorHistory.modify(queue => (queue, queue.add(evt)))
       _ <- eventLogger.logServiceMessage(evt)
       _ <- channel.send(evt)
@@ -70,7 +70,7 @@ abstract private class HeraldImpl[F[_]: Sync](
 
   override def error[S: Encoder](ex: Throwable)(msg: S): F[Unit] =
     for {
-      evt <- service_message[F, S](serviceParams, domain, msg, AlarmLevel.Error, Error(ex).some)
+      evt <- create_service_message[F, S](serviceParams, domain, msg, AlarmLevel.Error, Error(ex).some)
       _ <- errorHistory.modify(queue => (queue, queue.add(evt)))
       _ <- eventLogger.logServiceMessage(evt)
       _ <- channel.send(evt)
