@@ -1,11 +1,13 @@
 package com.github.chenharryhua.nanjin.guard.service
 
 import cats.Applicative
+import cats.syntax.show.toShow
 import com.github.chenharryhua.nanjin.guard.config.Attribute
 import com.github.chenharryhua.nanjin.guard.event.Event.*
 import com.github.chenharryhua.nanjin.guard.event.{Index, MetricSnapshot}
 import com.github.chenharryhua.nanjin.guard.translator.*
 import io.circe.Json
+import io.circe.syntax.EncoderOps
 
 private object PrettyJsonTranslator {
 
@@ -17,7 +19,7 @@ private object PrettyJsonTranslator {
     Json.obj(
       Attribute(evt.serviceParams.serviceName).snakeJsonEntry,
       Attribute(evt.serviceParams.serviceId).snakeJsonEntry,
-      Attribute(evt.upTime).snakeJsonEntry,
+      Attribute(evt.upTime).snakeJsonEntry(_.show.asJson),
       Attribute(Index(evt.tick.index)).snakeJsonEntry,
       "snoozed" -> Json.fromString(durationFormatter.format(evt.tick.snooze)),
       "params" -> evt.serviceParams.simpleJson
@@ -27,11 +29,11 @@ private object PrettyJsonTranslator {
     Json.obj(
       Attribute(evt.serviceParams.serviceName).snakeJsonEntry,
       Attribute(evt.serviceParams.serviceId).snakeJsonEntry,
-      Attribute(evt.upTime).snakeJsonEntry,
+      Attribute(evt.upTime).snakeJsonEntry(_.show.asJson),
       Attribute(Index(evt.tick.index)).snakeJsonEntry,
       "active" -> Json.fromString(durationFormatter.format(evt.tick.active)),
       "snooze" -> Json.fromString(durationFormatter.format(evt.tick.snooze)),
-      Attribute(evt.serviceParams.servicePolicies.restart.policy).snakeJsonEntry,
+      Attribute(evt.serviceParams.servicePolicies.restart.policy).snakeJsonEntry(_.show.asJson),
       Attribute(evt.error).snakeJsonEntry
     )
 
@@ -39,30 +41,30 @@ private object PrettyJsonTranslator {
     Json.obj(
       Attribute(evt.serviceParams.serviceName).snakeJsonEntry,
       Attribute(evt.serviceParams.serviceId).snakeJsonEntry,
-      Attribute(evt.upTime).snakeJsonEntry,
-      Attribute(evt.serviceParams.servicePolicies.restart.policy).snakeJsonEntry,
+      Attribute(evt.upTime).snakeJsonEntry(_.show.asJson),
+      Attribute(evt.serviceParams.servicePolicies.restart.policy).snakeJsonEntry(_.show.asJson),
       Attribute(evt.cause).snakeJsonEntry
     )
 
   private def metrics_report(evt: MetricsReport): Json =
     Json.obj(
-      Attribute(evt.index).snakeJsonEntry,
+      Attribute(evt.index).snakeJsonEntry(_.show.asJson),
       Attribute(evt.serviceParams.serviceName).snakeJsonEntry,
       Attribute(evt.serviceParams.serviceId).snakeJsonEntry,
-      Attribute(evt.serviceParams.servicePolicies.metricsReport).snakeJsonEntry,
-      Attribute(evt.upTime).snakeJsonEntry,
-      Attribute(evt.took).snakeJsonEntry,
+      Attribute(evt.serviceParams.servicePolicies.metricsReport).snakeJsonEntry(_.show.asJson),
+      Attribute(evt.upTime).snakeJsonEntry(_.show.asJson),
+      Attribute(evt.took).snakeJsonEntry(_.show.asJson),
       pretty_metrics(evt.snapshot)
     )
 
   private def metrics_reset(evt: MetricsReset): Json =
     Json.obj(
-      Attribute(evt.index).snakeJsonEntry,
+      Attribute(evt.index).snakeJsonEntry(_.show.asJson),
       Attribute(evt.serviceParams.serviceName).snakeJsonEntry,
       Attribute(evt.serviceParams.serviceId).snakeJsonEntry,
-      Attribute(evt.serviceParams.servicePolicies.metricsReset).snakeJsonEntry,
-      Attribute(evt.upTime).snakeJsonEntry,
-      Attribute(evt.took).snakeJsonEntry,
+      Attribute(evt.serviceParams.servicePolicies.metricsReset).snakeJsonEntry(_.show.asJson),
+      Attribute(evt.upTime).snakeJsonEntry(_.show.asJson),
+      Attribute(evt.took).snakeJsonEntry(_.show.asJson),
       pretty_metrics(evt.snapshot)
     )
 
