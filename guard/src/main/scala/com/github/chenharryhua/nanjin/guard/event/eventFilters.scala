@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.guard.event
 
 import cats.syntax.eq.catsSyntaxEq
 import com.github.chenharryhua.nanjin.guard.event.Event.MetricsReport
+import com.github.chenharryhua.nanjin.guard.event.MetricsReportData.Index
 import cron4s.CronExpr
 import cron4s.lib.javatime.javaTemporalInstance
 import cron4s.syntax.all.*
@@ -31,8 +32,8 @@ object eventFilters {
     evt match {
       case MetricsReport(mrt, sp, _, _) =>
         mrt match {
-          case MetricIndex.Adhoc(_)       => true
-          case MetricIndex.Periodic(tick) =>
+          case Index.Adhoc(_)       => true
+          case Index.Periodic(tick) =>
             val expect: Instant =
               sp.launchTime.toInstant.plus(
                 ((Duration
@@ -58,8 +59,8 @@ object eventFilters {
     evt match {
       case MetricsReport(mrt, _, _, _) =>
         mrt match {
-          case MetricIndex.Adhoc(_)       => true
-          case MetricIndex.Periodic(tick) => (tick.index % divisor.value) === 0
+          case Index.Adhoc(_)       => true
+          case Index.Periodic(tick) => (tick.index % divisor.value) === 0
         }
       case _ => true
     }
@@ -79,8 +80,8 @@ object eventFilters {
     evt match {
       case MetricsReport(mrt, _, _, _) =>
         mrt match {
-          case MetricIndex.Adhoc(_)       => true
-          case MetricIndex.Periodic(tick) =>
+          case Index.Adhoc(_)       => true
+          case Index.Periodic(tick) =>
             cronExpr.next(tick.zoned(_.commence)).exists(zdt => tick.isWithinOpenClosed(zdt.toInstant))
         }
       case _ => true

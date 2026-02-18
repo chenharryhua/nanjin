@@ -1,29 +1,17 @@
 package com.github.chenharryhua.nanjin.guard.translator
 
 import cats.syntax.eq.catsSyntaxEq
-import cats.syntax.show.showInterpolator
 import cats.syntax.show.toShow
-
 import com.github.chenharryhua.nanjin.guard.event.Event.ServicePanic
-import com.github.chenharryhua.nanjin.guard.event.{Event, MetricIndex, MetricSnapshot}
+import com.github.chenharryhua.nanjin.guard.event.{Event, MetricSnapshot}
 import org.typelevel.cats.time.instances.{localdatetime, localtime}
 
-import java.time.{Duration, ZonedDateTime}
 import java.time.temporal.ChronoUnit
+import java.time.{Duration, ZonedDateTime}
 
 object textHelper extends localtime with localdatetime {
   def yamlMetrics(ss: MetricSnapshot): String =
     new SnapshotPolyglot(ss).toYaml
-
-  def uptimeText(evt: Event): String = durationFormatter.format(evt.upTime)
-
-  def tookText(dur: Duration): String = durationFormatter.format(dur)
-
-  def metricIndexText(index: MetricIndex): String =
-    index match {
-      case MetricIndex.Adhoc(_)       => "Adhoc"
-      case MetricIndex.Periodic(tick) => show"${tick.index}"
-    }
 
   def eventTitle(evt: Event): String =
     evt match {
@@ -48,7 +36,7 @@ object textHelper extends localtime with localdatetime {
   }
 
   def panicText(evt: ServicePanic): String = {
-    val (time, dur) = localTime_duration(evt.timestamp, evt.tick.zoned(_.conclude))
+    val (time, dur) = localTime_duration(evt.timestamp.value, evt.tick.zoned(_.conclude))
     s"Restart was scheduled at $time, in $dur."
   }
 }

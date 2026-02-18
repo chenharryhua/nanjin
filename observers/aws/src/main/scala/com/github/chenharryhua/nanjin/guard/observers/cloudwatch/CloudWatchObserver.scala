@@ -8,17 +8,22 @@ import cats.syntax.traverse.toTraverseOps
 import com.github.chenharryhua.nanjin.aws.CloudWatch
 import com.github.chenharryhua.nanjin.common.aws.CloudWatchNamespace
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick}
-import com.github.chenharryhua.nanjin.guard.config.{MetricID, MetricLabel, ServiceParams, Squants}
+import com.github.chenharryhua.nanjin.guard.config.{
+  Attribute,
+  MetricID,
+  MetricLabel,
+  ServiceId,
+  ServiceParams,
+  Squants
+}
 import com.github.chenharryhua.nanjin.guard.event.Event.MetricsReport
-import com.github.chenharryhua.nanjin.guard.event.{Event, MetricIndex, MetricSnapshot}
-import com.github.chenharryhua.nanjin.guard.translator.textConstants
+import com.github.chenharryhua.nanjin.guard.event.{Event, MetricSnapshot, MetricsReportData, Timestamp}
 import fs2.{Pipe, Stream}
 import software.amazon.awssdk.services.cloudwatch.model.{Dimension, MetricDatum, StandardUnit}
 import squants.time
 
-import java.time.{Instant, ZoneId}
+import java.time.ZoneId
 import java.util
-import java.util.UUID
 import scala.jdk.CollectionConverters.*
 import scala.jdk.DurationConverters.JavaDurationOps
 
@@ -62,7 +67,7 @@ final class CloudWatchObserver[F[_]: Async] private (
         data = time.Time(dur.toScala).to(time.Microseconds)
       )
       MetricKey(
-        timestamp = report.timestamp.toInstant,
+        timestamp = report.timestamp,
         serviceParams = report.serviceParams,
         metricLabel = timer.metricId.metricLabel,
         metricName = s"${timer.metricId.metricName.name}_$category",
@@ -77,7 +82,7 @@ final class CloudWatchObserver[F[_]: Async] private (
       val (value, category) = hf.pick(histo)
       val (su, data) = CloudWatchTimeUnit.toStandardUnit(squants = histo.histogram.squants, data = value)
       MetricKey(
-        timestamp = report.timestamp.toInstant,
+        timestamp = report.timestamp,
         serviceParams = report.serviceParams,
         metricLabel = histo.metricId.metricLabel,
         metricName = s"${histo.metricId.metricName.name}_$category",
@@ -90,7 +95,7 @@ final class CloudWatchObserver[F[_]: Async] private (
         val calls: Long = timer.timer.calls
         val delta: Long = lookup.get(timer.metricId).fold(calls)(calls - _)
         MetricKey(
-          timestamp = report.timestamp.toInstant,
+          timestamp = report.timestamp,
           serviceParams = report.serviceParams,
           metricLabel = timer.metricId.metricLabel,
           metricName = timer.metricId.metricName.name,
@@ -105,7 +110,7 @@ final class CloudWatchObserver[F[_]: Async] private (
         val (su, data) =
           CloudWatchTimeUnit.toStandardUnit(squants = meter.meter.squants, data = value.toDouble)
         MetricKey(
-          timestamp = report.timestamp.toInstant,
+          timestamp = report.timestamp,
           serviceParams = report.serviceParams,
           metricLabel = meter.metricId.metricLabel,
           metricName = meter.metricId.metricName.name,
@@ -119,7 +124,7 @@ final class CloudWatchObserver[F[_]: Async] private (
           val updates: Long = histo.histogram.updates
           val delta: Long = lookup.get(histo.metricId).fold(updates)(updates - _)
           MetricKey(
-            timestamp = report.timestamp.toInstant,
+            timestamp = report.timestamp,
             serviceParams = report.serviceParams,
             metricLabel = histo.metricId.metricLabel,
             metricName = histo.metricId.metricName.name,
@@ -142,9 +147,9 @@ final class CloudWatchObserver[F[_]: Async] private (
     for {
       cwc <- Stream.resource(client)
       // indexed by ServiceID and MetricName's uuid
-      lookup <- Stream.eval(F.ref(Map.empty[UUID, Map[MetricID, Long]]))
+      lookup <- Stream.eval(F.ref(Map.empty[ServiceId, Map[MetricID, Long]]))
       event <- events.evalTap {
-        case mr @ MetricsReport(MetricIndex.Periodic(_), sp, snapshot, _) =>
+        case mr @ MetricsReport(MetricsReportData.Index.Periodic(_), sp, snapshot, _) =>
           lookup.getAndUpdate(_.updated(sp.serviceId, snapshot.lookupCount)).flatMap { last =>
             val data = computeDatum(mr, last.getOrElse(sp.serviceId, MetricSnapshot.empty.lookupCount))
             publish(cwc, data)
@@ -161,15 +166,14 @@ final class CloudWatchObserver[F[_]: Async] private (
     tickStream.tickScheduled(zoneId, f).evalMap(getMetricsReport).through(observe(namespace))
 
   private case class MetricKey(
-    timestamp: Instant,
+    timestamp: Timestamp,
     serviceParams: ServiceParams,
     metricLabel: MetricLabel,
     metricName: String,
     standardUnit: StandardUnit) {
 
-    private val permanent: Map[String, String] = Map(
-      textConstants.CONSTANT_LABEL -> metricLabel.label,
-      textConstants.CONSTANT_DOMAIN -> metricLabel.domain.value)
+    private val permanent: Map[String, String] =
+      Map(Attribute(metricLabel.label).textEntry.toPair, Attribute(metricLabel.domain).textEntry.toPair)
 
     private val dimensions: util.List[Dimension] =
       dimensionBuilder(new DimensionBuilder(serviceParams, permanent)).build
@@ -180,7 +184,7 @@ final class CloudWatchObserver[F[_]: Async] private (
         .dimensions(dimensions)
         .metricName(metricName)
         .unit(standardUnit)
-        .timestamp(timestamp)
+        .timestamp(timestamp.value.toInstant)
         .value(value)
         .storageResolution(storageResolution)
         .build()

@@ -1,104 +1,86 @@
 package com.github.chenharryhua.nanjin.guard.service
 
 import cats.Applicative
-import cats.syntax.show.{showInterpolator, toShow}
-import com.github.chenharryhua.nanjin.guard.event.{Error, Event, ServiceStopCause}
-import com.github.chenharryhua.nanjin.guard.translator.{textConstants, textHelper, Translator}
+import cats.syntax.show.showInterpolator
+import com.github.chenharryhua.nanjin.guard.config.Attribute
+import com.github.chenharryhua.nanjin.guard.event.{Event, Index, Took}
+import com.github.chenharryhua.nanjin.guard.translator.{textHelper, Translator}
 
 private object SimpleTextTranslator {
   import Event.*
-  import textConstants.*
 
   private def service_event(se: Event): String = {
-    val host: String = show"$CONSTANT_HOST:${se.serviceParams.host}"
-    val sn: String = s"$CONSTANT_SERVICE:${se.serviceParams.serviceName.value}"
-    val tn: String = s"$CONSTANT_TASK:${se.serviceParams.taskName.value}"
-    val serviceId: String = s"$CONSTANT_SERVICE_ID:${se.serviceParams.serviceId.show}"
-    val uptime: String = s"$CONSTANT_UPTIME:${textHelper.uptimeText(se)}"
+    val host: String = Attribute(se.serviceParams.host).labelledText
+    val sn: String = Attribute(se.serviceParams.serviceName).labelledText
+    val tn: String = Attribute(se.serviceParams.taskName).labelledText
+    val sid: String = Attribute(se.serviceParams.serviceId).labelledText
+    val uptime: String = Attribute(se.upTime).labelledText
     s"""|$sn, $tn, $uptime
         |  $host
-        |  $serviceId""".stripMargin
+        |  $sid""".stripMargin
 
   }
 
-  private def error_str(err: Error): String =
-    s"""Cause:${err.stack.mkString("\n\t")}"""
-
   private def service_start(evt: ServiceStart): String = {
-    val idx = s"$CONSTANT_INDEX:${evt.tick.index}"
-    val snz = s"$CONSTANT_SNOOZED:${textHelper.tookText(evt.tick.snooze)}"
+    val idx = Attribute(Index(evt.tick.index)).labelledText
+    val snz = Attribute(Took(evt.tick.snooze)).labelledText
     s"""|
         |  ${service_event(evt)}
         |  $idx, $snz
-        |${interpret_service_params(evt.serviceParams).spaces2}
+        |${evt.serviceParams.simpleJson.spaces2}
         |""".stripMargin
   }
 
   private def service_panic(evt: ServicePanic): String = {
-    val idx = s"$CONSTANT_INDEX:${evt.tick.index}"
-    val act = s"$CONSTANT_ACTIVE:${textHelper.tookText(evt.tick.active)}"
+    val idx = Attribute(Index(evt.tick.index)).labelledText
+    val act = Attribute(Took(evt.tick.active)).labelledText
+    val policy = Attribute(evt.serviceParams.servicePolicies.restart.policy).labelledText
+    val error = Attribute(evt.error).labelledText
     show"""|
            |  ${service_event(evt)}
-           |  $CONSTANT_POLICY:${evt.serviceParams.servicePolicies.restart.policy}
+           |  $policy
            |  ${textHelper.panicText(evt)}
            |  $idx, $act
-           |  ${error_str(evt.error)}
+           |  $error
            |""".stripMargin
   }
 
   private def service_stop(evt: ServiceStop): String = {
-    def stopCause(ssc: ServiceStopCause): String = ssc match {
-      case ServiceStopCause.Successfully       => "Successfully"
-      case ServiceStopCause.ByCancellation     => "ByCancellation"
-      case ServiceStopCause.ByException(error) => error.stack.mkString("\n\t")
-      case ServiceStopCause.Maintenance        => "Maintenance"
-    }
+    val stop_cause = Attribute(evt.cause).labelledText
+    val policy = Attribute(evt.serviceParams.servicePolicies.restart.policy).labelledText
     show"""|
            |  ${service_event(evt)}
-           |  $CONSTANT_POLICY:${evt.serviceParams.servicePolicies.restart.policy}
-           |  $CONSTANT_CAUSE:${stopCause(evt.cause)}
+           |  $policy
+           |  $stop_cause
            |""".stripMargin
   }
 
-  private def metrics_report(evt: MetricsReport): String = {
-    val policy = s"$CONSTANT_POLICY:${evt.serviceParams.servicePolicies.metricsReport.show}"
-    val took = s"$CONSTANT_TOOK:${textHelper.tookText(evt.took)}"
-    val index = s"$CONSTANT_INDEX:${textHelper.metricIndexText(evt.index)}"
+  private def metrics_event(evt: MetricsEvent): String = {
+    val policy = Attribute(evt.serviceParams.servicePolicies.metricsReport).labelledText
+    val index = Attribute(evt.index).labelledText
 
     s"""|
         |  ${service_event(evt)}
-        |  $index, $policy, $took
+        |  $index, $policy, ${Attribute(evt.took).labelledText}
         |${textHelper.yamlMetrics(evt.snapshot)}
         |""".stripMargin
   }
 
-  private def metrics_reset(evt: MetricsReset): String = {
-    val policy = s"$CONSTANT_POLICY:${evt.serviceParams.servicePolicies.metricsReset.show}"
-    val took = s"$CONSTANT_TOOK:${textHelper.tookText(evt.took)}"
-    val index = s"$CONSTANT_INDEX:${textHelper.metricIndexText(evt.index)}"
+  private def metrics_report(evt: MetricsReport): String =
+    metrics_event(evt)
 
-    s"""|
-        |  ${service_event(evt)}
-        |  $index, $policy, $took
-        |${textHelper.yamlMetrics(evt.snapshot)}
-        |""".stripMargin
-  }
+  private def metrics_reset(evt: MetricsReset): String =
+    metrics_event(evt)
 
   private def service_message(evt: ServiceMessage): String = {
-    val host: String = show"$CONSTANT_HOST:${evt.serviceParams.host}"
-    val sn: String = s"$CONSTANT_SERVICE:${evt.serviceParams.serviceName.value}"
-    val tn: String = s"$CONSTANT_TASK:${evt.serviceParams.taskName.value}"
-    val serviceId: String = s"$CONSTANT_SERVICE_ID:${evt.serviceParams.serviceId.show}"
-    val uptime: String = s"$CONSTANT_UPTIME:${textHelper.uptimeText(evt)}"
-    val correlation = s"$CONSTANT_MESSAGE_CORRELATION:${evt.correlation.show}"
-    val domain = s"$CONSTANT_DOMAIN:${evt.domain.value}"
-
+    val correlation = Attribute(evt.correlation).labelledText
+    val domain = Attribute(evt.domain).labelledText
+    val error = evt.error.fold("")(Attribute(_).labelledText)
     s"""|
-        |  $sn, $tn, $domain, $uptime
-        |  $host
-        |  $serviceId, $correlation
+        |  ${service_event(evt)}
+        |  $domain, $correlation
         |${evt.message.spaces2}
-        |${evt.error.fold("")(error_str)}
+        |  $error
         |""".stripMargin
   }
 

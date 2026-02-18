@@ -16,7 +16,6 @@ import monocle.syntax.all.*
 import org.http4s.ember.server.EmberServerBuilder
 
 import java.time.*
-import java.util.UUID
 import scala.concurrent.duration.FiniteDuration
 import scala.jdk.DurationConverters.ScalaDurationOps
 
@@ -42,44 +41,47 @@ object Host {
 
 @JsonCodec
 final case class ServiceParams(
-  taskName: TaskName,
+  taskName: Task,
   host: Host,
-  homePage: Option[HomePage],
-  serviceName: ServiceName,
-  serviceId: UUID,
+  homepage: Option[Homepage],
+  serviceName: Service,
+  serviceId: ServiceId,
   launchTime: ZonedDateTime,
   servicePolicies: ServicePolicies,
   historyCapacity: HistoryCapacity,
   logFormat: LogFormat,
   nanjin: Option[Json],
-  brief: Json
+  brief: Brief
 ) {
   val zoneId: ZoneId = launchTime.getZone
+  val timeZone: TimeZone = TimeZone(zoneId)
 
   def toZonedDateTime(ts: Instant): ZonedDateTime = ts.atZone(zoneId)
   def toZonedDateTime(fd: FiniteDuration): ZonedDateTime =
     Instant.EPOCH.plusNanos(fd.toNanos).atZone(zoneId)
 
-  def upTime(ts: ZonedDateTime): Duration = Duration.between(launchTime, ts)
-  def upTime(ts: Instant): Duration = Duration.between(launchTime.toInstant, ts)
+  def upTime(ts: ZonedDateTime): UpTime = UpTime(Duration.between(launchTime, ts))
+  def upTime(ts: Instant): UpTime = UpTime(Duration.between(launchTime.toInstant, ts))
 
   def zonedNow[F[_]: Clock: Functor]: F[ZonedDateTime] = Clock[F].realTimeInstant.map(toZonedDateTime)
+
+  def simpleJson: Json = interpretServiceParams(this)
 }
 
 object ServiceParams {
 
   def apply(
-    taskName: TaskName,
-    serviceName: ServiceName,
-    serviceId: UUID,
+    taskName: Task,
+    serviceName: Service,
+    serviceId: ServiceId,
     launchTime: ZonedDateTime,
-    brief: ServiceBrief,
+    brief: Brief,
     host: Host
   ): ServiceParams =
     ServiceParams(
       taskName = taskName,
       host = host,
-      homePage = None,
+      homepage = None,
       serviceName = serviceName,
       serviceId = serviceId,
       launchTime = launchTime,
@@ -90,7 +92,7 @@ object ServiceParams {
       historyCapacity = HistoryCapacity(32, 32, 32),
       logFormat = LogFormat.Console_PlainText,
       nanjin = parse(BuildInfo.toJson).toOption,
-      brief = brief.value
+      brief = brief
     )
 }
 
@@ -99,28 +101,28 @@ sealed private[guard] trait ServiceConfigF[X] extends Product
 private object ServiceConfigF {
   implicit val functorServiceConfigF: Functor[ServiceConfigF] = cats.derived.semiauto.functor[ServiceConfigF]
 
-  final case class InitParams[K](taskName: TaskName) extends ServiceConfigF[K]
+  final case class InitParams[K](taskName: Task) extends ServiceConfigF[K]
 
   final case class WithMetricReportPolicy[K](policy: Policy, cont: K) extends ServiceConfigF[K]
   final case class WithRestartPolicy[K](policy: Policy, threshold: Option[Duration], cont: K)
       extends ServiceConfigF[K]
   final case class WithMetricResetPolicy[K](value: Policy, cont: K) extends ServiceConfigF[K]
 
-  final case class WithHomePage[K](value: Option[HomePage], cont: K) extends ServiceConfigF[K]
+  final case class WithHomePage[K](value: Option[Homepage], cont: K) extends ServiceConfigF[K]
 
   final case class WithMetricCapacity[K](value: Int, cont: K) extends ServiceConfigF[K]
   final case class WithPanicCapacity[K](value: Int, cont: K) extends ServiceConfigF[K]
   final case class WithErrorCapacity[K](value: Int, cont: K) extends ServiceConfigF[K]
 
-  final case class WithTaskName[K](value: TaskName, cont: K) extends ServiceConfigF[K]
+  final case class WithTaskName[K](value: Task, cont: K) extends ServiceConfigF[K]
 
   final case class WithLogFormat[K](value: LogFormat, cont: K) extends ServiceConfigF[K]
 
   def algebra(
-    serviceName: ServiceName,
-    brief: ServiceBrief,
+    serviceName: Service,
+    brief: Brief,
     launchTime: ZonedDateTime,
-    serviceId: UUID,
+    serviceId: ServiceId,
     host: Host): Algebra[ServiceConfigF, ServiceParams] =
     Algebra[ServiceConfigF, ServiceParams] {
       case InitParams(taskName) =>
@@ -137,7 +139,7 @@ private object ServiceConfigF {
         c.focus(_.servicePolicies.restart).replace(RestartPolicy(p, t))
       case WithMetricResetPolicy(v, c)  => c.focus(_.servicePolicies.metricsReset).replace(v)
       case WithMetricReportPolicy(p, c) => c.focus(_.servicePolicies.metricsReport).replace(p)
-      case WithHomePage(v, c)           => c.focus(_.homePage).replace(v)
+      case WithHomePage(v, c)           => c.focus(_.homepage).replace(v)
 
       case WithMetricCapacity(v, c) => c.focus(_.historyCapacity.metric).replace(v)
       case WithPanicCapacity(v, c)  => c.focus(_.historyCapacity.panic).replace(v)
@@ -178,10 +180,10 @@ final class ServiceConfig[F[_]: Applicative] private (
     withMetricReset(_.crontab(_.daily.midnight))
 
   def withHomePage(hp: String): ServiceConfig[F] =
-    copy(cont = Fix(WithHomePage(Some(HomePage(hp)), cont)))
+    copy(cont = Fix(WithHomePage(Some(Homepage(hp)), cont)))
 
   def withTaskName(tn: String): ServiceConfig[F] =
-    copy(cont = Fix(WithTaskName(TaskName(tn), cont)))
+    copy(cont = Fix(WithTaskName(Task(tn), cont)))
 
   def withZoneId(zoneId: ZoneId): ServiceConfig[F] =
     copy(zoneId = zoneId)
@@ -212,10 +214,10 @@ final class ServiceConfig[F[_]: Applicative] private (
     withLogFormat(f(LogFormat))
 
   private[guard] def evalConfig(
-    serviceName: ServiceName,
-    serviceId: UUID,
+    serviceName: Service,
+    serviceId: ServiceId,
     launchTime: ZonedDateTime,
-    brief: ServiceBrief,
+    brief: Brief,
     host: Host): ServiceParams =
     scheme
       .cata(
@@ -231,7 +233,7 @@ final class ServiceConfig[F[_]: Applicative] private (
 
 private[guard] object ServiceConfig {
 
-  def apply[F[_]: Applicative](taskName: TaskName): ServiceConfig[F] =
+  def apply[F[_]: Applicative](taskName: Task): ServiceConfig[F] =
     new ServiceConfig[F](
       cont = Fix(ServiceConfigF.InitParams[Fix[ServiceConfigF]](taskName)),
       zoneId = ZoneId.systemDefault(),

@@ -22,8 +22,9 @@ import scalatags.Text.all.*
 import squants.information.{Bytes, Information, Megabytes}
 
 import java.time.ZoneId
-import java.util.UUID
 import scala.concurrent.duration.DurationInt
+import com.github.chenharryhua.nanjin.guard.config.ServiceId
+import com.github.chenharryhua.nanjin.guard.event.Timestamp
 
 object EmailObserver {
 
@@ -118,7 +119,7 @@ final class EmailObserver[F[_]] private (
   }
 
   private def good_bye(
-    state: Ref[F, Map[UUID, ServiceStart]],
+    state: Ref[F, Map[ServiceId, ServiceStart]],
     cache: Ref[F, Chunk[ColoredTag]]): F[Chunk[ColoredTag]] =
     F.realTimeInstant.flatMap { ts =>
       state.get.flatMap { sm =>
@@ -127,7 +128,7 @@ final class EmailObserver[F[_]] private (
             translate(
               ServiceStop(
                 ss.serviceParams,
-                ss.serviceParams.toZonedDateTime(ts),
+                Timestamp(ss.serviceParams.toZonedDateTime(ts)),
                 ServiceStopCause.ByCancellation))
           }
         (cache.get, stop).mapN(_ ++ _)
@@ -169,7 +170,7 @@ final class EmailObserver[F[_]] private (
     (events: Stream[F, Event]) =>
       for {
         ses <- Stream.resource(client)
-        state <- Stream.eval(F.ref(Map.empty[UUID, ServiceStart]))
+        state <- Stream.eval(F.ref(Map.empty[ServiceId, ServiceStart]))
         cache <- Stream.eval(F.ref(Chunk.empty[ColoredTag]))
         monitor = events.evalTap {
           case ss: ServiceStart => state.update(_.updated(ss.serviceParams.serviceId, ss))

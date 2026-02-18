@@ -16,7 +16,7 @@ import fs2.kafka.ProducerRecord
 import fs2.{Pipe, Stream}
 import io.circe.generic.JsonCodec
 
-import java.util.UUID
+import com.github.chenharryhua.nanjin.guard.config.ServiceId
 
 @JsonCodec
 final case class EventKey(task: String, service: String)
@@ -45,7 +45,8 @@ final class KafkaObserver[F[_]](ctx: KafkaContext[F], translator: Translator[F, 
     (ss: Stream[F, Event]) =>
       for {
         client <- Stream.resource(ctx.sharedProduce(pair).clientR)
-        ofm <- Stream.eval(F.ref[Map[UUID, ServiceStart]](Map.empty).map(new FinalizeMonitor(translate, _)))
+        ofm <- Stream.eval(
+          F.ref[Map[ServiceId, ServiceStart]](Map.empty).map(new FinalizeMonitor(translate, _)))
         event <- ss
           .evalTap(ofm.monitoring)
           .evalTap(translate(_).flatMap(_.traverse(client.produceOne(_).flatten)))

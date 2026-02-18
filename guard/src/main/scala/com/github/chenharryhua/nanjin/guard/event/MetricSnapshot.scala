@@ -17,13 +17,13 @@ import java.time.Duration
 import scala.jdk.CollectionConverters.*
 import scala.jdk.DurationConverters.ScalaDurationOps
 
-sealed trait Snapshot extends Product { def metricId: MetricID }
+sealed trait MetricElement extends Product { def metricId: MetricID }
 
-object Snapshot {
+object MetricElement {
   @JsonCodec
-  final case class Counter(metricId: MetricID, count: Long) extends Snapshot
+  final case class Counter(metricId: MetricID, count: Long) extends MetricElement
   @JsonCodec
-  final case class Gauge(metricId: MetricID, value: Json) extends Snapshot
+  final case class Gauge(metricId: MetricID, value: Json) extends MetricElement
 
   @JsonCodec
   final case class MeterData(
@@ -36,7 +36,7 @@ object Snapshot {
   )
 
   @JsonCodec
-  final case class Meter(metricId: MetricID, meter: MeterData) extends Snapshot
+  final case class Meter(metricId: MetricID, meter: MeterData) extends MetricElement
 
   @JsonCodec
   final case class TimerData(
@@ -57,7 +57,7 @@ object Snapshot {
     p999: Duration
   )
   @JsonCodec
-  final case class Timer(metricId: MetricID, timer: TimerData) extends Snapshot
+  final case class Timer(metricId: MetricID, timer: TimerData) extends MetricElement
 
   @JsonCodec
   final case class HistogramData(
@@ -76,16 +76,22 @@ object Snapshot {
   )
 
   @JsonCodec
-  final case class Histogram(metricId: MetricID, histogram: HistogramData) extends Snapshot
+  final case class Histogram(metricId: MetricID, histogram: HistogramData) extends MetricElement
+}
+
+sealed trait ScrapeMode
+object ScrapeMode {
+  case object Cheap extends ScrapeMode
+  case object Full extends ScrapeMode
 }
 
 @JsonCodec
 final case class MetricSnapshot(
-  counters: List[Snapshot.Counter],
-  meters: List[Snapshot.Meter],
-  timers: List[Snapshot.Timer],
-  histograms: List[Snapshot.Histogram],
-  gauges: List[Snapshot.Gauge]) {
+  counters: List[MetricElement.Counter],
+  meters: List[MetricElement.Meter],
+  timers: List[MetricElement.Timer],
+  histograms: List[MetricElement.Histogram],
+  gauges: List[MetricElement.Gauge]) {
   def isEmpty: Boolean =
     counters.isEmpty && meters.isEmpty && timers.isEmpty && histograms.isEmpty && gauges.isEmpty
 
@@ -118,59 +124,54 @@ final case class MetricSnapshot(
   )
 }
 
-sealed trait ScrapeMode
-object ScrapeMode {
-  case object Cheap extends ScrapeMode
-  case object Full extends ScrapeMode
-}
-
 object MetricSnapshot extends duration {
   val empty: MetricSnapshot = MetricSnapshot(Nil, Nil, Nil, Nil, Nil)
 
   private def buildFrom(metricRegistry: MetricRegistry, mode: ScrapeMode): MetricSnapshot = {
     // counters
-    val counters: List[Snapshot.Counter] =
-      metricRegistry.getCounters.asScala.foldLeft(List.empty[Snapshot.Counter]) {
+    val counters: List[MetricElement.Counter] =
+      metricRegistry.getCounters.asScala.foldLeft(List.empty[MetricElement.Counter]) {
         case (lst, (name, counter)) =>
           decode[MetricID](name) match {
             case Left(_)    => lst
-            case Right(mid) => Snapshot.Counter(metricId = mid, count = counter.getCount) :: lst
+            case Right(mid) => MetricElement.Counter(metricId = mid, count = counter.getCount) :: lst
           }
       }
 
     // meters
-    val meters: List[Snapshot.Meter] =
-      metricRegistry.getMeters().asScala.foldLeft(List.empty[Snapshot.Meter]) { case (lst, (name, meter)) =>
-        decode[MetricID](name) match {
-          case Left(_)    => lst
-          case Right(mid) =>
-            mid.isMeter.fold(lst) { cat =>
-              Snapshot.Meter(
-                metricId = mid,
-                Snapshot.MeterData(
-                  squants = cat.squants,
-                  aggregate = meter.getCount,
-                  mean_rate = Hertz(meter.getMeanRate),
-                  m1_rate = Hertz(meter.getOneMinuteRate),
-                  m5_rate = Hertz(meter.getFiveMinuteRate),
-                  m15_rate = Hertz(meter.getFifteenMinuteRate)
-                )
-              ) :: lst
-            }
-        }
+    val meters: List[MetricElement.Meter] =
+      metricRegistry.getMeters().asScala.foldLeft(List.empty[MetricElement.Meter]) {
+        case (lst, (name, meter)) =>
+          decode[MetricID](name) match {
+            case Left(_)    => lst
+            case Right(mid) =>
+              mid.isMeter.fold(lst) { cat =>
+                MetricElement.Meter(
+                  metricId = mid,
+                  MetricElement.MeterData(
+                    squants = cat.squants,
+                    aggregate = meter.getCount,
+                    mean_rate = Hertz(meter.getMeanRate),
+                    m1_rate = Hertz(meter.getOneMinuteRate),
+                    m5_rate = Hertz(meter.getFiveMinuteRate),
+                    m15_rate = Hertz(meter.getFifteenMinuteRate)
+                  )
+                ) :: lst
+              }
+          }
       }
 
     // histograms
-    val histograms = metricRegistry.getHistograms().asScala.foldLeft(List.empty[Snapshot.Histogram]) {
+    val histograms = metricRegistry.getHistograms().asScala.foldLeft(List.empty[MetricElement.Histogram]) {
       case (lst, (name, histogram)) =>
         decode[MetricID](name) match {
           case Left(_)    => lst
           case Right(mid) =>
             mid.isHisto.fold(lst) { cat =>
               val ss = histogram.getSnapshot
-              Snapshot.Histogram(
+              MetricElement.Histogram(
                 metricId = mid,
-                Snapshot.HistogramData(
+                MetricElement.HistogramData(
                   squants = cat.squants,
                   updates = histogram.getCount,
                   min = ss.getMin,
@@ -190,49 +191,50 @@ object MetricSnapshot extends duration {
     }
 
     // timers
-    val timers: List[Snapshot.Timer] =
-      metricRegistry.getTimers().asScala.foldLeft(List.empty[Snapshot.Timer]) { case (lst, (name, timer)) =>
-        decode[MetricID](name) match {
-          case Left(_)    => lst
-          case Right(mid) =>
-            val ss = timer.getSnapshot
-            Snapshot.Timer(
-              metricId = mid,
-              Snapshot.TimerData(
-                calls = timer.getCount,
-                // meter
-                mean_rate = Hertz(timer.getMeanRate),
-                m1_rate = Hertz(timer.getOneMinuteRate),
-                m5_rate = Hertz(timer.getFiveMinuteRate),
-                m15_rate = Hertz(timer.getFifteenMinuteRate),
-                // histogram
-                min = Duration.ofNanos(ss.getMin),
-                max = Duration.ofNanos(ss.getMax),
-                mean = Duration.ofNanos(ss.getMean.toLong),
-                stddev = Duration.ofNanos(ss.getStdDev.toLong),
-                p50 = Duration.ofNanos(ss.getMedian.toLong),
-                p75 = Duration.ofNanos(ss.get75thPercentile().toLong),
-                p95 = Duration.ofNanos(ss.get95thPercentile().toLong),
-                p98 = Duration.ofNanos(ss.get98thPercentile().toLong),
-                p99 = Duration.ofNanos(ss.get99thPercentile().toLong),
-                p999 = Duration.ofNanos(ss.get999thPercentile().toLong)
-              )
-            ) :: lst
-        }
+    val timers: List[MetricElement.Timer] =
+      metricRegistry.getTimers().asScala.foldLeft(List.empty[MetricElement.Timer]) {
+        case (lst, (name, timer)) =>
+          decode[MetricID](name) match {
+            case Left(_)    => lst
+            case Right(mid) =>
+              val ss = timer.getSnapshot
+              MetricElement.Timer(
+                metricId = mid,
+                MetricElement.TimerData(
+                  calls = timer.getCount,
+                  // meter
+                  mean_rate = Hertz(timer.getMeanRate),
+                  m1_rate = Hertz(timer.getOneMinuteRate),
+                  m5_rate = Hertz(timer.getFiveMinuteRate),
+                  m15_rate = Hertz(timer.getFifteenMinuteRate),
+                  // histogram
+                  min = Duration.ofNanos(ss.getMin),
+                  max = Duration.ofNanos(ss.getMax),
+                  mean = Duration.ofNanos(ss.getMean.toLong),
+                  stddev = Duration.ofNanos(ss.getStdDev.toLong),
+                  p50 = Duration.ofNanos(ss.getMedian.toLong),
+                  p75 = Duration.ofNanos(ss.get75thPercentile().toLong),
+                  p95 = Duration.ofNanos(ss.get95thPercentile().toLong),
+                  p98 = Duration.ofNanos(ss.get98thPercentile().toLong),
+                  p99 = Duration.ofNanos(ss.get99thPercentile().toLong),
+                  p999 = Duration.ofNanos(ss.get999thPercentile().toLong)
+                )
+              ) :: lst
+          }
       }
 
     // gauges
-    val gauges: List[Snapshot.Gauge] =
+    val gauges: List[MetricElement.Gauge] =
       mode match {
         case ScrapeMode.Cheap => Nil
         case ScrapeMode.Full  =>
-          metricRegistry.getGauges().asScala.foldLeft(List.empty[Snapshot.Gauge]) {
+          metricRegistry.getGauges().asScala.foldLeft(List.empty[MetricElement.Gauge]) {
             case (lst, (name, gauge)) =>
               decode[MetricID](name) match {
                 case Left(_)    => lst
                 case Right(mid) =>
                   parse(gauge.getValue.toString) match {
-                    case Right(json) => Snapshot.Gauge(mid, json) :: lst
+                    case Right(json) => MetricElement.Gauge(mid, json) :: lst
                     case Left(_)     => lst
                   }
               }

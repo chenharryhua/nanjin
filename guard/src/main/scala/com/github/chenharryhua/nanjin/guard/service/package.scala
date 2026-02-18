@@ -5,10 +5,8 @@ import cats.syntax.apply.{catsSyntaxApplyOps, catsSyntaxTuple2Semigroupal, catsS
 import cats.syntax.flatMap.toFlatMapOps
 import cats.syntax.functor.toFunctorOps
 import cats.syntax.option.{catsSyntaxOptionId, none}
-import cats.syntax.show.toShow
 import cats.{Applicative, Functor, Monad, Semigroupal}
 import com.codahale.metrics.MetricRegistry
-import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter
 import com.github.chenharryhua.nanjin.common.chrono.Tick
 import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, Domain, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.Event.{
@@ -19,21 +17,22 @@ import com.github.chenharryhua.nanjin.guard.event.Event.{
   ServiceStart,
   ServiceStop
 }
+import com.github.chenharryhua.nanjin.guard.event.MetricsReportData.Index
 import com.github.chenharryhua.nanjin.guard.event.{
+  Correlation,
   Error,
   Event,
-  MetricIndex,
   MetricSnapshot,
   ScrapeMode,
-  ServiceStopCause
+  ServiceStopCause,
+  Timestamp,
+  Took
 }
 import fs2.concurrent.Channel
-import io.circe.syntax.EncoderOps
-import io.circe.{Encoder, Json}
+import io.circe.Encoder
 import org.typelevel.log4cats.SelfAwareLogger
 
 import scala.jdk.CollectionConverters.CollectionHasAsScala
-import com.github.chenharryhua.nanjin.guard.event.Correlation
 
 package object service {
 
@@ -49,35 +48,6 @@ package object service {
         else none[AlarmLevel]
     }
 
-  private[service] def interpret_service_params(serviceParams: ServiceParams): Json =
-    Json.obj(
-      "task_name" -> serviceParams.taskName.asJson,
-      "service_name" -> serviceParams.serviceName.asJson,
-      "service_id" -> serviceParams.serviceId.asJson,
-      "home_page" -> serviceParams.homePage.asJson,
-      "host" -> Json.obj(
-        "name" -> serviceParams.host.name.asJson,
-        "port" -> serviceParams.host.port.asJson
-      ),
-      "service_policies" -> Json.obj(
-        "restart" -> Json.obj(
-          "policy" -> serviceParams.servicePolicies.restart.policy.show.asJson,
-          "threshold" -> serviceParams.servicePolicies.restart.threshold.map(defaultFormatter.format).asJson
-        ),
-        "metrics_report" -> serviceParams.servicePolicies.metricsReport.show.asJson,
-        "metrics_reset" -> serviceParams.servicePolicies.metricsReset.show.asJson
-      ),
-      "launch_time" -> serviceParams.launchTime.asJson,
-      "log_format" -> serviceParams.logFormat.asJson,
-      "history_capacity" -> Json.obj(
-        "metrics_queue_length" -> serviceParams.historyCapacity.metric.asJson,
-        "error_queue_length" -> serviceParams.historyCapacity.error.asJson,
-        "panic_queue_length" -> serviceParams.historyCapacity.panic.asJson
-      ),
-      "nanjin" -> serviceParams.nanjin.asJson,
-      "brief" -> serviceParams.brief
-    )
-
   private[service] def create_service_message[F[_], S: Encoder](
     serviceParams: ServiceParams,
     domain: Domain,
@@ -88,27 +58,28 @@ package object service {
       ServiceMessage(
         serviceParams = serviceParams,
         domain = domain,
-        timestamp = ts,
+        timestamp = Timestamp(ts),
         correlation = Correlation(token),
         level = level,
         error = error,
-        message = Encoder[S].apply(msg))
+        message = Encoder[S].apply(msg)
+      )
     }
 
   private[service] def create_metrics_report[F[_]: Sync](
     serviceParams: ServiceParams,
     metricRegistry: MetricRegistry,
-    index: MetricIndex,
+    index: Index,
     mode: ScrapeMode): F[MetricsReport] =
     MetricSnapshot.timed[F](metricRegistry, mode).map { case (took, snapshot) =>
-      MetricsReport(index, serviceParams, snapshot, took)
+      MetricsReport(index, serviceParams, snapshot, Took(took))
     }
 
   private[service] def publish_metrics_report[F[_]](
     channel: Channel[F, Event],
     eventLogger: EventLogger[F],
     metricRegistry: MetricRegistry,
-    index: MetricIndex)(implicit F: Sync[F]): F[MetricsReport] =
+    index: Index)(implicit F: Sync[F]): F[MetricsReport] =
     for {
       mr <- create_metrics_report(eventLogger.serviceParams, metricRegistry, index, ScrapeMode.Full)
       _ <- eventLogger.metrics_report(mr)
@@ -119,10 +90,10 @@ package object service {
     channel: Channel[F, Event],
     eventLogger: EventLogger[F],
     metricRegistry: MetricRegistry,
-    index: MetricIndex): F[Unit] =
+    index: Index): F[Unit] =
     for {
       (took, snapshot) <- MetricSnapshot.timed[F](metricRegistry, ScrapeMode.Full)
-      ms = MetricsReset(index, eventLogger.serviceParams, snapshot, took)
+      ms = MetricsReset(index, eventLogger.serviceParams, snapshot, Took(took))
       _ <- eventLogger.metrics_reset(ms)
       _ <- channel.send(ms)
     } yield metricRegistry.getCounters().values().asScala.foreach(c => c.dec(c.getCount))
@@ -150,7 +121,7 @@ package object service {
     cause: ServiceStopCause): F[Unit] =
     for {
       now <- eventLogger.serviceParams.zonedNow
-      event = ServiceStop(eventLogger.serviceParams, now, cause)
+      event = ServiceStop(eventLogger.serviceParams, Timestamp(now), cause)
       _ <- eventLogger.service_stop(event)
       _ <- channel.closeWithElement(event)
     } yield ()

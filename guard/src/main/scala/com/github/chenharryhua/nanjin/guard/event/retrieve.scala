@@ -5,7 +5,7 @@ import com.github.chenharryhua.nanjin.guard.config.CategoryKind.*
 import io.circe.Decoder
 
 object retrieveHealthChecks {
-  def apply(gauges: List[Snapshot.Gauge]): Map[MetricID, Boolean] =
+  def apply(gauges: List[MetricElement.Gauge]): Map[MetricID, Boolean] =
     gauges.collect { gg =>
       gg.metricId.category match {
         case Category.Gauge(GaugeKind.HealthCheck) =>
@@ -15,7 +15,7 @@ object retrieveHealthChecks {
 }
 
 object retrieveGauge {
-  def apply[A: Decoder](gauges: List[Snapshot.Gauge]): Map[MetricID, A] =
+  def apply[A: Decoder](gauges: List[MetricElement.Gauge]): Map[MetricID, A] =
     gauges.collect { gg =>
       gg.metricId.category match {
         case Category.Gauge(GaugeKind.Gauge) =>
@@ -25,7 +25,7 @@ object retrieveGauge {
 }
 
 object retrieveCounter {
-  def apply(counters: List[Snapshot.Counter]): Map[MetricID, Long] =
+  def apply(counters: List[MetricElement.Counter]): Map[MetricID, Long] =
     counters.collect { tm =>
       tm.metricId.category match {
         case Category.Counter(CounterKind.Counter) =>
@@ -35,7 +35,7 @@ object retrieveCounter {
 }
 
 object retrieveRiskCounter {
-  def apply(counters: List[Snapshot.Counter]): Map[MetricID, Long] =
+  def apply(counters: List[MetricElement.Counter]): Map[MetricID, Long] =
     counters.collect { tm =>
       tm.metricId.category match {
         case Category.Counter(CounterKind.Risk) =>
@@ -45,7 +45,7 @@ object retrieveRiskCounter {
 }
 
 object retrieveTimer {
-  def apply(timers: List[Snapshot.Timer]): Map[MetricID, Snapshot.TimerData] =
+  def apply(timers: List[MetricElement.Timer]): Map[MetricID, MetricElement.TimerData] =
     timers.collect { tm =>
       tm.metricId.category match {
         case Category.Timer(TimerKind.Timer) =>
@@ -55,7 +55,7 @@ object retrieveTimer {
 }
 
 object retrieveMeter {
-  def apply(meters: List[Snapshot.Meter]): Map[MetricID, Snapshot.MeterData] =
+  def apply(meters: List[MetricElement.Meter]): Map[MetricID, MetricElement.MeterData] =
     meters.collect { tm =>
       tm.metricId.category match {
         case Category.Meter(MeterKind.Meter, _) =>
@@ -65,7 +65,7 @@ object retrieveMeter {
 }
 
 object retrieveHistogram {
-  def apply(histograms: List[Snapshot.Histogram]): Map[MetricID, Snapshot.HistogramData] =
+  def apply(histograms: List[MetricElement.Histogram]): Map[MetricID, MetricElement.HistogramData] =
     histograms.collect { tm =>
       tm.metricId.category match {
         case Category.Histogram(HistogramKind.Histogram, _) =>

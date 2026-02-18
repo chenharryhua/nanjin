@@ -3,10 +3,10 @@ package mtest.guard
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
-import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy}
+import com.github.chenharryhua.nanjin.common.chrono.{crontabs, tickStream, Policy}
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.Event.{MetricsReport, ServiceStart, ServiceStop}
-import com.github.chenharryhua.nanjin.guard.event.MetricIndex.Periodic
+import com.github.chenharryhua.nanjin.guard.event.MetricsReportData.Index.Periodic
 import com.github.chenharryhua.nanjin.guard.event.eventFilters
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import eu.timepit.refined.auto.*
@@ -14,7 +14,6 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.Duration
 import scala.concurrent.duration.DurationInt
-import com.github.chenharryhua.nanjin.common.chrono.crontabs
 
 class EventFilterTest extends AnyFunSuite {
   private val service: ServiceGuard[IO] =
