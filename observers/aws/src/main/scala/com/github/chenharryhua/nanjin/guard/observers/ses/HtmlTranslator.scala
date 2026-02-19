@@ -20,9 +20,8 @@ private object HtmlTranslator extends all {
   private def service_table(evt: Event): generic.Frag[Builder, String] = {
     val task_name = Attribute(evt.serviceParams.taskName).textEntry
     val host = Attribute(evt.serviceParams.host).textEntry
-    val service_name = Attribute(evt.serviceParams.serviceName).textEntry
-    val homepage =
-      evt.serviceParams.homepage.fold(td(service_name.text))(hp => td(a(href := hp.value)(service_name.text)))
+    val (service_tag, service) = Attribute(evt.serviceParams.serviceName).entry(s =>
+      evt.serviceParams.homepage.fold(td(s.value))(hp => td(a(href := hp.value)(s.value))))
     val service_id = Attribute(evt.serviceParams.serviceId).textEntry
     val uptime = Attribute(evt.upTime).textEntry
     val timestamp = Attribute(evt.timestamp).textEntry
@@ -30,8 +29,8 @@ private object HtmlTranslator extends all {
     frag(
       tr(th(task_name.tag), th(host.tag), th(timestamp.tag)),
       tr(td(task_name.text), td(host.text), td(timestamp.text)),
-      tr(th(service_name.tag), th(service_id.tag), th(uptime.tag)),
-      tr(homepage, td(service_id.text), td(uptime.text))
+      tr(th(service_tag), th(service_id.tag), th(uptime.tag)),
+      tr(service, td(service_id.text), td(uptime.text))
     )
   }
 

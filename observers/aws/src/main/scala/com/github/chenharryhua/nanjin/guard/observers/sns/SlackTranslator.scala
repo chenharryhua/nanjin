@@ -4,8 +4,8 @@ import cats.syntax.show.{showInterpolator, toShow}
 import cats.{Applicative, Eval}
 import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, Attribute, Brief, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.{Active, Event, Index, MetricSnapshot, Snooze}
-import com.github.chenharryhua.nanjin.guard.translator.{ColorScheme, SnapshotPolyglot, Translator}
 import com.github.chenharryhua.nanjin.guard.translator.textHelper.*
+import com.github.chenharryhua.nanjin.guard.translator.{ColorScheme, SnapshotPolyglot, Translator}
 import org.apache.commons.lang3.StringUtils
 import org.typelevel.cats.time.instances.all
 import squants.information.{Bytes, Information}
@@ -31,21 +31,22 @@ private object SlackTranslator extends all {
 
   private def host_service_section(sp: ServiceParams): JuxtaposeSection = {
     val host = Attribute(sp.host).textEntry
-    val service_name = Attribute(sp.serviceName).textEntry
-    val homepage = sp.homepage.fold(service_name.text)(hp => s"<${hp.value}|${service_name.text}>")
-    JuxtaposeSection(TextField(service_name.tag, homepage), TextField(host.tag, host.text))
+    val service =
+      Attribute(sp.serviceName).textEntry(name =>
+        sp.homepage.fold(name.value)(hp => s"<${hp.value}|${name.value}>"))
+    JuxtaposeSection(TextField(service), TextField(host))
   }
 
   private def uptime_section(evt: Event): JuxtaposeSection = {
     val uptime = Attribute(evt.upTime).textEntry
     val zone = Attribute(evt.serviceParams.timeZone).textEntry
-    JuxtaposeSection(first = TextField(uptime.tag, uptime.text), second = TextField(zone.tag, zone.text))
+    JuxtaposeSection(first = TextField(uptime), second = TextField(zone))
   }
 
   private def metrics_index_section(evt: MetricsEvent): JuxtaposeSection = {
     val uptime = Attribute(evt.upTime).textEntry
     val index = Attribute(evt.index).textEntry
-    JuxtaposeSection(first = TextField(uptime.tag, uptime.text), second = TextField(index.tag, index.text))
+    JuxtaposeSection(first = TextField(uptime), second = TextField(index))
   }
 
   private def metrics_section(snapshot: MetricSnapshot): KeyValueSection =
@@ -75,15 +76,9 @@ private object SlackTranslator extends all {
     val snooze = Attribute(Snooze(evt.tick.snooze)).textEntry
 
     val index_section = if (evt.tick.index === 0) {
-      JuxtaposeSection(
-        first = TextField(zone.tag, zone.text),
-        second = TextField(index.tag, index.text)
-      )
+      JuxtaposeSection(first = TextField(zone), second = TextField(index))
     } else {
-      JuxtaposeSection(
-        first = TextField(snooze.tag, snooze.text),
-        second = TextField(index.tag, index.text)
-      )
+      JuxtaposeSection(first = TextField(snooze), second = TextField(index))
     }
 
     val color = coloring(evt)
@@ -124,10 +119,7 @@ private object SlackTranslator extends all {
           blocks = List(
             HeaderSection(s":alarm: ${eventTitle(evt)}"),
             host_service_section(evt.serviceParams),
-            JuxtaposeSection(
-              first = TextField(active.tag, active.text),
-              second = TextField(index.tag, index.text)
-            ),
+            JuxtaposeSection(first = TextField(active), second = TextField(index)),
             MarkdownSection(show"""|${panicText(evt)}
                                    |*${uptime.tag}:* ${uptime.text}
                                    |*${policy.tag}:* ${policy.text}
@@ -228,7 +220,7 @@ private object SlackTranslator extends all {
       blocks = List(
         HeaderSection(s"$symbol ${eventTitle(evt)}"),
         host_service_section(evt.serviceParams),
-        JuxtaposeSection(TextField(domain.tag, domain.text), TextField(correlation.tag, correlation.text)),
+        JuxtaposeSection(TextField(domain), TextField(correlation)),
         MarkdownSection(s"*${service.tag}:* ${service.text}"),
         MarkdownSection(s"```${abbreviate(evt.message.show)}```")
       )
