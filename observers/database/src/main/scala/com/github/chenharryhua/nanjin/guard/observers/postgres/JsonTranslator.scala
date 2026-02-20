@@ -2,15 +2,12 @@ package com.github.chenharryhua.nanjin.guard.observers.postgres
 
 import cats.Applicative
 import com.github.chenharryhua.nanjin.guard.config.Attribute
-import com.github.chenharryhua.nanjin.guard.event.{Event, EventName, Index, MetricSnapshot}
+import com.github.chenharryhua.nanjin.guard.event.{Event, EventName, Index}
 import com.github.chenharryhua.nanjin.guard.translator.{SnapshotPolyglot, Translator}
 import io.circe.Json
 
 private object JsonTranslator {
   import Event.*
-
-  private def metrics(ss: MetricSnapshot): (String, Json) =
-    "metrics" -> new SnapshotPolyglot(ss).toVanillaJson
 
   private def service_started(evt: ServiceStart): Json =
     Json.obj(
@@ -47,7 +44,7 @@ private object JsonTranslator {
       Attribute(evt.index).snakeJsonEntry,
       Attribute(evt.serviceParams.serviceName).snakeJsonEntry,
       Attribute(evt.took).snakeJsonEntry,
-      metrics(evt.snapshot),
+      Attribute(evt.snapshot).map(new SnapshotPolyglot(_).toVanillaJson).snakeJsonEntry,
       Attribute(evt.serviceParams.serviceId).snakeJsonEntry,
       Attribute(evt.timestamp).snakeJsonEntry
     )
@@ -58,7 +55,7 @@ private object JsonTranslator {
       Attribute(evt.index).snakeJsonEntry,
       Attribute(evt.serviceParams.serviceName).snakeJsonEntry,
       Attribute(evt.took).snakeJsonEntry,
-      metrics(evt.snapshot),
+      Attribute(evt.snapshot).map(new SnapshotPolyglot(_).toVanillaJson).snakeJsonEntry,
       Attribute(evt.serviceParams.serviceId).snakeJsonEntry,
       Attribute(evt.timestamp).snakeJsonEntry
     )

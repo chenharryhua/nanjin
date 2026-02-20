@@ -14,9 +14,9 @@ import com.github.chenharryhua.nanjin.guard.event.{
   retrieveHealthChecks,
   Active,
   Index,
-  MetricSnapshot,
   MetricsReportData,
   ScrapeMode,
+  Snapshot,
   Snooze,
   Timestamp,
   Took
@@ -49,8 +49,6 @@ final private class HttpRouterHelper[F[_]: Sync](
   private case class Age(value: Duration) {
     val json: Json = durationFormatter.format(value).asJson
   }
-
-  private case class Snapshot(value: Json)
 
   val html_header: Text.TypedTag[String] =
     head(
@@ -92,36 +90,36 @@ final private class HttpRouterHelper[F[_]: Sync](
 
   val metrics_yaml: F[Text.TypedTag[String]] =
     serviceParams.zonedNow.flatMap { now =>
-      MetricSnapshot.timed[F](metricRegistry, ScrapeMode.Full).map { case (fd, ms) =>
+      Snapshot.timed[F](metricRegistry, ScrapeMode.Full).map { case (fd, ms) =>
         val yaml = new SnapshotPolyglot(ms).toYaml
         html(html_header, body(div(html_table_title(now, fd), pre(yaml))))
       }
     }
 
   val metrics_vanilla: F[Json] =
-    MetricSnapshot.timed[F](metricRegistry, ScrapeMode.Full).map { case (fd, ms) =>
+    Snapshot.timed[F](metricRegistry, ScrapeMode.Full).map { case (fd, ms) =>
       Json.obj(
         Attribute(serviceParams.serviceName).snakeJsonEntry,
         Attribute(Took(fd)).map(_.show).snakeJsonEntry,
-        Attribute(Snapshot(new SnapshotPolyglot(ms).toVanillaJson)).snakeJsonEntry(_.value)
+        Attribute(ms).map(new SnapshotPolyglot(_).toVanillaJson).snakeJsonEntry
       )
     }
 
   val metrics_json: F[Json] =
-    MetricSnapshot.timed[F](metricRegistry, ScrapeMode.Full).map { case (fd, ms) =>
+    Snapshot.timed[F](metricRegistry, ScrapeMode.Full).map { case (fd, ms) =>
       Json.obj(
         Attribute(serviceParams.serviceName).snakeJsonEntry,
         Attribute(Took(fd)).map(_.show).snakeJsonEntry,
-        Attribute(Snapshot(new SnapshotPolyglot(ms).toPrettyJson)).snakeJsonEntry(_.value)
+        Attribute(ms).map(new SnapshotPolyglot(_).toPrettyJson).snakeJsonEntry
       )
     }
 
   val metrics_raw_json: F[Json] =
-    MetricSnapshot.timed[F](metricRegistry, ScrapeMode.Full).map { case (fd, ms) =>
+    Snapshot.timed[F](metricRegistry, ScrapeMode.Full).map { case (fd, ms) =>
       Json.obj(
         Attribute(serviceParams.serviceName).snakeJsonEntry,
         Attribute(Took(fd)).map(_.show).snakeJsonEntry,
-        Attribute(Snapshot(ms.sorted.asJson)).snakeJsonEntry(_.value)
+        Attribute(ms).map(_.sorted.asJson).snakeJsonEntry
       )
     }
 
@@ -218,7 +216,7 @@ final private class HttpRouterHelper[F[_]: Sync](
   val service_health_check: F[Either[String, Json]] = {
     val deps_health_check: F[Json] =
       serviceParams.zonedNow[F].flatMap { now =>
-        MetricSnapshot.timed[F](metricRegistry, ScrapeMode.Full).map { case (fd, ss) =>
+        Snapshot.timed[F](metricRegistry, ScrapeMode.Full).map { case (fd, ss) =>
           Json.obj(
             "healthy" -> retrieveHealthChecks(ss.gauges).values.forall(identity).asJson,
             Attribute(Took(fd)).snakeJsonEntry(_.show.asJson),

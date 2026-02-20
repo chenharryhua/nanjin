@@ -4,15 +4,12 @@ import cats.Applicative
 import cats.syntax.show.toShow
 import com.github.chenharryhua.nanjin.guard.config.Attribute
 import com.github.chenharryhua.nanjin.guard.event.Event.*
-import com.github.chenharryhua.nanjin.guard.event.{Active, Index, MetricSnapshot, Snooze}
+import com.github.chenharryhua.nanjin.guard.event.{Active, Index, Snooze}
 import com.github.chenharryhua.nanjin.guard.translator.*
 import io.circe.Json
 import io.circe.syntax.EncoderOps
 
 private object PrettyJsonTranslator {
-  final private case class Metrics(ms: MetricSnapshot) extends AnyVal {
-    def json: Json = new SnapshotPolyglot(ms).toPrettyJson
-  }
 
   // events handlers
   private def service_start(evt: ServiceStart): Json =
@@ -54,7 +51,7 @@ private object PrettyJsonTranslator {
       Attribute(evt.serviceParams.servicePolicies.metricsReport).snakeJsonEntry(_.show.asJson),
       Attribute(evt.upTime).snakeJsonEntry(_.show.asJson),
       Attribute(evt.took).snakeJsonEntry(_.show.asJson),
-      Attribute(Metrics(evt.snapshot)).map(_.json).snakeJsonEntry
+      Attribute(evt.snapshot).map(new SnapshotPolyglot(_).toPrettyJson).snakeJsonEntry
     )
 
   private def metrics_reset(evt: MetricsReset): Json =
@@ -65,7 +62,7 @@ private object PrettyJsonTranslator {
       Attribute(evt.serviceParams.servicePolicies.metricsReset).snakeJsonEntry(_.show.asJson),
       Attribute(evt.upTime).snakeJsonEntry(_.show.asJson),
       Attribute(evt.took).snakeJsonEntry(_.show.asJson),
-      Attribute(Metrics(evt.snapshot)).map(_.json).snakeJsonEntry
+      Attribute(evt.snapshot).map(new SnapshotPolyglot(_).toPrettyJson).snakeJsonEntry
     )
 
   private def service_message(evt: ServiceMessage): Json =

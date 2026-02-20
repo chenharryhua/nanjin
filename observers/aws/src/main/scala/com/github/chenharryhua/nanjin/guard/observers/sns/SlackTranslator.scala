@@ -3,7 +3,7 @@ import cats.syntax.eq.catsSyntaxEq
 import cats.syntax.show.{showInterpolator, toShow}
 import cats.{Applicative, Eval}
 import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, Attribute, Brief, ServiceParams}
-import com.github.chenharryhua.nanjin.guard.event.{Active, Event, Index, MetricSnapshot, Snooze}
+import com.github.chenharryhua.nanjin.guard.event.{Active, Event, Index, Snapshot, Snooze}
 import com.github.chenharryhua.nanjin.guard.translator.textHelper.*
 import com.github.chenharryhua.nanjin.guard.translator.{ColorScheme, SnapshotPolyglot, Translator}
 import org.apache.commons.lang3.StringUtils
@@ -49,20 +49,12 @@ private object SlackTranslator extends all {
     JuxtaposeSection(first = TextField(uptime), second = TextField(index))
   }
 
-  private def metrics_section(snapshot: MetricSnapshot): KeyValueSection =
+  private def metrics_section(snapshot: Snapshot): KeyValueSection = {
+    val ss = Attribute(snapshot).map(new SnapshotPolyglot(_).toYaml).textEntry
     if (snapshot.nonEmpty) {
-      val polyglot: SnapshotPolyglot = new SnapshotPolyglot(snapshot)
-      val yaml: String = polyglot.toYaml
-      val msg: String =
-        if (yaml.length < MessageSizeLimits.toBytes.toInt) yaml
-        else {
-          polyglot.counterYaml match {
-            case Some(value) => abbreviate(value)
-            case None        => abbreviate(yaml)
-          }
-        }
-      KeyValueSection("Metrics", s"""```$msg```""")
-    } else KeyValueSection("Metrics", """`not available`""")
+      KeyValueSection(ss.tag, s"""```${abbreviate(ss.text)}```""")
+    } else KeyValueSection(ss.tag, """`not available`""")
+  }
 
   private def brief(sb: Brief): KeyValueSection = {
     val service_brief = Attribute(sb).textEntry

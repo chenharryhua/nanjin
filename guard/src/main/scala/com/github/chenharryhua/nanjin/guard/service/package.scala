@@ -22,9 +22,9 @@ import com.github.chenharryhua.nanjin.guard.event.{
   Correlation,
   Event,
   Message,
-  MetricSnapshot,
   ScrapeMode,
   ServiceStopCause,
+  Snapshot,
   StackTrace,
   Timestamp,
   Took
@@ -72,7 +72,7 @@ package object service {
     metricRegistry: MetricRegistry,
     index: Index,
     mode: ScrapeMode): F[MetricsReport] =
-    MetricSnapshot.timed[F](metricRegistry, mode).map { case (took, snapshot) =>
+    Snapshot.timed[F](metricRegistry, mode).map { case (took, snapshot) =>
       MetricsReport(index, serviceParams, snapshot, Took(took))
     }
 
@@ -93,7 +93,7 @@ package object service {
     metricRegistry: MetricRegistry,
     index: Index): F[Unit] =
     for {
-      (took, snapshot) <- MetricSnapshot.timed[F](metricRegistry, ScrapeMode.Full)
+      (took, snapshot) <- Snapshot.timed[F](metricRegistry, ScrapeMode.Full)
       ms = MetricsReset(index, eventLogger.serviceParams, snapshot, Took(took))
       _ <- eventLogger.metrics_reset(ms)
       _ <- channel.send(ms)
