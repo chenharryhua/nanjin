@@ -3,7 +3,6 @@ package com.github.chenharryhua.nanjin.guard.event
 import com.github.chenharryhua.nanjin.common.chrono.Tick
 import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, Domain, ServiceParams, UpTime}
 import com.github.chenharryhua.nanjin.guard.event.MetricsReportData.Index
-import io.circe.Json
 import io.circe.generic.JsonCodec
 
 @JsonCodec
@@ -40,7 +39,7 @@ object Event {
     correlation: Correlation,
     level: AlarmLevel,
     stackTrace: Option[StackTrace],
-    message: Json
+    message: Message
   ) extends Event {
     override val name: EventName = EventName.ServiceMessage
   }

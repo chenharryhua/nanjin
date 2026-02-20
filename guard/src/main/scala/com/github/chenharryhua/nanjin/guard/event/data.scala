@@ -113,6 +113,17 @@ object Timestamp {
 final case class Index(value: Long) extends AnyVal
 object Index {
   implicit val showIndex: Show[Index] = _.value.toString
-  implicit val encoderIndex: Encoder[Index] = Encoder.encodeLong.contramap(_.value)
-  implicit val decoderIndex: Decoder[Index] = Decoder.decodeLong.map(Index(_))
+  implicit val codecIndex: Codec[Index] = new Codec[Index] {
+    override def apply(c: HCursor): Result[Index] = c.as[Long].map(Index(_))
+    override def apply(a: Index): Json = Json.fromLong(a.value)
+  }
+}
+
+final case class Message(value: Json) extends AnyVal
+object Message {
+  implicit val showMessage: Show[Message] = _.value.noSpaces
+  implicit val codecMessage: Codec[Message] = new Codec[Message] {
+    override def apply(c: HCursor): Result[Message] = c.as[Json].map(Message(_))
+    override def apply(a: Message): Json = a.value
+  }
 }
