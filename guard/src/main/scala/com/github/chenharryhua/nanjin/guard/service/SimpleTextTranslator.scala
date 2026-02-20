@@ -3,11 +3,13 @@ package com.github.chenharryhua.nanjin.guard.service
 import cats.Applicative
 import cats.syntax.show.showInterpolator
 import com.github.chenharryhua.nanjin.guard.config.Attribute
-import com.github.chenharryhua.nanjin.guard.event.{Event, Index, Took}
+import com.github.chenharryhua.nanjin.guard.event.{Event, Took}
 import com.github.chenharryhua.nanjin.guard.translator.{textHelper, Translator}
 
 private object SimpleTextTranslator {
   import Event.*
+
+  private case class Index(value: Long)
 
   private def service_event(se: Event): String = {
     val host: String = Attribute(se.serviceParams.host).labelledText
@@ -21,7 +23,7 @@ private object SimpleTextTranslator {
   }
 
   private def service_start(evt: ServiceStart): String = {
-    val idx = Attribute(Index(evt.tick.index)).labelledText
+    val idx = Attribute(Index(evt.tick.index)).map(_.value).labelledText
     val snz = Attribute(Took(evt.tick.snooze)).labelledText
     s"""|
         |  ${service_event(evt)}
@@ -31,7 +33,7 @@ private object SimpleTextTranslator {
   }
 
   private def service_panic(evt: ServicePanic): String = {
-    val idx = Attribute(Index(evt.tick.index)).labelledText
+    val idx = Attribute(Index(evt.tick.index)).map(_.value).labelledText
     val act = Attribute(Took(evt.tick.active)).labelledText
     val policy = Attribute(evt.serviceParams.servicePolicies.restart.policy).labelledText
 

@@ -2,17 +2,18 @@ package com.github.chenharryhua.nanjin.guard.observers.postgres
 
 import cats.Applicative
 import com.github.chenharryhua.nanjin.guard.config.Attribute
-import com.github.chenharryhua.nanjin.guard.event.{Event, EventName, Index}
+import com.github.chenharryhua.nanjin.guard.event.{Event, EventName}
 import com.github.chenharryhua.nanjin.guard.translator.{SnapshotPolyglot, Translator}
 import io.circe.Json
 
 private object JsonTranslator {
   import Event.*
+  private case class Index(value: Long)
 
   private def service_started(evt: ServiceStart): Json =
     Json.obj(
       "event" -> EventName.ServiceStart.snakeJson,
-      Attribute(Index(evt.tick.index)).snakeJsonEntry,
+      Attribute(Index(evt.tick.index)).map(_.value).snakeJsonEntry,
       "params" -> evt.serviceParams.simpleJson,
       Attribute(evt.timestamp).snakeJsonEntry
     )
@@ -20,7 +21,7 @@ private object JsonTranslator {
   private def service_panic(evt: ServicePanic): Json =
     Json.obj(
       "event" -> EventName.ServicePanic.snakeJson,
-      Attribute(Index(evt.tick.index)).snakeJsonEntry,
+      Attribute(Index(evt.tick.index)).map(_.value).snakeJsonEntry,
       Attribute(evt.serviceParams.serviceName).snakeJsonEntry,
       Attribute(evt.serviceParams.servicePolicies.restart.policy).snakeJsonEntry,
       Attribute(evt.stackTrace).snakeJsonEntry,

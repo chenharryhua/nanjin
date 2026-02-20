@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard.observers.ses
 
 import cats.Applicative
 import com.github.chenharryhua.nanjin.guard.config.Attribute
-import com.github.chenharryhua.nanjin.guard.event.{Active, Event, Index, Snooze, StackTrace}
+import com.github.chenharryhua.nanjin.guard.event.{Active, Event, Snooze, StackTrace}
 import com.github.chenharryhua.nanjin.guard.translator.{htmlHelper, textHelper, Translator}
 import io.circe.Json
 import org.typelevel.cats.time.instances.all
@@ -16,6 +16,7 @@ private object HtmlTranslator extends all {
   import Event.*
   import htmlHelper.*
   import textHelper.*
+  private case class Index(value: Long)
 
   private def service_table(evt: Event): generic.Frag[Builder, String] = {
     val task_name = Attribute(evt.serviceParams.taskName).textEntry
@@ -45,7 +46,7 @@ private object HtmlTranslator extends all {
   // events
 
   private def service_start(evt: ServiceStart): Text.TypedTag[String] = {
-    val index = Attribute(Index(evt.tick.index)).textEntry
+    val index = Attribute(Index(evt.tick.index)).map(_.value).textEntry
     val active = Attribute(Active(evt.tick.active)).textEntry
     val snooze = Attribute(Snooze(evt.tick.snooze)).textEntry
 
@@ -62,7 +63,7 @@ private object HtmlTranslator extends all {
 
   private def service_panic(evt: ServicePanic): Text.TypedTag[String] = {
     val policy = Attribute(evt.serviceParams.servicePolicies.restart.policy).textEntry
-    val index = Attribute(Index(evt.tick.index)).textEntry
+    val index = Attribute(Index(evt.tick.index)).map(_.value).textEntry
     val active = Attribute(Active(evt.tick.active)).textEntry
 
     val fg = frag(

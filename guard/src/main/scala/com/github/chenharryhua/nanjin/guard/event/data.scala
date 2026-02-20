@@ -110,15 +110,6 @@ object Timestamp {
   implicit val decoderTimestamp: Decoder[Timestamp] = Decoder.decodeZonedDateTime.map(Timestamp(_))
 }
 
-final case class Index(value: Long) extends AnyVal
-object Index {
-  implicit val showIndex: Show[Index] = _.value.toString
-  implicit val codecIndex: Codec[Index] = new Codec[Index] {
-    override def apply(c: HCursor): Result[Index] = c.as[Long].map(Index(_))
-    override def apply(a: Index): Json = Json.fromLong(a.value)
-  }
-}
-
 final case class Message(value: Json) extends AnyVal
 object Message {
   implicit val showMessage: Show[Message] = _.value.noSpaces

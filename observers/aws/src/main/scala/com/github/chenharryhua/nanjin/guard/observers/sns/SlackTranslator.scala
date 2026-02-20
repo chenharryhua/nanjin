@@ -3,7 +3,7 @@ import cats.syntax.eq.catsSyntaxEq
 import cats.syntax.show.{showInterpolator, toShow}
 import cats.{Applicative, Eval}
 import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, Attribute, Brief, ServiceParams}
-import com.github.chenharryhua.nanjin.guard.event.{Active, Event, Index, Snapshot, Snooze}
+import com.github.chenharryhua.nanjin.guard.event.{Active, Event, Snapshot, Snooze}
 import com.github.chenharryhua.nanjin.guard.translator.textHelper.*
 import com.github.chenharryhua.nanjin.guard.translator.{ColorScheme, SnapshotPolyglot, Translator}
 import org.apache.commons.lang3.StringUtils
@@ -12,6 +12,8 @@ import squants.information.{Bytes, Information}
 
 private object SlackTranslator extends all {
   import Event.*
+
+  private case class Index(value: Long)
 
   private def coloring(evt: Event): String = ColorScheme
     .decorate(evt)
@@ -64,7 +66,7 @@ private object SlackTranslator extends all {
   // events
   private def service_start(evt: ServiceStart): SlackApp = {
     val zone = Attribute(evt.serviceParams.timeZone).textEntry
-    val index = Attribute(Index(evt.tick.index)).textEntry
+    val index = Attribute(Index(evt.tick.index)).map(_.value).textEntry
     val snooze = Attribute(Snooze(evt.tick.snooze)).textEntry
 
     val index_section = if (evt.tick.index === 0) {
@@ -98,7 +100,7 @@ private object SlackTranslator extends all {
     val policy = Attribute(evt.serviceParams.servicePolicies.restart.policy).textEntry
     val uptime = Attribute(evt.upTime).textEntry
     val service_id = Attribute(evt.serviceParams.serviceId).textEntry
-    val index = Attribute(Index(evt.tick.index)).textEntry
+    val index = Attribute(Index(evt.tick.index)).map(_.value).textEntry
     val error = Attribute(evt.stackTrace).textEntry
     val active = Attribute(Active(evt.tick.active)).textEntry
 

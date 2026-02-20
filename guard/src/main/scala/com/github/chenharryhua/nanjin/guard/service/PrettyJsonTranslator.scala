@@ -4,12 +4,13 @@ import cats.Applicative
 import cats.syntax.show.toShow
 import com.github.chenharryhua.nanjin.guard.config.Attribute
 import com.github.chenharryhua.nanjin.guard.event.Event.*
-import com.github.chenharryhua.nanjin.guard.event.{Active, Index, Snooze}
+import com.github.chenharryhua.nanjin.guard.event.{Active, Snooze}
 import com.github.chenharryhua.nanjin.guard.translator.*
 import io.circe.Json
 import io.circe.syntax.EncoderOps
 
 private object PrettyJsonTranslator {
+  final private case class Index(value: Long)
 
   // events handlers
   private def service_start(evt: ServiceStart): Json =
@@ -17,7 +18,7 @@ private object PrettyJsonTranslator {
       Attribute(evt.serviceParams.serviceName).snakeJsonEntry,
       Attribute(evt.serviceParams.serviceId).snakeJsonEntry,
       Attribute(evt.upTime).snakeJsonEntry(_.show.asJson),
-      Attribute(Index(evt.tick.index)).snakeJsonEntry,
+      Attribute(Index(evt.tick.index)).map(_.value).snakeJsonEntry,
       Attribute(Snooze(evt.tick.snooze)).map(_.show).snakeJsonEntry,
       "params" -> evt.serviceParams.simpleJson
     )
@@ -27,7 +28,7 @@ private object PrettyJsonTranslator {
       Attribute(evt.serviceParams.serviceName).snakeJsonEntry,
       Attribute(evt.serviceParams.serviceId).snakeJsonEntry,
       Attribute(evt.upTime).snakeJsonEntry(_.show.asJson),
-      Attribute(Index(evt.tick.index)).snakeJsonEntry,
+      Attribute(Index(evt.tick.index)).map(_.value).snakeJsonEntry,
       Attribute(Active(evt.tick.active)).map(_.show).snakeJsonEntry,
       Attribute(Snooze(evt.tick.snooze)).map(_.show).snakeJsonEntry,
       Attribute(evt.serviceParams.servicePolicies.restart.policy).snakeJsonEntry(_.show.asJson),

@@ -13,7 +13,6 @@ import com.github.chenharryhua.nanjin.guard.event.Event.{MetricsReport, ServiceM
 import com.github.chenharryhua.nanjin.guard.event.{
   retrieveHealthChecks,
   Active,
-  Index,
   MetricsReportData,
   ScrapeMode,
   Snapshot,
@@ -49,6 +48,7 @@ final private class HttpRouterHelper[F[_]: Sync](
   private case class Age(value: Duration) {
     val json: Json = durationFormatter.format(value).asJson
   }
+  private case class Index(value: Long)
 
   val html_header: Text.TypedTag[String] =
     head(
@@ -133,7 +133,7 @@ final private class HttpRouterHelper[F[_]: Sync](
             mr.index match {
               case _: MetricsReportData.Index.Adhoc       => None
               case MetricsReportData.Index.Periodic(tick) =>
-                val index = Attribute(Index(tick.index)).textEntry
+                val index = Attribute(Index(tick.index)).map(_.value).textEntry
                 val timestamp = Attribute(Timestamp(tick.zoned(_.conclude))).map(_.show).textEntry
 
                 Some(
@@ -171,7 +171,7 @@ final private class HttpRouterHelper[F[_]: Sync](
           "history" ->
             panics.reverse.map { sp =>
               Json.obj(
-                Attribute(Index(sp.tick.index)).snakeJsonEntry,
+                Attribute(Index(sp.tick.index)).map(_.value).snakeJsonEntry,
                 Attribute(Age(Duration.between(sp.timestamp.value, now))).map(_.json).snakeJsonEntry,
                 "up_rouse_at" -> sp.tick.local(_.commence).asJson,
                 Attribute(Active(sp.tick.active)).map(_.show.asJson).snakeJsonEntry,
