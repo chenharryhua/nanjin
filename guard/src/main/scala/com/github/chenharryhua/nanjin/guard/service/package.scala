@@ -20,11 +20,11 @@ import com.github.chenharryhua.nanjin.guard.event.Event.{
 import com.github.chenharryhua.nanjin.guard.event.MetricsReportData.Index
 import com.github.chenharryhua.nanjin.guard.event.{
   Correlation,
-  Error,
   Event,
   MetricSnapshot,
   ScrapeMode,
   ServiceStopCause,
+  StackTrace,
   Timestamp,
   Took
 }
@@ -53,7 +53,7 @@ package object service {
     domain: Domain,
     msg: S,
     level: AlarmLevel,
-    error: Option[Error])(implicit F: Sync[F]): F[ServiceMessage] =
+    stackTrace: Option[StackTrace])(implicit F: Sync[F]): F[ServiceMessage] =
     (F.unique, serviceParams.zonedNow).mapN { case (token, ts) =>
       ServiceMessage(
         serviceParams = serviceParams,
@@ -61,7 +61,7 @@ package object service {
         timestamp = Timestamp(ts),
         correlation = Correlation(token),
         level = level,
-        error = error,
+        stackTrace = stackTrace,
         message = Encoder[S].apply(msg)
       )
     }
@@ -110,8 +110,8 @@ package object service {
     channel: Channel[F, Event],
     eventLogger: EventLogger[F],
     tick: Tick,
-    error: Error): F[ServicePanic] = {
-    val panic: ServicePanic = ServicePanic(eventLogger.serviceParams, tick, error)
+    stackTrace: StackTrace): F[ServicePanic] = {
+    val panic: ServicePanic = ServicePanic(eventLogger.serviceParams, tick, stackTrace)
     eventLogger.service_panic(panic) *> channel.send(panic).as(panic)
   }
 

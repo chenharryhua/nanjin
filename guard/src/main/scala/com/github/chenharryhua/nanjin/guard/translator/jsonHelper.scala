@@ -16,7 +16,7 @@ object jsonHelper {
         Attribute(sm.correlation).snakeJsonEntry
       )
 
-    sm.error match {
+    sm.stackTrace match {
       case Some(err) =>
         List(sm.message, (Attribute(err).snakeJsonEntry :: serviceInfo).toMap.asJson).asJson
       case None =>

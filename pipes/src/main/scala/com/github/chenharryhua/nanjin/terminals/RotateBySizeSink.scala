@@ -123,39 +123,33 @@ final private class RotateBySizeSink[F[_]](
     }
   }
 
-  private def persist[A](
-    data: Stream[F, A],
-    getWriter: GetWriter[A]): Pull[F, TickedValue[RotateFile], Unit] = {
+  private def persist[A](data: Stream[F, A], getWriter: GetWriter[A]): Stream[F, TickedValue[RotateFile]] = {
     val resources: Resource[F, ((Hotswap[F, HadoopWriter[F, A]], HadoopWriter[F, A]), Tick)] =
       Resource.eval(Tick.zeroth[F](zoneId)).flatMap { tick =>
-        Hotswap(
-          getWriter(
-            CreateRotateFile(
-              sequenceId = tick.sequenceId,
-              index = tick.index + 1,
-              openTime = tick.zoned(_.conclude)))).map((_, tick))
+        val file = CreateRotateFile(
+          sequenceId = tick.sequenceId,
+          index = tick.index + 1,
+          openTime = tick.zoned(_.conclude))
+
+        Hotswap(getWriter(file)).map((_, tick))
       }
 
-    Stream
-      .resource(resources)
-      .flatMap { case ((hotswap, writer), tick) =>
-        doWork(
-          getWriter = getWriter,
-          hotswap = hotswap,
-          writer = writer,
-          data = data,
-          previousTick = tick,
-          count = 0L).stream
-      }
-      .pull
-      .echo
+    Stream.resource(resources).flatMap { case ((hotswap, writer), tick) =>
+      doWork(
+        getWriter = getWriter,
+        hotswap = hotswap,
+        writer = writer,
+        data = data,
+        previousTick = tick,
+        count = 0L).stream
+    }
   }
 
   private def generic_record_stream_step_leg(get_writer: Schema => GetWriter[GenericRecord])(
     ss: Stream[F, GenericRecord]): Stream[F, TickedValue[RotateFile]] =
     ss.pull.stepLeg.flatMap {
       case Some(leg) =>
-        persist(leg.stream.cons(leg.head), get_writer(leg.head(0).getSchema))
+        persist(leg.stream.cons(leg.head), get_writer(leg.head(0).getSchema)).pull.echo
       case None => Pull.done
     }.stream
 
@@ -198,7 +192,7 @@ final private class RotateBySizeSink[F[_]](
     val get_writer: GetWriter[Byte] =
       Reader(crf => HadoopWriter.byteR[F](configuration, pathBuilder(crf)))
 
-    (ss: Stream[F, Byte]) => persist(ss, get_writer).stream
+    (ss: Stream[F, Byte]) => persist(ss, get_writer)
   }
 
   // circe json
@@ -206,7 +200,7 @@ final private class RotateBySizeSink[F[_]](
     val get_writer: GetWriter[Json] =
       Reader(crf => HadoopWriter.circeR[F](configuration, pathBuilder(crf)))
 
-    (ss: Stream[F, Json]) => persist(ss, get_writer).stream
+    (ss: Stream[F, Json]) => persist(ss, get_writer)
   }
 
   // kantan csv
@@ -217,7 +211,7 @@ final private class RotateBySizeSink[F[_]](
           .csvStringR[F](configuration, pathBuilder(crf))
           .evalTap(_.write(headerWithCrlf(csvConfiguration))))
 
-    (ss: Stream[F, Seq[String]]) => persist(ss.map(csvRow(csvConfiguration)), get_writer).stream
+    (ss: Stream[F, Seq[String]]) => persist(ss.map(csvRow(csvConfiguration)), get_writer)
   }
 
   // text
@@ -225,14 +219,14 @@ final private class RotateBySizeSink[F[_]](
     val get_writer: GetWriter[String] =
       Reader(crf => HadoopWriter.stringR(configuration, pathBuilder(crf)))
 
-    (ss: Stream[F, String]) => persist(ss, get_writer).stream
+    (ss: Stream[F, String]) => persist(ss, get_writer)
   }
 
   override val protobuf: Sink[GeneratedMessage] = {
     val get_writer: GetWriter[GeneratedMessage] =
       Reader(crf => HadoopWriter.protobufR(configuration, pathBuilder(crf)))
 
-    (ss: Stream[F, GeneratedMessage]) => persist(ss, get_writer).stream
+    (ss: Stream[F, GeneratedMessage]) => persist(ss, get_writer)
   }
 
   // json node
@@ -240,6 +234,6 @@ final private class RotateBySizeSink[F[_]](
     val get_writer: GetWriter[JsonNode] =
       Reader(crf => HadoopWriter.jsonNodeR(configuration, pathBuilder(crf)))
 
-    (ss: Stream[F, JsonNode]) => persist(ss, get_writer).stream
+    (ss: Stream[F, JsonNode]) => persist(ss, get_writer)
   }
 }

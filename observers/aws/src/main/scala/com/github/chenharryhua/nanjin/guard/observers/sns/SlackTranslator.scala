@@ -107,7 +107,7 @@ private object SlackTranslator extends all {
     val uptime = Attribute(evt.upTime).textEntry
     val service_id = Attribute(evt.serviceParams.serviceId).textEntry
     val index = Attribute(Index(evt.tick.index)).textEntry
-    val error = Attribute(evt.error).textEntry
+    val error = Attribute(evt.stackTrace).textEntry
     val active = Attribute(Active(evt.tick.active)).textEntry
 
     val color = coloring(evt)
@@ -226,7 +226,7 @@ private object SlackTranslator extends all {
       )
     )
 
-    val error = evt.error.map { err =>
+    val error = evt.stackTrace.map { err =>
       val reason = Attribute(err).textEntry
       Attachment(
         color = color,

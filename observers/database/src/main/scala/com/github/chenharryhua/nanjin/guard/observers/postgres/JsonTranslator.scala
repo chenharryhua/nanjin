@@ -5,7 +5,6 @@ import com.github.chenharryhua.nanjin.guard.config.Attribute
 import com.github.chenharryhua.nanjin.guard.event.{Event, EventName, Index, MetricSnapshot}
 import com.github.chenharryhua.nanjin.guard.translator.{jsonHelper, SnapshotPolyglot, Translator}
 import io.circe.Json
-import io.circe.syntax.EncoderOps
 
 private object JsonTranslator {
   import Event.*
@@ -17,7 +16,7 @@ private object JsonTranslator {
     Json.obj(
       "event" -> EventName.ServiceStart.snakeJson,
       Attribute(Index(evt.tick.index)).snakeJsonEntry,
-      "params" -> evt.serviceParams.asJson,
+      "params" -> evt.serviceParams.simpleJson,
       Attribute(evt.timestamp).snakeJsonEntry
     )
 
@@ -27,7 +26,7 @@ private object JsonTranslator {
       Attribute(Index(evt.tick.index)).snakeJsonEntry,
       Attribute(evt.serviceParams.serviceName).snakeJsonEntry,
       Attribute(evt.serviceParams.servicePolicies.restart.policy).snakeJsonEntry,
-      Attribute(evt.error).snakeJsonEntry,
+      Attribute(evt.stackTrace).snakeJsonEntry,
       Attribute(evt.serviceParams.serviceId).snakeJsonEntry,
       Attribute(evt.timestamp).snakeJsonEntry
     )

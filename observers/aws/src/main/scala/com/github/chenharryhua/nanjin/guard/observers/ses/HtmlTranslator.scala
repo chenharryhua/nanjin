@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard.observers.ses
 
 import cats.Applicative
 import com.github.chenharryhua.nanjin.guard.config.Attribute
-import com.github.chenharryhua.nanjin.guard.event.{Active, Error, Event, Index, Snooze}
+import com.github.chenharryhua.nanjin.guard.event.{Active, Event, Index, Snooze, StackTrace}
 import com.github.chenharryhua.nanjin.guard.translator.{htmlHelper, textHelper, Translator}
 import io.circe.Json
 import org.typelevel.cats.time.instances.all
@@ -37,7 +37,7 @@ private object HtmlTranslator extends all {
   private def json_text(js: Json): Text.TypedTag[String] =
     pre(small(js.spaces2))
 
-  private def error_text(c: Error): Text.TypedTag[String] = {
+  private def stack_trace_text(c: StackTrace): Text.TypedTag[String] = {
     val err = Attribute(c).textEntry
     p(b(s"${err.tag}: "), pre(small(err.text)))
   }
@@ -73,7 +73,7 @@ private object HtmlTranslator extends all {
       h3(style := htmlColoring(evt))(eventTitle(evt)),
       table(service_table(evt), fg),
       p(b(panicText(evt))),
-      error_text(evt.error)
+      stack_trace_text(evt.stackTrace)
     )
   }
 
@@ -123,7 +123,7 @@ private object HtmlTranslator extends all {
       h3(style := htmlColoring(evt))(eventTitle(evt)),
       table(service_table(evt), fg),
       json_text(evt.message),
-      evt.error.map(error_text)
+      evt.stackTrace.map(stack_trace_text)
     )
   }
 

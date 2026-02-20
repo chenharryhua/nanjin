@@ -185,7 +185,8 @@ class ServiceTest extends AnyFunSuite {
       .toList
       .unsafeRunSync()
     assert(a.isInstanceOf[ServiceStart])
-    assert(b.asInstanceOf[ServiceStop].cause.asInstanceOf[ServiceStopCause.ByException].error.stack.nonEmpty)
+    assert(
+      b.asInstanceOf[ServiceStop].cause.asInstanceOf[ServiceStopCause.ByException].stackTrace.value.nonEmpty)
   }
 
   test("8. closure - io") {

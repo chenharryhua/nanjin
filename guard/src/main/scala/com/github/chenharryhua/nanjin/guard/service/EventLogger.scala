@@ -19,7 +19,7 @@ import com.github.chenharryhua.nanjin.guard.event.Event.{
   ServiceStart,
   ServiceStop
 }
-import com.github.chenharryhua.nanjin.guard.event.{Error, Event, ServiceStopCause}
+import com.github.chenharryhua.nanjin.guard.event.{Event, ServiceStopCause, StackTrace}
 import com.github.chenharryhua.nanjin.guard.translator.{jsonHelper, ColorScheme, Translator}
 import io.circe.Encoder
 import io.circe.syntax.EncoderOps
@@ -134,11 +134,15 @@ final private class EventLogger[F[_]](
    * Log
    */
 
-  private def sm2text[S: Encoder](msg: S, level: AlarmLevel, error: Option[Error]): F[Option[String]] =
+  private def sm2text[S: Encoder](
+    msg: S,
+    level: AlarmLevel,
+    stackTrace: Option[StackTrace]): F[Option[String]] =
     alarmLevel.get
       .map(_.exists(_ <= level))
       .ifM(
-        create_service_message[F, S](serviceParams, domain, msg, level, error).flatMap(transform_event(_)),
+        create_service_message[F, S](serviceParams, domain, msg, level, stackTrace)
+          .flatMap(transform_event(_)),
         F.pure(None))
 
   override def info[S: Encoder](msg: S): F[Unit] =
@@ -151,7 +155,7 @@ final private class EventLogger[F[_]](
     sm2text(msg, AlarmLevel.Warn, None).flatMap(_.traverse(logger.warn(_))).void
 
   override def warn[S: Encoder](ex: Throwable)(msg: S): F[Unit] =
-    sm2text(msg, AlarmLevel.Warn, Some(Error(ex))).flatMap(_.traverse(logger.warn(_))).void
+    sm2text(msg, AlarmLevel.Warn, Some(StackTrace(ex))).flatMap(_.traverse(logger.warn(_))).void
 
   override def debug[S: Encoder](msg: => F[S]): F[Unit] = {
     def debug_message(ss: ServiceMessage): String = {
@@ -169,7 +173,7 @@ final private class EventLogger[F[_]](
               domain,
               "Error Message",
               AlarmLevel.Debug,
-              Some(Error(ex))).flatMap(m => logger.debug(debug_message(m)))
+              Some(StackTrace(ex))).flatMap(m => logger.debug(debug_message(m)))
           case Right(value) =>
             create_service_message[F, S](serviceParams, domain, value, AlarmLevel.Debug, None)
               .flatMap(m => logger.debug(debug_message(m)))

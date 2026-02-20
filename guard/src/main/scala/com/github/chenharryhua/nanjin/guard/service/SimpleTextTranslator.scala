@@ -18,7 +18,6 @@ private object SimpleTextTranslator {
     s"""|$sn, $tn, $uptime
         |  $host
         |  $sid""".stripMargin
-
   }
 
   private def service_start(evt: ServiceStart): String = {
@@ -35,23 +34,23 @@ private object SimpleTextTranslator {
     val idx = Attribute(Index(evt.tick.index)).labelledText
     val act = Attribute(Took(evt.tick.active)).labelledText
     val policy = Attribute(evt.serviceParams.servicePolicies.restart.policy).labelledText
-    val error = Attribute(evt.error).labelledText
+
     show"""|
            |  ${service_event(evt)}
            |  $policy
            |  ${textHelper.panicText(evt)}
            |  $idx, $act
-           |  $error
+           |${Attribute(evt.stackTrace).labelledText}
            |""".stripMargin
   }
 
   private def service_stop(evt: ServiceStop): String = {
-    val stop_cause = Attribute(evt.cause).labelledText
     val policy = Attribute(evt.serviceParams.servicePolicies.restart.policy).labelledText
+
     show"""|
            |  ${service_event(evt)}
            |  $policy
-           |  $stop_cause
+           |${Attribute(evt.cause).labelledText}
            |""".stripMargin
   }
 
@@ -75,12 +74,11 @@ private object SimpleTextTranslator {
   private def service_message(evt: ServiceMessage): String = {
     val correlation = Attribute(evt.correlation).labelledText
     val domain = Attribute(evt.domain).labelledText
-    val error = evt.error.fold("")(Attribute(_).labelledText)
     s"""|
         |  ${service_event(evt)}
         |  $domain, $correlation
         |${evt.message.spaces2}
-        |  $error
+        |${evt.stackTrace.fold("")(Attribute(_).labelledText)}
         |""".stripMargin
   }
 

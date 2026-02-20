@@ -22,7 +22,8 @@ object Event {
     override val name: EventName = EventName.ServiceStart
   }
 
-  final case class ServicePanic(serviceParams: ServiceParams, tick: Tick, error: Error) extends Event {
+  final case class ServicePanic(serviceParams: ServiceParams, tick: Tick, stackTrace: StackTrace)
+      extends Event {
     override val timestamp: Timestamp = Timestamp(tick.zoned(_.acquires))
     override val name: EventName = EventName.ServicePanic
   }
@@ -38,7 +39,7 @@ object Event {
     timestamp: Timestamp,
     correlation: Correlation,
     level: AlarmLevel,
-    error: Option[Error],
+    stackTrace: Option[StackTrace],
     message: Json
   ) extends Event {
     override val name: EventName = EventName.ServiceMessage

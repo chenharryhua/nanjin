@@ -5,9 +5,9 @@ import cats.syntax.functor.toFunctorOps
 import cats.syntax.show.toShow
 import cats.{Hash, Show}
 import com.github.chenharryhua.nanjin.common.DurationFormatter
-import io.circe.generic.JsonCodec
+import io.circe.Decoder.Result
 import io.circe.syntax.EncoderOps
-import io.circe.{Decoder, DecodingFailure, Encoder, Json}
+import io.circe.{Codec, Decoder, DecodingFailure, Encoder, HCursor, Json}
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.typelevel.cats.time.instances.localtime.localtimeInstances
 
@@ -15,16 +15,17 @@ import java.time.temporal.ChronoUnit
 import java.time.{Duration, ZonedDateTime}
 import scala.jdk.CollectionConverters.ListHasAsScala
 
-@JsonCodec
-final case class Error private (message: String, stack: List[String])
+final case class StackTrace private (value: List[String]) extends AnyVal
 
-object Error {
-  def apply(ex: Throwable): Error =
-    Error(
-      ExceptionUtils.getRootCauseMessage(ex),
-      ExceptionUtils.getRootCauseStackTraceList(ex).asScala.map(_.replace("\t", "")).toList)
+object StackTrace {
+  def apply(ex: Throwable): StackTrace =
+    StackTrace(ExceptionUtils.getRootCauseStackTraceList(ex).asScala.map(_.replace("\t", "")).toList)
 
-  implicit val showError: Show[Error] = _.stack.mkString("\n\t")
+  implicit val showStackTrace: Show[StackTrace] = _.value.mkString("\n\t")
+  implicit val codecStackTrace: Codec[StackTrace] = new Codec[StackTrace] {
+    override def apply(c: HCursor): Result[StackTrace] = c.as[List[String]].map(StackTrace(_))
+    override def apply(a: StackTrace): Json = a.value.asJson
+  }
 }
 
 sealed abstract class ServiceStopCause(val exitCode: Int) extends Product
@@ -33,7 +34,7 @@ object ServiceStopCause {
   case object Successfully extends ServiceStopCause(0)
   case object Maintenance extends ServiceStopCause(1)
   case object ByCancellation extends ServiceStopCause(2)
-  final case class ByException(error: Error) extends ServiceStopCause(3)
+  final case class ByException(stackTrace: StackTrace) extends ServiceStopCause(3)
 
   private val SUCCESSFULLY: String = "Successfully"
   private val BY_CANCELLATION: String = "ByCancellation"
@@ -41,18 +42,18 @@ object ServiceStopCause {
   private val BY_EXCEPTION: String = "ByException"
 
   implicit val showServiceStopCause: Show[ServiceStopCause] = {
-    case Successfully       => SUCCESSFULLY
-    case Maintenance        => MAINTENANCE
-    case ByCancellation     => BY_CANCELLATION
-    case ByException(error) => error.show
+    case Successfully            => SUCCESSFULLY
+    case Maintenance             => MAINTENANCE
+    case ByCancellation          => BY_CANCELLATION
+    case ByException(stackTrace) => stackTrace.show
   }
 
   implicit val encoderServiceStopCause: Encoder[ServiceStopCause] =
     Encoder.instance {
-      case Successfully       => Json.fromString(SUCCESSFULLY)
-      case ByCancellation     => Json.fromString(BY_CANCELLATION)
-      case ByException(error) => Json.obj(BY_EXCEPTION -> error.asJson)
-      case Maintenance        => Json.fromString(MAINTENANCE)
+      case Successfully            => Json.fromString(SUCCESSFULLY)
+      case ByCancellation          => Json.fromString(BY_CANCELLATION)
+      case ByException(stackTrace) => Json.obj(BY_EXCEPTION -> stackTrace.asJson)
+      case Maintenance             => Json.fromString(MAINTENANCE)
     }
 
   implicit val decoderServiceStopCause: Decoder[ServiceStopCause] =
@@ -63,7 +64,7 @@ object ServiceStopCause {
         case MAINTENANCE     => Right(Maintenance)
         case unknown         => Left(DecodingFailure(s"unrecognized: $unknown", Nil))
       }.widen,
-      _.downField(BY_EXCEPTION).as[Error].map(err => ByException(err)).widen
+      _.downField(BY_EXCEPTION).as[StackTrace].map(err => ByException(err)).widen
     ).reduceLeft(_ or _)
 }
 

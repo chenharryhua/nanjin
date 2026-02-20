@@ -7,7 +7,7 @@ import cats.syntax.flatMap.toFlatMapOps
 import cats.syntax.option.catsSyntaxOptionId
 import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, Domain, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceMessage
-import com.github.chenharryhua.nanjin.guard.event.{Error, Event}
+import com.github.chenharryhua.nanjin.guard.event.{Event, StackTrace}
 import fs2.concurrent.Channel
 import io.circe.Encoder
 import org.apache.commons.collections4.queue.CircularFifoQueue
@@ -55,7 +55,7 @@ abstract private class HeraldImpl[F[_]: Sync](
 
   override def warn[S: Encoder](ex: Throwable)(msg: S): F[Unit] =
     for {
-      evt <- create_service_message[F, S](serviceParams, domain, msg, AlarmLevel.Warn, Some(Error(ex)))
+      evt <- create_service_message[F, S](serviceParams, domain, msg, AlarmLevel.Warn, Some(StackTrace(ex)))
       _ <- eventLogger.logServiceMessage(evt)
       _ <- channel.send(evt)
     } yield ()
@@ -70,7 +70,7 @@ abstract private class HeraldImpl[F[_]: Sync](
 
   override def error[S: Encoder](ex: Throwable)(msg: S): F[Unit] =
     for {
-      evt <- create_service_message[F, S](serviceParams, domain, msg, AlarmLevel.Error, Error(ex).some)
+      evt <- create_service_message[F, S](serviceParams, domain, msg, AlarmLevel.Error, StackTrace(ex).some)
       _ <- errorHistory.modify(queue => (queue, queue.add(evt)))
       _ <- eventLogger.logServiceMessage(evt)
       _ <- channel.send(evt)

@@ -182,7 +182,7 @@ final private class HttpRouterHelper[F[_]: Sync](
                   .snakeJsonEntry,
                 Attribute(Snooze(sp.tick.snooze)).map(_.show).snakeJsonEntry,
                 "restart_at" -> sp.tick.local(_.conclude).asJson,
-                Attribute(sp.error).snakeJsonEntry
+                Attribute(sp.stackTrace).snakeJsonEntry
               )
             }.asJson
         )
@@ -200,8 +200,8 @@ final private class HttpRouterHelper[F[_]: Sync](
           Attribute(serviceParams.upTime(now)).map(_.show).snakeJsonEntry,
           "errors" -> serviceMessages.size.asJson,
           "history" -> serviceMessages.reverse.map { sm =>
-            sm.error
-              .map(err => Attribute(err).snakeJsonEntry)
+            sm.stackTrace
+              .map(st => Json.obj(Attribute(st).snakeJsonEntry))
               .asJson
               .deepMerge(Json.obj(
                 Attribute(sm.domain).snakeJsonEntry,

@@ -51,8 +51,9 @@ class CircuitBreakerTest extends AnyFunSuite {
     assert(
       ss.cause
         .asInstanceOf[ServiceStopCause.ByException]
-        .error
-        .message
+        .stackTrace
+        .value
+        .head
         .contains(CircuitBreaker.RejectedException.productPrefix))
   }
 
