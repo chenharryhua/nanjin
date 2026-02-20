@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.guard.observers.postgres
 import cats.Applicative
 import com.github.chenharryhua.nanjin.guard.config.Attribute
 import com.github.chenharryhua.nanjin.guard.event.{Event, EventName, Index, MetricSnapshot}
-import com.github.chenharryhua.nanjin.guard.translator.{jsonHelper, SnapshotPolyglot, Translator}
+import com.github.chenharryhua.nanjin.guard.translator.{SnapshotPolyglot, Translator}
 import io.circe.Json
 
 private object JsonTranslator {
@@ -63,12 +63,18 @@ private object JsonTranslator {
       Attribute(evt.timestamp).snakeJsonEntry
     )
 
-  private def service_message(evt: ServiceMessage): Json =
-    Json.obj(
+  private def service_message(evt: ServiceMessage): Json = {
+    val json = Json.obj(
       "event" -> EventName.ServiceMessage.snakeJson,
-      "message" -> jsonHelper.json_service_message(evt),
+      Attribute(evt.message).snakeJsonEntry,
+      Attribute(evt.serviceParams.serviceName).snakeJsonEntry,
+      Attribute(evt.domain).snakeJsonEntry,
+      Attribute(evt.correlation).snakeJsonEntry,
+      Attribute(evt.serviceParams.serviceId).snakeJsonEntry,
       Attribute(evt.timestamp).snakeJsonEntry
     )
+    evt.stackTrace.fold(json)(st => Json.obj(Attribute(st).snakeJsonEntry).deepMerge(json))
+  }
 
   def apply[F[_]: Applicative]: Translator[F, Json] =
     Translator

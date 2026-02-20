@@ -122,7 +122,7 @@ private object HtmlTranslator extends all {
     div(
       h3(style := htmlColoring(evt))(eventTitle(evt)),
       table(service_table(evt), fg),
-      json_text(evt.message),
+      json_text(evt.message.value),
       evt.stackTrace.map(stack_trace_text)
     )
   }

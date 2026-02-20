@@ -208,7 +208,7 @@ final private class HttpRouterHelper[F[_]: Sync](
                 Attribute(sm.correlation).snakeJsonEntry,
                 Attribute(Age(Duration.between(sm.timestamp.value, now))).map(_.json).snakeJsonEntry,
                 Attribute(sm.timestamp).map(_.value.toLocalDateTime.asJson).snakeJsonEntry,
-                "message" -> sm.message
+                Attribute(sm.message).snakeJsonEntry
               ))
           }.asJson
         )

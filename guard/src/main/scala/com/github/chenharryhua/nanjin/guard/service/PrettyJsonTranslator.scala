@@ -69,7 +69,16 @@ private object PrettyJsonTranslator {
     )
 
   private def service_message(evt: ServiceMessage): Json =
-    jsonHelper.json_service_message(evt)
+    evt.stackTrace
+      .map(st => Json.obj(Attribute(st).snakeJsonEntry))
+      .asJson
+      .deepMerge(Json.obj(
+        Attribute(evt.serviceParams.serviceName).snakeJsonEntry,
+        Attribute(evt.serviceParams.serviceId).snakeJsonEntry,
+        Attribute(evt.domain).snakeJsonEntry,
+        Attribute(evt.correlation).snakeJsonEntry,
+        Attribute(evt.message).snakeJsonEntry
+      ))
 
   def apply[F[_]: Applicative]: Translator[F, Json] =
     Translator

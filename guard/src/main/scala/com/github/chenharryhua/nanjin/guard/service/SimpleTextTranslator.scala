@@ -77,7 +77,7 @@ private object SimpleTextTranslator {
     s"""|
         |  ${service_event(evt)}
         |  $domain, $correlation
-        |${evt.message.spaces2}
+        |${evt.message.value.spaces2}
         |${evt.stackTrace.fold("")(Attribute(_).labelledText)}
         |""".stripMargin
   }

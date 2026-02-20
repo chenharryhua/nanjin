@@ -9,9 +9,26 @@ import cats.{Applicative, Functor, Monad, Semigroupal}
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.common.chrono.Tick
 import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, Domain, ServiceParams}
-import com.github.chenharryhua.nanjin.guard.event.Event.{MetricsReport, MetricsReset, ServiceMessage, ServicePanic, ServiceStart, ServiceStop}
+import com.github.chenharryhua.nanjin.guard.event.Event.{
+  MetricsReport,
+  MetricsReset,
+  ServiceMessage,
+  ServicePanic,
+  ServiceStart,
+  ServiceStop
+}
 import com.github.chenharryhua.nanjin.guard.event.MetricsReportData.Index
-import com.github.chenharryhua.nanjin.guard.event.{Correlation, Event, Message, MetricSnapshot, ScrapeMode, ServiceStopCause, StackTrace, Timestamp, Took}
+import com.github.chenharryhua.nanjin.guard.event.{
+  Correlation,
+  Event,
+  Message,
+  MetricSnapshot,
+  ScrapeMode,
+  ServiceStopCause,
+  StackTrace,
+  Timestamp,
+  Took
+}
 import fs2.concurrent.Channel
 import io.circe.Encoder
 import org.typelevel.log4cats.SelfAwareLogger
