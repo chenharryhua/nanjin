@@ -392,7 +392,7 @@ lazy val pipes = (project in file("pipes"))
       "at.yawk.lz4"            % "lz4-java"        % "1.10.3",
       "org.eclipse.jetty"      % "jetty-server"    % "12.1.6", // snyk
       "io.netty"               % "netty-all"       % nettyV, // snyk
-      "com.nimbusds"           % "nimbus-jose-jwt" % "10.7", // snyk
+      "com.nimbusds"           % "nimbus-jose-jwt" % "10.8", // snyk
       "org.apache.zookeeper"   % "zookeeper"       % "3.9.4" // snyk
 
     ) ++ jacksonLib ++ hadoopLib ++ kantanLib
