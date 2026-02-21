@@ -5,7 +5,7 @@ import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.guard.event.{Active, Event, Snooze, StackTrace}
 import com.github.chenharryhua.nanjin.guard.translator.{
   eventTitle,
-  htmlHelper,
+  htmlColoring,
   interpretServiceParams,
   panicText,
   Attribute,
@@ -22,7 +22,6 @@ import scalatags.{generic, Text}
   */
 private object HtmlTranslator extends all {
   import Event.*
-  import htmlHelper.*
   private case class Index(value: Long)
 
   private def service_table(evt: Event): generic.Frag[Builder, String] = {

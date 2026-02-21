@@ -15,7 +15,7 @@ object PrettyJsonTranslator {
     Json.obj(
       Attribute(evt.serviceParams.serviceName).snakeJsonEntry,
       Attribute(evt.serviceParams.serviceId).snakeJsonEntry,
-      Attribute(evt.upTime).snakeJsonEntry(_.show.asJson),
+      Attribute(evt.upTime).map(_.show).snakeJsonEntry,
       Attribute(Index(evt.tick.index)).map(_.value).snakeJsonEntry,
       Attribute(Snooze(evt.tick.snooze)).map(_.show).snakeJsonEntry,
       "params" -> interpretServiceParams(evt.serviceParams)
@@ -25,7 +25,7 @@ object PrettyJsonTranslator {
     Json.obj(
       Attribute(evt.serviceParams.serviceName).snakeJsonEntry,
       Attribute(evt.serviceParams.serviceId).snakeJsonEntry,
-      Attribute(evt.upTime).snakeJsonEntry(_.show.asJson),
+      Attribute(evt.upTime).map(_.show).snakeJsonEntry,
       Attribute(Index(evt.tick.index)).map(_.value).snakeJsonEntry,
       Attribute(Active(evt.tick.active)).map(_.show).snakeJsonEntry,
       Attribute(Snooze(evt.tick.snooze)).map(_.show).snakeJsonEntry,
@@ -55,7 +55,7 @@ object PrettyJsonTranslator {
 
   private def metrics_reset(evt: MetricsReset): Json =
     Json.obj(
-      Attribute(evt.index).snakeJsonEntry(_.show.asJson),
+      Attribute(evt.index).map(_.show).snakeJsonEntry,
       Attribute(evt.serviceParams.serviceName).snakeJsonEntry,
       Attribute(evt.serviceParams.serviceId).snakeJsonEntry,
       Attribute(evt.serviceParams.servicePolicies.metricsReset).map(_.show).snakeJsonEntry,
