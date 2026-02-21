@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.event
 
-import com.github.chenharryhua.nanjin.guard.config.*
-import com.github.chenharryhua.nanjin.guard.config.CategoryKind.*
+import CategoryKind.*
 import io.circe.Decoder
 
 object retrieveHealthChecks {

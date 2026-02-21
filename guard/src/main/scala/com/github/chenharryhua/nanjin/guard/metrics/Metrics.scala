@@ -8,7 +8,7 @@ import cats.syntax.functor.toFunctorOps
 import cats.syntax.flatMap.{catsSyntaxIfM, toFlatMapOps}
 import cats.syntax.option.{catsSyntaxOptionId, none}
 import com.codahale.metrics.MetricRegistry
-import com.github.chenharryhua.nanjin.guard.config.MetricLabel
+import com.github.chenharryhua.nanjin.guard.event.MetricLabel
 import com.github.chenharryhua.nanjin.guard.translator.durationFormatter
 import io.circe.Encoder
 import io.github.timwspence.cats.stm.STM

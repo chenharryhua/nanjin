@@ -5,8 +5,8 @@ import cats.effect.kernel.{Resource, Sync}
 import cats.syntax.functor.toFunctorOps
 import com.codahale.metrics
 import com.github.chenharryhua.nanjin.common.EnableConfig
-import com.github.chenharryhua.nanjin.guard.config.*
-import com.github.chenharryhua.nanjin.guard.config.CategoryKind.TimerKind
+import com.github.chenharryhua.nanjin.guard.event.CategoryKind.TimerKind
+import com.github.chenharryhua.nanjin.guard.event.{Category, MetricID, MetricLabel, MetricName}
 
 import java.time.Duration as JavaDuration
 import java.util.concurrent.TimeUnit

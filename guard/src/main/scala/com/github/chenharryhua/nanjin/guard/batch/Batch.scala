@@ -12,7 +12,7 @@ import cats.syntax.monadError.catsSyntaxMonadErrorRethrow
 import cats.syntax.show.showInterpolator
 import cats.syntax.traverse.toTraverseOps
 import cats.{Endo, MonadError}
-import com.github.chenharryhua.nanjin.guard.config.MetricLabel
+import com.github.chenharryhua.nanjin.guard.event.MetricLabel
 import com.github.chenharryhua.nanjin.guard.metrics.{ActiveGauge, Metrics}
 import com.github.chenharryhua.nanjin.guard.translator.durationFormatter
 import io.circe.syntax.EncoderOps

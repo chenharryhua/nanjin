@@ -10,7 +10,7 @@ import cats.syntax.functor.toFunctorOps
 import cats.syntax.order.catsSyntaxPartialOrder
 import cats.syntax.traverse.toTraverseOps
 import com.github.chenharryhua.nanjin.guard.config.LogFormat.Console_Json_MultiLine
-import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, Attribute, Domain, LogFormat, ServiceParams}
+import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, Attribute, LogFormat, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.Event.{
   MetricsReport,
   MetricsReset,
@@ -19,7 +19,7 @@ import com.github.chenharryhua.nanjin.guard.event.Event.{
   ServiceStart,
   ServiceStop
 }
-import com.github.chenharryhua.nanjin.guard.event.{Event, ServiceStopCause, StackTrace}
+import com.github.chenharryhua.nanjin.guard.event.{Domain, Event, ServiceStopCause, StackTrace}
 import com.github.chenharryhua.nanjin.guard.translator.{eventTitle, ColorScheme, Translator}
 import io.circe.syntax.EncoderOps
 import io.circe.{Encoder, Json}

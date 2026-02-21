@@ -5,8 +5,12 @@ import cats.effect.{IO, Resource}
 import cats.effect.unsafe.implicits.global
 import cats.implicits.toFunctorFilterOps
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.config.MetricID
-import com.github.chenharryhua.nanjin.guard.event.{eventFilters, retrieveGauge, retrieveHealthChecks}
+import com.github.chenharryhua.nanjin.guard.event.{
+  eventFilters,
+  retrieveGauge,
+  retrieveHealthChecks,
+  MetricID
+}
 import io.circe.Json
 import io.github.timwspence.cats.stm.STM
 import org.scalatest.funsuite.AnyFunSuite

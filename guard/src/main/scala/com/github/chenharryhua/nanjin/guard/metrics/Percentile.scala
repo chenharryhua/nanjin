@@ -9,8 +9,8 @@ import cats.syntax.functor.toFunctorOps
 import cats.syntax.group.catsSyntaxSemigroup
 import com.codahale.metrics.{Gauge, MetricRegistry}
 import com.github.chenharryhua.nanjin.common.EnableConfig
-import com.github.chenharryhua.nanjin.guard.config.*
-import com.github.chenharryhua.nanjin.guard.config.CategoryKind.GaugeKind
+import com.github.chenharryhua.nanjin.guard.event.CategoryKind.GaugeKind
+import com.github.chenharryhua.nanjin.guard.event.{Category, MetricID, MetricLabel, MetricName}
 import io.circe.Json
 import io.circe.syntax.EncoderOps
 

@@ -7,8 +7,8 @@ import cats.syntax.functor.toFunctorOps
 import com.codahale.metrics
 import com.github.chenharryhua.nanjin.common.EnableConfig
 import com.github.chenharryhua.nanjin.common.chrono.Policy
-import com.github.chenharryhua.nanjin.guard.config.*
-import com.github.chenharryhua.nanjin.guard.config.CategoryKind.GaugeKind
+import com.github.chenharryhua.nanjin.guard.event.CategoryKind.GaugeKind
+import com.github.chenharryhua.nanjin.guard.event.{Category, MetricID, MetricLabel, MetricName}
 
 import java.time.ZoneId
 import scala.concurrent.duration.FiniteDuration

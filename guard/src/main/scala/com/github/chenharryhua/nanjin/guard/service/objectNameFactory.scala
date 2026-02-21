@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.service
 
 import com.codahale.metrics.jmx.ObjectNameFactory
-import com.github.chenharryhua.nanjin.guard.config.MetricID
+import com.github.chenharryhua.nanjin.guard.event.MetricID
 import io.circe.jawn.decode
 
 import java.util

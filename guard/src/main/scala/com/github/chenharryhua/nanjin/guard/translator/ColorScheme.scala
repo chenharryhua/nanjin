@@ -2,9 +2,15 @@ package com.github.chenharryhua.nanjin.guard.translator
 
 import cats.data.Cont
 import cats.syntax.order.catsSyntaxOrder
-import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, Category}
-import com.github.chenharryhua.nanjin.guard.config.CategoryKind.CounterKind
-import com.github.chenharryhua.nanjin.guard.event.{retrieveHealthChecks, Event, ServiceStopCause, Snapshot}
+import com.github.chenharryhua.nanjin.guard.config.AlarmLevel
+import com.github.chenharryhua.nanjin.guard.event.CategoryKind.CounterKind
+import com.github.chenharryhua.nanjin.guard.event.{
+  retrieveHealthChecks,
+  Category,
+  Event,
+  ServiceStopCause,
+  Snapshot
+}
 import enumeratum.values.{CatsOrderValueEnum, IntEnum, IntEnumEntry}
 
 sealed abstract class ColorScheme(override val value: Int) extends IntEnumEntry
