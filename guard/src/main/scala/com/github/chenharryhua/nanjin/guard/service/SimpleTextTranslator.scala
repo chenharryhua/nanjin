@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.service
 
 import cats.Applicative
-import cats.syntax.show.showInterpolator
+import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.guard.config.Attribute
 import com.github.chenharryhua.nanjin.guard.event.{Event, Took}
 import com.github.chenharryhua.nanjin.guard.translator.{panicText, SnapshotPolyglot, Translator}
@@ -37,41 +37,41 @@ private object SimpleTextTranslator {
     val act = Attribute(Took(evt.tick.active)).labelledText
     val policy = Attribute(evt.serviceParams.servicePolicies.restart.policy).labelledText
 
-    show"""|
-           |  ${service_event(evt)}
-           |  $policy
-           |  ${panicText(evt)}
-           |  $idx, $act
-           |${Attribute(evt.stackTrace).labelledText}
-           |""".stripMargin
+    s"""|
+        |  ${service_event(evt)}
+        |  $policy
+        |  ${panicText(evt)}
+        |  $idx, $act
+        |${Attribute(evt.stackTrace).labelledText}
+        |""".stripMargin
   }
 
   private def service_stop(evt: ServiceStop): String = {
     val policy = Attribute(evt.serviceParams.servicePolicies.restart.policy).labelledText
 
-    show"""|
-           |  ${service_event(evt)}
-           |  $policy
-           |${Attribute(evt.cause).labelledText}
-           |""".stripMargin
+    s"""|
+        |  ${service_event(evt)}
+        |  $policy
+        |${Attribute(evt.cause).labelledText}
+        |""".stripMargin
   }
 
-  private def metrics_event(evt: MetricsEvent): String = {
-    val policy = Attribute(evt.serviceParams.servicePolicies.metricsReport).labelledText
+  private def metrics_event(evt: MetricsEvent, policy: Policy): String = {
+    val policy_text = Attribute(policy).labelledText
     val index = Attribute(evt.index).labelledText
 
     s"""|
         |  ${service_event(evt)}
-        |  $index, $policy, ${Attribute(evt.took).labelledText}
+        |  $index, $policy_text, ${Attribute(evt.took).labelledText}
         |${new SnapshotPolyglot(evt.snapshot).toYaml}
         |""".stripMargin
   }
 
   private def metrics_report(evt: MetricsReport): String =
-    metrics_event(evt)
+    metrics_event(evt, evt.serviceParams.servicePolicies.metricsReport)
 
   private def metrics_reset(evt: MetricsReset): String =
-    metrics_event(evt)
+    metrics_event(evt, evt.serviceParams.servicePolicies.metricsReset)
 
   private def service_message(evt: ServiceMessage): String = {
     val correlation = Attribute(evt.correlation).labelledText

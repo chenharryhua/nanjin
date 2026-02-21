@@ -31,6 +31,9 @@ object Attribute {
   def apply[A](a: A)(implicit tag: TypeTag[A]): Attribute[A] =
     new Attribute[A](a, tag.tpe.typeSymbol.name.toString)
 
+  def apply[A](oa: Option[A])(implicit tag: TypeTag[A]): Attribute[Option[A]] =
+    new Attribute[Option[A]](oa, tag.tpe.typeSymbol.name.toString)
+
   implicit val functorAttribute: Functor[Attribute] = new Functor[Attribute] {
     override def map[A, B](fa: Attribute[A])(f: A => B): Attribute[B] = fa.map(f)
   }

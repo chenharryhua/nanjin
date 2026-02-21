@@ -24,7 +24,7 @@ object Event {
   }
 
   final case class ServiceStop(serviceParams: ServiceParams, timestamp: Timestamp, cause: ServiceStopCause)
-      extends Event {}
+      extends Event
 
   final case class ServiceMessage(
     serviceParams: ServiceParams,
@@ -34,7 +34,7 @@ object Event {
     level: AlarmLevel,
     stackTrace: Option[StackTrace],
     message: Message
-  ) extends Event {}
+  ) extends Event
 
   sealed trait MetricsEvent extends Event {
     def index: Index

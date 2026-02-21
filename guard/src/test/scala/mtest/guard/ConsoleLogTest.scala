@@ -60,7 +60,8 @@ class ConsoleLogTest extends AnyFunSuite {
 
   test("3.console - simple text") {
     val mr = service
-      .updateConfig(_.withLogFormat(_.Console_PlainText))
+      .updateConfig(
+        _.withLogFormat(_.Console_PlainText).withHomePage("homepage.com").withHttpServer(identity))
       .eventStream(action)
       .map(checkJson)
       .mapFilter(eventFilters.metricsReport)
