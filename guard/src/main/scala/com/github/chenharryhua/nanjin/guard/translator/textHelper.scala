@@ -3,14 +3,14 @@ package com.github.chenharryhua.nanjin.guard.translator
 import cats.syntax.eq.catsSyntaxEq
 import cats.syntax.show.toShow
 import com.github.chenharryhua.nanjin.guard.event.Event.ServicePanic
-import com.github.chenharryhua.nanjin.guard.event.{Event, MetricSnapshot}
+import com.github.chenharryhua.nanjin.guard.event.{Event, Snapshot}
 import org.typelevel.cats.time.instances.{localdatetime, localtime}
 
 import java.time.temporal.ChronoUnit
 import java.time.{Duration, ZonedDateTime}
 
 object textHelper extends localtime with localdatetime {
-  def yamlMetrics(ss: MetricSnapshot): String =
+  def yamlMetrics(ss: Snapshot): String =
     new SnapshotPolyglot(ss).toYaml
 
   def eventTitle(evt: Event): String =

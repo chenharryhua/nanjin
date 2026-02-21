@@ -4,13 +4,13 @@ import cats.Eval
 import cats.effect.kernel.{Ref, Sync}
 import cats.effect.std.Console
 import cats.syntax.applicative.catsSyntaxApplicativeId
-import cats.syntax.functor.toFunctorOps
 import cats.syntax.flatMap.{catsSyntaxIfM, toFlatMapOps}
-import cats.syntax.eq.catsSyntaxEq
+import cats.syntax.functor.toFunctorOps
 import cats.syntax.order.catsSyntaxPartialOrder
+import cats.syntax.eq.catsSyntaxEq
 import cats.syntax.traverse.toTraverseOps
 import com.github.chenharryhua.nanjin.guard.config.LogFormat.Console_Json_MultiLine
-import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, Domain, LogFormat, ServiceParams}
+import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, Attribute, Domain, LogFormat, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.Event.{
   MetricsReport,
   MetricsReset,
@@ -19,9 +19,9 @@ import com.github.chenharryhua.nanjin.guard.event.Event.{
   ServiceStart,
   ServiceStop
 }
-import com.github.chenharryhua.nanjin.guard.event.{Error, Event, ServiceStopCause}
-import com.github.chenharryhua.nanjin.guard.translator.{jsonHelper, ColorScheme, Translator}
-import io.circe.Encoder
+import com.github.chenharryhua.nanjin.guard.event.{Event, ServiceStopCause, StackTrace}
+import com.github.chenharryhua.nanjin.guard.translator.{ColorScheme, Translator}
+import io.circe.{Encoder, Json}
 import io.circe.syntax.EncoderOps
 import org.typelevel.log4cats.MessageLogger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
@@ -134,11 +134,15 @@ final private class EventLogger[F[_]](
    * Log
    */
 
-  private def sm2text[S: Encoder](msg: S, level: AlarmLevel, error: Option[Error]): F[Option[String]] =
+  private def sm2text[S: Encoder](
+    msg: S,
+    level: AlarmLevel,
+    stackTrace: Option[StackTrace]): F[Option[String]] =
     alarmLevel.get
       .map(_.exists(_ <= level))
       .ifM(
-        create_service_message[F, S](serviceParams, domain, msg, level, error).flatMap(transform_event(_)),
+        create_service_message[F, S](serviceParams, domain, msg, level, stackTrace)
+          .flatMap(transform_event(_)),
         F.pure(None))
 
   override def info[S: Encoder](msg: S): F[Unit] =
@@ -151,14 +155,25 @@ final private class EventLogger[F[_]](
     sm2text(msg, AlarmLevel.Warn, None).flatMap(_.traverse(logger.warn(_))).void
 
   override def warn[S: Encoder](ex: Throwable)(msg: S): F[Unit] =
-    sm2text(msg, AlarmLevel.Warn, Some(Error(ex))).flatMap(_.traverse(logger.warn(_))).void
+    sm2text(msg, AlarmLevel.Warn, Some(StackTrace(ex))).flatMap(_.traverse(logger.warn(_))).void
 
   override def debug[S: Encoder](msg: => F[S]): F[Unit] = {
-    def debug_message(ss: ServiceMessage): String = {
-      val title = AnsiColor.BLUE + ss.name.entryName + AnsiColor.RESET
-      val txt = jsonHelper.json_service_message(ss).noSpaces
+    def debug_message(evt: ServiceMessage): String = {
+      val title: String = AnsiColor.BLUE + evt.name.entryName + AnsiColor.RESET
+      val txt: String = evt.stackTrace
+        .map(st => Json.obj(Attribute(st).snakeJsonEntry))
+        .asJson
+        .deepMerge(
+          Json.obj(
+            Attribute(evt.serviceParams.serviceName).snakeJsonEntry,
+            Attribute(evt.domain).snakeJsonEntry,
+            Attribute(evt.message).snakeJsonEntry
+          ))
+        .noSpaces
+
       s"$title $txt"
     }
+
     alarmLevel.get
       .map(_.exists(_ === AlarmLevel.Debug))
       .ifM(
@@ -169,7 +184,7 @@ final private class EventLogger[F[_]](
               domain,
               "Error Message",
               AlarmLevel.Debug,
-              Some(Error(ex))).flatMap(m => logger.debug(debug_message(m)))
+              Some(StackTrace(ex))).flatMap(m => logger.debug(debug_message(m)))
           case Right(value) =>
             create_service_message[F, S](serviceParams, domain, value, AlarmLevel.Debug, None)
               .flatMap(m => logger.debug(debug_message(m)))

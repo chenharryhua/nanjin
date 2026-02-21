@@ -3,11 +3,13 @@ package com.github.chenharryhua.nanjin.guard.service
 import cats.Applicative
 import cats.syntax.show.showInterpolator
 import com.github.chenharryhua.nanjin.guard.config.Attribute
-import com.github.chenharryhua.nanjin.guard.event.{Event, Index, Took}
+import com.github.chenharryhua.nanjin.guard.event.{Event, Took}
 import com.github.chenharryhua.nanjin.guard.translator.{textHelper, Translator}
 
 private object SimpleTextTranslator {
   import Event.*
+
+  private case class Index(value: Long)
 
   private def service_event(se: Event): String = {
     val host: String = Attribute(se.serviceParams.host).labelledText
@@ -18,11 +20,10 @@ private object SimpleTextTranslator {
     s"""|$sn, $tn, $uptime
         |  $host
         |  $sid""".stripMargin
-
   }
 
   private def service_start(evt: ServiceStart): String = {
-    val idx = Attribute(Index(evt.tick.index)).labelledText
+    val idx = Attribute(Index(evt.tick.index)).map(_.value).labelledText
     val snz = Attribute(Took(evt.tick.snooze)).labelledText
     s"""|
         |  ${service_event(evt)}
@@ -32,26 +33,26 @@ private object SimpleTextTranslator {
   }
 
   private def service_panic(evt: ServicePanic): String = {
-    val idx = Attribute(Index(evt.tick.index)).labelledText
+    val idx = Attribute(Index(evt.tick.index)).map(_.value).labelledText
     val act = Attribute(Took(evt.tick.active)).labelledText
     val policy = Attribute(evt.serviceParams.servicePolicies.restart.policy).labelledText
-    val error = Attribute(evt.error).labelledText
+
     show"""|
            |  ${service_event(evt)}
            |  $policy
            |  ${textHelper.panicText(evt)}
            |  $idx, $act
-           |  $error
+           |${Attribute(evt.stackTrace).labelledText}
            |""".stripMargin
   }
 
   private def service_stop(evt: ServiceStop): String = {
-    val stop_cause = Attribute(evt.cause).labelledText
     val policy = Attribute(evt.serviceParams.servicePolicies.restart.policy).labelledText
+
     show"""|
            |  ${service_event(evt)}
            |  $policy
-           |  $stop_cause
+           |${Attribute(evt.cause).labelledText}
            |""".stripMargin
   }
 
@@ -75,12 +76,11 @@ private object SimpleTextTranslator {
   private def service_message(evt: ServiceMessage): String = {
     val correlation = Attribute(evt.correlation).labelledText
     val domain = Attribute(evt.domain).labelledText
-    val error = evt.error.fold("")(Attribute(_).labelledText)
     s"""|
         |  ${service_event(evt)}
         |  $domain, $correlation
-        |${evt.message.spaces2}
-        |  $error
+        |${evt.message.value.spaces2}
+        |${evt.stackTrace.fold("")(Attribute(_).labelledText)}
         |""".stripMargin
   }
 

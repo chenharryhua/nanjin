@@ -12,10 +12,11 @@ import com.github.chenharryhua.nanjin.guard.config.{Attribute, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.Event.{MetricsReport, ServiceMessage, ServicePanic}
 import com.github.chenharryhua.nanjin.guard.event.{
   retrieveHealthChecks,
+  Active,
   Index,
-  MetricSnapshot,
-  MetricsReportData,
   ScrapeMode,
+  Snapshot,
+  Snooze,
   Timestamp,
   Took
 }
@@ -40,6 +41,14 @@ final private class HttpRouterHelper[F[_]: Sync](
   errorHistory: AtomicCell[F, CircularFifoQueue[ServiceMessage]])
     extends all {
 
+  private case class Present(value: ZonedDateTime) {
+    val text: String = value.toLocalTime.truncatedTo(ChronoUnit.SECONDS).show
+    val json: Json = text.asJson
+  }
+  private case class Age(value: Duration) {
+    val json: Json = durationFormatter.format(value).asJson
+  }
+
   val html_header: Text.TypedTag[String] =
     head(
       tag("style")("""
@@ -57,53 +66,60 @@ final private class HttpRouterHelper[F[_]: Sync](
     val policy = Attribute(serviceParams.servicePolicies.metricsReport).textEntry
     val timezone = Attribute(serviceParams.timeZone).textEntry
     val uptime = Attribute(serviceParams.upTime(now)).textEntry
-    val tk = Attribute(Took(took)).textEntry
+    val spend = Attribute(Took(took)).textEntry
+    val present = Attribute(Present(now)).textEntry(_.text)
 
     table(
-      tr(th(service_name.tag), th(policy.tag), th(timezone.tag), th(uptime.tag), th(tk.tag), th("Present")),
+      tr(
+        th(service_name.tag),
+        th(policy.tag),
+        th(timezone.tag),
+        th(uptime.tag),
+        th(spend.tag),
+        th(present.tag)),
       tr(
         td(service_name.text),
         td(policy.text),
         td(timezone.text),
         td(uptime.text),
-        td(tk.text),
-        td(Timestamp(now).show)
-      )
+        td(spend.text),
+        td(present.text))
     )
   }
 
   val metrics_yaml: F[Text.TypedTag[String]] =
     serviceParams.zonedNow.flatMap { now =>
-      MetricSnapshot.timed[F](metricRegistry, ScrapeMode.Full).map { case (fd, ms) =>
+      Snapshot.timed[F](metricRegistry, ScrapeMode.Full).map { case (fd, ms) =>
         val yaml = new SnapshotPolyglot(ms).toYaml
         html(html_header, body(div(html_table_title(now, fd), pre(yaml))))
       }
     }
 
   val metrics_vanilla: F[Json] =
-    MetricSnapshot.timed[F](metricRegistry, ScrapeMode.Full).map { case (fd, ms) =>
+    Snapshot.timed[F](metricRegistry, ScrapeMode.Full).map { case (fd, ms) =>
       Json.obj(
         Attribute(serviceParams.serviceName).snakeJsonEntry,
-        Attribute(Took(fd)).snakeJsonEntry(_.show.asJson),
-        "snapshot" -> new SnapshotPolyglot(ms).toVanillaJson
+        Attribute(Took(fd)).map(_.show).snakeJsonEntry,
+        Attribute(ms).map(new SnapshotPolyglot(_).toVanillaJson).snakeJsonEntry
       )
     }
 
   val metrics_json: F[Json] =
-    MetricSnapshot.timed[F](metricRegistry, ScrapeMode.Full).map { case (fd, ms) =>
+    Snapshot.timed[F](metricRegistry, ScrapeMode.Full).map { case (fd, ms) =>
       Json.obj(
         Attribute(serviceParams.serviceName).snakeJsonEntry,
-        Attribute(Took(fd)).snakeJsonEntry(_.show.asJson),
-        "snapshot" -> new SnapshotPolyglot(ms).toPrettyJson
+        Attribute(Took(fd)).map(_.show).snakeJsonEntry,
+        Attribute(ms).map(new SnapshotPolyglot(_).toPrettyJson).snakeJsonEntry
       )
     }
 
   val metrics_raw_json: F[Json] =
-    MetricSnapshot.timed[F](metricRegistry, ScrapeMode.Full).map { case (fd, ms) =>
+    Snapshot.timed[F](metricRegistry, ScrapeMode.Full).map { case (fd, ms) =>
       Json.obj(
         Attribute(serviceParams.serviceName).snakeJsonEntry,
-        Attribute(Took(fd)).snakeJsonEntry(_.show.asJson),
-        "snapshot" -> ms.sorted.asJson)
+        Attribute(Took(fd)).map(_.show).snakeJsonEntry,
+        Attribute(ms).map(_.sorted.asJson).snakeJsonEntry
+      )
     }
 
   val metrics_history: F[Text.TypedTag[String]] = {
@@ -112,20 +128,20 @@ final private class HttpRouterHelper[F[_]: Sync](
         val history: F[List[Text.TypedTag[String]]] =
           metricsHistory.get.map(_.iterator().asScala.toList.reverse.flatMap { mr =>
             val took = Attribute(mr.took).textEntry
-            val timestamp = Attribute(mr.timestamp).textEntry
-
-            mr.index match {
-              case _: MetricsReportData.Index.Adhoc       => None
-              case MetricsReportData.Index.Periodic(tick) =>
-                val index = Attribute(Index(tick.index)).textEntry
-                Some(
-                  div(
-                    table(
-                      tr(th(style := htmlColoring(mr))(index.tag), th(timestamp.tag), th(took.tag)),
-                      tr(td(index.text), td(tick.local(_.conclude).show), td(took.text))
-                    ),
-                    pre(new SnapshotPolyglot(mr.snapshot).toYaml)
-                  ))
+            val (index_tag, index) = Attribute(mr.index).entry {
+              case Index.Adhoc(_)       => None
+              case Index.Periodic(tick) =>
+                val timestamp = Attribute(Timestamp(tick.zoned(_.conclude))).map(_.show).textEntry
+                Some((tick.index, timestamp))
+            }
+            index.map { case (idx, timestamp) =>
+              div(
+                table(
+                  tr(th(style := htmlColoring(mr))(index_tag), th(timestamp.tag), th(took.tag)),
+                  tr(td(idx), td(timestamp.text), td(took.text))
+                ),
+                pre(new SnapshotPolyglot(mr.snapshot).toYaml)
+              )
             }
           })
         history.map(hist => div(html_table_title(now, Duration.ZERO), h3("Metrics Report History"), hist))
@@ -145,22 +161,24 @@ final private class HttpRouterHelper[F[_]: Sync](
           Attribute(serviceParams.serviceName).snakeJsonEntry,
           Attribute(serviceParams.serviceId).snakeJsonEntry,
           "is_active" -> Json.fromBoolean(isActive),
-          "present" -> Timestamp(now).show.asJson,
-          Attribute(serviceParams.servicePolicies.restart.policy).snakeJsonEntry(_.show.asJson),
+          Attribute(Present(now)).snakeJsonEntry(_.json),
+          Attribute(serviceParams.servicePolicies.restart.policy).map(_.show).snakeJsonEntry,
           Attribute(serviceParams.timeZone).snakeJsonEntry,
           Attribute(serviceParams.upTime(now)).snakeJsonEntry(_.show.asJson),
           "panics" -> panics.size.asJson,
           "history" ->
             panics.reverse.map { sp =>
               Json.obj(
-                Attribute(Index(sp.tick.index)).snakeJsonEntry,
-                "age" -> durationFormatter.format(Duration.between(sp.timestamp.value, now)).asJson,
+                "index" -> Json.fromLong(sp.tick.index),
+                Attribute(Age(Duration.between(sp.timestamp.value, now))).map(_.json).snakeJsonEntry,
                 "up_rouse_at" -> sp.tick.local(_.commence).asJson,
-                "active" -> durationFormatter.format(sp.tick.active).asJson,
-                "when_panic" -> sp.tick.local(_.acquires).asJson,
-                "snooze" -> durationFormatter.format(sp.tick.snooze).asJson,
+                Attribute(Active(sp.tick.active)).map(_.show.asJson).snakeJsonEntry,
+                Attribute(Timestamp(sp.tick.zoned(_.acquires)))
+                  .map(_.value.toLocalDateTime.asJson)
+                  .snakeJsonEntry,
+                Attribute(Snooze(sp.tick.snooze)).map(_.show).snakeJsonEntry,
                 "restart_at" -> sp.tick.local(_.conclude).asJson,
-                Attribute(sp.error).snakeJsonEntry
+                Attribute(sp.stackTrace).snakeJsonEntry
               )
             }.asJson
         )
@@ -173,20 +191,20 @@ final private class HttpRouterHelper[F[_]: Sync](
         Json.obj(
           Attribute(serviceParams.serviceName).snakeJsonEntry,
           Attribute(serviceParams.serviceId).snakeJsonEntry,
-          "present" -> Timestamp(now).show.asJson,
+          Attribute(Present(now)).map(_.json).snakeJsonEntry,
           Attribute(serviceParams.timeZone).snakeJsonEntry,
-          Attribute(serviceParams.upTime(now)).snakeJsonEntry(_.show.asJson),
+          Attribute(serviceParams.upTime(now)).map(_.show).snakeJsonEntry,
           "errors" -> serviceMessages.size.asJson,
           "history" -> serviceMessages.reverse.map { sm =>
-            sm.error
-              .map(err => Attribute(err).snakeJsonEntry)
+            sm.stackTrace
+              .map(st => Json.obj(Attribute(st).snakeJsonEntry))
               .asJson
               .deepMerge(Json.obj(
                 Attribute(sm.domain).snakeJsonEntry,
                 Attribute(sm.correlation).snakeJsonEntry,
-                "age" -> durationFormatter.format(Duration.between(sm.timestamp.value, now)).asJson,
-                "when" -> sm.timestamp.value.toLocalDateTime.truncatedTo(ChronoUnit.SECONDS).asJson,
-                "message" -> sm.message
+                Attribute(Age(Duration.between(sm.timestamp.value, now))).map(_.json).snakeJsonEntry,
+                Attribute(sm.timestamp).map(_.value.toLocalDateTime.asJson).snakeJsonEntry,
+                Attribute(sm.message).snakeJsonEntry
               ))
           }.asJson
         )
@@ -196,11 +214,11 @@ final private class HttpRouterHelper[F[_]: Sync](
   val service_health_check: F[Either[String, Json]] = {
     val deps_health_check: F[Json] =
       serviceParams.zonedNow[F].flatMap { now =>
-        MetricSnapshot.timed[F](metricRegistry, ScrapeMode.Full).map { case (fd, ss) =>
+        Snapshot.timed[F](metricRegistry, ScrapeMode.Full).map { case (fd, ss) =>
           Json.obj(
             "healthy" -> retrieveHealthChecks(ss.gauges).values.forall(identity).asJson,
             Attribute(Took(fd)).snakeJsonEntry(_.show.asJson),
-            "when" -> now.toLocalTime.truncatedTo(ChronoUnit.SECONDS).asJson
+            Attribute(Timestamp(now)).snakeJsonEntry(_.show.asJson)
           )
         }
       }

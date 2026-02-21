@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.guard.observers.sns
 
 import cats.Show
 import cats.derived.auto.show.*
+import com.github.chenharryhua.nanjin.guard.config.TextEntry
 import io.circe.generic.JsonCodec
 import io.circe.generic.auto.*
 import io.circe.syntax.EncoderOps
@@ -9,6 +10,8 @@ import io.circe.{Encoder, Json}
 
 final case class TextField(tag: String, value: String)
 object TextField {
+  def apply(te: TextEntry): TextField = TextField(te.tag, te.text)
+
   implicit val encodeTextField: Encoder[TextField] = tf => {
     val str = s"*${tf.tag}*\n${tf.value}"
     Json.obj("type" -> Json.fromString("mrkdwn"), "text" -> Json.fromString(str))

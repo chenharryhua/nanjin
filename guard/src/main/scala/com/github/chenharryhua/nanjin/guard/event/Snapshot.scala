@@ -86,7 +86,7 @@ object ScrapeMode {
 }
 
 @JsonCodec
-final case class MetricSnapshot(
+final case class Snapshot(
   counters: List[MetricElement.Counter],
   meters: List[MetricElement.Meter],
   timers: List[MetricElement.Timer],
@@ -115,7 +115,7 @@ final case class MetricSnapshot(
       histograms.map(h => h.metricId -> h.histogram.updates)
   }.toMap
 
-  def sorted: MetricSnapshot = MetricSnapshot(
+  def sorted: Snapshot = Snapshot(
     counters = counters.sortBy(_.metricId.metricName.age),
     meters = meters.sortBy(_.metricId.metricName.age),
     timers = timers.sortBy(_.metricId.metricName.age),
@@ -124,10 +124,10 @@ final case class MetricSnapshot(
   )
 }
 
-object MetricSnapshot extends duration {
-  val empty: MetricSnapshot = MetricSnapshot(Nil, Nil, Nil, Nil, Nil)
+object Snapshot extends duration {
+  val empty: Snapshot = Snapshot(Nil, Nil, Nil, Nil, Nil)
 
-  private def buildFrom(metricRegistry: MetricRegistry, mode: ScrapeMode): MetricSnapshot = {
+  private def buildFrom(metricRegistry: MetricRegistry, mode: ScrapeMode): Snapshot = {
     // counters
     val counters: List[MetricElement.Counter] =
       metricRegistry.getCounters.asScala.foldLeft(List.empty[MetricElement.Counter]) {
@@ -241,15 +241,10 @@ object MetricSnapshot extends duration {
           }
       }
 
-    MetricSnapshot(
-      counters = counters,
-      meters = meters,
-      timers = timers,
-      histograms = histograms,
-      gauges = gauges)
+    Snapshot(counters = counters, meters = meters, timers = timers, histograms = histograms, gauges = gauges)
   }
 
   def timed[F[_]](metricRegistry: metrics.MetricRegistry, mode: ScrapeMode)(implicit
-    F: Sync[F]): F[(Duration, MetricSnapshot)] =
+    F: Sync[F]): F[(Duration, Snapshot)] =
     F.blocking(buildFrom(metricRegistry, mode)).timed.map { case (fd, ss) => (fd.toJava, ss) }
 }

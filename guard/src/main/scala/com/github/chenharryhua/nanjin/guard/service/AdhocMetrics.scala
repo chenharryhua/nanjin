@@ -7,9 +7,9 @@ import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.common.chrono.Tick
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.event.Event.MetricsReport
-import com.github.chenharryhua.nanjin.guard.event.MetricsReportData.Index
-import com.github.chenharryhua.nanjin.guard.event.{Event, MetricSnapshot, ScrapeMode}
+import com.github.chenharryhua.nanjin.guard.event.{Event, ScrapeMode, Snapshot}
 import fs2.concurrent.Channel
+import com.github.chenharryhua.nanjin.guard.event.Index
 
 /** adhoc metrics report and reset
   */
@@ -22,7 +22,7 @@ sealed trait AdhocMetrics[F[_]] {
   /** report current metrics
     */
   def report: F[Unit]
-  def getSnapshot: F[MetricSnapshot]
+  def getSnapshot: F[Snapshot]
   def cheapMetricsReport(tick: Tick): F[MetricsReport]
 }
 
@@ -54,6 +54,6 @@ abstract private class AdhocMetricsImpl[F[_]](
   override def cheapMetricsReport(tick: Tick): F[MetricsReport] =
     create_metrics_report(sp, metricRegistry, Index.Periodic(tick), ScrapeMode.Cheap)
 
-  override val getSnapshot: F[MetricSnapshot] =
-    MetricSnapshot.timed[F](metricRegistry, ScrapeMode.Full).map(_._2)
+  override val getSnapshot: F[Snapshot] =
+    Snapshot.timed[F](metricRegistry, ScrapeMode.Full).map(_._2)
 }

@@ -4,15 +4,13 @@ import cats.Applicative
 import cats.syntax.show.toShow
 import com.github.chenharryhua.nanjin.guard.config.Attribute
 import com.github.chenharryhua.nanjin.guard.event.Event.*
-import com.github.chenharryhua.nanjin.guard.event.{Index, MetricSnapshot}
+import com.github.chenharryhua.nanjin.guard.event.{Active, Snooze}
 import com.github.chenharryhua.nanjin.guard.translator.*
 import io.circe.Json
 import io.circe.syntax.EncoderOps
 
 private object PrettyJsonTranslator {
-
-  private def pretty_metrics(ss: MetricSnapshot): (String, Json) =
-    "metrics" -> new SnapshotPolyglot(ss).toPrettyJson
+  final private case class Index(value: Long)
 
   // events handlers
   private def service_start(evt: ServiceStart): Json =
@@ -20,8 +18,8 @@ private object PrettyJsonTranslator {
       Attribute(evt.serviceParams.serviceName).snakeJsonEntry,
       Attribute(evt.serviceParams.serviceId).snakeJsonEntry,
       Attribute(evt.upTime).snakeJsonEntry(_.show.asJson),
-      Attribute(Index(evt.tick.index)).snakeJsonEntry,
-      "snoozed" -> Json.fromString(durationFormatter.format(evt.tick.snooze)),
+      Attribute(Index(evt.tick.index)).map(_.value).snakeJsonEntry,
+      Attribute(Snooze(evt.tick.snooze)).map(_.show).snakeJsonEntry,
       "params" -> evt.serviceParams.simpleJson
     )
 
@@ -30,11 +28,11 @@ private object PrettyJsonTranslator {
       Attribute(evt.serviceParams.serviceName).snakeJsonEntry,
       Attribute(evt.serviceParams.serviceId).snakeJsonEntry,
       Attribute(evt.upTime).snakeJsonEntry(_.show.asJson),
-      Attribute(Index(evt.tick.index)).snakeJsonEntry,
-      "active" -> Json.fromString(durationFormatter.format(evt.tick.active)),
-      "snooze" -> Json.fromString(durationFormatter.format(evt.tick.snooze)),
+      Attribute(Index(evt.tick.index)).map(_.value).snakeJsonEntry,
+      Attribute(Active(evt.tick.active)).map(_.show).snakeJsonEntry,
+      Attribute(Snooze(evt.tick.snooze)).map(_.show).snakeJsonEntry,
       Attribute(evt.serviceParams.servicePolicies.restart.policy).snakeJsonEntry(_.show.asJson),
-      Attribute(evt.error).snakeJsonEntry
+      Attribute(evt.stackTrace).snakeJsonEntry
     )
 
   private def service_stop(evt: ServiceStop): Json =
@@ -54,7 +52,7 @@ private object PrettyJsonTranslator {
       Attribute(evt.serviceParams.servicePolicies.metricsReport).snakeJsonEntry(_.show.asJson),
       Attribute(evt.upTime).snakeJsonEntry(_.show.asJson),
       Attribute(evt.took).snakeJsonEntry(_.show.asJson),
-      pretty_metrics(evt.snapshot)
+      Attribute(evt.snapshot).map(new SnapshotPolyglot(_).toPrettyJson).snakeJsonEntry
     )
 
   private def metrics_reset(evt: MetricsReset): Json =
@@ -65,11 +63,20 @@ private object PrettyJsonTranslator {
       Attribute(evt.serviceParams.servicePolicies.metricsReset).snakeJsonEntry(_.show.asJson),
       Attribute(evt.upTime).snakeJsonEntry(_.show.asJson),
       Attribute(evt.took).snakeJsonEntry(_.show.asJson),
-      pretty_metrics(evt.snapshot)
+      Attribute(evt.snapshot).map(new SnapshotPolyglot(_).toPrettyJson).snakeJsonEntry
     )
 
   private def service_message(evt: ServiceMessage): Json =
-    jsonHelper.json_service_message(evt)
+    evt.stackTrace
+      .map(st => Json.obj(Attribute(st).snakeJsonEntry))
+      .asJson
+      .deepMerge(Json.obj(
+        Attribute(evt.serviceParams.serviceName).snakeJsonEntry,
+        Attribute(evt.serviceParams.serviceId).snakeJsonEntry,
+        Attribute(evt.domain).snakeJsonEntry,
+        Attribute(evt.correlation).snakeJsonEntry,
+        Attribute(evt.message).snakeJsonEntry
+      ))
 
   def apply[F[_]: Applicative]: Translator[F, Json] =
     Translator

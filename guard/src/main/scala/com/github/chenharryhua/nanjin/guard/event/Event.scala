@@ -2,8 +2,6 @@ package com.github.chenharryhua.nanjin.guard.event
 
 import com.github.chenharryhua.nanjin.common.chrono.Tick
 import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, Domain, ServiceParams, UpTime}
-import com.github.chenharryhua.nanjin.guard.event.MetricsReportData.Index
-import io.circe.Json
 import io.circe.generic.JsonCodec
 
 @JsonCodec
@@ -22,7 +20,8 @@ object Event {
     override val name: EventName = EventName.ServiceStart
   }
 
-  final case class ServicePanic(serviceParams: ServiceParams, tick: Tick, error: Error) extends Event {
+  final case class ServicePanic(serviceParams: ServiceParams, tick: Tick, stackTrace: StackTrace)
+      extends Event {
     override val timestamp: Timestamp = Timestamp(tick.zoned(_.acquires))
     override val name: EventName = EventName.ServicePanic
   }
@@ -38,33 +37,25 @@ object Event {
     timestamp: Timestamp,
     correlation: Correlation,
     level: AlarmLevel,
-    error: Option[Error],
-    message: Json
+    stackTrace: Option[StackTrace],
+    message: Message
   ) extends Event {
     override val name: EventName = EventName.ServiceMessage
   }
 
   sealed trait MetricsEvent extends Event {
     def index: Index
-    def snapshot: MetricSnapshot
+    def snapshot: Snapshot
     def took: Took // time took to retrieve snapshot
   }
 
-  final case class MetricsReport(
-    index: Index,
-    serviceParams: ServiceParams,
-    snapshot: MetricSnapshot,
-    took: Took)
+  final case class MetricsReport(index: Index, serviceParams: ServiceParams, snapshot: Snapshot, took: Took)
       extends MetricsEvent {
     override val timestamp: Timestamp = Timestamp(index.launchTime)
     override val name: EventName = EventName.MetricsReport
   }
 
-  final case class MetricsReset(
-    index: Index,
-    serviceParams: ServiceParams,
-    snapshot: MetricSnapshot,
-    took: Took)
+  final case class MetricsReset(index: Index, serviceParams: ServiceParams, snapshot: Snapshot, took: Took)
       extends MetricsEvent {
     override val timestamp: Timestamp = Timestamp(index.launchTime)
     override val name: EventName = EventName.MetricsReset

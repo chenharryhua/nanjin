@@ -10,10 +10,10 @@ import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick}
 import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, Domain, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.Event
 import com.github.chenharryhua.nanjin.guard.event.Event.{MetricsReport, ServiceMessage, ServicePanic}
-import com.github.chenharryhua.nanjin.guard.event.MetricsReportData.Index
 import fs2.Stream
 import fs2.concurrent.Channel
 import org.apache.commons.collections4.queue.CircularFifoQueue
+import com.github.chenharryhua.nanjin.guard.event.Index
 
 final private class ServiceBuildHelper[F[_]: Async](serviceParams: ServiceParams) {
   private val F = Async[F]

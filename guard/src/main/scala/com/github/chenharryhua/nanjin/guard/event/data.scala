@@ -5,9 +5,11 @@ import cats.syntax.functor.toFunctorOps
 import cats.syntax.show.toShow
 import cats.{Hash, Show}
 import com.github.chenharryhua.nanjin.common.DurationFormatter
+import com.github.chenharryhua.nanjin.common.chrono.Tick
+import io.circe.Decoder.Result
 import io.circe.generic.JsonCodec
 import io.circe.syntax.EncoderOps
-import io.circe.{Decoder, DecodingFailure, Encoder, Json}
+import io.circe.{Codec, Decoder, DecodingFailure, Encoder, HCursor, Json}
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.typelevel.cats.time.instances.localtime.localtimeInstances
 
@@ -15,16 +17,37 @@ import java.time.temporal.ChronoUnit
 import java.time.{Duration, ZonedDateTime}
 import scala.jdk.CollectionConverters.ListHasAsScala
 
+final case class StackTrace private (value: List[String]) extends AnyVal
+
+object StackTrace {
+  def apply(ex: Throwable): StackTrace =
+    StackTrace(ExceptionUtils.getRootCauseStackTraceList(ex).asScala.map(_.replace("\t", "")).toList)
+
+  implicit val showStackTrace: Show[StackTrace] = _.value.mkString("\n\t")
+  implicit val codecStackTrace: Codec[StackTrace] = new Codec[StackTrace] {
+    override def apply(c: HCursor): Result[StackTrace] = c.as[List[String]].map(StackTrace(_))
+    override def apply(a: StackTrace): Json = a.value.asJson
+  }
+}
+
 @JsonCodec
-final case class Error private (message: String, stack: List[String])
+sealed trait Index extends Product {
+  def launchTime: ZonedDateTime
+}
 
-object Error {
-  def apply(ex: Throwable): Error =
-    Error(
-      ExceptionUtils.getRootCauseMessage(ex),
-      ExceptionUtils.getRootCauseStackTraceList(ex).asScala.map(_.replace("\t", "")).toList)
+object Index {
+  final case class Adhoc(value: ZonedDateTime) extends Index {
+    override val launchTime: ZonedDateTime = value
+  }
 
-  implicit val showError: Show[Error] = _.stack.mkString("\n\t")
+  final case class Periodic(tick: Tick) extends Index {
+    override val launchTime: ZonedDateTime = tick.zoned(_.conclude)
+  }
+
+  implicit val showIndex: Show[Index] = {
+    case Adhoc(_)       => "Adhoc"
+    case Periodic(tick) => tick.index.toString
+  }
 }
 
 sealed abstract class ServiceStopCause(val exitCode: Int) extends Product
@@ -33,7 +56,7 @@ object ServiceStopCause {
   case object Successfully extends ServiceStopCause(0)
   case object Maintenance extends ServiceStopCause(1)
   case object ByCancellation extends ServiceStopCause(2)
-  final case class ByException(error: Error) extends ServiceStopCause(3)
+  final case class ByException(stackTrace: StackTrace) extends ServiceStopCause(3)
 
   private val SUCCESSFULLY: String = "Successfully"
   private val BY_CANCELLATION: String = "ByCancellation"
@@ -41,18 +64,18 @@ object ServiceStopCause {
   private val BY_EXCEPTION: String = "ByException"
 
   implicit val showServiceStopCause: Show[ServiceStopCause] = {
-    case Successfully       => SUCCESSFULLY
-    case Maintenance        => MAINTENANCE
-    case ByCancellation     => BY_CANCELLATION
-    case ByException(error) => error.show
+    case Successfully            => SUCCESSFULLY
+    case Maintenance             => MAINTENANCE
+    case ByCancellation          => BY_CANCELLATION
+    case ByException(stackTrace) => stackTrace.show
   }
 
   implicit val encoderServiceStopCause: Encoder[ServiceStopCause] =
     Encoder.instance {
-      case Successfully       => Json.fromString(SUCCESSFULLY)
-      case ByCancellation     => Json.fromString(BY_CANCELLATION)
-      case ByException(error) => Json.obj(BY_EXCEPTION -> error.asJson)
-      case Maintenance        => Json.fromString(MAINTENANCE)
+      case Successfully            => Json.fromString(SUCCESSFULLY)
+      case ByCancellation          => Json.fromString(BY_CANCELLATION)
+      case ByException(stackTrace) => Json.obj(BY_EXCEPTION -> stackTrace.asJson)
+      case Maintenance             => Json.fromString(MAINTENANCE)
     }
 
   implicit val decoderServiceStopCause: Decoder[ServiceStopCause] =
@@ -63,7 +86,7 @@ object ServiceStopCause {
         case MAINTENANCE     => Right(Maintenance)
         case unknown         => Left(DecodingFailure(s"unrecognized: $unknown", Nil))
       }.widen,
-      _.downField(BY_EXCEPTION).as[Error].map(err => ByException(err)).widen
+      _.downField(BY_EXCEPTION).as[StackTrace].map(err => ByException(err)).widen
     ).reduceLeft(_ or _)
 }
 
@@ -109,9 +132,11 @@ object Timestamp {
   implicit val decoderTimestamp: Decoder[Timestamp] = Decoder.decodeZonedDateTime.map(Timestamp(_))
 }
 
-final case class Index(value: Long) extends AnyVal
-object Index {
-  implicit val showIndex: Show[Index] = _.value.toString
-  implicit val encoderIndex: Encoder[Index] = Encoder.encodeLong.contramap(_.value)
-  implicit val decoderIndex: Decoder[Index] = Decoder.decodeLong.map(Index(_))
+final case class Message(value: Json) extends AnyVal
+object Message {
+  implicit val showMessage: Show[Message] = _.value.noSpaces
+  implicit val codecMessage: Codec[Message] = new Codec[Message] {
+    override def apply(c: HCursor): Result[Message] = c.as[Json].map(Message(_))
+    override def apply(a: Message): Json = a.value
+  }
 }

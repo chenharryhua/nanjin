@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard.observers.ses
 
 import cats.Applicative
 import com.github.chenharryhua.nanjin.guard.config.Attribute
-import com.github.chenharryhua.nanjin.guard.event.{Active, Error, Event, Index, Snooze}
+import com.github.chenharryhua.nanjin.guard.event.{Active, Event, Snooze, StackTrace}
 import com.github.chenharryhua.nanjin.guard.translator.{htmlHelper, textHelper, Translator}
 import io.circe.Json
 import org.typelevel.cats.time.instances.all
@@ -16,13 +16,13 @@ private object HtmlTranslator extends all {
   import Event.*
   import htmlHelper.*
   import textHelper.*
+  private case class Index(value: Long)
 
   private def service_table(evt: Event): generic.Frag[Builder, String] = {
     val task_name = Attribute(evt.serviceParams.taskName).textEntry
     val host = Attribute(evt.serviceParams.host).textEntry
-    val service_name = Attribute(evt.serviceParams.serviceName).textEntry
-    val homepage =
-      evt.serviceParams.homepage.fold(td(service_name.text))(hp => td(a(href := hp.value)(service_name.text)))
+    val (service_tag, service) = Attribute(evt.serviceParams.serviceName).entry(s =>
+      evt.serviceParams.homepage.fold(td(s.value))(hp => td(a(href := hp.value)(s.value))))
     val service_id = Attribute(evt.serviceParams.serviceId).textEntry
     val uptime = Attribute(evt.upTime).textEntry
     val timestamp = Attribute(evt.timestamp).textEntry
@@ -30,15 +30,15 @@ private object HtmlTranslator extends all {
     frag(
       tr(th(task_name.tag), th(host.tag), th(timestamp.tag)),
       tr(td(task_name.text), td(host.text), td(timestamp.text)),
-      tr(th(service_name.tag), th(service_id.tag), th(uptime.tag)),
-      tr(homepage, td(service_id.text), td(uptime.text))
+      tr(th(service_tag), th(service_id.tag), th(uptime.tag)),
+      tr(service, td(service_id.text), td(uptime.text))
     )
   }
 
   private def json_text(js: Json): Text.TypedTag[String] =
     pre(small(js.spaces2))
 
-  private def error_text(c: Error): Text.TypedTag[String] = {
+  private def stack_trace_text(c: StackTrace): Text.TypedTag[String] = {
     val err = Attribute(c).textEntry
     p(b(s"${err.tag}: "), pre(small(err.text)))
   }
@@ -46,7 +46,7 @@ private object HtmlTranslator extends all {
   // events
 
   private def service_start(evt: ServiceStart): Text.TypedTag[String] = {
-    val index = Attribute(Index(evt.tick.index)).textEntry
+    val index = Attribute(Index(evt.tick.index)).map(_.value).textEntry
     val active = Attribute(Active(evt.tick.active)).textEntry
     val snooze = Attribute(Snooze(evt.tick.snooze)).textEntry
 
@@ -63,7 +63,7 @@ private object HtmlTranslator extends all {
 
   private def service_panic(evt: ServicePanic): Text.TypedTag[String] = {
     val policy = Attribute(evt.serviceParams.servicePolicies.restart.policy).textEntry
-    val index = Attribute(Index(evt.tick.index)).textEntry
+    val index = Attribute(Index(evt.tick.index)).map(_.value).textEntry
     val active = Attribute(Active(evt.tick.active)).textEntry
 
     val fg = frag(
@@ -74,7 +74,7 @@ private object HtmlTranslator extends all {
       h3(style := htmlColoring(evt))(eventTitle(evt)),
       table(service_table(evt), fg),
       p(b(panicText(evt))),
-      error_text(evt.error)
+      stack_trace_text(evt.stackTrace)
     )
   }
 
@@ -123,8 +123,8 @@ private object HtmlTranslator extends all {
     div(
       h3(style := htmlColoring(evt))(eventTitle(evt)),
       table(service_table(evt), fg),
-      json_text(evt.message),
-      evt.error.map(error_text)
+      json_text(evt.message.value),
+      evt.stackTrace.map(stack_trace_text)
     )
   }
 

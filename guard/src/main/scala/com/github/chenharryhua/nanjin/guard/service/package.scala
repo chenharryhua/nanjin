@@ -17,14 +17,14 @@ import com.github.chenharryhua.nanjin.guard.event.Event.{
   ServiceStart,
   ServiceStop
 }
-import com.github.chenharryhua.nanjin.guard.event.MetricsReportData.Index
 import com.github.chenharryhua.nanjin.guard.event.{
   Correlation,
-  Error,
   Event,
-  MetricSnapshot,
+  Message,
   ScrapeMode,
   ServiceStopCause,
+  Snapshot,
+  StackTrace,
   Timestamp,
   Took
 }
@@ -33,6 +33,7 @@ import io.circe.Encoder
 import org.typelevel.log4cats.SelfAwareLogger
 
 import scala.jdk.CollectionConverters.CollectionHasAsScala
+import com.github.chenharryhua.nanjin.guard.event.Index
 
 package object service {
 
@@ -53,7 +54,7 @@ package object service {
     domain: Domain,
     msg: S,
     level: AlarmLevel,
-    error: Option[Error])(implicit F: Sync[F]): F[ServiceMessage] =
+    stackTrace: Option[StackTrace])(implicit F: Sync[F]): F[ServiceMessage] =
     (F.unique, serviceParams.zonedNow).mapN { case (token, ts) =>
       ServiceMessage(
         serviceParams = serviceParams,
@@ -61,8 +62,8 @@ package object service {
         timestamp = Timestamp(ts),
         correlation = Correlation(token),
         level = level,
-        error = error,
-        message = Encoder[S].apply(msg)
+        stackTrace = stackTrace,
+        message = Message(Encoder[S].apply(msg))
       )
     }
 
@@ -71,7 +72,7 @@ package object service {
     metricRegistry: MetricRegistry,
     index: Index,
     mode: ScrapeMode): F[MetricsReport] =
-    MetricSnapshot.timed[F](metricRegistry, mode).map { case (took, snapshot) =>
+    Snapshot.timed[F](metricRegistry, mode).map { case (took, snapshot) =>
       MetricsReport(index, serviceParams, snapshot, Took(took))
     }
 
@@ -92,7 +93,7 @@ package object service {
     metricRegistry: MetricRegistry,
     index: Index): F[Unit] =
     for {
-      (took, snapshot) <- MetricSnapshot.timed[F](metricRegistry, ScrapeMode.Full)
+      (took, snapshot) <- Snapshot.timed[F](metricRegistry, ScrapeMode.Full)
       ms = MetricsReset(index, eventLogger.serviceParams, snapshot, Took(took))
       _ <- eventLogger.metrics_reset(ms)
       _ <- channel.send(ms)
@@ -110,8 +111,8 @@ package object service {
     channel: Channel[F, Event],
     eventLogger: EventLogger[F],
     tick: Tick,
-    error: Error): F[ServicePanic] = {
-    val panic: ServicePanic = ServicePanic(eventLogger.serviceParams, tick, error)
+    stackTrace: StackTrace): F[ServicePanic] = {
+    val panic: ServicePanic = ServicePanic(eventLogger.serviceParams, tick, stackTrace)
     eventLogger.service_panic(panic) *> channel.send(panic).as(panic)
   }
 

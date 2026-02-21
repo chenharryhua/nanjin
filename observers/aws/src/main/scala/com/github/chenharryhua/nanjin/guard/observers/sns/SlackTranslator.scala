@@ -3,15 +3,17 @@ import cats.syntax.eq.catsSyntaxEq
 import cats.syntax.show.{showInterpolator, toShow}
 import cats.{Applicative, Eval}
 import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, Attribute, Brief, ServiceParams}
-import com.github.chenharryhua.nanjin.guard.event.{Active, Event, Index, MetricSnapshot, Snooze}
-import com.github.chenharryhua.nanjin.guard.translator.{ColorScheme, SnapshotPolyglot, Translator}
+import com.github.chenharryhua.nanjin.guard.event.{Active, Event, Snapshot, Snooze}
 import com.github.chenharryhua.nanjin.guard.translator.textHelper.*
+import com.github.chenharryhua.nanjin.guard.translator.{ColorScheme, SnapshotPolyglot, Translator}
 import org.apache.commons.lang3.StringUtils
 import org.typelevel.cats.time.instances.all
 import squants.information.{Bytes, Information}
 
 private object SlackTranslator extends all {
   import Event.*
+
+  private case class Index(value: Long)
 
   private def coloring(evt: Event): String = ColorScheme
     .decorate(evt)
@@ -31,37 +33,30 @@ private object SlackTranslator extends all {
 
   private def host_service_section(sp: ServiceParams): JuxtaposeSection = {
     val host = Attribute(sp.host).textEntry
-    val service_name = Attribute(sp.serviceName).textEntry
-    val homepage = sp.homepage.fold(service_name.text)(hp => s"<${hp.value}|${service_name.text}>")
-    JuxtaposeSection(TextField(service_name.tag, homepage), TextField(host.tag, host.text))
+    val service =
+      Attribute(sp.serviceName).textEntry(name =>
+        sp.homepage.fold(name.value)(hp => s"<${hp.value}|${name.value}>"))
+    JuxtaposeSection(TextField(service), TextField(host))
   }
 
   private def uptime_section(evt: Event): JuxtaposeSection = {
     val uptime = Attribute(evt.upTime).textEntry
     val zone = Attribute(evt.serviceParams.timeZone).textEntry
-    JuxtaposeSection(first = TextField(uptime.tag, uptime.text), second = TextField(zone.tag, zone.text))
+    JuxtaposeSection(first = TextField(uptime), second = TextField(zone))
   }
 
   private def metrics_index_section(evt: MetricsEvent): JuxtaposeSection = {
     val uptime = Attribute(evt.upTime).textEntry
     val index = Attribute(evt.index).textEntry
-    JuxtaposeSection(first = TextField(uptime.tag, uptime.text), second = TextField(index.tag, index.text))
+    JuxtaposeSection(first = TextField(uptime), second = TextField(index))
   }
 
-  private def metrics_section(snapshot: MetricSnapshot): KeyValueSection =
+  private def metrics_section(snapshot: Snapshot): KeyValueSection = {
+    val ss = Attribute(snapshot).map(new SnapshotPolyglot(_).toYaml).textEntry
     if (snapshot.nonEmpty) {
-      val polyglot: SnapshotPolyglot = new SnapshotPolyglot(snapshot)
-      val yaml: String = polyglot.toYaml
-      val msg: String =
-        if (yaml.length < MessageSizeLimits.toBytes.toInt) yaml
-        else {
-          polyglot.counterYaml match {
-            case Some(value) => abbreviate(value)
-            case None        => abbreviate(yaml)
-          }
-        }
-      KeyValueSection("Metrics", s"""```$msg```""")
-    } else KeyValueSection("Metrics", """`not available`""")
+      KeyValueSection(ss.tag, s"""```${abbreviate(ss.text)}```""")
+    } else KeyValueSection(ss.tag, """`not available`""")
+  }
 
   private def brief(sb: Brief): KeyValueSection = {
     val service_brief = Attribute(sb).textEntry
@@ -71,19 +66,13 @@ private object SlackTranslator extends all {
   // events
   private def service_start(evt: ServiceStart): SlackApp = {
     val zone = Attribute(evt.serviceParams.timeZone).textEntry
-    val index = Attribute(Index(evt.tick.index)).textEntry
+    val index = Attribute(Index(evt.tick.index)).map(_.value).textEntry
     val snooze = Attribute(Snooze(evt.tick.snooze)).textEntry
 
     val index_section = if (evt.tick.index === 0) {
-      JuxtaposeSection(
-        first = TextField(zone.tag, zone.text),
-        second = TextField(index.tag, index.text)
-      )
+      JuxtaposeSection(first = TextField(zone), second = TextField(index))
     } else {
-      JuxtaposeSection(
-        first = TextField(snooze.tag, snooze.text),
-        second = TextField(index.tag, index.text)
-      )
+      JuxtaposeSection(first = TextField(snooze), second = TextField(index))
     }
 
     val color = coloring(evt)
@@ -111,8 +100,8 @@ private object SlackTranslator extends all {
     val policy = Attribute(evt.serviceParams.servicePolicies.restart.policy).textEntry
     val uptime = Attribute(evt.upTime).textEntry
     val service_id = Attribute(evt.serviceParams.serviceId).textEntry
-    val index = Attribute(Index(evt.tick.index)).textEntry
-    val error = Attribute(evt.error).textEntry
+    val index = Attribute(Index(evt.tick.index)).map(_.value).textEntry
+    val error = Attribute(evt.stackTrace).textEntry
     val active = Attribute(Active(evt.tick.active)).textEntry
 
     val color = coloring(evt)
@@ -124,10 +113,7 @@ private object SlackTranslator extends all {
           blocks = List(
             HeaderSection(s":alarm: ${eventTitle(evt)}"),
             host_service_section(evt.serviceParams),
-            JuxtaposeSection(
-              first = TextField(active.tag, active.text),
-              second = TextField(index.tag, index.text)
-            ),
+            JuxtaposeSection(first = TextField(active), second = TextField(index)),
             MarkdownSection(show"""|${panicText(evt)}
                                    |*${uptime.tag}:* ${uptime.text}
                                    |*${policy.tag}:* ${policy.text}
@@ -228,13 +214,13 @@ private object SlackTranslator extends all {
       blocks = List(
         HeaderSection(s"$symbol ${eventTitle(evt)}"),
         host_service_section(evt.serviceParams),
-        JuxtaposeSection(TextField(domain.tag, domain.text), TextField(correlation.tag, correlation.text)),
+        JuxtaposeSection(TextField(domain), TextField(correlation)),
         MarkdownSection(s"*${service.tag}:* ${service.text}"),
         MarkdownSection(s"```${abbreviate(evt.message.show)}```")
       )
     )
 
-    val error = evt.error.map { err =>
+    val error = evt.stackTrace.map { err =>
       val reason = Attribute(err).textEntry
       Attachment(
         color = color,

@@ -11,7 +11,7 @@ import cats.syntax.order.catsSyntaxPartialOrder
 import com.github.chenharryhua.nanjin.common.chrono.PolicyTick
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.event.Event.ServicePanic
-import com.github.chenharryhua.nanjin.guard.event.{Error, Event, ServiceStopCause}
+import com.github.chenharryhua.nanjin.guard.event.{Event, ServiceStopCause, StackTrace}
 import fs2.Stream
 import fs2.concurrent.Channel
 import org.apache.commons.collections4.queue.CircularFifoQueue
@@ -45,13 +45,13 @@ final private class ReStart[F[_]: Async](
         case None => status
       }
 
-      val error: Error = Error(ex)
+      val stackTrace: StackTrace = StackTrace(ex)
 
       tickStatus.next(now).flatMap {
-        case None      => stop(ServiceStopCause.ByException(error)).as(None)
+        case None      => stop(ServiceStopCause.ByException(stackTrace)).as(None)
         case Some(nts) =>
           for {
-            evt <- publish_service_panic(channel, eventLogger, nts.tick, error)
+            evt <- publish_service_panic(channel, eventLogger, nts.tick, stackTrace)
             _ <- panicHistory.modify(queue => (queue, queue.add(evt))) // mutable queue
             _ <- F.sleep(nts.tick.snooze.toScala)
           } yield Some(((), nts))

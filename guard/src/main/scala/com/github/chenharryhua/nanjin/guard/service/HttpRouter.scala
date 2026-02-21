@@ -9,8 +9,7 @@ import cats.syntax.functor.toFunctorOps
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.Event.{MetricsReport, ServiceMessage, ServicePanic}
-import com.github.chenharryhua.nanjin.guard.event.MetricsReportData.Index
-import com.github.chenharryhua.nanjin.guard.event.{Event, MetricSnapshot, ScrapeMode, ServiceStopCause}
+import com.github.chenharryhua.nanjin.guard.event.{Event, ScrapeMode, ServiceStopCause, Snapshot}
 import com.github.chenharryhua.nanjin.guard.translator.SnapshotPolyglot
 import fs2.concurrent.Channel
 import io.circe.Json
@@ -23,6 +22,7 @@ import org.http4s.{HttpRoutes, Request, Response}
 import org.typelevel.cats.time.instances.all
 import scalatags.Text
 import scalatags.Text.all.*
+import com.github.chenharryhua.nanjin.guard.event.Index
 
 final private class HttpRouter[F[_]](
   metricRegistry: MetricRegistry,
@@ -88,7 +88,7 @@ final private class HttpRouter[F[_]](
       for {
         ts <- serviceParams.zonedNow
         _ <- publish_metrics_reset[F](channel, eventLogger, metricRegistry, Index.Adhoc(ts))
-        (fd, yaml) <- MetricSnapshot.timed[F](metricRegistry, ScrapeMode.Full).map { case (fd, ms) =>
+        (fd, yaml) <- Snapshot.timed[F](metricRegistry, ScrapeMode.Full).map { case (fd, ms) =>
           (fd, new SnapshotPolyglot(ms).toYaml)
         }
         response <- Ok(html(helper.html_header, body(div(helper.html_table_title(ts, fd), pre(yaml)))))

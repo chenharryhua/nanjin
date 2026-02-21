@@ -5,13 +5,13 @@ import cats.syntax.eq.catsSyntaxEq
 import cats.syntax.functorFilter.toFunctorFilterOps
 import cats.syntax.show.showInterpolator
 import com.github.chenharryhua.nanjin.guard.config.{MetricID, Squants}
-import com.github.chenharryhua.nanjin.guard.event.MetricSnapshot
+import com.github.chenharryhua.nanjin.guard.event.Snapshot
 import io.circe.Json
 import io.circe.syntax.EncoderOps
 import org.apache.commons.lang3.StringUtils
 import squants.time
 
-final class SnapshotPolyglot(snapshot: MetricSnapshot) {
+final class SnapshotPolyglot(snapshot: Snapshot) {
 
   private def adaptable_mean_rate(data: Double, symbol: String): String =
     if (data > 1)

@@ -185,7 +185,8 @@ class ServiceTest extends AnyFunSuite {
       .toList
       .unsafeRunSync()
     assert(a.isInstanceOf[ServiceStart])
-    assert(b.asInstanceOf[ServiceStop].cause.asInstanceOf[ServiceStopCause.ByException].error.stack.nonEmpty)
+    assert(
+      b.asInstanceOf[ServiceStop].cause.asInstanceOf[ServiceStopCause.ByException].stackTrace.value.nonEmpty)
   }
 
   test("8. closure - io") {
@@ -200,7 +201,7 @@ class ServiceTest extends AnyFunSuite {
       .compile
       .toList
       .unsafeRunSync()
-    assert(a.message.as[String].toOption.get != b.message.as[String].toOption.get)
+    assert(a.message.value.as[String].toOption.get != b.message.value.as[String].toOption.get)
   }
 
   test("9. closure - stream") {
@@ -215,7 +216,7 @@ class ServiceTest extends AnyFunSuite {
       .compile
       .toList
       .unsafeRunSync()
-    assert(a.message.as[String].toOption.get != b.message.as[String].toOption.get)
+    assert(a.message.value.as[String].toOption.get != b.message.value.as[String].toOption.get)
   }
 
   test("10.exception throw by java") {
