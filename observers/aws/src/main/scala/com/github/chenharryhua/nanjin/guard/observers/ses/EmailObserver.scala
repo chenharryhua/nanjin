@@ -1,6 +1,5 @@
 package com.github.chenharryhua.nanjin.guard.observers.ses
 
-import cats.Endo
 import cats.data.NonEmptyList
 import cats.effect.kernel.{Async, Ref, Resource}
 import cats.syntax.applicative.catsSyntaxApplicativeByName
@@ -8,12 +7,14 @@ import cats.syntax.applicativeError.catsSyntaxApplicativeError
 import cats.syntax.apply.catsSyntaxTuple2Semigroupal
 import cats.syntax.flatMap.toFlatMapOps
 import cats.syntax.functor.toFunctorOps
+import cats.{Endo, Eval}
 import com.github.chenharryhua.nanjin.aws.*
 import com.github.chenharryhua.nanjin.common.aws.EmailContent
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick}
 import com.github.chenharryhua.nanjin.common.{ChunkSize, EmailAddr}
+import com.github.chenharryhua.nanjin.guard.config.ServiceId
 import com.github.chenharryhua.nanjin.guard.event.Event.{ServiceStart, ServiceStop}
-import com.github.chenharryhua.nanjin.guard.event.{Event, ServiceStopCause}
+import com.github.chenharryhua.nanjin.guard.event.{Event, ServiceStopCause, Timestamp}
 import com.github.chenharryhua.nanjin.guard.translator.{ColorScheme, Translator, UpdateTranslator}
 import eu.timepit.refined.auto.*
 import fs2.{Chunk, Pipe, Pull, Stream}
@@ -23,8 +24,6 @@ import squants.information.{Bytes, Information, Megabytes}
 
 import java.time.ZoneId
 import scala.concurrent.duration.DurationInt
-import com.github.chenharryhua.nanjin.guard.config.ServiceId
-import com.github.chenharryhua.nanjin.guard.event.Timestamp
 
 object EmailObserver {
 
@@ -68,7 +67,9 @@ final class EmailObserver[F[_]] private (
   def withZoneId(zoneId: ZoneId): EmailObserver[F] = copy(zoneId = zoneId)
 
   private def translate(evt: Event): F[Option[ColoredTag]] =
-    translator.translate(evt).map(_.map(tag => ColoredTag(tag, ColorScheme.decorate(evt).eval.value)))
+    translator
+      .translate(evt)
+      .map(_.map(tag => ColoredTag(tag, ColorScheme.decorate[Eval, ColorScheme](evt).eval.value)))
 
   private def compose_letter(tags: Chunk[ColoredTag]): Letter = {
     val (warns, errors) = tags.foldLeft((0, 0)) { case ((w, e), i) =>

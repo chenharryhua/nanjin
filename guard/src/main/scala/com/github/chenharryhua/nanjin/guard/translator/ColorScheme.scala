@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.translator
 
-import cats.data.Cont
+import cats.Defer
+import cats.data.ContT
 import cats.syntax.order.catsSyntaxOrder
 import com.github.chenharryhua.nanjin.guard.config.AlarmLevel
 import com.github.chenharryhua.nanjin.guard.event.CategoryKind.CounterKind
@@ -44,8 +45,8 @@ object ColorScheme extends CatsOrderValueEnum[Int, ColorScheme] with IntEnum[Col
     counter_color.max(gauge_color)
   }
 
-  def decorate[A](evt: Event): Cont[A, ColorScheme] =
-    Cont.pure[A, Event](evt).map {
+  def decorate[F[_]: Defer, A](evt: Event): ContT[F, A, ColorScheme] =
+    ContT.pure[F, A, Event](evt).map {
       case _: ServiceStart => InfoColor
       case _: ServicePanic => ErrorColor
       case ss: ServiceStop =>

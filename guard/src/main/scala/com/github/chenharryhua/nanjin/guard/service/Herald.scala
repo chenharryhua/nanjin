@@ -35,28 +35,28 @@ abstract private class HeraldImpl[F[_]: Sync](
   override def info[S: Encoder](msg: S): F[Unit] =
     for {
       evt <- create_service_message[F, S](serviceParams, domain, msg, AlarmLevel.Info, None)
-      _ <- eventLogger.logServiceMessage(evt)
+      _ <- eventLogger.logEvent(evt)
       _ <- channel.send(evt)
     } yield ()
 
   override def done[S: Encoder](msg: S): F[Unit] =
     for {
       evt <- create_service_message[F, S](serviceParams, domain, msg, AlarmLevel.Done, None)
-      _ <- eventLogger.logServiceMessage(evt)
+      _ <- eventLogger.logEvent(evt)
       _ <- channel.send(evt)
     } yield ()
 
   override def warn[S: Encoder](msg: S): F[Unit] =
     for {
       evt <- create_service_message[F, S](serviceParams, domain, msg, AlarmLevel.Warn, None)
-      _ <- eventLogger.logServiceMessage(evt)
+      _ <- eventLogger.logEvent(evt)
       _ <- channel.send(evt)
     } yield ()
 
   override def warn[S: Encoder](ex: Throwable)(msg: S): F[Unit] =
     for {
       evt <- create_service_message[F, S](serviceParams, domain, msg, AlarmLevel.Warn, Some(StackTrace(ex)))
-      _ <- eventLogger.logServiceMessage(evt)
+      _ <- eventLogger.logEvent(evt)
       _ <- channel.send(evt)
     } yield ()
 
@@ -64,7 +64,7 @@ abstract private class HeraldImpl[F[_]: Sync](
     for {
       evt <- create_service_message[F, S](serviceParams, domain, msg, AlarmLevel.Error, None)
       _ <- errorHistory.modify(queue => (queue, queue.add(evt)))
-      _ <- eventLogger.logServiceMessage(evt)
+      _ <- eventLogger.logEvent(evt)
       _ <- channel.send(evt)
     } yield ()
 
@@ -72,7 +72,7 @@ abstract private class HeraldImpl[F[_]: Sync](
     for {
       evt <- create_service_message[F, S](serviceParams, domain, msg, AlarmLevel.Error, StackTrace(ex).some)
       _ <- errorHistory.modify(queue => (queue, queue.add(evt)))
-      _ <- eventLogger.logServiceMessage(evt)
+      _ <- eventLogger.logEvent(evt)
       _ <- channel.send(evt)
     } yield ()
 

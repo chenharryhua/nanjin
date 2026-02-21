@@ -84,7 +84,7 @@ package object service {
     index: Index)(implicit F: Sync[F]): F[MetricsReport] =
     for {
       mr <- create_metrics_report(eventLogger.serviceParams, metricRegistry, index, ScrapeMode.Full)
-      _ <- eventLogger.metrics_event(mr)
+      _ <- eventLogger.logEvent(mr)
       _ <- channel.send(mr)
     } yield mr
 
@@ -96,7 +96,7 @@ package object service {
     for {
       (took, snapshot) <- Snapshot.timed[F](metricRegistry, ScrapeMode.Full)
       ms = MetricsReset(index, eventLogger.serviceParams, snapshot, Took(took))
-      _ <- eventLogger.metrics_event(ms)
+      _ <- eventLogger.logEvent(ms)
       _ <- channel.send(ms)
     } yield metricRegistry.getCounters().values().asScala.foreach(c => c.dec(c.getCount))
 
@@ -105,7 +105,7 @@ package object service {
     eventLogger: EventLogger[F],
     tick: Tick): F[Unit] = {
     val event = ServiceStart(eventLogger.serviceParams, tick)
-    eventLogger.service_start(event) <* channel.send(event)
+    eventLogger.logEvent(event) <* channel.send(event)
   }
 
   private[service] def publish_service_panic[F[_]: Applicative](
@@ -114,7 +114,7 @@ package object service {
     tick: Tick,
     stackTrace: StackTrace): F[ServicePanic] = {
     val panic: ServicePanic = ServicePanic(eventLogger.serviceParams, tick, stackTrace)
-    eventLogger.service_panic(panic) *> channel.send(panic).as(panic)
+    eventLogger.logEvent(panic) *> channel.send(panic).as(panic)
   }
 
   private[service] def publish_service_stop[F[_]: Clock: Monad](
@@ -124,7 +124,7 @@ package object service {
     for {
       now <- eventLogger.serviceParams.zonedNow
       event = ServiceStop(eventLogger.serviceParams, Timestamp(now), cause)
-      _ <- eventLogger.service_stop(event)
+      _ <- eventLogger.logEvent(event)
       _ <- channel.closeWithElement(event)
     } yield ()
 }

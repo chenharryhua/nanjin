@@ -1,6 +1,5 @@
 package com.github.chenharryhua.nanjin.guard.service
 
-import cats.Eval
 import cats.effect.kernel.{Ref, Sync}
 import cats.effect.std.Console
 import cats.syntax.applicative.catsSyntaxApplicativeId
@@ -11,14 +10,7 @@ import cats.syntax.order.catsSyntaxPartialOrder
 import cats.syntax.traverse.toTraverseOps
 import com.github.chenharryhua.nanjin.guard.config.LogFormat.Console_Json_MultiLine
 import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, LogFormat, ServiceParams}
-import com.github.chenharryhua.nanjin.guard.event.Event.{
-  MetricsEvent,
-  ServiceMessage,
-  ServicePanic,
-  ServiceStart,
-  ServiceStop
-}
-import com.github.chenharryhua.nanjin.guard.event.{Domain, Event, ServiceStopCause, StackTrace}
+import com.github.chenharryhua.nanjin.guard.event.{Domain, Event, StackTrace}
 import com.github.chenharryhua.nanjin.guard.translator.{
   eventTitle,
   Attribute,
@@ -34,6 +26,7 @@ import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 import scala.io.AnsiColor
 
+// error must go through herald
 sealed trait Log[F[_]] {
 
   def debug[S: Encoder](msg: S): F[Unit]
@@ -60,128 +53,77 @@ final private class EventLogger[F[_]](
   def withDomain(domain: Domain): EventLogger[F] =
     new EventLogger[F](serviceParams, domain, alarmLevel, translator, logger, isColoring)
 
-  private def transform_event(event: Event): F[Option[String]] =
+  private def green(name: String): String =
+    if (isColoring) AnsiColor.GREEN + name + AnsiColor.RESET else name
+  private def cyan(name: String): String =
+    if (isColoring) AnsiColor.CYAN + name + AnsiColor.RESET else name
+  private def yellow(name: String): String =
+    if (isColoring) AnsiColor.YELLOW + name + AnsiColor.RESET else name
+  private def red(name: String): String =
+    if (isColoring) AnsiColor.RED + name + AnsiColor.RESET else name
+
+  def logEvent(event: Event): F[Unit] =
     translator
       .translate(event)
-      .map(_.map { text =>
-        val name: String = eventTitle(event)
-        val title: String =
-          if (isColoring) {
-            ColorScheme
-              .decorate(event)
-              .run {
-                case ColorScheme.GoodColor  => Eval.now(AnsiColor.GREEN + name + AnsiColor.RESET)
-                case ColorScheme.InfoColor  => Eval.now(AnsiColor.CYAN + name + AnsiColor.RESET)
-                case ColorScheme.WarnColor  => Eval.now(AnsiColor.YELLOW + name + AnsiColor.RESET)
-                case ColorScheme.ErrorColor => Eval.now(AnsiColor.RED + name + AnsiColor.RESET)
-              }
-              .value
-          } else name
-
-        s"$title $text"
+      .flatMap(_.traverse { text =>
+        ColorScheme.decorate[F, Unit](event).run {
+          case ColorScheme.GoodColor  => logger.info(s"${green(eventTitle(event))} $text")
+          case ColorScheme.InfoColor  => logger.info(s"${cyan(eventTitle(event))} $text")
+          case ColorScheme.WarnColor  => logger.warn(s"${yellow(eventTitle(event))} $text")
+          case ColorScheme.ErrorColor => logger.error(s"${red(eventTitle(event))} $text")
+        }
       })
-
-  /*
-   * compulsory events
-   */
-  def service_start(ss: ServiceStart): F[Unit] =
-    transform_event(ss).flatMap(_.traverse(logger.info(_))).void
-
-  def service_stop(ss: ServiceStop): F[Unit] =
-    ss.cause match {
-      case ServiceStopCause.Successfully =>
-        transform_event(ss).flatMap(_.traverse(logger.info(_))).void
-      case ServiceStopCause.Maintenance =>
-        transform_event(ss).flatMap(_.traverse(logger.info(_))).void
-      case ServiceStopCause.ByCancellation =>
-        transform_event(ss).flatMap(_.traverse(logger.warn(_))).void
-      case ServiceStopCause.ByException(_) =>
-        transform_event(ss).flatMap(_.traverse(logger.error(_))).void
-    }
-
-  def service_panic(ss: ServicePanic): F[Unit] =
-    transform_event(ss).flatMap(_.traverse(logger.error(_))).void
-
-  def metrics_event(ss: MetricsEvent): F[Unit] =
-    ColorScheme.decorate(ss).run(Eval.now).value match {
-      case ColorScheme.GoodColor =>
-        transform_event(ss).flatMap(_.traverse(logger.info(_))).void
-      case ColorScheme.InfoColor =>
-        transform_event(ss).flatMap(_.traverse(logger.info(_))).void
-      case ColorScheme.WarnColor =>
-        transform_event(ss).flatMap(_.traverse(logger.warn(_))).void
-      case ColorScheme.ErrorColor =>
-        transform_event(ss).flatMap(_.traverse(logger.error(_))).void
-    }
-
-  def logServiceMessage(sm: ServiceMessage): F[Option[Unit]] =
-    transform_event(sm).flatMap(_.traverse(txt =>
-      sm.level match {
-        case AlarmLevel.Error => logger.error(txt)
-        case AlarmLevel.Warn  => logger.warn(txt)
-        case AlarmLevel.Done  => logger.info(txt)
-        case AlarmLevel.Info  => logger.info(txt)
-        case AlarmLevel.Debug => logger.debug(txt)
-      }))
+      .void
 
   /*
    * Log
    */
 
-  private def sm2text[S: Encoder](
+  private def log_service_message[S: Encoder](
     msg: S,
     level: AlarmLevel,
-    stackTrace: Option[StackTrace]): F[Option[String]] =
+    stackTrace: Option[StackTrace]): F[Unit] =
     alarmLevel.get
       .map(_.exists(_ <= level))
       .ifM(
-        create_service_message[F, S](serviceParams, domain, msg, level, stackTrace)
-          .flatMap(transform_event(_)),
-        F.pure(None))
+        create_service_message[F, S](serviceParams, domain, msg, level, stackTrace).flatMap(logEvent),
+        F.unit)
 
-  override def info[S: Encoder](msg: S): F[Unit] =
-    sm2text(msg, AlarmLevel.Info, None).flatMap(_.traverse(logger.info(_))).void
-
-  override def done[S: Encoder](msg: S): F[Unit] =
-    sm2text(msg, AlarmLevel.Done, None).flatMap(_.traverse(logger.info(_))).void
-
-  override def warn[S: Encoder](msg: S): F[Unit] =
-    sm2text(msg, AlarmLevel.Warn, None).flatMap(_.traverse(logger.warn(_))).void
-
+  override def info[S: Encoder](msg: S): F[Unit] = log_service_message(msg, AlarmLevel.Info, None)
+  override def done[S: Encoder](msg: S): F[Unit] = log_service_message(msg, AlarmLevel.Done, None)
+  override def warn[S: Encoder](msg: S): F[Unit] = log_service_message(msg, AlarmLevel.Warn, None)
   override def warn[S: Encoder](ex: Throwable)(msg: S): F[Unit] =
-    sm2text(msg, AlarmLevel.Warn, Some(StackTrace(ex))).flatMap(_.traverse(logger.warn(_))).void
+    log_service_message(msg, AlarmLevel.Warn, Some(StackTrace(ex)))
 
+  /*
+   * debug
+   */
+  private val debug_title: String =
+    if (isColoring) AnsiColor.BLUE + "Debug Message" + AnsiColor.RESET else "Debug Message"
+  private val debug_service_name = Attribute(serviceParams.serviceName).camelJsonEntry
+  private val debug_domain_name = Attribute(domain).camelJsonEntry
   override def debug[S: Encoder](msg: => F[S]): F[Unit] = {
-    def debug_message(evt: ServiceMessage): String = {
-      val title: String = AnsiColor.BLUE + eventTitle(evt) + AnsiColor.RESET
+    def debug_message(message: Json, stackTrace: Option[StackTrace]): String = {
       val txt: String = // service_id and correlation are irrelevant in debug
         Json
           .obj(
-            Attribute(evt.serviceParams.serviceName).camelJsonEntry,
-            Attribute(evt.domain).camelJsonEntry,
-            Attribute(evt.message).camelJsonEntry,
-            Attribute(evt.stackTrace).camelJsonEntry
+            debug_service_name,
+            debug_domain_name,
+            "message" -> message,
+            Attribute(stackTrace).camelJsonEntry
           )
           .dropNullValues
           .noSpaces
 
-      s"$title $txt"
+      s"$debug_title $txt"
     }
 
     alarmLevel.get
       .map(_.exists(_ === AlarmLevel.Debug))
       .ifM(
         F.attempt(msg).flatMap {
-          case Left(ex) =>
-            create_service_message[F, String](
-              serviceParams,
-              domain,
-              "Error Message",
-              AlarmLevel.Debug,
-              Some(StackTrace(ex))).flatMap(m => logger.debug(debug_message(m)))
-          case Right(value) =>
-            create_service_message[F, S](serviceParams, domain, value, AlarmLevel.Debug, None)
-              .flatMap(m => logger.debug(debug_message(m)))
+          case Left(ex)     => logger.debug(debug_message("Debug Error".asJson, Some(StackTrace(ex))))
+          case Right(value) => logger.debug(debug_message(value.asJson, None))
         },
         F.unit
       )

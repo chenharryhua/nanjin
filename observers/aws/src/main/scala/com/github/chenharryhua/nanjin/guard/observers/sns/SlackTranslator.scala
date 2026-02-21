@@ -24,7 +24,7 @@ private object SlackTranslator extends all {
   private case class Index(value: Long)
 
   private def coloring(evt: Event): String = ColorScheme
-    .decorate(evt)
+    .decorate[Eval, String](evt)
     .run {
       case ColorScheme.GoodColor  => Eval.now("#36a64f")
       case ColorScheme.InfoColor  => Eval.now("#b3d1ff")
