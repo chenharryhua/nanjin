@@ -64,8 +64,6 @@ final case class ServiceParams(
   def upTime(ts: Instant): UpTime = UpTime(Duration.between(launchTime.toInstant, ts))
 
   def zonedNow[F[_]: Clock: Functor]: F[ZonedDateTime] = Clock[F].realTimeInstant.map(toZonedDateTime)
-
-  def simpleJson: Json = interpretServiceParams(this)
 }
 
 object ServiceParams {

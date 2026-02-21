@@ -5,7 +5,7 @@ import cats.syntax.show.toShow
 import com.github.chenharryhua.nanjin.guard.config.Attribute
 import com.github.chenharryhua.nanjin.guard.event.Event.*
 import com.github.chenharryhua.nanjin.guard.event.{Active, Snooze}
-import com.github.chenharryhua.nanjin.guard.translator.{SnapshotPolyglot, Translator}
+import com.github.chenharryhua.nanjin.guard.translator.{interpretServiceParams, SnapshotPolyglot, Translator}
 import io.circe.Json
 import io.circe.syntax.EncoderOps
 
@@ -20,7 +20,7 @@ private object PrettyJsonTranslator {
       Attribute(evt.upTime).snakeJsonEntry(_.show.asJson),
       Attribute(Index(evt.tick.index)).map(_.value).snakeJsonEntry,
       Attribute(Snooze(evt.tick.snooze)).map(_.show).snakeJsonEntry,
-      "params" -> evt.serviceParams.simpleJson
+      "params" -> interpretServiceParams(evt.serviceParams)
     )
 
   private def service_panic(evt: ServicePanic): Json =

@@ -7,6 +7,7 @@ import com.github.chenharryhua.nanjin.guard.event.{Active, Event, Snooze, StackT
 import com.github.chenharryhua.nanjin.guard.translator.{
   eventTitle,
   htmlHelper,
+  interpretServiceParams,
   panicText,
   SnapshotPolyglot,
   Translator
@@ -63,7 +64,7 @@ private object HtmlTranslator extends all {
     div(
       h3(style := htmlColoring(evt))(eventTitle(evt)),
       table(service_table(evt), fg),
-      json_text(evt.serviceParams.simpleJson)
+      json_text(interpretServiceParams(evt.serviceParams))
     )
   }
 

@@ -4,7 +4,12 @@ import cats.Applicative
 import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.guard.config.Attribute
 import com.github.chenharryhua.nanjin.guard.event.{Event, Took}
-import com.github.chenharryhua.nanjin.guard.translator.{panicText, SnapshotPolyglot, Translator}
+import com.github.chenharryhua.nanjin.guard.translator.{
+  interpretServiceParams,
+  panicText,
+  SnapshotPolyglot,
+  Translator
+}
 
 private object SimpleTextTranslator {
   import Event.*
@@ -28,7 +33,7 @@ private object SimpleTextTranslator {
     s"""|
         |  ${service_event(evt)}
         |  $idx, $snz
-        |${evt.serviceParams.simpleJson.spaces2}
+        |${interpretServiceParams(evt.serviceParams).spaces2}
         |""".stripMargin
   }
 

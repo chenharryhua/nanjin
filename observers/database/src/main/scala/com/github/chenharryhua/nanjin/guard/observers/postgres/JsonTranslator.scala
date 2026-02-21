@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.guard.observers.postgres
 import cats.Applicative
 import com.github.chenharryhua.nanjin.guard.config.Attribute
 import com.github.chenharryhua.nanjin.guard.event.Event
-import com.github.chenharryhua.nanjin.guard.translator.{SnapshotPolyglot, Translator}
+import com.github.chenharryhua.nanjin.guard.translator.{interpretServiceParams, SnapshotPolyglot, Translator}
 import io.circe.Json
 
 private object JsonTranslator {
@@ -14,7 +14,7 @@ private object JsonTranslator {
     Json.obj(
       Attribute(evt).map(_.timestamp.value).snakeJsonEntry,
       Attribute(Index(evt.tick.index)).map(_.value).snakeJsonEntry,
-      "params" -> evt.serviceParams.simpleJson
+      "params" -> interpretServiceParams(evt.serviceParams)
     )
 
   private def service_panic(evt: ServicePanic): Json =
