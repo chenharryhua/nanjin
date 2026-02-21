@@ -4,11 +4,12 @@ import cats.syntax.show.showInterpolator
 import cats.{Applicative, Eval}
 import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, Attribute, Brief, ServiceParams, TextEntry}
 import com.github.chenharryhua.nanjin.guard.event.{Active, Event, Snapshot, Snooze}
-import com.github.chenharryhua.nanjin.guard.translator.textHelper.*
 import com.github.chenharryhua.nanjin.guard.translator.{ColorScheme, SnapshotPolyglot, Translator}
 import org.apache.commons.lang3.StringUtils
 import org.typelevel.cats.time.instances.all
 import squants.information.{Bytes, Information}
+import com.github.chenharryhua.nanjin.guard.translator.eventTitle
+import com.github.chenharryhua.nanjin.guard.translator.panicText
 
 private object SlackTranslator extends all {
   import Event.*

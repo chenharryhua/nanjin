@@ -3,19 +3,20 @@ package com.github.chenharryhua.nanjin.guard.observers.ses
 import cats.Applicative
 import com.github.chenharryhua.nanjin.guard.config.Attribute
 import com.github.chenharryhua.nanjin.guard.event.{Active, Event, Snooze, StackTrace}
-import com.github.chenharryhua.nanjin.guard.translator.{htmlHelper, textHelper, Translator}
+import com.github.chenharryhua.nanjin.guard.translator.{htmlHelper, SnapshotPolyglot, Translator}
 import io.circe.Json
 import org.typelevel.cats.time.instances.all
 import scalatags.Text.all.*
 import scalatags.text.Builder
 import scalatags.{generic, Text}
+import com.github.chenharryhua.nanjin.guard.translator.eventTitle
+import com.github.chenharryhua.nanjin.guard.translator.panicText
 
 /** https://com-lihaoyi.github.io/scalatags/
   */
 private object HtmlTranslator extends all {
   import Event.*
   import htmlHelper.*
-  import textHelper.*
   private case class Index(value: Long)
 
   private def service_table(evt: Event): generic.Frag[Builder, String] = {
@@ -100,7 +101,7 @@ private object HtmlTranslator extends all {
     div(
       h3(style := htmlColoring(evt))(eventTitle(evt)),
       table(service_table(evt), fg),
-      pre(small(yamlMetrics(evt.snapshot)))
+      pre(small(new SnapshotPolyglot(evt.snapshot).toYaml))
     )
   }
 

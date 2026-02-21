@@ -4,7 +4,7 @@ import cats.Applicative
 import cats.syntax.show.showInterpolator
 import com.github.chenharryhua.nanjin.guard.config.Attribute
 import com.github.chenharryhua.nanjin.guard.event.{Event, Took}
-import com.github.chenharryhua.nanjin.guard.translator.{textHelper, Translator}
+import com.github.chenharryhua.nanjin.guard.translator.{panicText, SnapshotPolyglot, Translator}
 
 private object SimpleTextTranslator {
   import Event.*
@@ -40,7 +40,7 @@ private object SimpleTextTranslator {
     show"""|
            |  ${service_event(evt)}
            |  $policy
-           |  ${textHelper.panicText(evt)}
+           |  ${panicText(evt)}
            |  $idx, $act
            |${Attribute(evt.stackTrace).labelledText}
            |""".stripMargin
@@ -63,7 +63,7 @@ private object SimpleTextTranslator {
     s"""|
         |  ${service_event(evt)}
         |  $index, $policy, ${Attribute(evt.took).labelledText}
-        |${textHelper.yamlMetrics(evt.snapshot)}
+        |${new SnapshotPolyglot(evt.snapshot).toYaml}
         |""".stripMargin
   }
 

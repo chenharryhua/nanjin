@@ -4,10 +4,10 @@ import cats.Eval
 import cats.effect.kernel.{Ref, Sync}
 import cats.effect.std.Console
 import cats.syntax.applicative.catsSyntaxApplicativeId
+import cats.syntax.eq.catsSyntaxEq
 import cats.syntax.flatMap.{catsSyntaxIfM, toFlatMapOps}
 import cats.syntax.functor.toFunctorOps
 import cats.syntax.order.catsSyntaxPartialOrder
-import cats.syntax.eq.catsSyntaxEq
 import cats.syntax.traverse.toTraverseOps
 import com.github.chenharryhua.nanjin.guard.config.LogFormat.Console_Json_MultiLine
 import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, Attribute, Domain, LogFormat, ServiceParams}
@@ -20,9 +20,9 @@ import com.github.chenharryhua.nanjin.guard.event.Event.{
   ServiceStop
 }
 import com.github.chenharryhua.nanjin.guard.event.{Event, ServiceStopCause, StackTrace}
-import com.github.chenharryhua.nanjin.guard.translator.{ColorScheme, Translator}
-import io.circe.{Encoder, Json}
+import com.github.chenharryhua.nanjin.guard.translator.{eventTitle, ColorScheme, Translator}
 import io.circe.syntax.EncoderOps
+import io.circe.{Encoder, Json}
 import org.typelevel.log4cats.MessageLogger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 
@@ -58,7 +58,7 @@ final private class EventLogger[F[_]](
     translator
       .translate(event)
       .map(_.map { text =>
-        val name: String = event.productPrefix
+        val name: String = eventTitle(event)
         val title: String =
           if (isColoring) {
             ColorScheme
@@ -159,7 +159,7 @@ final private class EventLogger[F[_]](
 
   override def debug[S: Encoder](msg: => F[S]): F[Unit] = {
     def debug_message(evt: ServiceMessage): String = {
-      val title: String = AnsiColor.BLUE + evt.productPrefix + AnsiColor.RESET
+      val title: String = AnsiColor.BLUE + eventTitle(evt) + AnsiColor.RESET
       val txt: String = evt.stackTrace
         .map(st => Json.obj(Attribute(st).snakeJsonEntry))
         .asJson
