@@ -9,7 +9,6 @@ import cats.syntax.functor.toFunctorOps
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.Event.{MetricsReport, ServiceMessage, ServicePanic}
-import com.github.chenharryhua.nanjin.guard.event.MetricsReportData.Index
 import com.github.chenharryhua.nanjin.guard.event.{Event, ScrapeMode, ServiceStopCause, Snapshot}
 import com.github.chenharryhua.nanjin.guard.translator.SnapshotPolyglot
 import fs2.concurrent.Channel
@@ -23,6 +22,7 @@ import org.http4s.{HttpRoutes, Request, Response}
 import org.typelevel.cats.time.instances.all
 import scalatags.Text
 import scalatags.Text.all.*
+import com.github.chenharryhua.nanjin.guard.event.Index
 
 final private class HttpRouter[F[_]](
   metricRegistry: MetricRegistry,

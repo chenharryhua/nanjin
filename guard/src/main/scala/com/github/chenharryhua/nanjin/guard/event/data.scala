@@ -5,7 +5,9 @@ import cats.syntax.functor.toFunctorOps
 import cats.syntax.show.toShow
 import cats.{Hash, Show}
 import com.github.chenharryhua.nanjin.common.DurationFormatter
+import com.github.chenharryhua.nanjin.common.chrono.Tick
 import io.circe.Decoder.Result
+import io.circe.generic.JsonCodec
 import io.circe.syntax.EncoderOps
 import io.circe.{Codec, Decoder, DecodingFailure, Encoder, HCursor, Json}
 import org.apache.commons.lang3.exception.ExceptionUtils
@@ -25,6 +27,26 @@ object StackTrace {
   implicit val codecStackTrace: Codec[StackTrace] = new Codec[StackTrace] {
     override def apply(c: HCursor): Result[StackTrace] = c.as[List[String]].map(StackTrace(_))
     override def apply(a: StackTrace): Json = a.value.asJson
+  }
+}
+
+@JsonCodec
+sealed trait Index extends Product {
+  def launchTime: ZonedDateTime
+}
+
+object Index {
+  final case class Adhoc(value: ZonedDateTime) extends Index {
+    override val launchTime: ZonedDateTime = value
+  }
+
+  final case class Periodic(tick: Tick) extends Index {
+    override val launchTime: ZonedDateTime = tick.zoned(_.conclude)
+  }
+
+  implicit val showIndex: Show[Index] = {
+    case Adhoc(_)       => "Adhoc"
+    case Periodic(tick) => tick.index.toString
   }
 }
 

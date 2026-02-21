@@ -201,7 +201,7 @@ class ServiceTest extends AnyFunSuite {
       .compile
       .toList
       .unsafeRunSync()
-    assert(a.message.as[String].toOption.get != b.message.as[String].toOption.get)
+    assert(a.message.value.as[String].toOption.get != b.message.value.as[String].toOption.get)
   }
 
   test("9. closure - stream") {
@@ -216,7 +216,7 @@ class ServiceTest extends AnyFunSuite {
       .compile
       .toList
       .unsafeRunSync()
-    assert(a.message.as[String].toOption.get != b.message.as[String].toOption.get)
+    assert(a.message.value.as[String].toOption.get != b.message.value.as[String].toOption.get)
   }
 
   test("10.exception throw by java") {

@@ -17,7 +17,6 @@ import com.github.chenharryhua.nanjin.guard.event.Event.{
   ServiceStart,
   ServiceStop
 }
-import com.github.chenharryhua.nanjin.guard.event.MetricsReportData.Index
 import com.github.chenharryhua.nanjin.guard.event.{
   Correlation,
   Event,
@@ -34,6 +33,7 @@ import io.circe.Encoder
 import org.typelevel.log4cats.SelfAwareLogger
 
 import scala.jdk.CollectionConverters.CollectionHasAsScala
+import com.github.chenharryhua.nanjin.guard.event.Index
 
 package object service {
 

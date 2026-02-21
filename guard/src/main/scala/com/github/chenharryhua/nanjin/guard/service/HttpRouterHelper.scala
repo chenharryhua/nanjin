@@ -13,7 +13,7 @@ import com.github.chenharryhua.nanjin.guard.event.Event.{MetricsReport, ServiceM
 import com.github.chenharryhua.nanjin.guard.event.{
   retrieveHealthChecks,
   Active,
-  MetricsReportData,
+  Index,
   ScrapeMode,
   Snapshot,
   Snooze,
@@ -48,7 +48,6 @@ final private class HttpRouterHelper[F[_]: Sync](
   private case class Age(value: Duration) {
     val json: Json = durationFormatter.format(value).asJson
   }
-  private case class Index(value: Long)
 
   val html_header: Text.TypedTag[String] =
     head(
@@ -129,21 +128,20 @@ final private class HttpRouterHelper[F[_]: Sync](
         val history: F[List[Text.TypedTag[String]]] =
           metricsHistory.get.map(_.iterator().asScala.toList.reverse.flatMap { mr =>
             val took = Attribute(mr.took).textEntry
-
-            mr.index match {
-              case _: MetricsReportData.Index.Adhoc       => None
-              case MetricsReportData.Index.Periodic(tick) =>
-                val index = Attribute(Index(tick.index)).map(_.value).textEntry
+            val (index_tag, index) = Attribute(mr.index).entry {
+              case Index.Adhoc(_)       => None
+              case Index.Periodic(tick) =>
                 val timestamp = Attribute(Timestamp(tick.zoned(_.conclude))).map(_.show).textEntry
-
-                Some(
-                  div(
-                    table(
-                      tr(th(style := htmlColoring(mr))(index.tag), th(timestamp.tag), th(took.tag)),
-                      tr(td(index.text), td(timestamp.text), td(took.text))
-                    ),
-                    pre(new SnapshotPolyglot(mr.snapshot).toYaml)
-                  ))
+                Some((tick.index, timestamp))
+            }
+            index.map { case (idx, timestamp) =>
+              div(
+                table(
+                  tr(th(style := htmlColoring(mr))(index_tag), th(timestamp.tag), th(took.tag)),
+                  tr(td(idx), td(timestamp.text), td(took.text))
+                ),
+                pre(new SnapshotPolyglot(mr.snapshot).toYaml)
+              )
             }
           })
         history.map(hist => div(html_table_title(now, Duration.ZERO), h3("Metrics Report History"), hist))
@@ -171,7 +169,7 @@ final private class HttpRouterHelper[F[_]: Sync](
           "history" ->
             panics.reverse.map { sp =>
               Json.obj(
-                Attribute(Index(sp.tick.index)).map(_.value).snakeJsonEntry,
+                "index" -> Json.fromLong(sp.tick.index),
                 Attribute(Age(Duration.between(sp.timestamp.value, now))).map(_.json).snakeJsonEntry,
                 "up_rouse_at" -> sp.tick.local(_.commence).asJson,
                 Attribute(Active(sp.tick.active)).map(_.show.asJson).snakeJsonEntry,

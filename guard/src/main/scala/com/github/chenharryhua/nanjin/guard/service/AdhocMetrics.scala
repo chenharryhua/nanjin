@@ -7,9 +7,9 @@ import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.common.chrono.Tick
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.event.Event.MetricsReport
-import com.github.chenharryhua.nanjin.guard.event.MetricsReportData.Index
 import com.github.chenharryhua.nanjin.guard.event.{Event, ScrapeMode, Snapshot}
 import fs2.concurrent.Channel
+import com.github.chenharryhua.nanjin.guard.event.Index
 
 /** adhoc metrics report and reset
   */
