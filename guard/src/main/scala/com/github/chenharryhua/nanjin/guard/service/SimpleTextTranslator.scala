@@ -76,11 +76,14 @@ private object SimpleTextTranslator {
   private def service_message(evt: ServiceMessage): String = {
     val correlation = Attribute(evt.correlation).labelledText
     val domain = Attribute(evt.domain).labelledText
+    val message = evt.message.value.spaces2
     s"""|
         |  ${service_event(evt)}
         |  $domain, $correlation
-        |${evt.message.value.spaces2}
-        |${evt.stackTrace.fold("")(Attribute(_).labelledText)}
+        |${evt.stackTrace.fold(message) { st =>
+         s"""|$message
+             |${Attribute(st).labelledText}""".stripMargin
+       }}
         |""".stripMargin
   }
 

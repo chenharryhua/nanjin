@@ -10,26 +10,21 @@ sealed trait Event extends Product {
   def serviceParams: ServiceParams
 
   final def upTime: UpTime = serviceParams.upTime(timestamp.value)
-  def name: EventName
 }
 
 object Event {
 
   final case class ServiceStart(serviceParams: ServiceParams, tick: Tick) extends Event {
     override val timestamp: Timestamp = Timestamp(tick.zoned(_.conclude))
-    override val name: EventName = EventName.ServiceStart
   }
 
   final case class ServicePanic(serviceParams: ServiceParams, tick: Tick, stackTrace: StackTrace)
       extends Event {
     override val timestamp: Timestamp = Timestamp(tick.zoned(_.acquires))
-    override val name: EventName = EventName.ServicePanic
   }
 
   final case class ServiceStop(serviceParams: ServiceParams, timestamp: Timestamp, cause: ServiceStopCause)
-      extends Event {
-    override val name: EventName = EventName.ServiceStop
-  }
+      extends Event {}
 
   final case class ServiceMessage(
     serviceParams: ServiceParams,
@@ -39,9 +34,7 @@ object Event {
     level: AlarmLevel,
     stackTrace: Option[StackTrace],
     message: Message
-  ) extends Event {
-    override val name: EventName = EventName.ServiceMessage
-  }
+  ) extends Event {}
 
   sealed trait MetricsEvent extends Event {
     def index: Index
@@ -52,12 +45,10 @@ object Event {
   final case class MetricsReport(index: Index, serviceParams: ServiceParams, snapshot: Snapshot, took: Took)
       extends MetricsEvent {
     override val timestamp: Timestamp = Timestamp(index.launchTime)
-    override val name: EventName = EventName.MetricsReport
   }
 
   final case class MetricsReset(index: Index, serviceParams: ServiceParams, snapshot: Snapshot, took: Took)
       extends MetricsEvent {
     override val timestamp: Timestamp = Timestamp(index.launchTime)
-    override val name: EventName = EventName.MetricsReset
   }
 }

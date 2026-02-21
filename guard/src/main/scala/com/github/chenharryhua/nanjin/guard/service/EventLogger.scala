@@ -58,7 +58,7 @@ final private class EventLogger[F[_]](
     translator
       .translate(event)
       .map(_.map { text =>
-        val name: String = event.name.entryName
+        val name: String = event.productPrefix
         val title: String =
           if (isColoring) {
             ColorScheme
@@ -159,7 +159,7 @@ final private class EventLogger[F[_]](
 
   override def debug[S: Encoder](msg: => F[S]): F[Unit] = {
     def debug_message(evt: ServiceMessage): String = {
-      val title: String = AnsiColor.BLUE + evt.name.entryName + AnsiColor.RESET
+      val title: String = AnsiColor.BLUE + evt.productPrefix + AnsiColor.RESET
       val txt: String = evt.stackTrace
         .map(st => Json.obj(Attribute(st).snakeJsonEntry))
         .asJson
