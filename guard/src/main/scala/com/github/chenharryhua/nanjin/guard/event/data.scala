@@ -134,7 +134,6 @@ object Timestamp {
 
 final case class Message(value: Json) extends AnyVal
 object Message {
-  implicit val showMessage: Show[Message] = _.value.noSpaces
   implicit val codecMessage: Codec[Message] = new Codec[Message] {
     override def apply(c: HCursor): Result[Message] = c.as[Json].map(Message(_))
     override def apply(a: Message): Json = a.value

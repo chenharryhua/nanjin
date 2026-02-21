@@ -1,8 +1,8 @@
 package com.github.chenharryhua.nanjin.guard.observers.sns
 import cats.syntax.eq.catsSyntaxEq
-import cats.syntax.show.{showInterpolator, toShow}
+import cats.syntax.show.showInterpolator
 import cats.{Applicative, Eval}
-import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, Attribute, Brief, ServiceParams}
+import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, Attribute, Brief, ServiceParams, TextEntry}
 import com.github.chenharryhua.nanjin.guard.event.{Active, Event, Snapshot, Snooze}
 import com.github.chenharryhua.nanjin.guard.translator.textHelper.*
 import com.github.chenharryhua.nanjin.guard.translator.{ColorScheme, SnapshotPolyglot, Translator}
@@ -30,6 +30,10 @@ private object SlackTranslator extends all {
   private val MessageSizeLimits: Information = Bytes(2500)
 
   private def abbreviate(msg: String): String = StringUtils.abbreviate(msg, MessageSizeLimits.toBytes.toInt)
+
+  private def mark_down(first: TextEntry, second: TextEntry): MarkdownSection =
+    MarkdownSection(s"""|*${first.tag}:* ${first.text}
+                        |*${second.tag}:* ${second.text}""".stripMargin)
 
   private def host_service_section(sp: ServiceParams): JuxtaposeSection = {
     val host = Attribute(sp.host).textEntry
@@ -87,8 +91,7 @@ private object SlackTranslator extends all {
             HeaderSection(s":rocket: ${eventTitle(evt)}"),
             host_service_section(evt.serviceParams),
             index_section,
-            MarkdownSection(show"""|*${policy.tag}:* ${policy.text}
-                                   |*${service_id.tag}:* ${service_id.text}""".stripMargin)
+            mark_down(policy, service_id)
           )
         ),
         Attachment(color = color, blocks = List(brief(evt.serviceParams.brief)))
@@ -142,16 +145,14 @@ private object SlackTranslator extends all {
             HeaderSection(s":octagonal_sign: ${eventTitle(evt)}"),
             host_service_section(evt.serviceParams),
             uptime_section(evt),
-            MarkdownSection(show"""|*${service_id.tag}:* ${service_id.text}
-                                   |*${stop_cause.tag}:* ${stop_cause.text}""".stripMargin)
-          )
+            mark_down(service_id, stop_cause))
         ),
         Attachment(color = color, blocks = List(brief(evt.serviceParams.brief)))
       )
     )
   }
 
-  private def metrics_report(evt: MetricsReport): SlackApp = {
+  private def metrics_event(evt: MetricsEvent): SlackApp = {
     val policy = Attribute(evt.serviceParams.servicePolicies.metricsReport).textEntry
     val service_id = Attribute(evt.serviceParams.serviceId).textEntry
     val color = coloring(evt)
@@ -164,8 +165,7 @@ private object SlackTranslator extends all {
             HeaderSection(eventTitle(evt)),
             host_service_section(evt.serviceParams),
             metrics_index_section(evt),
-            MarkdownSection(show"""|*${policy.tag}:* ${policy.text}
-                                   |*${service_id.tag}:* ${service_id.text}""".stripMargin),
+            mark_down(policy, service_id),
             metrics_section(evt.snapshot)
           )
         ),
@@ -174,26 +174,8 @@ private object SlackTranslator extends all {
     )
   }
 
-  private def metrics_reset(evt: MetricsReset): SlackApp = {
-    val policy = Attribute(evt.serviceParams.servicePolicies.metricsReset).textEntry
-    val service = Attribute(evt.serviceParams.serviceId).textEntry
-
-    SlackApp(
-      username = evt.serviceParams.taskName.value,
-      attachments = List(
-        Attachment(
-          color = coloring(evt),
-          blocks = List(
-            HeaderSection(eventTitle(evt)),
-            host_service_section(evt.serviceParams),
-            metrics_index_section(evt),
-            MarkdownSection(show"""|*${policy.tag}:* ${policy.text}
-                                   |*${service.tag}:* ${service.text}""".stripMargin),
-            metrics_section(evt.snapshot)
-          )
-        ))
-    )
-  }
+  private def metrics_report(evt: MetricsReport): SlackApp = metrics_event(evt)
+  private def metrics_reset(evt: MetricsReset): SlackApp = metrics_event(evt)
 
   private def service_message(evt: ServiceMessage): SlackApp = {
     val symbol: String = evt.level match {
@@ -216,7 +198,7 @@ private object SlackTranslator extends all {
         host_service_section(evt.serviceParams),
         JuxtaposeSection(TextField(domain), TextField(correlation)),
         MarkdownSection(s"*${service.tag}:* ${service.text}"),
-        MarkdownSection(s"```${abbreviate(evt.message.show)}```")
+        MarkdownSection(s"```${abbreviate(evt.message.value.spaces2)}```")
       )
     )
 

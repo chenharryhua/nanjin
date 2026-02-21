@@ -11,7 +11,7 @@ package object config {
       Attribute(serviceParams.taskName).snakeJsonEntry,
       Attribute(serviceParams.serviceName).snakeJsonEntry,
       Attribute(serviceParams.serviceId).snakeJsonEntry,
-      "homepage" -> serviceParams.homepage.asJson,
+      Attribute(serviceParams.homepage).snakeJsonEntry,
       Attribute(serviceParams.host).snakeJsonEntry,
       "service_policies" -> Json.obj(
         "restart" -> Json.obj(
@@ -22,7 +22,7 @@ package object config {
         "metrics_reset" -> serviceParams.servicePolicies.metricsReset.show.asJson
       ),
       "launch_time" -> serviceParams.launchTime.asJson,
-      "log_format" -> serviceParams.logFormat.asJson,
+      Attribute(serviceParams.logFormat).snakeJsonEntry,
       "history_capacity" -> Json.obj(
         "metrics_queue_size" -> serviceParams.historyCapacity.metric.asJson,
         "error_queue_size" -> serviceParams.historyCapacity.error.asJson,
