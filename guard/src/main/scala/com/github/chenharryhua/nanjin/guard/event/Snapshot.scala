@@ -6,7 +6,6 @@ import cats.syntax.eq.catsSyntaxEq
 import cats.syntax.functor.toFunctorOps
 import com.codahale.metrics
 import com.codahale.metrics.MetricRegistry
-import com.github.chenharryhua.nanjin.guard.config.{MetricID, Squants}
 import io.circe.Json
 import io.circe.generic.JsonCodec
 import io.circe.jawn.{decode, parse}

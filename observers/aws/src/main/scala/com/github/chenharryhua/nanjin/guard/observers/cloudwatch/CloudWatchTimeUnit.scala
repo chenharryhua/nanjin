@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.observers.cloudwatch
 
 import cats.syntax.eq.catsSyntaxEq
-import com.github.chenharryhua.nanjin.guard.config.Squants
+import com.github.chenharryhua.nanjin.guard.event.Squants
 import software.amazon.awssdk.services.cloudwatch.model.StandardUnit
 import squants.{information, time, Dimensionless, Dozen, Each, Gross, Percent, Score}
 

@@ -4,8 +4,7 @@ import cats.data.NonEmptyList
 import cats.syntax.eq.catsSyntaxEq
 import cats.syntax.functorFilter.toFunctorFilterOps
 import cats.syntax.show.showInterpolator
-import com.github.chenharryhua.nanjin.guard.config.{MetricID, Squants}
-import com.github.chenharryhua.nanjin.guard.event.Snapshot
+import com.github.chenharryhua.nanjin.guard.event.{MetricID, Snapshot, Squants}
 import io.circe.Json
 import io.circe.syntax.EncoderOps
 import org.apache.commons.lang3.StringUtils

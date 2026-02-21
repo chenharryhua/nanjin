@@ -5,7 +5,7 @@ import cats.syntax.show.toShow
 import com.github.chenharryhua.nanjin.guard.config.Attribute
 import com.github.chenharryhua.nanjin.guard.event.Event.*
 import com.github.chenharryhua.nanjin.guard.event.{Active, Snooze}
-import com.github.chenharryhua.nanjin.guard.translator.*
+import com.github.chenharryhua.nanjin.guard.translator.{SnapshotPolyglot, Translator}
 import io.circe.Json
 import io.circe.syntax.EncoderOps
 
@@ -67,14 +67,16 @@ private object PrettyJsonTranslator {
     )
 
   private def service_message(evt: ServiceMessage): Json =
-    Json.obj(
-      Attribute(evt.serviceParams.serviceName).snakeJsonEntry,
-      Attribute(evt.serviceParams.serviceId).snakeJsonEntry,
-      Attribute(evt.domain).snakeJsonEntry,
-      Attribute(evt.correlation).snakeJsonEntry,
-      Attribute(evt.message).snakeJsonEntry,
-      Attribute(evt.stackTrace).snakeJsonEntry
-    ).dropNullValues
+    Json
+      .obj(
+        Attribute(evt.serviceParams.serviceName).snakeJsonEntry,
+        Attribute(evt.serviceParams.serviceId).snakeJsonEntry,
+        Attribute(evt.domain).snakeJsonEntry,
+        Attribute(evt.correlation).snakeJsonEntry,
+        Attribute(evt.message).snakeJsonEntry,
+        Attribute(evt.stackTrace).snakeJsonEntry
+      )
+      .dropNullValues
 
   def apply[F[_]: Applicative]: Translator[F, Json] =
     Translator

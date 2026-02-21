@@ -8,16 +8,9 @@ import cats.syntax.traverse.toTraverseOps
 import com.github.chenharryhua.nanjin.aws.CloudWatch
 import com.github.chenharryhua.nanjin.common.aws.CloudWatchNamespace
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick}
-import com.github.chenharryhua.nanjin.guard.config.{
-  Attribute,
-  MetricID,
-  MetricLabel,
-  ServiceId,
-  ServiceParams,
-  Squants
-}
+import com.github.chenharryhua.nanjin.guard.config.{Attribute, ServiceId, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.Event.MetricsReport
-import com.github.chenharryhua.nanjin.guard.event.{Event, Snapshot, Timestamp}
+import com.github.chenharryhua.nanjin.guard.event.{Event, MetricID, MetricLabel, Snapshot, Squants, Timestamp}
 import fs2.{Pipe, Stream}
 import software.amazon.awssdk.services.cloudwatch.model.{Dimension, MetricDatum, StandardUnit}
 import squants.time

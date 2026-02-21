@@ -143,3 +143,10 @@ object Message {
     override def apply(a: Message): Json = a.value
   }
 }
+
+final case class Domain(value: String) extends AnyVal
+object Domain {
+  implicit val showDomain: Show[Domain] = _.value
+  implicit val encoderDomain: Encoder[Domain] = Encoder.encodeString.contramap(_.value)
+  implicit val decoderDomain: Decoder[Domain] = Decoder.decodeString.map(Domain(_))
+}

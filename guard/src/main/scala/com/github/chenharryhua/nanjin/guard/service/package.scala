@@ -8,7 +8,7 @@ import cats.syntax.option.{catsSyntaxOptionId, none}
 import cats.{Applicative, Functor, Monad, Semigroupal}
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.common.chrono.Tick
-import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, Domain, ServiceParams}
+import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.Event.{
   MetricsReport,
   MetricsReset,
@@ -19,7 +19,9 @@ import com.github.chenharryhua.nanjin.guard.event.Event.{
 }
 import com.github.chenharryhua.nanjin.guard.event.{
   Correlation,
+  Domain,
   Event,
+  Index,
   Message,
   ScrapeMode,
   ServiceStopCause,
@@ -33,7 +35,6 @@ import io.circe.Encoder
 import org.typelevel.log4cats.SelfAwareLogger
 
 import scala.jdk.CollectionConverters.CollectionHasAsScala
-import com.github.chenharryhua.nanjin.guard.event.Index
 
 package object service {
 
