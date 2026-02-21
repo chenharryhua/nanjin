@@ -74,7 +74,7 @@ private object PrettyJsonTranslator {
       Attribute(evt.correlation).snakeJsonEntry,
       Attribute(evt.message).snakeJsonEntry,
       Attribute(evt.stackTrace).snakeJsonEntry
-    )
+    ).dropNullValues
 
   def apply[F[_]: Applicative]: Translator[F, Json] =
     Translator

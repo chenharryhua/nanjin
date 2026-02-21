@@ -63,7 +63,6 @@ object ServiceStopCause {
   private val SUCCESSFULLY: String = "Successfully"
   private val BY_CANCELLATION: String = "ByCancellation"
   private val MAINTENANCE: String = "Maintenance"
-  private val BY_EXCEPTION: String = "ByException"
 
   implicit val showServiceStopCause: Show[ServiceStopCause] = {
     case Successfully            => SUCCESSFULLY
@@ -74,10 +73,11 @@ object ServiceStopCause {
 
   implicit val encoderServiceStopCause: Encoder[ServiceStopCause] =
     Encoder.instance {
-      case Successfully            => Json.fromString(SUCCESSFULLY)
-      case ByCancellation          => Json.fromString(BY_CANCELLATION)
-      case ByException(stackTrace) => Json.obj(BY_EXCEPTION -> stackTrace.asJson)
-      case Maintenance             => Json.fromString(MAINTENANCE)
+      case Successfully   => Json.fromString(SUCCESSFULLY)
+      case ByCancellation => Json.fromString(BY_CANCELLATION)
+      case Maintenance    => Json.fromString(MAINTENANCE)
+
+      case ByException(stackTrace) => stackTrace.asJson
     }
 
   implicit val decoderServiceStopCause: Decoder[ServiceStopCause] =
@@ -88,7 +88,7 @@ object ServiceStopCause {
         case MAINTENANCE     => Right(Maintenance)
         case unknown         => Left(DecodingFailure(s"unrecognized: $unknown", Nil))
       }.widen,
-      _.downField(BY_EXCEPTION).as[StackTrace].map(err => ByException(err)).widen
+      _.as[StackTrace].map(err => ByException(err)).widen
     ).reduceLeft(_ or _)
 }
 
@@ -102,8 +102,10 @@ object Correlation {
   }
 
   implicit val showCorrelation: Show[Correlation] = Show.fromToString
-  implicit val encoderCorrelation: Encoder[Correlation] = Encoder.encodeString.contramap(_.value)
-  implicit val decoderCorrelation: Decoder[Correlation] = Decoder.decodeString.map(Correlation(_))
+  implicit val codecCorrelation: Codec[Correlation] = new Codec[Correlation] {
+    override def apply(c: HCursor): Result[Correlation] = c.as[String].map(Correlation(_))
+    override def apply(a: Correlation): Json = Json.fromString(a.value)
+  }
 }
 
 final case class Took(value: Duration) extends AnyVal
