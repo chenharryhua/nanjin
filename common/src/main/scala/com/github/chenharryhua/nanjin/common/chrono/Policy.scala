@@ -36,7 +36,7 @@ private object PolicyF {
 
   implicit val functorPolicyF: Functor[PolicyF] = cats.derived.semiauto.functor[PolicyF]
 
-  final case class GiveUp[K]() extends PolicyF[K]
+  final case class Empty[K]() extends PolicyF[K]
   final case class Crontab[K](cronExpr: CronExpr) extends PolicyF[K]
   final case class FixedDelay[K](delays: NonEmptyList[Duration]) extends PolicyF[K]
   final case class FixedRate[K](delay: Duration) extends PolicyF[K]
@@ -63,7 +63,7 @@ private object PolicyF {
   private def algebra[F[_]: Monad](rng: Random[F]): Algebra[PolicyF, LazyList[CalcTick[F]]] =
     Algebra[PolicyF, LazyList[CalcTick[F]]] {
 
-      case GiveUp() => LazyList.empty
+      case Empty() => LazyList.empty
 
       case Crontab(cronExpr) =>
         val calcTick: CalcTick[F] = Kleisli { case TickRequest(tick, now) =>
@@ -134,7 +134,7 @@ private object PolicyF {
   def evaluatePolicy[F[_]: Random: Monad](policy: Fix[PolicyF]): LazyList[CalcTick[F]] =
     scheme.cata(algebra(Random[F])).apply(policy)
 
-  private val GIVE_UP: String = "giveUp"
+  private val EMPTY: String = "empty"
   private val CRONTAB: String = "crontab"
   private val JITTER: String = "jitter"
   private val JITTER_MIN: String = "min"
@@ -154,7 +154,8 @@ private object PolicyF {
   private val OFFSET: String = "offset"
 
   val showPolicy: Algebra[PolicyF, String] = Algebra[PolicyF, String] {
-    case GiveUp()          => show"$GIVE_UP"
+    case Empty() => show"$EMPTY"
+
     case Crontab(cronExpr) => show"$CRONTAB($cronExpr)"
 
     case FixedDelay(delays) => show"$FIXED_DELAY(${delays.toList.mkString(",")})"
@@ -172,8 +173,8 @@ private object PolicyF {
 
   // json encoder
   private val jsonAlgebra: Algebra[PolicyF, Json] = Algebra[PolicyF, Json] {
-    case GiveUp() =>
-      Json.obj(GIVE_UP -> Json.True)
+    case Empty() =>
+      Json.obj(EMPTY -> Json.True)
     case Crontab(cronExpr) =>
       Json.obj(CRONTAB -> cronExpr.asJson)
     case FixedDelay(delays) =>
@@ -201,8 +202,8 @@ private object PolicyF {
 
   // json decoder
   private val jsonCoalgebra: Coalgebra[PolicyF, HCursor] = {
-    def giveUp(hc: HCursor): Result[GiveUp[HCursor]] =
-      hc.get[Json](GIVE_UP).map(_ => GiveUp[HCursor]())
+    def empty(hc: HCursor): Result[Empty[HCursor]] =
+      hc.get[Json](EMPTY).map(_ => Empty[HCursor]())
 
     def crontab(hc: HCursor): Result[Crontab[HCursor]] =
       hc.get[CronExpr](CRONTAB).map(ce => Crontab[HCursor](ce))
@@ -256,7 +257,7 @@ private object PolicyF {
 
     Coalgebra[PolicyF, HCursor] { hc =>
       val result =
-        giveUp(hc)
+        empty(hc)
           .orElse(crontab(hc))
           .orElse(jitter(hc))
           .orElse(fixedDelay(hc))
@@ -332,7 +333,7 @@ final case class Policy private (private[chrono] val policy: Fix[PolicyF]) {
 }
 
 object Policy {
-  import PolicyF.{Crontab, FixedDelay, FixedRate, GiveUp}
+  import PolicyF.{Crontab, Empty, FixedDelay, FixedRate}
 
   implicit val showPolicy: Show[Policy] = Show.fromToString
 
@@ -360,5 +361,5 @@ object Policy {
     Policy(Fix(FixedRate(delay.toJava)))
   }
 
-  val giveUp: Policy = Policy(Fix(GiveUp()))
+  val empty: Policy = Policy(Fix(Empty()))
 }

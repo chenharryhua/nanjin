@@ -20,7 +20,7 @@ class RetryTest extends AnyFunSuite {
 
   test("2.retry - give up") {
     val mr = service.eventStream { agent =>
-      agent.retry(_.withPolicy(_.giveUp)).use(_(IO(()) *> agent.adhoc.report))
+      agent.retry(_.withPolicy(_.empty)).use(_(IO(()) *> agent.adhoc.report))
     }.map(checkJson).mapFilter(eventFilters.metricsReport).compile.toList.unsafeRunSync()
     assert(mr.head.snapshot.isEmpty)
   }
@@ -69,7 +69,7 @@ class RetryTest extends AnyFunSuite {
   test("6.retry - simple cancellation") {
     val res = service
       .eventStream(agent =>
-        agent.retry(_.withPolicy(_.giveUp)).use { retry =>
+        agent.retry(_.withPolicy(_.empty)).use { retry =>
           (retry(IO.println(1)) >>
             retry(IO.println(2) <* IO.canceled *> IO.println(3)) >>
             retry(IO.println(4))).guarantee(agent.adhoc.report)
@@ -84,7 +84,7 @@ class RetryTest extends AnyFunSuite {
   test("7.retry - cancellation internal") {
     def action(agent: Agent[IO]) = for {
       counter <- agent.facilitate("retry")(_.counter("total.calls"))
-      retry <- agent.retry(_.withPolicy(_.giveUp))
+      retry <- agent.retry(_.withPolicy(_.empty))
     } yield (in: IO[Unit]) =>
       IO.uncancelable(poll =>
         in *>

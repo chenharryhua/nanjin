@@ -66,12 +66,12 @@ class TickStreamTest extends AnyFunSuite {
   }
 
   test("6.giveUp") {
-    val ticks = tickStream.tickScheduled[IO](saltaTime, _.giveUp).compile.toList.unsafeRunSync()
+    val ticks = tickStream.tickScheduled[IO](saltaTime, _.empty).compile.toList.unsafeRunSync()
     assert(ticks.isEmpty)
   }
 
   test("7.tickImmediate - giveUp") {
-    val ticks = tickStream.tickFuture[IO](saltaTime, _.giveUp).compile.toList.unsafeRunSync()
+    val ticks = tickStream.tickFuture[IO](saltaTime, _.empty).compile.toList.unsafeRunSync()
     assert(ticks.isEmpty)
   }
 

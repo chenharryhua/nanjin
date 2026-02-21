@@ -72,7 +72,7 @@ class HttpTest extends AnyFunSuite {
   }
 
   test("3.give up") {
-    val client = ember.map(httpRetry(sydneyTime, _.giveUp))
+    val client = ember.map(httpRetry(sydneyTime, _.empty))
     val run =
       server.surround(client.use(_.expect[String]("http://127.0.0.1:8080/failure").flatMap(IO.println)))
     assertThrows[Exception](run.unsafeRunSync())
@@ -85,7 +85,7 @@ class HttpTest extends AnyFunSuite {
     ).withEntity(
       Json.obj("a" -> Json.fromString("a"), "b" -> Json.fromInt(1))
     )
-    val client = ember.map(httpRetry(sydneyTime, _.giveUp))
+    val client = ember.map(httpRetry(sydneyTime, _.empty))
     server.surround(client.use(_.expect[String](postRequest).flatMap(IO.println))).unsafeRunSync()
   }
 

@@ -119,5 +119,5 @@ object CircuitBreaker {
   }
 
   def apply[F[_]: Async](zoneId: ZoneId, f: Endo[Builder]): Resource[F, CircuitBreaker[F]] =
-    f(new Builder(maxFailures = 5, policy = _.giveUp)).build[F](zoneId)
+    f(new Builder(maxFailures = 5, policy = _.empty)).build[F](zoneId)
 }

@@ -163,12 +163,11 @@ final private class EventLogger[F[_]](
       val txt: String = evt.stackTrace
         .map(st => Json.obj(Attribute(st).snakeJsonEntry))
         .asJson
-        .deepMerge(
-          Json.obj(
-            Attribute(evt.serviceParams.serviceName).snakeJsonEntry,
-            Attribute(evt.domain).snakeJsonEntry,
-            Attribute(evt.message).snakeJsonEntry
-          ))
+        .deepMerge(Json.obj( // don't show service_id and correlation to save space
+          Attribute(evt.serviceParams.serviceName).snakeJsonEntry,
+          Attribute(evt.domain).snakeJsonEntry,
+          Attribute(evt.message).snakeJsonEntry
+        ))
         .noSpaces
 
       s"$title $txt"

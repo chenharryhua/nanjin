@@ -86,9 +86,9 @@ object ServiceParams {
       serviceId = serviceId,
       launchTime = launchTime,
       servicePolicies = ServicePolicies(
-        restart = RestartPolicy(Policy.giveUp, None),
-        metricsReport = Policy.giveUp,
-        metricsReset = Policy.giveUp),
+        restart = RestartPolicy(Policy.empty, None),
+        metricsReport = Policy.empty,
+        metricsReset = Policy.empty),
       historyCapacity = HistoryCapacity(32, 32, 32),
       logFormat = LogFormat.Console_PlainText,
       nanjin = parse(BuildInfo.toJson).toOption,
