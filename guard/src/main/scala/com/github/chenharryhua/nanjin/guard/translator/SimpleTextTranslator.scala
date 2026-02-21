@@ -1,17 +1,10 @@
-package com.github.chenharryhua.nanjin.guard.service
+package com.github.chenharryhua.nanjin.guard.translator
 
 import cats.Applicative
 import com.github.chenharryhua.nanjin.common.chrono.Policy
-import com.github.chenharryhua.nanjin.guard.config.Attribute
 import com.github.chenharryhua.nanjin.guard.event.{Event, Took}
-import com.github.chenharryhua.nanjin.guard.translator.{
-  interpretServiceParams,
-  panicText,
-  SnapshotPolyglot,
-  Translator
-}
 
-private object SimpleTextTranslator {
+object SimpleTextTranslator {
   import Event.*
 
   private case class Index(value: Long)

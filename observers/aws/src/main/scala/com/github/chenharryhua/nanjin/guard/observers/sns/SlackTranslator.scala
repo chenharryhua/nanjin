@@ -3,13 +3,15 @@ import cats.syntax.eq.catsSyntaxEq
 import cats.syntax.show.{showInterpolator, toShow}
 import cats.{Applicative, Eval}
 import com.github.chenharryhua.nanjin.common.chrono.Policy
-import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, Attribute, Brief, ServiceParams, TextEntry}
+import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, Brief, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.{Active, Event, Snapshot, Snooze}
 import com.github.chenharryhua.nanjin.guard.translator.{
   eventTitle,
   panicText,
+  Attribute,
   ColorScheme,
   SnapshotPolyglot,
+  TextEntry,
   Translator
 }
 import org.apache.commons.lang3.StringUtils

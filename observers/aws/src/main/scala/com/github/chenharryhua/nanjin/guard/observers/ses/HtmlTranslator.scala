@@ -2,13 +2,13 @@ package com.github.chenharryhua.nanjin.guard.observers.ses
 
 import cats.Applicative
 import com.github.chenharryhua.nanjin.common.chrono.Policy
-import com.github.chenharryhua.nanjin.guard.config.Attribute
 import com.github.chenharryhua.nanjin.guard.event.{Active, Event, Snooze, StackTrace}
 import com.github.chenharryhua.nanjin.guard.translator.{
   eventTitle,
   htmlHelper,
   interpretServiceParams,
   panicText,
+  Attribute,
   SnapshotPolyglot,
   Translator
 }

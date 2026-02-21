@@ -1,15 +1,13 @@
-package com.github.chenharryhua.nanjin.guard.service
+package com.github.chenharryhua.nanjin.guard.translator
 
 import cats.Applicative
 import cats.syntax.show.toShow
-import com.github.chenharryhua.nanjin.guard.config.Attribute
 import com.github.chenharryhua.nanjin.guard.event.Event.*
 import com.github.chenharryhua.nanjin.guard.event.{Active, Snooze}
-import com.github.chenharryhua.nanjin.guard.translator.{interpretServiceParams, SnapshotPolyglot, Translator}
 import io.circe.Json
 import io.circe.syntax.EncoderOps
 
-private object PrettyJsonTranslator {
+object PrettyJsonTranslator {
   final private case class Index(value: Long)
 
   // events handlers

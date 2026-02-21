@@ -10,17 +10,23 @@ import cats.syntax.functor.toFunctorOps
 import cats.syntax.order.catsSyntaxPartialOrder
 import cats.syntax.traverse.toTraverseOps
 import com.github.chenharryhua.nanjin.guard.config.LogFormat.Console_Json_MultiLine
-import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, Attribute, LogFormat, ServiceParams}
+import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, LogFormat, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.Event.{
-  MetricsReport,
-  MetricsReset,
+  MetricsEvent,
   ServiceMessage,
   ServicePanic,
   ServiceStart,
   ServiceStop
 }
 import com.github.chenharryhua.nanjin.guard.event.{Domain, Event, ServiceStopCause, StackTrace}
-import com.github.chenharryhua.nanjin.guard.translator.{eventTitle, ColorScheme, Translator}
+import com.github.chenharryhua.nanjin.guard.translator.{
+  eventTitle,
+  Attribute,
+  ColorScheme,
+  PrettyJsonTranslator,
+  SimpleTextTranslator,
+  Translator
+}
 import io.circe.syntax.EncoderOps
 import io.circe.{Encoder, Json}
 import org.typelevel.log4cats.MessageLogger
@@ -96,19 +102,7 @@ final private class EventLogger[F[_]](
   def service_panic(ss: ServicePanic): F[Unit] =
     transform_event(ss).flatMap(_.traverse(logger.error(_))).void
 
-  def metrics_report(ss: MetricsReport): F[Unit] =
-    ColorScheme.decorate(ss).run(Eval.now).value match {
-      case ColorScheme.GoodColor =>
-        transform_event(ss).flatMap(_.traverse(logger.info(_))).void
-      case ColorScheme.InfoColor =>
-        transform_event(ss).flatMap(_.traverse(logger.info(_))).void
-      case ColorScheme.WarnColor =>
-        transform_event(ss).flatMap(_.traverse(logger.warn(_))).void
-      case ColorScheme.ErrorColor =>
-        transform_event(ss).flatMap(_.traverse(logger.error(_))).void
-    }
-
-  def metrics_reset(ss: MetricsReset): F[Unit] =
+  def metrics_event(ss: MetricsEvent): F[Unit] =
     ColorScheme.decorate(ss).run(Eval.now).value match {
       case ColorScheme.GoodColor =>
         transform_event(ss).flatMap(_.traverse(logger.info(_))).void
@@ -160,15 +154,16 @@ final private class EventLogger[F[_]](
   override def debug[S: Encoder](msg: => F[S]): F[Unit] = {
     def debug_message(evt: ServiceMessage): String = {
       val title: String = AnsiColor.BLUE + eventTitle(evt) + AnsiColor.RESET
-      val txt: String = evt.stackTrace
-        .map(st => Json.obj(Attribute(st).snakeJsonEntry))
-        .asJson
-        .deepMerge(Json.obj( // don't show service_id and correlation to save space
-          Attribute(evt.serviceParams.serviceName).snakeJsonEntry,
-          Attribute(evt.domain).snakeJsonEntry,
-          Attribute(evt.message).snakeJsonEntry
-        ))
-        .noSpaces
+      val txt: String = // service_id and correlation are irrelevant in debug
+        Json
+          .obj(
+            Attribute(evt.serviceParams.serviceName).camelJsonEntry,
+            Attribute(evt.domain).camelJsonEntry,
+            Attribute(evt.message).camelJsonEntry,
+            Attribute(evt.stackTrace).camelJsonEntry
+          )
+          .dropNullValues
+          .noSpaces
 
       s"$title $txt"
     }

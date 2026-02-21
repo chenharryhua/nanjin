@@ -8,7 +8,7 @@ import cats.syntax.flatMap.toFlatMapOps
 import cats.syntax.functor.toFunctorOps
 import cats.syntax.show.toShow
 import com.codahale.metrics.MetricRegistry
-import com.github.chenharryhua.nanjin.guard.config.{Attribute, ServiceParams}
+import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.event.Event.{MetricsReport, ServiceMessage, ServicePanic}
 import com.github.chenharryhua.nanjin.guard.event.{
   retrieveHealthChecks,
@@ -21,7 +21,12 @@ import com.github.chenharryhua.nanjin.guard.event.{
   Took
 }
 import com.github.chenharryhua.nanjin.guard.translator.htmlHelper.htmlColoring
-import com.github.chenharryhua.nanjin.guard.translator.{durationFormatter, prettifyJson, SnapshotPolyglot}
+import com.github.chenharryhua.nanjin.guard.translator.{
+  durationFormatter,
+  prettifyJson,
+  Attribute,
+  SnapshotPolyglot
+}
 import io.circe.Json
 import io.circe.syntax.EncoderOps
 import org.apache.commons.collections4.queue.CircularFifoQueue

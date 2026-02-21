@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.guard.config
+package com.github.chenharryhua.nanjin.guard.translator
 
 import cats.{Functor, Show}
 import io.circe.{Encoder, Json}

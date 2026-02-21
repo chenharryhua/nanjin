@@ -1,9 +1,13 @@
 package com.github.chenharryhua.nanjin.guard.observers.postgres
 
 import cats.Applicative
-import com.github.chenharryhua.nanjin.guard.config.Attribute
 import com.github.chenharryhua.nanjin.guard.event.Event
-import com.github.chenharryhua.nanjin.guard.translator.{interpretServiceParams, SnapshotPolyglot, Translator}
+import com.github.chenharryhua.nanjin.guard.translator.{
+  interpretServiceParams,
+  Attribute,
+  SnapshotPolyglot,
+  Translator
+}
 import io.circe.Json
 
 private object JsonTranslator {

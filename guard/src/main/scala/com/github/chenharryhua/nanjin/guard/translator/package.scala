@@ -4,7 +4,7 @@ import cats.syntax.eq.catsSyntaxEq
 import cats.syntax.show.toShow
 import com.github.chenharryhua.nanjin.common.DurationFormatter
 import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter
-import com.github.chenharryhua.nanjin.guard.config.{Attribute, ServiceParams}
+import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.event.Event
 import com.github.chenharryhua.nanjin.guard.event.Event.ServicePanic
 import io.circe.Json

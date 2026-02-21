@@ -84,7 +84,7 @@ package object service {
     index: Index)(implicit F: Sync[F]): F[MetricsReport] =
     for {
       mr <- create_metrics_report(eventLogger.serviceParams, metricRegistry, index, ScrapeMode.Full)
-      _ <- eventLogger.metrics_report(mr)
+      _ <- eventLogger.metrics_event(mr)
       _ <- channel.send(mr)
     } yield mr
 
@@ -96,7 +96,7 @@ package object service {
     for {
       (took, snapshot) <- Snapshot.timed[F](metricRegistry, ScrapeMode.Full)
       ms = MetricsReset(index, eventLogger.serviceParams, snapshot, Took(took))
-      _ <- eventLogger.metrics_reset(ms)
+      _ <- eventLogger.metrics_event(ms)
       _ <- channel.send(ms)
     } yield metricRegistry.getCounters().values().asScala.foreach(c => c.dec(c.getCount))
 

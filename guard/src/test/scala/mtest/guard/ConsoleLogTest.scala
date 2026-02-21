@@ -35,7 +35,9 @@ class ConsoleLogTest extends AnyFunSuite {
         agent.herald.error(new Exception())("error messages") >>
         agent.herald.error("no exception") >>
         agent.herald.info("message") >>
-        agent.adhoc.report) >> IO.raiseError(new Exception("oops"))
+        agent.adhoc.reset >>
+        agent.adhoc.report) >>
+      IO.raiseError(new Exception("oops"))
   }
 
   val service: ServiceGuard[IO] =

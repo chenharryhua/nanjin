@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.observers.cloudwatch
 
-import com.github.chenharryhua.nanjin.guard.config.{Attribute, ServiceParams}
+import com.github.chenharryhua.nanjin.guard.config.ServiceParams
+import com.github.chenharryhua.nanjin.guard.translator.Attribute
 import org.typelevel.cats.time.instances.localdate
 import software.amazon.awssdk.services.cloudwatch.model.Dimension
 
