@@ -127,7 +127,7 @@ class PolicyBaseTest extends AnyFunSuite {
   }
 
   test("giveUp") {
-    val policy = Policy.giveUp
+    val policy = Policy.empty
     println(policy.show)
     assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
 

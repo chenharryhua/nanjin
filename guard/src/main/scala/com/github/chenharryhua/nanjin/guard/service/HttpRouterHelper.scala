@@ -8,7 +8,7 @@ import cats.syntax.flatMap.toFlatMapOps
 import cats.syntax.functor.toFunctorOps
 import cats.syntax.show.toShow
 import com.codahale.metrics.MetricRegistry
-import com.github.chenharryhua.nanjin.guard.config.{Attribute, ServiceParams}
+import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.event.Event.{MetricsReport, ServiceMessage, ServicePanic}
 import com.github.chenharryhua.nanjin.guard.event.{
   retrieveHealthChecks,
@@ -21,7 +21,12 @@ import com.github.chenharryhua.nanjin.guard.event.{
   Took
 }
 import com.github.chenharryhua.nanjin.guard.translator.htmlHelper.htmlColoring
-import com.github.chenharryhua.nanjin.guard.translator.{durationFormatter, prettifyJson, SnapshotPolyglot}
+import com.github.chenharryhua.nanjin.guard.translator.{
+  durationFormatter,
+  prettifyJson,
+  Attribute,
+  SnapshotPolyglot
+}
 import io.circe.Json
 import io.circe.syntax.EncoderOps
 import org.apache.commons.collections4.queue.CircularFifoQueue
@@ -196,16 +201,14 @@ final private class HttpRouterHelper[F[_]: Sync](
           Attribute(serviceParams.upTime(now)).map(_.show).snakeJsonEntry,
           "errors" -> serviceMessages.size.asJson,
           "history" -> serviceMessages.reverse.map { sm =>
-            sm.stackTrace
-              .map(st => Json.obj(Attribute(st).snakeJsonEntry))
-              .asJson
-              .deepMerge(Json.obj(
-                Attribute(sm.domain).snakeJsonEntry,
-                Attribute(sm.correlation).snakeJsonEntry,
-                Attribute(Age(Duration.between(sm.timestamp.value, now))).map(_.json).snakeJsonEntry,
-                Attribute(sm.timestamp).map(_.value.toLocalDateTime.asJson).snakeJsonEntry,
-                Attribute(sm.message).snakeJsonEntry
-              ))
+            Json.obj(
+              Attribute(sm.domain).snakeJsonEntry,
+              Attribute(sm.correlation).snakeJsonEntry,
+              Attribute(Age(Duration.between(sm.timestamp.value, now))).map(_.json).snakeJsonEntry,
+              Attribute(sm.timestamp).map(_.value.toLocalDateTime.asJson).snakeJsonEntry,
+              Attribute(sm.message).snakeJsonEntry,
+              Attribute(sm.stackTrace).snakeJsonEntry
+            )
           }.asJson
         )
       }

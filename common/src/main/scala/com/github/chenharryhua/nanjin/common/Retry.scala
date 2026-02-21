@@ -112,6 +112,6 @@ object Retry {
   }
 
   def apply[F[_]: Async](zoneId: ZoneId, f: Endo[Builder[F]]): F[Retry[F]] =
-    f(new Builder[F](Policy.giveUp, _.map(_ => true).pure[F])).build(zoneId)
+    f(new Builder[F](Policy.empty, _.map(_ => true).pure[F])).build(zoneId)
 
 }

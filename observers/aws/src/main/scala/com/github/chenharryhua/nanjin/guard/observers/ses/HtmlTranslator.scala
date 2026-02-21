@@ -1,9 +1,17 @@
 package com.github.chenharryhua.nanjin.guard.observers.ses
 
 import cats.Applicative
-import com.github.chenharryhua.nanjin.guard.config.Attribute
+import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.guard.event.{Active, Event, Snooze, StackTrace}
-import com.github.chenharryhua.nanjin.guard.translator.{htmlHelper, textHelper, Translator}
+import com.github.chenharryhua.nanjin.guard.translator.{
+  eventTitle,
+  htmlHelper,
+  interpretServiceParams,
+  panicText,
+  Attribute,
+  SnapshotPolyglot,
+  Translator
+}
 import io.circe.Json
 import org.typelevel.cats.time.instances.all
 import scalatags.Text.all.*
@@ -15,7 +23,6 @@ import scalatags.{generic, Text}
 private object HtmlTranslator extends all {
   import Event.*
   import htmlHelper.*
-  import textHelper.*
   private case class Index(value: Long)
 
   private def service_table(evt: Event): generic.Frag[Builder, String] = {
@@ -57,7 +64,7 @@ private object HtmlTranslator extends all {
     div(
       h3(style := htmlColoring(evt))(eventTitle(evt)),
       table(service_table(evt), fg),
-      json_text(evt.serviceParams.simpleJson)
+      json_text(interpretServiceParams(evt.serviceParams))
     )
   }
 
@@ -89,26 +96,26 @@ private object HtmlTranslator extends all {
     )
   }
 
-  private def metrics_event(evt: MetricsEvent): Text.TypedTag[String] = {
+  private def metrics_event(evt: MetricsEvent, policy: Policy): Text.TypedTag[String] = {
     val index = Attribute(evt.index).textEntry
-    val policy = Attribute(evt.serviceParams.servicePolicies.metricsReport).textEntry
+    val policy_entry = Attribute(policy).textEntry
     val took = Attribute(evt.took).textEntry
     val fg = frag(
-      tr(th(index.tag), th(policy.tag), th(took.tag)),
-      tr(td(index.text), td(policy.text), td(took.text))
+      tr(th(index.tag), th(policy_entry.tag), th(took.tag)),
+      tr(td(index.text), td(policy_entry.text), td(took.text))
     )
     div(
       h3(style := htmlColoring(evt))(eventTitle(evt)),
       table(service_table(evt), fg),
-      pre(small(yamlMetrics(evt.snapshot)))
+      pre(small(new SnapshotPolyglot(evt.snapshot).toYaml))
     )
   }
 
   private def metrics_report(evt: MetricsReport): Text.TypedTag[String] =
-    metrics_event(evt)
+    metrics_event(evt, evt.serviceParams.servicePolicies.metricsReport)
 
   private def metrics_reset(evt: MetricsReset): Text.TypedTag[String] =
-    metrics_event(evt)
+    metrics_event(evt, evt.serviceParams.servicePolicies.metricsReset)
 
   private def service_message(evt: ServiceMessage): Text.TypedTag[String] = {
     val domain = Attribute(evt.domain).textEntry

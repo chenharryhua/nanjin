@@ -1,15 +1,13 @@
-package com.github.chenharryhua.nanjin.guard.service
+package com.github.chenharryhua.nanjin.guard.translator
 
 import cats.Applicative
 import cats.syntax.show.toShow
-import com.github.chenharryhua.nanjin.guard.config.Attribute
 import com.github.chenharryhua.nanjin.guard.event.Event.*
 import com.github.chenharryhua.nanjin.guard.event.{Active, Snooze}
-import com.github.chenharryhua.nanjin.guard.translator.*
 import io.circe.Json
 import io.circe.syntax.EncoderOps
 
-private object PrettyJsonTranslator {
+object PrettyJsonTranslator {
   final private case class Index(value: Long)
 
   // events handlers
@@ -20,7 +18,7 @@ private object PrettyJsonTranslator {
       Attribute(evt.upTime).snakeJsonEntry(_.show.asJson),
       Attribute(Index(evt.tick.index)).map(_.value).snakeJsonEntry,
       Attribute(Snooze(evt.tick.snooze)).map(_.show).snakeJsonEntry,
-      "params" -> evt.serviceParams.simpleJson
+      "params" -> interpretServiceParams(evt.serviceParams)
     )
 
   private def service_panic(evt: ServicePanic): Json =
@@ -67,16 +65,16 @@ private object PrettyJsonTranslator {
     )
 
   private def service_message(evt: ServiceMessage): Json =
-    evt.stackTrace
-      .map(st => Json.obj(Attribute(st).snakeJsonEntry))
-      .asJson
-      .deepMerge(Json.obj(
+    Json
+      .obj(
         Attribute(evt.serviceParams.serviceName).snakeJsonEntry,
         Attribute(evt.serviceParams.serviceId).snakeJsonEntry,
         Attribute(evt.domain).snakeJsonEntry,
         Attribute(evt.correlation).snakeJsonEntry,
-        Attribute(evt.message).snakeJsonEntry
-      ))
+        Attribute(evt.message).snakeJsonEntry,
+        Attribute(evt.stackTrace).snakeJsonEntry
+      )
+      .dropNullValues
 
   def apply[F[_]: Applicative]: Translator[F, Json] =
     Translator

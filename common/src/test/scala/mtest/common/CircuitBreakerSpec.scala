@@ -29,7 +29,7 @@ class CircuitBreakerSpec extends AnyFreeSpec with Matchers {
   "CircuitBreaker" - {
 
     "allows successful effects" in
-      breaker(1, Policy.giveUp).use { cb =>
+      breaker(1, Policy.empty).use { cb =>
         cb.protect(IO.pure(42)).map { result =>
           result shouldBe 42
         }
@@ -38,7 +38,7 @@ class CircuitBreakerSpec extends AnyFreeSpec with Matchers {
     "opens after reaching maxFailures" in {
       val err = new RuntimeException("boom")
 
-      breaker(2, Policy.giveUp).use { cb =>
+      breaker(2, Policy.empty).use { cb =>
         for {
           _ <- cb.attempt(IO.raiseError(err))
           _ <- cb.attempt(IO.raiseError(err))
@@ -50,7 +50,7 @@ class CircuitBreakerSpec extends AnyFreeSpec with Matchers {
     "rejects immediately when open" in {
       val err = new RuntimeException("fail")
 
-      breaker(1, Policy.giveUp).use { cb =>
+      breaker(1, Policy.empty).use { cb =>
         for {
           _ <- cb.attempt(IO.raiseError(err))
           r <- cb.attempt(IO.unit)

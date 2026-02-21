@@ -4,8 +4,6 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.chrono.zones.berlinTime
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.event.EventName
-import io.circe.Json
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.DurationInt
@@ -21,17 +19,6 @@ class ConfigTest extends AnyFunSuite {
       .updateConfig(_.withMetricReport(_.crontab(_.hourly)))
       .updateConfig(_.withJmx(identity))
       .updateConfig(_.withTaskName("conf"))
-
-  test("9.case") {
-    val en = EventName.ServiceStart
-    assert(en.entryName == "Service Start")
-    assert(en.snake == "service_start")
-    assert(en.compact == "ServiceStart")
-    assert(en.camel == "serviceStart")
-    assert(en.camelJson == Json.fromString("serviceStart"))
-    assert(en.snakeJson == Json.fromString("service_start"))
-    assert(en.compactJson == Json.fromString("ServiceStart"))
-  }
 
   test("tick") {
     TaskGuard[IO]("tick")

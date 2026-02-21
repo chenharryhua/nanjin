@@ -1,9 +1,13 @@
 package com.github.chenharryhua.nanjin.guard.observers.postgres
 
 import cats.Applicative
-import com.github.chenharryhua.nanjin.guard.config.Attribute
-import com.github.chenharryhua.nanjin.guard.event.{Event, EventName}
-import com.github.chenharryhua.nanjin.guard.translator.{SnapshotPolyglot, Translator}
+import com.github.chenharryhua.nanjin.guard.event.Event
+import com.github.chenharryhua.nanjin.guard.translator.{
+  interpretServiceParams,
+  Attribute,
+  SnapshotPolyglot,
+  Translator
+}
 import io.circe.Json
 
 private object JsonTranslator {
@@ -12,67 +16,60 @@ private object JsonTranslator {
 
   private def service_started(evt: ServiceStart): Json =
     Json.obj(
-      "event" -> EventName.ServiceStart.snakeJson,
+      Attribute(evt).map(_.timestamp.value).snakeJsonEntry,
       Attribute(Index(evt.tick.index)).map(_.value).snakeJsonEntry,
-      "params" -> evt.serviceParams.simpleJson,
-      Attribute(evt.timestamp).snakeJsonEntry
+      "params" -> interpretServiceParams(evt.serviceParams)
     )
 
   private def service_panic(evt: ServicePanic): Json =
     Json.obj(
-      "event" -> EventName.ServicePanic.snakeJson,
+      Attribute(evt).map(_.timestamp.value).snakeJsonEntry,
       Attribute(Index(evt.tick.index)).map(_.value).snakeJsonEntry,
       Attribute(evt.serviceParams.serviceName).snakeJsonEntry,
       Attribute(evt.serviceParams.servicePolicies.restart.policy).snakeJsonEntry,
       Attribute(evt.stackTrace).snakeJsonEntry,
-      Attribute(evt.serviceParams.serviceId).snakeJsonEntry,
-      Attribute(evt.timestamp).snakeJsonEntry
+      Attribute(evt.serviceParams.serviceId).snakeJsonEntry
     )
 
   private def service_stopped(evt: ServiceStop): Json =
     Json.obj(
-      "event" -> EventName.ServiceStop.snakeJson,
+      Attribute(evt).map(_.timestamp.value).snakeJsonEntry,
       Attribute(evt.serviceParams.serviceName).snakeJsonEntry,
       Attribute(evt.cause).snakeJsonEntry,
       Attribute(evt.serviceParams.servicePolicies.restart.policy).snakeJsonEntry,
-      Attribute(evt.serviceParams.serviceId).snakeJsonEntry,
-      Attribute(evt.timestamp).snakeJsonEntry
+      Attribute(evt.serviceParams.serviceId).snakeJsonEntry
     )
 
   private def metric_report(evt: MetricsReport): Json =
     Json.obj(
-      "event" -> EventName.MetricsReport.snakeJson,
+      Attribute(evt).map(_.timestamp.value).snakeJsonEntry,
       Attribute(evt.index).snakeJsonEntry,
       Attribute(evt.serviceParams.serviceName).snakeJsonEntry,
       Attribute(evt.took).snakeJsonEntry,
       Attribute(evt.snapshot).map(new SnapshotPolyglot(_).toVanillaJson).snakeJsonEntry,
-      Attribute(evt.serviceParams.serviceId).snakeJsonEntry,
-      Attribute(evt.timestamp).snakeJsonEntry
+      Attribute(evt.serviceParams.serviceId).snakeJsonEntry
     )
 
   private def metric_reset(evt: MetricsReset): Json =
     Json.obj(
-      "event" -> EventName.MetricsReset.snakeJson,
+      Attribute(evt).map(_.timestamp.value).snakeJsonEntry,
       Attribute(evt.index).snakeJsonEntry,
       Attribute(evt.serviceParams.serviceName).snakeJsonEntry,
       Attribute(evt.took).snakeJsonEntry,
       Attribute(evt.snapshot).map(new SnapshotPolyglot(_).toVanillaJson).snakeJsonEntry,
-      Attribute(evt.serviceParams.serviceId).snakeJsonEntry,
-      Attribute(evt.timestamp).snakeJsonEntry
+      Attribute(evt.serviceParams.serviceId).snakeJsonEntry
     )
 
-  private def service_message(evt: ServiceMessage): Json = {
-    val json = Json.obj(
-      "event" -> EventName.ServiceMessage.snakeJson,
+  private def service_message(evt: ServiceMessage): Json =
+    Json.obj(
+      Attribute(evt).map(_.timestamp.value).snakeJsonEntry,
       Attribute(evt.message).snakeJsonEntry,
       Attribute(evt.serviceParams.serviceName).snakeJsonEntry,
       Attribute(evt.domain).snakeJsonEntry,
       Attribute(evt.correlation).snakeJsonEntry,
       Attribute(evt.serviceParams.serviceId).snakeJsonEntry,
-      Attribute(evt.timestamp).snakeJsonEntry
+      Attribute(evt.stackTrace).snakeJsonEntry
     )
-    evt.stackTrace.fold(json)(st => Json.obj(Attribute(st).snakeJsonEntry).deepMerge(json))
-  }
 
   def apply[F[_]: Applicative]: Translator[F, Json] =
     Translator

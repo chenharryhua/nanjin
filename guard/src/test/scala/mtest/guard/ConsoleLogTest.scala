@@ -30,11 +30,21 @@ class ConsoleLogTest extends AnyFunSuite {
           .evalMap(f => f.incDenominator(500) >> f.incNumerator(60) >> f.incBoth(299, 500))
       } yield Kleisli((_: Int) => IO.unit)
     }
-    mtx.use(_.run(1) >> agent.herald.error(new Exception())("error messages") >> agent.adhoc.report)
+    mtx.use(
+      _.run(1) >>
+        agent.herald.error(new Exception())("error messages") >>
+        agent.herald.error("no exception") >>
+        agent.herald.info("message") >>
+        agent.adhoc.reset >>
+        agent.adhoc.report) >>
+      IO.raiseError(new Exception("oops"))
   }
 
   val service: ServiceGuard[IO] =
-    TaskGuard[IO]("nanjin").service("observing").updateConfig(_.addBrief(Json.fromString("brief")))
+    TaskGuard[IO]("nanjin")
+      .service("observing")
+      .updateConfig(
+        _.addBrief(Json.fromString("brief")).withRestartPolicy(10.hour, _.fixedRate(2.second).limited(1)))
 
   test("1.console - verbose json") {
     val mr = service
@@ -60,7 +70,8 @@ class ConsoleLogTest extends AnyFunSuite {
 
   test("3.console - simple text") {
     val mr = service
-      .updateConfig(_.withLogFormat(_.Console_PlainText))
+      .updateConfig(
+        _.withLogFormat(_.Console_PlainText).withHomePage("homepage.com").withHttpServer(identity))
       .eventStream(action)
       .map(checkJson)
       .mapFilter(eventFilters.metricsReport)

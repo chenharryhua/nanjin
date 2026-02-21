@@ -17,13 +17,15 @@ import java.time.temporal.ChronoUnit
 import java.time.{Duration, ZonedDateTime}
 import scala.jdk.CollectionConverters.ListHasAsScala
 
-final case class StackTrace private (value: List[String]) extends AnyVal
+final case class StackTrace private (value: List[String]) extends AnyVal {
+  override def toString: String = value.mkString("\n\t")
+}
 
 object StackTrace {
   def apply(ex: Throwable): StackTrace =
     StackTrace(ExceptionUtils.getRootCauseStackTraceList(ex).asScala.map(_.replace("\t", "")).toList)
 
-  implicit val showStackTrace: Show[StackTrace] = _.value.mkString("\n\t")
+  implicit val showStackTrace: Show[StackTrace] = Show.fromToString
   implicit val codecStackTrace: Codec[StackTrace] = new Codec[StackTrace] {
     override def apply(c: HCursor): Result[StackTrace] = c.as[List[String]].map(StackTrace(_))
     override def apply(a: StackTrace): Json = a.value.asJson
@@ -61,7 +63,6 @@ object ServiceStopCause {
   private val SUCCESSFULLY: String = "Successfully"
   private val BY_CANCELLATION: String = "ByCancellation"
   private val MAINTENANCE: String = "Maintenance"
-  private val BY_EXCEPTION: String = "ByException"
 
   implicit val showServiceStopCause: Show[ServiceStopCause] = {
     case Successfully            => SUCCESSFULLY
@@ -72,10 +73,11 @@ object ServiceStopCause {
 
   implicit val encoderServiceStopCause: Encoder[ServiceStopCause] =
     Encoder.instance {
-      case Successfully            => Json.fromString(SUCCESSFULLY)
-      case ByCancellation          => Json.fromString(BY_CANCELLATION)
-      case ByException(stackTrace) => Json.obj(BY_EXCEPTION -> stackTrace.asJson)
-      case Maintenance             => Json.fromString(MAINTENANCE)
+      case Successfully   => Json.fromString(SUCCESSFULLY)
+      case ByCancellation => Json.fromString(BY_CANCELLATION)
+      case Maintenance    => Json.fromString(MAINTENANCE)
+
+      case ByException(stackTrace) => stackTrace.asJson
     }
 
   implicit val decoderServiceStopCause: Decoder[ServiceStopCause] =
@@ -86,7 +88,7 @@ object ServiceStopCause {
         case MAINTENANCE     => Right(Maintenance)
         case unknown         => Left(DecodingFailure(s"unrecognized: $unknown", Nil))
       }.widen,
-      _.downField(BY_EXCEPTION).as[StackTrace].map(err => ByException(err)).widen
+      _.as[StackTrace].map(err => ByException(err)).widen
     ).reduceLeft(_ or _)
 }
 
@@ -100,8 +102,10 @@ object Correlation {
   }
 
   implicit val showCorrelation: Show[Correlation] = Show.fromToString
-  implicit val encoderCorrelation: Encoder[Correlation] = Encoder.encodeString.contramap(_.value)
-  implicit val decoderCorrelation: Decoder[Correlation] = Decoder.decodeString.map(Correlation(_))
+  implicit val codecCorrelation: Codec[Correlation] = new Codec[Correlation] {
+    override def apply(c: HCursor): Result[Correlation] = c.as[String].map(Correlation(_))
+    override def apply(a: Correlation): Json = Json.fromString(a.value)
+  }
 }
 
 final case class Took(value: Duration) extends AnyVal
@@ -134,9 +138,15 @@ object Timestamp {
 
 final case class Message(value: Json) extends AnyVal
 object Message {
-  implicit val showMessage: Show[Message] = _.value.noSpaces
   implicit val codecMessage: Codec[Message] = new Codec[Message] {
     override def apply(c: HCursor): Result[Message] = c.as[Json].map(Message(_))
     override def apply(a: Message): Json = a.value
   }
+}
+
+final case class Domain(value: String) extends AnyVal
+object Domain {
+  implicit val showDomain: Show[Domain] = _.value
+  implicit val encoderDomain: Encoder[Domain] = Encoder.encodeString.contramap(_.value)
+  implicit val decoderDomain: Decoder[Domain] = Decoder.decodeString.map(Domain(_))
 }

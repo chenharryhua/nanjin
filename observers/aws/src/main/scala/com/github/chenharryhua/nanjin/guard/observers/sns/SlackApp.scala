@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard.observers.sns
 
 import cats.Show
 import cats.derived.auto.show.*
-import com.github.chenharryhua.nanjin.guard.config.TextEntry
+import com.github.chenharryhua.nanjin.guard.translator.TextEntry
 import io.circe.generic.JsonCodec
 import io.circe.generic.auto.*
 import io.circe.syntax.EncoderOps

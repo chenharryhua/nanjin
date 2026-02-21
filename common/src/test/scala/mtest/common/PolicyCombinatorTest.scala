@@ -15,7 +15,7 @@ import scala.jdk.DurationConverters.{JavaDurationOps, ScalaDurationOps}
 class PolicyCombinatorTest extends AnyFunSuite {
 
   test("simple followed by") {
-    val policy = Policy.giveUp.followedBy(Policy.fixedDelay(1.second))
+    val policy = Policy.empty.followedBy(Policy.fixedDelay(1.second))
     println(policy.asJson)
     assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
   }
@@ -148,7 +148,7 @@ class PolicyCombinatorTest extends AnyFunSuite {
       .meet(Policy.crontab(_.daily.nineAM))
       .followedBy(Policy.crontab(_.daily.tenAM))
       .followedBy(Policy.crontab(_.daily.elevenAM))
-      .followedBy(Policy.giveUp)
+      .followedBy(Policy.empty)
       .followedBy(Policy.crontab(_.daily.noon))
       .followedBy(Policy.crontab(_.daily.onePM))
       .followedBy(Policy.crontab(_.daily.twoPM))

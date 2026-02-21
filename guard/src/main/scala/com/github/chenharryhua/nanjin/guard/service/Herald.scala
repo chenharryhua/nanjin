@@ -5,9 +5,9 @@ import cats.effect.std.AtomicCell
 import cats.syntax.functor.toFunctorOps
 import cats.syntax.flatMap.toFlatMapOps
 import cats.syntax.option.catsSyntaxOptionId
-import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, Domain, ServiceParams}
+import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceMessage
-import com.github.chenharryhua.nanjin.guard.event.{Event, StackTrace}
+import com.github.chenharryhua.nanjin.guard.event.{Domain, Event, StackTrace}
 import fs2.concurrent.Channel
 import io.circe.Encoder
 import org.apache.commons.collections4.queue.CircularFifoQueue

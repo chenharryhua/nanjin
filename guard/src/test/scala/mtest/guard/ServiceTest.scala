@@ -58,7 +58,7 @@ class ServiceTest extends AnyFunSuite {
   test("3.force reset") {
     val s :: b :: c :: d :: Nil = guard
       .service("reset")
-      .updateConfig(_.withMetricReport(_.giveUp))
+      .updateConfig(_.withMetricReport(_.empty))
       .eventStream(ag => ag.adhoc.reset >> ag.adhoc.reset)
       .map(checkJson)
       .compile
@@ -161,7 +161,7 @@ class ServiceTest extends AnyFunSuite {
       .service("abc")
       .updateConfig(
         _.withRestartPolicy(2.seconds, _.fixedDelay(1.second))
-          .withMetricReset(_.giveUp)
+          .withMetricReset(_.empty)
           .withMetricReport(_.crontab(_.secondly))
           .withMetricDailyReset)
       .eventStreamR(_.facilitate("nothing")(_.counter("counter")))
@@ -174,7 +174,7 @@ class ServiceTest extends AnyFunSuite {
   test("7.throw exception in construction") {
     val List(a, b) = guard
       .service("simple")
-      .updateConfig(_.withRestartPolicy(1.hour, _.giveUp))
+      .updateConfig(_.withRestartPolicy(1.hour, _.empty))
       .eventStream { _ =>
         val c = true
         val err: Int = if (c) throw new Exception else 1

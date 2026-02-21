@@ -10,7 +10,7 @@ import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.Event.{MetricsReport, ServiceMessage, ServicePanic}
 import com.github.chenharryhua.nanjin.guard.event.{Event, ScrapeMode, ServiceStopCause, Snapshot}
-import com.github.chenharryhua.nanjin.guard.translator.SnapshotPolyglot
+import com.github.chenharryhua.nanjin.guard.translator.{interpretServiceParams, SnapshotPolyglot}
 import fs2.concurrent.Channel
 import io.circe.Json
 import org.apache.commons.collections4.queue.CircularFifoQueue
@@ -99,7 +99,7 @@ final private class HttpRouter[F[_]](
 
     // service part
 
-    case GET -> Root / "service" / "params"            => Ok(serviceParams.simpleJson)
+    case GET -> Root / "service" / "params"            => Ok(interpretServiceParams(serviceParams))
     case GET -> Root / "service" / "panic" / "history" => Ok(helper.service_panic_history)
     case GET -> Root / "service" / "error" / "history" => Ok(helper.service_error_history)
 

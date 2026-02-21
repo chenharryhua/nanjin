@@ -7,8 +7,8 @@ import cats.syntax.functor.toFunctorOps
 import com.codahale.metrics
 import com.github.chenharryhua.nanjin.common.EnableConfig
 import com.github.chenharryhua.nanjin.common.chrono.Policy
-import com.github.chenharryhua.nanjin.guard.config.CategoryKind.GaugeKind
-import com.github.chenharryhua.nanjin.guard.config.{Category, MetricID, MetricLabel, MetricName}
+import com.github.chenharryhua.nanjin.guard.event.CategoryKind.GaugeKind
+import com.github.chenharryhua.nanjin.guard.event.{Category, MetricID, MetricLabel, MetricName}
 import io.circe.syntax.EncoderOps
 import io.circe.{Encoder, Json}
 import org.apache.commons.lang3.StringUtils

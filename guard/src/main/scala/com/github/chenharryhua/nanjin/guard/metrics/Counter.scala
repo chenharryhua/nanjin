@@ -5,8 +5,8 @@ import cats.effect.kernel.{Resource, Sync}
 import cats.syntax.functor.toFunctorOps
 import com.codahale.metrics
 import com.github.chenharryhua.nanjin.common.EnableConfig
-import com.github.chenharryhua.nanjin.guard.config.*
-import com.github.chenharryhua.nanjin.guard.config.CategoryKind.CounterKind
+import com.github.chenharryhua.nanjin.guard.event.CategoryKind.CounterKind
+import com.github.chenharryhua.nanjin.guard.event.{Category, MetricID, MetricLabel, MetricName}
 
 trait Counter[F[_]] extends KleisliLike[F, Long] {
   def inc(num: Long): F[Unit]

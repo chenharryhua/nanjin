@@ -7,14 +7,15 @@ import cats.kernel.Eq
 import cats.syntax.all.*
 import com.codahale.metrics.SlidingWindowReservoir
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.config.{MetricID, MetricName}
 import com.github.chenharryhua.nanjin.guard.event.{
   eventFilters,
   retrieveCounter,
   retrieveHistogram,
   retrieveMeter,
   retrieveRiskCounter,
-  retrieveTimer
+  retrieveTimer,
+  MetricID,
+  MetricName
 }
 import com.github.chenharryhua.nanjin.guard.metrics.Meter
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard

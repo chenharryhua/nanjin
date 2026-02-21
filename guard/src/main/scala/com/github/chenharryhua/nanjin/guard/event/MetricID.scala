@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.guard.config
+package com.github.chenharryhua.nanjin.guard.event
 
 import cats.effect.Unique
 import cats.effect.kernel.Clock
