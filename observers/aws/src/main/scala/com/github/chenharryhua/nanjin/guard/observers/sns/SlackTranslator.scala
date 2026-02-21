@@ -1,16 +1,20 @@
 package com.github.chenharryhua.nanjin.guard.observers.sns
 import cats.syntax.eq.catsSyntaxEq
-import cats.syntax.show.showInterpolator
+import cats.syntax.show.{showInterpolator, toShow}
 import cats.{Applicative, Eval}
 import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, Attribute, Brief, ServiceParams, TextEntry}
 import com.github.chenharryhua.nanjin.guard.event.{Active, Event, Snapshot, Snooze}
-import com.github.chenharryhua.nanjin.guard.translator.{ColorScheme, SnapshotPolyglot, Translator}
+import com.github.chenharryhua.nanjin.guard.translator.{
+  eventTitle,
+  panicText,
+  ColorScheme,
+  SnapshotPolyglot,
+  Translator
+}
 import org.apache.commons.lang3.StringUtils
 import org.typelevel.cats.time.instances.all
 import squants.information.{Bytes, Information}
-import com.github.chenharryhua.nanjin.guard.translator.eventTitle
-import com.github.chenharryhua.nanjin.guard.translator.panicText
 
 private object SlackTranslator extends all {
   import Event.*
@@ -206,11 +210,10 @@ private object SlackTranslator extends all {
       )
     )
 
-    val error = evt.stackTrace.map { err =>
-      val reason = Attribute(err).textEntry
-      Attachment(
-        color = color,
-        blocks = List(KeyValueSection(reason.tag, s"```${abbreviate(reason.text)}```")))
+    val error: Option[Attachment] = Attribute(evt.stackTrace).fold { (tag, ost) =>
+      ost.map { st =>
+        Attachment(color = color, blocks = List(KeyValueSection(tag, s"```${abbreviate(st.show)}```")))
+      }
     }
 
     SlackApp(username = evt.serviceParams.taskName.value, attachments = List(Some(attachment), error).flatten)

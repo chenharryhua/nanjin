@@ -17,13 +17,15 @@ import java.time.temporal.ChronoUnit
 import java.time.{Duration, ZonedDateTime}
 import scala.jdk.CollectionConverters.ListHasAsScala
 
-final case class StackTrace private (value: List[String]) extends AnyVal
+final case class StackTrace private (value: List[String]) extends AnyVal {
+  override def toString: String = value.mkString("\n\t")
+}
 
 object StackTrace {
   def apply(ex: Throwable): StackTrace =
     StackTrace(ExceptionUtils.getRootCauseStackTraceList(ex).asScala.map(_.replace("\t", "")).toList)
 
-  implicit val showStackTrace: Show[StackTrace] = _.value.mkString("\n\t")
+  implicit val showStackTrace: Show[StackTrace] = Show.fromToString
   implicit val codecStackTrace: Codec[StackTrace] = new Codec[StackTrace] {
     override def apply(c: HCursor): Result[StackTrace] = c.as[List[String]].map(StackTrace(_))
     override def apply(a: StackTrace): Json = a.value.asJson

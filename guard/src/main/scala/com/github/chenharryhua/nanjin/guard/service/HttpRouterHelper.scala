@@ -196,16 +196,14 @@ final private class HttpRouterHelper[F[_]: Sync](
           Attribute(serviceParams.upTime(now)).map(_.show).snakeJsonEntry,
           "errors" -> serviceMessages.size.asJson,
           "history" -> serviceMessages.reverse.map { sm =>
-            sm.stackTrace
-              .map(st => Json.obj(Attribute(st).snakeJsonEntry))
-              .asJson
-              .deepMerge(Json.obj(
-                Attribute(sm.domain).snakeJsonEntry,
-                Attribute(sm.correlation).snakeJsonEntry,
-                Attribute(Age(Duration.between(sm.timestamp.value, now))).map(_.json).snakeJsonEntry,
-                Attribute(sm.timestamp).map(_.value.toLocalDateTime.asJson).snakeJsonEntry,
-                Attribute(sm.message).snakeJsonEntry
-              ))
+            Json.obj(
+              Attribute(sm.domain).snakeJsonEntry,
+              Attribute(sm.correlation).snakeJsonEntry,
+              Attribute(Age(Duration.between(sm.timestamp.value, now))).map(_.json).snakeJsonEntry,
+              Attribute(sm.timestamp).map(_.value.toLocalDateTime.asJson).snakeJsonEntry,
+              Attribute(sm.message).snakeJsonEntry,
+              Attribute(sm.stackTrace).snakeJsonEntry
+            )
           }.asJson
         )
       }

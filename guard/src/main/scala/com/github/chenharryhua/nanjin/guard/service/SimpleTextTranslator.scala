@@ -39,9 +39,9 @@ private object SimpleTextTranslator {
 
     s"""|
         |  ${service_event(evt)}
-        |  $policy
-        |  ${panicText(evt)}
         |  $idx, $act
+        |  $policy
+        |${panicText(evt)}
         |${Attribute(evt.stackTrace).labelledText}
         |""".stripMargin
   }

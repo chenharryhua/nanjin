@@ -56,17 +56,16 @@ private object JsonTranslator {
       Attribute(evt.serviceParams.serviceId).snakeJsonEntry
     )
 
-  private def service_message(evt: ServiceMessage): Json = {
-    val json = Json.obj(
+  private def service_message(evt: ServiceMessage): Json =
+    Json.obj(
       Attribute(evt).map(_.timestamp.value).snakeJsonEntry,
       Attribute(evt.message).snakeJsonEntry,
       Attribute(evt.serviceParams.serviceName).snakeJsonEntry,
       Attribute(evt.domain).snakeJsonEntry,
       Attribute(evt.correlation).snakeJsonEntry,
-      Attribute(evt.serviceParams.serviceId).snakeJsonEntry
+      Attribute(evt.serviceParams.serviceId).snakeJsonEntry,
+      Attribute(evt.stackTrace).snakeJsonEntry
     )
-    evt.stackTrace.fold(json)(st => Json.obj(Attribute(st).snakeJsonEntry).deepMerge(json))
-  }
 
   def apply[F[_]: Applicative]: Translator[F, Json] =
     Translator
