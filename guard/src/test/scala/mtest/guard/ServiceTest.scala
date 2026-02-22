@@ -39,8 +39,11 @@ class ServiceTest extends AnyFunSuite {
     val List(a, b, c, d, e, f, g, h) = guard
       .service("retry")
       .updateConfig(_.withRestartPolicy(1.hour, _.fixedDelay(1.seconds).limited(1)))
-      .eventStream(ga =>
-        ga.retry(_.withPolicy(_.fixedDelay(1.seconds).limited(1))).use(_ => IO.raiseError(new Exception)))
+      .eventStream { ga =>
+        ga.herald.use(log =>
+          ga.retry(_.withPolicy(_.fixedDelay(1.seconds).limited(1)))
+            .use(_(log.info("info") *> IO.raiseError(new Exception))))
+      }
       .compile
       .toList
       .unsafeRunSync()
@@ -207,8 +210,11 @@ class ServiceTest extends AnyFunSuite {
     val List(a, b) = guard
       .service("closure")
       .updateConfig(_.withRestartPolicy(1.hour, _.fixedDelay(1.seconds).limited(1)))
-      .eventStreamS { _ =>
-        fs2.Stream(0).covary[IO].evalMap(_ => IO.raiseError(new Exception))
+      .eventStreamS { agent =>
+        val a = UUID.randomUUID()
+        fs2.Stream.resource(agent.herald).flatMap { log =>
+          fs2.Stream(0).covary[IO].evalMap(_ => log.info(a.toString) *> IO.raiseError(new Exception))
+        }
       }
       .mapFilter(eventFilters.serviceMessage)
       .compile
