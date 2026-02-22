@@ -27,7 +27,7 @@ private object SlackTranslator extends all {
     .decorate[Eval, String](evt)
     .run {
       case ColorScheme.GoodColor  => Eval.now("#36a64f")
-      case ColorScheme.InfoColor  => Eval.now("#5f9fff")
+      case ColorScheme.InfoColor  => Eval.now("#b3d1ff")
       case ColorScheme.WarnColor  => Eval.now("#ffd79a")
       case ColorScheme.ErrorColor => Eval.now("#935252")
     }
