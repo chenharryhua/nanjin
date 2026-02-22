@@ -1,21 +1,22 @@
-package com.github.chenharryhua.nanjin.guard.service
+package com.github.chenharryhua.nanjin.guard.logging
 
 import cats.Monad
 import cats.effect.kernel.Clock
 import cats.effect.std.Console
-import cats.syntax.functor.toFunctorOps
 import cats.syntax.flatMap.toFlatMapOps
-import org.typelevel.log4cats.MessageLogger
+import cats.syntax.functor.toFunctorOps
+import org.typelevel.log4cats.{LoggerName, MessageLogger}
 
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
-final private class ConsoleLogger[F[_]: Console: Clock: Monad](zoneId: ZoneId) extends MessageLogger[F] {
+final private class ConsoleLogger[F[_]: Console: Clock: Monad](zoneId: ZoneId, loggerName: LoggerName)
+    extends MessageLogger[F] {
   private[this] val fmt: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
 
   private[this] def out(message: String, logLevel: String): F[Unit] =
     Clock[F].realTimeInstant.map(t => t.atZone(zoneId).toLocalDateTime.format(fmt)).flatMap { time =>
-      Console[F].println(s"$time $logLevel -- $message")
+      Console[F].println(s"$time ${loggerName.value} $logLevel -- $message")
     }
 
   override def error(message: => String): F[Unit] = out(message, "Console Error")

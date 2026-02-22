@@ -25,7 +25,7 @@ class GaugeTest extends AnyFunSuite {
     val mr = service.eventStream { agent =>
       agent
         .facilitate("gauge")(_.gauge("gauge").register(IO(1)).map(_ => Kleisli((_: Unit) => IO.unit)))
-        .surround(agent.adhoc.report)
+        .surround(agent.adhoc.report.void)
     }.map(checkJson).mapFilter(eventFilters.metricsReport).compile.lastOrError.unsafeRunSync()
     val gauge = retrieveGauge[Int](mr.snapshot.gauges)
     assert(mr.snapshot.nonEmpty)
@@ -37,7 +37,7 @@ class GaugeTest extends AnyFunSuite {
       agent
         .facilitate("health")(
           _.healthCheck("health", _.withTimeout(1.second).enable(true)).register(IO(true)))
-        .surround(agent.adhoc.report)
+        .surround(agent.adhoc.report.void)
     }.map(checkJson).mapFilter(eventFilters.metricsReport).compile.lastOrError.unsafeRunSync()
     val health: Map[MetricID, Boolean] = retrieveHealthChecks(mr.snapshot.gauges)
     assert(mr.snapshot.nonEmpty)
@@ -46,7 +46,7 @@ class GaugeTest extends AnyFunSuite {
 
   test("3.active gauge") {
     val mr = service.eventStream { agent =>
-      agent.facilitate("active")(_.activeGauge("active", _.enable(true))).surround(agent.adhoc.report)
+      agent.facilitate("active")(_.activeGauge("active", _.enable(true))).surround(agent.adhoc.report.void)
     }.map(checkJson).mapFilter(eventFilters.metricsReport).compile.lastOrError.unsafeRunSync()
     val active = retrieveGauge[Json](mr.snapshot.gauges)
     assert(mr.snapshot.nonEmpty)
@@ -55,7 +55,7 @@ class GaugeTest extends AnyFunSuite {
 
   test("4.idle gauge") {
     val mr = service.eventStream { agent =>
-      agent.facilitate("idle")(_.idleGauge("idle", _.enable(true))).use(_.run(()) >> agent.adhoc.report)
+      agent.facilitate("idle")(_.idleGauge("idle", _.enable(true))).use(_.run(()) >> agent.adhoc.report.void)
     }.map(checkJson).mapFilter(eventFilters.metricsReport).compile.lastOrError.unsafeRunSync()
     val idle = retrieveGauge[Json](mr.snapshot.gauges)
     assert(mr.snapshot.nonEmpty)
@@ -64,7 +64,9 @@ class GaugeTest extends AnyFunSuite {
 
   test("5.permanent counter") {
     val mr = service.eventStream { agent =>
-      agent.facilitate("permanent")(_.permanentCounter("permanent")).use(_.run(1999) >> agent.adhoc.report)
+      agent
+        .facilitate("permanent")(_.permanentCounter("permanent"))
+        .use(_.run(1999) >> agent.adhoc.report.void)
     }.map(checkJson).mapFilter(eventFilters.metricsReport).compile.lastOrError.unsafeRunSync()
     val permanent = retrieveGauge[Json](mr.snapshot.gauges)
     assert(mr.snapshot.nonEmpty)
@@ -76,7 +78,7 @@ class GaugeTest extends AnyFunSuite {
       agent.facilitate("timeout.gauge")(
         _.gauge("gauge", _.withTimeout(1.second).enable(true))
           .register(IO.never[Int])
-          .surround(agent.adhoc.report))
+          .surround(agent.adhoc.report.void))
     }.map(checkJson).mapFilter(eventFilters.metricsReport).compile.lastOrError.unsafeRunSync()
     val gauge = retrieveGauge[Int](mr.snapshot.gauges)
     assert(mr.snapshot.nonEmpty)
@@ -88,7 +90,7 @@ class GaugeTest extends AnyFunSuite {
       agent.facilitate("timeout.gauge")(
         _.gauge("gauge", _.withTimeout(1.second).enable(true))
           .register(IO.raiseError[Int](new Exception("oops")))
-          .surround(agent.adhoc.report))
+          .surround(agent.adhoc.report.void))
     }.map(checkJson).mapFilter(eventFilters.metricsReport).compile.lastOrError.unsafeRunSync()
     val gauge = retrieveGauge[Int](mr.snapshot.gauges)
     assert(mr.snapshot.nonEmpty)
@@ -111,7 +113,7 @@ class GaugeTest extends AnyFunSuite {
           _ <- fac.gauge("2").register(compute(2.second), _.fixedDelay(15.minutes))
           _ <- fac.gauge("1").register(compute(1.second), _.fixedDelay(15.minutes))
         } yield ()
-        mtx.surround(agent.adhoc.report)
+        mtx.surround(agent.adhoc.report.void)
       }
     }.debug().compile.drain.unsafeRunSync()
   }
@@ -135,7 +137,7 @@ class GaugeTest extends AnyFunSuite {
           }
         }
 
-      mtx.use(_(5) >> agent.adhoc.report)
+      mtx.use(_(5) >> agent.adhoc.report.void)
     }.compile.drain.unsafeRunSync()
 
   }

@@ -39,9 +39,11 @@ class ServiceTest extends AnyFunSuite {
     val List(a, b, c, d, e, f, g, h) = guard
       .service("retry")
       .updateConfig(_.withRestartPolicy(1.hour, _.fixedDelay(1.seconds).limited(1)))
-      .eventStream(ga =>
-        ga.retry(_.withPolicy(_.fixedDelay(1.seconds).limited(1)))
-          .use(_(ga.herald.info("info") *> IO.raiseError(new Exception))))
+      .eventStream { ga =>
+        ga.herald.use(log =>
+          ga.retry(_.withPolicy(_.fixedDelay(1.seconds).limited(1)))
+            .use(_(log.info("info") *> IO.raiseError(new Exception))))
+      }
       .compile
       .toList
       .unsafeRunSync()
@@ -195,7 +197,7 @@ class ServiceTest extends AnyFunSuite {
       .updateConfig(_.withRestartPolicy(1.hour, _.fixedDelay(1.seconds).limited(1)))
       .eventStream { agent =>
         val a = UUID.randomUUID()
-        agent.herald.warn(a.toString) *> IO.raiseError(new Exception)
+        agent.herald.use(_.warn(a.toString) *> IO.raiseError(new Exception))
       }
       .mapFilter(eventFilters.serviceMessage)
       .compile
@@ -210,7 +212,9 @@ class ServiceTest extends AnyFunSuite {
       .updateConfig(_.withRestartPolicy(1.hour, _.fixedDelay(1.seconds).limited(1)))
       .eventStreamS { agent =>
         val a = UUID.randomUUID()
-        fs2.Stream(0).covary[IO].evalMap(_ => agent.herald.info(a.toString) *> IO.raiseError(new Exception))
+        fs2.Stream.resource(agent.herald).flatMap { log =>
+          fs2.Stream(0).covary[IO].evalMap(_ => log.info(a.toString) *> IO.raiseError(new Exception))
+        }
       }
       .mapFilter(eventFilters.serviceMessage)
       .compile
@@ -283,7 +287,7 @@ class ServiceTest extends AnyFunSuite {
     val res: List[Event] =
       guard
         .service("cancel")
-        .eventStream(_.herald.error("oops").delayBy(1.seconds).replicateA_(1000))
+        .eventStream(_.herald.use(_.error("oops")).delayBy(1.seconds).replicateA_(1000))
         .take(5)
         .compile
         .toList

@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.observers.postgres
 
 import cats.Applicative
+import cats.syntax.show.toShow
 import com.github.chenharryhua.nanjin.guard.event.Event
 import com.github.chenharryhua.nanjin.guard.translator.{
   interpretServiceParams,
@@ -26,7 +27,7 @@ private object JsonTranslator {
       Attribute(evt).map(_.timestamp.value).snakeJsonEntry,
       Attribute(Index(evt.tick.index)).map(_.value).snakeJsonEntry,
       Attribute(evt.serviceParams.serviceName).snakeJsonEntry,
-      Attribute(evt.serviceParams.servicePolicies.restart.policy).snakeJsonEntry,
+      Attribute(evt.serviceParams.servicePolicies.restart.policy).map(_.show).snakeJsonEntry,
       Attribute(evt.stackTrace).snakeJsonEntry,
       Attribute(evt.serviceParams.serviceId).snakeJsonEntry
     )
@@ -36,26 +37,16 @@ private object JsonTranslator {
       Attribute(evt).map(_.timestamp.value).snakeJsonEntry,
       Attribute(evt.serviceParams.serviceName).snakeJsonEntry,
       Attribute(evt.cause).snakeJsonEntry,
-      Attribute(evt.serviceParams.servicePolicies.restart.policy).snakeJsonEntry,
+      Attribute(evt.serviceParams.servicePolicies.restart.policy).map(_.show).snakeJsonEntry,
       Attribute(evt.serviceParams.serviceId).snakeJsonEntry
     )
 
-  private def metric_report(evt: MetricsReport): Json =
+  private def metrics_event(evt: MetricsEvent): Json =
     Json.obj(
       Attribute(evt).map(_.timestamp.value).snakeJsonEntry,
-      Attribute(evt.index).snakeJsonEntry,
+      Attribute(evt.index).map(_.show).snakeJsonEntry,
       Attribute(evt.serviceParams.serviceName).snakeJsonEntry,
-      Attribute(evt.took).snakeJsonEntry,
-      Attribute(evt.snapshot).map(new SnapshotPolyglot(_).toVanillaJson).snakeJsonEntry,
-      Attribute(evt.serviceParams.serviceId).snakeJsonEntry
-    )
-
-  private def metric_reset(evt: MetricsReset): Json =
-    Json.obj(
-      Attribute(evt).map(_.timestamp.value).snakeJsonEntry,
-      Attribute(evt.index).snakeJsonEntry,
-      Attribute(evt.serviceParams.serviceName).snakeJsonEntry,
-      Attribute(evt.took).snakeJsonEntry,
+      Attribute(evt.took).map(_.show).snakeJsonEntry,
       Attribute(evt.snapshot).map(new SnapshotPolyglot(_).toVanillaJson).snakeJsonEntry,
       Attribute(evt.serviceParams.serviceId).snakeJsonEntry
     )
@@ -77,8 +68,8 @@ private object JsonTranslator {
       .withServiceStart(service_started)
       .withServiceStop(service_stopped)
       .withServicePanic(service_panic)
-      .withMetricsReport(metric_report)
-      .withMetricsReset(metric_reset)
+      .withMetricsReport(metrics_event)
+      .withMetricsReset(metrics_event)
       .withServiceMessage(service_message)
 
 }

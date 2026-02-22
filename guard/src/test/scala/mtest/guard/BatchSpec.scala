@@ -33,7 +33,7 @@ class BatchSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
               c <- job("c", IO(3))
             } yield a + b + c
           }
-          .batchValue(TraceJob(agent).standard)
+          .batchValue(TraceJob.noop)
           .map(_.value)
           .memoizedAcquire
           .use(identity)
@@ -57,7 +57,7 @@ class BatchSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
             c <- job("c", IO(2))
           } yield a + c
         }
-        .batchValue(TraceJob(agent).standard)
+        .batchValue(TraceJob.noop)
         .use(qr => agent.adhoc.report.as(qr))
 
       result.asserting(_.value.shouldBe(3)) >>

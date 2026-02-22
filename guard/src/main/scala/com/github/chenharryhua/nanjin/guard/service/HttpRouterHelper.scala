@@ -20,9 +20,9 @@ import com.github.chenharryhua.nanjin.guard.event.{
   Timestamp,
   Took
 }
-import com.github.chenharryhua.nanjin.guard.translator.htmlHelper.htmlColoring
 import com.github.chenharryhua.nanjin.guard.translator.{
   durationFormatter,
+  htmlColoring,
   prettifyJson,
   Attribute,
   SnapshotPolyglot

@@ -47,7 +47,7 @@ class MetricsTest extends AnyFunSuite {
     val mr = service.eventStream { agent =>
       agent
         .facilitate("counter")(_.counter("counter").map(_.local[Long](identity)))
-        .use(_.run(10) >> agent.adhoc.report)
+        .use(_.run(10) >> agent.adhoc.report.void)
     }.map(checkJson).mapFilter(eventFilters.metricsReport).compile.lastOrError.unsafeRunSync()
     assert(mr.snapshot.nonEmpty)
     assert(retrieveCounter(mr.snapshot.counters).values.head == 10)
@@ -58,7 +58,7 @@ class MetricsTest extends AnyFunSuite {
     val mr = service.eventStream { agent =>
       agent
         .facilitate("counter")(_.counter("counter", _.asRisk).map(_.kleisli))
-        .use(_.run(10) >> agent.adhoc.report)
+        .use(_.run(10) >> agent.adhoc.report.void)
     }.map(checkJson).mapFilter(eventFilters.metricsReport).compile.lastOrError.unsafeRunSync()
     assert(retrieveRiskCounter(mr.snapshot.counters).values.head == 10)
     assert(retrieveCounter(mr.snapshot.counters).values.isEmpty)
@@ -66,7 +66,9 @@ class MetricsTest extends AnyFunSuite {
 
   test("3.counter disable") {
     val mr = service.eventStream { agent =>
-      agent.facilitate("counter")(_.counter("counter", _.enable(false))).use(_.run(10) >> agent.adhoc.report)
+      agent
+        .facilitate("counter")(_.counter("counter", _.enable(false)))
+        .use(_.run(10) >> agent.adhoc.report.void)
     }.map(checkJson).mapFilter(eventFilters.metricsReport).compile.lastOrError.unsafeRunSync()
     assert(mr.snapshot.isEmpty)
     assert(retrieveCounter(mr.snapshot.counters).values.isEmpty)
@@ -76,7 +78,7 @@ class MetricsTest extends AnyFunSuite {
   test("4.meter") {
     val mr = service.eventStream { agent =>
       val meter: Resource[IO, Meter[IO, Money]] = agent.facilitate("meter")(_.meter(AUD)("meter"))
-      meter.use(m => m.run(10.AUD) >> m.mark(20) >> agent.adhoc.report)
+      meter.use(m => m.run(10.AUD) >> m.mark(20) >> agent.adhoc.report.void)
     }.map(checkJson).mapFilter(eventFilters.metricsReport).compile.lastOrError.unsafeRunSync()
     val meter = retrieveMeter(mr.snapshot.meters).values.head
     assert(mr.snapshot.nonEmpty)
@@ -89,7 +91,7 @@ class MetricsTest extends AnyFunSuite {
     val mr = service.eventStream { agent =>
       agent
         .facilitate("meter")(_.meter(Bytes)("meter", _.enable(false)))
-        .use(_.run(10.bytes) >> agent.adhoc.report)
+        .use(_.run(10.bytes) >> agent.adhoc.report.void)
     }.map(checkJson).mapFilter(eventFilters.metricsReport).compile.lastOrError.unsafeRunSync()
     assert(mr.snapshot.isEmpty)
     assert(retrieveMeter(mr.snapshot.meters).isEmpty)
@@ -207,7 +209,7 @@ class MetricsTest extends AnyFunSuite {
   test("12.measured.retry - give up") {
     val sm = service.eventStream { agent =>
       agent
-        .retry(_.withDecision(tv => agent.herald.warn(tv.value)(tv.tick).as(tv.map(_ => true))))
+        .retry(_.withDecision(tv => IO(tv.map(_ => true))))
         .use(_.apply(IO.raiseError[Int](new Exception)) *> agent.adhoc.report)
     }.map(checkJson).mapFilter(eventFilters.serviceMessage).compile.toList.unsafeRunSync()
     assert(sm.isEmpty)
@@ -215,10 +217,12 @@ class MetricsTest extends AnyFunSuite {
 
   test("13.measured.retry - unworthy retry") {
     val sm = service.eventStream { agent =>
-      agent
-        .retry(_.withPolicy(_.fixedDelay(1000.second).limited(2)).withDecision(tv =>
-          agent.herald.warn(tv.value)(tv.tick).as(tv.map(_ => false))))
-        .use(_.apply(IO.raiseError[Int](new Exception)) *> agent.adhoc.report)
+      agent.herald.use { log =>
+        agent
+          .retry(_.withPolicy(_.fixedDelay(1000.second).limited(2)).withDecision(tv =>
+            log.warn(tv.value)(tv.tick).as(tv.map(_ => false))))
+          .use(_.apply(IO.raiseError[Int](new Exception)) *> agent.adhoc.report)
+      }
     }.map(checkJson).mapFilter(eventFilters.serviceMessage).compile.toList.unsafeRunSync()
 
     assert(sm.size == 1)

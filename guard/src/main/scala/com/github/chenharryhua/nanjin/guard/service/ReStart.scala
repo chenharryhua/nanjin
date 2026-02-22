@@ -4,14 +4,15 @@ import cats.effect.implicits.monadCancelOps_
 import cats.effect.kernel.Async
 import cats.effect.std.AtomicCell
 import cats.syntax.apply.catsSyntaxApplyOps
-import cats.syntax.functor.toFunctorOps
 import cats.syntax.flatMap.{catsSyntaxIfM, toFlatMapOps}
+import cats.syntax.functor.toFunctorOps
 import cats.syntax.monadError.catsSyntaxMonadError
 import cats.syntax.order.catsSyntaxPartialOrder
 import com.github.chenharryhua.nanjin.common.chrono.PolicyTick
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.event.Event.ServicePanic
 import com.github.chenharryhua.nanjin.guard.event.{Event, ServiceStopCause, StackTrace}
+import com.github.chenharryhua.nanjin.guard.logging.LogEvent
 import fs2.Stream
 import fs2.concurrent.Channel
 import org.apache.commons.collections4.queue.CircularFifoQueue
@@ -21,17 +22,17 @@ import java.time.Duration
 import scala.jdk.DurationConverters.JavaDurationOps
 
 final private class ReStart[F[_]: Async](
+  serviceParams: ServiceParams,
   channel: Channel[F, Event],
   panicHistory: AtomicCell[F, CircularFifoQueue[ServicePanic]],
-  eventLogger: EventLogger[F],
+  logEvent: LogEvent[F],
   theService: F[Unit])
     extends duration {
-  private val serviceParams: ServiceParams = eventLogger.serviceParams
 
   private[this] val F = Async[F]
 
   private[this] def stop(cause: ServiceStopCause): F[Unit] =
-    publish_service_stop(channel, eventLogger, cause)
+    publish_service_stop(serviceParams, channel, logEvent, cause)
 
   private[this] def panic(status: PolicyTick[F], ex: Throwable): F[Option[(Unit, PolicyTick[F])]] =
     F.realTimeInstant.flatMap[Option[(Unit, PolicyTick[F])]] { now =>
@@ -51,7 +52,7 @@ final private class ReStart[F[_]: Async](
         case None      => stop(ServiceStopCause.ByException(stackTrace)).as(None)
         case Some(nts) =>
           for {
-            evt <- publish_service_panic(channel, eventLogger, nts.tick, stackTrace)
+            evt <- publish_service_panic(serviceParams, channel, logEvent, nts.tick, stackTrace)
             _ <- panicHistory.modify(queue => (queue, queue.add(evt))) // mutable queue
             _ <- F.sleep(nts.tick.snooze.toScala)
           } yield Some(((), nts))
@@ -64,7 +65,7 @@ final private class ReStart[F[_]: Async](
       .flatMap {
         Stream
           .unfoldEval[F, PolicyTick[F], Unit](_) { status =>
-            (publish_service_start(channel, eventLogger, status.tick) <* theService)
+            (publish_service_start(serviceParams, channel, logEvent, status.tick) <* theService)
               .redeemWith[Option[(Unit, PolicyTick[F])]](
                 err => panic(status, err),
                 _ => stop(ServiceStopCause.Successfully).as(None)

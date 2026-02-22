@@ -130,12 +130,12 @@ object Batch {
       *
       * otherwise fail
       */
-    def quasiBatch(tracer: TraceJob[F, A]): Resource[F, BatchResultState]
+    def quasiBatch(tracer: Resource[F, TraceJob[F, A]]): Resource[F, BatchResultState]
 
     /** Exceptions thrown by individual jobs in the batch are propagated, causing the process to halt at the
       * point of failure, and fail prediction will cause `PostConditionUnsatisfied` exception
       */
-    def batchValue(tracer: TraceJob[F, A]): Resource[F, BatchResultValue[List[A]]]
+    def batchValue(tracer: Resource[F, TraceJob[F, A]]): Resource[F, BatchResultValue[List[A]]]
 
     private def handle_outcome(job: BatchJob, tracer: TraceJob[F, A], updatePanel: UpdatePanel[F])(
       outcome: Outcome[F, Throwable, SingleJobOutcome[A]])(implicit F: MonadError[F, Throwable]): F[Unit] =
@@ -201,9 +201,12 @@ object Batch {
       extends Runner[F, A] {
     override protected val mode: BatchMode = BatchMode.Parallel(parallelism)
 
-    override def quasiBatch(tracer: TraceJob[F, A]): Resource[F, BatchResultState] = {
+    override def quasiBatch(traceJob: Resource[F, TraceJob[F, A]]): Resource[F, BatchResultState] = {
 
-      def exec(batchPanel: BatchMetrics[F], batchId: UUID): F[(FiniteDuration, List[JobResultState])] =
+      def exec(
+        tracer: TraceJob[F, A],
+        batchPanel: BatchMetrics[F],
+        batchId: UUID): F[(FiniteDuration, List[JobResultState])] =
         jobs
           .parTraverseN(parallelism) {
             run_single_batch_quasi(tracer, metrics.metricLabel, batchId, batchPanel, predicate)
@@ -211,17 +214,22 @@ object Batch {
           .timed
           .guarantee(batchPanel.activeGauge.deactivate)
 
-      Resource.eval(uuidGenerator).flatMap { batchId =>
-        createPanel(metrics, jobs.size, JobKind.Quasi, mode).evalMap(bp => exec(bp, batchId)).map {
-          case (fd: FiniteDuration, jrs: List[JobResultState]) =>
-            BatchResultState(metrics.metricLabel, fd.toJava, mode, batchId, jrs.sortBy(_.job.index))
+      traceJob.flatMap { tracer =>
+        Resource.eval(uuidGenerator).flatMap { batchId =>
+          createPanel(metrics, jobs.size, JobKind.Quasi, mode).evalMap(bp => exec(tracer, bp, batchId)).map {
+            case (fd: FiniteDuration, jrs: List[JobResultState]) =>
+              BatchResultState(metrics.metricLabel, fd.toJava, mode, batchId, jrs.sortBy(_.job.index))
+          }
         }
       }
     }
 
-    override def batchValue(tracer: TraceJob[F, A]): Resource[F, BatchResultValue[List[A]]] = {
+    override def batchValue(traceJob: Resource[F, TraceJob[F, A]]): Resource[F, BatchResultValue[List[A]]] = {
 
-      def exec(batchPanel: BatchMetrics[F], batchId: UUID): F[(FiniteDuration, List[JobResultValue[A]])] =
+      def exec(
+        tracer: TraceJob[F, A],
+        batchPanel: BatchMetrics[F],
+        batchId: UUID): F[(FiniteDuration, List[JobResultValue[A]])] =
         jobs
           .parTraverseN(parallelism) {
             run_single_batch_value(tracer, metrics.metricLabel, batchId, batchPanel, predicate)
@@ -229,13 +237,15 @@ object Batch {
           .timed
           .guarantee(batchPanel.activeGauge.deactivate)
 
-      Resource.eval(uuidGenerator).flatMap { batchId =>
-        createPanel(metrics, jobs.size, JobKind.Value, mode).evalMap(bp => exec(bp, batchId)).map {
-          case (fd: FiniteDuration, jrv: List[JobResultValue[A]]) =>
-            val sorted: List[JobResultValue[A]] = jrv.sortBy(_.resultState.job.index)
-            val brs: BatchResultState =
-              BatchResultState(metrics.metricLabel, fd.toJava, mode, batchId, sorted.map(_.resultState))
-            BatchResultValue(brs, sorted.map(_.value))
+      traceJob.flatMap { tracer =>
+        Resource.eval(uuidGenerator).flatMap { batchId =>
+          createPanel(metrics, jobs.size, JobKind.Value, mode).evalMap(bp => exec(tracer, bp, batchId)).map {
+            case (fd: FiniteDuration, jrv: List[JobResultValue[A]]) =>
+              val sorted: List[JobResultValue[A]] = jrv.sortBy(_.resultState.job.index)
+              val brs: BatchResultState =
+                BatchResultState(metrics.metricLabel, fd.toJava, mode, batchId, sorted.map(_.resultState))
+              BatchResultValue(brs, sorted.map(_.value))
+          }
         }
       }
     }
@@ -265,29 +275,36 @@ object Batch {
 
     override protected val mode: BatchMode = BatchMode.Sequential
 
-    override def quasiBatch(tracer: TraceJob[F, A]): Resource[F, BatchResultState] = {
-      def exec(batchPanel: BatchMetrics[F], batchId: UUID): F[List[JobResultState]] =
+    override def quasiBatch(traceJob: Resource[F, TraceJob[F, A]]): Resource[F, BatchResultState] = {
+      def exec(tracer: TraceJob[F, A], batchPanel: BatchMetrics[F], batchId: UUID): F[List[JobResultState]] =
         jobs.traverse {
           run_single_batch_quasi(tracer, metrics.metricLabel, batchId, batchPanel, predicate)
         }.guarantee(batchPanel.activeGauge.deactivate)
 
-      Resource.eval(uuidGenerator).flatMap { batchId =>
-        createPanel(metrics, jobs.size, JobKind.Quasi, mode)
-          .evalMap(bp => exec(bp, batchId))
-          .map(sequentialBatchResultState(metrics, mode, batchId))
+      traceJob.flatMap { tracer =>
+        Resource.eval(uuidGenerator).flatMap { batchId =>
+          createPanel(metrics, jobs.size, JobKind.Quasi, mode)
+            .evalMap(bp => exec(tracer, bp, batchId))
+            .map(sequentialBatchResultState(metrics, mode, batchId))
+        }
       }
     }
 
-    override def batchValue(tracer: TraceJob[F, A]): Resource[F, BatchResultValue[List[A]]] = {
+    override def batchValue(traceJob: Resource[F, TraceJob[F, A]]): Resource[F, BatchResultValue[List[A]]] = {
 
-      def exec(batchPanel: BatchMetrics[F], batchId: UUID): F[List[JobResultValue[A]]] =
+      def exec(
+        tracer: TraceJob[F, A],
+        batchPanel: BatchMetrics[F],
+        batchId: UUID): F[List[JobResultValue[A]]] =
         jobs
           .traverse(run_single_batch_value(tracer, metrics.metricLabel, batchId, batchPanel, predicate))
           .guarantee(batchPanel.activeGauge.deactivate)
 
-      Resource.eval(uuidGenerator).flatMap { batchId =>
-        createPanel(metrics, jobs.size, JobKind.Value, mode).evalMap(bp => exec(bp, batchId)).map {
-          sequentialBatchResultValue(metrics, mode, batchId)
+      traceJob.flatMap { tracer =>
+        Resource.eval(uuidGenerator).flatMap { batchId =>
+          createPanel(metrics, jobs.size, JobKind.Value, mode).evalMap(bp => exec(tracer, bp, batchId)).map {
+            sequentialBatchResultValue(metrics, mode, batchId)
+          }
         }
       }
     }
@@ -519,20 +536,22 @@ object Batch {
           uuidGenerator = uuidGenerator
         )
 
-      def batchValue(tracer: TraceJob[F, Json]): Resource[F, BatchResultValue[T]] =
-        Resource.eval(uuidGenerator).flatMap { batchId =>
-          createPanel[F](metrics).flatMap { case BatchMetrics(updatePanel, activeGauge) =>
-            kleisli
-              .run(Callbacks[F](updatePanel, tracer, renameJob, batchId))
-              .run(1)
-              .guarantee(Resource.eval(activeGauge.deactivate))
-          }.map { case (_, JobState(eoa, history)) =>
-            eoa.map { a =>
-              val brs: BatchResultState =
-                sequentialBatchResultState(metrics, mode, batchId)(history.reverse.toList)
-              BatchResultValue(brs, a)
-            }
-          }.rethrow
+      def batchValue(traceJob: Resource[F, TraceJob[F, Json]]): Resource[F, BatchResultValue[T]] =
+        traceJob.flatMap { tracer =>
+          Resource.eval(uuidGenerator).flatMap { batchId =>
+            createPanel[F](metrics).flatMap { case BatchMetrics(updatePanel, activeGauge) =>
+              kleisli
+                .run(Callbacks[F](updatePanel, tracer, renameJob, batchId))
+                .run(1)
+                .guarantee(Resource.eval(activeGauge.deactivate))
+            }.map { case (_, JobState(eoa, history)) =>
+              eoa.map { a =>
+                val brs: BatchResultState =
+                  sequentialBatchResultState(metrics, mode, batchId)(history.reverse.toList)
+                BatchResultValue(brs, a)
+              }
+            }.rethrow
+          }
         }
     }
   }
