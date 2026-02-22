@@ -35,7 +35,7 @@ class BatchMonadicTest extends AnyFunSuite {
             c <- job("c" -> IO(3))
           } yield a + b + c
         }
-        .batchValue(TraceJob(agent).disableSuccess.escalateFailure.disableKickoff.escalateSuccess.json)
+        .batchValue(TraceJob.noop)
     }.compile.lastOrError.unsafeRunSync()
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
   }
@@ -57,7 +57,7 @@ class BatchMonadicTest extends AnyFunSuite {
             c <- job("c" -> IO(3))
           } yield a + b + c
         }
-        .batchValue(tracer |+| TraceJob(agent).json)
+        .batchValue(tracer |+| TraceJob.noop)
         .attempt
       res.map(r => assert(r.fold(_.isInstanceOf[Exception], _ => false)))
 
@@ -93,7 +93,7 @@ class BatchMonadicTest extends AnyFunSuite {
             })
           } yield a + c
         }
-        .batchValue(tracer |+| TraceJob(agent).json)
+        .batchValue(tracer |+| TraceJob.noop)
     }.compile.lastOrError.unsafeRunSync()
 
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
@@ -127,7 +127,7 @@ class BatchMonadicTest extends AnyFunSuite {
             c <- job("c" -> IO(3))
           } yield a + c
         }
-        .batchValue(tracer |+| TraceJob(agent).json)
+        .batchValue(tracer |+| TraceJob.noop)
     }.compile.lastOrError.unsafeRunSync()
 
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
@@ -159,7 +159,7 @@ class BatchMonadicTest extends AnyFunSuite {
             c <- job("c" -> IO(3))
           } yield a + c
         }
-        .batchValue(tracer |+| TraceJob(agent).json)
+        .batchValue(tracer |+| TraceJob.noop)
         .attempt
       res.map(r => assert(r.fold(_.isInstanceOf[PostConditionUnsatisfied], _ => false)))
 

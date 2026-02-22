@@ -22,7 +22,7 @@ class BatchParallelTest extends AnyFunSuite {
   test("1.good") {
     val jobs = List("a" -> IO(1), "b" -> IO(2))
     val se = service.eventStreamR { agent =>
-      agent.batch("good job").parallel(jobs*).quasiBatch(TraceJob(agent).standard)
+      agent.batch("good job").parallel(jobs*).quasiBatch(TraceJob.noop)
     }.compile.lastOrError.unsafeRunSync()
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
   }
@@ -33,7 +33,7 @@ class BatchParallelTest extends AnyFunSuite {
       "b" -> IO(2).delayBy(3.seconds),
       "c" -> IO.raiseError(new Exception()).delayBy(2.seconds))
     val se = service.eventStream { agent =>
-      agent.batch("exception.quasi").parallel(jobs*).quasiBatch(TraceJob(agent).standard).use { mb =>
+      agent.batch("exception.quasi").parallel(jobs*).quasiBatch(TraceJob.noop).use { mb =>
         IO {
           assert(mb.jobs.head.done)
           assert(mb.jobs(1).done)
@@ -81,7 +81,7 @@ class BatchParallelTest extends AnyFunSuite {
         .batch("predicate.quasi")
         .parallel(jobs*)
         .withPredicate(_ > 2)
-        .quasiBatch(TraceJob(agent).standard)
+        .quasiBatch(TraceJob.noop)
         .use { mb =>
           IO {
             assert(!mb.jobs.head.done)

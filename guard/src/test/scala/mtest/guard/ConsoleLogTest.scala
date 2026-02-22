@@ -32,9 +32,6 @@ class ConsoleLogTest extends AnyFunSuite {
     }
     mtx.use(
       _.run(1) >>
-        agent.herald.error(new Exception())("error messages") >>
-        agent.herald.error("no exception") >>
-        agent.herald.info("message") >>
         agent.adhoc.reset >>
         agent.adhoc.report) >>
       IO.raiseError(new Exception("oops"))

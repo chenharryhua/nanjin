@@ -20,7 +20,7 @@ class CacheTest extends AnyFunSuite {
   test("1.put get") {
     val ss = service.eventStream { agent =>
       agent.caffeineCache(Caffeine.newBuilder().build[Int, Int]()).use { cache =>
-        cache.putAll(Map(1 -> 101, 2 -> 102)) >> cache.getIfPresent(1).flatMap(agent.herald.done(_))
+        cache.putAll(Map(1 -> 101, 2 -> 102)) >> cache.getIfPresent(1).void
       }
     }.mapFilter(eventFilters.serviceStop).compile.lastOrError.unsafeRunSync()
     assert(ss.cause == Successfully)
@@ -69,7 +69,7 @@ class CacheTest extends AnyFunSuite {
                 c.getIfPresent(i).map(_.exists(_ == i + 100).ensuring(b => b)))
             .onFinalize(c.invalidateAll)
             .compile
-            .drain >> agent.adhoc.report
+            .drain >> agent.adhoc.report.void
         }
       }
       .compile
@@ -126,7 +126,7 @@ class CacheTest extends AnyFunSuite {
             .map(i => s"out: $i")
             .debug()
             .compile
-            .drain >> agent.adhoc.report
+            .drain >> agent.adhoc.report.void
         }
       }
       .compile

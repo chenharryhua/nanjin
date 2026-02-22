@@ -26,7 +26,7 @@ class CircuitBreakerTest extends AnyFunSuite {
       circuitBreaker.use { cb =>
         cb.attempt(bad) >> agent.adhoc.report >>
           cb.attempt(bad) >> agent.adhoc.report >>
-          cb.protect(good) >> agent.adhoc.report
+          cb.protect(good) >> agent.adhoc.report.void
       }
     }.mapFilter(eventFilters.serviceStop).compile.lastOrError.unsafeRunSync()
     assert(ss.cause == ServiceStopCause.Successfully)
@@ -45,7 +45,7 @@ class CircuitBreakerTest extends AnyFunSuite {
         cb.attempt(bad) >> agent.adhoc.report >>
           cb.attempt(bad) >> agent.adhoc.report >>
           cb.attempt(bad) >> agent.adhoc.report >>
-          cb.protect(good).guarantee(agent.adhoc.report).void
+          cb.protect(good).guarantee(agent.adhoc.report.void).void
       }
     }.mapFilter(eventFilters.serviceStop).compile.lastOrError.unsafeRunSync()
     assert(

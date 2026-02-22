@@ -52,7 +52,7 @@ class BatchTest extends AnyFunSuite {
           assert(!qr.jobs(5).done)
           qr
         }
-        .use(qr => IO.println(qr.asJson) *> ga.adhoc.report)
+        .use(qr => IO.println(qr.asJson) <* ga.adhoc.report)
     }.map(checkJson).compile.lastOrError.unsafeRunSync()
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
   }
@@ -69,7 +69,7 @@ class BatchTest extends AnyFunSuite {
           "f" -> IO.sleep(4.seconds)
         )
         .withJobRename(_ + ":test")
-        .quasiBatch(TraceJob(ga).universal[Unit]((_, _) => Json.Null))
+        .quasiBatch(TraceJob.noop)
         .map { qr =>
           assert(qr.jobs.head.done)
           assert(qr.jobs(1).done)
@@ -80,7 +80,7 @@ class BatchTest extends AnyFunSuite {
           assert(qr.jobs.forall(_.job.name.endsWith("test")))
           qr
         }
-        .use(_ => ga.adhoc.report)
+        .use(_ => ga.adhoc.report.void)
     }.map(checkJson).compile.lastOrError.unsafeRunSync()
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
 
@@ -94,7 +94,7 @@ class BatchTest extends AnyFunSuite {
           "a" -> IO.sleep(1.second).as(1.mb),
           "b" -> IO.sleep(2.seconds).as(2.tb),
           "c" -> IO.sleep(1.seconds).as(3.bytes))
-        .batchValue(TraceJob(agent).universal((_, _) => Json.Null))
+        .batchValue(TraceJob.noop)
         .use_
     }.map(checkJson).compile.lastOrError.unsafeRunSync()
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
@@ -110,7 +110,7 @@ class BatchTest extends AnyFunSuite {
           "c" -> IO.sleep(3.seconds),
           "d" -> IO.sleep(4.seconds))
         .withPredicate(_ => true)
-        .batchValue(TraceJob(ga).json.contramap(_.asJson))
+        .batchValue(TraceJob.noop)
         .memoizedAcquire
         .use(_.map(_.resultState.jobs.forall(_.done)))
         .map(assert(_))
@@ -127,7 +127,7 @@ class BatchTest extends AnyFunSuite {
           "b" -> IO.sleep(2.seconds),
           "c" -> IO.raiseError(new Exception),
           "d" -> IO.sleep(1.seconds))
-        .batchValue(TraceJob(ga).standard)
+        .batchValue(TraceJob.noop)
         .use_
     }.map(checkJson).compile.lastOrError.unsafeRunSync()
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 3)
@@ -203,10 +203,10 @@ class BatchTest extends AnyFunSuite {
           .flatMap(_ => job("b", IO.println(2)))
           .flatMap(_ => job("c", agent.adhoc.report >> IO.sleep(1.seconds)))
           .flatMap(_ => job("d", IO.println(4)))
-          .flatMap(_ => job("e", agent.adhoc.report))
+          .flatMap(_ => job("e", agent.adhoc.report.void))
           .flatMap(_ => job("f", IO.println(6)))
-          .batchValue(TraceJob(agent).standard)
-          .use(agent.herald.done(_) >> agent.adhoc.report)
+          .batchValue(TraceJob.noop)
+          .use(_ => agent.adhoc.report.void)
       }
     }.compile.drain.unsafeRunSync()
   }
@@ -219,19 +219,19 @@ class BatchTest extends AnyFunSuite {
           for {
             a <- job("a", IO.println("a").as(10))
             b <- job("b", IO.sleep(1.seconds) >> IO.println("b").as(20))
-            _ <- job("c", agent.adhoc.report)
+            _ <- job("c", agent.adhoc.report.void)
             _ <- job("d" -> IO.println("aaaa"))
             _ <- job("e" -> IO.sleep(1.seconds).flatMap(_ => IO.println("bbbb")))
-            _ <- job("f" -> agent.adhoc.report)
+            _ <- job("f" -> agent.adhoc.report.void)
             c <- job("g", IO.println("c").as(30))
           } yield a + b + c
         }
         .withJobRename("monadic job rename:" + _)
-        .batchValue(TraceJob(agent).standard)
+        .batchValue(TraceJob.noop)
         .use { qr =>
           assert(qr.value == 60)
           assert(qr.resultState.jobs.forall(_.job.name.startsWith("monadic")))
-          agent.adhoc.report
+          agent.adhoc.report.void
         }
     }.compile.lastOrError.unsafeRunSync()
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
@@ -246,17 +246,17 @@ class BatchTest extends AnyFunSuite {
           for {
             a <- job("a", IO.println("a").as(10))
             b <- job("b", IO.sleep(1.seconds) >> IO.println("b").as(20))
-            _ <- job("report-1" -> agent.adhoc.report)
+            _ <- job("report-1" -> agent.adhoc.report.void)
             _ <- job.failSafe("exception", IO.raiseError[Int](new Exception("aaaa")))(new JobHandler[Int] {
               override def predicate(a: Int): Boolean = true
               override def translate(a: Int, jrs: JobResultState): Json = a.asJson
             })
             _ <- job("f", IO.println("bbbb"))
-            _ <- job("report-2" -> agent.adhoc.report)
+            _ <- job("report-2" -> agent.adhoc.report.void)
             c <- job("c", IO.println("c").as(30))
           } yield a + b + c
         }
-        .batchValue(TraceJob(agent).standard)
+        .batchValue(TraceJob.noop)
         .use { qr =>
           assert(qr.resultState.jobs.head.done)
           assert(qr.resultState.jobs(1).done)
@@ -266,7 +266,7 @@ class BatchTest extends AnyFunSuite {
           assert(qr.resultState.jobs(5).done)
           assert(qr.resultState.jobs(6).done)
           assert(qr.resultState.jobs.size == 7)
-          agent.adhoc.report >> agent.herald.info(qr)
+          agent.adhoc.report.void
         }
     }.compile.lastOrError.unsafeRunSync()
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
@@ -277,8 +277,8 @@ class BatchTest extends AnyFunSuite {
       agent
         .batch("monadic")
         .monadic(job => job("a" -> IO(0)))
-        .batchValue(TraceJob(agent).standard)
-        .use(qr => agent.adhoc.report >> agent.herald.info(qr.resultState))
+        .batchValue(TraceJob.noop)
+        .use(_ => agent.adhoc.report.void)
     }.compile.drain.unsafeRunSync()
   }
 
@@ -303,7 +303,7 @@ class BatchTest extends AnyFunSuite {
             b <- p2
           } yield a + b
         }
-        .batchValue(TraceJob(agent).standard)
+        .batchValue(TraceJob.noop)
         .use { qr =>
           val details = qr.resultState.jobs
           assert(details.head.job.name === "1")
@@ -319,7 +319,7 @@ class BatchTest extends AnyFunSuite {
           assert(details(5).job.name === "30")
           assert(details(5).job.index === 6)
           assert(details.size == 6)
-          agent.adhoc.report >> agent.herald.info(qr)
+          agent.adhoc.report.void
         }
     }.compile.lastOrError.unsafeRunSync()
 
@@ -336,7 +336,7 @@ class BatchTest extends AnyFunSuite {
 
   test("17. sorted parallel") {
     val se = service.eventStream { agent =>
-      agent.batch("sorted.parallel").parallel(jobs*).batchValue(TraceJob(agent).standard).use {
+      agent.batch("sorted.parallel").parallel(jobs*).batchValue(TraceJob.noop).use {
         case BatchResultValue(br, rst) =>
           IO {
             assert(rst.head == 1)
@@ -363,7 +363,7 @@ class BatchTest extends AnyFunSuite {
 
   test("18. sorted sequential") {
     val se = service.eventStream { agent =>
-      agent.batch("sorted.sequential").sequential(jobs*).batchValue(TraceJob(agent).standard).use {
+      agent.batch("sorted.sequential").sequential(jobs*).batchValue(TraceJob.noop).use {
         case BatchResultValue(br, rst) =>
           IO {
             assert(rst.head == 1)

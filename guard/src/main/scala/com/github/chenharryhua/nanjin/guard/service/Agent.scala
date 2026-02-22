@@ -1,19 +1,23 @@
 package com.github.chenharryhua.nanjin.guard.service
 
 import cats.Endo
-import cats.effect.kernel.{Async, Resource}
-import cats.effect.std.{AtomicCell, Dispatcher}
+import cats.effect.kernel.{Async, Ref, Resource}
+import cats.effect.std.{AtomicCell, Console, Dispatcher}
+import cats.syntax.functor.toFunctorOps
 import com.codahale.metrics.MetricRegistry
 import com.github.benmanes.caffeine.cache.Cache
 import com.github.chenharryhua.nanjin.common.chrono.*
 import com.github.chenharryhua.nanjin.common.{CircuitBreaker, Retry}
 import com.github.chenharryhua.nanjin.guard.batch.Batch
+import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.*
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceMessage
+import com.github.chenharryhua.nanjin.guard.logging.{Herald, LogEvent, Logger}
 import com.github.chenharryhua.nanjin.guard.metrics.Metrics
 import fs2.Stream
 import fs2.concurrent.Channel
 import org.apache.commons.collections4.queue.CircularFifoQueue
+import org.typelevel.log4cats.LoggerName
 
 import java.time.ZoneId
 import java.util.UUID
@@ -41,8 +45,8 @@ sealed trait Agent[F[_]] {
   /*
    * Service Message
    */
-  val herald: Herald[F]
-  val log: Log[F]
+  def herald(implicit ln: LoggerName): Resource[F, Herald[F]]
+  def logger(implicit ln: LoggerName): Resource[F, Logger[F]]
 
   /*
    * metrics
@@ -68,28 +72,33 @@ sealed trait Agent[F[_]] {
 
 }
 
-final private class GeneralAgent[F[_]: Async](
+final private class GeneralAgent[F[_]: Async: Console](
+  serviceParams: ServiceParams,
+  domain: Domain,
   metricRegistry: MetricRegistry,
   channel: Channel[F, Event],
-  eventLogger: EventLogger[F],
   errorHistory: AtomicCell[F, CircularFifoQueue[ServiceMessage]],
   dispatcher: Dispatcher[F],
-  uuidGenerator: F[UUID])
+  uuidGenerator: F[UUID],
+  logEvent: LogEvent[F],
+  alarmLevel: Ref[F, Option[AlarmLevel]])
     extends Agent[F] {
 
-  override val zoneId: ZoneId = eventLogger.serviceParams.zoneId
+  override val zoneId: ZoneId = serviceParams.zoneId
 
   override def withDomain(name: String): Agent[F] =
     new GeneralAgent[F](
+      serviceParams,
+      Domain(name),
       metricRegistry,
       channel,
-      eventLogger.withDomain(Domain(name)),
       errorHistory,
       dispatcher,
-      uuidGenerator)
+      uuidGenerator,
+      logEvent,alarmLevel)
 
   override def batch(label: String): Batch[F] = {
-    val metricLabel = MetricLabel(label, eventLogger.domain)
+    val metricLabel = MetricLabel(label, domain)
     new Batch[F](new Metrics.Impl[F](metricLabel, metricRegistry, dispatcher, zoneId), uuidGenerator)
   }
 
@@ -103,7 +112,7 @@ final private class GeneralAgent[F[_]: Async](
     tickStream.tickImmediate[F](zoneId, f)
 
   override def metrics(label: String): Metrics[F] = {
-    val metricLabel = MetricLabel(label, eventLogger.domain)
+    val metricLabel = MetricLabel(label, domain)
     new Metrics.Impl[F](metricLabel, metricRegistry, dispatcher, zoneId)
   }
 
@@ -119,8 +128,19 @@ final private class GeneralAgent[F[_]: Async](
   override def retry(f: Endo[Retry.Builder[F]]): Resource[F, Retry[F]] =
     Resource.eval(Retry[F](zoneId, f))
 
-  override object adhoc extends AdhocMetricsImpl[F](channel, eventLogger, metricRegistry)
+  override object adhoc extends AdhocMetricsImpl[F](serviceParams, channel, logEvent, metricRegistry)
 
-  override object herald extends HeraldImpl[F](channel, eventLogger, errorHistory)
-  override val log: Log[F] = eventLogger
+  override def herald(implicit ln: LoggerName): Resource[F, Herald[F]] =
+    Resource.eval(
+      LogEvent(serviceParams.logFormat, zoneId, ln).map(le =>
+        Herald(
+          serviceParams = serviceParams,
+          domain = domain,
+          channel = channel,
+          logEvent = le,
+          errorHistory = errorHistory)))
+
+  override def logger(implicit ln: LoggerName): Resource[F, Logger[F]] =
+    Resource.eval(LogEvent(serviceParams.logFormat, zoneId, ln).map(le =>
+      Logger(serviceParams = serviceParams, domain = domain, alarmLevel = alarmLevel, logEvent = le)))
 }

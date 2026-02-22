@@ -13,18 +13,18 @@ class ServiceMessageTest extends AnyFunSuite {
     TaskGuard[IO]("service.messages").service("service message")
 
   private def info(agent: Agent[IO]): IO[Unit] =
-    agent.log.info("a") >>
-      agent.log.info(1) >>
-      agent.log.info(List(1, 2, 3)) >>
-      agent.log.info(true) >>
-      agent.log.info(Json.obj("a" -> 1.asJson)) >>
-      agent.log.info(Json.Null)
+    agent.logger.use(log => log.info("a") >>
+      log.info(1) >>
+      log.info(List(1, 2, 3)) >>
+      log.info(true) >>
+      log.info(Json.obj("a" -> 1.asJson)) >>
+      log.info(Json.Null))
 
   private def warn(agent: Agent[IO]): IO[Unit] =
-    agent.log.warn(new Exception("oops"))(Json.obj("a" -> 1.asJson)) >>
-      agent.log.warn(Json.Null) >>
-      agent.log.warn(new Exception())("oops") >>
-      agent.log.warn(new Exception())(Json.Null)
+    agent.logger.use(log => log.warn(new Exception("oops"))(Json.obj("a" -> 1.asJson)) >>
+      log.warn(Json.Null) >>
+      log.warn(new Exception())("oops") >>
+      log.warn(new Exception())(Json.Null))
 
   test("1. info json space2") {
     service

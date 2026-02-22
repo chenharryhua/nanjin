@@ -9,7 +9,8 @@ import cats.syntax.functor.toFunctorOps
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.Event.{MetricsReport, ServiceMessage, ServicePanic}
-import com.github.chenharryhua.nanjin.guard.event.{Event, ScrapeMode, ServiceStopCause, Snapshot}
+import com.github.chenharryhua.nanjin.guard.event.{Event, Index, ScrapeMode, ServiceStopCause, Snapshot}
+import com.github.chenharryhua.nanjin.guard.logging.LogEvent
 import com.github.chenharryhua.nanjin.guard.translator.{interpretServiceParams, SnapshotPolyglot}
 import fs2.concurrent.Channel
 import io.circe.Json
@@ -22,18 +23,17 @@ import org.http4s.{HttpRoutes, Request, Response}
 import org.typelevel.cats.time.instances.all
 import scalatags.Text
 import scalatags.Text.all.*
-import com.github.chenharryhua.nanjin.guard.event.Index
 
 final private class HttpRouter[F[_]](
+  serviceParams: ServiceParams,
   metricRegistry: MetricRegistry,
   panicHistory: AtomicCell[F, CircularFifoQueue[ServicePanic]],
   metricsHistory: AtomicCell[F, CircularFifoQueue[MetricsReport]],
   errorHistory: AtomicCell[F, CircularFifoQueue[ServiceMessage]],
   alarmLevel: Ref[F, Option[AlarmLevel]],
   channel: Channel[F, Event],
-  eventLogger: EventLogger[F])(implicit F: Async[F])
+  logEvent: LogEvent[F])(implicit F: Async[F])
     extends Http4sDsl[F] with all {
-  private val serviceParams: ServiceParams = eventLogger.serviceParams
 
   private val indexHtml: Text.TypedTag[String] = html(
     head(tag("title")(serviceParams.serviceName.value)),
@@ -87,7 +87,7 @@ final private class HttpRouter[F[_]](
     case GET -> Root / "metrics" / "reset" =>
       for {
         ts <- serviceParams.zonedNow
-        _ <- publish_metrics_reset[F](channel, eventLogger, metricRegistry, Index.Adhoc(ts))
+        _ <- publish_metrics_reset[F](serviceParams, channel, logEvent, metricRegistry, Index.Adhoc(ts))
         (fd, yaml) <- Snapshot.timed[F](metricRegistry, ScrapeMode.Full).map { case (fd, ms) =>
           (fd, new SnapshotPolyglot(ms).toYaml)
         }
@@ -111,7 +111,7 @@ final private class HttpRouter[F[_]](
         body(h1("Stopping Service"))
       )
 
-      Ok(stopping) <* publish_service_stop[F](channel, eventLogger, ServiceStopCause.Maintenance)
+      Ok(stopping) <* publish_service_stop[F](serviceParams, channel, logEvent, ServiceStopCause.Maintenance)
 
     case GET -> Root / "service" / "health_check" =>
       helper.service_health_check.flatMap {

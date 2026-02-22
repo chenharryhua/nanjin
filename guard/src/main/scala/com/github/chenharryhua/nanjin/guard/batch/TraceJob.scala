@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.guard.batch
 import cats.effect.kernel.MonadCancel
 import cats.syntax.flatMap.catsSyntaxFlatMapOps
 import cats.{Applicative, Monoid}
-import com.github.chenharryhua.nanjin.guard.service.Agent
+import com.github.chenharryhua.nanjin.guard.logging.{Herald, Logger}
 import io.circe.syntax.EncoderOps
 import io.circe.{Encoder, Json}
 
@@ -63,30 +63,11 @@ object TraceJob {
     )
 
   final class ByAgent[F[_]] private[TraceJob] (
-    private[TraceJob] val _agent: Agent[F],
     private[TraceJob] val _kickoff: Json => F[Unit],
     private[TraceJob] val _failure: Json => F[Unit],
     private[TraceJob] val _success: Json => F[Unit],
     private[TraceJob] val _canceled: Json => F[Unit],
     private[TraceJob] val _errored: JobResultError => F[Unit]) {
-    // canceled / errored are intentionally not overridable
-    private def copy(
-      _kickoff: Json => F[Unit] = this._kickoff,
-      _failure: Json => F[Unit] = this._failure,
-      _success: Json => F[Unit] = this._success
-    ): ByAgent[F] = new ByAgent[F](
-      _agent = this._agent,
-      _kickoff = _kickoff,
-      _failure = _failure,
-      _success = _success,
-      _canceled = this._canceled,
-      _errored = this._errored
-    )
-
-    def disableKickoff: ByAgent[F] = copy(_kickoff = _agent.log.void)
-    def disableSuccess: ByAgent[F] = copy(_success = _agent.log.void)
-    def escalateFailure: ByAgent[F] = copy(_failure = _agent.herald.error(_))
-    def escalateSuccess: ByAgent[F] = copy(_success = _agent.herald.done(_))
 
     def universal[A](f: (A, JobResultState) => Json): JobTracer[F, A] =
       new JobTracer[F, A](
@@ -106,15 +87,22 @@ object TraceJob {
     def json: JobTracer[F, Json] = standard[Json]
   }
 
-  def apply[F[_]](agent: Agent[F]): ByAgent[F] =
+  def apply[F[_]](herald: Herald[F]): ByAgent[F] =
     new ByAgent[F](
-      _agent = agent,
-      _kickoff = agent.log.info(_),
-      _failure = agent.log.warn(_),
-      _success = agent.log.done(_),
-      _canceled = agent.log.warn(_),
-      _errored = (jre: JobResultError) =>
-        agent.herald.error(jre.error)(Json.obj("error" -> jre.resultState.asJson))
+      _kickoff = herald.info(_),
+      _failure = herald.warn(_),
+      _success = herald.done(_),
+      _canceled = herald.warn(_),
+      _errored = (jre: JobResultError) => herald.error(jre.error)(Json.obj("error" -> jre.resultState.asJson))
+    )
+
+  def apply[F[_]](logger: Logger[F]): ByAgent[F] =
+    new ByAgent[F](
+      _kickoff = logger.info(_),
+      _failure = logger.warn(_),
+      _success = logger.done(_),
+      _canceled = logger.warn(_),
+      _errored = (jre: JobResultError) => logger.warn(jre.error)(Json.obj("error" -> jre.resultState.asJson))
     )
 
   implicit def monoidTraceJob[F[_], A](implicit ev: MonadCancel[F, Throwable]): Monoid[TraceJob[F, A]] =

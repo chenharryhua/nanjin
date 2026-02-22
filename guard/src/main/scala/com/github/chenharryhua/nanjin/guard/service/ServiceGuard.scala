@@ -20,7 +20,7 @@ import com.github.chenharryhua.nanjin.guard.config.{
   ServiceId,
   ServiceParams
 }
-import com.github.chenharryhua.nanjin.guard.event.Event
+import com.github.chenharryhua.nanjin.guard.event.{Domain, Event}
 import fs2.Stream
 import fs2.concurrent.Channel
 import fs2.io.net.Network
@@ -82,7 +82,7 @@ final private[guard] class ServiceGuardImpl[F[_]: Network: Async: Console] priva
       metricsHistory <- helper.metrics_history
       errorHistory <- helper.error_history
       alarmLevel <- Stream.eval(Ref.of[F, Option[AlarmLevel]](AlarmLevel.Info.some))
-      eventLogger <- helper.event_logger(alarmLevel)
+      logEvent <- helper.log_event
       event <- Stream.eval(Channel.unbounded[F, Event]).flatMap { channel =>
         val metricRegistry: MetricRegistry = new MetricRegistry()
 
@@ -93,39 +93,44 @@ final private[guard] class ServiceGuardImpl[F[_]: Network: Async: Console] priva
               Stream.resource(
                 esb
                   .withHttpApp(new HttpRouter[F](
+                    serviceParams = kickedOff.serviceParams,
                     metricRegistry = metricRegistry,
                     panicHistory = panicHistory,
                     metricsHistory = metricsHistory,
                     errorHistory = errorHistory,
                     alarmLevel = alarmLevel,
                     channel = channel,
-                    eventLogger = eventLogger
+                    logEvent = logEvent
                   ).router)
                   .build) >> Stream.never[F]
           }
 
         val agent: GeneralAgent[F] =
           new GeneralAgent[F](
+            kickedOff.serviceParams,
+            Domain(kickedOff.serviceParams.serviceName.value),
             metricRegistry = metricRegistry,
             channel = channel,
-            eventLogger = eventLogger,
             errorHistory = errorHistory,
             dispatcher = dispatcher,
-            uuidGenerator = kickedOff.uuidGenerator
+            uuidGenerator = kickedOff.uuidGenerator,
+            logEvent = logEvent,
+            alarmLevel = alarmLevel
           )
 
         val surveillance: Stream[F, Nothing] =
           new ReStart[F](
+            serviceParams = kickedOff.serviceParams,
             channel = channel,
-            eventLogger = eventLogger,
+            logEvent = logEvent,
             panicHistory = panicHistory,
             theService = F.defer(runAgent(agent))
           ).stream
 
         // put together
         channel.stream
-          .concurrently(helper.service_metrics_reset(channel, eventLogger, metricRegistry))
-          .concurrently(helper.service_metrics_report(channel, eventLogger, metricRegistry, metricsHistory))
+          .concurrently(helper.service_metrics_reset(channel, logEvent, metricRegistry))
+          .concurrently(helper.service_metrics_report(channel, logEvent, metricRegistry, metricsHistory))
           .concurrently(helper.service_jmx_report(metricRegistry, config.jmxBuilder))
           .concurrently(http_server)
           .concurrently(surveillance)
