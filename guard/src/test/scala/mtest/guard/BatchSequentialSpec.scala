@@ -79,13 +79,13 @@ class BatchSequentialSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
         val result = agent
           .batch("exception")
           .sequential(jobs*)
-          .batchValue(tracer.onError { case JobResultError(jo, oc) =>
+          .batchValue(tracer.map(_.onError { case JobResultError(jo, oc) =>
             IO {
               assert(!jo.done)
               assert(jo.job.index == 2)
               assert(oc.getMessage == "abc")
             }.void
-          })
+          }))
         result.assertThrowsError[Exception](_.getMessage.shouldBe("abc"))
       }.compile.lastOrError
       se.asserting(_.asInstanceOf[ServiceStop].cause.exitCode.shouldBe(0))
@@ -100,13 +100,13 @@ class BatchSequentialSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
             .batch("predicate")
             .sequential(jobs*)
             .withPredicate(_ > 3)
-            .batchValue(tracer.onComplete { jo =>
+            .batchValue(tracer.map(_.onComplete { jo =>
               IO {
                 assert(!jo.resultState.done)
                 assert(jo.resultState.job.index == 1)
                 assert(jo.value == 1)
               }.void
-            })
+            }))
         result.assertThrowsError[PostConditionUnsatisfied](_.job.index.shouldBe(1))
       }.compile.lastOrError
       se.asserting(_.asInstanceOf[ServiceStop].cause.exitCode.shouldBe(0))

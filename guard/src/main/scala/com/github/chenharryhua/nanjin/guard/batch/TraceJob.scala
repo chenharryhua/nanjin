@@ -1,9 +1,9 @@
 package com.github.chenharryhua.nanjin.guard.batch
 
-import cats.effect.kernel.MonadCancel
+import cats.effect.kernel.{MonadCancel, Resource}
 import cats.syntax.flatMap.catsSyntaxFlatMapOps
 import cats.{Applicative, Monoid}
-import com.github.chenharryhua.nanjin.guard.logging.{Herald, Logger}
+import com.github.chenharryhua.nanjin.guard.logging.Log
 import io.circe.syntax.EncoderOps
 import io.circe.{Encoder, Json}
 
@@ -54,7 +54,7 @@ object TraceJob {
       )
   }
 
-  def noop[F[_], A](implicit F: Applicative[F]): JobTracer[F, A] =
+  private def _empty[F[_], A](implicit F: Applicative[F]) =
     new JobTracer[F, A](
       _completed = _ => F.unit,
       _errored = _ => F.unit,
@@ -62,67 +62,53 @@ object TraceJob {
       _kickoff = _ => F.unit
     )
 
-  final class ByAgent[F[_]] private[TraceJob] (
-    private[TraceJob] val _kickoff: Json => F[Unit],
-    private[TraceJob] val _failure: Json => F[Unit],
-    private[TraceJob] val _success: Json => F[Unit],
-    private[TraceJob] val _canceled: Json => F[Unit],
-    private[TraceJob] val _errored: JobResultError => F[Unit]) {
+  def noop[F[_]: Applicative, A]: Resource[F, JobTracer[F, A]] =
+    Resource.pure[F, JobTracer[F, A]](_empty)
 
-    def universal[A](f: (A, JobResultState) => Json): JobTracer[F, A] =
-      new JobTracer[F, A](
-        _completed = { (jrv: JobResultValue[A]) =>
-          val json: Json =
-            Json.obj("outcome" -> f(jrv.value, jrv.resultState)).deepMerge(jrv.resultState.asJson)
-          if (jrv.resultState.done) _success(Json.obj("done" -> json)) else _failure(Json.obj("fail" -> json))
-        },
-        _errored = (jre: JobResultError) => _errored(jre),
-        _canceled = (bj: BatchJob) => _canceled(Json.obj("canceled" -> bj.asJson)),
-        _kickoff = (bj: BatchJob) => _kickoff(Json.obj("kickoff" -> bj.asJson))
-      )
+  final class ByLogger[F[_]] private[TraceJob] (logger: Resource[F, Log[F]]) {
 
-    def standard[A: Encoder]: JobTracer[F, A] =
+    def universal[A](f: (A, JobResultState) => Json): Resource[F, JobTracer[F, A]] =
+      logger.map { log =>
+        new JobTracer[F, A](
+          _completed = { (jrv: JobResultValue[A]) =>
+            val json: Json =
+              Json.obj("outcome" -> f(jrv.value, jrv.resultState)).deepMerge(jrv.resultState.asJson)
+            if (jrv.resultState.done) log.done(Json.obj("done" -> json))
+            else log.warn(Json.obj("fail" -> json))
+          },
+          _errored = (jre: JobResultError) => log.error(jre.error)(jre.resultState),
+          _canceled = (bj: BatchJob) => log.warn(Json.obj("canceled" -> bj.asJson)),
+          _kickoff = (bj: BatchJob) => log.info(Json.obj("kickoff" -> bj.asJson))
+        )
+      }
+
+    def standard[A: Encoder]: Resource[F, JobTracer[F, A]] =
       universal[A]((a, _) => a.asJson)
 
-    def json: JobTracer[F, Json] = standard[Json]
+    def json: Resource[F, JobTracer[F, Json]] = standard[Json]
   }
 
-  def apply[F[_]](herald: Herald[F]): ByAgent[F] =
-    new ByAgent[F](
-      _kickoff = herald.info(_),
-      _failure = herald.warn(_),
-      _success = herald.done(_),
-      _canceled = herald.warn(_),
-      _errored = (jre: JobResultError) => herald.error(jre.error)(Json.obj("error" -> jre.resultState.asJson))
-    )
+  def apply[F[_]](logger: Resource[F, Log[F]]): ByLogger[F] =
+    new ByLogger[F](logger)
 
-  def apply[F[_]](logger: Logger[F]): ByAgent[F] =
-    new ByAgent[F](
-      _kickoff = logger.info(_),
-      _failure = logger.warn(_),
-      _success = logger.done(_),
-      _canceled = logger.warn(_),
-      _errored = (jre: JobResultError) => logger.warn(jre.error)(Json.obj("error" -> jre.resultState.asJson))
-    )
-
-  implicit def monoidTraceJob[F[_], A](implicit ev: MonadCancel[F, Throwable]): Monoid[TraceJob[F, A]] =
+  implicit def monoidTraceJob[F[_], A](implicit F: MonadCancel[F, Throwable]): Monoid[TraceJob[F, A]] =
     new Monoid[TraceJob[F, A]] {
 
-      override val empty: TraceJob[F, A] = noop[F, A]
+      override val empty: TraceJob[F, A] = _empty[F, A]
 
       override def combine(x: TraceJob[F, A], y: TraceJob[F, A]): TraceJob[F, A] =
         new TraceJob[F, A] {
           override private[batch] def kickoff(bj: BatchJob): F[Unit] =
-            ev.uncancelable(_ => x.kickoff(bj) >> y.kickoff(bj))
+            F.uncancelable(_ => x.kickoff(bj) >> y.kickoff(bj))
 
           override private[batch] def canceled(bj: BatchJob): F[Unit] =
-            ev.uncancelable(_ => x.canceled(bj) >> y.canceled(bj))
+            F.uncancelable(_ => x.canceled(bj) >> y.canceled(bj))
 
           override private[batch] def completed(jrv: JobResultValue[A]): F[Unit] =
-            ev.uncancelable(_ => x.completed(jrv) >> y.completed(jrv))
+            F.uncancelable(_ => x.completed(jrv) >> y.completed(jrv))
 
           override private[batch] def errored(jre: JobResultError): F[Unit] =
-            ev.uncancelable(_ => x.errored(jre) >> y.errored(jre))
+            F.uncancelable(_ => x.errored(jre) >> y.errored(jre))
         }
     }
 }

@@ -3,7 +3,6 @@ package com.github.chenharryhua.nanjin.guard.service
 import cats.Endo
 import cats.effect.kernel.{Async, Ref, Resource}
 import cats.effect.std.{AtomicCell, Console, Dispatcher}
-import cats.syntax.functor.toFunctorOps
 import com.codahale.metrics.MetricRegistry
 import com.github.benmanes.caffeine.cache.Cache
 import com.github.chenharryhua.nanjin.common.chrono.*
@@ -12,7 +11,7 @@ import com.github.chenharryhua.nanjin.guard.batch.Batch
 import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.*
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceMessage
-import com.github.chenharryhua.nanjin.guard.logging.{Herald, LogEvent, Logger}
+import com.github.chenharryhua.nanjin.guard.logging.{Herald, Log, LogEvent, Logger}
 import com.github.chenharryhua.nanjin.guard.metrics.Metrics
 import fs2.Stream
 import fs2.concurrent.Channel
@@ -45,8 +44,8 @@ sealed trait Agent[F[_]] {
   /*
    * Service Message
    */
-  def herald(implicit ln: LoggerName): Resource[F, Herald[F]]
-  def logger(implicit ln: LoggerName): Resource[F, Logger[F]]
+  def herald: Resource[F, Log[F]]
+  def logger(implicit ln: LoggerName): Resource[F, Log[F]]
 
   /*
    * metrics
@@ -95,7 +94,8 @@ final private class GeneralAgent[F[_]: Async: Console](
       errorHistory,
       dispatcher,
       uuidGenerator,
-      logEvent,alarmLevel)
+      logEvent,
+      alarmLevel)
 
   override def batch(label: String): Batch[F] = {
     val metricLabel = MetricLabel(label, domain)
@@ -130,17 +130,14 @@ final private class GeneralAgent[F[_]: Async: Console](
 
   override object adhoc extends AdhocMetricsImpl[F](serviceParams, channel, logEvent, metricRegistry)
 
-  override def herald(implicit ln: LoggerName): Resource[F, Herald[F]] =
-    Resource.eval(
-      LogEvent(serviceParams.logFormat, zoneId, ln).map(le =>
-        Herald(
-          serviceParams = serviceParams,
-          domain = domain,
-          channel = channel,
-          logEvent = le,
-          errorHistory = errorHistory)))
+  override def herald: Resource[F, Log[F]] =
+    Resource.pure(
+      Herald(serviceParams = serviceParams, domain = domain, channel = channel, errorHistory = errorHistory))
 
-  override def logger(implicit ln: LoggerName): Resource[F, Logger[F]] =
-    Resource.eval(LogEvent(serviceParams.logFormat, zoneId, ln).map(le =>
-      Logger(serviceParams = serviceParams, domain = domain, alarmLevel = alarmLevel, logEvent = le)))
+  override def logger(implicit ln: LoggerName): Resource[F, Log[F]] =
+    Resource
+      .eval(LogEvent(serviceParams.logFormat, zoneId, ln))
+      .map(logEvent =>
+        Logger(serviceParams = serviceParams, domain = domain, alarmLevel = alarmLevel, logEvent = logEvent))
+
 }

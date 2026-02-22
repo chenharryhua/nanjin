@@ -10,7 +10,8 @@ import org.typelevel.log4cats.{LoggerName, MessageLogger}
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
-final private class ConsoleLogger[F[_]: Console: Clock: Monad](zoneId: ZoneId, loggerName: LoggerName) extends MessageLogger[F] {
+final private class ConsoleLogger[F[_]: Console: Clock: Monad](zoneId: ZoneId, loggerName: LoggerName)
+    extends MessageLogger[F] {
   private[this] val fmt: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
 
   private[this] def out(message: String, logLevel: String): F[Unit] =

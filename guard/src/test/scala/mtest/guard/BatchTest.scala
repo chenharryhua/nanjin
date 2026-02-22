@@ -36,12 +36,13 @@ class BatchTest extends AnyFunSuite {
         .quasiBatch(
           TraceJob
             .noop[IO, Boolean]
-            .contramap(identity[Boolean])
-            .onError(IO.println)
-            .onCancel(IO.println)
-            .onKickoff(IO.println)
-            .onComplete(IO.println)
-            .contramap(_ => true)
+            .map(
+              _.contramap(identity[Boolean])
+                .onError(IO.println)
+                .onCancel(IO.println)
+                .onKickoff(IO.println)
+                .onComplete(IO.println)
+                .contramap(_ => true))
         )
         .map { qr =>
           assert(!qr.jobs.head.done)

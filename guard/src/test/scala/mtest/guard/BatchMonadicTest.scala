@@ -2,7 +2,6 @@ package mtest.guard
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import cats.implicits.catsSyntaxSemigroup
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.batch.{
   BatchJob,
@@ -43,10 +42,10 @@ class BatchMonadicTest extends AnyFunSuite {
   test("2.exception") {
     var completedJob: JobResultState = null
     var errorJob: JobResultState = null
-    val tracer: TraceJob[IO, Json] = TraceJob
+    val tracer = TraceJob
       .noop[IO, Json]
-      .onComplete(jo => IO { completedJob = jo.resultState })
-      .onError(jo => IO { errorJob = jo.resultState })
+      .map(_.onComplete(jo => IO { completedJob = jo.resultState }).onError(jo =>
+        IO { errorJob = jo.resultState }))
     val se = service.eventStreamR { agent =>
       val res = agent
         .batch("exception")
@@ -57,7 +56,7 @@ class BatchMonadicTest extends AnyFunSuite {
             c <- job("c" -> IO(3))
           } yield a + b + c
         }
-        .batchValue(tracer |+| TraceJob.noop)
+        .batchValue(tracer)
         .attempt
       res.map(r => assert(r.fold(_.isInstanceOf[Exception], _ => false)))
 
@@ -73,10 +72,10 @@ class BatchMonadicTest extends AnyFunSuite {
   test("3.invincible - exception") {
     var completedJob: List[JobResultState] = Nil
     var errorJob: JobResultState = null
-    val tracer: TraceJob[IO, Json] = TraceJob
+    val tracer = TraceJob
       .noop[IO, Json]
-      .onComplete(jo => IO { completedJob = jo.resultState :: completedJob })
-      .onError(jo => IO { errorJob = jo.resultState })
+      .map(_.onComplete(jo => IO { completedJob = jo.resultState :: completedJob }).onError(jo =>
+        IO { errorJob = jo.resultState }))
     val se = service.eventStreamR { agent =>
       agent
         .batch("invincible")
@@ -93,7 +92,7 @@ class BatchMonadicTest extends AnyFunSuite {
             })
           } yield a + c
         }
-        .batchValue(tracer |+| TraceJob.noop)
+        .batchValue(tracer)
     }.compile.lastOrError.unsafeRunSync()
 
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
@@ -112,8 +111,8 @@ class BatchMonadicTest extends AnyFunSuite {
 
   test("4.invincible - false") {
     var completedJob: List[JobResultState] = Nil
-    val tracer: TraceJob[IO, Json] =
-      TraceJob.noop[IO, Json].onComplete(jo => IO { completedJob = jo.resultState :: completedJob })
+    val tracer =
+      TraceJob.noop[IO, Json].map(_.onComplete(jo => IO { completedJob = jo.resultState :: completedJob }))
     val se = service.eventStreamR { agent =>
       agent
         .batch("invincible")
@@ -127,7 +126,7 @@ class BatchMonadicTest extends AnyFunSuite {
             c <- job("c" -> IO(3))
           } yield a + c
         }
-        .batchValue(tracer |+| TraceJob.noop)
+        .batchValue(tracer)
     }.compile.lastOrError.unsafeRunSync()
 
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
@@ -146,8 +145,8 @@ class BatchMonadicTest extends AnyFunSuite {
 
   test("5. filter") {
     var completedJob: List[JobResultState] = Nil
-    val tracer: TraceJob[IO, Json] =
-      TraceJob.noop[IO, Json].onComplete(jo => IO { completedJob = jo.resultState :: completedJob })
+    val tracer =
+      TraceJob.noop[IO, Json].map(_.onComplete(jo => IO { completedJob = jo.resultState :: completedJob }))
     val se = service.eventStreamR { agent =>
       val res = agent
         .batch("exception")
@@ -159,7 +158,7 @@ class BatchMonadicTest extends AnyFunSuite {
             c <- job("c" -> IO(3))
           } yield a + c
         }
-        .batchValue(tracer |+| TraceJob.noop)
+        .batchValue(tracer)
         .attempt
       res.map(r => assert(r.fold(_.isInstanceOf[PostConditionUnsatisfied], _ => false)))
 
@@ -180,8 +179,8 @@ class BatchMonadicTest extends AnyFunSuite {
     var canceledJob: BatchJob = null
     val tracer = TraceJob
       .noop[IO, Json]
-      .onCancel(bj => IO { canceledJob = bj })
-      .onComplete(jrv => IO { completedJob = jrv :: completedJob })
+      .map(_.onCancel(bj => IO { canceledJob = bj }).onComplete(jrv =>
+        IO { completedJob = jrv :: completedJob }))
 
     val se = service.eventStream { agent =>
       agent

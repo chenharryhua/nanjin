@@ -40,8 +40,7 @@ class ServiceTest extends AnyFunSuite {
       .service("retry")
       .updateConfig(_.withRestartPolicy(1.hour, _.fixedDelay(1.seconds).limited(1)))
       .eventStream(ga =>
-        ga.retry(_.withPolicy(_.fixedDelay(1.seconds).limited(1)))
-          .use(_ => IO.raiseError(new Exception)))
+        ga.retry(_.withPolicy(_.fixedDelay(1.seconds).limited(1))).use(_ => IO.raiseError(new Exception)))
       .compile
       .toList
       .unsafeRunSync()

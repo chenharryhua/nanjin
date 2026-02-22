@@ -66,7 +66,9 @@ class MetricsTest extends AnyFunSuite {
 
   test("3.counter disable") {
     val mr = service.eventStream { agent =>
-      agent.facilitate("counter")(_.counter("counter", _.enable(false))).use(_.run(10) >> agent.adhoc.report.void)
+      agent
+        .facilitate("counter")(_.counter("counter", _.enable(false)))
+        .use(_.run(10) >> agent.adhoc.report.void)
     }.map(checkJson).mapFilter(eventFilters.metricsReport).compile.lastOrError.unsafeRunSync()
     assert(mr.snapshot.isEmpty)
     assert(retrieveCounter(mr.snapshot.counters).values.isEmpty)
@@ -216,8 +218,7 @@ class MetricsTest extends AnyFunSuite {
   test("13.measured.retry - unworthy retry") {
     val sm = service.eventStream { agent =>
       agent
-        .retry(_.withPolicy(_.fixedDelay(1000.second).limited(2)).withDecision(tv =>
-          IO(tv.map(_ => false))))
+        .retry(_.withPolicy(_.fixedDelay(1000.second).limited(2)).withDecision(tv => IO(tv.map(_ => false))))
         .use(_.apply(IO.raiseError[Int](new Exception)) *> agent.adhoc.report)
     }.map(checkJson).mapFilter(eventFilters.serviceMessage).compile.toList.unsafeRunSync()
 
