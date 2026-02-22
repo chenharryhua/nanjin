@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.logging
 
+import cats.effect.kernel.Resource
 import cats.syntax.apply.catsSyntaxApplyOps
 import cats.{Applicative, Monoid}
 import io.circe.Encoder
@@ -23,7 +24,7 @@ trait Log[F[_]] {
 }
 
 object Log {
-  def noop[F[_]](implicit F: Applicative[F]): Log[F] = new Log[F] {
+  private def _empty[F[_]](implicit F: Applicative[F]): Log[F] = new Log[F] {
     override def error[S: Encoder](msg: S): F[Unit] = F.unit
     override def error[S: Encoder](ex: Throwable)(msg: S): F[Unit] = F.unit
     override def warn[S: Encoder](msg: S): F[Unit] = F.unit
@@ -34,6 +35,8 @@ object Log {
     override def debug[S: Encoder](msg: => F[S]): F[Unit] = F.unit
     override def void[S](msg: S): F[Unit] = F.unit
   }
+
+  def noop[F[_]: Applicative]: Resource[F, Log[F]] = Resource.pure[F, Log[F]](_empty[F])
 
   implicit def monoidLog[F[_]: Applicative]: Monoid[Log[F]] = new Monoid[Log[F]] {
     override def combine(x: Log[F], y: Log[F]): Log[F] = new Log[F] {
@@ -53,6 +56,6 @@ object Log {
       override def void[S](msg: S): F[Unit] = Applicative[F].unit
     }
 
-    override def empty: Log[F] = noop[F]
+    override def empty: Log[F] = _empty[F]
   }
 }
