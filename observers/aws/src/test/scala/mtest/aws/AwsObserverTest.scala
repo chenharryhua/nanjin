@@ -3,6 +3,7 @@ package mtest.aws
 import cats.data.NonEmptyList
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
+import cats.syntax.semigroupk.toSemigroupKOps
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.Event
@@ -23,13 +24,14 @@ class AwsObserverTest extends AnyFunSuite {
     .service("test")
     .updateConfig(_.addBrief("brief").withRestartPolicy(10.hours, _.fixedDelay(1.second).limited(1)))
     .eventStream { agent =>
-      agent
-        .facilitate("metrics")(_.meter(Bytes)("meter"))
-        .use(
-          _.run(10.bytes) >>
-            agent.herald.done("good") >>
-            agent.herald.error(new Exception("oops oops oops oops oops oops oops oops"))("my error") >>
-            agent.adhoc.report) >> IO.raiseError(new Exception)
+      (agent.logger <+> agent.herald).use(log =>
+        agent
+          .facilitate("metrics")(_.meter(Bytes)("meter"))
+          .use(
+            _.run(10.bytes) >>
+              log.done("good") >>
+              log.error(new Exception("oops oops oops oops oops oops oops oops"))("my error") >>
+              agent.adhoc.report) >> IO.raiseError(new Exception))
     }
 
   test("1.sqs") {
