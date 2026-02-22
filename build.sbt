@@ -417,7 +417,7 @@ lazy val spark = (project in file("spark"))
   .settings(name := "nj-spark")
   .settings {
     val libs = List(
-      "com.julianpeeters" %% "avrohugger-core" % "2.16.1" % Test,
+      "com.julianpeeters" %% "avrohugger-core" % "2.16.2" % Test,
       "io.circe" %% "circe-shapes"             % circeV   % Test,
       // java
       "org.apache.avro" % "avro-mapred"     % avroV,
