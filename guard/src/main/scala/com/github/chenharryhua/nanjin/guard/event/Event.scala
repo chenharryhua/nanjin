@@ -23,10 +23,20 @@ object Event {
     override val timestamp: Timestamp = Timestamp(tick.zoned(_.acquires))
   }
 
-  final case class ServiceStop(serviceParams: ServiceParams, timestamp: Timestamp, cause: ServiceStopCause)
+  final case class ServiceStop(serviceParams: ServiceParams, timestamp: Timestamp, cause: StopReason)
       extends Event
 
-  final case class ServiceMessage(
+  final case class MetricsEvent(
+    index: Index,
+    serviceParams: ServiceParams,
+    snapshot: Snapshot,
+    kind: MetricsKind,
+    took: Took)
+      extends Event {
+    override val timestamp: Timestamp = Timestamp(index.launchTime)
+  }
+
+  final case class ReportedEvent(
     serviceParams: ServiceParams,
     domain: Domain,
     timestamp: Timestamp,
@@ -35,20 +45,4 @@ object Event {
     stackTrace: Option[StackTrace],
     message: Message
   ) extends Event
-
-  sealed trait MetricsEvent extends Event {
-    def index: Index
-    def snapshot: Snapshot
-    def took: Took // time took to retrieve snapshot
-  }
-
-  final case class MetricsReport(index: Index, serviceParams: ServiceParams, snapshot: Snapshot, took: Took)
-      extends MetricsEvent {
-    override val timestamp: Timestamp = Timestamp(index.launchTime)
-  }
-
-  final case class MetricsReset(index: Index, serviceParams: ServiceParams, snapshot: Snapshot, took: Took)
-      extends MetricsEvent {
-    override val timestamp: Timestamp = Timestamp(index.launchTime)
-  }
 }

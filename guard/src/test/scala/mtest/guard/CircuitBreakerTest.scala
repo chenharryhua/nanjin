@@ -5,7 +5,7 @@ import cats.effect.unsafe.implicits.global
 import cats.implicits.toFunctorFilterOps
 import com.github.chenharryhua.nanjin.common.CircuitBreaker
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.event.ServiceStopCause
+import com.github.chenharryhua.nanjin.guard.event.StopReason
 import com.github.chenharryhua.nanjin.guard.event.eventFilters
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -29,7 +29,7 @@ class CircuitBreakerTest extends AnyFunSuite {
           cb.protect(good) >> agent.adhoc.report.void
       }
     }.mapFilter(eventFilters.serviceStop).compile.lastOrError.unsafeRunSync()
-    assert(ss.cause == ServiceStopCause.Successfully)
+    assert(ss.cause == StopReason.Successfully)
   }
 
   test("2.max failures - exceeds") {
@@ -50,7 +50,7 @@ class CircuitBreakerTest extends AnyFunSuite {
     }.mapFilter(eventFilters.serviceStop).compile.lastOrError.unsafeRunSync()
     assert(
       ss.cause
-        .asInstanceOf[ServiceStopCause.ByException]
+        .asInstanceOf[StopReason.ByException]
         .stackTrace
         .value
         .head
@@ -71,7 +71,7 @@ class CircuitBreakerTest extends AnyFunSuite {
       .compile
       .lastOrError
       .unsafeRunSync()
-    assert(ss.cause == ServiceStopCause.Successfully)
+    assert(ss.cause == StopReason.Successfully)
     assert(i == 0)
     assert(j == 1)
   }

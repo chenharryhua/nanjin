@@ -7,7 +7,7 @@ import cats.syntax.flatMap.toFlatMapOps
 import cats.syntax.functor.toFunctorOps
 import com.github.chenharryhua.nanjin.guard.config.ServiceId
 import com.github.chenharryhua.nanjin.guard.event.Event.{ServiceStart, ServiceStop}
-import com.github.chenharryhua.nanjin.guard.event.{Event, ServiceStopCause}
+import com.github.chenharryhua.nanjin.guard.event.{Event, StopReason}
 import fs2.Chunk
 import com.github.chenharryhua.nanjin.guard.event.Timestamp
 
@@ -32,6 +32,6 @@ final private class FinalizeMonitor[F[_]: Clock: Monad, A](
               ServiceStop(
                 ss.serviceParams,
                 Timestamp(ss.serviceParams.toZonedDateTime(ts)),
-                ServiceStopCause.ByCancellation))))
+                StopReason.ByCancellation))))
   } yield messages
 }

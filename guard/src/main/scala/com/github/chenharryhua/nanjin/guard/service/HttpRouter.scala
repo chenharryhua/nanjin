@@ -8,8 +8,8 @@ import cats.syntax.flatMap.toFlatMapOps
 import cats.syntax.functor.toFunctorOps
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, ServiceParams}
-import com.github.chenharryhua.nanjin.guard.event.Event.{MetricsReport, ServiceMessage, ServicePanic}
-import com.github.chenharryhua.nanjin.guard.event.{Event, Index, ScrapeMode, ServiceStopCause, Snapshot}
+import com.github.chenharryhua.nanjin.guard.event.Event.{MetricsEvent, ReportedEvent, ServicePanic}
+import com.github.chenharryhua.nanjin.guard.event.{Event, Index, ScrapeMode, Snapshot, StopReason}
 import com.github.chenharryhua.nanjin.guard.logging.LogEvent
 import com.github.chenharryhua.nanjin.guard.translator.{interpretServiceParams, SnapshotPolyglot}
 import fs2.concurrent.Channel
@@ -28,8 +28,8 @@ final private class HttpRouter[F[_]](
   serviceParams: ServiceParams,
   metricRegistry: MetricRegistry,
   panicHistory: AtomicCell[F, CircularFifoQueue[ServicePanic]],
-  metricsHistory: AtomicCell[F, CircularFifoQueue[MetricsReport]],
-  errorHistory: AtomicCell[F, CircularFifoQueue[ServiceMessage]],
+  metricsHistory: AtomicCell[F, CircularFifoQueue[MetricsEvent]],
+  errorHistory: AtomicCell[F, CircularFifoQueue[ReportedEvent]],
   alarmLevel: Ref[F, Option[AlarmLevel]],
   channel: Channel[F, Event],
   logEvent: LogEvent[F])(implicit F: Async[F])
@@ -111,7 +111,7 @@ final private class HttpRouter[F[_]](
         body(h1("Stopping Service"))
       )
 
-      Ok(stopping) <* publish_service_stop[F](serviceParams, channel, logEvent, ServiceStopCause.Maintenance)
+      Ok(stopping) <* publish_service_stop[F](serviceParams, channel, logEvent, StopReason.Maintenance)
 
     case GET -> Root / "service" / "health_check" =>
       helper.service_health_check.flatMap {
@@ -124,12 +124,12 @@ final private class HttpRouter[F[_]](
         case Some(value) => value.entryName
         case None        => "disabled"
       })
-    case GET -> Root / "alarm_level" / "debug"   => setAlarmLevel(Some(AlarmLevel.Debug))
-    case GET -> Root / "alarm_level" / "done"    => setAlarmLevel(Some(AlarmLevel.Done))
-    case GET -> Root / "alarm_level" / "info"    => setAlarmLevel(Some(AlarmLevel.Info))
-    case GET -> Root / "alarm_level" / "warn"    => setAlarmLevel(Some(AlarmLevel.Warn))
-    case GET -> Root / "alarm_level" / "error"   => setAlarmLevel(Some(AlarmLevel.Error))
-    case GET -> Root / "alarm_level" / "disable" => setAlarmLevel(None)
+    case GET -> Root / "alarm_level" / AlarmLevel.Debug.entryName => setAlarmLevel(Some(AlarmLevel.Debug))
+    case GET -> Root / "alarm_level" / AlarmLevel.Good.entryName  => setAlarmLevel(Some(AlarmLevel.Good))
+    case GET -> Root / "alarm_level" / AlarmLevel.Info.entryName  => setAlarmLevel(Some(AlarmLevel.Info))
+    case GET -> Root / "alarm_level" / AlarmLevel.Warn.entryName  => setAlarmLevel(Some(AlarmLevel.Warn))
+    case GET -> Root / "alarm_level" / AlarmLevel.Error.entryName => setAlarmLevel(Some(AlarmLevel.Error))
+    case GET -> Root / "alarm_level" / "disable"                  => setAlarmLevel(None)
   }
 
   private def setAlarmLevel(level: Option[AlarmLevel]): F[Response[F]] =

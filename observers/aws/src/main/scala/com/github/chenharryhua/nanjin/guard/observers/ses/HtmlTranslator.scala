@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.observers.ses
 
 import cats.Applicative
-import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.guard.event.{Active, Event, Snooze, StackTrace}
 import com.github.chenharryhua.nanjin.guard.translator.{
   eventTitle,
@@ -95,13 +94,13 @@ private object HtmlTranslator extends all {
     )
   }
 
-  private def metrics_event(evt: MetricsEvent, policy: Policy): Text.TypedTag[String] = {
+  private def metrics_event(evt: MetricsEvent): Text.TypedTag[String] = {
     val index = Attribute(evt.index).textEntry
-    val policy_entry = Attribute(policy).textEntry
+    val policy = Attribute(evt.kind.policy).textEntry
     val took = Attribute(evt.took).textEntry
     val fg = frag(
-      tr(th(index.tag), th(policy_entry.tag), th(took.tag)),
-      tr(td(index.text), td(policy_entry.text), td(took.text))
+      tr(th(index.tag), th(policy.tag), th(took.tag)),
+      tr(td(index.text), td(policy.text), td(took.text))
     )
     div(
       h3(style := htmlColoring(evt))(eventTitle(evt)),
@@ -110,13 +109,7 @@ private object HtmlTranslator extends all {
     )
   }
 
-  private def metrics_report(evt: MetricsReport): Text.TypedTag[String] =
-    metrics_event(evt, evt.serviceParams.servicePolicies.metricsReport)
-
-  private def metrics_reset(evt: MetricsReset): Text.TypedTag[String] =
-    metrics_event(evt, evt.serviceParams.servicePolicies.metricsReset)
-
-  private def service_message(evt: ServiceMessage): Text.TypedTag[String] = {
+  private def reported_event(evt: ReportedEvent): Text.TypedTag[String] = {
     val domain = Attribute(evt.domain).textEntry
     val correlation = Attribute(evt.correlation).textEntry
     val alarm_level = Attribute(evt.level).textEntry
@@ -140,7 +133,6 @@ private object HtmlTranslator extends all {
       .withServiceStart(service_start)
       .withServicePanic(service_panic)
       .withServiceStop(service_stop)
-      .withMetricsReport(metrics_report)
-      .withMetricsReset(metrics_reset)
-      .withServiceMessage(service_message)
+      .withMetricsEvent(metrics_event)
+      .withReportedEvent(reported_event)
 }

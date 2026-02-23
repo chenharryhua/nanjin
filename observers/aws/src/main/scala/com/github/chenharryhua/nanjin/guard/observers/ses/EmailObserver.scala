@@ -14,7 +14,7 @@ import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick}
 import com.github.chenharryhua.nanjin.common.{ChunkSize, EmailAddr}
 import com.github.chenharryhua.nanjin.guard.config.ServiceId
 import com.github.chenharryhua.nanjin.guard.event.Event.{ServiceStart, ServiceStop}
-import com.github.chenharryhua.nanjin.guard.event.{Event, ServiceStopCause, Timestamp}
+import com.github.chenharryhua.nanjin.guard.event.{Event, StopReason, Timestamp}
 import com.github.chenharryhua.nanjin.guard.translator.{ColorScheme, Translator, UpdateTranslator}
 import eu.timepit.refined.auto.*
 import fs2.{Chunk, Pipe, Pull, Stream}
@@ -76,8 +76,10 @@ final class EmailObserver[F[_]] private (
       i.color match {
         case ColorScheme.GoodColor  => (w, e)
         case ColorScheme.InfoColor  => (w, e)
+        case ColorScheme.DebugColor => (w, e)
         case ColorScheme.WarnColor  => (w + 1, e)
         case ColorScheme.ErrorColor => (w, e + 1)
+
       }
     }
 
@@ -130,7 +132,7 @@ final class EmailObserver[F[_]] private (
               ServiceStop(
                 ss.serviceParams,
                 Timestamp(ss.serviceParams.toZonedDateTime(ts)),
-                ServiceStopCause.ByCancellation))
+                StopReason.ByCancellation))
           }
         (cache.get, stop).mapN(_ ++ _)
       }

@@ -9,8 +9,17 @@ import com.github.chenharryhua.nanjin.aws.CloudWatch
 import com.github.chenharryhua.nanjin.common.aws.CloudWatchNamespace
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick}
 import com.github.chenharryhua.nanjin.guard.config.{ServiceId, ServiceParams}
-import com.github.chenharryhua.nanjin.guard.event.Event.MetricsReport
-import com.github.chenharryhua.nanjin.guard.event.{Event, MetricID, MetricLabel, Snapshot, Squants, Timestamp}
+import com.github.chenharryhua.nanjin.guard.event.Event.MetricsEvent
+import com.github.chenharryhua.nanjin.guard.event.{
+  Event,
+  Index,
+  MetricID,
+  MetricLabel,
+  MetricsKind,
+  Snapshot,
+  Squants,
+  Timestamp
+}
 import fs2.{Pipe, Stream}
 import software.amazon.awssdk.services.cloudwatch.model.{Dimension, MetricDatum, StandardUnit}
 import squants.time
@@ -19,7 +28,6 @@ import java.time.ZoneId
 import java.util
 import scala.jdk.CollectionConverters.*
 import scala.jdk.DurationConverters.JavaDurationOps
-import com.github.chenharryhua.nanjin.guard.event.Index
 import com.github.chenharryhua.nanjin.guard.translator.Attribute
 
 object CloudWatchObserver {
@@ -50,7 +58,7 @@ final class CloudWatchObserver[F[_]: Async] private (
 
   private val histogramB: HistogramFieldBuilder = histogramBuilder(new HistogramFieldBuilder(false, Nil))
 
-  private def computeDatum(report: MetricsReport, lookup: Map[MetricID, Long]): List[MetricDatum] = {
+  private def computeDatum(report: MetricsEvent, lookup: Map[MetricID, Long]): List[MetricDatum] = {
 
     val timer_histo: List[MetricDatum] = for {
       hf <- histogramB.build
@@ -144,7 +152,7 @@ final class CloudWatchObserver[F[_]: Async] private (
       // indexed by ServiceID and MetricName's uuid
       lookup <- Stream.eval(F.ref(Map.empty[ServiceId, Map[MetricID, Long]]))
       event <- events.evalTap {
-        case mr @ MetricsReport(Index.Periodic(_), sp, snapshot, _) =>
+        case mr @ MetricsEvent(Index.Periodic(_), sp, snapshot, MetricsKind.Report(_), _) =>
           lookup.getAndUpdate(_.updated(sp.serviceId, snapshot.lookupCount)).flatMap { last =>
             val data = computeDatum(mr, last.getOrElse(sp.serviceId, Snapshot.empty.lookupCount))
             publish(cwc, data)
@@ -157,7 +165,7 @@ final class CloudWatchObserver[F[_]: Async] private (
   }
 
   def scrape(namespace: CloudWatchNamespace, zoneId: ZoneId, f: Policy.type => Policy)(
-    getMetricsReport: Tick => F[MetricsReport]): Stream[F, Event] =
+    getMetricsReport: Tick => F[MetricsEvent]): Stream[F, Event] =
     tickStream.tickScheduled(zoneId, f).evalMap(getMetricsReport).through(observe(namespace))
 
   private case class MetricKey(

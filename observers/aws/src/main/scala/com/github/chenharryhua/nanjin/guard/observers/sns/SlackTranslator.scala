@@ -2,7 +2,6 @@ package com.github.chenharryhua.nanjin.guard.observers.sns
 import cats.syntax.eq.catsSyntaxEq
 import cats.syntax.show.{showInterpolator, toShow}
 import cats.{Applicative, Eval}
-import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, Brief, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.{Active, Event, Snapshot, Snooze}
 import com.github.chenharryhua.nanjin.guard.translator.{
@@ -30,6 +29,7 @@ private object SlackTranslator extends all {
       case ColorScheme.InfoColor  => Eval.now("#b3d1ff")
       case ColorScheme.WarnColor  => Eval.now("#ffd79a")
       case ColorScheme.ErrorColor => Eval.now("#935252")
+      case ColorScheme.DebugColor => Eval.now("#FF00FF")
     }
     .value
 
@@ -160,8 +160,8 @@ private object SlackTranslator extends all {
     )
   }
 
-  private def metrics_event(evt: MetricsEvent, policy: Policy): SlackApp = {
-    val policy_entry = Attribute(policy).textEntry
+  private def metrics_event(evt: MetricsEvent): SlackApp = {
+    val policy = Attribute(evt.kind.policy).textEntry
     val service_id = Attribute(evt.serviceParams.serviceId).textEntry
     val color = coloring(evt)
     SlackApp(
@@ -173,7 +173,7 @@ private object SlackTranslator extends all {
             HeaderSection(eventTitle(evt)),
             host_service_section(evt.serviceParams),
             metrics_index_section(evt),
-            mark_down(policy_entry, service_id),
+            mark_down(policy, service_id),
             metrics_section(evt.snapshot)
           )
         ),
@@ -182,17 +182,12 @@ private object SlackTranslator extends all {
     )
   }
 
-  private def metrics_report(evt: MetricsReport): SlackApp =
-    metrics_event(evt, evt.serviceParams.servicePolicies.metricsReport)
-  private def metrics_reset(evt: MetricsReset): SlackApp =
-    metrics_event(evt, evt.serviceParams.servicePolicies.metricsReset)
-
-  private def service_message(evt: ServiceMessage): SlackApp = {
+  private def reported_event(evt: ReportedEvent): SlackApp = {
     val symbol: String = evt.level match {
       case AlarmLevel.Error => ":warning:"
       case AlarmLevel.Warn  => ":warning:"
       case AlarmLevel.Info  => ""
-      case AlarmLevel.Done  => ""
+      case AlarmLevel.Good  => ""
       case AlarmLevel.Debug => ""
     }
 
@@ -227,7 +222,6 @@ private object SlackTranslator extends all {
       .withServiceStart(service_start)
       .withServicePanic(service_panic)
       .withServiceStop(service_stop)
-      .withMetricsReport(metrics_report)
-      .withMetricsReset(metrics_reset)
-      .withServiceMessage(service_message)
+      .withMetricsEvent(metrics_event)
+      .withReportedEvent(reported_event)
 }

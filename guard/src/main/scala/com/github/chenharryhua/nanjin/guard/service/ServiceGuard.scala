@@ -81,7 +81,7 @@ final private[guard] class ServiceGuardImpl[F[_]: Network: Async: Console] priva
       panicHistory <- helper.panic_history
       metricsHistory <- helper.metrics_history
       errorHistory <- helper.error_history
-      alarmLevel <- Stream.eval(Ref.of[F, Option[AlarmLevel]](AlarmLevel.Info.some))
+      alarmLevel <- Stream.eval(Ref.of[F, Option[AlarmLevel]](config.alarmLevel.some))
       logEvent <- helper.log_event
       event <- Stream.eval(Channel.unbounded[F, Event]).flatMap { channel =>
         val metricRegistry: MetricRegistry = new MetricRegistry()

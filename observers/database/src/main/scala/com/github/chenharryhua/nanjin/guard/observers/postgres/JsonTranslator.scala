@@ -51,7 +51,7 @@ private object JsonTranslator {
       Attribute(evt.serviceParams.serviceId).snakeJsonEntry
     )
 
-  private def service_message(evt: ServiceMessage): Json =
+  private def reported_event(evt: ReportedEvent): Json =
     Json.obj(
       Attribute(evt).map(_.timestamp.value).snakeJsonEntry,
       Attribute(evt.message).snakeJsonEntry,
@@ -68,8 +68,7 @@ private object JsonTranslator {
       .withServiceStart(service_started)
       .withServiceStop(service_stopped)
       .withServicePanic(service_panic)
-      .withMetricsReport(metrics_event)
-      .withMetricsReset(metrics_event)
-      .withServiceMessage(service_message)
+      .withMetricsEvent(metrics_event)
+      .withReportedEvent(reported_event)
 
 }

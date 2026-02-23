@@ -34,9 +34,8 @@ object gendata {
           .withServiceStart(_ => 1)
           .withServiceStop(_ => 2)
           .withServicePanic(_ => 3)
-          .withMetricsReport(_ => 4)
-          .withMetricsReset(_ => 5)
-          .withServiceMessage(_ => 6)
+          .withMetricsEvent(_ => 4)
+          .withReportedEvent(_ => 6)
       ))
 
   val add: Int => Int = _ + 1
@@ -49,9 +48,8 @@ object gendata {
           .withServiceStart(_ => add)
           .withServiceStop(_ => add)
           .withServicePanic(_ => add)
-          .withMetricsReport(_ => add)
-          .withMetricsReset(_ => add)
-          .withServiceMessage(_ => add)
+          .withMetricsEvent(_ => add)
+          .withReportedEvent(_ => add)
       ))
 
   implicit val eqAbc: Eq[Translator[Option, (Int, Int, Int)]] =
@@ -65,9 +63,8 @@ object gendata {
           .withServiceStart(_ => Option(1))
           .withServiceStop(_ => Option(2))
           .withServicePanic(_ => Option(3))
-          .withMetricsReport(_ => Option(4))
-          .withMetricsReset(_ => Option(5))
-          .withServiceMessage(_ => Option(6))
+          .withMetricsEvent(_ => Option(4))
+          .withReportedEvent(_ => Option(6))
       ))
 }
 

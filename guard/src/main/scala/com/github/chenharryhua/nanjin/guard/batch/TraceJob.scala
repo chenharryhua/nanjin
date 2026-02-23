@@ -73,10 +73,10 @@ object TraceJob {
           _completed = { (jrv: JobResultValue[A]) =>
             val json: Json =
               Json.obj("outcome" -> f(jrv.value, jrv.resultState)).deepMerge(jrv.resultState.asJson)
-            if (jrv.resultState.done) log.done(Json.obj("done" -> json))
+            if (jrv.resultState.done) log.good(Json.obj("done" -> json))
             else log.warn(Json.obj("fail" -> json))
           },
-          _errored = (jre: JobResultError) => log.error(jre.error)(jre.resultState),
+          _errored = (jre: JobResultError) => log.error(jre.resultState, jre.error),
           _canceled = (bj: BatchJob) => log.warn(Json.obj("canceled" -> bj.asJson)),
           _kickoff = (bj: BatchJob) => log.info(Json.obj("kickoff" -> bj.asJson))
         )

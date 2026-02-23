@@ -6,7 +6,7 @@ import cats.effect.{IO, Resource}
 import cats.implicits.{catsSyntaxOptionId, toFunctorFilterOps}
 import com.github.benmanes.caffeine.cache.{Caffeine, RemovalCause, RemovalListener}
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.event.ServiceStopCause.Successfully
+import com.github.chenharryhua.nanjin.guard.event.StopReason.Successfully
 import com.github.chenharryhua.nanjin.guard.event.eventFilters
 import fs2.Stream
 import org.scalatest.funsuite.AnyFunSuite

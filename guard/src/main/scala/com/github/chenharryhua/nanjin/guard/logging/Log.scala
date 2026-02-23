@@ -1,61 +1,75 @@
 package com.github.chenharryhua.nanjin.guard.logging
 
-import cats.effect.kernel.Resource
-import cats.syntax.apply.catsSyntaxApplyOps
-import cats.{Applicative, Monoid}
+import cats.effect.MonadCancel
+import cats.syntax.applicativeError.catsSyntaxApplicativeError
+import cats.syntax.flatMap.{catsSyntaxIfM, toFlatMapOps}
+import cats.syntax.functor.toFunctorOps
+import cats.{Monad, MonadError, Semigroup}
+import com.github.chenharryhua.nanjin.guard.config.AlarmLevel
+import com.github.chenharryhua.nanjin.guard.event.Event.ReportedEvent
+import com.github.chenharryhua.nanjin.guard.event.StackTrace
 import io.circe.Encoder
 
-trait Log[F[_]] {
+abstract class Log[F[_]](implicit F: MonadError[F, Throwable]) {
+  // create must be sink-independent
+  private[logging] def create[S: Encoder](
+    message: S,
+    level: AlarmLevel,
+    stackTrace: Option[StackTrace]): F[ReportedEvent]
 
-  def error[S: Encoder](msg: S): F[Unit]
-  def error[S: Encoder](ex: Throwable)(msg: S): F[Unit]
+  private[logging] def publish(event: ReportedEvent): F[Unit]
 
-  def warn[S: Encoder](msg: S): F[Unit]
-  def warn[S: Encoder](ex: Throwable)(msg: S): F[Unit]
+  private[logging] def enabled(level: AlarmLevel): F[Boolean]
 
-  def done[S: Encoder](msg: S): F[Unit]
+  private def log[S: Encoder](
+    message: => S,
+    level: AlarmLevel,
+    stackTrace: Option[StackTrace]
+  ): F[Unit] =
+    enabled(level).ifM(create(message, level, stackTrace).flatMap(publish), Monad[F].unit).attempt.void
 
-  def info[S: Encoder](msg: S): F[Unit]
+  final def error[S: Encoder](msg: => S): F[Unit] = log[S](msg, AlarmLevel.Error, None)
+  final def error[S: Encoder](msg: => S, ex: Throwable): F[Unit] =
+    log[S](msg, AlarmLevel.Error, Some(StackTrace(ex)))
 
-  def debug[S: Encoder](msg: S): F[Unit]
-  def debug[S: Encoder](msg: => F[S]): F[Unit]
+  final def warn[S: Encoder](msg: => S): F[Unit] = log[S](msg, AlarmLevel.Warn, None)
+  final def warn[S: Encoder](msg: => S, ex: Throwable): F[Unit] =
+    log[S](msg, AlarmLevel.Warn, Some(StackTrace(ex)))
 
-  def void[S](msg: S): F[Unit]
+  final def good[S: Encoder](msg: => S): F[Unit] = log[S](msg, AlarmLevel.Good, None)
+  final def info[S: Encoder](msg: => S): F[Unit] = log[S](msg, AlarmLevel.Info, None)
+
+  final def debug[S: Encoder](msg: => S): F[Unit] = log[S](msg, AlarmLevel.Debug, None)
+  final def debug[S: Encoder](msg: F[S]): F[Unit] =
+    msg.attempt.flatMap {
+      case Left(ex)     => log[String]("Debug Error", AlarmLevel.Debug, Some(StackTrace(ex)))
+      case Right(value) => log[S](value, AlarmLevel.Debug, None)
+    }
 }
 
 object Log {
-  private def _empty[F[_]](implicit F: Applicative[F]): Log[F] = new Log[F] {
-    override def error[S: Encoder](msg: S): F[Unit] = F.unit
-    override def error[S: Encoder](ex: Throwable)(msg: S): F[Unit] = F.unit
-    override def warn[S: Encoder](msg: S): F[Unit] = F.unit
-    override def warn[S: Encoder](ex: Throwable)(msg: S): F[Unit] = F.unit
-    override def done[S: Encoder](msg: S): F[Unit] = F.unit
-    override def info[S: Encoder](msg: S): F[Unit] = F.unit
-    override def debug[S: Encoder](msg: S): F[Unit] = F.unit
-    override def debug[S: Encoder](msg: => F[S]): F[Unit] = F.unit
-    override def void[S](msg: S): F[Unit] = F.unit
-  }
 
-  def noop[F[_]: Applicative]: Resource[F, Log[F]] = Resource.pure[F, Log[F]](_empty[F])
+  implicit def semigroupLog[F[_]](implicit F: MonadCancel[F, Throwable]): Semigroup[Log[F]] =
+    new Semigroup[Log[F]] {
+      override def combine(x: Log[F], y: Log[F]): Log[F] = new Log[F] {
+        override private[logging] def create[S: Encoder](
+          message: S,
+          level: AlarmLevel,
+          stackTrace: Option[StackTrace]): F[ReportedEvent] = x.create(message, level, stackTrace)
 
-  implicit def monoidLog[F[_]: Applicative]: Monoid[Log[F]] = new Monoid[Log[F]] {
-    override def combine(x: Log[F], y: Log[F]): Log[F] = new Log[F] {
-      override def error[S: Encoder](msg: S): F[Unit] = x.error(msg) *> y.error(msg)
-      override def error[S: Encoder](ex: Throwable)(msg: S): F[Unit] = x.error(ex)(msg) *> y.error(ex)(msg)
+        override private[logging] def publish(event: ReportedEvent): F[Unit] =
+          F.uncancelable { _ =>
+            for {
+              _ <- x.enabled(event.level).ifM(x.publish(event), Monad[F].unit)
+              _ <- y.enabled(event.level).ifM(y.publish(event), Monad[F].unit)
+            } yield ()
+          }
 
-      override def warn[S: Encoder](msg: S): F[Unit] = x.warn(msg) *> y.warn(msg)
-      override def warn[S: Encoder](ex: Throwable)(msg: S): F[Unit] = x.warn(ex)(msg) *> y.warn(ex)(msg)
-
-      override def done[S: Encoder](msg: S): F[Unit] = x.done(msg) *> y.done(msg)
-
-      override def info[S: Encoder](msg: S): F[Unit] = x.info(msg) *> y.info(msg)
-
-      override def debug[S: Encoder](msg: S): F[Unit] = x.debug(msg) *> y.debug(msg)
-      override def debug[S: Encoder](msg: => F[S]): F[Unit] = x.debug(msg) *> y.debug(msg)
-
-      override def void[S](msg: S): F[Unit] = Applicative[F].unit
+        override private[logging] def enabled(level: AlarmLevel): F[Boolean] =
+          x.enabled(level).flatMap {
+            case true  => Monad[F].pure(true)
+            case false => y.enabled(level)
+          }
+      }
     }
-
-    override def empty: Log[F] = _empty[F]
-  }
 }

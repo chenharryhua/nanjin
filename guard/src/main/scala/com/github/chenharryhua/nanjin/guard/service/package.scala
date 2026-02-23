@@ -10,8 +10,7 @@ import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.common.chrono.Tick
 import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.Event.{
-  MetricsReport,
-  MetricsReset,
+  MetricsEvent,
   ServicePanic,
   ServiceStart,
   ServiceStop
@@ -19,10 +18,11 @@ import com.github.chenharryhua.nanjin.guard.event.Event.{
 import com.github.chenharryhua.nanjin.guard.event.{
   Event,
   Index,
+  MetricsKind,
   ScrapeMode,
-  ServiceStopCause,
   Snapshot,
   StackTrace,
+  StopReason,
   Timestamp,
   Took
 }
@@ -50,9 +50,14 @@ package object service {
     serviceParams: ServiceParams,
     metricRegistry: MetricRegistry,
     index: Index,
-    mode: ScrapeMode): F[MetricsReport] =
+    mode: ScrapeMode): F[MetricsEvent] =
     Snapshot.timed[F](metricRegistry, mode).map { case (took, snapshot) =>
-      MetricsReport(index, serviceParams, snapshot, Took(took))
+      MetricsEvent(
+        index,
+        serviceParams,
+        snapshot,
+        MetricsKind.Report(serviceParams.servicePolicies.metricsReport),
+        Took(took))
     }
 
   private[service] def publish_metrics_report[F[_]](
@@ -60,7 +65,7 @@ package object service {
     channel: Channel[F, Event],
     logEvent: LogEvent[F],
     metricRegistry: MetricRegistry,
-    index: Index)(implicit F: Sync[F]): F[MetricsReport] =
+    index: Index)(implicit F: Sync[F]): F[MetricsEvent] =
     for {
       mr <- create_metrics_report(serviceParams, metricRegistry, index, ScrapeMode.Full)
       _ <- logEvent.logEvent(mr)
@@ -72,10 +77,15 @@ package object service {
     channel: Channel[F, Event],
     logEvent: LogEvent[F],
     metricRegistry: MetricRegistry,
-    index: Index): F[MetricsReset] =
+    index: Index): F[MetricsEvent] =
     for {
       (took, snapshot) <- Snapshot.timed[F](metricRegistry, ScrapeMode.Full)
-      ms = MetricsReset(index, serviceParams, snapshot, Took(took))
+      ms = MetricsEvent(
+        index,
+        serviceParams,
+        snapshot,
+        MetricsKind.Reset(serviceParams.servicePolicies.metricsReset),
+        Took(took))
       _ <- logEvent.logEvent(ms)
       _ <- channel.send(ms)
     } yield {
@@ -106,7 +116,7 @@ package object service {
     serviceParams: ServiceParams,
     channel: Channel[F, Event],
     logEvent: LogEvent[F],
-    cause: ServiceStopCause): F[Unit] =
+    cause: StopReason): F[Unit] =
     for {
       now <- serviceParams.zonedNow
       event = ServiceStop(serviceParams, Timestamp(now), cause)

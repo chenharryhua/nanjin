@@ -7,7 +7,7 @@ import com.comcast.ip4s.IpLiteralSyntax
 import com.github.chenharryhua.nanjin.common.chrono.zones.londonTime
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.Event.{ServiceStart, ServiceStop}
-import com.github.chenharryhua.nanjin.guard.event.ServiceStopCause.Maintenance
+import com.github.chenharryhua.nanjin.guard.event.StopReason.Maintenance
 import io.circe.{jawn, Json}
 import org.http4s.ember.client.EmberClientBuilder
 import org.scalatest.funsuite.AnyFunSuite
