@@ -11,7 +11,7 @@ import cats.syntax.order.catsSyntaxPartialOrder
 import com.github.chenharryhua.nanjin.common.chrono.PolicyTick
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.event.Event.ServicePanic
-import com.github.chenharryhua.nanjin.guard.event.{Event, ServiceStopCause, StackTrace}
+import com.github.chenharryhua.nanjin.guard.event.{Event, StackTrace, StopReason}
 import com.github.chenharryhua.nanjin.guard.logging.LogEvent
 import fs2.Stream
 import fs2.concurrent.Channel
@@ -31,7 +31,7 @@ final private class ReStart[F[_]: Async](
 
   private[this] val F = Async[F]
 
-  private[this] def stop(cause: ServiceStopCause): F[Unit] =
+  private[this] def stop(cause: StopReason): F[Unit] =
     publish_service_stop(serviceParams, channel, logEvent, cause)
 
   private[this] def panic(status: PolicyTick[F], ex: Throwable): F[Option[(Unit, PolicyTick[F])]] =
@@ -49,7 +49,7 @@ final private class ReStart[F[_]: Async](
       val stackTrace: StackTrace = StackTrace(ex)
 
       tickStatus.next(now).flatMap {
-        case None      => stop(ServiceStopCause.ByException(stackTrace)).as(None)
+        case None      => stop(StopReason.ByException(stackTrace)).as(None)
         case Some(nts) =>
           for {
             evt <- publish_service_panic(serviceParams, channel, logEvent, nts.tick, stackTrace)
@@ -68,9 +68,9 @@ final private class ReStart[F[_]: Async](
             (publish_service_start(serviceParams, channel, logEvent, status.tick) <* theService)
               .redeemWith[Option[(Unit, PolicyTick[F])]](
                 err => panic(status, err),
-                _ => stop(ServiceStopCause.Successfully).as(None)
+                _ => stop(StopReason.Successfully).as(None)
               )
-              .onCancel(channel.isClosed.ifM(F.unit, stop(ServiceStopCause.ByCancellation)))
+              .onCancel(channel.isClosed.ifM(F.unit, stop(StopReason.ByCancellation)))
           }
           .drain
       }

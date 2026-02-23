@@ -20,7 +20,7 @@ object AlarmLevel
 
   case object Error extends AlarmLevel(4, "error")
   case object Warn extends AlarmLevel(3, "warn")
-  case object Done extends AlarmLevel(2, "done")
+  case object Good extends AlarmLevel(2, "good")
   case object Info extends AlarmLevel(1, "info")
   case object Debug extends AlarmLevel(0, "debug")
 }

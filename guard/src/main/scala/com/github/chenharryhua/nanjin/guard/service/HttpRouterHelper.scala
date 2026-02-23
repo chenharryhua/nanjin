@@ -9,7 +9,7 @@ import cats.syntax.functor.toFunctorOps
 import cats.syntax.show.toShow
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
-import com.github.chenharryhua.nanjin.guard.event.Event.{MetricsReport, ServiceMessage, ServicePanic}
+import com.github.chenharryhua.nanjin.guard.event.Event.{MetricsEvent, ReportedEvent, ServicePanic}
 import com.github.chenharryhua.nanjin.guard.event.{
   retrieveHealthChecks,
   Active,
@@ -42,8 +42,8 @@ final private class HttpRouterHelper[F[_]: Sync](
   serviceParams: ServiceParams,
   metricRegistry: MetricRegistry,
   panicHistory: AtomicCell[F, CircularFifoQueue[ServicePanic]],
-  metricsHistory: AtomicCell[F, CircularFifoQueue[MetricsReport]],
-  errorHistory: AtomicCell[F, CircularFifoQueue[ServiceMessage]])
+  metricsHistory: AtomicCell[F, CircularFifoQueue[MetricsEvent]],
+  errorHistory: AtomicCell[F, CircularFifoQueue[ReportedEvent]])
     extends all {
 
   private case class Present(value: ZonedDateTime) {
@@ -149,7 +149,7 @@ final private class HttpRouterHelper[F[_]: Sync](
               )
             }
           })
-        history.map(hist => div(html_table_title(now, Duration.ZERO), h3("Metrics Report History"), hist))
+        history.map(hist => div(html_table_title(now, Duration.ZERO), h3("Metrics History"), hist))
       }
 
     text.map(t => html(html_header, body(div(t))))
@@ -192,15 +192,15 @@ final private class HttpRouterHelper[F[_]: Sync](
 
   val service_error_history: F[Json] =
     serviceParams.zonedNow.flatMap { now =>
-      errorHistory.get.map(_.iterator().asScala.toList).map { serviceMessages =>
+      errorHistory.get.map(_.iterator().asScala.toList).map { re =>
         Json.obj(
           Attribute(serviceParams.serviceName).snakeJsonEntry,
           Attribute(serviceParams.serviceId).snakeJsonEntry,
           Attribute(Present(now)).map(_.json).snakeJsonEntry,
           Attribute(serviceParams.timeZone).snakeJsonEntry,
           Attribute(serviceParams.upTime(now)).map(_.show).snakeJsonEntry,
-          "errors" -> serviceMessages.size.asJson,
-          "history" -> serviceMessages.reverse.map { sm =>
+          "errors" -> re.size.asJson,
+          "history" -> re.reverse.map { sm =>
             Json.obj(
               Attribute(sm.domain).snakeJsonEntry,
               Attribute(sm.correlation).snakeJsonEntry,

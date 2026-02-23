@@ -29,8 +29,8 @@ class AwsObserverTest extends AnyFunSuite {
           .facilitate("metrics")(_.meter(Bytes)("meter"))
           .use(
             _.run(10.bytes) >>
-              log.done("good") >>
-              log.error(new Exception("oops oops oops oops oops oops oops oops"))("my error") >>
+              log.good("good") >>
+              log.error("my bad", new Exception("oops oops oops oops oops oops oops oops")) >>
               agent.adhoc.report) >> IO.raiseError(new Exception))
     }
 
@@ -58,7 +58,7 @@ class AwsObserverTest extends AnyFunSuite {
 
   test("3.syntax") {
     EmailObserver(ses_client).updateTranslator {
-      _.skipMetricsReset.skipMetricsReport.skipServiceMessage.skipServiceStart.skipServicePanic.skipServiceStop.skipAll
+      _.skipMetricsEvent.skipReportedEvent.skipServiceStart.skipServicePanic.skipServiceStop.skipAll
     }
   }
 

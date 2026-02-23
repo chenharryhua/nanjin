@@ -12,7 +12,7 @@ import org.typelevel.log4cats.LoggerName
 
 class ServiceMessageTest extends AnyFunSuite {
   private val service: ServiceGuard[IO] =
-    TaskGuard[IO]("service.messages").service("service message")
+    TaskGuard[IO]("service.messages").service("service message").updateConfig(_.withAlarmLevel(_.Debug))
 
   private def info(agent: Agent[IO]): IO[Unit] =
     (agent.logger(LoggerName("provided")) |+| agent.herald).use(log =>
@@ -25,10 +25,18 @@ class ServiceMessageTest extends AnyFunSuite {
 
   private def warn(agent: Agent[IO]): IO[Unit] =
     (agent.logger |+| agent.herald).use(log =>
-      log.warn(new Exception("oops"))(Json.obj("a" -> 1.asJson)) >>
+      log.warn(Json.obj("a" -> 1.asJson), new Exception("oops")) >>
         log.warn(Json.Null) >>
-        log.warn(new Exception())("oops") >>
-        log.warn(new Exception())(Json.Null))
+        log.warn("oops", new Exception()) >>
+        log.warn(Json.Null, new Exception()))
+
+  private def mix(agent: Agent[IO]): IO[Unit] =
+    (agent.logger |+| agent.herald).use(log =>
+      log.error(Json.obj("a" -> 1.asJson), new Exception("oops")) >>
+        log.info(Json.Null) >>
+        log.warn("oops", new Exception()) >>
+        log.good("Okay") >>
+        log.debug("debug"))
 
   test("1. info json space2") {
     service
@@ -73,8 +81,7 @@ class ServiceMessageTest extends AnyFunSuite {
   test("6. warn console json no spaces") {
     service
       .updateConfig(_.withLogFormat(_.Console_Json_OneLine))
-      .eventStream(warn)
-      .debug()
+      .eventStream(mix)
       .compile
       .drain
       .unsafeRunSync()

@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.event
 
 import cats.syntax.eq.catsSyntaxEq
-import com.github.chenharryhua.nanjin.guard.event.Event.MetricsReport
+import com.github.chenharryhua.nanjin.guard.event.Event.MetricsEvent
 import cron4s.CronExpr
 import cron4s.lib.javatime.javaTemporalInstance
 import cron4s.syntax.all.*
@@ -29,7 +29,7 @@ object eventFilters {
     */
   def sampling(interval: FiniteDuration)(evt: Event): Boolean =
     evt match {
-      case MetricsReport(mrt, sp, _, _) =>
+      case MetricsEvent(mrt, sp, _, _, _) =>
         mrt match {
           case Index.Adhoc(_)       => true
           case Index.Periodic(tick) =>
@@ -56,7 +56,7 @@ object eventFilters {
     */
   def sampling(divisor: Refined[Int, Positive])(evt: Event): Boolean =
     evt match {
-      case MetricsReport(mrt, _, _, _) =>
+      case MetricsEvent(mrt, _, _, _, _) =>
         mrt match {
           case Index.Adhoc(_)       => true
           case Index.Periodic(tick) => (tick.index % divisor.value) === 0
@@ -68,7 +68,7 @@ object eventFilters {
     *
     * Only `MetricReport` events that match the given cron expression will pass. Adhoc reports always pass.
     *
-    * @param f
+    * @param cronExpr
     *   the cron expression defining the schedule
     * @param evt
     *   the event to test
@@ -77,7 +77,7 @@ object eventFilters {
     */
   def sampling(cronExpr: CronExpr)(evt: Event): Boolean =
     evt match {
-      case MetricsReport(mrt, _, _, _) =>
+      case MetricsEvent(mrt, _, _, _, _) =>
         mrt match {
           case Index.Adhoc(_)       => true
           case Index.Periodic(tick) =>
@@ -90,14 +90,11 @@ object eventFilters {
   // MapFilter-friendly accessors
   // --------------------------------------------------------------------------
 
-  val metricsReport: Event => Option[Event.MetricsReport] =
-    GenPrism[Event, Event.MetricsReport].getOption
+  val metricsEvent: Event => Option[Event.MetricsEvent] =
+    GenPrism[Event, Event.MetricsEvent].getOption
 
-  val metricsReset: Event => Option[Event.MetricsReset] =
-    GenPrism[Event, Event.MetricsReset].getOption
-
-  val serviceMessage: Event => Option[Event.ServiceMessage] =
-    GenPrism[Event, Event.ServiceMessage].getOption
+  val reportedEvent: Event => Option[Event.ReportedEvent] =
+    GenPrism[Event, Event.ReportedEvent].getOption
 
   val serviceStart: Event => Option[Event.ServiceStart] =
     GenPrism[Event, Event.ServiceStart].getOption

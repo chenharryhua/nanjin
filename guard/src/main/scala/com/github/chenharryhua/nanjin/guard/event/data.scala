@@ -5,7 +5,7 @@ import cats.syntax.functor.toFunctorOps
 import cats.syntax.show.toShow
 import cats.{Hash, Show}
 import com.github.chenharryhua.nanjin.common.DurationFormatter
-import com.github.chenharryhua.nanjin.common.chrono.Tick
+import com.github.chenharryhua.nanjin.common.chrono.{Policy, Tick}
 import io.circe.Decoder.Result
 import io.circe.generic.JsonCodec
 import io.circe.syntax.EncoderOps
@@ -52,26 +52,38 @@ object Index {
   }
 }
 
-sealed abstract class ServiceStopCause(val exitCode: Int) extends Product
+@JsonCodec
+sealed trait MetricsKind extends Product {
+  def policy: Policy
+  final override def toString: String = this.productPrefix
+}
+object MetricsKind {
+  final case class Report(policy: Policy) extends MetricsKind
+  final case class Reset(policy: Policy) extends MetricsKind
 
-object ServiceStopCause {
-  case object Successfully extends ServiceStopCause(0)
-  case object Maintenance extends ServiceStopCause(1)
-  case object ByCancellation extends ServiceStopCause(2)
-  final case class ByException(stackTrace: StackTrace) extends ServiceStopCause(3)
+  implicit val showMetricsKind: Show[MetricsKind] = Show.fromToString
+}
+
+sealed abstract class StopReason(val exitCode: Int) extends Product
+
+object StopReason {
+  case object Successfully extends StopReason(0)
+  case object Maintenance extends StopReason(1)
+  case object ByCancellation extends StopReason(2)
+  final case class ByException(stackTrace: StackTrace) extends StopReason(3)
 
   private val SUCCESSFULLY: String = "Successfully"
   private val BY_CANCELLATION: String = "ByCancellation"
   private val MAINTENANCE: String = "Maintenance"
 
-  implicit val showServiceStopCause: Show[ServiceStopCause] = {
+  implicit val showStopReason: Show[StopReason] = {
     case Successfully            => SUCCESSFULLY
     case Maintenance             => MAINTENANCE
     case ByCancellation          => BY_CANCELLATION
     case ByException(stackTrace) => stackTrace.show
   }
 
-  implicit val encoderServiceStopCause: Encoder[ServiceStopCause] =
+  implicit val encoderStopReason: Encoder[StopReason] =
     Encoder.instance {
       case Successfully   => Json.fromString(SUCCESSFULLY)
       case ByCancellation => Json.fromString(BY_CANCELLATION)
@@ -80,8 +92,8 @@ object ServiceStopCause {
       case ByException(stackTrace) => stackTrace.asJson
     }
 
-  implicit val decoderServiceStopCause: Decoder[ServiceStopCause] =
-    List[Decoder[ServiceStopCause]](
+  implicit val decoderStopReason: Decoder[StopReason] =
+    List[Decoder[StopReason]](
       _.as[String].flatMap {
         case SUCCESSFULLY    => Right(Successfully)
         case BY_CANCELLATION => Right(ByCancellation)

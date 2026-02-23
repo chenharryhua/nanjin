@@ -1,7 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.translator
 
 import cats.Applicative
-import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.guard.event.{Event, Took}
 
 object SimpleTextTranslator {
@@ -54,24 +53,21 @@ object SimpleTextTranslator {
         |""".stripMargin
   }
 
-  private def metrics_event(evt: MetricsEvent, policy: Policy): String = {
-    val policy_text = Attribute(policy).labelledText
+  private def metrics_event(evt: MetricsEvent): String = {
+    val kind = Attribute(evt.kind).labelledText
+    val policy = Attribute(evt.kind.policy).labelledText
     val index = Attribute(evt.index).labelledText
+    val took = Attribute(evt.took).labelledText
 
     s"""|
         |  ${service_event(evt)}
-        |  $index, $policy_text, ${Attribute(evt.took).labelledText}
+        |  $kind, $policy
+        |  $index, $took
         |${new SnapshotPolyglot(evt.snapshot).toYaml}
         |""".stripMargin
   }
 
-  private def metrics_report(evt: MetricsReport): String =
-    metrics_event(evt, evt.serviceParams.servicePolicies.metricsReport)
-
-  private def metrics_reset(evt: MetricsReset): String =
-    metrics_event(evt, evt.serviceParams.servicePolicies.metricsReset)
-
-  private def service_message(evt: ServiceMessage): String = {
+  private def reported_event(evt: ReportedEvent): String = {
     val correlation = Attribute(evt.correlation).labelledText
     val domain = Attribute(evt.domain).labelledText
     val message = evt.message.value.spaces2
@@ -91,7 +87,6 @@ object SimpleTextTranslator {
       .withServiceStart(service_start)
       .withServiceStop(service_stop)
       .withServicePanic(service_panic)
-      .withMetricsReport(metrics_report)
-      .withMetricsReset(metrics_reset)
-      .withServiceMessage(service_message)
+      .withMetricsEvent(metrics_event)
+      .withReportedEvent(reported_event)
 }

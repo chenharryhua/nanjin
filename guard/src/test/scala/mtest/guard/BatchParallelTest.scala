@@ -13,6 +13,7 @@ import com.github.chenharryhua.nanjin.guard.batch.{
 }
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStop
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
+import io.circe.syntax.EncoderOps
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.DurationInt
@@ -84,13 +85,18 @@ class BatchParallelTest extends AnyFunSuite {
     val jobs =
       List("a" -> IO(1).delayBy(1.second), "b" -> IO(2).delayBy(3.seconds), "c" -> IO(3).delayBy(2.seconds))
     val se = service.eventStream { agent =>
-      agent.batch("predicate.quasi").parallel(jobs*).withPredicate(_ > 2).quasiBatch(TraceJob.noop).use { mb =>
-        IO {
-          assert(!mb.jobs.head.done)
-          assert(!mb.jobs(1).done)
-          assert(mb.jobs(2).done)
-        }.void
-      }
+      agent
+        .batch("predicate.quasi")
+        .parallel(jobs*)
+        .withPredicate(_ > 2)
+        .quasiBatch(TraceJob(agent.logger).universal { case (_, jrs) => jrs.asJson })
+        .use { mb =>
+          IO {
+            assert(!mb.jobs.head.done)
+            assert(!mb.jobs(1).done)
+            assert(mb.jobs(2).done)
+          }.void
+        }
     }.compile.lastOrError.unsafeRunSync()
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
   }

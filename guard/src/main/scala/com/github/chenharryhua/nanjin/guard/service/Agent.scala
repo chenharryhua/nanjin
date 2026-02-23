@@ -10,7 +10,7 @@ import com.github.chenharryhua.nanjin.common.{CircuitBreaker, Retry}
 import com.github.chenharryhua.nanjin.guard.batch.Batch
 import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.*
-import com.github.chenharryhua.nanjin.guard.event.Event.ServiceMessage
+import com.github.chenharryhua.nanjin.guard.event.Event.ReportedEvent
 import com.github.chenharryhua.nanjin.guard.logging.{Herald, Log, LogEvent, Logger}
 import com.github.chenharryhua.nanjin.guard.metrics.Metrics
 import fs2.Stream
@@ -76,7 +76,7 @@ final private class GeneralAgent[F[_]: Async: Console](
   domain: Domain,
   metricRegistry: MetricRegistry,
   channel: Channel[F, Event],
-  errorHistory: AtomicCell[F, CircularFifoQueue[ServiceMessage]],
+  errorHistory: AtomicCell[F, CircularFifoQueue[ReportedEvent]],
   dispatcher: Dispatcher[F],
   uuidGenerator: F[UUID],
   logEvent: LogEvent[F],
@@ -139,5 +139,4 @@ final private class GeneralAgent[F[_]: Async: Console](
       .eval(LogEvent(serviceParams.logFormat, zoneId, ln))
       .map(logEvent =>
         Logger(serviceParams = serviceParams, domain = domain, alarmLevel = alarmLevel, logEvent = logEvent))
-
 }

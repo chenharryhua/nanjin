@@ -4,7 +4,7 @@ import cats.effect.unsafe.implicits.global
 import cats.effect.{IO, Resource}
 import cats.implicits.toFunctorFilterOps
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.event.ServiceStopCause.{ByCancellation, Successfully}
+import com.github.chenharryhua.nanjin.guard.event.StopReason.{ByCancellation, Successfully}
 import com.github.chenharryhua.nanjin.guard.event.{eventFilters, retrieveCounter}
 import com.github.chenharryhua.nanjin.guard.service.Agent
 import org.scalatest.funsuite.AnyFunSuite
@@ -21,7 +21,7 @@ class RetryTest extends AnyFunSuite {
   test("2.retry - give up") {
     val mr = service.eventStream { agent =>
       agent.retry(_.withPolicy(_.empty)).use(_(IO(()) *> agent.adhoc.report))
-    }.map(checkJson).mapFilter(eventFilters.metricsReport).compile.toList.unsafeRunSync()
+    }.map(checkJson).mapFilter(eventFilters.metricsEvent).compile.toList.unsafeRunSync()
     assert(mr.head.snapshot.isEmpty)
   }
 
@@ -126,7 +126,7 @@ class RetryTest extends AnyFunSuite {
             .void
             .guarantee(agent.adhoc.report)
         })
-      .mapFilter(eventFilters.metricsReport)
+      .mapFilter(eventFilters.metricsEvent)
       .compile
       .lastOrError
       .unsafeRunSync()

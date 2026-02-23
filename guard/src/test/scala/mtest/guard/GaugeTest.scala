@@ -26,7 +26,7 @@ class GaugeTest extends AnyFunSuite {
       agent
         .facilitate("gauge")(_.gauge("gauge").register(IO(1)).map(_ => Kleisli((_: Unit) => IO.unit)))
         .surround(agent.adhoc.report.void)
-    }.map(checkJson).mapFilter(eventFilters.metricsReport).compile.lastOrError.unsafeRunSync()
+    }.map(checkJson).mapFilter(eventFilters.metricsEvent).compile.lastOrError.unsafeRunSync()
     val gauge = retrieveGauge[Int](mr.snapshot.gauges)
     assert(mr.snapshot.nonEmpty)
     assert(gauge.values.head == 1)
@@ -38,7 +38,7 @@ class GaugeTest extends AnyFunSuite {
         .facilitate("health")(
           _.healthCheck("health", _.withTimeout(1.second).enable(true)).register(IO(true)))
         .surround(agent.adhoc.report.void)
-    }.map(checkJson).mapFilter(eventFilters.metricsReport).compile.lastOrError.unsafeRunSync()
+    }.map(checkJson).mapFilter(eventFilters.metricsEvent).compile.lastOrError.unsafeRunSync()
     val health: Map[MetricID, Boolean] = retrieveHealthChecks(mr.snapshot.gauges)
     assert(mr.snapshot.nonEmpty)
     assert(health.values.head)
@@ -47,7 +47,7 @@ class GaugeTest extends AnyFunSuite {
   test("3.active gauge") {
     val mr = service.eventStream { agent =>
       agent.facilitate("active")(_.activeGauge("active", _.enable(true))).surround(agent.adhoc.report.void)
-    }.map(checkJson).mapFilter(eventFilters.metricsReport).compile.lastOrError.unsafeRunSync()
+    }.map(checkJson).mapFilter(eventFilters.metricsEvent).compile.lastOrError.unsafeRunSync()
     val active = retrieveGauge[Json](mr.snapshot.gauges)
     assert(mr.snapshot.nonEmpty)
     assert(active.values.nonEmpty)
@@ -56,7 +56,7 @@ class GaugeTest extends AnyFunSuite {
   test("4.idle gauge") {
     val mr = service.eventStream { agent =>
       agent.facilitate("idle")(_.idleGauge("idle", _.enable(true))).use(_.run(()) >> agent.adhoc.report.void)
-    }.map(checkJson).mapFilter(eventFilters.metricsReport).compile.lastOrError.unsafeRunSync()
+    }.map(checkJson).mapFilter(eventFilters.metricsEvent).compile.lastOrError.unsafeRunSync()
     val idle = retrieveGauge[Json](mr.snapshot.gauges)
     assert(mr.snapshot.nonEmpty)
     assert(idle.values.nonEmpty)
@@ -67,7 +67,7 @@ class GaugeTest extends AnyFunSuite {
       agent
         .facilitate("permanent")(_.permanentCounter("permanent"))
         .use(_.run(1999) >> agent.adhoc.report.void)
-    }.map(checkJson).mapFilter(eventFilters.metricsReport).compile.lastOrError.unsafeRunSync()
+    }.map(checkJson).mapFilter(eventFilters.metricsEvent).compile.lastOrError.unsafeRunSync()
     val permanent = retrieveGauge[Json](mr.snapshot.gauges)
     assert(mr.snapshot.nonEmpty)
     assert(permanent.values.head.as[Int].toOption.get == 1999)
@@ -79,7 +79,7 @@ class GaugeTest extends AnyFunSuite {
         _.gauge("gauge", _.withTimeout(1.second).enable(true))
           .register(IO.never[Int])
           .surround(agent.adhoc.report.void))
-    }.map(checkJson).mapFilter(eventFilters.metricsReport).compile.lastOrError.unsafeRunSync()
+    }.map(checkJson).mapFilter(eventFilters.metricsEvent).compile.lastOrError.unsafeRunSync()
     val gauge = retrieveGauge[Int](mr.snapshot.gauges)
     assert(mr.snapshot.nonEmpty)
     assert(gauge.isEmpty)
@@ -91,7 +91,7 @@ class GaugeTest extends AnyFunSuite {
         _.gauge("gauge", _.withTimeout(1.second).enable(true))
           .register(IO.raiseError[Int](new Exception("oops")))
           .surround(agent.adhoc.report.void))
-    }.map(checkJson).mapFilter(eventFilters.metricsReport).compile.lastOrError.unsafeRunSync()
+    }.map(checkJson).mapFilter(eventFilters.metricsEvent).compile.lastOrError.unsafeRunSync()
     val gauge = retrieveGauge[Int](mr.snapshot.gauges)
     assert(mr.snapshot.nonEmpty)
     assert(gauge.isEmpty)

@@ -6,8 +6,8 @@ import cats.syntax.show.toShow
 import com.github.chenharryhua.nanjin.common.DurationFormatter
 import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
-import com.github.chenharryhua.nanjin.guard.event.Event
 import com.github.chenharryhua.nanjin.guard.event.Event.ServicePanic
+import com.github.chenharryhua.nanjin.guard.event.{Event, MetricsKind}
 import io.circe.Json
 import io.circe.syntax.EncoderOps
 import org.apache.commons.lang3.StringUtils
@@ -29,11 +29,14 @@ package object translator {
     evt match {
       case ss: Event.ServiceStart =>
         if (ss.tick.index === 0) "Start Service" else "Restart Service"
-      case _: Event.ServiceStop    => "Service Stopped"
-      case _: Event.ServicePanic   => "Service Panic"
-      case _: Event.ServiceMessage => "Service Message"
-      case _: Event.MetricsReport  => "Metrics Report"
-      case _: Event.MetricsReset   => "Metrics Reset"
+      case _: Event.ServiceStop   => "Service Stopped"
+      case _: Event.ServicePanic  => "Service Panic"
+      case _: Event.ReportedEvent => "Reported Event"
+      case me: Event.MetricsEvent =>
+        me.kind match {
+          case MetricsKind.Report(_) => "Metrics Snapshot"
+          case MetricsKind.Reset(_)  => "Metrics Reset"
+        }
     }
 
   private def localTime_duration(start: ZonedDateTime, end: ZonedDateTime): (String, String) = {
@@ -85,7 +88,7 @@ package object translator {
       case ColorScheme.InfoColor  => Eval.now("color:black")
       case ColorScheme.WarnColor  => Eval.now("color:#b3b300")
       case ColorScheme.ErrorColor => Eval.now("color:red")
+      case ColorScheme.DebugColor => Eval.now("color:#FF00FF")
     }
     .value
-
 }

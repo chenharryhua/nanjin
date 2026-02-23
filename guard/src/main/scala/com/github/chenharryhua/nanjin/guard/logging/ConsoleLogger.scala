@@ -14,14 +14,14 @@ final private class ConsoleLogger[F[_]: Console: Clock: Monad](zoneId: ZoneId, l
     extends MessageLogger[F] {
   private[this] val fmt: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
 
-  private[this] def out(message: String, logLevel: String): F[Unit] =
+  private[this] def out(message: String): F[Unit] =
     Clock[F].realTimeInstant.map(t => t.atZone(zoneId).toLocalDateTime.format(fmt)).flatMap { time =>
-      Console[F].println(s"$time ${loggerName.value} $logLevel -- $message")
+      Console[F].println(s"$time [${loggerName.value}] -- $message")
     }
 
-  override def error(message: => String): F[Unit] = out(message, "Console Error")
-  override def warn(message: => String): F[Unit] = out(message, "Console Warn")
-  override def info(message: => String): F[Unit] = out(message, "Console Info")
-  override def debug(message: => String): F[Unit] = out(message, "Console Debug")
-  override def trace(message: => String): F[Unit] = out(message, "Console Trace")
+  override def error(message: => String): F[Unit] = out(message)
+  override def warn(message: => String): F[Unit] = out(message)
+  override def info(message: => String): F[Unit] = out(message)
+  override def debug(message: => String): F[Unit] = out(message)
+  override def trace(message: => String): F[Unit] = out(message)
 }

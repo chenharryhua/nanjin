@@ -154,7 +154,8 @@ final class ServiceConfig[F[_]: Applicative] private (
   private[guard] val zoneId: ZoneId,
   private[guard] val jmxBuilder: Option[Endo[JmxReporter.Builder]],
   private[guard] val httpBuilder: Option[Endo[EmberServerBuilder[F]]],
-  private[guard] val briefs: F[List[Json]]) {
+  private[guard] val briefs: F[List[Json]],
+  private[guard] val alarmLevel: AlarmLevel) {
   import ServiceConfigF.*
 
   private def copy(
@@ -162,8 +163,9 @@ final class ServiceConfig[F[_]: Applicative] private (
     zoneId: ZoneId = this.zoneId,
     jmxBuilder: Option[Endo[JmxReporter.Builder]] = this.jmxBuilder,
     httpBuilder: Option[Endo[EmberServerBuilder[F]]] = this.httpBuilder,
-    briefs: F[List[Json]] = this.briefs): ServiceConfig[F] =
-    new ServiceConfig[F](cont, zoneId, jmxBuilder, httpBuilder, briefs)
+    briefs: F[List[Json]] = this.briefs,
+    alarmLevel: AlarmLevel = this.alarmLevel): ServiceConfig[F] =
+    new ServiceConfig[F](cont, zoneId, jmxBuilder, httpBuilder, briefs, alarmLevel)
 
   def withRestartPolicy(threshold: FiniteDuration, f: Policy.type => Policy): ServiceConfig[F] =
     copy(cont = Fix(WithRestartPolicy(f(Policy), Some(threshold.toJava), cont)))
@@ -206,10 +208,11 @@ final class ServiceConfig[F[_]: Applicative] private (
   def addBrief[A: Encoder](fa: F[A]): ServiceConfig[F] = copy(briefs = (fa, briefs).mapN(_.asJson :: _))
   def addBrief[A: Encoder](a: => A): ServiceConfig[F] = addBrief(a.pure[F])
 
-  def withLogFormat(fmt: LogFormat): ServiceConfig[F] =
-    copy(cont = Fix(WithLogFormat(fmt, cont)))
   def withLogFormat(f: LogFormat.type => LogFormat): ServiceConfig[F] =
-    withLogFormat(f(LogFormat))
+    copy(cont = Fix(WithLogFormat(f(LogFormat), cont)))
+
+  def withAlarmLevel(f: AlarmLevel.type => AlarmLevel): ServiceConfig[F] =
+    copy(alarmLevel = f(AlarmLevel))
 
   private[guard] def evalConfig(
     serviceName: Service,
@@ -237,6 +240,7 @@ private[guard] object ServiceConfig {
       zoneId = ZoneId.systemDefault(),
       jmxBuilder = None,
       httpBuilder = None,
-      briefs = List.empty[Json].pure[F]
+      briefs = List.empty[Json].pure[F],
+      alarmLevel = AlarmLevel.Info
     )
 }

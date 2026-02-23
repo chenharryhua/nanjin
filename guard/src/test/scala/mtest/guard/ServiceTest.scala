@@ -9,7 +9,7 @@ import com.github.chenharryhua.nanjin.common.chrono.{Policy, Tick}
 import com.github.chenharryhua.nanjin.guard.*
 import com.github.chenharryhua.nanjin.guard.event.*
 import com.github.chenharryhua.nanjin.guard.event.Event.*
-import com.github.chenharryhua.nanjin.guard.event.ServiceStopCause.Successfully
+import com.github.chenharryhua.nanjin.guard.event.StopReason.Successfully
 import io.circe.Json
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -25,6 +25,7 @@ class ServiceTest extends AnyFunSuite {
       .withZoneId(londonTime)
       .withRestartPolicy(1.hour, _.fixedDelay(1.seconds))
       .withLogFormat(_.Slf4j_Json_OneLine)
+      .withAlarmLevel(_.Debug)
       .addBrief(Json.fromString("test")))
 
   val policy: Policy = Policy.fixedDelay(0.1.seconds).limited(3)
@@ -48,12 +49,12 @@ class ServiceTest extends AnyFunSuite {
       .toList
       .unsafeRunSync()
     assert(a.isInstanceOf[ServiceStart])
-    assert(b.isInstanceOf[ServiceMessage])
-    assert(c.isInstanceOf[ServiceMessage])
+    assert(b.isInstanceOf[ReportedEvent])
+    assert(c.isInstanceOf[ReportedEvent])
     assert(d.isInstanceOf[ServicePanic])
     assert(e.isInstanceOf[ServiceStart])
-    assert(f.isInstanceOf[ServiceMessage])
-    assert(g.isInstanceOf[ServiceMessage])
+    assert(f.isInstanceOf[ReportedEvent])
+    assert(g.isInstanceOf[ReportedEvent])
     assert(h.isInstanceOf[ServiceStop])
   }
 
@@ -68,8 +69,8 @@ class ServiceTest extends AnyFunSuite {
       .unsafeRunSync()
 
     assert(s.isInstanceOf[ServiceStart])
-    assert(b.isInstanceOf[MetricsReset])
-    assert(c.isInstanceOf[MetricsReset])
+    assert(b.isInstanceOf[MetricsEvent])
+    assert(c.isInstanceOf[MetricsEvent])
     assert(d.isInstanceOf[ServiceStop])
   }
 
@@ -187,8 +188,7 @@ class ServiceTest extends AnyFunSuite {
       .toList
       .unsafeRunSync()
     assert(a.isInstanceOf[ServiceStart])
-    assert(
-      b.asInstanceOf[ServiceStop].cause.asInstanceOf[ServiceStopCause.ByException].stackTrace.value.nonEmpty)
+    assert(b.asInstanceOf[ServiceStop].cause.asInstanceOf[StopReason.ByException].stackTrace.value.nonEmpty)
   }
 
   test("8. closure - io") {
@@ -199,7 +199,7 @@ class ServiceTest extends AnyFunSuite {
         val a = UUID.randomUUID()
         agent.herald.use(_.warn(a.toString) *> IO.raiseError(new Exception))
       }
-      .mapFilter(eventFilters.serviceMessage)
+      .mapFilter(eventFilters.reportedEvent)
       .compile
       .toList
       .unsafeRunSync()
@@ -216,7 +216,7 @@ class ServiceTest extends AnyFunSuite {
           fs2.Stream(0).covary[IO].evalMap(_ => log.info(a.toString) *> IO.raiseError(new Exception))
         }
       }
-      .mapFilter(eventFilters.serviceMessage)
+      .mapFilter(eventFilters.reportedEvent)
       .compile
       .toList
       .unsafeRunSync()
@@ -239,7 +239,7 @@ class ServiceTest extends AnyFunSuite {
     assert(res.head.isInstanceOf[ServiceStart])
     assert(res(1).isInstanceOf[ServicePanic])
     assert(res(2).isInstanceOf[ServiceStart])
-    assert(res(3).asInstanceOf[ServiceStop].cause.isInstanceOf[ServiceStopCause.ByException])
+    assert(res(3).asInstanceOf[ServiceStop].cause.isInstanceOf[StopReason.ByException])
   }
 
   test("11. exception thrown elsewhere") {
@@ -258,7 +258,7 @@ class ServiceTest extends AnyFunSuite {
       .toList
       .unsafeRunSync()
     assert(res.head.isInstanceOf[ServiceStart])
-    assert(res(1).asInstanceOf[ServiceStop].cause == ServiceStopCause.Successfully)
+    assert(res(1).asInstanceOf[ServiceStop].cause == StopReason.Successfully)
   }
 
   test("12. by exception") {
@@ -280,7 +280,7 @@ class ServiceTest extends AnyFunSuite {
     val List(a, b) =
       guard.service("cancel").eventStream(_ => IO.println("a") <* IO.canceled).compile.toList.unsafeRunSync()
     assert(a.isInstanceOf[ServiceStart])
-    assert(b.asInstanceOf[ServiceStop].cause == ServiceStopCause.ByCancellation)
+    assert(b.asInstanceOf[ServiceStop].cause == StopReason.ByCancellation)
   }
 
   test("14. by cancellation - external") {
@@ -292,6 +292,6 @@ class ServiceTest extends AnyFunSuite {
         .compile
         .toList
         .unsafeRunSync()
-    assert(res.last.isInstanceOf[ServiceMessage])
+    assert(res.last.isInstanceOf[ReportedEvent])
   }
 }

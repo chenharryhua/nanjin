@@ -3,6 +3,7 @@ package com.github.chenharryhua.nanjin.guard.logging
 import cats.effect.kernel.Sync
 import cats.effect.std.Console
 import cats.syntax.applicative.catsSyntaxApplicativeId
+import cats.syntax.eq.catsSyntaxEq
 import cats.syntax.flatMap.toFlatMapOps
 import cats.syntax.functor.toFunctorOps
 import cats.syntax.traverse.toTraverseOps
@@ -26,6 +27,27 @@ sealed trait LogEvent[F[_]] {
 }
 
 object LogEvent {
+
+  /** Abbreviates a logger name like Logback's %logger{1.} style */
+  private def abbr(loggerName: LoggerName, abbrevLen: Int = 1, maxLength: Int = 30): LoggerName = {
+    val full = loggerName.value
+    val parts = full.split("\\.")
+    if (parts.length === 1) loggerName
+    else {
+      val pkgAbbrev = parts.init.map(p => p.take(abbrevLen)).mkString(".")
+      val cls = parts.last
+      val result = s"$pkgAbbrev.$cls"
+      val finalStr =
+        if (result.length <= maxLength) result
+        else {
+          // truncate from the left to fit maxLength
+          val extra = result.length - maxLength
+          result.drop(extra)
+        }
+      LoggerName(finalStr)
+    }
+  }
+
   def apply[F[_]: Sync: Console](
     logFormat: LogFormat,
     zoneId: ZoneId,
@@ -37,25 +59,25 @@ object LogEvent {
       case LogFormat.Console_PlainText =>
         new LogEventImpl[F](
           translator = SimpleTextTranslator[F],
-          logger = new ConsoleLogger[F](zoneId, loggerName),
+          logger = new ConsoleLogger[F](zoneId, abbr(loggerName)),
           logColor = LogColor.standard
         ).pure[F].widen
       case LogFormat.Console_Json_OneLine =>
         new LogEventImpl[F](
           translator = PrettyJsonTranslator[F].map(_.noSpaces),
-          logger = new ConsoleLogger[F](zoneId, loggerName),
+          logger = new ConsoleLogger[F](zoneId, abbr(loggerName)),
           logColor = LogColor.standard
         ).pure[F].widen
       case LogFormat.Console_Json_MultiLine =>
         new LogEventImpl[F](
           translator = PrettyJsonTranslator[F].map(_.spaces2),
-          logger = new ConsoleLogger[F](zoneId, loggerName),
+          logger = new ConsoleLogger[F](zoneId, abbr(loggerName)),
           logColor = LogColor.standard
         ).pure[F].widen
       case LogFormat.Console_JsonVerbose =>
         new LogEventImpl[F](
           translator = Translator.idTranslator.map(_.asJson.spaces2),
-          logger = new ConsoleLogger[F](zoneId, loggerName),
+          logger = new ConsoleLogger[F](zoneId, abbr(loggerName)),
           logColor = LogColor.standard
         ).pure[F].widen
 
@@ -102,10 +124,11 @@ object LogEvent {
         .translate(event)
         .flatMap(_.traverse { text =>
           ColorScheme.decorate[F, Unit](event).run {
-            case ColorScheme.GoodColor  => logger.info(s"${logColor.done(eventTitle(event))} $text")
+            case ColorScheme.GoodColor  => logger.info(s"${logColor.good(eventTitle(event))} $text")
             case ColorScheme.InfoColor  => logger.info(s"${logColor.info(eventTitle(event))} $text")
             case ColorScheme.WarnColor  => logger.warn(s"${logColor.warn(eventTitle(event))} $text")
             case ColorScheme.ErrorColor => logger.error(s"${logColor.error(eventTitle(event))} $text")
+            case ColorScheme.DebugColor => logger.debug(s"${logColor.debug(eventTitle(event))} $text")
           }
         })
         .void
