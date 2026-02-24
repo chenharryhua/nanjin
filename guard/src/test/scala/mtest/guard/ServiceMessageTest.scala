@@ -86,7 +86,7 @@ class ServiceMessageTest extends AnyFunSuite {
 
   test("6. mix") {
     service
-      .updateConfig(_.withLogFormat(_.Console_Json_OneLine))
+      .updateConfig(_.withLogFormat(_.Console_PlainText))
       .eventStream(mix)
       .compile
       .drain
