@@ -6,10 +6,10 @@ import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.batch.{
   BatchJob,
   JobHandler,
+  JobHook,
   JobResultState,
   JobResultValue,
-  PostConditionUnsatisfied,
-  TraceJob
+  PostConditionUnsatisfied
 }
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStop
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
@@ -18,6 +18,7 @@ import io.circe.syntax.EncoderOps
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.DurationInt
+import cats.syntax.group.catsSyntaxSemigroup
 
 class BatchMonadicTest extends AnyFunSuite {
   private val service: ServiceGuard[IO] =
@@ -34,7 +35,7 @@ class BatchMonadicTest extends AnyFunSuite {
             c <- job("c", IO(3))
           } yield a + b + c
         }
-        .batchValue(TraceJob.noop)
+        .batchValue(JobHook.noop[IO, Json] |+| JobHook(agent.logger).json)
     }.compile.lastOrError.unsafeRunSync()
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
   }
@@ -42,7 +43,7 @@ class BatchMonadicTest extends AnyFunSuite {
   test("2.exception") {
     var completedJob: JobResultState = null
     var errorJob: JobResultState = null
-    val tracer = TraceJob
+    val tracer = JobHook
       .noop[IO, Json]
       .map(_.onComplete(jo => IO { completedJob = jo.resultState }).onError(jo =>
         IO { errorJob = jo.resultState }))
@@ -72,7 +73,7 @@ class BatchMonadicTest extends AnyFunSuite {
   test("3.invincible - exception") {
     var completedJob: List[JobResultState] = Nil
     var errorJob: JobResultState = null
-    val tracer = TraceJob
+    val tracer = JobHook
       .noop[IO, Json]
       .map(_.onComplete(jo => IO { completedJob = jo.resultState :: completedJob }).onError(jo =>
         IO { errorJob = jo.resultState }))
@@ -112,7 +113,7 @@ class BatchMonadicTest extends AnyFunSuite {
   test("4.invincible - false") {
     var completedJob: List[JobResultState] = Nil
     val tracer =
-      TraceJob.noop[IO, Json].map(_.onComplete(jo => IO { completedJob = jo.resultState :: completedJob }))
+      JobHook.noop[IO, Json].map(_.onComplete(jo => IO { completedJob = jo.resultState :: completedJob }))
     val se = service.eventStreamR { agent =>
       agent
         .batch("invincible")
@@ -146,7 +147,7 @@ class BatchMonadicTest extends AnyFunSuite {
   test("5. filter") {
     var completedJob: List[JobResultState] = Nil
     val tracer =
-      TraceJob.noop[IO, Json].map(_.onComplete(jo => IO { completedJob = jo.resultState :: completedJob }))
+      JobHook.noop[IO, Json].map(_.onComplete(jo => IO { completedJob = jo.resultState :: completedJob }))
     val se = service.eventStreamR { agent =>
       val res = agent
         .batch("exception")
@@ -177,7 +178,7 @@ class BatchMonadicTest extends AnyFunSuite {
   test("6.cancel") {
     var completedJob: List[JobResultValue[Json]] = Nil
     var canceledJob: BatchJob = null
-    val tracer = TraceJob
+    val tracer = JobHook
       .noop[IO, Json]
       .map(_.onCancel(bj => IO { canceledJob = bj }).onComplete(jrv =>
         IO { completedJob = jrv :: completedJob }))

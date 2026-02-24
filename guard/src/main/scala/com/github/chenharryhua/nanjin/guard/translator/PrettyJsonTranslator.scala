@@ -13,7 +13,7 @@ object PrettyJsonTranslator {
     Json.obj(
       Attribute(evt).map(_.tick.index).snakeJsonEntry,
       Attribute(evt.serviceParams.serviceName).snakeJsonEntry,
-      Attribute(evt.upTime.show).snakeJsonEntry,
+      Attribute(evt.upTime).map(_.show).snakeJsonEntry,
       Attribute(Snooze(evt.tick.snooze)).map(_.show).snakeJsonEntry,
       Attribute(evt.serviceParams.serviceId).snakeJsonEntry,
       "params" -> interpretServiceParams(evt.serviceParams)
@@ -26,7 +26,7 @@ object PrettyJsonTranslator {
       Attribute(Active(evt.tick.active)).map(_.show).snakeJsonEntry,
       Attribute(Snooze(evt.tick.snooze)).map(_.show).snakeJsonEntry,
       Attribute(evt.serviceParams.servicePolicies.restart.policy).map(_.show).snakeJsonEntry,
-      Attribute(evt.upTime.show).snakeJsonEntry,
+      Attribute(evt.upTime).map(_.show).snakeJsonEntry,
       Attribute(evt.serviceParams.serviceId).snakeJsonEntry,
       Attribute(evt.stackTrace).snakeJsonEntry
     )
@@ -51,7 +51,7 @@ object PrettyJsonTranslator {
       Attribute(evt.serviceParams.serviceName).snakeJsonEntry,
       Attribute(evt.took).map(_.show).snakeJsonEntry,
       Attribute(evt.kind.policy).map(_.show).snakeJsonEntry,
-      Attribute(evt.upTime.show).snakeJsonEntry,
+      Attribute(evt.upTime).map(_.show).snakeJsonEntry,
       Attribute(evt.serviceParams.serviceId).snakeJsonEntry,
       Attribute(evt.snapshot).map(new SnapshotPolyglot(_).toPrettyJson).snakeJsonEntry
     )
@@ -63,7 +63,7 @@ object PrettyJsonTranslator {
         Attribute(evt.serviceParams.serviceName).snakeJsonEntry,
         Attribute(evt.domain).snakeJsonEntry,
         Attribute(evt.correlation).snakeJsonEntry,
-        Attribute(evt.upTime.show).snakeJsonEntry,
+        Attribute(evt.upTime).map(_.show).snakeJsonEntry,
         Attribute(evt.serviceParams.serviceId).snakeJsonEntry,
         Attribute(evt.message).snakeJsonEntry,
         Attribute(evt.stackTrace).snakeJsonEntry

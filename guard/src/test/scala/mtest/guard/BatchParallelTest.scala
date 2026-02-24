@@ -7,9 +7,9 @@ import cats.syntax.semigroupk.toSemigroupKOps
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.batch.{
   BatchJob,
+  JobHook,
   JobResultState,
-  PostConditionUnsatisfied,
-  TraceJob
+  PostConditionUnsatisfied
 }
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStop
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
@@ -25,7 +25,7 @@ class BatchParallelTest extends AnyFunSuite {
   test("1.good") {
     val jobs = List("a" -> IO(1), "b" -> IO(2))
     val se = service.eventStreamR { agent =>
-      agent.batch("good job").parallel(jobs*).quasiBatch(TraceJob(agent.logger).standard)
+      agent.batch("good job").parallel(jobs*).quasiBatch(JobHook(agent.logger).standard)
     }.compile.lastOrError.unsafeRunSync()
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)
   }
@@ -39,7 +39,7 @@ class BatchParallelTest extends AnyFunSuite {
       agent
         .batch("exception.quasi")
         .parallel(jobs*)
-        .quasiBatch(TraceJob.noop[IO, Int] <+> TraceJob(agent.logger <+> agent.herald).standard)
+        .quasiBatch(JobHook.noop[IO, Int] <+> JobHook(agent.logger <+> agent.herald).standard)
         .use { mb =>
           IO {
             assert(mb.jobs.head.done)
@@ -55,7 +55,7 @@ class BatchParallelTest extends AnyFunSuite {
     var errorJob: BatchJob = null
     var canceledJob: BatchJob = null
     var succJob: BatchJob = null
-    val tracer: Resource[IO, TraceJob.JobTracer[IO, Int]] = TraceJob
+    val tracer: Resource[IO, JobHook.Bridge[IO, Int]] = JobHook
       .noop[IO, Int]
       .map(
         _.onError(jo => IO { errorJob = jo.resultState.job })
@@ -89,7 +89,7 @@ class BatchParallelTest extends AnyFunSuite {
         .batch("predicate.quasi")
         .parallel(jobs*)
         .withPredicate(_ > 2)
-        .quasiBatch(TraceJob(agent.logger).universal { case (_, jrs) => jrs.asJson })
+        .quasiBatch(JobHook(agent.logger).universal { case (_, jrs) => jrs.asJson })
         .use { mb =>
           IO {
             assert(!mb.jobs.head.done)
@@ -104,7 +104,7 @@ class BatchParallelTest extends AnyFunSuite {
   test("5.predicate - value") {
     var canceledJob: BatchJob = null
     var completedJob: List[JobResultState] = Nil
-    val tracer = TraceJob
+    val tracer = JobHook
       .noop[IO, Int]
       .map(_.onCancel(jo => IO { canceledJob = jo }).onComplete(jo =>
         IO { completedJob = jo.resultState :: completedJob }))
