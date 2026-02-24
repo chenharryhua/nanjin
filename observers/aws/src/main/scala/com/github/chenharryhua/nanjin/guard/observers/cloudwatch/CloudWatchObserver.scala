@@ -20,6 +20,7 @@ import com.github.chenharryhua.nanjin.guard.event.{
   Squants,
   Timestamp
 }
+import com.github.chenharryhua.nanjin.guard.translator.Attribute
 import fs2.{Pipe, Stream}
 import software.amazon.awssdk.services.cloudwatch.model.{Dimension, MetricDatum, StandardUnit}
 import squants.time
@@ -28,7 +29,6 @@ import java.time.ZoneId
 import java.util
 import scala.jdk.CollectionConverters.*
 import scala.jdk.DurationConverters.JavaDurationOps
-import com.github.chenharryhua.nanjin.guard.translator.Attribute
 
 object CloudWatchObserver {
   def apply[F[_]: Async](client: Resource[F, CloudWatch[F]]): CloudWatchObserver[F] =
@@ -176,7 +176,9 @@ final class CloudWatchObserver[F[_]: Async] private (
     standardUnit: StandardUnit) {
 
     private val permanent: Map[String, String] =
-      Map(Attribute(metricLabel.label).textEntry.toPair, Attribute(metricLabel.domain).textEntry.toPair)
+      Map(
+        Attribute(metricLabel).map(_.label).textEntry.toPair,
+        Attribute(metricLabel.domain).textEntry.toPair)
 
     private val dimensions: util.List[Dimension] =
       dimensionBuilder(new DimensionBuilder(serviceParams, permanent)).build

@@ -6,24 +6,29 @@ import cats.kernel.Eq
 import cats.syntax.applicativeError.catsSyntaxApplicativeError
 import cats.syntax.eq.catsSyntaxEq
 import cats.syntax.functor.toFunctorOps
-import io.circe.{Decoder, Encoder}
+import io.circe.generic.JsonCodec
 
 import java.net.{HttpURLConnection, InetAddress, URI, URL}
 import scala.io.{BufferedSource, Source}
 import scala.util.Try
 
-final class HostName private (val value: String) extends AnyVal {
+@JsonCodec
+final case class HostName private (ec2: Option[String], local: Option[String]) {
 
-  override def toString: String = value
+  val value: String = (ec2, local) match {
+    case (None, None)       => "unknown"
+    case (Some(x), None)    => x
+    case (None, Some(y))    => y
+    case (Some(x), Some(y)) => s"$x/$y"
+  }
+
+  override val toString: String = value
 }
 
 object HostName {
 
   implicit final val showHostName: Show[HostName] = Show.fromToString
   implicit final val eqHostName: Eq[HostName] = Eq.instance((a, b) => a.value === b.value)
-
-  implicit final val encoderHostName: Encoder[HostName] = Encoder.encodeString.contramap(_.value)
-  implicit final val decoderHostName: Decoder[HostName] = Decoder.decodeString.map(new HostName(_))
 
   def apply[F[_]](implicit F: Sync[F]): F[HostName] = {
 
@@ -36,13 +41,6 @@ object HostName {
           Some(conn)
         case _ => None
       }))(conn => F.blocking(conn.foreach(_.disconnect())).void)
-
-    def combine(a: Option[String], b: Option[String]): Option[String] = (a, b) match {
-      case (None, None)        => None
-      case (x @ Some(_), None) => x
-      case (None, y @ Some(_)) => y
-      case (Some(x), Some(y))  => Some(s"$x/$y")
-    }
 
     val aws_ec2_ipv4: F[Option[String]] =
       http_get(URI.create("http://169.254.169.254/latest/meta-data/local-ipv4").toURL)
@@ -58,6 +56,6 @@ object HostName {
     val local_host: Option[String] =
       Try(Option(InetAddress.getLocalHost.getHostName).filter(_.trim.nonEmpty)).toOption.flatten
 
-    aws_ec2_ipv4.map(combine(_, local_host).fold(new HostName("unknown"))(new HostName(_)))
+    aws_ec2_ipv4.map(aws => new HostName(aws, local_host))
   }
 }

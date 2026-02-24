@@ -5,9 +5,9 @@ import cats.effect.testing.scalatest.AsyncIOSpec
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.batch.{
   JobHandler,
+  JobHook,
   JobResultState,
-  PostConditionUnsatisfied,
-  TraceJob
+  PostConditionUnsatisfied
 }
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStop
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
@@ -33,7 +33,7 @@ class BatchSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
               c <- job("c", IO(3))
             } yield a + b + c
           }
-          .batchValue(TraceJob.noop)
+          .batchValue(JobHook.noop)
           .map(_.value)
           .memoizedAcquire
           .use(identity)
@@ -57,7 +57,7 @@ class BatchSpec extends AsyncFreeSpec with AsyncIOSpec with Matchers {
             c <- job("c", IO(2))
           } yield a + c
         }
-        .batchValue(TraceJob.noop)
+        .batchValue(JobHook.noop)
         .use(qr => agent.adhoc.report.as(qr))
 
       result.asserting(_.value.shouldBe(3)) >>

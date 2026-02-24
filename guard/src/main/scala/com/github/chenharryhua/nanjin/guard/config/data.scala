@@ -6,23 +6,26 @@ import com.github.chenharryhua.nanjin.guard.translator.durationFormatter
 import enumeratum.values.{CatsOrderValueEnum, CatsValueEnum, IntCirceEnum, IntEnum, IntEnumEntry}
 import enumeratum.{CatsEnum, CirceEnum, Enum, EnumEntry}
 import io.circe.{Decoder, Encoder, Json}
+import org.slf4j.event.Level
 
 import java.time.{Duration, ZoneId}
 import java.util.UUID
 
-sealed abstract class AlarmLevel(override val value: Int, val entryName: String)
-    extends IntEnumEntry with Product
+sealed abstract class AlarmLevel(override val value: Int, val level: Level)
+    extends IntEnumEntry with Product {
+  val entryName: String = this.productPrefix.toLowerCase()
+}
 
 object AlarmLevel
     extends CatsOrderValueEnum[Int, AlarmLevel] with IntEnum[AlarmLevel] with IntCirceEnum[AlarmLevel]
     with CatsValueEnum[Int, AlarmLevel] {
   override val values: IndexedSeq[AlarmLevel] = findValues
 
-  case object Error extends AlarmLevel(4, "error")
-  case object Warn extends AlarmLevel(3, "warn")
-  case object Good extends AlarmLevel(2, "good")
-  case object Info extends AlarmLevel(1, "info")
-  case object Debug extends AlarmLevel(0, "debug")
+  case object Error extends AlarmLevel(4, Level.ERROR)
+  case object Warn extends AlarmLevel(3, Level.WARN)
+  case object Good extends AlarmLevel(2, Level.INFO)
+  case object Info extends AlarmLevel(1, Level.INFO)
+  case object Debug extends AlarmLevel(0, Level.DEBUG)
 }
 
 sealed trait LogFormat extends EnumEntry
