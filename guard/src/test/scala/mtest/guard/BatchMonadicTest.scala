@@ -29,9 +29,9 @@ class BatchMonadicTest extends AnyFunSuite {
         .batch("good")
         .monadic { job =>
           for {
-            a <- job("a" -> IO(1))
-            b <- job("b" -> IO(2))
-            c <- job("c" -> IO(3))
+            a <- job("a", IO(1))
+            b <- job("b", IO(2))
+            c <- job("c", IO(3))
           } yield a + b + c
         }
         .batchValue(TraceJob.noop)
@@ -51,9 +51,9 @@ class BatchMonadicTest extends AnyFunSuite {
         .batch("exception")
         .monadic { job =>
           for {
-            a <- job("a" -> IO(1))
-            b <- job("b" -> IO.raiseError[Int](new Exception()))
-            c <- job("c" -> IO(3))
+            a <- job("a", IO(1))
+            b <- job("b", IO.raiseError[Int](new Exception()))
+            c <- job("c", IO(3))
           } yield a + b + c
         }
         .batchValue(tracer)
@@ -81,12 +81,12 @@ class BatchMonadicTest extends AnyFunSuite {
         .batch("invincible")
         .monadic { job =>
           for {
-            a <- job("a" -> IO(1))
+            a <- job("a", IO(1))
             _ <- job.failSafe("b", IO.raiseError[Int](new Exception()))(new JobHandler[Int] {
               override def predicate(a: Int): Boolean = true
               override def translate(a: Int, jrs: JobResultState): Json = a.asJson
             })
-            c <- job.customise("c" -> IO(3))(new JobHandler[Int] {
+            c <- job.customise("c", IO(3))(new JobHandler[Int] {
               override def predicate(a: Int): Boolean = true
               override def translate(a: Int, jrs: JobResultState): Json = a.asJson
             })
@@ -118,12 +118,12 @@ class BatchMonadicTest extends AnyFunSuite {
         .batch("invincible")
         .monadic { job =>
           for {
-            a <- job("a" -> IO(1))
-            _ <- job.failSafe("b" -> IO(10))(new JobHandler[Int] {
+            a <- job("a", IO(1))
+            _ <- job.failSafe("b", IO(10))(new JobHandler[Int] {
               override def predicate(a: Int): Boolean = false
               override def translate(a: Int, jrs: JobResultState): Json = a.asJson
             }.withPredicate(_ > 15).contramap(identity))
-            c <- job("c" -> IO(3))
+            c <- job("c", IO(3))
           } yield a + c
         }
         .batchValue(tracer)
@@ -152,10 +152,10 @@ class BatchMonadicTest extends AnyFunSuite {
         .batch("exception")
         .monadic { job =>
           for {
-            a <- job("a" -> IO(1))
-            b <- job("b" -> IO(false))
+            a <- job("a", IO(1))
+            b <- job("b", IO(false))
             if b
-            c <- job("c" -> IO(3))
+            c <- job("c", IO(3))
           } yield a + c
         }
         .batchValue(tracer)
@@ -187,10 +187,10 @@ class BatchMonadicTest extends AnyFunSuite {
         .batch("good")
         .monadic { job =>
           for {
-            a <- job("a" -> IO(1).delayBy(1.second))
-            b <- job("b" -> IO(2).delayBy(1.seconds))
-            c <- job("c" -> IO(3).delayBy(2.second))
-            d <- job("d" -> IO(4).delayBy(1.second))
+            a <- job("a", IO(1).delayBy(1.second))
+            b <- job("b", IO(2).delayBy(1.seconds))
+            c <- job("c", IO(3).delayBy(2.second))
+            d <- job("d", IO(4).delayBy(1.second))
           } yield a + b + c + d
         }
         .batchValue(tracer)

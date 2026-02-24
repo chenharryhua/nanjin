@@ -221,9 +221,9 @@ class BatchTest extends AnyFunSuite {
             a <- job("a", IO.println("a").as(10))
             b <- job("b", IO.sleep(1.seconds) >> IO.println("b").as(20))
             _ <- job("c", agent.adhoc.report.void)
-            _ <- job("d" -> IO.println("aaaa"))
-            _ <- job("e" -> IO.sleep(1.seconds).flatMap(_ => IO.println("bbbb")))
-            _ <- job("f" -> agent.adhoc.report.void)
+            _ <- job("d", IO.println("aaaa"))
+            _ <- job("e", IO.sleep(1.seconds).flatMap(_ => IO.println("bbbb")))
+            _ <- job("f", agent.adhoc.report.void)
             c <- job("g", IO.println("c").as(30))
           } yield a + b + c
         }
@@ -247,13 +247,13 @@ class BatchTest extends AnyFunSuite {
           for {
             a <- job("a", IO.println("a").as(10))
             b <- job("b", IO.sleep(1.seconds) >> IO.println("b").as(20))
-            _ <- job("report-1" -> agent.adhoc.report.void)
+            _ <- job("report-1", agent.adhoc.report.void)
             _ <- job.failSafe("exception", IO.raiseError[Int](new Exception("aaaa")))(new JobHandler[Int] {
               override def predicate(a: Int): Boolean = true
               override def translate(a: Int, jrs: JobResultState): Json = a.asJson
             })
             _ <- job("f", IO.println("bbbb"))
-            _ <- job("report-2" -> agent.adhoc.report.void)
+            _ <- job("report-2", agent.adhoc.report.void)
             c <- job("c", IO.println("c").as(30))
           } yield a + b + c
         }
@@ -277,7 +277,7 @@ class BatchTest extends AnyFunSuite {
     service.eventStream { agent =>
       agent
         .batch("monadic")
-        .monadic(job => job("a" -> IO(0)))
+        .monadic(job => job("a", IO(0)))
         .batchValue(TraceJob.noop)
         .use(_ => agent.adhoc.report.void)
     }.compile.drain.unsafeRunSync()
@@ -289,9 +289,9 @@ class BatchTest extends AnyFunSuite {
         .batch("monadic")
         .monadic { (job: Batch.JobBuilder[IO]) =>
           val p1 = for {
-            a <- job("1" -> IO(1))
-            b <- job("2" -> IO(2))
-            c <- job("3" -> IO(3))
+            a <- job("1", IO(1))
+            b <- job("2", IO(2))
+            c <- job("3", IO(3))
           } yield a + b + c
           val p2 = for {
             x <- job("10", IO(10))
@@ -417,7 +417,7 @@ class BatchTest extends AnyFunSuite {
   test("22. monadic flatMap limits") {
     val se = service.eventStreamR { agent =>
       agent.batch("many flatmap").monadic { job =>
-        List.fill(10_000)(job("a" -> IO(1))).reduce((a, b) => a.flatMap(_ => b)).batchValue(TraceJob.noop)
+        List.fill(10_000)(job("a", IO(1))).reduce((a, b) => a.flatMap(_ => b)).batchValue(TraceJob.noop)
       }
     }.compile.lastOrError.unsafeRunSync()
     assert(se.asInstanceOf[ServiceStop].cause.exitCode == 0)

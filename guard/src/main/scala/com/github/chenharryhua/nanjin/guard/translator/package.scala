@@ -29,7 +29,7 @@ package object translator {
     evt match {
       case ss: Event.ServiceStart =>
         if (ss.tick.index === 0) "Start Service" else "Restart Service"
-      case _: Event.ServiceStop   => "Service Stopped"
+      case _: Event.ServiceStop   => "Stop Service"
       case _: Event.ServicePanic  => "Service Panic"
       case _: Event.ReportedEvent => "Reported Event"
       case me: Event.MetricsEvent =>
@@ -61,7 +61,7 @@ package object translator {
       Attribute(serviceParams.serviceName).snakeJsonEntry,
       Attribute(serviceParams.serviceId).snakeJsonEntry,
       Attribute(serviceParams.homepage).snakeJsonEntry,
-      Attribute(serviceParams.host).snakeJsonEntry,
+      Attribute(serviceParams.host).map(_.show).snakeJsonEntry,
       "service_policies" -> Json.obj(
         "restart" -> Json.obj(
           Attribute(serviceParams.servicePolicies.restart.policy).snakeJsonEntry(_.show.asJson),

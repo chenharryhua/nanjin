@@ -125,8 +125,8 @@ final private class HttpRouter[F[_]](
         case None        => "disabled"
       })
     case GET -> Root / "alarm_level" / AlarmLevel.Debug.entryName => setAlarmLevel(Some(AlarmLevel.Debug))
-    case GET -> Root / "alarm_level" / AlarmLevel.Good.entryName  => setAlarmLevel(Some(AlarmLevel.Good))
     case GET -> Root / "alarm_level" / AlarmLevel.Info.entryName  => setAlarmLevel(Some(AlarmLevel.Info))
+    case GET -> Root / "alarm_level" / AlarmLevel.Good.entryName  => setAlarmLevel(Some(AlarmLevel.Good))
     case GET -> Root / "alarm_level" / AlarmLevel.Warn.entryName  => setAlarmLevel(Some(AlarmLevel.Warn))
     case GET -> Root / "alarm_level" / AlarmLevel.Error.entryName => setAlarmLevel(Some(AlarmLevel.Error))
     case GET -> Root / "alarm_level" / "disable"                  => setAlarmLevel(None)

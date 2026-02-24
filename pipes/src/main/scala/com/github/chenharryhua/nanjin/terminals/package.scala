@@ -3,19 +3,22 @@ package com.github.chenharryhua.nanjin
 import cats.Endo
 import cats.data.Reader
 import cats.syntax.apply.catsSyntaxTuple2Semigroupal
+import cats.syntax.bifunctor.toBifunctorOps
 import cats.syntax.eq.catsSyntaxEq
 import com.github.chenharryhua.nanjin.datetime.codec
 import eu.timepit.refined.api.{Refined, RefinedTypeOps}
 import eu.timepit.refined.cats.CatsRefinedTypeOpsSyntax
 import eu.timepit.refined.numeric.Interval.Closed
 import fs2.Chunk
-import io.circe.{Decoder, Encoder}
+import io.circe.Decoder.Result
+import io.circe.{Codec, DecodingFailure, HCursor, Json}
 import io.lemonlabs.uri.Url
 import kantan.csv.CsvConfiguration
 import kantan.csv.CsvConfiguration.Header
 import kantan.csv.engine.WriterEngine
 import org.apache.avro.Schema
 import org.apache.avro.generic.{GenericData, GenericRecord}
+import org.apache.commons.lang3.exception.ExceptionUtils
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.Path
 import org.apache.parquet.avro.AvroParquetWriter
@@ -31,8 +34,17 @@ import scala.util.Try
 
 package object terminals {
 
-  implicit val encoderUrl: Encoder[Url] = Encoder.encodeString.contramap(_.toString())
-  implicit val decoderUrl: Decoder[Url] = Decoder.decodeString.map(Url.parse(_))
+  implicit val codecUrl: Codec[Url] = new Codec[Url] {
+    override def apply(c: HCursor): Result[Url] = c
+      .as[String]
+      .flatMap(
+        Url
+          .parseTry(_)
+          .toEither
+          .leftMap(ex =>
+            DecodingFailure(DecodingFailure.Reason.CustomReason(ExceptionUtils.getMessage(ex)), Nil)))
+    override def apply(a: Url): Json = Json.fromString(a.toString())
+  }
 
   type NJCompressionLevel = Int Refined Closed[1, 9]
   object NJCompressionLevel extends RefinedTypeOps[NJCompressionLevel, Int] with CatsRefinedTypeOpsSyntax

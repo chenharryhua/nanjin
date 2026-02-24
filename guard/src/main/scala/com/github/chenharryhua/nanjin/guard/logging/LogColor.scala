@@ -1,5 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.logging
 
+import com.github.chenharryhua.nanjin.guard.config.AlarmLevel
+
 import scala.io.AnsiColor
 
 sealed private trait LogColor {
@@ -11,14 +13,15 @@ sealed private trait LogColor {
 }
 
 private object LogColor {
-  private def colorize(code: String)(name: String): String = code + name + AnsiColor.RESET
+  private def colorize(alarm: AlarmLevel, code: String)(name: String): String =
+    s"${alarm.level.name()} -- $code$name${AnsiColor.RESET.toString}"
 
-  val standard: LogColor = new LogColor {
-    override val good: String => String = colorize(AnsiColor.GREEN)
-    override val info: String => String = colorize(AnsiColor.CYAN)
-    override val warn: String => String = colorize(AnsiColor.YELLOW)
-    override val error: String => String = colorize(AnsiColor.RED)
-    override val debug: String => String = colorize(AnsiColor.MAGENTA)
+  val console: LogColor = new LogColor {
+    override val good: String => String = colorize(AlarmLevel.Good, AnsiColor.GREEN)
+    override val info: String => String = colorize(AlarmLevel.Info, AnsiColor.CYAN)
+    override val warn: String => String = colorize(AlarmLevel.Warn, AnsiColor.YELLOW)
+    override val error: String => String = colorize(AlarmLevel.Error, AnsiColor.RED)
+    override val debug: String => String = colorize(AlarmLevel.Debug, AnsiColor.MAGENTA)
   }
 
   val none: LogColor = new LogColor {

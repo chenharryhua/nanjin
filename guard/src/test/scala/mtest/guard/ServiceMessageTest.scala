@@ -10,9 +10,13 @@ import io.circe.syntax.EncoderOps
 import org.scalatest.funsuite.AnyFunSuite
 import org.typelevel.log4cats.LoggerName
 
+import scala.concurrent.duration.DurationDouble
+
 class ServiceMessageTest extends AnyFunSuite {
   private val service: ServiceGuard[IO] =
-    TaskGuard[IO]("service.messages").service("service message").updateConfig(_.withAlarmLevel(_.Debug))
+    TaskGuard[IO]("Messaging System")
+      .service("Forward")
+      .updateConfig(_.withAlarmLevel(_.Debug).withMetricReport(_.fixedRate(100.milliseconds)))
 
   private def info(agent: Agent[IO]): IO[Unit] =
     (agent.logger(LoggerName("provided")) |+| agent.herald).use(log =>
@@ -32,7 +36,9 @@ class ServiceMessageTest extends AnyFunSuite {
 
   private def mix(agent: Agent[IO]): IO[Unit] =
     (agent.logger |+| agent.herald).use(log =>
-      log.error(Json.obj("a" -> 1.asJson), new Exception("oops")) >>
+      agent.adhoc.report >>
+        agent.adhoc.reset >>
+        log.error(Json.obj("a" -> 1.asJson), new Exception("oops")) >>
         log.info(Json.Null) >>
         log.warn("oops", new Exception()) >>
         log.good("Okay") >>
@@ -78,7 +84,7 @@ class ServiceMessageTest extends AnyFunSuite {
     service.updateConfig(_.withLogFormat(_.Console_PlainText)).eventStream(warn).compile.drain.unsafeRunSync()
   }
 
-  test("6. warn console json no spaces") {
+  test("6. mix") {
     service
       .updateConfig(_.withLogFormat(_.Console_Json_OneLine))
       .eventStream(mix)
