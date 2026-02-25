@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard
 
-import com.github.chenharryhua.nanjin.guard.metrics.Metrics
+import com.github.chenharryhua.nanjin.guard.metrics.MetricsHub
 import com.github.chenharryhua.nanjin.guard.translator.decimalFormatter
 import io.circe.Json
 import squants.Dimensionless
@@ -30,7 +30,7 @@ package object batch {
     Json.obj("count" -> Json.fromString(count), "rate" -> Json.fromString(formatted))
   }
 
-  private[batch] def sequentialBatchResultState[F[_]](metrics: Metrics[F], mode: BatchMode, batchId: UUID)(
+  private[batch] def sequentialBatchResultState[F[_]](metrics: MetricsHub[F], mode: BatchMode, batchId: UUID)(
     results: List[JobResultState]
   ): BatchResultState =
     BatchResultState(
@@ -41,8 +41,10 @@ package object batch {
       jobs = results
     )
 
-  private[batch] def sequentialBatchResultValue[F[_], A](metrics: Metrics[F], mode: BatchMode, batchId: UUID)(
-    results: List[JobResultValue[A]]): BatchResultValue[List[A]] = {
+  private[batch] def sequentialBatchResultValue[F[_], A](
+    metrics: MetricsHub[F],
+    mode: BatchMode,
+    batchId: UUID)(results: List[JobResultValue[A]]): BatchResultValue[List[A]] = {
     val brs = sequentialBatchResultState(metrics, mode, batchId)(results.map(_.resultState))
     val as = results.map(_.value)
     BatchResultValue(brs, as)

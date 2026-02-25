@@ -1,8 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.translator
 
 import cats.Applicative
-import cats.syntax.show.toShow
-import com.github.chenharryhua.nanjin.guard.event.{Event, Index, Took}
+import com.github.chenharryhua.nanjin.guard.event.{Event, Took}
 
 object SimpleTextTranslator {
   import Event.*
@@ -13,7 +12,7 @@ object SimpleTextTranslator {
     val tn: String = Attribute(se.serviceParams.taskName).labelledText
     val sid: String = Attribute(se.serviceParams.serviceId).labelledText
     val uptime: String = Attribute(se.upTime).labelledText
-    
+
     s"""|$sn, $tn, $uptime
         |  $host
         |  $sid""".stripMargin
@@ -54,12 +53,9 @@ object SimpleTextTranslator {
         |""".stripMargin
   }
 
-  private def metrics_event(evt: MetricsEvent): String = {
+  private def metrics_snapshot(evt: MetricsSnapshot): String = {
     val policy = Attribute(evt.kind.policy).labelledText
-    val index = Attribute(evt.index).map {
-      case ad @ Index.Adhoc(_)  => s"${evt.kind.show}-${ad.productPrefix}"
-      case Index.Periodic(tick) => s"${evt.kind.show}-${tick.index}"
-    }.labelledText
+    val index = Attribute(evt.index).map(_ => evt.label).labelledText // abuse the name
     val took = Attribute(evt.took).labelledText
 
     s"""|
@@ -91,6 +87,6 @@ object SimpleTextTranslator {
       .withServiceStart(service_start)
       .withServiceStop(service_stop)
       .withServicePanic(service_panic)
-      .withMetricsEvent(metrics_event)
+      .withMetricsSnapshot(metrics_snapshot)
       .withReportedEvent(reported_event)
 }

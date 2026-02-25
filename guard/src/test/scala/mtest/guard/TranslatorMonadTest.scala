@@ -34,7 +34,7 @@ object gendata {
           .withServiceStart(_ => 1)
           .withServiceStop(_ => 2)
           .withServicePanic(_ => 3)
-          .withMetricsEvent(_ => 4)
+          .withMetricsSnapshot(_ => 4)
           .withReportedEvent(_ => 6)
       ))
 
@@ -48,7 +48,7 @@ object gendata {
           .withServiceStart(_ => add)
           .withServiceStop(_ => add)
           .withServicePanic(_ => add)
-          .withMetricsEvent(_ => add)
+          .withMetricsSnapshot(_ => add)
           .withReportedEvent(_ => add)
       ))
 
@@ -63,7 +63,7 @@ object gendata {
           .withServiceStart(_ => Option(1))
           .withServiceStop(_ => Option(2))
           .withServicePanic(_ => Option(3))
-          .withMetricsEvent(_ => Option(4))
+          .withMetricsSnapshot(_ => Option(4))
           .withReportedEvent(_ => Option(6))
       ))
 }

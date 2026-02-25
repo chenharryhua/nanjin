@@ -26,7 +26,7 @@ trait KleisliLike[F[_], A] {
   final val kleisli: Kleisli[F, A, Unit] = Kleisli(run)
 }
 
-trait Metrics[F[_]] {
+trait MetricsHub[F[_]] {
   def metricLabel: MetricLabel
 
   def counter(name: String, f: Endo[Counter.Builder] = identity): Resource[F, Counter[F]]
@@ -58,13 +58,13 @@ trait Metrics[F[_]] {
   def txnGauge[A: Encoder](stm: STM[F], initial: A)(name: String): Resource[F, stm.TVar[A]]
 }
 
-object Metrics {
+object MetricsHub {
   private[guard] class Impl[F[_]: Async](
     val metricLabel: MetricLabel,
     metricRegistry: MetricRegistry,
     dispatcher: Dispatcher[F],
     zoneId: ZoneId)
-      extends Metrics[F] {
+      extends MetricsHub[F] {
     private[this] val F = Async[F]
 
     override def counter(name: String, f: Endo[Counter.Builder]): Resource[F, Counter[F]] = {
