@@ -13,6 +13,19 @@ import scala.concurrent.duration.DurationInt
 import scala.jdk.DurationConverters.ScalaDurationOps
 class PolicyBaseTest extends AnyFunSuite {
 
+  test("equality") {
+    assert(Policy.crontab(_.every5Minutes).eqv(Policy.crontab(_.every5Minutes)))
+    assert(
+      Policy.crontab(_.hourly).jitter(1.second)
+        .eqv(Policy.crontab(_.hourly).jitter(1.second)))
+    assert(!Policy.fixedRate(1.second).eqv(Policy.fixedDelay(1.second)))
+
+    assert(Policy.empty.eqv(Policy.empty))
+
+    assert(Policy.fixedDelay(1.second, 2.second).eqv(Policy.fixedDelay(1.second, 2.second)))
+
+  }
+
   test("fibonacci") {
     assert(fibonacci.take(10).toList == List(1, 1, 2, 3, 5, 8, 13, 21, 34, 55))
     assert(exponential.take(10).toList == List(1, 2, 4, 8, 16, 32, 64, 128, 256, 512))

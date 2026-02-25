@@ -2,6 +2,7 @@ package com.github.chenharryhua.nanjin.common.chrono
 
 import cats.data.{Kleisli, NonEmptyList}
 import cats.effect.std.Random
+import cats.kernel.Eq
 import cats.syntax.applicative.catsSyntaxApplicativeId
 import cats.syntax.apply.{catsSyntaxTuple2Semigroupal, catsSyntaxTuple3Semigroupal}
 import cats.syntax.either.catsSyntaxEither
@@ -51,6 +52,10 @@ private object PolicyF {
 
   type CalcTick[F[_]] = Kleisli[F, TickRequest, Tick]
   final case class TickRequest(tick: Tick, now: Instant)
+
+  /*
+   * eval Policy
+   */
 
   @tailrec
   private def fixedRateSnooze(wakeup: Instant, now: Instant, delay: Duration, count: Long): Instant = {
@@ -153,6 +158,9 @@ private object PolicyF {
   private val EXCEPT: String = "except"
   private val OFFSET: String = "offset"
 
+  /*
+   * Show Policy
+   */
   val showPolicy: Algebra[PolicyF, String] = Algebra[PolicyF, String] {
     case Empty() => show"$EMPTY"
 
@@ -171,7 +179,9 @@ private object PolicyF {
     case Jitter(policy, min, max)     => show"$policy.$JITTER($min,$max)"
   }
 
-  // json encoder
+  /*
+   * Json Encoder
+   */
   private val jsonAlgebra: Algebra[PolicyF, Json] = Algebra[PolicyF, Json] {
     case Empty() =>
       Json.obj(EMPTY -> Json.True)
@@ -200,7 +210,9 @@ private object PolicyF {
   val encoderFixPolicyF: Encoder[Fix[PolicyF]] =
     (a: Fix[PolicyF]) => scheme.cata(jsonAlgebra).apply(a)
 
-  // json decoder
+  /*
+   * Json Decoder
+   */
   private val jsonCoalgebra: Coalgebra[PolicyF, HCursor] = {
     def empty(hc: HCursor): Result[Empty[HCursor]] =
       hc.get[Json](EMPTY).map(_ => Empty[HCursor]())
@@ -342,6 +354,8 @@ object Policy {
 
   implicit val decoderPolicy: Decoder[Policy] =
     (c: HCursor) => PolicyF.decoderFixPolicyF(c).map(Policy(_))
+
+  implicit val eqPolicy: Eq[Policy] = Eq.fromUniversalEquals[Policy]
 
   def crontab(f: crontabs.type => CronExpr): Policy = Policy(Fix(Crontab(f(crontabs))))
 
