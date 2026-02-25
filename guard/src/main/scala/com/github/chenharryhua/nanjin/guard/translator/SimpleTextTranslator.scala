@@ -6,22 +6,22 @@ import com.github.chenharryhua.nanjin.guard.event.{Event, Took}
 object SimpleTextTranslator {
   import Event.*
 
-  private case class Index(value: Long)
-
   private def service_event(se: Event): String = {
     val host: String = Attribute(se.serviceParams.host).labelledText
     val sn: String = Attribute(se.serviceParams.serviceName).labelledText
     val tn: String = Attribute(se.serviceParams.taskName).labelledText
     val sid: String = Attribute(se.serviceParams.serviceId).labelledText
     val uptime: String = Attribute(se.upTime).labelledText
+
     s"""|$sn, $tn, $uptime
         |  $host
         |  $sid""".stripMargin
   }
 
   private def service_start(evt: ServiceStart): String = {
-    val idx = Attribute(Index(evt.tick.index)).map(_.value).labelledText
+    val idx = s"index:${evt.tick.index}"
     val snz = Attribute(Took(evt.tick.snooze)).labelledText
+
     s"""|
         |  ${service_event(evt)}
         |  $idx, $snz
@@ -30,7 +30,7 @@ object SimpleTextTranslator {
   }
 
   private def service_panic(evt: ServicePanic): String = {
-    val idx = Attribute(Index(evt.tick.index)).map(_.value).labelledText
+    val idx = s"index:${evt.tick.index}"
     val act = Attribute(Took(evt.tick.active)).labelledText
     val policy = Attribute(evt.serviceParams.servicePolicies.restart.policy).labelledText
 
@@ -53,15 +53,14 @@ object SimpleTextTranslator {
         |""".stripMargin
   }
 
-  private def metrics_event(evt: MetricsEvent): String = {
-    val kind = Attribute(evt.kind).labelledText
+  private def metrics_snapshot(evt: MetricsSnapshot): String = {
     val policy = Attribute(evt.kind.policy).labelledText
-    val index = Attribute(evt.index).labelledText
+    val index = Attribute(evt.index).map(_ => evt.label).labelledText // abuse the name
     val took = Attribute(evt.took).labelledText
 
     s"""|
         |  ${service_event(evt)}
-        |  $kind, $policy
+        |  $policy
         |  $index, $took
         |${new SnapshotPolyglot(evt.snapshot).toYaml}
         |""".stripMargin
@@ -71,6 +70,7 @@ object SimpleTextTranslator {
     val correlation = Attribute(evt.correlation).labelledText
     val domain = Attribute(evt.domain).labelledText
     val message = evt.message.value.spaces2
+
     s"""|
         |  ${service_event(evt)}
         |  $domain, $correlation
@@ -87,6 +87,6 @@ object SimpleTextTranslator {
       .withServiceStart(service_start)
       .withServiceStop(service_stop)
       .withServicePanic(service_panic)
-      .withMetricsEvent(metrics_event)
+      .withMetricsSnapshot(metrics_snapshot)
       .withReportedEvent(reported_event)
 }

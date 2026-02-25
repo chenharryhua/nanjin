@@ -1,8 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.logging
 
-import cats.effect.kernel.Sync
+import cats.effect.kernel.{Ref, Sync}
 import cats.effect.std.AtomicCell
-import cats.syntax.applicative.catsSyntaxApplicativeId
 import cats.syntax.apply.catsSyntaxApplyOps
 import cats.syntax.functor.toFunctorOps
 import cats.syntax.order.catsSyntaxPartialOrder
@@ -17,13 +16,15 @@ object Herald {
   def apply[F[_]: Sync](
     serviceParams: ServiceParams,
     domain: Domain,
+    alarmLevel: Ref[F, Option[AlarmLevel]],
     channel: Channel[F, Event],
     errorHistory: AtomicCell[F, CircularFifoQueue[ReportedEvent]]): Log[F] =
-    new HeraldImpl[F](serviceParams, domain, channel, errorHistory)
+    new HeraldImpl[F](serviceParams, domain, alarmLevel, channel, errorHistory)
 
   final private class HeraldImpl[F[_]](
     serviceParams: ServiceParams,
     domain: Domain,
+    alarmLevel: Ref[F, Option[AlarmLevel]],
     channel: Channel[F, Event],
     errorHistory: AtomicCell[F, CircularFifoQueue[ReportedEvent]])(implicit F: Sync[F])
       extends Log[F] {
@@ -49,6 +50,6 @@ object Herald {
     }
 
     override def enabled(level: AlarmLevel): F[Boolean] =
-      (level >= AlarmLevel.Info).pure[F]
+      alarmLevel.get.map(_.exists(_ <= level))
   }
 }

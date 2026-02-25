@@ -10,7 +10,7 @@ import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.common.chrono.Tick
 import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.Event.{
-  MetricsEvent,
+  MetricsSnapshot,
   ServicePanic,
   ServiceStart,
   ServiceStop
@@ -50,9 +50,9 @@ package object service {
     serviceParams: ServiceParams,
     metricRegistry: MetricRegistry,
     index: Index,
-    mode: ScrapeMode): F[MetricsEvent] =
+    mode: ScrapeMode): F[MetricsSnapshot] =
     Snapshot.timed[F](metricRegistry, mode).map { case (took, snapshot) =>
-      MetricsEvent(
+      MetricsSnapshot(
         index,
         serviceParams,
         snapshot,
@@ -65,7 +65,7 @@ package object service {
     channel: Channel[F, Event],
     logEvent: LogEvent[F],
     metricRegistry: MetricRegistry,
-    index: Index)(implicit F: Sync[F]): F[MetricsEvent] =
+    index: Index)(implicit F: Sync[F]): F[MetricsSnapshot] =
     for {
       mr <- create_metrics_report(serviceParams, metricRegistry, index, ScrapeMode.Full)
       _ <- logEvent.logEvent(mr)
@@ -77,10 +77,10 @@ package object service {
     channel: Channel[F, Event],
     logEvent: LogEvent[F],
     metricRegistry: MetricRegistry,
-    index: Index): F[MetricsEvent] =
+    index: Index): F[MetricsSnapshot] =
     for {
       (took, snapshot) <- Snapshot.timed[F](metricRegistry, ScrapeMode.Full)
-      ms = MetricsEvent(
+      ms = MetricsSnapshot(
         index,
         serviceParams,
         snapshot,

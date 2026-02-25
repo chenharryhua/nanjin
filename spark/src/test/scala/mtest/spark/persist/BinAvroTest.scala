@@ -28,8 +28,9 @@ class BinAvroTest extends AnyFunSuite {
   def loadRooster(path: Url): IO[Set[Rooster]] =
     hdp
       .filesIn(path)
-      .flatMap(_.flatTraverse(
-        hdp.source(_).binAvro(100, Rooster.schema).map(Rooster.avroCodec.decode).compile.toList))
+      .flatMap(
+        _.flatTraverse(
+          hdp.source(_).binAvro(100, Rooster.schema).map(Rooster.avroCodec.decode).compile.toList))
       .map(_.toSet)
 
   def loadRoosterRdd(path: Url): LoadRdd[Rooster] =

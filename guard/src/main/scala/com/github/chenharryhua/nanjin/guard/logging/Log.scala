@@ -4,7 +4,7 @@ import cats.effect.MonadCancel
 import cats.syntax.applicativeError.catsSyntaxApplicativeError
 import cats.syntax.flatMap.{catsSyntaxIfM, toFlatMapOps}
 import cats.syntax.functor.toFunctorOps
-import cats.{Monad, MonadError, Semigroup}
+import cats.{MonadError, Semigroup}
 import com.github.chenharryhua.nanjin.guard.config.AlarmLevel
 import com.github.chenharryhua.nanjin.guard.event.Event.ReportedEvent
 import com.github.chenharryhua.nanjin.guard.event.StackTrace
@@ -26,7 +26,7 @@ abstract class Log[F[_]](implicit F: MonadError[F, Throwable]) {
     level: AlarmLevel,
     stackTrace: Option[StackTrace]
   ): F[Unit] =
-    enabled(level).ifM(create(message, level, stackTrace).flatMap(publish), Monad[F].unit).attempt.void
+    enabled(level).ifM(create(message, level, stackTrace).flatMap(publish).attempt.void, F.unit)
 
   final def error[S: Encoder](msg: => S): F[Unit] = log[S](msg, AlarmLevel.Error, None)
   final def error[S: Encoder](msg: => S, ex: Throwable): F[Unit] =
@@ -60,14 +60,14 @@ object Log {
         override private[logging] def publish(event: ReportedEvent): F[Unit] =
           F.uncancelable { _ =>
             for {
-              _ <- x.enabled(event.level).ifM(x.publish(event), Monad[F].unit)
-              _ <- y.enabled(event.level).ifM(y.publish(event), Monad[F].unit)
+              _ <- x.enabled(event.level).ifM(x.publish(event), F.unit)
+              _ <- y.enabled(event.level).ifM(y.publish(event), F.unit)
             } yield ()
           }
 
         override private[logging] def enabled(level: AlarmLevel): F[Boolean] =
           x.enabled(level).flatMap {
-            case true  => Monad[F].pure(true)
+            case true  => F.pure(true)
             case false => y.enabled(level)
           }
       }

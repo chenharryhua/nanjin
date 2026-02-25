@@ -9,7 +9,7 @@ import cats.syntax.functor.toFunctorOps
 import cats.syntax.show.toShow
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
-import com.github.chenharryhua.nanjin.guard.event.Event.{MetricsEvent, ReportedEvent, ServicePanic}
+import com.github.chenharryhua.nanjin.guard.event.Event.{MetricsSnapshot, ReportedEvent, ServicePanic}
 import com.github.chenharryhua.nanjin.guard.event.{
   retrieveHealthChecks,
   Active,
@@ -42,7 +42,7 @@ final private class HttpRouterHelper[F[_]: Sync](
   serviceParams: ServiceParams,
   metricRegistry: MetricRegistry,
   panicHistory: AtomicCell[F, CircularFifoQueue[ServicePanic]],
-  metricsHistory: AtomicCell[F, CircularFifoQueue[MetricsEvent]],
+  metricsHistory: AtomicCell[F, CircularFifoQueue[MetricsSnapshot]],
   errorHistory: AtomicCell[F, CircularFifoQueue[ReportedEvent]])
     extends all {
 

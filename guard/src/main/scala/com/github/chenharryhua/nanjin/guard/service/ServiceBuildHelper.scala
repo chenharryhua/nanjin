@@ -8,7 +8,7 @@ import com.codahale.metrics.MetricRegistry
 import com.codahale.metrics.jmx.JmxReporter
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick}
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
-import com.github.chenharryhua.nanjin.guard.event.Event.{MetricsEvent, ReportedEvent, ServicePanic}
+import com.github.chenharryhua.nanjin.guard.event.Event.{MetricsSnapshot, ReportedEvent, ServicePanic}
 import com.github.chenharryhua.nanjin.guard.event.{Event, Index}
 import com.github.chenharryhua.nanjin.guard.logging.LogEvent
 import fs2.Stream
@@ -22,8 +22,9 @@ final private class ServiceBuildHelper[F[_]: Async](serviceParams: ServiceParams
   def panic_history: Stream[F, AtomicCell[F, CircularFifoQueue[ServicePanic]]] =
     Stream.eval(AtomicCell[F].of(new CircularFifoQueue[ServicePanic](serviceParams.historyCapacity.panic)))
 
-  def metrics_history: Stream[F, AtomicCell[F, CircularFifoQueue[MetricsEvent]]] =
-    Stream.eval(AtomicCell[F].of(new CircularFifoQueue[MetricsEvent](serviceParams.historyCapacity.metric)))
+  def metrics_history: Stream[F, AtomicCell[F, CircularFifoQueue[MetricsSnapshot]]] =
+    Stream.eval(
+      AtomicCell[F].of(new CircularFifoQueue[MetricsSnapshot](serviceParams.historyCapacity.metric)))
 
   def error_history: Stream[F, AtomicCell[F, CircularFifoQueue[ReportedEvent]]] =
     Stream.eval(AtomicCell[F].of(new CircularFifoQueue[ReportedEvent](serviceParams.historyCapacity.error)))
@@ -39,7 +40,7 @@ final private class ServiceBuildHelper[F[_]: Async](serviceParams: ServiceParams
     channel: Channel[F, Event],
     logEvent: LogEvent[F],
     metricRegistry: MetricRegistry,
-    metricsHistory: AtomicCell[F, CircularFifoQueue[Event.MetricsEvent]]): Stream[F, Nothing] =
+    metricsHistory: AtomicCell[F, CircularFifoQueue[Event.MetricsSnapshot]]): Stream[F, Nothing] =
     tickingBy(serviceParams.servicePolicies.metricsReport).evalMap { tick =>
       publish_metrics_report(
         serviceParams = serviceParams,

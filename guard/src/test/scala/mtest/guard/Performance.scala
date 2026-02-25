@@ -73,8 +73,8 @@ class Performance extends AnyFunSuite {
   test("5.performance histogram") {
     var i: Int = 0
     service
-      .eventStream(_.facilitate("histogram")(
-        _.histogram(Bytes)("histogram").use(_.update(1000).map(_ => i += 1).foreverM)))
+      .eventStream(_.facilitate("histogram")(_.histogram(Bytes)("histogram").use(_.update(1000).map(_ =>
+        i += 1).foreverM)))
       .timeoutOnPullTo(timeout, fs2.Stream.empty)
       .compile
       .drain

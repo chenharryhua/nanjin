@@ -8,7 +8,7 @@ import cats.syntax.flatMap.toFlatMapOps
 import cats.syntax.functor.toFunctorOps
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, ServiceParams}
-import com.github.chenharryhua.nanjin.guard.event.Event.{MetricsEvent, ReportedEvent, ServicePanic}
+import com.github.chenharryhua.nanjin.guard.event.Event.{MetricsSnapshot, ReportedEvent, ServicePanic}
 import com.github.chenharryhua.nanjin.guard.event.{Event, Index, ScrapeMode, Snapshot, StopReason}
 import com.github.chenharryhua.nanjin.guard.logging.LogEvent
 import com.github.chenharryhua.nanjin.guard.translator.{interpretServiceParams, SnapshotPolyglot}
@@ -28,7 +28,7 @@ final private class HttpRouter[F[_]](
   serviceParams: ServiceParams,
   metricRegistry: MetricRegistry,
   panicHistory: AtomicCell[F, CircularFifoQueue[ServicePanic]],
-  metricsHistory: AtomicCell[F, CircularFifoQueue[MetricsEvent]],
+  metricsHistory: AtomicCell[F, CircularFifoQueue[MetricsSnapshot]],
   errorHistory: AtomicCell[F, CircularFifoQueue[ReportedEvent]],
   alarmLevel: Ref[F, Option[AlarmLevel]],
   channel: Channel[F, Event],

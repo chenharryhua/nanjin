@@ -143,11 +143,12 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
     }
     val serde = ctx.serde(s1Topic)
     val sendS1Data = Stream
-      .emits(List(
-        s1TopicBin.producerRecord(1, serde.serializeVal(StreamOne("a", 1))),
-        s1TopicBin.producerRecord(2, "exception1".getBytes),
-        s1TopicBin.producerRecord(3, serde.serializeVal(StreamOne("c", 3)))
-      ).map(ProducerRecords.one))
+      .emits(
+        List(
+          s1TopicBin.producerRecord(1, serde.serializeVal(StreamOne("a", 1))),
+          s1TopicBin.producerRecord(2, "exception1".getBytes),
+          s1TopicBin.producerRecord(3, serde.serializeVal(StreamOne("c", 3)))
+        ).map(ProducerRecords.one))
       .covary[IO]
       .metered(1.seconds)
       .unchunks

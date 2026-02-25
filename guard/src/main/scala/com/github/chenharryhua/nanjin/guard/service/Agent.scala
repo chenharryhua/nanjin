@@ -12,7 +12,7 @@ import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.*
 import com.github.chenharryhua.nanjin.guard.event.Event.ReportedEvent
 import com.github.chenharryhua.nanjin.guard.logging.{Herald, Log, LogEvent, Logger}
-import com.github.chenharryhua.nanjin.guard.metrics.Metrics
+import com.github.chenharryhua.nanjin.guard.metrics.MetricsHub
 import fs2.Stream
 import fs2.concurrent.Channel
 import org.apache.commons.collections4.queue.CircularFifoQueue
@@ -50,8 +50,8 @@ sealed trait Agent[F[_]] {
   /*
    * metrics
    */
-  def metrics(label: String): Metrics[F]
-  def facilitate[A](label: String)(f: Metrics[F] => A): A
+  def metricsHub(label: String): MetricsHub[F]
+  def facilitate[A](label: String)(f: MetricsHub[F] => A): A
   val adhoc: AdhocMetrics[F]
 
   /*
@@ -99,7 +99,7 @@ final private class GeneralAgent[F[_]: Async: Console](
 
   override def batch(label: String): Batch[F] = {
     val metricLabel = MetricLabel(label, domain)
-    new Batch[F](new Metrics.Impl[F](metricLabel, metricRegistry, dispatcher, zoneId), uuidGenerator)
+    new Batch[F](new MetricsHub.Impl[F](metricLabel, metricRegistry, dispatcher, zoneId), uuidGenerator)
   }
 
   override def tickScheduled(f: Policy.type => Policy): Stream[F, Tick] =
@@ -111,13 +111,13 @@ final private class GeneralAgent[F[_]: Async: Console](
   override def tickImmediate(f: Policy.type => Policy): Stream[F, Tick] =
     tickStream.tickImmediate[F](zoneId, f)
 
-  override def metrics(label: String): Metrics[F] = {
+  override def metricsHub(label: String): MetricsHub[F] = {
     val metricLabel = MetricLabel(label, domain)
-    new Metrics.Impl[F](metricLabel, metricRegistry, dispatcher, zoneId)
+    new MetricsHub.Impl[F](metricLabel, metricRegistry, dispatcher, zoneId)
   }
 
-  override def facilitate[A](label: String)(f: Metrics[F] => A): A =
-    f(metrics(label))
+  override def facilitate[A](label: String)(f: MetricsHub[F] => A): A =
+    f(metricsHub(label))
 
   override def circuitBreaker(f: Endo[CircuitBreaker.Builder]): Resource[F, CircuitBreaker[F]] =
     CircuitBreaker[F](zoneId, f)
@@ -132,7 +132,12 @@ final private class GeneralAgent[F[_]: Async: Console](
 
   override def herald: Resource[F, Log[F]] =
     Resource.pure(
-      Herald(serviceParams = serviceParams, domain = domain, channel = channel, errorHistory = errorHistory))
+      Herald(
+        serviceParams = serviceParams,
+        domain = domain,
+        alarmLevel = alarmLevel,
+        channel = channel,
+        errorHistory = errorHistory))
 
   override def logger(implicit ln: LoggerName): Resource[F, Log[F]] =
     Resource

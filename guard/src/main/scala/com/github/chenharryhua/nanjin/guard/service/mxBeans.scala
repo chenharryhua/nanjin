@@ -34,7 +34,7 @@ private object mxBeans {
       }.flatten
     }
 
-  private val heapMemory: Eval[HeapMemory] = Eval.always {
+  private val heap_memory: Eval[HeapMemory] = Eval.always {
     val mxBean: MemoryMXBean = ManagementFactory.getMemoryMXBean
     HeapMemory(
       init = mxBean.getHeapMemoryUsage.getInit,
@@ -44,7 +44,7 @@ private object mxBeans {
     )
   }
 
-  private val nonHeapMemory: Eval[NonHeapMemory] = Eval.always {
+  private val non_heap_memory: Eval[NonHeapMemory] = Eval.always {
     val mxBean: MemoryMXBean = ManagementFactory.getMemoryMXBean
     NonHeapMemory(
       init = mxBean.getNonHeapMemoryUsage.getInit,
@@ -54,14 +54,14 @@ private object mxBeans {
     )
   }
 
-  private val garbageCollectors: Eval[List[GarbageCollector]] = Eval.always(
+  private val garbage_collectors: Eval[List[GarbageCollector]] = Eval.always(
     ManagementFactory.getGarbageCollectorMXBeans.asScala.toList.map(gc =>
       GarbageCollector(
         name = gc.getName,
         count = gc.getCollectionCount,
         took = gc.getCollectionTime.milliseconds.toJava)))
 
-  private val threadState: Eval[ThreadState] = Eval.always {
+  private val thread_state: Eval[ThreadState] = Eval.always {
     val mxBean: ThreadMXBean = ManagementFactory.getThreadMXBean
     ThreadState(
       live = mxBean.getThreadCount,
@@ -71,7 +71,7 @@ private object mxBeans {
     )
   }
 
-  private val operatingSystem: Eval[OperatingSystem] = Eval.always {
+  private val operating_system: Eval[OperatingSystem] = Eval.always {
     val mxBean: OperatingSystemMXBean = ManagementFactory.getOperatingSystemMXBean
     OperatingSystem(
       architecture = s"${mxBean.getArch} ${mxBean.getName} ${mxBean.getVersion}",
@@ -93,11 +93,11 @@ private object mxBeans {
       rt <- runtime
       cl <- classloader
       dl <- deadlocks
-      gc <- garbageCollectors
-      hp <- heapMemory
-      nh <- nonHeapMemory
-      ts <- threadState
-      os <- operatingSystem
+      gc <- garbage_collectors
+      hp <- heap_memory
+      nh <- non_heap_memory
+      ts <- thread_state
+      os <- operating_system
     } yield AllJvmGauge(
       operating_system = os,
       runtime = rt,

@@ -13,7 +13,7 @@ import cats.syntax.show.showInterpolator
 import cats.syntax.traverse.toTraverseOps
 import cats.{Endo, MonadError}
 import com.github.chenharryhua.nanjin.guard.event.MetricLabel
-import com.github.chenharryhua.nanjin.guard.metrics.{ActiveGauge, Metrics}
+import com.github.chenharryhua.nanjin.guard.metrics.{ActiveGauge, MetricsHub}
 import com.github.chenharryhua.nanjin.guard.translator.durationFormatter
 import io.circe.syntax.EncoderOps
 import io.circe.{Encoder, Json}
@@ -82,7 +82,7 @@ object Batch {
     def map[B](f: A => B): SingleJobOutcome[B] = copy(eoa = eoa.map(f))
   }
 
-  private def createPanel[F[_]](mtx: Metrics[F], size: Int, kind: JobKind, mode: BatchMode)(implicit
+  private def createPanel[F[_]](mtx: MetricsHub[F], size: Int, kind: JobKind, mode: BatchMode)(implicit
     F: Async[F]): Resource[F, BatchMetrics[F]] =
     for {
       active <- mtx.activeGauge("active")
@@ -97,7 +97,7 @@ object Batch {
       },
       active)
 
-  private def createPanel[F[_]](mtx: Metrics[F])(implicit F: Async[F]): Resource[F, BatchMetrics[F]] =
+  private def createPanel[F[_]](mtx: MetricsHub[F])(implicit F: Async[F]): Resource[F, BatchMetrics[F]] =
     for {
       active <- mtx.activeGauge("active")
       progress <- Resource.eval(F.ref[List[JobResultState]](Nil))
@@ -194,7 +194,7 @@ object Batch {
    */
   final class Parallel[F[_]: Async, A] private[Batch] (
     predicate: Reader[A, Boolean],
-    metrics: Metrics[F],
+    metrics: MetricsHub[F],
     parallelism: Int,
     jobs: List[JobNameIndex[F, A]],
     uuidGenerator: F[UUID])
@@ -268,7 +268,7 @@ object Batch {
 
   final class Sequential[F[_]: Async, A] private[Batch] (
     predicate: Reader[A, Boolean],
-    metrics: Metrics[F],
+    metrics: MetricsHub[F],
     jobs: List[JobNameIndex[F, A]],
     uuidGenerator: F[UUID])
       extends Runner[F, A] {
@@ -285,7 +285,7 @@ object Batch {
         Resource.eval(uuidGenerator).flatMap { batchId =>
           createPanel(metrics, jobs.size, JobKind.Quasi, mode)
             .evalMap(bp => exec(hook, bp, batchId))
-            .map(sequentialBatchResultState(metrics, mode, batchId))
+            .map(sequential_batch_result_state(metrics, mode, batchId))
         }
       }
     }
@@ -303,7 +303,7 @@ object Batch {
       jobHook.flatMap { hook =>
         Resource.eval(uuidGenerator).flatMap { batchId =>
           createPanel(metrics, jobs.size, JobKind.Value, mode).evalMap(bp => exec(hook, bp, batchId)).map {
-            sequentialBatchResultValue(metrics, mode, batchId)
+            sequential_batch_result_value(metrics, mode, batchId)
           }
         }
       }
@@ -335,7 +335,7 @@ object Batch {
     renameJob: Option[Endo[String]],
     batchId: UUID)
 
-  final class JobBuilder[F[_]] private[Batch] (metrics: Metrics[F], uuidGenerator: F[UUID])(implicit
+  final class JobBuilder[F[_]] private[Batch] (metrics: MetricsHub[F], uuidGenerator: F[UUID])(implicit
     F: Async[F]) {
 
     private val mode: BatchMode = BatchMode.Monadic
@@ -541,7 +541,7 @@ object Batch {
             }.map { case (_, JobState(eoa, history)) =>
               eoa.map { a =>
                 val brs: BatchResultState =
-                  sequentialBatchResultState(metrics, mode, batchId)(history.reverse.toList)
+                  sequential_batch_result_state(metrics, mode, batchId)(history.reverse.toList)
                 BatchResultValue(brs, a)
               }
             }.rethrow
@@ -551,13 +551,22 @@ object Batch {
   }
 }
 
-final class Batch[F[_]: Async] private[guard] (metrics: Metrics[F], uuidGenerator: F[UUID]) {
+final class Batch[F[_]: Async] private[guard] (metrics: MetricsHub[F], uuidGenerator: F[UUID]) {
 
   def sequential[A](fas: (String, F[A])*): Batch.Sequential[F, A] =
-    new Batch.Sequential[F, A](Reader(_ => true), metrics, jobNameIndex(fas.toList), uuidGenerator)
+    new Batch.Sequential[F, A](
+      predicate = Reader(_ => true),
+      metrics = metrics,
+      jobs = job_name_index(fas.toList),
+      uuidGenerator = uuidGenerator)
 
   def parallel[A](parallelism: Int)(fas: (String, F[A])*): Batch.Parallel[F, A] =
-    new Batch.Parallel[F, A](Reader(_ => true), metrics, parallelism, jobNameIndex(fas.toList), uuidGenerator)
+    new Batch.Parallel[F, A](
+      predicate = Reader(_ => true),
+      metrics = metrics,
+      parallelism = parallelism,
+      jobs = job_name_index(fas.toList),
+      uuidGenerator = uuidGenerator)
 
   def parallel[A](fas: (String, F[A])*): Batch.Parallel[F, A] =
     parallel[A](fas.size)(fas*)

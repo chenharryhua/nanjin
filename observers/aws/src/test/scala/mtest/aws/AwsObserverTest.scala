@@ -58,7 +58,7 @@ class AwsObserverTest extends AnyFunSuite {
 
   test("3.syntax") {
     EmailObserver(ses_client).updateTranslator {
-      _.skipMetricsEvent.skipReportedEvent.skipServiceStart.skipServicePanic.skipServiceStop.skipAll
+      _.skipMetricsSnapshot.skipReportedEvent.skipServiceStart.skipServicePanic.skipServiceStop.skipAll
     }
   }
 

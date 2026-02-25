@@ -80,8 +80,8 @@ class NJBinAvroTest extends AnyFunSuite {
       .emits(pandaSet.toList)
       .covary[IO]
       .repeatN(number)
-      .through(
-        hdp.rotateSink(ZoneId.systemDefault(), _.fixedDelay(1.second))(t => path / file.fileName(t)).binAvro)
+      .through(hdp.rotateSink(ZoneId.systemDefault(), _.fixedDelay(1.second))(t =>
+        path / file.fileName(t)).binAvro)
       .fold(0L)((sum, v) => sum + v.value.recordCount)
       .compile
       .lastOrError

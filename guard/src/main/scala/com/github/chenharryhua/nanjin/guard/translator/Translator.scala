@@ -19,15 +19,15 @@ trait UpdateTranslator[F[_], A, B] {
   servicePanic: Kleisli[OptionT[F, *], ServicePanic, A],
   serviceStop: Kleisli[OptionT[F, *], ServiceStop, A],
   reportedEvent: Kleisli[OptionT[F, *], ReportedEvent, A],
-  metricsEvent: Kleisli[OptionT[F, *], MetricsEvent, A]
+  metricsSnapshot: Kleisli[OptionT[F, *], MetricsSnapshot, A]
 ) {
 
   def translate(event: Event): F[Option[A]] = event match {
-    case e: ServiceStart  => serviceStart.run(e).value
-    case e: ServicePanic  => servicePanic.run(e).value
-    case e: ServiceStop   => serviceStop.run(e).value
-    case e: MetricsEvent  => metricsEvent.run(e).value
-    case e: ReportedEvent => reportedEvent.run(e).value
+    case e: ServiceStart    => serviceStart.run(e).value
+    case e: ServicePanic    => servicePanic.run(e).value
+    case e: ServiceStop     => serviceStop.run(e).value
+    case e: MetricsSnapshot => metricsSnapshot.run(e).value
+    case e: ReportedEvent   => reportedEvent.run(e).value
   }
 
   def filter(f: Event => Boolean)(implicit F: Applicative[F]): Translator[F, A] =
@@ -36,7 +36,7 @@ trait UpdateTranslator[F[_], A, B] {
       Kleisli(ss => if (f(ss)) servicePanic.run(ss) else OptionT(F.pure(None))),
       Kleisli(ss => if (f(ss)) serviceStop.run(ss) else OptionT(F.pure(None))),
       Kleisli(ss => if (f(ss)) reportedEvent.run(ss) else OptionT(F.pure(None))),
-      Kleisli(ss => if (f(ss)) metricsEvent.run(ss) else OptionT(F.pure(None)))
+      Kleisli(ss => if (f(ss)) metricsSnapshot.run(ss) else OptionT(F.pure(None)))
     )
 
   // for convenience
@@ -49,8 +49,8 @@ trait UpdateTranslator[F[_], A, B] {
     copy(servicePanic = Translator.noop[F, A])
   def skipServiceStop(implicit F: Applicative[F]): Translator[F, A] =
     copy(serviceStop = Translator.noop[F, A])
-  def skipMetricsEvent(implicit F: Applicative[F]): Translator[F, A] =
-    copy(metricsEvent = Translator.noop[F, A])
+  def skipMetricsSnapshot(implicit F: Applicative[F]): Translator[F, A] =
+    copy(metricsSnapshot = Translator.noop[F, A])
   def skipReportedEvent(implicit F: Applicative[F]): Translator[F, A] =
     copy(reportedEvent = Translator.noop[F, A])
 
@@ -93,17 +93,17 @@ trait UpdateTranslator[F[_], A, B] {
   def withServiceStop(f: ServiceStop => A)(implicit F: Pure[F]): Translator[F, A] =
     copy(serviceStop = Kleisli(a => OptionT(F.pure(Some(f(a))))))
 
-  def withMetricsEvent(f: MetricsEvent => F[Option[A]]): Translator[F, A] =
-    copy(metricsEvent = Kleisli(a => OptionT(f(a))))
+  def withMetricsSnapshot(f: MetricsSnapshot => F[Option[A]]): Translator[F, A] =
+    copy(metricsSnapshot = Kleisli(a => OptionT(f(a))))
 
-  def withMetricsEvent(f: MetricsEvent => Option[A])(implicit F: Applicative[F]): Translator[F, A] =
-    copy(metricsEvent = Kleisli(a => OptionT(F.pure(f(a)))))
+  def withMetricsSnapshot(f: MetricsSnapshot => Option[A])(implicit F: Applicative[F]): Translator[F, A] =
+    copy(metricsSnapshot = Kleisli(a => OptionT(F.pure(f(a)))))
 
-  def withMetricsEvent(f: MetricsEvent => F[A])(implicit F: Functor[F]): Translator[F, A] =
-    copy(metricsEvent = Kleisli(a => OptionT(f(a).map(Some(_)))))
+  def withMetricsSnapshot(f: MetricsSnapshot => F[A])(implicit F: Functor[F]): Translator[F, A] =
+    copy(metricsSnapshot = Kleisli(a => OptionT(f(a).map(Some(_)))))
 
-  def withMetricsEvent(f: MetricsEvent => A)(implicit F: Pure[F]): Translator[F, A] =
-    copy(metricsEvent = Kleisli(a => OptionT(F.pure(Some(f(a))))))
+  def withMetricsSnapshot(f: MetricsSnapshot => A)(implicit F: Pure[F]): Translator[F, A] =
+    copy(metricsSnapshot = Kleisli(a => OptionT(F.pure(Some(f(a))))))
 
   def withReportedEvent(f: ReportedEvent => F[Option[A]]): Translator[F, A] =
     copy(reportedEvent = Kleisli(a => OptionT(f(a))))
@@ -125,7 +125,7 @@ trait UpdateTranslator[F[_], A, B] {
       .withServicePanic(evt => go(evt).flatMap(_.flatTraverse(_.servicePanic.run(evt).value)))
       .withServiceStop(evt => go(evt).flatMap(_.flatTraverse(_.serviceStop.run(evt).value)))
       .withReportedEvent(evt => go(evt).flatMap(_.flatTraverse(_.reportedEvent.run(evt).value)))
-      .withMetricsEvent(evt => go(evt).flatMap(_.flatTraverse(_.metricsEvent.run(evt).value)))
+      .withMetricsSnapshot(evt => go(evt).flatMap(_.flatTraverse(_.metricsSnapshot.run(evt).value)))
   }
 }
 
@@ -156,9 +156,9 @@ object Translator {
           Kleisli((ss: ServiceStop) =>
             OptionT(F.tailRecM(a)(x => f(x).serviceStop.run(ss).value.map(mapper))))
 
-        val metricsEvent: Kleisli[OptionT[F, *], MetricsEvent, B] =
-          Kleisli((ss: MetricsEvent) =>
-            OptionT(F.tailRecM(a)(x => f(x).metricsEvent.run(ss).value.map(mapper))))
+        val metricsSnapshot: Kleisli[OptionT[F, *], MetricsSnapshot, B] =
+          Kleisli((ss: MetricsSnapshot) =>
+            OptionT(F.tailRecM(a)(x => f(x).metricsSnapshot.run(ss).value.map(mapper))))
 
         val reportedEvent: Kleisli[OptionT[F, *], ReportedEvent, B] =
           Kleisli((ss: ReportedEvent) =>
@@ -169,7 +169,7 @@ object Translator {
           servicePanic,
           serviceStop,
           reportedEvent,
-          metricsEvent
+          metricsSnapshot
         )
       }
 
@@ -192,7 +192,7 @@ object Translator {
           .withServicePanic(go)
           .withServiceStop(go)
           .withReportedEvent(go)
-          .withMetricsEvent(go)
+          .withMetricsSnapshot(go)
       }
     }
 

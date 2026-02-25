@@ -29,12 +29,12 @@ package object translator {
     evt match {
       case ss: Event.ServiceStart =>
         if (ss.tick.index === 0) "Start Service" else "Restart Service"
-      case _: Event.ServiceStop   => "Stop Service"
-      case _: Event.ServicePanic  => "Service Panic"
-      case _: Event.ReportedEvent => "Reported Event"
-      case me: Event.MetricsEvent =>
-        me.kind match {
-          case MetricsKind.Report(_) => "Metrics Snapshot"
+      case _: Event.ServiceStop      => "Stop Service"
+      case _: Event.ServicePanic     => "Service Panic"
+      case _: Event.ReportedEvent    => "Reported Event"
+      case ms: Event.MetricsSnapshot =>
+        ms.kind match {
+          case MetricsKind.Report(_) => "Metrics Report"
           case MetricsKind.Reset(_)  => "Metrics Reset"
         }
     }

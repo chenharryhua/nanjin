@@ -57,7 +57,7 @@ private object SlackTranslator extends all {
     JuxtaposeSection(first = TextField(uptime), second = TextField(zone))
   }
 
-  private def metrics_index_section(evt: MetricsEvent): JuxtaposeSection = {
+  private def metrics_index_section(evt: MetricsSnapshot): JuxtaposeSection = {
     val uptime = Attribute(evt.upTime).textEntry
     val index = Attribute(evt.index).textEntry
     JuxtaposeSection(first = TextField(uptime), second = TextField(index))
@@ -160,7 +160,7 @@ private object SlackTranslator extends all {
     )
   }
 
-  private def metrics_event(evt: MetricsEvent): SlackApp = {
+  private def metrics_snapshot(evt: MetricsSnapshot): SlackApp = {
     val policy = Attribute(evt.kind.policy).textEntry
     val service_id = Attribute(evt.serviceParams.serviceId).textEntry
     val color = coloring(evt)
@@ -222,6 +222,6 @@ private object SlackTranslator extends all {
       .withServiceStart(service_start)
       .withServicePanic(service_panic)
       .withServiceStop(service_stop)
-      .withMetricsEvent(metrics_event)
+      .withMetricsSnapshot(metrics_snapshot)
       .withReportedEvent(reported_event)
 }

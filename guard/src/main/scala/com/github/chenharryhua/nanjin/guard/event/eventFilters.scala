@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.event
 
 import cats.syntax.eq.catsSyntaxEq
-import com.github.chenharryhua.nanjin.guard.event.Event.MetricsEvent
+import com.github.chenharryhua.nanjin.guard.event.Event.MetricsSnapshot
 import cron4s.CronExpr
 import cron4s.lib.javatime.javaTemporalInstance
 import cron4s.syntax.all.*
@@ -29,7 +29,7 @@ object eventFilters {
     */
   def sampling(interval: FiniteDuration)(evt: Event): Boolean =
     evt match {
-      case MetricsEvent(mrt, sp, _, _, _) =>
+      case MetricsSnapshot(mrt, sp, _, _, _) =>
         mrt match {
           case Index.Adhoc(_)       => true
           case Index.Periodic(tick) =>
@@ -56,7 +56,7 @@ object eventFilters {
     */
   def sampling(divisor: Refined[Int, Positive])(evt: Event): Boolean =
     evt match {
-      case MetricsEvent(mrt, _, _, _, _) =>
+      case MetricsSnapshot(mrt, _, _, _, _) =>
         mrt match {
           case Index.Adhoc(_)       => true
           case Index.Periodic(tick) => (tick.index % divisor.value) === 0
@@ -77,7 +77,7 @@ object eventFilters {
     */
   def sampling(cronExpr: CronExpr)(evt: Event): Boolean =
     evt match {
-      case MetricsEvent(mrt, _, _, _, _) =>
+      case MetricsSnapshot(mrt, _, _, _, _) =>
         mrt match {
           case Index.Adhoc(_)       => true
           case Index.Periodic(tick) =>
@@ -90,8 +90,8 @@ object eventFilters {
   // MapFilter-friendly accessors
   // --------------------------------------------------------------------------
 
-  val metricsEvent: Event => Option[Event.MetricsEvent] =
-    GenPrism[Event, Event.MetricsEvent].getOption
+  val metricsSnapshot: Event => Option[Event.MetricsSnapshot] =
+    GenPrism[Event, Event.MetricsSnapshot].getOption
 
   val reportedEvent: Event => Option[Event.ReportedEvent] =
     GenPrism[Event, Event.ReportedEvent].getOption

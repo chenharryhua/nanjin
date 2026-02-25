@@ -76,16 +76,8 @@ class HttpServerTest extends AnyFunSuite {
         c.expect[String]("http://localhost:9997/service/panic/history")
           .map(j =>
             assert(
-              jawn
-                .parse(j)
-                .toOption
-                .get
-                .hcursor
-                .downField("history")
-                .as[List[Json]]
-                .toOption
-                .get
-                .size > 2)) >>
+              jawn.parse(j).toOption.get.hcursor.downField("history")
+                .as[List[Json]].toOption.get.size > 2)) >>
           c.expect[String]("http://localhost:9997/service/stop")
       }
       .delayBy(5.seconds)

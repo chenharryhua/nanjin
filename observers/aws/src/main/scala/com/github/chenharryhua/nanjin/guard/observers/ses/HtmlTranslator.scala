@@ -94,7 +94,7 @@ private object HtmlTranslator extends all {
     )
   }
 
-  private def metrics_event(evt: MetricsEvent): Text.TypedTag[String] = {
+  private def metrics_snapshot(evt: MetricsSnapshot): Text.TypedTag[String] = {
     val index = Attribute(evt.index).textEntry
     val policy = Attribute(evt.kind.policy).textEntry
     val took = Attribute(evt.took).textEntry
@@ -133,6 +133,6 @@ private object HtmlTranslator extends all {
       .withServiceStart(service_start)
       .withServicePanic(service_panic)
       .withServiceStop(service_stop)
-      .withMetricsEvent(metrics_event)
+      .withMetricsSnapshot(metrics_snapshot)
       .withReportedEvent(reported_event)
 }

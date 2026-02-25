@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.guard.translator
 import cats.Applicative
 import cats.syntax.show.toShow
 import com.github.chenharryhua.nanjin.guard.event.Event.*
-import com.github.chenharryhua.nanjin.guard.event.{Active, Index, Snooze}
+import com.github.chenharryhua.nanjin.guard.event.{Active, Snooze}
 import io.circe.Json
 
 object PrettyJsonTranslator {
@@ -40,14 +40,9 @@ object PrettyJsonTranslator {
       Attribute(evt.cause).snakeJsonEntry
     )
 
-  private def metrics_event(evt: MetricsEvent): Json =
+  private def metrics_snapshot(evt: MetricsSnapshot): Json =
     Json.obj(
-      Attribute(evt).map {
-        _.index match {
-          case ac @ Index.Adhoc(_)  => Json.fromString(s"${evt.kind.show}-${ac.productPrefix}")
-          case Index.Periodic(tick) => Json.fromString(s"${evt.kind.show}-${tick.index}")
-        }
-      }.snakeJsonEntry,
+      Attribute(evt).map(_.label).snakeJsonEntry,
       Attribute(evt.serviceParams.serviceName).snakeJsonEntry,
       Attribute(evt.took).map(_.show).snakeJsonEntry,
       Attribute(evt.kind.policy).map(_.show).snakeJsonEntry,
@@ -76,6 +71,6 @@ object PrettyJsonTranslator {
       .withServiceStart(service_start)
       .withServiceStop(service_stop)
       .withServicePanic(service_panic)
-      .withMetricsEvent(metrics_event)
+      .withMetricsSnapshot(metrics_snapshot)
       .withReportedEvent(reported_event)
 }
