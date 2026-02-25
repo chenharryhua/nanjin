@@ -9,7 +9,7 @@ import com.github.chenharryhua.nanjin.aws.CloudWatch
 import com.github.chenharryhua.nanjin.common.aws.CloudWatchNamespace
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick}
 import com.github.chenharryhua.nanjin.guard.config.{ServiceId, ServiceParams}
-import com.github.chenharryhua.nanjin.guard.event.Event.MetricsEvent
+import com.github.chenharryhua.nanjin.guard.event.Event.MetricsSnapshot
 import com.github.chenharryhua.nanjin.guard.event.{
   Event,
   Index,
@@ -58,7 +58,7 @@ final class CloudWatchObserver[F[_]: Async] private (
 
   private val histogramB: HistogramFieldBuilder = histogramBuilder(new HistogramFieldBuilder(false, Nil))
 
-  private def computeDatum(report: MetricsEvent, lookup: Map[MetricID, Long]): List[MetricDatum] = {
+  private def computeDatum(report: MetricsSnapshot, lookup: Map[MetricID, Long]): List[MetricDatum] = {
 
     val timer_histo: List[MetricDatum] = for {
       hf <- histogramB.build
@@ -152,7 +152,7 @@ final class CloudWatchObserver[F[_]: Async] private (
       // indexed by ServiceID and MetricName's uuid
       lookup <- Stream.eval(F.ref(Map.empty[ServiceId, Map[MetricID, Long]]))
       event <- events.evalTap {
-        case mr @ MetricsEvent(Index.Periodic(_), sp, snapshot, MetricsKind.Report(_), _) =>
+        case mr @ MetricsSnapshot(Index.Periodic(_), sp, snapshot, MetricsKind.Report(_), _) =>
           lookup.getAndUpdate(_.updated(sp.serviceId, snapshot.lookupCount)).flatMap { last =>
             val data = computeDatum(mr, last.getOrElse(sp.serviceId, Snapshot.empty.lookupCount))
             publish(cwc, data)
@@ -165,8 +165,8 @@ final class CloudWatchObserver[F[_]: Async] private (
   }
 
   def scrape(namespace: CloudWatchNamespace, zoneId: ZoneId, f: Policy.type => Policy)(
-    getMetricsReport: Tick => F[MetricsEvent]): Stream[F, Event] =
-    tickStream.tickScheduled(zoneId, f).evalMap(getMetricsReport).through(observe(namespace))
+    getMetrics: Tick => F[MetricsSnapshot]): Stream[F, Event] =
+    tickStream.tickScheduled(zoneId, f).evalMap(getMetrics).through(observe(namespace))
 
   private case class MetricKey(
     timestamp: Timestamp,

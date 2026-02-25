@@ -195,15 +195,16 @@ final class Statistics[F[_]] private[spark] (val dataset: Dataset[MetaInfo]) ext
           curr.joinWith(pre, curr("_1") === pre("_1"), "inner").flatMap { case ((_, c), (_, p)) =>
             if (c.timestamp >= p.timestamp) None
             else
-              Some(Disorder(
-                partition = pt,
-                offset = p.offset,
-                timestamp = p.timestamp,
-                current_timestamp = p.localDateTime(zoneId).toString,
-                next_timestamp = c.localDateTime(zoneId).toString,
-                gap_millisecond = p.timestamp - c.timestamp,
-                timestamp_type = p.timestampType
-              ))
+              Some(
+                Disorder(
+                  partition = pt,
+                  offset = p.offset,
+                  timestamp = p.timestamp,
+                  current_timestamp = p.localDateTime(zoneId).toString,
+                  next_timestamp = c.localDateTime(zoneId).toString,
+                  gap_millisecond = p.timestamp - c.timestamp,
+                  timestamp_type = p.timestampType
+                ))
           }
         }
       all

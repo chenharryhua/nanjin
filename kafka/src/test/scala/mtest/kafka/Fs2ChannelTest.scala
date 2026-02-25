@@ -69,8 +69,9 @@ class Fs2ChannelTest extends AnyFunSuite {
     val ret =
       ctx
         .sharedProduce(avroTopic.pair)
-        .produceOne(ProducerRecord(avroTopic.topicName.value, 1, Fs2Kafka(1, "a", 1.0))
-          .withHeaders(Headers(Header("k", "abc")))) >>
+        .produceOne(
+          ProducerRecord(avroTopic.topicName.value, 1, Fs2Kafka(1, "a", 1.0))
+            .withHeaders(Headers(Header("k", "abc")))) >>
         ctx
           .consume(avroTopic)
           .updateConfig(_.withGroupId("g1").withAutoOffsetReset(AutoOffsetReset.Earliest))

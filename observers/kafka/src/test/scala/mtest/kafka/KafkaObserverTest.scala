@@ -16,7 +16,7 @@ class KafkaObserverTest extends AnyFunSuite {
     TaskGuard[IO]("observer")
       .service("observer")
       .eventStream(_ => IO(()))
-      .through(KafkaObserver(ctx).updateTranslator(_.skipMetricsEvent).observe(topic))
+      .through(KafkaObserver(ctx).updateTranslator(_.skipMetricsSnapshot).observe(topic))
       .debug()
       .compile
       .drain

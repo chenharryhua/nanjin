@@ -33,8 +33,9 @@ object jackson {
         val datumReader = new GenericDatumReader[GenericRecord](schema)
         def pullAll(is: InputStream): Pull[F, GenericRecord, Option[InputStream]] =
           Pull
-            .functionKInstance(F.blocking(try Some(datumReader.read(null, jsonDecoder))
-            catch { case _: EOFException => None }))
+            .functionKInstance(
+              F.blocking(try Some(datumReader.read(null, jsonDecoder))
+              catch { case _: EOFException => None }))
             .flatMap {
               case Some(a) => Pull.output1[F, GenericRecord](a) >> Pull.pure[F, Option[InputStream]](Some(is))
               case None    => Pull.eval(F.blocking(is.close())) >> Pull.pure[F, Option[InputStream]](None)

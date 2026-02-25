@@ -30,8 +30,9 @@ object binaryAvro {
         val avroDecoder = DecoderFactory.get().binaryDecoder(is, null)
         def pullAll(is: InputStream): Pull[F, GenericRecord, Option[InputStream]] =
           Pull
-            .functionKInstance(F.delay(try Option(datumReader.read(null, avroDecoder))
-            catch { case _: EOFException => None }))
+            .functionKInstance(
+              F.delay(try Option(datumReader.read(null, avroDecoder))
+              catch { case _: EOFException => None }))
             .flatMap {
               case Some(a) => Pull.output1[F, GenericRecord](a) >> Pull.pure[F, Option[InputStream]](Some(is))
               case None    => Pull.eval(F.blocking(is.close())) >> Pull.pure[F, Option[InputStream]](None)

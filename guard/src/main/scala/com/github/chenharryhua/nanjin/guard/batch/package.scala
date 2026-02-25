@@ -30,7 +30,10 @@ package object batch {
     Json.obj("count" -> Json.fromString(count), "rate" -> Json.fromString(formatted))
   }
 
-  private[batch] def sequentialBatchResultState[F[_]](metrics: MetricsHub[F], mode: BatchMode, batchId: UUID)(
+  private[batch] def sequential_batch_result_state[F[_]](
+    metrics: MetricsHub[F],
+    mode: BatchMode,
+    batchId: UUID)(
     results: List[JobResultState]
   ): BatchResultState =
     BatchResultState(
@@ -41,16 +44,16 @@ package object batch {
       jobs = results
     )
 
-  private[batch] def sequentialBatchResultValue[F[_], A](
+  private[batch] def sequential_batch_result_value[F[_], A](
     metrics: MetricsHub[F],
     mode: BatchMode,
     batchId: UUID)(results: List[JobResultValue[A]]): BatchResultValue[List[A]] = {
-    val brs = sequentialBatchResultState(metrics, mode, batchId)(results.map(_.resultState))
+    val brs = sequential_batch_result_state(metrics, mode, batchId)(results.map(_.resultState))
     val as = results.map(_.value)
     BatchResultValue(brs, as)
   }
 
-  private[batch] def jobNameIndex[F[_], A](fas: List[(String, F[A])]): List[JobNameIndex[F, A]] =
+  private[batch] def job_name_index[F[_], A](fas: List[(String, F[A])]): List[JobNameIndex[F, A]] =
     fas.zipWithIndex.map { case ((name, fa), idx) =>
       JobNameIndex[F, A](name, idx + 1, fa)
     }

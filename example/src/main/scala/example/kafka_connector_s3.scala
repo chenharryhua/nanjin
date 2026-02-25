@@ -4,9 +4,9 @@ import cats.data.Kleisli
 import cats.effect.IO
 import cats.effect.kernel.Resource
 import cats.implicits.{catsSyntaxApplicativeByName, catsSyntaxSemigroup, toTraverseOps}
-import com.github.chenharryhua.nanjin.common.chrono.{TickedValue}
+import com.github.chenharryhua.nanjin.common.chrono.TickedValue
 import com.github.chenharryhua.nanjin.guard.event.Event
-import com.github.chenharryhua.nanjin.guard.metrics.Metrics
+import com.github.chenharryhua.nanjin.guard.metrics.MetricsHub
 import com.github.chenharryhua.nanjin.kafka.{AvroTopic, KafkaContext, KafkaSettings}
 import com.github.chenharryhua.nanjin.kafka.connector.PullGenericRecordException
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroFor
@@ -29,7 +29,7 @@ object kafka_connector_s3 {
   private type CCR =
     CommittableConsumerRecord[IO, Unit, Either[PullGenericRecordException, GenericData.Record]]
 
-  private def logMetrics(mtx: Metrics[IO]): Resource[IO, Kleisli[IO, CCR, Unit]] =
+  private def logMetrics(mtx: MetricsHub[IO]): Resource[IO, Kleisli[IO, CCR, Unit]] =
     for {
       idle <- mtx.idleGauge("idle", _.enable(true))
       goodNum <- mtx.counter("good.records", _.enable(true))

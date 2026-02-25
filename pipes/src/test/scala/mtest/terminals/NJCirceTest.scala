@@ -86,8 +86,8 @@ class NJCirceTest extends AnyFunSuite {
       .covary[IO]
       .repeatN(number)
       .map(_.asJson)
-      .through(
-        hdp.rotateSink(ZoneId.systemDefault(), _.fixedDelay(1.second))(t => path / fk.fileName(t)).circe)
+      .through(hdp.rotateSink(ZoneId.systemDefault(), _.fixedDelay(1.second))(t =>
+        path / fk.fileName(t)).circe)
       .fold(0L)((sum, v) => sum + v.value.recordCount)
       .compile
       .lastOrError
