@@ -5,9 +5,7 @@ import cats.syntax.functor.toFunctorOps
 import cats.syntax.show.toShow
 import cats.{Hash, Show}
 import com.github.chenharryhua.nanjin.common.DurationFormatter
-import com.github.chenharryhua.nanjin.common.chrono.{Policy, Tick}
 import io.circe.Decoder.Result
-import io.circe.generic.JsonCodec
 import io.circe.syntax.EncoderOps
 import io.circe.{Codec, Decoder, DecodingFailure, Encoder, HCursor, Json}
 import org.apache.commons.lang3.exception.ExceptionUtils
@@ -30,38 +28,6 @@ object StackTrace {
     override def apply(c: HCursor): Result[StackTrace] = c.as[List[String]].map(StackTrace(_))
     override def apply(a: StackTrace): Json = a.value.asJson
   }
-}
-
-@JsonCodec
-sealed trait Index extends Product {
-  def launchTime: ZonedDateTime
-}
-
-object Index {
-  final case class Adhoc(value: ZonedDateTime) extends Index {
-    override val launchTime: ZonedDateTime = value
-  }
-
-  final case class Periodic(tick: Tick) extends Index {
-    override val launchTime: ZonedDateTime = tick.zoned(_.conclude)
-  }
-
-  implicit val showIndex: Show[Index] = {
-    case Adhoc(_)       => "Adhoc"
-    case Periodic(tick) => tick.index.toString
-  }
-}
-
-@JsonCodec
-sealed trait MetricsKind extends Product {
-  def policy: Policy
-  final override def toString: String = this.productPrefix
-}
-object MetricsKind {
-  final case class Report(policy: Policy) extends MetricsKind
-  final case class Reset(policy: Policy) extends MetricsKind
-
-  implicit val showMetricsKind: Show[MetricsKind] = Show.fromToString
 }
 
 sealed abstract class StopReason(val exitCode: Int) extends Product
@@ -161,4 +127,11 @@ object Domain {
   implicit val showDomain: Show[Domain] = _.value
   implicit val encoderDomain: Encoder[Domain] = Encoder.encodeString.contramap(_.value)
   implicit val decoderDomain: Decoder[Domain] = Decoder.decodeString.map(Domain(_))
+}
+
+final case class Label(value: String) extends AnyVal
+object Label {
+  implicit val showLabel: Show[Label] = _.value
+  implicit val encoderLabel: Encoder[Label] = Encoder.encodeString.contramap(_.value)
+  implicit val decoderLabel: Decoder[Label] = Decoder.decodeString.map(Label(_))
 }

@@ -3,6 +3,7 @@ package com.github.chenharryhua.nanjin.guard.event
 import cats.syntax.show.toShow
 import com.github.chenharryhua.nanjin.common.chrono.Tick
 import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, ServiceParams, UpTime}
+import com.github.chenharryhua.nanjin.guard.event.MetricsEvent.{Index, Kind}
 import io.circe.generic.JsonCodec
 
 @JsonCodec
@@ -31,13 +32,15 @@ object Event {
     index: Index,
     serviceParams: ServiceParams,
     snapshot: Snapshot,
-    kind: MetricsKind,
+    kind: Kind,
     took: Took)
       extends Event {
     override val timestamp: Timestamp = Timestamp(index.launchTime)
-    val label: String = index match {
-      case ac @ Index.Adhoc(_)  => s"${kind.show}-${ac.productPrefix}"
-      case Index.Periodic(tick) => s"${kind.show}-${tick.index}"
+    val label: Label = Label {
+      index match {
+        case ac @ Index.Adhoc(_)  => s"${kind.show}-${ac.productPrefix}"
+        case Index.Periodic(tick) => s"${kind.show}-${tick.index}"
+      }
     }
   }
 

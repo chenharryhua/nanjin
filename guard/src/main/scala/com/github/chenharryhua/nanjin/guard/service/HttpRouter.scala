@@ -9,8 +9,9 @@ import cats.syntax.functor.toFunctorOps
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.Event.{MetricsSnapshot, ReportedEvent, ServicePanic}
-import com.github.chenharryhua.nanjin.guard.event.{Event, Index, ScrapeMode, Snapshot, StopReason}
-import com.github.chenharryhua.nanjin.guard.logging.LogEvent
+import com.github.chenharryhua.nanjin.guard.event.MetricsEvent.Index.Adhoc
+import com.github.chenharryhua.nanjin.guard.event.{Event, ScrapeMode, Snapshot, StopReason}
+import com.github.chenharryhua.nanjin.guard.logging.LogSink
 import com.github.chenharryhua.nanjin.guard.translator.{interpretServiceParams, SnapshotPolyglot}
 import fs2.concurrent.Channel
 import io.circe.Json
@@ -32,7 +33,7 @@ final private class HttpRouter[F[_]](
   errorHistory: AtomicCell[F, CircularFifoQueue[ReportedEvent]],
   alarmLevel: Ref[F, Option[AlarmLevel]],
   channel: Channel[F, Event],
-  logEvent: LogEvent[F])(implicit F: Async[F])
+  logSink: LogSink[F])(implicit F: Async[F])
     extends Http4sDsl[F] with all {
 
   private val indexHtml: Text.TypedTag[String] = html(
@@ -87,7 +88,7 @@ final private class HttpRouter[F[_]](
     case GET -> Root / "metrics" / "reset" =>
       for {
         ts <- serviceParams.zonedNow
-        _ <- publish_metrics_reset[F](serviceParams, channel, logEvent, metricRegistry, Index.Adhoc(ts))
+        _ <- publish_metrics_reset[F](serviceParams, channel, logSink, metricRegistry, Adhoc(ts))
         (fd, yaml) <- Snapshot.timed[F](metricRegistry, ScrapeMode.Full).map { case (fd, ms) =>
           (fd, new SnapshotPolyglot(ms).toYaml)
         }
@@ -111,7 +112,7 @@ final private class HttpRouter[F[_]](
         body(h1("Stopping Service"))
       )
 
-      Ok(stopping) <* publish_service_stop[F](serviceParams, channel, logEvent, StopReason.Maintenance)
+      Ok(stopping) <* publish_service_stop[F](serviceParams, channel, logSink, StopReason.Maintenance)
 
     case GET -> Root / "service" / "health_check" =>
       helper.service_health_check.flatMap {
