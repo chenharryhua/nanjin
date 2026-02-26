@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.logging
 
+import cats.syntax.show.showInterpolator
 import com.github.chenharryhua.nanjin.guard.config.AlarmLevel
 
 import scala.io.AnsiColor
@@ -14,7 +15,7 @@ sealed private trait LogColor {
 
 private object LogColor {
   private def colorize(alarm: AlarmLevel, code: String)(name: String): String =
-    s"${alarm.level.name()} -- $code$name${AnsiColor.RESET.toString}"
+    show"${alarm.level.name()} -- $code$name${AnsiColor.RESET}"
 
   val console: LogColor = new LogColor {
     override val good: String => String = colorize(AlarmLevel.Good, AnsiColor.GREEN)

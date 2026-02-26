@@ -12,7 +12,7 @@ import com.github.chenharryhua.nanjin.common.chrono.PolicyTick
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.event.Event.ServicePanic
 import com.github.chenharryhua.nanjin.guard.event.{Event, StackTrace, StopReason}
-import com.github.chenharryhua.nanjin.guard.logging.LogEvent
+import com.github.chenharryhua.nanjin.guard.logging.LogSink
 import fs2.Stream
 import fs2.concurrent.Channel
 import org.apache.commons.collections4.queue.CircularFifoQueue
@@ -25,14 +25,14 @@ final private class ReStart[F[_]: Async](
   serviceParams: ServiceParams,
   channel: Channel[F, Event],
   panicHistory: AtomicCell[F, CircularFifoQueue[ServicePanic]],
-  logEvent: LogEvent[F],
+  logSink: LogSink[F],
   theService: F[Unit])
     extends duration {
 
   private[this] val F = Async[F]
 
   private[this] def stop(cause: StopReason): F[Unit] =
-    publish_service_stop(serviceParams, channel, logEvent, cause)
+    publish_service_stop(serviceParams, channel, logSink, cause)
 
   private[this] def panic(status: PolicyTick[F], ex: Throwable): F[Option[(Unit, PolicyTick[F])]] =
     F.realTimeInstant.flatMap[Option[(Unit, PolicyTick[F])]] { now =>
@@ -52,7 +52,7 @@ final private class ReStart[F[_]: Async](
         case None      => stop(StopReason.ByException(stackTrace)).as(None)
         case Some(nts) =>
           for {
-            evt <- publish_service_panic(serviceParams, channel, logEvent, nts.tick, stackTrace)
+            evt <- publish_service_panic(serviceParams, channel, logSink, nts.tick, stackTrace)
             _ <- panicHistory.modify(queue => (queue, queue.add(evt))) // mutable queue
             _ <- F.sleep(nts.tick.snooze.toScala)
           } yield Some(((), nts))
@@ -65,7 +65,7 @@ final private class ReStart[F[_]: Async](
       .flatMap {
         Stream
           .unfoldEval[F, PolicyTick[F], Unit](_) { status =>
-            (publish_service_start(serviceParams, channel, logEvent, status.tick) <* theService)
+            (publish_service_start(serviceParams, channel, logSink, status.tick) <* theService)
               .redeemWith[Option[(Unit, PolicyTick[F])]](
                 err => panic(status, err),
                 _ => stop(StopReason.Successfully).as(None)

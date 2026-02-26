@@ -10,16 +10,7 @@ import com.github.chenharryhua.nanjin.common.aws.CloudWatchNamespace
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick}
 import com.github.chenharryhua.nanjin.guard.config.{ServiceId, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.Event.MetricsSnapshot
-import com.github.chenharryhua.nanjin.guard.event.{
-  Event,
-  Index,
-  MetricID,
-  MetricLabel,
-  MetricsKind,
-  Snapshot,
-  Squants,
-  Timestamp
-}
+import com.github.chenharryhua.nanjin.guard.event.{Event, MetricID, MetricLabel, Snapshot, Squants, Timestamp}
 import com.github.chenharryhua.nanjin.guard.translator.Attribute
 import fs2.{Pipe, Stream}
 import software.amazon.awssdk.services.cloudwatch.model.{Dimension, MetricDatum, StandardUnit}
@@ -29,6 +20,8 @@ import java.time.ZoneId
 import java.util
 import scala.jdk.CollectionConverters.*
 import scala.jdk.DurationConverters.JavaDurationOps
+import com.github.chenharryhua.nanjin.guard.event.MetricsEvent.Kind.Report
+import com.github.chenharryhua.nanjin.guard.event.MetricsEvent.Index.Periodic
 
 object CloudWatchObserver {
   def apply[F[_]: Async](client: Resource[F, CloudWatch[F]]): CloudWatchObserver[F] =
@@ -152,7 +145,7 @@ final class CloudWatchObserver[F[_]: Async] private (
       // indexed by ServiceID and MetricName's uuid
       lookup <- Stream.eval(F.ref(Map.empty[ServiceId, Map[MetricID, Long]]))
       event <- events.evalTap {
-        case mr @ MetricsSnapshot(Index.Periodic(_), sp, snapshot, MetricsKind.Report(_), _) =>
+        case mr @ MetricsSnapshot(Periodic(_), sp, snapshot, Report(_), _) =>
           lookup.getAndUpdate(_.updated(sp.serviceId, snapshot.lookupCount)).flatMap { last =>
             val data = computeDatum(mr, last.getOrElse(sp.serviceId, Snapshot.empty.lookupCount))
             publish(cwc, data)

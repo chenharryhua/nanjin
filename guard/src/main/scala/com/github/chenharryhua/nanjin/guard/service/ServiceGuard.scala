@@ -82,7 +82,7 @@ final private[guard] class ServiceGuardImpl[F[_]: Network: Async: Console] priva
       metricsHistory <- helper.metrics_history
       errorHistory <- helper.error_history
       alarmLevel <- Stream.eval(Ref.of[F, Option[AlarmLevel]](config.alarmLevel.some))
-      logEvent <- helper.log_event
+      logSink <- helper.log_sink
       event <- Stream.eval(Channel.unbounded[F, Event]).flatMap { channel =>
         val metricRegistry: MetricRegistry = new MetricRegistry()
 
@@ -100,7 +100,7 @@ final private[guard] class ServiceGuardImpl[F[_]: Network: Async: Console] priva
                     errorHistory = errorHistory,
                     alarmLevel = alarmLevel,
                     channel = channel,
-                    logEvent = logEvent
+                    logSink = logSink
                   ).router)
                   .build) >> Stream.never[F]
           }
@@ -114,7 +114,7 @@ final private[guard] class ServiceGuardImpl[F[_]: Network: Async: Console] priva
             errorHistory = errorHistory,
             dispatcher = dispatcher,
             uuidGenerator = kickedOff.uuidGenerator,
-            logEvent = logEvent,
+            logSink = logSink,
             alarmLevel = alarmLevel
           )
 
@@ -122,15 +122,15 @@ final private[guard] class ServiceGuardImpl[F[_]: Network: Async: Console] priva
           new ReStart[F](
             serviceParams = kickedOff.serviceParams,
             channel = channel,
-            logEvent = logEvent,
+            logSink = logSink,
             panicHistory = panicHistory,
             theService = F.defer(runAgent(agent))
           ).stream
 
         // put together
         channel.stream
-          .concurrently(helper.service_metrics_reset(channel, logEvent, metricRegistry))
-          .concurrently(helper.service_metrics_report(channel, logEvent, metricRegistry, metricsHistory))
+          .concurrently(helper.service_metrics_reset(channel, logSink, metricRegistry))
+          .concurrently(helper.service_metrics_report(channel, logSink, metricRegistry, metricsHistory))
           .concurrently(helper.service_jmx_report(metricRegistry, config.jmxBuilder))
           .concurrently(http_server)
           .concurrently(surveillance)

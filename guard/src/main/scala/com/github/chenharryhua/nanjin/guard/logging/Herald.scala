@@ -2,9 +2,11 @@ package com.github.chenharryhua.nanjin.guard.logging
 
 import cats.effect.kernel.{Ref, Sync}
 import cats.effect.std.AtomicCell
-import cats.syntax.apply.catsSyntaxApplyOps
+import cats.syntax.applicative.catsSyntaxApplicativeByName
+import cats.syntax.eq.catsSyntaxEq
+import cats.syntax.flatMap.catsSyntaxFlatMapOps
 import cats.syntax.functor.toFunctorOps
-import cats.syntax.order.catsSyntaxPartialOrder
+import cats.syntax.order.{catsSyntaxOrder, catsSyntaxPartialOrder}
 import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.Event.ReportedEvent
 import com.github.chenharryhua.nanjin.guard.event.{Domain, Event, StackTrace}
@@ -17,14 +19,16 @@ object Herald {
     serviceParams: ServiceParams,
     domain: Domain,
     alarmLevel: Ref[F, Option[AlarmLevel]],
+    alarmThreshold: AlarmLevel,
     channel: Channel[F, Event],
     errorHistory: AtomicCell[F, CircularFifoQueue[ReportedEvent]]): Log[F] =
-    new HeraldImpl[F](serviceParams, domain, alarmLevel, channel, errorHistory)
+    new HeraldImpl[F](serviceParams, domain, alarmLevel, alarmThreshold, channel, errorHistory)
 
   final private class HeraldImpl[F[_]](
     serviceParams: ServiceParams,
     domain: Domain,
     alarmLevel: Ref[F, Option[AlarmLevel]],
+    alarmThreshold: AlarmLevel,
     channel: Channel[F, Event],
     errorHistory: AtomicCell[F, CircularFifoQueue[ReportedEvent]])(implicit F: Sync[F])
       extends Log[F] {
@@ -40,16 +44,14 @@ object Herald {
         level = level,
         stackTrace = stackTrace)
 
-    override def publish(event: ReportedEvent): F[Unit] = event.level match {
-      case AlarmLevel.Error =>
-        channel.send(event) *> errorHistory.modify(queue => (queue, queue.add(event))).void
-      case AlarmLevel.Warn  => channel.send(event).void
-      case AlarmLevel.Good  => channel.send(event).void
-      case AlarmLevel.Info  => channel.send(event).void
-      case AlarmLevel.Debug => F.unit
-    }
+    override def publish(event: ReportedEvent): F[Unit] =
+      channel.send(event) >>
+        errorHistory.modify(queue => (queue, queue.add(event)))
+          .whenA(event.level === AlarmLevel.Error)
 
+    // Combine dynamic alarmLevel with static alarmThreshold (floor).
+    // Ensures Herald never emits below alarmThreshold, regardless of runtime logging level.
     override def enabled(level: AlarmLevel): F[Boolean] =
-      alarmLevel.get.map(_.exists(_ <= level))
+      alarmLevel.get.map(_.map(_.max(alarmThreshold)).exists(_ <= level))
   }
 }

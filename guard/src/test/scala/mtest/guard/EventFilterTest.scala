@@ -13,7 +13,7 @@ import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.Duration
 import scala.concurrent.duration.DurationInt
-import com.github.chenharryhua.nanjin.guard.event.Index.Periodic
+import com.github.chenharryhua.nanjin.guard.event.MetricsEvent.Index.Periodic
 
 class EventFilterTest extends AnyFunSuite {
   private val service: ServiceGuard[IO] =

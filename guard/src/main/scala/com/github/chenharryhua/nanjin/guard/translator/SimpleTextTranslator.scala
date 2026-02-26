@@ -55,13 +55,13 @@ object SimpleTextTranslator {
 
   private def metrics_snapshot(evt: MetricsSnapshot): String = {
     val policy = Attribute(evt.kind.policy).labelledText
-    val index = Attribute(evt.index).map(_ => evt.label).labelledText // abuse the name
+    val label = Attribute(evt.label).labelledText
     val took = Attribute(evt.took).labelledText
 
     s"""|
         |  ${service_event(evt)}
         |  $policy
-        |  $index, $took
+        |  $label, $took
         |${new SnapshotPolyglot(evt.snapshot).toYaml}
         |""".stripMargin
   }

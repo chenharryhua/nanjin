@@ -21,39 +21,39 @@ import org.typelevel.log4cats.{LoggerName, MessageLogger}
 
 import java.time.ZoneId
 
-sealed trait LogEvent[F[_]] {
-  def logEvent(event: Event): F[Unit]
+sealed trait LogSink[F[_]] {
+  def write(event: Event): F[Unit]
 }
 
-object LogEvent {
+object LogSink {
   def apply[F[_]: Sync: Console](
     logFormat: LogFormat,
     zoneId: ZoneId,
-    loggerName: LoggerName): F[LogEvent[F]] =
+    loggerName: LoggerName): F[LogSink[F]] =
     logFormat match {
       /*
        * console
        */
       case LogFormat.Console_PlainText =>
-        new LogEventImpl[F](
+        new LogSinkImpl[F](
           translator = SimpleTextTranslator[F],
           logger = new ConsoleLogger[F](zoneId, loggerName),
           logColor = LogColor.console
         ).pure[F].widen
       case LogFormat.Console_Json_OneLine =>
-        new LogEventImpl[F](
+        new LogSinkImpl[F](
           translator = PrettyJsonTranslator[F].map(_.noSpaces),
           logger = new ConsoleLogger[F](zoneId, loggerName),
           logColor = LogColor.console
         ).pure[F].widen
       case LogFormat.Console_Json_MultiLine =>
-        new LogEventImpl[F](
+        new LogSinkImpl[F](
           translator = PrettyJsonTranslator[F].map(_.spaces2),
           logger = new ConsoleLogger[F](zoneId, loggerName),
           logColor = LogColor.console
         ).pure[F].widen
       case LogFormat.Console_JsonVerbose =>
-        new LogEventImpl[F](
+        new LogSinkImpl[F](
           translator = Translator.idTranslator.map(_.asJson.spaces2),
           logger = new ConsoleLogger[F](zoneId, loggerName),
           logColor = LogColor.console
@@ -66,7 +66,7 @@ object LogEvent {
         Slf4jLogger
           .fromName[F](loggerName.value)
           .map(logger =>
-            new LogEventImpl[F](
+            new LogSinkImpl[F](
               translator = SimpleTextTranslator[F],
               logger = logger,
               logColor = LogColor.none
@@ -75,7 +75,7 @@ object LogEvent {
         Slf4jLogger
           .fromName[F](loggerName.value)
           .map(logger =>
-            new LogEventImpl[F](
+            new LogSinkImpl[F](
               translator = PrettyJsonTranslator[F].map(_.noSpaces),
               logger = logger,
               logColor = LogColor.none
@@ -84,20 +84,20 @@ object LogEvent {
         Slf4jLogger
           .fromName[F](loggerName.value)
           .map(logger =>
-            new LogEventImpl[F](
+            new LogSinkImpl[F](
               translator = PrettyJsonTranslator[F].map(_.spaces2),
               logger = logger,
               logColor = LogColor.none
             ))
     }
 
-  final private class LogEventImpl[F[_]: Sync](
+  final private class LogSinkImpl[F[_]: Sync](
     logger: MessageLogger[F],
     translator: Translator[F, String],
     logColor: LogColor
-  ) extends LogEvent[F] {
+  ) extends LogSink[F] {
 
-    override def logEvent(event: Event): F[Unit] =
+    override def write(event: Event): F[Unit] =
       translator
         .translate(event)
         .flatMap(_.traverse { text =>

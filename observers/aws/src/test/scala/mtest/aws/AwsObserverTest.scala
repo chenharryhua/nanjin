@@ -24,7 +24,7 @@ class AwsObserverTest extends AnyFunSuite {
     .service("test")
     .updateConfig(_.addBrief("brief").withRestartPolicy(10.hours, _.fixedDelay(1.second).limited(1)))
     .eventStream { agent =>
-      (agent.logger |+| agent.herald).use(log =>
+      (agent.logger |+| agent.herald(_.Warn)).use(log =>
         agent
           .facilitate("metrics")(_.meter(Bytes)("meter"))
           .use(

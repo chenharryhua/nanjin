@@ -211,7 +211,9 @@ final class ServiceConfig[F[_]: Applicative] private (
   def withLogFormat(f: LogFormat.type => LogFormat): ServiceConfig[F] =
     copy(cont = Fix(WithLogFormat(f(LogFormat), cont)))
 
-  def withAlarmLevel(f: AlarmLevel.type => AlarmLevel): ServiceConfig[F] =
+  /** Sets the initial alarm level for the service.
+    */
+  def withInitialAlarmLevel(f: AlarmLevel.type => AlarmLevel): ServiceConfig[F] =
     copy(alarmLevel = f(AlarmLevel))
 
   private[guard] def evalConfig(

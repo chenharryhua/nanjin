@@ -8,9 +8,10 @@ import com.codahale.metrics.MetricRegistry
 import com.codahale.metrics.jmx.JmxReporter
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick}
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
+import com.github.chenharryhua.nanjin.guard.event.Event
 import com.github.chenharryhua.nanjin.guard.event.Event.{MetricsSnapshot, ReportedEvent, ServicePanic}
-import com.github.chenharryhua.nanjin.guard.event.{Event, Index}
-import com.github.chenharryhua.nanjin.guard.logging.LogEvent
+import com.github.chenharryhua.nanjin.guard.event.MetricsEvent.Index.Periodic
+import com.github.chenharryhua.nanjin.guard.logging.LogSink
 import fs2.Stream
 import fs2.concurrent.Channel
 import org.apache.commons.collections4.queue.CircularFifoQueue
@@ -29,39 +30,39 @@ final private class ServiceBuildHelper[F[_]: Async](serviceParams: ServiceParams
   def error_history: Stream[F, AtomicCell[F, CircularFifoQueue[ReportedEvent]]] =
     Stream.eval(AtomicCell[F].of(new CircularFifoQueue[ReportedEvent](serviceParams.historyCapacity.error)))
 
-  def log_event(implicit F: Console[F]): Stream[F, LogEvent[F]] =
+  def log_sink(implicit F: Console[F]): Stream[F, LogSink[F]] =
     Stream.eval(
-      LogEvent[F](serviceParams.logFormat, serviceParams.zoneId, LoggerName(serviceParams.serviceName.value)))
+      LogSink[F](serviceParams.logFormat, serviceParams.zoneId, LoggerName(serviceParams.serviceName.value)))
 
   private def tickingBy(policy: Policy): Stream[F, Tick] =
     tickStream.tickScheduled(serviceParams.zoneId, _ => policy)
 
   def service_metrics_report(
     channel: Channel[F, Event],
-    logEvent: LogEvent[F],
+    logSink: LogSink[F],
     metricRegistry: MetricRegistry,
     metricsHistory: AtomicCell[F, CircularFifoQueue[Event.MetricsSnapshot]]): Stream[F, Nothing] =
     tickingBy(serviceParams.servicePolicies.metricsReport).evalMap { tick =>
       publish_metrics_report(
         serviceParams = serviceParams,
         channel = channel,
-        logEvent = logEvent,
+        logSink = logSink,
         metricRegistry = metricRegistry,
-        index = Index.Periodic(tick)).flatMap(mr => metricsHistory.modify(queue => (queue, queue.add(mr))))
+        index = Periodic(tick)).flatMap(mr => metricsHistory.modify(queue => (queue, queue.add(mr))))
     }.drain
 
   def service_metrics_reset(
     channel: Channel[F, Event],
-    logEvent: LogEvent[F],
+    logSink: LogSink[F],
     metricRegistry: MetricRegistry): Stream[F, Nothing] =
     tickingBy(serviceParams.servicePolicies.metricsReset)
       .evalMap(tick =>
         publish_metrics_reset(
           serviceParams = serviceParams,
           channel = channel,
-          logEvent = logEvent,
+          logSink = logSink,
           metricRegistry = metricRegistry,
-          index = Index.Periodic(tick)))
+          index = Periodic(tick)))
       .drain
 
   def service_jmx_report(

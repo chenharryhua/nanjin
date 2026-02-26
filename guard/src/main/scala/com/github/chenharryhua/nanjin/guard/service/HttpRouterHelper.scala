@@ -10,10 +10,10 @@ import cats.syntax.show.toShow
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.event.Event.{MetricsSnapshot, ReportedEvent, ServicePanic}
+import com.github.chenharryhua.nanjin.guard.event.MetricsEvent.Index.{Adhoc, Periodic}
 import com.github.chenharryhua.nanjin.guard.event.{
   retrieveHealthChecks,
   Active,
-  Index,
   ScrapeMode,
   Snapshot,
   Snooze,
@@ -134,8 +134,8 @@ final private class HttpRouterHelper[F[_]: Sync](
           metricsHistory.get.map(_.iterator().asScala.toList.reverse.flatMap { mr =>
             val took = Attribute(mr.took).textEntry
             val (index_tag, index) = Attribute(mr.index).entry {
-              case Index.Adhoc(_)       => None
-              case Index.Periodic(tick) =>
+              case Adhoc(_)       => None
+              case Periodic(tick) =>
                 val timestamp = Attribute(Timestamp(tick.zoned(_.conclude))).map(_.show).textEntry
                 Some((tick.index, timestamp))
             }

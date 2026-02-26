@@ -4,7 +4,6 @@ import cats.effect.implicits.clockOps
 import cats.effect.kernel.Sync
 import cats.syntax.eq.catsSyntaxEq
 import cats.syntax.functor.toFunctorOps
-import com.codahale.metrics
 import com.codahale.metrics.MetricRegistry
 import io.circe.Json
 import io.circe.generic.JsonCodec
@@ -243,7 +242,7 @@ object Snapshot extends duration {
     Snapshot(counters = counters, meters = meters, timers = timers, histograms = histograms, gauges = gauges)
   }
 
-  def timed[F[_]](metricRegistry: metrics.MetricRegistry, mode: ScrapeMode)(implicit
+  def timed[F[_]](metricRegistry: MetricRegistry, mode: ScrapeMode)(implicit
     F: Sync[F]): F[(Duration, Snapshot)] =
     F.blocking(buildFrom(metricRegistry, mode)).timed.map { case (fd, ss) => (fd.toJava, ss) }
 }

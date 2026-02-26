@@ -16,10 +16,12 @@ class ServiceMessageTest extends AnyFunSuite {
   private val service: ServiceGuard[IO] =
     TaskGuard[IO]("Messaging System")
       .service("Forward")
-      .updateConfig(_.withAlarmLevel(_.Debug).withMetricReport(_.fixedRate(100.milliseconds)))
+      .updateConfig(
+        _.withInitialAlarmLevel(_.Debug)
+          .withMetricReport(_.fixedRate(100.milliseconds)))
 
   private def info(agent: Agent[IO]): IO[Unit] =
-    (agent.logger(LoggerName("provided")) |+| agent.herald).use(log =>
+    (agent.logger(LoggerName("provided")) |+| agent.herald(_.Good)).use(log =>
       log.info("a") >>
         log.info(1) >>
         log.info(List(1, 2, 3)) >>
@@ -28,14 +30,14 @@ class ServiceMessageTest extends AnyFunSuite {
         log.info(Json.Null))
 
   private def warn(agent: Agent[IO]): IO[Unit] =
-    (agent.logger |+| agent.herald).use(log =>
+    (agent.logger |+| agent.herald(_.Error)).use(log =>
       log.warn(Json.obj("a" -> 1.asJson), new Exception("oops")) >>
         log.warn(Json.Null) >>
         log.warn("oops", new Exception()) >>
         log.warn(Json.Null, new Exception()))
 
   private def mix(agent: Agent[IO]): IO[Unit] =
-    (agent.logger |+| agent.herald).use(log =>
+    (agent.logger |+| agent.herald(_.Warn)).use(log =>
       agent.adhoc.report >>
         agent.adhoc.reset >>
         log.error(Json.obj("a" -> 1.asJson), new Exception("oops")) >>
@@ -81,12 +83,14 @@ class ServiceMessageTest extends AnyFunSuite {
   }
 
   test("5. warn console plain text") {
-    service.updateConfig(_.withLogFormat(_.Console_PlainText)).eventStream(warn).compile.drain.unsafeRunSync()
+    service.updateConfig(_.withLogFormat(_.Console_PlainText))
+      .eventStream(warn)
+      .compile.drain.unsafeRunSync()
   }
 
   test("6. mix") {
     service
-      .updateConfig(_.withLogFormat(_.Console_PlainText))
+      .updateConfig(_.withLogFormat(_.Console_Json_MultiLine))
       .eventStream(mix)
       .compile
       .drain

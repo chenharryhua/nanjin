@@ -11,7 +11,7 @@ import com.github.chenharryhua.nanjin.guard.batch.Batch
 import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.*
 import com.github.chenharryhua.nanjin.guard.event.Event.ReportedEvent
-import com.github.chenharryhua.nanjin.guard.logging.{Herald, Log, LogEvent, Logger}
+import com.github.chenharryhua.nanjin.guard.logging.{Herald, Log, LogSink, Logger}
 import com.github.chenharryhua.nanjin.guard.metrics.MetricsHub
 import fs2.Stream
 import fs2.concurrent.Channel
@@ -44,7 +44,7 @@ sealed trait Agent[F[_]] {
   /*
    * Service Message
    */
-  def herald: Resource[F, Log[F]]
+  def herald(f: AlarmLevel.type => AlarmLevel): Resource[F, Log[F]]
   def logger(implicit ln: LoggerName): Resource[F, Log[F]]
 
   /*
@@ -79,7 +79,7 @@ final private class GeneralAgent[F[_]: Async: Console](
   errorHistory: AtomicCell[F, CircularFifoQueue[ReportedEvent]],
   dispatcher: Dispatcher[F],
   uuidGenerator: F[UUID],
-  logEvent: LogEvent[F],
+  logSink: LogSink[F],
   alarmLevel: Ref[F, Option[AlarmLevel]])
     extends Agent[F] {
 
@@ -94,7 +94,7 @@ final private class GeneralAgent[F[_]: Async: Console](
       errorHistory,
       dispatcher,
       uuidGenerator,
-      logEvent,
+      logSink,
       alarmLevel)
 
   override def batch(label: String): Batch[F] = {
@@ -128,20 +128,21 @@ final private class GeneralAgent[F[_]: Async: Console](
   override def retry(f: Endo[Retry.Builder[F]]): Resource[F, Retry[F]] =
     Resource.eval(Retry[F](zoneId, f))
 
-  override object adhoc extends AdhocMetricsImpl[F](serviceParams, channel, logEvent, metricRegistry)
+  override object adhoc extends AdhocMetricsImpl[F](serviceParams, channel, logSink, metricRegistry)
 
-  override def herald: Resource[F, Log[F]] =
+  override def herald(f: AlarmLevel.type => AlarmLevel): Resource[F, Log[F]] =
     Resource.pure(
       Herald(
         serviceParams = serviceParams,
         domain = domain,
         alarmLevel = alarmLevel,
+        alarmThreshold = f(AlarmLevel),
         channel = channel,
         errorHistory = errorHistory))
 
   override def logger(implicit ln: LoggerName): Resource[F, Log[F]] =
     Resource
-      .eval(LogEvent(serviceParams.logFormat, zoneId, ln))
-      .map(logEvent =>
-        Logger(serviceParams = serviceParams, domain = domain, alarmLevel = alarmLevel, logEvent = logEvent))
+      .eval(LogSink(serviceParams.logFormat, zoneId, ln))
+      .map(logSink =>
+        Logger(serviceParams = serviceParams, domain = domain, alarmLevel = alarmLevel, logSink = logSink))
 }

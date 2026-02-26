@@ -15,10 +15,9 @@ import com.github.chenharryhua.nanjin.guard.event.Event.{
   ServiceStart,
   ServiceStop
 }
+import com.github.chenharryhua.nanjin.guard.event.MetricsEvent.{Index, Kind}
 import com.github.chenharryhua.nanjin.guard.event.{
   Event,
-  Index,
-  MetricsKind,
   ScrapeMode,
   Snapshot,
   StackTrace,
@@ -26,7 +25,7 @@ import com.github.chenharryhua.nanjin.guard.event.{
   Timestamp,
   Took
 }
-import com.github.chenharryhua.nanjin.guard.logging.LogEvent
+import com.github.chenharryhua.nanjin.guard.logging.LogSink
 import fs2.concurrent.Channel
 import org.typelevel.log4cats.SelfAwareLogger
 
@@ -56,26 +55,26 @@ package object service {
         index,
         serviceParams,
         snapshot,
-        MetricsKind.Report(serviceParams.servicePolicies.metricsReport),
+        Kind.Report(serviceParams.servicePolicies.metricsReport),
         Took(took))
     }
 
   private[service] def publish_metrics_report[F[_]](
     serviceParams: ServiceParams,
     channel: Channel[F, Event],
-    logEvent: LogEvent[F],
+    logSink: LogSink[F],
     metricRegistry: MetricRegistry,
     index: Index)(implicit F: Sync[F]): F[MetricsSnapshot] =
     for {
       mr <- create_metrics_report(serviceParams, metricRegistry, index, ScrapeMode.Full)
-      _ <- logEvent.logEvent(mr)
+      _ <- logSink.write(mr)
       _ <- channel.send(mr)
     } yield mr
 
   private[service] def publish_metrics_reset[F[_]: Sync](
     serviceParams: ServiceParams,
     channel: Channel[F, Event],
-    logEvent: LogEvent[F],
+    logSink: LogSink[F],
     metricRegistry: MetricRegistry,
     index: Index): F[MetricsSnapshot] =
     for {
@@ -84,9 +83,9 @@ package object service {
         index,
         serviceParams,
         snapshot,
-        MetricsKind.Reset(serviceParams.servicePolicies.metricsReset),
+        Kind.Reset(serviceParams.servicePolicies.metricsReset),
         Took(took))
-      _ <- logEvent.logEvent(ms)
+      _ <- logSink.write(ms)
       _ <- channel.send(ms)
     } yield {
       metricRegistry.getCounters().values().asScala.foreach(c => c.dec(c.getCount))
@@ -96,31 +95,31 @@ package object service {
   private[service] def publish_service_start[F[_]: Applicative](
     serviceParams: ServiceParams,
     channel: Channel[F, Event],
-    logEvent: LogEvent[F],
+    logSink: LogSink[F],
     tick: Tick): F[Unit] = {
     val event = ServiceStart(serviceParams, tick)
-    logEvent.logEvent(event) <* channel.send(event)
+    logSink.write(event) <* channel.send(event)
   }
 
   private[service] def publish_service_panic[F[_]: Applicative](
     serviceParams: ServiceParams,
     channel: Channel[F, Event],
-    logEvent: LogEvent[F],
+    logSink: LogSink[F],
     tick: Tick,
     stackTrace: StackTrace): F[ServicePanic] = {
     val panic: ServicePanic = ServicePanic(serviceParams, tick, stackTrace)
-    logEvent.logEvent(panic) *> channel.send(panic).as(panic)
+    logSink.write(panic) *> channel.send(panic).as(panic)
   }
 
   private[service] def publish_service_stop[F[_]: Clock: Monad](
     serviceParams: ServiceParams,
     channel: Channel[F, Event],
-    logEvent: LogEvent[F],
+    logSink: LogSink[F],
     cause: StopReason): F[Unit] =
     for {
       now <- serviceParams.zonedNow
       event = ServiceStop(serviceParams, Timestamp(now), cause)
-      _ <- logEvent.logEvent(event)
+      _ <- logSink.write(event)
       _ <- channel.closeWithElement(event)
     } yield ()
 }

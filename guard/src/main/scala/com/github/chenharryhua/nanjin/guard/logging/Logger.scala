@@ -13,14 +13,14 @@ object Logger {
     serviceParams: ServiceParams,
     domain: Domain,
     alarmLevel: Ref[F, Option[AlarmLevel]],
-    logEvent: LogEvent[F]): Log[F] =
-    new LoggerImpl[F](serviceParams, domain, alarmLevel, logEvent)
+    logSink: LogSink[F]): Log[F] =
+    new LoggerImpl[F](serviceParams, domain, alarmLevel, logSink)
 
   final private class LoggerImpl[F[_]](
     serviceParams: ServiceParams,
     domain: Domain,
     alarmLevel: Ref[F, Option[AlarmLevel]],
-    logEvent: LogEvent[F])(implicit F: Sync[F])
+    logSink: LogSink[F])(implicit F: Sync[F])
       extends Log[F] {
 
     override def create[S: Encoder](
@@ -30,7 +30,7 @@ object Logger {
       create_reported_event[F, S](serviceParams, domain, message, level, stackTrace)
 
     override def publish(event: ReportedEvent): F[Unit] =
-      logEvent.logEvent(event)
+      logSink.write(event)
 
     override def enabled(level: AlarmLevel): F[Boolean] =
       alarmLevel.get.map(_.exists(_ <= level))
