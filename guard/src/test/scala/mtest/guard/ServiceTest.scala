@@ -25,7 +25,7 @@ class ServiceTest extends AnyFunSuite {
       .withZoneId(londonTime)
       .withRestartPolicy(1.hour, _.fixedDelay(1.seconds))
       .withLogFormat(_.Slf4j_Json_OneLine)
-      .withAlarmLevel(_.Debug)
+      .withInitialAlarmLevel(_.Debug)
       .addBrief(Json.fromString("test")))
 
   val policy: Policy = Policy.fixedDelay(0.1.seconds).limited(3)
@@ -41,7 +41,7 @@ class ServiceTest extends AnyFunSuite {
       .service("retry")
       .updateConfig(_.withRestartPolicy(1.hour, _.fixedDelay(1.seconds).limited(1)))
       .eventStream { ga =>
-        ga.herald.use(log =>
+        ga.herald(_.Info).use(log =>
           ga.retry(_.withPolicy(_.fixedDelay(1.seconds).limited(1)))
             .use(_(log.info("info") *> IO.raiseError(new Exception))))
       }
@@ -197,7 +197,7 @@ class ServiceTest extends AnyFunSuite {
       .updateConfig(_.withRestartPolicy(1.hour, _.fixedDelay(1.seconds).limited(1)))
       .eventStream { agent =>
         val a = UUID.randomUUID()
-        agent.herald.use(_.warn(a.toString) *> IO.raiseError(new Exception))
+        agent.herald(_.Debug).use(_.warn(a.toString) *> IO.raiseError(new Exception))
       }
       .mapFilter(eventFilters.reportedEvent)
       .compile
@@ -212,7 +212,7 @@ class ServiceTest extends AnyFunSuite {
       .updateConfig(_.withRestartPolicy(1.hour, _.fixedDelay(1.seconds).limited(1)))
       .eventStreamS { agent =>
         val a = UUID.randomUUID()
-        fs2.Stream.resource(agent.herald).flatMap { log =>
+        fs2.Stream.resource(agent.herald(_.Info)).flatMap { log =>
           fs2.Stream(0).covary[IO].evalMap(_ => log.info(a.toString) *> IO.raiseError(new Exception))
         }
       }
@@ -287,7 +287,7 @@ class ServiceTest extends AnyFunSuite {
     val res: List[Event] =
       guard
         .service("cancel")
-        .eventStream(_.herald.use(_.error("oops")).delayBy(1.seconds).replicateA_(1000))
+        .eventStream(_.herald(_.Info).use(_.error("oops")).delayBy(1.seconds).replicateA_(1000))
         .take(5)
         .compile
         .toList

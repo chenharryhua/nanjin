@@ -217,7 +217,7 @@ class MetricsTest extends AnyFunSuite {
 
   test("13.measured.retry - unworthy retry") {
     val sm = service.eventStream { agent =>
-      agent.herald.use { log =>
+      agent.herald(_.Debug).use { log =>
         agent
           .retry(_.withPolicy(_.fixedDelay(1000.second).limited(2)).withDecision(tv =>
             log.warn(tv.tick, tv.value).as(tv.map(_ => false))))

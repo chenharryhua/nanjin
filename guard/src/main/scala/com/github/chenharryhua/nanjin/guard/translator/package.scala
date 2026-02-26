@@ -6,8 +6,9 @@ import cats.syntax.show.toShow
 import com.github.chenharryhua.nanjin.common.DurationFormatter
 import com.github.chenharryhua.nanjin.common.DurationFormatter.defaultFormatter
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
+import com.github.chenharryhua.nanjin.guard.event.Event
 import com.github.chenharryhua.nanjin.guard.event.Event.ServicePanic
-import com.github.chenharryhua.nanjin.guard.event.{Event, MetricsKind}
+import com.github.chenharryhua.nanjin.guard.event.MetricsEvent.Kind.{Report, Reset}
 import io.circe.Json
 import io.circe.syntax.EncoderOps
 import org.apache.commons.lang3.StringUtils
@@ -34,8 +35,8 @@ package object translator {
       case _: Event.ReportedEvent    => "Reported Event"
       case ms: Event.MetricsSnapshot =>
         ms.kind match {
-          case MetricsKind.Report(_) => "Metrics Report"
-          case MetricsKind.Reset(_)  => "Metrics Reset"
+          case Report(_) => "Metrics Report"
+          case Reset(_)  => "Metrics Reset"
         }
     }
 

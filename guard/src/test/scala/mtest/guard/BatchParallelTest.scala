@@ -39,7 +39,7 @@ class BatchParallelTest extends AnyFunSuite {
       agent
         .batch("exception.quasi")
         .parallel(jobs*)
-        .quasiBatch(JobHook.noop[IO, Int] <+> JobHook(agent.logger <+> agent.herald).standard)
+        .quasiBatch(JobHook.noop[IO, Int] <+> JobHook(agent.logger <+> agent.herald(_.Info)).standard)
         .use { mb =>
           IO {
             assert(mb.jobs.head.done)
