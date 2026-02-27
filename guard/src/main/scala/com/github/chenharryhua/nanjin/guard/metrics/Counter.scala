@@ -8,12 +8,12 @@ import com.github.chenharryhua.nanjin.common.EnableConfig
 import com.github.chenharryhua.nanjin.guard.event.CategoryKind.CounterKind
 import com.github.chenharryhua.nanjin.guard.event.{Category, MetricID, MetricLabel, MetricName}
 
-trait Counter[F[_]] extends KleisliLike[F, Long] {
+trait Counter[F[_]] {
   def inc(num: Long): F[Unit]
 
   final def inc(num: Int): F[Unit] = run(num.toLong)
 
-  final override def run(num: Long): F[Unit] = inc(num)
+  final def run(num: Long): F[Unit] = inc(num)
 }
 
 object Counter {

@@ -12,7 +12,7 @@ import java.time.Duration as JavaDuration
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.FiniteDuration
 
-trait Timer[F[_]] extends KleisliLike[F, Long] {
+trait Timer[F[_]] {
 
   def elapsed(jd: JavaDuration): F[Unit]
   def elapsed(num: Long): F[Unit]
@@ -22,7 +22,7 @@ trait Timer[F[_]] extends KleisliLike[F, Long] {
   final def elapsed(fd: FiniteDuration): F[Unit] =
     elapsed(fd.toNanos)
 
-  final override def run(num: Long): F[Unit] = elapsed(num)
+  final def run(num: Long): F[Unit] = elapsed(num)
 
 }
 

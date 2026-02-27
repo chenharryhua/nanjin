@@ -16,7 +16,7 @@ import io.circe.syntax.EncoderOps
 
 import scala.util.Try
 
-trait Percentile[F[_]] extends KleisliLike[F, Ior[Long, Long]] {
+trait Percentile[F[_]] {
 
   /** @param numerator
     *   The number above the fraction line, representing the part of the whole. For example, in the fraction
@@ -39,7 +39,7 @@ trait Percentile[F[_]] extends KleisliLike[F, Ior[Long, Long]] {
     */
   def incBoth(numerator: Long, denominator: Long): F[Unit]
 
-  final override def run(ior: Ior[Long, Long]): F[Unit] = ior match {
+  final def run(ior: Ior[Long, Long]): F[Unit] = ior match {
     case Ior.Left(a)    => incNumerator(a)
     case Ior.Right(b)   => incDenominator(b)
     case Ior.Both(a, b) => incBoth(a, b)

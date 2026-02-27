@@ -1,30 +1,21 @@
 package com.github.chenharryhua.nanjin.guard.metrics
 
 import cats.Endo
-import cats.data.Kleisli
 import cats.effect.kernel.{Async, Ref, Resource}
 import cats.effect.std.Dispatcher
-import cats.syntax.functor.toFunctorOps
 import cats.syntax.flatMap.{catsSyntaxIfM, toFlatMapOps}
+import cats.syntax.functor.toFunctorOps
 import cats.syntax.option.{catsSyntaxOptionId, none}
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.guard.event.MetricLabel
 import com.github.chenharryhua.nanjin.guard.translator.durationFormatter
-import io.circe.Encoder
+import io.circe.syntax.EncoderOps
+import io.circe.{Encoder, Json}
 import io.github.timwspence.cats.stm.STM
 import squants.{Quantity, UnitOfMeasure}
 
 import java.time.ZoneId
 import scala.concurrent.duration.DurationInt
-
-trait KleisliLike[F[_], A] {
-  def run(a: A): F[Unit]
-
-  final def local[B](f: B => A): Kleisli[F, B, Unit] =
-    Kleisli(run).local(f)
-
-  final val kleisli: Kleisli[F, A, Unit] = Kleisli(run)
-}
 
 trait MetricsHub[F[_]] {
   def metricLabel: MetricLabel
@@ -56,6 +47,7 @@ trait MetricsHub[F[_]] {
   def deltaCounter(name: String, f: Endo[Gauge.Builder] = identity): Resource[F, Counter[F]]
 
   def txnGauge[A: Encoder](stm: STM[F], initial: A)(name: String): Resource[F, stm.TVar[A]]
+  def balanceGauge(a: (String, Long), b: (String, Long)): Resource[F, Balance[F]]
 }
 
 object MetricsHub {
@@ -158,5 +150,31 @@ object MetricsHub {
         ta <- Resource.eval(stm.commit(stm.TVar.of(initial)))
         _ <- gauge(name, identity).register(stm.commit(ta.get))
       } yield ta
+
+    override def balanceGauge(a: (String, Long), b: (String, Long)): Resource[F, Balance[F]] =
+      for {
+        stm <- Resource.eval(STM.runtime[F])
+        an <- Resource.eval(stm.commit(stm.TVar.of(a._2)))
+        bn <- Resource.eval(stm.commit(stm.TVar.of(b._2)))
+        _ <- gauge(s"Balance(${a._1}<->${b._1})", identity).register {
+          val get: stm.Txn[Json] = for {
+            sa <- an.get
+            sb <- bn.get
+          } yield List(sa, sb).asJson
+          stm.commit(get)
+        }
+      } yield new Balance[F] {
+        private def transfer(from: stm.TVar[Long], to: stm.TVar[Long], num: Long): stm.Txn[Unit] =
+          for {
+            _ <- from.modify(_ - num)
+            _ <- to.modify(_ + num)
+          } yield ()
+
+        override def forward(num: Long): F[Unit] =
+          stm.commit(transfer(an, bn, num))
+
+        override def backward(num: Long): F[Unit] =
+          stm.commit(transfer(bn, an, num))
+      }
   }
 }

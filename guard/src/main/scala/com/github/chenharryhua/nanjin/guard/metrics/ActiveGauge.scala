@@ -1,6 +1,6 @@
 package com.github.chenharryhua.nanjin.guard.metrics
 
-trait ActiveGauge[F[_]] extends KleisliLike[F, Unit] {
+trait ActiveGauge[F[_]] {
   def deactivate: F[Unit]
-  final override def run(a: Unit): F[Unit] = deactivate
+  final def run(a: Unit): F[Unit] = deactivate
 }

@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.metrics
 
-trait IdleGauge[F[_]] extends KleisliLike[F, Unit] {
+trait IdleGauge[F[_]] {
   def wakeUp: F[Unit]
 
-  final override def run(a: Unit): F[Unit] = wakeUp
+  final def run(a: Unit): F[Unit] = wakeUp
 }
