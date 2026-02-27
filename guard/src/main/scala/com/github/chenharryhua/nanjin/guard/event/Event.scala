@@ -3,8 +3,11 @@ package com.github.chenharryhua.nanjin.guard.event
 import cats.syntax.show.toShow
 import com.github.chenharryhua.nanjin.common.chrono.Tick
 import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, ServiceParams, UpTime}
+import com.github.chenharryhua.nanjin.guard.event.MetricsEvent.Index.{Adhoc, Periodic}
 import com.github.chenharryhua.nanjin.guard.event.MetricsEvent.{Index, Kind}
 import io.circe.generic.JsonCodec
+import monocle.macros.{GenLens, GenPrism}
+import monocle.{Optional, Prism}
 
 @JsonCodec
 sealed trait Event extends Product {
@@ -53,4 +56,24 @@ object Event {
     stackTrace: Option[StackTrace],
     message: Message
   ) extends Event
+
+  val metricsSnapshot: Prism[Event, MetricsSnapshot] = GenPrism[Event, Event.MetricsSnapshot]
+  val reportedEvent: Prism[Event, ReportedEvent] = GenPrism[Event, Event.ReportedEvent]
+  val serviceStart: Prism[Event, ServiceStart] = GenPrism[Event, Event.ServiceStart]
+  val serviceStop: Prism[Event, ServiceStop] = GenPrism[Event, Event.ServiceStop]
+  val servicePanic: Prism[Event, ServicePanic] = GenPrism[Event, Event.ServicePanic]
+
+  val adhocSnapshot: Optional[Event, Adhoc] =
+    metricsSnapshot
+      .andThen(GenLens[MetricsSnapshot](_.index))
+      .andThen(GenPrism[Index, Adhoc])
+
+  val reportingTick: Optional[Event, Tick] =
+    metricsSnapshot.filter(_.kind match {
+      case Kind.Report(_) => true
+      case Kind.Reset(_)  => false
+    })
+      .andThen(GenLens[MetricsSnapshot](_.index))
+      .andThen(GenPrism[Index, Periodic])
+      .andThen(GenLens[Periodic](_.tick))
 }
