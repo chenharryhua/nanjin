@@ -6,8 +6,8 @@ import cats.syntax.flatMap.toFlatMapOps
 import cats.syntax.functor.toFunctorOps
 import cats.syntax.traverse.toTraverseOps
 import cats.{Applicative, Endo, Functor, FunctorFilter, Monad, Traverse}
-import com.github.chenharryhua.nanjin.guard.event.Event
 import com.github.chenharryhua.nanjin.guard.event.Event.*
+import com.github.chenharryhua.nanjin.guard.event.{Event, EventPipe}
 import monocle.macros.Lenses
 
 trait UpdateTranslator[F[_], A, B] {
@@ -38,6 +38,9 @@ trait UpdateTranslator[F[_], A, B] {
       Kleisli(ss => if (f(ss)) reportedEvent.run(ss) else OptionT(F.pure(None))),
       Kleisli(ss => if (f(ss)) metricsSnapshot.run(ss) else OptionT(F.pure(None)))
     )
+
+  def filter(pipe: EventPipe)(implicit F: Applicative[F]): Translator[F, A] =
+    filter(pipe.filter)
 
   // for convenience
   def traverse[G[_]](ge: G[Event])(implicit F: Applicative[F], G: Traverse[G]): F[G[Option[A]]] =

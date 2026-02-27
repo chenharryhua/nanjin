@@ -22,9 +22,9 @@ object Herald {
     alarmThreshold: AlarmLevel,
     channel: Channel[F, Event],
     errorHistory: AtomicCell[F, CircularFifoQueue[ReportedEvent]]): Log[F] =
-    new HeraldImpl[F](serviceParams, domain, alarmLevel, alarmThreshold, channel, errorHistory)
+    new ReportedEventPublisher[F](serviceParams, domain, alarmLevel, alarmThreshold, channel, errorHistory)
 
-  final private class HeraldImpl[F[_]](
+  final private class ReportedEventPublisher[F[_]](
     serviceParams: ServiceParams,
     domain: Domain,
     alarmLevel: Ref[F, Option[AlarmLevel]],

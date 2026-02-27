@@ -5,8 +5,7 @@ import cats.effect.unsafe.implicits.global
 import cats.implicits.toFunctorFilterOps
 import com.github.chenharryhua.nanjin.common.CircuitBreaker
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.event.StopReason
-import com.github.chenharryhua.nanjin.guard.event.eventFilters
+import com.github.chenharryhua.nanjin.guard.event.{Event, StopReason}
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.DurationInt
@@ -28,7 +27,7 @@ class CircuitBreakerTest extends AnyFunSuite {
           cb.attempt(bad) >> agent.adhoc.report >>
           cb.protect(good) >> agent.adhoc.report.void
       }
-    }.mapFilter(eventFilters.serviceStop).compile.lastOrError.unsafeRunSync()
+    }.mapFilter(Event.serviceStop.getOption).compile.lastOrError.unsafeRunSync()
     assert(ss.cause == StopReason.Successfully)
   }
 
@@ -47,7 +46,7 @@ class CircuitBreakerTest extends AnyFunSuite {
           cb.attempt(bad) >> agent.adhoc.report >>
           cb.protect(good).guarantee(agent.adhoc.report.void).void
       }
-    }.mapFilter(eventFilters.serviceStop).compile.lastOrError.unsafeRunSync()
+    }.mapFilter(Event.serviceStop.getOption).compile.lastOrError.unsafeRunSync()
     assert(
       ss.cause
         .asInstanceOf[StopReason.ByException]
@@ -67,7 +66,7 @@ class CircuitBreakerTest extends AnyFunSuite {
       .eventStream(_.circuitBreaker(identity).use { cb =>
         IO.race(cb.protect(io1), cb.protect(io2)) >> IO.sleep(4.seconds)
       })
-      .mapFilter(eventFilters.serviceStop)
+      .mapFilter(Event.serviceStop.getOption)
       .compile
       .lastOrError
       .unsafeRunSync()
@@ -82,7 +81,7 @@ class CircuitBreakerTest extends AnyFunSuite {
         cb.protect(IO.raiseError(new Exception())).attempt >>
           cb.protect(IO(1)).void
       })
-      .mapFilter(eventFilters.serviceStop)
+      .mapFilter(Event.serviceStop.getOption)
       .compile
       .lastOrError
       .unsafeRunSync()
@@ -96,7 +95,7 @@ class CircuitBreakerTest extends AnyFunSuite {
           IO.sleep(2.seconds) >>
           cb.protect(IO(1)).void
       })
-      .mapFilter(eventFilters.serviceStop)
+      .mapFilter(Event.serviceStop.getOption)
       .compile
       .lastOrError
       .unsafeRunSync()

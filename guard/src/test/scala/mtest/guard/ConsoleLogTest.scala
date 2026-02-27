@@ -5,7 +5,7 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.toFunctorFilterOps
 import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.event.eventFilters
+import com.github.chenharryhua.nanjin.guard.event.Event
 import com.github.chenharryhua.nanjin.guard.service.{Agent, ServiceGuard}
 import io.circe.Json
 import org.scalatest.funsuite.AnyFunSuite
@@ -48,7 +48,7 @@ class ConsoleLogTest extends AnyFunSuite {
       .updateConfig(_.withLogFormat(_.Console_JsonVerbose))
       .eventStream(action)
       .map(checkJson)
-      .mapFilter(eventFilters.metricsSnapshot)
+      .mapFilter(Event.metricsSnapshot.getOption)
       .compile
       .lastOrError
       .unsafeRunSync()
@@ -71,7 +71,7 @@ class ConsoleLogTest extends AnyFunSuite {
         _.withLogFormat(_.Console_PlainText).withHomePage("homepage.com").withHttpServer(identity))
       .eventStream(action)
       .map(checkJson)
-      .mapFilter(eventFilters.metricsSnapshot)
+      .mapFilter(Event.metricsSnapshot.getOption)
       .compile
       .lastOrError
       .unsafeRunSync()

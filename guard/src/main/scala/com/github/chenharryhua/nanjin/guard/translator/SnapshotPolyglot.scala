@@ -157,7 +157,7 @@ final class SnapshotPolyglot(snapshot: Snapshot) {
 
   private def gauge_str: List[(MetricID, List[String])] =
     snapshot.gauges.mapFilter { g =>
-      val content = JsonF.yml(g.metricId.metricName.name, g.value)
+      val content = JsonView.yml(g.metricId.metricName.name, g.value)
       if (content.isEmpty) None
       else
         Some(g.metricId -> content)

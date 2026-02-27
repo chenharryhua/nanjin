@@ -28,8 +28,6 @@ class HttpServerTest extends AnyFunSuite {
       .use { c =>
         c.expect[String]("http://localhost:9999/index.html") >>
           c.expect[String]("http://localhost:9999/metrics/yaml") >>
-          c.expect[String]("http://localhost:9999/metrics/vanilla") >>
-          c.expect[String]("http://localhost:9999/metrics/json") >>
           c.expect[String]("http://localhost:9999/metrics/reset") >>
           c.expect[String]("http://localhost:9999/metrics/jvm") >>
           c.expect[String]("http://localhost:9999/metrics/history") >>
