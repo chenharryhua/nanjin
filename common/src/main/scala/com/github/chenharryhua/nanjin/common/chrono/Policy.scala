@@ -357,7 +357,8 @@ object Policy {
 
   implicit val eqPolicy: Eq[Policy] = Eq.fromUniversalEquals[Policy]
 
-  def crontab(f: crontabs.type => CronExpr): Policy = Policy(Fix(Crontab(f(crontabs))))
+  def crontab(cronExpr: CronExpr): Policy = Policy(Fix(Crontab(cronExpr)))
+  def crontab(f: crontabs.type => CronExpr): Policy = crontab(f(crontabs))
 
   /** should be non-negative
     */

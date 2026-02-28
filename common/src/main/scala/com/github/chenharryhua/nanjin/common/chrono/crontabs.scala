@@ -3,6 +3,7 @@ package com.github.chenharryhua.nanjin.common.chrono
 import cron4s.{Cron, CronExpr}
 
 object crontabs {
+
   object yearly {
     final val january: CronExpr = Cron.unsafeParse("0 0 0 1 1 ?")
     final val february: CronExpr = Cron.unsafeParse("0 0 0 1 2 ?")
