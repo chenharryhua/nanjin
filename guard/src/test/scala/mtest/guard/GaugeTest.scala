@@ -50,7 +50,7 @@ class GaugeTest extends AnyFunSuite {
 
   test("4.idle gauge") {
     val mr = service.eventStream { agent =>
-      agent.facilitate("idle")(_.idleGauge("idle", _.enable(true))).use(_.run(()) >> agent.adhoc.report.void)
+      agent.facilitate("idle")(_.idleGauge("idle", _.enable(true))).use(_.wakeUp >> agent.adhoc.report.void)
     }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.unsafeRunSync()
     val idle = retrieveGauge[Json](mr.snapshot.gauges)
     assert(mr.snapshot.nonEmpty)

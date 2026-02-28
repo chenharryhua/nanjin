@@ -87,19 +87,16 @@ final private[guard] class ServiceGuardImpl[F[_]: Network: Async: Console] priva
       lifecyclePublisher <- LifecyclePublisher(kickedOff.serviceParams, channel, logSink)
       event <- {
         val http_server: Stream[F, Nothing] =
-          kickedOff.emberServerBuilder match {
-            case None      => Stream.empty
-            case Some(esb) =>
-              Stream.resource(
-                esb
-                  .withHttpApp(new HttpRouter[F](
-                    serviceParams = kickedOff.serviceParams,
-                    errorHistory = errorHistory,
-                    alarmLevel = alarmLevel,
-                    metricsPublisher = metricsPublisher,
-                    lifecyclePublisher = lifecyclePublisher
-                  ).router)
-                  .build) >> Stream.never[F]
+          kickedOff.emberServerBuilder.fold(Stream.empty.covaryAll[F, Nothing]) { esb =>
+            val router = new HttpRouter[F](
+              serviceParams = kickedOff.serviceParams,
+              errorHistory = errorHistory,
+              alarmLevel = alarmLevel,
+              metricsPublisher = metricsPublisher,
+              lifecyclePublisher = lifecyclePublisher
+            ).router
+
+            Stream.resource(esb.withHttpApp(router).build) >> Stream.never[F]
           }
 
         val agent: GeneralAgent[F] =

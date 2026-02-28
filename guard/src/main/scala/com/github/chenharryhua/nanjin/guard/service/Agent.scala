@@ -98,11 +98,6 @@ final private class GeneralAgent[F[_]: Async: Console](
       adhocMetrics = adhocMetrics
     )
 
-  override def batch(label: String): Batch[F] = {
-    val metricLabel = MetricLabel(label, domain)
-    new Batch[F](new MetricsHub.Impl[F](metricLabel, metricRegistry, dispatcher, zoneId), uuidGenerator)
-  }
-
   override def tickScheduled(f: Policy.type => Policy): Stream[F, Tick] =
     tickStream.tickScheduled[F](zoneId, f)
 
@@ -116,6 +111,8 @@ final private class GeneralAgent[F[_]: Async: Console](
     val metricLabel = MetricLabel(label, domain)
     new MetricsHub.Impl[F](metricLabel, metricRegistry, dispatcher, zoneId)
   }
+
+  override def batch(label: String): Batch[F] = new Batch[F](metricsHub(label), uuidGenerator)
 
   override def facilitate[A](label: String)(f: MetricsHub[F] => A): A =
     f(metricsHub(label))

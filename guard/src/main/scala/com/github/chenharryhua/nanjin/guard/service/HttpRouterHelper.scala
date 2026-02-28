@@ -8,8 +8,15 @@ import cats.syntax.flatMap.toFlatMapOps
 import cats.syntax.functor.toFunctorOps
 import cats.syntax.show.toShow
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
-import com.github.chenharryhua.nanjin.guard.event.Event.ReportedEvent
-import com.github.chenharryhua.nanjin.guard.event.{retrieveHealthChecks, Active, Snooze, Timestamp, Took}
+import com.github.chenharryhua.nanjin.guard.event.Event.{MetricsSnapshot, ReportedEvent}
+import com.github.chenharryhua.nanjin.guard.event.{
+  retrieveHealthChecks,
+  Active,
+  Snooze,
+  StopReason,
+  Timestamp,
+  Took
+}
 import com.github.chenharryhua.nanjin.guard.translator.{
   durationFormatter,
   htmlColoring,
@@ -43,7 +50,7 @@ final private class HttpRouterHelper[F[_]: Sync](
     val json: Json = durationFormatter.format(value).asJson
   }
 
-  val html_header: Text.TypedTag[String] =
+  private val html_header: Text.TypedTag[String] =
     head(
       tag("style")("""
         td, th {text-align: left; padding: 2px; border: 1px solid;}
@@ -55,7 +62,7 @@ final private class HttpRouterHelper[F[_]: Sync](
       tag("title")(serviceParams.serviceName.value)
     )
 
-  def html_table_title(now: ZonedDateTime, took: Duration): Text.TypedTag[String] = {
+  private def html_table_title(now: ZonedDateTime, took: Duration): Text.TypedTag[String] = {
     val service_name = Attribute(serviceParams.serviceName).textEntry
     val policy = Attribute(serviceParams.servicePolicies.metricsReport).textEntry
     val timezone = Attribute(serviceParams.timeZone).textEntry
@@ -81,11 +88,16 @@ final private class HttpRouterHelper[F[_]: Sync](
     )
   }
 
-  val metrics_yaml: F[Text.TypedTag[String]] =
-    metricsPublisher.report_adhoc.map { ms =>
-      val yaml = new SnapshotPolyglot(ms.snapshot).toYaml
-      html(html_header, body(div(html_table_title(ms.timestamp.value, ms.took.value), pre(yaml))))
-    }
+  private def toYaml(ms: MetricsSnapshot): Text.TypedTag[String] = {
+    val yaml = new SnapshotPolyglot(ms.snapshot).toYaml
+    html(html_header, body(div(html_table_title(ms.timestamp.value, ms.took.value), pre(yaml))))
+  }
+
+  val metrics_report_yaml: F[Text.TypedTag[String]] =
+    metricsPublisher.report_adhoc.map(toYaml)
+
+  val metrics_reset_yaml: F[Text.TypedTag[String]] =
+    metricsPublisher.reset_adhoc.map(toYaml)
 
   val metrics_history: F[Text.TypedTag[String]] = {
     val text: F[Text.TypedTag[String]] =
@@ -190,5 +202,16 @@ final private class HttpRouterHelper[F[_]: Sync](
           }
         }
     }
+  }
+
+  val service_stop: F[Text.TypedTag[String]] = {
+    val stopping = html(
+      head(
+        meta(attr("http-equiv") := "refresh", attr("content") := "3;url=/"),
+        tag("title")(serviceParams.serviceName.value)),
+      body(h1("Stopping Service"))
+    )
+
+    lifecyclePublisher.service_stop(StopReason.Maintenance).as(stopping)
   }
 }
