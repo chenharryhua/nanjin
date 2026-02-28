@@ -25,7 +25,9 @@ final private class MetricsPublisher[F[_]] private (
   metricRegistry: MetricRegistry,
   channel: Channel[F, Event],
   logSink: LogSink[F]
-)(implicit F: Async[F]) {
+)(implicit F: Async[F])
+    extends AdhocMetrics[F] {
+
   private val report_kind: Kind = Report(serviceParams.servicePolicies.metricsReport)
   private val reset_kind: Kind = Reset(serviceParams.servicePolicies.metricsReset)
 
@@ -50,16 +52,6 @@ final private class MetricsPublisher[F[_]] private (
   /*
    * Report
    */
-
-  def cheap_snapshot(tick: Tick): F[MetricsSnapshot] =
-    Snapshot.timed[F](metricRegistry, ScrapeMode.Cheap).map { case (took, snapshot) =>
-      MetricsSnapshot(
-        index = Periodic(tick),
-        serviceParams = serviceParams,
-        snapshot = snapshot,
-        kind = report_kind,
-        took = Took(took))
-    }
 
   def report_adhoc: F[MetricsSnapshot] =
     serviceParams.zonedNow.flatMap { ts =>
@@ -87,6 +79,22 @@ final private class MetricsPublisher[F[_]] private (
     tickingBy(reset_kind).evalMap { tick =>
       publish(reset_kind, Periodic(tick), ScrapeMode.Full).flatTap(_ => reset_counters)
     }.drain
+
+  /*
+   * API
+   */
+  override def reset: F[Unit] = reset_adhoc.void
+  override def report: F[Unit] = report_adhoc.void
+  override def cheapSnapshot(tick: Tick): F[MetricsSnapshot] =
+    Snapshot.timed[F](metricRegistry, ScrapeMode.Cheap).map { case (took, snapshot) =>
+      MetricsSnapshot(
+        index = Periodic(tick),
+        serviceParams = serviceParams,
+        snapshot = snapshot,
+        kind = report_kind,
+        took = Took(took))
+    }
+
 }
 
 private object MetricsPublisher {

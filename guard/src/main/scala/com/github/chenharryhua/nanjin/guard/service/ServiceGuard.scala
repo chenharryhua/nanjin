@@ -109,7 +109,7 @@ final private[guard] class ServiceGuardImpl[F[_]: Network: Async: Console] priva
             dispatcher = dispatcher,
             uuidGenerator = kickedOff.uuidGenerator,
             alarmLevel = alarmLevel,
-            adhocMetrics = new AdhocMetricsImpl[F](metricsPublisher)
+            adhocMetrics = metricsPublisher
           )
 
         val surveillance: Stream[F, Nothing] =
