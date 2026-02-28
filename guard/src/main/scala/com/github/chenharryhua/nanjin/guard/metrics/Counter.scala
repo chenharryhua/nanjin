@@ -10,10 +10,7 @@ import com.github.chenharryhua.nanjin.guard.event.{Category, MetricID, MetricLab
 
 trait Counter[F[_]] {
   def inc(num: Long): F[Unit]
-
-  final def inc(num: Int): F[Unit] = run(num.toLong)
-
-  final def run(num: Long): F[Unit] = inc(num)
+  final def inc(num: Int): F[Unit] = inc(num.toLong)
 }
 
 object Counter {

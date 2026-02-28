@@ -61,7 +61,7 @@ class GaugeTest extends AnyFunSuite {
     val mr = service.eventStream { agent =>
       agent
         .facilitate("permanent")(_.permanentCounter("permanent"))
-        .use(_.run(1999) >> agent.adhoc.report.void)
+        .use(_.inc(1999) >> agent.adhoc.report.void)
     }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.unsafeRunSync()
     val permanent = retrieveGauge[Json](mr.snapshot.gauges)
     assert(mr.snapshot.nonEmpty)

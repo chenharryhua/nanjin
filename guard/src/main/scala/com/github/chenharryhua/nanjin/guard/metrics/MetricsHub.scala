@@ -3,6 +3,7 @@ package com.github.chenharryhua.nanjin.guard.metrics
 import cats.Endo
 import cats.effect.kernel.{Async, Ref, Resource}
 import cats.effect.std.Dispatcher
+import cats.kernel.Group
 import cats.syntax.flatMap.{catsSyntaxIfM, toFlatMapOps}
 import cats.syntax.functor.toFunctorOps
 import cats.syntax.option.{catsSyntaxOptionId, none}
@@ -47,7 +48,9 @@ trait MetricsHub[F[_]] {
   def deltaCounter(name: String, f: Endo[Gauge.Builder] = identity): Resource[F, Counter[F]]
 
   def txnGauge[A: Encoder](stm: STM[F], initial: A)(name: String): Resource[F, stm.TVar[A]]
-  def balanceGauge(a: (String, Long), b: (String, Long)): Resource[F, Balance[F]]
+  def balanceGauge[A: Group: Encoder](
+    source: (String, A),
+    target: (String, A)): Resource[F, BalanceGauge[F, A]]
 }
 
 object MetricsHub {
@@ -151,30 +154,35 @@ object MetricsHub {
         _ <- gauge(name, identity).register(stm.commit(ta.get))
       } yield ta
 
-    override def balanceGauge(a: (String, Long), b: (String, Long)): Resource[F, Balance[F]] =
+    override def balanceGauge[A: Group: Encoder](
+      source: (String, A),
+      target: (String, A)): Resource[F, BalanceGauge[F, A]] = {
+      val (sourceName, sourceValue) = source
+      val (targetName, targetValue) = target
       for {
         stm <- Resource.eval(STM.runtime[F])
-        an <- Resource.eval(stm.commit(stm.TVar.of(a._2)))
-        bn <- Resource.eval(stm.commit(stm.TVar.of(b._2)))
-        _ <- gauge(s"Balance(${a._1}<->${b._1})", identity).register {
+        src <- Resource.eval(stm.commit(stm.TVar.of(sourceValue)))
+        tgt <- Resource.eval(stm.commit(stm.TVar.of(targetValue)))
+        _ <- gauge(s"Balance($sourceName<->$targetName)", identity).register {
           val get: stm.Txn[Json] = for {
-            sa <- an.get
-            sb <- bn.get
-          } yield List(sa, sb).asJson
+            a <- src.get
+            b <- tgt.get
+          } yield List(a, b).asJson
           stm.commit(get)
         }
-      } yield new Balance[F] {
-        private def transfer(from: stm.TVar[Long], to: stm.TVar[Long], num: Long): stm.Txn[Unit] =
+      } yield new BalanceGauge[F, A] {
+        private def transfer(from: stm.TVar[A], to: stm.TVar[A], num: A): stm.Txn[Unit] =
           for {
-            _ <- from.modify(_ - num)
-            _ <- to.modify(_ + num)
+            _ <- from.modify(x => Group[A].combine(x, Group[A].inverse(num)))
+            _ <- to.modify(y => Group[A].combine(y, num))
           } yield ()
 
-        override def forward(num: Long): F[Unit] =
-          stm.commit(transfer(an, bn, num))
+        override def forward(num: A): F[Unit] =
+          stm.commit(transfer(src, tgt, num))
 
-        override def backward(num: Long): F[Unit] =
-          stm.commit(transfer(bn, an, num))
+        override def backward(num: A): F[Unit] =
+          stm.commit(transfer(tgt, src, num))
       }
+    }
   }
 }

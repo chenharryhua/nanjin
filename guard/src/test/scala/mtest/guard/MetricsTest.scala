@@ -47,7 +47,7 @@ class MetricsTest extends AnyFunSuite {
     val mr = service.eventStream { agent =>
       agent
         .facilitate("counter")(_.counter("counter"))
-        .use(_.run(10) >> agent.adhoc.report.void)
+        .use(_.inc(10) >> agent.adhoc.report.void)
     }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.unsafeRunSync()
     assert(mr.snapshot.nonEmpty)
     assert(retrieveCounter(mr.snapshot.counters).values.head == 10)
@@ -58,7 +58,7 @@ class MetricsTest extends AnyFunSuite {
     val mr = service.eventStream { agent =>
       agent
         .facilitate("counter")(_.counter("counter", _.asRisk))
-        .use(_.run(10) >> agent.adhoc.report.void)
+        .use(_.inc(10) >> agent.adhoc.report.void)
     }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.unsafeRunSync()
     assert(retrieveRiskCounter(mr.snapshot.counters).values.head == 10)
     assert(retrieveCounter(mr.snapshot.counters).values.isEmpty)
@@ -68,7 +68,7 @@ class MetricsTest extends AnyFunSuite {
     val mr = service.eventStream { agent =>
       agent
         .facilitate("counter")(_.counter("counter", _.enable(false)))
-        .use(_.run(10) >> agent.adhoc.report.void)
+        .use(_.inc(10) >> agent.adhoc.report.void)
     }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.unsafeRunSync()
     assert(mr.snapshot.isEmpty)
     assert(retrieveCounter(mr.snapshot.counters).values.isEmpty)
