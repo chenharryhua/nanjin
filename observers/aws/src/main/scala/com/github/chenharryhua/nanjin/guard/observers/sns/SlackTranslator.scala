@@ -176,9 +176,7 @@ private object SlackTranslator extends all {
             mark_down(policy, service_id),
             metrics_section(evt.snapshot)
           )
-        ),
-        Attachment(color = color, blocks = List(brief(evt.serviceParams.brief)))
-      )
+        ))
     )
   }
 

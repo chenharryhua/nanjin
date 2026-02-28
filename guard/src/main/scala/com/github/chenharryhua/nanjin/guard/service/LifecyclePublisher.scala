@@ -1,0 +1,56 @@
+package com.github.chenharryhua.nanjin.guard.service
+
+import cats.effect.kernel.{Async, Sync}
+import cats.effect.std.AtomicCell
+import cats.syntax.applicative.catsSyntaxApplicativeId
+import cats.syntax.flatMap.{catsSyntaxFlatMapOps, catsSyntaxIfM, toFlatMapOps}
+import cats.syntax.functor.toFunctorOps
+import com.github.chenharryhua.nanjin.common.chrono.Tick
+import com.github.chenharryhua.nanjin.guard.config.ServiceParams
+import com.github.chenharryhua.nanjin.guard.event.Event.{ServicePanic, ServiceStart, ServiceStop}
+import com.github.chenharryhua.nanjin.guard.event.{Event, StackTrace, StopReason, Timestamp}
+import com.github.chenharryhua.nanjin.guard.logging.LogSink
+import fs2.Stream
+import fs2.concurrent.Channel
+import org.apache.commons.collections4.queue.CircularFifoQueue
+
+final private class LifecyclePublisher[F[_]: Sync] private (
+  val panicHistory: AtomicCell[F, CircularFifoQueue[ServicePanic]],
+  serviceParams: ServiceParams,
+  channel: Channel[F, Event],
+  logSink: LogSink[F]
+) {
+  private def publish(event: Event): F[Unit] =
+    channel.send(event) >> logSink.write(event)
+
+  def service_start(tick: Tick): F[Unit] =
+    publish(ServiceStart(serviceParams, tick))
+
+  def service_panic(tick: Tick, stackTrace: StackTrace): F[Unit] = {
+    val panic: ServicePanic = ServicePanic(serviceParams, tick, stackTrace)
+    publish(ServicePanic(serviceParams, tick, stackTrace)).flatTap { _ =>
+      panicHistory.modify(queue => queue -> queue.add(panic))
+    }
+  }
+
+  def service_stop(cause: StopReason): F[Unit] =
+    for {
+      now <- serviceParams.zonedNow
+      event = ServiceStop(serviceParams, Timestamp(now), cause)
+      _ <- logSink.write(event)
+      _ <- channel.closeWithElement(event)
+    } yield ()
+
+  def service_cancel: F[Unit] =
+    channel.isClosed.ifM(().pure[F], service_stop(StopReason.ByCancellation))
+}
+
+private object LifecyclePublisher {
+  def apply[F[_]: Async](
+    serviceParams: ServiceParams,
+    channel: Channel[F, Event],
+    logSink: LogSink[F]): Stream[F, LifecyclePublisher[F]] =
+    Stream.eval(AtomicCell[F].of(new CircularFifoQueue[ServicePanic](serviceParams.historyCapacity.panic)))
+      .map(new LifecyclePublisher[F](_, serviceParams, channel, logSink))
+
+}

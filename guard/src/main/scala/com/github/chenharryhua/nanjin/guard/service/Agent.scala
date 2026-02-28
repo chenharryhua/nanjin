@@ -52,7 +52,7 @@ sealed trait Agent[F[_]] {
    */
   def metricsHub(label: String): MetricsHub[F]
   def facilitate[A](label: String)(f: MetricsHub[F] => A): A
-  val adhoc: AdhocMetrics[F]
+  def adhoc: AdhocMetrics[F]
 
   /*
    * circuit breaker
@@ -79,28 +79,24 @@ final private class GeneralAgent[F[_]: Async: Console](
   errorHistory: AtomicCell[F, CircularFifoQueue[ReportedEvent]],
   dispatcher: Dispatcher[F],
   uuidGenerator: F[UUID],
-  logSink: LogSink[F],
-  alarmLevel: Ref[F, Option[AlarmLevel]])
+  alarmLevel: Ref[F, Option[AlarmLevel]],
+  adhocMetrics: AdhocMetrics[F])
     extends Agent[F] {
 
   override val zoneId: ZoneId = serviceParams.zoneId
 
   override def withDomain(name: String): Agent[F] =
     new GeneralAgent[F](
-      serviceParams,
-      Domain(name),
-      metricRegistry,
-      channel,
-      errorHistory,
-      dispatcher,
-      uuidGenerator,
-      logSink,
-      alarmLevel)
-
-  override def batch(label: String): Batch[F] = {
-    val metricLabel = MetricLabel(label, domain)
-    new Batch[F](new MetricsHub.Impl[F](metricLabel, metricRegistry, dispatcher, zoneId), uuidGenerator)
-  }
+      serviceParams = serviceParams,
+      domain = Domain(name),
+      metricRegistry = metricRegistry,
+      channel = channel,
+      errorHistory = errorHistory,
+      dispatcher = dispatcher,
+      uuidGenerator = uuidGenerator,
+      alarmLevel = alarmLevel,
+      adhocMetrics = adhocMetrics
+    )
 
   override def tickScheduled(f: Policy.type => Policy): Stream[F, Tick] =
     tickStream.tickScheduled[F](zoneId, f)
@@ -116,6 +112,8 @@ final private class GeneralAgent[F[_]: Async: Console](
     new MetricsHub.Impl[F](metricLabel, metricRegistry, dispatcher, zoneId)
   }
 
+  override def batch(label: String): Batch[F] = new Batch[F](metricsHub(label), uuidGenerator)
+
   override def facilitate[A](label: String)(f: MetricsHub[F] => A): A =
     f(metricsHub(label))
 
@@ -128,7 +126,7 @@ final private class GeneralAgent[F[_]: Async: Console](
   override def retry(f: Endo[Retry.Builder[F]]): Resource[F, Retry[F]] =
     Resource.eval(Retry[F](zoneId, f))
 
-  override object adhoc extends AdhocMetricsImpl[F](serviceParams, channel, logSink, metricRegistry)
+  override val adhoc: AdhocMetrics[F] = adhocMetrics
 
   override def herald(f: AlarmLevel.type => AlarmLevel): Resource[F, Log[F]] =
     Resource.pure(

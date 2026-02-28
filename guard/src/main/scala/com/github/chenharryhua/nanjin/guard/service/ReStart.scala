@@ -2,20 +2,15 @@ package com.github.chenharryhua.nanjin.guard.service
 
 import cats.effect.implicits.monadCancelOps_
 import cats.effect.kernel.Async
-import cats.effect.std.AtomicCell
 import cats.syntax.apply.catsSyntaxApplyOps
-import cats.syntax.flatMap.{catsSyntaxIfM, toFlatMapOps}
+import cats.syntax.flatMap.toFlatMapOps
 import cats.syntax.functor.toFunctorOps
 import cats.syntax.monadError.catsSyntaxMonadError
 import cats.syntax.order.catsSyntaxPartialOrder
 import com.github.chenharryhua.nanjin.common.chrono.PolicyTick
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
-import com.github.chenharryhua.nanjin.guard.event.Event.ServicePanic
-import com.github.chenharryhua.nanjin.guard.event.{Event, StackTrace, StopReason}
-import com.github.chenharryhua.nanjin.guard.logging.LogSink
+import com.github.chenharryhua.nanjin.guard.event.{StackTrace, StopReason}
 import fs2.Stream
-import fs2.concurrent.Channel
-import org.apache.commons.collections4.queue.CircularFifoQueue
 import org.typelevel.cats.time.instances.duration
 
 import java.time.Duration
@@ -23,37 +18,32 @@ import scala.jdk.DurationConverters.JavaDurationOps
 
 final private class ReStart[F[_]: Async](
   serviceParams: ServiceParams,
-  channel: Channel[F, Event],
-  panicHistory: AtomicCell[F, CircularFifoQueue[ServicePanic]],
-  logSink: LogSink[F],
-  theService: F[Unit])
+  theService: F[Unit],
+  lifecyclePublisher: LifecyclePublisher[F])
     extends duration {
 
   private[this] val F = Async[F]
 
-  private[this] def stop(cause: StopReason): F[Unit] =
-    publish_service_stop(serviceParams, channel, logSink, cause)
-
   private[this] def panic(status: PolicyTick[F], ex: Throwable): F[Option[(Unit, PolicyTick[F])]] =
     F.realTimeInstant.flatMap[Option[(Unit, PolicyTick[F])]] { now =>
-      val tickStatus: PolicyTick[F] = serviceParams.servicePolicies.restart.threshold match {
-        case Some(threshold) =>
-          // if the duration between last recover and this failure is larger than threshold,
-          // start over policy
-          if (Duration.between(status.tick.conclude, now) > threshold)
-            status.renewPolicy(serviceParams.servicePolicies.restart.policy)
-          else status
-        case None => status
-      }
+      val tickStatus: PolicyTick[F] =
+        serviceParams.servicePolicies.restart.threshold match {
+          case Some(threshold) =>
+            // if the duration between last recover and this failure is larger than threshold,
+            // start over policy
+            if (Duration.between(status.tick.conclude, now) > threshold)
+              status.renewPolicy(serviceParams.servicePolicies.restart.policy)
+            else status
+          case None => status
+        }
 
       val stackTrace: StackTrace = StackTrace(ex)
 
       tickStatus.next(now).flatMap {
-        case None      => stop(StopReason.ByException(stackTrace)).as(None)
+        case None      => lifecyclePublisher.service_stop(StopReason.ByException(stackTrace)).as(None)
         case Some(nts) =>
           for {
-            evt <- publish_service_panic(serviceParams, channel, logSink, nts.tick, stackTrace)
-            _ <- panicHistory.modify(queue => (queue, queue.add(evt))) // mutable queue
+            _ <- lifecyclePublisher.service_panic(nts.tick, stackTrace)
             _ <- F.sleep(nts.tick.snooze.toScala)
           } yield Some(((), nts))
       }
@@ -65,12 +55,12 @@ final private class ReStart[F[_]: Async](
       .flatMap {
         Stream
           .unfoldEval[F, PolicyTick[F], Unit](_) { status =>
-            (publish_service_start(serviceParams, channel, logSink, status.tick) <* theService)
+            (lifecyclePublisher.service_start(status.tick) <* theService)
               .redeemWith[Option[(Unit, PolicyTick[F])]](
                 err => panic(status, err),
-                _ => stop(StopReason.Successfully).as(None)
+                _ => lifecyclePublisher.service_stop(StopReason.Successfully).as(None)
               )
-              .onCancel(channel.isClosed.ifM(F.unit, stop(StopReason.ByCancellation)))
+              .onCancel(lifecyclePublisher.service_cancel)
           }
           .drain
       }

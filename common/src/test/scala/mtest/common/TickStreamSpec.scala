@@ -17,7 +17,7 @@ class TickStreamSpec extends AnyFunSuite {
     stream.take(n).compile.toList
 
   test("1.tickImmediate emits zeroth tick immediately") {
-    val ticks = takeTicks(tickStream.tickImmediate[IO](zoneId, _ => policy), 3).unsafeRunSync()
+    val ticks = takeTicks(tickStream.tickImmediate[IO](zoneId, _.fresh(policy)), 3).unsafeRunSync()
     assert(ticks.nonEmpty)
     assert(ticks.head.index == 0)
     assert(ticks.sliding(2).forall {

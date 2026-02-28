@@ -199,7 +199,7 @@ class ServiceTest extends AnyFunSuite {
         val a = UUID.randomUUID()
         agent.herald(_.Debug).use(_.warn(a.toString) *> IO.raiseError(new Exception))
       }
-      .mapFilter(eventFilters.reportedEvent)
+      .mapFilter(Event.reportedEvent.getOption)
       .compile
       .toList
       .unsafeRunSync()
@@ -216,7 +216,7 @@ class ServiceTest extends AnyFunSuite {
           fs2.Stream(0).covary[IO].evalMap(_ => log.info(a.toString) *> IO.raiseError(new Exception))
         }
       }
-      .mapFilter(eventFilters.reportedEvent)
+      .mapFilter(Event.reportedEvent.getOption)
       .compile
       .toList
       .unsafeRunSync()

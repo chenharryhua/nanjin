@@ -375,5 +375,9 @@ object Policy {
     Policy(Fix(FixedRate(delay.toJava)))
   }
 
+  /** Returns the given Policy instance unchanged.
+    */
+  def fresh(policy: Policy): Policy = policy
+
   val empty: Policy = Policy(Fix(Empty()))
 }

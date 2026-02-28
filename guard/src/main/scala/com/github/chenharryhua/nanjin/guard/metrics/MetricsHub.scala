@@ -1,30 +1,22 @@
 package com.github.chenharryhua.nanjin.guard.metrics
 
 import cats.Endo
-import cats.data.Kleisli
 import cats.effect.kernel.{Async, Ref, Resource}
 import cats.effect.std.Dispatcher
-import cats.syntax.functor.toFunctorOps
+import cats.kernel.Group
 import cats.syntax.flatMap.{catsSyntaxIfM, toFlatMapOps}
+import cats.syntax.functor.toFunctorOps
 import cats.syntax.option.{catsSyntaxOptionId, none}
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.guard.event.MetricLabel
 import com.github.chenharryhua.nanjin.guard.translator.durationFormatter
-import io.circe.Encoder
+import io.circe.syntax.EncoderOps
+import io.circe.{Encoder, Json}
 import io.github.timwspence.cats.stm.STM
 import squants.{Quantity, UnitOfMeasure}
 
 import java.time.ZoneId
 import scala.concurrent.duration.DurationInt
-
-trait KleisliLike[F[_], A] {
-  def run(a: A): F[Unit]
-
-  final def local[B](f: B => A): Kleisli[F, B, Unit] =
-    Kleisli(run).local(f)
-
-  final val kleisli: Kleisli[F, A, Unit] = Kleisli(run)
-}
 
 trait MetricsHub[F[_]] {
   def metricLabel: MetricLabel
@@ -56,6 +48,9 @@ trait MetricsHub[F[_]] {
   def deltaCounter(name: String, f: Endo[Gauge.Builder] = identity): Resource[F, Counter[F]]
 
   def txnGauge[A: Encoder](stm: STM[F], initial: A)(name: String): Resource[F, stm.TVar[A]]
+  def balanceGauge[A: Group: Encoder](
+    source: (String, A),
+    target: (String, A)): Resource[F, BalanceGauge[F, A]]
 }
 
 object MetricsHub {
@@ -158,5 +153,36 @@ object MetricsHub {
         ta <- Resource.eval(stm.commit(stm.TVar.of(initial)))
         _ <- gauge(name, identity).register(stm.commit(ta.get))
       } yield ta
+
+    override def balanceGauge[A: Group: Encoder](
+      source: (String, A),
+      target: (String, A)): Resource[F, BalanceGauge[F, A]] = {
+      val (sourceName, sourceValue) = source
+      val (targetName, targetValue) = target
+      for {
+        stm <- Resource.eval(STM.runtime[F])
+        src <- Resource.eval(stm.commit(stm.TVar.of(sourceValue)))
+        tgt <- Resource.eval(stm.commit(stm.TVar.of(targetValue)))
+        _ <- gauge(s"Balance($sourceName<->$targetName)", identity).register {
+          val get: stm.Txn[Json] = for {
+            a <- src.get
+            b <- tgt.get
+          } yield List(a, b).asJson
+          stm.commit(get)
+        }
+      } yield new BalanceGauge[F, A] {
+        private def transfer(from: stm.TVar[A], to: stm.TVar[A], num: A): stm.Txn[Unit] =
+          for {
+            _ <- from.modify(x => Group[A].combine(x, Group[A].inverse(num)))
+            _ <- to.modify(y => Group[A].combine(y, num))
+          } yield ()
+
+        override def forward(num: A): F[Unit] =
+          stm.commit(transfer(src, tgt, num))
+
+        override def backward(num: A): F[Unit] =
+          stm.commit(transfer(tgt, src, num))
+      }
+    }
   }
 }

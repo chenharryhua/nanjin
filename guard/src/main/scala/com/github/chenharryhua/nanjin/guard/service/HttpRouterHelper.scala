@@ -7,16 +7,13 @@ import cats.syntax.either.catsSyntaxEitherId
 import cats.syntax.flatMap.toFlatMapOps
 import cats.syntax.functor.toFunctorOps
 import cats.syntax.show.toShow
-import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
-import com.github.chenharryhua.nanjin.guard.event.Event.{MetricsSnapshot, ReportedEvent, ServicePanic}
-import com.github.chenharryhua.nanjin.guard.event.MetricsEvent.Index.{Adhoc, Periodic}
+import com.github.chenharryhua.nanjin.guard.event.Event.{MetricsSnapshot, ReportedEvent}
 import com.github.chenharryhua.nanjin.guard.event.{
   retrieveHealthChecks,
   Active,
-  ScrapeMode,
-  Snapshot,
   Snooze,
+  StopReason,
   Timestamp,
   Took
 }
@@ -40,10 +37,9 @@ import scala.jdk.CollectionConverters.IteratorHasAsScala
 
 final private class HttpRouterHelper[F[_]: Sync](
   serviceParams: ServiceParams,
-  metricRegistry: MetricRegistry,
-  panicHistory: AtomicCell[F, CircularFifoQueue[ServicePanic]],
-  metricsHistory: AtomicCell[F, CircularFifoQueue[MetricsSnapshot]],
-  errorHistory: AtomicCell[F, CircularFifoQueue[ReportedEvent]])
+  errorHistory: AtomicCell[F, CircularFifoQueue[ReportedEvent]],
+  metricsPublisher: MetricsPublisher[F],
+  lifecyclePublisher: LifecyclePublisher[F])
     extends all {
 
   private case class Present(value: ZonedDateTime) {
@@ -54,7 +50,7 @@ final private class HttpRouterHelper[F[_]: Sync](
     val json: Json = durationFormatter.format(value).asJson
   }
 
-  val html_header: Text.TypedTag[String] =
+  private val html_header: Text.TypedTag[String] =
     head(
       tag("style")("""
         td, th {text-align: left; padding: 2px; border: 1px solid;}
@@ -66,7 +62,7 @@ final private class HttpRouterHelper[F[_]: Sync](
       tag("title")(serviceParams.serviceName.value)
     )
 
-  def html_table_title(now: ZonedDateTime, took: Duration): Text.TypedTag[String] = {
+  private def html_table_title(now: ZonedDateTime, took: Duration): Text.TypedTag[String] = {
     val service_name = Attribute(serviceParams.serviceName).textEntry
     val policy = Attribute(serviceParams.servicePolicies.metricsReport).textEntry
     val timezone = Attribute(serviceParams.timeZone).textEntry
@@ -92,62 +88,32 @@ final private class HttpRouterHelper[F[_]: Sync](
     )
   }
 
-  val metrics_yaml: F[Text.TypedTag[String]] =
-    serviceParams.zonedNow.flatMap { now =>
-      Snapshot.timed[F](metricRegistry, ScrapeMode.Full).map { case (fd, ms) =>
-        val yaml = new SnapshotPolyglot(ms).toYaml
-        html(html_header, body(div(html_table_title(now, fd), pre(yaml))))
-      }
-    }
+  private def toYaml(ms: MetricsSnapshot): Text.TypedTag[String] = {
+    val yaml = new SnapshotPolyglot(ms.snapshot).toYaml
+    html(html_header, body(div(html_table_title(ms.timestamp.value, ms.took.value), pre(yaml))))
+  }
 
-  val metrics_vanilla: F[Json] =
-    Snapshot.timed[F](metricRegistry, ScrapeMode.Full).map { case (fd, ms) =>
-      Json.obj(
-        Attribute(serviceParams.serviceName).snakeJsonEntry,
-        Attribute(Took(fd)).map(_.show).snakeJsonEntry,
-        Attribute(ms).map(new SnapshotPolyglot(_).toVanillaJson).snakeJsonEntry
-      )
-    }
+  val metrics_report_yaml: F[Text.TypedTag[String]] =
+    metricsPublisher.report_adhoc.map(toYaml)
 
-  val metrics_json: F[Json] =
-    Snapshot.timed[F](metricRegistry, ScrapeMode.Full).map { case (fd, ms) =>
-      Json.obj(
-        Attribute(serviceParams.serviceName).snakeJsonEntry,
-        Attribute(Took(fd)).map(_.show).snakeJsonEntry,
-        Attribute(ms).map(new SnapshotPolyglot(_).toPrettyJson).snakeJsonEntry
-      )
-    }
-
-  val metrics_raw_json: F[Json] =
-    Snapshot.timed[F](metricRegistry, ScrapeMode.Full).map { case (fd, ms) =>
-      Json.obj(
-        Attribute(serviceParams.serviceName).snakeJsonEntry,
-        Attribute(Took(fd)).map(_.show).snakeJsonEntry,
-        Attribute(ms).map(_.sorted.asJson).snakeJsonEntry
-      )
-    }
+  val metrics_reset_yaml: F[Text.TypedTag[String]] =
+    metricsPublisher.reset_adhoc.map(toYaml)
 
   val metrics_history: F[Text.TypedTag[String]] = {
     val text: F[Text.TypedTag[String]] =
       serviceParams.zonedNow.flatMap { now =>
         val history: F[List[Text.TypedTag[String]]] =
-          metricsHistory.get.map(_.iterator().asScala.toList.reverse.flatMap { mr =>
+          metricsPublisher.metricsHistory.get.map(_.iterator().asScala.toList.reverse.map { mr =>
             val took = Attribute(mr.took).textEntry
-            val (index_tag, index) = Attribute(mr.index).entry {
-              case Adhoc(_)       => None
-              case Periodic(tick) =>
-                val timestamp = Attribute(Timestamp(tick.zoned(_.conclude))).map(_.show).textEntry
-                Some((tick.index, timestamp))
-            }
-            index.map { case (idx, timestamp) =>
-              div(
-                table(
-                  tr(th(style := htmlColoring(mr))(index_tag), th(timestamp.tag), th(took.tag)),
-                  tr(td(idx), td(timestamp.text), td(took.text))
-                ),
-                pre(new SnapshotPolyglot(mr.snapshot).toYaml)
-              )
-            }
+            val label = Attribute(mr.label).textEntry
+            val timestamp = Attribute(mr.timestamp).textEntry
+            div(
+              table(
+                tr(th(style := htmlColoring(mr))(label.tag), th(timestamp.tag), th(took.tag)),
+                tr(td(label.text), td(timestamp.text), td(took.text))
+              ),
+              pre(new SnapshotPolyglot(mr.snapshot).toYaml)
+            )
           })
         history.map(hist => div(html_table_title(now, Duration.ZERO), h3("Metrics History"), hist))
       }
@@ -159,7 +125,7 @@ final private class HttpRouterHelper[F[_]: Sync](
 
   val service_panic_history: F[Json] =
     serviceParams.zonedNow.flatMap { now =>
-      panicHistory.get.map(_.iterator().asScala.toList).map { panics =>
+      lifecyclePublisher.panicHistory.get.map(_.iterator().asScala.toList).map { panics =>
         val isActive = panics.lastOption.map(_.tick.conclude).forall(_.isBefore(now.toInstant))
 
         Json.obj(
@@ -216,27 +182,36 @@ final private class HttpRouterHelper[F[_]: Sync](
 
   val service_health_check: F[Either[String, Json]] = {
     val deps_health_check: F[Json] =
-      serviceParams.zonedNow[F].flatMap { now =>
-        Snapshot.timed[F](metricRegistry, ScrapeMode.Full).map { case (fd, ss) =>
-          Json.obj(
-            "healthy" -> retrieveHealthChecks(ss.gauges).values.forall(identity).asJson,
-            Attribute(Took(fd)).snakeJsonEntry(_.show.asJson),
-            Attribute(Timestamp(now)).snakeJsonEntry(_.show.asJson)
-          )
-        }
+      metricsPublisher.metricsHistory.get.map { queue =>
+        val res = queue.iterator().asScala.toList.lastOption
+          .map(ms => retrieveHealthChecks(ms.snapshot.gauges).values)
+          .fold(true)(_.forall(identity))
+
+        Json.obj("healthy" -> Json.fromBoolean(res))
       }
 
-    panicHistory.get.map(_.iterator().asScala.toList.lastOption).flatMap {
+    lifecyclePublisher.panicHistory.get.map(_.iterator().asScala.toList.lastOption).flatMap {
       case None      => deps_health_check.map(Right(_))
       case Some(evt) =>
         Clock[F].realTimeInstant.flatMap { now =>
           if (evt.tick.conclude.isAfter(now)) {
             val recover = Duration.between(now, evt.tick.conclude)
-            s"Service panic! Restart will be in ${durationFormatter.format(recover)}".asLeft[Json].pure[F]
+            s"Service panic detected. Restarting in ${durationFormatter.format(recover)}".asLeft[Json].pure[F]
           } else {
             deps_health_check.map(Right(_))
           }
         }
     }
+  }
+
+  val service_stop: F[Text.TypedTag[String]] = {
+    val stopping = html(
+      head(
+        meta(attr("http-equiv") := "refresh", attr("content") := "3;url=/"),
+        tag("title")(serviceParams.serviceName.value)),
+      body(h1("Stopping Service"))
+    )
+
+    lifecyclePublisher.service_stop(StopReason.Maintenance).as(stopping)
   }
 }

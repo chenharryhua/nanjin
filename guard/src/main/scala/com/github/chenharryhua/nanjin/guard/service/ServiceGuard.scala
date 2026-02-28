@@ -78,31 +78,25 @@ final private[guard] class ServiceGuardImpl[F[_]: Network: Async: Console] priva
       kickedOff <- Stream.eval(kicking_off)
       dispatcher <- Stream.resource(Dispatcher.sequential[F](await = false))
       helper = new ServiceBuildHelper[F](kickedOff.serviceParams)
-      panicHistory <- helper.panic_history
-      metricsHistory <- helper.metrics_history
       errorHistory <- helper.error_history
       alarmLevel <- Stream.eval(Ref.of[F, Option[AlarmLevel]](config.alarmLevel.some))
-      logSink <- helper.log_sink
-      event <- Stream.eval(Channel.unbounded[F, Event]).flatMap { channel =>
-        val metricRegistry: MetricRegistry = new MetricRegistry()
-
+      logSink <- helper.service_log_sink
+      channel <- Stream.eval(Channel.unbounded[F, Event])
+      metricRegistry: MetricRegistry = new MetricRegistry()
+      metricsPublisher <- MetricsPublisher(kickedOff.serviceParams, metricRegistry, channel, logSink)
+      lifecyclePublisher <- LifecyclePublisher(kickedOff.serviceParams, channel, logSink)
+      event <- {
         val http_server: Stream[F, Nothing] =
-          kickedOff.emberServerBuilder match {
-            case None      => Stream.empty
-            case Some(esb) =>
-              Stream.resource(
-                esb
-                  .withHttpApp(new HttpRouter[F](
-                    serviceParams = kickedOff.serviceParams,
-                    metricRegistry = metricRegistry,
-                    panicHistory = panicHistory,
-                    metricsHistory = metricsHistory,
-                    errorHistory = errorHistory,
-                    alarmLevel = alarmLevel,
-                    channel = channel,
-                    logSink = logSink
-                  ).router)
-                  .build) >> Stream.never[F]
+          kickedOff.emberServerBuilder.fold(Stream.empty.covaryAll[F, Nothing]) { esb =>
+            val router = new HttpRouter[F](
+              serviceParams = kickedOff.serviceParams,
+              errorHistory = errorHistory,
+              alarmLevel = alarmLevel,
+              metricsPublisher = metricsPublisher,
+              lifecyclePublisher = lifecyclePublisher
+            ).router
+
+            Stream.resource(esb.withHttpApp(router).build) >> Stream.never[F]
           }
 
         val agent: GeneralAgent[F] =
@@ -114,23 +108,21 @@ final private[guard] class ServiceGuardImpl[F[_]: Network: Async: Console] priva
             errorHistory = errorHistory,
             dispatcher = dispatcher,
             uuidGenerator = kickedOff.uuidGenerator,
-            logSink = logSink,
-            alarmLevel = alarmLevel
+            alarmLevel = alarmLevel,
+            adhocMetrics = new AdhocMetricsImpl[F](metricsPublisher)
           )
 
         val surveillance: Stream[F, Nothing] =
           new ReStart[F](
             serviceParams = kickedOff.serviceParams,
-            channel = channel,
-            logSink = logSink,
-            panicHistory = panicHistory,
-            theService = F.defer(runAgent(agent))
+            theService = F.defer(runAgent(agent)),
+            lifecyclePublisher = lifecyclePublisher
           ).stream
 
         // put together
         channel.stream
-          .concurrently(helper.service_metrics_reset(channel, logSink, metricRegistry))
-          .concurrently(helper.service_metrics_report(channel, logSink, metricRegistry, metricsHistory))
+          .concurrently(metricsPublisher.reset_periodic)
+          .concurrently(metricsPublisher.report_periodic)
           .concurrently(helper.service_jmx_report(metricRegistry, config.jmxBuilder))
           .concurrently(http_server)
           .concurrently(surveillance)

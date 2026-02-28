@@ -62,7 +62,7 @@ class PolicyCombinatorTest extends AnyFunSuite {
     assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
 
     val List(a1, a2, a3, a4, a5, a6) =
-      tickStream.testPolicy[IO](_ => policy).take(6).compile.toList.unsafeRunSync()
+      tickStream.testPolicy[IO](_.fresh(policy)).take(6).compile.toList.unsafeRunSync()
 
     assert(a1.index == 1)
     assert(a2.index == 2)
@@ -115,7 +115,7 @@ class PolicyCombinatorTest extends AnyFunSuite {
     assert(decode[Policy](policy.asJson.noSpaces).toOption.get == policy)
 
     val List(a1, a2, a3, a4, a5, a6) =
-      tickStream.testPolicy[IO](_ => policy).take(6).compile.toList.unsafeRunSync()
+      tickStream.testPolicy[IO](_.fresh(policy)).take(6).compile.toList.unsafeRunSync()
 
     assert(a1.index == 1)
     assert(a2.index == 2)

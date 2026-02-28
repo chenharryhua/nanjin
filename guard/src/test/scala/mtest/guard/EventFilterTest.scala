@@ -6,7 +6,6 @@ import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.common.chrono.{crontabs, tickStream, Policy}
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.Event.{MetricsSnapshot, ServiceStart, ServiceStop}
-import com.github.chenharryhua.nanjin.guard.event.eventFilters
 import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
 import eu.timepit.refined.auto.*
 import org.scalatest.funsuite.AnyFunSuite
@@ -14,6 +13,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import java.time.Duration
 import scala.concurrent.duration.DurationInt
 import com.github.chenharryhua.nanjin.guard.event.MetricsEvent.Index.Periodic
+import com.github.chenharryhua.nanjin.guard.event.EventPipe
 
 class EventFilterTest extends AnyFunSuite {
   private val service: ServiceGuard[IO] =
@@ -24,7 +24,7 @@ class EventFilterTest extends AnyFunSuite {
       .updateConfig(_.withMetricReport(_.crontab(_.secondly)))
       .eventStream(_ => IO.sleep(7.seconds))
       .map(checkJson)
-      .filter(eventFilters.sampling(3.seconds))
+      .filter(EventPipe.windowFilter(3.seconds).filter)
       .compile
       .toList
       .unsafeRunSync()
@@ -40,7 +40,7 @@ class EventFilterTest extends AnyFunSuite {
       .updateConfig(_.withMetricReport(_.crontab(_.secondly)))
       .eventStream(_ => IO.sleep(7.seconds))
       .map(checkJson)
-      .filter(eventFilters.sampling(3))
+      .filter(EventPipe.indexFilter(3).filter)
       .compile
       .toList
       .unsafeRunSync()
@@ -57,7 +57,7 @@ class EventFilterTest extends AnyFunSuite {
       .updateConfig(_.withMetricReport(_ => policy))
       .eventStream(_ => IO.sleep(7.seconds))
       .map(checkJson)
-      .filter(eventFilters.sampling(crontabs.every3Seconds))
+      .filter(EventPipe.cronFilter(crontabs.every3Seconds).filter)
 
     val List(a, b, c, d) = align.flatMap(_ => run).compile.toList.unsafeRunSync()
     val tb = b.asInstanceOf[MetricsSnapshot].index.asInstanceOf[Periodic].tick

@@ -5,7 +5,7 @@ import cats.effect.{IO, Resource}
 import cats.implicits.toFunctorFilterOps
 import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.StopReason.{ByCancellation, Successfully}
-import com.github.chenharryhua.nanjin.guard.event.{eventFilters, retrieveCounter}
+import com.github.chenharryhua.nanjin.guard.event.{retrieveCounter, Event}
 import com.github.chenharryhua.nanjin.guard.service.Agent
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -21,7 +21,7 @@ class RetryTest extends AnyFunSuite {
   test("2.retry - give up") {
     val mr = service.eventStream { agent =>
       agent.retry(_.withPolicy(_.empty)).use(_(IO(()) *> agent.adhoc.report))
-    }.map(checkJson).mapFilter(eventFilters.metricsSnapshot).compile.toList.unsafeRunSync()
+    }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.toList.unsafeRunSync()
     assert(mr.head.snapshot.isEmpty)
   }
 
@@ -49,7 +49,7 @@ class RetryTest extends AnyFunSuite {
       val retry = agent.retry(_.withPolicy(_.fixedDelay(1.second, 100.seconds).limited(20)))
 
       retry.use(_(action)).map(x => assert(x == 0)).void
-    }.map(checkJson).mapFilter(eventFilters.serviceStop).compile.lastOrError.unsafeRunSync()
+    }.map(checkJson).mapFilter(Event.serviceStop.getOption).compile.lastOrError.unsafeRunSync()
     assert(ss.cause == Successfully)
     assert(i == 2)
   }
@@ -61,7 +61,7 @@ class RetryTest extends AnyFunSuite {
       val retry =
         agent.retry(_.withPolicy(_.fixedDelay(100.seconds)).withDecision(tv => IO(tv.map(_ => false))))
       retry.use(_(action)).void
-    }.mapFilter(eventFilters.serviceStop).compile.lastOrError.unsafeRunSync()
+    }.mapFilter(Event.serviceStop.getOption).compile.lastOrError.unsafeRunSync()
     assert(res.cause.exitCode == 3)
     assert(i == 1)
   }
@@ -74,7 +74,7 @@ class RetryTest extends AnyFunSuite {
             retry(IO.println(2) <* IO.canceled *> IO.println(3)) >>
             retry(IO.println(4))).guarantee(agent.adhoc.report)
         })
-      .mapFilter(eventFilters.serviceStop)
+      .mapFilter(Event.serviceStop.getOption)
       .compile
       .lastOrError
       .unsafeRunSync()
@@ -101,7 +101,7 @@ class RetryTest extends AnyFunSuite {
             retry(IO.println("before cancel") >> IO.canceled >> IO.println("after cancel")) >>
             retry(IO.println("third"))).guarantee(agent.adhoc.report)
         })
-      .mapFilter(eventFilters.serviceStop)
+      .mapFilter(Event.serviceStop.getOption)
       .compile
       .lastOrError
       .unsafeRunSync()
@@ -126,7 +126,7 @@ class RetryTest extends AnyFunSuite {
             .void
             .guarantee(agent.adhoc.report)
         })
-      .mapFilter(eventFilters.metricsSnapshot)
+      .mapFilter(Event.metricsSnapshot.getOption)
       .compile
       .lastOrError
       .unsafeRunSync()
@@ -156,7 +156,7 @@ class RetryTest extends AnyFunSuite {
         IO(tv.map(_ => tv.tick.index < 2))
       })
       retry.use(_(action))
-    }.mapFilter(eventFilters.serviceStop).compile.lastOrError.unsafeRunSync()
+    }.mapFilter(Event.serviceStop.getOption).compile.lastOrError.unsafeRunSync()
 
     assert(i == 2)
     assert(ss.cause.exitCode == 3)
@@ -176,7 +176,7 @@ class RetryTest extends AnyFunSuite {
         IO(tv.map(_ => decision))
       })
       retry.use(_(action))
-    }.mapFilter(eventFilters.serviceStop).compile.lastOrError.unsafeRunSync()
+    }.mapFilter(Event.serviceStop.getOption).compile.lastOrError.unsafeRunSync()
 
     assert(i == 4)
     assert(ss.cause.exitCode == 3)

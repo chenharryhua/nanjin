@@ -9,12 +9,12 @@ import com.github.chenharryhua.nanjin.guard.event.CategoryKind.MeterKind
 import com.github.chenharryhua.nanjin.guard.event.{Category, MetricID, MetricLabel, MetricName, Squants}
 import squants.{Quantity, UnitOfMeasure}
 
-trait Meter[F[_], A] extends KleisliLike[F, A] {
+trait Meter[F[_], A] {
   def mark(num: Long): F[Unit]
 
   final def mark(num: Int): F[Unit] = mark(num.toLong)
 
-  override def run(num: A): F[Unit]
+  def run(num: A): F[Unit]
 }
 
 object Meter {

@@ -14,9 +14,9 @@ object Logger {
     domain: Domain,
     alarmLevel: Ref[F, Option[AlarmLevel]],
     logSink: LogSink[F]): Log[F] =
-    new LoggerImpl[F](serviceParams, domain, alarmLevel, logSink)
+    new LogPublisher[F](serviceParams, domain, alarmLevel, logSink)
 
-  final private class LoggerImpl[F[_]](
+  final private class LogPublisher[F[_]](
     serviceParams: ServiceParams,
     domain: Domain,
     alarmLevel: Ref[F, Option[AlarmLevel]],

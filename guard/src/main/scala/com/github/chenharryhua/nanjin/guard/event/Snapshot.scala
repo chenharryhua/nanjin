@@ -122,7 +122,7 @@ final case class Snapshot(
   )
 }
 
-object Snapshot extends duration {
+private[guard] object Snapshot extends duration {
   val empty: Snapshot = Snapshot(Nil, Nil, Nil, Nil, Nil)
 
   private def buildFrom(metricRegistry: MetricRegistry, mode: ScrapeMode): Snapshot = {
