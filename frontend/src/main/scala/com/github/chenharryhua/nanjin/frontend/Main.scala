@@ -3,7 +3,7 @@ import com.raquo.laminar.api.L._
 import com.raquo.laminar.nodes.ReactiveHtmlElement
 import io.circe.jawn.decode
 import org.scalajs.dom
-import org.scalajs.dom.{html, HTMLCanvasElement, HTMLDivElement, MessageEvent, WebSocket}
+import org.scalajs.dom.{document, html, HTMLCanvasElement, HTMLDivElement, MessageEvent, WebSocket}
 
 import scala.scalajs.js
 import scala.scalajs.js.Dynamic.literal
@@ -71,11 +71,7 @@ object Main {
   }
 
   // ---- UI ----
-  private val app: ReactiveHtmlElement[HTMLDivElement] = {
-    val rootDiv = dom.document.getElementById("chart-root").asInstanceOf[html.Div]
-    val port: String = rootDiv.dataset.get("ws-port").getOrElse("1026")
-    val zoneId: String = rootDiv.dataset.get("zone-id").getOrElse("UTC")
-
+  private val app: ReactiveHtmlElement[HTMLDivElement] =
     div(
       h2("Realtime Metrics"),
       canvasTag(
@@ -84,6 +80,10 @@ object Main {
         cls    := "chart-canvas",
 
         onMountCallback { ctx =>
+          val rootDiv = document.getElementById("chart-root").asInstanceOf[html.Div]
+          val port: String = rootDiv.dataset("ws_port")
+          val zoneId: String = rootDiv.dataset("zone_id")
+
           val canvas = ctx.thisNode.ref
 
           val chart = initChart(canvas, zoneId)
@@ -99,7 +99,6 @@ object Main {
         }
       )
     )
-  }
 
   def main(args: Array[String]): Unit =
     render(dom.document.body, app): Unit

@@ -39,9 +39,9 @@ final class DashboardWs[F[_]](
       ),
       body(
         div(
-          id                := "chart-root",
-          data("ws-port")   := serviceParams.host.port.map(_.value).getOrElse(1026),
-          data("zone-id")   := zoneId.toString
+          id              := "chart-root",
+          data("ws_port") := serviceParams.host.port.map(_.value).getOrElse(1026),
+          data("zone_id") := zoneId.toString
         ),
         script(`type` := "module", src := "/dashboard/frontend.js")
       )
