@@ -209,8 +209,12 @@ lazy val frontend = project.in(file("frontend"))
   .enablePlugins(ScalaJSPlugin)
   .settings(name := "nj-frontend")
   .settings(
+    scalacOptions ++= List("-Ymacro-annotations"),
     scalaJSUseMainModuleInitializer := true,
     libraryDependencies ++= List(
+      "io.circe" %%% "circe-core"      % circeV,
+      "io.circe" %%% "circe-generic"   % circeV,
+      "io.circe" %%% "circe-jawn"      % circeV,
       "org.scala-js" %%% "scalajs-dom" % "2.8.1",
       "com.raquo" %%% "laminar"        % "17.0.0"
     )
@@ -239,17 +243,19 @@ lazy val guard = (project in file("guard"))
       "com.github.ben-manes.caffeine" % "caffeine"             % caffeineV,
       "ch.qos.logback"                % "logback-classic"      % logbackV % Test
     ) ++ testLib
-  ).settings(Compile / resourceGenerators += Def.task {
-    val js = (frontend / Compile / fastOptJS).value
-    val map = (frontend / Compile / fastOptJS).value.data.getParentFile / (js.data.getName + ".map")
-    val targetDir = (Compile / resourceManaged).value / "dashboard"
-    val jsOut = targetDir / "frontend.js"
-    val mapOut = targetDir / "frontend.js.map"
-    IO.createDirectory(targetDir)
-    IO.copyFile(js.data, jsOut)
-    if (map.exists()) IO.copyFile(map, mapOut)
-    Seq(jsOut, mapOut).filter(_.exists())
-  }.taskValue)
+  ).settings {
+    Compile / resourceGenerators += Def.task {
+      val js = (frontend / Compile / fastOptJS).value
+      val map = (frontend / Compile / fastOptJS).value.data.getParentFile / (js.data.getName + ".map")
+      val targetDir = (Compile / resourceManaged).value / "dashboard"
+      val jsOut = targetDir / "frontend.js"
+      val mapOut = targetDir / "frontend.js.map"
+      IO.createDirectory(targetDir)
+      IO.copyFile(js.data, jsOut)
+      if (map.exists()) IO.copyFile(map, mapOut)
+      List(jsOut, mapOut).filter(_.exists())
+    }.taskValue
+  }
   .enablePlugins(BuildInfoPlugin)
   .settings(
     buildInfoKeys := Seq[BuildInfoKey](

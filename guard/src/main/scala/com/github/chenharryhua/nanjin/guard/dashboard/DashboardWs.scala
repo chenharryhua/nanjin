@@ -2,10 +2,12 @@ package com.github.chenharryhua.nanjin.guard.dashboard
 
 import cats.data.Kleisli
 import cats.effect.kernel.Async
-import com.github.chenharryhua.nanjin.common.chrono.{Policy, tickStream}
+import cats.syntax.functor.toFunctorOps
+import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, TickedValue}
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.service.AdhocMetrics
 import fs2.{Pipe, Stream}
+import io.circe.Json
 import io.circe.syntax.EncoderOps
 import org.http4s.circe.CirceEntityCodec.circeEntityEncoder
 import org.http4s.dsl.Http4sDsl
@@ -29,9 +31,11 @@ final class DashboardWs[F[_]](
     html(
       head(
         tag("title")(serviceParams.serviceName.value),
-        script(src := "/dashboard/frontend.js")
+        script(src := "https://cdn.jsdelivr.net/npm/chart.js"),
+        script(src := "https://cdn.jsdelivr.net/npm/luxon"),
+        script(src := "https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon")
       ),
-      body("Dashboard")
+      body(h1("Dashboard"), script(`type` := "module", src := "/dashboard/frontend.js"))
     )
 
   private def metrics(wsb2: WebSocketBuilder2[F]): HttpRoutes[F] = HttpRoutes.of[F] {
@@ -42,8 +46,18 @@ final class DashboardWs[F[_]](
 
     case GET -> Root / "ws" =>
       val send: Stream[F, WebSocketFrame] =
-        tickStream.tickScheduled(zoneId, _.fresh(policy)).evalMap(adhocMetrics.cheapSnapshot)
-          .map(ss => WebSocketFrame.Text(ss.snapshot.asJson.noSpaces))
+        tickStream.tickScheduled(zoneId, _.fresh(policy)).evalMap { tick =>
+          adhocMetrics.cheapSnapshot(tick).map(ss => TickedValue(tick, ss.snapshot))
+        }.map { ss =>
+          val series = ss.value.meters.map(m =>
+            Json.obj(
+              "name" -> m.metricId.metricName.name.asJson,
+              "point" -> Json.obj(
+                "x" -> ss.tick.conclude.toEpochMilli.asJson,
+                "y" -> m.meter.aggregate.asJson)))
+
+          WebSocketFrame.Text(Json.obj("series" -> series.asJson).noSpaces)
+        }
 
       val receive: Pipe[F, WebSocketFrame, Unit] = _.evalMap(_ => F.unit)
 
