@@ -9,6 +9,7 @@ import cats.syntax.option.catsSyntaxOptionId
 import com.codahale.metrics.MetricRegistry
 import com.comcast.ip4s.IpLiteralSyntax
 import com.github.chenharryhua.nanjin.common.UpdateConfig
+import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.guard.config.{
   AlarmLevel,
   Brief,
@@ -20,6 +21,7 @@ import com.github.chenharryhua.nanjin.guard.config.{
   ServiceId,
   ServiceParams
 }
+import com.github.chenharryhua.nanjin.guard.dashboard.DashboardWs
 import com.github.chenharryhua.nanjin.guard.event.{Domain, Event}
 import fs2.Stream
 import fs2.concurrent.Channel
@@ -86,17 +88,29 @@ final private[guard] class ServiceGuardImpl[F[_]: Network: Async: Console] priva
       metricsPublisher <- MetricsPublisher(kickedOff.serviceParams, metricRegistry, channel, logSink)
       lifecyclePublisher <- LifecyclePublisher(kickedOff.serviceParams, channel, logSink)
       event <- {
-        val http_server: Stream[F, Nothing] =
-          kickedOff.emberServerBuilder.fold(Stream.empty.covaryAll[F, Nothing]) { esb =>
-            val router = new HttpRouter[F](
-              serviceParams = kickedOff.serviceParams,
-              errorHistory = errorHistory,
-              alarmLevel = alarmLevel,
-              metricsPublisher = metricsPublisher,
-              lifecyclePublisher = lifecyclePublisher
-            ).router
+//        val http_server: Stream[F, Nothing] =
+//          kickedOff.emberServerBuilder.fold(Stream.empty.covaryAll[F, Nothing]) { esb =>
+//            val router = new HttpRouter[F](
+//              serviceParams = kickedOff.serviceParams,
+//              errorHistory = errorHistory,
+//              alarmLevel = alarmLevel,
+//              metricsPublisher = metricsPublisher,
+//              lifecyclePublisher = lifecyclePublisher
+//            ).router
+//
+//            Stream.resource(esb.withHttpApp(router).build) >> Stream.never[F]
+//          }
 
-            Stream.resource(esb.withHttpApp(router).build) >> Stream.never[F]
+        val dashboard_server: Stream[F, Nothing] =
+          kickedOff.emberServerBuilder.fold(Stream.empty.covaryAll[F, Nothing]) { esb =>
+            val ws = new DashboardWs[F](
+              serviceParams = kickedOff.serviceParams,
+              adhocMetrics = metricsPublisher,
+              zoneId = kickedOff.serviceParams.zoneId,
+              policy = Policy.crontab(_.every3Seconds)
+            )
+
+            Stream.resource(esb.withHttpWebSocketApp(ws.dashboardRouter).build) >> Stream.never[F]
           }
 
         val agent: GeneralAgent[F] =
@@ -124,7 +138,7 @@ final private[guard] class ServiceGuardImpl[F[_]: Network: Async: Console] priva
           .concurrently(metricsPublisher.reset_periodic)
           .concurrently(metricsPublisher.report_periodic)
           .concurrently(helper.service_jmx_report(metricRegistry, config.jmxBuilder))
-          .concurrently(http_server)
+          .concurrently(dashboard_server)
           .concurrently(surveillance)
       }
     } yield event
