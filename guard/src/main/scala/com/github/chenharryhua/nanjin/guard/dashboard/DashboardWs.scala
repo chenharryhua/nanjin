@@ -3,17 +3,13 @@ package com.github.chenharryhua.nanjin.guard.dashboard
 import cats.data.Kleisli
 import cats.effect.kernel.Async
 import com.codahale.metrics.MetricRegistry
-import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, TickedValue}
+import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
-import fs2.{Pipe, Stream}
-import io.circe.Json
-import io.circe.syntax.EncoderOps
 import org.http4s.circe.CirceEntityCodec.circeEntityEncoder
 import org.http4s.dsl.Http4sDsl
 import org.http4s.scalatags.*
 import org.http4s.server.Router
 import org.http4s.server.websocket.WebSocketBuilder2
-import org.http4s.websocket.WebSocketFrame
 import org.http4s.{HttpRoutes, Request, Response, StaticFile}
 import scalatags.Text
 import scalatags.Text.all.*
@@ -27,7 +23,7 @@ final class DashboardWs[F[_]](
   policy: Policy)(implicit F: Async[F])
     extends Http4sDsl[F] {
 
-  private val fetch = new FetchCounters(metricRegistry)
+  private val pump = new MetricsPump(metricRegistry)
 
   private val html_page: Text.TypedTag[String] =
     html(
@@ -53,37 +49,7 @@ final class DashboardWs[F[_]](
 
     case GET -> Root / "dashboard" => Ok(html_page)
 
-    case GET -> Root / "ws" =>
-      val send: Stream[F, WebSocketFrame] =
-        tickStream.tickScheduled(zoneId, _.fresh(policy))
-          .map(tick => TickedValue(tick, fetch.meters.value))
-          .zipWithPrevious
-          .map { case (pre, curr) =>
-            pre match {
-              case Some(previous) =>
-                curr.map(value =>
-                  value.foldLeft(previous.value) { case (sum, (mid, count)) =>
-                    sum.updatedWith(mid)(_.map(count - _))
-                  })
-              case None => curr.map(_.view.mapValues(_ => 0L).toMap)
-            }
-          }.map { tv =>
-            val series = tv.value.map { case (mid, count) =>
-              Json.obj(
-                "name" -> Json.fromString(s"${mid.metricLabel.label}(${mid.metricName.name})"),
-                "point" -> Json.obj(
-                  "x" -> tv.tick.conclude.toEpochMilli.asJson,
-                  "y" -> Json.fromLong(count)
-                )
-              )
-            }
-
-            WebSocketFrame.Text(Json.obj("series" -> series.asJson).noSpaces)
-          }
-
-      val receive: Pipe[F, WebSocketFrame, Unit] = _.evalMap(_ => F.unit)
-
-      wsb2.build(send, receive)
+    case GET -> Root / "ws" => pump.pumping(wsb2, zoneId, policy)
 
     case GET -> Root / "report" => Ok("good")
   }
