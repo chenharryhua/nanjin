@@ -37,7 +37,14 @@ final class DashboardWs[F[_]](
         script(src := "https://cdn.jsdelivr.net/npm/luxon"),
         script(src := "https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon")
       ),
-      body(script(`type` := "module", src := "/dashboard/frontend.js"))
+      body(
+        div(
+          id                := "chart-root",
+          data("ws-port")   := serviceParams.host.port.map(_.value).getOrElse(1026),
+          data("zone-id")   := zoneId.toString
+        ),
+        script(`type` := "module", src := "/dashboard/frontend.js")
+      )
     )
 
   private def metrics(wsb2: WebSocketBuilder2[F]): HttpRoutes[F] = HttpRoutes.of[F] {
@@ -63,11 +70,12 @@ final class DashboardWs[F[_]](
           }.map { tv =>
             val series = tv.value.map { case (mid, count) =>
               Json.obj(
-                "name" -> mid.metricName.name.asJson,
+                "name" -> Json.fromString(s"${mid.metricLabel.label}(${mid.metricName.name})"),
                 "point" -> Json.obj(
                   "x" -> tv.tick.conclude.toEpochMilli.asJson,
                   "y" -> Json.fromLong(count)
-                ))
+                )
+              )
             }
 
             WebSocketFrame.Text(Json.obj("series" -> series.asJson).noSpaces)

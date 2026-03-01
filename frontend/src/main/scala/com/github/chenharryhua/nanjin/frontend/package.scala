@@ -13,10 +13,13 @@ package object frontend {
 
     msg.series.foreach { s =>
       val newPoint = s.point.dataPoint
-      existingDatasets.find(d => d.label.toString == s.name) match {
+      existingDatasets.find { d =>
+        val label = if (js.isUndefined(d.label)) "" else d.label.asInstanceOf[String]
+        label == s.name
+      } match {
         case Some(ds) =>
           val dsData = ds.data.asInstanceOf[js.Array[js.Dynamic]]
-          dsData.push(newPoint):Unit
+          dsData.push(newPoint): Unit
           if (dsData.length > maxPoints) dsData.shift() // sliding window
         case None =>
           val borderColor = colorFor(s.name)
@@ -24,6 +27,6 @@ package object frontend {
       }
     }
 
-    chart.update():Unit
+    chart.update(): Unit
   }
 }
