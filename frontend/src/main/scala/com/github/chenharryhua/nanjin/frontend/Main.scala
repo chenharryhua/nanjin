@@ -29,7 +29,7 @@ object Main {
           scales = literal(
             x = literal(
               `type` = "time",
-              time = literal(unit = "second"),
+              time = literal(unit = "minute", tooltipFormat = "HH:mm"),
               title = literal(display = true, text = "Time")
             ),
             y = literal(
@@ -66,11 +66,11 @@ object Main {
   // ---- UI ----
   private val app: ReactiveHtmlElement[HTMLDivElement] =
     div(
-      h2("Realtime Multi-Line Chart"),
+      h2("Realtime Metrics"),
       canvasTag(
-        width := "100%",
-        height := "100%",
-        cls := "chart-canvas",
+        width  := "80%",
+        height := "70%",
+        cls    := "chart-canvas",
 
         onMountCallback { ctx =>
           val canvas = ctx.thisNode.ref

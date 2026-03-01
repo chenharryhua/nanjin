@@ -105,9 +105,9 @@ final private[guard] class ServiceGuardImpl[F[_]: Network: Async: Console] priva
           kickedOff.emberServerBuilder.fold(Stream.empty.covaryAll[F, Nothing]) { esb =>
             val ws = new DashboardWs[F](
               serviceParams = kickedOff.serviceParams,
-              adhocMetrics = metricsPublisher,
+              metricRegistry = metricRegistry,
               zoneId = kickedOff.serviceParams.zoneId,
-              policy = Policy.crontab(_.every3Seconds)
+              policy = Policy.crontab(_.every5Seconds)
             )
 
             Stream.resource(esb.withHttpWebSocketApp(ws.dashboardRouter).build) >> Stream.never[F]
