@@ -3,9 +3,17 @@ import com.raquo.laminar.api.L._
 import com.raquo.laminar.nodes.ReactiveHtmlElement
 import io.circe.jawn.decode
 import org.scalajs.dom
-import org.scalajs.dom.{document, html, HTMLCanvasElement, HTMLDivElement, MessageEvent, WebSocket}
+import org.scalajs.dom.{
+  document,
+  html,
+  CloseEvent,
+  Event,
+  HTMLCanvasElement,
+  HTMLDivElement,
+  MessageEvent,
+  WebSocket
+}
 
-import java.time.{Instant, LocalDateTime, ZoneId}
 import scala.scalajs.js
 import scala.scalajs.js.Dynamic.literal
 
@@ -78,16 +86,15 @@ object Main {
   /*
    * Websocket
    */
-  private def datetime(ts: Double): LocalDateTime =
-    Instant.ofEpochMilli(ts.toLong).atZone(ZoneId.of(zoneId)).toLocalDateTime
 
   private def connectWS(port: String): Unit = {
 
     val ws = new WebSocket(s"ws://localhost:$port/ws")
 
-    ws.onopen = { o =>
-      val now = datetime(o.timeStamp).toString
-      dom.console.log(s"WS connected at $now")
+    ws.onopen = { (_: Event) =>
+      val now = js.Date()
+      val msg = s"WS connected at $now"
+      dom.console.log(msg)
     }
 
     ws.onmessage = { (e: MessageEvent) =>
@@ -97,10 +104,11 @@ object Main {
       }
     }
 
-    ws.onclose = { c =>
-      val now = datetime(c.timeStamp).toString
+    ws.onclose = { (c: CloseEvent) =>
+      val now = js.Date()
       val cause = s"reason:${c.reason}, code:${c.code}, wasClean:${c.wasClean}"
-      dom.console.log(s"WS closed at $now. $cause")
+      val msg = s"WS closed at $now, $cause"
+      dom.console.log(msg)
     }
   }
 
@@ -135,6 +143,7 @@ object Main {
   /*
    * Start from here
    */
-  def main(args: Array[String]): Unit =
-    render(dom.document.body, app): Unit
+  def main(args: Array[String]): Unit = {
+    val _ = render(dom.document.body, app)
+  }
 }
