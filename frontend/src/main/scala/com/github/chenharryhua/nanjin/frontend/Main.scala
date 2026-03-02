@@ -5,6 +5,7 @@ import io.circe.jawn.decode
 import org.scalajs.dom
 import org.scalajs.dom.{document, html, HTMLCanvasElement, HTMLDivElement, MessageEvent, WebSocket}
 
+import java.time.{Instant, LocalDateTime, ZoneId}
 import scala.scalajs.js
 import scala.scalajs.js.Dynamic.literal
 
@@ -77,11 +78,17 @@ object Main {
   /*
    * Websocket
    */
+  private def datetime(ts: Double): LocalDateTime =
+    Instant.ofEpochMilli(ts.toLong).atZone(ZoneId.of(zoneId)).toLocalDateTime
+
   private def connectWS(port: String): Unit = {
 
     val ws = new WebSocket(s"ws://localhost:$port/ws")
 
-    ws.onopen = _ => dom.console.log("WS connected")
+    ws.onopen = { o =>
+      val now = datetime(o.timeStamp).toString
+      dom.console.log(s"WS connected at $now")
+    }
 
     ws.onmessage = { (e: MessageEvent) =>
       ws.send("pong")
@@ -90,7 +97,11 @@ object Main {
       }
     }
 
-    ws.onclose = _ => dom.console.log("WS closed")
+    ws.onclose = { c =>
+      val now = datetime(c.timeStamp).toString
+      val cause = s"reason:${c.reason}, code:${c.code}, wasClean:${c.wasClean}"
+      dom.console.log(s"WS closed at $now. $cause")
+    }
   }
 
   /*
