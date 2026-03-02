@@ -10,10 +10,23 @@ import scala.scalajs.js.Dynamic.literal
 
 object Main {
 
-  // hold chart instance
-  private val chartVar: Var[Option[js.Dynamic]] = Var(Option.empty[js.Dynamic])
+  /*
+   * from backend
+   */
+  private val rootDiv = document.getElementById("chart-root").asInstanceOf[html.Div]
+  private val port: String = rootDiv.dataset("ws_port")
+  private val zoneId: String = rootDiv.dataset("zone_id")
+  private val maxPoints: Int = rootDiv.dataset("max_points").toInt
 
-  // ---- init chart ----
+  /*
+   * Chart
+   */
+  private val chartVar: Var[Option[js.Dynamic]] = Var(Option.empty[js.Dynamic])
+  private val manager: ChartManager = new ChartManager(maxPoints)
+
+  /*
+   * Initialization
+   */
   private def initChart(canvas: HTMLCanvasElement, zoneId: String): js.Dynamic = {
     val ctx = canvas.getContext("2d")
 
@@ -40,7 +53,17 @@ object Main {
                 precision = 0,
                 callback = (value: js.Any) => {
                   val v = value.asInstanceOf[Double]
-                  Math.round(v).toString
+                  val abs = Math.abs(v)
+
+                  def fmt(x: Double, unit: String): String = {
+                    val s = f"$x%.1f"
+                    if (s.endsWith(".0")) s.dropRight(2) + unit
+                    else s + unit
+                  }
+
+                  if (abs >= 1_000_000) fmt(v / 1_000_000, "M")
+                  else if (abs >= 1_000) fmt(v / 1_000, "k")
+                  else Math.round(v).toString
                 }
               )
             )
@@ -51,7 +74,9 @@ object Main {
     )
   }
 
-  // ---- connect websocket ----
+  /*
+   * Websocket
+   */
   private def connectWS(port: String): Unit = {
 
     val ws = new WebSocket(s"ws://localhost:$port/ws")
@@ -61,16 +86,16 @@ object Main {
     ws.onmessage = { (e: MessageEvent) =>
       ws.send("pong")
       decode[WsMessage](e.data.toString).toOption.foreach { msg =>
-        chartVar.now().foreach { chart =>
-          appendToChart(chart, msg)
-        }
+        manager.enqueue(msg).updateChart(chartVar)
       }
     }
 
     ws.onclose = _ => dom.console.log("WS closed")
   }
 
-  // ---- UI ----
+  /*
+   * Canvas
+   */
   private val app: ReactiveHtmlElement[HTMLDivElement] =
     div(
       h2("Realtime Metrics"),
@@ -80,10 +105,6 @@ object Main {
         cls    := "chart-canvas",
 
         onMountCallback { ctx =>
-          val rootDiv = document.getElementById("chart-root").asInstanceOf[html.Div]
-          val port: String = rootDiv.dataset("ws_port")
-          val zoneId: String = rootDiv.dataset("zone_id")
-
           val canvas = ctx.thisNode.ref
 
           val chart = initChart(canvas, zoneId)
@@ -100,6 +121,9 @@ object Main {
       )
     )
 
+  /*
+   * Start from here
+   */
   def main(args: Array[String]): Unit =
     render(dom.document.body, app): Unit
 }

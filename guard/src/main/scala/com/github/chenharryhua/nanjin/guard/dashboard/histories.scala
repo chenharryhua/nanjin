@@ -1,0 +1,133 @@
+package com.github.chenharryhua.nanjin.guard.dashboard
+
+import cats.syntax.show.toShow
+import com.github.chenharryhua.nanjin.guard.config.ServiceParams
+import com.github.chenharryhua.nanjin.guard.event.Event.ReportedEvent
+import com.github.chenharryhua.nanjin.guard.event.{Active, Event, Snooze, Timestamp, Took}
+import com.github.chenharryhua.nanjin.guard.translator.{
+  durationFormatter,
+  htmlColoring,
+  Attribute,
+  SnapshotPolyglot
+}
+import io.circe.Json
+import io.circe.syntax.EncoderOps
+import org.typelevel.cats.time.localtimeInstances
+import scalatags.Text
+
+import java.time.temporal.ChronoUnit
+import java.time.{Duration, ZonedDateTime}
+
+object histories {
+  private case class Present(value: ZonedDateTime) {
+    val text: String = value.toLocalTime.truncatedTo(ChronoUnit.SECONDS).show
+    val json: Json = text.asJson
+  }
+  private case class Age(value: Duration) {
+    val json: Json = durationFormatter.format(value).asJson
+  }
+
+  def service_panic_history(
+    serviceParams: ServiceParams,
+    panics: List[Event.ServicePanic],
+    now: ZonedDateTime): Json = {
+    val active = panics.lastOption.map(_.tick.conclude).forall(_.isBefore(now.toInstant))
+
+    Json.obj(
+      Attribute(serviceParams.serviceName).snakeJsonEntry,
+      Attribute(serviceParams.serviceId).snakeJsonEntry,
+      "is_active" -> Json.fromBoolean(active),
+      Attribute(Present(now)).snakeJsonEntry(_.json),
+      Attribute(serviceParams.servicePolicies.restart.policy).map(_.show).snakeJsonEntry,
+      Attribute(serviceParams.timeZone).snakeJsonEntry,
+      Attribute(serviceParams.upTime(now)).snakeJsonEntry(_.show.asJson),
+      "panics" -> panics.size.asJson,
+      "history" ->
+        panics.reverse.map { sp =>
+          Json.obj(
+            "index" -> Json.fromLong(sp.tick.index),
+            Attribute(Age(Duration.between(sp.timestamp.value, now))).map(_.json).snakeJsonEntry,
+            "up_rouse_at" -> sp.tick.local(_.commence).asJson,
+            Attribute(Active(sp.tick.active)).map(_.show.asJson).snakeJsonEntry,
+            Attribute(Timestamp(sp.tick.zoned(_.acquires)))
+              .map(_.value.toLocalDateTime.asJson)
+              .snakeJsonEntry,
+            Attribute(Snooze(sp.tick.snooze)).map(_.show).snakeJsonEntry,
+            "restart_at" -> sp.tick.local(_.conclude).asJson,
+            Attribute(sp.stackTrace).snakeJsonEntry
+          )
+        }.asJson
+    )
+  }
+
+  def service_error_history(
+    serviceParams: ServiceParams,
+    reportedEvents: List[ReportedEvent],
+    now: ZonedDateTime): Json =
+    Json.obj(
+      Attribute(serviceParams.serviceName).snakeJsonEntry,
+      Attribute(serviceParams.serviceId).snakeJsonEntry,
+      Attribute(Present(now)).map(_.json).snakeJsonEntry,
+      Attribute(serviceParams.timeZone).snakeJsonEntry,
+      Attribute(serviceParams.upTime(now)).map(_.show).snakeJsonEntry,
+      "errors" -> reportedEvents.size.asJson,
+      "history" -> reportedEvents.reverse.map { sm =>
+        Json.obj(
+          Attribute(sm.domain).snakeJsonEntry,
+          Attribute(sm.correlation).snakeJsonEntry,
+          Attribute(Age(Duration.between(sm.timestamp.value, now))).map(_.json).snakeJsonEntry,
+          Attribute(sm.timestamp).map(_.value.toLocalDateTime.asJson).snakeJsonEntry,
+          Attribute(sm.message).snakeJsonEntry,
+          Attribute(sm.stackTrace).snakeJsonEntry
+        )
+      }.asJson
+    )
+
+  def metrics_history(
+    serviceParams: ServiceParams,
+    metricsSnapshots: List[Event.MetricsSnapshot],
+    now: ZonedDateTime): List[Text.TypedTag[String]] = {
+    import scalatags.Text
+    import scalatags.Text.all.*
+
+    def html_table_title(now: ZonedDateTime, took: Duration): Text.TypedTag[String] = {
+      val service_name = Attribute(serviceParams.serviceName).textEntry
+      val policy = Attribute(serviceParams.servicePolicies.metricsReport).textEntry
+      val timezone = Attribute(serviceParams.timeZone).textEntry
+      val uptime = Attribute(serviceParams.upTime(now)).textEntry
+      val spend = Attribute(Took(took)).textEntry
+      val present = Attribute(Present(now)).textEntry(_.text)
+
+      table(
+        tr(
+          th(service_name.tag),
+          th(policy.tag),
+          th(timezone.tag),
+          th(uptime.tag),
+          th(spend.tag),
+          th(present.tag)),
+        tr(
+          td(service_name.text),
+          td(policy.text),
+          td(timezone.text),
+          td(uptime.text),
+          td(spend.text),
+          td(present.text))
+      )
+    }
+
+    val history = metricsSnapshots.map { mr =>
+      val took = Attribute(mr.took).textEntry
+      val label = Attribute(mr.label).textEntry
+      val timestamp = Attribute(mr.timestamp).textEntry
+      div(
+        table(
+          tr(th(style := htmlColoring(mr))(label.tag), th(timestamp.tag), th(took.tag)),
+          tr(td(label.text), td(timestamp.text), td(took.text))
+        ),
+        pre(new SnapshotPolyglot(mr.snapshot).toYaml)
+      )
+    }
+    history.map(hist => div(html_table_title(now, Duration.ZERO), h3("Metrics History"), hist))
+  }
+}

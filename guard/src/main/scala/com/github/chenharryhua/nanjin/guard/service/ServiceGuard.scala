@@ -9,7 +9,6 @@ import cats.syntax.option.catsSyntaxOptionId
 import com.codahale.metrics.MetricRegistry
 import com.comcast.ip4s.IpLiteralSyntax
 import com.github.chenharryhua.nanjin.common.UpdateConfig
-import com.github.chenharryhua.nanjin.common.chrono.Policy
 import com.github.chenharryhua.nanjin.guard.config.{
   AlarmLevel,
   Brief,
@@ -104,10 +103,9 @@ final private[guard] class ServiceGuardImpl[F[_]: Network: Async: Console] priva
         val dashboard_server: Stream[F, Nothing] =
           kickedOff.emberServerBuilder.fold(Stream.empty.covaryAll[F, Nothing]) { esb =>
             val ws = new DashboardWs[F](
+              port = esb.port,
               serviceParams = kickedOff.serviceParams,
-              metricRegistry = metricRegistry,
-              zoneId = kickedOff.serviceParams.zoneId,
-              policy = Policy.crontab(_.every5Seconds)
+              metricRegistry = metricRegistry
             )
 
             Stream.resource(esb.withHttpWebSocketApp(ws.dashboardRouter).build) >> Stream.never[F]

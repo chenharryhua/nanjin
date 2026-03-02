@@ -21,9 +21,16 @@ import scala.jdk.DurationConverters.ScalaDurationOps
 
 @JsonCodec
 final case class RestartPolicy(policy: Policy, threshold: Option[Duration])
+@JsonCodec
+final case class RealtimeMetrics(policy: Policy, maxPoints: Int)
 
 @JsonCodec
-final case class ServicePolicies(restart: RestartPolicy, metricsReport: Policy, metricsReset: Policy)
+final case class ServicePolicies(
+  restart: RestartPolicy,
+  realtimeMetrics: RealtimeMetrics,
+  metricsReport: Policy,
+  metricsReset: Policy
+)
 @JsonCodec
 final case class HistoryCapacity(metric: Int, panic: Int, error: Int)
 
@@ -85,8 +92,10 @@ object ServiceParams {
       launchTime = launchTime,
       servicePolicies = ServicePolicies(
         restart = RestartPolicy(Policy.empty, None),
+        realtimeMetrics = RealtimeMetrics(Policy.crontab(_.every30Seconds), 360),
         metricsReport = Policy.empty,
-        metricsReset = Policy.empty),
+        metricsReset = Policy.empty
+      ),
       historyCapacity = HistoryCapacity(32, 32, 32),
       logFormat = LogFormat.Console_PlainText,
       nanjin = parse(BuildInfo.toJson).toOption,
@@ -115,6 +124,7 @@ private object ServiceConfigF {
   final case class WithTaskName[K](value: Task, cont: K) extends ServiceConfigF[K]
 
   final case class WithLogFormat[K](value: LogFormat, cont: K) extends ServiceConfigF[K]
+  final case class WithRealTimeMetrics[K](policy: Policy, maxPoints: Int, cont: K) extends ServiceConfigF[K]
 
   def algebra(
     serviceName: Service,
@@ -146,6 +156,9 @@ private object ServiceConfigF {
       case WithTaskName(v, c) => c.focus(_.taskName).replace(v)
 
       case WithLogFormat(v, c) => c.focus(_.logFormat).replace(v)
+
+      case WithRealTimeMetrics(p, m, c) =>
+        c.focus(_.servicePolicies.realtimeMetrics).replace(RealtimeMetrics(p, m))
     }
 }
 
@@ -215,6 +228,9 @@ final class ServiceConfig[F[_]: Applicative] private (
     */
   def withInitialAlarmLevel(f: AlarmLevel.type => AlarmLevel): ServiceConfig[F] =
     copy(alarmLevel = f(AlarmLevel))
+
+  def withRealTimeMetrics(maxPoints: Int, f: Policy.type => Policy): ServiceConfig[F] =
+    copy(cont = Fix(WithRealTimeMetrics(f(Policy), maxPoints, cont)))
 
   private[guard] def evalConfig(
     serviceName: Service,

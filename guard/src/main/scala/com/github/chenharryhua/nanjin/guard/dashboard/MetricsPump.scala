@@ -1,9 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.dashboard
 
-import cats.Eval
 import cats.effect.kernel.Async
 import cats.syntax.applicative.catsSyntaxApplicativeId
-import cats.syntax.apply.catsSyntaxTuple2Semigroupal
 import com.codahale.metrics.MetricRegistry
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, TickedValue}
 import com.github.chenharryhua.nanjin.guard.event.MetricID
@@ -20,32 +18,22 @@ import scala.jdk.CollectionConverters.MapHasAsScala
 
 final private class MetricsPump(metricRegistry: MetricRegistry) {
 
-  private val meters: Eval[Map[MetricID, Long]] =
-    Eval.always {
-      metricRegistry.getMeters().asScala
-        .foldLeft(Map.empty[MetricID, Long]) { case (map, (name, meter)) =>
-          decode[MetricID](name) match {
-            case Left(_)    => map
-            case Right(mid) => map + (mid -> meter.getCount)
-          }
-        }
-    }
+  private def meters: Map[MetricID, Long] =
+    metricRegistry.getMeters().asScala
+      .flatMap { case (mid, meter) =>
+        decode[MetricID](mid).toOption.map(_ -> meter.getCount)
+      }.toMap
 
-  private val timers: Eval[Map[MetricID, Long]] =
-    Eval.always {
-      metricRegistry.getTimers().asScala
-        .foldLeft(Map.empty[MetricID, Long]) { case (map, (name, timer)) =>
-          decode[MetricID](name) match {
-            case Left(_)    => map
-            case Right(mid) => map + (mid -> timer.getCount)
-          }
-        }
-    }
+  private def timers: Map[MetricID, Long] =
+    metricRegistry.getTimers().asScala
+      .flatMap { case (mid, timer) =>
+        decode[MetricID](mid).toOption.map(_ -> timer.getCount)
+      }.toMap
 
   def pumping[F[_]: Async](wsb2: WebSocketBuilder2[F], zoneId: ZoneId, policy: Policy): F[Response[F]] = {
     val send: Stream[F, WebSocketFrame] =
       tickStream.tickImmediate(zoneId, _.fresh(policy))
-        .map(tick => TickedValue(tick, (meters, timers).mapN(_ ++ _).value))
+        .map(tick => TickedValue(tick, meters ++ timers))
         .zipWithPrevious
         .map { case (pre, curr) =>
           pre match {
@@ -54,7 +42,7 @@ final private class MetricsPump(metricRegistry: MetricRegistry) {
                 value.foldLeft(previous.value) { case (sum, (mid, count)) =>
                   sum.updatedWith(mid)(_.map(count - _))
                 })
-            case None => curr.map(_ => Map.empty[MetricID, Long])
+            case None => curr.map(_.view.mapValues(_ => 0L).toMap[MetricID, Long])
           }
         }.map { tv =>
           val series = tv.value.map { case (mid, count) =>

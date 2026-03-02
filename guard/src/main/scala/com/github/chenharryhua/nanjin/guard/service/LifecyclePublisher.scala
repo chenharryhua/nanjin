@@ -14,8 +14,10 @@ import fs2.Stream
 import fs2.concurrent.Channel
 import org.apache.commons.collections4.queue.CircularFifoQueue
 
+import scala.jdk.CollectionConverters.IteratorHasAsScala
+
 final private class LifecyclePublisher[F[_]: Sync] private (
-  val panicHistory: AtomicCell[F, CircularFifoQueue[ServicePanic]],
+  panicHistory: AtomicCell[F, CircularFifoQueue[ServicePanic]],
   serviceParams: ServiceParams,
   channel: Channel[F, Event],
   logSink: LogSink[F]
@@ -43,6 +45,9 @@ final private class LifecyclePublisher[F[_]: Sync] private (
 
   def service_cancel: F[Unit] =
     channel.isClosed.ifM(().pure[F], service_stop(StopReason.ByCancellation))
+
+  def get_panic_history: F[List[ServicePanic]] =
+    panicHistory.get.map(_.iterator().asScala.toList)
 }
 
 private object LifecyclePublisher {

@@ -17,10 +17,10 @@ import fs2.Stream
 import fs2.concurrent.Channel
 import org.apache.commons.collections4.queue.CircularFifoQueue
 
-import scala.jdk.CollectionConverters.CollectionHasAsScala
+import scala.jdk.CollectionConverters.{CollectionHasAsScala, IteratorHasAsScala}
 
 final private class MetricsPublisher[F[_]] private (
-  val metricsHistory: AtomicCell[F, CircularFifoQueue[MetricsSnapshot]],
+  metricsHistory: AtomicCell[F, CircularFifoQueue[MetricsSnapshot]],
   serviceParams: ServiceParams,
   metricRegistry: MetricRegistry,
   channel: Channel[F, Event],
@@ -79,6 +79,13 @@ final private class MetricsPublisher[F[_]] private (
     tickingBy(reset_kind).evalMap { tick =>
       publish(reset_kind, Periodic(tick), ScrapeMode.Full).flatTap(_ => reset_counters)
     }.drain
+
+  /*
+   * History
+   */
+
+  def get_snapshot_history: F[List[MetricsSnapshot]] =
+    metricsHistory.get.map(_.iterator().asScala.toList)
 
   /*
    * API

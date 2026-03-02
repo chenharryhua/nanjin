@@ -2,8 +2,9 @@ package com.github.chenharryhua.nanjin.guard.dashboard
 
 import cats.data.Kleisli
 import cats.effect.kernel.Async
+import cats.syntax.show.toShow
 import com.codahale.metrics.MetricRegistry
-import com.github.chenharryhua.nanjin.common.chrono.Policy
+import com.comcast.ip4s.Port
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import org.http4s.circe.CirceEntityCodec.circeEntityEncoder
 import org.http4s.dsl.Http4sDsl
@@ -11,16 +12,12 @@ import org.http4s.scalatags.*
 import org.http4s.server.Router
 import org.http4s.server.websocket.WebSocketBuilder2
 import org.http4s.{HttpRoutes, Request, Response, StaticFile}
+import org.typelevel.cats.time.zoneidInstances
 import scalatags.Text
 import scalatags.Text.all.*
 
-import java.time.ZoneId
-
-final class DashboardWs[F[_]](
-  serviceParams: ServiceParams,
-  metricRegistry: MetricRegistry,
-  zoneId: ZoneId,
-  policy: Policy)(implicit F: Async[F])
+final class DashboardWs[F[_]](port: Port, serviceParams: ServiceParams, metricRegistry: MetricRegistry)(
+  implicit F: Async[F])
     extends Http4sDsl[F] {
 
   private val pump = new MetricsPump(metricRegistry)
@@ -35,9 +32,10 @@ final class DashboardWs[F[_]](
       ),
       body(
         div(
-          id              := "chart-root",
-          data("ws_port") := serviceParams.host.port.map(_.value).getOrElse(1026),
-          data("zone_id") := zoneId.toString
+          id                 := "chart-root",
+          data("ws_port")    := port.value,
+          data("zone_id")    := serviceParams.zoneId.show,
+          data("max_points") := serviceParams.servicePolicies.realtimeMetrics.maxPoints
         ),
         script(`type` := "module", src := "/dashboard/frontend.js")
       )
@@ -49,7 +47,8 @@ final class DashboardWs[F[_]](
 
     case GET -> Root / "dashboard" => Ok(html_page)
 
-    case GET -> Root / "ws" => pump.pumping(wsb2, zoneId, policy)
+    case GET -> Root / "ws" =>
+      pump.pumping(wsb2, serviceParams.zoneId, serviceParams.servicePolicies.realtimeMetrics.policy)
 
     case GET -> Root / "report" => Ok("good")
   }

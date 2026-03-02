@@ -13,16 +13,7 @@ case class Point(x: Double, y: Double) {
 }
 
 @JsonCodec
-case class Series(name: String, point: Point) {
-  def toDataset(borderColor: String): js.Dynamic = js.Dynamic.literal(
-    label = name,
-    data = js.Array(point.dataPoint),
-    borderColor = borderColor,
-    fill = false,
-    tension = 0.3,
-    borderWidth = 2,
-    pointRadius = 0
-  )
-}
+case class Series(name: String, point: Point)
+
 @JsonCodec
 case class WsMessage(series: List[Series])
