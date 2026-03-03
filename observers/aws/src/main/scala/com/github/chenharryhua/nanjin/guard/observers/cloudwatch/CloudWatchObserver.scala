@@ -10,6 +10,8 @@ import com.github.chenharryhua.nanjin.common.aws.CloudWatchNamespace
 import com.github.chenharryhua.nanjin.common.chrono.{tickStream, Policy, Tick}
 import com.github.chenharryhua.nanjin.guard.config.{ServiceId, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.Event.MetricsSnapshot
+import com.github.chenharryhua.nanjin.guard.event.MetricsEvent.Index.Periodic
+import com.github.chenharryhua.nanjin.guard.event.MetricsEvent.Kind.Report
 import com.github.chenharryhua.nanjin.guard.event.{Event, MetricID, MetricLabel, Snapshot, Squants, Timestamp}
 import com.github.chenharryhua.nanjin.guard.translator.Attribute
 import fs2.{Pipe, Stream}
@@ -20,8 +22,6 @@ import java.time.ZoneId
 import java.util
 import scala.jdk.CollectionConverters.*
 import scala.jdk.DurationConverters.JavaDurationOps
-import com.github.chenharryhua.nanjin.guard.event.MetricsEvent.Kind.Report
-import com.github.chenharryhua.nanjin.guard.event.MetricsEvent.Index.Periodic
 
 object CloudWatchObserver {
   def apply[F[_]: Async](client: Resource[F, CloudWatch[F]]): CloudWatchObserver[F] =
@@ -59,7 +59,8 @@ final class CloudWatchObserver[F[_]: Async] private (
     } yield {
       val (dur, category) = hf.pick(timer)
       val (su, value) = CloudWatchTimeUnit.toStandardUnit(
-        squants = Squants(time.Microseconds.symbol, time.Time.name),
+        unitSymbol = time.Microseconds.symbol,
+        dimensionName = time.Time.name,
         data = time.Time(dur.toScala).to(time.Microseconds)
       )
       MetricKey(
@@ -76,7 +77,8 @@ final class CloudWatchObserver[F[_]: Async] private (
       histo <- report.snapshot.histograms
     } yield {
       val (value, category) = hf.pick(histo)
-      val (su, data) = CloudWatchTimeUnit.toStandardUnit(squants = histo.histogram.squants, data = value)
+      val Squants(symbol, name) = histo.histogram.squants
+      val (su, data) = CloudWatchTimeUnit.toStandardUnit(symbol, name, data = value)
       MetricKey(
         timestamp = report.timestamp,
         serviceParams = report.serviceParams,
@@ -103,8 +105,9 @@ final class CloudWatchObserver[F[_]: Async] private (
       report.snapshot.meters.map { meter =>
         val aggregate: Long = meter.meter.aggregate
         val value: Long = lookup.get(meter.metricId).fold(aggregate)(aggregate - _)
+        val Squants(symbol, name) = meter.meter.squants
         val (su, data) =
-          CloudWatchTimeUnit.toStandardUnit(squants = meter.meter.squants, data = value.toDouble)
+          CloudWatchTimeUnit.toStandardUnit(symbol, name, data = value.toDouble)
         MetricKey(
           timestamp = report.timestamp,
           serviceParams = report.serviceParams,

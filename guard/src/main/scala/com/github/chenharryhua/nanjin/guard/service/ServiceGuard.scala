@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.guard.service
 
 import cats.Endo
 import cats.effect.kernel.{Async, Ref, Resource}
-import cats.effect.std.{Console, Dispatcher, SecureRandom, UUIDGen}
+import cats.effect.std.{AtomicCell, Console, Dispatcher, SecureRandom, UUIDGen}
 import cats.syntax.flatMap.toFlatMapOps
 import cats.syntax.functor.toFunctorOps
 import cats.syntax.option.catsSyntaxOptionId
@@ -20,12 +20,14 @@ import com.github.chenharryhua.nanjin.guard.config.{
   ServiceId,
   ServiceParams
 }
+import com.github.chenharryhua.nanjin.guard.event.Event.ReportedEvent
 import com.github.chenharryhua.nanjin.guard.event.{Domain, Event}
 import com.github.chenharryhua.nanjin.guard.service.dashboard.HttpDataServer
 import fs2.Stream
 import fs2.concurrent.Channel
 import fs2.io.net.Network
 import io.circe.syntax.EncoderOps
+import org.apache.commons.collections4.queue.CircularFifoQueue
 import org.http4s.ember.server.EmberServerBuilder
 
 import java.util.UUID
@@ -78,27 +80,14 @@ final private class ServiceGuardImpl[F[_]: Network: Async: Console] private[guar
     for {
       kickedOff <- Stream.eval(kicking_off)
       dispatcher <- Stream.resource(Dispatcher.sequential[F](await = false))
-      helper = new ServiceBuildHelper[F](kickedOff.serviceParams)
-      errorHistory <- helper.error_history
+      errorHistory <- Stream.eval(
+        AtomicCell[F].of(new CircularFifoQueue[ReportedEvent](kickedOff.serviceParams.historyCapacity.error)))
       alarmLevel <- Stream.eval(Ref.of[F, Option[AlarmLevel]](config.alarmLevel.some))
       channel <- Stream.eval(Channel.unbounded[F, Event])
       metricRegistry: MetricRegistry = new MetricRegistry()
       metricsPublisher <- MetricsPublisher(kickedOff.serviceParams, metricRegistry, channel)
       lifecyclePublisher <- LifecyclePublisher(kickedOff.serviceParams, channel)
       event <- {
-        val http_data_server: Stream[F, Nothing] =
-          kickedOff.emberServerBuilder.fold(Stream.empty.covaryAll[F, Nothing]) { esb =>
-            val ws = new HttpDataServer[F](
-              port = esb.port,
-              serviceParams = kickedOff.serviceParams,
-              metricRegistry = metricRegistry,
-              metricsPublisher = metricsPublisher,
-              lifecyclePublisher = lifecyclePublisher,
-              errorHistory = errorHistory
-            )
-            Stream.resource(esb.withHttpWebSocketApp(ws.dataRouter).build) >> Stream.never[F]
-          }
-
         val agent: GeneralAgent[F] =
           new GeneralAgent[F](
             kickedOff.serviceParams,
@@ -120,12 +109,18 @@ final private class ServiceGuardImpl[F[_]: Network: Async: Console] private[guar
           ).stream
 
         // put together
-        channel.stream
+        channel.stream // main stream
           .concurrently(metricsPublisher.reset_periodic)
           .concurrently(metricsPublisher.report_periodic)
-          .concurrently(helper.service_jmx_report(metricRegistry, config.jmxBuilder))
-          .concurrently(http_data_server)
+          .concurrently(jmxReporter[F](metricRegistry, config.jmxBuilder))
           .concurrently(surveillance)
+          .concurrently(
+            HttpDataServer(
+              emberServerBuilder = kickedOff.emberServerBuilder,
+              metricsPublisher = metricsPublisher,
+              lifecyclePublisher = lifecyclePublisher,
+              errorHistory = errorHistory))
+
       }
     } yield event
 

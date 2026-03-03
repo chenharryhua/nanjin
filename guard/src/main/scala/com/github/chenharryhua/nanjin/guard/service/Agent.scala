@@ -8,6 +8,7 @@ import com.github.benmanes.caffeine.cache.Cache
 import com.github.chenharryhua.nanjin.common.chrono.*
 import com.github.chenharryhua.nanjin.common.{CircuitBreaker, Retry}
 import com.github.chenharryhua.nanjin.guard.batch.Batch
+import com.github.chenharryhua.nanjin.guard.cache.CaffeineCache
 import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, ServiceParams}
 import com.github.chenharryhua.nanjin.guard.event.*
 import com.github.chenharryhua.nanjin.guard.event.Event.ReportedEvent

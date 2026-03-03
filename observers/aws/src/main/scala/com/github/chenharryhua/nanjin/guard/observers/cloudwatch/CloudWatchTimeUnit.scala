@@ -1,14 +1,12 @@
 package com.github.chenharryhua.nanjin.guard.observers.cloudwatch
 
 import cats.syntax.eq.catsSyntaxEq
-import com.github.chenharryhua.nanjin.guard.event.Squants
 import software.amazon.awssdk.services.cloudwatch.model.StandardUnit
 import squants.{information, time, Dimensionless, Dozen, Each, Gross, Percent, Score}
 
 object CloudWatchTimeUnit {
 
-  def toStandardUnit(squants: Squants, data: Double): (StandardUnit, Double) = {
-    val Squants(unitSymbol, dimensionName) = squants
+  def toStandardUnit(unitSymbol: String, dimensionName: String, data: Double): (StandardUnit, Double) = {
     unitSymbol match {
       case Each.symbol if dimensionName === Dimensionless.name =>
         (StandardUnit.COUNT, data)

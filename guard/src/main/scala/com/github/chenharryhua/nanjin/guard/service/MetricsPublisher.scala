@@ -21,9 +21,9 @@ import org.apache.commons.collections4.queue.CircularFifoQueue
 import scala.jdk.CollectionConverters.{CollectionHasAsScala, IteratorHasAsScala}
 
 final private class MetricsPublisher[F[_]] private (
+  val metricRegistry: MetricRegistry,
+  val serviceParams: ServiceParams,
   metricsHistory: AtomicCell[F, CircularFifoQueue[MetricsSnapshot]],
-  serviceParams: ServiceParams,
-  metricRegistry: MetricRegistry,
   channel: Channel[F, Event],
   logSink: LogSink[F]
 )(implicit F: Async[F])
@@ -114,7 +114,7 @@ private object MetricsPublisher {
       AtomicCell[F].of(new CircularFifoQueue[MetricsSnapshot](serviceParams.historyCapacity.metric))
 
     Stream.eval((cell, log_sink(serviceParams)).mapN { case (a, b) =>
-      new MetricsPublisher[F](a, serviceParams, metricRegistry, channel, b)
+      new MetricsPublisher[F](metricRegistry, serviceParams, a, channel, b)
     })
   }
 }

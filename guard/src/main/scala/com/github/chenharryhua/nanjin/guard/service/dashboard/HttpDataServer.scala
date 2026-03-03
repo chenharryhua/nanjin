@@ -5,18 +5,18 @@ import cats.effect.kernel.Async
 import cats.effect.std.AtomicCell
 import cats.syntax.flatMap.toFlatMapOps
 import cats.syntax.functor.toFunctorOps
-import com.codahale.metrics.MetricRegistry
 import com.comcast.ip4s.Port
-import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.event.Event.ReportedEvent
 import com.github.chenharryhua.nanjin.guard.event.StopReason
 import com.github.chenharryhua.nanjin.guard.service.{LifecyclePublisher, MetricsPublisher}
 import com.github.chenharryhua.nanjin.guard.translator.{interpretServiceParams, prettifyJson}
+import fs2.Stream
 import io.circe.Json
 import io.circe.syntax.EncoderOps
 import org.apache.commons.collections4.queue.CircularFifoQueue
 import org.http4s.circe.CirceEntityCodec.circeEntityEncoder
 import org.http4s.dsl.Http4sDsl
+import org.http4s.ember.server.EmberServerBuilder
 import org.http4s.scalatags.*
 import org.http4s.server.Router
 import org.http4s.server.websocket.WebSocketBuilder2
@@ -26,16 +26,15 @@ import scalatags.Text.all.*
 
 import scala.jdk.CollectionConverters.IteratorHasAsScala
 
-final private[service] class HttpDataServer[F[_]](
+final private class HttpDataServer[F[_]](
   port: Port,
-  serviceParams: ServiceParams,
-  metricRegistry: MetricRegistry,
   metricsPublisher: MetricsPublisher[F],
   lifecyclePublisher: LifecyclePublisher[F],
   errorHistory: AtomicCell[F, CircularFifoQueue[ReportedEvent]])(implicit F: Async[F])
     extends Http4sDsl[F] {
 
-  private val pump = new MetricsPump(metricRegistry)
+  private val pump = new MetricsPump(metricsPublisher.metricRegistry)
+  private val serviceParams = metricsPublisher.serviceParams
 
   private val inject_backend_script = BackendConfig(
     port = port,
@@ -129,4 +128,21 @@ final private[service] class HttpDataServer[F[_]](
 
   def dataRouter(wsb2: WebSocketBuilder2[F]): Kleisli[F, Request[F], Response[F]] =
     Router("/" -> metrics(wsb2)).orNotFound
+}
+
+private[service] object HttpDataServer {
+  def apply[F[_]: Async](
+    emberServerBuilder: Option[EmberServerBuilder[F]],
+    metricsPublisher: MetricsPublisher[F],
+    lifecyclePublisher: LifecyclePublisher[F],
+    errorHistory: AtomicCell[F, CircularFifoQueue[ReportedEvent]]): Stream[F, Nothing] =
+    emberServerBuilder.fold(Stream.empty.covaryAll[F, Nothing]) { esb =>
+      val ws = new HttpDataServer[F](
+        port = esb.port,
+        metricsPublisher = metricsPublisher,
+        lifecyclePublisher = lifecyclePublisher,
+        errorHistory = errorHistory
+      )
+      Stream.resource(esb.withHttpWebSocketApp(ws.dataRouter).build) >> Stream.never[F]
+    }
 }
