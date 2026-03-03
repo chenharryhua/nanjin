@@ -3,10 +3,9 @@ package mtest.guard
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.implicits.catsSyntaxTuple2Semigroupal
-import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.batch.*
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStop
-import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
+import com.github.chenharryhua.nanjin.guard.service.{ServiceGuard, TaskGuard}
 import io.circe.Json
 import io.circe.jawn.decode
 import io.circe.syntax.EncoderOps

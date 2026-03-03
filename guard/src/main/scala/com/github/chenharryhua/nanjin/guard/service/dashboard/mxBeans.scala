@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.guard.service
+package com.github.chenharryhua.nanjin.guard.service.dashboard
 
 import cats.Eval
 import cats.syntax.traverse.toTraverseOps

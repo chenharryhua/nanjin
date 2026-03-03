@@ -1,7 +1,8 @@
 package com.github.chenharryhua.nanjin.guard.service
 
 import cats.effect.kernel.Async
-import cats.effect.std.AtomicCell
+import cats.effect.std.{AtomicCell, Console}
+import cats.syntax.apply.catsSyntaxTuple2Semigroupal
 import cats.syntax.flatMap.toFlatMapOps
 import cats.syntax.functor.toFunctorOps
 import com.codahale.metrics.MetricRegistry
@@ -105,12 +106,15 @@ final private class MetricsPublisher[F[_]] private (
 }
 
 private object MetricsPublisher {
-  def apply[F[_]: Async](
+  def apply[F[_]: Async: Console](
     serviceParams: ServiceParams,
     metricRegistry: MetricRegistry,
-    channel: Channel[F, Event],
-    logSink: LogSink[F]): Stream[F, MetricsPublisher[F]] =
-    Stream.eval(
-      AtomicCell[F].of(new CircularFifoQueue[MetricsSnapshot](serviceParams.historyCapacity.metric)))
-      .map(new MetricsPublisher(_, serviceParams, metricRegistry, channel, logSink))
+    channel: Channel[F, Event]): Stream[F, MetricsPublisher[F]] = {
+    val cell: F[AtomicCell[F, CircularFifoQueue[MetricsSnapshot]]] =
+      AtomicCell[F].of(new CircularFifoQueue[MetricsSnapshot](serviceParams.historyCapacity.metric))
+
+    Stream.eval((cell, log_sink(serviceParams)).mapN { case (a, b) =>
+      new MetricsPublisher[F](a, serviceParams, metricRegistry, channel, b)
+    })
+  }
 }

@@ -9,29 +9,25 @@ import com.github.chenharryhua.nanjin.guard.event.CategoryKind.HistogramKind
 import com.github.chenharryhua.nanjin.guard.event.{Category, MetricID, MetricLabel, MetricName, Squants}
 import squants.{Quantity, UnitOfMeasure}
 
-trait Histogram[F[_], A] {
+trait Histogram[F[_]] {
   def update(num: Long): F[Unit]
 
   final def update(num: Int): F[Unit] = update(num.toLong)
-
-  def run(num: A): F[Unit]
 }
 
 object Histogram {
-  def noop[F[_], A](implicit F: Applicative[F]): Histogram[F, A] =
-    new Histogram[F, A] {
+  def noop[F[_]](implicit F: Applicative[F]): Histogram[F] =
+    new Histogram[F] {
       override def update(num: Long): F[Unit] = F.unit
-
-      override def run(num: A): F[Unit] = F.unit
     }
 
-  private class Impl[F[_]: Sync, A <: Quantity[A]](
+  private class Impl[F[_]: Sync](
     private[this] val label: MetricLabel,
     private[this] val metricRegistry: metrics.MetricRegistry,
-    private[this] val unitOfMeasure: UnitOfMeasure[A],
+    private[this] val squants: Squants,
     private[this] val reservoir: Option[metrics.Reservoir],
     private[this] val name: MetricName)
-      extends Histogram[F, A] {
+      extends Histogram[F] {
 
     private[this] val F = Sync[F]
 
@@ -39,9 +35,7 @@ object Histogram {
       MetricID(
         metricLabel = label,
         metricName = name,
-        Category.Histogram(
-          kind = HistogramKind.Histogram,
-          squants = Squants(unitOfMeasure.symbol, unitOfMeasure(1).dimension.name))
+        Category.Histogram(kind = HistogramKind.Histogram, squants = squants)
       ).identifier
 
     private[this] val supplier: metrics.MetricRegistry.MetricSupplier[metrics.Histogram] = () =>
@@ -57,34 +51,36 @@ object Histogram {
 
     val unregister: F[Unit] = F.delay(metricRegistry.remove(histogram_name)).void
 
-    override def run(num: A): F[Unit] = update(num.to(unitOfMeasure).toLong)
   }
 
-  final class Builder[A <: Quantity[A]] private[guard] (
+  final class Builder private[guard] (
     isEnabled: Boolean,
-    unitOfMeasure: UnitOfMeasure[A],
+    squants: Squants,
     reservoir: Option[metrics.Reservoir])
-      extends EnableConfig[Builder[A]] {
+      extends EnableConfig[Builder] {
 
-    def withReservoir(reservoir: metrics.Reservoir): Builder[A] =
-      new Builder(isEnabled, unitOfMeasure, Some(reservoir))
+    def withReservoir(reservoir: metrics.Reservoir): Builder =
+      new Builder(isEnabled, squants, Some(reservoir))
 
-    override def enable(isEnabled: Boolean): Builder[A] =
-      new Builder(isEnabled, unitOfMeasure, reservoir)
+    def withUnit[A <: Quantity[A]](um: UnitOfMeasure[A]): Builder =
+      new Builder(isEnabled, Squants(um), reservoir)
+
+    override def enable(isEnabled: Boolean): Builder =
+      new Builder(isEnabled, squants, reservoir)
 
     private[guard] def build[F[_]](label: MetricLabel, name: String, metricRegistry: metrics.MetricRegistry)(
-      implicit F: Sync[F]): Resource[F, Histogram[F, A]] = {
-      val histogram: Resource[F, Histogram[F, A]] =
+      implicit F: Sync[F]): Resource[F, Histogram[F]] = {
+      val histogram: Resource[F, Histogram[F]] =
         Resource.make(MetricName(name).map { metricName =>
-          new Impl[F, A](
+          new Impl[F](
             label = label,
             metricRegistry = metricRegistry,
-            unitOfMeasure = unitOfMeasure,
+            squants = squants,
             reservoir = reservoir,
             name = metricName)
         })(_.unregister)
 
-      fold_create_noop(isEnabled)(histogram, Resource.pure(noop[F, A]))
+      fold_create_noop(isEnabled)(histogram, Resource.pure(noop[F]))
     }
   }
 }

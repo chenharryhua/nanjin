@@ -3,7 +3,7 @@ package mtest.guard
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.chrono.zones.berlinTime
-import com.github.chenharryhua.nanjin.guard.TaskGuard
+import com.github.chenharryhua.nanjin.guard.service.TaskGuard
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.DurationInt

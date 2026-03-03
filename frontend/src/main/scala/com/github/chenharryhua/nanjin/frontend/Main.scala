@@ -3,16 +3,7 @@ import com.raquo.laminar.api.L._
 import com.raquo.laminar.nodes.ReactiveHtmlElement
 import io.circe.jawn.decode
 import org.scalajs.dom
-import org.scalajs.dom.{
-  document,
-  html,
-  CloseEvent,
-  Event,
-  HTMLCanvasElement,
-  HTMLDivElement,
-  MessageEvent,
-  WebSocket
-}
+import org.scalajs.dom.{CloseEvent, Event, HTMLCanvasElement, HTMLDivElement, MessageEvent, WebSocket}
 
 import scala.scalajs.js
 import scala.scalajs.js.Dynamic.literal
@@ -22,16 +13,13 @@ object Main {
   /*
    * from backend
    */
-  private val rootDiv = document.getElementById("chart-root").asInstanceOf[html.Div]
-  private val port: String = rootDiv.dataset("ws_port")
-  private val zoneId: String = rootDiv.dataset("zone_id")
-  private val maxPoints: Int = rootDiv.dataset("max_points").toInt
+  private val config: BackendConfig = BackendConfig.load()
 
   /*
    * Chart
    */
   private val chartVar: Var[Option[js.Dynamic]] = Var(Option.empty[js.Dynamic])
-  private val manager: ChartManager = new ChartManager(maxPoints)
+  private val manager: ChartManager = new ChartManager(config.maxPoints)
 
   /*
    * Initialization
@@ -87,7 +75,7 @@ object Main {
    * Websocket
    */
 
-  private def connectWS(port: String): Unit = {
+  private def connectWS(port: Int): Unit = {
 
     val ws = new WebSocket(s"ws://localhost:$port/ws")
 
@@ -126,10 +114,10 @@ object Main {
         onMountCallback { ctx =>
           val canvas = ctx.thisNode.ref
 
-          val chart = initChart(canvas, zoneId)
+          val chart = initChart(canvas, config.zoneId)
           chartVar.set(Some(chart))
 
-          connectWS(port)
+          connectWS(config.port)
         },
 
         // optional cleanup

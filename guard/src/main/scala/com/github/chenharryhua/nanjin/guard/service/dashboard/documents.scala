@@ -1,9 +1,16 @@
-package com.github.chenharryhua.nanjin.guard.dashboard
+package com.github.chenharryhua.nanjin.guard.service.dashboard
 
 import cats.syntax.show.toShow
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
-import com.github.chenharryhua.nanjin.guard.event.Event.ReportedEvent
-import com.github.chenharryhua.nanjin.guard.event.{Active, Event, Snooze, Timestamp, Took}
+import com.github.chenharryhua.nanjin.guard.event.Event.{MetricsSnapshot, ReportedEvent}
+import com.github.chenharryhua.nanjin.guard.event.{
+  retrieveHealthChecks,
+  Active,
+  Event,
+  Snooze,
+  Timestamp,
+  Took
+}
 import com.github.chenharryhua.nanjin.guard.translator.{
   durationFormatter,
   htmlColoring,
@@ -14,11 +21,12 @@ import io.circe.Json
 import io.circe.syntax.EncoderOps
 import org.typelevel.cats.time.localtimeInstances
 import scalatags.Text
+import scalatags.Text.all.*
 
 import java.time.temporal.ChronoUnit
-import java.time.{Duration, ZonedDateTime}
+import java.time.{Duration, Instant, ZonedDateTime}
 
-object histories {
+private object documents {
   private case class Present(value: ZonedDateTime) {
     val text: String = value.toLocalTime.truncatedTo(ChronoUnit.SECONDS).show
     val json: Json = text.asJson
@@ -26,6 +34,10 @@ object histories {
   private case class Age(value: Duration) {
     val json: Json = durationFormatter.format(value).asJson
   }
+
+  /*
+   * Json
+   */
 
   def service_panic_history(
     serviceParams: ServiceParams,
@@ -83,40 +95,89 @@ object histories {
       }.asJson
     )
 
+  def service_health_check(
+    panics: List[Event.ServicePanic],
+    snapshots: List[Event.MetricsSnapshot],
+    now: Instant): Either[String, Json] = {
+    val deps_health_check: Json = {
+      val res = snapshots.lastOption
+        .map(ms => retrieveHealthChecks(ms.snapshot.gauges).values)
+        .fold(true)(_.forall(identity))
+
+      Json.obj("healthy" -> Json.fromBoolean(res))
+    }
+
+    panics.lastOption match {
+      case None      => Right(deps_health_check)
+      case Some(evt) =>
+        if (evt.tick.conclude.isAfter(now)) {
+          val recover = Duration.between(now, evt.tick.conclude)
+          Left(s"Service panic detected. Restarting in ${durationFormatter.format(recover)}")
+        } else {
+          Right(deps_health_check)
+        }
+    }
+  }
+
+  /*
+   * Html
+   */
+
+  private def html_header(title: String): Text.TypedTag[String] =
+    head(
+      tag("style")("""
+        td, th {text-align: left; padding: 2px; border: 1px solid;}
+        table {
+          border-collapse: collapse;
+          width: 70%;
+        }
+      """),
+      tag("title")(title)
+    )
+
+  private def table_title_section(
+    serviceParams: ServiceParams,
+    now: ZonedDateTime,
+    took: Duration): Text.TypedTag[String] = {
+    val service_name = Attribute(serviceParams.serviceName).textEntry
+    val policy = Attribute(serviceParams.servicePolicies.metricsReport).textEntry
+    val timezone = Attribute(serviceParams.timeZone).textEntry
+    val uptime = Attribute(serviceParams.upTime(now)).textEntry
+    val spend = Attribute(Took(took)).textEntry
+    val present = Attribute(Present(now)).textEntry(_.text)
+
+    table(
+      tr(
+        th(service_name.tag),
+        th(policy.tag),
+        th(timezone.tag),
+        th(uptime.tag),
+        th(spend.tag),
+        th(present.tag)),
+      tr(
+        td(service_name.text),
+        td(policy.text),
+        td(timezone.text),
+        td(uptime.text),
+        td(spend.text),
+        td(present.text))
+    )
+  }
+
+  def snapshot_to_yaml_html(title: String)(ms: MetricsSnapshot): Text.TypedTag[String] = {
+    val yaml = new SnapshotPolyglot(ms.snapshot).toYaml
+    html(
+      html_header(s"$title-${ms.serviceParams.serviceName.value}"),
+      body(div(table_title_section(ms.serviceParams, ms.timestamp.value, ms.took.value), pre(yaml)))
+    )
+  }
+
   def metrics_history(
     serviceParams: ServiceParams,
     metricsSnapshots: List[Event.MetricsSnapshot],
-    now: ZonedDateTime): List[Text.TypedTag[String]] = {
-    import scalatags.Text
-    import scalatags.Text.all.*
+    now: ZonedDateTime): Text.TypedTag[String] = {
 
-    def html_table_title(now: ZonedDateTime, took: Duration): Text.TypedTag[String] = {
-      val service_name = Attribute(serviceParams.serviceName).textEntry
-      val policy = Attribute(serviceParams.servicePolicies.metricsReport).textEntry
-      val timezone = Attribute(serviceParams.timeZone).textEntry
-      val uptime = Attribute(serviceParams.upTime(now)).textEntry
-      val spend = Attribute(Took(took)).textEntry
-      val present = Attribute(Present(now)).textEntry(_.text)
-
-      table(
-        tr(
-          th(service_name.tag),
-          th(policy.tag),
-          th(timezone.tag),
-          th(uptime.tag),
-          th(spend.tag),
-          th(present.tag)),
-        tr(
-          td(service_name.text),
-          td(policy.text),
-          td(timezone.text),
-          td(uptime.text),
-          td(spend.text),
-          td(present.text))
-      )
-    }
-
-    val history = metricsSnapshots.map { mr =>
+    val list = metricsSnapshots.reverse.map { mr =>
       val took = Attribute(mr.took).textEntry
       val label = Attribute(mr.label).textEntry
       val timestamp = Attribute(mr.timestamp).textEntry
@@ -128,6 +189,10 @@ object histories {
         pre(new SnapshotPolyglot(mr.snapshot).toYaml)
       )
     }
-    history.map(hist => div(html_table_title(now, Duration.ZERO), h3("Metrics History"), hist))
+
+    val histories =
+      div(table_title_section(serviceParams, now, Duration.ZERO), h3("Metrics History"), list)
+
+    html(html_header(s"History-${serviceParams.serviceName.value}"), body(div(histories)))
   }
 }

@@ -8,12 +8,12 @@ import cats.syntax.flatMap.{catsSyntaxIfM, toFlatMapOps}
 import cats.syntax.functor.toFunctorOps
 import cats.syntax.option.{catsSyntaxOptionId, none}
 import com.codahale.metrics.MetricRegistry
-import com.github.chenharryhua.nanjin.guard.event.MetricLabel
+import com.github.chenharryhua.nanjin.guard.event.{MetricLabel, Squants}
 import com.github.chenharryhua.nanjin.guard.translator.durationFormatter
 import io.circe.syntax.EncoderOps
 import io.circe.{Encoder, Json}
 import io.github.timwspence.cats.stm.STM
-import squants.{Quantity, UnitOfMeasure}
+import squants.Each
 
 import java.time.ZoneId
 import scala.concurrent.duration.DurationInt
@@ -23,13 +23,9 @@ trait MetricsHub[F[_]] {
 
   def counter(name: String, f: Endo[Counter.Builder] = identity): Resource[F, Counter[F]]
 
-  def meter[A <: Quantity[A]](unitOfMeasure: UnitOfMeasure[A])(
-    name: String,
-    f: Endo[Meter.Builder[A]] = identity[Meter.Builder[A]](_)): Resource[F, Meter[F, A]]
+  def meter(name: String, f: Endo[Meter.Builder] = identity): Resource[F, Meter[F]]
 
-  def histogram[A <: Quantity[A]](unitOfMeasure: UnitOfMeasure[A])(
-    name: String,
-    f: Endo[Histogram.Builder[A]] = identity[Histogram.Builder[A]](_)): Resource[F, Histogram[F, A]]
+  def histogram(name: String, f: Endo[Histogram.Builder] = identity): Resource[F, Histogram[F]]
 
   def timer(name: String, f: Endo[Timer.Builder] = identity): Resource[F, Timer[F]]
 
@@ -67,17 +63,14 @@ object MetricsHub {
       f(initial).build[F](metricLabel, name, metricRegistry)
     }
 
-    override def meter[A <: Quantity[A]](
-      unitOfMeasure: UnitOfMeasure[A])(name: String, f: Endo[Meter.Builder[A]]): Resource[F, Meter[F, A]] = {
-      val initial = new Meter.Builder(isEnabled = true, unitOfMeasure = unitOfMeasure)
+    override def meter(name: String, f: Endo[Meter.Builder]): Resource[F, Meter[F]] = {
+      val initial = new Meter.Builder(isEnabled = true, squants = Squants(Each))
       f(initial).build[F](metricLabel, name, metricRegistry)
     }
 
-    override def histogram[A <: Quantity[A]](unitOfMeasure: UnitOfMeasure[A])(
-      name: String,
-      f: Endo[Histogram.Builder[A]]): Resource[F, Histogram[F, A]] = {
-      val initial: Histogram.Builder[A] =
-        new Histogram.Builder(isEnabled = true, unitOfMeasure = unitOfMeasure, reservoir = None)
+    override def histogram(name: String, f: Endo[Histogram.Builder]): Resource[F, Histogram[F]] = {
+      val initial: Histogram.Builder =
+        new Histogram.Builder(isEnabled = true, squants = Squants(Each), reservoir = None)
 
       f(initial).build[F](metricLabel, name, metricRegistry)
     }

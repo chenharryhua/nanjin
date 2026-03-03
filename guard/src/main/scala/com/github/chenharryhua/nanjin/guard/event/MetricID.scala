@@ -9,6 +9,7 @@ import enumeratum.{CirceEnum, Enum, EnumEntry}
 import io.circe.Encoder
 import io.circe.generic.JsonCodec
 import monocle.macros.GenPrism
+import squants.{Quantity, UnitOfMeasure}
 
 sealed trait CategoryKind extends EnumEntry with Product
 
@@ -61,6 +62,10 @@ object CategoryKind {
 
 @JsonCodec
 final case class Squants(unitSymbol: String, dimensionName: String)
+object Squants {
+  def apply[A <: Quantity[A]](um: UnitOfMeasure[A]): Squants =
+    Squants(um.symbol, um(1).dimension.name)
+}
 
 @JsonCodec
 sealed trait Category extends Product {

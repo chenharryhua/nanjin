@@ -1,4 +1,4 @@
-package com.github.chenharryhua.nanjin.guard.dashboard
+package com.github.chenharryhua.nanjin.guard.service.dashboard
 
 import cats.effect.kernel.Async
 import cats.syntax.applicative.catsSyntaxApplicativeId

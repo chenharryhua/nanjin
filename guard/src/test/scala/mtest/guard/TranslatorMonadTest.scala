@@ -7,11 +7,10 @@ import cats.laws.discipline.eq.*
 import cats.laws.discipline.{ExhaustiveCheck, FunctorFilterTests, MonadTests}
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.common.chrono.{Policy, PolicyTick, Tick}
-import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.config.ServiceParams
 import com.github.chenharryhua.nanjin.guard.event.*
 import com.github.chenharryhua.nanjin.guard.event.Event.*
-import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
+import com.github.chenharryhua.nanjin.guard.service.{ServiceGuard, TaskGuard}
 import com.github.chenharryhua.nanjin.guard.translator.Translator
 import munit.DisciplineSuite
 import org.scalacheck.{Arbitrary, Gen}

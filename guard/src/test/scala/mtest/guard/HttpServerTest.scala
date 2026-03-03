@@ -5,9 +5,9 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.comcast.ip4s.IpLiteralSyntax
 import com.github.chenharryhua.nanjin.common.chrono.zones.londonTime
-import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.Event.{ServiceStart, ServiceStop}
 import com.github.chenharryhua.nanjin.guard.event.StopReason.Maintenance
+import com.github.chenharryhua.nanjin.guard.service.TaskGuard
 import io.circe.{jawn, Json}
 import org.http4s.ember.client.EmberClientBuilder
 import org.scalatest.funsuite.AnyFunSuite
@@ -28,11 +28,10 @@ class HttpServerTest extends AnyFunSuite {
       .default[IO]
       .build
       .use { c =>
-        c.expect[String]("http://localhost:9999/index.html") >>
-          c.expect[String]("http://localhost:9999/metrics/yaml") >>
+        c.expect[String]("http://localhost:9999/metrics/report") >>
           c.expect[String]("http://localhost:9999/metrics/reset") >>
-          c.expect[String]("http://localhost:9999/metrics/jvm") >>
           c.expect[String]("http://localhost:9999/metrics/history") >>
+          c.expect[String]("http://localhost:9999/service/jvm") >>
           c.expect[String]("http://localhost:9999/service/params") >>
           c.expect[String]("http://localhost:9999/service/health_check") >>
           c.expect[String]("http://localhost:9999/service/panic/history") >>
@@ -54,8 +53,8 @@ class HttpServerTest extends AnyFunSuite {
               for {
                 _ <- ag.gauge("a").register(IO(1))
                 _ <- ag.counter("a").evalMap(_.inc(1))
-                _ <- ag.histogram(Bytes)("a", _.enable(true)).evalMap(_.update(1))
-                _ <- ag.meter(Megabytes)("a").evalMap(_.mark(1))
+                _ <- ag.histogram("a", _.enable(true).withUnit(Bytes)).evalMap(_.update(1))
+                _ <- ag.meter("a", _.withUnit(Megabytes)).evalMap(_.mark(1))
               } yield Kleisli((_: Int) => IO.unit)
             }
             .use(_.run(1) >> agent.adhoc.report >> IO.sleep(10.hours))

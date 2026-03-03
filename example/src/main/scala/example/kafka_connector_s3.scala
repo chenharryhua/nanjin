@@ -18,7 +18,6 @@ import io.lemonlabs.uri.Url
 import io.lemonlabs.uri.typesafe.dsl.urlToUrlDsl
 import org.apache.avro.generic.{GenericData, GenericRecord}
 import org.apache.hadoop.conf.Configuration
-import squants.Each
 import squants.information.Bytes
 
 import scala.concurrent.duration.DurationInt
@@ -34,10 +33,10 @@ object kafka_connector_s3 {
       idle <- mtx.idleGauge("idle", _.enable(true))
       goodNum <- mtx.counter("good.records", _.enable(true))
       badNum <- mtx.counter("bad.records", _.asRisk.enable(true))
-      countRate <- mtx.meter(Each)("count.rate", _.enable(true))
-      byteRate <- mtx.meter(Bytes)("bytes.rate", _.enable(true))
-      keySize <- mtx.histogram(Bytes)("key.size", _.enable(true))
-      valSize <- mtx.histogram(Bytes)("val.size", _.enable(true))
+      countRate <- mtx.meter("count.rate", _.enable(true))
+      byteRate <- mtx.meter("bytes.rate", _.enable(true).withUnit(Bytes))
+      keySize <- mtx.histogram("key.size", _.enable(true).withUnit(Bytes))
+      valSize <- mtx.histogram("val.size", _.enable(true).withUnit(Bytes))
     } yield Kleisli { (ccr: CCR) =>
       val ks: Option[Long] = ccr.record.serializedKeySize.map(_.toLong)
       val vs: Option[Long] = ccr.record.serializedValueSize.map(_.toLong)

@@ -1,10 +1,10 @@
-package com.github.chenharryhua.nanjin.guard
+package com.github.chenharryhua.nanjin.guard.service
+
 import cats.Endo
 import cats.effect.kernel.Async
 import cats.effect.std.Console
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.guard.config.{Service, ServiceConfig, Task}
-import com.github.chenharryhua.nanjin.guard.service.{ServiceGuard, ServiceGuardImpl}
 import fs2.io.net.Network
 
 /** poor man's telemetry
