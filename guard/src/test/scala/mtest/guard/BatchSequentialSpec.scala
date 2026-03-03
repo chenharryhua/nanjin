@@ -2,9 +2,8 @@ package mtest.guard
 
 import cats.effect.IO
 import cats.effect.testing.scalatest.AsyncIOSpec
-import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStop
-import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
+import com.github.chenharryhua.nanjin.guard.service.{ServiceGuard, TaskGuard}
 import org.scalatest.freespec.AsyncFreeSpec
 import org.scalatest.matchers.should.Matchers
 import com.github.chenharryhua.nanjin.guard.batch.{JobHook, JobResultError, PostConditionUnsatisfied}

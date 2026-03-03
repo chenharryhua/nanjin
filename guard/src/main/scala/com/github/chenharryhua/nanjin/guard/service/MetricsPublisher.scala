@@ -1,7 +1,8 @@
 package com.github.chenharryhua.nanjin.guard.service
 
 import cats.effect.kernel.Async
-import cats.effect.std.AtomicCell
+import cats.effect.std.{AtomicCell, Console}
+import cats.syntax.apply.catsSyntaxTuple2Semigroupal
 import cats.syntax.flatMap.toFlatMapOps
 import cats.syntax.functor.toFunctorOps
 import com.codahale.metrics.MetricRegistry
@@ -17,15 +18,17 @@ import fs2.Stream
 import fs2.concurrent.Channel
 import org.apache.commons.collections4.queue.CircularFifoQueue
 
-import scala.jdk.CollectionConverters.CollectionHasAsScala
+import scala.jdk.CollectionConverters.{CollectionHasAsScala, IteratorHasAsScala}
 
 final private class MetricsPublisher[F[_]] private (
-  val metricsHistory: AtomicCell[F, CircularFifoQueue[MetricsSnapshot]],
+  metricsHistory: AtomicCell[F, CircularFifoQueue[MetricsSnapshot]],
   serviceParams: ServiceParams,
   metricRegistry: MetricRegistry,
   channel: Channel[F, Event],
   logSink: LogSink[F]
-)(implicit F: Async[F]) {
+)(implicit F: Async[F])
+    extends AdhocMetrics[F] {
+
   private val report_kind: Kind = Report(serviceParams.servicePolicies.metricsReport)
   private val reset_kind: Kind = Reset(serviceParams.servicePolicies.metricsReset)
 
@@ -50,16 +53,6 @@ final private class MetricsPublisher[F[_]] private (
   /*
    * Report
    */
-
-  def cheap_snapshot(tick: Tick): F[MetricsSnapshot] =
-    Snapshot.timed[F](metricRegistry, ScrapeMode.Cheap).map { case (took, snapshot) =>
-      MetricsSnapshot(
-        index = Periodic(tick),
-        serviceParams = serviceParams,
-        snapshot = snapshot,
-        kind = report_kind,
-        took = Took(took))
-    }
 
   def report_adhoc: F[MetricsSnapshot] =
     serviceParams.zonedNow.flatMap { ts =>
@@ -87,15 +80,41 @@ final private class MetricsPublisher[F[_]] private (
     tickingBy(reset_kind).evalMap { tick =>
       publish(reset_kind, Periodic(tick), ScrapeMode.Full).flatTap(_ => reset_counters)
     }.drain
+
+  /*
+   * History
+   */
+
+  def get_snapshot_history: F[List[MetricsSnapshot]] =
+    metricsHistory.get.map(_.iterator().asScala.toList)
+
+  /*
+   * API
+   */
+  override def reset: F[Unit] = reset_adhoc.void
+  override def report: F[Unit] = report_adhoc.void
+  override def cheapSnapshot(tick: Tick): F[MetricsSnapshot] =
+    Snapshot.timed[F](metricRegistry, ScrapeMode.Cheap).map { case (took, snapshot) =>
+      MetricsSnapshot(
+        index = Periodic(tick),
+        serviceParams = serviceParams,
+        snapshot = snapshot,
+        kind = report_kind,
+        took = Took(took))
+    }
+
 }
 
 private object MetricsPublisher {
-  def apply[F[_]: Async](
+  def apply[F[_]: Async: Console](
     serviceParams: ServiceParams,
     metricRegistry: MetricRegistry,
-    channel: Channel[F, Event],
-    logSink: LogSink[F]): Stream[F, MetricsPublisher[F]] =
-    Stream.eval(
-      AtomicCell[F].of(new CircularFifoQueue[MetricsSnapshot](serviceParams.historyCapacity.metric)))
-      .map(new MetricsPublisher(_, serviceParams, metricRegistry, channel, logSink))
+    channel: Channel[F, Event]): Stream[F, MetricsPublisher[F]] = {
+    val cell: F[AtomicCell[F, CircularFifoQueue[MetricsSnapshot]]] =
+      AtomicCell[F].of(new CircularFifoQueue[MetricsSnapshot](serviceParams.historyCapacity.metric))
+
+    Stream.eval((cell, log_sink(serviceParams)).mapN { case (a, b) =>
+      new MetricsPublisher[F](a, serviceParams, metricRegistry, channel, b)
+    })
+  }
 }

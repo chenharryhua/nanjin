@@ -2,7 +2,6 @@ package mtest.guard
 
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.batch.{
   BatchJob,
   JobHandler,
@@ -12,7 +11,7 @@ import com.github.chenharryhua.nanjin.guard.batch.{
   PostConditionUnsatisfied
 }
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStop
-import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
+import com.github.chenharryhua.nanjin.guard.service.{ServiceGuard, TaskGuard}
 import io.circe.Json
 import io.circe.syntax.EncoderOps
 import org.scalatest.funsuite.AnyFunSuite

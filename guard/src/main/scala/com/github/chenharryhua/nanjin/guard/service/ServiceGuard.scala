@@ -21,6 +21,7 @@ import com.github.chenharryhua.nanjin.guard.config.{
   ServiceParams
 }
 import com.github.chenharryhua.nanjin.guard.event.{Domain, Event}
+import com.github.chenharryhua.nanjin.guard.service.dashboard.HttpDataServer
 import fs2.Stream
 import fs2.concurrent.Channel
 import fs2.io.net.Network
@@ -36,7 +37,7 @@ sealed trait ServiceGuard[F[_]] extends UpdateConfig[ServiceConfig[F], ServiceGu
   def eventStreamR[A](runAgent: Agent[F] => Resource[F, A]): Stream[F, Event]
 }
 
-final private[guard] class ServiceGuardImpl[F[_]: Network: Async: Console] private[guard] (
+final private class ServiceGuardImpl[F[_]: Network: Async: Console] private[guard] (
   serviceName: Service,
   config: ServiceConfig[F])
     extends ServiceGuard[F] { self =>
@@ -80,23 +81,22 @@ final private[guard] class ServiceGuardImpl[F[_]: Network: Async: Console] priva
       helper = new ServiceBuildHelper[F](kickedOff.serviceParams)
       errorHistory <- helper.error_history
       alarmLevel <- Stream.eval(Ref.of[F, Option[AlarmLevel]](config.alarmLevel.some))
-      logSink <- helper.service_log_sink
       channel <- Stream.eval(Channel.unbounded[F, Event])
       metricRegistry: MetricRegistry = new MetricRegistry()
-      metricsPublisher <- MetricsPublisher(kickedOff.serviceParams, metricRegistry, channel, logSink)
-      lifecyclePublisher <- LifecyclePublisher(kickedOff.serviceParams, channel, logSink)
+      metricsPublisher <- MetricsPublisher(kickedOff.serviceParams, metricRegistry, channel)
+      lifecyclePublisher <- LifecyclePublisher(kickedOff.serviceParams, channel)
       event <- {
-        val http_server: Stream[F, Nothing] =
+        val http_data_server: Stream[F, Nothing] =
           kickedOff.emberServerBuilder.fold(Stream.empty.covaryAll[F, Nothing]) { esb =>
-            val router = new HttpRouter[F](
+            val ws = new HttpDataServer[F](
+              port = esb.port,
               serviceParams = kickedOff.serviceParams,
-              errorHistory = errorHistory,
-              alarmLevel = alarmLevel,
+              metricRegistry = metricRegistry,
               metricsPublisher = metricsPublisher,
-              lifecyclePublisher = lifecyclePublisher
-            ).router
-
-            Stream.resource(esb.withHttpApp(router).build) >> Stream.never[F]
+              lifecyclePublisher = lifecyclePublisher,
+              errorHistory = errorHistory
+            )
+            Stream.resource(esb.withHttpWebSocketApp(ws.dataRouter).build) >> Stream.never[F]
           }
 
         val agent: GeneralAgent[F] =
@@ -109,7 +109,7 @@ final private[guard] class ServiceGuardImpl[F[_]: Network: Async: Console] priva
             dispatcher = dispatcher,
             uuidGenerator = kickedOff.uuidGenerator,
             alarmLevel = alarmLevel,
-            adhocMetrics = new AdhocMetricsImpl[F](metricsPublisher)
+            adhocMetrics = metricsPublisher
           )
 
         val surveillance: Stream[F, Nothing] =
@@ -124,7 +124,7 @@ final private[guard] class ServiceGuardImpl[F[_]: Network: Async: Console] priva
           .concurrently(metricsPublisher.reset_periodic)
           .concurrently(metricsPublisher.report_periodic)
           .concurrently(helper.service_jmx_report(metricRegistry, config.jmxBuilder))
-          .concurrently(http_server)
+          .concurrently(http_data_server)
           .concurrently(surveillance)
       }
     } yield event

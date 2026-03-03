@@ -5,16 +5,14 @@ import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import cats.syntax.semigroup.catsSyntaxSemigroup
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
-import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.Event
 import com.github.chenharryhua.nanjin.guard.observers.cloudwatch.CloudWatchObserver
 import com.github.chenharryhua.nanjin.guard.observers.ses.EmailObserver
 import com.github.chenharryhua.nanjin.guard.observers.sqs.SqsObserver
+import com.github.chenharryhua.nanjin.guard.service.TaskGuard
 import eu.timepit.refined.auto.*
 import org.scalatest.funsuite.AnyFunSuite
 import squants.information.Bytes
-import squants.information.InformationConversions.InformationConversions
-import squants.mass.MassConversions.MassConversions
 import squants.mass.Micrograms
 
 import scala.concurrent.duration.DurationInt
@@ -26,9 +24,9 @@ class AwsObserverTest extends AnyFunSuite {
     .eventStream { agent =>
       (agent.logger |+| agent.herald(_.Warn)).use(log =>
         agent
-          .facilitate("metrics")(_.meter(Bytes)("meter"))
+          .facilitate("metrics")(_.meter("meter", _.withUnit(Bytes)))
           .use(
-            _.run(10.bytes) >>
+            _.mark(10) >>
               log.good("good") >>
               log.error("my bad", new Exception("oops oops oops oops oops oops oops oops")) >>
               agent.adhoc.report) >> IO.raiseError(new Exception))
@@ -71,10 +69,10 @@ class AwsObserverTest extends AnyFunSuite {
     val service = TaskGuard[IO]("aws")
       .service("cloudwatch")
       .eventStream { agent =>
-        agent.facilitate("metrics")(_.meter(Micrograms)("meter-x")).use { m =>
-          m.run(1.mg) >> agent.adhoc.report >> IO.sleep(1.second) >>
-            m.run(2.mg) >> agent.adhoc.report >> IO.sleep(1.second) >>
-            m.run(2.mg) >> agent.adhoc.report >> IO.sleep(1.second) >>
+        agent.facilitate("metrics")(_.meter("meter-x", _.withUnit(Micrograms))).use { m =>
+          m.mark(1) >> agent.adhoc.report >> IO.sleep(1.second) >>
+            m.mark(2) >> agent.adhoc.report >> IO.sleep(1.second) >>
+            m.mark(2) >> agent.adhoc.report >> IO.sleep(1.second) >>
             m.mark(10) >> agent.adhoc.report
         }
       }

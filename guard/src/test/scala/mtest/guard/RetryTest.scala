@@ -3,10 +3,9 @@ package mtest.guard
 import cats.effect.unsafe.implicits.global
 import cats.effect.{IO, Resource}
 import cats.implicits.toFunctorFilterOps
-import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.StopReason.{ByCancellation, Successfully}
 import com.github.chenharryhua.nanjin.guard.event.{retrieveCounter, Event}
-import com.github.chenharryhua.nanjin.guard.service.Agent
+import com.github.chenharryhua.nanjin.guard.service.{Agent, TaskGuard}
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.concurrent.duration.DurationInt

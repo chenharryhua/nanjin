@@ -6,7 +6,6 @@ import cats.effect.unsafe.implicits.global
 import cats.kernel.Eq
 import cats.syntax.all.*
 import com.codahale.metrics.SlidingWindowReservoir
-import com.github.chenharryhua.nanjin.guard.TaskGuard
 import com.github.chenharryhua.nanjin.guard.event.{
   retrieveCounter,
   retrieveHistogram,
@@ -18,13 +17,11 @@ import com.github.chenharryhua.nanjin.guard.event.{
   MetricName
 }
 import com.github.chenharryhua.nanjin.guard.metrics.Meter
-import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
+import com.github.chenharryhua.nanjin.guard.service.{ServiceGuard, TaskGuard}
 import io.circe.generic.JsonCodec
 import io.circe.jawn.decode
 import org.scalatest.funsuite.AnyFunSuite
-import squants.information.InformationConversions.InformationConversions
 import squants.information.{Bytes, Information}
-import squants.market.MoneyConversions.MoneyConversions
 import squants.market.{AUD, Money}
 import squants.time.{Milliseconds, Time}
 import squants.{Dimensionless, Percent}
@@ -77,8 +74,8 @@ class MetricsTest extends AnyFunSuite {
 
   test("4.meter") {
     val mr = service.eventStream { agent =>
-      val meter: Resource[IO, Meter[IO, Money]] = agent.facilitate("meter")(_.meter(AUD)("meter"))
-      meter.use(m => m.run(10.AUD) >> m.mark(20) >> agent.adhoc.report.void)
+      val meter: Resource[IO, Meter[IO]] = agent.facilitate("meter")(_.meter("meter", _.withUnit(AUD)))
+      meter.use(m => m.mark(10) >> m.mark(20) >> agent.adhoc.report.void)
     }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.unsafeRunSync()
     val meter = retrieveMeter(mr.snapshot.meters).values.head
     assert(mr.snapshot.nonEmpty)
@@ -90,8 +87,8 @@ class MetricsTest extends AnyFunSuite {
   test("5.meter disable") {
     val mr = service.eventStream { agent =>
       agent
-        .facilitate("meter")(_.meter(Bytes)("meter", _.enable(false)))
-        .use(_.run(10.bytes) >> agent.adhoc.report.void)
+        .facilitate("meter")(_.meter("meter", _.enable(false)))
+        .use(_.mark(10) >> agent.adhoc.report.void)
     }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.unsafeRunSync()
     assert(mr.snapshot.isEmpty)
     assert(retrieveMeter(mr.snapshot.meters).isEmpty)
@@ -100,8 +97,8 @@ class MetricsTest extends AnyFunSuite {
   test("6.histogram") {
     val mr = service.eventStream { agent =>
       agent
-        .facilitate("histogram")(_.histogram(Bytes)("histogram"))
-        .use(m => m.run(10.bytes) >> m.update(20) >> agent.adhoc.report)
+        .facilitate("histogram")(_.histogram("histogram", _.withUnit(Bytes)))
+        .use(m => m.update(10) >> m.update(20) >> agent.adhoc.report)
     }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.unsafeRunSync()
     val histo = retrieveHistogram(mr.snapshot.histograms).values.head
     assert(mr.snapshot.nonEmpty)
@@ -114,7 +111,7 @@ class MetricsTest extends AnyFunSuite {
   test("6.histogram timer") {
     val mr = service.eventStream { agent =>
       agent
-        .facilitate("histogram")(_.histogram(Milliseconds)("histogram"))
+        .facilitate("histogram")(_.histogram("histogram", _.withUnit(Milliseconds)))
         .use(m => m.update(1030) >> m.update(200) >> agent.adhoc.report)
     }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.unsafeRunSync()
     val histo = retrieveHistogram(mr.snapshot.histograms).values.head
@@ -128,7 +125,7 @@ class MetricsTest extends AnyFunSuite {
   test("6.histogram percent") {
     val mr = service.eventStream { agent =>
       agent
-        .facilitate("histogram")(_.histogram(Percent)("histogram"))
+        .facilitate("histogram")(_.histogram("histogram", _.withUnit(Percent)))
         .use(m => m.update(30) >> m.update(50) >> agent.adhoc.report)
     }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.unsafeRunSync()
     val histo = retrieveHistogram(mr.snapshot.histograms).values.head
@@ -142,8 +139,8 @@ class MetricsTest extends AnyFunSuite {
   test("7.histogram disable") {
     val mr = service.eventStream { agent =>
       agent
-        .facilitate("histogram")(_.histogram(Bytes)("histogram", _.enable(false)))
-        .use(_.run(10.bytes) >>
+        .facilitate("histogram")(_.histogram("histogram", _.enable(false).withUnit(Bytes)))
+        .use(_.update(10) >>
           agent.adhoc.report)
     }.map(checkJson).mapFilter(Event.metricsSnapshot.getOption).compile.lastOrError.unsafeRunSync()
     assert(mr.snapshot.isEmpty)

@@ -1,8 +1,7 @@
 package mtest.guard
 
 import cats.effect.IO
-import com.github.chenharryhua.nanjin.guard.TaskGuard
-import com.github.chenharryhua.nanjin.guard.service.ServiceGuard
+import com.github.chenharryhua.nanjin.guard.service.{ServiceGuard, TaskGuard}
 import org.scalatest.funsuite.AnyFunSuite
 
 class SyntaxTest extends AnyFunSuite {
