@@ -4,7 +4,6 @@ import cats.syntax.applicative.catsSyntaxApplicativeId
 import cats.syntax.apply.catsSyntaxTuple2Semigroupal
 import cats.syntax.functor.toFunctorOps
 import cats.{Applicative, Endo, Functor, Show}
-import com.codahale.metrics.jmx.JmxReporter
 import com.github.chenharryhua.nanjin.common.chrono.Policy
 import higherkindness.droste.data.Fix
 import higherkindness.droste.{scheme, Algebra}
@@ -92,7 +91,7 @@ object ServiceParams {
       launchTime = launchTime,
       servicePolicies = ServicePolicies(
         restart = RestartPolicy(Policy.empty, None),
-        realtimeMetrics = RealtimeMetrics(Policy.crontab(_.every30Seconds), 360),
+        realtimeMetrics = RealtimeMetrics(Policy.crontab(_.every10Seconds), 360),
         metricsReport = Policy.empty,
         metricsReset = Policy.empty
       ),
@@ -165,7 +164,6 @@ private object ServiceConfigF {
 final class ServiceConfig[F[_]: Applicative] private (
   cont: Fix[ServiceConfigF],
   private[guard] val zoneId: ZoneId,
-  private[guard] val jmxBuilder: Option[Endo[JmxReporter.Builder]],
   private[guard] val httpBuilder: Option[Endo[EmberServerBuilder[F]]],
   private[guard] val briefs: F[List[Json]],
   private[guard] val alarmLevel: AlarmLevel) {
@@ -174,11 +172,10 @@ final class ServiceConfig[F[_]: Applicative] private (
   private def copy(
     cont: Fix[ServiceConfigF] = this.cont,
     zoneId: ZoneId = this.zoneId,
-    jmxBuilder: Option[Endo[JmxReporter.Builder]] = this.jmxBuilder,
     httpBuilder: Option[Endo[EmberServerBuilder[F]]] = this.httpBuilder,
     briefs: F[List[Json]] = this.briefs,
     alarmLevel: AlarmLevel = this.alarmLevel): ServiceConfig[F] =
-    new ServiceConfig[F](cont, zoneId, jmxBuilder, httpBuilder, briefs, alarmLevel)
+    new ServiceConfig[F](cont, zoneId, httpBuilder, briefs, alarmLevel)
 
   def withRestartPolicy(threshold: FiniteDuration, f: Policy.type => Policy): ServiceConfig[F] =
     copy(cont = Fix(WithRestartPolicy(f(Policy), Some(threshold.toJava), cont)))
@@ -200,11 +197,6 @@ final class ServiceConfig[F[_]: Applicative] private (
 
   def withZoneId(zoneId: ZoneId): ServiceConfig[F] =
     copy(zoneId = zoneId)
-
-  def withJmx(f: Endo[JmxReporter.Builder]): ServiceConfig[F] =
-    copy(jmxBuilder = Some(f))
-  def disableJmx: ServiceConfig[F] =
-    copy(jmxBuilder = None)
 
   def withHttpServer(f: Endo[EmberServerBuilder[F]]): ServiceConfig[F] =
     copy(httpBuilder = Some(f))
@@ -256,7 +248,6 @@ private[guard] object ServiceConfig {
     new ServiceConfig[F](
       cont = Fix(ServiceConfigF.InitParams[Fix[ServiceConfigF]](taskName)),
       zoneId = ZoneId.systemDefault(),
-      jmxBuilder = None,
       httpBuilder = None,
       briefs = List.empty[Json].pure[F],
       alarmLevel = AlarmLevel.Info

@@ -9,17 +9,7 @@ import cats.syntax.option.catsSyntaxOptionId
 import com.codahale.metrics.MetricRegistry
 import com.comcast.ip4s.IpLiteralSyntax
 import com.github.chenharryhua.nanjin.common.UpdateConfig
-import com.github.chenharryhua.nanjin.guard.config.{
-  AlarmLevel,
-  Brief,
-  Host,
-  HostName,
-  Port,
-  Service,
-  ServiceConfig,
-  ServiceId,
-  ServiceParams
-}
+import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.event.Event.ReportedEvent
 import com.github.chenharryhua.nanjin.guard.event.{Domain, Event}
 import com.github.chenharryhua.nanjin.guard.service.dashboard.HttpDataServer
@@ -78,50 +68,37 @@ final private class ServiceGuardImpl[F[_]: Network: Async: Console] private[guar
 
   override def eventStream(runAgent: Agent[F] => F[Unit]): Stream[F, Event] =
     for {
-      kickedOff <- Stream.eval(kicking_off)
+      KickedOff(serviceParams, emberServerBuilder, uuidGenerator) <- Stream.eval(kicking_off)
       dispatcher <- Stream.resource(Dispatcher.sequential[F](await = false))
-      errorHistory <- Stream.eval(
-        AtomicCell[F].of(new CircularFifoQueue[ReportedEvent](kickedOff.serviceParams.historyCapacity.error)))
+      reQueue = AtomicCell[F].of(new CircularFifoQueue[ReportedEvent](serviceParams.historyCapacity.error))
+      errorHistory <- Stream.eval(reQueue)
       alarmLevel <- Stream.eval(Ref.of[F, Option[AlarmLevel]](config.alarmLevel.some))
       channel <- Stream.eval(Channel.unbounded[F, Event])
       metricRegistry: MetricRegistry = new MetricRegistry()
-      metricsPublisher <- MetricsPublisher(kickedOff.serviceParams, metricRegistry, channel)
-      lifecyclePublisher <- LifecyclePublisher(kickedOff.serviceParams, channel)
-      event <- {
-        val agent: GeneralAgent[F] =
-          new GeneralAgent[F](
-            kickedOff.serviceParams,
-            Domain(kickedOff.serviceParams.serviceName.value),
-            metricRegistry = metricRegistry,
-            channel = channel,
-            errorHistory = errorHistory,
-            dispatcher = dispatcher,
-            uuidGenerator = kickedOff.uuidGenerator,
-            alarmLevel = alarmLevel,
-            adhocMetrics = metricsPublisher
-          )
-
-        val surveillance: Stream[F, Nothing] =
-          new ReStart[F](
-            serviceParams = kickedOff.serviceParams,
-            theService = F.defer(runAgent(agent)),
-            lifecyclePublisher = lifecyclePublisher
-          ).stream
-
-        // put together
-        channel.stream // main stream
-          .concurrently(metricsPublisher.reset_periodic)
-          .concurrently(metricsPublisher.report_periodic)
-          .concurrently(jmxReporter[F](metricRegistry, config.jmxBuilder))
-          .concurrently(surveillance)
-          .concurrently(
-            HttpDataServer(
-              emberServerBuilder = kickedOff.emberServerBuilder,
-              metricsPublisher = metricsPublisher,
-              lifecyclePublisher = lifecyclePublisher,
-              errorHistory = errorHistory))
-
-      }
+      metricsPublisher <- MetricsPublisher(serviceParams, metricRegistry, channel)
+      lifecyclePublisher <- LifecyclePublisher(serviceParams, channel)
+      agent: GeneralAgent[F] =
+        new GeneralAgent[F](
+          serviceParams = serviceParams,
+          domain = Domain(serviceParams.serviceName.value),
+          metricRegistry = metricRegistry,
+          channel = channel,
+          errorHistory = errorHistory,
+          dispatcher = dispatcher,
+          uuidGenerator = uuidGenerator,
+          alarmLevel = alarmLevel,
+          adhocMetrics = metricsPublisher
+        )
+      event <- channel.stream // main stream
+        .concurrently(metricsPublisher.reset_periodically)
+        .concurrently(metricsPublisher.report_periodically)
+        .concurrently(Surveillance.stream(F.defer(runAgent(agent)), lifecyclePublisher))
+        .concurrently(
+          HttpDataServer.stream(
+            emberServerBuilder = emberServerBuilder,
+            metricsPublisher = metricsPublisher,
+            lifecyclePublisher = lifecyclePublisher,
+            errorHistory = errorHistory))
     } yield event
 
   override def eventStreamS[A](runAgent: Agent[F] => Stream[F, A]): Stream[F, Event] =

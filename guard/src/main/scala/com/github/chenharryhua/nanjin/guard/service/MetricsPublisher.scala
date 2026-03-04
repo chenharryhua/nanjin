@@ -59,7 +59,7 @@ final private class MetricsPublisher[F[_]] private (
       publish(report_kind, Adhoc(ts), ScrapeMode.Full)
     }
 
-  def report_periodic: Stream[F, Nothing] =
+  def report_periodically: Stream[F, Nothing] =
     tickingBy(report_kind).evalMap { tick =>
       publish(report_kind, Periodic(tick), ScrapeMode.Full)
     }.drain
@@ -76,7 +76,7 @@ final private class MetricsPublisher[F[_]] private (
       publish(reset_kind, Adhoc(ts), ScrapeMode.Full).flatTap(_ => reset_counters)
     }
 
-  def reset_periodic: Stream[F, Nothing] =
+  def reset_periodically: Stream[F, Nothing] =
     tickingBy(reset_kind).evalMap { tick =>
       publish(reset_kind, Periodic(tick), ScrapeMode.Full).flatTap(_ => reset_counters)
     }.drain
@@ -113,8 +113,13 @@ private object MetricsPublisher {
     val cell: F[AtomicCell[F, CircularFifoQueue[MetricsSnapshot]]] =
       AtomicCell[F].of(new CircularFifoQueue[MetricsSnapshot](serviceParams.historyCapacity.metric))
 
-    Stream.eval((cell, log_sink(serviceParams)).mapN { case (a, b) =>
-      new MetricsPublisher[F](metricRegistry, serviceParams, a, channel, b)
+    Stream.eval((cell, log_sink(serviceParams)).mapN { case (metricsHistory, logSink) =>
+      new MetricsPublisher[F](
+        metricRegistry = metricRegistry,
+        serviceParams = serviceParams,
+        metricsHistory = metricsHistory,
+        channel = channel,
+        logSink = logSink)
     })
   }
 }

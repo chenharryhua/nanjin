@@ -37,7 +37,7 @@ class MetricsTest extends AnyFunSuite {
 
   private val service: ServiceGuard[IO] =
     TaskGuard[IO]("metrics")
-      .updateConfig(_.withZoneId(zoneId).disableHttpServer.disableJmx)
+      .updateConfig(_.withZoneId(zoneId).disableHttpServer)
       .service("metrics")
 
   test("1.counter") {

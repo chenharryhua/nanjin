@@ -18,8 +18,8 @@ import org.apache.commons.collections4.queue.CircularFifoQueue
 import scala.jdk.CollectionConverters.IteratorHasAsScala
 
 final private class LifecyclePublisher[F[_]: Sync] private (
+  val serviceParams: ServiceParams,
   panicHistory: AtomicCell[F, CircularFifoQueue[ServicePanic]],
-  serviceParams: ServiceParams,
   channel: Channel[F, Event],
   logSink: LogSink[F]
 ) {
@@ -58,8 +58,12 @@ private object LifecyclePublisher {
     val cell: F[AtomicCell[F, CircularFifoQueue[ServicePanic]]] =
       AtomicCell[F].of(new CircularFifoQueue[ServicePanic](serviceParams.historyCapacity.panic))
 
-    Stream.eval((cell, log_sink(serviceParams)).mapN { case (a, b) =>
-      new LifecyclePublisher[F](a, serviceParams, channel, b)
+    Stream.eval((cell, log_sink(serviceParams)).mapN { case (panicHistory, logSink) =>
+      new LifecyclePublisher[F](
+        serviceParams = serviceParams,
+        panicHistory = panicHistory,
+        channel = channel,
+        logSink = logSink)
     })
   }
 }

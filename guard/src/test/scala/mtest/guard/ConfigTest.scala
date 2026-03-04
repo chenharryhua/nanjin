@@ -17,7 +17,6 @@ class ConfigTest extends AnyFunSuite {
           .withMetricHistoryCapacity(2)
           .withErrorHistoryCapacity(3))
       .updateConfig(_.withMetricReport(_.crontab(_.hourly)))
-      .updateConfig(_.withJmx(identity))
       .updateConfig(_.withTaskName("conf"))
 
   test("tick") {

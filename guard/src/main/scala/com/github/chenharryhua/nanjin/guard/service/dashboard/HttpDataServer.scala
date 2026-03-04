@@ -131,7 +131,7 @@ final private class HttpDataServer[F[_]](
 }
 
 private[service] object HttpDataServer {
-  def apply[F[_]: Async](
+  def stream[F[_]: Async](
     emberServerBuilder: Option[EmberServerBuilder[F]],
     metricsPublisher: MetricsPublisher[F],
     lifecyclePublisher: LifecyclePublisher[F],
