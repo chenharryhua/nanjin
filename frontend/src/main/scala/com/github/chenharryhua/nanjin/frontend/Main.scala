@@ -36,6 +36,7 @@ object Main {
           parsing = false, // IMPORTANT for {x,y}
           responsive = true,
           animation = false,
+          cubicInterpolationMode = "monotone",
           scales = literal(
             x = literal(
               `type` = "time",

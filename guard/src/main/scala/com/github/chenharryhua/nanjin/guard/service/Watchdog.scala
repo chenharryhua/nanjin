@@ -16,7 +16,7 @@ import org.typelevel.cats.time.instances.duration
 import java.time.Duration
 import scala.jdk.DurationConverters.JavaDurationOps
 
-final private class Surveillance[F[_]: Async](theService: F[Unit], lifecyclePublisher: LifecyclePublisher[F])
+final private class Watchdog[F[_]: Async](theService: F[Unit], lifecyclePublisher: LifecyclePublisher[F])
     extends duration {
 
   private[this] val F = Async[F]
@@ -64,7 +64,9 @@ final private class Surveillance[F[_]: Async](theService: F[Unit], lifecyclePubl
       }
 }
 
-private object Surveillance {
-  def stream[F[_]: Async](theService: F[Unit], lifecyclePublisher: LifecyclePublisher[F]): Stream[F, Nothing] =
-    new Surveillance[F](theService, lifecyclePublisher).stream
+private object Watchdog {
+  def stream[F[_]: Async](
+    theService: F[Unit],
+    lifecyclePublisher: LifecyclePublisher[F]): Stream[F, Nothing] =
+    new Watchdog[F](theService, lifecyclePublisher).stream
 }

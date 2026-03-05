@@ -92,7 +92,7 @@ final private class ServiceGuardImpl[F[_]: Network: Async: Console] private[guar
       event <- channel.stream // main stream
         .concurrently(metricsPublisher.reset_periodically)
         .concurrently(metricsPublisher.report_periodically)
-        .concurrently(Surveillance.stream(F.defer(runAgent(agent)), lifecyclePublisher))
+        .concurrently(Watchdog.stream(F.defer(runAgent(agent)), lifecyclePublisher))
         .concurrently(
           HttpDataServer.stream(
             emberServerBuilder = emberServerBuilder,
