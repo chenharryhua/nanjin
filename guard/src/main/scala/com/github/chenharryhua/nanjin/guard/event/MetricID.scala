@@ -61,7 +61,7 @@ object CategoryKind {
 }
 
 @JsonCodec
-final case class Squants(unitSymbol: String, dimensionName: String)
+final case class Squants private (unitSymbol: String, dimensionName: String)
 object Squants {
   def apply[A <: Quantity[A]](um: UnitOfMeasure[A]): Squants =
     Squants(um.symbol, um(1).dimension.name)

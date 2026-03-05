@@ -16,13 +16,11 @@ import org.typelevel.cats.time.instances.duration
 import java.time.Duration
 import scala.jdk.DurationConverters.JavaDurationOps
 
-final private class ReStart[F[_]: Async](
-  serviceParams: ServiceParams,
-  theService: F[Unit],
-  lifecyclePublisher: LifecyclePublisher[F])
+final private class Watchdog[F[_]: Async](theService: F[Unit], lifecyclePublisher: LifecyclePublisher[F])
     extends duration {
 
   private[this] val F = Async[F]
+  private[this] val serviceParams: ServiceParams = lifecyclePublisher.serviceParams
 
   private[this] def panic(status: PolicyTick[F], ex: Throwable): F[Option[(Unit, PolicyTick[F])]] =
     F.realTimeInstant.flatMap[Option[(Unit, PolicyTick[F])]] { now =>
@@ -49,7 +47,7 @@ final private class ReStart[F[_]: Async](
       }
     }
 
-  val stream: Stream[F, Nothing] =
+  private val stream: Stream[F, Nothing] =
     Stream
       .eval(PolicyTick.zeroth[F](serviceParams.zoneId, serviceParams.servicePolicies.restart.policy))
       .flatMap {
@@ -64,4 +62,11 @@ final private class ReStart[F[_]: Async](
           }
           .drain
       }
+}
+
+private object Watchdog {
+  def stream[F[_]: Async](
+    theService: F[Unit],
+    lifecyclePublisher: LifecyclePublisher[F]): Stream[F, Nothing] =
+    new Watchdog[F](theService, lifecyclePublisher).stream
 }

@@ -14,13 +14,14 @@ Global / parallelExecution := false
 val acyclicV = "0.3.20"
 val avroV = "1.12.1"
 val avro4sV = "4.1.2"
-val awsV = "2.42.2"
+val awsV = "2.42.5"
 val caffeineV = "3.2.3"
 val catsCoreV = "2.13.0"
 val catsEffectV = "3.6.3"
 val chimneyV = "1.8.2"
 val circeV = "0.14.15"
-val confluentV = "8.1.1"
+val confluentV = "8.2.0"
+val kafkaV = "8.2.0-ce"
 val cron4sV = "0.8.2"
 val doobieV = "1.0.0-RC12"
 val drosteV = "0.10.0"
@@ -30,13 +31,12 @@ val fs2V = "3.12.2"
 val hadoopV = "3.4.2"
 val http4sV = "0.23.33"
 val jacksonV = "2.21.1"
-val kafkaV = "8.1.1-ce"
 val kantanV = "0.8.0"
 val log4catsV = "2.7.1"
 val logbackV = "1.5.32"
 val metricsV = "4.2.38"
 val monocleV = "3.3.0"
-val natchezV = "0.3.8"
+val natchezV = "0.3.9"
 val nettyV = "4.2.10.Final"
 val parquetV = "1.17.0"
 val postgresV = "42.7.10"
@@ -239,7 +239,6 @@ lazy val guard = (project in file("guard"))
       // java
       "org.apache.commons"            % "commons-collections4" % "4.5.0",
       "io.dropwizard.metrics"         % "metrics-core"         % metricsV,
-      "io.dropwizard.metrics"         % "metrics-jmx"          % metricsV,
       "com.github.ben-manes.caffeine" % "caffeine"             % caffeineV,
       "ch.qos.logback"                % "logback-classic"      % logbackV % Test
     ) ++ testLib
@@ -417,7 +416,7 @@ lazy val pipes = (project in file("pipes"))
       "org.apache.parquet"     % "parquet-avro"    % parquetV,
       "org.apache.avro"        % "avro"            % avroV,
       "org.tukaani"            % "xz"              % "1.12",
-      "at.yawk.lz4"            % "lz4-java"        % "1.10.3",
+      "at.yawk.lz4"            % "lz4-java"        % "1.10.4",
       "org.eclipse.jetty"      % "jetty-server"    % "12.1.6", // snyk
       "io.netty"               % "netty-all"       % nettyV, // snyk
       "com.nimbusds"           % "nimbus-jose-jwt" % "10.8", // snyk
@@ -503,3 +502,4 @@ lazy val nanjin =
       observer_database,
       observer_kafka
     )
+

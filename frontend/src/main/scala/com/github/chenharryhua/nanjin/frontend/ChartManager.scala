@@ -18,13 +18,22 @@ final class ChartManager(maxSizePerSeries: Int) {
   private val data: mutable.Map[String, mutable.Queue[Point]] = mutable.Map.empty
 
   def enqueue(msg: WsMessage): ChartManager = {
-    msg.series.foreach { case Series(name, point) =>
+    // All series we need to update: existing + new
+    val allNames = data.keys.toSet ++ msg.points.keys.toSet
+
+    allNames.foreach { name =>
       val queue = data.getOrElseUpdate(name, mutable.Queue.empty)
 
       if (queue.size >= maxSizePerSeries) queue.dequeue(): Unit
 
-      queue.enqueue(Point(point.x, point.y))
+      // Enqueue new point if available, else a placeholder for fading
+      val newPoint = msg.points.getOrElse(name, Point(msg.ts, None))
+      queue.enqueue(newPoint)
     }
+
+    // chart get shorter and shorter
+    // data.filterInPlace { case (_, q) => q.exists(_.y.isDefined) }
+
     this
   }
 
