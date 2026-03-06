@@ -420,7 +420,7 @@ lazy val pipes = (project in file("pipes"))
       "org.eclipse.jetty"      % "jetty-server"    % "12.1.6", // snyk
       "io.netty"               % "netty-all"       % nettyV, // snyk
       "com.nimbusds"           % "nimbus-jose-jwt" % "10.8", // snyk
-      "org.apache.zookeeper"   % "zookeeper"       % "3.9.4" // snyk
+      "org.apache.zookeeper"   % "zookeeper"       % "3.9.5" // snyk
 
     ) ++ jacksonLib ++ hadoopLib ++ kantanLib
     libraryDependencies ++= libs ++ testLib
@@ -502,4 +502,3 @@ lazy val nanjin =
       observer_database,
       observer_kafka
     )
-
