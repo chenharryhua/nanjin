@@ -40,6 +40,7 @@ final private class HttpDataServer[F[_]](
   private val serviceParams = metricsPublisher.serviceParams
 
   private val inject_backend_script = BackendConfig(
+    serviceName = serviceParams.serviceName.value,
     port = port,
     zoneId = serviceParams.zoneId,
     maxPoints = serviceParams.servicePolicies.realtimeMetrics.maxPoints,
@@ -49,15 +50,16 @@ final private class HttpDataServer[F[_]](
   private val html_page: Text.TypedTag[String] =
     html(
       head(
-        tag("title")(s"Chart-${serviceParams.serviceName.value}"),
+        tag("title")(serviceParams.serviceName.value),
         script(src := "https://cdn.jsdelivr.net/npm/chart.js"),
         script(src := "https://cdn.jsdelivr.net/npm/luxon"),
         script(src := "https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon"),
+        link(rel   := "icon", href := "/dashboard/favicon.ico", `type` := "image/x-icon"),
         inject_backend_script.config
       ),
       body(
         div(id        := "dashboard_app"), // mount point
-        script(`type` := "module", src := "/dashboard/frontend.js"))
+        script(`type` := "module", src := "/dashboard/nj-frontend.js"))
     )
 
   private def control_center(wsb2: WebSocketBuilder2[F]): HttpRoutes[F] =

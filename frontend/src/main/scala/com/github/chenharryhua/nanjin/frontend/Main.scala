@@ -106,7 +106,10 @@ object Main {
    */
   private val app: ReactiveHtmlElement[HTMLDivElement] =
     div(
-      h2("Realtime Metrics"),
+      h2(
+        s"Service: ${config.serviceName}",
+        title := s"maxPoints=${config.maxPoints}, policy=${config.policy}"
+      ),
       canvasTag(
         width  := "80%",
         height := "70%",

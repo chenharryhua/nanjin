@@ -15,8 +15,14 @@ import java.time.ZoneId
  * `com.github.chenharryhua.nanjin.frontend.BackendConfig`
  */
 
-final case class BackendConfig(port: Port, zoneId: ZoneId, maxPoints: Int, policy: Policy) {
+final case class BackendConfig(
+  serviceName: String,
+  port: Port,
+  zoneId: ZoneId,
+  maxPoints: Int,
+  policy: Policy) {
   private val no_spaces_json = Json.obj(
+    "serviceName" -> Json.fromString(serviceName),
     "port" -> Json.fromInt(port.value),
     "zoneId" -> zoneId.asJson,
     "maxPoints" -> Json.fromInt(maxPoints),

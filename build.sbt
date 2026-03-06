@@ -244,11 +244,11 @@ lazy val guard = (project in file("guard"))
     ) ++ testLib
   ).settings {
     Compile / resourceGenerators += Def.task {
-      val js = (frontend / Compile / fastOptJS).value
-      val map = (frontend / Compile / fastOptJS).value.data.getParentFile / (js.data.getName + ".map")
+      val js = (frontend / Compile / fullOptJS).value
+      val map = (frontend / Compile / fullOptJS).value.data.getParentFile / (js.data.getName + ".map")
       val targetDir = (Compile / resourceManaged).value / "dashboard"
-      val jsOut = targetDir / "frontend.js"
-      val mapOut = targetDir / "frontend.js.map"
+      val jsOut = targetDir / "nj-frontend.js"
+      val mapOut = targetDir / "nj-frontend-opt.js.map"
       IO.createDirectory(targetDir)
       IO.copyFile(js.data, jsOut)
       if (map.exists()) IO.copyFile(map, mapOut)

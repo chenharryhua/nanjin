@@ -39,30 +39,42 @@ final class ChartManager(maxSizePerSeries: Int) {
 
   def updateChart(chartVar: Var[Option[js.Dynamic]]): Unit =
     chartVar.now().foreach { chart =>
-      chart.data.datasets.asInstanceOf[js.Array[js.Dynamic]].foreach { dataset =>
+      val datasets = chart.data.datasets.asInstanceOf[js.Array[js.Dynamic]]
+
+      // remove fade out series
+      val toRemove = data.collect { case (k, q) if q.forall(_.y.isEmpty) => k }
+      toRemove
+        .foreach { label =>
+          val i = datasets.indexWhere(_.label.asInstanceOf[String] == label)
+          if (i >= 0) datasets.splice(i, 1)
+        }
+      toRemove.foreach(data.remove)
+
+      // build up datasets
+      datasets.foreach { dataset =>
         val name = dataset.label.asInstanceOf[String]
         data.get(name).foreach { queue =>
-          dataset.data = queue.toSeq.map(_.dataPoint).toJSArray
+          dataset.data = queue.iterator.map(_.dataPoint).toJSArray
         }
       }
 
       // Add new series if they don’t exist yet
       data.keys.foreach { name =>
-        if (!chart.data.datasets.asInstanceOf[js.Array[js.Dynamic]].exists(
-            _.label.asInstanceOf[String] == name)) {
+        if (!datasets.exists(_.label.asInstanceOf[String] == name)) {
           val queue = data(name)
           val newDataset = js.Dynamic.literal(
             label = name,
-            data = queue.toSeq.map(_.dataPoint).toJSArray,
+            data = queue.iterator.map(_.dataPoint).toJSArray,
             borderColor = colorFor(name),
             backgroundColor = colorFor(name),
             fill = false,
             tension = 0.3,
             pointRadius = 0
           )
-          chart.data.datasets.push(newDataset)
+          datasets.push(newDataset)
         }
       }
+
       chart.update()
     }
 }
