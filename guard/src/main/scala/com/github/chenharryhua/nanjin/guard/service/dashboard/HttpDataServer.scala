@@ -58,7 +58,7 @@ final private class HttpDataServer[F[_]](
         inject_backend_script.config
       ),
       body(
-        div(id        := "dashboard_app"), // mount point
+        div(id        := "dashboard"), // mount point
         script(`type` := "module", src := "/dashboard/nj-frontend.js"))
     )
 

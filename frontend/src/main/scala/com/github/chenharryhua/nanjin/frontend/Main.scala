@@ -1,9 +1,8 @@
 package com.github.chenharryhua.nanjin.frontend
 import com.raquo.laminar.api.L._
 import com.raquo.laminar.nodes.ReactiveHtmlElement
-import io.circe.jawn.decode
 import org.scalajs.dom
-import org.scalajs.dom.{CloseEvent, Event, HTMLCanvasElement, HTMLDivElement, MessageEvent, WebSocket}
+import org.scalajs.dom.{HTMLCanvasElement, HTMLDivElement}
 
 import scala.scalajs.js
 import scala.scalajs.js.Dynamic.literal
@@ -19,12 +18,12 @@ object Main {
    * Chart
    */
   private val chartVar: Var[Option[js.Dynamic]] = Var(Option.empty[js.Dynamic])
-  private val manager: ChartManager = new ChartManager(config.maxPoints)
+  private val connector: WsConnector = new WsConnector(config.port, config.maxPoints)
 
   /*
    * Initialization
    */
-  private def initChart(canvas: HTMLCanvasElement, zoneId: String): js.Dynamic = {
+  private def initChart(canvas: HTMLCanvasElement): js.Dynamic = {
     val ctx = canvas.getContext("2d")
 
     js.Dynamic.newInstance(js.Dynamic.global.Chart)(
@@ -37,12 +36,13 @@ object Main {
           responsive = true,
           animation = false,
           cubicInterpolationMode = "monotone",
+          spanGaps = false,
           scales = literal(
             x = literal(
               `type` = "time",
               time = literal(unit = "minute", tooltipFormat = "HH:mm"),
               title = literal(display = true, text = "Time"),
-              adapters = js.Dynamic.literal(date = js.Dynamic.literal(zone = zoneId))
+              adapters = js.Dynamic.literal(date = js.Dynamic.literal(zone = config.zoneId))
             ),
             y = literal(
               beginAtZero = true,
@@ -73,35 +73,6 @@ object Main {
   }
 
   /*
-   * Websocket
-   */
-
-  private def connectWS(port: Int): Unit = {
-
-    val ws = new WebSocket(s"ws://localhost:$port/ws")
-
-    ws.onopen = { (_: Event) =>
-      val now = js.Date()
-      val msg = s"WS connected at $now"
-      dom.console.log(msg)
-    }
-
-    ws.onmessage = { (e: MessageEvent) =>
-      ws.send("pong")
-      decode[WsMessage](e.data.toString).toOption.foreach { msg =>
-        manager.enqueue(msg).updateChart(chartVar)
-      }
-    }
-
-    ws.onclose = { (c: CloseEvent) =>
-      val now = js.Date()
-      val cause = s"reason:${c.reason}, code:${c.code}, wasClean:${c.wasClean}"
-      val msg = s"WS closed at $now, $cause"
-      dom.console.log(msg)
-    }
-  }
-
-  /*
    * Canvas
    */
   private val app: ReactiveHtmlElement[HTMLDivElement] =
@@ -117,11 +88,10 @@ object Main {
 
         onMountCallback { ctx =>
           val canvas = ctx.thisNode.ref
-
-          val chart = initChart(canvas, config.zoneId)
+          val chart = initChart(canvas)
           chartVar.set(Some(chart))
 
-          connectWS(config.port)
+          connector.connect(chartVar)
         },
 
         // optional cleanup

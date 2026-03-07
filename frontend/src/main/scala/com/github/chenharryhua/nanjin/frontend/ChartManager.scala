@@ -16,13 +16,14 @@ final class ChartManager(maxSizePerSeries: Int) {
     colorMap.getOrElseUpdate(name, s"hsl(${math.abs(name.hashCode % 360)}, 70%, 50%)")
 
   private val data: mutable.Map[String, mutable.Queue[Point]] = mutable.Map.empty
+  private val baseline: mutable.Queue[Point] = mutable.Queue.empty
 
   def enqueue(msg: WsMessage): ChartManager = {
     // All series we need to update: existing + new
     val allNames = data.keys.toSet ++ msg.points.keys.toSet
 
     allNames.foreach { name =>
-      val queue = data.getOrElseUpdate(name, mutable.Queue.empty)
+      val queue = data.getOrElseUpdate(name, baseline.clone())
 
       if (queue.size >= maxSizePerSeries) queue.dequeue(): Unit
 
@@ -30,6 +31,10 @@ final class ChartManager(maxSizePerSeries: Int) {
       val newPoint = msg.points.getOrElse(name, Point(msg.ts, None))
       queue.enqueue(newPoint)
     }
+
+    // manage baseline. size of baseline should be maxSizePerSeries - 1
+    if (baseline.size >= maxSizePerSeries - 1) baseline.dequeue(): Unit
+    baseline.enqueue(Point(msg.ts, None))
 
     // chart get shorter and shorter
     // data.filterInPlace { case (_, q) => q.exists(_.y.isDefined) }
