@@ -350,11 +350,6 @@ lazy val messages =
           "io.confluent"    % "kafka-streams-avro-serde"     % confluentV
         ) ++ jacksonLib ++ testLib
     )
-    .settings(
-      dependencyOverrides ++= List(
-        "com.google.protobuf"  % "protobuf-java" % "4.34.0", // snyk
-        "org.jetbrains.kotlin" % "kotlin-stdlib" % "2.3.10" // snyk
-      ))
     .settings(Compile / PB.targets := List(scalapb.gen() -> (Compile / sourceManaged).value / "scalapb"))
 
 // ==========================
