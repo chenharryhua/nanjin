@@ -404,6 +404,7 @@ lazy val pipes = (project in file("pipes"))
   .settings(name := "nj-pipes")
   .settings(
     libraryDependencies ++= List(
+      "co.fs2" %% "fs2-io"                        % fs2V,
       "com.nrinaudo" %% "kantan.csv"              % kantanV,
       "com.indoorvivants" %% "scala-uri"          % "4.2.0",
       "com.thesamet.scalapb" %% "scalapb-runtime" % "0.11.20",
@@ -438,7 +439,6 @@ lazy val pipes = (project in file("pipes"))
 // ==========================
 val sparkLib = List(
   "org.apache.spark" %% "spark-catalyst",
-  "org.apache.spark" %% "spark-core",
   "org.apache.spark" %% "spark-sql",
   "org.apache.spark" %% "spark-avro"
 ).map(_ % sparkV)
@@ -451,6 +451,7 @@ lazy val spark = (project in file("spark"))
   .settings(name := "nj-spark")
   .settings(
     libraryDependencies ++= List(
+      ("org.apache.spark" %% "spark-core"      % sparkV).exclude("org.lz4", "lz4-java"),
       "com.julianpeeters" %% "avrohugger-core" % "2.16.2" % Test,
       "io.circe" %% "circe-shapes"             % circeV   % Test,
       // java
@@ -464,7 +465,6 @@ lazy val spark = (project in file("spark"))
       "org.eclipse.jetty"        % "jetty-server"     % "12.1.7", // snyk by hadoop-common
       "io.netty"                 % "netty-codec-http" % nettyV, // snyk by spark-sql
       "com.nimbusds"             % "nimbus-jose-jwt"  % "10.8", // snyk by hadoop-auth
-      "org.lz4"                  % "lz4-java"         % "1.8.1", // snyk by spark-core
       "org.apache.logging.log4j" % "log4j-core"       % "2.25.3", // snyk by spark-sql
       "io.airlift"               % "aircompressor"    % "2.0.3", // snyk by spark-sql
       "org.apache.ivy"           % "ivy"              % "2.5.3" // snyk
