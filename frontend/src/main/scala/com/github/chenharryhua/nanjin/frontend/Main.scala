@@ -2,10 +2,9 @@ package com.github.chenharryhua.nanjin.frontend
 import com.raquo.laminar.api.L._
 import com.raquo.laminar.nodes.ReactiveHtmlElement
 import org.scalajs.dom
-import org.scalajs.dom.{HTMLCanvasElement, HTMLDivElement}
+import org.scalajs.dom.HTMLDivElement
 
 import scala.scalajs.js
-import scala.scalajs.js.Dynamic.literal
 
 object Main {
 
@@ -21,62 +20,9 @@ object Main {
   private val connector: WsConnector = new WsConnector(config.port, config.maxPoints)
 
   /*
-   * Initialization
-   */
-  private def initChart(canvas: HTMLCanvasElement): js.Dynamic = {
-    val ctx = canvas.getContext("2d")
-
-    js.Dynamic.newInstance(js.Dynamic.global.Chart)(
-      ctx,
-      literal(
-        `type` = "line",
-        data = literal(datasets = js.Array()),
-        options = literal(
-          parsing = false, // IMPORTANT for {x,y}
-          responsive = true,
-          animation = false,
-          cubicInterpolationMode = "monotone",
-          maintainAspectRatio = false,
-          spanGaps = false,
-          scales = literal(
-            x = literal(
-              `type` = "time",
-              time = literal(unit = "minute", tooltipFormat = "HH:mm"),
-              title = literal(display = true, text = "Time"),
-              adapters = literal(date = literal(zone = config.zoneId))
-            ),
-            y = literal(
-              beginAtZero = true,
-              title = literal(display = true, text = "Value"),
-              ticks = literal(
-                precision = 0,
-                callback = (value: js.Any) => {
-                  val v = value.asInstanceOf[Double]
-                  val abs = Math.abs(v)
-
-                  def fmt(x: Double, unit: String): String = {
-                    val s = f"$x%.1f"
-                    if (s.endsWith(".0")) s.dropRight(2) + unit
-                    else s + unit
-                  }
-
-                  if (abs >= 1_000_000) fmt(v / 1_000_000, "M")
-                  else if (abs >= 1_000) fmt(v / 1_000, "k")
-                  else Math.round(v).toString
-                }
-              )
-            )
-          ),
-          plugins = literal(legend = literal(display = true))
-        )
-      )
-    )
-  }
-
-  /*
    * Canvas
    */
-  private val app: ReactiveHtmlElement[HTMLDivElement] =
+  private val dashboard: ReactiveHtmlElement[HTMLDivElement] =
     div(
       width  := "98%",
       height := "90vh",
@@ -89,8 +35,7 @@ object Main {
         height := "100%",
 
         onMountCallback { ctx =>
-          val canvas = ctx.thisNode.ref
-          val chart = initChart(canvas)
+          val chart = ChartFactory.lines(ctx.thisNode.ref, config.zoneId)
           chartVar.set(Some(chart))
 
           connector.connect(chartVar)
@@ -108,6 +53,6 @@ object Main {
    * Start from here
    */
   def main(args: Array[String]): Unit = {
-    val _ = render(dom.document.body, app)
+    val _ = render(dom.document.body, dashboard)
   }
 }
