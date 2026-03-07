@@ -36,18 +36,19 @@ object Main {
           responsive = true,
           animation = false,
           cubicInterpolationMode = "monotone",
+          maintainAspectRatio = false,
           spanGaps = false,
           scales = literal(
             x = literal(
               `type` = "time",
               time = literal(unit = "minute", tooltipFormat = "HH:mm"),
               title = literal(display = true, text = "Time"),
-              adapters = js.Dynamic.literal(date = js.Dynamic.literal(zone = config.zoneId))
+              adapters = literal(date = literal(zone = config.zoneId))
             ),
             y = literal(
               beginAtZero = true,
               title = literal(display = true, text = "Value"),
-              ticks = js.Dynamic.literal(
+              ticks = literal(
                 precision = 0,
                 callback = (value: js.Any) => {
                   val v = value.asInstanceOf[Double]
@@ -77,14 +78,15 @@ object Main {
    */
   private val app: ReactiveHtmlElement[HTMLDivElement] =
     div(
+      width  := "98%",
+      height := "90vh",
       h2(
         s"Service: ${config.serviceName}",
         title := s"maxPoints=${config.maxPoints}, policy=${config.policy}"
       ),
       canvasTag(
-        width  := "80%",
-        height := "70%",
-        cls    := "chart-canvas",
+        width  := "100%",
+        height := "100%",
 
         onMountCallback { ctx =>
           val canvas = ctx.thisNode.ref
