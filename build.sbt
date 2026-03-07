@@ -14,7 +14,7 @@ Global / parallelExecution := false
 val acyclicV = "0.3.20"
 val avroV = "1.12.1"
 val avro4sV = "4.1.2"
-val awsV = "2.42.7"
+val awsV = "2.42.8"
 val caffeineV = "3.2.3"
 val catsCoreV = "2.13.0"
 val catsEffectV = "3.6.3"
@@ -406,7 +406,6 @@ lazy val pipes = (project in file("pipes"))
       "com.indoorvivants" %% "scala-uri"                       % "4.2.0",
       "com.thesamet.scalapb" %% "scalapb-runtime"              % "0.11.20",
       "io.circe" %% "circe-jawn"                               % circeV,
-      "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonV,
       "org.typelevel" %% "jawn-fs2"                            % "2.4.0" % Test,
       "com.sksamuel.avro4s" %% "avro4s-core"                   % avro4sV % Test,
       // java
