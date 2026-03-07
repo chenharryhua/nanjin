@@ -344,10 +344,12 @@ lazy val messages =
           "com.thesamet.scalapb" %% "scalapb-runtime" % "0.11.20",
           "io.circe" %% "circe-shapes"                % circeV % Test,
           // java
-          "org.apache.avro" % "avro"                         % avroV,
-          "io.confluent"    % "kafka-protobuf-serializer"    % confluentV,
-          "io.confluent"    % "kafka-json-schema-serializer" % confluentV,
-          "io.confluent"    % "kafka-streams-avro-serde"     % confluentV
+          ("org.apache.avro" % "avro" % avroV) // snyk
+            .exclude("com.fasterxml.jackson.core", "jackson-core")
+            .exclude("com.fasterxml.jackson.core", "jackson-databind"),
+          "io.confluent" % "kafka-protobuf-serializer"    % confluentV,
+          "io.confluent" % "kafka-json-schema-serializer" % confluentV,
+          "io.confluent" % "kafka-streams-avro-serde"     % confluentV
         ) ++ jacksonLib ++ testLib
     )
     .settings(
@@ -418,20 +420,19 @@ lazy val pipes = (project in file("pipes"))
       "org.apache.parquet"     % "parquet-avro"   % parquetV,
       "org.apache.avro"        % "avro"           % avroV,
       "org.tukaani"            % "xz"             % "1.12",
-      "at.yawk.lz4"            % "lz4-java"       % "1.10.4",
+      "at.yawk.lz4"            % "lz4-java"       % "1.10.4", // drop-in replacement of org.lz4:lz4-java
       "org.bouncycastle"       % "bcprov-jdk18on" % "1.83" // snyk by hadoop-common
     ) ++ jacksonLib ++ hadoopLib ++ kantanLib ++ testLib
   )
   .settings(
     dependencyOverrides ++= List(
-      "io.airlift"           % "aircompressor"     % "2.0.3", // snyk by parquet-hadoop
-      "com.google.guava"     % "guava"             % "33.5.0-jre", // snyk by hadoop-common
-      "org.eclipse.jetty"    % "jetty-server"      % "12.1.7", // snyk by hadoop-common
-      "io.netty"             % "netty-codec-http"  % nettyV, // snyk by hadoop-common
-      "io.netty"             % "netty-codec-http2" % nettyV, // snyk by hadoop-client
-      "io.netty"             % "netty-codec-smtp"  % nettyV, // snyk by hadoop-client
-      "com.nimbusds"         % "nimbus-jose-jwt"   % "10.8", // snyk by hadoop-auth
-      "org.apache.zookeeper" % "zookeeper"         % "3.9.5" // snyk
+      "io.airlift"        % "aircompressor"     % "2.0.3", // snyk by parquet-hadoop
+      "com.google.guava"  % "guava"             % "33.5.0-jre", // snyk by hadoop-common
+      "org.eclipse.jetty" % "jetty-server"      % "12.1.7", // snyk by hadoop-common
+      "io.netty"          % "netty-codec-http"  % nettyV, // snyk by hadoop-common
+      "io.netty"          % "netty-codec-http2" % nettyV, // snyk by hadoop-client
+      "io.netty"          % "netty-codec-smtp"  % nettyV, // snyk by hadoop-client
+      "com.nimbusds"      % "nimbus-jose-jwt"   % "10.8" // snyk by hadoop-auth
     ))
 
 // ==========================
@@ -439,9 +440,10 @@ lazy val pipes = (project in file("pipes"))
 // ==========================
 val sparkLib = List(
   "org.apache.spark" %% "spark-catalyst",
+  "org.apache.spark" %% "spark-core",
   "org.apache.spark" %% "spark-sql",
   "org.apache.spark" %% "spark-avro"
-).map(_ % sparkV)
+).map(_ % sparkV).map(_.exclude("org.lz4", "lz4-java"))
 
 lazy val spark = (project in file("spark"))
   .dependsOn(kafka)
@@ -451,7 +453,6 @@ lazy val spark = (project in file("spark"))
   .settings(name := "nj-spark")
   .settings(
     libraryDependencies ++= List(
-      ("org.apache.spark" %% "spark-core"      % sparkV).exclude("org.lz4", "lz4-java"),
       "com.julianpeeters" %% "avrohugger-core" % "2.16.2" % Test,
       "io.circe" %% "circe-shapes"             % circeV   % Test,
       // java
@@ -460,15 +461,13 @@ lazy val spark = (project in file("spark"))
       "org.postgresql"  % "postgresql"      % postgresV % Test
     ) ++ jacksonLib ++ sparkLib ++ testLib
   )
-  .settings(
-    dependencyOverrides ++= List(
-      "org.eclipse.jetty"        % "jetty-server"     % "12.1.7", // snyk by hadoop-common
-      "io.netty"                 % "netty-codec-http" % nettyV, // snyk by spark-sql
-      "com.nimbusds"             % "nimbus-jose-jwt"  % "10.8", // snyk by hadoop-auth
-      "org.apache.logging.log4j" % "log4j-core"       % "2.25.3", // snyk by spark-sql
-      "io.airlift"               % "aircompressor"    % "2.0.3", // snyk by spark-sql
-      "org.apache.ivy"           % "ivy"              % "2.5.3" // snyk
-    ))
+  .settings(dependencyOverrides ++= List(
+    "org.eclipse.jetty"        % "jetty-server"     % "12.1.7", // snyk by hadoop-common
+    "io.netty"                 % "netty-codec-http" % nettyV, // snyk by spark-sql
+    "com.nimbusds"             % "nimbus-jose-jwt"  % "10.8", // snyk by hadoop-auth
+    "org.apache.logging.log4j" % "log4j-core"       % "2.25.3", // snyk by spark-sql
+    "io.airlift"               % "aircompressor"    % "2.0.3" // snyk by spark-sql
+  ))
 
 // ==========================
 // Example
