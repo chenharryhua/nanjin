@@ -344,12 +344,10 @@ lazy val messages =
           "com.thesamet.scalapb" %% "scalapb-runtime" % "0.11.20",
           "io.circe" %% "circe-shapes"                % circeV % Test,
           // java
-          ("org.apache.avro" % "avro" % avroV) // snyk
-            .exclude("com.fasterxml.jackson.core", "jackson-core")
-            .exclude("com.fasterxml.jackson.core", "jackson-databind"),
-          "io.confluent" % "kafka-protobuf-serializer"    % confluentV,
-          "io.confluent" % "kafka-json-schema-serializer" % confluentV,
-          "io.confluent" % "kafka-streams-avro-serde"     % confluentV
+          "org.apache.avro" % "avro"                         % avroV,
+          "io.confluent"    % "kafka-protobuf-serializer"    % confluentV,
+          "io.confluent"    % "kafka-json-schema-serializer" % confluentV,
+          "io.confluent"    % "kafka-streams-avro-serde"     % confluentV
         ) ++ jacksonLib ++ testLib
     )
     .settings(
@@ -418,12 +416,10 @@ lazy val pipes = (project in file("pipes"))
       "org.apache.parquet"     % "parquet-common" % parquetV,
       "org.apache.parquet"     % "parquet-hadoop" % parquetV,
       "org.apache.parquet"     % "parquet-avro"   % parquetV,
-      ("org.apache.avro"       % "avro"           % avroV) // snyk
-        .exclude("com.fasterxml.jackson.core", "jackson-core")
-        .exclude("com.fasterxml.jackson.core", "jackson-databind"),
-      "org.tukaani"      % "xz"             % "1.12",
-      "at.yawk.lz4"      % "lz4-java"       % "1.10.4", // drop-in replacement of org.lz4:lz4-java
-      "org.bouncycastle" % "bcprov-jdk18on" % "1.83" // snyk by hadoop-common
+      "org.apache.avro"        % "avro"           % avroV,
+      "org.tukaani"            % "xz"             % "1.12",
+      "at.yawk.lz4"            % "lz4-java"       % "1.10.4", // drop-in replacement of org.lz4:lz4-java
+      "org.bouncycastle"       % "bcprov-jdk18on" % "1.83" // snyk by hadoop-common
     ) ++ jacksonLib ++ hadoopLib ++ kantanLib ++ testLib
   )
   .settings(
@@ -458,11 +454,9 @@ lazy val spark = (project in file("spark"))
       "com.julianpeeters" %% "avrohugger-core" % "2.16.2" % Test,
       "io.circe" %% "circe-shapes"             % circeV   % Test,
       // java
-      ("org.apache.avro" % "avro-mapred" % avroV) // snyk
-        .exclude("com.fasterxml.jackson.core", "jackson-core")
-        .exclude("com.fasterxml.jackson.core", "jackson-databind"),
-      "ch.qos.logback" % "logback-classic" % logbackV  % Test,
-      "org.postgresql" % "postgresql"      % postgresV % Test
+      "org.apache.avro" % "avro-mapred"     % avroV,
+      "ch.qos.logback"  % "logback-classic" % logbackV  % Test,
+      "org.postgresql"  % "postgresql"      % postgresV % Test
     ) ++ jacksonLib ++ sparkLib ++ testLib
   )
   .settings(dependencyOverrides ++= List(
