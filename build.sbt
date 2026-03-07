@@ -344,19 +344,12 @@ lazy val messages =
           "com.thesamet.scalapb" %% "scalapb-runtime" % "0.11.20",
           "io.circe" %% "circe-shapes"                % circeV % Test,
           // java
-          ("org.apache.avro" % "avro" % avroV) // snyk
-            .exclude("com.fasterxml.jackson.core", "jackson-core")
-            .exclude("com.fasterxml.jackson.core", "jackson-databind"),
-          "io.confluent" % "kafka-protobuf-serializer"    % confluentV,
-          "io.confluent" % "kafka-json-schema-serializer" % confluentV,
-          "io.confluent" % "kafka-streams-avro-serde"     % confluentV
+          "org.apache.avro" % "avro"                         % avroV,
+          "io.confluent"    % "kafka-protobuf-serializer"    % confluentV,
+          "io.confluent"    % "kafka-json-schema-serializer" % confluentV,
+          "io.confluent"    % "kafka-streams-avro-serde"     % confluentV
         ) ++ jacksonLib ++ testLib
     )
-    .settings(
-      dependencyOverrides ++= List(
-        "com.google.protobuf"  % "protobuf-java" % "4.34.0", // snyk
-        "org.jetbrains.kotlin" % "kotlin-stdlib" % "2.3.10" // snyk
-      ))
     .settings(Compile / PB.targets := List(scalapb.gen() -> (Compile / sourceManaged).value / "scalapb"))
 
 // ==========================
