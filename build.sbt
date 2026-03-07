@@ -404,7 +404,6 @@ lazy val pipes = (project in file("pipes"))
   .settings(name := "nj-pipes")
   .settings(
     libraryDependencies ++= List(
-      "co.fs2" %% "fs2-io"                        % fs2V,
       "com.nrinaudo" %% "kantan.csv"              % kantanV,
       "com.indoorvivants" %% "scala-uri"          % "4.2.0",
       "com.thesamet.scalapb" %% "scalapb-runtime" % "0.11.20",
@@ -418,7 +417,7 @@ lazy val pipes = (project in file("pipes"))
       "org.apache.parquet"     % "parquet-avro"   % parquetV,
       "org.apache.avro"        % "avro"           % avroV,
       "org.tukaani"            % "xz"             % "1.12",
-      "org.lz4"                % "lz4-java"       % "1.8.1",
+      "at.yawk.lz4"            % "lz4-java"       % "1.10.4",
       "org.bouncycastle"       % "bcprov-jdk18on" % "1.83" // snyk by hadoop-common
     ) ++ jacksonLib ++ hadoopLib ++ kantanLib ++ testLib
   )
