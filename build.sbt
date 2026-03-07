@@ -157,7 +157,6 @@ lazy val http = (project in file("http"))
       "org.http4s" %% "http4s-circe"        % http4sV,
       "org.http4s" %% "http4s-client"       % http4sV,
       "org.tpolecat" %% "natchez-core"      % natchezV,
-      "co.fs2" %% "fs2-io"                  % fs2V, // snyk - http4s
       "org.http4s" %% "http4s-dsl"          % http4sV  % Test,
       "org.http4s" %% "http4s-ember-server" % http4sV  % Test,
       "org.http4s" %% "http4s-ember-client" % http4sV  % Test,
@@ -182,12 +181,13 @@ lazy val aws = (project in file("aws"))
   .dependsOn(common)
   .settings(commonSettings *)
   .settings(name := "nj-aws")
-  .settings(libraryDependencies ++= List(
-    "org.typelevel" %% "log4cats-slf4j"   % log4catsV,
-    "org.http4s" %% "http4s-ember-client" % http4sV,
-    "org.http4s" %% "http4s-circe"        % http4sV,
-    "co.fs2" %% "fs2-io"                  % fs2V // snyk
-  ) ++ awsLib ++ testLib)
+  .settings(
+    libraryDependencies ++= List(
+      "org.typelevel" %% "log4cats-slf4j"   % log4catsV,
+      "org.http4s" %% "http4s-ember-client" % http4sV,
+      "org.http4s" %% "http4s-circe"        % http4sV
+    ) ++ awsLib ++ testLib
+  )
 
 // ==========================
 // Date-time
@@ -234,7 +234,6 @@ lazy val guard = (project in file("guard"))
       "org.http4s" %% "http4s-ember-server" % http4sV,
       "org.http4s" %% "http4s-circe"        % http4sV,
       "org.http4s" %% "http4s-scalatags"    % "0.25.2",
-      "co.fs2" %% "fs2-io"                  % fs2V, // snyk - http4s
       "org.http4s" %% "http4s-ember-client" % http4sV % Test,
       // java
       "org.apache.commons"            % "commons-collections4" % "4.5.0",
@@ -242,7 +241,8 @@ lazy val guard = (project in file("guard"))
       "com.github.ben-manes.caffeine" % "caffeine"             % caffeineV,
       "ch.qos.logback"                % "logback-classic"      % logbackV % Test
     ) ++ testLib
-  ).settings {
+  )
+  .settings {
     Compile / resourceGenerators += Def.task {
       val js = (frontend / Compile / fullOptJS).value
       val map = (frontend / Compile / fullOptJS).value.data.getParentFile / (js.data.getName + ".map")
@@ -312,7 +312,6 @@ lazy val database = (project in file("database"))
       "org.tpolecat" %% "doobie-hikari" % doobieV,
       "org.tpolecat" %% "doobie-free"   % doobieV,
       "org.tpolecat" %% "skunk-core"    % skunkV,
-      "co.fs2" %% "fs2-io"              % fs2V, // snyk - http4s
       // java
       "com.zaxxer"     % "HikariCP"        % "7.0.2",
       "org.postgresql" % "postgresql"      % postgresV % Test,
@@ -345,13 +344,17 @@ lazy val messages =
           "com.thesamet.scalapb" %% "scalapb-runtime" % "0.11.20",
           "io.circe" %% "circe-shapes"                % circeV % Test,
           // java
-          "org.apache.avro"      % "avro"                         % avroV,
-          "io.confluent"         % "kafka-protobuf-serializer"    % confluentV,
-          "io.confluent"         % "kafka-json-schema-serializer" % confluentV,
-          "io.confluent"         % "kafka-streams-avro-serde"     % confluentV,
-          "com.google.protobuf"  % "protobuf-java"                % "4.34.0", // snyk
-          "org.jetbrains.kotlin" % "kotlin-stdlib"                % "2.3.10" // snyk
-        ) ++ jacksonLib ++ testLib)
+          "org.apache.avro" % "avro"                         % avroV,
+          "io.confluent"    % "kafka-protobuf-serializer"    % confluentV,
+          "io.confluent"    % "kafka-json-schema-serializer" % confluentV,
+          "io.confluent"    % "kafka-streams-avro-serde"     % confluentV
+        ) ++ jacksonLib ++ testLib
+    )
+    .settings(
+      dependencyOverrides ++= List(
+        "com.google.protobuf"  % "protobuf-java" % "4.34.0", // snyk
+        "org.jetbrains.kotlin" % "kotlin-stdlib" % "2.3.10" // snyk
+      ))
     .settings(Compile / PB.targets := List(scalapb.gen() -> (Compile / sourceManaged).value / "scalapb"))
 
 // ==========================
@@ -399,38 +402,43 @@ lazy val pipes = (project in file("pipes"))
   .dependsOn(datetime)
   .settings(commonSettings *)
   .settings(name := "nj-pipes")
-  .settings {
-    val libs = List(
-      "co.fs2" %% "fs2-io"                                     % fs2V,
-      "com.nrinaudo" %% "kantan.csv"                           % kantanV,
-      "com.indoorvivants" %% "scala-uri"                       % "4.2.0",
-      "com.thesamet.scalapb" %% "scalapb-runtime"              % "0.11.20",
-      "io.circe" %% "circe-jawn"                               % circeV,
-      "org.typelevel" %% "jawn-fs2"                            % "2.4.0" % Test,
-      "com.sksamuel.avro4s" %% "avro4s-core"                   % avro4sV % Test,
+  .settings(
+    libraryDependencies ++= List(
+      "co.fs2" %% "fs2-io"                        % fs2V,
+      "com.nrinaudo" %% "kantan.csv"              % kantanV,
+      "com.indoorvivants" %% "scala-uri"          % "4.2.0",
+      "com.thesamet.scalapb" %% "scalapb-runtime" % "0.11.20",
+      "io.circe" %% "circe-jawn"                  % circeV,
+      "org.typelevel" %% "jawn-fs2"               % "2.4.0" % Test,
+      "com.sksamuel.avro4s" %% "avro4s-core"      % avro4sV % Test,
       // java
-      "software.amazon.awssdk" % "bundle"          % awsV,
-      "org.apache.parquet"     % "parquet-common"  % parquetV,
-      "org.apache.parquet"     % "parquet-hadoop"  % parquetV,
-      "org.apache.parquet"     % "parquet-avro"    % parquetV,
-      "org.apache.avro"        % "avro"            % avroV,
-      "org.tukaani"            % "xz"              % "1.12",
-      "at.yawk.lz4"            % "lz4-java"        % "1.10.4",
-      "org.eclipse.jetty"      % "jetty-server"    % "12.1.7", // snyk
-      "io.netty"               % "netty-all"       % nettyV, // snyk
-      "com.nimbusds"           % "nimbus-jose-jwt" % "10.8", // snyk
-      "org.apache.zookeeper"   % "zookeeper"       % "3.9.5" // snyk
-
-    ) ++ jacksonLib ++ hadoopLib ++ kantanLib
-    libraryDependencies ++= libs ++ testLib
-  }
+      "software.amazon.awssdk" % "bundle"         % awsV,
+      "org.apache.parquet"     % "parquet-common" % parquetV,
+      "org.apache.parquet"     % "parquet-hadoop" % parquetV,
+      "org.apache.parquet"     % "parquet-avro"   % parquetV,
+      "org.apache.avro"        % "avro"           % avroV,
+      "org.tukaani"            % "xz"             % "1.12",
+      "at.yawk.lz4"            % "lz4-java"       % "1.10.4",
+      "org.bouncycastle"       % "bcprov-jdk18on" % "1.83" // snyk by hadoop-common
+    ) ++ jacksonLib ++ hadoopLib ++ kantanLib ++ testLib
+  )
+  .settings(
+    dependencyOverrides ++= List(
+      "io.airlift"           % "aircompressor"     % "2.0.3", // snyk by parquet-hadoop
+      "com.google.guava"     % "guava"             % "33.5.0-jre", // snyk by hadoop-common
+      "org.eclipse.jetty"    % "jetty-server"      % "12.1.7", // snyk by hadoop-common
+      "io.netty"             % "netty-codec-http"  % nettyV, // snyk by hadoop-common
+      "io.netty"             % "netty-codec-http2" % nettyV, // snyk by hadoop-client
+      "io.netty"             % "netty-codec-smtp"  % nettyV, // snyk by hadoop-client
+      "com.nimbusds"         % "nimbus-jose-jwt"   % "10.8", // snyk by hadoop-auth
+      "org.apache.zookeeper" % "zookeeper"         % "3.9.5" // snyk
+    ))
 
 // ==========================
 // Spark
 // ==========================
 val sparkLib = List(
   "org.apache.spark" %% "spark-catalyst",
-  "org.apache.spark" %% "spark-core",
   "org.apache.spark" %% "spark-sql",
   "org.apache.spark" %% "spark-avro"
 ).map(_ % sparkV)
@@ -441,18 +449,26 @@ lazy val spark = (project in file("spark"))
   .dependsOn(database)
   .settings(commonSettings *)
   .settings(name := "nj-spark")
-  .settings {
-    val libs = List(
+  .settings(
+    libraryDependencies ++= List(
+      ("org.apache.spark" %% "spark-core"      % sparkV).exclude("org.lz4", "lz4-java"),
       "com.julianpeeters" %% "avrohugger-core" % "2.16.2" % Test,
       "io.circe" %% "circe-shapes"             % circeV   % Test,
       // java
       "org.apache.avro" % "avro-mapred"     % avroV,
-      "org.apache.ivy"  % "ivy"             % "2.5.3", // snyk
       "ch.qos.logback"  % "logback-classic" % logbackV  % Test,
       "org.postgresql"  % "postgresql"      % postgresV % Test
-    ) ++ jacksonLib ++ sparkLib
-    libraryDependencies ++= libs ++ testLib
-  }
+    ) ++ jacksonLib ++ sparkLib ++ testLib
+  )
+  .settings(
+    dependencyOverrides ++= List(
+      "org.eclipse.jetty"        % "jetty-server"     % "12.1.7", // snyk by hadoop-common
+      "io.netty"                 % "netty-codec-http" % nettyV, // snyk by spark-sql
+      "com.nimbusds"             % "nimbus-jose-jwt"  % "10.8", // snyk by hadoop-auth
+      "org.apache.logging.log4j" % "log4j-core"       % "2.25.3", // snyk by spark-sql
+      "io.airlift"               % "aircompressor"    % "2.0.3", // snyk by spark-sql
+      "org.apache.ivy"           % "ivy"              % "2.5.3" // snyk
+    ))
 
 // ==========================
 // Example
