@@ -52,7 +52,7 @@ private object documents {
       Attribute(Present(now)).snakeJsonEntry(_.json),
       Attribute(serviceParams.servicePolicies.restart.policy).map(_.show).snakeJsonEntry,
       Attribute(serviceParams.timeZone).snakeJsonEntry,
-      Attribute(serviceParams.upTime(now)).snakeJsonEntry(_.show.asJson),
+      Attribute(serviceParams.upTime(now)).map(_.show).snakeJsonEntry,
       "panics" -> panics.size.asJson,
       "history" ->
         panics.reverse.map { sp =>
@@ -60,9 +60,9 @@ private object documents {
             "index" -> Json.fromLong(sp.tick.index),
             Attribute(Age(Duration.between(sp.timestamp.value, now))).map(_.json).snakeJsonEntry,
             "up_rouse_at" -> sp.tick.local(_.commence).asJson,
-            Attribute(Active(sp.tick.active)).map(_.show.asJson).snakeJsonEntry,
+            Attribute(Active(sp.tick.active)).map(_.show).snakeJsonEntry,
             Attribute(Timestamp(sp.tick.zoned(_.acquires)))
-              .map(_.value.toLocalDateTime.asJson)
+              .map(_.value.toLocalDateTime)
               .snakeJsonEntry,
             Attribute(Snooze(sp.tick.snooze)).map(_.show).snakeJsonEntry,
             "restart_at" -> sp.tick.local(_.conclude).asJson,
@@ -88,7 +88,7 @@ private object documents {
           Attribute(sm.domain).snakeJsonEntry,
           Attribute(sm.correlation).snakeJsonEntry,
           Attribute(Age(Duration.between(sm.timestamp.value, now))).map(_.json).snakeJsonEntry,
-          Attribute(sm.timestamp).map(_.value.toLocalDateTime.asJson).snakeJsonEntry,
+          Attribute(sm.timestamp).map(_.value.toLocalDateTime).snakeJsonEntry,
           Attribute(sm.message).snakeJsonEntry,
           Attribute(sm.stackTrace).snakeJsonEntry
         )

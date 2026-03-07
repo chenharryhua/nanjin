@@ -16,13 +16,14 @@ final class ChartManager(maxSizePerSeries: Int) {
     colorMap.getOrElseUpdate(name, s"hsl(${math.abs(name.hashCode % 360)}, 70%, 50%)")
 
   private val data: mutable.Map[String, mutable.Queue[Point]] = mutable.Map.empty
+  private val baseline: mutable.Queue[Point] = mutable.Queue.empty
 
   def enqueue(msg: WsMessage): ChartManager = {
     // All series we need to update: existing + new
     val allNames = data.keys.toSet ++ msg.points.keys.toSet
 
     allNames.foreach { name =>
-      val queue = data.getOrElseUpdate(name, mutable.Queue.empty)
+      val queue = data.getOrElseUpdate(name, baseline.clone())
 
       if (queue.size >= maxSizePerSeries) queue.dequeue(): Unit
 
@@ -30,6 +31,10 @@ final class ChartManager(maxSizePerSeries: Int) {
       val newPoint = msg.points.getOrElse(name, Point(msg.ts, None))
       queue.enqueue(newPoint)
     }
+
+    // manage baseline. size of baseline should be maxSizePerSeries - 1
+    if (baseline.size >= maxSizePerSeries - 1) baseline.dequeue(): Unit
+    baseline.enqueue(Point(msg.ts, None))
 
     // chart get shorter and shorter
     // data.filterInPlace { case (_, q) => q.exists(_.y.isDefined) }
@@ -39,30 +44,42 @@ final class ChartManager(maxSizePerSeries: Int) {
 
   def updateChart(chartVar: Var[Option[js.Dynamic]]): Unit =
     chartVar.now().foreach { chart =>
-      chart.data.datasets.asInstanceOf[js.Array[js.Dynamic]].foreach { dataset =>
+      val datasets = chart.data.datasets.asInstanceOf[js.Array[js.Dynamic]]
+
+      // remove fade out series
+      val toRemove = data.collect { case (k, q) if q.forall(_.y.isEmpty) => k }
+      toRemove
+        .foreach { label =>
+          val i = datasets.indexWhere(_.label.asInstanceOf[String] == label)
+          if (i >= 0) datasets.splice(i, 1)
+        }
+      toRemove.foreach(data.remove)
+
+      // build up datasets
+      datasets.foreach { dataset =>
         val name = dataset.label.asInstanceOf[String]
         data.get(name).foreach { queue =>
-          dataset.data = queue.toSeq.map(_.dataPoint).toJSArray
+          dataset.data = queue.iterator.map(_.dataPoint).toJSArray
         }
       }
 
       // Add new series if they don’t exist yet
       data.keys.foreach { name =>
-        if (!chart.data.datasets.asInstanceOf[js.Array[js.Dynamic]].exists(
-            _.label.asInstanceOf[String] == name)) {
+        if (!datasets.exists(_.label.asInstanceOf[String] == name)) {
           val queue = data(name)
           val newDataset = js.Dynamic.literal(
             label = name,
-            data = queue.toSeq.map(_.dataPoint).toJSArray,
+            data = queue.iterator.map(_.dataPoint).toJSArray,
             borderColor = colorFor(name),
             backgroundColor = colorFor(name),
             fill = false,
             tension = 0.3,
             pointRadius = 0
           )
-          chart.data.datasets.push(newDataset)
+          datasets.push(newDataset)
         }
       }
+
       chart.update()
     }
 }
