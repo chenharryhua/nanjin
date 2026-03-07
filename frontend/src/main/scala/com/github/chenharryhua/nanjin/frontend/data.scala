@@ -9,7 +9,7 @@ import scala.scalajs.js.JSConverters._
 case class Series(label: String, value: Double)
 
 @JsonCodec
-case class WsMessage(series: List[Series], ts: Double) {
+case class WsMessage(ts: Double, series: List[Series]) {
   val points: Map[String, Point] = series.map { case Series(label, value) =>
     label -> Point(ts, Some(value))
   }.toMap

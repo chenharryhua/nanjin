@@ -57,8 +57,8 @@ final private class MetricsPump[F[_]: Async](
     }
     WebSocketFrame.Text(
       Json.obj(
-        "series" -> series.asJson,
-        "ts" -> Json.fromLong(tv.tick.commence.toEpochMilli)
+        "ts" -> Json.fromLong(tv.tick.commence.toEpochMilli),
+        "series" -> series.asJson
       ).noSpaces)
   }
 

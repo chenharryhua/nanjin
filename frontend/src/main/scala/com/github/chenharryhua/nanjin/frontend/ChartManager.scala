@@ -36,9 +36,6 @@ final class ChartManager(maxSizePerSeries: Int) {
     if (baseline.size >= maxSizePerSeries - 1) baseline.dequeue(): Unit
     baseline.enqueue(Point(msg.ts, None))
 
-    // chart get shorter and shorter
-    // data.filterInPlace { case (_, q) => q.exists(_.y.isDefined) }
-
     this
   }
 
