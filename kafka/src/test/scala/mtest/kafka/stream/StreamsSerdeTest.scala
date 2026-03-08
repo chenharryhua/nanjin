@@ -10,7 +10,8 @@ class StreamsSerdeTest extends AnyFunSuite {
   test("1.stream-table join") {
     val top = ctx.buildStreams("a1") { (sb, ss) =>
       import ss.implicits.*
-      sb.stream[Integer, String]("a").join(sb.table[Integer, Integer]("b"))((s, i) => (s, i)).map((_,v) => v).to("c")
+      sb.stream[Integer, String]("a").join(sb.table[Integer, Integer]("b"))((s, i) => (s, i)).map((_, v) =>
+        v).to("c")
     }
     println(top.topology.describe())
   }
@@ -18,7 +19,8 @@ class StreamsSerdeTest extends AnyFunSuite {
   test("2.stream-table left-join") {
     val top = ctx.buildStreams("a2") { (sb, ss) =>
       import ss.implicits.*
-      sb.stream[Integer, String]("a").leftJoin(sb.table[Integer, Integer]("b"))((s, i) => (s, i)).map((_,v) => v).to("c")
+      sb.stream[Integer, String]("a").leftJoin(sb.table[Integer, Integer]("b"))((s, i) => (s, i)).map(
+        (_, v) => v).to("c")
     }
     println(top.topology.describe())
   }
@@ -62,7 +64,7 @@ class StreamsSerdeTest extends AnyFunSuite {
   test("7.count") {
     val top = ctx.buildStreams("a4") { (sb, ss) =>
       import ss.implicits.*
-      sb.stream[Integer, String]("a").groupByKey//.count()
+      sb.stream[Integer, String]("a").groupByKey // .count()
       ()
     }
     println(top.topology.describe())

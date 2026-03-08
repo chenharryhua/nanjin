@@ -28,13 +28,15 @@ object KafkaStreamingData {
 
   case class StreamTarget(name: String, weight: Int, color: Int)
 
-  val s1Def: AvroTopic[Integer, StreamOne] = AvroTopic[Integer, StreamOne](TopicName("stream.test.join.stream.one"))
+  val s1Def: AvroTopic[Integer, StreamOne] =
+    AvroTopic[Integer, StreamOne](TopicName("stream.test.join.stream.one"))
 
   val s1Topic: AvroTopic[Integer, StreamOne] = s1Def
   val t2Topic: AvroTopic[Integer, TableTwo] =
     AvroTopic[Integer, TableTwo](TopicName("stream.test.join.table.two"))
 
-  val tgt: AvroTopic[Integer, StreamTarget] = AvroTopic[Integer, StreamTarget](TopicName("stream.test.join.target"))
+  val tgt: AvroTopic[Integer, StreamTarget] =
+    AvroTopic[Integer, StreamTarget](TopicName("stream.test.join.target"))
   val serde: KafkaGenericSerde[Integer, StreamTarget] = ctx.serde(tgt)
 
   val register: IO[RegisteredSchemaID] =

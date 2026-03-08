@@ -12,8 +12,6 @@ import io.confluent.kafka.serializers.json.{
   KafkaJsonSchemaDeserializerConfig,
   KafkaJsonSchemaSerializer
 }
-import io.estatico.newtype.macros.newtype
-import io.estatico.newtype.ops.toCoercibleIdOps
 import org.apache.commons.lang3.exception.ExceptionUtils
 import org.apache.kafka.common.serialization.{Deserializer, Serde, Serdes, Serializer}
 
@@ -30,9 +28,8 @@ sealed trait JsonFor[A] extends UnregisteredSerde[A] {
 object JsonFor {
   def apply[A](implicit ev: JsonFor[A]): JsonFor[A] = ev
 
-  @newtype final class FromBroker private (val value: JsonNode)
+  final class FromBroker private[JsonFor] (val value: JsonNode)
   object FromBroker {
-    def apply(jn: JsonNode): FromBroker = jn.coerce
     implicit val jsonEncoderUniversal: JsonEncoder[FromBroker] =
       (a: FromBroker) =>
         io.circe.jawn.parse(globalObjectMapper.writeValueAsString(a.value)) match {
@@ -43,7 +40,7 @@ object JsonFor {
       (c: HCursor) =>
         Try(globalObjectMapper.convertValue[JsonNode](c.value.noSpaces)) match {
           case Failure(ex)    => Left(DecodingFailure(CustomReason(ExceptionUtils.getMessage(ex)), c.history))
-          case Success(value) => Right(value.coerce)
+          case Success(value) => Right(new FromBroker(value))
         }
   }
 
@@ -117,8 +114,8 @@ object JsonFor {
 
           override def deserialize(topic: String, data: Array[Byte]): FromBroker =
             Option(deSer.deserialize(topic, data))
-              .map(_.coerce[FromBroker])
-              .getOrElse(null.asInstanceOf[FromBroker]) // scalafix:ok
+              .map(new FromBroker(_))
+              .orNull
 
         }
       }

@@ -7,8 +7,6 @@ import io.circe.syntax.EncoderOps
 import io.circe.{Codec as JsonCodec, Decoder as JsonDecoder, Encoder as JsonEncoder, HCursor, Json, Printer}
 import io.confluent.kafka.schemaregistry.avro.AvroSchema
 import io.confluent.kafka.streams.serdes.avro.{GenericAvroDeserializer, GenericAvroSerializer}
-import io.estatico.newtype.macros.newtype
-import io.estatico.newtype.ops.toCoercibleIdOps
 import org.apache.avro.SchemaBuilder
 import org.apache.avro.generic.GenericRecord
 import org.apache.kafka.common.serialization.{Deserializer, Serde, Serdes, Serializer}
@@ -28,9 +26,8 @@ sealed trait LowerPriority {
 object AvroFor extends LowerPriority {
   def apply[A](implicit ev: AvroFor[A]): AvroFor[A] = ev
 
-  @newtype final class FromBroker private (val value: GenericRecord)
+  final class FromBroker private[AvroFor] (val value: GenericRecord)
   object FromBroker {
-    def apply(gr: GenericRecord): FromBroker = gr.coerce
     implicit val jsonEncoderUniversal: JsonEncoder[FromBroker] =
       (a: FromBroker) =>
         io.circe.jawn.parse(a.value.toString) match {
@@ -39,14 +36,13 @@ object AvroFor extends LowerPriority {
         }
   }
 
-  @newtype final class KJson[A] private (val value: A)
+  final class KJson[A] private (val value: A)
   object KJson {
-    def apply[A](a: A): KJson[A] = a.coerce[KJson[A]]
-
+    def apply[A](a: A): KJson[A] = new KJson[A](a)
     implicit def jsonCodec[A: JsonEncoder: JsonDecoder]: JsonCodec[KJson[A]] =
       new JsonCodec[KJson[A]] {
         override def apply(a: KJson[A]): Json = JsonEncoder[A].apply(a.value)
-        override def apply(c: HCursor): Result[KJson[A]] = JsonDecoder[A].apply(c).map(KJson[A])
+        override def apply(c: HCursor): Result[KJson[A]] = JsonDecoder[A].apply(c).map(new KJson[A](_))
       }
   }
 
@@ -125,8 +121,8 @@ object AvroFor extends LowerPriority {
 
         override def deserialize(topic: String, data: Array[Byte]): FromBroker =
           Option(deSer.deserialize(topic, data))
-            .map(_.coerce[FromBroker])
-            .getOrElse(null.asInstanceOf[FromBroker]) // scalafix:ok
+            .map(new FromBroker(_))
+            .orNull
 
       }
     }
@@ -188,11 +184,10 @@ object AvroFor extends LowerPriority {
         override def deserialize(topic: String, data: Array[Byte]): KJson[A] =
           Option(data).map { ab =>
             decodeByteArray[A](ab) match {
-              case Left(value)  => throw value
+              case Left(value)  => throw value // scalafix:ok
               case Right(value) => KJson(value)
             }
-          }.getOrElse(null.asInstanceOf[KJson[A]]) // scalafix:ok
-
+          }.orNull
       }
     }
   }

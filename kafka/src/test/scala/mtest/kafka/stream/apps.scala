@@ -58,23 +58,24 @@ object apps {
       new ProcessorSupplier[Integer, String, Integer, String] {
         var kvStore: KeyValueStore[Integer, String] = _
         var ctx: api.ProcessorContext[Integer, String] = _
-        override def get(): Processor[Integer, String, Integer, String] = new Processor[Integer, String, Integer, String] {
-          override def init(context: api.ProcessorContext[Integer, String]): Unit = {
-            kvStore = context.getStateStore[KeyValueStore[Integer, String]](store.name.value)
-            ctx = context
-            println("transformer initialized")
-          }
+        override def get(): Processor[Integer, String, Integer, String] =
+          new Processor[Integer, String, Integer, String] {
+            override def init(context: api.ProcessorContext[Integer, String]): Unit = {
+              kvStore = context.getStateStore[KeyValueStore[Integer, String]](store.name.value)
+              ctx = context
+              println("transformer initialized")
+            }
 
-          override def close(): Unit =
-            // kvStore.close()
-            println("transformer closed")
+            override def close(): Unit =
+              // kvStore.close()
+              println("transformer closed")
 
-          override def process(record: Record[Integer, String]): Unit = {
-            println(record.toString)
-            kvStore.put(record.key(), record.value())
-            ctx.forward(record)
+            override def process(record: Record[Integer, String]): Unit = {
+              println(record.toString)
+              kvStore.put(record.key(), record.value())
+              ctx.forward(record)
+            }
           }
-        }
       }
 
     sb.stream[Integer, String](topic1.name.value)
