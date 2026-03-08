@@ -38,14 +38,14 @@ class SparKafkaTest extends AnyFunSuite {
   import SparKafkaTestData.*
   implicit val ss: SparkSession = sparkSession
 
-  val topic: AvroTopic[Int, HasDuck] = AvroTopic[Int, HasDuck](TopicName("duck.test"))
+  val topic: AvroTopic[Integer, HasDuck] = AvroTopic[Integer, HasDuck](TopicName("duck.test"))
 
   val loadData: IO[Unit] =
     fs2.Stream
-      .emits[IO, (Int, HasDuck)](
+      .emits[IO, (Integer, HasDuck)](
         List((1, data), (2, null), (null.asInstanceOf[Int], data), (null.asInstanceOf[Int], null)))
       .covary[IO]
-      .through(ctx.produce[Int, HasDuck](topic).updateConfig(_.withClientId("spark.kafka.test")).sink)
+      .through(ctx.produce[Integer, HasDuck](topic).updateConfig(_.withClientId("spark.kafka.test")).sink)
       .compile
       .drain
 
@@ -74,7 +74,7 @@ class SparKafkaTest extends AnyFunSuite {
     assert(io.circe.jawn.decode[NJProducerRecord[Int, Int]](pr1.asJson.noSpaces).toOption.get == pr1)
   }
 
-  val duckConsume: ConsumeGenericRecord[IO, Int, HasDuck] =
+  val duckConsume: ConsumeGenericRecord[IO, Integer, HasDuck] =
     ctx
       .consumeGenericRecord(topic)
       .updateConfig(_.withAutoOffsetReset(AutoOffsetReset.Earliest).withGroupId("duck"))

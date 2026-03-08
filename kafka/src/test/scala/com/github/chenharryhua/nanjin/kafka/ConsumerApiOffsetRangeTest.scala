@@ -26,12 +26,12 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
    *
    */
 
-  val topicDef: AvroTopic[Int, Int] = AvroTopic[Int, Int](TopicName("range.test"))
-  val topic: AvroTopic[Int, Int] = topicDef
+  val topicDef: AvroTopic[java.lang.Integer, java.lang.Integer] = AvroTopic[java.lang.Integer, java.lang.Integer](TopicName("range.test"))
+  val topic: AvroTopic[java.lang.Integer, java.lang.Integer] = topicDef
 
-  val pr1: ProducerRecord[Int, Int] = ProducerRecord(topic.topicName.name.value, 1, 1).withTimestamp(100)
-  val pr2: ProducerRecord[Int, Int] = ProducerRecord(topic.topicName.name.value, 2, 2).withTimestamp(200)
-  val pr3: ProducerRecord[Int, Int] = ProducerRecord(topic.topicName.name.value, 3, 3).withTimestamp(300)
+  val pr1: ProducerRecord[java.lang.Integer, java.lang.Integer] = ProducerRecord(topic.topicName.name.value, Integer.valueOf(1), Integer.valueOf(1)).withTimestamp(100)
+  val pr2: ProducerRecord[java.lang.Integer, java.lang.Integer] = ProducerRecord(topic.topicName.name.value, Integer.valueOf(2), Integer.valueOf(2)).withTimestamp(200)
+  val pr3: ProducerRecord[java.lang.Integer, java.lang.Integer] = ProducerRecord(topic.topicName.name.value, Integer.valueOf(3), Integer.valueOf(3)).withTimestamp(300)
 
   val topicData: Stream[IO, Chunk[RecordMetadata]] =
     Stream(ProducerRecords(List(pr1, pr2, pr3)))
@@ -51,7 +51,7 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
       cs.withProperties(ctx.settings.consumerSettings.properties).withGroupId("consumer-api-test"))
   }
 
-  val client: ConsumeKafka[IO, Int, Int] = ctx.consume(topic)
+  val client: ConsumeKafka[IO, Integer, Integer] = ctx.consume(topic)
 
   test("start and end are both in range") {
     val expect: TopicPartitionMap[Option[OffsetRange]] =

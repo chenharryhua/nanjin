@@ -8,7 +8,7 @@ import org.scalatest.funsuite.AnyFunSuite
 
 class NJConsumerRecordDecoderTest extends AnyFunSuite {
 
-  val topic: AvroTopic[Int, Int] = AvroTopic[Int, Int](TopicName("decode.test"))
+  val topic: AvroTopic[Integer, Integer] = AvroTopic[Integer, Integer](TopicName("decode.test"))
   val goodData: ConsumerRecord[Array[Byte], Array[Byte]] =
     ConsumerRecord("test", 0, 0, Array[Byte](0, 0, 0, 1), Array[Byte](0, 0, 0, 2))
 

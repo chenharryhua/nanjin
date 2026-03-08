@@ -20,7 +20,7 @@ import scala.concurrent.duration.*
 
 object Fs2ChannelTestData {
   final case class Fs2Kafka(a: Int, b: String, c: Double)
-  val avroTopic: AvroTopic[Int, Fs2Kafka] = AvroTopic[Int, Fs2Kafka](TopicName("fs2.kafka.test"))
+  val avroTopic: AvroTopic[Integer, Fs2Kafka] = AvroTopic[Integer, Fs2Kafka](TopicName("fs2.kafka.test"))
   val jackson =
     """
       {
@@ -70,7 +70,7 @@ class Fs2ChannelTest extends AnyFunSuite {
       ctx
         .sharedProduce(avroTopic.pair)
         .produceOne(
-          ProducerRecord(avroTopic.topicName.value, 1, Fs2Kafka(1, "a", 1.0))
+          ProducerRecord(avroTopic.topicName.value, Integer.valueOf(1), Fs2Kafka(1, "a", 1.0))
             .withHeaders(Headers(Header("k", "abc")))) >>
         ctx
           .consume(avroTopic)
@@ -166,7 +166,7 @@ class Fs2ChannelTest extends AnyFunSuite {
 
   test("6.byte consumer config") {
     val consumer = ctx
-      .consumeGenericRecord(AvroTopic[Long, Int]("bytes"))
+      .consumeGenericRecord(AvroTopic[java.lang.Long, Integer]("bytes"))
       .updateConfig(
         _.withGroupId("nanjin")
           .withEnableAutoCommit(true)

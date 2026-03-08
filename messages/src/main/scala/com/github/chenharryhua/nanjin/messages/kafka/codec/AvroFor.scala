@@ -9,9 +9,9 @@ import io.confluent.kafka.schemaregistry.avro.AvroSchema
 import io.confluent.kafka.streams.serdes.avro.{GenericAvroDeserializer, GenericAvroSerializer}
 import io.estatico.newtype.macros.newtype
 import io.estatico.newtype.ops.toCoercibleIdOps
+import org.apache.avro.SchemaBuilder
 import org.apache.avro.generic.GenericRecord
-import org.apache.kafka.common.serialization.{Deserializer, Serde, Serializer}
-import org.apache.kafka.streams.scala.serialization.Serdes
+import org.apache.kafka.common.serialization.{Deserializer, Serde, Serdes, Serializer}
 import shapeless.LabelledGeneric
 
 import java.util
@@ -58,42 +58,42 @@ object AvroFor extends LowerPriority {
   implicit object avroForArrayByte extends AvroFor[Array[Byte]] {
     override val isPrimitive: Boolean = true
     override val avroSchema: Option[AvroSchema] = new AvroSchema(SchemaFor[Array[Byte]].schema).some
-    override protected val unregisteredSerde: Serde[Array[Byte]] = Serdes.byteArraySerde
+    override protected val unregisteredSerde: Serde[Array[Byte]] = Serdes.ByteArray()
   }
 
   // 2: String
   implicit object avroForString extends AvroFor[String] {
     override val isPrimitive: Boolean = true
-    override val avroSchema: Option[AvroSchema] = new AvroSchema(SchemaFor[String].schema).some
-    override protected val unregisteredSerde: Serde[String] = Serdes.stringSerde
+    override val avroSchema: Option[AvroSchema] = new AvroSchema(SchemaBuilder.builder().stringType()).some
+    override protected val unregisteredSerde: Serde[String] = Serdes.String()
   }
 
   // 3: Long
-  implicit object avroForLong extends AvroFor[Long] {
+  implicit object avroForLong extends AvroFor[java.lang.Long] {
     override val isPrimitive: Boolean = true
-    override val avroSchema: Option[AvroSchema] = new AvroSchema(SchemaFor[Long].schema).some
-    override protected val unregisteredSerde: Serde[Long] = Serdes.longSerde
+    override val avroSchema: Option[AvroSchema] = new AvroSchema(SchemaBuilder.builder().longType()).some
+    override protected val unregisteredSerde: Serde[java.lang.Long] = Serdes.Long()
   }
 
   // 4: float
-  implicit object avroForFloat extends AvroFor[Float] {
+  implicit object avroForFloat extends AvroFor[java.lang.Float] {
     override val isPrimitive: Boolean = true
-    override val avroSchema: Option[AvroSchema] = new AvroSchema(SchemaFor[Float].schema).some
-    override protected val unregisteredSerde: Serde[Float] = Serdes.floatSerde
+    override val avroSchema: Option[AvroSchema] = new AvroSchema(SchemaBuilder.builder().floatType()).some
+    override protected val unregisteredSerde: Serde[java.lang.Float] = Serdes.Float()
   }
 
   // 5: double
-  implicit object avroForDouble extends AvroFor[Double] {
+  implicit object avroForDouble extends AvroFor[java.lang.Double] {
     override val isPrimitive: Boolean = true
-    override val avroSchema: Option[AvroSchema] = new AvroSchema(SchemaFor[Double].schema).some
-    override protected val unregisteredSerde: Serde[Double] = Serdes.doubleSerde
+    override val avroSchema: Option[AvroSchema] = new AvroSchema(SchemaBuilder.builder().doubleType()).some
+    override protected val unregisteredSerde: Serde[java.lang.Double] = Serdes.Double()
   }
 
   // 6: int
-  implicit object avroForInt extends AvroFor[Int] {
+  implicit object avroForInt extends AvroFor[java.lang.Integer] {
     override val isPrimitive: Boolean = true
-    override val avroSchema: Option[AvroSchema] = new AvroSchema(SchemaFor[Int].schema).some
-    override protected val unregisteredSerde: Serde[Int] = Serdes.intSerde
+    override val avroSchema: Option[AvroSchema] = new AvroSchema(SchemaBuilder.builder().intType()).some
+    override protected val unregisteredSerde: Serde[java.lang.Integer] = Serdes.Integer()
   }
 
   // 7. universal - generic record
@@ -174,7 +174,7 @@ object AvroFor extends LowerPriority {
 
     override protected val unregisteredSerde: Serde[KJson[A]] = new Serde[KJson[A]] {
       override val serializer: Serializer[KJson[A]] = new Serializer[KJson[A]] {
-        private[this] val ser = Serdes.byteBufferSerde.serializer()
+        private[this] val ser = Serdes.ByteBuffer().serializer()
         private val print = Printer.noSpaces
         override def serialize(topic: String, data: KJson[A]): Array[Byte] =
           Option(data)

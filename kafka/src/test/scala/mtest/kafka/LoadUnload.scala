@@ -16,10 +16,10 @@ final case class Simple(name: String, count: Int)
 
 class LoadUnload extends AnyFunSuite {
 
-  val avro: AvroTopic[Int, Simple] = AvroTopic[Int, Simple]("spark-avro-simple")
-  val json: JsonTopic[Int, Simple] = JsonTopic[Int, Simple]("spark-json-simple")
+  val avro: AvroTopic[Integer, Simple] = AvroTopic[Integer, Simple]("spark-avro-simple")
+  val json: JsonTopic[Integer, Simple] = JsonTopic[Integer, Simple]("spark-json-simple")
 
-  val data: List[(Int, Simple)] = List.range(1, 10).map(a => a -> Simple("simple", Random.nextInt(99)))
+  val data: List[(Integer, Simple)] = List.range(1, 10).map(a => Integer.valueOf(a) -> Simple("simple", (Random.nextInt(99))))
 
   test("load - unload") {
     val init = ctx.schemaRegistry.register(avro) >>

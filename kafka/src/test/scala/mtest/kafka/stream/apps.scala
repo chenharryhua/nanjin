@@ -1,7 +1,6 @@
 package mtest.kafka.stream
 
-import cats.derived.auto.show.*
-import cats.implicits.{catsSyntaxTuple2Semigroupal, showInterpolator}
+import cats.implicits.catsSyntaxTuple2Semigroupal
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.AvroTopic
 import com.github.chenharryhua.nanjin.kafka.streaming.StreamsSerde
@@ -12,27 +11,28 @@ import org.apache.kafka.streams.processor.api
 import org.apache.kafka.streams.processor.api.{Processor, ProcessorSupplier, Record}
 import org.apache.kafka.streams.scala.StreamsBuilder
 import org.apache.kafka.streams.state.KeyValueStore
+
 import scala.util.Try
 
 object apps {
   def kafka_streaming(sb: StreamsBuilder, rs: StreamsSerde): Unit = {
     import rs.implicits.*
     implicit val ev: AvroFor[StreamOne] = AvroFor(AvroCodec[StreamOne])
-    val a = sb.stream[Int, StreamOne]("stream.test.join.stream.one")
-    val b = sb.table[Int, TableTwo]("stream.test.join.table.two")
+    val a = sb.stream[Integer, StreamOne]("stream.test.join.stream.one")
+    val b = sb.table[Integer, TableTwo]("stream.test.join.table.two")
     a.join(b)((s1, t2) => StreamTarget(s1.name, 0, t2.color))
-      .peek((k, v) => println(show"out=($k, $v)"))
+      .peek((k, v) => println(s"out=(${k.toString()}, ${v.toString()})"))
       .to("stream.test.join.target")
   }
   def kafka_streaming_bad_record(sb: StreamsBuilder, rs: StreamsSerde): Unit = {
     import rs.implicits.*
     val tn = TopicName("stream.test.stream.bad.records.one")
-    val t2Topic = AvroTopic[Int, TableTwo](TopicName("stream.test.join.table.two"))
-    val keyS = rs.keySerde[Int](tn)
+    val t2Topic = AvroTopic[Integer, TableTwo](TopicName("stream.test.join.table.two"))
+    val keyS = rs.keySerde[Integer](tn)
     val valS = rs.valueSerde[StreamOne](tn)
 
     val a = sb.stream[Array[Byte], Array[Byte]](tn.name.value)
-    val b = sb.table[Int, TableTwo](t2Topic.topicName.name.value)
+    val b = sb.table[Integer, TableTwo](t2Topic.topicName.name.value)
     a.flatMap { (k, v) =>
       val r = (
         Try(keyS.deserialize(k)).toOption,
@@ -41,7 +41,7 @@ object apps {
       println(r)
       r
     }.join(b)((s1, t2) => StreamTarget(s1.name, 0, t2.color))
-      .peek((k, v) => println(show"out=($k, $v)"))
+      .peek((k, v) => println(s"out=(${k.toString()}, ${v.toString()})"))
       .to("stream.test.join.target")
   }
 
@@ -52,15 +52,15 @@ object apps {
     val store = TopicName("stream.builder.test.store")
     import ksb.implicits.*
     sb.addStateStore(
-      ksb.store[Int, String]("stream.builder.test.store").inMemoryKeyValueStore.keyValueStoreBuilder)
+      ksb.store[Integer, String]("stream.builder.test.store").inMemoryKeyValueStore.keyValueStoreBuilder)
 
-    val processor: ProcessorSupplier[Int, String, Int, String] =
-      new ProcessorSupplier[Int, String, Int, String] {
-        var kvStore: KeyValueStore[Int, String] = _
-        var ctx: api.ProcessorContext[Int, String] = _
-        override def get(): Processor[Int, String, Int, String] = new Processor[Int, String, Int, String] {
-          override def init(context: api.ProcessorContext[Int, String]): Unit = {
-            kvStore = context.getStateStore[KeyValueStore[Int, String]](store.name.value)
+    val processor: ProcessorSupplier[Integer, String, Integer, String] =
+      new ProcessorSupplier[Integer, String, Integer, String] {
+        var kvStore: KeyValueStore[Integer, String] = _
+        var ctx: api.ProcessorContext[Integer, String] = _
+        override def get(): Processor[Integer, String, Integer, String] = new Processor[Integer, String, Integer, String] {
+          override def init(context: api.ProcessorContext[Integer, String]): Unit = {
+            kvStore = context.getStateStore[KeyValueStore[Integer, String]](store.name.value)
             ctx = context
             println("transformer initialized")
           }
@@ -69,7 +69,7 @@ object apps {
             // kvStore.close()
             println("transformer closed")
 
-          override def process(record: Record[Int, String]): Unit = {
+          override def process(record: Record[Integer, String]): Unit = {
             println(record.toString)
             kvStore.put(record.key(), record.value())
             ctx.forward(record)
@@ -77,9 +77,9 @@ object apps {
         }
       }
 
-    sb.stream[Int, String](topic1.name.value)
+    sb.stream[Integer, String](topic1.name.value)
       .process(processor, store.name.value)
-      .join(sb.table[Int, String](topic2.name.value))(_ + _)
+      .join(sb.table[Integer, String](topic2.name.value))(_ + _)
       .to(tgt.name.value)
   }
 

@@ -28,14 +28,14 @@ object KafkaStreamingData {
 
   case class StreamTarget(name: String, weight: Int, color: Int)
 
-  val s1Def: AvroTopic[Int, StreamOne] = AvroTopic[Int, StreamOne](TopicName("stream.test.join.stream.one"))
+  val s1Def: AvroTopic[Integer, StreamOne] = AvroTopic[Integer, StreamOne](TopicName("stream.test.join.stream.one"))
 
-  val s1Topic: AvroTopic[Int, StreamOne] = s1Def
-  val t2Topic: AvroTopic[Int, TableTwo] =
-    AvroTopic[Int, TableTwo](TopicName("stream.test.join.table.two"))
+  val s1Topic: AvroTopic[Integer, StreamOne] = s1Def
+  val t2Topic: AvroTopic[Integer, TableTwo] =
+    AvroTopic[Integer, TableTwo](TopicName("stream.test.join.table.two"))
 
-  val tgt: AvroTopic[Int, StreamTarget] = AvroTopic[Int, StreamTarget](TopicName("stream.test.join.target"))
-  val serde: KafkaGenericSerde[Int, StreamTarget] = ctx.serde(tgt)
+  val tgt: AvroTopic[Integer, StreamTarget] = AvroTopic[Integer, StreamTarget](TopicName("stream.test.join.target"))
+  val serde: KafkaGenericSerde[Integer, StreamTarget] = ctx.serde(tgt)
 
   val register: IO[RegisteredSchemaID] =
     ctx.schemaRegistry.register(s1Def) >> ctx.schemaRegistry.register(t2Topic)
@@ -45,9 +45,9 @@ object KafkaStreamingData {
       .produce(t2Topic)
       .produce(
         List(
-          1 -> TableTwo("x", 0),
-          2 -> TableTwo("y", 1),
-          3 -> TableTwo("z", 2)
+          Integer.valueOf(1) -> TableTwo("x", 0),
+          Integer.valueOf(2) -> TableTwo("y", 1),
+          Integer.valueOf(3) -> TableTwo("z", 2)
         )
       )
 
@@ -88,7 +88,7 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
       .covary[IO]
       .metered(1.seconds)
       .unchunks
-      .through(ctx.sharedProduce[Int, StreamOne](s1Def.pair).sink)
+      .through(ctx.sharedProduce[Integer, StreamOne](s1Def.pair).sink)
 
     val res: Set[StreamTarget] = (IO.println(Console.CYAN + "stream-table join" + Console.RESET) >> ctx
       .buildStreams(appId)(apps.kafka_streaming)
@@ -128,17 +128,17 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
 
   test("kafka stream exception") {
     val tn = TopicName("stream.test.stream.exception.one")
-    val s1Topic: AvroTopic[Int, StreamOne] = s1Def.withTopicName(tn.name)
-    val s1TopicBin: AvroTopic[Int, Array[Byte]] = AvroTopic[Int, Array[Byte]](tn)
+    val s1Topic: AvroTopic[Integer, StreamOne] = s1Def.withTopicName(tn.name)
+    val s1TopicBin: AvroTopic[Integer, Array[Byte]] = AvroTopic[Integer, Array[Byte]](tn)
 
     def top(sb: StreamsBuilder, ss: StreamsSerde): Unit = {
       import ss.implicits.*
 
-      val a = sb.stream[Int, StreamOne](s1Topic.topicName.name.value)
-      val b = sb.table[Int, TableTwo](t2Topic.topicName.name.value)
+      val a = sb.stream[Integer, StreamOne](s1Topic.topicName.name.value)
+      val b = sb.table[Integer, TableTwo](t2Topic.topicName.name.value)
 
       a.join(b)((s1, t2) => StreamTarget(s1.name, 0, t2.color))
-        .peek((k, v) => println(show"out=($k, $v)"))
+        .peek((k, v) => println(s"out=(${k.toString()}, ${v.toString()})"))
         .to(tgt.topicName.name.value)
     }
     val serde = ctx.serde(s1Topic)
@@ -152,7 +152,7 @@ class KafkaStreamingTest extends AnyFunSuite with BeforeAndAfter {
       .covary[IO]
       .metered(1.seconds)
       .unchunks
-      .through(ctx.sharedProduce[Int, Array[Byte]](s1TopicBin.pair).sink)
+      .through(ctx.sharedProduce[Integer, Array[Byte]](s1TopicBin.pair).sink)
       .debug()
 
     assertThrows[Exception](

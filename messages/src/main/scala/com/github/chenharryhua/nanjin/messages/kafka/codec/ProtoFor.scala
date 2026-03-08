@@ -9,8 +9,7 @@ import io.confluent.kafka.schemaregistry.protobuf.ProtobufSchema
 import io.confluent.kafka.serializers.protobuf.{KafkaProtobufDeserializer, KafkaProtobufSerializer}
 import io.estatico.newtype.macros.newtype
 import io.estatico.newtype.ops.toCoercibleIdOps
-import org.apache.kafka.common.serialization.{Deserializer, Serde, Serializer}
-import org.apache.kafka.streams.scala.serialization.Serdes
+import org.apache.kafka.common.serialization.{Deserializer, Serde, Serdes, Serializer}
 import scalapb.{GeneratedMessage, GeneratedMessageCompanion}
 
 import java.util
@@ -40,19 +39,19 @@ object ProtoFor {
 
   implicit object protoForString extends ProtoFor[String] {
     override val isPrimitive: Boolean = true
-    override protected val unregisteredSerde: Serde[String] = Serdes.stringSerde
+    override protected val unregisteredSerde: Serde[String] = Serdes.String()
     override val protobufSchema: Option[ProtobufSchema] = new ProtobufSchema(ProtoString.javaDescriptor).some
   }
 
-  implicit object protoForLong extends ProtoFor[Long] {
+  implicit object protoForLong extends ProtoFor[java.lang.Long] {
     override val isPrimitive: Boolean = true
-    override protected val unregisteredSerde: Serde[Long] = Serdes.longSerde
+    override protected val unregisteredSerde: Serde[java.lang.Long] = Serdes.Long()
     override val protobufSchema: Option[ProtobufSchema] = new ProtobufSchema(ProtoLong.javaDescriptor).some
   }
 
-  implicit object protoForInt extends ProtoFor[Int] {
+  implicit object protoForInt extends ProtoFor[java.lang.Integer] {
     override val isPrimitive: Boolean = true
-    override protected val unregisteredSerde: Serde[Int] = Serdes.intSerde
+    override protected val unregisteredSerde: Serde[java.lang.Integer] = Serdes.Integer()
     override val protobufSchema: Option[ProtobufSchema] = new ProtobufSchema(ProtoInt.javaDescriptor).some
   }
 

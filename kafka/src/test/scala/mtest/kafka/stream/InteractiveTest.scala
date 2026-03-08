@@ -12,7 +12,7 @@ import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.streams.KeyValue
 import org.apache.kafka.streams.scala.StreamsBuilder
 import org.apache.kafka.streams.scala.kstream.Materialized
-import org.apache.kafka.streams.scala.serialization.Serdes.{intSerde, stringSerde}
+import org.apache.kafka.streams.scala.serialization.Serdes.{javaIntegerSerde, stringSerde}
 import org.scalatest.DoNotDiscover
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -30,42 +30,42 @@ class InteractiveTest extends AnyFunSuite {
         .withConsumerProperty(ConsumerConfig.GROUP_ID_CONFIG, "nj-kafka-interactive-unit-test-group")
         .withStreamingProperty("state.dir", "./data/kafka_states"))
 
-  val topic: AvroTopic[Int, String] = AvroTopic[Int, String](TopicName("stream.test.interactive.5"))
-  val localStore: StateStores[Int, String] = ctx.store(topic.modifyTopicName(_ + ".local.store"))
-  val globalStore: StateStores[Int, String] = ctx.store(topic.modifyTopicName(_ + ".global.store"))
+  val topic: AvroTopic[Integer, String] = AvroTopic[Integer, String](TopicName("stream.test.interactive.5"))
+  val localStore: StateStores[Integer, String] = ctx.store(topic.modifyTopicName(_ + ".local.store"))
+  val globalStore: StateStores[Integer, String] = ctx.store(topic.modifyTopicName(_ + ".global.store"))
 
   def top(sb: StreamsBuilder, ksb: StreamsSerde): Unit = {
     import ksb.implicits.*
     sb.table(
       topic.topicName.name.value,
-      Materialized.as[Int, String](localStore.inMemoryKeyValueStore.supplier))
+      Materialized.as[Integer, String](localStore.inMemoryKeyValueStore.supplier))
     ()
   }
 
   def gtop(sb: StreamsBuilder, ksb: StreamsSerde): Unit = {
     import ksb.implicits.*
-    sb.globalTable[Int, String](
+    sb.globalTable[Integer, String](
       topic.topicName.name.value,
-      Materialized.as[Int, String](globalStore.persistentKeyValueStore.supplier))
+      Materialized.as[Integer, String](globalStore.persistentKeyValueStore.supplier))
     ()
   }
 
   test("interactive") {
-    val pr: ProducerRecords[Int, String] = ProducerRecords.one(
+    val pr: ProducerRecords[Integer, String] = ProducerRecords.one(
       ProducerRecord(topic.topicName.name.value, Random.nextInt(3), s"a${Random.nextInt(1000)}"))
-    val feedData: Stream[IO, ProducerResult[Int, String]] =
-      ctx.sharedProduce[Int, String](topic.pair).clientS.evalMap(_.produce(pr).flatten)
+    val feedData: Stream[IO, ProducerResult[Integer, String]] =
+      ctx.sharedProduce[Integer, String](topic.pair).clientS.evalMap(_.produce(pr).flatten)
 
-    val res: Stream[IO, List[KeyValue[Int, String]]] =
+    val res: Stream[IO, List[KeyValue[Integer, String]]] =
       for {
         _ <- feedData
         kss1 <- ctx.buildStreams(appid)(top).singleKafkaStreams
         kss2 <- ctx.buildStreams(appid)(gtop).singleKafkaStreams
         _ <- Stream.sleep[IO](2.seconds)
       } yield {
-        val g: List[KeyValue[Int, String]] =
+        val g: List[KeyValue[Integer, String]] =
           kss1.store(localStore.queries.keyValueStore).all().asScala.toList.sortBy(_.key)
-        val q: List[KeyValue[Int, String]] =
+        val q: List[KeyValue[Integer, String]] =
           kss2.store(globalStore.queries.keyValueStore).all().asScala.toList.sortBy(_.key)
         assert(q === g)
         q
