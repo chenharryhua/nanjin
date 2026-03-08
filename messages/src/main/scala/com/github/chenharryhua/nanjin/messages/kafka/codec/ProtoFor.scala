@@ -91,7 +91,8 @@ object ProtoFor {
    */
 
   implicit def protoForGeneratedMessage[A <: GeneratedMessage](implicit
-    gmc: GeneratedMessageCompanion[A]): ProtoFor[A] = new ProtoFor[A] {
+    gmc: GeneratedMessageCompanion[A],
+    ev: Null <:< A): ProtoFor[A] = new ProtoFor[A] {
     override val isPrimitive: Boolean = false
 
     override val protobufSchema: Option[ProtobufSchema] = new ProtobufSchema(gmc.javaDescriptor).some
@@ -124,7 +125,7 @@ object ProtoFor {
         override def deserialize(topic: String, data: Array[Byte]): A =
           Option(deSer.deserialize(topic, data))
             .map(dm => gmc.parseFrom(dm.toByteArray))
-            .getOrElse(null.asInstanceOf[A]) // scalafix:ok
+            .orNull
 
       }
     }

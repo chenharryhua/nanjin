@@ -124,7 +124,7 @@ object JsonFor {
   /*
    * General
    */
-  implicit def jsonForClassTag[A: ClassTag]: JsonFor[A] = new JsonFor[A] {
+  implicit def jsonForClassTag[A: ClassTag](implicit ev: Null <:< A): JsonFor[A] = new JsonFor[A] {
     override val isPrimitive: Boolean = false
 
     private val schema: JsonSchema = buildSchema(implicitly[ClassTag[A]].runtimeClass)
@@ -166,7 +166,7 @@ object JsonFor {
           override def deserialize(topic: String, data: Array[Byte]): A =
             Option(deSer.deserialize(topic, data))
               .map(jn => globalObjectMapper.convertValue[A](jn))
-              .getOrElse(null.asInstanceOf[A]) // scalafix:ok
+              .orNull
 
         }
       }
