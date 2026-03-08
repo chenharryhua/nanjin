@@ -57,8 +57,8 @@ final private class MetricsPump[F[_]: Async](
     }
     WebSocketFrame.Text(
       Json.obj(
-        "series" -> series.asJson,
-        "ts" -> Json.fromLong(tv.tick.commence.toEpochMilli)
+        "ts" -> Json.fromLong(tv.tick.commence.toEpochMilli),
+        "series" -> series.asJson
       ).noSpaces)
   }
 
@@ -67,18 +67,19 @@ final private class MetricsPump[F[_]: Async](
       tickStream.tickFuture(zoneId, _.fresh(policy))
         .evalMap(retrieve)
         .zipWithPrevious
-        .map { case (pre, curr) =>
-          pre match {
-            case Some(previous) =>
-              curr.map(current =>
-                current.foldLeft(Map.empty[MetricID, Long]) { case (sum, (mid, count)) =>
-                  previous.value.get(mid) match {
-                    case Some(value) => sum + (mid -> (count - value))
-                    case None        => sum + (mid -> 0)
-                  }
-                })
-            case None => curr.map(_.view.mapValues(_ => 0L).toMap[MetricID, Long])
-          }
+        .map {
+          case (Some(prev), curr) =>
+            curr.map {
+              _.foldLeft(Map.empty[MetricID, Long]) { case (sum, (mid, count)) =>
+                prev.value.get(mid) match {
+                  case Some(value) => sum + (mid -> (count - value))
+                  case None        => sum + (mid -> 0)
+                }
+              }
+            }
+
+          case (None, curr) =>
+            curr.map(_.view.mapValues(_ => 0L).toMap[MetricID, Long])
         }
         .map(interpret)
 

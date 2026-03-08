@@ -13,7 +13,7 @@ import scala.util.Random
 import org.apache.spark.rdd.RDD
 
 class SortTest extends AnyFunSuite {
-  val topic: AvroTopic[Int, Int] = AvroTopic[Int, Int](TopicName("topic"))
+  val topic: AvroTopic[Integer, Integer] = AvroTopic[Integer, Integer](TopicName("topic"))
 
   val data: List[NJConsumerRecord[Int, Int]] = List(
     NJConsumerRecord[Int, Int]("topic", 0, 0, 40, 0, Nil, None, -1, -1, Some(0), Some(Random.nextInt())),

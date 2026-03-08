@@ -9,8 +9,8 @@ import org.scalatest.funsuite.AnyFunSuite
 class SchemaRegistryTest extends AnyFunSuite {
   val topicName: TopicName = TopicName("nyc_yellow_taxi_trip_data")
 
-  val topic: AvroTopic[Int, trip_record] =
-    AvroTopic[Int, trip_record](topicName)
+  val topic: AvroTopic[Integer, trip_record] =
+    AvroTopic[Integer, trip_record](topicName)
 
   test("compatible") {
     val res = ctx.schemaRegistry.register(topic) >> ctx.isCompatible(topic)

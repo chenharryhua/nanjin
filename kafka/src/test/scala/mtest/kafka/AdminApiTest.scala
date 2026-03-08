@@ -14,7 +14,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import scala.concurrent.duration.DurationInt
 
 class AdminApiTest extends AnyFunSuite {
-  private val topicDef: AvroTopic[Int, Int] = AvroTopic[Int, Int](TopicName("admin"))
+  private val topicDef: AvroTopic[Integer, Integer] = AvroTopic[Integer, Integer](TopicName("admin"))
   private val topic = topicDef
   private val mirror = topicDef.withTopicName("admin.mirror")
 

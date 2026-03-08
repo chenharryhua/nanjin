@@ -15,8 +15,7 @@ import io.confluent.kafka.serializers.json.{
 import io.estatico.newtype.macros.newtype
 import io.estatico.newtype.ops.toCoercibleIdOps
 import org.apache.commons.lang3.exception.ExceptionUtils
-import org.apache.kafka.common.serialization.{Deserializer, Serde, Serializer}
-import org.apache.kafka.streams.scala.serialization.Serdes
+import org.apache.kafka.common.serialization.{Deserializer, Serde, Serdes, Serializer}
 
 import java.util
 import java.util.UUID
@@ -57,28 +56,28 @@ object JsonFor {
   implicit object jsonForString extends JsonFor[String] {
     override val isPrimitive: Boolean = true
 
-    override protected val unregisteredSerde: Serde[String] = Serdes.stringSerde
+    override protected val unregisteredSerde: Serde[String] = Serdes.String()
     override val jsonSchema: Option[JsonSchema] = buildSchema(classOf[String]).some
   }
 
-  implicit object jsonForLong extends JsonFor[Long] {
+  implicit object jsonForLong extends JsonFor[java.lang.Long] {
     override val isPrimitive: Boolean = true
 
-    override protected val unregisteredSerde: Serde[Long] = Serdes.longSerde
-    override val jsonSchema: Option[JsonSchema] = buildSchema(classOf[Long]).some
+    override protected val unregisteredSerde: Serde[java.lang.Long] = Serdes.Long()
+    override val jsonSchema: Option[JsonSchema] = buildSchema(classOf[java.lang.Long]).some
   }
 
-  implicit object jsonForInt extends JsonFor[Int] {
+  implicit object jsonForInt extends JsonFor[java.lang.Integer] {
     override val isPrimitive: Boolean = true
 
-    override protected val unregisteredSerde: Serde[Int] = Serdes.intSerde
-    override val jsonSchema: Option[JsonSchema] = buildSchema(classOf[Int]).some
+    override protected val unregisteredSerde: Serde[java.lang.Integer] = Serdes.Integer()
+    override val jsonSchema: Option[JsonSchema] = buildSchema(classOf[java.lang.Integer]).some
   }
 
   implicit object jsonForUUID extends JsonFor[UUID] {
     override val isPrimitive: Boolean = true
 
-    override protected val unregisteredSerde: Serde[UUID] = Serdes.uuidSerde
+    override protected val unregisteredSerde: Serde[UUID] = Serdes.UUID()
     override val jsonSchema: Option[JsonSchema] = buildSchema(classOf[UUID]).some
   }
 

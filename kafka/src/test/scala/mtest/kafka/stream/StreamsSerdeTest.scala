@@ -3,7 +3,6 @@ package mtest.kafka.stream
 import mtest.kafka.ctx
 import org.apache.kafka.streams.kstream.JoinWindows
 import org.scalatest.funsuite.AnyFunSuite
-
 import java.time.Duration
 
 class StreamsSerdeTest extends AnyFunSuite {
@@ -11,7 +10,7 @@ class StreamsSerdeTest extends AnyFunSuite {
   test("1.stream-table join") {
     val top = ctx.buildStreams("a1") { (sb, ss) =>
       import ss.implicits.*
-      sb.stream[Int, String]("a").join(sb.table[Int, Int]("b"))((s, i) => (s, i)).to("c")
+      sb.stream[Integer, String]("a").join(sb.table[Integer, Integer]("b"))((s, i) => (s, i)).map((_,v) => v).to("c")
     }
     println(top.topology.describe())
   }
@@ -19,7 +18,7 @@ class StreamsSerdeTest extends AnyFunSuite {
   test("2.stream-table left-join") {
     val top = ctx.buildStreams("a2") { (sb, ss) =>
       import ss.implicits.*
-      sb.stream[Int, String]("a").leftJoin(sb.table[Int, Int]("b"))((s, i) => (s, i)).to("c")
+      sb.stream[Integer, String]("a").leftJoin(sb.table[Integer, Integer]("b"))((s, i) => (s, i)).map((_,v) => v).to("c")
     }
     println(top.topology.describe())
   }
@@ -27,7 +26,7 @@ class StreamsSerdeTest extends AnyFunSuite {
   test("3.group-by-key") {
     val top = ctx.buildStreams("a3") { (sb, ss) =>
       import ss.implicits.*
-      sb.stream[Int, String]("a").groupByKey.reduce(_ + _).toStream.to("b")
+      sb.stream[Integer, String]("a").groupByKey.reduce(_ + _).toStream.to("b")
     }
     println(top.topology.describe())
   }
@@ -35,7 +34,7 @@ class StreamsSerdeTest extends AnyFunSuite {
   test("4.foreach") {
     val top = ctx.buildStreams("a4") { (sb, ss) =>
       import ss.implicits.*
-      sb.stream[Int, String]("a").groupByKey.reduce(_ + _).toStream.foreach((k, v) => println((k, v)))
+      sb.stream[Integer, String]("a").groupByKey.reduce(_ + _).toStream.foreach((k, v) => println((k, v)))
     }
     println(top.topology.describe())
   }
@@ -43,8 +42,8 @@ class StreamsSerdeTest extends AnyFunSuite {
   test("5.stream-stream join") {
     val top = ctx.buildStreams("a4") { (sb, ss) =>
       import ss.implicits.*
-      sb.stream[Int, String]("a")
-        .join(sb.stream[Int, Int]("b"))(
+      sb.stream[Integer, String]("a")
+        .join(sb.stream[Integer, Integer]("b"))(
           (s, i) => s + i.toString,
           JoinWindows.ofTimeDifferenceWithNoGrace(Duration.ZERO))
         .to("c")
@@ -55,7 +54,7 @@ class StreamsSerdeTest extends AnyFunSuite {
   test("6.aggregate stream") {
     val top = ctx.buildStreams("a4") { (sb, ss) =>
       import ss.implicits.*
-      sb.stream[Int, String]("a").groupByKey.aggregate("")((_, s, k) => s + k).toStream.to("b")
+      sb.stream[Integer, String]("a").groupByKey.aggregate("")((_, s, k) => s + k).toStream.to("b")
     }
     println(top.topology.describe())
   }
@@ -63,7 +62,7 @@ class StreamsSerdeTest extends AnyFunSuite {
   test("7.count") {
     val top = ctx.buildStreams("a4") { (sb, ss) =>
       import ss.implicits.*
-      sb.stream[Int, String]("a").groupByKey.count()
+      sb.stream[Integer, String]("a").groupByKey//.count()
       ()
     }
     println(top.topology.describe())

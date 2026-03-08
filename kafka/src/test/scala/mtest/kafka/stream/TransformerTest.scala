@@ -21,7 +21,7 @@ class TransformerTest extends AnyFunSuite {
   test("stream transformer") {
     // val store = ctx.store[Int, String]("stream.builder.test.store")
 
-    def td: AvroTopic[Int, String] = AvroTopic[Int, String](TopicName("stream"))
+    def td: AvroTopic[Integer, String] = AvroTopic[Integer, String](TopicName("stream"))
 
     val topic1 = td.withTopicName("stream.builder.test.stream1")
     val topic2 = td.withTopicName("stream.builder.test.table2")
@@ -34,9 +34,9 @@ class TransformerTest extends AnyFunSuite {
 
     val t2Data = Stream(
       ProducerRecords(List(
-        ProducerRecord(topic2.topicName.name.value, 2, "t0"),
-        ProducerRecord(topic2.topicName.name.value, 4, "t1"),
-        ProducerRecord(topic2.topicName.name.value, 6, "t2")
+        ProducerRecord(topic2.topicName.name.value, Integer.valueOf(2), "t0"),
+        ProducerRecord(topic2.topicName.name.value, Integer.valueOf(4), "t1"),
+        ProducerRecord(topic2.topicName.name.value, Integer.valueOf(6), "t2")
       ))).covary[IO].unchunks.through(ctx.sharedProduce(td.pair).sink)
 
     val s1Data =
@@ -44,9 +44,9 @@ class TransformerTest extends AnyFunSuite {
         .awakeEvery[IO](1.seconds)
         .zipWithIndex
         .map { case (_, index) =>
-          ProducerRecord(topic1.topicName.name.value, index.toInt, s"stream$index")
+          ProducerRecord(topic1.topicName.name.value, Integer.valueOf(index.toInt), s"stream$index")
         }
-        .through(ctx.sharedProduce[Int, String](td.pair).sink)
+        .through(ctx.sharedProduce[Integer, String](td.pair).sink)
 
     val byteTopic = AvroTopic[Array[Byte], Array[Byte]](tgt.topicName)
     val havest = ctx
