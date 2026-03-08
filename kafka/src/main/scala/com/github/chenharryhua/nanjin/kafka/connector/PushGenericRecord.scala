@@ -8,7 +8,7 @@ import fs2.kafka.ProducerRecord
 import io.confluent.kafka.streams.serdes.avro.GenericAvroSerializer
 import org.apache.avro.Schema
 import org.apache.avro.generic.GenericRecord
-import org.apache.kafka.streams.scala.serialization.Serdes
+import org.apache.kafka.common.serialization.Serdes
 
 import scala.jdk.CollectionConverters.MapHasAsJava
 import scala.util.{Failure, Success}
@@ -39,37 +39,37 @@ final private class PushGenericRecord(
         }
 
       case Schema.Type.STRING =>
-        val ser = Serdes.stringSerde.serializer()
+        val ser = Serdes.String().serializer()
         (_: AnyRef) match {
           case null => null
           case data => ser.serialize(topic, Decoder[String].decode(data))
         }
       case Schema.Type.INT =>
-        val ser = Serdes.intSerde.serializer()
+        val ser = Serdes.Integer().serializer()
         (_: AnyRef) match {
           case null => null
           case data => ser.serialize(topic, Decoder[Int].decode(data))
         }
       case Schema.Type.LONG =>
-        val ser = Serdes.longSerde.serializer()
+        val ser = Serdes.Long().serializer()
         (_: AnyRef) match {
           case null => null
           case data => ser.serialize(topic, Decoder[Long].decode(data))
         }
       case Schema.Type.FLOAT =>
-        val ser = Serdes.floatSerde.serializer()
+        val ser = Serdes.Float().serializer()
         (_: AnyRef) match {
           case null => null
           case data => ser.serialize(topic, Decoder[Float].decode(data))
         }
       case Schema.Type.DOUBLE =>
-        val ser = Serdes.doubleSerde.serializer()
+        val ser = Serdes.Double().serializer()
         (_: AnyRef) match {
           case null => null
           case data => ser.serialize(topic, Decoder[Double].decode(data))
         }
       case Schema.Type.BYTES =>
-        val ser = Serdes.byteArraySerde.serializer()
+        val ser = Serdes.ByteArray().serializer()
         (_: AnyRef) match {
           case null => null
           case data => ser.serialize(topic, Decoder[Array[Byte]].decode(data))
@@ -95,37 +95,37 @@ final private class PushGenericRecord(
             throw new Exception(s"${other.getClass.getName} (value) is not Generic Record") // scalafix:ok
         }
       case Schema.Type.STRING =>
-        val ser = Serdes.stringSerde.serializer()
+        val ser = Serdes.String().serializer()
         (_: AnyRef) match {
           case null => null
           case data => ser.serialize(topic, Decoder[String].decode(data))
         }
       case Schema.Type.INT =>
-        val ser = Serdes.intSerde.serializer()
+        val ser = Serdes.Integer().serializer()
         (_: AnyRef) match {
           case null => null
           case data => ser.serialize(topic, Decoder[Int].decode(data))
         }
       case Schema.Type.LONG =>
-        val ser = Serdes.longSerde.serializer()
+        val ser = Serdes.Long().serializer()
         (_: AnyRef) match {
           case null => null
           case data => ser.serialize(topic, Decoder[Long].decode(data))
         }
       case Schema.Type.FLOAT =>
-        val ser = Serdes.floatSerde.serializer()
+        val ser = Serdes.Float().serializer()
         (_: AnyRef) match {
           case null => null
           case data => ser.serialize(topic, Decoder[Float].decode(data))
         }
       case Schema.Type.DOUBLE =>
-        val ser = Serdes.doubleSerde.serializer()
+        val ser = Serdes.Double().serializer()
         (_: AnyRef) match {
           case null => null
           case data => ser.serialize(topic, Decoder[Double].decode(data))
         }
       case Schema.Type.BYTES =>
-        val ser = Serdes.byteArraySerde.serializer()
+        val ser = Serdes.ByteArray().serializer()
         (_: AnyRef) match {
           case null => null
           case data => ser.serialize(topic, Decoder[Array[Byte]].decode(data))

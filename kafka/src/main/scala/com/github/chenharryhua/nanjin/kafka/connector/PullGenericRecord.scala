@@ -9,7 +9,7 @@ import io.scalaland.chimney.dsl.TransformerOps
 import org.apache.avro.Schema
 import org.apache.avro.generic.{GenericData, GenericDatumReader}
 import org.apache.avro.io.DecoderFactory
-import org.apache.kafka.streams.scala.serialization.Serdes
+import org.apache.kafka.common.serialization.Serdes
 
 import java.nio.ByteBuffer
 import scala.jdk.CollectionConverters.SeqHasAsJava
@@ -35,22 +35,22 @@ final private class PullGenericRecord(pair: AvroSchemaPair) {
             reader.read(null, decoder)
           }
       case Schema.Type.STRING =>
-        val deser = Serdes.stringSerde.deserializer()
+        val deser = Serdes.String().deserializer()
         (data: Array[Byte]) => deser.deserialize(topic, data)
       case Schema.Type.INT =>
-        val deser = Serdes.intSerde.deserializer()
+        val deser = Serdes.Integer().deserializer()
         (data: Array[Byte]) => deser.deserialize(topic, data)
       case Schema.Type.LONG =>
-        val deser = Serdes.longSerde.deserializer()
+        val deser = Serdes.Long().deserializer()
         (data: Array[Byte]) => deser.deserialize(topic, data)
       case Schema.Type.FLOAT =>
-        val keyDeser = Serdes.floatSerde.deserializer()
+        val keyDeser = Serdes.Float().deserializer()
         (data: Array[Byte]) => keyDeser.deserialize(topic, data)
       case Schema.Type.DOUBLE =>
-        val deser = Serdes.doubleSerde.deserializer()
+        val deser = Serdes.Double().deserializer()
         (data: Array[Byte]) => deser.deserialize(topic, data)
       case Schema.Type.BYTES =>
-        val deser = Serdes.byteArraySerde.deserializer()
+        val deser = Serdes.ByteArray().deserializer()
         (data: Array[Byte]) => deser.deserialize(topic, data)
       case Schema.Type.NULL =>
         (_: Array[Byte]) => null
@@ -70,22 +70,22 @@ final private class PullGenericRecord(pair: AvroSchemaPair) {
             reader.read(null, decoder)
           }
       case Schema.Type.STRING =>
-        val deser = Serdes.stringSerde.deserializer()
+        val deser = Serdes.String().deserializer()
         (data: Array[Byte]) => deser.deserialize(topic, data)
       case Schema.Type.INT =>
-        val deser = Serdes.intSerde.deserializer()
+        val deser = Serdes.Integer().deserializer()
         (data: Array[Byte]) => deser.deserialize(topic, data)
       case Schema.Type.LONG =>
-        val deser = Serdes.longSerde.deserializer()
+        val deser = Serdes.Long().deserializer()
         (data: Array[Byte]) => deser.deserialize(topic, data)
       case Schema.Type.FLOAT =>
-        val deser = Serdes.floatSerde.deserializer()
+        val deser = Serdes.Float().deserializer()
         (data: Array[Byte]) => deser.deserialize(topic, data)
       case Schema.Type.DOUBLE =>
-        val deser = Serdes.doubleSerde.deserializer()
+        val deser = Serdes.Double().deserializer()
         (data: Array[Byte]) => deser.deserialize(topic, data)
       case Schema.Type.BYTES =>
-        val deser = Serdes.byteArraySerde.deserializer()
+        val deser = Serdes.ByteArray().deserializer()
         (data: Array[Byte]) => deser.deserialize(topic, data)
       case Schema.Type.NULL =>
         (_: Array[Byte]) => null
