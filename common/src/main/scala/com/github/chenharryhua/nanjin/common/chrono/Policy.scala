@@ -1,6 +1,7 @@
 package com.github.chenharryhua.nanjin.common.chrono
 
 import cats.data.{Kleisli, NonEmptyList}
+import cats.derived.derived
 import cats.effect.std.Random
 import cats.kernel.Eq
 import cats.syntax.applicative.catsSyntaxApplicativeId
@@ -31,11 +32,9 @@ import scala.concurrent.duration.{Duration as ScalaDuration, FiniteDuration}
 import scala.jdk.DurationConverters.ScalaDurationOps
 import scala.util.Try
 
-sealed trait PolicyF[K] extends Product
+sealed trait PolicyF[K] extends Product derives Functor
 
 private object PolicyF {
-
-  implicit val functorPolicyF: Functor[PolicyF] = cats.derived.semiauto.functor[PolicyF]
 
   final case class Empty[K]() extends PolicyF[K]
   final case class Crontab[K](cronExpr: CronExpr) extends PolicyF[K]

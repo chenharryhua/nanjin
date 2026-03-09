@@ -13,7 +13,7 @@ object SchemaChangeTestData {
   final case class Nest2(b: String)
   @AvroNamespace("schema.test.top")
   @AvroDoc("top level case class")
-  final case class UnderTest(a: Int, b: Nest, c: Option[Int] = None)
+  final case class UnderTest(a: Int, b: Either[Nest,Nest2] , c: Option[Int] = None)
 
   val schema =
     """
@@ -33,7 +33,12 @@ class SchemaChangeTest extends AnyFunSuite {
     val s =
       """
 {"type":"record","name":"UnderTest","namespace":"schema.test.top","doc":"top level case class","fields":[{"name":"a","type":"int"},{"name":"b","type":[{"type":"record","name":"Nest","namespace":"schema.test.nest","fields":[{"name":"a","type":"int"}]},{"type":"record","name":"Nest2","namespace":"schema.test.nest2","doc":"nest-2","fields":[{"name":"b","type":"string"}]}]},{"name":"c","type":["null","int"]}]}        """
-    assert(newCodec.schemaFor.schema.toString == s.trim)
+    assert(newCodec.schema.toString == s.trim)
+    val data = UnderTest(1, Left(Nest(1)))
+    val en = codec.toRecord(data)
+    val res = newCodec.fromRecord(en)
+
+    assert(res == data)
   }
 
   test("change namespace") {
@@ -42,6 +47,10 @@ class SchemaChangeTest extends AnyFunSuite {
       """
     {"type":"record","name":"UnderTest","namespace":"new.namespace","doc":"top level case class","fields":[{"name":"a","type":"int"},{"name":"b","type":[{"type":"record","name":"Nest","fields":[{"name":"a","type":"int"}]},{"type":"record","name":"Nest2","doc":"nest-2","fields":[{"name":"b","type":"string"}]}]},{"name":"c","type":["null","int"],"default":null}]}"""
     assert(newCodec.schema.toString() == s.trim)
+    val data = UnderTest(1, Left(Nest(1)), Some(1))
+    val en = newCodec.toRecord(data)
+    val res = newCodec.fromRecord(en)
+    assert(res == data)
   }
 
   test("remove namespace") {
@@ -50,17 +59,26 @@ class SchemaChangeTest extends AnyFunSuite {
       """
 {"type":"record","name":"UnderTest","doc":"top level case class","fields":[{"name":"a","type":"int"},{"name":"b","type":[{"type":"record","name":"Nest","fields":[{"name":"a","type":"int"}]},{"type":"record","name":"Nest2","doc":"nest-2","fields":[{"name":"b","type":"string"}]}]},{"name":"c","type":["null","int"],"default":null}]}      """
     assert(newCodec.schema.toString() == s.trim)
+    val data = UnderTest(1,  Left(Nest(1)), Some(1))
+    val en = newCodec.toRecord(data)
+    val res = newCodec.fromRecord(en)
+
+    assert(res == data)
   }
 
   test("remove namespace - 1") {
     val newCodec: AvroCodec[UnderTest] = codec.withoutNamespace
-    println(newCodec.schema)
 
+    val data = UnderTest(1,  Left(Nest(1)), Some(1))
+    val en = newCodec.toRecord(data)
+    assertThrows[Exception](codec.fromRecord(en))
   }
   test("remove namespace - 2") {
     val newCodec: AvroCodec[UnderTest] = codec.withoutNamespace
-    println(newCodec.schema)
 
+    val data = UnderTest(1,  Left(Nest(1)), Some(1))
+    val en = codec.toRecord(data)
+    assertThrows[Exception](newCodec.fromRecord(en))
   }
 
   test("remove doc") {
@@ -69,5 +87,10 @@ class SchemaChangeTest extends AnyFunSuite {
       """
 {"type":"record","name":"UnderTest","namespace":"schema.test.top","fields":[{"name":"a","type":"int"},{"name":"b","type":[{"type":"record","name":"Nest","namespace":"schema.test.nest","fields":[{"name":"a","type":"int"}]},{"type":"record","name":"Nest2","namespace":"schema.test.nest2","fields":[{"name":"b","type":"string"}]}]},{"name":"c","type":["null","int"],"default":null}]}"""
     assert(newCodec.schema.toString() == s.trim)
+    val data = UnderTest(1,  Left(Nest(1)), Some(1))
+    val en = newCodec.toRecord(data)
+    val res = newCodec.fromRecord(en)
+
+    assert(res == data)
   }
 }

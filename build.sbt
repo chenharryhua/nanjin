@@ -82,19 +82,18 @@ val testLib = List(
   "org.typelevel" %% "cats-laws"                     % catsCoreV,
   "org.typelevel" %% "algebra-laws"                  % catsCoreV,
   "org.typelevel" %% "munit-cats-effect"             % "2.1.0",
-  // "com.github.alexarchambault" %% "scalacheck-shapeless_1.15" % "1.3.0",
-  "org.scalatest" %% "scalatest"               % "3.2.19",
-  "dev.optics" %% "monocle-law"                % monocleV,
-  "com.47deg" %% "scalacheck-toolbox-datetime" % "0.7.0",
-  "com.github.pathikrit" %% "better-files"     % "3.9.2",
-  "io.circe" %% "circe-jawn"                   % circeV
+  "org.scalatest" %% "scalatest"                     % "3.2.19",
+  "dev.optics" %% "monocle-law"                      % monocleV,
+  "com.47deg" %% "scalacheck-toolbox-datetime"       % "0.7.0",
+  "com.github.pathikrit" %% "better-files"           % "3.9.2",
+  "io.circe" %% "circe-jawn"                         % circeV
 ).map(_ % Test)
 
 val enumLib = List(
-  "com.beachape" %% "enumeratum"       % enumeratumV,
-  "com.beachape" %% "enumeratum-cats"  % enumeratumV,
-  "com.beachape" %% "enumeratum-circe" % enumeratumV
-)
+  "com.beachape" %% "enumeratum",
+  "com.beachape" %% "enumeratum-cats",
+  "com.beachape" %% "enumeratum-circe"
+).map(_ % enumeratumV)
 
 val refinedLib = List(
   "eu.timepit" %% "refined",
@@ -116,13 +115,10 @@ lazy val common = (project in file("common"))
       "org.typelevel" %% "cats-core"                   % catsCoreV,
       "org.typelevel" %% "kittens"                     % "3.5.0",
       "io.scalaland" %% "chimney"                      % chimneyV,
-      "io.scalaland" %% "enumz"                        % "1.2.0",
-      "org.typelevel" %% "shapeless3-deriving"         % shapelessV,
       "io.higherkindness" %% "droste-core"             % drosteV,
       "co.fs2" %% "fs2-core"                           % fs2V,
       "io.circe" %% "circe-core"                       % circeV,
       "io.circe" %% "circe-generic"                    % circeV,
-      "io.circe" %% "circe-refined"                    % "0.15.1",
       "dev.optics" %% "monocle-macro"                  % monocleV,
       // java
       "org.apache.commons" % "commons-lang3" % "3.20.0"

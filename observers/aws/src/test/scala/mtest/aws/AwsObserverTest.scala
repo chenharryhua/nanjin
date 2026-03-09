@@ -10,13 +10,11 @@ import com.github.chenharryhua.nanjin.guard.observers.cloudwatch.CloudWatchObser
 import com.github.chenharryhua.nanjin.guard.observers.ses.EmailObserver
 import com.github.chenharryhua.nanjin.guard.observers.sqs.SqsObserver
 import com.github.chenharryhua.nanjin.guard.service.TaskGuard
-import eu.timepit.refined.auto.*
 import org.scalatest.funsuite.AnyFunSuite
 import squants.information.Bytes
 import squants.mass.Micrograms
 
 import scala.concurrent.duration.DurationInt
-import com.github.chenharryhua.nanjin.common.ChunkSize
 
 class AwsObserverTest extends AnyFunSuite {
   private val service: fs2.Stream[IO, Event] = TaskGuard[IO]("aws")
@@ -44,7 +42,7 @@ class AwsObserverTest extends AnyFunSuite {
       EmailObserver(ses_client)
         .withPolicy(_.fixedDelay(5.seconds))
         .withZoneId(sydneyTime)
-        .withCapacity(ChunkSize.unsafeFrom(200))
+        .withCapacity((200))
         .withOldestFirst
 
     service
