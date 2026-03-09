@@ -1,13 +1,12 @@
 package com.github.chenharryhua.nanjin.kafka
 
 import cats.implicits.catsSyntaxPartialOrder
-import io.circe.generic.JsonCodec
+import io.circe.generic.auto.*
 import io.circe.syntax.EncoderOps
 import io.circe.jawn.decode
 import org.apache.kafka.common.TopicPartition
 import org.scalatest.funsuite.AnyFunSuite
 
-@JsonCodec
 final case class Abc(a: Int, b: String, c: Long)
 
 class TopicPartitionOrderTest extends AnyFunSuite {

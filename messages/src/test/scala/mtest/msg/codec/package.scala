@@ -2,7 +2,6 @@ package mtest.msg
 
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroFor, JsonFor, KafkaSerde, ProtoFor}
-import eu.timepit.refined.auto.*
 
 package object codec {
   val sr: Map[String, String] = Map("schema.registry.url" -> "http://localhost:8081")

@@ -2,7 +2,6 @@ package mtest.msg.codec
 
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroCodec
 import com.sksamuel.avro4s.{AvroDoc, AvroNamespace}
-import eu.timepit.refined.auto.*
 import org.apache.avro.Schema
 import org.scalatest.funsuite.AnyFunSuite
 
@@ -55,10 +54,12 @@ class SchemaChangeTest extends AnyFunSuite {
 
   test("remove namespace - 1") {
     val newCodec: AvroCodec[UnderTest] = codec.withoutNamespace
+    println(newCodec.schema)
 
   }
   test("remove namespace - 2") {
     val newCodec: AvroCodec[UnderTest] = codec.withoutNamespace
+    println(newCodec.schema)
 
   }
 

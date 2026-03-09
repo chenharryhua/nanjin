@@ -3,7 +3,6 @@ package mtest
 import cats.effect.IO
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.{AvroTopic, KafkaContext, KafkaSettings}
-import eu.timepit.refined.auto.*
 import org.apache.kafka.clients.consumer.ConsumerConfig
 
 package object kafka {

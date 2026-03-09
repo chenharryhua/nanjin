@@ -5,13 +5,11 @@ import cats.implicits.catsSyntaxTuple2Semigroupal
 import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.datetime.DateTimeRange
 import com.github.chenharryhua.nanjin.kafka.{AvroTopic, JsonTopic}
-import eu.timepit.refined.auto.*
 import fs2.Stream
-import io.circe.generic.JsonCodec
 import org.scalatest.funsuite.AnyFunSuite
 
 import scala.util.Random
-@JsonCodec
+
 final case class Simple(name: String, count: Int)
 
 class LoadUnload extends AnyFunSuite {

@@ -23,7 +23,7 @@ final private case class Letter(
       """))
 
   def emailBody(chunkSize: ChunkSize): String = {
-    val foot = footer(hr(p(b("Events/Max: "), show"${content.size}/${chunkSize.value}")))
+    val foot = footer(hr(p(b("Events/Max: "), show"${content.size}/${chunkSize}")))
     html(emailHeader, body(notice, content, foot)).render
   }
 }

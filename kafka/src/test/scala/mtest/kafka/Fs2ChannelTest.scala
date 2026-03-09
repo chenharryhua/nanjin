@@ -8,7 +8,6 @@ import com.github.chenharryhua.nanjin.datetime.DateTimeRange
 import com.github.chenharryhua.nanjin.kafka.*
 import com.github.chenharryhua.nanjin.messages.kafka.NJConsumerRecord
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroFor
-import eu.timepit.refined.auto.*
 import fs2.kafka.{Acks, AutoOffsetReset, Header, Headers, ProducerRecord}
 import io.circe.generic.auto.*
 import io.circe.syntax.EncoderOps

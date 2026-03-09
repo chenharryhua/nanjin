@@ -5,7 +5,6 @@ import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.NJTimestamp
 import com.github.chenharryhua.nanjin.kafka.*
-import eu.timepit.refined.auto.*
 import io.circe.syntax.EncoderOps
 import org.apache.kafka.clients.consumer.OffsetAndMetadata
 import org.apache.kafka.common.TopicPartition
@@ -43,7 +42,7 @@ class AdminApiTest extends AnyFunSuite {
   }
 
   test("groups") {
-    val tpo = Map(new TopicPartition(topic.topicName.name.value, 0) -> new OffsetAndMetadata(0))
+    val tpo = Map(new TopicPartition(topic.topicName.value, 0) -> new OffsetAndMetadata(0))
     val gp =
       ctx.produce(topicDef).produceOne(0, 0) >> ctx.admin("admin", "groupid").use { admin =>
         ctx.admin.use(_.listTopics.listings) >>

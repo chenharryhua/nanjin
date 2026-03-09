@@ -8,7 +8,6 @@ import com.github.chenharryhua.nanjin.common.chrono.zones.darwinTime
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.datetime.{DateTimeRange, NJTimestamp}
 import com.github.chenharryhua.nanjin.kafka.connector.ConsumeKafka
-import eu.timepit.refined.auto.*
 import fs2.{Chunk, Stream}
 import fs2.kafka.{ConsumerSettings, ProducerRecord, ProducerRecords}
 import mtest.kafka.ctx
@@ -31,11 +30,11 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
   val topic: AvroTopic[java.lang.Integer, java.lang.Integer] = topicDef
 
   val pr1: ProducerRecord[java.lang.Integer, java.lang.Integer] =
-    ProducerRecord(topic.topicName.name.value, Integer.valueOf(1), Integer.valueOf(1)).withTimestamp(100)
+    ProducerRecord(topic.topicName.value, Integer.valueOf(1), Integer.valueOf(1)).withTimestamp(100)
   val pr2: ProducerRecord[java.lang.Integer, java.lang.Integer] =
-    ProducerRecord(topic.topicName.name.value, Integer.valueOf(2), Integer.valueOf(2)).withTimestamp(200)
+    ProducerRecord(topic.topicName.value, Integer.valueOf(2), Integer.valueOf(2)).withTimestamp(200)
   val pr3: ProducerRecord[java.lang.Integer, java.lang.Integer] =
-    ProducerRecord(topic.topicName.name.value, Integer.valueOf(3), Integer.valueOf(3)).withTimestamp(300)
+    ProducerRecord(topic.topicName.value, Integer.valueOf(3), Integer.valueOf(3)).withTimestamp(300)
 
   val topicData: Stream[IO, Chunk[RecordMetadata]] =
     Stream(ProducerRecords(List(pr1, pr2, pr3)))

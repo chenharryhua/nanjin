@@ -2,7 +2,6 @@ package mtest.kafka
 
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.AvroTopic
-import eu.timepit.refined.auto.*
 import fs2.kafka.ConsumerRecord
 import org.scalatest.funsuite.AnyFunSuite
 

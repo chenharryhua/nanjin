@@ -8,8 +8,8 @@ final class AvroCodec[A] private (
   val schemaFor: SchemaFor[A],
   val avroDecoder: AvroDecoder[A],
   val avroEncoder: AvroEncoder[A]) {
-    
-  val schema:Schema = schemaFor.schema
+
+  val schema: Schema = schemaFor.schema
 
   private val decoder: Any => A = avroDecoder.decode(schema)
   private val encoder: A => AnyRef = avroEncoder.encode(schema)
@@ -17,7 +17,7 @@ final class AvroCodec[A] private (
   def idConversion(a: A): A = decoder(encoder(a))
 
   def withSchema(schema: Schema): AvroCodec[A] =
-    AvroCodec(schema)(avroDecoder, avroEncoder, schemaFor)
+    AvroCodec(schema)(using avroDecoder, avroEncoder, schemaFor)
 
   def toRecord(value: A): Record = encoder(value) match {
     case record: Record => record
@@ -43,11 +43,11 @@ object AvroCodec {
   def apply[A](sf: SchemaFor[A], dc: AvroDecoder[A], ec: AvroEncoder[A]): AvroCodec[A] =
     new AvroCodec[A](sf, dc, ec)
 
-  def apply[A](implicit dc: AvroDecoder[A], ec: AvroEncoder[A], sf: SchemaFor[A]): AvroCodec[A] =
+  def apply[A](using dc: AvroDecoder[A], ec: AvroEncoder[A], sf: SchemaFor[A]): AvroCodec[A] =
     apply[A](sf, dc, ec)
 
   def apply[A](
-    schema: Schema)(implicit dc: AvroDecoder[A], ec: AvroEncoder[A], sf: SchemaFor[A]): AvroCodec[A] = {
+    schema: Schema)(using dc: AvroDecoder[A], ec: AvroEncoder[A], sf: SchemaFor[A]): AvroCodec[A] = {
     val b = backwardCompatibility(sf.schema, schema)
     val f = forwardCompatibility(sf.schema, schema)
     if (b.isEmpty && f.isEmpty) {
@@ -58,6 +58,6 @@ object AvroCodec {
     }
   }
 
-  def apply[A: AvroDecoder: AvroEncoder: SchemaFor](schemaText: String): AvroCodec[A] =
+  def apply[A: {AvroDecoder, AvroEncoder, SchemaFor}](schemaText: String): AvroCodec[A] =
     apply[A]((new Schema.Parser).parse(schemaText))
 }

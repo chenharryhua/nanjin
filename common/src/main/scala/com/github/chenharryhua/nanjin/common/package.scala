@@ -1,9 +1,5 @@
 package com.github.chenharryhua.nanjin
 
-import eu.timepit.refined.api.{Refined, RefinedTypeOps}
-import eu.timepit.refined.cats.CatsRefinedTypeOpsSyntax
-import eu.timepit.refined.numeric.Positive
-import squants.information.Information
 
 package object common {
   // Simple email validation: checks general "local@domain.tld" format.
@@ -13,13 +9,13 @@ package object common {
   //object EmailAddr extends RefinedTypeOps[EmailAddr, String] with CatsRefinedTypeOpsSyntax
 
   // number of records
-  type ChunkSize = Refined[Int, Positive]
-  object ChunkSize extends RefinedTypeOps[ChunkSize, Int] with CatsRefinedTypeOpsSyntax {
-    def unsafeFromBytes(bytes: Information): ChunkSize = {
-      val b = bytes.toBytes
-      require(b >= 1, s"ChunkSize($b) must be positive")
-      unsafeFrom(b.toInt)
-    }
-    @inline def apply(bufferSize: Information): ChunkSize = unsafeFromBytes(bufferSize)
-  }
+  type ChunkSize = Int //Refined[Int, Positive]
+  // object ChunkSize extends RefinedTypeOps[ChunkSize, Int] with CatsRefinedTypeOpsSyntax {
+  //   def unsafeFromBytes(bytes: Information): ChunkSize = {
+  //     val b = bytes.toBytes
+  //     require(b >= 1, s"ChunkSize($b) must be positive")
+  //     unsafeFrom(b.toInt)
+  //   }
+  //   @inline def apply(bufferSize: Information): ChunkSize = unsafeFromBytes(bufferSize)
+  // }
 }

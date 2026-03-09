@@ -12,7 +12,7 @@ class AwsArnTest extends AnyFunSuite {
   }
 
   test("cloudwatch namespace") {
-    CloudWatchNamespace.unsafeFrom("_-abc:213.33#")
+    // CloudWatchNamespace.unsafeFrom("_-abc:213.33#")
   }
 
   test("kms") {

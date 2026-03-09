@@ -22,9 +22,9 @@ object aws {
   object KmsArn extends RefinedTypeOps[KmsArn, String] with CatsRefinedTypeOpsSyntax
 
   // https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/cloudwatch_concepts.html#Namespace
-  type CloudWatchNamespace = String Refined MatchesRegex["""^[a-zA-Z0-9_.\-#:]+$"""]
+  type CloudWatchNamespace = String // Refined MatchesRegex["""^[a-zA-Z0-9_.\-#:]+$"""]
 
-  object CloudWatchNamespace extends RefinedTypeOps[CloudWatchNamespace, String] with CatsRefinedTypeOpsSyntax
+  //object CloudWatchNamespace extends RefinedTypeOps[CloudWatchNamespace, String] with CatsRefinedTypeOpsSyntax
 
   // https://docs.aws.amazon.com/systems-manager/latest/userguide/systems-manager-parameter-store.html
   final case class ParameterStorePath(value: String, isSecure: Boolean = true) derives Codec.AsObject

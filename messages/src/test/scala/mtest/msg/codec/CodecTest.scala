@@ -2,7 +2,6 @@ package mtest.msg.codec
 
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroCodec, AvroFor, KafkaSerde}
-import eu.timepit.refined.auto.*
 import org.scalatest.funsuite.AnyFunSuite
 
 object CodecTestData {

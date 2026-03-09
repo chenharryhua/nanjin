@@ -1,8 +1,5 @@
 package mtest.msg.codec
 
-import io.circe.generic.auto.*
-import io.circe.jawn.decode
-import io.circe.syntax.*
 import org.scalatest.funsuite.AnyFunSuite
 
 object CoproductJsons {

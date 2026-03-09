@@ -34,7 +34,7 @@ object EmailObserver {
       client = client,
       translator = HtmlTranslator[F],
       isNewestFirst = true,
-      capacity = ChunkSize.unsafeFrom(100),
+      capacity = (100),
       policy = _.fixedDelay(36500.days), // 100 years
       zoneId = ZoneId.systemDefault()
     )
@@ -150,7 +150,7 @@ final class EmailObserver[F[_]] private (
               val send_and_update: F[Unit] = translate(event).flatMap {
                 case Some(ct) =>
                   cache.flatModify { tags =>
-                    if (tags.size < capacity.value)
+                    if (tags.size < capacity)
                       (tags ++ Chunk.singleton(ct)) -> F.unit
                     else
                       Chunk.singleton(ct) -> send_email(tags)

@@ -193,7 +193,6 @@ lazy val frontend = project.in(file("frontend"))
   .enablePlugins(ScalaJSPlugin)
   .settings(name := "nj-frontend")
   .settings(
-    scalacOptions ++= List("-Ymacro-annotations"),
     scalaJSUseMainModuleInitializer := true,
     libraryDependencies ++= List(
       "io.circe" %%% "circe-core"      % circeV,
@@ -368,7 +367,7 @@ val hadoopLib = List(
 ).map(_ % hadoopV)
 
 val kantanLib = List(
-  "com.nrinaudo" %% "kantan.csv",
+  "com.nrinaudo" %% "kantan.csv"
 //  "com.nrinaudo" %% "kantan.csv-java8",
 //  "com.nrinaudo" %% "kantan.csv-generic",
 //  "com.nrinaudo" %% "kantan.csv-cats"

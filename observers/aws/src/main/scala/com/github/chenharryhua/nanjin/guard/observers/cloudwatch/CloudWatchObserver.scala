@@ -140,7 +140,7 @@ final class CloudWatchObserver[F[_]: Async] private (
       mds // https://docs.aws.amazon.com/AmazonCloudWatch/latest/APIReference/API_PutMetricData.html
         .grouped(20)
         .toList
-        .traverse(md => cwc.putMetricData(_.namespace(namespace.value).metricData(md.asJava)).attempt)
+        .traverse(md => cwc.putMetricData(_.namespace(namespace).metricData(md.asJava)).attempt)
         .void
 
     for {

@@ -7,7 +7,7 @@ import cats.syntax.apply.catsSyntaxApplyOps
 import cats.syntax.flatMap.toFlatMapOps
 import cats.syntax.functor.toFunctorOps
 import cats.syntax.traverse.toTraverseOps
-import com.github.chenharryhua.nanjin.common.kafka.{TopicName, TopicNameL}
+import com.github.chenharryhua.nanjin.common.kafka.{TopicName}
 import com.github.chenharryhua.nanjin.guard.config.ServiceId
 import com.github.chenharryhua.nanjin.guard.event.Event
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStart
@@ -17,11 +17,10 @@ import com.github.chenharryhua.nanjin.kafka.{AvroForPair, KafkaContext}
 import com.github.chenharryhua.nanjin.messages.kafka.codec.AvroFor
 import fs2.kafka.ProducerRecord
 import fs2.{Pipe, Stream}
-import io.circe.generic.JsonCodec
 import org.typelevel.log4cats.slf4j.Slf4jLogger
+import io.circe.Codec
 
-@JsonCodec
-final case class EventKey(task: String, service: String)
+final case class EventKey(task: String, service: String) derives Codec.AsObject
 
 object KafkaObserver {
   def apply[F[_]: Async](ctx: KafkaContext[F]): KafkaObserver[F] =
@@ -40,7 +39,7 @@ final class KafkaObserver[F[_]](ctx: KafkaContext[F], translator: Translator[F, 
         .map(
           _.map(evt =>
             ProducerRecord(
-              topicName.name.value,
+              topicName.value,
               AvroFor.KJson(EventKey(evt.serviceParams.taskName.value, evt.serviceParams.serviceName.value)),
               AvroFor.KJson(evt))))
 
@@ -68,7 +67,7 @@ final class KafkaObserver[F[_]](ctx: KafkaContext[F], translator: Translator[F, 
       } yield event
   }
 
-  def observe(topicName: TopicNameL): Pipe[F, Event, Event] =
+  def observe(topicName: String): Pipe[F, Event, Event] =
     observe(TopicName(topicName))
 
   override def updateTranslator(f: Endo[Translator[F, Event]]): KafkaObserver[F] =

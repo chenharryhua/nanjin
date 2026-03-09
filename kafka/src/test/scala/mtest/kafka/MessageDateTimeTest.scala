@@ -6,14 +6,13 @@ import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.kafka.*
 import com.sksamuel.avro4s.Encoder
 import fs2.kafka.ProducerRecord
-import io.circe.generic.JsonCodec
 import org.scalatest.funsuite.AnyFunSuite
-import eu.timepit.refined.auto.*
 
 import java.sql.{Date, Timestamp}
 import java.time.*
 import fs2.Chunk
 import org.apache.kafka.clients.producer.RecordMetadata
+import io.circe.Codec
 
 object DatetimeCase {
 
@@ -29,7 +28,7 @@ object DatetimeCase {
   )
 
   // supported date-time in circe
-  @JsonCodec final case class JsonDateTime(
+  final case class JsonDateTime(
     local: LocalDateTime,
     ld: LocalDate,
     zoned: ZonedDateTime,
@@ -38,7 +37,7 @@ object DatetimeCase {
     // sqlDate: Date,
     // sqlTs: Timestamp,
     dummy: Int = 0
-  )
+  ) derives Codec.AsObject
 
   // supported date-time in avro4s
   final case class AvroDateTime(
@@ -62,7 +61,7 @@ class MessageDateTimeTest extends AnyFunSuite {
     val m = AllJavaDateTime(LocalDateTime.now, LocalDate.now, Instant.ofEpochMilli(Instant.now.toEpochMilli))
     val data: fs2.Stream[IO, Chunk[RecordMetadata]] =
       fs2
-        .Stream(ProducerRecord(topic.topicName.name.value, Integer.valueOf(0), m))
+        .Stream(ProducerRecord(topic.topicName.value, Integer.valueOf(0), m))
         .through(ctx.sharedProduce[Integer, AllJavaDateTime](topic.pair).sink)
     val rst = for {
       _ <- ctx

@@ -3,7 +3,6 @@ package mtest.msg.codec
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import com.github.chenharryhua.nanjin.messages.kafka.codec.{AvroFor, KafkaSerde}
 import io.circe.generic.auto.*
-import eu.timepit.refined.auto.*
 
 final case class PrimitiveTypeCombined(
   a: Int,
