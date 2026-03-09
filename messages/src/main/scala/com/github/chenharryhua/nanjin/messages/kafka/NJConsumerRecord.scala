@@ -13,7 +13,6 @@ import io.circe.{Codec as JsonCodec, Decoder as JsonDecoder, Encoder as JsonEnco
 import io.circe.syntax.EncoderOps
 import io.scalaland.chimney.Transformer
 import io.scalaland.chimney.dsl.*
-import monocle.macros.PLenses
 import org.apache.avro.Schema
 import org.apache.kafka.clients.consumer.ConsumerRecord as JavaConsumerRecord
 import org.apache.kafka.common.header.Header as JavaHeader
@@ -26,7 +25,6 @@ import scala.jdk.OptionConverters.{RichOption, RichOptional}
 @AvroDoc("kafka consumer record, optional Key and optional Value")
 @AvroNamespace("nanjin.kafka")
 @AvroName("NJConsumerRecord")
-@PLenses
 final case class NJConsumerRecord[K, V](
   @AvroDoc("kafka topic name") topic: String,
   @AvroDoc("kafka partition") partition: Int,

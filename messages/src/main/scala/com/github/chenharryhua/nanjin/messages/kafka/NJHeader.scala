@@ -5,15 +5,15 @@ import com.github.chenharryhua.nanjin.messages.ProtoConsumerRecord.ProtoHeader
 import com.google.protobuf.ByteString
 import com.sksamuel.avro4s.{AvroName, AvroNamespace}
 import fs2.kafka.Header
+import io.circe.Codec
 import io.circe.generic.JsonCodec
 import io.scalaland.chimney.Transformer
 import org.apache.kafka.common.header.Header as JavaHeader
 import org.apache.kafka.common.header.internals.RecordHeader
 
-@JsonCodec
 @AvroName("header")
 @AvroNamespace("nanjin.kafka")
-final case class NJHeader(key: String, value: List[Byte])
+final case class NJHeader(key: String, value: List[Byte]) derives Codec.AsObject
 object NJHeader {
   implicit val eqNJHeader: Eq[NJHeader] = cats.derived.semiauto.eq
 

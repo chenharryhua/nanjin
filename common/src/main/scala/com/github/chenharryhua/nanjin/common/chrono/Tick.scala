@@ -1,5 +1,6 @@
 package com.github.chenharryhua.nanjin.common.chrono
 
+import cats.derived.derived
 import cats.effect.kernel.Sync
 import cats.effect.std.{SecureRandom, UUIDGen}
 import cats.syntax.eq.catsSyntaxEq
@@ -191,7 +192,7 @@ object Tick {
   *
   * `TickedValue` forms a lawful `Functor`, mapping over the value while preserving the associated `Tick`.
   */
-final case class TickedValue[A](tick: Tick, value: A) {
+final case class TickedValue[A](tick: Tick, value: A) derives Functor {
   def map[B](f: A => B): TickedValue[B] = copy(value = f(value))
 
   def withSnoozeStretch(delay: Duration): TickedValue[A] =
@@ -213,8 +214,4 @@ object TickedValue {
 
   implicit def showTickedValue[A: Show]: Show[TickedValue[A]] =
     cats.derived.semiauto.show[TickedValue[A]]
-
-  implicit val functorTickedValue: Functor[TickedValue] = new Functor[TickedValue] {
-    override def map[A, B](fa: TickedValue[A])(f: A => B): TickedValue[B] = fa.map(f)
-  }
 }

@@ -10,7 +10,6 @@ import io.confluent.kafka.streams.serdes.avro.{GenericAvroDeserializer, GenericA
 import org.apache.avro.SchemaBuilder
 import org.apache.avro.generic.GenericRecord
 import org.apache.kafka.common.serialization.{Deserializer, Serde, Serdes, Serializer}
-import shapeless.LabelledGeneric
 
 import java.util
 

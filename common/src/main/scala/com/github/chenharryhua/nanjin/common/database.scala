@@ -6,7 +6,7 @@ import eu.timepit.refined.cats.*
 import eu.timepit.refined.collection.{MaxSize, NonEmpty}
 import eu.timepit.refined.string.{Trimmed, Uri}
 import eu.timepit.refined.types.net
-import io.circe.generic.JsonCodec
+import io.circe.Codec
 import io.circe.refined.*
 
 object database {
@@ -28,25 +28,28 @@ object database {
   type Port = net.PortNumber
   final val Port = net.PortNumber
 
-  @JsonCodec final case class Postgres(
+  final case class Postgres(
     username: Username,
     password: Password,
     host: Host,
     port: Port,
     database: DatabaseName)
+      derives Codec.AsObject
 
-  @JsonCodec final case class Redshift(
+  final case class Redshift(
     username: Username,
     password: Password,
     host: Host,
     port: Port,
     database: DatabaseName)
+      derives Codec.AsObject
 
-  @JsonCodec final case class SqlServer(
+  final case class SqlServer(
     username: Username,
     password: Password,
     host: Host,
     port: Port,
     database: DatabaseName)
+      derives Codec.AsObject
 
 }

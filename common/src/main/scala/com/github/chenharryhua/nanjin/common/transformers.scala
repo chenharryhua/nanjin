@@ -1,11 +1,9 @@
 package com.github.chenharryhua.nanjin.common
 
 import cats.arrow.Arrow
-import io.circe.{Decoder, Encoder}
 import io.scalaland.chimney.Transformer
 import io.scalaland.enumz.Enum
 import monocle.Iso
-import shapeless.Witness
 
 import java.sql.Timestamp
 import java.time.Instant
@@ -13,11 +11,6 @@ import java.time.Instant
 object transformers extends TransformersTrait with ReverseTransformers
 
 trait TransformersTrait {
-  implicit def enumCirceEncoder[E <: Enumeration](implicit w: Witness.Aux[E]): Encoder[E#Value] =
-    Encoder.encodeEnumeration(w.value)
-
-  implicit def enumCirceDecoder[E <: Enumeration](implicit w: Witness.Aux[E]): Decoder[E#Value] =
-    Decoder.decodeEnumeration(w.value)
 
   implicit final def str2Enum[E](implicit ev: Enum[E]): Transformer[String, E] =
     (src: String) => ev.withNameInsensitive(src)

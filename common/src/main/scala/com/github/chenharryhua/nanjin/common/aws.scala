@@ -5,7 +5,7 @@ import eu.timepit.refined.api.{Refined, RefinedTypeOps}
 import eu.timepit.refined.cats.*
 import eu.timepit.refined.predicates.all.{And, Not}
 import eu.timepit.refined.string.{EndsWith, MatchesRegex, Url}
-import io.circe.generic.JsonCodec
+import io.circe.Codec
 import io.circe.refined.*
 
 object aws {
@@ -28,11 +28,9 @@ object aws {
   object CloudWatchNamespace extends RefinedTypeOps[CloudWatchNamespace, String] with CatsRefinedTypeOpsSyntax
 
   // https://docs.aws.amazon.com/systems-manager/latest/userguide/systems-manager-parameter-store.html
-  @JsonCodec
-  final case class ParameterStorePath(value: String, isSecure: Boolean = true)
+  final case class ParameterStorePath(value: String, isSecure: Boolean = true) derives Codec.AsObject
 
-  @JsonCodec
-  final case class ParameterStoreContent(value: String)
+  final case class ParameterStoreContent(value: String) derives Codec.AsObject
 
   /** @param from
     *   sender email address
@@ -43,7 +41,6 @@ object aws {
     * @param bcc
     *   optional blind carbon copy recipients
     */
-  @JsonCodec
   final case class EmailContent(
     from: EmailAddr,
     to: NonEmptyList[EmailAddr],
@@ -51,6 +48,7 @@ object aws {
     body: String,
     cc: List[EmailAddr] = List.empty,
     bcc: List[EmailAddr] = List.empty)
+      derives Codec.AsObject
 
   // sqs
 

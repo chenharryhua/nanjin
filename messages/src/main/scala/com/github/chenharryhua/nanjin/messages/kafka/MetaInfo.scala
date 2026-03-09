@@ -2,16 +2,14 @@ package com.github.chenharryhua.nanjin.messages.kafka
 
 import com.github.chenharryhua.nanjin.messages.ProtoConsumerRecord.ProtoConsumerRecord
 import fs2.kafka.{CommittableConsumerRecord, ConsumerRecord as Fs2ConsumerRecord}
-import io.circe.generic.JsonCodec
 import io.scalaland.chimney.dsl.*
 import org.apache.avro.generic.GenericRecord
 import org.apache.kafka.clients.consumer.ConsumerRecord as JavaConsumerRecord
 import org.apache.kafka.clients.producer.RecordMetadata
-
+import io.circe.Codec
 import java.time.{Instant, LocalDateTime, ZoneId, ZonedDateTime}
 import scala.util.Try
 
-@JsonCodec
 final case class MetaInfo(
   topic: String,
   partition: Int,
@@ -20,7 +18,7 @@ final case class MetaInfo(
   timestampType: Option[Int],
   serializedKeySize: Int,
   serializedValueSize: Int
-) {
+) derives Codec.AsObject {
 
   def localDateTime(zoneId: ZoneId): LocalDateTime =
     Instant.ofEpochMilli(timestamp).atZone(zoneId).toLocalDateTime
@@ -74,5 +72,5 @@ object MetaInfo {
     )
 }
 
-@JsonCodec
 final case class ZonedMetaInfo(topic: String, partition: Int, offset: Long, timestamp: ZonedDateTime)
+    derives Codec.AsObject

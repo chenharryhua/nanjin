@@ -9,10 +9,8 @@ import cats.syntax.traverse.toTraverseOps
 import com.github.chenharryhua.nanjin.common.chrono.{Policy, PolicyTick}
 import fs2.{Chunk, Pull, Stream}
 import io.circe.Json
-import io.circe.generic.JsonCodec
 import io.circe.jawn.*
 import io.circe.syntax.EncoderOps
-import monocle.macros.Lenses
 import org.typelevel.log4cats.Logger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import software.amazon.awssdk.services.sqs.model.*
@@ -23,6 +21,7 @@ import java.time.ZoneId
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.ListHasAsScala
 import scala.jdk.DurationConverters.JavaDurationOps
+import io.circe.Codec
 
 /** Represents a single SQS message along with metadata for batch processing.
   *
@@ -176,13 +175,12 @@ object SimpleQueueService {
 }
 
 object sqsS3Parser {
-  @JsonCodec
-  final case class S3Path(bucket: String, key: String) {
+
+  final case class S3Path(bucket: String, key: String) derives Codec.AsObject {
     val url: String = s"s3://$bucket/$key"
   }
 
-  @JsonCodec @Lenses
-  final case class SqsS3File(path: S3Path, size: Long, messageId: String, queueUrl: String)
+  final case class SqsS3File(path: S3Path, size: Long, messageId: String, queueUrl: String) derives Codec.AsObject
 
   /** `https://docs.aws.amazon.com/AmazonS3/latest/userguide/notification-content-structure.html`
     */

@@ -1,5 +1,5 @@
-ThisBuild / version      := "0.20.7-SNAPSHOT"
-ThisBuild / scalaVersion := "2.13.18"
+ThisBuild / version      := "0.20.9-SNAPSHOT"
+ThisBuild / scalaVersion := "3.3.7"
 
 ThisBuild / versionScheme := Some("early-semver")
 
@@ -13,11 +13,11 @@ Global / parallelExecution := false
 // ==========================
 val acyclicV = "0.3.20"
 val avroV = "1.12.1"
-val avro4sV = "4.1.2"
+val avro4sV = "5.0.15"
 val awsV = "2.42.8"
 val caffeineV = "3.2.3"
 val catsCoreV = "2.13.0"
-val catsEffectV = "3.6.3"
+val catsEffectV = "3.7.0"
 val chimneyV = "1.9.0"
 val circeV = "0.14.15"
 val confluentV = "8.2.0"
@@ -31,7 +31,7 @@ val fs2V = "3.12.2"
 val hadoopV = "3.4.3"
 val http4sV = "0.23.33"
 val jacksonV = "2.21.1"
-val kantanV = "0.8.0"
+val kantanV = "0.11.0"
 val log4catsV = "2.7.1"
 val logbackV = "1.5.32"
 val metricsV = "4.2.38"
@@ -41,7 +41,7 @@ val nettyV = "4.2.10.Final"
 val parquetV = "1.17.0"
 val postgresV = "42.7.10"
 val refinedV = "0.11.3"
-val shapelessV = "2.3.13"
+val shapelessV = "3.5.0"
 val skunkV = "0.6.5"
 val slf4jV = "2.0.17"
 val sparkV = "4.1.1"
@@ -50,26 +50,18 @@ lazy val commonSettings = List(
   organization       := "com.github.chenharryhua",
   evictionErrorLevel := Level.Info,
   resolvers += "Confluent Maven Repo".at("https://packages.confluent.io/maven/"),
-  addCompilerPlugin(("org.typelevel" %% "kind-projector" % "0.13.4").cross(CrossVersion.full)),
-  addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.1"),
+//  addCompilerPlugin(("org.typelevel" %% "kind-projector" % "0.13.4").cross(CrossVersion.full)),
+//  addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.1"),
   addCompilerPlugin(("com.lihaoyi" %% "acyclic" % acyclicV).cross(CrossVersion.full)),
   libraryDependencies ++= List(
-    "org.scala-lang"            % "scala-reflect"                    % scalaVersion.value % Runtime,
-    "org.scala-lang"            % "scala-compiler"                   % scalaVersion.value % Runtime,
+//    "org.scala-lang"            % "scala-reflect"                    % scalaVersion.value % Runtime,
+//    "org.scala-lang"            % "scala-compiler"                   % scalaVersion.value % Runtime,
     ("com.lihaoyi" %% "acyclic" % acyclicV).cross(CrossVersion.full) % Runtime
   ),
   dependencyUpdatesFilter := { _.organization != "org.scala-lang" },
   scalacOptions ++= List(
-    "-Ymacro-annotations",
-    "-deprecation",
-    "-feature",
-    "-unchecked",
-    "-Xsource:3",
-    "-Xsource-features:case-apply-copy-access",
     "-Wconf:src=src_managed/.*:silent",
     "-Wtostring-interpolated",
-    "-Wunused:imports",
-    "-Vcyclic",
     "-P:acyclic:warn"
   ),
 
@@ -90,20 +82,20 @@ lazy val commonSettings = List(
 )
 
 val testLib = List(
-  "org.typelevel" %% "cats-effect-testing-scalatest"          % "1.7.0",
-  "org.typelevel" %% "cats-effect-testkit"                    % catsEffectV,
-  "org.typelevel" %% "cats-testkit-scalatest"                 % "2.1.5",
-  "org.typelevel" %% "discipline-scalatest"                   % "2.3.0",
-  "org.typelevel" %% "discipline-munit"                       % "2.0.0",
-  "org.typelevel" %% "cats-laws"                              % catsCoreV,
-  "org.typelevel" %% "algebra-laws"                           % catsCoreV,
-  "org.typelevel" %% "munit-cats-effect"                      % "2.1.0",
-  "com.github.alexarchambault" %% "scalacheck-shapeless_1.15" % "1.3.0",
-  "org.scalatest" %% "scalatest"                              % "3.2.19",
-  "dev.optics" %% "monocle-law"                               % monocleV,
-  "com.47deg" %% "scalacheck-toolbox-datetime"                % "0.7.0",
-  "com.github.pathikrit" %% "better-files"                    % "3.9.2",
-  "io.circe" %% "circe-jawn"                                  % circeV
+  "org.typelevel" %% "cats-effect-testing-scalatest" % "1.7.0",
+  "org.typelevel" %% "cats-effect-testkit"           % catsEffectV,
+  "org.typelevel" %% "cats-testkit-scalatest"        % "2.1.5",
+  "org.typelevel" %% "discipline-scalatest"          % "2.3.0",
+  "org.typelevel" %% "discipline-munit"              % "2.0.0",
+  "org.typelevel" %% "cats-laws"                     % catsCoreV,
+  "org.typelevel" %% "algebra-laws"                  % catsCoreV,
+  "org.typelevel" %% "munit-cats-effect"             % "2.1.0",
+  // "com.github.alexarchambault" %% "scalacheck-shapeless_1.15" % "1.3.0",
+  "org.scalatest" %% "scalatest"               % "3.2.19",
+  "dev.optics" %% "monocle-law"                % monocleV,
+  "com.47deg" %% "scalacheck-toolbox-datetime" % "0.7.0",
+  "com.github.pathikrit" %% "better-files"     % "3.9.2",
+  "io.circe" %% "circe-jawn"                   % circeV
 ).map(_ % Test)
 
 val enumLib = List(
@@ -133,7 +125,7 @@ lazy val common = (project in file("common"))
       "org.typelevel" %% "kittens"                     % "3.5.0",
       "io.scalaland" %% "chimney"                      % chimneyV,
       "io.scalaland" %% "enumz"                        % "1.2.0",
-      "com.chuusai" %% "shapeless"                     % shapelessV,
+      "org.typelevel" %% "shapeless3-deriving"         % shapelessV,
       "io.higherkindness" %% "droste-core"             % drosteV,
       "co.fs2" %% "fs2-core"                           % fs2V,
       "io.circe" %% "circe-core"                       % circeV,
@@ -324,8 +316,7 @@ lazy val database = (project in file("database"))
 // ==========================
 val jacksonLib = List(
   "com.fasterxml.jackson.core" % "jackson-core",
-  "com.fasterxml.jackson.core" % "jackson-databind",
-  "com.fasterxml.jackson.module" %% "jackson-module-scala"
+  "com.fasterxml.jackson.core" % "jackson-databind"
 ).map(_ % jacksonV)
 
 lazy val messages =
@@ -341,7 +332,7 @@ lazy val messages =
           "com.github.fd4s" %% "fs2-kafka"            % fs2KafkaV,
           "com.sksamuel.avro4s" %% "avro4s-core"      % avro4sV,
           "com.thesamet.scalapb" %% "scalapb-runtime" % "0.11.20",
-          "io.circe" %% "circe-shapes"                % circeV % Test,
+          //  "io.circe" %% "circe-shapes"                % circeV % Test,
           // java
           "org.apache.avro" % "avro"                         % avroV,
           "io.confluent"    % "kafka-protobuf-serializer"    % confluentV,
@@ -359,15 +350,14 @@ lazy val kafka = (project in file("kafka"))
   .dependsOn(datetime)
   .settings(commonSettings *)
   .settings(name := "nj-kafka")
-  .settings(
-    libraryDependencies ++= List(
-      ("com.github.fd4s" %% "fs2-kafka"           % fs2KafkaV).exclude("org.apache.kafka", "kafka-clients"),
-      // java
-      "io.confluent"     % "kafka-schema-registry-client" % confluentV,
-      "io.confluent"     % "kafka-schema-serializer"      % confluentV,
-      "org.apache.kafka" % "kafka-streams"                % kafkaV,
-      "ch.qos.logback"   % "logback-classic"              % logbackV % Test
-    ) ++ jacksonLib ++ testLib)
+  .settings(libraryDependencies ++= List(
+    ("com.github.fd4s" %% "fs2-kafka" % fs2KafkaV).exclude("org.apache.kafka", "kafka-clients"),
+    // java
+    "io.confluent"     % "kafka-schema-registry-client" % confluentV,
+    "io.confluent"     % "kafka-schema-serializer"      % confluentV,
+    "org.apache.kafka" % "kafka-streams"                % kafkaV,
+    "ch.qos.logback"   % "logback-classic"              % logbackV % Test
+  ) ++ jacksonLib ++ testLib)
 
 // ==========================
 // Pipes
@@ -389,7 +379,7 @@ val kantanLib = List(
   "com.nrinaudo" %% "kantan.csv-java8",
   "com.nrinaudo" %% "kantan.csv-generic",
   "com.nrinaudo" %% "kantan.csv-cats"
-).map(_ % kantanV)
+).map(_ % kantanV).map(_.cross(CrossVersion.for3Use2_13))
 
 lazy val pipes = (project in file("pipes"))
   .dependsOn(datetime)
@@ -397,8 +387,8 @@ lazy val pipes = (project in file("pipes"))
   .settings(name := "nj-pipes")
   .settings(
     libraryDependencies ++= List(
-      "co.fs2" %% "fs2-io"                        % fs2V,
-      "com.nrinaudo" %% "kantan.csv"              % kantanV,
+      "co.fs2" %% "fs2-io" % fs2V,
+      //  "com.nrinaudo" %% "kantan.csv"              % kantanV,
       "com.indoorvivants" %% "scala-uri"          % "4.2.0",
       "com.thesamet.scalapb" %% "scalapb-runtime" % "0.11.20",
       "io.circe" %% "circe-jawn"                  % circeV,
@@ -413,7 +403,7 @@ lazy val pipes = (project in file("pipes"))
       "org.tukaani"            % "xz"             % "1.12",
       "at.yawk.lz4"            % "lz4-java"       % "1.10.4", // drop-in replacement of org.lz4:lz4-java
       "org.bouncycastle"       % "bcprov-jdk18on" % "1.83" // snyk by hadoop-common
-    ) ++ jacksonLib ++ hadoopLib ++ kantanLib ++ testLib
+    ) ++ jacksonLib ++ hadoopLib ++ testLib
   )
   .settings(dependencyOverrides ++= List(
     "io.airlift"        % "aircompressor"    % "2.0.3", // snyk by parquet-hadoop
@@ -425,35 +415,36 @@ lazy val pipes = (project in file("pipes"))
 // ==========================
 // Spark
 // ==========================
-val sparkLib = List(
-  "org.apache.spark" %% "spark-catalyst",
-  "org.apache.spark" %% "spark-core",
-  "org.apache.spark" %% "spark-sql",
-  "org.apache.spark" %% "spark-avro"
-).map(_ % sparkV).map(_.exclude("org.lz4", "lz4-java"))
-
-lazy val spark = (project in file("spark"))
-  .dependsOn(kafka)
-  .dependsOn(pipes)
-  .dependsOn(database)
-  .settings(commonSettings *)
-  .settings(name := "nj-spark")
-  .settings(
-    libraryDependencies ++= List(
-      "com.julianpeeters" %% "avrohugger-core" % "2.16.2" % Test,
-      "io.circe" %% "circe-shapes"             % circeV   % Test,
-      // java
-      "org.apache.avro" % "avro-mapred"     % avroV,
-      "ch.qos.logback"  % "logback-classic" % logbackV  % Test,
-      "org.postgresql"  % "postgresql"      % postgresV % Test
-    ) ++ jacksonLib ++ sparkLib ++ testLib
-  )
-  .settings(dependencyOverrides ++= List(
-    "org.eclipse.jetty"        % "jetty-server"     % "12.1.7", // snyk by hadoop-common
-    "io.netty"                 % "netty-codec-http" % nettyV, // snyk by spark-sql
-    "org.apache.logging.log4j" % "log4j-core"       % "2.25.3", // snyk by spark-sql
-    "io.airlift"               % "aircompressor"    % "2.0.3" // snyk by spark-sql
-  ))
+//val sparkLib = List(
+//  "org.apache.spark" %% "spark-catalyst",
+//  "org.apache.spark" %% "spark-core",
+//  "org.apache.spark" %% "spark-sql",
+//  "org.apache.spark" %% "spark-avro"
+//).map(_ % sparkV).map(_.exclude("org.lz4", "lz4-java"))
+//  .map(_.cross(CrossVersion.for3Use2_13))
+//
+//lazy val spark = (project in file("spark"))
+//  .dependsOn(kafka)
+//  .dependsOn(pipes)
+//  .dependsOn(database)
+//  .settings(commonSettings *)
+//  .settings(name := "nj-spark")
+//  .settings(
+//    libraryDependencies ++= List(
+//      "com.julianpeeters" %% "avrohugger-core" % "2.16.2" % Test,
+//      // "io.circe" %% "circe-shapes"             % circeV   % Test,
+//      // java
+//      "org.apache.avro" % "avro-mapred"     % avroV,
+//      "ch.qos.logback"  % "logback-classic" % logbackV  % Test,
+//      "org.postgresql"  % "postgresql"      % postgresV % Test
+//    ) ++ jacksonLib ++ sparkLib ++ testLib
+//  )
+//  .settings(dependencyOverrides ++= List(
+//    "org.eclipse.jetty"        % "jetty-server"     % "12.1.7", // snyk by hadoop-common
+//    "io.netty"                 % "netty-codec-http" % nettyV, // snyk by spark-sql
+//    "org.apache.logging.log4j" % "log4j-core"       % "2.25.3", // snyk by spark-sql
+//    "io.airlift"               % "aircompressor"    % "2.0.3" // snyk by spark-sql
+//  ))
 
 // ==========================
 // Example
@@ -467,7 +458,7 @@ lazy val example = (project in file("example"))
   .dependsOn(pipes)
   .dependsOn(kafka)
   .dependsOn(database)
-  .dependsOn(spark)
+ // .dependsOn(spark)
   .dependsOn(guard)
   .dependsOn(observer_aws)
   .dependsOn(observer_database)
@@ -496,7 +487,7 @@ lazy val nanjin =
       pipes,
       kafka,
       database,
-      spark,
+  //    spark,
       guard,
       observer_aws,
       observer_database,
