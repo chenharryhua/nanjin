@@ -18,15 +18,15 @@ object Counter {
     (_: Long) => F.unit
 
   private class Impl[F[_]: Sync](
-    private[this] val label: MetricLabel,
-    private[this] val metricRegistry: metrics.MetricRegistry,
-    private[this] val isRisk: Boolean,
-    private[this] val name: MetricName)
+    private val label: MetricLabel,
+    private val metricRegistry: metrics.MetricRegistry,
+    private val isRisk: Boolean,
+    private val name: MetricName)
       extends Counter[F] {
 
-    private[this] val F = Sync[F]
+    private val F = Sync[F]
 
-    private[this] lazy val (counter_name: String, counter: metrics.Counter) =
+    private lazy val (counter_name: String, counter: metrics.Counter) =
       if (isRisk) {
         val id = MetricID(label, name, Category.Counter(CounterKind.Risk)).identifier
         (id, metricRegistry.counter(id))

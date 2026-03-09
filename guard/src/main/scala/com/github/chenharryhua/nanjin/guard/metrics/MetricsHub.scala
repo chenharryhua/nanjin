@@ -55,7 +55,7 @@ object MetricsHub {
     dispatcher: Dispatcher[F],
     zoneId: ZoneId)
       extends MetricsHub[F] {
-    private[this] val F = Async[F]
+    private val F = Async[F]
 
     override def counter(name: String, f: Endo[Counter.Builder]): Resource[F, Counter[F]] = {
       val initial: Counter.Builder = new Counter.Builder(isEnabled = true, isRisk = false)

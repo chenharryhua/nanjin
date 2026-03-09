@@ -1,8 +1,8 @@
 package com.github.chenharryhua.nanjin.terminals
 
 import enumeratum.{CatsEnum, CirceEnum, Enum, EnumEntry}
-import io.circe.generic.JsonCodec
 import io.lemonlabs.uri.Url
+import io.circe.Codec
 
 sealed trait RetentionStatus extends EnumEntry
 
@@ -15,5 +15,4 @@ object RetentionStatus
   case object Retained extends RetentionStatus
 }
 
-@JsonCodec
-final case class RetentionFolderStatus(folder: Url, status: RetentionStatus)
+final case class RetentionFolderStatus(folder: Url, status: RetentionStatus) derives Codec.AsObject

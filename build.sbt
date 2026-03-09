@@ -62,6 +62,8 @@ lazy val commonSettings = List(
   scalacOptions ++= List(
     "-Wconf:src=src_managed/.*:silent",
     "-Wtostring-interpolated",
+    "-Yretain-trees",
+    "-Wconf:msg=Implicit parameters should be provided with a `using` clause:s"
 //    "-P:acyclic:warn"
   ),
 

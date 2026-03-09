@@ -34,15 +34,15 @@ object HealthCheck {
     }
 
   private class Impl[F[_]: Async](
-    private[this] val label: MetricLabel,
-    private[this] val metricRegistry: metrics.MetricRegistry,
-    private[this] val timeout: FiniteDuration,
-    private[this] val name: String,
-    private[this] val dispatcher: Dispatcher[F],
-    private[this] val zoneId: ZoneId)
+    private val label: MetricLabel,
+    private val metricRegistry: metrics.MetricRegistry,
+    private val timeout: FiniteDuration,
+    private val name: String,
+    private val dispatcher: Dispatcher[F],
+    private val zoneId: ZoneId)
       extends HealthCheck[F] {
 
-    private[this] val F = Async[F]
+    private val F = Async[F]
 
     override def register(hc: F[Boolean]): Resource[F, Unit] =
       for {

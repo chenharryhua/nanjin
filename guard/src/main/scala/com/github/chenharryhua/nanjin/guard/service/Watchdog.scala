@@ -19,10 +19,10 @@ import scala.jdk.DurationConverters.JavaDurationOps
 final private class Watchdog[F[_]: Async](theService: F[Unit], lifecyclePublisher: LifecyclePublisher[F])
     extends duration {
 
-  private[this] val F = Async[F]
-  private[this] val serviceParams: ServiceParams = lifecyclePublisher.serviceParams
+  private val F = Async[F]
+  private val serviceParams: ServiceParams = lifecyclePublisher.serviceParams
 
-  private[this] def panic(status: PolicyTick[F], ex: Throwable): F[Option[(Unit, PolicyTick[F])]] =
+  private def panic(status: PolicyTick[F], ex: Throwable): F[Option[(Unit, PolicyTick[F])]] =
     F.realTimeInstant.flatMap[Option[(Unit, PolicyTick[F])]] { now =>
       val tickStatus: PolicyTick[F] =
         serviceParams.servicePolicies.restart.threshold match {

@@ -3,7 +3,7 @@ package com.github.chenharryhua.nanjin.guard.translator
 import cats.{Functor, Show}
 import io.circe.{Encoder, Json}
 
-import scala.reflect.runtime.universe.TypeTag
+import scala.reflect.ClassTag
 
 final case class TextEntry(tag: String, text: String) {
   def toPair: (String, String) = (tag, text)
@@ -29,11 +29,11 @@ final class Attribute[A] private (value: A, typeName: String) {
 }
 
 object Attribute {
-  def apply[A](a: A)(implicit tag: TypeTag[A]): Attribute[A] =
-    new Attribute[A](a, tag.tpe.typeSymbol.name.toString)
+  def apply[A](a: A)(implicit tag: ClassTag[A]): Attribute[A] =
+    new Attribute[A](a, tag.runtimeClass.getName)
 
-  def apply[A](oa: Option[A])(implicit tag: TypeTag[A]): Attribute[Option[A]] =
-    new Attribute[Option[A]](oa, tag.tpe.typeSymbol.name.toString)
+  def apply[A](oa: Option[A])(implicit tag: ClassTag[A]): Attribute[Option[A]] =
+    new Attribute[Option[A]](oa, tag.runtimeClass.getName)
 
   implicit val functorAttribute: Functor[Attribute] = new Functor[Attribute] {
     override def map[A, B](fa: Attribute[A])(f: A => B): Attribute[B] = fa.map(f)

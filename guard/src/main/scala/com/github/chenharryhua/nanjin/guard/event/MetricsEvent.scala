@@ -2,14 +2,13 @@ package com.github.chenharryhua.nanjin.guard.event
 
 import cats.Show
 import com.github.chenharryhua.nanjin.common.chrono.{Policy, Tick}
-import io.circe.generic.JsonCodec
+import io.circe.Codec
 
 import java.time.ZonedDateTime
 
 object MetricsEvent {
 
-  @JsonCodec
-  sealed trait Index extends Product {
+  sealed trait Index extends Product derives Codec.AsObject {
     def launchTime: ZonedDateTime
   }
 
@@ -20,8 +19,7 @@ object MetricsEvent {
     }
   }
 
-  @JsonCodec
-  sealed trait Kind extends Product {
+  sealed trait Kind extends Product derives Codec.AsObject {
     def policy: Policy
     final override def toString: String = this.productPrefix
   }

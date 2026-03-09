@@ -22,29 +22,29 @@ object Histogram {
     }
 
   private class Impl[F[_]: Sync](
-    private[this] val label: MetricLabel,
-    private[this] val metricRegistry: metrics.MetricRegistry,
-    private[this] val squants: Squants,
-    private[this] val reservoir: Option[metrics.Reservoir],
-    private[this] val name: MetricName)
+    private val label: MetricLabel,
+    private val metricRegistry: metrics.MetricRegistry,
+    private val squants: Squants,
+    private val reservoir: Option[metrics.Reservoir],
+    private val name: MetricName)
       extends Histogram[F] {
 
-    private[this] val F = Sync[F]
+    private val F = Sync[F]
 
-    private[this] val histogram_name: String =
+    private val histogram_name: String =
       MetricID(
         metricLabel = label,
         metricName = name,
         Category.Histogram(kind = HistogramKind.Histogram, squants = squants)
       ).identifier
 
-    private[this] val supplier: metrics.MetricRegistry.MetricSupplier[metrics.Histogram] = () =>
+    private val supplier: metrics.MetricRegistry.MetricSupplier[metrics.Histogram] = () =>
       reservoir match {
         case Some(value) => new metrics.Histogram(value)
         case None => new metrics.Histogram(new metrics.ExponentiallyDecayingReservoir) // default reservoir
       }
 
-    private[this] lazy val histogram: metrics.Histogram =
+    private lazy val histogram: metrics.Histogram =
       metricRegistry.histogram(histogram_name, supplier)
 
     override def update(num: Long): F[Unit] = F.delay(histogram.update(num))

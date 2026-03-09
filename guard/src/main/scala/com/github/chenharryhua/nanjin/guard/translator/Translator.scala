@@ -8,13 +8,12 @@ import cats.syntax.traverse.toTraverseOps
 import cats.{Applicative, Endo, Functor, FunctorFilter, Monad, Traverse}
 import com.github.chenharryhua.nanjin.guard.event.Event.*
 import com.github.chenharryhua.nanjin.guard.event.{Event, EventPipe}
-import monocle.macros.Lenses
 
 trait UpdateTranslator[F[_], A, B] {
   def updateTranslator(f: Endo[Translator[F, A]]): B
 }
 
-@Lenses final case class Translator[F[_], A](
+final case class Translator[F[_], A](
   serviceStart: Kleisli[OptionT[F, *], ServiceStart, A],
   servicePanic: Kleisli[OptionT[F, *], ServicePanic, A],
   serviceStop: Kleisli[OptionT[F, *], ServiceStop, A],

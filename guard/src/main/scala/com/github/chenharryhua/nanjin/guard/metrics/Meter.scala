@@ -21,22 +21,22 @@ object Meter {
   }
 
   private class Impl[F[_]: Sync](
-    private[this] val label: MetricLabel,
-    private[this] val metricRegistry: metrics.MetricRegistry,
-    private[this] val squants: Squants,
-    private[this] val name: MetricName)
+    private val label: MetricLabel,
+    private val metricRegistry: metrics.MetricRegistry,
+    private val squants: Squants,
+    private val name: MetricName)
       extends Meter[F] {
 
-    private[this] val F = Sync[F]
+    private val F = Sync[F]
 
-    private[this] val meter_name: String =
+    private val meter_name: String =
       MetricID(
         metricLabel = label,
         metricName = name,
         Category.Meter(kind = MeterKind.Meter, squants = squants)
       ).identifier
 
-    private[this] lazy val meter: metrics.Meter = metricRegistry.meter(meter_name)
+    private lazy val meter: metrics.Meter = metricRegistry.meter(meter_name)
 
     override def mark(num: Long): F[Unit] = F.delay(meter.mark(num))
 

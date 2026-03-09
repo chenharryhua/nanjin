@@ -7,7 +7,7 @@ import cats.syntax.flatMap.toFlatMapOps
 import cats.syntax.functor.toFunctorOps
 import cats.syntax.option.catsSyntaxOptionId
 import com.codahale.metrics.MetricRegistry
-import com.comcast.ip4s.IpLiteralSyntax
+import com.comcast.ip4s.{ip, port}
 import com.github.chenharryhua.nanjin.common.UpdateConfig
 import com.github.chenharryhua.nanjin.guard.config.*
 import com.github.chenharryhua.nanjin.guard.event.Event.ReportedEvent
@@ -34,7 +34,7 @@ final private class ServiceGuardImpl[F[_]: Network: Async: Console] private[guar
   config: ServiceConfig[F])
     extends ServiceGuard[F] { self =>
 
-  private[this] val F = Async[F]
+  private val F = Async[F]
 
   override def updateConfig(f: Endo[ServiceConfig[F]]): ServiceGuard[F] =
     new ServiceGuardImpl[F](serviceName, f(config))

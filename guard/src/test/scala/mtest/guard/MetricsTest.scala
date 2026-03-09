@@ -18,7 +18,6 @@ import com.github.chenharryhua.nanjin.guard.event.{
 }
 import com.github.chenharryhua.nanjin.guard.metrics.Meter
 import com.github.chenharryhua.nanjin.guard.service.{ServiceGuard, TaskGuard}
-import io.circe.generic.JsonCodec
 import io.circe.jawn.decode
 import org.scalatest.funsuite.AnyFunSuite
 import squants.information.{Bytes, Information}
@@ -29,7 +28,6 @@ import squants.{Dimensionless, Percent}
 import java.time.{ZoneId, ZonedDateTime}
 import scala.concurrent.duration.DurationInt
 import scala.jdk.DurationConverters.ScalaDurationOps
-@JsonCodec
 final case class SystemInfo(now: ZonedDateTime, on: Boolean, size: Int)
 
 class MetricsTest extends AnyFunSuite {

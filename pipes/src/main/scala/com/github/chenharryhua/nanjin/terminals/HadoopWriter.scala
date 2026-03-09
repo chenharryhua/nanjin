@@ -63,7 +63,7 @@ private object HadoopWriter {
    * output stream based
    */
 
-  private[this] def fileOutputStream(configuration: Configuration, url: Url): OutputStream = {
+  private def fileOutputStream(configuration: Configuration, url: Url): OutputStream = {
     val path: Path = toHadoopPath(url)
     val os: FSDataOutputStream = path.getFileSystem(configuration).create(path, true)
     Option(new CompressionCodecFactory(configuration).getCodec(path)) match {

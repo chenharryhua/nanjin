@@ -66,7 +66,7 @@ class ServiceTest extends AnyFunSuite {
       .map(checkJson)
       .compile
       .toList
-      .unsafeRunSync()
+      .unsafeRunSync().runtimeChecked
 
     assert(s.isInstanceOf[ServiceStart])
     assert(b.isInstanceOf[MetricsSnapshot])

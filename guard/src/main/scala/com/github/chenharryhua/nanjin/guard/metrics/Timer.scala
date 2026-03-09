@@ -36,24 +36,24 @@ object Timer {
     }
 
   private class Impl[F[_]: Sync](
-    private[this] val label: MetricLabel,
-    private[this] val metricRegistry: metrics.MetricRegistry,
-    private[this] val reservoir: Option[metrics.Reservoir],
-    private[this] val name: MetricName
+    private val label: MetricLabel,
+    private val metricRegistry: metrics.MetricRegistry,
+    private val reservoir: Option[metrics.Reservoir],
+    private val name: MetricName
   ) extends Timer[F] {
 
-    private[this] val F = Sync[F]
+    private val F = Sync[F]
 
-    private[this] val timer_name: String =
+    private val timer_name: String =
       MetricID(label, name, Category.Timer(TimerKind.Timer)).identifier
 
-    private[this] val supplier: metrics.MetricRegistry.MetricSupplier[metrics.Timer] = () =>
+    private val supplier: metrics.MetricRegistry.MetricSupplier[metrics.Timer] = () =>
       reservoir match {
         case Some(value) => new metrics.Timer(value)
         case None        => new metrics.Timer(new metrics.ExponentiallyDecayingReservoir) // default reservoir
       }
 
-    private[this] lazy val timer: metrics.Timer = metricRegistry.timer(timer_name, supplier)
+    private lazy val timer: metrics.Timer = metricRegistry.timer(timer_name, supplier)
 
     override def elapsed(num: Long): F[Unit] = F.delay(timer.update(num, TimeUnit.NANOSECONDS))
     override def elapsed(jd: JavaDuration): F[Unit] = F.delay(timer.update(jd))

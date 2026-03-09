@@ -49,7 +49,7 @@ private object documents {
       Attribute(serviceParams.serviceName).snakeJsonEntry,
       Attribute(serviceParams.serviceId).snakeJsonEntry,
       "is_active" -> Json.fromBoolean(active),
-      Attribute(Present(now)).snakeJsonEntry(_.json),
+      Attribute(Present(now)).map(_.json).snakeJsonEntry,
       Attribute(serviceParams.servicePolicies.restart.policy).map(_.show).snakeJsonEntry,
       Attribute(serviceParams.timeZone).snakeJsonEntry,
       Attribute(serviceParams.upTime(now)).map(_.show).snakeJsonEntry,
@@ -144,7 +144,7 @@ private object documents {
     val timezone = Attribute(serviceParams.timeZone).textEntry
     val uptime = Attribute(serviceParams.upTime(now)).textEntry
     val spend = Attribute(Took(took)).textEntry
-    val present = Attribute(Present(now)).textEntry(_.text)
+    val present = Attribute(Present(now)).map(_.text).textEntry
 
     table(
       tr(

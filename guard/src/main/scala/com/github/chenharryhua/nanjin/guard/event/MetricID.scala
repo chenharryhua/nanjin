@@ -6,7 +6,6 @@ import cats.kernel.Eq
 import cats.syntax.apply.catsSyntaxTuple2Semigroupal
 import cats.{Applicative, Hash}
 import enumeratum.{CirceEnum, Enum, EnumEntry}
-import io.circe.generic.JsonCodec
 import io.circe.{Codec, Encoder}
 import monocle.macros.GenPrism
 import squants.{Quantity, UnitOfMeasure}

@@ -3,10 +3,10 @@ package com.github.chenharryhua.nanjin.guard.observers.sns
 import cats.Show
 import cats.derived.auto.show.*
 import com.github.chenharryhua.nanjin.guard.translator.TextEntry
-import io.circe.generic.JsonCodec
 import io.circe.generic.auto.*
 import io.circe.syntax.EncoderOps
 import io.circe.{Encoder, Json}
+import io.circe.Codec
 
 final case class TextField(tag: String, value: String)
 object TextField {
@@ -50,8 +50,7 @@ final case class HeaderSection(text: String) extends Section
 
 final case class Attachment(color: String, blocks: List[Section])
 
-@JsonCodec
-final case class SlackApp(username: String, attachments: List[Attachment]) {
+final case class SlackApp(username: String, attachments: List[Attachment]) derives Codec.AsObject {
   // before first section
   def prependMarkdown(text: String): SlackApp =
     SlackApp(

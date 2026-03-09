@@ -11,7 +11,7 @@ import cats.syntax.functor.toFunctorOps
 import cats.syntax.monadError.catsSyntaxMonadErrorRethrow
 import cats.syntax.show.showInterpolator
 import cats.syntax.traverse.toTraverseOps
-import cats.{ApplicativeError, Endo, MonadError}
+import cats.{ Endo, MonadError}
 import com.github.chenharryhua.nanjin.guard.event.MetricLabel
 import com.github.chenharryhua.nanjin.guard.metrics.{ActiveGauge, MetricsHub}
 import com.github.chenharryhua.nanjin.guard.translator.durationFormatter
@@ -166,7 +166,7 @@ object Batch {
    * Runners
    */
 
-  sealed abstract protected class Runner[F[_]: Async, A] { outer =>
+  sealed abstract protected class Runner[F[_], A] { outer =>
 
     /** rename the job names by apply f
       */

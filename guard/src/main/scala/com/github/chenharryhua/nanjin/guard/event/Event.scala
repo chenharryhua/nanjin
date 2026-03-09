@@ -5,12 +5,11 @@ import com.github.chenharryhua.nanjin.common.chrono.Tick
 import com.github.chenharryhua.nanjin.guard.config.{AlarmLevel, ServiceParams, UpTime}
 import com.github.chenharryhua.nanjin.guard.event.MetricsEvent.Index.{Adhoc, Periodic}
 import com.github.chenharryhua.nanjin.guard.event.MetricsEvent.{Index, Kind}
-import io.circe.generic.JsonCodec
+import io.circe.Codec
 import monocle.macros.{GenLens, GenPrism}
 import monocle.{Optional, Prism}
 
-@JsonCodec
-sealed trait Event extends Product {
+sealed trait Event extends Product derives Codec.AsObject{
   def timestamp: Timestamp // event timestamp - when the event occurs
   def serviceParams: ServiceParams
 
