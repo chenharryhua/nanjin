@@ -7,8 +7,6 @@ import com.google.protobuf.util.JsonFormat
 import io.circe.Encoder as JsonEncoder
 import io.confluent.kafka.schemaregistry.protobuf.ProtobufSchema
 import io.confluent.kafka.serializers.protobuf.{KafkaProtobufDeserializer, KafkaProtobufSerializer}
-import io.estatico.newtype.macros.newtype
-import io.estatico.newtype.ops.toCoercibleIdOps
 import org.apache.kafka.common.serialization.{Deserializer, Serde, Serdes, Serializer}
 import scalapb.{GeneratedMessage, GeneratedMessageCompanion}
 
@@ -21,9 +19,8 @@ sealed trait ProtoFor[A] extends UnregisteredSerde[A] {
 object ProtoFor {
   def apply[A](implicit ev: ProtoFor[A]): ProtoFor[A] = ev
 
-  @newtype final class FromBroker private (val value: DynamicMessage)
+  final class FromBroker private[ProtoFor] (val value: DynamicMessage)
   object FromBroker {
-    def apply(dm: DynamicMessage): FromBroker = dm.coerce
     private val jsonFormat = JsonFormat.printer()
     implicit val jsonEncoderUniversal: JsonEncoder[FromBroker] =
       (a: FromBroker) =>
@@ -82,8 +79,8 @@ object ProtoFor {
 
         override def deserialize(topic: String, data: Array[Byte]): FromBroker =
           Option(deSer.deserialize(topic, data))
-            .map(_.coerce[FromBroker])
-            .getOrElse(null.asInstanceOf[FromBroker]) // scalafix:ok
+            .map(new FromBroker(_))
+            .orNull
 
       }
     }
@@ -94,7 +91,8 @@ object ProtoFor {
    */
 
   implicit def protoForGeneratedMessage[A <: GeneratedMessage](implicit
-    gmc: GeneratedMessageCompanion[A]): ProtoFor[A] = new ProtoFor[A] {
+    gmc: GeneratedMessageCompanion[A],
+    ev: Null <:< A): ProtoFor[A] = new ProtoFor[A] {
     override val isPrimitive: Boolean = false
 
     override val protobufSchema: Option[ProtobufSchema] = new ProtobufSchema(gmc.javaDescriptor).some
@@ -127,7 +125,7 @@ object ProtoFor {
         override def deserialize(topic: String, data: Array[Byte]): A =
           Option(deSer.deserialize(topic, data))
             .map(dm => gmc.parseFrom(dm.toByteArray))
-            .getOrElse(null.asInstanceOf[A]) // scalafix:ok
+            .orNull
 
       }
     }

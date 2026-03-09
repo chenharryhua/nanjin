@@ -26,12 +26,16 @@ class ConsumerApiOffsetRangeTest extends AnyFunSuite {
    *
    */
 
-  val topicDef: AvroTopic[java.lang.Integer, java.lang.Integer] = AvroTopic[java.lang.Integer, java.lang.Integer](TopicName("range.test"))
+  val topicDef: AvroTopic[java.lang.Integer, java.lang.Integer] =
+    AvroTopic[java.lang.Integer, java.lang.Integer](TopicName("range.test"))
   val topic: AvroTopic[java.lang.Integer, java.lang.Integer] = topicDef
 
-  val pr1: ProducerRecord[java.lang.Integer, java.lang.Integer] = ProducerRecord(topic.topicName.name.value, Integer.valueOf(1), Integer.valueOf(1)).withTimestamp(100)
-  val pr2: ProducerRecord[java.lang.Integer, java.lang.Integer] = ProducerRecord(topic.topicName.name.value, Integer.valueOf(2), Integer.valueOf(2)).withTimestamp(200)
-  val pr3: ProducerRecord[java.lang.Integer, java.lang.Integer] = ProducerRecord(topic.topicName.name.value, Integer.valueOf(3), Integer.valueOf(3)).withTimestamp(300)
+  val pr1: ProducerRecord[java.lang.Integer, java.lang.Integer] =
+    ProducerRecord(topic.topicName.name.value, Integer.valueOf(1), Integer.valueOf(1)).withTimestamp(100)
+  val pr2: ProducerRecord[java.lang.Integer, java.lang.Integer] =
+    ProducerRecord(topic.topicName.name.value, Integer.valueOf(2), Integer.valueOf(2)).withTimestamp(200)
+  val pr3: ProducerRecord[java.lang.Integer, java.lang.Integer] =
+    ProducerRecord(topic.topicName.name.value, Integer.valueOf(3), Integer.valueOf(3)).withTimestamp(300)
 
   val topicData: Stream[IO, Chunk[RecordMetadata]] =
     Stream(ProducerRecords(List(pr1, pr2, pr3)))

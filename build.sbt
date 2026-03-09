@@ -18,7 +18,7 @@ val awsV = "2.42.8"
 val caffeineV = "3.2.3"
 val catsCoreV = "2.13.0"
 val catsEffectV = "3.6.3"
-val chimneyV = "1.8.2"
+val chimneyV = "1.9.0"
 val circeV = "0.14.15"
 val confluentV = "8.2.0"
 val kafkaV = "8.2.0-ce"
@@ -125,7 +125,6 @@ lazy val common = (project in file("common"))
   .settings(name := "nj-common")
   .settings(
     libraryDependencies ++= List(
-      "io.estatico" %% "newtype"                       % "0.4.4",
       "com.github.alonsodomin.cron4s" %% "cron4s-core" % cron4sV,
       "org.typelevel" %% "cats-time"                   % "0.6.0",
       "org.typelevel" %% "squants"                     % "1.8.3",
@@ -362,7 +361,6 @@ lazy val kafka = (project in file("kafka"))
   .settings(name := "nj-kafka")
   .settings(
     libraryDependencies ++= List(
-      "org.apache.kafka" %% "kafka-streams-scala" % kafkaV,
       ("com.github.fd4s" %% "fs2-kafka"           % fs2KafkaV).exclude("org.apache.kafka", "kafka-clients"),
       // java
       "io.confluent"     % "kafka-schema-registry-client" % confluentV,

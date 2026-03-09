@@ -16,7 +16,7 @@ import fs2.kafka.*
 import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient
 import io.confluent.kafka.serializers.AbstractKafkaSchemaSerDeConfig
 import org.apache.kafka.common.serialization.Serde
-import org.apache.kafka.streams.scala.StreamsBuilder
+import org.apache.kafka.streams.StreamsBuilder
 
 import scala.util.Try
 
