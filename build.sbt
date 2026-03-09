@@ -31,7 +31,7 @@ val fs2V = "3.12.2"
 val hadoopV = "3.4.3"
 val http4sV = "0.23.33"
 val jacksonV = "2.21.1"
-val kantanV = "0.11.0"
+val kantanV = "0.8.0"
 val log4catsV = "2.7.1"
 val logbackV = "1.5.32"
 val metricsV = "4.2.38"
@@ -50,21 +50,12 @@ lazy val commonSettings = List(
   organization       := "com.github.chenharryhua",
   evictionErrorLevel := Level.Info,
   resolvers += "Confluent Maven Repo".at("https://packages.confluent.io/maven/"),
-//  addCompilerPlugin(("org.typelevel" %% "kind-projector" % "0.13.4").cross(CrossVersion.full)),
-//  addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.1"),
-//  addCompilerPlugin(("com.lihaoyi" %% "acyclic" % acyclicV).cross(CrossVersion.full)),
-  libraryDependencies ++= List(
-//    "org.scala-lang"            % "scala-reflect"                    % scalaVersion.value % Runtime,
-//    "org.scala-lang"            % "scala-compiler"                   % scalaVersion.value % Runtime,
-//    ("com.lihaoyi" %% "acyclic" % acyclicV).cross(CrossVersion.full) % Runtime
-  ),
   dependencyUpdatesFilter := { _.organization != "org.scala-lang" },
   scalacOptions ++= List(
     "-Wconf:src=src_managed/.*:silent",
     "-Wtostring-interpolated",
     "-Yretain-trees",
     "-Wconf:msg=Implicit parameters should be provided with a `using` clause:s"
-//    "-P:acyclic:warn"
   ),
 
   Test / tpolecatExcludeOptions ++=
@@ -378,9 +369,9 @@ val hadoopLib = List(
 
 val kantanLib = List(
   "com.nrinaudo" %% "kantan.csv",
-  "com.nrinaudo" %% "kantan.csv-java8",
-  "com.nrinaudo" %% "kantan.csv-generic",
-  "com.nrinaudo" %% "kantan.csv-cats"
+//  "com.nrinaudo" %% "kantan.csv-java8",
+//  "com.nrinaudo" %% "kantan.csv-generic",
+//  "com.nrinaudo" %% "kantan.csv-cats"
 ).map(_ % kantanV).map(_.cross(CrossVersion.for3Use2_13))
 
 lazy val pipes = (project in file("pipes"))
@@ -405,7 +396,7 @@ lazy val pipes = (project in file("pipes"))
       "org.tukaani"            % "xz"             % "1.12",
       "at.yawk.lz4"            % "lz4-java"       % "1.10.4", // drop-in replacement of org.lz4:lz4-java
       "org.bouncycastle"       % "bcprov-jdk18on" % "1.83" // snyk by hadoop-common
-    ) ++ jacksonLib ++ hadoopLib ++ testLib
+    ) ++ jacksonLib ++ hadoopLib ++ kantanLib ++ testLib
   )
   .settings(dependencyOverrides ++= List(
     "io.airlift"        % "aircompressor"    % "2.0.3", // snyk by parquet-hadoop

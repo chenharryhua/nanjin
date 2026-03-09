@@ -1,7 +1,7 @@
 package com.github.chenharryhua.nanjin.guard.observers.sns
 
 import cats.Endo
-import cats.effect.kernel.{Clock, Concurrent, Resource}
+import cats.effect.kernel.{Clock, Concurrent, Resource, Temporal}
 import cats.syntax.applicativeError.catsSyntaxApplicativeError
 import cats.syntax.flatMap.toFlatMapOps
 import cats.syntax.foldable.toFoldableOps
@@ -9,6 +9,7 @@ import cats.syntax.functor.toFunctorOps
 import cats.syntax.traverse.toTraverseOps
 import com.github.chenharryhua.nanjin.aws.SimpleNotificationService
 import com.github.chenharryhua.nanjin.common.aws.SnsArn
+import com.github.chenharryhua.nanjin.guard.config.ServiceId
 import com.github.chenharryhua.nanjin.guard.event.Event
 import com.github.chenharryhua.nanjin.guard.event.Event.ServiceStart
 import com.github.chenharryhua.nanjin.guard.observers.FinalizeMonitor
@@ -17,10 +18,8 @@ import fs2.{Pipe, Stream}
 import io.circe.syntax.*
 import software.amazon.awssdk.services.sns.model.PublishRequest
 
-import com.github.chenharryhua.nanjin.guard.config.ServiceId
-
 object SlackObserver {
-  def apply[F[_]: Concurrent: Clock](client: Resource[F, SimpleNotificationService[F]]): SlackObserver[F] =
+  def apply[F[_]: Temporal](client: Resource[F, SimpleNotificationService[F]]): SlackObserver[F] =
     new SlackObserver[F](client, SlackTranslator[F])
 }
 
@@ -39,9 +38,9 @@ final class SlackObserver[F[_]: Clock](
     * ServiceStop
     */
   def at(supporters: String): SlackObserver[F] = {
-    val sp = Translator.servicePanic[F, SlackApp].modify(_.map(_.prependMarkdown(supporters)))
-    val st = Translator.serviceStop[F, SlackApp].modify(_.map(_.prependMarkdown(supporters)))
-    new SlackObserver[F](client, translator = sp.andThen(st)(translator))
+//    val sp = Translator.servicePanic[F, SlackApp].modify(_.map(_.prependMarkdown(supporters)))
+//    val st = Translator.serviceStop[F, SlackApp].modify(_.map(_.prependMarkdown(supporters)))
+    new SlackObserver[F](client, translator)
   }
 
   override def updateTranslator(f: Endo[Translator[F, SlackApp]]): SlackObserver[F] =

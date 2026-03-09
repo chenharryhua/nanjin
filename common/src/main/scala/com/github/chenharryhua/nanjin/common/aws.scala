@@ -41,12 +41,12 @@ object aws {
     *   optional blind carbon copy recipients
     */
   final case class EmailContent(
-    from: String,
-    to: NonEmptyList[String],
+    from: EmailAddr,
+    to: NonEmptyList[EmailAddr],
     subject: String,
     body: String,
-    cc: List[String] = List.empty,
-    bcc: List[String] = List.empty)
+    cc: List[EmailAddr] = List.empty,
+    bcc: List[EmailAddr] = List.empty)
       derives Codec.AsObject
 
   // sqs

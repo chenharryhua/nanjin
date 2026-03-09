@@ -2,7 +2,7 @@ package com.github.chenharryhua.nanjin.terminals
 
 import cats.Endo
 import kantan.csv.CsvConfiguration.Header
-import monocle.Monocle.toAppliedFocusOps
+import monocle.Monocle.focus
 import shapeless.ops.hlist.ToTraversable
 import shapeless.ops.record.Keys
 import shapeless.{HList, LabelledGeneric}

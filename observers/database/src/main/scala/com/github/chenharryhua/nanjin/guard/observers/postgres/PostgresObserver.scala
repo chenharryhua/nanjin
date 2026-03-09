@@ -17,7 +17,7 @@ import fs2.{Pipe, Stream}
 import io.circe.Json
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 import skunk.circe.codec.json.json
-import skunk.implicits.toStringOps
+import skunk.implicits.sql
 import skunk.{Command, PreparedCommand, Session}
 
 /** DDL:

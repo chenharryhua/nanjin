@@ -35,7 +35,7 @@ object EmailObserver {
       client = client,
       translator = HtmlTranslator[F],
       isNewestFirst = true,
-      capacity = 100,
+      capacity = ChunkSize.unsafeFrom(100),
       policy = _.fixedDelay(36500.days), // 100 years
       zoneId = ZoneId.systemDefault()
     )
@@ -50,7 +50,7 @@ final class EmailObserver[F[_]] private (
   zoneId: ZoneId)(implicit F: Async[F])
     extends UpdateTranslator[F, Text.TypedTag[String], EmailObserver[F]] {
 
-  private[this] def copy(
+  private def copy(
     isNewestFirst: Boolean = this.isNewestFirst,
     capacity: ChunkSize = this.capacity,
     policy: Policy.type => Policy = this.policy,
@@ -113,7 +113,7 @@ final class EmailObserver[F[_]] private (
       } else {
         val text =
           p(b(
-            s"Message body size exceeds ${maximumMessageSize.toString()}, which contains ${data.size} events."))
+            s"Message body size exceeds ${maximumMessageSize.value.toString()}, which contains ${data.size} events."))
         val msg = html(header, body(letter.notice, text)).render
         EmailContent(from, to, subject, msg)
       }

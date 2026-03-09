@@ -3,7 +3,7 @@ package mtest.guard
 import cats.data.Kleisli
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
-import com.comcast.ip4s.IpLiteralSyntax
+import com.comcast.ip4s.port
 import com.github.chenharryhua.nanjin.common.chrono.zones.londonTime
 import com.github.chenharryhua.nanjin.guard.event.Event.{ServiceStart, ServiceStop}
 import com.github.chenharryhua.nanjin.guard.event.StopReason.Maintenance

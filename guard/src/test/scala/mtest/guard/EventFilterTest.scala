@@ -6,7 +6,6 @@ import com.github.chenharryhua.nanjin.common.chrono.zones.sydneyTime
 import com.github.chenharryhua.nanjin.common.chrono.{crontabs, tickStream, Policy}
 import com.github.chenharryhua.nanjin.guard.event.Event.{MetricsSnapshot, ServiceStart, ServiceStop}
 import com.github.chenharryhua.nanjin.guard.service.{ServiceGuard, TaskGuard}
-import eu.timepit.refined.auto.*
 import org.scalatest.funsuite.AnyFunSuite
 
 import java.time.Duration
