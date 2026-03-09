@@ -47,11 +47,11 @@ final case class SkunkSession[F[_]](
     implicit val tc: Trace[F] = trace.getOrElse(natchez.Trace.Implicits.noop)
     Session
       .pooled(
-        host = postgres.host.value,
-        port = postgres.port.value,
-        user = postgres.username.value,
-        database = postgres.database.value,
-        password = Some(postgres.password.value),
+        host = postgres.host,
+        port = postgres.port,
+        user = postgres.username,
+        database = postgres.database,
+        password = Some(postgres.password),
         max = max,
         debug = debug,
         strategy = strategy,
@@ -69,11 +69,11 @@ final case class SkunkSession[F[_]](
   def single(implicit C: Temporal[F], N: Network[F], S: Console[F]): Resource[F, Session[F]] = {
     implicit val tc: Trace[F] = trace.getOrElse(natchez.Trace.Implicits.noop)
     Session.single(
-      host = postgres.host.value,
-      port = postgres.port.value,
-      user = postgres.username.value,
-      database = postgres.database.value,
-      password = Some(postgres.password.value),
+      host = postgres.host,
+      port = postgres.port,
+      user = postgres.username,
+      database = postgres.database,
+      password = Some(postgres.password),
       debug = debug,
       strategy = strategy,
       ssl = ssl,

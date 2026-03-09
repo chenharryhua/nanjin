@@ -15,7 +15,7 @@ import io.lemonlabs.uri.typesafe.dsl.*
 import org.apache.avro.generic.GenericRecord
 import org.scalatest.Assertion
 import org.scalatest.funsuite.AnyFunSuite
-
+import io.github.iltotore.iron.*
 import java.time.ZoneId
 import scala.concurrent.duration.{DurationDouble, DurationInt}
 import scala.util.Try

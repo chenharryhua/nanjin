@@ -8,7 +8,7 @@ import org.scalatest.funsuite.AnyFunSuite
 import software.amazon.awssdk.core.SdkBytes
 import software.amazon.awssdk.services.ses.SesClient
 import software.amazon.awssdk.services.ses.model.*
-
+import io.github.iltotore.iron.*
 class SimpleEmailServiceIOSpec extends AnyFunSuite {
 
   // Fake SES client for testing
@@ -69,8 +69,8 @@ class SimpleEmailServiceIOSpec extends AnyFunSuite {
 
   test("send EmailContent returns SendEmailResponse with fake messageId") {
     val content = EmailContent(
-      from = "from@example.com",
-      to = NonEmptyList.one("to@example.com"),
+      from =  ("from@example.com"),
+      to = NonEmptyList.one( ("to@example.com")),
       cc = Nil,
       bcc = Nil,
       subject = "subject",

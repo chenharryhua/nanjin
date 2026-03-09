@@ -44,7 +44,7 @@ final class PostgresObserver[F[_]](session: Resource[F, Session[F]], translator:
     pg.execute(msg).void
 
   def observe(tableName: TableName): Pipe[F, Event, Event] = (events: Stream[F, Event]) => {
-    val cmd: Command[Json] = sql"INSERT INTO #${tableName.value} VALUES ($json)".command
+    val cmd: Command[Json] = sql"INSERT INTO #${tableName} VALUES ($json)".command
     for {
       pg <- Stream.resource(session.evalMap(_.prepare(cmd)))
       log <- Stream.eval(Slf4jLogger.create[F])

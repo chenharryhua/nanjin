@@ -21,7 +21,7 @@ import org.scalatest.Assertion
 import org.scalatest.funsuite.AnyFunSuite
 import org.typelevel.jawn.fs2.JsonStreamSyntax
 import squants.information.InformationConversions.InformationConversions
-
+import io.github.iltotore.iron.*
 import java.time.ZoneId
 import scala.concurrent.duration.{DurationDouble, DurationInt}
 

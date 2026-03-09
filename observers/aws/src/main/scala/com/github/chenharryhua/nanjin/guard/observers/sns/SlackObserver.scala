@@ -47,7 +47,7 @@ final class SlackObserver[F[_]: Clock](
     new SlackObserver[F](client, translator = f(translator))
 
   private def publish(client: SimpleNotificationService[F], snsArn: SnsArn, msg: String): F[Unit] = {
-    val req: PublishRequest.Builder = PublishRequest.builder().topicArn(snsArn.value).message(msg)
+    val req: PublishRequest.Builder = PublishRequest.builder().topicArn(snsArn).message(msg)
     client.publish(req.build()).attempt.void
   }
 

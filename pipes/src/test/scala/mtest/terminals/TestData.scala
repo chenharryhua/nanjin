@@ -5,6 +5,7 @@ import com.sksamuel.avro4s.{Decoder, Encoder, FromRecord, ToRecord}
 import fs2.Stream
 import kantan.csv.generic.*
 import kantan.csv.{RowDecoder, RowEncoder}
+import io.github.iltotore.iron.*
 
 import scala.util.Random
 

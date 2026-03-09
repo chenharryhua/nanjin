@@ -1,9 +1,6 @@
 package com.github.chenharryhua.nanjin.terminals
 
 import cats.syntax.bifunctor.toBifunctorOps
-import cats.syntax.show.toShow
-import eu.timepit.refined.api.Refined
-import eu.timepit.refined.numeric.Interval.Closed
 import io.circe.{Decoder, Encoder, Json}
 import org.apache.avro.file.CodecFactory
 import org.apache.commons.lang3.exception.ExceptionUtils
@@ -100,13 +97,14 @@ object Compression {
       case Lz4_Raw              => Json.fromString(Lz4_Raw.shortName)
       case Brotli               => Json.fromString(Brotli.shortName)
       case Lzo                  => Json.fromString(Lzo.shortName)
-      case c @ Deflate(level)   => Json.fromString(s"${c.shortName}-${level.value.show}") // hadoop convention
-      case c @ Xz(level)        => Json.fromString(s"${c.shortName}-${level.value.show}")
-      case c @ Zstandard(level) => Json.fromString(s"${c.shortName}-${level.value.show}")
+      case c @ Deflate(level)   => Json.fromString(s"${c.shortName}-${level}") // hadoop convention
+      case c @ Xz(level)        => Json.fromString(s"${c.shortName}-${level}")
+      case c @ Zstandard(level) => Json.fromString(s"${c.shortName}-${level}")
     }
 
-  private def convertLevel(lvl: String): Either[String, Refined[Int, Closed[1, 9]]] =
-    Try(lvl.toInt).toEither.leftMap(ExceptionUtils.getMessage).flatMap(NJCompressionLevel.from)
+  private def convertLevel(lvl: String): Either[String, NJCompressionLevel] =
+    Try(lvl.toInt).toEither.leftMap(ExceptionUtils.getMessage)
+      .flatMap(NJCompressionLevel.either)
 
   implicit final val decoderNJCompression: Decoder[Compression] =
     Decoder[String].emap[Compression] {

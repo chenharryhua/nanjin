@@ -24,9 +24,9 @@ final case class AvroTopic[K, V] private (topicName: TopicName, pair: AvroForPai
 
   override def toString: String = topicName.value
 
-  def withTopicName(tn: String): AvroTopic[K, V] = new AvroTopic[K, V](TopicName(tn), pair)
+  def withTopicName(tn: String): AvroTopic[K, V] = new AvroTopic[K, V](TopicName.applyUnsafe(tn), pair)
   def modifyTopicName(f: Endo[String]): AvroTopic[K, V] =
-    withTopicName(TopicName(f(topicName.value)).name)
+    withTopicName(f(topicName.value))
 
   def producerRecord(k: K, v: V): ProducerRecord[K, V] = ProducerRecord(topicName.value, k, v)
 
@@ -57,8 +57,6 @@ object AvroTopic {
   def apply[K: AvroFor, V: AvroFor](topicName: TopicName): AvroTopic[K, V] =
     apply[K, V](AvroFor[K], AvroFor[V], topicName)
 
-  def apply[K: AvroFor, V: AvroFor](topicName: String): AvroTopic[K, V] =
-    apply[K, V](TopicName(topicName))
 }
 
 final case class ProtoTopic[K, V] private (topicName: TopicName, pair: ProtoForPair[K, V])
@@ -87,8 +85,6 @@ object ProtoTopic {
   def apply[K: ProtoFor, V: ProtoFor](topicName: TopicName): ProtoTopic[K, V] =
     apply[K, V](ProtoFor[K], ProtoFor[V], topicName)
 
-  def apply[K: ProtoFor, V: ProtoFor](topicName: String): ProtoTopic[K, V] =
-    apply[K, V](TopicName(topicName))
 }
 
 final case class JsonTopic[K, V] private (topicName: TopicName, pair: JsonForPair[K, V])
@@ -115,6 +111,4 @@ object JsonTopic {
   def apply[K: JsonFor, V: JsonFor](topicName: TopicName): JsonTopic[K, V] =
     apply[K, V](JsonFor[K], JsonFor[V], topicName)
 
-  def apply[K: JsonFor, V: JsonFor](topicName: String): JsonTopic[K, V] =
-    apply[K, V](TopicName(topicName))
 }

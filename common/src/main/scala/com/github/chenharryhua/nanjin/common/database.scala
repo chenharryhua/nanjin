@@ -1,32 +1,24 @@
 package com.github.chenharryhua.nanjin.common
 
-import eu.timepit.refined.api.{Refined, RefinedTypeOps}
-import eu.timepit.refined.boolean.And
-import eu.timepit.refined.cats.*
-import eu.timepit.refined.collection.{MaxSize, NonEmpty}
-import eu.timepit.refined.string.{Trimmed, Uri}
-import eu.timepit.refined.types.net
-import io.circe.Codec
-import io.circe.refined.*
+import io.github.iltotore.iron.constraint.all.{Blank, ValidURL}
+import io.github.iltotore.iron.constraint.any.DescribedAs
+import io.github.iltotore.iron.constraint.collection.MaxLength
+import io.github.iltotore.iron.constraint.numeric.Positive
+import io.github.iltotore.iron.constraint.string.Trimmed
+import io.github.iltotore.iron.{:|, Not}
 
 object database {
-  type Username = String Refined And[NonEmpty, Trimmed]
-  object Username extends RefinedTypeOps[Username, String] with CatsRefinedTypeOpsSyntax
+  type Username = String :| DescribedAs[Not[Blank] & Trimmed, ""]
 
-  type Password = String Refined And[NonEmpty, Trimmed]
-  object Password extends RefinedTypeOps[Password, String] with CatsRefinedTypeOpsSyntax
+  type Password = String :| DescribedAs[Not[Blank] & Trimmed, ""]
 
-  type DatabaseName = String Refined And[NonEmpty, MaxSize[128]]
-  object DatabaseName extends RefinedTypeOps[DatabaseName, String] with CatsRefinedTypeOpsSyntax
+  type DatabaseName = String :| DescribedAs[Not[Blank] & MaxLength[128], ""]
 
-  type TableName = String Refined And[NonEmpty, MaxSize[128]]
-  object TableName extends RefinedTypeOps[TableName, String] with CatsRefinedTypeOpsSyntax
+  type TableName = String :| DescribedAs[Not[Blank] & MaxLength[128], ""]
 
-  type Host = String Refined Uri
-  object Host extends RefinedTypeOps[Host, String] with CatsRefinedTypeOpsSyntax
+  type Host = String :| ValidURL
 
-  type Port = net.PortNumber
-  final val Port = net.PortNumber
+  type Port = Int :| Positive
 
   final case class Postgres(
     username: Username,
@@ -34,7 +26,6 @@ object database {
     host: Host,
     port: Port,
     database: DatabaseName)
-      derives Codec.AsObject
 
   final case class Redshift(
     username: Username,
@@ -42,7 +33,6 @@ object database {
     host: Host,
     port: Port,
     database: DatabaseName)
-      derives Codec.AsObject
 
   final case class SqlServer(
     username: Username,
@@ -50,6 +40,5 @@ object database {
     host: Host,
     port: Port,
     database: DatabaseName)
-      derives Codec.AsObject
 
 }

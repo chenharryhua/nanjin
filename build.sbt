@@ -95,11 +95,6 @@ val enumLib = List(
   "com.beachape" %% "enumeratum-circe"
 ).map(_ % enumeratumV)
 
-val refinedLib = List(
-  "eu.timepit" %% "refined",
-  "eu.timepit" %% "refined-cats"
-).map(_ % refinedV)
-
 // ==========================
 // Common
 // ==========================
@@ -120,9 +115,11 @@ lazy val common = (project in file("common"))
       "io.circe" %% "circe-core"                       % circeV,
       "io.circe" %% "circe-generic"                    % circeV,
       "dev.optics" %% "monocle-macro"                  % monocleV,
+      "io.github.iltotore" %% "iron"                   % "3.3.0",
+      "io.github.iltotore" %% "iron-circe"             % "3.3.0",
       // java
       "org.apache.commons" % "commons-lang3" % "3.20.0"
-    ) ++ enumLib ++ refinedLib ++ testLib
+    ) ++ enumLib ++ testLib
   )
 
 // ==========================

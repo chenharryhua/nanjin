@@ -67,9 +67,6 @@ final class KafkaObserver[F[_]](ctx: KafkaContext[F], translator: Translator[F, 
       } yield event
   }
 
-  def observe(topicName: String): Pipe[F, Event, Event] =
-    observe(TopicName(topicName))
-
   override def updateTranslator(f: Endo[Translator[F, Event]]): KafkaObserver[F] =
     new KafkaObserver(ctx, f(translator))
 }

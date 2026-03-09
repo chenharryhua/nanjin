@@ -7,7 +7,6 @@ import cats.syntax.functor.toFunctorOps
 import cats.syntax.flatMap.toFlatMapOps
 import cats.syntax.monadError.{catsSyntaxMonadError, catsSyntaxMonadErrorRethrow}
 import cats.syntax.option.catsSyntaxOptionId
-import cats.syntax.show.showInterpolator
 import cats.syntax.traverse.toTraverseOps
 import com.github.chenharryhua.nanjin.common.kafka.TopicName
 import io.confluent.kafka.schemaregistry.ParsedSchema
@@ -55,7 +54,7 @@ sealed trait SchemaRegistryApi[F[_]] {
 }
 
 final case class SchemaNotFound(topicName: TopicName, keyOrValue: String, schemaType: String, cause: String)
-    extends Exception(show"$schemaType $keyOrValue schema of $topicName can not be found. cause: $cause")
+    extends Exception(s"$schemaType $keyOrValue schema of $topicName can not be found. cause: $cause")
 final case class DeleteSchemaException(topicName: TopicName, keyOrValue: String, cause: Throwable)
     extends Exception(cause)
 

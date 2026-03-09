@@ -20,6 +20,7 @@ import fs2.{Chunk, Pipe, Pull, Stream}
 import scalatags.Text
 import scalatags.Text.all.*
 import squants.information.{Bytes, Information, Megabytes}
+import io.github.iltotore.iron.autoRefine
 
 import java.time.ZoneId
 import scala.concurrent.duration.DurationInt

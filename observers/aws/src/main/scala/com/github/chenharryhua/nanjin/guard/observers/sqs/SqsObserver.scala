@@ -57,7 +57,7 @@ final class SqsObserver[F[_]: Clock: UUIDGen](
 
   // events order should be preserved
   def observe(url: SqsUrl.Fifo, messageGroupId: String): Pipe[F, Event, Event] =
-    internal(SendMessageRequest.builder().queueUrl(url.value).messageGroupId(messageGroupId))
+    internal(SendMessageRequest.builder().queueUrl(url).messageGroupId(messageGroupId))
 
   override def updateTranslator(f: Endo[Translator[F, Event]]): SqsObserver[F] =
     new SqsObserver[F](client, f(translator))
