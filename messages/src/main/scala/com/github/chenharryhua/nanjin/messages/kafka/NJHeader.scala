@@ -6,7 +6,6 @@ import com.google.protobuf.ByteString
 import com.sksamuel.avro4s.{AvroName, AvroNamespace}
 import fs2.kafka.Header
 import io.circe.Codec
-import io.circe.generic.JsonCodec
 import io.scalaland.chimney.Transformer
 import org.apache.kafka.common.header.Header as JavaHeader
 import org.apache.kafka.common.header.internals.RecordHeader

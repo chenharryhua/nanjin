@@ -38,11 +38,11 @@ class PeriodParserTest extends AnyFunSuite {
   test("should calculate the start date and respect leap year") {
     val today = LocalDate.of(2012, 10, 26)
 
-    val Validated.Valid(p) = period("2 years")
+    val p = period("2 years").toEither.toOption.get
     assert(today.minus(p) == LocalDate.of(2010, 10, 26))
-    val Validated.Valid(p2) = period("2 years 3 month")
+    val (p2) = period("2 years 3 month").toEither.toOption.get
     assert(today.minus(p2) == LocalDate.of(2010, 7, 26))
-    val Validated.Valid(p3) = period("2 years 3 month 6 days")
+    val (p3) = period("2 years 3 month 6 days").toEither.toOption.get
     assert(today.minus(p3) == LocalDate.of(2010, 7, 20))
   }
 }

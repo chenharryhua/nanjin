@@ -18,7 +18,7 @@ sealed trait AvroFor[A] extends UnregisteredSerde[A] {
 }
 
 sealed trait LowerPriority {
-  implicit def avro4sCodec[A: SchemaFor: AvroEncoder: AvroDecoder: LabelledGeneric](implicit
+  implicit def avro4sCodec[A: SchemaFor: AvroEncoder: AvroDecoder](implicit
     ev: Null <:< A): AvroFor[A] =
     AvroFor(AvroCodec[A])
 }
@@ -100,7 +100,7 @@ object AvroFor extends LowerPriority {
     override protected val unregisteredSerde: Serde[FromBroker] = new Serde[FromBroker] {
       override val serializer: Serializer[FromBroker] =
         new Serializer[FromBroker] {
-          private[this] val ser = new GenericAvroSerializer
+          private val ser = new GenericAvroSerializer
 
           override def configure(configs: util.Map[String, ?], isKey: Boolean): Unit =
             ser.configure(configs, isKey)
@@ -112,7 +112,7 @@ object AvroFor extends LowerPriority {
         }
 
       override val deserializer: Deserializer[FromBroker] = new Deserializer[FromBroker] {
-        private[this] val deSer = new GenericAvroDeserializer
+        private val deSer = new GenericAvroDeserializer
 
         override def close(): Unit = deSer.close()
 
@@ -134,11 +134,11 @@ object AvroFor extends LowerPriority {
 
   def apply[A](codec: AvroCodec[A])(implicit ev: Null <:< A): AvroFor[A] = new AvroFor[A] {
     override val isPrimitive: Boolean = false
-    override val avroSchema: Option[AvroSchema] = new AvroSchema(codec.schema).some
+    override val avroSchema: Option[AvroSchema] = new AvroSchema(codec.schemaFor.schema).some
 
     override protected val unregisteredSerde: Serde[A] = new Serde[A] {
       override val serializer: Serializer[A] = new Serializer[A] {
-        private[this] val ser = new GenericAvroSerializer
+        private val ser = new GenericAvroSerializer
         override def configure(configs: util.Map[String, ?], isKey: Boolean): Unit =
           ser.configure(configs, isKey)
 
@@ -149,7 +149,7 @@ object AvroFor extends LowerPriority {
       }
 
       override val deserializer: Deserializer[A] = new Deserializer[A] {
-        private[this] val deSer = new GenericAvroDeserializer
+        private val deSer = new GenericAvroDeserializer
         override def close(): Unit = deSer.close()
 
         override def configure(configs: util.Map[String, ?], isKey: Boolean): Unit =
@@ -170,7 +170,7 @@ object AvroFor extends LowerPriority {
 
     override protected val unregisteredSerde: Serde[KJson[A]] = new Serde[KJson[A]] {
       override val serializer: Serializer[KJson[A]] = new Serializer[KJson[A]] {
-        private[this] val ser = Serdes.ByteBuffer().serializer()
+        private val ser = Serdes.ByteBuffer().serializer()
         private val print = Printer.noSpaces
         override def serialize(topic: String, data: KJson[A]): Array[Byte] =
           Option(data)

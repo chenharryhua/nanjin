@@ -1,39 +1,28 @@
 package com.github.chenharryhua.nanjin.messages.kafka.codec
 
-import com.sksamuel.avro4s.{
-  Codec,
-  Decoder as AvroDecoder,
-  DecoderHelpers,
-  Encoder as AvroEncoder,
-  EncoderHelpers,
-  Record,
-  SchemaFor
-}
+import com.sksamuel.avro4s.{Decoder as AvroDecoder, Encoder as AvroEncoder, Record, SchemaFor}
 import eu.timepit.refined.api.Refined
 import eu.timepit.refined.string.MatchesRegex
 import org.apache.avro.Schema
 import org.apache.avro.generic.IndexedRecord
 
 final class AvroCodec[A] private (
-  override val schemaFor: SchemaFor[A],
-  avroDecoder: AvroDecoder[A],
-  avroEncoder: AvroEncoder[A])
-    extends Codec[A] {
+  val schemaFor: SchemaFor[A],
+  val avroDecoder: AvroDecoder[A],
+  val avroEncoder: AvroEncoder[A]) {
+  private val decoder: Any => A = avroDecoder.decode(schemaFor.schema)
+  private val encoder: A => AnyRef = avroEncoder.encode(schemaFor.schema)
 
-  def idConversion(a: A): A = avroDecoder.decode(avroEncoder.encode(a))
+  def idConversion(a: A): A = decoder(encoder(a))
 
   def withSchema(schema: Schema): AvroCodec[A] =
     AvroCodec(schema)(avroDecoder, avroEncoder, schemaFor)
 
-  override def withSchema(schemaFor: SchemaFor[A]): AvroCodec[A] = withSchema(schemaFor.schema)
-  override def encode(value: A): AnyRef = avroEncoder.encode(value)
-  override def decode(value: Any): A = avroDecoder.decode(value)
-
-  def toRecord(value: A): Record = encode(value) match {
+  def toRecord(value: A): Record = encoder(value) match {
     case record: Record => record
     case other          => sys.error(s"${other.getClass.getName} is not com.sksamuel.avro4s.Record")
   }
-  def fromRecord(value: IndexedRecord): A = avroDecoder.decode(value)
+  def fromRecord(value: IndexedRecord): A = decoder(value)
 
   /** https://avro.apache.org/docs/current/spec.html the grammar for a namespace is:
     *
@@ -43,21 +32,18 @@ final class AvroCodec[A] private (
     */
   private type Namespace = MatchesRegex["^[a-zA-Z0-9_.]+$"]
   def withNamespace(namespace: String Refined Namespace): AvroCodec[A] =
-    withSchema(replaceNamespace(schema, namespace.value))
+    withSchema(replaceNamespace(schemaFor.schema, namespace.value))
 
-  def withoutNamespace: AvroCodec[A] = withSchema(removeNamespace(schema))
-  def withoutDefaultField: AvroCodec[A] = withSchema(removeDefaultField(schema))
-  def withoutDoc: AvroCodec[A] = withSchema(removeDocField(schema))
+  def withoutNamespace: AvroCodec[A] = withSchema(removeNamespace(schemaFor.schema))
+  def withoutDefaultField: AvroCodec[A] = withSchema(removeDefaultField(schemaFor.schema))
+  def withoutDoc: AvroCodec[A] = withSchema(removeDocField(schemaFor.schema))
 }
 
 object AvroCodec {
   def apply[A](sf: SchemaFor[A], dc: AvroDecoder[A], ec: AvroEncoder[A]): AvroCodec[A] =
-    new AvroCodec[A](sf, DecoderHelpers.buildWithSchema(dc, sf), EncoderHelpers.buildWithSchema(ec, sf))
+    new AvroCodec[A](sf, dc, ec)
 
-  def apply[A](implicit
-    dc: AvroDecoder[A],
-    ec: AvroEncoder[A],
-    sf: SchemaFor[A]): AvroCodec[A] =
+  def apply[A](implicit dc: AvroDecoder[A], ec: AvroEncoder[A], sf: SchemaFor[A]): AvroCodec[A] =
     apply[A](sf, dc, ec)
 
   def apply[A](
@@ -72,6 +58,6 @@ object AvroCodec {
     }
   }
 
-  def apply[A: AvroDecoder: AvroEncoder: SchemaFor: LabelledGeneric](schemaText: String): AvroCodec[A] =
+  def apply[A: AvroDecoder: AvroEncoder: SchemaFor](schemaText: String): AvroCodec[A] =
     apply[A]((new Schema.Parser).parse(schemaText))
 }

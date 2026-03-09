@@ -4,7 +4,6 @@ import cats.data.NonEmptyList
 import cats.effect.IO
 import cats.effect.unsafe.implicits.global
 import com.github.chenharryhua.nanjin.common.aws.EmailContent
-import eu.timepit.refined.auto.*
 import org.scalatest.funsuite.AnyFunSuite
 import software.amazon.awssdk.core.SdkBytes
 import software.amazon.awssdk.services.ses.SesClient

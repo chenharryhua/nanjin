@@ -21,7 +21,7 @@ object DurationFormatter {
 
   final private class Formatter(maxParts: Int) extends DurationFormatter {
 
-    private[this] val units: List[(ScalaDuration, String)] = List(
+    private val units: List[(ScalaDuration, String)] = List(
       1.day -> "day",
       1.hour -> "hour",
       1.minute -> "minute",

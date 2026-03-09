@@ -10,16 +10,15 @@ import fs2.Stream
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.prop.Configuration
 import org.typelevel.discipline.scalatest.FunSuiteDiscipline
-import eu.timepit.refined.auto.*
 
 class DoobieMetaTest extends AnyFunSuite with FunSuiteDiscipline with Configuration {
 
   val postgres: Postgres =
-    Postgres(Username("unknown"), Password("unknown"), Host("localhost"), 5432, DatabaseName("postgres"))
+    Postgres(Username.unsafeFrom("unknown"), Password.unsafeFrom("unknown"), Host.unsafeFrom("localhost"), Port.unsafeFrom(5432), DatabaseName.unsafeFrom("postgres"))
 
   test("setter") {
-    val username: Username = Username("postgres")
-    val password: Password = Password("postgres")
+    val username: Username = Username.unsafeFrom("postgres")
+    val password: Password = Password.unsafeFrom("postgres")
     val nj = DBConfig(postgres)
       .set(_.setUsername("superceded by last update"))
       .set(_.setUsername(username.value))

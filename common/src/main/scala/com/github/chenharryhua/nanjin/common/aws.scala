@@ -6,7 +6,6 @@ import eu.timepit.refined.cats.*
 import eu.timepit.refined.predicates.all.{And, Not}
 import eu.timepit.refined.string.{EndsWith, MatchesRegex, Url}
 import io.circe.Codec
-import io.circe.refined.*
 
 object aws {
   type IamArn = String Refined MatchesRegex["^arn:(aws[a-zA-Z-]*)?:iam::\\d{12}:role/[A-Za-z0-9-]+$"]
@@ -42,12 +41,12 @@ object aws {
     *   optional blind carbon copy recipients
     */
   final case class EmailContent(
-    from: EmailAddr,
-    to: NonEmptyList[EmailAddr],
+    from: String,
+    to: NonEmptyList[String],
     subject: String,
     body: String,
-    cc: List[EmailAddr] = List.empty,
-    bcc: List[EmailAddr] = List.empty)
+    cc: List[String] = List.empty,
+    bcc: List[String] = List.empty)
       derives Codec.AsObject
 
   // sqs

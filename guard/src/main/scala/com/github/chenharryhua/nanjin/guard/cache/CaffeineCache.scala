@@ -10,9 +10,9 @@ import cats.syntax.functor.toFunctorOps
 import cats.syntax.monadError.catsSyntaxMonadErrorRethrow
 import com.github.benmanes.caffeine.cache.Cache
 import com.github.benmanes.caffeine.cache.stats.CacheStats
-import io.circe.generic.JsonCodec
 
 import scala.jdk.CollectionConverters.MapHasAsJava
+import io.circe.Codec
 
 trait CaffeineCache[F[_], K, V] {
   def getIfPresent(key: K): F[Option[V]]
@@ -31,8 +31,7 @@ trait CaffeineCache[F[_], K, V] {
 }
 
 object CaffeineCache {
-  @JsonCodec
-  final case class Stats(hits: Long, misses: Long, cached: Long, inFlights: Int)
+  final case class Stats(hits: Long, misses: Long, cached: Long, inFlights: Int) derives Codec.AsObject
 
   private object Stats {
 

@@ -1,5 +1,5 @@
 ThisBuild / version      := "0.20.9-SNAPSHOT"
-ThisBuild / scalaVersion := "3.3.7"
+ThisBuild / scalaVersion := "3.8.2"
 
 ThisBuild / versionScheme := Some("early-semver")
 
@@ -52,22 +52,21 @@ lazy val commonSettings = List(
   resolvers += "Confluent Maven Repo".at("https://packages.confluent.io/maven/"),
 //  addCompilerPlugin(("org.typelevel" %% "kind-projector" % "0.13.4").cross(CrossVersion.full)),
 //  addCompilerPlugin("com.olegpy" %% "better-monadic-for" % "0.3.1"),
-  addCompilerPlugin(("com.lihaoyi" %% "acyclic" % acyclicV).cross(CrossVersion.full)),
+//  addCompilerPlugin(("com.lihaoyi" %% "acyclic" % acyclicV).cross(CrossVersion.full)),
   libraryDependencies ++= List(
 //    "org.scala-lang"            % "scala-reflect"                    % scalaVersion.value % Runtime,
 //    "org.scala-lang"            % "scala-compiler"                   % scalaVersion.value % Runtime,
-    ("com.lihaoyi" %% "acyclic" % acyclicV).cross(CrossVersion.full) % Runtime
+//    ("com.lihaoyi" %% "acyclic" % acyclicV).cross(CrossVersion.full) % Runtime
   ),
   dependencyUpdatesFilter := { _.organization != "org.scala-lang" },
   scalacOptions ++= List(
     "-Wconf:src=src_managed/.*:silent",
     "-Wtostring-interpolated",
-    "-P:acyclic:warn"
+//    "-P:acyclic:warn"
   ),
 
   Test / tpolecatExcludeOptions ++=
-    org.typelevel.scalacoptions.ScalacOptions.lintOptions
-      .filterNot(_.option.startsWith("-Xlint:kind-projector")) +
+    org.typelevel.scalacoptions.ScalacOptions.lintOptions +
       org.typelevel.scalacoptions.ScalacOptions.warnNonUnitStatement,
 
   Test / classLoaderLayeringStrategy := ClassLoaderLayeringStrategy.Flat,
@@ -316,7 +315,8 @@ lazy val database = (project in file("database"))
 // ==========================
 val jacksonLib = List(
   "com.fasterxml.jackson.core" % "jackson-core",
-  "com.fasterxml.jackson.core" % "jackson-databind"
+  "com.fasterxml.jackson.core" % "jackson-databind",
+  "com.fasterxml.jackson.module" %% "jackson-module-scala"
 ).map(_ % jacksonV)
 
 lazy val messages =
@@ -458,7 +458,7 @@ lazy val example = (project in file("example"))
   .dependsOn(pipes)
   .dependsOn(kafka)
   .dependsOn(database)
- // .dependsOn(spark)
+  // .dependsOn(spark)
   .dependsOn(guard)
   .dependsOn(observer_aws)
   .dependsOn(observer_database)
@@ -487,7 +487,7 @@ lazy val nanjin =
       pipes,
       kafka,
       database,
-  //    spark,
+      //    spark,
       guard,
       observer_aws,
       observer_database,

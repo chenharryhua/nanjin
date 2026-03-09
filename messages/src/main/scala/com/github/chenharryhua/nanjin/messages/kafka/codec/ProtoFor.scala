@@ -58,7 +58,7 @@ object ProtoFor {
 
     override protected val unregisteredSerde: Serde[FromBroker] = new Serde[FromBroker] {
       override val serializer: Serializer[FromBroker] = new Serializer[FromBroker] {
-        private[this] val ser = new KafkaProtobufSerializer[DynamicMessage]
+        private val ser = new KafkaProtobufSerializer[DynamicMessage]
 
         override def configure(configs: util.Map[String, ?], isKey: Boolean): Unit =
           ser.configure(configs, isKey)
@@ -70,7 +70,7 @@ object ProtoFor {
       }
 
       override val deserializer: Deserializer[FromBroker] = new Deserializer[FromBroker] {
-        private[this] val deSer = new KafkaProtobufDeserializer[DynamicMessage]
+        private val deSer = new KafkaProtobufDeserializer[DynamicMessage]
 
         override def configure(configs: util.Map[String, ?], isKey: Boolean): Unit =
           deSer.configure(configs, isKey)

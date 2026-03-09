@@ -98,14 +98,14 @@ object NJConsumerRecord {
   def avroCodec[K, V](keyCodec: AvroCodec[K], valCodec: AvroCodec[V]): AvroCodec[NJConsumerRecord[K, V]] = {
     implicit val schemaForKey: SchemaFor[K] = keyCodec.schemaFor
     implicit val schemaForVal: SchemaFor[V] = valCodec.schemaFor
-    implicit val keyDecoder: Decoder[K] = keyCodec
-    implicit val valDecoder: Decoder[V] = valCodec
-    implicit val keyEncoder: Encoder[K] = keyCodec
-    implicit val valEncoder: Encoder[V] = valCodec
+    implicit val keyDecoder: Decoder[K] = keyCodec.avroDecoder
+    implicit val valDecoder: Decoder[V] = valCodec.avroDecoder
+    implicit val keyEncoder: Encoder[K] = keyCodec.avroEncoder
+    implicit val valEncoder: Encoder[V] = valCodec.avroEncoder
     val s: SchemaFor[NJConsumerRecord[K, V]] = implicitly
     val d: Decoder[NJConsumerRecord[K, V]] = implicitly
     val e: Encoder[NJConsumerRecord[K, V]] = implicitly
-    AvroCodec[NJConsumerRecord[K, V]](s, d.withSchema(s), e.withSchema(s))
+    AvroCodec[NJConsumerRecord[K, V]](s, d, e)
   }
 
   def schema(keySchema: Schema, valSchema: Schema): Schema = {
@@ -113,12 +113,10 @@ object NJConsumerRecord {
     class VAL
     implicit val schemaForKey: SchemaFor[KEY] = new SchemaFor[KEY] {
       override def schema: Schema = keySchema
-      override def fieldMapper: FieldMapper = DefaultFieldMapper
     }
 
     implicit val schemaForVal: SchemaFor[VAL] = new SchemaFor[VAL] {
       override def schema: Schema = valSchema
-      override def fieldMapper: FieldMapper = DefaultFieldMapper
     }
     SchemaFor[NJConsumerRecord[KEY, VAL]].schema
   }
